@@ -1,6 +1,6 @@
 /* This file is tc-sh.h
-   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
-   Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
+   2003 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -24,6 +24,11 @@
 #define TARGET_ARCH bfd_arch_sh
 
 #if ANSI_PROTOTYPES
+/* The type fixS is defined (to struct fix) in write.h, but write.h uses
+   definitions from this file.  To avoid problems with including write.h
+   after the "right" definitions, don't; just forward-declare struct fix
+   here.  */
+struct fix;
 struct segment_info_struct;
 struct internal_reloc;
 #endif
@@ -37,53 +42,64 @@ extern int sh_small;
 /* Don't try to break words.  */
 #define WORKING_DOT_WORD
 
-/* All SH instructions are multiples of 16 bits.  */
-#define DWARF2_LINE_MIN_INSN_LENGTH 2
-
 /* We require .long, et. al., to be aligned correctly.  */
 #define md_cons_align(nbytes) sh_cons_align (nbytes)
-extern void sh_cons_align PARAMS ((int));
+extern void sh_cons_align (int);
 
 /* When relaxing, we need to generate relocations for alignment
    directives.  */
 #define HANDLE_ALIGN(frag) sh_handle_align (frag)
-extern void sh_handle_align PARAMS ((fragS *));
+extern void sh_handle_align (fragS *);
 
 #define MAX_MEM_FOR_RS_ALIGN_CODE (1 + 2)
 
 /* We need to force out some relocations when relaxing.  */
 #define TC_FORCE_RELOCATION(fix) sh_force_relocation (fix)
+extern int sh_force_relocation (struct fix *);
 
-/* The type fixS is defined (to struct fix) in write.h, but write.h uses
-   definitions from this file.  To avoid problems with including write.h
-   after the "right" definitions, don't; just forward-declare struct fix
-   here.  */
-struct fix;
-extern int sh_force_relocation PARAMS ((struct fix *));
+/* This macro decides whether a particular reloc is an entry in a
+   switch table.  It is used when relaxing, because the linker needs
+   to know about all such entries so that it can adjust them if
+   necessary.  */
 
-#ifdef OBJ_ELF
-#define obj_fix_adjustable(fixP) sh_fix_adjustable(fixP)
-struct fix;
-extern boolean sh_fix_adjustable PARAMS ((struct fix *));
-
-/* This arranges for gas/write.c to not apply a relocation if
-   obj_fix_adjustable() says it is not adjustable.  */
-/* ??? fixups with symbols in SEC_MERGE sections are marked with
-   obj_fix_adjustable and have a non-section symbol, as in
-   "vwxyz"+1 in execute/string-opt-6.c .  Maybe the test of
-   (symbol_used_in_reloc_p should be done in the machine-independent code.  */
-#define TC_FIX_ADJUSTABLE(fixP) \
-  (! symbol_used_in_reloc_p (fixP->fx_addsy) && obj_fix_adjustable (fixP))
+#ifdef BFD_ASSEMBLER
+#define SWITCH_TABLE_CONS(FIX) (0)
+#else
+#define SWITCH_TABLE_CONS(FIX)				\
+  ((FIX)->fx_r_type == 0				\
+   && ((FIX)->fx_size == 2				\
+       || (FIX)->fx_size == 1				\
+       || (FIX)->fx_size == 4))
 #endif
 
-#define MD_PCREL_FROM_SECTION(FIXP, SEC) md_pcrel_from_section (FIXP, SEC)
-extern long md_pcrel_from_section PARAMS ((struct fix *, segT));
+#define SWITCH_TABLE(FIX)				\
+  ((FIX)->fx_addsy != NULL				\
+   && (FIX)->fx_subsy != NULL				\
+   && S_GET_SEGMENT ((FIX)->fx_addsy) == text_section	\
+   && S_GET_SEGMENT ((FIX)->fx_subsy) == text_section	\
+   && ((FIX)->fx_r_type == BFD_RELOC_32			\
+       || (FIX)->fx_r_type == BFD_RELOC_16		\
+       || (FIX)->fx_r_type == BFD_RELOC_8		\
+       || SWITCH_TABLE_CONS (FIX)))
+
+#define TC_FORCE_RELOCATION_SUB_SAME(FIX, SEC)		\
+  (! SEG_NORMAL (SEC)					\
+   || TC_FORCE_RELOCATION (FIX)				\
+   || (sh_relax && SWITCH_TABLE (FIX)))
+
+/* Don't complain when we leave fx_subsy around.  */
+#define TC_VALIDATE_FIX_SUB(FIX)			\
+  (sh_relax && SWITCH_TABLE (FIX))
+
+#define MD_PCREL_FROM_SECTION(FIX, SEC) md_pcrel_from_section (FIX, SEC)
+extern long md_pcrel_from_section (struct fix *, segT);
 
 #define IGNORE_NONSTANDARD_ESCAPES
 
 #define LISTING_HEADER \
   (!target_big_endian \
-   ? "Hitachi Super-H GAS Little Endian" : "Hitachi Super-H GAS Big Endian")
+   ? "Renesas / SuperH SH GAS Little Endian" \
+   : "Renesas / SuperH SH GAS Big Endian")
 
 #define md_operand(x)
 
@@ -100,12 +116,12 @@ struct sh_segment_info_type
 
 /* We call a routine to emit a reloc for a label, so that the linker
    can align loads and stores without crossing a label.  */
-extern void sh_frob_label PARAMS ((void));
+extern void sh_frob_label (void);
 #define tc_frob_label(sym) sh_frob_label ()
 
 /* We call a routine to flush pending output in order to output a DATA
    reloc when required.  */
-extern void sh_flush_pending_output PARAMS ((void));
+extern void sh_flush_pending_output (void);
 #define md_flush_pending_output() sh_flush_pending_output ()
 
 #ifdef BFD_ASSEMBLER
@@ -113,14 +129,15 @@ extern void sh_flush_pending_output PARAMS ((void));
 #else
 #define tc_frob_file sh_frob_file
 #endif
-extern void sh_frob_file PARAMS ((void));
+extern void sh_frob_file (void);
+
 
 #ifdef OBJ_COFF
 /* COFF specific definitions.  */
 
 #define DO_NOT_STRIP 0
 
-/* This macro translates between an internal fix and an coff reloc type */
+/* This macro translates between an internal fix and a coff reloc type.  */
 #define TC_COFF_FIX2RTYPE(fix) ((fix)->fx_r_type)
 
 #define BFD_ARCH TARGET_ARCH
@@ -133,8 +150,8 @@ extern void sh_frob_file PARAMS ((void));
 #define TC_RELOC_MANGLE(seg, fix, int, paddr) \
   sh_coff_reloc_mangle ((seg), (fix), (int), (paddr))
 extern void sh_coff_reloc_mangle
-  PARAMS ((struct segment_info_struct *, struct fix *,
-	   struct internal_reloc *, unsigned int));
+  (struct segment_info_struct *, struct fix *,
+   struct internal_reloc *, unsigned int);
 
 #define tc_coff_symbol_emit_hook(a) ; /* not used */
 
@@ -143,7 +160,7 @@ extern void sh_coff_reloc_mangle
 #define TC_KEEP_FX_OFFSET 1
 
 #define TC_COFF_SIZEMACHDEP(frag) tc_coff_sizemachdep(frag)
-extern int tc_coff_sizemachdep PARAMS ((fragS *));
+extern int tc_coff_sizemachdep (fragS *);
 
 #ifdef BFD_ASSEMBLER
 #define SEG_NAME(SEG) segment_name (SEG)
@@ -177,7 +194,7 @@ extern int target_big_endian;
 #endif
 
 #define elf_tc_final_processing sh_elf_final_processing
-extern void sh_elf_final_processing PARAMS ((void));
+extern void sh_elf_final_processing (void);
 
 #define DIFF_EXPR_OK		/* foo-. gets turned into PC relative relocs */
 
@@ -192,12 +209,15 @@ extern void sh_elf_final_processing PARAMS ((void));
    the expression into something we can use.  */
 #define TC_RELOC_GLOBAL_OFFSET_TABLE BFD_RELOC_SH_GOTPC
 
-/* This expression evaluates to false if the relocation is for a local object
-   for which we still want to do the relocation at runtime.  True if we
+#define tc_fix_adjustable(FIX) sh_fix_adjustable(FIX)
+extern bfd_boolean sh_fix_adjustable (struct fix *);
+
+/* Values passed to md_apply_fix3 don't include symbol values.  */
+#define MD_APPLY_SYM_VALUE(FIX) 0
+
+/* This expression evaluates to true if the relocation is for a local object
+   for which we still want to do the relocation at runtime.  False if we
    are willing to perform this relocation while building the .o file.
-   This is only used for pcrel relocations, so GOTOFF does not need to be
-   checked here.  I am not sure if some of the others are ever used with
-   pcrel, but it is easier to be safe than sorry.
 
    We can't resolve references to the GOT or the PLT when creating the
    object file, since these tables are only created by the linker.
@@ -205,28 +225,50 @@ extern void sh_elf_final_processing PARAMS ((void));
    assembler can't compute the appropriate reloc, since its location
    can only be determined at link time.  */
 
-#define TC_RELOC_RTSYM_LOC_FIXUP(FIX)				\
-  ((FIX)->fx_r_type != BFD_RELOC_32_PLT_PCREL			\
-   && (FIX)->fx_r_type != BFD_RELOC_32_GOT_PCREL		\
-   && (FIX)->fx_r_type != BFD_RELOC_SH_GOTPC			\
-   && ((FIX)->fx_addsy == NULL					\
-       || (! S_IS_EXTERNAL ((FIX)->fx_addsy)			\
-	   && ! S_IS_WEAK ((FIX)->fx_addsy)			\
-	   && S_IS_DEFINED ((FIX)->fx_addsy)			\
-	   && ! S_IS_COMMON ((FIX)->fx_addsy))))
+#define TC_FORCE_RELOCATION_LOCAL(FIX)			\
+  (!(FIX)->fx_pcrel					\
+   || (FIX)->fx_plt					\
+   || (FIX)->fx_r_type == BFD_RELOC_32_PLT_PCREL	\
+   || (FIX)->fx_r_type == BFD_RELOC_32_GOT_PCREL	\
+   || (FIX)->fx_r_type == BFD_RELOC_SH_GOTPC		\
+   || TC_FORCE_RELOCATION (FIX))
+
+#define TC_FORCE_RELOCATION_SUB_LOCAL(FIX) (sh_relax && SWITCH_TABLE (FIX))
+
+/* This keeps the subtracted symbol around, for use by PLT_PCREL
+   relocs.  */
+#define TC_FORCE_RELOCATION_SUB_ABS(FIX)		\
+  ((FIX)->fx_r_type == BFD_RELOC_32_PLT_PCREL)
+
+/* Don't complain when we leave fx_subsy around.  */
+#undef TC_VALIDATE_FIX_SUB
+#define TC_VALIDATE_FIX_SUB(FIX)			\
+  ((FIX)->fx_r_type == BFD_RELOC_32_PLT_PCREL		\
+   || (sh_relax && SWITCH_TABLE (FIX)))
 
 #define md_parse_name(name, exprP, nextcharP) \
   sh_parse_name ((name), (exprP), (nextcharP))
-int sh_parse_name PARAMS ((char const *name,
-			   expressionS *exprP,
-			   char *nextchar));
+int sh_parse_name (char const *name, expressionS *exprP, char *nextchar);
 
 #define TC_CONS_FIX_NEW(FRAG, OFF, LEN, EXP) \
   sh_cons_fix_new ((FRAG), (OFF), (LEN), (EXP))
-void sh_cons_fix_new PARAMS ((fragS *, int, int, expressionS *));
+void sh_cons_fix_new (fragS *, int, int, expressionS *);
 
 /* This is used to construct expressions out of @GOTOFF, @PLT and @GOT
    symbols.  The relocation type is stored in X_md.  */
 #define O_PIC_reloc O_md1
+
+#define TARGET_USE_CFIPOP 1
+
+#define tc_cfi_frame_initial_instructions sh_cfi_frame_initial_instructions
+extern void sh_cfi_frame_initial_instructions (void);
+
+#define tc_regname_to_dw2regnum sh_regname_to_dw2regnum
+extern int sh_regname_to_dw2regnum (const char *regname);
+
+/* All SH instructions are multiples of 16 bits.  */
+#define DWARF2_LINE_MIN_INSN_LENGTH 2
+#define DWARF2_DEFAULT_RETURN_COLUMN 17
+#define DWARF2_CIE_DATA_ALIGNMENT -4
 
 #endif /* OBJ_ELF */

@@ -1,0 +1,8 @@
+Version definitions:
+1 0x01 0x0c96525f vers2.so
+2 0x00 0x08785b51 VERS_XXX_1.1
+
+Version References:
+  required from tmpdir/vers1.so:
+    0x0a7922b0 0x00 03 VERS_2.0
+

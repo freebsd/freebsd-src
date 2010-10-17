@@ -1,0 +1,27 @@
+MVP MP Macro Assembler     Version 1.13     Wed Feb 26 14:32:19 1997
+Copyright (c) 1993-1995    Texas Instruments Incorporated 
+
+regops3.s                                                            PAGE    1
+
+        1 00000000   41B40C04         dld.b   r4:s(r6),r8             ; Register form
+        2 00000004   41B42C04         dld.h   r4:s(r6),r8             ; Register form
+        3 00000008   41B44C04         dld     r4:s(r6),r8             ; Register form
+        4 0000000C   41B46C04         dld.d   r4:s(r6),r8             ; Register form
+        5 00000010   41B50C04         dld.ub  r4:s(r6),r8             ; Register form
+        6 00000014   41B52C04         dld.uh  r4:s(r6),r8             ; Register form
+        7 00000018   41B60C04         dst.b   r4:s(r6),r8             ; Register form
+        8 0000001C   41B62C04         dst.h   r4:s(r6),r8             ; Register form
+        9 00000020   41B64C04         dst     r4:s(r6),r8             ; Register form
+       10 00000024   41B66C04         dst.d   r4:s(r6),r8             ; Register form
+       11 00000028   41B40804         ld.b    r4:s(r6),r8             ; Register form
+       12 0000002C   41B42804         ld.h    r4:s(r6),r8             ; Register form
+       13 00000030   41B44804         ld      r4:s(r6),r8             ; Register form
+       14 00000034   41B46804         ld.d    r4:s(r6),r8             ; Register form
+       15 00000038   41B50804         ld.ub   r4:s(r6),r8             ; Register form
+       16 0000003C   41B52804         ld.uh   r4:s(r6),r8             ; Register form
+       17 00000040   41B60804         st.b    r4:s(r6),r8             ; Register form
+       18 00000044   41B62804         st.h    r4:s(r6),r8             ; Register form
+       19 00000048   41B64804         st      r4:s(r6),r8             ; Register form
+       20 0000004C   41B66804         st.d    r4:s(r6),r8             ; Register form
+
+ No Errors,  No Warnings

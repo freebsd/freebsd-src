@@ -1,0 +1,5 @@
+[0]* g    DO \*ABS\*	[0]*  VERS_1.1    VERS_1.1
+[0]* g    DO \*ABS\*	[0]*  VERS_1.2    VERS_1.2
+[0-9a-f]* g    DF (.text|\*ABS\*)	[0-9a-f]* \(Base\)       (0x[0-9a-f][0-9a-f] )?show_foo
+[0-9a-f]* g    DF (.text|\*ABS\*)	[0-9a-f]* \(VERS_1.1\)   (0x[0-9a-f][0-9a-f] )?show_foo
+[0-9a-f]* g    DF (.text|\*ABS\*)	[0-9a-f]*  VERS_1.2    (0x[0-9a-f][0-9a-f] )?show_foo

@@ -1,0 +1,11 @@
+#source: tlssunbin64.s
+#as: --64
+#ld: -shared -melf64_sparc tmpdir/libtlslib64.so tmpdir/tlssunbinpic64.o
+#objdump: -sj.got
+#target: sparc*-*-*
+
+.*: +file format elf64-sparc
+
+Contents of section .got:
+# FIXME
+#pass

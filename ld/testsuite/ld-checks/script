@@ -1,0 +1,6 @@
+SECTIONS {
+        .text 0x100 :             { *(.text) }
+	.data 0x100 : AT (0x100)  { *(.data) }
+	.bss  0x100 : AT (0x4000) { *(.bss)  }
+}
+

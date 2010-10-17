@@ -1,0 +1,54 @@
+# Expect script for ld-ia64 tests
+#   Copyright (C) 2002, 2003 Free Software Foundation
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+
+# Test ia64 linking; all types of relocs.  This tests the assembler and
+# tools like objdump as well as the linker.
+
+if { !([istarget "ia64-*-elf*"]
+       || [istarget "ia64-*-linux*"]) } {
+    return
+}
+
+# List contains test-items with 3 items followed by 2 lists:
+# 0:name 1:ld options 2:assembler options
+# 3:filenames of assembler files 4: action and options. 5: name of output file
+
+# Actions:
+# objdump: Apply objdump options on result.  Compare with regex (last arg).
+# nm: Apply nm options on result.  Compare with regex (last arg).
+# readelf: Apply readelf options on result.  Compare with regex (last arg).
+
+set ia64tests {
+    {"TLS -fpic -shared" "-shared"
+     "" {tlspic1.s tlspic2.s}
+     {{readelf -WSsrl tlspic.rd} {objdump -drj.text tlspic.dd}
+      {objdump -sj.got tlspic.sd} {objdump -sj.tdata tlspic.td}}
+      "libtlspic.so"}
+    {"Helper shared library" "-shared"
+     "" {tlslib.s} {} "libtlslib.so"}
+    {"TLS -fpic and -fno-pic exec"
+     "tmpdir/libtlslib.so" "" {tlsbinpic.s tlsbin.s}
+     {{readelf -WSsrl tlsbin.rd} {objdump -drj.text tlsbin.dd}
+      {objdump -sj.got tlsbin.sd} {objdump -sj.tdata tlsbin.td}}
+      "tlsbin"}
+    {"TLS in debug sections" ""
+     "" {tlsg.s}
+     {{objdump -sj.debug_foobar tlsg.sd}} "tlsg"}
+}
+
+run_ld_link_tests $ia64tests

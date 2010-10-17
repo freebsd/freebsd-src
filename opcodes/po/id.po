@@ -1,0 +1,423 @@
+# opcodes 2.12.1 (Indonesian)
+# Copyright (C) 2002 Free Software Foundation, Inc.
+# Tedi Heriyanto <tedi_h@gmx.net>, 2002.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: opcodes 2.12.1\n"
+"POT-Creation-Date: 2002-02-08 03:24-0200\n"
+"PO-Revision-Date: 2002-07-23 12:35GMT+0700\n"
+"Last-Translator: Tedi Heriyanto <tedi_h@gmx.net>\n"
+"Language-Team: Indonesian <translation-team-id@lists.sourceforge.net>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: KBabel 0.9.5\n"
+
+#: alpha-opc.c:335
+msgid "branch operand unaligned"
+msgstr "operand cabang tidak rata"
+
+#: alpha-opc.c:358 alpha-opc.c:380
+msgid "jump hint unaligned"
+msgstr "petunjuk lompat tidak rata"
+
+#: arc-dis.c:52
+msgid "Illegal limm reference in last instruction!\n"
+msgstr "referensi limm ilegal dalam instruksi terakhir!\n"
+
+#: arm-dis.c:502
+msgid "<illegal precision>"
+msgstr "<presisi ilegal>"
+
+#: arm-dis.c:1012
+#, c-format
+msgid "Unrecognised register name set: %s\n"
+msgstr "Set nama register tidak dikenal: %s\n"
+
+#: arm-dis.c:1019
+#, c-format
+msgid "Unrecognised disassembler option: %s\n"
+msgstr "Option disasembler tidak dikenal: %s\n"
+
+#: arm-dis.c:1191
+msgid ""
+"\n"
+"The following ARM specific disassembler options are supported for use with\n"
+"the -M switch:\n"
+msgstr ""
+"\n"
+"Option disablembler khusus ARM berikut ini didukung untuk digunakan dengan\n"
+"switch -M:\n"
+
+#: avr-dis.c:118 avr-dis.c:128
+msgid "undefined"
+msgstr "tidak didefinisikan"
+
+#: avr-dis.c:180
+msgid "Internal disassembler error"
+msgstr "Kesalahan disasembler internal"
+
+#: avr-dis.c:228
+#, c-format
+msgid "unknown constraint `%c'"
+msgstr "konstrain tidak dikenal `%c'"
+
+#: cgen-asm.c:346 fr30-ibld.c:195 m32r-ibld.c:195 openrisc-ibld.c:195 xstormy16-ibld.c:195
+#, c-format
+msgid "operand out of range (%ld not between %ld and %ld)"
+msgstr "operand keluar batas (%ld tidak antara %ld dan %ld)"
+
+#: cgen-asm.c:367
+#, c-format
+msgid "operand out of range (%lu not between %lu and %lu)"
+msgstr "operand keluar batas (%lu tidak antara %lu dan %lu)"
+
+#: d30v-dis.c:312
+#, c-format
+msgid "<unknown register %d>"
+msgstr "<register tidak dikenal %d>"
+
+#. Can't happen.
+#: dis-buf.c:57
+#, c-format
+msgid "Unknown error %d\n"
+msgstr "Kesalahan tidak dikenal %d\n"
+
+#: dis-buf.c:62
+#, c-format
+msgid "Address 0x%x is out of bounds.\n"
+msgstr "Alamat 0x%x di luar batas.\n"
+
+#: fr30-asm.c:323 m32r-asm.c:325 openrisc-asm.c:244 xstormy16-asm.c:231
+#, c-format
+msgid "Unrecognized field %d while parsing.\n"
+msgstr "Field tidak dikenal %d saat parsing.\n"
+
+#: fr30-asm.c:373 m32r-asm.c:375 openrisc-asm.c:294 xstormy16-asm.c:281
+msgid "missing mnemonic in syntax string"
+msgstr "mnemonik hilang dalam string sintaks"
+
+#. We couldn't parse it.
+#: fr30-asm.c:509 fr30-asm.c:513 fr30-asm.c:600 fr30-asm.c:702 m32r-asm.c:511 m32r-asm.c:515 m32r-asm.c:602 m32r-asm.c:704 openrisc-asm.c:430 openrisc-asm.c:434 openrisc-asm.c:521 openrisc-asm.c:623 xstormy16-asm.c:417 xstormy16-asm.c:421 xstormy16-asm.c:508 xstormy16-asm.c:610
+msgid "unrecognized instruction"
+msgstr "instruksti tidak dikenal"
+
+#: fr30-asm.c:556 m32r-asm.c:558 openrisc-asm.c:477 xstormy16-asm.c:464
+#, c-format
+msgid "syntax error (expected char `%c', found `%c')"
+msgstr "kesalahan sintaks (diharapkan karakter `%c', ditemukan `%c')"
+
+#: fr30-asm.c:566 m32r-asm.c:568 openrisc-asm.c:487 xstormy16-asm.c:474
+#, c-format
+msgid "syntax error (expected char `%c', found end of instruction)"
+msgstr "kesalahan sintaks (diharapkan karakter `%c', ditemukan akhir instruksi)"
+
+#: fr30-asm.c:594 m32r-asm.c:596 openrisc-asm.c:515 xstormy16-asm.c:502
+msgid "junk at end of line"
+msgstr "sampah di akhir baris"
+
+#: fr30-asm.c:701 m32r-asm.c:703 openrisc-asm.c:622 xstormy16-asm.c:609
+msgid "unrecognized form of instruction"
+msgstr "bentuk instruksi tidak dikenal"
+
+#: fr30-asm.c:713 m32r-asm.c:715 openrisc-asm.c:634 xstormy16-asm.c:621
+#, c-format
+msgid "bad instruction `%.50s...'"
+msgstr "instruksi buruk `%.50s...'"
+
+#: fr30-asm.c:716 m32r-asm.c:718 openrisc-asm.c:637 xstormy16-asm.c:624
+#, c-format
+msgid "bad instruction `%.50s'"
+msgstr "instruksi buruk `%.50s'"
+
+#. Default text to print if an instruction isn't recognized.
+#: fr30-dis.c:39 m32r-dis.c:39 mmix-dis.c:282 openrisc-dis.c:39 xstormy16-dis.c:39
+msgid "*unknown*"
+msgstr "*tidak dikenal*"
+
+#: fr30-dis.c:318 m32r-dis.c:249 openrisc-dis.c:136 xstormy16-dis.c:169
+#, c-format
+msgid "Unrecognized field %d while printing insn.\n"
+msgstr "Field tidak dikenal %d saat mencetak insn.\n"
+
+#: fr30-ibld.c:166 m32r-ibld.c:166 openrisc-ibld.c:166 xstormy16-ibld.c:166
+#, c-format
+msgid "operand out of range (%ld not between %ld and %lu)"
+msgstr "operand di luar batas (%ld tidak antara %ld dan %lu)"
+
+#: fr30-ibld.c:179 m32r-ibld.c:179 openrisc-ibld.c:179 xstormy16-ibld.c:179
+#, c-format
+msgid "operand out of range (%lu not between 0 and %lu)"
+msgstr "operand di luar batas (%lu tidak antara 0 dan %lu)"
+
+#: fr30-ibld.c:730 m32r-ibld.c:659 openrisc-ibld.c:633 xstormy16-ibld.c:678
+#, c-format
+msgid "Unrecognized field %d while building insn.\n"
+msgstr "Field tidak dikenal %d saat membuild insn.\n"
+
+#: fr30-ibld.c:937 m32r-ibld.c:792 openrisc-ibld.c:735 xstormy16-ibld.c:826
+#, c-format
+msgid "Unrecognized field %d while decoding insn.\n"
+msgstr "Field tidak dikenal %d saat mendekode insn.\n"
+
+#: fr30-ibld.c:1086 m32r-ibld.c:902 openrisc-ibld.c:815 xstormy16-ibld.c:939
+#, c-format
+msgid "Unrecognized field %d while getting int operand.\n"
+msgstr "Field tidak dikenal %d saat memperoleh operand int.\n"
+
+#: fr30-ibld.c:1215 m32r-ibld.c:992 openrisc-ibld.c:875 xstormy16-ibld.c:1032
+#, c-format
+msgid "Unrecognized field %d while getting vma operand.\n"
+msgstr "Field tidak dikenal %d saat memperoleh operand vma.\n"
+
+#: fr30-ibld.c:1349 m32r-ibld.c:1090 openrisc-ibld.c:944 xstormy16-ibld.c:1134
+#, c-format
+msgid "Unrecognized field %d while setting int operand.\n"
+msgstr "Field tidak dikenal %d saat menset operand int.\n"
+
+#: fr30-ibld.c:1471 m32r-ibld.c:1176 openrisc-ibld.c:1001 xstormy16-ibld.c:1224
+#, c-format
+msgid "Unrecognized field %d while setting vma operand.\n"
+msgstr "Field tidak dikenal %d saat menset operand vma.\n"
+
+#: h8300-dis.c:384
+#, c-format
+msgid "Hmmmm %x"
+msgstr "Hmmmm %x"
+
+#: h8300-dis.c:395
+#, c-format
+msgid "Don't understand %x \n"
+msgstr "Tidak mengerti %x \n"
+
+#: h8500-dis.c:143
+#, c-format
+msgid "can't cope with insert %d\n"
+msgstr "tidak dapat menangani insert %d\n"
+
+#. Couldn't understand anything.
+#: h8500-dis.c:350
+#, c-format
+msgid "%02x\t\t*unknown*"
+msgstr "%02x\t\t*tidak dikenal*"
+
+#: i386-dis.c:1649
+msgid "<internal disassembler error>"
+msgstr "<kesalahan asembler internal>"
+
+#: m10200-dis.c:199
+#, c-format
+msgid "unknown\t0x%02x"
+msgstr "tidak dikenal\t0x%02x"
+
+#: m10200-dis.c:339
+#, c-format
+msgid "unknown\t0x%04lx"
+msgstr "tidak dikenal\t0x%04lx"
+
+#: m10300-dis.c:685
+#, c-format
+msgid "unknown\t0x%04x"
+msgstr "tidak dikenal\t0x%04x"
+
+#: m68k-dis.c:429
+#, c-format
+msgid "<internal error in opcode table: %s %s>\n"
+msgstr "<kesalahan internal dalam tabel opcode: %s %s>\n"
+
+#: m68k-dis.c:1007
+#, c-format
+msgid "<function code %d>"
+msgstr "<kode fungsi %d>"
+
+#: m88k-dis.c:255
+#, c-format
+msgid "# <dis error: %08x>"
+msgstr "# <kesalahan dis: %08x>"
+
+#: mips-dis.c:290
+#, c-format
+msgid "# internal error, undefined modifier(%c)"
+msgstr "# kesalahan internal, modifier tidak didefinisikan(%c)"
+
+#: mips-dis.c:1154
+#, c-format
+msgid "# internal disassembler error, unrecognised modifier (%c)"
+msgstr "# kesalahan internal disasembler, modifier tidak dikenal (%c)"
+
+#: mmix-dis.c:34
+#, c-format
+msgid "Bad case %d (%s) in %s:%d\n"
+msgstr "Case buruk %d (%s) dalam %s:%d\n"
+
+#: mmix-dis.c:44
+#, c-format
+msgid "Internal: Non-debugged code (test-case missing): %s:%d"
+msgstr "Internal: Kode belum didebug (tidak ada test-case): %s:%d"
+
+#: mmix-dis.c:53
+msgid "(unknown)"
+msgstr "(tidak dikenal)"
+
+#: mmix-dis.c:517
+#, c-format
+msgid "*unknown operands type: %d*"
+msgstr "*tipe operand tidak dikenal: %d*"
+
+#. I and Z are output operands and can`t be immediate
+#. * A is an address and we can`t have the address of
+#. * an immediate either. We don't know how much to increase
+#. * aoffsetp by since whatever generated this is broken
+#. * anyway!
+#.
+#: ns32k-dis.c:628
+msgid "$<undefined>"
+msgstr "$<tidak didefinisikan>"
+
+#: ppc-opc.c:765 ppc-opc.c:798
+msgid "invalid conditional option"
+msgstr "option kondisional tidak valid"
+
+#: ppc-opc.c:800
+msgid "attempt to set y bit when using + or - modifier"
+msgstr "berusaha menset bit y saat menggunakan modifier + atau -"
+
+#: ppc-opc.c:832 ppc-opc.c:884
+msgid "offset not a multiple of 4"
+msgstr "offset bukan kelipatan 4"
+
+#: ppc-opc.c:857
+msgid "offset not between -2048 and 2047"
+msgstr "offset tidak berada antara -2048 dan 2047"
+
+#: ppc-opc.c:882
+msgid "offset not between -8192 and 8191"
+msgstr "offset tidak berada antara -8192 dan 8191"
+
+#: ppc-opc.c:910
+msgid "ignoring least significant bits in branch offset"
+msgstr "mengabaikan least significant bit dalam offset cabang"
+
+#: ppc-opc.c:944 ppc-opc.c:981
+msgid "illegal bitmask"
+msgstr "bitmask ilegal"
+
+#: ppc-opc.c:1054
+msgid "value out of range"
+msgstr "nilai di luar batas"
+
+#: ppc-opc.c:1130
+msgid "index register in load range"
+msgstr "register indeks dalam daerah pemuatan"
+
+#: ppc-opc.c:1146
+msgid "invalid register operand when updating"
+msgstr "operand register tidak valid saat mengupdate"
+
+#. Mark as non-valid instruction
+#: sparc-dis.c:750
+msgid "unknown"
+msgstr "tidak dikenal"
+
+#: sparc-dis.c:825
+#, c-format
+msgid "Internal error:  bad sparc-opcode.h: \"%s\", %#.8lx, %#.8lx\n"
+msgstr "Kesalahan internal:  sparc-opcode.h buruk: \"%s\", %#.8lx, %#.8lx\n"
+
+#: sparc-dis.c:836
+#, c-format
+msgid "Internal error: bad sparc-opcode.h: \"%s\", %#.8lx, %#.8lx\n"
+msgstr "Kesalahan internal: sparc-opcode.h buruk: \"%s\", %#.8lx, %#.8lx\n"
+
+#: sparc-dis.c:885
+#, c-format
+msgid "Internal error: bad sparc-opcode.h: \"%s\" == \"%s\"\n"
+msgstr "Kesalahan internal: sparc-opcode.h buruk: \"%s\" == \"%s\"\n"
+
+#: v850-dis.c:224
+#, c-format
+msgid "unknown operand shift: %x\n"
+msgstr "shift operand tidak dikenal: %x\n"
+
+#: v850-dis.c:236
+#, c-format
+msgid "unknown pop reg: %d\n"
+msgstr "reg pop tidak dikenal: %d\n"
+
+#. The functions used to insert and extract complicated operands.
+#. Note: There is a conspiracy between these functions and
+#. v850_insert_operand() in gas/config/tc-v850.c.  Error messages
+#. containing the string 'out of range' will be ignored unless a
+#. specific command line option is given to GAS.
+#: v850-opc.c:68
+msgid "displacement value is not in range and is not aligned"
+msgstr "nilai displacement tidak dalam jangkauan dan tidak rata"
+
+#: v850-opc.c:69
+msgid "displacement value is out of range"
+msgstr "nilai displacement di luar batas"
+
+#: v850-opc.c:70
+msgid "displacement value is not aligned"
+msgstr "nilai displacement tidak rata"
+
+#: v850-opc.c:72
+msgid "immediate value is out of range"
+msgstr "nilai langsung di luar batas"
+
+#: v850-opc.c:83
+msgid "branch value not in range and to odd offset"
+msgstr "nilai cabang tidak dalam jangkauan"
+
+#: v850-opc.c:85 v850-opc.c:117
+msgid "branch value out of range"
+msgstr "nilai cabang di luar jangkauan"
+
+#: v850-opc.c:88 v850-opc.c:120
+msgid "branch to odd offset"
+msgstr "cabang offset ganjil"
+
+#: v850-opc.c:115
+msgid "branch value not in range and to an odd offset"
+msgstr "nilai cabang di luar jangkauan dan offset ganjil"
+
+#: v850-opc.c:346
+msgid "invalid register for stack adjustment"
+msgstr "register tidak valid untuk penyesuaian stack"
+
+#: v850-opc.c:370
+msgid "immediate value not in range and not even"
+msgstr "nilai langsung tidak dalam jangkauan dan tidak genap"
+
+#: v850-opc.c:375
+msgid "immediate value must be even"
+msgstr "nilai langsung harus genap"
+
+#: xstormy16-asm.c:74
+msgid "Bad register in preincrement"
+msgstr "register buruk dalam preinkremen"
+
+#: xstormy16-asm.c:79
+msgid "Bad register in postincrement"
+msgstr "Register buruk dalam pascainkremen"
+
+#: xstormy16-asm.c:81
+msgid "Bad register name"
+msgstr "Nama register buruk"
+
+#: xstormy16-asm.c:85
+msgid "Label conflicts with register name"
+msgstr "Label konflik dengan nama register"
+
+#: xstormy16-asm.c:89
+msgid "Label conflicts with `Rx'"
+msgstr "Label konflik dengan `Rx'"
+
+#: xstormy16-asm.c:91
+msgid "Bad immediate expression"
+msgstr "Ekspresi langsung yang buruk"
+
+#: xstormy16-asm.c:120
+msgid "Small operand was not an immediate number"
+msgstr "Operand kecil bukan sebuah angka immediate"

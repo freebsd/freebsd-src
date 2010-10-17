@@ -1,0 +1,8 @@
+VERS.0 {
+  global:
+    bar;
+    foo;
+    foobar;
+  local:
+    *;
+};

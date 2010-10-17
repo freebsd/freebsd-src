@@ -1,0 +1,46 @@
+@c Copyright 2002
+@c Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+@ifset GENERIC
+@page
+@node IP2K-Dependent
+@chapter IP2K Dependent Features
+@end ifset
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter IP2K Dependent Features
+@end ifclear
+
+@cindex IP2K support
+@menu
+* IP2K-Opts::                   IP2K Options
+@end menu
+
+@node IP2K-Opts
+@section IP2K Options
+
+@cindex options, IP2K
+@cindex IP2K options
+
+The Ubicom IP2K version of @code{@value{AS}} has a few machine
+dependent options:
+
+@table @code
+@item -mip2022ext
+@cindex @samp{-mip2022ext} option, IP2022
+@cindex architecture options, IP2022
+@cindex IP2K architecture options
+@code{@value{AS}} can assemble the extended IP2022 instructions, but
+it will only do so if this is specifically allowed via this command
+line option.
+
+@item -mip2022
+@cindex @samp{-mip2022} option, IP2K
+@cindex architecture options, IP2K
+@cindex IP2K architecture options
+This option restores the assembler's default behaviour of not
+permitting the extended IP2022 instructions to be assembled.
+
+
+@end table

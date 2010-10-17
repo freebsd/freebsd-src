@@ -1,0 +1,809 @@
+# Dutch messages for the Opcodes Library.
+# Copyright (C) 1999, 2002, 2003 Free Software Foundation, Inc.
+# This file is distributed under the same license as the Opcodes package.
+# Tim Van Holder <tim.van.holder@pandora.be>, 1999, 2002, 2003.
+# 
+msgid ""
+msgstr ""
+"Project-Id-Version: opcodes 2.14rel030712\n"
+"POT-Creation-Date: 2003-07-11 13:56+0930\n"
+"PO-Revision-Date: 2003-07-18 17:17+0200\n"
+"Last-Translator: Tim Van Holder <tim.van.holder@pandora.be>\n"
+"Language-Team: Dutch <vertaling@nl.linux.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=iso-8859-1\n"
+"Content-Transfer-Encoding: 8-bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+# misschien 'branch' vertalen (vertakking?)
+# en unaligned vertalen als 'niet uitgelijnd'?
+#: alpha-opc.c:335
+msgid "branch operand unaligned"
+msgstr "branch-operand niet uitgelijnd"
+
+#: alpha-opc.c:358 alpha-opc.c:380
+msgid "jump hint unaligned"
+msgstr "jump-hint niet uitgelijnd"
+
+#: arc-dis.c:52
+msgid "Illegal limm reference in last instruction!\n"
+msgstr "Ongeldige limm-verwijzing in de laatste instructie!\n"
+
+#: arm-dis.c:554
+msgid "<illegal precision>"
+msgstr "<ongeldige precisie>"
+
+# Hoort set bij 'name', of bij 'register name'?
+#: arm-dis.c:1162
+#, c-format
+msgid "Unrecognised register name set: %s\n"
+msgstr "Registernaam-verzameling niet herkend: %s\n"
+
+#: arm-dis.c:1169
+#, c-format
+msgid "Unrecognised disassembler option: %s\n"
+msgstr "Disassembler-optie niet herkend: %s\n"
+
+#: arm-dis.c:1343
+msgid ""
+"\n"
+"The following ARM specific disassembler options are supported for use with\n"
+"the -M switch:\n"
+msgstr ""
+"\n"
+"De volgende ARM-specifieke disassembler-opties worden ondersteund voor gebruik\n"
+"via de -M optie:\n"
+
+#: avr-dis.c:117 avr-dis.c:127
+msgid "undefined"
+msgstr "niet gedefinieerd"
+
+#: avr-dis.c:179
+msgid "Internal disassembler error"
+msgstr "Interne fout in de disassembler"
+
+# Vertaling voor constraint? 'begrenzing' misschien?
+#: avr-dis.c:227
+#, c-format
+msgid "unknown constraint `%c'"
+msgstr "onbekende constraint `%c'"
+
+#: cgen-asm.c:348 fr30-ibld.c:195 frv-ibld.c:195 ip2k-ibld.c:195
+#: iq2000-ibld.c:195 m32r-ibld.c:195 openrisc-ibld.c:195 xstormy16-ibld.c:195
+#, c-format
+msgid "operand out of range (%ld not between %ld and %ld)"
+msgstr "operand buiten bereik (%ld niet tussen %ld en %ld)"
+
+#: cgen-asm.c:369
+#, c-format
+msgid "operand out of range (%lu not between %lu and %lu)"
+msgstr "operand buiten bereik (%lu niet tussen %lu en %lu)"
+
+#: d30v-dis.c:312
+#, c-format
+msgid "<unknown register %d>"
+msgstr "<onbekend register %d>"
+
+#. Can't happen.
+#: dis-buf.c:57
+#, c-format
+msgid "Unknown error %d\n"
+msgstr "Onbekende fout %d\n"
+
+# Slecht vertaald. Wat is de geijkte vertaling voor 'out of bounds'?
+#: dis-buf.c:62
+#, c-format
+msgid "Address 0x%x is out of bounds.\n"
+msgstr "Adres 0x%x is buiten de perken.\n"
+
+# Betere vertaling voor 'parsing'?
+#: fr30-asm.c:323 frv-asm.c:626 ip2k-asm.c:574 iq2000-asm.c:460 m32r-asm.c:325
+#: openrisc-asm.c:261 xstormy16-asm.c:284
+#, c-format
+msgid "Unrecognized field %d while parsing.\n"
+msgstr "Veld %d niet herkend tijdens parsen.\n"
+
+#: fr30-asm.c:373 frv-asm.c:676 ip2k-asm.c:624 iq2000-asm.c:510 m32r-asm.c:375
+#: openrisc-asm.c:311 xstormy16-asm.c:334
+msgid "missing mnemonic in syntax string"
+msgstr "mnemonic ontbreekt in syntaxstring"
+
+#. We couldn't parse it.
+#: fr30-asm.c:509 fr30-asm.c:513 fr30-asm.c:600 fr30-asm.c:702 frv-asm.c:812
+#: frv-asm.c:816 frv-asm.c:903 frv-asm.c:1005 ip2k-asm.c:760 ip2k-asm.c:764
+#: ip2k-asm.c:851 ip2k-asm.c:953 iq2000-asm.c:646 iq2000-asm.c:650
+#: iq2000-asm.c:737 iq2000-asm.c:839 m32r-asm.c:511 m32r-asm.c:515
+#: m32r-asm.c:602 m32r-asm.c:704 openrisc-asm.c:447 openrisc-asm.c:451
+#: openrisc-asm.c:538 openrisc-asm.c:640 xstormy16-asm.c:470
+#: xstormy16-asm.c:474 xstormy16-asm.c:561 xstormy16-asm.c:663
+msgid "unrecognized instruction"
+msgstr "instructie niet herkend"
+
+#: fr30-asm.c:556 frv-asm.c:859 ip2k-asm.c:807 iq2000-asm.c:693 m32r-asm.c:558
+#: openrisc-asm.c:494 xstormy16-asm.c:517
+#, c-format
+msgid "syntax error (expected char `%c', found `%c')"
+msgstr "syntaxfout (verwachtte character `%c', maar vond `%c')"
+
+#: fr30-asm.c:566 frv-asm.c:869 ip2k-asm.c:817 iq2000-asm.c:703 m32r-asm.c:568
+#: openrisc-asm.c:504 xstormy16-asm.c:527
+#, c-format
+msgid "syntax error (expected char `%c', found end of instruction)"
+msgstr "syntaxfout (verwachtte character `%c', maar vond het einde van de instructie)"
+
+# Betere (niet-Vlaamse) vertaling voor 'junk'?
+#: fr30-asm.c:594 frv-asm.c:897 ip2k-asm.c:845 iq2000-asm.c:731 m32r-asm.c:596
+#: openrisc-asm.c:532 xstormy16-asm.c:555
+msgid "junk at end of line"
+msgstr "brol aan einde van lijn"
+
+#: fr30-asm.c:701 frv-asm.c:1004 ip2k-asm.c:952 iq2000-asm.c:838
+#: m32r-asm.c:703 openrisc-asm.c:639 xstormy16-asm.c:662
+msgid "unrecognized form of instruction"
+msgstr "instructievorm niet herkend"
+
+#: fr30-asm.c:713 frv-asm.c:1016 ip2k-asm.c:964 iq2000-asm.c:850
+#: m32r-asm.c:715 openrisc-asm.c:651 xstormy16-asm.c:674
+#, c-format
+msgid "bad instruction `%.50s...'"
+msgstr "slechte instructie `%s.50s...'"
+
+#: fr30-asm.c:716 frv-asm.c:1019 ip2k-asm.c:967 iq2000-asm.c:853
+#: m32r-asm.c:718 openrisc-asm.c:654 xstormy16-asm.c:677
+#, c-format
+msgid "bad instruction `%.50s'"
+msgstr "slechte instructie `%s.50s'"
+
+#. Default text to print if an instruction isn't recognized.
+#: fr30-dis.c:41 frv-dis.c:41 ip2k-dis.c:41 iq2000-dis.c:41 m32r-dis.c:41
+#: mmix-dis.c:284 openrisc-dis.c:41 xstormy16-dis.c:41
+msgid "*unknown*"
+msgstr "*onbekend*"
+
+#: fr30-dis.c:320 frv-dis.c:371 ip2k-dis.c:329 iq2000-dis.c:192 m32r-dis.c:251
+#: openrisc-dis.c:138 xstormy16-dis.c:171
+#, c-format
+msgid "Unrecognized field %d while printing insn.\n"
+msgstr "Veld %d niet herkend bij het afdrukken van een insn.\n"
+
+#: fr30-ibld.c:166 frv-ibld.c:166 ip2k-ibld.c:166 iq2000-ibld.c:166
+#: m32r-ibld.c:166 openrisc-ibld.c:166 xstormy16-ibld.c:166
+#, c-format
+msgid "operand out of range (%ld not between %ld and %lu)"
+msgstr "operand buiten bereik (%ld niet tussen %ld en %lu)"
+
+#: fr30-ibld.c:179 frv-ibld.c:179 ip2k-ibld.c:179 iq2000-ibld.c:179
+#: m32r-ibld.c:179 openrisc-ibld.c:179 xstormy16-ibld.c:179
+#, c-format
+msgid "operand out of range (%lu not between 0 and %lu)"
+msgstr "operand buiten bereik (%lu niet tussen 0 en %lu)"
+
+#: fr30-ibld.c:730 frv-ibld.c:829 ip2k-ibld.c:607 iq2000-ibld.c:713
+#: m32r-ibld.c:659 openrisc-ibld.c:633 xstormy16-ibld.c:678
+#, c-format
+msgid "Unrecognized field %d while building insn.\n"
+msgstr "Veld %d niet herkend bij het opbouwen van een insn.\n"
+
+#: fr30-ibld.c:937 frv-ibld.c:1121 ip2k-ibld.c:684 iq2000-ibld.c:890
+#: m32r-ibld.c:792 openrisc-ibld.c:735 xstormy16-ibld.c:826
+#, c-format
+msgid "Unrecognized field %d while decoding insn.\n"
+msgstr "Veld %d niet herkend bij het decoderen van een insn.\n"
+
+#: fr30-ibld.c:1086 frv-ibld.c:1375 ip2k-ibld.c:761 iq2000-ibld.c:1024
+#: m32r-ibld.c:902 openrisc-ibld.c:815 xstormy16-ibld.c:939
+#, c-format
+msgid "Unrecognized field %d while getting int operand.\n"
+msgstr "Veld %d niet herkend bij het ophalen van een int-operand.\n"
+
+#: fr30-ibld.c:1215 frv-ibld.c:1609 ip2k-ibld.c:818 iq2000-ibld.c:1138
+#: m32r-ibld.c:992 openrisc-ibld.c:875 xstormy16-ibld.c:1032
+#, c-format
+msgid "Unrecognized field %d while getting vma operand.\n"
+msgstr "Veld %d niet herkend bij het ophalen van een vma-operand.\n"
+
+#: fr30-ibld.c:1349 frv-ibld.c:1852 ip2k-ibld.c:880 iq2000-ibld.c:1261
+#: m32r-ibld.c:1090 openrisc-ibld.c:944 xstormy16-ibld.c:1134
+#, c-format
+msgid "Unrecognized field %d while setting int operand.\n"
+msgstr "Veld %d niet herkend bij het instellen van een int-operand.\n"
+
+#: fr30-ibld.c:1471 frv-ibld.c:2083 ip2k-ibld.c:930 iq2000-ibld.c:1372
+#: m32r-ibld.c:1176 openrisc-ibld.c:1001 xstormy16-ibld.c:1224
+#, c-format
+msgid "Unrecognized field %d while setting vma operand.\n"
+msgstr "Veld %d niet herkend bij het instellen van een vma-operand.\n"
+
+#: frv-asm.c:365
+msgid "register number must be even"
+msgstr "registernummer moet paar zijn"
+
+#: h8300-dis.c:377
+#, c-format
+msgid "Hmmmm 0x%x"
+msgstr "Hmmmm 0x%x"
+
+#: h8300-dis.c:760
+#, c-format
+msgid "Don't understand 0x%x \n"
+msgstr "Ik begrijp 0x%x niet\n"
+
+#: h8500-dis.c:143
+#, c-format
+msgid "can't cope with insert %d\n"
+msgstr "kan niet omgaan met insert %d\n"
+
+#. Couldn't understand anything.
+#: h8500-dis.c:350
+#, c-format
+msgid "%02x\t\t*unknown*"
+msgstr "%02x\t\t*onbekend*"
+
+#: i386-dis.c:1699
+msgid "<internal disassembler error>"
+msgstr "<interne fout in de disassembler>"
+
+#: ia64-gen.c:295
+#, c-format
+msgid "%s: Error: "
+msgstr "%s: Fout: "
+
+#: ia64-gen.c:308
+#, c-format
+msgid "%s: Warning: "
+msgstr "%s: Let Op: "
+
+#: ia64-gen.c:494 ia64-gen.c:728
+#, c-format
+msgid "multiple note %s not handled\n"
+msgstr "meervoudige noot %s wordt niet opgevangen\n"
+
+#: ia64-gen.c:605
+msgid "can't find ia64-ic.tbl for reading\n"
+msgstr "kan invoerbestand ia64-ic.tbl niet vinden\n"
+
+#: ia64-gen.c:810
+#, c-format
+msgid "can't find %s for reading\n"
+msgstr "kan invoerbestand %s niet vinden\n"
+
+#: ia64-gen.c:1034
+#, c-format
+msgid ""
+"most recent format '%s'\n"
+"appears more restrictive than '%s'\n"
+msgstr ""
+"het meest recente formaat '%s'\n"
+"lijkt meer beperkend dan '%s'\n"
+
+#: ia64-gen.c:1045
+#, c-format
+msgid "overlapping field %s->%s\n"
+msgstr "overlappend veld %s->%s\n"
+
+#: ia64-gen.c:1236
+#, c-format
+msgid "overwriting note %d with note %d (IC:%s)\n"
+msgstr "noot %d wordt overschreven door noot %d (IC:%s)\n"
+
+#: ia64-gen.c:1435
+#, c-format
+msgid "don't know how to specify %% dependency %s\n"
+msgstr "ik weet niet hoe ik de %%-dependency %s moet opgeven\n"
+
+#: ia64-gen.c:1457
+#, c-format
+msgid "Don't know how to specify # dependency %s\n"
+msgstr "Ik weet niet hoe ik de #-dependency %s moet opgeven\n"
+
+#: ia64-gen.c:1496
+#, c-format
+msgid "IC:%s [%s] has no terminals or sub-classes\n"
+msgstr "IC:%s [%s] heeft geen eindsymbolen of subklassen\n"
+
+#: ia64-gen.c:1499
+#, c-format
+msgid "IC:%s has no terminals or sub-classes\n"
+msgstr "IC:%s heeft geen eindsymbolen of subklassen\n"
+
+#: ia64-gen.c:1508
+#, c-format
+msgid "no insns mapped directly to terminal IC %s [%s]"
+msgstr "er zijn geen insns die rechtstreeks naar eindsymbool IC %s [%s] vertaald worden"
+
+#: ia64-gen.c:1511
+#, c-format
+msgid "no insns mapped directly to terminal IC %s\n"
+msgstr "er zijn geen insns die rechtstreeks naar eindsymbool IC %s vertaald worden\n"
+
+#: ia64-gen.c:1522
+#, c-format
+msgid "class %s is defined but not used\n"
+msgstr "klasse %s is gedefinieerd maar wordt niet gebruikt\n"
+
+#: ia64-gen.c:1533
+#, c-format
+msgid "Warning: rsrc %s (%s) has no chks%s\n"
+msgstr "Let Op: rsrc %s (%s) heeft geen chks%s\n"
+
+#: ia64-gen.c:1537
+#, c-format
+msgid "rsrc %s (%s) has no regs\n"
+msgstr "rsrc %s (%s) heeft geen regs\n"
+
+#: ia64-gen.c:2436
+#, c-format
+msgid "IC note %d in opcode %s (IC:%s) conflicts with resource %s note %d\n"
+msgstr "IC noot %d in opcode %s (IC:%s) geeft een conflict met resource %s noot %d\n"
+
+#: ia64-gen.c:2464
+#, c-format
+msgid "IC note %d for opcode %s (IC:%s) conflicts with resource %s note %d\n"
+msgstr "IC noot %d voor opcode %s (IC:%s) geeft een conflict met resource %s noot %d\n"
+
+#: ia64-gen.c:2478
+#, c-format
+msgid "opcode %s has no class (ops %d %d %d)\n"
+msgstr "opcode %s heeft geen klasse (ops %d %d %d)\n"
+
+#: ia64-gen.c:2789
+#, c-format
+msgid "unable to change directory to \"%s\", errno = %s\n"
+msgstr "kan niet naar directory \"%s\" gaan, errno = %s\n"
+
+#. We've been passed a w.  Return with an error message so that
+#. cgen will try the next parsing option.
+#: ip2k-asm.c:92
+msgid "W keyword invalid in FR operand slot."
+msgstr "keyword W is ongeldig in operand-slot FR"
+
+#. Invalid offset present.
+#: ip2k-asm.c:122
+msgid "offset(IP) is not a valid form"
+msgstr "offset(IP) is geen geldige vorm"
+
+#. Found something there in front of (DP) but it's out
+#. of range.
+#: ip2k-asm.c:175
+msgid "(DP) offset out of range."
+msgstr "(DP) offset buiten bereik"
+
+#. Found something there in front of (SP) but it's out
+#. of range.
+#: ip2k-asm.c:221
+msgid "(SP) offset out of range."
+msgstr "(SP) offset buiten bereik"
+
+#: ip2k-asm.c:241
+msgid "illegal use of parentheses"
+msgstr "ongeldig gebruik van haakjes"
+
+#: ip2k-asm.c:248
+msgid "operand out of range (not between 1 and 255)"
+msgstr "operand buiten bereik (niet tussen 1 en 255)"
+
+#. Something is very wrong. opindex has to be one of the above.
+#: ip2k-asm.c:273
+msgid "parse_addr16: invalid opindex."
+msgstr "parse_addr16: ongeldige opindex."
+
+#: ip2k-asm.c:353
+msgid "Byte address required. - must be even."
+msgstr "Byte-adres vereist. - moet paar zijn."
+
+#: ip2k-asm.c:362
+msgid "cgen_parse_address returned a symbol. Literal required."
+msgstr "cgen_parse_address gaf een symbool terug terwijl een letterlijke waarde vereist is."
+
+#: ip2k-asm.c:420
+#, c-format
+msgid "%operator operand is not a symbol"
+msgstr "operand van %operator is geen symbool"
+
+#: ip2k-asm.c:474
+msgid "Attempt to find bit index of 0"
+msgstr "Poging tot vinden van bit-index van 0"
+
+#: iq2000-asm.c:110 iq2000-asm.c:141
+msgid "immediate value cannot be register"
+msgstr "onmiddellijke waarde kan geen register zijn"
+
+# of moet 'immediate' behouden worden?
+#: iq2000-asm.c:120 iq2000-asm.c:151
+msgid "immediate value out of range"
+msgstr "onmiddellijke waarde is buiten bereik"
+
+#: iq2000-asm.c:180
+msgid "21-bit offset out of range"
+msgstr "21-bit offset is buiten bereik"
+
+#: iq2000-asm.c:205 iq2000-asm.c:235 iq2000-asm.c:272 iq2000-asm.c:305
+#: openrisc-asm.c:96 openrisc-asm.c:155
+msgid "missing `)'"
+msgstr "`)' ontbreekt"
+
+#: m10200-dis.c:199
+#, c-format
+msgid "unknown\t0x%02x"
+msgstr "onbekend\t0x%02x"
+
+#: m10200-dis.c:339
+#, c-format
+msgid "unknown\t0x%04lx"
+msgstr "onbekend\t0x%04lx"
+
+#: m10300-dis.c:766
+#, c-format
+msgid "unknown\t0x%04x"
+msgstr "onbekend\t0x%04x"
+
+#: m68k-dis.c:429
+#, c-format
+msgid "<internal error in opcode table: %s %s>\n"
+msgstr "<interne fout in opcode-tabel: %s %s>\n"
+
+#: m68k-dis.c:1007
+#, c-format
+msgid "<function code %d>"
+msgstr "<functie-code %d>"
+
+#: m88k-dis.c:746
+#, c-format
+msgid "# <dis error: %08x>"
+msgstr "# <dis fout: %08x>"
+
+#: mips-dis.c:699
+msgid "# internal error, incomplete extension sequence (+)"
+msgstr "# interne fout, onvolledige extension sequence  (+)"
+
+#: mips-dis.c:742
+#, c-format
+msgid "# internal error, undefined extension sequence (+%c)"
+msgstr "# interne fout, extension sequence (+%c) niet gedefinieerd"
+
+#: mips-dis.c:1000
+#, c-format
+msgid "# internal error, undefined modifier(%c)"
+msgstr "# interne fout, modifier(%c) niet gedefinieerd"
+
+#: mips-dis.c:1751
+#, c-format
+msgid "# internal disassembler error, unrecognised modifier (%c)"
+msgstr "# interne fout in disassembler, modifier(%c) niet herkend"
+
+#: mips-dis.c:1763
+msgid ""
+"\n"
+"The following MIPS specific disassembler options are supported for use\n"
+"with the -M switch (multiple options should be separated by commas):\n"
+msgstr ""
+"\n"
+"De volgende MIPS-specifieke disassembler-opties worden ondersteund voor gebruik\n"
+"via de -M optie (meerdere opties moeten door komma's gescheiden worden):\n"
+
+#: mips-dis.c:1767
+msgid ""
+"\n"
+"  gpr-names=ABI            Print GPR names according to  specified ABI.\n"
+"                           Default: based on binary being disassembled.\n"
+msgstr ""
+"\n"
+"  gpr-names=ABI            Druk GPR-namen af volgens de opgegeven ABI.\n"
+"                           Standaard: gebaseerd op het binair bestand dat\n"
+"                           gedesassembleerd wordt.\n"
+
+#: mips-dis.c:1771
+msgid ""
+"\n"
+"  fpr-names=ABI            Print FPR names according to specified ABI.\n"
+"                           Default: numeric.\n"
+msgstr ""
+"\n"
+"  fpr-names=ABI            Druk FPR-namen af volgens de opgegeven ABI.\n"
+"                           Standaard: numeriek.\n"
+
+#: mips-dis.c:1775
+msgid ""
+"\n"
+"  cp0-names=ARCH           Print CP0 register names according to\n"
+"                           specified architecture.\n"
+"                           Default: based on binary being disassembled.\n"
+msgstr ""
+"\n"
+"  cp0-names=ARCH           Druk CP0 registernamen af volgens de opgegeven\n"
+"                           architectuur.\n"
+"                           Standaard: gebaseerd op het binair bestand dat\n"
+"                           gedesassembleerd wordt.\n"
+
+#: mips-dis.c:1780
+msgid ""
+"\n"
+"  hwr-names=ARCH           Print HWR names according to specified \n"
+"\t\t\t   architecture.\n"
+"                           Default: based on binary being disassembled.\n"
+msgstr ""
+"\n"
+"  hwr-names=ARCH           Druk HWR-namen af volgens de opgegeven architectuur.\n"
+"                           Standaard: gebaseerd op het binair bestand dat\n"
+"                           gedesassembleerd wordt.\n"
+"\n"
+
+#: mips-dis.c:1785
+msgid ""
+"\n"
+"  reg-names=ABI            Print GPR and FPR names according to\n"
+"                           specified ABI.\n"
+msgstr ""
+"\n"
+"  reg-names=ABI            Druk GPR- en FPR-namen af volgens de opgegeven ABI.\n"
+
+#: mips-dis.c:1789
+msgid ""
+"\n"
+"  reg-names=ARCH           Print CP0 register and HWR names according to\n"
+"                           specified architecture.\n"
+msgstr ""
+"\n"
+"  reg-names=ARCH           Druk CP0 registernamen en HWR-namen af volgens de\n"
+"                           opgegeven architectuur.\n"
+
+#: mips-dis.c:1793
+msgid ""
+"\n"
+"  For the options above, the following values are supported for \"ABI\":\n"
+"   "
+msgstr ""
+"\n"
+"  Voor de bovenstaande opties zijn dit de ondersteunde waarden voor \"ABI\":\n"
+"   "
+
+#: mips-dis.c:1798 mips-dis.c:1806 mips-dis.c:1808
+msgid "\n"
+msgstr "\n"
+
+#: mips-dis.c:1800
+msgid ""
+"\n"
+"  For the options above, The following values are supported for \"ARCH\":\n"
+"   "
+msgstr ""
+"\n"
+"  Voor de bovenstaande opties zijn dit de ondersteunde waarden voor \"ARCH\":\n"
+"   "
+
+#: mmix-dis.c:34
+#, c-format
+msgid "Bad case %d (%s) in %s:%d\n"
+msgstr "Ongeldige case %d (%s) in %s:%d\n"
+
+#: mmix-dis.c:44
+#, c-format
+msgid "Internal: Non-debugged code (test-case missing): %s:%d"
+msgstr "Intern: Code niet gedebugd (test-case ontbreekt): %s:%d"
+
+#: mmix-dis.c:53
+msgid "(unknown)"
+msgstr "(onbekend)"
+
+#: mmix-dis.c:519
+#, c-format
+msgid "*unknown operands type: %d*"
+msgstr "onbekend type operanden: %d"
+
+#. I and Z are output operands and can`t be immediate
+#. * A is an address and we can`t have the address of
+#. * an immediate either. We don't know how much to increase
+#. * aoffsetp by since whatever generated this is broken
+#. * anyway!
+#.
+#: ns32k-dis.c:631
+msgid "$<undefined>"
+msgstr "$<niet gedefinieerd>"
+
+#: ppc-opc.c:781 ppc-opc.c:809
+msgid "invalid conditional option"
+msgstr "ongeldige voorwaardelijke optie"
+
+# Dit kan waarschijnlijk beter
+#: ppc-opc.c:811
+msgid "attempt to set y bit when using + or - modifier"
+msgstr "poging om y bit in te stellen wanneer + of - modifier gebruikt wordt"
+
+#: ppc-opc.c:840
+msgid "offset not a multiple of 16"
+msgstr "offset is geen veelvoud van 16"
+
+#: ppc-opc.c:860
+msgid "offset not a multiple of 2"
+msgstr "offset is geen veelvoud van 2"
+
+#: ppc-opc.c:862
+msgid "offset greater than 62"
+msgstr "offset is groter dan 62"
+
+#: ppc-opc.c:881 ppc-opc.c:927 ppc-opc.c:975
+msgid "offset not a multiple of 4"
+msgstr "offset is geen veelvoud van 4"
+
+#: ppc-opc.c:883
+msgid "offset greater than 124"
+msgstr "offset is groter dan 124"
+
+#: ppc-opc.c:902
+msgid "offset not a multiple of 8"
+msgstr "offset is geen veelvoud van 8"
+
+#: ppc-opc.c:904
+msgid "offset greater than 248"
+msgstr "offset is groter dan 248"
+
+#: ppc-opc.c:950
+msgid "offset not between -2048 and 2047"
+msgstr "offset ligt niet tussen -2048 en 2047"
+
+#: ppc-opc.c:973
+msgid "offset not between -8192 and 8191"
+msgstr "offset ligt niet tussen -8192 en 8191"
+
+#: ppc-opc.c:1011
+msgid "ignoring invalid mfcr mask"
+msgstr "ongeldig mfcr-masker wordt genegeerd"
+
+#: ppc-opc.c:1059
+msgid "ignoring least significant bits in branch offset"
+msgstr "minst significante bits worden genegeerd in branch offset"
+
+#: ppc-opc.c:1090 ppc-opc.c:1125
+msgid "illegal bitmask"
+msgstr "illegaal bitmasker"
+
+#: ppc-opc.c:1192
+msgid "value out of range"
+msgstr "waarde buiten bereik"
+
+# of is laadbereik beter?
+#: ppc-opc.c:1262
+msgid "index register in load range"
+msgstr "indexregister in load-bereik"
+
+#: ppc-opc.c:1279
+msgid "source and target register operands must be different"
+msgstr "bron- en doel-registeroperanden moeten verschillen"
+
+#: ppc-opc.c:1294
+msgid "invalid register operand when updating"
+msgstr "ongeldige register-operand bij update"
+
+#: ppc-opc.c:1335
+msgid "target register operand must be even"
+msgstr "doel-registeroperand moet paar zijn"
+
+#: ppc-opc.c:1350
+msgid "source register operand must be even"
+msgstr "bron-registeroperand moet paar zijn"
+
+#. Mark as non-valid instruction.
+#: sparc-dis.c:760
+msgid "unknown"
+msgstr "onbekend"
+
+# Looks like this is a typo (two spaces after the ':')
+#: sparc-dis.c:835
+#, c-format
+msgid "Internal error:  bad sparc-opcode.h: \"%s\", %#.8lx, %#.8lx\n"
+msgstr "Interne fout: sparch-opcode.h is verkeerd: \"%s\", %#.8lx, %#.8lx\n"
+
+#: sparc-dis.c:846
+#, c-format
+msgid "Internal error: bad sparc-opcode.h: \"%s\", %#.8lx, %#.8lx\n"
+msgstr "Interne fout: sparch-opcode.h is verkeerd: \"%s\", %#.8lx, %#.8lx\n"
+
+#: sparc-dis.c:895
+#, c-format
+msgid "Internal error: bad sparc-opcode.h: \"%s\" == \"%s\"\n"
+msgstr "Interne fout: sparch-opcode.h is verkeerd: \"%s\" == \"%s\"\n"
+
+#: v850-dis.c:221
+#, c-format
+msgid "unknown operand shift: %x\n"
+msgstr "onbekende operand-shift: %x\n"
+
+#: v850-dis.c:233
+#, c-format
+msgid "unknown pop reg: %d\n"
+msgstr "onbekend pop reg: %d\n"
+
+# Wat is een goede vertaling voor 'displacement'?
+#. The functions used to insert and extract complicated operands.
+#. Note: There is a conspiracy between these functions and
+#. v850_insert_operand() in gas/config/tc-v850.c.  Error messages
+#. containing the string 'out of range' will be ignored unless a
+#. specific command line option is given to GAS.
+#: v850-opc.c:68
+msgid "displacement value is not in range and is not aligned"
+msgstr "displacement-waarde is niet in bereik en is niet uitgelijnd"
+
+#: v850-opc.c:69
+msgid "displacement value is out of range"
+msgstr "displacement-waarde is buiten bereik"
+
+#: v850-opc.c:70
+msgid "displacement value is not aligned"
+msgstr "displacement-waarde is niet uitgelijnd"
+
+# of moet 'immediate' behouden worden?
+#: v850-opc.c:72
+msgid "immediate value is out of range"
+msgstr "onmiddellijke waarde is buiten bereik"
+
+# Repeated message..., use 'to an odd...' to merge it
+#: v850-opc.c:83
+msgid "branch value not in range and to odd offset"
+msgstr "branch-waarde niet in bereik en naar onpare offset"
+
+#: v850-opc.c:85 v850-opc.c:117
+msgid "branch value out of range"
+msgstr "branch-waarde buiten bereik"
+
+#: v850-opc.c:88 v850-opc.c:120
+msgid "branch to odd offset"
+msgstr "branch naar onpare offset"
+
+#: v850-opc.c:115
+msgid "branch value not in range and to an odd offset"
+msgstr "branch-waarde niet in bereik en naar een onpare offset"
+
+#: v850-opc.c:346
+msgid "invalid register for stack adjustment"
+msgstr "ongeldig register voor stack-aanpassing"
+
+#: v850-opc.c:370
+msgid "immediate value not in range and not even"
+msgstr "onmiddellijke waarde niet in bereik en niet paar"
+
+#: v850-opc.c:375
+msgid "immediate value must be even"
+msgstr "onmiddellijke waarde moet paar zijn"
+
+# of is laadbereik beter?
+#: xstormy16-asm.c:76
+msgid "Bad register in preincrement"
+msgstr "Ongeldig register in preincrement"
+
+#: xstormy16-asm.c:81
+msgid "Bad register in postincrement"
+msgstr "Ongeldig register in postincrement"
+
+# of is laadbereik beter?
+#: xstormy16-asm.c:83
+msgid "Bad register name"
+msgstr "Ongeldige registernaam"
+
+#: xstormy16-asm.c:87
+msgid "Label conflicts with register name"
+msgstr "Label geeft conflict met registernaam"
+
+#: xstormy16-asm.c:91
+msgid "Label conflicts with `Rx'"
+msgstr "Label geeft conflict met `Rx'"
+
+#: xstormy16-asm.c:93
+msgid "Bad immediate expression"
+msgstr "Slechte onmiddelijke expressie"
+
+# immediate what? 'value' assumed
+#: xstormy16-asm.c:115
+msgid "No relocation for small immediate"
+msgstr "Geen relocatie voor kleine onmiddelijke waarde"
+
+#: xstormy16-asm.c:125
+msgid "Small operand was not an immediate number"
+msgstr "Kleine operand was geen onmiddellijk getal"
+
+#: xstormy16-asm.c:164
+msgid "Operand is not a symbol"
+msgstr "Operand is geen symbool"
+
+#: xstormy16-asm.c:172
+msgid "Syntax error: No trailing ')'"
+msgstr "Syntaxfout: Geen sluithaakje"

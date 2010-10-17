@@ -1,0 +1,257 @@
+@c Copyright 1996, 2000 Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+@ifset GENERIC
+@page
+@node D10V-Dependent
+@chapter D10V Dependent Features
+@end ifset
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter D10V Dependent Features
+@end ifclear
+
+@cindex D10V support
+@menu
+* D10V-Opts::                   D10V Options
+* D10V-Syntax::                 Syntax
+* D10V-Float::                  Floating Point
+* D10V-Opcodes::                Opcodes
+@end menu
+
+@node D10V-Opts
+@section D10V Options
+@cindex options, D10V
+@cindex D10V options
+The Mitsubishi D10V version of @code{@value{AS}} has a few machine
+dependent options.
+
+@table @samp
+@item -O
+The D10V can often execute two sub-instructions in parallel. When this option
+is used, @code{@value{AS}} will attempt to optimize its output by detecting when
+instructions can be executed in parallel.
+@item --nowarnswap
+To optimize execution performance, @code{@value{AS}} will sometimes swap the
+order of instructions. Normally this generates a warning. When this option 
+is used, no warning will be generated when instructions are swapped.
+@item --gstabs-packing
+@item --no-gstabs-packing
+@code{@value{AS}} packs adjacent short instructions into a single packed
+instruction. @samp{--no-gstabs-packing} turns instruction packing off if
+@samp{--gstabs} is specified as well; @samp{--gstabs-packing} (the
+default) turns instruction packing on even when @samp{--gstabs} is
+specified.
+@end table
+
+@node D10V-Syntax
+@section Syntax
+@cindex D10V syntax
+@cindex syntax, D10V
+
+The D10V syntax is based on the syntax in Mitsubishi's D10V architecture manual.
+The differences are detailed below.
+
+@menu
+* D10V-Size::                 Size Modifiers
+* D10V-Subs::                 Sub-Instructions
+* D10V-Chars::                Special Characters
+* D10V-Regs::                 Register Names
+* D10V-Addressing::           Addressing Modes
+* D10V-Word::                 @@WORD Modifier
+@end menu
+
+
+@node D10V-Size
+@subsection Size Modifiers
+@cindex D10V size modifiers
+@cindex size modifiers, D10V
+The D10V version of @code{@value{AS}} uses the instruction names in the D10V
+Architecture Manual.  However, the names in the manual are sometimes ambiguous.
+There are instruction names that can assemble to a short or long form opcode.
+How does the assembler pick the correct form?  @code{@value{AS}} will always pick the
+smallest form if it can.  When dealing with a symbol that is not defined yet when a
+line is being assembled, it will always use the long form.  If you need to force the 
+assembler to use either the short or long form of the instruction, you can append
+either @samp{.s} (short) or @samp{.l} (long) to it.  For example, if you are writing 
+an assembly program and you want to do a branch to a symbol that is defined later
+in your program, you can write @samp{bra.s   foo}.  
+Objdump and GDB will always append @samp{.s} or @samp{.l} to instructions which
+have both short and long forms.
+
+@node D10V-Subs
+@subsection Sub-Instructions
+@cindex D10V sub-instructions
+@cindex sub-instructions, D10V
+The D10V assembler takes as input a series of instructions, either one-per-line,
+or in the special two-per-line format described in the next section.  Some of these
+instructions will be short-form or sub-instructions.  These sub-instructions can be packed
+into a single instruction.  The assembler will do this automatically.  It will also detect
+when it should not pack instructions.  For example, when a label is defined, the next
+instruction will never be packaged with the previous one.  Whenever a branch and link
+instruction is called, it will not be packaged with the next instruction so the return
+address will be valid.  Nops are automatically inserted when necessary.
+
+If you do not want the assembler automatically making these decisions, you can control
+the packaging and execution type (parallel or sequential) with the special execution 
+symbols described in the next section.  
+
+@node D10V-Chars
+@subsection Special Characters
+@cindex line comment character, D10V
+@cindex D10V line comment character
+@samp{;} and @samp{#} are the line comment characters.
+@cindex sub-instruction ordering, D10V
+@cindex D10V sub-instruction ordering
+Sub-instructions may be executed in order, in reverse-order, or in parallel.
+Instructions listed in the standard one-per-line format will be executed sequentially.
+To specify the executing order, use the following symbols: 
+@table @samp
+@item ->
+Sequential with instruction on the left first.
+@item <-
+Sequential with instruction on the right first.
+@item ||
+Parallel
+@end table
+The D10V syntax allows either one instruction per line, one instruction per line with
+the execution symbol, or two instructions per line.  For example
+@table @code
+@item abs       a1      ->      abs     r0
+Execute these sequentially.  The instruction on the right is in the right
+container and is executed second.
+@item abs       r0      <-      abs     a1
+Execute these reverse-sequentially.  The instruction on the right is in the right
+container, and is executed first.
+@item ld2w    r2,@@r8+         ||      mac     a0,r0,r7
+Execute these in parallel.
+@item ld2w    r2,@@r8+         ||      
+@itemx mac     a0,r0,r7
+Two-line format. Execute these in parallel.
+@item ld2w    r2,@@r8+         
+@itemx mac     a0,r0,r7
+Two-line format. Execute these sequentially.  Assembler will
+put them in the proper containers.
+@item ld2w    r2,@@r8+         ->
+@itemx mac     a0,r0,r7
+Two-line format. Execute these sequentially.  Same as above but
+second instruction will always go into right container.  
+@end table
+@cindex symbol names, @samp{$} in
+@cindex @code{$} in symbol names
+Since @samp{$} has no special meaning, you may use it in symbol names.
+
+@node D10V-Regs
+@subsection Register Names
+@cindex D10V registers
+@cindex registers, D10V
+You can use the predefined symbols @samp{r0} through @samp{r15} to refer to the D10V 
+registers.  You can also use @samp{sp} as an alias for @samp{r15}.  The accumulators
+are @samp{a0} and @samp{a1}.  There are special register-pair names that may 
+optionally be used in opcodes that require even-numbered registers. Register names are 
+not case sensitive.  
+
+Register Pairs
+@table @code
+@item r0-r1
+@item r2-r3
+@item r4-r5
+@item r6-r7
+@item r8-r9
+@item r10-r11
+@item r12-r13
+@item r14-r15
+@end table
+
+The D10V also has predefined symbols for these control registers and status bits:
+@table @code
+@item psw
+Processor Status Word
+@item bpsw
+Backup Processor Status Word
+@item pc
+Program Counter
+@item bpc
+Backup Program Counter
+@item rpt_c
+Repeat Count
+@item rpt_s
+Repeat Start address
+@item rpt_e
+Repeat End address
+@item mod_s
+Modulo Start address
+@item mod_e
+Modulo End address
+@item iba
+Instruction Break Address
+@item f0
+Flag 0
+@item f1
+Flag 1
+@item c
+Carry flag
+@end table
+        
+@node D10V-Addressing
+@subsection Addressing Modes
+@cindex addressing modes, D10V
+@cindex D10V addressing modes
+@code{@value{AS}} understands the following addressing modes for the D10V.
+@code{R@var{n}} in the following refers to any of the numbered
+registers, but @emph{not} the control registers.
+@table @code
+@item R@var{n}
+Register direct
+@item @@R@var{n}
+Register indirect
+@item @@R@var{n}+
+Register indirect with post-increment
+@item @@R@var{n}-
+Register indirect with post-decrement
+@item @@-SP
+Register indirect with pre-decrement
+@item @@(@var{disp}, R@var{n})
+Register indirect with displacement
+@item @var{addr}
+PC relative address (for branch or rep). 
+@item #@var{imm}
+Immediate data (the @samp{#} is optional and ignored)
+@end table
+
+@node D10V-Word
+@subsection @@WORD Modifier
+@cindex D10V @@word modifier
+@cindex @@word modifier, D10V
+Any symbol followed by @code{@@word} will be replaced by the symbol's value
+shifted right by 2.  This is used in situations such as loading a register
+with the address of a function (or any other code fragment).  For example, if
+you want to load a register with the location of the function @code{main} then
+jump to that function, you could do it as follows:
+@smallexample
+@group
+ldi     r2, main@@word
+jmp     r2
+@end group
+@end smallexample
+
+@node D10V-Float
+@section Floating Point
+@cindex floating point, D10V
+@cindex D10V floating point
+The D10V has no hardware floating point, but the @code{.float} and @code{.double}
+directives generates @sc{ieee} floating-point numbers for compatibility
+with other development tools. 
+
+@node D10V-Opcodes
+@section Opcodes
+@cindex D10V opcode summary
+@cindex opcode summary, D10V
+@cindex mnemonics, D10V
+@cindex instruction summary, D10V
+For detailed information on the D10V machine instruction set, see
+@cite{D10V Architecture: A VLIW Microprocessor for Multimedia Applications} 
+(Mitsubishi Electric Corp.).
+@code{@value{AS}} implements all the standard D10V opcodes.  The only changes are those
+described in the section on size modifiers
+

@@ -1,0 +1,442 @@
+		README for GPROF
+
+This is the GNU profiler.  It is distributed with other "binary 
+utilities" which should be in ../binutils.  See ../binutils/README for 
+more general notes, including where to send bug reports.
+
+This file documents the changes and new features available with this
+version of GNU gprof.
+
+* New Features
+
+ o Long options
+
+ o Supports generalized file format, without breaking backward compatibility:
+   new file format supports basic-block execution counts and non-realtime
+   histograms (see below)
+
+ o Supports profiling at the line level: flat profiles, call-graph profiles,
+   and execution-counts can all be displayed at a level that identifies
+   individual lines rather than just functions
+
+ o Test-coverage support (similar to Sun tcov program): source files
+   can be annotated with the number of times a function was invoked
+   or with the number of times each basic-block in a function was
+   executed
+
+ o Generalized histograms: not just execution-time, but arbitrary
+   histograms are support (for example, performance counter based
+   profiles)
+
+ o Powerful mechanism to select data to be included/excluded from
+   analysis and/or output
+
+ o Support for DEC OSF/1 v3.0
+
+ o Full cross-platform profiling support: gprof uses BFD to support
+   arbitrary, non-native object file formats and non-native byte-orders
+   (this feature has not been tested yet)
+
+ o In the call-graph function index, static function names are now
+   printed together with the filename in which the function was defined
+   (required bfd_find_nearest_line() support and symbolic debugging
+    information to be present in the executable file)
+
+ o Major overhaul of source code (compiles cleanly with -Wall, etc.)
+
+* Supported Platforms
+
+The current version is known to work on:
+
+ o DEC OSF/1 v3.0
+	All features supported.
+
+ o SunOS 4.1.x
+	All features supported.
+
+ o Solaris 2.3
+	Line-level profiling unsupported because bfd_find_nearest_line()
+	is not fully implemented for Elf binaries.
+
+ o HP-UX 9.01
+	Line-level profiling unsupported because bfd_find_nearest_line()
+	is not fully implemented for SOM binaries.
+
+* Detailed Description
+
+** User Interface Changes
+
+The command-line interface is backwards compatible with earlier
+versions of GNU gprof and Berkeley gprof.  The only exception is
+the option to delete arcs from the call graph.  The old syntax
+was:
+
+	-k fromname toname
+
+while the new syntax is:
+
+	-k fromname/toname
+
+This change was necessary to be compatible with long-option parsing.
+Also, "fromname" and "toname" can now be arbitrary symspecs rather
+than just function names (see below for an explanation of symspecs).
+For example, option "-k gprof.c/" suppresses all arcs due to calls out
+of file "gprof.c".
+
+*** Sym Specs
+
+It is often necessary to apply gprof only to specific parts of a
+program.  GNU gprof has a simple but powerful mechanism to achieve
+this.  So called {\em symspecs\/} provide the foundation for this
+mechanism.  A symspec selects the parts of a profiled program to which
+an operation should be applied to.  The syntax of a symspec is
+simple:
+
+	  filename_containing_a_dot
+	| funcname_not_containing_a_dot
+	| linenumber
+	| ( [ any_filename ] `:' ( any_funcname | linenumber ) )
+
+Here are some examples:
+
+	main.c			Selects everything in file "main.c"---the
+				dot in the string tells gprof to interpret
+				the string as a filename, rather than as
+				a function name.  To select a file whose
+				name does contain a dot, a trailing colon
+				should be specified.  For example, "odd:" is
+				interpreted as the file named "odd".
+
+	main			Selects all functions named "main".  Notice
+				that there may be multiple instances of the
+				same function name because some of the
+				definitions may be local (i.e., static).
+				Unless a function name is unique in a program,
+				you must use the colon notation explained
+				below to specify a function from a specific
+				source file.  Sometimes, functionnames contain
+				dots.  In such cases, it is necessary to
+				add a leading colon to the name.  For example,
+				":.mul" selects function ".mul".
+				
+	main.c:main		Selects function "main" in file "main.c".
+
+	main.c:134		Selects line 134 in file "main.c".
+
+IMPLEMENTATION NOTE: The source code uses the type sym_id for symspecs.
+At some point, this probably ought to be changed to "sym_spec" to make
+reading the code easier.
+
+*** Long options
+
+GNU gprof now supports long options.  The following is a list of all
+supported options.  Options that are listed without description
+operate in the same manner as the corresponding option in older
+versions of gprof.
+
+Short Form:	Long Form:
+-----------	----------
+-l		--line
+			Request profiling at the line-level rather
+			than just at the function level.  Source
+			lines are identified by symbols of the form:
+
+				func (file:line)
+
+			where "func" is the function name, "file" is the
+			file name and "line" is the line-number that
+			corresponds to the line.
+
+			To work properly, the binary must contain symbolic
+			debugging information.  This means that the source
+			have to be translated with option "-g" specified.
+			Functions for which there is no symbolic debugging
+			information available are treated as if "--line"
+			had not been specified.  However, the line number
+			printed with such symbols is usually incorrect
+			and should be ignored.
+
+-a		--no-static
+-A[symspec]	--annotated-source[=symspec]
+			Request output in the form of annotated source
+			files.  If "symspec" is specified, print output only
+			for symbols selected by "symspec".  If the option
+			is specified multiple times, annotated output is
+			generated for the union of all symspecs.
+
+			Examples:
+
+			  -A		Prints annotated source for all
+					source files.
+			  -Agprof.c	Prints annotated source for file
+					gprof.c.
+			  -Afoobar	Prints annotated source for files
+					containing a function named "foobar".
+					The entire file will be printed, but
+					only the function itself will be
+					annotated with profile data.
+
+-J[symspec]	--no-annotated-source[=symspec]
+			Suppress annotated source output.  If specified
+			without argument, annotated output is suppressed
+			completely.  With an argument, annotated output
+			is suppressed only for the symbols selected by
+			"symspec".  If the option is specified multiple
+			times, annotated output is suppressed for the
+			union of all symspecs.  This option has lower
+			precedence than --annotated-source
+
+-p[symspec]	--flat-profile[=symspec]
+			Request output in the form of a flat profile
+			(unless any other output-style option is specified,
+			 this option is turned on by default).  If
+			"symspec" is specified, include only symbols
+			selected by "symspec" in flat profile.  If the
+			option is specified multiple times, the flat
+			profile includes symbols selected by the union
+			of all symspecs.
+			
+-P[symspec]	--no-flat-profile[=symspec]
+			Suppress output in the flat profile.  If given
+			without an argument, the flat profile is suppressed
+			completely.  If "symspec" is specified, suppress
+			the selected symbols in the flat profile.  If the
+			option is specified multiple times, the union of
+			the selected symbols is suppressed.  This option
+			has lower precedence than --flat-profile.
+
+-q[symspec]	--graph[=symspec]
+			Request output in the form of a call-graph
+			(unless any other output-style option is specified,
+			 this option is turned on by default).  If "symspec"
+			is specified, include only symbols selected by
+			"symspec" in the call-graph.  If the option is
+			specified multiple times, the call-graph includes
+			symbols selected by the union of all symspecs.
+
+-Q[symspec]	--no-graph[=symspec]
+			Suppress output in the call-graph.  If given without
+			an argument, the call-graph is suppressed completely.
+			With a "symspec", suppress the selected symbols
+			from the call-graph.  If the option is specified
+			multiple times, the union of the selected symbols
+			is suppressed.  This option has lower precedence
+			than --graph.
+
+-C[symspec]	--exec-counts[=symspec]
+			Request output in the form of execution counts.
+			If "symspec" is present, include only symbols
+			selected by "symspec" in the execution count
+			listing.  If the option is specified multiple
+			times, the execution count listing includes
+			symbols selected by the union of all symspecs.
+
+-Z[symspec]	--no-exec-counts[=symspec]
+			Suppress output in the execution count listing.
+			If given without an argument, the listing is
+			suppressed completely.  With a "symspec", suppress
+			the selected symbols from the call-graph.  If the
+			option is specified multiple times, the union of
+			the selected symbols is suppressed.  This option
+			has lower precedence than --exec-counts.
+
+-i		--file-info
+			Print information about the profile files that
+			are read.  The information consists of the
+			number and types of records present in the
+			profile file.  Currently, a profile file can
+			contain any number and any combination of histogram,
+			call-graph, or basic-block count records.
+
+-s		--sum
+
+-x		--all-lines
+			This option affects annotated source output only.
+			By default, only the lines at the beginning of
+			a basic-block are annotated.  If this option is
+			specified, every line in a basic-block is annotated
+			by repeating the annotation for the first line.
+			This option is identical to tcov's "-a".
+
+-I dirs		--directory-path=dirs
+			This option affects annotated source output only.
+			Specifies the list of directories to be searched
+			for source files.  The argument "dirs" is a colon
+			separated list of directories.  By default, gprof
+			searches for source files relative to the current
+			working directory only.
+
+-z		--display-unused-functions
+
+-m num		--min-count=num
+			This option affects annotated source and execution
+			count output only.  Symbols that are executed
+			less than "num" times are suppressed.  For annotated
+			source output, suppressed symbols are marked
+			by five hash-marks (#####).  In an execution count
+			output, suppressed symbols do not appear at all.
+
+-L		--print-path
+			Normally, source filenames are printed with the path
+			component suppressed.  With this option, gprof
+			can be forced to print the full pathname of
+			source filenames.  The full pathname is determined
+			from symbolic debugging information in the image file
+			and is relative to the directory in which the compiler
+			was invoked.
+
+-y		--separate-files
+			This option affects annotated source output only.
+			Normally, gprof prints annotated source files
+			to standard-output.  If this option is specified,
+			annotated source for a file named "path/filename"
+			is generated in the file "filename-ann".  That is,
+			annotated output is {\em always\/} generated in
+			gprof's current working directory.  Care has to
+			be taken if a program consists of files that have
+			identical filenames, but distinct paths.
+
+-c		--static-call-graph
+
+-t num		--table-length=num
+			This option affects annotated source output only.
+			After annotating a source file, gprof generates
+			an execution count summary consisting of a table
+			of lines with the top execution counts.  By
+			default, this table is ten entries long.
+			This option can be used to change the table length
+			or, by specifying an argument value of 0, it can be
+			suppressed completely.
+
+-n symspec	--time=symspec
+			Only symbols selected by "symspec" are considered
+			in total and percentage time computations.
+			However, this option does not affect percentage time
+			computation for the flat profile.
+			If the option is specified multiple times, the union
+			of all selected symbols is used in time computations.
+
+-N		--no-time=symspec
+			Exclude the symbols selected by "symspec" from
+			total and percentage time computations.
+			However, this option does not affect percentage time
+			computation for the flat profile.
+			This option is ignored if any --time options are
+			specified.
+
+-w num		--width=num
+			Sets the output line width.  Currently, this option
+			affects the printing of the call-graph function index
+			only.
+
+-e		<no long form---for backwards compatibility only>
+-E		<no long form---for backwards compatibility only>
+-f		<no long form---for backwards compatibility only>
+-F		<no long form---for backwards compatibility only>
+-k		<no long form---for backwards compatibility only>
+-b		--brief
+-dnum		--debug[=num]
+
+-h		--help
+			Prints a usage message.
+
+-O name		--file-format=name
+			Selects the format of the profile data files.
+			Recognized formats are "auto", "bsd", "magic",
+			and "prof".  The last one is not yet supported.
+			Format "auto" attempts to detect the file format
+			automatically (this is the default behavior).
+			It attempts to read the profile data files as
+			"magic" files and if this fails, falls back to
+			the "bsd" format.  "bsd" forces gprof to read
+			the data files in the BSD format.  "magic" forces
+			gprof to read the data files in the "magic" format.
+
+-T		--traditional
+-v		--version
+
+** File Format Changes
+
+The old BSD-derived format used for profile data does not contain a
+magic cookie that allows to check whether a data file really is a
+gprof file.  Furthermore, it does not provide a version number, thus
+rendering changes to the file format almost impossible.  GNU gprof
+uses a new file format that provides these features.  For backward
+compatibility, GNU gprof continues to support the old BSD-derived
+format, but not all features are supported with it.  For example,
+basic-block execution counts cannot be accommodated by the old file
+format.
+
+The new file format is defined in header file \file{gmon_out.h}.  It
+consists of a header containing the magic cookie and a version number,
+as well as some spare bytes available for future extensions.  All data
+in a profile data file is in the native format of the host on which
+the profile was collected.  GNU gprof adapts automatically to the
+byte-order in use.
+
+In the new file format, the header is followed by a sequence of
+records.  Currently, there are three different record types: histogram
+records, call-graph arc records, and basic-block execution count
+records.  Each file can contain any number of each record type.  When
+reading a file, GNU gprof will ensure records of the same type are
+compatible with each other and compute the union of all records.  For
+example, for basic-block execution counts, the union is simply the sum
+of all execution counts for each basic-block.
+
+*** Histogram Records
+
+Histogram records consist of a header that is followed by an array of
+bins.  The header contains the text-segment range that the histogram
+spans, the size of the histogram in bytes (unlike in the old BSD
+format, this does not include the size of the header), the rate of the
+profiling clock, and the physical dimension that the bin counts
+represent after being scaled by the profiling clock rate.  The
+physical dimension is specified in two parts: a long name of up to 15
+characters and a single character abbreviation.  For example, a
+histogram representing real-time would specify the long name as
+"seconds" and the abbreviation as "s".  This feature is useful for
+architectures that support performance monitor hardware (which,
+fortunately, is becoming increasingly common).  For example, under DEC
+OSF/1, the "uprofile" command can be used to produce a histogram of,
+say, instruction cache misses.  In this case, the dimension in the
+histogram header could be set to "i-cache misses" and the abbreviation
+could be set to "1" (because it is simply a count, not a physical
+dimension).  Also, the profiling rate would have to be set to 1 in
+this case.
+
+Histogram bins are 16-bit numbers and each bin represent an equal
+amount of text-space.  For example, if the text-segment is one
+thousand bytes long and if there are ten bins in the histogram, each
+bin represents one hundred bytes.
+
+
+*** Call-Graph Records
+
+Call-graph records have a format that is identical to the one used in
+the BSD-derived file format.  It consists of an arc in the call graph
+and a count indicating the number of times the arc was traversed
+during program execution.  Arcs are specified by a pair of addresses:
+the first must be within caller's function and the second must be
+within the callee's function.  When performing profiling at the
+function level, these addresses can point anywhere within the
+respective function.  However, when profiling at the line-level, it is
+better if the addresses are as close to the call-site/entry-point as
+possible.  This will ensure that the line-level call-graph is able to
+identify exactly which line of source code performed calls to a
+function.
+
+*** Basic-Block Execution Count Records
+
+Basic-block execution count records consist of a header followed by a
+sequence of address/count pairs.  The header simply specifies the
+length of the sequence.  In an address/count pair, the address
+identifies a basic-block and the count specifies the number of times
+that basic-block was executed.  Any address within the basic-address can
+be used.
+
+IMPLEMENTATION NOTE: gcc -a can be used to instrument a program to
+record basic-block execution counts.  However, the __bb_exit_func()
+that is currently present in libgcc2.c does not generate a gmon.out
+file in a suitable format.  This should be fixed for future releases
+of gcc.  In the meantime, contact davidm@cs.arizona.edu for a version
+of __bb_exit_func() to is appropriate.

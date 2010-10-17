@@ -1,0 +1,11 @@
+#source: tlsg.s
+#as: --64 -Av9
+#ld: -melf64_sparc
+#objdump: -sj.debug_foobar
+#target: sparc*-*-*
+
+.*: +file format elf64-sparc
+
+Contents of section .debug_foobar:
+# FIXME
+#pass

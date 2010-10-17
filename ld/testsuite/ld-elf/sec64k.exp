@@ -1,0 +1,149 @@
+# Expect script for tests for >64k sections
+#   Copyright 2002 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+# Written by Hans-Peter Nilsson (hp@axis.com)
+#
+
+# Exclude non-ELF targets.
+
+if ![is_elf_format] {
+    return
+}
+
+# Per-port excludes, since this test takes an overwhelmingly long time
+# currently.
+if { ![istarget cris-*-*] } {
+    return
+}
+
+# Test >64k sections, with and without -r.  First, create the assembly
+# files.  Have a relocation to another section and one within the local
+# section.
+
+set test1 "64ksec-r"
+set test2 "64ksec"
+
+if { ![runtest_file_p $runtests $test1] \
+	&& ![runtest_file_p $runtests $test2] } {
+    return
+}
+
+set sfiles {}
+set max_sec 66000
+set secs_per_file 1000
+set secn 0
+for { set i 0 } { $i < $max_sec / $secs_per_file } { incr i } {
+    set sfile "$objdir/tmpdir/sec64-$i.s"
+    lappend sfiles $sfile
+    if [catch { set ofd [open $sfile w] } x] {
+	perror "$x"
+	unresolved $test1
+	unresolved $test2
+	return
+    }
+
+    if { $secn == 0 } {
+	puts $ofd " .global _start"
+	puts $ofd "_start:"
+	puts $ofd " .global foo_0"
+	puts $ofd "foo_0: .long 0"
+    }
+
+    # Make sure the used section is not covered by common linker scripts.
+    # They should get separate section entries even without -r.
+    for { set j 0 } { $j < $secs_per_file } { incr j } {
+	incr secn
+	puts $ofd " .section .foo.$secn,\"ax\""
+	puts $ofd " .global foo_$secn"
+	puts $ofd "foo_$secn:"
+	puts $ofd " .long foo_[expr $secn - 1]"
+	puts $ofd "bar_$secn:"
+	puts $ofd " .long bar_$secn"
+    }
+
+    close $ofd
+}
+
+if [catch { set ofd [open "tmpdir/$test1.d" w] } x] {
+    perror "$x"
+    unresolved $test1
+    unresolved $test2
+    return
+}
+
+# The ld-r linked file will contain relocation-sections too, so make it
+# half the size in order to try and keep the test-time down.
+foreach sfile [lrange $sfiles 0 [expr [llength $sfiles] / 2]] {
+    puts $ofd "#source: $sfile"
+}
+puts $ofd "#ld: -r"
+puts $ofd "#readelf: -W -Ss"
+puts $ofd "There are 680.. section headers.*:"
+puts $ofd "#..."
+puts $ofd "  \\\[ 0\\\] .* 682\[0-9\]\[0-9\]\[ \]+0\[ \]+0"
+puts $ofd "#..."
+puts $ofd "  \\\[ \[0-9\]\\\] \.foo\.1\[ \]+PROGBITS\[ \]+.*"
+puts $ofd "#..."
+puts $ofd "  \\\[65279\\\] (.rel\[a\]?)?\\.foo\\.\[0-9\]+ .*"
+puts $ofd "  \\\[65536\\\] (.rel\[a\]?)?\\.foo\\.\[0-9\]+ .*"
+puts $ofd "#..."
+puts $ofd " 680..: 0+\[ \]+0\[ \]+SECTION\[ \]+LOCAL\[ \]+DEFAULT\[ \]+68... "
+puts $ofd "#..."
+puts $ofd " 680..: 0+4\[ \]+0\[ \]+NOTYPE\[ \]+LOCAL\[ \]+DEFAULT\[ \]+2 bar_1"
+puts $ofd "#..."
+puts $ofd ".* bar_34000"
+puts $ofd "#..."
+# Global symbols are not in "alphanumeric" order, so we just check
+# that the first and the last are present in any order (assuming no
+# duplicates).
+puts $ofd ".* (\[0-9\] foo_1|68... foo_34000)"
+puts $ofd "#..."
+puts $ofd ".* (\[0-9\] foo_1|68... foo_34000)"
+puts $ofd "#pass"
+close $ofd
+run_dump_test "tmpdir/$test1"
+
+if [catch { set ofd [open "tmpdir/$test2.d" w] } x] {
+    perror "$x"
+    unresolved $test2
+    return
+}
+foreach sfile $sfiles { puts $ofd "#source: $sfile" }
+puts $ofd "#ld:"
+puts $ofd "#readelf: -W -Ss"
+puts $ofd "There are 660.. section headers.*:"
+puts $ofd "#..."
+puts $ofd "  \\\[ 0\\\] .* 662..\[ \]+0\[ \]+0"
+puts $ofd "#..."
+puts $ofd "  \\\[65279\\\] \\.foo\\.\[0-9\]+ .*"
+puts $ofd "  \\\[65536\\\] \\.foo\\.\[0-9\]+ .*"
+puts $ofd "#..."
+puts $ofd " 660..: 0+\[ \]+0\[ \]+SECTION\[ \]+LOCAL\[ \]+DEFAULT\[ \]+662.. "
+puts $ofd "#..."
+puts $ofd " 660..: \[0-9a-f\]+\[ \]+0\[ \]+NOTYPE\[ \]+LOCAL\[ \]+DEFAULT\[ \]+\[0-9\] bar_1"
+puts $ofd "#..."
+puts $ofd ".* bar_66000"
+puts $ofd "#..."
+# Global symbols are not in "alphanumeric" order, so we just check
+# that the first and the last are present in any order (assuming no
+# duplicates).
+puts $ofd ".* (\[0-9\] foo_1|66... foo_66000)"
+puts $ofd "#..."
+puts $ofd ".* (\[0-9\] foo_1|66... foo_66000)"
+puts $ofd "#pass"
+close $ofd
+run_dump_test "tmpdir/$test2"

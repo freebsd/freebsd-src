@@ -1,0 +1,442 @@
+@c Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000
+@c Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+@ifset GENERIC
+@page
+@node M68HC11-Dependent
+@chapter M68HC11 and M68HC12 Dependent Features
+@end ifset
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter M68HC11 and M68HC12 Dependent Features
+@end ifclear
+
+@cindex M68HC11 and M68HC12 support
+@menu
+* M68HC11-Opts::                   M68HC11 and M68HC12 Options
+* M68HC11-Syntax::                 Syntax
+* M68HC11-Modifiers::              Symbolic Operand Modifiers
+* M68HC11-Directives::             Assembler Directives
+* M68HC11-Float::                  Floating Point
+* M68HC11-opcodes::                Opcodes
+@end menu
+
+@node M68HC11-Opts
+@section M68HC11 and M68HC12 Options
+
+@cindex options, M68HC11
+@cindex M68HC11 options
+The Motorola 68HC11 and 68HC12 version of @code{@value{AS}} have a few machine
+dependent options.
+
+@table @code
+
+@cindex @samp{-m68hc11}
+@item -m68hc11
+This option switches the assembler in the M68HC11 mode. In this mode,
+the assembler only accepts 68HC11 operands and mnemonics. It produces
+code for the 68HC11.
+
+@cindex @samp{-m68hc12}
+@item -m68hc12
+This option switches the assembler in the M68HC12 mode. In this mode,
+the assembler also accepts 68HC12 operands and mnemonics. It produces
+code for the 68HC12. A few 68HC11 instructions are replaced by
+some 68HC12 instructions as recommended by Motorola specifications.
+
+@cindex @samp{-m68hcs12}
+@item -m68hcs12
+This option switches the assembler in the M68HCS12 mode.  This mode is
+similar to @samp{-m68hc12} but specifies to assemble for the 68HCS12
+series.  The only difference is on the assembling of the @samp{movb}
+and @samp{movw} instruction when a PC-relative operand is used.
+
+@cindex @samp{-mshort}
+@item -mshort
+This option controls the ABI and indicates to use a 16-bit integer ABI.
+It has no effect on the assembled instructions.
+This is the default.
+
+@cindex @samp{-mlong}
+@item -mlong
+This option controls the ABI and indicates to use a 32-bit integer ABI.
+
+@cindex @samp{-mshort-double}
+@item -mshort-double
+This option controls the ABI and indicates to use a 32-bit float ABI.
+This is the default.
+
+@cindex @samp{-mlong-double}
+@item -mlong-double
+This option controls the ABI and indicates to use a 64-bit float ABI.
+
+@cindex @samp{--strict-direct-mode}
+@item --strict-direct-mode
+You can use the @samp{--strict-direct-mode} option to disable
+the automatic translation of direct page mode addressing into
+extended mode when the instruction does not support direct mode.
+For example, the @samp{clr} instruction does not support direct page
+mode addressing. When it is used with the direct page mode,
+@code{@value{AS}} will ignore it and generate an absolute addressing.
+This option prevents @code{@value{AS}} from doing this, and the wrong
+usage of the direct page mode will raise an error.
+
+@cindex @samp{--short-branchs}
+@item --short-branchs
+The @samp{--short-branchs} option turns off the translation of
+relative branches into absolute branches when the branch offset is
+out of range. By default @code{@value{AS}} transforms the relative
+branch (@samp{bsr}, @samp{bgt}, @samp{bge}, @samp{beq}, @samp{bne},
+@samp{ble}, @samp{blt}, @samp{bhi}, @samp{bcc}, @samp{bls},
+@samp{bcs}, @samp{bmi}, @samp{bvs}, @samp{bvs}, @samp{bra}) into
+an absolute branch when the offset is out of the -128 .. 127 range.
+In that case, the @samp{bsr} instruction is translated into a
+@samp{jsr}, the @samp{bra} instruction is translated into a
+@samp{jmp} and the conditional branchs instructions are inverted and
+followed by a @samp{jmp}. This option disables these translations
+and @code{@value{AS}} will generate an error if a relative branch
+is out of range. This option does not affect the optimization
+associated to the @samp{jbra}, @samp{jbsr} and @samp{jbXX} pseudo opcodes.
+
+@cindex @samp{--force-long-branchs}
+@item --force-long-branchs
+The @samp{--force-long-branchs} option forces the translation of
+relative branches into absolute branches. This option does not affect
+the optimization associated to the @samp{jbra}, @samp{jbsr} and
+@samp{jbXX} pseudo opcodes. 
+
+@cindex @samp{--print-insn-syntax}
+@item --print-insn-syntax
+You can use the @samp{--print-insn-syntax} option to obtain the
+syntax description of the instruction when an error is detected.
+
+@cindex @samp{--print-opcodes}
+@item --print-opcodes
+The @samp{--print-opcodes} option prints the list of all the
+instructions with their syntax. The first item of each line
+represents the instruction name and the rest of the line indicates
+the possible operands for that instruction. The list is printed
+in alphabetical order. Once the list is printed @code{@value{AS}}
+exits.
+
+@cindex @samp{--generate-example}
+@item --generate-example
+The @samp{--generate-example} option is similar to @samp{--print-opcodes}
+but it generates an example for each instruction instead.
+@end table
+
+@node M68HC11-Syntax
+@section Syntax
+
+@cindex M68HC11 syntax
+@cindex syntax, M68HC11
+
+In the M68HC11 syntax, the instruction name comes first and it may
+be followed by one or several operands (up to three). Operands are
+separated by comma (@samp{,}). In the normal mode,
+@code{@value{AS}} will complain if too many operands are specified for
+a given instruction. In the MRI mode (turned on with @samp{-M} option),
+it will treat them as comments. Example:
+
+@smallexample
+inx
+lda  #23
+bset 2,x #4
+brclr *bot #8 foo
+@end smallexample
+
+@cindex M68HC11 addressing modes
+@cindex addressing modes, M68HC11
+The following addressing modes are understood for 68HC11 and 68HC12:
+@table @dfn
+@item Immediate
+@samp{#@var{number}}
+
+@item Address Register
+@samp{@var{number},X}, @samp{@var{number},Y}
+
+The @var{number} may be omitted in which case 0 is assumed.
+
+@item Direct Addressing mode
+@samp{*@var{symbol}}, or @samp{*@var{digits}}
+
+@item Absolute
+@samp{@var{symbol}}, or @samp{@var{digits}}
+@end table
+
+The M68HC12 has other more complex addressing modes. All of them
+are supported and they are represented below:
+
+@table @dfn
+@item Constant Offset Indexed Addressing Mode
+@samp{@var{number},@var{reg}}
+
+The @var{number} may be omitted in which case 0 is assumed.
+The register can be either @samp{X}, @samp{Y}, @samp{SP} or
+@samp{PC}.  The assembler will use the smaller post-byte definition
+according to the constant value (5-bit constant offset, 9-bit constant
+offset or 16-bit constant offset).  If the constant is not known by
+the assembler it will use the 16-bit constant offset post-byte and the value
+will be resolved at link time.
+
+@item Offset Indexed Indirect
+@samp{[@var{number},@var{reg}]}
+
+The register can be either @samp{X}, @samp{Y}, @samp{SP} or @samp{PC}.
+
+@item Auto Pre-Increment/Pre-Decrement/Post-Increment/Post-Decrement
+@samp{@var{number},-@var{reg}}
+@samp{@var{number},+@var{reg}}
+@samp{@var{number},@var{reg}-}
+@samp{@var{number},@var{reg}+}
+
+The number must be in the range @samp{-8}..@samp{+8} and must not be 0.
+The register can be either @samp{X}, @samp{Y}, @samp{SP} or @samp{PC}.
+
+@item Accumulator Offset
+@samp{@var{acc},@var{reg}}
+
+The accumulator register can be either @samp{A}, @samp{B} or @samp{D}.
+The register can be either @samp{X}, @samp{Y}, @samp{SP} or @samp{PC}.
+
+@item Accumulator D offset indexed-indirect
+@samp{[D,@var{reg}]}
+
+The register can be either @samp{X}, @samp{Y}, @samp{SP} or @samp{PC}.
+
+@end table
+
+For example:
+
+@smallexample
+ldab 1024,sp
+ldd [10,x]
+orab 3,+x
+stab -2,y-
+ldx a,pc
+sty [d,sp]
+@end smallexample
+
+
+@node M68HC11-Modifiers
+@section Symbolic Operand Modifiers
+
+@cindex M68HC11 modifiers
+@cindex syntax, M68HC11
+
+The assembler supports several modifiers when using symbol addresses
+in 68HC11 and 68HC12 instruction operands.  The general syntax is
+the following:
+
+@smallexample
+%modifier(symbol)
+@end smallexample
+
+@table @code
+@cindex symbol modifiers
+@item %addr
+This modifier indicates to the assembler and linker to use
+the 16-bit physical address corresponding to the symbol.  This is intended
+to be used on memory window systems to map a symbol in the memory bank window.
+If the symbol is in a memory expansion part, the physical address
+corresponds to the symbol address within the memory bank window.
+If the symbol is not in a memory expansion part, this is the symbol address
+(using or not using the %addr modifier has no effect in that case).
+
+@item %page
+This modifier indicates to use the memory page number corresponding
+to the symbol.  If the symbol is in a memory expansion part, its page
+number is computed by the linker as a number used to map the page containing
+the symbol in the memory bank window.  If the symbol is not in a memory
+expansion part, the page number is 0.
+
+@item %hi
+This modifier indicates to use the 8-bit high part of the physical
+address of the symbol.
+
+@item %lo
+This modifier indicates to use the 8-bit low part of the physical
+address of the symbol.
+
+@end table
+
+For example a 68HC12 call to a function @samp{foo_example} stored in memory
+expansion part could be written as follows:
+
+@smallexample
+call %addr(foo_example),%page(foo_example)
+@end smallexample
+
+and this is equivalent to
+
+@smallexample
+call foo_example
+@end smallexample
+
+And for 68HC11 it could be written as follows:
+
+@smallexample
+ldab #%page(foo_example)
+stab _page_switch
+jsr  %addr(foo_example)
+@end smallexample
+
+@node M68HC11-Directives
+@section Assembler Directives
+
+@cindex assembler directives, M68HC11
+@cindex assembler directives, M68HC12
+@cindex M68HC11 assembler directives
+@cindex M68HC12 assembler directives
+
+The 68HC11 and 68HC12 version of @code{@value{AS}} have the following
+specific assembler directives:
+
+@table @code
+@item .relax
+@cindex assembler directive .relax, M68HC11
+@cindex M68HC11 assembler directive .relax
+The relax directive is used by the @samp{GNU Compiler} to emit a specific
+relocation to mark a group of instructions for linker relaxation.
+The sequence of instructions within the group must be known to the linker
+so that relaxation can be performed.
+
+@item .mode [mshort|mlong|mshort-double|mlong-double]
+@cindex assembler directive .mode, M68HC11
+@cindex M68HC11 assembler directive .mode
+This directive specifies the ABI.  It overrides the @samp{-mshort},
+@samp{-mlong}, @samp{-mshort-double} and @samp{-mlong-double} options.
+
+@item .far @var{symbol}
+@cindex assembler directive .far, M68HC11
+@cindex M68HC11 assembler directive .far
+This directive marks the symbol as a @samp{far} symbol meaning that it
+uses a @samp{call/rtc} calling convention as opposed to @samp{jsr/rts}.
+During a final link, the linker will identify references to the @samp{far}
+symbol and will verify the proper calling convention.
+
+@item .interrupt @var{symbol}
+@cindex assembler directive .interrupt, M68HC11
+@cindex M68HC11 assembler directive .interrupt
+This directive marks the symbol as an interrupt entry point.
+This information is then used by the debugger to correctly unwind the
+frame across interrupts.
+
+@item .xrefb @var{symbol}
+@cindex assembler directive .xrefb, M68HC11
+@cindex M68HC11 assembler directive .xrefb
+This directive is defined for compatibility with the
+@samp{Specification for Motorola 8 and 16-Bit Assembly Language Input
+Standard} and is ignored.
+
+@end table
+
+@node M68HC11-Float
+@section Floating Point
+
+@cindex floating point, M68HC11
+@cindex M68HC11 floating point
+Packed decimal (P) format floating literals are not supported.
+Feel free to add the code!
+
+The floating point formats generated by directives are these.
+
+@table @code
+@cindex @code{float} directive, M68HC11
+@item .float
+@code{Single} precision floating point constants.
+
+@cindex @code{double} directive, M68HC11
+@item .double
+@code{Double} precision floating point constants.
+
+@cindex @code{extend} directive M68HC11
+@cindex @code{ldouble} directive M68HC11
+@item .extend
+@itemx .ldouble
+@code{Extended} precision (@code{long double}) floating point constants.
+@end table
+
+@need 2000
+@node M68HC11-opcodes
+@section Opcodes
+
+@cindex M68HC11 opcodes
+@cindex opcodes, M68HC11
+@cindex instruction set, M68HC11
+
+@menu
+* M68HC11-Branch::                 Branch Improvement
+@end menu
+
+@node M68HC11-Branch
+@subsection Branch Improvement
+
+@cindex pseudo-opcodes, M68HC11
+@cindex M68HC11 pseudo-opcodes
+@cindex branch improvement, M68HC11
+@cindex M68HC11 branch improvement
+
+Certain pseudo opcodes are permitted for branch instructions.
+They expand to the shortest branch instruction that reach the
+target. Generally these mnemonics are made by prepending @samp{j} to
+the start of Motorola mnemonic. These pseudo opcodes are not affected
+by the @samp{--short-branchs} or @samp{--force-long-branchs} options.
+
+The following table summarizes the pseudo-operations.
+
+@smallexample
+                        Displacement Width
+     +-------------------------------------------------------------+
+     |                     Options                                 |
+     |    --short-branchs            --force-long-branchs          |
+     +--------------------------+----------------------------------+
+  Op |BYTE             WORD     | BYTE          WORD               |
+     +--------------------------+----------------------------------+
+ bsr | bsr <pc-rel>    <error>  |               jsr <abs>          |
+ bra | bra <pc-rel>    <error>  |               jmp <abs>          |
+jbsr | bsr <pc-rel>   jsr <abs> | bsr <pc-rel>  jsr <abs>          |
+jbra | bra <pc-rel>   jmp <abs> | bra <pc-rel>  jmp <abs>          |
+ bXX | bXX <pc-rel>    <error>  |               bNX +3; jmp <abs>  | 
+jbXX | bXX <pc-rel>   bNX +3;   | bXX <pc-rel>  bNX +3; jmp <abs>  |
+     |                jmp <abs> |                                  |
+     +--------------------------+----------------------------------+
+XX: condition
+NX: negative of condition XX
+
+@end smallexample
+
+@table @code
+@item jbsr
+@itemx jbra
+These are the simplest jump pseudo-operations; they always map to one
+particular machine instruction, depending on the displacement to the
+branch target.
+
+@item jb@var{XX}
+Here, @samp{jb@var{XX}} stands for an entire family of pseudo-operations,
+where @var{XX} is a conditional branch or condition-code test.  The full
+list of pseudo-ops in this family is:
+@smallexample
+ jbcc   jbeq   jbge   jbgt   jbhi   jbvs   jbpl  jblo
+ jbcs   jbne   jblt   jble   jbls   jbvc   jbmi
+@end smallexample
+
+For the cases of non-PC relative displacements and long displacements,
+@code{@value{AS}} issues a longer code fragment in terms of
+@var{NX}, the opposite condition to @var{XX}.  For example, for the
+non-PC relative case:
+@smallexample
+    jb@var{XX} foo
+@end smallexample
+gives
+@smallexample
+     b@var{NX}s oof
+     jmp foo
+ oof:
+@end smallexample
+
+@end table
+
+

@@ -1,0 +1,1702 @@
+# Danish messages for ld.
+# Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+# Keld Simonsen <keld@dkuug.dk>, 2002
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: ld 2.12.91\n"
+"POT-Creation-Date: 2002-07-23 15:58-0400\n"
+"PO-Revision-Date: 2002-11-10 12:31+0100\n"
+"Last-Translator: Keld Simonsen <keld@dkuug.dk>\n"
+"Language-Team: Danish <dansk@klid.dk>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=iso-8859-1\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: emultempl/armcoff.em:71
+msgid "  --support-old-code   Support interworking with old code\n"
+msgstr "  --support-old-code   Understøt samvirke med gammel kode\n"
+
+#: emultempl/armcoff.em:72
+msgid "  --thumb-entry=<sym>  Set the entry point to be Thumb symbol <sym>\n"
+msgstr ""
+"  --thumb-entry=<sym>  Indstil indgangspunktet til at være tommelsymbolet\n"
+"                         <sym>\n"
+
+#: emultempl/armcoff.em:141
+#, c-format
+msgid "Errors encountered processing file %s"
+msgstr "Fejl skete ved behandling af filen %s"
+
+#: emultempl/armcoff.em:207 emultempl/pe.em:1422
+msgid "%P: warning: '--thumb-entry %s' is overriding '-e %s'\n"
+msgstr "%P: advarsel: \"--thumb-entry %s\" tilsidesætter \"-e %s\"\n"
+
+#: emultempl/armcoff.em:212 emultempl/pe.em:1427
+msgid "%P: warning: connot find thumb start symbol %s\n"
+msgstr "%P: advarsel: kan ikke finde tommelstartsymbol %s\n"
+
+#: emultempl/pe.em:317
+msgid "  --base_file <basefile>             Generate a base file for relocatable DLLs\n"
+msgstr ""
+"  --base_file <basefil>               Generér en basefil for\n"
+"                                       relokérbare DLL'er\n"
+
+#: emultempl/pe.em:318
+msgid "  --dll                              Set image base to the default for DLLs\n"
+msgstr ""
+"  --dll                              Sæt billedbase til standard for\n"
+"                                       DLL'er\n"
+
+#: emultempl/pe.em:319
+msgid "  --file-alignment <size>            Set file alignment\n"
+msgstr "  --file-alignment <størrelse>         Sæt filjustering\n"
+
+#: emultempl/pe.em:320
+msgid "  --heap <size>                      Set initial size of the heap\n"
+msgstr "  --heap <størrelse>                   Sæt initiel størrelse på bunken\n"
+
+#: emultempl/pe.em:321
+msgid "  --image-base <address>             Set start address of the executable\n"
+msgstr "  --image-base <adresse>              Sæt startadressen for den kørbare\n"
+
+#: emultempl/pe.em:322
+msgid "  --major-image-version <number>     Set version number of the executable\n"
+msgstr "  --major-image-version <nummer>     Sæt versionsnummer for den kørbare\n"
+
+#: emultempl/pe.em:323
+msgid "  --major-os-version <number>        Set minimum required OS version\n"
+msgstr "  --major-os-version <nummer>        Sæt laveste krævet OS-version\n"
+
+#: emultempl/pe.em:324
+msgid "  --major-subsystem-version <number> Set minimum required OS subsystem version\n"
+msgstr ""
+"  --major-subsystem-version <nummer> Sæt laveste nødvendige\n"
+"                                       OS-undersystemsversion\n"
+
+#: emultempl/pe.em:325
+msgid "  --minor-image-version <number>     Set revision number of the executable\n"
+msgstr ""
+"  --minor-image-version <nummer>     Sæt underrevisionsnummer for\n"
+"                                       den kørbare\n"
+
+#: emultempl/pe.em:326
+msgid "  --minor-os-version <number>        Set minimum required OS revision\n"
+msgstr "  --minor-os-version <nummer>        Sæt laveste krævet OS-revision\n"
+
+#: emultempl/pe.em:327
+msgid "  --minor-subsystem-version <number> Set minimum required OS subsystem revision\n"
+msgstr ""
+"  --minor-subsystem-version <nummer> Sæt laveste nødvendige\n"
+"                                       OS-undersystemsrevision\n"
+
+#: emultempl/pe.em:328
+msgid "  --section-alignment <size>         Set section alignment\n"
+msgstr "  --section-alignment <størrelse>      Sæt sektionsjustering\n"
+
+#: emultempl/pe.em:329
+msgid "  --stack <size>                     Set size of the initial stack\n"
+msgstr "  --stack <størrelse>                  Sæt størrelse på initiel stak\n"
+
+#: emultempl/pe.em:330
+msgid "  --subsystem <name>[:<version>]     Set required OS subsystem [& version]\n"
+msgstr ""
+"  --subsystem <navn>[:<version>]     Sæt nødvendigt OS-undersystem\n"
+"                                       [og krævet version]\n"
+
+#: emultempl/pe.em:331
+msgid "  --support-old-code                 Support interworking with old code\n"
+msgstr "  --support-old-code                 Understøttelse samvirken med gammel kode\n"
+
+#: emultempl/pe.em:332
+msgid "  --thumb-entry=<symbol>             Set the entry point to be Thumb <symbol>\n"
+msgstr ""
+"  --thumb-entry=<symbol>             Sæt indgangspunktet til at\n"
+"                                       være tommel <symbol>\n"
+
+#: emultempl/pe.em:334
+msgid "  --add-stdcall-alias                Export symbols with and without @nn\n"
+msgstr "  --add-stdcall-alias                Eksportér symboler med og uden @nn\n"
+
+#: emultempl/pe.em:335
+msgid "  --disable-stdcall-fixup            Don't link _sym to _sym@nn\n"
+msgstr "  --disable-stdcall-fixup            Lænk ikke _sym til _sym@nn\n"
+
+#: emultempl/pe.em:336
+msgid "  --enable-stdcall-fixup             Link _sym to _sym@nn without warnings\n"
+msgstr "  --enable-stdcall-fixup             Lænk _sym til _sym@nn uden advarsler\n"
+
+#: emultempl/pe.em:337
+msgid "  --exclude-symbols sym,sym,...      Exclude symbols from automatic export\n"
+msgstr ""
+"  --exclude-symbols sym,sym,...      Udelad symboler fra automatisk\n"
+"                                       export\n"
+
+#: emultempl/pe.em:338
+msgid "  --exclude-libs lib,lib,...         Exclude libraries from automatic export\n"
+msgstr ""
+"  --exclude-libs bibl,bibl,...       Udelad bibliotek fra automatisk\n"
+"                                       export\n"
+
+#: emultempl/pe.em:339
+msgid "  --export-all-symbols               Automatically export all globals to DLL\n"
+msgstr ""
+"  --export-all-symbols               Eksportér automatisk alle symboler\n"
+"                                       til DLL\n"
+
+#: emultempl/pe.em:340
+msgid "  --kill-at                          Remove @nn from exported symbols\n"
+msgstr "  --kill-at                          Fjern @nn fra eksporterede symboler\n"
+
+#: emultempl/pe.em:341
+msgid "  --out-implib <file>                Generate import library\n"
+msgstr "  --out-implib <fil>                 Generér importbibliotek\n"
+
+#: emultempl/pe.em:342
+msgid "  --output-def <file>                Generate a .DEF file for the built DLL\n"
+msgstr "  --output-def <fil>                 Generér en .DEF-fil for bygget DLL\n"
+
+#: emultempl/pe.em:343
+msgid "  --warn-duplicate-exports           Warn about duplicate exports.\n"
+msgstr "  --warn-duplicate-exports           Advar om dublet-eksporter.\n"
+
+#: emultempl/pe.em:344
+msgid ""
+"  --compat-implib                    Create backward compatible import libs;\n"
+"                                       create __imp_<SYMBOL> as well.\n"
+msgstr ""
+"  --compat-implib                    Opret bagudkompatible importbiblioteker;\n"
+"                                       og opret også __imp_<SYMBOL>.\n"
+
+#: emultempl/pe.em:346
+msgid ""
+"  --enable-auto-image-base           Automatically choose image base for DLLs\n"
+"                                       unless user specifies one\n"
+msgstr ""
+"  --enable-auto-image-base           Vælg automatisk billedbase for DLL'er\n"
+"                                       med mindre brugeren ikke angiver én\n"
+
+#: emultempl/pe.em:348
+msgid "  --disable-auto-image-base          Do not auto-choose image base. (default)\n"
+msgstr ""
+"  --disable-auto-image-base          Vælg ikke billedbase automatisk\n"
+"                                       (standard).\n"
+
+#: emultempl/pe.em:349
+msgid ""
+"  --dll-search-prefix=<string>       When linking dynamically to a dll without an\n"
+"                                       importlib, use <string><basename>.dll \n"
+"                                       in preference to lib<basename>.dll \n"
+msgstr ""
+"  --dll-search-prefix=<streng>       Brug <streng><basenavn>.dll i stedet\n"
+"                                       for lib<basenavn>.dll ved dynamisk\n"
+"                                       lænkning uden et importbibliotek\n"
+
+#: emultempl/pe.em:352
+msgid ""
+"  --enable-auto-import               Do sophistcated linking of _sym to \n"
+"                                       __imp_sym for DATA references\n"
+msgstr ""
+"  --enable-auto-import               Udfør sofistikeret lænkning af _sym til\n"
+"                                       __imp_sym for DATA-referencer\n"
+
+#: emultempl/pe.em:354
+msgid "  --disable-auto-import              Do not auto-import DATA items from DLLs\n"
+msgstr ""
+"  --disable-auto-import              Importér ikke DATA-objekter fra DLL'er\n"
+"                                       automatisk\n"
+
+#: emultempl/pe.em:355
+msgid ""
+"  --enable-extra-pe-debug            Enable verbose debug output when building\n"
+"                                       or linking to DLLs (esp. auto-import)\n"
+msgstr ""
+"  --enable-extra-pe-debug            Brug udførlig fejlsøgningsuddata ved\n"
+"                                       bygning af eller lænkning til DLL'er\n"
+"                                       (især automatisk import)\n"
+
+#: emultempl/pe.em:424
+msgid "%P: warning: bad version number in -subsystem option\n"
+msgstr "%P: advarsel: fejlagtigt nummer i flaget -subsystem\n"
+
+#: emultempl/pe.em:460
+msgid "%P%F: invalid subsystem type %s\n"
+msgstr "%P%F: ugyldig type af undersystem %s\n"
+
+#: emultempl/pe.em:475
+msgid "%P%F: invalid hex number for PE parameter '%s'\n"
+msgstr "%P%F: ugyldigt heksadecimalt tal for PE-parameteren \"%s\"\n"
+
+#: emultempl/pe.em:493
+msgid "%P%F: strange hex info for PE parameter '%s'\n"
+msgstr "%P%F: mærkelig heksadecimal information for PE-parameteren \"%s\"\n"
+
+#: emultempl/pe.em:532
+#, c-format
+msgid "%s: Can't open base file %s\n"
+msgstr "%s: Kan ikke åbne basefilen %s\n"
+
+#: emultempl/pe.em:738
+msgid "%P: warning, file alignment > section alignment.\n"
+msgstr "%P: advarsel, filjusteringen > sektionsjusteringen.\n"
+
+#: emultempl/pe.em:822 emultempl/pe.em:848
+#, c-format
+msgid "Warning: resolving %s by linking to %s\n"
+msgstr "Advarsel: løser %s ved at lænke til %s\n"
+
+#: emultempl/pe.em:827 emultempl/pe.em:853
+msgid "Use --enable-stdcall-fixup to disable these warnings\n"
+msgstr "Brug --enable-stdcall-fixup til at deaktivere disse advarsler\n"
+
+#: emultempl/pe.em:828 emultempl/pe.em:854
+msgid "Use --disable-stdcall-fixup to disable these fixups\n"
+msgstr "Brug --disable-stdcall-fixup til at deaktivere disse rettelser\n"
+
+#: emultempl/pe.em:879
+msgid "%C: Cannot get section contents - auto-import exception\n"
+msgstr "%C: Kan ikke få fat i sektionsindhold - undtagen i automatisk import\n"
+
+#: emultempl/pe.em:887
+msgid "%C: variable '%T' can't be auto-imported. Please read the documentation for ld's --enable-auto-import for details.\n"
+msgstr "%C: variablen \"%T\" kan ikke importeres automatisk. Læs dokumentationen for ld's --enable-auto-import for detaljer.\n"
+
+#: emultempl/pe.em:916
+#, c-format
+msgid "Info: resolving %s by linking to %s (auto-import)\n"
+msgstr "Info: løser %s ved at lænke til %s (automatisk import)\n"
+
+#: emultempl/pe.em:997
+msgid "%F%P: PE operations on non PE file.\n"
+msgstr "%F%P: PE-operationer på fil som ikke er PE.\n"
+
+#: emultempl/pe.em:1226
+#, c-format
+msgid "Errors encountered processing file %s\n"
+msgstr "Fejl opstod ved behandling af filen %s\n"
+
+#: emultempl/pe.em:1249
+#, c-format
+msgid "Errors encountered processing file %s for interworking"
+msgstr "Fejl opstod ved behandling af filen %s for interaktion"
+
+#: emultempl/pe.em:1305 ldlang.c:2065 ldlang.c:4608 ldlang.c:4641
+#: ldmain.c:1061
+msgid "%P%F: bfd_link_hash_lookup failed: %E\n"
+msgstr "%P%F: bfd_link_hash_lookup mislykkedes: %E\n"
+
+#: ldcref.c:158
+msgid "%X%P: bfd_hash_table_init of cref table failed: %E\n"
+msgstr "%X%P: bfd_hash_table_init af krydsreferencetabellen mislykkedes: %E\n"
+
+#: ldcref.c:164
+msgid "%X%P: cref_hash_lookup failed: %E\n"
+msgstr "%X%P: cref_hash_lookup mislykkedes: %E\n"
+
+#: ldcref.c:235
+msgid ""
+"\n"
+"Cross Reference Table\n"
+"\n"
+msgstr ""
+"\n"
+"Krydsreferencetabel\n"
+"\n"
+
+#: ldcref.c:236
+msgid "Symbol"
+msgstr "Symbol"
+
+#: ldcref.c:244
+msgid "File\n"
+msgstr "Fil\n"
+
+#: ldcref.c:248
+msgid "No symbols\n"
+msgstr "Ingen symboler\n"
+
+#: ldcref.c:400
+msgid "%P: symbol `%T' missing from main hash table\n"
+msgstr "%P: symbol \"%T\" mangler fra hastabellen\n"
+
+#: ldcref.c:465
+msgid "%B%F: could not read symbols; %E\n"
+msgstr "%B%F: kunne ikke læse symboler; %E\n"
+
+#: ldcref.c:469 ldmain.c:1127 ldmain.c:1131
+msgid "%B%F: could not read symbols: %E\n"
+msgstr "%B%F: kunne ikke læse symboler: %E\n"
+
+#: ldcref.c:537 ldcref.c:544 ldmain.c:1177 ldmain.c:1184
+msgid "%B%F: could not read relocs: %E\n"
+msgstr "%B%F: kunne ikke læse relokeringer: %E\n"
+
+#. We found a reloc for the symbol.  The symbol is defined
+#. in OUTSECNAME.  This reloc is from a section which is
+#. mapped into a section from which references to OUTSECNAME
+#. are prohibited.  We must report an error.
+#: ldcref.c:563
+msgid "%X%C: prohibited cross reference from %s to `%T' in %s\n"
+msgstr "%X%C: forbudt krydsreference fra %s til \"%T\" i %s\n"
+
+#: ldctor.c:88
+msgid "%P%X: Different relocs used in set %s\n"
+msgstr "%P%X: Forskellige relokeringer brugt i gruppen %s\n"
+
+#: ldctor.c:106
+msgid "%P%X: Different object file formats composing set %s\n"
+msgstr "%P%X: Forskellige objektfilformater udgør gruppen %s\n"
+
+#: ldctor.c:288 ldctor.c:302
+msgid "%P%X: %s does not support reloc %s for set %s\n"
+msgstr "%P%X: %s understøtter ikke relokeringen %s for gruppen %s\n"
+
+#: ldctor.c:323
+msgid "%P%X: Unsupported size %d for set %s\n"
+msgstr "%P%X: Størrelsen %d for gruppen %s understøttes ikke\n"
+
+#: ldctor.c:344
+msgid ""
+"\n"
+"Set                 Symbol\n"
+"\n"
+msgstr ""
+"\n"
+"Gruppe              Symbol\n"
+"\n"
+
+#: ldemul.c:225
+msgid "%S SYSLIB ignored\n"
+msgstr "%S SYSLIB ignoreredes\n"
+
+#: ldemul.c:232
+msgid "%S HLL ignored\n"
+msgstr "%S HLL ignoreredes\n"
+
+#: ldemul.c:253
+msgid "%P: unrecognised emulation mode: %s\n"
+msgstr "%P: ukendt emuleringstilstand: %s\n"
+
+#: ldemul.c:254
+msgid "Supported emulations: "
+msgstr "Emuleringer som understøttes: "
+
+#: ldemul.c:298
+msgid "  no emulation specific options.\n"
+msgstr "  ingen emuleringsspecifikke flag.\n"
+
+#: ldexp.c:174
+msgid "%F%P: %s uses undefined section %s\n"
+msgstr "%F%P: %s bruger udefineret sektion %s\n"
+
+#: ldexp.c:176
+msgid "%F%P: %s forward reference of section %s\n"
+msgstr "%F%P: %s fremadreference af sektionen %s\n"
+
+#: ldexp.c:304
+msgid "%F%S %% by zero\n"
+msgstr "%F%S %% med nul\n"
+
+#: ldexp.c:311
+msgid "%F%S / by zero\n"
+msgstr "%F%S / med nul\n"
+
+#: ldexp.c:463
+msgid "%X%S: unresolvable symbol `%s' referenced in expression\n"
+msgstr "%X%S: uløseligt symbol \"%s\" refereredes i udtrykket\n"
+
+#: ldexp.c:483
+msgid "%F%S: undefined symbol `%s' referenced in expression\n"
+msgstr "%F%S: udefinerede symbol \"%s\" refereredes i udtrykket\n"
+
+#: ldexp.c:685
+msgid "%F%S can not PROVIDE assignment to location counter\n"
+msgstr "%F%S kan ikke LEVERE tildeling til pladsregnere\n"
+
+#: ldexp.c:695
+msgid "%F%S invalid assignment to location counter\n"
+msgstr "%F%S ugyldig tildeling til pladsregnere\n"
+
+#: ldexp.c:699
+msgid "%F%S assignment to location counter invalid outside of SECTION\n"
+msgstr "%F%S tildeling til pladsregnere som er ugyldig uden for SEKTION\n"
+
+#: ldexp.c:708
+msgid "%F%S cannot move location counter backwards (from %V to %V)\n"
+msgstr "%F%S kan ikke flytte pladsregnere bagud (fra %V til %V)\n"
+
+#: ldexp.c:735
+msgid "%P%F:%s: hash creation failed\n"
+msgstr "%P%F:%s: oprettelse af hash mislykkedes\n"
+
+#: ldexp.c:1037 ldexp.c:1071
+msgid "%F%S nonconstant expression for %s\n"
+msgstr "%F%S ikke-konstant udtryk for %s\n"
+
+#: ldexp.c:1126
+msgid "%F%S non constant expression for %s\n"
+msgstr "%F%S ikke-konstant udtryk for %s\n"
+
+#: ldfile.c:105
+#, c-format
+msgid "attempt to open %s failed\n"
+msgstr "forsøg på at åbne %s mislykkedes\n"
+
+#: ldfile.c:107
+#, c-format
+msgid "attempt to open %s succeeded\n"
+msgstr "forsøg på at åbne %s lykkedes\n"
+
+#: ldfile.c:113
+msgid "%F%P: invalid BFD target `%s'\n"
+msgstr "%F%P: ugyldigt BFD-mål \"%s\"\n"
+
+#: ldfile.c:142
+msgid "%P: skipping incompatible %s when searching for %s\n"
+msgstr "%P: hopper over inkompatibel %s ved søgning af %s\n"
+
+#: ldfile.c:234
+msgid "%F%P: cannot open %s for %s: %E\n"
+msgstr "%F%P: kan ikke åbne %s for %s: %E\n"
+
+#: ldfile.c:237
+msgid "%F%P: cannot open %s: %E\n"
+msgstr "%F%P: kan ikke åbne %s: %E\n"
+
+#: ldfile.c:267
+msgid "%F%P: cannot find %s\n"
+msgstr "%F%P: kan ikke finde %s\n"
+
+#: ldfile.c:286 ldfile.c:302
+#, c-format
+msgid "cannot find script file %s\n"
+msgstr "kan ikke finde skriptfilen %s\n"
+
+#: ldfile.c:288 ldfile.c:304
+#, c-format
+msgid "opened script file %s\n"
+msgstr "åbnede skriptfilen %s\n"
+
+#: ldfile.c:353
+msgid "%P%F: cannot open linker script file %s: %E\n"
+msgstr "%P%F: kan ikke åbne lænkerskriptfilen %s: %E\n"
+
+#: ldfile.c:391
+msgid "%P%F: unknown architecture: %s\n"
+msgstr "%P%F: ukendt arkitektur: %s\n"
+
+#: ldfile.c:407
+msgid "%P%F: target architecture respecified\n"
+msgstr "%P%F: målarkitekturen specificeredes igen\n"
+
+#: ldfile.c:461
+msgid "%P%F: cannot represent machine `%s'\n"
+msgstr "%P%F: kan ikke repræsentere maskinen \"%s\"\n"
+
+#: ldlang.c:784
+msgid ""
+"\n"
+"Memory Configuration\n"
+"\n"
+msgstr ""
+"\n"
+"Hukommelseskonfiguration\n"
+"\n"
+
+#: ldlang.c:786
+msgid "Name"
+msgstr "Navn"
+
+#: ldlang.c:786
+msgid "Origin"
+msgstr "Begyndelse"
+
+#: ldlang.c:786
+msgid "Length"
+msgstr "Længde"
+
+#: ldlang.c:786
+msgid "Attributes"
+msgstr "Attributter"
+
+#: ldlang.c:828
+msgid ""
+"\n"
+"Linker script and memory map\n"
+"\n"
+msgstr ""
+"\n"
+"Lænkerskript og hukommelsestabel\n"
+"\n"
+
+#: ldlang.c:845
+msgid "%P%F: Illegal use of `%s' section\n"
+msgstr "%P%F: Ikke tilladt brug af sektionen \"%s\"\n"
+
+#: ldlang.c:855
+msgid "%P%F: output format %s cannot represent section called %s\n"
+msgstr "%P%F: uddataformatet %s kan ikke repræsentere sektionen kaldet %s\n"
+
+#: ldlang.c:1016
+msgid "%P: %B: warning: ignoring duplicate section `%s'\n"
+msgstr "%P: %B: advarsel: ignorerer dublet-sektion \"%s\"\n"
+
+#: ldlang.c:1019
+msgid "%P: %B: warning: ignoring duplicate `%s' section symbol `%s'\n"
+msgstr "%P: %B: advarsel: ignorerer dobbelt \"%s\"-sektionssymbol \"%s\"\n"
+
+#: ldlang.c:1033
+msgid "%P: %B: warning: duplicate section `%s' has different size\n"
+msgstr "%P: %B: advarsel: dublet-sektion \"%s\" har anden størrelse\n"
+
+#: ldlang.c:1084
+msgid "%P%F: Failed to create hash table\n"
+msgstr "%P%F: Mislykkedes med at oprette hashtabel\n"
+
+#: ldlang.c:1503
+msgid "%B: file not recognized: %E\n"
+msgstr "%B: filen ikke genkendt: %E\n"
+
+#: ldlang.c:1504
+msgid "%B: matching formats:"
+msgstr "%B: matchende format:"
+
+#: ldlang.c:1511
+msgid "%F%B: file not recognized: %E\n"
+msgstr "%F%B: filen ikke genkendt: %E\n"
+
+#: ldlang.c:1567
+msgid "%F%B: member %B in archive is not an object\n"
+msgstr "%F%B: medlem %B i arkivet er ikke et objekt\n"
+
+#: ldlang.c:1578 ldlang.c:1592
+msgid "%F%B: could not read symbols: %E\n"
+msgstr "%F%B: kunne ikke læse symboler: %E\n"
+
+#: ldlang.c:1853
+msgid "%P: warning: could not find any targets that match endianness requirement\n"
+msgstr "%P: advarsel: kunne ikke finde nogen mål som matcher kravet på endianess\n"
+
+#: ldlang.c:1866
+msgid "%P%F: target %s not found\n"
+msgstr "%P%F: målet %s fandtes ikke\n"
+
+#: ldlang.c:1868
+msgid "%P%F: cannot open output file %s: %E\n"
+msgstr "%P%F: kan ikke åbne uddatafilen %s: %E\n"
+
+#: ldlang.c:1878
+msgid "%P%F:%s: can not make object file: %E\n"
+msgstr "%P%F:%s: kan ikke oprette objektfilen: %E\n"
+
+#: ldlang.c:1882
+msgid "%P%F:%s: can not set architecture: %E\n"
+msgstr "%P%F:%s: kan ikke sætte arkitektur: %E\n"
+
+#: ldlang.c:1886
+msgid "%P%F: can not create link hash table: %E\n"
+msgstr "%P%F: kan ikke oprette hashtabel over lænker: %E\n"
+
+#: ldlang.c:2235
+msgid " load address 0x%V"
+msgstr " indlæsningsadresse 0x%V"
+
+#: ldlang.c:2375
+msgid "%W (size before relaxing)\n"
+msgstr "%W (størrelse inden forenkling)\n"
+
+#: ldlang.c:2462
+#, c-format
+msgid "Address of section %s set to "
+msgstr "Adressen på sektionen %s sat til "
+
+#: ldlang.c:2623
+#, c-format
+msgid "Fail with %d\n"
+msgstr "Mislykkes med %d\n"
+
+#: ldlang.c:2868
+msgid "%X%P: section %s [%V -> %V] overlaps section %s [%V -> %V]\n"
+msgstr "%X%P: sektionen %s [%V -> %V] overlapper med sektionen %s [%V -> %V]\n"
+
+#: ldlang.c:2897
+msgid "%X%P: address 0x%v of %B section %s is not within region %s\n"
+msgstr "%X%P: adressen 0x%v i %B-sektionen %s er ikke inden for området %s\n"
+
+#: ldlang.c:2905
+msgid "%X%P: region %s is full (%B section %s)\n"
+msgstr "%X%P: området %s er fuldt (%B-sektion %s)\n"
+
+#: ldlang.c:2955
+msgid "%P%X: Internal error on COFF shared library section %s\n"
+msgstr "%P%X: Intern fejl i delt COFF-bibliotek sektion %s\n"
+
+#: ldlang.c:2999
+msgid "%P: warning: no memory region specified for section `%s'\n"
+msgstr "%P: advarsel: intet hukommelsesområde angivet for sektionen \"%s\"\n"
+
+#: ldlang.c:3014
+msgid "%P: warning: changing start of section %s by %u bytes\n"
+msgstr "%P: advarsel: ændrer start på sektionen %s med %u byte\n"
+
+#: ldlang.c:3028
+msgid "%F%S: non constant address expression for section %s\n"
+msgstr "%F%S: ikke-konstant adresseudtryk for sektionen %s\n"
+
+#: ldlang.c:3203
+msgid "%P%F: can't relax section: %E\n"
+msgstr "%P%F: kan ikke forenkle sektion: %E\n"
+
+#: ldlang.c:3398
+msgid "%F%P: invalid data statement\n"
+msgstr "%F%P: ugyldig datasætning\n"
+
+#: ldlang.c:3435
+msgid "%F%P: invalid reloc statement\n"
+msgstr "%F%P: ugyldig relokeringssætning\n"
+
+#: ldlang.c:3574
+msgid "%P%F:%s: can't set start address\n"
+msgstr "%P%F:%s: kan ikke sætte startadresse\n"
+
+#: ldlang.c:3587 ldlang.c:3605
+msgid "%P%F: can't set start address\n"
+msgstr "%P%F: kan ikke sætte startadresse\n"
+
+#: ldlang.c:3599
+msgid "%P: warning: cannot find entry symbol %s; defaulting to %V\n"
+msgstr "%P: advarsel: kan ikke finde indgangssymbol %s; bruger som standard %V\n"
+
+#: ldlang.c:3610
+msgid "%P: warning: cannot find entry symbol %s; not setting start address\n"
+msgstr "%P: advarsel: kan ikke finde indgangssymbol %s; sætter ikke startadresse\n"
+
+#: ldlang.c:3660
+msgid "%P%F: Relocatable linking with relocations from format %s (%B) to format %s (%B) is not supported\n"
+msgstr "%P%F: Relokérbar lænkning med omlænkninger fra formatet %s (%B) til formatet %s (%B) understøttes ikke\n"
+
+#: ldlang.c:3669
+msgid "%P: warning: %s architecture of input file `%B' is incompatible with %s output\n"
+msgstr "%P: advarsel: %s-arkitekturen i inddatafilen \"%B\" er inkompatibel med %s-uddata\n"
+
+#: ldlang.c:3690
+msgid "%E%X: failed to merge target specific data of file %B\n"
+msgstr "%E%X: mislykkedes at sammenslå målspecifik data i filen %B\n"
+
+#: ldlang.c:3779
+msgid ""
+"\n"
+"Allocating common symbols\n"
+msgstr ""
+"\n"
+"Allokerer fælles symboler\n"
+
+#: ldlang.c:3780
+msgid ""
+"Common symbol       size              file\n"
+"\n"
+msgstr ""
+"Fælles symbol       størrelse         fil\n"
+"\n"
+
+#. This message happens when using the
+#. svr3.ifile linker script, so I have
+#. disabled it.
+#: ldlang.c:3858
+msgid "%P: no [COMMON] command, defaulting to .bss\n"
+msgstr "%P: ingen [COMMON]-kommando, bruger standardalternativet .bss\n"
+
+#: ldlang.c:3917
+msgid "%P%F: invalid syntax in flags\n"
+msgstr "%P%F: ugyldig syntaks i flag\n"
+
+#: ldlang.c:4532
+msgid "%P%Fmultiple STARTUP files\n"
+msgstr "%P%Fflere samtidige STARTUP-filer\n"
+
+#: ldlang.c:4575
+msgid "%X%P:%S: section has both a load address and a load region\n"
+msgstr "%X%P:%S: sektionen har både en indlæsningsadresse og et hukommelsesindlæsningsområde\n"
+
+#: ldlang.c:4825
+msgid "%F%P: bfd_record_phdr failed: %E\n"
+msgstr "%F%P: bfd_record_phdr mislykkedes: %E\n"
+
+#: ldlang.c:4844
+msgid "%X%P: section `%s' assigned to non-existent phdr `%s'\n"
+msgstr "%X%P: sektionen \"%s\" er tildelt til ikke-eksisterende phvd \"%s\"\n"
+
+#: ldlang.c:5143
+msgid "%X%P: unknown language `%s' in version information\n"
+msgstr "%X%P: ukendt sprog i \"%s\" i versionsinformation\n"
+
+#: ldlang.c:5195
+msgid "%X%P: anonymous version tag cannot be combined with other version tags\n"
+msgstr "%X%P: anonym versionsmærke kan ikke kombineres med andre versionsmærker\n"
+
+#: ldlang.c:5202
+msgid "%X%P: duplicate version tag `%s'\n"
+msgstr "%X%P: dobbelt versionsmærke \"%s\"\n"
+
+#: ldlang.c:5215 ldlang.c:5228
+msgid "%X%P: duplicate expression `%s' in version information\n"
+msgstr "%X%P: dobbelt udtryk \"%s\" i versionsinformation\n"
+
+#: ldlang.c:5270
+msgid "%X%P: unable to find version dependency `%s'\n"
+msgstr "%X%P: kan ikke finde versionsafhængighed \"%s\"\n"
+
+#: ldlang.c:5292
+msgid "%X%P: unable to read .exports section contents\n"
+msgstr "%X%P: kan ikke læse indeholdet i .exports-sektionen\n"
+
+#: ldmain.c:198
+msgid "%X%P: can't set BFD default target to `%s': %E\n"
+msgstr "%X%P: kan ikke sætte BSD-standardmålet til \"%s\": %E\n"
+
+#: ldmain.c:290
+msgid "%P%F: -r and --mpc860c0 may not be used together\n"
+msgstr "%P%F: -r og --mpc860c0 kan ikke bruges sammen\n"
+
+#: ldmain.c:292
+msgid "%P%F: --relax and -r may not be used together\n"
+msgstr "%P%F: --relax og -r kan ikke bruges sammen\n"
+
+#: ldmain.c:294
+msgid "%P%F: -r and -shared may not be used together\n"
+msgstr "%P%F: -r og -shared kan ikke bruges sammen\n"
+
+#: ldmain.c:300
+msgid "%P%F: -F may not be used without -shared\n"
+msgstr "%P%F: -F kan ikke bruges uden -shared\n"
+
+#: ldmain.c:302
+msgid "%P%F: -f may not be used without -shared\n"
+msgstr "%P%F: -f kan ikke bruges uden -shared\n"
+
+#: ldmain.c:341
+msgid "using external linker script:"
+msgstr "bruger eksternt lænkerskript:"
+
+#: ldmain.c:343
+msgid "using internal linker script:"
+msgstr "bruger internt lænkerskript:"
+
+#: ldmain.c:377
+msgid "%P%F: no input files\n"
+msgstr "%P%F: ingen inddatafiler\n"
+
+#: ldmain.c:382
+msgid "%P: mode %s\n"
+msgstr "%P: tilstand %s\n"
+
+#: ldmain.c:399
+msgid "%P%F: cannot open map file %s: %E\n"
+msgstr "%P%F: kan ikke åbne tabelfil %s: %E\n"
+
+#: ldmain.c:432
+msgid "%P: link errors found, deleting executable `%s'\n"
+msgstr "%P: lænkefejl fandtes, fjerner den kørbare fil \"%s\"\n"
+
+#: ldmain.c:443
+msgid "%F%B: final close failed: %E\n"
+msgstr "%F%B: afsluttende lukning mislykkedes: %E\n"
+
+#: ldmain.c:467
+msgid "%X%P: unable to open for source of copy `%s'\n"
+msgstr "%X%P: kan ikke åbne for kildekoden til kopien \"%s\"\n"
+
+#: ldmain.c:469
+msgid "%X%P: unable to open for destination of copy `%s'\n"
+msgstr "%X%P: kan ikke åbne for mål af kopien \"%s\"\n"
+
+#: ldmain.c:475
+msgid "%P: Error writing file `%s'\n"
+msgstr "%P: Fejl ved skrivning af filen \"%s\"\n"
+
+#: ldmain.c:481 pe-dll.c:1463
+#, c-format
+msgid "%P: Error closing file `%s'\n"
+msgstr "%P: Fejl ved lukning af filen \"%s\"\n"
+
+#: ldmain.c:498
+#, c-format
+msgid "%s: total time in link: %ld.%06ld\n"
+msgstr "%s: total tid i lænkning: %ld.%06ld\n"
+
+#: ldmain.c:501
+#, c-format
+msgid "%s: data size %ld\n"
+msgstr "%s: datastørrelse %ld\n"
+
+#: ldmain.c:542
+msgid "%P%F: missing argument to -m\n"
+msgstr "%P%F: argument mangler til -m\n"
+
+#: ldmain.c:670 ldmain.c:691 ldmain.c:722
+msgid "%P%F: bfd_hash_table_init failed: %E\n"
+msgstr "%P%F: bfd_hash_table_init mislykkedes: %E\n"
+
+#: ldmain.c:675 ldmain.c:694
+msgid "%P%F: bfd_hash_lookup failed: %E\n"
+msgstr "%P%F: bfd_hash_lookup mislykkedes: %E\n"
+
+#: ldmain.c:709
+msgid "%X%P: error: duplicate retain-symbols-file\n"
+msgstr "%X%P: fejl: dobbelt retain-symbols-file\n"
+
+#: ldmain.c:753
+msgid "%P%F: bfd_hash_lookup for insertion failed: %E\n"
+msgstr "%P%F: bfd_hash_lookup for indgang mislykkedes: %E\n"
+
+#: ldmain.c:758
+msgid "%P: `-retain-symbols-file' overrides `-s' and `-S'\n"
+msgstr "%P: \"-retain-symbols-file\" tilsidesætter \"-s\" og \"-S\"\n"
+
+#: ldmain.c:834
+msgid ""
+"Archive member included because of file (symbol)\n"
+"\n"
+msgstr ""
+"Arkivmedlem inkluderet på grund af fil (symbol)\n"
+"\n"
+
+#: ldmain.c:905
+msgid "%X%C: multiple definition of `%T'\n"
+msgstr "%X%C: flere definitioner af \"%T\"\n"
+
+#: ldmain.c:908
+msgid "%D: first defined here\n"
+msgstr "%D: først defineret hér\n"
+
+#: ldmain.c:912
+msgid "%P: Disabling relaxation: it will not work with multiple definitions\n"
+msgstr "%P: Deaktiverer forenkling: det vil ikke fungere med flere definitioner\n"
+
+#: ldmain.c:943
+msgid "%B: warning: definition of `%T' overriding common\n"
+msgstr "%B: advarsel: definitioner af \"%T\" tilsidesætter fælles\n"
+
+#: ldmain.c:946
+msgid "%B: warning: common is here\n"
+msgstr "%B: advarsel: fælles er hér\n"
+
+#: ldmain.c:953
+msgid "%B: warning: common of `%T' overridden by definition\n"
+msgstr "%B: advarsel: fælles i \"%T\" tilsidesattes af definition\n"
+
+#: ldmain.c:956
+msgid "%B: warning: defined here\n"
+msgstr "%B: advarsel: defineret hér\n"
+
+#: ldmain.c:963
+msgid "%B: warning: common of `%T' overridden by larger common\n"
+msgstr "%B: advarsel: fælles i \"%T\" tilsidesattes af større fælles\n"
+
+#: ldmain.c:966
+msgid "%B: warning: larger common is here\n"
+msgstr "%B: advarsel: større fælles er hér\n"
+
+#: ldmain.c:970
+msgid "%B: warning: common of `%T' overriding smaller common\n"
+msgstr "%B: advarsel: fælles i \"%T\" tilsidesætter mindre fælles\n"
+
+#: ldmain.c:973
+msgid "%B: warning: smaller common is here\n"
+msgstr "%B: advarsel: mindre fælles er hér\n"
+
+#: ldmain.c:977
+msgid "%B: warning: multiple common of `%T'\n"
+msgstr "%B: advarsel: flere fælles i \"%T\"\n"
+
+#: ldmain.c:979
+msgid "%B: warning: previous common is here\n"
+msgstr "%B: advarsel: foregående fælles er hér\n"
+
+#: ldmain.c:1000 ldmain.c:1039
+msgid "%P: warning: global constructor %s used\n"
+msgstr "%P: advarsel: global konstruktor %s bruges\n"
+
+#: ldmain.c:1049
+msgid "%P%F: BFD backend error: BFD_RELOC_CTOR unsupported\n"
+msgstr "%P%F: Fejl i BFD-bagende: BFD_RELOC_CTOR understøttes ikke\n"
+
+#: ldmain.c:1233
+msgid "%F%P: bfd_hash_table_init failed: %E\n"
+msgstr "%F%P: bfd_hash_table_init mislykkedes: %E\n"
+
+#: ldmain.c:1240
+msgid "%F%P: bfd_hash_lookup failed: %E\n"
+msgstr "%F%P: bfd_hash_lookup mislykkedes: %E\n"
+
+#: ldmain.c:1260
+msgid "%C: undefined reference to `%T'\n"
+msgstr "%C: udefineret reference til \"%T\"\n"
+
+#: ldmain.c:1266
+msgid "%D: more undefined references to `%T' follow\n"
+msgstr "%D: flere udefinerede referencer til \"%T\" følger\n"
+
+#: ldmain.c:1273
+msgid "%B: undefined reference to `%T'\n"
+msgstr "%B: udefineret reference til \"%T\"\n"
+
+#: ldmain.c:1279
+msgid "%B: more undefined references to `%T' follow\n"
+msgstr "%B: flere udefinerede referencer til \"%T\" følger\n"
+
+#: ldmain.c:1299 ldmain.c:1320 ldmain.c:1339
+msgid "%P%X: generated"
+msgstr "%P%X: genereret"
+
+#: ldmain.c:1302
+msgid " relocation truncated to fit: %s %T"
+msgstr " relokering trunkeret til at passe til: %s %T"
+
+#: ldmain.c:1323
+#, c-format
+msgid "dangerous relocation: %s\n"
+msgstr "farlig relokering: %s\n"
+
+#: ldmain.c:1342
+msgid " reloc refers to symbol `%T' which is not being output\n"
+msgstr " relokering refererer til symbol \"%T\" som ikke skrives ud\n"
+
+#: ldmisc.c:157
+msgid "no symbol"
+msgstr "intet symbol"
+
+#: ldmisc.c:221
+#, c-format
+msgid "built in linker script:%u"
+msgstr "indbygget lænkerskript:%u"
+
+#: ldmisc.c:271 ldmisc.c:275
+msgid "%B%F: could not read symbols\n"
+msgstr "%B%F: kunne ikke læse symboler\n"
+
+#. We use abfd->filename in this initial line,
+#. in case filename is a .h file or something
+#. similarly unhelpful.
+#: ldmisc.c:311
+msgid "%B: In function `%T':\n"
+msgstr "%B: I funktionen \"%T\":\n"
+
+#: ldmisc.c:463
+msgid "%F%P: internal error %s %d\n"
+msgstr "%F%P: intern fejl %s %d\n"
+
+#: ldmisc.c:513
+msgid "%P: internal error: aborting at %s line %d in %s\n"
+msgstr "%P: intern fejl: afbryder ved %s linje %d i %s\n"
+
+#: ldmisc.c:516
+msgid "%P: internal error: aborting at %s line %d\n"
+msgstr "%P: intern fejl: afbryder ved %s linje %d\n"
+
+#: ldmisc.c:518
+msgid "%P%F: please report this bug\n"
+msgstr "%P%F: rapportér denne fejl\n"
+
+#. Output for noisy == 2 is intended to follow the GNU standards.
+#: ldver.c:38
+#, c-format
+msgid "GNU ld version %s\n"
+msgstr "GNU ld version %s\n"
+
+#: ldver.c:42
+msgid "Copyright 2002 Free Software Foundation, Inc.\n"
+msgstr "Copyright 2002 Free Software Foundation, Inc.\n"
+
+#: ldver.c:43
+msgid ""
+"This program is free software; you may redistribute it under the terms of\n"
+"the GNU General Public License.  This program has absolutely no warranty.\n"
+msgstr ""
+"Dette program er frit programmel. Du kan videredistribuere det under\n"
+"betingelserne i GNU General Public License. Dette program har ingen som\n"
+"helst garanti.\n"
+
+#: ldver.c:52
+msgid "  Supported emulations:\n"
+msgstr "  Emuleringer som understøttes:\n"
+
+#: ldwrite.c:59 ldwrite.c:195
+msgid "%P%F: bfd_new_link_order failed\n"
+msgstr "%P%F: bfd_new_link_order mislykkedes\n"
+
+#: ldwrite.c:325
+msgid "%F%P: clone section failed: %E\n"
+msgstr "%F%P: klonsektion mislykkedes: %E\n"
+
+#: ldwrite.c:364
+#, c-format
+msgid "%8x something else\n"
+msgstr "%8x noget andet\n"
+
+#: ldwrite.c:547
+msgid "%F%P: final link failed: %E\n"
+msgstr "%F%P: afsluttende lænkning mislykkedes: %E\n"
+
+#: lexsup.c:172 lexsup.c:267
+msgid "KEYWORD"
+msgstr "NØGLEORD"
+
+#: lexsup.c:172
+msgid "Shared library control for HP/UX compatibility"
+msgstr "Styrelse af delte biblioteker for kompatibilitet med HP/UX"
+
+#: lexsup.c:175
+msgid "ARCH"
+msgstr "ARK"
+
+#: lexsup.c:175
+msgid "Set architecture"
+msgstr "Sæt arkitektur"
+
+#: lexsup.c:177 lexsup.c:336
+msgid "TARGET"
+msgstr "MÅL"
+
+#: lexsup.c:177
+msgid "Specify target for following input files"
+msgstr "Angiv mål for følgende inddatafiler"
+
+#: lexsup.c:179 lexsup.c:220 lexsup.c:232 lexsup.c:241 lexsup.c:312
+#: lexsup.c:343 lexsup.c:383
+msgid "FILE"
+msgstr "FIL"
+
+#: lexsup.c:179
+msgid "Read MRI format linker script"
+msgstr "Læs lænkerskript i MRI-format"
+
+#: lexsup.c:181
+msgid "Force common symbols to be defined"
+msgstr "Tving fælles symboler til at være definerede"
+
+#: lexsup.c:185 lexsup.c:373 lexsup.c:375 lexsup.c:377
+msgid "ADDRESS"
+msgstr "ADRESSE"
+
+#: lexsup.c:185
+msgid "Set start address"
+msgstr "Sæt startadresse"
+
+#: lexsup.c:187
+msgid "Export all dynamic symbols"
+msgstr "Eksportér alle dynamiske symboler"
+
+#: lexsup.c:189
+msgid "Link big-endian objects"
+msgstr "Lænk objekt som er big-endian"
+
+#: lexsup.c:191
+msgid "Link little-endian objects"
+msgstr "Lænk objekt som er little-endian"
+
+#: lexsup.c:193 lexsup.c:196
+msgid "SHLIB"
+msgstr "DELBIBL"
+
+#: lexsup.c:193
+msgid "Auxiliary filter for shared object symbol table"
+msgstr "Ydre filter for symboltabel over delte objekter"
+
+#: lexsup.c:196
+msgid "Filter for shared object symbol table"
+msgstr "Filter for symboltabel over delte objekter"
+
+#: lexsup.c:198
+msgid "Ignored"
+msgstr "Ignoreret"
+
+#: lexsup.c:200
+msgid "SIZE"
+msgstr "STØRRELSE"
+
+#: lexsup.c:200
+msgid "Small data size (if no size, same as --shared)"
+msgstr "Lille datastørrelse (hvis ingen størrelse, samme som --shared)"
+
+#: lexsup.c:203
+msgid "FILENAME"
+msgstr "FILNAVN"
+
+#: lexsup.c:203
+msgid "Set internal name of shared library"
+msgstr "Sæt internt navn på delt bibliotek"
+
+#: lexsup.c:205
+msgid "PROGRAM"
+msgstr "PROGRAM"
+
+#: lexsup.c:205
+msgid "Set PROGRAM as the dynamic linker to use"
+msgstr "Sæt PROGRAM som den dynamiske lænker der bruges"
+
+#: lexsup.c:207
+msgid "LIBNAME"
+msgstr "BIBLNAVN"
+
+#: lexsup.c:207
+msgid "Search for library LIBNAME"
+msgstr "Søg efter biblioteket BIBLNAVN"
+
+#: lexsup.c:209
+msgid "DIRECTORY"
+msgstr "KATALOG"
+
+#: lexsup.c:209
+msgid "Add DIRECTORY to library search path"
+msgstr "Tilføj KATALOG til bibliotekssøgestien"
+
+#: lexsup.c:211
+msgid "EMULATION"
+msgstr "EMULERING"
+
+#: lexsup.c:211
+msgid "Set emulation"
+msgstr "Sæt emulering"
+
+#: lexsup.c:213
+msgid "Print map file on standard output"
+msgstr "Vis tabelfil på standard ud"
+
+#: lexsup.c:215
+msgid "Do not page align data"
+msgstr "Justér ikke data efter lige sider"
+
+#: lexsup.c:217
+msgid "Do not page align data, do not make text readonly"
+msgstr "Justér ikke data efter lige sider, gør ikke teksten kun læsbar"
+
+#: lexsup.c:220
+msgid "Set output file name"
+msgstr "Sæt uddatafilnavnet"
+
+#: lexsup.c:222
+msgid "Optimize output file"
+msgstr "Optimér uddatafil"
+
+#: lexsup.c:224
+msgid "Ignored for SVR4 compatibility"
+msgstr "Ignoreret for kompatibilitet med SVR4"
+
+#: lexsup.c:228
+msgid "Generate relocateable output"
+msgstr "Generér relokérbar uddata"
+
+#: lexsup.c:232
+msgid "Just link symbols (if directory, same as --rpath)"
+msgstr "Lænk kun symboler (hvis katalog, samme som --rpath)"
+
+#: lexsup.c:235
+msgid "Strip all symbols"
+msgstr "Fjern alle symboler"
+
+#: lexsup.c:237
+msgid "Strip debugging symbols"
+msgstr "Fjern fejlsøgningssymboler"
+
+#: lexsup.c:239
+msgid "Trace file opens"
+msgstr "Udskriv filåbninger"
+
+#: lexsup.c:241
+msgid "Read linker script"
+msgstr "Læs lænkerskript"
+
+#: lexsup.c:243 lexsup.c:259 lexsup.c:298 lexsup.c:310 lexsup.c:367
+#: lexsup.c:386 lexsup.c:406
+msgid "SYMBOL"
+msgstr "SYMBOL"
+
+#: lexsup.c:243
+msgid "Start with undefined reference to SYMBOL"
+msgstr "Begynd med udefineret reference til SYMBOL"
+
+#: lexsup.c:245
+msgid "[=SECTION]"
+msgstr "[=SEKTION]"
+
+#: lexsup.c:245
+msgid "Don't merge input [SECTION | orphan] sections"
+msgstr "Flet ikke [SEKTION | forælderløse] sektioner"
+
+#: lexsup.c:247
+msgid "Build global constructor/destructor tables"
+msgstr "Byg globale konstruktors-/destruktorstabeller"
+
+#: lexsup.c:249
+msgid "Print version information"
+msgstr "Vis versionsinformation"
+
+#: lexsup.c:251
+msgid "Print version and emulation information"
+msgstr "Vis versions- og emuleringsinformation"
+
+#: lexsup.c:253
+msgid "Discard all local symbols"
+msgstr "Smid alle lokale symboler væk"
+
+#: lexsup.c:255
+msgid "Discard temporary local symbols (default)"
+msgstr "Smid temporære lokale symboler væk (standard)"
+
+#: lexsup.c:257
+msgid "Don't discard any local symbols"
+msgstr "Smid ikke nogen lokale symboler væk"
+
+#: lexsup.c:259
+msgid "Trace mentions of SYMBOL"
+msgstr "Udskriv omtale af SYMBOL"
+
+#: lexsup.c:261 lexsup.c:345 lexsup.c:347
+msgid "PATH"
+msgstr "SØGESTI"
+
+#: lexsup.c:261
+msgid "Default search path for Solaris compatibility"
+msgstr "Standardsøgesti for Solaris-kompatibilitet"
+
+#: lexsup.c:263
+msgid "Start a group"
+msgstr "Start en gruppe"
+
+#: lexsup.c:265
+msgid "End a group"
+msgstr "Slut en gruppe"
+
+#: lexsup.c:267
+msgid "Ignored for SunOS compatibility"
+msgstr "Ignoreret for SunOS-kompatibilitet"
+
+#: lexsup.c:269
+msgid "Link against shared libraries"
+msgstr "Lænk mod delte biblioteker"
+
+#: lexsup.c:275
+msgid "Do not link against shared libraries"
+msgstr "Lænk ikke mod delte biblioteker"
+
+#: lexsup.c:283
+msgid "Bind global references locally"
+msgstr "Bind globale referencer lokalt"
+
+#: lexsup.c:285
+msgid "Check section addresses for overlaps (default)"
+msgstr "Kontrollér sektionsadresser for overlapninger (standard)"
+
+#: lexsup.c:287
+msgid "Do not check section addresses for overlaps"
+msgstr "Kontrollér ikke sektionsadresser for overlapninger"
+
+#: lexsup.c:290
+msgid "Output cross reference table"
+msgstr "Opret krydsreferencetabel"
+
+#: lexsup.c:292
+msgid "SYMBOL=EXPRESSION"
+msgstr "SYMBOL=UDTRYK"
+
+#: lexsup.c:292
+msgid "Define a symbol"
+msgstr "Definér en symbol"
+
+#: lexsup.c:294
+msgid "[=STYLE]"
+msgstr "[=STIL]"
+
+#: lexsup.c:294
+msgid "Demangle symbol names [using STYLE]"
+msgstr "Afkod symbolnavn [brug STIL]"
+
+#: lexsup.c:296
+msgid "Generate embedded relocs"
+msgstr "Generér indlejrede relokeringer"
+
+#: lexsup.c:298
+msgid "Call SYMBOL at unload-time"
+msgstr "Kald SYMBOL ved udlæsning"
+
+#: lexsup.c:300
+msgid "Force generation of file with .exe suffix"
+msgstr "Tving generering af fil med endelsen .exe"
+
+#: lexsup.c:302
+msgid "Remove unused sections (on some targets)"
+msgstr "Fjern ubrugte sektioner (på visse mål)"
+
+#: lexsup.c:305
+msgid "Don't remove unused sections (default)"
+msgstr "Fjern ikke ubrugte sektioner (standard)"
+
+#: lexsup.c:308
+msgid "Print option help"
+msgstr "Vis hjælp om flag"
+
+#: lexsup.c:310
+msgid "Call SYMBOL at load-time"
+msgstr "Kald SYMBOL ved indlæsning"
+
+#: lexsup.c:312
+msgid "Write a map file"
+msgstr "Skriv en tabelfil"
+
+#: lexsup.c:314
+msgid "Do not define Common storage"
+msgstr "Definér ikke fælles lagring"
+
+#: lexsup.c:316
+msgid "Do not demangle symbol names"
+msgstr "Afkod ikke symbolnavne"
+
+#: lexsup.c:318
+msgid "Use less memory and more disk I/O"
+msgstr "Brug mindre hukommelse og mere disk-I/O"
+
+#: lexsup.c:320
+msgid "Allow no undefined symbols"
+msgstr "Tillad ingen udefinerede symboler"
+
+#: lexsup.c:322
+msgid "Allow undefined symbols in shared objects"
+msgstr "Tillad udefinerede symboler i delte objekter"
+
+#: lexsup.c:324
+msgid "Allow multiple definitions"
+msgstr "Tillad flere definitioner"
+
+# src/prefs.c:170
+#: lexsup.c:326
+msgid "Don't warn about mismatched input files"
+msgstr "Advar ikke om uparrede inddatafiler"
+
+#: lexsup.c:328
+msgid "Turn off --whole-archive"
+msgstr "Deaktivér ---whole-archive"
+
+#: lexsup.c:330
+msgid "Create an output file even if errors occur"
+msgstr "Opret en uddatafil også hvis fejl forekommer"
+
+#: lexsup.c:334
+msgid ""
+"Only use library directories specified on\n"
+"\t\t\t\tthe command line"
+msgstr ""
+"Brug kun bibliotekskataloger som angives\n"
+"\t\t\t\tpå kommandolinjen"
+
+#: lexsup.c:336
+msgid "Specify target of output file"
+msgstr "Angiv mål for uddatafil"
+
+#: lexsup.c:338
+msgid "Ignored for Linux compatibility"
+msgstr "Ignoreret for kompatibilitet med Linux"
+
+#: lexsup.c:340
+msgid "Relax branches on certain targets"
+msgstr "Forenkl greninger på visse mål"
+
+#: lexsup.c:343
+msgid "Keep only symbols listed in FILE"
+msgstr "Behold kun symboler angivne i FIL"
+
+#: lexsup.c:345
+msgid "Set runtime shared library search path"
+msgstr "Sæt kørselstidssøgesti for delte biblioteker"
+
+#: lexsup.c:347
+msgid "Set link time shared library search path"
+msgstr "Sæt lænkningstidssøgesti for delte biblioteker"
+
+#: lexsup.c:349
+msgid "Create a shared library"
+msgstr "Opret et delt bibliotek"
+
+#: lexsup.c:353
+msgid "Sort common symbols by size"
+msgstr "Sortér fælles symboler efter størrelse"
+
+#: lexsup.c:357
+msgid "COUNT"
+msgstr "ANTAL"
+
+#: lexsup.c:357
+msgid "How many tags to reserve in .dynamic section"
+msgstr "Hvor mange mærker som skal reserveres i .dynamic-sektion"
+
+#: lexsup.c:359
+msgid "[=SIZE]"
+msgstr "[=STØRRELSE]"
+
+#: lexsup.c:359
+msgid "Split output sections every SIZE octets"
+msgstr "Del uddatasektioner hver STØRRELSE oktetter"
+
+#: lexsup.c:361
+msgid "[=COUNT]"
+msgstr "[=ANTAL]"
+
+#: lexsup.c:361
+msgid "Split output sections every COUNT relocs"
+msgstr "Del uddatasektioner hver ANTAL relokeringer"
+
+#: lexsup.c:363
+msgid "Print memory usage statistics"
+msgstr "Vis statistik over hukommelsesbrug"
+
+#: lexsup.c:365
+msgid "Display target specific options"
+msgstr "Vis målspecifikke flag"
+
+#: lexsup.c:367
+msgid "Do task level linking"
+msgstr "Udfør lænkning på opgaveniveau"
+
+#: lexsup.c:369
+msgid "Use same format as native linker"
+msgstr "Brug samme format som indbygget lænker"
+
+#: lexsup.c:371
+msgid "SECTION=ADDRESS"
+msgstr "SEKTION=ADRESSE"
+
+#: lexsup.c:371
+msgid "Set address of named section"
+msgstr "Sæt adresse på navngiven sektion"
+
+#: lexsup.c:373
+msgid "Set address of .bss section"
+msgstr "Sæt adresse på .bss-sektion"
+
+#: lexsup.c:375
+msgid "Set address of .data section"
+msgstr "Sæt adresse på .data-sektion"
+
+#: lexsup.c:377
+msgid "Set address of .text section"
+msgstr "Sæt adresse på .text-sektion"
+
+#: lexsup.c:379
+msgid "Output lots of information during link"
+msgstr "Vis meget information under lænkning"
+
+#: lexsup.c:383
+msgid "Read version information script"
+msgstr "Læs skript med versionsinformation"
+
+#: lexsup.c:386
+msgid ""
+"Take export symbols list from .exports, using\n"
+"\t\t\t\tSYMBOL as the version."
+msgstr ""
+"Tag liste med eksportsymboler fra .exports og\n"
+"\t\t\t\tbrug SYMBOL som version."
+
+#: lexsup.c:389
+msgid "Warn about duplicate common symbols"
+msgstr "Advar for duplerede fælles symboler"
+
+#: lexsup.c:391
+msgid "Warn if global constructors/destructors are seen"
+msgstr "Advar hvis globale konstruktorer/destruktorer findes"
+
+#: lexsup.c:394
+msgid "Warn if the multiple GP values are used"
+msgstr "Advar hvis flere GP-værdier bruges"
+
+#: lexsup.c:396
+msgid "Warn only once per undefined symbol"
+msgstr "Advar kun én gang per udefineret symbol"
+
+#: lexsup.c:398
+msgid "Warn if start of section changes due to alignment"
+msgstr "Advar hvis begyndelsen på sektionen ændres på grund af justering"
+
+#: lexsup.c:401
+msgid "Treat warnings as errors"
+msgstr "Behandl advarsler som fejl"
+
+#: lexsup.c:404
+msgid "Include all objects from following archives"
+msgstr "Inkludér alle objekter fra følgende arkiver"
+
+#: lexsup.c:406
+msgid "Use wrapper functions for SYMBOL"
+msgstr "Brug indkapslingsfunktioner for SYMBOL"
+
+#: lexsup.c:408
+msgid "[=WORDS]"
+msgstr "[=ORD]"
+
+#: lexsup.c:408
+msgid ""
+"Modify problematic branches in last WORDS (1-10,\n"
+"\t\t\t\tdefault 5) words of a page"
+msgstr ""
+"Ændr problematiske greninger i sidste ORD (1-10,\n"
+"\t\t\t\tstandardværdi 5) ord på en side"
+
+#: lexsup.c:574
+msgid "%P: unrecognized option '%s'\n"
+msgstr "%P: ukendt flag \"%s\"\n"
+
+#: lexsup.c:576
+msgid "%P%F: use the --help option for usage information\n"
+msgstr "%P%F: brug flaget --help for brugsinformation\n"
+
+#: lexsup.c:595
+msgid "%P%F: unrecognized -a option `%s'\n"
+msgstr "%P%F: ukendt -a-flag \"%s\"\n"
+
+#: lexsup.c:608
+msgid "%P%F: unrecognized -assert option `%s'\n"
+msgstr "%P%F: ukendt -assert-flag \"%s\"\n"
+
+#: lexsup.c:651
+msgid "%F%P: unknown demangling style `%s'"
+msgstr "%F%P: ukendt afkodningsstil \"%s\""
+
+#: lexsup.c:711
+msgid "%P%F: invalid number `%s'\n"
+msgstr "%P%F: ugyldigt tal \"%s\"\n"
+
+#. This can happen if the user put "-rpath,a" on the command
+#. line.  (Or something similar.  The comma is important).
+#. Getopt becomes confused and thinks that this is a -r option
+#. but it cannot parse the text after the -r so it refuses to
+#. increment the optind counter.  Detect this case and issue
+#. an error message here.  We cannot just make this a warning,
+#. increment optind, and continue because getopt is too confused
+#. and will seg-fault the next time around.
+#: lexsup.c:812
+msgid "%P%F: bad -rpath option\n"
+msgstr "%P%F: ukendt -rpath-flag\n"
+
+#: lexsup.c:910
+msgid "%P%F: -shared not supported\n"
+msgstr "%P%F: -shared understøttes ikke\n"
+
+#: lexsup.c:942
+msgid "%P%F: invalid argument to option \"--section-start\"\n"
+msgstr "%P%F: ugyldigt argument til flaget \"--section-start\"\n"
+
+#: lexsup.c:948
+msgid "%P%F: missing argument(s) to option \"--section-start\"\n"
+msgstr "%P%F: argumenter mangler til flaget \"--section-start\"\n"
+
+#: lexsup.c:1097
+msgid "%P%F: may not nest groups (--help for usage)\n"
+msgstr "%P%F: må ikke neste grupper (--help for brug)\n"
+
+#: lexsup.c:1104
+msgid "%P%F: group ended before it began (--help for usage)\n"
+msgstr "%P%F: gruppen sluttede inden den begyndte (--help for brug)\n"
+
+#: lexsup.c:1118
+msgid "%P%F: invalid argument to option \"mpc860c0\"\n"
+msgstr "%P%F: ugyldigt argument til flaget \"mpc860c0\"\n"
+
+#: lexsup.c:1173
+msgid "%P%F: invalid hex number `%s'\n"
+msgstr "%P%F: ugyldigt heksadecimalt tal \"%s\"\n"
+
+#: lexsup.c:1185
+#, c-format
+msgid "Usage: %s [options] file...\n"
+msgstr "Brug: %s [flag] fil...\n"
+
+#: lexsup.c:1187
+msgid "Options:\n"
+msgstr "Alternativer:\n"
+
+#. Note: Various tools (such as libtool) depend upon the
+#. format of the listings below - do not change them.
+#: lexsup.c:1270
+#, c-format
+msgid "%s: supported targets:"
+msgstr "%s: mål som understøttes:"
+
+#: lexsup.c:1278
+#, c-format
+msgid "%s: supported emulations: "
+msgstr "%s: emuleringer som understøttes: "
+
+#: lexsup.c:1283
+#, c-format
+msgid "%s: emulation specific options:\n"
+msgstr "%s: emuleringsspecifikke flag:\n"
+
+#: lexsup.c:1287
+#, c-format
+msgid "Report bugs to %s\n"
+msgstr ""
+"Rapportér fejl til %s\n"
+"Rapportér fejl i oversættelsen til dansk@klid.dk\n"
+
+#: mri.c:334
+msgid "%P%F: unknown format type %s\n"
+msgstr "%P%F: ukendt formattype %s\n"
+
+#: pe-dll.c:321
+#, c-format
+msgid "%XUnsupported PEI architecture: %s\n"
+msgstr "%XPEI-arkitekturen understøttes ikke: %s\n"
+
+#: pe-dll.c:671
+#, c-format
+msgid "%XError, duplicate EXPORT with ordinals: %s (%d vs %d)\n"
+msgstr "%XFejl, dubleret EXPORT med ordinaler: %s (%d mod %d)\n"
+
+#: pe-dll.c:678
+#, c-format
+msgid "Warning, duplicate EXPORT: %s\n"
+msgstr "Advarsel, dubleret EXPORT: %s\n"
+
+#: pe-dll.c:742
+#, c-format
+msgid "%XCannot export %s: symbol not defined\n"
+msgstr "%XKan ikke eksportere %s: symbol er ikke defineret\n"
+
+#: pe-dll.c:748
+#, c-format
+msgid "%XCannot export %s: symbol wrong type (%d vs %d)\n"
+msgstr "%XKan ikke eksportere %s: symbol er af forkert type (%d mod %d)\n"
+
+#: pe-dll.c:755
+#, c-format
+msgid "%XCannot export %s: symbol not found\n"
+msgstr "%XKan ikke eksportere %s: symbol fandtes ikke\n"
+
+#: pe-dll.c:870
+#, c-format
+msgid "%XError, ordinal used twice: %d (%s vs %s)\n"
+msgstr "%XFejl, ordinalen bruges to gange: %d (%s mod %s)\n"
+
+#: pe-dll.c:1181
+#, c-format
+msgid "%XError: %d-bit reloc in dll\n"
+msgstr "%XFejl: %d-bit relokering i dll\n"
+
+#: pe-dll.c:1316
+#, c-format
+msgid "%s: Can't open output def file %s\n"
+msgstr "%s: Kan ikke åbne uddatadefinitionsfilen %s\n"
+
+#: pe-dll.c:1459
+msgid "; no contents available\n"
+msgstr "; intet indhold er tilgængeligt\n"
+
+#: pe-dll.c:2128
+#, c-format
+msgid "%XCan't open .lib file: %s\n"
+msgstr "%XKan ikke åbne .lib-filen: %s\n"
+
+#: pe-dll.c:2133
+#, c-format
+msgid "Creating library file: %s\n"
+msgstr "Opretter biblioteksfil: %s\n"

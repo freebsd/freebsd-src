@@ -1,0 +1,88 @@
+#!/bin/sh
+# compare two object files, in depth.
+
+x=$1
+y=$2
+BOTH="$1 $2"
+
+
+# if they cmp, we're fine.
+if (cmp $BOTH > /dev/null)
+then
+	exit 0
+fi
+
+# otherwise, we must look closer.
+if (doboth $BOTH size)
+then
+	echo Sizes ok.
+else
+	echo Sizes differ:
+	size $BOTH
+#	exit 1
+fi
+
+if (doboth $BOTH objdump +header)
+then
+	echo Headers ok.
+else
+	echo Header differences.
+#	exit 1
+fi
+
+if (doboth $BOTH objdump +text > /dev/null)
+then
+	echo Text ok.
+else
+	echo Text differences.
+#	doboth $BOTH objdump +text
+#	exit 1
+fi
+
+if (doboth $BOTH objdump +data > /dev/null)
+then
+	echo Data ok.
+else
+	echo Data differences.
+#	doboth $BOTH objdump +data
+#	exit 1
+fi
+
+if (doboth $BOTH objdump +symbols > /dev/null)
+then
+	echo Symbols ok.
+else
+	echo -n Symbol differences...
+
+	if (doboth $BOTH dounsortsymbols)
+	then
+		echo but symbols are simply ordered differently.
+#		echo Now what to do about relocs'?'
+#		exit 1
+	else
+		echo and symbols differ in content.
+		exit 1
+	fi
+fi
+
+# of course, if there were symbol diffs, then the reloc symbol indexes
+# will be off.
+
+if (doboth $BOTH objdump -r > /dev/null)
+then
+	echo Reloc ok.
+else
+	echo -n Reloc differences...
+
+	if (doboth $BOTH dounsortreloc)
+	then
+		echo but relocs are simply ordered differently.
+	else
+		echo and relocs differ in content.
+		exit 1
+	fi
+fi
+
+exit
+
+# eof

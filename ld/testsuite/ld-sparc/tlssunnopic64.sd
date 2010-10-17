@@ -1,0 +1,12 @@
+#source: tlssunnopic64.s
+#source: tlsnopic.s
+#as: --64 -Av9
+#ld: -shared -melf64_sparc
+#objdump: -sj.got
+#target: sparc-*-*
+
+.*:     file format elf64-sparc
+
+Contents of section \.got:
+# FIXME
+#pass

@@ -1,0 +1,12 @@
+#source: align.s
+#source: tlsbinpic.s
+#source: tlsbin.s
+#as:
+#ld: -relax -melfalpha
+#objdump: -sj.got
+#target: alpha*-*-*
+
+.*: +file format elf64-alpha
+
+Contents of section .got:
+ [0-9a-f]+ 00000000 00000000 00000000 00000000  .*

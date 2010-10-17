@@ -1,0 +1,35 @@
+#
+# Test the m68k MRI compatibility mode.
+#
+# I originally thought that most of tests applied to any MRI
+# assembler, but it turns out that different MRI assemblers use
+# different syntaxes.
+#
+
+if ![istarget "m68*-*-*"] {
+    return
+}
+
+# These tests are generic MRI tests: they don't rely on M68K opcodes.
+run_dump_test label
+run_dump_test equ
+run_dump_test float
+run_dump_test char
+run_dump_test expr
+run_dump_test common
+run_dump_test comment
+gas_test "empty.s" "-M" "" "MRI empty macro"
+run_dump_test semi
+
+if {[istarget "m6811-*"] || [istarget "m6812-*"] || [istarget "m68hc*-*"]} {
+    return
+}
+
+# Next tests contain 68K opcodes
+run_dump_test constants
+run_dump_test immconst
+run_dump_test for
+run_dump_test if
+run_dump_test repeat
+run_dump_test while
+run_dump_test moveml

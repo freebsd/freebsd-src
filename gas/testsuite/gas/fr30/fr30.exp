@@ -1,0 +1,5 @@
+# FR30 testcases
+
+if [istarget fr30*-*-*] {
+#    run_dump_test "high-1"
+}

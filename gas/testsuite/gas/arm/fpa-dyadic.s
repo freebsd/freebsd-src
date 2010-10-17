@@ -1,0 +1,172 @@
+	.text
+	.globl F
+F:
+	adfs	f0, f0, f0
+	adfsp	f0, f0, f0
+	adfsm	f0, f0, f0
+	adfsz	f0, f0, f0
+	adfd	f0, f0, f0
+	adfdp	f0, f0, f0
+	adfdm	f0, f0, f0
+	adfdz	f0, f0, f0
+	adfe	f0, f0, f0
+	adfep	f0, f0, f0
+	adfem	f0, f0, f0
+	adfez	f0, f0, f0
+
+	sufs	f0, f0, f0
+	sufsp	f0, f0, f0
+	sufsm	f0, f0, f0
+	sufsz	f0, f0, f0
+	sufd	f0, f0, f0
+	sufdp	f0, f0, f0
+	sufdm	f0, f0, f0
+	sufdz	f0, f0, f0
+	sufe	f0, f0, f0
+	sufep	f0, f0, f0
+	sufem	f0, f0, f0
+	sufez	f0, f0, f0
+
+	rsfs	f0, f0, f0
+	rsfsp	f0, f0, f0
+	rsfsm	f0, f0, f0
+	rsfsz	f0, f0, f0
+	rsfd	f0, f0, f0
+	rsfdp	f0, f0, f0
+	rsfdm	f0, f0, f0
+	rsfdz	f0, f0, f0
+	rsfe	f0, f0, f0
+	rsfep	f0, f0, f0
+	rsfem	f0, f0, f0
+	rsfez	f0, f0, f0
+
+	mufs	f0, f0, f0
+	mufsp	f0, f0, f0
+	mufsm	f0, f0, f0
+	mufsz	f0, f0, f0
+	mufd	f0, f0, f0
+	mufdp	f0, f0, f0
+	mufdm	f0, f0, f0
+	mufdz	f0, f0, f0
+	mufe	f0, f0, f0
+	mufep	f0, f0, f0
+	mufem	f0, f0, f0
+	mufez	f0, f0, f0
+
+	dvfs	f0, f0, f0
+	dvfsp	f0, f0, f0
+	dvfsm	f0, f0, f0
+	dvfsz	f0, f0, f0
+	dvfd	f0, f0, f0
+	dvfdp	f0, f0, f0
+	dvfdm	f0, f0, f0
+	dvfdz	f0, f0, f0
+	dvfe	f0, f0, f0
+	dvfep	f0, f0, f0
+	dvfem	f0, f0, f0
+	dvfez	f0, f0, f0
+
+	rdfs	f0, f0, f0
+	rdfsp	f0, f0, f0
+	rdfsm	f0, f0, f0
+	rdfsz	f0, f0, f0
+	rdfd	f0, f0, f0
+	rdfdp	f0, f0, f0
+	rdfdm	f0, f0, f0
+	rdfdz	f0, f0, f0
+	rdfe	f0, f0, f0
+	rdfep	f0, f0, f0
+	rdfem	f0, f0, f0
+	rdfez	f0, f0, f0
+
+	pows	f0, f0, f0
+	powsp	f0, f0, f0
+	powsm	f0, f0, f0
+	powsz	f0, f0, f0
+	powd	f0, f0, f0
+	powdp	f0, f0, f0
+	powdm	f0, f0, f0
+	powdz	f0, f0, f0
+	powe	f0, f0, f0
+	powep	f0, f0, f0
+	powem	f0, f0, f0
+	powez	f0, f0, f0
+
+	rpws	f0, f0, f0
+	rpwsp	f0, f0, f0
+	rpwsm	f0, f0, f0
+	rpwsz	f0, f0, f0
+	rpwd	f0, f0, f0
+	rpwdp	f0, f0, f0
+	rpwdm	f0, f0, f0
+	rpwdz	f0, f0, f0
+	rpwe	f0, f0, f0
+	rpwep	f0, f0, f0
+	rpwem	f0, f0, f0
+	rpwez	f0, f0, f0
+
+	rmfs	f0, f0, f0
+	rmfsp	f0, f0, f0
+	rmfsm	f0, f0, f0
+	rmfsz	f0, f0, f0
+	rmfd	f0, f0, f0
+	rmfdp	f0, f0, f0
+	rmfdm	f0, f0, f0
+	rmfdz	f0, f0, f0
+	rmfe	f0, f0, f0
+	rmfep	f0, f0, f0
+	rmfem	f0, f0, f0
+	rmfez	f0, f0, f0
+
+	fmls	f0, f0, f0
+	fmlsp	f0, f0, f0
+	fmlsm	f0, f0, f0
+	fmlsz	f0, f0, f0
+	fmld	f0, f0, f0
+	fmldp	f0, f0, f0
+	fmldm	f0, f0, f0
+	fmldz	f0, f0, f0
+	fmle	f0, f0, f0
+	fmlep	f0, f0, f0
+	fmlem	f0, f0, f0
+	fmlez	f0, f0, f0
+
+	fdvs	f0, f0, f0
+	fdvsp	f0, f0, f0
+	fdvsm	f0, f0, f0
+	fdvsz	f0, f0, f0
+	fdvd	f0, f0, f0
+	fdvdp	f0, f0, f0
+	fdvdm	f0, f0, f0
+	fdvdz	f0, f0, f0
+	fdve	f0, f0, f0
+	fdvep	f0, f0, f0
+	fdvem	f0, f0, f0
+	fdvez	f0, f0, f0
+
+	frds	f0, f0, f0
+	frdsp	f0, f0, f0
+	frdsm	f0, f0, f0
+	frdsz	f0, f0, f0
+	frdd	f0, f0, f0
+	frddp	f0, f0, f0
+	frddm	f0, f0, f0
+	frddz	f0, f0, f0
+	frde	f0, f0, f0
+	frdep	f0, f0, f0
+	frdem	f0, f0, f0
+	frdez	f0, f0, f0
+
+	pols	f0, f0, f0
+	polsp	f0, f0, f0
+	polsm	f0, f0, f0
+	polsz	f0, f0, f0
+	pold	f0, f0, f0
+	poldp	f0, f0, f0
+	poldm	f0, f0, f0
+	poldz	f0, f0, f0
+	pole	f0, f0, f0
+	polep	f0, f0, f0
+	polem	f0, f0, f0
+	polez	f0, f0, f0
+

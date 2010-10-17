@@ -52,4 +52,6 @@ char *output_invalid PARAMS ((int c));
 
 extern int tic30_unrecognized_line PARAMS ((int));
 
+#define tc_aout_pre_write_hook {}
+
 #endif

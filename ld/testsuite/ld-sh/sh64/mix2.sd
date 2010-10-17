@@ -1,0 +1,17 @@
+
+.*:     file format .*-sh64
+
+Contents of section \.text:
+ 1000 cc0000e0 c84088e0 cc0000e0 c84100e0  .*
+ 1010 cc000190 c8003190 6bf56660 6ff0fff0  .*
+ 1020 0009c700 c7000009 00090009 00001011  .*
+ 1030 000010cc                             .*
+Contents of section \.rodata:
+ 1034 00001028 000010d4 0000101d 00001038  .*
+Contents of section \.data:
+ 10c8 00000000 00001024 00000000 000010cc  .*
+Contents of section \.stack:
+ 80000 deaddead                            .*
+Contents of section \.cranges:
+ 0000 00001000 00000020 00030000 10200000  .*
+ 0010 00140002                             .*

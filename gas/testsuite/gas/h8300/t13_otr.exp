@@ -1,0 +1,471 @@
+#
+# Some h8300sx tests -- t13_otr
+#
+
+proc do_t13_otr_test {} {
+    set testname "t13_otr.s -- h8sx misc tests"
+
+    gas_start "t13_otr.s" "-al"
+
+    # Check each instruction bit pattern to verify it got assembled correctly.
+
+    set x 0
+    expect {
+	-re ".*  11 1234 4000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  12 1236 4100" { set x [expr $x+1]; exp_continue; }
+	-re ".*  13 1238 4200" { set x [expr $x+1]; exp_continue; }
+	-re ".*  14 123a 4300" { set x [expr $x+1]; exp_continue; }
+	-re ".*  15 123c 4400" { set x [expr $x+1]; exp_continue; }
+	-re ".*  16 123e 4500" { set x [expr $x+1]; exp_continue; }
+	-re ".*  17 1240 4600" { set x [expr $x+1]; exp_continue; }
+	-re ".*  18 1242 4700" { set x [expr $x+1]; exp_continue; }
+	-re ".*  19 1244 4800" { set x [expr $x+1]; exp_continue; }
+	-re ".*  20 1246 4900" { set x [expr $x+1]; exp_continue; }
+	-re ".*  21 1248 4A00" { set x [expr $x+1]; exp_continue; }
+	-re ".*  22 124a 4B00" { set x [expr $x+1]; exp_continue; }
+	-re ".*  23 124c 4C00" { set x [expr $x+1]; exp_continue; }
+	-re ".*  24 124e 4D00" { set x [expr $x+1]; exp_continue; }
+	-re ".*  25 1250 4E00" { set x [expr $x+1]; exp_continue; }
+	-re ".*  26 1252 4F00" { set x [expr $x+1]; exp_continue; }
+	-re ".*  27              " {
+	    if [expr $x == 16] then {
+		pass "$testname: b\[cc\] 0x12+.+2"
+	    } else {
+		fail "$testname: b\[cc\] 0x12+.+2 ($x)"
+	    }
+	}
+        default	{ fail "$testname: b\[cc\] 0x12+.+2 ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".*  28 1254 58000000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  29 1258 58100000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  30 125c 58200000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  31 1260 58300000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  32 1264 58400000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  33 1268 58500000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  34 126c 58600000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  35 1270 58700000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  36 1274 58800000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  37 1278 58900000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  38 127c 58A00000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  39 1280 58B00000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  40 1284 58C00000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  41 1288 58D00000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  42 128c 58E00000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  43 1290 58F00000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  44              " {
+	    if [expr $x == 16] then {
+		pass "$testname: b\[cc\] 0x1234+.+4"
+	    } else {
+		fail "$testname: b\[cc\] 0x1234+.+4 ($x)"
+	    }
+	}
+        default	{ fail "$testname: b\[cc\] 0x1234+.+4 ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".*  45 1294 4001" { set x [expr $x+1]; exp_continue; }
+	-re ".*  46 1296 0000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  47              " {
+	    if [expr $x == 2] then {
+		pass "$testname: bra/s"
+	    } else {
+		fail "$testname: bra/s ($x)"
+	    }
+	}
+        default	{ fail "$testname: bra/s ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".*  48 1298 7C204700" { set x [expr $x+1]; exp_continue; }
+	-re ".*  49 129c 7E9A4700" { set x [expr $x+1]; exp_continue; }
+	-re ".*  50 12a0 6A101234" { set x [expr $x+1]; exp_continue; }
+	-re ".*  50      4700" { set x [expr $x+1]; exp_continue; }
+	-re ".*  51 12a6 6A301234" { set x [expr $x+1]; exp_continue; }
+	-re ".*  51      56784700" { set x [expr $x+1]; exp_continue; }
+	-re ".*  52 12ae 7C205870" { set x [expr $x+1]; exp_continue; }
+	-re ".*  52      0000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  53 12b4 7E125870" { set x [expr $x+1]; exp_continue; }
+	-re ".*  53      0000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  54 12ba 6A109ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  54      58700000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  55 12c2 6A301234" { set x [expr $x+1]; exp_continue; }
+	-re ".*  55      56785870" { set x [expr $x+1]; exp_continue; }
+	-re ".*  55      0000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  56              " {
+	    if [expr $x == 15] then {
+		pass "$testname: bra/bc #0x7, ..."
+	    } else {
+		fail "$testname: bra/bc #0x7, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: bra/bc #0x7, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".*  57 12cc 7C204F00" { set x [expr $x+1]; exp_continue; }
+	-re ".*  58 12d0 7E9A4F00" { set x [expr $x+1]; exp_continue; }
+	-re ".*  59 12d4 6A101234" { set x [expr $x+1]; exp_continue; }
+	-re ".*  59      4F00" { set x [expr $x+1]; exp_continue; }
+	-re ".*  60 12da 6A301234" { set x [expr $x+1]; exp_continue; }
+	-re ".*  60      56784F00" { set x [expr $x+1]; exp_continue; }
+	-re ".*  61 12e2 7C2058F0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  61      0000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  62 12e8 7E1258F0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  62      0000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  63 12ee 6A109ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  63      58F00000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  64 12f6 6A301234" { set x [expr $x+1]; exp_continue; }
+	-re ".*  64      567858F0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  64      0000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  65              " {
+	    if [expr $x == 15] then {
+		pass "$testname: bra/bs #0x7, ..."
+	    } else {
+		fail "$testname: bra/bs #0x7, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: bra/bs #0x7, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".*  66 1300 7C205C70" { set x [expr $x+1]; exp_continue; }
+	-re ".*  66      0000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  67 1306 7E125C70" { set x [expr $x+1]; exp_continue; }
+	-re ".*  67      0000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  68 130c 6A109ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  68      5C700000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  69 1314 6A301234" { set x [expr $x+1]; exp_continue; }
+	-re ".*  69      56785C70" { set x [expr $x+1]; exp_continue; }
+	-re ".*  69      0000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  70              " {
+	    if [expr $x == 9] then {
+		pass "$testname: bsr/bc #0x7, ..."
+	    } else {
+		fail "$testname: bsr/bc #0x7, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: bsr/bc #0x7, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".*  71 131e 7C205CF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  71      0000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  72 1324 7E125CF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  72      0000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  73 132a 6A109ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  73      5CF00000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  74 1332 6A301234" { set x [expr $x+1]; exp_continue; }
+	-re ".*  74      56785CF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  74      0000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  75              " {
+	    if [expr $x == 9] then {
+		pass "$testname: bsr/bs #0x7, ..."
+	    } else {
+		fail "$testname: bsr/bs #0x7, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: bsr/bs #0x7, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".*  76 133c 5925" { set x [expr $x+1]; exp_continue; }
+	-re ".*  77 133e 5926" { set x [expr $x+1]; exp_continue; }
+	-re ".*  78 1340 5927" { set x [expr $x+1]; exp_continue; }
+	-re ".*  79              " {
+	    if [expr $x == 3] then {
+		pass "$testname: bra ..."
+	    } else {
+		fail "$testname: bra ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: bra ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".*  80 1342 5500" { set x [expr $x+1]; exp_continue; }
+	-re ".*  81 1344 5C000000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  82 1348 5D25" { set x [expr $x+1]; exp_continue; }
+	-re ".*  83 134a 5D26" { set x [expr $x+1]; exp_continue; }
+	-re ".*  84 134c 5D27" { set x [expr $x+1]; exp_continue; }
+	-re ".*  85              " {
+	    if [expr $x == 5] then {
+		pass "$testname: bsr ..."
+	    } else {
+		fail "$testname: bsr ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: bsr ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".*  86 134e 5920" { set x [expr $x+1]; exp_continue; }
+	-re ".*  87 1350 5A000000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  88 1354 59080000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  88      0000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  89 135a 5B00" { set x [expr $x+1]; exp_continue; }
+	-re ".*  90 135c 5980" { set x [expr $x+1]; exp_continue; }
+	-re ".*  91              " {
+	    if [expr $x == 6] then {
+		pass "$testname: jmp ..."
+	    } else {
+		fail "$testname: jmp ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: jmp ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".*  92 135e 5D20" { set x [expr $x+1]; exp_continue; }
+	-re ".*  93 1360 5E000000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  94 1364 5D080000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  94      0000" { set x [expr $x+1]; exp_continue; }
+	-re ".*  95 136a 5F00" { set x [expr $x+1]; exp_continue; }
+	-re ".*  96 136c 5D00" { set x [expr $x+1]; exp_continue; }
+	-re ".*  97              " {
+	    if [expr $x == 6] then {
+		pass "$testname: jsr ..."
+	    } else {
+		fail "$testname: jsr ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: jsr ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".*  98 136e 5470" { set x [expr $x+1]; exp_continue; }
+	-re ".*  99 1370 5403" { set x [expr $x+1]; exp_continue; }
+	-re ".* 100 1372 5412" { set x [expr $x+1]; exp_continue; }
+	-re ".* 101 1374 5424" { set x [expr $x+1]; exp_continue; }
+	-re ".* 102 1376 5436" { set x [expr $x+1]; exp_continue; }
+	-re ".* 103              " {
+	    if [expr $x == 5] then {
+		pass "$testname: rts\[/l\]"
+	    } else {
+		fail "$testname: rts\[/l\] ($x)"
+	    }
+	}
+        default	{ fail "$testname: rts\[/l\] ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 104 1378 5730" { set x [expr $x+1]; exp_continue; }
+	-re ".* 105              " {
+	    if [expr $x == 1] then {
+		pass "$testname: trapa #0x3"
+	    } else {
+		fail "$testname: trapa #0x3 ($x)"
+	    }
+	}
+        default	{ fail "$testname: trapa #0x3 ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 106 137a 5670" { set x [expr $x+1]; exp_continue; }
+	-re ".* 107 137c 5603" { set x [expr $x+1]; exp_continue; }
+	-re ".* 108 137e 5612" { set x [expr $x+1]; exp_continue; }
+	-re ".* 109 1380 5624" { set x [expr $x+1]; exp_continue; }
+	-re ".* 110 1382 5636" { set x [expr $x+1]; exp_continue; }
+	-re ".* 111              " {
+	    if [expr $x == 5] then {
+		pass "$testname: rte\[/l\]"
+	    } else {
+		fail "$testname: rte\[/l\] ($x)"
+	    }
+	}
+        default	{ fail "$testname: rte\[/l\] ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 112 1384 0712" { set x [expr $x+1]; exp_continue; }
+	-re ".* 113 1386 0303" { set x [expr $x+1]; exp_continue; }
+	-re ".* 114 1388 01406930" { set x [expr $x+1]; exp_continue; }
+	-re ".* 115 138c 01406D30" { set x [expr $x+1]; exp_continue; }
+	-re ".* 116 1390 01406F30" { set x [expr $x+1]; exp_continue; }
+	-re ".* 116      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 117 1396 01407830" { set x [expr $x+1]; exp_continue; }
+	-re ".* 117      6B201234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 117      5678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 118 13a0 01406B00" { set x [expr $x+1]; exp_continue; }
+	-re ".* 118      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 119 13a6 01406B20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 119      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 120              " {
+	    if [expr $x == 13] then {
+		pass "$testname: ldc.w ..., ccr"
+	    } else {
+		fail "$testname: ldc.w ..., ccr ($x)"
+	    }
+	}
+        default	{ fail "$testname: ldc.w ..., ccr ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 121 13ae 01410712" { set x [expr $x+1]; exp_continue; }
+	-re ".* 122 13b2 0313" { set x [expr $x+1]; exp_continue; }
+	-re ".* 123 13b4 01416930" { set x [expr $x+1]; exp_continue; }
+	-re ".* 124 13b8 01416D30" { set x [expr $x+1]; exp_continue; }
+	-re ".* 125 13bc 01416F30" { set x [expr $x+1]; exp_continue; }
+	-re ".* 125      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 126 13c2 01417830" { set x [expr $x+1]; exp_continue; }
+	-re ".* 126      6B201234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 126      5678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 127 13cc 01416B00" { set x [expr $x+1]; exp_continue; }
+	-re ".* 127      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 128 13d2 01416B20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 128      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 129              " {
+	    if [expr $x == 13] then {
+		pass "$testname: ldc.w ..., exr"
+	    } else {
+		fail "$testname: ldc.w ..., exr ($x)"
+	    }
+	}
+        default	{ fail "$testname: ldc.w ..., exr ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 130 13da 0201" { set x [expr $x+1]; exp_continue; }
+	-re ".* 131 13dc 01406990" { set x [expr $x+1]; exp_continue; }
+	-re ".* 132 13e0 01406D90" { set x [expr $x+1]; exp_continue; }
+	-re ".* 133 13e4 01406F90" { set x [expr $x+1]; exp_continue; }
+	-re ".* 133      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 134 13ea 01407810" { set x [expr $x+1]; exp_continue; }
+	-re ".* 134      6BA01234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 134      5678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 135 13f4 01406B80" { set x [expr $x+1]; exp_continue; }
+	-re ".* 135      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 136 13fa 01406BA0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 136      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 137              " {
+	    if [expr $x == 12] then {
+		pass "$testname: stc.w ccr, ..."
+	    } else {
+		fail "$testname: stc.w ccr, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: stc.w ccr, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 138 1402 0211" { set x [expr $x+1]; exp_continue; }
+	-re ".* 139 1404 01416990" { set x [expr $x+1]; exp_continue; }
+	-re ".* 140 1408 01416D90" { set x [expr $x+1]; exp_continue; }
+	-re ".* 141 140c 01416F90" { set x [expr $x+1]; exp_continue; }
+	-re ".* 141      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 142 1412 01417810" { set x [expr $x+1]; exp_continue; }
+	-re ".* 142      6BA01234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 142      5678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 143 141c 01416B80" { set x [expr $x+1]; exp_continue; }
+	-re ".* 143      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 144 1422 01416BA0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 144      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 145              " {
+	    if [expr $x == 12] then {
+		pass "$testname: stc.w exr, ..."
+	    } else {
+		fail "$testname: stc.w exr, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: stc.w exr, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 146 142a 0412" { set x [expr $x+1]; exp_continue; }
+	-re ".* 147 142c 01410412" { set x [expr $x+1]; exp_continue; }
+	-re ".* 148              " {
+	    if [expr $x == 2] then {
+		pass "$testname: orc.b #0x12:8, ..."
+	    } else {
+		fail "$testname: orc.b #0x12:8, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: orc.b #0x12:8, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 149 1430 0512" { set x [expr $x+1]; exp_continue; }
+	-re ".* 150 1432 01410512" { set x [expr $x+1]; exp_continue; }
+	-re ".* 151              " {
+	    if [expr $x == 2] then {
+		pass "$testname: xorc.b #0x12:8, ..."
+	    } else {
+		fail "$testname: xorc.b #0x12:8, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: xorc.b #0x12:8, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 152 1436 0612" { set x [expr $x+1]; exp_continue; }
+	-re ".* 153 1438 01410612" { set x [expr $x+1]; exp_continue; }
+	-re ".* 154              " {
+	    if [expr $x == 2] then {
+		pass "$testname: andc.b #0x12:8, ..."
+	    } else {
+		fail "$testname: andc.b #0x12:8, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: andc.b #0x12:8, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 155 143c 0180" { set x [expr $x+1]; exp_continue; }
+	-re ".* 156              " {
+	    if [expr $x == 1] then {
+		pass "$testname: sleep"
+	    } else {
+		fail "$testname: sleep ($x)"
+	    }
+	}
+        default	{ fail "$testname: sleep ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 157 143e 0000" { set x [expr $x+1]; exp_continue; }
+	-re ".* 158              " {
+	    if [expr $x == 1] then {
+		pass "$testname: nop"
+	    } else {
+		fail "$testname: nop ($x)"
+	    }
+	}
+        default	{ fail "$testname: nop ($x)" }
+    }
+
+    # This was intended to do any cleanup necessary.
+    # It kinda looks like it isn't needed, but just
+    # in case, please keep it in for now.
+
+    gas_finish
+
+}
+
+if [istarget h8300*-*-elf] then {
+    # Test advanced h8300sx instructions.
+    do_t13_otr_test
+}
+

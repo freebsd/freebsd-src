@@ -1,0 +1,31 @@
+GAS for MMIX .*/roundi-op\.s 			page 1
+
+
+   1              	#.*
+   2 0000 088701F4 	Main	FLOT X,ROUND_OFF,Z
+   3 0004 0A8702E9 		FLOTU X,2,\$233
+   4 0008 0D85005B 		SFLOT \$133,0,Z0
+   5 000c 0E7B04F4 		SFLOTU \$123,ROUND_NEAR,Z
+   6 0010 0C8500F4 		SFLOT \$133,0,Z
+   7 0014 0987005B 		FLOT X,ROUND_CURRENT,Z0
+   8 0018 0F7B045B 		SFLOTU \$123,ROUND_NEAR,Z0
+   9 001c 0987015B 		FLOT X,ROUND_OFF,Z0
+  10 0020 0AAD02E9 		FLOTU \$173,2,\$233
+  11 0024 0BAD02D5 		FLOTU \$173,2,213
+  12 0028 0C8700F4 		SFLOT X,0,Z
+  13 002c 0B870277 		FLOTU X,2,119
+  14 0030 0D87005B 		SFLOT X,0,Z0
+  15 0034 088700F4 		FLOT X,ROUND_CURRENT,Z
+  16              	X IS \$135
+  17              	Z IS \$244
+  18              	Z0 IS 91
+GAS for MMIX .*/roundi-op\.s 			page 2
+
+
+DEFINED SYMBOLS
+.*/roundi-op\.s:2      \.text:0000000000000000 Main
+                            \*REG\*:0000000000000087 X
+                            \*REG\*:00000000000000f4 Z
+                            \*ABS\*:000000000000005b Z0
+
+NO UNDEFINED SYMBOLS

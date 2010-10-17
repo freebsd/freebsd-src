@@ -1,0 +1,7 @@
+#
+# SunOS4 on SPARC tests
+#
+
+if [istarget sparc-*-sunos4*] then {
+    run_dump_test "addend"
+}

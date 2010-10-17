@@ -1,0 +1,61 @@
+# Test PHDRS in a linker script.
+# By Ian Lance Taylor, Cygnus Support.
+#   Copyright 2001
+#   Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+# PHDRS is only meaningful for ELF.
+if ![is_elf_format] {
+    return
+}
+
+# This is a very simplistic test.
+
+set testname "PHDRS"
+
+if ![ld_assemble $as $srcdir/$subdir/phdrs.s tmpdir/phdrs.o] {
+    unresolved $testname
+    return
+}
+
+set phdrs_regexp \
+".*Program Header:.*PHDR *off *0x00*34 *vaddr *0x00*800034 *paddr *0x00*800034.*filesz *0x0\[0-9a-f\]* *memsz *0x0\[0-9a-f\]* flags r--.*LOAD *off *0x00* *vaddr *0x00*800000 *paddr *0x00*800000.*filesz *0x00*\[0-9a-f\]* *memsz *0x0\[0-9a-f\]* *flags r-x.*LOAD *off *0x0\[0-9a-f\]* *vaddr *0x00*80*\[0-9a-f\]* *paddr *0x00*80*\[0-9a-f\]*.*filesz *0x0\[0-9a-f\]* *memsz *0x0\[0-9a-f\]* *flags *rw-.*"
+
+# On a 64 bit ELF format, we need different numbers.
+if [is_elf64 tmpdir/phdrs.o] {
+    set phdrs_regexp \
+".*Program Header:.*PHDR *off *0x00*40 *vaddr *0x00*800040 *paddr *0x00*800040.*filesz *0x0\[0-9a-f\]* *memsz *0x0\[0-9a-f\]* flags r--.*LOAD *off *0x00* *vaddr *0x00*800000 *paddr *0x00*800000.*filesz *0x00*\[0-9a-f\]* *memsz *0x0\[0-9a-f\]* *flags r-x.*LOAD *off *0x0\[0-9a-f\]* *vaddr *0x00*80*\[0-9a-f\]* *paddr *0x00*80*\[0-9a-f\]*.*filesz *0x0\[0-9a-f\]* *memsz *0x0\[0-9a-f\]* *flags *rw-.*"
+}
+
+if ![ld_simple_link $ld tmpdir/phdrs "-T $srcdir/$subdir/phdrs.t tmpdir/phdrs.o"] {
+    fail $testname
+} else {
+    if {[which $objdump] == 0} {
+	unresolved $testname
+	return
+    }
+
+    verbose -log "$objdump --private tmpdir/phdrs"
+    catch "exec $objdump --private tmpdir/phdrs" exec_output
+    set exec_output [prune_warnings $exec_output]
+    verbose -log $exec_output
+
+    if [regexp $phdrs_regexp $exec_output] {
+	pass $testname
+    } else {
+	fail $testname
+    }
+}

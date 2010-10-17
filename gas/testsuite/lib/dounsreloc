@@ -1,0 +1,8 @@
+#!/bin/sh
+# objdump the reloc table, but strip off the headings and reloc
+# numbers and sort the result.  Intended for use in comparing reloc
+# tables that may not be in the same order.
+
+objdump +reloc +omit-relocation-numbers +omit-symbol-numbers $1 \
+	| sort
+#eof

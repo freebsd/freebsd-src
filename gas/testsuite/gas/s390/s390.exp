@@ -1,0 +1,35 @@
+#
+# s390/s390x tests
+#
+proc run_list_test { name opts } {
+    global srcdir subdir
+    set testname "s390 $name"
+    set file $srcdir/$subdir/$name
+    gas_run ${name}.s $opts ">&dump.out"
+    if { [regexp_diff "dump.out" "${file}.l"] } then {
+	fail $testname
+	verbose "output is [file_contents "dump.out"]" 2
+	exit
+	return
+    }
+    pass $testname
+}
+
+if [expr [istarget "s390-*-*"] ||  [istarget "s390x-*-*"]]  then {
+
+    run_dump_test "opcode"
+    run_dump_test "reloc"
+    run_dump_test "operands"
+
+#    # PIC is only supported on ELF targets.
+#    if { ([istarget "*-*-elf*"] || [istarget "*-*-linux*"] ) } then {
+#	run_dump_test "s390pic"
+#    }
+}
+
+if [istarget "s390x-*-*"] then {
+
+    run_dump_test "opcode64"
+    run_dump_test "reloc64"
+    run_dump_test "operands64"
+}

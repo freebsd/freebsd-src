@@ -1,0 +1,7 @@
+# M32Rx assembler testsuite.
+
+if [istarget m32r*-*-*] {
+    run_dump_test "m32rx"
+    run_dump_test "fslotx"
+    run_dump_test "relax-2"
+}

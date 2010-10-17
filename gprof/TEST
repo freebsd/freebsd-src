@@ -1,0 +1,7 @@
+- check whether old file format is properly read when input comes from
+  stdin
+
+- check whether underscores are properly dealt with (both, on systems
+  that prepend them to each C name and on systems that don't)
+
+- ensure gprof fails gracefully when no debugging info available

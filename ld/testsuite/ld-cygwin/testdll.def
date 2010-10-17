@@ -1,0 +1,4 @@
+LIBRARY testdll
+
+EXPORTS
+dllwrite

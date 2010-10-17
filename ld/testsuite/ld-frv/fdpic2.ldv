@@ -1,0 +1,1 @@
+{ global: _start; F2; D2; local: *; };

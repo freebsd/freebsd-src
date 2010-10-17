@@ -1,0 +1,4 @@
+
+Relocation section '.rel.*text' at offset 0x.* contains 1 entries:
+  Offset          Info           Type           Sym. Value    Sym. Name.*
+0+04  [0-9A-Fa-f]+ *R_.*0+00 external_symbol.*

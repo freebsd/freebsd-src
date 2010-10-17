@@ -1,0 +1,11 @@
+#source: tlssunbin32.s
+#as: --32
+#ld: -shared -melf32_sparc tmpdir/libtlslib32.so tmpdir/tlssunbinbin32.o
+#objdump: -sj.got
+#target: sparc*-*-*
+
+.*: +file format elf32-sparc
+
+Contents of section .got:
+ 250e0 00025060 0+ 0+ 0+  .*
+ 250f0 0+  .*

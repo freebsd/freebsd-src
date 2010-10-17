@@ -1,0 +1,712 @@
+# Copyright (C) 1993, 1994, 1997, 1998, 1999, 2000, 2001, 2002, 2003
+# Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+# Please email any bugs, comments, and/or additions to this file to:
+# dejagnu@gnu.org
+
+# This file was written by Ken Raeburn (raeburn@cygnus.com).
+
+proc gas_version {} {
+    global AS
+    catch "exec $AS -version < /dev/null" tmp
+    # Should find a way to discard constant parts, keep whatever's
+    # left, so the version string could be almost anything at all...
+    regexp "\[^\n\]* (cygnus-|)(\[-0-9.a-zA-Z-\]+)\[\r\n\].*" $tmp version cyg number
+    if ![info exists number] then {
+        return "[which $AS] (no version number)\n"
+    }
+    clone_output "[which $AS] $number\n"
+    unset version
+}
+
+proc gas_run { prog as_opts redir } {
+    global AS
+    global ASFLAGS
+    global comp_output
+    global srcdir
+    global subdir
+    global host_triplet
+
+    verbose -log "Executing $srcdir/lib/run $AS $ASFLAGS $as_opts $srcdir/$subdir/$prog $redir"
+    catch "exec $srcdir/lib/run $AS $ASFLAGS $as_opts $srcdir/$subdir/$prog $redir" comp_output
+    set comp_output [prune_warnings $comp_output]
+    verbose "output was $comp_output"
+    return [list $comp_output ""];
+}
+
+proc all_ones { args } {
+    foreach x $args { if [expr $x!=1] { return 0 } }
+    return 1
+}
+
+proc gas_start { prog as_opts } {
+    global AS
+    global ASFLAGS
+    global srcdir
+    global subdir
+    global spawn_id
+
+    verbose -log "Starting $AS $ASFLAGS $as_opts $prog" 2
+    catch {
+	spawn -noecho -nottycopy $srcdir/lib/run $AS $ASFLAGS $as_opts $srcdir/$subdir/$prog
+    } foo
+    if ![regexp {^[0-9]+} $foo] then {
+	perror "Can't run $subdir/$prog: $foo"
+    }
+}
+
+proc gas_finish { } {
+    global spawn_id
+
+    catch "close"
+    catch "wait"
+}
+
+proc want_no_output { testname } {
+    global comp_output
+
+    if ![string match "" $comp_output] then {
+	send_log "$comp_output\n"
+	verbose "$comp_output" 3
+    }
+    if [string match "" $comp_output] then {
+	pass "$testname"
+	return 1
+    } else {
+	fail "$testname"
+	return 0
+    }
+}
+
+proc gas_test_old { file as_opts testname } {
+    gas_run $file $as_opts ""
+    return [want_no_output $testname]
+}
+
+proc gas_test { file as_opts var_opts testname } {
+    global comp_output
+
+    set i 0
+    foreach word $var_opts {
+	set ignore_stdout($i) [string match "*>" $word]
+	set opt($i) [string trim $word {>}]
+	incr i
+    }
+    set max [expr 1<<$i]
+    for {set i 0} {[expr $i<$max]} {incr i} {
+	set maybe_ignore_stdout ""
+	set extra_opts ""
+	for {set bit 0} {(1<<$bit)<$max} {incr bit} {
+	    set num [expr 1<<$bit]
+	    if [expr $i&$num] then {
+		set extra_opts "$extra_opts $opt($bit)"
+		if $ignore_stdout($bit) then {
+		    set maybe_ignore_stdout ">/dev/null"
+		}
+	    }
+	}
+	set extra_opts [string trim $extra_opts]
+	gas_run $file "$as_opts $extra_opts" $maybe_ignore_stdout
+
+	# Should I be able to use a conditional expression here?
+	if [string match "" $extra_opts] then {
+	    want_no_output $testname
+	} else {
+	    want_no_output "$testname ($extra_opts)"
+	}
+    }
+    if [info exists errorInfo] then {
+        unset errorInfo
+    }
+}
+
+proc gas_test_ignore_stdout { file as_opts testname } {
+    global comp_output
+
+    gas_run $file $as_opts ">/dev/null"
+    want_no_output $testname
+}
+
+proc gas_test_error { file as_opts testname } {
+    global comp_output
+
+    gas_run $file $as_opts ">/dev/null"
+    if ![string match "" $comp_output] then {
+	send_log "$comp_output\n"
+	verbose "$comp_output" 3
+    }
+    if [string match "" $comp_output] then {
+	fail "$testname"
+    } else {
+	pass "$testname"
+    }
+}
+
+proc gas_exit {} {}
+
+proc gas_init { args } {
+    global target_cpu
+    global target_cpu_family
+    global target_family
+    global target_vendor
+    global target_os
+    global stdoptlist
+
+    case "$target_cpu" in {
+	"m68???"		{ set target_cpu_family m68k }
+	"i[3-7]86"		{ set target_cpu_family i386 }
+	default			{ set target_cpu_family $target_cpu }
+    }
+
+    set target_family "$target_cpu_family-$target_vendor-$target_os"
+    set stdoptlist "-a>"
+
+    if ![istarget "*-*-*"] {
+	perror "Target name [istarget] is not a triple."
+    }
+    # Need to return an empty string.
+    return
+}
+
+#
+# is_elf_format
+#	true if the object format is known to be ELF
+#
+proc is_elf_format {} {
+    if { ![istarget *-*-sysv4*] \
+	 && ![istarget *-*-unixware*] \
+	 && ![istarget *-*-elf*] \
+	 && ![istarget *-*-eabi*] \
+	 && ![istarget hppa*64*-*-hpux*] \
+	 && ![istarget *-*-linux*] \
+	 && ![istarget frv-*-uclinux*] \
+	 && ![istarget *-*-irix5*] \
+	 && ![istarget *-*-irix6*] \
+	 && ![istarget *-*-netbsd*] \
+	 && ![istarget *-*-solaris2*] } {
+	return 0
+    }
+
+    if { [istarget *-*-linux*aout*] \
+	 || [istarget *-*-linux*oldld*] } {
+	return 0
+    }
+
+    if { ![istarget *-*-netbsdelf*] \
+	 && ([istarget *-*-netbsd*aout*] \
+	     || [istarget *-*-netbsdpe*] \
+	     || [istarget arm*-*-netbsd*] \
+	     || [istarget sparc-*-netbsd*] \
+	     || [istarget i*86-*-netbsd*] \
+	     || [istarget m68*-*-netbsd*] \
+	     || [istarget vax-*-netbsd*] \
+	     || [istarget ns32k-*-netbsd*]) } {
+    	return 0
+    }
+    return 1
+}
+
+
+# run_dump_test FILE (optional:) EXTRA_OPTIONS
+#
+# Assemble a .s file, then run some utility on it and check the output.
+#
+# There should be an assembly language file named FILE.s in the test
+# suite directory, and a pattern file called FILE.d.  `run_dump_test'
+# will assemble FILE.s, run some tool like `objdump', `objcopy', or
+# `nm' on the .o file to produce textual output, and then analyze that
+# with regexps.  The FILE.d file specifies what program to run, and
+# what to expect in its output.
+#
+# The FILE.d file begins with zero or more option lines, which specify
+# flags to pass to the assembler, the program to run to dump the
+# assembler's output, and the options it wants.  The option lines have
+# the syntax:
+#
+#         # OPTION: VALUE
+#
+# OPTION is the name of some option, like "name" or "objdump", and
+# VALUE is OPTION's value.  The valid options are described below.
+# Whitespace is ignored everywhere, except within VALUE.  The option
+# list ends with the first line that doesn't match the above syntax
+# (hmm, not great for error detection).
+#
+# The optional EXTRA_OPTIONS argument to `run_dump_test' is a list of
+# two-element lists.  The first element of each is an option name, and
+# the second additional arguments to be added on to the end of the
+# option list as given in FILE.d.  (If omitted, no additional options
+# are added.)
+#
+# The interesting options are:
+#
+#   name: TEST-NAME
+#	The name of this test, passed to DejaGNU's `pass' and `fail'
+#       commands.  If omitted, this defaults to FILE, the root of the
+#       .s and .d files' names.
+#
+#   as: FLAGS
+#	When assembling FILE.s, pass FLAGS to the assembler.
+#
+#   PROG: PROGRAM-NAME
+#       The name of the program to run to analyze the .o file produced
+#       by the assembler.  This can be omitted; run_dump_test will guess
+#       which program to run by seeing which of the flags options below
+#	is present.
+#
+#   objdump: FLAGS
+#   nm: FLAGS
+#   objcopy: FLAGS
+#	Use the specified program to analyze the .o file, and pass it
+#	FLAGS, in addition to the .o file name.  Note that they are run
+#	with LC_ALL=C in the environment to give consistent sorting
+#	of symbols.
+#
+#   source: SOURCE
+#	Assemble the file SOURCE.s.  If omitted, this defaults to FILE.s.
+#       This is useful if several .d files want to share a .s file.
+#
+#   error: REGEX
+#	An error with message matching REGEX must be emitted for the test
+#	to pass.  The PROG, objdump, nm and objcopy options have no
+#	meaning and need not supplied if this is present.
+#
+# Each option may occur at most once.
+#
+# After the option lines come regexp lines.  `run_dump_test' calls
+# `regexp_diff' to compare the output of the dumping tool against the
+# regexps in FILE.d.  `regexp_diff' is defined later in this file; see
+# further comments there.
+
+proc run_dump_test { name {extra_options {}} } {
+    global subdir srcdir
+    global OBJDUMP NM AS OBJCOPY READELF
+    global OBJDUMPFLAGS NMFLAGS ASFLAGS OBJCOPYFLAGS READELFFLAGS
+    global host_triplet
+    global env
+
+    if [string match "*/*" $name] {
+	set file $name
+	set name [file tail $name]
+    } else {
+	set file "$srcdir/$subdir/$name"
+    }
+    set opt_array [slurp_options "${file}.d"]
+    if { $opt_array == -1 } {
+	perror "error reading options from $file.d"
+	unresolved $subdir/$name
+	return
+    }
+    set opts(as) {}
+    set opts(objdump) {}
+    set opts(nm) {}
+    set opts(objcopy) {}
+    set opts(readelf) {}
+    set opts(name) {}
+    set opts(PROG) {}
+    set opts(source) {}
+    set opts(stderr) {}
+    set opts(error) {}
+
+    foreach i $opt_array {
+	set opt_name [lindex $i 0]
+	set opt_val [lindex $i 1]
+	if ![info exists opts($opt_name)] {
+	    perror "unknown option $opt_name in file $file.d"
+	    unresolved $subdir/$name
+	    return
+	}
+	if [string length $opts($opt_name)] {
+	    perror "option $opt_name multiply set in $file.d"
+	    unresolved $subdir/$name
+	    return
+	}
+	set opts($opt_name) $opt_val
+    }
+
+    foreach i $extra_options {
+	set opt_name [lindex $i 0]
+	set opt_val [lindex $i 1]
+	if ![info exists opts($opt_name)] {
+	    perror "unknown option $opt_name given in extra_opts"
+	    unresolved $subdir/$name
+	    return
+	}
+	# add extra option to end of existing option, adding space
+	# if necessary.
+	if [string length $opts($opt_name)] {
+	    append opts($opt_name) " "
+	}
+	append opts($opt_name) $opt_val
+    }
+
+    if {$opts(PROG) != ""} {
+	switch -- $opts(PROG) {
+	    objdump
+		{ set program objdump }
+	    nm
+		{ set program nm }
+	    objcopy
+		{ set program objcopy }
+	    readelf
+		{ set program readelf }
+	    default
+		{ perror "unrecognized program option $opts(PROG) in $file.d"
+		  unresolved $subdir/$name
+		  return }
+	}
+    } elseif { $opts(error) != "" } {
+	# It's meaningless to require an output-testing method when we
+	# expect an error.  For simplicity, we fake an arbitrary method.
+	set program "nm"
+    } else {
+	# Guess which program to run, by seeing which option was specified.
+	set program ""
+	foreach p {objdump objcopy nm readelf} {
+	    if {$opts($p) != ""} {
+		if {$program != ""} {
+		    perror "ambiguous dump program in $file.d"
+		    unresolved $subdir/$name
+		    return
+		} else {
+		    set program $p
+		}
+	    }
+	}
+	if {$program == ""} {
+	    perror "dump program unspecified in $file.d"
+	    unresolved $subdir/$name
+	    return
+	}
+    }
+
+    set progopts1 $opts($program)
+    eval set progopts \$[string toupper $program]FLAGS
+    eval set binary \$[string toupper $program]
+    if { $opts(name) == "" } {
+	set testname "$subdir/$name"
+    } else {
+	set testname $opts(name)
+    }
+
+    if { $opts(source) == "" } {
+	set sourcefile ${file}.s
+    } else {
+	set sourcefile $srcdir/$subdir/$opts(source)
+    }
+
+    send_log "$AS $ASFLAGS $opts(as) -o dump.o $sourcefile\n"
+    catch "exec $srcdir/lib/run $AS $ASFLAGS $opts(as) -o dump.o $sourcefile" comp_output
+    set comp_output [prune_warnings $comp_output]
+
+    if { ![string match "" $comp_output] || $opts(stderr) != "" } then {
+	if { $opts(stderr) == "" }  then {
+	    send_log "$comp_output\n"
+	    verbose "$comp_output" 3
+
+	    if { $opts(error) != "" } {
+		verbose -log "failed with: <$comp_output>, expected: <$opts(error)>"
+		if [regexp $opts(error) $comp_output] {
+		    pass $testname
+		    return
+		}
+	    }
+	    fail $testname
+	    return
+	} else {
+	    catch {write_file dump.stderr "$comp_output"} write_output
+	    if ![string match "" $write_output] then {
+		send_log "error writing dump.stderr: $write_output\n"
+		verbose "error writing dump.stderr: $write_output" 3
+		send_log "$comp_output\n"
+		verbose "$comp_output" 3
+		fail $testname
+		return
+	    }
+	    set stderrfile $srcdir/$subdir/$opts(stderr)
+	    send_log "wrote pruned stderr to dump.stderr\n"
+	    verbose "wrote pruned stderr to dump.stderr" 3
+	    if { [regexp_diff "dump.stderr" "$stderrfile"] } then {
+		if { $opts(error) != "" } {
+		    verbose -log "failed with: <$comp_output>, expected: <$opts(error)>"
+		    if [regexp $opts(error) $comp_output] {
+			pass $testname
+			return
+		    }
+		}
+		fail $testname
+		verbose "pruned stderr is [file_contents "dump.stderr"]" 2
+		return
+	    }
+	}
+    }
+
+    if { [which $binary] == 0 } {
+	untested $testname
+	return
+    }
+
+    if { $progopts1 == "" } { set $progopts1 "-r" }
+    verbose "running $binary $progopts $progopts1" 3
+
+    # Objcopy, unlike the other two, won't send its output to stdout,
+    # so we have to run it specially.
+    set cmd "$binary $progopts $progopts1 dump.o > dump.out"
+    if { $program == "objcopy" } {
+	set cmd "$binary $progopts $progopts1 dump.o dump.out"
+    }
+
+    # Ensure consistent sorting of symbols
+    if {[info exists env(LC_ALL)]} {
+	set old_lc_all $env(LC_ALL)
+    }
+    set env(LC_ALL) "C"
+    send_log "$cmd\n"
+    catch "exec $cmd" comp_output
+    if {[info exists old_lc_all]} {
+	set env(LC_ALL) $old_lc_all
+    } else {
+	unset env(LC_ALL)
+    }
+    set comp_output [prune_warnings $comp_output]
+    if ![string match "" $comp_output] then {
+	send_log "$comp_output\n"
+	fail $testname
+	return
+    }
+
+    verbose_eval {[file_contents "dump.out"]} 3
+    if { [regexp_diff "dump.out" "${file}.d"] } then {
+	fail $testname
+	verbose "output is [file_contents "dump.out"]" 2
+	return
+    }
+
+    pass $testname
+}
+
+proc slurp_options { file } {
+    if [catch { set f [open $file r] } x] {
+	#perror "couldn't open `$file': $x"
+	perror "$x"
+	return -1
+    }
+    set opt_array {}
+    # whitespace expression
+    set ws  {[ 	]*}
+    set nws {[^ 	]*}
+    # whitespace is ignored anywhere except within the options list;
+    # option names are alphabetic only
+    set pat "^#${ws}(\[a-zA-Z\]*)$ws:${ws}(.*)$ws\$"
+    while { [gets $f line] != -1 } {
+	set line [string trim $line]
+	# Whitespace here is space-tab.
+	if [regexp $pat $line xxx opt_name opt_val] {
+	    # match!
+	    lappend opt_array [list $opt_name $opt_val]
+	} else {
+	    break
+	}
+    }
+    close $f
+    return $opt_array
+}
+
+proc objdump { opts } {
+    global OBJDUMP
+    global comp_output
+    global host_triplet
+
+    catch "exec $OBJDUMP $opts" comp_output
+    set comp_output [prune_warnings $comp_output]
+    verbose "objdump output=$comp_output\n" 3
+}
+
+proc objdump_start_no_subdir { prog opts } {
+    global OBJDUMP
+    global srcdir
+    global spawn_id
+
+    verbose "Starting $OBJDUMP $opts $prog" 2
+    catch {
+	spawn -noecho -nottyinit $srcdir/lib/run $OBJDUMP $opts $prog
+    } foo
+    if ![regexp {^[0-9]+} $foo] then {
+	perror "Can't run $prog: $foo"
+    }
+}
+
+proc objdump_finish { } {
+    global spawn_id
+
+    catch "close"
+    catch "wait"
+}
+
+# Default timeout is 10 seconds, loses on a slow machine.  But some
+# configurations of dejagnu may override it.
+if {$timeout<120} then { set timeout 120 }
+
+expect_after -i {
+    timeout			{ perror "timeout" }
+    "virtual memory exhausted"	{ perror "virtual memory exhausted" }
+    buffer_full			{ perror "buffer full" }
+    eof				{ perror "eof" }
+}
+
+# regexp_diff, based on simple_diff taken from ld test suite
+#	compares two files line-by-line
+#	file1 contains strings, file2 contains regexps and #-comments
+#	blank lines are ignored in either file
+#	returns non-zero if differences exist
+#
+proc regexp_diff { file_1 file_2 } {
+
+    set eof -1
+    set end_1 0
+    set end_2 0
+    set differences 0
+    set diff_pass 0
+
+    if [file exists $file_1] then {
+	set file_a [open $file_1 r]
+    } else {
+	perror "$file_1 doesn't exist"
+	return 1
+    }
+
+    if [file exists $file_2] then {
+	set file_b [open $file_2 r]
+    } else {
+	perror "$file_2 doesn't exist"
+	close $file_a
+	return 1
+    }
+
+    verbose " Regexp-diff'ing: $file_1 $file_2" 2
+
+    while { 1 } {
+	set line_a ""
+	set line_b ""
+	while { [string length $line_a] == 0 } {
+	    if { [gets $file_a line_a] == $eof } {
+		set end_1 1
+		break
+	    }
+	}
+	while { [string length $line_b] == 0 || [string match "#*" $line_b] } {
+	    if [ string match "#pass" $line_b ] {
+		set end_2 1
+		set diff_pass 1
+		break
+	    } elseif [ string match "#..." $line_b ] {
+		if { [gets $file_b line_b] == $eof } {
+		    set end_2 1
+		    break
+		}
+		verbose "looking for \"^$line_b$\"" 3
+		while { ![regexp "^$line_b$" "$line_a"] } {
+		    verbose "skipping    \"$line_a\"" 3
+		    if { [gets $file_a line_a] == $eof } {
+			set end_1 1
+			break
+		    }
+		}
+		break
+	    }
+	    if { [gets $file_b line_b] == $eof } {
+		set end_2 1
+		break
+	    }
+	}
+
+        if { $diff_pass } {
+            break
+        } elseif { $end_1 && $end_2 } {
+            break
+        } elseif { $end_1 } {
+            send_log "extra regexps in $file_2 starting with \"^$line_b$\"\nEOF from $file_1\n"
+            verbose "extra regexps in $file_2 starting with \"^$line_b$\"\nEOF from $file_1" 3
+            set differences 1
+            break
+        } elseif { $end_2 } {
+            send_log "extra lines in $file_1 starting with \"^$line_a$\"\nEOF from $file_2\n"
+            verbose "extra lines in $file_1 starting with \"^$line_a$\"\nEOF from $file_2\n" 3
+            set differences 1
+            break
+        } else {
+            verbose "regexp \"^$line_b$\"\nline   \"$line_a\"" 3
+            if ![regexp "^$line_b$" "$line_a"] {
+		send_log "regexp_diff match failure\n"
+		send_log "regexp \"^$line_b$\"\nline   \"$line_a\"\n"
+		verbose "regexp_diff match failure\n" 3
+		set differences 1
+            }
+        }
+    }
+
+    if { $differences == 0 && !$diff_pass && [eof $file_a] != [eof $file_b] } {
+	send_log "$file_1 and $file_2 are different lengths\n"
+	verbose "$file_1 and $file_2 are different lengths" 3
+	set differences 1
+    }
+
+    close $file_a
+    close $file_b
+
+    return $differences
+}
+
+proc file_contents { filename } {
+    set file [open $filename r]
+    set contents [read $file]
+    close $file
+    return $contents
+}
+
+proc write_file { filename contents } {
+    set file [open $filename w]
+    puts $file "$contents"
+    close $file
+}
+
+proc verbose_eval { expr { level 1 } } {
+    global verbose
+    if $verbose>$level then { eval verbose "$expr" $level }
+}
+
+# This definition is taken from an unreleased version of DejaGnu.  Once
+# that version gets released, and has been out in the world for a few
+# months at least, it may be safe to delete this copy.
+if ![string length [info proc prune_warnings]] {
+    #
+    # prune_warnings -- delete various system verbosities from TEXT.
+    #
+    # An example is:
+    # ld.so: warning: /usr/lib/libc.so.1.8.1 has older revision than expected 9
+    #
+    # Sites with particular verbose os's may wish to override this in site.exp.
+    #
+    proc prune_warnings { text } {
+	# This is from sun4's.  Do it for all machines for now.
+	# The "\\1" is to try to preserve a "\n" but only if necessary.
+	regsub -all "(^|\n)(ld.so: warning:\[^\n\]*\n?)+" $text "\\1" text
+
+	# It might be tempting to get carried away and delete blank lines, etc.
+	# Just delete *exactly* what we're ask to, and that's it.
+	return $text
+    }
+}

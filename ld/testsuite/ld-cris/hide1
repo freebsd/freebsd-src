@@ -1,0 +1,1 @@
+TST1 { global: export_*; local: *; };

@@ -1,0 +1,96 @@
+#
+# This is sort of a prototype test case, which parses the listing output
+# from the assembler.  Later, more prototypes should be added for cases
+# where objdump gets run over the .o file, and anything else like that...
+#
+# When you write a test case that uses the listing output, just copy this
+# file (trimming down the overly-verbose comments a little), and
+# adjust it to do what you need.
+#
+# Remember that any ".exp" file found in the tree will be processed by
+# dejagnu.
+
+#
+# FIRST SAMPLE TEST CASE
+#
+
+proc do_foo {} {
+# This string is used below when printing out a success or failure message.
+# If more than one test is run by a given .exp file, it'd be nice to include
+# the name of the input file.
+    set testname "foo.s: multi-register tweaking and frobnication"
+
+# I use this as a flag to record whether the test case passed.  If this
+# flag is still clear when EOF is reached, this test fails.  If there are
+# two or more patterns, and I need to see all of them, I'll create N variables
+# and check if the sum is N.
+    set x 0
+
+# Call gas_start with two arguments: The input file name (which it'll search
+# for in $srcdir/$subdir, that is, the source directory where the .exp file
+# is), and a (possibly empty) string of options to pass to the assembler.
+    gas_start "foo.s" "-al"
+
+# Now I just iterate over all the output lines, looking for what I want
+# to see.  Since each pattern explicitly will not span line breaks, there's
+# also a pattern for lines that don't match anything else.   (Is it safe to
+# use ".*" for patterns not crossing line breaks? I don't think "$" does the
+# right thing for that, in any case.  I should check into whether the extra
+# pattern is even needed.
+
+# Apparently CRLF is received when using ptys for subprocesses; hence the
+# \r\n for matching line number 3.
+
+# Note that if you use "{ ... }" for the expect clause, you can't have
+# comments inside it.
+
+# This test case is kinda bogus in that seeing either a word of all zeros
+# at address zero or a C-style comment on line three that says "Looking for
+# C comments" (with very specific punctuation and whitespace) will cause
+# it to pass this test.  Usually 
+    while 1 {
+	expect {
+	    -re "^ +\[0-9\]+ 0000 00000000\[^\n\]*\n"		{ set x 1 }
+	    -re "^ +3\[ \t\]+/. Looking for C comments. ./\r\n"	{ set x 1 }
+	    -re "\[^\n\]*\n"				{ }
+	    timeout				{ perror "timeout\n"; break }
+	    eof					{ break }
+	}
+    }
+# This was intended to do any cleanup necessary.  It kinda looks like it isn't
+# needed, but just in case, please keep it in for now.
+    gas_finish
+
+# Did we find what we were looking for?  If not, flunk it.
+    if $x then { pass $testname } else { fail $testname }
+}
+
+# Now actually run the test.  It can be conditionalized if the test is
+# not appropriate for all targets.  The proc "istarget" checks a generalized
+# form of the target name, so that (e.g.) "m68332-unknown-aout" would match
+# here.  So far, I think only the CPU name is actually ever altered.
+if [istarget m68k-*] then {
+    do_foo
+}
+
+
+
+
+#
+# SECOND SAMPLE TEST CASE
+#
+
+# This is a tiny bit like the C compiler torture tests, in that it'll run
+# the assembler with the power set of the list of options supplied.
+#
+# The first argument is the test file name; the second is arguments that
+# are always to be provided; the third is a space-separated list of options
+# which are optional (ending in ">" if output should be ignored, like "-a>");
+# the fourth is the name of the test.  So far, only binary options are handled
+# this way; N-way options (like CPU type for m68k) aren't handled yet.
+#
+# The variable $stdoptlist usually has a reasonable set of optional options
+# for this target.
+
+# No, PIC isn't supported yet.  This is only an example.
+gas_test "quux.s" "-K" $stdoptlist "use of quuxes in PIC mode"

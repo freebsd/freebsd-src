@@ -1,0 +1,4 @@
+Version References:
+  required from tmpdir/vers1.so:
+    0x0a7922b0 0x00 0[23] VERS_2.0
+

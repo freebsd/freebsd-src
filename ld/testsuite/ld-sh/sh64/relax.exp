@@ -1,0 +1,152 @@
+# Expect script for ld-sh tests
+#   Copyright (C) 2001 Free Software Foundation
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+
+# Test SH relaxing - that is, that it's disabled when SHmedia sections
+# are present.
+
+if ![istarget sh64-*-*] {
+    return
+}
+
+# There are four source files: the first is SHcompact only, the second
+# is SHmedia only, the third has both, and the fourth has only a
+# .cranges section.  The table below has:
+#   Title
+#   as flags for first source (else "n/a" to skip)
+#   ditto, other three files
+#   ld flags
+#   1/0 whether relaxing should have been done or not, or -1 if we expect
+#     the linker to not produce an output file.
+
+if [istarget sh64*-*-linux*] {
+    set emul32 "shlelf32_linux"
+} elseif { [istarget sh64*-*-netbsd*] || [istarget sh5*-*-netbsd*] } {
+    set emul32 "shelf32_nbsd"
+} else {
+    set emul32 "shelf32"
+}
+
+set sh64relaxtests {
+    {"SH64 not relaxing, shcompact"
+      {"-relax -isa shcompact" "n/a" "n/a" "n/a"} "-m$emul32" 0}
+    {"SH64 relaxing, shcompact"
+      {"-relax -isa shcompact" "n/a" "n/a" "n/a"} "-relax -m$emul32" 1}
+    {"SH64 relaxing, shcompacts"
+      {"-relax -isa shcompact" "-isa shcompact" "n/a" "n/a"} "-relax -m$emul32" 1}
+    {"SH64 relaxing disabled, shmedia"
+      {"-relax -isa shcompact" "-isa shmedia -no-mix" "n/a" "n/a"} "-relax -m$emul32" 0}
+    {"SH64 relaxing disabled, mixed"
+      {"-relax -isa shcompact" "n/a" "-isa shcompact" "n/a"} "-relax -m$emul32" 0}
+    {"SH64 relaxing disabled, cranges"
+      {"-relax -isa shcompact" "n/a" "n/a" ""} "-relax -m$emul32" 0}
+}
+
+proc run_sh64relaxtest {sh64relaxtests} {
+    global ld
+    global as
+    global nm
+    global objdump
+    global readelf
+    global srcdir
+    global subdir
+    global emul32
+
+    set testindex 0
+    
+    set sh64relaxfiles {
+	"relax1.s" "relax2.s" "relax3.s" "relax4.s"
+    }
+    
+    foreach testentry $sh64relaxtests {
+	set testname [lindex $testentry 0]
+	set as_options [lindex $testentry 1]
+	set ld_options [subst [lindex $testentry 2]]
+	set expect_relaxed [lindex $testentry 3]
+	
+	set is_unresolved 0
+	set objfiles {}
+	
+	incr testindex
+	
+	# Assemble each file in the test.
+	for {set i 0} {$i < 4} {incr i} {
+	    set as_file [lindex $sh64relaxfiles $i]
+	    set as_opt [lindex $as_options $i]
+	    if { [string compare $as_opt "n/a"] != 0 } {
+		set objfile "tmpdir/[file rootname $as_file]-$testindex.o"
+		lappend objfiles $objfile
+		
+		if ![ld_assemble $as "$as_opt $srcdir/$subdir/$as_file" $objfile] {
+		    set is_unresolved 1
+		    break
+		}
+	    }
+	}
+	
+	# Catch assembler errors.
+	if { $is_unresolved != 0 } {
+	    unresolved $testname
+	    continue
+	}
+	
+	set binfile "tmpdir/relax-$testindex.x"
+	
+	# We're not interested in the pass/fail of the linker as much
+	# as we're interested in whether or not relaxing got properly
+	# disabled.  Hence the lax checking here.
+	
+	file delete $binfile
+	set result [ld_simple_link $ld $binfile " --no-warn-mismatch $ld_options $objfiles"]
+	if ![file exists $binfile] {
+	    
+	    if {$expect_relaxed == -1} {
+		pass $testname
+		continue;
+	    }
+	    
+	    verbose "$testname: file $binfile doesn't exist" 1
+	    fail $testname
+	    continue
+	}
+	
+	catch "exec $objdump -d $binfile" objdump_output
+	
+	regexp "\[ \t](jsr|bsr)\[ \t]" $objdump_output ignore calltype
+	
+	if [string match $calltype "bsr"] {
+	    set relaxed 1
+	} elseif [string match $calltype "jsr"] {
+	    set relaxed 0
+	} else {
+	    verbose "$testname: neither jsr nor bsr found" 1
+	    verbose $objdump_output 2
+	    fail $testname
+	    continue
+	}
+	
+	if {$relaxed != $expect_relaxed} {
+	    verbose $objdump_output 2
+	    fail $testname
+	    exit
+	} else {
+	    pass $testname
+	}
+    }
+}
+
+run_sh64relaxtest $sh64relaxtests

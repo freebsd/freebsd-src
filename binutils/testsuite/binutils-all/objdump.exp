@@ -1,0 +1,163 @@
+#   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000
+#   Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+# Please email any bugs, comments, and/or additions to this file to:
+# bug-dejagnu@prep.ai.mit.edu
+
+# This file was written by Rob Savoye <rob@cygnus.com>
+# and rewritten by Ian Lance Taylor <ian@cygnus.com>
+
+if ![is_remote host] {
+    if {[which $OBJDUMP] == 0} then {
+	perror "$OBJDUMP does not exist"
+	return
+    }
+}
+
+send_user "Version [binutil_version $OBJDUMP]"
+
+# Simple test of objdump -i
+
+set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -i"]
+
+set cpus_expected [list]
+lappend cpus_expected a29k alliant alpha arc arm convex 
+lappend cpus_expected d10v d30v fr30 fr500 fr550 h8 hppa i386 i860 i960 ip2022
+lappend cpus_expected m32r m68hc11 m68hc12 m68k m88k MCore
+lappend cpus_expected mips mn10200 mn10300 msp ns32k pj powerpc pyramid
+lappend cpus_expected romp rs6000 s390 sh sparc
+lappend cpus_expected tahoe tic54x tic80 tms320c30 tms320c4x tms320c54x v850
+lappend cpus_expected vax we32k x86-64 xscale z8k z8001 z8002
+
+# Make sure the target CPU shows up in the list.
+lappend cpus_expected ${target_cpu}
+
+# Create regexp
+set cpus_regex "([join $cpus_expected | ])"
+
+verbose -log "CPU regex: $cpus_regex"
+
+set want "BFD header file version.*srec\[^\n\]*\n\[^\n\]*header \[^\n\]*endian\[^\n\]*, data \[^\n\]*endian.*$cpus_regex"
+
+if [regexp $want $got] then {
+    pass "objdump -i"
+} else {
+    fail "objdump -i"
+}
+
+# The remaining tests require a test file.
+
+
+if {![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o]} then {
+    return
+}
+if [is_remote host] {
+    set testfile [remote_download host tmpdir/bintest.o]
+} else {
+    set testfile tmpdir/bintest.o
+}
+
+# Test objdump -f
+
+set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -f $testfile"]
+
+set want "$testfile:\[ 	\]*file format.*architecture:\[ 	\]*${cpus_regex}.*HAS_RELOC.*HAS_SYMS"
+
+if ![regexp $want $got] then {
+    fail "objdump -f"
+} else {
+    pass "objdump -f"
+}
+
+# Test objdump -h
+
+set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -h $testfile"]
+
+set want "$testfile:\[ 	\]*file format.*Sections.*\[0-9\]+\[ 	\]+\[^ 	\]*(text|TEXT|\\\$CODE\\\$)\[^ 	\]*\[ 	\]*(\[0-9a-fA-F\]+).*\[0-9\]+\[ 	\]+\[^ 	\]*(\\.data|DATA)\[^ 	\]*\[ 	\]*(\[0-9a-fA-F\]+)"
+
+if ![regexp $want $got all text_name text_size data_name data_size] then {
+    fail "objdump -h"
+} else {
+    verbose "text name is $text_name size is $text_size"
+    verbose "data name is $data_name size is $data_size"
+    set ets 8
+    set eds 4
+    # The [ti]c4x target has the property sizeof(char)=sizeof(long)=1
+    if [istarget *c4x*-*-*] then {
+        set ets 2
+        set eds 1
+    }
+    # c54x section sizes are in bytes, not octets; adjust accordingly
+    if [istarget *c54x*-*-*] then {
+	set ets 4
+	set eds 2
+    }
+    if {[expr "0x$text_size"] < $ets || [expr "0x$data_size"] < $eds} then {
+	send_log "sizes too small\n"
+	fail "objdump -h"
+    } else {
+	pass "objdump -h"
+    }
+}
+
+# Test objdump -t
+
+set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -t $testfile"]
+
+if [info exists vars] then { unset vars }
+while {[regexp "(\[a-z\]*_symbol)(.*)" $got all symbol rest]} {
+    set vars($symbol) 1
+    set got $rest
+}
+
+if {![info exists vars(text_symbol)] \
+     || ![info exists vars(data_symbol)] \
+     || ![info exists vars(common_symbol)] \
+     || ![info exists vars(external_symbol)]} then {
+    fail "objdump -t"
+} else {
+    pass "objdump -t"
+}
+
+# Test objdump -r
+
+set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -r $testfile"]
+
+set want "$testfile:\[ 	\]*file format.*RELOCATION RECORDS FOR \\\[\[^\]\]*(text|TEXT|\\\$CODE\\\$)\[^\]\]*\\\].*external_symbol"
+
+if [regexp $want $got] then {
+    pass "objdump -r"
+} else {
+    fail "objdump -r"
+}
+
+# Test objdump -s
+
+set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -s $testfile"]
+
+set want "$testfile:\[ 	\]*file format.*Contents.*(text|TEXT|\\\$CODE\\\$)\[^0-9\]*\[ 	\]*\[0-9a-fA-F\]*\[ 	\]*(00000001|01000000|00000100).*Contents.*(data|DATA)\[^0-9\]*\[ 	\]*\[0-9a-fA-F\]*\[ 	\]*(00000002|02000000|00000200)"
+
+if [regexp $want $got] then {
+    pass "objdump -s"
+} else {
+    fail "objdump -s"
+}
+
+# Options which are not tested: -a -d -D -R -T -x -l --stabs
+# I don't see any generic way to test any of these other than -a.
+# Tests could be written for specific targets, and that should be done
+# if specific problems are found.

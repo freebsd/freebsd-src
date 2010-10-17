@@ -1,0 +1,105 @@
+#
+# i386 tests
+#
+proc run_list_test { name opts } {
+    global srcdir subdir
+    set testname "i386 $name"
+    set file $srcdir/$subdir/$name
+    gas_run ${name}.s $opts ">&dump.out"
+    if { [regexp_diff "dump.out" "${file}.l"] } then {
+	fail $testname
+	verbose "output is [file_contents "dump.out"]" 2
+	return
+    }
+    pass $testname
+}
+
+proc gas_64_check { } {
+    global NM
+    global NMFLAGS
+    global srcdir
+
+    catch "exec $srcdir/lib/run $NM $NMFLAGS --help" nm_help
+    return [regexp "targets:.*x86-64" $nm_help];
+}
+
+proc gas_32_check { } {
+    global NM
+    global NMFLAGS
+    global srcdir
+
+    catch "exec $srcdir/lib/run $NM $NMFLAGS --help" nm_help
+    return [regexp "targets:.*i386" $nm_help];
+}
+
+
+if [expr ([istarget "i*86-*-*"] ||  [istarget "x86_64-*-*"]) && [gas_32_check]]  then {
+
+    global ASFLAGS
+    set old_ASFLAGS "$ASFLAGS"
+    set ASFLAGS "$ASFLAGS --32"
+
+    run_list_test "float" "-al"
+    run_list_test "general" "-al --listing-lhs-width=2"
+    run_list_test "inval" "-al"
+    run_list_test "modrm" "-al --listing-lhs-width=2"
+    run_dump_test "naked"
+    run_dump_test "opcode"
+    run_dump_test "intel"
+    run_dump_test "intel16"
+    run_dump_test "prefix"
+    run_dump_test "amd"
+    run_dump_test "katmai"
+    run_dump_test "jump"
+    run_dump_test "ssemmx2"
+    run_dump_test "sse2"
+    run_dump_test "absrel"
+    run_dump_test "pcrel"
+    run_dump_test "sub"
+    run_dump_test "prescott"
+    run_dump_test "divide"
+    run_dump_test "padlock"
+
+    # PIC is only supported on ELF targets.
+    if { ([istarget "*-*-elf*"] || [istarget "*-*-linux*"] )
+	 && ![istarget *-*-linux*aout*]
+	 && ![istarget *-*-linux*oldld*] } then {
+	run_dump_test "intelpic"
+    }
+
+    # These tests require support for 8 and 16 bit relocs,
+    # so we only run them for ELF and COFF targets.
+    if {[istarget "*-*-elf*"] || [istarget "*-*-linux*"] || [istarget "*-*-coff*"]} then {
+	run_dump_test "reloc"
+	run_dump_test "jump16"
+	run_list_test "white" "-al --listing-lhs-width=3"
+    }
+
+    # Do they only work for ELF?
+    if { ([istarget "*-*-elf*"]		
+	  || [istarget "*-*-linux*"]
+	 && ![istarget *-*-linux*aout*]
+	 && ![istarget *-*-linux*oldld*])
+    } then {
+	run_dump_test "relax"
+	run_dump_test "gotpc"
+	run_dump_test "tlsd"
+	run_dump_test "tlspic"
+	run_dump_test "tlsnopic"
+    }
+
+    set ASFLAGS "$old_ASFLAGS"
+}
+
+if [expr ([istarget "i*86-*-*"] || [istarget "x86_64-*-*"]) && [gas_64_check]] then {
+
+    global ASFLAGS
+    set old_ASFLAGS "$ASFLAGS"
+    set ASFLAGS "$ASFLAGS --64"
+
+    run_dump_test "x86_64"
+    run_dump_test "x86-64-opcode"
+    run_list_test "x86-64-inval" "-al"
+
+    set ASFLAGS "$old_ASFLAGS"
+}

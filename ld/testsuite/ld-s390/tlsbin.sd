@@ -1,0 +1,13 @@
+#source: tlsbinpic.s
+#source: tlsbin.s
+#as: -m31
+#ld: -shared -melf_s390
+#objdump: -sj.got
+#target: s390-*-*
+
+.*:     file format elf32-s390
+
+Contents of section .got:
+ 40157c [0-9a-f]+ 00000000 00000000 [0-9a-f]+  .@...........@..
+ 40158c ffffff88 00000000 ffffff68 ffffffa8  ...........h....
+ 40159c 00000000 00000000 00000000           ............    

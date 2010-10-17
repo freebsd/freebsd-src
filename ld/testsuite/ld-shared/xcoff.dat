@@ -1,0 +1,10 @@
+mainvar == 1
+overriddenvar == 2
+shlibvar1 == 3
+shlib_shlibvar1 () == 3
+shlib_shlibvar2 () == 4
+shlib_shlibcall () == 5
+main_called () == 6
+shlib_checkfunptr1 (shlib_shlibvar1) == 1
+shlib_getfunptr1 () == shlib_shlibvar1
+shlib_check () == 1

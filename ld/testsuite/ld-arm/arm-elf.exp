@@ -1,0 +1,52 @@
+# Expect script for various ARM ELF tests.
+#   Copyright 2002, 2003, 2004 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+
+# Exclude non-ARM-ELF targets.
+
+if { ![is_elf_format] || ![istarget "arm*-*-*"] } {
+    return
+}
+
+# List contains test-items with 3 items followed by 2 lists:
+# 0:name 1:ld options 2:assembler options
+# 3:filenames of assembler files 4: action and options. 5: name of output file
+
+# Actions:
+# objdump: Apply objdump options on result.  Compare with regex (last arg).
+# nm: Apply nm options on result.  Compare with regex (last arg).
+# readelf: Apply readelf options on result.  Compare with regex (last arg).
+
+set armelftests {
+    {"Simple non-PIC shared library" "-shared" "" {arm-lib.s}
+     {{objdump -fdw arm-lib.d} {objdump -Rw arm-lib.r}}
+     "arm-lib.so"}
+    {"Simple PIC shared library" "-shared" "" {arm-lib-plt32.s}
+     {{objdump -fdw arm-lib-plt32.d} {objdump -Rw arm-lib-plt32.r}}
+     "arm-lib-plt32.so"}
+    {"Simple dynamic application" "tmpdir/arm-lib.so" "" {arm-app.s}
+     {{objdump -fdw arm-app.d} {objdump -Rw arm-app.r}}
+     "arm-app"}
+    {"Simple static application" "" "" {arm-static-app.s}
+     {{objdump -fdw arm-static-app.d} {objdump -rw arm-static-app.r}}
+     "arm-static-app"}
+    {"Non-pcrel function reference" "tmpdir/arm-lib.so" "" {arm-app-abs32.s}
+     {{objdump -fdw arm-app-abs32.d} {objdump -Rw arm-app-abs32.r}}
+     "arm-app-abs32"}
+}
+
+run_ld_link_tests $armelftests

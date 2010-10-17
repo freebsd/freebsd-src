@@ -2,6 +2,8 @@
 # Makefile.in for etc
 #
 
+DESTDIR		=
+
 prefix 		= @prefix@
 exec_prefix 	= @exec_prefix@
 
@@ -68,17 +70,17 @@ info:
 	done
 
 install-info: info
-	$(SHELL) $(srcdir)/../mkinstalldirs $(infodir)
+	$(SHELL) $(srcdir)/../mkinstalldirs $(DESTDIR)$(infodir)
 	if test ! -f standards.info; then cd $(srcdir); fi; \
 	if test -f standards.info; then \
 	  for i in standards.info*; do \
-	    $(INSTALL_DATA) $$i $(infodir)/$$i; \
+	    $(INSTALL_DATA) $$i $(DESTDIR)$(infodir)/$$i; \
 	  done; \
 	fi
 	if test ! -f configure.info; then cd $(srcdir); fi; \
 	if test -f configure.info; then \
 	  for i in configure.info*; do \
-	    $(INSTALL_DATA) $$i $(infodir)/$$i; \
+	    $(INSTALL_DATA) $$i $(DESTDIR)$(infodir)/$$i; \
 	  done; \
 	fi
 

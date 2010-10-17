@@ -1,0 +1,946 @@
+# Expect script for ld-version tests
+#   Copyright 1997, 1998, 1999, 2001, 2003 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+# Written by Eric Youngdale (eric@andante.jic.com)
+
+#
+
+# This test can only be run if ld generates native executables.
+if ![isnative] then {return}
+
+# This test can only be run on a couple of ELF platforms.
+# Square bracket expressions seem to confuse istarget.
+# This is similar to the test that is used in ld-shared, BTW.
+if { ![istarget hppa*64*-*-hpux*] \
+     && ![istarget hppa*-*-linux*] \
+     && ![istarget i?86-*-sysv4*] \
+     && ![istarget i?86-*-unixware] \
+     && ![istarget i?86-*-elf*] \
+     && ![istarget i?86-*-linux*] \
+     && ![istarget ia64-*-elf*] \
+     && ![istarget ia64-*-linux*] \
+     && ![istarget m68k-*-linux*] \
+     && ![istarget mips*-*-irix5*] \
+     && ![istarget powerpc-*-elf*] \
+     && ![istarget powerpc-*-linux*] \
+     && ![istarget powerpc-*-sysv4*] \
+     && ![istarget sparc*-*-elf] \
+     && ![istarget sparc*-*-solaris2*] \
+     && ![istarget sparc*-*-linux*] \
+     && ![istarget arm*-*-linux*] \
+     && ![istarget mips*-*-linux*] \
+     && ![istarget alpha*-*-linux*] \
+     && ![istarget s390*-*-linux*] \
+     && ![istarget sh\[34\]*-*-linux*] \
+     && ![istarget x86_64-*-linux*] } {
+    return
+}
+
+if { [istarget i?86-*-linux*aout*] \
+     || [istarget i?86-*-linux*oldld*] \
+     || [istarget m68k-*-linux*aout*] } {
+    return
+}
+
+if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+    return
+}
+
+set diff diff
+set tmpdir tmpdir
+set VOBJDUMP_FLAGS --private-headers
+set DOBJDUMP_FLAGS --dynamic-syms
+set SOBJDUMP_FLAGS --syms
+set shared "--shared --no-undefined-version"
+set script --version-script
+
+if [istarget mips*-*-*] {
+    set picflag ""
+} else {
+    # Unfortunately, the gcc argument is -fpic and the cc argument is
+    # -KPIC.  We have to try both.
+    set picflag "-fpic"
+    send_log "$CC $picflag\n"
+    verbose "$CC $picflag"
+    catch "exec $CC $picflag" exec_output
+    send_log "$exec_output\n"
+    verbose "--" "$exec_output"
+    if { [string match "*illegal option*" $exec_output] \
+	 || [string match "*option ignored*" $exec_output] \
+	 || [string match "*unrecognized option*" $exec_output] \
+	 || [string match "*passed to ld*" $exec_output] } {
+	if [istarget *-*-sunos4*] {
+	    set picflag "-pic"
+	} else {
+	    set picflag "-KPIC"
+	}
+    }
+}
+
+proc test_ar { test lib object expect } {
+    global ar
+    global nm
+    global tmpdir
+    global srcdir
+    global subdir
+    global diff
+
+    verbose -log "$ar -cr $tmpdir/$lib $tmpdir/$object"
+    catch "exec $ar -cr $tmpdir/$lib $tmpdir/$object" exec_output
+    set exec_output [prune_warnings $exec_output]
+    if ![string match "" $exec_output] {
+	verbose -log "$exec_output"
+	unresolved "$test"
+	return
+    }
+    
+    verbose -log "$nm --print-armap $tmpdir/$lib | grep \" in \" | egrep \"VERS\\|bar\\|foo\" | sort > $tmpdir/nm.out"
+
+    catch "exec $nm --print-armap $tmpdir/$lib | grep \\\ in\\\  | egrep VERS\\\|bar\\\|foo | sort > $tmpdir/nm.out" exec_output
+    if [string match "" $exec_output] then {
+	catch "exec $diff $tmpdir/nm.out $srcdir/$subdir/$expect" exec_output
+	set exec_output [prune_warnings $exec_output]
+	if [string match "" $exec_output] then {
+	    pass $test
+	    return
+	} else {
+	    verbose -log "$exec_output"
+	    fail "$test"
+	    return
+	}
+    } else {
+	verbose -log "$exec_output"
+	fail "$test"
+    }
+}
+
+#
+# objdump_emptysymstuff
+#	Check non-dynamic symbols and make sure there are none with '@'.
+#
+proc objdump_emptysymstuff { objdump object } {
+    global SOBJDUMP_FLAGS
+    global version_output
+    global diff
+
+    if ![info exists SOBJDUMP_FLAGS] { set SOBJDUMP_FLAGS "" }
+
+    verbose -log "$objdump $SOBJDUMP_FLAGS $object | sed -n /\@/p"
+
+    catch "exec $objdump $SOBJDUMP_FLAGS $object | sed -n /\@/p" exec_output
+    set exec_output [prune_warnings $exec_output]
+    if [string match "" $exec_output] then {
+# We shouldn't get anything here.
+	return 1
+    } else {
+# it is not normal to come here - we have no output to compare.
+	verbose -log "$exec_output"
+	verbose -log "objdump_emptysymstuff: did not expect any output from objdump"
+	return 0
+    }
+
+}
+
+#
+# objdump_emptydynsymstuff
+#	Check dynamic symbols and make sure there are none with '@'.
+#
+proc objdump_emptydynsymstuff { objdump object } {
+    global DOBJDUMP_FLAGS
+    global version_output
+    global diff
+
+    if ![info exists VOBJDUMP_FLAGS] { set VOBJDUMP_FLAGS "" }
+
+    verbose -log "$objdump $DOBJDUMP_FLAGS $object | sed -n /VERS/p\\\;/show/p"
+
+    catch "exec $objdump $DOBJDUMP_FLAGS $object | sed -n /VERS/p\\\;/show/p" exec_output
+    set exec_output [prune_warnings $exec_output]
+    if [string match "" $exec_output] then {
+# We shouldn't get anything here.
+	return 1
+    } else { if [string match "*objdump: *: not a dynamic object" $exec_output] then {
+	return 1
+    } else {
+# it is not normal to come here - we have no output to compare.
+	verbose -log "$exec_output"
+	verbose -log "objdump_emptydynsymstuff: did not expect any output from objdump"
+	return 0
+    } }
+}
+
+#
+# objdump_emptyverstuff
+#	Make sure there is no version information
+#
+proc objdump_emptyverstuff { objdump object } {
+    global VOBJDUMP_FLAGS
+    global version_output
+    global diff
+    global tmpdir
+
+    if {[which $objdump] == 0} then {
+	perror "$objdump does not exist"
+	return 0
+    }
+
+    if ![info exists VOBJDUMP_FLAGS] { set VOBJDUMP_FLAGS "" }
+
+    verbose -log "$objdump $VOBJDUMP_FLAGS $object | sed -n /Version/,\\\$p > $tmpdir/objdump.out"
+
+    catch "exec $objdump $VOBJDUMP_FLAGS $object | sed -n /Version/,\\\$p" exec_output
+    set exec_output [prune_warnings $exec_output]
+    if [string match "" $exec_output] then {
+# it is normal to fail here - we have no output to compare.
+	return 1
+    } else { if { [string match "*libc*" $exec_output] } then {
+# this probably means that there is version information in libc, so we
+# can't really perform this test.
+	return 1
+    } else {
+	verbose -log "$exec_output"
+	verbose -log "objdump_emptyverstuff: did not expect any output from objdump"
+	return 0
+    } }
+
+}
+
+#
+# objdump_symstuff
+#	Dump non-dynamic symbol stuff and make sure that it is sane.
+#
+proc objdump_symstuff { objdump object expectfile } {
+    global SOBJDUMP_FLAGS
+    global version_output
+    global diff
+    global tmpdir
+
+    if ![info exists SOBJDUMP_FLAGS] { set SOBJDUMP_FLAGS "" }
+
+    verbose -log "$objdump $SOBJDUMP_FLAGS $object | grep \@ | sort  > $tmpdir/objdump.out"
+
+    catch "exec $objdump $SOBJDUMP_FLAGS $object | grep \@ | sort  > $tmpdir/objdump.out" exec_output
+    set exec_output [prune_warnings $exec_output]
+    if [string match "" $exec_output] then {
+
+# Now do a line-by-line comparison to effectively diff the darned things
+# The stuff coming from the expectfile is actually a regex, so we can
+# skip over the actual addresses and so forth.  This is currently very
+# simpleminded - it expects a one-to-one correspondence in terms of line
+# numbers.
+
+	if [file exists $expectfile] then {
+	    set file_a [open $expectfile r]
+	} else {
+	    perror "$expectfile doesn't exist"
+	    return 0
+	}
+	
+	if [file exists $tmpdir/objdump.out] then {
+	    set file_b [open $tmpdir/objdump.out r]
+	} else {
+	    perror "$tmpdir/objdump.out doesn't exist"
+	    return 0
+	}
+
+	verbose "# Diff'ing: $expectfile $tmpdir/objdump.out" 2
+
+	set eof -1
+	set differences 0
+
+	while { [gets $file_a line] != $eof } {
+	    if [regexp "^#.*$" $line] then {
+		continue
+	    } else {
+		lappend list_a $line
+	    }
+	}
+	close $file_a
+
+	while { [gets $file_b line] != $eof } {
+	    if [regexp "^#.*$" $line] then {
+		continue
+	    } else {
+		lappend list_b $line
+	    }
+	}
+	close $file_b
+	
+	for { set i 0 } { $i < [llength $list_a] } { incr i } {
+	    set line_a [lindex $list_a $i]
+	    set line_b [lindex $list_b $i]
+	    
+
+	    verbose "\t$expectfile: $i: $line_a" 3
+	    verbose "\t/tmp/objdump.out: $i: $line_b" 3
+	    if [regexp $line_a $line_b] then {
+		continue
+	    } else {
+		verbose -log "\t$expectfile: $i: $line_a"
+		verbose -log "\t$tmpdir/objdump.out: $i: $line_b"
+		
+		return 0
+	    }
+	}
+	
+	if { [llength $list_a] != [llength $list_b] } {
+	    verbose -log "Line count"
+	    return 0
+	}
+	
+	if $differences<1 then {
+	    return 1
+	}
+	
+	return 0
+    } else {
+	verbose -log "$exec_output"
+	return 0
+    }
+
+}
+
+#
+# objdump_dymsymstuff
+#	Dump dynamic symbol stuff and make sure that it is sane.
+#
+proc objdump_dynsymstuff { objdump object expectfile } {
+    global DOBJDUMP_FLAGS
+    global version_output
+    global diff
+    global tmpdir
+
+    if ![info exists DOBJDUMP_FLAGS] { set DOBJDUMP_FLAGS "" }
+
+    verbose -log "$objdump $DOBJDUMP_FLAGS $object | sed -n /VERS/p\\\;/show/p | sort | uniq  > $tmpdir/objdump.out"
+
+    catch "exec $objdump $DOBJDUMP_FLAGS $object | sed -n /VERS/p\\\;/show/p | sort | uniq  > $tmpdir/objdump.out" exec_output
+    set exec_output [prune_warnings $exec_output]
+    if [string match "" $exec_output] then {
+
+# Now do a line-by-line comparison to effectively diff the darned things
+# The stuff coming from the expectfile is actually a regex, so we can
+# skip over the actual addresses and so forth.  This is currently very
+# simpleminded - it expects a one-to-one correspondence in terms of line
+# numbers.
+
+	if [file exists $expectfile] then {
+	    set file_a [open $expectfile r]
+	} else {
+	    warning "$expectfile doesn't exist"
+	    return 0
+	}
+	
+	if [file exists $tmpdir/objdump.out] then {
+	    set file_b [open $tmpdir/objdump.out r]
+	} else {
+	    fail "$tmpdir/objdump.out doesn't exist"
+	    return 0
+	}
+
+	verbose "# Diff'ing: $expectfile $tmpdir/objdump.out" 2
+
+	set eof -1
+	set differences 0
+
+	while { [gets $file_a line] != $eof } {
+	    if [regexp "^#.*$" $line] then {
+		continue
+	    } else {
+		lappend list_a $line
+	    }
+	}
+	close $file_a
+
+	while { [gets $file_b line] != $eof } {
+	    if [regexp "^#.*$" $line] then {
+		continue
+	    } else {
+		lappend list_b $line
+	    }
+	}
+	close $file_b
+	
+	# Support empty files.
+	if { ![info exists list_a] && ![info exists list_b] } then {
+	    return 1
+	}
+
+	for { set i 0 } { $i < [llength $list_b] } { incr i } {
+	    set line_b [lindex $list_b $i]
+	    
+# The tests are rigged so that we should never export a symbol with the
+# word 'hide' in it.  Thus we just search for it, and bail if we find it.
+	    if [regexp "hide" $line_b] then {
+		verbose -log "\t$tmpdir/objdump.out: $i: $line_b"
+		
+		return 0
+	    }
+
+	    verbose "\t$expectfile: $i: $line_b" 3
+
+	    # We can't assume that the sort is consistent across
+	    # systems, so we must check each regexp.  When we find a
+	    # regexp, we null it out, so we don't match it twice.
+	    for { set j 0 } { $j < [llength $list_a] } { incr j } {
+		set line_a [lindex $list_a $j]
+
+		if [regexp $line_a $line_b] then {
+		    lreplace $list_a $j $j "CAN NOT MATCH"
+		    break
+		}
+	    }
+
+	    if { $j >= [llength $list_a] } {
+		verbose -log "\t$tmpdir/objdump.out: $i: $line_b"
+		
+		return 0
+	    }
+	}
+	
+	if { [llength $list_a] != [llength $list_b] } {
+	    verbose -log "Line count"
+	    return 0
+	}
+	
+	if $differences<1 then {
+	    return 1
+	}
+	
+	return 0
+    } else {
+	verbose -log "$exec_output"
+	return 0
+    }
+
+}
+
+#
+# objdump_versionstuff
+#	Dump version definitions/references and make sure that it is sane.
+#
+proc objdump_versionstuff { objdump object expectfile } {
+    global VOBJDUMP_FLAGS
+    global version_output
+    global diff
+    global tmpdir
+
+    if {[which $objdump] == 0} then {
+	perror "$objdump does not exist"
+	return 0
+    }
+
+    if ![info exists VOBJDUMP_FLAGS] { set VOBJDUMP_FLAGS "" }
+
+    verbose -log "$objdump $VOBJDUMP_FLAGS $object | sed -n /Version/,\\\$p > $tmpdir/objdump.out"
+
+    catch "exec $objdump $VOBJDUMP_FLAGS $object | sed -n /Version/,\\\$p > $tmpdir/objdump.out" exec_output
+    set exec_output [prune_warnings $exec_output]
+    if [string match "" $exec_output] then {
+
+	# It's OK if there are extra lines in the actual output; they
+	# may come from version information in libc.  We require that
+	# every line in EXPECTFILE appear in the output in order.
+
+	set f1 [open $tmpdir/objdump.out r]
+	set f2 [open $expectfile r]
+	while { [gets $f2 l2] != -1 } {
+	    if { ![regexp "^#.*$" $l2] } then {
+		break
+	    }
+	} 
+	while { [gets $f1 l1] != -1 } {
+	    if { [string match $l2 $l1] } then {
+		if { [gets $f2 l2] == -1 } then {
+		    close $f1
+		    close $f2
+		    return 1
+		}
+	    }
+	}
+
+	# We reached the end of the output without seeing the line we
+	# expected.  This is a test failure.
+
+	close $f1
+	close $f2
+
+	# Support empty expected file.
+	if [string match "" $l2] then {
+	    return 1
+	}
+
+	verbose -log "Did not find \"$l2\""
+	set f1 [open $tmpdir/objdump.out r]
+	while { [gets $f1 l1] != -1 } {
+	    verbose -log $l1
+	}
+
+	verbose -log "$exec_output"
+	return 0
+    } else {
+	verbose -log "$exec_output"
+	return 0
+    }
+}
+
+proc build_binary { shared pic test source libname other mapfile verexp versymexp symexp } {
+    global ld
+    global srcdir
+    global subdir
+    global exec_output
+    global host_triplet
+    global tmpdir
+    global as
+    global objdump
+    global CC
+    global CFLAGS
+    global script
+
+    if ![ld_compile "$CC -S $pic $CFLAGS" $srcdir/$subdir/$source $tmpdir/$libname.s]     {
+	unresolved "$test"
+	return
+    }
+
+    if ![ld_assemble $as $tmpdir/$libname.s $tmpdir/$libname.o ]     {
+	unresolved "$test"
+	return
+    }
+
+    set other_lib ""
+    if ![string match "" $other] then {
+	foreach o $other {
+	    set other_lib "$other_lib $tmpdir/$o"
+	}
+    }
+
+    if [string match "" $mapfile] then {
+	set script_arg ""
+    } else {
+	set script_arg "$script $srcdir/$subdir/$mapfile"
+    }
+
+    if {![ld_simple_link $ld $tmpdir/$libname.so "$shared $tmpdir/$libname.o $other_lib $script_arg"]}     {
+	fail "$test"
+	return
+    }
+
+    if {![objdump_versionstuff $objdump $tmpdir/$libname.so $srcdir/$subdir/$verexp ]}     {
+	fail "$test"
+	return
+    }
+
+    if {![objdump_dynsymstuff $objdump $tmpdir/$libname.so $srcdir/$subdir/$versymexp ]}     {
+	fail "$test"
+	return
+    }
+
+    if [string match "" $symexp] then {
+	if {![objdump_emptysymstuff $objdump $tmpdir/$libname.o ]}     {
+	    fail "$test"
+	    return
+	}
+    } else {
+	if {![objdump_symstuff $objdump $tmpdir/$libname.o $srcdir/$subdir/$symexp ]}     {
+	    fail "$test"
+	    return
+	}
+    }
+
+    pass $test
+    
+}
+
+proc build_executable { test source libname other mapfile verexp versymexp symexp } {
+  build_binary "" "" $test $source $libname $other $mapfile $verexp $versymexp $symexp 
+}
+
+proc build_vers_lib_no_pic { test source libname other mapfile verexp versymexp symexp } {
+  global shared
+  build_binary $shared "" $test $source $libname $other $mapfile $verexp $versymexp $symexp 
+}
+
+proc build_vers_lib_pic { test source libname other mapfile verexp versymexp symexp } {
+  global picflag
+  global shared
+  build_binary $shared $picflag $test $source $libname $other $mapfile $verexp $versymexp $symexp 
+}
+
+proc test_ldfail { test flag source execname other mapfile whyfail } {
+    global srcdir
+    global subdir
+    global exec_output
+    global host_triplet
+    global tmpdir
+    global as
+    global objdump
+    global CC
+    global CFLAGS
+    global script
+
+    if [string match "" $other] then {
+	set other_lib ""
+    } else {
+	set other_lib $tmpdir/$other
+    }
+
+    if ![ld_compile "$CC -S $flag $CFLAGS" $srcdir/$subdir/$source $tmpdir/$execname.s]     {
+	unresolved "$test"
+	return
+    }
+
+    if ![ld_assemble $as $tmpdir/$execname.s $tmpdir/$execname.o ]     {
+	unresolved "$test"
+	return
+    }
+
+    verbose -log "This link should fail because of $whyfail"
+
+    if [string match "" $mapfile] then {
+	set script_arg ""
+    } else {
+	set script_arg "-Wl,$script $srcdir/$subdir/$mapfile"
+    }
+
+    if {![ld_simple_link $CC $tmpdir/$execname "$tmpdir/$execname.o $other_lib $script_arg"]}     {
+	pass "$test"
+	return
+    }
+    fail "$test"
+}
+
+proc test_asfail { test flag source execname whyfail } {
+    global srcdir
+    global subdir
+    global tmpdir
+    global as
+    global CC
+    global CFLAGS
+
+    if ![ld_compile "$CC -S $flag $CFLAGS" $srcdir/$subdir/$source $tmpdir/$execname.s]     {
+	unresolved "$test"
+	return
+    }
+
+    verbose -log "This assemble should fail because of $whyfail"
+    catch "exec $as -o $tmpdir/$execname.o $tmpdir/$execname.s" exec_output
+    set exec_output [prune_warnings $exec_output]
+    if [string match "" $exec_output] then {
+	fail "$test"
+	return
+    }
+    verbose -log "$exec_output"
+    pass "$test"
+}
+
+proc test_strip_vers_lib { test srclib libname verexp versymexp } {
+    global strip
+    global srcdir
+    global subdir
+    global exec_output
+    global host_triplet
+    global tmpdir
+    global objdump
+
+    verbose -log "cp $tmpdir/$srclib $tmpdir/$libname.so"
+    exec cp $tmpdir/$srclib $tmpdir/$libname.so
+
+    verbose -log "$strip $tmpdir/$libname.so"
+    catch "exec $strip $tmpdir/$libname.so" exec_output
+    if [string match "" $exec_output] then {
+
+# If strip went OK, then run the usual tests on the thing to make sure that
+# it is sane.
+	if {![objdump_versionstuff $objdump $tmpdir/$libname.so $srcdir/$subdir/$verexp ]}     {
+	    fail "$test"
+	    return
+	}
+	
+	if {![objdump_dynsymstuff $objdump $tmpdir/$libname.so $srcdir/$subdir/$versymexp ]}     {
+	    fail "$test"
+	    return
+	}
+	
+    } else {
+	verbose -log "$exec_output"
+	fail "$test"
+	return
+    }
+    pass $test
+}
+
+
+proc build_exec { test source execname flags solibname verexp versymexp symexp } {
+    global srcdir
+    global subdir
+    global exec_output
+    global host_triplet
+    global tmpdir
+    global as
+    global objdump
+    global CC
+    global CFLAGS
+
+    set shared "--shared --no-undefined-version"
+    set script --version-script
+    if ![ld_compile "$CC -S $CFLAGS" $srcdir/$subdir/$source $tmpdir/$execname.s]     {
+	unresolved "$test"
+	return
+    }
+
+    if ![ld_assemble $as $tmpdir/$execname.s $tmpdir/$execname.o ]     {
+	unresolved "$test"
+	return
+    }
+
+    if [string match "" $solibname] then {
+	set solibname_lib ""
+    } else {
+	set solibname_lib $tmpdir/$solibname
+    }
+
+    if {![ld_simple_link $CC $tmpdir/$execname "$flags $tmpdir/$execname.o $solibname_lib"]}     {
+	fail "$test"
+	return
+    }
+
+    if [string match "" $verexp] then {
+#
+# Make sure we get nothing back.
+#
+	if {![objdump_emptyverstuff $objdump $tmpdir/$execname ]}     {
+	    fail "$test"
+	    return
+	}
+    } else {
+	if {![objdump_versionstuff $objdump $tmpdir/$execname $srcdir/$subdir/$verexp ]}     {
+	    fail "$test"
+	    return
+	}
+    }
+
+    if [string match "" $versymexp] then {
+	if {![objdump_emptydynsymstuff $objdump $tmpdir/$execname ]}     {
+	    fail "$test"
+	    return
+	}
+    } else {
+	if {![objdump_dynsymstuff $objdump $tmpdir/$execname $srcdir/$subdir/$versymexp ]}     {
+	    fail "$test"
+	    return
+	}
+    }
+
+    if [string match "" $symexp] then {
+	if {![objdump_emptysymstuff $objdump $tmpdir/$execname.o ]}     {
+	    fail "$test"
+	    return
+	}
+    } else {
+	if {![objdump_symstuff $objdump $tmpdir/$execname.o $srcdir/$subdir/$symexp ]}     {
+	    fail "$test"
+	    return
+	}
+    }
+
+    pass $test
+}
+
+
+#
+# Basic test - build a library with versioned symbols.
+#
+build_vers_lib_no_pic "vers1" vers1.c vers1 "" vers1.map vers1.ver vers1.dsym vers1.sym
+
+
+#
+# Test #2 - build a library, and link it against the library we built in step
+# 1.
+#
+if [istarget x86_64-*-linux*] {
+    # x86_64 doesn't like non-pic shared libraries
+    xfail "vers2"
+} else {
+    build_vers_lib_no_pic "vers2" vers2.c vers2 vers1.so vers2.map vers2.ver vers2.dsym ""
+}
+
+#
+# Test #3 - build an executable, and link it against vers1.so.
+#
+build_exec "vers3" vers3.c vers3 "" vers1.so vers3.ver vers3.dsym ""
+
+#
+# Test #4 - Make sure a version implicitly defined in an executable
+# causes a version node to be created.  Verify this both with and without
+# --export-dynamic.
+#
+
+# This test fails on MIPS.  On the MIPS we must put foo in the dynamic
+# symbol table, which the test does not expect.
+setup_xfail "mips*-*-*"
+build_exec "vers4" vers4.c vers4 "" "" "" "" vers4.sym
+
+build_exec "vers4a" vers4.c vers4a "-export-dynamic" "" vers4a.ver vers4a.dsym vers4a.sym
+
+
+#
+# Try multiple definitions foo@BAR and foo@@BAR and make sure the linker
+# complains.
+#
+test_ldfail "vers5" "" vers5.c vers5 "" "" "multiple definition of foo@VERS_1.2"
+
+#
+#
+# Now build a test that should reference a bunch of versioned symbols.
+# All of them should be correctly referenced.
+#
+build_exec "vers6" vers6.c vers6 "" vers1.so vers6.ver vers6.dsym vers6.sym
+
+#
+# Another test to verify that something made local via 'local' is truly not
+# accessible.
+#
+build_vers_lib_no_pic "vers7a" vers7a.c vers7a "" vers7.map vers7a.ver vers7a.dsym vers7a.sym
+
+test_ldfail "vers7" "" vers7.c vers7 vers7a.so "" "undefined reference to hide_a"
+
+
+#
+# This test is designed to verify that we can pass a linker script on the
+# command line as if it were a normal .o file.
+#
+catch "exec cp $srcdir/$subdir/vers8.map $tmpdir/" ignore_output
+build_vers_lib_no_pic "vers8" vers1.c vers8 vers8.map "" vers8.ver vers1.dsym vers1.sym
+
+#
+# This test tries to make sure that version references to versioned symbols
+# don't collide with default definitions with the same symbol.
+#
+build_exec "vers9" vers9.c vers9 "-export-dynamic" "" vers9.ver vers9.dsym vers9.sym
+
+
+#
+# Try and use a non-existant version node.  The linker should fail with
+# an error message.
+#
+test_ldfail "vers10" "-DDO_TEST10" vers1.c vers10 "" "vers1.map --shared" "invalid version"
+
+#
+# Try and some things the assembler should complain about.
+#
+test_asfail "vers11" "-DDO_TEST11" vers1.c vers11 "no @ in symver"
+
+test_asfail "vers12" "-DDO_TEST12" vers1.c vers12 "extern version definition"
+
+#
+# Put a shared library in an archive library, and make sure the global
+# archive symbol table is sane.
+#
+test_ar "ar with versioned solib" vers13.a vers1.so vers13.asym
+
+#
+# Strip a shared library, and make sure we didn't screw something up in there.
+#
+test_strip_vers_lib "vers14" vers1.so vers14 vers1.ver vers1.dsym 
+
+
+#
+# Build another test with some versioned symbols.  Here we are going to 
+# try and override something from the library, and we shouldn't get
+# any errors.
+#
+build_exec "vers15" vers15.c vers15 "" vers1.so vers15.ver vers15.dsym vers15.sym
+
+#
+# Test that when we override a versioned symbol from the library this
+# symbol appears in the dynamic symbol table of the executable.
+#
+build_vers_lib_no_pic "vers16a" vers16a.c vers16a "" vers16.map vers16a.ver vers16a.dsym ""
+build_exec "vers16" vers16.c vers16 "" vers16a.so "" vers16.dsym ""
+
+# Test a weak versioned symbol.
+build_vers_lib_no_pic "vers17" vers17.c vers17 "" vers17.map vers17.ver vers17.dsym ""
+build_vers_lib_no_pic "vers18" vers18.c vers18 vers17.so vers18.map vers18.ver vers18.dsym vers18.sym
+build_exec "vers19" vers19.c vers19 "-Wl,-rpath,." vers18.so vers19.ver vers19.dsym ""
+
+build_vers_lib_no_pic "vers20a" vers20.c vers20a "" vers20.map vers20a.ver vers20.dsym ""
+exec cp $tmpdir/vers20a.so $tmpdir/vers20b.so
+build_vers_lib_no_pic "vers20" vers20.c vers20 "vers20a.so vers20b.so" vers20.map vers20.ver vers20.dsym ""
+
+# Test .symver override.
+build_vers_lib_no_pic "vers21" vers21.c vers21 "" vers21.map vers21.ver vers21.dsym vers21.sym
+
+# Test moving default definition from one DSO to another.
+build_vers_lib_no_pic "vers22a" vers22a.c vers22a "" vers22.map vers22a.ver vers22a.dsym vers22a.sym
+build_vers_lib_no_pic "vers22b" vers22b.c vers22b "" vers22.map vers22b.ver vers22b.dsym ""
+build_vers_lib_no_pic "vers22" vers22.c vers22 "vers22a.so vers22b.so" "" vers22.ver vers22.dsym ""
+
+# Test versioned definitions in different files.
+build_vers_lib_no_pic "vers23a" vers23a.c vers23a "" vers23a.map vers23a.ver vers23a.dsym vers23a.sym
+build_vers_lib_no_pic "vers23b" vers23b.c vers23b "" vers23b.map vers23b.ver vers23b.dsym ""
+build_vers_lib_no_pic "vers23c" vers23b.c vers23c "vers23a.so" vers23b.map vers23c.ver vers23b.dsym ""
+build_exec "vers23d" vers23.c vers23d "tmpdir/vers23a.so tmpdir/vers23c.so" "" vers23.ver vers23d.dsym ""
+build_exec "vers23" vers23.c vers23 "tmpdir/vers23a.so tmpdir/vers23b.o tmpdir/vers23b.so" "" vers23.ver vers23.dsym ""
+
+# Test .symver x,x@VERS.0
+set as_pic_flags ""
+if [istarget sparc*-*-*] {
+  set as_pic_flags "-K PIC"
+}
+run_ld_link_tests [list "\"vers24a\"
+			 \"-shared --version-script $srcdir/$subdir/vers24.map\"
+			 \"$as_pic_flags\" {vers24a.c vers24b.c} { { readelf -Wrs vers24.rd } }
+			 \"libvers24a.so\" \"-fpic\""]
+run_ld_link_tests [list "\"vers24b\"
+			 \"-shared --version-script $srcdir/$subdir/vers24.map\"
+			 \"$as_pic_flags\" {vers24b.c vers24a.c} { { readelf -Wrs vers24.rd } }
+			 \"libvers24b.so\" \"-fpic\""]
+run_ld_link_tests [list "\"vers24c\"
+			 \"-shared --version-script $srcdir/$subdir/vers24.map\"
+			 \"$as_pic_flags\" {vers24c.c} { { readelf -Wrs vers24.rd } }
+			 \"libvers24c.so\" \"-fpic\""]
+
+# Test versioned definition vs. normal definition in different files.
+build_vers_lib_no_pic "vers25a" vers25a.c vers25a "" vers25a.map vers25a.ver vers25a.dsym ""
+build_vers_lib_no_pic "vers25b1" vers25b.c vers25b1 "vers25a.o vers25a.so" "" vers25b.ver vers25b.dsym ""
+build_vers_lib_no_pic "vers25b2" vers25b.c vers25b2 "vers25a.so vers25a.o" "" vers25b.ver vers25b.dsym ""
+build_vers_lib_pic "vers26a" vers26a.c vers26a "" vers26a.map vers26a.ver vers26a.dsym ""
+build_vers_lib_pic "vers26b1" vers26b.c vers26b1 "" "" vers26b.ver vers26b.dsym ""
+build_vers_lib_pic "vers26b2" vers26b.c vers26b2 "vers26a.so vers26b1.so vers26a.o" "" vers26b.ver vers26b.dsym ""
+if [istarget x86_64-*-linux*] {
+    # x86_64 doesn't like non-pic shared libraries
+    xfail "vers26b3"
+} else {
+    build_vers_lib_no_pic "vers26b3" vers26b.c vers26b3 "vers26a.so vers26b1.so vers26a.o" "" vers26b.ver vers26b.dsym ""
+}
+
+# Test versioned definition vs. hidden definition in different files.
+build_vers_lib_no_pic "vers27a" vers27a.c vers27a "" vers27a.map vers27a.ver vers27a.dsym ""
+build_vers_lib_no_pic "vers27b" vers27b.c vers27b "" "" vers27b.ver vers27b.dsym ""
+build_vers_lib_no_pic "vers27c1" vers27c.c vers27c1 "vers27b.o vers27a.so" "" vers27c.ver vers27c.dsym ""
+build_vers_lib_no_pic "vers27c2" vers27c.c vers27c2 "vers27a.so vers27b.o" "" vers27c.ver vers27c.dsym ""
+build_vers_lib_pic "vers27d1" vers27d1.c vers27d1 "" vers27a.map vers27d.ver vers27d.dsym vers27d.sym
+build_vers_lib_pic "vers27d2" vers27d2.c vers27d2 "" "" vers27b.ver vers27b.dsym ""
+build_executable "vers27d3" vers27d3.c vers27d3 "vers27b.o vers27d2.so vers27d1.so" "" vers27b.ver vers27b.dsym ""
+build_vers_lib_pic "vers27d4" vers27d2.c vers27d4 "vers27a.so" "" vers27d4.ver vers27d4.dsym ""
+build_executable "vers27d5" vers27d3.c vers27d5 "vers27d4.so vers27b.o vers27a.so" "" vers27b.ver vers27b.dsym ""
+
+# Test weak versioned definition vs. strong definition in different
+# files.
+build_vers_lib_pic "vers28a" vers28a.c vers28a "" "" vers28a.ver vers28a.dsym ""
+build_vers_lib_pic "vers28b" vers28b.c vers28b "" vers28b.map vers28b.ver vers28b.dsym ""
+build_vers_lib_pic "vers28c" vers28c.c vers28c "vers28b.so vers28a.so" "" vers28c.ver vers28c.dsym ""

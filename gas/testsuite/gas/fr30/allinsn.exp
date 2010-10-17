@@ -1,0 +1,5 @@
+# FR30 assembler testsuite.
+
+if [istarget fr30*-*-*] {
+    run_dump_test "allinsn"
+}

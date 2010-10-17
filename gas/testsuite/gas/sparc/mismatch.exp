@@ -1,0 +1,20 @@
+# Test architecture mismatch errors.
+#
+# GAS issues two lines of error text for each mismatch:
+#
+# mm-lite.s:7: Error: Architecture mismatch on "divscc".
+# mm-lite.s:7:  (Requires sparclite; requested architecture is v8.)
+#
+# The suggested regexp argument to dg-error is "mismatch|<arch>".
+
+if [istarget sparc*-*-*] {
+
+    load_lib gas-dg.exp
+
+    dg-init
+
+    dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/mism-*.s]] "" ""
+
+    dg-finish
+
+}

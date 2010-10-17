@@ -1,0 +1,97 @@
+# Expect script for common symbol tests
+#   Copyright 2003 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+# Written by H.J. Lu (hjl@gnu.org)
+#
+
+# Make sure that ld correctly handles common symbols in ELF.
+
+# This test can only be run on ELF platforms.
+if ![is_elf_format] {
+    return
+}
+
+set test1	"size/aligment change of common symbols"
+set test1w1	"$test1 (warning 1)"
+set test1w2	"$test1 (warning 2)"
+set test1c1	"$test1 (change 1)"
+set test1c2	"$test1 (change 2)"
+
+if { [which $CC] == 0 } {
+    untested $test1w1
+    untested $test1w2
+    untested $test1c1
+    untested $test1c2
+    return
+}
+
+proc dump_common1 { testname } {
+    global exec_output
+    global READELF
+
+    send_log "$READELF -s tmpdir/common1.o | grep foo\n"
+    catch "exec $READELF -s tmpdir/common1.o | grep foo" exec_output
+    if { ![regexp "(\[ 	\]*)(\[0-9\]+):(\[ 	\]*)(\[0\]*)80(\[ 	\]+)4(\[ 	\]+)OBJECT(\[ 	\]+)GLOBAL(\[ 	\]+)DEFAULT(\[ 	\]+)COM(\[ 	\]+)_?foo2" $exec_output]
+ 	 || ![regexp "(\[ 	\]*)(\[0-9\]+):(\[ 	\]*)(\[0-9\]+)(\[ 	\]+)21(\[ 	\]+)OBJECT(\[ 	\]+)GLOBAL(\[ 	\]+)DEFAULT(\[ 	\]+)(\[0-9\]+)(\[ 	\]+)_?foo1" $exec_output] } {
+	send_log "$exec_output\n"
+	verbose $exec_output
+	fail $testname
+	return 0
+    }
+
+    return 1
+}
+
+if { ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/common1a.c tmpdir/common1a.o]
+    || ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/common1b.c tmpdir/common1b.o] } {
+    unresolved $test1
+    return
+}
+
+global ld
+global link_output
+
+if { [ld_simple_link $ld tmpdir/common1.o "-r tmpdir/common1a.o tmpdir/common1b.o"] } {
+    unresolved $test1w1
+    return
+}
+
+if { ![regexp "Warning: alignment (\[0-9\]+) of symbol \`_?foo1\' in tmpdir/common1b.o is smaller than 64 in tmpdir/common1a.o" $link_output]
+     || ![regexp "Warning: size of symbol \`_?foo1\' changed from 2 in tmpdir/common1a.o to 21 in tmpdir/common1b.o" $link_output] } {
+    fail $test1w1
+} else {
+    pass $test1w1
+}
+
+if { [dump_common1 $test1c1] } {
+    pass $test1c1
+}
+
+if { [ld_simple_link $ld tmpdir/common1.o "-r tmpdir/common1b.o tmpdir/common1a.o"] } {
+    unresolved $test1w2
+    return
+}
+
+if { ![regexp "Warning: alignment (\[0-9\]+) of symbol \`_?foo1\' in tmpdir/common1b.o is smaller than 64 in tmpdir/common1a.o" $link_output] } {
+    fail $test1w2
+} else {
+    pass $test1w2
+}
+
+if { [dump_common1 $test1c2] } {
+    pass $test1c2
+}

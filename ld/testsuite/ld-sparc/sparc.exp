@@ -1,0 +1,88 @@
+# Expect script for ld-sparc tests
+#   Copyright (C) 2002, 2003 Free Software Foundation
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+
+# Test i386 linking; all types of relocs.  This tests the assembler and
+# tools like objdump as well as the linker.
+
+if { !([istarget "sparc*-*-elf*"]		
+       || ([istarget "sparc*-*-linux*"]
+	   && ![istarget "*-*-*aout*"]
+	   && ![istarget "*-*-*oldld*"])) } {
+    return
+}
+
+# List contains test-items with 3 items followed by 2 lists:
+# 0:name 1:ld options 2:assembler options
+# 3:filenames of assembler files 4: action and options. 5: name of output file
+
+# Actions:
+# objdump: Apply objdump options on result.  Compare with regex (last arg).
+# nm: Apply nm options on result.  Compare with regex (last arg).
+# readelf: Apply readelf options on result.  Compare with regex (last arg).
+
+set sparctests {
+    {"TLS -fpic -shared transitions" "-shared -melf32_sparc"
+     "--32 -K PIC" {tlssunpic32.s tlspic.s}
+     {{readelf -WSsrl tlssunpic32.rd} {objdump -drj.text tlssunpic32.dd}
+      {objdump -sj.got tlssunpic32.sd} {objdump -sj.tdata tlssunpic32.td}}
+      "libtlssunpic32.so"}
+    {"Helper shared library" "-shared -melf32_sparc"
+     "--32 -K PIC" {tlslib.s} {} "libtlslib32.so"}
+    {"Another helper shared library" "-shared -melf32_sparc"
+     "--32 -K PIC" {tlssunbinpic32.s} {} "libtlssunbinpic32.so"}
+    {"TLS -fpic and -fno-pic exec transitions"
+     "-melf32_sparc tmpdir/libtlslib32.so tmpdir/tlssunbinpic32.o"
+     "--32" {tlssunbin32.s}
+     {{readelf -WSsrl tlssunbin32.rd} {objdump -drj.text tlssunbin32.dd}
+      {objdump -sj.got tlssunbin32.sd} {objdump -sj.tdata tlssunbin32.td}}
+      "tlssunbin32"}
+    {"TLS -fno-pic -shared" "-shared -melf32_sparc"
+     "--32" {tlssunnopic32.s tlsnopic.s}
+     {{readelf -WSsrl tlssunnopic32.rd} {objdump -drj.text tlssunnopic32.dd}
+      {objdump -sj.got tlssunnopic32.sd}} "libtlssunnopic32.so"}
+    {"TLS in debug sections" "-melf32_sparc"
+     "--32" {tlsg32.s}
+     {{objdump -sj.debug_foobar tlsg32.sd}} "tlsg32"}
+}
+set sparc64tests {
+    {"TLS -fpic -shared transitions" "-shared -melf64_sparc"
+     "--64 -Av9 -K PIC" {tlssunpic64.s tlspic.s}
+     {{readelf -WSsrl tlssunpic64.rd} {objdump -drj.text tlssunpic64.dd}
+      {objdump -sj.got tlssunpic64.sd} {objdump -sj.tdata tlssunpic64.td}}
+      "libtlssunpic64.so"}
+    {"Helper shared library" "-shared -melf64_sparc"
+     "--64 -Av9 -K PIC" {tlslib.s} {} "libtlslib64.so"}
+    {"Another helper shared library" "-shared -melf64_sparc"
+     "--64 -Av9 -K PIC" {tlssunbinpic64.s} {} "libtlssunbinpic64.so"}
+    {"TLS -fpic and -fno-pic exec transitions"
+     "-melf64_sparc tmpdir/libtlslib64.so tmpdir/tlssunbinpic64.o"
+     "--64 -Av9" {tlssunbin64.s}
+     {{readelf -WSsrl tlssunbin64.rd} {objdump -drj.text tlssunbin64.dd}
+      {objdump -sj.got tlssunbin64.sd} {objdump -sj.tdata tlssunbin64.td}}
+      "tlssunbin64"}
+    {"TLS -fno-pic -shared" "-shared -melf64_sparc"
+     "--64 -Av9" {tlssunnopic64.s tlsnopic.s}
+     {{readelf -WSsrl tlssunnopic64.rd} {objdump -drj.text tlssunnopic64.dd}
+      {objdump -sj.got tlssunnopic64.sd}} "libtlssunnopic64.so"}
+    {"TLS in debug sections" "-melf64_sparc"
+     "--64 -Av9" {tlsg64.s}
+     {{objdump -sj.debug_foobar tlsg64.sd}} "tlsg64"}
+}
+
+run_ld_link_tests $sparctests
+# run_ld_link_tests $sparc64tests

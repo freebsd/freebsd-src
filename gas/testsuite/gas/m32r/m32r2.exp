@@ -1,0 +1,5 @@
+# M32R2 assembler testsuite.
+
+if [istarget m32r*-*-*] {
+    run_dump_test "m32r2"
+}

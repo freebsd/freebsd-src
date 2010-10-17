@@ -1,0 +1,160 @@
+#   Copyright 2003 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+if {![istarget mips*-*-*] || ![is_elf_format]} {
+    return
+}
+
+global ldemul
+if {[istarget mips*-*-irix6*]} {
+    set ldemul "-melf32bsmip"
+} elseif {[istarget mips*el-*-linux*]} {
+    set ldemul "-melf32ltsmip"
+} elseif {[istarget mips*-*-linux*]} {
+    set ldemul "-melf32btsmip"
+} else {
+    set ldemul ""
+}
+
+# Assemble jr.s using each of the argument lists in ARGLIST.  Return the
+# list of object files on success and an empty list on failure.
+proc assemble_for_flags {arglist} {
+    global as srcdir subdir
+
+    set objs {}
+    set index 1
+
+    foreach args $arglist {
+	set obj "tmpdir/mips-flags-${index}.o"
+	if {![ld_assemble $as "$args $srcdir/$subdir/jr.s" $obj]} {
+	    return ""
+	}
+	lappend objs $obj
+	incr index
+    }
+    return $objs
+}
+
+# Assemble a file using each set of arguments in ARGLIST.  Check that
+# the objects can be linked together and that the readelf output
+# includes each flag named in FLAGS.
+proc good_combination {arglist flags} {
+    global ld ldemul READELF
+
+    set finalobj "tmpdir/mips-flags.o"
+    set testname "MIPS compatible objects: $arglist"
+    set objs [assemble_for_flags $arglist]
+
+    if {$objs == ""} {
+	unresolved $testname
+    } elseif {![ld_simple_link "$ld $ldemul" $finalobj "-r $objs"]} {
+	fail $testname
+    } else {
+	catch "exec $READELF --headers $finalobj" output
+	if {![regexp "Flags: *(\[^\n\]*)" $output full gotflags]} {
+	    unresolved $testname
+	} else {
+	    set failed 0
+
+	    # GOTFLAGS is a list of flags separated by ", ".
+	    # Convert it to a tcl list.
+	    regsub -all ", " $gotflags "," gotflags
+	    set gotflags [split $gotflags ","]
+
+	    foreach flag $flags {
+		if {[lsearch -exact $gotflags $flag] < 0} {
+		    set failed 1
+		}
+	    }
+	    if {$failed} {
+		fail $testname
+	    } else {
+		pass $testname
+	    }
+	}
+    }
+}
+
+# Like good_combination, but check that the objects can't be linked
+# together successfully and that the output includes MESSAGE.
+proc bad_combination {arglist message} {
+    global link_output ld ldemul
+
+    set finalobj "tmpdir/mips-flags.o"
+    set testname "MIPS incompatible objects: $arglist"
+    set objs [assemble_for_flags $arglist]
+
+    if {$objs == ""} {
+	unresolved $testname
+    } elseif {[ld_simple_link "$ld $ldemul" $finalobj "-r $objs"]
+	      || [string first $message $link_output] < 0} {
+	fail $testname
+    } else {
+	pass $testname
+    }
+}
+
+# Routines to check for various kinds of incompatibility.
+
+proc abi_conflict {arglist firstabi secondabi} {
+    bad_combination $arglist \
+      "linking $secondabi module with previous $firstabi modules"
+}
+
+proc isa_conflict {arglist firstisa secondisa} {
+    bad_combination $arglist \
+      "linking mips:$secondisa module with previous mips:$firstisa modules"
+}
+
+proc regsize_conflict {arglist} {
+    bad_combination $arglist \
+      "linking 32-bit code with 64-bit code"
+}
+
+abi_conflict { "-mabi=eabi -mgp32" "-mips4 -mabi=32" } EABI32 O32
+abi_conflict { "-mips4 -mabi=o64" "-mips3 -mabi=eabi" } O64 EABI64
+
+isa_conflict { "-march=vr5500 -32" "-march=sb1 -32" } 5500 sb1
+isa_conflict { "-march=vr5400 -32" "-march=4120 -32" } 5400 4120
+isa_conflict { "-march=r3900 -32" "-march=r6000 -32" } 3900 6000
+isa_conflict { "-march=r4010 -32" "-march=r4650 -32" } 4010 4650
+isa_conflict { "-mips3 -mgp32 -32" "-mips32 -32" } 4000 isa32
+isa_conflict { "-march=sb1 -mgp32 -32" "-mips32r2 -32" } sb1 isa32r2
+isa_conflict { "-march=sb1 -32" "-mips64r2 -32" } sb1 isa64r2
+
+regsize_conflict { "-mips4 -mgp64 -mabi=o64" "-mips2 -32" }
+regsize_conflict { "-mips4 -mabi=o64" "-mips4 -mabi=32" }
+regsize_conflict { "-mips4 -mabi=eabi -mgp32" "-mips4 -mabi=eabi -mgp64" }
+regsize_conflict { "-march=vr5000 -mgp64 -mabi=o64" "-march=vr5000 -mgp32 -32" }
+regsize_conflict { "-mips32 -32" "-mips64 -mabi=o64" }
+regsize_conflict { "-mips32r2 -32" "-mips64 -mabi=o64" }
+regsize_conflict { "-mips32r2 -32" "-mips64r2 -mabi=o64" }
+
+good_combination { "-mips4 -mgp32 -32" "-mips2 -32" } { mips4 o32 }
+good_combination { "-mips4 -mabi=32" "-mips2 -32" } { mips4 o32 }
+good_combination { "-mips2 -32" "-mips4 -mabi=32" } { mips4 o32 }
+good_combination { "-mips2 -mabi=eabi" "-mips4 -mabi=eabi -mgp32" } { mips4 eabi32 }
+good_combination { "-mips2 -32" "-mips32 -32" "-mips32r2 -32" } { mips32r2 }
+good_combination { "-mips1 -32" "-mips32r2 -32" "-mips32 -32" } { mips32r2 }
+
+good_combination { "-march=vr4100 -32" "-march=vr4120 -32" } { 4120 }
+good_combination { "-march=vr5400 -32" "-march=vr5500 -32" "-mips4 -32" } { 5500 }
+good_combination { "-mips3 -32" "-mips4 -32" "-march=sb1 -32" "-mips5 -32" } { sb1 }
+good_combination { "-mips1 -32" "-march=3900 -32" } { 3900 }
+good_combination { "-mips3 -32" "-mips64r2 -32" "-mips64 -32" } { mips64r2 }
+
+good_combination { "-march=vr4120 -mabi=32" "-mips3 -mabi=32" } { 4120 o32 }
+good_combination { "-march=sb1 -mgp32 -32" "-march=4000 -mgp32 -32" } { sb1 o32 }

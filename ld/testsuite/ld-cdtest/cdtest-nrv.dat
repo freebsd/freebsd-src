@@ -1,0 +1,13 @@
+Constructing Foo(1) "static_foo"
+Constructing Foo(2) "static_foo"
+Constructing Foo(3) "automatic_foo"
+Constructing Foo(4) "default-foo"
+Constructing Foo(5) "other_foo1"
+Constructing Foo(6) "other_foo2"
+Copying Foo(5) "other_foo1" to Foo(6)
+Destructing Foo(6) "other_foo1" (remaining foos: 5)
+Destructing Foo(5) "other_foo1" (remaining foos: 4)
+Destructing Foo(4) "default-foo" (remaining foos: 3)
+Destructing Foo(3) "automatic_foo" (remaining foos: 2)
+Destructing Foo(2) "static_foo" (remaining foos: 1)
+Destructing Foo(1) "static_foo" (remaining foos: 0)

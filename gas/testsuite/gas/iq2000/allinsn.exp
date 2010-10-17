@@ -1,0 +1,6 @@
+# IQ2000 assembler testsuite.
+
+if [istarget iq2000*-*-*] {
+    run_dump_test "allinsn"
+    run_dump_test "q10allinsn"
+}

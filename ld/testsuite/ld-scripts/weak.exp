@@ -1,0 +1,61 @@
+# Test weak symbols.
+# By Ian Lance Taylor, Cygnus Solutions.
+#   Copyright 2001
+#   Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+set testname "weak symbols"
+
+# This test only works for ELF targets.  It ought to work for some
+# a.out targets, but it doesn't.
+if ![is_elf_format] {
+    return
+}
+
+
+if {! [ld_assemble $as $srcdir/$subdir/weak1.s tmpdir/weak1.o]
+    || ! [ld_assemble $as $srcdir/$subdir/weak2.s tmpdir/weak2.o]} then {
+    # It's OK if .weak doesn't work on this target.
+    unresolved $testname
+    return
+}
+
+set weak_regexp_big \
+".*Contents of section .text:.*1000 00001008 0000200c 12121212 34343434.*Contents of section .data:.*2000 00001008 0000200c 56565656 78787878.*"
+
+set weak_regexp_little \
+".*Contents of section .text:.*1000 08100000 0c200000 12121212 34343434.*Contents of section .data:.*2000 08100000 0c200000 56565656 78787878.*"
+
+if {! [ld_simple_link $ld tmpdir/weak "$flags -T $srcdir/$subdir/weak.t tmpdir/weak1.o tmpdir/weak2.o"] } then {
+    fail $testname
+} else {
+    if {[which $objdump] == 0} then {
+	unresolved $testname
+	return
+    }
+
+    verbose -log "$objdump -s tmpdir/weak"
+    catch "exec $objdump -s tmpdir/weak" exec_output
+    set exec_output [prune_warnings $exec_output]
+    verbose -log $exec_output
+
+    if {[regexp $weak_regexp_big $exec_output] \
+	|| [regexp $weak_regexp_little $exec_output] } then {
+	pass $testname
+    } else {
+	fail $testname
+    }
+}

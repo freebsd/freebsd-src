@@ -1,0 +1,15 @@
+#
+# Some m68k-coff tests
+#
+if [istarget m68*-*-coff] then {
+    gas_test "p2430.s" "" $stdoptlist "local branch not in text section"
+
+    gas_test "p2430a.s" "" $stdoptlist "local branch not in text section"
+
+    gas_test "t1.s" "" $stdoptlist "multiple .file directives"
+
+    gas_test "p2389.s" "" $stdoptlist "bss fill"
+
+    setup_xfail m68*-*-coff
+    gas_test_error "p2389a.s" "" "detect bss fill with non-zero data"
+}

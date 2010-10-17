@@ -1,0 +1,312 @@
+@c Copyright 2002 Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+@c CRIS description contributed by Axis Communications.
+@ifset GENERIC
+@page
+@node CRIS-Dependent
+@chapter CRIS Dependent Features
+@end ifset
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter CRIS Dependent Features
+@end ifclear
+
+@cindex CRIS support
+@menu
+* CRIS-Opts::              Command-line Options
+* CRIS-Expand::            Instruction expansion
+* CRIS-Syntax::            Syntax
+@end menu
+
+@node CRIS-Opts
+@section Command-line Options
+
+@cindex options, CRIS
+@cindex CRIS options
+The CRIS version of @code{@value{AS}} has these
+machine-dependent command-line options.
+
+@cindex @option{--emulation=criself} command line option, CRIS
+@cindex @option{--emulation=crisaout} command line option, CRIS
+@cindex CRIS @option{--emulation=criself} command line option
+@cindex CRIS @option{--emulation=crisaout} command line option
+
+The format of the generated object files can be either ELF or
+a.out, specified by the command-line options
+@option{--emulation=crisaout} and @option{--emulation=criself}.
+The default is ELF (criself), unless @code{@value{AS}} has been
+configured specifically for a.out by using the configuration
+name @code{cris-axis-aout}.
+
+@cindex @option{--underscore} command line option, CRIS
+@cindex @option{--no-underscore} command line option, CRIS
+@cindex CRIS @option{--underscore} command line option
+@cindex CRIS @option{--no-underscore} command line option
+There are two different link-incompatible ELF object file
+variants for CRIS, for use in environments where symbols are
+expected to be prefixed by a leading @samp{_} character and for
+environments without such a symbol prefix.  The variant used for
+GNU/Linux port has no symbol prefix.  Which variant to produce
+is specified by either of the options @option{--underscore} and
+@option{--no-underscore}.  The default is @option{--underscore}.
+Since symbols in CRIS a.out objects are expected to have a
+@samp{_} prefix, specifying @option{--no-underscore} when
+generating a.out objects is an error.  Besides the object format
+difference, the effect of this option is to parse register names
+differently (@pxref{crisnous}).  The @option{--no-underscore}
+option makes a @samp{$} register prefix mandatory.
+
+@cindex @option{--pic} command line option, CRIS
+@cindex CRIS @option{--pic} command line option
+@cindex Position-independent code, CRIS
+@cindex CRIS position-independent code
+The option @option{--pic} must be passed to @code{@value{AS}} in
+order to recognize the symbol syntax used for ELF (SVR4 PIC)
+position-independent-code (@pxref{crispic}).  This will also
+affect expansion of instructions.  The expansion with
+@option{--pic} will use PC-relative rather than (slightly
+faster) absolute addresses in those expansions.
+
+@cindex @option{-N} command line option, CRIS
+@cindex CRIS @option{-N} command line option
+When @option{-N} is specified, @code{@value{AS}} will emit a
+warning when a 16-bit branch instruction is expanded into a
+32-bit multiple-instruction construct (@pxref{CRIS-Expand}).
+
+@cindex @option{--no-mul-bug-abort} command line option, CRIS
+@cindex @option{--mul-bug-abort} command line option, CRIS
+@cindex CRIS @option{--no-mul-bug-abort} command line option
+@cindex CRIS @option{--mul-bug-abort} command line option
+
+Some versions of the CRIS v10, for example in the Etrax 100 LX,
+contain a bug that causes destabilizing memory accesses when a
+multiply instruction is executed with certain values in the
+first operand just before a cache-miss.  When the
+@option{--mul-bug-abort} command line option is active (the
+default value), @code{@value{AS}} will refuse to assemble a file
+containing a multiply instruction at a dangerous offset, one
+that could be the last on a cache-line, or is in a section with
+insufficient alignment.  This placement checking does not catch
+any case where the multiply instruction is dangerously placed
+because it is located in a delay-slot.  The
+@option{--mul-bug-abort} command line option turns off the
+checking.
+
+@node CRIS-Expand
+@section Instruction expansion
+
+@cindex instruction expansion, CRIS
+@cindex CRIS instruction expansion
+@code{@value{AS}} will silently choose an instruction that fits
+the operand size for @samp{[register+constant]} operands.  For
+example, the offset @code{127} in @code{move.d [r3+127],r4} fits
+in an instruction using a signed-byte offset.  Similarly,
+@code{move.d [r2+32767],r1} will generate an instruction using a
+16-bit offset.  For symbolic expressions and constants that do
+not fit in 16 bits including the sign bit, a 32-bit offset is
+generated.
+
+For branches, @code{@value{AS}} will expand from a 16-bit branch
+instruction into a sequence of instructions that can reach a
+full 32-bit address.  Since this does not correspond to a single
+instruction, such expansions can optionally be warned about.
+@xref{CRIS-Opts}.
+
+@node CRIS-Syntax
+@section Syntax
+
+There are different aspects of the CRIS assembly syntax.
+
+@menu
+* CRIS-Chars::		        Special Characters
+* CRIS-Pic::			Position-Independent Code Symbols
+* CRIS-Regs::			Register Names
+* CRIS-Pseudos::		Assembler Directives
+@end menu
+
+@node CRIS-Chars
+@subsection Special Characters
+@cindex line comment characters, CRIS
+@cindex CRIS line comment characters
+
+The character @samp{#} is a line comment character.  It starts a
+comment if and only if it is placed at the beginning of a line.
+
+A @samp{;} character starts a comment anywhere on the line,
+causing all characters up to the end of the line to be ignored.
+
+A @samp{@@} character is handled as a line separator equivalent
+to a logical new-line character (except in a comment), so
+separate instructions can be specified on a single line.
+
+@node CRIS-Pic
+@subsection Symbols in position-independent code
+@cindex Symbols in position-independent code, CRIS
+@cindex CRIS symbols in position-independent code
+@cindex Position-independent code, symbols in, CRIS
+
+When generating @anchor{crispic}position-independent code (SVR4
+PIC) for use in cris-axis-linux-gnu shared libraries, symbol
+suffixes are used to specify what kind of run-time symbol lookup
+will be used, expressed in the object as different
+@emph{relocation types}.  Usually, all absolute symbol values
+must be located in a table, the @emph{global offset table},
+leaving the code position-independent; independent of values of
+global symbols and independent of the address of the code.  The
+suffix modifies the value of the symbol, into for example an
+index into the global offset table where the real symbol value
+is entered, or a PC-relative value, or a value relative to the
+start of the global offset table.  All symbol suffixes start
+with the character @samp{:} (omitted in the list below).  Every
+symbol use in code or a read-only section must therefore have a
+PIC suffix to enable a useful shared library to be created.
+Usually, these constructs must not be used with an additive
+constant offset as is usually allowed, i.e.@: no 4 as in
+@code{symbol + 4} is allowed.  This restriction is checked at
+link-time, not at assembly-time.
+
+@table @code
+@item GOT
+
+Attaching this suffix to a symbol in an instruction causes the
+symbol to be entered into the global offset table.  The value is
+a 32-bit index for that symbol into the global offset table.
+The name of the corresponding relocation is
+@samp{R_CRIS_32_GOT}.  Example: @code{move.d
+[$r0+extsym:GOT],$r9}
+
+@item GOT16
+
+Same as for @samp{GOT}, but the value is a 16-bit index into the
+global offset table.  The corresponding relocation is
+@samp{R_CRIS_16_GOT}.  Example: @code{move.d
+[$r0+asymbol:GOT16],$r10}
+
+@item PLT
+
+This suffix is used for function symbols.  It causes a
+@emph{procedure linkage table}, an array of code stubs, to be
+created at the time the shared object is created or linked
+against, together with a global offset table entry.  The value
+is a pc-relative offset to the corresponding stub code in the
+procedure linkage table.  This arrangement causes the run-time
+symbol resolver to be called to look up and set the value of the
+symbol the first time the function is called (at latest;
+depending environment variables).  It is only safe to leave the
+symbol unresolved this way if all references are function calls.
+The name of the relocation is @samp{R_CRIS_32_PLT_PCREL}.
+Example: @code{add.d fnname:PLT,$pc}
+
+@item PLTG
+
+Like PLT, but the value is relative to the beginning of the
+global offset table.  The relocation is
+@samp{R_CRIS_32_PLT_GOTREL}.  Example: @code{move.d
+fnname:PLTG,$r3}
+
+@item GOTPLT
+
+Similar to @samp{PLT}, but the value of the symbol is a 32-bit
+index into the global offset table.  This is somewhat of a mix
+between the effect of the @samp{GOT} and the @samp{PLT} suffix;
+the difference to @samp{GOT} is that there will be a procedure
+linkage table entry created, and that the symbol is assumed to
+be a function entry and will be resolved by the run-time
+resolver as with @samp{PLT}.  The relocation is
+@samp{R_CRIS_32_GOTPLT}.  Example: @code{jsr
+[$r0+fnname:GOTPLT]}
+
+@item GOTPLT16
+
+A variant of @samp{GOTPLT} giving a 16-bit value.  Its
+relocation name is @samp{R_CRIS_16_GOTPLT}.  Example: @code{jsr
+[$r0+fnname:GOTPLT16]}
+
+@item GOTOFF
+
+This suffix must only be attached to a local symbol, but may be
+used in an expression adding an offset.  The value is the
+address of the symbol relative to the start of the global offset
+table.  The relocation name is @samp{R_CRIS_32_GOTREL}.
+Example: @code{move.d [$r0+localsym:GOTOFF],r3}
+@end table
+
+@node CRIS-Regs
+@subsection Register names
+@cindex register names, CRIS
+@cindex CRIS register names
+
+A @samp{$} character may always prefix a general or special
+register name in an instruction operand but is mandatory when
+the option @option{--no-underscore} is specified or when the
+@code{.syntax register_prefix} directive is in effect
+(@pxref{crisnous}).  Register names are case-insensitive.
+
+@node CRIS-Pseudos
+@subsection Assembler Directives
+@cindex assembler directives, CRIS
+@cindex pseudo-ops, CRIS
+@cindex CRIS assembler directives
+@cindex CRIS pseudo-ops
+
+There are a few CRIS-specific pseudo-directives in addition to
+the generic ones.  @xref{Pseudo Ops}.  Constants emitted by
+pseudo-directives are in little-endian order for CRIS.  There is
+no support for floating-point-specific directives for CRIS.
+
+@table @code
+@item .dword EXPRESSIONS
+@cindex assembler directive .dword, CRIS
+@cindex pseudo-op .dword, CRIS
+@cindex CRIS assembler directive .dword
+@cindex CRIS pseudo-op .dword
+
+The @code{.dword} directive is a synonym for @code{.int},
+expecting zero or more EXPRESSIONS, separated by commas.  For
+each expression, a 32-bit little-endian constant is emitted.
+
+@item .syntax ARGUMENT
+@cindex assembler directive .syntax, CRIS
+@cindex pseudo-op .syntax, CRIS
+@cindex CRIS assembler directive .syntax
+@cindex CRIS pseudo-op .syntax
+The @code{.syntax} directive takes as ARGUMENT one of the
+following case-sensitive choices.
+
+@table @code
+@item no_register_prefix
+
+The @code{.syntax no_register_prefix} @anchor{crisnous}directive
+makes a @samp{$} character prefix on all registers optional.  It
+overrides a previous setting, including the corresponding effect
+of the option @option{--no-underscore}.  If this directive is
+used when ordinary symbols do not have a @samp{_} character
+prefix, care must be taken to avoid ambiguities whether an
+operand is a register or a symbol; using symbols with names the
+same as general or special registers then invoke undefined
+behavior.
+
+@item register_prefix
+
+This directive makes a @samp{$} character prefix on all
+registers mandatory.  It overrides a previous setting, including
+the corresponding effect of the option @option{--underscore}.
+
+@item leading_underscore
+
+This is an assertion directive, emitting an error if the
+@option{--no-underscore} option is in effect.
+
+@item no_leading_underscore
+
+This is the opposite of the @code{.syntax leading_underscore}
+directive and emits an error if the option @option{--underscore}
+is in effect.
+@end table
+
+@c If you compare with md_pseudo_table, you see that we don't
+@c document ".file" and ".loc" here.  This is because we're just
+@c wrapping the corresponding ELF function and emitting an error for
+@c a.out.
+@end table

@@ -1,0 +1,8 @@
+# OpenRISC assembler testsuite.
+
+if [istarget openrisc*-*-*] {
+    run_dump_test "allinsn"
+    run_dump_test "addi"
+    run_dump_test "lohi"
+    run_dump_test "store"
+}

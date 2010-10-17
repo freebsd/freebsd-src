@@ -1,0 +1,10 @@
+VERS_1.1 in vers1.so
+VERS_1.2 in vers1.so
+VERS_2.0 in vers1.so
+bar in vers1.so
+show_bar1 in vers1.so
+show_bar2 in vers1.so
+show_foo@ in vers1.so
+show_foo@@VERS_2.0 in vers1.so
+show_foo@VERS_1.1 in vers1.so
+show_foo@VERS_1.2 in vers1.so

@@ -1,0 +1,41 @@
+# Expect script for run_dump_test based ld-sh/sh64 tests.
+#   Copyright 2002 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+# Written by Stephen Clarke (stephen.clarke@superh.com)
+#
+
+if ![istarget sh64-*-*] {
+    return
+}
+
+set rd_test_list [lsort [glob -nocomplain $srcdir/$subdir/*.d]]
+foreach sh64test $rd_test_list {
+    # We need to strip the ".d", but can leave the dirname.
+    verbose [file rootname $sh64test]
+    run_dump_test [file rootname $sh64test]
+    if [string match $srcdir/$subdir/*-dso.d $sh64test] {
+	# Copy the output of the DSO-createing test to .so file.
+	# Notice that a DSO-creating test must preceed the tests
+	# which need that DSO in sort-order by name.
+	set cmd "cp tmpdir/dump \
+		    tmpdir/[file rootname [file tail $sh64test]].so"
+	send_log "$cmd\n"
+	set cmdret [catch "exec $cmd" comp_output]
+	send_log "$comp_output\n"
+	# FIXME: What if it fails?  Need we do something?
+    }
+}

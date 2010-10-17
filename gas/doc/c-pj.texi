@@ -1,0 +1,28 @@
+@c Copyright 1999 Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+@page
+@node PJ-Dependent
+@chapter picoJava Dependent Features
+
+@cindex PJ support
+@menu
+* PJ Options::              Options
+@end menu
+
+@node PJ Options
+@section Options
+
+@cindex PJ options
+@cindex options, PJ
+@code{@value{AS}} has two additional command-line options for the picoJava
+architecture.
+@table @code
+@item -ml
+This option selects little endian data output.
+
+@item -mb
+This option selects big endian data output.
+@end table
+
+

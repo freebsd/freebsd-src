@@ -1,0 +1,15 @@
+#source: tlsbinpic.s
+#source: tlsbin.s
+#as:
+#ld: -shared
+#objdump: -sj.got
+#target: ia64-*-*
+
+.*: +file format elf..-ia64-.*
+
+Contents of section .got:
+ (60+)?21b0 0+ 0+ 0+ 0+  .*
+ (60+)?21c0 0+ 0+ 0+ 0+  .*
+ (60+)?21d0 0+ 0+ 0+ 0+  .*
+ (60+)?21e0 01000000 0+ 90000000 0+  .*
+ (60+)?21f0 24000000 0+  .*

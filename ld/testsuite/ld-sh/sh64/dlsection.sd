@@ -1,0 +1,9 @@
+
+.*:     file format elf.*-sh64
+
+Contents of section \.text:
+ 1000 00001004  .*
+Contents of section \.text2:
+ 1004 00000017  .*
+Contents of section \.stack:
+ 80000 deaddead                            .*

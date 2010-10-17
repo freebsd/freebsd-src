@@ -1,0 +1,256 @@
+#   Copyright 1995, 1997, 2004 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+# Please email any bugs, comments, and/or additions to this file to:
+# bug-dejagnu@prep.ai.mit.edu
+
+# Written by Ian Lance Taylor <ian@cygnus.com>
+
+if ![is_remote host] {
+    if {[which $AR] == 0} then {
+        perror "$AR does not exist"
+        return
+    }
+}
+
+# send_user "Version [binutil_version $AR]"
+
+# Test long file name support
+
+proc long_filenames { } {
+    global AR
+    global host_triplet
+
+    set testname "ar long file names"
+
+    set n1 "abcdefghijklmnopqrstuvwxyz1"
+    set n2 "abcdefghijklmnopqrstuvwxyz2"
+    set file1 tmpdir/$n1
+    set file2 tmpdir/$n2
+
+    remote_file build delete $file1
+
+    # Some file systems truncate file names at 14 characters, which
+    # makes it impossible to run this test.  Check for that now.
+    set status [catch "set f [open tmpdir/$n1 w]" errs]
+    if { $status != 0 } {
+	verbose -log "open tmpdir/$n1 returned $errs"
+	unsupported $testname
+	return
+    }
+    puts $f "first"
+    close $f
+
+
+    remote_file build delete $file2
+
+    set status [catch "set f [open tmpdir/$n2 w]" errs]
+    if { $status != 0 } {
+	verbose -log "open tmpdir/$n2 returned $errs"
+	unsupported $testname
+	return
+    }
+    puts $f "second"
+    close $f
+
+    if [is_remote host] {
+	set file1 [remote_download host $file1];
+	set file2 [remote_download host $file2];
+	set dest artest.a
+    } else {
+	set dest tmpdir/artest.a
+    }
+
+    remote_file host delete $dest;
+
+    set got [binutils_run $AR "rc $dest $file1 $file2"]
+    if [is_remote host] {
+	remote_upload host $file1 tmpdir/$n1
+    }
+
+    set f [open tmpdir/$n1 r]
+    gets $f string
+    close $f
+    if ![string match "first" $string] {
+	verbose -log "reading tmpdir/$n1 returned $string"
+	unsupported $testname
+	return
+    }
+
+    remote_file host delete $dest;
+    set got [binutils_run $AR "rc $dest $file1 $file2"]
+
+    if ![string match "" $got] {
+	fail $testname
+	return
+    }
+
+    remote_file build delete tmpdir/$n1
+    remote_file build delete tmpdir/$n2
+
+    set got [binutils_run $AR "t $dest"]
+    regsub "\[\r\n \t\]*$" "$got" "" got;
+    if ![string match "$n1*$n2" $got] {
+	fail $testname
+	return
+    }
+    
+    if [is_remote host] {
+	remote_file host delete $file1;
+	remote_file host delete $file2;
+    }
+
+    verbose -log "$AR x $dest"
+    set exec_output [binutils_run $AR "x $dest"]
+    set exec_output [prune_warnings $exec_output]
+    if ![string match "" $exec_output] {
+	verbose -log $exec_output
+	fail $testname
+	return
+    }
+
+    if [is_remote host] {
+	remote_upload host $n1 tmpdir/$n1;
+	remote_upload host $n2 tmpdir/$n2;
+	set file1 tmpdir/$n1
+	set file2 tmpdir/$n2
+    } else {
+	set file1 $n1
+	set file2 $n2
+    }
+
+    if ![file exists $file1] {
+	verbose -log "$file1 does not exist"
+	fail $testname
+	return
+    }
+    if ![file exists $file2] {
+	verbose -log "$file2 does not exist"
+	fail $testname
+	return
+    }
+
+    set f [open $file1 r]
+    if { [gets $f line] == -1 || $line != "first" } {
+	verbose -log "$file1 contents:"
+	verbose -log "$line"
+	close $f
+	fail $testname
+	return
+    }
+    close $f
+
+    set f [open $file2 r]
+    if { [gets $f line] == -1 || $line != "second" } {
+	verbose -log "$file2 contents:"
+	verbose -log "$line"
+	close $f
+	fail $testname
+	return
+    }
+    close $f
+
+    file delete $file1 $file2
+    pass $testname
+}
+
+# Test building the symbol table.
+
+proc symbol_table { } {
+    global AR
+    global AS
+    global NM
+    global srcdir
+    global subdir
+
+    set testname "ar symbol table"
+
+    if ![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o] {
+	unresolved $testname
+	return
+    }
+
+    if [is_remote host] {
+	set archive artest.a
+	set objfile [remote_download host tmpdir/bintest.o]
+	remote_file host delete $archive
+    } else {
+	set archive tmpdir/artest.a
+	set objfile tmpdir/bintest.o
+    }
+
+    remote_file build delete tmpdir/artest.a
+
+    set got [binutils_run $AR "rc $archive ${objfile}"]
+    if ![string match "" $got] {
+	fail $testname
+	return
+    }
+
+    set got [binutils_run $NM "--print-armap $archive"]
+    if { ![string match "*text_symbol in bintest.o*" $got] \
+	 || ![string match "*data_symbol in bintest.o*" $got] \
+	 || ![string match "*common_symbol in bintest.o*" $got] \
+	 || [string match "*static_text_symbol in bintest.o*" $got] \
+	 || [string match "*static_data_symbol in bintest.o*" $got] \
+	 || [string match "*external_symbol in bintest.o*" $got] } {
+	fail $testname
+	return
+    }
+
+    pass $testname
+}
+
+# Test POSIX-compatible argument parsing.
+
+proc argument_parsing { } {
+    global AR
+    global AS
+    global srcdir
+    global subdir
+
+    set testname "ar argument parsing"
+
+    if ![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o] {
+	unresolved $testname
+	return
+    }
+
+    if [is_remote host] {
+	set archive artest.a
+	set objfile [remote_download host tmpdir/bintest.o]
+	remote_file host delete $archive
+    } else {
+	set archive tmpdir/artest.a
+	set objfile tmpdir/bintest.o
+    }
+
+    remote_file build delete tmpdir/artest.a
+
+    set got [binutils_run $AR "-r -c $archive ${objfile}"]
+    if ![string match "" $got] {
+	fail $testname
+	return
+    }
+
+    pass $testname
+}
+
+# Run the tests.
+
+long_filenames
+symbol_table
+argument_parsing

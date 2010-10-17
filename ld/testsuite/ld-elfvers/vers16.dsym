@@ -1,0 +1,2 @@
+[0-9a-f]* g    DF (\.text|\*ABS\*)	[0-9a-f]*(  Base       )? (0x[0-9a-f][0-9a-f] )?show_bar
+[0-9a-f]*      DF \*UND\*	[0-9a-f]*(             )? (0x[0-9a-f][0-9a-f] )?show_foo

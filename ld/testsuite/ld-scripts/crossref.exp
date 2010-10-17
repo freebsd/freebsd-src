@@ -1,0 +1,100 @@
+# Test NOCROSSREFS in a linker script.
+# By Ian Lance Taylor, Cygnus Support.
+#   Copyright 2001
+#   Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+set test1 "NOCROSSREFS 1"
+set test2 "NOCROSSREFS 2"
+
+if { [which $CC] == 0 } {
+    untested $test1
+    untested $test2
+    return
+}
+
+# Xtensa targets currently default to putting literal values in a separate
+# section and that requires linker script support, so put literals in text.
+global CFLAGS
+if [istarget xtensa*-*-*] {
+    set CFLAGS "$CFLAGS -mtext-section-literals"
+}
+
+if { ![ld_compile $CC "$srcdir/$subdir/cross1.c" tmpdir/cross1.o] \
+     || ![ld_compile $CC "$srcdir/$subdir/cross2.c" tmpdir/cross2.o] } {
+    unresolved $test1
+    unresolved $test2
+    return
+}
+
+set flags [big_or_little_endian]
+
+# The a29k compiled code calls V_SPILL and V_FILL.  Since we don't
+# need to run this code, but we don't have definitions for those
+# functions, we just define them out.
+if [istarget a29k*-*-*] {
+    set flags "$flags --defsym V_SPILL=0 --defsym V_FILL=0"
+}
+
+if [istarget sh64*-*-elf] {
+    # This is what gcc passes to ld by default.
+    set flags "-mshelf32"
+}
+
+verbose -log "$ld $flags -o tmpdir/cross1 -T $srcdir/$subdir/cross1.t tmpdir/cross1.o tmpdir/cross2.o"
+
+catch "exec $ld $flags -o tmpdir/cross1 -T $srcdir/$subdir/cross1.t tmpdir/cross1.o tmpdir/cross2.o" exec_output
+
+set exec_output [prune_warnings $exec_output]
+
+regsub -all "(^|\n)($ld: warning: cannot find entry symbol\[^\n\]*\n?)" $exec_output "\\1" exec_output
+
+if [string match "" $exec_output] then {
+    fail $test1
+} else {
+    verbose -log "$exec_output"
+    if [regexp "prohibited cross reference from .* to `.*foo' in" $exec_output] {
+	pass $test1
+    } else {
+	fail $test1
+    }
+}
+
+# Check cross references within a single object.
+
+if { ![ld_compile $CC "$srcdir/$subdir/cross3.c" tmpdir/cross3.o] } {
+    unresolved $test2
+    return
+}
+
+verbose -log "$ld $flags -o tmpdir/cross2 -T $srcdir/$subdir/cross2.t tmpdir/cross3.o"
+
+catch "exec $ld $flags -o tmpdir/cross2 -T $srcdir/$subdir/cross2.t tmpdir/cross3.o" exec_output
+
+set exec_output [prune_warnings $exec_output]
+
+regsub -all "(^|\n)($ld: warning: cannot find entry symbol\[^\n\]*\n?)" $exec_output "\\1" exec_output
+
+if [string match "" $exec_output] then {
+    fail $test2
+} else {
+    verbose -log "$exec_output"
+    if [regexp "prohibited cross reference from .* to `.*' in" $exec_output] {
+	pass $test2
+    } else {
+	fail $test2
+    }
+}

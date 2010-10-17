@@ -1,0 +1,747 @@
+#
+# Some generic MIPS tests
+#
+
+# When adding a new test to this file, try to do the following things:
+#
+# * If testing assembly and disassembly of code, don't forget to test
+# the actual bit encodings of the instructions (using the
+# --show-raw-insn flag to objdump). 
+#
+# * Try to run the test for as many architectures as appropriate,
+# using the "run_dump_test_arches" or "run_list_test_arches" functions,
+# along with the output from a call to "mips_arch_list_matching."
+#
+# * Be sure to compare the test output before and after your testsuite
+# changes, to verify that existing and new tests were run as expected.
+# Look for expect ERROR messages in the testsuite .log file to make sure
+# the new expect code did not contain errors.
+
+# To add support for a new CPU to this file, add an appropriate entry
+# to the sequence of "mips_arch_create" function calls below, and test
+# the result.  The new CPU should automatically be used when running
+# various tests.  If the new CPU is the default CPU for any tool
+# targets, make sure the call to "mips_arch_create" reflects that fact.
+
+
+# "LOSE" marks information about tests which fail at a particular point
+# in time, but which are not XFAILed.  Either they used to pass
+# and indicate either regressions or the need to tweak the tests to keep
+# up the with code, or they are new tests and it is unknown whether or not
+# they should pass as-is for the given object formats.
+
+
+# The functions below create and manipulate an "architecture data
+# array" which contains entries for each MIPS architecture (or CPU)
+# known to these tests.  The array contains the following information
+# for each architecture, indexed by the name of the architecture
+# described by the entry:
+#
+# displayname: The name of the entry to be used for pretty-printing.
+#
+# gprsize: The size in bits of General Purpose Registers provided by
+# the architecture (must be 32 or 64).
+#
+# props: A list of text strings which are associated with the
+# architecture.  These include the architecture name as well as
+# information about what instructions the CPU supports.  When matching
+# based on properties, an additional property is added to the normal
+# property list, "gpr<gprsize>" so that tests can match CPUs which
+# have GPRs of a specific size.  The following properties are most
+# useful when matching properties for generic (i.e., not CPU-specific)
+# tests:
+#
+#	mips1, mips2, mips3, mips4, mips5, mips32, mips64
+#		The architecture includes the instructions defined
+#		by that MIPS ISA.
+#
+#	gpr_ilocks
+#		The architecture interlocks GPRs accesses.  (That is,
+#		there are no load delay slots.)
+#
+#	mips3d	The architecture includes the MIPS-3D ASE.
+#
+#	ror	The architecture includes hardware rotate instructions.
+#
+#	gpr32, gpr64
+#		The architecture provides 32- or 64-bit General Purpose
+#		Registers.
+#
+# as_flags: The assembler flags used when assembling tests for this
+# architecture.
+#
+# objdump_flags: The objdump flags used when disassembling tests for
+# this architecture.
+#
+# Most entries in the architecture array will have values in all of
+# the fields above.  One entry, "default" represents the default CPU
+# based on the target of the assembler being built.  If always has
+# empty "as_flags" and "objdump_flags."
+
+# mips_arch_init
+#
+# This function initializes the architecture data array ("mips_arches")
+# to be empty.
+proc mips_arch_init {} {
+    global mips_arches
+
+    # Catch becuase the variable won't be set the first time through.
+    catch {unset mips_arches}
+}
+
+# mips_arch_create ARCH GPRSIZE EXTENDS PROPS AS_FLAGS OBJDUMP_FLAGS \
+#		   (optional:) DEFAULT_FOR_TARGETS
+#
+# This function creates a new entry in the architecture data array,
+# for the architecture or CPU named ARCH, and fills in the entry
+# according to the rest of the arguments.
+#
+# The new entry's property list is initialized to contain ARCH, any
+# properties specified by PROPS, and the properties associated with
+# the entry specified by EXTENDS.  (The new architecture is considered
+# to extend the capabilities provided by that architecture.)
+#
+# If DEFAULT_FOR_TARGETS is specified, it is a list of targets for which
+# this architecture is the default architecture.  If "istarget" returns
+# true for any of the targets in the list, a "default" entry will be
+# added to the architecture array which indicates that ARCH is the default
+# architecture.
+proc mips_arch_create {arch gprsize extends props as_flags objdump_flags
+		       {default_for_targets {}}} {
+    global mips_arches
+
+    if { [info exists mips_arches($arch)] } {
+             error "mips_arch_create: arch \"$arch\" already exists"
+    }
+    if { $gprsize != 32 && $gprsize != 64 } {
+	error "mips_arch_create: invalid GPR size $gprsize"
+    }
+
+    set archdata(displayname) $arch
+    set archdata(gprsize) $gprsize
+    set archdata(as_flags) $as_flags
+    set archdata(objdump_flags) $objdump_flags
+    set archdata(props) $arch
+    eval lappend archdata(props) $props
+    if { [string length $extends] != 0 } {
+	eval lappend archdata(props) [mips_arch_properties $extends 0]
+    }
+
+    set mips_arches($arch) [array get archdata]
+
+    # Set as default if appropriate.
+    foreach target $default_for_targets {
+	if { [istarget $target] } {
+	    if { [info exists mips_arches(default)] } {
+		error "mips_arch_create: default arch already exists"
+	    }
+
+	    set archdata(displayname) "default = $arch"
+    	    set archdata(as_flags) ""
+	    set archdata(objdump_flags) ""
+
+	    set mips_arches(default) [array get archdata]
+	    break
+	}
+    }
+}
+
+# mips_arch_list_all
+#
+# This function returns the list of all names of entries in the
+# architecture data array (including the default entry, if a default
+# is known).
+proc mips_arch_list_all {} {
+    global mips_arches
+    return [lsort -dictionary [array names mips_arches]]
+}
+
+# mips_arch_data ARCH
+#
+# This function returns the information associated with ARCH
+# in the architecture data array, in "array get" form.
+proc mips_arch_data {arch} {
+    global mips_arches
+
+    if { ! [info exists mips_arches($arch)] } {
+	error "mips_arch_data: unknown arch \"$arch\""
+    }
+    return $mips_arches($arch)
+}
+
+# mips_arch_displayname ARCH
+#
+# This function returns the printable name associated with ARCH in
+# the architecture data array.
+proc mips_arch_displayname {arch} {
+    array set archdata [mips_arch_data $arch]
+    return $archdata(displayname)
+}
+
+# mips_arch_properties ARCH (optional:) INCLUDE_GPRSIZE
+#
+# This function returns the property list associated with ARCH in the
+# architecture data array.  If INCLUDE_GPRSIZE is non-zero, an additional
+# "gpr32" or "gpr64" property will be returned as part of the list based
+# on the architecture's GPR size.
+proc mips_arch_properties {arch {include_gprsize 1}} {
+    array set archdata [mips_arch_data $arch]
+    set props $archdata(props)
+    if { $include_gprsize } {
+	lappend props gpr$archdata(gprsize)
+    }
+    return $props
+}
+
+# mips_arch_as_flags ARCH
+#
+# This function returns the assembler flags associated with ARCH in
+# the architecture data array. 
+proc mips_arch_as_flags {arch} {
+    array set archdata [mips_arch_data $arch]
+    return $archdata(as_flags)
+}
+
+# mips_arch_objdump_flags ARCH
+#
+# This function returns the objdump disassembly flags associated with
+# ARCH in the architecture data array. 
+proc mips_arch_objdump_flags {arch} {
+    array set archdata [mips_arch_data $arch]
+    return $archdata(objdump_flags)
+}
+
+# mips_arch_matches ARCH PROPMATCHLIST
+#
+# This function returns non-zero if ARCH matches the set of properties
+# described by PROPMATCHLIST.  Each entry in PROPMATCHLIST can either
+# be the name of a property which must be matched, or "!" followed by
+# the name of a property which must not be matched.  ARCH matches
+# PROPMATCHLIST if and only if all of the conditions specified by
+# PROPMATCHLIST are satisfied.
+proc mips_arch_matches {arch propmatchlist} {
+    foreach pm $propmatchlist {
+	if { [string match {!*} $pm] } {
+	    # fail if present.
+	    set inverted 1
+	    set p [string range $pm 1 end]
+	} {
+	    # fail if not present.
+	    set inverted 0
+	    set p $pm
+	}
+
+	set loc [lsearch -exact [mips_arch_properties $arch] $p]
+
+	# required-absent and found, or required-present and not found: fail.
+	if { ($inverted && $loc != -1) || (! $inverted && $loc == -1) } {
+	    return 0
+	}
+    }
+    return 1
+}
+
+# mips_arch_list_matching ARGS
+#
+# This function returns a list of all architectures which match
+# the conditions described by its arguments.  Its arguments are
+# taken as a list and used as the PROPMATCHLIST in a call to
+# "mips_arch_matches" for each known architecture.
+proc mips_arch_list_matching {args} {
+    set l ""
+    foreach arch [mips_arch_list_all] {
+	# For now, don't match default arch until we know what its
+	# properties actually are.
+	if { [string compare $arch default] == 0
+	     && [string length [mips_arch_properties default]] == 0} {
+	    continue;
+	}
+	if { [mips_arch_matches $arch $args] } {
+	    lappend l $arch
+	}
+    }
+    return $l
+}
+
+
+# The functions below facilitate running various types of tests.
+
+# run_dump_test_arch NAME ARCH
+#
+# Invoke "run_dump_test" for test NAME, with extra assembler and
+# disassembler flags to test architecture ARCH.
+proc run_dump_test_arch { name arch } {
+    global subdir
+
+    if [catch {run_dump_test $name \
+			     "{name    {([mips_arch_displayname $arch])}}
+			      {objdump {[mips_arch_objdump_flags $arch]}}
+			      {as      {[mips_arch_as_flags $arch]}}"} rv] {
+        perror "$rv"
+        untested "$subdir/$name ($arch)"
+    }
+}
+
+# run_dump_test_arches NAME ARCH_LIST
+#
+# Invoke "run_dump_test_arch" for test NAME, for each architecture
+# listed in ARCH_LIST.
+proc run_dump_test_arches { name arch_list } {
+    foreach arch $arch_list {
+	run_dump_test_arch "$name" "$arch"
+    }
+}
+
+# run_list_test NAME OPTS (optional): TESTNAME
+#
+# Assemble the file "NAME.d" and compare the assembler standard error
+# output against the regular expressions given in the file "NAME.l".
+# The assembler is passed the flags given in OPTS.  If TESTNAME is
+# provided, it will be used as the name of the test.
+proc run_list_test { name opts {testname {}} } {
+    global srcdir subdir
+    if { [string length $testname] == 0 } then {
+	    set testname "MIPS $name"
+    }
+    set file $srcdir/$subdir/$name
+    gas_run ${name}.s $opts ">&dump.out"
+    if { [regexp_diff "dump.out" "${file}.l"] } then {
+	fail $testname
+	verbose "output is [file_contents "dump.out"]" 2
+	return
+    }
+    pass $testname
+}
+
+# run_list_test_arch NAME OPTS ARCH
+#
+# Invoke "run_list_test" for test NAME with options OPTS, with extra
+# assembler flags to test architecture ARCH.
+proc run_list_test_arch { name opts arch } {
+    global subdir
+
+    set testname "MIPS $name ([mips_arch_displayname $arch])"
+    if [catch {run_list_test "$name" "$opts [mips_arch_as_flags $arch]" \
+			     "$testname"} rv] {
+        perror "$rv"
+        untested "$testname"
+    }
+}
+
+# run_list_test_arches NAME OPTS ARCH_LIST
+#
+# Invoke "run_list_test_arch" for test NAME with options OPTS, for each
+# architecture listed in ARCH_LIST.
+proc run_list_test_arches { name opts arch_list } {
+    foreach arch $arch_list {
+	run_list_test_arch "$name" "$opts" "$arch"
+    }
+}
+
+
+# Create the architecture data array by providing data for all
+# known architectures.
+#
+# Note that several targets pick default CPU based on ABI.  We
+# can't easily handle that; do NOT list those targets as defaulting
+# to any architecture.
+mips_arch_init
+mips_arch_create mips1 	32	{}	{} \
+			{ -march=mips1 -mtune=mips1 } { -mmips:3000 }
+mips_arch_create mips2 	32	mips1	{ gpr_ilocks } \
+		        { -march=mips2 -mtune=mips2 } { -mmips:6000 }
+mips_arch_create mips3 	64	mips2	{} \
+			{ -march=mips3 -mtune=mips3 } { -mmips:4000 }
+mips_arch_create mips4 	64	mips3	{} \
+			{ -march=mips4 -mtune=mips4 } { -mmips:8000 }
+mips_arch_create mips5 	64	mips4	{} \
+			{ -march=mips5 -mtune=mips5 } { -mmips:mips5 }
+mips_arch_create mips32	32	mips2	{} \
+			{ -march=mips32 -mtune=mips32 } { -mmips:isa32 } \
+			{ mipsisa32-*-* mipsisa32el-*-* }
+mips_arch_create mips32r2 32	mips32	{ ror } \
+			{ -march=mips32r2 -mtune=mips32r2 } \
+			{ -mmips:isa32r2 } \
+			{ mipsisa32r2-*-* mipsisa32r2el-*-* }
+mips_arch_create mips64	64	mips5	{ mips32 } \
+			{ -march=mips64 -mtune=mips64 } { -mmips:isa64 } \
+			{ mipsisa64-*-* mipsisa64el-*-* }
+mips_arch_create mips64r2 64	mips64	{ mips32r2 ror } \
+			{ -march=mips64r2 -mtune=mips64r2 } \
+			{ -mmips:isa64r2 } \
+			{ mipsisa64r2-*-* mipsisa64r2el-*-* }
+mips_arch_create r3000 	32	mips1	{} \
+			{ -march=r3000 -mtune=r3000 } { -mmips:3000 }
+mips_arch_create r3900 	32	mips1	{ gpr_ilocks } \
+			{ -march=r3900 -mtune=r3900 } { -mmips:3900 } \
+			{ mipstx39-*-* mipstx39el-*-* }
+mips_arch_create r4000 	64	mips3	{} \
+			{ -march=r4000 -mtune=r4000 } { -mmips:4000 }
+mips_arch_create vr5400	64	mips4	{ ror } \
+			{ -march=vr5400 -mtune=vr5400 } { -mmips:5400 }
+mips_arch_create sb1 	64	mips64	{ mips3d } \
+			{ -march=sb1 -mtune=sb1 } { -mmips:sb1 } \
+			{ mipsisa64sb1-*-* mipsisa64sb1el-*-* }
+
+
+#
+# And now begin the actual tests!
+#
+
+if { [istarget mips*-*-*] } then {
+    set no_mips16 0
+    set elf [expr [istarget *-*-elf*] || [istarget *-*-irix5*] || [istarget *-*-irix6* ] || [istarget *-*-linux*] || [istarget *-*-netbsd*] ]
+    set ecoff [expr [istarget *-*-ecoff*] || [istarget *-*-ultrix*] || [istarget *-*-irix\[1-4\]*] ]
+    set aout [expr [istarget *-*-bsd*] || [istarget *-*-openbsd*] ]
+    set ilocks [istarget mipstx39*-*-*]
+    set gpr_ilocks [expr [istarget mipstx39*-*-*]]
+    set addr32 [expr [istarget mipstx39*-*-*] || [istarget mips-*-linux*] || [istarget mipsel-*-linux*]]
+    set has_newabi [expr [istarget *-*-irix6*] || [istarget mips64*-*-linux*]]
+
+    if { [istarget "mips*-*-*linux*"] } then {
+	set tmips "t"
+    } else {
+	set tmips ""
+    }
+    if [istarget mips*el-*-*] {
+	set el "el"
+    } {
+	set el ""
+    }
+
+    run_dump_test_arches "abs"		[mips_arch_list_matching mips1]
+    run_dump_test_arches "add"		[mips_arch_list_matching mips1]
+    run_dump_test_arches "and"		[mips_arch_list_matching mips1]
+    run_dump_test "break20"
+    run_dump_test "trap20"
+
+    # LOSE: As of 2002-02-08, "beq" through "bltu" fail for target mips-ecoff.
+    # See http://sources.redhat.com/ml/binutils/2001-10/msg00418.html for
+    # more information.  Not sure if the fixes there are correct; should
+    # branches to external labels be allowed for ECOFF?
+    # XXX FIXME: the following tests require -mips2 disasm for
+    # branch-likely instructions.  They should be split.
+    run_dump_test_arches "beq"		[mips_arch_list_matching mips2]
+    run_dump_test_arches "bge"		[mips_arch_list_matching mips2]
+    run_dump_test_arches "bgeu"		[mips_arch_list_matching mips2]
+    run_dump_test_arches "blt"		[mips_arch_list_matching mips2]
+    run_dump_test_arches "bltu"		[mips_arch_list_matching mips2]
+    run_dump_test_arches "branch-misc-1" [mips_arch_list_matching mips1]
+    run_list_test_arches "branch-misc-2" "-32 -non_shared" [mips_arch_list_matching mips1]
+    run_list_test_arches "branch-misc-2pic" "-32 -call_shared" [mips_arch_list_matching mips1]
+
+    if $ilocks {
+	run_dump_test "div-ilocks"
+    } else {
+	run_dump_test "div"
+    }
+    if { !$addr32 } {
+	run_dump_test_arches "dli"		[mips_arch_list_matching mips3]
+    }
+    if $elf {
+	run_dump_test_arches "elf-jal"	[mips_arch_list_matching mips1]
+    } else {
+	run_dump_test "jal"
+    }
+    if $elf { run_dump_test "jal-svr4pic" }
+    if $elf { run_dump_test "jal-xgot" }
+    # LOSE: As of 2002-02-08, the jal-empic test fails for target mips-ecoff.
+    # It appears that it broke between 2000-03-11 00:00UTC and
+    # 2000-03-12 00:00 UTC.
+    if $ecoff { run_dump_test "jal-empic" }
+    if $elf {
+	run_dump_test_arches "jal-empic-elf" [mips_arch_list_matching mips1]
+	run_dump_test_arches "jal-empic-elf-2" [mips_arch_list_matching mips1]
+	run_dump_test_arches "jal-empic-elf-3" [mips_arch_list_matching mips1]
+    }
+    run_list_test_arches "jal-range" "-32" [mips_arch_list_matching mips1]
+    if $has_newabi { run_dump_test "jal-newabi" }
+    if !$aout { run_dump_test "la" }
+    if $elf { run_dump_test "la-svr4pic" }
+    if $elf { run_dump_test "la-xgot" }
+    # LOSE: As of 2002-02-08, the la-empic test fails for target mips-ecoff.
+    # Not sure when it first cropped up, but may be related to addition of
+    # "la" -> "addiu" pattern in MIPS opcode table long ago.
+    if $ecoff { run_dump_test "la-empic" }
+    if $elf { run_dump_test "lca-svr4pic" }
+    if $elf { run_dump_test "lca-xgot" }
+    if !$aout {
+	# XXX FIXME: Has mips2 and later insns with mips1 disassemblies.
+	# (Should split and then use appropriate arch lists.)
+	run_dump_test_arches "lb"	[mips_arch_list_matching !mips2]
+    }
+    if $elf {
+	run_dump_test_arches "lb-svr4pic" [mips_arch_list_matching mips1]
+    }
+    if $elf {
+	# Both versions specify the cpu, so we can run both regardless of
+	# the interlocking in the configured default cpu.
+	run_dump_test "lb-xgot"
+	run_dump_test "lb-xgot-ilocks"
+    }
+    if $ecoff { run_dump_test "lb-empic" }
+    if !$aout {
+        if !$gpr_ilocks {
+            run_dump_test "ld"
+        } else { 
+            if !$addr32 {
+                run_dump_test "ld-ilocks"
+            } else {
+                run_dump_test "ld-ilocks-addr32"
+            }
+        }
+    }
+    if $elf { run_dump_test "ld-svr4pic" }
+    if $elf { run_dump_test "ld-xgot" }
+    if $ecoff { run_dump_test "ld-empic" }
+    run_dump_test_arches "li"		[mips_arch_list_matching mips1]
+    if !$aout { run_dump_test "lifloat" }
+    if $elf { run_dump_test "lif-svr4pic" }
+    if $elf { run_dump_test "lif-xgot" }
+    # LOSE: As of 2002-02-08, the lif-empic test fails for target mips-ecoff.
+    # It appears that it broke between 2000-03-11 00:00UTC and
+    # 2000-03-12 00:00 UTC.
+    if $ecoff { run_dump_test "lif-empic" }
+    run_dump_test_arches "mips4"	[mips_arch_list_matching mips4]
+    run_dump_test_arches "mips5"	[mips_arch_list_matching mips5]
+    if $ilocks {
+	run_dump_test "mul-ilocks"
+    } else {
+	run_dump_test "mul"
+    }
+
+    run_dump_test_arches "rol"		[mips_arch_list_matching !ror]
+    run_dump_test_arches "rol-hw" 	[mips_arch_list_matching ror]
+
+    run_dump_test_arches "rol64"	[mips_arch_list_matching gpr64 !ror]
+    run_dump_test_arches "rol64-hw"	[mips_arch_list_matching gpr64 ror]
+
+    if !$aout { run_dump_test "sb" }
+    run_dump_test "trunc"
+    if !$aout { run_dump_test "ulh" }
+    run_dump_test_arches "ulh2-eb"	[mips_arch_list_matching mips1]
+    run_dump_test_arches "ulh2-el"	[mips_arch_list_matching mips1]
+    if $elf { run_dump_test "ulh-svr4pic" }
+    if $elf { run_dump_test "ulh-xgot" }
+    if $ecoff { run_dump_test "ulh-empic" }
+    if !$aout {
+	run_dump_test "ulw"
+	run_dump_test "uld"
+	run_dump_test "ush"
+	run_dump_test "usw"
+	run_dump_test "usd"
+    }
+    run_dump_test_arches "ulw2-eb"	[mips_arch_list_matching !gpr_ilocks]
+    run_dump_test_arches "ulw2-eb-ilocks" [mips_arch_list_matching gpr_ilocks]
+    run_dump_test_arches "ulw2-el"	[mips_arch_list_matching !gpr_ilocks]
+    run_dump_test_arches "ulw2-el-ilocks" [mips_arch_list_matching gpr_ilocks]
+
+    run_dump_test_arches "uld2-eb" [mips_arch_list_matching mips3]
+    run_dump_test_arches "uld2-el" [mips_arch_list_matching mips3]
+
+    # The mips16 test can only be run on ELF, because only ELF
+    # supports the necessary mips16 reloc.
+    if { $elf && !$no_mips16 } {
+	run_dump_test "mips16"
+	run_dump_test "mips16-64"
+	# Check jalx handling
+	run_dump_test "mips16-jalx"
+	run_dump_test "mips-jalx"
+    }
+    run_list_test "mips-no-jalx" "-32"
+    run_dump_test "delay"
+    run_dump_test "nodelay"
+    run_dump_test "mips4010"
+    run_dump_test "mips4650"
+    run_dump_test "mips4100"
+    run_dump_test "vr4111"
+    run_dump_test "vr4120"
+    run_dump_test "vr4122"
+    run_dump_test "vr5400"
+    run_dump_test "vr5500"
+    run_dump_test "rm7000"
+    run_dump_test "perfcount"
+    run_dump_test "lineno"
+    run_dump_test "sync"
+
+    run_dump_test_arches "mips32"	[mips_arch_list_matching mips32]
+
+    run_dump_test_arches "mips32r2"	[mips_arch_list_matching mips32r2]
+    run_list_test_arches "mips32r2-ill" "-32" \
+			 [mips_arch_list_matching mips32r2 gpr32]
+    run_list_test_arches "mips32r2-ill-fp64" "-mabi=o64" \
+			 [mips_arch_list_matching mips32r2 gpr64]
+
+    run_dump_test_arches "mips64"	[mips_arch_list_matching mips64]
+
+    run_dump_test_arches "mips64r2"	[mips_arch_list_matching mips64r2]
+    run_list_test_arches "mips64r2-ill" "" [mips_arch_list_matching mips64r2]
+
+    run_dump_test "set-arch"
+
+    if { !$addr32 } {
+	run_dump_test "mips64-mips3d"
+	run_dump_test_arches "mips64-mips3d-incl" [mips_arch_list_matching mips3d]
+
+	run_dump_test "mips64-mdmx"
+	run_dump_test "sb1-ext-mdmx"
+	run_dump_test "sb1-ext-ps"
+    }
+
+    run_dump_test "relax"
+    run_dump_test "relax-swap1-mips1"
+    run_dump_test "relax-swap1-mips2"
+    run_dump_test "relax-swap2"
+
+    run_list_test "illegal" "-32"
+    run_list_test "baddata1" "-32"
+
+    # LOSE: As of 2002-02-08, the next 4 tests fail for target mips-ecoff.
+    # It's unknown whether they _should_ pass as-is, or whether different
+    # variants are needed for ELF and ECOFF.
+    run_dump_test "mips-gp32-fp32"
+    run_dump_test "mips-gp32-fp64"
+    run_dump_test "mips-gp64-fp32"
+    run_dump_test "mips-gp64-fp64"
+
+    if $elf {
+	# Make sure that -mcpu=FOO and -mFOO are equivalent.  Assemble a file
+	# containing 4650-specific instructions with -m4650 and -mcpu=4650,
+	# and verify that they're the same.  Specifically, we're checking
+	# that the EF_MIPS_MACH field is set, and that the 4650 'mul'
+	# instruction does get used.  In previous versions of GAS,
+	# only -mcpu=4650 would set the EF_MIPS_MACH field; -m4650 wouldn't.
+	run_dump_test "elf_e_flags1"
+	run_dump_test "elf_e_flags2"
+	run_dump_test "elf_e_flags3"
+	run_dump_test "elf_e_flags4"
+
+	# Check EF_MIPS_ARCH markings for each supported architecture.
+	run_dump_test "elf_arch_mips1"
+	run_dump_test "elf_arch_mips2"
+	run_dump_test "elf_arch_mips3"
+	run_dump_test "elf_arch_mips4"
+	run_dump_test "elf_arch_mips5"
+	run_dump_test "elf_arch_mips32"
+	run_dump_test "elf_arch_mips32r2"
+	run_dump_test "elf_arch_mips64"
+	run_dump_test "elf_arch_mips64r2"
+
+	# Verify that ASE markings are handled properly.
+	if { !$no_mips16 } { run_dump_test "elf_ase_mips16" }
+
+ 	run_dump_test "mips-gp32-fp32-pic"
+ 	run_dump_test "mips-gp32-fp64-pic"
+ 	run_dump_test "mips-gp64-fp32-pic"
+ 	run_dump_test "mips-gp64-fp64-pic"
+
+  	run_dump_test "mips-abi32"
+  	run_dump_test "mips-abi32-pic"
+  	run_dump_test "mips-abi32-pic2"
+
+	run_dump_test "elf${el}-rel"
+	if {[istarget mips64*-*-*] || [istarget mipsisa32*-*-*]
+	    || [istarget mipsisa64*-*-*]} { 
+	    run_dump_test "elf${el}-rel2"
+	} else {
+	    run_dump_test "e32${el}-rel2"
+	}
+	run_dump_test "elf${el}-rel3"
+	if {[istarget mips64*-*-*]} {
+	    run_dump_test "elf-rel4"
+	} else {
+	    run_dump_test "e32-rel4"
+	}
+	run_dump_test "elf-rel5"
+	run_dump_test "elf-rel6"
+	run_dump_test "elf-rel7"
+	run_dump_test "elf-rel8"
+	run_dump_test "elf-rel9"
+	if $has_newabi {
+	    run_dump_test "elf-rel10"
+	    run_dump_test "elf-rel11"
+	}
+	run_dump_test "elf-rel12"
+	run_dump_test "elf-rel13"
+	run_dump_test "elf-rel14"
+
+	if $has_newabi {
+	    run_dump_test "elf-rel15"
+	    run_dump_test "elf-rel16"
+
+	    run_dump_test "elf-rel-got-n32"
+	    run_dump_test "elf-rel-xgot-n32"
+	    run_dump_test "elf-rel-got-n64"
+	    run_dump_test "elf-rel-xgot-n64"
+	}
+	run_dump_test "elf-rel17"
+	if $has_newabi {
+	    run_dump_test "elf-rel18"
+	}
+	run_dump_test "elf-rel19"
+
+	run_dump_test "${tmips}${el}empic"
+	run_dump_test "empic2"
+	run_dump_test "empic3_e"
+	run_dump_test "empic3_g1"
+	run_dump_test "empic3_g2"
+	if { !$no_mips16 } {
+	    run_dump_test "${tmips}mips${el}16-e"
+	    run_dump_test "${tmips}mips${el}16-f"
+	}
+	run_dump_test "elf-consthilo"
+	run_dump_test "expr1"
+    }
+
+    if $has_newabi {
+	run_dump_test "n32-consec"
+    }
+
+    # tests of objdump's ability to disassemble using different
+    # register names.
+    run_dump_test "gpr-names-numeric"
+    run_dump_test "gpr-names-32"
+    run_dump_test "gpr-names-n32"
+    run_dump_test "gpr-names-64"
+
+    run_dump_test "fpr-names-numeric"
+    run_dump_test "fpr-names-32"
+    run_dump_test "fpr-names-n32"
+    run_dump_test "fpr-names-64"
+
+    run_dump_test "cp0-names-numeric"
+    run_dump_test "cp0-names-mips32"
+    run_dump_test "cp0-names-mips32r2"
+    run_dump_test "cp0-names-mips64"
+    run_dump_test "cp0-names-mips64r2"
+    run_dump_test "cp0-names-sb1"
+
+    run_dump_test "cp0sel-names-numeric"
+    run_dump_test "cp0sel-names-mips32"
+    run_dump_test "cp0sel-names-mips32r2"
+    run_dump_test "cp0sel-names-mips64"
+    run_dump_test "cp0sel-names-mips64r2"
+    run_dump_test "cp0sel-names-sb1"
+
+    run_dump_test "hwr-names-numeric"
+    run_dump_test "hwr-names-mips32r2"
+    run_dump_test "hwr-names-mips64r2"
+
+    run_dump_test "ldstla-32"
+    run_dump_test "ldstla-32-shared"
+    if $has_newabi {
+	run_dump_test "ldstla-n32"
+	run_dump_test "ldstla-n32-shared"
+	run_dump_test "ldstla-n64"
+	run_dump_test "ldstla-n64-shared"
+    }
+
+    run_dump_test "macro-warn-1"
+    run_dump_test "macro-warn-2"
+    run_dump_test "macro-warn-3"
+    run_dump_test "macro-warn-4"
+    if $has_newabi {
+	run_dump_test "macro-warn-1-n32"
+	run_dump_test "macro-warn-2-n32"
+    }
+}

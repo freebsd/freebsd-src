@@ -1,0 +1,79 @@
+# Expect script for LD section checks tests
+#   Copyright 1999, 2001 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+# Written by Nick Clifton (nickc@cygnus.com)
+
+proc section_check {} {
+    global ld_flags
+    global as
+    global ld
+    global srcdir
+    global subdir
+    
+    # The usage of .lcomm in asm.s is incompatible with ia64 and ppc coff.
+    if { [istarget ia64-*-*]
+	 || [istarget powerpc*-*-aix*] || [istarget powerpc-*-beos*]
+	 || [istarget rs6000-*-*] } {
+	return
+    }
+    set test "check sections 1"
+    
+    set ldflags "--check-sections"
+
+    if { ![ld_assemble $as $srcdir/$subdir/asm.s tmpdir/asm.o]} {
+	unresolved $test
+	return
+    }
+
+    if ![ld_simple_link $ld tmpdir/asm.x "$ldflags tmpdir/asm.o"] {
+	fail $test
+    } else {
+	pass $test
+    }
+
+    set test "check sections 2"
+
+    # Change the linker flags so that our "buggy" linker
+    # script is used.
+    set ldflags "--check-sections -T $srcdir/$subdir/script -e foo"
+
+    # Perform the equivalent of invoking ld_simple_link
+    # except that we need to massage the output futher.
+    
+    catch "exec $ld -o tmpdir/asm.x $ldflags tmpdir/asm.o" exec_output
+    set exec_output [prune_warnings $exec_output]
+
+    # Make sure that we got some output from the linker
+    if [string match "" $exec_output] then {
+	fail $test
+    } 
+
+    # Now remove our expected error message
+    regsub -all ".*: section .data .* overlaps section .text .*" $exec_output "" exec_output
+
+    # And check to see if anything else, (unexpected) was left
+    if [string match "" $exec_output] then {
+	pass $test
+    } else {
+	verbose -log "Unexpected linker message(s): $exec_output"
+	fail $test
+    }
+}
+
+section_check
+
+

@@ -1,0 +1,264 @@
+# Copyright (C) 1993, 1997 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+
+# Please email any bugs, comments, and/or additions to this file to:
+# dejagnu@gnu.org
+
+# Written by the Center for Software Science at the University of Utah
+# and by Cygnus Support.
+
+proc do_subspace_align_test {} {
+    set testname "ss_align.s: Test subspace alignment (part 2)"
+    set x 0
+
+    if {[istarget hppa*64*-*-*]
+	|| [istarget hppa*-*-*elf*] || [istarget hppa*-*-linux*]} then {
+      return 
+    }
+
+    if [gas_test_old "ss_align.s" "" "subspace alignment (part 1)"] then {
+	objdump_start_no_subdir "a.out" "-h"
+
+    # Check the headers for the correct alignment value for the
+    # the $DATA$ subspace (som).
+	while 1 {
+	    expect  {
+		-re "DATA\[^\n\]* 2..6\[^\n\]*\n"	{ set x 1 }
+		-re "\[^\n\]*\n"				{ }
+		timeout			{ perror "timeout\n"; break }
+		eof				{ break }
+	    }
+	}
+
+	# This was intended to do any cleanup necessary.  It kinda looks like it
+	# isn't needed, but just in case, please keep it in for now.
+	objdump_finish
+
+	# Did we find what we were looking for?  If not, flunk it.
+	if [expr $x==1] then { pass $testname } else { fail $testname }
+    }
+}
+
+proc do_local_label_test {} {
+    set testname "locallabel.s: Elimination of local labels (part 2)"
+    set x 0
+
+    if [gas_test_old "locallabel.s" "" "Elimination of local labels (part1)"] {
+	objdump_start_no_subdir "a.out" "-t"
+
+	while 1 {
+	    expect {
+		-re "^00000000\[^\n\]*Label\[^\n\]*\n"		{ set x 1 }
+		-re "^00000000\[^\n\]*L\$01234\[^\n\]*\n"	{ set x 0 }
+		-re "\[^\n\]*\n"				{ }
+		timeout				{ perror "timeout\n"; break }
+		eof				{ break }
+	    }
+	}
+
+	# This was intended to do any cleanup necessary.  It kinda looks like it
+	# isn't needed, but just in case, please keep it in for now.
+	objdump_finish
+
+	# Did we find what we were looking for?  If not, flunk it.
+	if [expr $x==1] then { pass $testname } else { fail $testname }
+    }
+}
+
+proc do_frchain_test {} {
+    set testname "fragbug.s: Test bug in frag chaining (part 2)"
+    set x 0
+
+    if [gas_test_old "fragbug.s" "" "Test bug in frag chaining (part1)"] {
+	objdump_start_no_subdir "a.out" "--prefix-addresses -d"
+
+	while 1 {
+	    expect {
+		-re "^0x00000000\[^\n\]*nop\[^\n\]*\n"		{ set x 1 }
+		-re "^0x00000004\[^\n\]*nop\[^\n\]*\n"		{ set x 0 }
+		-re "\[^\n\]*\n"				{ }
+		timeout				{ perror "timeout\n"; break }
+		eof				{ break }
+	    }
+	}
+
+	# This was intended to do any cleanup necessary.  It kinda looks like it
+	# isn't needed, but just in case, please keep it in for now.
+	objdump_finish
+
+	# Did we find what we were looking for?  If not, flunk it.
+	if [expr $x==1] then { pass $testname } else { fail $testname }
+    }
+}
+
+proc do_align3_test {} {
+    set testname "align3.s: Test for alignment bug when switching subspaces (part2)"
+    set x 0
+
+    if {[istarget hppa*64*-*-*]
+	|| [istarget hppa*-*-*elf*] || [istarget hppa*-*-linux*]} then {
+      return 
+    }
+
+    if [gas_test_old "align3.s" "" "Test for alignment bug when switching subspaces (part1)"] {
+	objdump_start_no_subdir "a.out" "--prefix-addresses -d"
+
+	while 1 {
+	    expect {
+		-re "\[^\n\]* <main> nop\[^\n\]*\n"		{ set x 1 }
+		-re "\[^\n\]* <.*end_main> nop\[^\n\]*\n"		{ set x 1 }
+		-re "\[^\n\]* <main+.*> nop\[^\n\]*\n"		{ set x 0 }
+		-re "\[^\n\]*\n"				{ }
+		timeout				{ perror "timeout\n"; break }
+		eof				{ break }
+	    }
+	}
+
+	# This was intended to do any cleanup necessary.  It kinda looks like it
+	# isn't needed, but just in case, please keep it in for now.
+	objdump_finish
+
+	# Did we find what we were looking for?  If not, flunk it.
+	if [expr $x==1] then { pass $testname } else { fail $testname }
+    }
+}
+
+proc do_align4_test {} {
+    set testname "align4.s: More subspace alignment tests (part2)"
+    set x 0
+
+    if {[istarget hppa*64*-*-*]
+	|| [istarget hppa*-*-*elf*] || [istarget hppa*-*-linux*]} then {
+      return 
+    }
+
+    if [gas_test_old "align4.s" "" "More subspace alignment tests (part1)"] {
+	objdump_start_no_subdir "a.out" "-h"
+
+	while 1 {
+	    expect {
+		-re "\[^\n\]*MILLICODE\[^\n\]*2..6\[^\n\]*\n"
+			{ set x [expr $x+1] }
+		-re "\[^\n\]*YABBA\[^\n\]*2..3\[^\n\]*\n"
+			{ set x [expr $x+1] }
+		timeout				{ perror "timeout\n"; break }
+		eof				{ break }
+	    }
+	}
+
+	# This was intended to do any cleanup necessary.  It kinda looks like it
+	# isn't needed, but just in case, please keep it in for now.
+	objdump_finish
+
+	# Did we find what we were looking for?  If not, flunk it.
+	if [expr $x==2] then { pass $testname } else { fail $testname }
+    }
+}
+
+proc do_import_test {} {
+    set testname "importbug.s: Test for bug in .import directive (part2)"
+    set x 0
+
+    if [gas_test_old "importbug.s" "" "Test for bug in .import directive (part1)"] {
+	objdump_start_no_subdir "a.out" "--syms"
+
+	while 1 {
+	    expect {
+		-re "\[^\n\]*.DATA..foo\[^\n\]*\n"		{ set x 1 }
+		-re "\[^\n\]*.data.*foo\[^\n\]*\n"		{ set x 1 }
+		-re "\[^\n\]*\n"				{ }
+		timeout				{ perror "timeout\n"; break }
+		eof				{ break }
+	    }
+	}
+
+	# This was intended to do any cleanup necessary.  It kinda looks like it
+	# isn't needed, but just in case, please keep it in for now.
+	objdump_finish
+
+	# Did we find what we were looking for?  If not, flunk it.
+	if [expr $x==1] then { pass $testname } else { fail $testname }
+    }
+}
+
+proc do_common_test {} {
+    # linux has a different .comm syntax
+    if [istarget hppa*-*-linux*] then {
+	return;
+    }
+
+    set testname "common.s: Test for bug in .comm handling (part2)"
+    set x 0
+
+    if [gas_test_old "common.s" "" "Test for bug in .comm handling (part1)"] {
+	objdump_start_no_subdir "a.out" "--syms"
+
+	while 1 {
+	    expect {
+		-re "\[^\n\]*.COM.*common_symbol\[^\n\]*\n"	{ set x 1 }
+		-re "\[^\n\]*\n"				{ }
+		timeout				{ perror "timeout\n"; break }
+		eof				{ break }
+	    }
+	}
+
+	# This was intended to do any cleanup necessary.  It kinda looks like it
+	# isn't needed, but just in case, please keep it in for now.
+	objdump_finish
+
+	# Did we find what we were looking for?  If not, flunk it.
+	if [expr $x==1] then { pass $testname } else { fail $testname }
+    }
+}
+
+if [istarget hppa*-*-*] then {
+    # Make sure subspace alignment requests from the subspace directives
+    # are honored
+    do_subspace_align_test
+
+    # Make sure the correct labels end up in the symbol table
+    do_local_label_test
+
+    # GAS-1.36 choked on this file.
+    gas_test "labeldiffs.s" "" "" "Difference of labels"
+
+    # Test a recent bug where frag chaining wasn't working correctly.
+    do_frchain_test
+
+    # Test bug where switching between subspaces creates bogus alignments
+    do_align3_test
+
+    # Test bug where switching between subspaces creates bogus alignments
+    do_align4_test
+
+    # Test a problem where $global$ is defined, then used within the
+    # same source file.
+    setup_xfail hppa*-*-*
+    gas_test "globalbug.s" "" "" "Use \$global\$ in file which defines it"
+
+    # Test that importing a defined symbol doesn't screw up the symbol's
+    # space/subspace.
+    do_import_test
+
+    # Test for a buglet in the handling of common symbols
+    do_common_test
+
+    # Test for an off-by-2 bug in range check for conditional branches
+    # The labels in brlenbug.s lack colons and are not linux compatible.
+    if {! [istarget *-*-linux*]} then {
+	gas_test_error "brlenbug.s" "" "Check for error(s) in branch length"
+    }
+}

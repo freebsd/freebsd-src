@@ -1,0 +1,75 @@
+#
+# Makefile for bfd library under openVMS (Alpha and Vax)
+#
+# For use with gnu-make for vms
+#
+# Created by Klaus K"ampf, kkaempf@rmi.de
+#
+#
+
+CC=cc
+
+ifeq ($(ARCH),ALPHA)
+HOSTFILE=alphavms.h
+TARGETOBJS = cpu-alpha.obj
+else
+HOSTFILE=vaxvms.h
+TARGETOBJS = cpu-vax.obj
+endif
+
+
+OBJS=archive.obj,archures.obj,bfd.obj,cache.obj,coffgen.obj,corefile.obj,\
+  format.obj,init.obj,libbfd.obj,opncls.obj,reloc.obj,section.obj,syms.obj,\
+  targets.obj,hash.obj,linker.obj,elf.obj,srec.obj,binary.obj,tekhex.obj,\
+  ihex.obj,stab-syms.obj,vms.obj,vms-hdr.obj,vms-gsd.obj,vms-tir.obj,\
+  vms-misc.obj,$(TARGETOBJS)
+
+ifeq ($(CC),gcc)
+ifeq ($(ARCH),ALPHA)
+DEFS=/define=(SELECT_VECS="&vms_alpha_vec",SELECT_ARCHITECTURES="&bfd_alpha_arch",\
+"HAVE_vms_alpha_vec=1")
+else
+DEFS=/define=(SELECT_VECS="&vms_vax_vec",SELECT_ARCHITECTURES="&bfd_vax_arch",\
+"HAVE_vms_vax_vec=1","VMS_DEBUG")
+endif
+CFLAGS=/include=([],[-.include])$(DEFS)
+else
+ifeq ($(ARCH),ALPHA)
+DEFS=/define=(SELECT_VECS="&vms_alpha_vec",SELECT_ARCHITECTURES="&bfd_alpha_arch",\
+"HAVE_vms_alpha_vec=1","unlink=remove","const=","VMS_DEBUG",)
+else
+DEFS=/define=(SELECT_VECS="&vms_vax_vec",SELECT_ARCHITECTURES="&bfd_vax_arch",\
+"HAVE_vms_vax_vec=1","unlink=remove","const=","VMS_DEBUG")
+endif
+CFLAGS=/noopt/debug/include=([],[-.include])$(DEFS)/warnings=disable=(missingreturn,implicitfunc,longextern)
+endif
+
+
+libbfd.olb: sysdep.h bfd.h $(OBJS)
+	purge
+	lib/create libbfd $(OBJS)
+
+sysdep.h: [.hosts]$(HOSTFILE) config.h
+	$(CP) $< $@
+
+bfd.h: bfd-in2.h
+	$$ @configure
+
+targmatch.h: bfd.h
+config.h: bfd.h
+
+vms.c: vms.h
+vms-mhd.c: vms.h
+vms-gsd.c: vms.h
+vms-tir.c: vms.h
+vms-misc.c: vms.h
+targets.c: targmatch.h
+
+clean:
+	$$ purge
+	$(RM) libbfd.olb;
+	$(RM) sysdep.h;
+	$(RM) bfd.h;
+	$(RM) targmatch.h;
+	$(RM) config.h;
+	$(RM) *.obj;

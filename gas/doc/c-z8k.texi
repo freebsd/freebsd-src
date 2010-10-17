@@ -24,7 +24,7 @@ register.  @xref{Z8000 Directives,,Assembler Directives for the Z8000},
 for a list of other Z8000 specific assembler directives.
 
 @menu
-* Z8000 Options::               No special command-line options for Z8000
+* Z8000 Options::               Command-line options for the Z8000
 * Z8000 Syntax::                Assembler syntax for the Z8000
 * Z8000 Directives::            Special directives for the Z8000
 * Z8000 Opcodes::               Opcodes
@@ -35,8 +35,15 @@ for a list of other Z8000 specific assembler directives.
 
 @cindex Z8000 options
 @cindex options, Z8000
-@code{@value{AS}} has no additional command-line options for the Zilog
-Z8000 family.
+@table @option
+@cindex @code{-z8001} command line option, Z8000
+@item -z8001
+Generate segmented code by default.
+
+@cindex @code{-z8002} command line option, Z8000
+@item -z8002
+Generate unsegmented code by default.
+@end table
 
 @node Z8000 Syntax
 @section Syntax
@@ -68,12 +75,12 @@ to different sized groups of registers by register number, with the
 prefix @samp{r} for 16 bit registers, @samp{rr} for 32 bit registers and
 @samp{rq} for 64 bit registers.  You can also refer to the contents of
 the first eight (of the sixteen 16 bit registers) by bytes.  They are
-named @samp{r@var{n}h} and @samp{r@var{n}l}.
+named @samp{rl@var{n}} and @samp{rh@var{n}}.
 
 @smallexample
 @exdent @emph{byte registers}
-r0l r0h r1h r1l r2h r2l r3h r3l
-r4h r4l r5h r5l r6h r6l r7h r7l
+rl0 rh0 rl1 rh1 rl2 rh2 rl3 rh3
+rl4 rh4 rl5 rh5 rl6 rh6 rl7 rh7
 
 @exdent @emph{word registers}
 r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 r13 r14 r15
@@ -93,11 +100,17 @@ rq0 rq4 rq8 rq12
 @value{AS} understands the following addressing modes for the Z8000:
 
 @table @code
-@item r@var{n}
-Register direct
+@item rl@var{n}
+@itemx rh@var{n}
+@itemx r@var{n}
+@itemx rr@var{n}
+@itemx rq@var{n}
+Register direct:  8bit, 16bit, 32bit, and 64bit registers.
 
 @item @@r@var{n}
-Indirect register
+@itemx @@rr@var{n}
+Indirect register:  @@rr@var{n} in segmented mode, @@r@var{n} in unsegmented
+mode.
 
 @item @var{addr}
 Direct: the 16 bit or 24 bit address (depending on whether the assembler
@@ -108,14 +121,16 @@ Indexed: the 16 or 24 bit address is added to the 16 bit register to produce
 the final address in memory of the operand.
 
 @item r@var{n}(#@var{imm})
+@itemx rr@var{n}(#@var{imm})
 Base Address: the 16 or 24 bit register is added to the 16 bit sign
 extended immediate displacement to produce the final address in memory
 of the operand.
 
 @item r@var{n}(r@var{m})
-Base Index: the 16 or 24 bit register r@var{n} is added to the sign
-extended 16 bit index register r@var{m} to produce the final address in
-memory of the operand.
+@itemx rr@var{n}(r@var{m})
+Base Index: the 16 or 24 bit register r@var{n} or rr@var{n} is added to
+the sign extended 16 bit index register r@var{m} to produce the final
+address in memory of the operand.
 
 @item #@var{xx}
 Immediate data @var{xx}.
@@ -126,18 +141,22 @@ Immediate data @var{xx}.
 
 @cindex Z8000 directives
 @cindex directives, Z8000
-The Z8000 port of @value{AS} includes these additional assembler directives,
-for compatibility with other Z8000 assemblers.  As shown, these do not
-begin with @samp{.} (unlike the ordinary @value{AS} directives).
+The Z8000 port of @value{AS} includes additional assembler directives,
+for compatibility with other Z8000 assemblers.  These do not begin with
+@samp{.} (unlike the ordinary @value{AS} directives).
 
 @table @code
 @kindex segm
 @item segm
-Generates code for the segmented Z8001.
+@kindex .z8001
+@itemx .z8001
+Generate code for the segmented Z8001.
 
 @kindex unsegm
 @item unsegm
-Generates code for the unsegmented Z8002.
+@kindex .z8002
+@itemx .z8002
+Generate code for the unsegmented Z8002.
 
 @kindex name
 @item name

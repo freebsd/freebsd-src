@@ -1,0 +1,14 @@
+#source: tlsbinpic.s
+#source: tlsbin.s
+#as: --32
+#ld: -melf_i386 tmpdir/libtlslib.so
+#objdump: -sj.got
+#target: i?86-*-*
+
+.*:     file format elf32-i386
+
+Contents of section \.got:
+ 804a100 [0-9a-f]+ 00000000 00000000 [0-9a-f]+  .*
+ 804a110 00000000 00000000 00000000 00000000  .*
+ 804a120 00000000 00000000 00000000 00000000  .*
+ 804a130 00000000  +.*

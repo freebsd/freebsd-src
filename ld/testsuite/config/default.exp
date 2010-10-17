@@ -1,0 +1,251 @@
+# Basic expect script for LD Regression Tests
+#   Copyright 1993, 1994, 1995, 1997, 1998, 1999
+#   Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+# Written by Jeffrey Wheat (cassidy@cygnus.com)
+#
+
+if ![info exists ld] then {
+    set ld [findfile $base_dir/ld-new $base_dir/ld-new [transform ld]]
+}
+
+if ![info exists as] then {
+    set as [findfile $base_dir/../gas/as-new $base_dir/../gas/as-new [transform as]]
+}
+
+if ![info exists nm] then {
+    set nm [findfile $base_dir/../binutils/nm-new $base_dir/../binutils/nm-new [transform nm]]
+}
+
+if ![info exists objdump] then {
+    set objdump [findfile $base_dir/../binutils/objdump]
+}
+
+if ![info exists objcopy] then {
+    set objcopy [findfile $base_dir/../binutils/objcopy]
+}
+
+if ![info exists ar] then {
+    set ar [findfile $base_dir/../binutils/ar]
+}
+
+if ![info exists strip] then {
+    set strip [findfile $base_dir/../binutils/strip-new $base_dir/../binutils/strip-new [transform strip]]
+}
+
+if {![file isdirectory tmpdir]} then {
+    catch "exec mkdir tmpdir" status
+}
+
+# Make a symlink from tmpdir/as to the assembler in the build tree, so
+# that we can use a -B option to gcc to force it to use the newly
+# built assembler.
+if {![file isdirectory tmpdir/gas]} then {
+    catch "exec mkdir tmpdir/gas" status
+    catch "exec ln -s ../../../gas/as-new tmpdir/gas/as" status
+}
+set gcc_gas_flag "-B[pwd]/tmpdir/gas/"
+
+# Make a symlink from tmpdir/ld to the linker in the build tree, so
+# that we can use a -B option to gcc to force it to use the newly
+# built linker. 
+if {![file isdirectory tmpdir/ld]} then {
+    catch "exec mkdir tmpdir/ld" status
+    catch "exec ln -s ../../ld-new tmpdir/ld/ld" status
+}
+set gcc_ld_flag "-B[pwd]/tmpdir/ld/"
+
+# load the linker path
+load_lib tmpdir/libpath.exp
+
+foreach dir $libpath {
+    set gcc_ld_flag "$gcc_ld_flag -L$dir"
+}
+
+# The mips64-*-linux-gnu compiler defaults to the N32 ABI after
+# installed, but to the O32 ABI in the build tree, because of some
+# specs-file hacks.  Make sure we use an ABI that is compatible with
+# the one we expect.
+if {[istarget mips64*-*-linux*] &&
+    (![board_info [target_info name] exists multilib_flags] ||
+     ![string match "*-mabi" [board_info [target_info name] multilib_flags]])
+   } {
+    append gcc_gas_flag " -mabi=n32"
+}
+
+# load the utility procedures
+load_lib ld-lib.exp
+
+proc get_link_files {varname} {
+    global $varname
+    global target_triplet
+    global srcdir
+    global CC
+    if ![info exists $varname] {
+	set status [catch "exec sh -c \"host='$target_triplet' && CC='$CC' && . $srcdir/../configure.host && eval echo \\$$varname\"" result]
+	if $status { error "Error getting native link files: $result" }
+	set $varname $result
+    }
+}
+
+proc get_target_emul {} {
+    global target_triplet
+    global srcdir
+    set status [catch "exec sh -c \"targ='$target_triplet' && . $srcdir/../configure.tgt && echo \\\$targ_emul\"" result]
+    if $status { error "Error getting emulation name: $result" }
+    return $result
+}
+
+if [isnative] {
+    foreach x {HOSTING_CRT0 HOSTING_LIBS} {
+	get_link_files $x
+    }
+} else {
+    foreach x {HOSTING_CRT0 HOSTING_LIBS} { set $x "" }
+}
+if ![info exists HOSTING_EMU] { set HOSTING_EMU "-m [get_target_emul]" }
+
+#
+# ld_version -- extract and print the version number of ld compiler (GCC)
+#
+proc ld_version {} {
+    global ld
+    default_ld_version $ld
+}
+
+#
+# ld_exit -- just a stub for ld
+#
+proc ld_exit {} {
+}
+
+#
+# ld_start 
+#	relink the linker
+#
+proc ld_start { ld target } {
+	#
+}
+
+#
+# ld_relocate 
+#	link an object using relocation
+#
+proc ld_relocate { ld target objects } {
+	default_ld_relocate $ld $target $objects
+}
+
+#
+# ld_link 
+#	link a program using ld
+#
+proc ld_link { ld target objects } {
+	default_ld_link $ld $target $objects
+}
+
+#
+# ld_simple_link 
+#	link a program using ld, without including any libraries
+#
+proc ld_simple_link { ld target objects } {
+	default_ld_simple_link $ld $target $objects
+}
+
+#
+# ld_compile 
+#	compile an object using $cc
+#
+proc ld_compile { cc source object } {
+	default_ld_compile $cc $source $object 
+}
+
+#
+# ld_assemble
+#	assemble a file
+#
+proc ld_assemble { as source object } {
+	default_ld_assemble $as $source $object 
+}
+
+#
+# ld_nm
+#	run nm on a file
+#
+proc ld_nm { nm nmflags object } {
+	default_ld_nm $nm $nmflags $object
+}
+
+#
+# ld_exec
+#	execute ithe target
+#
+proc ld_exec { target output } {
+	default_ld_exec $target $output
+}
+
+# From gas-defs.exp, to support run_dump_test.
+if ![info exists AS] then {
+    set AS $as
+}
+
+if ![info exists GASP] then {
+    set GASP [findfile $base_dir/../gas/gasp-new $base_dir/../gas/gasp-new [transform gasp]]
+}
+
+if ![info exists ASFLAGS] then {
+    set ASFLAGS ""
+}
+
+if ![info exists OBJDUMP] then {
+    set OBJDUMP $objdump
+}
+
+if ![info exists OBJDUMPFLAGS] then {
+    set OBJDUMPFLAGS {}
+}
+
+if ![info exists NM] then {
+    set NM $nm
+}
+
+if ![info exists NMFLAGS] then {
+    set NMFLAGS {}
+}
+
+if ![info exists OBJCOPY] then {
+    set OBJCOPY $objcopy
+}
+
+if ![info exists OBJCOPYFLAGS] then {
+    set OBJCOPYFLAGS {}
+}
+
+if ![info exists READELF] then {
+    set READELF [findfile $base_dir/../binutils/readelf]
+}
+
+if ![info exists READELFFLAGS] then {
+    set READELFFLAGS {}
+}
+
+if ![info exists LD] then {
+    set LD [findfile $base_dir/ld-new ./ld-new [transform ld]]
+}
+
+if ![info exists LDFLAGS] then {
+    set LDFLAGS {}
+}

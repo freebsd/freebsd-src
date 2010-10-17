@@ -1,0 +1,173 @@
+2004-01-14  Richard Sandiford  <rsandifo@redhat.com>
+
+	* frv.cpu (UNIT): Add IACC.
+	(iacc-multiply-r-r): Use it.
+	* frv.opc (fr400_unit_mapping): Add entry for IACC.
+	(fr500_unit_mapping, fr550_unit_mapping): Likewise.
+
+2004-01-06  Alexandre Oliva  <aoliva@redhat.com>
+
+	2003-12-19  Alexandre Oliva  <aoliva@redhat.com>
+	* frv.opc (parse_ulo16, parse_uhi16, parse_d12): Fix some
+	cut&paste errors in shifting/truncating numerical operands.
+	2003-08-08  Alexandre Oliva  <aoliva@redhat.com>
+	* frv.opc (parse_ulo16): Parse gotofflo and gotofffuncdesclo.
+	(parse_uslo16): Likewise.
+	(parse_uhi16): Parse gotoffhi and gotofffuncdeschi.
+	(parse_d12): Parse gotoff12 and gotofffuncdesc12.
+	(parse_s12): Likewise.
+	2003-08-04  Alexandre Oliva  <aoliva@redhat.com>
+	* frv.opc (parse_ulo16): Parse gotlo and gotfuncdesclo.
+	(parse_uslo16): Likewise.
+	(parse_uhi16): Parse gothi and gotfuncdeschi.
+	(parse_d12): Parse got12 and gotfuncdesc12.
+	(parse_s12): Likewise.
+
+2003-10-10  Dave Brolley  <brolley@redhat.com>
+
+	* frv.cpu (dnpmop): New p-macro.
+	(GRdoublek): Use dnpmop.
+	(CPRdoublek, FRdoublei, FRdoublej, FRdoublek): Ditto.
+	(store-double-r-r): Use (.sym regtype doublek).
+	(r-store-double): Ditto.
+	(store-double-r-r-u): Ditto.
+	(conditional-store-double): Ditto.
+	(conditional-store-double-u): Ditto.
+	(store-double-r-simm): Ditto.
+	(fmovs): Assign to UNIT FMALL.
+
+2003-10-06  Dave Brolley  <brolley@redhat.com>
+
+	* frv.cpu, frv.opc: Add support for fr550.
+
+2003-09-24  Dave Brolley  <brolley@redhat.com>
+
+	* frv.cpu (u-commit): New modelling unit for fr500.
+	(mwtaccg): Use frv_ref_SI to reference ACC40Sk as an input operand.
+	(commit-r): Use u-commit model for fr500.
+	(commit): Ditto.
+	(conditional-float-binary-op): Take profiling data as an argument.
+	Update callers.
+	(ne-float-binary-op): Ditto.
+
+2003-09-19  Michael Snyder  <msnyder@redhat.com>
+
+	* frv.cpu (nldqi): Delete unimplemented instruction.
+
+2003-09-12  Dave Brolley  <brolley@redhat.com>
+
+	* frv.cpu (u-clrgr, u-clrfr): New units of model fr500.
+	(clear-ne-flag-r): Pass insn profiling in as an argument. Call
+	frv_ref_SI to get input register referenced for profiling.
+	(clear-ne-flag-all): Pass insn profiling in as an argument.
+	(clrgr,clrfr,clrga,clrfa): Add profiling information.
+
+2003-09-11  Michael Snyder  <msnyder@redhat.com>
+
+	* frv.cpu: Typographical corrections.
+
+2003-09-09  Dave Brolley  <brolley@redhat.com>
+
+	* frv.cpu (media-dual-complex): Change UNIT to FMALL.
+	(conditional-media-dual-complex, media-quad-complex): Likewise.
+
+2003-09-04  Dave Brolley  <brolley@redhat.com>
+
+	* frv.cpu (register-transfer): Pass in all attributes in on argument.
+	Update all callers.
+	(conditional-register-transfer): Ditto.
+	(cache-preload): Ditto.
+	(floating-point-conversion): Ditto.
+	(floating-point-neg): Ditto.
+	(float-abs): Ditto.
+	(float-binary-op-s): Ditto.
+	(conditional-float-binary-op): Ditto.
+	(ne-float-binary-op): Ditto.
+	(float-dual-arith): Ditto.
+	(ne-float-dual-arith): Ditto.
+
+2003-09-03  Dave Brolley  <brolley@redhat.com>
+
+	* frv.opc (parse_A, parse_A0, parse_A1): New parse handlers.
+	* frv.cpu (UNIT): Add IALL, FMALL, FMLOW, STORE, SCAN, DCPL, MDUALACC,
+	MCLRACC-1.
+	(A): Removed operand.
+	(A0,A1): New operands replace operand A.
+	(mnop): Now a real insn
+	(mclracc): Removed insn.
+	(mclracc-0, mclracc-1): New insns replace mclracc.
+	(all insns): Use new UNIT attributes.
+
+2003-08-21  Nick Clifton  <nickc@redhat.com>
+
+	* frv.cpu (mbtoh): Replace input parameter to u-media-dual-expand
+	and u-media-dual-btoh with output parameter.
+	(cmbtoh): Add profiling hack.
+
+2003-08-19  Michael Snyder  <msnyder@redhat.com>
+
+	* frv.cpu: Fix typo, Frintkeven -> FRintkeven
+
+2003-06-10  Doug Evans  <dje@sebabeach.org>
+
+	* frv.cpu: Add IDOC attribute.
+
+2003-06-06  Andrew Cagney  <cagney@redhat.com>
+
+	Contributed by Red Hat.
+	* iq2000.cpu: New file.  Written by Ben Elliston, Jeff Johnston,
+	Stan Cox, and Frank Ch. Eigler.
+	* iq2000.opc: New file.  Written by Ben Elliston, Frank
+	Ch. Eigler, Chris Moller, Jeff Johnston, and Stan Cox.
+	* iq2000m.cpu: New file.  Written by Jeff Johnston.
+	* iq10.cpu: New file.  Written by Jeff Johnston.
+
+2003-06-05  Nick Clifton  <nickc@redhat.com>
+
+	* frv.cpu (FRintieven): New operand.  An even-numbered only
+	version of the FRinti operand.
+	(FRintjeven): Likewise for FRintj.
+	(FRintkeven): Likewise for FRintk.
+	(mdcutssi, media-dual-word-rotate-r-r, mqsaths,
+	media-quad-arith-sat-semantics, media-quad-arith-sat,
+	conditional-media-quad-arith-sat, mdunpackh,
+	media-quad-multiply-semantics, media-quad-multiply,
+	conditional-media-quad-multiply, media-quad-complex-i,
+	media-quad-multiply-acc-semantics, media-quad-multiply-acc,
+	conditional-media-quad-multiply-acc, munpackh,
+	media-quad-multiply-cross-acc-semantics, mdpackh,
+	media-quad-multiply-cross-acc, mbtoh-semantics,
+	media-quad-cross-multiply-cross-acc-semantics,
+	media-quad-cross-multiply-cross-acc, mbtoh, mhtob-semantics,
+	media-quad-cross-multiply-acc-semantics, cmbtoh,
+	media-quad-cross-multiply-acc, media-quad-complex, mhtob,
+	media-expand-halfword-to-double-semantics, mexpdhd, cmexpdhd,
+	cmhtob): Use new operands.
+	* frv.opc (CGEN_VERBOSE_ASSEMBLER_ERRORS): Define.
+        (parse_even_register): New function.
+
+2003-06-03  Nick Clifton  <nickc@redhat.com>
+
+	* frv.cpu (media-dual-word-rotate-r-r): Use a signed 6-bit
+	immediate value not unsigned.
+
+2003-06-03  Andrew Cagney  <cagney@redhat.com>
+
+	Contributed by Red Hat.
+	* frv.cpu: New file.  Written by Dave Brolley, Catherine Moore,
+	and Eric Christopher.
+	* frv.opc: New file.  Written by Catherine Moore, and Dave
+	Brolley.
+	* simplify.inc: New file.  Written by Doug Evans.
+
+2003-05-02  Andrew Cagney  <cagney@redhat.com>
+
+	* New file.
+
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

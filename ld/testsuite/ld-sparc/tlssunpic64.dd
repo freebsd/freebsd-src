@@ -1,0 +1,12 @@
+#source: tlssunpic64.s
+#source: tlspic.s
+#as: --64 -Av9 -K PIC
+#ld: -shared -melf64_sparc
+#objdump: -drj.text
+#target: sparc*-*-*
+
+.*: +file format elf64-sparc
+
+Disassembly of section .text:
+# FIXME
+#pass

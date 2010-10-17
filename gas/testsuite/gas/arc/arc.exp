@@ -1,0 +1,45 @@
+# ARC base instruction set (to arc8)
+if [istarget arc*-*-*] then {
+    run_dump_test ld
+    run_dump_test ld2
+    run_dump_test st
+
+    # Specially encoded/single operand instructions
+    run_dump_test flag
+    run_dump_test brk
+    run_dump_test sleep
+    run_dump_test swi
+    run_dump_test asr
+    run_dump_test lsr
+    run_dump_test ror
+    run_dump_test rrc
+    run_dump_test sexb
+    run_dump_test sexw
+    run_dump_test extb
+    run_dump_test extw
+
+    run_dump_test b
+    run_dump_test bl
+    run_dump_test lp
+    run_dump_test j
+    run_dump_test jl
+    run_dump_test add
+    run_dump_test asl
+    # FIXME: ??? `lsl' gets dumped as `asl'
+    # run_dump_test lsl
+    run_dump_test adc
+    run_dump_test rlc
+    run_dump_test sub
+    run_dump_test sbc
+    run_dump_test and
+    run_dump_test mov
+    run_dump_test or
+    run_dump_test bic
+    run_dump_test xor
+    run_dump_test nop
+}
+
+# ARC library extensions
+if [istarget arc*-*-*] then {
+    # *TODO*
+}

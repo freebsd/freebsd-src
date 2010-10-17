@@ -1,0 +1,63 @@
+# Test for warnings when producing load hazards (instructions that
+# reference the target of load one stage further down the pipeline.
+# Written by Ben Elliston (bje@redhat.com)
+
+# Run GAS and check that it emits the desired warning for the test case.
+# Arguments:
+#   file -- name of the test case to assemble.
+#   testname -- a string describing the test.
+#   warnpattern -- a regular expression, suitable for use by the Tcl
+#     regexp command, to decide if the warning string was emitted by
+#     the assembler to stderr.
+
+proc iq2000_warning_test { file testname {warnpattern ""} } {
+    global comp_output
+
+    gas_run $file "" ">/dev/null"
+    verbose "output was $comp_output" 2
+
+    if {$warnpattern == ""} {
+	if {$comp_output == ""} { pass $testname } else { fail $testname }
+	return
+    }
+
+    if {[regexp "Warning: $warnpattern" $comp_output]} {
+	pass $testname
+    } else {
+	fail $testname
+    }
+}
+
+if [istarget iq2000*-*-*] {
+    foreach file [glob -nocomplain -- $srcdir/$subdir/hazard*.s] {
+	set file [file tail $file]
+	switch -- $file {
+	    "hazard0.s" {
+		set warnpattern "operand references R10 of previous load"
+	    }
+	    "hazard1.s" {
+		set warnpattern "operand references R1 of previous load"
+	    }
+	    "hazard2.s" {
+		set warnpattern "operand references R2 of previous load"
+	    }
+	    "hazard3.s" {
+		set warnpattern "instruction implicitly accesses R31 of previous load"
+	    }
+	    "hazard4.s" {
+		set warnpattern "operand references R10 of previous load"
+	    }
+	    "hazard5.s" {
+		set warnpattern "operand references R8 of previous load"
+	    }
+	    default {
+		error "no expected result specified for $file"
+		return
+	    }
+	}
+	iq2000_warning_test $file "assembler emits load hazard warning for $file" $warnpattern
+    }
+
+    set testname "assembler emits no warnings when there are no load hazards"
+    iq2000_warning_test nohazard.s $testname
+}

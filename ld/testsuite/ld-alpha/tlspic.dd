@@ -1,0 +1,56 @@
+#source: align.s
+#source: tlspic1.s
+#source: tlspic2.s
+#as:
+#ld: -shared -melf64alpha
+#objdump: -drj.text
+#target: alpha*-*-*
+
+.*: +file format elf64-alpha
+
+Disassembly of section .text:
+
+0+1000 <fn1>:
+    1000:	02 00 bb 27 	ldah	gp,2\(t12\)
+    1004:	e8 91 bd 23 	lda	gp,-28184\(gp\)
+    1008:	3e 15 c2 43 	subq	sp,0x10,sp
+    100c:	00 00 5e b7 	stq	ra,0\(sp\)
+    1010:	08 00 3e b5 	stq	s0,8\(sp\)
+    1014:	9e 00 00 00 	rduniq
+    1018:	09 04 e0 47 	mov	v0,s0
+    101c:	08 80 1d 22 	lda	a0,-32760\(gp\)
+    1020:	00 80 7d a7 	ldq	t12,-32768\(gp\)
+    1024:	00 40 5b 6b 	jsr	ra,\(t12\),1028 <.*>
+    1028:	02 00 ba 27 	ldah	gp,2\(ra\)
+    102c:	c0 91 bd 23 	lda	gp,-28224\(gp\)
+    1030:	30 80 1d 22 	lda	a0,-32720\(gp\)
+    1034:	00 80 7d a7 	ldq	t12,-32768\(gp\)
+    1038:	00 40 5b 6b 	jsr	ra,\(t12\),103c <.*>
+    103c:	02 00 ba 27 	ldah	gp,2\(ra\)
+    1040:	ac 91 bd 23 	lda	gp,-28244\(gp\)
+    1044:	40 80 1d 22 	lda	a0,-32704\(gp\)
+    1048:	00 80 7d a7 	ldq	t12,-32768\(gp\)
+    104c:	00 40 5b 6b 	jsr	ra,\(t12\),1050 <.*>
+    1050:	02 00 ba 27 	ldah	gp,2\(ra\)
+    1054:	98 91 bd 23 	lda	gp,-28264\(gp\)
+    1058:	21 00 20 20 	lda	t0,33\(v0\)
+    105c:	40 80 1d 22 	lda	a0,-32704\(gp\)
+    1060:	00 80 7d a7 	ldq	t12,-32768\(gp\)
+    1064:	00 40 5b 6b 	jsr	ra,\(t12\),1068 <.*>
+    1068:	02 00 ba 27 	ldah	gp,2\(ra\)
+    106c:	80 91 bd 23 	lda	gp,-28288\(gp\)
+    1070:	40 00 20 20 	lda	t0,64\(v0\)
+    1074:	62 00 20 20 	lda	t0,98\(v0\)
+    1078:	00 00 20 24 	ldah	t0,0\(v0\)
+    107c:	53 00 21 20 	lda	t0,83\(t0\)
+    1080:	18 80 3d a4 	ldq	t0,-32744\(gp\)
+    1084:	01 04 20 40 	addq	t0,v0,t0
+    1088:	20 80 3d a4 	ldq	t0,-32736\(gp\)
+    108c:	01 04 29 40 	addq	t0,s0,t0
+    1090:	50 80 3d a4 	ldq	t0,-32688\(gp\)
+    1094:	28 80 5d a4 	ldq	t1,-32728\(gp\)
+    1098:	01 04 29 40 	addq	t0,s0,t0
+    109c:	02 04 49 40 	addq	t1,s0,t1
+    10a0:	00 00 5e a7 	ldq	ra,0\(sp\)
+    10a4:	1e 14 c2 43 	addq	sp,0x10,sp
+    10a8:	01 80 fa 6b 	ret

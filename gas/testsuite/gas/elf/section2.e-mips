@@ -1,0 +1,10 @@
+
+Symbol table '.symtab' contains 7 entries:
+   Num:    Value[ 	]* Size Type    Bind   Vis      Ndx Name
+     0: 0+0     0 NOTYPE  LOCAL  DEFAULT  UND 
+     1: 0+0     0 SECTION LOCAL  DEFAULT    1 (|\.text)
+     2: 0+0     0 SECTION LOCAL  DEFAULT    2 (|\.data)
+     3: 0+0     0 SECTION LOCAL  DEFAULT    3 (|\.bss)
+     4: 0+0     0 SECTION LOCAL  DEFAULT    6 (|A)
+     5: 0+0     0 SECTION LOCAL  DEFAULT    4 (|\.reginfo)
+     6: 0+0     0 SECTION LOCAL  DEFAULT    5 (|\.pdr)
