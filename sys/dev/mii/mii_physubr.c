@@ -326,10 +326,9 @@ mii_anar(int media)
 void
 mii_add_media(struct mii_softc *sc)
 {
+	struct mii_data *mii = sc->mii_pdata;
 	const char *sep = "";
-	struct mii_data *mii;
 
-	mii = device_get_softc(sc->mii_dev);
 	if ((sc->mii_capabilities & BMSR_MEDIAMASK) == 0) {
 		printf("no media present");
 		return;
