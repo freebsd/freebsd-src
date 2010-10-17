@@ -128,8 +128,8 @@ void
 elf64_dump_thread(struct thread *td __unused, void *dst __unused,
     size_t *off __unused)
 {
-}
 
+}
 
 /*
  * The following table holds for each relocation type:
@@ -215,7 +215,7 @@ static const int reloc_target_flags[] = {
 };
 
 #if 0
-static const char *reloc_names[] = {
+static const char *const reloc_names[] = {
 	"NONE", "RELOC_8", "RELOC_16", "RELOC_32", "DISP_8",
 	"DISP_16", "DISP_32", "WDISP_30", "WDISP_22", "HI22",
 	"22", "13", "LO10", "GOT10", "GOT13",
@@ -271,10 +271,9 @@ static const long reloc_target_bitmask[] = {
 
 int
 elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
-    int type, elf_lookup_fn lookup)
+    int type, elf_lookup_fn lookup __unused)
 {
 	const Elf_Rela *rela;
-	Elf_Addr value;
 	Elf_Addr *where;
 
 	if (type != ELF_RELOC_RELA)
@@ -284,10 +283,8 @@ elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	if (ELF64_R_TYPE_ID(rela->r_info) != R_SPARC_RELATIVE)
 		return (-1);
 
-	value = rela->r_addend + (Elf_Addr)lf->address;
-	where = (Elf_Addr *)((Elf_Addr)lf->address + rela->r_offset);
-
-	*where = elf_relocaddr(lf, value);
+	where = (Elf_Addr *)(relocbase + rela->r_offset);
+	*where = elf_relocaddr(lf, rela->r_addend + relocbase);
 
 	return (0);
 }
@@ -342,9 +339,8 @@ elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
 	if (RELOC_PC_RELATIVE(rtype))
 		value -= (Elf_Addr)where;
 
-	if (RELOC_BASE_RELATIVE(rtype)) {
+	if (RELOC_BASE_RELATIVE(rtype))
 		value = elf_relocaddr(lf, value + relocbase);
-	}
 
 	mask = RELOC_VALUE_BITMASK(rtype);
 	value >>= RELOC_VALUE_RIGHTSHIFT(rtype);
