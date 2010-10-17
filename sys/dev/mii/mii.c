@@ -128,7 +128,7 @@ miibus_probe(device_t dev)
 	 	 */
 		bmsr = MIIBUS_READREG(parent, ma.mii_phyno, MII_BMSR);
 		if (bmsr == 0 || bmsr == 0xffff ||
-		    (bmsr & (BMSR_EXTSTAT|BMSR_MEDIAMASK)) == 0) {
+		    (bmsr & (BMSR_EXTSTAT | BMSR_MEDIAMASK)) == 0) {
 			/* Assume no PHY at this address. */
 			continue;
 		}
@@ -154,11 +154,11 @@ miibus_probe(device_t dev)
 	}
 
 	if (child == NULL)
-		return(ENXIO);
+		return (ENXIO);
 
 	device_set_desc(dev, "MII bus");
 
-	return(0);
+	return (0);
 }
 
 int
@@ -178,7 +178,7 @@ miibus_attach(device_t dev)
 	    ivars->ifmedia_sts);
 	bus_generic_attach(dev);
 
-	return(0);
+	return (0);
 }
 
 int
@@ -191,7 +191,7 @@ miibus_detach(device_t dev)
 	ifmedia_removeall(&mii->mii_media);
 	mii->mii_ifp = NULL;
 
-	return(0);
+	return (0);
 }
 
 static int
@@ -212,10 +212,12 @@ static int
 miibus_child_pnpinfo_str(device_t bus, device_t child, char *buf,
     size_t buflen)
 {
-	struct mii_attach_args *maa = device_get_ivars(child);
+	struct mii_attach_args *ma;
+
+	ma = device_get_ivars(child);
 	snprintf(buf, buflen, "oui=0x%x model=0x%x rev=0x%x",
-	    MII_OUI(maa->mii_id1, maa->mii_id2),
-	    MII_MODEL(maa->mii_id2), MII_REV(maa->mii_id2));
+	    MII_OUI(ma->mii_id1, ma->mii_id2),
+	    MII_MODEL(ma->mii_id2), MII_REV(ma->mii_id2));
 	return (0);
 }
 
@@ -223,8 +225,10 @@ static int
 miibus_child_location_str(device_t bus, device_t child, char *buf,
     size_t buflen)
 {
-	struct mii_attach_args *maa = device_get_ivars(child);
-	snprintf(buf, buflen, "phyno=%d", maa->mii_phyno);
+	struct mii_attach_args *ma;
+
+	ma = device_get_ivars(child);
+	snprintf(buf, buflen, "phyno=%d", ma->mii_phyno);
 	return (0);
 }
 
@@ -234,7 +238,7 @@ miibus_readreg(device_t dev, int phy, int reg)
 	device_t		parent;
 
 	parent = device_get_parent(dev);
-	return(MIIBUS_READREG(parent, phy, reg));
+	return (MIIBUS_READREG(parent, phy, reg));
 }
 
 static int
@@ -243,7 +247,7 @@ miibus_writereg(device_t dev, int phy, int reg, int data)
 	device_t		parent;
 
 	parent = device_get_parent(dev);
-	return(MIIBUS_WRITEREG(parent, phy, reg, data));
+	return (MIIBUS_WRITEREG(parent, phy, reg, data));
 }
 
 static void
@@ -264,7 +268,6 @@ miibus_statchg(device_t dev)
 	 */
 	ifp = *(struct ifnet **)device_get_softc(parent);
 	ifp->if_baudrate = ifmedia_baudrate(mii->mii_media_active);
-	return;
 }
 
 static void
@@ -306,13 +309,11 @@ miibus_mediainit(device_t dev)
 	mii = device_get_softc(dev);
 	LIST_FOREACH(m, &mii->mii_media.ifm_list, ifm_list) {
 		media = m->ifm_media;
-		if (media == (IFM_ETHER|IFM_AUTO))
+		if (media == (IFM_ETHER | IFM_AUTO))
 			break;
 	}
 
 	ifmedia_set(&mii->mii_media, media);
-
-	return;
 }
 
 int
@@ -333,7 +334,7 @@ mii_phy_probe(device_t dev, device_t *child, ifm_change_cb_t ifmedia_upd,
 	for (i = 0; i < MII_NPHY; i++) {
 		bmsr = MIIBUS_READREG(dev, i, MII_BMSR);
                 if (bmsr == 0 || bmsr == 0xffff ||
-                    (bmsr & (BMSR_EXTSTAT|BMSR_MEDIAMASK)) == 0) {
+                    (bmsr & (BMSR_EXTSTAT | BMSR_MEDIAMASK)) == 0) {
                         /* Assume no PHY at this address. */
                         continue;
                 } else
@@ -343,12 +344,12 @@ mii_phy_probe(device_t dev, device_t *child, ifm_change_cb_t ifmedia_upd,
 	if (i == MII_NPHY) {
 		device_delete_child(dev, *child);
 		*child = NULL;
-		return(ENXIO);
+		return (ENXIO);
 	}
 
 	bus_generic_attach(dev);
 
-	return(0);
+	return (0);
 }
 
 /*
@@ -380,7 +381,7 @@ mii_tick(struct mii_data *mii)
 	struct mii_softc *child;
 
 	LIST_FOREACH(child, &mii->mii_phys, mii_list)
-		(void) (*child->mii_service)(child, mii, MII_TICK);
+		(void)(*child->mii_service)(child, mii, MII_TICK);
 }
 
 /*
@@ -395,7 +396,7 @@ mii_pollstat(struct mii_data *mii)
 	mii->mii_media_active = IFM_NONE;
 
 	LIST_FOREACH(child, &mii->mii_phys, mii_list)
-		(void) (*child->mii_service)(child, mii, MII_POLLSTAT);
+		(void)(*child->mii_service)(child, mii, MII_POLLSTAT);
 }
 
 /*
