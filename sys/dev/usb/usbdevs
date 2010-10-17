@@ -3127,6 +3127,7 @@ product TAUGA CAMERAMATE	0x0005	CameraMate (DPCM_USB)
 
 /* TCTMobile products */
 product TCTMOBILE X060S		0x0000	X060S 3G modem
+product TCTMOBILE X080S		0xf000	X080S 3G modem
 
 /* TDK products */
 product TDK UPA9664		0x0115	USB-PDC Adapter UPA9664
