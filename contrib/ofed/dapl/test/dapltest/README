@@ -1,0 +1,293 @@
+
+NAME
+
+    dapltest    - test for the Direct Access Programming Library (DAPL)
+
+DESCRIPTION
+
+    Dapltest is a set of tests developed to exercise, characterize,
+    and verify the DAPL interfaces during development and porting.
+    At least two instantiations of the test must be run.  One acts
+    as the server, fielding requests and spawning server-side test
+    threads as needed.  Other client invocations connect to the
+    server and issue test requests.
+
+    The server side of the test, once invoked, listens continuously
+    for client connection requests, until quit or killed.  Upon
+    receipt of a connection request, the connection is established,
+    the server and client sides swap version numbers to verify that
+    they are able to communicate, and the client sends the test
+    request to the server.  If the version numbers match, and the
+    test request is well-formed, the server spawns the threads
+    needed to run the test before awaiting further connections.
+
+USAGE
+
+    dapltest [ -f script_file_name ]
+             [ -T S|Q|T|P|L ] [ -D device_name ] [ -d ] [ -R HT|LL|EC|PM|BE ]
+
+    With no arguments, dapltest runs as a server using default values,
+    and loops accepting requests from clients.  The -f option allows
+    all arguments to be placed in a file, to ease test automation.
+    The following arguments are common to all tests:
+
+    [ -T S|Q|T|P|L ]    Test function to be performed:
+                            S   - server loop
+                            Q   - quit, client requests that server
+                                  wait for any outstanding tests to
+                                  complete, then clean up and exit
+                            T   - transaction test, transfers data between 
+                                  client and server
+                            P   - performance test, times DTO operations
+                            L   - limit test, exhausts various resources,
+                                  runs in client w/o server interaction
+                        Default: S
+
+    [ -D device_name ]  Specifies the name of the device (interface adapter).
+                        Default: host-specific, look for DT_MdepDeviceName
+                                 in dapl_mdep.h
+
+    [ -d ]              Enables extra debug verbosity, primarily tracing
+			of the various DAPL operations as they progress.
+			Repeating this parameter increases debug spew.
+			Errors encountered result in the test spewing some
+			explanatory text and stopping; this flag provides
+			more detail about what lead up to the error.
+                        Default: zero
+
+    [ -R BE ]           Indicate the quality of service (QoS) desired.
+                        Choices are:
+                            HT  - high throughput
+                            LL  - low latency
+                            EC  - economy (neither HT nor LL)
+                            PM  - premium
+                            BE  - best effort
+                        Default: BE
+
+USAGE - Quit test client
+
+    dapltest [Common_Args] [ -s server_name ]
+
+    Quit testing (-T Q) connects to the server to ask it to clean up and
+    exit (after it waits for any outstanding test runs to complete).
+    In addition to being more polite than simply killing the server,
+    this test exercises the DAPL object teardown code paths.
+    There is only one argument other than those supported by all tests:
+
+    -s server_name      Specifies the name of the server interface.
+                        No default.
+
+
+USAGE - Transaction test client
+
+    dapltest [Common_Args] [ -s server_name ]
+             [ -t threads ] [ -w endpoints ] [ -i iterations ] [ -Q ] 
+             [ -V ] [ -P ] OPclient OPserver [ op3, 
+
+    Transaction testing (-T T) transfers a variable amount of data between 
+    client and server.  The data transfer can be described as a sequence of 
+    individual operations; that entire sequence is transferred 'iterations' 
+    times by each thread over all of its endpoint(s).
+
+    The following parameters determine the behavior of the transaction test:
+
+    -s server_name      Specifies the name of the server interface.
+                        No default.
+
+    [ -t threads ]      Specify the number of threads to be used.
+                        Default: 1
+
+    [ -w endpoints ]    Specify the number of connected endpoints per thread.
+                        Default: 1
+
+    [ -i iterations ]   Specify the number of times the entire sequence
+                        of data transfers will be made over each endpoint.
+                        Default: 1000
+
+    [ -Q ]              Funnel completion events into a CNO.
+			Default: use EVDs
+
+    [ -V ]              Validate the data being transferred.
+			Default: ignore the data
+
+    [ -P ]		Turn on DTO completion polling
+			Default: off
+
+    OP1 OP2 [ OP3, ... ]
+                        A single transaction (OPx) consists of:
+
+                        server|client   Indicates who initiates the
+                                        data transfer.
+
+                        SR|RR|RW        Indicates the type of transfer:
+                                        SR  send/recv
+                                        RR  RDMA read
+                                        RW  RDMA write
+                        Defaults: none
+
+                        [ seg_size [ num_segs ] ]
+                                        Indicates the amount and format
+                                        of the data to be transferred.
+                                        Default:  4096  1
+                                                  (i.e., 1 4KB buffer)
+
+                        [ -f ]          For SR transfers only, indicates
+                                        that a client's send transfer
+                                        completion should be reaped when
+                                        the next recv completion is reaped.
+					Sends and receives must be paired
+					(one client, one server, and in that
+					order) for this option to be used.
+
+    Restrictions:  
+    
+    Due to the flow control algorithm used by the transaction test, there 
+    must be at least one SR OP for both the client and the server.  
+
+    Requesting data validation (-V) causes the test to automatically append 
+    three OPs to those specified. These additional operations provide 
+    synchronization points during each iteration, at which all user-specified 
+    transaction buffers are checked. These three appended operations satisfy 
+    the "one SR in each direction" requirement.
+
+    The transaction OP list is printed out if -d is supplied.
+
+USAGE - Performance test client
+
+    dapltest [Common_Args] -s server_name [ -m p|b ]
+             [ -i iterations ] [ -p pipeline ] OP
+
+    Performance testing (-T P) times the transfer of an operation.
+    The operation is posted 'iterations' times.
+
+    The following parameters determine the behavior of the transaction test:
+
+    -s server_name      Specifies the name of the server interface.
+                        No default.
+
+    -m b|p		Used to choose either blocking (b) or polling (p)
+                        Default: blocking (b)
+
+    [ -i iterations ]   Specify the number of times the entire sequence
+                        of data transfers will be made over each endpoint.
+                        Default: 1000
+
+    [ -p pipeline ]     Specify the pipline length, valid arguments are in 
+                        the range [0,MAX_SEND_DTOS]. If a value greater than 
+                        MAX_SEND_DTOS is requested the value will be
+                        adjusted down to MAX_SEND_DTOS.
+                        Default: MAX_SEND_DTOS
+
+    OP
+                        An operation consists of:
+
+                        RR|RW           Indicates the type of transfer:
+                                        RR  RDMA read
+                                        RW  RDMA write
+                        Default: none
+
+                        [ seg_size [ num_segs ] ]
+                                        Indicates the amount and format
+                                        of the data to be transferred.
+                                        Default:  4096  1
+                                                  (i.e., 1 4KB buffer)
+
+USAGE - Limit test client
+
+    Limit testing (-T L) neither requires nor connects to any server
+    instance.  The client runs one or more tests which attempt to
+    exhaust various resources to determine DAPL limits and exercise
+    DAPL error paths.  If no arguments are given, all tests are run.
+
+    Limit testing creates the sequence of DAT objects needed to
+    move data back and forth, attempting to find the limits supported
+    for the DAPL object requested.  For example, if the LMR creation
+    limit is being examined, the test will create a set of
+    {IA, PZ, CNO, EVD, EP} before trying to run dat_lmr_create() to
+    failure using that set of DAPL objects.  The 'width' parameter
+    can be used to control how many of these parallel DAPL object
+    sets are created before beating upon the requested constructor.
+    Use of -m limits the number of dat_*_create() calls that will
+    be attempted, which can be helpful if the DAPL in use supports
+    essentailly unlimited numbers of some objects.
+
+    The limit test arguments are:
+
+    [ -m maximum ]      Specify the maximum number of dapl_*_create()
+                        attempts.
+                        Default: run to object creation failure
+
+    [ -w width ]        Specify the number of DAPL object sets to
+                        create while initializing.
+                        Default: 1
+
+    [ limit_ia ]        Attempt to exhaust dat_ia_open()
+
+    [ limit_pz ]        Attempt to exhaust dat_pz_create()
+
+    [ limit_cno ]       Attempt to exhaust dat_cno_create()
+
+    [ limit_evd ]       Attempt to exhaust dat_evd_create()
+
+    [ limit_ep ]        Attempt to exhaust dat_ep_create()
+
+    [ limit_rsp ]       Attempt to exhaust dat_rsp_create()
+
+    [ limit_psp ]       Attempt to exhaust dat_psp_create()
+
+    [ limit_lmr ]       Attempt to exhaust dat_lmr_create(4KB)
+
+    [ limit_rpost ]     Attempt to exhaust dat_ep_post_recv(4KB)
+
+    [ limit_size_lmr ]  Probe maximum size dat_lmr_create()
+
+                        Default: run all tests
+
+
+EXAMPLES
+
+    dapltest -T S -d -D jni0a
+
+                        Starts a server process with debug verbosity.
+    
+    dapltest -T T -d -s linux3 -D jni0a -i 100 \
+    client SR 4096 2 server SR 4096 2
+
+                        Runs a transaction test, with both sides
+                        sending one buffer with two 4KB segments,
+                        one hundred times.
+
+    dapltest -T P -d -s linux3 -D JniIbdd0 -i 100 SR 4096 2
+
+                        Runs a performance test, with the client 
+                        sending one buffer with two 4KB segments,
+                        one hundred times.
+
+    dapltest -T Q -s linux3 -D jni0a
+
+                        Asks the server to clean up and exit.
+
+    dapltest -T L -D jni0a -d -w 16 -m 1000
+
+                        Runs all of the limit tests, setting up
+                        16 complete sets of DAPL objects, and
+                        creating at most a thousand instances
+                        when trying to exhaust resources.
+
+    dapltest -T T -V -d -t 2 -w 4 -i 55555 -s linux3 -D jni0a \
+    client RW  4096 1    server RW  2048 4    \
+    client SR  1024 4    server SR  4096 2    \
+    client SR  1024 3 -f server SR  2048 1 -f
+
+                        Runs a more complicated transaction test,
+                        with two thread using four EPs each,
+                        sending a more complicated buffer pattern
+                        for a larger number of iterations,
+                        validating the data received.
+
+
+BUGS  (and  To Do List)
+
+    Use of CNOs (-Q) is not yet supported.
+
+    Further limit tests could be added.

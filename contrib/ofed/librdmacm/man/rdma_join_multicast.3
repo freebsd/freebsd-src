@@ -1,0 +1,32 @@
+.TH "RDMA_JOIN_MULTICAST" 3 "2008-01-02" "librdmacm" "Librdmacm Programmer's Manual" librdmacm
+.SH NAME
+rdma_join_multicast \- Joins a multicast group.
+.SH SYNOPSIS
+.B "#include <rdma/rdma_cma.h>"
+.P
+.B "int" rdma_join_multicast
+.BI "(struct rdma_cm_id *" id ","
+.BI "struct sockaddr *" addr ","
+.BI "void *" context ");"
+.SH ARGUMENTS
+.IP "id" 12
+Communication identifier associated with the request.
+.IP "addr" 12
+Multicast address identifying the group to join.
+.IP "context" 12
+User-defined context associated with the join request.
+.SH "DESCRIPTION"
+Joins a multicast group and attaches an associated QP to the group.
+.SH "NOTES"
+Before joining a multicast group, the rdma_cm_id must be bound to
+an RDMA device by calling rdma_bind_addr or rdma_resolve_addr.  Use of
+rdma_resolve_addr requires the local routing tables to resolve the
+multicast address to an RDMA device, unless a specific source address
+is provided.  The user must call rdma_leave_multicast to leave the
+multicast group and release any multicast resources.  After the join
+operation completes, any associated QP is automatically attached to the
+multicast group, and the join context is returned to the user through
+the private_data field in the rdma_cm_event.
+.SH "SEE ALSO"
+rdma_leave_multicast(3), rdma_bind_addr(3), rdma_resolve_addr(3), rdma_create_qp(3),
+rdma_get_cm_event(3)
