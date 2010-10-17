@@ -181,7 +181,8 @@ static int ipoib_ib_post_receives(struct ifnet *dev)
 	return 0;
 }
 
-static void ipoib_ib_handle_rx_wc(struct ifnet *dev, struct ib_wc *wc)
+static void
+ipoib_ib_handle_rx_wc(struct ifnet *dev, struct ib_wc *wc)
 {
 	struct ipoib_dev_priv *priv = dev->if_softc;
 	unsigned int wr_id = wc->wr_id & ~IPOIB_OP_RECV;
@@ -242,10 +243,10 @@ static void ipoib_ib_handle_rx_wc(struct ifnet *dev, struct ib_wc *wc)
 	m_adj(mb, sizeof(struct ib_grh) - INFINIBAND_ALEN);
 	eh = mtod(mb, struct ipoib_header *);
 	bzero(eh->hwaddr, 4);	/* Zero the queue pair, only dgid is in grh */
-/* XXX
+
 	if (test_bit(IPOIB_FLAG_CSUM, &priv->flags) && likely(wc->csum_ok))
-		mb->ip_summed = CHECKSUM_UNNECESSARY;
-*/
+		mb->m_pkthdr.csum_flags = CSUM_IP_CHECKED | CSUM_IP_VALID;
+
 	dev->if_input(dev, mb);
 
 repost:
@@ -498,12 +499,10 @@ ipoib_send(struct ifnet *dev, struct mbuf *mb,
 		return;
 	}
 
-/* XXX NO checksum offload yet.
-	if (mb->ip_summed == CHECKSUM_PARTIAL)
+	if (mb->m_pkthdr.csum_flags & (CSUM_IP|CSUM_TCP|CSUM_UDP))
 		priv->tx_wr.send_flags |= IB_SEND_IP_CSUM;
 	else
 		priv->tx_wr.send_flags &= ~IB_SEND_IP_CSUM;
-*/
 
 	if (++priv->tx_outstanding == ipoib_sendq_size) {
 		ipoib_dbg(priv, "TX ring full, stopping kernel net queue\n");

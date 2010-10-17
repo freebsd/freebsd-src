@@ -904,14 +904,18 @@ ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca)
 
 	kfree(device_attr);
 
-#if 0 /* XXX */
+	priv->dev->if_hwassist = 0;
+	priv->dev->if_capabilities = 0;
+
 	if (priv->hca_caps & IB_DEVICE_UD_IP_CSUM) {
 		set_bit(IPOIB_FLAG_CSUM, &priv->flags);
-		priv->dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
+		priv->dev->if_hwassist = CSUM_IP | CSUM_TCP | CSUM_UDP;
+		priv->dev->if_capabilities = IFCAP_HWCSUM;
 	}
 
+#if 0
 	if (priv->dev->features & NETIF_F_SG && priv->hca_caps & IB_DEVICE_UD_TSO)
-		priv->dev->features |= NETIF_F_TSO;
+		priv->dev->if_capabilities |= IFCAP_TSO4 | CSUM_TSO;
 #endif
 
 	return 0;
@@ -1160,6 +1164,8 @@ ipoib_output(struct ifnet *ifp, struct mbuf *m,
 	case AF_INET:
 		if (lle != NULL && (lle->la_flags & LLE_VALID))
 			memcpy(edst, &lle->ll_addr.mac8, sizeof(edst));
+		else if (m->m_flags & M_MCAST)
+			ip_ib_mc_map(((struct sockaddr_in *)dst)->sin_addr.s_addr, ifp->if_broadcastaddr, edst);
 		else
 			error = arpresolve(ifp, rt0, m, dst, edst, &lle);
 		if (error)
@@ -1196,6 +1202,8 @@ ipoib_output(struct ifnet *ifp, struct mbuf *m,
 	case AF_INET6:
 		if (lle != NULL && (lle->la_flags & LLE_VALID))
 			memcpy(edst, &lle->ll_addr.mac8, sizeof(edst));
+		else if (m->m_flags & M_MCAST)
+			ipv6_ib_mc_map(&((struct sockaddr_in6 *)dst)->sin6_addr, ifp->if_broadcastaddr, edst);
 		else
 			error = nd6_storelladdr(ifp, m, dst, (u_char *)edst, &lle);
 		if (error)
