@@ -470,12 +470,7 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t **vdevp, int is_newer)
 			vdev->v_nparity = 0;
 		if (nvlist_find(nvlist, ZPOOL_CONFIG_PATH,
 				DATA_TYPE_STRING, 0, &path) == 0) {
-			if (strlen(path) > 5
-			    && path[0] == '/'
-			    && path[1] == 'd'
-			    && path[2] == 'e'
-			    && path[3] == 'v'
-			    && path[4] == '/')
+			if (strncmp(path, "/dev/", 5) == 0)
 				path += 5;
 			vdev->v_name = strdup(path);
 		} else {
@@ -665,7 +660,7 @@ pager_printf(const char *fmt, ...)
 
 #endif
 
-#define STATUS_FORMAT	"        %-16s %-10s\n"
+#define STATUS_FORMAT	"        %s %s\n"
 
 static void
 print_state(int indent, const char *name, vdev_state_t state)
@@ -1369,7 +1364,7 @@ fzap_list(spa_t *spa, const dnode_phys_t *dnode)
 			 */
 			value = fzap_leaf_value(&zl, zc);
 
-			printf("%-32s 0x%llx\n", name, value);
+			printf("%s 0x%llx\n", name, value);
 		}
 	}
 
