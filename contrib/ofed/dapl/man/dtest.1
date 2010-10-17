@@ -1,0 +1,78 @@
+.TH dtest 1 "February 23, 2007" "uDAPL 1.2" "USER COMMANDS"
+
+.SH NAME
+dtest \- simple uDAPL send/receive and RDMA test
+
+.SH SYNOPSIS
+.B dtest
+[\-P provider] [\-b buf size] [\-B burst count][\-v] [\-c] [\-p] [\-d]\fB [-s]\fR
+
+.B dtest
+[\-P provider] [\-b buf size] [\-B burst count][\-v] [\-c] [\-p] [\-d]\fB [-h HOSTNAME]\fR
+
+.SH DESCRIPTION
+.PP
+dtest is a simple test used to exercise and verify the uDAPL interfaces. 
+At least two instantiations of the test must be run. One acts as the server 
+and the other the client. The server side of the test, once invoked listens 
+for connection requests, until timing out or killed. Upon receipt of a cd 
+connection request, the connection is established, the server and client 
+sides exchange information necessary to perform RDMA writes and reads.
+
+.SH OPTIONS
+
+.PP
+.TP
+\fB\-P\fR=\fIPROVIDER\fR
+use \fIPROVIDER\fR to specify uDAPL interface using /etc/dat.conf (default OpenIB-cma)
+.TP
+\fB\-b\fR=\fIBUFFER_SIZE\fR
+use buffer size \fIBUFFER_SIZE\fR for RDMA(default 64)
+.TP
+\fB\-B\fR=\fIBURST_COUNT\fR
+use busrt count \fIBURST_COUNT\fR for interations (default 10)
+.TP
+\fB\-v\fR, verbose output(default off)
+.TP
+\fB\-c\fR, use consumer notification events (default off)
+.TP
+\fB\-p\fR, use polling (default wait for event)
+.TP
+\fB\-d\fR, delay in seconds before close (default off)
+.TP
+\fB\-s\fR, run as server (default - run as server)
+.TP
+\fB\-h\fR=\fIHOSTNAME\fR
+use \fIHOSTNAME\fR to specify server hostname or IP address (default - none)
+
+.SH EXAMPLES
+
+dtest -P OpenIB-cma -v -s
+.PP
+.nf
+.fam C
+     Starts a server process with debug verbosity using provider OpenIB-cma.
+
+.fam T
+.fi
+dtest -P OpenIB-cma -h server1-ib0 
+.PP
+.nf
+.fam C
+     Starts a client process, using OpenIB-cma provider to connect to hostname server1-ib0.
+
+.fam T
+
+.SH SEE ALSO
+.BR dapltest(1)
+
+.SH AUTHORS
+.TP
+Arlin Davis
+.RI < ardavis@ichips.intel.com >
+
+.SH BUGS 
+
+
+
+

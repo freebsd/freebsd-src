@@ -1,0 +1,62 @@
+.TH "DAT.CONF" "5" "25 March 2008" "" ""
+.SH NAME
+dat.conf \- configuration file for static registration of user-level DAT rdma providers
+.SH "DESCRIPTION"
+.PP
+The DAT (direct access transport) architecture supports the use of 
+multiple DAT providers within a single consumer application. 
+Consumers implicitly select a provider using the Interface Adapter 
+name parameter passed to dat_ia_open().
+.PP
+The subsystem that maps Interface Adapter names to provider
+implementations is known as the DAT registry. When a consumer calls
+dat_ia_open(), the appropriate provider is found and notified of the
+consumer's request to access the IA. After this point, all DAT API
+calls acting on DAT objects are automatically directed to the
+appropriate provider entry points.
+.PP
+A persistent, administratively configurable database is used to store
+mappings from IA names to provider information. This provider
+information includes: the file system path to the provider library
+object, version information, and thread safety information. The
+location and format of the registry is platform dependent. This
+database is known as the Static Registry (SR) and is provided via
+entries in the \fIdat.conf\fR file. The process of adding a provider 
+entry is termed Static Registration.
+.PP
+.SH "Registry File Format"
+\br 
+    * All characters after # on a line are ignored (comments).
+    * Lines on which there are no characters other than whitespace
+      and comments are considered blank lines and are ignored.
+    * Non-blank lines must have seven whitespace separated fields.
+      These fields may contain whitespace if the field is quoted
+      with double quotes. Within fields quoated with double quotes,
+      the backslash or qoute are valid escape sequences:
+    * Each non-blank line will contain the following fields:
+        - The IA Name.
+        - The API version of the library:
+          [k|u]major.minor where "major" and "minor" are both integers
+          in decimal format. User-level examples: "u1.2", and "u2.0".
+        - Whether the library is thread-safe: [threadsafe|nonthreadsafe]
+        - Whether this is the default section: [default|nondefault]
+        - The library image, version included, to be loaded.
+        - The vendor id and version of DAPL provider: id.major.minor  
+        - ia params, IA specific parameters - device name and port
+        - platform params, (not used) 
+.PP
+.SH Example netdev entries for OpenFabrics rdma_cm providers, both v1.2 and v2.0 
+\br 
+        OpenIB-cma u1.2 nonthreadsafe default libdaplcma.so.1 dapl.1.2 "ib0 0" ""
+        ofa-v2-ib0 u2.0 nonthreadsafe default libdaplofa.so.2 dapl.2.0 "ib0 0" ""
+
+        NOTE: The OpenFabrics providers use <ia_params> to specify the device with one of the following:
+              network address, network hostname, or netdev name; along with port number.
+
+              The OpenIB- and ofa-v2- IA names are unique mappings. Reserved for OpenFabrics providers. 
+.PP
+The default location for this configuration file is /etc/dat.conf. 
+The file location may be overridden with the environment variable DAT_OVERRIDE=/your_own_directory/your_dat.conf. 
+.PP
+.SH "SEE ALSO"
+.PP

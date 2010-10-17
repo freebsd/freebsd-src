@@ -1,0 +1,4397 @@
+commit 73dfb32ace6aff2fdb21e54689342fd551822286
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Dec 22 14:00:33 2009 -0800
+
+    openib_common: add check for both gid and global routing in RTR
+    
+    check for valid gid pointer along with global route setting
+    during transition to RTR. Add more GID information to
+    debug print statement in qp modify call.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 7aab18fd8ff3f201b0a4b6c76896667b29f103c4
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Dec 4 12:31:22 2009 -0800
+
+    openib_common: remote memory read privilege set multi times
+    
+    duplicate setting of read privilege in dapls_convert_privileges
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 016e2c40b8ac2fe18993e9fb7122ecb9b439e5eb
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Dec 4 12:25:30 2009 -0800
+
+    ucm, scm: DAPL_GLOBAL_ROUTING enabled causes segv
+    
+    socket cm and ud cm providers support QP modify with is_global
+    set and GRH. New v2 providers didn't pass GID information
+    in modify_qp RTR call and incorrectly byte swapped the already
+    network order GID. Add debug print of GID during global modify.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 7b0c596c7b4ad619f65da9f79dcbc4376e651dde
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Nov 24 22:16:58 2009 -0800
+
+    Release 2.0.25-1
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 3197bffff478ad7ff5eff9220fa0528e42e6b56e
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Nov 24 22:15:46 2009 -0800
+
+    winof scm: initialize opt for NODELAY setsockopt
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 8559ec069329249592f367b5b8f61427cbad0a46
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Nov 24 11:29:46 2009 -0800
+
+    Release 2.0.25
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 0983c66cbd9511128c1fa221470c4c983903e420
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Nov 24 08:58:44 2009 -0800
+
+    winof cma: windows definition for EADDRNOTAVAIL missing
+    
+    Signed-off-by: stan smith <stan.smith@intel.com>
+
+commit 4fbbcfa1d7bf7a843b27e351d35f3ffbc2ac4db8
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Nov 24 08:54:26 2009 -0800
+
+    scm: client side setsockopt NODELAY fails if data arrives before setting
+    
+    Move setsockopt before connect to avoid race with data.
+    Seems to fail on windows. Not seen on linux.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 9dfa9a06d55101fed0773028ce7ab85330514c67
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Nov 18 09:52:40 2009 -0800
+
+    cma: setup_listener Cannot assign requested address
+    
+    Colliding with RDS port of 18634. rdma_cm can return
+    either EADDRINUSE or EADDRNOTAVAIL if the bind fails.
+    Add check for either and return proper DAT_CONN_QUAL_IN_USE.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 0698fb56d533a5225cbc3a5a4b8ab2e2d56b7502
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Nov 18 09:43:38 2009 -0800
+
+    common: seg fault in dapl_evd_wait with multi-thread application using CNO's.
+    
+    If we are dealing with event streams besides a CQ event stream,
+    be conservative and set producer side locking.  Otherwise, no.
+    Check for CNO is missing, CNO is not considered CQ event stream.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 4d26a280572a58248b0796e4d5ed01ea5d67be46
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Nov 18 09:37:48 2009 -0800
+
+    ucm: inbound DREQ/DREP handshake should transition QP.
+    
+    During release, when receiving a disconnect request from remote peer
+    instead of a disconnect call from the client, the QP didn't get properly
+    set in ERR state and didn't flush the queue during disconnect processing.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 87965cd15bbfa38b00ed2d77a4ea5a76f76cf4a3
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Nov 2 08:24:53 2009 -0800
+
+    winof: Remove duplicate include of comp_channel.cpp from cm.c as it is included in opensm_ucb/device.c.
+    
+    Signed-off-by: stan smith <stan.smith@intel.com>
+
+commit 737fa288b72fad19a1fc3e762eb9f2c471ce6ddd
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Oct 30 13:19:21 2009 -0800
+
+    Release 2.0.24
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 9fe7506ff9ddf1ae6297cfc6a9dd4d6a57e1939e
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Oct 30 12:57:22 2009 -0800
+
+    winof: Utilize WinOF version of inet_ntop() for Windows OSes which do not support inet_ntop().
+    
+    Signed-off-by: stan smith <stan.smith@intel.com>
+
+commit d56c645a2bf234e9e0cf215b112c2aa9d5e01945
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Oct 30 07:17:26 2009 -0800
+
+    ucm: windows build issue with new CQ completion channel
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 2d2e7e1e185c08542ee31b0e77561a1eeb4bde6c
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Oct 30 06:35:33 2009 -0800
+
+    winof: add ucm provider to windows build
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 94b2206093607214e0a9709651460692e8196e1c
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Oct 30 06:32:56 2009 -0800
+
+    winof: add missing build files for ibal, scm
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 66b76d7a8035b9164b69781d7630a0c77ce1bb5a
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Oct 28 09:52:50 2009 -0800
+
+    scm: connection peer resets under heavy load, incorrect event on error
+    
+    Under heavy load, we get a peer reset from the remote stack. In this
+    case retry the socket connection for this QP setup.
+    
+    Add debugging with PID's and socket ports to help isolate
+    these types of socket scaling issues.
+    
+    Report correct UD event during error, check remote_ah creation.
+    
+    Fix dapl_poll return codes for single event type only.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit f8108a9bda0200355107fdd6c43cb5885f47d648
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Oct 28 09:47:37 2009 -0800
+
+    ucm: increase default reply and rtu timeout values.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 9c13d0d01c78eeb5071e802fbb53811cdb377059
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Oct 28 07:48:20 2009 -0800
+
+    ucm: change some debug message levels and add check for valid UD REPLY during retries.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 1c404bb3dcc0a45e21ef3aa973d59714413beae0
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Oct 27 10:37:45 2009 -0800
+
+    ucm: increase timers during subsequent retries
+    
+    check/process create_ah errors during connect phase
+    cleanup some debug messaging.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit cd8c48586f53e846de4fbe10994b73ba457f6406
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Oct 19 10:38:36 2009 -0700
+
+    ucm, scm: address handles need destroyed when freeing Endpoints with UD QP's.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit ce19f5744c0dd9461c09d999b309e8f0e2242767
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Oct 16 14:42:00 2009 -0700
+
+    openib_common: ignore pd free errors, clear pd_handle and return.
+    
+    some older adapters have some issues
+    with pd free so just clear handle and return
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 81f5ac17d9039e2edcd8324f7d5ed5f66fcff9f2
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Oct 16 08:52:21 2009 -0700
+
+    ucm: using UD type QP's, ucm reports wrong reject event when user rejects AH resolution request.
+    
+    During rejects, both usr and ucm internal, the qp_type does not get initialized
+    so the check for UD type QP messages fail on active side and the wrong
+    event gets generated. Initialize saddr.ib information before sending reject
+    back to active side.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit f0214e5a7a81a68819d308cb921eb75f5246207d
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Oct 16 07:57:25 2009 -0700
+
+    ucm, scm, cma: Fix CNO support on DTO type EVD's
+    
+    EVD wait_object should be used for CNO processing
+    and not the direct CQ event channels. Add proper
+    checking for DTO type EVD's with CNO at wait
+    and wakeup.
+    
+    UCM missing support for collective EVD's under a
+    CNO. Add support to create common channel for
+    collective EVD's during device open. Add support
+    in cm_thread to check this channel. Also,
+    during disconnect, move QP to error to properly
+    flush queue instead of moving to reset and init.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 960950a7d9f5437dd831bd56ca2ad0c06cb4e324
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Oct 15 09:19:45 2009 -0700
+
+    ucm: fix lock init bug in ucm_cm_find
+    
+    the lock should be setup as pointer to lock
+    not lock structure. Cleanup lock and list
+    in cm_find function and cm_print function.
+    
+    Add debug aid by passing process id in
+    msg resv area. cleanup cr references
+    and change to cm for consistency.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit f86fec772f2d82eaf60228d288b295e0b7b86c59
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Oct 14 10:03:47 2009 -0700
+
+    ucm: fix build problem with latest windows ucm changes
+    
+    define dapls_thread_signal as inline
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 87b6c8ba92f3063a35d49bdb49d6cd0a5100a36c
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Wed Oct 14 09:34:22 2009 -0700
+
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 9fdd8d74f2cba83e9cf513256933f5241495c1da
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Wed Oct 14 09:34:18 2009 -0700
+
+    The HCA should not be closed until all resources have been released.
+    This results in a hang on windows, since closing the device frees
+    the event processing thread.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit f9833db469f2d686842bb1d52d1ea53b74fa72a8
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Wed Oct 14 09:34:13 2009 -0700
+
+    Fix build warning when compiling on 32-bit systems.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit c80515bd4b1bd11a125dc17e3f7db44240ee1fff
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Wed Oct 14 09:34:07 2009 -0700
+
+    Trying to deregister the same memory region twice leads to an
+    application crash on windows.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 6aa2c0d901daa9cfca7e771c1df2ead074d230bd
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Oct 14 07:59:23 2009 -0700
+
+    dat: reduce debug message level when parsing for location of dat.conf
+    
+    Don't output failover to default /etc/dat.conf from
+    sysconfdir at ERROR level. Reduce to DAT_OS_DBG_TYPE_SR.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit e4038e078747201b57203f16ba793b7fc22c12f2
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Oct 8 16:23:22 2009 -0700
+
+    ucm: update ucm provider for windows environment
+    
+    add dapls_thread_signal abstraction and a new
+    cm_thread function specific for windows.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit d80ce42390eb57b9c4f816b4df063f90bd5699bc
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Oct 8 16:02:52 2009 -0700
+
+    ucm: add timer/retry CM logic to the ucm provider
+    
+    add reply, rtu and retry count options via
+    environment variables. Times in msecs.
+    DAPL_UCM_RETRY 10
+    DAPL_UCM_REP_TIME 400
+    DAPL_UCM_RTU_TIME 200
+    
+    Add RTU_PENDING and DISC_RECV states
+    
+    Add check timer code to the cm_thread
+    and the option to the select abstaction
+    to take timeout values in msecs.
+    DREQ, REQ, and REPLY will all be timed
+    and retried.
+    
+    Split out reply code and disconnect_final
+    code to better facilitate retry timers.
+    Add checking for duplicate messages.
+    
+    Added new UD extension events for errors.
+    DAT_IB_UD_CONNECTION_REJECT_EVENT
+    DAT_IB_UD_CONNECTION_ERROR_EVENT
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 1186bfc949f4bb7278c30c2c59b7fcb6d5142638
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Oct 2 14:49:52 2009 -0700
+
+    Release 2.0.23
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit a5f1220cfd96983c9c89a595d80fab7ddcb1a954
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Oct 2 14:48:15 2009 -0700
+
+    cma: cannot reuse the cm_id and qp for new connection, must reallocate a new one.
+    
+    When merging common code base the dapls_ib_reinit_ep mistakely
+    modified QP to reset then init for all providers. Will
+    not work for rdma_cm (cma provider) since the cm_id cannot
+    be reused.  Add build check for _OPENIB_CMA_ to pull in correct
+    free and reallocate method for reinit_ep.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 7b07435495de0938e59be064fe8642cfd739f1ac
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Oct 2 13:50:12 2009 -0700
+
+    scm, cma: update DAPL cm protocol revision with latest address/port changes
+    
+    CM protocol changed, roll revision to 6.
+    The socket cm could be competing with address space if
+    application is using sockets above to exchange information
+    like dapltest, and MPI consumers. Adjust port on listen
+    and connect to reduce the chance of port collision with
+    application above.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 9cc1e76b672f7ff1231b4d113bd4dd1a016d1410
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Oct 2 12:47:37 2009 -0700
+
+    ucm: modify IB address format to align better with sockaddr_in6
+    
+    Restructure the dcm_addr union to map the IB side
+    closer to sockaddr6 and initialize family to
+    AF_INET6 to insure callee allocates enough memory
+    for ucm dat_ia_address type. Put qpn in flowinfo
+    and gid in sin6_addr. Change the test suites
+    to print address information based on AF_INET
+    or AF_INET6 instead of using specific IB address
+    union from the provider.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit f50dbe6e82bd471845adf27829b2e07234a0a86a
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Wed Sep 30 14:29:03 2009 -0700
+
+    Add definition for getpid similar to that used by the other dtest apps.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 51147412fad72c00115b595955760e80ff0be7d5
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Wed Sep 30 14:28:57 2009 -0700
+
+    WinOF provides a common implementation of gettimeofday that should
+    be used instead.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 732fc84cee036126282715ea157bdb619fc11ec7
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Wed Sep 30 14:27:50 2009 -0700
+
+    The completion manager was updated to provide an abstraction that
+    better mimicked how fd's were used.  Update dapl to use this
+    abstraction, rather than the older completion manager api.
+    
+    This helps minimize changes between linux and windows.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit fc1855b7738838d3865389405f017b87d223f743
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Sep 30 14:26:47 2009 -0700
+
+    dtestcm: remove IB verb definitions
+    
+    Remove gid and qp_type references from test app.
+    Print address infomation in sockaddr and
+    ucm provider format with qpn and lid.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 36a885d4267be7b3c6c1086372d321121ae03dee
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Sep 30 10:44:14 2009 -0700
+
+    dtest, dtestx: remove IB verb definitions
+    
+    remove gid and qp_type checking from test suite.
+    Print address infomation in sockaddr and
+    ucm provider format with qpn and lid.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 23445bbbd3a09f7f5e666a000d5c7c3b22dd95b3
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Sep 28 10:59:36 2009 -0700
+
+    scm: tighten up socket options to insure similiar behavior on Windows and Linux.
+    
+    Add IPPROTO_TCP to create socket. Specify device IP address
+    when binding instead of INADDR_ANY and remove setsocketopt
+    REUSEADDR on the listen socket to avoid any issues with
+    portability. Don't want duplicate port bindings.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit b31b64d60abe7c6c1a83484db97176d225076b30
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Sep 28 10:46:26 2009 -0700
+
+    cma: improve serialization of destroy and event processing
+    
+    WinOF testing with slightly different scheduler and verbs
+    showed some issues with cleanup. Add better protection around
+    destroy and event processing thread.
+    
+    Remove destroy flag and add refs counting to conn objects
+    to block destroy until all references are cleared. Add
+    locking aroung ref counting and passive and active
+    event processing.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit a4adf463695ba75beaa1fe79d514346bf5fe2cb5
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Sep 28 10:42:52 2009 -0700
+
+    scm: improve serialization of destroy and state changes
+    
+    WinOF testing with slightly different scheduler and verbs
+    showed some issues with cleanup. Add better protection around
+    destroy and move state change before socket send to insure
+    correct state in multi-thread environment targeting the same
+    device on send and recv.
+    
+    Change DCM_RTU_PENDING to DCM_REP_PENDING and
+    and add static definition to local routines for better
+    readability.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 29358ccc587db55fe5f5a1b14eed9e0e31f5f02c
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Sep 17 08:56:06 2009 -0700
+
+    common: no cleanup/release code for timer thread
+    
+    dapl_set_timer() creates a thread to process timers for dat_ep_connect
+    but provides no mechanism to destroy/exit during dapl library unload.
+    Timers are initialized in library init code and should be released
+    in the fini code. Add a dapl_timer_release call to the dapl_fini
+    function to check state of timer thread and destroy before exiting.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit e287ce12f5b0108ef83186aae305f25af8cdd02c
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Sep 17 08:53:29 2009 -0700
+
+    scm, cma: dapli_thread doesn't always get teminated on library close.
+    
+    DAPL doesn't actually wait for the async processing thread to exit before
+    allowing the library to close.  It will wait up to 10 seconds, which under
+    heavy load isn't enough time.  Since the thread is created by an application
+    level thread, it will continue to run as long as the application runs.  But
+    if the application closes the library, then all library data and code is
+    invalid, which can result in the thread running something that's not
+    library code and accessing freed memory.
+    
+    With this change, I was able to run mpi ping-pong, 16 ranks on a single
+    system (scm provider) without crashes 1300 times.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 5bffe521c6ad7a5ce10457a5d7b25814522a0cde
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Sep 9 13:10:35 2009 -0700
+
+    ucm: tighten up locking with CM processing, state changes
+    
+    tighten up locking on CM processing and state changes
+    and reduce the send completion threshold to 50 from 100
+    to replenish the request message faster.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit e38daa8448bc3b73c53e54ffc9ac47b9cfc2af89
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Sep 9 09:44:03 2009 -0700
+
+    ucm: For UD type QP's, return CR p_data with CONN_EST event on passive side.
+    
+    Intel MPI uses the p_data provided with CONN_EST as a reference to the
+    UD pair and remote rank. The ucm provider was overwriting the CR p_data
+    with the ACCEPT p_data. Change to save CR p_data but also provide
+    storage for user provided ACCEPT p_data in case the REPLY is lost
+    and needs retransmitted.
+    
+    p_data size was provided to event processing in network order
+    instead of host order.
+    
+    For new QP's create new address handles and do not use
+    existing AH's created for the CM. Different PD's are
+    associated with each.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 0bc6a0954bc1a1a61e1b1cbc5c280f69ed168453
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Sep 8 09:14:46 2009 -0700
+
+    ucm: cleanup extra cr/lf
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 6e7df65a884b4e068135e64dcb3ec660f4c7ab14
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Sep 8 09:11:37 2009 -0700
+
+    ucm: fix issues with UD QP's.
+    
+    private data size not in host order when processing
+    connection events.
+    
+    ud extentions event should include original ia_addr
+    and qpn used during connection and not the IB qpn.
+    
+    ucm QP service resource cleanup in wrong order.
+    
+    cleanup extra cr/lf device.c
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit e7c3090945c13f80abb929643fc975465afeeb53
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Sep 3 10:45:56 2009 -0700
+
+    winof: Convert windows version of dapl and dat libaries to use private heaps.
+    
+    This allows for better support of memory registration caching by upper
+    level libaries (MPI) that use SecureMemoryCacheCallback.
+    
+    It also makes it easier to debug heap corruption issues.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit bc3c8a34558880c8d09a03e3eb7c3f50d7762c67
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Sep 2 14:01:51 2009 -0700
+
+    dtest, dtestx: modifications for UD QP testing with ucm provider.
+    
+    remote_addr is wrong for IP remote address.
+    
+    The dtestx requires the server connect back to the client
+    for the UD test. With the ucm provider you need to provide
+    the QPN and the LID which you cannot get until the dtest
+    client starts. So, for now, don't support UD testing
+    on UCM providers.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit e4555143ca71ebe18d8c9f027e2e7a5282088a30
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Sep 2 13:54:59 2009 -0700
+
+    scm, ucm: UD QP support was broken when porting to common openib code base.
+    
+    create remote_ah was moved out of modify_qp_state function but not
+    included in the RTU and ACCEPT code for UD QP's. qp type check
+    should be on daddr not saddr in ucm cm code.
+    
+    QP number must be converted to host order before supplying remote_ah,
+    and qp number to consumer.
+    
+    Modify QP state to RTR for UD QP mask setting incorrect.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 375d368494bb2f9bb44c82073abc60e01ac28615
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Sep 1 13:02:24 2009 -0700
+
+    cma: cleanup warning with unused local variable, ret, in disconnect
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 72d1c0c984919809ecd94b2e4ede31ec56668518
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Sep 1 12:36:31 2009 -0700
+
+    cma: remove debug message after rdma_disconnect failure
+    
+    DAPL automatically calls rdma_disconnect() when a disconnect request is
+    received.  If the user also calls disconnect, that calls rdma_disconnect() as
+    well, but the connection has already been disconnected by DAPL and is no longer
+    valid.  The result is that the user's call to rdma_disconnect() will fail.  Do
+    not display an error message if this occurs.
+    
+    Locking could be added to prevent calling rdma_disconnect() multiple times, but
+    since the librdmacm provides synchronization to trap this, we might as well take
+    advantage of it.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 290c568030da6df398a4afb932b5d4f9bd585c26
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Sep 1 12:27:43 2009 -0700
+
+    scm: socket errno check needs O/S dependent wrapper
+    
+    Intel MPI checks the uDAPL error code when calling dat_psp_create() to see if
+    the port number that it provides is in use or not.  Convert winsock error codes
+    to unix errno values.
+    
+    This fixes the following error reported by Intel MPI:
+    'DAPL provider is not found and fallback device is not enabled'
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 03b6d1b58ae03058a509c54ffe27147cc44d1851
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Sep 1 12:13:16 2009 -0700
+
+    dapltest: update script files for WinOF
+    
+    Cleanup 64-bit paths now that WinOF is always installed into '\Program Files\WinOF'.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit e38585be89e9fa8f139002a3fe1a82eb86438f93
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Sep 1 12:10:21 2009 -0700
+
+    cma: conditional check for new rdma_cm definition.
+    
+    RDMA_CM_EVENT_TIMEWAIT_EXIT is new to OFED 1.4
+    add conditional check so dapl can build and run
+    against older OFED 1.3 stacks
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 83af586b77aa905b63de6dd6010cd60e91487a9e
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Aug 20 09:13:43 2009 -0700
+
+    Release 2.0.22
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 48bc0dc95093ccbfe5e01cef4877c128e2caaf77
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Aug 20 09:12:47 2009 -0700
+
+    dapltest: add mdep processor yield and use with dapltest
+    
+    Be thread scheduler friendly and release the current thread thus allowing other threads to run.
+    
+    Signed off by Stan Smith stan.smith@intel.com
+
+commit e13f255a06b9d2a2ed4eec9a62f9fe105d0c26d7
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Aug 18 10:15:15 2009 -0700
+
+    ucm: Add new provider using a DAPL based IB-UD cm mechanism for MPI implementations.
+    
+    New provider uses it's own CM protocol on top of IB-UD queue pairs.
+    During device open, this provider creates a UD queue pair and
+    returns local address information via dat_ia_query. This 24 byte
+    opaque address must be exchange out-of-band before connecting to a
+    server via dat_ep_connect. This provider is targeted for MPI
+    implementations that already exchange address information
+    during mpi_init phase.
+    
+    Future release may provide some ARP mechanism via multicast.
+    
+    dtest, dtestx, and dtestcm was modified to report the lid and qpn
+    information on the server side so you can provide appropriate
+    destination address information for the client test suite.
+    
+    dapltest will not work with this provider.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 38d224dd95896c7e60f0bc0ffa52b26ab78f489b
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Aug 4 20:54:12 2009 -0700
+
+    Release 2.0.21
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit ed4999a26043c9c3c73c792b21d24ced1df1553c
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Aug 4 20:49:09 2009 -0700
+
+    scm: Fix disconnect. QP's need to move to ERROR state in
+    order to flush work requests and notify consumer. Moving to
+    RESET removed all requests but did not notify consumer.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 512f1d7a480f06a1fa491d21870e560ad111c4d0
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Aug 4 20:48:03 2009 -0700
+
+    modify dtest.c to cleanup CNO wait code and consolidate into
+    collect_event() call. After waking up from CNO wait the
+    consumer must check all EVD's. The EVD's under the CNO
+    could be dropped if already triggered or could come in any order.
+    DT_RetToString changed to DT_RetToStr and DT_EventToSTr
+    changed to DT_EventToStr for consistency.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 024e36975d37a1556bf68145e1573f637d269bfc
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Aug 4 20:47:17 2009 -0700
+
+    CNO events, once triggered will not be returned during the cno wait.
+    Check for triggered state before going to sleep in cno_wait. Reset
+    triggered EVD reference after reporting.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 6d6c72a49158d10825929111d6b4df1c6d2bb589
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sun Aug 2 14:21:09 2009 -0700
+
+    CNO support broken in both CMA and SCM providers.
+    
+    CQ thread/callback mechanism was removed by mistake. Still
+    need indirect DTO callbacks when CNO is attached to EVD's.
+    
+    Add CQ event channel to cma provider's thread and add
+    to select for rdma_cm and async channels.
+    
+    For scm provider there is not easy way to add this channel
+    to the select across sockets on windows. So, for portablity
+    reasons 2 thread is started to process the ASYNC and
+    CQ channels for events.
+    
+    Must disable EVD (evd_endabled=FALSE) during destroy
+    to prevent EVD events firing for CNOs and re-arming CQ while
+    CQ is being destroyed.
+    
+    Change dtest to check EVD after CNO timesout.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 6fe8bd1d8f44777211e816b72e0b2a6d22900207
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Jul 30 08:02:30 2009 -0700
+
+    common osd: include winsock2.h for IPv6 definitions.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit bd26383900d18962aeeff54fa59922009091ecfc
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jul 29 08:02:15 2009 -0700
+
+    common osd: include w2tcpip.h for sockaddr_in6 definitions.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit f25544f14554200a6714accef5f761b0269b5819
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Mon Jul 27 15:07:33 2009 -0700
+
+    DAPL introduced the concept of directly waiting on the CQ for
+    events by adding a compile time flag and special handling in the common
+    code.  Rather than using the compile time flag and modifying the
+    common code, let the provider implement the best way to wait for
+    CQ events.
+    
+    This simplifies the code and allows the common openib providers to
+    optimize for Linux and Windows platforms independently, rather than
+    assuming a specific implementation for signaling events.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 1548405a377d2bd17938df69419e9bcf3364d91a
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Jul 16 12:41:22 2009 -0700
+
+    dapltest: Implement a malloc() threshold for the completion reaping.
+    
+    change byte vector allocation to stack in functions:
+      DT_handle_send_op, DT_handle_rdma_op & DT_handle_recv_op.
+    
+    When allocation size is under the threshold, use a stack local
+    allocation instead of malloc/free.  Move redundant bzero() to
+    be called only in the case of using local stack allocation as
+    DT_Mdep_malloc() already does a bzero(). Consolidate error handling
+    return and free()check to a single point by using goto.
+    
+    Signed-off-by: Stan Smith <stan.smith@intel.com>
+
+commit f6311ca7295230bf9efbcddc639fa8e1065b1f3d
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Jul 16 12:32:09 2009 -0700
+
+    scm: handle connected state when freeing CM objects
+    
+    The QP could be freed before being disconnected
+    so the provider needs process disconnect before freeing
+    the CM object. The disconnect clean will finish
+    the destroy process during the disc callback.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 4387359106ce398b29847982883016f7fd48b372
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jul 8 12:49:43 2009 -0700
+
+    scm, dtest: changes for winof gettimeofday and FD_SETSIZE settings.
+    
+    scm changes to set FD_SETSIZE with expected value and
+    prevent windows override.
+    
+    dtest: remove gettimeofday implementation for windows
+    specific implemenation etc\user\gtod.c
+    
+    general EOL cleanup
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 3542a83d8a31f5ac68adf3aa44e3ebf1265068df
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jul 6 09:24:07 2009 -0700
+
+    scm: set TCP_NODELAY sockopt on the server side for sends.
+    
+    scm provider sends small messages from both server and client
+    sides. Set NODELAY on both sides to avoid send delays either
+    way.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 9d591180392856935b9c3befbab2243dd8daf628
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Jul 2 14:16:52 2009 -0700
+
+    windows: remove obsolete files in dapl/udapl source tree
+    
+    SOURCES,makefile,udapl.r,udapl_exports.src,udapl_sources.c
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 85c238ee0a41dd0a4a24b3d422f34674b0183161
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Jul 2 14:11:20 2009 -0700
+
+    dtestcm: add UD type QP option to test
+    
+    Add -u for UD type QP's during connection setup.
+    Will setup UD QPs and provide remote AH
+    in connect establishment event. Measures
+    setup/exchange rates.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 89a2211526e37b1db58fc0ea663b330bc19125c8
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Jul 2 14:07:36 2009 -0700
+
+    scm: destroy QP called before disconnect
+    
+    Handle the case where QP is destroyed before
+    disconnect processing. Windows supports
+    reinit_qp during a disconnect call by
+    destroying the QP and recreating the
+    QO instead of state change from reset
+    to init. Call disconnect in destroy
+    CM code to handle this unexpected state.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 6eb35b7d69a896c256b1031337d3353575cd07b4
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Jul 2 14:03:12 2009 -0700
+
+    cma: add support for rdma_cm TIME_WAIT event.
+    
+    Nothing to process, simply ack the event.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit b6c56b3052ecd3e36c32092ee62ff0c724da5ad4
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jul 1 07:58:32 2009 -0700
+
+    scm: remove old udapl_scm code replaced by openib_scm.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 5bbae42a56e1cca678d590ac4c841dd61e839d74
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jul 1 07:53:18 2009 -0700
+
+    winof: fix build issues after consolidating cma, scm code base.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 6bd1d931c4d0d4cbafac383f225140120aee4c51
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jul 1 07:51:59 2009 -0700
+
+    cma: lock held when exiting as a result of a rdma_create_event_channel failure.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit b8a14ff1cc257defa2f74373d143600f5f471823
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Mon Jun 29 12:34:54 2009 -0700
+
+    windows: all dlist functions have been moved to the header file.
+    remove references to dlist.c
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 1a081a0a467e4773a641e8edc876a7a4d7a30ca8
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jun 29 12:13:48 2009 -0700
+
+    dtestcm windows: add build infrastructure for new dtestcm test suite
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit c37d7a25dca97011ea76e2a541f936d10ca658e0
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jun 29 08:57:46 2009 -0700
+
+    openib_common: reorganize provider code base to share common mem, cq, qp, dto functions
+    
+    add new openib_common directory with cq, qp, util, dto, mem function calls
+    and definitions. This basically leaves the unique CM and Device definitions
+    and functions to the individual providers directory of openib_scm and openib_cma.
+    
+    modifications to dapl_cr_accept required. ep->cm_handle is allocated
+    and managed entirely in provider so dapl common code should not update
+    ep_handle->cm_handle from the cr->cm_handle automatically. The provider
+    should determine which cm_handle is required for the accept.
+    
+    openib_cma defines _OPENIB_CMA_ and openib_scm defines _OPENIB_SCM_ for provider
+    specific build needs in common code.
+
+commit 961a4083ffb646c070137abd33e9ba2ea9482685
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jun 26 14:45:34 2009 -0700
+
+    scm: fixes and optimizations for connection scaling
+    
+    Prioritize accepts on listen ports via FD_READ
+    process the accepts ahead of other work to avoid
+    socket half_connection (SYN_RECV) stalls.
+    
+    Fix dapl_poll to return DAPL_FD_ERROR on
+    all event error types.
+    
+    Add new state for socket released, but CR
+    not yet destroyed. This enables scm to release
+    the socket resources immediately after exchanging
+    all QP information. Also, add state to str call.
+    
+    Only add the CR reference to the EP if it is
+    RC type. UD has multiple CR's per EP so when
+    a UD EP disconnect_clean was called, from a
+    timeout, it destroyed the wrong CR.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit a60a9e1fce5588cb23f41391b48acf04edd82499
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jun 26 14:31:19 2009 -0700
+
+    scm: double the default fd_set_size
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 17d5e1692db4ae1eb09aa919d5607f22851d7ec5
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jun 26 14:28:30 2009 -0700
+
+    scm: EP reference in CR should be cleared during ep_destroy
+    
+    The EP reference in the CR should be set to null
+    during the EP free call to insure no further
+    reference back to a mem freed EP.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit ebb820364cec9d72285c005a0874e7d459a9ff7d
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jun 26 14:23:35 2009 -0700
+
+    dtestx: fix conn establishment event checking
+    
+    not catching error cases on client side
+    when checking for event number and UD type
+    && should have been ||
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 747b793898042e3011fbad4b2d1285d2c040cb13
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jun 26 14:18:37 2009 -0700
+
+    dtestcm: new test to measure dapl connection rates.
+    
+    new test suite added to measure connection
+    rates of providers. Used to compare cma, scm,
+    and other providers under development.
+    
+    dtestcm USAGE
+    
+    s: server
+    c: connections (default = 1000)
+    b: burst rate of conn_reqs (default = 100)
+    m: multi-listens (set to burst setting )
+    v: verbose
+    w: wait on event (default, polling)
+    d: delay before accept
+    h: hostname/address of server, specified on client
+    P: provider name (default = OpenIB-v2-ib0)
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit d58fbc3a870a060ead882e1d15c6d245cdf39096
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jun 19 20:59:16 2009 -0700
+
+    Release 2.0.20
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit beebe0066b47d7bf476925ff280bad2a3db38324
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jun 19 20:52:51 2009 -0700
+
+    common,scm: add debug capabilities to print in-process CM lists
+    
+    Add a new debug bit DAPL_DBG_TYPE_CM_LIST.
+    If set, the pending CM requests will be
+    dumped when dat_print_counters is called.
+    Only provided when built with -DDAPL_COUNTERS
+    
+    Add new dapl_cm_state_str() call for state
+    to string conversion for debug prints.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit b1c51f1e68993d9306e3ebd48bd3a1f0e9878fa3
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Jun 16 09:22:31 2009 -0700
+
+    scm: disconnect EP before cleaning up orphaned CR's during dat_ep_free
+    
+    There is the possibility of dat_ep_free being called
+    with RC CR's still in connected state. Call disconnect
+    on the CR before marking for destroy.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 531d223455a88c885d6c5f7b1d7e158c1079fbce
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jun 10 12:05:17 2009 -0700
+
+    dapltest: windows scripts updated
+    
+    Support added for provider specification and general simplification of internal workings.
+    
+    Signed-off-by: Stan Smith <stan.smith@intel.com>
+
+commit 049d1ea08643d4c4eff761741641d37bb3f01fc1
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jun 10 09:18:09 2009 -0700
+
+    scm: private data is not handled properly via CR rejects.
+    
+    For both RC and UD connect requests, the private
+    data is not being received on socket and passed
+    back via the active side REJECT event.
+    
+    UD requires new extended reject event type of
+    DAT_IB_UD_CONNECTION_REJECT_EVENT to distiquish
+    between RC and UD type rejects.
+    
+    cr_thread exit/cleanup processing fixed to insure
+    all items are off the list before exiting.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 3c26870e276a934e2009090e0fca8bdc36c1be67
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jun 10 09:09:56 2009 -0700
+
+    scm: cleanup orphaned UD CR's when destroying the EP
+    
+    UD CR objects are kept active because of direct private data references
+    from CONN events. The cr->socket is closed and marked inactive but the
+    object remains allocated and queued on the CR resource list. There can
+    be multiple CR's associated with a given EP and there is no way to
+    determine when consumer is finished with event until the dat_ep_free.
+    Schedule destruction for all CR's associated with this EP during
+    free call. cr_thread will complete cleanup with state of SCM_DESTROY.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 73abd3f58fa7b14241fad98912ef27c7b4fdb47e
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jun 10 09:05:32 2009 -0700
+
+    scm: provider specific query for default UD MTU is wrong.
+    
+    Change the provider specific query DAT_IB_TRANSPORT_MTU
+    to report 2048 for new default MTU size.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 27c0d7edc4c931b808a7c5a24bd5aa2625b48aa1
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jun 10 10:06:59 2009 -0700
+
+    scm: update CM code to shutdown before closing socket
+    
+    data could be lost without calling shutdown on the socket
+    before closing. Update to shutdown and then close. Add
+    definition for SHUT_RW to SD_BOTH for windows.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+    ---
+
+commit 536ec3103c15c1fed4367326c9117660345e0eab
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Jun 4 13:48:18 2009 -0700
+
+    dapltest: windows script dt-cli.bat updated
+    
+    scn should be scm
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit e8991b8f0877b0e2e857717e1140c679e9266abe
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Thu Jun 4 08:19:12 2009 -0700
+
+    dapl/windows cma provider: add support for network devices based on index
+    
+    The linux cma provider provides support for named network devices, such
+    as 'ib0' or 'eth0'.  This allows the same dapl configuration file to
+    be used easily across a cluster.
+    
+    To allow similar support on Windows, allow users to specify the device
+    name 'rdma_devN' in the dapl.conf file.  The given index, N, is map to a
+    corresponding IP address that is associated with an RDMA device.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 79fa3e7d241f740bc886dd075f24fcbc611306de
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Jun 4 08:00:29 2009 -0700
+
+    openib: remove 1st gen provider, replaced with openib_cma and openib_scm
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 624039247cdc0db7aa040dfbb4dced00f2cf9006
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri May 29 08:21:10 2009 -0700
+
+    dapltest: update windows script files
+    
+    Enhancement to take DAPL provider name as cmd-line arguement.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit b93baa07b7bbaeb7a55fa817c354d0c94783d61f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu May 28 15:30:05 2009 -0700
+
+    dapltest: update windows batch files in sripts directory
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 2f185c6b5e464c4fc9e84ad3e90cc2b86aebf9aa
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon May 18 14:00:02 2009 -0700
+
+    windows_osd/linux_osd: new dapl_os_gettid macro to return thread id
+    
+    Change dapl_os_getpid inline to macro on windows and add dapl_os_gettid
+    macros on linux and windows to return thread id.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 984303824cd0c3e248a789066cf665ced8e1ae5b
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon May 18 13:53:59 2009 -0700
+
+    windows: missing build files for common and udapl sub-directories
+    
+    Add dapl/dapl_common_src.c and dapl/dapl_udapl_src.c
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 3be4ccf9681a975e74a5aa05e3f7912477f342a7
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon May 18 09:06:19 2009 -0700
+
+    windows: add build files for openib_scm, remove /Wp64 build option.
+    
+    Add build files for windows socket cm and change build
+    option on windows providers. The new Win7 WDK issues a
+    depreciated compiler option warning for /Wp64
+    (Enable 64-bit porting warnings)
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 163112cfeb6e409886b3cb7f85da7ce003300d5c
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon May 18 08:50:35 2009 -0700
+
+    scm: multi-hca CM processing broken. Need cr thread wakeup mechanism per HCA.
+    
+    Currently there is only one pipe across all
+    device opens. This results in some posted CR work
+    getting delayed or not processed at all. Provide
+    pipe for each device open and cr thread created
+    and manage on a per device level.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit e6e799f623df6ef136ffc5388251d3f3a38c8a91
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri May 15 11:06:19 2009 -0700
+
+    dtest: add connection timers on client side
+    
+    Add timers for active connections and print
+    results. Allow polling or wait on conn event.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit d656bbf619123deaed6e8985e52207e5415f359f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri May 15 09:48:38 2009 -0700
+
+    linux_osd: use pthread_self instead of getpid for debug messages
+    
+    getpid provides process ids which are not unique. Use unique thread
+    id's in debug messages to help isolate issues across many device
+    opens with multiple CM threads.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 92bb0d2933d3d1546e18f0479475f3daf5b92052
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri May 1 10:18:05 2009 -0700
+
+    windows ibal-scm: dapl/dirs file needs updated to remove ibal-scm
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 9c37d9d667fb7e8f21841bbec4a84b2c652fffe1
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Apr 29 23:13:36 2009 -0700
+
+    Release 2.0.19
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 0ef94459e0a0175233b43b3fcbaaac2596e1042d
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Apr 29 14:33:28 2009 -0700
+
+    scm, cma: dat max_lmr_block_size is 32 bit, verbs max_mr_size is 64 bit
+    
+    mismatch of device attribute size restricts max_lmr_block_size to 32 bit
+    value. Add check, if larger then limit to 4G-1 until DAT v2 spec changes.
+    
+    Consumers should use max_lmr_virtual_address for actual max
+    registration block size until attribute interface changes.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit f91f27eaaab28b13a631adf75b933b7be3afbc0f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Apr 29 10:51:03 2009 -0700
+
+    scm: increase default MTU size from 1024 to 2048
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit 8d6846056f4c86b6a06346147df55d37c4ba9933
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Apr 29 10:49:09 2009 -0700
+
+    openib_scm, cma: use direct SGE mappings from dat_lmr_triplet to ibv_sge
+    
+    no need to rebuild scatter gather list given that DAT v2.0
+    is now aligned with verbs ibv_sge. Fix ib_send_op_type_t typedef.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit c61f75b3412935e7d4a7a1acc9c495dcb4ac7e24
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Apr 29 08:39:37 2009 -0700
+
+    dtest: add flush EVD call after data transfer errors
+    
+    Flush and print entries on async, request, and receive
+    queues after any data transfer error. Will help
+    identify failing operation during operations
+    without completion events requested.
+    Fix -B0 so burst size of 0 works.
+    
+    Signed-off-by: Arlin Davis <arlin.r.davis@intel.com>
+
+commit c88a191c7a408b0fb3dfb418a77a5b3b5afc778e
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Apr 22 13:16:19 2009 -0700
+
+    dtest/dapltest: Cleanup code with Lindent
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 8699a9f1bd2bb45b04b87f887698707ba7b62d0a
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Apr 21 15:51:24 2009 -0700
+
+    ibal-scm: remove, obsolete
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 67ddd6bfba46f1f7a61b772257132f1257d05c96
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Apr 21 15:44:15 2009 -0700
+
+    scm, cma provider: Cleanup code with Lindent
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit d0898091090ff19be7929fed0d14f1ca696d5e53
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Apr 21 15:39:01 2009 -0700
+
+    udapl: Cleanup code with Lindent
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit a688d1cfb52fde256c5bfd95a27f940dd17e7ced
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Apr 21 15:31:20 2009 -0700
+
+    dapl common: Cleanup code with Lindent
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 2bded73c7f68cfb870e432ab3ebae7427d595cbe
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Apr 21 12:52:29 2009 -0700
+
+    dat: Cleanup code with Lindent
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 31e7b9210fc5334ff3be62558e74e3fdf01d6cbd
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Apr 20 12:28:08 2009 -0700
+
+    Release 2.0.18
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 29bf0a24f54c45d2742026756f31f1a1f26fb6f3
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Apr 16 14:35:18 2009 -0700
+
+    dapltest: reset server listen ports to avoid collisions during long runs
+    
+    If server is running continuously the port number increments
+    from base without reseting between tests. This will
+    eventually cause collisions in port space.
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit c27af8de0501d132b8152ec8546023cdba212de5
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Thu Apr 16 10:21:51 2009 -0700
+
+    To avoid duplicating port numbers between different tests, the next port
+    number to use must increment based on the number of endpoints per thread *
+    the number of threads.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 3084310197c20aaa50abe82260fc835786f591f5
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Thu Apr 16 10:21:45 2009 -0700
+
+    dapltest assumes that events across multiple endpoints occur in a specific
+    order.  Since this is a false assumption, avoid this by directing events to
+    per endpoint EVDs, rather than using shared EVDs.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit ef87a0a462f4fa07ac252e28d3aeb44af73cc202
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Thu Apr 16 10:21:41 2009 -0700
+
+    Synchronization is missing between removing items from an EVD and queuing
+    them.  Since the removal thread is the user's, but the queuing thread is
+    not, the synchronization must be provided by DAPL.  Hold the evd lock
+    around any calls to dapls_rbuf_*.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit f5e86d28f803162ffdf94b41ec7435dec92f728d
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Thu Apr 16 10:21:26 2009 -0700
+
+    Communication to the CR thread is done using an internal socket.  When a
+    new connection request is ready for processing, an object is placed on
+    the CR list, and data is written to the internal socket.  The write causes
+    the CR thread to wake-up and process anything on its cr list.
+    
+    If multiple objects are placed on the CR list around the same time, then
+    the CR thread will read in a single character, but process the entire list.
+    This results in additional data being left on the internal socket.  When
+    the CR does a select(), it will find more data to read, read the data, but
+    not have any real work to do.  The result is that the thread spins in a
+    loop checking for changes when none have occurred until all data on the
+    internal socket has been read.
+    
+    Avoid this overhead by reading all data off the internal socket before
+    processing the CR list.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 2ab52e9b1ab37c6eb44206c135e0568a8c2d01fa
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Thu Apr 16 10:21:13 2009 -0700
+
+    The dapl connect call takes as input an address (sockaddr) and a port number
+    as separate input parameters.  It modifies the sockaddr address to set the
+    port number before trying to connect.  This leads to a situation in
+    dapltest with multiple threads that reference the same buffer for their
+    address, but specify different port numbers, where the different threads
+    end up trying to connect to the same remote port.
+    
+    To solve this, do not modify the caller's address buffer and instead use
+    a local buffer.  This fixes an issue seen running multithreaded tests with
+    dapltest.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 7947026ede478f08b4a7b8cb607f457765bf2afa
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Thu Apr 16 10:21:03 2009 -0700
+
+    Windows socket calls should check return values against SOCKET_ERROR to
+    determine if an error occurred.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit e66e42fc44c50c8202f7c98f76d799a69aa3f1b6
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Apr 10 08:33:41 2009 -0700
+
+    Build: add new file dapl/openib_cma/linux/openib_osd.h to EXTRA_DIST
+    
+    Fix rpmbuild problem with new cma osd include file.
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit acb213adb3268e9bf6999e2bf040d4a71212b701
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Apr 10 08:32:24 2009 -0700
+
+    dapl scm: reduce wait time for thread startup.
+    
+    thread startup wait reduce to 2ms to reduce open times.
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 55459699fa9c0e5fb7e2b17822f0916412c64b35
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Apr 10 08:31:22 2009 -0700
+
+    dapl-scm: getsockopt optlen needs initialized to size of optval
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit d710c5327e05a40796341d16b45a2b098b03f588
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Fri Apr 10 08:17:32 2009 -0700
+
+    The connection request thread adds sockets to a select list unless
+    the cr->socket is invalid and the cr request state is set to destroy.  If the
+    cr->socket is invalid, but the cr->state is not destroy, then the cr->socket
+    is added to an FD set for select/poll.  This results in select/poll
+    returning an error when select is called.  As a result, the cr thread never
+    actually blocks during this state.
+    
+    Fix this by only destroying a cr based on its state being set to destroy
+    and skip adding cr->sockets to the FD set when they are invalid.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 0be961c432f897d4f92d9a24dcb7c42ad30ea160
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Fri Apr 10 08:08:16 2009 -0700
+
+    Make sure all locks are initialized properly and don't zero their memory
+    once they are.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 9abdc26cd6154aa55588759ba54c9ca69e3fe2b5
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Fri Apr 10 08:08:13 2009 -0700
+
+    The lock functions are defined just a few lines beneath the prototypes
+    as inline.  Remove the duplicate prototypes.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 9578c4aeb9878d98374e4b7abc02db182aef82c6
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Fri Apr 10 08:08:07 2009 -0700
+
+    Make sure all locks are initialized and don't zero out their memory once
+    they are.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 97edcbb662b489303ef68c0da02831efaddeed91
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Fri Apr 10 08:08:03 2009 -0700
+
+    The IBAL library allocates a small number of threads for callbacks to the
+    user.  If the user blocks all of the callback threads, no additional
+    callbacks can be invoked.  The DAPL IBAL provider cancels listen requests
+    from within an IBAL callback, then waits for a second callback to confirm
+    that the listen has been canceled.  If there is a single IBAL callback
+    thread, or multiple listens are canceled simultaneously, then the provider
+    can deadlock waiting for a cancel callback that never occurs.
+    
+    This problem is seen when running dapltest with multiple threads.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 3e56e63bcb68de352edadafdcfcc4cb222c08c7b
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Fri Apr 10 08:07:57 2009 -0700
+
+    We need to check the return value from select for errors before checking
+    the FD sets.  An item may be in an FD set but select could have returned
+    an error.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit a8a977becaeefe0d7f8e01e01631a11988d2d54e
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Fri Apr 10 08:07:53 2009 -0700
+
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit ecc79cc0a1ae2bdbb3dfd19e15b3b562ac9a2957
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Fri Apr 10 08:07:49 2009 -0700
+
+    Enable building with CQ_WAIT_OBJECTS support to directly wait on CQ
+    completion channels in the Windows version of the openib_scm provider.
+    Also minor fixup to use DAPL_DBG_TYPE_UTIL for debug log messages
+    instead of DAPL_DBG_TYPE_CM.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 73728763666a46df5789af93b50db53cdf64afd6
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Fri Apr 10 08:07:44 2009 -0700
+
+    The IBAL-SCM provider will run into an inifinite loop if the check for
+    cr->socket > SCM_MAX_CONN - 1 fails.  The code continues back to the start
+    of the while loop without moving to the next connection request entry
+    in the list.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 9b1b396539926d36ffacfff04fbe7c081e436b45
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Fri Apr 10 08:07:40 2009 -0700
+
+    next_cr is set just before and inside the check
+    if ((cr->socket == DAPL_INVALID_SOCKET && cr->state == SCM_DESTROY)
+    Remove setting it inside the if statement.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 7b49a9850f62276bb7bfccb2d85a1e94e311813c
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Fri Apr 10 08:07:35 2009 -0700
+
+    Some errors on windows are more easily interpretted in hex than decimal.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 08ee072a1396ac2c28983878dbc6b02feb035787
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Fri Apr 10 08:07:32 2009 -0700
+
+    The WinOF HCA driver cannot handle transitioning from RTS -> RESET ->
+    INIT -> ERROR.  Simply delete the QP and re-create it to reinitialize
+    the endpoint until the bug is fixed.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 51ef5d96ce67d6141ec02b2a318f1b6e12be1bcf
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Fri Apr 10 08:07:23 2009 -0700
+
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit a8582be0e1fc89e856f1d0b43a3c1b271295a352
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Fri Apr 10 08:07:18 2009 -0700
+
+    Convert the openib_cma provider to common code between linux and windows.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit cc2a71dfe0c35a70f6b1ba66070a3a06059a8bb5
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Fri Apr 10 08:06:53 2009 -0700
+
+    Move from using pipes to sockets for internal communication.  This
+    avoids issues with windows only supporting select() on sockets.
+    
+    Remove windows specific definition of dapl_dbg_log.
+    
+    Update to latest windows libibverbs implementation using completion
+    channel abstraction to improve windows scalability and simplify
+    porting where FD's are accessed directly in Linux.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit b3ad2ed97399a24a869841e17d1314e11c379aae
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Mar 31 05:41:50 2009 -0800
+
+    Release 2.0.17
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 5d732929f8a90a490994e8e35a3666c3647ad4fe
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Mar 31 05:22:11 2009 -0800
+
+    dapl: ia64 build problem on SuSE 11, atomic.h no longer exists.
+    
+    Add autotools check for SuSE 11 and include intrinsics.h
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit d7b8654db3a1f4ead16cb2e6d15f0902a322a188
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Mar 16 13:23:50 2009 -0800
+
+    Release 2.0.16
+    
+    Fix changelog year in spec file.
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 08d9e26a85911f99d47cbb92ec8bccfc7f073be0
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Mar 16 13:15:22 2009 -0800
+
+    Release 2.0.16
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 42c97b2a11d63ac6ba8a15fe8c82061e7da6e136
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Mar 13 12:39:12 2009 -0800
+
+    uDAPL: scm provider, remove query gid/lid from connection setup phase
+    
+    move lid/gid queries from the connection setup phase
+    and put them in the open call to avoid overhead
+    of more fd's during connections. No need
+    to query during connection setup since uDAPL
+    binds to specific hca/ports via dat_ia_open.
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 775394b73980a7bc0af018a33d2a5bb795469c78
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Mar 12 12:44:43 2009 -0800
+
+    Build: missing new linux/osd include file in EXTRA_DIST
+    
+    Add dapl/openib_scm/linux/openib_osd.h to EXTRA_DIST
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 647e288c1c9af5261495a5ed88e6ecbe1daf6d6e
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Mar 12 12:11:21 2009 -0800
+
+    Build: spec files missing Requires(post) statements for sed/coreutils
+    
+    needed for anaconda install
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 1f5b3b7cab0785b64e8dab035dd4cd27111497d3
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Mar 4 10:04:13 2009 -0800
+
+    dapl scm: remove unecessary thread when using direct objects
+    
+    A thread is created for processing events on devices without
+    direct event objecti support. Since all openfabrics devices support
+    direct events there is no need to start a thread. Move this under
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 66e4236e2c57dbaf860b7c20809b65a4fbbafa6f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Mar 3 11:08:12 2009 -0800
+
+    dtestx: add missing F64u definition for windows
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit d9e771da16ec2b360a222ceccbbca5d088e20ee5
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Mar 3 09:25:26 2009 -0800
+
+    uDAPL common: add 64 bit counters for IA, EP, and EVD's.
+    
+     -DDAPL_COUNTERS to build-in counters for cma and scm providers.
+     New extension calls in dat_ib_extensions.h for counters
+    	dat_print_counters, dat_query_counters
+     Counters for operations, async errors, and data
+     Update dtestx (-p) with print and query counter examples
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 5e6ad3cdaa1d72523ad6b38d8306e0a2d0f1ada6
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Tue Feb 17 07:24:27 2009 -0800
+
+    Modify the openib_scm provider to support both OFED and WinOF releases.
+    This takes advantage of having a libibverbs compatibility library.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 0425c24c3b66e672bba346a1d0946b11c7b8b11e
+Author: Stan Smith <stan.smith@intel.com>
+Date:   Fri Jan 30 09:52:33 2009 -0800
+
+    Update the dapl.git tree with the latest SVN version of the
+    ibal-scm provider.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 83543b6cca342e25fd6408454f1261ec6835a172
+Author: Stan Smith <stan.smith@intel.com>
+Date:   Fri Jan 30 09:52:25 2009 -0800
+
+    Merge SVN IBAL provider code back into the main git tree.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit be0b6122d0fe4f93afc8cf3ec961702faf82fb44
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Fri Jan 30 09:52:11 2009 -0800
+
+    Changes to dtest to support building on Windows.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 9f87610c4b37e4db4d74205c14028582a2f6a79e
+Author: Stan Smith <stan.smith@intel.com>
+Date:   Fri Jan 30 09:48:26 2009 -0800
+
+    Add return codes to various functions.
+    Add script (batch file) for Windows testing.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 723067550265defdcfe6e00460a4f89f7a81fbf1
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Fri Jan 30 09:46:40 2009 -0800
+
+    Merge OFED and WinOF trees for common dapl code.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 5b37e080e1ecc6903b3ab1ac9b0d4c9f8a18b790
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jan 16 08:16:13 2009 -0800
+
+    dtest/dapltest: use $(top_builddir) for .la files during test builds
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit bd655d4fdd7e63e7fdeed3979926da5582f71e4b
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Nov 26 07:12:30 2008 -0800
+
+    Release 2.0.15
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 5d5dec42717c963d1644ee3e716459dc5d58e930
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Oct 27 08:48:53 2008 -0800
+
+    dapltest: transaction test moves to cleanup stage before rdma_read processing is complete
+    
+    With multiple treads, the transaction server tread can move to cleanup
+    stage and unregister memory before the remote client process has
+    completed the rdma read. In lieu of a rewrite to add sync messages
+    at the end of transaction test phase, just add a delay before cleanup.
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 101a843e59b881bc131dfd5c2aec7e54d44f35c0
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Oct 14 11:56:35 2008 -0700
+
+    Current static registration (SR) assumes DAT_OVERRIDE or /etc/dat.conf.
+    Change SR to include sysconfdir. SR file access in the following order:
+    
+    - DAT_OVERRIDE
+    - sysconfdir
+    - /etc
+    
+    if DAT_OVERRIDE is set, assume administration override
+    and do not failover to other locations. Add debug
+    messages for each failure and retries.
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+    Acked-by: Doug Ledford <dledford@redhat.com>
+
+commit c98d2169b839a73d76691acf510dd8976ddc850a
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Oct 3 08:00:56 2008 -0700
+
+    Release 2.0.14
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit c26d0bb065f3734f09058e1e6d26dde4a3738e55
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Oct 3 05:40:04 2008 -0700
+
+    dat.conf: add ofa-v2-iwarp entry for iwarp devices
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit d54c35c8a9ba33a464ca15f4a65b914688e5194d
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Oct 3 05:30:10 2008 -0700
+
+    dapl: adjust max_rdma_read_iov to 1 for query on iWARP devices
+    
+    iWarp spec allows only one iov on rdma reads
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 9584df22d0cb3aa5a2a2a04bf427524d17650ef7
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Oct 1 08:17:49 2008 -0700
+
+    dtest: reduce default IOV's during dat_ep_create for iWARP devices
+    
+    iWarp adapters tend to have less IOV resources then IB adapters.
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 8ca9898621acf5b9769d46ea34ee8ca1eecaf2ff
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Sep 26 12:43:13 2008 -0700
+
+    dtest: fix 32-bit build issues in dtest and dtestx examples.
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 42a3a4edf30115a35d9d599b51f8756814e62368
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Sep 26 08:48:31 2008 -0700
+
+    Revert "Release 2.0.14"
+    
+    This reverts commit 816d1c3acfb4a457c6b1cc07d657f018312f2a63.
+    
+    missed some fixes for package release.
+
+commit 816d1c3acfb4a457c6b1cc07d657f018312f2a63
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Sep 24 12:13:37 2008 -0700
+
+    Release 2.0.14
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit c00d858da3113ce5463d408ab5e13e17cc9529e4
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Sep 24 08:33:32 2008 -0700
+
+    build: $(DESTDIR) prepend needed on install hooks for dat.conf
+    
+    All install directives that automake creates automatically
+    have $(DESTDIR) prepended to them so that a make
+    DESTDIR=<some_path> install will work. The hand written
+    install hooks for dat.conf was missing DESTDIR.
+    
+    Signed-off-by: Doug Ledford <dledford@redhat.com>
+
+commit 860db3be4907c8ff290ce7c6b631b2117f5080bd
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Sep 24 08:26:28 2008 -0700
+
+    dapl scm: UD shares EP's which requires serialization
+    
+    add locking around the modify_qp state changes to avoid
+    unnecessary modify_qp calls during multiple resolve
+    remote AH connection events on a single EP.
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit f2c214647b5ce53e52052d6b6bea3fbace7cc20a
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sat Sep 20 16:02:00 2008 -0700
+
+    dtestx: Add new options to test UD.
+    
+    - many to one/many EP remote AH resolution, data flow
+    - bi-directional EP remote AH resolution, data flow
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 3c218b5ed65d0b7349a86eb0fe6f6bf57e3eccd6
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sat Sep 20 15:58:59 2008 -0700
+
+    dapl: fixes for IB UD extensions in common code and socket cm provider.
+    
+     - Manage EP states base on attribute service type.
+     - Allow multiple connections (remote_ah resolution)
+       and accepts on UD type endpoints.
+     - Supply private data on CR conn establishment
+     - Add UD extension conn event type - DAT_IB_UD_PASSIVE_REMOTE_AH
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 01cdd688ddebec8df6f17f92c3b72a410f50dd6f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sat Sep 20 15:49:40 2008 -0700
+
+    dapl: add provider specific attribute query option for IB UD MTU size
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit ee3d9ce2389a14c85405dfdff67f04a5f5679e32
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Sep 1 15:52:37 2008 -0700
+
+    Release 2.0.13
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit f37589927fabf0feb3a09c4c7c03e18df5749fef
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Sep 1 12:24:49 2008 -0700
+
+    dapl build: add correct CFLAGS, set non-debug build by default for v2
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 280f3aec6d0fa9d7e36f75711471e35333ee34cf
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Sep 1 12:22:19 2008 -0700
+
+    dapl providers: fix compiler warnings in cma and scm providers
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 60c0589a2aba520ae67b1c8eaad5a167edb6fba3
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Sep 1 12:20:08 2008 -0700
+
+    dat: fix compiler warnings in dat common code
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit fb3e368db07d02a3daa1d12d71f62ac4e7a5ef23
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Sep 1 12:18:48 2008 -0700
+
+    dapl: fix compiler warnings in common code
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 38a53ae75bce5059a84262fe1b40eacf92b22287
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Sep 1 12:16:58 2008 -0700
+
+    dtest/dapltest: fix compiler warnings
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 45900087764917b354411fdd2b3880473d553ab8
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Aug 22 14:51:22 2008 -0700
+
+    dapl cma: debug message during query needs definition for inet_ntoa
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 99d46313a03af18771966cf86fcc934d179627b5
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Aug 21 12:54:58 2008 -0700
+
+    Release 2.0.12
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 0b2a3fac8d28d5b3c2e1416fa696fe4cbc672f00
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Aug 20 18:51:00 2008 -0700
+
+    dapl scm: fix corner case that delivers duplicate disconnect events
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 96f6822b90fa880a6c6a64b1e183064a449f7237
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Aug 20 18:47:19 2008 -0700
+
+    dat: include stddef.h for NULL definition in dat_platform_specific.h
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 283e37c09ad072d69d29e28225e9a6e8bf3f75f0
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Aug 20 18:27:08 2008 -0700
+
+    dapl: add debug messages during async and overflow events
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 4a7965ac07b7f2ee1deb5b144ed50b30c1749d38
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Aug 20 18:24:33 2008 -0700
+
+    dapltest: add check for duplicate disconnect events in transaction test
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 7e8986f2c6496851b724a007458881c3248ac998
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Aug 20 18:22:42 2008 -0700
+
+    dtestx: fix stack corruption problem with hostname strcpy
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit ee2a553762abd6ebede99db5d26d1ba1d74ba3cb
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Aug 14 09:42:57 2008 -0700
+
+    dapl scm: use correct device attribute for max_rdma_read_out, max_qp_init_rd_atom
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 142a8e4a99259fa6fe31f74ce6d0dac1017f381b
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Aug 14 09:19:53 2008 -0700
+
+    dapl scm: change IB RC qp inline and timer defaults.
+    
+    rnr nak can be the result of any operation not just
+    message send recevier not ready. Timer is much too
+    large given this case.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 36088a92d87e833bae535fcea0c45417dec34e65
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Aug 14 09:12:38 2008 -0700
+
+    dapl scm: add mtu adjustments via environment, default = 1024.
+    
+    DAPL_IB_MTU adjusts path mtu setting for RC qp's. Default setting
+    is min of 1024 and active mtu on IB device.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit a7dabdc4c1ddc62cc0384d60e8157ee829f12898
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Aug 13 14:17:40 2008 -0700
+
+    dapl scm: change connect and accept to non-blocking to avoid blocking user thread.
+    
+    The connect socket that is used to exchange QP information is now non-blocking
+    and the data exchange is done via the cr thread. New state RTU_PENDING added.
+    On the passive side there is a new state ACCEPT_DATA used to avoid read blocking
+    on the user accept call.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 7e25c0f21d755cce3aa7aff993fb0baddaafc0e8
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Jul 29 08:18:25 2008 -0700
+
+    dapl scm: update max_rdma_read_iov, max_rdma_write_iov EP attributes during query
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit fd9909618fdfff0eb2c8ce97bff61ea98ec44a8e
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sun Jul 20 13:20:45 2008 -0700
+
+    Release 2.0.11
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 0003bb7866af3ba73cc79c703b565a8012439bb1
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sun Jul 20 13:17:22 2008 -0700
+
+    dtestx: add -d option to test new IB UD extension.
+    
+    modify dtestx to connect peer UD QP's and exchange/verify messages as an example for new extension.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 9816ac15f98f6e73cf7b371ac6e1e312d4171c0b
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sun Jul 20 13:13:09 2008 -0700
+
+    dapl scm: add support for UD extensions in Openfabrics socket cm provider
+    
+    add qp_type in connection information exchange
+    add new post_send_ud call
+    changes to connection manager to support qp types beyond RC.
+    changes to connection events to use new extended event calls.
+    exchange address handle information during connection phase.
+    changes to modify_qp to handle both RC and UD types.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 927dac5b61e64868089acd49d468b98327e14a1a
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sun Jul 20 13:07:34 2008 -0700
+
+    dapl: add support for UD extensions in common code.
+    
+    allow EP create for extended service types.
+    extend connection event types to include UD AH resolution/exchange.
+    add new extended connect and connect request upcalls for providers.
+    - dapls_evd_post_cr_event_ext
+    - dapls_evd_post_connection_event_ext
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit be3d6a53f3340294697706ce50a05faf151aacc7
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Sun Jul 20 12:57:49 2008 -0700
+
+    dat: New definitions for IB unreliable datagram extension
+    
+    Extend EP dat_service_type, with DAT_IB_SERVICE_TYPE_UD
+    Add IB extension call dat_ib_post_send_ud().
+    Add address handle definition for UD calls.
+    Add IB event definitions to provide remote AH via connect and connect requests
+    Roll IB extension version to 2.0.2
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 8f65d4c96a7e13f7092d82f2f5aad477a61a57c1
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jul 18 07:46:20 2008 -0700
+
+    dat: allow TYPE_ERR messages to be turned off with DAT_DBG_TYPE
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 4fefc6bca4e21c9d757923bf13bc93c62dbff17d
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jun 25 08:02:11 2008 -0700
+
+    dapltest: manpage - rdma write example incorrect
+    
+    parameter for rdma write should be RW and not WR
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 68638bde71b529a142c13ac332cd44435cabc896
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jun 23 15:26:30 2008 -0700
+
+    dapl: remove needless terminating 0 in dto_op_str functions.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit cb1f2a144ecd375d2143d6e176a6a92a18556d7e
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jun 23 10:52:46 2008 -0700
+
+    Release 2.0.10
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit d9b3c06ae98ac4d3b264384f6510137166d78cb0
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jun 23 10:35:17 2008 -0700
+
+    remove reference to doc/dat.conf in makefile.am
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit b052d402e09ac78281a25af2c8fe902fa71f5c6f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Jun 19 13:34:49 2008 -0700
+
+    dapl scm: fix ibv_destroy_cq busy error condition during dat_evd_free.
+    
+    Problem surfaced while running Intel MPI 3.1 and mpich2-test suite.
+    dapli_destroy_cm was incorrectly removing reference to qp_handle in endpoint
+    and destroy_cq and destroy_pd code was ignoring verbs errors.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit e466d8e330c45176c5f00efda79ad745bf3f71a4
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jun 18 14:21:28 2008 -0700
+
+    dapl scm: add stdout logging for uname and gethostbyname errors during open.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 8e1f4db702cacdd2b9b95083db54ec38c9d2f5e5
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jun 18 14:19:51 2008 -0700
+
+    dapl scm: support global routing and set mtu based on active_mtu
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit fc65a08727c59c304dad20337a8bff803f2302c0
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jun 18 13:59:44 2008 -0700
+
+    dapl scm: Adding socket cm provider for better scalability on large homogeneous clusters.
+    
+    Bring socket cm provider back to life with some changes:
+    
+    better threading support for exchanging QP information.
+    Avoid blocking during connect to support dynamic connection
+    model with MPI implementations.
+    
+    consumer control of ack timeout/retries.
+    
+    disconnect/reject capabilities via socket exchange.
+    
+    version support for wire protocol to insure compatibility
+    with peer scm provider. Add gids to exchange.
+    
+    validated with Intel MPI on a 14,000+ core fabric using IB DDR.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 0855af175fec2f1bec8391ebae2a2cdff26a3359
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jun 11 10:43:24 2008 -0700
+
+    dapl: add opcode to string function to report opcode during failures.
+    
+    Need to use cookie opcode during failures in lieu of cqe opcode.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit ec6296e7f0a843c69231f8284ae780014fa26fbe
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jun 16 14:59:43 2008 -0700
+
+    dapl: remove unused iov buffer allocation on the endpoint
+    
+    provider's manage iov space on stack during posting.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit c678414ced8bc9cbe21b2fc1d54aa2af73ba6528
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jun 16 13:59:11 2008 -0700
+
+    dapl: endpoint pending request count is wrong
+    
+    The code assumes every cookie allocated during posting of
+    requests gets completed. This incorrect assumption results in
+    wrong pending count. Remove request_pending field and replace
+    with direct call, dapl_cb_pending, to provide accurate
+    data to consumer.
+    
+    Add debug print if consumer overruns request queue.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit c446a3a3f3ecbd91ab583fee35bf613ab10defcd
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jun 2 12:40:45 2008 -0700
+
+    dapl extension: dapli_post_ext should always allocate cookie for requests.
+    
+    extension didn't allocate cookie if completion was suppressed which resulted
+    segfault during provider post call. Provider's expect cookie for wr_id,
+    even with surpressed completions, to handle events during errors.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 2583f07d9d0f55eee14e0b0e6074bc6fd0712177
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue May 20 14:35:43 2008 -0700
+
+    Release 2.0.9
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 9b38e7b792c48ea63c2078fc6c10bb843d96bd06
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue May 20 21:56:06 2008 -0700
+
+    dtest,dtestx,dapltest: fix build issues with Redhat EL5.1
+    
+    need include files/definitions for sleep, getpid, gettimeofday
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 8084ebf39729bac310447467b518df4248e9e2b6
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue May 20 14:31:09 2008 -0700
+
+    dapl: Fix long delays with the cma provider open call when DNS is not configure on server.
+    
+    Open call should default to netdev names when resolving local IP address for cma binding to match dat.conf settings. The open code attempts to resolve with IP or Hostname first and if there is no DNS services setup the failover to netdev name resolution is delayed for as much as 20 seconds.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 2f603b03f4cebe7c414cbaeecb7155f7bf1fb115
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue May 20 14:30:05 2008 -0700
+
+    dapl: change cma provider to use max_rdma_read_in,out from ep_attr instead of HCA max values when connecting.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 7a0e5fad6de7c6affc4ba3c608b0c56f4206c48c
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Apr 30 14:48:21 2008 -0700
+
+    Release 2.0.8
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 561f09ab6f9fd46a6075ecb54ca7693f2b12f311
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Apr 30 13:51:41 2008 -0700
+
+    dapl: fix post_send, post_recv to handle 0 byte's and NULL iov handles
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 0289daa3fcc4451bace8cc6b6e20ddb7bbade07e
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Apr 30 13:25:53 2008 -0700
+
+    dat: udat_sr_parser ia_name will fail on comments, turn down debug message
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit b93b91d48186d100c48f1a479776d56476847607
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Apr 29 16:15:44 2008 -0700
+
+    dat: cleanup error handling with static registry parsing of dat.conf
+    
+    change asserts to return codes, add log messages, and
+    report errors via open instead of asserts during dat
+    library load.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit b6b1f152efabe064ab8bdcdeecbd1edd30eb732f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Apr 28 10:14:20 2008 -0700
+
+    dapl: cma provider needs to support lower inline send default for iWARP
+    
+    IB and iWARP work best with different defaults. Add transport check
+    and set default accordingly. 64 for iWARP, 200 for IB.
+    
+    DAPL_MAX_INLINE environment variable is still used to override.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit be32d7d5beeeceac5dbb1974d3217265dc4d5461
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Apr 28 09:44:12 2008 -0700
+
+    dtestx: need to include string.h for memset/strcpy declarations
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit a192465714e7607529303a80d8f9a312e0c7aec6
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Apr 28 08:41:05 2008 -0700
+
+    dapl: add vendor_err with DTO error logging
+    
+    DAPL_GET_CQE_VENDOR_ERR added to get vendor_err via cq entry.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 6ac657a4e7e5e27254a024fca7fdead569043f9a
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Apr 25 15:12:34 2008 -0700
+
+    dapl: add check before destroying cm event channel in release
+    
+    library may be loaded and unloaded without calling open
+    in which case the cm event channel is not created.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit c1eb23352f44aec6faeef37d8f0c3180f6259cf8
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Apr 22 12:55:13 2008 -0700
+
+    dapl: evd_alloc doesn't check for direct_object_create errors.
+    
+    Fix error check in dapls_ib_wait_object_create() and dat_evd_alloc.
+    When attempting to create large number of evd's that exceed
+    open files limit the error was not propagated up causing
+    a segfault. Note: there are 3 FD's required for each EVD
+    2 for pipe, and one for cq event_channel.
+    
+    Change the error reporting to indicate correct return
+    code and send to log with non-debug builds.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit c5c6229b3e7744782cace0ca1f5f1fa89198bd3a
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Apr 14 13:10:13 2008 -0700
+
+    dapl: change packaging to modify OFA provider contents of dat.conf instead of file replacement.
+    
+    Change the packaging to update only the OFA provider contents in dat.conf. This allows other
+    dapl providers, other then OFA, to co-exist and configure properly. Adding manpage to explain
+    syntax of this static configuration file.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit d32b27d991bc1314eea055ce3f55bb585b11aaac
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Apr 11 11:37:48 2008 -0700
+
+    dapl openib_cma: fix hca query to use correct max_rd_atom values
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit ac4ccfd144c01b7f4285b0cecc6218c58d0482a8
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Apr 9 17:26:06 2008 -0700
+
+    dat: add logging by default during library load failures.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 1794e94754a1e58fcf214c2802e950124bbd1316
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Apr 8 17:32:03 2008 -0700
+
+    dtest: add private data validation with connect and accept.
+    
+    Include code, with build option, to validate private data with
+    consumer rejects.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 46f21284bc05e76e82b9ad6cd9f1dbc9bcde0a28
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Apr 8 17:25:11 2008 -0700
+
+    dapl: add hooks in evd connection callback code to deliver private data with consumer reject.
+    
+    PEER rejects can include private data. The common code didn't support delivery
+    via the connect event data structure. Add the necessary hooks in
+    dapl_evd_connection_callback function and include checks in openib_cma
+    provider to check and delivery properly. Also, fix the private data size
+    check in dapls_ib_reject_connection function.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 90e04c6f76dd5cfebd2f2867bfe22e85b0c2f461
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Apr 7 15:47:57 2008 -0700
+
+    dapl: increase reject private data size to avoid odd byte offets.
+    
+    remove reject type checking on passive side since it will
+    always be non-consumer from active side.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 353a1c8a00bb2a1380fd7a372973a5a70828da35
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Apr 4 16:04:11 2008 -0800
+
+    dapl: update vendor information for OFA v2 provider.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit dbf1ea37f43caec61911dea06af801c2f906db0a
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Apr 4 16:03:03 2008 -0800
+
+    dapl: add provider vendor revision data in private data with reject
+    
+    Add 1 byte header containing provider/vendor major revision
+    to distinguish between consumer and non-consumer rejects.
+    Validate size of consumer reject privated data.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 0f71b9be594739a1fba7d74929eacd42a8cee392
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Apr 3 17:06:27 2008 -0800
+
+    dapl: add support for logging errors in non-debug build.
+    
+    Add debug logging (stdout, syslog) for error cases during
+    device open, cm, async, and dto operations. Default settings
+    are ERR for DAPL_DBG_TYPE, and stdout for DAPL_DBG_DEST.
+    
+    Change default configuration to build non-debug.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit bea882ad9b11ac7188628a939f5227e22c914169
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Apr 3 16:23:29 2008 -0800
+
+    dapl: add support for private data in CR reject.
+    
+    Private data support via dat_cr_reject was added to
+    the v2 DAT specification but dapl was never extended
+    to support at the provider level.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit b5b096b6b6949fcb9fa711ab4784f41f1bb87525
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Apr 1 11:02:37 2008 -0800
+
+    dapl: calculate private data size based on transport type and cma_hdr overhead
+    
+    Need to adjust CM private date size based on different transport types.
+    Add hca_ptr to dapls_ib_private_data_size call for transport type
+    validation via verbs device. Add definitions to include iWARP size
+    of 512 and subtract 36 bytes for cma_hdr overhead.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 632af34f0ea15e12b572c656fe2ef561a0ad62b7
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Mar 26 17:58:17 2008 -0800
+
+    Remove improperly licensed GETOPT code from dtest source tree.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 88069fdd21f92923388dec7adbde0d1bc334e7c4
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Mar 18 15:04:34 2008 -0800
+
+    remove unnecessary assert from dapl_ep_free.
+    
+    dat_ep_free must handle the case where a consumer calls
+    free in CONNECTED or DISCONNECT_PENDING states. After
+    free calls disconnect, there may be a pending event,
+    in which case the providers dapls_ib_qp_free will block
+    accordingly and handle pending events.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit b3f020e5cba765077049a8cf61c4ce5009fa1031
+Author: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+Date:   Fri Mar 14 14:31:40 2008 -0700
+
+    fix openib_scm compiler warning
+    
+    Cast to socklen_t since accept(2) expects an unsigned argument.
+    
+    Makes the openib_scm provider now build successfully when using
+    make VERBS=<provider> (the -Werror flag was causing the build
+    failure)
+    
+    Signed-off-by: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+
+commit 441996f05d3cc8b09c94c166ef736bc50c24de7e
+Author: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+Date:   Fri Mar 14 14:31:34 2008 -0700
+
+    fix provider-specific compiler warnings
+    
+    Initialize ds_array_start_p otherwise the compiler would claim
+    that this variable could be used with an uninitialized value.
+    
+    Makes the uDAPL providers now build successfully when using make
+    VERBS=<provider> (the -Werror flag was causing the build failure)
+    
+    Signed-off-by: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+
+commit 5a710fc43ad004ecb4603db1359abb4a4fcd77e3
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Mar 11 09:25:07 2008 -0800
+
+    uDAPL: fix query to adjust max sge for default inline of 64 bytes
+           and include missing max_rdma_write_iov ep_attr field
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit e2c6bf57f78dfebc21e168df01e5876202053e08
+Author: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+Date:   Fri Mar 7 09:39:22 2008 -0800
+
+    uDAT: fix reuse of va_list in debugging mode
+    
+    Make sure we reinitialize the va_list since va_list is undefined
+    if a function traverses the va_list with va_arg.
+    
+    This patch fixes the uDAT debugging case when both stdout and
+    syslog output is wanted.
+    
+    Signed-off-by: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+
+commit 4c9cd7a7268c0d8afb5b4d9b31537bc50cac18fe
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Mar 6 15:40:35 2008 -0800
+
+    Add hostname and process id to debug output to aid
+    scale-up and out debug.
+    
+    Signed-off by: Arlin Davis ardavis@ichips.intel.com
+
+commit 460aa6f089fcdb34d78af1c8391cbecbcc6b0db3
+Author: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+Date:   Sat Feb 23 21:03:21 2008 -0800
+
+    fix reuse of va_list in debugging mode
+    
+    Make sure we reinitialize the va_list since va_list is undefined
+    if a function traverses the va_list with va_arg.
+    
+    This patch fixes the debugging case when both stdout and syslog
+    output is wanted.
+    
+    Signed-off-by: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+
+commit da80af8c76f220508407a2e171c8b28b43b35bf9
+Author: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+Date:   Tue Feb 19 16:54:45 2008 -0800
+
+    Fix memory leak in provider specific post send/recv if there's
+    more than DEFAULT_DS_ENTRIES iovecs.
+    
+    Signed-off-by: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+
+commit d78ee9f95fbe48f71eb247b01c598994edfa4d17
+Author: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+Date:   Tue Feb 19 03:19:42 2008 -0800
+
+    Guarantee NUL termination if hostname gets truncated.
+    
+    Signed-off-by: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+
+commit 3484fa0d2b1a5549d83ecc82d89b72bb86f8fe4e
+Author: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+Date:   Tue Feb 19 03:19:37 2008 -0800
+
+    Make sure we don't leak the hash table if dapl_hca_alloc fails.
+    
+    Signed-off-by: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+
+commit e4ed56be6bd64684564169d89df7ca30faffdb53
+Author: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+Date:   Tue Feb 19 03:19:32 2008 -0800
+
+    Fix memory leak.
+    
+    Signed-off-by: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+
+commit 9efd005b185cfd970d2f8c58f05cf2eaae0dcdc8
+Author: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+Date:   Tue Feb 19 03:19:27 2008 -0800
+
+    Fix memory leak in error path.
+    
+    Signed-off-by: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+
+commit d971e799bb5385a8c847cf3f863f19854e95c1b2
+Author: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+Date:   Tue Feb 19 03:19:22 2008 -0800
+
+    Fix memory leak
+    
+    Signed-off-by: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+
+commit c21f2f455af7934675a58ff825bed6cf54d457c9
+Author: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+Date:   Tue Feb 19 03:19:17 2008 -0800
+
+    Fix memory leak.
+    
+    Signed-off-by: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+
+commit ee46aa47e2a4deeded347fe18bd6321db61c6594
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Feb 15 10:10:01 2008 -0800
+
+    Release 2.0.7
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit f0ca504bc2639cb7a48528d45e9026b54dab3e57
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Feb 14 09:46:56 2008 -0800
+
+    uDAT: Make sure we initialize the dictionary entry early enough so that
+    we can base our cleanup decisions on that variable being
+    initialized.
+    
+    Signed-off-by: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+
+commit 6b11838043a6012668c7e1a22a869e9e84dc40d6
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Feb 14 09:46:18 2008 -0800
+
+    uDAT: Make sure we stay within bounds when manipulating the ia_name.
+    
+    Signed-off-by: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 3eab70b4d34f850661b51dc1b856cd8d672a5cc9
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Feb 14 09:44:56 2008 -0800
+
+    uDAT: Make sure we stay within bounds when manipulating the ia handle.
+    Fix typo in comment.
+    
+    Signed-off-by: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+
+commit 7fe64f10874667062e067efb7ea8c3d385ae90b7
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Feb 14 09:43:39 2008 -0800
+
+    uDAT: Zero-out memory otherwise we might base our cleanup decisions on
+    uninitialized memory.
+    
+    Signed-off-by: Patrick Marchand Latifi <patrick.latifi@qlogic.com>
+
+commit f510e7e8f5b72a6262a7f8b255926cf96c65b654
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Feb 13 20:39:26 2008 -0800
+
+    Modify default configure options to match rpm spec file
+     --enable-debug, --enable-ext-type=ib
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 75273f1a5c599777bb43add93f30563689fdbc10
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Feb 11 15:43:03 2008 -0800
+
+    udapl OFA provider: set listen backlog to default cma backlog max.
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 7f173ecd7e18f25bc21a42651603922e7d71f7c7
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Feb 11 14:50:33 2008 -0800
+
+    The OFA dapl provider is checking for incorrect return code
+    from rdma_bind_addr and rdma_listen calls. This causes an error
+    to be returned back to the consumer instead of correctly
+    incrementing the seed port and re-calling the OFA provider
+    until a valid port is issued. The seed value (1000) is also
+    incorrect and should start a non-privledged port (1024) to
+    avoid EPERM errors when seeding the starting port value.
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 7bcb67ba7c9b37d7c122773f542c7f7f718d4a49
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Feb 4 16:16:10 2008 -0800
+
+    Release 2.0.6 - ChangeLog
+
+commit bead5f36542a8a4c790bda8ecc8dde3e630c15e6
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Feb 4 16:14:02 2008 -0800
+
+    Release 2.0.6
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 8c5beb870048aca286f7396549771ccb075c5c1b
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Feb 4 16:12:47 2008 -0800
+
+    Fix OFED v2 package to build against and target /dat2/include directory.
+    
+    Prevous patch missed dat_osd.h, dapltest/dtest incorrect.
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 42a63bb0271f91541e7b3c3967a9a977ef6660ae
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Feb 4 13:00:45 2008 -0800
+
+    uDAT/DAPL: Fix package to build against and target /dat2/include directory.
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit b3294c738d61f44ae4d0888662bdd6b64f6d6b1f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Jan 29 16:34:49 2008 -0800
+
+    Release 2.0.5 - ChangeLog updated
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 356cf91905d39ade06d76ab9ace6203cd7907d93
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Jan 29 16:33:10 2008 -0800
+
+    libdat: rename libdat.so to libdat2.so to coexist with v1 devel
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit d9a9f46ee220ec9c479756acc306ed68060a662f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jan 28 13:55:35 2008 -0800
+
+    Release 2.0.4 - README
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 533983cec914a7ecc6829934a56f867d7870e301
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jan 28 12:06:03 2008 -0800
+
+    Release 2.0.4 Changelog
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit bfc5bd4b4190c7302b08c3922c17e2131bfbe605
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Jan 28 12:04:18 2008 -0800
+
+    Relase package 2.0.4
+
+commit 95935648f81ac5177ae7120b35e55483902b8c64
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jan 23 16:40:48 2008 -0800
+
+    dapltest does not include definitions for inet_ntoa.
+    At load time the symbol was resolved but with the
+    default definition of int, instead of char*, it caused
+    segfault. Add correct include files in dapl_mdep_user.h
+    for linux.
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 3c1bb0e56c14c5ad50876820e25933c1f4c3dde4
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jan 23 14:46:30 2008 -0800
+
+    Add freeaddrinfo to deallocate getaddrinfo buffer.
+    Cleanup a few printf messages.
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit a4a8ad5eb1b15be19b3a343dee71ad3013d3f4bd
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jan 23 14:25:21 2008 -0800
+
+    Fix for uDAPL v2 using extended operation. After extension completion,
+    the DTO cookie must be checked for type before deallocating to handle
+    inbound immediate data in receive. The sample dtestx client will fail
+    when running loopback if the rdma immediate is received from remote
+    before the rdma immediate request completion fires.
+    
+    Bug causes following dtestx client error:
+    dat_ib_post_rdma_write_immed
+       returned DAT_INSUFFICIENT_RESOURCES : DAT_RESOURCE_MEMORY
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 6dcf1763c153c27c29ba76bac35be4f6935ddd96
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Jan 17 11:30:27 2008 -0800
+
+    WinOF: update dapltest,dtest directories for windows build
+    WinOF: add README.windows
+    
+    Signed-off by: Stan Smith <stan.smith@intel.com>
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 9bececbb32dd31d4a3528e8f000a773e5c593430
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Jan 17 11:24:46 2008 -0800
+
+    WinOF: update dtestx for windows build
+    
+    Signed-off by: Stan Smith <stan.smith@intel.com>
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 4dc8c5defef0f52da751a1eca4d4f35de911c3c0
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Jan 17 11:23:21 2008 -0800
+
+    WinOF: add build enviroment, cleanup old makefiles
+    
+    Signed-off by: Stan Smith <stan.smith@intel.com>
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 5a9e035fa33a6307b3d2b370f64639b14dfca87e
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Jan 15 16:59:34 2008 -0800
+
+    WinOF: name collision with ibal verbs ib_cm_handle_t
+    
+    Signed-off by: Stan Smith <stan.smith@intel.com>
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 7c5418a781c1dfdb37b09450b5df40363dce84b4
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Jan 15 16:06:10 2008 -0800
+
+    dtest: dat_evd_query for correct size
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 6de5e635c01e78bde6e153b727926da900677d52
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Jan 15 16:03:27 2008 -0800
+
+    dapltest: WinOF support.
+    
+    Signed-off by: Stan Smith <stan.smith@intel.com>
+
+commit c680e95b96e57bd8b69b1c73e95730854fcea028
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Jan 15 14:54:57 2008 -0800
+
+    openib_cma: fix cleanup issues in destroy_cm_id
+                add macros to convert SID and PORT
+                fix init/responder settings in accept
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit f8f867e52ffc36a31830dd4003eb2a4b4d265c93
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Jan 15 14:49:54 2008 -0800
+
+    Modifications for WinOF build and endian support for RMR info
+    
+    Signed-off by: Stan Smith <stan.smith@intel.com>
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 4c1fc48d2825efcffaa8cdf7efbdd2d41aeb56ab
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Jan 15 14:39:18 2008 -0800
+
+    WinOF: DAT_API changes, white space and tab cleanup
+           IBAL provider code added
+    
+    Common code: initialize cookie pool buffer
+                 add dapl extension DTO counter
+                 add get_cqe_op_str debug call
+                 remove excess dbg in evd_dequeue
+                 add dbg assert to sp_search_cr
+                 IBAL provider support _VENDOR_IBAL_
+    
+    Signed-off by: Stan Smith <stan.smith@intel.com>
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 68f2ad0af3623dec27b1223aeaca6357348eef4b
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jan 4 08:32:39 2008 -0800
+
+    Windows specific -
+       IBAL support in evd_create
+       Build IB extensions by default
+    Common code -
+       check return status, evd_free, evd_wait
+       add dapl_event_str function
+       definitions for dat_os_library_error, dat_os_ungetc
+    
+    Signed-off by: Stan Smith <stan.smith@intel.com>
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit d21f36406408245ac979f0b9594e7d1d0b9a3852
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jan 4 08:32:19 2008 -0800
+
+    Common code -
+       Missing DAT_API defs
+       casting to fix build issues
+       bitmaps for extension debug
+       DAPL_BAD_PTR macro
+    
+    Signed-off by: Stan Smith <stan.smith@intel.com>
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 258678a381c6a0170020c48b0ba627e820abd3e7
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jan 4 08:31:59 2008 -0800
+
+    Common code -
+       Add DAT_API definitions for dat_redirection.h, udat_redirection.h
+    
+    Signed-off by: Stan Smith <stan.smith@intel.com>
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 87d0b46a0c0f25e8828d7425e0173a0304a23f8b
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jan 4 08:31:27 2008 -0800
+
+    Windows specific -
+       Add dapl_ep fields ibal_cm_handle, recv_disc, sent_disc for IBAL provider
+       Support for direct object on CQ
+       INIT and FINI changes
+       setup dat.conf default path, fix sr parsing
+    Common code -
+       Add Stan Smith as contributor
+       O/S independent dat_os_library_error()
+    
+    Signed-off by: Stan Smith <stan.smith@intel.com>
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit b3ba3dc9743baf3bff243e8969edf3395d1118dd
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Dec 11 14:44:24 2007 -0800
+
+    2/2 uDAPL changes to sync common code base with WinOF
+     - add DAT_API to specify calling conventions (windows=__stdcall, linux= )
+     - cleanup platform specific definitions for windows
+     - c++ support
+     - add handle check macros DAT_IA_HANDLE_TO_UL and DAT_UL_TO_IA_HANDLE
+
+commit 92d7eef38877ad472a91e5e9f88e4e49657716bf
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Dec 11 14:43:05 2007 -0800
+
+    1/2 uDAT changes to sync common code base with WinOF
+     - add DAT_API to specify calling conventions (windows=__stdcall, linux= )
+     - cleanup platform specific definitions for windows
+     - c++ support
+     - add handle check macros DAT_IA_HANDLE_TO_UL and DAT_UL_TO_IA_HANDLE
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off by: Stan Smith <stan.smith@intel.com>
+
+commit 95764c6da28284d29071cf01d1a09bdcb967a971
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Dec 4 13:19:27 2007 -0800
+
+    - Fix size of evd request queue on creation
+    - Add query and checking of DTO request queue
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 9bc97e65c1240224d7dc9d6ac9a48e7aed199ee6
+Merge: 11a165a... abb4356...
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Nov 27 13:31:32 2007 -0800
+
+    master_dat2.0_merge
+
+commit abb4356cd765d38cf5cff2dfbdb610b380f944a2
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Nov 20 12:10:39 2007 -0800
+
+    Release 2.0.3
+
+commit d2c66eb7363234c5a9fb82aa92df1c132e46477e
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Nov 20 12:07:58 2007 -0800
+
+    - Lower default settings (rdma ops, inline sends) for latest iWARP/IB devices
+    - Add missing ia_query for max_iov_segments_per_rdma_write
+    - Cleanup CMA code no longer supported by rdma_cm
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 3a3519167bd65bd999424788f139b930b099b405
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Nov 19 15:26:44 2007 -0800
+
+    Change dapltest timers to use gettimeofday instead of get_cycles for better portability.
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 11a165a1868b1748fe476e08fc40af620f961cd2
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Oct 31 10:58:51 2007 -0800
+
+    - DAT/DAPL Version 1.2.3 Release 1
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit bc2d39a78e31c5e9463c8fa16f0ecaf49f75a15f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Oct 31 10:55:48 2007 -0800
+
+    ChangeLog update
+
+commit 7d3ec3d68a756f895a6c6ba8ed3d7a1d602468e9
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Oct 31 10:55:05 2007 -0800
+
+    - DAT/DAPL Version 2.0.2 Release 1
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 43931378b9d4f5f721da828623f1e391f32f446b
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Oct 30 09:06:24 2007 -0800
+
+    - Add ChangeLog
+    - update cma provider to report remote and local ports via dat_ep_query.
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit a65da8a86ed637bacc32e3518d6c37eeb3b496bf
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Oct 25 14:37:14 2007 -0700
+
+    Fix dapltest endian issue with mem_handle, mem_address.
+    
+    Signed-off-by: Shirley Ma <xma@us.ibm.com>
+
+commit 8196f1655fe6088c66dafa6ad8e4474ea8ebe1d9
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Oct 25 14:36:12 2007 -0700
+
+    Fix dapltest endian issue with mem_handle, mem_address.
+    
+    Signed-off-by: Shirley Ma <xma@us.ibm.com>
+
+commit 39667dbb0160d395fb20eb53a1b4e995e2e623dd
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Oct 16 14:23:17 2007 -0700
+
+     Fix dtest to build properly with extensions.
+    
+     Modify dat.h dat_event to include event_extension_data[8].
+     Extend struct dat_event outside of extension build
+     switch to enable non-extended applications to work
+     with extended libraries. Otherwise, there is a potential
+     for the event callee to write back too much event data
+     and exceed callers non-extended event buffer.
+    
+     Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit d7134fb2bcad6f4f68410af997f8791edd788cfb
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Oct 16 14:10:52 2007 -0700
+
+        Use inet_ntoa instead of open coding it. IP addresses were being
+        reversed on PowerPC.
+    
+        On PowerPC the timebase ticks at a different frequency to the CPU.
+        dapltest currently assumes a 1:1 relationship, and gives bogus values
+        when scaling timebase to real time.
+    
+        To fix this, look at the timebase field in /proc/cpuinfo instead. To
+        keep things consistent with x86, scale that value to MHz.
+    
+        Signed-off-by: Anton Blanchard <anton@samba.org>
+
+commit c6710c291a4f7c0845a4535767d41d66f092fabf
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Oct 16 14:09:56 2007 -0700
+
+    Use inet_ntoa instead of open coding it. IP addresses were being
+    reversed on PowerPC.
+    
+    On PowerPC the timebase ticks at a different frequency to the CPU.
+    dapltest currently assumes a 1:1 relationship, and gives bogus values
+    when scaling timebase to real time.
+    
+    To fix this, look at the timebase field in /proc/cpuinfo instead. To
+    keep things consistent with x86, scale that value to MHz.
+    
+    Signed-off-by: Anton Blanchard <anton@samba.org>
+
+commit 9446029979a55e6e477fb31cfdf9ce0dc77ffa8f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Oct 16 14:02:36 2007 -0700
+
+     Minor clean-up of cr/lf
+    
+     Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 33fd0628497911df11dea640aea4660e54989ed6
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Oct 2 16:01:37 2007 -0700
+
+    Final changes for 2.0.1-1 package, OFED 1.3 ALPHA
+    Fix build issue with SLES 10, gcc++ compiler
+    
+     Signed-off-by: Jimmy Hill <jimmy.hill@us.ibm.com>
+     Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit bc5f16991d75ff9d09e3e3a3cc8c2d6801a9d61f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Oct 2 14:50:02 2007 -0700
+
+    Final changes for package 1.2.2-1, OFED 1.3 ALPHA
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 52bc16939e87587f8208e775dd061f54196a9acb
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Oct 2 11:58:46 2007 -0700
+
+    Change v2 dat.conf provider names to associate with ib net devices
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit d22e62f989dd16d503d5430ffe6f55075139e057
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Oct 2 11:43:34 2007 -0700
+
+    Change DT_Mdep_GetTime to use gettimeofday() which has more resolution
+    than times().
+    
+    Signed-off-by: Anton Blanchard <anton@samba.org>
+
+commit a64eae5bd36598a5c93010e07869e95599aa8ceb
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Oct 2 11:41:40 2007 -0700
+
+    Change v2 dat.conf provider names to associate with ib net devices
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 870764dfad8df0ffe6d3d449e7a8e296cfee8ef5
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Oct 2 11:35:21 2007 -0700
+
+    Change DT_Mdep_GetTime to use gettimeofday() which has more resolution
+    than times().
+    
+    Signed-off-by: Anton Blanchard <anton@samba.org>
+
+commit 66bf23e3e53f370c92803f162144947f29ce06d8
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Oct 2 11:30:15 2007 -0700
+
+    Change DT_Mdep_GetTime to use gettimeofday() which has more resolution
+    than times().
+    
+    Signed-off-by: Anton Blanchard <anton@samba.org>
+
+commit c220760bbb1f6357b6e187ff6c5e576dd74fd504
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Oct 2 10:39:09 2007 -0700
+
+    Fix dapl to compile as both 32bit and 64bit on PowerPC. Instead of using
+    the kernel atomic routines, code them explicitely like x86 does.
+    
+    Signed-off-by: Anton Blanchard <anton@samba.org>
+
+commit 9ffdf3722e5a9cde3fd6add5d7b3940a7ea9f71f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Sep 28 17:04:54 2007 -0700
+
+    Clean up packaging, modify dat.conf for v2.0 cma provider name change to ofa
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 493e65b5b47f47e4824f775959fd98e56aeaccc4
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Sep 28 17:03:41 2007 -0700
+
+    Clean up packaging, modify dat.conf for cma provider name change to ofa
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 99f0a0bf0a0d99fee0729fba0fcdf6f3e89e2ec4
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Sep 20 12:25:55 2007 -0700
+
+      Modifications to coexist with 2.0 libraries
+         - fix RPM specfile, configure.in,  1.2.2 package
+         - modify dat.conf
+    
+        Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 7ff4a8a8e861b0701b5b2a6fc95e6aa8b36d2662
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Sep 20 10:55:19 2007 -0700
+
+    Modifications to coexist with 1.2 libraries
+     - cleanup CR-LF in dtestx
+     - fix RPM specfile, 2.0.1 package
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 230767742b8287490373c09d1bd346337b375b48
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jun 22 11:48:20 2007 -0700
+
+    Update copyright in specfile
+
+commit 5294cbe5e58f67d0a98862edea3684fff6e773bb
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jun 22 11:47:14 2007 -0700
+
+    Update Copyright in specfile
+
+commit 3654c6ef425f94b9f27a593b0b8c1f3d7cc39029
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jun 6 13:20:38 2007 -0700
+
+    Update specfile to reflect DAT/DAPL 1.2.1 release
+
+commit babb95eff1bcef88bed46e92c323193d8f039eff
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Jun 6 11:48:07 2007 -0700
+
+    More changes to the release notes
+
+commit 0f299bf1deb9198b2f008c3ffa717bef252b6097
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Jun 5 15:56:17 2007 -0700
+
+    Update release notes
+
+commit ad70f98a228ade4a863ca349990eaa7ab1e82ec2
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Jun 5 15:52:18 2007 -0700
+
+    Add release notes updated for OFED 1.2 release
+
+commit f332badb80f0b1d88bf2d70dba0c90afc40f088f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu May 31 12:43:28 2007 -0700
+
+    Add provider specific interface to uDAPL for extensions support.
+    Fix memory leak with extensions, missing cookie deallocation when processing extended DTO events
+    Remove unnecessary check on dats_set_ia_handle in dat_ia_openv
+    Clean up specfile and some extra LF's
+
+commit 4d7e30586402149228a30bea3036466395577ec4
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed May 16 12:56:39 2007 -0700
+
+    add iwarp extension include file
+
+commit d9963cc9984c06f147b92877945e847f657cd512
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed May 16 12:52:38 2007 -0700
+
+    clean up some CR's in include files
+
+commit 80f4e8c4be02bac5d472e1e6c4937079882a0388
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed May 9 16:21:16 2007 -0700
+
+    Take out references to specific 1.1 verbs definitions (ibv_comp_channel).
+
+commit 544fbb873d5320e9606f176c4b71bcba0e257d7d
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed May 9 12:51:53 2007 -0700
+
+    Bug Fixes:
+    	- 606: Return local and remote ports with dat_ep_query
+    	- 585: Add bonding example to dat.conf
+
+commit e64079f7b961aa9a672711f0e933a77f3999d302
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon May 7 15:54:59 2007 -0700
+
+    Update dapltest to use default device OpenIB-cma
+    Fix dapltest manpage, example for performance test wrong
+
+commit 7cda2304a6880371ec2d9451a4f83a7a254bc474
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon May 7 12:49:18 2007 -0700
+
+    Fix issues with IB DTO extensions
+     - debug print_cqe updated for latest IBV definitions
+     - dapli_evd_cq_to_event modified to handle both post and receive extensions
+     - dtestx example tested with rdma_write_imm, fetch_add, and cmp_swap
+     - modify cookie DTO types to support extensions properly
+
+commit 82a6750d31cd432c7e09298fc98c0e7e74abd012
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri May 4 17:17:41 2007 -0700
+
+    Add new dapl functions for 2.0 (stubs for now)
+    - dapl_ep_post_send_invalidate
+    - dapl_ep_post_rdma_read_to_rmr
+    - dapl_ia_ha
+    - dapl_csp_create, query, free
+    - dapl_cno_trigger
+    - dapl_cno_fd_create
+    - dapl_extensions
+    
+    Add new 2.0 parameters to existing API's
+    - dapl_cr_reject
+    - dapl_rmr_bind
+
+commit 8679aaf56c781715adc132a38a731e36194570f1
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu May 3 09:44:43 2007 -0700
+
+    update dtestx.c, default provider OpenIB-cma
+
+commit 527f6d19125e9eec7ecef03a8633626b0043a2f4
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed May 2 17:27:44 2007 -0700
+
+    Added IB extensions and dtestx as an example program using
+    rdma write with immediate and atomic operations
+
+commit 83ac961b505346708f12d59152146f3b04c8306f
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Apr 30 10:55:59 2007 -0700
+
+    Fixes atomic operation build problem with ia64 and RHEL5.
+
+commit 04da88bb70ee33b249a4cf2f5a92122eeec83e3c
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Apr 26 17:29:37 2007 -0700
+
+    Update README and dapltest manpage
+
+commit 9a951d0a8713657da90568c0613eb48f5010cf1e
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Apr 3 16:35:17 2007 -0700
+
+    Cleanup RPM specfile for the dapl package, move to 1.2-1 release.
+
+commit a93f0ffcd6a46735c97ec34de564a7a91f9fc5c2
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Apr 3 14:38:31 2007 -0700
+
+    Add support for multiple IB devices to dat.conf to support IPoIB HA failover.
+
+commit 5434b720b36de2f262a02ff9dfccd99953c09e59
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Mar 15 10:46:33 2007 -0800
+
+    Fix ia64 builds on SUSE
+
+commit b0f9eef1aa7f279802da233480cf6c495e16565b
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Mar 14 13:29:08 2007 -0800
+
+    DAT 2.0 support for new DAT_VA_TYPE added to uDAPL and openib-cma provider
+
+commit 61858b925f4c1a6f9edba6389a5bd601daf936e9
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Mar 14 11:08:19 2007 -0800
+
+    change DAT_VERSION major and minor numbers to 2.0
+
+commit 6dcb2e083bda8f2521bd3515b329c5465e1ac724
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Mar 14 10:43:56 2007 -0800
+
+    add provider support to dtest, set default to OpenIB-cma
+
+commit ff8eb667c1000be6c68ca291e7ed7bd080cb73f4
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Tue Mar 13 16:20:20 2007 -0800
+
+    add provider option to dtest, set default to OpenIB-cma
+
+commit 76a43cace54567135bac7ae54e336c6595b65fd9
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Mar 9 13:09:14 2007 -0800
+
+    Initial build with DAT 2.0 definitions and IB extensions. IB extensions configurable with --enable-ext-type=ib
+
+commit 921687efed992e6ab72dfb731687b6816324a024
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Thu Mar 8 16:01:29 2007 -0800
+
+    Update the README
+
+commit 52ed210ae99b291f72441e71459006b5f2c851ce
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Mar 7 15:34:41 2007 -0800
+
+    - Fix bug 408, dapltest compilation failure on 32 bit arch
+    - Update libdat.spec.in file to build uDAPL RPMs correctly
+
+commit e3f6aca57a8fa5cbaaf872bf6844feb7d5e1e66c
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Mar 5 14:15:49 2007 -0800
+
+    Fix build issues with dtest and dapltest. Define build tree path to dat/include.
+
+commit f1f829a28e645831c3bcd1eb2d465fcb7a1fd5d8
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Feb 28 17:14:55 2007 -0800
+
+    Add dapltest headers to EXTRA_DIST
+    Modify dtest to delay before accepting
+    
+    Signed-off-by: Vladimir Sokolovsky <vlad@mellanox.co.il>
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+
+commit 46b830a4664d5fee2daf1ebdc4e95ecb7c580e80
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Feb 26 13:54:15 2007 -0800
+
+    Adding dtest and dapltest to the build. Manual pages created.
+
+commit d245664e27148e54469268ad81f41b2a894a131a
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Fri Jan 19 16:21:30 2007 -0800
+
+    uDAPL changes to support exchanging and validation of the device responder_resources and the
+    initiator_depth during connection establishment
+
+commit 2280f833090aa9f750d5be8f9b06e7e08e642da5
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Wed Dec 6 11:49:27 2006 -0800
+
+    Update cma provider to sync with rdma_ucm changes
+
+commit 89448545b415b6dff57e3314b020619f6b979ef8
+Author: Arlin Davis <arlin.r.davis@intel.com>
+Date:   Mon Dec 4 13:54:20 2006 -0800
+
+    Update autogen to create config directory
+
+commit 0a917b104eba0aae6c6ef49c7990a2dc7efc759d
+Author: Arlin Davis <ardavis@ichips.intel.com>
+Date:   Tue Nov 7 20:22:05 2006 +0000
+
+    r10074: Added support for new ib verbs client register event. No extra processing required at the uDAPL
+    level.
+    
+    Fix some issues supporting create qp without recv cq handle or recv qp resources. IB verbs assume a
+    recv_cq handle and uDAPL dapl_ep_create assumes there is always recv_sge resources specified.
+    
+    Fix some timeout and long disconnect delay issues discovered during scale-out testing. Added support
+    to retry rdma_cm address and route resolution with configuration options. Provide a disconnect call
+    when receiving the disconnect request to guarantee a disconnect reply and event on the remote side.
+    The rdma_disconnect was not being called from dat_ep_disconnect() as a result of the state changing
+    to DISCONNECTED in the event callback.
+    
+    Here are the new options (environment variables) with the default setting:
+    
+    DAPL_CM_ARP_TIMEOUT_MS   4000
+    DAPL_CM_ARP_RETRY_COUNT  15
+    DAPL_CM_ROUTE_TIMEOUT_MS  4000
+    DAPL_CM_ROUTE_RETRY_COUNT 15
+
+commit c73aeb904504a0bc6cce0fb1248af9ba39521395
+Author: Arlin Davis <ardavis@ichips.intel.com>
+Date:   Thu Oct 12 22:41:33 2006 +0000
+
+    r9802: Remove Socket CM provider from build and dat.conf configuration. No longer needed nor supported.
+
+commit b1d94b26610f682cdd43bde2aecf5004e0865422
+Author: Steve Wise <swise@opengridcomputing.com>
+Date:   Tue Sep 12 18:15:39 2006 +0000
+
+    r9442: Update obsolete CLK_TCK to CLOCKS_PER_SEC
+    Signed-off-by: Steve Wise <swise@opengridcomputing.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 99a5dddd07d4c271ebb075b5b0f800101f850a56
+Author: Arlin Davis <ardavis@ichips.intel.com>
+Date:   Thu Sep 7 18:09:11 2006 +0000
+
+    r9346:
+    inadvertently added evdtest to makefile when testing dat_evd_set_unwaitable fix with openib_cma provider
+
+commit b53a87c856d9754313da9543a1dac5c6f1307085
+Author: Arlin Davis <ardavis@ichips.intel.com>
+Date:   Wed Sep 6 20:36:09 2006 +0000
+
+    r9315:
+    Fill out some unitialized fields in the ia_attr structure
+    returned by dat_ia_query().
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off by: Robert Walsh <robert.walsh@qlogic.com>
+
+commit b6c4e84399d0aa44c72c6ca870409c3666d7e79b
+Author: Arlin Davis <ardavis@ichips.intel.com>
+Date:   Fri Aug 11 20:44:23 2006 +0000
+
+    r8895: Update dtest to support multiple segments on rdma write and change makefile to use OpenIB-cma by default.
+
+commit 4737c63d79b23c3aff329e864dd50e3cffb6a17f
+Author: Arlin Davis <ardavis@ichips.intel.com>
+Date:   Wed Jul 19 17:15:06 2006 +0000
+
+    r8592: Add support for dat_evd_set_unwaitable on a DTO evd in openib_cma provider
+
+commit 25fb8c376547de895a170194c09b2d72dfea789d
+Author: Arlin Davis <ardavis@ichips.intel.com>
+Date:   Mon Jul 17 22:59:17 2006 +0000
+
+    r8565: Added errno reporting (message and return codes) during open to help diagnose create thread issues.
+
+commit f3a1ed6232ccdee7d193e8e3b9b0013b2bd222af
+Author: Anton Blanchard <anton@samba.org>
+Date:   Mon Jul 17 21:26:03 2006 +0000
+
+    r8562: Fix some suspicious inline assembly:
+    - EIEIO_ON_SMP and ISYNC_ON_SMP are in kernel UP build optimisations, we
+      shouldnt export them to userspace. Replace it with lwsync and isync.
+    - The comment says its implemenenting cmpxchg64 but in fact its
+      implementing cmpxchg32. Fix the comment.
+    
+    Signed-off-by: Anton Blanchard <anton@samba.org>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 63759108a1376b6e45a4491551f71d8cafdcddc1
+Author: James Lentini <jlentini@netapp.com>
+Date:   Wed Jul 12 14:56:26 2006 +0000
+
+    r8503: Fix IA64 build problems reported by John Partridge <johnip@sgi.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 51362c9781cb65fd8f9a3cb5b7c12c88e4c8527a
+Author: Arlin Davis <ardavis@ichips.intel.com>
+Date:   Thu Jun 22 22:02:56 2006 +0000
+
+    r8182: Lower the reject debug message level so we don't see warnings
+    when consumers reject.
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit f14889bb0cd22e897148ea2f6931a6b4f23143b0
+Author: Arlin Davis <ardavis@ichips.intel.com>
+Date:   Thu Jun 22 21:13:37 2006 +0000
+
+    r8181: Added support for active side TIMED_OUT event from a provider.
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 14fc704ae20b6a3ad0d433d7de9c02ce99e095b3
+Author: Arlin Davis <ardavis@ichips.intel.com>
+Date:   Thu Jun 22 20:58:06 2006 +0000
+
+    r8180: Fix bug in dapls_ib_get_dat_event() call after adding new unreachable event.
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 893698c31a0d8e60227806d992485a44375840cb
+Author: James Lentini <jlentini@netapp.com>
+Date:   Mon Jun 19 17:20:45 2006 +0000
+
+    r8112: Update for new rdma_create_id() function signature.
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 53483d84b0d02c432d9435d2f8e840cab3ded320
+Author: Arlin Davis <ardavis@ichips.intel.com>
+Date:   Wed Jun 14 16:17:39 2006 +0000
+
+    r8008: Set max rdma read per EP attributes
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 6cb854cd72d9492ddc1c5da01dbfb24b3f30af83
+Author: Arlin Davis <ardavis@ichips.intel.com>
+Date:   Mon Jun 12 15:42:50 2006 +0000
+
+    r7931: Report the proper error and timeout events.
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 44a97ff1f599f4bf882a801ead7aa495ea9ba936
+Author: Arlin Davis <ardavis@ichips.intel.com>
+Date:   Mon Jun 12 14:51:14 2006 +0000
+
+    r7928: Socket CM fix to guard against using a loopback address
+    as the local device address.
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 152219cf83c61e459fdf3de03d4e83ddba045230
+Author: Arlin Davis <ardavis@ichips.intel.com>
+Date:   Tue Jun 6 21:46:44 2006 +0000
+
+    r7755: Use the uCM set_option feature to adjust connect request timeout
+    and retry values. Also, a fix to disallow any event after a disconnect
+    event.
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 3a0686a2624ed28c7ea37b650415801f1cedbd10
+Author: James Lentini <jlentini@netapp.com>
+Date:   Wed May 31 19:55:57 2006 +0000
+
+    r7608: Correct comment.
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit eb760157c90f59183b424ac8e71474fe0b46094c
+Author: James Lentini <jlentini@netapp.com>
+Date:   Thu May 18 21:54:12 2006 +0000
+
+    r7347: Undo inadvertent change.
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 27256222b42fecfac8a44b3f82fe2524ecc72de2
+Author: James Lentini <jlentini@netapp.com>
+Date:   Thu May 18 21:50:27 2006 +0000
+
+    r7346: Fix for uCMA provider to return the correct event as a result of
+    rejects. Also, ran into a segv bug with dapl_ep_create when
+    creating without a conn_evd.
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit b1b6e16f3e41e123cd347bc78b01e3272076362b
+Author: Arlin Davis <ardavis@ichips.intel.com>
+Date:   Fri May 12 19:50:19 2006 +0000
+
+    r7141: Update the uDAPL openib_cma provider to work with the new
+    uCMA event channel interface.
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 27f9f0c106662cc7b41bcb747495860a1b6c7133
+Author: Steve Wise <swise@opengridcomputing.com>
+Date:   Tue May 2 21:33:35 2006 +0000
+
+    r6873: Transaction test change to comply with the iWARP MPA protocol's
+    "Connection Startup Rules".
+    Signed-off-by: Steve Wise <swise@opengridcomputing.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 060d09f974ffbe73672e17641b2f18d3821d31a7
+Author: Arlin Davis <ardavis@ichips.intel.com>
+Date:   Fri Apr 28 13:44:17 2006 +0000
+
+    r6736: getaddrinfo() fix for debug builds and some additional debug messages for
+    connect errors and rejects.
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 4e8b95bbeaf6e5c27de59ef347ec2ef0aa2e5e6b
+Author: James Lentini <jlentini@netapp.com>
+Date:   Wed Apr 19 16:49:34 2006 +0000
+
+    r6520: Fix compilation warning.
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 115fcc396164066326f9447d71af798a381d063f
+Author: Steve Wise <swise@opengridcomputing.com>
+Date:   Wed Apr 19 16:32:01 2006 +0000
+
+    r6518: Do not always generate an event for an abrupt disconnect.
+    Signed-off-by: Steve Wise <swise@opengridcomputing.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit f959bb786cd884bf4d2a5da4d299da6297d65293
+Author: James Lentini <jlentini@netapp.com>
+Date:   Wed Apr 19 16:30:37 2006 +0000
+
+    r6517: Generate a disconnect event for providers that do not generate
+    one automatically.
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit bb467511cf6e217147817ba12bbe800aae97cab5
+Author: James Lentini <jlentini@netapp.com>
+Date:   Wed Apr 19 16:25:33 2006 +0000
+
+    r6516: Fix compilation error.
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 117a9856c269bf08b738a1923c92f5a1949f6cc1
+Author: James Lentini <jlentini@netapp.com>
+Date:   Mon Apr 10 20:16:44 2006 +0000
+
+    r6392: Fix for RDMA cm id destruction and debug builds.
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 5f56b2b7339c17276188464dfff12b1be9e1dbb7
+Author: James Lentini <jlentini@netapp.com>
+Date:   Thu Apr 6 15:32:47 2006 +0000
+
+    r6289: Set max_iov_segments_per_rdma_read and max_rdma_read_iov using the correct
+    attribute.
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 304f48370adcaa12463c1a7d99e513164b83810c
+Author: Steve Wise <swise@opengridcomputing.com>
+Date:   Thu Apr 6 15:16:10 2006 +0000
+
+    r6286: Set the IA attribute max_iov_segments_per_rdma_read and the EP attribute
+    max_rdma_read_iov based on the openib max_sge_rd device attribute.
+    Signed-off-by: Steve Wise <swise@opengridcomputing.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit fe27222d2a00d7c5c4d98f39d2926fe14c7f32bc
+Author: James Lentini <jlentini@netapp.com>
+Date:   Tue Apr 4 18:29:00 2006 +0000
+
+    r6221: Change the mechanism by which library init and fini functions are specified
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 5a0598b90ab021cb2115e3791cb38dcfc0347948
+Author: James Lentini <jlentini@netapp.com>
+Date:   Mon Apr 3 17:29:55 2006 +0000
+
+    r6182: Remove unused variables.
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit b8084c4edc21b5ac2191ec654a882b65bad0c77d
+Author: James Lentini <jlentini@netapp.com>
+Date:   Mon Apr 3 15:29:30 2006 +0000
+
+    r6179: Fix dapltest compiler warnings.
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit abdbec194670d72012d481b98b2e6f728e9c5b48
+Author: James Lentini <jlentini@netapp.com>
+Date:   Mon Apr 3 14:08:48 2006 +0000
+
+    r6168: Fixed debug prints of 64-bit values and removed compile warnings.
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 52de2a35e02ddeb15887d0d690b52a4e02812e57
+Author: James Lentini <jlentini@netapp.com>
+Date:   Tue Mar 21 22:28:10 2006 +0000
+
+    r5939: Move libdat.spec to libdat.spec.in
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 6b1a6356a1757ae9b9d1557bd2ae67e0913d04c2
+Author: Arlin Davis <ardavis@ichips.intel.com>
+Date:   Fri Mar 17 22:02:18 2006 +0000
+
+    r5879: Add GNU Autotools support and an RPM spec file
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 9d00582b8be33add8d3e4173e8311b1a222b0b34
+Author: Arlin Davis <ardavis@ichips.intel.com>
+Date:   Thu Mar 16 22:40:18 2006 +0000
+
+    r5871: Fixes a corner case where a CMA event was not acknowledged during
+    disconnect processing.
+    
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit ede1d714a8e7ae99246eb382c1c1165f238cf7c3
+Author: James Lentini <jlentini@netapp.com>
+Date:   Mon Mar 13 18:15:49 2006 +0000
+
+    r5789: Reduces some debug output in the async thread and fixes listen
+    processing of EBUSY.
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off by: James Lentini <jlentini@netapp.com>
+
+commit afd558cbdada66e01aa553364b9a126da00dbe65
+Author: Arlin Davis <ardavis@ichips.intel.com>
+Date:   Wed Mar 8 14:24:26 2006 +0000
+
+    r5684: Remove unused NO_EP_STATE.
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 4c36aca16b9b492a91c0b05002af5fc954f3b44e
+Author: James Lentini <jlentini@netapp.com>
+Date:   Tue Feb 28 15:41:03 2006 +0000
+
+    r5529: Fix to destroy QPs in all cases and close the HCA.
+    
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off by: James Lentini <jlentini@netapp.com>
+
+commit 5874fdb26436c58365a7096b9b68c8e45a51d7a3
+Author: James Lentini <jlentini@netapp.com>
+Date:   Mon Jan 9 20:17:33 2006 +0000
+
+    r4855: Make use of dat_evd_wait the default.
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 254bd0e349bafbd970d6475efcafd7e52f05415e
+Author: Arlin Davis <ardavis@ichips.intel.com>
+Date:   Mon Jan 9 16:59:38 2006 +0000
+
+    r4852: Fix disconnect event processing and update dtest to validate.
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit f69d737ee51f6b00a1e6cf8531695a61a322651b
+Author: Arlin Davis <ardavis@ichips.intel.com>
+Date:   Fri Dec 16 02:03:05 2005 +0000
+
+    r4502: Query for rd_atomic values.
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 86566b556920a51f1e538d245674058682012668
+Author: James Lentini <jlentini@netapp.com>
+Date:   Fri Dec 16 01:57:30 2005 +0000
+
+    r4501: Allow a network name, network address, or device name in the dat.conf file.
+    Singed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 9e0ca3d4ccb92b9c0337efbadce405076a365f0f
+Author: Roland Dreier <rolandd@cisco.com>
+Date:   Wed Dec 14 20:44:36 2005 +0000
+
+    r4466: Change libibverbs API for listing all known devices from
+    ibv_get_devices() to ibv_get_device_list(), and update all
+    in-tree uses of this API.
+    
+    Signed-off-by: Roland Dreier <rolandd@cisco.com>
+
+commit 73a80143ab7b3f9aad19f84f904f99b489dca6cf
+Author: James Lentini <jlentini@netapp.com>
+Date:   Mon Dec 5 16:37:46 2005 +0000
+
+    r4308: Fix a gcc 4.0 warning
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit aa8b16b7e83f321eaaa18b38e6c165c2f120bcec
+Author: Arlin Davis <ardavis@ichips.intel.com>
+Date:   Thu Dec 1 15:03:10 2005 +0000
+
+    r4279: Added CMA API support.
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 74d3c32e42ab54f3d6f2eec3d0a66d08f800e075
+Author: James Lentini <jlentini@netapp.com>
+Date:   Thu Nov 10 21:39:34 2005 +0000
+
+    r4018: Fixed some problems with the free build openib_scm version and turned
+    down some debugging and added some debug prints for uAT path records.
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off by: James Lentini <jlentini@netapp.com>
+
+commit 70a2f23c5604e55f8f76672f78b4bf92f6a79b98
+Author: James Lentini <jlentini@netapp.com>
+Date:   Mon Oct 31 18:27:13 2005 +0000
+
+    r3917: Fix printing of debug statements.
+    Signed off by: Aniruddha Bohra <bohra@cs.rutgers.edu>
+    Signed off by: James Lentini <jlentini@netapp.com
+
+commit 4306debe3118948fca72a68ec20ef0d73b399fd1
+Author: James Lentini <jlentini@netapp.com>
+Date:   Wed Oct 26 21:10:26 2005 +0000
+
+    r3882: uDAPL provider for OpenIB socket CM.
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off by: James Lentini <jlentini@netapp.com>
+
+commit 42a64ec2ec1d8ec71492bfebba077b006684ce97
+Author: James Lentini <jlentini@netapp.com>
+Date:   Thu Oct 13 20:45:22 2005 +0000
+
+    r3774: Fix the async error handling and callback mappings.
+    Updated TODO list.
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off by: James Lentini <jlentini@netapp.com>
+
+commit fea8ed1188fbeef8291cfd7e681cd48c06ff5bde
+Author: Robert Walsh <rjwalsh@pathscale.com>
+Date:   Fri Oct 7 21:15:00 2005 +0000
+
+    r3693: Update some more ignores.
+
+commit 303147143afa9aa72906246a9f1973e4172f75b8
+Author: Todd Bowman <twbowman@gmail.com>
+Date:   Thu Oct 6 21:13:32 2005 +0000
+
+    r3687: Add PPC64 support for udapl
+    Signed-off-by: Todd Bowman <twbowman@gmail.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 103c7db321e24a7b5b06c7c26b0e0a65d1dd11ce
+Author: Todd Bowman <twbowman@gmail.com>
+Date:   Thu Oct 6 15:22:08 2005 +0000
+
+    r3683: Remove the dtest qualifier from the sdp range.
+    Signed-off-by: Todd Bowman <twbowman@gmail.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 33fbf9c81ac29492394e419588d856533e7fffb8
+Author: James Lentini <jlentini@netapp.com>
+Date:   Mon Oct 3 14:59:22 2005 +0000
+
+    r3637: Support CQ_WAIT_OBJECT with channels and sync with latest verbs.
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off by: James Lentini <jlentini@netapp.com>
+
+commit f01dac62b08d8f4fd417c336be48fb3bc8cd15c5
+Author: James Lentini <jlentini@netapp.com>
+Date:   Thu Sep 29 18:13:25 2005 +0000
+
+    r3619: Makefile fix.
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 634b199218b775a8ed071c1faea519c4cc4ee4e3
+Author: James Lentini <jlentini@netapp.com>
+Date:   Wed Sep 28 21:50:13 2005 +0000
+
+    r3606: Fixes IA64 build problems (atomics) with the latest Redhat EL4.0 update and
+    adds support for SuSe.
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off by: James Lentini <jlentini@netapp.com>
+
+commit 3a23c7135905666ff969b86dab3e90f90ac73008
+Author: Robert Walsh <rjwalsh@pathscale.com>
+Date:   Tue Sep 27 16:59:14 2005 +0000
+
+    r3567: Setup svn:ignore on a bunch of directories.
+
+commit d41ea62125636a58e8748871e372810c09865b0a
+Author: James Lentini <jlentini@netapp.com>
+Date:   Thu Sep 22 21:24:38 2005 +0000
+
+    r3525: Improve dtest and measure RDMA reads
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 32258d13af6aaf76078ec6ba187d8129a0f70397
+Author: James Lentini <jlentini@netapp.com>
+Date:   Wed Sep 21 19:54:07 2005 +0000
+
+    r3513: Temporary workaround for the RDMA read performance anomaly
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off by: James Lentini <jlentini@netapp.com>
+
+commit 990bdc4320809e0b989c90c24bef361c1bc91c7f
+Author: James Lentini <jlentini@netapp.com>
+Date:   Tue Sep 20 17:00:37 2005 +0000
+
+    r3494: Moved dapl_evd_modify_cno.c to match SourceForge
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 4509fb64fdbf99db7bdcaad4d8e3884718184d86
+Author: James Lentini <jlentini@netapp.com>
+Date:   Tue Sep 20 16:17:59 2005 +0000
+
+    r3493: Support ib_cm_init_qp_attr(), add cm event processing on a per
+    device basis, and add copyrights for kDAPL cm work that was
+    used in uDAPL.
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off by: James Lentini <jlentini@netapp.com>
+
+commit c1d45137c2e26024142f24207344e3e48a577b83
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Thu Sep 15 21:43:21 2005 +0000
+
+    r3453: Bind communication identifiers to a device to support device removal.
+    Export per HCA CM devices to userspace.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit 5146689f1dbbce01cc46e23d749c28828e7e3ca8
+Author: James Lentini <jlentini@netapp.com>
+Date:   Wed Sep 14 17:44:44 2005 +0000
+
+    r3432: Request address resolution using ATS.
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 780b8237f2bf6884cf1abcc11190f97ed5c0a343
+Author: James Lentini <jlentini@netapp.com>
+Date:   Mon Sep 12 19:14:43 2005 +0000
+
+    r3378: Added DAPL documentation.
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 8911b60eb16770d28907c14e45556444317dd276
+Author: James Lentini <jlentini@netapp.com>
+Date:   Mon Sep 12 19:10:13 2005 +0000
+
+    r3377: Removed executable premission.
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit dec4d2eafebdfe7e6b495a36dd16bd5a98417e04
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Fri Sep 9 21:51:58 2005 +0000
+
+    r3349: Update DAPL to match the verbs and CM event processing APIs.
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit d06dcfd25e5d37310d089bcb7f3d3d75fcece75a
+Author: Arlin Davis <ardavis@ichips.intel.com>
+Date:   Tue Sep 6 19:34:46 2005 +0000
+
+    r3326: Changes to support async events. Also consolidated the uAT,uCM,uCQ threads into one processing thread.
+    Signed-off-by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 1dd8c28ce515675ee8df37cc1596bca17587eaf6
+Author: James Lentini <jlentini@netapp.com>
+Date:   Mon Aug 29 15:07:44 2005 +0000
+
+    r3232: validate default settings so they don't exceed device maximums
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off by: James Lentini <jlentini@netapp.com>
+
+commit ac5308b4aac7de79a356439dfec2312faf7705ae
+Author: James Lentini <jlentini@netapp.com>
+Date:   Mon Aug 29 14:15:23 2005 +0000
+
+    r3227: Support for ibv_query_port, device, and gid.
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off by: James Lentini <jlentini@netapp.com>
+
+commit ef8c7a3a4896487ff0d37a7d7234746c15fe5cf7
+Author: Sean Hefty <sean.hefty@intel.com>
+Date:   Sun Aug 21 22:30:08 2005 +0000
+
+    r3143: - Add user specified context to all uCM events.  Users will not retrieve
+      any events associated with the context after destroying the corresponding
+      cm_id.
+    - Provide the ib_cm_init_qp_attr() call to userspace clients of the CM.
+      This call may be used to set QP attributes properly before modifying the QP.
+    - Fixes some error handling syncrhonization and cleanup issues.
+    - Performs some minor code cleanup.
+    - Replaces the ucm_simple test program with a userspace version of cmpost.
+    - Updates DAPL to the new API.
+    
+    Signed-off-by: Sean Hefty <sean.hefty@intel.com>
+
+commit ec0f86d7c55830c6dffded585c04754cc6ac2a83
+Author: James Lentini <jlentini@netapp.com>
+Date:   Tue Aug 16 14:10:13 2005 +0000
+
+    r3107: Removed unused debug counter macros
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 49087ba27bd93769bb64d7ac5c454de1b94005bc
+Author: James Lentini <jlentini@netapp.com>
+Date:   Tue Aug 16 14:07:42 2005 +0000
+
+    r3106: Implemented debug counters
+    Signed-off by: Arlin Davis <ardavis@ichips.intel.com>
+    Signed-off by: James Lentini <jlentini@netapp.com>
+
+commit f98e3af7dfc56b288cc77a9103b90f8d6a927fc5
+Author: James Lentini <jlentini@netapp.com>
+Date:   Thu Aug 11 20:23:56 2005 +0000
+
+    r3072: Update from SourceForge DAPL: use the LMR context in calls to
+    dapls_hash_remove()
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 878e524c5cc63a62802d28fdc215a2b69ceb1141
+Author: James Lentini <jlentini@netapp.com>
+Date:   Thu Aug 11 20:07:06 2005 +0000
+
+    r3071: Updates from SourceForge DAPL: EVD updates
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 8dc70f7d972615f40e624d8f1272e5e7c16ba34f
+Author: James Lentini <jlentini@netapp.com>
+Date:   Thu Aug 11 19:57:40 2005 +0000
+
+    r3070: Update from SourceForge DAPL: set async evd to null in dapli_ia_release_hca
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit f2801ae6caf010d660fe302970dabddc8948e1bf
+Author: James Lentini <jlentini@netapp.com>
+Date:   Thu Aug 11 19:46:39 2005 +0000
+
+    r3069: Updates from SourceForge DAPL: size EP IOV correctly
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit c87fd235eaf0b3a30e005422f7d347c406c14f2c
+Author: James Lentini <jlentini@netapp.com>
+Date:   Thu Aug 11 19:35:05 2005 +0000
+
+    r3068: Update from SourceForge DAPL: removed duplicate ia pointer in SP structure and
+    fixed the spelling of ib_hca_transport_t.
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit a88bebc09a9655e462b3d32dfddec823024eab59
+Author: James Lentin <jlentini@netapp.com>
+Date:   Thu Aug 11 19:24:56 2005 +0000
+
+    r3067: Update from SourceForge DAPL: use include guard
+    Signed-off-by: James Lentin <jlentini@netapp.com>
+
+commit d2da08920de882a9a266f0606b81150c625fa003
+Author: James Lentini <jlentini@netapp.com>
+Date:   Thu Aug 11 19:21:56 2005 +0000
+
+    r3066: Update from SourceForge DAPL: optimization to dapl_ep_query
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 4ca3b0cbc59227a90b5450eea1ffeeb91826dd6d
+Author: James Lentini <jlentini@netapp.com>
+Date:   Thu Aug 11 18:39:34 2005 +0000
+
+    r3065: Update from DAPL SourceForge: indicate which handle is invalid
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 6d8f34137776c32149251bdec493c017b399cd10
+Author: James Lentini <jlentini@netapp.com>
+Date:   Thu Aug 11 18:35:58 2005 +0000
+
+    r3064: Update from DAPL SourceForge: set ep param values.
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 0f35002a1942303ff46cb9a2b70056f9a38aebdb
+Author: James Lentini <jlentini@netapp.com>
+Date:   Thu Aug 11 18:33:47 2005 +0000
+
+    r3063: Updates from DAPL SourceForge: QP state and connection event fix.
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 3fc876339693c6f0eed5e57780e5342f301bd95c
+Author: James Lentini <jlentini@netapp.com>
+Date:   Thu Aug 11 18:23:33 2005 +0000
+
+    r3062: Update from DAPL SourceForge: remove unused DAPL_CNO_PROXY_CALL
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 70f8e7a2e6bde4e757ddc8c7f59d3a5c6a13adf9
+Author: Hal Rosenstock <halr@voltaire.com>
+Date:   Fri Aug 5 17:59:38 2005 +0000
+
+    r2989: Fix dtest makefile
+    Signed-off-by: Hal Rosenstock <halr@voltaire.com>
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 864695cfef37d84359ada8838ab4cd4f4dafc6bb
+Author: James Lentini <jlentini@netapp.com>
+Date:   Fri Aug 5 17:57:31 2005 +0000
+
+    r2988: Remove kernel directory.
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 9c4e246a5baf43cadc6380e91fd5a6e319777278
+Author: James Lentini <jlentini@netapp.com>
+Date:   Fri Aug 5 17:56:56 2005 +0000
+
+    r2987: Remove kernel code directory.
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 26706cb0de471ba47279de0cb949ba5a41de82cc
+Author: James Lentini <jlentini@netapp.com>
+Date:   Fri Aug 5 16:41:12 2005 +0000
+
+    r2986: Add uDAPL to the trunk
+    Signed-off-by: James Lentini <jlentini@netapp.com>
+
+commit 76aa2de7fe38a8595d88669842450084cfa88316
+Author: Roland Dreier <roland@topspin.com>
+Date:   Thu Nov 4 17:54:50 2004 +0000
+
+    r1139: Copy roland-merge branch to trunk
+
+commit 3bd72a559dfe22685aae33599c99d021d2ae4aca
+Author: Roland Dreier <roland@topspin.com>
+Date:   Tue Jul 20 21:34:32 2004 +0000
+
+    r502: Move 2.6-only source away from trunk
+
+commit 4f05b6ed3fd1d14161664c677264846eeb51dba5
+Author: Roland Dreier <roland@topspin.com>
+Date:   Tue Jul 20 21:34:32 2004 +0000
+
+    r502: Move 2.6-only source away from trunk
+
+commit 6da8b951c069072a2afc6aba03a3dca2c44db022
+Author: Roland Dreier <roland@topspin.com>
+Date:   Tue Jul 20 01:41:16 2004 +0000
+
+    r497: Move 2.6-only tree to gen2
