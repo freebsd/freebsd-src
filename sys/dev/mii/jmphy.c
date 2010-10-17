@@ -109,7 +109,7 @@ jmphy_attach(device_t dev)
 	sc = &jsc->mii_sc;
 	ma = device_get_ivars(dev);
 	sc->mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->mii_dev);
+	mii = ma->mii_data;
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
 	sc->mii_inst = mii->mii_instance;
