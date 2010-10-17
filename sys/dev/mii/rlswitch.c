@@ -117,7 +117,7 @@ rlswitch_attach(device_t dev)
 	sc = device_get_softc(dev);
 	ma = device_get_ivars(dev);
 	sc->mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->mii_dev);
+	mii = ma->mii_data;
 
 	/*
 	 * We handle all pseudo PHY in a single instance, so never allow
