@@ -1,0 +1,630 @@
+; IQ2000-only CPU description. -*- Scheme -*-
+;
+; Copyright 2000, 2001, 2002 Free Software Foundation, Inc.
+;
+; Contributed by Red Hat Inc; developed under contract from Vitesse.
+;
+; This file is part of the GNU Binutils.
+;
+; This program is free software; you can redistribute it and/or modify
+; it under the terms of the GNU General Public License as published by
+; the Free Software Foundation; either version 2 of the License, or
+; (at your option) any later version.
+;
+; This program is distributed in the hope that it will be useful,
+; but WITHOUT ANY WARRANTY; without even the implied warranty of
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+; GNU General Public License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with this program; if not, write to the Free Software
+; Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+(dni andoui "and upper ones immediate" (MACH2000 USES-RS USES-RT)
+     "andoui $rt,$rs,$hi16"
+     (+ OP_ANDOUI rs rt hi16)
+     (set rt (and rs (or (sll hi16 16) #xFFFF)))
+     ())
+
+(dni andoui2 "and upper ones immediate" (ALIAS NO-DIS MACH2000 USES-RS USES-RT)
+     "andoui ${rt-rs},$hi16"
+     (+ OP_ANDOUI rt-rs hi16)
+     (set rt-rs (and rt-rs (or (sll hi16 16) #xFFFF)))
+     ())
+
+(dni orui2 "or upper immediate" (ALIAS NO-DIS MACH2000 USES-RS USES-RT)
+     "orui ${rt-rs},$hi16"
+     (+ OP_ORUI rt-rs hi16)
+     (set rt-rs (or rt-rs (sll hi16 16)))
+     ())
+
+(dni orui "or upper immediate" (MACH2000 USES-RS USES-RT)
+     "orui $rt,$rs,$hi16"
+     (+ OP_ORUI rs rt hi16)
+     (set rt (or rs (sll hi16 16)))
+     ())
+
+(dni bgtz "branch if greater than zero" (MACH2000 USES-RS)
+     "bgtz $rs,$offset"
+     (+ OP_BGTZ rs (f-rt 0) offset)
+     (if (gt rs 0)
+	 (delay 1 (set pc offset)))
+     ())
+
+
+(dni bgtzl "branch if greater than zero likely" (MACH2000 USES-RS)
+     "bgtzl $rs,$offset"
+     (+ OP_BGTZL rs (f-rt 0) offset)
+     (if (gt rs 0)
+	 (delay 1 (set pc offset))
+	 (skip 1))
+     ())
+
+(dni blez "branch if less than or equal to zero" (MACH2000 USES-RS)
+     "blez $rs,$offset"
+     (+ OP_BLEZ rs (f-rt 0) offset)
+     (if (le rs 0)
+	 (delay 1 (set pc offset)))
+     ())
+
+(dni blezl "branch if less than or equal to zero likely" (MACH2000 USES-RS)
+     "blezl $rs,$offset"
+     (+ OP_BLEZL rs (f-rt 0) offset)
+     (if (le rs 0)
+	 (delay 1 (set pc offset))
+	 (skip 1))
+     ())
+
+
+(dni mrgb "merge bytes" (MACH2000 USES-RD USES-RS USES-RT)
+     "mrgb $rd,$rs,$rt,$mask"
+     (+ OP_SPECIAL rs rt rd (f-10 0) mask FUNC_MRGB)
+     (sequence ((SI temp))
+	       (if (bitclear? mask 0)
+		   (set temp (and rs #xFF))
+		   (set temp (and rt #xFF)))
+	       (if (bitclear? mask 1)
+		   (set temp (or temp (and rs #xFF00)))
+		   (set temp (or temp (and rt #xFF00))))
+	       (if (bitclear? mask 2)
+		   (set temp (or temp (and rs #xFF0000)))
+		   (set temp (or temp (and rt #xFF0000))))
+	       (if (bitclear? mask 3)
+		   (set temp (or temp (and rs #xFF000000)))
+		   (set temp (or temp (and rt #xFF000000))))
+	       (set rd temp))
+     ())
+
+(dni mrgb2 "merge bytes" (ALIAS NO-DIS MACH2000 USES-RD USES-RS USES-RT)
+     "mrgb ${rd-rs},$rt,$mask"
+     (+ OP_SPECIAL rt rd-rs (f-10 0) mask FUNC_MRGB)
+     (sequence ((SI temp))
+	       (if (bitclear? mask 0)
+		   (set temp (and rd-rs #xFF))
+		   (set temp (and rt #xFF)))
+	       (if (bitclear? mask 1)
+		   (set temp (or temp (and rd-rs #xFF00)))
+		   (set temp (or temp (and rt #xFF00))))
+	       (if (bitclear? mask 2)
+		   (set temp (or temp (and rd-rs #xFF0000)))
+		   (set temp (or temp (and rt #xFF0000))))
+	       (if (bitclear? mask 3)
+		   (set temp (or temp (and rd-rs #xFF000000)))
+		   (set temp (or temp (and rt #xFF000000))))
+	       (set rd-rs temp))
+     ())
+
+; NOTE: None of these instructions' semantics are specified, so they
+; will not work in a simulator.
+;
+; Architectural and coprocessor instructions.
+; BREAK and SYSCALL are implemented with escape hatches to the C
+; code.  These are used by the test suite to indicate pass/failures.
+
+(dni bctxt "branch and switch context" (MACH2000 DELAY-SLOT COND-CTI USES-RS)
+     "bctxt $rs,$offset"
+     (+ OP_REGIMM rs (f-rt 6) offset)
+     (unimp bctxt)
+     ())
+
+(dni bc0f "branch if copro 0 condition false" (MACH2000 DELAY-SLOT COND-CTI)
+     "bc0f $offset"
+     (+ OP_COP0 (f-rs 8) (f-rt 0) offset)
+     (unimp bc0f)
+     ())
+
+(dni bc0fl "branch if copro 0 condition false likely" (MACH2000 DELAY-SLOT COND-CTI SKIP-CTI)
+     "bc0fl $offset"
+     (+ OP_COP0 (f-rs 8) (f-rt 2) offset)
+     (unimp bc0fl)
+     ())
+
+(dni bc3f "branch if copro 3 condition false" (MACH2000 DELAY-SLOT COND-CTI)
+     "bc3f $offset"
+     (+ OP_COP3 (f-rs 8) (f-rt 0) offset)
+     (unimp bc3f)
+     ())
+
+(dni bc3fl "branch if copro 3 condition false likely" (MACH2000 DELAY-SLOT COND-CTI SKIP-CTI)
+     "bc3fl $offset"
+     (+ OP_COP3 (f-rs 8) (f-rt 2) offset)
+     (unimp bc3fl)
+     ())
+
+(dni bc0t "branch if copro 0 condition true" (MACH2000 DELAY-SLOT COND-CTI)
+     "bc0t $offset"
+     (+ OP_COP0 (f-rs 8) (f-rt 1) offset)
+     (unimp bc0t)
+     ())
+
+(dni bc0tl "branch if copro 0 condition true likely" (MACH2000 DELAY-SLOT COND-CTI SKIP-CTI)
+     "bc0tl $offset"
+     (+ OP_COP0 (f-rs 8) (f-rt 3) offset)
+     (unimp bc0tl)
+     ())
+
+(dni bc3t "branch if copro 3 condition true" (MACH2000 DELAY-SLOT COND-CTI)
+     "bc3t $offset"
+     (+ OP_COP3 (f-rs 8) (f-rt 1) offset)
+     (unimp bc3t)
+     ())
+
+(dni bc3tl "branch if copro 3 condition true likely" (MACH2000 DELAY-SLOT COND-CTI SKIP-CTI)
+     "bc3tl $offset"
+     (+ OP_COP3 (f-rs 8) (f-rt 3) offset)
+     (unimp bc3tl)
+     ())
+
+; Note that we don't set the USES-RD or USES-RT attributes for many of the following 
+; instructions, as it's the COP register that's being specified.
+
+(dni cfc0 "control from coprocessor 0" (MACH2000 LOAD-DELAY USES-RT)
+     "cfc0 $rt,$rd"
+     (+ OP_COP0 (f-rs 2) rt rd (f-10-11 0))
+     (unimp cfc0)
+     ())
+
+(dni cfc1 "control from coprocessor 1" (MACH2000 LOAD-DELAY USES-RT)
+     "cfc1 $rt,$rd"
+     (+ OP_COP1 (f-rs 2) rt rd (f-10-11 0))
+     (unimp cfc1)
+     ())
+
+(dni cfc2 "control from coprocessor 2" (MACH2000 LOAD-DELAY USES-RT YIELD-INSN)
+     "cfc2 $rt,$rd"
+     (+ OP_COP2 (f-rs 2) rt rd (f-10-11 0))
+     (unimp cfc2)
+     ())
+
+(dni cfc3 "control from coprocessor 3" (MACH2000 LOAD-DELAY USES-RT YIELD-INSN)
+     "cfc3 $rt,$rd"
+     (+ OP_COP3 (f-rs 2) rt rd (f-10-11 0))
+     (unimp cfc3)
+     ())
+
+; COPz instructions are an instruction form, not real instructions
+; with associated assembly mnemonics.  Therefore, they are omitted
+; from the ISA description.
+
+(dni chkhdr "check header" (MACH2000 LOAD-DELAY USES-RD YIELD-INSN)
+     "chkhdr $rd,$rt"
+     (+ OP_COP3 (f-rs 9) rt rd (f-shamt 0) (f-func 0))
+     (unimp chkhdr)
+     ())
+
+(dni ctc0 "control to coprocessor 0" (MACH2000 USES-RT)
+     "ctc0 $rt,$rd"
+     (+ OP_COP0 (f-rs 6) rt rd (f-10-11 0))
+     (unimp ctc0)
+     ())
+
+(dni ctc1 "control to coprocessor 1" (MACH2000 USES-RT)
+     "ctc1 $rt,$rd"
+     (+ OP_COP1 (f-rs 6) rt rd (f-10-11 0))
+     (unimp ctc1)
+     ())
+
+(dni ctc2 "control to coprocessor 2" (MACH2000 USES-RT)
+     "ctc2 $rt,$rd"
+     (+ OP_COP2 (f-rs 6) rt rd (f-10-11 0))
+     (unimp ctc2)
+     ())
+
+(dni ctc3 "control to coprocessor 3" (MACH2000 USES-RT)
+     "ctc3 $rt,$rd"
+     (+ OP_COP3 (f-rs 6) rt rd (f-10-11 0))
+     (unimp ctc3)
+     ())
+
+(dni jcr "jump context register" (MACH2000 DELAY-SLOT UNCOND-CTI USES-RS)
+     "jcr $rs"
+     (+ OP_SPECIAL rs (f-rt 0) (f-rd 0) (f-shamt 0) FUNC_JCR)
+     (unimp jcr)
+     ())
+
+(dni luc32 "lookup chain 32 bits" (MACH2000 USES-RD USES-RT YIELD-INSN)
+     "luc32 $rt,$rd"
+     (+ OP_COP2 (f-rs 1) rt rd (f-shamt 0) (f-func 3))
+     (unimp luc32)
+     ())
+
+(dni luc32l "lookup chain 32 bits and lock" (MACH2000 USES-RD USES-RT YIELD-INSN)
+     "luc32l $rt,$rd"
+     (+ OP_COP2 (f-rs 1) rt rd (f-shamt 0) (f-func 7))
+     (unimp luc32l)
+     ())
+
+(dni luc64 "lookup chain 64 bits" (MACH2000 USES-RD USES-RT YIELD-INSN)
+     "luc64 $rt,$rd"
+     (+ OP_COP2 (f-rs 1) rt rd (f-shamt 0) (f-func 11))
+     (unimp luc64)
+     ())
+
+(dni luc64l "lookup chain 64 bits and lock" (MACH2000 USES-RD USES-RT YIELD-INSN)
+     "luc64l $rt,$rd"
+     (+ OP_COP2 (f-rs 1) rt rd (f-shamt 0) (f-func 15))
+     (unimp luc64l)
+     ())
+
+(dni luk "lookup key" (MACH2000 USES-RD USES-RT)
+     "luk $rt,$rd"
+     (+ OP_COP2 (f-rs 1) rt rd (f-shamt 0) (f-func 8))
+     (unimp luk)
+     ())
+
+(dni lulck "lookup lock" (MACH2000 USES-RT YIELD-INSN)
+     "lulck $rt"
+     (+ OP_COP2 (f-rs 1) rt (f-rd 0) (f-shamt 0) (f-func 4))
+     (unimp lulck)
+     ())
+
+(dni lum32 "lookup match 32 bits" (MACH2000 USES-RD USES-RT YIELD-INSN)
+     "lum32 $rt,$rd"
+     (+ OP_COP2 (f-rs 1) rt rd (f-shamt 0) (f-func 2))
+     (unimp lum32)
+     ())
+
+(dni lum32l "lookup match 32 bits and lock" (MACH2000 USES-RD USES-RT YIELD-INSN)
+     "lum32l $rt,$rd"
+     (+ OP_COP2 (f-rs 1) rt rd (f-shamt 0) (f-func 6))
+     (unimp lum32l)
+     ())
+
+(dni lum64 "lookup match 64 bits" (MACH2000 USES-RD USES-RT YIELD-INSN)
+     "lum64 $rt,$rd"
+     (+ OP_COP2 (f-rs 1) rt rd (f-shamt 0) (f-func 10))
+     (unimp lum64)
+     ())
+
+(dni lum64l "lookup match 64 bits and lock" (MACH2000 USES-RD USES-RT YIELD-INSN)
+     "lum64l $rt,$rd"
+     (+ OP_COP2 (f-rs 1) rt rd (f-shamt 0) (f-func 14))
+     (unimp lum64l)
+     ())
+
+(dni lur "lookup read" (MACH2000 USES-RD USES-RT YIELD-INSN)
+     "lur $rt,$rd"
+     (+ OP_COP2 (f-rs 1) rt rd (f-shamt 0) (f-func 1))
+     (unimp lur)
+     ())
+
+(dni lurl "lookup read and lock" (MACH2000 USES-RD USES-RT YIELD-INSN)
+     "lurl $rt,$rd"
+     (+ OP_COP2 (f-rs 1) rt rd (f-shamt 0) (f-func 5))
+     (unimp lurl)
+     ())
+
+(dni luulck "lookup unlock" (MACH2000 USES-RT YIELD-INSN)
+     "luulck $rt"
+     (+ OP_COP2 (f-rs 1) rt (f-rd 0) (f-shamt 0) (f-func 0))
+     (unimp luulck)
+     ())
+
+(dni mfc0 "move from coprocessor 0" (MACH2000 LOAD-DELAY USES-RT)
+     "mfc0 $rt,$rd"
+     (+ OP_COP0 (f-rs 0) rt rd (f-10-11 0))
+     (unimp mfc0)
+     ())
+
+(dni mfc1 "move from coprocessor 1" (MACH2000 LOAD-DELAY USES-RT)
+     "mfc1 $rt,$rd"
+     (+ OP_COP1 (f-rs 0) rt rd (f-10-11 0))
+     (unimp mfc1)
+     ())
+
+(dni mfc2 "move from coprocessor 2" (MACH2000 LOAD-DELAY USES-RT YIELD-INSN)
+     "mfc2 $rt,$rd"
+     (+ OP_COP2 (f-rs 0) rt rd (f-10-11 0))
+     (unimp mfc2)
+     ())
+
+(dni mfc3 "move from coprocessor 3" (MACH2000 LOAD-DELAY USES-RT YIELD-INSN)
+     "mfc3 $rt,$rd"
+     (+ OP_COP3 (f-rs 0) rt rd (f-10-11 0))
+     (unimp mfc3)
+     ())
+
+(dni mtc0 "move to coprocessor 0" (MACH2000 USES-RT)
+     "mtc0 $rt,$rd"
+     (+ OP_COP0 (f-rs 4) rt rd (f-10-11 0))
+     (unimp mtc0)
+     ())
+
+(dni mtc1 "move to coprocessor 1" (MACH2000 USES-RT)
+     "mtc1 $rt,$rd"
+     (+ OP_COP1 (f-rs 4) rt rd (f-10-11 0))
+     (unimp mtc1)
+     ())
+
+(dni mtc2 "move to coprocessor 2" (MACH2000 USES-RT)
+     "mtc2 $rt,$rd"
+     (+ OP_COP2 (f-rs 4) rt rd (f-10-11 0))
+     (unimp mtc2)
+     ())
+
+(dni mtc3 "move to coprocessor 3" (MACH2000 USES-RT)
+     "mtc3 $rt,$rd"
+     (+ OP_COP3 (f-rs 4) rt rd (f-10-11 0))
+     (unimp mtc3)
+     ())
+
+(dni pkrl "pkrl" (MACH2000 USES-RD USES-RT YIELD-INSN)
+     "pkrl $rd,$rt"
+     (+ OP_COP3 (f-rs 1) rt rd (f-shamt 0) (f-func 7))
+     (unimp pkrl)
+     ())
+
+(dni pkrlr1 "pkrlr1" (MACH2000 USES-RT YIELD-INSN)
+     "pkrlr1 $rt,$count"
+     (+ OP_COP3 (f-rs 29) rt count)
+     (unimp pkrlr1)
+     ())
+
+(dni pkrlr30 "pkrlr30" (MACH2000 USES-RT YIELD-INSN)
+     "pkrlr30 $rt,$count"
+     (+ OP_COP3 (f-rs 31) rt count)
+     (unimp pkrlr30)
+     ())
+
+(dni rb "dma read bytes" (MACH2000 USES-RD USES-RT YIELD-INSN)
+     "rb $rd,$rt"
+     (+ OP_COP3 (f-rs 1) rt rd (f-shamt 0) (f-func 4))
+     (unimp rb)
+     ())
+
+(dni rbr1 "dma read bytes using r1" (MACH2000 USES-RT YIELD-INSN)
+     "rbr1 $rt,$count"
+     (+ OP_COP3 (f-rs 24) rt count)
+     (unimp rbr1)
+     ())
+
+(dni rbr30 "dma read bytes using r30" (MACH2000 USES-RT YIELD-INSN)
+     "rbr30 $rt,$count"
+     (+ OP_COP3 (f-rs 26) rt count)
+     (unimp rbr30)
+     ())
+
+(dni rfe "restore from exception" (MACH2000)
+     "rfe"
+     (+ OP_COP0 (f-25 1) (f-24-19 0) (f-func 16))
+     (unimp rfe)
+     ())
+
+(dni rx "dma read word64s" (MACH2000 USES-RD USES-RT YIELD-INSN)
+     "rx $rd,$rt"
+     (+ OP_COP3 (f-rs 1) rt rd (f-shamt 0) (f-func 6))
+     (unimp rx)
+     ())
+
+(dni rxr1 "dma read word64s using r1" (MACH2000 USES-RT YIELD-INSN)
+     "rxr1 $rt,$count"
+     (+ OP_COP3 (f-rs 28) rt count)
+     (unimp rxr1)
+     ())
+
+(dni rxr30 "dma read word 64s using r30" (MACH2000 USES-RT YIELD-INSN)
+     "rxr30 $rt,$count"
+     (+ OP_COP3 (f-rs 30) rt count)
+     (unimp rxr30)
+     ())
+
+(dni sleep "sleep" (MACH2000 YIELD-INSN)
+     "sleep"
+     (+ OP_SPECIAL execode FUNC_SLEEP)
+     (unimp sleep)
+     ())
+
+(dni srrd "sram read" (MACH2000 USES-RT YIELD-INSN)
+     "srrd $rt"
+     (+ OP_COP2 (f-rs 1) rt (f-rd 0) (f-shamt 0) (f-func 16))
+     (unimp srrd)
+     ())
+
+(dni srrdl "sram read and lock" (MACH2000 USES-RT YIELD-INSN)
+     "srrdl $rt"
+     (+ OP_COP2 (f-rs 1) rt (f-rd 0) (f-shamt 0) (f-func 20))
+     (unimp srrdl)
+     ())
+
+(dni srulck "sram unlock" (MACH2000 USES-RT YIELD-INSN)
+     "srulck $rt"
+     (+ OP_COP2 (f-rs 1) rt (f-rd 0) (f-shamt 0) (f-func 22))
+     (unimp srulck)
+     ())
+
+(dni srwr "sram write" (MACH2000 USES-RD USES-RT YIELD-INSN)
+     "srwr $rt,$rd"
+     (+ OP_COP2 (f-rs 1) rt rd (f-shamt 0) (f-func 17))
+     (unimp srwr)
+     ())
+
+(dni srwru "sram write and unlock" (MACH2000 USES-RD USES-RT YIELD-INSN)
+     "srwru $rt,$rd"
+     (+ OP_COP2 (f-rs 1) rt rd (f-shamt 0) (f-func 21))
+     (unimp srwru)
+     ())
+
+(dni trapqfl "yield if dma queue full" (MACH2000 YIELD-INSN)
+     "trapqfl"
+     (+ OP_COP3 (f-rs 1) (f-rt 0) (f-rd 0) (f-shamt 0) (f-func 8))
+     (unimp trapqfl)
+     ())
+
+(dni trapqne "yield if dma queue not empty" (MACH2000 YIELD-INSN)
+     "trapqne"
+     (+ OP_COP3 (f-rs 1) (f-rt 0) (f-rd 0) (f-shamt 0) (f-func 9))
+     (unimp trapqne)
+     ())
+
+(dni traprel "traprel" (MACH2000 USES-RT YIELD-INSN)
+     "traprel $rt"
+     (+ OP_COP3 (f-rs 1) rt (f-rd 0) (f-shamt 0) (f-func 10))
+     (unimp traprel)
+     ())
+
+(dni wb "dma write bytes" (MACH2000 USES-RD USES-RT YIELD-INSN)
+     "wb $rd,$rt"
+     (+ OP_COP3 (f-rs 1) rt rd (f-shamt 0) (f-func 0))
+     (unimp wb)
+     ())
+
+(dni wbu "dma write bytes and unlock" (MACH2000 USES-RD USES-RT YIELD-INSN)
+     "wbu $rd,$rt"
+     (+ OP_COP3 (f-rs 1) rt rd (f-shamt 0) (f-func 1))
+     (unimp wbu)
+     ())
+
+(dni wbr1 "dma write bytes using r1" (MACH2000 USES-RT YIELD-INSN)
+     "wbr1 $rt,$count"
+     (+ OP_COP3 (f-rs 16) rt count)
+     (unimp wbr1)
+     ())
+
+(dni wbr1u "dma write bytes using r1 and unlock" (MACH2000 USES-RT YIELD-INSN)
+     "wbr1u $rt,$count"
+     (+ OP_COP3 (f-rs 17) rt count)
+     (unimp wbr1u)
+     ())
+
+(dni wbr30 "dma write bytes using r30" (MACH2000 USES-RT YIELD-INSN)
+     "wbr30 $rt,$count"
+     (+ OP_COP3 (f-rs 18) rt count)
+     (unimp wbr30)
+     ())
+
+(dni wbr30u "dma write bytes using r30 and unlock" (MACH2000 USES-RT YIELD-INSN)
+     "wbr30u $rt,$count"
+     (+ OP_COP3 (f-rs 19) rt count)
+     (unimp wbr30u)
+     ())
+
+(dni wx "dma write word64s" (MACH2000 USES-RD USES-RT YIELD-INSN)
+     "wx $rd,$rt"
+     (+ OP_COP3 (f-rs 1) rt rd (f-shamt 0) (f-func 2))
+     (unimp wx)
+     ())
+
+(dni wxu "dma write word64s and unlock" (MACH2000 USES-RD USES-RT YIELD-INSN)
+     "wxu $rd,$rt"
+     (+ OP_COP3 (f-rs 1) rt rd (f-shamt 0) (f-func 3))
+     (unimp wxu)
+     ())
+
+(dni wxr1 "dma write word64s using r1" (MACH2000 USES-RT YIELD-INSN)
+     "wxr1 $rt,$count"
+     (+ OP_COP3 (f-rs 20) rt count)
+     (unimp wxr1)
+     ())
+
+(dni wxr1u "dma write word64s using r1 and unlock" (MACH2000 USES-RT YIELD-INSN)
+     "wxr1u $rt,$count"
+     (+ OP_COP3 (f-rs 21) rt count)
+     (unimp wxr1u)
+     ())
+
+(dni wxr30 "dma write word64s using r30" (MACH2000 USES-RT YIELD-INSN)
+     "wxr30 $rt,$count"
+     (+ OP_COP3 (f-rs 22) rt count)
+     (unimp wxr30)
+     ())
+
+(dni wxr30u "dma write word64s using r30 and unlock" (MACH2000 USES-RT YIELD-INSN)
+     "wxr30u $rt,$count"
+     (+ OP_COP3 (f-rs 23) rt count)
+     (unimp wxr30u)
+     ())
+
+
+; Load/Store instructions.
+
+(dni ldw "load double word" (MACH2000 EVEN-REG-NUM LOAD-DELAY USES-RT)
+     "ldw $rt,$lo16($base)"
+     (+ OP_LDW base rt lo16)
+     (sequence ((SI addr))
+	       (set addr (and (add base lo16) (inv 3)))
+	       (set (reg h-gr (add (ifield f-rt) 1)) (mem SI addr))
+	       (set rt (mem SI (add addr 4))))
+     ())
+
+(dni sdw "store double word" (MACH2000 EVEN-REG-NUM USES-RT)
+     "sdw $rt,$lo16($base)"
+     (+ OP_SDW base rt lo16)
+     (sequence ((SI addr))
+	       (set addr (and (add base lo16) (inv 3)))
+	       (set (mem SI (add addr 4)) rt)
+	       (set (mem SI addr) (reg h-gr (add (ifield f-rt) 1))))
+     ())
+
+
+; Jump instructions
+
+(dni j "jump" (MACH2000)
+     "j $jmptarg"
+     (+ OP_J (f-rsrvd 0) jmptarg)
+     (delay 1 (set pc jmptarg))
+     ())
+
+(dni jal "jump and link" (MACH2000 USES-R31)
+     "jal $jmptarg"
+     (+ OP_JAL (f-rsrvd 0) jmptarg)
+     (delay 1
+	    (sequence ()
+		      (set (reg h-gr 31) (add pc 8))
+		      (set pc jmptarg)))
+     ())
+
+(dni bmb "branch if matching byte-lane" (MACH2000 USES-RS USES-RT)
+     "bmb $rs,$rt,$offset"
+     (+ OP_BMB rs rt offset)
+     (sequence ((BI branch?))
+	       (set branch? 0)
+	       (if (eq (and rs #xFF) (and rt #xFF))
+		   (set branch? 1))
+	       (if (eq (and rs #xFF00) (and rt #xFF00))
+		   (set branch? 1))
+	       (if (eq (and rs #xFF0000) (and rt #xFF0000))
+		   (set branch? 1))
+	       (if (eq (and rs #xFF000000) (and rt #xFF000000))
+		   (set branch? 1))
+	       (if branch?
+		   (delay 1 (set pc offset))))
+     ())
+
+
+; Macros
+
+(dnmi ldw-base-0 "load double word - implied base 0" (MACH2000 EVEN-REG-NUM LOAD-DELAY USES-RT USES-RS NO-DIS)
+      "ldw $rt,$lo16"
+      (emit ldw rt lo16 (base 0))
+)
+
+(dnmi sdw-base-0 "store double word - implied base 0" (MACH2000 EVEN-REG-NUM USES-RT NO-DIS)
+      "sdw $rt,$lo16"
+      (emit sdw rt lo16 (base 0))
+)
+
+
+
+
+
+

@@ -1,0 +1,310 @@
+#source: tlsbinpic.s
+#source: tlsbin.s
+#as: --64
+#ld: -shared -melf_x86_64
+#objdump: -drj.text
+#target: x86_64-*-*
+
+# PT_TLS layout is:
+# Offset from   Offset from     Name
+# TCB base      TCB end
+# 0x00          -0xa0           sg1..sg8
+# 0x20          -0x80           sl1..sl8
+# 0x40          -0x60           sh1..sh8
+# 0x60          -0x40           bg1..bg8
+# 0x80          -0x20           bl1..bl8
+
+.*: +file format elf64-x86-64
+
+Disassembly of section .text:
+
+0+401000 <fn2>:
+  401000:	55[ 	]+push   %rbp
+  401001:	48 89 e5[ 	]+mov    %rsp,%rbp
+#  GD -> IE because variable is not defined in executable
+  401004:	64 48 8b 04 25 00 00[ 	]+mov    %fs:0x0,%rax
+  40100b:	00 00 *
+  40100d:	48 03 05 c4 11 10 00[ 	]+add    1053124\(%rip\),%rax +# 5021d8 <_GLOBAL_OFFSET_TABLE_\+0x38>
+#				-> R_X86_64_TPOFF64	sG1
+  401014:	90[ 	]+nop *
+  401015:	90[ 	]+nop *
+  401016:	90[ 	]+nop *
+  401017:	90[ 	]+nop *
+#  GD -> IE because variable is not defined in executable where
+#  the variable is referenced through IE too
+  401018:	64 48 8b 04 25 00 00[ 	]+mov    %fs:0x0,%rax
+  40101f:	00 00 *
+  401021:	48 03 05 a0 11 10 00[ 	]+add    1053088\(%rip\),%rax +# 5021c8 <_GLOBAL_OFFSET_TABLE_\+0x28>
+#				-> R_X86_64_TPOFF64	sG2
+  401028:	90[ 	]+nop *
+  401029:	90[ 	]+nop *
+  40102a:	90[ 	]+nop *
+  40102b:	90[ 	]+nop *
+#  GD -> LE with global variable defined in executable
+  40102c:	64 48 8b 04 25 00 00[ 	]+mov    %fs:0x0,%rax
+  401033:	00 00 *
+  401035:	48 8d 80 60 ff ff ff[ 	]+lea    0xf+60\(%rax\),%rax
+#							sg1
+  40103c:	90[ 	]+nop *
+  40103d:	90[ 	]+nop *
+  40103e:	90[ 	]+nop *
+  40103f:	90[ 	]+nop *
+#  GD -> LE with local variable defined in executable
+  401040:	64 48 8b 04 25 00 00[ 	]+mov    %fs:0x0,%rax
+  401047:	00 00 *
+  401049:	48 8d 80 80 ff ff ff[ 	]+lea    0xf+80\(%rax\),%rax
+#							sl1
+  401050:	90[ 	]+nop *
+  401051:	90[ 	]+nop *
+  401052:	90[ 	]+nop *
+  401053:	90[ 	]+nop *
+#  GD -> LE with hidden variable defined in executable
+  401054:	64 48 8b 04 25 00 00[ 	]+mov    %fs:0x0,%rax
+  40105b:	00 00 *
+  40105d:	48 8d 80 a0 ff ff ff[ 	]+lea    0xf+a0\(%rax\),%rax
+#							sh1
+  401064:	90[ 	]+nop *
+  401065:	90[ 	]+nop *
+  401066:	90[ 	]+nop *
+  401067:	90[ 	]+nop *
+#  LD -> LE
+  401068:	66 66 66 64 48 8b 04[ 	]+mov    %fs:0x0,%rax
+  40106f:	25 00 00 00 00 *
+  401074:	90[ 	]+nop *
+  401075:	90[ 	]+nop *
+  401076:	48 8d 90 81 ff ff ff[ 	]+lea    0xf+81\(%rax\),%rdx
+#							sl1+1
+  40107d:	90[ 	]+nop *
+  40107e:	90[ 	]+nop *
+  40107f:	4c 8d 88 86 ff ff ff[ 	]+lea    0xf+86\(%rax\),%r9
+#							sl2+2
+  401086:	90[ 	]+nop *
+  401087:	90[ 	]+nop *
+  401088:	90[ 	]+nop *
+  401089:	90[ 	]+nop *
+#  LD -> LE against hidden variables
+  40108a:	66 66 66 64 48 8b 04[ 	]+mov    %fs:0x0,%rax
+  401091:	25 00 00 00 00 *
+  401096:	90[ 	]+nop *
+  401097:	90[ 	]+nop *
+  401098:	48 8d 90 a0 ff ff ff[ 	]+lea    0xf+a0\(%rax\),%rdx
+#							sh1
+  40109f:	90[ 	]+nop *
+  4010a0:	90[ 	]+nop *
+  4010a1:	48 8d 88 a7 ff ff ff[ 	]+lea    0xf+a7\(%rax\),%rcx
+#							sh2+3
+  4010a8:	90[ 	]+nop *
+  4010a9:	90[ 	]+nop *
+  4010aa:	90[ 	]+nop *
+  4010ab:	90[ 	]+nop *
+#  IE against global var
+  4010ac:	64 4c 8b 0c 25 00 00[ 	]+mov    %fs:0x0,%r9
+  4010b3:	00 00 *
+  4010b5:	90[ 	]+nop *
+  4010b6:	90[ 	]+nop *
+  4010b7:	4c 03 0d 0a 11 10 00[ 	]+add    1052938\(%rip\),%r9 +# 5021c8 <_GLOBAL_OFFSET_TABLE_\+0x28>
+#				-> R_X86_64_TPOFF64	sG2
+  4010be:	90[ 	]+nop *
+  4010bf:	90[ 	]+nop *
+  4010c0:	90[ 	]+nop *
+  4010c1:	90[ 	]+nop *
+#  IE -> LE against global var defined in exec
+  4010c2:	64 4c 8b 14 25 00 00[ 	]+mov    %fs:0x0,%r10
+  4010c9:	00 00 *
+  4010cb:	90[ 	]+nop *
+  4010cc:	90[ 	]+nop *
+  4010cd:	4d 8d 92 60 ff ff ff[ 	]+lea    0xf+60\(%r10\),%r10
+#							sg1
+  4010d4:	90[ 	]+nop *
+  4010d5:	90[ 	]+nop *
+  4010d6:	90[ 	]+nop *
+  4010d7:	90[ 	]+nop *
+#  IE -> LE against local var
+  4010d8:	64 48 8b 04 25 00 00[ 	]+mov    %fs:0x0,%rax
+  4010df:	00 00 *
+  4010e1:	90[ 	]+nop *
+  4010e2:	90[ 	]+nop *
+  4010e3:	48 8d 80 80 ff ff ff[ 	]+lea    0xf+80\(%rax\),%rax
+#							sl1
+  4010ea:	90[ 	]+nop *
+  4010eb:	90[ 	]+nop *
+  4010ec:	90[ 	]+nop *
+  4010ed:	90[ 	]+nop *
+#  IE -> LE against hidden var
+  4010ee:	64 48 8b 0c 25 00 00[ 	]+mov    %fs:0x0,%rcx
+  4010f5:	00 00 *
+  4010f7:	90[ 	]+nop *
+  4010f8:	90[ 	]+nop *
+  4010f9:	48 8d 89 a0 ff ff ff[ 	]+lea    0xf+a0\(%rcx\),%rcx
+#							sh1
+  401100:	90[ 	]+nop *
+  401101:	90[ 	]+nop *
+  401102:	90[ 	]+nop *
+  401103:	90[ 	]+nop *
+#  Direct access through %fs
+#  IE against global var
+  401104:	48 8b 0d b5 10 10 00[ 	]+mov    1052853\(%rip\),%rcx +# 5021c0 <_GLOBAL_OFFSET_TABLE_\+0x20>
+#				-> R_X86_64_TPOFF64	sG5
+  40110b:	90[ 	]+nop *
+  40110c:	90[ 	]+nop *
+  40110d:	64 48 8b 11[ 	]+mov    %fs:\(%rcx\),%rdx
+  401111:	90[ 	]+nop *
+  401112:	90[ 	]+nop *
+  401113:	90[ 	]+nop *
+  401114:	90[ 	]+nop *
+#  IE->LE against local var
+  401115:	49 c7 c3 90 ff ff ff[ 	]+mov    \$0xf+90,%r11
+#							sl5
+  40111c:	90[ 	]+nop *
+  40111d:	90[ 	]+nop *
+  40111e:	64 4d 8b 23[ 	]+mov    %fs:\(%r11\),%r12
+  401122:	90[ 	]+nop *
+  401123:	90[ 	]+nop *
+  401124:	90[ 	]+nop *
+  401125:	90[ 	]+nop *
+#  IE->LE against hidden var
+  401126:	48 c7 c2 b0 ff ff ff[ 	]+mov    \$0xf+b0,%rdx
+  40112d:	90[ 	]+nop *
+  40112e:	90[ 	]+nop *
+  40112f:	64 48 8b 12[ 	]+mov    %fs:\(%rdx\),%rdx
+#							sh5
+  401133:	90[ 	]+nop *
+  401134:	90[ 	]+nop *
+  401135:	90[ 	]+nop *
+  401136:	90[ 	]+nop *
+  401137:	c9[ 	]+leaveq *
+  401138:	c3[ 	]+retq *
+  401139:	90[ 	]+nop *
+  40113a:	90[ 	]+nop *
+  40113b:	90[ 	]+nop *
+
+0+40113c <_start>:
+  40113c:	55[ 	]+push   %rbp
+  40113d:	48 89 e5[ 	]+mov    %rsp,%rbp
+#  IE against global var
+  401140:	64 4c 8b 1c 25 00 00[ 	]+mov    %fs:0x0,%r11
+  401147:	00 00 *
+  401149:	90[ 	]+nop *
+  40114a:	90[ 	]+nop *
+  40114b:	4c 03 1d 7e 10 10 00[ 	]+add    1052798\(%rip\),%r11 +# 5021d0 <_GLOBAL_OFFSET_TABLE_\+0x30>
+#				-> R_X86_64_TPOFF64	sG6
+  401152:	90[ 	]+nop *
+  401153:	90[ 	]+nop *
+  401154:	90[ 	]+nop *
+  401155:	90[ 	]+nop *
+#  IE -> LE against global var defined in exec
+  401156:	64 48 8b 14 25 00 00[ 	]+mov    %fs:0x0,%rdx
+  40115d:	00 00 *
+  40115f:	90[ 	]+nop *
+  401160:	90[ 	]+nop *
+  401161:	48 8d 92 d4 ff ff ff[ 	]+lea    0xf+d4\(%rdx\),%rdx
+#							bg6
+  401168:	90[ 	]+nop *
+  401169:	90[ 	]+nop *
+  40116a:	90[ 	]+nop *
+  40116b:	90[ 	]+nop *
+#  IE -> LE against local var
+  40116c:	64 4c 8b 24 25 00 00[ 	]+mov    %fs:0x0,%r12
+  401173:	00 00 *
+  401175:	90[ 	]+nop *
+  401176:	90[ 	]+nop *
+  401177:	49 81 c4 f4 ff ff ff[ 	]+add    \$0xf+f4,%r12
+#							bl6
+  40117e:	90[ 	]+nop *
+  40117f:	90[ 	]+nop *
+  401180:	90[ 	]+nop *
+  401181:	90[ 	]+nop *
+#  direct %fs access IE -> LE against local var
+  401182:	48 c7 c2 fc ff ff ff[ 	]+mov    \$0xf+fc,%rdx
+#							bl8
+  401189:	90[ 	]+nop *
+  40118a:	90[ 	]+nop *
+  40118b:	64 48 8b 02[ 	]+mov    %fs:\(%rdx\),%rax
+  40118f:	90[ 	]+nop *
+  401190:	90[ 	]+nop *
+  401191:	90[ 	]+nop *
+  401192:	90[ 	]+nop *
+#  IE -> LE against hidden but not local var
+  401193:	64 48 8b 14 25 00 00[ 	]+mov    %fs:0x0,%rdx
+  40119a:	00 00 *
+  40119c:	90[ 	]+nop *
+  40119d:	90[ 	]+nop *
+  40119e:	48 8d 92 b4 ff ff ff[ 	]+lea    0xf+b4\(%rdx\),%rdx
+#							sh6
+  4011a5:	90[ 	]+nop *
+  4011a6:	90[ 	]+nop *
+  4011a7:	90[ 	]+nop *
+  4011a8:	90[ 	]+nop *
+#  direct %fs access IE -> LE against hidden but not local var
+  4011a9:	48 c7 c2 bc ff ff ff[ 	]+mov    \$0xf+bc,%rdx
+#							sh8
+  4011b0:	90[ 	]+nop *
+  4011b1:	90[ 	]+nop *
+  4011b2:	64 48 8b 02[ 	]+mov    %fs:\(%rdx\),%rax
+  4011b6:	90[ 	]+nop *
+  4011b7:	90[ 	]+nop *
+  4011b8:	90[ 	]+nop *
+  4011b9:	90[ 	]+nop *
+#  LE, global var defined in exec
+  4011ba:	64 48 8b 04 25 00 00[ 	]+mov    %fs:0x0,%rax
+  4011c1:	00 00 *
+  4011c3:	90[ 	]+nop *
+  4011c4:	90[ 	]+nop *
+  4011c5:	48 8d 90 64 ff ff ff[ 	]+lea    0xf+64\(%rax\),%rdx
+#							sg2
+  4011cc:	90[ 	]+nop *
+  4011cd:	90[ 	]+nop *
+  4011ce:	90[ 	]+nop *
+  4011cf:	90[ 	]+nop *
+#  LE, local var, non-canonical sequence
+  4011d0:	49 c7 c1 e6 ff ff ff[ 	]+mov    \$0xf+e6,%r9
+#							bl2+2
+  4011d7:	90[ 	]+nop *
+  4011d8:	90[ 	]+nop *
+  4011d9:	64 48 8b 14 25 00 00[ 	]+mov    %fs:0x0,%rdx
+  4011e0:	00 00 *
+  4011e2:	90[ 	]+nop *
+  4011e3:	90[ 	]+nop *
+  4011e4:	4c 01 ca[ 	]+add    %r9,%rdx
+  4011e7:	90[ 	]+nop *
+  4011e8:	90[ 	]+nop *
+  4011e9:	90[ 	]+nop *
+  4011ea:	90[ 	]+nop *
+#  LE, hidden var defined in exec, non-canonical sequence
+  4011eb:	64 48 8b 14 25 00 00[ 	]+mov    %fs:0x0,%rdx
+  4011f2:	00 00 *
+  4011f4:	90[ 	]+nop *
+  4011f5:	90[ 	]+nop *
+  4011f6:	48 81 c2 a5 ff ff ff[ 	]+add    \$0xf+a5,%rdx
+#							sh2+1
+  4011fd:	90[ 	]+nop *
+  4011fe:	90[ 	]+nop *
+  4011ff:	90[ 	]+nop *
+  401200:	90[ 	]+nop *
+#  Direct %fs access
+#  LE, global var defined in exec
+  401201:	64 48 8b 04 25 68 ff[ 	]+mov    %fs:0xf+68,%rax
+  401208:	ff ff *
+#							sg3
+  40120a:	90[ 	]+nop *
+  40120b:	90[ 	]+nop *
+  40120c:	90[ 	]+nop *
+  40120d:	90[ 	]+nop *
+#  LE, local var
+  40120e:	64 4c 8b 14 25 eb ff[ 	]+mov    %fs:0xf+eb,%r10
+  401215:	ff ff *
+#							bl3+3
+  401217:	90[ 	]+nop *
+  401218:	90[ 	]+nop *
+  401219:	90[ 	]+nop *
+  40121a:	90[ 	]+nop *
+#  LE, hidden var defined in exec
+  40121b:	64 48 8b 14 25 a9 ff[ 	]+mov    %fs:0xf+a9,%rdx
+  401222:	ff ff *
+#							sh3+1
+  401224:	90[ 	]+nop *
+  401225:	90[ 	]+nop *
+  401226:	90[ 	]+nop *
+  401227:	90[ 	]+nop *
+  401228:	c9[ 	]+leaveq *
+  401229:	c3[ 	]+retq *

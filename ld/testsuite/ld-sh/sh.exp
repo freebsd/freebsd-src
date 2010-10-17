@@ -1,0 +1,162 @@
+# Expect script for ld-sh tests
+#   Copyright 1995, 1996, 1997, 2001 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+# Written by Ian Lance Taylor (ian@cygnus.com)
+#
+
+# Test SH relaxing.  This tests the compiler and assembler as well as
+# the linker.
+
+if ![istarget sh*-*-*] {
+    return
+}
+
+if { ([istarget sh64*-*-*] || [istarget sh5*-*-*])} {
+    # relaxing not supported on sh64 yet.
+    return
+}
+
+set testsimple "SH simple relaxing"
+
+if ![ld_assemble $as "-relax $srcdir/$subdir/sh1.s" tmpdir/sh1.o] {
+    unresolved $testsimple
+} else { if ![ld_simple_link $ld tmpdir/sh1 "-relax tmpdir/sh1.o"] {
+    fail $testsimple
+} else {
+    if ![ld_nm $nm "" tmpdir/sh1] {
+	unresolved $testsimple
+    } else {
+	if {![info exists nm_output(bar)] \
+	     || ![info exists nm_output(foo)]} {
+	    send_log "bad output from nm\n"
+	    verbose "bad output from nm"
+	    fail $testsimple
+	} else {
+	    if {$nm_output(bar) != $nm_output(foo) + 4} {
+		send_log "foo == $nm_output(foo)\n"
+		verbose "foo == $nm_output(foo)"
+		send_log "bar == $nm_output(bar)\n"
+		verbose "bar == $nm_output(bar)"
+		fail $testsimple
+	    } else {
+		pass $testsimple
+	    }
+	}
+    }
+} }
+
+set testsrec "SH relaxing to S-records"
+
+if [istarget sh*-linux-gnu] {
+    # This target needs the explicit entry address.
+    catch "exec $objdump -x tmpdir/sh1 | grep start\\ address | sed s/start\\ address//" entry_addr
+    set srec_relax_arg "-Ttext $entry_addr -relax --oformat srec tmpdir/sh1.o"
+} else {
+    set srec_relax_arg "-relax --oformat srec tmpdir/sh1.o"
+}
+if ![ld_simple_link $ld tmpdir/sh1.s1 $srec_relax_arg ] {
+    fail $testsrec
+} else {
+    # The file name is embedded in the S-records, so create both
+    # files with the same name.
+    catch "exec rm -f tmpdir/sh1.s2" exec_output
+    send_log "mv tmpdir/sh1.s1 tmpdir/sh1.s2\n"
+    verbose "mv tmpdir/sh1.s1 tmpdir/sh1.s2"
+    catch "exec mv tmpdir/sh1.s1 tmpdir/sh1.s2" exec_output
+    if ![string match "" $exec_output] {
+	send_log "$exec_output\n"
+	verbose "$exec_output"
+	unresolved $testsrec
+    } else {
+	send_log "$objcopy -O srec tmpdir/sh1 tmpdir/sh1.s1"
+	verbose "$objcopy -O srec tmpdir/sh1 tmpdir/sh1.s1"
+	catch "exec $objcopy -O srec tmpdir/sh1 tmpdir/sh1.s1" exec_output
+	if ![string match "" $exec_output] {
+	    send_log "$exec_output\n"
+	    verbose "$exec_output"
+	    unresolved $testsrec
+	} else {
+	    send_log "cmp tmpdir/sh1.s1 tmpdir/sh1.s2\n"
+	    verbose "cmp tmpdir/sh1.s1 tmpdir/sh1.s2"
+	    catch "exec cmp tmpdir/sh1.s1 tmpdir/sh1.s2" exec_output
+	    set exec_output [prune_warnings $exec_output]
+	    if ![string match "" $exec_output] {
+		send_log "$exec_output\n"
+		verbose "$exec_output"
+		fail $testsrec
+	    } else {
+		pass $testsrec
+	    }
+	}
+    }
+}
+
+set testlink "SH relaxing"
+set testjsr "SH confirm relaxing"
+set testrun "SH relaxing execution"
+
+if { [which $CC] == 0 } {
+    untested $testlink
+    untested $testjsr
+    untested $testrun
+    return
+}
+
+if [istarget sh*-linux-gnu] {
+    exec sed -e s/_main/main/ -e s/_trap/trap/ -e s/_stack/stack/ \
+	    < $srcdir/$subdir/start.s >tmpdir/start.s
+} else {
+    exec cp $srcdir/$subdir/start.s tmpdir/start.s
+}
+
+if {![ld_assemble $as "-relax tmpdir/start.s" tmpdir/start.o] \
+    || ![ld_compile $CC "-O -mrelax $srcdir/$subdir/sh2.c" tmpdir/sh2.o]} {
+    unresolved $testlink
+    unresolved $testjsr
+    unresolved $testrun
+    return
+}
+
+if ![ld_simple_link $ld tmpdir/sh2 "-relax tmpdir/start.o tmpdir/sh2.o"] {
+    fail $testlink
+    unresolved $testjsr
+    unresolved $testrun
+    return
+}
+
+pass $testlink
+
+send_log "$objdump -d tmpdir/sh2\n"
+verbose "$objdump -d tmpdir/sh2"
+catch "exec $objdump -d tmpdir/sh2" exec_output
+if [string match "*jsr*" $exec_output] {
+    fail $testjsr
+} else {
+    pass $testjsr
+}
+
+if { ![info exists SIM] || [which $SIM] == 0 } {
+    untested $testrun
+    return
+}
+
+set status [catch "exec $SIM tmpdir/sh2" exec_output]
+if { $status == 0 } {
+    pass $testrun
+} else {
+    fail $testrun
+}

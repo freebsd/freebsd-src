@@ -1,0 +1,229 @@
+# Copyright (C) 1993, 1996, 1997 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+
+# Please email any bugs, comments, and/or additions to this file to:
+# dejagnu@gnu.org
+
+# Written by the Center for Software Science at the University of Utah
+# and by Cygnus Support.
+
+proc do_string_tests {} {
+    set testname "stringer.s: Test embedded quotes and octal escapes in strings"
+    set x 0
+
+    gas_start "stringer.s" "-al"
+
+    # Instead of having a variable for each match string just increment the
+    # total number of matches seen.  That's simpler when testing large numbers
+    # of instructions (as these tests to).
+    while 1 {
+	expect {
+	    -re "^ +\[0-9\]+ 0000 23696E63\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "^ +\[0-9\]+      6C756465\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "^ +\[0-9\]+      6B2E6465\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "^ +\[0-9\]+      66220A00\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "^ +\[0-9\]+ 0014 09307831\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "^ +\[0-9\]+      3233\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "\[^\n\]*\n"				{ }
+	    timeout				{ perror "timeout\n"; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x==6] then { pass $testname } else { fail $testname }
+}
+
+proc do_lsel_test {} {
+    set testname "lselbugs.s: lselbug"
+    set x 0
+
+    gas_start "lselbug.s" "-al"
+
+    # Make sure we correctly handle field selectors. 
+    while 1 {
+	expect {
+	    -re "^ +\[0-9\]+ 0000 22A04000\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "^ +\[0-9\]+ 0004 36B50100\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "^ +\[0-9\]+ 0008 22A04000\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "^ +\[0-9\]+ 000c 36B50100\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "\[^\n\]*\n"				{ }
+	    timeout				{ perror "timeout\n"; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x==4] then { pass $testname } else { fail $testname }
+}
+
+proc do_valid_align_tests {} {
+    set testname "align1.s: valid alignment tests"
+    set x 0
+
+    gas_start "align1.s" "-al"
+
+    # Make sure we correctly handle field selectors. 
+    while 1 {
+	expect {
+	    -re "^ +\[0-9\]+ 0000 08000240\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "^ +\[0-9\]+ 0008 08000240\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "^ +\[0-9\]+ 1000 08000240\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "^ +\[0-9\]+ 0000\[^\n\]*BLOCK\[^\n\]*1024\[^\n\]*\n"
+		{ set x [expr $x+1] }
+	    -re "^ +\[0-9\]+ 0400\[^\n\]*BLOCK\[^\n\]*1024\[^\n\]*\n"
+		{ set x [expr $x+1] }
+	    -re "^ +\[0-9\]+ 0800\[^\n\]*BLOCK\[^\n\]*4\[^\n\]*\n"
+		{ set x [expr $x+1] }
+	    -re "^ +\[0-9\]+ 0804\[^\n\]*ALIGN\[^\n\]*8\[^\n\]*\n"
+		{ set x [expr $x+1] }
+	    -re "^ +\[0-9\]+ 0808\[^\n\]*BLOCK\[^\n\]*30\[^\n\]*\n"
+		{ set x [expr $x+1] }
+	    -re "^ +\[0-9\]+ 0826\[^\n\]*ALIGN\[^\n\]*4\[^\n\]*\n"
+		{ set x [expr $x+1] }
+	    -re "^ +\[0-9\]+ 0828\[^\n\]*BLOCK\[^\n\]*4\[^\n\]*\n"
+		{ set x [expr $x+1] }
+	    -re "\[^\n\]*\n"				{ }
+	    timeout				{ perror "timeout\n"; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x==10] then { pass $testname } else { fail $testname }
+}
+
+if [istarget hppa*-*-*] then {
+    if { ![istarget hppa*-*-linux*] 
+	 && ![istarget hppa*-*-netbsd*] } {
+	# GAS-2.0 does not always parse ! as a line separator when it should.
+	setup_xfail hppa*-*-*
+    }
+    gas_test "linesepbug.s" "" "" "line separator bug"
+
+    # Make sure GAS accepts syntax for accessing static data.
+    gas_test "global.s" "" "" "check for sym-\$global\$ acceptance"
+
+    # GAS-2.0 (and 1.36 for that matter) can not handle a .proc which
+    # has no label before it.
+    gas_test "procbug.s" "" "" "Label following .proc"
+
+    # One is required to explicitly IMPORT any non-local symbol used
+    # in an assembly file.  Make sure we give an error if we use
+    # an undefined symbol.
+    setup_xfail hppa*-*-*
+    gas_test_error "undefbug.s" "" "Check for error when using undefined symbol"
+
+    # This file has code and assembler directives before switching into any
+    # space/subspace pair.  This should report an error for SOM (it is not
+    # an error for ELF.  The file also has mismatched entry/exit and
+    # proc/procend pairs which are errors for both SOM and ELF.
+    gas_test_error "nosubspace.s" "" "Check for error(s) in input file "
+
+    # This file should return errors for both the ENTRY_GR and ENTRY_FR
+    # directives (they are out-of-range)
+    gas_test_error "entrybug.s" "" "Check for error on entry_gr and entry_fr"
+
+    # Make sure embedded quotes and octal escapes in strings work
+    do_string_tests
+
+    # Make sure we do not die on a .version directive
+    gas_test "versionbug.s" "" "" ".version directive"
+
+    # Make sure we give an error on a bogus .space directive.
+    # recent version of gas2 went into infinite loops printing
+    # errors on this test.
+    gas_test_error "spacebug.s" "" "Check for error on bogus .space directive"
+
+    # GAS should give an error for this test.
+    gas_test_error "calldatabug.s" "" "Check for invalid aguments on .call"
+
+    # Old versions of gas incorrectly gave errors on some valid .EXPORT lines
+    gas_test "exportbug.s" "" "" "syntax check for an old .EXPORT bug"
+
+    # Old versions of gas choked on this file for some reason
+    gas_test "fixup7bug.s" "" "" "check for old \"fixup7\" gas bug"
+
+    # Test an L% selector parsing bug which existed in gas-1.36   
+    do_lsel_test
+
+    # First check how some valid alignments are handled.
+    do_valid_align_tests
+
+    # Now check to make sure an invalid argument is flagged as an error.
+    gas_test_error "align2.s" "" "Check for error on bogus argument to .align"
+
+    # GAS can't handle upper bound for a PA .block[z] directive
+    setup_xfail hppa*-*-*
+    gas_test "block1.s" "" "" "Check min/max values for .block"
+
+    # Now check for an invalid argument
+    gas_test_error "block2.s" "" "Check for error on bogus argument to .block"
+
+    # GAS-1.36 choked on this file.
+    # FIXME.  Should check relocations made for this test!
+    gas_test "exprbug.s" "" "" "Check for sym1-sym2 acceptance"
+
+    # Bad things happen in the PA ELF backend (others too?) if a non-default
+    # section is created...
+    setup_xfail "hppa*-*-*elf*" "hppa*-*-linux*" "hppa*64*-*-*"
+    gas_test "ssbug.s" "" "" "Check for acceptance of non-default subspaces"
+
+    # To be compatable with certain "features" of the HP compiler
+    # non-existant registers should default to %r0.
+    gas_test "defbug.s" "" "" "Missing register should default to %%r0"
+
+    # Make sure GAS understands a reasonable set of standard predefined
+    # registers.  eg %rp, %dp, %sp, etc.
+    gas_test "stdreg.s" "" "" "Test standard predefined registers"
+
+    # Make sure GAS will accept a label without a colon.
+    setup_xfail "hppa*-*-linux*"
+    gas_test "labelbug.s" "" "" "Test label without colon"
+
+    # Make sure we grok # line directives.
+    gas_test "appbug.s" "" "" "Test acceptance of #line directives"
+
+    # Make sure we give errors if a floating point format is specified
+    # for an xmpyu instruction (integer multiple)
+    gas_test_error "xmpyubug.s" "" "Check for error on bogus argument to xmpyu"
+
+    # Make sure gas handles various kinds of .reg pseudo-ops
+    gas_test "regpopbug.s" "" "" "Test for bugs in .reg pseudo-op"
+
+    # Check some bugs that have appeared in parsing .callinfo directives
+    gas_test "callinfobug.s" "" "" "Test for bugs in .callinfo directive"
+
+    # Check for bogus registers in single precision fmpyadd/fmpysub
+    # instructions
+    gas_test_error "badfmpyadd.s" "" "Check for error on bad fmpyadd insn"
+
+    # Make sure we grok spaces in directives.
+    gas_test "space.s" "" "" "Test acceptance of spaces in directives"
+}
+

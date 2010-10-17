@@ -1,0 +1,2 @@
+[0-9a-f]*      DF \*UND\*	[0-9a-f]*  VERS.0      (0x[0-9a-f][0-9a-f] )?bar
+[0-9a-f]*      DF \*UND\*	[0-9a-f]*  VERS.0      (0x[0-9a-f][0-9a-f] )?foo

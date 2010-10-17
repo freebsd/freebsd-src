@@ -1,0 +1,34 @@
+Notes on how the HPPA testsuite is organized:
+
+basic.parse -- this directory contains the basic instruction parsing
+tests and a simple .stab parsing test.  This would be where you'd
+add code to make sure new instructions are parsed correctly, new
+completers (such as cache hits) are parsed correctly, etc.
+
+It's also a reasonable place to make sure parsing of the various
+assembler directives is handled correctly.  If you're going to add
+such code, try to be reasonably complete.  Add test code for each
+basic directive and test all (or a noteworthy) subset of arguments.
+
+It should only be necessary to have an assembler to run these tests;
+calling objdump_start or something similar should not be done from
+this directory.
+
+
+more.parse -- this is where you should put additional parsing tests, such
+as tests to check mode selector parsing, string parsing, expression parsing,
+etc.  It's also a reasonable place to put parsing tests which are not complete
+enough (whatever that means) for basic.parse.  
+
+It should only be necessary to have an assembler to run these tests;
+calling objdump_start or something similar should not be done from
+this directory.
+
+
+reloc -- this is where you tests which examine relocations produced
+by GAS belong.  To run these tests you must have a functioning objdump.
+
+
+unsorted -- this is where everything else goes.  As groups of related tests
+end up in this directory, they should be broken out into a new class of
+tests.

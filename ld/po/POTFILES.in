@@ -1,7 +1,6 @@
 deffile.h
 emultempl/armcoff.em
 emultempl/pe.em
-ld.h
 ldcref.c
 ldctor.c
 ldctor.h
@@ -11,6 +10,7 @@ ldexp.c
 ldexp.h
 ldfile.c
 ldfile.h
+ld.h
 ldlang.c
 ldlang.h
 ldlex.h

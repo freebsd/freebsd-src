@@ -1,0 +1,106 @@
+#
+# Some ARM tests
+#
+proc run_errors_test { name opts tname} {
+    global srcdir subdir
+    set testname "$tname"
+    set file $srcdir/$subdir/$name
+    gas_run ${name}.s $opts ">&${name}.out"
+    if { [regexp_diff "${name}.out" "${file}.l"] } then {
+        fail $testname
+        verbose "output is [file_contents "${name}.out"]" 2
+        return
+    }
+    pass $testname
+}
+
+if {[istarget *arm*-*-*] || [istarget "xscale-*-*"]} then {
+
+    if {[istarget *-wince-*]} then {
+	run_dump_test "wince_inst"
+	run_dump_test "wince_ldconst"
+	run_dump_test "wince_arm7t"
+	run_dump_test "wince_copro"
+    } else {
+	run_dump_test "inst"
+	run_dump_test "ldconst"
+	run_dump_test "arm7t"
+	run_dump_test "copro"
+    }
+
+    run_dump_test "armv1"
+
+    run_errors_test "armv1-bad" "-mcpu=arm7m" "ARM v1 errors"
+
+    gas_test "arm3.s" "-mcpu=arm3" $stdoptlist "Arm 3 instructions"
+
+    gas_test "arm6.s" "-mcpu=arm6" $stdoptlist "Arm 6 instructions"
+
+    gas_test "arm7dm.s" "-mcpu=arm7dm" $stdoptlist "Arm 7DM instructions"
+
+    if {! [istarget arm*-*-aout] && ![istarget arm-*-pe]} then {
+	# The arm-aout port does not support Thumb mode.
+	gas_test "thumb.s" "-mcpu=arm7t" $stdoptlist "Thumb instructions"
+    }
+
+    gas_test "arch4t.s" "-march=armv4t" $stdoptlist "Arm architecture 4t instructions"
+
+    run_dump_test "arch5tej"
+
+    gas_test "immed.s" "" $stdoptlist "immediate expressions"
+
+    gas_test "float.s" "-mcpu=arm7tdmi -mfpu=fpa" $stdoptlist "Core floating point instructions"
+
+    run_dump_test "fpa-monadic"
+
+    run_dump_test "fpa-dyadic"
+
+    run_dump_test "fpa-mem"
+
+    run_dump_test "vfp1xD"
+
+    run_dump_test "vfp1"
+
+    run_dump_test "vfp2"
+
+    run_errors_test "vfp-bad" "-mfpu=vfp" "VFP errors"
+
+    run_dump_test "xscale"
+
+    run_dump_test "adrl"
+    
+    run_errors_test "req" "-mcpu=arm7m" ".req errors"
+
+    run_dump_test "maverick"
+    
+    run_dump_test "archv6"
+
+    run_dump_test "thumbv6"
+
+    run_errors_test "r15-bad" "" "Invalid use of r15 errors"
+
+    if {[istarget *-*-elf*] || [istarget *-*-linux*]} then {
+	run_dump_test "pic"
+
+	run_dump_test "mapping"
+    }
+
+    gas_test "offset.s" "" $stdoptlist "OFFSET_IMM regression"
+
+    run_errors_test "undefined" "" "Undefined local label error"
+}
+
+# Not all arm targets are bi-endian, so only run this test on ones
+# we know that are.  FIXME: We should probably also key off armeb/armel.
+
+if [istarget arm-*-pe] {
+    run_dump_test "le-fpconst"
+
+    # Since big-endian numbers have the normal format, this doesn't exist.
+    #run_dump_test "be-fpconst"
+}
+
+if [istarget xscale-*] {
+    run_dump_test "iwmmxt"
+    run_errors_test "iwmmxt-bad" "-mcpu=iwmmxt" "iWMMXt errors"
+}

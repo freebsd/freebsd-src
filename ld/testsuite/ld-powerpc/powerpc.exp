@@ -1,0 +1,108 @@
+# Expect script for ld-powerpc tests
+#   Copyright 2002, 2003 Free Software Foundation
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+
+if { ![istarget "powerpc*-*-*"]	} {
+    return
+}
+
+# powerpc ELF only at the moment.
+
+if { [istarget "*-*-macos*"] || [istarget "*-*-netware*"]
+     || [istarget "*-*-pe"] || [istarget "*-*-winnt*"]
+     || [istarget "*-*-cygwin*"] || [istarget "*-*-aix*"]
+     || [istarget "*-*-beos*"] } {
+    return
+}
+
+proc supports_ppc64 { } {
+    global ld
+
+    catch "exec $ld --help | grep emulations" tmp
+    if [ string match "*elf64ppc*" $tmp ] then {
+	return 1
+    } else {
+	return 0
+    }
+}
+
+# List contains test-items with 3 items followed by 2 lists:
+# 0:name 1:ld options 2:assembler options
+# 3:filenames of assembler files 4: action and options. 5: name of output file
+
+# Actions:
+# objdump: Apply objdump options on result.  Compare with regex (last arg).
+# nm: Apply nm options on result.  Compare with regex (last arg).
+# readelf: Apply readelf options on result.  Compare with regex (last arg).
+
+set ppcelftests {
+    {"Reloc section order" "-melf32ppc -shared -z nocombreloc" "-a32" {reloc.s}
+     {{objdump -hw reloc.d}} "reloc.so"}
+    {"APUinfo section processing" "-melf32ppc"
+     "-a32 -me500" {apuinfo1.s apuinfo2.s}
+    {{readelf -x5 apuinfo.rd}} "apuinfo"}
+    {"TLS32 static exec" "-melf32ppc" "-a32"  {tls32.s tlslib32.s}
+     {{objdump -dr tls32.d} {objdump -sj.got tls32.g}
+      {objdump -sj.tdata tls32.t}}
+     "tls32"}
+    {"TLS32 helper shared library" "-shared -melf32ppc tmpdir/tlslib32.o" "" {}
+     {} "libtlslib32.so"}
+    {"TLS32 dynamic exec" "-melf32ppc tmpdir/tls32.o tmpdir/libtlslib32.so" "" {}
+     {{readelf -WSsrl tlsexe32.r} {objdump -dr tlsexe32.d}
+      {objdump -sj.got tlsexe32.g} {objdump -sj.tdata tlsexe32.t}}
+      "tlsexe32"}
+    {"TLS32 shared" "-shared -melf32ppc tmpdir/tls32.o" "" {}
+     {{readelf -WSsrl tlsso32.r} {objdump -dr tlsso32.d}
+      {objdump -sj.got tlsso32.g} {objdump -sj.tdata tlsso32.t}}
+      "tls32.so"}
+}
+
+set ppc64elftests {
+    {"TLS static exec" "-melf64ppc" "-a64"  {tls.s tlslib.s}
+     {{objdump -dr tls.d} {objdump -sj.got tls.g} {objdump -sj.tdata tls.t}}
+      "tls"}
+    {"TLS helper shared library" "-shared -melf64ppc tmpdir/tlslib.o" "" {}
+     {} "libtlslib.so"}
+    {"TLS dynamic exec" "-melf64ppc tmpdir/tls.o tmpdir/libtlslib.so" "" {}
+     {{readelf -WSsrl tlsexe.r} {objdump -dr tlsexe.d}
+      {objdump -sj.got tlsexe.g} {objdump -sj.tdata tlsexe.t}}
+      "tlsexe"}
+    {"TLS shared" "-shared -melf64ppc tmpdir/tls.o" "" {}
+     {{readelf -WSsrl tlsso.r} {objdump -dr tlsso.d}
+      {objdump -sj.got tlsso.g} {objdump -sj.tdata tlsso.t}}
+      "tls.so"}
+    {"TLSTOC static exec" "-melf64ppc tmpdir/tlslib.o " "-a64"  {tlstoc.s}
+     {{objdump -dr tlstoc.d} {objdump -sj.got tlstoc.g}
+      {objdump -sj.tdata tlstoc.t}}
+      "tlstoc"}
+    {"TLSTOC dynamic exec" "-melf64ppc tmpdir/tlstoc.o tmpdir/libtlslib.so"
+     "" {}
+     {{readelf -WSsrl tlsexetoc.r} {objdump -dr tlsexetoc.d}
+      {objdump -sj.got tlsexetoc.g} {objdump -sj.tdata tlsexetoc.t}}
+      "tlsexetoc"}
+    {"TLSTOC shared" "-shared -melf64ppc tmpdir/tlstoc.o" "" {}
+     {{readelf -WSsrl tlstocso.r} {objdump -dr tlstocso.d}
+      {objdump -sj.got tlstocso.g} {objdump -sj.tdata tlstocso.t}}
+      "tlstoc.so"}
+}
+
+
+run_ld_link_tests $ppcelftests
+
+if [ supports_ppc64 ] then {
+    run_ld_link_tests $ppc64elftests
+}

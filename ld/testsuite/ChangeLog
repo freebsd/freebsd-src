@@ -1,0 +1,257 @@
+2004-05-05  Alexandre Oliva  <aoliva@redhat.com>
+
+	* ld-frv/fdpic.exp: Restore $LDFLAGS at the end.
+
+2004-04-09  Daniel Jacobowitz  <drow@mvista.com>
+
+	Merge from mainline:
+	2004-03-27  Alexandre Oliva  <aoliva@redhat.com>
+	* ld-frv/fdpic*.d: Adjust to compensate for page size change.
+
+	2004-02-24  Alexandre Oliva  <aoliva@redhat.com>
+	* ld-frv/fdpic-pie-2.d: Adjust for decay of FUNCDESC relocs that
+	bind locally.
+	* ld-frv/fdpic-pie-8.d: Likewise.
+	* ld-frv/fdpic-shared-4.d: Likewise.
+	* ld-frv/fdpic-pie-6-fail.d: Renamed from...
+	* ld-frv/fdpic-pie-6.d: New test.
+	* ld-frv/fdpic-shared-6-fail.d: Renamed from...
+	* ld-frv/fdpic-shared-6.d: New test.
+	* ld-frv/fdpic6.ldv: New.
+	* ld-frv/fdpic-static-6.d: Adjust test name.
+	* ld-frv/fdpic-pie-8-fail.d: Removed.
+	* ld-frv/fdpic.exp: Run new tests.
+
+2004-04-08  Alan Modra  <amodra@bigpond.net.au>
+
+	PR 47.
+	* ld-cdtest/cdtest.exp: Remove -fgnu-linker.
+
+2004-04-08  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-scripts/align.exp: Don't run on aix.
+	* ld-scripts/assert.s: Remove comment.
+	* ld-scripts/data.s: Likewise.
+	* ld-scripts/data.t: Set start address to allow for aout headers.
+	Make first LONG pc-relative.
+	* ld-scripts/data.d: Update.
+	* ld-scripts/defined2.d: Allow other random syms.
+	* ld-scripts/defined3.d: Likewise.
+	* ld-scripts/provide-1.s: Pad section.
+	* ld-scripts/provide-1.t: Set .data address and align.
+	* ld-scripts/provide-1.d: Update.
+	* ld-scripts/provide-2.s: Pad section.
+	* ld-scripts/provide-2.d: Allow random trailing syms.
+	* ld-scripts/provide-3.s: Pad section.
+	* ld-scripts/provide-3.d: Fix typos.
+	* ld-scripts/provide.exp: Don't run on aix.
+	* ld-scripts/size-1.s: Simplify test.
+	* ld-scripts/size-1.t: Rewrite.
+	* ld-scripts/size-1.d: Update.
+	* ld-scripts/size-2.s: Simplify.
+	* ld-scripts/size-2.t: Set start address.  Set exe flag on image.
+	* ld-scripts/size-2.d: Update.
+	* ld-scripts/size.exp: Don't run on aix.  Run size-2 on all elf
+	targets except mips.
+
+	Apply from mainline.
+	2004-03-19  H.J. Lu  <hongjiu.lu@intel.com>
+	* ld-elfvers/vers.exp: Add new tests for versioned weak
+	definition. 
+	* ld-elfvers/vers28a.c: New file.
+	* ld-elfvers/vers28a.dsym: Likewise.
+	* ld-elfvers/vers28a.ver: Likewise.
+	* ld-elfvers/vers28b.c: Likewise.
+	* ld-elfvers/vers28b.dsym: Likewise.
+	* ld-elfvers/vers28b.map: Likewise.
+	* ld-elfvers/vers28b.ver: Likewise.
+	* ld-elfvers/vers28c.c: Likewise.
+	* ld-elfvers/vers28c.dsym: Likewise.
+	* ld-elfvers/vers28c.ver: Likewise.
+
+	2004-03-19  Alan Modra  <amodra@bigpond.net.au>
+	* ld-scripts/provide-2.d: Ignore random symbols.
+
+	2004-03-05  Nathan Sidwell  <nathan@codesourcery.com>
+	* ld-scripts/size-1.d: Add bigendian regexps.
+	* ld-scripts/size-2.d: Set --wide for readelf.
+
+	2004-02-23  Alan Modra  <amodra@bigpond.net.au>
+	* ld-scripts/data.t: Set ".other" address so location doesn't
+	depend on target alignment.
+	* ld-scripts/data.d: Update.
+
+	2004-03-26  Alan Modra  <amodra@bigpond.net.au>
+	* ld-powerpc/tlsexe.r: Update for changed sym type.
+	* ld-powerpc/tlsexetoc.r: Likewise.
+
+2004-03-22  Hans-Peter Nilsson  <hp@axis.com>
+
+	* ld-cris/dsofnf.s, ld-cris/dsofnf2.s, ld-cris/gotplt1.d,
+	ld-cris/gotplt2.d, ld-cris/gotplt3.d: New tests.
+
+2004-03-16  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/tls.d: Update.
+	* ld-powerpc/tls32.d: Update.
+	* ld-powerpc/tlsexe.d: Update.
+	* ld-powerpc/tlsexe32.d: Update.
+	* ld-powerpc/tlsexetoc.d: Update.
+	* ld-powerpc/tlsso.d: Update.
+	* ld-powerpc/tlsso32.d: Update.
+	* ld-powerpc/tlstoc.d: Update.
+	* ld-powerpc/tlstocso.d: Update.
+
+2004-03-05  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* ld-scripts/size.exp: New.
+	* ld-scripts/size-[12].{d,s,t}: New.
+
+2004-02-23  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* ld-scripts/provide.exp: New.
+	* ld-scripts/provide-{1,2,3}.{s,t,d}.exp: New.
+
+2004-02-20  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* ld-scripts/align.{s,t,exp}: New.
+
+2004-02-19  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* ld-scripts/data.{s,t,d,exp}: New.
+
+2004-02-18  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* ld-scripts/assert.{s,t,exp}: New.
+
+2004-02-17  Richard Sandiford  <rsandifo@redhat.com>
+
+	* ld-mips/elf/elf-rel-xgot-{n32,n64-linux}.d: Update after 2004-02-02
+	changes to the way large constants are added.
+	* ld-mips/elf/elf-rel-got-{n32,n64-linux}.d: Likewise.  Adjust order
+	of GOT entries after today's change to the handling of GOT_PAGE
+	relocations.
+
+2004-02-09  Anil Paranjpe  <anilp1@KPITCummins.com>
+
+	* ld-h8300/relax-5.s: New file: Source for relax-5 test.
+	* ld-h8300/relax-5.d: New file: Expected output and commands for
+	assembling and linking the relax-5 test.
+	* ld-h8300/relax-5-coff.d: New file: Variant for the COFF based
+	toolchain.
+	* ld-h8300/h8300-exp:  Run the relax-5 test.
+
+2004-01-23  Daniel Jacobowitz  <drow@mvista.com>
+
+	* ld-arm/arm-app-abs32.s, ld-arm/arm-app-abs32.r,
+	ld-arm/arm-app-abs32.d: New files.
+	* ld-arm/arm-elf.exp: Add arm-app-abs32 testcase.
+
+2004-01-19  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-i386/tlsbin.dd: Adjust for changed sib printing.
+
+2004-01-13  Daniel Jacobowitz  <drow@mvista.com>
+
+	* ld-arm/arm-elf.exp: Add arm-static-app test.
+	* ld-arm/arm-static-app.s, ld-arm/arm-static-app.d,
+	ld-arm/arm-static-app.r: New files.
+
+2004-01-12  Anil Paranjpe  <anilp1@KPITCummins.com>
+
+	* ld-h8300/h8300-exp:  Run the relax-4 test.
+	* ld-h8300/relax-4.s: New file: Source for relax-4 test.
+	* ld-h8300/relax-4.d: New file: Expected output and commands for
+	assembling and linking the relax-4 test.
+	* ld-h8300/relax-4-coff.d: New file: Variant for the COFF based
+	toolchain.
+
+2004-01-09  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-selective/selective.exp: Skip ia64-*-*.
+
+2004-01-09  Daniel Jacobowitz  <drow@mvista.com>
+
+	* ld-arm/arm-lib.d, ld-arm/arm-lib.r: Update for R_ARM_PLT32
+	changes.
+
+2004-01-06  Daniel Jacobowitz  <drow@mvista.com>
+
+	* ld-arm/arm-app.d, ld-arm/arm-app.r, ld-arm/arm-app.s,
+	ld-arm/arm-lib.d, ld-arm/arm-lib.r, ld-arm/arm-lib.s,
+	ld-arm/arm-lib-plt32.d, ld-arm/arm-lib-plt32.r,
+	ld-arm/arm-lib-plt32.s, ld-arm/arm-elf.exp: New files.
+
+2004-01-06  Alexandre Oliva  <aoliva@redhat.com>
+
+	* ld-frv: Update .d files with correct addresses displayed for
+	dynamic relocations.
+	2003-12-02  Alexandre Oliva  <aoliva@redhat.com>
+	* ld-frv/fdpic1.s (.D0): Move to separate data section.
+	2003-11-28  Alexandre Oliva  <aoliva@redhat.com>
+	* ld-frv/fdpic-static-1.d, ld-frv/fdpic-static-2.d,
+	* ld-frv/fdpic-static-7.d, ld-frv/fdpic-static-8.d: Update to
+	reflect EMBEDDED= change in linker script.
+	2003-11-27  Alexandre Oliva  <aoliva@redhat.com>
+	* ld-frv: Update .d files to reflect changes in the page size, the
+	addition of a stack segment, the use of a NULL function descriptor
+	for weakundef functions and the change in the lazy funcdesc_value
+	in-place addend value.
+	2003-11-05  Alexandre Oliva  <aoliva@redhat.com>
+	* lib/ld-lib.exp (is_elf_format): Match frv-uclinux.
+	2003-10-06  Alexandre Oliva  <aoliva@redhat.com>
+	* ld-frv/fdpic-static-1.d, ld-frv/fdpic-static-2.d,
+	ld-frv/fdpic-static-7.d, ld-frv/fdpic-static-8.d: Addresses are
+	now _gp-based, not \.rofixup-based.
+	* ld-frv/fdpic-static-6.d: Likewise.  Match warning about
+	relocation to different section.
+	2003-09-30  Alexandre Oliva  <aoliva@redhat.com>
+	* ld-frv/fdpic.exp: Add -melf32frvfd to LDFLAGS.
+	2003-09-19  Alexandre Oliva  <aoliva@redhat.com>
+	* ld-frv/fdpic7.s, ld-frv/fdpic-static-7.d, ld-frv/fdpic-pie-7.d,
+	ld-frv/fdpic-shared-7.d: New.
+	* ld-frv/fdpic8.s, ld-frv/fdpic-static-8.d, ld-frv/fdpic-pie-8.d,
+	ld-frv/fdpic-shared-8.d: New.
+	* ld-frv/fdpic-pie-8-fail.d, ld-frv/fdpic-shared-8-fail.d: New.
+	* ld-frv/fdpic.exp: Run them.
+	* ld-frv/fdpic8.ldv, ld-frv/fdpic8min.ldv: New.
+	2003-09-18  Alexandre Oliva  <aoliva@redhat.com>
+	* ld-frv/fdpic5.s, ld-frv/fdpic-static-5.d, ld-frv/fdpic-pie-5.d,
+	ld-frv/fdpic-shared-5.d: New.
+	* ld-frv/fdpic6.s, ld-frv/fdpic-static-6.d, ld-frv/fdpic-pie-6.d,
+	ld-frv/fdpic-shared-6.d: New.
+	* ld-frv/fdpic.exp: Run them.
+	* ld-frv/fdpic*.d: Add -mfdpic to assembler flags.  Updated.
+	* ld-frv/fdpic2min.ldv: New, used by fdpic-shared-2.d.
+	* ld-frv/fdpic-shared-2-fail.d: New.
+	* ld-frv/fdpic.exp: Run it.
+	* ld-frv/fdpic4.s, ld-frv/fdpic-shared-4.d: New.
+	* ld-frv/fdpic.exp: Add new test.
+	* ld-frv/fdpic-pie-2.d: Remove unnecessary function descriptors.
+	* ld-frv/fdpic-shared-local-2.d, ld-frv/fdpic2.ldv: New.
+	* ld-frv/fdpic3.s, ld-frv/fdpic-shared-3.d: New.
+	* ld-frv/fdpic.exp: Add new tests.
+	* ld-frv/fdpic.exp, ld-frv/fdpic1.s, ld-frv/fdpic2.s,
+	* ld-frv/fdpic-static-1.d, ld-frv/fdpic-static-2.d,
+	* ld-frv/fdpic-pie-1.d, ld-frv/fdpic-pie-2.d,
+	* ld-frv/fdpic-shared-1.d, ld-frv/fdpic-shared-2.d: Renamed from
+	ucpic.
+	2003-09-15  Alexandre Oliva  <aoliva@redhat.com>
+	* ld-frv/ucpic.exp, ld-frv/ucpic1.s, ld-frv/ucpic2.s: New.
+	* ld-frv/ucpic-static-1.d, ld-frv/ucpic-static-2.d: New.
+	* ld-frv/ucpic-pie-1.d, ld-frv/ucpic-pie-2.d: New.
+	* ld-frv/ucpic-shared-1.d, ld-frv/ucpic-shared-2.d: New.
+
+2004-01-02  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-selective/sel-dump.exp: Use is_elf_format, xfail assorted targets.
+	* ld-selective/selective.exp: Likewise.
+
+For older changes see ChangeLog-9303
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

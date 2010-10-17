@@ -1,0 +1,44 @@
+	.text
+	.am33
+	mov 16,r1
+	movu 16,r1
+	add 16,r1
+	addc 16,r1
+	sub 16,r1
+	subc 16,r1
+	cmp 16,r1
+	mov 16,xr1
+	and 16,r1
+	or 16,r1
+	xor 16,r1
+	asr 16,r1
+	lsr 16,r1
+	asl 16,r1
+	mul 16,r1
+	mulu 16,r1
+	btst 16,r1
+	mov (16,r1),r2
+	mov r2,(16,r1)
+	movbu (16,r1),r2
+	movbu r2,(16,r1)
+	movhu (16,r1),r2
+	movhu r2,(16,r1)
+	mov (16,sp),r2
+	mov r2,(16,sp)
+	movbu (16,sp),r2
+	movbu r2,(16,sp)
+	movhu (16,sp),r2
+	movhu r2,(16,sp)
+	mac 16,r1
+	macu 16,r1
+	macb 16,r1
+	macbu 16,r1
+	mach 16,r1
+	machu 16,r1
+	mcste 16,r1
+	add r1,r2,r3
+	mov (r1+,16),r2
+	mov r1,(r2+,16)
+	movhu (r1+,16),r2
+	movhu r1,(r2+,16)
+	

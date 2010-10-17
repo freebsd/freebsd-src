@@ -1,0 +1,99 @@
+# Expect script for MIPS ELF linker tests
+#   Copyright 2002, 2003 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+
+if {![istarget mips*-*-*] || ![is_elf_format]} {
+    return
+}
+
+set has_newabi [expr [istarget *-*-irix6*] || [istarget mips64*-*-linux*]]
+set linux_gnu [expr [istarget mips*-*-linux*]]
+set embedded_elf [expr [istarget mips*-*-elf]]
+
+
+# Check MIPS16 markings being passed through link.
+run_dump_test "mips16-1"
+
+# MIPS branch offset final link checking.
+run_dump_test "branch-misc-1"
+
+# Test multi-got link.
+run_dump_test "multi-got-1"
+
+if $has_newabi {
+    run_dump_test "elf-rel-got-n32"
+    run_dump_test "elf-rel-xgot-n32"
+    if { $linux_gnu } {
+	run_dump_test "elf-rel-got-n64-linux"
+	run_dump_test "elf-rel-xgot-n64-linux"
+    } else {
+	run_dump_test "elf-rel-got-n64"
+	run_dump_test "elf-rel-xgot-n64"
+    }
+
+    run_dump_test "relax-jalr-n32"
+    run_dump_test "relax-jalr-n32-shared"
+    run_dump_test "relax-jalr-n64"
+    run_dump_test "relax-jalr-n64-shared"
+}
+
+if { $linux_gnu } {
+    run_dump_test "rel32-o32"
+    run_dump_test "rel32-n32"
+    run_dump_test "rel64"
+}
+
+if { $embedded_elf } {
+    # Check basic Embedded-PIC PC-relative HI/LO relocs.
+    run_dump_test "empic1-ln"
+    run_dump_test "empic1-lp"
+    run_dump_test "empic1-mn"
+    run_dump_test "empic1-mp"
+    run_dump_test "empic1-sn"
+    run_dump_test "empic1-sp"
+
+    # Embedded-PIC PC-relative HI/LO reloc edge-case regression tests.
+    # As of 2001-12-26, the linker botches the fwd-0 and rev-1 tests.
+    run_dump_test "empic2-fwd-0"
+    run_dump_test "empic2-fwd-1"
+    run_dump_test "empic2-rev-0"
+    run_dump_test "empic2-rev-1"
+
+    # Check generation of embedded relocs section.
+    run_dump_test "emrelocs-eb"
+    run_dump_test "emrelocs-el"
+
+    run_dump_test "region1"
+}
+
+if $embedded_elf {
+    # This could work on other targets too, but would need the appropriate
+    # ld -m switch.
+    run_dump_test "reloc-1-rel"
+}
+if $has_newabi {
+    run_dump_test "reloc-1-n32"
+    if $linux_gnu {
+	# Uses a linux-specific ld -m switch
+	run_dump_test "reloc-1-n64"
+    }
+}
+run_dump_test "reloc-2"
+if $embedded_elf {
+    run_dump_test "reloc-3-r"
+    run_dump_test "reloc-3-srec"
+}

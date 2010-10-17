@@ -1,0 +1,13 @@
+.*: Assembler messages:
+.*:7: Warning: Macro used \$at after "\.set noat"
+.*:8: Warning: Macro used \$at after "\.set noat"
+.*:9: Warning: Macro used \$at after "\.set noat"
+.*:10: Warning: Macro used \$at after "\.set noat"
+.*:13: Warning: Macro used \$at after "\.set noat"
+.*:14: Warning: Macro used \$at after "\.set noat"
+.*:15: Warning: Macro used \$at after "\.set noat"
+.*:16: Warning: Macro used \$at after "\.set noat"
+.*:20: Warning: Macro used \$at after "\.set noat"
+.*:21: Warning: Macro used \$at after "\.set noat"
+.*:24: Warning: Macro used \$at after "\.set noat"
+.*:25: Warning: Macro used \$at after "\.set noat"

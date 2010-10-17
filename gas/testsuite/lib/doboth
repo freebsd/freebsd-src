@@ -1,0 +1,19 @@
+#!/bin/sh
+
+x=$1 ; shift
+y=$1 ; shift
+
+rm tmp.0 > /dev/null 2>&1
+ln -s $x tmp.0
+$* tmp.0 > tmp.1
+
+rm tmp.0
+ln -s $y tmp.0
+$* tmp.0 > tmp.2
+
+rm tmp.0
+
+diff -c tmp.1 tmp.2
+exit
+
+#eof

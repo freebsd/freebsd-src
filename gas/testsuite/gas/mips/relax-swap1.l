@@ -1,0 +1,24 @@
+.*: Assembler messages:
+.*:9: Warning: relaxed out-of-range branch into a jump
+.*:14: Warning: relaxed out-of-range branch into a jump
+.*:19: Warning: relaxed out-of-range branch into a jump
+.*:24: Warning: relaxed out-of-range branch into a jump
+.*:28: Warning: relaxed out-of-range branch into a jump
+.*:33: Warning: relaxed out-of-range branch into a jump
+.*:37: Warning: relaxed out-of-range branch into a jump
+.*:42: Warning: relaxed out-of-range branch into a jump
+.*:46: Warning: relaxed out-of-range branch into a jump
+.*:51: Warning: relaxed out-of-range branch into a jump
+.*:55: Warning: relaxed out-of-range branch into a jump
+.*:62: Warning: relaxed out-of-range branch into a jump
+.*:68: Warning: relaxed out-of-range branch into a jump
+.*:73: Warning: relaxed out-of-range branch into a jump
+.*:79: Warning: relaxed out-of-range branch into a jump
+.*:85: Warning: relaxed out-of-range branch into a jump
+.*:96: Warning: relaxed out-of-range branch into a jump
+.*:101: Warning: relaxed out-of-range branch into a jump
+.*:106: Warning: relaxed out-of-range branch into a jump
+.*:111: Warning: relaxed out-of-range branch into a jump
+.*:116: Warning: relaxed out-of-range branch into a jump
+.*:121: Warning: relaxed out-of-range branch into a jump
+.*:126: Warning: relaxed out-of-range branch into a jump

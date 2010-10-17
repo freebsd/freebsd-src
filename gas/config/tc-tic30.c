@@ -1,5 +1,5 @@
 /* tc-c30.c -- Assembly code for the Texas Instruments TMS320C30
-   Copyright 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
    Contributed by Steven Haworth (steve@pm.cse.rmit.edu.au)
 
    This file is part of GAS, the GNU Assembler.
@@ -27,8 +27,13 @@
 #include "as.h"
 #include "safe-ctype.h"
 #include "opcode/tic30.h"
+#ifdef ANSI_PROTOTYPES
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
 
-/* Put here all non-digit non-letter charcters that may occur in an
+/* Put here all non-digit non-letter characters that may occur in an
    operand.  */
 static char operand_special_chars[] = "%$-+(,)*._~/<>&^!:[@]";
 static char *ordinal_names[] = {
@@ -77,56 +82,27 @@ const pseudo_typeS md_pseudo_table[] = {
   {0, 0, 0}
 };
 
-#undef USE_STDOUT
-#define USE_STDOUT 1
-
-#ifdef USE_STDARG
-
-#include <stdarg.h>
+int debug PARAMS ((const char *string, ...));
 
 int
-debug (const char *string, ...)
+debug VPARAMS ((const char *string, ...))
 {
   if (flag_debug)
     {
-      va_list argptr;
       char str[100];
 
-      va_start (argptr, string);
+      VA_OPEN (argptr, string);
+      VA_FIXEDARG (argptr, const char *, string);
       vsprintf (str, string, argptr);
+      VA_CLOSE (argptr);
       if (str[0] == '\0')
 	return (0);
-      va_end (argptr);
       fputs (str, USE_STDOUT ? stdout : stderr);
       return strlen (str);
     }
   else
     return 0;
 }
-#else
-int
-debug (string, va_alist)
-     const char *string;
-     va_dcl
-{
-  if (flag_debug)
-    {
-      va_list argptr;
-      char str[100];
-      int cnt;
-
-      va_start (argptr, string);
-      cnt = vsprintf (str, string, argptr);
-      if (str[0] == NULL)
-	return (0);
-      va_end (argptr);
-      fputs (str, USE_STDOUT ? stdout : stderr);
-      return (cnt);
-    }
-  else
-    return 0;
-}
-#endif
 
 /* hash table for opcode lookup */
 static struct hash_control *op_hash;
@@ -266,7 +242,7 @@ template *opcode;
 struct tic30_insn {
   template *tm;			/* Template of current instruction */
   unsigned opcode;		/* Final opcode */
-  int operands;			/* Number of given operands */
+  unsigned int operands;	/* Number of given operands */
   /* Type of operand given in instruction */
   operand *operand_type[MAX_OPERANDS];
   unsigned addressing_mode;	/* Final addressing mode of instruction */
@@ -283,7 +259,7 @@ md_assemble (line)
   char *current_posn;
   char *token_start;
   char save_char;
-  int count;
+  unsigned int count;
 
   debug ("In md_assemble() with argument %s\n", line);
   memset (&insn, '\0', sizeof (insn));
@@ -429,8 +405,8 @@ md_assemble (line)
   /* Check that number of operands is correct */
   if (insn.operands != insn.tm->operands)
     {
-      int i;
-      int numops = insn.tm->operands;
+      unsigned int i;
+      unsigned int numops = insn.tm->operands;
       /* If operands are not the same, then see if any of the operands are not
          required.  Then recheck with number of given operands.  If they are still not
          the same, then give an error, otherwise carry on.  */
@@ -790,7 +766,7 @@ md_assemble (line)
     }
   debug ("Addressing mode: %08X\n", insn.addressing_mode);
   {
-    int i;
+    unsigned int i;
     for (i = 0; i < insn.operands; i++)
       {
 	if (insn.operand_type[i]->immediate.label)
@@ -804,7 +780,7 @@ md_assemble (line)
 
 struct tic30_par_insn {
   partemplate *tm;		/* Template of current parallel instruction */
-  int operands[2];		/* Number of given operands for each insn */
+  unsigned operands[2];		/* Number of given operands for each insn */
   /* Type of operand given in instruction */
   operand *operand_type[2][MAX_OPERANDS];
   int swap_operands;		/* Whether to swap operands around.  */
@@ -841,7 +817,7 @@ tic30_parallel_insn (char *token)
 	{0};
 	char second_opcode[6] =
 	{0};
-	int i;
+	unsigned int i;
 	int current_opcode = -1;
 	int char_ptr = 0;
 
@@ -1015,7 +991,7 @@ tic30_parallel_insn (char *token)
     int num_ind = 0;
     for (count = 0; count < 2; count++)
       {
-	int i;
+	unsigned int i;
 	for (i = 0; i < p_insn.operands[count]; i++)
 	  {
 	    if ((p_insn.operand_type[count][i]->op_type &
@@ -1196,7 +1172,7 @@ tic30_parallel_insn (char *token)
     md_number_to_chars (p, (valueT) p_insn.opcode, INSN_SIZE);
   }
   {
-    int i, j;
+    unsigned int i, j;
     for (i = 0; i < 2; i++)
       for (j = 0; j < p_insn.operands[i]; j++)
 	free (p_insn.operand_type[i][j]);
@@ -1210,7 +1186,7 @@ operand *
 tic30_operand (token)
      char *token;
 {
-  int count;
+  unsigned int count;
   char ind_buffer[strlen (token)];
   operand *current_op;
 
@@ -1414,7 +1390,7 @@ tic30_operand (token)
 	      current_op->immediate.resolved = 1;
 	    }
 	  current_op->op_type = Disp | Abs24 | Imm16 | Imm24;
-	  if (current_op->immediate.u_number >= 0 && current_op->immediate.u_number <= 31)
+	  if (current_op->immediate.u_number <= 31)
 	    current_op->op_type |= IVector;
 	}
     }
@@ -1543,8 +1519,8 @@ tic30_unrecognized_line (c)
 
 int
 md_estimate_size_before_relax (fragP, segment)
-     fragS *fragP;
-     segT segment;
+     fragS *fragP ATTRIBUTE_UNUSED;
+     segT segment ATTRIBUTE_UNUSED;
 {
   debug ("In md_estimate_size_before_relax()\n");
   return 0;
@@ -1552,9 +1528,9 @@ md_estimate_size_before_relax (fragP, segment)
 
 void
 md_convert_frag (abfd, sec, fragP)
-     bfd *abfd;
-     segT sec;
-     register fragS *fragP;
+     bfd *abfd ATTRIBUTE_UNUSED;
+     segT sec ATTRIBUTE_UNUSED;
+     register fragS *fragP ATTRIBUTE_UNUSED;
 {
   debug ("In md_convert_frag()\n");
 }
@@ -1591,29 +1567,23 @@ md_apply_fix3 (fixP, valP, seg)
 
 int
 md_parse_option (c, arg)
-     int c;
-     char *arg;
+     int c ATTRIBUTE_UNUSED;
+     char *arg ATTRIBUTE_UNUSED;
 {
-  int i;
-
   debug ("In md_parse_option()\n");
-  for (i = 0; i < c; i++)
-    {
-      printf ("%c\n", arg[c]);
-    }
   return 0;
 }
 
 void
 md_show_usage (stream)
-     FILE *stream;
+     FILE *stream ATTRIBUTE_UNUSED;
 {
   debug ("In md_show_usage()\n");
 }
 
 symbolS *
 md_undefined_symbol (name)
-     char *name;
+     char *name ATTRIBUTE_UNUSED;
 {
   debug ("In md_undefined_symbol()\n");
   return (symbolS *) 0;
@@ -1667,7 +1637,6 @@ md_atof (what_statement_type, literalP, sizeP)
   char *token;
   char keepval;
   unsigned long value;
-  /*  char *atof_ieee (); */
   float float_value;
   debug ("In md_atof()\n");
   debug ("precision = %c\n", what_statement_type);
@@ -1809,7 +1778,7 @@ md_number_to_chars (buf, val, n)
 
 arelent *
 tc_gen_reloc (section, fixP)
-     asection *section;
+     asection *section ATTRIBUTE_UNUSED;
      fixS *fixP;
 {
   arelent *rel;
@@ -1838,10 +1807,7 @@ tc_gen_reloc (section, fixP)
   rel->sym_ptr_ptr = (asymbol **) xmalloc (sizeof (asymbol *));
   *rel->sym_ptr_ptr = symbol_get_bfdsym (fixP->fx_addsy);
   rel->address = fixP->fx_frag->fr_address + fixP->fx_where;
-  if (fixP->fx_pcrel)
-    rel->addend = fixP->fx_addnumber;
-  else
-    rel->addend = 0;
+  rel->addend = 0;
   rel->howto = bfd_reloc_type_lookup (stdoutput, code);
   if (!rel->howto)
     {
@@ -1855,14 +1821,8 @@ tc_gen_reloc (section, fixP)
 }
 
 void
-tc_aout_pre_write_hook ()
-{
-  debug ("In tc_aout_pre_write_hook()\n");
-}
-
-void
 md_operand (expressionP)
-     expressionS *expressionP;
+     expressionS *expressionP ATTRIBUTE_UNUSED;
 {
   debug ("In md_operand()\n");
 }

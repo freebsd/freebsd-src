@@ -1,11 +1,3 @@
-/* Define if you have the sys_errlist variable.  */
-#undef HAVE_SYS_ERRLIST
+/* Define to `unsigned long' if <sys/types.h> doesn't define.  */
+#undef uintptr_t
 
-/* Define if you have the sys_nerr variable.  */
-#undef HAVE_SYS_NERR
-
-/* Define if you have the sys_siglist variable.  */
-#undef HAVE_SYS_SIGLIST
-
-/* Define if you have the strerror function.  */
-#undef HAVE_STRERROR

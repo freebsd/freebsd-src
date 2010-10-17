@@ -1,0 +1,52 @@
+#
+# symver tests
+#
+proc run_error_test { name opts } {
+    global srcdir subdir
+    set testname "symver $name"
+    set file $srcdir/$subdir/$name
+    gas_run ${name}.s $opts ">&dump.out"
+    if { [regexp_diff "dump.out" "${file}.l"] } then {
+	fail $testname
+	verbose "output is [file_contents "dump.out"]" 2
+	return
+    }
+    pass $testname
+}
+
+# symver is only supported by ELF targets.
+if { ([istarget "*-*-elf*"]		
+      || [istarget "*-*-linux*"])
+     && ![istarget *-*-linux*aout*]
+     && ![istarget *-*-linux*oldld*] } then {
+
+    if {[istarget "ia64-*"]} then {
+      return
+    }
+  
+    if {[istarget "hppa*64*-*-*"]} then {
+      return
+    }
+  
+    # not supported by D30V
+    if {[istarget "d30v-*-*"]} {
+      return
+    }
+
+    # not yet supported by i960
+    if {[istarget "i960-*-*"]} {
+      return
+    }
+
+    run_dump_test "symver0" 
+    run_dump_test "symver1" 
+    run_error_test "symver2" ""
+    run_error_test "symver3" ""
+    # We have to comment out symver4 and symver5, which check the
+    # missing version name, since some tests in ld/testsuite/ld-elfvers
+    # have no version names. We cannot flag an error for the missing
+    # version name.
+#    run_error_test "symver4" ""
+#    run_error_test "symver5" ""
+    run_error_test "symver6" ""
+}

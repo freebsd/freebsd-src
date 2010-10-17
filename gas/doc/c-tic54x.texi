@@ -1,0 +1,767 @@
+@c Copyright 1999, 2000 Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+@c TI TMS320C54X description by Timothy Wall, twall@cygnus.com
+@ifset GENERIC
+@page
+@node TIC54X-Dependent
+@chapter TIC54X Dependent Features
+@end ifset
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter TIC54X Dependent Features
+@end ifclear
+
+@cindex TIC54X support
+@menu
+* TIC54X-Opts::              Command-line Options
+* TIC54X-Block::             Blocking
+* TIC54X-Env::               Environment Settings
+* TIC54X-Constants::         Constants Syntax
+* TIC54X-Subsyms::           String Substitution
+* TIC54X-Locals::            Local Label Syntax
+* TIC54X-Builtins::          Builtin Assembler Math Functions
+* TIC54X-Ext::               Extended Addressing Support
+* TIC54X-Directives::        Directives
+* TIC54X-Macros::            Macro Features
+* TIC54X-MMRegs::            Memory-mapped Registers
+@end menu
+
+@node TIC54X-Opts
+@section Options
+
+@cindex options, TIC54X
+@cindex TIC54X options
+The TMS320C54x version of @code{@value{AS}} has a few machine-dependent options.
+
+@cindex @samp{-mfar-mode} option, far-mode
+@cindex @samp{-mf} option, far-mode
+You can use the @samp{-mfar-mode} option to enable extended addressing mode.
+All addresses will be assumed to be > 16 bits, and the appropriate
+relocation types will be used.  This option is equivalent to using the
+@samp{.far_mode} directive in the assembly code.  If you do not use the
+@samp{-mfar-mode} option, all references will be assumed to be 16 bits.  
+This option may be abbreviated to @samp{-mf}.
+
+@cindex @samp{-mcpu} option, cpu
+You can use the @samp{-mcpu} option to specify a particular CPU.
+This option is equivalent to using the @samp{.version} directive in the
+assembly code.  For recognized CPU codes, see
+@xref{TIC54X-Directives,,@code{.version}}.  The default CPU version is
+@samp{542}.   
+
+@cindex @samp{-merrors-to-file} option, stderr redirect
+@cindex @samp{-me} option, stderr redirect
+You can use the @samp{-merrors-to-file} option to redirect error output
+to a file (this provided for those deficient environments which don't
+provide adequate output redirection).  This option may be abbreviated to
+@samp{-me}. 
+
+@node TIC54X-Block
+@section Blocking
+A blocked section or memory block is guaranteed not to cross the blocking
+boundary (usually a page, or 128 words) if it is smaller than the
+blocking size, or to start on a page boundary if it is larger than the
+blocking size.
+
+@node TIC54X-Env
+@section Environment Settings
+
+@cindex environment settings, TIC54X
+@cindex @samp{A_DIR} environment variable, TIC54X
+@cindex @samp{C54XDSP_DIR} environment variable, TIC54X
+@samp{C54XDSP_DIR} and @samp{A_DIR} are semicolon-separated
+paths which are added to the list of directories normally searched for
+source and include files.  @samp{C54XDSP_DIR} will override @samp{A_DIR}.
+
+@node TIC54X-Constants
+@section Constants Syntax
+
+@cindex constants, TIC54X
+The TIC54X version of @code{@value{AS}} allows the following additional
+constant formats, using a suffix to indicate the radix:
+@smallexample
+@cindex binary constants, TIC54X
+
+Binary                  @code{000000B, 011000b}
+Octal                   @code{10Q, 224q}
+Hexadecimal             @code{45h, 0FH}
+
+@end smallexample
+
+@node TIC54X-Subsyms
+@section String Substitution
+A subset of allowable symbols (which we'll call subsyms) may be assigned
+arbitrary string values.  This is roughly equivalent to C preprocessor
+#define macros.  When @code{@value{AS}} encounters one of these
+symbols, the symbol is replaced in the input stream by its string value.
+Subsym names @strong{must} begin with a letter. 
+
+Subsyms may be defined using the @code{.asg} and @code{.eval} directives
+(@xref{TIC54X-Directives,,@code{.asg}},
+@xref{TIC54X-Directives,,@code{.eval}}. 
+
+Expansion is recursive until a previously encountered symbol is seen, at
+which point substitution stops.  
+
+In this example, x is replaced with SYM2; SYM2 is replaced with SYM1, and SYM1
+is replaced with x.  At this point, x has already been encountered
+and the substitution stops.
+
+@smallexample @code
+ .asg   "x",SYM1 
+ .asg   "SYM1",SYM2
+ .asg   "SYM2",x
+ add    x,a             ; final code assembled is "add  x, a"
+@end smallexample
+
+Macro parameters are converted to subsyms; a side effect of this is the normal
+@code{@value{AS}} '\ARG' dereferencing syntax is unnecessary.  Subsyms
+defined within a macro will have global scope, unless the @code{.var}
+directive is used to identify the subsym as a local macro variable
+@pxref{TIC54X-Directives,,@code{.var}}.
+
+Substitution may be forced in situations where replacement might be
+ambiguous by placing colons on either side of the subsym.  The following
+code: 
+
+@smallexample @code
+ .eval  "10",x
+LAB:X:  add     #x, a
+@end smallexample
+
+When assembled becomes:
+
+@smallexample @code
+LAB10  add     #10, a
+@end smallexample
+
+Smaller parts of the string assigned to a subsym may be accessed with
+the following syntax:
+
+@table @code
+@item @code{:@var{symbol}(@var{char_index}):}
+Evaluates to a single-character string, the character at @var{char_index}.
+@item @code{:@var{symbol}(@var{start},@var{length}):}
+Evaluates to a substring of @var{symbol} beginning at @var{start} with
+length @var{length}.
+@end table
+
+@node TIC54X-Locals
+@section Local Labels
+Local labels may be defined in two ways:
+
+@itemize @bullet
+@item
+$N, where N is a decimal number between 0 and 9
+@item
+LABEL?, where LABEL is any legal symbol name.  
+@end itemize
+
+Local labels thus defined may be redefined or automatically generated.
+The scope of a local label is based on when it may be undefined or reset.
+This happens when one of the following situations is encountered:
+
+@itemize @bullet
+@item
+.newblock directive @pxref{TIC54X-Directives,,@code{.newblock}}
+@item
+The current section is changed (.sect, .text, or .data)
+@item
+Entering or leaving an included file
+@item
+The macro scope where the label was defined is exited
+@end itemize
+
+@node TIC54X-Builtins
+@section Math Builtins
+
+@cindex math builtins, TIC54X
+@cindex TIC54X builtin math functions
+@cindex builtin math functions, TIC54X
+
+The following built-in functions may be used to generate a
+floating-point value.  All return a floating-point value except
+@samp{$cvi}, @samp{$int}, and @samp{$sgn}, which return an integer
+value. 
+
+@table @code
+@cindex @code{$acos} math builtin, TIC54X
+@item @code{$acos(@var{expr})}
+Returns the floating point arccosine of @var{expr}.
+
+@cindex @code{$asin} math builtin, TIC54X
+@item @code{$asin(@var{expr})}
+Returns the floating point arcsine of @var{expr}.
+
+@cindex @code{$atan} math builtin, TIC54X
+@item @code{$atan(@var{expr})}
+Returns the floating point arctangent of @var{expr}.
+
+@cindex @code{$atan2} math builtin, TIC54X
+@item @code{$atan2(@var{expr1},@var{expr2})}
+Returns the floating point arctangent of @var{expr1} / @var{expr2}.
+
+@cindex @code{$ceil} math builtin, TIC54X
+@item @code{$ceil(@var{expr})}
+Returns the smallest integer not less than @var{expr} as floating point.
+
+@cindex @code{$cosh} math builtin, TIC54X
+@item @code{$cosh(@var{expr})}
+Returns the floating point hyperbolic cosine of @var{expr}.
+
+@cindex @code{$cos} math builtin, TIC54X
+@item @code{$cos(@var{expr})}
+Returns the floating point cosine of @var{expr}.
+
+@cindex @code{$cvf} math builtin, TIC54X
+@item @code{$cvf(@var{expr})}
+Returns the integer value @var{expr} converted to floating-point.
+
+@cindex @code{$cvi} math builtin, TIC54X
+@item @code{$cvi(@var{expr})}
+Returns the floating point value @var{expr} converted to integer.
+
+@cindex @code{$exp} math builtin, TIC54X
+@item @code{$exp(@var{expr})}
+Returns the floating point value e ^ @var{expr}.
+
+@cindex @code{$fabs} math builtin, TIC54X
+@item @code{$fabs(@var{expr})}
+Returns the floating point absolute value of @var{expr}.
+
+@cindex @code{$floor} math builtin, TIC54X
+@item @code{$floor(@var{expr})}
+Returns the largest integer that is not greater than @var{expr} as
+floating point.
+
+@cindex @code{$fmod} math builtin, TIC54X
+@item @code{$fmod(@var{expr1},@var{expr2})}
+Returns the floating point remainder of @var{expr1} / @var{expr2}.
+
+@cindex @code{$int} math builtin, TIC54X
+@item @code{$int(@var{expr})}
+Returns 1 if @var{expr} evaluates to an integer, zero otherwise.
+
+@cindex @code{$ldexp} math builtin, TIC54X
+@item @code{$ldexp(@var{expr1},@var{expr2})}
+Returns the floating point value @var{expr1} * 2 ^ @var{expr2}.
+
+@cindex @code{$log10} math builtin, TIC54X
+@item @code{$log10(@var{expr})}
+Returns the base 10 logarithm of @var{expr}.
+
+@cindex @code{$log} math builtin, TIC54X
+@item @code{$log(@var{expr})}
+Returns the natural logarithm of @var{expr}.
+
+@cindex @code{$max} math builtin, TIC54X
+@item @code{$max(@var{expr1},@var{expr2})}
+Returns the floating point maximum of @var{expr1} and @var{expr2}.
+
+@cindex @code{$min} math builtin, TIC54X
+@item @code{$min(@var{expr1},@var{expr2})}
+Returns the floating point minimum of @var{expr1} and @var{expr2}.
+
+@cindex @code{$pow} math builtin, TIC54X
+@item @code{$pow(@var{expr1},@var{expr2})}
+Returns the floating point value @var{expr1} ^ @var{expr2}.
+
+@cindex @code{$round} math builtin, TIC54X
+@item @code{$round(@var{expr})}
+Returns the nearest integer to @var{expr} as a floating point number.
+
+@cindex @code{$sgn} math builtin, TIC54X
+@item @code{$sgn(@var{expr})}
+Returns -1, 0, or 1 based on the sign of @var{expr}.
+
+@cindex @code{$sin} math builtin, TIC54X
+@item @code{$sin(@var{expr})}
+Returns the floating point sine of @var{expr}.
+
+@cindex @code{$sinh} math builtin, TIC54X
+@item @code{$sinh(@var{expr})}
+Returns the floating point hyperbolic sine of @var{expr}.
+
+@cindex @code{$sqrt} math builtin, TIC54X
+@item @code{$sqrt(@var{expr})}
+Returns the floating point square root of @var{expr}.
+
+@cindex @code{$tan} math builtin, TIC54X
+@item @code{$tan(@var{expr})}
+Returns the floating point tangent of @var{expr}.
+
+@cindex @code{$tanh} math builtin, TIC54X
+@item @code{$tanh(@var{expr})}
+Returns the floating point hyperbolic tangent of @var{expr}.
+
+@cindex @code{$trunc} math builtin, TIC54X
+@item @code{$trunc(@var{expr})}
+Returns the integer value of @var{expr} truncated towards zero as
+floating point.
+
+@end table
+
+@node TIC54X-Ext
+@section Extended Addressing
+The @code{LDX} pseudo-op is provided for loading the extended addressing bits
+of a label or address.  For example, if an address @code{_label} resides
+in extended program memory, the value of @code{_label} may be loaded as
+follows:
+@smallexample @code
+ ldx     #_label,16,a    ; loads extended bits of _label
+ or      #_label,a       ; loads lower 16 bits of _label
+ bacc    a               ; full address is in accumulator A
+@end smallexample
+
+@node TIC54X-Directives
+@section Directives
+
+@cindex machine directives, TIC54X
+@cindex TIC54X machine directives
+
+@table @code
+
+@cindex @code{align} directive, TIC54X
+@cindex @code{even} directive, TIC54X
+@item .align [@var{size}]
+@itemx .even
+Align the section program counter on the next boundary, based on
+@var{size}.  @var{size} may be any power of 2.  @code{.even} is
+equivalent to @code{.align} with a @var{size} of 2.
+@table @code
+@item 1
+Align SPC to word boundary
+@item 2
+Align SPC to longword boundary (same as .even)
+@item 128       
+Align SPC to page boundary
+@end table
+
+@cindex @code{asg} directive, TIC54X
+@item .asg @var{string}, @var{name}
+Assign @var{name} the string @var{string}.  String replacement is
+performed on @var{string} before assignment.
+
+@cindex @code{eval} directive, TIC54X
+@itemx .eval @var{string}, @var{name}
+Evaluate the contents of string @var{string} and assign the result as a
+string to the subsym @var{name}.  String replacement is performed on
+@var{string} before assignment. 
+
+@cindex @code{bss} directive, TIC54X
+@item .bss @var{symbol}, @var{size} [, [@var{blocking_flag}] [,@var{alignment_flag}]]
+Reserve space for @var{symbol} in the .bss section.  @var{size} is in
+words.  If present, @var{blocking_flag} indicates the allocated space
+should be aligned on a page boundary if it would otherwise cross a page
+boundary.  If present, @var{alignment_flag} causes the assembler to
+allocate @var{size} on a long word boundary.
+
+@cindex @code{byte} directive, TIC54X
+@cindex @code{ubyte} directive, TIC54X
+@cindex @code{char} directive, TIC54X
+@cindex @code{uchar} directive, TIC54X
+@item .byte @var{value} [,...,@var{value_n}]
+@itemx .ubyte @var{value} [,...,@var{value_n}]
+@itemx .char @var{value} [,...,@var{value_n}]
+@itemx .uchar @var{value} [,...,@var{value_n}]
+Place one or more bytes into consecutive words of the current section.
+The upper 8 bits of each word is zero-filled.  If a label is used, it
+points to the word allocated for the first byte encountered.
+
+@cindex @code{clink} directive, TIC54X
+@item .clink ["@var{section_name}"]
+Set STYP_CLINK flag for this section, which indicates to the linker that
+if no symbols from this section are referenced, the section should not
+be included in the link.  If @var{section_name} is omitted, the current
+section is used.
+
+@cindex @code{c_mode} directive, TIC54X
+@item .c_mode
+TBD.
+
+@cindex @code{copy} directive, TIC54X
+@item .copy "@var{filename}" | @var{filename}
+@itemx .include "@var{filename}" | @var{filename}
+Read source statements from @var{filename}.  The normal include search
+path is used.  Normally .copy will cause statements from the included
+file to be printed in the assembly listing and .include will not, but
+this distinction is not currently implemented.
+
+@cindex @code{data} directive, TIC54X
+@item .data
+Begin assembling code into the .data section.
+
+@cindex @code{double} directive, TIC54X
+@cindex @code{ldouble} directive, TIC54X
+@cindex @code{float} directive, TIC54X
+@cindex @code{xfloat} directive, TIC54X
+@item .double @var{value} [,...,@var{value_n}]
+@itemx .ldouble @var{value} [,...,@var{value_n}]
+@itemx .float @var{value} [,...,@var{value_n}]
+@itemx .xfloat @var{value} [,...,@var{value_n}]
+Place an IEEE single-precision floating-point representation of one or
+more floating-point values into the current section.  All but
+@code{.xfloat} align the result on a longword boundary.  Values are
+stored most-significant word first. 
+
+@cindex @code{drlist} directive, TIC54X
+@cindex @code{drnolist} directive, TIC54X
+@item .drlist
+@itemx .drnolist
+Control printing of directives to the listing file.  Ignored.
+
+@cindex @code{emsg} directive, TIC54X
+@cindex @code{mmsg} directive, TIC54X
+@cindex @code{wmsg} directive, TIC54X
+@item .emsg @var{string}
+@itemx .mmsg @var{string}
+@itemx .wmsg @var{string}
+Emit a user-defined error, message, or warning, respectively.
+
+@cindex @code{far_mode} directive, TIC54X
+@item .far_mode
+Use extended addressing when assembling statements.  This should appear
+only once per file, and is equivalent to the -mfar-mode option @pxref{TIC54X-Opts,,@code{-mfar-mode}}.
+
+@cindex @code{fclist} directive, TIC54X
+@cindex @code{fcnolist} directive, TIC54X
+@item .fclist
+@itemx .fcnolist
+Control printing of false conditional blocks to the listing file.
+
+@cindex @code{field} directive, TIC54X
+@item .field @var{value} [,@var{size}]
+Initialize a bitfield of @var{size} bits in the current section.  If
+@var{value} is relocatable, then @var{size} must be 16.  @var{size}
+defaults to 16 bits.  If @var{value} does not fit into @var{size} bits,
+the value will be truncated.  Successive @code{.field} directives will
+pack starting at the current word, filling the most significant bits
+first, and aligning to the start of the next word if the field size does
+not fit into the space remaining in the current word.  A @code{.align}
+directive with an operand of 1 will force the next @code{.field}
+directive to begin packing into a new word.  If a label is used, it
+points to the word that contains the specified field.
+
+@cindex @code{global} directive, TIC54X
+@cindex @code{def} directive, TIC54X
+@cindex @code{ref} directive, TIC54X
+@item .global @var{symbol} [,...,@var{symbol_n}]
+@itemx .def @var{symbol} [,...,@var{symbol_n}]
+@itemx .ref @var{symbol} [,...,@var{symbol_n}]
+@code{.def} nominally identifies a symbol defined in the current file
+and availalbe to other files.  @code{.ref} identifies a symbol used in
+the current file but defined elsewhere.  Both map to the standard
+@code{.global} directive.
+
+@cindex @code{half} directive, TIC54X
+@cindex @code{uhalf} directive, TIC54X
+@cindex @code{short} directive, TIC54X
+@cindex @code{ushort} directive, TIC54X
+@cindex @code{int} directive, TIC54X
+@cindex @code{uint} directive, TIC54X
+@cindex @code{word} directive, TIC54X
+@cindex @code{uword} directive, TIC54X
+@item .half @var{value} [,...,@var{value_n}]
+@itemx .uhalf @var{value} [,...,@var{value_n}]
+@itemx .short @var{value} [,...,@var{value_n}]
+@itemx .ushort @var{value} [,...,@var{value_n}]
+@itemx .int @var{value} [,...,@var{value_n}]
+@itemx .uint @var{value} [,...,@var{value_n}]
+@itemx .word @var{value} [,...,@var{value_n}]
+@itemx .uword @var{value} [,...,@var{value_n}]
+Place one or more values into consecutive words of the current section.
+If a label is used, it points to the word allocated for the first value
+encountered. 
+
+@cindex @code{label} directive, TIC54X
+@item .label @var{symbol}
+Define a special @var{symbol} to refer to the load time address of the
+current section program counter.
+
+@cindex @code{length} directive, TIC54X
+@cindex @code{width} directive, TIC54X
+@item .length
+@itemx .width
+Set the page length and width of the output listing file.  Ignored.
+
+@cindex @code{list} directive, TIC54X
+@cindex @code{nolist} directive, TIC54X
+@item .list
+@itemx .nolist
+Control whether the source listing is printed.  Ignored.
+
+@cindex @code{long} directive, TIC54X
+@cindex @code{ulong} directive, TIC54X
+@cindex @code{xlong} directive, TIC54X
+@item .long @var{value} [,...,@var{value_n}]
+@itemx .ulong @var{value} [,...,@var{value_n}]
+@itemx .xlong @var{value} [,...,@var{value_n}]
+Place one or more 32-bit values into consecutive words in the current
+section.  The most significant word is stored first.  @code{.long} and
+@code{.ulong} align the result on a longword boundary; @code{xlong} does
+not. 
+
+@cindex @code{loop} directive, TIC54X
+@cindex @code{break} directive, TIC54X
+@cindex @code{endloop} directive, TIC54X
+@item .loop [@var{count}]
+@itemx .break [@var{condition}]
+@itemx .endloop
+Repeatedly assemble a block of code.  @code{.loop} begins the block, and
+@code{.endloop} marks its termination.  @var{count} defaults to 1024,
+and indicates the number of times the block should be repeated.
+@code{.break} terminates the loop so that assembly begins after the
+@code{.endloop} directive.  The optional @var{condition} will cause the
+loop to terminate only if it evaluates to zero.
+
+@cindex @code{macro} directive, TIC54X
+@cindex @code{endm} directive, TIC54X
+@item @var{macro_name} .macro [@var{param1}][,...@var{param_n}]
+@itemx [.mexit]
+@itemx .endm
+See the section on macros for more explanation (@xref{TIC54X-Macros}.
+
+@cindex @code{mlib} directive, TIC54X
+@item .mlib "@var{filename}" | @var{filename}
+Load the macro library @var{filename}.  @var{filename} must be an
+archived library (BFD ar-compatible) of text files, expected to contain
+only macro definitions.   The standard include search path is used.
+
+@cindex @code{mlist} directive, TIC54X
+@cindex @code{mnolist} directive, TIC54X
+@item .mlist
+@item .mnolist
+Control whether to include macro and loop block expansions in the
+listing output.  Ignored.
+
+@cindex @code{mmregs} directive, TIC54X
+@item .mmregs
+Define global symbolic names for the 'c54x registers.  Supposedly
+equivalent to executing @code{.set} directives for each register with
+its memory-mapped value, but in reality is provided only for
+compatibility and does nothing.
+
+@cindex @code{newblock} directive, TIC54X
+@item .newblock
+This directive resets any TIC54X local labels currently defined.  Normal
+@code{@value{AS}} local labels are unaffected.
+
+@cindex @code{option} directive, TIC54X
+@item .option @var{option_list}
+Set listing options.  Ignored.
+
+@cindex @code{sblock} directive, TIC54X
+@item .sblock "@var{section_name}" | @var{section_name} [,"@var{name_n}" | @var{name_n}]
+Designate @var{section_name} for blocking.  Blocking guarantees that a
+section will start on a page boundary (128 words) if it would otherwise
+cross a page boundary.  Only initialized sections may be designated with
+this directive.  See also @xref{TIC54X-Block}.
+
+@cindex @code{sect} directive, TIC54X
+@item .sect "@var{section_name}"
+Define a named initialized section and make it the current section.
+
+@cindex @code{set} directive, TIC54X
+@cindex @code{equ} directive, TIC54X
+@item @var{symbol} .set "@var{value}"
+@itemx @var{symbol} .equ "@var{value}"
+Equate a constant @var{value} to a @var{symbol}, which is placed in the
+symbol table.  @var{symbol} may not be previously defined.  
+
+@cindex @code{space} directive, TIC54X
+@cindex @code{bes} directive, TIC54X
+@item .space @var{size_in_bits}
+@itemx .bes @var{size_in_bits}
+Reserve the given number of bits in the current section and zero-fill
+them.  If a label is used with @code{.space}, it points to the
+@strong{first} word reserved.  With @code{.bes}, the label points to the
+@strong{last} word reserved.
+
+@cindex @code{sslist} directive, TIC54X
+@cindex @code{ssnolist} directive, TIC54X
+@item .sslist
+@itemx .ssnolist
+Controls the inclusion of subsym replacement in the listing output.  Ignored.
+
+@cindex @code{string} directive, TIC54X
+@cindex @code{pstring} directive, TIC54X
+@item .string "@var{string}" [,...,"@var{string_n}"]
+@itemx .pstring "@var{string}" [,...,"@var{string_n}"]
+Place 8-bit characters from @var{string} into the current section.
+@code{.string} zero-fills the upper 8 bits of each word, while
+@code{.pstring} puts two characters into each word, filling the
+most-significant bits first.  Unused space is zero-filled.  If a label
+is used, it points to the first word initialized.
+
+@cindex @code{struct} directive, TIC54X
+@cindex @code{tag} directive, TIC54X
+@cindex @code{endstruct} directive, TIC54X
+@item [@var{stag}] .struct [@var{offset}]
+@itemx [@var{name_1}] element [@var{count_1}]
+@itemx [@var{name_2}] element [@var{count_2}]
+@itemx [@var{tname}] .tag @var{stagx} [@var{tcount}]
+@itemx ...
+@itemx [@var{name_n}] element [@var{count_n}]
+@itemx [@var{ssize}] .endstruct
+@itemx @var{label} .tag [@var{stag}]
+Assign symbolic offsets to the elements of a structure.  @var{stag}
+defines a symbol to use to reference the structure.  @var{offset}
+indicates a starting value to use for the first element encountered;
+otherwise it defaults to zero.  Each element can have a named offset,
+@var{name}, which is a symbol assigned the value of the element's offset
+into the structure.  If @var{stag} is missing, these become global
+symbols.  @var{count} adjusts the offset that many times, as if
+@code{element} were an array.  @code{element} may be one of
+@code{.byte}, @code{.word}, @code{.long}, @code{.float}, or any
+equivalent of those, and the structure offset is adjusted accordingly.
+@code{.field} and @code{.string} are also allowed; the size of
+@code{.field} is one bit, and @code{.string} is considered to be one
+word in size.  Only element descriptors, structure/union tags,
+@code{.align} and conditional assembly directives are allowed within
+@code{.struct}/@code{.endstruct}.  @code{.align} aligns member offsets
+to word boundaries only.  @var{ssize}, if provided, will always be
+assigned the size of the structure.
+
+The @code{.tag} directive, in addition to being used to define a
+structure/union element within a structure, may be used to apply a
+structure to a symbol.  Once applied to @var{label}, the individual
+structure elements may be applied to @var{label} to produce the desired
+offsets using @var{label} as the structure base. 
+
+@cindex @code{tab} directive, TIC54X
+@item .tab
+Set the tab size in the output listing.  Ignored.
+
+@cindex @code{union} directive, TIC54X
+@cindex @code{tag} directive, TIC54X
+@cindex @code{endunion} directive, TIC54X
+@item [@var{utag}] .union 
+@itemx [@var{name_1}] element [@var{count_1}]
+@itemx [@var{name_2}] element [@var{count_2}]
+@itemx [@var{tname}] .tag @var{utagx}[,@var{tcount}]
+@itemx ...
+@itemx [@var{name_n}] element [@var{count_n}]
+@itemx [@var{usize}] .endstruct
+@itemx @var{label} .tag [@var{utag}]
+Similar to @code{.struct}, but the offset after each element is reset to
+zero, and the @var{usize} is set to the maximum of all defined elements.
+Starting offset for the union is always zero.
+
+@cindex @code{usect} directive, TIC54X
+@item [@var{symbol}] .usect "@var{section_name}", @var{size}, [,[@var{blocking_flag}] [,@var{alignment_flag}]]
+Reserve space for variables in a named, uninitialized section (similar to
+.bss).  @code{.usect} allows definitions sections independent of .bss.
+@var{symbol} points to the first location reserved by this allocation.
+The symbol may be used as a variable name.  @var{size} is the allocated
+size in words.  @var{blocking_flag} indicates whether to block this
+section on a page boundary (128 words) (@pxref{TIC54X-Block}).
+@var{alignment flag} indicates whether the section should be
+longword-aligned.  
+
+@cindex @code{var} directive, TIC54X
+@item .var @var{sym}[,..., @var{sym_n}]
+Define a subsym to be a local variable within a macro.  See
+@xref{TIC54X-Macros}. 
+
+@cindex @code{version} directive, TIC54X
+@item .version @var{version}
+Set which processor to build instructions for.  Though the following
+values are accepted, the op is ignored.
+@table @code
+@item 541
+@itemx 542
+@itemx 543
+@itemx 545
+@itemx 545LP
+@itemx 546LP
+@itemx 548
+@itemx 549
+@end table
+@end table
+
+@node TIC54X-Macros
+@section Macros
+
+@cindex TIC54X-specific macros
+@cindex macros, TIC54X
+Macros do not require explicit dereferencing of arguments (i.e. \ARG).  
+
+During macro expansion, the macro parameters are converted to subsyms.
+If the number of arguments passed the macro invocation exceeds the
+number of parameters defined, the last parameter is assigned the string
+equivalent of all remaining arguments.  If fewer arguments are given
+than parameters, the missing parameters are assigned empty strings.  To
+include a comma in an argument, you must enclose the argument in quotes.
+
+@cindex subsym builtins, TIC54X
+@cindex TIC54X subsym builtins
+@cindex builtin subsym functions, TIC54X
+The following built-in subsym functions allow examination of the string
+value of subsyms (or ordinary strings).  The arguments are strings
+unless otherwise indicated (subsyms passed as args will be replaced by
+the strings they represent).
+@table @code
+@cindex @code{$symlen} subsym builtin, TIC54X
+@item @code{$symlen(@var{str})}
+Returns the length of @var{str}.
+
+@cindex @code{$symcmp} subsym builtin, TIC54X
+@item @code{$symcmp(@var{str1},@var{str2})}
+Returns 0 if @var{str1} == @var{str2}, non-zero otherwise.  
+
+@cindex @code{$firstch} subsym builtin, TIC54X
+@item @code{$firstch(@var{str},@var{ch})}
+Returns index of the first occurrence of character constant @var{ch} in
+@var{str}. 
+
+@cindex @code{$lastch} subsym builtin, TIC54X
+@item @code{$lastch(@var{str},@var{ch})}
+Returns index of the last occurrence of character constant @var{ch} in
+@var{str}. 
+
+@cindex @code{$isdefed} subsym builtin, TIC54X
+@item @code{$isdefed(@var{symbol})}
+Returns zero if the symbol @var{symbol} is not in the symbol table,
+non-zero otherwise.
+
+@cindex @code{$ismember} subsym builtin, TIC54X
+@item @code{$ismember(@var{symbol},@var{list})}
+Assign the first member of comma-separated string @var{list} to
+@var{symbol}; @var{list} is reassigned the remainder of the list.  Returns
+zero if @var{list} is a null string.  Both arguments must be subsyms.
+
+@cindex @code{$iscons} subsym builtin, TIC54X
+@item @code{$iscons(@var{expr})}
+Returns 1 if string @var{expr} is binary, 2 if octal, 3 if hexadecimal,
+4 if a character, 5 if decimal, and zero if not an integer.
+
+@cindex @code{$isname} subsym builtin, TIC54X
+@item @code{$isname(@var{name})}
+Returns 1 if @var{name} is a valid symbol name, zero otherwise.
+
+@cindex @code{$isreg} subsym builtin, TIC54X
+@item @code{$isreg(@var{reg})}
+Returns 1 if @var{reg} is a valid predefined register name (AR0-AR7 only).
+
+@cindex @code{$structsz} subsym builtin, TIC54X
+@item @code{$structsz(@var{stag})}
+Returns the size of the structure or union represented by @var{stag}.
+
+@cindex @code{$structacc} subsym builtin, TIC54X
+@item @code{$structacc(@var{stag})}
+Returns the reference point of the structure or union represented by
+@var{stag}.   Always returns zero.
+
+@end table
+
+@node TIC54X-MMRegs
+@section Memory-mapped Registers
+
+@cindex TIC54X memory-mapped registers
+@cindex registers, TIC54X memory-mapped
+@cindex memory-mapped registers, TIC54X
+The following symbols are recognized as memory-mapped registers:
+
+@table @code
+@end table

@@ -1,0 +1,561 @@
+# Copyright 1999, 2000, 2002 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+
+# Please email any bugs, comments, and/or additions to this file to:
+# hp@axis.com
+
+# Written by Axis Communications AB.
+
+# --- This function copied from arc.exp and rewritten to fit CRIS ---
+#
+# Test an insn from a template .s/.d.
+# The best way to create the .d file is to run the tests without it, let
+# dejagnu crash, run as.new on the just built .s file, run objdump -dr on
+# the result of that, copy the result into the .d file, and edit in the
+# necessary patterns (@OC@, etc.).  Sounds complicated but it's easy.  The
+# catch is that we assume a working assembler is used to build it.  That's
+# obviously not entirely kosher, but once the .d file is created one can
+# verify it's contents over time.
+#
+# Template patterns:
+# @OC@ - placeholder for the opcode
+# @OR@ - placeholder for extra replacement to distinguish similar
+#	 testcases.
+# @IR+????@ - placeholder for (e.g.) register-operand insn code
+# @IM+????@ - placeholder for (e.g.) memory-operand insn code.
+
+proc test_template_insn_reg_mem { args } {
+    # tmpl opcode ircode imcode avoid_regex dname ircode0
+    # imcode0 [regex replace OR_replace]
+    global srcdir subdir objdir
+
+    set tmpl [lindex $args 0]
+    set opcode [lindex $args 1]
+    set ircode [lindex $args 2]
+    set imcode [lindex $args 3]
+    set avoid_regex [lindex $args 4]
+    set dname [lindex $args 5]
+    set ircode0 [lindex $args 6]
+    set imcode0 [lindex $args 7]
+
+    if { [llength $args] >= 10 } {
+	set replace_regex [lindex $args 8]
+	set replacement [lindex $args 9]
+    } else {
+	set replace_regex ""
+    }
+
+    # Any extra replacements (like modifying the test name to something
+    # else than the @OC@ modification).  Replaces occurences of @OR@.
+    if { [llength $args] >= 11 } then {
+	set extra_OR_replace [lindex $args 10]
+    } else {
+	set extra_OR_replace ""
+    }
+
+    # Get the parts that we will wedge into the insn.
+    if [regexp "(.)(.)(.)" $imcode junk imcode3 imcode2 imcode1] {
+	set imcode3 [expr "0x$imcode3" ]
+    } else {
+	regexp "(.)(.)" $imcode junk imcode2 imcode1
+        set imcode3 0
+    }
+    set imcode1 [expr "0x$imcode1" ]
+    set imcode2 [expr "0x$imcode2" ]
+
+    if [regexp "(.)(.)(.)" $ircode junk ircode3 ircode2 ircode1] {
+	set ircode3 [expr "0x$ircode3" ]
+    } else {
+	regexp "(.)(.)" $ircode junk ircode2 ircode1
+	set ircode3 0
+    }
+    set ircode1 [expr "0x$ircode1" ]
+    set ircode2 [expr "0x$ircode2" ]
+
+    # To avoid fiddling with the generated .d-file, we have a
+    # parameter saying what ircode, imcode to subtract.
+    if [regexp "(.)(.)(.)" $imcode0 junk imcode03 imcode02 imcode01] {
+	set imcode03 [expr "0x$imcode03" ]
+    } else {
+	regexp "(.)(.)" $imcode0 junk imcode02 imcode01
+	set imcode03 0
+    }
+    set imcode01 [expr "0x$imcode01" ]
+    set imcode02 [expr "0x$imcode02" ]
+
+    if [regexp "(.)(.)(.)" $ircode0 junk ircode03 ircode02 ircode01] {
+	set ircode03 [expr "0x$ircode03" ]
+    } else {
+	regexp "(.)(.)" $ircode0 junk ircode02 ircode01
+	set ircode03 0
+    }
+
+    set ircode01 [expr "0x$ircode01" ]
+    set ircode02 [expr "0x$ircode02" ]
+
+    # The output template may be in another file than what the
+    # source template is.
+    if [string match $dname ""] {
+	set dname $tmpl
+    }
+
+    # Change @OC@ in the template file to $opcode
+
+    set in_fd [open $srcdir/$subdir/$tmpl.s r]
+    set out_fd [open $objdir/$opcode-test.s w]
+    # FIXME: check return codes
+
+    while { [gets $in_fd line] >= 0 } {
+	if { [string match "" "$avoid_regex"] \
+		|| ![regexp "$avoid_regex" $line] } {
+	 
+	    # verbose "Keeping $line for $opcode"
+
+	    # If caller passed a replacement regex, use it.
+	    if ![string match "" "$replace_regex"] {
+		# verbose "Replacing $line with ..."
+		regsub $replace_regex $line $replacement line
+		# verbose "... $line"
+	    }
+	    regsub "@OC@" $line $opcode line
+
+	    puts $out_fd $line
+	} else {
+	    # verbose "Skipping $line for $opcode"
+	}
+    }
+
+    close $in_fd
+    close $out_fd
+
+    # Create output template.
+
+    set in_fd [open $srcdir/$subdir/$dname.d r]
+    set out_fd [open $objdir/$opcode-test.d w]
+    # FIXME: check return codes
+
+    while { [gets $in_fd line] >= 0 } {
+	regsub "@OC@" $line $opcode line
+	#send_user "$line\n"
+
+	regsub "@OR@" $line $extra_OR_replace line
+
+	if [string match "*@IM+????@*" $line] {
+	    # Insert the memory opcode.  imcode2 occupies the high four bits
+	    # of the first (presented as leftmost) byte of the
+	    # IC parameter, and imcode1 the low four bits of the second
+	    # (rightmost) byte.
+	    regexp "^(.*)@IM\\+(.)(.)(.)(.)@(.*)$" \
+		    $line junk leftpart n1 n2 n3 n4 rightpart
+	    # verbose "IM $n1 $n2 $n3 $n4 ($imcode1 $imcode2 $imcode3 $imcode01 $imcode02 $imcode03)"
+
+	    set n1 [expr 0x$n1 - $imcode01 ]
+	    set n3 [expr 0x$n3 - $imcode03 ]
+	    set n4 [expr 0x$n4 - $imcode02 ]
+
+	    set n [expr ($imcode1 << 12) + ($n1 << 12) + (0x$n2 << 8) \
+		    + ($n3 << 4) + ($imcode3 << 4) + $n4 + $imcode2 ]
+	    set n [format "%04x" $n]
+	    puts $out_fd "$leftpart$n$rightpart"
+	} elseif [string match "*@IR+????@*" $line] {
+	    # As IM, but use the register opcode.
+	    regexp "^(.*)@IR\\+(.)(.)(.)(.)@(.*)$" \
+		    $line junk leftpart n1 n2 n3 n4 rightpart
+	    # verbose "IR $n1 $n2 $n3 $n4 ($ircode1 $ircode2 $ircode3 $ircode01 $ircode02 $ircode03)"
+
+	    set n1 [expr 0x$n1 - $ircode01 ]
+	    set n3 [expr 0x$n3 - $ircode03 ]
+	    set n4 [expr 0x$n4 - $ircode02 ]
+
+	    set n [expr ($ircode1 << 12) + ($n1 << 12) + (0x$n2 << 8) \
+		    + ($n3 << 4) + ($ircode3 << 4) + $n4 + $ircode2 ]
+	    set n [format "%04x" $n]
+	    puts $out_fd "$leftpart$n$rightpart"
+	} else {
+	    puts $out_fd $line
+	}
+    }
+
+    close $in_fd
+    close $out_fd
+
+    # Finally, run the test.
+
+    run_dump_test $objdir/$opcode-test
+
+    # "make clean" won't delete these, so for now we must.
+    catch "exec rm -f $objdir/$opcode-test.s $objdir/$opcode-test.d"
+}
+# --- End of arc.exp borrow ---
+
+proc test_template_insn_reg { args } {
+# tmpl opcode ircode avoid_regex dname ircode0 [regex replace OR_replace]
+    if { [llength $args] == 6 } {
+	test_template_insn_reg_mem [lindex $args 0] [lindex $args 1] \
+		[lindex $args 2] 00 [lindex $args 3] [lindex $args 4] \
+		[lindex $args 5] 00
+    } elseif { [llength $args] == 9 } {
+	test_template_insn_reg_mem [lindex $args 0] [lindex $args 1] \
+		[lindex $args 2] 00 [lindex $args 3] [lindex $args 4] \
+		[lindex $args 5] 00 [lindex $args 6] [lindex $args 7] \
+		[lindex $args 8]
+    } else {
+	test_template_insn_reg_mem [lindex $args 0] [lindex $args 1] \
+		[lindex $args 2] 00 [lindex $args 3] [lindex $args 4] \
+		[lindex $args 5] 00 [lindex $args 6] [lindex $args 7]
+    }
+}
+
+# For insn with only memory operands.
+proc test_template_insn_mem { args } {
+# tmpl opcode imcode avoid_regex dname imcode0 [regex replace]
+    if { [llength $args] == 6 } {
+	test_template_insn_reg_mem [lindex $args 0] [lindex $args 1] 00 \
+		[lindex $args 2] [lindex $args 3] [lindex $args 4] 00 \
+		[lindex $args 5]
+    } else {
+	test_template_insn_reg_mem [lindex $args 0] [lindex $args 1] 00 \
+		[lindex $args 2] [lindex $args 3] [lindex $args 4] 00 \
+		[lindex $args 5] [lindex $args 6] [lindex $args 7]
+    }
+}
+
+# For insn without substitutions in the output pattern.
+proc test_template_insn_single { tmpl opcode avoid_regex dname } {
+    test_template_insn_reg_mem $tmpl $opcode 00 00 "$avoid_regex" $dname 00 00
+}
+
+# For iteration over special registers.  Spec reg name in "regname",
+# number in "regno".  Type (size) in "regtype".	 Size-patterns to avoid
+# in input_avoid.
+proc to_sreg { regname regno regtype input_avoid } {
+    test_template_insn_reg_mem binop move \
+	    [format "%0x63" $regno] [format "%0xa3" $regno] \
+	    ",r\[0-9\]+,r\[0-9\]|@OC@\[^\\.\]|$input_avoid" \
+	    "x-to-$regtype-sreg" 063 0a3 \
+	    "@OC@\[^ \]+ (.*),r\[0-9\]+" [format "@OC@ \\1,%s" $regname] \
+	    $regname
+}
+
+# As to_sreg, but using unop, since we don't need to test constants.
+proc sreg_to { regname regno regtype input_avoid } {
+    test_template_insn_reg_mem unop move \
+	    [format "%0x67" $regno] [format "%0xa7" $regno] \
+	    "@OC@\\." "sreg-to-x" 067 0a7 \
+	    "@OC@ (.*)" [format "@OC@ %s,\\1" $regname] $regname
+}
+
+# Replace registers in pushpop
+proc push_pop { regname regno regtype input_avoid } {
+    test_template_insn_reg_mem pushpop pushpop-sreg \
+	    00 [format "%0x00" $regno] \
+	    "$input_avoid" "pushpop-$regtype-sreg" 00 000 \
+	    "(\\.\[bwd\])? ((\[^, \]*,)?)r\[0-9\]+((,.*)?)" " \\2$regname\\4" $regname
+}
+
+#
+# Iterate over spec reg names and spec reg numbers.
+#
+proc do_spec_regs { inner_function spec_reg_list } {
+    for { set i 0 } { $i < [llength $spec_reg_list] } { incr i } {
+	set regname [lindex [lindex $spec_reg_list $i] 0]
+	set regno [lindex [lindex $spec_reg_list $i] 1]
+
+	set regtype [lindex [lindex $spec_reg_list $i] 2]
+	set input_avoid	 [lindex [lindex $spec_reg_list $i] 3]
+
+	# verbose "$regname $regno $regtype $input_avoid"
+	$inner_function $regname $regno $regtype $input_avoid
+    }
+}
+
+if [istarget cris-*-*] then {
+    # Note that registers are missing, since the assembler will
+    # rightfully emit errors for registers that are not in current
+    # silicon.  Those are currently p2 and p3.
+    # Note the special for dcr1, since it has different size for
+    # different silicon, which matters for assembling and displaying
+    # "immediate constants".
+    set spec_reg_list [list \
+	    [list p0 0 "byte" "(@OC@|move)\\.\[wd\]" ] \
+	    [list p1 1 "byte" "(@OC@|move)\\.\[wd\]" ] \
+	    [list vr 1 "byte" "(@OC@|move)\\.\[wd\]" ] \
+	    [list p4 4 "word" "(@OC@|move)\\.\[bd\]" ] \
+	    [list p5 5 "word" "(@OC@|move)\\.\[bd\]" ] \
+	    [list ccr 5 "word" "(@OC@|move)\\.\[bd\]" ] \
+	    [list p6 6 "word" "(@OC@|move)\\.\[bd\]" ] \
+	    [list dcr0 6 "word" "(@OC@|move)\\.\[bd\]" ] \
+	    [list p7 7 "dword" "(@OC@|move)\\.\[bw\]" ] \
+	    [list dcr1 7 "dcr1" "(@OC@|move)\\.\[bd\]" ] \
+	    [list p8 8 "dword" "(@OC@|move)\\.\[bw\]" ] \
+	    [list p9 9 "dword" "(@OC@|move)\\.\[bw\]" ] \
+	    [list ibr 9 "dword" "(@OC@|move)\\.\[bw\]" ] \
+	    [list p10 10 "dword" "(@OC@|move)\\.\[bw\]" ] \
+	    [list irp 10 "dword" "(@OC@|move)\\.\[bw\]" ] \
+	    [list p11 11 "dword" "(@OC@|move)\\.\[bw\]" ] \
+	    [list srp 11 "dword" "(@OC@|move)\\.\[bw\]" ] \
+	    [list p12 12 "dword" "(@OC@|move)\\.\[bw\]" ] \
+	    [list bar 12 "dword" "(@OC@|move)\\.\[bw\]" ] \
+	    [list dtp0 12 "dword" "(@OC@|move)\\.\[bw\]" ] \
+	    [list p13 13 "dword" "(@OC@|move)\\.\[bw\]" ] \
+	    [list dccr 13 "dword" "(@OC@|move)\\.\[bw\]" ] \
+	    [list dtp1 13 "dword" "(@OC@|move)\\.\[bw\]" ] \
+	    [list p14 14 "dword" "(@OC@|move)\\.\[bw\]" ] \
+	    [list brp 14 "dword" "(@OC@|move)\\.\[bw\]" ] \
+	    [list p15 15 "dword" "(@OC@|move)\\.\[bw\]" ]]
+
+    # Test basic instructions.  Note that this will actually
+    # test both the assembler and the disassembler functionality.
+    #untested ".weak reduction"
+    #untested "Old regressions"
+    #untested "LX"
+    #untested "case recognition (disassembler)"
+    #untested "disassembling special regs"
+    #untested "disassembling unimplemented special regs"
+
+    # *PLEASE* make new "simple" run_dump_test-tests match "rd-*.d", so
+    # they will be picked up automatically through this construct.  This
+    # so you don't need to change cris.exp.  (As perhaps should have been
+    # originally done for cases below, but which is not worth fixing now.)
+    set rd_test_list [lsort [glob -nocomplain $srcdir/$subdir/rd-*.d]]
+    for { set i 0 } { $i < [llength $rd_test_list] } { incr i } {
+	# We need to strip the ".d", but can leave the dirname.
+	verbose [file rootname [lindex $rd_test_list $i]]
+	run_dump_test [file rootname [lindex $rd_test_list $i]]
+    }
+
+    # Broken word handling got erroneously triggers for this and
+    # got out-of-bounds errors.
+    # FIXME:  Check closer that this gets the expected results and fix
+    # the general use of difference-expressions in binop.s and elsewhere.
+    gas_test "binop-segref.s" "" "" "False broken words"
+
+    # Really orthogonal instructions.
+    test_template_insn_reg_mem binop add 60 a0 "@OC@\[^\\.\]" "" 60 a0
+    test_template_insn_reg_mem binop sub 68 a8 "@OC@\[^\\.\]" "" 60 a0
+    test_template_insn_reg_mem binop bound 5c 9c "@OC@\[^\\.\]" "" 60 a0
+    test_template_insn_reg_mem binop and 70 b0 "@OC@\[^\\.\]" "" 60 a0
+    test_template_insn_reg_mem binop or 74 b4 "@OC@\[^\\.\]" "" 60 a0
+
+    # Unary (two-operand) insns, otherwise as above.
+    test_template_insn_reg_mem binop cmp 6c ac \
+	    ",r\[0-9\]+,r\[0-9\]|@OC@\[^\\.\]" "binop-cmpmove" 64 a4
+    # This is of course only the move-to-register one.
+    test_template_insn_reg_mem binop move 64 a4 \
+	    ",r\[0-9\]+,r\[0-9\]|@OC@\[^\\.\]" "binop-cmpmove" 64 a4
+
+    # No dword size - operations with sign- or zero-extend on
+    # the mem or reg operand.
+    test_template_insn_reg_mem binop addu 40 80 \
+	    "@\\.d|@OC@\[^\\.\]" "binop-extx" 40 80
+    test_template_insn_reg_mem binop adds 42 82 \
+	    "@\\.d|@OC@\[^\\.\]" "binop-extx" 40 80
+    test_template_insn_reg_mem binop subu 48 88 \
+	    "@\\.d|@OC@\[^\\.\]" "binop-extx" 40 80
+    test_template_insn_reg_mem binop subs 4a 8a \
+	    "@\\.d|@OC@\[^\\.\]" "binop-extx" 40 80
+
+    # The two constraints above combined, and no reg-to-reg -
+    # cmps, cmpu, movs, movu.  We have to test reg-to-reg
+    # separately for movs and movu.
+    test_template_insn_mem binop movs 86 \
+	    "r\[0-9\]+,r\[0-9\]+|@\\.d|@OC@\[^\\.\]" "binop-cmpmovx" 84
+    test_template_insn_mem binop movu 84 \
+	    "r\[0-9\]+,r\[0-9\]+|@\\.d|@OC@\[^\\.\]" "binop-cmpmovx" 84
+    test_template_insn_mem binop cmps 8e \
+	    "r\[0-9\]+,r\[0-9\]+|@\\.d|@OC@\[^\\.\]" "binop-cmpmovx" 84
+    test_template_insn_mem binop cmpu 8c \
+	    "r\[0-9\]+,r\[0-9\]+|@\\.d|@OC@\[^\\.\]" "binop-cmpmovx" 84
+
+    # Reg-to-memory.  FIXME: Perhaps we should use unop.s for
+    # everything, and insert registers (including special
+    # registers) for all reg-to-mem and mem-to-reg insn tests.
+    test_template_insn_mem binop move.b bc "@OC@\\." "reg-to-mem" bc
+    test_template_insn_mem binop move.w bd "@OC@\\." "reg-to-mem" bc
+    test_template_insn_mem binop move.d be "@OC@\\." "reg-to-mem" bc
+    test_template_insn_mem binop movem bf "@OC@\\." "reg-to-mem" bc
+
+    # Use the replace-regex functionality to reverse the
+    # operands for movem.
+    test_template_insn_mem binop movem 00 "@OC@\\." "movem-to-reg" 00 \
+	    "@OC@ r(\[0-9\]+),\\\[(.*)\\\]" "@OC@ \[\\2\],r\\1"
+
+    # The unary operations are too irregular to make a pattern
+    # of the output.
+    test_template_insn_single unop test "@OC@\[^\\.\]" "test"
+    test_template_insn_single unop clear "@OC@\[^\\.\]" "clear"
+
+    # Quick-operand tests.
+    # 
+    # Unsigned 5-bits: btstq, asrq, lslq, lsrq.
+    test_template_insn_reg quick btstq 38 "s6|u6" "quick-u5" 38
+    test_template_insn_reg quick asrq 3a "s6|u6" "quick-u5" 38
+    test_template_insn_reg quick lslq 3c "s6|u6" "quick-u5" 38
+    test_template_insn_reg quick lsrq 3e "s6|u6" "quick-u5" 38
+
+    # Signed 6-bits: moveq, cmpq, andq, orq.
+    test_template_insn_reg quick moveq 24 "u6" "quick-s6" 24
+    test_template_insn_reg quick cmpq 2c "u6" "quick-s6" 24
+    test_template_insn_reg quick andq 30 "u6" "quick-s6" 24
+    test_template_insn_reg quick orq 34 "u6" "quick-s6" 24
+
+    # Unsigned 6-bits:  addq, subq.
+    test_template_insn_reg quick addq 20 "s6" "quick-u6" 20
+    test_template_insn_reg quick subq 28 "s6" "quick-u6" 20
+
+    # Register-to-register instructions, for each size.
+    test_template_insn_reg regreg movu.b 44 "" "" 44
+    test_template_insn_reg regreg movu.w 45 "" "" 44
+    test_template_insn_reg regreg movs.b 46 "" "" 44
+    test_template_insn_reg regreg movs.w 47 "" "" 44
+    test_template_insn_reg regreg lsl.b 4c "" "" 44
+    test_template_insn_reg regreg lsl.w 4d "" "" 44
+    test_template_insn_reg regreg lsl.d 4e "" "" 44
+    test_template_insn_reg regreg neg.b 58 "" "" 44
+    test_template_insn_reg regreg neg.w 59 "" "" 44
+    test_template_insn_reg regreg neg.d 5a "" "" 44
+    test_template_insn_reg regreg asr.b 78 "" "" 44
+    test_template_insn_reg regreg asr.w 79 "" "" 44
+    test_template_insn_reg regreg asr.d 7a "" "" 44
+    test_template_insn_reg regreg lsr.b 7c "" "" 44
+    test_template_insn_reg regreg lsr.w 7d "" "" 44
+    test_template_insn_reg regreg lsr.d 7e "" "" 44
+    test_template_insn_reg regreg btst 4f "" "" 44
+    test_template_insn_reg regreg abs 6b "" "" 44
+    test_template_insn_reg regreg dstep 6f "" "" 44
+    test_template_insn_reg regreg xor 7b "" "" 44
+    test_template_insn_reg regreg mstep 7f "" "" 44
+
+    # The various incarnations of the swap(n) insn.
+    set nwbr_list [list [list "not" 877] \
+	    [list "swapw" 477] \
+	    [list "swapnw" c77] \
+	    [list "swapb" 277] \
+	    [list "swapnb" a77] \
+	    [list "swapwb" 677] \
+	    [list "swapnwb" e77] \
+	    [list "swapr" 177] \
+	    [list "swapnr" 977] \
+	    [list "swapwr" 577] \
+	    [list "swapnwr" d77] \
+	    [list "swapbr" 377] \
+	    [list "swapnbr" b77] \
+	    [list "swapwbr" 777] \
+	    [list "swapnwbr" f77]]
+
+    for { set i 0 } { $i < [llength $nwbr_list] } { incr i } {
+	set name [lindex [lindex $nwbr_list $i] 0]
+	set number [lindex [lindex $nwbr_list $i] 1]
+
+	test_template_insn_reg regreg $name $number "" "oneop-type" 877 \
+		",r\[0-9]+" "" $name
+    }
+
+    # And one extra for the one that is canonicalized as "not".
+    test_template_insn_reg regreg swapn 877 "" "oneop-type" 877 \
+	    ",r\[0-9]+" "" not
+
+    # And take the opportunity to make sure that the assembler
+    # recognizes StUDlYCaPs.
+    test_template_insn_reg regreg SWAPN 877 "" "oneop-type" 877 \
+	    ",r\[0-9]+" "" not
+    test_template_insn_reg regreg Swapn 877 "" "oneop-type" 877 \
+	    ",r\[0-9]+" "" not
+    test_template_insn_reg regreg sWApN 877 "" "oneop-type" 877 \
+	    ",r\[0-9]+" "" not
+
+    # Fixed-size unary memory instructions.
+    test_template_insn_mem unop jsr b93 "@OC@\\." "jump-type" b93
+    test_template_insn_mem unop jump 093 "@OC@\\." "jump-type" b93
+    test_template_insn_mem unop jir a93 "@OC@\\." "jump-type" b93
+
+    # Non-templated tests.
+    run_dump_test "ccr"
+    run_dump_test "scc"
+    run_dump_test "pushpop"
+    run_dump_test "prefix"
+    run_dump_test "unimplemented"
+    run_dump_test "return"
+    run_dump_test "branch"
+    run_dump_test "separator"
+    run_dump_test "diffexp-ovwr"
+    run_dump_test "continue"
+    run_dump_test "nosep"
+    run_dump_test "labfloat"
+    run_dump_test "bork"
+
+    # This seems like a generic expression evaluation problem.
+    setup_xfail "cris-*-*"
+    run_dump_test "shexpr-1"
+
+    # The "@" will be erroneously interpreted as a line-separator in a
+    # macro here-label marker: "\@".
+    setup_xfail "cris-*-*"
+    run_dump_test "macroat"
+
+    # "\x20a" will be recognized as "\n" rather than " a"
+    setup_xfail "cris-*-*"
+    run_dump_test "string-1"
+    # Same as above, but removed the failing case to make sure the rest
+    # still works.
+    run_dump_test "string-2"
+
+    # Usable (non-redundant) and refreshed bits from the old, manual,
+    # test suite.
+    run_dump_test "brokw-1"
+    run_dump_test "brokw-2"
+    run_dump_test "brokw-3"
+    run_dump_test "fragtest"
+
+    # Addi is too irregular to bother applying templates to.
+    run_dump_test "addi"
+
+    # Test {mem (including constants), reg}-to/from-spec-reg.
+    do_spec_regs to_sreg $spec_reg_list
+    do_spec_regs sreg_to $spec_reg_list
+    do_spec_regs push_pop $spec_reg_list
+
+    # Additional insns for CRIS v3:
+    run_dump_test "break"
+    test_template_insn_reg regreg lz 73 "" "" 44
+
+    # Additional insns for CRIS v8 (also the swapxxx insns other than "not" above).
+    test_template_insn_mem unop jirc 293 "@OC@\\." "jump-type" b93
+    test_template_insn_mem unop jsrc 393 "@OC@\\." "jump-type" b93
+    test_template_insn_mem unop jbrc 693 "@OC@\\." "jump-type" b93
+
+    # Additional insns for CRIS v10:
+    test_template_insn_reg regreg mulu.b 90 "" "" 44
+    test_template_insn_reg regreg mulu.w 91 "" "" 44
+    test_template_insn_reg regreg mulu.d 92 "" "" 44
+    test_template_insn_reg regreg muls.b d0 "" "" 44
+    test_template_insn_reg regreg muls.w d1 "" "" 44
+    test_template_insn_reg regreg muls.d d2 "" "" 44
+    test_template_insn_mem unop sbfs 3b7 "@OC@\\.| r\[0-9\]+$" "unop-mem" 3b7
+    test_template_insn_mem unop rbf 3b3 "@OC@\\.| r\[0-9\]+$" "unop-mem" 3b7
+    test_template_insn_mem unop jmpu 893 "@OC@\\.| r\[0-9\]+$" "unop-mem" 3b7
+
+    # Some dg-tests, which seems the easiest way to test error
+    # cases.  Keeping it here at the end avoids getting a
+    # "Tcl_RegisterChannel: duplicate channel names" error, and
+    # I don't see a cause to put this in a separate file.  Hey,
+    # isn't dg-finish supposed to make things (like this case)
+    # fine?
+    load_lib gas-dg.exp
+    dg-init
+    dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/*-err-*.s $srcdir/$subdir/*-warn-*.s]] "" ""
+    dg-finish
+}

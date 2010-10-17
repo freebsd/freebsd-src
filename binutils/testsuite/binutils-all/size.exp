@@ -1,0 +1,78 @@
+#   Copyright 1993, 1994, 1995, 1997, 1998 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+# Please email any bugs, comments, and/or additions to this file to:
+# bug-dejagnu@prep.ai.mit.edu
+
+# This file was written by Rob Savoye <rob@cygnus.com>
+# and rewritten by Ian Lance Taylor <ian@cygnus.com>
+
+if ![is_remote host] {
+    if {[which $SIZE] == 0} then {
+	perror "$SIZE does not exist"
+	return
+    }
+}
+
+send_user "Version [binutil_version $SIZE]"
+
+
+if {![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o]} then {
+    return
+}
+
+if [is_remote host] {
+    set testfile [remote_download host tmpdir/bintest.o]
+} else {
+    set testfile tmpdir/bintest.o
+}
+
+set dec "\[0-9\]+"
+set hex "\[0-9a-fA-F\]+"
+
+# Test size with no arguments
+
+set got [binutils_run $SIZE "$SIZEFLAGS $testfile"]
+
+set want "($dec)\[ 	\]+($dec)\[ 	\]+($dec)\[ 	\]+($dec)\[ 	\]+($hex)\[ 	\]+${testfile}"
+
+if ![regexp $want $got all text data bss dtot hextot] then {
+    fail "size (no arguments)"
+} else {
+    if {$text < 8 || $data < 4} then {
+	fail "size (no arguments)"
+    } else {
+	pass "size (no arguments)"
+    }
+}
+
+# Test size -A
+
+set got [binutils_run $SIZE "$SIZEFLAGS -A ${testfile}"]
+
+set want "${testfile}.*(text|TEXT)\[^\n\r\]*\[ 	\]($dec)\[ 	\]+$dec.*(\\.data|DATA)\[^\n\r\]*\[ 	\]($dec)\[ 	\]+$dec"
+
+if ![regexp $want $got all textname textsize dataname datasize] then {
+    fail "size -A"
+} else {
+    verbose "text size: $textsize"
+    verbose "data size: $datasize"
+    if {$textsize < 8 || $datasize < 4} then {
+	fail "size -A"
+    } else {
+	pass "size -A"
+    }
+}

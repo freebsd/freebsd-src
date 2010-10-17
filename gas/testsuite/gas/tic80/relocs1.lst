@@ -1,0 +1,80 @@
+MVP MP Macro Assembler     Version 1.13     Sat Feb 22 13:19:28 1997
+Copyright (c) 1993-1995    Texas Instruments Incorporated 
+
+relocs1.s                                                            PAGE    1
+
+        1                     ;; This is the hand hacked output of the TI C compiler for a simple
+        2                     ;; test program that contains local/global functions, local/global
+        3                     ;; function calls, and an "if" and "for" statement.
+        4                     
+        5                             .global _xfunc
+        6                     
+        7 00000000            _sfunc:
+        8 00000000   086CFFF0          addu      -16,r1,r1
+        9 00000004   F859000C          st        12(r1),r31
+       10 00000008   10590000          st        0(r1),r2
+       11 0000000C   F8389000          jsr       _xfunc(r0),r31
+          00000010   00000000 
+       12 00000014   10510000          ld        0(r1),r2
+       13 00000018   F851000C          ld        12(r1),r31
+       14 0000001C   0038801F          jsr       r31(r0),r0
+       15 00000020   086C8010          addu      16,r1,r1
+       16                     
+       17                             .global _gfunc
+       18                     
+       19 00000024            _gfunc:
+       20 00000024   086CFFF0          addu      -16,r1,r1
+       21 00000028   F859000C          st        12(r1),r31
+       22 0000002C   10590000          st        0(r1),r2
+       23 00000030   F8389000          jsr       _sfunc(r0),r31
+          00000034   00000000 
+       24 00000038   10510000          ld        0(r1),r2
+       25 0000003C   F851000C          ld        12(r1),r31
+       26 00000040   0038801F          jsr       r31(r0),r0
+       27 00000044   086C8010          addu      16,r1,r1
+       28                     
+       29                     
+       30                             .global _branches
+       31                     
+       32 00000048            _branches:
+       33 00000048   086CFFF0          addu      -16,r1,r1
+       34 0000004C   F859000C          st        12(r1),r31
+       35 00000050   10590000          st        0(r1),r2
+       36 00000054   10510000          ld        0(r1),r2
+       37 00000058   10590004          st        4(r1),r2
+       38 0000005C   10510000          ld        0(r1),r2
+       39 00000060   18510004          ld        4(r1),r3
+       40 00000064   10AC800A          addu      10,r2,r2
+       41 00000068   10BA0003          cmp       r3,r2,r2
+       42 0000006C   30A58012          bbo.a     L12,r2,ge.w
+       43 00000070            L8:
+       44 00000070   10510004          ld        4(r1),r2
+       45 00000074   F8A48005          bbz.a     L10,r2,0
+       46 00000078   F8389000          jsr       _gfunc(r0),r31
+          0000007C   00000024 
+       47 00000080   10510004          ld        4(r1),r2
+       48 00000084   00248004          br.a      L11
+       49 00000088            L10:
+       50 00000088   F8389000          jsr       _xfunc(r0),r31
+          0000008C   00000000 
+       51 00000090   10510004          ld        4(r1),r2
+MVP MP Macro Assembler     Version 1.13     Sat Feb 22 13:19:28 1997
+Copyright (c) 1993-1995    Texas Instruments Incorporated 
+
+relocs1.s                                                            PAGE    2
+
+       52 00000094            L11:
+       53 00000094   10510004          ld        4(r1),r2
+       54 00000098   10AC8001          addu      1,r2,r2
+       55 0000009C   10590004          st        4(r1),r2
+       56 000000A0   18510000          ld        0(r1),r3
+       57 000000A4   10510004          ld        4(r1),r2
+       58 000000A8   18EC800A          addu      10,r3,r3
+       59 000000AC   10FA0002          cmp       r2,r3,r2
+       60 000000B0   38A5FFF0          bbo.a     L8,r2,lt.w
+       61 000000B4            L12:
+       62 000000B4   F851000C          ld        12(r1),r31
+       63 000000B8   0038801F          jsr       r31(r0),r0
+       64 000000BC   086C8010          addu      16,r1,r1
+
+ No Errors,  No Warnings

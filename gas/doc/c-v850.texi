@@ -1,4 +1,4 @@
-@c Copyright 1997 Free Software Foundation, Inc.
+@c Copyright 1997, 2003 Free Software Foundation, Inc.
 @c This is part of the GAS manual.
 @c For copying conditions, see the file as.texinfo.
 
@@ -51,6 +51,12 @@ Specifies that the assembled code should be marked as being targeted at
 the V850E processor.  This allows the linker to detect attempts to link
 such code with code assembled for other processors.
 
+@cindex @code{-mv850e1} command line option, V850
+@item -mv850e1
+Specifies that the assembled code should be marked as being targeted at
+the V850E1 processor.  This allows the linker to detect attempts to link
+such code with code assembled for other processors.
+
 @cindex @code{-mv850any} command line option, V850
 @item -mv850any
 Specifies that the assembled code should be marked as being targeted at
@@ -61,6 +67,14 @@ to be used in a generic fashion.  For example libgcc.a contains generic
 routines used by the code produced by GCC for all versions of the v850
 architecture, together with support routines only used by the V850E
 architecture.
+
+@cindex @code{-mrelax} command line option, V850
+@item -mrelax
+Enables relaxation.  This allows the .longcall and .longjump pseudo
+ops to be used in the assembler source code.  These ops label sections
+of code which are either a long function call or a long branch.  The
+assembler will then flag these sections of code and the linker will
+attempt to relax them.
 
 @end table
 
@@ -225,6 +239,12 @@ Specifies that the assembled code should be marked as being targeted at
 the V850E processor.  This allows the linker to detect attempts to link
 such code with code assembled for other processors.
 
+@cindex @code{.v850e1} directive, V850
+@item .v850e1
+Specifies that the assembled code should be marked as being targeted at
+the V850E1 processor.  This allows the linker to detect attempts to link
+such code with code assembled for other processors.
+
 @end table
 
 @node V850 Opcodes
@@ -273,7 +293,7 @@ address of the label 'here' and store it into register 6:
     @samp{movea lo(here), r6, r6}
 
 The reason for this special behaviour is that movea performs a sign
-extention on its immediate operand.  So for example if the address of
+extension on its immediate operand.  So for example if the address of
 'here' was 0xFFFFFFFF then without the special behaviour of the hi()
 pseudo-op the movhi instruction would put 0xFFFF0000 into r6, then the
 movea instruction would takes its immediate operand, 0xFFFF, sign extend
@@ -354,10 +374,23 @@ example:
 will put the call the function whoes address is held in the call table
 at the location labeled 'table_func1'.
 
+@cindex @code{longcall} pseudo-op, V850
+@item .longcall @code{name}
+Indicates that the following sequence of instructions is a long call
+to function @code{name}.  The linker will attempt to shorten this call
+sequence if @code{name} is within a 22bit offset of the call.  Only
+valid if the @code{-mrelax} command line switch has been enabled.
+
+@cindex @code{longjump} pseudo-op, V850
+@item .longjump @code{name}
+Indicates that the following sequence of instructions is a long jump
+to label @code{name}.  The linker will attempt to shorten this code
+sequence if @code{name} is within a 22bit offset of the jump.  Only
+valid if the @code{-mrelax} command line switch has been enabled.
+
 @end table
 
 
 For information on the V850 instruction set, see @cite{V850
 Family 32-/16-Bit single-Chip Microcontroller Architecture Manual} from NEC.
 Ltd.
-

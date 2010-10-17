@@ -1,0 +1,97 @@
+
+.*:     file format .*-sh64
+.*
+architecture: sh5, flags 0x0+11:
+HAS_RELOC, HAS_SYMS
+start address 0x0+
+
+Sections:
+Idx Name          Size      VMA               LMA               File off  Algn
+  0 \.text         0+40  0+  0+  0+40  2\*\*0
+                  CONTENTS, ALLOC, LOAD, RELOC, READONLY, CODE
+  1 \.data         0+40  0+  0+  0+80  2\*\*2
+                  CONTENTS, ALLOC, LOAD, RELOC, DATA
+  2 \.bss          0+  0+  0+  0+c0  2\*\*0
+                  ALLOC
+  3 \.stack        0+4  0+  0+  0+c0  2\*\*0
+                  CONTENTS, ALLOC, LOAD, DATA
+SYMBOL TABLE:
+0+ l    d  \.text	0+ 
+0+ l    d  \*ABS\*	0+ 
+0+ l    d  \.data	0+ 
+0+ l    d  \*ABS\*	0+ 
+0+ l    d  \.bss	0+ 
+0+ l    d  \.stack	0+ 
+0+ l    d  \*ABS\*	0+ 
+0+ l    d  \*ABS\*	0+ 
+0+ l    d  \*ABS\*	0+ 
+0+         \*UND\*	0+ unresolved5
+0+c g       \.text	0+ 0x04 file1text2
+0+24 g       \.text	0+ 0x04 file2text1
+0+4 g       \.data	0+ file1data1
+0+34 g       \.data	0+ file2data4
+0+10 g       \.text	0+ 0x04 file1text3
+0+2c g       \.data	0+ file2data2
+0+c g       \.data	0+ file1data2
+0+30 g       \.text	0+ 0x04 file2text3
+0+20 g       \.text	0+ 0x04 start2
+0+         \*UND\*	0+ unresolved1
+0+         \*UND\*	0+ unresolved6
+0+4 g       \.text	0+ 0x04 file1text1
+0+2c g       \.text	0+ 0x04 file2text2
+0+         \*UND\*	0+ unresolved3
+0+34 g       \.text	0+ 0x04 file2text4
+0+         \*UND\*	0+ unresolved2
+0+ g       \.text	0+ 0x04 start
+0+14 g       \.text	0+ 0x04 file1text4
+0+30 g       \.data	0+ file2data3
+0+         \*UND\*	0+ unresolved4
+0+24 g       \.data	0+ file2data1
+0+10 g       \.data	0+ file1data3
+0+14 g       \.data	0+ file1data4
+
+
+RELOCATION RECORDS FOR \[\.text\]:
+OFFSET           TYPE              VALUE 
+0+8 R_SH_IMM_LOW16    file1text1
+0+c R_SH_IMM_LOW16    file1data2
+0+10 R_SH_IMM_LOW16    file2text3
+0+14 R_SH_IMM_LOW16    file2data4
+0+18 R_SH_IMM_LOW16    unresolved1
+0+1c R_SH_IMM_LOW16    unresolved6
+0+28 R_SH_IMM_LOW16    file2text1
+0+2c R_SH_IMM_LOW16    file2data2
+0+30 R_SH_IMM_LOW16    file1text3
+0+34 R_SH_IMM_LOW16    file1data4
+0+38 R_SH_IMM_LOW16    unresolved1
+0+3c R_SH_IMM_LOW16    unresolved3
+
+
+RELOCATION RECORDS FOR \[\.data\]:
+OFFSET           TYPE              VALUE 
+0+8 R_SH_DIR32        file1data1
+0+c R_SH_DIR32        file1text2
+0+10 R_SH_DIR32        file2data3
+0+14 R_SH_DIR32        file2text4
+0+18 R_SH_DIR32        unresolved2
+0+1c R_SH_DIR32        unresolved5
+0+28 R_SH_DIR32        file2data1
+0+2c R_SH_DIR32        file2text2
+0+30 R_SH_DIR32        file1data3
+0+34 R_SH_DIR32        file1text4
+0+38 R_SH_DIR32        unresolved2
+0+3c R_SH_DIR32        unresolved4
+
+
+Contents of section \.text:
+ 0000 6ff0fff0 6ff0fff0 cc0000a0 cc000140  .*
+ 0010 cc000140 cc000140 cc000280 cc0001e0  .*
+ 0020 6ff0fff0 6ff0fff0 cc0000a0 cc000140  .*
+ 0030 cc000140 cc000140 cc0001e0 cc0001e0  .*
+Contents of section \.data:
+ 0000 00000000 00000000 00000000 00000000  .*
+ 0010 00000000 00000000 00000000 00000000  .*
+ 0020 00000000 00000000 00000000 00000000  .*
+ 0030 00000000 00000000 00000000 00000000  .*
+Contents of section .stack:
+ 0000 deaddead                             .*

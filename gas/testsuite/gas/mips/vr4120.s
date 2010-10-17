@@ -1,0 +1,19 @@
+	# Include mflos to check for nop insertion.
+	mflo        $4
+	dmacc       $4,$5,$6
+	dmacchi     $4,$5,$6
+	dmacchis    $4,$5,$6
+	dmacchiu    $4,$5,$6
+	dmacchius   $4,$5,$6
+	dmaccs      $4,$5,$6
+	dmaccu      $4,$5,$6
+	dmaccus     $4,$5,$6
+	mflo        $4
+	macc        $4,$5,$6
+	macchi      $4,$5,$6
+	macchis     $4,$5,$6
+	macchiu     $4,$5,$6
+	macchius    $4,$5,$6
+	maccs       $4,$5,$6
+	maccu       $4,$5,$6
+	maccus      $4,$5,$6

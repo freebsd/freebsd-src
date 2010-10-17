@@ -1,0 +1,151 @@
+# Copyright 1993, 1994, 1995, 1996, 1997, 2000, 2001
+# Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+# Please email any bugs, comments, and/or additions to this file to:
+# bug-dejagnu@prep.ai.mit.edu
+
+# This file was written by Rob Savoye <rob@cygnus.com>
+# and extended by Ian Lance Taylor <ian@cygnus.com>
+
+proc binutil_version { prog } {
+    if ![is_remote host] {
+	set path [which $prog];
+	if {$path == 0} then {
+	    perror "$prog can't be run, file not found."
+	    return ""
+	}
+    } else {
+	set path $prog
+    }
+    set state [remote_exec host $prog --version];
+    set tmp "[lindex $state 1]\n";
+    # Should find a way to discard constant parts, keep whatever's
+    # left, so the version string could be almost anything at all...
+    regexp "\[^\n\]* (cygnus-|)(\[-0-9.a-zA-Z-\]+)\[\r\n\].*" "$tmp" version cyg number
+    if ![info exists number] then {
+        return "$path (no version number)\n"
+    }
+    return "$path $number\n"
+}
+
+#
+# default_binutils_run
+#	run a program, returning the output
+#	sets binutils_run_failed if the program does not exist
+#
+proc default_binutils_run { prog progargs } {
+    global binutils_run_failed
+    global host_triplet
+
+    set binutils_run_failed 0
+
+    if ![is_remote host] {
+	if {[which $prog] == 0} then {
+	    perror "$prog does not exist"
+	    set binutils_run_failed 1
+	    return ""
+	}
+    }
+
+    send_log "$prog $progargs\n"
+    verbose "$prog $progargs"
+
+    # Gotta quote dollar-signs because they get mangled by the
+    # shell otherwise.
+    regsub -all "\\$" "$progargs" "\\$" progargs
+
+    set state [remote_exec host $prog $progargs]
+    set exec_output [prune_warnings [lindex $state 1]];
+    if {![string match "" $exec_output]} then {
+	send_log "$exec_output\n"
+	verbose "$exec_output"
+    }
+    return $exec_output
+}
+
+#
+# default_binutils_assemble
+#	assemble a file
+#
+proc default_binutils_assemble { source object } {
+    global srcdir
+    global host_triplet
+
+    # The HPPA assembler syntax is a little different than most, to make
+    # the test source file assemble we need to run it through sed.
+    #
+    # This is a hack in that it won't scale well if other targets need
+    # similar transformations to assemble.  We'll generalize the hack
+    # if/when other targets need similar handling.
+    if { [istarget "hppa*-*-*"] && ![istarget "*-*-linux*" ] } then {
+        set sed_file $srcdir/config/hppa.sed
+	send_log "sed -f $sed_file < $source > asm.s\n"
+	verbose "sed -f $sed_file < $source > asm.s"
+	catch "exec sed -f $sed_file < $source > asm.s";
+	set source asm.s
+    }
+
+    set exec_output [target_assemble $source $object ""];
+    set exec_output [prune_warnings $exec_output]
+
+    if [string match "" $exec_output] {
+	return 1
+    } else {
+	send_log "$exec_output\n"
+	verbose "$exec_output"
+	perror "$source: assembly failed"
+	return 0
+    }
+}
+
+#
+# is_elf_format
+#	true if the object format is known to be ELF
+#
+proc is_elf_format {} {
+    if { ![istarget *-*-sysv4*] \
+	 && ![istarget *-*-unixware*] \
+	 && ![istarget *-*-elf*] \
+	 && ![istarget *-*-eabi*] \
+	 && ![istarget hppa*64*-*-hpux*] \
+	 && ![istarget ia64-*-hpux*] \
+	 && ![istarget *-*-linux*] \
+	 && ![istarget *-*-irix5*] \
+	 && ![istarget *-*-irix6*] \
+	 && ![istarget *-*-netbsd*] \
+	 && ![istarget *-*-solaris2*] } {
+	return 0
+    }
+
+    if { [istarget *-*-linux*aout*] \
+	 || [istarget *-*-linux*oldld*] } {
+	return 0
+    }
+
+    if { ![istarget *-*-netbsdelf*] \
+	 && ([istarget *-*-netbsd*aout*] \
+	     || [istarget *-*-netbsdpe*] \
+	     || [istarget arm*-*-netbsd*] \
+	     || [istarget sparc-*-netbsd*] \
+	     || [istarget i*86-*-netbsd*] \
+	     || [istarget m68*-*-netbsd*] \
+	     || [istarget vax-*-netbsd*] \
+	     || [istarget ns32k-*-netbsd*]) } {
+    	return 0
+    }
+    return 1
+}

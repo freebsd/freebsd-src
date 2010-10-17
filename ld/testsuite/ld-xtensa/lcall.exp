@@ -1,0 +1,111 @@
+# Test Xtensa longcall optimization.
+# By David Heine, Tensilica, Inc.
+#   Copyright 2002, 2003
+#   Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+if ![istarget "xtensa-*-*"] {
+    return
+}
+
+set testname "LCALL"
+
+set OBJDUMPFLAGS "-dr"
+
+#
+# default_ld_objdump
+#	run objdump on a file
+#
+proc default_ld_objdump { objdump object outputfile } {
+    global OBJDUMPFLAGS
+    global objdump_output
+    global host_triplet
+
+    if {[which $objdump] == 0} then {
+	perror "$objdump does not exist"
+	return 0
+    }
+
+    if ![info exists OBJDUMPFLAGS] { set OBJDUMPFLAGS "" }
+
+    verbose -log "$objdump $OBJDUMPFLAGS $object >$outputfile"
+
+    catch "exec $objdump $OBJDUMPFLAGS $object >$outputfile" exec_output
+    set exec_output [prune_warnings $exec_output]
+    if [string match "" $exec_output] then {
+	return 1
+    } else {
+	verbose -log "$exec_output"
+	perror "$object: objdump failed"
+	return 0
+    }
+}
+
+
+if ![ld_assemble $as $srcdir/$subdir/lcall1.s tmpdir/lcall1.o] {
+    unresolved $testname
+    return
+}
+if ![ld_assemble $as $srcdir/$subdir/lcall2.s tmpdir/lcall2.o] {
+    unresolved $testname
+    return
+}
+
+set object "tmpdir/lcall"
+set outputfile "$object.txt"
+
+if ![ld_simple_link $ld $object "-T $srcdir/$subdir/lcall.t tmpdir/lcall1.o tmpdir/lcall2.o"] {
+    verbose -log "failure in ld"
+    fail $testname
+    return
+} 
+
+if ![default_ld_objdump $objdump $object $outputfile ] {
+    verbose -log "failure in objdump"
+    fail $testname
+    return
+} 
+
+set file [open $outputfile r]
+while { [gets $file line] != -1 } {
+    #	verbose "$line" 2
+    if [regexp "l32r" $line] {
+	verbose -log "Found an l32r in the linked object"
+	verbose -log "$line"
+	fail $testname
+    }
+}
+close $file
+pass $testname
+
+
+set testname "LCALL2"
+set file [open $outputfile r]
+set found 0
+
+while { [gets $file line] != -1 } {
+    #	verbose "$line" 2
+    if [regexp "^00000004 <label1>:" $line] {
+	set found 1
+    }
+}
+close $file
+if  $found  {
+   pass $testname
+} else {
+   fail $testname
+}
+

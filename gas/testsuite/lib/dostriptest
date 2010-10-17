@@ -1,0 +1,14 @@
+#!/bin/sh
+
+x=striptest.xx.$$
+y=striptest.yy.$$
+
+cp $1 $x
+strip $x
+cp $2 $y
+strip $y
+
+doobjcmp $x $y
+exit
+
+#eof

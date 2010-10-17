@@ -1,0 +1,216 @@
+# Expect script for ld-sh tests
+#   Copyright (C) 2001 Free Software Foundation
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+
+# Test SH reloc failures - that is, cases that ld must not allow.
+
+if ![istarget sh64-*-*] {
+    return
+}
+
+if [istarget sh64-*-linux*] {
+    set emul32 "shlelf32_linux"
+    set oformat32 "elf32-sh64-linux"
+    set startsym "_start"
+    set doabi64 0
+} elseif { [istarget sh64*-*-netbsd*] || [istarget sh5*-*-netbsd*] } then {
+    set emul32 "shelf32_nbsd"
+    set oformat32 "elf32-sh64-nbsd"
+    set startsym "__start"
+    set doabi64 1
+    set emul64 "shelf64_nbsd"
+    set oformat64 "elf64-sh64-nbsd"
+} else {
+    set emul32 "shelf32"
+    set oformat32 "elf32-sh64"
+    set startsym "start"
+    set doabi64 1
+    set emul64 "shelf64"
+    set oformat64 "elf64-sh64"
+}
+
+# opcode, asflags, ldflags, expected or "" for fail
+# opcode blank means rebuild relfail.o and set default as/ld options
+
+set sh64abi32relfailtests {
+
+    { "" "-isa=shcompact -abi=32" "-m $emul32 -Ttext 0x1000 --oformat $oformat32" "" }
+    { "mov.l lab,r0;.align 3;lab:nop" "" "" "mov.l 1008" }
+    { "mov.l to0,r0" "" "" "mov.l 1010" }
+    { "mov.l to1,r0" "" "" "" }
+    { "mov.l to2,r0" "" "" "" }
+    { "mov.l to3,r0" "" "" "" }
+    { "mov.l to4,r0" "" "" "mov.l 1014" }
+
+    { "" "-isa=shmedia -abi=32 -no-expand" "-m $emul32 -Ttext 0x1000 --oformat $oformat32" "" }
+    { "pta lab,tr0;.align 3;lab:nop" "" "" "pta.*1008" }
+
+    { "ld.q r0,datalabel to0 - 0x1000,r0" "" "" "ld.q.*,16," }
+    { "ld.q r0,datalabel to1 - 0x1000,r0" "" "" "" }
+    { "ld.q r0,datalabel to2 - 0x1000,r0" "" "" "" }
+    { "ld.q r0,datalabel to3 - 0x1000,r0" "" "" "" }
+    { "ld.q r0,datalabel to4 - 0x1000,r0" "" "" "" }
+
+    { "ld.l r0,datalabel to0 - 0x1000,r0" "" "" "ld.l.*,16," }
+    { "ld.l r0,datalabel to1 - 0x1000,r0" "" "" "" }
+    { "ld.l r0,datalabel to2 - 0x1000,r0" "" "" "" }
+    { "ld.l r0,datalabel to3 - 0x1000,r0" "" "" "" }
+    { "ld.l r0,datalabel to4 - 0x1000,r0" "" "" "ld.l.*,20," }
+
+    { "ld.w r0,datalabel to0 - 0x1000,r0" "" "" "ld.w.*,16," }
+    { "ld.w r0,datalabel to1 - 0x1000,r0" "" "" "" }
+    { "ld.w r0,datalabel to2 - 0x1000,r0" "" "" "ld.w.*,18," }
+    { "ld.w r0,datalabel to3 - 0x1000,r0" "" "" "" }
+    { "ld.w r0,datalabel to4 - 0x1000,r0" "" "" "ld.w.*,20," }
+
+}
+
+set sh64abi64relfailtests {
+
+    { "" "-isa=shmedia -abi=64 -no-expand" "-m $emul64 -Ttext 0x1000 --oformat $oformat64" "" }
+    { "pta lab,tr0;.align 3;lab:nop" "" "" "pta.*1008" }
+    { "pta datalabel to0,tr0" "" "" "pta.*1010" }
+    { "pta datalabel to1,tr0" "" "" "pta.*1011" }
+    { "pta datalabel to2,tr0" "" "" "" }
+    { "pta datalabel to3,tr0" "" "" "" }
+    { "pta datalabel to4,tr0" "" "" "pta.*1014" }
+
+    { "ld.q r0,datalabel to0 - 0x1000,r0" "" "" "ld.q.*,16," }
+    { "ld.q r0,datalabel to1 - 0x1000,r0" "" "" "" }
+    { "ld.q r0,datalabel to2 - 0x1000,r0" "" "" "" }
+    { "ld.q r0,datalabel to3 - 0x1000,r0" "" "" "" }
+    { "ld.q r0,datalabel to4 - 0x1000,r0" "" "" "" }
+
+    { "ld.l r0,datalabel to0 - 0x1000,r0" "" "" "ld.l.*,16," }
+    { "ld.l r0,datalabel to1 - 0x1000,r0" "" "" "" }
+    { "ld.l r0,datalabel to2 - 0x1000,r0" "" "" "" }
+    { "ld.l r0,datalabel to3 - 0x1000,r0" "" "" "" }
+    { "ld.l r0,datalabel to4 - 0x1000,r0" "" "" "ld.l.*,20," }
+
+    { "ld.w r0,datalabel to0 - 0x1000,r0" "" "" "ld.w.*,16," }
+    { "ld.w r0,datalabel to1 - 0x1000,r0" "" "" "" }
+    { "ld.w r0,datalabel to2 - 0x1000,r0" "" "" "ld.w.*,18," }
+    { "ld.w r0,datalabel to3 - 0x1000,r0" "" "" "" }
+    { "ld.w r0,datalabel to4 - 0x1000,r0" "" "" "ld.w.*,20," }
+
+}
+
+proc run_sh64relfailtests {sh64relfailtests} {
+    global ld
+    global as
+    global nm
+    global objdump
+    global readelf
+    global srcdir
+    global subdir
+    global emul32
+    global emul64
+    global oformat32
+    global oformat64
+    global startsym
+
+    set testindex 0
+    set is_unresolved 0
+
+    foreach testentry $sh64relfailtests {
+	set opcode [lindex $testentry 0]
+	set as_options [lindex $testentry 1]
+	set ld_options [subst [lindex $testentry 2]]
+	set expect_fail [lindex $testentry 3]
+	
+	set testname "SH64 relfail $opcode $as_options $ld_options"
+	
+	set objfiles {}
+	
+	incr testindex
+	
+	if {$opcode == ""} {
+	    set def_as_options $as_options
+	    set def_ld_options $ld_options
+	    set is_unresolved 0
+	    set baseobj "tmpdir/relfail-$testindex.o"
+	    if ![ld_assemble $as "$as_options $srcdir/$subdir/relfail.s" $baseobj] {
+		set is_unresolved 1
+	    }
+	    continue
+	}
+	
+	if {$as_options == ""} {
+	    set as_options $def_as_options;
+	}
+	if {$ld_options == ""} {
+	    set ld_options $def_ld_options;
+	}
+	
+	if { $is_unresolved } {
+	    unresolved $testname
+	    continue
+	}
+	
+	set asm [open "tmpdir/relfail-$testindex.s" "w"]
+	puts $asm " .text"
+	puts $asm " .global $startsym"
+	puts $asm "$startsym:"
+	puts $asm " $opcode";
+	close $asm
+	
+	if ![ld_assemble $as "$as_options tmpdir/relfail-$testindex.s" "tmpdir/relfail-$testindex.o"] {
+	    unresolved $testname
+	    continue
+	}
+	
+	set binfile "tmpdir/relfail-$testindex.x"
+	
+	file delete $binfile
+	set objects "tmpdir/relfail-$testindex.o $baseobj"
+	set result [ld_simple_link $ld $binfile "--no-warn-mismatch $ld_options $objects"]
+	
+	set exists [file exists $binfile]
+	if {$exists && $expect_fail == ""} {
+	    verbose "$testname: file $binfile exists when it shouldn't" 1
+	    catch "exec $objdump -d $binfile" objdump_output
+	    verbose $objdump_output 1
+	    fail "$testname (file exists)"
+	    continue
+	}
+	if {!$exists && $expect_fail != ""} {
+	    verbose "$testname: file $binfile doesn't exist when it should" 1
+	    fail "$testname (file missing)"
+	    continue
+	}
+	
+	if {$exists} {
+	    catch "exec $objdump -d $binfile" objdump_output
+	    regsub -all {[ 	][ 	]*} $objdump_output " " objdump_short
+	    if ![regexp $expect_fail $objdump_short junk] {
+		verbose $objdump_output 1
+		fail "$testname (incorrect reloc)"
+		continue
+	    }
+	}
+	
+	file delete "tmpdir/relfail-$testindex.s"
+	file delete "tmpdir/relfail-$testindex.o"
+	file delete $binfile
+	pass $testname
+    }
+}
+
+run_sh64relfailtests $sh64abi32relfailtests
+if {$doabi64} {
+    run_sh64relfailtests $sh64abi64relfailtests
+}

@@ -1,0 +1,14 @@
+#source: tlsbinpic.s
+#source: tlsbin.s
+#as: --64
+#ld: -shared -melf_x86_64
+#objdump: -sj.got
+#target: x86_64-*-*
+
+.*: +file format elf64-x86-64
+
+Contents of section .got:
+ 5021a0 [0-9a-f]+ [0-9a-f]+ 00000000 00000000  .*
+ 5021b0 00000000 00000000 [0-9a-f]+ [0-9a-f]+  .*
+ 5021c0 00000000 00000000 00000000 00000000  .*
+ 5021d0 00000000 00000000 00000000 00000000  .*

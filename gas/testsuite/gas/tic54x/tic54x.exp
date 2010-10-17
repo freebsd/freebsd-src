@@ -1,0 +1,30 @@
+#
+# TI TMS320C54X tests.
+#
+if [istarget *c54x*-*-*] then {
+    run_dump_test "address"
+    run_dump_test "addrfar"
+    run_dump_test "align"
+    run_dump_test "asg"
+    run_dump_test "cons"
+    run_dump_test "consfar"
+    run_dump_test "extaddr"
+    run_dump_test "field"
+    run_dump_test "labels"
+    run_dump_test "loop"
+    run_dump_test "lp"
+    run_dump_test "macro"
+    run_dump_test "math"
+    run_dump_test "opcodes"
+    run_dump_test "sections"
+    run_dump_test "set"
+    run_dump_test "struct"
+    run_dump_test "subsym"
+
+    gas_test_error "macro1.s" "" "c54x macro argument manipulation"
+    gas_test_error "subsym1.s" "" "c54x subsym recursion"
+
+    # The longest one, run it last
+    run_dump_test "all-opcodes"
+}
+

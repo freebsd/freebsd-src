@@ -1,0 +1,13 @@
+#source: tlsnopic1.s
+#source: tlsnopic2.s
+#as: --32
+#ld: -shared -melf_i386
+#objdump: -sj.got
+#target: i?86-*-*
+
+.*:     file format elf32-i386
+
+Contents of section \.got:
+ 2080 [0-9a-f]+ 00000000 00000000 00000000  .*
+ 2090 04000000 00000000 00000000 14000000  .*
+ 20a0 18000000  +.*

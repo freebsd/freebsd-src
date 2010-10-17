@@ -1,0 +1,354 @@
+@c Copyright 2001 Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+@ifset GENERIC
+@page
+@node PDP-11-Dependent
+@chapter PDP-11 Dependent Features
+@end ifset
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter PDP-11 Dependent Features
+@end ifclear
+
+@cindex PDP-11 support
+
+@menu
+* PDP-11-Options::		Options
+* PDP-11-Pseudos::		Assembler Directives
+* PDP-11-Syntax::		DEC Syntax versus BSD Syntax
+* PDP-11-Mnemonics::		Instruction Naming
+* PDP-11-Synthetic::		Synthetic Instructions
+@end menu
+
+@node PDP-11-Options
+@section Options
+
+@cindex options for PDP-11
+
+The PDP-11 version of @code{@value{AS}} has a rich set of machine
+dependent options.
+
+@subsection Code Generation Options
+
+@table @code
+@cindex -mpic
+@cindex -mno-pic
+@item -mpic | -mno-pic
+Generate position-independent (or position-dependent) code.
+
+The default is to generate position-independent code.
+@end table
+
+@subsection Instruction Set Extension Options
+
+These options enables or disables the use of extensions over the base
+line instruction set as introduced by the first PDP-11 CPU: the KA11.
+Most options come in two variants: a @code{-m}@var{extension} that
+enables @var{extension}, and a @code{-mno-}@var{extension} that disables
+@var{extension}.
+
+The default is to enable all extensions.
+
+@table @code
+@cindex -mall
+@cindex -mall-extensions
+@item -mall | -mall-extensions
+Enable all instruction set extensions.
+
+@cindex -mno-extensions
+@item -mno-extensions
+Disable all instruction set extensions.
+
+@cindex -mcis
+@cindex -mno-cis
+@item -mcis | -mno-cis
+Enable (or disable) the use of the commercial instruction set, which
+consists of these instructions: @code{ADDNI}, @code{ADDN}, @code{ADDPI},
+@code{ADDP}, @code{ASHNI}, @code{ASHN}, @code{ASHPI}, @code{ASHP},
+@code{CMPCI}, @code{CMPC}, @code{CMPNI}, @code{CMPN}, @code{CMPPI},
+@code{CMPP}, @code{CVTLNI}, @code{CVTLN}, @code{CVTLPI}, @code{CVTLP},
+@code{CVTNLI}, @code{CVTNL}, @code{CVTNPI}, @code{CVTNP}, @code{CVTPLI},
+@code{CVTPL}, @code{CVTPNI}, @code{CVTPN}, @code{DIVPI}, @code{DIVP},
+@code{L2DR}, @code{L3DR}, @code{LOCCI}, @code{LOCC}, @code{MATCI},
+@code{MATC}, @code{MOVCI}, @code{MOVC}, @code{MOVRCI}, @code{MOVRC},
+@code{MOVTCI}, @code{MOVTC}, @code{MULPI}, @code{MULP}, @code{SCANCI},
+@code{SCANC}, @code{SKPCI}, @code{SKPC}, @code{SPANCI}, @code{SPANC},
+@code{SUBNI}, @code{SUBN}, @code{SUBPI}, and @code{SUBP}.
+
+@cindex -mcsm
+@cindex -mno-csm
+@item -mcsm | -mno-csm
+Enable (or disable) the use of the @code{CSM} instruction.
+
+@cindex -meis
+@cindex -mno-eis
+@item -meis | -mno-eis
+Enable (or disable) the use of the extended instruction set, which
+consists of these instructions: @code{ASHC}, @code{ASH}, @code{DIV},
+@code{MARK}, @code{MUL}, @code{RTT}, @code{SOB} @code{SXT}, and
+@code{XOR}.
+
+@cindex -mfis
+@cindex -mno-fis
+@cindex -mkev11
+@cindex -mkev11
+@cindex -mno-kev11
+@item -mfis | -mkev11
+@itemx -mno-fis | -mno-kev11
+Enable (or disable) the use of the KEV11 floating-point instructions:
+@code{FADD}, @code{FDIV}, @code{FMUL}, and @code{FSUB}.
+
+@cindex -mfpp
+@cindex -mno-fpp
+@cindex -mfpu
+@cindex -mno-fpu
+@cindex -mfp-11
+@cindex -mno-fp-11
+@item -mfpp | -mfpu | -mfp-11
+@itemx -mno-fpp | -mno-fpu | -mno-fp-11
+Enable (or disable) the use of FP-11 floating-point instructions:
+@code{ABSF}, @code{ADDF}, @code{CFCC}, @code{CLRF}, @code{CMPF},
+@code{DIVF}, @code{LDCFF}, @code{LDCIF}, @code{LDEXP}, @code{LDF},
+@code{LDFPS}, @code{MODF}, @code{MULF}, @code{NEGF}, @code{SETD},
+@code{SETF}, @code{SETI}, @code{SETL}, @code{STCFF}, @code{STCFI},
+@code{STEXP}, @code{STF}, @code{STFPS}, @code{STST}, @code{SUBF}, and
+@code{TSTF}.
+
+@cindex -mlimited-eis
+@cindex -mno-limited-eis
+@item -mlimited-eis | -mno-limited-eis
+Enable (or disable) the use of the limited extended instruction set:
+@code{MARK}, @code{RTT}, @code{SOB}, @code{SXT}, and @code{XOR}.
+
+The -mno-limited-eis options also implies -mno-eis.
+
+@cindex -mmfpt
+@cindex -mno-mfpt
+@item -mmfpt | -mno-mfpt
+Enable (or disable) the use of the @code{MFPT} instruction.
+
+@cindex -mmutiproc
+@cindex -mno-mutiproc
+@item -mmultiproc | -mno-multiproc
+Enable (or disable) the use of multiprocessor instructions: @code{TSTSET} and
+@code{WRTLCK}.
+
+@cindex -mmxps
+@cindex -mno-mxps
+@item -mmxps | -mno-mxps
+Enable (or disable) the use of the @code{MFPS} and @code{MTPS} instructions.
+
+@cindex -mspl
+@cindex -mno-spl
+@item -mspl | -mno-spl
+Enable (or disable) the use of the @code{SPL} instruction.
+
+@cindex -mmicrocode
+@cindex -mno-microcode
+Enable (or disable) the use of the microcode instructions: @code{LDUB},
+@code{MED}, and @code{XFC}.
+@end table
+
+@subsection CPU Model Options
+
+These options enable the instruction set extensions supported by a
+particular CPU, and disables all other extensions.
+
+@table @code
+@cindex -mka11
+@item -mka11
+KA11 CPU.  Base line instruction set only.
+
+@cindex -mkb11
+@item -mkb11
+KB11 CPU.  Enable extended instruction set and @code{SPL}.
+
+@cindex -mkd11a
+@item -mkd11a
+KD11-A CPU.  Enable limited extended instruction set.
+
+@cindex -mkd11b
+@item -mkd11b
+KD11-B CPU.  Base line instruction set only.
+
+@cindex -mkd11d
+@item -mkd11d
+KD11-D CPU.  Base line instruction set only.
+
+@cindex -mkd11e
+@item -mkd11e
+KD11-E CPU.  Enable extended instruction set, @code{MFPS}, and @code{MTPS}.
+
+@cindex -mkd11f
+@cindex -mkd11h
+@cindex -mkd11q
+@item -mkd11f | -mkd11h | -mkd11q
+KD11-F, KD11-H, or KD11-Q CPU.  Enable limited extended instruction set,
+@code{MFPS}, and @code{MTPS}.
+
+@cindex -mkd11k
+@item -mkd11k
+KD11-K CPU.  Enable extended instruction set, @code{LDUB}, @code{MED},
+@code{MFPS}, @code{MFPT}, @code{MTPS}, and @code{XFC}.
+
+@cindex -mkd11z
+@item -mkd11z
+KD11-Z CPU.  Enable extended instruction set, @code{CSM}, @code{MFPS},
+@code{MFPT}, @code{MTPS}, and @code{SPL}.
+
+@cindex -mf11
+@item -mf11
+F11 CPU.  Enable extended instruction set, @code{MFPS}, @code{MFPT}, and
+@code{MTPS}.
+
+@cindex -mj11
+@item -mj11
+J11 CPU.  Enable extended instruction set, @code{CSM}, @code{MFPS},
+@code{MFPT}, @code{MTPS}, @code{SPL}, @code{TSTSET}, and @code{WRTLCK}.
+
+@cindex -mt11
+@item -mt11
+T11 CPU.  Enable limited extended instruction set, @code{MFPS}, and
+@code{MTPS}.
+@end table
+
+@subsection Machine Model Options
+
+These options enable the instruction set extensions supported by a
+particular machine model, and disables all other extensions.
+
+@table @code
+@cindex -m11/03
+@item -m11/03
+Same as @code{-mkd11f}.
+
+@cindex -m11/04
+@item -m11/04
+Same as @code{-mkd11d}.
+
+@cindex -m11/05
+@cindex -m11/10
+@item -m11/05 | -m11/10
+Same as @code{-mkd11b}.
+
+@cindex -m11/15
+@cindex -m11/20
+@item -m11/15 | -m11/20
+Same as @code{-mka11}.
+
+@cindex -m11/21
+@item -m11/21
+Same as @code{-mt11}.
+
+@cindex -m11/23
+@cindex -m11/24
+@item -m11/23 | -m11/24
+Same as @code{-mf11}.
+
+@cindex -m11/34
+@item -m11/34
+Same as @code{-mkd11e}.
+
+@cindex -m11/34a
+@item -m11/34a
+Ame as @code{-mkd11e} @code{-mfpp}.
+
+@cindex -m11/35
+@cindex -m11/40
+@item -m11/35 | -m11/40
+Same as @code{-mkd11a}.
+
+@cindex -m11/44
+@item -m11/44
+Same as @code{-mkd11z}.
+
+@cindex -m11/45
+@cindex -m11/50
+@cindex -m11/55
+@cindex -m11/70
+@item -m11/45 | -m11/50 | -m11/55 | -m11/70
+Same as @code{-mkb11}.
+
+@cindex -m11/53
+@cindex -m11/73
+@cindex -m11/83
+@cindex -m11/84
+@cindex -m11/93
+@cindex -m11/94
+@item -m11/53 | -m11/73 | -m11/83 | -m11/84 | -m11/93 | -m11/94
+Same as @code{-mj11}.
+
+@cindex -m11/60
+@item -m11/60
+Same as @code{-mkd11k}.
+@end table
+
+@node PDP-11-Pseudos
+@section Assembler Directives
+
+The PDP-11 version of @code{@value{AS}} has a few machine
+dependent assembler directives.
+
+@table @code
+@item .bss
+Switch to the @code{bss} section.
+
+@item .even
+Align the location counter to an even number.
+@end table
+
+@node PDP-11-Syntax
+@section PDP-11 Assembly Language Syntax
+
+@cindex PDP-11 syntax
+
+@cindex DEC syntax
+@cindex BSD syntax
+@code{@value{AS}} supports both DEC syntax and BSD syntax.  The only
+difference is that in DEC syntax, a @code{#} character is used to denote
+an immediate constants, while in BSD syntax the character for this
+purpose is @code{$}.
+
+@cindex PDP-11 general-purpose register syntax
+eneral-purpose registers are named @code{r0} through @code{r7}.
+Mnemonic alternatives for @code{r6} and @code{r7} are @code{sp} and
+@code{pc}, respectively.
+
+@cindex PDP-11 floating-point register syntax
+Floating-point registers are named @code{ac0} through @code{ac3}, or
+alternatively @code{fr0} through @code{fr3}.
+
+@cindex PDP-11 comments
+Comments are started with a @code{#} or a @code{/} character, and extend
+to the end of the line.  (FIXME: clash with immediates?)
+
+@node PDP-11-Mnemonics
+@section Instruction Naming
+
+@cindex PDP-11 instruction naming
+
+Some instructions have alternative names.
+
+@table @code
+@item BCC
+@code{BHIS}
+
+@item BCS
+@code{BLO}
+
+@item L2DR
+@code{L2D}
+
+@item L3DR
+@code{L3D}
+
+@item SYS
+@code{TRAP}
+@end table
+
+@node PDP-11-Synthetic
+@section Synthetic Instructions
+
+The @code{JBR} and @code{J}@var{CC} synthetic instructions are not
+supported yet.

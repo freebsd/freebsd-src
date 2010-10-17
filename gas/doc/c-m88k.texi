@@ -1,0 +1,66 @@
+@c Copyright 2001 Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+@page
+@node M88K-Dependent
+@chapter Motorola M88K Dependent Features
+
+@cindex M88K support
+@menu
+* M88K Directives::     M88K Machine Directives
+@end menu
+
+@node M88K Directives
+@section M88K Machine Directives
+
+The M88K version of the assembler supports the following machine
+directives:
+
+@table @code
+@cindex @code{align} directive, M88K
+@item .align
+This directive aligns the section program counter on the next 4-byte
+boundary.
+
+@cindex @code{dfloat} directive, M88K
+@item .dfloat @var{expr}
+This assembles a double precision (64-bit) floating point constant.
+
+@cindex @code{ffloat} directive, M88K
+@item .ffloat @var{expr}
+This assembles a single precision (32-bit) floating point constant.
+
+@cindex @code{half} directive, M88K
+@item .half @var{expr}
+This directive assembles a half-word (16-bit) constant.
+
+@cindex @code{word} directive, M88K
+@item .word @var{expr}
+This assembles a word (32-bit) constant.
+
+@cindex @code{string} directive, M88K
+@item .string "@var{str}"
+This directive behaves like the standard @code{.ascii} directive for
+copying @var{str} into the object file.  The string is not terminated
+with a null byte.
+
+@cindex @code{set} directive, M88K
+@item .set @var{symbol}, @var{value}
+This directive creates a symbol named @var{symbol} which is an alias for
+another symbol (possibly not yet defined).  This should not be confused
+with the mnemonic @code{set}, which is a legitimate M88K instruction.
+
+@cindex @code{def} directive, M88K
+@item .def @var{symbol}, @var{value}
+This directive is synonymous with @code{.set} and is presumably provided
+for compatibility with other M88K assemblers.
+
+@cindex @code{bss} directive, M88K
+@item .bss @var{symbol}, @var{length}, @var{align}
+Reserve @var{length} bytes in the bss section for a local @var{symbol},
+aligned to the power of two specified by @var{align}.  @var{length} and
+@var{align} must be positive absolute expressions.  This directive
+differs from @samp{.lcomm} only in that it permits you to specify
+an alignment.  @xref{Lcomm,,@code{.lcomm}}.
+
+@end table

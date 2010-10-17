@@ -1,0 +1,47 @@
+MVP MP Macro Assembler     Version 1.13     Thu Feb 27 17:02:23 1997
+Copyright (c) 1993-1995    Texas Instruments Incorporated 
+
+align.s                                                              PAGE    1
+
+        1                     ;;      Test the .align directive.
+        2                     
+        3 00000000                    .text
+        4                             
+        5                             ;; This should generate 0xAB000000
+        6 00000000   AB               .byte   0xAB
+        7 00000001                    .align                  ; Should default to 4 byte alignment
+        8                     
+        9                             ;; This should generate 0xCD00EF00
+       10 00000004   CD               .byte   0xCD
+       11                             .align  2               ;  Should align to the next 2-byte boundary (pad with one null byt
+       12 00000006   EF               .byte   0xEF
+       13                             .align  1
+       14                     
+       15                             ;; This should generate 0xF1000000
+       16 00000007                    .align  4               ;  Should not affect alignment (already on 4)
+       17 00000008   F1               .byte   0xF1
+       18 00000009                    .align  4               ;  Should align to next 4 byte boundary
+       19                     
+       20                             ;; This should generate 0xEE000000 since we are already on 4 byte alignment
+       21 0000000C   EE               .byte 0xEE
+       22 0000000D                    .align  8
+       23                     
+       24                             ;; This should generate 0xAC000000 0x00000000
+       25 00000010   AC               .byte   0xAC
+       26 00000011                    .align  8
+       27                             
+       28                             ;; This should generate 0xAB000000 0x00000000 since we are at 8 byte alignment
+       29 00000018   AB               .byte   0xAB
+       30 00000019                    .align  16
+       31                     
+       32                             ;; This should generate 0xFE000000 0x00000000 0x00000000 0x00000000
+       33 00000020   FE               .byte   0xFE
+       34 00000021                    .align  16
+       35                             
+       36                             ;; This just forces the disassembler to not print ... for trailing nulls
+       37 00000030   DE               .byte 0xDE, 0xAD, 0xBE, 0xEF
+          00000031   AD       
+          00000032   BE       
+          00000033   EF       
+
+ No Errors,  No Warnings

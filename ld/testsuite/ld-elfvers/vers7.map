@@ -1,0 +1,6 @@
+VERS_1 {
+	global:
+		show_b ;
+	local:
+		hide_a;
+};

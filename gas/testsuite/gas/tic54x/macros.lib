@@ -1,0 +1,7 @@
+!<arch>
+in_mlib.asm/    934653484   500   100   100664  92        `
+IN_MLIB .macro AA,BB,CC
+        ADD #AA,a
+        ADD #BB,b
+        ADD #CC,a
+        .endm

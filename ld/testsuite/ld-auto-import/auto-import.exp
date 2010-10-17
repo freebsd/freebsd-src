@@ -1,0 +1,160 @@
+# Expect script for ld-auto-import tests
+#   Copyright 2002
+#   Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+# Written by Ralf.Habacker@freenet.de
+# Based on ls-shared/shared.exp by Ian Lance Taylor (ian@cygnus.com)
+#
+ 
+# Note: 
+# 
+# This test checks the "auto importing direct from a dll" functionality, 
+# which dramatically reduces the linking time for big libraries and applications 
+# by skipping creating/using import libraries. Instead it links directly to the 
+# related dll or to a symlinked dll for replacing regular import libraries. 
+# 
+# The test has 4 stages: 
+# 
+# 1. compile and link a test dll exporting some text and data symbols and a 
+#    standard import library
+#
+# 2. create a symbolic link to this dll to simulate a replaced import library. 
+#
+# 3. compile and link a client application with the standard import library. 
+#    This should produce no errors. 
+#
+# 4. compile and link a client application with the created dll. 
+#    This should also produce no errors. 
+#
+# 5. compile and link a client application using the "import library". 
+#    This should also produce no errors. 
+#
+# 6. compile and link a client application with auto-import disabled. 
+#    This should produce a linking error. 
+
+# This test can only be run if ld generates native executables.
+if ![isnative] then {return}
+
+# This test can only be run on a couple of ELF platforms.
+# Square bracket expressions seem to confuse istarget.
+if { ![istarget *-pc-cygwin]    
+     && ![istarget *-pc-mingw*] } {
+    return
+}
+
+# No compiler, no test.
+if { [which $CC] == 0 } {
+    untested "Auto import test"
+    return
+}
+
+# ld_special_link
+#	link a program using ld, without including any libraries
+#
+proc ld_special_link { ld target objects } {
+    global host_triplet
+    global link_output
+
+    if { [which $ld] == 0 } then {
+	perror "$ld does not exist"
+	return 0
+    }
+
+    if [is_endian_output_format $objects] then {
+	set flags [big_or_little_endian]
+    } else {
+	set flags ""
+    }
+
+    verbose -log "$ld $flags -o $target $objects"
+
+    catch "exec $ld $flags -o $target $objects" link_output
+    set exec_output [prune_warnings $link_output]
+
+    # We don't care if we get a warning about a non-existent start
+    # symbol, since the default linker script might use ENTRY.
+    regsub -all "(^|\n)(\[^\n\]*: warning: cannot find entry symbol\[^\n\]*\n?)" $exec_output "\\1" exec_output
+
+    # We don't care if we get a message about creating a library file.
+    regsub -all "(^|\n)(Creating library file\[^\n\]*\n?)" $exec_output "\\1" exec_output
+
+    if [string match "" $exec_output] then {
+	return 1
+    } else {
+	verbose -log "$exec_output"
+	return 0
+    }
+}
+
+set tmpdir tmpdir
+set SHCFLAG ""
+
+if [istarget *-pc-cygwin] {
+    # Set some libs needed for cygwin.
+    set MYLIBS "-L/usr/lib -lcygwin -L/usr/lib/w32api -lkernel32"
+    
+    # Compile the dll.
+    if ![ld_compile "$CC $CFLAGS $SHCFLAG" $srcdir/$subdir/dll.c $tmpdir/dll.o ] {
+	fail "compiling shared lib"
+    } elseif ![ld_special_link "$ld -shared --out-implib=$tmpdir/libstandard.dll.a" $tmpdir/dll.dll "$tmpdir/dll.o $MYLIBS" ] {
+	fail "linking shared lib"
+    } else {
+	# Create symbolic link.
+	catch "exec ln -fs dll.dll $tmpdir/libsymlinked_dll.dll.a" ln_catch
+	
+	# Compile and link the client program.
+	if ![ld_compile "$CC $CFLAGS $SHCFLAG" $srcdir/$subdir/client.c $tmpdir/client.o ] {
+	    fail "compiling client"
+	} else {
+	    # Check linking with import library.
+	    set msg "linking auto-import client using a standard import library"
+	    if [ld_special_link $ld $tmpdir/client.exe "--enable-auto-import /lib/crt0.o $tmpdir/client.o -L$tmpdir -lstandard $MYLIBS" ] {
+		pass $msg
+	    } else {
+		fail $msg 
+	    }
+
+	    # Check linking directly with dll.
+	    set msg "linking auto-import client using the dll"
+	    if [ld_special_link $ld $tmpdir/client.exe "--enable-auto-import /lib/crt0.o $tmpdir/client.o -L$tmpdir -ldll $MYLIBS" ] {
+		pass $msg
+	    } else {
+		fail $msg 
+	    }
+
+	    # Check linking with symlinked dll.
+	    set msg "linking auto-import client using symbolic linked dll"
+	    if [ld_special_link $ld $tmpdir/clientimport.exe "--enable-auto-import /lib/crt0.o $tmpdir/client.o -L$tmpdir -lsymlinked_dll $MYLIBS" ] {
+		pass $msg
+	    }	else {
+		fail $msg 
+	    }
+
+	    # Check linking with disabled auto-import, this must produce linking error.
+	    set msg "linking with disabled auto-import"
+	    if ![ld_special_link $ld $tmpdir/clientimport.exe "--disable-auto-import /lib/crt0.o $tmpdir/client.o -L$tmpdir -ldll $MYLIBS" ] {
+		pass $msg
+	    }	else {
+		fail $msg
+	    }
+	}
+    }
+}
+
+if [istarget *-pc-mingw*] {
+    unsupported "mingw currently not supported"
+}

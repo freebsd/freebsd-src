@@ -1,0 +1,185 @@
+#source: tlsbinpic.s
+#source: tlsbin.s
+#as: -m31
+#ld: -shared -melf_s390
+#objdump: -dzrj.text
+#target: s390-*-*
+
+# PT_TLS layout is:
+# Offset from   Offset from     Name
+# TCB base      TCB end
+# 0x00          -0xa0           sg1..sg2
+# 0x20          -0x80           sl1..sl2
+# 0x40          -0x60           sh1..sh2
+# 0x60          -0x40           bg1..bg2
+# 0x80          -0x20           bl1..bl2
+
+.*: +file format elf32-s390
+
+Disassembly of section .text:
+
+0+4002e4 <fn2>:
+# function prolog
+ +4002e4:	90 6e f0 18       	stm	%r6,%r14,24\(%r15\)
+ +4002e8:	a7 d5 00 24       	bras	%r13,400330 <fn2\+0x4c>
+# _GLOBAL_OFFSET_TABLE_
+ +4002ec:	00 00 12 90       	.long	0x00001290
+# __tls_get_addr@plt-.LT1
+ +4002f0:	ff ff ff d8       	.long	0xffffffd8
+# sG1@tlsgd
+ +4002f4:	00 00 00 28       	.long	0x00000028
+# sG2@tlsgd
+ +4002f8:	00 00 00 20       	.long	0x00000020
+# sg1@tlsgd
+ +4002fc:	ff ff ff 60       	.long	0xffffff60
+# sl1@tlsgd
+ +400300:	ff ff ff 80       	.long	0xffffff80
+# sh1@tlsgd
+ +400304:	ff ff ff a0       	.long	0xffffffa0
+# sl1@tlsldm
+ +400308:	00 00 00 00       	.long	0x00000000
+# sl1@dtpoff
+ +40030c:	ff ff ff 80       	.long	0xffffff80
+# sl2@dtpoff
+ +400310:	ff ff ff 84       	.long	0xffffff84
+# sh1@tlsldm
+ +400314:	00 00 00 00       	.long	0x00000000
+# sh1@dtpoff
+ +400318:	ff ff ff a0       	.long	0xffffffa0
+# sh2@dtpoff
+ +40031c:	ff ff ff a4       	.long	0xffffffa4
+# sG2@gotntpoff
+ +400320:	00 00 00 20       	.long	0x00000020
+# sg1@gotntpoff
+ +400324:	ff ff ff 60       	.long	0xffffff60
+# sl1@gotntpoff
+ +400328:	ff ff ff 80       	.long	0xffffff80
+# sh1@gotntpoff
+ +40032c:	ff ff ff a0       	.long	0xffffffa0
+# function prolog
+ +400330:	18 ef             	lr	%r14,%r15
+ +400332:	58 c0 d0 00       	l	%r12,0\(%r13\)
+ +400336:	a7 fa ff a0       	ahi	%r15,-96
+ +40033a:	41 cc d0 00       	la	%r12,0\(%r12,%r13\)
+ +40033e:	50 e0 e0 00       	st	%r14,0\(%r14\)
+# Extract TCB and load branch offset
+ +400342:	b2 4f 00 90       	ear	%r9,%a0
+ +400346:	58 70 d0 04       	l	%r7,4\(%r13\)
+# GD -> IE because variable is not defined in executable
+ +40034a:	58 20 d0 08       	l	%r2,8\(%r13\)
+ +40034e:	58 22 c0 00       	l	%r2,0\(%r2,%r12\)
+ +400352:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
+# GD -> IE because variable is not defined in executable where
+# the variable is referenced through IE too
+ +400356:	58 20 d0 0c       	l	%r2,12\(%r13\)
+ +40035a:	58 22 c0 00       	l	%r2,0\(%r2,%r12\)
+ +40035e:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
+# GD -> LE with global variable defined in executable
+ +400362:	58 20 d0 10       	l	%r2,16\(%r13\)
+ +400366:	47 00 00 00       	bc	0,0
+ +40036a:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
+# GD -> LE with local variable defined in executable
+ +40036e:	58 20 d0 14       	l	%r2,20\(%r13\)
+ +400372:	47 00 00 00       	bc	0,0
+ +400376:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
+# GD -> LE with hidden variable defined in executable
+ +40037a:	58 20 d0 18       	l	%r2,24\(%r13\)
+ +40037e:	47 00 00 00       	bc	0,0
+ +400382:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
+# LD -> LE
+ +400386:	58 20 d0 1c       	l	%r2,28\(%r13\)
+ +40038a:	47 00 00 00       	bc	0,0
+ +40038e:	41 32 90 00       	la	%r3,0\(%r2,%r9\)
+ +400392:	58 40 d0 20       	l	%r4,32\(%r13\)
+ +400396:	41 54 30 00       	la	%r5,0\(%r4,%r3\)
+ +40039a:	58 40 d0 24       	l	%r4,36\(%r13\)
+ +40039e:	41 54 30 00       	la	%r5,0\(%r4,%r3\)
+# LD -> LE against hidden variables
+ +4003a2:	58 20 d0 28       	l	%r2,40\(%r13\)
+ +4003a6:	47 00 00 00       	bc	0,0
+ +4003aa:	41 32 90 00       	la	%r3,0\(%r2,%r9\)
+ +4003ae:	58 40 d0 2c       	l	%r4,44\(%r13\)
+ +4003b2:	41 54 30 00       	la	%r5,0\(%r4,%r3\)
+ +4003b6:	58 40 d0 30       	l	%r4,48\(%r13\)
+ +4003ba:	41 54 30 00       	la	%r5,0\(%r4,%r3\)
+# IE against global var
+ +4003be:	58 30 d0 34       	l	%r3,52\(%r13\)
+ +4003c2:	58 33 c0 00       	l	%r3,0\(%r3,%r12\)
+ +4003c6:	58 33 90 00       	l	%r3,0\(%r3,%r9\)
+# IE -> LE against global var defined in exec
+ +4003ca:	58 30 d0 38       	l	%r3,56\(%r13\)
+ +4003ce:	18 43             	lr	%r4,%r3
+ +4003d0:	07 00             	bcr	0,%r0
+ +4003d2:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
+# IE -> LE against local var
+ +4003d6:	58 30 d0 3c       	l	%r3,60\(%r13\)
+ +4003da:	18 43             	lr	%r4,%r3
+ +4003dc:	07 00             	bcr	0,%r0
+ +4003de:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
+# IE -> LE against hidden var
+ +4003e2:	58 30 d0 40       	l	%r3,64\(%r13\)
+ +4003e6:	18 43             	lr	%r4,%r3
+ +4003e8:	07 00             	bcr	0,%r0
+ +4003ea:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
+# IE against global var with small got access (no optimization)
+ +4003ee:	58 30 c0 14       	l	%r3,20\(%r12\)
+ +4003f2:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
+# IE against global var defined in exec with small got access
+# (no optimization)
+ +4003f6:	58 30 c0 18       	l	%r3,24\(%r12\)
+ +4003fa:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
+# IE against local var with small got access (no optimization)
+ +4003fe:	58 30 c0 10       	l	%r3,16\(%r12\)
+ +400402:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
+# IE against hidden var with small got access (no optimization)
+ +400406:	58 30 c0 1c       	l	%r3,28\(%r12\)
+ +40040a:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
+# function epilog
+ +40040e:	98 6e f0 78       	lm	%r6,%r14,120\(%r15\)
+ +400412:	07 fe             	br	%r14
+
+0+400414 <_start>:
+# function prolog
+ +400414:	90 6e f0 18       	stm	%r6,%r14,24\(%r15\)
+ +400418:	a7 d5 00 0c       	bras	%r13,400430 <_start\+0x1c>
+# sG6@indntpoff
+ +40041c:	00 40 15 a0       	.long	0x004015a0
+# bg6@indntpoff
+ +400420:	ff ff ff d4       	.long	0xffffffd4
+# bl6@indntpoff
+ +400424:	ff ff ff f4       	.long	0xfffffff4
+# sh6@indntpoff
+ +400428:	ff ff ff b4       	.long	0xffffffb4
+# sg3@indntpoff
+ +40042c:	ff ff ff 68       	.long	0xffffff68
+# function prolog
+ +400430:	18 ef             	lr	%r14,%r15
+ +400432:	a7 fa ff a0       	ahi	%r15,-96
+ +400436:	50 e0 e0 00       	st	%r14,0\(%r14\)
+# Extract TCB
+ +40043a:	b2 4f 00 90       	ear	%r9,%a0
+# IE against global var
+ +40043e:	58 30 d0 00       	l	%r3,0\(%r13\)
+ +400442:	58 33 c0 00       	l	%r3,0\(%r3,%r12\)
+ +400446:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
+# IE -> LE against global var defined in exec
+ +40044a:	58 30 d0 04       	l	%r3,4\(%r13\)
+ +40044e:	18 43             	lr	%r4,%r3
+ +400450:	07 00             	bcr	0,%r0
+ +400452:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
+# IE -> LE against local var
+ +400456:	58 30 d0 08       	l	%r3,8\(%r13\)
+ +40045a:	18 43             	lr	%r4,%r3
+ +40045c:	07 00             	bcr	0,%r0
+ +40045e:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
+# IE -> LE against hidden but not local var
+ +400462:	58 30 d0 0c       	l	%r3,12\(%r13\)
+ +400466:	18 43             	lr	%r4,%r3
+ +400468:	07 00             	bcr	0,%r0
+ +40046a:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
+# LE, global var defined in exec
+ +40046e:	58 40 d0 10       	l	%r4,16\(%r13\)
+ +400472:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
+# function epilog
+ +400476:	98 6e f0 78       	lm	%r6,%r14,120\(%r15\)
+ +40047a:	07 fe             	br	%r14

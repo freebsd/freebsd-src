@@ -1,0 +1,250 @@
+# Expect script for ld-d10v tests
+# Copyright 2002 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+# Written by Tom Rix, trix@redhat.com
+#
+
+# Test d10v 
+
+if ![istarget d10v-*-*] {
+    return
+}
+
+# run_link_test FILE 
+# Copied from run_dump_test, with the dumping part removed.
+#
+# Assemble a .s file, then run some utility on it and check the output.
+# 
+# There should be an assembly language file named FILE.s in the test
+# suite directory.  `run_link_test' will assemble and link FILE.s 
+#
+# The FILE.lt file begins with zero or more option lines, which specify
+# flags to pass to the assembler, the program to run to dump the
+# assembler's output, and the options it wants.  The option lines have
+# the syntax:
+# 
+#         # OPTION: VALUE
+# 
+# OPTION is the name of some option, like "name" or "ld", and
+# VALUE is OPTION's value.  The valid options are described below.
+# Whitespace is ignored everywhere, except within VALUE.  The option
+# list ends with the first line that doesn't match the above syntax
+# (hmm, not great for error detection).
+#
+# The interesting options are:
+# 
+#   name: TEST-NAME
+#	The name of this test, passed to DejaGNU's `pass' and `fail'
+#       commands.  If omitted, this defaults to FILE, the root of the
+#       .s and .d files' names.
+# 
+#   as: FLAGS
+#	When assembling, pass FLAGS to the assembler.
+#       If assembling several files, you can pass different assembler
+#       options in the "source" directives.  See below.
+#
+#   ld: FLAGS
+#       Link assembled files using FLAGS, in the order of the "source"
+#       directives, when using multiple files.
+#
+#   source: SOURCE [FLAGS]
+#	Assemble the file SOURCE.s using the flags in the "as" directive
+#       and the (optional) FLAGS.  If omitted, the source defaults to
+#       FILE.s.
+#       This is useful if several .x files want to share a .s file.
+#       More than one "source" directive can be given, which is useful
+#       when testing linking.
+#
+#   xfail: TARGET
+#       The test is expected to fail on TARGET.  This may occur more than
+#       once.
+#
+#   target: TARGET
+#       Only run the test for TARGET.  This may occur more than once; the
+#       target being tested must match at least one.
+#
+#   notarget: TARGET
+#       Do not run the test for TARGET.  This may occur more than once;
+#       the target being tested must not match any of them.
+#
+# Each option may occur at most once unless otherwise mentioned.
+#
+
+proc run_link_test { name } {
+    global subdir srcdir
+    global AS LD
+    global ASFLAGS LDFLAGS
+    global host_triplet runtests
+
+    if [string match "*/*" $name] {
+	set file $name
+	set name [file tail $name]
+    } else {
+	set file "$srcdir/$subdir/$name"
+    }
+
+    if ![runtest_file_p $runtests $name] then {
+	return
+    }
+
+    set opt_array [slurp_options "${file}.lt"]
+    if { $opt_array == -1 } {
+	perror "error reading options from $file.lt"
+	unresolved $subdir/$name
+	return
+    }
+    set dumpfile tmpdir/dump.out
+    set run_ld 0
+    set opts(as) {}
+    set opts(ld) {}
+    set opts(xfail) {}
+    set opts(target) {}
+    set opts(notarget) {}
+    set opts(name) {}
+    set opts(source) {}
+    set asflags(${file}.s) {}
+
+    foreach i $opt_array {
+	set opt_name [lindex $i 0]
+	set opt_val [lindex $i 1]
+	if ![info exists opts($opt_name)] {
+	    perror "unknown option $opt_name in file $file.lt"
+	    unresolved $subdir/$name
+	    return
+	}
+
+	switch -- $opt_name {
+	    xfail {}
+	    target {}
+	    notarget {}
+	    source {
+		# Move any source-specific as-flags to a separate array to
+		# simplify processing.
+		if { [llength $opt_val] > 1 } {
+		    set asflags([lindex $opt_val 0]) [lrange $opt_val 1 end]
+		    set opt_val [lindex $opt_val 0]
+		} else {
+		    set asflags($opt_val) {}
+		}
+	    }
+	    default {
+		if [string length $opts($opt_name)] {
+		    perror "option $opt_name multiply set in $file.lt"
+		    unresolved $subdir/$name
+		    return
+		}
+	    }
+	}
+	set opts($opt_name) [concat $opts($opt_name) $opt_val]
+    }
+
+    # Decide early whether we should run the test for this target.
+    if { [llength $opts(target)] > 0 } {
+	set targmatch 0
+	foreach targ $opts(target) {
+	    if [istarget $targ] {
+		set targmatch 1
+		break
+	    }
+	}
+	if { $targmatch == 0 } {
+	    return
+	}
+    }
+    foreach targ $opts(notarget) {
+	if [istarget $targ] {
+	    return
+	}
+    }
+
+    if { $opts(name) == "" } {
+	set testname "$subdir/$name"
+    } else {
+	set testname $opts(name)
+    }
+
+    if { $opts(source) == "" } {
+	set sourcefiles [list ${file}.s]
+    } else {
+	set sourcefiles {}
+	foreach sf $opts(source) {
+	    lappend sourcefiles "$srcdir/$subdir/$sf"
+	    # Must have asflags indexed on source name.
+	    set asflags($srcdir/$subdir/$sf) $asflags($sf)
+	}
+    }
+
+    # Time to setup xfailures.
+    foreach targ $opts(xfail) {
+	setup_xfail $targ
+    }
+
+    # Assemble each file.
+    set objfiles {}
+    for { set i 0 } { $i < [llength $sourcefiles] } { incr i } {
+	set sourcefile [lindex $sourcefiles $i]
+
+	set objfile "tmpdir/dump$i.o"
+	lappend objfiles $objfile
+	set cmd "$AS $ASFLAGS $opts(as) $asflags($sourcefile) -o $objfile $sourcefile"
+
+	send_log "$cmd\n"
+	set cmdret [catch "exec $cmd" comp_output]
+	set comp_output [prune_warnings $comp_output]
+
+	# We accept errors at assembly stage too, unless we're supposed to
+	# link something.
+	if { $cmdret != 0 || ![string match "" $comp_output] } then {
+	    send_log "$comp_output\n"
+	    verbose "$comp_output" 3
+	    fail $testname
+	    return
+	}
+    }
+
+    # Link the file(s).
+    set objfile "tmpdir/dump"
+    set cmd "$LD $LDFLAGS $opts(ld) -o $objfile $objfiles"
+
+    send_log "$cmd\n"
+    set cmdret [catch "exec $cmd" comp_output]
+    set comp_output [prune_warnings $comp_output]
+
+    if { $cmdret != 0 || ![string match "" $comp_output] } then {
+	
+	send_log "$comp_output\n"
+	verbose "$comp_output" 3
+	fail $testname
+	return
+    }
+    pass $testname
+}
+
+
+set test_list [lsort [glob -nocomplain $srcdir/$subdir/*.d]]
+foreach test $test_list {
+    # We need to strip the ".d", but can leave the dirname.
+    verbose [file rootname $test]
+    run_dump_test [file rootname $test]
+}
+
+set test_list [lsort [glob -nocomplain $srcdir/$subdir/*.lt]]
+foreach test $test_list {
+    # We need to strip the ".lt", but can leave the dirname.
+    verbose [file rootname $test]
+    run_link_test [file rootname $test]
+}

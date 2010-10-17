@@ -1,0 +1,10 @@
+#source: tlsg.s
+#as: --64
+#ld: -melf_x86_64
+#objdump: -sj.debug_foobar
+#target: x86_64-*-*
+
+.*: +file format elf64-x86-64
+
+Contents of section .debug_foobar:
+ 0+ 18000000 0+  +.*

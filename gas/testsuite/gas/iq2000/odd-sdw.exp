@@ -1,0 +1,6 @@
+# Test for errors when using an odd numbered base register for SDW.
+# Written by Ben Elliston (bje@redhat.com)
+
+if [istarget iq2000*-*-*] {
+    gas_test_error oddsdw.s "" "emits error for odd numbered register in double word store"
+}

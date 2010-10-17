@@ -1,0 +1,290 @@
+# Expect script for ld-shared tests
+#   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2003
+#   Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+# Written by Ian Lance Taylor (ian@cygnus.com)
+#
+
+# Make sure that ld can generate ELF shared libraries.
+# Note that linking against ELF shared libraries is tested by the
+# bootstrap test.
+
+# This test can only be run if ld generates native executables.
+if ![isnative] then {return}
+
+# This test can only be run on a couple of ELF platforms.
+# Square bracket expressions seem to confuse istarget.
+if { ![istarget hppa*64*-*-hpux*] \
+     && ![istarget hppa*-*-linux*] \
+     && ![istarget i?86-*-sysv4*] \
+     && ![istarget i?86-*-unixware] \
+     && ![istarget i?86-*-elf*] \
+     && ![istarget i?86-*-linux*] \
+     && ![istarget ia64-*-elf*] \
+     && ![istarget ia64-*-linux*] \
+     && ![istarget m68k-*-linux*] \
+     && ![istarget mips*-*-irix5*] \
+     && ![istarget mips*-*-linux*] \
+     && ![istarget powerpc-*-elf*] \
+     && ![istarget powerpc-*-linux*] \
+     && ![istarget powerpc-*-sysv4*] \
+     && ![istarget sparc*-*-elf] \
+     && ![istarget sparc*-*-solaris2*] \
+     && ![istarget sparc*-*-sunos4*] \
+     && ![istarget sparc*-*-linux*] \
+     && ![istarget arm*-*-linux*] \
+     && ![istarget alpha*-*-linux*] \
+     && ![istarget rs6000*-*-aix*] \
+     && ![istarget powerpc*-*-aix*] \
+     && ![istarget s390*-*-linux*] \
+     && ![istarget x86_64-*-linux*] } {
+    return
+}
+
+if { [istarget *-*-linux*aout*] \
+     || [istarget *-*-linux*oldld*] } {
+    return
+}
+
+set tmpdir tmpdir
+set SHCFLAG ""
+
+if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+
+    # AIX shared libraries do not seem to support useful features,
+    # like overriding the shared library function or letting the
+    # shared library refer to objects defined in the main program.  We
+    # avoid testing those features.
+    set SHCFLAG "-DXCOFF_TEST"
+
+    # The AIX 3.2.5 loader appears to randomly fail when loading
+    # shared libraries from NSF mounted partitions, so we avoid any
+    # potential problems by using a local directory.
+    catch {exec /bin/sh -c "echo $$"} pid
+    set tmpdir /usr/tmp/ld.$pid
+    catch "exec mkdir $tmpdir" exec_status
+
+    # On AIX, we need to explicitly export the symbols the shared
+    # library is going to provide, and need.
+    set file [open $tmpdir/xcoff.exp w]
+    puts $file shlibvar1
+    puts $file shlibvar2
+    puts $file shlib_shlibvar1
+    puts $file shlib_shlibvar2
+    puts $file shlib_shlibcall
+    puts $file shlib_shlibcalled
+    puts $file shlib_checkfunptr1
+    puts $file shlib_getfunptr1
+    puts $file shlib_check
+    close $file
+}
+
+# The test procedure.
+proc shared_test { progname testname main sh1 sh2 dat args } {
+    global CC
+    global srcdir
+    global subdir
+    global exec_output
+    global host_triplet
+    global tmpdir
+
+    if [llength $args] { set shldflags [lindex $args 0] } else { set shldflags "" }
+
+    # Build the shared library.
+    # On AIX, we need to use an export file.
+    set shared -shared
+    if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+	set shared "-bM:SRE -bE:$tmpdir/xcoff.exp"
+    }
+    if {![ld_simple_link $CC $tmpdir/$progname.so "$shared $shldflags $tmpdir/$sh1 $tmpdir/$sh2"]} {
+        fail "$testname"
+    	return
+    }
+
+    # Link against the shared library.  Use -rpath so that the
+    # dynamic linker can locate the shared library at runtime.
+    # On AIX, we must include /lib in -rpath, as otherwise the loader
+    # can not find -lc.
+    set rpath $tmpdir
+    if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+	set rpath /lib:$tmpdir
+    }
+    if ![ld_simple_link $CC $tmpdir/$progname "-Wl,-rpath,$rpath $tmpdir/$main $tmpdir/$progname.so"] {
+    	fail "$testname"
+    	return
+    }
+
+    # Run the resulting program
+    send_log "$tmpdir/$progname >$tmpdir/$progname.out\n"
+    verbose "$tmpdir/$progname >$tmpdir/$progname.out"
+    catch "exec $tmpdir/$progname >$tmpdir/$progname.out" exec_output
+    if ![string match "" $exec_output] then {
+	send_log "$exec_output\n"
+	verbose "$exec_output"
+	fail "$testname"
+    	return
+    }
+
+    send_log "diff $tmpdir/$progname.out $srcdir/$subdir/$dat.dat\n"
+    verbose "diff $tmpdir/$progname.out $srcdir/$subdir/$dat.dat"
+    catch "exec diff $tmpdir/$progname.out $srcdir/$subdir/$dat.dat" exec_output
+    set exec_output [prune_warnings $exec_output]
+
+    if {![string match "" $exec_output]} then {
+	send_log "$exec_output\n"
+	verbose "$exec_output"
+	fail "$testname"
+        return
+    }
+
+    pass "$testname"
+}
+
+if [istarget mips*-*-*] {
+    set picflag ""
+} else {
+    # Unfortunately, the gcc argument is -fpic and the cc argument is
+    # -KPIC.  We have to try both.
+    set picflag "-fpic"
+    send_log "$CC $picflag\n"
+    verbose "$CC $picflag"
+    catch "exec $CC $picflag" exec_output
+    send_log "$exec_output\n"
+    verbose "--" "$exec_output"
+    if { [string match "*illegal option*" $exec_output] \
+	 || [string match "*option ignored*" $exec_output] \
+	 || [string match "*unrecognized option*" $exec_output] \
+	 || [string match "*passed to ld*" $exec_output] } {
+	if [istarget *-*-sunos4*] {
+	    set picflag "-pic"
+	} else {
+	    set picflag "-KPIC"
+	}
+    }
+}
+verbose "Using $picflag to compile PIC code"
+
+# Compile the main program.
+if ![ld_compile "$CC $CFLAGS $SHCFLAG" $srcdir/$subdir/main.c $tmpdir/mainnp.o] {
+    unresolved "shared (non PIC)"
+    unresolved "shared"
+} else {
+    # The shared library is composed of two files.  First compile them
+    # without using -fpic.  That should work on an ELF system,
+    # although it will be less efficient because the dynamic linker
+    # will need to do more relocation work.  However, note that not
+    # using -fpic will cause some of the tests to return different
+    # results.
+    if { ![ld_compile "$CC $CFLAGS $SHCFLAG" $srcdir/$subdir/sh1.c $tmpdir/sh1np.o]
+	 || ![ld_compile "$CC $CFLAGS $SHCFLAG" $srcdir/$subdir/sh2.c $tmpdir/sh2np.o] } {
+	unresolved "shared (non PIC)"
+    } else { if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+	shared_test shnp "shared (nonPIC)" mainnp.o sh1np.o sh2np.o xcoff
+    } else {
+	# SunOS non PIC shared libraries don't permit some cases of
+	# overriding.
+	setup_xfail "*-*-sunos4*"
+	setup_xfail "ia64-*-linux*"
+	setup_xfail "alpha*-*-linux*"
+	if { ![istarget hppa*64*-*-linux*] } {
+	    setup_xfail "hppa*-*-linux*"
+	}
+	setup_xfail "x86_64-*-linux*"
+	setup_xfail "s390x-*-linux*"
+	shared_test shnp "shared (non PIC)" mainnp.o sh1np.o sh2np.o shared
+
+	# Test ELF shared library relocations with a non-zero load
+	# address for the library.  Near as I can tell, the R_*_RELATIVE
+	# relocations for various targets are broken in the case where
+	# the load address is not zero (which is the default).
+	setup_xfail "*-*-sunos4*"
+	setup_xfail "*-*-linux*libc1"
+	setup_xfail "powerpc-*-linux*"
+	setup_xfail "ia64-*-linux*"
+	setup_xfail "alpha*-*-linux*"
+	setup_xfail "mips*-*-linux*"
+	if { ![istarget hppa*64*-*-linux*] } {
+	    setup_xfail "hppa*-*-linux*"
+	}
+	setup_xfail "x86_64-*-linux*"
+	shared_test shnp "shared (non PIC, load offset)" \
+		mainnp.o sh1np.o sh2np.o shared \
+		"-T $srcdir/$subdir/elf-offset.ld"
+    } }
+
+    # Now compile the code using -fpic.
+
+    if { ![ld_compile "$CC $CFLAGS $SHCFLAG $picflag" $srcdir/$subdir/sh1.c $tmpdir/sh1p.o] 
+	 || ![ld_compile "$CC $CFLAGS $SHCFLAG $picflag" $srcdir/$subdir/sh2.c $tmpdir/sh2p.o] } {
+	unresolved "shared"
+    } else {
+	# SunOS can not compare function pointers correctly
+	if [istarget "*-*-sunos4*"] {
+	    shared_test shp "shared" mainnp.o sh1p.o sh2p.o sun4
+	} else { if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+	    shared_test shp "shared" mainnp.o sh1p.o sh2p.o xcoff
+	} else {
+	    shared_test shp "shared" mainnp.o sh1p.o sh2p.o shared
+	    ld_compile "$CC $CFLAGS -DSYMBOLIC_TEST -DXCOFF_TEST $SHCFLAG" $srcdir/$subdir/main.c $tmpdir/mainnp.o
+	    ld_compile "$CC $CFLAGS -DSYMBOLIC_TEST -DXCOFF_TEST $SHCFLAG $picflag" $srcdir/$subdir/sh1.c $tmpdir/sh1p.o
+	    shared_test shp "shared -Bsymbolic" mainnp.o sh1p.o sh2p.o symbolic "-Bsymbolic" 
+	    ld_compile "$CC $CFLAGS $SHCFLAG" $srcdir/$subdir/main.c $tmpdir/mainnp.o
+	    ld_compile "$CC $CFLAGS $SHCFLAG $picflag" $srcdir/$subdir/sh1.c $tmpdir/sh1p.o
+	} }
+    }
+}
+
+# Now do the same tests again, but this time compile main.c PIC.
+if ![ld_compile "$CC $CFLAGS $SHCFLAG $picflag" $srcdir/$subdir/main.c $tmpdir/mainp.o] {
+    unresolved "shared (PIC main, non PIC so)"
+    unresolved "shared (PIC main)"
+} else {
+    if { [file exists $tmpdir/sh1np.o ] && [ file exists $tmpdir/sh2np.o ] } {
+        if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+	    shared_test shmpnp "shared (PIC main, non PIC so)" mainp.o sh1np.o sh2np.o xcoff
+	} else {
+	    # SunOS non PIC shared libraries don't permit some cases of
+	    # overriding.
+	    setup_xfail "*-*-sunos4*"
+	    setup_xfail "ia64-*-linux*"
+	    setup_xfail "alpha*-*-linux*"
+	    if { ![istarget hppa*64*-*-linux*] } {
+		setup_xfail "hppa*-*-linux*"
+	    }
+	    setup_xfail "x86_64-*-linux*"
+	    setup_xfail "s390x-*-linux*"
+	    shared_test shmpnp "shared (PIC main, non PIC so)" mainp.o sh1np.o sh2np.o shared
+	}
+    } else {
+	unresolved "shared (PIC main, non PIC so)"
+    }
+
+    if { [file exists $tmpdir/sh1p.o ] && [ file exists $tmpdir/sh2p.o ] } {
+        if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+	    shared_test shmpp "shared (PIC main)" mainp.o sh1p.o sh2p.o xcoff
+	} else {
+	    shared_test shmpp "shared (PIC main)" mainp.o sh1p.o sh2p.o shared
+	}
+    } else {
+	unresolved "shared (PIC main)"
+    }
+}
+
+if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+    # Remove the temporary directory.
+    catch "exec rm -rf $tmpdir" exec_status
+}

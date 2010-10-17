@@ -1,0 +1,200 @@
+@c Copyright 2000 Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+@ifset GENERIC
+@page
+@node ESA/390-Dependent
+@chapter ESA/390 Dependent Features
+@end ifset
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter ESA/390 Dependent Features
+@end ifclear
+
+@cindex i370 support
+@cindex ESA/390 support
+
+@menu
+* ESA/390 Notes::                Notes
+* ESA/390 Options::              Options
+* ESA/390 Syntax::               Syntax
+* ESA/390 Floating Point::       Floating Point
+* ESA/390 Directives::           ESA/390 Machine Directives
+* ESA/390 Opcodes::              Opcodes
+@end menu
+
+@node ESA/390 Notes
+@section Notes
+The ESA/390 @code{@value{AS}} port is currently intended to be a back-end
+for the @sc{gnu} @sc{cc} compiler.  It is not HLASM compatible, although
+it does support a subset of some of the HLASM directives.  The only 
+supported binary file format is ELF; none of the usual MVS/VM/OE/USS 
+object file formats, such as ESD or XSD, are supported.
+
+When used with the @sc{gnu} @sc{cc} compiler, the ESA/390 @code{@value{AS}}
+will produce correct, fully relocated, functional binaries, and has been 
+used to compile and execute large projects.  However, many aspects should 
+still be considered experimental; these include shared library support, 
+dynamically loadable objects, and any relocation other than the 31-bit 
+relocation.
+
+@node ESA/390 Options
+@section Options
+@code{@value{AS}} has no machine-dependent command-line options for the ESA/390.
+
+@cindex ESA/390 Syntax
+@node ESA/390 Syntax
+@section Syntax
+The opcode/operand syntax follows the ESA/390 Principles of Operation
+manual; assembler directives and general syntax are loosely based on the 
+prevailing AT&T/SVR4/ELF/Solaris style notation.  HLASM-style directives
+are @emph{not} supported for the most part, with the exception of those 
+described herein.
+
+A leading dot in front of directives is optional, and the case of
+directives is ignored; thus for example, .using and USING have the same
+effect.
+
+A colon may immediately follow a label definition.  This is
+simply for compatibility with how most assembly language programmers
+write code.
+
+@samp{#} is the line comment character.
+
+@samp{;} can be used instead of a newline to separate statements.
+
+Since @samp{$} has no special meaning, you may use it in symbol names.
+
+Registers can be given the symbolic names r0..r15, fp0, fp2, fp4, fp6.
+By using thesse symbolic names, @code{@value{AS}} can detect simple 
+syntax errors. The name rarg or r.arg is a synonym for r11, rtca or r.tca
+for r12, sp, r.sp, dsa r.dsa for r13, lr or r.lr for r14, rbase or r.base 
+for r3 and rpgt or r.pgt for r4.
+
+@samp{*} is the current location counter.  Unlike @samp{.} it is always
+relative to the last USING directive.  Note that this means that 
+expressions cannot use multiplication, as any occurrence of @samp{*}
+will be interpreted as a location counter.
+
+All labels are relative to the last USING.  Thus, branches to a label 
+always imply the use of base+displacement.
+
+Many of the usual forms of address constants / address literals 
+are supported.  Thus,
+@example
+	.using	*,r3
+	L	r15,=A(some_routine)
+	LM	r6,r7,=V(some_longlong_extern)
+	A	r1,=F'12'
+	AH	r0,=H'42'
+	ME	r6,=E'3.1416'
+	MD	r6,=D'3.14159265358979'
+	O	r6,=XL4'cacad0d0'
+	.ltorg
+@end example
+should all behave as expected: that is, an entry in the literal
+pool will be created (or reused if it already exists), and the 
+instruction operands will be the displacement into the literal pool
+using the current base register (as last declared with the @code{.using}
+directive).
+
+@node ESA/390 Floating Point
+@section Floating Point
+@cindex floating point, ESA/390 (@sc{ieee})
+@cindex ESA/390 floating point (@sc{ieee})
+The assembler generates only @sc{ieee} floating-point numbers.  The older
+floating point formats are not supported.
+
+
+@node ESA/390 Directives
+@section ESA/390 Assembler Directives
+
+@code{@value{AS}} for the ESA/390 supports all of the standard ELF/SVR4 
+assembler directives that are documented in the main part of this
+documentation.  Several additional directives are supported in order
+to implement the ESA/390 addressing model.  The most important of these
+are @code{.using} and @code{.ltorg}
+
+@cindex ESA/390-only directives
+These are the additional directives in @code{@value{AS}} for the ESA/390:
+
+@table @code
+@item .dc 
+A small subset of the usual DC directive is supported.
+
+@item .drop @var{regno}
+Stop using @var{regno} as the base register.  The @var{regno} must
+have been previously declared with a @code{.using} directive in the
+same section as the current section.
+
+@item .ebcdic @var{string}
+Emit the EBCDIC equivalent of the indicated string.  The emitted string
+will be null terminated.  Note that the directives @code{.string} etc. emit
+ascii strings by default.
+
+@item EQU 
+The standard HLASM-style EQU directive is not supported; however, the 
+standard @code{@value{AS}} directive .equ can be used to the same effect.
+
+@item .ltorg 
+Dump the literal pool accumulated so far; begin a new literal pool.
+The literal pool will be written in the current section; in order to
+generate correct assembly, a @code{.using} must have been previously
+specified in the same section.
+
+@item .using @var{expr},@var{regno}
+Use @var{regno} as the base register for all subsequent RX, RS, and SS form
+instructions. The @var{expr} will be evaluated to obtain the base address;
+usually, @var{expr} will merely be @samp{*}.
+
+This assembler allows two @code{.using} directives to be simultaneously
+outstanding, one in the @code{.text} section, and one in another section 
+(typically, the @code{.data} section).  This feature allows 
+dynamically loaded objects to be implemented in a relatively 
+straightforward way.  A @code{.using} directive must always be specified 
+in the @code{.text} section; this will specify the base register that
+will be used for branches in the @code{.text} section.  A second
+@code{.using} may be specified in another section; this will specify
+the base register that is used for non-label address literals.
+When a second @code{.using} is specified, then the subsequent
+@code{.ltorg} must be put in the same section; otherwise an error will 
+result.
+
+Thus, for example, the following code uses @code{r3} to address branch 
+targets and @code{r4} to address the literal pool, which has been written 
+to the @code{.data} section.  The is, the constants @code{=A(some_routine)},
+@code{=H'42'} and @code{=E'3.1416'} will all appear in the @code{.data}
+section.
+
+@example
+.data
+	.using  LITPOOL,r4
+.text
+	BASR	r3,0
+	.using	*,r3
+        B       START
+	.long	LITPOOL
+START:
+	L	r4,4(,r3)
+	L	r15,=A(some_routine)
+	LTR	r15,r15
+	BNE	LABEL
+	AH	r0,=H'42'
+LABEL:
+	ME	r6,=E'3.1416'
+.data
+LITPOOL:
+	.ltorg
+@end example
+
+
+Note that this dual-@code{.using} directive semantics extends 
+and is not compatible with HLASM semantics.  Note that this assembler 
+directive does not support the full range of HLASM semantics.
+
+@end table
+
+@node ESA/390 Opcodes
+@section Opcodes
+For detailed information on the ESA/390 machine instruction set, see
+@cite{ESA/390 Principles of Operation} (IBM Publication Number DZ9AR004).

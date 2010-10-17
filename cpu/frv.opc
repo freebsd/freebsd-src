@@ -1,0 +1,1544 @@
+/* Fujitsu FRV opcode support, for GNU Binutils.  -*- C -*-
+
+   Copyright 2000, 2001, 2003, 2004 Free Software Foundation, Inc.
+
+   Contributed by Red Hat Inc; developed under contract from Fujitsu.
+
+   This file is part of the GNU Binutils.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+*/
+
+/* This file is an addendum to frv.cpu.  Heavy use of C code isn't
+   appropriate in .cpu files, so it resides here.  This especially applies
+   to assembly/disassembly where parsing/printing can be quite involved.
+   Such things aren't really part of the specification of the cpu, per se,
+   so .cpu files provide the general framework and .opc files handle the
+   nitty-gritty details as necessary.
+
+   Each section is delimited with start and end markers.
+
+   <arch>-opc.h additions use: "-- opc.h"
+   <arch>-opc.c additions use: "-- opc.c"
+   <arch>-asm.c additions use: "-- asm.c"
+   <arch>-dis.c additions use: "-- dis.c"
+   <arch>-ibd.h additions use: "-- ibd.h"
+*/
+
+/* -- opc.h */
+
+#undef  CGEN_DIS_HASH_SIZE
+#define CGEN_DIS_HASH_SIZE 128
+#undef  CGEN_DIS_HASH
+#define CGEN_DIS_HASH(buffer, value) (((value) >> 18) & 127)
+
+/* Allows reason codes to be output when assembler errors occur.  */
+#define CGEN_VERBOSE_ASSEMBLER_ERRORS
+
+/* Vliw support.  */
+#define FRV_VLIW_SIZE 8 /* fr550 has largest vliw size of 8.  */
+#define PAD_VLIW_COMBO ,UNIT_NIL,UNIT_NIL,UNIT_NIL,UNIT_NIL
+typedef CGEN_ATTR_VALUE_TYPE VLIW_COMBO[FRV_VLIW_SIZE];
+
+typedef struct
+{
+  int                   next_slot;
+  int                   constraint_violation;
+  unsigned long         mach;
+  unsigned long         elf_flags;
+  CGEN_ATTR_VALUE_TYPE *unit_mapping;
+  VLIW_COMBO           *current_vliw;
+  CGEN_ATTR_VALUE_TYPE  major[FRV_VLIW_SIZE];
+  const CGEN_INSN*      insn[FRV_VLIW_SIZE];
+} FRV_VLIW;
+
+int frv_is_branch_major PARAMS ((CGEN_ATTR_VALUE_TYPE, unsigned long));
+int frv_is_float_major  PARAMS ((CGEN_ATTR_VALUE_TYPE, unsigned long));
+int frv_is_media_major  PARAMS ((CGEN_ATTR_VALUE_TYPE, unsigned long));
+int frv_is_branch_insn  PARAMS ((const CGEN_INSN *));
+int frv_is_float_insn   PARAMS ((const CGEN_INSN *));
+int frv_is_media_insn   PARAMS ((const CGEN_INSN *));
+void frv_vliw_reset     PARAMS ((FRV_VLIW *, unsigned long mach, unsigned long elf_flags));
+int frv_vliw_add_insn   PARAMS ((FRV_VLIW *, const CGEN_INSN *));
+int spr_valid           PARAMS ((long));
+/* -- */
+
+/* -- opc.c */
+#include "elf/frv.h"
+#include <stdio.h>
+
+static int match_unit
+  PARAMS ((FRV_VLIW *, CGEN_ATTR_VALUE_TYPE, CGEN_ATTR_VALUE_TYPE));
+static int match_vliw
+  PARAMS ((VLIW_COMBO *, VLIW_COMBO *, int));
+static VLIW_COMBO * add_next_to_vliw
+  PARAMS ((FRV_VLIW *, CGEN_ATTR_VALUE_TYPE));
+static int find_major_in_vliw
+  PARAMS ((FRV_VLIW *, CGEN_ATTR_VALUE_TYPE));
+static int fr400_check_insn_major_constraints
+  PARAMS ((FRV_VLIW *, CGEN_ATTR_VALUE_TYPE));
+static int fr500_check_insn_major_constraints
+  PARAMS ((FRV_VLIW *, CGEN_ATTR_VALUE_TYPE));
+static int fr550_check_insn_major_constraints
+  PARAMS ((FRV_VLIW *, CGEN_ATTR_VALUE_TYPE, const CGEN_INSN *));
+static int check_insn_major_constraints
+  PARAMS ((FRV_VLIW *, CGEN_ATTR_VALUE_TYPE, const CGEN_INSN *));
+
+int
+frv_is_branch_major (CGEN_ATTR_VALUE_TYPE major, unsigned long mach)
+{
+  switch (mach)
+    {
+    case bfd_mach_fr400:
+      if (major >= FR400_MAJOR_B_1 && major <= FR400_MAJOR_B_6)
+	return 1; /* is a branch */
+      break;
+    default:
+      if (major >= FR500_MAJOR_B_1 && major <= FR500_MAJOR_B_6)
+	return 1; /* is a branch */
+      break;
+    }
+
+  return 0; /* not a branch */
+}
+
+int
+frv_is_float_major (CGEN_ATTR_VALUE_TYPE major, unsigned long mach)
+{
+  switch (mach)
+    {
+    case bfd_mach_fr400:
+      return 0; /* No float insns */
+    default:
+      if (major >= FR500_MAJOR_F_1 && major <= FR500_MAJOR_F_8)
+	return 1; /* is a float insn */
+      break;
+    }
+
+  return 0; /* not a branch */
+}
+
+int
+frv_is_media_major (CGEN_ATTR_VALUE_TYPE major, unsigned long mach)
+{
+  switch (mach)
+    {
+    case bfd_mach_fr400:
+      if (major >= FR400_MAJOR_M_1 && major <= FR400_MAJOR_M_2)
+	return 1; /* is a media insn */
+      break;
+    default:
+      if (major >= FR500_MAJOR_M_1 && major <= FR500_MAJOR_M_8)
+	return 1; /* is a media insn */
+      break;
+    }
+
+  return 0; /* not a branch */
+}
+
+int
+frv_is_branch_insn (const CGEN_INSN *insn)
+{
+  if (frv_is_branch_major (CGEN_INSN_ATTR_VALUE (insn, CGEN_INSN_FR400_MAJOR),
+			   bfd_mach_fr400))
+    return 1;
+  if (frv_is_branch_major (CGEN_INSN_ATTR_VALUE (insn, CGEN_INSN_FR500_MAJOR),
+			   bfd_mach_fr500))
+    return 1;
+
+  return 0;
+}
+
+int
+frv_is_float_insn (const CGEN_INSN *insn)
+{
+  if (frv_is_float_major (CGEN_INSN_ATTR_VALUE (insn, CGEN_INSN_FR400_MAJOR),
+			  bfd_mach_fr400))
+    return 1;
+  if (frv_is_float_major (CGEN_INSN_ATTR_VALUE (insn, CGEN_INSN_FR500_MAJOR),
+			  bfd_mach_fr500))
+    return 1;
+
+  return 0;
+}
+
+int
+frv_is_media_insn (const CGEN_INSN *insn)
+{
+  if (frv_is_media_major (CGEN_INSN_ATTR_VALUE (insn, CGEN_INSN_FR400_MAJOR),
+			  bfd_mach_fr400))
+    return 1;
+  if (frv_is_media_major (CGEN_INSN_ATTR_VALUE (insn, CGEN_INSN_FR500_MAJOR),
+			  bfd_mach_fr500))
+    return 1;
+
+  return 0;
+}
+
+/* This table represents the allowable packing for vliw insns for the fr400.
+   The fr400 has only 2 vliw slots. Represent this by not allowing any insns
+   in the extra slots.
+   Subsets of any given row are also allowed.  */
+static VLIW_COMBO fr400_allowed_vliw[] =
+{
+  /*  slot0       slot1       slot2       slot3    */
+  {  UNIT_I0,    UNIT_I1,    UNIT_NIL,   UNIT_NIL  PAD_VLIW_COMBO },
+  {  UNIT_I0,    UNIT_FM0,   UNIT_NIL,   UNIT_NIL  PAD_VLIW_COMBO },
+  {  UNIT_I0,    UNIT_B0,    UNIT_NIL,   UNIT_NIL  PAD_VLIW_COMBO },
+  {  UNIT_FM0,   UNIT_FM1,   UNIT_NIL,   UNIT_NIL  PAD_VLIW_COMBO },
+  {  UNIT_FM0,   UNIT_B0,    UNIT_NIL,   UNIT_NIL  PAD_VLIW_COMBO },
+  {  UNIT_B0,    UNIT_NIL,   UNIT_NIL,   UNIT_NIL  PAD_VLIW_COMBO },
+  {  UNIT_C,     UNIT_NIL,   UNIT_NIL,   UNIT_NIL  PAD_VLIW_COMBO },
+  {  UNIT_NIL,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL  PAD_VLIW_COMBO }
+};
+
+/* This table represents the allowable packing for vliw insns for the fr500.
+   The fr500 has only 4 vliw slots. Represent this by not allowing any insns
+   in the extra slots.
+   Subsets of any given row are also allowed.  */
+static VLIW_COMBO fr500_allowed_vliw[] =
+{
+  /*  slot0       slot1       slot2       slot3    */
+  {  UNIT_I0,    UNIT_FM0,   UNIT_I1,    UNIT_FM1  PAD_VLIW_COMBO },
+  {  UNIT_I0,    UNIT_FM0,   UNIT_I1,    UNIT_B0   PAD_VLIW_COMBO },
+  {  UNIT_I0,    UNIT_FM0,   UNIT_FM1,   UNIT_B0   PAD_VLIW_COMBO },
+  {  UNIT_I0,    UNIT_FM0,   UNIT_B0,    UNIT_B1   PAD_VLIW_COMBO },
+  {  UNIT_I0,    UNIT_I1,    UNIT_B0,    UNIT_B1   PAD_VLIW_COMBO },
+  {  UNIT_I0,    UNIT_B0,    UNIT_B1,    UNIT_NIL  PAD_VLIW_COMBO },
+  {  UNIT_FM0,   UNIT_FM1,   UNIT_B0,    UNIT_B1   PAD_VLIW_COMBO },
+  {  UNIT_FM0,   UNIT_B0,    UNIT_B1,    UNIT_NIL  PAD_VLIW_COMBO },
+  {  UNIT_B0,    UNIT_B1,    UNIT_NIL,   UNIT_NIL  PAD_VLIW_COMBO },
+  {  UNIT_C,     UNIT_NIL,   UNIT_NIL,   UNIT_NIL  PAD_VLIW_COMBO },
+  {  UNIT_NIL,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL  PAD_VLIW_COMBO }
+};
+
+/* This table represents the allowable packing for vliw insns for the fr550.
+   Subsets of any given row are also allowed.  */
+static VLIW_COMBO fr550_allowed_vliw[] =
+{
+  /*  slot0       slot1       slot2       slot3       slot4       slot5       slot6       slot7   */
+  {  UNIT_I0,    UNIT_I1,    UNIT_I2,    UNIT_I3,    UNIT_B0,    UNIT_B1 ,   UNIT_NIL,   UNIT_NIL },
+  {  UNIT_I0,    UNIT_I1,    UNIT_I2,    UNIT_B0,    UNIT_B1 ,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL },
+  {  UNIT_I0,    UNIT_I1,    UNIT_B0,    UNIT_B1 ,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL },
+  {  UNIT_I0,    UNIT_B0,    UNIT_B1 ,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL },
+  {  UNIT_I0,    UNIT_FM0,   UNIT_I1,    UNIT_FM1,   UNIT_I2,    UNIT_FM2,   UNIT_I3,    UNIT_FM3 },
+  {  UNIT_I0,    UNIT_FM0,   UNIT_I1,    UNIT_FM1,   UNIT_I2,    UNIT_FM2,   UNIT_I3,    UNIT_B0  },
+  {  UNIT_I0,    UNIT_FM0,   UNIT_I1,    UNIT_FM1,   UNIT_I2,    UNIT_FM2,   UNIT_FM3,   UNIT_B0  },
+  {  UNIT_I0,    UNIT_FM0,   UNIT_I1,    UNIT_FM1,   UNIT_I2,    UNIT_FM2,   UNIT_B0,    UNIT_B1  },
+  {  UNIT_I0,    UNIT_FM0,   UNIT_I1,    UNIT_FM1,   UNIT_I2,    UNIT_I3,    UNIT_B0,    UNIT_B1  },
+  {  UNIT_I0,    UNIT_FM0,   UNIT_I1,    UNIT_FM1,   UNIT_I2,    UNIT_B0,    UNIT_B1,    UNIT_NIL },
+  {  UNIT_I0,    UNIT_FM0,   UNIT_I1,    UNIT_FM1,   UNIT_FM2,   UNIT_FM3,   UNIT_B0,    UNIT_B1  },
+  {  UNIT_I0,    UNIT_FM0,   UNIT_I1,    UNIT_FM1,   UNIT_FM2,   UNIT_FM3,   UNIT_B0,    UNIT_B1  },
+  {  UNIT_I0,    UNIT_FM0,   UNIT_I1,    UNIT_FM1,   UNIT_FM2,   UNIT_B0,    UNIT_B1,    UNIT_NIL },
+  {  UNIT_I0,    UNIT_FM0,   UNIT_I1,    UNIT_FM1,   UNIT_B0,    UNIT_B1,    UNIT_NIL,   UNIT_NIL },
+  {  UNIT_I0,    UNIT_FM0,   UNIT_I1,    UNIT_I2,    UNIT_I3,    UNIT_B0,    UNIT_B1,    UNIT_NIL },
+  {  UNIT_I0,    UNIT_FM0,   UNIT_I1,    UNIT_I2,    UNIT_B0,    UNIT_B1,    UNIT_NIL,   UNIT_NIL },
+  {  UNIT_I0,    UNIT_FM0,   UNIT_I1,    UNIT_B0,    UNIT_B1,    UNIT_NIL,   UNIT_NIL,   UNIT_NIL },
+  {  UNIT_I0,    UNIT_FM0,   UNIT_FM1,   UNIT_FM2,   UNIT_FM3,   UNIT_B0,    UNIT_B1,    UNIT_NIL },
+  {  UNIT_I0,    UNIT_FM0,   UNIT_FM1,   UNIT_FM2,   UNIT_B0,    UNIT_B1,    UNIT_NIL,   UNIT_NIL },
+  {  UNIT_I0,    UNIT_FM0,   UNIT_FM1,   UNIT_B0,    UNIT_B1,    UNIT_NIL,   UNIT_NIL,   UNIT_NIL },
+  {  UNIT_I0,    UNIT_FM0,   UNIT_B0,    UNIT_B1,    UNIT_NIL,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL },
+  {  UNIT_B0,    UNIT_B1,    UNIT_NIL,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL },
+  {  UNIT_C,     UNIT_NIL,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL },
+  {  UNIT_FM0,   UNIT_FM1,   UNIT_FM2,   UNIT_FM3,   UNIT_B0,    UNIT_B1,    UNIT_NIL,   UNIT_NIL },
+  {  UNIT_FM0,   UNIT_FM1,   UNIT_FM2,   UNIT_B0,    UNIT_B1,    UNIT_NIL,   UNIT_NIL,   UNIT_NIL },
+  {  UNIT_FM0,   UNIT_FM1,   UNIT_B0,    UNIT_B1,    UNIT_NIL,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL },
+  {  UNIT_FM0,   UNIT_B0,    UNIT_B1,    UNIT_NIL,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL },
+  {  UNIT_NIL,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL,   UNIT_NIL }
+};
+
+/* Some insns are assigned specialized implementation units which map to
+   different actual implementation units on different machines.  These
+   tables perform that mapping.  */
+static CGEN_ATTR_VALUE_TYPE fr400_unit_mapping[] =
+{
+/* unit in insn    actual unit */
+/* NIL      */     UNIT_NIL,
+/* I0       */     UNIT_I0,
+/* I1       */     UNIT_I1,
+/* I01      */     UNIT_I01, 
+/* I2       */     UNIT_NIL, /* no I2 or I3 unit */
+/* I3       */     UNIT_NIL,
+/* IALL     */     UNIT_I01, /* only I0 and I1 units */
+/* FM0      */     UNIT_FM0,
+/* FM1      */     UNIT_FM1,
+/* FM01     */     UNIT_FM01,
+/* FM2      */     UNIT_NIL, /* no F2 or M2 units */
+/* FM3      */     UNIT_NIL, /* no F3 or M3 units */
+/* FMALL    */     UNIT_FM01,/* Only F0,F1,M0,M1 units */
+/* FMLOW    */     UNIT_FM0, /* Only F0,M0 units */
+/* B0       */     UNIT_B0,  /* branches only in B0 unit.  */
+/* B1       */     UNIT_B0,
+/* B01      */     UNIT_B0,
+/* C        */     UNIT_C,
+/* MULT-DIV */     UNIT_I0,  /* multiply and divide only in I0  unit.  */
+/* IACC     */     UNIT_I01, /* iacc multiply       in I0 or I1 unit.  */
+/* LOAD     */     UNIT_I0,  /* load                only in I0  unit.  */
+/* STORE    */     UNIT_I0,  /* store               only in I0  unit.  */
+/* SCAN     */     UNIT_I0,  /* scan                only in I0  unit.  */
+/* DCPL     */     UNIT_C,   /* dcpl                only in C   unit.  */
+/* MDUALACC */     UNIT_FM0, /* media dual acc insn only in FM0 unit.  */
+/* MCLRACC-1*/     UNIT_FM0  /* mclracc,A==1   insn only in FM0 unit.  */
+};
+
+static CGEN_ATTR_VALUE_TYPE fr500_unit_mapping[] =
+{
+/* unit in insn    actual unit */
+/* NIL      */     UNIT_NIL,
+/* I0       */     UNIT_I0,
+/* I1       */     UNIT_I1,
+/* I01      */     UNIT_I01, 
+/* I2       */     UNIT_NIL, /* no I2 or I3 unit */
+/* I3       */     UNIT_NIL,
+/* IALL     */     UNIT_I01, /* only I0 and I1 units */
+/* FM0      */     UNIT_FM0,
+/* FM1      */     UNIT_FM1,
+/* FM01     */     UNIT_FM01,
+/* FM2      */     UNIT_NIL, /* no F2 or M2 units */
+/* FM3      */     UNIT_NIL, /* no F3 or M2 units */
+/* FMALL    */     UNIT_FM01,/* Only F0,F1,M0,M1 units */
+/* FMLOW    */     UNIT_FM0, /* Only F0,M0 units */
+/* B0       */     UNIT_B0,
+/* B1       */     UNIT_B1,
+/* B01      */     UNIT_B01,
+/* C        */     UNIT_C,
+/* MULT-DIV */     UNIT_I01, /* multiply and divide in I0 or I1 unit.  */
+/* IACC     */     UNIT_NIL, /* iacc multiply       not implemented */
+/* LOAD     */     UNIT_I01, /* load                in I0 or I1 unit.  */
+/* STORE    */     UNIT_I0,  /* store               only in I0 unit.  */
+/* SCAN     */     UNIT_I01, /* scan                in I0 or I1 unit.  */
+/* DCPL     */     UNIT_C,   /* dcpl                only in C unit.  */
+/* MDUALACC */     UNIT_FM0, /* media dual acc insn only in FM0 unit.  */
+/* MCLRACC-1*/     UNIT_FM01 /* mclracc,A==1 in FM0 or FM1 unit.  */
+};
+
+static CGEN_ATTR_VALUE_TYPE fr550_unit_mapping[] =
+{
+/* unit in insn    actual unit */
+/* NIL      */     UNIT_NIL,
+/* I0       */     UNIT_I0,
+/* I1       */     UNIT_I1,
+/* I01      */     UNIT_I01, 
+/* I2       */     UNIT_I2,
+/* I3       */     UNIT_I3,
+/* IALL     */     UNIT_IALL, 
+/* FM0      */     UNIT_FM0,
+/* FM1      */     UNIT_FM1,
+/* FM01     */     UNIT_FM01,
+/* FM2      */     UNIT_FM2,
+/* FM3      */     UNIT_FM3,
+/* FMALL    */     UNIT_FMALL,
+/* FMLOW    */     UNIT_FM01, /* Only F0,F1,M0,M1 units */
+/* B0       */     UNIT_B0,
+/* B1       */     UNIT_B1,
+/* B01      */     UNIT_B01,
+/* C        */     UNIT_C,
+/* MULT-DIV */     UNIT_I01,  /* multiply and divide in I0 or I1 unit.    */
+/* IACC     */     UNIT_NIL,  /* iacc multiply       not implemented.     */
+/* LOAD     */     UNIT_I01,  /* load                in I0 or I1 unit.    */
+/* STORE    */     UNIT_I01,  /* store               in I0 or I1 unit.    */
+/* SCAN     */     UNIT_IALL, /* scan                in any integer unit. */
+/* DCPL     */     UNIT_I0,   /* dcpl                only in I0 unit.     */
+/* MDUALACC */     UNIT_FMALL,/* media dual acc insn in all media units   */
+/* MCLRACC-1*/     UNIT_FM01  /* mclracc,A==1 in FM0 or FM1 unit.         */
+};
+
+void
+frv_vliw_reset (FRV_VLIW *vliw, unsigned long mach, unsigned long elf_flags)
+{
+  vliw->next_slot = 0;
+  vliw->constraint_violation = 0;
+  vliw->mach = mach;
+  vliw->elf_flags = elf_flags;
+
+  switch (mach)
+    {
+    case bfd_mach_fr400:
+      vliw->current_vliw = fr400_allowed_vliw;
+      vliw->unit_mapping = fr400_unit_mapping;
+      break;
+    case bfd_mach_fr550:
+      vliw->current_vliw = fr550_allowed_vliw;
+      vliw->unit_mapping = fr550_unit_mapping;
+      break;
+    default:
+      vliw->current_vliw = fr500_allowed_vliw;
+      vliw->unit_mapping = fr500_unit_mapping;
+      break;
+    }
+}
+
+/* Return 1 if unit1 is a match for unit2.
+   Unit1 comes from the insn's UNIT attribute. unit2 comes from one of the
+   *_allowed_vliw tables above.  */
+static int
+match_unit (FRV_VLIW *vliw,
+	    CGEN_ATTR_VALUE_TYPE unit1, CGEN_ATTR_VALUE_TYPE unit2)
+{
+  /* Map any specialized implementation units to actual ones.  */
+  unit1 = vliw->unit_mapping[unit1];
+
+  if (unit1 == unit2)
+    return 1;
+  if (unit1 < unit2)
+    return 0;
+
+  switch (unit1)
+    {
+    case UNIT_I01:
+    case UNIT_FM01:
+    case UNIT_B01:
+      /* The 01 versions of these units are within 2 enums of the 0 or 1
+	 versions.  */
+      if (unit1 - unit2 <= 2)
+	return 1;
+      break;
+    case UNIT_IALL:
+    case UNIT_FMALL:
+      /* The ALL versions of these units are within 5 enums of the 0, 1, 2 or 3
+	 versions.  */
+      if (unit1 - unit2 <= 5)
+	return 1;
+      break;
+    default:
+      break;
+    }
+
+  return 0;
+}
+
+/* Return 1 if the vliws match, 0 otherwise.  */
+
+static int
+match_vliw (VLIW_COMBO *vliw1, VLIW_COMBO *vliw2, int vliw_size)
+{
+  int i;
+
+  for (i = 0; i < vliw_size; ++i)
+    {
+      if ((*vliw1)[i] != (*vliw2)[i])
+	return 0;
+    }
+
+  return 1;
+}
+
+/* Find the next vliw vliw in the table that can accomodate the new insn.
+   If one is found then return it. Otherwise return NULL.  */
+
+static VLIW_COMBO *
+add_next_to_vliw (FRV_VLIW *vliw, CGEN_ATTR_VALUE_TYPE unit)
+{
+  int           next    = vliw->next_slot;
+  VLIW_COMBO    *current = vliw->current_vliw;
+  VLIW_COMBO    *potential;
+
+  if (next <= 0)
+    {
+      fprintf (stderr, "frv-opc.c line %d: bad vliw->next_slot value.\n",
+	       __LINE__);
+      abort (); /* Should never happen */
+    }
+
+  /* The table is sorted by units allowed within slots, so vliws with
+     identical starting sequences are together.  */
+  potential = current;
+  do
+    {
+      if (match_unit (vliw, unit, (*potential)[next]))
+	return potential;
+      ++potential;
+    }
+  while (match_vliw (potential, current, next));
+
+  return NULL;
+}
+
+/* Look for the given major insn type in the given vliw. Return 1 if found,
+   return 0 otherwise.  */
+
+static int
+find_major_in_vliw (FRV_VLIW *vliw, CGEN_ATTR_VALUE_TYPE major)
+{
+  int i;
+
+  for (i = 0; i < vliw->next_slot; ++i)
+    if (vliw->major[i] == major)
+      return 1;
+
+  return 0;
+}
+
+/* Check for constraints between the insns in the vliw due to major insn
+   types.  */
+
+static int
+fr400_check_insn_major_constraints (
+  FRV_VLIW *vliw, CGEN_ATTR_VALUE_TYPE major
+)
+{
+  /* In the cpu file, all media insns are represented as being allowed in
+     both media units. This makes it easier since this is the case for fr500.
+     Catch the invalid combinations here.  Insns of major class FR400_MAJOR_M_2
+     cannot coexist with any other media insn in a vliw.  */
+  switch (major)
+    {
+    case FR400_MAJOR_M_2:
+      return ! find_major_in_vliw (vliw, FR400_MAJOR_M_1)
+	&&   ! find_major_in_vliw (vliw, FR400_MAJOR_M_2);
+    default:
+      break;
+    }
+  return 1;
+}
+
+static int
+find_unit_in_vliw (
+  FRV_VLIW *vliw, CGEN_ATTR_VALUE_TYPE unit
+)
+{
+  int i;
+  for (i = 0; i < vliw->next_slot; ++i)
+    if (CGEN_INSN_ATTR_VALUE (vliw->insn[i], CGEN_INSN_UNIT) == unit)
+      return 1;
+
+  return 0; /* not found */
+}
+
+static int
+find_major_in_slot (
+  FRV_VLIW *vliw, CGEN_ATTR_VALUE_TYPE major, CGEN_ATTR_VALUE_TYPE slot
+)
+{
+  int i;
+
+  for (i = 0; i < vliw->next_slot; ++i)
+    if (vliw->major[i] == major && (*vliw->current_vliw)[i] == slot)
+      return 1;
+
+  return 0;
+}
+
+static int
+fr550_find_media_in_vliw (FRV_VLIW *vliw)
+{
+  int i;
+
+  for (i = 0; i < vliw->next_slot; ++i)
+    {
+      if (vliw->major[i] < FR550_MAJOR_M_1 || vliw->major[i] > FR550_MAJOR_M_5)
+	continue;
+
+      /* Found a media insn, however, MNOP and MCLRACC don't count.  */
+      if (CGEN_INSN_NUM (vliw->insn[i]) == FRV_INSN_MNOP
+	  || CGEN_INSN_NUM (vliw->insn[i]) == FRV_INSN_MCLRACC_0
+	  || CGEN_INSN_NUM (vliw->insn[i]) == FRV_INSN_MCLRACC_1)
+	continue;
+
+      return 1; /* found one */
+    }
+
+  return 0;
+}
+
+static int
+fr550_find_float_in_vliw (FRV_VLIW *vliw)
+{
+  int i;
+
+  for (i = 0; i < vliw->next_slot; ++i)
+    {
+      if (vliw->major[i] < FR550_MAJOR_F_1 || vliw->major[i] > FR550_MAJOR_F_4)
+	continue;
+
+      /* Found a floating point insn, however, FNOP doesn't count.  */
+      if (CGEN_INSN_NUM (vliw->insn[i]) == FRV_INSN_FNOP)
+	continue;
+
+      return 1; /* found one */
+    }
+
+  return 0;
+}
+
+static int
+fr550_check_insn_major_constraints (
+  FRV_VLIW *vliw, CGEN_ATTR_VALUE_TYPE major, const CGEN_INSN *insn
+)
+{
+  CGEN_ATTR_VALUE_TYPE unit;
+  CGEN_ATTR_VALUE_TYPE slot = (*vliw->current_vliw)[vliw->next_slot];
+  switch (slot)
+    {
+    case UNIT_I2:
+      /* If it's a store, then there must be another store in I1 */
+      unit = CGEN_INSN_ATTR_VALUE (insn, CGEN_INSN_UNIT);
+      if (unit == UNIT_STORE)
+	return find_unit_in_vliw (vliw, UNIT_STORE);
+      break;
+    case UNIT_FM2:
+    case UNIT_FM3:
+      /* Floating point insns other than FNOP in slot f2 or f3 cannot coexist with
+	 media insns.  */
+      if (major >= FR550_MAJOR_F_1 && major <= FR550_MAJOR_F_4
+	  && CGEN_INSN_NUM (insn) != FRV_INSN_FNOP)
+	return ! fr550_find_media_in_vliw (vliw);
+      /* Media insns other than MNOP in slot m2 or m3 cannot coexist with
+	 floating point insns.  */
+      if (major >= FR550_MAJOR_M_1 && major <= FR550_MAJOR_M_5
+	  && CGEN_INSN_NUM (insn) != FRV_INSN_MNOP)
+	return ! fr550_find_float_in_vliw (vliw);
+      /* F-2 in slot f2 or f3 cannot coexist with F-2 or F-4 in slot f1 or f2
+	 respectively.
+       */
+      if (major == FR550_MAJOR_F_2)
+	return ! find_major_in_slot (vliw, FR550_MAJOR_F_2, slot - (UNIT_FM2 - UNIT_FM0))
+	  &&   ! find_major_in_slot (vliw, FR550_MAJOR_F_4, slot - (UNIT_FM2 - UNIT_FM0));
+      /* M-2 or M-5 in slot m2 or m3 cannot coexist with M-2 in slot m1 or m2
+	 respectively.  */
+      if (major == FR550_MAJOR_M_2 || major == FR550_MAJOR_M_5)
+	return ! find_major_in_slot (vliw, FR550_MAJOR_M_2, slot - (UNIT_FM2 - UNIT_FM0));
+      /* M-4 in slot m2 or m3 cannot coexist with M-4 in slot m1 or m2
+	 respectively.  */
+      if (major == FR550_MAJOR_M_4)
+	return ! find_major_in_slot (vliw, FR550_MAJOR_M_4, slot - (UNIT_FM2 - UNIT_FM0));
+      break;
+    default:
+      break;
+    }
+  return 1; /* all ok */
+}
+
+static int
+fr500_check_insn_major_constraints (
+  FRV_VLIW *vliw, CGEN_ATTR_VALUE_TYPE major
+)
+{
+  /* TODO: A table might be faster for some of the more complex instances
+     here.  */
+  switch (major)
+    {
+    case FR500_MAJOR_I_1:
+    case FR500_MAJOR_I_4:
+    case FR500_MAJOR_I_5:
+    case FR500_MAJOR_I_6:
+    case FR500_MAJOR_B_1:
+    case FR500_MAJOR_B_2:
+    case FR500_MAJOR_B_3:
+    case FR500_MAJOR_B_4:
+    case FR500_MAJOR_B_5:
+    case FR500_MAJOR_B_6:
+    case FR500_MAJOR_F_4:
+    case FR500_MAJOR_F_8:
+    case FR500_MAJOR_M_8:
+      return 1; /* OK */
+    case FR500_MAJOR_I_2:
+      /* Cannot coexist with I-3 insn.  */
+      return ! find_major_in_vliw (vliw, FR500_MAJOR_I_3);
+    case FR500_MAJOR_I_3:
+      /* Cannot coexist with I-2 insn.  */
+      return ! find_major_in_vliw (vliw, FR500_MAJOR_I_2);
+    case FR500_MAJOR_F_1:
+    case FR500_MAJOR_F_2:
+      /* Cannot coexist with F-5, F-6, or M-7 insn.  */
+      return ! find_major_in_vliw (vliw, FR500_MAJOR_F_5)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_F_6)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_M_7);
+    case FR500_MAJOR_F_3:
+      /* Cannot coexist with F-7, or M-7 insn.  */
+      return ! find_major_in_vliw (vliw, FR500_MAJOR_F_7)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_M_7);
+    case FR500_MAJOR_F_5:
+      /* Cannot coexist with F-1, F-2, F-6, F-7, or M-7 insn.  */
+      return ! find_major_in_vliw (vliw, FR500_MAJOR_F_1)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_F_2)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_F_6)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_F_7)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_M_7);
+    case FR500_MAJOR_F_6:
+      /* Cannot coexist with F-1, F-2, F-5, F-6, or M-7 insn.  */
+      return ! find_major_in_vliw (vliw, FR500_MAJOR_F_1)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_F_2)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_F_5)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_F_6)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_M_7);
+    case FR500_MAJOR_F_7:
+      /* Cannot coexist with F-3, F-5, F-7, or M-7 insn.  */
+      return ! find_major_in_vliw (vliw, FR500_MAJOR_F_3)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_F_5)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_F_7)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_M_7);
+    case FR500_MAJOR_M_1:
+      /* Cannot coexist with M-7 insn.  */
+      return ! find_major_in_vliw (vliw, FR500_MAJOR_M_7);
+    case FR500_MAJOR_M_2:
+    case FR500_MAJOR_M_3:
+      /* Cannot coexist with M-5, M-6 or M-7 insn.  */
+      return ! find_major_in_vliw (vliw, FR500_MAJOR_M_5)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_M_6)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_M_7);
+    case FR500_MAJOR_M_4:
+      /* Cannot coexist with M-6 insn.  */
+      return ! find_major_in_vliw (vliw, FR500_MAJOR_M_6);
+    case FR500_MAJOR_M_5:
+      /* Cannot coexist with M-2, M-3, M-5, M-6  or M-7 insn.  */
+      return ! find_major_in_vliw (vliw, FR500_MAJOR_M_2)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_M_3)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_M_5)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_M_6)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_M_7);
+    case FR500_MAJOR_M_6:
+      /* Cannot coexist with M-2, M-3, M-4, M-5, M-6  or M-7 insn.  */
+      return ! find_major_in_vliw (vliw, FR500_MAJOR_M_2)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_M_3)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_M_4)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_M_5)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_M_6)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_M_7);
+    case FR500_MAJOR_M_7:
+      /* Cannot coexist with M-1, M-2, M-3, M-5, M-6  or M-7 insn.  */
+      return ! find_major_in_vliw (vliw, FR500_MAJOR_M_1)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_M_2)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_M_3)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_M_5)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_M_6)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_M_7)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_F_1)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_F_2)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_F_3)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_F_5)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_F_6)
+	&&   ! find_major_in_vliw (vliw, FR500_MAJOR_F_7);
+    default:
+      fprintf (stderr, "frv-opc.c, line %d: bad major code, aborting.\n",
+	       __LINE__);
+      abort ();
+      break;
+    }
+  return 1;
+}
+
+static int
+check_insn_major_constraints (
+  FRV_VLIW *vliw, CGEN_ATTR_VALUE_TYPE major, const CGEN_INSN *insn
+)
+{
+  int rc;
+  switch (vliw->mach)
+    {
+    case bfd_mach_fr400:
+      rc = fr400_check_insn_major_constraints (vliw, major);
+      break;
+    case bfd_mach_fr550:
+      rc = fr550_check_insn_major_constraints (vliw, major, insn);
+      break;
+    default:
+      rc = fr500_check_insn_major_constraints (vliw, major);
+      break;
+    }
+  return rc;
+}
+
+/* Add in insn to the VLIW vliw if possible. Return 0 if successful,
+   non-zero otherwise.  */
+int
+frv_vliw_add_insn (FRV_VLIW *vliw, const CGEN_INSN *insn)
+{
+  int index;
+  CGEN_ATTR_VALUE_TYPE major;
+  CGEN_ATTR_VALUE_TYPE unit;
+  VLIW_COMBO *new_vliw;
+
+  if (vliw->constraint_violation || CGEN_INSN_INVALID_P (insn))
+    return 1;
+
+  index = vliw->next_slot;
+  if (index >= FRV_VLIW_SIZE)
+    return 1;
+
+  unit = CGEN_INSN_ATTR_VALUE (insn, CGEN_INSN_UNIT);
+  if (unit == UNIT_NIL)
+    {
+      fprintf (stderr, "frv-opc.c line %d: bad insn unit.\n",
+	       __LINE__);
+      abort (); /* no UNIT specified for this insn in frv.cpu  */
+    }
+
+  switch (vliw->mach)
+    {
+    case bfd_mach_fr400:
+      major = CGEN_INSN_ATTR_VALUE (insn, CGEN_INSN_FR400_MAJOR);
+      break;
+    case bfd_mach_fr550:
+      major = CGEN_INSN_ATTR_VALUE (insn, CGEN_INSN_FR550_MAJOR);
+      break;
+    default:
+      major = CGEN_INSN_ATTR_VALUE (insn, CGEN_INSN_FR500_MAJOR);
+      break;
+    }
+
+  if (index <= 0)
+    {
+      /* Any insn can be added to slot 0.  */
+      while (! match_unit (vliw, unit, (*vliw->current_vliw)[0]))
+	++vliw->current_vliw;
+      vliw->major[0] = major;
+      vliw->insn[0] = insn;
+      vliw->next_slot = 1;
+      return 0;
+    }
+
+  /* If there are already insns in the vliw(s) check to see that
+     this one can be added.  Do this by finding an allowable vliw
+     combination that can accept the new insn.  */
+  if (! (vliw->elf_flags & EF_FRV_NOPACK))
+    {
+      new_vliw = add_next_to_vliw (vliw, unit);
+      if (new_vliw && check_insn_major_constraints (vliw, major, insn))
+	{
+	  vliw->current_vliw = new_vliw;
+	  vliw->major[index] = major;
+	  vliw->insn[index] = insn;
+	  vliw->next_slot++;
+	  return 0;
+	}
+
+      /* The frv machine supports all packing conbinations.  If we fail,
+	 to add the insn, then it could not be handled as if it was the fr500.
+	 Just return as if it was handled ok.  */
+      if (vliw->mach == bfd_mach_frv)
+	return 0;
+    }
+
+  vliw->constraint_violation = 1;
+  return 1;
+}
+
+int
+spr_valid (regno)
+     long regno;
+{
+  if (regno < 0)     return 0;
+  if (regno <= 4095) return 1;
+  return 0;
+}
+/* -- */
+
+/* -- asm.c */
+static const char * parse_ulo16
+  PARAMS ((CGEN_CPU_DESC, const char **, int, unsigned long *));
+static const char * parse_uslo16
+  PARAMS ((CGEN_CPU_DESC, const char **, int, unsigned long *));
+static const char * parse_uhi16
+  PARAMS ((CGEN_CPU_DESC, const char **, int, unsigned long *));
+static long parse_register_number
+  PARAMS ((const char **));
+static const char * parse_spr
+  PARAMS ((CGEN_CPU_DESC, const char **, CGEN_KEYWORD *, long *));
+static const char * parse_d12
+  PARAMS ((CGEN_CPU_DESC, const char **, int, long *));
+static const char * parse_s12
+  PARAMS ((CGEN_CPU_DESC, const char **, int, long *));
+static const char * parse_u12
+  PARAMS ((CGEN_CPU_DESC, const char **, int, long *));
+static const char * parse_even_register
+  PARAMS ((CGEN_CPU_DESC, const char **, CGEN_KEYWORD *, long *));
+static const char * parse_A0
+  PARAMS ((CGEN_CPU_DESC, const char **, int, long *));
+static const char * parse_A1
+  PARAMS ((CGEN_CPU_DESC, const char **, int, long *));
+static const char * parse_A
+  PARAMS ((CGEN_CPU_DESC, const char **, int, long *, long));
+
+static const char *
+parse_ulo16 (cd, strp, opindex, valuep)
+     CGEN_CPU_DESC cd;
+     const char **strp;
+     int opindex;
+     unsigned long *valuep;
+{
+  const char *errmsg;
+  enum cgen_parse_operand_result result_type;
+  bfd_vma value;
+ 
+  if (**strp == '#' || **strp == '%')
+    {
+      if (strncasecmp (*strp + 1, "lo(", 3) == 0)
+	{
+	  *strp += 4;
+	  errmsg = cgen_parse_address (cd, strp, opindex, BFD_RELOC_FRV_LO16,
+				       &result_type, &value);
+	  if (**strp != ')')
+	    return "missing `)'";
+	  ++*strp;
+	  if (errmsg == NULL
+	      && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	    value &= 0xffff;
+	  *valuep = value;
+	  return errmsg;
+	}
+      if (strncasecmp (*strp + 1, "gprello(", 8) == 0)
+	{
+	  *strp += 9;
+	  errmsg = cgen_parse_address (cd, strp, opindex, BFD_RELOC_FRV_GPRELLO,
+				       &result_type, &value);
+	  if (**strp != ')')
+	    return "missing ')'";
+	  ++*strp;
+	  if (errmsg == NULL
+	      && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	    value &= 0xffff;
+	  *valuep = value;
+	  return errmsg;
+	}
+      else if (strncasecmp (*strp + 1, "gotlo(", 6) == 0)
+	{
+	  *strp += 7;
+	  errmsg = cgen_parse_address (cd, strp, opindex, BFD_RELOC_FRV_GOTLO,
+				       &result_type, &value);
+	  if (**strp != ')')
+	    return "missing ')'";
+	  ++*strp;
+	  if (errmsg == NULL
+	      && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	    value &= 0xffff;
+	  *valuep = value;
+	  return errmsg;
+	}
+      else if (strncasecmp (*strp + 1, "gotfuncdesclo(", 14) == 0)
+	{
+	  *strp += 15;
+	  errmsg = cgen_parse_address (cd, strp, opindex,
+				       BFD_RELOC_FRV_FUNCDESC_GOTLO,
+				       &result_type, &value);
+	  if (**strp != ')')
+	    return "missing ')'";
+	  ++*strp;
+	  if (errmsg == NULL
+	      && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	    value &= 0xffff;
+	  *valuep = value;
+	  return errmsg;
+	}
+      else if (strncasecmp (*strp + 1, "gotofflo(", 9) == 0)
+	{
+	  *strp += 10;
+	  errmsg = cgen_parse_address (cd, strp, opindex,
+				       BFD_RELOC_FRV_GOTOFFLO,
+				       &result_type, &value);
+	  if (**strp != ')')
+	    return "missing ')'";
+	  ++*strp;
+	  if (errmsg == NULL
+	      && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	    value &= 0xffff;
+	  *valuep = value;
+	  return errmsg;
+	}
+      else if (strncasecmp (*strp + 1, "gotofffuncdesclo(", 17) == 0)
+	{
+	  *strp += 18;
+	  errmsg = cgen_parse_address (cd, strp, opindex,
+				       BFD_RELOC_FRV_FUNCDESC_GOTOFFLO,
+				       &result_type, &value);
+	  if (**strp != ')')
+	    return "missing ')'";
+	  ++*strp;
+	  if (errmsg == NULL
+	      && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	    value &= 0xffff;
+	  *valuep = value;
+	  return errmsg;
+	}
+    }
+  return cgen_parse_signed_integer (cd, strp, opindex, valuep);
+}
+
+static const char *
+parse_uslo16 (cd, strp, opindex, valuep)
+     CGEN_CPU_DESC cd;
+     const char **strp;
+     int opindex;
+     unsigned long *valuep;
+{
+  const char *errmsg;
+  enum cgen_parse_operand_result result_type;
+  bfd_vma value;
+ 
+  if (**strp == '#' || **strp == '%')
+    {
+      if (strncasecmp (*strp + 1, "lo(", 3) == 0)
+	{
+	  *strp += 4;
+	  errmsg = cgen_parse_address (cd, strp, opindex, BFD_RELOC_FRV_LO16,
+				       &result_type, &value);
+	  if (**strp != ')')
+	    return "missing `)'";
+	  ++*strp;
+	  if (errmsg == NULL
+	      && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	    value &= 0xffff;
+	  *valuep = value;
+	  return errmsg;
+	}
+      else if (strncasecmp (*strp + 1, "gprello(", 8) == 0)
+	{
+	  *strp += 9;
+	  errmsg = cgen_parse_address (cd, strp, opindex, BFD_RELOC_FRV_GPRELLO,
+				       &result_type, &value);
+	  if (**strp != ')')
+	    return "missing ')'";
+	  ++*strp;
+	  if (errmsg == NULL
+	      && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	    value &= 0xffff;
+	  *valuep = value;
+	  return errmsg;
+	}
+      else if (strncasecmp (*strp + 1, "gotlo(", 6) == 0)
+	{
+	  *strp += 7;
+	  errmsg = cgen_parse_address (cd, strp, opindex, BFD_RELOC_FRV_GOTLO,
+				       &result_type, &value);
+	  if (**strp != ')')
+	    return "missing ')'";
+	  ++*strp;
+	  if (errmsg == NULL
+	      && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	    value &= 0xffff;
+	  *valuep = value;
+	  return errmsg;
+	}
+      else if (strncasecmp (*strp + 1, "gotfuncdesclo(", 14) == 0)
+	{
+	  *strp += 15;
+	  errmsg = cgen_parse_address (cd, strp, opindex,
+				       BFD_RELOC_FRV_FUNCDESC_GOTLO,
+				       &result_type, &value);
+	  if (**strp != ')')
+	    return "missing ')'";
+	  ++*strp;
+	  if (errmsg == NULL
+	      && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	    value &= 0xffff;
+	  *valuep = value;
+	  return errmsg;
+	}
+      else if (strncasecmp (*strp + 1, "gotofflo(", 9) == 0)
+	{
+	  *strp += 10;
+	  errmsg = cgen_parse_address (cd, strp, opindex,
+				       BFD_RELOC_FRV_GOTOFFLO,
+				       &result_type, &value);
+	  if (**strp != ')')
+	    return "missing ')'";
+	  ++*strp;
+	  if (errmsg == NULL
+	      && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	    value &= 0xffff;
+	  *valuep = value;
+	  return errmsg;
+	}
+      else if (strncasecmp (*strp + 1, "gotofffuncdesclo(", 17) == 0)
+	{
+	  *strp += 18;
+	  errmsg = cgen_parse_address (cd, strp, opindex,
+				       BFD_RELOC_FRV_FUNCDESC_GOTOFFLO,
+				       &result_type, &value);
+	  if (**strp != ')')
+	    return "missing ')'";
+	  ++*strp;
+	  if (errmsg == NULL
+	      && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	    value &= 0xffff;
+	  *valuep = value;
+	  return errmsg;
+	}
+    }
+  return cgen_parse_unsigned_integer (cd, strp, opindex, valuep);
+}
+
+static const char *
+parse_uhi16 (cd, strp, opindex, valuep)
+     CGEN_CPU_DESC cd;
+     const char **strp;
+     int opindex;
+     unsigned long *valuep;
+{
+  const char *errmsg;
+  enum cgen_parse_operand_result result_type;
+  bfd_vma value;
+ 
+  if (**strp == '#' || **strp == '%')
+    {
+      if (strncasecmp (*strp + 1, "hi(", 3) == 0)
+	{
+	  *strp += 4;
+	  errmsg = cgen_parse_address (cd, strp, opindex, BFD_RELOC_FRV_HI16,
+				       &result_type, &value);
+	  if (**strp != ')')
+	    return "missing `)'";
+	  ++*strp;
+	  if (errmsg == NULL
+	      && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	    value >>= 16;
+	  *valuep = value;
+	  return errmsg;
+	}
+      else if (strncasecmp (*strp + 1, "gprelhi(", 8) == 0)
+	{
+	  *strp += 9;
+	  errmsg = cgen_parse_address (cd, strp, opindex, BFD_RELOC_FRV_GPRELHI,
+				       &result_type, &value);
+	  if (**strp != ')')
+	    return "missing ')'";
+	  ++*strp;
+	  if (errmsg == NULL
+	      && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	    value >>= 16;
+	  *valuep = value;
+	  return errmsg;
+	}
+      else if (strncasecmp (*strp + 1, "gothi(", 6) == 0)
+	{
+	  *strp += 7;
+	  errmsg = cgen_parse_address (cd, strp, opindex, BFD_RELOC_FRV_GOTHI,
+				       &result_type, &value);
+	  if (**strp != ')')
+	    return "missing ')'";
+	  ++*strp;
+	  if (errmsg == NULL
+	      && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	    value >>= 16;
+	  *valuep = value;
+	  return errmsg;
+	}
+      else if (strncasecmp (*strp + 1, "gotfuncdeschi(", 14) == 0)
+	{
+	  *strp += 15;
+	  errmsg = cgen_parse_address (cd, strp, opindex,
+				       BFD_RELOC_FRV_FUNCDESC_GOTHI,
+				       &result_type, &value);
+	  if (**strp != ')')
+	    return "missing ')'";
+	  ++*strp;
+	  if (errmsg == NULL
+	      && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	    value >>= 16;
+	  *valuep = value;
+	  return errmsg;
+	}
+      else if (strncasecmp (*strp + 1, "gotoffhi(", 9) == 0)
+	{
+	  *strp += 10;
+	  errmsg = cgen_parse_address (cd, strp, opindex,
+				       BFD_RELOC_FRV_GOTOFFHI,
+				       &result_type, &value);
+	  if (**strp != ')')
+	    return "missing ')'";
+	  ++*strp;
+	  if (errmsg == NULL
+	      && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	    value >>= 16;
+	  *valuep = value;
+	  return errmsg;
+	}
+      else if (strncasecmp (*strp + 1, "gotofffuncdeschi(", 17) == 0)
+	{
+	  *strp += 18;
+	  errmsg = cgen_parse_address (cd, strp, opindex,
+				       BFD_RELOC_FRV_FUNCDESC_GOTOFFHI,
+				       &result_type, &value);
+	  if (**strp != ')')
+	    return "missing ')'";
+	  ++*strp;
+	  if (errmsg == NULL
+	      && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	    value >>= 16;
+	  *valuep = value;
+	  return errmsg;
+	}
+    }
+  return cgen_parse_unsigned_integer (cd, strp, opindex, valuep);
+}
+
+static long
+parse_register_number (strp)
+     const char **strp;
+{
+  int regno;
+  if (**strp < '0' || **strp > '9')
+    return -1; /* error */
+
+  regno = **strp - '0';
+  for (++*strp; **strp >= '0' && **strp <= '9'; ++*strp)
+    regno = regno * 10 + (**strp - '0');
+
+  return regno;
+}
+
+static const char *
+parse_spr (cd, strp, table, valuep)
+     CGEN_CPU_DESC cd;
+     const char **strp;
+     CGEN_KEYWORD * table;
+     long *valuep;
+{
+  const char *save_strp;
+  long regno;
+
+  /* Check for spr index notation.  */
+  if (strncasecmp (*strp, "spr[", 4) == 0)
+    {
+      *strp += 4;
+      regno = parse_register_number (strp);
+      if (**strp != ']')
+        return "missing `]'";
+      ++*strp;
+      if (! spr_valid (regno))
+	return "Special purpose register number is out of range";
+      *valuep = regno;
+      return NULL;
+    }
+
+  save_strp = *strp;
+  regno = parse_register_number (strp);
+  if (regno != -1)
+    {
+      if (! spr_valid (regno))
+	return "Special purpose register number is out of range";
+      *valuep = regno;
+      return NULL;
+    }
+
+  *strp = save_strp;
+  return cgen_parse_keyword (cd, strp, table, valuep);
+}
+
+static const char *
+parse_d12 (cd, strp, opindex, valuep)
+     CGEN_CPU_DESC cd;
+     const char **strp;
+     int opindex;
+     long *valuep;
+{
+  const char *errmsg;
+  enum cgen_parse_operand_result result_type;
+  bfd_vma value;
+ 
+  /* Check for small data reference.  */
+  if (**strp == '#' || **strp == '%')
+    {
+      if (strncasecmp (*strp + 1, "gprel12(", 8) == 0)
+        {
+          *strp += 9;
+          errmsg = cgen_parse_address (cd, strp, opindex, BFD_RELOC_FRV_GPREL12,
+                                       &result_type, &value);
+          if (**strp != ')')
+            return "missing `)'";
+          ++*strp;
+          *valuep = value;
+          return errmsg;
+        }
+      else if (strncasecmp (*strp + 1, "got12(", 6) == 0)
+	{
+	  *strp += 7;
+	  errmsg = cgen_parse_address (cd, strp, opindex, BFD_RELOC_FRV_GOT12,
+				       &result_type, &value);
+	  if (**strp != ')')
+	    return "missing ')'";
+	  ++*strp;
+	  *valuep = value;
+	  return errmsg;
+	}
+      else if (strncasecmp (*strp + 1, "gotfuncdesc12(", 14) == 0)
+	{
+	  *strp += 15;
+	  errmsg = cgen_parse_address (cd, strp, opindex,
+				       BFD_RELOC_FRV_FUNCDESC_GOT12,
+				       &result_type, &value);
+	  if (**strp != ')')
+	    return "missing ')'";
+	  ++*strp;
+	  *valuep = value;
+	  return errmsg;
+	}
+      else if (strncasecmp (*strp + 1, "gotoff12(", 9) == 0)
+	{
+	  *strp += 10;
+	  errmsg = cgen_parse_address (cd, strp, opindex,
+				       BFD_RELOC_FRV_GOTOFF12,
+				       &result_type, &value);
+	  if (**strp != ')')
+	    return "missing ')'";
+	  ++*strp;
+	  *valuep = value;
+	  return errmsg;
+	}
+      else if (strncasecmp (*strp + 1, "gotofffuncdesc12(", 17) == 0)
+	{
+	  *strp += 18;
+	  errmsg = cgen_parse_address (cd, strp, opindex,
+				       BFD_RELOC_FRV_FUNCDESC_GOTOFF12,
+				       &result_type, &value);
+	  if (**strp != ')')
+	    return "missing ')'";
+	  ++*strp;
+	  *valuep = value;
+	  return errmsg;
+	}
+    }
+  return cgen_parse_signed_integer (cd, strp, opindex, valuep);
+}
+
+static const char *
+parse_s12 (cd, strp, opindex, valuep)
+     CGEN_CPU_DESC cd;
+     const char **strp;
+     int opindex;
+     long *valuep;
+{
+  const char *errmsg;
+  enum cgen_parse_operand_result result_type;
+  bfd_vma value;
+ 
+  /* Check for small data reference.  */
+  if ((**strp == '#' || **strp == '%')
+      && strncasecmp (*strp + 1, "gprel12(", 8) == 0)
+    {
+      *strp += 9;
+      errmsg = cgen_parse_address (cd, strp, opindex, BFD_RELOC_FRV_GPREL12,
+                                    &result_type, &value);
+      if (**strp != ')')
+        return "missing `)'";
+      ++*strp;
+      *valuep = value;
+      return errmsg;
+    }
+  else if ((**strp == '#' || **strp == '%')
+	   && strncasecmp (*strp + 1, "got12(", 6) == 0)
+    {
+      *strp += 7;
+      errmsg = cgen_parse_address (cd, strp, opindex, BFD_RELOC_FRV_GOT12,
+				   &result_type, &value);
+      if (**strp != ')')
+	return "missing ')'";
+      ++*strp;
+      *valuep = value;
+      return errmsg;
+    }
+  else if ((**strp == '#' || **strp == '%')
+	   && strncasecmp (*strp + 1, "gotfuncdesc12(", 14) == 0)
+    {
+      *strp += 15;
+      errmsg = cgen_parse_address (cd, strp, opindex,
+				   BFD_RELOC_FRV_FUNCDESC_GOT12,
+				   &result_type, &value);
+      if (**strp != ')')
+	return "missing ')'";
+      ++*strp;
+      *valuep = value;
+      return errmsg;
+    }
+  else if ((**strp == '#' || **strp == '%')
+	   && strncasecmp (*strp + 1, "gotoff12(", 9) == 0)
+    {
+      *strp += 10;
+      errmsg = cgen_parse_address (cd, strp, opindex, BFD_RELOC_FRV_GOTOFF12,
+				   &result_type, &value);
+      if (**strp != ')')
+	return "missing ')'";
+      ++*strp;
+      *valuep = value;
+      return errmsg;
+    }
+  else if ((**strp == '#' || **strp == '%')
+	   && strncasecmp (*strp + 1, "gotofffuncdesc12(", 17) == 0)
+    {
+      *strp += 18;
+      errmsg = cgen_parse_address (cd, strp, opindex,
+				   BFD_RELOC_FRV_FUNCDESC_GOTOFF12,
+				   &result_type, &value);
+      if (**strp != ')')
+	return "missing ')'";
+      ++*strp;
+      *valuep = value;
+      return errmsg;
+    }
+  else
+    {
+      if (**strp == '#')
+        ++*strp;
+      return cgen_parse_signed_integer (cd, strp, opindex, valuep);
+    }
+}
+
+static const char *
+parse_u12 (cd, strp, opindex, valuep)
+     CGEN_CPU_DESC cd;
+     const char **strp;
+     int opindex;
+     long *valuep;
+{
+  const char *errmsg;
+  enum cgen_parse_operand_result result_type;
+  bfd_vma value;
+ 
+  /* Check for small data reference.  */
+  if ((**strp == '#' || **strp == '%')
+      && strncasecmp (*strp + 1, "gprel12(", 8) == 0)
+    {
+      *strp += 9;
+      errmsg = cgen_parse_address (cd, strp, opindex, BFD_RELOC_FRV_GPRELU12,
+                                    &result_type, &value);
+      if (**strp != ')')
+        return "missing `)'";
+      ++*strp;
+      *valuep = value;
+      return errmsg;
+    }
+  else
+    {
+      if (**strp == '#')
+        ++*strp;
+      return cgen_parse_signed_integer (cd, strp, opindex, valuep);
+    }
+}
+
+static const char *
+parse_A (cd, strp, opindex, valuep, A)
+     CGEN_CPU_DESC cd;
+     const char **strp;
+     int opindex;
+     long *valuep;
+     long A;
+{
+  const char *errmsg;
+ 
+  if (**strp == '#')
+    ++*strp;
+
+  errmsg = cgen_parse_unsigned_integer (cd, strp, opindex, valuep);
+  if (errmsg)
+    return errmsg;
+
+  if (*valuep != A)
+    return "Value of A operand must be 0 or 1";
+
+  return NULL;
+}
+
+static const char *
+parse_A0 (cd, strp, opindex, valuep)
+     CGEN_CPU_DESC cd;
+     const char **strp;
+     int opindex;
+     long *valuep;
+{
+  return parse_A (cd, strp, opindex, valuep, 0);
+}
+
+static const char *
+parse_A1 (cd, strp, opindex, valuep)
+     CGEN_CPU_DESC cd;
+     const char **strp;
+     int opindex;
+     long *valuep;
+{
+  return parse_A (cd, strp, opindex, valuep, 1);
+}
+
+static const char *
+parse_even_register (cd, strP, tableP, valueP)
+     CGEN_CPU_DESC  cd;
+     const char **  strP;
+     CGEN_KEYWORD * tableP;
+     long *         valueP;
+{
+  const char * errmsg;
+  const char * saved_star_strP = * strP;
+
+  errmsg = cgen_parse_keyword (cd, strP, tableP, valueP);
+
+  if (errmsg == NULL && ((* valueP) & 1))
+    {
+      errmsg = _("register number must be even");
+      * strP = saved_star_strP;
+    }
+
+  return errmsg;
+}
+/* -- */
+
+/* -- dis.c */
+static void print_spr
+  PARAMS ((CGEN_CPU_DESC, PTR, CGEN_KEYWORD *, long, unsigned));
+static void print_hi
+  PARAMS ((CGEN_CPU_DESC, PTR, long, unsigned, bfd_vma, int));
+static void print_lo
+  PARAMS ((CGEN_CPU_DESC, PTR, long, unsigned, bfd_vma, int));
+
+static void
+print_spr (cd, dis_info, names, regno, attrs)
+     CGEN_CPU_DESC cd;
+     PTR dis_info;
+     CGEN_KEYWORD *names;
+     long regno;
+     unsigned int attrs;
+{
+  /* Use the register index format for any unnamed registers.  */
+  if (cgen_keyword_lookup_value (names, regno) == NULL)
+    {
+      disassemble_info *info = (disassemble_info *) dis_info;
+      (*info->fprintf_func) (info->stream, "spr[%ld]", regno);
+    }
+  else
+    print_keyword (cd, dis_info, names, regno, attrs);
+}
+
+static void
+print_hi (cd, dis_info, value, attrs, pc, length)
+     CGEN_CPU_DESC cd ATTRIBUTE_UNUSED;
+     PTR dis_info;
+     long value;
+     unsigned int attrs ATTRIBUTE_UNUSED;
+     bfd_vma pc ATTRIBUTE_UNUSED;
+     int length ATTRIBUTE_UNUSED;
+{
+  disassemble_info *info = (disassemble_info *) dis_info;
+  if (value)
+    (*info->fprintf_func) (info->stream, "0x%lx", value);
+  else
+    (*info->fprintf_func) (info->stream, "hi(0x%lx)", value);
+}
+
+static void
+print_lo (cd, dis_info, value, attrs, pc, length)
+     CGEN_CPU_DESC cd ATTRIBUTE_UNUSED;
+     PTR dis_info;
+     long value;
+     unsigned int attrs ATTRIBUTE_UNUSED;
+     bfd_vma pc ATTRIBUTE_UNUSED;
+     int length ATTRIBUTE_UNUSED;
+{
+  disassemble_info *info = (disassemble_info *) dis_info;
+  if (value)
+    (*info->fprintf_func) (info->stream, "0x%lx", value);
+  else
+    (*info->fprintf_func) (info->stream, "lo(0x%lx)", value);
+}
+
+/* -- */

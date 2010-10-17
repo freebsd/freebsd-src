@@ -1,0 +1,172 @@
+@c Copyright 2000, 2003 Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+@ifset GENERIC
+@page
+@node i860-Dependent
+@chapter Intel i860 Dependent Features
+@end ifset
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter Intel i860 Dependent Features
+@end ifclear
+
+@ignore
+@c FIXME: This is basically a stub for i860. There is tons more information
+that I will add later (jle@cygnus.com).
+@end ignore
+
+@cindex i860 support
+@menu
+* Notes-i860::                  i860 Notes
+* Options-i860::                i860 Command-line Options
+* Directives-i860::             i860 Machine Directives
+* Opcodes for i860::            i860 Opcodes
+@end menu
+
+@node Notes-i860
+@section i860 Notes 
+This is a fairly complete i860 assembler which is compatible with the
+UNIX System V/860 Release 4 assembler. However, it does not currently
+support SVR4 PIC (i.e., @code{@@GOT, @@GOTOFF, @@PLT}).
+
+Like the SVR4/860 assembler, the output object format is ELF32. Currently,
+this is the only supported object format. If there is sufficient interest,
+other formats such as COFF may be implemented.
+
+Both the Intel and AT&T/SVR4 syntaxes are supported, with the latter
+being the default.  One difference is that AT&T syntax requires the '%'
+prefix on register names while Intel syntax does not.  Another difference
+is in the specification of relocatable expressions.  The Intel syntax
+is @code{ha%expression} whereas the SVR4 syntax is @code{[expression]@@ha}
+(and similarly for the "l" and "h" selectors).
+@node Options-i860
+@section i860 Command-line Options
+@subsection SVR4 compatibility options 
+@table @code
+@item -V
+Print assembler version.
+@item -Qy
+Ignored.
+@item -Qn
+Ignored.
+@end table
+@subsection Other options 
+@table @code
+@item -EL
+Select little endian output (this is the default).
+@item -EB
+Select big endian output. Note that the i860 always reads instructions
+as little endian data, so this option only effects data and not
+instructions.
+@item -mwarn-expand
+Emit a warning message if any pseudo-instruction expansions occurred.
+For example, a @code{or} instruction with an immediate larger than 16-bits
+will be expanded into two instructions. This is a very undesirable feature to
+rely on, so this flag can help detect any code where it happens. One
+use of it, for instance, has been to find and eliminate any place
+where @code{gcc} may emit these pseudo-instructions.
+@item -mxp
+Enable support for the i860XP instructions and control registers.  By default,
+this option is disabled so that only the base instruction set (i.e., i860XR)
+is supported.
+@item -mintel-syntax
+The i860 assembler defaults to AT&T/SVR4 syntax.  This option enables the
+Intel syntax.
+@end table
+
+@node Directives-i860
+@section i860 Machine Directives
+
+@cindex machine directives, i860
+@cindex i860 machine directives
+
+@table @code
+@cindex @code{dual} directive, i860
+@item .dual
+Enter dual instruction mode. While this directive is supported, the
+preferred way to use dual instruction mode is to explicitly code
+the dual bit with the @code{d.} prefix.
+@end table
+
+@table @code
+@cindex @code{enddual} directive, i860
+@item .enddual
+Exit dual instruction mode. While this directive is supported, the
+preferred way to use dual instruction mode is to explicitly code
+the dual bit with the @code{d.} prefix.
+@end table
+
+@table @code
+@cindex @code{atmp} directive, i860
+@item .atmp
+Change the temporary register used when expanding pseudo operations. The
+default register is @code{r31}.
+@end table
+
+The @code{.dual}, @code{.enddual}, and @code{.atmp} directives are available only in the Intel syntax mode.
+
+Both syntaxes allow for the standard @code{.align} directive.  However,
+the Intel syntax additionally allows keywords for the alignment
+parameter: "@code{.align type}", where `type' is one of @code{.short}, @code{.long},
+@code{.quad}, @code{.single}, @code{.double} representing alignments of 2, 4,
+16, 4, and 8, respectively.
+
+@node Opcodes for i860
+@section i860 Opcodes
+
+@cindex opcodes, i860
+@cindex i860 opcodes
+All of the Intel i860XR and i860XP machine instructions are supported. Please see
+either @emph{i860 Microprocessor Programmer's Reference Manual} or @emph{i860 Microprocessor Architecture} for more information.
+@subsection Other instruction support (pseudo-instructions)
+For compatibility with some other i860 assemblers, a number of
+pseudo-instructions are supported. While these are supported, they are
+a very undesirable feature that should be avoided -- in particular, when
+they result in an expansion to multiple actual i860 instructions. Below
+are the pseudo-instructions that result in expansions.
+@itemize @bullet
+@item Load large immediate into general register:
+
+The pseudo-instruction @code{mov imm,%rn} (where the immediate does
+not fit within a signed 16-bit field) will be expanded into:
+@smallexample
+orh large_imm@@h,%r0,%rn
+or large_imm@@l,%rn,%rn
+@end smallexample
+@item Load/store with relocatable address expression:
+
+For example, the pseudo-instruction @code{ld.b addr_exp(%rx),%rn} 
+will be expanded into:
+@smallexample
+orh addr_exp@@ha,%rx,%r31
+ld.l addr_exp@@l(%r31),%rn
+@end smallexample
+
+The analogous expansions apply to @code{ld.x, st.x, fld.x, pfld.x, fst.x}, and @code{pst.x} as well.
+@item Signed large immediate with add/subtract:
+
+If any of the arithmetic operations @code{adds, addu, subs, subu} are used
+with an immediate larger than 16-bits (signed), then they will be expanded.
+For instance, the pseudo-instruction @code{adds large_imm,%rx,%rn} expands to:
+@smallexample 
+orh large_imm@@h,%r0,%r31
+or large_imm@@l,%r31,%r31
+adds %r31,%rx,%rn
+@end smallexample
+@item Unsigned large immediate with logical operations:
+
+Logical operations (@code{or, andnot, or, xor}) also result in expansions.
+The pseudo-instruction @code{or large_imm,%rx,%rn} results in:
+@smallexample
+orh large_imm@@h,%rx,%r31
+or large_imm@@l,%r31,%rn
+@end smallexample
+
+Similarly for the others, except for @code{and} which expands to:
+@smallexample
+andnot (-1 - large_imm)@@h,%rx,%r31
+andnot (-1 - large_imm)@@l,%r31,%rn
+@end smallexample
+@end itemize
+

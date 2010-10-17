@@ -1,0 +1,15 @@
+#source: tlssunpic32.s
+#source: tlspic.s
+#as: --32 -K PIC
+#ld: -shared -melf32_sparc
+#objdump: -sj.got
+#target: sparc*-*-*
+
+.*: +file format elf32-sparc
+
+Contents of section .got:
+ 12138 00012060 00000000 00000020 00000000  .*
+ 12148 00000000 00000000 00000000 00000000  .*
+ 12158 00000060 00000000 00000000 00000000  .*
+ 12168 00000000 00000000 00000000 00000000  .*
+ 12178 00000000 00000040 00000000  .*

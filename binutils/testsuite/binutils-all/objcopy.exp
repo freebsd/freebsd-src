@@ -1,0 +1,650 @@
+#   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
+#   Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+# Please email any bugs, comments, and/or additions to this file to:
+# bug-dejagnu@prep.ai.mit.edu
+
+# Written by Ian Lance Taylor <ian@cygnus.com>
+
+if ![is_remote host] {
+    if {[which $OBJCOPY] == 0} then {
+        perror "$OBJCOPY does not exist"
+        return
+    }
+}
+
+send_user "Version [binutil_version $OBJCOPY]"
+
+if {![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o]} then {
+    perror "unresolved 1"
+    unresolved "objcopy (simple copy)"
+    return
+}
+
+if ![is_remote host] {
+    set tempfile tmpdir/bintest.o;
+    set copyfile tmpdir/copy;
+} else {
+    set tempfile [remote_download host tmpdir/bintest.o]
+    set copyfile copy
+}
+
+# Test that objcopy does not modify a file when copying it.
+
+set got [binutils_run $OBJCOPY "$OBJCOPYFLAGS $tempfile ${copyfile}.o"]
+
+if ![string match "" $got] then {
+    fail "objcopy (simple copy)"
+} else {
+    send_log "cmp $tempfile ${copyfile}.o\n"
+    verbose "cmp $tempfile ${copyfile}.o"
+    if [is_remote host] {
+	set src1 tmpdir/bintest.o
+	set src2 tmpdir/copy.o
+	remote_upload host $tempfile $src1;
+	remote_upload host ${copyfile}.o $src2;
+    } else {
+	set src1 ${tempfile}
+	set src2 ${copyfile}.o
+    }
+    set status [remote_exec build cmp "${src1} ${src2}"];
+    set exec_output [lindex $status 1];
+    set exec_output [prune_warnings $exec_output]
+
+    # On some systems the result of objcopy will not be identical.
+    # Usually this is just because gas isn't using bfd to write the files
+    # in the first place, and may order things a little differently.
+    # Those systems should use setup_xfail here.
+
+    setup_xfail "a29k-*"
+    setup_xfail "h8300-*-rtems*" "h8300-*-coff"
+    setup_xfail "h8500-*-rtems*" "h8500-*-coff"
+    setup_xfail "hppa*-*-*"
+    setup_xfail "i960-*"
+    setup_xfail "m68*-*-*coff" "m68*-*-hpux*" "m68*-*-lynxos*"
+    setup_xfail "m68*-*-sysv*" "m68*-apple-aux*"
+    setup_xfail "m8*-*"
+    setup_xfail "or32-*-rtems*" "or32-*-coff"
+    setup_xfail "sh-*-coff*" "sh-*-rtems*" 
+    setup_xfail "tic4x-*-*" "tic80-*-*" "w65-*" "z8*-*"
+
+    clear_xfail "hppa*64*-*-hpux*" "hppa*-*-linux*" "hppa*-*-lites*"
+    clear_xfail "hppa*-*-*n*bsd*" "hppa*-*-rtems*" "*-*-*elf*" "m68*-*-sysv4*"
+
+    if [string match "" $exec_output] then {
+	pass "objcopy (simple copy)"
+    } else {
+	send_log "$exec_output\n"
+	verbose "$exec_output" 1
+
+	# On OSF/1, this succeeds with gas and fails with /bin/as.
+	setup_xfail "alpha*-*-osf*"
+
+	# This fails for COFF i960-vxworks targets.
+	setup_xfail "i960-*-vxworks*"
+
+	fail "objcopy (simple copy)"
+    }
+}
+
+# Test generating S records.
+
+# We make the srec filename 8.3 compatible. Note that the header string
+# matched against depends on the name of the file. Ugh.
+
+if [is_remote host] {
+    set srecfile copy.sre
+    set header_string S00B0000636F70792E737265C1
+} else {
+    set srecfile ${copyfile}.srec
+    set header_string S0130000746D706469722F636F70792E7372656397
+}
+
+set got [binutils_run $OBJCOPY "$OBJCOPYFLAGS -O srec $tempfile ${srecfile}"]
+
+if ![string match "" $got] then {
+    fail "objcopy -O srec"
+} else {
+    if [is_remote host] {
+	remote_upload host ${srecfile} tmpdir/copy.srec;
+	set srecfile tmpdir/copy.srec;
+    }
+    set file [open ${srecfile} r]
+
+    # The first S record is fixed by the file name we are using.
+    gets $file line
+    send_log "$line\n"
+    verbose $line
+    if ![regexp "$header_string.*" $line] {
+	send_log "bad header\n"
+	fail "objcopy -O srec"
+    } else {
+	while {[gets $file line] != -1 \
+	       && [regexp "^S\[123\]\[0-9a-fA-F\]+\[\r\n\]*$" $line]} {
+	    send_log "$line\n"
+	    verbose $line
+	    set line "**EOF**"
+	}
+	send_log "$line\n"
+	verbose $line
+	if ![regexp "^S\[789\]\[0-9a-fA-F\]+\[\r\n\]*$" $line] then {
+	    send_log "bad trailer\n"
+	    fail "objcopy -O srec"
+	} else {
+	    if {[gets $file line] != -1} then {
+		send_log "garbage at end\n"
+		send_log "$line\n"
+		verbose $line
+		fail "objcopy -O srec"
+	    } else {
+		set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -f ${copyfile}.srec"]
+		if ![regexp "file format srec" $got] then {
+		    send_log "objdump failed\n"
+		    fail "objcopy -O srec"
+		} else {
+		    pass "objcopy -O srec"
+		}
+	    }
+	}
+    }
+
+    close $file
+}
+
+# Test setting and adjusting the start address.  We only test this
+# while generating S records, because we may not be able to set the
+# start address for other object file formats, and the S record case
+# is the only useful one anyhow.
+
+set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -f $tempfile"]
+if ![regexp "start address (\[0-9a-fA-FxX\]+)" $got all origstart] then {
+    perror "objdump can not recognize bintest.o"
+    set origstart ""
+} else {
+    set got [binutils_run $OBJCOPY "$OBJCOPYFLAGS -O srec --set-start 0x7654 $tempfile ${copyfile}.srec"]
+    if ![string match "" $got] then {
+	fail "objcopy --set-start"
+    } else {
+	set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -f ${copyfile}.srec"]
+	if ![regexp "file format srec.*start address (\[0-9a-fA-FxX\]+)" $got all srecstart] then {
+	    fail "objcopy --set-start"
+	} else {
+	    if {$srecstart != 0x7654} then {
+		send_log "$srecstart != 0x7654\n"
+		fail "objcopy --set-start"
+	    } else {
+		pass "objcopy --set-start"
+	    }
+	}
+    }
+
+    set got [binutils_run $OBJCOPY "$OBJCOPYFLAGS -O srec --adjust-start 0x123 $tempfile ${copyfile}.srec"]
+    if ![string match "" $got] then {
+	fail "objcopy --adjust-start"
+    } else {
+	set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -f ${copyfile}.srec"]
+	if ![regexp "file format srec.*start address (\[0-9a-fA-FxX\]+)" $got all srecstart] then {
+	    fail "objcopy --adjust-start"
+	} else {
+	    if {$srecstart != $origstart + 0x123} then {
+		send_log "$srecstart != $origstart + 0x123\n"
+		fail "objcopy --adjust-start"
+	    } else {
+		pass "objcopy --adjust-start"
+	    }
+	}
+    }
+}
+
+# Test adjusting the overall VMA, and adjusting the VMA of a
+# particular section.  We again only test this when generating S
+# records.
+
+set low ""
+set lowname ""
+
+set headers [binutils_run $OBJDUMP "$OBJDUMPFLAGS -h $tempfile"]
+
+set headers_regexp "\[ 	0-9\]+(\[^ 	\]+)\[ 	\]*(\[0-9a-fA-F\]+)\[ 	\]+\[0-9a-fA-F\]+\[ 	\]+(\[0-9a-fA-F\]+)\[ 	\]+\[0-9a-fA-F\]+\[ 	\]+2\[*\]\[*\]\[0-9\]+(.*)"
+
+set got $headers
+while {[regexp $headers_regexp $got all name size vma rest]} {
+    set vma 0x$vma
+    set size 0x$size
+    if {$size != 0} {
+	if {$low == "" || $vma < $low} {
+            set low $vma
+	    set lowname $name
+	}
+    }
+    set got $rest
+}
+
+if {$low == "" || $origstart == ""} then {
+    perror "objdump can not recognize bintest.o"
+} else {
+    set got [binutils_run $OBJCOPY "$OBJCOPYFLAGS -O srec --adjust-vma 0x123 $tempfile ${copyfile}.srec"]
+    if ![string match "" $got] then {
+        fail "objcopy --adjust-vma"
+    } else {
+	set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -fh ${copyfile}.srec"]
+	set want "file format srec.*start address\[ 	\]*(\[0-9a-fA-FxX\]+).*sec1\[ 	\]+\[0-9a-fA-F\]+\[ 	\]+(\[0-9a-fA-F\]+)"
+	if ![regexp $want $got all start vma] then {
+	    fail "objcopy --adjust-vma"
+	} else {
+	    set vma 0x$vma
+	    if {$vma != $low + 0x123} then {
+		send_log "$vma != $low + 0x123\n"
+		fail "objcopy --adjust-vma"
+	    } else {
+		if {$start != $origstart + 0x123} then {
+		    send_log "$start != $origstart + 0x123\n"
+		    fail "objcopy --adjust-vma"
+		} else {
+		    pass "objcopy --adjust-vma"
+		}
+	    }
+	}
+    }
+
+    set arg ""
+    set got $headers
+    while {[regexp $headers_regexp $got all name size vma rest]} {
+	set vma 0x$vma
+	if {$vma == $low} then {
+	    set arg "$arg --adjust-section-vma $name+4"
+	}
+	set got $rest
+    }
+
+    set got [binutils_run $OBJCOPY "$OBJCOPYFLAGS -O srec $arg $tempfile ${copyfile}.srec"]
+    if ![string match "" $got] then {
+	fail "objcopy --adjust-section-vma +"
+    } else {
+	set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -h ${copyfile}.srec"]
+	set want "file format srec.*sec1\[ 	\]+\[0-9a-fA-F\]+\[ 	\]+(\[0-9a-fA-F\]+)"
+	if ![regexp $want $got all vma] then {
+	    fail "objcopy --adjust-section-vma +"
+	} else {
+	    set vma 0x$vma
+	    if {$vma != $low + 4} then {
+		send_log "$vma != $low + 4\n"
+		fail "objcopy --adjust-section-vma +"
+	    } else {
+		pass "objcopy --adjust-section-vma +"
+	    }
+	}
+    }
+
+    regsub -all "\\+4" $arg "=[expr $low + 4]" argeq
+    set got [binutils_run $OBJCOPY "$OBJCOPYFLAGS -O srec $argeq $tempfile ${copyfile}.srec"]
+    if ![string match "" $got] then {
+	fail "objcopy --adjust-section-vma ="
+    } else {
+	set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -h ${copyfile}.srec"]
+	set want "file format srec.*sec1\[ 	\]+\[0-9a-fA-F\]+\[ 	\]+(\[0-9a-fA-F\]+)"
+	if ![regexp $want $got all vma] then {
+	    fail "objcopy --adjust-section-vma ="
+	} else {
+	    set vma 0x$vma
+	    if {$vma != $low + 4} then {
+		send_log "$vma != $low + 4\n"
+		fail "objcopy --adjust-section-vma ="
+	    } else {
+		pass "objcopy --adjust-section-vma ="
+	    }
+	}
+    }
+}
+
+# Test stripping an object.
+
+proc strip_test { } {
+    global AR
+    global CC
+    global STRIP
+    global STRIPFLAGS
+    global NM
+    global NMFLAGS
+    global srcdir
+    global subdir
+
+    set test "strip"
+
+    if { [target_compile $srcdir/$subdir/testprog.c tmpdir/testprog.o object debug] != "" } {
+	untested $test
+	return
+    }
+
+    if [is_remote host] {
+	set archive libstrip.a
+	set objfile [remote_download host tmpdir/testprog.o];
+	remote_file host delete $archive
+    } else {
+	set archive tmpdir/libstrip.a
+	set objfile tmpdir/testprog.o
+    }
+
+    remote_file build delete tmpdir/libstrip.a
+
+    set exec_output [binutils_run $AR "rc $archive ${objfile}"]
+    if ![string match "" $exec_output] {
+	fail $test
+	return
+    }
+
+    set exec_output [binutils_run $STRIP "$STRIPFLAGS $archive"]
+    if ![string match "" $exec_output] {
+	fail $test
+	return
+    }
+
+    if { [target_compile $srcdir/$subdir/testprog.c tmpdir/testprog.o object debug] != "" } {
+	untested $test
+	return
+    }
+
+    if [is_remote host] {
+	set objfile [remote_download host tmpdir/testprog.o];
+    } else {
+	set objfile tmpdir/testprog.o
+    }
+
+    set exec_output [binutils_run $STRIP "$STRIPFLAGS $objfile"]
+    if ![string match "" $exec_output] {
+	fail $test
+	return
+    }
+
+    set exec_output [binutils_run $NM "-a $NMFLAGS $objfile"]
+    if ![string match "*: no symbols*" $exec_output] {
+	fail $test
+	return
+    }
+
+    pass $test
+}
+
+strip_test
+
+# Test stripping an object file with saving a symbol
+
+proc strip_test_with_saving_a_symbol { } {
+    global CC
+    global STRIP
+    global STRIPFLAGS
+    global NM
+    global NMFLAGS
+    global srcdir
+    global subdir
+
+    set test "strip with saving a symbol"
+
+    if { [target_compile $srcdir/$subdir/testprog.c tmpdir/testprog.o object debug] != "" } {
+	untested $test
+	return
+    }
+
+    if [is_remote host] {
+	set objfile [remote_download host tmpdir/testprog.o];
+    } else {
+	set objfile tmpdir/testprog.o
+    }
+
+    set exec_output [binutils_run $STRIP "$STRIPFLAGS -K main -K _main $objfile"]
+    if ![string match "" $exec_output] {
+	fail $test
+	return
+    }
+
+    set exec_output [binutils_run $NM "$NMFLAGS $objfile"]
+    if {![regexp {^([0-9a-fA-F]+)?[ ]+[TD] main} $exec_output] \
+         && ![regexp {^([0-9a-fA-F]+)?[ ]+T _main} $exec_output]} {
+	fail $test
+	return
+    }
+
+    pass $test
+}
+
+strip_test_with_saving_a_symbol
+
+# Build a final executable.
+
+if { [istarget *-*-cygwin] || [istarget *-*-mingw32] } {
+    set test_prog "testprog.exe"
+} else {
+    set test_prog "testprog"
+}
+
+proc copy_setup { } {
+    global srcdir
+    global subdir
+    global gcc_gas_flag
+    global test_prog
+    
+    set res [build_wrapper testglue.o];
+    set flags { debug };
+    
+    if { $res != "" } {
+	lappend flags "additional_flags=[lindex $res 1]";
+	set add_libs "testglue.o";
+    } else {
+	set add_libs "";
+    }
+
+    if { [istarget *-*-linux*] } {
+	foreach i $gcc_gas_flag {
+	    set flags "additional_flags=$i $flags"
+	}
+    }
+    if { [target_compile "$srcdir/$subdir/testprog.c $add_libs" tmpdir/$test_prog executable $flags]  != "" } {
+	return 2
+    }
+
+    set result [remote_load target tmpdir/$test_prog];
+    set status [lindex $result 0];
+
+    if { $status != "pass"  } {
+	perror "unresolved setup, status = $status"
+	return 3
+    }
+
+    return 0
+}
+
+# Test copying an executable.
+
+proc copy_executable { prog flags test1 test2 } {
+    global test_prog
+
+    if [is_remote host] {
+	set testfile [remote_download host tmpdir/$test_prog];
+	set testcopy copyprog
+    } else {
+	set testfile tmpdir/$test_prog
+	set testcopy tmpdir/copyprog
+    }
+    remote_file host delete $testcopy;
+
+    set exec_output [binutils_run $prog "$flags $testfile $testcopy"]
+
+    if ![string match "" $exec_output] {
+	fail $test1
+	fail $test2
+	return
+    }
+
+    if [is_remote host] {
+	remote_upload host $testcopy tmpdir/copyprog
+    }
+
+    set status [remote_exec build "cmp" "tmpdir/$test_prog tmpdir/copyprog"]
+    set exec_output [lindex $status 1];
+
+    if [string match "" $exec_output] then {
+	pass $test1
+    } else {
+	send_log "$exec_output\n"
+	verbose "$exec_output"
+
+	# This will fail for many reasons.  For example, it will most
+	# likely fail if a non-GNU linker is used.  Therefore, we do
+	# not insist that it pass.  If you are using an assembler and
+	# linker based on the same BFD as objcopy, it is worth
+	# investigating to see why this failure occurs.  If we are
+	# cross compiling, we assume that a GNU linker is being used,
+	# and expect it to succeed.
+	if {[isnative]} then {
+	    setup_xfail "*-*-*"
+	}
+
+	# This also fails for mips*-*-elf targets.  See elf32-mips.c
+	# mips_elf_sym_is_global.
+	setup_xfail "mips*-*-elf"
+
+	setup_xfail "*arm*-*-coff"
+	setup_xfail "xscale-*-coff"
+	setup_xfail "arm*-*-pe"
+	setup_xfail "thumb*-*-coff"
+	setup_xfail "thumb*-*-pe"
+    
+	fail $test1
+    }
+
+    set output [remote_load target tmpdir/copyprog]
+    set status [lindex $output 0];
+    if { $status != "pass" } {
+	fail $test2
+    } else {
+	pass $test2
+    }
+}
+
+# Test stripping an executable
+
+proc strip_executable { prog flags test } {
+    global NM
+    global NMFLAGS
+
+    remote_download build tmpdir/copyprog tmpdir/striprog
+    if [is_remote host] {
+	set copyfile [remote_download host tmpdir/striprog];
+    } else {
+	set copyfile tmpdir/striprog
+    }
+
+    set exec_output [binutils_run $prog "$flags ${copyfile}"]
+    if ![string match "" $exec_output] {
+	fail $test
+	return
+    }
+
+    if [is_remote host] {
+	remote_upload host ${copyfile} tmpdir/striprog;
+    }
+
+    set result [remote_load target tmpdir/striprog]
+    set status [lindex $result 0];
+    if { $status != "pass" } {
+	fail $test
+        return
+    }
+
+    set exec_output [binutils_run $NM "$NMFLAGS ${copyfile}"]
+    if ![string match "*: no symbols*" $exec_output] {
+	fail $test
+	return
+    }
+    pass $test
+}
+
+# Test stripping an executable with saving a symbol
+
+proc strip_executable_with_saving_a_symbol { prog flags test } {
+    global NM
+    global NMFLAGS
+
+    remote_download build tmpdir/copyprog tmpdir/striprog
+    if [is_remote host] {
+	set copyfile [remote_download host tmpdir/striprog];
+    } else {
+	set copyfile tmpdir/striprog
+    }
+
+    set exec_output [binutils_run $prog "$flags ${copyfile}"]
+    if ![string match "" $exec_output] {
+	fail $test
+	return
+    }
+
+    if [is_remote host] {
+	remote_upload host ${copyfile} tmpdir/striprog;
+    }
+
+    set result [remote_load target tmpdir/striprog]
+    set status [lindex $result 0];
+    if { $status != "pass" } {
+	fail $test
+        return
+    }
+
+    set exec_output [binutils_run $NM "$NMFLAGS ${copyfile}"]
+    if { [istarget mmix-knuth-mmixware] } {
+	# Whenever there's a symbol in the mmo format, there's the symbol
+	# Main, so remove it manually from the expected output for sake of
+	# this test.
+
+	# Using "" not {} to get the \n and \r translated.
+	regsub "^\[0-9a-fA-F\]+\[ \]+T Main\[\n\r\]+" $exec_output "" exec_output
+    }
+
+    if {![regexp {^([0-9a-fA-F]+)?[ ]+[TD] main} $exec_output] \
+         && ![regexp {^([0-9a-fA-F]+)?[ ]+[TD] _main} $exec_output]} {
+	fail $test
+	return
+    }
+    pass $test
+}
+
+set test1 "simple objcopy of executable"
+set test2 "run objcopy of executable"
+set test3 "run stripped executable"
+set test4 "run stripped executable with saving a symbol"
+
+switch [copy_setup] {
+    "1" {
+	# do nothing
+    }
+    "2" {
+	untested $test1
+	untested $test2
+	untested $test3
+	untested $test4
+    }
+    "3" {
+	unresolved $test1
+	unresolved $test2
+	unresolved $test3
+	unresolved $test4
+    }
+    "0" {
+	copy_executable "$OBJCOPY" "$OBJCOPYFLAGS" "$test1" "$test2"
+	strip_executable "$STRIP" "$STRIPFLAGS" "$test3"
+	strip_executable_with_saving_a_symbol "$STRIP" "-K main -K _main $STRIPFLAGS" "$test4"
+    }
+}

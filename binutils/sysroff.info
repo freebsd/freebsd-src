@@ -1,0 +1,504 @@
+("cs" 0x0
+ (("size") (1 byte) ("size"))
+
+ (("hd") (1 byte) ("hd"))
+ (("hs") (1 byte) ("hs"))
+ (("un") (1 byte) ("un"))
+ (("us") (1 byte) ("us"))
+
+ (("sc") (1 byte) ("sc"))
+ (("ss") (1 byte) ("ss"))
+ (("er") (1 byte) ("er"))
+ (("ed") (1 byte) ("ed"))
+
+ (("sh") (1 byte) ("sh"))
+ (("ob") (1 byte) ("ob"))
+ (("rl") (1 byte) ("rl"))
+ (("du") (1 byte) ("du"))
+
+ (("dps") (1 byte) ("dps"))
+ (("dsy") (1 byte) ("dsy"))
+ (("dty") (1 byte) ("dty"))
+ (("dln") (1 byte) ("dln"))
+
+ (("dso") (1 byte) ("dso"))
+ (("dus") (1 byte) ("dus"))
+ (("dss") (1 byte) ("dss"))
+ (("dbt") (1 byte) ("dbt"))
+
+ (("dpp") (1 byte) ("dpp"))
+ (("dfp") (1 byte) ("dfp"))
+ (("den") (1 byte) ("den"))
+ (("dds") (1 byte) ("dds"))
+
+ (("dar") (1 byte) ("dar"))
+ (("dpt") (1 byte) ("dpt"))
+ (("dul") (1 byte) ("dul"))
+ (("dse") (1 byte) ("dse"))
+
+ (("dot") (1 byte) ("dot")))
+
+
+("hd" 0x04
+ (("module type") (4 bits) ("mt")
+  (("MTYPE_ABS_LM" 	"0")
+   ("MTYPE_REL_LM" 	"1")
+   ("MTYPE_OMS_OR_LMS" 	"2")
+   ("MTYPE_UNSPEC" 	"0xf")))
+ (("spare")(4 bits) ("spare1"))
+ (("creation date")( chars 12 bytes)( "cd"))
+ (("number of units") (2 bytes) ("nu"))
+ (("code") (1 byte) ("code"))
+ (("version") (chars 4 bytes) ("ver"))
+ (("address update") (1 byte) ("au"))
+ (("segment identifier") (1 bit) ("si"))
+ (("address field length") (4 bits) ("afl"))
+ (("spare")(3 bits) ("spare2"))
+ (("space size within segment") (1 byte) ("spcsz"))
+ (("segment size")  	(1 byte) ("segsz"))
+ (("segment shift") 	(1 byte) ("segsh"))
+ (("entry point") 	(1 byte) ("ep"))
+ (cond "ptr->ep"
+       (cond "ptr->mt != MTYPE_ABS_LM" 
+	     (("unit appearance number") (2 bytes) ("uan"))
+	     (("section appearance number") (2 bytes) ("sa")))
+       (cond "segmented_p"
+	     (("segment address") (segsize bytes) ("sad")))
+       (("address") (addrsize bytes) ("address")))
+ (("os name") (chars variable bytes) ("os"))
+ (("sys name") (chars variable bytes) ("sys"))
+ (("module name") (chars variable bytes) ("mn"))
+ (("cpu") (chars variable bytes) ("cpu")))
+
+
+("hs" 0x05
+ (("neg number") (2 bytes) ("neg")))
+
+
+("un" 0x06
+ (("format") (2 bits) ("format")
+  (("FORMAT_LM" "0")
+   ("FORMAT_OM" "1")
+   ("FORMAT_OMS_OR_LMS" "2")))
+ (("spare") (6 bits) ("spare1"))
+ (("number of sections") (2 bytes) ("nsections"))
+ (("number of external refs") (2 bytes) ("nextrefs"))
+ (("number of external defs") (2 bytes) ("nextdefs"))
+ (("unit name") (chars variable byte) ("name"))
+ (("tool name") (chars variable byte) ("tool"))
+ (("creation date") (chars 12 bytes) ("tcd"))
+ (("linker name") (chars variable byte) ("linker"))
+ (("creation date") (chars 12 bytes) ("lcd")))
+
+
+("us" 0x07
+ (("negotiation number") (2 bytes) ("neg")))
+
+
+("sc" 0x08
+ (("format") (2 bits) ("format"))	
+ (("spare") (6 bits) ("spare"))
+ (("segment address") (segsize bytes) ("segadd"))
+ (("address") (addrsize bytes) ("addr"))
+ (("length") (addrsize bytes) ("length"))
+ (("alignment") (addrsize bytes) ("align"))
+ (("contents") (4 bits) ("contents")
+  (("CONTENTS_CODE" "0")
+   ("CONTENTS_DATA" "1")
+   ("CONTENTS_STACK" "2")
+   ("CONTENTS_DUMMY" "3")
+   ("CONTENTS_SPECIAL" "4")
+   ("CONTENTS_NONSPEC" "0xf")))
+ (("concat") (4 bits) ("concat")
+  (("CONCAT_SIMPLE" "0")
+   ("CONCAT_SHAREDC" "1")
+   ("CONCAT_DUMMY" "2")
+   ("CONCAT_GROUP" "3")
+   ("CONCAT_SHARED" "4")
+   ("CONCAT_PRIVATE" "5")
+   ("CONCAT_UNSPEC" "0xf")))
+ (("read") (2 bits) ("read"))
+ (("write") (2 bits) ("write"))
+ (("exec") (2 bits) ("exec"))
+ (("initialized") (2 bits) ("init"))
+ (("mode") (2 bits) ("mode"))
+ (("spare") (6 bits) ("spare1"))
+ (("name") (chars variable byte) ("name")))
+
+
+("ss" 0x09
+ (("neg number") (2 bytes) ("neg")))
+
+	
+("er" 0x0c
+ (("symbol type") (2 bits) ("type")
+  (("ER_ENTRY" "0")
+   ("ER_DATA" "1")
+   ("ER_NOTDEF" "2")
+   ("ER_NOTSPEC" "3")))
+ (("spare") (6 bits) ("spare"))
+ (("symbol name") (chars variable byte) ("name")))
+	
+
+("ed" 0x14
+ (("section appearance number") (2 bytes) ("section"))
+ (("symbol type") (3 bits) ("type")
+  (("ED_TYPE_ENTRY" "0")
+   ("ED_TYPE_DATA" "1")
+   ("ED_TYPE_CONST" "2")
+   ("ED_TYPE_NOTSPEC" "7")))
+ (("spare") (5 bits) ("spare"))
+ (cond "ptr->type==ED_TYPE_ENTRY || ptr->type==ED_TYPE_DATA"
+       (("symbol address") (addrsize bytes) ("address")))
+ (cond "ptr->type==ED_TYPE_CONST"
+       (("constant value") (addrsize bytes) ("constant")))
+ (("symbol name") (chars variable byte) ("name")))
+
+
+("sh" 0x1a
+ (("unit appearance number") (2 bytes) ("unit"))
+ (("section appearance number") (2 bytes) ("section")))
+
+
+("ob" 0x1c
+ (("starting address flag") (1 bit) ("saf"))
+ (("compression flag") (1 bit) ("cpf"))
+ (("spare") (6 bits) ("spare"))
+ (cond "ptr->saf"
+       ( ("starting address") (addrsize bytes) ("address")))
+ (cond "ptr->cpf"
+       (("comp reps") (addrsize bytes) ("compreps")))
+ (("data") (barray counted byte) ("data")))
+	
+
+("rl" 0x20
+ (("boundary of relocatable area") (4 bits) ("boundary"))
+ (("address polarity") (1 bit) ("apol"))
+ (("segment number") (1 bit) ("segment"))
+ (("sign of relocation") (1 bit) ("sign"))
+ (("check range") (1 bit) ("check"))
+ (("reloc address") (addrsize bytes) ("addr"))
+
+ (("bit loc") (1 byte) ("bitloc"))
+ (("field length") (1 byte) ("flen"))
+ (("bcount") (1 byte) ("bcount"))
+ (("operator") (1 byte) ("op")
+  (("OP_RELOC_ADDR" "1")
+   ("OP_SEC_REF" "0")
+   ("OP_EXT_REF" "2")))
+ (cond "ptr->op == OP_EXT_REF"
+       (("symbol number") (2 bytes) ("symn"))	)
+	
+ (cond "ptr->op == OP_SEC_REF"
+       (("section number") (2 bytes) ("secn"))
+       (("const opcode") (1 byte) ("copcode_is_3"))
+       (("addend length") (1 byte) ("alength_is_4"))
+       (("addend") (4 byte) ("addend"))
+       (("plus opcode") (1 byte) ("aopcode_is_0x20")))
+
+ (cond "ptr->op == OP_RELOC_ADDR"
+       (("dunno") (2 bytes) ("dunno")))
+
+ (("end")  (1 byte) ("end")))
+	
+
+("du" 0x30
+ (("format") (2 bits) ("format"))
+ (("optimized") (1 bit) ("optimized"))
+ (("stackfrmt") (2 bits) ("stackfrmt"))
+ (("spare") (3 bits) ("spare"))
+ (("unit number") (2 bytes) ("unit"))
+ (("sections") (2 bytes) ("sections"))
+ (repeat "ptr->sections"
+	 (("section appearance number") (2 bytes) ("san"))
+	 (("address") (addrsize bytes) ("address"))
+	 (("section length") (addrsize bytes) ("length")))
+ (("tool name") (chars variable byte) ("tool"))
+ (("creation date") (chars 12 bytes) ("date")))
+
+
+("dsy" 0x34
+ (("symbol type") (7 bits) ("type")
+  (("STYPE_VAR" "0")
+   ("STYPE_LAB" "1")
+   ("STYPE_PROC" "2")
+   ("STYPE_FUNC" "3")
+   ("STYPE_TYPE" "4")
+   ("STYPE_CONST" "5")
+   ("STYPE_ENTRY" "6")
+   ("STYPE_MEMBER" "7")
+   ("STYPE_ENUM" "8")
+   ("STYPE_TAG" "9")
+   ("STYPE_PACKAGE" "10")
+   ("STYPE_GENERIC" "11")
+   ("STYPE_TASK" "12")
+   ("STYPE_EXCEPTION" "13")
+   ("STYPE_PARAMETER" "14")
+   ("STYPE_EQUATE" "15")
+   ("STYPE_UNSPEC" "0x7f")))
+ (("assignment info") (1 bit) ("assign"))
+ (("symbol id") (2 bytes) ("snumber"))
+ (("symbol name") (chars variable bytes) ("sname"))
+ (("nesting level") (2 bytes) ("nesting"))
+ (cond "ptr->assign"
+       (("assignment type") (1 byte)  ("ainfo")
+	(("AINFO_REG" "1")
+	 ("AINFO_STATIC_EXT_DEF" "2")
+	 ("AINFO_STATIC_EXT_REF" "3")
+	 ("AINFO_STATIC_INT" "4")
+	 ("AINFO_STATIC_COM" "5")
+	 ("AINFO_AUTO" "6")
+	 ("AINFO_CONST" "7")
+	 ("AINFO_UNSPEC" "0xff")))
+       (("data length") (addrsize bytes) ("dlength"))
+       (cond "ptr->ainfo == AINFO_STATIC_EXT_DEF
+            || ptr->ainfo == AINFO_STATIC_INT
+            || ptr->ainfo == AINFO_STATIC_COM"
+	     (("section number")  (2 bytes) ("section")))
+       (cond "ptr->ainfo == AINFO_STATIC_EXT_DEF
+            || ptr->ainfo == AINFO_STATIC_INT
+            || ptr->ainfo == AINFO_STATIC_COM
+            || ptr->ainfo == AINFO_AUTO"
+	     (("address") (addrsize bytes) ("address")))
+       (cond "ptr->ainfo == AINFO_REG"
+	     (("register name") (chars variable bytes) ("reg")))
+       (cond "ptr->ainfo == AINFO_STATIC_EXT_DEF
+	    || ptr->ainfo == AINFO_STATIC_EXT_REF"
+	     (("external name") (chars variable bytes) ("ename")))
+       (cond "ptr->ainfo == AINFO_CONST"
+	     (("constant") (chars variable bytes) ("constant"))))
+ (cond "ptr->type == STYPE_MEMBER"
+       (("assignment unit") (1 bit) ("bitunit"))
+       (("spare") (7 bits) ("spare2"))
+       (("field length") (addrsize bytes) ("field_len"))
+       (("field offset") (addrsize bytes) ("field_off"))
+       (cond "ptr->bitunit"
+	     (("bit offset") (addrsize bytes) ("field_bitoff"))))
+ (cond "ptr->type== STYPE_ENUM"
+       (("value length") (1 byte) ("evallen"))
+       (("value") (4 bytes) ("evalue")))
+ (cond "ptr->type == STYPE_CONST"
+       (("value") (chars variable bytes) ("cvalue")))
+ (cond "ptr->type == STYPE_EQUATE"
+       (("value length") (1 byte) ("qvallen"))
+       (("value") (4 bytes) ("qvalue"))
+       (("basic type") (1 byte) ("btype"))
+       (("size information") (addrsize bytes) ("sizeinfo"))
+       (("sign") (2 bits) ("sign"))
+       (("floating point type") (6 bits) ("flt_type")))
+ (("source file number") (2 bytes) ("sfn"))
+ (("source line number") (2 bytes) ("sln"))
+ (("negotiation number") (2 bytes) ("neg"))
+ (cond "ptr->type == STYPE_TAG"
+       (("magic") (1 byte) ("magic"))))
+
+ 
+
+("dul" 0x52
+ (("max declaration type flag") (1 bit) ("max_variable"))
+ (("max spare") (7 bits) ("maxspare"))
+ (cond "ptr->max_variable == 0"
+       (("maximum") (addrsize bytes) ("max"))
+       (("max mode") (chars variable bytes) ("maxmode")))
+
+ (("min declaration type flag") (1 bit) ("min_variable"))
+ (("min spare") (7 bits) ("minspare"))
+ (cond "ptr->min_variable == 0"
+       (("minimum") (addrsize bytes) ("min"))
+       (("min mode") (chars variable bytes) ("minmode"))))
+
+
+("dty" 0x36
+ (("end flag") (1 bit) ("end"))
+ (("spare") (7 bits) ("spare"))
+ (cond "!ptr->end"
+       (("negotiation") (2 bytes) ("neg"))))
+
+
+("dbt" 0x44
+ (("basic type") (1 byte) ("btype")
+  (("BTYPE_VOID" "0")
+   ("BTYPE_UNDEF" "1")
+   ("BTYPE_CHAR" "2")
+   ("BTYPE_INT" "3")
+   ("BTYPE_FLOAT" "4")
+   ("BTYPE_BIT" "5")
+   ("BTYPE_STRING" "6")
+   ("BTYPE_DECIMAL" "7")
+   ("BTYPE_ENUM" "8")
+   ("BTYPE_STRUCT" "9")
+   ("BTYPE_TYPE" "10")
+   ("BTYPE_TAG" "11")
+   ("BTYPE_UNSPEC" "0xff")))
+ (("size info") (addrsize bytes) ("bitsize"))
+ (("sign") (2 bits) ("sign")
+  (("SIGN_SIGNED" "0")
+   ("SIGN_UNSIGNED" "1")
+   ("SIGN_UNSPEC" "3")))
+ (("floating point type") (6 bits) ("fptype")
+  (("FPTYPE_SINGLE" "0")
+   ("FPTYPE_DOUBLE" "1")
+   ("FPTYPE_EXTENDED" "2")
+   ("FPTYPE_NOTSPEC" "0x3f")))
+ (cond "ptr->btype==BTYPE_TAG || ptr->btype == BTYPE_TYPE"
+       (("symbol id") (2 bytes) ("sid")))
+ (("negotiation") (2 bytes) ("neg")))
+
+("dar" 0x4e
+ (("element length" ) (addrsize bytes) ("length"))
+ (("dims") (1 byte) ("dims"))
+ (repeat "ptr->dims"
+	 (("variable flag") (1 bit) ("variable")
+	  (("VARIABLE_FIXED" "0")
+	   ("VARIABLE_VARIABLE" "1")))
+
+	 (("subscript type") (1 bit) ("subtype")
+	  (("SUB_INTEGER" "0")
+	   ("SUB_TYPE"    "1")))
+
+	 (("spare") (6 bits) ("spare"))
+
+	 (cond "ptr->subtype[n] == SUB_TYPE"
+	       (("sub symbol id") (2 bytes) ("sid")))
+
+	 (cond "ptr->subtype[n] == SUB_INTEGER"
+	       (("max declaration type flag") (1 bit) ("max_variable"))
+	       (("max spare") (7 bits) ("maxspare"))
+	       ;; FIXME: next field should be conditional on max_variable,
+	       (("maximum") (addrsize bytes) ("max"))
+
+	       (("min declaration type flag") (1 bit) ("min_variable"))
+	       (("min spare") (7 bits) ("minspare"))
+	       ;; FIXME: next field should be conditional on min_variable
+	       (("minimum") (addrsize bytes) ("min"))))
+ (("negotiation") (2 bytes) ("neg")))
+
+	       
+("dso" 0x3a
+ (("function name") (2 bytes) ("sid"))
+ (("sp update count") (4 bytes) ("spupdates"))
+ (repeat "ptr->spupdates"
+	 (("update address") (addrsize bytes) ("address"))
+	 (("offset") (addrsize bytes) ("offset"))))
+
+("dln" 0x38
+ (("number of lines") (2 bytes) ("nln"))
+ (repeat "ptr->nln"
+	 (("source file number") (2 bytes) ("sfn"))
+	 (("source line number") (2 bytes) ("sln"))
+	 (("section number") (2 bytes) ("section"))
+	 (("from address") (addrsize bytes) ("from_address"))
+	 (("to address") (addrsize bytes) ("to_address"))
+	 (("call count") (2 bytes) ("cc"))
+	 )
+ (("neg") (2 bytes) ("neg")))
+ 
+("dpp" 0x46
+ (("start/end") (1 bit) ("end"))
+ (("spare") (7 bits) ("spare"))
+ (cond "!ptr->end"
+       (("params") (1 byte) ("params"))
+       (("neg number") (2 bytes) ("neg"))))
+
+("den" 0x4a
+ (("start/end") (1 bit) ("end"))
+ (("spare") (7 bits) ("spare"))
+ (cond "!ptr->end"
+       (("neg number") (2 bytes) ("neg"))))
+
+("dfp" 0x48
+ (("start/end flag") (1 bit) ("end"))
+ (("spare") (7 bits) ("spare"))
+ (cond "!ptr->end"
+       (("number of parameters") (1 byte) ("nparams"))
+       (("neg number") (2 bytes) ("neg"))))
+
+("dds" 0x4c
+ (("start/end") (1 bit) ("end"))
+ (("spare") (7 bits) ("spare"))
+ (cond "!ptr->end"
+       (("neg number") (2 bytes) ("neg"))))
+
+("dpt" 0x50
+ (("neg number") (2 bytes) ("neg"))
+ (("dunno") (1 byte) ("dunno")))
+
+("dse" 0x54
+ (("neg number") (2 bytes) ("neg"))
+ (("dunno") (1 byte) ("dunno")))
+
+("dot" 0x56
+ (("unknown") (1 byte) ("unknown")))
+; FIXME: unknown field should be repeated symbol number?
+
+
+("dss" 0x42
+ (("type") (1 byte) ("type"))
+ (("external/internal") (1 bit) ("internal"))
+ (("spare") (7 bits) ("spare"))
+ (cond "!ptr->internal"
+       (  ("package name") (chars variable byte) ("package")))
+ (cond "ptr->internal"
+       (("symbol id") (2 bytes) ("id")))
+ (("record type") (2 bytes) ("record"))
+ (("rules") (chars variable byte) ("rules"))
+ (("number of symbols") (2 bytes) ("nsymbols"))
+ (("unknown" ) (2 bytes) ("fixme")))
+     
+("pss" 0x40
+ (("negotiation number") (2 bytes) ("efn"))
+ (("number of source files") (2 bytes) ("ns"))
+ (repeat "ptr->ns"
+	 (("directory reference bit") (1 bit) ("drb"))
+	 (("spare") (7 bits) ("spare"))
+	 (("completed file name") (chars variable byte) ("fname"))
+	 (cond "ptr->drb[n]" 
+	       (("directory apperance number") (2 bytes) ("dan"))))
+ 
+ (("number of directories") (2 bytes) ("ndir"))
+ (repeat "ptr->ndir"
+	 (("directory name") (chars variable bytes) ("dname"))))
+
+
+; FIXME: the tr block has no contents. sysinfo, etc. aren't prepared 
+; to deal with that.
+; ("tr" 0x7f)
+
+
+("dus" 0x40
+ (("negotiation number") (2 bytes) ("efn"))
+ (("number of source files") (2 bytes) ("ns"))
+ (repeat "ptr->ns"
+	 (("directory reference bit") (1 bit) ("drb"))
+	 (("spare") (7 bits) ("spare"))
+	 (("completed file name") (chars variable byte) ("fname"))
+	 (cond "ptr->drb[n]" 
+	       (("directory apperance number") (2 bytes) ("dan"))))
+ (("number of directories") (2 bytes) ("ndir"))
+ (repeat "ptr->ndir"
+	 (("directory name") (chars variable bytes) ("dname"))))
+
+
+("dps" 0x32
+ (("start/end flag") (1 bit) ("end"))
+ (("block type") (7 bits) ("type")
+  (("BLOCK_TYPE_COMPUNIT" "0")
+   ("BLOCK_TYPE_PROCEDURE" "2")
+   ("BLOCK_TYPE_FUNCTION" "3")
+   ("BLOCK_TYPE_BLOCK" "4")
+   ("BLOCK_TYPE_BASIC" "9")))
+ (cond "!ptr->end"
+       (("optimization") (1 byte) ("opt"))
+       (("section number") (2 bytes) ("san"))
+       (("address") (addrsize bytes) ("address"))
+       (("block size") (addrsize bytes) ("block_size"))
+       (("nesting") (1 byte) ("nesting"))
+       (cond "ptr->type == BLOCK_TYPE_PROCEDURE 
+	    || ptr->type == BLOCK_TYPE_FUNCTION"
+	     (("return address") (1 bit) ("retaddr"))
+	     (("interrupt function flag") (1 bit) ("intrflag"))
+	     (("stack update flag") (1 bit) ("stackflag"))
+	     (("intra page JMP") (1 bit) ("intrpagejmp"))
+	     (("spare") (4 bits) ("spare")))
+       (("neg number") (2 bytes) ("neg"))))
+

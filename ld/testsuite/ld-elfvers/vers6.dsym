@@ -1,0 +1,4 @@
+[0-9a-f]*      DF \*UND\*	[0-9a-f]*              (0x[0-9a-f][0-9a-f] )?show_foo
+[0-9a-f]*      DF \*UND\*	[0-9a-f]*  VERS_2.0    (0x[0-9a-f][0-9a-f] )?show_foo
+[0-9a-f]*      DF \*UND\*	[0-9a-f]*  VERS_1.2    (0x[0-9a-f][0-9a-f] )?show_foo
+[0-9a-f]*      DF \*UND\*	[0-9a-f]*  VERS_1.1    (0x[0-9a-f][0-9a-f] )?show_foo

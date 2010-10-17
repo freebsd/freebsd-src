@@ -1,0 +1,8 @@
+# Check for bug introduced on 2002-06-10.  See dynamic-sections.t for
+# more details
+
+if ![is_elf_format] {
+    return
+}
+
+run_dump_test dynamic-sections

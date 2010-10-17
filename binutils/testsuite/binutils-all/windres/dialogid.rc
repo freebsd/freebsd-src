@@ -1,0 +1,9 @@
+// Test created based on bug report submitted to binutils mailing list
+// See: http://sources.redhat.com/ml/binutils/2003-03/msg00312.html
+
+101 DIALOGEX 0, 0, 200, 200
+
+BEGIN
+CONTROL 108, -1, "classname", 77, 11, 11, 83, 162
+CONTROL "stringid", 102, "classname", 0x5000120e, 5, 5, 10, 10
+END

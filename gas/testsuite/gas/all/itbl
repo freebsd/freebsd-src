@@ -1,0 +1,20 @@
+
+    ; Test case for assembler option "itbl".
+    ; Run as "as --itbl itbl itbl.s"
+    ; or with stand-alone test case "itbl-test itbl itbl.s".
+    ; The "p<n>" represent processors of a multi-processor system.
+
+    p1 dreg d1 1        ; data register "d1" for COP1 has value 1
+    p1 creg c3 3        ; ctrl register "c3" for COP1 has value 3
+    p3 insn fie 0x1e:24-20      ; function "fill" for COP3 has value 31
+    p3 dreg d3 3        ; data register "d3" for COP3 has value 3
+    p3 creg c2 22       ; control register "c2" for COP3 has value 22
+    p3 insn fee 0x1e:24-20,dreg:17-13,creg:12-8,immed:7-0
+
+    p3 dreg d3 3        ; data register "d3" for COP3 has value 3
+    p3 creg c2 22       ; control register "c2" for COP3 has value 22
+    p3 insn fum 0x01e00001 dreg:17-13 creg:12-8
+    p3 insn foh 0xf:24-21 dreg:20-16 immed:15-0
+
+    p3 insn pig 0x1:24-21*[0x100|0x2], dreg:20-16, immed:15-0*0x10000
+

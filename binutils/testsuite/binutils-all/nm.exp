@@ -1,0 +1,123 @@
+#   Copyright 1993, 1994, 1995, 1997 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+# Please email any bugs, comments, and/or additions to this file to:
+# bug-dejagnu@prep.ai.mit.edu
+
+# This file was written by Rob Savoye <rob@cygnus.com>
+# and rewritten by Ian Lance Taylor <ian@cygnus.com>
+
+if ![is_remote host] {
+    if {[which $NM] == 0} then {
+        perror "$NM does not exist"
+        return
+    }
+}
+
+send_user "Version [binutil_version $NM]"
+
+
+if {![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o]} then {
+    return
+}
+
+if [is_remote host] {
+    set tempfile [remote_download host tmpdir/bintest.o]
+} else {
+    set tempfile tmpdir/bintest.o
+}
+
+# Test nm with no arguments.
+
+# This test does not work correctly on ECOFF targets, because ECOFF
+# stores most symbols twice, which messes up the nm output.
+setup_xfail "alpha*-*-osf*" "alpha*-*-netware*"
+setup_xfail "mips*-*-ultrix*" "mips*-*-ecoff*" "mips*-*-irix4*"
+setup_xfail "mips*-*-riscos*" "mips*-*-sysv3*" "mips*-sony-bsd*"
+
+# This test does not work correctly on XCOFF targets, because XCOFF
+# does not enter static symbols in the symbol table.
+setup_xfail "*-*-aix*"
+
+set got [binutils_run $NM "$NMFLAGS $tempfile"]
+
+if [info exists vars] then { unset vars }
+while {[regexp "(\[a-zA-Z\]) (\[a-z_\]*_symbol)(.*)" $got all type symbol rest]} {
+    set vars($symbol) $type
+    set got $rest
+}
+
+if {![info exists vars(text_symbol)] \
+     || $vars(text_symbol) != "T" \
+     || ![info exists vars(data_symbol)] \
+     || $vars(data_symbol) != "D" \
+     || ![info exists vars(common_symbol)] \
+     || $vars(common_symbol) != "C" \
+     || ![info exists vars(external_symbol)] \
+     || $vars(external_symbol) != "U" \
+     || ![info exists vars(static_text_symbol)] \
+     || $vars(static_text_symbol) != "t" \
+     || ![info exists vars(static_data_symbol)] \
+     || $vars(static_data_symbol) != "d"} {
+    fail "nm (no arguments)"
+} else {
+    pass "nm (no arguments)"
+}
+
+# Test nm -g
+
+set got [binutils_run $NM "$NMFLAGS -g $tempfile"]
+
+if [info exists vars] then { unset vars }
+while {[regexp "(\[a-z_\]*_symbol)(.*)" $got all symbol rest]} {
+    set vars($symbol) 1
+    set got $rest
+}
+
+if {![info exists vars(text_symbol)] \
+     || ![info exists vars(data_symbol)] \
+     || ![info exists vars(common_symbol)] \
+     || ![info exists vars(external_symbol)] \
+     || [info exists vars(static_text_symbol)] \
+     || [info exists vars(static_data_symbol)]} {
+    fail "nm -g"
+} else {
+    pass "nm -g"
+}
+
+# Test nm -P
+
+# This test does not work correctly on ECOFF targets, because ECOFF
+# stores most symbols twice, which messes up the nm output.
+setup_xfail "alpha*-*-osf*" "alpha*-*-netware*"
+setup_xfail "mips*-*-ultrix*" "mips*-*-ecoff*" "mips*-*-irix4*"
+setup_xfail "mips*-*-riscos*" "mips*-*-sysv3*" "mips*-sony-bsd*"
+
+# This test does not work correctly on XCOFF targets, because XCOFF
+# does not enter static symbols in the symbol table.
+setup_xfail "*-*-aix*"
+
+set got [binutils_run $NM "$NMFLAGS -P $tempfile"]
+
+set want "common_symbol C \[0\]*4.*data_symbol D \[0-9a-fA-F\]*.*external_symbol U.*static_data_symbol d \[0-9a-fA-F\]*.*static_text_symbol t \[0-9a-fA-F\]*.*text_symbol T \[0-9a-fA-F\]*"
+
+if [regexp $want $got] then {
+    pass "nm -P"
+} else {
+    fail "nm -P"
+}
+
+# There are certainly other tests that could be run.

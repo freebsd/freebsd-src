@@ -1,0 +1,30 @@
+@c  Copyright 1991, 1992, 1993, 1994, 1995 Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+
+@ignore
+@c FIXME!  Stop ignoring when filled in.
+@node 32x32
+@chapter 32x32
+
+@section Options
+The 32x32 version of @code{@value{AS}} accepts a @samp{-m32032} option to
+specify thiat it is compiling for a 32032 processor, or a
+@samp{-m32532} to specify that it is compiling for a 32532 option.
+The default (if neither is specified) is chosen when the assembler
+is compiled.
+
+@section Syntax
+I don't know anything about the 32x32 syntax assembled by
+@code{@value{AS}}.  Someone who understands the processor (I've never seen
+one) and the possible syntaxes should write this section.
+
+@section Floating Point
+The 32x32 uses @sc{ieee} floating point numbers, but @code{@value{AS}}
+only creates single or double precision values.  I don't know if the
+32x32 understands extended precision numbers.
+
+@section 32x32 Machine Directives
+The 32x32 has no machine dependent directives.
+
+@end ignore

@@ -1,0 +1,10 @@
+#source: tlsg.s
+#as: --32
+#ld: -melf32_sparc
+#objdump: -sj.debug_foobar
+#target: sparc*-*-*
+
+.*: +file format elf32-sparc
+
+Contents of section .debug_foobar:
+ 0+ 0+18  .*

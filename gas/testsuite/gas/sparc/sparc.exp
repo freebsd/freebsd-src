@@ -1,0 +1,53 @@
+# Some generic SPARC and SPARC64 tests
+
+# FIXME: The tests here aren't really bullet proof.  A mistake in the opcode
+# table can slip through since we use the same table for assembly and
+# disassembly.  The way to fix this is to include a hex dump of the insns
+# and test that as well.  Later.
+
+# Find out if these binutils are either sparc64*-*-* or
+# sparc*-*-* with --enable-targets=sparc64-*-*
+proc gas_64_check { } {
+    global NM
+    global NMFLAGS
+    global srcdir
+
+    catch "exec $srcdir/lib/run $NM $NMFLAGS --help" nm_help
+    return [regexp "elf64\[_-\]sparc" $nm_help];
+}
+
+proc sparc_elf_setup { } {
+    setup_xfail "sparc*-*-*aout*" "sparc*-*-sunos4*" "sparc*-*-vxworks*"
+    setup_xfail "sparc*-fujitsu-none" "sparc*-*-*n*bsd*"
+    setup_xfail "sparc*-*-coff" "sparc*-*-lynxos*"
+    clear_xfail "sparc64*-*-*n*bsd*"
+    clear_xfail "sparc*-*-netbsdelf*"
+}
+
+if [istarget sparc*-*-*] {
+    run_dump_test "synth"
+    # The next three tests are ELF only.
+    sparc_elf_setup
+    run_dump_test "unalign"
+    sparc_elf_setup
+    run_dump_test "pcrel"
+    sparc_elf_setup
+    run_dump_test "plt"
+    if [gas_64_check] {
+	run_dump_test "asi"
+	run_dump_test "membar"
+	run_dump_test "prefetch"
+	run_dump_test "set64"
+	run_dump_test "synth64"
+	run_dump_test "rdpr"
+	run_dump_test "wrpr"
+	run_dump_test "reloc64"
+	run_dump_test "pcrel64"
+	run_dump_test "plt64"
+    }
+}
+
+if [istarget sparclet*-*-*] {
+    run_dump_test "splet"
+    run_dump_test "splet-2"
+}

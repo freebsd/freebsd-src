@@ -1,0 +1,12 @@
+#source: tlssunnopic32.s
+#source: tlsnopic.s
+#as: --32
+#ld: -shared -melf32_sparc
+#objdump: -sj.got
+#target: sparc-*-*
+
+.*:     file format elf32-sparc
+
+Contents of section \.got:
+ 12080 0+12000 0+ 0+ 0+  .*
+ 12090 0+ 0+ 0+  .*

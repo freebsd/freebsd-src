@@ -1,0 +1,151 @@
+# Expect script for export table in executables tests
+#   Copyright 2003
+#   Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+# Written by Fabrizio Gennari <fabrizio.ge@tiscalinet.it>
+# Based on auto-import.exp  by Ralf.Habacker@freenet.de
+#
+ 
+# This test can only be run on a cygwin platforms.
+if {![istarget *-pc-cygwin]} {
+    verbose "Not a cygwin target."
+    return
+}
+
+# No compiler, no test.
+if { [which $CC] == 0 } {
+    untested "Exe export test (no compiler available)"
+    return
+}
+
+proc run_dlltool { lib_file def_file } {
+    global dlltool
+    global base_dir
+    global as
+    
+    if ![info exists dlltool] then {
+	set dlltool [findfile $base_dir/../binutils/dlltool]
+    }
+
+    if { [which $dlltool] == 0 } then {
+	verbose "$dlltool does not exist"
+	return 0
+    }
+
+    verbose "$dlltool --as $as -l $lib_file -d $def_file"
+    catch "exec $dlltool --as $as -l $lib_file -d $def_file" dlltool_output
+
+    #remove empty lines
+    regsub -all "\n+" $dlltool_output "" dlltool_output
+
+    if [string match "" $dlltool_output] then {
+        return 1
+    }
+
+    verbose -log "$dlltool_output"
+    return 0
+}
+
+# ld_special_link
+#       A copy of ld_simple_link (from ld-lib.exp) with extra
+#       code to strip warnings about creating libraries.
+#
+proc ld_special_link { ld target objects } {
+    global host_triplet
+    global link_output
+
+    if { [which $ld] == 0 } then {
+	verbose "$ld does not exist"
+	return 0
+    }
+
+    if [is_endian_output_format $objects] then {
+        set flags [big_or_little_endian]
+    } else {
+        set flags ""
+    }
+
+    verbose -log "$ld $flags -o $target $objects"
+    catch "exec $ld $flags -o $target $objects" link_output
+
+    set exec_output [prune_warnings $link_output]
+
+    # We don't care if we get a warning about a non-existent start
+    # symbol, since the default linker script might use ENTRY.
+    regsub -all "(^|\n)(\[^\n\]*: warning: cannot find entry symbol\[^\n\]*\n?)" $exec_output "\\1" exec_output
+
+    # We don't care if we get a message about creating a library file.
+    regsub -all "(^|\n)(Creating library file\[^\n\]*\n?)" $exec_output "\\1" exec_output
+
+    if [string match "" $exec_output] then {
+        return 1
+    }
+
+    verbose -log "$exec_output"
+    return 0
+}
+
+set tmpdir tmpdir
+
+# Set some libs needed for cygwin.
+set MYLDFLAGS "-Wl,--out-implib,$tmpdir/testexe.lib -nostartfiles -nostdlib"
+
+# Build an export library for testdll
+if ![run_dlltool $tmpdir/testdll.lib $srcdir/$subdir/testdll.def] {
+    fail "building an export library for the shared lib"
+    return
+} 
+
+# Compile the executable.
+if ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/testexe.c $tmpdir/testexe.o] {
+    fail "compiling executable"
+    return
+}
+
+if ![ld_special_link "$CC $LDFLAGS $MYLDFLAGS -e _testexe_main@16" $tmpdir/testexe.exe "$tmpdir/testexe.o $srcdir/$subdir/testexe.def $tmpdir/testdll.lib"] {
+    fail "linking executable"
+    return
+} 
+
+# Compile the dll.
+if ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/testdll.c $tmpdir/testdll.o] {
+    fail "compiling shared lib"
+    return
+}
+
+if ![ld_special_link "$CC $LDFLAGS -nostartfiles -nostdlib -e _testdll_main@12" $tmpdir/testdll.dll "$tmpdir/testdll.o $srcdir/$subdir/testdll.def $tmpdir/testexe.lib"] {
+    fail "linking shared lib"
+    return
+} 
+
+# This is as far as we can go with a cross-compiler
+if ![isnative] then {
+    verbose "Not running natively, so cannot execute binary"
+    pass "Compile and link and executable with an export table"
+    return
+}
+
+verbose -log "executing $tmpdir/testexe.exe"
+catch "exec $tmpdir/testexe.exe" prog_output
+
+set expected ""
+if [string match $expected $prog_output] then {
+    pass "export table in executable"
+} else {
+    verbose $prog_output
+    fail "Output does not match expected string $expected"
+}

@@ -1,0 +1,36 @@
+#
+# Solaris on SPARC tests
+#
+
+if [istarget sparc*-*-solaris2*] then {
+    set x1 0
+    set x2 0
+    set x3 0
+    set x4 0
+    set x5 0
+    set x6 0
+    set testname "addends (part 2)"
+    if [gas_test_old "addend.s" "" "addends (part 1)"] then {
+	objdump_start_no_subdir "a.out" "-r"
+	while 1 {
+	    # These are what we get using the Solaris assembler.
+	    expect {
+		-re "08 R_SPARC_WDISP22 +foo1\[+\]+0x0+04\[^\n\]*\n"	{ incr x1 }
+		-re "0c R_SPARC_WDISP22 +foo1\[+\]+0x0+04\[^\n\]*\n"	{ incr x2 }
+		-re "10 R_SPARC_WDISP22 +foo1\[^\n\]*\n"		{ incr x3 }
+		-re "14 R_SPARC_WDISP22 +foo1\[^\n\]*\n"		{ incr x4 }
+		-re "1c R_SPARC_32 +foo1\[^\n\]*\n"			{ incr x5 }
+		-re "20 R_SPARC_32 +foo1\[+\]+0x0+04\[^\n\]*\n"		{ incr x6 }
+		-re "\[^\n\]*\n"					{ }
+		timeout				{ perror "timeout\n"; break }
+		eof				{ break }
+	    }
+	}
+	objdump_finish
+	if [all_ones $x1 $x2 $x3 $x4 $x5 $x6] then {
+	    pass $testname
+	} else {
+	    fail $testname
+	}
+    }
+}

@@ -1,0 +1,51 @@
+GAS for MMIX .*/regx-op\.s 			page 1
+
+
+   1              	#.*
+   2              	#.*
+   3 0000 9A7B0C43 	Main	PRELD X,Y,Z
+   4 0004 9C200C43 		PREGO 32,Y,Z
+   5 0008 B87B2043 		SYNCD X,\$32,Z
+   6 000c BA008543 		PREST 0,\$133,Z
+   7 0010 B47B0C49 		STCO X,Y,\$73
+   8 0014 BC820CE9 		SYNCID 130,Y,\$233
+   9 0018 9A7B26D4 		PRELD X,\$38,\$212
+  10 001c 9C01AFB5 		PREGO 1,\$175,\$181
+  11              	
+  12 0020 B97B0CB0 		SYNCD X,Y,Z0
+  13 0024 BB200CB0 		PREST 32,Y,Z0
+  14 0028 B57B84B0 		STCO X,\$132,Z0
+  15 002c BDE885B0 		SYNCID 232,\$133,Z0
+  16 0030 9B7B0CCB 		PRELD X,Y,203
+  17 0034 9DE70CD5 		PREGO 231,Y,213
+  18 0038 B97B26D3 		SYNCD X,\$38,211
+  19 003c BB04AFA1 		PREST 4,\$175,161
+  20              	
+  21 0040 B57B0C00 		STCO X,Y,0
+  22 0044 BD170C00 		SYNCID 23,Y,0
+  23 0048 9B020C00 		PRELD 2,Y,0
+  24 004c 9DE88500 		PREGO 232,\$133,0
+  25 0050 B97B0C00 		SYNCD X,Y,0
+  26 0054 BB0D0C00 		PREST 13,Y,0
+  27 0058 B57B2600 		STCO X,\$38,0
+  28 005c BD04AF00 		SYNCID 4,\$175,0
+  29              	
+  30 0060 9B7B0C00 		PRELD X,Y
+  31 0064 9D200C00 		PREGO 32,Y
+  32 0068 B97B2000 		SYNCD X,\$32
+  33 006c BBE88500 		PREST 232,\$133
+  34              	X IS 123
+  35              	Y IS \$12
+  36              	Z IS \$67
+  37              	Z0 IS 176
+GAS for MMIX .*/regx-op\.s 			page 2
+
+
+DEFINED SYMBOLS
+.*/regx-op\.s:3      \.text:0000000000000000 Main
+                            \*ABS\*:000000000000007b X
+                            \*REG\*:000000000000000c Y
+                            \*REG\*:0000000000000043 Z
+                            \*ABS\*:00000000000000b0 Z0
+
+NO UNDEFINED SYMBOLS

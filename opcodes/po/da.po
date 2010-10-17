@@ -1,0 +1,449 @@
+# Danish messages for opcodes.
+# Copyright (C) 2001 Free Software Foundation, Inc.
+# Keld Simonsen <keld@dkuug.dk>, 2002.
+# Christian Rose <menthos@menthos.com>, 2001.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: opcodes 2.12.91\n"
+"POT-Creation-Date: 2002-07-23 15:55-0400\n"
+"PO-Revision-Date: 2002-09-07 19:35+0200\n"
+"Last-Translator: Keld Simonsen <keld@dkuug.dk>\n"
+"Language-Team: Danish <dansk@klid.dk>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=iso-8859-1\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: alpha-opc.c:335
+msgid "branch operand unaligned"
+msgstr "operanden for betinget hop ligger på skæv adresse"
+
+#: alpha-opc.c:358 alpha-opc.c:380
+msgid "jump hint unaligned"
+msgstr "hopperådet ligger på skæv adresse"
+
+#: arc-dis.c:52
+msgid "Illegal limm reference in last instruction!\n"
+msgstr "Ugyldig limm-reference i sidste instruktion!\n"
+
+#: arm-dis.c:507
+msgid "<illegal precision>"
+msgstr "<ugyldig præcision>"
+
+#: arm-dis.c:1010
+#, c-format
+msgid "Unrecognised register name set: %s\n"
+msgstr "Ukendt registernavn er angivet: %s\n"
+
+#: arm-dis.c:1017
+#, c-format
+msgid "Unrecognised disassembler option: %s\n"
+msgstr "Ukendt disassembleralternativ: %s\n"
+
+#: arm-dis.c:1191
+msgid ""
+"\n"
+"The following ARM specific disassembler options are supported for use with\n"
+"the -M switch:\n"
+msgstr ""
+"\n"
+"Følgende ARM-specifikke disassembleralternativ understøttes for brug\n"
+"sammen med flaget -M:\n"
+
+#: avr-dis.c:118 avr-dis.c:128
+msgid "undefined"
+msgstr "udefineret"
+
+#: avr-dis.c:180
+msgid "Internal disassembler error"
+msgstr "Intern fejl i disassembleren"
+
+#: avr-dis.c:228
+#, c-format
+msgid "unknown constraint `%c'"
+msgstr "ukendt begrænsning \"%c\""
+
+#: cgen-asm.c:346 fr30-ibld.c:195 frv-ibld.c:195 m32r-ibld.c:195
+#: openrisc-ibld.c:195 xstormy16-ibld.c:195
+#, c-format
+msgid "operand out of range (%ld not between %ld and %ld)"
+msgstr "operanden er uden for intervallet (%ld er ikke mellem %ld og %ld)"
+
+#: cgen-asm.c:367
+#, c-format
+msgid "operand out of range (%lu not between %lu and %lu)"
+msgstr "operanden er uden for intervallet (%lu er ikke mellem %lu og %lu)"
+
+#: d30v-dis.c:312
+#, c-format
+msgid "<unknown register %d>"
+msgstr "<ukendt register %d>"
+
+#. Can't happen.
+#: dis-buf.c:57
+#, c-format
+msgid "Unknown error %d\n"
+msgstr "Ukendt fejl %d\n"
+
+#: dis-buf.c:62
+#, c-format
+msgid "Address 0x%x is out of bounds.\n"
+msgstr "Adressen 0x%x ligger uden for tilladte grænser.\n"
+
+#: fr30-asm.c:323 frv-asm.c:595 m32r-asm.c:325 openrisc-asm.c:244
+#: xstormy16-asm.c:231
+#, c-format
+msgid "Unrecognized field %d while parsing.\n"
+msgstr "Ukendt felt %d ved tolkning.\n"
+
+#: fr30-asm.c:373 frv-asm.c:645 m32r-asm.c:375 openrisc-asm.c:294
+#: xstormy16-asm.c:281
+msgid "missing mnemonic in syntax string"
+msgstr "Mangler mnemonic i syntaksstreng"
+
+#. We couldn't parse it.
+#: fr30-asm.c:509 fr30-asm.c:513 fr30-asm.c:600 fr30-asm.c:702 frv-asm.c:781
+#: frv-asm.c:785 frv-asm.c:872 frv-asm.c:974 m32r-asm.c:511 m32r-asm.c:515
+#: m32r-asm.c:602 m32r-asm.c:704 openrisc-asm.c:430 openrisc-asm.c:434
+#: openrisc-asm.c:521 openrisc-asm.c:623 xstormy16-asm.c:417
+#: xstormy16-asm.c:421 xstormy16-asm.c:508 xstormy16-asm.c:610
+msgid "unrecognized instruction"
+msgstr "ukendt instruktion"
+
+#: fr30-asm.c:556 frv-asm.c:828 m32r-asm.c:558 openrisc-asm.c:477
+#: xstormy16-asm.c:464
+#, c-format
+msgid "syntax error (expected char `%c', found `%c')"
+msgstr "syntaksfejl (tegnet \"%c\" forventedes, fandt \"%c\")"
+
+#: fr30-asm.c:566 frv-asm.c:838 m32r-asm.c:568 openrisc-asm.c:487
+#: xstormy16-asm.c:474
+#, c-format
+msgid "syntax error (expected char `%c', found end of instruction)"
+msgstr "syntaksfejl (tegnet \"%c\" forventedes, fandt slut på instruktion)"
+
+#: fr30-asm.c:594 frv-asm.c:866 m32r-asm.c:596 openrisc-asm.c:515
+#: xstormy16-asm.c:502
+msgid "junk at end of line"
+msgstr "snavs ved slutning på linjen"
+
+#: fr30-asm.c:701 frv-asm.c:973 m32r-asm.c:703 openrisc-asm.c:622
+#: xstormy16-asm.c:609
+msgid "unrecognized form of instruction"
+msgstr "ukendt form af instruktion"
+
+#: fr30-asm.c:713 frv-asm.c:985 m32r-asm.c:715 openrisc-asm.c:634
+#: xstormy16-asm.c:621
+#, c-format
+msgid "bad instruction `%.50s...'"
+msgstr "fejlagtig instruktion \"%.50s...\""
+
+#: fr30-asm.c:716 frv-asm.c:988 m32r-asm.c:718 openrisc-asm.c:637
+#: xstormy16-asm.c:624
+#, c-format
+msgid "bad instruction `%.50s'"
+msgstr "fejlagtig instruktion \"%.50s\""
+
+#. Default text to print if an instruction isn't recognized.
+#: fr30-dis.c:39 frv-dis.c:39 m32r-dis.c:39 mmix-dis.c:282 openrisc-dis.c:39
+#: xstormy16-dis.c:39
+msgid "*unknown*"
+msgstr "*ukendt*"
+
+#: fr30-dis.c:318 frv-dis.c:360 m32r-dis.c:249 openrisc-dis.c:136
+#: xstormy16-dis.c:169
+#, c-format
+msgid "Unrecognized field %d while printing insn.\n"
+msgstr "Ukendt felt %d ved udskrift af instruktion.\n"
+
+#: fr30-ibld.c:166 frv-ibld.c:166 m32r-ibld.c:166 openrisc-ibld.c:166
+#: xstormy16-ibld.c:166
+#, c-format
+msgid "operand out of range (%ld not between %ld and %lu)"
+msgstr "operanden er uden for intervallet (%ld er ikke mellem %ld og %lu)"
+
+#: fr30-ibld.c:179 frv-ibld.c:179 m32r-ibld.c:179 openrisc-ibld.c:179
+#: xstormy16-ibld.c:179
+#, c-format
+msgid "operand out of range (%lu not between 0 and %lu)"
+msgstr "operanden uden for intervallet (%lu ikke mellem 0 og %lu)"
+
+#: fr30-ibld.c:730 frv-ibld.c:820 m32r-ibld.c:659 openrisc-ibld.c:633
+#: xstormy16-ibld.c:678
+#, c-format
+msgid "Unrecognized field %d while building insn.\n"
+msgstr "Ukendt felt %d ved konstruktion af instruktion.\n"
+
+#: fr30-ibld.c:937 frv-ibld.c:1103 m32r-ibld.c:792 openrisc-ibld.c:735
+#: xstormy16-ibld.c:826
+#, c-format
+msgid "Unrecognized field %d while decoding insn.\n"
+msgstr "Ukendt felt %d ved afkodning af instruktion.\n"
+
+#: fr30-ibld.c:1086 frv-ibld.c:1348 m32r-ibld.c:902 openrisc-ibld.c:815
+#: xstormy16-ibld.c:939
+#, c-format
+msgid "Unrecognized field %d while getting int operand.\n"
+msgstr "Ukendt felt %d ved hentning af heltalsoperand.\n"
+
+#: fr30-ibld.c:1215 frv-ibld.c:1573 m32r-ibld.c:992 openrisc-ibld.c:875
+#: xstormy16-ibld.c:1032
+#, c-format
+msgid "Unrecognized field %d while getting vma operand.\n"
+msgstr "Ukendt felt %d ved hentning af vma-operand.\n"
+
+#: fr30-ibld.c:1349 frv-ibld.c:1807 m32r-ibld.c:1090 openrisc-ibld.c:944
+#: xstormy16-ibld.c:1134
+#, c-format
+msgid "Unrecognized field %d while setting int operand.\n"
+msgstr "Ukendt felt %d ved indstilling af heltalsoperand.\n"
+
+#: fr30-ibld.c:1471 frv-ibld.c:2029 m32r-ibld.c:1176 openrisc-ibld.c:1001
+#: xstormy16-ibld.c:1224
+#, c-format
+msgid "Unrecognized field %d while setting vma operand.\n"
+msgstr "Ukendt felt %d ved indstilling af vma-operand.\n"
+
+#: h8300-dis.c:385
+#, c-format
+msgid "Hmmmm %x"
+msgstr "Hmmmm %x"
+
+#: h8300-dis.c:396
+#, c-format
+msgid "Don't understand %x \n"
+msgstr "Forstår ikke %x \n"
+
+#: h8500-dis.c:143
+#, c-format
+msgid "can't cope with insert %d\n"
+msgstr "kan ikke indsætte %d\n"
+
+#. Couldn't understand anything.
+#: h8500-dis.c:350
+#, c-format
+msgid "%02x\t\t*unknown*"
+msgstr "%02x\t\t*ukendt*"
+
+#: i386-dis.c:1649
+msgid "<internal disassembler error>"
+msgstr "<intern fejl i disassembleren>"
+
+#: m10200-dis.c:199
+#, c-format
+msgid "unknown\t0x%02x"
+msgstr "ukendt\t0x%02x"
+
+#: m10200-dis.c:339
+#, c-format
+msgid "unknown\t0x%04lx"
+msgstr "ukendt\t0x%04lx"
+
+#: m10300-dis.c:685
+#, c-format
+msgid "unknown\t0x%04x"
+msgstr "ukendt\t0x%04x"
+
+#: m68k-dis.c:429
+#, c-format
+msgid "<internal error in opcode table: %s %s>\n"
+msgstr "<intern fejl i instruktionstabellen: %s %s>\n"
+
+#: m68k-dis.c:1007
+#, c-format
+msgid "<function code %d>"
+msgstr "<funktionskode %d>"
+
+#: m88k-dis.c:255
+#, c-format
+msgid "# <dis error: %08x>"
+msgstr "# <disassemblerfejl: %08x>"
+
+#: mips-dis.c:337
+#, c-format
+msgid "# internal error, undefined modifier(%c)"
+msgstr "# intern fejl, ukendt modifikator(%c)"
+
+#: mips-dis.c:1209
+#, c-format
+msgid "# internal disassembler error, unrecognised modifier (%c)"
+msgstr "# intern disassembler-fejl, ukendt modifikator (%c)"
+
+#: mmix-dis.c:34
+#, c-format
+msgid "Bad case %d (%s) in %s:%d\n"
+msgstr "Fejlagtig 'case' %d (%s) i %s:%d\n"
+
+#: mmix-dis.c:44
+#, c-format
+msgid "Internal: Non-debugged code (test-case missing): %s:%d"
+msgstr "Internt: ikke-fejltestet kode (test-tilfælde mangler): %s:%d"
+
+#: mmix-dis.c:53
+msgid "(unknown)"
+msgstr "(ukendt)"
+
+#: mmix-dis.c:517
+#, c-format
+msgid "*unknown operands type: %d*"
+msgstr "*ukendt operandstype: %d*"
+
+#. I and Z are output operands and can`t be immediate
+#. * A is an address and we can`t have the address of
+#. * an immediate either. We don't know how much to increase
+#. * aoffsetp by since whatever generated this is broken
+#. * anyway!
+#.
+#: ns32k-dis.c:628
+msgid "$<undefined>"
+msgstr "$<udefineret>"
+
+#: ppc-opc.c:777 ppc-opc.c:810
+msgid "invalid conditional option"
+msgstr "ugyldigt betinget flag"
+
+#: ppc-opc.c:812
+msgid "attempt to set y bit when using + or - modifier"
+msgstr "forsøg på at sætte y-bitten når modifikatoren + eller - blev brugt"
+
+#: ppc-opc.c:844 ppc-opc.c:896
+msgid "offset not a multiple of 4"
+msgstr "afsæt ikke et produkt af 4"
+
+#: ppc-opc.c:869
+msgid "offset not between -2048 and 2047"
+msgstr "afsæt ikke mellem -2048 og 2047"
+
+#: ppc-opc.c:894
+msgid "offset not between -8192 and 8191"
+msgstr "afsæt ikke mellem -8192 og 8191"
+
+#: ppc-opc.c:922
+msgid "ignoring least significant bits in branch offset"
+msgstr "ignorerer mindste betydende bit i afsæt for betinget hop"
+
+#: ppc-opc.c:956 ppc-opc.c:993
+msgid "illegal bitmask"
+msgstr "ugyldig bitmaske"
+
+#: ppc-opc.c:1066
+msgid "value out of range"
+msgstr "værdien er uden for intervallet"
+
+#: ppc-opc.c:1142
+msgid "index register in load range"
+msgstr "indeksregistret er i indlæsningsintervallet"
+
+#: ppc-opc.c:1158
+msgid "invalid register operand when updating"
+msgstr "ugyldig registeroperand ved opdatering"
+
+#. Mark as non-valid instruction
+#: sparc-dis.c:750
+msgid "unknown"
+msgstr "ukendt"
+
+#: sparc-dis.c:825
+#, c-format
+msgid "Internal error:  bad sparc-opcode.h: \"%s\", %#.8lx, %#.8lx\n"
+msgstr "Intern fejl:  dårlig sparc-opcode.h: \"%s\", %#.8lx, %#.8lx\n"
+
+#: sparc-dis.c:836
+#, c-format
+msgid "Internal error: bad sparc-opcode.h: \"%s\", %#.8lx, %#.8lx\n"
+msgstr "Intern fejl: dårlig sparc-opcode.h: \"%s\", %#.8lx, %#.8lx\n"
+
+#: sparc-dis.c:885
+#, c-format
+msgid "Internal error: bad sparc-opcode.h: \"%s\" == \"%s\"\n"
+msgstr "Intern fejl: dårlig sparc-opcode.h: \"%s\" == \"%s\"\n"
+
+#: v850-dis.c:224
+#, c-format
+msgid "unknown operand shift: %x\n"
+msgstr "ukendt operandskiftning: %x\n"
+
+#: v850-dis.c:236
+#, c-format
+msgid "unknown pop reg: %d\n"
+msgstr "ukendt pop-register: %d\n"
+
+#. The functions used to insert and extract complicated operands.
+#. Note: There is a conspiracy between these functions and
+#. v850_insert_operand() in gas/config/tc-v850.c.  Error messages
+#. containing the string 'out of range' will be ignored unless a
+#. specific command line option is given to GAS.
+#: v850-opc.c:68
+msgid "displacement value is not in range and is not aligned"
+msgstr "forskydningsværdien er ikke indenfor intervallet og ligger ikke på lige adresse"
+
+#: v850-opc.c:69
+msgid "displacement value is out of range"
+msgstr "forskydningsværdien er uden for intervallet"
+
+#: v850-opc.c:70
+msgid "displacement value is not aligned"
+msgstr "forskydningsværdien ligger ikke på lige adresse"
+
+#: v850-opc.c:72
+msgid "immediate value is out of range"
+msgstr "umiddelbar værdi er uden for intervallet"
+
+#: v850-opc.c:83
+msgid "branch value not in range and to odd offset"
+msgstr "værdien for betinget hop er ikke inden for intervallet og til et ulige afsæt"
+
+#: v850-opc.c:85 v850-opc.c:117
+msgid "branch value out of range"
+msgstr "værdien for betinget hop er uden for intervallet"
+
+#: v850-opc.c:88 v850-opc.c:120
+msgid "branch to odd offset"
+msgstr "betinget hop til ulige afsæt"
+
+#: v850-opc.c:115
+msgid "branch value not in range and to an odd offset"
+msgstr "værdien for betinget hop er ikke indenfor intervallet og til et ulige afsæt"
+
+#: v850-opc.c:346
+msgid "invalid register for stack adjustment"
+msgstr "ugyldigt register for stakjustering"
+
+#: v850-opc.c:370
+msgid "immediate value not in range and not even"
+msgstr "umiddelbar værdi er ikke indenfor intervallet og ikke lige"
+
+#: v850-opc.c:375
+msgid "immediate value must be even"
+msgstr "umiddelbar værdi skal være lige"
+
+#: xstormy16-asm.c:74
+msgid "Bad register in preincrement"
+msgstr "Forkert register i præinkrement"
+
+#: xstormy16-asm.c:79
+msgid "Bad register in postincrement"
+msgstr "Forkert register i postinkrement"
+
+#: xstormy16-asm.c:81
+msgid "Bad register name"
+msgstr "Forkert registernavn"
+
+#: xstormy16-asm.c:85
+msgid "Label conflicts with register name"
+msgstr "Etikette konflikter med registernavn"
+
+#: xstormy16-asm.c:89
+msgid "Label conflicts with `Rx'"
+msgstr "Etikette konflikter med 'Rx'"
+
+#: xstormy16-asm.c:91
+msgid "Bad immediate expression"
+msgstr "Forkert umiddelbart udtryk"
+
+#: xstormy16-asm.c:120
+msgid "Small operand was not an immediate number"
+msgstr "Lille operand var ikke et umiddelbart tal"
+
+#~ msgid "unrecognized keyword/register name"
+#~ msgstr "ukendt navn på nøgleord/register"

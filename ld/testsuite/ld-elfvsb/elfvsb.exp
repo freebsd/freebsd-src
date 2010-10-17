@@ -1,0 +1,462 @@
+# Expect script for ld-visibility tests
+#   Copyright 2000, 2001, 2003 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+# Written by Ian Lance Taylor (ian@cygnus.com)
+#	     and H.J. Lu (hjl@gnu.org)
+#
+
+# Make sure that ld can generate ELF shared libraries with visibility.
+
+# This test can only be run on a couple of ELF platforms.
+# Square bracket expressions seem to confuse istarget.
+if { ![istarget hppa*64*-*-hpux*] \
+     && ![istarget hppa*-*-linux*] \
+     && ![istarget i?86-*-linux*] \
+     && ![istarget ia64-*-linux*] \
+     && ![istarget m68k-*-linux*] \
+     && ![istarget mips*-*-linux*] \
+     && ![istarget powerpc*-*-linux*] \
+     && ![istarget arm*-*-linux*] \
+     && ![istarget alpha*-*-linux*] \
+     && ![istarget sparc*-*-linux*] \
+     && ![istarget s390*-*-linux*] \
+     && ![istarget sh\[34\]*-*-linux*] \
+     && ![istarget x86_64-*-linux*] } {
+    return
+}
+
+if { [istarget *-*-linux*aout*] \
+     || [istarget *-*-linux*oldld*] } {
+    return
+}
+
+set test_list [lsort [glob -nocomplain $srcdir/$subdir/*.d]]
+foreach t $test_list {
+    # We need to strip the ".d", but can leave the dirname.
+    verbose [file rootname $t]
+    run_dump_test [file rootname $t]
+}
+
+# The remaining tests can only be run if ld generates native executables.
+if ![isnative] then {return}
+
+set tmpdir tmpdir
+set SHCFLAG ""
+
+if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+
+    # AIX shared libraries do not seem to support useful features,
+    # like overriding the shared library function or letting the
+    # shared library refer to objects defined in the main program.  We
+    # avoid testing those features.
+    set SHCFLAG "-DXCOFF_TEST"
+
+    # The AIX 3.2.5 loader appears to randomly fail when loading
+    # shared libraries from NSF mounted partitions, so we avoid any
+    # potential problems by using a local directory.
+    catch {exec /bin/sh -c "echo $$"} pid
+    set tmpdir /usr/tmp/ld.$pid
+    catch "exec mkdir $tmpdir" exec_status
+
+    # On AIX, we need to explicitly export the symbols the shared
+    # library is going to provide, and need.
+    set file [open $tmpdir/xcoff.exp w]
+    puts $file shlibvar1
+    puts $file shlibvar2
+    puts $file shlib_shlibvar1
+    puts $file shlib_shlibvar2
+    puts $file shlib_shlibcall
+    puts $file shlib_shlibcalled
+    puts $file shlib_checkfunptr1
+    puts $file shlib_getfunptr1
+    puts $file shlib_check
+    close $file
+}
+
+set support_protected "no"
+
+if [istarget *-*-linux*] {
+    if [ld_compile "$CC -g $CFLAGS -DPROTECTED_CHECK" $srcdir/$subdir/main.c $tmpdir/main.o] {
+      if [ld_simple_link $CC $tmpdir/main "$tmpdir/main.o"] {
+	catch "exec $tmpdir/main" support_protected
+      }
+    }
+}
+
+# The test procedure.
+proc visibility_test { visibility progname testname main sh1 sh2 dat args } {
+    global CC
+    global srcdir
+    global subdir
+    global exec_output
+    global link_output
+    global host_triplet
+    global tmpdir
+
+    if [llength $args] { set shldflags [lindex $args 0] } else { set shldflags "" }
+
+    # Build the shared library.
+    # On AIX, we need to use an export file.
+    set shared -shared
+    if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+	set shared "-bM:SRE -bE:$tmpdir/xcoff.exp"
+    }
+    if {![ld_simple_link $CC $tmpdir/$progname.so "$shared $shldflags $tmpdir/$sh1 $tmpdir/$sh2"]} {
+	if { [ string match $visibility "hidden_undef" ]
+	     && [regexp ".*/sh1.c.*: undefined reference to \`visibility\'" $link_output]
+	     && [regexp ".*/sh1.c.*: undefined reference to \`visibility_var\'" $link_output] } {
+    	    pass "$testname"
+	} else { if { [ string match $visibility "protected_undef" ]
+	     && [regexp ".*/sh1.c.*: undefined reference to \`visibility\'" $link_output]
+	     && [regexp ".*/sh1.c.*: undefined reference to \`visibility_var\'" $link_output] } {
+    	    pass "$testname"
+	} else {
+	    fail "$testname"
+	}}
+    	return
+    }
+
+    # Link against the shared library.  Use -rpath so that the
+    # dynamic linker can locate the shared library at runtime.
+    # On AIX, we must include /lib in -rpath, as otherwise the loader
+    # can not find -lc.
+    set rpath $tmpdir
+    if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+	set rpath /lib:$tmpdir
+    }
+    if ![ld_simple_link $CC $tmpdir/$progname "-Wl,-rpath,$rpath $tmpdir/$main $tmpdir/$progname.so"] {
+	if { [ string match $visibility "hidden" ]
+	     && [regexp ".*/main.c.*: undefined reference to \`visibility\'" $link_output]
+	     && [regexp ".*/main.c.*: undefined reference to \`visibility_var\'" $link_output] } {
+    	    pass "$testname"
+	} else { if { [ string match $visibility "hidden_undef_def" ]
+	     && [regexp ".*/main.c.*: undefined reference to \`visibility\'" $link_output]
+	     && [regexp ".*/main.c.*: undefined reference to \`visibility_def\'" $link_output]
+	     && [regexp ".*/main.c.*: undefined reference to \`visibility_func\'" $link_output]
+	     && [regexp ".*/main.c.*: undefined reference to \`visibility_var\'" $link_output] } {
+    	    pass "$testname"
+	} else {
+    	    fail "$testname"
+	}}
+    	return
+    }
+
+    if { [ string match $visibility "hidden" ]
+	 || [ string match $visibility "hidden_undef" ]
+	 || [ string match $visibility "protected_undef" ] } {
+	fail "$testname"
+    }
+
+    # Run the resulting program
+    send_log "$tmpdir/$progname >$tmpdir/$progname.out\n"
+    verbose "$tmpdir/$progname >$tmpdir/$progname.out"
+    catch "exec $tmpdir/$progname >$tmpdir/$progname.out" exec_output
+    if ![string match "" $exec_output] then {
+	send_log "$exec_output\n"
+	verbose "$exec_output"
+	fail "$testname"
+    	return
+    }
+
+    send_log "diff $tmpdir/$progname.out $srcdir/$subdir/$dat.dat\n"
+    verbose "diff $tmpdir/$progname.out $srcdir/$subdir/$dat.dat"
+    catch "exec diff $tmpdir/$progname.out $srcdir/$subdir/$dat.dat" exec_output
+    set exec_output [prune_warnings $exec_output]
+
+    if {![string match "" $exec_output]} then {
+	send_log "$exec_output\n"
+	verbose "$exec_output"
+	fail "$testname"
+        return
+    }
+
+    pass "$testname"
+}
+
+proc visibility_run {visibility} {
+    global CC
+    global CFLAGS
+    global SHCFLAG
+    global srcdir
+    global subdir
+    global tmpdir
+    global picflag
+    global target_triplet
+    global support_protected
+
+    if [ string match $visibility "hidden" ] {
+	set VSBCFLAG "-DHIDDEN_TEST"
+    } else { if [ string match $visibility "hidden_normal" ] {
+	set VSBCFLAG "-DHIDDEN_NORMAL_TEST"
+    } else { if [ string match $visibility "hidden_undef" ] {
+	set VSBCFLAG "-DHIDDEN_UNDEF_TEST"
+    } else { if [ string match $visibility "hidden_undef_def" ] {
+	set VSBCFLAG "-DHIDDEN_UNDEF_TEST -DDSO_DEFINE_TEST"
+    } else { if [ string match $visibility "hidden_weak" ] {
+	set VSBCFLAG "-DHIDDEN_WEAK_TEST"
+    } else { if [ string match $visibility "protected" ] {
+	set VSBCFLAG "-DPROTECTED_TEST"
+    } else { if [ string match $visibility "protected_undef" ] {
+	set VSBCFLAG "-DPROTECTED_UNDEF_TEST"
+    } else { if [ string match $visibility "protected_undef_def" ] {
+	set VSBCFLAG "-DPROTECTED_UNDEF_TEST -DDSO_DEFINE_TEST"
+    } else { if [ string match $visibility "protected_weak" ] {
+	set VSBCFLAG "-DPROTECTED_WEAK_TEST"
+    } else {
+	set VSBCFLAG ""
+    }}}}}}}}}
+
+    # Compile the main program.
+    if ![ld_compile "$CC -g $CFLAGS $SHCFLAG $VSBCFLAG" $srcdir/$subdir/main.c $tmpdir/mainnp.o] {
+	unresolved "visibility ($visibility) (non PIC)"
+	unresolved "visibility ($visibility)"
+    } else {
+	# The shared library is composed of two files.  First compile them
+	# without using -fpic.  That should work on an ELF system,
+	# although it will be less efficient because the dynamic linker
+	# will need to do more relocation work.  However, note that not
+	# using -fpic will cause some of the tests to return different
+	# results.
+	if { ![ld_compile "$CC -g $CFLAGS $SHCFLAG $VSBCFLAG" $srcdir/$subdir/sh1.c $tmpdir/sh1np.o]
+	     || ![ld_compile "$CC -g $CFLAGS $SHCFLAG $VSBCFLAG" $srcdir/$subdir/sh2.c $tmpdir/sh2np.o] } {
+	    unresolved "visibility ($visibility) (non PIC)"
+	} else { if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+	    visibility_test $visibility vnp "visibility ($visibility) (non PIC)" mainnp.o sh1np.o sh2np.o xcoff
+	} else {
+	    # SunOS non PIC shared libraries don't permit some cases of
+	    # overriding.
+	    if { [ string match $visibility "protected" ]
+		 || [ string match $visibility "protected_undef_def" ] } {
+		if [ string match $support_protected "no" ] {
+		    setup_xfail $target_triplet
+		}
+	    } else {
+		setup_xfail "*-*-sunos4*"
+	    }
+
+	    # Non-pic code uses name binding rules for applications to
+	    # reference variables by gp-relative relocs, which can't be
+	    # used with overridable symbols.
+	    if { ![ string match $visibility "hidden_undef" ]
+		 && ![ string match $visibility "protected_undef" ] } {
+		setup_xfail "ia64-*-linux*"
+		setup_xfail "alpha*-*-linux*"
+	    }
+	    if { ![ string match $visibility "hidden" ]
+		 && ![ string match $visibility "hidden_undef" ]
+		 && ![ string match $visibility "hidden_undef_def" ]
+		 && ![ string match $visibility "protected_undef" ] } {
+		setup_xfail "s390x-*-linux*"
+	    }
+	    setup_xfail "x86_64-*-linux*"
+	    if { ![istarget hppa*64*-*-linux*] } {
+		setup_xfail "hppa*-*-linux*"
+	    }
+
+	    visibility_test $visibility vnp "visibility ($visibility) (non PIC)" mainnp.o sh1np.o sh2np.o elfvsb
+
+	    # Test ELF shared library relocations with a non-zero load
+	    # address for the library.  Near as I can tell, the R_*_RELATIVE
+	    # relocations for various targets are broken in the case where
+	    # the load address is not zero (which is the default).
+	    if { [ string match $visibility "protected" ]
+		 || [ string match $visibility "protected_undef_def" ] } {
+		if [ string match $support_protected "no" ] {
+		    setup_xfail $target_triplet
+		}
+	    } else {
+		setup_xfail "*-*-sunos4*"
+		setup_xfail "*-*-linux*libc1"
+	    }
+	    if { [ string match $visibility "hidden_normal" ]
+		 || [ string match $visibility "hidden_weak" ]
+		 || [ string match $visibility "protected" ]
+		 || [ string match $visibility "protected_undef_def" ]
+		 || [ string match $visibility "protected_weak" ]
+		 || [ string match $visibility "normal" ] } {
+		setup_xfail "powerpc-*-linux*"
+	    }
+	    if { ![ string match $visibility "hidden_undef" ]
+		 && ![ string match $visibility "protected_undef" ] } {
+		setup_xfail "ia64-*-linux*"
+		setup_xfail "alpha*-*-linux*"
+		setup_xfail "mips*-*-linux*"
+	    }
+	    setup_xfail "x86_64-*-linux*"
+	    if { ![istarget hppa*64*-*-linux*] } {
+		setup_xfail "hppa*-*-linux*"
+	    }
+
+	    visibility_test $visibility vnp "visibility ($visibility) (non PIC, load offset)" \
+		mainnp.o sh1np.o sh2np.o elfvsb \
+		"-T $srcdir/$subdir/elf-offset.ld"
+	} }
+
+	# Now compile the code using -fpic.
+
+	if { ![ld_compile "$CC -g $CFLAGS $SHCFLAG $VSBCFLAG $picflag" $srcdir/$subdir/sh1.c $tmpdir/sh1p.o] 
+	    || ![ld_compile "$CC -g $CFLAGS $SHCFLAG $VSBCFLAG $picflag" $srcdir/$subdir/sh2.c $tmpdir/sh2p.o] } {
+	    unresolved "visibility ($visibility)"
+	} else {
+	    if { [ string match $visibility "protected" ]
+		 || [ string match $visibility "protected_undef_def" ] } {
+		if [ string match $support_protected "no" ] {
+		    setup_xfail $target_triplet
+		}
+	    }
+	    # SunOS can not compare function pointers correctly
+	    if [istarget "*-*-sunos4*"] {
+		visibility_test $visibility vp "visibility ($visibility)" mainnp.o sh1p.o sh2p.o sun4
+	    } else { if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+		visibility_test $visibility vp "visibility ($visibility)" mainnp.o sh1p.o sh2p.o xcoff
+	    } else {
+		visibility_test $visibility vp "visibility ($visibility)" mainnp.o sh1p.o sh2p.o elfvsb
+	    } }
+	}
+    }
+
+    # Now do the same tests again, but this time compile main.c PIC.
+    if ![ld_compile "$CC -g $CFLAGS $SHCFLAG $VSBCFLAG $picflag" $srcdir/$subdir/main.c $tmpdir/mainp.o] {
+	unresolved "visibility ($visibility) (PIC main, non PIC so)"
+	unresolved "visibility ($visibility) (PIC main)"
+    } else {
+	if { [file exists $tmpdir/sh1np.o ] && [ file exists $tmpdir/sh2np.o ] } {
+	    if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+		visibility_test $visibility vmpnp "visibility ($visibility) (PIC main, non PIC so)" mainp.o sh1np.o sh2np.o xcoff
+	    } else {
+		# SunOS non PIC shared libraries don't permit some cases of
+		# overriding.
+		if { [ string match $visibility "protected" ]
+		     || [ string match $visibility "protected_undef_def" ] } {
+		    if [ string match $support_protected "no" ] {
+			setup_xfail $target_triplet
+		    }
+		} else {
+		    setup_xfail "*-*-sunos4*"
+		}
+		if { ![ string match $visibility "hidden_undef" ]
+		     && ![ string match $visibility "protected_undef" ] } {
+		    setup_xfail "ia64-*-linux*"
+		    setup_xfail "alpha*-*-linux*"
+		}
+		if { ![ string match $visibility "hidden" ]
+		     && ![ string match $visibility "hidden_undef" ]
+		     && ![ string match $visibility "hidden_undef_def" ]
+		     && ![ string match $visibility "protected_undef" ] } {
+		    setup_xfail "s390x-*-linux*"
+		}
+		setup_xfail "x86_64-*-linux*"
+		if { ![istarget hppa*64*-*-linux*] } {
+		    setup_xfail "hppa*-*-linux*"
+		}
+
+		visibility_test $visibility vmpnp "visibility ($visibility) (PIC main, non PIC so)" mainp.o sh1np.o sh2np.o elfvsb
+	    }
+	} else {
+	    unresolved "visibility (PIC main, non PIC so)"
+	}
+
+	if { [file exists $tmpdir/sh1p.o ] && [ file exists $tmpdir/sh2p.o ] } {
+	    if { [ string match $visibility "protected" ]
+		 || [ string match $visibility "protected_undef_def" ] } {
+		if [ string match $support_protected "no" ] {
+		    setup_xfail $target_triplet
+		}
+	    }
+	    if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+		visibility_test $visibility vmpp "visibility ($visibility) (PIC main)" mainp.o sh1p.o sh2p.o xcoff
+	    } else {
+		visibility_test $visibility vmpp "visibility ($visibility) (PIC main)" mainp.o sh1p.o sh2p.o elfvsb
+	    }
+	} else {
+	    unresolved "visibility ($visibility) (PIC main)"
+	}
+    }
+}
+
+if [istarget mips*-*-*] {
+    set picflag ""
+} else {
+    # Unfortunately, the gcc argument is -fpic and the cc argument is
+    # -KPIC.  We have to try both.
+    set picflag "-fpic"
+    send_log "$CC $picflag\n"
+    verbose "$CC $picflag"
+    catch "exec $CC $picflag" exec_output
+    send_log "$exec_output\n"
+    verbose "--" "$exec_output"
+    if { [string match "*illegal option*" $exec_output] \
+	 || [string match "*option ignored*" $exec_output] \
+	 || [string match "*unrecognized option*" $exec_output] \
+	 || [string match "*passed to ld*" $exec_output] } {
+	if [istarget *-*-sunos4*] {
+	    set picflag "-pic"
+	} else {
+	    set picflag "-KPIC"
+	}
+    }
+}
+verbose "Using $picflag to compile PIC code"
+
+visibility_run hidden
+visibility_run hidden_normal
+visibility_run hidden_undef
+visibility_run hidden_undef_def
+visibility_run hidden_weak
+visibility_run protected
+visibility_run protected_undef
+visibility_run protected_undef_def
+visibility_run protected_weak
+visibility_run normal
+
+if { ![ld_compile "$CC -g $CFLAGS" $srcdir/$subdir/common.c tmpdir/common.o] } {
+    unresolved "common hidden symbol"
+} else {
+    if ![ld_simple_link $ld tmpdir/common "tmpdir/common.o"] {
+	fail "common hidden symbol"
+    } else {
+	pass "common hidden symbol"
+    }
+}
+
+if { ![ld_compile "$CC -g $CFLAGS" $srcdir/$subdir/test.c tmpdir/test.o] } {
+    unresolved "weak hidden symbol"
+} else {
+   if { ![ld_compile "$CC -g $CFLAGS $picflag" $srcdir/$subdir/sh3.c tmpdir/sh3.o] } {
+	unresolved "weak hidden symbol"
+    } else {
+	if ![ld_simple_link $ld tmpdir/sh3.so "-shared tmpdir/sh3.o"] {
+	    fail "weak hidden symbol"
+	} else {
+	    if ![ld_simple_link $ld tmpdir/weak "tmpdir/test.o tmpdir/sh3.o"] {
+		fail "weak hidden symbol DSO last"
+	    } else {
+		pass "weak hidden symbol DSO last"
+	    }
+	    if ![ld_simple_link $ld tmpdir/weak "tmpdir/sh3.so tmpdir/test.o"] {
+		fail "weak hidden symbol DSO first"
+	    } else {
+		pass "weak hidden symbol DSO first"
+	    }
+	}
+    }
+}
+
+if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+    # Remove the temporary directory.
+    catch "exec rm -rf $tmpdir" exec_status
+}

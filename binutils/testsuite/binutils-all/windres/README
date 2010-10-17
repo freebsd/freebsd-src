@@ -1,0 +1,26 @@
+Instructions for adding tests:
+
+The files *.rc are hand-edited or copied from elsewhere.
+
+The script msupdate is used to generate the *.rsd files, which are
+dumps of the RES formatted output of MSVC's RC utility.
+
+Within the *.rc file, the first N lines beginning with a special
+comment can control the test.  Comments are // /* or # (// is
+recommended, as both rc and windres support those).  Each line
+contains one command:
+
+	// parse-only
+	// xfail *-*-*
+
+parse-only must preceed any xfail commands, and indicates that a
+comparison with the *.rsd file will not happen.  xfail indicates when
+a failure is expected.  This should only be used for when you are
+adding a new test that is known to fail because of a bug in windres,
+and it should be removed when the bug is fixed.
+
+You can use pfail or cfail instead of xfail to indicate that only the
+parsing or comparing should be xfailed.
+
+The windres tests only run for ix86 targets, because the
+MSVC-generated *.rsd files are generated for that.

@@ -1,0 +1,2880 @@
+#
+# Some h8300sx tests -- t05_cmp
+#
+
+proc do_t05_cmp_test {} {
+    set testname "t05_cmp.s -- h8sx tests"
+
+    gas_start "t05_cmp.s" "-al"
+
+    # Check each instruction bit pattern to verify it got assembled correctly.
+
+    set x 0
+    expect {
+	-re ".*   7 0000 7C350120" { set x [expr $x+1]; exp_continue; }
+	-re ".*   8 0004 7C353120" { set x [expr $x+1]; exp_continue; }
+	-re ".*   9 0008 7C35B120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  10 000c 7C358120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  11 0010 7C35A120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  12 0014 7C359120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  13 0018 7C35C120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  13      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  14 001e 7C35C920" { set x [expr $x+1]; exp_continue; }
+	-re ".*  14      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  15 0026 7C35D220" { set x [expr $x+1]; exp_continue; }
+	-re ".*  15      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  16 002c 7C35E220" { set x [expr $x+1]; exp_continue; }
+	-re ".*  16      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  17 0032 7C35F220" { set x [expr $x+1]; exp_continue; }
+	-re ".*  17      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  18 0038 7C35DA20" { set x [expr $x+1]; exp_continue; }
+	-re ".*  18      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  19 0040 7C35EA20" { set x [expr $x+1]; exp_continue; }
+	-re ".*  19      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  20 0048 7C35FA20" { set x [expr $x+1]; exp_continue; }
+	-re ".*  20      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  21 0050 7C354020" { set x [expr $x+1]; exp_continue; }
+	-re ".*  21      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  22 0056 7C354820" { set x [expr $x+1]; exp_continue; }
+	-re ".*  22      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  23              " {
+	    if [expr $x == 26] then {
+		pass "$testname: cmp.b @er3, ..."
+	    } else {
+		fail "$testname: cmp.b @er3, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.b @er3, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".*  24 005e 01776C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  24      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  25 0064 01776C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  25      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  26 006a 01776C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  26      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  27 0070 01776C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  27      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  28 0076 01776C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  28      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  29 007c 01776C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  29      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  30 0082 01776C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  30      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  31 008a 01776C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  31      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  31      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  32 0094 01776C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  32      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  33 009c 01776C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  33      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  34 00a4 01776C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  34      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  35 00ac 01776C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  35      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  35      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  36 00b6 01776C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  36      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  36      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  37 00c0 01776C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  37      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  37      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  38 00ca 01776C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  38      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  39 00d2 01776C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  39      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  39      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  40              " {
+	    if [expr $x == 37] then {
+		pass "$testname: cmp.b @-er3, ..."
+	    } else {
+		fail "$testname: cmp.b @-er3, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.b @-er3, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".*  41 00dc 01746C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  41      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  42 00e2 01746C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  42      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  43 00e8 01746C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  43      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  44 00ee 01746C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  44      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  45 00f4 01746C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  45      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  46 00fa 01746C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  46      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  47 0100 01746C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  47      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  48 0108 01746C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  48      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  48      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  49 0112 01746C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  49      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  50 011a 01746C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  50      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  51 0122 01746C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  51      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  52 012a 01746C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  52      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  52      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  53 0134 01746C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  53      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  53      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  54 013e 01746C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  54      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  54      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  55 0148 01746C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  55      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  56 0150 01746C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  56      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  56      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  57              " {
+	    if [expr $x == 37] then {
+		pass "$testname: cmp.b @er3+, ..."
+	    } else {
+		fail "$testname: cmp.b @er3+, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.b @er3+, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".*  58 015a 01766C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  58      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  59 0160 01766C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  59      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  60 0166 01766C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  60      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  61 016c 01766C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  61      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  62 0172 01766C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  62      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  63 0178 01766C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  63      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  64 017e 01766C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  64      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  65 0186 01766C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  65      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  65      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  66 0190 01766C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  66      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  67 0198 01766C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  67      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  68 01a0 01766C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  68      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  69 01a8 01766C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  69      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  69      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  70 01b2 01766C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  70      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  70      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  71 01bc 01766C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  71      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  71      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  72 01c6 01766C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  72      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  73 01ce 01766C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  73      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  73      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  74              " {
+	    if [expr $x == 37] then {
+		pass "$testname: cmp.b @er3-, ..."
+	    } else {
+		fail "$testname: cmp.b @er3-, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.b @er3-, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".*  75 01d8 01756C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  75      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  76 01de 01756C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  76      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  77 01e4 01756C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  77      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  78 01ea 01756C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  78      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  79 01f0 01756C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  79      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  80 01f6 01756C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  80      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  81 01fc 01756C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  81      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  82 0204 01756C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  82      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  82      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  83 020e 01756C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  83      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  84 0216 01756C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  84      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  85 021e 01756C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  85      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  86 0226 01756C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  86      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  86      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  87 0230 01756C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  87      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  87      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  88 023a 01756C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  88      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  88      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  89 0244 01756C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  89      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  90 024c 01756C3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  90      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  90      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  91              " {
+	    if [expr $x == 37] then {
+		pass "$testname: cmp.b @+er3, ..."
+	    } else {
+		fail "$testname: cmp.b @+er3, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.b @+er3, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".*  92 0256 01746E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  92      12340120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  93 025e 01746E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  93      12343120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  94 0266 01746E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  94      1234B120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  95 026e 01746E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  95      12348120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  96 0276 01746E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  96      1234A120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  97 027e 01746E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  97      12349120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  98 0286 01746E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  98      1234C120" { set x [expr $x+1]; exp_continue; }
+	-re ".*  98      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".*  99 0290 01746E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  99      1234C920" { set x [expr $x+1]; exp_continue; }
+	-re ".*  99      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 100 029c 01746E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 100      1234D220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 100      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 101 02a6 01746E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 101      1234E220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 101      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 102 02b0 01746E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 102      1234F220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 102      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 103 02ba 01746E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 103      1234DA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 103      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 104 02c6 01746E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 104      1234EA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 104      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 105 02d2 01746E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 105      1234FA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 105      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 106 02de 01746E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 106      12344020" { set x [expr $x+1]; exp_continue; }
+	-re ".* 106      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 107 02e8 01746E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 107      12344820" { set x [expr $x+1]; exp_continue; }
+	-re ".* 107      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 108              " {
+	    if [expr $x == 42] then {
+		pass "$testname: cmp.b @(0x1234:16,er3), ..."
+	    } else {
+		fail "$testname: cmp.b @(0x1234:16,er3), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.b @(0x1234:16,er3), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 109 02f4 78346A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 109      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 109      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 110 02fe 78346A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 110      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 110      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 111 0308 78346A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 111      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 111      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 112 0312 78346A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 112      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 112      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 113 031c 78346A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 113      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 113      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 114 0326 78346A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 114      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 114      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 115 0330 78346A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 115      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 115      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 116 033c 78346A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 116      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 116      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 116      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 117 034a 78346A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 117      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 117      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 118 0356 78346A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 118      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 118      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 119 0362 78346A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 119      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 119      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 120 036e 78346A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 120      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 120      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 120      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 121 037c 78346A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 121      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 121      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 121      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 122 038a 78346A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 122      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 122      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 122      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 123 0398 78346A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 123      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 123      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 124 03a4 78346A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 124      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 124      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 124      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 125              " {
+	    if [expr $x == 53] then {
+		pass "$testname: cmp.b @(0x12345678:32,er3), ..."
+	    } else {
+		fail "$testname: cmp.b @(0x12345678:32,er3), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.b @(0x12345678:32,er3), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 126 03b2 01756E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 126      12340120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 127 03ba 01756E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 127      12343120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 128 03c2 01756E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 128      1234B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 129 03ca 01756E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 129      12348120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 130 03d2 01756E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 130      1234A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 131 03da 01756E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 131      12349120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 132 03e2 01756E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 132      1234C120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 132      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 133 03ec 01756E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 133      1234C920" { set x [expr $x+1]; exp_continue; }
+	-re ".* 133      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 134 03f8 01756E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 134      1234D220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 134      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 135 0402 01756E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 135      1234E220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 135      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 136 040c 01756E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 136      1234F220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 136      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 137 0416 01756E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 137      1234DA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 137      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 138 0422 01756E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 138      1234EA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 138      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 139 042e 01756E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 139      1234FA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 139      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 140 043a 01756E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 140      12344020" { set x [expr $x+1]; exp_continue; }
+	-re ".* 140      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 141 0444 01756E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 141      12344820" { set x [expr $x+1]; exp_continue; }
+	-re ".* 141      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 142              " {
+	    if [expr $x == 42] then {
+		pass "$testname: cmp.b @(0x1234:16,r3l.b), ..."
+	    } else {
+		fail "$testname: cmp.b @(0x1234:16,r3l.b), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.b @(0x1234:16,r3l.b), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 143 0450 01766E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 143      12340120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 144 0458 01766E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 144      12343120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 145 0460 01766E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 145      1234B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 146 0468 01766E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 146      12348120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 147 0470 01766E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 147      1234A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 148 0478 01766E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 148      12349120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 149 0480 01766E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 149      1234C120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 149      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 150 048a 01766E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 150      1234C920" { set x [expr $x+1]; exp_continue; }
+	-re ".* 150      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 151 0496 01766E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 151      1234D220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 151      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 152 04a0 01766E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 152      1234E220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 152      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 153 04aa 01766E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 153      1234F220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 153      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 154 04b4 01766E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 154      1234DA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 154      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 155 04c0 01766E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 155      1234EA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 155      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 156 04cc 01766E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 156      1234FA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 156      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 157 04d8 01766E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 157      12344020" { set x [expr $x+1]; exp_continue; }
+	-re ".* 157      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 158 04e2 01766E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 158      12344820" { set x [expr $x+1]; exp_continue; }
+	-re ".* 158      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 159              " {
+	    if [expr $x == 42] then {
+		pass "$testname: cmp.b @(0x1234:16,r3.w), ..."
+	    } else {
+		fail "$testname: cmp.b @(0x1234:16,r3.w), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.b @(0x1234:16,r3.w), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 160 04ee 01776E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 160      12340120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 161 04f6 01776E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 161      12343120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 162 04fe 01776E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 162      1234B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 163 0506 01776E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 163      12348120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 164 050e 01776E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 164      1234A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 165 0516 01776E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 165      12349120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 166 051e 01776E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 166      1234C120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 166      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 167 0528 01776E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 167      1234C920" { set x [expr $x+1]; exp_continue; }
+	-re ".* 167      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 168 0534 01776E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 168      1234D220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 168      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 169 053e 01776E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 169      1234E220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 169      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 170 0548 01776E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 170      1234F220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 170      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 171 0552 01776E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 171      1234DA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 171      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 172 055e 01776E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 172      1234EA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 172      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 173 056a 01776E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 173      1234FA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 173      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 174 0576 01776E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 174      12344020" { set x [expr $x+1]; exp_continue; }
+	-re ".* 174      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 175 0580 01776E3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 175      12344820" { set x [expr $x+1]; exp_continue; }
+	-re ".* 175      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 176              " {
+	    if [expr $x == 42] then {
+		pass "$testname: cmp.b @(0x1234:16,er3.l), ..."
+	    } else {
+		fail "$testname: cmp.b @(0x1234:16,er3.l), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.b @(0x1234:16,er3.l), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 177 058c 78356A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 177      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 177      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 178 0596 78356A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 178      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 178      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 179 05a0 78356A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 179      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 179      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 180 05aa 78356A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 180      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 180      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 181 05b4 78356A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 181      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 181      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 182 05be 78356A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 182      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 182      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 183 05c8 78356A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 183      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 183      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 184 05d4 78356A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 184      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 184      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 184      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 185 05e2 78356A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 185      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 185      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 186 05ee 78356A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 186      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 186      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 187 05fa 78356A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 187      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 187      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 188 0606 78356A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 188      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 188      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 188      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 189 0614 78356A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 189      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 189      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 189      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 190 0622 78356A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 190      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 190      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 190      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 191 0630 78356A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 191      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 191      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 192 063c 78356A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 192      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 192      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 192      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 193              " {
+	    if [expr $x == 53] then {
+		pass "$testname: cmp.b @(0x12345678:32,r3l.b), ..."
+	    } else {
+		fail "$testname: cmp.b @(0x12345678:32,r3l.b), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.b @(0x12345678:32,r3l.b), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 194 064a 78366A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 194      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 194      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 195 0654 78366A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 195      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 195      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 196 065e 78366A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 196      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 196      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 197 0668 78366A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 197      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 197      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 198 0672 78366A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 198      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 198      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 199 067c 78366A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 199      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 199      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 200 0686 78366A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 200      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 200      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 201 0692 78366A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 201      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 201      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 201      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 202 06a0 78366A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 202      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 202      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 203 06ac 78366A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 203      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 203      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 204 06b8 78366A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 204      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 204      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 205 06c4 78366A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 205      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 205      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 205      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 206 06d2 78366A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 206      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 206      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 206      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 207 06e0 78366A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 207      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 207      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 207      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 208 06ee 78366A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 208      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 208      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 209 06fa 78366A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 209      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 209      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 209      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 210              " {
+	    if [expr $x == 53] then {
+		pass "$testname: cmp.b @(0x12345678:32,r3.w), ..."
+	    } else {
+		fail "$testname: cmp.b @(0x12345678:32,r3.w), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.b @(0x12345678:32,r3.w), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 211 0708 78376A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 211      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 211      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 212 0712 78376A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 212      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 212      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 213 071c 78376A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 213      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 213      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 214 0726 78376A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 214      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 214      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 215 0730 78376A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 215      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 215      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 216 073a 78376A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 216      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 216      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 217 0744 78376A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 217      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 217      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 218 0750 78376A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 218      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 218      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 218      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 219 075e 78376A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 219      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 219      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 220 076a 78376A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 220      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 220      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 221 0776 78376A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 221      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 221      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 222 0782 78376A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 222      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 222      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 222      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 223 0790 78376A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 223      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 223      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 223      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 224 079e 78376A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 224      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 224      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 224      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 225 07ac 78376A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 225      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 225      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 226 07b8 78376A2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 226      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 226      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 226      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 227              " {
+	    if [expr $x == 53] then {
+		pass "$testname: cmp.b @(0x12345678:32,er3.l), ..."
+	    } else {
+		fail "$testname: cmp.b @(0x12345678:32,er3.l), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.b @(0x12345678:32,er3.l), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 228 07c6 6A151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 228      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 229 07cc 6A151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 229      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 230 07d2 6A151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 230      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 231 07d8 6A151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 231      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 232 07de 6A151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 232      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 233 07e4 6A151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 233      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 234 07ea 6A151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 234      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 235 07f2 6A151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 235      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 235      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 236 07fc 6A151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 236      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 237 0804 6A151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 237      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 238 080c 6A151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 238      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 239 0814 6A151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 239      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 239      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 240 081e 6A151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 240      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 240      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 241 0828 6A151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 241      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 241      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 242 0832 6A151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 242      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 243 083a 6A151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 243      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 243      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 244              " {
+	    if [expr $x == 37] then {
+		pass "$testname: cmp.b @0x1234:16, ..."
+	    } else {
+		fail "$testname: cmp.b @0x1234:16, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.b @0x1234:16, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 245 0844 6A351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 245      56780120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 246 084c 6A351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 246      56783120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 247 0854 6A351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 247      5678B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 248 085c 6A351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 248      56788120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 249 0864 6A351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 249      5678A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 250 086c 6A351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 250      56789120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 251 0874 6A351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 251      5678C120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 251      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 252 087e 6A351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 252      5678C920" { set x [expr $x+1]; exp_continue; }
+	-re ".* 252      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 253 088a 6A351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 253      5678D220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 253      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 254 0894 6A351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 254      5678E220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 254      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 255 089e 6A351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 255      5678F220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 255      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 256 08a8 6A351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 256      5678DA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 256      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 257 08b4 6A351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 257      5678EA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 257      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 258 08c0 6A351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 258      5678FA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 258      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 259 08cc 6A351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 259      56784020" { set x [expr $x+1]; exp_continue; }
+	-re ".* 259      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 260 08d6 6A351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 260      56784820" { set x [expr $x+1]; exp_continue; }
+	-re ".* 260      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 261              " {
+	    if [expr $x == 42] then {
+		pass "$testname: cmp.b @0x12345678:32, ..."
+	    } else {
+		fail "$testname: cmp.b @0x12345678:32, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.b @0x12345678:32, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 262 08e2 79211234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 263 08e6 1F72" { set x [expr $x+1]; exp_continue; }
+	-re ".* 264 08e8 015E0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 264      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 265 08ee 015E3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 265      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 266 08f4 015E8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 266      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 267 08fa 015EB120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 267      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 268 0900 015E9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 268      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 269 0906 015EA120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 269      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 270 090c 015EC120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 270      9ABC1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 271 0914 015EC920" { set x [expr $x+1]; exp_continue; }
+	-re ".* 271      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 271      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 272 091e 015ED220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 272      9ABC1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 273 0926 015EE220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 273      9ABC1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 274 092e 015EF220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 274      9ABC1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 275 0936 015EDA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 275      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 275      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 276 0940 015EEA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 276      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 276      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 277 094a 015EFA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 277      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 277      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 278 0954 015E4020" { set x [expr $x+1]; exp_continue; }
+	-re ".* 278      9ABC1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 279 095c 015E4820" { set x [expr $x+1]; exp_continue; }
+	-re ".* 279      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 279      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 280              " {
+	    if [expr $x == 39] then {
+		pass "$testname: cmp.w #0x1234:16, ..."
+	    } else {
+		fail "$testname: cmp.w #0x1234:16, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.w #0x1234:16, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 281 0966 7D901F70" { set x [expr $x+1]; exp_continue; }
+	-re ".* 282 096a 6B181234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 282      1F70" { set x [expr $x+1]; exp_continue; }
+	-re ".* 283 0970 6B381234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 283      56781F70" { set x [expr $x+1]; exp_continue; }
+	-re ".* 284              " {
+	    if [expr $x == 5] then {
+		pass "$testname: cmp.w #0x7:3, ..."
+	    } else {
+		fail "$testname: cmp.w #0x7:3, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.w #0x7:3, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 285 0978 1D31" { set x [expr $x+1]; exp_continue; }
+	-re ".* 286              " {
+	    if [expr $x == 1] then {
+		pass "$testname: cmp.w r3, r1"
+	    } else {
+		fail "$testname: cmp.w r3, r1 ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.w r3, r1 ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 287 097a 7D901D30" { set x [expr $x+1]; exp_continue; }
+	-re ".* 288 097e 01593123" { set x [expr $x+1]; exp_continue; }
+	-re ".* 289 0982 01598123" { set x [expr $x+1]; exp_continue; }
+	-re ".* 290 0986 0159B123" { set x [expr $x+1]; exp_continue; }
+	-re ".* 291 098a 01599123" { set x [expr $x+1]; exp_continue; }
+	-re ".* 292 098e 0159A123" { set x [expr $x+1]; exp_continue; }
+	-re ".* 293 0992 0159C123" { set x [expr $x+1]; exp_continue; }
+	-re ".* 293      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 294 0998 0159C923" { set x [expr $x+1]; exp_continue; }
+	-re ".* 294      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 295 09a0 0159D223" { set x [expr $x+1]; exp_continue; }
+	-re ".* 295      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 296 09a6 0159E223" { set x [expr $x+1]; exp_continue; }
+	-re ".* 296      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 297 09ac 0159F223" { set x [expr $x+1]; exp_continue; }
+	-re ".* 297      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 298 09b2 0159DA23" { set x [expr $x+1]; exp_continue; }
+	-re ".* 298      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 299 09ba 0159EA23" { set x [expr $x+1]; exp_continue; }
+	-re ".* 299      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 300 09c2 0159FA23" { set x [expr $x+1]; exp_continue; }
+	-re ".* 300      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 301 09ca 6B181234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 301      1D30" { set x [expr $x+1]; exp_continue; }
+	-re ".* 302 09d0 6B381234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 302      56781D30" { set x [expr $x+1]; exp_continue; }
+	-re ".* 303              " {
+	    if [expr $x == 26] then {
+		pass "$testname: cmp.w r3, ..."
+	    } else {
+		fail "$testname: cmp.w r3, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.w r3, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 304 09d8 7CB01D01" { set x [expr $x+1]; exp_continue; }
+	-re ".* 305 09dc 015A3321" { set x [expr $x+1]; exp_continue; }
+	-re ".* 306 09e0 015A8321" { set x [expr $x+1]; exp_continue; }
+	-re ".* 307 09e4 015AB321" { set x [expr $x+1]; exp_continue; }
+	-re ".* 308 09e8 015A9321" { set x [expr $x+1]; exp_continue; }
+	-re ".* 309 09ec 015AA321" { set x [expr $x+1]; exp_continue; }
+	-re ".* 310 09f0 015AC121" { set x [expr $x+1]; exp_continue; }
+	-re ".* 310      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 311 09f6 015AC921" { set x [expr $x+1]; exp_continue; }
+	-re ".* 311      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 312 09fe 015AD221" { set x [expr $x+1]; exp_continue; }
+	-re ".* 312      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 313 0a04 015AE221" { set x [expr $x+1]; exp_continue; }
+	-re ".* 313      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 314 0a0a 015AF221" { set x [expr $x+1]; exp_continue; }
+	-re ".* 314      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 315 0a10 015ADA21" { set x [expr $x+1]; exp_continue; }
+	-re ".* 315      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 316 0a18 015AEA21" { set x [expr $x+1]; exp_continue; }
+	-re ".* 316      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 317 0a20 015AFA21" { set x [expr $x+1]; exp_continue; }
+	-re ".* 317      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 318 0a28 6B101234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 318      1D01" { set x [expr $x+1]; exp_continue; }
+	-re ".* 319 0a2e 6B301234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 319      56781D01" { set x [expr $x+1]; exp_continue; }
+	-re ".* 320              " {
+	    if [expr $x == 26] then {
+		pass "$testname: cmp.w ..., r1"
+	    } else {
+		fail "$testname: cmp.w ..., r1 ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.w ..., r1 ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 321 0a36 7CB50120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 322 0a3a 7CB53120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 323 0a3e 7CB5B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 324 0a42 7CB58120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 325 0a46 7CB5A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 326 0a4a 7CB59120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 327 0a4e 7CB5C120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 327      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 328 0a54 7CB5C920" { set x [expr $x+1]; exp_continue; }
+	-re ".* 328      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 329 0a5c 7CB5D220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 329      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 330 0a62 7CB5E220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 330      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 331 0a68 7CB5F220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 331      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 332 0a6e 7CB5DA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 332      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 333 0a76 7CB5EA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 333      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 334 0a7e 7CB5FA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 334      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 335 0a86 7CB54020" { set x [expr $x+1]; exp_continue; }
+	-re ".* 335      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 336 0a8c 7CB54820" { set x [expr $x+1]; exp_continue; }
+	-re ".* 336      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 337              " {
+	    if [expr $x == 26] then {
+		pass "$testname: cmp.w @er3, ..."
+	    } else {
+		fail "$testname: cmp.w @er3, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.w @er3, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 338 0a94 01576D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 338      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 339 0a9a 01576D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 339      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 340 0aa0 01576D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 340      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 341 0aa6 01576D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 341      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 342 0aac 01576D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 342      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 343 0ab2 01576D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 343      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 344 0ab8 01576D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 344      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 345 0ac0 01576D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 345      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 345      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 346 0aca 01576D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 346      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 347 0ad2 01576D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 347      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 348 0ada 01576D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 348      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 349 0ae2 01576D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 349      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 349      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 350 0aec 01576D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 350      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 350      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 351 0af6 01576D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 351      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 351      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 352 0b00 01576D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 352      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 353 0b08 01576D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 353      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 353      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 354              " {
+	    if [expr $x == 37] then {
+		pass "$testname: cmp.w @-er3, ..."
+	    } else {
+		fail "$testname: cmp.w @-er3, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.w @-er3, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 355 0b12 01546D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 355      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 356 0b18 01546D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 356      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 357 0b1e 01546D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 357      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 358 0b24 01546D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 358      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 359 0b2a 01546D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 359      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 360 0b30 01546D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 360      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 361 0b36 01546D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 361      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 362 0b3e 01546D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 362      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 362      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 363 0b48 01546D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 363      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 364 0b50 01546D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 364      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 365 0b58 01546D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 365      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 366 0b60 01546D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 366      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 366      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 367 0b6a 01546D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 367      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 367      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 368 0b74 01546D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 368      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 368      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 369 0b7e 01546D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 369      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 370 0b86 01546D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 370      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 370      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 371              " {
+	    if [expr $x == 37] then {
+		pass "$testname: cmp.w @er3+, ..."
+	    } else {
+		fail "$testname: cmp.w @er3+, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.w @er3+, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 372 0b90 01566D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 372      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 373 0b96 01566D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 373      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 374 0b9c 01566D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 374      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 375 0ba2 01566D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 375      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 376 0ba8 01566D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 376      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 377 0bae 01566D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 377      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 378 0bb4 01566D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 378      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 379 0bbc 01566D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 379      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 379      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 380 0bc6 01566D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 380      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 381 0bce 01566D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 381      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 382 0bd6 01566D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 382      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 383 0bde 01566D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 383      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 383      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 384 0be8 01566D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 384      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 384      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 385 0bf2 01566D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 385      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 385      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 386 0bfc 01566D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 386      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 387 0c04 01566D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 387      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 387      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 388              " {
+	    if [expr $x == 37] then {
+		pass "$testname: cmp.w @er3-, ..."
+	    } else {
+		fail "$testname: cmp.w @er3-, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.w @er3-, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 389 0c0e 01556D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 389      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 390 0c14 01556D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 390      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 391 0c1a 01556D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 391      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 392 0c20 01556D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 392      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 393 0c26 01556D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 393      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 394 0c2c 01556D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 394      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 395 0c32 01556D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 395      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 396 0c3a 01556D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 396      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 396      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 397 0c44 01556D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 397      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 398 0c4c 01556D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 398      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 399 0c54 01556D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 399      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 400 0c5c 01556D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 400      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 400      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 401 0c66 01556D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 401      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 401      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 402 0c70 01556D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 402      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 402      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 403 0c7a 01556D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 403      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 404 0c82 01556D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 404      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 404      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 405              " {
+	    if [expr $x == 37] then {
+		pass "$testname: cmp.w @+er3, ..."
+	    } else {
+		fail "$testname: cmp.w @+er3, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.w @+er3, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 406 0c8c 01546F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 406      12340120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 407 0c94 01546F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 407      12343120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 408 0c9c 01546F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 408      1234B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 409 0ca4 01546F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 409      12348120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 410 0cac 01546F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 410      1234A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 411 0cb4 01546F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 411      12349120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 412 0cbc 01546F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 412      1234C120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 412      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 413 0cc6 01546F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 413      1234C920" { set x [expr $x+1]; exp_continue; }
+	-re ".* 413      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 414 0cd2 01546F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 414      1234D220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 414      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 415 0cdc 01546F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 415      1234E220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 415      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 416 0ce6 01546F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 416      1234F220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 416      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 417 0cf0 01546F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 417      1234DA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 417      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 418 0cfc 01546F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 418      1234EA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 418      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 419 0d08 01546F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 419      1234FA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 419      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 420 0d14 01546F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 420      12344020" { set x [expr $x+1]; exp_continue; }
+	-re ".* 420      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 421 0d1e 01546F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 421      12344820" { set x [expr $x+1]; exp_continue; }
+	-re ".* 421      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 422              " {
+	    if [expr $x == 42] then {
+		pass "$testname: cmp.w @(0x1234:16,er3), ..."
+	    } else {
+		fail "$testname: cmp.w @(0x1234:16,er3), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.w @(0x1234:16,er3), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 423 0d2a 78346B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 423      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 423      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 424 0d34 78346B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 424      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 424      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 425 0d3e 78346B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 425      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 425      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 426 0d48 78346B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 426      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 426      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 427 0d52 78346B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 427      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 427      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 428 0d5c 78346B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 428      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 428      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 429 0d66 78346B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 429      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 429      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 430 0d72 78346B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 430      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 430      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 430      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 431 0d80 78346B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 431      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 431      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 432 0d8c 78346B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 432      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 432      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 433 0d98 78346B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 433      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 433      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 434 0da4 78346B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 434      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 434      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 434      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 435 0db2 78346B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 435      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 435      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 435      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 436 0dc0 78346B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 436      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 436      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 436      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 437 0dce 78346B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 437      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 437      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 438 0dda 78346B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 438      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 438      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 438      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 439              " {
+	    if [expr $x == 53] then {
+		pass "$testname: cmp.w @(0x12345678:32,er3), ..."
+	    } else {
+		fail "$testname: cmp.w @(0x12345678:32,er3), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.w @(0x12345678:32,er3), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 440 0de8 01556F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 440      12340120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 441 0df0 01556F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 441      12343120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 442 0df8 01556F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 442      1234B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 443 0e00 01556F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 443      12348120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 444 0e08 01556F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 444      1234A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 445 0e10 01556F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 445      12349120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 446 0e18 01556F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 446      1234C120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 446      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 447 0e22 01556F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 447      1234C920" { set x [expr $x+1]; exp_continue; }
+	-re ".* 447      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 448 0e2e 01556F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 448      1234D220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 448      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 449 0e38 01556F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 449      1234E220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 449      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 450 0e42 01556F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 450      1234F220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 450      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 451 0e4c 01556F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 451      1234DA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 451      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 452 0e58 01556F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 452      1234EA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 452      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 453 0e64 01556F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 453      1234FA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 453      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 454 0e70 01556F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 454      12344020" { set x [expr $x+1]; exp_continue; }
+	-re ".* 454      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 455 0e7a 01556F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 455      12344820" { set x [expr $x+1]; exp_continue; }
+	-re ".* 455      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 456              " {
+	    if [expr $x == 42] then {
+		pass "$testname: cmp.w @(0x1234:16,r3l.b), ..."
+	    } else {
+		fail "$testname: cmp.w @(0x1234:16,r3l.b), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.w @(0x1234:16,r3l.b), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 457 0e86 01566F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 457      12340120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 458 0e8e 01566F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 458      12343120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 459 0e96 01566F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 459      1234B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 460 0e9e 01566F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 460      12348120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 461 0ea6 01566F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 461      1234A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 462 0eae 01566F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 462      12349120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 463 0eb6 01566F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 463      1234C120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 463      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 464 0ec0 01566F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 464      1234C920" { set x [expr $x+1]; exp_continue; }
+	-re ".* 464      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 465 0ecc 01566F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 465      1234D220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 465      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 466 0ed6 01566F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 466      1234E220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 466      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 467 0ee0 01566F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 467      1234F220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 467      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 468 0eea 01566F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 468      1234DA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 468      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 469 0ef6 01566F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 469      1234EA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 469      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 470 0f02 01566F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 470      1234FA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 470      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 471 0f0e 01566F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 471      12344020" { set x [expr $x+1]; exp_continue; }
+	-re ".* 471      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 472 0f18 01566F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 472      12344820" { set x [expr $x+1]; exp_continue; }
+	-re ".* 472      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 473              " {
+	    if [expr $x == 42] then {
+		pass "$testname: cmp.w @(0x1234:16,r3.w), ..."
+	    } else {
+		fail "$testname: cmp.w @(0x1234:16,r3.w), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.w @(0x1234:16,r3.w), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 474 0f24 01576F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 474      12340120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 475 0f2c 01576F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 475      12343120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 476 0f34 01576F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 476      1234B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 477 0f3c 01576F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 477      12348120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 478 0f44 01576F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 478      1234A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 479 0f4c 01576F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 479      12349120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 480 0f54 01576F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 480      1234C120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 480      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 481 0f5e 01576F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 481      1234C920" { set x [expr $x+1]; exp_continue; }
+	-re ".* 481      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 482 0f6a 01576F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 482      1234D220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 482      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 483 0f74 01576F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 483      1234E220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 483      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 484 0f7e 01576F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 484      1234F220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 484      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 485 0f88 01576F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 485      1234DA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 485      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 486 0f94 01576F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 486      1234EA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 486      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 487 0fa0 01576F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 487      1234FA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 487      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 488 0fac 01576F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 488      12344020" { set x [expr $x+1]; exp_continue; }
+	-re ".* 488      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 489 0fb6 01576F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 489      12344820" { set x [expr $x+1]; exp_continue; }
+	-re ".* 489      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 490              " {
+	    if [expr $x == 42] then {
+		pass "$testname: cmp.w @(0x1234:16,er3.l), ..."
+	    } else {
+		fail "$testname: cmp.w @(0x1234:16,er3.l), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.w @(0x1234:16,er3.l), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 491 0fc2 78356B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 491      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 491      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 492 0fcc 78356B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 492      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 492      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 493 0fd6 78356B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 493      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 493      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 494 0fe0 78356B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 494      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 494      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 495 0fea 78356B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 495      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 495      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 496 0ff4 78356B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 496      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 496      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 497 0ffe 78356B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 497      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 497      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 498 100a 78356B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 498      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 498      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 498      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 499 1018 78356B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 499      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 499      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 500 1024 78356B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 500      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 500      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 501 1030 78356B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 501      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 501      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 502 103c 78356B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 502      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 502      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 502      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 503 104a 78356B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 503      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 503      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 503      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 504 1058 78356B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 504      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 504      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 504      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 505 1066 78356B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 505      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 505      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 506 1072 78356B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 506      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 506      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 506      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 507              " {
+	    if [expr $x == 53] then {
+		pass "$testname: cmp.w @(0x12345678:32,r3l.b), ..."
+	    } else {
+		fail "$testname: cmp.w @(0x12345678:32,r3l.b), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.w @(0x12345678:32,r3l.b), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 508 1080 78366B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 508      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 508      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 509 108a 78366B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 509      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 509      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 510 1094 78366B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 510      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 510      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 511 109e 78366B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 511      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 511      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 512 10a8 78366B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 512      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 512      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 513 10b2 78366B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 513      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 513      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 514 10bc 78366B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 514      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 514      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 515 10c8 78366B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 515      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 515      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 515      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 516 10d6 78366B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 516      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 516      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 517 10e2 78366B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 517      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 517      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 518 10ee 78366B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 518      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 518      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 519 10fa 78366B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 519      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 519      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 519      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 520 1108 78366B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 520      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 520      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 520      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 521 1116 78366B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 521      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 521      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 521      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 522 1124 78366B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 522      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 522      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 523 1130 78366B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 523      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 523      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 523      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 524              " {
+	    if [expr $x == 53] then {
+		pass "$testname: cmp.w @(0x12345678:32,r3.w), ..."
+	    } else {
+		fail "$testname: cmp.w @(0x12345678:32,r3.w), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.w @(0x12345678:32,r3.w), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 525 113e 78376B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 525      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 525      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 526 1148 78376B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 526      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 526      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 527 1152 78376B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 527      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 527      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 528 115c 78376B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 528      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 528      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 529 1166 78376B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 529      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 529      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 530 1170 78376B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 530      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 530      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 531 117a 78376B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 531      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 531      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 532 1186 78376B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 532      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 532      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 532      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 533 1194 78376B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 533      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 533      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 534 11a0 78376B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 534      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 534      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 535 11ac 78376B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 535      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 535      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 536 11b8 78376B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 536      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 536      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 536      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 537 11c6 78376B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 537      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 537      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 537      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 538 11d4 78376B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 538      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 538      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 538      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 539 11e2 78376B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 539      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 539      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 540 11ee 78376B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 540      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 540      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 540      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 541              " {
+	    if [expr $x == 53] then {
+		pass "$testname: cmp.w @(0x12345678:32,er3.l), ..."
+	    } else {
+		fail "$testname: cmp.w @(0x12345678:32,er3.l), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.w @(0x12345678:32,er3.l), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 542 11fc 6B151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 542      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 543 1202 6B151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 543      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 544 1208 6B151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 544      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 545 120e 6B151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 545      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 546 1214 6B151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 546      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 547 121a 6B151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 547      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 548 1220 6B151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 548      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 549 1228 6B151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 549      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 549      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 550 1232 6B151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 550      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 551 123a 6B151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 551      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 552 1242 6B151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 552      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 553 124a 6B151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 553      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 553      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 554 1254 6B151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 554      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 554      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 555 125e 6B151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 555      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 555      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 556 1268 6B151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 556      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 557 1270 6B151234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 557      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 557      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 558              " {
+	    if [expr $x == 37] then {
+		pass "$testname: cmp.w @0x1234:16, ..."
+	    } else {
+		fail "$testname: cmp.w @0x1234:16, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.w @0x1234:16, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 559 127a 6B351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 559      56780120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 560 1282 6B351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 560      56783120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 561 128a 6B351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 561      5678B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 562 1292 6B351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 562      56788120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 563 129a 6B351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 563      5678A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 564 12a2 6B351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 564      56789120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 565 12aa 6B351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 565      5678C120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 565      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 566 12b4 6B351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 566      5678C920" { set x [expr $x+1]; exp_continue; }
+	-re ".* 566      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 567 12c0 6B351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 567      5678D220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 567      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 568 12ca 6B351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 568      5678E220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 568      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 569 12d4 6B351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 569      5678F220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 569      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 570 12de 6B351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 570      5678DA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 570      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 571 12ea 6B351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 571      5678EA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 571      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 572 12f6 6B351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 572      5678FA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 572      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 573 1302 6B351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 573      56784020" { set x [expr $x+1]; exp_continue; }
+	-re ".* 573      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 574 130c 6B351234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 574      56784820" { set x [expr $x+1]; exp_continue; }
+	-re ".* 574      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 575              " {
+	    if [expr $x == 42] then {
+		pass "$testname: cmp.w @0x12345678:32, ..."
+	    } else {
+		fail "$testname: cmp.w @0x12345678:32, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.w @0x12345678:32, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 576 1318 7A211234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 576      5678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 577 131e 7A291234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 578 1322 1FFA" { set x [expr $x+1]; exp_continue; }
+	-re ".* 579 1324 010E0128" { set x [expr $x+1]; exp_continue; }
+	-re ".* 579      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 580 132c 010E3128" { set x [expr $x+1]; exp_continue; }
+	-re ".* 580      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 581 1334 010E8128" { set x [expr $x+1]; exp_continue; }
+	-re ".* 581      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 582 133c 010EB128" { set x [expr $x+1]; exp_continue; }
+	-re ".* 582      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 583 1344 010E9128" { set x [expr $x+1]; exp_continue; }
+	-re ".* 583      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 584 134c 010EA128" { set x [expr $x+1]; exp_continue; }
+	-re ".* 584      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 585 1354 010EC128" { set x [expr $x+1]; exp_continue; }
+	-re ".* 585      9ABC1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 585      5678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 586 135e 010EC928" { set x [expr $x+1]; exp_continue; }
+	-re ".* 586      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 586      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 587 136a 010ED228" { set x [expr $x+1]; exp_continue; }
+	-re ".* 587      9ABC1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 587      5678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 588 1374 010EE228" { set x [expr $x+1]; exp_continue; }
+	-re ".* 588      9ABC1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 588      5678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 589 137e 010EF228" { set x [expr $x+1]; exp_continue; }
+	-re ".* 589      9ABC1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 589      5678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 590 1388 010EDA28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 590      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 590      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 591 1394 010EEA28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 591      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 591      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 592 13a0 010EFA28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 592      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 592      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 593 13ac 010E4028" { set x [expr $x+1]; exp_continue; }
+	-re ".* 593      9ABC1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 593      5678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 594 13b6 010E4828" { set x [expr $x+1]; exp_continue; }
+	-re ".* 594      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 594      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 595 13c2 010E0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 595      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 596 13c8 010E3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 596      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 597 13ce 010E8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 597      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 598 13d4 010EB120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 598      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 599 13da 010E9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 599      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 600 13e0 010EA120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 600      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 601 13e6 010EC120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 601      9ABC1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 602 13ee 010EC920" { set x [expr $x+1]; exp_continue; }
+	-re ".* 602      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 602      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 603 13f8 010ED220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 603      9ABC1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 604 1400 010EE220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 604      9ABC1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 605 1408 010EF220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 605      9ABC1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 606 1410 010EDA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 606      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 606      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 607 141a 010EEA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 607      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 607      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 608 1424 010EFA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 608      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 608      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 609 142e 010E4020" { set x [expr $x+1]; exp_continue; }
+	-re ".* 609      9ABC1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 610 1436 010E4820" { set x [expr $x+1]; exp_continue; }
+	-re ".* 610      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 610      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 611              " {
+	    if [expr $x == 83] then {
+		pass "$testname: cmp.l #0x1234:16, ..."
+	    } else {
+		fail "$testname: cmp.l #0x1234:16, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.l #0x1234:16, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 612 1440 1FB1" { set x [expr $x+1]; exp_continue; }
+	-re ".* 613              " {
+	    if [expr $x == 1] then {
+		pass "$testname: cmp.l er3, er1"
+	    } else {
+		fail "$testname: cmp.l er3, er1 ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.l er3, er1 ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 614 1442 01090123" { set x [expr $x+1]; exp_continue; }
+	-re ".* 615 1446 01093123" { set x [expr $x+1]; exp_continue; }
+	-re ".* 616 144a 01098123" { set x [expr $x+1]; exp_continue; }
+	-re ".* 617 144e 0109B123" { set x [expr $x+1]; exp_continue; }
+	-re ".* 618 1452 01099123" { set x [expr $x+1]; exp_continue; }
+	-re ".* 619 1456 0109A123" { set x [expr $x+1]; exp_continue; }
+	-re ".* 620 145a 0109C123" { set x [expr $x+1]; exp_continue; }
+	-re ".* 620      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 621 1460 0109C923" { set x [expr $x+1]; exp_continue; }
+	-re ".* 621      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 622 1468 0109D223" { set x [expr $x+1]; exp_continue; }
+	-re ".* 622      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 623 146e 0109E223" { set x [expr $x+1]; exp_continue; }
+	-re ".* 623      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 624 1474 0109F223" { set x [expr $x+1]; exp_continue; }
+	-re ".* 624      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 625 147a 0109DA23" { set x [expr $x+1]; exp_continue; }
+	-re ".* 625      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 626 1482 0109EA23" { set x [expr $x+1]; exp_continue; }
+	-re ".* 626      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 627 148a 0109FA23" { set x [expr $x+1]; exp_continue; }
+	-re ".* 627      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 628 1492 01094023" { set x [expr $x+1]; exp_continue; }
+	-re ".* 628      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 629 1498 01094823" { set x [expr $x+1]; exp_continue; }
+	-re ".* 629      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 630              " {
+	    if [expr $x == 26] then {
+		pass "$testname: cmp.l er3, ..."
+	    } else {
+		fail "$testname: cmp.l er3, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.l er3, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 631 14a0 010A0321" { set x [expr $x+1]; exp_continue; }
+	-re ".* 632 14a4 010A3321" { set x [expr $x+1]; exp_continue; }
+	-re ".* 633 14a8 010A8321" { set x [expr $x+1]; exp_continue; }
+	-re ".* 634 14ac 010AB321" { set x [expr $x+1]; exp_continue; }
+	-re ".* 635 14b0 010A9321" { set x [expr $x+1]; exp_continue; }
+	-re ".* 636 14b4 010AA321" { set x [expr $x+1]; exp_continue; }
+	-re ".* 637 14b8 010AC121" { set x [expr $x+1]; exp_continue; }
+	-re ".* 637      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 638 14be 010AC921" { set x [expr $x+1]; exp_continue; }
+	-re ".* 638      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 639 14c6 010AD221" { set x [expr $x+1]; exp_continue; }
+	-re ".* 639      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 640 14cc 010AE221" { set x [expr $x+1]; exp_continue; }
+	-re ".* 640      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 641 14d2 010AF221" { set x [expr $x+1]; exp_continue; }
+	-re ".* 641      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 642 14d8 010ADA21" { set x [expr $x+1]; exp_continue; }
+	-re ".* 642      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 643 14e0 010AEA21" { set x [expr $x+1]; exp_continue; }
+	-re ".* 643      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 644 14e8 010AFA21" { set x [expr $x+1]; exp_continue; }
+	-re ".* 644      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 645 14f0 010A4021" { set x [expr $x+1]; exp_continue; }
+	-re ".* 645      1234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 646 14f6 010A4821" { set x [expr $x+1]; exp_continue; }
+	-re ".* 646      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 647              " {
+	    if [expr $x == 26] then {
+		pass "$testname: cmp.l ..., er1"
+	    } else {
+		fail "$testname: cmp.l ..., er1 ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.l ..., er1 ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 648 14fe 0104693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 648      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 649 1504 0104693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 649      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 650 150a 0104693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 650      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 651 1510 0104693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 651      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 652 1516 0104693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 652      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 653 151c 0104693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 653      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 654 1522 0104693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 654      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 655 152a 0104693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 655      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 655      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 656 1534 0104693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 656      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 657 153c 0104693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 657      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 658 1544 0104693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 658      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 659 154c 0104693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 659      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 659      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 660 1556 0104693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 660      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 660      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 661 1560 0104693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 661      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 661      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 662 156a 0104693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 662      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 663 1572 0104693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 663      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 663      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 664              " {
+	    if [expr $x == 37] then {
+		pass "$testname: cmp.l @er3, ..."
+	    } else {
+		fail "$testname: cmp.l @er3, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.l @er3, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 665 157c 0107693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 665      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 666 1582 0107693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 666      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 667 1588 0107693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 667      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 668 158e 0107693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 668      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 669 1594 0107693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 669      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 670 159a 0107693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 670      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 671 15a0 0107693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 671      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 672 15a8 0107693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 672      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 672      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 673 15b2 0107693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 673      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 674 15ba 0107693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 674      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 675 15c2 0107693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 675      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 676 15ca 0107693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 676      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 676      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 677 15d4 0107693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 677      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 677      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 678 15de 0107693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 678      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 678      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 679 15e8 0107693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 679      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 680 15f0 0107693C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 680      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 680      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 681              " {
+	    if [expr $x == 37] then {
+		pass "$testname: cmp.l @(0xc:2,er3), ..."
+	    } else {
+		fail "$testname: cmp.l @(0xc:2,er3), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.l @(0xc:2,er3), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 682 15fa 01076D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 682      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 683 1600 01076D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 683      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 684 1606 01076D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 684      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 685 160c 01076D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 685      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 686 1612 01076D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 686      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 687 1618 01076D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 687      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 688 161e 01076D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 688      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 689 1626 01076D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 689      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 689      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 690 1630 01076D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 690      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 691 1638 01076D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 691      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 692 1640 01076D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 692      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 693 1648 01076D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 693      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 693      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 694 1652 01076D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 694      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 694      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 695 165c 01076D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 695      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 695      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 696 1666 01076D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 696      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 697 166e 01076D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 697      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 697      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 698              " {
+	    if [expr $x == 37] then {
+		pass "$testname: cmp.l @-er3, ..."
+	    } else {
+		fail "$testname: cmp.l @-er3, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.l @-er3, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 699 1678 01046D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 699      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 700 167e 01046D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 700      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 701 1684 01046D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 701      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 702 168a 01046D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 702      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 703 1690 01046D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 703      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 704 1696 01046D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 704      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 705 169c 01046D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 705      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 706 16a4 01046D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 706      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 706      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 707 16ae 01046D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 707      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 708 16b6 01046D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 708      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 709 16be 01046D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 709      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 710 16c6 01046D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 710      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 710      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 711 16d0 01046D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 711      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 711      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 712 16da 01046D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 712      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 712      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 713 16e4 01046D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 713      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 714 16ec 01046D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 714      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 714      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 715              " {
+	    if [expr $x == 37] then {
+		pass "$testname: cmp.l @er3+, ..."
+	    } else {
+		fail "$testname: cmp.l @er3+, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.l @er3+, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 716 16f6 01066D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 716      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 717 16fc 01066D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 717      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 718 1702 01066D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 718      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 719 1708 01066D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 719      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 720 170e 01066D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 720      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 721 1714 01066D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 721      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 722 171a 01066D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 722      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 723 1722 01066D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 723      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 723      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 724 172c 01066D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 724      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 725 1734 01066D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 725      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 726 173c 01066D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 726      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 727 1744 01066D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 727      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 727      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 728 174e 01066D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 728      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 728      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 729 1758 01066D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 729      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 729      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 730 1762 01066D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 730      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 731 176a 01066D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 731      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 731      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 732              " {
+	    if [expr $x == 37] then {
+		pass "$testname: cmp.l @er3-, ..."
+	    } else {
+		fail "$testname: cmp.l @er3-, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.l @er3-, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 733 1774 01056D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 733      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 734 177a 01056D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 734      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 735 1780 01056D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 735      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 736 1786 01056D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 736      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 737 178c 01056D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 737      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 738 1792 01056D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 738      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 739 1798 01056D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 739      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 740 17a0 01056D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 740      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 740      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 741 17aa 01056D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 741      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 742 17b2 01056D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 742      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 743 17ba 01056D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 743      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 744 17c2 01056D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 744      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 744      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 745 17cc 01056D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 745      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 745      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 746 17d6 01056D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 746      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 746      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 747 17e0 01056D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 747      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 748 17e8 01056D3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 748      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 748      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 749              " {
+	    if [expr $x == 37] then {
+		pass "$testname: cmp.l @+er3, ..."
+	    } else {
+		fail "$testname: cmp.l @+er3, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.l @+er3, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 750 17f2 01046F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 750      12340120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 751 17fa 01046F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 751      12343120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 752 1802 01046F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 752      1234B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 753 180a 01046F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 753      12348120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 754 1812 01046F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 754      1234A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 755 181a 01046F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 755      12349120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 756 1822 01046F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 756      1234C120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 756      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 757 182c 01046F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 757      1234C920" { set x [expr $x+1]; exp_continue; }
+	-re ".* 757      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 758 1838 01046F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 758      1234D220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 758      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 759 1842 01046F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 759      1234E220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 759      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 760 184c 01046F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 760      1234F220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 760      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 761 1856 01046F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 761      1234DA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 761      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 762 1862 01046F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 762      1234EA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 762      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 763 186e 01046F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 763      1234FA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 763      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 764 187a 01046F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 764      12344020" { set x [expr $x+1]; exp_continue; }
+	-re ".* 764      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 765 1884 01046F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 765      12344820" { set x [expr $x+1]; exp_continue; }
+	-re ".* 765      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 766              " {
+	    if [expr $x == 42] then {
+		pass "$testname: cmp.l @(0x1234:16,er3), ..."
+	    } else {
+		fail "$testname: cmp.l @(0x1234:16,er3), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.l @(0x1234:16,er3), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 767 1890 78B46B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 767      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 767      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 768 189a 78B46B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 768      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 768      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 769 18a4 78B46B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 769      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 769      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 770 18ae 78B46B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 770      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 770      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 771 18b8 78B46B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 771      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 771      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 772 18c2 78B46B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 772      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 772      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 773 18cc 78B46B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 773      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 773      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 774 18d8 78B46B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 774      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 774      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 774      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 775 18e6 78B46B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 775      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 775      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 776 18f2 78B46B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 776      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 776      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 777 18fe 78B46B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 777      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 777      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 778 190a 78B46B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 778      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 778      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 778      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 779 1918 78B46B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 779      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 779      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 779      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 780 1926 78B46B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 780      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 780      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 780      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 781 1934 78B46B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 781      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 781      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 782 1940 78B46B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 782      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 782      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 782      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 783              " {
+	    if [expr $x == 53] then {
+		pass "$testname: cmp.l @(0x12345678:32,er3), ..."
+	    } else {
+		fail "$testname: cmp.l @(0x12345678:32,er3), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.l @(0x12345678:32,er3), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 784 194e 01056F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 784      12340120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 785 1956 01056F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 785      12343120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 786 195e 01056F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 786      1234B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 787 1966 01056F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 787      12348120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 788 196e 01056F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 788      1234A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 789 1976 01056F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 789      12349120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 790 197e 01056F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 790      1234C120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 790      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 791 1988 01056F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 791      1234C920" { set x [expr $x+1]; exp_continue; }
+	-re ".* 791      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 792 1994 01056F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 792      1234D220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 792      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 793 199e 01056F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 793      1234E220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 793      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 794 19a8 01056F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 794      1234F220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 794      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 795 19b2 01056F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 795      1234DA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 795      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 796 19be 01056F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 796      1234EA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 796      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 797 19ca 01056F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 797      1234FA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 797      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 798 19d6 01056F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 798      12344020" { set x [expr $x+1]; exp_continue; }
+	-re ".* 798      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 799 19e0 01056F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 799      12344820" { set x [expr $x+1]; exp_continue; }
+	-re ".* 799      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 800              " {
+	    if [expr $x == 42] then {
+		pass "$testname: cmp.l @(0x1234:16,r3l.b), ..."
+	    } else {
+		fail "$testname: cmp.l @(0x1234:16,r3l.b), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.l @(0x1234:16,r3l.b), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 801 19ec 01066F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 801      12340120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 802 19f4 01066F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 802      12343120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 803 19fc 01066F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 803      1234B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 804 1a04 01066F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 804      12348120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 805 1a0c 01066F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 805      1234A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 806 1a14 01066F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 806      12349120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 807 1a1c 01066F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 807      1234C120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 807      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 808 1a26 01066F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 808      1234C920" { set x [expr $x+1]; exp_continue; }
+	-re ".* 808      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 809 1a32 01066F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 809      1234D220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 809      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 810 1a3c 01066F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 810      1234E220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 810      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 811 1a46 01066F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 811      1234F220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 811      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 812 1a50 01066F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 812      1234DA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 812      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 813 1a5c 01066F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 813      1234EA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 813      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 814 1a68 01066F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 814      1234FA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 814      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 815 1a74 01066F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 815      12344020" { set x [expr $x+1]; exp_continue; }
+	-re ".* 815      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 816 1a7e 01066F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 816      12344820" { set x [expr $x+1]; exp_continue; }
+	-re ".* 816      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 817              " {
+	    if [expr $x == 42] then {
+		pass "$testname: cmp.l @(0x1234:16,r3.w), ..."
+	    } else {
+		fail "$testname: cmp.l @(0x1234:16,r3.w), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.l @(0x1234:16,r3.w), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 818 1a8a 01076F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 818      12340120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 819 1a92 01076F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 819      12343120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 820 1a9a 01076F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 820      1234B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 821 1aa2 01076F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 821      12348120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 822 1aaa 01076F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 822      1234A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 823 1ab2 01076F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 823      12349120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 824 1aba 01076F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 824      1234C120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 824      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 825 1ac4 01076F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 825      1234C920" { set x [expr $x+1]; exp_continue; }
+	-re ".* 825      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 826 1ad0 01076F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 826      1234D220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 826      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 827 1ada 01076F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 827      1234E220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 827      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 828 1ae4 01076F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 828      1234F220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 828      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 829 1aee 01076F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 829      1234DA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 829      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 830 1afa 01076F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 830      1234EA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 830      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 831 1b06 01076F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 831      1234FA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 831      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 832 1b12 01076F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 832      12344020" { set x [expr $x+1]; exp_continue; }
+	-re ".* 832      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 833 1b1c 01076F3C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 833      12344820" { set x [expr $x+1]; exp_continue; }
+	-re ".* 833      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 834              " {
+	    if [expr $x == 42] then {
+		pass "$testname: cmp.l @(0x1234:16,er3.l), ..."
+	    } else {
+		fail "$testname: cmp.l @(0x1234:16,er3.l), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.l @(0x1234:16,er3.l), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 835 1b28 78B56B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 835      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 835      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 836 1b32 78B56B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 836      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 836      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 837 1b3c 78B56B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 837      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 837      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 838 1b46 78B56B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 838      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 838      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 839 1b50 78B56B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 839      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 839      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 840 1b5a 78B56B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 840      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 840      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 841 1b64 78B56B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 841      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 841      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 842 1b70 78B56B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 842      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 842      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 842      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 843 1b7e 78B56B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 843      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 843      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 844 1b8a 78B56B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 844      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 844      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 845 1b96 78B56B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 845      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 845      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 846 1ba2 78B56B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 846      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 846      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 846      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 847 1bb0 78B56B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 847      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 847      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 847      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 848 1bbe 78B56B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 848      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 848      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 848      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 849 1bcc 78B56B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 849      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 849      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 850 1bd8 78B56B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 850      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 850      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 850      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 851              " {
+	    if [expr $x == 53] then {
+		pass "$testname: cmp.l @(0x12345678:32,r3l.b), ..."
+	    } else {
+		fail "$testname: cmp.l @(0x12345678:32,r3l.b), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.l @(0x12345678:32,r3l.b), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 852 1be6 78B66B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 852      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 852      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 853 1bf0 78B66B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 853      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 853      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 854 1bfa 78B66B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 854      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 854      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 855 1c04 78B66B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 855      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 855      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 856 1c0e 78B66B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 856      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 856      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 857 1c18 78B66B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 857      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 857      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 858 1c22 78B66B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 858      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 858      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 859 1c2e 78B66B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 859      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 859      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 859      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 860 1c3c 78B66B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 860      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 860      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 861 1c48 78B66B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 861      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 861      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 862 1c54 78B66B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 862      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 862      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 863 1c60 78B66B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 863      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 863      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 863      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 864 1c6e 78B66B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 864      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 864      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 864      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 865 1c7c 78B66B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 865      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 865      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 865      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 866 1c8a 78B66B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 866      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 866      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 867 1c96 78B66B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 867      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 867      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 867      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 868              " {
+	    if [expr $x == 53] then {
+		pass "$testname: cmp.l @(0x12345678:32,r3.w), ..."
+	    } else {
+		fail "$testname: cmp.l @(0x12345678:32,r3.w), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.l @(0x12345678:32,r3.w), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 869 1ca4 78B76B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 869      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 869      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 870 1cae 78B76B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 870      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 870      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 871 1cb8 78B76B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 871      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 871      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 872 1cc2 78B76B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 872      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 872      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 873 1ccc 78B76B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 873      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 873      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 874 1cd6 78B76B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 874      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 874      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 875 1ce0 78B76B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 875      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 875      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 876 1cec 78B76B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 876      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 876      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 876      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 877 1cfa 78B76B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 877      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 877      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 878 1d06 78B76B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 878      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 878      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 879 1d12 78B76B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 879      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 879      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 880 1d1e 78B76B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 880      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 880      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 880      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 881 1d2c 78B76B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 881      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 881      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 881      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 882 1d3a 78B76B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 882      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 882      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 882      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 883 1d48 78B76B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 883      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 883      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 884 1d54 78B76B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 884      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 884      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 884      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 885              " {
+	    if [expr $x == 53] then {
+		pass "$testname: cmp.l @(0x12345678:32,er3.l), ..."
+	    } else {
+		fail "$testname: cmp.l @(0x12345678:32,er3.l), ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.l @(0x12345678:32,er3.l), ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 886 1d62 01046B0C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 886      12340120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 887 1d6a 01046B0C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 887      12343120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 888 1d72 01046B0C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 888      1234B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 889 1d7a 01046B0C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 889      12348120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 890 1d82 01046B0C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 890      1234A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 891 1d8a 01046B0C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 891      12349120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 892 1d92 01046B0C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 892      1234C120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 892      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 893 1d9c 01046B0C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 893      1234C920" { set x [expr $x+1]; exp_continue; }
+	-re ".* 893      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 894 1da8 01046B0C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 894      1234D220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 894      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 895 1db2 01046B0C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 895      1234E220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 895      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 896 1dbc 01046B0C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 896      1234F220" { set x [expr $x+1]; exp_continue; }
+	-re ".* 896      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 897 1dc6 01046B0C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 897      1234DA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 897      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 898 1dd2 01046B0C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 898      1234EA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 898      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 899 1dde 01046B0C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 899      1234FA20" { set x [expr $x+1]; exp_continue; }
+	-re ".* 899      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 900 1dea 01046B0C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 900      12344020" { set x [expr $x+1]; exp_continue; }
+	-re ".* 900      9ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 901 1df4 01046B0C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 901      12344820" { set x [expr $x+1]; exp_continue; }
+	-re ".* 901      9ABCDEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 902              " {
+	    if [expr $x == 42] then {
+		pass "$testname: cmp.l @0x1234:16, ..."
+	    } else {
+		fail "$testname: cmp.l @0x1234:16, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.l @0x1234:16, ... ($x)" }
+    }
+    # FIXME return early, expect bombs out on the next group.
+    return;
+    set x 0
+    expect {
+	-re ".* 903 1e00 01046B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 903      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 903      0120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 904 1e0a 01046B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 904      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 904      3120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 905 1e14 01046B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 905      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 905      B120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 906 1e1e 01046B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 906      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 906      8120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 907 1e28 01046B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 907      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 907      A120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 908 1e32 01046B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 908      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 908      9120" { set x [expr $x+1]; exp_continue; }
+	-re ".* 909 1e3c 01046B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 909      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 909      C1209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 910 1e48 01046B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 910      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 910      C9209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 910      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 911 1e56 01046B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 911      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 911      D2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 912 1e62 01046B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 912      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 912      E2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 913 1e6e 01046B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 913      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 913      F2209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 914 1e7a 01046B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 914      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 914      DA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 914      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 915 1e88 01046B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 915      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 915      EA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 915      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 916 1e96 01046B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 916      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 916      FA209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 916      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 917 1ea4 01046B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 917      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 917      40209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 918 1eb0 01046B2C" { set x [expr $x+1]; exp_continue; }
+	-re ".* 918      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 918      48209ABC" { set x [expr $x+1]; exp_continue; }
+	-re ".* 918      DEF0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 919              " {
+	    if [expr $x == 53] then {
+		pass "$testname: cmp.l @0x12345678:32, ..."
+	    } else {
+		fail "$testname: cmp.l @0x12345678:32, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: cmp.l @0x12345678:32, ... ($x)" }
+    }
+
+    # This was intended to do any cleanup necessary.
+    # It kinda looks like it isn't needed, but just
+    # in case, please keep it in for now.
+
+    gas_finish
+
+}
+
+if [istarget h8300*-*-elf] then {
+    # Test advanced h8300sx instructions.
+    do_t05_cmp_test
+}

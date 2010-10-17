@@ -1,0 +1,554 @@
+@c Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000, 2003
+@c Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+@ifset GENERIC
+@page
+@node M68K-Dependent
+@chapter M680x0 Dependent Features
+@end ifset
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter M680x0 Dependent Features
+@end ifclear
+
+@cindex M680x0 support
+@menu
+* M68K-Opts::                   M680x0 Options
+* M68K-Syntax::                 Syntax
+* M68K-Moto-Syntax::            Motorola Syntax
+* M68K-Float::                  Floating Point
+* M68K-Directives::             680x0 Machine Directives
+* M68K-opcodes::                Opcodes
+@end menu
+
+@node M68K-Opts
+@section M680x0 Options
+
+@cindex options, M680x0
+@cindex M680x0 options
+The Motorola 680x0 version of @code{@value{AS}} has a few machine
+dependent options:
+
+@table @samp
+
+@cindex @samp{-l} option, M680x0
+@item -l
+You can use the @samp{-l} option to shorten the size of references to undefined
+symbols.  If you do not use the @samp{-l} option, references to undefined
+symbols are wide enough for a full @code{long} (32 bits).  (Since
+@code{@value{AS}} cannot know where these symbols end up, @code{@value{AS}} can
+only allocate space for the linker to fill in later.  Since @code{@value{AS}}
+does not know how far away these symbols are, it allocates as much space as it
+can.)  If you use this option, the references are only one word wide (16 bits).
+This may be useful if you want the object file to be as small as possible, and
+you know that the relevant symbols are always less than 17 bits away.
+
+@cindex @samp{--register-prefix-optional} option, M680x0
+@item --register-prefix-optional
+For some configurations, especially those where the compiler normally
+does not prepend an underscore to the names of user variables, the
+assembler requires a @samp{%} before any use of a register name.  This
+is intended to let the assembler distinguish between C variables and
+functions named @samp{a0} through @samp{a7}, and so on.  The @samp{%} is
+always accepted, but is not required for certain configurations, notably
+@samp{sun3}.  The @samp{--register-prefix-optional} option may be used
+to permit omitting the @samp{%} even for configurations for which it is
+normally required.  If this is done, it will generally be impossible to
+refer to C variables and functions with the same names as register
+names.
+
+@cindex @samp{--bitwise-or} option, M680x0
+@item --bitwise-or
+Normally the character @samp{|} is treated as a comment character, which
+means that it can not be used in expressions.  The @samp{--bitwise-or}
+option turns @samp{|} into a normal character.  In this mode, you must
+either use C style comments, or start comments with a @samp{#} character
+at the beginning of a line.
+
+@cindex @samp{--base-size-default-16}
+@cindex @samp{--base-size-default-32}
+@item --base-size-default-16  --base-size-default-32 
+If you use an addressing mode with a base register without specifying
+the size, @code{@value{AS}} will normally use the full 32 bit value.
+For example, the addressing mode @samp{%a0@@(%d0)} is equivalent to
+@samp{%a0@@(%d0:l)}.  You may use the @samp{--base-size-default-16}
+option to tell @code{@value{AS}} to default to using the 16 bit value.
+In this case, @samp{%a0@@(%d0)} is equivalent to @samp{%a0@@(%d0:w)}.
+You may use the @samp{--base-size-default-32} option to restore the
+default behaviour.
+
+@cindex @samp{--disp-size-default-16}
+@cindex @samp{--disp-size-default-32}
+@item --disp-size-default-16  --disp-size-default-32
+If you use an addressing mode with a displacement, and the value of the
+displacement is not known, @code{@value{AS}} will normally assume that
+the value is 32 bits.  For example, if the symbol @samp{disp} has not
+been defined, @code{@value{AS}} will assemble the addressing mode
+@samp{%a0@@(disp,%d0)} as though @samp{disp} is a 32 bit value.  You may
+use the @samp{--disp-size-default-16} option to tell @code{@value{AS}}
+to instead assume that the displacement is 16 bits.  In this case,
+@code{@value{AS}} will assemble @samp{%a0@@(disp,%d0)} as though
+@samp{disp} is a 16 bit value.  You may use the
+@samp{--disp-size-default-32} option to restore the default behaviour.
+
+@cindex @samp{--pcrel}
+@item --pcrel
+Always keep branches PC-relative.  In the M680x0 architecture all branches
+are defined as PC-relative.  However, on some processors they are limited
+to word displacements maximum.  When @code{@value{AS}} needs a long branch
+that is not available, it normally emits an absolute jump instead.  This
+option disables this substitution.  When this option is given and no long
+branches are available, only word branches will be emitted.  An error
+message will be generated if a word branch cannot reach its target.  This
+option has no effect on 68020 and other processors that have long branches.
+@pxref{M68K-Branch,,Branch Improvement}.
+
+@cindex @samp{-m68000} and related options
+@cindex architecture options, M680x0
+@cindex M680x0 architecture options
+@item -m68000
+@code{@value{AS}} can assemble code for several different members of the
+Motorola 680x0 family.  The default depends upon how @code{@value{AS}}
+was configured when it was built; normally, the default is to assemble
+code for the 68020 microprocessor.  The following options may be used to
+change the default.  These options control which instructions and
+addressing modes are permitted.  The members of the 680x0 family are
+very similar.  For detailed information about the differences, see the
+Motorola manuals.
+
+@table @samp
+@item -m68000
+@itemx -m68ec000
+@itemx -m68hc000
+@itemx -m68hc001
+@itemx -m68008
+@itemx -m68302
+@itemx -m68306
+@itemx -m68307
+@itemx -m68322
+@itemx -m68356
+Assemble for the 68000. @samp{-m68008}, @samp{-m68302}, and so on are synonyms
+for @samp{-m68000}, since the chips are the same from the point of view
+of the assembler.
+
+@item -m68010
+Assemble for the 68010.
+
+@item -m68020
+@itemx -m68ec020
+Assemble for the 68020.  This is normally the default.
+
+@item -m68030
+@itemx -m68ec030
+Assemble for the 68030.
+
+@item -m68040
+@itemx -m68ec040
+Assemble for the 68040.
+
+@item -m68060
+@itemx -m68ec060
+Assemble for the 68060.
+
+@item -mcpu32
+@itemx -m68330
+@itemx -m68331
+@itemx -m68332
+@itemx -m68333
+@itemx -m68334
+@itemx -m68336
+@itemx -m68340
+@itemx -m68341
+@itemx -m68349
+@itemx -m68360
+Assemble for the CPU32 family of chips.
+
+@item -m5200
+@item -m5202
+@item -m5204
+@item -m5206
+@item -m5206e
+@item -m528x
+@item -m5307
+@item -m5407
+@item -mcfv4
+@item -mcfv4e
+Assemble for the ColdFire family of chips.
+
+@item -m68881
+@itemx -m68882
+Assemble 68881 floating point instructions.  This is the default for the
+68020, 68030, and the CPU32.  The 68040 and 68060 always support
+floating point instructions.
+
+@item -mno-68881
+Do not assemble 68881 floating point instructions.  This is the default
+for 68000 and the 68010.  The 68040 and 68060 always support floating
+point instructions, even if this option is used.
+
+@item -m68851
+Assemble 68851 MMU instructions.  This is the default for the 68020,
+68030, and 68060.  The 68040 accepts a somewhat different set of MMU
+instructions; @samp{-m68851} and @samp{-m68040} should not be used
+together.
+
+@item -mno-68851
+Do not assemble 68851 MMU instructions.  This is the default for the
+68000, 68010, and the CPU32.  The 68040 accepts a somewhat different set
+of MMU instructions.
+@end table
+@end table
+
+@node M68K-Syntax
+@section Syntax
+
+@cindex @sc{mit}
+This syntax for the Motorola 680x0 was developed at @sc{mit}.
+
+@cindex M680x0 syntax
+@cindex syntax, M680x0
+@cindex M680x0 size modifiers
+@cindex size modifiers, M680x0
+The 680x0 version of @code{@value{AS}} uses instructions names and
+syntax compatible with the Sun assembler.  Intervening periods are
+ignored; for example, @samp{movl} is equivalent to @samp{mov.l}.
+
+In the following table @var{apc} stands for any of the address registers
+(@samp{%a0} through @samp{%a7}), the program counter (@samp{%pc}), the
+zero-address relative to the program counter (@samp{%zpc}), a suppressed
+address register (@samp{%za0} through @samp{%za7}), or it may be omitted
+entirely.  The use of @var{size} means one of @samp{w} or @samp{l}, and
+it may be omitted, along with the leading colon, unless a scale is also
+specified.  The use of @var{scale} means one of @samp{1}, @samp{2},
+@samp{4}, or @samp{8}, and it may always be omitted along with the
+leading colon.
+
+@cindex M680x0 addressing modes
+@cindex addressing modes, M680x0
+The following addressing modes are understood:
+@table @dfn
+@item Immediate
+@samp{#@var{number}}
+
+@item Data Register
+@samp{%d0} through @samp{%d7}
+
+@item Address Register
+@samp{%a0} through @samp{%a7}@*
+@samp{%a7} is also known as @samp{%sp}, i.e. the Stack Pointer.  @code{%a6}
+is also known as @samp{%fp}, the Frame Pointer.
+
+@item Address Register Indirect
+@samp{%a0@@} through @samp{%a7@@}
+
+@item Address Register Postincrement
+@samp{%a0@@+} through @samp{%a7@@+}
+
+@item Address Register Predecrement
+@samp{%a0@@-} through @samp{%a7@@-}
+
+@item Indirect Plus Offset
+@samp{@var{apc}@@(@var{number})}
+
+@item Index
+@samp{@var{apc}@@(@var{number},@var{register}:@var{size}:@var{scale})}
+
+The @var{number} may be omitted.
+
+@item Postindex
+@samp{@var{apc}@@(@var{number})@@(@var{onumber},@var{register}:@var{size}:@var{scale})}
+
+The @var{onumber} or the @var{register}, but not both, may be omitted.
+
+@item Preindex
+@samp{@var{apc}@@(@var{number},@var{register}:@var{size}:@var{scale})@@(@var{onumber})}
+
+The @var{number} may be omitted.  Omitting the @var{register} produces
+the Postindex addressing mode.
+
+@item Absolute
+@samp{@var{symbol}}, or @samp{@var{digits}}, optionally followed by
+@samp{:b}, @samp{:w}, or @samp{:l}.
+@end table
+
+@node M68K-Moto-Syntax
+@section Motorola Syntax
+
+@cindex Motorola syntax for the 680x0
+@cindex alternate syntax for the 680x0
+
+The standard Motorola syntax for this chip differs from the syntax
+already discussed (@pxref{M68K-Syntax,,Syntax}).  @code{@value{AS}} can
+accept Motorola syntax for operands, even if @sc{mit} syntax is used for
+other operands in the same instruction.  The two kinds of syntax are
+fully compatible.
+
+In the following table @var{apc} stands for any of the address registers
+(@samp{%a0} through @samp{%a7}), the program counter (@samp{%pc}), the
+zero-address relative to the program counter (@samp{%zpc}), or a
+suppressed address register (@samp{%za0} through @samp{%za7}).  The use
+of @var{size} means one of @samp{w} or @samp{l}, and it may always be
+omitted along with the leading dot.  The use of @var{scale} means one of
+@samp{1}, @samp{2}, @samp{4}, or @samp{8}, and it may always be omitted
+along with the leading asterisk.
+
+The following additional addressing modes are understood:
+
+@table @dfn
+@item Address Register Indirect
+@samp{(%a0)} through @samp{(%a7)}@* 
+@samp{%a7} is also known as @samp{%sp}, i.e. the Stack Pointer.  @code{%a6}
+is also known as @samp{%fp}, the Frame Pointer.
+
+@item Address Register Postincrement
+@samp{(%a0)+} through @samp{(%a7)+}
+
+@item Address Register Predecrement
+@samp{-(%a0)} through @samp{-(%a7)}
+
+@item Indirect Plus Offset
+@samp{@var{number}(@var{%a0})} through @samp{@var{number}(@var{%a7})},
+or @samp{@var{number}(@var{%pc})}.
+
+The @var{number} may also appear within the parentheses, as in
+@samp{(@var{number},@var{%a0})}.  When used with the @var{pc}, the
+@var{number} may be omitted (with an address register, omitting the
+@var{number} produces Address Register Indirect mode).
+
+@item Index
+@samp{@var{number}(@var{apc},@var{register}.@var{size}*@var{scale})}
+
+The @var{number} may be omitted, or it may appear within the
+parentheses.  The @var{apc} may be omitted.  The @var{register} and the
+@var{apc} may appear in either order.  If both @var{apc} and
+@var{register} are address registers, and the @var{size} and @var{scale}
+are omitted, then the first register is taken as the base register, and
+the second as the index register.
+
+@item Postindex
+@samp{([@var{number},@var{apc}],@var{register}.@var{size}*@var{scale},@var{onumber})}
+
+The @var{onumber}, or the @var{register}, or both, may be omitted.
+Either the @var{number} or the @var{apc} may be omitted, but not both.
+
+@item Preindex
+@samp{([@var{number},@var{apc},@var{register}.@var{size}*@var{scale}],@var{onumber})}
+
+The @var{number}, or the @var{apc}, or the @var{register}, or any two of
+them, may be omitted.  The @var{onumber} may be omitted.  The
+@var{register} and the @var{apc} may appear in either order.  If both
+@var{apc} and @var{register} are address registers, and the @var{size}
+and @var{scale} are omitted, then the first register is taken as the
+base register, and the second as the index register.
+@end table
+
+@node M68K-Float
+@section Floating Point
+
+@cindex floating point, M680x0
+@cindex M680x0 floating point
+Packed decimal (P) format floating literals are not supported.
+Feel free to add the code!
+
+The floating point formats generated by directives are these.
+
+@table @code
+@cindex @code{float} directive, M680x0
+@item .float
+@code{Single} precision floating point constants.
+
+@cindex @code{double} directive, M680x0
+@item .double
+@code{Double} precision floating point constants.
+
+@cindex @code{extend} directive M680x0
+@cindex @code{ldouble} directive M680x0
+@item .extend
+@itemx .ldouble
+@code{Extended} precision (@code{long double}) floating point constants.
+@end table
+
+@node M68K-Directives
+@section 680x0 Machine Directives
+
+@cindex M680x0 directives
+@cindex directives, M680x0
+In order to be compatible with the Sun assembler the 680x0 assembler
+understands the following directives.
+
+@table @code
+@cindex @code{data1} directive, M680x0
+@item .data1
+This directive is identical to a @code{.data 1} directive.
+
+@cindex @code{data2} directive, M680x0
+@item .data2
+This directive is identical to a @code{.data 2} directive.
+
+@cindex @code{even} directive, M680x0
+@item .even
+This directive is a special case of the @code{.align} directive; it
+aligns the output to an even byte boundary.
+
+@cindex @code{skip} directive, M680x0
+@item .skip
+This directive is identical to a @code{.space} directive.
+@end table
+
+@need 2000
+@node M68K-opcodes
+@section Opcodes
+
+@cindex M680x0 opcodes
+@cindex opcodes, M680x0
+@cindex instruction set, M680x0
+@c doc@cygnus.com: I don't see any point in the following
+@c                   paragraph.  Bugs are bugs; how does saying this
+@c                   help anyone?
+@ignore
+Danger:  Several bugs have been found in the opcode table (and
+fixed).  More bugs may exist.  Be careful when using obscure
+instructions.
+@end ignore
+
+@menu
+* M68K-Branch::                 Branch Improvement
+* M68K-Chars::                  Special Characters
+@end menu
+
+@node M68K-Branch
+@subsection Branch Improvement
+
+@cindex pseudo-opcodes, M680x0
+@cindex M680x0 pseudo-opcodes
+@cindex branch improvement, M680x0
+@cindex M680x0 branch improvement
+Certain pseudo opcodes are permitted for branch instructions.
+They expand to the shortest branch instruction that reach the
+target.  Generally these mnemonics are made by substituting @samp{j} for
+@samp{b} at the start of a Motorola mnemonic.
+
+The following table summarizes the pseudo-operations.  A @code{*} flags
+cases that are more fully described after the table:
+
+@smallexample
+          Displacement
+          +------------------------------------------------------------
+          |                68020           68000/10, not PC-relative OK
+Pseudo-Op |BYTE    WORD    LONG            ABSOLUTE LONG JUMP    **
+          +------------------------------------------------------------
+     jbsr |bsrs    bsrw    bsrl            jsr
+      jra |bras    braw    bral            jmp
+*     jXX |bXXs    bXXw    bXXl            bNXs;jmp
+*    dbXX | N/A    dbXXw   dbXX;bras;bral  dbXX;bras;jmp
+     fjXX | N/A    fbXXw   fbXXl            N/A
+
+XX: condition
+NX: negative of condition XX
+
+@end smallexample
+@center @code{*}---see full description below
+@center @code{**}---this expansion mode is disallowed by @samp{--pcrel}
+
+@table @code
+@item jbsr
+@itemx jra
+These are the simplest jump pseudo-operations; they always map to one
+particular machine instruction, depending on the displacement to the
+branch target.  This instruction will be a byte or word branch is that
+is sufficient.  Otherwise, a long branch will be emitted if available.
+If no long branches are available and the @samp{--pcrel} option is not
+given, an absolute long jump will be emitted instead.  If no long
+branches are available, the @samp{--pcrel} option is given, and a word
+branch cannot reach the target, an error message is generated.
+
+In addition to standard branch operands, @code{@value{AS}} allows these
+pseudo-operations to have all operands that are allowed for jsr and jmp,
+substituting these instructions if the operand given is not valid for a
+branch instruction.
+
+@item j@var{XX}
+Here, @samp{j@var{XX}} stands for an entire family of pseudo-operations,
+where @var{XX} is a conditional branch or condition-code test.  The full
+list of pseudo-ops in this family is:
+@smallexample
+ jhi   jls   jcc   jcs   jne   jeq   jvc
+ jvs   jpl   jmi   jge   jlt   jgt   jle
+@end smallexample
+
+Usually, each of these pseudo-operations expands to a single branch
+instruction.  However, if a word branch is not sufficient, no long branches
+are available, and the @samp{--pcrel} option is not given, @code{@value{AS}}
+issues a longer code fragment in terms of @var{NX}, the opposite condition
+to @var{XX}.  For example, under these conditions:
+@smallexample
+    j@var{XX} foo
+@end smallexample
+gives
+@smallexample
+     b@var{NX}s oof
+     jmp foo
+ oof:
+@end smallexample
+
+@item db@var{XX}
+The full family of pseudo-operations covered here is
+@smallexample
+ dbhi   dbls   dbcc   dbcs   dbne   dbeq   dbvc
+ dbvs   dbpl   dbmi   dbge   dblt   dbgt   dble
+ dbf    dbra   dbt
+@end smallexample
+
+Motorola @samp{db@var{XX}} instructions allow word displacements only.  When
+a word displacement is sufficient, each of these pseudo-operations expands
+to the corresponding Motorola instruction.  When a word displacement is not
+sufficient and long branches are available, when the source reads
+@samp{db@var{XX} foo}, @code{@value{AS}} emits
+@smallexample
+     db@var{XX} oo1
+     bras oo2
+ oo1:bral foo
+ oo2:
+@end smallexample
+
+If, however, long branches are not available and the @samp{--pcrel} option is
+not given, @code{@value{AS}} emits
+@smallexample
+     db@var{XX} oo1
+     bras oo2
+ oo1:jmp foo
+ oo2:
+@end smallexample
+
+@item fj@var{XX}
+This family includes
+@smallexample
+ fjne   fjeq   fjge   fjlt   fjgt   fjle   fjf
+ fjt    fjgl   fjgle  fjnge  fjngl  fjngle fjngt
+ fjnle  fjnlt  fjoge  fjogl  fjogt  fjole  fjolt
+ fjor   fjseq  fjsf   fjsne  fjst   fjueq  fjuge
+ fjugt  fjule  fjult  fjun
+@end smallexample
+
+Each of these pseudo-operations always expands to a single Motorola
+coprocessor branch instruction, word or long.  All Motorola coprocessor
+branch instructions allow both word and long displacements.
+
+@end table
+
+@node M68K-Chars
+@subsection Special Characters
+
+@cindex special characters, M680x0
+@cindex M680x0 immediate character
+@cindex immediate character, M680x0
+@cindex M680x0 line comment character
+@cindex line comment character, M680x0
+@cindex comments, M680x0
+The immediate character is @samp{#} for Sun compatibility.  The
+line-comment character is @samp{|} (unless the @samp{--bitwise-or}
+option is used).  If a @samp{#} appears at the beginning of a line, it
+is treated as a comment unless it looks like @samp{# line file}, in
+which case it is treated normally.
+

@@ -1,0 +1,194 @@
+#source: tlspic1.s
+#source: tlspic2.s
+#as: -m64 -Aesame
+#ld: -shared -melf64_s390
+#objdump: -dzrj.text
+#target: s390x-*-*
+
+.*: +file format elf64-s390
+
+Disassembly of section .text:
+
+0+790 <fn1>:
+# function prolog
+ +790:	eb 6e f0 30 00 24 	stmg	%r6,%r14,48\(%r15\)
+ +796:	a7 d5 00 56       	bras	%r13,842 <fn1\+0xb2>
+# sg1@tlsgd
+ +79a:	00 00 00 00       	.long	0x00000000
+ +79e:	00 00 00 70       	.long	0x00000070
+# sg2@tlsgd
+ +7a2:	00 00 00 00       	.long	0x00000000
+ +7a6:	00 00 00 90       	.long	0x00000090
+# sl1@tlsgd
+ +7aa:	00 00 00 00       	.long	0x00000000
+ +7ae:	00 00 00 20       	.long	0x00000020
+# sl2@tlsgd
+ +7b2:	00 00 00 00       	.long	0x00000000
+ +7b6:	00 00 00 30       	.long	0x00000030
+# sh1@tlsgd
+ +7ba:	00 00 00 00       	.long	0x00000000
+ +7be:	00 00 00 98       	.long	0x00000098
+# sh2@tlsgd
+ +7c2:	00 00 00 00       	.long	0x00000000
+ +7c6:	00 00 00 a8       	.long	0x000000a8
+# sH1@tlsgd
+ +7ca:	00 00 00 00       	.long	0x00000000
+ +7ce:	00 00 00 50       	.long	0x00000050
+# sH2@tlsgd
+ +7d2:	00 00 00 00       	.long	0x00000000
+ +7d6:	00 00 00 60       	.long	0x00000060
+# sl1@tlsldm
+ +7da:	00 00 00 00       	.long	0x00000000
+ +7de:	00 00 00 40       	.long	0x00000040
+# sl1@dtpoff
+ +7e2:	00 00 00 00       	.long	0x00000000
+ +7e6:	00 00 00 20       	.long	0x00000020
+# sl2@dtpoff
+ +7ea:	00 00 00 00       	.long	0x00000000
+ +7ee:	00 00 00 24       	.long	0x00000024
+# sh1@tlsldm
+ +7f2:	00 00 00 00       	.long	0x00000000
+ +7f6:	00 00 00 40       	.long	0x00000040
+# sh1@dtpoff
+ +7fa:	00 00 00 00       	.long	0x00000000
+ +7fe:	00 00 00 40       	.long	0x00000040
+# sh2@dtpoff
+ +802:	00 00 00 00       	.long	0x00000000
+ +806:	00 00 00 44       	.long	0x00000044
+# sH1@tlsldm
+ +80a:	00 00 00 00       	.long	0x00000000
+ +80e:	00 00 00 40       	.long	0x00000040
+# sH1@dtpoff
+ +812:	00 00 00 00       	.long	0x00000000
+ +816:	00 00 00 60       	.long	0x00000060
+# sH2@dtpoff
+ +81a:	00 00 00 00       	.long	0x00000000
+ +81e:	00 00 00 64       	.long	0x00000064
+# sg2@gotntpoff
+ +822:	00 00 00 00       	.long	0x00000000
+ +826:	00 00 00 90       	.long	0x00000090
+# sl2@gotntpoff
+ +82a:	00 00 00 00       	.long	0x00000000
+ +82e:	00 00 00 30       	.long	0x00000030
+# sh2@gotntpoff
+ +832:	00 00 00 00       	.long	0x00000000
+ +836:	00 00 00 a8       	.long	0x000000a8
+# sH2@gotntpoff
+ +83a:	00 00 00 00       	.long	0x00000000
+ +83e:	00 00 00 60       	.long	0x00000060
+# function prolog
+ +842:	b9 04 00 ef       	lgr	%r14,%r15
+ +846:	c0 c0 00 00 09 a5 	larl	%r12,1b90 <_GLOBAL_OFFSET_TABLE_>
+ +84c:	a7 fb ff 60       	aghi	%r15,-160
+ +850:	e3 e0 e0 00 00 24 	stg	%r14,0\(%r14\)
+# extract TCB
+ +856:	b2 4f 00 90       	ear	%r9,%a0
+ +85a:	eb 94 00 20 00 0d 	sllg	%r9,%r4,32
+ +860:	b2 4f 00 91       	ear	%r9,%a1
+# GD
+ +864:	e3 20 d0 00 00 04 	lg	%r2,0\(%r13\)
+ +86a:	c0 e5 ff ff ff 83 	brasl	%r14,770 <sH8\+0x6f4>
+ +870:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
+# GD -> IE because variable is referenced through IE too
+ +874:	e3 20 d0 08 00 04 	lg	%r2,8\(%r13\)
+ +87a:	e3 22 c0 00 00 04 	lg	%r2,0\(%r2,%r12\)
+ +880:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
+# GD against local variable
+ +884:	e3 20 d0 10 00 04 	lg	%r2,16\(%r13\)
+ +88a:	c0 e5 ff ff ff 73 	brasl	%r14,770 <sH8\+0x6f4>
+ +890:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
+# GD -> IE against local variable referenced through IE too
+ +894:	e3 20 d0 18 00 04 	lg	%r2,24\(%r13\)
+ +89a:	e3 22 c0 00 00 04 	lg	%r2,0\(%r2,%r12\)
+ +8a0:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
+# GD against hidden and local variable
+ +8a4:	e3 20 d0 20 00 04 	lg	%r2,32\(%r13\)
+ +8aa:	c0 e5 ff ff ff 63 	brasl	%r14,770 <sH8\+0x6f4>
+ +8b0:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
+# GD -> IE against hidden and local variable referenced through
+# IE too
+ +8b4:	e3 20 d0 28 00 04 	lg	%r2,40\(%r13\)
+ +8ba:	e3 22 c0 00 00 04 	lg	%r2,0\(%r2,%r12\)
+ +8c0:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
+# GD against hidden but not local variable
+ +8c4:	e3 20 d0 30 00 04 	lg	%r2,48\(%r13\)
+ +8ca:	c0 e5 ff ff ff 53 	brasl	%r14,770 <sH8\+0x6f4>
+ +8d0:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
+# GD -> IE against hidden but not local variable referenced through
+# IE too
+ +8d4:	e3 20 d0 38 00 04 	lg	%r2,56\(%r13\)
+ +8da:	e3 22 c0 00 00 04 	lg	%r2,0\(%r2,%r12\)
+ +8e0:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
+# LD
+ +8e4:	e3 20 d0 40 00 04 	lg	%r2,64\(%r13\)
+ +8ea:	c0 e5 ff ff ff 43 	brasl	%r14,770 <sH8\+0x6f4>
+ +8f0:	41 32 90 00       	la	%r3,0\(%r2,%r9\)
+ +8f4:	e3 40 d0 48 00 04 	lg	%r4,72\(%r13\)
+ +8fa:	41 54 30 00       	la	%r5,0\(%r4,%r3\)
+ +8fe:	e3 40 d0 50 00 04 	lg	%r4,80\(%r13\)
+ +904:	41 54 30 00       	la	%r5,0\(%r4,%r3\)
+# LD against hidden and local variables
+ +908:	e3 20 d0 58 00 04 	lg	%r2,88\(%r13\)
+ +90e:	c0 e5 ff ff ff 31 	brasl	%r14,770 <sH8\+0x6f4>
+ +914:	41 32 90 00       	la	%r3,0\(%r2,%r9\)
+ +918:	e3 40 d0 60 00 04 	lg	%r4,96\(%r13\)
+ +91e:	41 54 30 00       	la	%r5,0\(%r4,%r3\)
+ +922:	e3 40 d0 68 00 04 	lg	%r4,104\(%r13\)
+ +928:	41 54 30 00       	la	%r5,0\(%r4,%r3\)
+# LD against hidden but not local variables
+ +92c:	e3 20 d0 70 00 04 	lg	%r2,112\(%r13\)
+ +932:	c0 e5 ff ff ff 1f 	brasl	%r14,770 <sH8\+0x6f4>
+ +938:	41 32 90 00       	la	%r3,0\(%r2,%r9\)
+ +93c:	e3 40 d0 78 00 04 	lg	%r4,120\(%r13\)
+ +942:	41 54 30 00       	la	%r5,0\(%r4,%r3\)
+ +946:	e3 40 d0 80 00 04 	lg	%r4,128\(%r13\)
+ +94c:	41 54 30 00       	la	%r5,0\(%r4,%r3\)
+# IE against global var
+ +950:	e3 30 d0 88 00 04 	lg	%r3,136\(%r13\)
+ +956:	e3 33 c0 00 00 04 	lg	%r3,0\(%r3,%r12\)
+ +95c:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
+# IE against local var
+ +960:	e3 30 d0 90 00 04 	lg	%r3,144\(%r13\)
+ +966:	e3 43 c0 00 00 04 	lg	%r4,0\(%r3,%r12\)
+ +96c:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
+# IE against hidden and local var
+ +970:	e3 30 d0 98 00 04 	lg	%r3,152\(%r13\)
+ +976:	e3 43 c0 00 00 04 	lg	%r4,0\(%r3,%r12\)
+ +97c:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
+# IE against hidden but not local var
+ +980:	e3 30 d0 a0 00 04 	lg	%r3,160\(%r13\)
+ +986:	e3 43 c0 00 00 04 	lg	%r4,0\(%r3,%r12\)
+ +98c:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
+# IE against global var with larl got access
+ +990:	c0 30 00 00 09 34 	larl	%r3,1bf8 <\_GLOBAL\_OFFSET\_TABLE\_\+0x68>
+ +996:	e3 33 c0 00 00 04 	lg	%r3,0\(%r3,%r12\)
+ +99c:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
+# IE against local var with larl got access
+ +9a0:	c0 30 00 00 09 14 	larl	%r3,1bc8 <\_GLOBAL\_OFFSET\_TABLE\_\+0x38>
+ +9a6:	e3 43 c0 00 00 04 	lg	%r4,0\(%r3,%r12\)
+ +9ac:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
+# IE against hidden and local var with larl got access
+ +9b0:	c0 30 00 00 09 30 	larl	%r3,1c10 <\_GLOBAL\_OFFSET\_TABLE\_\+0x80>
+ +9b6:	e3 43 c0 00 00 04 	lg	%r4,0\(%r3,%r12\)
+ +9bc:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
+# IE against hidden but not local var with larl got access
+ +9c0:	c0 30 00 00 09 2c 	larl	%r3,1c18 <\_GLOBAL\_OFFSET\_TABLE\_\+0x88>
+ +9c6:	e3 43 c0 00 00 04 	lg	%r4,0\(%r3,%r12\)
+ +9cc:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
+# IE against global var with small got access (no optimization)
+ +9d0:	e3 30 c0 68 00 04 	lg	%r3,104\(%r12\)
+ +9d6:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
+# IE against local var with small got access (no optimization)
+ +9da:	e3 30 c0 38 00 04 	lg	%r3,56\(%r12\)
+ +9e0:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
+# IE against hidden and local var with small got access
+# (no optimization)
+ +9e4:	e3 30 c0 80 00 04 	lg	%r3,128\(%r12\)
+ +9ea:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
+# IE against hidden but not local var with small got access
+# (no optimization)
+ +9ee:	e3 30 c0 88 00 04 	lg	%r3,136\(%r12\)
+ +9f4:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
+# function epilog
+ +9f8:	eb 6e f0 d0 00 04 	lmg	%r6,%r14,208\(%r15\)
+ +9fe:	07 fe             	br	%r14

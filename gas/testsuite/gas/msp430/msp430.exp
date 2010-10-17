@@ -1,0 +1,20 @@
+#
+# msp430 tests
+#
+proc run_list_test { name opts } {
+    global srcdir subdir
+    set testname "msp430 $name"
+    set file $srcdir/$subdir/$name
+    gas_run ${name}.s $opts ">&dump.out"
+    if { [regexp_diff "dump.out" "${file}.l"] } then {
+	fail $testname
+	verbose "output is [file_contents "dump.out"]" 2
+	exit
+	return
+    }
+    pass $testname
+}
+
+if [expr [istarget "msp430-*-*"]]  then {
+    run_dump_test "opcode"
+}

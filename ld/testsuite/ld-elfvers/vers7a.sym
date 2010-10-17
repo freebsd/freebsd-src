@@ -1,0 +1,2 @@
+[0-9a-f]* g     F .text	[0-9a-f]* (0x[0-9a-f][0-9a-f] )?hide_a@@VERS_1
+[0-9a-f]* g     F .text	[0-9a-f]* (0x[0-9a-f][0-9a-f] )?show_b@@VERS_1

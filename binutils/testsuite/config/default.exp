@@ -1,0 +1,103 @@
+#   Copyright 1993, 1994, 1995, 1997, 1999, 2001, 2002
+#   Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+# Please email any bugs, comments, and/or additions to this file to:
+# bug-dejagnu@prep.ai.mit.edu
+
+# This file was written by Rob Savoye. (rob@cygnus.com)
+
+load_lib util-defs.exp
+load_lib utils-lib.exp
+
+if ![info exists NM] then {
+    set NM [findfile $base_dir/nm-new $base_dir/nm-new [transform nm]]
+}
+if ![info exists NMFLAGS] then {
+    set NMFLAGS ""
+}
+if ![info exists SIZE] then {
+    set SIZE [findfile $base_dir/size]
+}
+if ![info exists SIZEFLAGS] then {
+    set SIZEFLAGS ""
+}
+if ![info exists OBJDUMP] then {
+    set OBJDUMP [findfile $base_dir/objdump]
+}
+if ![info exists OBJDUMPFLAGS] then {
+    set OBJDUMPFLAGS ""
+}
+if ![info exists OBJCOPY] then {
+    set OBJCOPY [findfile $base_dir/objcopy]
+}
+if ![info exists OBJCOPYFLAGS] then {
+    set OBJCOPYFLAGS ""
+}
+if ![info exists AR] then {
+    set AR [findfile $base_dir/ar]
+}
+if ![info exists STRIP] then {
+    set STRIP [findfile $base_dir/strip-new $base_dir/strip-new [transform strip]]
+}
+if ![info exists STRIPFLAGS] then {
+    set STRIPFLAGS ""
+}
+if ![info exists READELF] then {
+    set READELF [findfile $base_dir/readelf]
+}
+if ![info exists READELFFLAGS] then {
+    set READELFFLAGS ""
+}
+if ![info exists WINDRES] then {
+    set WINDRES [findfile $base_dir/windres]
+}
+if ![info exists DLLTOOL] then {
+    set DLLTOOL [findfile $base_dir/dlltool]
+}
+
+if ![file isdirectory tmpdir] {catch "exec mkdir tmpdir" status}
+
+# Make a symlink from tmpdir/gas/as and tmpdir/gas/ld to the assembler
+# and linker in the build tree, so that we can use a -B option to gcc
+# to force it to use the newly built assembler/linker.
+if {![file isdirectory tmpdir/gas]} then {
+    catch "exec mkdir tmpdir/gas" status
+    if {[file isfile ../gas/as-new]} then {
+	catch "exec ln -s ../../../gas/as-new tmpdir/gas/as" status
+    }
+    if {[file isfile ../ld/ld-new]} then {
+	catch "exec ln -s ../../../ld/ld-new tmpdir/gas/ld" status
+    }
+}
+set gcc_gas_flag "-B[pwd]/tmpdir/gas/"
+
+#
+# binutils_run
+#	run a program, returning the output
+#	sets binutils_run_failed if the program does not exist
+#
+proc binutils_run { prog progargs } {
+    default_binutils_run $prog $progargs
+}
+
+#
+# binutils_assemble
+#	assemble a file
+#
+proc binutils_assemble { source object } {
+    default_binutils_assemble $source $object
+}

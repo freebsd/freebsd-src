@@ -1,0 +1,16 @@
+#source: tlsindntpoff.s
+#as: --32
+#ld: -melf_i386
+#objdump: -drj.text
+#target: i?86-*-*
+
+.*: +file format elf32-i386
+
+Disassembly of section .text:
+
+[0-9a-f]+000 <_start>:
+ [0-9a-f]+000:	39 d8[ 	]+cmp    %ebx,%eax
+ [0-9a-f]+002:	73 08[ 	]+jae    [0-9a-f]+00c <_start\+0xc>
+ [0-9a-f]+004:	b8 fc ff ff ff[ 	]+mov    \$0xfffffffc,%eax
+ [0-9a-f]+009:	65 8b 00[ 	]+mov    %gs:\(%eax\),%eax
+ [0-9a-f]+00c:	c3[ 	]+ret *

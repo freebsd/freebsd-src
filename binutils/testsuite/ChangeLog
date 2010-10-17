@@ -1,0 +1,33 @@
+2004-05-15  Nick Clifton  <nickc@redhat.com>
+
+	* binutils-all/readelf.ss: Allow for ARM mapping symbols.
+
+2004-04-14  Richard Sandiford  <rsandifo@redhat.com>
+
+	* binutils-all/readelf.ss-mips: Allow named section symbols.
+
+2004-04-09  Daniel Jacobowitz  <drow@mvista.com>
+
+	Merge from mainline:
+	2004-02-27  Andreas Schwab  <schwab@suse.de>
+	* binutils-all/ar.exp (argument_parsing): New test.
+
+2004-04-08  Alan Modra  <amodra@bigpond.net.au>
+
+	Apply from mainline.
+	2004-03-30  Jakub Jelinek  <jakub@redhat.com>
+	* binutils-all/objcopy.exp: Accept main as a data symbol as well.
+
+2004-02-20  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* binutils-all/objcopy.exp: Reorder arguments for POSIXLY_CORRECT
+	systems.
+
+For older changes see ChangeLog-9303
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

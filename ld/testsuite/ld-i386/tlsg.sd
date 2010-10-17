@@ -1,0 +1,10 @@
+#source: tlsg.s
+#as: --32
+#ld: -melf_i386
+#objdump: -sj.debug_foobar
+#target: i?86-*-*
+
+.*: +file format elf32-i386
+
+Contents of section .debug_foobar:
+ 0+ 18000000  +.*

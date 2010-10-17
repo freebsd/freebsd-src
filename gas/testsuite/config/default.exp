@@ -1,0 +1,49 @@
+load_lib gas-defs.exp
+
+global AS
+if ![info exists AS] then {
+    set AS [findfile $base_dir/../as-new "../as-new" [transform as]]
+}
+
+global ASFLAGS
+if ![info exists ASFLAGS] then {
+    set ASFLAGS ""
+}
+
+if ![info exists OBJDUMP] then {
+    set OBJDUMP [findfile $base_dir/../../binutils/objdump \
+			  $base_dir/../../binutils/objdump \
+			  [transform objdump]]
+}
+
+if ![info exists OBJDUMPFLAGS] then {
+    set OBJDUMPFLAGS {}
+}
+
+if ![info exists NM] then {
+    set NM [findfile $base_dir/../../binutils/nm-new \
+		     $base_dir/../../binutils/nm-new \
+		     [transform nm]]
+}
+
+if ![info exists NMFLAGS] then {
+    set NMFLAGS {}
+}
+
+if ![info exists OBJCOPY] then {
+    set OBJCOPY [findfile $base_dir/../../binutils/objcopy]
+}
+
+if ![info exists OBJCOPYFLAGS] then {
+    set OBJCOPYFLAGS {}
+}
+
+if ![info exists READELF] then {
+    set READELF [findfile $base_dir/../../binutils/readelf]
+}
+
+if ![info exists READELFFLAGS] then {
+    set READELFFLAGS {}
+}
+
+gas_init

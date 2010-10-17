@@ -1,0 +1,234 @@
+#source: tlspic1.s
+#source: tlspic2.s
+#as: --64
+#ld: -shared -melf_x86_64
+#objdump: -drj.text
+#target: x86_64-*-*
+
+.*: +file format elf64-x86-64
+
+Disassembly of section .text:
+
+0+1000 <fn1>:
+ +1000:	55[ 	]+push   %rbp
+ +1001:	48 89 e5[ 	]+mov    %rsp,%rbp
+ +1004:	90[ 	]+nop *
+ +1005:	90[ 	]+nop *
+ +1006:	90[ 	]+nop *
+ +1007:	90[ 	]+nop *
+#  GD
+ +1008:	66 48 8d 3d f0 11 10[ 	]+lea    1053168\(%rip\),%rdi +# 102200 <_GLOBAL_OFFSET_TABLE_\+0x70>
+ +100f:	00 *
+#				-> R_X86_64_DTPMOD64	sg1
+ +1010:	66[ 	]+data16
+ +1011:	66[ 	]+data16
+ +1012:	48 e8 68 f6 ff ff[ 	]+rex64 callq  [0-9a-f]+ <.*>
+#				-> R_X86_64_JUMP_SLOT	__tls_get_addr
+ +1018:	90[ 	]+nop *
+ +1019:	90[ 	]+nop *
+ +101a:	90[ 	]+nop *
+ +101b:	90[ 	]+nop *
+#  GD -> IE because variable is referenced through IE too
+ +101c:	64 48 8b 04 25 00 00[ 	]+mov    %fs:0x0,%rax
+ +1023:	00 00 *
+ +1025:	48 03 05 f4 11 10 00[ 	]+add    1053172\(%rip\),%rax +# 102220 <_GLOBAL_OFFSET_TABLE_\+0x90>
+#				-> R_X86_64_TPOFF64	sg2
+ +102c:	90[ 	]+nop *
+ +102d:	90[ 	]+nop *
+ +102e:	90[ 	]+nop *
+ +102f:	90[ 	]+nop *
+#  GD against local variable
+ +1030:	66 48 8d 3d 78 11 10[ 	]+lea    1053048\(%rip\),%rdi +# 1021b0 <_GLOBAL_OFFSET_TABLE_\+0x20>
+ +1037:	00 *
+#				-> R_X86_64_DTPMOD64	[0 0x2000000000000000]
+ +1038:	66[ 	]+data16
+ +1039:	66[ 	]+data16
+ +103a:	48 e8 40 f6 ff ff[ 	]+rex64 callq  [0-9a-f]+ <.*>
+#				-> R_X86_64_JUMP_SLOT	__tls_get_addr
+ +1040:	90[ 	]+nop *
+ +1041:	90[ 	]+nop *
+ +1042:	90[ 	]+nop *
+ +1043:	90[ 	]+nop *
+#  GD -> IE against local variable referenced through IE too
+ +1044:	64 48 8b 04 25 00 00[ 	]+mov    %fs:0x0,%rax
+ +104b:	00 00 *
+ +104d:	48 03 05 6c 11 10 00[ 	]+add    1053036\(%rip\),%rax +# 1021c0 <_GLOBAL_OFFSET_TABLE_\+0x30>
+#				-> R_X86_64_TPOFF64	*ABS*+0x24
+ +1054:	90[ 	]+nop *
+ +1055:	90[ 	]+nop *
+ +1056:	90[ 	]+nop *
+ +1057:	90[ 	]+nop *
+#  GD against hidden and local variable
+ +1058:	66 48 8d 3d c8 11 10[ 	]+lea    1053128\(%rip\),%rdi +# 102228 <_GLOBAL_OFFSET_TABLE_\+0x98>
+ +105f:	00 *
+#				-> R_X86_64_DTPMOD64	[0 0x4000000000000000]
+ +1060:	66[ 	]+data16
+ +1061:	66[ 	]+data16
+ +1062:	48 e8 18 f6 ff ff[ 	]+rex64 callq  [0-9a-f]+ <.*>
+#				-> R_X86_64_JUMP_SLOT	__tls_get_addr
+ +1068:	90[ 	]+nop *
+ +1069:	90[ 	]+nop *
+ +106a:	90[ 	]+nop *
+ +106b:	90[ 	]+nop *
+#  GD -> IE against hidden and local variable referenced through IE too
+ +106c:	64 48 8b 04 25 00 00[ 	]+mov    %fs:0x0,%rax
+ +1073:	00 00 *
+ +1075:	48 03 05 bc 11 10 00[ 	]+add    1053116\(%rip\),%rax +# 102238 <_GLOBAL_OFFSET_TABLE_\+0xa8>
+#				-> R_X86_64_TPOFF64	*ABS*+0x44
+ +107c:	90[ 	]+nop *
+ +107d:	90[ 	]+nop *
+ +107e:	90[ 	]+nop *
+ +107f:	90[ 	]+nop *
+#  GD against hidden but not local variable
+ +1080:	66 48 8d 3d 58 11 10[ 	]+lea    1053016\(%rip\),%rdi +# 1021e0 <_GLOBAL_OFFSET_TABLE_\+0x50>
+ +1087:	00 *
+#				-> R_X86_64_DTPMOD64	[0 0x6000000000000000]
+ +1088:	66[ 	]+data16
+ +1089:	66[ 	]+data16
+ +108a:	48 e8 f0 f5 ff ff[ 	]+rex64 callq  [0-9a-f]+ <.*>
+#				-> R_X86_64_JUMP_SLOT	__tls_get_addr
+ +1090:	90[ 	]+nop *
+ +1091:	90[ 	]+nop *
+ +1092:	90[ 	]+nop *
+ +1093:	90[ 	]+nop *
+#  GD -> IE against hidden but not local variable referenced through IE too
+ +1094:	64 48 8b 04 25 00 00[ 	]+mov    %fs:0x0,%rax
+ +109b:	00 00 *
+ +109d:	48 03 05 4c 11 10 00[ 	]+add    1053004\(%rip\),%rax +# 1021f0 <_GLOBAL_OFFSET_TABLE_\+0x60>
+#				-> R_X86_64_TPOFF64	*ABS*+0x64
+ +10a4:	90[ 	]+nop *
+ +10a5:	90[ 	]+nop *
+ +10a6:	90[ 	]+nop *
+ +10a7:	90[ 	]+nop *
+#  LD
+ +10a8:	48 8d 3d 21 11 10 00[ 	]+lea    1052961\(%rip\),%rdi +# 1021d0 <_GLOBAL_OFFSET_TABLE_\+0x40>
+#				-> R_X86_64_DTPMOD64	[0 0x000000000000000]
+ +10af:	e8 cc f5 ff ff[ 	]+callq  [0-9a-f]+ <.*>
+#				-> R_X86_64_JUMP_SLOT	__tls_get_addr
+ +10b4:	90[ 	]+nop *
+ +10b5:	90[ 	]+nop *
+ +10b6:	48 8d 90 20 00 00 00[ 	]+lea    0x20\(%rax\),%rdx
+ +10bd:	90[ 	]+nop *
+ +10be:	90[ 	]+nop *
+ +10bf:	4c 8d 88 26 00 00 00[ 	]+lea    0x26\(%rax\),%r9
+ +10c6:	90[ 	]+nop *
+ +10c7:	90[ 	]+nop *
+ +10c8:	90[ 	]+nop *
+ +10c9:	90[ 	]+nop *
+#  LD against hidden and local variables
+ +10ca:	48 8d 3d ff 10 10 00[ 	]+lea    1052927\(%rip\),%rdi +# 1021d0 <_GLOBAL_OFFSET_TABLE_\+0x40>
+#				-> R_X86_64_DTPMOD64	[0 0x000000000000000]
+ +10d1:	e8 aa f5 ff ff[ 	]+callq  [0-9a-f]+ <.*>
+#				-> R_X86_64_JUMP_SLOT	__tls_get_addr
+ +10d6:	90[ 	]+nop *
+ +10d7:	90[ 	]+nop *
+ +10d8:	48 8d 90 40 00 00 00[ 	]+lea    0x40\(%rax\),%rdx
+ +10df:	90[ 	]+nop *
+ +10e0:	90[ 	]+nop *
+ +10e1:	48 8d 88 47 00 00 00[ 	]+lea    0x47\(%rax\),%rcx
+ +10e8:	90[ 	]+nop *
+ +10e9:	90[ 	]+nop *
+ +10ea:	90[ 	]+nop *
+ +10eb:	90[ 	]+nop *
+#  LD against hidden but not local variables
+ +10ec:	48 8d 3d dd 10 10 00[ 	]+lea    1052893\(%rip\),%rdi +# 1021d0 <_GLOBAL_OFFSET_TABLE_\+0x40>
+#				-> R_X86_64_DTPMOD64	[0 0x000000000000000]
+ +10f3:	e8 88 f5 ff ff[ 	]+callq  [0-9a-f]+ <.*>
+#				-> R_X86_64_JUMP_SLOT	__tls_get_addr
+ +10f8:	90[ 	]+nop *
+ +10f9:	90[ 	]+nop *
+ +10fa:	4c 8d a0 60 00 00 00[ 	]+lea    0x60\(%rax\),%r12
+ +1101:	90[ 	]+nop *
+ +1102:	90[ 	]+nop *
+ +1103:	48 8d 88 65 00 00 00[ 	]+lea    0x65\(%rax\),%rcx
+ +110a:	90[ 	]+nop *
+ +110b:	90[ 	]+nop *
+#  IE against global var
+ +110c:	64 48 8b 0c 25 00 00[ 	]+mov    %fs:0x0,%rcx
+ +1113:	00 00 *
+ +1115:	90[ 	]+nop *
+ +1116:	90[ 	]+nop *
+ +1117:	48 03 0d 02 11 10 00[ 	]+add    1052930\(%rip\),%rcx +# 102220 <_GLOBAL_OFFSET_TABLE_\+0x90>
+#				-> R_X86_64_TPOFF64	sg2
+ +111e:	90[ 	]+nop *
+ +111f:	90[ 	]+nop *
+ +1120:	90[ 	]+nop *
+ +1121:	90[ 	]+nop *
+#  IE against local var
+ +1122:	64 4c 8b 34 25 00 00[ 	]+mov    %fs:0x0,%r14
+ +1129:	00 00 *
+ +112b:	90[ 	]+nop *
+ +112c:	90[ 	]+nop *
+ +112d:	4c 03 35 8c 10 10 00[ 	]+add    1052812\(%rip\),%r14 +# 1021c0 <_GLOBAL_OFFSET_TABLE_\+0x30>
+#				-> R_X86_64_TPOFF64	*ABS*+0x24
+ +1134:	90[ 	]+nop *
+ +1135:	90[ 	]+nop *
+ +1136:	90[ 	]+nop *
+ +1137:	90[ 	]+nop *
+#  IE against hidden and local var
+ +1138:	64 48 8b 0c 25 00 00[ 	]+mov    %fs:0x0,%rcx
+ +113f:	00 00 *
+ +1141:	90[ 	]+nop *
+ +1142:	90[ 	]+nop *
+ +1143:	48 03 0d ee 10 10 00[ 	]+add    1052910\(%rip\),%rcx +# 102238 <_GLOBAL_OFFSET_TABLE_\+0xa8>
+#				-> R_X86_64_TPOFF64	*ABS*+0x44
+ +114a:	90[ 	]+nop *
+ +114b:	90[ 	]+nop *
+ +114c:	90[ 	]+nop *
+ +114d:	90[ 	]+nop *
+#  IE against hidden but not local var
+ +114e:	64 48 8b 0c 25 00 00[ 	]+mov    %fs:0x0,%rcx
+ +1155:	00 00 *
+ +1157:	90[ 	]+nop *
+ +1158:	90[ 	]+nop *
+ +1159:	48 03 0d 90 10 10 00[ 	]+add    1052816\(%rip\),%rcx +# 1021f0 <_GLOBAL_OFFSET_TABLE_\+0x60>
+#				-> R_X86_64_TPOFF64	*ABS*+0x64
+ +1160:	90[ 	]+nop *
+ +1161:	90[ 	]+nop *
+ +1162:	90[ 	]+nop *
+ +1163:	90[ 	]+nop *
+#  Direct access through %fs
+#  IE against global var
+ +1164:	48 8b 0d 8d 10 10 00[ 	]+mov    1052813\(%rip\),%rcx +# 1021f8 <_GLOBAL_OFFSET_TABLE_\+0x68>
+#				-> R_X86_64_TPOFF64	sg5
+ +116b:	90[ 	]+nop *
+ +116c:	90[ 	]+nop *
+ +116d:	64 48 8b 11[ 	]+mov    %fs:\(%rcx\),%rdx
+ +1171:	90[ 	]+nop *
+ +1172:	90[ 	]+nop *
+ +1173:	90[ 	]+nop *
+ +1174:	90[ 	]+nop *
+#  IE against local var
+ +1175:	4c 8b 15 4c 10 10 00[ 	]+mov    1052748\(%rip\),%r10 +# 1021c8 <_GLOBAL_OFFSET_TABLE_\+0x38>
+#				-> R_X86_64_TPOFF64	*ABS*+0x30
+ +117c:	90[ 	]+nop *
+ +117d:	90[ 	]+nop *
+ +117e:	64 4d 8b 22[ 	]+mov    %fs:\(%r10\),%r12
+ +1182:	90[ 	]+nop *
+ +1183:	90[ 	]+nop *
+ +1184:	90[ 	]+nop *
+ +1185:	90[ 	]+nop *
+#  IE against hidden and local var
+ +1186:	48 8b 15 83 10 10 00[ 	]+mov    1052803\(%rip\),%rdx +# 102210 <_GLOBAL_OFFSET_TABLE_\+0x80>
+#				-> R_X86_64_TPOFF64	*ABS*+0x50
+ +118d:	90[ 	]+nop *
+ +118e:	90[ 	]+nop *
+ +118f:	64 48 8b 12[ 	]+mov    %fs:\(%rdx\),%rdx
+ +1193:	90[ 	]+nop *
+ +1194:	90[ 	]+nop *
+ +1195:	90[ 	]+nop *
+ +1196:	90[ 	]+nop *
+#  IE against hidden but not local var
+ +1197:	48 8b 0d 7a 10 10 00[ 	]+mov    1052794\(%rip\),%rcx +# 102218 <_GLOBAL_OFFSET_TABLE_\+0x88>
+#				-> R_X86_64_TPOFF64	*ABS*+0x70
+ +119e:	90[ 	]+nop *
+ +119f:	90[ 	]+nop *
+ +11a0:	64 48 8b 11[ 	]+mov    %fs:\(%rcx\),%rdx
+ +11a4:	90[ 	]+nop *
+ +11a5:	90[ 	]+nop *
+ +11a6:	90[ 	]+nop *
+ +11a7:	90[ 	]+nop *
+ +11a8:	c9[ 	]+leaveq *
+ +11a9:	c3[ 	]+retq *
+ +11aa:	90[ 	]+nop *
+ +11ab:	90[ 	]+nop *

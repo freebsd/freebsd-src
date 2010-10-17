@@ -1,0 +1,72 @@
+# Expect script for ld-s390 tests
+#   Copyright (C) 2003 Free Software Foundation
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+
+# Test s390 linking; all types of relocs.  This tests the assembler and
+# tools like objdump as well as the linker.
+
+if { !([istarget "s390-*-*"] || [istarget "s390x-*-*"]) } {
+    return
+}
+
+# List contains test-items with 3 items followed by 2 lists:
+# 0:name 1:ld options 2:assembler options
+# 3:filenames of assembler files 4: action and options. 5: name of output file
+
+# Actions:
+# objdump: Apply objdump options on result.  Compare with regex (last arg).
+# nm: Apply nm options on result.  Compare with regex (last arg).
+# readelf: Apply readelf options on result.  Compare with regex (last arg).
+
+set s390tests {
+    {"TLS -fpic -shared transitions" "-shared -melf_s390"
+     "-m31" {tlspic1.s tlspic2.s}
+     {{readelf -Ssrl tlspic.rd} {objdump -dzrj.text tlspic.dd}
+      {objdump -sj.got tlspic.sd} {objdump -sj.tdata tlspic.td}}
+     "libtlspic.so"}
+    {"Helper shared library" "-shared -melf_s390"
+     "-m31" {tlslib.s} {} "libtlslib.so"}
+    {"TLS -fpic and -fno-pic exec transitions"
+     "-melf_s390 tmpdir/libtlslib.so" "-m31" {tlsbinpic.s tlsbin.s}
+     {{readelf -Ssrl tlsbin.rd} {objdump -dzrj.text tlsbin.dd}
+      {objdump -sj.got tlsbin.sd} {objdump -sj.tdata tlsbin.td}}
+     "tlsbin"}
+}
+
+set s390xtests {
+    {"TLS -fpic -shared transitions" "-shared -melf64_s390"
+     "-m64 -Aesame" {tlspic1_64.s tlspic2_64.s}
+     {{readelf -WSsrl tlspic_64.rd} {objdump -dzrj.text tlspic_64.dd}
+      {objdump -sj.got tlspic_64.sd} {objdump -sj.tdata tlspic_64.td}}
+     "libtlspic_64.so"}
+    {"Helper shared library" "-shared -melf64_s390"
+     "-m64 -Aesame" {tlslib_64.s} {} "libtlslib_64.so"}
+    {"TLS -fpic and -fno-pic exec transitions"
+     "-melf64_s390 tmpdir/libtlslib_64.so" "-m64 -Aesame"
+     {tlsbinpic_64.s tlsbin_64.s}
+     {{readelf -WSsrl tlsbin_64.rd} {objdump -dzrj.text tlsbin_64.dd}
+      {objdump -sj.got tlsbin_64.sd} {objdump -sj.tdata tlsbin_64.td}}
+     "tlsbin_64"}
+}
+
+if [istarget "s390-*-*"] {
+    run_ld_link_tests $s390tests
+}
+
+if [istarget "s390x-*-*"] {
+    run_ld_link_tests $s390xtests
+}

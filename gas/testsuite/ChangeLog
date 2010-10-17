@@ -1,0 +1,246 @@
+2004-05-11  Daniel Jacobowitz  <dan@debian.org>
+
+	Revert patch for 2.15:
+	2004-02-09  Kaz Kojima  <kkojima@rr.iij4u.or.jp>
+	* gas/sh/sh64/err-dsp.s: Fix expected error message.
+
+2004-05-06  Daniel Jacobowitz  <dan@debian.org>
+
+	Merge from mainline:
+	2004-04-23  Nick Clifton  <nickc@redhat.com>
+	* gas/symver/symver1.d: Cope with extra symbols inserted by
+	arm-elf toolchains.
+	* gas/symver/symver0.d: Likewise
+	* gas/elf/symver.d: Likewise.
+
+2004-05-05  Alexandre Oliva  <aoliva@redhat.com>
+
+	* gas/frv/reloc1.d: Match elf32-frvfdpic as well.
+
+2004-04-14  Richard Sandiford  <rsandifo@redhat.com>
+
+	* gas/mips/vr4122.[sd]: Change option to -mfix-vr4120.
+
+2004-04-14  Richard Sandiford  <rsandifo@redhat.com>
+
+	* gas/elf/section2.e-mips: Allow named section symbols.
+	* gas/mips/{,el}empic.d, gas/mips/mips{,el}16-[ef].d: Likewise.
+
+2004-04-09  Daniel Jacobowitz  <drow@mvista.com>
+
+	Merge from mainline:
+	2004-04-01  Asgari Jinia  <asgarij@kpitcummins.com>
+	* gas/sh/renesas-1.s, gas/sh/renesas-1.d: New test for -renesas
+	option.
+	* gas/sh/basic.exp: Run the new test.
+
+	2004-04-01  Dave Korn  <dk@artimi.com>
+	* gas/dlx/alltests.exp: Execute new lohi test.
+	* gas/dlx/lohi.s: New test for spurious lo16/hi16
+	reloc overflow checking.
+	* gas/dlx/lohi.d: New file: expected output.
+	* gas/dlx/lhi.d: Updated to properly expect lo16
+	relocations where asked for.
+	* gas/dlx/itype.d: Likewise.
+	* gas/dlx/lhi.d: Corrected cut+paste error in test name.
+
+	2004-03-23  Andreas Schwab  <schwab@suse.de>
+	* gas/cfi/cfi-m68k.d: Adjust offsets.
+
+	2004-03-08  Andreas Jaeger  <aj@suse.de>
+	* gas/cfi/cfi-s390x-1.d: Adjust offsets.
+
+	2004-03-07  Richard Henderson  <rth@redhat.com>
+	* gas/cfi/cfi-common-2.d, gas/cfi/cfi-i386.d: Adjust offsets.
+
+	2004-03-07  Andreas Jaeger  <aj@suse.de>
+	* gas/cfi/cfi-x86_64.d: Adjust offsets.
+
+	2004-03-07  Richard Henderson  <rth@redhat.com>
+	* gas/alpha/elf-reloc-8.d, gas/cfi/cfi-alpha-1.d,
+	gas/cfi/cfi-alpha-2.d, gas/cfi/cfi-alpha-3.d, gas/cfi/cfi-common-1.d,
+	gas/cfi/cfi-common-2.d, gas/cfi/cfi-common-3.d: Adjust offsets.
+
+	2004-03-03  Kaz Kojima  <kkojima@rr.iij4u.or.jp>
+	* gas/sh/sh64/err-dsp.s: Fix expected error message.
+
+2004-03-22  Hans-Peter Nilsson  <hp@axis.com>
+
+	* gas/cris/regreg.d: Assemble with --no-mul-bug-abort.
+	* gas/cris/mulbug-err-1.s, gas/cris/rd-mulbug-1.d: New tests.
+
+2004-03-17  Kaz Kojima  <kkojima@rr.iij4u.or.jp>
+
+	* gas/cfi/cfi-sh-1.d: New file.
+	* gas/cfi/cfi-sh-1.s: Likewise.	
+	* gas/cfi/cfi.exp: Add SH case.
+
+2004-03-16  Alan Modra  <amodra@bigpond.net.au>
+
+	* gas/ppc/altivec.d: Update.
+	* gas/ppc/altivec_xcoff.d: Update.
+	* gas/ppc/altivec_xcoff64.d: Update.
+	* gas/ppc/astest.d: Update.
+	* gas/ppc/astest2.d: Update.
+	* gas/ppc/astest2_64.d: Update.
+	* gas/ppc/astest64.d: Update.
+	* gas/ppc/booke.d: Update.
+	* gas/ppc/booke_xcoff.d: Update.
+	* gas/ppc/booke_xcoff64.d: Update.
+	* gas/ppc/e500.d: Update.
+	* gas/ppc/power4.d: Update.
+	* gas/ppc/test1elf32.d: Update.
+	* gas/ppc/test1elf64.d: Update.
+	* gas/ppc/test1xcoff32.d: Update.
+
+2004-03-15  Alan Modra  <amodra@bigpond.net.au>
+
+	* gas/i386/padlock.s: Pad with .p2align.
+	* gas/i386/padlock.d: Adjust.
+
+2004-03-12  Michal Ludvig  <mludvig@suse.cz>
+
+	* gas/i386/padlock.s, gas/i386/padlock.d: New tests for
+	VIA PadLock instructions.
+	* gas/i386/i386.exp: Run padlock tests.
+
+2004-02-17  Petko Manolov  <petkan@nucleusys.com>
+
+	* gas/arm/maverick.c: DSPSC to/from opcode fixes.
+	* gas/arm/maverick.d: Likewise.
+	* gas/arm/maverick.s: Likewise.
+
+2004-02-09  Kaz Kojima  <kkojima@rr.iij4u.or.jp>
+
+	* gas/sh/basic.exp: Don't do sh4a tests for sh5.
+
+2004-02-06  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* gas/macros/test2.s: Lowercase it.
+
+2004-02-02  Maciej W. Rozycki  <macro@ds2.pg.gda.pl>
+
+	* gas/mips/div.d: Update to accomodate changes in macro
+	expansions.
+	gas/mips/elf-rel-got-n32.d: Likewise.
+	gas/mips/elf-rel-got-n64.d: Likewise.
+	gas/mips/elf-rel-xgot-n32.d: Likewise.
+	gas/mips/elf-rel-xgot-n64.d: Likewise.
+	gas/mips/la-svr4pic.d: Likewise.
+	gas/mips/la-xgot.d: Likewise.
+	gas/mips/lca-svr4pic.d: Likewise.
+	gas/mips/lca-xgot.d: Likewise.
+
+2004-02-01  Kaz Kojima  <kkojima@rr.iij4u.or.jp>
+
+	* gas/sh/sh4a-fp.d: Fix opcode name fssra to fsrra.
+	* gas/sh/sh4a-fp.s: Likewise.
+	* gas/sh/err-sh4a-fp.s: Likewise.
+
+2004-01-24  Chris Demetriou  <cgd@broadcom.com>
+
+	* gas/mips/relax-swap1.s: Add extra space at end, so the
+	disassembly will consistently have "..." at its end.
+	* gas/mips/relax-swap2.s: Likewise.
+	* gas/mips/relax-swap1-mips2.d: Expect "..." at end of disassembly.
+
+2004-01-23  Daniel Jacobowitz  <drow@mvista.com>
+
+	* gas/arm/arm.exp: Add "undefined" test.
+	* gas/arm/undefined.s, gas/arm/undefined.l: New files.
+
+2004-01-23  Richard Sandiford  <rsandifo@redhat.com>
+
+	* gas/mips/macro-warn-[1234].[sdl]: New tests.
+	* gas/mips/macro-warn-[12]-n32.[dl]: New tests.
+	* gas/mips/mips.exp: Run them.
+
+2004-01-23  Richard Sandiford  <rsandifo@redhat.com>
+
+	* gas/mips/elf-rel19.[sd]: New test.
+	* gas/mips/mips.exp: Run it.
+
+2004-01-11 Tom Rix   <tcrix@worldnet.att.net>
+
+	* gas/m68hc11/movb.s: Add m68hc12 movb and movw dump test.
+	* gas/m68hc11/movb.d: Likewise.
+	* gas/m68hc11/m68hc11.exp: Likewise.  Add more movb failure tests.
+
+2004-01-19  Alan Modra  <amodra@bigpond.net.au>
+
+	* gas/i386/katmai.d: Adjust for changed sib printing.
+	* gas/i386/prescott.d: Likewise.
+	* gas/i386/sse2.d: Likewise.
+	* gas/i386/ssemmx2.d: Likewise.
+
+2004-01-16  Alexandre Oliva  <aoliva@redhat.com>
+
+	* gas/mn10300/mov5.s: New.
+	* gas/mn10300/basic.exp (do_mov5): New.
+
+2004-01-14  Maciej W. Rozycki  <macro@ds2.pg.gda.pl>
+
+	* gas/mips/relax-swap1-mips1.d: New test for branch relaxation
+	with swapping for MIPS1.
+	* gas/mips/relax-swap1-mips2.d: New test for branch relaxation
+	with swapping for MIPS2.
+	* gas/mips/relax-swap1.l: Stderr output for the new tests.
+	* gas/mips/relax-swap1.s: Source for the new tests.
+	* gas/mips/relax-swap2.d: New test for branch likely relaxation
+	with swapping.
+	* gas/mips/relax-swap2.l: Stderr output for the new test.
+	* gas/mips/relax-swap2.s: Source for the new test.
+	* gas/mips/mips.exp: Run the new tests.
+
+2004-01-13  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* gas/mips/mips16-64.d: New test.
+	* gas/mips/mips.exp: Run it.
+
+2004-01-12  Richard Sandiford  <rsandifo@redhat.com>
+
+	* gas/mips/elf-rel18.[sd]: New test.
+	* gas/mips/mips.exp: Run it.
+
+2004-01-09  Paul Brook  <paul@codesourcery.com>
+
+	* gas/arm/vfp2.s, gas/arm/vfp2.d: New test.
+	* gas/arm/arm.exp: Add them.
+
+2004-01-08  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* gas/mips/ldstla-n64.d: Pass -64 to assembler, not -n64.
+	* gas/mips/ldstla-n64-shared.d: Likewise.
+
+2004-01-07  Nick Clifton  <nickc@redhat.com>
+
+	* gas/cris/rd-dw2-1.d: Expect a pointer size from readelf.
+
+2004-01-06  Alexandre Oliva  <aoliva@redhat.com>
+
+	2003-11-05  Alexandre Oliva  <aoliva@redhat.com>
+	* lib/gas-defs.exp (is_elf_format): Match frv-uclinux.
+	2003-09-18  Alexandre Oliva  <aoliva@redhat.com>
+	* gas/frv/fdpic.s, gas/frv/fdpic.d: Renamed from ucpic*.
+	2003-09-15  Alexandre Oliva  <aoliva@redhat.com>
+	* gas/frv/ucpic.s, gas/frv/ucpic.d: Use gr15 as PIC register.  Use
+	gprel12 for rodata symbol and gotoff12 for sdata symbol.
+	2003-08-08  Alexandre Oliva  <aoliva@redhat.com>
+	* gas/frv/ucpic.d: Test gotoff and gotofffuncdesc.
+	2003-08-04  Alexandre Oliva  <aoliva@redhat.com>
+	* gas/frv/ucpic.d, gas/frv/ucpic.s: New.
+	* gas/frv/allinsns.exp: Run it.
+
+2004-01-02  Albert Bartoszko  <albar@nt.kegel.com.pl>
+
+	* gas/msp430/opcode.s: Add test for an 'add' instruction which
+	looks similar to an 'rla' instruction.
+
+For older changes see ChangeLog-9303
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:
