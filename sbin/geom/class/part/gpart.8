@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Sep 24, 2010
+.Dd September 28, 2010
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -382,6 +382,9 @@ about its use.
 .\" ==== SET ====
 .It Cm set
 Set the named attribute on the partition entry.
+See the section entitled
+.Sx "ATTRIBUTES"
+below for a list of available attributes.
 .Pp
 Additional options include:
 .Bl -tag -width 10n
@@ -406,6 +409,9 @@ action and can be used to undo any changes that have not been committed.
 .\" ==== UNSET ====
 .It Cm unset
 Clear the named attribute on the partition entry.
+See the section entitled
+.Sx "ATTRIBUTES"
+below for a list of available attributes.
 .Pp
 Additional options include:
 .Bl -tag -width 10n
@@ -501,6 +507,103 @@ A partition that is sub-partitioned by a master boot record (MBR).
 This type is known as
 .Qq Li "!024dee41-33e7-11d3-9d69-0008c781f39f"
 by GPT.
+.El
+.Sh ATTRIBUTES
+The scheme-specific attributes for EBR:
+.Bl -tag -width ".Ar active"
+.It Ar active
+.El
+.Pp
+The scheme-specific attributes for GPT:
+.Bl -tag -width ".Ar bootfailed"
+.It Ar bootme
+When set, the
+.Nm gptboot
+stage 1 boot loader will try to boot the system from this partition.
+Multiple partitions might be marked with the
+.Ar bootme
+attribute.
+In such scenario the
+.Nm gptboot
+will try all
+.Ar bootme
+partitions one by one, until the next boot stage is successfully entered.
+.It Ar bootonce
+Setting this attribute automatically sets the
+.Ar bootme
+attribute.
+When set, the
+.Nm gptboot
+stage 1 boot loader will try to boot the system from this partition only once.
+Partitions with both
+.Ar bootonce
+and
+.Ar bootme
+attributes are tried before partitions with only the
+.Ar bootme
+attribute.
+Before
+.Ar bootonce
+partition is tried, the
+.Nm gptboot
+removes the
+.Ar bootme
+attribute and tries to execute the next boot stage.
+If it fails, the
+.Ar bootonce
+attribute that is now alone is replaced with the
+.Ar bootfailed
+attribute.
+If the execution of the next boot stage succeeds, but the system is not fully
+booted, the
+.Nm gptboot
+will look for
+.Ar bootonce
+attributes alone (without the
+.Ar bootme
+attribute) on the next system boot and will replace those with the
+.Ar bootfailed
+attribute.
+If the system is fully booted, the
+.Pa /etc/rc.d/gptboot
+start-up script will look for partition with the
+.Ar bootonce
+attribute alone, will remove the attribute and log that the system was
+successfully booted from this partition.
+There should be at most one
+.Ar bootonce
+partition when system is successfully booted.
+Multiple partitions might be marked with the
+.Ar bootonce
+and
+.Ar bootme
+attribute pairs.
+.It Ar bootfailed
+This attribute should not be manually managed.
+It is managed by the
+.Nm gptboot
+stage 1 boot loader and the
+.Pa /etc/rc.d/gptboot
+start-up script.
+This attribute is used to mark partitions that had the
+.Ar bootonce
+attribute set, but we failed to boot from them.
+Once we successfully boot, the
+.Pa /etc/rc.d/gptboot
+script will log all the partitions we failed to boot from and will remove the
+.Ar bootfailed
+attributes.
+.El
+.Pp
+The scheme-specific attributes for MBR:
+.Bl -tag -width ".Ar active"
+.It Ar active
+.El
+.Pp
+The scheme-specific attributes for PC98:
+.Bl -tag -width ".Ar bootable"
+.It Ar active
+.It Ar bootable
 .El
 .Sh OPERATIONAL FLAGS
 Actions other than the
