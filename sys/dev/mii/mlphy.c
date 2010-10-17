@@ -177,6 +177,25 @@ mlphy_attach(dev)
 	return (0);
 }
 
+static struct mii_softc *
+mlphy_find_other(device_t mii)
+{
+	device_t		*devlist;
+	struct mii_softc *retval;
+	int i, devs;
+
+	retval = NULL;
+	if (device_get_children(mii, &devlist, &devs))
+		return (NULL);
+	for (i = 0; i < devs; i++)
+		if (strcmp(device_get_name(devlist[i]), "mlphy")) {
+			retval = device_get_softc(devlist[i]);
+			break;
+		}
+	free(devlist, M_TEMP);
+	return (retval);
+}
+
 static int
 mlphy_service(xsc, mii, cmd)
 	struct mii_softc *xsc;
@@ -187,22 +206,13 @@ mlphy_service(xsc, mii, cmd)
 	struct mii_softc	*other = NULL;
 	struct mlphy_softc	*msc = (struct mlphy_softc *)xsc;
 	struct mii_softc	*sc = (struct mii_softc *)&msc->ml_mii;
-	device_t		*devlist;
-	int			devs, i, other_inst, reg;
+	int			other_inst, reg;
 
 	/*
 	 * See if there's another PHY on this bus with us.
 	 * If so, we may need it for 10Mbps modes.
 	 */
-	if (device_get_children(msc->ml_mii.mii_dev, &devlist, &devs) == 0) {
-		for (i = 0; i < devs; i++) {
-			if (strcmp(device_get_name(devlist[i]), "mlphy")) {
-				other = device_get_softc(devlist[i]);
-				break;
-			}
-		}
-		free(devlist, M_TEMP);
-	}
+	other = mlphy_find_other(msc->ml_mii.mii_dev);
 
 	switch (cmd) {
 	case MII_POLLSTAT:
@@ -397,20 +407,9 @@ mlphy_status(sc)
 	struct mlphy_softc	*msc = (struct mlphy_softc *)sc;
 	struct mii_data		*mii = msc->ml_mii.mii_pdata;
 	struct mii_softc	*other = NULL;
-	device_t		*devlist;
-	int			devs, i;
 
 	/* See if there's another PHY on the bus with us. */
-	devs = 0;
-	device_get_children(msc->ml_mii.mii_dev, &devlist, &devs);
-	for (i = 0; i < devs; i++) {
-		if (strcmp(device_get_name(devlist[i]), "mlphy")) {
-			other = device_get_softc(devlist[i]);
-			break;
-		}
-	}
-	free(devlist, M_TEMP);
-
+	other = mlphy_find_other(msc->ml_mii.mii_dev);
 	if (other == NULL)
 		return;
 
