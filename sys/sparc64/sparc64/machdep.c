@@ -589,6 +589,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * enable them.
 	 */
 	intr_init2();
+	wrpr(pil, 0, 0);
 	wrpr(pstate, 0, PSTATE_KERNEL);
 
 	/*
