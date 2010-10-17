@@ -194,14 +194,15 @@ mlphy_service(xsc, mii, cmd)
 	 * See if there's another PHY on this bus with us.
 	 * If so, we may need it for 10Mbps modes.
 	 */
-	device_get_children(msc->ml_mii.mii_dev, &devlist, &devs);
-	for (i = 0; i < devs; i++) {
-		if (strcmp(device_get_name(devlist[i]), "mlphy")) {
-			other = device_get_softc(devlist[i]);
-			break;
+	if (device_get_children(msc->ml_mii.mii_dev, &devlist, &devs) == 0) {
+		for (i = 0; i < devs; i++) {
+			if (strcmp(device_get_name(devlist[i]), "mlphy")) {
+				other = device_get_softc(devlist[i]);
+				break;
+			}
 		}
+		free(devlist, M_TEMP);
 	}
-	free(devlist, M_TEMP);
 
 	switch (cmd) {
 	case MII_POLLSTAT:
@@ -400,6 +401,7 @@ mlphy_status(sc)
 	int			devs, i;
 
 	/* See if there's another PHY on the bus with us. */
+	devs = 0;
 	device_get_children(msc->ml_mii.mii_dev, &devlist, &devs);
 	for (i = 0; i < devs; i++) {
 		if (strcmp(device_get_name(devlist[i]), "mlphy")) {
