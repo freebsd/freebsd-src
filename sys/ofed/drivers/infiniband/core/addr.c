@@ -105,11 +105,11 @@ int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct ifnet *dev,
 		     const unsigned char *dst_dev_addr)
 {
 	dev_addr->dev_type = dev->if_type;
-	memcpy(dev_addr->src_dev_addr, IF_LLADDR(dev), MAX_ADDR_LEN);
+	memcpy(dev_addr->src_dev_addr, IF_LLADDR(dev), dev->if_addrlen);
 	memcpy(dev_addr->broadcast, __DECONST(char *, dev->if_broadcastaddr),
-	    MAX_ADDR_LEN);
+	    dev->if_addrlen);
 	if (dst_dev_addr)
-		memcpy(dev_addr->dst_dev_addr, dst_dev_addr, MAX_ADDR_LEN);
+		memcpy(dev_addr->dst_dev_addr, dst_dev_addr, dev->if_addrlen);
 	dev_addr->bound_dev_if = dev->if_index;
 	return 0;
 }
@@ -132,7 +132,7 @@ int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
 
 	switch (addr->sa_family) {
 	case AF_INET:
-		dev = ip_dev_find(&init_net,
+		dev = ip_dev_find(NULL,
 			((struct sockaddr_in *) addr)->sin_addr.s_addr);
 
 		if (!dev)
@@ -142,7 +142,7 @@ int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
 		dev_put(dev);
 		break;
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if defined(INET6)
 	case AF_INET6:
 		read_lock(&dev_base_lock);
 		for_each_netdev(&init_net, dev) {
@@ -246,7 +246,7 @@ out:
 	return ret;
 }
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if defined(INET6)
 static int addr6_resolve(struct sockaddr_in6 *src_in,
 			 struct sockaddr_in6 *dst_in,
 			 struct rdma_dev_addr *addr)
@@ -310,32 +310,119 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 #endif
 
 #else
-
-static int addr6_resolve(struct sockaddr_in6 *src_in,
-			 struct sockaddr_in6 *dst_in,
-			 struct rdma_dev_addr *addr)
-{
-	return -EADDRNOTAVAIL;
-}
-
-static int addr4_resolve(struct sockaddr_in *src_in,
-			 struct sockaddr_in *dst_in,
-			 struct rdma_dev_addr *addr)
-{
-	/* XXX This will have to be filled in after ipoib is functional. */
-	return -EADDRNOTAVAIL;
-}
+#include <netinet/if_ether.h>
+#ifdef INET6
+#include <netinet6/nd6.h>
+#endif
 
 static int addr_resolve(struct sockaddr *src_in,
 			struct sockaddr *dst_in,
 			struct rdma_dev_addr *addr)
 {
-	if (src_in->sa_family == AF_INET) {
-		return addr4_resolve((struct sockaddr_in *) src_in,
-			(struct sockaddr_in *) dst_in, addr);
-	} else
-		return addr6_resolve((struct sockaddr_in6 *) src_in,
-			(struct sockaddr_in6 *) dst_in, addr);
+	struct ifaddr *ifa;
+	struct ifnet *ifp;
+	struct llentry *lle;
+	struct rtentry *rte;
+	u_char edst[MAX_ADDR_LEN];
+	int multi;
+	int bcast;
+	int error;
+
+	/*
+	 * Determine whether the address is unicast, multicast, or broadcast
+	 * and whether the source interface is valid.
+	 */
+	multi = 0;
+	bcast = 0;
+	ifp = NULL;
+	switch (dst_in->sa_family) {
+	case AF_INET:
+		if (((struct sockaddr_in *)dst_in)->sin_addr.s_addr ==
+		    INADDR_BROADCAST)
+			bcast = 1;
+		if (IN_MULTICAST((
+		    (struct sockaddr_in *)dst_in)->sin_addr.s_addr))
+			multi = 1;
+		if (((struct sockaddr_in *)src_in)->sin_addr.s_addr ==
+		    INADDR_ANY)
+			src_in = NULL; 
+		break;
+#ifdef INET6
+	case AF_INET6:
+		if (IN6_IS_ADDR_MULTICAST(
+		    &((struct sockaddr_in6 *)dst_in)->sin6_addr))
+			multi = 1;
+		if (IN6_IS_ADDR_UNSPECIFIED(
+		    &((struct sockaddr_in6 *)src_in)->sin6_addr))
+			src_in = NULL;
+		break;
+#endif
+	default:
+		return -EINVAL;
+	}
+	/*
+	 * If we have a source address to use look it up first and verify
+	 * that it is a local interface.
+	 */
+	if (src_in) {
+		ifa = ifa_ifwithdstaddr(src_in);
+		if (ifa == NULL)
+			return -ENETUNREACH;
+		ifp = ifa->ifa_ifp;
+		ifa_free(ifa);
+		if (bcast || multi)
+			goto mcast;
+	}
+	/*
+	 * Make sure the route exists and has a valid link.
+	 */
+	rte = rtalloc1(dst_in, 1, 0);
+	if (rte == NULL || rte->rt_ifp == NULL || !RT_LINK_IS_UP(rte->rt_ifp)) {
+		if (rte)
+			RTFREE(rte);
+		return -EHOSTUNREACH;
+	}
+	/*
+	 * If it's not multicast or broadcast and the route doesn't match the
+	 * requested interface return unreachable.
+	 */
+	if (multi || bcast) {
+		RTFREE(rte);
+	} else if (ifp && ifp != rte->rt_ifp) {
+		RTFREE(rte);
+		return -ENETUNREACH;
+	}
+	if (ifp == NULL)
+		ifp = rte->rt_ifp;
+mcast:
+	if (bcast)
+		return rdma_copy_addr(addr, ifp, ifp->if_broadcastaddr);
+	if (multi) {
+		struct sockaddr *llsa;
+
+		error = ifp->if_resolvemulti(ifp, &llsa, dst_in);
+		if (error)
+			return -error;
+		error = rdma_copy_addr(addr, ifp,
+		    LLADDR((struct sockaddr_dl *)llsa));
+		free(llsa, M_IFMADDR);
+		return error;
+	}
+	/*
+	 * Resolve the link local address.
+	 */
+	if (dst_in->sa_family == AF_INET)
+		error = arpresolve(ifp, rte, NULL, dst_in, edst, &lle);
+#ifdef INET6
+	else
+		error = nd6_storelladdr(ifp, NULL, dst_in, (u_char *)edst, &lle);
+#endif
+	RTFREE(rte);
+	if (error == 0)
+		return rdma_copy_addr(addr, ifp, edst);
+	if (error == EWOULDBLOCK)
+		return -ENODATA;
+	return -error;
 }
 
 #endif
