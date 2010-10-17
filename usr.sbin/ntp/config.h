@@ -126,7 +126,7 @@
 /* #undef CLOCK_SCHMID */
 
 /* clock thru shared memory */
-/* #undef CLOCK_SHM */
+#define CLOCK_SHM
 
 /* Spectracom 8170/Netclock/2 WWVB receiver */
 /* #undef CLOCK_SPECTRACOM */
