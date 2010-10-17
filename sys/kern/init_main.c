@@ -443,7 +443,6 @@ proc0_init(void *dummy __unused)
 	 */
 	LIST_INSERT_HEAD(&allproc, p, p_list);
 	LIST_INSERT_HEAD(PIDHASH(0), p, p_hash);
-	LIST_INSERT_HEAD(TIDHASH(0), td, td_hash);
 	mtx_init(&pgrp0.pg_mtx, "process group", NULL, MTX_DEF | MTX_DUPOK);
 	p->p_pgrp = &pgrp0;
 	LIST_INSERT_HEAD(PGRPHASH(0), &pgrp0, pg_hash);
@@ -462,6 +461,7 @@ proc0_init(void *dummy __unused)
 	STAILQ_INIT(&p->p_ktr);
 	p->p_nice = NZERO;
 	td->td_tid = PID_MAX + 1;
+	LIST_INSERT_HEAD(TIDHASH(td->td_tid), td, td_hash);
 	td->td_state = TDS_RUNNING;
 	td->td_pri_class = PRI_TIMESHARE;
 	td->td_user_pri = PUSER;
