@@ -1,0 +1,47 @@
+# Copyright 2002 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+if {![istarget "i*86-*-*"]} {
+    return
+}
+
+if {![istarget "i*86-*-*pe*"] \
+    && ![istarget "i*86-*-cygwin*"] \
+    && ![istarget "i*86-*-mingw32*"] } {
+    set target_xfail "yes"
+} else {
+    set target_xfail "no"
+}
+
+if {![info exists DLLTOOL]} then {
+    return
+}
+
+if {[which $DLLTOOL] == 0} then {
+    return
+}
+
+verbose "$DLLTOOL -d $srcdir/$subdir/fastcall.def" 1
+catch "exec $DLLTOOL -d $srcdir/$subdir/fastcall.def" err
+
+if ![string match "" $err] then {
+    send_log "$err\n"
+    verbose "$err" 1
+    fail "dlltool (fastcall export)"
+    continue;
+}
+
+pass "dlltool (fastcall export)"

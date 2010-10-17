@@ -1,0 +1,716 @@
+# Copyright 1993, 1996, 1997, 2002 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+
+# Please email any bugs, comments, and/or additions to this file to:
+# dejagnu@gnu.org
+
+# Written by the Center for Software Science at the University of Utah
+# and by Cygnus Support.
+
+proc do_ble_relocation_test {} {
+    set testname "blebug.s: Test for proper relocation for BLE (part 2)"
+    set x 0
+
+    if [gas_test_old "blebug.s" "" "Proper relocation for BLE (part 1)"] then {
+	objdump_start_no_subdir "a.out" "-r"
+
+        if {[istarget hppa*64*-*-*]
+	    || [istarget hppa*-*-*elf*] || [istarget hppa*-*-linux*]} then {
+	    # At one time both versions of the assembler would incorrectly use 
+	    # a PC-relative relocation for a BLE instruction.
+	    while 1 {
+		expect {
+		    -re "^0+\[^\n\]*DIR21L\[^\n\]*\n"	{ set x 1 }
+		    -re "^0+4\[^\n\]*DIR17R\[^\n\]*\n"	{ set x 1 }
+		    -re "\[^\n\]*\n"				{ }
+		    timeout			{ perror "timeout\n"; break }
+		    eof				{ break }
+		}
+	    }
+	} else {
+	    # At one time both versions of the assembler would incorrectly use 
+	    # a PC-relative relocation for a BLE instruction.
+	    while 1 {
+		expect {
+		    -re "^0+4\[^\n\]*ABS_CALL\[^\n\]*\n"	{ set x 1 }
+		    -re "\[^\n\]*\n"				{ }
+		    timeout			{ perror "timeout\n"; break }
+		    eof				{ break }
+		}
+	    }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    objdump_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x==1] then { pass $testname } else { fail $testname }
+}
+
+proc do_relocation_reduction_tests {} {
+    set testname "reduce.s: Test relocation reductions (part 2)"
+    set x 0
+
+    if {[istarget hppa*64*-*-*]
+        || [istarget hppa*-*-*elf*] || [istarget hppa*-*-linux*]} then {
+      return;
+    }
+
+    if [gas_test_old "reduce.s" "" "Relocation reductions (part1)"] then {
+	objdump_start_no_subdir "a.out" "-r"
+
+	# Check to make sure relocations involving procedure labels 
+	# are not reduced to a relocation involving some other symbol.
+	# Doing so makes generating parameter relocation stubs impossible.
+	while 1 {
+	    expect {
+		-re "^0+4\[^\n\]*PLABEL\[^\n\]*foo\[^\n\]*\n"
+		    { set x [expr $x+1] }
+		-re "^0+14\[^\n\]*PCREL\[^\n\]*foo\[^\n\]*\n"
+		    { set x [expr $x+1] }
+		-re "\[^\n\]*\n"		{ }
+		timeout				{ perror "timeout\n"; break }
+		eof				{ break }
+            }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    objdump_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x==2] then { pass $testname } else { fail $testname }
+
+    set testname "reduce2.s: More relocation reduction tests (part 2)"
+    set x 0
+
+    if [gas_test_old "reduce2.s" "" "More relocation  reductions (part1)"] then {
+	objdump_start_no_subdir "a.out" "-r"
+
+	# Check to make sure DLT relative relocs are not reduced to sym+addend
+	# Doing so doesn't work as one might expect
+	while 1 {
+	    expect {
+		-re "^0+4\[^\n\]*DLT\[^\n\]*L.C0000\[^\n\]*\n"
+		    { set x [expr $x+1] }
+		-re "^0+1c\[^\n\]*DLT\[^\n\]*L.C0000\[^\n\]*\n"
+		    { set x [expr $x+1] }
+		-re "^0+30\[^\n\]*DLT\[^\n\]*L.C0001\[^\n\]*\n"
+		    { set x [expr $x+1] }
+		-re "^0+48\[^\n\]*DLT\[^\n\]*L.C0001\[^\n\]*\n"
+		    { set x [expr $x+1] }
+		-re "\[^\n\]*\n"		{ }
+		timeout				{ perror "timeout\n"; break }
+		eof				{ break }
+            }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    objdump_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x==2] then { pass $testname } else { fail $testname }
+
+    set testname "reduce3.s: Test even more relocation reductions (part 2)"
+    set x 0
+
+    if [gas_test_old "reduce3.s" "" "Even more relocation reductions (part1)"] then {
+	objdump_start_no_subdir "a.out" "-r"
+
+	# Check to make sure relocations involving procedure labels 
+	# are not reduced to a relocation involving some other symbol.
+	# Doing so makes generating parameter relocation stubs impossible.
+	while 1 {
+	    expect {
+		-re "^0+c\[^\n\]*yabba\[^\n\+\]*\n"
+		    { set x [expr $x+1] }
+		-re "^0+c\[^\n\]*yabba\+\[^\n\]*\n"
+		    { set x 0; break }
+		-re "^0+10\[^\n\]*yabba\[^\n\+\]*\n"
+		    { set x [expr $x+1] }
+		-re "^0+10\[^\n\]*yabba\+\[^\n\]*\n"
+		    { set x 0; break }
+		-re "\[^\n\]*\n"		{ }
+		timeout				{ perror "timeout\n"; break }
+		eof				{ break }
+            }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    objdump_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x==2] then { pass $testname } else { fail $testname }
+}
+
+proc do_ble_mode_selector_test {} {
+    set testname "blebug2.s: blebug2"
+    set x 0
+
+    gas_start "blebug2.s" "-al"
+
+    # GAS uses too many bits on the BLE instruction.
+    while 1 {
+	expect {
+	    -re "^ +\[0-9\]+ 0000 20202801\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "^ +\[0-9\]+ 0004 E420E008\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "\[^\n\]*\n"				{ }
+	    timeout				{ perror "timeout\n"; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x==2] then { pass $testname } else { fail $testname }
+}
+
+proc do_ble_relocation_test {} {
+    set testname "blebug3.s: blebug3"
+    set x 0
+
+    gas_start "blebug3.s" "-al"
+
+    while 1 {
+	expect {
+	    -re "^ +\[0-9\]+ 0000 E4002000\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "\[^\n\]*\n"				{ }
+	    timeout				{ perror "timeout\n"; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x==1] then { pass $testname } else { fail $testname }
+}
+
+proc do_plabel_relocation_test {} {
+    set testname "plabelbug.s: Old gas-1.36 plabel bug (part 2)"
+    set x 0
+
+    if [gas_test_old "plabelbug.s" "" "Old gas-1.36 plabel bug (part 1)"] {
+	objdump_start_no_subdir "a.out" "-r"
+
+	# Check that we make PLABEL relocation entries when they're needed.
+	while 1 {
+	    expect {
+		-re "^0+\[^\n\]*PLABEL\[^\n\]*\n"
+		    { set x [expr $x+1] }
+		-re "^0+4\[^\n\]*PLABEL\[^\n\]*\n"
+		    { set x [expr $x+1] }
+		-re "\[^\n\]*\n"			{ }
+		timeout				{ perror "timeout\n"; break }
+		eof				{ break }
+    	    }
+	}
+
+	# This was intended to do any cleanup necessary.  It kinda looks like it
+	# isn't needed, but just in case, please keep it in for now.
+	objdump_finish
+
+	# Did we find what we were looking for?  If not, flunk it.
+	if [expr $x==2] then { pass $testname } else { fail $testname }
+    }
+}
+
+proc do_selector_scope_test {} {
+    set testname "selectorbug.s: Test scope of field selector" 
+    set x 0
+
+    if [istarget hppa*64*-*-*] then {
+      return;
+    }
+
+    if [gas_test_old "selectorbug.s" "" "Test scope of field selector (part 1)"] {
+	objdump_start_no_subdir "a.out" "-r"
+
+	# Check to make sure the relocation entry after the plabel is correct.
+	# If an old field selector was incorrectly "carried" over, then 
+	# this test will fail.
+        if {[istarget hppa*-*-*elf*] || [istarget hppa*-*-linux*]} then {
+	    while 1 {
+		expect {
+	            -re "^0+14\[^\n\]*DIR32\[^\n\]*\n"
+			{ set x 1 }
+		    -re "^0+14\[^\n\]*PLABEL\[^\n\]*foo\[^\n\]*\n"
+			{ set x 0 }
+	            -re "\[^\n\]*\n"		{ }
+	            timeout			{ perror "timeout\n"; break }
+	            eof				{ break }
+		}
+            }
+	} else {
+	    while 1 {
+		expect {
+	            -re "^0+14\[^\n\]*DATA_ONE\[^\n\]*\n"
+			{ set x 1 }
+		    -re "^0+14\[^\n\]*PLABEL\[^\n\]*foo\[^\n\]*\n"
+			{ set x 0 }
+	            -re "\[^\n\]*\n"		{ }
+	            timeout			{ perror "timeout\n"; break }
+	            eof				{ break }
+		}
+            }
+	}
+
+	# This was intended to do any cleanup necessary.  It kinda looks like it
+	# isn't needed, but just in case, please keep it in for now.
+	objdump_finish
+
+	# Did we find what we were looking for?  If not, flunk it.
+	if [expr $x==1] then { pass $testname } else { fail $testname }
+    }
+}
+
+proc do_local_label_as_operand_test {} {
+    set testname "labelopbug.s: Test local label as operand (non-branching)"
+    set x 0
+
+    if [gas_test_old "labelopbug.s" "" "Local label as operand (part 1)"] {
+	objdump_start_no_subdir "a.out" "-r"
+
+	# Check to make sure we handle difference of local labels as an operand
+	# to a non-branching instruction correctly.  On hppa elf targets, the
+	# R_PARISC_DIR21 and R_PARISC_DIR14R relocations are done with LR and
+	# RR selectors, respectively.  As a result, we can't reduce these to
+	# section offsets without risking incorrect rounding.  So, we just
+	# check to see if the label hasn't been reduced.
+	if {[istarget hppa*64*-*-*]
+	    || [istarget hppa*-*-*elf*] || [istarget hppa*-*-linux*]} then {
+	    while 1 {
+		expect {
+	            -re "^0+2c\[^\n\]*L.0002\[^\n\]*\n" 
+			{ set x [expr $x+1] }
+	            -re "^0+30\[^\n\]*L.0002\[^\n\]*\n" 
+			{ set x [expr $x+1] }
+	            -re "\[^\n\]*\n"		{ }
+	            timeout			{ perror "timeout\n"; break }
+	            eof				{ break }
+		}
+	    }
+	} else {
+	    while 1 {
+		expect {
+	            -re "^0+2c\[^\n\]*0x0+24\[^\n\]*\n" 
+			{ set x [expr $x+1] }
+	            -re "^0+30\[^\n\]*0x0+24\[^\n\]*\n" 
+			{ set x [expr $x+1] }
+	            -re "\[^\n\]*\n"		{ }
+	            timeout			{ perror "timeout\n"; break }
+	            eof				{ break }
+		}
+	    }
+	}
+
+	# This was intended to do any cleanup necessary.  It kinda looks like it
+	# isn't needed, but just in case, please keep it in for now.
+	objdump_finish
+
+	# Did we find what we were looking for?  If not, flunk it.
+	if [expr $x==2] then { pass $testname } else { fail $testname }
+    }
+}
+
+proc do_exit_relocation_test {} {
+    set testname "exitbug.s: Test for bogus R_EXIT relocation (part 2)"
+    set x 0
+
+    # Elf (osf) does not use ENTRY/EXIT relocations.
+    # I guess we could look at the unwind subspaces it builds...
+    # Until then, make sure it still assembles.
+    if {[istarget hppa*64*-*-*]
+	|| [istarget hppa*-*-*elf*] || [istarget hppa*-*-linux*]} then {
+	gas_test_old "exitbug.s" "" "Test for bogus R_EXIT relocation (part 1)"
+	return;
+    }
+
+    if [gas_test_old "exitbug.s" "" "Test for bogus R_EXIT relocation (part 1)"] {
+	objdump_start_no_subdir "a.out" "-r"
+
+	# Note that a match here is really a FAILURE!
+	while 1 {
+	    expect {
+	        -re "^0+\[^\n\]*R_EXIT\[^\n\]*\n" 
+		    { set x [expr $x+1] }
+	        -re "\[^\n\]*\n"		{ }
+	        timeout				{ perror "timeout\n"; break }
+	        eof				{ break }
+            }
+	}
+
+	# This was intended to do any cleanup necessary.  It kinda looks like it
+	# isn't needed, but just in case, please keep it in for now.
+	objdump_finish
+
+	# Did we find what we were looking for?  If not, flunk it.
+	if [expr $x==0] then { pass $testname } else { fail $testname }
+    }
+}
+
+proc do_cross_space_fixup_test_1 {} {
+    set testname "fixupbug.s: Test cross space jump/call fixup bug (part 2)"
+    set x 0
+
+    # ELF doesn't really handle extra sections too well...
+    if {[istarget hppa*64*-*-*]
+	|| [istarget hppa*-*-*elf*] || [istarget hppa*-*-linux*]} then {
+	return;
+    }
+
+    if [gas_test_old "fixupbug.s" "" "Test cross space jump/call fixup bug (part 1)"] {
+	objdump_start_no_subdir "a.out" "-r"
+
+	# Make sure GAS generated a fixup/relocation for the cross-space
+	# branch/call
+	while 1 {
+	    expect {
+	        -re "^0+\[^\n\]*PCREL_CALL\[^\n\]*\n" 
+		    { set x [expr $x+1] }
+	        -re "\[^\n\]*\n"		{ }
+	        timeout				{ perror "timeout\n"; break }
+	        eof				{ break }
+            }
+	}
+
+	# This was intended to do any cleanup necessary.  It kinda looks like it
+	# isn't needed, but just in case, please keep it in for now.
+	objdump_finish
+
+	# Did we find what we were looking for?  If not, flunk it.
+	if [expr $x==1] then { pass $testname } else { fail $testname }
+    }
+}
+
+proc do_cross_space_fixup_test_2 {} {
+    set testname "fixupbug.s: Test cross space jump/call fixup bug (part 3)"
+    set x 0
+
+    # ELF doesn't really handle extra sections too well...
+    if {[istarget hppa*64*-*-*]
+	|| [istarget hppa*-*-*elf*] || [istarget hppa*-*-linux*]} then {
+	return;
+    }
+
+    gas_start "fixupbug.s" "-al"
+
+    while 1 {
+	expect {
+	    -re "^ +\[0-9\]+ 0000 E8000002\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "\[^\n\]*\n"				{ }
+	    timeout				{ perror "timeout\n"; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x==1] then { pass $testname } else { fail $testname }
+}
+
+proc do_round_mode_test {} {
+    set testname "roundmode.s: Test switching of rounding modes (part 2)"
+    set x 0
+
+    if [gas_test_old "roundmode.s" "" "Test switch of rounding modes(part 1)"] {
+	objdump_start_no_subdir "a.out" "-r"
+
+	# Make sure GAS generated correct relocations to switch rounding modes.
+	# Also make sure (for SOM) that redundant rounding mode relocations
+	# were eliminated.
+	if {[istarget hppa*64*-*-*]
+	    || [istarget hppa*-*-*elf*] || [istarget hppa*-*-linux*]} then {
+	    while 1 {
+		expect {
+	            -re "^0+\[^\n\]*DIR21L\[^\n\]*\n"
+			{ set x [expr $x+1] }
+	            -re "^0+4\[^\n\]*DIR14R\[^\n\]*\n" 
+			{ set x [expr $x+1] }
+	            -re "^0+8\[^\n\]*DIR21L\[^\n\]*\n"
+			{ set x [expr $x+1] }
+	            -re "^0+c\[^\n\]*DIR14R\[^\n\]*\n" 
+			{ set x [expr $x+1] }
+	            -re "^0+10\[^\n\]*DIR21L\[^\n\]*\n"
+			{ set x [expr $x+1] }
+	            -re "^0+14\[^\n\]*DIR14R\[^\n\]*\n" 
+			{ set x [expr $x+1] }
+	            -re "^0+18\[^\n\]*DIR21L\[^\n\]*\n"
+			{ set x [expr $x+1] }
+	            -re "^0+1c\[^\n\]*DIR14R\[^\n\]*\n" 
+			{ set x [expr $x+1] }
+	            -re "\[^\n\]*\n"		{ }
+	        timeout				{ perror "timeout\n"; break }
+	        eof				{ break }
+		}
+            }
+	} else {
+	    while 1 {
+		expect {
+	            -re "^0+\[^\n\]*R_R_MODE\[^\n\]*\n"
+			{ set x [expr $x+1] }
+	            -re "^0+4\[^\n\]*R_R_MODE\[^\n\]*\n" 
+			{ fail $testname }
+	            -re "^0+8\[^\n\]*R_N_MODE\[^\n\]*\n"
+			{ set x [expr $x+1] }
+	            -re "^0+c\[^\n\]*R_N_MODE\[^\n\]*\n" 
+			{ fail $testname }
+	            -re "^0+10\[^\n\]*R_R_MODE\[^\n\]*\n"
+			{ set x [expr $x+1] }
+	            -re "^0+14\[^\n\]*R_R_MODE\[^\n\]*\n" 
+			{ fail $testname }
+	            -re "^0+1c\[^\n\]*R_R_MODE\[^\n\]*\n" 
+			{ fail $testname }
+	            -re "\[^\n\]*\n"		{ }
+	        timeout				{ perror "timeout\n"; break }
+	        eof				{ break }
+		}
+	    }
+	}
+
+	# This was intended to do any cleanup necessary.  It kinda looks like it
+	# isn't needed, but just in case, please keep it in for now.
+	objdump_finish
+
+	# Did we find what we were looking for?  If not, flunk it.
+	if {[istarget hppa*64*-*-*]
+	    || [istarget hppa*-*-*elf*] || [istarget hppa*-*-linux*]} then {
+	    if [expr $x==8] then { pass $testname } else { fail $testname }
+	} else {
+	    if [expr $x==3] then { pass $testname } else { fail $testname }
+	}
+    }
+}
+
+proc do_function_reloc_bug {} {
+    set testname "funcrelocbug.s: Test for reloc bug in non-plabel function reference (part 2)"
+    set x 0
+
+    if [gas_test_old "funcrelocbug.s" "" "Test for reloc bug in non-plabel function reference (part 1)"] {
+	objdump_start_no_subdir "a.out" "-r"
+
+	# Make sure GAS generated a correct relocation for the reference.
+	# branch/call
+	while 1 {
+	    expect {
+	        -re "^0+cc\[^\n\]*f2___4\[^\n+\]*\n" 
+		    { set x [expr $x+1] }
+	        -re "^0+d0\[^\n\]*f2___4\[^\n+\]*\n"  
+		    { set x [expr $x+1] }
+	        -re "\[^\n\]*\n"		{ }
+	        timeout				{ perror "timeout\n"; break }
+	        eof				{ break }
+            }
+	}
+
+	# This was intended to do any cleanup necessary.  It kinda looks like it
+	# isn't needed, but just in case, please keep it in for now.
+	objdump_finish
+
+	# Did we find what we were looking for?  If not, flunk it.
+	if [expr $x==2] then { pass $testname } else { fail $testname }
+
+	set testname "funcrelocbug.s: Test for reloc bug in non-plabel function reference (part3)"
+	set x 0
+
+	objdump_start_no_subdir "a.out" "--prefix-addresses -d"
+	# Make sure we didn't put anything in the instruction itself!
+	while 1 {
+	    expect {
+	        -re "^0+cc\[^\n\]*ldil 0,r20\[^\n\]*\n" 
+		    { set x [expr $x+1] }
+	        -re "^0+d0\[^\n\]*ldo 0\[\(\]+r20\[\)\]+,r19\[^\n\]*\n" 
+		    { set x [expr $x+1] }
+	        -re "\[^\n\]*\n"		{ }
+	        timeout				{ perror "timeout\n"; break }
+	        eof				{ break }
+	    }
+	}
+
+	# This was intended to do any cleanup necessary.  It kinda looks like it
+	# isn't needed, but just in case, please keep it in for now.
+	objdump_finish
+
+	# Did we find what we were looking for?  If not, flunk it.
+	if [expr $x==2] then { pass $testname } else { fail $testname }
+    }
+
+}
+
+proc do_r_no_reloc {} {
+    set testname "r_no_reloc.s: Test for reloc bug in 4-byte R_NO_RELCOATION fixups (part 2)"
+    set x 0
+
+    if [gas_test_old "r_no_reloc.s" "" "Test for reloc bug in 4-byte R_NO_RELOCATION fixups (part 1)"] {
+	objdump_start_no_subdir "a.out" "-r"
+
+	# Make sure GAS generated a correct relocation for the reference.
+	while 1 {
+	    expect {
+	        -re "^0+c0004\[^\n\]*PLABEL\[^\n]*g\[^\n\]*\n" 
+		    { set x [expr $x+1] }
+	        -re "\[^\n\]*\n"		{ }
+	        timeout				{ perror "timeout\n"; break }
+	        eof				{ break }
+            }
+	}
+
+	# This was intended to do any cleanup necessary.  It kinda looks like it
+	# isn't needed, but just in case, please keep it in for now.
+	objdump_finish
+
+	# Did we find what we were looking for?  If not, flunk it.
+	if [expr $x==1] then { pass $testname } else { fail $testname }
+
+    }
+}
+
+proc do_pic_relocation_test {} {
+    set testname "picreloc.s: Test for proper PIC relocation (part 2)"
+    set x 0
+
+    # ELF doesn't really handle extra sections too well...
+    if {[istarget hppa*64*-*-*]
+	|| [istarget hppa*-*-*elf*] || [istarget hppa*-*-linux*]} then {
+	return;
+    }
+
+    gas_start "picreloc.s" "-al"
+
+    while 1 {
+	expect {
+	    -re "^ +\[0-9\]+ 0000 00000004\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "\[^\n\]*\n"				{ }
+	    timeout				{ perror "timeout\n"; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x==1] then { pass $testname } else { fail $testname }
+}
+
+proc do_apply_test {} {
+    set testname "applybug.s: Test for proper fixup application (part 2)"
+    set x 0
+
+    # ELF doesn't really handle extra sections too well...
+    if {[istarget hppa*64*-*-*]
+	|| [istarget hppa*-*-*elf*] || [istarget hppa*-*-linux*]} then {
+	return;
+    }
+
+    gas_start "applybug.s" "-al"
+
+    while 1 {
+	expect {
+	    -re "^ +\[0-9\]+ 0000 00000000\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "^ +\[0-9\]+ 0004 00000000\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "^ +\[0-9\]+ 0008 00000000\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "\[^\n\]*\n"				{ }
+	    timeout				{ perror "timeout\n"; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x==3] then { pass $testname } else { fail $testname }
+}
+
+if [istarget hppa*-*-*] then {
+    # Make sure we put the right relocation entry on a BLE instruction.
+    do_ble_relocation_test
+
+    # Make sure relocation reductions are not too agressive about
+    # adjusting relocations against some symbols.
+    do_relocation_reduction_tests
+
+    # Check that mode selectors on a ble instruction actually work.
+    do_ble_mode_selector_test
+
+    # Check that we take the -8 adjustment into account when zeroing
+    # out the displacement field in a ble instruction with a reloc
+    do_ble_relocation_test
+
+    # 1.36 simply didn't generate all the plabels it should have.  Make
+    # sure gas-2 does.
+    do_plabel_relocation_test
+
+    # Make sure a field selector only effects the current instruction
+    # or assembler directive.
+    do_selector_scope_test
+
+    # This should really generate a relocation.  It would make life much
+    # easier on the optimizing linker.  Until then just make sure the 
+    # difference is computed correctly.
+    do_local_label_as_operand_test
+
+    # GAS2 incorrectly generated R_EXIT relocations when .exit directives
+    # were not in the source code.
+    do_exit_relocation_test
+
+    # GAS2 incorrectly thought it could apply a fixup for a pc-relative
+    # branch/call which crossed different subspaces.
+    # Also check that the assembled instruction is correct
+    do_cross_space_fixup_test_1
+    do_cross_space_fixup_test_2
+
+    # Make sure we switch rounding modes correctly
+    do_round_mode_test
+
+    # Test for a bug found when a function was used in a non-branching
+    # instruction *without* a plabel (for portable runtime model)
+    do_function_reloc_bug
+
+    # Test for an off-by-one bug in the handling of 4-byte R_NO_RELOCATION
+    # fixups.
+    do_r_no_reloc
+
+    # Test a relocation problem which shows up when building shared
+    # libraries in SOM
+    do_pic_relocation_test
+
+    # Test a problem with md_apply_fix that was introduced when fixing
+    # the pic relocation test.
+    do_apply_test
+
+    # Make sure gas doesn't resolve long-calls which are to be fixed
+    # by the linker
+    gas_test "longcall.s" "" "" "Avoid resolving long-calls"
+}

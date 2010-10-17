@@ -1,0 +1,17 @@
+# IQ2000 assembler testsuite.
+
+if [istarget iq2000*-*-*] {
+    run_dump_test "q10test0"
+    run_dump_test "q10test1"
+    run_dump_test "q10test2"
+    run_dump_test "q10test3"
+    run_dump_test "q10test4"
+    run_dump_test "q10test5"
+    run_dump_test "q10test6"
+    run_dump_test "q10test7"
+    run_dump_test "q10test8"
+    run_dump_test "q10test9"
+    run_dump_test "q10test10"
+    run_dump_test "q10test11"
+    run_dump_test "q10test12"
+}

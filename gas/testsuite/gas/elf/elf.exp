@@ -1,0 +1,57 @@
+#
+# elf tests
+#
+
+proc run_list_test { name suffix opts readelf_pipe } {
+    global READELF
+    global srcdir subdir
+    set testname "elf $name list"
+    set file $srcdir/$subdir/$name
+    gas_run ${name}.s "$opts -o dump.o" ">&dump.out"
+    if { ![string match "" $opts]
+	  && [regexp_diff "dump.out" "${file}.l"] } then {
+	fail $testname
+	verbose "output is [file_contents "dump.out"]" 2
+	return
+    }
+    send_log "$READELF -s dump.o > dump.out\n"
+    catch "exec $READELF -s dump.o $readelf_pipe > dump.out\n" comp_output
+    if ![string match "" $comp_output] then {
+	send_log "$comp_output\n"
+	fail $testname
+	return
+    }
+    verbose_eval {[file_contents "dump.out"]} 3
+    if { [regexp_diff "dump.out" "${file}.e${suffix}"] } then {
+	fail $testname
+	verbose "output is [file_contents "dump.out"]" 2
+	return
+    }
+    pass $testname
+}
+
+# We're testing bits in obj-elf -- don't run on anything else.
+if { ([istarget "*-*-elf*"]		
+      || [istarget "*-*-linux*"]
+      || [istarget "sparc*-*-solaris*"]
+      || [istarget "mips*-*-irix6*"])
+     && ![istarget *-*-linux*aout*]
+     && ![istarget *-*-linux*coff*]
+     && ![istarget *-*-linux*oldld*]
+     && ![istarget sh64*-*-linux*]
+} then {
+    set target_machine ""
+    if {[istarget "mips*-*-*"]} then {
+	set target_machine -mips
+    }
+    if {[istarget m32r*-*-*]} then {
+	set target_machine -m32r
+    }
+    run_dump_test "ehopt0"
+    run_dump_test "section0" 
+    run_dump_test "section1" 
+    run_list_test "section2" "$target_machine" "-al" ""
+    run_dump_test "section3" 
+    run_dump_test "symver" 
+    run_list_test "type" "" "" "| grep \"1 \\\[FONT\\\]\""
+}

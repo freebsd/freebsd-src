@@ -1,0 +1,34 @@
+
+Testsuite for the i860 version of the GNU assembler
+---------------------------------------------------
+
+This is a simple testsuite for the i860 assembler.  It currently
+consists mostly of testcases for checking that every instruction is
+parsed correctly and that correct object code is generated (these
+are called "blah.s").  The files called "blah-err.s" test for error
+conditions.
+
+The suite includes testcases for the base i860XR instruction set as well
+as the enhanced i860XP instructions and control registers.
+
+The expected results files were generated using the UNIX System V/i860
+Release 4 vendor assembler (/usr/ccs/bin/as -V reports version
+"Standard C Development Environment  (SCDE) 5.0 12/08/89").  This
+way GAS/i860 is tested against a known good assembler.
+
+TODO:
+ - Relocation testing is basically non-existent.
+ - pst.d (pixel store) is the only instruction with no testcase.
+ - Some pseudo instructions need testcases (mov, all pfmov, etc.).
+ - More tests for dual instruction mode: check that dual mode has a
+   proper pair (FLOP/core) of instructions, and other error conditions.
+ - Most current testcases use the default AT&T/SVR4 syntax; a few simple
+   tests of the Intel syntax should be added to prevent bitrot (including
+   relocatable expression syntax, etc).  Test file dual03.s uses Intel
+   syntax lightly (i.e., register names without '%' prefix).
+
+Contact me (Jason Eckhardt, jle@rice.edu) if you'd like to help.
+
+Known testsuite failures:
+  - none.
+

@@ -1,0 +1,1199 @@
+# Support routines for LD testsuite.
+#   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003
+#   Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+#
+# default_ld_version
+#	extract and print the version number of ld
+#
+proc default_ld_version { ld } {
+    global host_triplet
+
+    if { [which $ld] == 0 } then {
+	perror "$ld does not exist"
+	exit 1
+    }
+
+    catch "exec $ld --version" tmp
+    set tmp [prune_warnings $tmp]
+    regexp "\[^\n\]* (cygnus-|)(\[-0-9.a-zA-Z-\]+)\[\r\n\].*" $tmp version cyg number
+    if [info exists number] then {
+	clone_output "$ld $number\n"
+    }
+}
+
+#
+# default_ld_relocate
+#	link an object using relocation
+#
+proc default_ld_relocate { ld target objects } {
+    global HOSTING_EMU
+    global host_triplet
+
+    if { [which $ld] == 0 } then {
+	perror "$ld does not exist"
+	return 0
+    }
+
+    verbose -log "$ld $HOSTING_EMU -o $target -r $objects"
+
+    catch "exec $ld $HOSTING_EMU -o $target -r $objects" exec_output
+    set exec_output [prune_warnings $exec_output]
+    if [string match "" $exec_output] then {
+	return 1
+    } else {
+	verbose -log "$exec_output"
+	return 0
+    }
+}
+
+# Check to see if ld is being invoked with a non-endian output format
+
+proc is_endian_output_format { object_flags } {
+
+    if {[string match "*-oformat binary*" $object_flags] ||      \
+        [string match "*-oformat ieee*" $object_flags] ||        \
+	[string match "*-oformat ihex*" $object_flags] ||        \
+	[string match "*-oformat netbsd-core*" $object_flags] || \
+	[string match "*-oformat srec*" $object_flags] ||        \
+	[string match "*-oformat tekhex*" $object_flags] ||      \
+	[string match "*-oformat trad-core*" $object_flags] } then {
+        return 0
+    } else {
+	return 1
+    }
+}
+
+# Look for big-endian or little-endian switches in the multlib
+# options and translate these into a -EB or -EL switch.  Note
+# we cannot rely upon proc process_multilib_options to do this
+# for us because for some targets the compiler does not support
+# -EB/-EL but it does support -mbig-endian/-mlittle-endian, and
+# the site.exp file will include the switch "-mbig-endian"
+# (rather than "big-endian") which is not detected by proc
+# process_multilib_options.
+
+proc big_or_little_endian {} {
+
+    if [board_info [target_info name] exists multilib_flags] {
+	set tmp_flags " [board_info [target_info name] multilib_flags]";
+
+	foreach x $tmp_flags {
+	    case $x in {
+		{*big*endian eb EB -eb -EB -mb} {
+		    set flags " -EB"
+		    return $flags
+		}
+		{*little*endian el EL -el -EL -ml} {
+		    set flags " -EL"
+		    return $flags
+		}
+	    }
+	}
+    }
+
+    set flags ""
+    return $flags
+}
+
+#
+# default_ld_link
+#	link a program using ld
+#
+proc default_ld_link { ld target objects } {
+    global HOSTING_EMU
+    global HOSTING_CRT0
+    global HOSTING_LIBS
+    global LIBS
+    global host_triplet
+    global link_output
+
+    set objs "$HOSTING_CRT0 $objects"
+    set libs "$LIBS $HOSTING_LIBS"
+
+    if { [which $ld] == 0 } then {
+	perror "$ld does not exist"
+	return 0
+    }
+
+    if [is_endian_output_format $objects] then {
+	set flags [big_or_little_endian]
+    } else {
+	set flags ""
+    }
+    verbose -log "$ld $HOSTING_EMU $flags -o $target $objs $libs"
+
+    catch "exec $ld $HOSTING_EMU $flags -o $target $objs $libs" link_output
+    set exec_output [prune_warnings $link_output]
+    if [string match "" $link_output] then {
+	return 1
+    } else {
+	verbose -log "$link_output"
+	return 0
+    }
+}
+
+#
+# default_ld_simple_link
+#	link a program using ld, without including any libraries
+#
+proc default_ld_simple_link { ld target objects } {
+    global host_triplet
+    global link_output
+    global gcc_ld_flag
+
+    if { [which $ld] == 0 } then {
+	perror "$ld does not exist"
+	return 0
+    }
+
+    if [is_endian_output_format $objects] then {
+	set flags [big_or_little_endian]
+    } else {
+	set flags ""
+    }
+
+    # If we are compiling with gcc, we want to add gcc_ld_flag to
+    # flags.  Rather than determine this in some complex way, we guess
+    # based on the name of the compiler.
+    set ldexe $ld
+    set ldparm [string first " " $ld]
+    if { $ldparm > 0 } then {
+	set ldexe [string range $ld 0 $ldparm]
+    }
+    set ldexe [string replace $ldexe 0 [string last "/" $ldexe] ""]
+    if {[string match "*gcc*" $ldexe] || [string match "*++*" $ldexe]} then {
+	set flags "$gcc_ld_flag $flags"
+    }
+
+    verbose -log "$ld $flags -o $target $objects"
+
+    catch "exec $ld $flags -o $target $objects" link_output
+    set exec_output [prune_warnings $link_output]
+
+    # We don't care if we get a warning about a non-existent start
+    # symbol, since the default linker script might use ENTRY.
+    regsub -all "(^|\n)(\[^\n\]*: warning: cannot find entry symbol\[^\n\]*\n?)" $exec_output "\\1" exec_output
+
+    if [string match "" $exec_output] then {
+	return 1
+    } else {
+	verbose -log "$exec_output"
+	return 0
+    }
+}
+
+#
+# default_ld_compile
+#	compile an object using cc
+#
+proc default_ld_compile { cc source object } {
+    global CFLAGS
+    global srcdir
+    global subdir
+    global host_triplet
+    global gcc_gas_flag
+
+    set cc_prog $cc
+    if {[llength $cc_prog] > 1} then {
+	set cc_prog [lindex $cc_prog 0]
+    }
+    if {[which $cc_prog] == 0} then {
+	perror "$cc_prog does not exist"
+	return 0
+    }
+
+    catch "exec rm -f $object" exec_output
+
+    set flags "-I$srcdir/$subdir $CFLAGS"
+
+    # If we are compiling with gcc, we want to add gcc_gas_flag to
+    # flags.  Rather than determine this in some complex way, we guess
+    # based on the name of the compiler.
+    set ccexe $cc
+    set ccparm [string first " " $cc]
+    if { $ccparm > 0 } then {
+	set ccexe [string range $cc 0 $ccparm]
+    }
+    set ccexe [string replace $ccexe 0 [string last "/" $ccexe] ""]
+    if {[string match "*gcc*" $ccexe] || [string match "*++*" $ccexe]} then {
+	set flags "$gcc_gas_flag $flags"
+    }
+
+    if [board_info [target_info name] exists multilib_flags] {
+	append flags " [board_info [target_info name] multilib_flags]";
+    }
+
+    verbose -log "$cc $flags -c $source -o $object"
+
+    catch "exec $cc $flags -c $source -o $object" exec_output
+    set exec_output [prune_warnings $exec_output]
+    if [string match "" $exec_output] then {
+	if {![file exists $object]} then {
+	    regexp ".*/(\[^/\]*)$" $source all dobj
+	    regsub "\\.c" $dobj ".o" realobj
+	    verbose "looking for $realobj"
+	    if {[file exists $realobj]} then {
+		verbose -log "mv $realobj $object"
+		catch "exec mv $realobj $object" exec_output
+		set exec_output [prune_warnings $exec_output]
+		if {![string match "" $exec_output]} then {
+		    verbose -log "$exec_output"
+		    perror "could not move $realobj to $object"
+		    return 0
+		}
+	    } else {
+		perror "$object not found after compilation"
+		return 0
+	    }
+	}
+	return 1
+    } else {
+	verbose -log "$exec_output"
+	perror "$source: compilation failed"
+	return 0
+    }
+}
+
+#
+# default_ld_assemble
+#	assemble a file
+#
+proc default_ld_assemble { as source object } {
+    global ASFLAGS
+    global host_triplet
+
+    if {[which $as] == 0} then {
+	perror "$as does not exist"
+	return 0
+    }
+
+    if ![info exists ASFLAGS] { set ASFLAGS "" }
+
+    set flags [big_or_little_endian]
+
+    verbose -log "$as $flags $ASFLAGS -o $object $source"
+
+    catch "exec $as $flags $ASFLAGS -o $object $source" exec_output
+    set exec_output [prune_warnings $exec_output]
+    if [string match "" $exec_output] then {
+	return 1
+    } else {
+	verbose -log "$exec_output"
+	perror "$source: assembly failed"
+	return 0
+    }
+}
+
+#
+# default_ld_nm
+#	run nm on a file, putting the result in the array nm_output
+#
+proc default_ld_nm { nm nmflags object } {
+    global NMFLAGS
+    global nm_output
+    global host_triplet
+
+    if {[which $nm] == 0} then {
+	perror "$nm does not exist"
+	return 0
+    }
+
+    if {[info exists nm_output]} {
+      unset nm_output
+    }
+
+    if ![info exists NMFLAGS] { set NMFLAGS "" }
+
+    # Ensure consistent sorting of symbols
+    if {[info exists env(LC_ALL)]} {
+	set old_lc_all $env(LC_ALL)
+    }
+    set env(LC_ALL) "C"
+    verbose -log "$nm $NMFLAGS $nmflags $object >tmpdir/nm.out"
+
+    catch "exec $nm $NMFLAGS $nmflags $object >tmpdir/nm.out" exec_output
+    if {[info exists old_lc_all]} {
+	set env(LC_ALL) $old_lc_all
+    } else {
+	unset env(LC_ALL)
+    }
+    set exec_output [prune_warnings $exec_output]
+    if [string match "" $exec_output] then {
+	set file [open tmpdir/nm.out r]
+	while { [gets $file line] != -1 } {
+	    verbose "$line" 2
+	    if [regexp "^(\[0-9a-fA-F\]+) \[a-zA-Z0-9\] \\.*(.+)$" $line whole value name] {
+                set name [string trimleft $name "_"]
+		verbose "Setting nm_output($name) to 0x$value" 2
+		set nm_output($name) 0x$value
+	    }
+	}
+	close $file
+	return 1
+    } else {
+	verbose -log "$exec_output"
+	perror "$object: nm failed"
+	return 0
+    }
+}
+
+#
+# is_elf_format
+#	true if the object format is known to be ELF
+#
+proc is_elf_format {} {
+    if { ![istarget *-*-sysv4*] \
+	 && ![istarget *-*-unixware*] \
+	 && ![istarget *-*-elf*] \
+	 && ![istarget *-*-eabi*] \
+	 && ![istarget hppa*64*-*-hpux*] \
+	 && ![istarget *-*-linux*] \
+	 && ![istarget frv-*-uclinux*] \
+	 && ![istarget *-*-irix5*] \
+	 && ![istarget *-*-irix6*] \
+	 && ![istarget *-*-netbsd*] \
+	 && ![istarget *-*-solaris2*] } {
+	return 0
+    }
+
+    if { [istarget *-*-linux*aout*] \
+	 || [istarget *-*-linux*oldld*] } {
+	return 0
+    }
+
+    if { ![istarget *-*-netbsdelf*] \
+	 && ([istarget *-*-netbsd*aout*] \
+	     || [istarget *-*-netbsdpe*] \
+	     || [istarget arm*-*-netbsd*] \
+	     || [istarget sparc-*-netbsd*] \
+	     || [istarget i*86-*-netbsd*] \
+	     || [istarget m68*-*-netbsd*] \
+	     || [istarget vax-*-netbsd*] \
+	     || [istarget ns32k-*-netbsd*]) } {
+    	return 0
+    }
+    return 1
+}
+
+#
+# is_elf64
+#	true if the object format is known to be 64bit ELF
+proc is_elf64 { binary_file } {
+    global READELF
+    global READELFFLAGS
+
+    set readelf_size ""
+    catch "exec $READELF $READELFFLAGS -h $binary_file > readelf.out" got
+
+    if ![string match "" $got] then {
+	return 0
+    }
+
+    if { ![regexp "\n\[ \]*Class:\[ \]*ELF(\[0-9\]+)\n" \
+	   [file_contents readelf.out] nil readelf_size] } {
+	return 0
+    }
+
+    if { $readelf_size == "64" } {
+	return 1
+    }
+
+    return 0
+}
+
+#
+# simple_diff
+#	compares two files line-by-line
+#	returns differences if exist
+#	returns null if file(s) cannot be opened
+#
+proc simple_diff { file_1 file_2 } {
+    global target
+
+    set eof -1
+    set differences 0
+
+    if [file exists $file_1] then {
+	set file_a [open $file_1 r]
+    } else {
+	warning "$file_1 doesn't exist"
+	return
+    }
+
+    if [file exists $file_2] then {
+	set file_b [open $file_2 r]
+    } else {
+	fail "$file_2 doesn't exist"
+	return
+    }
+
+    verbose "# Diff'ing: $file_1 $file_2\n" 2
+
+    while { [gets $file_a line] != $eof } {
+	if [regexp "^#.*$" $line] then {
+	    continue
+	} else {
+	    lappend list_a $line
+	}
+    }
+    close $file_a
+
+    while { [gets $file_b line] != $eof } {
+	if [regexp "^#.*$" $line] then {
+	    continue
+	} else {
+	    lappend list_b $line
+	}
+    }
+    close $file_b
+
+    for { set i 0 } { $i < [llength $list_a] } { incr i } {
+	set line_a [lindex $list_a $i]
+	set line_b [lindex $list_b $i]
+
+	verbose "\t$file_1: $i: $line_a\n" 3
+	verbose "\t$file_2: $i: $line_b\n" 3
+	if [string compare $line_a $line_b] then {
+	    verbose -log "\t$file_1: $i: $line_a\n"
+	    verbose -log "\t$file_2: $i: $line_b\n"
+
+	    fail "Test: $target"
+	    return
+	}
+    }
+
+    if { [llength $list_a] != [llength $list_b] } {
+	fail "Test: $target"
+	return
+    }
+
+    if $differences<1 then {
+	pass "Test: $target"
+    }
+}
+
+# run_dump_test FILE
+# Copied from gas testsuite, tweaked and further extended.
+#
+# Assemble a .s file, then run some utility on it and check the output.
+#
+# There should be an assembly language file named FILE.s in the test
+# suite directory, and a pattern file called FILE.d.  `run_dump_test'
+# will assemble FILE.s, run some tool like `objdump', `objcopy', or
+# `nm' on the .o file to produce textual output, and then analyze that
+# with regexps.  The FILE.d file specifies what program to run, and
+# what to expect in its output.
+#
+# The FILE.d file begins with zero or more option lines, which specify
+# flags to pass to the assembler, the program to run to dump the
+# assembler's output, and the options it wants.  The option lines have
+# the syntax:
+#
+#         # OPTION: VALUE
+#
+# OPTION is the name of some option, like "name" or "objdump", and
+# VALUE is OPTION's value.  The valid options are described below.
+# Whitespace is ignored everywhere, except within VALUE.  The option
+# list ends with the first line that doesn't match the above syntax
+# (hmm, not great for error detection).
+#
+# The interesting options are:
+#
+#   name: TEST-NAME
+#	The name of this test, passed to DejaGNU's `pass' and `fail'
+#       commands.  If omitted, this defaults to FILE, the root of the
+#       .s and .d files' names.
+#
+#   as: FLAGS
+#	When assembling, pass FLAGS to the assembler.
+#       If assembling several files, you can pass different assembler
+#       options in the "source" directives.  See below.
+#
+#   ld: FLAGS
+#       Link assembled files using FLAGS, in the order of the "source"
+#       directives, when using multiple files.
+#
+#   objcopy_linked_file: FLAGS
+#	Run objcopy on the linked file with the specified flags.
+#	This lets you transform the linked file using objcopy, before the
+#	result is analyzed by an analyzer program specified below (which
+#	may in turn *also* be objcopy).
+#
+#   PROG: PROGRAM-NAME
+#       The name of the program to run to analyze the .o file produced
+#       by the assembler or the linker output.  This can be omitted;
+#       run_dump_test will guess which program to run by seeing which of
+#       the flags options below is present.
+#
+#   objdump: FLAGS
+#   nm: FLAGS
+#   objcopy: FLAGS
+#	Use the specified program to analyze the assembler or linker
+#       output file, and pass it FLAGS, in addition to the output name.
+#	Note that they are run with LC_ALL=C in the environment to give
+#	consistent sorting of symbols.
+#
+#   source: SOURCE [FLAGS]
+#	Assemble the file SOURCE.s using the flags in the "as" directive
+#       and the (optional) FLAGS.  If omitted, the source defaults to
+#       FILE.s.
+#       This is useful if several .d files want to share a .s file.
+#       More than one "source" directive can be given, which is useful
+#       when testing linking.
+#
+#   xfail: TARGET
+#       The test is expected to fail on TARGET.  This may occur more than
+#       once.
+#
+#   target: TARGET
+#       Only run the test for TARGET.  This may occur more than once; the
+#       target being tested must match at least one.
+#
+#   notarget: TARGET
+#       Do not run the test for TARGET.  This may occur more than once;
+#       the target being tested must not match any of them.
+#
+#   error: REGEX
+#	An error with message matching REGEX must be emitted for the test
+#	to pass.  The PROG, objdump, nm and objcopy options have no
+#	meaning and need not supplied if this is present.
+#
+# Each option may occur at most once unless otherwise mentioned.
+#
+# After the option lines come regexp lines.  `run_dump_test' calls
+# `regexp_diff' to compare the output of the dumping tool against the
+# regexps in FILE.d.  `regexp_diff' is defined later in this file; see
+# further comments there.
+
+proc run_dump_test { name } {
+    global subdir srcdir
+    global OBJDUMP NM AS OBJCOPY READELF LD
+    global OBJDUMPFLAGS NMFLAGS ASFLAGS OBJCOPYFLAGS READELFFLAGS LDFLAGS
+    global host_triplet runtests
+    global env
+
+    if [string match "*/*" $name] {
+	set file $name
+	set name [file tail $name]
+    } else {
+	set file "$srcdir/$subdir/$name"
+    }
+
+    if ![runtest_file_p $runtests $name] then {
+	return
+    }
+
+    set opt_array [slurp_options "${file}.d"]
+    if { $opt_array == -1 } {
+	perror "error reading options from $file.d"
+	unresolved $subdir/$name
+	return
+    }
+    set dumpfile tmpdir/dump.out
+    set run_ld 0
+    set run_objcopy 0
+    set opts(as) {}
+    set opts(ld) {}
+    set opts(xfail) {}
+    set opts(target) {}
+    set opts(notarget) {}
+    set opts(objdump) {}
+    set opts(nm) {}
+    set opts(objcopy) {}
+    set opts(readelf) {}
+    set opts(name) {}
+    set opts(PROG) {}
+    set opts(source) {}
+    set opts(error) {}
+    set opts(objcopy_linked_file) {}
+    set asflags(${file}.s) {}
+
+    foreach i $opt_array {
+	set opt_name [lindex $i 0]
+	set opt_val [lindex $i 1]
+	if ![info exists opts($opt_name)] {
+	    perror "unknown option $opt_name in file $file.d"
+	    unresolved $subdir/$name
+	    return
+	}
+
+	switch -- $opt_name {
+	    xfail {}
+	    target {}
+	    notarget {}
+	    source {
+		# Move any source-specific as-flags to a separate array to
+		# simplify processing.
+		if { [llength $opt_val] > 1 } {
+		    set asflags([lindex $opt_val 0]) [lrange $opt_val 1 end]
+		    set opt_val [lindex $opt_val 0]
+		} else {
+		    set asflags($opt_val) {}
+		}
+	    }
+	    default {
+		if [string length $opts($opt_name)] {
+		    perror "option $opt_name multiply set in $file.d"
+		    unresolved $subdir/$name
+		    return
+		}
+
+		# A single "# ld:" with no options should do the right thing.
+		if { $opt_name == "ld" } {
+		    set run_ld 1
+		}
+		# Likewise objcopy_linked_file.
+		if { $opt_name == "objcopy_linked_file" } {
+		    set run_objcopy 1
+		}
+	    }
+	}
+	set opts($opt_name) [concat $opts($opt_name) $opt_val]
+    }
+
+    # Decide early whether we should run the test for this target.
+    if { [llength $opts(target)] > 0 } {
+	set targmatch 0
+	foreach targ $opts(target) {
+	    if [istarget $targ] {
+		set targmatch 1
+		break
+	    }
+	}
+	if { $targmatch == 0 } {
+	    return
+	}
+    }
+    foreach targ $opts(notarget) {
+	if [istarget $targ] {
+	    return
+	}
+    }
+
+    if {$opts(PROG) != ""} {
+	switch -- $opts(PROG) {
+	    objdump
+		{ set program objdump }
+	    nm
+		{ set program nm }
+	    objcopy
+		{ set program objcopy }
+	    readelf
+		{ set program readelf }
+	    default
+		{ perror "unrecognized program option $opts(PROG) in $file.d"
+		  unresolved $subdir/$name
+		  return }
+	}
+    } elseif { $opts(error) != "" } {
+	# It's meaningless to require an output-testing method when we
+	# expect an error.  For simplicity, we fake an arbitrary method.
+	set program "nm"
+    } else {
+	# Guess which program to run, by seeing which option was specified.
+	set program ""
+	foreach p {objdump objcopy nm readelf} {
+	    if {$opts($p) != ""} {
+		if {$program != ""} {
+		    perror "ambiguous dump program in $file.d"
+		    unresolved $subdir/$name
+		    return
+		} else {
+		    set program $p
+		}
+	    }
+	}
+	if {$program == ""} {
+	    perror "dump program unspecified in $file.d"
+	    unresolved $subdir/$name
+	    return
+	}
+    }
+
+    set progopts1 $opts($program)
+    eval set progopts \$[string toupper $program]FLAGS
+    eval set binary \$[string toupper $program]
+    if { $opts(name) == "" } {
+	set testname "$subdir/$name"
+    } else {
+	set testname $opts(name)
+    }
+
+    if { $opts(source) == "" } {
+	set sourcefiles [list ${file}.s]
+    } else {
+	set sourcefiles {}
+	foreach sf $opts(source) {
+	    if { [string match "/*" $sf] } {
+		lappend sourcefiles "$sf"
+	    } {
+		lappend sourcefiles "$srcdir/$subdir/$sf"
+	    }
+	    # Must have asflags indexed on source name.
+	    set asflags($srcdir/$subdir/$sf) $asflags($sf)
+	}
+    }
+
+    # Time to setup xfailures.
+    foreach targ $opts(xfail) {
+	setup_xfail $targ
+    }
+
+    # Assemble each file.
+    set objfiles {}
+    for { set i 0 } { $i < [llength $sourcefiles] } { incr i } {
+	set sourcefile [lindex $sourcefiles $i]
+
+	set objfile "tmpdir/dump$i.o"
+	lappend objfiles $objfile
+	set cmd "$AS $ASFLAGS $opts(as) $asflags($sourcefile) -o $objfile $sourcefile"
+
+	send_log "$cmd\n"
+	set cmdret [catch "exec $cmd" comp_output]
+	set comp_output [prune_warnings $comp_output]
+
+	# We accept errors at assembly stage too, unless we're supposed to
+	# link something.
+	if { $cmdret != 0 || ![string match "" $comp_output] } then {
+	    send_log "$comp_output\n"
+	    verbose "$comp_output" 3
+	    if { $opts(error) != "" && $run_ld == 0 } {
+		if [regexp $opts(error) $comp_output] {
+		    pass $testname
+		    return
+		}
+	    }
+	    fail $testname
+	    return
+	}
+    }
+
+    # Perhaps link the file(s).
+    if { $run_ld } {
+	set objfile "tmpdir/dump"
+
+	# Add -L$srcdir/$subdir so that the linker command can use
+	# linker scripts in the source directory.
+	set cmd "$LD $LDFLAGS -L$srcdir/$subdir \
+		   $opts(ld) -o $objfile $objfiles"
+
+	send_log "$cmd\n"
+	set cmdret [catch "exec $cmd" comp_output]
+	set comp_output [prune_warnings $comp_output]
+
+	if { $cmdret != 0 || ![string match "" $comp_output] } then {
+	    verbose -log "failed with: <$comp_output>, expected: <$opts(error)>"
+	    send_log "$comp_output\n"
+	    verbose "$comp_output" 3
+	    if { $opts(error) != "" && $run_objcopy == 0 } {
+		if [regexp $opts(error) $comp_output] {
+		    pass $testname
+		    return
+		}
+	    }
+	    fail $testname
+	    return
+	}
+
+	if { $run_objcopy } {
+	    set infile $objfile
+	    set objfile "tmpdir/dump1"
+
+	    # Note that we don't use OBJCOPYFLAGS here; any flags must be
+	    # explicitly specified.
+	    set cmd "$OBJCOPY $opts(objcopy_linked_file) $infile $objfile"
+
+	    send_log "$cmd\n"
+	    set cmdret [catch "exec $cmd" comp_output]
+	    set comp_output [prune_warnings $comp_output]
+
+	    if { $cmdret != 0 || ![string match "" $comp_output] } then {
+		verbose -log "failed with: <$comp_output>, expected: <$opts(error)>"
+		send_log "$comp_output\n"
+		verbose "$comp_output" 3
+		if { $opts(error) != "" } {
+		    if [regexp $opts(error) $comp_output] {
+			pass $testname
+			return
+		    }
+		}
+		fail $testname
+		return
+	    }
+	}
+    } else {
+	set objfile "tmpdir/dump0.o"
+    }
+
+    # We must not have expected failure if we get here.
+    if { $opts(error) != "" } {
+	fail $testname
+	return
+    }
+
+    if { [which $binary] == 0 } {
+	untested $testname
+	return
+    }
+
+    if { $progopts1 == "" } { set $progopts1 "-r" }
+    verbose "running $binary $progopts $progopts1" 3
+
+    # Objcopy, unlike the other two, won't send its output to stdout,
+    # so we have to run it specially.
+    set cmd "$binary $progopts $progopts1 $objfile > $dumpfile"
+    if { $program == "objcopy" } {
+	set cmd "$binary $progopts $progopts1 $objfile $dumpfile"
+    }
+
+    # Ensure consistent sorting of symbols
+    if {[info exists env(LC_ALL)]} {
+	set old_lc_all $env(LC_ALL)
+    }
+    set env(LC_ALL) "C"
+    send_log "$cmd\n"
+    catch "exec $cmd" comp_output
+    if {[info exists old_lc_all]} {
+	set env(LC_ALL) $old_lc_all
+    } else {
+	unset env(LC_ALL)
+    }
+    set comp_output [prune_warnings $comp_output]
+    if ![string match "" $comp_output] then {
+	send_log "$comp_output\n"
+	fail $testname
+	return
+    }
+
+    verbose_eval {[file_contents $dumpfile]} 3
+    if { [regexp_diff $dumpfile "${file}.d"] } then {
+	fail $testname
+	verbose "output is [file_contents $dumpfile]" 2
+	return
+    }
+
+    pass $testname
+}
+
+proc slurp_options { file } {
+    if [catch { set f [open $file r] } x] {
+	#perror "couldn't open `$file': $x"
+	perror "$x"
+	return -1
+    }
+    set opt_array {}
+    # whitespace expression
+    set ws  {[ 	]*}
+    set nws {[^ 	]*}
+    # whitespace is ignored anywhere except within the options list;
+    # option names are alphabetic plus underscore only.
+    set pat "^#${ws}(\[a-zA-Z_\]*)$ws:${ws}(.*)$ws\$"
+    while { [gets $f line] != -1 } {
+	set line [string trim $line]
+	# Whitespace here is space-tab.
+	if [regexp $pat $line xxx opt_name opt_val] {
+	    # match!
+	    lappend opt_array [list $opt_name $opt_val]
+	} else {
+	    break
+	}
+    }
+    close $f
+    return $opt_array
+}
+
+# regexp_diff, copied from gas, based on simple_diff above.
+#	compares two files line-by-line
+#	file1 contains strings, file2 contains regexps and #-comments
+#	blank lines are ignored in either file
+#	returns non-zero if differences exist
+#
+proc regexp_diff { file_1 file_2 } {
+
+    set eof -1
+    set end_1 0
+    set end_2 0
+    set differences 0
+    set diff_pass 0
+
+    if [file exists $file_1] then {
+	set file_a [open $file_1 r]
+    } else {
+	warning "$file_1 doesn't exist"
+	return 1
+    }
+
+    if [file exists $file_2] then {
+	set file_b [open $file_2 r]
+    } else {
+	fail "$file_2 doesn't exist"
+	close $file_a
+	return 1
+    }
+
+    verbose " Regexp-diff'ing: $file_1 $file_2" 2
+
+    while { 1 } {
+	set line_a ""
+	set line_b ""
+	while { [string length $line_a] == 0 } {
+	    if { [gets $file_a line_a] == $eof } {
+		set end_1 1
+		break
+	    }
+	}
+	while { [string length $line_b] == 0 || [string match "#*" $line_b] } {
+	    if [ string match "#pass" $line_b ] {
+		set end_2 1
+		set diff_pass 1
+		break
+	    } elseif [ string match "#..." $line_b ] {
+		if { [gets $file_b line_b] == $eof } {
+		    set end_2 1
+		    break
+		}
+		verbose "looking for \"^$line_b$\"" 3
+		while { ![regexp "^$line_b$" "$line_a"] } {
+		    verbose "skipping    \"$line_a\"" 3
+		    if { [gets $file_a line_a] == $eof } {
+			set end_1 1
+			break
+		    }
+		}
+		break
+	    }
+	    if { [gets $file_b line_b] == $eof } {
+		set end_2 1
+		break
+	    }
+	}
+
+        if { $diff_pass } {
+            break
+        } elseif { $end_1 && $end_2 } {
+            break
+        } elseif { $end_1 } {
+            send_log "extra regexps in $file_2 starting with \"^$line_b$\"\nEOF from $file_1\n"
+            verbose "extra regexps in $file_2 starting with \"^$line_b$\"\nEOF from $file_1" 3
+            set differences 1
+            break
+        } elseif { $end_2 } {
+            send_log "extra lines in $file_1 starting with \"^$line_a$\"\nEOF from $file_2\n"
+            verbose "extra lines in $file_1 starting with \"^$line_a$\"\nEOF from $file_2\n" 3
+            set differences 1
+            break
+        } else {
+            verbose "regexp \"^$line_b$\"\nline   \"$line_a\"" 3
+            if ![regexp "^$line_b$" "$line_a"] {
+		send_log "regexp_diff match failure\n"
+		send_log "regexp \"^$line_b$\"\nline   \"$line_a\"\n"
+		set differences 1
+            }
+        }
+    }
+
+    if { $differences == 0 && !$diff_pass && [eof $file_a] != [eof $file_b] } {
+	send_log "$file_1 and $file_2 are different lengths\n"
+	verbose "$file_1 and $file_2 are different lengths" 3
+	set differences 1
+    }
+
+    close $file_a
+    close $file_b
+
+    return $differences
+}
+
+proc file_contents { filename } {
+    set file [open $filename r]
+    set contents [read $file]
+    close $file
+    return $contents
+}
+
+# List contains test-items with 3 items followed by 2 lists, one item and
+# one optional item:
+# 0:name 1:ld options 2:assembler options
+# 3:filenames of assembler files 4: action and options. 5: name of output file
+# 6:compiler flags (optional)
+
+# Actions:
+# objdump: Apply objdump options on result.  Compare with regex (last arg).
+# nm: Apply nm options on result.  Compare with regex (last arg).
+# readelf: Apply readelf options on result.  Compare with regex (last arg).
+
+proc run_ld_link_tests { ldtests } {
+    global ld
+    global as
+    global nm
+    global objdump
+    global READELF
+    global srcdir
+    global subdir
+    global env
+    global CC
+    global CFLAGS
+
+    foreach testitem $ldtests {
+	set testname [lindex $testitem 0]
+	set ld_options [lindex $testitem 1]
+	set as_options [lindex $testitem 2]
+	set src_files  [lindex $testitem 3]
+	set actions [lindex $testitem 4]
+	set binfile tmpdir/[lindex $testitem 5]
+	set cflags [lindex $testitem 6]
+	set objfiles {}
+	set is_unresolved 0
+	set failed 0
+
+#	verbose -log "Testname is $testname"
+#	verbose -log "ld_options is $ld_options"
+#	verbose -log "as_options is $as_options"
+#	verbose -log "src_files is $src_files"
+#	verbose -log "actions is $actions"
+#	verbose -log "binfile is $binfile"
+
+	# Assemble each file in the test.
+	foreach src_file $src_files {
+	    set objfile "tmpdir/[file rootname $src_file].o"
+	    lappend objfiles $objfile
+
+	    if { [file extension $src_file] == ".c" } {
+		set as_file "tmpdir/[file rootname $src_file].s"
+		if ![ld_compile "$CC -S $CFLAGS $cflags" $srcdir/$subdir/$src_file $as_file] {
+		    set is_unresolved 1
+		    break
+		}
+	    } else {
+		set as_file "$srcdir/$subdir/$src_file"
+	    }
+	    if ![ld_assemble $as "$as_options $as_file" $objfile] {
+		set is_unresolved 1
+		break
+	    }
+	}
+
+	# Catch assembler errors.
+	if { $is_unresolved != 0 } {
+	    unresolved $testname
+	    continue
+	}
+
+	if ![ld_simple_link $ld $binfile "-L$srcdir/$subdir $ld_options $objfiles"] {
+	    fail $testname
+	} else {
+	    set failed 0
+	    foreach actionlist $actions {
+		set action [lindex $actionlist 0]
+		set progopts [lindex $actionlist 1]
+
+		# There are actions where we run regexp_diff on the
+		# output, and there are other actions (presumably).
+		# Handling of the former look the same.
+		set dump_prog ""
+		switch -- $action {
+		    objdump
+		        { set dump_prog $objdump }
+		    nm
+		        { set dump_prog $nm }
+		    readelf
+		        { set dump_prog $READELF }
+		    default
+			{
+			    perror "Unrecognized action $action"
+			    set is_unresolved 1
+			    break
+			}
+		    }
+
+		if { $dump_prog != "" } {
+		    set dumpfile [lindex $actionlist 2]
+		    set binary $dump_prog
+
+		    # Ensure consistent sorting of symbols
+		    if {[info exists env(LC_ALL)]} {
+			set old_lc_all $env(LC_ALL)
+		    }
+		    set env(LC_ALL) "C"
+		    set cmd "$binary $progopts $binfile > dump.out"
+		    send_log "$cmd\n"
+		    catch "exec $cmd" comp_output
+		    if {[info exists old_lc_all]} {
+			set env(LC_ALL) $old_lc_all
+		    } else {
+			unset env(LC_ALL)
+		    }
+		    set comp_output [prune_warnings $comp_output]
+
+		    if ![string match "" $comp_output] then {
+			send_log "$comp_output\n"
+			set failed 1
+			break
+		    }
+
+		    if { [regexp_diff "dump.out" "$srcdir/$subdir/$dumpfile"] } then {
+			verbose "output is [file_contents "dump.out"]" 2
+			set failed 1
+			break
+		    }
+		}
+	    }
+
+	    if { $failed != 0 } {
+		fail $testname
+	    } else { if { $is_unresolved == 0 } {
+		pass $testname
+	    } }
+	}
+
+	# Catch action errors.
+	if { $is_unresolved != 0 } {
+	    unresolved $testname
+	    continue
+	}
+    }
+}
+
+
+proc verbose_eval { expr { level 1 } } {
+    global verbose
+    if $verbose>$level then { eval verbose "$expr" $level }
+}
+
+# This definition is taken from an unreleased version of DejaGnu.  Once
+# that version gets released, and has been out in the world for a few
+# months at least, it may be safe to delete this copy.
+if ![string length [info proc prune_warnings]] {
+    #
+    # prune_warnings -- delete various system verbosities from TEXT
+    #
+    # An example is:
+    # ld.so: warning: /usr/lib/libc.so.1.8.1 has older revision than expected 9
+    #
+    # Sites with particular verbose os's may wish to override this in site.exp.
+    #
+    proc prune_warnings { text } {
+	# This is from sun4's.  Do it for all machines for now.
+	# The "\\1" is to try to preserve a "\n" but only if necessary.
+	regsub -all "(^|\n)(ld.so: warning:\[^\n\]*\n?)+" $text "\\1" text
+
+	# It might be tempting to get carried away and delete blank lines, etc.
+	# Just delete *exactly* what we're ask to, and that's it.
+	return $text
+    }
+}

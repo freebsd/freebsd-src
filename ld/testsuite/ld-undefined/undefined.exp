@@ -1,0 +1,147 @@
+# Test that the linker reports undefined symbol errors correctly.
+# By Ian Lance Taylor, Cygnus Support
+#
+#   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001
+#   Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+set testund "undefined"
+set testfn "undefined function"
+set testline "undefined line"
+
+if { [which $CC] == 0 } {
+    verbose "Could not find C compiler!" 1
+    untested $testund
+    untested $testfn
+    untested $testline
+    return
+}
+
+if ![ld_compile "$CC -g" $srcdir/$subdir/undefined.c tmpdir/undefined.o] {
+    verbose "Unable to compile test file!" 1
+    unresolved $testund
+    unresolved $testfn
+    unresolved $testline
+    return
+}
+
+catch "exec rm -f tmpdir/undefined" exec_output
+
+set flags [big_or_little_endian]
+
+# Using -e start prevents the SunOS linker from trying to build a
+# shared library.
+send_log "$ld -e start $flags -o tmpdir/undefined tmpdir/undefined.o\n"
+verbose "$ld -e start $flags -o tmpdir/undefined tmpdir/undefined.o"
+
+catch "exec $ld -e start $flags -o tmpdir/undefined tmpdir/undefined.o" exec_output
+send_log "$exec_output\n"
+verbose "$exec_output"
+
+proc checkund { string testname } {
+    global exec_output
+
+    if [string match "*$string*" $exec_output] {
+	pass $testname
+    } else {
+	fail $testname
+    }
+}
+
+set mu "undefined reference to `*this_function_is_not_defined'"
+checkund $mu $testund
+
+# ARM PE defaults to using stabs debugging, which we can't handle for
+# a COFF file.
+#setup_xfail "arm*-*-pe*"
+#setup_xfail "thumb*-*-pe*"
+
+# Just doesn't work for PA ELF.  No clue why.
+setup_xfail "hppa*-*-*elf*"
+
+# With dwarf-2, we can't get the function in which the reference
+# occurs; see below.
+setup_xfail "alpha*-*-linux*"
+setup_xfail "hppa*64*-*-*"
+setup_xfail "mn10300-*-elf"
+setup_xfail "sh-*-*"
+setup_xfail "m6811-*-*"
+setup_xfail "m6812-*-*"
+
+set mf "tmpdir/undefined.o* In function `function':"
+checkund $mf $testfn
+
+# COFF SH gets this test wrong--it reports line 10, because although
+# the jump is at line 9, the function address, and the reloc, is
+# stored at the end of the function.
+setup_xfail "sh-*-*"
+
+# ARM PE defaults to using stabs debugging, which we can't handle for
+# a COFF file.
+#setup_xfail "arm*-*-pe*"
+#setup_xfail "thumb*-*-pe*"
+
+# Just doesn't work for PA ELF.  No clue why.
+setup_xfail "hppa*-*-*elf*"
+
+set ml "undefined.c:9: undefined reference to `*this_function_is_not_defined'"
+# With targets that use elf/dwarf2, such as the arm-elf and thumb-elf
+# toolchains, the code in bfd/elf.c:_bfd_elf_find_nearest_line() is called
+# in order to locate the file name/line number where the undefined
+# reference occurs.  Unfortunately this tries to use the dwarf2 debug
+# information held in the .debug_info section.  This section contains a series
+# of comp_unit structures, each of which has a low/high address range
+# representing the span of memory locations covered by that structure.  The
+# structures also index into other structures held in the .debug_line section
+# and together they can translate memory locations back into file/function/line
+# number addresses in the source code.  Since the information about the memory
+# region covered by a comp_unit is only determined at link time, the low/high
+# addresses in the .debug_info section and the line addresses in the .debug_line
+# section are computed by generating relocs against known symbols in the object
+# code.
+#
+# When the undefined reference is detected, the relocs in the dwarf2
+# debug sections have not yet been resolved, so the low/high addresses and the
+# line number address are all set at zero.  Thus when _bfd_elf_find_nearest_line()
+# calls _bfd_dwarf2_find_nearest_line() no comp_unit can be found which
+# actually covers the address where the reference occured, and so
+# _bfd_elf_find_nearest_line() fails.
+#
+# The upshot of all of this, is that the error message reported by the
+# linker, instead of having a source file name & line number as in:
+#
+#   undefined.c:9: undefined reference to `this_function_is_not_defined'
+#
+# has an object file & section address instead:
+#
+#   undefined.0(.text+0xc): undefined reference to `this_function_is_not_defined'
+#
+# hence the xfails below.
+
+setup_xfail mcore-*-elf
+setup_xfail mips-sgi-irix6*
+setup_xfail "sh64-*-*"
+setup_xfail "m6811-*-*"
+setup_xfail "m6812-*-*"
+
+# The undefined test fails on 31 bit s/390 because the address of the 
+# function `this_function_is_not_defined' is stored in the literal pool of
+# the function. Therefore the line number in the error message is 8 instead
+# of 9. On 64 bit s/390 this works because of the new brasl instruction that
+# doesn't need a literal pool entry.
+setup_xfail s390-*-*
+
+checkund $ml $testline

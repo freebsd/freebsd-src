@@ -1,0 +1,7 @@
+20 MENU DISCARDABLE 
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "&Open\a^O",                   17
+    END
+END

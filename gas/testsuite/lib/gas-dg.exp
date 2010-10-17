@@ -1,0 +1,53 @@
+# Define gas callbacks for dg.exp.
+
+load_lib dg.exp
+
+# The use of this function is still in a bit of flux.
+# It should be theoretically possible to assemble, link, and run a file
+# but we currently don't support that.  Assembler testcases aren't usually
+# that elaborate anyway.  :-)
+
+proc gas-dg-test { prog do_what tool_flags } {
+    # FIXME: the gas testsuite doesn't define tmpdir.  Use outdir?
+    set output_file "./a.out"
+
+    switch $do_what {
+	"preprocess" {
+	}
+	"assemble" {
+	}
+	"link" {
+	}
+	"run" {
+	    # This is the only place where we care if an executable was
+	    # created or not.  If it was, dg.exp will try to run it.
+	    catch "exec rm -f $output_file"
+	}
+	default {
+	    perror "$do_what: not a valid dg-do keyword"
+	    return ""
+	}
+    }
+
+    # gas_start prepends $srcdir/$subdir so we must remove it from PROG
+    # if present.  First remove extraneous //'s.
+    global srcdir subdir
+    set dir "$srcdir/$subdir"
+    regsub -all "//" $dir "/" dir
+    regsub -all "//" $prog "/" prog
+    if [string match "$dir/*" $prog] {
+	regsub "$dir" $prog "" prog
+    }
+
+    # FIXME: This should be gas_start but it doesn't set comp_output.
+    return [gas_run $prog $tool_flags ""]
+}
+
+proc gas-dg-prune { system text } {
+    #send_user "Before:$text\n"
+    regsub -all "(^|\n)\[^\n\]*: Assembler messages:\[^\n\]*" $text "" text
+    regsub -all "(^|\n)\[^\n\]*: End of file not at end\[^\n\]*Newline inserted." $text "" text
+    #send_user "After:$text\n"
+
+    return $text
+}

@@ -1,0 +1,55 @@
+#
+# Some generic m68k tests
+#
+if [istarget "m68hc11-*-*"] then {
+   return
+}
+if [istarget "m68hc12-*-*"] then {
+   return
+}
+if [istarget "m6811-*-*"] then {
+   return
+}
+if [istarget "m6812-*-*"] then {
+   return
+}
+if [istarget m68*-*-*] then {
+    gas_test "t2.s" "" "" "cross-section branch"
+    if [istarget m68*-motorola-sysv] then {
+	run_dump_test t2
+    }
+
+    gas_test "pic1.s" "" "" "PIC generation"
+
+    gas_test "disperr.s" "-m68020" "" "Incorrect Displacement too long error"
+
+    gas_test_error "p2410.s" "" "out-of-range 'bras'"
+
+    # Reloc types etc. need changing for aout and coff to pass.
+    setup_xfail "*-*"
+    clear_xfail "*-*-*elf*" "*-*-sysv4*" "*-*-rtems" "*-*-*gnu*" "*-*-psos*"
+    run_dump_test pcrel
+    run_dump_test operands
+    run_dump_test cas
+    run_dump_test bitfield
+    run_dump_test link
+    run_dump_test fmoveml
+    run_dump_test mcf-mov3q
+
+    set testname "68000 operands"
+    gas_run "operands.s" "-m68000" "2>err.out"
+    if ![string match "child process exited abnormally" $comp_output] then {
+	send_log "$comp_output\n"
+	verbose "$comp_output" 3
+	fail $testname
+    } else {
+	if [regexp_diff "err.out" "$srcdir/$subdir/op68000.d"] then {
+	    fail $testname
+	} else {
+	    pass $testname
+	}
+    }
+}
+if [info exists errorInfo] then {
+    unset errorInfo
+}

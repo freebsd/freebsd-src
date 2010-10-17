@@ -1,0 +1,161 @@
+#source: tlsnopic1.s
+#source: tlsnopic2.s
+#as: --32
+#ld: -shared -melf_i386
+#objdump: -drj.text
+#target: i?86-*-*
+
+.*: +file format elf32-i386
+
+Disassembly of section .text:
+
+0+1000 <fn3>:
+    1000:	55[ 	]+push   %ebp
+    1001:	89 e5[ 	]+mov    %esp,%ebp
+#  @indntpoff IE against global var
+    1003:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+    1009:	90[ 	]+nop *
+    100a:	90[ 	]+nop *
+    100b:	03 05 94 20 00 00[ 	]+add    0x2094,%eax
+#				->R_386_TLS_TPOFF	sg1
+    1011:	90[ 	]+nop *
+    1012:	90[ 	]+nop *
+    1013:	90[ 	]+nop *
+    1014:	90[ 	]+nop *
+#  @indntpoff direct %gs access IE against global var
+    1015:	8b 15 98 20 00 00[ 	]+mov    0x2098,%edx
+#				->R_386_TLS_TPOFF	sg2
+    101b:	90[ 	]+nop *
+    101c:	90[ 	]+nop *
+    101d:	65 8b 02[ 	]+mov    %gs:\(%edx\),%eax
+    1020:	90[ 	]+nop *
+    1021:	90[ 	]+nop *
+    1022:	90[ 	]+nop *
+    1023:	90[ 	]+nop *
+#  @indntpoff IE against hidden var
+    1024:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+    102a:	90[ 	]+nop *
+    102b:	90[ 	]+nop *
+    102c:	03 05 9c 20 00 00[ 	]+add    0x209c,%eax
+#				->R_386_TLS_TPOFF	[0x14000000]
+    1032:	90[ 	]+nop *
+    1033:	90[ 	]+nop *
+    1034:	90[ 	]+nop *
+    1035:	90[ 	]+nop *
+#  @indntpoff direct %gs access IE against hidden var
+    1036:	8b 15 a0 20 00 00[ 	]+mov    0x20a0,%edx
+#				->R_386_TLS_TPOFF	[0x18000000]
+    103c:	90[ 	]+nop *
+    103d:	90[ 	]+nop *
+    103e:	65 8b 02[ 	]+mov    %gs:\(%edx\),%eax
+    1041:	90[ 	]+nop *
+    1042:	90[ 	]+nop *
+    1043:	90[ 	]+nop *
+    1044:	90[ 	]+nop *
+#  @indntpoff IE against local var
+    1045:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+    104b:	90[ 	]+nop *
+    104c:	90[ 	]+nop *
+    104d:	03 05 8c 20 00 00[ 	]+add    0x208c,%eax
+#				->R_386_TLS_TPOFF	[0x00000000]
+    1053:	90[ 	]+nop *
+    1054:	90[ 	]+nop *
+    1055:	90[ 	]+nop *
+    1056:	90[ 	]+nop *
+#  @indntpoff direct %gs access IE against local var
+    1057:	8b 15 90 20 00 00[ 	]+mov    0x2090,%edx
+#				->R_386_TLS_TPOFF	[0x04000000]
+    105d:	90[ 	]+nop *
+    105e:	90[ 	]+nop *
+    105f:	65 8b 02[ 	]+mov    %gs:\(%edx\),%eax
+    1062:	90[ 	]+nop *
+    1063:	90[ 	]+nop *
+    1064:	90[ 	]+nop *
+    1065:	90[ 	]+nop *
+#  LE @tpoff, global var
+    1066:	ba fd ff ff ff[ 	]+mov    \$0xfffffffd,%edx
+#				R_386_TLS_TPOFF32	sg3
+    106b:	90[ 	]+nop *
+    106c:	90[ 	]+nop *
+    106d:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+    1073:	90[ 	]+nop *
+    1074:	90[ 	]+nop *
+    1075:	29 d0[ 	]+sub    %edx,%eax
+    1077:	90[ 	]+nop *
+    1078:	90[ 	]+nop *
+    1079:	90[ 	]+nop *
+    107a:	90[ 	]+nop *
+#  LE @tpoff, local var
+    107b:	b8 f7 ff ff ff[ 	]+mov    \$0xfffffff7,%eax
+#				R_386_TLS_TPOFF32
+    1080:	90[ 	]+nop *
+    1081:	90[ 	]+nop *
+    1082:	65 8b 15 00 00 00 00 	mov    %gs:0x0,%edx
+    1089:	90[ 	]+nop *
+    108a:	90[ 	]+nop *
+    108b:	29 c2[ 	]+sub    %eax,%edx
+    108d:	90[ 	]+nop *
+    108e:	90[ 	]+nop *
+    108f:	90[ 	]+nop *
+    1090:	90[ 	]+nop *
+#  LE @ntpoff, global var
+    1091:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+    1097:	90[ 	]+nop *
+    1098:	90[ 	]+nop *
+    1099:	8d 90 02 00 00 00[ 	]+lea    0x2\(%eax\),%edx
+#				R_386_TLS_TPOFF		sg4
+    109f:	90[ 	]+nop *
+    10a0:	90[ 	]+nop *
+    10a1:	90[ 	]+nop *
+    10a2:	90[ 	]+nop *
+#  LE @ntpoff, hidden var, non-canonical sequence
+    10a3:	b8 1c 00 00 00[ 	]+mov    \$0x1c,%eax
+#				R_386_TLS_TPOFF
+    10a8:	90[ 	]+nop *
+    10a9:	90[ 	]+nop *
+    10aa:	65 8b 15 00 00 00 00 	mov    %gs:0x0,%edx
+    10b1:	90[ 	]+nop *
+    10b2:	90[ 	]+nop *
+    10b3:	01 c2[ 	]+add    %eax,%edx
+    10b5:	90[ 	]+nop *
+    10b6:	90[ 	]+nop *
+    10b7:	90[ 	]+nop *
+    10b8:	90[ 	]+nop *
+#  LE @ntpoff, local var, non-canonical sequence
+    10b9:	65 8b 15 00 00 00 00 	mov    %gs:0x0,%edx
+    10c0:	90[ 	]+nop *
+    10c1:	90[ 	]+nop *
+    10c2:	81 c2 0d 00 00 00[ 	]+add    \$0xd,%edx
+#				R_386_TLS_TPOFF
+    10c8:	90[ 	]+nop *
+    10c9:	90[ 	]+nop *
+    10ca:	90[ 	]+nop *
+    10cb:	90[ 	]+nop *
+#  Direct %gs access
+#  LE @ntpoff, global var
+    10cc:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+#				R_386_TLS_TPOFF		sg5
+    10d2:	90[ 	]+nop *
+    10d3:	90[ 	]+nop *
+    10d4:	90[ 	]+nop *
+    10d5:	90[ 	]+nop *
+#  LE @ntpoff, local var
+    10d6:	65 8b 15 13 00 00 00 	mov    %gs:0x13,%edx
+#				R_386_TLS_TPOFF
+    10dd:	90[ 	]+nop *
+    10de:	90[ 	]+nop *
+    10df:	90[ 	]+nop *
+    10e0:	90[ 	]+nop *
+#  LE @ntpoff, hidden var
+    10e1:	65 8b 15 21 00 00 00 	mov    %gs:0x21,%edx
+#				R_386_TLS_TPOFF
+    10e8:	90[ 	]+nop *
+    10e9:	90[ 	]+nop *
+    10ea:	90[ 	]+nop *
+    10eb:	90[ 	]+nop *
+    10ec:	8b 5d fc[ 	]+mov    0xfffffffc\(%ebp\),%ebx
+    10ef:	c9[ 	]+leave *
+    10f0:	c3[ 	]+ret *
+    10f1:	90[ 	]+nop *
+    10f2:	90[ 	]+nop *
+    10f3:	90[ 	]+nop *

@@ -1,0 +1,1199 @@
+; IQ2000/IQ10 Common CPU description. -*- Scheme -*-
+;
+; Copyright 2000, 2001, 2002 Free Software Foundation, Inc.
+;
+; Contributed by Red Hat Inc; developed under contract from Vitesse.
+;
+; This file is part of the GNU Binutils.
+;
+; This program is free software; you can redistribute it and/or modify
+; it under the terms of the GNU General Public License as published by
+; the Free Software Foundation; either version 2 of the License, or
+; (at your option) any later version.
+;
+; This program is distributed in the hope that it will be useful,
+; but WITHOUT ANY WARRANTY; without even the implied warranty of
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+; GNU General Public License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with this program; if not, write to the Free Software
+; Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+(include "simplify.inc")
+
+(define-arch
+  (name iq2000)
+  (comment "IQ2000 architecture")
+  (insn-lsb0? #t)
+  (machs iq2000 iq10)
+  (isas iq2000)
+)
+
+(define-isa
+  (name iq2000)
+  (comment "Basic IQ2000 instruction set")
+  (default-insn-word-bitsize 32)
+  (default-insn-bitsize 32)
+  (base-insn-bitsize 32)
+  (decode-assist (31 30 29 28 27 26))
+)
+
+(define-cpu
+  (name iq2000bf)
+  (comment "IQ2000 family")
+  (endian big)
+  (word-bitsize 32)
+  (file-transform "")
+)
+
+(define-cpu
+  (name iq10bf)
+  (comment "IQ10 coprocessor family")
+  (endian big)
+  (word-bitsize 32)
+  (file-transform "")
+
+)
+
+(define-mach
+  (name iq2000)
+  (comment "IQ2000 packet processing engine")
+  (cpu iq2000bf)
+  (isas iq2000)
+)
+
+(define-mach
+  (name iq10)
+  (comment "IQ10 coprocessor")
+  (cpu iq10bf)
+  (isas iq2000)
+)
+
+(define-model
+  (name iq2000)
+  (comment "IQ2000 microprocessor")
+  (mach iq2000)
+  (unit u-exec "Execution Unit" ()
+	1 1 ; issue done
+	() () () ())
+)
+
+(define-model
+  (name iq10)
+  (comment "IQ10 coprocessor")
+  (mach iq10)
+  (unit u-exec "Execution Unit" ()
+	1 1 ; issue done
+	() () () ())
+)
+
+; Macros to simplify MACH attribute specification.
+
+(define-pmacro MACH2000 (MACH iq2000))
+(define-pmacro MACH10 (MACH iq10))
+
+
+; Hardware elements.
+
+(define-hardware
+  (name h-pc)
+  (comment "program counter")
+  (attrs PC PROFILE (ISA iq2000))
+  (type pc)
+  (get () (c-call USI "get_h_pc"))
+  (set (newval) (c-call VOID "set_h_pc" newval))
+)
+; FIXME: it would be nice if the hardwired zero in R0 could be
+; specified as a virtual hardware element, with one less register in
+; the register file proper.
+
+(define-keyword
+  (name gr-names)
+  (print-name h-gr)
+  (values (r0 0)   (%0 0)   (r1 1)   (%1 1)   (r2 2)   (%2 2)   (r3 3)   (%3 3)  
+          (r4 4)   (%4 4)   (r5 5)   (%5 5)   (r6 6)   (%6 6)   (r7 7)   (%7 7)
+          (r8 8)   (%8 8)   (r9 9)   (%9 9)   (r10 10) (%10 10) (r11 11) (%11 11)
+          (r12 12) (%12 12) (r13 13) (%13 13) (r14 14) (%14 14) (r15 15) (%15 15) 
+          (r16 16) (%16 16) (r17 17) (%17 17) (r18 18) (%18 18) (r19 19) (%19 19) 
+          (r20 20) (%20 20) (r21 21) (%21 21) (r22 22) (%22 22) (r23 23) (%23 23)
+          (r24 24) (%24 24) (r25 25) (%25 25) (r26 26) (%26 26) (r27 27) (%27 27) 
+          (r28 28) (%28 28) (r29 29) (%29 29) (r30 30) (%30 30) (r31 31) (%31 31))
+)
+
+(define-hardware 
+  (name h-gr)
+  (comment "General purpose registers")
+;  (attrs (ISA iq2000) CACHE-ADDR)
+  (type register SI (32))
+  (indices extern-keyword gr-names)
+  (get (idx)
+       (cond SI
+	     ((eq idx 0) (const 0))
+	     (else (raw-reg h-gr idx))))
+  (set (idx newval)
+       (cond VOID
+	     ((eq idx 0) (nop))
+	     (else (set (raw-reg h-gr idx) newval))))
+)
+
+
+; Instruction fields.
+
+(dnf f-opcode   "opcode field"                  ()  31  6)
+(dnf f-rs       "register field Rs"             ()  25  5)
+(dnf f-rt       "register field Rt"             ()  20  5)
+(dnf f-rd       "register field Rd"             ()  15  5)
+(dnf f-shamt    "shift amount field"            ()  10  5)
+(dnf f-cp-op    "coprocessor op field"		()  10  3)
+(dnf f-cp-op-10 "coprocessor op field for CAM"  ()  10  5)
+(dnf f-cp-grp   "coprocessor group field"	()   7  2)
+(dnf f-func     "function field"                ()   5  6)
+(dnf f-imm      "immediate field"               ()  15 16)
+
+(define-multi-ifield
+  (name f-rd-rs)
+  (comment "register Rd implied from Rs")
+  (attrs)
+  (mode UINT)
+  (subfields f-rd f-rs)
+  (insert (sequence ()
+		    (set (ifield f-rd) (ifield f-rd-rs))
+		    (set (ifield f-rs) (ifield f-rd-rs))
+		     ))
+  (extract (sequence ()
+                     (set (ifield f-rd-rs) (ifield f-rs))
+                     ))
+)
+
+(define-multi-ifield
+  (name f-rd-rt)
+  (comment "register Rd implied from Rt")
+  (attrs)
+  (mode UINT)
+  (subfields f-rd f-rt)
+  (insert (sequence ()
+		    (set (ifield f-rd) (ifield f-rd-rt))
+		    (set (ifield f-rt) (ifield f-rd-rt))
+		     ))
+  (extract (sequence ()
+                     (set (ifield f-rd-rt) (ifield f-rt))
+                     ))
+)
+
+(define-multi-ifield
+  (name f-rt-rs)
+  (comment "register Rt implied from Rs")
+  (attrs)
+  (mode UINT)
+  (subfields f-rt f-rs)
+  (insert (sequence ()
+		    (set (ifield f-rt) (ifield f-rt-rs))
+		    (set (ifield f-rs) (ifield f-rt-rs))
+		     ))
+  (extract (sequence ()
+                     (set (ifield f-rd-rs) (ifield f-rs))
+                     ))
+)
+
+(df  f-jtarg "jump target field"               (ABS-ADDR) 15 16 UINT
+     ((value pc) (srl USI (and USI value #x03FFFF) 2))
+     ((value pc) (or USI (and USI pc #xF0000000) (sll USI value 2))))
+
+(df  f-jtargq10 "iq10 jump target field"       (ABS-ADDR) 20 21 UINT
+     ((value pc) (srl SI (and SI value #x7FFFFF) 2))
+     ((value pc) (or SI (and SI pc #xF0000000) (sll SI value 2))))
+
+(df  f-offset "pc offset field"                (PCREL-ADDR) 15 16 INT
+     ; Actually, this is relative to the address of the delay slot.
+     ((value pc) (sra SI (sub SI value pc) 2))
+     ((value pc) (add SI (sll SI value 2) (add pc 4))))
+
+; Instruction fields that scarcely appear in instructions.
+
+(dnf f-count   "count field"        ()   15  7)
+(dnf f-bytecount "byte count field" ()    7  8)
+(dnf f-index   "index field"        ()    8  9)
+(dnf f-mask    "mask field"         ()    9  4)
+(dnf f-maskq10 "iq10 mask field"    ()   10  5)
+(dnf f-maskl   "mask left field"    ()    4  5)
+(dnf f-excode  "execcode field"     ()   25 20)
+(dnf f-rsrvd   "reserved field"     ()   25 10)
+(dnf f-10-11   "bits 10:0"          ()   10 11)
+(dnf f-24-19   "bits 24:6"          ()   24 19)
+(dnf f-5       "bit 5"              ()    5  1)
+(dnf f-10      "bit 10"             ()   10  1)
+(dnf f-25      "bit 25"             ()   25  1)
+(dnf f-cam-z   "cam global mask z"  ()    5  3)
+(dnf f-cam-y   "cam operation y"    ()    2  3)
+(dnf f-cm-3func "CM 3 bit fn field" ()    5  3)
+(dnf f-cm-4func "CM 4 bit fn field" ()    5  4)
+(dnf f-cm-3z   "CM 3Z field"        ()    1  2)
+(dnf f-cm-4z   "CM 4Z field"        ()    2  3)
+
+
+; Enumerations.
+
+(define-normal-insn-enum
+  opcodes "primary opcodes" () OP_ f-opcode
+  (("SPECIAL" 0) ("REGIMM" 1) ("J"     2) ("JAL"    3) ("BEQ"    4) ("BNE"   5) ("BLEZ"   6) ("BGTZ"    7) 
+   ("ADDI"    8) ("ADDIU"  9) ("SLTI" 10) ("SLTIU" 11) ("ANDI"  12) ("ORI"  13) ("XORI"  14) ("LUI"    15)
+   ("COP0"   16) ("COP1"  17) ("COP2" 18) ("COP3"  19) ("BEQL"  20) ("BNEL" 21) ("BLEZL" 22) ("BGTZL"  23) 
+   ("BMB0"   24) ("BMB1"  25) ("BMB2" 26) ("BMB3"  27) ("BBI"   28) ("BBV"  29) ("BBIN"  30) ("BBVN"   31) 
+   ("LB"     32) ("LH"    33)             ("LW"    35) ("LBU"   36) ("LHU"  37)              ("RAM"    39)  
+   ("SB"     40) ("SH"    41)             ("SW"    43) ("ANDOI" 44) ("BMB"  45)              ("ORUI"   47) 
+   ("LDW"    48) 
+   ("SDW"    56)                                                                             ("ANDOUI" 63))
+)
+
+(define-normal-insn-enum
+  q10_opcodes "iq10-only primary opcodes" () OP10_ f-opcode
+  (("BMB" 6) ("ORUI" 15) ("BMBL" 22) ("ANDOUI" 47) ("BBIL" 60) ("BBVL" 61) ("BBINL" 62) ("BBVNL" 63))
+)
+
+(define-normal-insn-enum
+  regimm-functions "branch sub-opcodes" () FUNC_ f-rt
+  (("BLTZ"    0) ("BGEZ"    1) ("BLTZL"    2) ("BGEZL"    3) ("BLEZ"    4) ("BGTZ"    5) ("BLEZL"    6) ("BGTZL"    7) 
+   ("BRI"     8) ("BRV"     9)                               ("BCTX"   12) 
+   ("BLTZAL" 16) ("BGEZAL" 17) ("BLTZALL" 18) ("BGEZALL" 19) ("BLEZAL" 20) ("BGTZAL" 21) ("BLEZALL" 22) ("BGTZALL" 23))
+)
+
+(define-normal-insn-enum
+  functions "function sub-opcodes" () FUNC_ f-func
+  (("SLL"  0) ("SLMV"   1) ("SRL"  2) ("SRA"   3) ("SLLV"     4) ("SRMV"   5) ("SRLV"   6) ("SRAV" 7) 
+   ("JR"   8) ("JALR"   9) ("JCR" 10)             ("SYSCALL" 12) ("BREAK" 13) ("SLEEP" 14)
+   ("ADD" 32) ("ADDU"  33) ("SUB" 34) ("SUBU" 35) ("AND"     36) ("OR"    37) ("XOR"   38) ("NOR" 39) 
+              ("ADO16" 41) ("SLT" 42) ("SLTU" 43)                ("MRGB"  45))
+)
+
+; iq10 special function sub-opcodes
+(define-normal-insn-enum
+  q10s_functions "iq10-only special function sub-opcodes" () FUNC10_ f-func
+  (("YIELD" 14) ("CNT1S" 46))
+)
+
+; coprocessor opcodes in concert with f-cp-grp
+(define-normal-insn-enum
+  cop_functions "iq10 function sub-opcodes" () FUNC10_ f-func
+  (("CFC"    0) ("LOCK"    1) ("CTC"     2) ("UNLK"    3) ("SWRD"    4) ("SWRDL"   5) ("SWWR"    6) ("SWWRU"  7) 
+   ("RBA"    8) ("RBAL"    9) ("RBAR"   10)               ("DWRD"   12) ("DWRDL"  13) 
+   ("WBA"   16) ("WBAU"   17) ("WBAC"   18)               ("CRC32"  20) ("CRC32B" 21) 
+   ("MCID"  32) ("DBD"    33) ("DBA"    34) ("DPWT"   35) ("AVAIL"  36) ("FREE"   37) ("CHKHDR" 38) ("TSTOD" 39)
+   ("PKRLA" 40) ("PKRLAU" 41) ("PKRLAH" 42) ("PKRLAC" 43) ("CMPHDR" 44) 
+
+   ("CM64RS"  0) ("CM64RD"  1)                                ("CM64RI"    4) ("CM64CLR"    5)
+   ("CM64SS"  8) ("CM64SD"  9)                                ("CM64SI"   12) 
+   ("CM64RA" 16)                                              ("CM64RIA2" 20) ("CM128RIA2" 21)
+   ("CM64SA" 24)                                              ("CM64SIA2" 28) ("CM128SIA2" 29)
+   ("CM32RS" 32) ("CM32RD" 33) ("CM32XOR" 34) ("CM32ANDN" 35) ("CM32RI"   36)                  ("CM128VSA" 38)
+   ("CM32SS" 40) ("CM32SD" 41) ("CM32OR"  42) ("CM32AND"  43) ("CM32SI"   44) 
+   ("CM32RA" 48)  
+   ("CM32SA" 56) )
+)
+
+; coprocessor opcodes in concert with f-cp-grp
+(define-normal-insn-enum
+  cop_cm128_4functions "iq10 function sub-opcodes" () FUNC10_ f-cm-4func
+  (("CM128RIA3" 4) ("CM128SIA3" 6))
+)
+
+(define-normal-insn-enum
+  cop_cm128_3functions "iq10 function sub-opcodes" () FUNC10_ f-cm-3func
+  (("CM128RIA4" 6) ("CM128SIA4" 7))
+)
+
+(define-normal-insn-enum
+   cop2_functions "iq10 coprocessor sub-opcodes" () FUNC10_ f-cp-op
+   (("PKRLI" 0) ("PKRLIU" 1) ("PKRLIH" 2) ("PKRLIC" 3) ("RBIR" 1) ("RBI" 2) ("RBIL" 3) ("WBIC" 5) ("WBI" 6) ("WBIU" 7))
+)
+
+(define-normal-insn-enum
+   cop3_cam_functions "iq10 coprocessor cam sub-opcodes" () FUNC10_ f-cp-op-10
+   (("CAM36" 16) ("CAM72" 17) ("CAM144" 18) ("CAM288" 19))
+)
+
+
+; Attributes.
+
+(define-attr
+  (for insn)
+  (type boolean)
+  (name YIELD-INSN)
+  (comment "insn generates a context yield")
+)
+
+(define-attr
+  (for insn)
+  (type boolean)
+  (name LOAD-DELAY)
+  (comment "insn has a load delay")
+)
+
+(define-attr
+  (for insn)
+  (type boolean)
+  (name EVEN-REG-NUM)
+  (comment "insn requires an even numbered register in rt(2000) or rd(10)")
+)
+
+(define-attr
+  (for insn)
+  (type boolean)
+  (name UNSUPPORTED)
+  (comment "insn is unsupported")
+)
+
+(define-pmacro (define-reg-use-attr regfield)
+  (define-attr
+    (for insn)
+    (type boolean)
+    (name (.sym USES- (.upcase regfield)))
+    (comment ("insn accesses register operand " regfield))))
+
+(define-reg-use-attr rd)
+(define-reg-use-attr rs)
+(define-reg-use-attr rt)
+(define-reg-use-attr r31)
+
+
+; Operands.
+
+(dnop rs       "register Rs"             () h-gr    f-rs)
+(dnop rt       "register Rt"             () h-gr    f-rt)
+(dnop rd       "register Rd"             () h-gr    f-rd)
+(dnop rd-rs    "register Rd from Rs"     () h-gr    f-rd-rs)
+(dnop rd-rt    "register Rd from Rt"     () h-gr    f-rd-rt)
+(dnop rt-rs    "register Rt from Rs"     () h-gr    f-rt-rs)
+(dnop shamt    "shift amount"            () h-uint  f-shamt)
+(define-operand (name imm) (comment "immediate") (attrs)
+   (type h-uint) (index f-imm) (handlers (parse "imm")))
+(dnop offset   "pc-relative offset"      () h-iaddr f-offset)
+(dnop baseoff  "base register offset"    () h-iaddr f-imm)
+(dnop jmptarg  "jump target"             () h-iaddr f-jtarg)
+(dnop mask     "mask"                    () h-uint  f-mask)
+(dnop maskq10  "iq10 mask"               () h-uint  f-maskq10)
+(dnop maskl    "mask left"               () h-uint  f-maskl)
+(dnop count    "count"                   () h-uint  f-count)
+(dnop index    "index"                   () h-uint  f-index)
+(dnop execode  "execcode"                () h-uint  f-excode)
+(dnop bytecount "byte count"             () h-uint  f-bytecount)
+(dnop cam-y     "cam global opn y"       () h-uint  f-cam-y)
+(dnop cam-z     "cam global mask z"      () h-uint  f-cam-z)
+(dnop cm-3func  "CM 3 bit fn field"      () h-uint  f-cm-3func)
+(dnop cm-4func  "CM 4 bit fn field"      () h-uint  f-cm-4func)
+(dnop cm-3z     "CM 3 bit Z field"       () h-uint  f-cm-3z)
+(dnop cm-4z     "CM 4 bit Z field"       () h-uint  f-cm-4z)
+
+; Aliases for the rs and rt operands. This just makes the load/store
+; insns easier to compare with the instruction set documentation.
+
+(dnop base    "base register"                  () h-gr   f-rs)
+(dnop maskr   "mask right"                     () h-uint f-rs)
+(dnop bitnum  "bit number"                     () h-uint f-rt)
+
+; For high(foo).
+(define-operand
+  (name hi16)
+  (comment "high 16 bit immediate")
+  (attrs)
+  (type h-uint)
+  (index f-imm)
+  (handlers (parse "hi16"))
+)
+
+; For low(foo).
+(define-operand
+  (name lo16)
+  (comment "16 bit signed immediate, for low")
+  (attrs)
+  (type h-uint)
+  (index f-imm)
+  (handlers (parse "lo16"))
+)
+
+; For negated imm.
+(define-operand
+  (name mlo16)
+  (comment "negated 16 bit signed immediate")
+  (attrs)
+  (type h-uint)
+  (index f-imm)
+  (handlers (parse "mlo16"))
+)
+
+; For iq10 jmps
+; In the future, we'll want the j & jal to use the 21 bit target, with 
+; the upper five bits shifted up.  For now, don't use this.
+(define-operand
+  (name jmptargq10)
+  (comment "iq10 21-bit jump offset")
+  (attrs)
+  (type h-iaddr)
+  (index f-jtargq10)
+  (handlers (parse "jtargq10"))
+)
+
+
+; Instructions.
+
+; A pmacro for use in semantic bodies of unimplemented insns.
+(define-pmacro (unimp mnemonic) (nop))
+
+(define-pmacro (bitset? value bit-num)
+  (and value (sll 1 bit-num)))
+
+(define-pmacro (bitclear? value bit-num)
+  (not (bitset? value bit-num)))
+
+; Arithmetic/logic instructions.
+
+(dni add2 "add registers" (ALIAS NO-DIS USES-RD USES-RS USES-RT)
+     "add ${rd-rs},$rt"
+     (+ OP_SPECIAL rt rd-rs (f-shamt 0) FUNC_ADD)
+     (set rd-rs (add rt rd-rs))
+     ())
+
+(dni add "add registers" (USES-RD USES-RS USES-RT)
+     "add $rd,$rs,$rt"
+     (+ OP_SPECIAL rs rt rd (f-shamt 0) FUNC_ADD)
+     (set rd (add rs rt))
+     ())
+
+
+(dni addi2 "add immediate" (ALIAS NO-DIS USES-RS USES-RT)
+     "addi ${rt-rs},$lo16"
+     (+ OP_ADDI rt-rs lo16)
+     (set rt-rs (add rt-rs (ext SI (trunc HI lo16))))
+     ())
+
+(dni addi "add immediate" (USES-RS USES-RT)
+     "addi $rt,$rs,$lo16"
+     (+ OP_ADDI rs rt lo16)
+     (set rt (add rs (ext SI (trunc HI lo16))))
+     ())
+
+(dni addiu2 "add immediate unsigned" (ALIAS NO-DIS USES-RS USES-RT)
+     "addiu ${rt-rs},$lo16"
+     (+ OP_ADDIU rt-rs lo16)
+     (set rt-rs (add rt-rs (ext SI (trunc HI lo16))))
+     ())
+
+(dni addiu "add immediate unsigned" (USES-RS USES-RT)
+     "addiu $rt,$rs,$lo16"
+     (+ OP_ADDIU rs rt lo16)
+     (set rt (add rs (ext SI (trunc HI lo16))))
+     ())
+
+(dni addu2 "add unsigned" (ALIAS NO-DIS USES-RD USES-RS USES-RT)
+     "addu ${rd-rs},$rt"
+     (+ OP_SPECIAL rd-rs rt (f-shamt 0) FUNC_ADDU)
+     (set rd-rs (add rd-rs rt))
+     ())
+
+(dni addu "add unsigned" (USES-RD USES-RS USES-RT)
+     "addu $rd,$rs,$rt"
+     (+ OP_SPECIAL rs rt rd (f-shamt 0) FUNC_ADDU)
+     (set rd (add rs rt))
+     ())
+
+(dni ado162 "add 16, ones complement" (ALIAS NO-DIS USES-RD USES-RS USES-RT)
+     "ado16 ${rd-rs},$rt"
+     (+ OP_SPECIAL rd-rs rt (f-shamt 0) FUNC_ADO16)
+     (sequence ((HI high) (HI low))
+	       (set low (add HI (and HI rd-rs #xFFFF) (and HI rt #xFFFF)))
+	       (set high (add HI (srl rd-rs 16) (srl rt 16)))
+	       (set rd-rs (or SI (sll SI high 16) low)))
+     ())
+
+(dni ado16 "add 16, ones complement" (USES-RD USES-RS USES-RT)
+     "ado16 $rd,$rs,$rt"
+     (+ OP_SPECIAL rs rt rd (f-shamt 0) FUNC_ADO16)
+     (sequence ((HI high) (HI low))
+	       (set low (add HI (and HI rs #xFFFF) (and HI rt #xFFFF)))
+	       (set high (add HI (srl rs 16) (srl rt 16)))
+	       (set rd (or SI (sll SI high 16) low)))
+     ())
+
+(dni and2 "and register" (ALIAS NO-DIS USES-RD USES-RS USES-RT)
+     "and ${rd-rs},$rt"
+     (+ OP_SPECIAL rd-rs rt (f-shamt 0) FUNC_AND)
+     (set rd-rs (and rd-rs rt))
+     ())
+
+(dni and "and register" (USES-RD USES-RS USES-RT)
+     "and $rd,$rs,$rt"
+     (+ OP_SPECIAL rs rt rd (f-shamt 0) FUNC_AND)
+     (set rd (and rs rt))
+     ())
+
+(dni andi2 "and immediate" (ALIAS NO-DIS USES-RS USES-RT)
+     "andi ${rt-rs},$lo16"
+     (+ OP_ANDI rt-rs lo16)
+     (set rt-rs (and rt-rs (zext SI lo16)))
+     ())
+
+(dni andi "and immediate" (USES-RS USES-RT)
+     "andi $rt,$rs,$lo16"
+     (+ OP_ANDI rs rt lo16)
+     (set rt (and rs (zext SI lo16)))
+     ())
+
+(dni andoi2 "and ones immediate" (ALIAS NO-DIS USES-RS USES-RT)
+     "andoi ${rt-rs},$lo16"
+     (+ OP_ANDOI rt-rs lo16)
+     (set rt-rs (and rt-rs (or #xFFFF0000 (ext SI (trunc HI lo16)))))
+     ())
+
+(dni andoi "and ones immediate" (USES-RS USES-RT)
+     "andoi $rt,$rs,$lo16"
+     (+ OP_ANDOI rs rt lo16)
+     (set rt (and rs (or #xFFFF0000 (ext SI (trunc HI lo16)))))
+     ())
+
+(dni nor2 "nor" (ALIAS NO-DIS USES-RD USES-RS USES-RT)
+     "nor ${rd-rs},$rt"
+     (+ OP_SPECIAL rd-rs rt (f-shamt 0) FUNC_NOR)
+     (set rd-rs (inv (or rd-rs rt)))
+     ())
+
+(dni nor "nor" (USES-RD USES-RS USES-RT)
+     "nor $rd,$rs,$rt"
+     (+ OP_SPECIAL rs rt rd (f-shamt 0) FUNC_NOR)
+     (set rd (inv (or rs rt)))
+     ())
+
+(dni or2 "or" (ALIAS NO-DIS USES-RD USES-RS USES-RT)
+     "or ${rd-rs},$rt"
+     (+ OP_SPECIAL rd-rs rt (f-shamt 0) FUNC_OR)
+     (set rd-rs (or rd-rs rt))
+     ())
+
+(dni or "or" (USES-RD USES-RS USES-RT)
+     "or $rd,$rs,$rt"
+     (+ OP_SPECIAL rs rt rd (f-shamt 0) FUNC_OR)
+     (set rd (or rs rt))
+     ())
+
+(dni ori2 "or immediate" (ALIAS NO-DIS USES-RS USES-RT)
+     "ori ${rt-rs},$lo16"
+     (+ OP_ORI rt-rs lo16)
+     (set rt-rs (or rt-rs (zext SI lo16)))
+     ())
+
+(dni ori "or immediate" (USES-RS USES-RT)
+     "ori $rt,$rs,$lo16"
+     (+ OP_ORI rs rt lo16)
+     (set rt (or rs (zext SI lo16)))
+     ())
+
+(dni ram "rotate and mask" (USES-RD USES-RT)
+     "ram $rd,$rt,$shamt,$maskl,$maskr"
+     (+ OP_RAM maskr rt rd shamt (f-5 0) maskl)
+     (sequence ()
+	       (set rd (ror rt shamt))
+	       (set rd (and rd (srl #xFFFFFFFF maskl)))
+	       (set rd (and rd (sll #xFFFFFFFF maskr))))
+     ())
+
+(dni sll "shift left logical" (USES-RD USES-RT)
+     "sll $rd,$rt,$shamt"
+     (+ OP_SPECIAL (f-rs 0) rt rd shamt (f-func 0))
+     (set rd (sll rt shamt))
+     ())
+
+(dni sllv2 "shift left logical variable" (ALIAS NO-DIS USES-RD USES-RS USES-RT)
+     "sllv ${rd-rt},$rs"
+     (+ OP_SPECIAL rs rd-rt (f-shamt 0) FUNC_SLLV)
+     (set rd-rt (sll rd-rt (and rs #x1F)))
+     ())
+
+(dni sllv "shift left logical variable" (USES-RD USES-RS USES-RT)
+     "sllv $rd,$rt,$rs"
+     (+ OP_SPECIAL rs rt rd (f-shamt 0) FUNC_SLLV)
+     (set rd (sll rt (and rs #x1F)))
+     ())
+
+(dni slmv2 "shift left and mask variable" (ALIAS NO-DIS USES-RD USES-RS USES-RT)
+     "slmv ${rd-rt},$rs,$shamt"
+     (+ OP_SPECIAL rs rd-rt shamt FUNC_SLMV)
+     (set rd-rt (and (sll rd-rt shamt) (srl #xFFFFFFFF rs)))
+     ())
+
+(dni slmv "shift left and mask variable" (USES-RD USES-RS USES-RT)
+     "slmv $rd,$rt,$rs,$shamt"
+     (+ OP_SPECIAL rs rt rd shamt FUNC_SLMV)
+     (set rd (and (sll rt shamt) (srl #xFFFFFFFF rs)))
+     ())
+
+(dni slt2 "set if less than" (ALIAS NO-DIS USES-RD USES-RS USES-RT)
+     "slt ${rd-rs},$rt"
+     (+ OP_SPECIAL rt rd-rs (f-shamt 0) FUNC_SLT)
+     (if (lt rd-rs rt)
+	 (set rd-rs 1)
+	 (set rd-rs 0))
+     ())
+
+(dni slt "set if less than" (USES-RD USES-RS USES-RT)
+     "slt $rd,$rs,$rt"
+     (+ OP_SPECIAL rs rt rd (f-shamt 0) FUNC_SLT)
+     (if (lt rs rt)
+	 (set rd 1)
+	 (set rd 0))
+     ())
+
+(dni slti2 "set if less than immediate" (ALIAS NO-DIS USES-RS USES-RT)
+     "slti ${rt-rs},$imm"
+     (+ OP_SLTI rt-rs imm)
+     (if (lt rt-rs (ext SI (trunc HI imm)))
+	 (set rt-rs 1)
+	 (set rt-rs 0))
+     ())
+
+(dni slti "set if less than immediate" (USES-RS USES-RT)
+     "slti $rt,$rs,$imm"
+     (+ OP_SLTI rs rt imm)
+     (if (lt rs (ext SI (trunc HI imm)))
+	 (set rt 1)
+	 (set rt 0))
+     ())
+
+(dni sltiu2 "set if less than immediate unsigned" (ALIAS NO-DIS USES-RS USES-RT)
+     "sltiu ${rt-rs},$imm"
+     (+ OP_SLTIU rt-rs imm)
+     (if (ltu rt-rs (ext SI (trunc HI imm)))
+	 (set rt-rs 1)
+	 (set rt-rs 0))
+     ())
+
+(dni sltiu "set if less than immediate unsigned" (USES-RS USES-RT)
+     "sltiu $rt,$rs,$imm"
+     (+ OP_SLTIU rs rt imm)
+     (if (ltu rs (ext SI (trunc HI imm)))
+	 (set rt 1)
+	 (set rt 0))
+     ())
+
+(dni sltu2 "set if less than unsigned" (ALIAS NO-DIS USES-RD USES-RS USES-RT)
+     "sltu ${rd-rs},$rt"
+     (+ OP_SPECIAL rd-rs rt (f-shamt 0) FUNC_SLTU)
+     (if (ltu rd-rs rt)
+	 (set rd-rs 1)
+	 (set rd-rs 0))
+     ())
+
+(dni sltu "set if less than unsigned" (USES-RD USES-RS USES-RT)
+     "sltu $rd,$rs,$rt"
+     (+ OP_SPECIAL rs rt rd (f-shamt 0) FUNC_SLTU)
+     (if (ltu rs rt)
+	 (set rd 1)
+	 (set rd 0))
+     ())
+
+(dni sra2 "shift right arithmetic" (ALIAS NO-DIS USES-RD USES-RT)
+     "sra ${rd-rt},$shamt"
+     (+ OP_SPECIAL (f-rs 0) rd-rt shamt FUNC_SRA)
+     (set rd-rt (sra rd-rt shamt))
+     ())
+
+(dni sra "shift right arithmetic" (USES-RD USES-RT)
+     "sra $rd,$rt,$shamt"
+     (+ OP_SPECIAL (f-rs 0) rt rd shamt FUNC_SRA)
+     (set rd (sra rt shamt))
+     ())
+
+(dni srav2 "shift right arithmetic variable" (ALIAS NO-DIS USES-RD USES-RS USES-RT)
+     "srav ${rd-rt},$rs"
+     (+ OP_SPECIAL rs rd-rt (f-shamt 0) FUNC_SRAV)
+     (set rd-rt (sra rd-rt (and rs #x1F)))
+     ())
+
+(dni srav "shift right arithmetic variable" (USES-RD USES-RS USES-RT)
+     "srav $rd,$rt,$rs"
+     (+ OP_SPECIAL rs rt rd (f-shamt 0) FUNC_SRAV)
+     (set rd (sra rt (and rs #x1F)))
+     ())
+
+(dni srl "shift right logical" (USES-RD USES-RT)
+     "srl $rd,$rt,$shamt"
+     (+ OP_SPECIAL (f-rs 0) rt rd shamt FUNC_SRL)
+     (set rd (srl rt shamt))
+     ())
+
+(dni srlv2 "shift right logical variable" (ALIAS NO-DIS USES-RD USES-RS USES-RT)
+     "srlv ${rd-rt},$rs"
+     (+ OP_SPECIAL rs rd-rt (f-shamt 0) FUNC_SRLV)
+     (set rd-rt (srl rd-rt (and rs #x1F)))
+     ())
+
+(dni srlv "shift right logical variable" (USES-RD USES-RS USES-RT)
+     "srlv $rd,$rt,$rs"
+     (+ OP_SPECIAL rs rt rd (f-shamt 0) FUNC_SRLV)
+     (set rd (srl rt (and rs #x1F)))
+     ())
+
+(dni srmv2 "shift right and mask variable" (ALIAS NO-DIS USES-RD USES-RS USES-RT)
+     "srmv ${rd-rt},$rs,$shamt"
+     (+ OP_SPECIAL rs rd-rt shamt FUNC_SRMV)
+     (set rd-rt (and (srl rd-rt shamt) (sll #xFFFFFFFF rs)))
+     ())
+
+(dni srmv "shift right and mask variable" (USES-RD USES-RS USES-RT)
+     "srmv $rd,$rt,$rs,$shamt"
+     (+ OP_SPECIAL rs rt rd shamt FUNC_SRMV)
+     (set rd (and (srl rt shamt) (sll #xFFFFFFFF rs)))
+     ())
+
+(dni sub2 "subtract" (ALIAS NO-DIS USES-RD USES-RS USES-RT)
+     "sub ${rd-rs},$rt"
+     (+ OP_SPECIAL rt rd-rs (f-shamt 0) FUNC_SUB)
+     (set rd-rs (sub rd-rs rt))
+     ())
+
+(dni sub "subtract" (USES-RD USES-RS USES-RT)
+     "sub $rd,$rs,$rt"
+     (+ OP_SPECIAL rs rt rd (f-shamt 0) FUNC_SUB)
+     (set rd (sub rs rt))
+     ())
+
+(dni subu2 "subtract unsigned" (ALIAS NO-DIS USES-RD USES-RS USES-RT)
+     "subu ${rd-rs},$rt"
+     (+ OP_SPECIAL rt rd-rs (f-shamt 0) FUNC_SUBU)
+     (set rd-rs (sub rd-rs rt))
+     ())
+
+(dni subu "subtract unsigned" (USES-RD USES-RS USES-RT)
+     "subu $rd,$rs,$rt"
+     (+ OP_SPECIAL rs rt rd (f-shamt 0) FUNC_SUBU)
+     (set rd (sub rs rt))
+     ())
+
+(dni xor2 "exclusive or" (ALIAS NO-DIS USES-RD USES-RS USES-RT)
+     "xor ${rd-rs},$rt"
+     (+ OP_SPECIAL rt rd-rs (f-shamt 0) FUNC_XOR)
+     (set rd-rs (xor rd-rs rt))
+     ())
+
+(dni xor "exclusive or" (USES-RD USES-RS USES-RT)
+     "xor $rd,$rs,$rt"
+     (+ OP_SPECIAL rs rt rd (f-shamt 0) FUNC_XOR)
+     (set rd (xor rs rt))
+     ())
+
+(dni xori2 "exclusive or immediate" (ALIAS NO-DIS USES-RS USES-RT)
+     "xori ${rt-rs},$lo16"
+     (+ OP_XORI rt-rs lo16)
+     (set rt-rs (xor rt-rs (zext SI lo16)))
+     ())
+
+(dni xori "exclusive or immediate" (USES-RS USES-RT)
+     "xori $rt,$rs,$lo16"
+     (+ OP_XORI rs rt lo16)
+     (set rt (xor rs (zext SI lo16)))
+     ())
+
+
+; Branch instructions.
+
+(dni bbi "branch bit immediate" (USES-RS)
+     "bbi $rs($bitnum),$offset"
+     (+ OP_BBI rs bitnum offset)
+     (if (bitset? rs bitnum)
+	 (delay 1 (set pc offset)))
+     ())
+
+(dni bbin "branch bit immediate negated" (USES-RS)
+     "bbin $rs($bitnum),$offset"
+     (+ OP_BBIN rs bitnum offset)
+     (if (bitclear? rs bitnum)
+	 (delay 1 (set pc offset)))
+     ())
+
+(dni bbv "branch bit variable" (USES-RS USES-RT)
+     "bbv $rs,$rt,$offset"
+     (+ OP_BBV rs rt offset)
+     (if (bitset? rs (and rt #x1F))
+	 (delay 1 (set pc offset)))
+     ())
+
+(dni bbvn "branch bit variable negated" (USES-RS USES-RT)
+     "bbvn $rs,$rt,$offset"
+     (+ OP_BBVN rs rt offset)
+     (if (bitclear? rs (and rt #x1F))
+	 (delay 1 (set pc offset)))
+     ())
+
+(dni beq "branch if equal" (USES-RS USES-RT)
+     "beq $rs,$rt,$offset"
+     (+ OP_BEQ rs rt offset)
+     (if (eq rs rt)
+	 (delay 1 (set pc offset)))
+     ())
+
+(dni beql "branch if equal likely" (USES-RS USES-RT)
+     "beql $rs,$rt,$offset"
+     (+ OP_BEQL rs rt offset)
+     (if (eq rs rt)
+	 (delay 1 (set pc offset))
+	 (skip 1))
+     ())
+
+(dni bgez "branch if greater than or equal to zero" (USES-RS)
+     "bgez $rs,$offset"
+     (+ OP_REGIMM rs FUNC_BGEZ offset)
+     (if (ge rs 0)
+	 (delay 1 (set pc offset)))
+     ())
+
+(dni bgezal "branch if greater than or equal to zero and link" (USES-RS USES-R31)
+     "bgezal $rs,$offset"
+     (+ OP_REGIMM rs FUNC_BGEZAL offset)
+     (if (ge rs 0)
+	 (sequence ()
+		   (set (reg h-gr 31) (add pc 8))
+		   (delay 1 (set pc offset))))
+     ())
+
+(dni bgezall
+     "branch if greater than equal to zero and link likely" (USES-RS USES-R31)
+     "bgezall $rs,$offset"
+     (+ OP_REGIMM rs FUNC_BGEZALL offset)
+     (if (ge rs 0)
+	 (sequence ()
+		   (set (reg h-gr 31) (add pc 8))
+		   (delay 1 (set pc offset)))
+	 (skip 1))
+     ())
+
+(dni bgezl "branch if greater or equal to zero likely" (USES-RS)
+     "bgezl $rs,$offset"
+     (+ OP_REGIMM rs FUNC_BGEZL offset)
+     (if (ge rs 0)
+	 (delay 1 (set pc offset))
+	 (skip 1))
+     ())
+
+(dni bltz "branch if less than zero" (USES-RS)
+     "bltz $rs,$offset"
+     (+ OP_REGIMM rs FUNC_BLTZ offset)
+     (if (lt rs 0)
+	 (delay 1 (set pc offset)))
+     ())
+
+(dni bltzl "branch if less than zero likely" (USES-RS)
+     "bltzl $rs,$offset"
+     (+ OP_REGIMM rs FUNC_BLTZL offset)
+     (if (lt rs 0)
+	 (delay 1 (set pc offset))
+	 (skip 1))
+     ())
+
+(dni bltzal "branch if less than zero and link" (USES-RS USES-R31)
+     "bltzal $rs,$offset"
+     (+ OP_REGIMM rs FUNC_BLTZAL offset)
+     (if (lt rs 0)
+	 (sequence ()
+		   (set (reg h-gr 31) (add pc 8))
+		   (delay 1 (set pc offset))))
+     ())
+
+(dni bltzall "branch if less than zero and link likely" (USES-RS USES-R31)
+     "bltzall $rs,$offset"
+     (+ OP_REGIMM rs FUNC_BLTZALL offset)
+     (if (lt rs 0)
+	 (sequence ()
+		   (set (reg h-gr 31) (add pc 8))
+		   (delay 1 (set pc offset)))
+	 (skip 1))
+     ())
+
+(dni bmb0 "branch if matching byte-lane 0" (USES-RS USES-RT)
+     "bmb0 $rs,$rt,$offset"
+     (+ OP_BMB0 rs rt offset)
+     (if (eq (and rs #xFF) (and rt #xFF))
+	 (delay 1 (set pc offset)))
+     ())
+
+(dni bmb1 "branch if matching byte-lane 1" (USES-RS USES-RT)
+     "bmb1 $rs,$rt,$offset"
+     (+ OP_BMB1 rs rt offset)
+     (if (eq (and rs #xFF00) (and rt #xFF00))
+	 (delay 1 (set pc offset)))
+     ())
+
+(dni bmb2 "branch if matching byte-lane 2" (USES-RS USES-RT)
+     "bmb2 $rs,$rt,$offset"
+     (+ OP_BMB2 rs rt offset)
+     (if (eq (and rs #xFF0000) (and rt #xFF0000))
+	 (delay 1 (set pc offset)))
+     ())
+
+(dni bmb3 "branch if matching byte-lane 3" (USES-RS USES-RT)
+     "bmb3 $rs,$rt,$offset"
+     (+ OP_BMB3 rs rt offset)
+     (if (eq (and rs #xFF000000) (and rt #xFF000000))
+	 (delay 1 (set pc offset)))
+     ())
+
+(dni bne "branch if not equal" (USES-RS USES-RT)
+     "bne $rs,$rt,$offset"
+     (+ OP_BNE rs rt offset)
+     (if (ne rs rt)
+	 (delay 1 (set pc offset)))
+     ())
+
+(dni bnel "branch if not equal likely" (USES-RS USES-RT)
+     "bnel $rs,$rt,$offset"
+     (+ OP_BNEL rs rt offset)
+     (if (ne rs rt)
+	 (delay 1 (set pc offset))
+	 (skip 1))
+     ())
+
+
+
+
+; Jump instructions.
+; Might as well jump!
+
+(dni jalr "jump and link register" (USES-RD USES-RS)
+     "jalr $rd,$rs"
+     (+ OP_SPECIAL rs (f-rt 0) rd (f-shamt 0) FUNC_JALR)
+     (delay 1
+	    (sequence ()
+		      (set rd (add pc 8))
+		      (set pc rs)))
+     ())
+
+(dni jr "jump register" (USES-RS)
+     "jr $rs"
+     (+ OP_SPECIAL rs (f-rt 0) (f-rd 0) (f-shamt 0) FUNC_JR)
+     (delay 1 (set pc rs))
+     ())
+
+
+; Load instructions.
+
+(dni lb "load byte" (LOAD-DELAY USES-RS USES-RT)
+     "lb $rt,$lo16($base)"
+     (+ OP_LB base rt lo16)
+     (set rt (ext WI (mem QI (add base (ext SI (trunc HI lo16))))))
+;     (sequence ((SI addr) (SI word))
+;	       (set addr (add base lo16))
+;	       (set word (mem SI (and addr (inv 3))))
+;	       (set word (srl word (sll (and addr 2) 3)))
+;	       (set rt (ext SI word)))
+     ())
+
+(dni lbu "load byte unsigned" (LOAD-DELAY USES-RS USES-RT)
+     "lbu $rt,$lo16($base)"
+     (+ OP_LBU base rt lo16)
+     (set rt (zext WI (mem QI (add base (ext SI (trunc HI lo16))))))
+;     (sequence ((SI addr) (SI word))
+;	       (set addr (add base lo16))
+;	       (set word (mem SI (and addr (inv 3))))
+;	       (set rt (srl word (sll (and addr 2) 3))))
+     ())
+
+(dni lh "load half word" (LOAD-DELAY USES-RS USES-RT)
+     "lh $rt,$lo16($base)"
+     (+ OP_LH base rt lo16)
+     (set rt (ext WI (mem HI (add base (ext SI (trunc HI lo16))))))
+;     (sequence ((SI addr) (HI word))
+;	       (set addr (add base lo16))
+;	       (set word (mem SI (and addr (inv 3))))
+;	       (set word (srl word (sll (and addr 1) 4)))
+;	       (set rt (ext SI word)))
+     ())
+
+(dni lhu "load half word unsigned" (LOAD-DELAY USES-RS USES-RT)
+     "lhu $rt,$lo16($base)"
+     (+ OP_LHU base rt lo16)
+     (set rt (zext WI (mem HI (add base (ext SI (trunc HI lo16))))))
+;     (sequence ((SI addr) (SI word))
+;	       (set addr (add base lo16))
+;	       (set word (mem SI (and addr (inv 3))))
+;	       (set rt (srl word (sll (and addr 1) 4))))
+     ())
+
+(dni lui "load upper immediate" (USES-RT)
+     "lui $rt,$hi16"
+     (+ OP_LUI (f-rs 0) rt hi16)
+     (set rt (sll hi16 16))
+     ())
+
+(dni lw "load word" (LOAD-DELAY USES-RS USES-RT)
+    "lw $rt,$lo16($base)"
+    (+ OP_LW base rt lo16)
+    (set rt (mem SI (add base (ext SI (trunc HI lo16)))))
+    ())
+
+
+; Store instructions.
+
+(dni sb "store byte" (USES-RS USES-RT)
+     "sb $rt,$lo16($base)"
+     (+ OP_SB base rt lo16)
+     (set (mem QI (add base (ext SI (trunc HI lo16)))) (and QI rt #xFF))
+     ())
+
+(dni sh "store half word" (USES-RS USES-RT)
+     "sh $rt,$lo16($base)"
+     (+ OP_SH base rt lo16)
+     (set (mem HI (add base (ext SI (trunc HI lo16)))) (and HI rt #xFFFF))
+     ())
+
+(dni sw "store word" (USES-RS USES-RT)
+     "sw $rt,$lo16($base)"
+     (+ OP_SW base rt lo16)
+     (set (mem SI (add base (ext SI (trunc HI lo16)))) rt)
+     ())
+
+
+; Special instructions for simulation/debugging
+(dni break "breakpoint" ()
+     "break"
+     (+ OP_SPECIAL (f-rs 0) (f-rt 0) (f-rd 0) (f-shamt 0) FUNC_BREAK)
+     (c-call VOID "do_break" pc)
+     ())
+
+(dni syscall "system call" (YIELD-INSN)
+     "syscall"
+     (+ OP_SPECIAL execode (f-func 12))
+     (c-call VOID "do_syscall")
+     ())
+
+; Macro instructions, common to iq10 & iq2000
+
+(dnmi nop "nop" ()
+      "nop"
+      (emit sll (rd 0) (rt 0) (shamt 0))
+)
+
+(dnmi li "load immediate" (USES-RS NO-DIS)
+      "li $rs,$imm"
+      (emit ori (rt 0) rs imm)
+)
+
+(dnmi move "move" (USES-RD USES-RT NO-DIS)
+      "move $rd,$rt"
+      (emit or rd (rs 0) rt)
+)
+
+(dnmi lb-base-0 "load byte - implied base 0" (USES-RT NO-DIS)
+      "lb $rt,$lo16"
+      (emit lb rt lo16 (base 0))
+)
+
+(dnmi lbu-base-0 "load byte unsigned - implied base 0" (USES-RT NO-DIS)
+      "lbu $rt,$lo16"
+      (emit lbu rt lo16 (base 0))
+)
+
+(dnmi lh-base-0 "load half - implied base 0" (USES-RT NO-DIS)
+      "lh $rt,$lo16"
+      (emit lh rt lo16 (base 0))
+)
+
+(dnmi lw-base-0 "load word - implied base 0" (USES-RT NO-DIS)
+      "lw $rt,$lo16"
+      (emit lw rt lo16 (base 0))
+)
+
+(dnmi m-add "add immediate" (USES-RS USES-RT NO-DIS)
+      "add $rt,$rs,$lo16"
+      (emit addi rt rs lo16))
+
+(dnmi m-addu "add immediate unsigned" (USES-RS USES-RT NO-DIS)
+      "addu $rt,$rs,$lo16"
+      (emit addiu rt rs lo16)
+)
+
+(dnmi m-and "and immediate" (USES-RS USES-RT NO-DIS)
+      "and $rt,$rs,$lo16"
+      (emit andi rt rs lo16)
+)
+
+(dnmi m-j "jump register" (USES-RS NO-DIS)
+      "j $rs"
+      (emit jr rs)
+)
+
+(dnmi m-or "or immediate" (USES-RS USES-RT NO-DIS)
+      "or $rt,$rs,$lo16"
+      (emit ori rt rs lo16)
+)
+
+(dnmi m-sll "shift left logical" (USES-RD USES-RT USES-RS NO-DIS)
+      "sll $rd,$rt,$rs"
+      (emit sllv rd rt rs)
+)
+
+(dnmi m-slt "slt immediate" (USES-RS USES-RT NO-DIS)
+      "slt $rt,$rs,$imm"
+      (emit slti rt rs imm)
+)
+
+(dnmi m-sltu "sltu immediate" (USES-RS USES-RT NO-DIS)
+      "sltu $rt,$rs,$imm"
+      (emit sltiu rt rs imm)
+)
+
+(dnmi m-sra "shift right arithmetic" (USES-RD USES-RT USES-RS NO-DIS)
+      "sra $rd,$rt,$rs"
+      (emit srav rd rt rs)
+)
+
+(dnmi m-srl "shift right logical" (USES-RD USES-RT USES-RS NO-DIS)
+      "srl $rd,$rt,$rs"
+      (emit srlv rd rt rs)
+)
+
+(dnmi not "not" (USES-RD USES-RT NO-DIS)
+      "not $rd,$rt"
+      (emit nor rd (rs 0) rt)
+)
+
+(dnmi subi "sub immediate" (USES-RS USES-RT NO-DIS)
+      "subi $rt,$rs,$mlo16"
+      (emit addiu rt rs mlo16)
+)      
+
+(dnmi m-sub "subtract immediate" (USES-RS USES-RT NO-DIS)
+      "sub $rt,$rs,$mlo16"
+      (emit addiu rt rs mlo16)
+)
+
+(dnmi m-subu "subtract unsigned" (USES-RS USES-RT NO-DIS)
+      "subu $rt,$rs,$mlo16"
+      (emit addiu rt rs mlo16)
+)
+
+(dnmi sb-base-0 "store byte - implied base 0" (USES-RT NO-DIS)
+      "sb $rt,$lo16"
+      (emit sb rt lo16 (base 0))
+)
+
+(dnmi sh-base-0 "store half - implied base 0" (USES-RT NO-DIS)
+      "sh $rt,$lo16"
+      (emit sh rt lo16 (base 0))
+)
+
+(dnmi sw-base-0 "store word - implied base 0" (USES-RT NO-DIS)
+      "sw $rt,$lo16"
+      (emit sw rt lo16 (base 0))
+)
+
+(dnmi m-xor "xor immediate" (USES-RS USES-RT NO-DIS)
+      "xor $rt,$rs,$lo16"
+      (emit xori rt rs lo16)
+)
+
+
+(if (keep-mach? (iq2000))
+(include "iq2000m.cpu"))
+
+(if (keep-mach? (iq10))
+(include "iq10.cpu"))
+
+
+

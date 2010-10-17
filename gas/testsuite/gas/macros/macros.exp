@@ -1,0 +1,49 @@
+# Run some tests of gas macros.
+
+if { ![istarget hppa*-*-*] || [istarget *-*-linux*] } {
+    run_dump_test test1
+}
+
+if { ![istarget *c54x*-*-*] && ![istarget *c4x*-*-*] } {
+    run_dump_test test2
+}
+
+run_dump_test test3
+
+if { ![istarget *c54x*-*-*] && ![istarget *c4x*-*-*] } {
+    run_dump_test irp
+    run_dump_test rept
+}
+
+
+gas_test_error "err.s" "" "macro infinite recursion"
+
+gas_test "and.s" "" "" "logical and in macro definition"
+
+case $target_triplet in {
+    { hppa*-*-* } { if [istarget *-*-linux*] { run_dump_test semi } }
+    { *c4x*-*-* } { }
+    { *c54x*-*-* } { }
+    default {
+	run_dump_test semi
+    }
+}
+
+if { ![istarget hppa*-*-*] || [istarget *-*-linux*] } {
+    # FIXME: Due to macro mishandling of ONLY_STANDARD_ESCAPES.
+    setup_xfail "avr-*" "cris-*"
+
+    # These fail due to NO_STRING_ESCAPES
+    setup_xfail "powerpc*-*-aix*" "powerpc*-*-beos*" "powerpc*-*-macos*"
+    setup_xfail "powerpc*-*-mpw*" "powerpc*-*-pe" "powerpc*-*-*win*"
+    setup_xfail "rs6000-*-*"
+
+    # FIXME: Due to difference in what "consecutive octets" means.
+    setup_xfail "*c4x*-*-*" "*c54x*-*"
+    run_dump_test strings
+}
+
+run_dump_test app1
+run_dump_test app2
+run_dump_test app3
+run_dump_test app4

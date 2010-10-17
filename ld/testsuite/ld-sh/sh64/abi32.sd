@@ -1,0 +1,16 @@
+
+.*:     file format .*-sh64.*
+
+Contents of section \.text:
+ 1000 cc000190 c8015590 6bf56630 6ff0fff0  .*
+ 1010 cc000210 c8400610 cc000150 c8403550  .*
+ 1020 cffffd90 cbff9590 6bf56630 cc0002b0  .*
+ 1030 c843e2b0 cc000350 c843c350 cc000040  .*
+ 1040 c843f040 cc000190 c8004590 6bf56650  .*
+ 1050 cc000190 c8002590 6bf56410 6ff0fff0  .*
+ 1060 6ff0fff0                             .*
+Contents of section \.data:
+ 10e8 000010f4 0000100d 0000105d 000010e8  .*
+ 10f8 000010e8 0000100d                    .*
+Contents of section \.stack:
+ 80000 deaddead                            .*

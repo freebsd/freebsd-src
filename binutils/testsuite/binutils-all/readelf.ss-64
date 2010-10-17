@@ -1,0 +1,13 @@
+
+Symbol table '.symtab' contains .* entries:
+   Num:    Value          Size Type    Bind   Vis      Ndx Name
+     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND 
+     1: 0000000000000000     0 SECTION LOCAL  DEFAULT    1 
+     2: 0000000000000000     0 SECTION LOCAL  DEFAULT    3 
+     3: 0000000000000000     0 SECTION LOCAL  DEFAULT    4 
+     4: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT    1 static_text_symbol
+     5: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT    3 static_data_symbol
+.*   .: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT    1 text_symbol
+     .: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT  UND external_symbol
+     .: 0000000000000000     0 NOTYPE  GLOBAL DEFAULT    3 data_symbol
+     .: 0000000000000004     4 OBJECT  GLOBAL DEFAULT  COM common_symbol

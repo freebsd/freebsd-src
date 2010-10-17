@@ -1,0 +1,4 @@
+Main SWYM 0,0,0
+1H JMP 1F
+1H JMP 1B
+ JMP 1B

@@ -1,0 +1,1768 @@
+# translation of ld-2.14rel030712.tr.po to Turkish
+# Copyright (C) 2003 Free Software Foundation, Inc.
+# Deniz Akkus Kanca <deniz@arayan.com>, 2001,2003.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: ld 2.14rel030712\n"
+"POT-Creation-Date: 2003-07-11 13:58+0930\n"
+"PO-Revision-Date: 2003-08-17 15:19+0300\n"
+"Last-Translator: Deniz Akkus Kanca <deniz@arayan.com>\n"
+"Language-Team: Turkish <gnu-tr-u12a@lists.sourceforge.net>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: KBabel 1.0\n"
+
+#: emultempl/armcoff.em:72
+msgid "  --support-old-code   Support interworking with old code\n"
+msgstr "  --support-old-code   Eski yazılım ile beraber çalışmayı destekler\n"
+
+#: emultempl/armcoff.em:73
+msgid "  --thumb-entry=<sym>  Set the entry point to be Thumb symbol <sym>\n"
+msgstr "  --thumb-entry=<sem>  Giriş noktasını Thumb sembolü <sem> olarak atar\n"
+
+#: emultempl/armcoff.em:121
+#, c-format
+msgid "Errors encountered processing file %s"
+msgstr "%s dosyası işlenirken hata oluştu"
+
+#: emultempl/armcoff.em:188 emultempl/pe.em:1396
+msgid "%P: warning: '--thumb-entry %s' is overriding '-e %s'\n"
+msgstr "%P: uyarı: '--thumb-entry %s', '-e %s' seçeneğini etkisizleştiriyor\n"
+
+#: emultempl/armcoff.em:193 emultempl/pe.em:1401
+msgid "%P: warning: connot find thumb start symbol %s\n"
+msgstr "%P: uyarı: thumb başlangıç sembolü %s bulunamadı\n"
+
+#: emultempl/pe.em:300
+msgid "  --base_file <basefile>             Generate a base file for relocatable DLLs\n"
+msgstr ""
+"  --base_file <temeldosya>           Yerdeğiştirebilen DLL'ler için temeldosya\n"
+"                                     oluşturur.\n"
+
+#: emultempl/pe.em:301
+msgid "  --dll                              Set image base to the default for DLLs\n"
+msgstr ""
+"  --dll                              DLL'ler için görüntü temelini öntanımlıya\n"
+"                                     ayarlar.\n"
+
+#: emultempl/pe.em:302
+msgid "  --file-alignment <size>            Set file alignment\n"
+msgstr "  --file-alignment <boyut>           Dosya hizalamasını ayarlar\n"
+
+#: emultempl/pe.em:303
+msgid "  --heap <size>                      Set initial size of the heap\n"
+msgstr "  --heap <boy>                       Yığının ilk boyunu ayarlar.\n"
+
+#: emultempl/pe.em:304
+msgid "  --image-base <address>             Set start address of the executable\n"
+msgstr "  --image-base <adres>               Uygulamanın başlangıç adresini ayarlar\n"
+
+#: emultempl/pe.em:305
+msgid "  --major-image-version <number>     Set version number of the executable\n"
+msgstr "  --major-image-version <numara>     Uygulamanın sürüm numarasını ayarlar\n"
+
+#: emultempl/pe.em:306
+msgid "  --major-os-version <number>        Set minimum required OS version\n"
+msgstr "  --major-os-version <numara>        OS için en alt gerekli sürümü belirler\n"
+
+#: emultempl/pe.em:307
+msgid "  --major-subsystem-version <number> Set minimum required OS subsystem version\n"
+msgstr ""
+"  --major-subsystem-version <numara> OS alt sistem sürümü için en küçük gerekli\n"
+"                                     sürüm sayısını belirler\n"
+
+#: emultempl/pe.em:308
+msgid "  --minor-image-version <number>     Set revision number of the executable\n"
+msgstr "  --minor-image-version <numara>     Uygulamanın değişim sayısını ayarlar\n"
+
+#: emultempl/pe.em:309
+msgid "  --minor-os-version <number>        Set minimum required OS revision\n"
+msgstr "  --minor-os-version <numara>        Gerekli en alt OS değişimini belirler\n"
+
+#: emultempl/pe.em:310
+msgid "  --minor-subsystem-version <number> Set minimum required OS subsystem revision\n"
+msgstr ""
+"  --minor-subsystem-version <numara> Gerekli en alt OS alt sistem değişim\n"
+"                                     sayısını belirler\n"
+
+#: emultempl/pe.em:311
+msgid "  --section-alignment <size>         Set section alignment\n"
+msgstr "  --section-alignment <boy>          Bölüm hizalamasını ayarlar\n"
+
+#: emultempl/pe.em:312
+msgid "  --stack <size>                     Set size of the initial stack\n"
+msgstr "  --stack <boy>                      Yığıtın ilk boyunu belirler\n"
+
+#: emultempl/pe.em:313
+msgid "  --subsystem <name>[:<version>]     Set required OS subsystem [& version]\n"
+msgstr "  --subsystem <isim>[:<sürüm>]       Gerekli OS, altsistem ve sürümü belirler\n"
+
+#: emultempl/pe.em:314
+msgid "  --support-old-code                 Support interworking with old code\n"
+msgstr "  --support-old-code                 Eski kod ile beraber çalışmayı destekler\n"
+
+#: emultempl/pe.em:315
+msgid "  --thumb-entry=<symbol>             Set the entry point to be Thumb <symbol>\n"
+msgstr "  --thumb-entry=<sembol>             Giriş noktasını Thumb <sembol> olarak atar\n"
+
+#: emultempl/pe.em:317
+msgid "  --add-stdcall-alias                Export symbols with and without @nn\n"
+msgstr "  --add-stdcall-alias                Sembolleri @nn ile ve @nn'siz ihraç eder\n"
+
+#: emultempl/pe.em:318
+msgid "  --disable-stdcall-fixup            Don't link _sym to _sym@nn\n"
+msgstr "  --disable-stdcall-fixup            _sym'i _sym@nn'e bağlamaz\n"
+
+#: emultempl/pe.em:319
+msgid "  --enable-stdcall-fixup             Link _sym to _sym@nn without warnings\n"
+msgstr "  --enable-stdcall-fixup             _sym'i _sym@nn'e uyarı vermeksizin bağlar\n"
+
+#: emultempl/pe.em:320
+msgid "  --exclude-symbols sym,sym,...      Exclude symbols from automatic export\n"
+msgstr "  --exclude-symbols sem,sem,...      Sembolleri otomatik ihraçtan ayrı tutar\n"
+
+#: emultempl/pe.em:321
+msgid "  --exclude-libs lib,lib,...         Exclude libraries from automatic export\n"
+msgstr "  --exclude-libs lib,lib,...      Kitaplıkları otomatik ihraçtan ayrı tutar\n"
+
+#: emultempl/pe.em:322
+msgid "  --export-all-symbols               Automatically export all globals to DLL\n"
+msgstr "  --export-all-symbols               Bütün evrenselleri DLL'e ihraç eder\n"
+
+#: emultempl/pe.em:323
+msgid "  --kill-at                          Remove @nn from exported symbols\n"
+msgstr "  --kill-at                          İhraç edilen sembollerden @nn'i çıkarır\n"
+
+#: emultempl/pe.em:324
+msgid "  --out-implib <file>                Generate import library\n"
+msgstr "  --out-implib <dosya>               İthal kitaplığı oluşturur\n"
+
+#: emultempl/pe.em:325
+msgid "  --output-def <file>                Generate a .DEF file for the built DLL\n"
+msgstr ""
+"  --output-def <dosya>               Oluşturulmuş DLL için .DEF dosyası\n"
+"                                     oluşturur\n"
+
+#: emultempl/pe.em:326
+msgid "  --warn-duplicate-exports           Warn about duplicate exports.\n"
+msgstr "  --warn-duplicate-exports           Birden fazla ihraçlarda uyarı verir\n"
+
+#: emultempl/pe.em:327
+msgid ""
+"  --compat-implib                    Create backward compatible import libs;\n"
+"                                       create __imp_<SYMBOL> as well.\n"
+msgstr ""
+"  --compat-implib                    Geçmişe uyumlu ithal kitaplığı ve\n"
+"                                     __imp_<SEMBOL> oluşturur.\n"
+
+#: emultempl/pe.em:329
+msgid ""
+"  --enable-auto-image-base           Automatically choose image base for DLLs\n"
+"                                       unless user specifies one\n"
+msgstr ""
+"  --enable-auto-image-base           Kullanıcılar bir görüntü temeli seçmezse\n"
+"                                     DLL'ler için otomatik görüntü temeli seçer\n"
+
+#: emultempl/pe.em:331
+msgid "  --disable-auto-image-base          Do not auto-choose image base. (default)\n"
+msgstr ""
+"  --disable-auto-image-base          Görüntü temelini otomatik olarak seçmez\n"
+"                                     (öntanımlı).\n"
+
+#: emultempl/pe.em:332
+msgid ""
+"  --dll-search-prefix=<string>       When linking dynamically to a dll without\n"
+"                                       an importlib, use <string><basename>.dll\n"
+"                                       in preference to lib<basename>.dll \n"
+msgstr ""
+"  --dll-search-prefix=<dizge>        Bir dll'e ithal kitaplığı olmaksızın\n"
+"                                     dinamik bağlanma esnasında\n"
+"                                     lib<temeladı>.dll yerine\n"
+"                                     <dizge><temeladı>.dll'i tercih eder\n"
+
+#: emultempl/pe.em:335
+msgid ""
+"  --enable-auto-import               Do sophistcated linking of _sym to\n"
+"                                       __imp_sym for DATA references\n"
+msgstr ""
+"  --enable-auto-import               VERİ (DATA) başvuruları için _sym'in\n"
+"                                     __imp_sym'e ileri düzey bağlamasını yapar\n"
+
+#: emultempl/pe.em:337
+msgid "  --disable-auto-import              Do not auto-import DATA items from DLLs\n"
+msgstr "  --disable-auto-image-base          Görüntü temelini otomatik olarak seçmez\n"
+
+#: emultempl/pe.em:338
+msgid ""
+"  --enable-runtime-pseudo-reloc      Work around auto-import limitations by\n"
+"                                       adding pseudo-relocations resolved at\n"
+"                                       runtime.\n"
+msgstr ""
+"  --enable-runtime-pseudo-reloc      Çalışma zamanında çözümlenen sanal \n"
+"                                     yerdeğişimler ekleyerek otomatik ithal \n"
+"                                     sınırlamalarını aşar.\n"
+
+#: emultempl/pe.em:341
+msgid ""
+"  --disable-runtime-pseudo-reloc     Do not add runtime pseudo-relocations for\n"
+"                                       auto-imported DATA.\n"
+msgstr ""
+"  --disable-runtime-pseudo-reloc     Otomatik ithal edilen VERİ (DATA) için\n"
+"                                     çalışma zamanı sanal yerdeğişim eklemez.\n"
+
+#: emultempl/pe.em:343
+msgid ""
+"  --enable-extra-pe-debug            Enable verbose debug output when building\n"
+"                                       or linking to DLLs (esp. auto-import)\n"
+msgstr ""
+"  --enable-extra-pe-debug            DLL'leri oluşturur veya DLL'lere\n"
+"                                     bağlanırken detaylı hata ayıklama\n"
+"                                     çıktısını etkinleştirir. (özellikle\n"
+"                                     otomatik ithallerde)\n"
+
+#: emultempl/pe.em:412
+msgid "%P: warning: bad version number in -subsystem option\n"
+msgstr "%P: uyarı: -subsystem seçeneğinde hatalı sürüm sayısı\n"
+
+#: emultempl/pe.em:448
+msgid "%P%F: invalid subsystem type %s\n"
+msgstr "%P%F: geçersiz altsistem türü %s\n"
+
+#: emultempl/pe.em:460
+msgid "%P%F: invalid hex number for PE parameter '%s'\n"
+msgstr "%P%F: PE parametresi '%s' için geçersiz onaltılık sayı\n"
+
+#: emultempl/pe.em:477
+msgid "%P%F: strange hex info for PE parameter '%s'\n"
+msgstr "%P%F: PE parametresi '%s' için garip onaltılık bilgi\n"
+
+#: emultempl/pe.em:494
+#, c-format
+msgid "%s: Can't open base file %s\n"
+msgstr "%s: %s temel dosyası açılamadı\n"
+
+#: emultempl/pe.em:707
+msgid "%P: warning, file alignment > section alignment.\n"
+msgstr "%P: uyarı, dosya hizalaması > bölüm hizalaması.\n"
+
+#: emultempl/pe.em:794 emultempl/pe.em:821
+#, c-format
+msgid "Warning: resolving %s by linking to %s\n"
+msgstr "Uyarı: %s %s'yi bağlayarak çözümleniyor\n"
+
+#: emultempl/pe.em:799 emultempl/pe.em:826
+msgid "Use --enable-stdcall-fixup to disable these warnings\n"
+msgstr "Bu uyarıları etkisizleşirmek için --enable-stdcall-fixup kullanın\n"
+
+#: emultempl/pe.em:800 emultempl/pe.em:827
+msgid "Use --disable-stdcall-fixup to disable these fixups\n"
+msgstr "Bu düzeltmeleri etkisizleştirmek için --disable-stdcall-fixup kullanın\n"
+
+#: emultempl/pe.em:846
+#, c-format
+msgid "%C: Cannot get section contents - auto-import exception\n"
+msgstr "%C: Bölüm içerikleri alınamadı - otomatik ithal hatası\n"
+
+#: emultempl/pe.em:883
+#, c-format
+msgid "Info: resolving %s by linking to %s (auto-import)\n"
+msgstr "Bilgi: %s %s'yi bağlayarak çözümleniyor (oto-ithal)\n"
+
+#: emultempl/pe.em:954
+msgid "%F%P: PE operations on non PE file.\n"
+msgstr "%F%P: PE dosyası olmayan dosya üzerinde PE işlemleri.\n"
+
+#: emultempl/pe.em:1188
+#, c-format
+msgid "Errors encountered processing file %s\n"
+msgstr "%s dosyası işlenirken hata oluştu\n"
+
+#: emultempl/pe.em:1211
+#, c-format
+msgid "Errors encountered processing file %s for interworking"
+msgstr "%s dosyası beraber çalışma için işlenirken hata oluştu"
+
+#: emultempl/pe.em:1273 ldlang.c:1904 ldlang.c:4397 ldlang.c:4428
+#: ldmain.c:1122
+msgid "%P%F: bfd_link_hash_lookup failed: %E\n"
+msgstr "%P%F: bfd_link_hash_lookup başarısız: %E\n"
+
+#: ldcref.c:153
+msgid "%X%P: bfd_hash_table_init of cref table failed: %E\n"
+msgstr "%X%P: cref tablosunda bfd_hash_table_init başarısız: %E\n"
+
+#: ldcref.c:159
+msgid "%X%P: cref_hash_lookup failed: %E\n"
+msgstr "%X%P: cref_hash_lookup başarısız: %E\n"
+
+#: ldcref.c:225
+msgid ""
+"\n"
+"Cross Reference Table\n"
+"\n"
+msgstr ""
+"\n"
+"Çapraz Başvuru Tablosu\n"
+"\n"
+
+#: ldcref.c:226
+msgid "Symbol"
+msgstr "Sembol"
+
+#: ldcref.c:234
+msgid "File\n"
+msgstr "Dosya\n"
+
+#: ldcref.c:238
+msgid "No symbols\n"
+msgstr "Sembol yok\n"
+
+#: ldcref.c:384
+msgid "%P: symbol `%T' missing from main hash table\n"
+msgstr "%P: `%T' sembolü ana hash tablosunda yok\n"
+
+#: ldcref.c:448
+msgid "%B%F: could not read symbols; %E\n"
+msgstr "%B%F: semboller okunamadı; %E\n"
+
+#: ldcref.c:452 ldmain.c:1187 ldmain.c:1191
+msgid "%B%F: could not read symbols: %E\n"
+msgstr "%B%F: semboller okunamadı: %E\n"
+
+#: ldcref.c:517 ldcref.c:524 ldmain.c:1234 ldmain.c:1241
+msgid "%B%F: could not read relocs: %E\n"
+msgstr "%B%F: yer değişimleri okunamadı: %E\n"
+
+#. We found a reloc for the symbol.  The symbol is defined
+#. in OUTSECNAME.  This reloc is from a section which is
+#. mapped into a section from which references to OUTSECNAME
+#. are prohibited.  We must report an error.
+#: ldcref.c:543
+msgid "%X%C: prohibited cross reference from %s to `%T' in %s\n"
+msgstr "%1$X%2$C: %5$s içinde %3$s'den `%4$T'e yasak çapraz başvuru\n"
+
+#: ldctor.c:84
+msgid "%P%X: Different relocs used in set %s\n"
+msgstr "%P%X: %s kümesinde farklı yerdeğişimler kullanılmış\n"
+
+#: ldctor.c:102
+msgid "%P%X: Different object file formats composing set %s\n"
+msgstr "%P%X: %s kümesi farklı nesne dosyası biçemleri içeriyor\n"
+
+#: ldctor.c:281 ldctor.c:295
+msgid "%P%X: %s does not support reloc %s for set %s\n"
+msgstr "%1$P%2$X: %3$s %5$s %4$s yerdeğişimlerini desteklemiyor\n"
+
+#: ldctor.c:316
+msgid "%P%X: Unsupported size %d for set %s\n"
+msgstr "%1$P%2$X: %4$s kümesi için desteklenmeyen boy %3$d\n"
+
+#: ldctor.c:337
+msgid ""
+"\n"
+"Set                 Symbol\n"
+"\n"
+msgstr ""
+"\n"
+"Küme                Sembol\n"
+"\n"
+
+#: ldemul.c:247
+#, c-format
+msgid "%S SYSLIB ignored\n"
+msgstr "%S SYSLIB yoksayıldı\n"
+
+#: ldemul.c:254
+#, c-format
+msgid "%S HLL ignored\n"
+msgstr "%S HLL yoksayıldı\n"
+
+#: ldemul.c:275
+msgid "%P: unrecognised emulation mode: %s\n"
+msgstr "%P: bilinmeyen öykünüm kipi: %s\n"
+
+#: ldemul.c:276
+msgid "Supported emulations: "
+msgstr "Desteklenen öykünümler: "
+
+#: ldemul.c:320
+msgid "  no emulation specific options.\n"
+msgstr "  öykünüme özel seçenek yok.\n"
+
+#: ldexp.c:148
+msgid "%F%P: %s uses undefined section %s\n"
+msgstr "%F%P: %s tanımsız %s bölümünü kullanıyor\n"
+
+#: ldexp.c:150
+msgid "%F%P: %s forward reference of section %s\n"
+msgstr "%F%P: %s %s bölümüne ileriye başvuru\n"
+
+#: ldexp.c:355
+#, c-format
+msgid "%F%S %% by zero\n"
+msgstr "%F%S %% sıfırla\n"
+
+#: ldexp.c:362
+#, c-format
+msgid "%F%S / by zero\n"
+msgstr "%F%S sıfırla bölme\n"
+
+#: ldexp.c:533
+#, c-format
+msgid "%X%S: unresolvable symbol `%s' referenced in expression\n"
+msgstr "%X%S: ifadede çözümlenemeyen `%s' sembolüne başvuru var\n"
+
+#: ldexp.c:553
+#, c-format
+msgid "%F%S: undefined symbol `%s' referenced in expression\n"
+msgstr "%F%S: ifadede tanımlanmamış `%s' sembolüne başvuru var\n"
+
+#: ldexp.c:677
+#, c-format
+msgid "%F%S can not PROVIDE assignment to location counter\n"
+msgstr "%F%S yer sayacına atama YAPILAMAZ\n"
+
+#: ldexp.c:687
+#, c-format
+msgid "%F%S invalid assignment to location counter\n"
+msgstr "%F%S yer sayacına hatalı atama\n"
+
+#: ldexp.c:691
+#, c-format
+msgid "%F%S assignment to location counter invalid outside of SECTION\n"
+msgstr "%F%S yer sayacına atama BÖLÜM'ün dışında geçersiz\n"
+
+#: ldexp.c:700
+msgid "%F%S cannot move location counter backwards (from %V to %V)\n"
+msgstr "%F%S yer sayacı geri gidemez (%V'den %V'e)\n"
+
+#: ldexp.c:727
+msgid "%P%F:%s: hash creation failed\n"
+msgstr "%P%F:%s: hash oluşturulması başarısız\n"
+
+#: ldexp.c:1003 ldexp.c:1035
+#, c-format
+msgid "%F%S nonconstant expression for %s\n"
+msgstr "%F%S %s için sabit olmayan ifade\n"
+
+#: ldexp.c:1089
+#, c-format
+msgid "%F%S non constant expression for %s\n"
+msgstr "%F%S %s için sabit olmayan ifade\n"
+
+#: ldfile.c:144
+#, c-format
+msgid "attempt to open %s failed\n"
+msgstr "%s açılamadı\n"
+
+#: ldfile.c:146
+#, c-format
+msgid "attempt to open %s succeeded\n"
+msgstr "%s açılabildi\n"
+
+#: ldfile.c:152
+msgid "%F%P: invalid BFD target `%s'\n"
+msgstr "%F%P: hatalı BFD hedefi `%s'\n"
+
+#: ldfile.c:258 ldfile.c:275
+msgid "%P: skipping incompatible %s when searching for %s\n"
+msgstr "%1$P: %3$s için arama yapılırken uyumsuz %2$s atlandı\n"
+
+#: ldfile.c:377
+msgid "%F%P: cannot open %s for %s: %E\n"
+msgstr "%1$F%2$P: %4$s için %3$s açılamadı: %5$E\n"
+
+#: ldfile.c:380
+msgid "%F%P: cannot open %s: %E\n"
+msgstr "%F%P: %s açılamadı: %E\n"
+
+#: ldfile.c:410
+msgid "%F%P: cannot find %s inside %s\n"
+msgstr "%F%P: %s, %s içinde bulunamadı\n"
+
+#: ldfile.c:413
+msgid "%F%P: cannot find %s\n"
+msgstr "%F%P: %s bulunamadı\n"
+
+#: ldfile.c:430 ldfile.c:446
+#, c-format
+msgid "cannot find script file %s\n"
+msgstr "%s betik dosyası bulunamadı\n"
+
+#: ldfile.c:432 ldfile.c:448
+#, c-format
+msgid "opened script file %s\n"
+msgstr "%s betik dosyası açıldı\n"
+
+#: ldfile.c:492
+msgid "%P%F: cannot open linker script file %s: %E\n"
+msgstr "%P%F: %s bağlayıcı betik dosyası açılamadı: %E\n"
+
+#: ldfile.c:529
+msgid "%P%F: unknown architecture: %s\n"
+msgstr "%P%F: bilinmeyen platform: %s\n"
+
+#: ldfile.c:543
+msgid "%P%F: target architecture respecified\n"
+msgstr "%P%F: hedef platform yeniden belirtilmiş\n"
+
+#: ldfile.c:594
+msgid "%P%F: cannot represent machine `%s'\n"
+msgstr "%P%F: `%s' makinası gösterilemiyor\n"
+
+#: ldlang.c:640
+msgid ""
+"\n"
+"Memory Configuration\n"
+"\n"
+msgstr ""
+"\n"
+"Bellek Ayarları\n"
+"\n"
+
+#: ldlang.c:642
+msgid "Name"
+msgstr "İsim"
+
+#: ldlang.c:642
+msgid "Origin"
+msgstr "Orijin"
+
+#: ldlang.c:642
+msgid "Length"
+msgstr "Uzunluk"
+
+#: ldlang.c:642
+msgid "Attributes"
+msgstr "Özellikler"
+
+#: ldlang.c:682
+msgid ""
+"\n"
+"Linker script and memory map\n"
+"\n"
+msgstr ""
+"\n"
+"Bağlayıcı betiği ve bellek eşlemesi\n"
+"\n"
+
+#: ldlang.c:698
+msgid "%P%F: Illegal use of `%s' section\n"
+msgstr "%P%F: `%s' bölümünün geçersiz kullanımı\n"
+
+#: ldlang.c:707
+msgid "%P%F: output format %s cannot represent section called %s\n"
+msgstr "%P%F: %s çıktı biçemi %s adındaki bölümü temsil edemez\n"
+
+#: ldlang.c:867
+msgid "%P: %B: warning: ignoring duplicate section `%s'\n"
+msgstr "%P: %B: uyarı: birden fazla tekrar edilmiş `%s' bölümü yoksayıldı\n"
+
+#: ldlang.c:870
+msgid "%P: %B: warning: ignoring duplicate `%s' section symbol `%s'\n"
+msgstr "%P: %B: uyarı: birden fazla tekrar edilmiş `%s' bölümü `%s' sembolü yoksayıldı\n"
+
+#: ldlang.c:884
+msgid "%P: %B: warning: duplicate section `%s' has different size\n"
+msgstr "%P: %B: uyarı: birden fazla tekrar edilmiş `%s' bölümünün boyutu farklı\n"
+
+#: ldlang.c:936
+msgid "%P%F: Failed to create hash table\n"
+msgstr "%P%F: Hash tablosu oluşturulamadı\n"
+
+#: ldlang.c:1351
+msgid "%B: file not recognized: %E\n"
+msgstr "%B: Bilinmeyen dosya: %E\n"
+
+#: ldlang.c:1352
+msgid "%B: matching formats:"
+msgstr "%B: eşleşen biçemler:"
+
+#: ldlang.c:1359
+msgid "%F%B: file not recognized: %E\n"
+msgstr "%F%B: bilinmeyen dosya: %E\n"
+
+#: ldlang.c:1418
+msgid "%F%B: member %B in archive is not an object\n"
+msgstr "%F%B: arşivdeki %B nesnesi nesne değil\n"
+
+#: ldlang.c:1429 ldlang.c:1443
+msgid "%F%B: could not read symbols: %E\n"
+msgstr "%F%B: semboller okunamadı: %E\n"
+
+#: ldlang.c:1698
+msgid "%P: warning: could not find any targets that match endianness requirement\n"
+msgstr "%P: uyarı: küçük/büyük sonlu gerekliliğini karşılayan hedef bulunamadı\n"
+
+#: ldlang.c:1711
+msgid "%P%F: target %s not found\n"
+msgstr "%P%F: %s hedefi bulunamadı\n"
+
+#: ldlang.c:1713
+msgid "%P%F: cannot open output file %s: %E\n"
+msgstr "%P%F: %s çıktı dosyası açılamadı: %E\n"
+
+#: ldlang.c:1723
+msgid "%P%F:%s: can not make object file: %E\n"
+msgstr "%P%F:%s: nesne dosyası oluşturulamadı: %E\n"
+
+#: ldlang.c:1727
+msgid "%P%F:%s: can not set architecture: %E\n"
+msgstr "%P%F:%s: platform türü atanamadı: %E\n"
+
+#: ldlang.c:1731
+msgid "%P%F: can not create link hash table: %E\n"
+msgstr "%P%F: bağ hash tablosu oluşturulamadı: %E\n"
+
+#: ldlang.c:2069
+msgid " load address 0x%V"
+msgstr " yükleme adresi 0x%V"
+
+#: ldlang.c:2204
+msgid "%W (size before relaxing)\n"
+msgstr "%W (gevşetmeden önceki boyut)\n"
+
+#: ldlang.c:2288
+#, c-format
+msgid "Address of section %s set to "
+msgstr "%s bölümünün adresi atanmış"
+
+#: ldlang.c:2443
+#, c-format
+msgid "Fail with %d\n"
+msgstr "%d hatası verildi\n"
+
+#: ldlang.c:2683
+msgid "%X%P: section %s [%V -> %V] overlaps section %s [%V -> %V]\n"
+msgstr "%X%P: %s bölümü [%V -> %V] %s bölümü [%V -> %V] ile örtüşüyor\n"
+
+#: ldlang.c:2711
+msgid "%X%P: address 0x%v of %B section %s is not within region %s\n"
+msgstr "%1$X%2$P: %5$s %4$B bölümünde 0x%3$v adresi %6$s kapsamı içinde değil\n"
+
+#: ldlang.c:2719
+msgid "%X%P: region %s is full (%B section %s)\n"
+msgstr "%X%P: %s bölümü dolu (%B %s bölümü)\n"
+
+#: ldlang.c:2770
+msgid "%P%X: Internal error on COFF shared library section %s\n"
+msgstr "%P%X: %s COFF paylaşımlı kitaplık bölümünde iç hata\n"
+
+#: ldlang.c:2826
+msgid "%P%F: error: no memory region specified for loadable section `%s'\n"
+msgstr "%P%F: hata: `%s' yüklenebilir bölümü için bellek bölümü belirtilmemiş\n"
+
+#: ldlang.c:2830
+msgid "%P: warning: no memory region specified for loadable section `%s'\n"
+msgstr "%P: uyarı: `%s' yüklenebilir bölümü için bellek bölümü belirtilmemiş\n"
+
+#: ldlang.c:2846
+msgid "%P: warning: changing start of section %s by %u bytes\n"
+msgstr "%P: uyarı: %s bölümünün başlangıcı %u bayt değiştirildi\n"
+
+#: ldlang.c:2859
+#, c-format
+msgid "%F%S: non constant address expression for section %s\n"
+msgstr "%F%S: %s bölümü için sabit olmayan adres açılımı\n"
+
+#: ldlang.c:3036
+msgid "%P%F: can't relax section: %E\n"
+msgstr "%P%F: bölüm gevşetilemedi: %E\n"
+
+#: ldlang.c:3232
+msgid "%F%P: invalid data statement\n"
+msgstr "%F%P: geçersiz veri deyimi\n"
+
+#: ldlang.c:3269
+msgid "%F%P: invalid reloc statement\n"
+msgstr "%F%P: geçersiz yerdeğişim deyimi\n"
+
+#: ldlang.c:3408
+msgid "%P%F:%s: can't set start address\n"
+msgstr "%P%F:%s: başlangıç adresi atanamadı\n"
+
+#: ldlang.c:3421 ldlang.c:3439
+msgid "%P%F: can't set start address\n"
+msgstr "%P%F: başlangıç adresi atanamadı\n"
+
+#: ldlang.c:3433
+msgid "%P: warning: cannot find entry symbol %s; defaulting to %V\n"
+msgstr "%P: uyarı: giriş sembolü %s bulunamadı; öntanımlı %V kullanılıyor\n"
+
+#: ldlang.c:3444
+msgid "%P: warning: cannot find entry symbol %s; not setting start address\n"
+msgstr "%P: uyarı: giriş sembolü %s bulunamadı; başlangıç adresi atanmıyor\n"
+
+#: ldlang.c:3488
+msgid "%P%F: Relocatable linking with relocations from format %s (%B) to format %s (%B) is not supported\n"
+msgstr "%P%F: %s (%B) biçeminden yerdeğişimlerle %s (%B) biçemine yerdeğiştirebilen bağlanma desteklenmiyor\n"
+
+#: ldlang.c:3497
+msgid "%P: warning: %s architecture of input file `%B' is incompatible with %s output\n"
+msgstr "%1$P: uyarı: `%3$B' girdi dosyasının platformu %2$s, %4$s çıktısıyla uyumlu değil\n"
+
+#: ldlang.c:3518
+msgid "%E%X: failed to merge target specific data of file %B\n"
+msgstr "%E%X: %B dosyasındaki hedefe özel veri birleştirilemedi\n"
+
+#: ldlang.c:3604
+msgid ""
+"\n"
+"Allocating common symbols\n"
+msgstr ""
+"\n"
+"Ortak sembollere bellek ayrılıyor\n"
+
+#: ldlang.c:3605
+msgid ""
+"Common symbol       size              file\n"
+"\n"
+msgstr ""
+"Ortak sembol        boy               dosya\n"
+"\n"
+
+#. This message happens when using the
+#. svr3.ifile linker script, so I have
+#. disabled it.
+#: ldlang.c:3681
+msgid "%P: no [COMMON] command, defaulting to .bss\n"
+msgstr "%P: [ORTAK] komutu yok, öntanımlı .bss kullanılıyor\n"
+
+#: ldlang.c:3737
+msgid "%P%F: invalid syntax in flags\n"
+msgstr "%P%F: bayraklarda geçersiz sözdizimi\n"
+
+#: ldlang.c:4325
+msgid "%P%Fmultiple STARTUP files\n"
+msgstr "%P%Fbirden fazla BAŞLANGIÇ dosyası\n"
+
+#: ldlang.c:4368
+msgid "%X%P:%S: section has both a load address and a load region\n"
+msgstr "%X%P:%S: bölümün hem bir yükleme adresi, hem de bir yükleme bölgesi var\n"
+
+#: ldlang.c:4608
+msgid "%F%P: bfd_record_phdr failed: %E\n"
+msgstr "%F%P: bfd_record_phdr başarısız: %E\n"
+
+#: ldlang.c:4627
+msgid "%X%P: section `%s' assigned to non-existent phdr `%s'\n"
+msgstr "%X%P: `%s' bölümü var olmayan phdr `%s'a atanmış\n"
+
+#: ldlang.c:4919
+msgid "%X%P: unknown language `%s' in version information\n"
+msgstr "%X%P: sürüm bilgisinde bilinmeyen `%s' dili\n"
+
+#: ldlang.c:4969
+msgid "%X%P: anonymous version tag cannot be combined with other version tags\n"
+msgstr "%X%P: anonim sürüm etiketi diğer sürüm etiketleri ile birleştirilemez\n"
+
+#: ldlang.c:4977
+msgid "%X%P: duplicate version tag `%s'\n"
+msgstr "%X%P: birden fazla sürüm etiketi `%s'\n"
+
+#: ldlang.c:4990 ldlang.c:5003
+msgid "%X%P: duplicate expression `%s' in version information\n"
+msgstr "%X%P: sürüm bilgisinde birden fazla `%s' ifadesi\n"
+
+#: ldlang.c:5043
+msgid "%X%P: unable to find version dependency `%s'\n"
+msgstr "%X%P: sürüm bağımlılığı `%s' karşılanamadı\n"
+
+#: ldlang.c:5065
+msgid "%X%P: unable to read .exports section contents\n"
+msgstr "%X%P: .exports bölümünün içeriği okunamadı\n"
+
+#: ldmain.c:247
+msgid "%X%P: can't set BFD default target to `%s': %E\n"
+msgstr "%X%P: BFD öntanımlı hedefi `%s' olarak atanamadı: %E\n"
+
+#: ldmain.c:349
+msgid "%P%F: -r and --mpc860c0 may not be used together\n"
+msgstr "%P%F: -r ve --mpc860c0 beraber kullanılamaz\n"
+
+#: ldmain.c:351
+msgid "%P%F: --relax and -r may not be used together\n"
+msgstr "%P%F: --relax ve -r beraber kullanılamaz\n"
+
+#: ldmain.c:353
+msgid "%P%F: -r and -shared may not be used together\n"
+msgstr "%P%F: -r ve -shared beraber kullanılamaz\n"
+
+#: ldmain.c:359
+msgid "%P%F: -F may not be used without -shared\n"
+msgstr "%P%F: -F, -shared olmaksızın kullanılamaz\n"
+
+#: ldmain.c:361
+msgid "%P%F: -f may not be used without -shared\n"
+msgstr "%P%F: -f, -shared olmaksızın kullanılamaz\n"
+
+#: ldmain.c:403
+msgid "using external linker script:"
+msgstr "dış bağlayıcı betiği kullanılıyor:"
+
+#: ldmain.c:405
+msgid "using internal linker script:"
+msgstr "iç bağlayıcı betiği kullanılıyor:"
+
+#: ldmain.c:439
+msgid "%P%F: no input files\n"
+msgstr "%P%F: girdi dosyası yok\n"
+
+#: ldmain.c:443
+msgid "%P: mode %s\n"
+msgstr "%P: %s kipi\n"
+
+#: ldmain.c:459
+msgid "%P%F: cannot open map file %s: %E\n"
+msgstr "%P%F: Eşleme dosyası %s açılamadı: %E\n"
+
+#: ldmain.c:489
+msgid "%P: link errors found, deleting executable `%s'\n"
+msgstr "%P: bağlama hataları bulundu, `%s' uygulaması siliniyor\n"
+
+#: ldmain.c:498
+msgid "%F%B: final close failed: %E\n"
+msgstr "%F%B: son kapatma başarısız: %E\n"
+
+#: ldmain.c:524
+msgid "%X%P: unable to open for source of copy `%s'\n"
+msgstr "%X%P: `%s' kopyasının kaynağı açılamadı\n"
+
+#: ldmain.c:527
+msgid "%X%P: unable to open for destination of copy `%s'\n"
+msgstr "%X%P: `%s' kopyası için hedef açılamadı\n"
+
+#: ldmain.c:534
+msgid "%P: Error writing file `%s'\n"
+msgstr "%P: `%s' dosyası yazılırken hata oluştu\n"
+
+#: ldmain.c:539 pe-dll.c:1443
+#, c-format
+msgid "%P: Error closing file `%s'\n"
+msgstr "%P: `%s' dosyası kapatılırken hata oluştu\n"
+
+#: ldmain.c:555
+#, c-format
+msgid "%s: total time in link: %ld.%06ld\n"
+msgstr "%s: Bağlanmada geçen toplam süre: %ld.%06ld\n"
+
+#: ldmain.c:558
+#, c-format
+msgid "%s: data size %ld\n"
+msgstr "%s: veri boyu %ld\n"
+
+#: ldmain.c:596
+msgid "%P%F: missing argument to -m\n"
+msgstr "%P%F: -m için argüman eksik\n"
+
+#: ldmain.c:741 ldmain.c:759 ldmain.c:789
+msgid "%P%F: bfd_hash_table_init failed: %E\n"
+msgstr "%P%F: bfd_hash_table_init başarısız: %E\n"
+
+#: ldmain.c:745 ldmain.c:763
+msgid "%P%F: bfd_hash_lookup failed: %E\n"
+msgstr "%P%F: bfd_hash_lookup başarısız: %E\n"
+
+#: ldmain.c:777
+msgid "%X%P: error: duplicate retain-symbols-file\n"
+msgstr "%X%P: hata: duplicate retain-symbols-file\n"
+
+#: ldmain.c:819
+msgid "%P%F: bfd_hash_lookup for insertion failed: %E\n"
+msgstr "%P%F: yerleştirme için bfd_hash_lookup başarısız: %E\n"
+
+#: ldmain.c:824
+msgid "%P: `-retain-symbols-file' overrides `-s' and `-S'\n"
+msgstr "%P: `-retain-symbols-file' seçeneği `-s' and `-S' seçeneklerinin yerine geçer\n"
+
+#: ldmain.c:899
+msgid ""
+"Archive member included because of file (symbol)\n"
+"\n"
+msgstr ""
+"Arşiv üyesi dosya yüzünden (sembol) içerildi\n"
+"\n"
+
+#: ldmain.c:969
+msgid "%X%C: multiple definition of `%T'\n"
+msgstr "%X%C: `%T' için birden fazla tanım\n"
+
+#: ldmain.c:972
+msgid "%D: first defined here\n"
+msgstr "%D: ilk burada tanımlanmış\n"
+
+#: ldmain.c:976
+msgid "%P: Disabling relaxation: it will not work with multiple definitions\n"
+msgstr "%P: Gevşetme etkisizleştirildi: çoklu tanımlarla beraber çalışmaz\n"
+
+#: ldmain.c:1006
+msgid "%B: warning: definition of `%T' overriding common\n"
+msgstr "%B: uyarı: `%T' tanımı genelin yerine geçiyor\n"
+
+#: ldmain.c:1009
+msgid "%B: warning: common is here\n"
+msgstr "%B: uyarı: genel burada\n"
+
+#: ldmain.c:1016
+msgid "%B: warning: common of `%T' overridden by definition\n"
+msgstr "%B: uyarı: tanım, `%T'nin genelinin yerine geçti\n"
+
+#: ldmain.c:1019
+msgid "%B: warning: defined here\n"
+msgstr "%B: uyarı: burada tanımlanmış\n"
+
+#: ldmain.c:1026
+msgid "%B: warning: common of `%T' overridden by larger common\n"
+msgstr "%B: uyarı: Daha büyük genel, `%T'nin genelinin yerine geçti\n"
+
+#: ldmain.c:1029
+msgid "%B: warning: larger common is here\n"
+msgstr "%B: uyarı: daha büyük genel burada\n"
+
+#: ldmain.c:1033
+msgid "%B: warning: common of `%T' overriding smaller common\n"
+msgstr "%B: uyarı: `%T'nin geneli daha küçük genelin yerine geçti\n"
+
+#: ldmain.c:1036
+msgid "%B: warning: smaller common is here\n"
+msgstr "%B: uyarı: daha küçük genel burada\n"
+
+#: ldmain.c:1040
+msgid "%B: warning: multiple common of `%T'\n"
+msgstr "%B: uyarı: `%T'nin birden fazla geneli var\n"
+
+#: ldmain.c:1042
+msgid "%B: warning: previous common is here\n"
+msgstr "%B: uyarı: bir önceki genel burada\n"
+
+#: ldmain.c:1062 ldmain.c:1100
+msgid "%P: warning: global constructor %s used\n"
+msgstr "%P: uyarı: evrensel kurucu %s kullanıldı\n"
+
+#: ldmain.c:1110
+msgid "%P%F: BFD backend error: BFD_RELOC_CTOR unsupported\n"
+msgstr "%P%F: BFD arkayüz hatası: BFD_RELOC_CTOR desteklenmiyor\n"
+
+#: ldmain.c:1287 ldmisc.c:533
+msgid "%F%P: bfd_hash_table_init failed: %E\n"
+msgstr "%F%P: bfd_hash_table_init başarısız: %E\n"
+
+#: ldmain.c:1294 ldmisc.c:540
+msgid "%F%P: bfd_hash_lookup failed: %E\n"
+msgstr "%F%P: bfd_hash_lookup başarısız: %E\n"
+
+#: ldmain.c:1314
+msgid "%C: undefined reference to `%T'\n"
+msgstr "%C: `%T'ye tanımsız başvuru\n"
+
+#: ldmain.c:1320
+msgid "%D: more undefined references to `%T' follow\n"
+msgstr "%D: `%T'ye başka tanımsız başvurular aşağıda\n"
+
+#: ldmain.c:1327
+msgid "%B: undefined reference to `%T'\n"
+msgstr "%B: `%T'ye tanımsız başvuru\n"
+
+#: ldmain.c:1333
+msgid "%B: more undefined references to `%T' follow\n"
+msgstr "%B: `%T'ye başka tanımsız başvurular aşağıda\n"
+
+#: ldmain.c:1364 ldmain.c:1392 ldmain.c:1410
+msgid "%P%X: generated"
+msgstr "%P%X: oluşturuldu"
+
+#: ldmain.c:1371
+msgid " additional relocation overflows omitted from the output\n"
+msgstr " ek yerdeğişim taşmaları çıktıya gönderilmedi\n"
+
+#: ldmain.c:1375
+msgid " relocation truncated to fit: %s %T"
+msgstr " yer değişim sığması için budandı: %s %T"
+
+#: ldmain.c:1395
+#, c-format
+msgid "dangerous relocation: %s\n"
+msgstr "tehlikeli yerdeğişim: %s\n"
+
+#: ldmain.c:1413
+msgid " reloc refers to symbol `%T' which is not being output\n"
+msgstr " yer değişim, çıktılanmayan `%T' sembolüne referans veriyor\n"
+
+#: ldmisc.c:147
+msgid "no symbol"
+msgstr "sembol yok"
+
+#: ldmisc.c:211
+#, c-format
+msgid "built in linker script:%u"
+msgstr "yerleşik bağlayıcı betiği:%u"
+
+#: ldmisc.c:260 ldmisc.c:264
+msgid "%B%F: could not read symbols\n"
+msgstr "%B%F: semboller okunamadı\n"
+
+#: ldmisc.c:291
+msgid ": In function `%T':\n"
+msgstr ": `%T' İşlevinde:\n"
+
+#: ldmisc.c:438
+msgid "%F%P: internal error %s %d\n"
+msgstr "%F%P: iç hata %s %d\n"
+
+#: ldmisc.c:484
+msgid "%P: internal error: aborting at %s line %d in %s\n"
+msgstr "%1$P: iç hata: %4$s içinde %3$d satırı %2$s'da durduruldu\n"
+
+#: ldmisc.c:487
+msgid "%P: internal error: aborting at %s line %d\n"
+msgstr "%P: iç hata: %s'da, %d satırında durduruldu\n"
+
+#: ldmisc.c:489
+msgid "%P%F: please report this bug\n"
+msgstr "%P%F: lütfen bu yazılım hatasını bildirin\n"
+
+#. Output for noisy == 2 is intended to follow the GNU standards.
+#: ldver.c:39
+#, c-format
+msgid "GNU ld version %s\n"
+msgstr "GNU ld sürüm %s\n"
+
+#: ldver.c:43
+msgid "Copyright 2002 Free Software Foundation, Inc.\n"
+msgstr "Telif Hakkı 2002 Free Software Foundation, Inc.\n"
+
+#: ldver.c:44
+msgid ""
+"This program is free software; you may redistribute it under the terms of\n"
+"the GNU General Public License.  This program has absolutely no warranty.\n"
+msgstr ""
+"Bu, bir serbest yazılımdır; GNU Genel Kamu Lisansı koşulları altında değişiklik\n"
+"yapabilir ve/veya yeniden dağıtabilirsiniz. \n"
+"Bu yazılımın herhangi bir garantisi yoktur.\n"
+
+#: ldver.c:53
+msgid "  Supported emulations:\n"
+msgstr "  Desteklenen öykünümler:\n"
+
+#: ldwrite.c:54 ldwrite.c:190
+msgid "%P%F: bfd_new_link_order failed\n"
+msgstr "%P%F: bfd_new_link_order başarısız\n"
+
+#: ldwrite.c:310
+msgid "%F%P: clone section failed: %E\n"
+msgstr "%F%P: bölümü çoğaltmak başarısız : %E\n"
+
+#: ldwrite.c:348
+#, c-format
+msgid "%8x something else\n"
+msgstr "%8x başka bir şey\n"
+
+#: ldwrite.c:525
+msgid "%F%P: final link failed: %E\n"
+msgstr "%F%P: son bağlama başarısız: %E\n"
+
+#: lexsup.c:179 lexsup.c:284
+msgid "KEYWORD"
+msgstr "ANAHTARSÖZ"
+
+#: lexsup.c:179
+msgid "Shared library control for HP/UX compatibility"
+msgstr "HP/UX uyumluluğu için paylaşımlı kitaplık kontrolü"
+
+#: lexsup.c:182
+msgid "ARCH"
+msgstr "PLATFORM"
+
+#: lexsup.c:182
+msgid "Set architecture"
+msgstr "Platformu belirler"
+
+#: lexsup.c:184 lexsup.c:357
+msgid "TARGET"
+msgstr "HEDEF"
+
+#: lexsup.c:184
+msgid "Specify target for following input files"
+msgstr "Aşağıdaki girdi dosyaları için hedef belirler"
+
+#: lexsup.c:186 lexsup.c:229 lexsup.c:241 lexsup.c:254 lexsup.c:329
+#: lexsup.c:364 lexsup.c:408
+msgid "FILE"
+msgstr "DOSYA"
+
+#: lexsup.c:186
+msgid "Read MRI format linker script"
+msgstr "MRI biçeminde bağlayıcı betiği okur"
+
+#: lexsup.c:188
+msgid "Force common symbols to be defined"
+msgstr "genel sembollerin tanımlı olmasını şart koşar"
+
+#: lexsup.c:192 lexsup.c:398 lexsup.c:400 lexsup.c:402
+msgid "ADDRESS"
+msgstr "ADRES"
+
+#: lexsup.c:192
+msgid "Set start address"
+msgstr "Başlangıç adresini atar"
+
+#: lexsup.c:194
+msgid "Export all dynamic symbols"
+msgstr "Bütün dinamik sembolleri ihraç eder"
+
+#: lexsup.c:196
+msgid "Link big-endian objects"
+msgstr "Büyük sonlu nesneleri bağlar"
+
+#: lexsup.c:198
+msgid "Link little-endian objects"
+msgstr "Küçük-sonlu nesneleri bağlar"
+
+#: lexsup.c:200 lexsup.c:203
+msgid "SHLIB"
+msgstr "SHLIB"
+
+#: lexsup.c:200
+msgid "Auxiliary filter for shared object symbol table"
+msgstr "Paylaşımlı nesne sembol tablosu için ikincil filtre"
+
+#: lexsup.c:203
+msgid "Filter for shared object symbol table"
+msgstr "Paylaşımlı nesne sembol tablosu için filtre"
+
+#: lexsup.c:205
+msgid "Ignored"
+msgstr "Gözardı edilmiş"
+
+#: lexsup.c:207
+msgid "SIZE"
+msgstr "BOYUT"
+
+#: lexsup.c:207
+msgid "Small data size (if no size, same as --shared)"
+msgstr "Küçük veri boyu (eğer boy belirtilmemişse, --shared ile aynı)"
+
+#: lexsup.c:210
+msgid "FILENAME"
+msgstr "DOSYAİSMİ"
+
+#: lexsup.c:210
+msgid "Set internal name of shared library"
+msgstr "Paylaşımlı kitaplığın iç adını belirler"
+
+#: lexsup.c:212
+msgid "PROGRAM"
+msgstr "YAZILIM"
+
+#: lexsup.c:212
+msgid "Set PROGRAM as the dynamic linker to use"
+msgstr "YAZILIM'ı kullanılacak dinamik bağlayıcı olarak atar"
+
+#: lexsup.c:214
+msgid "LIBNAME"
+msgstr "KİTAPLIKADI"
+
+#: lexsup.c:214
+msgid "Search for library LIBNAME"
+msgstr "KİTAPLIKADI kitaplığını arar"
+
+#: lexsup.c:216
+msgid "DIRECTORY"
+msgstr "DİZİN"
+
+#: lexsup.c:216
+msgid "Add DIRECTORY to library search path"
+msgstr "DİZİN'i kitaplık arama yoluna ekler"
+
+#: lexsup.c:218
+msgid "EMULATION"
+msgstr "ÖYKÜNÜM"
+
+#: lexsup.c:218
+msgid "Set emulation"
+msgstr "Öykünümü belirler"
+
+#: lexsup.c:220
+msgid "Print map file on standard output"
+msgstr "Eşleme dosyasını standart çıktıya yazdırır"
+
+#: lexsup.c:222
+msgid "Do not page align data"
+msgstr "Veriyi sayfaya hizalamaz"
+
+#: lexsup.c:224
+msgid "Do not page align data, do not make text readonly"
+msgstr "Veriyi sayfaya hizalamaz, metni saltokunur yapmaz"
+
+#: lexsup.c:227
+msgid "Page align data, make text readonly"
+msgstr "Veriyi sayfaya hizalar, metni saltokunur yapar"
+
+#: lexsup.c:229
+msgid "Set output file name"
+msgstr "Çıktı dosyası adını belirler"
+
+#: lexsup.c:231
+msgid "Optimize output file"
+msgstr "Çıktı dosyasını eniyiler"
+
+#: lexsup.c:233
+msgid "Ignored for SVR4 compatibility"
+msgstr "SVR4 uyumluluğu için yoksayıldı"
+
+#: lexsup.c:237
+msgid "Generate relocatable output"
+msgstr "Yerdeğişimli çıktı oluşturur"
+
+#: lexsup.c:241
+msgid "Just link symbols (if directory, same as --rpath)"
+msgstr "Yalnız sembolleri bağlar (eğer dizin ise, --rpath ile aynı)"
+
+#: lexsup.c:244
+msgid "Strip all symbols"
+msgstr "Bütün sembolleri soyar"
+
+#: lexsup.c:246
+msgid "Strip debugging symbols"
+msgstr "Hata ayıklama sembollerini soyar"
+
+#: lexsup.c:248
+msgid "Strip symbols in discarded sections"
+msgstr "Atılan bölümlerdeki sembolleri soyar"
+
+#: lexsup.c:250
+msgid "Do not strip symbols in discarded sections"
+msgstr "Atılan bölümlerdeki sembolleri soymaz"
+
+#: lexsup.c:252
+msgid "Trace file opens"
+msgstr "İzleme dosyası açılır"
+
+#: lexsup.c:254
+msgid "Read linker script"
+msgstr "Bağlama betiği okunur"
+
+#: lexsup.c:256 lexsup.c:272 lexsup.c:315 lexsup.c:327 lexsup.c:392
+#: lexsup.c:411 lexsup.c:431
+msgid "SYMBOL"
+msgstr "SEMBOL"
+
+#: lexsup.c:256
+msgid "Start with undefined reference to SYMBOL"
+msgstr "SEMBOL'e tanımsız başvuru ile başlıyor"
+
+#: lexsup.c:258
+msgid "[=SECTION]"
+msgstr "[=BÖLÜM]"
+
+#: lexsup.c:258
+msgid "Don't merge input [SECTION | orphan] sections"
+msgstr "Girdide [BÖLÜM | öksüz] bölümlerini katıştırmaz"
+
+#: lexsup.c:260
+msgid "Build global constructor/destructor tables"
+msgstr "Evrensel kurucu/serbestleştirici tabloları hazırlar"
+
+#: lexsup.c:262
+msgid "Print version information"
+msgstr "Sürüm bilgisini gösterir"
+
+#: lexsup.c:264
+msgid "Print version and emulation information"
+msgstr "Sürüm ve öykünüm bilgisini gösterir"
+
+#: lexsup.c:266
+msgid "Discard all local symbols"
+msgstr "Bütün yerel sembolleri siler"
+
+#: lexsup.c:268
+msgid "Discard temporary local symbols (default)"
+msgstr "Geçici yerel sembolleri siler (öntanımlı)"
+
+#: lexsup.c:270
+msgid "Don't discard any local symbols"
+msgstr "Hiçbir yerel sembolü silmez"
+
+#: lexsup.c:272
+msgid "Trace mentions of SYMBOL"
+msgstr "SEMBOL'ün geçtiği yerleri takip eder"
+
+#: lexsup.c:274 lexsup.c:366 lexsup.c:368
+msgid "PATH"
+msgstr "YOL"
+
+#: lexsup.c:274
+msgid "Default search path for Solaris compatibility"
+msgstr "Solaris uyumluluğu için öntanımlı arama yolu"
+
+#: lexsup.c:276
+msgid "Start a group"
+msgstr "Grup başlatır"
+
+#: lexsup.c:278
+msgid "End a group"
+msgstr "Grup sonlandırır"
+
+#: lexsup.c:280
+msgid "Accept input files whose architecture cannot be determined"
+msgstr "Mimarisi belirlenemeyen girdi dosyalarını kabul eder"
+
+#: lexsup.c:282
+msgid "Reject input files whose architecture is unknown"
+msgstr "Mimarisi belirlenemeyen girdi dosyalarını reddeder"
+
+#: lexsup.c:284
+msgid "Ignored for SunOS compatibility"
+msgstr "SunOS uyumluluğu için yoksayıldı"
+
+#: lexsup.c:286
+msgid "Link against shared libraries"
+msgstr "Paylaşımlı kitaplıklara bağlanır"
+
+#: lexsup.c:292
+msgid "Do not link against shared libraries"
+msgstr "Paylaşımlı kitaplıklara bağlanmaz"
+
+#: lexsup.c:300
+msgid "Bind global references locally"
+msgstr "Evrensel başvuruları yerel bağlar"
+
+#: lexsup.c:302
+msgid "Check section addresses for overlaps (default)"
+msgstr "(öntanımlı) Bölüm adreslerini örtüşme için kontrol eder"
+
+#: lexsup.c:304
+msgid "Do not check section addresses for overlaps"
+msgstr "Bölüm adreslerini örtüşme için kontrol etmez"
+
+#: lexsup.c:307
+msgid "Output cross reference table"
+msgstr "Çapraz başvuru tablosunu çıktılar"
+
+#: lexsup.c:309
+msgid "SYMBOL=EXPRESSION"
+msgstr "SEMBOL=İFADE"
+
+#: lexsup.c:309
+msgid "Define a symbol"
+msgstr "Sembol tanımlar"
+
+#: lexsup.c:311
+msgid "[=STYLE]"
+msgstr "[=TARZ]"
+
+#: lexsup.c:311
+msgid "Demangle symbol names [using STYLE]"
+msgstr "[TARZ kullanarak] sembol isimlerini düzeltir"
+
+#: lexsup.c:313
+msgid "Generate embedded relocs"
+msgstr "Gömülü yerdeğişimler oluşturur"
+
+#: lexsup.c:315
+msgid "Call SYMBOL at unload-time"
+msgstr "Boşaltma zamanında SEMBOL'ü çağırır"
+
+#: lexsup.c:317
+msgid "Force generation of file with .exe suffix"
+msgstr "Dosyanın .exe soneki ile oluşturulmasını sağlar"
+
+#: lexsup.c:319
+msgid "Remove unused sections (on some targets)"
+msgstr "(Bazı hedeflerde) kullanılmayan bölümleri siler"
+
+#: lexsup.c:322
+msgid "Don't remove unused sections (default)"
+msgstr "(öntanımlı) Kullanılmayan bölümleri silmez"
+
+#: lexsup.c:325
+msgid "Print option help"
+msgstr "Seçenek yardımını gösterir"
+
+#: lexsup.c:327
+msgid "Call SYMBOL at load-time"
+msgstr "Yükleme sırasında SEMBOL'ü çağırır"
+
+#: lexsup.c:329
+msgid "Write a map file"
+msgstr "Eşleme dosyası yazdırır"
+
+#: lexsup.c:331
+msgid "Do not define Common storage"
+msgstr "Ortak depo'yu tanımlamaz"
+
+#: lexsup.c:333
+msgid "Do not demangle symbol names"
+msgstr "Sembol isimlerini düzeltmez"
+
+#: lexsup.c:335
+msgid "Use less memory and more disk I/O"
+msgstr "Daha az bellek ve daha fazla disk I/O kullanır"
+
+#: lexsup.c:337
+msgid "Allow no undefined symbols"
+msgstr "Tanımsız sembollere izin vermez"
+
+#: lexsup.c:339
+msgid "Allow undefined symbols in shared objects (the default)"
+msgstr "Paylaşımlı nesnelerde tanımsız sembollere izin verir (öntanımlı)"
+
+#: lexsup.c:341
+msgid "Do not allow undefined symbols in shared objects"
+msgstr "Paylaşımlı nesnelerde tanımsız sembollere izin vermez"
+
+#: lexsup.c:343
+msgid "Allow multiple definitions"
+msgstr "Birden fazla tanıma izin verir"
+
+#: lexsup.c:345
+msgid "Disallow undefined version"
+msgstr "Tanımsız sürüme izin vermez"
+
+#: lexsup.c:347
+msgid "Don't warn about mismatched input files"
+msgstr "Eşleşmeyen girdi dosyaları hakkında uyarmaz"
+
+#: lexsup.c:349
+msgid "Turn off --whole-archive"
+msgstr "--whole-archive seçeneğini etkisizleştirir"
+
+#: lexsup.c:351
+msgid "Create an output file even if errors occur"
+msgstr "Hatalar oluşsa bile bir çıktı dosyası oluşturur"
+
+#: lexsup.c:355
+msgid ""
+"Only use library directories specified on\n"
+"\t\t\t\tthe command line"
+msgstr ""
+"Yalnızca komut satırında belirtilen\n"
+"\t\t\t\tkitaplık dizinlerini kullanır"
+
+#: lexsup.c:357
+msgid "Specify target of output file"
+msgstr "Çıktı dosyasının hedefini belirler"
+
+#: lexsup.c:359
+msgid "Ignored for Linux compatibility"
+msgstr "Linux uyumluluğu için yoksayıldı"
+
+#: lexsup.c:361
+msgid "Relax branches on certain targets"
+msgstr "Bazı hedeflerde dalları gevşetir"
+
+#: lexsup.c:364
+msgid "Keep only symbols listed in FILE"
+msgstr "Yalnızca DOSYA'da belirtilen sembolleri tutar"
+
+#: lexsup.c:366
+msgid "Set runtime shared library search path"
+msgstr "Çalışma zamanı paylaşımlı kitaplık arama yolunu belirler"
+
+#: lexsup.c:368
+msgid "Set link time shared library search path"
+msgstr "Bağlama zamanı paylaşımlı kitaplık arama yolunu belirler"
+
+#: lexsup.c:370
+msgid "Create a shared library"
+msgstr "Paylaşımlı kitaplık oluşturur"
+
+#: lexsup.c:374
+msgid "Create a position independent executable"
+msgstr "Yerden bağımsız uygulama oluşturur"
+
+#: lexsup.c:378
+msgid "Sort common symbols by size"
+msgstr "Ortak sembolleri boyuta göre sıralar"
+
+#: lexsup.c:382
+msgid "COUNT"
+msgstr "SAYI"
+
+#: lexsup.c:382
+msgid "How many tags to reserve in .dynamic section"
+msgstr "Bir .dynamic bölümde tutulacak etiket sayısı"
+
+#: lexsup.c:384
+msgid "[=SIZE]"
+msgstr "[=BOYUT]"
+
+#: lexsup.c:384
+msgid "Split output sections every SIZE octets"
+msgstr "Her BOYUT sekizliğinde çıktı bölümlerini ayırır"
+
+#: lexsup.c:386
+msgid "[=COUNT]"
+msgstr "[=SAYI]"
+
+#: lexsup.c:386
+msgid "Split output sections every COUNT relocs"
+msgstr "Her SAYI yerdeğişiminde çıktı bölümlerini ayırır"
+
+#: lexsup.c:388
+msgid "Print memory usage statistics"
+msgstr "Bellek kullanım istatistiklerini gösterir"
+
+#: lexsup.c:390
+msgid "Display target specific options"
+msgstr "Hedefe özel seçenekleri gösterir"
+
+#: lexsup.c:392
+msgid "Do task level linking"
+msgstr "Görev seviyesinde bağlama yapar"
+
+#: lexsup.c:394
+msgid "Use same format as native linker"
+msgstr "Yerel bağlayıcı ile aynı biçemi kullanır"
+
+#: lexsup.c:396
+msgid "SECTION=ADDRESS"
+msgstr "BÖLÜM=ADRES"
+
+#: lexsup.c:396
+msgid "Set address of named section"
+msgstr "İsimli bölümün adresini belirler"
+
+#: lexsup.c:398
+msgid "Set address of .bss section"
+msgstr ".bss bölümünün adresini belirler"
+
+#: lexsup.c:400
+msgid "Set address of .data section"
+msgstr ".data bölümünün adresini belirler"
+
+#: lexsup.c:402
+msgid "Set address of .text section"
+msgstr ".text bölümünün adresini belirler"
+
+#: lexsup.c:404
+msgid "Output lots of information during link"
+msgstr "Bağlama esnasında ek bilgi gösterir"
+
+#: lexsup.c:408
+msgid "Read version information script"
+msgstr "Sürüm bilgisi betiğini okur"
+
+#: lexsup.c:411
+msgid ""
+"Take export symbols list from .exports, using\n"
+"\t\t\t\tSYMBOL as the version."
+msgstr ""
+"İhraç sembolleri listesini .exports'dan alır, sürüm olarak\n"
+"\t\t\t\tSEMBOL değerini kullanır."
+
+#: lexsup.c:414
+msgid "Warn about duplicate common symbols"
+msgstr "Tekrarlanmış ortak semboller hakkında uyarı verir"
+
+#: lexsup.c:416
+msgid "Warn if global constructors/destructors are seen"
+msgstr "Evrensel kurucu/serbestleştiriciler bulunursa uyarı verir"
+
+#: lexsup.c:419
+msgid "Warn if the multiple GP values are used"
+msgstr "Çoklu GP değerleri kullanılırsa uyarı verir"
+
+#: lexsup.c:421
+msgid "Warn only once per undefined symbol"
+msgstr "Her tanımsız sembol için bir defa uyarı verir"
+
+#: lexsup.c:423
+msgid "Warn if start of section changes due to alignment"
+msgstr "Hizalama sebebi ile bölüm başlangıcı değişirse uyarı verir"
+
+#: lexsup.c:426
+msgid "Treat warnings as errors"
+msgstr "Uyarıları hata olarak işler"
+
+#: lexsup.c:429
+msgid "Include all objects from following archives"
+msgstr "Aşağıdaki arşivlerdeki tüm nesneleri içerir"
+
+#: lexsup.c:431
+msgid "Use wrapper functions for SYMBOL"
+msgstr "SEMBOL için sarmalama işlevleri kullanır"
+
+#: lexsup.c:433
+msgid "[=WORDS]"
+msgstr "[=SÖZCÜKLER]"
+
+#: lexsup.c:433
+msgid ""
+"Modify problematic branches in last WORDS (1-10,\n"
+"\t\t\t\tdefault 5) words of a page"
+msgstr ""
+"Bir sayfanın son SÖZCÜKLER sözcüklerindeki (1-10,\n"
+"\t\t\t\töntanımlı 5) problemli dalları değiştirir"
+
+#: lexsup.c:602
+msgid "%P: unrecognized option '%s'\n"
+msgstr "%P: bilinmeyen `%s' seçeneği\n"
+
+#: lexsup.c:604
+msgid "%P%F: use the --help option for usage information\n"
+msgstr "%P%F: kullanım bilgisi için --help seçeneğini kullanın\n"
+
+#: lexsup.c:622
+msgid "%P%F: unrecognized -a option `%s'\n"
+msgstr "%P%F: bilinmeyen -a seçeneği `%s'\n"
+
+#: lexsup.c:635
+msgid "%P%F: unrecognized -assert option `%s'\n"
+msgstr "%P%F: bilinmeyen -assert seçeneği `%s'\n"
+
+#: lexsup.c:678
+msgid "%F%P: unknown demangling style `%s'"
+msgstr "%F%P: bilinmeyen düzeltme tarzı `%s'"
+
+#: lexsup.c:737
+msgid "%P%F: invalid number `%s'\n"
+msgstr "%P%F: geçersiz sayı `%s'\n"
+
+#. This can happen if the user put "-rpath,a" on the command
+#. line.  (Or something similar.  The comma is important).
+#. Getopt becomes confused and thinks that this is a -r option
+#. but it cannot parse the text after the -r so it refuses to
+#. increment the optind counter.  Detect this case and issue
+#. an error message here.  We cannot just make this a warning,
+#. increment optind, and continue because getopt is too confused
+#. and will seg-fault the next time around.
+#: lexsup.c:849
+msgid "%P%F: bad -rpath option\n"
+msgstr "%P%F: hatalı -rpath seçeneği\n"
+
+#: lexsup.c:953
+msgid "%P%F: -shared not supported\n"
+msgstr "%P%F: -shared desteklenmiyor\n"
+
+#: lexsup.c:962
+msgid "%P%F: -pie not supported\n"
+msgstr "%P%F: -pie desteklenmiyor\n"
+
+#: lexsup.c:994
+msgid "%P%F: invalid argument to option \"--section-start\"\n"
+msgstr "%P%F: \"--section-start\" seçeneğine geçersiz argüman verilmiş\n"
+
+#: lexsup.c:1000
+msgid "%P%F: missing argument(s) to option \"--section-start\"\n"
+msgstr "%P%F: \"--section-start\" seçeneğine eksik argüman(lar) verilmiş\n"
+
+#: lexsup.c:1158
+msgid "%P%F: may not nest groups (--help for usage)\n"
+msgstr "%P%F: gruplar yuvalanamaz (yardım için --help)\n"
+
+#: lexsup.c:1165
+msgid "%P%F: group ended before it began (--help for usage)\n"
+msgstr "%P%F: grup başlamadan bitti (yardım için --help)\n"
+
+#: lexsup.c:1179
+msgid "%P%F: invalid argument to option \"mpc860c0\"\n"
+msgstr "%P%F: \"mpc860c0\" seçeneğine geçersiz argüman\n"
+
+#: lexsup.c:1234
+msgid "%P%F: invalid hex number `%s'\n"
+msgstr "%P%F: geçersiz onaltılık sayı `%s'\n"
+
+#: lexsup.c:1246
+#, c-format
+msgid "Usage: %s [options] file...\n"
+msgstr "Kullanımı: %s [seçenekler] DOSYA...\n"
+
+#: lexsup.c:1248
+msgid "Options:\n"
+msgstr "Seçenekler:\n"
+
+#. Note: Various tools (such as libtool) depend upon the
+#. format of the listings below - do not change them.
+#: lexsup.c:1331
+#, c-format
+msgid "%s: supported targets:"
+msgstr "%s: desteklenen hedefler:"
+
+#: lexsup.c:1339
+#, c-format
+msgid "%s: supported emulations: "
+msgstr "%s: desteklenen öykünümler: "
+
+#: lexsup.c:1344
+#, c-format
+msgid "%s: emulation specific options:\n"
+msgstr "%s: öykünüme özel seçenekler:\n"
+
+#: lexsup.c:1348
+#, c-format
+msgid "Report bugs to %s\n"
+msgstr ""
+"Yazılım hatalarını %s adresine,\n"
+"çeviri hatalarını <gnu-tr-u12a@lists.sourceforge.net> adresine gönderin\n"
+
+#: mri.c:307
+msgid "%P%F: unknown format type %s\n"
+msgstr "%P%F: bilinmeyen biçem türü %s\n"
+
+#: pe-dll.c:301
+#, c-format
+msgid "%XUnsupported PEI architecture: %s\n"
+msgstr "%XDesteklenmeyen PEI platformu: %s\n"
+
+#: pe-dll.c:650
+#, c-format
+msgid "%XError, duplicate EXPORT with ordinals: %s (%d vs %d)\n"
+msgstr "%XHata, %s (%d yerine %d) onlukları ile tekrarlanmış İHRAÇ\n"
+
+#: pe-dll.c:657
+#, c-format
+msgid "Warning, duplicate EXPORT: %s\n"
+msgstr "Uyarı, tekrarlanmış İHRAÇ: %s\n"
+
+#: pe-dll.c:723
+#, c-format
+msgid "%XCannot export %s: symbol not defined\n"
+msgstr "%X%s ihraç edilemedi: sembol tanımsız\n"
+
+#: pe-dll.c:729
+#, c-format
+msgid "%XCannot export %s: symbol wrong type (%d vs %d)\n"
+msgstr "%X%s ihraç edilemedi: sembol hatalı türde (%d yerine %d)\n"
+
+#: pe-dll.c:736
+#, c-format
+msgid "%XCannot export %s: symbol not found\n"
+msgstr "%X%s ihraç edilemedi: sembol bulunamadı\n"
+
+#: pe-dll.c:848
+#, c-format
+msgid "%XError, ordinal used twice: %d (%s vs %s)\n"
+msgstr "%XHata, %d (%s yerine %s) onluğu iki defa kullanılmış\n"
+
+#: pe-dll.c:1165
+#, c-format
+msgid "%XError: %d-bit reloc in dll\n"
+msgstr "%XHata: dll'de %d-bitlik yerdeğişim\n"
+
+#: pe-dll.c:1296
+#, c-format
+msgid "%s: Can't open output def file %s\n"
+msgstr "%s: %s tanım dosyası açılamadı\n"
+
+#: pe-dll.c:1439
+msgid "; no contents available\n"
+msgstr "; içerik yok\n"
+
+#: pe-dll.c:2203
+msgid "%C: variable '%T' can't be auto-imported. Please read the documentation for ld's --enable-auto-import for details.\n"
+msgstr ""
+"%C: '%T' değişkeni oto-ithal edilemez. Lütfen ld için dökümantasyonu okuyun.\n"
+"    detay için --enable-auto-import kullanın.\n"
+
+#: pe-dll.c:2233
+#, c-format
+msgid "%XCan't open .lib file: %s\n"
+msgstr "%X.lib dosyası açılamadı: %s\n"
+
+#: pe-dll.c:2238
+#, c-format
+msgid "Creating library file: %s\n"
+msgstr "Kitaplık dosyası oluşturuluyor: %s\n"

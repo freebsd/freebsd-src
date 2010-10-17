@@ -1,0 +1,552 @@
+# Danish messages for gprof.
+# Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+# Keld Simonsen <keld@dkuug.dk>, 2002
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: gprof 2.12.91\n"
+"POT-Creation-Date: 2002-07-23 15:58-0400\n"
+"PO-Revision-Date: 2002-11-09 14:01+0100\n"
+"Last-Translator: Keld Simonsen <keld@dkuug.dk>\n"
+"Language-Team: Danish <dansk@klid.dk>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=iso-8859-1\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: alpha.c:93 mips.c:47
+msgid "<indirect child>"
+msgstr "<indirekte barn>"
+
+#: alpha.c:110 mips.c:64
+#, c-format
+msgid "[find_call] %s: 0x%lx to 0x%lx\n"
+msgstr "[find_call] %s: 0x%lx til 0x%lx\n"
+
+#: alpha.c:132
+#, c-format
+msgid "[find_call] 0x%lx: jsr%s <indirect_child>\n"
+msgstr "[find_call] 0x%lx: jsr%s <indirekte_barn>\n"
+
+#: alpha.c:142
+#, c-format
+msgid "[find_call] 0x%lx: bsr"
+msgstr "[find_call] 0x%lx: bsr"
+
+#: basic_blocks.c:134 call_graph.c:94 hist.c:98
+#, c-format
+msgid "%s: %s: unexpected end of file\n"
+msgstr "%s: %s: uventet filslutning\n"
+
+#: basic_blocks.c:202
+#, c-format
+msgid "%s: warning: ignoring basic-block exec counts (use -l or --line)\n"
+msgstr "%s: advarsel: ignorerer eksekveringsregning for grundblok (brug -l eller --line)\n"
+
+#. FIXME: This only works if bfd_vma is unsigned long.
+#: basic_blocks.c:295 basic_blocks.c:305
+#, c-format
+msgid "%s:%d: (%s:0x%lx) %lu executions\n"
+msgstr "%s:%d: (%s:0x%lx) %lu eksekveringer\n"
+
+#: basic_blocks.c:296 basic_blocks.c:306
+msgid "<unknown>"
+msgstr "<ukendt>"
+
+#: basic_blocks.c:553
+#, c-format
+msgid ""
+"\n"
+"\n"
+"Top %d Lines:\n"
+"\n"
+"     Line      Count\n"
+"\n"
+msgstr ""
+"\n"
+"\n"
+"Øverste %d linjer:\n"
+"\n"
+"     Linje     Antal\n"
+"\n"
+
+#: basic_blocks.c:577
+msgid ""
+"\n"
+"Execution Summary:\n"
+"\n"
+msgstr ""
+"\n"
+"Eksekveringsoversigt:\n"
+"\n"
+
+#: basic_blocks.c:578
+#, c-format
+msgid "%9ld   Executable lines in this file\n"
+msgstr "%9ld   Eksekverbare linjer i denne fil\n"
+
+#: basic_blocks.c:580
+#, c-format
+msgid "%9ld   Lines executed\n"
+msgstr "%9ld   Eksekverede linjer\n"
+
+#: basic_blocks.c:581
+#, c-format
+msgid "%9.2f   Percent of the file executed\n"
+msgstr "%9.2f   Procent af filen eksekveret\n"
+
+#: basic_blocks.c:585
+#, c-format
+msgid ""
+"\n"
+"%9lu   Total number of line executions\n"
+msgstr ""
+"\n"
+"%9lu   Totalt antal linjeeksekveringer\n"
+
+#: basic_blocks.c:587
+#, c-format
+msgid "%9.2f   Average executions per line\n"
+msgstr "%9.2f   Gennemsniteksekveringer per linje\n"
+
+#: call_graph.c:71
+#, c-format
+msgid "[cg_tally] arc from %s to %s traversed %lu times\n"
+msgstr "[cg_tally] gren fra %s til %s gennemløbet %lu gange\n"
+
+#: cg_print.c:73
+msgid ""
+"\t\t     Call graph (explanation follows)\n"
+"\n"
+msgstr ""
+"\t\t     Kaldsgraf (forklaring følger)\n"
+"\n"
+
+#: cg_print.c:75
+msgid ""
+"\t\t\tCall graph\n"
+"\n"
+msgstr ""
+"\t\t\tKaldsgraf\n"
+"\n"
+
+#: cg_print.c:78 hist.c:363
+#, c-format
+msgid ""
+"\n"
+"granularity: each sample hit covers %ld byte(s)"
+msgstr ""
+"\n"
+"opløsning: hver stikprøve dækker %ld byte"
+
+#: cg_print.c:82
+#, c-format
+msgid ""
+" for %.2f%% of %.2f seconds\n"
+"\n"
+msgstr ""
+" for %.2f%% på %.2f sekunder\n"
+"\n"
+
+#: cg_print.c:86
+msgid ""
+" no time propagated\n"
+"\n"
+msgstr ""
+" ingen tid propageret\n"
+"\n"
+
+#: cg_print.c:95 cg_print.c:98 cg_print.c:100
+msgid "called"
+msgstr "kaldt"
+
+#: cg_print.c:95 cg_print.c:100
+msgid "total"
+msgstr "totalt"
+
+#: cg_print.c:95
+msgid "parents"
+msgstr "forældre"
+
+#: cg_print.c:97 cg_print.c:98
+msgid "index"
+msgstr "indeks"
+
+#: cg_print.c:97
+msgid "%time"
+msgstr "%tid"
+
+#: cg_print.c:97 cg_print.c:98
+msgid "self"
+msgstr "selv"
+
+#: cg_print.c:97
+msgid "descendants"
+msgstr "afkom"
+
+#: cg_print.c:98 hist.c:389
+msgid "name"
+msgstr "navn"
+
+#: cg_print.c:100
+msgid "children"
+msgstr "børn"
+
+#: cg_print.c:105
+#, c-format
+msgid "index %% time    self  children    called     name\n"
+msgstr "indeks %% tid    selv  børn        kaldt      navn\n"
+
+#: cg_print.c:129
+#, c-format
+msgid " <cycle %d as a whole> [%d]\n"
+msgstr " <hele cyklusen %d> [%d]\n"
+
+#: cg_print.c:363
+#, c-format
+msgid "%6.6s %5.5s %7.7s %11.11s %7.7s %7.7s     <spontaneous>\n"
+msgstr "%6.6s %5.5s %7.7s %11.11s %7.7s %7.7s     <spontant>\n"
+
+#: cg_print.c:364
+#, c-format
+msgid "%6.6s %5.5s %7.7s %7.7s %7.7s %7.7s     <spontaneous>\n"
+msgstr "%6.6s %5.5s %7.7s %7.7s %7.7s %7.7s     <spontant>\n"
+
+#: cg_print.c:604
+msgid ""
+"Index by function name\n"
+"\n"
+msgstr ""
+"Indeks efter funktionsnavn\n"
+"\n"
+
+#: cg_print.c:661 cg_print.c:670
+#, c-format
+msgid "<cycle %d>"
+msgstr "<cyklus %d>"
+
+#: corefile.c:64
+#, c-format
+msgid "%s: could not open %s.\n"
+msgstr "%s: kunne ikke åbne %s.\n"
+
+#: corefile.c:78 corefile.c:112
+#, c-format
+msgid "%s: unable to parse mapping file %s.\n"
+msgstr "%s: kan ikke tolke mappingsfilen %s.\n"
+
+#: corefile.c:155
+#, c-format
+msgid "%s: %s: not in a.out format\n"
+msgstr "%s: %s: ikke i a.out-format\n"
+
+#: corefile.c:166
+#, c-format
+msgid "%s: can't find .text section in %s\n"
+msgstr "%s: kan ikke finde .text-sektion i %s\n"
+
+#: corefile.c:225
+#, c-format
+msgid "%s: ran out room for %lu bytes of text space\n"
+msgstr "%s: slut på plads for %lu byte tekstplads\n"
+
+#: corefile.c:239
+#, c-format
+msgid "%s: can't do -c\n"
+msgstr "%s: kan ikke lave -c\n"
+
+#: corefile.c:276
+#, c-format
+msgid "%s: -c not supported on architecture %s\n"
+msgstr "%s: -c understøttes ikke på arkitekturen %s\n"
+
+#: corefile.c:447
+#, c-format
+msgid "%s: file `%s' has no symbols\n"
+msgstr "%s: filen \"%s\" har ingen symboler\n"
+
+#: corefile.c:748
+#, c-format
+msgid "%s: somebody miscounted: ltab.len=%d instead of %ld\n"
+msgstr "%s: nogen regnede forkert: ltab.len=%d i stedet for %ld\n"
+
+#: gmon_io.c:96 gmon_io.c:159 gmon_io.c:219 gmon_io.c:251 gmon_io.c:422
+#: gmon_io.c:449 gmon_io.c:646 gmon_io.c:671
+#, c-format
+msgid "%s: bits per address has unexpected value of %u\n"
+msgstr "%s: bit per adresse har en uventet værdi på %u\n"
+
+#: gmon_io.c:288 gmon_io.c:383
+#, c-format
+msgid "%s: file too short to be a gmon file\n"
+msgstr "%s: filen er for kort til at være en gmon-fil\n"
+
+#: gmon_io.c:298 gmon_io.c:432
+#, c-format
+msgid "%s: file `%s' has bad magic cookie\n"
+msgstr "%s: filen \"%s\" har fejlagtigt magisk tal\n"
+
+#: gmon_io.c:309
+#, c-format
+msgid "%s: file `%s' has unsupported version %d\n"
+msgstr "%s: filen \"%s\" har version %d som ikke understøttes\n"
+
+#: gmon_io.c:339
+#, c-format
+msgid "%s: %s: found bad tag %d (file corrupted?)\n"
+msgstr "%s: %s: fandt fejlagtig mærke %d (er filen beskadiget?)\n"
+
+#: gmon_io.c:405
+#, c-format
+msgid "%s: profiling rate incompatible with first gmon file\n"
+msgstr "%s: profileringshastighed er inkompatibel med første gmon-fil\n"
+
+#: gmon_io.c:465
+#, c-format
+msgid "%s: incompatible with first gmon file\n"
+msgstr "%s: inkompatibel med første gmon-fil\n"
+
+#: gmon_io.c:493
+#, c-format
+msgid "%s: file '%s' does not appear to be in gmon.out format\n"
+msgstr "%s: filen \"%s\" ser ikke ud til at være i gmon.out-format\n"
+
+#: gmon_io.c:514
+#, c-format
+msgid "%s: unexpected EOF after reading %d/%d bins\n"
+msgstr "%s: uventet filslut efter læsning af %d/%d poster\n"
+
+#: gmon_io.c:547
+msgid "time is in ticks, not seconds\n"
+msgstr "tiden er i tick, ikke sekunder\n"
+
+#: gmon_io.c:553 gmon_io.c:742
+#, c-format
+msgid "%s: don't know how to deal with file format %d\n"
+msgstr "%s: ved ikke hvordan filformat %d skal håndteres\n"
+
+#: gmon_io.c:560
+#, c-format
+msgid "File `%s' (version %d) contains:\n"
+msgstr "Filen \"%s\" (version %d) indeholder:\n"
+
+#: gmon_io.c:563
+#, c-format
+msgid "\t%d histogram record\n"
+msgstr "\t%d histogrampost\n"
+
+#: gmon_io.c:564
+#, c-format
+msgid "\t%d histogram records\n"
+msgstr "\t%d histogramposter\n"
+
+#: gmon_io.c:566
+#, c-format
+msgid "\t%d call-graph record\n"
+msgstr "\t%d kaldsgrafpost\n"
+
+#: gmon_io.c:567
+#, c-format
+msgid "\t%d call-graph records\n"
+msgstr "\t%d kaldsgrafposter\n"
+
+#: gmon_io.c:569
+#, c-format
+msgid "\t%d basic-block count record\n"
+msgstr "\t%d grundbloksregningspost\n"
+
+#: gmon_io.c:570
+#, c-format
+msgid "\t%d basic-block count records\n"
+msgstr "\t%d grundbloksregningsposter\n"
+
+#: gprof.c:152
+#, c-format
+msgid ""
+"Usage: %s [-[abcDhilLsTvwxyz]] [-[ACeEfFJnNOpPqQZ][name]] [-I dirs]\n"
+"\t[-d[num]] [-k from/to] [-m min-count] [-t table-length]\n"
+"\t[--[no-]annotated-source[=name]] [--[no-]exec-counts[=name]]\n"
+"\t[--[no-]flat-profile[=name]] [--[no-]graph[=name]]\n"
+"\t[--[no-]time=name] [--all-lines] [--brief] [--debug[=level]]\n"
+"\t[--function-ordering] [--file-ordering]\n"
+"\t[--directory-path=dirs] [--display-unused-functions]\n"
+"\t[--file-format=name] [--file-info] [--help] [--line] [--min-count=n]\n"
+"\t[--no-static] [--print-path] [--separate-files]\n"
+"\t[--static-call-graph] [--sum] [--table-length=len] [--traditional]\n"
+"\t[--version] [--width=n] [--ignore-non-functions]\n"
+"\t[--demangle[=STYLE]] [--no-demangle]\n"
+"\t[image-file] [profile-file...]\n"
+msgstr ""
+"Brug: %s [-[abcDhilLsTvwxyz]] [-[ACeEfFJnNOpPqQZ][navn]]\n"
+"\t[-I kataloger] [-d[tal]] [-k fra/til] [-m mindste-antal]\n"
+"\t[-t table-length] [--[no-]annotated-source[=navn]]\n"
+"\t[--[no-]exec-counts[=navn]] [--[no-]flat-profile[=navn]]\n"
+"\t[--[no-]graph[=navn]] [--[no-]time=navn] [--all-lines] [--brief]\n"
+"\t[--debug[=niveau]] [--function-ordering] [--file-ordering]\n"
+"\t[--directory-path=kataloger] [--display-unused-functions]\n"
+"\t[--file-format=navn] [--file-info] [--help] [--line] [--min-count=n]\n"
+"\t[--no-static] [--print-path] [--separate-files]\n"
+"\t[--static-call-graph] [--sum] [--table-length=længde] [--traditional]\n"
+"\t[--version] [--width=n] [--ignore-non-functions]\n"
+"\t[--demangle[=STIL]] [--no-demangle]\n"
+"\t[billedfil] [profilfil...]\n"
+
+#: gprof.c:168
+#, c-format
+msgid "Report bugs to %s\n"
+msgstr ""
+"Rapportér fejl til %s,\n"
+"og synpunkter på oversættelsen til dansk@klid.dk\n"
+
+#: gprof.c:242
+#, c-format
+msgid "%s: debugging not supported; -d ignored\n"
+msgstr "%s: fejlsøgning understøttes ikke; -d ignoreredes\n"
+
+#: gprof.c:322
+#, c-format
+msgid "%s: unknown file format %s\n"
+msgstr "%s: ukendt filformat %s\n"
+
+#. This output is intended to follow the GNU standards document.
+#: gprof.c:406
+#, c-format
+msgid "GNU gprof %s\n"
+msgstr "GNU gprof %s\n"
+
+#: gprof.c:407
+msgid "Based on BSD gprof, copyright 1983 Regents of the University of California.\n"
+msgstr "Baseret på BSD gprof, copyright 1983 Regents of the University of California.\n"
+
+#: gprof.c:408
+msgid "This program is free software.  This program has absolutely no warranty.\n"
+msgstr "Dette program er frit programmel. Dette program har ingen som helst garanti.\n"
+
+#: gprof.c:449
+#, c-format
+msgid "%s: unknown demangling style `%s'\n"
+msgstr "%s: ukendt demanglingsstil \"%s\"\n"
+
+#: gprof.c:469
+#, c-format
+msgid "%s: Only one of --function-ordering and --file-ordering may be specified.\n"
+msgstr "%s: Kun en af --function-ordering og --file-ordering kan angives.\n"
+
+#: gprof.c:569
+#, c-format
+msgid "%s: sorry, file format `prof' is not yet supported\n"
+msgstr "%s: desværre, filformatet \"prof\" understøttes ikke endnu\n"
+
+#: gprof.c:630
+#, c-format
+msgid "%s: gmon.out file is missing histogram\n"
+msgstr "%s: gmon.out-filen mangler histogram\n"
+
+#: gprof.c:637
+#, c-format
+msgid "%s: gmon.out file is missing call-graph data\n"
+msgstr "%s: gmon.out-filen mangler kaldsgrafdata\n"
+
+#: hist.c:127
+#, c-format
+msgid "%s: `%s' is incompatible with first gmon file\n"
+msgstr "%s: \"%s\" er inkompatibel med første gmon-fil\n"
+
+#: hist.c:143
+#, c-format
+msgid "%s: %s: unexpected EOF after reading %d of %d samples\n"
+msgstr "%s: %s: uventet filslut efter læsning af %d af %d stikprøve\n"
+
+#: hist.c:359
+#, c-format
+msgid "%c%c/call"
+msgstr "%c%c/kald"
+
+#: hist.c:367
+#, c-format
+msgid ""
+" for %.2f%% of %.2f %s\n"
+"\n"
+msgstr ""
+" for %.2f%% af %.2f %s\n"
+"\n"
+
+#: hist.c:373
+#, c-format
+msgid ""
+"\n"
+"Each sample counts as %g %s.\n"
+msgstr ""
+"\n"
+"Hver stikprøve regnes som %g %s.\n"
+
+#: hist.c:378
+msgid ""
+" no time accumulated\n"
+"\n"
+msgstr ""
+" ingen tid akkumuleret\n"
+"\n"
+
+#: hist.c:385
+msgid "cumulative"
+msgstr "kumulativ"
+
+#: hist.c:385
+msgid "self  "
+msgstr "selv"
+
+#: hist.c:385
+msgid "total "
+msgstr "totalt"
+
+#: hist.c:388
+msgid "time"
+msgstr "tid"
+
+#: hist.c:388
+msgid "calls"
+msgstr "kald"
+
+#: hist.c:481
+msgid ""
+"\n"
+"\n"
+"\n"
+"flat profile:\n"
+msgstr ""
+"\n"
+"\n"
+"\n"
+"flad profil:\n"
+
+#: hist.c:487
+msgid "Flat profile:\n"
+msgstr "Flad profil:\n"
+
+#: mips.c:75
+#, c-format
+msgid "[find_call] 0x%lx: jal"
+msgstr "[find_call] 0x%lx: jal"
+
+#: mips.c:100
+#, c-format
+msgid "[find_call] 0x%lx: jalr\n"
+msgstr "[find_call] 0x%lx: jalr\n"
+
+#: source.c:166
+#, c-format
+msgid "%s: could not locate `%s'\n"
+msgstr "%s: kunne ikke finde \"%s\"\n"
+
+#: source.c:241
+#, c-format
+msgid "*** File %s:\n"
+msgstr "*** Fil %s:\n"
+
+#: utils.c:99
+#, c-format
+msgid " <cycle %d>"
+msgstr " <cyklus %d>"
+
+#~ msgid "%s: bfd_vma has unexpected size of %ld bytes\n"
+#~ msgstr "%s: bfd_vma har en uventet størrelse på %ld byte\n"

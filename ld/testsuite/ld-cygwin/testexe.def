@@ -1,0 +1,5 @@
+NAME testexe.exe
+
+EXPORTS
+exewrite
+global_a DATA

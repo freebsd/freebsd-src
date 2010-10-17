@@ -1,0 +1,15 @@
+#source: tlstoc.s
+#as: -a64
+#ld: -melf64ppc tmpdir/libtlslib.so
+#objdump: -sj.got
+#target: powerpc64*-*-*
+
+.*: +file format elf64-powerpc
+
+Contents of section \.got:
+ 10010598 00000000 10018598 00000000 00000000  .*
+ 100105a8 00000000 00000000 00000000 00000000  .*
+ 100105b8 00000000 00000000 00000000 00000001  .*
+ 100105c8 00000000 00000000 00000000 00000001  .*
+ 100105d8 00000000 00000000 ffffffff ffff8050  .*
+ 100105e8 00000000 00000000                    .*

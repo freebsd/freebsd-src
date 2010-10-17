@@ -1,5 +1,5 @@
 /* tc-v850.c -- Assembler code for the NEC V850
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -33,8 +33,8 @@
 static bfd_reloc_code_real_type hold_cons_reloc = BFD_RELOC_UNUSED;
 
 /* Set to TRUE if we want to be pedantic about signed overflows.  */
-static boolean warn_signed_overflows   = FALSE;
-static boolean warn_unsigned_overflows = FALSE;
+static bfd_boolean warn_signed_overflows   = FALSE;
+static bfd_boolean warn_unsigned_overflows = FALSE;
 
 /* Indicates the target BFD machine number.  */
 static int machine = -1;
@@ -77,6 +77,8 @@ const relax_typeS md_relax_table[] = {
   {0xff,     -0x100,    2, 3},
   {0x1fffff, -0x200000, 4, 0},
 };
+
+static int  v850_relax = 0;
 
 /* Fixups.  */
 #define MAX_INSN_FIXUPS (5)
@@ -191,12 +193,12 @@ static void
 v850_offset (ignore)
      int ignore ATTRIBUTE_UNUSED;
 {
+  char *pfrag;
   int temp = get_absolute_expression ();
 
-  temp -= frag_now_fix ();
-
-  if (temp > 0)
-    (void) frag_more (temp);
+  pfrag = frag_var (rs_org, 1, 1, (relax_substateT)0, (symbolS *)0,
+		    (offsetT) temp, (char *) 0);
+  *pfrag = 0;
 
   demand_empty_rest_of_line ();
 }
@@ -394,7 +396,13 @@ v850_comm (area)
 	}
       else
 	{
+	  segT   old_sec;
+	  int    old_subsec;
+
 	allocate_common:
+	  old_sec = now_seg;
+	  old_subsec = now_subseg;
+
 	  S_SET_VALUE (symbolP, (valueT) size);
 	  S_SET_ALIGN (symbolP, temp);
 	  S_SET_EXTERNAL (symbolP);
@@ -411,6 +419,9 @@ v850_comm (area)
 	    default:
 	      abort ();
 	    }
+
+	  obj_elf_section_change_hook ();
+	  subseg_set (old_sec, old_subsec);
 	}
     }
   else
@@ -466,14 +477,51 @@ set_machine (number)
 
   switch (machine)
     {
-    case 0:               processor_mask = PROCESSOR_V850;   break;
+    case 0:		  processor_mask = PROCESSOR_V850;   break;
     case bfd_mach_v850e:  processor_mask = PROCESSOR_V850E;  break;
-    case bfd_mach_v850ea: processor_mask = PROCESSOR_V850EA; break;
+    case bfd_mach_v850e1: processor_mask = PROCESSOR_V850E;  break;
     }
 }
 
+static void v850_longcode PARAMS ((int));
+
+static void
+v850_longcode (type)
+     int type;
+{
+  expressionS ex;
+
+  if (! v850_relax)
+    {
+      if (type == 1)
+	as_warn (".longcall pseudo-op seen when not relaxing");
+      else
+	as_warn (".longjump pseudo-op seen when not relaxing");
+    }
+
+  expression (&ex);
+
+  if (ex.X_op != O_symbol || ex.X_add_number != 0)
+    {
+      as_bad ("bad .longcall format");
+      ignore_rest_of_line ();
+
+      return;
+    }
+
+  if (type == 1)
+    fix_new_exp (frag_now, frag_now_fix (), 4, & ex, 1,
+		 BFD_RELOC_V850_LONGCALL);
+  else
+    fix_new_exp (frag_now, frag_now_fix (), 4, & ex, 1,
+		 BFD_RELOC_V850_LONGJUMP);
+
+  demand_empty_rest_of_line ();
+}
+
 /* The target specific pseudo-ops which we support.  */
-const pseudo_typeS md_pseudo_table[] = {
+const pseudo_typeS md_pseudo_table[] =
+{
   { "sdata",		v850_seg,		SDATA_SECTION		},
   { "tdata",		v850_seg,		TDATA_SECTION		},
   { "zdata",		v850_seg,		ZDATA_SECTION		},
@@ -492,9 +540,9 @@ const pseudo_typeS md_pseudo_table[] = {
   { "call_table_data",	v850_seg,		CALL_TABLE_DATA_SECTION	},
   { "call_table_text",	v850_seg,		CALL_TABLE_TEXT_SECTION	},
   { "v850e",		set_machine,		bfd_mach_v850e		},
-  { "v850ea",		set_machine,		bfd_mach_v850ea 	},
-  { "file",		dwarf2_directive_file,	0			},
-  { "loc",		dwarf2_directive_loc,	0			},
+  { "v850e1",		set_machine,		bfd_mach_v850e1 	},
+  { "longcall",		v850_longcode,		1			},
+  { "longjump",		v850_longcode,		2			},
   { NULL,		NULL,			0			}
 };
 
@@ -502,7 +550,8 @@ const pseudo_typeS md_pseudo_table[] = {
 static struct hash_control *v850_hash;
 
 /* This table is sorted.  Suitable for searching by a binary search.  */
-static const struct reg_name pre_defined_registers[] = {
+static const struct reg_name pre_defined_registers[] =
+{
   { "ep",  30 },		/* ep - element ptr */
   { "gp",   4 },		/* gp - global ptr  */
   { "hp",   2 },		/* hp - handler stack ptr  */
@@ -547,12 +596,20 @@ static const struct reg_name pre_defined_registers[] = {
 #define REG_NAME_CNT						\
   (sizeof (pre_defined_registers) / sizeof (struct reg_name))
 
-static const struct reg_name system_registers[] = {
+static const struct reg_name system_registers[] =
+{
+  { "asid",  23 },
+  { "bpc",   22 },
+  { "bpav",  24 },
+  { "bpam",  25 },
+  { "bpdv",  26 },
+  { "bpdm",  27 },
   { "ctbp",  20 },
   { "ctpc",  16 },
   { "ctpsw", 17 },
   { "dbpc",  18 },
   { "dbpsw", 19 },
+  { "dir",   21 },
   { "ecr",    4 },
   { "eipc",   0 },
   { "eipsw",  1 },
@@ -564,7 +621,8 @@ static const struct reg_name system_registers[] = {
 #define SYSREG_NAME_CNT						\
   (sizeof (system_registers) / sizeof (struct reg_name))
 
-static const struct reg_name system_list_registers[] = {
+static const struct reg_name system_list_registers[] =
+{
   {"PS",      5 },
   {"SR",      0 + 1}
 };
@@ -572,7 +630,8 @@ static const struct reg_name system_list_registers[] = {
 #define SYSREGLIST_NAME_CNT					\
   (sizeof (system_list_registers) / sizeof (struct reg_name))
 
-static const struct reg_name cc_names[] = {
+static const struct reg_name cc_names[] =
+{
   { "c",  0x1 },
   { "e",  0x2 },
   { "ge", 0xe },
@@ -605,14 +664,14 @@ static const struct reg_name cc_names[] = {
    success, or -1 on failure.  */
 
 static int reg_name_search
-  PARAMS ((const struct reg_name *, int, const char *, boolean));
+  PARAMS ((const struct reg_name *, int, const char *, bfd_boolean));
 
 static int
 reg_name_search (regs, regcount, name, accept_numbers)
      const struct reg_name *regs;
      int regcount;
      const char *name;
-     boolean accept_numbers;
+     bfd_boolean accept_numbers;
 {
   int middle, low, high;
   int cmp;
@@ -658,18 +717,18 @@ reg_name_search (regs, regcount, name, accept_numbers)
 }
 
 /* Summary of register_name().
- *
- * in: Input_line_pointer points to 1st char of operand.
- *
- * out: An expressionS.
- *	The operand may have been a register: in this case, X_op == O_register,
- *	X_add_number is set to the register number, and truth is returned.
- *	Input_line_pointer->(next non-blank) char after operand, or is in
- *	its original state.  */
 
-static boolean register_name PARAMS ((expressionS *));
+   in: Input_line_pointer points to 1st char of operand.
 
-static boolean
+   out: An expressionS.
+  	The operand may have been a register: in this case, X_op == O_register,
+  	X_add_number is set to the register number, and truth is returned.
+  	Input_line_pointer->(next non-blank) char after operand, or is in
+  	its original state.  */
+
+static bfd_boolean register_name PARAMS ((expressionS *));
+
+static bfd_boolean
 register_name (expressionP)
      expressionS *expressionP;
 {
@@ -692,45 +751,46 @@ register_name (expressionP)
   /* Look to see if it's in the register table.  */
   if (reg_number >= 0)
     {
-      expressionP->X_op         = O_register;
+      expressionP->X_op		= O_register;
       expressionP->X_add_number = reg_number;
 
       /* Make the rest nice.  */
       expressionP->X_add_symbol = NULL;
       expressionP->X_op_symbol  = NULL;
 
-      return true;
+      return TRUE;
     }
   else
     {
       /* Reset the line as if we had not done anything.  */
       input_line_pointer = start;
 
-      return false;
+      return FALSE;
     }
 }
 
 /* Summary of system_register_name().
- *
- * in:  INPUT_LINE_POINTER points to 1st char of operand.
- *      EXPRESSIONP points to an expression structure to be filled in.
- *      ACCEPT_NUMBERS is true iff numerical register names may be used.
- *      ACCEPT_LIST_NAMES is true iff the special names PS and SR may be
- *      accepted.
- *
- * out: An expressionS structure in expressionP.
- *	The operand may have been a register: in this case, X_op == O_register,
- *	X_add_number is set to the register number, and truth is returned.
- *	Input_line_pointer->(next non-blank) char after operand, or is in
- *	its original state.  */
 
-static boolean system_register_name PARAMS ((expressionS *, boolean, boolean));
+   in:  INPUT_LINE_POINTER points to 1st char of operand.
+	EXPRESSIONP points to an expression structure to be filled in.
+	ACCEPT_NUMBERS is true iff numerical register names may be used.
+	ACCEPT_LIST_NAMES is true iff the special names PS and SR may be
+	accepted.
 
-static boolean
+   out: An expressionS structure in expressionP.
+  	The operand may have been a register: in this case, X_op == O_register,
+  	X_add_number is set to the register number, and truth is returned.
+  	Input_line_pointer->(next non-blank) char after operand, or is in
+  	its original state.  */
+
+static bfd_boolean system_register_name
+  PARAMS ((expressionS *, bfd_boolean, bfd_boolean));
+
+static bfd_boolean
 system_register_name (expressionP, accept_numbers, accept_list_names)
      expressionS *expressionP;
-     boolean accept_numbers;
-     boolean accept_list_names;
+     bfd_boolean accept_numbers;
+     bfd_boolean accept_list_names;
 {
   int reg_number;
   char *name;
@@ -760,7 +820,7 @@ system_register_name (expressionP, accept_numbers, accept_list_names)
 	  /* Make sure that the register number is allowable.  */
 	  if (reg_number < 0
 	      || (reg_number > 5 && reg_number < 16)
-	      || reg_number > 20)
+	      || reg_number > 27)
 	    {
 	      reg_number = -1;
 	    }
@@ -779,37 +839,37 @@ system_register_name (expressionP, accept_numbers, accept_list_names)
   /* Look to see if it's in the register table.  */
   if (reg_number >= 0)
     {
-      expressionP->X_op         = O_register;
+      expressionP->X_op		= O_register;
       expressionP->X_add_number = reg_number;
 
       /* Make the rest nice.  */
       expressionP->X_add_symbol = NULL;
       expressionP->X_op_symbol  = NULL;
 
-      return true;
+      return TRUE;
     }
   else
     {
       /* Reset the line as if we had not done anything.  */
       input_line_pointer = start;
 
-      return false;
+      return FALSE;
     }
 }
 
 /* Summary of cc_name().
- *
- * in: INPUT_LINE_POINTER points to 1st char of operand.
- *
- * out: An expressionS.
- *	The operand may have been a register: in this case, X_op == O_register,
- *	X_add_number is set to the register number, and truth is returned.
- *	Input_line_pointer->(next non-blank) char after operand, or is in
- *	its original state.  */
 
-static boolean cc_name PARAMS ((expressionS *));
+   in: INPUT_LINE_POINTER points to 1st char of operand.
 
-static boolean
+   out: An expressionS.
+  	The operand may have been a register: in this case, X_op == O_register,
+  	X_add_number is set to the register number, and truth is returned.
+  	Input_line_pointer->(next non-blank) char after operand, or is in
+  	its original state.  */
+
+static bfd_boolean cc_name PARAMS ((expressionS *));
+
+static bfd_boolean
 cc_name (expressionP)
      expressionS *expressionP;
 {
@@ -830,21 +890,21 @@ cc_name (expressionP)
   /* Look to see if it's in the register table.  */
   if (reg_number >= 0)
     {
-      expressionP->X_op         = O_constant;
+      expressionP->X_op		= O_constant;
       expressionP->X_add_number = reg_number;
 
       /* Make the rest nice.  */
       expressionP->X_add_symbol = NULL;
       expressionP->X_op_symbol  = NULL;
 
-      return true;
+      return TRUE;
     }
   else
     {
       /* Reset the line as if we had not done anything.  */
       input_line_pointer = start;
 
-      return false;
+      return FALSE;
     }
 }
 
@@ -859,29 +919,29 @@ skip_white_space ()
 }
 
 /* Summary of parse_register_list ().
- *
- * in: INPUT_LINE_POINTER  points to 1st char of a list of registers.
- *     INSN                is the partially constructed instruction.
- *     OPERAND             is the operand being inserted.
- *
- * out: NULL if the parse completed successfully, otherwise a
- *      pointer to an error message is returned.  If the parse
- *      completes the correct bit fields in the instruction
- *      will be filled in.
- *
- * Parses register lists with the syntax:
- *
- *   { rX }
- *   { rX, rY }
- *   { rX - rY }
- *   { rX - rY, rZ }
- *   etc
- *
- * and also parses constant epxressions whoes bits indicate the
- * registers in the lists.  The LSB in the expression refers to
- * the lowest numbered permissable register in the register list,
- * and so on upwards.  System registers are considered to be very
- * high numbers.  */
+
+   in: INPUT_LINE_POINTER  points to 1st char of a list of registers.
+       INSN		   is the partially constructed instruction.
+       OPERAND		   is the operand being inserted.
+
+   out: NULL if the parse completed successfully, otherwise a
+	pointer to an error message is returned.  If the parse
+	completes the correct bit fields in the instruction
+	will be filled in.
+
+   Parses register lists with the syntax:
+
+     { rX }
+     { rX, rY }
+     { rX - rY }
+     { rX - rY, rZ }
+     etc
+
+   and also parses constant expressions whoes bits indicate the
+   registers in the lists.  The LSB in the expression refers to
+   the lowest numbered permissible register in the register list,
+   and so on upwards.  System registers are considered to be very
+   high numbers.  */
 
 static char *parse_register_list
   PARAMS ((unsigned long *, const struct v850_operand *));
@@ -922,7 +982,6 @@ parse_register_list (insn, operand)
   /* If the expression starts with a curly brace it is a register list.
      Otherwise it is a constant expression, whoes bits indicate which
      registers are to be included in the list.  */
-
   if (*input_line_pointer != '{')
     {
       int reg;
@@ -1007,11 +1066,9 @@ parse_register_list (insn, operand)
 	    }
 
 	  if (i == 32)
-	    {
-	      return _("illegal register included in list");
-	    }
+	    return _("illegal register included in list");
 	}
-      else if (system_register_name (&exp, true, true))
+      else if (system_register_name (&exp, TRUE, TRUE))
 	{
 	  if (regs == type1_regs)
 	    {
@@ -1076,9 +1133,7 @@ parse_register_list (insn, operand)
 	    }
 	}
       else
-	{
-	  break;
-	}
+	break;
 
       skip_white_space ();
     }
@@ -1103,8 +1158,9 @@ md_show_usage (stream)
   fprintf (stream, _("  -mwarn-unsigned-overflow  Warn if unsigned immediate values overflow\n"));
   fprintf (stream, _("  -mv850                    The code is targeted at the v850\n"));
   fprintf (stream, _("  -mv850e                   The code is targeted at the v850e\n"));
-  fprintf (stream, _("  -mv850ea                  The code is targeted at the v850ea\n"));
+  fprintf (stream, _("  -mv850e1                  The code is targeted at the v850e1\n"));
   fprintf (stream, _("  -mv850any                 The code is generic, despite any processor specific instructions\n"));
+  fprintf (stream, _("  -mrelax                   Enable relaxation\n"));
 }
 
 int
@@ -1138,10 +1194,10 @@ md_parse_option (c, arg)
       machine = bfd_mach_v850e;
       processor_mask = PROCESSOR_V850E;
     }
-  else if (strcmp (arg, "v850ea") == 0)
+  else if (strcmp (arg, "v850e1") == 0)
     {
-      machine = bfd_mach_v850ea;
-      processor_mask = PROCESSOR_V850EA;
+      machine = bfd_mach_v850e1;
+      processor_mask = PROCESSOR_V850E1;
     }
   else if (strcmp (arg, "v850any") == 0)
     {
@@ -1149,8 +1205,11 @@ md_parse_option (c, arg)
       machine = 0;
 
       /* But support instructions for the extended versions.  */
-      processor_mask = PROCESSOR_V850EA;
+      processor_mask = PROCESSOR_V850E;
+      processor_mask |= PROCESSOR_V850E1;
     }
+  else if (strcmp (arg, "relax") == 0)
+    v850_relax = 1;
   else
     {
       /* xgettext:c-format  */
@@ -1275,15 +1334,15 @@ void
 md_begin ()
 {
   char *prev_name = "";
-  register const struct v850_opcode *op;
+  const struct v850_opcode *op;
 
-  if (strncmp (TARGET_CPU, "v850ea", 6) == 0)
+  if (strncmp (TARGET_CPU, "v850e1", 6) == 0)
     {
       if (machine == -1)
-	machine = bfd_mach_v850ea;
+	machine = bfd_mach_v850e1;
 
       if (processor_mask == -1)
-	processor_mask = PROCESSOR_V850EA;
+	processor_mask = PROCESSOR_V850E1;
     }
   else if (strncmp (TARGET_CPU, "v850e", 5) == 0)
     {
@@ -1304,7 +1363,7 @@ md_begin ()
   else
     /* xgettext:c-format  */
     as_bad (_("Unable to determine default target processor from string: %s"),
-            TARGET_CPU);
+	    TARGET_CPU);
 
   v850_hash = hash_new ();
 
@@ -1312,7 +1371,6 @@ md_begin ()
      has many identical opcode names that have different opcodes based
      on the operands.  This hash table then provides a quick index to
      the first opcode with a particular name in the opcode table.  */
-
   op = v850_opcodes;
   while (op->name)
     {
@@ -1437,7 +1495,7 @@ handle_tdaoff (operand)
 
   return  operand->insert != NULL
     ? BFD_RELOC_V850_TDA_7_8_OFFSET     /* sld.h/sst.h, operand: D8_7  */
-    : BFD_RELOC_V850_TDA_7_7_OFFSET;    /* sld.b/sst.b, opreand: D7    */
+    : BFD_RELOC_V850_TDA_7_7_OFFSET;    /* sld.b/sst.b, operand: D7    */
 }
 
 /* Warning: The code in this function relies upon the definitions
@@ -1451,13 +1509,13 @@ static bfd_reloc_code_real_type
 v850_reloc_prefix (operand)
      const struct v850_operand *operand;
 {
-  boolean paren_skipped = false;
+  bfd_boolean paren_skipped = FALSE;
 
   /* Skip leading opening parenthesis.  */
   if (*input_line_pointer == '(')
     {
       ++input_line_pointer;
-      paren_skipped = true;
+      paren_skipped = TRUE;
     }
 
 #define CHECK_(name, reloc) 						\
@@ -1467,13 +1525,13 @@ v850_reloc_prefix (operand)
       return reloc;							\
     }
 
-  CHECK_ ("hi0",    BFD_RELOC_HI16         );
-  CHECK_ ("hi",     BFD_RELOC_HI16_S       );
-  CHECK_ ("lo",     BFD_RELOC_LO16         );
+  CHECK_ ("hi0",    BFD_RELOC_HI16	   );
+  CHECK_ ("hi",	    BFD_RELOC_HI16_S	   );
+  CHECK_ ("lo",	    BFD_RELOC_LO16	   );
   CHECK_ ("sdaoff", handle_sdaoff (operand));
   CHECK_ ("zdaoff", handle_zdaoff (operand));
   CHECK_ ("tdaoff", handle_tdaoff (operand));
-  CHECK_ ("hilo",   BFD_RELOC_32           );
+  CHECK_ ("hilo",   BFD_RELOC_32	   );
   CHECK_ ("ctoff",  handle_ctoff (operand) );
 
   /* Restore skipped parenthesis.  */
@@ -1614,7 +1672,7 @@ md_assemble (str)
   char *f;
   int i;
   int match;
-  boolean extra_data_after_insn = false;
+  bfd_boolean extra_data_after_insn = FALSE;
   unsigned extra_data_len = 0;
   unsigned long extra_data = 0;
   char *saved_input_line_pointer;
@@ -1662,7 +1720,7 @@ md_assemble (str)
       fc = 0;
       next_opindex = 0;
       insn = opcode->opcode;
-      extra_data_after_insn = false;
+      extra_data_after_insn = FALSE;
 
       input_line_pointer = str = start_of_operands;
 
@@ -1748,10 +1806,9 @@ md_assemble (str)
 			  goto error;
 			}
 
-		      extra_data_after_insn = true;
-		      extra_data_len        = 4;
-		      extra_data            = ex.X_add_number;
-		      ex.X_add_number       = 0;
+		      extra_data_after_insn = TRUE;
+		      extra_data_len	    = 4;
+		      extra_data	    = 0;
 		      break;
 
 		    default:
@@ -1778,9 +1835,9 @@ md_assemble (str)
 			  goto error;
 			}
 
-		      extra_data_after_insn = true;
-		      extra_data_len        = 4;
-		      extra_data            = ex.X_add_number;
+		      extra_data_after_insn = TRUE;
+		      extra_data_len	    = 4;
+		      extra_data	    = ex.X_add_number;
 		    }
 
 		  if (fc > MAX_INSN_FIXUPS)
@@ -1815,7 +1872,7 @@ md_assemble (str)
 		}
 	      else if ((operand->flags & V850_OPERAND_SRG) != 0)
 		{
-		  if (!system_register_name (&ex, true, false))
+		  if (!system_register_name (&ex, TRUE, FALSE))
 		    {
 		      errmsg = _("invalid system register name");
 		    }
@@ -1856,7 +1913,7 @@ md_assemble (str)
 
 		  /* The parse_register_list() function has already done
 		     everything, so fake a dummy expression.  */
-		  ex.X_op         = O_constant;
+		  ex.X_op	  = O_constant;
 		  ex.X_add_number = 0;
 		}
 	      else if (operand->flags & V850E_IMMEDIATE16)
@@ -1875,10 +1932,10 @@ md_assemble (str)
 			errmsg = _("constant too big to fit into instruction");
 		    }
 
-		  extra_data_after_insn = true;
-		  extra_data_len        = 2;
-		  extra_data            = ex.X_add_number;
-		  ex.X_add_number       = 0;
+		  extra_data_after_insn = TRUE;
+		  extra_data_len	= 2;
+		  extra_data		= ex.X_add_number;
+		  ex.X_add_number	= 0;
 		}
 	      else if (operand->flags & V850E_IMMEDIATE32)
 		{
@@ -1887,10 +1944,10 @@ md_assemble (str)
 		  if (ex.X_op != O_constant)
 		    errmsg = _("constant expression expected");
 
-		  extra_data_after_insn = true;
-		  extra_data_len        = 4;
-		  extra_data            = ex.X_add_number;
-		  ex.X_add_number       = 0;
+		  extra_data_after_insn = TRUE;
+		  extra_data_len	= 4;
+		  extra_data		= ex.X_add_number;
+		  ex.X_add_number	= 0;
 		}
 	      else if (register_name (&ex)
 		       && (operand->flags & V850_OPERAND_REG) == 0)
@@ -1919,7 +1976,7 @@ md_assemble (str)
 
 		  if (ex.X_op != O_constant)
 		    {
-		      /* If this register is actually occuring too early on
+		      /* If this register is actually occurring too early on
 			 the parsing of the instruction, (because another
 			 field is missing) then report this.  */
 		      if (opindex_ptr[1] != 0
@@ -1938,7 +1995,7 @@ md_assemble (str)
 				       &symbol_rootP, &symbol_lastP);
 		    }
 		}
-	      else if (system_register_name (&ex, false, false)
+	      else if (system_register_name (&ex, FALSE, FALSE)
 		       && (operand->flags & V850_OPERAND_SRG) == 0)
 		{
 		  errmsg = _("syntax error: system register not expected");
@@ -1952,13 +2009,13 @@ md_assemble (str)
 		{
 		  expression (&ex);
 		  /* Special case:
-		     If we are assembling a MOV instruction (or a CALLT.... :-)
-		     and the immediate value does not fit into the bits
-		     available then create a fake error so that the next MOV
-		     instruction will be selected.  This one has a 32 bit
-		     immediate field.  */
+		     If we are assembling a MOV instruction and the immediate
+		     value does not fit into the bits available then create a
+		     fake error so that the next MOV instruction will be
+		     selected.  This one has a 32 bit immediate field.  */
 
 		  if (((insn & 0x07e0) == 0x0200)
+		      && operand->bits == 5 /* Do not match the CALLT instruction.  */
 		      && ex.X_op == O_constant
 		      && (ex.X_add_number < (-(1 << (operand->bits - 1)))
 			  || ex.X_add_number > ((1 << (operand->bits - 1)) - 1)))
@@ -2112,7 +2169,7 @@ md_assemble (str)
 	  f = frag_more (extra_data_len);
 	  md_number_to_chars (f, extra_data, extra_data_len);
 
-	  extra_data_after_insn = false;
+	  extra_data_after_insn = FALSE;
 	}
     }
 
@@ -2175,7 +2232,7 @@ md_assemble (str)
 	  fix_new_exp (frag_now,
 		       f - frag_now->fr_literal, 4,
 		       & fixups[i].exp,
-		       1 /* FIXME: V850_OPERAND_RELATIVE ???  */,
+		       (operand->flags & V850_OPERAND_DISP) != 0,
 		       (bfd_reloc_code_real_type) (fixups[i].opindex
 						   + (int) BFD_RELOC_UNUSED));
 	}
@@ -2194,11 +2251,27 @@ tc_gen_reloc (seg, fixp)
 {
   arelent *reloc;
 
-  reloc               = (arelent *) xmalloc (sizeof (arelent));
+  reloc		      = (arelent *) xmalloc (sizeof (arelent));
   reloc->sym_ptr_ptr  = (asymbol **) xmalloc (sizeof (asymbol *));
   *reloc->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
   reloc->address      = fixp->fx_frag->fr_address + fixp->fx_where;
-  reloc->howto        = bfd_reloc_type_lookup (stdoutput, fixp->fx_r_type);
+
+  if (   fixp->fx_r_type == BFD_RELOC_VTABLE_ENTRY
+      || fixp->fx_r_type == BFD_RELOC_VTABLE_INHERIT
+      || fixp->fx_r_type == BFD_RELOC_V850_LONGCALL
+      || fixp->fx_r_type == BFD_RELOC_V850_LONGJUMP
+      || fixp->fx_r_type == BFD_RELOC_V850_ALIGN)
+    reloc->addend = fixp->fx_offset;
+  else
+    {
+      if (fixp->fx_r_type == BFD_RELOC_32
+	  && fixp->fx_pcrel)
+	fixp->fx_r_type = BFD_RELOC_32_PCREL;
+
+      reloc->addend = fixp->fx_addnumber;
+    }
+
+  reloc->howto = bfd_reloc_type_lookup (stdoutput, fixp->fx_r_type);
 
   if (reloc->howto == (reloc_howto_type *) NULL)
     {
@@ -2212,13 +2285,23 @@ tc_gen_reloc (seg, fixp)
       return NULL;
     }
 
-  if (fixp->fx_r_type == BFD_RELOC_VTABLE_ENTRY
-      || fixp->fx_r_type == BFD_RELOC_VTABLE_INHERIT)
-    reloc->addend = fixp->fx_offset;
-  else
-    reloc->addend = fixp->fx_addnumber;
-
   return reloc;
+}
+
+void
+v850_handle_align (frag)
+     fragS * frag;
+{
+  if (v850_relax
+      && frag->fr_type == rs_align
+      && frag->fr_address + frag->fr_fix > 0
+      && frag->fr_offset > 1
+      && now_seg != bss_section
+      && now_seg != v850_seg_table[SBSS_SECTION].s
+      && now_seg != v850_seg_table[TBSS_SECTION].s
+      && now_seg != v850_seg_table[ZBSS_SECTION].s)
+    fix_new (frag, frag->fr_fix, 2, & abs_symbol, frag->fr_offset, 0,
+	     BFD_RELOC_V850_ALIGN);
 }
 
 /* Return current size of variable part of frag.  */
@@ -2261,6 +2344,8 @@ md_apply_fix3 (fixP, valueP, seg)
   char *where;
 
   if (fixP->fx_r_type == BFD_RELOC_VTABLE_INHERIT
+      || fixP->fx_r_type == BFD_RELOC_V850_LONGCALL
+      || fixP->fx_r_type == BFD_RELOC_V850_LONGJUMP
       || fixP->fx_r_type == BFD_RELOC_VTABLE_ENTRY)
     {
       fixP->fx_done = 0;
@@ -2268,10 +2353,11 @@ md_apply_fix3 (fixP, valueP, seg)
     }
 
   if (fixP->fx_addsy == (symbolS *) NULL)
+    fixP->fx_addnumber = value,
     fixP->fx_done = 1;
 
   else if (fixP->fx_pcrel)
-    ;
+    fixP->fx_addnumber = fixP->fx_offset;
 
   else
     {
@@ -2287,6 +2373,7 @@ md_apply_fix3 (fixP, valueP, seg)
 			    _("expression too complex"));
 	    }
 	}
+      fixP->fx_addnumber = value;
     }
 
   if ((int) fixP->fx_r_type >= (int) BFD_RELOC_UNUSED)
@@ -2299,7 +2386,7 @@ md_apply_fix3 (fixP, valueP, seg)
       operand = &v850_operands[opindex];
 
       /* Fetch the instruction, insert the fully resolved operand
-         value, and stuff the instruction back again.
+	 value, and stuff the instruction back again.
 
 	 Note the instruction has been stored in little endian
 	 format!  */
@@ -2345,8 +2432,6 @@ md_apply_fix3 (fixP, valueP, seg)
       else if (fixP->fx_size == 4)
 	bfd_putl32 (value, (unsigned char *) where);
     }
-
-  fixP->fx_addnumber = value;
 }
 
 /* Parse a cons expression.  We have to handle hi(), lo(), etc
@@ -2392,20 +2477,12 @@ cons_fix_new_v850 (frag, where, size, exp)
   hold_cons_reloc = BFD_RELOC_UNUSED;
 }
 
-boolean
+bfd_boolean
 v850_fix_adjustable (fixP)
      fixS *fixP;
 {
   if (fixP->fx_addsy == NULL)
     return 1;
-
-  /* Prevent all adjustments to global symbols.  */
-  if (S_IS_EXTERN (fixP->fx_addsy))
-    return 0;
-
-  /* Similarly for weak symbols.  */
-  if (S_IS_WEAK (fixP->fx_addsy))
-    return 0;
 
   /* Don't adjust function names.  */
   if (S_IS_FUNCTION (fixP->fx_addsy))
@@ -2423,12 +2500,17 @@ int
 v850_force_relocation (fixP)
      struct fix *fixP;
 {
-  if (fixP->fx_addsy && S_IS_WEAK (fixP->fx_addsy))
+  if (fixP->fx_r_type == BFD_RELOC_V850_LONGCALL
+      || fixP->fx_r_type == BFD_RELOC_V850_LONGJUMP)
     return 1;
 
-  if (fixP->fx_r_type == BFD_RELOC_VTABLE_INHERIT
-      || fixP->fx_r_type == BFD_RELOC_VTABLE_ENTRY)
+  if (v850_relax
+      && (fixP->fx_pcrel
+	  || fixP->fx_r_type == BFD_RELOC_V850_ALIGN
+	  || fixP->fx_r_type == BFD_RELOC_V850_22_PCREL
+	  || fixP->fx_r_type == BFD_RELOC_V850_9_PCREL
+	  || fixP->fx_r_type >= BFD_RELOC_UNUSED))
     return 1;
 
-  return 0;
+  return generic_force_reloc (fixP);
 }

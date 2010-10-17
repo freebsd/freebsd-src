@@ -1,0 +1,411 @@
+#source: tlspic1.s
+#source: tlspic2.s
+#as: --32
+#ld: -shared -melf_i386
+#objdump: -drj.text
+#target: i?86-*-*
+
+.*: +file format elf32-i386
+
+Disassembly of section .text:
+
+[0-9a-f]+ <fn1>:
+ [0-9a-f]+:	55[ 	]+push   %ebp
+ [0-9a-f]+:	89 e5[ 	]+mov    %esp,%ebp
+ [0-9a-f]+:	53[ 	]+push   %ebx
+ [0-9a-f]+:	50[ 	]+push   %eax
+ [0-9a-f]+:	e8 00 00 00 00[ 	]+call   [0-9a-f]+ <fn1\+0xa>
+ [0-9a-f]+:	5b[ 	]+pop    %ebx
+ [0-9a-f]+:	81 c3 [0-9a-f ]+[ 	]+add    \$0x[0-9a-f]+,%ebx
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  GD
+ [0-9a-f]+:	8d 04 1d 5c 00 00 00 	lea    0x5c\(,%ebx,1\),%eax
+#				->R_386_TLS_DTPMOD32	sg1
+ [0-9a-f]+:	e8 cf ff ff ff[ 	]+call   [0-9a-f]+ <.*0x[0-9a-f]+>
+#				->R_386_JUMP_SLOT	___tls_get_addr
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  GD -> IE because variable is referenced through @gottpoff too
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	2b 83 78 00 00 00[ 	]+sub    0x78\(%ebx\),%eax
+#				->R_386_TLS_TPOFF32	sg2
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  GD -> IE because variable is referenced through @gotntpoff too
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	03 83 3c 00 00 00[ 	]+add    0x3c\(%ebx\),%eax
+#				->R_386_TLS_TPOFF	sg3
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  GD -> IE because variable is referenced through @gottpoff and
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	2b 83 48 00 00 00[ 	]+sub    0x48\(%ebx\),%eax
+#				->R_386_TLS_TPOFF32	sg4
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  GD against local variable
+ [0-9a-f]+:	8d 04 1d 10 00 00 00 	lea    0x10\(,%ebx,1\),%eax
+#				->R_386_TLS_DTPMOD32	[0x00000000 0x20000000]
+ [0-9a-f]+:	e8 8f ff ff ff[ 	]+call   [0-9a-f]+ <.*0x[0-9a-f]+>
+#				->R_386_JUMP_SLOT	___tls_get_addr
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  GD -> IE against local variable referenced through @gottpoff too
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	2b 83 18 00 00 00[ 	]+sub    0x18\(%ebx\),%eax
+#				->R_386_TLS_TPOFF32	[0xdcffffff]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  GD -> IE against local variable referenced through @gotntpoff
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	03 83 1c 00 00 00[ 	]+add    0x1c\(%ebx\),%eax
+#				->R_386_TLS_TPOFF	[0x28000000]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  GD -> IE against local variable referenced through @gottpoff and
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	2b 83 20 00 00 00[ 	]+sub    0x20\(%ebx\),%eax
+#				->R_386_TLS_TPOFF32	[0xd4ffffff]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  GD against hidden and local variable
+ [0-9a-f]+:	8d 04 1d 7c 00 00 00 	lea    0x7c\(,%ebx,1\),%eax
+#				->R_386_TLS_DTPMOD32	[0x00000000 0x40000000]
+ [0-9a-f]+:	e8 4f ff ff ff[ 	]+call   [0-9a-f]+ <.*0x[0-9a-f]+>
+#				->R_386_JUMP_SLOT	___tls_get_addr
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  GD -> IE against hidden and local variable referenced through @gottpoff too
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	2b 83 84 00 00 00[ 	]+sub    0x84\(%ebx\),%eax
+#				->R_386_TLS_TPOFF32	[0xbcffffff]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  GD -> IE against hidden and local variable referenced through @gotntpoff too
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	03 83 40 00 00 00[ 	]+add    0x40\(%ebx\),%eax
+#				->R_386_TLS_TPOFF	[0x48000000]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  GD -> IE against hidden and local variable referenced through @gottpoff and @gotntpoff too
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	2b 83 64 00 00 00[ 	]+sub    0x64\(%ebx\),%eax
+#				->R_386_TLS_TPOFF32	[0xb4ffffff]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  GD against hidden but not local variable
+ [0-9a-f]+:	8d 04 1d 34 00 00 00 	lea    0x34\(,%ebx,1\),%eax
+#				->R_386_TLS_DTPMOD32	[0x00000000 0x60000000]
+ [0-9a-f]+:	e8 0f ff ff ff[ 	]+call   [0-9a-f]+ <.*0x[0-9a-f]+>
+#				->R_386_JUMP_SLOT	___tls_get_addr
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  GD -> IE against hidden but not local variable referenced through
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	2b 83 44 00 00 00[ 	]+sub    0x44\(%ebx\),%eax
+#				->R_386_TLS_TPOFF32	[0x9cffffff]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  GD -> IE against hidden but not local variable referenced through
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	03 83 6c 00 00 00[ 	]+add    0x6c\(%ebx\),%eax
+#				->R_386_TLS_TPOFF	[0x68000000]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  GD -> IE against hidden but not local variable referenced through
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	2b 83 54 00 00 00[ 	]+sub    0x54\(%ebx\),%eax
+#				->R_386_TLS_TPOFF32	[0x94ffffff]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  LD
+ [0-9a-f]+:	8d 83 2c 00 00 00[ 	]+lea    0x2c\(%ebx\),%eax
+#				->R_386_TLS_DTPMOD32	[0x00000000 0x00000000]
+ [0-9a-f]+:	e8 d0 fe ff ff[ 	]+call   [0-9a-f]+ <.*0x[0-9a-f]+>
+#				->R_386_JUMP_SLOT	___tls_get_addr
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	8d 90 20 00 00 00[ 	]+lea    0x20\(%eax\),%edx
+#							sl1
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	8d 88 26 00 00 00[ 	]+lea    0x26\(%eax\),%ecx
+#							sl2+2
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  LD against hidden and local variables
+ [0-9a-f]+:	8d 83 2c 00 00 00[ 	]+lea    0x2c\(%ebx\),%eax
+#				->R_386_TLS_DTPMOD32	[0x00000000 0x00000000]
+ [0-9a-f]+:	e8 b1 fe ff ff[ 	]+call   [0-9a-f]+ <.*0x[0-9a-f]+>
+#				->R_386_JUMP_SLOT	___tls_get_addr
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	8d 90 40 00 00 00[ 	]+lea    0x40\(%eax\),%edx
+#							sh1
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	8d 88 47 00 00 00[ 	]+lea    0x47\(%eax\),%ecx
+#							sh2+3
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  LD against hidden but not local variables
+ [0-9a-f]+:	8d 83 2c 00 00 00[ 	]+lea    0x2c\(%ebx\),%eax
+#				->R_386_TLS_DTPMOD32	[0x00000000 0x00000000]
+ [0-9a-f]+:	e8 92 fe ff ff[ 	]+call   [0-9a-f]+ <.*0x[0-9a-f]+>
+#				->R_386_JUMP_SLOT	___tls_get_addr
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	8d 90 60 00 00 00[ 	]+lea    0x60\(%eax\),%edx
+#							sH1
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	8d 88 65 00 00 00[ 	]+lea    0x65\(%eax\),%ecx
+#							sH2+1
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  @gottpoff IE against global var
+ [0-9a-f]+:	65 8b 0d 00 00 00 00 	mov    %gs:0x0,%ecx
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	2b 8b 78 00 00 00[ 	]+sub    0x78\(%ebx\),%ecx
+#				->R_386_TLS_TPOFF32	sg2
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  @gottpoff IE against global var
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	2b 83 48 00 00 00[ 	]+sub    0x48\(%ebx\),%eax
+#				->R_386_TLS_TPOFF32	sg4
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  @gotntpoff IE against global var
+ [0-9a-f]+:	65 8b 0d 00 00 00 00 	mov    %gs:0x0,%ecx
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	03 8b 3c 00 00 00[ 	]+add    0x3c\(%ebx\),%ecx
+#				->R_386_TLS_TPOFF	sg3
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  @gotntpoff IE against global var
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	03 83 4c 00 00 00[ 	]+add    0x4c\(%ebx\),%eax
+#				->R_386_TLS_TPOFF	sg4
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  @gottpoff IE against local var
+ [0-9a-f]+:	65 8b 0d 00 00 00 00 	mov    %gs:0x0,%ecx
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	2b 8b 18 00 00 00[ 	]+sub    0x18\(%ebx\),%ecx
+#				->R_386_TLS_TPOFF32	[0xdcffffff]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  @gottpoff IE against local var
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	2b 83 20 00 00 00[ 	]+sub    0x20\(%ebx\),%eax
+#				->R_386_TLS_TPOFF32	[0xd4ffffff]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  @gotntpoff IE against local var
+ [0-9a-f]+:	65 8b 0d 00 00 00 00 	mov    %gs:0x0,%ecx
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	03 8b 1c 00 00 00[ 	]+add    0x1c\(%ebx\),%ecx
+#				->R_386_TLS_TPOFF	[0x28000000]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  @gotntpoff IE against local var
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	03 83 24 00 00 00[ 	]+add    0x24\(%ebx\),%eax
+#				->R_386_TLS_TPOFF	[0x2c000000]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  @gottpoff IE against hidden and local var
+ [0-9a-f]+:	65 8b 0d 00 00 00 00 	mov    %gs:0x0,%ecx
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	2b 8b 84 00 00 00[ 	]+sub    0x84\(%ebx\),%ecx
+#				->R_386_TLS_TPOFF32	[0xbcffffff]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  @gottpoff IE against hidden and local var
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	2b 83 64 00 00 00[ 	]+sub    0x64\(%ebx\),%eax
+#				->R_386_TLS_TPOFF32	[0xb4ffffff]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  @gotntpoff IE against hidden and local var
+ [0-9a-f]+:	65 8b 0d 00 00 00 00 	mov    %gs:0x0,%ecx
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	03 8b 40 00 00 00[ 	]+add    0x40\(%ebx\),%ecx
+#				->R_386_TLS_TPOFF	[0x48000000]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  @gotntpoff IE against hidden and local var
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	03 83 68 00 00 00[ 	]+add    0x68\(%ebx\),%eax
+#				->R_386_TLS_TPOFF	[0x4c000000]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  @gottpoff IE against hidden but not local var
+ [0-9a-f]+:	65 8b 0d 00 00 00 00 	mov    %gs:0x0,%ecx
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	2b 8b 44 00 00 00[ 	]+sub    0x44\(%ebx\),%ecx
+#				->R_386_TLS_TPOFF32	[0x9cffffff]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  @gottpoff IE against hidden but not local var
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	2b 83 54 00 00 00[ 	]+sub    0x54\(%ebx\),%eax
+#				->R_386_TLS_TPOFF32	[0x94ffffff]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  @gotntpoff IE against hidden but not local var
+ [0-9a-f]+:	65 8b 0d 00 00 00 00 	mov    %gs:0x0,%ecx
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	03 8b 6c 00 00 00[ 	]+add    0x6c\(%ebx\),%ecx
+#				->R_386_TLS_TPOFF	[0x68000000]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  @gotntpoff IE against hidden but not local var
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	03 83 58 00 00 00[ 	]+add    0x58\(%ebx\),%eax
+#				->R_386_TLS_TPOFF	[0x6c000000]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  Direct access through %gs
+#  @gotntpoff IE against global var
+ [0-9a-f]+:	8b 8b 50 00 00 00[ 	]+mov    0x50\(%ebx\),%ecx
+#				->R_386_TLS_TPOFF	sg5
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	65 8b 11[ 	]+mov    %gs:\(%ecx\),%edx
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  @gotntpoff IE against local var
+ [0-9a-f]+:	8b 83 28 00 00 00[ 	]+mov    0x28\(%ebx\),%eax
+#				->R_386_TLS_TPOFF	[0x30000000]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	65 8b 10[ 	]+mov    %gs:\(%eax\),%edx
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  @gotntpoff IE against hidden and local var
+ [0-9a-f]+:	8b 93 70 00 00 00[ 	]+mov    0x70\(%ebx\),%edx
+#				->R_386_TLS_TPOFF	[0x50000000]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	65 8b 12[ 	]+mov    %gs:\(%edx\),%edx
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  @gotntpoff IE against hidden but not local var
+ [0-9a-f]+:	8b 8b 74 00 00 00[ 	]+mov    0x74\(%ebx\),%ecx
+#				->R_386_TLS_TPOFF	[0x70000000]
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	65 8b 11[ 	]+mov    %gs:\(%ecx\),%edx
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	8b 5d fc[ 	]+mov    0xfffffffc\(%ebp\),%ebx
+ [0-9a-f]+:	c9[ 	]+leave *
+ [0-9a-f]+:	c3[ 	]+ret *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *

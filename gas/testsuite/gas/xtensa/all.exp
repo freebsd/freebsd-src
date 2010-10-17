@@ -1,0 +1,98 @@
+#
+# Some generic xtensa tests
+#
+if [istarget xtensa*-*-*] then {
+    gas_test_error "j_too_far.s" "" "Check for jump out of range error"
+
+    set testname "j_too_far.s: error line number reporting"
+    gas_start "j_too_far.s" ""
+    set x1 0
+    while 1 {
+        expect {
+            -re ":4: Error:.*too large"           { set x1 1 }
+            timeout                             { perror "timeout\n"; break }
+            eof                                 { break }
+        }
+    }
+    gas_finish
+    if [all_ones $x1] then { pass $testname } else { fail $testname }
+
+
+    gas_test "entry_misalign.s" "" "" "Xtensa Entry misalignment"
+    set testname "entry_misalign.s: Force entry misalignment"
+    objdump_start_no_subdir "a.out" "-d -j .text"
+    set x1 0
+    while 1 {
+	expect {
+	    -re "^.*2:.*entry" { set x1 1 }
+	    timeout            { perror "timeout\n"; break }
+	    eof                { break }
+	}
+    }
+    objdump_finish
+    if [all_ones $x1] then { pass $testname } else { fail $testname }
+
+
+    gas_test "entry_misalign2.s" "" "" "Xtensa Entry misalignment(2)"
+    set testname "entry_misalign2.s: Force entry misalignment(2)"
+    objdump_start_no_subdir "a.out" "-d -j .text"
+    set x1 0
+    while 1 {
+	expect {
+	    -re "^.*2:.*entry" { set x1 1 }
+	    timeout            { perror "timeout\n"; break }
+	    eof                { break }
+	}
+    }
+    objdump_finish
+    if [all_ones $x1] then { pass $testname } else { fail $testname }
+
+    gas_test "entry_align.s" "" "" "Xtensa autoalign entry"
+    set testname "entry_align.s: autoalign entry"
+    objdump_start_no_subdir "a.out" "-d -j .text"
+    set x1 0
+    while 1 {
+	expect {
+	    -re "^.*4:.*entry" { set x1 1 }
+	    timeout            { perror "timeout\n"; break }
+	    eof                { break }
+	}
+    }
+    objdump_finish
+    if [all_ones $x1] then { pass $testname } else { fail $testname }
+
+    gas_test "loop_misalign.s" "" "" "Xtensa Loop misalignment"
+    set testname "loop_misalign.s: Force loop misalignment"
+    objdump_start_no_subdir "a.out" "-d -j .text"
+    set x1 0
+    while 1 {
+	expect {
+	    -re "^.*0:.*loop" { set x1 1 }
+	    timeout            { perror "timeout\n"; break }
+	    eof                { break }
+	}
+    }
+    objdump_finish
+    if [all_ones $x1] then { pass $testname } else { fail $testname }
+
+
+    gas_test "loop_align.s" "" "" "Xtensa autoalign loop"
+    set testname "loop_align.s: autoalign loop"
+    objdump_start_no_subdir "a.out" "-d -j .text"
+    set x1 0
+    while 1 {
+	expect {
+	    -re "^.*2:.*loop" { set x1 1 }
+	    timeout            { perror "timeout\n"; break }
+	    eof                { break }
+	}
+    }
+    objdump_finish
+    if [all_ones $x1] then { pass $testname } else { fail $testname }
+
+
+}
+
+if [info exists errorInfo] then {
+    unset errorInfo
+    }

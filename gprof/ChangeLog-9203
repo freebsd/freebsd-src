@@ -1,0 +1,2138 @@
+2003-11-06  Bruno Rohee  <bruno@rohee.com>
+
+	* gprof.texi: Fix "the the" typo.
+
+2003-10-30  Nick Clifton  <nickc@redhat.com>
+
+	* gprof.texi (Compiling): Describe how to use gprof when source
+	files are not compiled with -pg.  Mention other profiling options
+	supported by gcc.
+	(How do I?): Mention the function call overhead introduced by -pg.
+
+2003-10-29  Nick Clifton  <nickc@redhat.com>
+
+	* gprof.texi: Apply patch supplied by Eric S Raymond via RMS:
+	(Compiling): Mention that -pg must be passed to both the compiler
+	and the linker.
+	Mention that -a is now deprecated.
+	(How do I?): Add an entry describing how to get more information
+	about program hotspots.
+
+2003-10-11  Alan Modra  <amodra@bigpond.net.au>
+
+	* corefile.c (core_create_function_syms): Don't refer directly to
+	_cooked_size and vma;  Use bfd_section_size and bfd_get_section_vma.
+
+2003-08-26  Nick Clifton  <nickc@redhat.com>
+
+	* po/de.po: New German translation.
+	* configure.in (ALL_LINGUAS): Add de.
+	* configure: Regenerate.
+	* Makefile.in: Regenerate.
+	* aclocal.m4: Regenerate.
+	* gconfig.in: Regenerate.
+
+2003-08-21  Nick Clifton  <nickc@redhat.com>
+
+	* po/tr.po: Updated Turkish translation.
+
+2003-08-14  Alan Modra  <amodra@bigpond.net.au>
+
+	* dep-in.sed: Remove libintl.h.
+	* Makefile.am (POTFILES.in): Unset LC_COLLATE.
+	* Makefile.in: Regenerate.
+
+2003-07-24  Nick Clifton  <nickc@redhat.com>
+
+	* po/fr.po: Updated French translation.
+
+2003-07-20  H.J. Lu <hongjiu.lu@intel.com>
+
+	* po/Make-in (.po.gmo): Do check if the .gmo file is writable
+	before generating it.
+
+2003-07-17  Nick Clifton  <nickc@redhat.com>
+
+	* po/es.po: New Spanish translation.
+
+2003-07-11  Alan Modra  <amodra@bigpond.net.au>
+
+	* po/gprof.pot: Regenerate.
+
+2003-06-11  H.J. Lu <hongjiu.lu@intel.com>
+
+	* po/Make-in (DESTDIR): New.
+	(install-data-yes): Support $(DESTDIR).
+	(uninstall): Likewise.
+
+2003-03-27  Chris Demetriou  <cgd@broadcom.com>
+
+	* gmon_io.c (enum gmon_ptr_size, enum gmon_ptr_signedness): New.
+	(gmon_get_ptr_size, gmon_get_ptr_signedness): New.
+	(gmon_io_read_vma, gmon_io_write_vma, gmon_read_raw_arc)
+	(gmon_write_raw_arc, gmon_out_read, gmon_out_write): Adjust to
+	use new functions and enums.
+
+2003-02-21  K Schutte  <schutte@fel.tno.nl>
+
+	* corefile.c (core_create_line_syms): Check for a NULL sentinel
+	value before using it.
+
+2002-12-02  Nick Clifton  <nickc@redhat.com>
+
+	* configure.in (LINGUAS): Add pt_BR.
+	* configure: Regenerate.
+	* po/pt_BR: New Brazillian Portugese translation.
+
+2002-11-30  Alan Modra  <amodra@bigpond.net.au>
+
+	* basic_blocks.c, basic_blocks.h, cg_arcs.c, cg_dfn.c, cg_print.c,
+	corefile.c, gmon_io.c, gprof.c, gprof.h, hist.c, mips.c, source.c,
+	source.h, sym_ids.c, sym_ids.h, symtab.h, tahoe.c, vax.c: Replace
+	boolean with bfd_boolean, true with TRUE, false with FALSE.
+	Formatting.
+
+2002-11-12  Nick Clifton  <nickc@redhat.com>
+
+	* configure.in (ALL_LINGUAS): Add da.
+	* configure: Regenerate.
+	* po/da.po: New Danish translation.
+
+2002-08-22  Nick Clifton  <nickc@redhat.com>
+
+	* gprof.c (main): Turn off default excluded functions in FLAT
+	profile.
+
+2002-08-21  John David Anglin  <dave@hiauly1.hia.nrc.ca>
+
+	* gmon_io.c (gmon_io_read_64, gmon_io_write_64): Define only if
+	BFD_HOST_U_64_BIT is defined.
+	(gmon_io_read_vma, gmon_io_write_vma): Add ifdefs.
+
+2002-07-30  Nick Clifton  <nickc@redhat.com>
+
+	* po/tr.po: Updated Turkish translation.
+
+2002-07-30  Nick Clifton  <nickc@redhat.com>
+
+	* alpha.c, cg_arcs.c, cg_dfn.c, gmon.h, gprof.c, gprof.h, hertz.c,
+	i386.c, mips.c, sparc.c, tahoe.c, utils.c, vax.c: Update Copyright
+	notice so that it applies even if the sources are modified.
+
+2002-07-29  Ulrich Drepper  <drepper@redhat.com>
+
+	* gprof.texi (Executing the Program): Add documentation on how to use
+	bbconv.pl.  Patch by Eric Hanchrow.
+
+2002-07-25  Nick Clifton  <nickc@redhat.com>
+
+	* po/es.po: Updated Spanish translation.
+	* po/fr.po: Updated French translation.
+
+2002-07-24  Dave Brolley  <brolley@redhat.com>
+
+	* corefile.c (core_create_function_syms): Use the end of the section
+	containing the symbol to compute max_vma.
+
+2002-07-24  Nick Clifton  <nickc@redhat.com>
+
+	* po/sv.po: Updated Swedish translation.
+	* po/es.po: Updated Spanish translation.
+
+2002-07-23  Nick Clifton  <nickc@redhat.com>
+
+	* po/fr.po: Updated French translation.
+	* po/id.po: New Indonesian translation.
+	* configure.in (LINGUAS): Add id.
+	* configure: Regenerate.
+
+2002-05-02  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* po/Make-in (.po.gmo): Do not attempt to create a .gmo file if
+	the sources are read-only.
+
+2002-04-04  Alan Modra  <amodra@bigpond.net.au>
+
+	* dep-in.sed: Cope with absolute paths.
+	* Makefile.am (dep.sed): Subst TOPDIR.
+	Run "make dep-am".
+	* Makefile.in: Regenerate.
+
+2002-03-21  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am: Run "make dep-am".
+	* Makefile.in: Regenerate.
+
+2002-03-18  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* po/fr.po: Updated version.
+
+2002-03-13  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* po/fr.po: Updated version.
+
+2002-03-07  Daniel Jacobowitz  <drow@mvista.com>
+
+	* gprof.texi: Wrap @menu in @ifnottex, not @ifinfo.
+
+2002-02-19  Frank Ch. Eigler  <fche@redhat.com>
+
+	* hist.c (hist_print): Rewrite log_scale calculation loop.
+
+2002-02-11  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am: "make dep-am".
+	* Makefile.in: Regenerate.
+
+2002-02-10  Daniel Jacobowitz  <drow@mvista.com>
+
+	* gprof.c: Include "getopt.h" after other includes, so that
+	the proper macros are defined.
+	* gen-c-prog.awk: Emit a prototype for the generated function.
+
+2002-02-01  Alan Modra  <amodra@bigpond.net.au>
+
+	* configure.in (build_warnings): Add -Wstrict-prototypes
+	-Wmissing-prototypes.
+	* aclocal.m4: Regenerate.
+	* gconfig.in: Regenerate.
+	* configure: Regenerate.
+	* Makefile.am: Run "make dep-am".
+	* Makefile.in: Regenerate.
+
+	* alpha.c (alpha_find_call): Warning fixes.
+	* mips.c (mips_find_call): Likewise.
+	* sparc.c (sparc_find_call): Likewise.
+	* basic_blocks.c: Warning fixes.  Eliminate DEFUN.
+	* call_graph.c: Likewise.
+	* cg_arcs.c: Likewise.
+	* cg_dfn.cp: Likewise.
+	* gprof.c: Likewise.
+	* gprof.h: Likewise.
+	* hist.c: Likewise.
+	* search_list.c: Likewise.
+	* source.c: Likewise.
+	* source.h: Likewise.
+	* sym_ids.c: Likewise.
+	* symtab.c: Likewise.
+	* symtab.h: Likewise.
+	* utils.c: Likewise.
+	* cg_print.c: Likewise.
+	(struct function_map, symbol_map, symbol_map_count): Move
+	declaration to..
+	* corefile: ..here.
+	* corefile.c: Warning fixes.  Eliminate DEFUN.
+	(struct function_map): Remove declaration.
+	* gmon_io.c: Warning fixes.  Eliminate DEFUN.
+	(gmon_io_read_64): Make static.
+	(gmon_io_write_64): Likewise.
+	(gmon_read_raw_arc): Likewise.
+	(gmon_write_raw_arc): Likewise.
+	(gmon_io_write_8): Don't pass char, pass int param.
+	* gmon_io.h (gmon_io_write_8): Likewise.
+
+	* Makefile.am: Run "make dep-am"
+	* Makefile.in: Regenerate.
+
+	* basic_blocks.c: Replace bool with boolean, TRUE with true and
+	FALSE with false throughout.
+	* basic_blocks.h: Likewise.
+	* cg_arcs.c: Likewise.
+	* cg_dfn.c: Likewise.
+	* cg_print.c: Likewise.
+	* corefile.c: Likewise.
+	* gmon_io.c: Likewise.
+	* gprof.c: Likewise.
+	* hist.c: Likewise.
+	* mips.c: Likewise.
+	* source.c: Likewise.
+	* source.h: Likewise.
+	* sym_ids.c: Likewise.
+	* sym_ids.h: Likewise.
+	* symtab.h: Likewise.
+	* tahoe.c: Likewise.
+	* vax.c: Likewise.
+	* gprof.h: Likewise.
+	(TRUE): Don't define.
+	(FALSE): Don't define.
+
+2002-01-31  Jason R Thorpe <thorpej@wasabisystems.com>
+
+	* TODO: Remove "host architecture pointer size" item.
+	* acconfig.h: Remove.
+	* gconfig.in: Regenerate.
+	* configure.in: Remove check for gmon pointer size.
+	* configure: Regenerate.
+	* gmon.h (GMON_HDRSIZE_BSD44_32): Define.
+	(GMON_HDRSIZE_BSD44_64): Ditto.
+	(GMON_HDRSIZE_OLDBSD_32): Ditto.
+	(GMON_HDRSIZE_OLDBSD_64): Ditto.
+	(struct raw_phdr): Wrap in #if 0, keeping it for
+	documentation purposes only.
+	(struct old_raw_phdr): Likewise.
+	(struct raw_arc): Likewise.  Change type/size of
+	"count" member to long match 4.4BSD.
+	* gmon_io: Update copyright years.
+	(gmon_io_read_64): New function.
+	(gmon_io_read_vma): Use bfd_arch_bits_per_address to
+	determine target pointer size.  Use gmon_io_read_32
+	and gmon_io_read_64.
+	(gmon_io_write_64): New function.
+	(gmon_io_write_vma): Use bfd_arch_bits_per_address to
+	determine target pointer size.  Use gmon_io_write_32
+	and gmon_io_write_64.
+	(get_vma): Remove.
+	(put_vma): Ditto.
+	(gmon_read_raw_arc): New function.
+	(gmon_write_raw_arc): New function.
+	(gmon_out_read): Do not use struct raw_phdr or
+	struct old_raw_phdr to read the gmon header.  Use
+	gmon_read_raw_arc to read call graph records.
+	(gmon_out_write): Do not use struct raw_phdr or
+	struct old_raw_phdr to write the gmon header.  Use
+	gmon_write_raw_arc to write call graph records.
+	* po/gprof.pot: Regenerate.
+	* Makefile.in: Regenerate.
+
+2002-01-31  Alan Modra  <amodra@bigpond.net.au>
+
+	* alpha.c (alpha_Instruction): Don't use.
+	(alpha_find_call): Avoid use of bitfields and casts between
+	pointers and integers of different sizes.  Avoid endian problems
+	when cross-compiling.
+	* vax.c (vax_find_call): Likewise.
+	(struct modebyte): Don't use.
+	(vax_operandmode): Pass in an unsigned char *.
+	(vax_operandlength): Likewise.
+	(vax_reladdr): Rename to vax_offset and return relative offset
+	rather than address.
+	* i386.c (i386_find_call): Avoid casts between pointers and
+	integers of different sizes.
+	* sparc.c (sparc_find_call): Likewise.  Avoid endian problems.
+	* tahoe.c (tahoe_find_call): Likewise.
+	(tahoe_reladdr): Rename to tahoe_offset and return relative offset
+	rather than address.
+
+	* basic_blocks.h: Don't include headers here.
+	* call_graph.h: Likewise.
+	* cg_arcs.h: Likewise.
+	* cg_print.h: Likewise.
+	* corefile.h: Likewise.
+	* gmon_io.h: Likewise.
+	* gmon_out.h: Likewise.
+	* hertz.h: Likewise.
+	* hist.h: Likewise.
+	* source.h: Likewise.
+	* sym_ids.h: Likewise.
+	* symtab.h: Likewise.
+	* gprof.h: Don't include ansidecl.h, do include bfd.h.
+	(bool): Don't typedef.
+	* alpha.c: Adjust #include's for above header changes.
+	* basic_blocks.c: Likewise.
+	* call_graph.c: Likewise.
+	* cg_arcs.c: Likewise.
+	* cg_dfn.c: Likewise.
+	* cg_print.c: Likewise.
+	* corefile.c: Likewise.
+	* gmon_io.c: Likewise.
+	* gprof.c: Likewise.
+	* hertz.c: Likewise.
+	* hist.c: Likewise.
+	* i386.c: Likewise.
+	* mips.c: Likewise.
+	* sparc.c: Likewise.
+	* sym_ids.c: Likewise.
+	* symtab.c: Likewise.
+	* tahoe.c: Likewise.
+	* utils.c: Likewise.
+	* vax.c: Likewise.
+
+	* po/POTFILES.in: Regenerate.
+
+2002-01-27  Daniel Jacobowitz  <drow@mvista.com>
+
+	* configure: Regenerated.
+
+2002-01-26  Richard Henderson  <rth@redhat.com>
+
+	* i386.c (i386_iscall): Static.
+	* tahoe.c (indirectchild, tahoe_operandmode): Static.
+	(tahoe_operandlength, tahoe_reladdr): Static.
+	* vax.c (indirectchild): Static.
+
+2002-01-26  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* Makefile.am (install): Depend on install-info.
+	* Makefile.in: Regenerate.
+
+2002-01-26  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* mips.c: New file.
+	* Makefile.am (sources): Add mips.c.
+	(mips.o): New rule.
+	* Makefile.in: Regenerate.
+	* corefile.c: Update copyright years.
+	(find_call): Call mips_find_call for bfd_arch_mips.
+
+2002-01-26  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* po/fr.po: Updated version.
+
+2002-01-25  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* po/es.po: Updated version.
+
+2002-01-17  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* po/gprof.pot: Regenerate.
+
+2002-01-07  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* po/es.po: New file: Spanish translation.
+	* configure.in (ALL_LINGUAS): Add es.
+	* configure: Regenerate.
+
+2002-01-03  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* gmon_io.c (gmon_out_read): Remove use of ngettext().  It is not
+	present under AIX.
+
+2002-01-02  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* cg_print.c (print_header): Fix spelling typo.
+
+	* gmon_io.c (gmon_out_read): Fix formatting of text messages to
+	allow easier translation into other languages.
+
+2001-12-21  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* configure.in (ALL_LINGUAS): Add sv.
+	* configure: Regenerate.
+	* po/sv.po: Import from translation project web site.
+
+2001-12-03  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* configure.in (LINGUAS): Add tr.
+	* configure: Regenerate.
+	* po/tr.po: Import from translation project's web site.
+
+2001-11-02  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* configure.in (ALL_LINGUAS): Add 'fr'.
+	* configure: Regernate.
+	* po/fr.po: New file.
+
+2001-10-03  Alan Modra  <amodra@bigpond.net.au>
+
+	* configure: Regenerate.
+
+2001-10-02  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am (Makefile): Depend on bfd/configure.in.
+	Run "make dep-am".
+	* Makefile.in: Regenerate.
+
+2001-09-18  Bruno Haible  <haible@clisp.cons.org>
+
+	* gprof.c (main): For gettext, also set the LC_CTYPE locate facet.
+	* sym_ids.c: Include "safe-ctype.h" instead of <ctype.h>.
+	(parse_spec): Use ISDIGIT instead of isdigit.
+
+2001-09-18  Alan Modra  <amodra@bigpond.net.au>
+
+	* sparc.c (sparc_find_call): Warning fix.
+	* alpha.c (alpha_find_call): Likewise.
+
+2001-08-09  Alan Modra  <amodra@bigpond.net.au>
+
+	* alpha.c: Add missing prototypes.
+	* sparc.c: Likewise.
+	* tahoe.c: Likewise.
+	* vax.c: Likewise.
+	* i386.c: Likewise.
+	(i386_iscall): Don't use DEFUN.
+
+2001-07-19  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* NOTES: Rename to README for consistency with other binutils.
+
+2001-06-18  H.J. Lu <hjl@gnu.org>
+
+	* Makefile.am (diststuff): Add $(MANS).
+	(gprof.1): Remove the prefix `$(srcdir)/'.
+	* Makefile.in: Regenerated.
+
+	* gprof.1: Removed.
+
+2001-06-12  Ben Elliston  <bje@redhat.com>
+
+	* gprof.texi (File Format): Profile data files are stored in
+	target byte order, not host byte order.
+
+2001-05-16  Alexandre Oliva  <aoliva@redhat.com>
+
+	* gmon_io.c (gmon_io_read, gmon_io_write_vma,
+	gmon_io_write_32, gmon_io_write_8, gmon_io_write): Adjust
+	argument list for K&R C.
+
+2001-04-06  Stephane Carrez  <Stephane.Carrez@worldnet.fr>
+
+	* gprof.texi: Put @c man begin and @c man end indications
+	to generate man page using texi2pod and pod2man.  Added SEEALSO,
+	SYNOPSIS, BUGS, FILES and DESCRIPTION from original gprof.1
+	enclosed in @ifset man condition.
+	* Makefile.am (MANCONF, TEXI2POD, POD2MAN): New variable.
+	Generate gprof.1 from gprof.texi.
+	* gprof.1: Generate from gprof.texi.
+	* Makefile.in: Regenerate.
+
+2001-03-13  David Mosberger  <davidm@hpl.hp.com>
+
+	* hist.c (hist_dimension): Declare as an array of 16 characters.
+	(hist_read_rec): If SAMPLEDEBUG, print each histogram bin count.
+
+	* basic_blocks.c: Whitespace and formatting changes.
+	* bb_exit_func.c: Ditto.
+	* call_graph.c: Ditto.
+	* call_graph.h: Ditto.
+	* cg_arcs.c: Ditto.
+	* cg_print.c: Ditto.
+	* cg_print.h: Ditto.
+	* corefile.c: Ditto.
+	* corefile.h: Ditto.
+	* gmon_io.c: Ditto.
+	* gmon_io.h: Ditto.
+	* gmon_out.h: Ditto.
+	* gprof.c: Ditto.
+	* hist.c: Ditto.
+	* hist.h: Ditto.
+	* i386.c: Ditto.
+	* search_list.c: Ditto.
+	* search_list.h: Ditto.
+	* source.c: Ditto.
+	* source.h: Ditto.
+	* sym_ids.c: Ditto.
+	* sym_ids.h: Ditto.
+	* symtab.c: Ditto.
+	* symtab.h: Ditto.
+	* tahoe.c: Ditto.
+	* utils.c: Ditto.
+	* vax.c: Ditto.
+
+	* gmon_out.h (gmon_hist_hdr): Delete.
+	(gmon_cg_arc_record): Delete.
+
+	* gmon_io.c (put_vma): Declare "static".
+	(get_vma): Ditto.
+	(gmon_io_write): New function.
+	(gmon_io_write_8): Ditto.
+	(gmon_io_write_32): Ditto.
+	(gmon_io_write_vma): Ditto.
+	(gmon_io_read): Ditto.
+	(gmon_io_read_32): Ditto.
+	(gmon_io_read_vma): Ditto.
+	* basic_blocks.c (bb_read_rec): Use gmon_io_read* / gmon_io_write*
+	to read/write data file in a more portable fashion.
+	(bb_write_blocks): Ditto.
+	* call_graph.c (cg_read_rec): Ditto.
+	(cg_write_arcs): Ditto.
+	* hist.c (hist_read_rec): Ditto.
+	(hist_write_hist): Ditto.
+
+	From Jes Sorensen  <jes@linuxcare.com>
+	* gmon_out.h: Use GMON_PTR_SIZE instead of sizeof(char*).
+	* gmon.h: Ditto.
+	* configure.in: Get GMON_PTR_SIZE from existing <sys/gmon_out.h>
+	if it exists.
+	* acconfig.h: New file. Mention and document GMON_PTR_SIZE.
+	* gconfig.h: Regenerate.
+	* configure: Regenerate.
+	* Makefile.in: Regenerate.
+
+2001-02-27  Alan Modra  <alan@linuxcare.com.au>
+
+	* configure.in (BFD_VERSION): New.
+	(AM_INIT_AUTOMAKE): Use $BFD_VERSION.
+	* configure: Regenerate.
+	* gconfig.in: Regenerate.
+	* Makefile.am: Run "make dep-am"
+	* Makefile.in: Regenerate.
+
+2001-01-27  Michael Sokolov  <msokolov@ivan.Harhan.ORG>
+
+	* basic_blocks.c: #include <unistd.h> only if it exists.
+
+2000-11-06  Nick Clifton  <nickc@redhat.com>
+
+	* gprof.texi: Add GNU Free Documentation License.
+
+2000-09-07  H.J. Lu  <hjl@gnu.org>
+
+	* configure.in (AC_ISC_POSIX): Put after AC_CANONICAL_SYSTEM.
+	* configure: Rebuild.
+
+2000-09-06  Alexandre Oliva  <aoliva@redhat.com>
+
+	* aclocal.m4, configure: Rebuilt with new libtool.m4.
+
+2000-09-02  Nick Clifton  <nickc@redhat.com>
+
+	* configure.in: Increase version number to 2.10.91.
+	* configure: Regenerate.
+	* aclocal.m4: Regenerate.
+	* config.in: Regenerate.
+
+2000-08-31  Alexandre Oliva  <aoliva@redhat.com>
+
+	* acinclude.m4: Include libtool and gettext macros from the
+	top level.
+	* aclocal.m4, configure: Rebuilt.
+
+2000-07-26  Nick Clifton  <nickc@cygnus.com>
+
+	* bb_exit_func.c: Assign copyright to FSF.  Note that David
+	Mosberger-Tang <David.Mosberger@acm.org> continuted this code.
+
+2000-07-24  Nick Clifton  <nickc@cygnus.com>
+
+	* basic_blocks.c: Add copyright notice.
+	* basic_blocks.h: Add copyright notice.
+	* call_graph.c: Add copyright notice.
+	* call_graph.h: Add copyright notice.
+	* cg_print.c: Add copyright notice.
+	* cg_print.h: Add copyright notice.
+	* corefile.c: Add copyright notice.
+	* corefile.h: Add copyright notice.
+	* gmon_io.c: Add copyright notice.
+	* gmon_io.h: Add copyright notice.
+	* gmon_out.h: Add copyright notice.
+	* hist.c: Add copyright notice.
+	* hist.h: Add copyright notice.
+	* search_list.c: Add copyright notice.
+	* search_list.h: Add copyright notice.
+	* source.c: Add copyright notice.
+	* source.h: Add copyright notice.
+	* sym_ids.c: Add copyright notice.
+	* sym_ids.h: Add copyright notice.
+	* symtab.c: Add copyright notice.
+	* symtab.h: Add copyright notice.
+
+2000-07-05  Kenneth Block  <krblock@computer.org>
+
+	* gprof.c: Add optional style to demangle switch
+	* gprof.texi: Document optional style to demangle switch.
+
+2000-06-05  DJ Delorie  <dj@redhat.com>
+
+	* MAINTAINERS: new
+
+2000-07-01  Alan Modra  <alan@linuxcare.com.au>
+
+	* Makefile.am (DEP): Fix 2000-06-22.  grep after running dep.sed
+	(CLEANFILES): Add DEPA.
+	* Makefile.in: Regenerate.
+
+2000-06-22  Alan Modra  <alan@linuxcare.com.au>
+
+	* Makefile.am (DEP): grep for leading `/' in DEP1, and fail if we
+	find one.
+	* Makefile.in: Regenerate.
+
+2000-06-20  Alan Modra  <alan@linuxcare.com.au>
+
+	* source.c (annotate_source): Correct pointer comparison when
+	checking for backslashes.
+
+2000-06-13  H.J. Lu  <hjl@gnu.org>
+
+	* configure: Regenerate.
+
+2000-06-08  David O'Brien  <obrien@FreeBSD.org>
+
+	* configure.in (VERSION): Update to show this is the CVS mainline.
+
+2000-06-07  Philippe De Muyter  <phdm@macqel.be>
+
+	* source.c: Remove direct inclusion of sys/stat.h.
+
+2000-05-31  Nick Clifton  <nickc@cygnus.com>
+
+	* gprof.h (_): Revert previous delta.  We want to use gettext,
+	not dgettext in the _ macro.
+
+2000-05-29  Alan Modra  <alan@linuxcare.com.au>
+
+	* gprof.h (_): Use BFD version.
+
+2000-05-26  Nick Clifton  <nickc@cygnus.com>
+
+	* gprof.c (main): When calling getopt_long indicate that the 'd'
+	switch takes an optional argument, whereas the 'D' switch takes no
+	argument at all.
+
+2000-05-26  Alan Modra  <alan@linuxcare.com.au>
+
+	* dep-in.sed: Copy from ../binutils.
+	* Makefile.am: Update dependencies with "make dep-am"
+	* Makefile.in: Regenerate.
+
+	* gprof.h: Remove most nls defines.  They are pulled in by
+	bfd/sysdep.h.  #include "ansidecl.h" not <ansidecl.h>
+
+2000-05-26  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* gprof.texi: Fix numerous typos. Mention some DOS/Windows related
+	issues.
+
+	* configure.in: Check for setmode function.
+	* configure: Regenerate.
+
+	* gmon_io.h (SET_BINARY) [HAVE_SETMODE]: Define.
+
+	* gmon_io.c (gmon_out_read) [SET_BINARY]: Switch stdin into binary
+	mode.
+
+	* source.c: Include filenames.h and sys/stat.h.
+	(source_file_lookup_path, source_file_lookup_name): Use
+	FILENAME_CMP to compare file names.
+	(annotate_source) [__MSDOS__]: If "filename-ann" would overwrite
+	"filename", replace the extension with ".ann".
+	[HAVE_DOS_BASED_FILE_SYSTEM]: Support file names with
+	backslashes and drive letters.
+	Use IS_ABSOLUTE_PATH.
+
+	* search_list.h (PATH_SEP_CHAR): Define.
+
+	* search_list.c (search_list_append): Use PATH_SEP_CHAR.
+
+	* hertz.c (HERTZ) [__MSDOS__]: Don't define unless they have
+	neither HAVE_SETITIMER nor HAVE_SYSCONF.
+	[HAVE_SETITIMER]: If they define both HAVE_SETITIMER and
+	HAVE_SYSCONF, try setitimer and fall back on sysconf.
+
+2000-04-07  Andrew Cagney  <cagney@b1.cygnus.com>
+
+	* configure.in (WARN_CFLAGS): Set to -W -Wall by default.  Add
+	--enable-build-warnings option.
+	* Makefile.am (AM_CFLAGS, WARN_CFLAGS): Add definitions.
+	* Makefile.in, configure, aclocal.m4: Re-generate.
+
+2000-04-05  Alexandre Oliva  <oliva@lsd.ic.unicamp.br>
+
+	* gprof.c (copyright): Do not use N_ in array initializer.
+
+2000-04-04  Alan Modra  <alan@linuxcare.com.au>
+
+	* po/gprof.pot: Regenerate.
+
+	* gprof.c (usage): Restore translated part of bug string.
+
+	* Makefile.am (BASEDIR): Define.
+	(BFDDIR): Define.
+	(INCDIR): Define.
+	(MKDEP): Define.
+	(INCLUDES): Add "-I."
+	(DEP, DEP1, dep.sed, dep, dep-in, dep-am): New targets.
+	(CLEANFILES): Define.
+	Update dependencies.
+	* Makefile.in: Regenerate.
+
+2000-04-03  Alan Modra  <alan@linuxcare.com.au>
+
+	* gprof.h: #include "bin-bugs.h".
+	* gprof.c (usage): Use REPORT_BUGS_TO.
+
+2000-03-31  Alan Modra  <alan@linuxcare.com.au>
+
+	* symtab.c (symtab_finalize): Don't use post-increment on
+	structure copy, to work around a ppc gcc bug.
+
+1999-09-29  Mark Kettenis  <kettenis@gnu.org>
+
+	* hertz.h [MACH] (hertz): Remove macro.  The
+	<machine/mach_param.h> include doesn't exist on al Mach based
+	systems, and the definition of hertz breaks compilation of hertz.c
+	anyway.
+
+2000-02-22  Ian Lance Taylor  <ian@zembu.com>
+
+	From Brad Lucier <lucier@math.purdue.edu>:
+	* i386.c (i386_find_call): Add cast to ensure that printf argument
+	matches format.
+	* tahoe.c (tahoe_find_call): Likewise.
+	* vax.c (vax_find_call): Likewise.
+
+2000-01-27  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* utils.c (print_name_only): Don't pass error strings to
+	printf as format arg.
+
+1999-09-24  Nick Clifton  <nickc@cygnus.com>
+
+	* gmon_io.c (gmon_out_read): Make sure that sensible values
+	are extracted from a raw header.
+
+1999-08-06  Ian Lance Taylor  <ian@zembu.com>
+
+	From Brad Lucier <lucier@math.purdue.edu>:
+	* corefile.c (core_create_line_syms): Add cast for printf.
+
+1999-07-21  Ian Lance Taylor  <ian@zembu.com>
+
+	From Mark Elbrecht:
+	* configure.bat: Remove; obsolete.
+
+1999-07-15  Ian Lance Taylor  <ian@zembu.com>
+
+	* configure.in: Bump version number to 2.9.5.
+	* configure: Rebuild.
+
+1999-07-11  Ian Lance Taylor  <ian@zembu.com>
+
+	* corefile.c (core_create_function_syms): Add ATTRIBUTED_UNUSED.
+	* sym-ids.c (non_existent_file): Fully initialize structure.
+
+1999-07-01  Ian Lance Taylor  <ian@zembu.com>
+
+	* Many files: Add casts in many print statements to cast bfd_vma
+	values to unsigned long when calling printf.
+	* Makefile.am ($(OBJECTS)): Add gmon.h.
+	* Makefile.in: Rebuild.
+
+1999-06-14  Andreas Schwab  <schwab@issan.cs.uni-dortmund.de>
+
+	* gprof.texi: Fix typo.
+
+1999-06-13  Ian Lance Taylor  <ian@zembu.com>
+
+	From Bob Byrnes <byrnes@curl.com>:
+	* cg_dfn.c: Include "libiberty.h"
+	(DFN_INCR_DEPTH): Define instead of DFN_DEPTH.
+	(dfn_stack): Define as pointer rather than array.
+	(pre_visit): Reallocate dfn_stack as needed.
+
+1999-04-26  Tom Tromey  <tromey@cygnus.com>
+
+	* aclocal.m4, configure: Updated for new version of libtool.
+
+1999-04-06  Ian Lance Taylor  <ian@zembu.com>
+
+	* gprof.h (LC_MESSAGES): Never define.
+	* gprof.c (main): Don't pass LC_MESSAGES to setlocale if the
+	system does not define it.
+
+1999-04-05  H.J. Lu  <hjl@gnu.org>
+
+	* corefile.c (core_create_line_syms): Don't use fixed size array
+	for prev_name and prev_filename.
+
+1999-04-04  Michael Hohmuth  <hohmuth@innocent.com>
+
+	* gprof.h (FF_BSD44): Define.
+	* gmon.h (struct raw_phdr): Add version, profrate, and spare
+	fields unconditionally.
+	(struct old_raw_phdr): New struct.
+	* gprof.c (main): Handle -O 4.4bsd.
+	* gmon_io.c (gmon_out_read): Handle BSD 4.4 format, either
+	automatically or by user specification.
+	(gmon_out_write): Handle BSD 4.4 format.
+	* configure.in: Don't set BSD44_FORMAT.
+	* gprof.texi (Miscellaneous Options): Document -O 4.4bsd.
+	* configure, gconfig.in: Rebuild.
+
+Tue Feb 16 17:01:33 1999  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Change AC_PREREQ to 2.13.  Change AM_PROG_INSTALL
+	to AC_PROG_INSTALL.  Remove AM_CYGWIN32.  Change AM_EXEEXT to
+	AC_EXEEXT.  Add comment to AC_DEFINE.
+	* acconfig.h: Remove.
+	* aclocal.m4: Rebuild.
+	* configure: Rebuild.
+	* Makefile.in: Rebuild.
+	* gconfig.in: Rebuild.
+
+1998-12-06  Ian Lance Taylor  <ian@cygnus.com>
+
+	* gprof.texi (Symspecs): Mention that you have to add any
+	underscore yourself when naming a symbol.
+
+1998-11-02  Geoffrey Noer  <noer@cygnus.com>
+
+	* configure.in: detect cygwin* instead of cygwin32*
+	* configure: regenerate
+
+Wed Aug 12 14:59:06 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	Avoid some overflow cases:
+	* basic_blocks.h (bb_min_calls): Change to unsigned long.
+	* call_graph.h (cg_tally): Change count parameter to unsigned
+	long.
+	* cg_arcs.h (Arc): Change count field to unsigned long.
+	(arc_add): Change count parameter to unsigned long.
+	* source.h (Source_File): Change ncalls field to unsigned long.
+	* symtab.h (Sym): Change fields ncalls, bb_calls, and
+	cg.self_calls to unsigned long.
+	* Many files: Update accordingly.
+
+	* configure, Makefile.in, aclocal.m4: Rebuild with current tools.
+
+Fri Jul 10 17:29:49 1998  Stan Cox  <scox@equinox.cygnus.com>
+
+	* configure.in (BSD44_FORMAT): Define for cygwin32, win32, mingw32
+	* configure: Rebuild.
+
+Fri Jun 12 13:40:05 1998  Tom Tromey  <tromey@cygnus.com>
+
+	* po/Make-in (all-yes): If maintainer mode, depend on .pot file.
+	($(PACKAGE).pot): Unconditionally depend on POTFILES.
+
+Sun May 10 22:35:33 1998  Jeffrey A Law  (law@cygnus.com)
+
+	* po/Make-in (install-info): New target.
+
+Tue May  5 18:28:40 1998  Tom Tromey  <tromey@cygnus.com>
+
+	* gprof.h (_): Undefine BFD's version.
+
+Tue Apr 28 19:17:33 1998  Tom Tromey  <tromey@cygnus.com>
+
+	* gprof.c (main): Conditionally call setlocale.
+	* gprof.h: Include <locale.h> if HAVE_LOCALE_H.
+	(LC_MESSAGES): Now can be defined even when ENABLE_NLS.
+
+Tue Apr 28 19:50:09 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* corefile.c: Rename from core.c.
+	* corefile.h: Rename from core.h.
+	* Many .c files: Include corefile.h rather than core.h.
+	* Makefile.am (sources): Change core.c to corefile.c.
+	(noinst_HEADERS): Change core.h to corefile.h.
+	($(OBJECTS)): Depend upon corefile.h rather than core.h.
+	(corefile.o): Rename target from core.o, depend upon corefile.c.
+	* Makefile.in, po/POTFILES.in: Rebuild.
+
+Mon Apr 27 16:50:40 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Change version number to 2.9.4
+	* configure: Rebuild.
+
+Wed Apr 22 16:01:17 1998  Tom Tromey  <tromey@cygnus.com>
+
+	* po/Make-in (MKINSTALLDIRS): Don't look in $(top_srcdir).
+
+Wed Apr 22 00:00:22 1998  Tom Tromey  <tromey@scribbles.cygnus.com>
+
+	* gprof.h: Added includes and defines for gettext.
+	* configure.in (ALL_LINGUAS): New macro.
+	Call CY_GNU_GETTEXT.  Create po/Makefile.in and po/Makefile.
+	* acconfig.h (ENABLE_NLS, HAVE_CATGETS, HAVE_GETTEXT, HAVE_STPCPY,
+	HAVE_LC_MESSAGES): Define.
+	* gprof.c (main): Call setlocale, bindtextdomain, textdomain.
+	* Makefile.am (SUBDIRS): New macro.
+	(INCLUDES): Look in intl dirs for headers.  Define LOCALEDIR.
+	(gprof_DEPENDENCIES): Added INTLDEPS.
+	(gprof_LDADD): Added INTLLLIBS.
+	(POTFILES): New macro.
+	(po/POTFILES.in): New target.
+	* Many files: Wrap user-visible strings with gettext invocation.
+
+Tue Apr  7 12:43:37 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	From hjl@lucon.org <H.J. Lu>:
+	* Makefile.am (diststuff): New target.
+	* Makefile.in: Rebuild.
+
+Mon Mar 30 12:47:48 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Set version to 2.9.1.
+	* configure: Rebuild.
+
+	* Branched binutils 2.9.
+
+Sat Mar 28 23:09:08 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	Fix some gcc -Wall warnings:
+	* cg_arcs.c (num_cycles): Change to unsigned int.
+	(numarcs): Likewise.
+	(arc_add): Change maxarcs to unsigned int.
+	(cg_assemble): Change index to unsigned int.
+	* cg_arcs.h (num_cycles, numarcs): Update declarations.
+	* cg_print.c (cg_print): Change index to unsigned int.
+	(cg_print_index): Change index, nnames, todo, i, and j to unsigned
+	int.
+	(cg_print_file_ordering): Change symbol_count and index2 to
+	unsigned int.
+	* core.c (symbol_map_count): Change to unsigned int.
+	(core_create_function_syms): Change j to unsigned int.
+	(core_create_line_syms): Add cast to avoid warning.
+	* hist.c (hist_assign_samples): Change j to unsigned int.
+	(hist_print): Change index to unsigned i nt.  Add cast to avoid
+	warning.
+	* sym_ids.c (parse_spec): Add casts to avoid warning.
+	* symtab.c (symtab_finalize): Change j to unsigned int.
+	(sym_lookup): Update printf format strings.
+	* symtab.h (Sym_Table): Change len to unsigned int.
+	* tahoe.c (tahoe_reladdr): Add casts to avoid warnings.
+
+Tue Mar 24 19:00:11 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	Add --demangle and --no-demangle options:
+	* gprof.h (demangle): Declare.
+	* gprof.c (demangle): New global variable.
+	(OPTION_DEMANGLE, OPTION_NO_DEMANGLE): Define.
+	(long_options): Add "demangle" and "no-demangle".
+	(usage): Mention --demangle and --no-demangle.
+	(main): Handle OPTION_DEMANGLE and OPTION_NO_DEMANGLE.
+	* utils.c (print_name_only): Only demangle symbol name if demangle
+	is true.
+	* gprof.texi (Output Options): Document new options.
+
+Fri Mar 20 19:21:56 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in: Rebuild with automake 1.2e.
+	* aclocal.m4, configure: Rebuild with libtool 1.2.
+
+Thu Feb 12 14:36:05 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* gprof.c (usage): Update bug-gnu-utils address.
+
+Sat Feb  7 15:43:12 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure, aclocal.m4: Rebuild with new libtool.
+
+Fri Feb  6 12:02:28 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* alpha.c (alpha_Instruction): Use int, not signed.
+
+Fri Feb  6 02:00:19 1998  Jeffrey A Law  (law@cygnus.com)
+
+	* core.c (core_init): Adding missing "break".
+
+Thu Feb  5 12:49:37 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure, Makefile.in, aclocal.m4: Rebuild with new libtool.
+
+Tue Feb  3 14:25:25 1998  Brent Baccala  <baccala@freesoft.org>
+
+	* bbconv.pl: New file.
+	* Makefile.am (EXTRA_DIST): Add bbconv.pl.
+	* Makefile.in: Rebuild.
+
+	* gprof.texi: Extensive additions to document all arguments and
+	output formats.
+
+	* symtab.c (symtab_finalize): Prefer function symbols over line
+	symbols.
+	(dbg_sym_lookup): Correct debugging messages.
+
+	* gprof.c (main): --sum implies --line.
+
+	* cg_print.c (cg_print): When doing line by line profiling, don't
+	use a non-function as a main listing item.
+
+	* call_graph.c (cg_tally): When using line by line profiling, use
+	the function symbol as the child.
+
+	* symtab.h (NBBS): Define.
+	(Sym): Add bb_addr and bb_calls fields.
+	* basic_blocks.c (bb_read_rec): Save multiple basic blocks per
+	symbol.
+	(bb_write_blocks): Adjust for multiple basic blocks per symbol.
+	(print_exec_counts): Don't check whether a symbol is the start of
+	a basic block.  Print all basic blocks for a symbol.
+	(annotate_with_count): Rewrite to print all basic block counts and
+	to pay attention to width argument.
+	(print_annotated_source): Don't check whether symbol is the start
+	of a basic block.
+
+	Make it possible to build a cross gprof, although a few cases are
+	still not handled:
+	* configure.in: Don't set MY_TARGET.
+	* gprof.h: Don't include MACHINE_H.  Don't define FOPEN_RB or
+	FOPEN_WB; just get them from sysdep.h.
+	* core.h (min_insn_size, offset_to_code): Declare.
+	* core.c (MIN_INSN_SIZE): Don't define.
+	(min_insn_size, offset_to_code): New variables.
+	(core_init): Initialize min_insn_size and offset_to_code.
+	(find_call): New function.
+	(core_create_line_syms): Don't use min_dist.  Set is_static in
+	pass 2.
+	* hist.c (UNITS_TO_CODE): Define.
+	* gprof.c (default_excluded_list): Add "__mcount_internal".
+	* gmon.h: Change TARGET_alpha to __alpha__.
+	* hertz.h: Ifdef MACH, define hertz as HZ.
+	* alpha.c (alpha_Instruction): Rename from Instruction.  Change
+	all references.
+	(alpha_find_call): Rename from find_call.
+	* alpha.h: Remove.
+	* dummy.c, dummy.h: Remove.
+	* i386.c (i386_iscall): Rename from iscall.  Change all
+	references.  Check for call instruction, not jump or lcall.
+	(i386_find_call): Rename from find_call.  Correct for VMA.
+	Correct call destination computation.  Don't dereference symbol if
+	it is NULL.
+	* i386.h: Remove.
+	* ns532.c, ns532.h: Remove.
+	* sparc.c (CALL): Define.
+	(sparc_find_call): Rename from find_call.
+	* sparc.h: Remove.
+	* tahoe.c: Include cg_arcs.h, core.h, hist.h, and symtab.h.  Don't
+	include time_host.h.
+	(CALLF, PC): Define.
+	(enum tahoe_opermodes, tahoe_operandenum): Define.  Rename all
+	references to opermodes or operandenum to these.
+	(tahoe_operandmode): Rename from operandmode.  Call abort if
+	switch does not return.
+	(tahoe_operandname): Rename from operandname.  Call abort if
+	switch does not return.
+	(tahoe_operandlength): Rename from operandlength.  Call abort if
+	switch does not return.
+	(tahoe_reladdr): Rename from reladdr.
+	(tahoe_find_call): Rename from find_call.  Use core_text_space
+	rather than textspace.
+	* tahoe.h: Remove.
+	* vax.c (CALLS, PC): Define.
+	(enum opermodes, operandenum, struct modebyte): Define.
+	(vax_operandmode): Rename from operandmode.  Call abort if switch
+	does not return.
+	(vax_operandname): Rename from operandname.  Call abort if switch
+	does not return.
+	(vax_operandlength): Rename from operandlength.  Call abort if
+	switch does not return.
+	(vax_reladdr): Rename from reladdr.
+	(vax_find_call): Rename from find_call.
+	* vax.h: Remove.
+	* Makefile.am (AUTOMAKE_OPTIONS): Set to cygnus.
+	(MY_TARGET): Remove.
+	(INCLUDES): Remove -DTARGET_$(MY_TARGET) and -DMACHINE_H=
+	\"$(MY_TARGET).h\".
+	(gprof_SOURCES): Add i386.c, alpha.c, vax.c, tahoe.c, sparc.c.
+	(gprof_DEPENDENCIES): Remove $(MY_TARGET).o.
+	(gprof_LDADD): Likewise.
+	(noinst_HEADERS): Remove alpha.h, i386.h, ns532.h, sparc.h,
+	tahoe.h, vax.h, dummy.h.
+	(EXTRA_DIST): Remove alpha.c, i386.c, ns532.c, sparc.c, tahoe.c,
+	vax.c, dummy.c.
+	($(OBJECTS)): Don't depend upon $(MY_TARGET).h.
+	($(MY_TARGET).o): Remove target.
+	(i386.o, alpha.o, vax.o, tahoe.o, sparc.o): New targets.
+	* configure, Makefile.in, aclocal.m4: Rebuild.
+
+Mon Dec 29 14:17:08 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* core.c (core_sym_class): Treat weak symbols as text symbols.
+	From Dean Gaudet <dgaudet@arctic.org>.
+
+Wed Sep 24 11:35:43 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* aclocal.m4: Rebuild with new libtool.
+	* Makefile.in: Rebuild with current automake.
+	* configure: Rebuild.
+
+Sat Aug  9 16:25:01 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Change version number to 2.8.2.  Call
+	AM_PROG_LIBTOOL.  Remove shared library handling; now handled by
+	libtool.  Add AM_CONFIG_HEADER.  Change AC_PROG_INSTALL to
+	AM_PROG_INSTALL.  Add AM_EXEEXT.
+	* Makefile.am (LINK): Remove.
+	(gprof_LDFLAGS): Remove
+	(gprof_DEPENDENCIES): Change libbfd.a to libbfd.la.
+	(gprof_LDADD): Likewise.
+	($(OBJECTS)): Depend upon gconfig.h and ../bfd/config.h.
+	* gprof.h: Undefine PACKAGE and VERSION after including BFD
+	sysdep.h file, then include new gconfig.h file.
+	* gprof.c (VERSION): Don't define.
+	* acconfig.h: New file.
+	* stamp-h.in: New file.
+	* gconfig.in: New file, created by autoheader.
+	* Makefile.in, configure, aclocal.m4: Rebuild.
+
+Sat Jun 28 23:20:42 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* aclocal.m4, configure, Makefile.in: Rebuild with automake 1.2.
+
+Mon Jun 16 15:31:39 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.am (INCLUDES): Add -DDEBUG.
+	* Makefile.in: Rebuild.
+
+Tue Apr 15 14:19:30 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	Change to use automake:
+	* Makefile.am: New file.
+	* configure.in: Run AM_INIT_AUTOMAKE, AM_MAINTAINER_MODE, and
+	AM_CYGWIN32.
+	* aclocal.m4: New file, created by aclocal.
+	* Makefile.in: Replace with file created by automake --cygnus.
+	* configure: Rebuild.
+
+Thu Apr  3 13:21:25 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* gprof.c (VERSION): Define as "2.8.1".
+
+	* Branched binutils 2.8.
+
+Thu Mar 27 17:15:23 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* gprof.c (main): Correct copyright message.
+
+Mon Mar 24 11:12:26 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in (.c.o): Define TARGET_$(MY_TARGET) when compiling.
+	* gmon.h: Use bytes counts rather than sizeof in struct raw_phdr
+	and struct raw_arc.
+
+Mon Mar 17 10:54:47 1997  David Mosberger-Tang  <davidm@azstarnet.com>
+
+	* cg_arcs.c (arc_add): memset() newly alloced arc to ensure
+	all fields are initialized with 0.
+
+Sat Mar 15 19:17:31 1997  H.J. Lu  <hjl@lucon.org>
+
+	* symtab.h (find_call): Declare.
+	* cg_arcs.c (cg_assemble): Don't declare find_call.
+	* hist.c (scale_and_align_entries): Declare.
+
+Thu Feb 27 12:46:53 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Define BSD44_FORMAT if the target looks like a
+	BSD4.4 derived system.
+	* configure: Rebuild.
+	* Makefile.in (.c.o): Add @DEFS@.
+	* gmon_io.c (gmon_out_read): In BSD44_FORMAT code, get profrate
+	from profrate field, not version field.
+
+Thu Jan 16 17:42:54 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* dummy.c (find_call): Clear ignore_direct_calls.
+
+Tue Dec 31 15:44:10 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in (.c.o): Add -D_GNU_SOURCE.  Put $(CFLAGS) at the
+	end.
+	(gprof): Put $(CFLAGS) after the other options.
+
+Tue Nov 26 17:08:38 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure: Rebuild with autoconf 2.12.
+
+Wed Oct  2 15:23:16 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* sparc.c (find_call): Align p_lowpc to avoid bus error.
+
+Tue Oct  1 15:58:10 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* gprof.c (usage): Print bug report address.
+	(main): Change version printing to match current GNU standards.
+
+Fri Aug 30 12:16:11 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* gmon.h: Replace #elif with #else/#endif.
+
+Thu Aug 29 17:04:10 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
+
+	* configure.in (i[345]86-*-*): Recognize i686 for pentium pro.
+	* configure: Regenerate.
+
+Thu Aug 22 17:12:30 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Set and substitute HLDENV.
+	* configure: Rebuild.
+	* Makefile.in (HLDENV): New variable.
+	(gprof): Use $(HLDENV).
+
+Wed Aug  7 14:43:51 1996  Philippe De Muyter  <phdm@info.ucl.ac.be>
+
+	* core.c (read_function_mappings): Cast xmalloc return.
+
+Thu Jul  4 12:01:42 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* gprof.c (VERSION): Define as "2.7.1".
+
+	* Released binutils 2.7.
+
+	* bb_exit_func.c: Rename from __bb_exit_func.c, so that it can be
+	stored on a System V file system.
+
+Thu Jun 27 11:36:22 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Call AC_ISC_POSIX.
+	* configure: Rebuild.
+	* Makefile.in (gprof): Pass $(CFLAGS) during link.
+	* hertz.c: Don't include <sys/time.h>; let sysdep.h handle that.
+	If HAVE_SETITIMER is not defined, try using sysconf.
+
+Mon Jun 24 18:27:28 1996  Jason Molenda  (crash@godzilla.cygnus.co.jp)
+
+	* Makefile.in (exec_prefix, bindir, libdir, mandir, infodir, datadir,
+	INSTALL_PROGRAM, INSTALL_DATA): Use autoconf-set values.
+	* configure.in (AC_PREREQ): autoconf 2.5 or higher.
+	(AC_PROG_INSTALL): added.
+	* configure: Rebuilt.
+
+Mon Jun 24 12:03:09 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: On alpha*-*-osf*, link against libbfd.a if not
+	using shared libraries.
+	* configure: Rebuild with autoconf 2.10.
+
+Tue Jun 18 17:35:58 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* core.c (core_create_line_syms): Use xstrdup rather than strdup.
+	* source.c (source_file_lookup_path): Likewise.
+
+Mon Apr  8 14:44:33 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Permit --enable-shared to specify a list of
+	directories.
+	* configure: Rebuild.
+
+Thu Mar 21 17:18:25 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* core.c (core_create_function_syms): Move filename and func_name
+	inside ifdef where they are used.
+
+	* core.c (core_sym_class): Parenthesize && within ||.
+	* symtab.c (symtab_finalize): Correct parenthesization.
+
+	* cg_print.h (cg_print_file_ordering): Declare.
+	(cg_print_function_ordering): Declare.
+
+	* __bb_exit_func.c (__bb_exit_func): Replace bcopy with memcpy.
+	* cg_arcs.c (arc_add): Likewise.
+	* cg_print.c (cg_print_function_ordering): Likewise.
+
+Thu Mar 21 17:02:02 1996  David Mosberger-Tang  <davidm@azstarnet.com>
+
+	* gprof.c (default_excluded_list): Add "__mcount".
+
+	* gprof.c (main): Change ifdef __osf__ to __alpha__.
+
+	* gmon_io.c (gmon_out_read): If BSD44_FORMAT is defined, get the
+	profiling rate from the header.
+
+	* gmon.h (struct raw_phdr): Only include pad if both __alpha__ and
+	__osf__ are defined.  Add new fields if BSD44_FORMAT is defined.
+
+	* alpha.h (MIN_INSN_SIZE): Define.
+	* core.c (MIN_INSN_SIZE): If not defined, define as 1.
+	(core_sym_class): Ignore debugging symbols.
+	(core_create_line_syms): Use MIN_INSN_SIZE when gathering line
+	information.
+
+Wed Mar 20 18:15:47 1996  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* cg_print.c (cg_print_function_ordering): Fix __GNUC__ misspelled
+	as __GNU_C__.
+	(order_and_dump_functions_by_arcs): Likewise.
+
+Tue Mar 12 12:19:50 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure: Rebuild with autoconf 2.8.
+
+Sun Feb 18 15:06:18 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Check for 'do not mix' from native linker before
+	trying to use -rpath.
+	* configure: Rebuild.
+
+Tue Feb 13 15:32:53 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Set HDLFLAGS for *-*-hpux with --enable-shared.
+	* configure: Rebuild.
+
+Wed Feb  7 14:03:17 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* configure.in: Don't set CC.  Look for --enable-shared.  Set
+	BFDLIB and HLDFLAGS and substitute them.
+	* configure: Rebuild.
+	* Makefile.in (LIBS): Use @BFDLIB@.
+	(HLDFLAGS): New variable.
+	(gprof): Use $(HLDFLAGS).
+
+Mon Feb  5 16:34:44 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	Support for building bfd and opcodes as shared libraries, based on
+	patches from Alan Modra <alan@spri.levels.unisa.edu.au>:
+	* Makefile.in (LIBDEPS): New variable.
+	(LIBS): Use -L../bfd -lbfd.
+	(gprof): Depend upon $(LIBDEPS) rather than $(LIBS).
+
+Sat Dec 30 10:11:03 1995  Jeffrey A Law  (law@cygnus.com)
+
+	* gprof.c (long_options): Add "--function-ordering" and
+	"--file-ordering" options.
+	(usage): Add new options to usage message.
+	(main): Handle new options.
+	* gprof.h (STYLE_FUNCTION_ORDER): Define.
+	(STYLE_FILE_ORDER): Define.
+	(function_mapping_file): Declare.
+	* cg_arcs.c (arcs, numarcs): New globals.
+	(arc_add): Put new arcs into the arc array so the function/file
+	ordering code can examine them.
+	* cg_arcs.h (struct arc): New field "has_been_placed".
+	(arcs, numarcs): Declare new globals.
+	* core.c (symbol_map, symbol_map_count): New globals.
+	(read_function_mappings): New function to read in a function
+	to object map file.
+	(core_init): Call read_function_mappings if a function mapping
+	file exists.
+	(core_create_function_syms): Handle function to object file
+	mappings.
+	* symtab.h (struct sym): New fields "mapped", "has_been_placed",
+	"nuses", "prev".
+	* cg_print.c (cmp_arc_count): New function for sorting arcs.
+	(cmp_fun_nuses): Likewise for functions.
+	(cg_print_function_ordering): New function to print a suggested
+	function ordering.
+	(cg_print_file_ordering): Likewise for ordering .o files.
+	(order_and_dump_functions_by_arcs): Helper function for function
+	and object file ordering code.
+
+Sun Dec 24 21:32:27 1995  Jeffrey A Law  (law@cygnus.com)
+
+	* core.c (core_sym_class): Ignore symbols without BSF_FUNCTION
+	set if ignore_non_function is set.
+	* gprof.h (ignore_non_functions): Declare.
+	* gprof.c (ignore_non_functions): Define.
+	(long_options): Add "ignore-non-functions".
+	(usage): Add new options.
+	(main): Recognize "-D" and "--ignore-non-functions" option.
+
+Tue Nov 21 13:24:39 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	* Makefile.in (.m.c): Strip out directory name from function
+	name.
+
+	* hist.c (scale_and_align_entries): Don't use DEFUN_VOID.  Do
+	UNITS_TO_CODE adjustment unconditionally; compiler can optimize
+	away zero-offset case.  Refer to scaled_addr, not aligned_addr.
+
+	* vax.c: Don't include vax.h here.
+
+Thu Nov 16 03:41:37 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	Version 2.6 released.
+
+Wed Nov  8 11:40:04 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* gprof.c (main): Cast getenv return value.
+
+Mon Nov  6 15:05:00 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	* Makefile.in (TAGS): New target.
+
+Wed Nov  1 12:51:21 1995  Per Bothner  <bothner@kalessin.cygnus.com>
+
+	* Makefile.in (DISTSTUFF):  Rename to GEN_FILES, to avoid confusion.
+	(all):  Depend on $(GEN_FILES), not diststuff (which also depends
+	on info).
+
+Wed Nov  1 15:23:15 1995  Manfred Hollstein KS/EF4A 60/1F/110 #40283  <manfred@lts.sel.alcatel.de>
+
+	* sym_ids.c: Include <ctype.h>.
+
+Wed Oct 25 13:24:31 1995  Per Bothner  <bothner@kalessin.cygnus.com>
+
+	* Makefile.in (diststuff):  Also make info.
+	(mostlyclean):  Don't remove gprof.info*.
+	(maintainer-clean realclean):  Also remove *.info*.
+
+Fri Oct  6 16:25:32 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	Mon Sep 25 22:49:32 1995  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* Makefile.in: Add dependecies for $(OBJS) on header files.
+
+	* cg_print.c (print_cycle, print_members, cg_print_index): Fix new
+	style output format to make it consistent.
+	* dummy.c (find_call): Fix typo in error message.
+
+Wed Sep 20 13:21:02 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in (maintainer-clean): New target, synonym for
+	realclean.
+
+Fri Sep  8 14:38:08 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* Makefile.in (install): Don't install in $(tooldir).
+
+Fri Aug 25 15:30:05 1995  Ken Raeburn  <raeburn@cygnus.com>
+
+	NS32K changes from Ian Dall:
+	* configure.in: Use ns32k, not ns532.
+	* ns532.c: Include symtab.h.
+	(find_call): Renamed from findcall.  Print a message.
+	* ns532.h: Remove dummy.h comments.
+
+Tue Aug 22 10:00:45 1995  Jeffrey A. Law  <law@rtl.cygnus.com>
+
+	* Makefile.in (install): Remove "brokensed" hack, unnecessary now
+	that we're using autoconf.
+
+Wed Jul 19 18:46:13 1995  Fred Fish  <fnf@cygnus.com>
+
+	* core.c (get_src_info): Cast arg 7 of bfd_find_nearest_line
+	to proper type of "unsigned int *".
+
+Fri Jun 16 15:29:36 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
+
+	* configure.in: Use changequote around use of [].
+
+Mon Jun 12 12:14:52 1995  J.T. Conklin  <jtc@rtl.cygnus.com>
+
+	* Makefile.in (distclean, realclean): Remove config.cache and
+	  config.log.
+
+Wed May 17 17:56:53 1995  J.T. Conklin  <jtc@rtl.cygnus.com>
+
+	* Makefile.in (Makefile): Added config.status to dependency list.
+	  (config.status): New target.
+	  (SHELL): New definition.
+
+Tue Apr 25 21:11:12 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
+
+	* Makefile.in (install): Depend on "all".
+
+Thu Apr 20 17:29:07 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
+
+	* Makefile.in: Change all references to MY_MACHINE to MY_TARGET,
+	to match configure script.
+
+Wed Apr 19 11:19:37 1995  J.T. Conklin  <jtc@rtl.cygnus.com>
+
+	* gen-c-prog.awk: Changed reference to "make-c-prog.awk" in
+	  comment emitted by this script to gen-c-prog.awk.
+
+	* Makefile.in, configure.in: Converted to use autoconf.
+	* configure: New file, generated with autoconf 2.3.
+	* config/{mt-alpha, mt-dummy, mt-i386, mt-ns532, mt-sparc,
+	  mt-tahoe, mt-vax}: Removed.
+
+Mon Mar 13 21:44:24 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
+
+	* __bb_exit_func.c: New file, from David Mosberger-Tang.
+
+	Thu Feb  9 16:56:07 1995  David Mosberger-Tang  <davidm@piston.cs.arizona.edu>
+
+	* All *.c: More cleanup towards GNU format.
+
+	* gmon_out.h (struct gmon_hist_hdr, struct gmon_cg_arc_record):
+	replaced sizeof (bfd_vma) by size (char*) because Ken tells me
+	that bfd_vma is only guaranteed to be at least as big as a pointer.
+
+	(GMON_Record_tag): added explicit enumeration values to ensure
+	compatibility across compilers.
+
+	* gmon_io.c (get_vma, put_vma): replaced sizeof(bfd_vma) by
+	sizeof(char*).
+
+Tue Feb  7 17:24:12 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
+
+	* All *.c and *.h files: Ran "indent -gnu".  Cleaned up a couple
+	of constructs GNU indent couldn't handle.  Block comments not yet
+	rewritten in GNU format.
+
+	* gprof.c (VERSION): Changed to 2.6, to get in sync for next
+	binutils release.
+
+Sun Feb  5 16:19:46 1995  David Mosberger-Tang  <davidm@piston.cs.arizona.edu>
+
+	* symtab.c (symtab_finalize): ensure globals symbols really
+	are favored over static ones---even if their name looks less
+	preferable; this is important for HP-UX; for example, there
+	is a static label Ltext_something that aliases the global
+	symbol _start
+
+	* hist.c (hist_print): auto-scaling is now in effect for FSF-style
+	output only; also, auto-scaling is now performed based on
+	per-call, rather than total execution time, which is what it was
+	meant to be.
+
+	* gprof.h (File_Format): new type.
+
+	* gprof.c (VERSION): upped to 2.7---seems to be completely out of
+	sync with Cygnus version numbers though...
+
+	(long_options): renamed --gmon-info to --file-info, --width added,
+	renamed --old-file-format to --file-format
+	(main): dito; also added support to read prof files, but as
+	mon_out_read() is not implemented, it's #ifdef'd out for now
+
+	(usage): update to reflect new options.
+
+	* gmon_io.c: replaced "old_file_format" by more general
+	"file_format" option
+
+	* gmon.h (struct raw_phdr): fixed declaration for OSF/1.
+
+	* core.c (core_sym_class): added back check for __gnu_compiled and
+	___gnu_compiled for the benefit of systems without
+	bfd_find_nearest_line() support
+
+	(get_src_info): now the libbfd is fixed, invoke bfd_find_nearest_line()
+	with section-relative addresses
+
+	(core_create_function_syms): get_src_info() calls are currently
+	enabled for OSF/1 only.  It appears to work allright for SunOS
+	4.1.x as well, but on SPARCs it gets painfully slow with the
+	current implementation of aout_32_find_nearest_line();
+	unfortunately, this means that static functions will not have their
+	filename printed in the call-graph function index; line-level
+	profiling should still work, but requires some patience
+
+	* cg_print.c (cg_print_index): sanitised printing of index when
+	using FSF-style output; in particular, output width is now controlled
+	via option --width and the function tries hard to keep columns
+	aligned even in the presence of (occasional) long names
+
+	* NOTES: a first shot at updating the documentation.
+
+Wed Feb  1 19:07:44 1995  David Mosberger-Tang  <davidm@piston.cs.arizona.edu>
+
+	* core.c (core_create_function_syms): fixed computation of min_vma
+	and max_vma.
+
+	* *.c: removed rcsid.
+
+Tue Jan 31 16:18:18 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
+
+	* Lots of changes from David Mosberger-Tang:
+
+	Tue Oct 25 19:20:14 1994  David Mosberger-Tang	<davidm@piston.cs.arizona.edu>
+
+	* gprof.c (main): put parentheses around & within &&.
+
+	* basic_blocks.c (bb_read_rec): print warning message (once) when
+	ignoring basic-block execution counts.
+
+	* source.c (source_file_lookup_name): corrected second argument to
+	strcmp().
+
+	* hist.c (print_header): merged Fri Oct 21 18:58:02 1994 change by
+	Ken Raeburn <raeburn@cujo.cygnus.com> from binutils-2.5.1.
+
+	* gmon_io.c (gmon_out_read): the output stule STYLE_GMON_INFO is now
+	supported both for old and new (versioned) gmon.out files.  Old
+	files are identified as version 0.
+
+	* gmon.h (struct raw_arc): count field is now sizeof(long) bytes
+	long (instead of 4) because that is what OSF/1 v3.0 uses.
+
+	* core.c: minor fixes and debugging info changes.
+
+	Sun Sep 11 18:47:47 1994  David Mosberger-Tang	(davidm@piston.cs.arizona.edu)
+
+	* core.c (core_init): if .text cannot be found, try $CODE$ (the
+	name of the text-section under HP-UX).
+
+	* hist.c (hist_assign_samples): fixed off-by-one bug: highpc
+	points one past the last sampling bin, so hist_scale should be
+	computed as "hist_scale /= hist_num_bins", not "hist_scale /=
+	hist_num_bins - 1".
+
+	* gmon_io.c, hist.c, hist.h: renamed hist_num_samples to
+	hist_num_bins.
+
+	* configure.in: added alpha-*-*) for per-target config.
+
+	* alpha.c, alpha.h: created.
+
+	* gprof.c (default_excluded_list): <locore>, <hicore> added.
+
+	* core.c (core_create_function_syms, core_create_line_syms):
+	explicitly keep two sentinels "<locore>" and "<hicore>" that catch
+	all addresses outside the text-space.  Thus, sym_lookup(&symtab,
+	addr) continues to guarantee not to return 0 on any address.  It
+	also avoids incorrectly crediting the first/last symbol in the
+	text-space.
+
+	* core.c (core_create_line_syms): always create function symbols
+	first, then merge in line symbols; this is so that if parts of the
+	program were compiled without -g, function-level symbols are
+	available still.
+
+	* utils.c (print_name_only): support for print_path added.
+
+	* symtab.c (cmp_addr): also use is_func flag in comparison.
+	(symtab_finalize): return immediately when table empty; now
+	more careful about getting rid of the right duplicate symbol.
+
+	* sparc.c (find_call): many fixes---this function was rather
+	botched in binutils-2.4 already; it should work again.
+
+	* source.c (source_file_lookup_path): PATH is now strdup'ed (it is
+	not good to rely on get_src_info() to return distinct string
+	pointers).
+
+	* search_list.c (search_list_append): added cast for xmalloc().
+
+	* hist.c: added explicit initialization to some of the global
+	variables; fixed SItab (scales were off by a factor of 10).
+
+	* hist.h: include of bfd.h added.
+
+	* gprof.c, gprof.h (print_path): added.
+
+	* gprof.h (MAX): fixed.
+
+	* gmon_out.h: renamed gmon_time_hist_hdr to gmon_hist_hdr.
+
+	* gmon_io.c: added some casts to (long) so we can always print as %lx
+
+	* core.c (core_get_text_space): fixed to make it work.
+
+	* cg_print.c (cg_print_index): added support for print_path option.
+
+	* cg_dfn.h (cg_dfn): wrap prototype in PARAMS().
+
+	* call_graph.c, gmon_io.c, hist.c: avoid taking address of array
+	as some compilers complain (e.g., DEC's OSF/1 compiler)
+
+	* basic_blocks.c, gmon_io.c, hist.c, source.c, sym_ids.c,
+	symtab.c: calls to memset() had 2nd and 3rd args reversed.
+
+	Sat Sep 10 21:53:13 1994  David Mosberger-Tang	(davidm@piston.cs.arizona.edu)
+
+	* gprof.c: added "_mcount" to default_excluded_list.
+	(main): if output_style==0 and there is either a histogram or a
+	call-graph, always generate flat and call-graph, no matter what
+	line_granularity is set to.
+
+	* source.c (source_file_lookup_name): if searching for sf->name
+	fails, try again with filename obtained after stripping off any
+	partial path from sf->name.
+
+	* gprof.h (SRCDEBUG): added.
+
+	* search_list.c (search_list_append): directories were added in wrong
+	order.
+
+	* reimplemented selection mechanism from ground up; it is now possible
+	to accurately control what gets included/excluded in each of the
+	output styles;	a "symbol-specification" (spec) is the basic means
+	to select a set of symbols; a spec has the syntax:
+
+	  spec == (FILENAME:(FUNCNAME|LINE_NUM) | NAME).
+	  arc == spec/spec.
+
+	any of the terminal symbols can be empty, in which case they
+	match anything (wildcards).  NAME is interpreted as a FILENAME
+	if it contains a dot (e.g., foo.c), as LINE_NUM if it starts
+	with a digit, and as FUNCNAME otherwise.
+
+	For example, to get a call-graph display that ignores arcs
+	from foo() to bar(), you'd say "--no-graph=foo/bar"; to
+	show only arcs into bar() (no matter what the caller),
+	you'd say "--graph=/bar"; and to get a call-graph without
+	any arc info, you'd say "--graph=/";  similarly, to
+	get a flat profile without mcount, you'd say "--no-flat=mcount"
+	and to get a flat profile that shows includes all functions
+	you'd say "--flat=""" (i.e., an empty spec)
+
+	* hist.c (hist_print): top_time wasn't initialized to 0.0.
+
+	Fri Sep	 9 01:10:21 1994  David Mosberger-Tang	(davidm@piston.cs.arizona.edu)
+
+	* gmon_out.h: all headers now declared in terms of characters
+	  to avoid getting into trouble with different compilers introducing
+	  different amount of padding; the code already accessed the fields
+	  through bfd functions, so that didn't have to change.
+
+	* hist.c (hist_read_rec, hist_write_rec): added support for
+	  collection pc histograms measuring quantities other than time;
+	  the histogram header now includes a field that specifies the
+	  dimension of the quantity measured by the histogram bins
+	  (normally, this is "seconds", but other meaningful dimensions
+	   include such things as "I-cache misses", "instruction issue stalls"
+	   etc.); there is also a field to specify a one-character
+	  abbreviation for the dimension; in the case of time, this would
+	  be 's'; in most other cases it probably would be '1' (not a physical
+	  dimension).
+
+	Thu Sep	 8 16:05:08 1994  David Mosberger-Tang	(davidm@piston.cs.arizona.edu)
+
+	* gprof.c, gmon_io.[ch]: BSD_COMPATIBLE is gone and new_file_version
+	  has become old_file_version; gmon_io.c now always supports old-style
+	  gmon.out files; it first tries to read gmon.out as a new version
+	  file, if that fails, it tries to read it in the old format;
+	  although not very likely, it is possible for gprof to mistake an
+	  old-style file as a new one (the first 4 bytes would have to
+	  be "gmon"---including the trailing '\0'); in that case, it is
+	  necessary to specify --old-file-version
+
+	* gprof.h: removed dependency on SYSV; the code now always uses
+	  strrchr(), memset(), and memcpy() and does not include either
+	  of string.h or strings.h; this should make gprof compile on
+	  any (Unix) system without configuration (per suggestion of
+	  raeburn@cygnus.com)
+
+	* gprof.c (usage): fixed location of --new-file-format option.
+
+	* cg_arcs.c (propagate_flags): fixed typo in declaration.
+
+	* flat_bl.m: removed formfeed at end of file; the form-feed
+	  is now printed cg_print.c only when necessary.
+
+	* major rewrite of gprof---too many changes to mention all of
+	  them.	 new features:
+
+	+ -l now requests profiling at the line level (as opposed
+	  to function level); in this mode, gprof creates a "symbol"
+	  (aka name-list entry) for each line of source code, instead
+	   of one per function)
+
+	+ support for a new gmon.out file format; the new format
+	  consists of a header with a magic and a version number,
+	  followed by a sequence of profile data; profile data
+	  can any of: (a) PC histogram, (b) call-graph arcs, or
+	  (c) basic-block execution counts; the version number makes
+	  it possible to extend gmon.out in a backwards compatible
+	  fashion
+
+	+ support for tcov style annotated output: if the gmon.out file
+	  contains basic-block execution counts, the user can request
+	  the generation of annotated source files, much like Sun's
+	  tcov used to do
+
+	+ long options
+
+	+ new scheme to suppress symbols that aren't function names
+	  (e.g., avoids mistaking a goto label as a function)
+
+	+ reorganized source code to make it more managable; as a
+	  side effect, gprof now compiles cleanly with "gcc -Wall"
+
+	Thu Sep	 1 15:46:49 1994  David Mosberger-Tang	(davidm@piston.cs.arizona.edu)
+
+	* gprof.c (funcsymbol): bfd_find_nearest_line() is now used as a
+	final cross-check to determine whether a static symbol should be
+	considered as a function-name.
+
+	Fri Aug	 5 19:32:36 1994  David Mosberger-Tang	(davidm@piston.cs.arizona.edu)
+
+	* gmon_io.c (gmon_out_read): recognize "-" as the filename for
+	stdin; this is useful if you wanna keep gmon.out files compressed;
+	this way you can "gzcat" the compressed file into gprof.
+
+	* gprof.c: flag_min_count now initialized with 1 instead of 0.
+
+	* basic_blocks.c (bb_annotate_source): added support for creating
+	.tcov files when option flag_annotate_make_files is TRUE.
+	(annotate_with_count): all counts less than the minimum count
+	specified by -m are now annotated with hash-marks.
+
+	* gprof.c (main): -A is now followed by a string of option chars.
+
+	* basic_blocks.c (annotate_with_count): replaced b->count with
+	cnt.
+
+	* source.c: flag_annotate_source replaced by source_lock_map.
+
+	* source.h: source_lock_map added.
+
+	* gprof.c (main): new command-line syntax: -S simply specifies
+	which source-files user is interested in; -A requests annotated
+	source files and -AA requests that all lines in a source file
+	are annotated.
+
+	Thu Aug	 4 23:27:03 1994  David Mosberger-Tang	(davidm@piston.cs.arizona.edu)
+
+	* basic_blocks.c (PATH_MAX): if undefined, define as 1024.
+
+	* sparc.c, i386.c, tahoe.c, vax.c: added include of "time_hist.h"
+	so s_lowpc etc. get declared.
+
+	* arcs.h (doarcs): created.
+
+	* arcs.c: reordered static functions such that they get defined
+	before use.
+
+	* gprof.c (main): added options:
+	   -A: request annotation of all source lines (with -S)
+	   -m: minimum execution count (with default basic-block display)
+	   -N: force new file format (only if BSD_COMPATIBLE is defined)
+	   -S: annotate source file
+	   -t: set table length (with -S)
+
+	* Makefile.am (OBJS): added basic_blocks.o call_graph.o gmon_io.o
+	source.o time_hist.o
+
+	Fri Jul	 1 15:23:50 1994  David Mosberger-Tang	(davidm@piston.cs.arizona.edu)
+
+	* gprof.c (asgnsamples): computation of "pcl" and "pch" depended
+	on the fact being able to store a long in a double without loss of
+	precision; this does not hold on machines with 64 bit longs and 64
+	bit doubles.
+
+Fri Oct 21 18:58:02 1994  Ken Raeburn  <raeburn@cujo.cygnus.com>
+
+	* printgprof.c (flatprofheader): Always set totime to 1.0 if not
+	greater than 0.0.  Suggested by Harold Assink
+	<carlo@sg.tn.tudelft.nl>.
+
+Fri Sep 23 15:06:45 1994  Ken Raeburn  <raeburn@cujo.cygnus.com>
+
+	* printgprof.c (printprof): Use free, not cfree.
+	(printgprof, printindex): Ditto.
+
+Thu Sep  1 10:40:45 1994  Jeff Law  (law@snake.cs.utah.edu)
+
+	* gprof.h (kfromlist, ktolist, flist, Flist, elist, Elist): Make
+	decls extern to keep native HP compiler quiet.
+
+Tue Aug 30 11:12:13 1994  Ian Lance Taylor  (ian@sanguine.cygnus.com)
+
+	* gprof.c (funcsymbol): Ignore ___gnu_compiled as well as
+	__gnu_compiled, for the benefit of systems which add a leading
+	underscore.
+
+Wed Aug 24 12:49:13 1994  Ian Lance Taylor  (ian@sanguine.cygnus.com)
+
+	* configure.in: Change i386-*-* to i[345]86-*-*.
+
+Sun Jul 10 00:35:31 1994  Ian Dall  (dall@hfrd.dsto.gov.au)
+
+	* ns532.c, ns532.h: New Files. ns532 support.
+
+	* config/mt-ns532: New File. ns532 support.
+
+	* gprof.c: user register int i instead of defaulting the int.
+	Allows compilation with -Dregister= for debugging.
+
+	* configure.in: Add ns532 support.
+
+Thu Jun 23 11:22:41 1994  Jeff Law  (law@snake.cs.utah.edu)
+
+	* Makefile.in (gprof): Depend on $(LIBS).
+
+Fri May 27 12:24:57 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
+
+	From binutils-2.4 release:
+
+	Wed May 11 22:32:00 1994  DJ Delorie (dj@ctron.com)
+
+	* configure.bat: [new] build makefile from makefile.in (dos)
+	* hertz.c: allow static HERTZ (msdos needs it)
+	* gprof.c: allow target to select "r" or "rb" for fopen
+	* gprof.c: ignore __gnu_compiled symbols
+	* i386.h: dfine FOPEN_RB to "rb" for dos.
+
+Tue May 17 15:30:22 1994  E. Michael Smith (ems@cygnus.com)
+
+	* Makefile.in (.m.c:):  Added .SUFFIXES : .m
+	so flat_bl.c would make from flat_bl.m file.
+
+Thu May  5 19:23:24 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
+
+	* Makefile.in (install-info): Check for gprof.info in build dir,
+	fall back to srcdir.  Depend on it.
+
+	* gprof.h (TRUE, FALSE): Always use undef before defining them.
+
+Mon Apr  4 23:47:30 1994  Jeffrey A. Law  (law@snake.cs.utah.edu)
+
+	* Makefile.in (MY_MACHINE): Renamed from MACHINE to avoid losing
+	makes (osf1) in which the value of MACHINE can not be changed.
+	* config/*.mt: Changed appropriately.
+
+Wed Mar 30 16:12:40 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+
+	* gprof.c (getsymtab): Change nosyms to long.  Rename
+	get_symtab_upper_bound to bfd_get_symtab_upper_bound.  Check for
+	errors from bfd_get_symtab_upper_bound and
+	bfd_canonicalize_symtab.
+
+Tue Mar 22 10:50:52 1994  Jeffrey A. Law  (law@snake.cs.utah.edu)
+
+	* gprof.c (funcsymbol): Use bfd_get_symbol_info instead of
+	bfd_decode_symclass.
+
+Sun Mar 20 15:40:21 1994  Jeffrey A. Law  (law@snake.cs.utah.edu)
+
+	* Makefile.in: Avoid bug in hpux sed.
+
+Wed Dec 15 20:16:40 1993  david d `zoo' zuhn  (zoo@andros.cygnus.com)
+
+	* gprof.texi (Invoking): add text about -v flag
+
+	* gprof.1: add text about -v flag
+
+Wed Dec  8 16:55:06 1993  david d `zoo' zuhn  (zoo@andros.cygnus.com)
+
+	* gprof.c (VERSION): defined a version macro, print the value
+	when the -v option is used
+
+Tue Jul  6 10:11:56 1993  Steve Chamberlain  (sac@phydeaux.cygnus.com)
+
+	* Makefile.in: Install correctly.
+
+Thu Jun 24 14:43:22 1993  David J. Mackenzie  (djm@thepub.cygnus.com)
+
+	* gprof.c (main): Get whoami from argv, instead of hardcoding.
+	Use it in usage message.  Split usage message to fit in 80 cols.
+
+Sun Jun 20 20:58:02 1993  Ken Raeburn  (raeburn@poseidon.cygnus.com)
+
+	* Makefile.in: Undo 15 June change.
+
+Wed Jun 16 12:54:53 1993  Steve Chamberlain  (sac@phydeaux.cygnus.com)
+
+	* gmon.h, gprof.h: structs of chars used to hold external
+	representations.
+	* gprof.c (getpfile, openpfile, readsamples): Swap data in using
+	new structures.
+
+Tue Jun 15 23:09:17 1993  Ken Raeburn  (raeburn@cambridge.cygnus.com)
+
+	* Makefile.in (.c.o): Look in ../include, not ../bfd, for bfd.h.
+
+Mon Jun 14 16:22:59 1993  david d `zoo' zuhn  (zoo at rtl.cygnus.com)
+
+	* Makefile.in: remove parentdir support
+
+Mon Jun  7 12:56:17 1993  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* Makefile.in (INCLUDES):  Add -I../bfd for sysdep.h and bfd.h.
+	* configure.in:  No longer need to configure to get sysdep.h.
+
+Tue May 18 21:44:11 1993  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* Makefile.in (install): should not depend on install-info
+
+Mon Apr 26 12:37:46 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* gprof.h: Include ansidecl.h before sysdep.h.  Undefine hz.
+
+Tue Apr 13 16:14:03 1993  Per Bothner  (bothner@cygnus.com)
+
+	* Makefile.in:  Add -g to CFLAGS.
+	Ads LDFLAGS and use in place of CFLAGS where appropriate.
+	* configure.in:  Make a sysdep.hlink in the same way other
+	bfd-based directories do.
+	* gprof.h (UNIT):  Replace non-standard 'u_short' by 'unsigned
+	short'.
+	* gprof.h:  #include sysdep.h instead of a bunch of stuff.
+	* gprof.c (main):  Fix typo gproff->gprof.
+
+Thu Mar 25 19:00:37 1993  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* gprof.texi: add INFO-DIR-ENTRY
+
+Tue Mar 23 00:03:11 1993  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* Makefile.in: add installcheck target
+
+Sat Feb 27 18:17:10 1993  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* gprof.c (funcsymbol):  Invert test for aflag.
+
+Thu Feb 25 16:01:50 1993  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* printgprof (xmalloc, xrealloc):  Cast results of malloc
+	and realloc to PTR.
+
+Wed Feb  3 13:55:33 1993  Jeffrey Osier  (jeffrey@fowanton.cygnus.com)
+
+	* Makefile.in: created info, install-info, dvi
+
+Wed Jan  6 00:58:09 1993  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* Makefile.in: fix install rule for $(PROG)
+
+Fri Oct  9 11:25:41 1992  Mark Eichin  (eichin@cygnus.com)
+
+	* gprof.1: updated SYNOPSIS to match actual behavior.
+
+Mon Oct  5 17:50:16 1992  Per Bothner  (bothner@cygnus.com)
+
+	* gen-c-prog.awk:  New awk script, lightly changed from
+	previously deleted make-c-prog.awk.  Converts a text file
+	to a c function that prints that text.
+	* flat_bl.m, fsf_callg_bl.m, bsd_callg_bl.m:  New files.
+	Inputs to gen-c-prog.awk, containing text describing
+	gprof output.
+	* blurbs.c:  Removed.  Use *_bl.c instead.
+	* Makefile.in: Use gen-cprog.awk to generate *_bl.c files
+	from *_bl.m files.  Also, improve *clean rules.
+	* printgprof.c (printgprof):  Usw new function names from *_bl.c.
+
+
+Sun Aug 30 19:54:53 1992  Per Bothner  (bothner@rtl.cygnus.com)
+
+	* gprof.h, gprof.c, printfgprof.c:  Add support for two
+	output styles:  The default is similar to the old FSF gprof,
+	while -T sets the variable bsd_style_output, which causes
+	output matching Berkeley's gprof.  The biggest differences
+	are that with the FSF style output, the flat profile comes
+	before the call graph; numbers come before explanations;
+	and there is less gratuitous white space.
+	* gprof.h, gprof.c, printfgprof.c:  New discard_underscores
+	variable causes discarding of initial underscores when
+	printing symbol names.  It is set unless there is a "main"
+	symbol (without an underscore).
+	* printfgprof.c:  New function printnameonly(), called
+	by printname().  It handles stripping of initial '_',
+	as well as C++ name-demangling.
+	* gprof.callg, gprof.flat, make-c-prog.awk:  Removed.
+	It is just as convenient to edit blurbs.c directly.
+	* Makefile.in:  Removed rule for making blurbs.c.
+	* blurbs.c:  This is now a true source file (as opposed
+	to being generated from gprof.callg and gprof.flat).
+	Change style to use one long string literal, instead of
+	one literal per output line.  Add FSF-style blurb for call graph.
+
+Wed Aug 19 14:36:39 1992  Ian Lance Taylor  (ian@cygnus.com)
+
+	* Makefile.in: always create installation directories.
+
+Wed Aug 12 15:14:14 1992  Mark Eichin  (eichin@cygnus.com)
+
+	* Makefile.in: change ${MACHINE} to $(MACHINE).
+
+Sun Jul 19 17:34:01 1992  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* Makefile.in:  removed installation of the now useless
+	call.{flag,callg} files.
+
+	* gprof.1: now uses the standard man macros instead of the new BSD
+	mandoc macros.
+
+Sun Jul 12 19:06:00 1992  John Gilmore  (gnu at cygnus.com)
+
+	* configure.in:  Remove host section, expand target section.
+	* config/mt-{tahoe,vax}:  Add, to match existing support files.
+	* config/tmake-*:  Remove leftover crud.
+
+	* blurbs.c:  New file, created from gprof.flat and gprof.callg by
+	* make-c-prog.awk:  which processes text files into C programs.
+	* printgprof.c (flatprofheader, gprofheader):  Call new functions
+	to print blurbs.
+	(printblurb):  Remove.
+	* Makefile.in:  Infrastructure to build blurbs.
+	* pathnames.h:  has been removed.  Gprof now has no filename
+	dependencies in it.
+	* gprof.c:  Lint.
+
+Sat Jul 11 18:07:21 1992  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* Makefile.in: define man1dir and install the man page
+
+Fri Jul 10 21:14:08 1992  david d `zoo' zuhn (zoo@cygnus.com)
+
+	* Makefile.in: added dummy info and install-info targets
+
+Thu Jun  4 11:34:02 1992  Mark Eichin  (eichin at cygnus.com)
+
+	* lookup.c: fixed fencepost in nllookup and added dbg_nllookup for
+	help in debugging the problem (with -DDEBUG)
+	* gprof.c: symbol values are now real values, don't add the vma
+	anymore. (done for solaris; should verify this on other platforms)
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

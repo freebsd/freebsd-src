@@ -152,7 +152,7 @@ Here is the grammar for the coprocessor table:
 	    char -> any printable character
 	    ltr -> ['a'..'z'|'A'..'Z'] 
 	    dec -> ['0'..'9']*	    	    	    	    	     ; value in decimal
-	    hex -> '0x'['0'..'9' | 'a'..'f' | 'A'..'F']*	; value in hexidecimal 
+	    hex -> '0x'['0'..'9' | 'a'..'f' | 'A'..'F']*	; value in hexadecimal 
 
 
 Examples
@@ -239,7 +239,7 @@ was deleted from the original format such that we now count the fields.
 
 ----
 FIXME! should really change lexical analyzer 
-to recognize 'dreg' etc. in context sensative way.
+to recognize 'dreg' etc. in context sensitive way.
 Currently function names or mnemonics may be incorrectly parsed as keywords
 
 FIXME! hex is ambiguous with any digit

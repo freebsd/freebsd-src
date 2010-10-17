@@ -1,0 +1,55 @@
+# Expect script for ld-cris tests
+#   Copyright 2002 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+# Written by Hans-Peter Nilsson (hp@axis.com)
+#
+
+if ![istarget cris-*-*] {
+    return
+}
+
+set rd_test_list [lsort [glob -nocomplain $srcdir/$subdir/*.d]]
+
+# First, execute those tests that are named to indicate that they create a
+# DSO.  Copy the file from the run_dump_test "tmpdir/dump" to a unique
+# expected name.
+# FIXME: Add option "output: filename" to run_dump_test.
+# FIXME: Add option "ldtail: option" to run_dump_test, so we can link
+# libraries in the right order.
+foreach atest $rd_test_list {
+    # We need to check against runtest_file_p too, or we'd mindlessly copy
+    # the last tmpdir/dump in selective test-runs.
+    if { [string match $srcdir/$subdir/*dso-*.d $atest] \
+	    && [runtest_file_p $runtests [file tail $atest]] } {
+	verbose [file rootname $atest]
+	run_dump_test [file rootname $atest]
+	set cmd "cp tmpdir/dump tmpdir/[file rootname [file tail $atest]].so"
+	send_log "$cmd\n"
+	set cmdret [catch "exec $cmd" comp_output]
+	send_log "$comp_output\n"
+	# FIXME: What if it fails?  Need we do something?
+    }
+}
+
+# Then run the ordinary tests.  This round, exclude the dso-* tests.
+foreach atest $rd_test_list {
+    # We need to strip the ".d", but can leave the dirname.
+    if { ! [string match $srcdir/$subdir/*dso-*.d $atest] } {
+	verbose [file rootname $atest]
+	run_dump_test [file rootname $atest]
+    }
+}

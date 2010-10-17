@@ -1,0 +1,71 @@
+# Test SIZEOF in a linker script.
+# By Ian Lance Taylor, Cygnus Support
+# Based on a bug report from anders.blomdell@control.lth.se.
+#   Copyright 2001
+#   Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+set testname "SIZEOF"
+
+if ![ld_assemble $as $srcdir/$subdir/sizeof.s tmpdir/sizeof.o] {
+    unresolved $testname
+    return
+}
+
+if ![ld_simple_link $ld tmpdir/sizeof "-T $srcdir/$subdir/sizeof.t tmpdir/sizeof.o"] {
+    fail $testname
+    return
+}
+
+if ![ld_nm $nm "" tmpdir/sizeof] {
+    unresolved $testname
+    return
+}
+
+if {![info exists nm_output(text_start)] \
+     || ![info exists nm_output(text_end)] \
+     || ![info exists nm_output(data_start)] \
+     || ![info exists nm_output(data_end)] \
+     || ![info exists nm_output(sizeof_text)] \
+     || ![info exists nm_output(sizeof_data)]} {
+    send_log "bad output from nm\n"
+    verbose "bad output from nm"
+    fail $testname
+    return
+}
+
+if {$nm_output(text_end) - $nm_output(text_start) != $nm_output(sizeof_text)} {
+    send_log "text_end - text_start != sizeof_text\n"
+    verbose "text_end - text_start != sizeof_text"
+    fail $testname
+    return
+}
+
+if {$nm_output(data_end) - $nm_output(data_start) != $nm_output(sizeof_data)} {
+    send_log "data_end - data_start != sizeof_data\n"
+    verbose "data_end - data_start != sizeof_data"
+    fail $testname
+    return
+}
+
+if {$nm_output(sizeof_text) != $nm_output(sizeof_data)} {
+    send_log "sizeof_text != sizeof_data\n"
+    verbose "sizeof_text != sizeof_data"
+    fail $testname
+    return
+}
+
+pass $testname

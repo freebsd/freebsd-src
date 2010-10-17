@@ -1,0 +1,66 @@
+# Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+# Contributed by Red Hat
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+#
+
+#
+# Aix on PowerPC tests
+#
+proc do_align_test {} {
+    set testname "align.s: Alignment of symbols part 1"
+    set x0 0
+    set x1 0
+    set x2 0
+    set x3 0
+    set x4 0
+
+    set testname "align.s (part 2)"
+
+    if [gas_test_old "align.s" "" "Alignment of symbols part 1"] {
+	objdump_start_no_subdir "a.out" "-t"
+
+	while 1 {
+	    expect {
+		-re "AUX val    16 prmhsh 0 snhsh 0 typ 3 algn 2 clss 5 stb 0 snstb 0" { set x0 1 }
+		-re "AUX val    32 prmhsh 0 snhsh 0 typ 3 algn 1 clss 5 stb 0 snstb 0" { set x1 1 }
+		-re "AUX val    64 prmhsh 0 snhsh 0 typ 3 algn 2 clss 5 stb 0 snstb 0" { set x2 1 }
+		-re "AUX val   128 prmhsh 0 snhsh 0 typ 3 algn 3 clss 5 stb 0 snstb 0" { set x3 1 }
+		-re "AUX val   256 prmhsh 0 snhsh 0 typ 3 algn 4 clss 5 stb 0 snstb 0" { set x4 1 }
+		-re "\[^\n\]*\n"				{ }
+		timeout				{ perror "timeout\n"; break }
+		eof				{ break }
+	    }
+	}
+
+	objdump_finish
+
+	if [all_ones $x0 $x1 $x2 $x3 $x4] then {
+	    pass $testname
+	} else {
+	    fail $testname
+	}
+    }
+}
+
+
+if [istarget powerpc-ibm-aix*] then {
+
+    # Make sure that symbols are correctly aligned 
+    do_align_test
+
+    run_dump_test "textalign-xcoff-001"
+    run_dump_test "textalign-xcoff-002"
+}

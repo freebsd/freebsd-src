@@ -1,0 +1,586 @@
+@c Copyright 2001, 2002 Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+@c MMIX description by Hans-Peter Nilsson, hp@bitrange.com
+@ifset GENERIC
+@page
+@node MMIX-Dependent
+@chapter MMIX Dependent Features
+@end ifset
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter MMIX Dependent Features
+@end ifclear
+
+@cindex MMIX support
+@menu
+* MMIX-Opts::              Command-line Options
+* MMIX-Expand::            Instruction expansion
+* MMIX-Syntax::            Syntax
+* MMIX-mmixal::		   Differences to @code{mmixal} syntax and semantics
+@end menu
+
+@node MMIX-Opts
+@section Command-line Options
+
+@cindex options, MMIX
+@cindex MMIX options
+The MMIX version of @code{@value{AS}} has some machine-dependent options.
+
+@cindex @samp{--fixed-special-register-names} command line option, MMIX
+When @samp{--fixed-special-register-names} is specified, only the register
+names specified in @ref{MMIX-Regs} are recognized in the instructions
+@code{PUT} and @code{GET}.
+
+@cindex @samp{--globalize-symbols} command line option, MMIX
+You can use the @samp{--globalize-symbols} to make all symbols global.
+This option is useful when splitting up a @code{mmixal} program into
+several files.
+
+@cindex @samp{--gnu-syntax} command line option, MMIX
+The @samp{--gnu-syntax} turns off most syntax compatibility with
+@code{mmixal}.  Its usability is currently doubtful.
+
+@cindex @samp{--relax} command line option, MMIX
+The @samp{--relax} option is not fully supported, but will eventually make
+the object file prepared for linker relaxation.
+
+@cindex @samp{--no-predefined-syms} command line option, MMIX
+If you want to avoid inadvertently calling a predefined symbol and would
+rather get an error, for example when using @code{@value{AS}} with a
+compiler or other machine-generated code, specify
+@samp{--no-predefined-syms}.  This turns off built-in predefined
+definitions of all such symbols, including rounding-mode symbols, segment
+symbols, @samp{BIT} symbols, and @code{TRAP} symbols used in @code{mmix}
+``system calls''.  It also turns off predefined special-register names,
+except when used in @code{PUT} and @code{GET} instructions.
+
+@cindex @samp{--no-expand} command line option, MMIX
+By default, some instructions are expanded to fit the size of the operand
+or an external symbol (@pxref{MMIX-Expand}).  By passing
+@samp{--no-expand}, no such expansion will be done, instead causing errors
+at link time if the operand does not fit.
+
+@cindex @samp{--no-merge-gregs} command line option, MMIX
+The @code{mmixal} documentation (@pxref{mmixsite}) specifies that global
+registers allocated with the @samp{GREG} directive (@pxref{MMIX-greg}) and
+initialized to the same non-zero value, will refer to the same global
+register.  This isn't strictly enforceable in @code{@value{AS}} since the
+final addresses aren't known until link-time, but it will do an effort
+unless the @samp{--no-merge-gregs} option is specified.  (Register merging
+isn't yet implemented in @code{@value{LD}}.)
+
+@cindex @samp{-x} command line option, MMIX
+@code{@value{AS}} will warn every time it expands an instruction to fit an
+operand unless the option @samp{-x} is specified.  It is believed that
+this behaviour is more useful than just mimicking @code{mmixal}'s
+behaviour, in which instructions are only expanded if the @samp{-x} option
+is specified, and assembly fails otherwise, when an instruction needs to
+be expanded.  It needs to be kept in mind that @code{mmixal} is both an
+assembler and linker, while @code{@value{AS}} will expand instructions
+that at link stage can be contracted.  (Though linker relaxation isn't yet
+implemented in @code{@value{LD}}.)  The option @samp{-x} also imples
+@samp{--linker-allocated-gregs}.
+
+@cindex @samp{--no-pushj-stubs} command line option, MMIX
+@cindex @samp{--no-stubs} command line option, MMIX
+If instruction expansion is enabled, @code{@value{AS}} can expand a
+@samp{PUSHJ} instruction into a series of instructions.  The shortest
+expansion is to not expand it, but just mark the call as redirectable to a
+stub, which @code{@value{LD}} creates at link-time, but only if the
+original @samp{PUSHJ} instruction is found not to reach the target.  The
+stub consists of the necessary instructions to form a jump to the target.
+This happens if @code{@value{AS}} can assert that the @samp{PUSHJ}
+instruction can reach such a stub.  The option @samp{--no-pushj-stubs}
+disables this shorter expansion, and the longer series of instructions is
+then created at assembly-time.  The option @samp{--no-stubs} is a synonym,
+intended for compatibility with future releases, where generation of stubs
+for other instructions may be implemented.
+
+@cindex @samp{--linker-allocated-gregs} command line option, MMIX
+Usually a two-operand-expression (@pxref{GREG-base}) without a matching
+@samp{GREG} directive is treated as an error by @code{@value{AS}}.  When
+the option @samp{--linker-allocated-gregs} is in effect, they are instead
+passed through to the linker, which will allocate as many global registers
+as is needed.
+
+@node MMIX-Expand
+@section Instruction expansion
+
+@cindex instruction expansion, MMIX
+When @code{@value{AS}} encounters an instruction with an operand that is
+either not known or does not fit the operand size of the instruction,
+@code{@value{AS}} (and @code{@value{LD}}) will expand the instruction into
+a sequence of instructions semantically equivalent to the operand fitting
+the instruction.  Expansion will take place for the following
+instructions:
+
+@table @asis
+@item @samp{GETA}
+Expands to a sequence of four instructions: @code{SETL}, @code{INCML},
+@code{INCMH} and @code{INCH}.  The operand must be a multiple of four.
+@item Conditional branches
+A branch instruction is turned into a branch with the complemented
+condition and prediction bit over five instructions; four instructions
+setting @code{$255} to the operand value, which like with @code{GETA} must
+be a multiple of four, and a final @code{GO $255,$255,0}.
+@item @samp{PUSHJ}
+Similar to expansion for conditional branches; four instructions set
+@code{$255} to the operand value, followed by a @code{PUSHGO $255,$255,0}.
+@item @samp{JMP}
+Similar to conditional branches and @code{PUSHJ}.  The final instruction
+is @code{GO $255,$255,0}.
+@end table
+
+The linker @code{@value{LD}} is expected to shrink these expansions for
+code assembled with @samp{--relax} (though not currently implemented).
+
+@node MMIX-Syntax
+@section Syntax
+
+The assembly syntax is supposed to be upward compatible with that
+described in Sections 1.3 and 1.4 of @samp{The Art of Computer
+Programming, Volume 1}.  Draft versions of those chapters as well as other
+MMIX information is located at
+@anchor{mmixsite}@url{http://www-cs-faculty.stanford.edu/~knuth/mmix-news.html}.
+Most code examples from the mmixal package located there should work
+unmodified when assembled and linked as single files, with a few
+noteworthy exceptions (@pxref{MMIX-mmixal}).
+
+Before an instruction is emitted, the current location is aligned to the
+next four-byte boundary.  If a label is defined at the beginning of the
+line, its value will be the aligned value.
+
+In addition to the traditional hex-prefix @samp{0x}, a hexadecimal number
+can also be specified by the prefix character @samp{#}.
+
+After all operands to an MMIX instruction or directive have been
+specified, the rest of the line is ignored, treated as a comment.
+
+@menu
+* MMIX-Chars::		        Special Characters
+* MMIX-Symbols::		Symbols
+* MMIX-Regs::			Register Names
+* MMIX-Pseudos::		Assembler Directives
+@end menu
+
+@node MMIX-Chars
+@subsection Special Characters
+@cindex line comment characters, MMIX
+@cindex MMIX line comment characters
+
+The characters @samp{*} and @samp{#} are line comment characters; each
+start a comment at the beginning of a line, but only at the beginning of a
+line.  A @samp{#} prefixes a hexadecimal number if found elsewhere on a
+line.
+
+Two other characters, @samp{%} and @samp{!}, each start a comment anywhere
+on the line.  Thus you can't use the @samp{modulus} and @samp{not}
+operators in expressions normally associated with these two characters.
+
+A @samp{;} is a line separator, treated as a new-line, so separate
+instructions can be specified on a single line.
+
+@node MMIX-Symbols
+@subsection Symbols
+The character @samp{:} is permitted in identifiers.  There are two
+exceptions to it being treated as any other symbol character: if a symbol
+begins with @samp{:}, it means that the symbol is in the global namespace
+and that the current prefix should not be prepended to that symbol
+(@pxref{MMIX-prefix}).  The @samp{:} is then not considered part of the
+symbol.  For a symbol in the label position (first on a line), a @samp{:}
+at the end of a symbol is silently stripped off.  A label is permitted,
+but not required, to be followed by a @samp{:}, as with many other
+assembly formats.
+
+The character @samp{@@} in an expression, is a synonym for @samp{.}, the
+current location.
+
+In addition to the common forward and backward local symbol formats
+(@pxref{Symbol Names}), they can be specified with upper-case @samp{B} and
+@samp{F}, as in @samp{8B} and @samp{9F}.  A local label defined for the
+current position is written with a @samp{H} appended to the number:
+@smallexample
+3H LDB $0,$1,2
+@end smallexample
+This and traditional local-label formats cannot be mixed: a label must be
+defined and referred to using the same format.
+
+There's a minor caveat: just as for the ordinary local symbols, the local
+symbols are translated into ordinary symbols using control characters are
+to hide the ordinal number of the symbol.  Unfortunately, these symbols
+are not translated back in error messages.  Thus you may see confusing
+error messages when local symbols are used.  Control characters
+@samp{\003} (control-C) and @samp{\004} (control-D) are used for the
+MMIX-specific local-symbol syntax.
+
+The symbol @samp{Main} is handled specially; it is always global.
+
+By defining the symbols @samp{__.MMIX.start..text} and
+@samp{__.MMIX.start..data}, the address of respectively the @samp{.text}
+and @samp{.data} segments of the final program can be defined, though when
+linking more than one object file, the code or data in the object file
+containing the symbol is not guaranteed to be start at that position; just
+the final executable.  @xref{MMIX-loc}.
+
+@node MMIX-Regs
+@subsection Register names
+@cindex register names, MMIX
+@cindex MMIX register names
+
+Local and global registers are specified as @samp{$0} to @samp{$255}.
+The recognized special register names are @samp{rJ}, @samp{rA}, @samp{rB},
+@samp{rC}, @samp{rD}, @samp{rE}, @samp{rF}, @samp{rG}, @samp{rH},
+@samp{rI}, @samp{rK}, @samp{rL}, @samp{rM}, @samp{rN}, @samp{rO},
+@samp{rP}, @samp{rQ}, @samp{rR}, @samp{rS}, @samp{rT}, @samp{rU},
+@samp{rV}, @samp{rW}, @samp{rX}, @samp{rY}, @samp{rZ}, @samp{rBB},
+@samp{rTT}, @samp{rWW}, @samp{rXX}, @samp{rYY} and @samp{rZZ}.  A leading
+@samp{:} is optional for special register names.
+
+Local and global symbols can be equated to register names and used in
+place of ordinary registers.
+
+Similarly for special registers, local and global symbols can be used.
+Also, symbols equated from numbers and constant expressions are allowed in
+place of a special register, except when either of the options
+@code{--no-predefined-syms} and @code{--fixed-special-register-names} are
+specified.  Then only the special register names above are allowed for the
+instructions having a special register operand; @code{GET} and @code{PUT}.
+
+@node MMIX-Pseudos
+@subsection Assembler Directives
+@cindex assembler directives, MMIX
+@cindex pseudo-ops, MMIX
+@cindex MMIX assembler directives
+@cindex MMIX pseudo-ops
+
+@table @code
+@item LOC
+@cindex assembler directive LOC, MMIX
+@cindex pseudo-op LOC, MMIX
+@cindex MMIX assembler directive LOC
+@cindex MMIX pseudo-op LOC
+
+@anchor{MMIX-loc}
+The @code{LOC} directive sets the current location to the value of the
+operand field, which may include changing sections.  If the operand is a
+constant, the section is set to either @code{.data} if the value is
+@code{0x2000000000000000} or larger, else it is set to @code{.text}.
+Within a section, the current location may only be changed to
+monotonically higher addresses.  A LOC expression must be a previously
+defined symbol or a ``pure'' constant.
+
+An example, which sets the label @var{prev} to the current location, and
+updates the current location to eight bytes forward:
+@smallexample
+prev LOC @@+8
+@end smallexample
+
+When a LOC has a constant as its operand, a symbol
+@code{__.MMIX.start..text} or @code{__.MMIX.start..data} is defined
+depending on the address as mentioned above.  Each such symbol is
+interpreted as special by the linker, locating the section at that
+address.  Note that if multiple files are linked, the first object file
+with that section will be mapped to that address (not necessarily the file
+with the LOC definition).
+
+@item LOCAL
+@cindex assembler directive LOCAL, MMIX
+@cindex pseudo-op LOCAL, MMIX
+@cindex MMIX assembler directive LOCAL
+@cindex MMIX pseudo-op LOCAL
+
+@anchor{MMIX-local}
+Example:
+@smallexample
+ LOCAL external_symbol
+ LOCAL 42
+ .local asymbol
+@end smallexample
+
+This directive-operation generates a link-time assertion that the operand
+does not correspond to a global register.  The operand is an expression
+that at link-time resolves to a register symbol or a number.  A number is
+treated as the register having that number.  There is one restriction on
+the use of this directive: the pseudo-directive must be placed in a
+section with contents, code or data.
+
+@item IS
+@cindex assembler directive IS, MMIX
+@cindex pseudo-op IS, MMIX
+@cindex MMIX assembler directive IS
+@cindex MMIX pseudo-op IS
+
+@anchor{MMIX-is}
+The @code{IS} directive:
+@smallexample
+asymbol IS an_expression
+@end smallexample
+sets the symbol @samp{asymbol} to @samp{an_expression}.  A symbol may not
+be set more than once using this directive.  Local labels may be set using
+this directive, for example:
+@smallexample
+5H IS @@+4
+@end smallexample
+
+@item GREG
+@cindex assembler directive GREG, MMIX
+@cindex pseudo-op GREG, MMIX
+@cindex MMIX assembler directive GREG
+@cindex MMIX pseudo-op GREG
+
+@anchor{MMIX-greg}
+This directive reserves a global register, gives it an initial value and
+optionally gives it a symbolic name.  Some examples:
+
+@smallexample
+areg GREG
+breg GREG data_value
+     GREG data_buffer
+     .greg creg, another_data_value
+@end smallexample
+
+The symbolic register name can be used in place of a (non-special)
+register.  If a value isn't provided, it defaults to zero.  Unless the
+option @samp{--no-merge-gregs} is specified, non-zero registers allocated
+with this directive may be eliminated by @code{@value{AS}}; another
+register with the same value used in its place.
+Any of the instructions
+@samp{CSWAP},
+@samp{GO},
+@samp{LDA},
+@samp{LDBU},
+@samp{LDB},
+@samp{LDHT},
+@samp{LDOU},
+@samp{LDO},
+@samp{LDSF},
+@samp{LDTU},
+@samp{LDT},
+@samp{LDUNC},
+@samp{LDVTS},
+@samp{LDWU},
+@samp{LDW},
+@samp{PREGO},
+@samp{PRELD},
+@samp{PREST},
+@samp{PUSHGO},
+@samp{STBU},
+@samp{STB},
+@samp{STCO},
+@samp{STHT},
+@samp{STOU},
+@samp{STSF},
+@samp{STTU},
+@samp{STT},
+@samp{STUNC},
+@samp{SYNCD},
+@samp{SYNCID},
+can have a value nearby @anchor{GREG-base}an initial value in place of its
+second and third operands.  Here, ``nearby'' is defined as within the
+range 0@dots{}255 from the initial value of such an allocated register.
+
+@smallexample
+buffer1 BYTE 0,0,0,0,0
+buffer2 BYTE 0,0,0,0,0
+ @dots{}
+ GREG buffer1
+ LDOU $42,buffer2
+@end smallexample
+In the example above, the @samp{Y} field of the @code{LDOUI} instruction
+(LDOU with a constant Z) will be replaced with the global register
+allocated for @samp{buffer1}, and the @samp{Z} field will have the value
+5, the offset from @samp{buffer1} to @samp{buffer2}.  The result is
+equivalent to this code:
+@smallexample
+buffer1 BYTE 0,0,0,0,0
+buffer2 BYTE 0,0,0,0,0
+ @dots{}
+tmpreg GREG buffer1
+ LDOU $42,tmpreg,(buffer2-buffer1)
+@end smallexample
+
+Global registers allocated with this directive are allocated in order
+higher-to-lower within a file.  Other than that, the exact order of
+register allocation and elimination is undefined.  For example, the order
+is undefined when more than one file with such directives are linked
+together.  With the options @samp{-x} and @samp{--linker-allocated-gregs},
+@samp{GREG} directives for two-operand cases like the one mentioned above
+can be omitted.  Sufficient global registers will then be allocated by the
+linker.
+
+@item BYTE
+@cindex assembler directive BYTE, MMIX
+@cindex pseudo-op BYTE, MMIX
+@cindex MMIX assembler directive BYTE
+@cindex MMIX pseudo-op BYTE
+
+@anchor{MMIX-byte}
+The @samp{BYTE} directive takes a series of operands separated by a comma.
+If an operand is a string (@pxref{Strings}), each character of that string
+is emitted as a byte.  Other operands must be constant expressions without
+forward references, in the range 0@dots{}255.  If you need operands having
+expressions with forward references, use @samp{.byte} (@pxref{Byte}).  An
+operand can be omitted, defaulting to a zero value.
+
+@item WYDE
+@itemx TETRA
+@itemx OCTA
+@cindex assembler directive WYDE, MMIX
+@cindex pseudo-op WYDE, MMIX
+@cindex MMIX assembler directive WYDE
+@cindex MMIX pseudo-op WYDE
+@cindex assembler directive TETRA, MMIX
+@cindex pseudo-op TETRA, MMIX
+@cindex MMIX assembler directive TETRA
+@cindex MMIX pseudo-op TETRA
+@cindex assembler directive OCTA, MMIX
+@cindex pseudo-op OCTA, MMIX
+@cindex MMIX assembler directive OCTA
+@cindex MMIX pseudo-op OCTA
+
+@anchor{MMIX-constants}
+The directives @samp{WYDE}, @samp{TETRA} and @samp{OCTA} emit constants of
+two, four and eight bytes size respectively.  Before anything else happens
+for the directive, the current location is aligned to the respective
+constant-size boundary.  If a label is defined at the beginning of the
+line, its value will be that after the alignment.  A single operand can be
+omitted, defaulting to a zero value emitted for the directive.  Operands
+can be expressed as strings (@pxref{Strings}), in which case each
+character in the string is emitted as a separate constant of the size
+indicated by the directive.
+
+@item PREFIX
+@cindex assembler directive PREFIX, MMIX
+@cindex pseudo-op PREFIX, MMIX
+@cindex MMIX assembler directive PREFIX
+@cindex MMIX pseudo-op PREFIX
+
+@anchor{MMIX-prefix}
+The @samp{PREFIX} directive sets a symbol name prefix to be prepended to
+all symbols (except local symbols, @pxref{MMIX-Symbols}), that are not
+prefixed with @samp{:}, until the next @samp{PREFIX} directive.  Such
+prefixes accumulate.  For example,
+@smallexample
+ PREFIX a
+ PREFIX b
+c IS 0
+@end smallexample
+defines a symbol @samp{abc} with the value 0.
+
+@item BSPEC
+@itemx ESPEC
+@cindex assembler directive BSPEC, MMIX
+@cindex pseudo-op BSPEC, MMIX
+@cindex MMIX assembler directive BSPEC
+@cindex MMIX pseudo-op BSPEC
+@cindex assembler directive ESPEC, MMIX
+@cindex pseudo-op ESPEC, MMIX
+@cindex MMIX assembler directive ESPEC
+@cindex MMIX pseudo-op ESPEC
+
+@anchor{MMIX-spec}
+A pair of @samp{BSPEC} and @samp{ESPEC} directives delimit a section of
+special contents (without specified semantics).  Example:
+@smallexample
+ BSPEC 42
+ TETRA 1,2,3
+ ESPEC
+@end smallexample
+The single operand to @samp{BSPEC} must be number in the range
+0@dots{}255.  The @samp{BSPEC} number 80 is used by the GNU binutils
+implementation.
+@end table
+
+@node MMIX-mmixal
+@section Differences to @code{mmixal}
+@cindex mmixal differences
+@cindex differences, mmixal
+
+The binutils @code{@value{AS}} and @code{@value{LD}} combination has a few
+differences in function compared to @code{mmixal} (@pxref{mmixsite}).
+
+The replacement of a symbol with a GREG-allocated register
+(@pxref{GREG-base}) is not handled the exactly same way in
+@code{@value{AS}} as in @code{mmixal}.  This is apparent in the
+@code{mmixal} example file @code{inout.mms}, where different registers
+with different offsets, eventually yielding the same address, are used in
+the first instruction.  This type of difference should however not affect
+the function of any program unless it has specific assumptions about the
+allocated register number.
+
+Line numbers (in the @samp{mmo} object format) are currently not
+supported.
+
+Expression operator precedence is not that of mmixal: operator precedence
+is that of the C programming language.  It's recommended to use
+parentheses to explicitly specify wanted operator precedence whenever more
+than one type of operators are used.
+
+The serialize unary operator @code{&}, the fractional division operator
+@samp{//}, the logical not operator @code{!} and the modulus operator
+@samp{%} are not available.
+
+Symbols are not global by default, unless the option
+@samp{--globalize-symbols} is passed.  Use the @samp{.global} directive to
+globalize symbols (@pxref{Global}).
+
+Operand syntax is a bit stricter with @code{@value{AS}} than
+@code{mmixal}.  For example, you can't say @code{addu 1,2,3}, instead you
+must write @code{addu $1,$2,3}.
+
+You can't LOC to a lower address than those already visited
+(i.e. ``backwards'').
+
+A LOC directive must come before any emitted code.
+
+Predefined symbols are visible as file-local symbols after use.  (In the
+ELF file, that is---the linked mmo file has no notion of a file-local
+symbol.)
+
+Some mapping of constant expressions to sections in LOC expressions is
+attempted, but that functionality is easily confused and should be avoided
+unless compatibility with @code{mmixal} is required.  A LOC expression to
+@samp{0x2000000000000000} or higher, maps to the @samp{.data} section and
+lower addresses map to the @samp{.text} section (@pxref{MMIX-loc}).
+
+The code and data areas are each contiguous.  Sparse programs with
+far-away LOC directives will take up the same amount of space as a
+contiguous program with zeros filled in the gaps between the LOC
+directives.  If you need sparse programs, you might try and get the wanted
+effect with a linker script and splitting up the code parts into sections
+(@pxref{Section}).  Assembly code for this, to be compatible with
+@code{mmixal}, would look something like:
+@smallexample
+ .if 0
+ LOC away_expression
+ .else
+ .section away,"ax"
+ .fi
+@end smallexample
+@code{@value{AS}} will not execute the LOC directive and @code{mmixal}
+ignores the lines with @code{.}.  This construct can be used generally to
+help compatibility.
+
+Symbols can't be defined twice--not even to the same value.
+
+Instruction mnemonics are recognized case-insensitive, though the
+@samp{IS} and @samp{GREG} pseudo-operations must be specified in
+upper-case characters.
+
+There's no unicode support.
+
+The following is a list of programs in @samp{mmix.tar.gz}, available at
+@url{http://www-cs-faculty.stanford.edu/~knuth/mmix-news.html}, last
+checked with the version dated 2001-08-25 (md5sum
+c393470cfc86fac040487d22d2bf0172) that assemble with @code{mmixal} but do
+not assemble with @code{@value{AS}}:
+
+@table @code
+@item silly.mms
+LOC to a previous address.
+@item sim.mms
+Redefines symbol @samp{Done}.
+@item test.mms
+Uses the serial operator @samp{&}.
+@end table

@@ -1,0 +1,4 @@
+[0-9a-f]*  w    F .text	[0-9a-f]* (0x[0-9a-f][0-9a-f] )?show_foo@
+[0-9a-f]*  w    F .text	[0-9a-f]* (0x[0-9a-f][0-9a-f] )?show_foo@VERS_1.1
+[0-9a-f]*  w    F .text	[0-9a-f]* (0x[0-9a-f][0-9a-f] )?show_foo@VERS_1.2
+[0-9a-f]*  w    F .text	[0-9a-f]* (0x[0-9a-f][0-9a-f] )?show_foo@@VERS_2.0

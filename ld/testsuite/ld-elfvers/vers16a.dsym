@@ -1,0 +1,3 @@
+[0-9a-f]* g    DO (\.text|\*ABS\*)	[0-9a-f]*  VERS_1\.1    VERS_1\.1
+[0-9a-f]* g    DF (\.text|\*ABS\*)	[0-9a-f]*  VERS_1\.1    (0x[0-9a-f][0-9a-f] )?show_bar
+[0-9a-f]* g    DF (\.text|\*ABS\*)	[0-9a-f]*  Base        (0x[0-9a-f][0-9a-f] )?show_foo

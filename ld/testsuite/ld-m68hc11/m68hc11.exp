@@ -1,0 +1,31 @@
+# Expect script for run_dump_test based ld-m68hc11 tests.
+#   Copyright 2002 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+# Adapted from ld-sh/rd-sh.exp
+
+# Test 68HC11 relaxing.  This tests the assembler as well as the linker.
+
+if { ![istarget m6811-*-*] && ![istarget m6812-*-*] } {
+    return
+}
+
+set rd_test_list [lsort [glob -nocomplain $srcdir/$subdir/*.d]]
+foreach shtest $rd_test_list {
+    # We need to strip the ".d", but can leave the dirname.
+    verbose [file rootname $shtest]
+    run_dump_test [file rootname $shtest]
+}

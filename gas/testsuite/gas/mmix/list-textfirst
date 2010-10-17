@@ -1,0 +1,5 @@
+ data
+here:
+ tetra 42
+.text
+ set $1,$2

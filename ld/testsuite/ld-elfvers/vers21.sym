@@ -1,0 +1,3 @@
+[0-9a-f]*[ 	]+g[ 	]+O[ 	]+.s?data[ 	]+[0-9a-f]* (0x[0-9a-f][0-9a-f] )?foobar@VERS.0
+[0-9a-f]*[ 	]+w[ 	]+F[ 	]+.text[ 	]+[0-9a-f]* (0x[0-9a-f][0-9a-f] )?bar@VERS.0
+[0-9a-f]*[ 	]+g[ 	]+F[ 	]+.text[ 	]+[0-9a-f]* (0x[0-9a-f][0-9a-f] )?foo@VERS.0

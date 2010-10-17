@@ -1,0 +1,2183 @@
+#
+# Some H8/300 tests
+#
+proc do_h8300_add_sub {} {
+    set testname "addsub.s: h8300 add/sub tests"
+    set x 0
+
+    gas_start "addsub.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 8910\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 0819\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 0912\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 0B04\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 0B85\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 0E89\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 9210\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000e 1889\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 1901\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0012 1B04\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 1B85\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 1E89\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0018 B210\[^\n\]*\n"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 13] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300_logical {} {
+    set testname "logical.s: h8300 logical tests"
+    set x 0
+
+    gas_start "logical.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 E910\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 1691\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 0610\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 C810\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 1498\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 0410\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c D810\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000e 1589\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 0510\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0012 1788\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 1708\[^\n\]*\n"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 11] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300_cbranch {} {
+    set testname "cbranch.s: h8300 conditional branch tests"
+    set x 0
+
+    gas_start "cbranch.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 4000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 4000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 4100\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 4100\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 4200\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 4300\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 4400\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000e 4400\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 4500\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0012 4500\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 4600\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 4700\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0018 4800\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 4900\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001c 4A00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001e 4B00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0020 4C00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0022 4D00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0024 4E00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0026 4F00\[^\n\]*\n"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 20] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300_bitops1 {} {
+    set testname "bitops1.s: h8300 bitops tests #1"
+    set x 0
+
+    gas_start "bitops1.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 7608\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 7C007600\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 7E407600\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 7208\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 7D007200\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 7F407200\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 6298\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 7D006290\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 7F406290\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001e 7688\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0020 7C007680\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0024 7E407680\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0028 7788\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002a 7C007780\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002e 7E407780\[^\n\]*\n"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 15] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300_bitops2 {} {
+    set testname "bitops2.s: h8300 bitops tests #2"
+    set x 0
+
+    gas_start "bitops2.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 7488\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 7C007480\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 7E407480\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 6788\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 7D006780\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 7F406780\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 7588\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 7C007580\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 7E407580\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001e 7708\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0020 7C007700\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0024 7E407700\[^\n\]*\n"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 12] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300_bitops3 {} {
+    set testname "bitops3.s: h8300 bitops tests #3"
+    set x 0
+
+    gas_start "bitops3.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 7108\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 7D007100\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 7F407100\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 6198\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 7D006190\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 7F406190\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 7008\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 7D007000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 7F407000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001e 6098\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0020 7D006090\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0024 7F406090\[^\n\]*\n"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 12] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300_bitops4 {} {
+    set testname "bitops4.s: h8300 bitops tests #4"
+    set x 0
+
+    gas_start "bitops4.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 7408\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 7C007400\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 7E407400\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 6708\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 7D006700\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 7F406700\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 7308\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 7C007300\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 7E407300\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001e 6398\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0020 7C006390\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0024 7E406390\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0028 7508\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002a 7C007500\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002e 7E407500\[^\n\]*\n"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 15] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300_branch {} {
+    set testname "branch.s: h8300 branch tests"
+    set x 0
+
+    gas_start "branch.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 5500\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 5A000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 5900\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 5B00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 5E000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000e 5D00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 5F00\[^\n\]*\n"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 7] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300_compare {} {
+    set testname "compare.s: h8300 compare tests"
+    set x 0
+
+    gas_start "compare.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 A800\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 1C08\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 1D01\[^\n\]*\n"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 3] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300_decimal {} {
+    set testname "decimal.s: h8300 decimal tests"
+    set x 0
+
+    gas_start "decimal.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 0F08\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 1F08\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 2] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300_incdec {} {
+    set testname "incdec.s: h8300 incdec tests"
+    set x 0
+
+    gas_start "incdec.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 1A08\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 0A08\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 2] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300_divmul {} {
+    set testname "divmul.s: h8300 divmul tests"
+    set x 0
+
+    gas_start "divmul.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 5181\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 5081\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 2] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300_misc {} {
+    set testname "misc.s: h8300 misc tests"
+    set x 0
+
+    gas_start "misc.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 7B5C598F\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 0700\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 0308\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 5670\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 5470\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000e 0180\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 0208\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 8] then { pass $testname } else { fail $testname }
+
+    setup_xfail "h8300*-*-*"
+    fail "h8300 movfpe/movtpe tests"
+}
+
+proc do_h8300_movb {} {
+    set testname "movb.s: h8300 movb tests"
+    set x 0
+
+    gas_start "movb.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 0C89\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 F810\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 6818\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 6E180010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 6C18\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 2810\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000e 6A080000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0012 6898\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 6E980010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0018 6C98\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 3810\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001c 6A880000\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 12] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300_movw {} {
+    set testname "movw.s: h8300 movw tests"
+    set x 0
+
+    gas_start "movw.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 0D01\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 79000010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 6910\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 6F100010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 6D10\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000e 6B000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0012 6990\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 6F900010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0018 6D90\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 6B800000\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 10] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300_pushpop {} {
+    set testname "pushpop.s: h8300 pushpop tests"
+    set x 0
+
+    gas_start "pushpop.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 6D70\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 6DF0\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 2] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300_rotate_shift {} {
+    set testname "rotsh.s: h8300 rotate and shift tests"
+    set x 0
+
+    gas_start "rotsh.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 1288\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 1388\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 1208\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 1308\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 1088\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 1188\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 1008\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000e 1108\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 8] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300h_add_sub {} {
+    set testname "addsubh.s: h8300h add/sub tests"
+    set x 0
+
+    gas_start "addsubh.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 8910\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 0819\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 79110020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 0912\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 7A110000\[^\n\]*\n +\[0-9\]+ +0040\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 0A92\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0012 0B04\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 0B85\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 0B96\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0018 0E89\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 9210\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001c 1889\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001e 79310010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0022 1901\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0024 7A310000\[^\n\]*\n +\[0-9\]+ +0040\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002a 1A92\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002c 1B04\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002e 1B85\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0030 1B96\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0032 1E89\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0034 B210\[^\n\]*\n"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 21] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300h_logical {} {
+    set testname "logicalh.s: h8300h logical tests"
+    set x 0
+
+    gas_start "logicalh.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 E910\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 1691\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 79610020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 6611\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 7A610000\[^\n\]*\n +\[0-9\]+ +0040\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 01F06611\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 0610\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 C810\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0018 1498\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 79410020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001e 6411\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0020 7A410000\[^\n\]*\n +\[0-9\]+ +0040\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0026 01F06411\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002a 0410\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002c D810\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002e 1589\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0030 79510020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0034 6511\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0036 7A510000\[^\n\]*\n +\[0-9\]+ +0040\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 003c 01F06511\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0040 0510\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0042 1788\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0044 1790\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0046 17B0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0048 1708\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 004a 1710\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 004c 1730\[^\n\]*\n"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 27] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300h_cbranch {} {
+    set testname "cbranchh.s: h8300h conditional branch tests"
+    set x 0
+
+    gas_start "cbranchh.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 4000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 4000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 4100\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 4100\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 4200\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 4300\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 4400\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000e 4400\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 4500\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0012 4500\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 4600\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 4700\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0018 4800\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 4900\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001c 4A00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001e 4B00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0020 4C00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0022 4D00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0024 4E00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0026 4F00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0028 58000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002c 58000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0030 58100000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0034 58100000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0038 58200000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 003c 58300000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0040 58400000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0044 58400000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0048 58500000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 004c 58500000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0050 58600000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0054 58700000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0058 58800000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 005c 58900000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0060 58A00000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0064 58B00000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0068 58C00000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 006c 58D00000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0070 58E00000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0074 58F00000\[^\n\]*\n"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 40] then { pass $testname } else { fail $testname }
+}
+proc do_h8300h_bitops1 {} {
+    set testname "bitops1h.s: h8300h bitops tests #1"
+    set x 0
+
+    gas_start "bitops1h.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 7608\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 7C007600\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 7E407600\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 7208\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 7D007200\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 7F407200\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 6298\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 7D006290\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 7F406290\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001e 7688\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0020 7C007680\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0024 7E407680\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0028 7788\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002a 7C007780\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002e 7E407780\[^\n\]*\n"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 15] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300h_bitops2 {} {
+    set testname "bitops2h.s: h8300h bitops tests #2"
+    set x 0
+
+    gas_start "bitops2h.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 7488\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 7C007480\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 7E407480\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 6788\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 7D006780\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 7F406780\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 7588\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 7C007580\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 7E407580\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001e 7708\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0020 7C007700\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0024 7E407700\[^\n\]*\n"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 12] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300h_bitops3 {} {
+    set testname "bitops3h.s: h8300h bitops tests #3"
+    set x 0
+
+    gas_start "bitops3h.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 7108\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 7D007100\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 7F407100\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 6198\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 7D006190\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 7F406190\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 7008\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 7D007000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 7F407000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001e 6098\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0020 7D006090\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0024 7F406090\[^\n\]*\n"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 12] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300h_bitops4 {} {
+    set testname "bitops4h.s: h8300h bitops tests #4"
+    set x 0
+
+    gas_start "bitops4h.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 7408\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 7C007400\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 7E407400\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 6708\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 7D006700\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 7F406700\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 7308\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 7C007300\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 7E407300\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001e 6398\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0020 7C006390\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0024 7E406390\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0028 7508\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002a 7C007500\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002e 7E407500\[^\n\]*\n"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 15] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300h_branch {} {
+    set testname "branchh.s: h8300h branch tests"
+    set x 0
+
+    gas_start "branchh.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 5500\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 5C000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 5A000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 5900\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 5B00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000e 5E000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0012 5D00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 5F00\[^\n\]*\n"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 8] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300h_compare {} {
+    set testname "compareh.s: h8300h compare tests"
+    set x 0
+
+    gas_start "compareh.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 A800\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 1C08\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 79200020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 1D01\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 7A200000\[^\n\]*\n +\[0-9\]+ +0040\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 1F81\[^\n\]*\n"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 6] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300h_decimal {} {
+    set testname "decimalh.s: h8300h decimal tests"
+    set x 0
+
+    gas_start "decimalh.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 0F08\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 1F08\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 2] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300h_incdec {} {
+    set testname "incdech.s: h8300h incdec tests"
+    set x 0
+
+    gas_start "incdech.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 1A08\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 1B50\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 1BD0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 1B70\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 1BF0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 0A08\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 0B50\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000e 0BD0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 0B70\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0012 0BF0\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 10] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300h_divmul {} {
+    set testname "divmulh.s: h8300h divmul tests"
+    set x 0
+
+    gas_start "divmulh.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 5181\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 5301\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 01D05181\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 01D05301\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 5081\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000e 5201\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 01C05081\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 01C05201\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 8] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300h_misc {} {
+    set testname "misch.s: h8300h misc tests"
+    set x 0
+
+    gas_start "misch.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 7B5C598F\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 7BD4598F\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 0700\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 0308\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 01406900\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 01406F00\[^\n\]*\n +\[0-9\]+ +0010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 01407800\[^\n\]*\n +\[0-9\]+ +6B200000\[^\n\]*\n +\[0-9\]+ +0020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0020 01406D00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0024 01406B00\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002a 01406B20\[^\n\]*\n +\[0-9\]+ +00000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0032 0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0034 5670\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0036 5470\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0038 0180\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 003a 0208\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 003c 01406980\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0040 01406F80\[^\n\]*\n +\[0-9\]+ +0010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0046 01407800\[^\n\]*\n +\[0-9\]+ +6BA00000\[^\n\]*\n +\[0-9\]+ +0020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0050 01406D80\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0054 01406B80\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 005a 01406BA0\[^\n\]*\n +\[0-9\]+ +00000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 21] then { pass $testname } else { fail $testname }
+
+    setup_xfail "h8300*-*-*"
+    fail "h8300h movfpe/movtpe tests"
+}
+
+proc do_h8300h_movb {} {
+    set testname "movbh.s: h8300h movb tests"
+    set x 0
+
+    gas_start "movbh.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 0C89\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 F810\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 6818\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 6E180010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 78106A28\[^\n\]*\n +\[0-9\]+ +00000020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0012 6C18\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 2810\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 6A080000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 6A280000\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0020 6898\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0022 6E980010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0026 78106AA8\[^\n\]*\n +\[0-9\]+ +00000020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002e 6C98\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0030 3810\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0032 6A880000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0036 6AA80000\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 16] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300h_movw {} {
+    set testname "movwh.s: h8300h movw tests"
+    set x 0
+
+    gas_start "movwh.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 0D01\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 79000010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 6910\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 6F100010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 78106B20\[^\n\]*\n +\[0-9\]+ +00000020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 6D10\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 6B000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 6B200000\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0020 6990\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0022 6F900010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0026 78106BA0\[^\n\]*\n +\[0-9\]+ +00000020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002e 6D90\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0030 6B800000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0034 6BA00000\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 14] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300h_movl {} {
+    set testname "movlh.s: h8300h movl tests"
+    set x 0
+
+    gas_start "movlh.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 0F81\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 7A000000\[^\n\]*\n +\[0-9\]+ +0040\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 01006910\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 01006F10\[^\n\]*\n +\[0-9\]+ +0010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0012 01007810\[^\n\]*\n +\[0-9\]+ +6B200000\[^\n\]*\n +\[0-9\]+ +0020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001c 01006D10\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0020 01006B00\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0026 01006B20\[^\n\]*\n +\[0-9\]+ +00000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002e 01006990\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0032 01006F90\[^\n\]*\n +\[0-9\]+ +0010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0038 01007890\[^\n\]*\n +\[0-9\]+ +6BA00000\[^\n\]*\n +\[0-9\]+ +0020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0042 01006D90\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0046 01006B80\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 004c 01006BA0\[^\n\]*\n +\[0-9\]+ +00000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 14] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300h_pushpop {} {
+    set testname "pushpoph.s: h8300h pushpop tests"
+    set x 0
+
+    gas_start "pushpoph.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 6D70\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 01006D70\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 6DF0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 01006DF0\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 4] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300h_rotate_shift {} {
+    set testname "rotshh.s: h8300h rotate and shift tests"
+    set x 0
+
+    gas_start "rotshh.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 1288\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 1290\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 12B0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 1388\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 1390\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 13B0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 1208\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000e 1210\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 1230\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0012 1308\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 1310\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 1330\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0018 1088\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 1090\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001c 10B0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001e 1188\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0020 1190\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0022 11B0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0024 1008\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0026 1010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0028 1030\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002a 1108\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002c 1110\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002e 1130\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 24] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300h_extend {} {
+    set testname "extendh.s: h8300h extend tests"
+    set x 0
+
+    gas_start "extendh.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 17D0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 17F0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 1750\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 1770\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 4] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300s_add_sub {} {
+    set testname "addsubs.s: h8300s add/sub tests"
+    set x 0
+
+    gas_start "addsubs.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 8910\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 0819\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 79110020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 0912\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 7A110000\[^\n\]*\n +\[0-9\]+ +0040\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 0A92\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0012 0B04\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 0B85\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 0B96\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0018 0E89\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 9210\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001c 1889\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001e 79310010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0022 1901\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0024 7A310000\[^\n\]*\n +\[0-9\]+ +0040\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002a 1A92\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002c 1B04\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002e 1B85\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0030 1B96\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0032 1E89\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0034 B210\[^\n\]*\n"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 21] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300s_logical {} {
+    set testname "logicals.s: h8300s logical tests"
+    set x 0
+
+    gas_start "logicals.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 E910\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 1691\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 79610020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 6611\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 7A610000\[^\n\]*\n +\[0-9\]+ +0040\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 01F06611\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 0610\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 01410610\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a C810\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001c 1498\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001e 79410020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0022 6411\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0024 7A410000\[^\n\]*\n +\[0-9\]+ +0040\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002a 01F06411\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002e 0410\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0030 01410410\[^\n\]*\n"   { set x [expr $x+1] }
+
+	    -re " +\[0-9\]+ 0034 D810\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0036 1589\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0038 79510020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 003c 6511\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 003e 7A510000\[^\n\]*\n +\[0-9\]+ +0040\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0044 01F06511\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0048 0510\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 004a 01410510\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 004e 1788\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0050 1790\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0052 17B0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0054 1708\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0056 1710\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0058 1730\[^\n\]*\n"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 30] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300s_cbranch {} {
+    set testname "cbranchs.s: h8300s conditional branch tests"
+    set x 0
+
+    gas_start "cbranchs.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 4000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 4000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 4100\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 4100\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 4200\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 4300\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 4400\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000e 4400\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 4500\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0012 4500\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 4600\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 4700\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0018 4800\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 4900\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001c 4A00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001e 4B00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0020 4C00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0022 4D00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0024 4E00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0026 4F00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0028 58000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002c 58000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0030 58100000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0034 58100000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0038 58200000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 003c 58300000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0040 58400000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0044 58400000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0048 58500000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 004c 58500000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0050 58600000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0054 58700000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0058 58800000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 005c 58900000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0060 58A00000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0064 58B00000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0068 58C00000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 006c 58D00000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0070 58E00000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0074 58F00000\[^\n\]*\n"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 40] then { pass $testname } else { fail $testname }
+}
+proc do_h8300s_bitops1 {} {
+    set testname "bitops1s.s: h8300s bitops tests #1"
+    set x 0
+
+    gas_start "bitops1s.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 7608\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 7C007600\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 7E407600\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 6A100080\[^\n\]*\n +\[0-9\]+ +7600"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 6A300001\[^\n\]*\n +\[0-9\]+ +00007600"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0018 7208\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 7D007200\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001e 7F407200\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0022 6A180080\[^\n\]*\n +\[0-9\]+ +7200"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0028 6A380001\[^\n\]*\n +\[0-9\]+ +00007200"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0030 6298\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0032 7D006290\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0036 7F406290\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 003a 6A180080\[^\n\]*\n +\[0-9\]+ +6290"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0040 6A380001\[^\n\]*\n +\[0-9\]+ +00006290"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0048 7688\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 004a 7C007680\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 004e 7E407680\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0052 6A100080\[^\n\]*\n +\[0-9\]+ +7680"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0058 6A300001\[^\n\]*\n +\[0-9\]+ +00007680"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0060 7788\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0062 7C007780\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0066 7E407780\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 006a 6A100080\[^\n\]*\n +\[0-9\]+ +7780"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0070 6A300001\[^\n\]*\n +\[0-9\]+ +00007780"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 25] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300s_bitops2 {} {
+    set testname "bitops2s.s: h8300s bitops tests #2"
+    set x 0
+
+    gas_start "bitops2s.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 7488\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 7C007480\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 7E407480\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 6A100080\[^\n\]*\n +\[0-9\]+ +7480"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 6A300001\[^\n\]*\n +\[0-9\]+ +00007480"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0018 6788\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 7D006780\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001e 7F406780\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0022 6A180080\[^\n\]*\n +\[0-9\]+ +6780"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0028 6A380001\[^\n\]*\n +\[0-9\]+ +00006780"   { set x [expr $x+1] }
+
+	    -re " +\[0-9\]+ 0030 7588\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0032 7C007580\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0036 7E407580\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 003a 6A100080\[^\n\]*\n +\[0-9\]+ +7580"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0040 6A300001\[^\n\]*\n +\[0-9\]+ +00007580"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0048 7708\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 004a 7C007700\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 004e 7E407700\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0052 6A100080\[^\n\]*\n +\[0-9\]+ +7700"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0058 6A300001\[^\n\]*\n +\[0-9\]+ +00007700"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 20] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300s_bitops3 {} {
+    set testname "bitops3s.s: h8300s bitops tests #3"
+    set x 0
+
+    gas_start "bitops3s.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 7108\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 7D007100\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 7F407100\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 6A180080\[^\n\]*\n +\[0-9\]+ +7100"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 6A380001\[^\n\]*\n +\[0-9\]+ +00007100"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0018 6198\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 7D006190\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001e 7F406190\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0022 6A180080\[^\n\]*\n +\[0-9\]+ +6190"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0028 6A380001\[^\n\]*\n +\[0-9\]+ +00006190"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0030 7008\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0032 7D007000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0036 7F407000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 003a 6A180080\[^\n\]*\n +\[0-9\]+ +7000"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0040 6A380001\[^\n\]*\n +\[0-9\]+ +00007000"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0048 6098\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 004a 7D006090\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 004e 7F406090\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0052 6A180080\[^\n\]*\n +\[0-9\]+ +6090"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0058 6A380001\[^\n\]*\n +\[0-9\]+ +00006090"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 20] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300s_bitops4 {} {
+    set testname "bitops4s.s: h8300s bitops tests #4"
+    set x 0
+
+    gas_start "bitops4s.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 7408\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 7C007400\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 7E407400\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 6A100080\[^\n\]*\n +\[0-9\]+ +7400"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 6A300001\[^\n\]*\n +\[0-9\]+ +00007400"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0018 6708\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 7D006700\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001e 7F406700\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0022 6A180080\[^\n\]*\n +\[0-9\]+ +6700"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0028 6A380001\[^\n\]*\n +\[0-9\]+ +00006700"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0030 7308\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0032 7C007300\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0036 7E407300\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 003a 6A100080\[^\n\]*\n +\[0-9\]+ +7300"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0040 6A300001\[^\n\]*\n +\[0-9\]+ +00007300"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0048 6398\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 004a 7C006390\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 004e 7E406390\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0052 6A100080\[^\n\]*\n +\[0-9\]+ +6390"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0058 6A300001\[^\n\]*\n +\[0-9\]+ +00006390"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0060 7508\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0062 7C007500\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0066 7E407500\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 006a 6A100080\[^\n\]*\n +\[0-9\]+ +7500"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0070 6A300001\[^\n\]*\n +\[0-9\]+ +00007500"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 25] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300s_branch {} {
+    set testname "branchs.s: h8300s branch tests"
+    set x 0
+
+    gas_start "branchs.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 5500\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 5C000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 5A000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 5900\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 5B00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000e 5E000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0012 5D00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 5F00\[^\n\]*\n"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 8] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300s_compare {} {
+    set testname "compares.s: h8300s compare tests"
+    set x 0
+
+    gas_start "compares.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 A800\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 1C08\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 79200020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 1D01\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 7A200000\[^\n\]*\n +\[0-9\]+ +0040\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 1F81\[^\n\]*\n"   { set x [expr $x+1] }
+	    timeout 				{ perror "timeout\n; break }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 6] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300s_decimal {} {
+    set testname "decimals.s: h8300s decimal tests"
+    set x 0
+
+    gas_start "decimals.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 0F08\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 1F08\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 2] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300s_incdec {} {
+    set testname "incdecs.s: h8300s incdec tests"
+    set x 0
+
+    gas_start "incdecs.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 1A08\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 1B50\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 1BD0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 1B70\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 1BF0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 0A08\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 0B50\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000e 0BD0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 0B70\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0012 0BF0\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 10] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300s_divmul {} {
+    set testname "divmuls.s: h8300s divmul tests"
+    set x 0
+
+    gas_start "divmuls.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 5181\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 5301\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 01D05181\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 01D05301\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 5081\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000e 5201\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 01C05081\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 01C05201\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 8] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300s_misc {} {
+    set testname "miscs.s: h8300s misc tests"
+    set x 0
+
+    gas_start "miscs.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 7B5C598F\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 7BD4598F\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 0700\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 0308\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 01410700\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 0318\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0012 01406900\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 01406F00\[^\n\]*\n +\[0-9\]+ +0010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001c 01407800\[^\n\]*\n +\[0-9\]+ +6B200000\[^\n\]*\n +\[0-9\]+ +0020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0026 01406D00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002a 01406B00\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0030 01406B20\[^\n\]*\n +\[0-9\]+ +00000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0038 01416900\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 003c 01416F00\[^\n\]*\n +\[0-9\]+ +0010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0042 01417800\[^\n\]*\n +\[0-9\]+ +6B200000\[^\n\]*\n +\[0-9\]+ +0020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 004c 01416D00\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0050 01416B00\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0056 01416B20\[^\n\]*\n +\[0-9\]+ +00000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 005e 0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0060 5670\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0062 5470\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0064 0180\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0066 0208\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0068 0218\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 006a 01406980\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 006e 01406F80\[^\n\]*\n +\[0-9\]+ +0010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0074 01407800\[^\n\]*\n +\[0-9\]+ +6BA00000\[^\n\]*\n +\[0-9\]+ +0020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 007e 01406D80\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0082 01406B80\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0088 01406BA0\[^\n\]*\n +\[0-9\]+ +00000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0090 01416980\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0094 01416F80\[^\n\]*\n +\[0-9\]+ +0010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 009a 01417800\[^\n\]*\n +\[0-9\]+ +6BA00000\[^\n\]*\n +\[0-9\]+ +0020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 00a4 01416D80\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 00a8 01416B80\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 00ae 01416BA0\[^\n\]*\n +\[0-9\]+ +00000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 36] then { pass $testname } else { fail $testname }
+
+    setup_xfail "h8300*-*-*"
+    fail "h8300s movfpe/movtpe tests"
+}
+
+proc do_h8300s_movb {} {
+    set testname "movbs.s: h8300s movb tests"
+    set x 0
+
+    gas_start "movbs.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 0C89\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 F810\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 6818\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 6E180010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 78106A28\[^\n\]*\n +\[0-9\]+ +00000020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0012 6C18\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 2810\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 6A080000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 6A280000\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0020 6898\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0022 6E980010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0026 78106AA8\[^\n\]*\n +\[0-9\]+ +00000020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002e 6C98\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0030 3810\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0032 6A880000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0036 6AA80000\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 16] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300s_movw {} {
+    set testname "movws.s: h8300s movw tests"
+    set x 0
+
+    gas_start "movws.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 0D01\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 79000010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 6910\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 6F100010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 78106B20\[^\n\]*\n +\[0-9\]+ +00000020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 6D10\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 6B000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 6B200000\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0020 6990\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0022 6F900010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0026 78106BA0\[^\n\]*\n +\[0-9\]+ +00000020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002e 6D90\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0030 6B800000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0034 6BA00000\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 14] then { pass $testname } else { fail $testname }
+}
+
+
+proc do_h8300s_movl {} {
+    set testname "movls.s: h8300s movl tests"
+    set x 0
+
+    gas_start "movls.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 0F81\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 7A000000\[^\n\]*\n +\[0-9\]+ +0040\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 01006910\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 01006F10\[^\n\]*\n +\[0-9\]+ +0010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0012 01007810\[^\n\]*\n +\[0-9\]+ +6B200000\[^\n\]*\n +\[0-9\]+ +0020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001c 01006D10\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0020 01006B00\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0026 01006B20\[^\n\]*\n +\[0-9\]+ +00000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002e 01006990\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0032 01006F90\[^\n\]*\n +\[0-9\]+ +0010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0038 01007890\[^\n\]*\n +\[0-9\]+ +6BA00000\[^\n\]*\n +\[0-9\]+ +0020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0042 01006D90\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0046 01006B80\[^\n\]*\n +\[0-9\]+ +0000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 004c 01006BA0\[^\n\]*\n +\[0-9\]+ +00000000\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 14] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300s_pushpop {} {
+    set testname "pushpops.s: h8300s pushpop tests"
+    set x 0
+
+    gas_start "pushpops.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 6D70\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 01006D70\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 6DF0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 01006DF0\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 4] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300s_rotate_shift {} {
+    set testname "rotshs.s: h8300s rotate and shift tests"
+    set x 0
+
+    gas_start "rotshs.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 1288\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 12C8\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 1290\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 12D0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 12B0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 12F0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 1388\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000e 13C8\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 1390\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0012 13D0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 13B0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0016 13F0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0018 1208\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001a 1248\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001c 1210\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 001e 1250\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0020 1230\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0022 1270\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0024 1308\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0026 1348\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0028 1310\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002a 1350\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002c 1330\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 002e 1370\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0030 1088\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0032 10C8\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0034 1090\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0036 10D0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0038 10B0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 003a 10F0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 003c 1188\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 003e 11C8\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0040 1190\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0042 11D0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0044 11B0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0046 11F0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0048 1008\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 004a 1048\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 004c 1010\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 004e 1050\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0050 1030\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0052 1070\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0054 1108\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0056 1148\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0058 1110\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 005a 1150\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 005c 1130\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 005e 1170\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 48] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300s_extend {} {
+    set testname "extends.s: h8300s extend tests"
+    set x 0
+
+    gas_start "extends.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 17D0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 17F0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 1750\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 1770\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 4] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300s_mac {} {
+    set testname "macs.s: h8300s mac tests"
+    set x 0
+
+    gas_start "macs.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+ 	    -re " +\[0-9\]+ 0000 01A0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0002 0324\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 0335\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0006 01606D45\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000a 0224\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 0235\[^\n\]*\n"   { set x [expr $x+1] }
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 6] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300s_multiple {} {
+    set testname "multiples.s: h8300s multiple tests"
+    set x 0
+
+    gas_start "multiples.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ 0000 01106D71\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0004 01206D72\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0008 01306D73\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 000c 01106DF0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0010 01206DF0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ 0014 01306DF0\[^\n\]*\n"   { set x [expr $x+1] }
+            -re " +\[0-9\]+ 0018 01106D73\[^\n\]*\n"   { set x [expr $x+1] }
+            -re " +\[0-9\]+ 001c 01106DF2\[^\n\]*\n"   { set x [expr $x+1] }
+            -re " +\[0-9\]+ 0020 01106D75\[^\n\]*\n"   { set x [expr $x+1] }
+            -re " +\[0-9\]+ 0024 01206D76\[^\n\]*\n"   { set x [expr $x+1] }
+            -re " +\[0-9\]+ 0028 01106DF4\[^\n\]*\n"   { set x [expr $x+1] }
+            -re " +\[0-9\]+ 002c 01206DF4\[^\n\]*\n"   { set x [expr $x+1] }
+
+	    eof					{ break }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 12] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300h_mov32bug {} {
+    set testname "mov32bug.s: h8300h mov32bug test"
+    set x 0
+
+    if [gas_test_old "mov32bug.s" "" "Proper relocation for mov.l (part 1)"] then {
+        objdump_start_no_subdir "a.out" "-r"
+
+	while 1 {
+	    expect {
+		-re "00000002\[^\n\]*32\[^\n\]*_a.0x0*88ca6c00\[^\n\]*\n"
+						{ set x [expr $x+1] }
+		timeout 			{ perror "timeout\n; break }
+		eof				{ break }
+	    }
+	}
+    }
+
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    objdump_finish
+
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 1] then { pass $testname } else { fail $testname }
+}
+
+if [istarget h8300*-*-*] then {
+    # Test the basic h8300 instruction parser
+    do_h8300_add_sub
+    do_h8300_logical
+    do_h8300_bitops1
+    do_h8300_bitops2
+    do_h8300_bitops3
+    do_h8300_bitops4
+    do_h8300_compare
+    do_h8300_decimal
+    do_h8300_incdec
+    do_h8300_divmul
+    do_h8300_misc
+    do_h8300_movb
+    do_h8300_movw
+    do_h8300_pushpop
+    do_h8300_rotate_shift
+
+    # Now test the h8300h instruction parser
+    do_h8300h_add_sub
+    do_h8300h_logical
+    do_h8300h_bitops1
+    do_h8300h_bitops2
+    do_h8300h_bitops3
+    do_h8300h_bitops4
+    do_h8300h_compare
+    do_h8300h_decimal
+    do_h8300h_incdec
+    do_h8300h_divmul
+    do_h8300h_misc
+    do_h8300h_movb
+    do_h8300h_movw
+    do_h8300h_movl
+    do_h8300_pushpop
+    do_h8300h_rotate_shift
+    do_h8300h_extend
+
+    # Now test the h8300s instruction parser
+    do_h8300s_add_sub
+    do_h8300s_logical
+    do_h8300s_bitops1
+    do_h8300s_bitops2
+    do_h8300s_bitops3
+    do_h8300s_bitops4
+    do_h8300s_compare
+    do_h8300s_decimal
+    do_h8300s_incdec
+    do_h8300s_divmul
+    do_h8300s_misc
+    do_h8300s_movb
+    do_h8300s_movw
+    do_h8300s_movl
+    do_h8300_pushpop
+    do_h8300s_rotate_shift
+    do_h8300s_extend
+    do_h8300s_mac
+    do_h8300s_multiple
+
+    do_h8300h_mov32bug
+
+    # Now some random tests
+    set svr4pic [expr [istarget *-*-elf*] || [istarget *-*-irix5*] ]
+    set empic [expr [istarget *-*-ecoff*] || [istarget *-*-ultrix*] || [istarget *-*-irix\[1-4\]*] ]
+    set aout [expr [istarget *-*-bsd*] || [istarget *-*-netbsd*]]
+
+    gas_test "cmpsi2.s" "" "" "cmpsi2.s"
+}

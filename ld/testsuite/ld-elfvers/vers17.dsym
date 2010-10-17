@@ -1,0 +1,2 @@
+[0]* g    DO \*ABS\*	[0]*  VERS_2.0    VERS_2.0
+[0-9a-f]* g    DF (.text|\*ABS\*)	[0-9a-f]*  VERS_2.0    (0x[0-9a-f][0-9a-f] )?show_foo

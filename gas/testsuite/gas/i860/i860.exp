@@ -1,0 +1,58 @@
+# i860 assembler testsuite.
+
+proc run_list_test { name opts } {
+    global srcdir subdir
+    set testname "i860 $name"
+    set file $srcdir/$subdir/$name
+    gas_run ${name}.s $opts ">&dump.out"
+    if { [regexp_diff "dump.out" "${file}.l"] } then {
+        fail $testname
+        verbose "output is [file_contents "dump.out"]" 2
+        return
+    }
+    pass $testname
+}
+
+if [istarget i860-*-*] {
+    run_dump_test "bitwise"
+    run_dump_test "branch"
+    run_dump_test "bte"
+    run_dump_test "dir-align01"
+    run_dump_test "dir-intel01"
+    run_dump_test "dir-intel02"
+    run_list_test "dir-intel03-err" ""
+    run_dump_test "dual01"
+    run_list_test "dual02-err" ""
+    run_dump_test "dual03"
+    run_dump_test "fldst01"
+    run_dump_test "fldst02"
+    run_dump_test "fldst03"
+    run_dump_test "fldst04"
+    run_dump_test "fldst05"
+    run_dump_test "fldst06"
+    run_dump_test "fldst07"
+    run_dump_test "fldst08"
+    run_dump_test "float01"
+    run_dump_test "float02"
+    run_dump_test "float03"
+    run_dump_test "float04"
+    run_dump_test "form"
+    run_dump_test "iarith"
+    run_dump_test "ldst01"
+    run_dump_test "ldst02"
+    run_dump_test "ldst03"
+    run_dump_test "ldst04"
+    run_dump_test "ldst05"
+    run_dump_test "ldst06"
+    run_dump_test "pfam"
+    run_dump_test "pfmam"
+    run_dump_test "pfmsm"
+    run_dump_test "pfsm"
+    run_dump_test "pseudo-ops01"
+    run_dump_test "regress01"
+    run_dump_test "shift"
+    run_dump_test "simd"
+    run_dump_test "system"
+    run_dump_test "xp"
+}
+

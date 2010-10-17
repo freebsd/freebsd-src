@@ -1,0 +1,96 @@
+#   Copyright 1993, 1994, 1995, 1997, 1999, 2000
+#   Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+# Please email any bugs, comments, and/or additions to this file to:
+# bug-dejagnu@prep.ai.mit.edu
+
+# This file was written by Rob Savoye <rob@cygnus.com>
+# and rewritten by Ian Lance Taylor <ian@cygnus.com>
+
+if ![istarget hppa*-*-*] then {
+  return
+}
+
+# These tests are not suitable for wide mode.
+if [istarget hppa*w-*-*] then {
+  return
+}
+
+# elf hppa assembler doesn't support .subspa
+if {[istarget *64*-*-*] || [istarget *-*-*elf*] || [istarget *-*-linux*]} then {
+  return
+}
+
+if {[which $OBJDUMP] == 0} then {
+    perror "$OBJDUMP does not exist"
+    return
+}
+
+send_user "Version [binutil_version $OBJDUMP]"
+
+if {![binutils_assemble $srcdir/$subdir/addendbug.s tmpdir/addendbug.o]} then {
+    return
+}
+
+if [is_remote host] {
+    set objfile [remote_download host tmpdir/addendbug.o]
+} else {
+    set objfile tmpdir/addendbug.o
+}
+
+# Make sure the SOM BFD code sign extends constants in R_DATA_OVERRIDE fixups.
+
+set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -r $objfile"]
+
+if [istarget hppa*-*-*elf*] then {
+  set want "00000000 R_PARISC_DPREL21L\[ 	\]+is_idchar\\+0xffffffe0.*"
+} else {
+  set want "00000000 R_DP_RELATIVE\[ 	\]+is_idchar\\+0xffffffe0.*"
+}
+
+
+if [regexp $want $got] then {
+    pass "addendbug test"
+} else {
+    fail "addendbug test"
+}
+
+###########################
+# Set up the test of freg.s
+###########################
+
+if {![binutils_assemble $srcdir/$subdir/freg.s tmpdir/freg.o]} then {
+    return
+}
+
+if [is_remote host] {
+    set objfile [remote_download host tmpdir/freg.o]
+} else {
+    set objfile tmpdir/freg.o
+}
+
+# Make sure that we get R float regs like we're supposed to
+
+set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS --disassemble $objfile"]
+
+set want "fmpyfadd,sgl fr4,fr4R,fr5R,fr5"
+
+if [regexp $want $got] then {
+    pass "freg test"
+} else {
+    fail "freg test"
+}

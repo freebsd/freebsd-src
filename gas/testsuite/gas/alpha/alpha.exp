@@ -1,0 +1,44 @@
+#
+# Some generic alpha tests
+#
+
+proc run_list_test { name opts } {
+    global srcdir subdir
+    set testname "alpha $name"
+    set file $srcdir/$subdir/$name
+    gas_run ${name}.s $opts ">&dump.out"
+    if { [regexp_diff "dump.out" "${file}.l"] } then {
+	fail $testname
+	verbose "output is [file_contents "dump.out"]" 2
+	return
+    }
+    pass $testname
+}
+
+if { [istarget alpha*-*-*] } then {
+
+    set elf [expr [istarget *-*-elf*] \
+		  || [istarget *-*-linux*] \
+		  || [istarget *-*-freebsd*] \
+		  || [istarget *-*-kfreebsd*-gnu] \
+		  || [istarget *-*-netbsd*] ]
+
+    if $elf {
+	run_dump_test "elf-reloc-1"
+	run_list_test "elf-reloc-2" ""
+	run_list_test "elf-reloc-3" ""
+	run_dump_test "elf-reloc-4"
+	run_dump_test "elf-reloc-5"
+	run_list_test "elf-reloc-6" ""
+	run_dump_test "elf-reloc-7"
+	run_dump_test "elf-reloc-8"
+	run_dump_test "elf-tls-1"
+	run_list_test "elf-tls-2" ""
+	run_list_test "elf-tls-3" ""
+	run_dump_test "elf-usepv-1"
+	run_list_test "elf-usepv-2" ""
+    }
+
+    run_dump_test "fp"
+    run_dump_test "unop"
+}

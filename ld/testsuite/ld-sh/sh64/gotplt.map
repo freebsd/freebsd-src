@@ -1,0 +1,4 @@
+GLIBC_2.2 {
+  local:
+    xxx;
+};

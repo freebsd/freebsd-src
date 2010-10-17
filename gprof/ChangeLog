@@ -1,0 +1,19 @@
+2004-05-13  Nick Clifton  <nickc@redhat.com>
+
+	* po/fr.po: Updated French translation.
+
+2004-04-09  Daniel Jacobowitz  <drow@mvista.com>
+
+	Merge from mainline:
+	2004-03-19  Alan Modra  <amodra@bigpond.net.au>
+	* po/sv.po: Updated.
+
+
+For older changes see ChangeLog-9203
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

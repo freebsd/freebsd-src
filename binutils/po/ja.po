@@ -1,0 +1,4110 @@
+# Japanese message for binutils 2.11
+# Copyright (C) 2001 Free Software Foundation, Inc.
+# Daisuke Yamashita <yamad@mb.infoweb.ne.jp>, 2001.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: binutils 2.11\n"
+"POT-Creation-Date: 2001-01-11 12:02-0800\n"
+"PO-Revision-Date: 2001-12-16 16:10+0900\n"
+"Last-Translator: Daisuke Yamashita <yamad@mb.infoweb.ne.jp>\n"
+"Language-Team: Japanese <ja@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=EUC-JP\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: addr2line.c:76
+#, c-format
+msgid ""
+"Usage: %s [-CfsHV] [-b bfdname] [--target=bfdname]\n"
+"       [-e executable] [--exe=executable] [--demangle[=style]]\n"
+"       [--basenames] [--functions] [addr addr ...]\n"
+msgstr ""
+"使い方: %s [-CfsHV] [-b bfd名] [--target=bfd名]\n"
+"       [-e 実行ファイル] [--exe=実行ファイル] [--demangle[=方式]]\n"
+"       [--basenames] [--functions] [アドレス アドレス ...]\n"
+
+#: addr2line.c:83 ar.c:288 nlmconv.c:1119 objcopy.c:373 objcopy.c:405
+#: readelf.c:1876 size.c:91 strings.c:530 windres.c:737
+#, c-format
+msgid "Report bugs to %s\n"
+msgstr "バグレポートは %s まで\n"
+
+#: addr2line.c:243
+#, c-format
+msgid "%s: can not get addresses from archive"
+msgstr "%s: アーカイブからアドレスを取得できません"
+
+#: addr2line.c:310 nm.c:436 objdump.c:2857
+#, c-format
+msgid "unknown demangling style `%s'"
+msgstr "名前復元 (demangle) の方式 `%s' が不明です"
+
+#: ar.c:236
+#, c-format
+msgid "no entry %s in archive\n"
+msgstr "項目 %s がアーカイブ中にありません\n"
+
+#: ar.c:253
+#, c-format
+msgid "Usage: %s [-X32_64] [-]{dmpqrstx}[abcfilNoPsSuvV] [member-name] [count] archive-file file...\n"
+msgstr "使い方: %s [-X32_64] [-]{dmpqrstx}[abcfilNoPsSuvV] [メンバ名] [カウント] 書庫ファイル ファイル...\n"
+
+#: ar.c:256
+#, c-format
+msgid "       %s -M [<mri-script]\n"
+msgstr "       %s -M [<mri-スクリプト]\n"
+
+#: ar.c:257
+msgid " commands:\n"
+msgstr " コマンド:\n"
+
+#: ar.c:258
+msgid "  d            - delete file(s) from the archive\n"
+msgstr "  d            - 書庫からファイルを削除する\n"
+
+#: ar.c:259
+msgid "  m[ab]        - move file(s) in the archive\n"
+msgstr "  m[ab]        - 書庫内のファイルを移動する\n"
+
+#: ar.c:260
+msgid "  p            - print file(s) found in the archive\n"
+msgstr "  p            - 書庫内のファイルを表示する\n"
+
+#: ar.c:261
+msgid "  q[f]         - quick append file(s) to the archive\n"
+msgstr "  q[f]         - 書庫へファイルを速く追加する\n"
+
+#: ar.c:262
+msgid "  r[ab][f][u]  - replace existing or insert new file(s) into the archive\n"
+msgstr "  r[ab][f][u]  - 書庫へ新規ファイルを挿入、既存ファイルならば置換える\n"
+
+#: ar.c:263
+msgid "  t            - display contents of archive\n"
+msgstr "  t            - アーカイブの内容を表示する\n"
+
+#: ar.c:264
+msgid "  x[o]         - extract file(s) from the archive\n"
+msgstr "  x[o]         - アーカイブからファイルを抽出する\n"
+
+#: ar.c:265
+msgid " command specific modifiers:\n"
+msgstr " コマンド指定修飾子:\n"
+
+#: ar.c:266
+msgid "  [a]          - put file(s) after [member-name]\n"
+msgstr "  [a]          - [メンバ名] の後ろにファイルを置く\n"
+
+#: ar.c:267
+msgid "  [b]          - put file(s) before [member-name] (same as [i])\n"
+msgstr "  [b]          - [メンバ名] の前にファイルをおく ([i] と同じ)\n"
+
+#: ar.c:268
+msgid "  [N]          - use instance [count] of name\n"
+msgstr "  [N]          - 同名インスタンスで [カウント] 番目のものを使う\n"
+
+#: ar.c:269
+msgid "  [f]          - truncate inserted file names\n"
+msgstr "  [f]          - 挿入されたファイル名を切り詰める\n"
+
+#: ar.c:270
+msgid "  [P]          - use full path names when matching\n"
+msgstr "  [P]          - 名前の一致を調べる際に完全パスを使う\n"
+
+#: ar.c:271
+msgid "  [o]          - preserve original dates\n"
+msgstr "  [o]          - 本来の日付を保持する\n"
+
+#: ar.c:272
+msgid "  [u]          - only replace files that are newer than current archive contents\n"
+msgstr "  [u]          - 現在の書庫に入っているものより新しいファイルだけを置換える\n"
+
+#: ar.c:273
+msgid " generic modifiers:\n"
+msgstr " 一般修飾子:\n"
+
+#: ar.c:274
+msgid "  [c]          - do not warn if the library had to be created\n"
+msgstr "  [c]          - ライブラリファイルを作成する必要があるときでも警告しない\n"
+
+#: ar.c:275
+msgid "  [s]          - create an archive index (cf. ranlib)\n"
+msgstr "  [s]          - 書庫の索引を作成する (ranlib を参照)\n"
+
+#: ar.c:276
+msgid "  [S]          - do not build a symbol table\n"
+msgstr "  [S]          - シンボルテーブルを構築しない\n"
+
+#: ar.c:277
+msgid "  [v]          - be verbose\n"
+msgstr "  [v]          - 饒舌モードにする\n"
+
+#: ar.c:278
+msgid "  [V]          - display the version number\n"
+msgstr "  [V]          - バージョン情報を表示する\n"
+
+#: ar.c:279
+msgid "  [-X32_64]    - (ignored)\n"
+msgstr "  [-X32_64]    - (無視される)\n"
+
+#: ar.c:283
+#, c-format
+msgid "Usage: %s [-vV] archive\n"
+msgstr "使い方: %s [-vV] 書庫\n"
+
+#: ar.c:499
+msgid "two different operation options specified"
+msgstr "二つの異なった操作オプションが指定されました"
+
+#: ar.c:574
+#, c-format
+msgid "illegal option -- %c"
+msgstr "不正なオプションです -- %c"
+
+#: ar.c:606
+msgid "no operation specified"
+msgstr "操作が指定されていません"
+
+#: ar.c:609
+msgid "`u' is only meaningful with the `r' option."
+msgstr "`u' は `r' オプションと一緒に使ってこそ意味があります。"
+
+#: ar.c:619
+msgid "`N' is only meaningful with the `x' and `d' options."
+msgstr "`N' は `x' や `d' オプションと一緒に使ってこそ意味があります。"
+
+#: ar.c:622
+msgid "Value for `N' must be positive."
+msgstr "`N' に対する値は正の数でなければなりません"
+
+#: ar.c:705
+#, c-format
+msgid "internal error -- this option not implemented"
+msgstr "内部エラー -- このオプションは実装されていません"
+
+#: ar.c:824 ar.c:876 ar.c:1322 objcopy.c:1124
+#, c-format
+msgid "internal stat error on %s"
+msgstr "内部状態エラーが %s で発生しました"
+
+#: ar.c:828
+#, c-format
+msgid "\n<member %s>\n\n"
+msgstr "\n<メンバ %s>\n\n"
+
+#: ar.c:845 ar.c:913
+#, c-format
+msgid "%s is not a valid archive"
+msgstr "%s は正常な書庫ではありません"
+
+#: ar.c:881
+#, c-format
+msgid "stat returns negative size for %s"
+msgstr "stat(2) が %s のサイズとして負の数を返しました"
+
+#: ar.c:1008
+#, c-format
+msgid "%s is not an archive"
+msgstr "%s は書庫ではありません"
+
+#: ar.c:1015
+#, c-format
+msgid "creating %s"
+msgstr "%s を作成します"
+
+#: ar.c:1221
+#, c-format
+msgid "No member named `%s'\n"
+msgstr "`%s' という名前のメンバはありません\n"
+
+#: ar.c:1273
+#, c-format
+msgid "no entry %s in archive %s!"
+msgstr "エントリ %s は書庫 %s にありません!"
+
+#: ar.c:1434
+#, c-format
+msgid "%s: no archive map to update"
+msgstr "%s: 更新すべき書庫マップがありません"
+
+#: arsup.c:88
+#, c-format
+msgid "No entry %s in archive.\n"
+msgstr "エントリ %s は書庫内にありません。\n"
+
+#: arsup.c:120
+#, c-format
+msgid "Can't open file %s\n"
+msgstr "ファイル %sを開けません\n"
+
+#: arsup.c:170
+#, c-format
+msgid "%s: Can't open output archive %s\n"
+msgstr "%s: 出力書庫 %s を開けません\n"
+
+#: arsup.c:182
+#, c-format
+msgid "%s: Can't open input archive %s\n"
+msgstr "%s: 入力書庫 %s を開けません\n"
+
+#: arsup.c:188
+#, c-format
+msgid "%s: file %s is not an archive\n"
+msgstr "%s: ファイル %s は書庫ではありません\n"
+
+#: arsup.c:229
+#, c-format
+msgid "%s: no output archive specified yet\n"
+msgstr "%s: 出力書庫がまだ指定されていません\n"
+
+#: arsup.c:249 arsup.c:284 arsup.c:320 arsup.c:340 arsup.c:398
+#, c-format
+msgid "%s: no open output archive\n"
+msgstr "%s: 出力用書庫が開かれていません\n"
+
+#: arsup.c:257 arsup.c:358 arsup.c:378
+#, c-format
+msgid "%s: can't open file %s\n"
+msgstr "%s: ファイル %s を開けません\n"
+
+#: arsup.c:305 arsup.c:374 arsup.c:453
+#, c-format
+msgid "%s: can't find module file %s\n"
+msgstr "%s: モジュールファイル %s が見つかりません\n"
+
+#: arsup.c:405
+#, c-format
+msgid "Current open archive is %s\n"
+msgstr "現在開かれた書庫は %s です\n"
+
+#: arsup.c:432
+#, c-format
+msgid "%s: no open  archive\n"
+msgstr "%s: 開いている書庫がありません\n"
+
+#: bucomm.c:135
+#, c-format
+msgid "can't set BFD default target to `%s': %s"
+msgstr "BFD デフォルトターゲットを `%s' に設定できません: %s"
+
+#: bucomm.c:147
+#, c-format
+msgid "%s: Matching formats:"
+msgstr "%s: 形式を照合します:"
+
+#: bucomm.c:164
+msgid "Supported targets:"
+msgstr "サポートされているターゲット:"
+
+#: bucomm.c:166
+#, c-format
+msgid "%s: supported targets:"
+msgstr "%s: サポートされているターゲット:"
+
+#: bucomm.c:272
+#, c-format
+msgid "%s: bad number: %s"
+msgstr "%s: 不正な番号: %s"
+
+#: coffdump.c:94
+#, c-format
+msgid "#lines %d "
+msgstr "#行 %d "
+
+#: coffdump.c:456 sysdump.c:719
+#, c-format
+msgid "%s: Print a human readable interpretation of a SYSROFF object file\n"
+msgstr "%s: SYSROFF オブジェクトファイルの解釈を人間が読みやすい形式で表示する\n"
+
+#: coffdump.c:498 srconv.c:1941 sysdump.c:755
+#, c-format
+msgid "GNU %s version %s\n"
+msgstr "GNU %s バージョン %s\n"
+
+#: coffdump.c:516 srconv.c:1975 sysdump.c:775
+msgid "no input file specified"
+msgstr "入力ファイルが指定されていません"
+
+#: debug.c:653
+msgid "debug_add_to_current_namespace: no current file"
+msgstr "debug_add_to_current_namespace: 現在のファイルがありません"
+
+#: debug.c:736
+msgid "debug_start_source: no debug_set_filename call"
+msgstr "debug_start_source: debug_set_filename 呼び出しがありません"
+
+#: debug.c:795
+msgid "debug_record_function: no debug_set_filename call"
+msgstr "debug_record_function: debug_set_filename 呼び出しがありません"
+
+#: debug.c:851
+msgid "debug_record_parameter: no current function"
+msgstr "debug_record_parameter: 現在の関数がありません"
+
+#: debug.c:885
+msgid "debug_end_function: no current function"
+msgstr "debug_end_function: 現在の関数がありません"
+
+#: debug.c:891
+msgid "debug_end_function: some blocks were not closed"
+msgstr "debug_end_function: 閉じられていないブロックがあります"
+
+#: debug.c:921
+msgid "debug_start_block: no current block"
+msgstr "debug_start_block: 現在のブロックがありません"
+
+#: debug.c:959
+msgid "debug_end_block: no current block"
+msgstr "debug_end_block: 現在のブロックがありません"
+
+#: debug.c:966
+msgid "debug_end_block: attempt to close top level block"
+msgstr "debug_end_block: トップレベルブロックを閉じようとしました"
+
+#: debug.c:992
+msgid "debug_record_line: no current unit"
+msgstr "debug_record_line: 現在のユニットがありません"
+
+#. FIXME
+#: debug.c:1046
+msgid "debug_start_common_block: not implemented"
+msgstr "debug_start_common_block: 実装されていません"
+
+#. FIXME
+#: debug.c:1058
+msgid "debug_end_common_block: not implemented"
+msgstr "debug_end_common_block: 実装されていません"
+
+#. FIXME.
+#: debug.c:1152
+msgid "debug_record_label not implemented"
+msgstr "debug_record_label は実装されていません"
+
+#: debug.c:1178
+msgid "debug_record_variable: no current file"
+msgstr "debug_record_variable: 現在のファイルがありません"
+
+#: debug.c:1194
+msgid "debug_record_variable: no current block"
+msgstr "debug_record_variable: 現在のファイルがありません"
+
+#: debug.c:1764
+msgid "debug_make_undefined_type: unsupported kind"
+msgstr "debug_make_undefined_type: サポートされていない種類です"
+
+#: debug.c:1970
+msgid "debug_name_type: no current file"
+msgstr "debug_name_type: 現在のファイルがありません"
+
+#: debug.c:2018
+msgid "debug_tag_type: no current file"
+msgstr "debug_tag_type: 現在のファイルがありません"
+
+#: debug.c:2026
+msgid "debug_tag_type: extra tag attempted"
+msgstr "debug_tag_type: 余分なタグが試されました"
+
+#: debug.c:2066
+#, c-format
+msgid "Warning: changing type size from %d to %d\n"
+msgstr "警告: 型のサイズを %d から %d に変更します\n"
+
+#: debug.c:2090
+msgid "debug_find_named_type: no current compilation unit"
+msgstr "debug_find_named_type: 現在のコンパイル単位がありません"
+
+#: debug.c:2197
+#, c-format
+msgid "debug_get_real_type: circular debug information for %s\n"
+msgstr "debug_get_real_type: %s のデバッグ情報が循環しています\n"
+
+#: debug.c:2662
+msgid "debug_write_type: illegal type encountered"
+msgstr "debug_write_type: 不正な型に遭遇しました"
+
+#: dlltool.c:737 dlltool.c:762 dlltool.c:788
+#, c-format
+msgid "Internal error: Unknown machine type: %d"
+msgstr "内部エラー: 不明なマシン型です: %d"
+
+#: dlltool.c:825
+#, c-format
+msgid "Can't open def file: %s"
+msgstr "定義ファイルを開けません: %s"
+
+#: dlltool.c:830
+#, c-format
+msgid "Processing def file: %s"
+msgstr "定義ファイルを処理します: %s"
+
+#: dlltool.c:834
+msgid "Processed def file"
+msgstr "定義ファイルを処理しました"
+
+#: dlltool.c:859
+#, c-format
+msgid "Syntax error in def file %s:%d"
+msgstr "定義ファイルで文法エラーです %s:%d"
+
+#: dlltool.c:892
+#, c-format
+msgid "NAME: %s base: %x"
+msgstr "NAME: %s ベース: %x"
+
+#: dlltool.c:895 dlltool.c:914
+msgid "Can't have LIBRARY and NAME"
+msgstr "LIBRARY や NAME を持てません"
+
+#: dlltool.c:911
+#, c-format
+msgid "LIBRARY: %s base: %x"
+msgstr "LIBRARY: %s ベース: %x"
+
+#: dlltool.c:1169 resrc.c:271
+#, c-format
+msgid "wait: %s"
+msgstr "wait: %s"
+
+#: dlltool.c:1174 dllwrap.c:456 resrc.c:276
+#, c-format
+msgid "subprocess got fatal signal %d"
+msgstr "子プロセスが致命的なシグナルを %d 受け取りました"
+
+#: dlltool.c:1180 dllwrap.c:463 resrc.c:283
+#, c-format
+msgid "%s exited with status %d"
+msgstr "%s はステータス %d で終了しました"
+
+#: dlltool.c:1212
+#, c-format
+msgid "Sucking in info from %s section in %s"
+msgstr "%s セクション(%s 内) から情報を取り込みます"
+
+#: dlltool.c:1336
+#, c-format
+msgid "Excluding symbol: %s"
+msgstr "シンボルを除外します: %s"
+
+#: dlltool.c:1431 dlltool.c:1442 nm.c:946 nm.c:957 objdump.c:443 objdump.c:460
+#, c-format
+msgid "%s: no symbols"
+msgstr "%s: シンボルがありません"
+
+#. FIXME: we ought to read in and block out the base relocations
+#: dlltool.c:1469
+#, c-format
+msgid "Done reading %s"
+msgstr "%s の読取りが完了しました"
+
+#: dlltool.c:1480
+#, c-format
+msgid "Unable to open object file: %s"
+msgstr "オブジェクトファイルを開けません: %s"
+
+#: dlltool.c:1483
+#, c-format
+msgid "Scanning object file %s"
+msgstr "オブジェクトファイル %s を走査します"
+
+#: dlltool.c:1498
+#, c-format
+msgid "Cannot produce mcore-elf dll from archive file: %s"
+msgstr "書庫ファイルから mcore-elf dll を生成できません: %s"
+
+#: dlltool.c:1590
+msgid "Adding exports to output file"
+msgstr "出力ファイルに exports を追加します"
+
+#: dlltool.c:1635
+msgid "Added exports to output file"
+msgstr "出力ファイルに exports を追加しました"
+
+#: dlltool.c:1759
+#, c-format
+msgid "Generating export file: %s"
+msgstr "export ファイルを生成します: %s"
+
+#: dlltool.c:1764
+#, c-format
+msgid "Unable to open temporary assembler file: %s"
+msgstr "一時アセンブリファイルを開けません: %s"
+
+#: dlltool.c:1767
+#, c-format
+msgid "Opened temporary file: %s"
+msgstr "一時ファイルを開きました: %s"
+
+#: dlltool.c:1981
+msgid "Generated exports file"
+msgstr "exports ファイルが生成されました"
+
+#: dlltool.c:2236
+#, c-format
+msgid "bfd_open failed open stub file: %s"
+msgstr "bfd_open がスタブファイルを開けませんでした: %s"
+
+#: dlltool.c:2239
+#, c-format
+msgid "Creating stub file: %s"
+msgstr "スタブファイルを作成します: %s"
+
+#: dlltool.c:2626
+#, c-format
+msgid "failed to open temporary head file: %s"
+msgstr "一時 head ファイルを開けません: %s"
+
+#: dlltool.c:2685
+#, c-format
+msgid "failed to open temporary tail file: %s"
+msgstr "一時 tail ファイルを開けません: %s"
+
+#: dlltool.c:2753
+#, c-format
+msgid "Can't open .lib file: %s"
+msgstr ".lib ファイルを開けません: %s"
+
+#: dlltool.c:2756
+#, c-format
+msgid "Creating library file: %s"
+msgstr "ライブラリファイルを作成します: %s"
+
+#: dlltool.c:2815
+#, c-format
+msgid "cannot delete %s: %s"
+msgstr "%s を削除できません: %s"
+
+#: dlltool.c:2819
+msgid "Created lib file"
+msgstr "lib ファイルを作成しました"
+
+#: dlltool.c:2924
+#, c-format
+msgid "Warning, ignoring duplicate EXPORT %s %d,%d"
+msgstr "警告、重複した EXPORT %s %d,%d を無視します"
+
+#: dlltool.c:2930
+#, c-format
+msgid "Error, duplicate EXPORT with oridinals: %s"
+msgstr "エラー、序数付き EXPORT が重複しました: %s"
+
+#: dlltool.c:3057
+msgid "Processing definitions"
+msgstr "定義を処理します"
+
+#: dlltool.c:3095
+msgid "Processed definitions"
+msgstr "定義を処理しました"
+
+#. xgetext:c-format
+#: dlltool.c:3106 dllwrap.c:520
+#, c-format
+msgid "Usage %s <options> <object-files>\n"
+msgstr "使い方 %s <オプション> <オブジェクトファイル>...\n"
+
+#. xgetext:c-format
+#: dlltool.c:3108
+#, c-format
+msgid "   -m --machine <machine>    Create as DLL for <machine>.  [default: %s]\n"
+msgstr "   -m --machine <マシン>    <マシン> 用 DLL を作成する。 [default: %s]\n"
+
+#: dlltool.c:3109
+msgid "        possible <machine>: arm[_interwork], i386, mcore[-elf]{-le|-be}, ppc, thumb\n"
+msgstr "        可能な <マシン>: arm[_interwork], i386, mcore[-elf]{-le|-be}, ppc, thumb\n"
+
+#: dlltool.c:3110
+msgid "   -e --output-exp <outname> Generate an export file.\n"
+msgstr "   -e --output-exp <出力名>  export ファイルを生成する。\n"
+
+#: dlltool.c:3111
+msgid "   -l --output-lib <outname> Generate an interface library.\n"
+msgstr "   -l --output-lib <出力名>  interface ライブラリを生成する。\n"
+
+#: dlltool.c:3112
+msgid "   -a --add-indirect         Add dll indirects to export file.\n"
+msgstr "   -a --add-indirect         export ファイルに間接 dll を追加する。\n"
+
+#: dlltool.c:3113
+msgid "   -D --dllname <name>       Name of input dll to put into interface lib.\n"
+msgstr "   -D --dllname <名前>       interface ライブラリに置く入力 dll の名前。\n"
+
+#: dlltool.c:3114
+msgid "   -d --input-def <deffile>  Name of .def file to be read in.\n"
+msgstr "   -d --input-def <deffile>  読込まれる .def ファイルの名前。\n"
+
+#: dlltool.c:3115
+msgid "   -z --output-def <deffile> Name of .def file to be created.\n"
+msgstr "   -z --output-def <deffile> 作成される .def ファイルの名前。\n"
+
+#: dlltool.c:3116
+msgid "      --export-all-symbols   Export all symbols to .def\n"
+msgstr "      --export-all-symbols   .def に全てのシンボルを export する\n"
+
+#: dlltool.c:3117
+msgid "      --no-export-all-symbols  Only export listed symbols\n"
+msgstr "      --no-export-all-symbols  リストされたシンボルだけを export する\n"
+
+#: dlltool.c:3118
+msgid "      --exclude-symbols <list> Don't export <list>\n"
+msgstr "      --exclude-symbols <リスト> <リスト> を export しない\n"
+
+#: dlltool.c:3119
+msgid "      --no-default-excludes  Clear default exclude symbols\n"
+msgstr "      --no-default-excludes  デフォルトで除外されるシンボルをクリアする\n"
+
+#: dlltool.c:3120
+msgid "   -b --base-file <basefile> Read linker generated base file.\n"
+msgstr "   -b --base-file <basefile> リンカが生成したベースファイルを読み取る\n"
+
+#: dlltool.c:3121
+msgid "   -x --no-idata4            Don't generate idata$4 section.\n"
+msgstr "   -x --no-idata4            idata$4 セクションを生成しない。\n"
+
+#: dlltool.c:3122
+msgid "   -c --no-idata5            Don't generate idata$5 section.\n"
+msgstr "   -c --no-idata5            idata$5 セクションを生成しない。\n"
+
+#: dlltool.c:3123
+msgid "   -U --add-underscore       Add underscores to symbols in interface library.\n"
+msgstr "   -U --add-underscore       interface 内のシンボルに下線をつける\n"
+
+#: dlltool.c:3124
+msgid "   -k --kill-at              Kill @<n> from exported names.\n"
+msgstr "   -k --kill-at              export された名前から @<n> を削る。\n"
+
+#: dlltool.c:3125
+msgid "   -A --add-stdcall-alias    Add aliases without @<n>.\n"
+msgstr "   -A --add-stdcall-alias    @<n> 無しのエイリアスを追加する。\n"
+
+#: dlltool.c:3126
+msgid "   -S --as <name>            Use <name> for assembler.\n"
+msgstr "   -S --as <名前>            アセンブラ用の <名前> を使う。\n"
+
+#: dlltool.c:3127
+msgid "   -f --as-flags <flags>     Pass <flags> to the assembler.\n"
+msgstr "   -f --as-flags <フラグ>    アセンブラに <フラグ> を渡す。\n"
+
+#: dlltool.c:3128
+msgid "   -C --compat-implib        Create backward compatible import library.\n"
+msgstr "   -C --compat-implib        後方互換 import ライブラリを作成する。\n"
+
+#: dlltool.c:3129
+msgid "   -n --no-delete            Keep temp files (repeat for extra preservation).\n"
+msgstr "   -n --no-delete            一時ファイルを消去しない (余分なものも保存するなら繰り返すこと)。\n"
+
+#: dlltool.c:3130
+msgid "   -v --verbose              Be verbose.\n"
+msgstr "   -v --verbose              饒舌モード。\n"
+
+#: dlltool.c:3131
+msgid "   -V --version              Display the program version.\n"
+msgstr "   -V --version              プログラムバージョンを表示する。\n"
+
+#: dlltool.c:3132
+msgid "   -h --help                 Display this information.\n"
+msgstr "   -h --help                 この情報を表示する。\n"
+
+#: dlltool.c:3134
+msgid "   -M --mcore-elf <outname>  Process mcore-elf object files into <outname>.\n"
+msgstr "   -M --mcore-elf <出力名>   <出力名> へ mcore-elf オブジェクトファイルを処理する\n"
+
+#: dlltool.c:3135
+msgid "   -L --linker <name>        Use <name> as the linker.\n"
+msgstr "   -L --linker <名前>        <名前> をリンカとして使用する。\n"
+
+#: dlltool.c:3136
+msgid "   -F --linker-flags <flags> Pass <flags> to the linker.\n"
+msgstr "   -F --linker-flags <フラグ>  <フラグ> をリンカに渡す。\n"
+
+#: dlltool.c:3280
+#, c-format
+msgid "Unable to open base-file: %s"
+msgstr "ベースファイルを開けません: %s"
+
+#: dlltool.c:3309
+#, c-format
+msgid "Machine '%s' not supported"
+msgstr "マシン '%s' はサポートされません"
+
+#: dlltool.c:3412 dllwrap.c:241
+#, c-format
+msgid "Tried file: %s"
+msgstr "試したファイル: %s"
+
+#: dlltool.c:3419 dllwrap.c:248
+#, c-format
+msgid "Using file: %s"
+msgstr "使用するファイル: %s"
+
+#: dllwrap.c:335
+#, c-format
+msgid "Keeping temporary base file %s"
+msgstr "一時ベースファイル %s を保存します"
+
+#: dllwrap.c:337
+#, c-format
+msgid "Deleting temporary base file %s"
+msgstr "一時ベースファイル %s を削除します"
+
+#: dllwrap.c:351
+#, c-format
+msgid "Keeping temporary exp file %s"
+msgstr "一時 exp ファイル %s を保存します"
+
+#: dllwrap.c:353
+#, c-format
+msgid "Deleting temporary exp file %s"
+msgstr "一時 exp ファイル %s を削除します"
+
+#: dllwrap.c:366
+#, c-format
+msgid "Keeping temporary def file %s"
+msgstr "一時 def ファイル %s を保存します"
+
+#: dllwrap.c:368
+#, c-format
+msgid "Deleting temporary def file %s"
+msgstr "一時 def ファイル %s を削除します"
+
+#: dllwrap.c:521
+msgid "  Generic options:\n"
+msgstr "  一般オプション:\n"
+
+#: dllwrap.c:522
+msgid "   --quiet, -q            Work quietly\n"
+msgstr "   --quiet, -q            静かに動作する\n"
+
+#: dllwrap.c:523
+msgid "   --verbose, -v          Verbose\n"
+msgstr "   --verbose, -v          饒舌\n"
+
+#: dllwrap.c:524
+msgid "   --version              Print dllwrap version\n"
+msgstr "   --version              dllwrap のバージョンを表示\n"
+
+#: dllwrap.c:525
+msgid "   --implib <outname>     Synonym for --output-lib\n"
+msgstr "   --implib <出力名>      --output-lib と同義語\n"
+
+#: dllwrap.c:526
+#, c-format
+msgid "  Options for %s:\n"
+msgstr "  %s 用オプション:\n"
+
+#: dllwrap.c:527
+msgid "   --driver-name <driver> Defaults to \"gcc\"\n"
+msgstr "   --driver-name <ドライバ>  \"gcc\" がデフォルト\n"
+
+#: dllwrap.c:528
+msgid "   --driver-flags <flags> Override default ld flags\n"
+msgstr "   --driver-flags <フラグ>  デフォルト ld フラグを上書きする\n"
+
+#: dllwrap.c:529
+msgid "   --dlltool-name <dlltool> Defaults to \"dlltool\"\n"
+msgstr "   --dlltool-name <dlltool>  \"dlltool\" がデフォルト\n"
+
+#: dllwrap.c:530
+msgid "   --entry <entry>        Specify alternate DLL entry point\n"
+msgstr "   --entry <entry>        代替 DLL エントリポイントを指定する\n"
+
+#: dllwrap.c:531
+msgid "   --image-base <base>    Specify image base address\n"
+msgstr "   --image-base <base>    image ベースアドレスを指定する\n"
+
+#: dllwrap.c:532
+msgid "   --target <machine>     i386-cygwin32 or i386-mingw32\n"
+msgstr "   --target <マシン>      i386-cygwin32 又は i386-mingw32\n"
+
+#: dllwrap.c:533
+msgid "   --dry-run              Show what needs to be run\n"
+msgstr "   --dry-run              動作に必要なことを明らかにする\n"
+
+#: dllwrap.c:534
+msgid "   --mno-cygwin           Create Mingw DLL\n"
+msgstr "   --mno-cygwin           Mingw DLL を作成する\n"
+
+#: dllwrap.c:535
+msgid "  Options passed to DLLTOOL:\n"
+msgstr "  DLLTOOL に渡されるオプション:\n"
+
+#: dllwrap.c:536
+msgid "   --machine <machine>\n"
+msgstr "   --machine <マシン>\n"
+
+#: dllwrap.c:537
+msgid "   --output-exp <outname> Generate export file.\n"
+msgstr "   --output-exp <出力名> export ファイルを生成する。\n"
+
+#: dllwrap.c:538
+msgid "   --output-lib <outname> Generate input library.\n"
+msgstr "   --output-lib <出力名> input ライブラリを生成する。\n"
+
+#: dllwrap.c:539
+msgid "   --add-indirect         Add dll indirects to export file.\n"
+msgstr "   --add-indirect         export ファイルに間接 dll を追加する。\n"
+
+#: dllwrap.c:540
+msgid "   --dllname <name>       Name of input dll to put into output lib.\n"
+msgstr "   --dllname <名前>       出力 lib に置く入力 dll の名前。\n"
+
+#: dllwrap.c:541
+msgid "   --def <deffile>        Name input .def file\n"
+msgstr "   --def <deffile>        入力 .def ファイルの名前\n"
+
+#: dllwrap.c:542
+msgid "   --output-def <deffile> Name output .def file\n"
+msgstr "   --output-def <deffile> 出力 .def ファイルの名前。\n"
+
+#: dllwrap.c:543
+msgid "   --export-all-symbols     Export all symbols to .def\n"
+msgstr "   --export-all-symbols     .def に全シンボルを export する\n"
+
+#: dllwrap.c:544
+msgid "   --no-export-all-symbols  Only export .drectve symbols\n"
+msgstr "   --no-export-all-symbols  .drectve シンボルのみを export する\n"
+
+#: dllwrap.c:545
+msgid "   --exclude-symbols <list> Exclude <list> from .def\n"
+msgstr "   --exclude-symbols <list> .def から <list> を除外する\n"
+
+#: dllwrap.c:546
+msgid "   --no-default-excludes    Zap default exclude symbols\n"
+msgstr "   --no-default-excludes    デフォルトで除外されるシンボルを無くす\n"
+
+#: dllwrap.c:547
+msgid "   --base-file <basefile> Read linker generated base file\n"
+msgstr "   --base-file <basefile> リンカが作成したベースファイルを読み取る\n"
+
+#: dllwrap.c:548
+msgid "   --no-idata4           Don't generate idata$4 section\n"
+msgstr "   --no-idata4           idata$4 セクションを生成しない\n"
+
+#: dllwrap.c:549
+msgid "   --no-idata5           Don't generate idata$5 section\n"
+msgstr "   --no-idata5           idata$5 セクションを生成しない\n"
+
+#: dllwrap.c:550
+msgid "   -U                     Add underscores to .lib\n"
+msgstr "   -U                     .lib に下線を追加する\n"
+
+#: dllwrap.c:551
+msgid "   -k                     Kill @<n> from exported names\n"
+msgstr "   -k                     export された名前から @<n> を削る\n"
+
+#: dllwrap.c:552
+msgid "   --add-stdcall-alias    Add aliases without @<n>\n"
+msgstr "   --add-stdcall-alias    @<n> なしのエイリアスを追加する\n"
+
+#: dllwrap.c:553
+msgid "   --as <name>            Use <name> for assembler\n"
+msgstr "   --as <名前>            アセンブラとして <名前> を使う\n"
+
+#: dllwrap.c:554
+msgid "   --nodelete             Keep temp files.\n"
+msgstr "   --nodelete             一時ファイルを削除しない。\n"
+
+#: dllwrap.c:555
+msgid "  Rest are passed unmodified to the language driver\n"
+msgstr "  残りはそのまま言語ドライバに渡されます\n"
+
+#: dllwrap.c:816
+msgid "Must provide at least one of -o or --dllname options"
+msgstr "少なくとも -o か --dllname オプションのどちらかは指定しなければなりません"
+
+#: dllwrap.c:844
+msgid "no export definition file provided"
+msgstr "export 定義ファイルが提供されていません"
+
+#: dllwrap.c:845
+msgid "creating one, but that may not be what you want"
+msgstr "一つ作成しますが、これはあなたが望むものではないと思われます"
+
+#: dllwrap.c:1006
+#, c-format
+msgid "DLLTOOL name    : %s\n"
+msgstr "DLLTOOL 名        : %s\n"
+
+#: dllwrap.c:1007
+#, c-format
+msgid "DLLTOOL options : %s\n"
+msgstr "DLLTOOL オプション: %s\n"
+
+#: dllwrap.c:1008
+#, c-format
+msgid "DRIVER name     : %s\n"
+msgstr "DRIVER 名        : %s\n"
+
+#: dllwrap.c:1009
+#, c-format
+msgid "DRIVER options  : %s\n"
+msgstr "DRIVER オプション: %s\n"
+
+#: ieee.c:317
+msgid "unexpected end of debugging information"
+msgstr "デバッグ情報が予期しない所で終わっています"
+
+#: ieee.c:412
+msgid "invalid number"
+msgstr "不適切な番号"
+
+#: ieee.c:471
+msgid "invalid string length"
+msgstr "不適切な文字列長"
+
+#: ieee.c:528 ieee.c:569
+msgid "expression stack overflow"
+msgstr "式スタックがオーバーフローしました"
+
+#: ieee.c:548
+msgid "unsupported IEEE expression operator"
+msgstr "サポートされていない IEEE 式演算子です"
+
+#: ieee.c:563
+msgid "unknown section"
+msgstr "不明なセクションです"
+
+#: ieee.c:584
+msgid "expression stack underflow"
+msgstr "式スタックがアンダーフローしました"
+
+#: ieee.c:598
+msgid "expression stack mismatch"
+msgstr "式スタックが一致しません"
+
+#: ieee.c:637
+msgid "unknown builtin type"
+msgstr "不明な組み込み型です"
+
+#: ieee.c:782
+msgid "BCD float type not supported"
+msgstr "BCD 浮動小数型はサポートされません"
+
+#: ieee.c:928
+msgid "unexpected number"
+msgstr "予期しない番号です"
+
+#: ieee.c:935
+msgid "unexpected record type"
+msgstr "予期しないレコード型です"
+
+#: ieee.c:968
+msgid "blocks left on stack at end"
+msgstr "ブロックがスタックの終りに残っています"
+
+#: ieee.c:1233
+msgid "unknown BB type"
+msgstr "不明な BB 型です"
+
+#: ieee.c:1242
+msgid "stack overflow"
+msgstr "スタックがオーバーフローしました"
+
+#: ieee.c:1267
+msgid "stack underflow"
+msgstr "スタックがアンダーフローしました"
+
+#: ieee.c:1381 ieee.c:1453 ieee.c:2152
+msgid "illegal variable index"
+msgstr "変数インデックスが不正です"
+
+#: ieee.c:1431
+msgid "illegal type index"
+msgstr "型インデックスが不正です"
+
+#: ieee.c:1441 ieee.c:1478
+msgid "unknown TY code"
+msgstr "不明な TY コードです"
+
+#: ieee.c:1460
+msgid "undefined variable in TY"
+msgstr "TY に未定義の変数があります"
+
+#. Pascal file name.  FIXME.
+#: ieee.c:1871
+msgid "Pascal file name not supported"
+msgstr "Pascal ファイル名はサポートされていません"
+
+#: ieee.c:1919
+msgid "unsupported qualifer"
+msgstr "サポートされていない修飾子です"
+
+#: ieee.c:2190
+msgid "undefined variable in ATN"
+msgstr "ATN に未定義の変数があります"
+
+#: ieee.c:2233
+msgid "unknown ATN type"
+msgstr "不明な ATN 型です"
+
+#. Reserved for FORTRAN common.
+#: ieee.c:2355
+msgid "unsupported ATN11"
+msgstr "サポートされていない ATN11 です"
+
+#. We have no way to record this information.  FIXME.
+#: ieee.c:2382
+msgid "unsupported ATN12"
+msgstr "サポートされていない ATN12 です"
+
+#: ieee.c:2442
+msgid "unexpected string in C++ misc"
+msgstr "C++ misc に予期しない文字列があります"
+
+#: ieee.c:2455
+msgid "bad misc record"
+msgstr "不正な misc レコードです"
+
+#: ieee.c:2498
+msgid "unrecognized C++ misc record"
+msgstr "認識できない C++ misc レコードです"
+
+#: ieee.c:2615
+msgid "undefined C++ object"
+msgstr "未定義の C++ オブジェクトです"
+
+#: ieee.c:2649
+msgid "unrecognized C++ object spec"
+msgstr "認識できない C++ オブジェクト仕様です"
+
+#: ieee.c:2685
+msgid "unsupported C++ object type"
+msgstr "サポートされていない C++ オブジェクト型です"
+
+#: ieee.c:2695
+msgid "C++ base class not defined"
+msgstr "C++ ベースクラスが定義されていません"
+
+#: ieee.c:2707 ieee.c:2812
+msgid "C++ object has no fields"
+msgstr "C++ オブジェクトがフィールドを持っていません"
+
+#: ieee.c:2726
+msgid "C++ base class not found in container"
+msgstr "C++ ベースクラスがコンテナ内に見つかりません"
+
+#: ieee.c:2833
+msgid "C++ data member not found in container"
+msgstr "C++ データメンバがコンテナ内に見つかりません"
+
+#: ieee.c:2874 ieee.c:3024
+msgid "unknown C++ visibility"
+msgstr "不明な C++ 可視性です"
+
+#: ieee.c:2908
+msgid "bad C++ field bit pos or size"
+msgstr "C++ フィールドビット位置又はサイズが不正です"
+
+#: ieee.c:3000
+msgid "bad type for C++ method function"
+msgstr "C++ メソッド関数の型が不正です"
+
+#: ieee.c:3010
+msgid "no type information for C++ method function"
+msgstr "C++ メソッド関数の型情報がありません"
+
+#: ieee.c:3049
+msgid "C++ static virtual method"
+msgstr "C++ static virtual メソッドです"
+
+#: ieee.c:3144
+msgid "unrecognized C++ object overhead spec"
+msgstr "C++ オブジェクトオーバーヘッド仕様を認識できません"
+
+#: ieee.c:3183
+msgid "undefined C++ vtable"
+msgstr "C++ 仮想関数テーブル(vtable) が定義されていません"
+
+#: ieee.c:3254
+msgid "C++ default values not in a function"
+msgstr "C++ デフォルト値が関数内にありません"
+
+#: ieee.c:3294
+msgid "unrecognized C++ default type"
+msgstr "認識できない C++ デフォルト型です"
+
+#: ieee.c:3325
+msgid "reference parameter is not a pointer"
+msgstr "参照パラメタがポインタではありません"
+
+#: ieee.c:3410
+msgid "unrecognized C++ reference type"
+msgstr "認識できない C++ 参照型です"
+
+#: ieee.c:3492
+msgid "C++ reference not found"
+msgstr "C++ 参照が見つかりません"
+
+#: ieee.c:3500
+msgid "C++ reference is not pointer"
+msgstr "C++ 参照がポインタではありません"
+
+#: ieee.c:3529 ieee.c:3537
+msgid "missing required ASN"
+msgstr "要求された ASN を欠いています"
+
+#: ieee.c:3567 ieee.c:3575
+msgid "missing required ATN65"
+msgstr "要求された ATN65 を欠いています"
+
+#: ieee.c:3589
+msgid "bad ATN65 record"
+msgstr "ATN65 レコードが不正です"
+
+#: ieee.c:4236
+msgid "IEEE numeric overflow: 0x"
+msgstr "IEEE 数値がオーバーフローしました: 0x"
+
+#: ieee.c:4282
+#, c-format
+msgid "IEEE string length overflow: %u\n"
+msgstr "IEEE 文字列長がオーバーフローしました: %u\n"
+
+#: ieee.c:5324
+#, c-format
+msgid "IEEE unsupported integer type size %u\n"
+msgstr "IEEE は整数型サイズ %u をサポートしていません\n"
+
+#: ieee.c:5360
+#, c-format
+msgid "IEEE unsupported float type size %u\n"
+msgstr "IEEE は浮動小数型サイズ %u をサポートしていません\n"
+
+#: ieee.c:5396
+#, c-format
+msgid "IEEE unsupported complex type size %u\n"
+msgstr "IEEE は複素数型サイズ %u をサポートしていません\n"
+
+#: nlmconv.c:275 srconv.c:1966
+msgid "input and output files must be different"
+msgstr "入力と出力は異なるファイルでなければなりません"
+
+#: nlmconv.c:322
+msgid "input file named both on command line and with INPUT"
+msgstr "入力ファイル名がコマンドラインと INPUT の両方で与えられました"
+
+#: nlmconv.c:331
+msgid "no input file"
+msgstr "入力ファイルがありません"
+
+#: nlmconv.c:361
+msgid "no name for output file"
+msgstr "出力ファイル用の名前がありません"
+
+#: nlmconv.c:374
+msgid "warning: input and output formats are not compatible"
+msgstr "警告: 入力と出力の形式に互換性がありません"
+
+#: nlmconv.c:403
+msgid "make .bss section"
+msgstr ".bss セクションの作成"
+
+#: nlmconv.c:412
+msgid "make .nlmsections section"
+msgstr ".nlmsections セクションの作成"
+
+#: nlmconv.c:414
+msgid "set .nlmsections flags"
+msgstr ".nlmsections フラグを設定"
+
+#: nlmconv.c:442
+msgid "set .bss vma"
+msgstr ".bss vma を設定"
+
+#: nlmconv.c:449
+msgid "set .data size"
+msgstr ".data size を設定"
+
+#: nlmconv.c:629
+#, c-format
+msgid "warning: symbol %s imported but not in import list"
+msgstr "警告: シンボル %s が import されましたが import リストにありません"
+
+#: nlmconv.c:649
+msgid "set start address"
+msgstr "開始アドレスを設定"
+
+#: nlmconv.c:698
+#, c-format
+msgid "warning: START procedure %s not defined"
+msgstr "警告: START プロシージャ %s が定義されていません"
+
+#: nlmconv.c:700
+#, c-format
+msgid "warning: EXIT procedure %s not defined"
+msgstr "警告: EXIT プロシージャ %s が定義されていません"
+
+#: nlmconv.c:702
+#, c-format
+msgid "warning: CHECK procedure %s not defined"
+msgstr "警告: CHECK プロシージャ %s が定義されていません"
+
+#: nlmconv.c:723 nlmconv.c:912
+msgid "custom section"
+msgstr "カスタムセクション"
+
+#: nlmconv.c:744 nlmconv.c:941
+msgid "help section"
+msgstr "ヘルプセクション"
+
+#: nlmconv.c:766 nlmconv.c:959
+msgid "message section"
+msgstr "メッセージセクション"
+
+#: nlmconv.c:782 nlmconv.c:992
+msgid "module section"
+msgstr "モジュールセクション"
+
+#: nlmconv.c:802 nlmconv.c:1008
+msgid "rpc section"
+msgstr "rpc セクション"
+
+#. There is no place to record this information.
+#: nlmconv.c:838
+#, c-format
+msgid "%s: warning: shared libraries can not have uninitialized data"
+msgstr "%s: 警告: 共有ライブラリは未初期化データを持つことができません"
+
+#: nlmconv.c:859 nlmconv.c:1027
+msgid "shared section"
+msgstr "共有セクション"
+
+#: nlmconv.c:867
+msgid "warning: No version number given"
+msgstr "警告: バージョン番号が与えられていません"
+
+#: nlmconv.c:907 nlmconv.c:936 nlmconv.c:954 nlmconv.c:1003 nlmconv.c:1022
+#, c-format
+msgid "%s: read: %s"
+msgstr "%s: 読込み: %s"
+
+#: nlmconv.c:929
+msgid "warning: MAP and FULLMAP are not supported; try ld -M"
+msgstr "警告: MAP と FULLMAP はサポートされません -- ld -M を試してください"
+
+#: nlmconv.c:1099
+#, c-format
+msgid "%s: Convert an object file into a NetWare Loadable Module\n"
+msgstr "%s: オブジェクトファイルを NetWare ローダブルモジュールに変換します\n"
+
+#: nlmconv.c:1111
+#, c-format
+msgid ""
+"Usage: %s [-dhV] [-I bfdname] [-O bfdname] [-T header-file] [-l linker]\n"
+"       [--input-target=bfdname] [--output-target=bfdname]\n"
+"       [--header-file=file] [--linker=linker] [--debug]\n"
+"       [--help] [--version]\n"
+"       [in-file [out-file]]\n"
+msgstr ""
+"Usage: %s [-dhV] [-I bfd名] [-O bfd名] [-T ヘッダファイル] [-l リンカ]\n"
+"       [--input-target=bfd名] [--output-target=bfd名]\n"
+"       [--header-file=ファイル] [--linker=リンカ] [--debug]\n"
+"       [--help] [--version]\n"
+"       [入力ファイル [出力ファイル]]\n"
+
+#: nlmconv.c:1151
+#, c-format
+msgid "support not compiled in for %s"
+msgstr "%s 用サポートはコンパイルされていません"
+
+#: nlmconv.c:1191
+msgid "make section"
+msgstr "make セクション"
+
+#: nlmconv.c:1205
+msgid "set section size"
+msgstr "セクションサイズを設定"
+
+#: nlmconv.c:1211
+msgid "set section alignment"
+msgstr "セクションアラインメントを設定"
+
+#: nlmconv.c:1215
+msgid "set section flags"
+msgstr "セクションフラグを設定"
+
+#: nlmconv.c:1226
+msgid "set .nlmsections size"
+msgstr ".nlmsections サイズを設定"
+
+#: nlmconv.c:1314 nlmconv.c:1322 nlmconv.c:1331 nlmconv.c:1336
+msgid "set .nlmsection contents"
+msgstr ".nlmsection の内容を設定"
+
+#: nlmconv.c:1839
+msgid "stub section sizes"
+msgstr "スタブセクションサイズ"
+
+#: nlmconv.c:1888
+msgid "writing stub"
+msgstr "スタブの書込み中"
+
+#: nlmconv.c:1978
+#, c-format
+msgid "unresolved PC relative reloc against %s"
+msgstr "%s に対する PC 関連再配置を解決できません"
+
+#: nlmconv.c:2042
+#, c-format
+msgid "overflow when adjusting relocation against %s"
+msgstr "%s に対する再配置を調整中にオーバーフローしました"
+
+#: nlmconv.c:2159
+#, c-format
+msgid "%s: execution of %s failed: "
+msgstr "%s: %s の実行が失敗しました: "
+
+#: nlmconv.c:2174
+#, c-format
+msgid "Execution of %s failed"
+msgstr "%s の実行が失敗しました"
+
+#: nm.c:294
+#, c-format
+msgid "Usage: %s [OPTION]... [FILE]...\n"
+msgstr "使い方: %s [オプション]... [ファイル]...\n"
+
+#: nm.c:295
+msgid "List symbols from FILEs (a.out by default).\n"
+msgstr "ファイル(デフォルトでは a.out)からシンボルをリスト表示します。\n"
+
+#: nm.c:296
+msgid ""
+"\n"
+"  -a, --debug-syms       Display debugger-only symbols\n"
+"  -A, --print-file-name  Print name of the input file before every symbol\n"
+"  -B                     Same as --format=bsd\n"
+"  -C, --demangle[=STYLE] Decode low-level symbol names into user-level names\n"
+"                          The STYLE, if specified, can be `auto' (the default),\n"
+"                          `gnu', 'lucid', 'arm', 'hp', 'edg' or 'gnu-new-abi'\n"
+"      --no-demangle      Do not demangle low-level symbol names\n"
+"  -D, --dynamic          Display dynamic symbols instead of normal symbols\n"
+"      --defined-only     Display only defined symbols\n"
+"  -e                     (ignored)\n"
+"  -f, --format=FORMAT    Use the output format FORMAT.  FORMAT can be `bsd',\n"
+"                           `sysv' or `posix'.  The default is `bsd'\n"
+"  -g, --extern-only      Display only external symbols\n"
+"  -h, --help             Display this information\n"
+"  -l, --line-numbers     Use debugging information to find a filename and\n"
+"                           line number for each symbol\n"
+"  -n, --numeric-sort     Sort symbols numerically by address\n"
+"  -o                     Same as -A\n"
+"  -p, --no-sort          Do not sort the symbols\n"
+"  -P, --portability      Same as --format=posix\n"
+"  -r, --reverse-sort     Reverse the sense of the sort\n"
+"  -s, --print-armap      Include index for symbols from archive members\n"
+"      --size-sort        Sort symbols by size\n"
+"  -t, --radix=RADIX      Use RADIX for printing symbol values\n"
+"      --target=BFDNAME   Specify the target object format as BFDNAME\n"
+"  -u, --undefined-only   Display only undefined symbols\n"
+"  -V, --version          Display this program's version number\n"
+"  -X 32_64               (ignored)\n"
+"\n"
+msgstr ""
+"\n"
+"  -a, --debug-syms       デバッグ専用シンボルを表示する\n"
+"  -A, --print-file-name  各シンボルの前に入力ファイル名を表示する\n"
+"  -B                     --format=bsd と同じ\n"
+"  -C, --demangle[=STYLE] 低位シンボル名をユーザレベル名に復元する\n"
+"                          STYLE に以下のものを指定できる -- `auto'(default),\n"
+"                          `gnu', 'lucid', 'arm', 'hp', 'edg', 'gnu-new-abi'\n"
+"      --no-demangle      低位シンボル名を復元しない\n"
+"  -D, --dynamic          通常シンボルではなく動的シンボルを表示する。\n"
+"      --defined-only     定義済シンボルのみを表示する\n"
+"  -e                     (無視される)\n"
+"  -f, --format=FORMAT    出力形式を FORMAT とする。FORMAT には `bsd',\n"
+"                           `sysv', `posix' を指定できる。デフォルトは `bsd'\n"
+"  -g, --extern-only      外部シンボルのみを表示する\n"
+"  -h, --help             この情報を表示する\n"
+"  -l, --line-numbers     各シンボルのデバッグ情報から、シンボルのファイル名と\n"
+"                           行番号を見つける\n"
+"  -n, --numeric-sort     アドレス値によってソートする\n"
+"  -o                     -A と同じ\n"
+"  -p, --no-sort          シンボルによるソートを行わない\n"
+"  -P, --portability      --format=posix と同じ\n"
+"  -r, --reverse-sort     ソート順を逆にする\n"
+"  -s, --print-armap      書庫メンバからのシンボル用の索引を含める\n"
+"      --size-sort        サイズによってソートする\n"
+"  -t, --radix=RADIX      シンボル値の表示基数に RADIX を使う\n"
+"      --target=BFDNAME   ターゲットオブジェクト形式を BFDNAME として指定する\n"
+"  -u, --undefined-only   未定義シンボルのみを表示する\n"
+"  -V, --version          このプログラムのバージョンを表示する\n"
+"  -X 32_64               (無視される)\n"
+"\n"
+
+#: nm.c:328 objdump.c:274
+#, c-format
+msgid "Report bugs to %s.\n"
+msgstr "バグ報告は %s まで。\n"
+
+#: nm.c:361
+#, c-format
+msgid "%s: invalid radix"
+msgstr "%s: 基数が不適切です"
+
+#: nm.c:386
+#, c-format
+msgid "%s: invalid output format"
+msgstr "%s: 出力形式が不適切です"
+
+#: nm.c:493
+msgid "Only -X 32_64 is supported"
+msgstr "-X 32_64 しかサポートされません"
+
+#: nm.c:535
+#, c-format
+msgid "data size %ld"
+msgstr "データサイズ %ld"
+
+#: nm.c:1325
+#, c-format
+msgid "\n\nUndefined symbols from %s:\n\n"
+msgstr "\n\n%s からの未定義シンボル:\n\n"
+
+#: nm.c:1327
+#, c-format
+msgid "\n\nSymbols from %s:\n\n"
+msgstr "\n\n%s からのシンボル:\n\n"
+
+#: nm.c:1328 nm.c:1382
+msgid "Name                  Value   Class        Type         Size   Line  Section\n\n"
+msgstr "名前                  値      クラス       型         サイズ     行 セクション\n\n"
+
+#: nm.c:1379
+#, c-format
+msgid "\n\nUndefined symbols from %s[%s]:\n\n"
+msgstr "\n\n%s[%s] からの未定義シンボル:\n\n"
+
+#: nm.c:1381
+#, c-format
+msgid "\n\nSymbols from %s[%s]:\n\n"
+msgstr "\n\n%s[%s] からのシンボル:\n\n"
+
+#: nm.c:1552
+msgid "\nArchive index:\n"
+msgstr "\n書庫インデックス:\n"
+
+#: objcopy.c:322
+#, c-format
+msgid "Usage: %s <switches> in-file [out-file]\n"
+msgstr "使い方: %s <スイッチ> 入力ファイル [出力ファイル]\n"
+
+#: objcopy.c:323 objcopy.c:383
+msgid " The switches are:\n"
+msgstr " スイッチは以下の通り:\n"
+
+#: objcopy.c:324
+msgid ""
+"  -I --input-target <bfdname>      Assume input file is in format <bfdname>\n"
+"  -O --output-target <bfdname>     Create an output file in format <bfdname>\n"
+"  -F --target <bfdname>            Set both input and output format to <bfdname>\n"
+"     --debugging                   Convert debugging information, if possible\n"
+"  -p --preserve-dates              Copy modified/access timestamps to the output\n"
+"  -j --only-section <name>         Only copy section <name> into the output\n"
+"  -R --remove-section <name>       Remove section <name> from the output\n"
+"  -S --strip-all                   Remove all symbol and relocation information\n"
+"  -g --strip-debug                 Remove all debugging symbols\n"
+"     --strip-unneeded              Remove all symbols not needed by relocations\n"
+"  -N --strip-symbol <name>         Do not copy symbol <name>\n"
+"  -K --keep-symbol <name>          Only copy symbol <name>\n"
+"  -L --localize-symbol <name>      Force symbol <name> to be marked as a local\n"
+"  -W --weaken-symbol <name>        Force symbol <name> to be marked as a weak\n"
+"     --weaken                      Force all global symbols to be marked as weak\n"
+"  -x --discard-all                 Remove all non-global symbols\n"
+"  -X --discard-locals              Remove any compiler-generated symbols\n"
+"  -i --interleave <number>         Only copy one out of every <number> bytes\n"
+"  -b --byte <num>                  Select byte <num> in every interleaved block\n"
+"     --gap-fill <val>              Fill gaps between sections with <val>\n"
+"     --pad-to <addr>               Pad the last section up to address <addr>\n"
+"     --set-start <addr>            Set the start address to <addr>\n"
+"    {--change-start|--adjust-start} <incr>\n"
+"                                   Add <incr> to the start address\n"
+"    {--change-addresses|--adjust-vma} <incr>\n"
+"                                   Add <incr> to LMA, VMA and start addresses\n"
+"    {--change-section-address|--adjust-section-vma} <name>{=|+|-}<val>\n"
+"                                   Change LMA and VMA of section <name> by <val>\n"
+"     --change-section-lma <name>{=|+|-}<val>\n"
+"                                   Change the LMA of section <name> by <val>\n"
+"     --change-section-vma <name>{=|+|-}<val>\n"
+"                                   Change the VMA of section <name> by <val>\n"
+"    {--[no-]change-warnings|--[no-]adjust-warnings}\n"
+"                                   Warn if a named section does not exist\n"
+"     --set-section-flags <name>=<flags>\n"
+"                                   Set section <name>'s properties to <flags>\n"
+"     --add-section <name>=<file>   Add section <name> found in <file> to output\n"
+"     --change-leading-char         Force output format's leading character style\n"
+"     --remove-leading-char         Remove leading character from global symbols\n"
+"     --redefine-sym <old>=<new>    Redefine symbol name <old> to <new>\n"
+"     --srec-len <number>           Restrict the length of generated Srecords\n"
+"     --srec-forceS3                Restrict the type of generated Srecords to S3\n"
+"  -v --verbose                     List all object files modified\n"
+"  -V --version                     Display this program's version number\n"
+"  -h --help                        Display this output\n"
+msgstr ""
+"  -I --input-target <bfd名>        入力ファイルを <bfd名> 形式をとみなす\n"
+"  -O --output-target <bfd名>       出力形式を <bfd名> として作成する\n"
+"  -F --target <bfd名>              入力・出力両方に <bfd名> 形式を使用する\n"
+"     --debugging                   可能であればデバッグ情報を変換する\n"
+"  -p --preserve-dates              修正/アクセス時刻情報を出力にコピーする\n"
+"  -j --only-section <名前>         <名前> のセクションだけを出力する\n"
+"  -R --remove-section <名前>       <名前> のセクションを出力から取り除く\n"
+"  -S --strip-all                   全てのシンボル及び再配置情報を取り除く\n"
+"  -g --strip-debug                 全てのデバッグシンボルを取り除く\n"
+"     --strip-unneeded              再配置に必要なシンボル以外を全て取り除く\n"
+"  -N --strip-symbol <名前>         <名前> のシンボルをコピーしない\n"
+"  -K --keep-symbol <名前>          <名前> のシンボルをコピーする\n"
+"  -L --localize-symbol <名前>      <名前> のシンボルに local マークをつける\n"
+"  -W --weaken-symbol <名前>        <名前> のシンボルに weak マークをつける\n"
+"     --weaken                      全ての大域シンボルに weak マークをつける\n"
+"  -x --discard-all                 全ての非大域シンボルを取り除く\n"
+"  -X --discard-locals              ある種のコンパイラ生成シンボルを取り除く\n"
+"  -i --interleave <数値>           <数値> バイト分ごとにコピーする\n"
+"  -b --byte <数値>                 各 interleave ブロックでのバイト数を選択\n"
+"     --gap-fill <値>               セクション間の隙間を <値> で埋める\n"
+"     --pad-to <アドレス>           直前のセクションから <アドレス> まで埋める\n"
+"     --set-start <アドレス>        開始アドレスを <アドレス> に設定する\n"
+"    {--change-start|--adjust-start} <増分>\n"
+"                                   開始アドレスに <増分> 加える\n"
+"    {--change-addresses|--adjust-vma} <増分>\n"
+"                                   LMA, VMA 及び開始アドレスに <増分> 加える\n"
+"    {--change-section-address|--adjust-section-vma} <名前>{=|+|-}<値>\n"
+"                                   セクション<名前>の LMA,  VMA を<値>に変更\n"
+"     --change-section-lma <name>{=|+|-}<val>\n"
+"                                   セクション <名前> の LMA を <値> に変更\n"
+"     --change-section-vma <name>{=|+|-}<val>\n"
+"                                   セクション <名前> の VMA を <値> に変更\n"
+"    {--[no-]change-warnings|--[no-]adjust-warnings}\n"
+"                                   名前付きセクションが無ければ警告する\n"
+"     --set-section-flags <名前>=<フラグ>\n"
+"                                   セクション<名前> の特質を <フラグ> に設定\n"
+"     --add-section <name>=<file>   セクション<名前> を出力<ファイル>に追加\n"
+"     --change-leading-char         出力形式の先頭文字方式を強制する\n"
+"     --remove-leading-char         大域シンボルから先頭文字を取り除く\n"
+"     --redefine-sym <旧>=<新>      シンボル名 <旧> を <新> に再定義する\n"
+"     --srec-len <数値>             生成される Sレコード長を厳密に<数値>とする\n"
+"     --srec-forceS3                生成される S3 用 Sレコード型を厳密にする\n"
+"  -v --verbose                     修正された全オブジェクトファイルをリスト\n"
+"  -V --version                     このプログラムのバージョン番号を表示する\n"
+"  -h --help                        この使い方を表示する\n"
+
+#: objcopy.c:382
+#, c-format
+msgid "Usage: %s <switches> in-file(s)\n"
+msgstr "使い方: %s <スイッチ> 入力ファイル...\n"
+
+#: objcopy.c:384
+msgid ""
+"  -I --input-target <bfdname>      Assume input file is in format <bfdname>\n"
+"  -O --output-target <bfdname>     Create an output file in format <bfdname>\n"
+"  -F --target <bfdname>            Set both input and output format to <bfdname>\n"
+"  -p --preserve-dates              Copy modified/access timestamps to the output\n"
+"  -R --remove-section <name>       Remove section <name> from the output\n"
+"  -s --strip-all                   Remove all symbol and relocation information\n"
+"  -g -S --strip-debug              Remove all debugging symbols\n"
+"     --strip-unneeded              Remove all symbols not needed by relocations\n"
+"  -N --strip-symbol <name>         Do not copy symbol <name>\n"
+"  -K --keep-symbol <name>          Only copy symbol <name>\n"
+"  -x --discard-all                 Remove all non-global symbols\n"
+"  -X --discard-locals              Remove any compiler-generated symbols\n"
+"  -v --verbose                     List all object files modified\n"
+"  -V --version                     Display this program's version number\n"
+"  -h --help                        Display this output\n"
+"  -o <file>                        Place stripped output into <file>\n"
+msgstr ""
+"  -I --input-target <bfd名>        入力ファイルを <bfd名> 形式とみなす\n"
+"  -O --output-target <bfd名>       出力を <bfd名> 形式で作成する\n"
+"  -F --target <bfd名>              入力・出力両方に <bfd名> 形式を使用する\n"
+"  -p --preserve-dates              修正/アクセス時刻情報を出力にコピーする\n"
+"  -R --remove-section <名前>       <名前> のセクションを出力から取り除く\n"
+"  -s --strip-all                   全てのシンボル及び再配置情報を取り除く\n"
+"  -g -S --strip-debug              全てのデバッグシンボルを取り除く\n"
+"     --strip-unneeded              再配置に必要なシンボル以外を全て取り除く \n"
+"  -N --strip-symbol <名前>         <名前> のシンボルをコピーしない\n"
+"  -K --keep-symbol <名前>          <名前> のシンボルをコピーする\n"
+"  -x --discard-all                 全ての非大域シンボルを取り除く\n"
+"  -X --discard-locals              ある種のコンパイラ生成シンボルを取り除く\n"
+"  -v --verbose                     修正された全オブジェクトファイルをリスト\n"
+"  -V --version                     このプログラムのバージョン番号を表示する\n"
+"  -h --help                        この使い方を表示する\n"
+"  -o <ファイル>                    strip 済出力を <ファイル> に書き込む\n"
+
+#: objcopy.c:454
+#, c-format
+msgid "unrecognized section flag `%s'"
+msgstr "セクションフラグ `%s' を認識できません"
+
+#: objcopy.c:455
+#, c-format
+msgid "supported flags: %s"
+msgstr "サポートされるフラグ: %s"
+
+#: objcopy.c:712
+#, c-format
+msgid "%s: Multiple redefinition of symbol \"%s\""
+msgstr "%s: シンボル \"%s\" の再定義です"
+
+#: objcopy.c:719
+#, c-format
+msgid "%s: Symbol \"%s\" is target of more than one redefinition"
+msgstr "%s: シンボル \"%s\" 何度か再定義されたターゲットです"
+
+#: objcopy.c:773
+#, c-format
+msgid "copy from %s(%s) to %s(%s)\n"
+msgstr "%s(%s) から %s(%s) へコピーします\n"
+
+#: objcopy.c:792
+#, c-format
+msgid "Warning: Output file cannot represent architecture %s"
+msgstr "警告: 出力ファイルがアーキテクチャ %s に対応していません"
+
+#: objcopy.c:819
+#, c-format
+msgid "can't create section `%s': %s"
+msgstr "セクション `%s' を作成できません: %s"
+
+#: objcopy.c:905
+#, c-format
+msgid "Can't fill gap after %s: %s"
+msgstr "%s 以降の隙間を埋められません: %s"
+
+#: objcopy.c:930
+#, c-format
+msgid "Can't add padding to %s: %s"
+msgstr "%s にパディングできません: %s"
+
+#: objcopy.c:1068
+#, c-format
+msgid "%s: error copying private BFD data: %s"
+msgstr "%s: プライベート BFD データコピー中のエラー: %s"
+
+#: objcopy.c:1102
+#, c-format
+msgid "cannot mkdir %s for archive copying (error: %s)"
+msgstr "書庫コピーの為の mkdir %s ができません (エラー: %s)"
+
+#: objcopy.c:1291
+msgid "making"
+msgstr "作成中"
+
+#: objcopy.c:1300
+msgid "size"
+msgstr "サイズ"
+
+#: objcopy.c:1314
+msgid "vma"
+msgstr "vma "
+
+#: objcopy.c:1340
+msgid "alignment"
+msgstr "アラインメント"
+
+#: objcopy.c:1349
+msgid "flags"
+msgstr "フラグ"
+
+#: objcopy.c:1363
+msgid "private data"
+msgstr "プライベートデータ"
+
+#: objcopy.c:1371
+#, c-format
+msgid "%s: section `%s': error in %s: %s"
+msgstr "%s: セクション `%s': %sのエラー: %s"
+
+#: objcopy.c:1645
+#, c-format
+msgid "%s: can't create debugging section: %s"
+msgstr "%s: デバッグセクションを作成できません: %s"
+
+#: objcopy.c:1660
+#, c-format
+msgid "%s: can't set debugging section contents: %s"
+msgstr "%s: デバッグセクションの内容を設定できません: %s"
+
+#: objcopy.c:1669
+#, c-format
+msgid "%s: don't know how to write debugging information for %s"
+msgstr "%s: %s 用デバッグ情報の書き方が解りません"
+
+#: objcopy.c:1775
+#, c-format
+msgid "%s: cannot stat: %s"
+msgstr "%s: stat(2) ができません: %s"
+
+#: objcopy.c:1825
+msgid "byte number must be non-negative"
+msgstr "バイト数は非負でなければなりません"
+
+#: objcopy.c:1831
+msgid "interleave must be positive"
+msgstr "interleave は正の数値でなければなりません"
+
+#: objcopy.c:1851 objcopy.c:1859
+#, c-format
+msgid "%s both copied and removed"
+msgstr "%s コピーと削除の両方が指定されました"
+
+#: objcopy.c:1928 objcopy.c:1998 objcopy.c:2099 objcopy.c:2127
+#, c-format
+msgid "bad format for %s"
+msgstr "%s 用としては不正な形式です"
+
+#: objcopy.c:1931
+#, c-format
+msgid "cannot stat: %s: %s"
+msgstr "stat(2) できません: %s: %s"
+
+#: objcopy.c:1949
+#, c-format
+msgid "cannot open: %s: %s"
+msgstr "open できません: %s: %s"
+
+#: objcopy.c:1953
+#, c-format
+msgid "%s: fread failed"
+msgstr "%s: fread(3) が失敗しました"
+
+#: objcopy.c:2067
+#, c-format
+msgid "Warning: truncating gap-fill from 0x%s to 0x%x"
+msgstr "警告: 0x%s から 0x%x までの隙間の埋め込みを切り詰めます"
+
+#: objcopy.c:2169
+msgid "byte number must be less than interleave"
+msgstr "バイト数は interleave 未満でなければなりません"
+
+#: objcopy.c:2188
+#, c-format
+msgid "Cannot stat: %s: %s"
+msgstr "stat(2) できません: %s: %s"
+
+#: objcopy.c:2228 objcopy.c:2242
+#, c-format
+msgid "%s %s%c0x%s never used"
+msgstr "%s %s%c0x%s は使われることがありません"
+
+#: objdump.c:223
+#, c-format
+msgid "Usage: %s OPTION... FILE...\n"
+msgstr "使い方: %s オプション... ファイル...\n"
+
+#: objdump.c:224
+msgid "Display information from object FILE.\n"
+msgstr "オブジェクトファイルからの情報を表示する。\n"
+
+#: objdump.c:225
+msgid "\n At least one of the following switches must be given:\n"
+msgstr "\n 以下のスイッチから少なくとも一つは指定されなければなりません:\n"
+
+#: objdump.c:226
+msgid ""
+"  -a, --archive-headers    Display archive header information\n"
+"  -f, --file-headers       Display the contents of the overall file header\n"
+"  -p, --private-headers    Display object format specific file header contents\n"
+"  -h, --[section-]headers  Display the contents of the section headers\n"
+"  -x, --all-headers        Display the contents of all headers\n"
+"  -d, --disassemble        Display assembler contents of executable sections\n"
+"  -D, --disassemble-all    Display assembler contents of all sections\n"
+"  -S, --source             Intermix source code with disassembly\n"
+"  -s, --full-contents      Display the full contents of all sections requested\n"
+"  -g, --debugging          Display debug information in object file\n"
+"  -G, --stabs              Display (in raw form) any STABS info in the file\n"
+"  -t, --syms               Display the contents of the symbol table(s)\n"
+"  -T, --dynamic-syms       Display the contents of the dynamic symbol table\n"
+"  -r, --reloc              Display the relocation entries in the file\n"
+"  -R, --dynamic-reloc      Display the dynamic relocation entries in the file\n"
+"  -V, --version            Display this program's version number\n"
+"  -i, --info               List object formats and architectures supported\n"
+"  -H, --help               Display this information\n"
+msgstr ""
+"  -a, --archive-headers    書庫ヘッダ情報を表示する\n"
+"  -f, --file-headers       ファイルヘッダ全体の情報を表示する\n"
+"  -p, --private-headers    オブジェクト形式特有のファイルヘッダ内容を表示する\n"
+"  -h, --[section-]headers  セクションヘッダの内容を表示する\n"
+"  -x, --all-headers        全ヘッダの内容を表示する\n"
+"  -d, --disassemble        executable セクションの内容をアセンブリ形式表示\n"
+"  -D, --disassemble-all    全セクションの内容をアセンブリ形式表示\n"
+"  -S, --source             逆アセンブルとソースコードを混在させて表示する\n"
+"  -s, --full-contents      要求された全セクションの全ての内容を表示する\n"
+"  -g, --debugging          オブジェクトファイルのデバッグ情報を表示\n"
+"  -G, --stabs              ファイルの STABS 情報を素の形式で表示する\n"
+"  -t, --syms               シンボルテーブルの内容を表示する\n"
+"  -T, --dynamic-syms       動的シンボルテーブルの内容を表示する\n"
+"  -r, --reloc              ファイルの再配置エントリを表示する\n"
+"  -R, --dynamic-reloc      ファイルの動的再配置エントリを表示する\n"
+"  -V, --version            このプログラムのバージョン番号を表示する\n"
+"  -i, --info               サポートされるオブジェクト形式とアーキテクチャを表示\n"
+"  -H, --help               この情報を表示する\n"
+
+#: objdump.c:248
+msgid "\n The following switches are optional:\n"
+msgstr "\n 以下のスイッチはオプションです:\n"
+
+#: objdump.c:249
+msgid ""
+"  -b, --target=BFDNAME           Specify the target object format as BFDNAME\n"
+"  -m, --architecture=MACHINE     Specify the target architecture as MACHINE\n"
+"  -j, --section=NAME             Only display information for section NAME\n"
+"  -M, --disassembler-options=OPT Pass text OPT on to the disassembler\n"
+"  -EB --endian=big               Assume big endian format when disassembling\n"
+"  -EL --endian=little            Assume little endian format when disassembling\n"
+"      --file-start-context       Include context from start of file (with -S)\n"
+"  -l, --line-numbers             Include line numbers and filenames in output\n"
+"  -C, --demangle[=STYLE]         Decode mangled/processed symbol names\n"
+"                                  The STYLE, if specified, can be `auto', 'gnu',\n"
+"                                  'lucid', 'arm', 'hp', 'edg', or 'gnu-new-abi'\n"
+"  -w, --wide                     Format output for more than 80 columns\n"
+"  -z, --disassemble-zeroes       Do not skip blocks of zeroes when disassembling\n"
+"      --start-address=ADDR       Only process data whoes address is >= ADDR\n"
+"      --stop-address=ADDR        Only process data whoes address is <= ADDR\n"
+"      --prefix-addresses         Print complete address alongside disassembly\n"
+"      --[no-]show-raw-insn       Display hex alongside symbolic disassembly\n"
+"      --adjust-vma=OFFSET        Add OFFSET to all displayed section addresses\n"
+"\n"
+msgstr ""
+"  -b, --target=BFDNAME           ターゲットオブジェクト形式を BFDNAME と指定\n"
+"  -m, --architecture=MACHINE     ターゲットアーキテクチャを MACHINE と指定\n"
+"  -j, --section=NAME             セクション NAME の情報だけを表示する\n"
+"  -M, --disassembler-options=OPT 逆アセンブラに OPT 文字列を渡す\n"
+"  -EB --endian=big               逆アセンブル時にビッグエンディアン形式とする\n"
+"  -EL --endian=little            逆アセンブル時にリトルエンディアン形式とする\n"
+"      --file-start-context       ファイル始点からの文脈を含める(-S と共に使用)\n"
+"  -l, --line-numbers             出力に行番号とファイル名を含める\n"
+"  -C, --demangle[=STYLE]         変形/処理されたシンボル名を復元(demangle)する\n"
+"                                  STYLE を指定する場合 `auto', 'gnu', 'lucid',\n"
+"                                  'arm', 'hp', 'edg', or 'gnu-new-abi'\n"
+"  -w, --wide                     出力幅 80 桁以上で出力を整形する\n"
+"  -z, --disassemble-zeroes       逆アセンブル時にゼロのブロックを飛ばさない\n"
+"      --start-address=ADDR       ADDR 以上のアドレスだけを処理する\n"
+"      --stop-address=ADDR        ADDR 以下のアドレスだけを処理する\n"
+"      --prefix-addresses         逆アセンブル結果の側に完全アドレスを表示する\n"
+"      --[no-]show-raw-insn       逆アセンブル命令名の側に 16 進数コードも表示\n"
+"      --adjust-vma=OFFSET        全てのセクションアドレスに OFFSET を加算する\n"
+"\n"
+
+#: objdump.c:419
+msgid "Sections:\n"
+msgstr "セクション:\n"
+
+#: objdump.c:422
+msgid "Idx Name          Size      VMA       LMA       File off  Algn"
+msgstr "索引名          サイズ      VMA       LMA       File off  Algn"
+
+#: objdump.c:424
+msgid "Idx Name          Size      VMA               LMA               File off  Algn"
+msgstr "索引名          サイズ      VMA               LMA               File off  Algn"
+
+#: objdump.c:428
+msgid "  Flags"
+msgstr " フラグ"
+
+#: objdump.c:478
+#, c-format
+msgid "%s: not a dynamic object"
+msgstr "%s: 動的オブジェクトではありません"
+
+#: objdump.c:494
+#, c-format
+msgid "%s: No dynamic symbols"
+msgstr "%s: 動的シンボルはありません"
+
+#: objdump.c:1197
+msgid "Out of virtual memory"
+msgstr "仮想メモリが足りません"
+
+#: objdump.c:1616
+#, c-format
+msgid "Can't use supplied machine %s"
+msgstr "与えられたマシン %s を使えません"
+
+#: objdump.c:1634
+#, c-format
+msgid "Can't disassemble for architecture %s\n"
+msgstr "%s アーキテクチャ用には逆アセンブルできません\n"
+
+#: objdump.c:1716
+#, c-format
+msgid "Disassembly of section %s:\n"
+msgstr "セクション %s の逆アセンブル:\n"
+
+#: objdump.c:1890
+#, c-format
+msgid "No %s section present\n\n"
+msgstr "%s セクションがありません\n\n"
+
+#: objdump.c:1897
+#, c-format
+msgid "%s has no %s section"
+msgstr "%s には %s セクションがありません"
+
+#: objdump.c:1911
+#, c-format
+msgid "Reading %s section of %s failed: %s"
+msgstr "%s セクション (%s) 読込みに失敗しました: %s"
+
+#: objdump.c:1923
+#, c-format
+msgid "Reading %s section of %s failed: %s\n"
+msgstr "%s セクション (%s) 読込みに失敗しました: %s\n"
+
+#: objdump.c:1966
+#, c-format
+msgid "Contents of %s section:\n\n"
+msgstr "%s セクションの内容:\n\n"
+
+#: objdump.c:2066
+#, c-format
+msgid "architecture: %s, "
+msgstr "アーキテクチャ: %s, "
+
+#: objdump.c:2069
+#, c-format
+msgid "flags 0x%08x:\n"
+msgstr "フラグ 0x%08x:\n"
+
+#: objdump.c:2082
+msgid "\nstart address 0x"
+msgstr "\n開始アドレス 0x"
+
+#: objdump.c:2114
+#, c-format
+msgid "\n%s:     file format %s\n"
+msgstr "\n%s:     ファイル形式 %s\n"
+
+#: objdump.c:2156
+#, c-format
+msgid "%s: printing debugging information failed"
+msgstr "%s: デバッグ情報の出力に失敗しました"
+
+#: objdump.c:2233
+#, c-format
+msgid "In archive %s:\n"
+msgstr "書庫 %s 内:\n"
+
+#: objdump.c:2285
+#, c-format
+msgid "Contents of section %s:\n"
+msgstr "セクション %s の内容:\n"
+
+#: objdump.c:2798
+#, c-format
+msgid "BFD header file version %s\n"
+msgstr "BFD ヘッダファイルバージョン %s\n"
+
+#: objdump.c:2882
+msgid "unrecognized -E option"
+msgstr "-E のオプションを認識できません"
+
+#: objdump.c:2893
+#, c-format
+msgid "unrecognized --endian type `%s'"
+msgstr "--endian タイプ `%s' を認識できません"
+
+#: rdcoff.c:205
+#, c-format
+msgid "parse_coff_type: Bad type code 0x%x"
+msgstr "parse_coff_type: 不正なタイプコード 0x%x"
+
+#: rdcoff.c:423 rdcoff.c:531 rdcoff.c:730
+#, c-format
+msgid "bfd_coff_get_syment failed: %s"
+msgstr "bfd_coff_get_syment が失敗しました: %s"
+
+#: rdcoff.c:439 rdcoff.c:750
+#, c-format
+msgid "bfd_coff_get_auxent failed: %s"
+msgstr "bfd_coff_get_auxent が失敗しました: %s"
+
+#: rdcoff.c:817
+#, c-format
+msgid "%ld: .bf without preceding function"
+msgstr "%ld: 前方に関数がない .bf があります"
+
+#: rdcoff.c:867
+#, c-format
+msgid "%ld: unexpected .ef\n"
+msgstr "%ld: 予期しない .ef です\n"
+
+#: rddbg.c:87
+#, c-format
+msgid "%s: no recognized debugging information"
+msgstr "%s: 認識されたデバッグ情報はありません"
+
+#: rddbg.c:410
+msgid "Last stabs entries before error:\n"
+msgstr "エラーの直前のスタブエントリ:\n"
+
+#: readelf.c:260
+#, c-format
+msgid "Unable to seek to start of %s at %x\n"
+msgstr "%s の始点へ seek できません(%x)\n"
+
+#: readelf.c:268
+#, c-format
+msgid "Out of memory allocating %d bytes for %s\n"
+msgstr "%d バイトのメモリ確保ができません (%s)\n"
+
+#: readelf.c:274
+#, c-format
+msgid "Unable to read in %d bytes of %s\n"
+msgstr "%d バイトの読込みに失敗 (%s)\n"
+
+#: readelf.c:284
+#, c-format
+msgid "Unable to seek to %x for %s\n"
+msgstr "%x へ seek できません (%s)\n"
+
+#: readelf.c:289
+#, c-format
+msgid "Unable to read data at %x for %s\n"
+msgstr "%x でのデータよ見込みができません (%s)\n"
+
+#: readelf.c:304 readelf.c:330
+#, c-format
+msgid "%s: Error: "
+msgstr "%s: エラー: "
+
+#: readelf.c:316 readelf.c:345
+#, c-format
+msgid "%s: Warning: "
+msgstr "%s: 警告: "
+
+#: readelf.c:395 readelf.c:533
+#, c-format
+msgid "Unhandled data length: %d\n"
+msgstr "取り扱われなかったデータ長: %d\n"
+
+#: readelf.c:597
+msgid "Don't know about relocations on this machine architecture\n"
+msgstr "このマシンアーキテクチャでの再配置について解っていません\n"
+
+#: readelf.c:637 readelf.c:666 readelf.c:698 readelf.c:726
+msgid "out of memory parsing relocs"
+msgstr "再配置データ解析中にメモリ不足に陥りました"
+
+#: readelf.c:744
+msgid "  Offset    Info  Type            Symbol's Value  Symbol's Name          Addend\n"
+msgstr "  Offset    情報  タイプ          シンボルの値    シンボル名             Addend\n"
+
+#: readelf.c:747
+msgid "  Offset    Info  Type            Symbol's Value  Symbol's Name\n"
+msgstr "  Offset    情報  タイプ          シンボルの値     シンボル名\n"
+
+#: readelf.c:907 readelf.c:909
+#, c-format
+msgid "unrecognised: %-7lx"
+msgstr "認識できません: %-7lx"
+
+#: readelf.c:934
+#, c-format
+msgid "<string table index %3ld>"
+msgstr "<文字列テーブルの索引 %3ld>"
+
+#: readelf.c:1147
+#, c-format
+msgid "Processor Specific: %lx"
+msgstr "プロセッサ固有: %lx"
+
+#: readelf.c:1166
+#, c-format
+msgid "Operating System specific: %lx"
+msgstr "オペレーティングシステム固有: %lx"
+
+#: readelf.c:1169 readelf.c:1677
+#, c-format
+msgid "<unknown>: %lx"
+msgstr "<不明>: %lx"
+
+#: readelf.c:1183
+msgid "NONE (None)"
+msgstr "NONE (無し)"
+
+#: readelf.c:1184
+msgid "REL (Relocatable file)"
+msgstr "REL (再配置可能ファイル)"
+
+#: readelf.c:1185
+msgid "EXEC (Executable file)"
+msgstr "EXEC (実行可能ファイル)"
+
+#: readelf.c:1186
+msgid "DYN (Shared object file)"
+msgstr "DYN (共有オブジェクトファイル)"
+
+#: readelf.c:1187
+msgid "CORE (Core file)"
+msgstr "CORE (コアファイル)"
+
+#: readelf.c:1191
+#, c-format
+msgid "Processor Specific: (%x)"
+msgstr "プロセッサ固有: (%x)"
+
+#: readelf.c:1193
+#, c-format
+msgid "OS Specific: (%x)"
+msgstr "OS 固有: (%x)"
+
+#: readelf.c:1195 readelf.c:1281 readelf.c:1811
+#, c-format
+msgid "<unknown>: %x"
+msgstr "<不明>: %x"
+
+#: readelf.c:1208
+msgid "None"
+msgstr "なし"
+
+#: readelf.c:1849
+msgid "Usage: readelf {options} elf-file(s)\n"
+msgstr "使い方: readelf {オプション} elfファイル\n"
+
+#: readelf.c:1850
+msgid "  Options are:\n"
+msgstr "  オプション:\n"
+
+#: readelf.c:1851
+msgid "  -a or --all               Equivalent to: -h -l -S -s -r -d -V -A -I\n"
+msgstr "  -a 又は --all             -h -l -S -s -r -d -V -A -I と同じ\n"
+
+#: readelf.c:1852
+msgid "  -h or --file-header       Display the ELF file header\n"
+msgstr "  -h 又は --file-header     ELF ファイルヘッダを表示する\n"
+
+#: readelf.c:1853
+msgid "  -l or --program-headers or --segments\n"
+msgstr "  -l 又は --program-headers 又は --segments\n"
+
+#: readelf.c:1854
+msgid "                            Display the program headers\n"
+msgstr "                            プログラムヘッダを表示する\n"
+
+#: readelf.c:1855
+msgid "  -S or --section-headers or --sections\n"
+msgstr "  -S 又は --section-headers 又は --sections\n"
+
+#: readelf.c:1856
+msgid "                            Display the sections' header\n"
+msgstr "                            セクションのヘッダを表示する\n"
+
+#: readelf.c:1857
+msgid "  -e or --headers           Equivalent to: -h -l -S\n"
+msgstr "  -e 又は --headers         -h -l -S と同じ\n"
+
+#: readelf.c:1858
+msgid "  -s or --syms or --symbols Display the symbol table\n"
+msgstr "  -s 又は --syms 又は --symbols    シンボルテーブルを表示する\n"
+
+#: readelf.c:1859
+msgid "  -n or --notes             Display the core notes (if present)\n"
+msgstr "  -n 又は --notes           コア note セグメントがあれば表示する\n"
+
+#: readelf.c:1860
+msgid "  -r or --relocs            Display the relocations (if present)\n"
+msgstr "  -r 又は --relocs          再配置セクションがあれば表示する\n"
+
+#: readelf.c:1861
+msgid "  -d or --dynamic           Display the dynamic segment (if present)\n"
+msgstr "  -d 又は --dynamic         動的セグメントがあれば表示する\n"
+
+#: readelf.c:1862
+msgid "  -V or --version-info      Display the version sections (if present)\n"
+msgstr "  -V 又は --version-info    バージョンセクションがあれば表示する\n"
+
+#: readelf.c:1863
+msgid "  -A or --arch-specific     Display architecture specific information (if any).\n"
+msgstr "  -A 又は --arch-specific   アーキテクチャ固有情報があれば表示する\n"
+
+#: readelf.c:1864
+msgid "  -D or --use-dynamic       Use the dynamic section info when displaying symbols\n"
+msgstr "  -D 又は --use-dynamic     シンボル表示に動的セクション情報を使用する\n"
+
+#: readelf.c:1865
+msgid "  -x <number> or --hex-dump=<number>\n"
+msgstr "  -x <番号> 又は --hex-dump=<番号>\n"
+
+#: readelf.c:1866
+msgid "                            Dump the contents of section <number>\n"
+msgstr "                            セクション <番号> の内容をダンプする\n"
+
+#: readelf.c:1867
+msgid "  -w[liaprf] or --debug-dump[=line,=info,=abbrev,=pubnames,=ranges,=frames]\n"
+msgstr "  -w[liaprf] 又は --debug-dump[=line,=info,=abbrev,=pubnames,=ranges,=frames]\n"
+
+#: readelf.c:1868
+msgid "                            Display the contents of DWARF2 debug sections\n"
+msgstr "                            DWARF2 デバッグセクションの内容を表示する\n"
+
+#: readelf.c:1870
+msgid "  -i <number> or --instruction-dump=<number>\n"
+msgstr "  -i <番号> or --instruction-dump=<番号>\n"
+
+#: readelf.c:1871
+msgid "                            Disassemble the contents of section <number>\n"
+msgstr "                            セクション <番号> の内容を逆アセンブルする\n"
+
+#: readelf.c:1873
+msgid "  -I or --histogram         Display histogram of bucket list lengths\n"
+msgstr "  -I 又は --histogram       バケットリスト長の度数分布を表示する\n"
+
+#: readelf.c:1874
+msgid "  -v or --version           Display the version number of readelf\n"
+msgstr "  -v 又は --version         readelf のバージョン番号を表示する\n"
+
+#: readelf.c:1875
+msgid "  -H or --help              Display this information\n"
+msgstr "  -H 又は --help            この使い方を表示する\n"
+
+#: readelf.c:1893
+msgid "Out of memory allocating dump request table."
+msgstr "要求されたテーブルのダンプ中にメモリ確保が失敗しました。"
+
+#: readelf.c:2033
+#, c-format
+msgid "Unrecognised debug option '%s'\n"
+msgstr "デバッグオプション '%s' を認識できません\n"
+
+#: readelf.c:2058
+#, c-format
+msgid "Invalid option '-%c'\n"
+msgstr "オプション '-%c' が不適切です\n"
+
+#: readelf.c:2071
+msgid "Nothing to do.\n"
+msgstr "行なうべき事はありません。\n"
+
+#: readelf.c:2084 readelf.c:2101 readelf.c:3740
+msgid "none"
+msgstr "なし"
+
+#: readelf.c:2085
+msgid "ELF32"
+msgstr "ELF32"
+
+#: readelf.c:2086
+msgid "ELF64"
+msgstr "ELF64"
+
+#: readelf.c:2088 readelf.c:2105 readelf.c:2133
+#, c-format
+msgid "<unknown: %x>"
+msgstr "<不明: %x>"
+
+#: readelf.c:2102
+msgid "2's complement, little endian"
+msgstr "2 の補数、リトルエンディアン"
+
+#: readelf.c:2103
+msgid "2's complement, big endian"
+msgstr "2 の補数、ビッグエンディアン"
+
+#: readelf.c:2118
+msgid "UNIX - System V"
+msgstr "UNIX - System V"
+
+#: readelf.c:2119
+msgid "UNIX - HP-UX"
+msgstr "UNIX - HP-UX"
+
+#: readelf.c:2120
+msgid "UNIX - NetBSD"
+msgstr "UNIX - NetBSD"
+
+#: readelf.c:2121
+msgid "UNIX - Linux"
+msgstr "UNIX - Linux"
+
+#: readelf.c:2122
+msgid "GNU/Hurd"
+msgstr "GNU/Hurd"
+
+#: readelf.c:2123
+msgid "UNIX - Solaris"
+msgstr "UNIX - Solaris"
+
+#: readelf.c:2124
+msgid "UNIX - AIX"
+msgstr "UNIX - AIX"
+
+#: readelf.c:2125
+msgid "UNIX - IRIX"
+msgstr "UNIX - IRIX"
+
+#: readelf.c:2126
+msgid "UNIX - FreeBSD"
+msgstr "UNIX - FreeBSD"
+
+#: readelf.c:2127
+msgid "UNIX - TRU64"
+msgstr "UNIX - TRU64"
+
+#: readelf.c:2128
+msgid "Novell - Modesto"
+msgstr "Novell - Modesto"
+
+#: readelf.c:2129
+msgid "UNIX - OpenBSD"
+msgstr "UNIX - OpenBSD"
+
+#: readelf.c:2130
+msgid "Standalone App"
+msgstr "Standalone App"
+
+#: readelf.c:2131
+msgid "ARM"
+msgstr "ARM"
+
+#: readelf.c:2148
+msgid "Not an ELF file - it has the wrong magic bytes at the start\n"
+msgstr "ELF ファイルではありません - 始点にあるマジック番号が異なります\n"
+
+#: readelf.c:2156
+msgid "ELF Header:\n"
+msgstr "ELF ヘッダ:\n"
+
+#: readelf.c:2157
+msgid "  Magic:   "
+msgstr "  マジック:  "
+
+#: readelf.c:2161
+#, c-format
+msgid "  Class:                             %s\n"
+msgstr "  クラス:                            %s\n"
+
+#: readelf.c:2163
+#, c-format
+msgid "  Data:                              %s\n"
+msgstr "  データ:                            %s\n"
+
+#: readelf.c:2165
+#, c-format
+msgid "  Version:                           %d %s\n"
+msgstr "  バージョン:                        %d %s\n"
+
+#: readelf.c:2172
+#, c-format
+msgid "  OS/ABI:                            %s\n"
+msgstr "  OS/ABI:                            %s\n"
+
+#: readelf.c:2174
+#, c-format
+msgid "  ABI Version:                       %d\n"
+msgstr "  ABI バージョン:                    %d\n"
+
+#: readelf.c:2176
+#, c-format
+msgid "  Type:                              %s\n"
+msgstr "  タイプ:                            %s\n"
+
+#: readelf.c:2178
+#, c-format
+msgid "  Machine:                           %s\n"
+msgstr "  マシン:                            %s\n"
+
+#: readelf.c:2180
+#, c-format
+msgid "  Version:                           0x%lx\n"
+msgstr "  バージョン:                        0x%lx\n"
+
+#: readelf.c:2183
+msgid "  Entry point address:               "
+msgstr "  エントリポイントアドレス:          "
+
+#: readelf.c:2185
+msgid "\n  Start of program headers:          "
+msgstr "\n  プログラムの開始ヘッダ:            "
+
+#: readelf.c:2187
+msgid ""
+" (bytes into file)\n"
+"  Start of section headers:          "
+msgstr ""
+" (バイト)\n"
+"  セクションヘッダ始点:              "
+
+#: readelf.c:2189
+msgid " (bytes into file)\n"
+msgstr " (バイト)\n"
+
+#: readelf.c:2191
+#, c-format
+msgid "  Flags:                             0x%lx%s\n"
+msgstr "  フラグ:                            0x%lx%s\n"
+
+#: readelf.c:2194
+#, c-format
+msgid "  Size of this header:               %ld (bytes)\n"
+msgstr "  このヘッダのサイズ:                %ld (バイト)\n"
+
+#: readelf.c:2196
+#, c-format
+msgid "  Size of program headers:           %ld (bytes)\n"
+msgstr "  プログラムヘッダサイズ:            %ld (バイト)\n"
+
+#: readelf.c:2198
+#, c-format
+msgid "  Number of program headers:         %ld\n"
+msgstr "  プログラムヘッダ数:                %ld\n"
+
+#: readelf.c:2200
+#, c-format
+msgid "  Size of section headers:           %ld (bytes)\n"
+msgstr "  セクションヘッダ:                  %ld (バイト)\n"
+
+#: readelf.c:2202
+#, c-format
+msgid "  Number of section headers:         %ld\n"
+msgstr "  セクションヘッダサイズ:            %ld\n"
+
+#: readelf.c:2204
+#, c-format
+msgid "  Section header string table index: %ld\n"
+msgstr "  セクションヘッダ文字列テーブル索引:%ld\n"
+
+#: readelf.c:2289
+msgid "\nThere are no program headers in this file.\n"
+msgstr "\nこのファイルにはプログラムヘッダはありません。\n"
+
+#: readelf.c:2295
+#, c-format
+msgid "\nElf file type is %s\n"
+msgstr "\nElf ファイルタイプは %s です\n"
+
+#: readelf.c:2296
+msgid "Entry point "
+msgstr "エントリポイント "
+
+#: readelf.c:2298
+#, c-format
+msgid "\nThere are %d program headers, starting at offset "
+msgstr "\n%d 個のプログラムヘッダ、始点オフセット "
+
+#: readelf.c:2309 readelf.c:2485 readelf.c:2527 readelf.c:2570 readelf.c:2611
+#: readelf.c:3133 readelf.c:3174 readelf.c:3350 readelf.c:4358 readelf.c:4372
+#: readelf.c:7741 readelf.c:7781
+msgid "Out of memory\n"
+msgstr "メモリが足りません\n"
+
+#: readelf.c:2327
+#, c-format
+msgid "\nProgram Header%s:\n"
+msgstr "\nプログラムヘッダ%.0s:\n"
+
+#: readelf.c:2331
+msgid "  Type           Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align\n"
+msgstr "  タイプ       オフセット 仮想Addr   物理Addr   FileSiz MemSiz  Flg Align\n"
+
+#: readelf.c:2335
+msgid "  Type           Offset             VirtAddr           PhysAddr\n"
+msgstr "  タイプ        オフセット          仮想Addr           物理Addr\n"
+
+#: readelf.c:2337
+msgid "                 FileSiz            MemSiz              Flags  Align\n"
+msgstr "            ファイルサイズ        メモリサイズ         フラグ アライン\n"
+
+#: readelf.c:2395
+msgid "more than one dynamic segment\n"
+msgstr "複数の動的セグメント\n"
+
+#: readelf.c:2403
+msgid "Unable to find program interpreter name\n"
+msgstr "プログラムインタプリタ名は見つかりません\n"
+
+#: readelf.c:2410
+#, c-format
+msgid "\n      [Requesting program interpreter: %s]"
+msgstr "\n      [要求されるプログラムインタプリタ: %s]"
+
+#: readelf.c:2428
+msgid "\n Section to Segment mapping:\n"
+msgstr "\n セグメントマッピングへのセクション:\n"
+
+#: readelf.c:2429
+msgid "  Segment Sections...\n"
+msgstr "  セグメントセクション...\n"
+
+#: readelf.c:2693
+msgid "\nThere are no sections in this file.\n"
+msgstr "\nこのファイルにはセクションがありません。\n"
+
+#: readelf.c:2699
+#, c-format
+msgid "There are %d section headers, starting at offset 0x%lx:\n"
+msgstr "%d 個のセクションヘッダ、始点オフセット 0x%lx:\n"
+
+#: readelf.c:2739
+msgid "File contains multiple dynamic symbol tables\n"
+msgstr "ファイルが複数の動的シンボルテーブルを含んでいます\n"
+
+#: readelf.c:2752
+msgid "File contains multiple dynamic string tables\n"
+msgstr "ファイルが複数の動的文字列テーブルを含んでいます\n"
+
+#: readelf.c:2786
+#, c-format
+msgid "\nSection Header%s:\n"
+msgstr "\nセクションヘッダ%.0s:\n"
+
+#: readelf.c:2790
+msgid "  [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al\n"
+msgstr "  [番] 名前              タイプ          アドレス Off    サイズ ES Flg Lk Inf Al\n"
+
+#: readelf.c:2793
+msgid "  [Nr] Name              Type             Address           Offset\n"
+msgstr "  [番] 名前              タイプ          アドレス           Offset\n"
+
+#: readelf.c:2794
+msgid "       Size              EntSize          Flags  Link  Info  Align\n"
+msgstr "     サイズ              EntSize         フラグ  Link  Info  Align\n"
+
+#: readelf.c:2841
+msgid "Key to Flags:\n"
+msgstr "フラグのキー:\n"
+
+#: readelf.c:2842
+msgid "  W (write), A (alloc), X (execute), M (merge), S (strings)\n"
+msgstr "  W (write), A (alloc), X (execute), M (merge), S (strings)\n"
+
+#: readelf.c:2843
+msgid "  I (info), L (link order), G (group), x (unknown)\n"
+msgstr "  I (info), L (link order), G (group), x (不明)\n"
+
+#: readelf.c:2844
+msgid "  O (extra OS processing required) o (OS specific), p (processor specific)\n"
+msgstr "  O (OS の特殊処理に必要) o (OS 固有), p (processor 固有)\n"
+
+#: readelf.c:2902
+#, c-format
+msgid "\nRelocation section at offset 0x%lx contains %ld bytes:\n"
+msgstr "\nオフセット 0x%lx の再配置セクションは %ld バイトで構成されています:\n"
+
+#: readelf.c:2909
+msgid "\nThere are no dynamic relocations in this file.\n"
+msgstr "\nこのファイルには動的再配置がありません。\n"
+
+#: readelf.c:2937
+msgid "\nRelocation section "
+msgstr "\n再配置セクション "
+
+#: readelf.c:2944
+#, c-format
+msgid " at offset 0x%lx contains %lu entries:\n"
+msgstr " (オフセット 0x%lx) は %lu 個のエントリから構成されています:\n"
+
+#: readelf.c:2972
+msgid "\nThere are no relocations in this file.\n"
+msgstr "\nこのファイルには再配置されるものがありません。\n"
+
+#: readelf.c:3227
+msgid "\nThere is no dynamic segment in this file.\n"
+msgstr "\nこのファイルには動的セグメントがありません。\n"
+
+#: readelf.c:3261
+msgid "Unable to seek to end of file!"
+msgstr "ファイル末尾に seek できません!"
+
+#: readelf.c:3270
+msgid "Unable to determine the number of symbols to load\n"
+msgstr "ロードすべきシンボルの数を決定できません\n"
+
+#: readelf.c:3300
+msgid "Unable to seek to end of file\n"
+msgstr "ファイル末尾に seek できません\n"
+
+#: readelf.c:3306
+msgid "Unable to determine the length of the dynamic string table\n"
+msgstr "動的文字列テーブルの長さを決定できません\n"
+
+#: readelf.c:3367
+#, c-format
+msgid "\nDynamic segment at offset 0x%x contains %ld entries:\n"
+msgstr "\nオフセット 0x%x の動的セグメントは %ld 個のエントリから構成されています:\n"
+
+#: readelf.c:3370
+msgid "  Tag        Type                         Name/Value\n"
+msgstr " タグ        タイプ                       名前/値\n"
+
+#: readelf.c:3406
+msgid "Auxiliary library"
+msgstr "補助ライブラリ"
+
+#: readelf.c:3410
+msgid "Filter library"
+msgstr "フィルタライブラリ"
+
+#: readelf.c:3414
+msgid "Configuration file"
+msgstr "設定ファイル"
+
+#: readelf.c:3418
+msgid "Dependency audit library"
+msgstr "依存関係監査ライブラリ"
+
+#: readelf.c:3422
+msgid "Audit library"
+msgstr "監査ライブラリ"
+
+#: readelf.c:3440 readelf.c:3466 readelf.c:3492
+msgid "Flags:"
+msgstr "フラグ:"
+
+#: readelf.c:3442 readelf.c:3468 readelf.c:3494
+msgid " None\n"
+msgstr " 無し\n"
+
+#: readelf.c:3613
+#, c-format
+msgid "Shared library: [%s]"
+msgstr "共有ライブラリ: [%s]"
+
+#: readelf.c:3616
+msgid " program interpreter"
+msgstr " プログラムインタプリタ"
+
+#: readelf.c:3620
+#, c-format
+msgid "Library soname: [%s]"
+msgstr "ライブラリの soname: [%s]"
+
+#: readelf.c:3624
+#, c-format
+msgid "Library rpath: [%s]"
+msgstr "ライブラリの rpath: [%s]"
+
+#: readelf.c:3628
+#, c-format
+msgid "Library runpath: [%s]"
+msgstr "ライブラリの runpath: [%s]"
+
+#: readelf.c:3689
+#, c-format
+msgid "Not needed object: [%s]\n"
+msgstr "不要なオブジェクト: [%s]\n"
+
+#: readelf.c:3786
+#, c-format
+msgid "\nVersion definition section '%s' contains %ld entries:\n"
+msgstr "\nバージョン定義セクション '%s' は %ld 個のエントリから構成されています:\n"
+
+#: readelf.c:3789
+msgid "  Addr: 0x"
+msgstr "  アドレス: 0x"
+
+#: readelf.c:3791 readelf.c:3979
+#, c-format
+msgid "  Offset: %#08lx  Link: %lx (%s)\n"
+msgstr " オフセット: %#08lx  リンク: %lx (%s)\n"
+
+#: readelf.c:3821
+#, c-format
+msgid "  %#06x: Rev: %d  Flags: %s"
+msgstr "  %#06x: Rev: %d  フラグ: %s"
+
+#: readelf.c:3824
+#, c-format
+msgid "  Index: %d  Cnt: %d  "
+msgstr "  索引: %d  Cnt: %d  "
+
+#: readelf.c:3835
+#, c-format
+msgid "Name: %s\n"
+msgstr "名前: %s\n"
+
+#: readelf.c:3837
+#, c-format
+msgid "Name index: %ld\n"
+msgstr "名前索引: %ld\n"
+
+#: readelf.c:3852
+#, c-format
+msgid "  %#06x: Parent %d: %s\n"
+msgstr "  %#06x: 親 %d: %s\n"
+
+#: readelf.c:3855
+#, c-format
+msgid "  %#06x: Parent %d, name index: %ld\n"
+msgstr "  %#06x: 親 %d, 名前索引: %ld\n"
+
+#: readelf.c:3874
+#, c-format
+msgid "\nVersion needs section '%s' contains %ld entries:\n"
+msgstr "\n必要バージョンセクション '%s' は %ld 個のエントリから構成されています:\n"
+
+#: readelf.c:3877
+msgid " Addr: 0x"
+msgstr " アドレス: 0x"
+
+#: readelf.c:3879
+#, c-format
+msgid "  Offset: %#08lx  Link to section: %ld (%s)\n"
+msgstr "  Offset: %#08lx  セクションへのリンク: %ld (%s)\n"
+
+#: readelf.c:3905
+#, c-format
+msgid "  %#06x: Version: %d"
+msgstr "  %#06x: バージョン: %d"
+
+#: readelf.c:3908
+#, c-format
+msgid "  File: %s"
+msgstr "  ファイル: %s"
+
+#: readelf.c:3910
+#, c-format
+msgid "  File: %lx"
+msgstr "  ファイル: %lx"
+
+#: readelf.c:3912
+#, c-format
+msgid "  Cnt: %d\n"
+msgstr "  個数: %d\n"
+
+#: readelf.c:3930
+#, c-format
+msgid "  %#06x: Name: %s"
+msgstr "  %#06x: 名前: %s"
+
+#: readelf.c:3933
+#, c-format
+msgid "  %#06x: Name index: %lx"
+msgstr "  %#06x: 名前索引: %lx"
+
+#: readelf.c:3936
+#, c-format
+msgid "  Flags: %s  Version: %d\n"
+msgstr " フラグ: %s  バージョン: %d\n"
+
+#: readelf.c:3974
+#, c-format
+msgid "\nVersion symbols section '%s' contains %d entries:\n"
+msgstr "\nバージョンシンボルセクション '%s' は %d 個のエントリから構成されています:\n"
+
+#: readelf.c:3977
+msgid " Addr: "
+msgstr " アドレス: "
+
+#: readelf.c:4007
+msgid "   0 (*local*)    "
+msgstr "   0 (*局 所*)    "
+
+#: readelf.c:4011
+msgid "   1 (*global*)   "
+msgstr "   1 (*大 域*)    "
+
+#: readelf.c:4233
+msgid "\nNo version information found in this file.\n"
+msgstr "\nこのファイルからはバージョン情報が見つかりません。\n"
+
+#: readelf.c:4251 readelf.c:4286
+#, c-format
+msgid "<processor specific>: %d"
+msgstr "<プロセッサ固有>: %d"
+
+#: readelf.c:4253 readelf.c:4298
+#, c-format
+msgid "<OS specific>: %d"
+msgstr "<OS 固有>: %d"
+
+#: readelf.c:4255 readelf.c:4301
+#, c-format
+msgid "<unknown>: %d"
+msgstr "<不明>: %d"
+
+#: readelf.c:4364
+msgid "Unable to read in dynamic data\n"
+msgstr "動的データを読込めません\n"
+
+#: readelf.c:4406
+msgid "Unable to seek to start of dynamic information"
+msgstr "動的情報の開始位置に seek できません"
+
+#: readelf.c:4412
+msgid "Failed to read in number of buckets\n"
+msgstr "バケット数の読込みに失敗しました\n"
+
+#: readelf.c:4418
+msgid "Failed to read in number of chains\n"
+msgstr "チェイン数の読込みに失敗しました\n"
+
+#: readelf.c:4438
+msgid "\nSymbol table for image:\n"
+msgstr "\nイメージのシンボルテーブル:\n"
+
+#: readelf.c:4440
+msgid "  Num Buc:    Value  Size   Type   Bind Vis      Ndx Name\n"
+msgstr " bucket数:    値   サイズ  タイプ  Bind Vis      索引名\n"
+
+#: readelf.c:4442
+msgid "  Num Buc:    Value          Size   Type   Bind Vis      Ndx Name\n"
+msgstr " bucket数:    値            サイズ  タイプ  Bind Vis      索引名\n"
+
+#: readelf.c:4486
+#, c-format
+msgid "\nSymbol table '%s' contains %lu entries:\n"
+msgstr "\nシンボルテーブル '%s' は %lu 個のエントリから構成されています:\n"
+
+#: readelf.c:4490
+msgid "   Num:    Value  Size Type    Bind   Vis      Ndx Name\n"
+msgstr "  番号:      値 サイズ タイプ  Bind   Vis      索引名\n"
+
+#: readelf.c:4492
+msgid "   Num:    Value          Size Type    Bind   Vis      Ndx Name\n"
+msgstr "  番号:      値         サイズ タイプ  Bind   Vis      索引名\n"
+
+#: readelf.c:4601
+msgid "bad dynamic symbol"
+msgstr "不正な動的シンボルです"
+
+#: readelf.c:4660
+msgid "\nDynamic symbol information is not available for displaying symbols.\n"
+msgstr "\n動的シンボル情報は表示用シンボルとしては利用できません。\n"
+
+#: readelf.c:4672
+#, c-format
+msgid "\nHistogram for bucket list length (total of %d buckets):\n"
+msgstr "\nバケットリストの度数分布 (全 %d 個のバケット):\n"
+
+#: readelf.c:4674
+msgid " Length  Number     %% of total  Coverage\n"
+msgstr "   長さ  個数        占有率      範囲\n"
+
+#: readelf.c:4679 readelf.c:4698 readelf.c:7423 readelf.c:7616
+msgid "Out of memory"
+msgstr "メモリが足りません"
+
+#: readelf.c:4747
+#, c-format
+msgid "\nDynamic info segment at offset 0x%lx contains %d entries:\n"
+msgstr "\nオフセット 0x%lx の動的情報セグメントは %d 個のエントリから構成されています:\n"
+
+#: readelf.c:4750
+msgid " Num: Name                           BoundTo     Flags\n"
+msgstr "番号: 名前                           境界まで    フラグ\n"
+
+#: readelf.c:4798
+#, c-format
+msgid "\nAssembly dump of section %s\n"
+msgstr "\nセクション %s のアセンブリダンプ\n"
+
+#: readelf.c:4821
+#, c-format
+msgid "\nSection '%s' has no data to dump.\n"
+msgstr "\nセクション '%s' はダンプできるデータを持っていません。\n"
+
+#: readelf.c:4826
+#, c-format
+msgid "\nHex dump of section '%s':\n"
+msgstr "\nセクション '%s' の 16 進数ダンプ:\n"
+
+#: readelf.c:4978
+msgid "badly formed extended line op encountered!"
+msgstr "不正な形式の拡張 line オペコードに遭遇しました!"
+
+#: readelf.c:4985
+#, c-format
+msgid "  Extended opcode %d: "
+msgstr "  拡張オペコード %d: "
+
+#: readelf.c:4990
+msgid "End of Sequence\n\n"
+msgstr "列の終り\n\n"
+
+#: readelf.c:4996
+#, c-format
+msgid "set Address to 0x%lx\n"
+msgstr "設定アドレス 0x%lx\n"
+
+#: readelf.c:5001
+msgid "  define new File Table entry\n"
+msgstr "  新たなファイルテーブルエントリの定義\n"
+
+#: readelf.c:5002 readelf.c:5124
+msgid "  Entry\tDir\tTime\tSize\tName\n"
+msgstr "  Entry\tDir\t時刻\tサイズ\t名前\n"
+
+#: readelf.c:5004
+#, c-format
+msgid "   %d\t"
+msgstr "   %d\t"
+
+#: readelf.c:5007 readelf.c:5009 readelf.c:5011 readelf.c:5136 readelf.c:5138
+#: readelf.c:5140
+#, c-format
+msgid "%lu\t"
+msgstr "%lu\t"
+
+#: readelf.c:5012
+#, c-format
+msgid "%s\n\n"
+msgstr "%s\n\n"
+
+#: readelf.c:5016
+#, c-format
+msgid "UNKNOWN: length %d\n"
+msgstr "UNKNOWN: 長さ %d\n"
+
+#: readelf.c:5042
+#, c-format
+msgid "\nDump of debug contents of section %s:\n\n"
+msgstr "\nセクション内容のデバッグダンプ %s:\n\n"
+
+#: readelf.c:5054
+msgid "The line info appears to be corrupt - the section is too small\n"
+msgstr "line 情報は壊れています - セクションが小さすぎます\n"
+
+#: readelf.c:5062
+msgid "Only DWARF version 2 line info is currently supported.\n"
+msgstr "現在のところ、DWARF バージョン 2 だけが line 情報をサポートしています。\n"
+
+#: readelf.c:5077
+#, c-format
+msgid "  Length:                      %ld\n"
+msgstr "  長さ:                        %ld\n"
+
+#: readelf.c:5078
+#, c-format
+msgid "  DWARF Version:               %d\n"
+msgstr "  DWARF バージョン:            %d\n"
+
+#: readelf.c:5079
+#, c-format
+msgid "  Prolgue Length:              %d\n"
+msgstr "  Prolgue の長さ:              %d\n"
+
+#: readelf.c:5080
+#, c-format
+msgid "  Minimum Instruction Length:  %d\n"
+msgstr "  最小命令長:                  %d\n"
+
+#: readelf.c:5081
+#, c-format
+msgid "  Initial value of 'is_stmt':  %d\n"
+msgstr "  'is_stmt' の初期値:          %d\n"
+
+#: readelf.c:5082
+#, c-format
+msgid "  Line Base:                   %d\n"
+msgstr "  Line ベース:                 %d\n"
+
+#: readelf.c:5083
+#, c-format
+msgid "  Line Range:                  %d\n"
+msgstr "  Line 範囲:                   %d\n"
+
+#: readelf.c:5084
+#, c-format
+msgid "  Opcode Base:                 %d\n"
+msgstr "  オペコードベース:            %d\n"
+
+#: readelf.c:5093
+msgid "\n Opcodes:\n"
+msgstr "\n オペコード:\n"
+
+#: readelf.c:5096
+#, c-format
+msgid "  Opcode %d has %d args\n"
+msgstr "  オペコード %d は %d 個の引数を持ちます\n"
+
+#: readelf.c:5102
+msgid "\n The Directory Table is empty.\n"
+msgstr "\n ディレクトリテーブルは空です。\n"
+
+#: readelf.c:5105
+msgid "\n The Directory Table:\n"
+msgstr "\n ディレクトリテーブル:\n"
+
+#: readelf.c:5109
+#, c-format
+msgid "  %s\n"
+msgstr "  %s\n"
+
+#: readelf.c:5120
+msgid "\n The File Name Table is empty.\n"
+msgstr "\n ファイル名テーブルは空です。\n"
+
+#: readelf.c:5123
+msgid "\n The File Name Table:\n"
+msgstr "\n ファイル名テーブル:\n"
+
+#: readelf.c:5131
+#, c-format
+msgid "  %d\t"
+msgstr "  %d\t"
+
+#: readelf.c:5142
+#, c-format
+msgid "%s\n"
+msgstr "%s\n"
+
+#. Now display the statements.
+#: readelf.c:5150
+msgid "\n Line Number Statements:\n"
+msgstr "\n 行番号ステートメント:\n"
+
+#: readelf.c:5169
+msgid "  Copy\n"
+msgstr "  コピー\n"
+
+#: readelf.c:5176
+#, c-format
+msgid "  Advance PC by %d to %lx\n"
+msgstr "  PC を %d 分進め %lx とします\n"
+
+#: readelf.c:5184
+#, c-format
+msgid "  Advance Line by %d to %d\n"
+msgstr "  行を %d 進め %d とします\n"
+
+#: readelf.c:5191
+#, c-format
+msgid "  Set File Name to entry %d in the File Name Table\n"
+msgstr "  エントリ %d のファイル名をファイル名テーブルにセット\n"
+
+#: readelf.c:5199
+#, c-format
+msgid "  Set column to %d\n"
+msgstr "  桁幅を %d に設定\n"
+
+#: readelf.c:5206
+#, c-format
+msgid "  Set is_stmt to %d\n"
+msgstr "  is_stmt を %d にセット\n"
+
+#: readelf.c:5211
+msgid "  Set basic block\n"
+msgstr "  基本ブロックを設定\n"
+
+#: readelf.c:5219
+#, c-format
+msgid "  Advance PC by constant %d to 0x%lx\n"
+msgstr "  PC を定数 %d 分進め 0x%lx とします\n"
+
+#: readelf.c:5227
+#, c-format
+msgid "  Advance PC by fixed size amount %d to 0x%lx\n"
+msgstr "  PC を固定サイズ %d 分進め 0x%lx とします\n"
+
+#: readelf.c:5235
+#, c-format
+msgid "  Special opcode %d: advance Address by %d to 0x%lx"
+msgstr "  特殊オペコード %d: アドレスを %d 分進め 0x%lx とし"
+
+#: readelf.c:5239
+#, c-format
+msgid " and Line by %d to %d\n"
+msgstr " 行を %d 分進め %d とします\n"
+
+#: readelf.c:5262 readelf.c:5691
+#, c-format
+msgid "Contents of the %s section:\n\n"
+msgstr "%s セクションの内容:\n\n"
+
+#: readelf.c:5285
+msgid "Only DWARF 2 pubnames are currently supported\n"
+msgstr "現在のところ、DWARF 2 だけが pubnames をサポートしています\n"
+
+#: readelf.c:5292
+#, c-format
+msgid "  Length:                              %ld\n"
+msgstr "  長さ:                                %ld\n"
+
+#: readelf.c:5294
+#, c-format
+msgid "  Version:                             %d\n"
+msgstr "  バージョン:                          %d\n"
+
+#: readelf.c:5296
+#, c-format
+msgid "  Offset into .debug_info section:     %ld\n"
+msgstr "  .debug_info セクションへのオフセット:%ld\n"
+
+#: readelf.c:5298
+#, c-format
+msgid "  Size of area in .debug_info section: %ld\n"
+msgstr "  .debug_info セクション領域サイズ:    %ld\n"
+
+#: readelf.c:5301
+msgid "\n    Offset\tName\n"
+msgstr "\n    オフセット\t名前\n"
+
+#: readelf.c:5383
+#, c-format
+msgid "Unknown TAG value: %lx"
+msgstr "不明な TAG 値: %lx"
+
+#: readelf.c:5478
+#, c-format
+msgid "Unknown AT value: %lx"
+msgstr "不明な AT 値: %lx"
+
+#: readelf.c:5515
+#, c-format
+msgid "Unknown FORM value: %lx"
+msgstr "不明な FORM 値: %lx"
+
+#: readelf.c:5697
+msgid "  Number TAG\n"
+msgstr "  番号 TAG\n"
+
+#: readelf.c:5703
+#, c-format
+msgid "   %ld      %s    [%s]\n"
+msgstr "   %ld      %s    [%s]\n"
+
+#: readelf.c:5706
+msgid "has children"
+msgstr "子あり"
+
+#: readelf.c:5706
+msgid "no children"
+msgstr "子なし"
+
+#: readelf.c:5710
+#, c-format
+msgid "    %-18s %s\n"
+msgstr "    %-18s %s\n"
+
+#: readelf.c:5729
+#, c-format
+msgid " %lu byte block: "
+msgstr " %lu バイトブロック: "
+
+#: readelf.c:6036
+msgid "(User defined location op)"
+msgstr "(ユーザ定義 location op)"
+
+#: readelf.c:6038
+msgid "(Unknown location op)"
+msgstr "(不明な location op)"
+
+#: readelf.c:6165
+#, c-format
+msgid "Unable to handle FORM: %d"
+msgstr "FORM を扱えません: %d"
+
+#: readelf.c:6169
+#, c-format
+msgid "Unrecognised form: %d"
+msgstr "認識できない形式: %d"
+
+#: readelf.c:6182
+msgid "(not inlined)"
+msgstr "(非 inline)"
+
+#: readelf.c:6183
+msgid "(inlined)"
+msgstr "(inlined 化)"
+
+#: readelf.c:6184
+msgid "(declared as inline but ignored)"
+msgstr "(inline 宣言されたが無視された)"
+
+#: readelf.c:6185
+msgid "(declared as inline and inlined)"
+msgstr "(inline 宣言され inline 化)"
+
+#: readelf.c:6186
+#, c-format
+msgid "  (Unknown inline attribute value: %lx)"
+msgstr "  (不明な inline 属性値: %lx)"
+
+#: readelf.c:6315 readelf.c:6441
+#, c-format
+msgid "The section %s contains:\n\n"
+msgstr "セクション %s の内容:\n\n"
+
+#: readelf.c:6337
+#, c-format
+msgid "  Compilation Unit @ %lx:\n"
+msgstr "  コンパイル単位 @ %lx:\n"
+
+#: readelf.c:6338
+#, c-format
+msgid "   Length:        %ld\n"
+msgstr "   長さ:          %ld\n"
+
+#: readelf.c:6339
+#, c-format
+msgid "   Version:       %d\n"
+msgstr "   バージョン:    %d\n"
+
+#: readelf.c:6340
+#, c-format
+msgid "   Abbrev Offset: %ld\n"
+msgstr "   省略 offset:   %ld\n"
+
+#: readelf.c:6341
+#, c-format
+msgid "   Pointer Size:  %d\n"
+msgstr "   ポインタサイズ:%d\n"
+
+#: readelf.c:6345
+msgid "Only version 2 DWARF debug information is currently supported.\n"
+msgstr "現在のところ、バージョン 2 DWARF だけがデバッグ情報をサポートします。\n"
+
+#: readelf.c:6367
+msgid "Unable to locate .debug_abbrev section!\n"
+msgstr ".debug_abbrev セクションの位置を特定できません!\n"
+
+#: readelf.c:6407
+#, c-format
+msgid "Unable to locate entry %lu in the abbreviation table\n"
+msgstr "省略テーブル内のエントリ %lu の位置を特定できません\n"
+
+#: readelf.c:6412
+#, c-format
+msgid " <%d><%x>: Abbrev Number: %lu (%s)\n"
+msgstr " <%d><%x>: 省略番号: %lu (%s)\n"
+
+#: readelf.c:6462
+msgid "Only DWARF 2 aranges are currently supported.\n"
+msgstr "現在のところ DWARF 2 だけが arange をサポートしています。\n"
+
+#: readelf.c:6466
+#, c-format
+msgid "  Length:                   %ld\n"
+msgstr "  長さ:                     %ld\n"
+
+#: readelf.c:6467
+#, c-format
+msgid "  Version:                  %d\n"
+msgstr "  バージョン:               %d\n"
+
+#: readelf.c:6468
+#, c-format
+msgid "  Offset into .debug_info:  %lx\n"
+msgstr "  .debug_info 内へのoffset: %lx\n"
+
+#: readelf.c:6469
+#, c-format
+msgid "  Pointer Size:             %d\n"
+msgstr "  ポインタサイズ:           %d\n"
+
+#: readelf.c:6470
+#, c-format
+msgid "  Segment Size:             %d\n"
+msgstr "  セグメントサイズ:         %d\n"
+
+#: readelf.c:6472
+msgid "\n    Address  Length\n"
+msgstr "\n    アドレス長\n"
+
+#: readelf.c:6634
+#, c-format
+msgid "The section %s contains:\n"
+msgstr "セクション %s の内容:\n"
+
+#: readelf.c:7109
+#, c-format
+msgid "Displaying the debug contents of section %s is not yet supported.\n"
+msgstr "セクション %s のデバッグ内容の表示はまだサポートされていません。\n"
+
+#: readelf.c:7173
+#, c-format
+msgid "\nSection '%s' has no debugging data.\n"
+msgstr "\nセクション '%s' はデバッグデータを持っていません。\n"
+
+#: readelf.c:7192
+#, c-format
+msgid "Unrecognised debug section: %s\n"
+msgstr "認識できないデバッグセクション: %s\n"
+
+#: readelf.c:7264
+msgid "Some sections were not dumped because they do not exist!\n"
+msgstr "存在しないためダンプされなかったセクションもあります!\n"
+
+#: readelf.c:7447
+#, c-format
+msgid "\nSection '%s' contains %d entries:\n"
+msgstr "\nセクション '%s' は %d 個のエントリから構成されています:\n"
+
+#: readelf.c:7609
+msgid "conflict list with without table"
+msgstr "テーブルの有無の conflict リスト"
+
+#: readelf.c:7637
+#, c-format
+msgid "\nSection '.conflict' contains %d entries:\n"
+msgstr "\nセクション '.conflict' は %d 個のエントリから構成されています:\n"
+
+#: readelf.c:7638
+msgid "  Num:    Index       Value  Name"
+msgstr " 番号:    索引        値     名前"
+
+#: readelf.c:7663
+msgid "NT_PRSTATUS (prstatus structure)"
+msgstr "NT_PRSTATUS (prstatus 構造体)"
+
+#: readelf.c:7664
+msgid "NT_FPREGSET (floating point registers)"
+msgstr "NT_FPREGSET (浮動小数点レジスタ)"
+
+#: readelf.c:7665
+msgid "NT_PRPSINFO (prpsinfo structure)"
+msgstr "NT_PRPSINFO (prpsinfo 構造体)"
+
+#: readelf.c:7666
+msgid "NT_TASKSTRUCT (task structure)"
+msgstr "NT_TASKSTRUCT (task 構造体)"
+
+#: readelf.c:7667
+msgid "NT_PRXFPREG (user_xfpregs structure)"
+msgstr "NT_PRXFPREG (user_xfpregs 構造体)"
+
+#: readelf.c:7668
+msgid "NT_PSTATUS (pstatus structure)"
+msgstr "NT_PSTATUS (pstatus 構造体)"
+
+#: readelf.c:7669
+msgid "NT_FPREGS (floating point registers)"
+msgstr "NT_FPREGS (浮動小数点レジスタ)"
+
+#: readelf.c:7670
+msgid "NT_PSINFO (psinfo structure)"
+msgstr "NT_PSINFO (psinfo 構造体)"
+
+#: readelf.c:7671
+msgid "NT_LWPSTATUS (lwpstatus_t structure)"
+msgstr "NT_LWPSTATUS (lwpstatus_t 構造体)"
+
+#: readelf.c:7672
+msgid "NT_LWPSINFO (lwpsinfo_t structure)"
+msgstr "NT_LWPSINFO (lwpsinfo_t 構造体)"
+
+#: readelf.c:7673
+msgid "NT_WIN32PSTATUS (win32_pstatus strcuture)"
+msgstr "NT_WIN32PSTATUS (win32_pstatus 構造体)"
+
+#: readelf.c:7675
+#, c-format
+msgid "Unknown note type: (0x%08x)"
+msgstr "不明な note タイプ: (0x%08x)"
+
+#: readelf.c:7713
+#, c-format
+msgid "\nNotes at offset 0x%08lx with length 0x%08lx:\n"
+msgstr "\nオフセット 0x%08lx, 長さ 0x%08lx の note:\n"
+
+#: readelf.c:7715
+msgid "  Owner\t\tData size\tDescription\n"
+msgstr " 所有者\t\tデータサイズ\t説明\n"
+
+#: readelf.c:7826
+msgid "No note segments present in the core file.\n"
+msgstr "このコアファイルに note セグメントが有りません。\n"
+
+#: readelf.c:7904
+msgid "This instance of readelf has been built without support for a\n"
+msgstr "この readelf の実体は 64 bit データ型サポート無しでビルドされており、\n"
+
+#: readelf.c:7905
+msgid "64 bit data type and so it cannot read 64 bit ELF files.\n"
+msgstr "64 bit ELF ファイルを読むことができません。\n"
+
+#: readelf.c:7940
+#, c-format
+msgid "Cannot stat input file %s.\n"
+msgstr "入力ファイル %s を stat(2) できません。\n"
+
+#: readelf.c:7947
+#, c-format
+msgid "Input file %s not found.\n"
+msgstr "入力ファイル %s が見つかりません。\n"
+
+#: readelf.c:7953
+#, c-format
+msgid "%s: Failed to read file header\n"
+msgstr "%s: ファイルヘッダの読込みが失敗しました\n"
+
+#: readelf.c:7967
+#, c-format
+msgid "\nFile: %s\n"
+msgstr "\nファイル: %s\n"
+
+#: rename.c:131
+#, c-format
+msgid "%s: cannot set time: %s"
+msgstr "%s: 時刻を設定できません: %s"
+
+#. We have to clean up here.
+#: rename.c:170 rename.c:203
+#, c-format
+msgid "%s: rename: %s"
+msgstr "%s: rename: %s"
+
+#: rename.c:211
+#, c-format
+msgid "%s: simple_copy: %s"
+msgstr "%s: simple_copy: %s"
+
+#: resbin.c:130
+#, c-format
+msgid "%s: not enough binary data"
+msgstr "%s: バイナリデータが不十分です"
+
+#: resbin.c:149
+msgid "null terminated unicode string"
+msgstr "終端が null の unicode 文字列です"
+
+#: resbin.c:179 resbin.c:185
+msgid "resource ID"
+msgstr "リソース ID"
+
+#: resbin.c:229
+msgid "cursor"
+msgstr "カーソル"
+
+#: resbin.c:263 resbin.c:270
+msgid "menu header"
+msgstr "menu ヘッダ"
+
+#: resbin.c:280
+msgid "menuex header"
+msgstr "メニュー ex ヘッダ"
+
+#: resbin.c:284
+msgid "menuex offset"
+msgstr "メニュー ex オフセット"
+
+#: resbin.c:291
+#, c-format
+msgid "unsupported menu version %d"
+msgstr "サポートされていないメニューバージョン %d"
+
+#: resbin.c:319 resbin.c:334 resbin.c:400
+msgid "menuitem header"
+msgstr "メニューアイテムヘッダ"
+
+#: resbin.c:430
+msgid "menuitem"
+msgstr "メニューアイテム"
+
+#: resbin.c:471 resbin.c:499
+msgid "dialog header"
+msgstr "ダイアログヘッダ"
+
+#: resbin.c:489
+#, c-format
+msgid "unexpected dialog signature %d"
+msgstr "予期しないダイアログ識別番号 %d"
+
+#: resbin.c:531
+msgid "dialog font point size"
+msgstr "ダイアログフォントポイントサイズ"
+
+#: resbin.c:539
+msgid "dialogex font information"
+msgstr "ダイアログ ex フォント情報"
+
+#: resbin.c:564 resbin.c:582
+msgid "dialog control"
+msgstr "ダイアログコントロール"
+
+#: resbin.c:574
+msgid "dialogex control"
+msgstr "ダイアログ ex コントロール"
+
+#: resbin.c:603
+msgid "dialog control end"
+msgstr "ダイアログコントロール末尾"
+
+#: resbin.c:615
+msgid "dialog control data"
+msgstr "ダイアログコントロールデータ"
+
+#: resbin.c:658
+msgid "stringtable string length"
+msgstr "stringtable 文字列長"
+
+#: resbin.c:668
+msgid "stringtable string"
+msgstr "stringtable 文字列"
+
+#: resbin.c:701
+msgid "fontdir header"
+msgstr "fontdir ヘッダ"
+
+#: resbin.c:714
+msgid "fontdir"
+msgstr "fontdir"
+
+#: resbin.c:730
+msgid "fontdir device name"
+msgstr "fontdir デバイス名"
+
+#: resbin.c:736
+msgid "fontdir face name"
+msgstr "fontdir フェイス名"
+
+#: resbin.c:779
+msgid "accelerator"
+msgstr "アクセラレータ"
+
+#: resbin.c:843
+msgid "group cursor header"
+msgstr "グループカーソルヘッダ"
+
+#: resbin.c:847
+#, c-format
+msgid "unexpected group cursor type %d"
+msgstr "予期しないグループカーソル型 %d"
+
+#: resbin.c:862
+msgid "group cursor"
+msgstr "グループカーソル"
+
+#: resbin.c:901
+msgid "group icon header"
+msgstr "グループアイコンヘッダ"
+
+#: resbin.c:905
+#, c-format
+msgid "unexpected group icon type %d"
+msgstr "予期しないバージョン文字列 %d"
+
+#: resbin.c:920
+msgid "group icon"
+msgstr "グループアイコン"
+
+#: resbin.c:991 resbin.c:1210
+msgid "unexpected version string"
+msgstr "予期しないバージョン文字列"
+
+#: resbin.c:1025
+#, c-format
+msgid "version length %d does not match resource length %lu"
+msgstr "バージョ長 %d はリソース長 %lu の一致しません"
+
+#: resbin.c:1029
+#, c-format
+msgid "unexpected version type %d"
+msgstr "予期しないバージョンタイプ %d"
+
+#: resbin.c:1041
+#, c-format
+msgid "unexpected fixed version information length %d"
+msgstr "予期しない固定バージョン情報長 %d"
+
+#: resbin.c:1044
+msgid "fixed version info"
+msgstr "固定バージョン情報"
+
+#: resbin.c:1048
+#, c-format
+msgid "unexpected fixed version signature %lu"
+msgstr "予期しない固定バージョン識別番号 %lu"
+
+#: resbin.c:1052
+#, c-format
+msgid "unexpected fixed version info version %lu"
+msgstr "予期しない固定バージョン情報バージョン %lu"
+
+#: resbin.c:1081
+msgid "version var info"
+msgstr "バージョン var 情報"
+
+#: resbin.c:1098
+#, c-format
+msgid "unexpected stringfileinfo value length %d"
+msgstr "予期しない stringfileinfo 値の長さ %d"
+
+#: resbin.c:1108
+#, c-format
+msgid "unexpected version stringtable value length %d"
+msgstr "予期しないバージョン stringtable 値の長さ %d"
+
+#: resbin.c:1142
+#, c-format
+msgid "unexpected version string length %d != %d + %d"
+msgstr "予期しないバージョン文字列長 %d != %d + %d"
+
+#: resbin.c:1153
+#, c-format
+msgid "unexpected version string length %d < %d"
+msgstr "予期しない変数ファイル情報値の長さ %d < %d"
+
+#: resbin.c:1170
+#, c-format
+msgid "unexpected varfileinfo value length %d"
+msgstr "予期しない varfileinfo 値の長さ %d"
+
+#: resbin.c:1189
+msgid "version varfileinfo"
+msgstr "バージョン varfileinfo"
+
+#: resbin.c:1204
+#, c-format
+msgid "unexpected version value length %d"
+msgstr "予期しないバージョン値の長さ %d"
+
+#: rescoff.c:128
+msgid "filename required for COFF input"
+msgstr "COFF 入力用のファイル名が必要です"
+
+#: rescoff.c:145
+#, c-format
+msgid "%s: no resource section"
+msgstr "%s: リソースセクションが有りません"
+
+#: rescoff.c:152
+msgid "can't read resource section"
+msgstr "リソースセクションを読込めません"
+
+#: rescoff.c:178
+#, c-format
+msgid "%s: %s: address out of bounds"
+msgstr "%s: %s: アドレスが境界を越えています"
+
+#: rescoff.c:197
+msgid "directory"
+msgstr "ディレクトリ"
+
+#: rescoff.c:225
+msgid "named directory entry"
+msgstr "名前つきディレクトリ項目"
+
+#: rescoff.c:234
+msgid "directory entry name"
+msgstr "ディレクトリ項目名"
+
+#: rescoff.c:254
+msgid "named subdirectory"
+msgstr "名前つきサブディレクトリ"
+
+#: rescoff.c:262
+msgid "named resource"
+msgstr "名前つきリソース"
+
+#: rescoff.c:277
+msgid "ID directory entry"
+msgstr "ID ディレクトリ項目"
+
+#: rescoff.c:294
+msgid "ID subdirectory"
+msgstr "ID サブディレクトリ"
+
+#: rescoff.c:302
+msgid "ID resource"
+msgstr "ID リソース"
+
+#: rescoff.c:328
+msgid "resource type unknown"
+msgstr "リソース型が不明です"
+
+#: rescoff.c:331
+msgid "data entry"
+msgstr "データ項目"
+
+#: rescoff.c:339
+msgid "resource data"
+msgstr "リソースデータ"
+
+#: rescoff.c:344
+msgid "resource data size"
+msgstr "リソースデータサイズ"
+
+#: rescoff.c:439
+msgid "filename required for COFF output"
+msgstr "COFF 出力用のファイル名が必要です"
+
+#: rescoff.c:738
+msgid "can't get BFD_RELOC_RVA relocation type"
+msgstr "BFD_RELOC_RVA 再配置タイプを取得できません"
+
+#: resrc.c:240 resrc.c:312
+#, c-format
+msgid "can't open temporary file `%s': %s"
+msgstr "一時ファイルを開けません `%s': %s"
+
+#: resrc.c:246
+#, c-format
+msgid "can't redirect stdout: `%s': %s"
+msgstr "標準出力にリダイレクトできません: `%s': %s"
+
+#: resrc.c:262
+#, c-format
+msgid "%s %s: %s"
+msgstr "%s %s: %s"
+
+#: resrc.c:308
+#, c-format
+msgid "can't execute `%s': %s"
+msgstr "`%s' を実行できません: %s"
+
+#: resrc.c:317
+#, c-format
+msgid "Using temporary file `%s' to read preprocessor output\n"
+msgstr "プリプロセッサ出力を読込むために一時ファイル `%s' を使います\n"
+
+#: resrc.c:324
+#, c-format
+msgid "can't popen `%s': %s"
+msgstr "`%s' を popen できません: %s"
+
+#: resrc.c:326
+msgid "Using popen to read preprocessor output\n"
+msgstr "プリプロセッサ出力を読込むために popen を使います\n"
+
+#: resrc.c:369
+#, c-format
+msgid "Tried `%s'\n"
+msgstr "`%s' を試しました\n"
+
+#: resrc.c:380
+#, c-format
+msgid "Using `%s'\n"
+msgstr "`%s' を使います\n"
+
+#: resrc.c:541
+#, c-format
+msgid "%s:%d: %s\n"
+msgstr "%s:%d: %s\n"
+
+#: resrc.c:550
+#, c-format
+msgid "%s: unexpected EOF"
+msgstr "%s: 予期しない EOF です"
+
+#: resrc.c:607
+#, c-format
+msgid "%s: read of %lu returned %lu"
+msgstr "%s: %lu 個の読込みで %lu が返ってきました"
+
+#: resrc.c:649 resrc.c:903 resrc.c:1176 resrc.c:1330
+#, c-format
+msgid "stat failed on bitmap file `%s': %s"
+msgstr "ビットマップファイル `%s' の stat(2) が失敗しました: %s"
+
+#: resrc.c:702
+#, c-format
+msgid "cursor file `%s' does not contain cursor data"
+msgstr "カーソルファイル `%s' がカーソルデータを含んでいません"
+
+#: resrc.c:734 resrc.c:1047
+#, c-format
+msgid "%s: fseek to %lu failed: %s"
+msgstr "%s: %lu への fseek が失敗しました: %s"
+
+#: resrc.c:871
+msgid "help ID requires DIALOGEX"
+msgstr "ヘルプ ID には DIALOGEX が必要となります"
+
+#: resrc.c:873
+msgid "control data requires DIALOGEX"
+msgstr "コントロールデータには DIALOGEX が必要となります"
+
+#: resrc.c:1016
+#, c-format
+msgid "icon file `%s' does not contain icon data"
+msgstr "アイコンファイル `%s' がアイコンデータを含んでいません"
+
+#: resrc.c:1535
+#, c-format
+msgid "can't open `%s' for output: %s"
+msgstr "出力用の `%s' を開けません: %s"
+
+#: size.c:79
+#, c-format
+msgid ""
+"Usage: %s [-A | --format=sysv | -B | --format=berkeley]\n"
+"       [-o | --radix=8 | -d | --radix=10 | -h | --radix=16]\n"
+"       [-V | --version] [--target=bfdname] [--help] [file...]\n"
+msgstr ""
+"使い方: %s [-A | --format=sysv | -B | --format=berkeley]\n"
+"       [-o | --radix=8 | -d | --radix=10 | -h | --radix=16]\n"
+"       [-V | --version] [--target=bfdname] [--help] [ファイル...]\n"
+
+#: size.c:85
+msgid "default is --format=berkeley\n"
+msgstr "デフォルトでは --format=berkeley です\n"
+
+#: size.c:87
+msgid "default is --format=sysv\n"
+msgstr "デフォルトでは --format=sysv です\n"
+
+#: size.c:141
+#, c-format
+msgid "invalid argument to --format: %s"
+msgstr "--format に対して不適切な引数です: %s"
+
+#: size.c:168
+#, c-format
+msgid "Invalid radix: %s\n"
+msgstr "不適切な基数です: %s\n"
+
+#: srconv.c:1880
+#, c-format
+msgid "Usage: %s [-dhVq] in-file [out-file]\n"
+msgstr "使い方: %s [-dhVq] 入力ファイル [出力ファイル]\n"
+
+#: srconv.c:1887
+#, c-format
+msgid "%s: Convert a COFF object file into a SYSROFF object file\n"
+msgstr "%s: COFF オブジェクトファイルを SYSROFF オブジェクトファイルに変換します\n"
+
+#: srconv.c:2020
+#, c-format
+msgid "unable to open output file %s"
+msgstr "出力ファイル %s を開けません"
+
+#: stabs.c:349 stabs.c:1770
+msgid "numeric overflow"
+msgstr "数値がオーバーフローしました"
+
+#: stabs.c:360
+#, c-format
+msgid "Bad stab: %s\n"
+msgstr "不正なスタブです: %s\n"
+
+#: stabs.c:370
+#, c-format
+msgid "Warning: %s: %s\n"
+msgstr "警告: %s: %s\n"
+
+#: stabs.c:492
+msgid "N_LBRAC not within function\n"
+msgstr "N_LBRAC が関数内にありません\n"
+
+#: stabs.c:531
+msgid "Too many N_RBRACs\n"
+msgstr "N_RBRAC の数が多すぎます\n"
+
+#: stabs.c:780
+msgid "unknown C++ encoded name"
+msgstr "不明な C++ エンコード名です"
+
+#. Complain and keep going, so compilers can invent new
+#. cross-reference types.
+#: stabs.c:1307
+msgid "unrecognized cross reference type"
+msgstr "相互参照型を認識できません"
+
+#. Does this actually ever happen?  Is that why we are worrying
+#. about dealing with it rather than just calling error_type?
+#: stabs.c:1862
+msgid "missing index type"
+msgstr "インデックス型を欠いています"
+
+#: stabs.c:2189
+msgid "unknown virtual character for baseclass"
+msgstr "基底クラス用仮想文字が不明です"
+
+#: stabs.c:2207
+msgid "unknown visibility character for baseclass"
+msgstr "基底クラス用可視性文字が不明です"
+
+#: stabs.c:2399
+msgid "unnamed $vb type"
+msgstr "$vb 型の名前がありません"
+
+#: stabs.c:2405
+msgid "unrecognized C++ abbreviation"
+msgstr "C++ 省略名を認識できません"
+
+#: stabs.c:2485
+msgid "unknown visibility character for field"
+msgstr "フィールド用の可視性文字が不明です"
+
+#: stabs.c:2741
+msgid "const/volatile indicator missing"
+msgstr "const/volatile 指示子を欠いています"
+
+#: stabs.c:2981
+#, c-format
+msgid "No mangling for \"%s\"\n"
+msgstr "\"%s\" の名前の変形(mangling) がありません\n"
+
+#: stabs.c:3294
+msgid "Undefined N_EXCL"
+msgstr "N_EXCL が未定義です"
+
+#: stabs.c:3382
+#, c-format
+msgid "Type file number %d out of range\n"
+msgstr "ファイル番号型 %d が範囲外です\n"
+
+#: stabs.c:3387
+#, c-format
+msgid "Type index number %d out of range\n"
+msgstr "インデックス番号型 %d が範囲外です\n"
+
+#: stabs.c:3474
+#, c-format
+msgid "Unrecognized XCOFF type %d\n"
+msgstr "XCOFF タイプ %d を認識できません\n"
+
+#: stabs.c:3773
+#, c-format
+msgid "bad mangled name `%s'\n"
+msgstr "不正な変形名 (mangled name) `%s'\n"
+
+#: stabs.c:3869
+msgid "no argument types in mangled string\n"
+msgstr "変形された(mangled) 文字列に引数の型がありません\n"
+
+#: strings.c:177
+#, c-format
+msgid "invalid number %s"
+msgstr "不適切な値 %s"
+
+#: strings.c:513
+#, c-format
+msgid "invalid integer argument %s"
+msgstr "不適切な整数引数 %s"
+
+#: strings.c:523
+#, c-format
+msgid ""
+"Usage: %s [-afov] [-n min-len] [-min-len] [-t {o,x,d}] [-]\n"
+"       [--all] [--print-file-name] [--bytes=min-len] [--radix={o,x,d}]\n"
+"       [--target=bfdname] [--help] [--version] file...\n"
+msgstr ""
+"使い方: %s [-afov] [-n min-len] [-min-len] [-t {o,x,d}] [-]\n"
+"       [--all] [--print-file-name] [--bytes=min-len] [--radix={o,x,d}]\n"
+"       [--target=bfdname] [--help] [--version] ファイル...\n"
+
+#: sysdump.c:712
+#, c-format
+msgid "Usage: %s [-hV] in-file\n"
+msgstr "使い方: %s [-hV] 入力ファイル\n"
+
+#: sysdump.c:781
+#, c-format
+msgid "cannot open input file %s"
+msgstr "入力ファイル %s を開けません"
+
+#: version.c:39
+msgid "Copyright 1997, 98, 99, 2000 Free Software Foundation, Inc.\n"
+msgstr "Copyright 1997, 98, 99, 2000 Free Software Foundation, Inc.\n"
+
+#: version.c:40
+msgid ""
+"This program is free software; you may redistribute it under the terms of\n"
+"the GNU General Public License.  This program has absolutely no warranty.\n"
+msgstr ""
+"This program is free software; you may redistribute it under the terms of\n"
+"the GNU General Public License.  This program has absolutely no warranty.\n"
+"[参考訳 -- 法的効力としては英文が適用されます]\n"
+"これはフリーソフトウェアです -- GNU GPL の文言に従って複製が許可されます。\n"
+"このプログラムにはいかなる保証もありません。\n"
+
+#: windres.c:237
+#, c-format
+msgid "can't open %s `%s': %s"
+msgstr "%s `%s' を開けません: %s"
+
+#: windres.c:416
+msgid ": expected to be a directory\n"
+msgstr ": ディレクトリであるべきです\n"
+
+#: windres.c:428
+msgid ": expected to be a leaf\n"
+msgstr ": 末尾要素であるべきです\n"
+
+#: windres.c:437
+#, c-format
+msgid "%s: warning: "
+msgstr "%s: 警告: "
+
+#: windres.c:439
+msgid ": duplicate value\n"
+msgstr ": 重複した値です\n"
+
+#: windres.c:602
+#, c-format
+msgid "unknown format type `%s'"
+msgstr "不明なフォーマット型 `%s'"
+
+#: windres.c:603
+#, c-format
+msgid "%s: supported formats:"
+msgstr "%s: サポートされているフォーマット:"
+
+#. Otherwise, we give up.
+#: windres.c:690
+#, c-format
+msgid "can not determine type of file `%s'; use the -I option"
+msgstr "ファイル `%s' の型を決定できません -- -I オプションを使いましょう"
+
+#: windres.c:704
+#, c-format
+msgid "Usage: %s [options] [input-file] [output-file]\n"
+msgstr "使い方: %s [オプション] [入力ファイル] [出力ファイル]\n"
+
+#: windres.c:706
+msgid ""
+"Options:\n"
+"  -i FILE, --input FILE       Name input file\n"
+"  -o FILE, --output FILE      Name output file\n"
+"  -I FORMAT, --input-format FORMAT\n"
+"                              Specify input format\n"
+"  -O FORMAT, --output-format FORMAT\n"
+"                              Specify output format\n"
+"  -F TARGET, --target TARGET  Specify COFF target\n"
+"  --preprocessor PROGRAM      Program to use to preprocess rc file\n"
+"  --include-dir DIR           Include directory when preprocessing rc file\n"
+"  -DSYM[=VAL], --define SYM[=VAL]\n"
+"                              Define SYM when preprocessing rc file\n"
+"  -v                          Verbose - tells you what it's doing\n"
+"  --language VAL              Set language when reading rc file\n"
+"  --use-temp-file             Use a temporary file instead of popen to read\n"
+"                              the preprocessor output\n"
+"  --no-use-temp-file          Use popen (default)\n"
+msgstr ""
+"オプション:\n"
+"  -i FILE, --input FILE       入力ファイル名\n"
+"  -o FILE, --output FILE      出力ファイル名\n"
+"  -I FORMAT, --input-format FORMAT\n"
+"                              入力フォーマットを指定する\n"
+"  -O FORMAT, --output-format FORMAT\n"
+"                              出力フォーマットを指定する\n"
+"  -F TARGET, --target TARGET  COFF ターゲットを指定する\n"
+"  --preprocessor PROGRAM      rc ファイルの前処理に使うプログラム\n"
+"  --include-dir DIR           rc ファイル前処理時のインクルードディレクトリ\n"
+"  -DSYM[=VAL], --define SYM[=VAL]\n"
+"                              rc ファイル前処理時に SYM を定義する\n"
+"  -v                          饒舌 --行われることを知らせる\n"
+"  --language VAL              rc 読込み時の言語を設定する\n"
+"  --use-temp-file             前処理出力の読込みに popen ではなく\n"
+"                              一時ファイルを使う\n"
+"  --no-use-temp-file          popen を使う (デフォルト)\n"
+
+#: windres.c:725
+msgid "  --yydebug                   Turn on parser debugging\n"
+msgstr "  --yydebug                   構文解析器のデバッグを有効にする\n"
+
+#: windres.c:728
+msgid ""
+"  --help                      Print this help message\n"
+"  --version                   Print version information\n"
+msgstr ""
+"  --help                      この使い方を表示する\n"
+"  --version                   バージョン情報を表示する\n"
+
+#: windres.c:731
+msgid ""
+"FORMAT is one of rc, res, or coff, and is deduced from the file name\n"
+"extension if not specified.  A single file name is an input file.\n"
+"No input-file is stdin, default rc.  No output-file is stdout, default rc.\n"
+msgstr ""
+"FORMAT は rc, res あるいは coff のいずれかとなり、これが指定されない場合、\n"
+"ファイル名の拡張子から推定されます。入力ファイルを指定しなければ標準入力が\n"
+"使用され、rc 形式がデフォルトになります。出力ファイルが指定されなければ\n"
+"標準出力が使用され、rc 形式がデフォルトになります。\n"
+
+#: windres.c:980
+msgid "no resources"
+msgstr "リソースがありません"
+
+#: wrstabs.c:366 wrstabs.c:2027
+#, c-format
+msgid "string_hash_lookup failed: %s"
+msgstr "string_hash_lookup が失敗しました: %s"
+
+#: wrstabs.c:666
+#, c-format
+msgid "stab_int_type: bad size %u"
+msgstr "stab_int_type: 不正なサイズ %u です"
+
+#: wrstabs.c:1467
+#, c-format
+msgid "%s: warning: unknown size for field `%s' in struct"
+msgstr "%s: 警告: 構造体のフィールド `%s' のサイズが不明です"

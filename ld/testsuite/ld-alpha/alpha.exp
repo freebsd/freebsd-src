@@ -1,0 +1,61 @@
+# Expect script for ld-alpha tests
+#   Copyright (C) 2003 Free Software Foundation
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+
+# Test Alpha ELF linking; all types of relocs.  This tests the
+# assembler and tools like objdump as well as the linker.
+
+if { !([istarget "alpha*-*-elf*"]
+       || [istarget "alpha*-*-linux*"]) } {
+    return
+}
+
+# List contains test-items with 3 items followed by 2 lists:
+# 0:name 1:ld options 2:assembler options
+# 3:filenames of assembler files 4: action and options. 5: name of output file
+
+# Actions:
+# objdump: Apply objdump options on result.  Compare with regex (last arg).
+# nm: Apply nm options on result.  Compare with regex (last arg).
+# readelf: Apply readelf options on result.  Compare with regex (last arg).
+
+set alphatests {
+    {"TLS -fpic -shared" "-shared -melf64alpha"
+     "" {align.s tlspic1.s tlspic2.s}
+     {{readelf -WSsrl tlspic.rd} {objdump -drj.text tlspic.dd}
+      {objdump -sj.got tlspic.sd} {objdump -sj.tdata tlspic.td}}
+      "libtlspic.so"}
+    {"Helper shared library" "-shared -melf64alpha"
+     "" {tlslib.s} {} "libtlslib.so"}
+    {"TLS -fpic and -fno-pic exec"
+     "-melf64alpha tmpdir/libtlslib.so" "" {align.s tlsbinpic.s tlsbin.s}
+     {{readelf -WSsrl tlsbin.rd} {objdump -drj.text tlsbin.dd}
+      {objdump -sj.got tlsbin.sd} {objdump -sj.tdata tlsbin.td}}
+      "tlsbin"}
+    {"TLS -fpic and -fno-pic exec -relax"
+     "-relax -melf64alpha tmpdir/libtlslib.so" "" {align.s tlsbinpic.s tlsbin.s}
+     {{readelf -WSsrl tlsbinr.rd} {objdump -drj.text tlsbinr.dd}
+      {objdump -sj.got tlsbinr.sd}}
+      "tlsbinr"}
+}
+
+# Not implemented yet
+#   {"TLS in debug sections" "-melf64alpha"
+#    "" {tlsg.s}
+#    {{objdump -sj.debug_foobar tlsg.sd}} "tlsg"}
+
+run_ld_link_tests $alphatests

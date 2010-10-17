@@ -1,0 +1,15 @@
+
+Symbol table '.symtab' contains 12 entries:
+   Num:    Value  Size Type    Bind   Vis      Ndx Name
+     0: 00000000     0 NOTYPE  LOCAL  DEFAULT  UND 
+     1: 00000000     0 SECTION LOCAL  DEFAULT    1 
+     2: 00000000     0 SECTION LOCAL  DEFAULT    3 
+     3: 00000000     0 SECTION LOCAL  DEFAULT    4 
+     4: 00000000     0 NOTYPE  LOCAL  DEFAULT    1 static_text_symbol
+     5: 00000000     0 NOTYPE  LOCAL  DEFAULT    3 static_data_symbol
+     6: 00000000     0 SECTION LOCAL  DEFAULT    5 
+     7: 00000000     0 SECTION LOCAL  DEFAULT    6 
+     8: 00000000     0 OBJECT  GLOBAL DEFAULT    1 text_symbol
+     9: 00000000     0 NOTYPE  GLOBAL DEFAULT  UND external_symbol
+    10: 00000000     0 OBJECT  GLOBAL DEFAULT    3 data_symbol
+    11: 00000004     4 OBJECT  GLOBAL DEFAULT  (PRC|COM) common_symbol

@@ -1,0 +1,58 @@
+#
+# ia64 tests
+#
+proc run_list_test { name opts } {
+    global srcdir subdir
+    set testname "ia64 $name"
+    set file $srcdir/$subdir/$name
+    gas_run ${name}.s $opts ">&dump.out"
+    if { [regexp_diff "dump.out" "${file}.l"] } then {
+	fail $testname
+	verbose "output is [file_contents "dump.out"]" 2
+	return
+    }
+    pass $testname
+}
+
+if [istarget "ia64-*"] then {
+
+    run_dump_test "regs"
+    run_dump_test "opc-a"
+    run_list_test "opc-a-err" ""
+    run_dump_test "opc-b"
+    run_dump_test "opc-f"
+    run_dump_test "opc-i"
+    run_dump_test "opc-m"
+    run_dump_test "opc-x"
+
+    run_list_test "dv-raw-err" ""
+    run_list_test "dv-waw-err" ""
+    run_list_test "dv-war-err" ""
+    run_list_test "dv-entry-err" ""
+    run_list_test "dv-mutex-err" ""
+    run_dump_test "dv-branch"
+    run_dump_test "dv-imply"
+    run_dump_test "dv-mutex"
+    run_dump_test "dv-safe"
+    run_dump_test "dv-srlz"
+    run_dump_test "tls"
+    run_dump_test "ldxmov-1"
+    run_list_test "ldxmov-2" ""
+    run_dump_test "ltoff22x-1"
+    
+    run_dump_test "dependency-1"
+
+    run_dump_test "real"
+    run_dump_test "align"
+    run_dump_test "order"
+    run_dump_test "global"
+    if [istarget "ia64-*-hpux*"] then {
+	run_dump_test "secname-ilp32"
+	run_dump_test "unwind-ilp32"
+	run_dump_test "alias-ilp32"
+    } else {
+	run_dump_test "secname"
+	run_dump_test "unwind"
+	run_dump_test "alias"
+    }
+}

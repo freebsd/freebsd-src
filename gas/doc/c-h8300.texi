@@ -1,0 +1,356 @@
+@c Copyright (C) 1991, 1992, 1993, 1994, 1995, 2003 Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+@ifset GENERIC
+@page
+@end ifset
+@node H8/300-Dependent
+@chapter H8/300 Dependent Features
+
+@cindex H8/300 support
+@menu
+* H8/300 Options::              Options
+* H8/300 Syntax::               Syntax
+* H8/300 Floating Point::       Floating Point
+* H8/300 Directives::           H8/300 Machine Directives
+* H8/300 Opcodes::              Opcodes
+@end menu
+
+@node H8/300 Options
+@section Options
+
+@cindex H8/300 options (none)
+@cindex options, H8/300 (none)
+@code{@value{AS}} has no additional command-line options for the
+Renesas (formerly Hitachi) H8/300 family.
+
+@node H8/300 Syntax
+@section Syntax
+@menu
+* H8/300-Chars::                Special Characters
+* H8/300-Regs::                 Register Names
+* H8/300-Addressing::           Addressing Modes
+@end menu
+
+@node H8/300-Chars
+@subsection Special Characters
+
+@cindex line comment character, H8/300
+@cindex H8/300 line comment character
+@samp{;} is the line comment character.
+
+@cindex line separator, H8/300
+@cindex statement separator, H8/300
+@cindex H8/300 line separator
+@samp{$} can be used instead of a newline to separate statements.
+Therefore @emph{you may not use @samp{$} in symbol names} on the H8/300.
+
+@node H8/300-Regs
+@subsection Register Names
+
+@cindex H8/300 registers
+@cindex register names, H8/300
+You can use predefined symbols of the form @samp{r@var{n}h} and
+@samp{r@var{n}l} to refer to the H8/300 registers as sixteen 8-bit
+general-purpose registers.  @var{n} is a digit from @samp{0} to
+@samp{7}); for instance, both @samp{r0h} and @samp{r7l} are valid
+register names.
+
+You can also use the eight predefined symbols @samp{r@var{n}} to refer
+to the H8/300 registers as 16-bit registers (you must use this form for
+addressing).
+
+On the H8/300H, you can also use the eight predefined symbols
+@samp{er@var{n}} (@samp{er0} @dots{} @samp{er7}) to refer to the 32-bit
+general purpose registers.
+
+The two control registers are called @code{pc} (program counter; a
+16-bit register, except on the H8/300H where it is 24 bits) and
+@code{ccr} (condition code register; an 8-bit register).  @code{r7} is
+used as the stack pointer, and can also be called @code{sp}.
+
+@node H8/300-Addressing
+@subsection Addressing Modes
+
+@cindex addressing modes, H8/300
+@cindex H8/300 addressing modes
+@value{AS} understands the following addressing modes for the H8/300:
+@table @code
+@item r@var{n}
+Register direct
+
+@item @@r@var{n}
+Register indirect
+
+@need 1200
+@item @@(@var{d}, r@var{n})
+@itemx @@(@var{d}:16, r@var{n})
+@itemx @@(@var{d}:24, r@var{n})
+Register indirect: 16-bit or 24-bit displacement @var{d} from register
+@var{n}.  (24-bit displacements are only meaningful on the H8/300H.)
+
+@item @@r@var{n}+
+Register indirect with post-increment
+
+@item @@-r@var{n}
+Register indirect with pre-decrement
+
+@item @code{@@}@var{aa}
+@itemx @code{@@}@var{aa}:8
+@itemx @code{@@}@var{aa}:16
+@itemx @code{@@}@var{aa}:24
+Absolute address @code{aa}.  (The address size @samp{:24} only makes
+sense on the H8/300H.)
+
+@item #@var{xx}
+@itemx #@var{xx}:8
+@itemx #@var{xx}:16
+@itemx #@var{xx}:32
+Immediate data @var{xx}.  You may specify the @samp{:8}, @samp{:16}, or
+@samp{:32} for clarity, if you wish; but @code{@value{AS}} neither
+requires this nor uses it---the data size required is taken from
+context.
+
+@item @code{@@}@code{@@}@var{aa}
+@itemx @code{@@}@code{@@}@var{aa}:8
+Memory indirect.  You may specify the @samp{:8} for clarity, if you
+wish; but @code{@value{AS}} neither requires this nor uses it.
+@end table
+
+@node H8/300 Floating Point
+@section Floating Point
+
+@cindex floating point, H8/300 (@sc{ieee})
+@cindex H8/300 floating point (@sc{ieee})
+The H8/300 family has no hardware floating point, but the @code{.float}
+directive generates @sc{ieee} floating-point numbers for compatibility
+with other development tools.
+
+@page
+@node H8/300 Directives
+@section H8/300 Machine Directives
+
+@cindex H8/300 machine directives (none)
+@cindex machine directives, H8/300 (none)
+@cindex @code{word} directive, H8/300
+@cindex @code{int} directive, H8/300
+@code{@value{AS}} has the following machine-dependent directives for
+the H8/300:
+
+@table @code
+@cindex H8/300H, assembling for
+@item .h8300h
+Recognize and emit additional instructions for the H8/300H variant, and
+also make @code{.int} emit 32-bit numbers rather than the usual (16-bit)
+for the H8/300 family.
+
+@item .h8300s
+Recognize and emit additional instructions for the H8S variant, and
+also make @code{.int} emit 32-bit numbers rather than the usual (16-bit)
+for the H8/300 family.
+
+@item .h8300hn
+Recognize and emit additional instructions for the H8/300H variant in
+normal mode, and also make @code{.int} emit 32-bit numbers rather than 
+the usual (16-bit) for the H8/300 family.
+
+@item .h8300sn
+Recognize and emit additional instructions for the H8S variant in
+normal mode, and also make @code{.int} emit 32-bit numbers rather than 
+the usual (16-bit) for the H8/300 family.
+@end table
+
+On the H8/300 family (including the H8/300H) @samp{.word} directives
+generate 16-bit numbers.
+
+@node H8/300 Opcodes
+@section Opcodes
+
+@cindex H8/300 opcode summary
+@cindex opcode summary, H8/300
+@cindex mnemonics, H8/300
+@cindex instruction summary, H8/300
+For detailed information on the H8/300 machine instruction set, see
+@cite{H8/300 Series Programming Manual}.  For information specific to
+the H8/300H, see @cite{H8/300H Series Programming Manual} (Renesas).
+
+@code{@value{AS}} implements all the standard H8/300 opcodes.  No additional
+pseudo-instructions are needed on this family.
+
+@ifset SMALL
+@c this table, due to the multi-col faking and hardcoded order, looks silly
+@c except in smallbook.  See comments below "@set SMALL" near top of this file.
+
+The following table summarizes the H8/300 opcodes, and their arguments.
+Entries marked @samp{*} are opcodes used only on the H8/300H.
+
+@smallexample
+@c Using @group seems to use the normal baselineskip, not the smallexample
+@c baselineskip; looks approx doublespaced.
+         @i{Legend:}
+            Rs   @r{source register}
+            Rd   @r{destination register}
+            abs  @r{absolute address}
+            imm  @r{immediate data}
+         disp:N  @r{N-bit displacement from a register}
+        pcrel:N  @r{N-bit displacement relative to program counter}
+
+   add.b #imm,rd              *  andc #imm,ccr
+   add.b rs,rd                   band #imm,rd
+   add.w rs,rd                   band #imm,@@rd
+*  add.w #imm,rd                 band #imm,@@abs:8
+*  add.l rs,rd                   bra  pcrel:8
+*  add.l #imm,rd              *  bra  pcrel:16
+   adds #imm,rd                  bt   pcrel:8
+   addx #imm,rd               *  bt   pcrel:16
+   addx rs,rd                    brn  pcrel:8
+   and.b #imm,rd              *  brn  pcrel:16
+   and.b rs,rd                   bf   pcrel:8
+*  and.w rs,rd                *  bf   pcrel:16
+*  and.w #imm,rd                 bhi  pcrel:8
+*  and.l #imm,rd              *  bhi  pcrel:16
+*  and.l rs,rd                   bls  pcrel:8
+@page
+*  bls  pcrel:16                 bld  #imm,rd
+   bcc  pcrel:8                  bld  #imm,@@rd
+*  bcc  pcrel:16                 bld  #imm,@@abs:8
+   bhs  pcrel:8                  bnot #imm,rd
+*  bhs  pcrel:16                 bnot #imm,@@rd
+   bcs  pcrel:8                  bnot #imm,@@abs:8
+*  bcs  pcrel:16                 bnot rs,rd
+   blo  pcrel:8                  bnot rs,@@rd
+*  blo  pcrel:16                 bnot rs,@@abs:8
+   bne  pcrel:8                  bor  #imm,rd
+*  bne  pcrel:16                 bor  #imm,@@rd
+   beq  pcrel:8                  bor  #imm,@@abs:8
+*  beq  pcrel:16                 bset #imm,rd
+   bvc  pcrel:8                  bset #imm,@@rd
+*  bvc  pcrel:16                 bset #imm,@@abs:8
+   bvs  pcrel:8                  bset rs,rd
+*  bvs  pcrel:16                 bset rs,@@rd
+   bpl  pcrel:8                  bset rs,@@abs:8
+*  bpl  pcrel:16                 bsr  pcrel:8
+   bmi  pcrel:8                  bsr  pcrel:16
+*  bmi  pcrel:16                 bst  #imm,rd
+   bge  pcrel:8                  bst  #imm,@@rd
+*  bge  pcrel:16                 bst  #imm,@@abs:8
+   blt  pcrel:8                  btst #imm,rd
+*  blt  pcrel:16                 btst #imm,@@rd
+   bgt  pcrel:8                  btst #imm,@@abs:8
+*  bgt  pcrel:16                 btst rs,rd
+   ble  pcrel:8                  btst rs,@@rd
+*  ble  pcrel:16                 btst rs,@@abs:8
+   bclr #imm,rd                  bxor #imm,rd
+   bclr #imm,@@rd                 bxor #imm,@@rd
+   bclr #imm,@@abs:8              bxor #imm,@@abs:8
+   bclr rs,rd                    cmp.b #imm,rd
+   bclr rs,@@rd                   cmp.b rs,rd
+   bclr rs,@@abs:8                cmp.w rs,rd
+   biand #imm,rd                 cmp.w rs,rd
+   biand #imm,@@rd             *  cmp.w #imm,rd
+   biand #imm,@@abs:8          *  cmp.l #imm,rd
+   bild #imm,rd               *  cmp.l rs,rd
+   bild #imm,@@rd                 daa  rs
+   bild #imm,@@abs:8              das  rs
+   bior #imm,rd                  dec.b rs
+   bior #imm,@@rd              *  dec.w #imm,rd
+   bior #imm,@@abs:8           *  dec.l #imm,rd
+   bist #imm,rd                  divxu.b rs,rd
+   bist #imm,@@rd              *  divxu.w rs,rd
+   bist #imm,@@abs:8           *  divxs.b rs,rd
+   bixor #imm,rd              *  divxs.w rs,rd
+   bixor #imm,@@rd                eepmov
+   bixor #imm,@@abs:8          *  eepmovw
+@page
+*  exts.w rd                     mov.w rs,@@abs:16
+*  exts.l rd                  *  mov.l #imm,rd
+*  extu.w rd                  *  mov.l rs,rd
+*  extu.l rd                  *  mov.l @@rs,rd
+   inc  rs                    *  mov.l @@(disp:16,rs),rd
+*  inc.w #imm,rd              *  mov.l @@(disp:24,rs),rd
+*  inc.l #imm,rd              *  mov.l @@rs+,rd
+   jmp  @@rs                   *  mov.l @@abs:16,rd
+   jmp  abs                   *  mov.l @@abs:24,rd
+   jmp  @@@@abs:8               *  mov.l rs,@@rd
+   jsr  @@rs                   *  mov.l rs,@@(disp:16,rd)
+   jsr  abs                   *  mov.l rs,@@(disp:24,rd)
+   jsr  @@@@abs:8               *  mov.l rs,@@-rd
+   ldc  #imm,ccr              *  mov.l rs,@@abs:16
+   ldc  rs,ccr                *  mov.l rs,@@abs:24
+*  ldc  @@abs:16,ccr              movfpe @@abs:16,rd
+*  ldc  @@abs:24,ccr              movtpe rs,@@abs:16
+*  ldc  @@(disp:16,rs),ccr        mulxu.b rs,rd
+*  ldc  @@(disp:24,rs),ccr     *  mulxu.w rs,rd
+*  ldc  @@rs+,ccr              *  mulxs.b rs,rd
+*  ldc  @@rs,ccr               *  mulxs.w rs,rd
+*  mov.b @@(disp:24,rs),rd        neg.b rs
+*  mov.b rs,@@(disp:24,rd)     *  neg.w rs
+   mov.b @@abs:16,rd           *  neg.l rs
+   mov.b rs,rd                   nop
+   mov.b @@abs:8,rd               not.b rs
+   mov.b rs,@@abs:8            *  not.w rs
+   mov.b rs,rd                *  not.l rs
+   mov.b #imm,rd                 or.b #imm,rd
+   mov.b @@rs,rd                  or.b rs,rd
+   mov.b @@(disp:16,rs),rd     *  or.w #imm,rd
+   mov.b @@rs+,rd              *  or.w rs,rd
+   mov.b @@abs:8,rd            *  or.l #imm,rd
+   mov.b rs,@@rd               *  or.l rs,rd
+   mov.b rs,@@(disp:16,rd)        orc  #imm,ccr
+   mov.b rs,@@-rd                 pop.w rs
+   mov.b rs,@@abs:8            *  pop.l rs
+   mov.w rs,@@rd                  push.w rs
+*  mov.w @@(disp:24,rs),rd     *  push.l rs
+*  mov.w rs,@@(disp:24,rd)        rotl.b rs
+*  mov.w @@abs:24,rd           *  rotl.w rs
+*  mov.w rs,@@abs:24           *  rotl.l rs
+   mov.w rs,rd                   rotr.b rs
+   mov.w #imm,rd              *  rotr.w rs
+   mov.w @@rs,rd               *  rotr.l rs
+   mov.w @@(disp:16,rs),rd        rotxl.b rs
+   mov.w @@rs+,rd              *  rotxl.w rs
+   mov.w @@abs:16,rd           *  rotxl.l rs
+   mov.w rs,@@(disp:16,rd)        rotxr.b rs
+   mov.w rs,@@-rd              *  rotxr.w rs
+@page
+*  rotxr.l rs                 *  stc  ccr,@@(disp:24,rd)
+   bpt                        *  stc  ccr,@@-rd
+   rte                        *  stc  ccr,@@abs:16
+   rts                        *  stc  ccr,@@abs:24
+   shal.b rs                     sub.b rs,rd
+*  shal.w rs                     sub.w rs,rd
+*  shal.l rs                  *  sub.w #imm,rd
+   shar.b rs                  *  sub.l rs,rd
+*  shar.w rs                  *  sub.l #imm,rd
+*  shar.l rs                     subs #imm,rd
+   shll.b rs                     subx #imm,rd
+*  shll.w rs                     subx rs,rd
+*  shll.l rs                  *  trapa #imm
+   shlr.b rs                     xor  #imm,rd
+*  shlr.w rs                     xor  rs,rd
+*  shlr.l rs                  *  xor.w #imm,rd
+   sleep                      *  xor.w rs,rd
+   stc  ccr,rd                *  xor.l #imm,rd
+*  stc  ccr,@@rs               *  xor.l rs,rd
+*  stc  ccr,@@(disp:16,rd)        xorc #imm,ccr
+@end smallexample
+@end ifset
+
+@cindex size suffixes, H8/300
+@cindex H8/300 size suffixes
+Four H8/300 instructions (@code{add}, @code{cmp}, @code{mov},
+@code{sub}) are defined with variants using the suffixes @samp{.b},
+@samp{.w}, and @samp{.l} to specify the size of a memory operand.
+@code{@value{AS}} supports these suffixes, but does not require them;
+since one of the operands is always a register, @code{@value{AS}} can
+deduce the correct size.
+
+For example, since @code{r0} refers to a 16-bit register,
+@example
+mov    r0,@@foo
+@exdent is equivalent to
+mov.w  r0,@@foo
+@end example
+
+If you use the size suffixes, @code{@value{AS}} issues a warning when
+the suffix and the register size do not match.

@@ -1,0 +1,11 @@
+# DLX assembler testsuite.
+
+if [istarget dlx*-*-*] {
+    run_dump_test "branch"
+    run_dump_test "itype"
+    run_dump_test "lhi"
+    run_dump_test "load"
+    run_dump_test "lohi"
+    run_dump_test "rtype"
+    run_dump_test "store"
+}

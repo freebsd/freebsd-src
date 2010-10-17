@@ -7,7 +7,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2002-10-30 10:08-0500\n"
+"POT-Creation-Date: 2003-07-11 13:58+0930\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -244,97 +244,96 @@ msgstr ""
 msgid "%s: file `%s' has no symbols\n"
 msgstr ""
 
-#: corefile.c:748
+#: corefile.c:758
 #, c-format
 msgid "%s: somebody miscounted: ltab.len=%d instead of %ld\n"
 msgstr ""
 
-#: gmon_io.c:96 gmon_io.c:159 gmon_io.c:219 gmon_io.c:251 gmon_io.c:422
-#: gmon_io.c:449 gmon_io.c:646 gmon_io.c:671
+#: gmon_io.c:82
 #, c-format
-msgid "%s: bits per address has unexpected value of %u\n"
+msgid "%s: address size has unexpected value of %u\n"
 msgstr ""
 
-#: gmon_io.c:288 gmon_io.c:383
+#: gmon_io.c:345 gmon_io.c:440
 #, c-format
 msgid "%s: file too short to be a gmon file\n"
 msgstr ""
 
-#: gmon_io.c:298 gmon_io.c:432
+#: gmon_io.c:355 gmon_io.c:483
 #, c-format
 msgid "%s: file `%s' has bad magic cookie\n"
 msgstr ""
 
-#: gmon_io.c:309
+#: gmon_io.c:366
 #, c-format
 msgid "%s: file `%s' has unsupported version %d\n"
 msgstr ""
 
-#: gmon_io.c:339
+#: gmon_io.c:396
 #, c-format
 msgid "%s: %s: found bad tag %d (file corrupted?)\n"
 msgstr ""
 
-#: gmon_io.c:405
+#: gmon_io.c:462
 #, c-format
 msgid "%s: profiling rate incompatible with first gmon file\n"
 msgstr ""
 
-#: gmon_io.c:465
+#: gmon_io.c:510
 #, c-format
 msgid "%s: incompatible with first gmon file\n"
 msgstr ""
 
-#: gmon_io.c:493
+#: gmon_io.c:538
 #, c-format
 msgid "%s: file '%s' does not appear to be in gmon.out format\n"
 msgstr ""
 
-#: gmon_io.c:514
+#: gmon_io.c:559
 #, c-format
 msgid "%s: unexpected EOF after reading %d/%d bins\n"
 msgstr ""
 
-#: gmon_io.c:547
+#: gmon_io.c:592
 msgid "time is in ticks, not seconds\n"
 msgstr ""
 
-#: gmon_io.c:553 gmon_io.c:742
+#: gmon_io.c:598 gmon_io.c:775
 #, c-format
 msgid "%s: don't know how to deal with file format %d\n"
 msgstr ""
 
-#: gmon_io.c:560
+#: gmon_io.c:605
 #, c-format
 msgid "File `%s' (version %d) contains:\n"
 msgstr ""
 
-#: gmon_io.c:563
+#: gmon_io.c:608
 #, c-format
 msgid "\t%d histogram record\n"
 msgstr ""
 
-#: gmon_io.c:564
+#: gmon_io.c:609
 #, c-format
 msgid "\t%d histogram records\n"
 msgstr ""
 
-#: gmon_io.c:566
+#: gmon_io.c:611
 #, c-format
 msgid "\t%d call-graph record\n"
 msgstr ""
 
-#: gmon_io.c:567
+#: gmon_io.c:612
 #, c-format
 msgid "\t%d call-graph records\n"
 msgstr ""
 
-#: gmon_io.c:569
+#: gmon_io.c:614
 #, c-format
 msgid "\t%d basic-block count record\n"
 msgstr ""
 
-#: gmon_io.c:570
+#: gmon_io.c:615
 #, c-format
 msgid "\t%d basic-block count records\n"
 msgstr ""

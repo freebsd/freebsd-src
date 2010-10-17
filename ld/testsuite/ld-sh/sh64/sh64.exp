@@ -1,0 +1,134 @@
+# Expect script for ld-sh tests
+#   Copyright (C) 2000, 2001, 2002 Free Software Foundation
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+
+# Test SH linking; all types of relocs.  This tests the assembler and
+# tools like objdump as well as the linker.
+
+if ![istarget sh64-*-*] {
+    return
+}
+
+if [istarget sh64*-*-linux*] {
+    return
+}
+
+if { [istarget sh64*-*-netbsd*] || [istarget sh5*-*-netbsd*] } then {
+	return
+}
+
+# List contains test-items with 3 items followed by 2 lists:
+# 0:name 1:ld options 2:assembler options
+# 3:filenames of assembler files 4: action and options. 5: name of output file
+
+# Actions:
+# objdump: Apply objdump options on result.  Compare with regex (last arg).
+# nm: Apply nm options on result.  Compare with regex (last arg).
+# readelf: Apply readelf options on result.  Compare with regex (last arg).
+
+# Note that the contents dump is the same for "inter-file datalabel
+# references, 64-bit ABI" as for 32-bit ABI and ELF so we re-use it.
+
+set sh64tests {
+    {"SH64 linking, 64-bit ABI" "-mshelf64"
+     "--abi=64" {sh64-1.s sh64-2.s}
+     {{objdump -sr abi64.sd} {objdump -x abi64.xd}} "abi64.bin" }
+    {"SH64 linking, 64-bit ABI, -no-expand" "-mshelf64"
+     "--abi=64 -no-expand" {sh64-1.s sh64-2.s}
+     {{objdump -sr abixx-noexp.sd}} "abi64-noexp.bin" }
+    {"SH64 linking, 32-bit ABI" "-mshelf32"
+     "--abi=32" {sh64-1.s sh64-2.s}
+     {{objdump -sr abi32.sd} {objdump -x abi32.xd}} "abi32.bin" }
+    {"SH64 linking, 32-bit ABI, -no-expand" "-mshelf32"
+     "--abi=32 -no-expand" {sh64-1.s sh64-2.s}
+     {{objdump -sr abixx-noexp.sd}} "abi32-noexp.bin" }
+    {"SH64 linking, single multi-ISA object" "-mshelf32"
+     "--abi=32" {shmix-1.s}
+     {{objdump -sr mix1.sd} {objdump -x mix1.xd}} "mix1.bin" }
+    {"SH64 linking, single multi-ISA object, -no-expand" "-mshelf32"
+     "--abi=32 -no-expand" {shmix-1.s}
+     {{objdump -sr mix1-noexp.sd}} "mix1-noexp.bin" }
+    {"SH64 linking, two different-ISA objects" "-mshelf32"
+     "--abi=32" {shmix-2.s shmix-3.s}
+     {{objdump -sr mix2.sd} {objdump -x mix2.xd}} "mix2.bin" }
+    {"SH64 linking, two different-ISA objects, -no-expand" "-mshelf32"
+     "--abi=32 -no-expand" {shmix-2.s shmix-3.s}
+     {{objdump -sr mix2-noexp.sd}} "mix2-noexp.bin" }
+    {"SH64 linking, single SHcompact" "-mshelf32"
+     "--isa=SHcompact" {shcmp-1.s}
+     {{objdump -sr cmpct1.sd} {objdump -x cmpct1.xd}} "cmpct1.bin" }
+    {"SH64 inter-file datalabel references, 64-bit ABI" "-mshelf64"
+     "--abi=64" {shdl-1.s shdl-2.s}
+     {{objdump -sr shdl64.sd} {objdump -x shdl64.xd}} "shdl64.bin" }
+    {"SH64 inter-file datalabel references, 32-bit ABI" "-mshelf32"
+     "--abi=32" {shdl-1.s shdl-2.s}
+     {{objdump -sr shdl64.sd} {objdump -x shdl32.xd}} "shdl32.bin" }
+    {"SH64 inter-file datalabel references and gc-sections, 32-bit ABI" "-mshelf32 --gc-sections"
+     "--abi=32" {dlsection-1.s }
+     {{objdump -sr dlsection.sd}} "dlsection32.bin" }
+    {"SH64 inter-file datalabel references and gc-sections, 64-bit ABI" "-mshelf64 --gc-sections"
+     "--abi=64" {dlsection-1.s }
+     {{objdump -sr dlsection.sd}} "dlsection64.bin" }
+    {"SH64 simple partial linking, 32-bit ABI" "-mshelf32 -r"
+     "--abi=32" {rel-1.s rel-2.s}
+     {{objdump -sx rel32.xd}} "rel32.bin" }
+    {"SH64 simple partial linking, 64-bit ABI" "-mshelf64 -r"
+     "--abi=64" {rel-1.s rel-2.s}
+     {{objdump -sx rel64.xd}} "rel64.bin" }
+    {"SH64 partial linking with datalabel references, 32-bit ABI" "-mshelf32 -r"
+     "--abi=32" {reldl-1.s reldl-2.s}
+     {{readelf {-s -r -x 1 -x 3} reldl32.rd}} "reldl32.bin" }
+    {"SH64 partial linking with datalabel references, 64-bit ABI" "-mshelf64 -r"
+     "--abi=64" {reldl-1.s reldl-2.s}
+     {{readelf {-s -r -x 1 -x 3} reldl64.rd}} "reldl64.bin" }
+    {"Handling SH64 assembler-generated .cranges" "-mshelf32"
+     "--abi=32" {crange-2a.s crange-1.s}
+     {{readelf {-S -s -r -x 1 -x 2 -x 9} crange1.rd}} "crange1.bin" }
+    {"Handling SH64 assembler-generated .cranges, partial linking" "-mshelf32 -r"
+     "--abi=32" {crange-2a.s}
+     {{readelf {-S -s -r -x 2 -x 6} crangerel1.rd}} "crangerel1.bin" }
+    {"Mixing SH64 assembler-generated with linker-generated .cranges" "-mshelf32"
+     "--abi=32" {crange-2a.s crange-2b.s crange-1.s}
+     {{readelf {-S -s -r -x 2 -x 9} crange2.rd}} "crange2.bin" }
+    {"Mixing SH64 assembler-generated with linker-generated .cranges, partial linking"
+     "-mshelf32 -r"
+     "--abi=32" {crange-2a.s crange-2c.s crange-2d.s crange-2e.s}
+     {{readelf {-S -s -r -x 2 -x 6} crangerel2.rd}} "crangerel2.bin" }
+    {"Merge and use of SH64 .cranges, some not originally in order" "-mshelf32"
+     "--abi=32"
+     {crange-2e.s crange-2f.s crange-2g.s crange-2a.s crange-2d.s crange-2i.s
+      crange-2h.s crange-1.s}
+      {{readelf {-S -s -x 2 -x 9} crange3.rd} {objdump -d crange3.dd}} "crange3.bin" }
+    {"Sorted SH64 .cranges, entry at SHcompact code" "-mshelf32 --entry diversion"
+     "--abi=32"
+     {crange-2e.s crange-2f.s crange-2g.s crange-2a.s crange-2d.s crange-2i.s
+      crange-2h.s crange-1.s}
+      {{readelf {-h -S -s -x 2 -x 9} crange3-cmpct.rd}} "crange3-cmpct.bin" }
+    {"Sorted SH64 .cranges, entry at SHmedia code" "-mshelf32 --entry diversion2"
+     "--abi=32"
+     {crange-2e.s crange-2f.s crange-2g.s crange-2a.s crange-2d.s crange-2i.s
+      crange-2h.s crange-1.s}
+      {{readelf {-h -S -s -x 2 -x 9} crange3-media.rd}} "crange3-media.bin" }
+    {"SH64 Big Endianness" "-mshelf64 -Tendian.ld"
+     "--abi=64" {endian.s}
+     {{objdump -s endian.sbd} {objdump -d endian.dbd}} "endianb.bin" }
+    {"SH64 Little Endianness" "-mshlelf64 -Tendian.ld"
+     "--abi=64 --little" {endian.s}
+     {{objdump -s endian.sld} {objdump -d endian.dld}} "endinanl.bin" }
+}
+
+run_ld_link_tests $sh64tests

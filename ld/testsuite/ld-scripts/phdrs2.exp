@@ -1,0 +1,65 @@
+# Test PHDRS with empty sections in a linker script.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+# PHDRS2 is only meaningful for ELF.
+if {    ![istarget *-*-sysv4*] \
+     && ![istarget *-*-unixware*] \
+     && ![istarget *-*-elf*] \
+     && ![istarget *-*-eabi*] \
+     && ![istarget hppa*64*-*-hpux*] \
+     && ![istarget *-*-linux*] \
+     && ![istarget *-*-irix5*] \
+     && ![istarget *-*-irix6*] \
+     && ![istarget *-*-solaris2*] } {
+    return
+}
+
+if { [istarget *-*-linux*aout*] \
+     || [istarget *-*-linux*oldld*] } {
+    return
+}
+
+# This is a very simplistic test.
+
+set testname "PHDRS2"
+
+if ![ld_assemble $as $srcdir/$subdir/phdrs2.s tmpdir/phdrs2.o] {
+    unresolved $testname
+    return
+}
+
+set phdrs_regexp \
+    ".*Program Header:.*LOAD *off *0x00\[0-9a-f\]* *vaddr *0x00*800000 *paddr *0x00*800000.*filesz *0x0\[0-9a-f\]* *memsz *0x0\[0-9a-f\]*.*LOAD *off *0x00\[0-9a-f\]* *vaddr *0x00*800004 *paddr *0x00*800004.*filesz *0x00*\[0-9a-f\]* *memsz *0x0\[0-9a-f\]* *flags rw.*"
+
+if ![ld_simple_link $ld tmpdir/phdrs2 "-T $srcdir/$subdir/phdrs2.t tmpdir/phdrs2.o"] {
+    fail $testname
+} else {
+    if {[which $objdump] == 0} {
+	unresolved $testname
+	return
+    }
+
+    verbose -log "$objdump --private tmpdir/phdrs2"
+    catch "exec $objdump --private tmpdir/phdrs2" exec_output
+    set exec_output [prune_warnings $exec_output]
+    verbose -log $exec_output
+
+    if [regexp $phdrs_regexp $exec_output] {
+	pass $testname
+    } else {
+	fail $testname
+    }
+}

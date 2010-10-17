@@ -1,0 +1,456 @@
+#source: tlsbinpic.s
+#source: tlsbin.s
+#as: --32
+#ld: -melf_i386 tmpdir/libtlslib.so
+#objdump: -drj.text
+#target: i?86-*-*
+
+# PT_TLS layout is:
+# Offset from	Offset from	Name
+# TCB base	TCB end
+# 0x00		-0xa0		sg1..sg8
+# 0x20		-0x80		sl1..sl8
+# 0x40		-0x60		sh1..sh8
+# 0x60		-0x40		bg1..bg8
+# 0x80		-0x20		bl1..bl8
+
+.*: +file format elf32-i386
+
+Disassembly of section .text:
+
+0+8049000 <fn2>:
+ 8049000:	55[ 	]+push   %ebp
+ 8049001:	89 e5[ 	]+mov    %esp,%ebp
+ 8049003:	53[ 	]+push   %ebx
+ 8049004:	50[ 	]+push   %eax
+ 8049005:	e8 00 00 00 00[ 	]+call   804900a <fn2\+0xa>
+ 804900a:	5b[ 	]+pop    %ebx
+ 804900b:	81 c3 f6 10 00 00[ 	]+add    \$0x10f6,%ebx
+ 8049011:	90[ 	]+nop *
+ 8049012:	90[ 	]+nop *
+ 8049013:	90[ 	]+nop *
+ 8049014:	90[ 	]+nop *
+#  GD -> IE because variable is not defined in executable
+ 8049015:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ 804901b:	2b 83 2c 00 00 00[ 	]+sub    0x2c\(%ebx\),%eax
+#				->R_386_TLS_TPOFF32	sG1
+ 8049021:	90[ 	]+nop *
+ 8049022:	90[ 	]+nop *
+ 8049023:	90[ 	]+nop *
+ 8049024:	90[ 	]+nop *
+#  GD -> IE because variable is not defined in executable where
+#  the variable is referenced through @gottpoff too
+ 8049025:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ 804902b:	2b 83 1c 00 00 00[ 	]+sub    0x1c\(%ebx\),%eax
+#				->R_386_TLS_TPOFF32	sG2
+ 8049031:	90[ 	]+nop *
+ 8049032:	90[ 	]+nop *
+ 8049033:	90[ 	]+nop *
+ 8049034:	90[ 	]+nop *
+#  GD -> IE because variable is not defined in executable where
+#  the variable is referenced through @gotntpoff too
+ 8049035:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ 804903b:	2b 83 10 00 00 00[ 	]+sub    0x10\(%ebx\),%eax
+#				->R_386_TLS_TPOFF	sG3
+ 8049041:	90[ 	]+nop *
+ 8049042:	90[ 	]+nop *
+ 8049043:	90[ 	]+nop *
+ 8049044:	90[ 	]+nop *
+#  GD -> IE because variable is not defined in executable where
+#  the variable is referenced through @gottpoff and @gotntpoff too
+ 8049045:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ 804904b:	2b 83 20 00 00 00[ 	]+sub    0x20\(%ebx\),%eax
+#				->R_386_TLS_TPOFF32	sG4
+ 8049051:	90[ 	]+nop *
+ 8049052:	90[ 	]+nop *
+ 8049053:	90[ 	]+nop *
+ 8049054:	90[ 	]+nop *
+#  GD -> LE with global variable defined in executable
+ 8049055:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ 804905b:	81 e8 a0 00 00 00[ 	]+sub    \$0xa0,%eax
+#							sg1
+ 8049061:	90[ 	]+nop *
+ 8049062:	90[ 	]+nop *
+ 8049063:	90[ 	]+nop *
+ 8049064:	90[ 	]+nop *
+#  GD -> LE with local variable defined in executable
+ 8049065:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ 804906b:	81 e8 80 00 00 00[ 	]+sub    \$0x80,%eax
+#							sl1
+ 8049071:	90[ 	]+nop *
+ 8049072:	90[ 	]+nop *
+ 8049073:	90[ 	]+nop *
+ 8049074:	90[ 	]+nop *
+#  GD -> LE with hidden variable defined in executable
+ 8049075:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ 804907b:	81 e8 60 00 00 00[ 	]+sub    \$0x60,%eax
+#							sh1
+ 8049081:	90[ 	]+nop *
+ 8049082:	90[ 	]+nop *
+ 8049083:	90[ 	]+nop *
+ 8049084:	90[ 	]+nop *
+#  LD -> LE
+ 8049085:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ 804908b:	90[ 	]+nop *
+ 804908c:	8d 74 26 00[ 	]+lea    0x0\(%esi\),%esi
+ 8049090:	90[ 	]+nop *
+ 8049091:	90[ 	]+nop *
+ 8049092:	8d 90 80 ff ff ff[ 	]+lea    0xffffff80\(%eax\),%edx
+#							sl1
+ 8049098:	90[ 	]+nop *
+ 8049099:	90[ 	]+nop *
+ 804909a:	8d 88 84 ff ff ff[ 	]+lea    0xffffff84\(%eax\),%ecx
+#							sl2
+ 80490a0:	90[ 	]+nop *
+ 80490a1:	90[ 	]+nop *
+ 80490a2:	90[ 	]+nop *
+ 80490a3:	90[ 	]+nop *
+#  LD -> LE against hidden variables
+ 80490a4:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ 80490aa:	90[ 	]+nop *
+ 80490ab:	8d 74 26 00[ 	]+lea    0x0\(%esi\),%esi
+ 80490af:	90[ 	]+nop *
+ 80490b0:	90[ 	]+nop *
+ 80490b1:	8d 90 a0 ff ff ff[ 	]+lea    0xffffffa0\(%eax\),%edx
+#							sh1
+ 80490b7:	90[ 	]+nop *
+ 80490b8:	90[ 	]+nop *
+ 80490b9:	8d 88 a4 ff ff ff[ 	]+lea    0xffffffa4\(%eax\),%ecx
+#							sh2
+ 80490bf:	90[ 	]+nop *
+ 80490c0:	90[ 	]+nop *
+ 80490c1:	90[ 	]+nop *
+ 80490c2:	90[ 	]+nop *
+#  @gottpoff IE against global var
+ 80490c3:	65 8b 0d 00 00 00 00 	mov    %gs:0x0,%ecx
+ 80490ca:	90[ 	]+nop *
+ 80490cb:	90[ 	]+nop *
+ 80490cc:	2b 8b 1c 00 00 00[ 	]+sub    0x1c\(%ebx\),%ecx
+#				->R_386_TLS_TPOFF32	sG2
+ 80490d2:	90[ 	]+nop *
+ 80490d3:	90[ 	]+nop *
+ 80490d4:	90[ 	]+nop *
+ 80490d5:	90[ 	]+nop *
+#  @gottpoff IE against global var
+ 80490d6:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ 80490dc:	90[ 	]+nop *
+ 80490dd:	90[ 	]+nop *
+ 80490de:	2b 83 20 00 00 00[ 	]+sub    0x20\(%ebx\),%eax
+#				->R_386_TLS_TPOFF32	sG4
+ 80490e4:	90[ 	]+nop *
+ 80490e5:	90[ 	]+nop *
+ 80490e6:	90[ 	]+nop *
+ 80490e7:	90[ 	]+nop *
+#  @gotntpoff IE against global var
+ 80490e8:	65 8b 0d 00 00 00 00 	mov    %gs:0x0,%ecx
+ 80490ef:	90[ 	]+nop *
+ 80490f0:	90[ 	]+nop *
+ 80490f1:	03 8b 10 00 00 00[ 	]+add    0x10\(%ebx\),%ecx
+#				->R_386_TLS_TPOFF	sG3
+ 80490f7:	90[ 	]+nop *
+ 80490f8:	90[ 	]+nop *
+ 80490f9:	90[ 	]+nop *
+ 80490fa:	90[ 	]+nop *
+#  @gotntpoff IE against global var
+ 80490fb:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ 8049101:	90[ 	]+nop *
+ 8049102:	90[ 	]+nop *
+ 8049103:	03 83 24 00 00 00[ 	]+add    0x24\(%ebx\),%eax
+#				->R_386_TLS_TPOFF	sG4
+ 8049109:	90[ 	]+nop *
+ 804910a:	90[ 	]+nop *
+ 804910b:	90[ 	]+nop *
+ 804910c:	90[ 	]+nop *
+#  @gottpoff IE -> LE against global var defined in exec
+ 804910d:	65 8b 0d 00 00 00 00 	mov    %gs:0x0,%ecx
+ 8049114:	90[ 	]+nop *
+ 8049115:	90[ 	]+nop *
+ 8049116:	81 e9 a0 00 00 00[ 	]+sub    \$0xa0,%ecx
+#							sg1
+ 804911c:	90[ 	]+nop *
+ 804911d:	90[ 	]+nop *
+ 804911e:	90[ 	]+nop *
+ 804911f:	90[ 	]+nop *
+#  @gotntpoff IE -> LE against local var
+ 8049120:	65 8b 0d 00 00 00 00 	mov    %gs:0x0,%ecx
+ 8049127:	90[ 	]+nop *
+ 8049128:	90[ 	]+nop *
+ 8049129:	81 c0 80 ff ff ff[ 	]+add    \$0xffffff80,%eax
+#							sl1
+ 804912f:	90[ 	]+nop *
+ 8049130:	90[ 	]+nop *
+ 8049131:	90[ 	]+nop *
+ 8049132:	90[ 	]+nop *
+#  @gottpoff IE -> LE against hidden var
+ 8049133:	65 8b 0d 00 00 00 00 	mov    %gs:0x0,%ecx
+ 804913a:	90[ 	]+nop *
+ 804913b:	90[ 	]+nop *
+ 804913c:	81 e9 60 00 00 00[ 	]+sub    \$0x60,%ecx
+#							sh1
+ 8049142:	90[ 	]+nop *
+ 8049143:	90[ 	]+nop *
+ 8049144:	90[ 	]+nop *
+ 8049145:	90[ 	]+nop *
+#  Direct access through %gs
+#  @gotntpoff IE against global var
+ 8049146:	8b 8b 14 00 00 00[ 	]+mov    0x14\(%ebx\),%ecx
+#				->R_386_TLS_TPOFF	sG5
+ 804914c:	90[ 	]+nop *
+ 804914d:	90[ 	]+nop *
+ 804914e:	65 8b 11[ 	]+mov    %gs:\(%ecx\),%edx
+ 8049151:	90[ 	]+nop *
+ 8049152:	90[ 	]+nop *
+ 8049153:	90[ 	]+nop *
+ 8049154:	90[ 	]+nop *
+#  @gotntpoff IE->LE against local var
+ 8049155:	c7 c0 90 ff ff ff[ 	]+mov    \$0xffffff90,%eax
+#							sl5
+ 804915b:	90[ 	]+nop *
+ 804915c:	90[ 	]+nop *
+ 804915d:	65 8b 10[ 	]+mov    %gs:\(%eax\),%edx
+ 8049160:	90[ 	]+nop *
+ 8049161:	90[ 	]+nop *
+ 8049162:	90[ 	]+nop *
+ 8049163:	90[ 	]+nop *
+#  @gotntpoff IE->LE against hidden var
+ 8049164:	c7 c2 b0 ff ff ff[ 	]+mov    \$0xffffffb0,%edx
+#							sh5
+ 804916a:	90[ 	]+nop *
+ 804916b:	90[ 	]+nop *
+ 804916c:	65 8b 12[ 	]+mov    %gs:\(%edx\),%edx
+ 804916f:	90[ 	]+nop *
+ 8049170:	90[ 	]+nop *
+ 8049171:	90[ 	]+nop *
+ 8049172:	90[ 	]+nop *
+ 8049173:	8b 5d fc[ 	]+mov    0xfffffffc\(%ebp\),%ebx
+ 8049176:	c9[ 	]+leave *
+ 8049177:	c3[ 	]+ret *
+
+08049178 <_start>:
+ 8049178:	55[ 	]+push   %ebp
+ 8049179:	89 e5[ 	]+mov    %esp,%ebp
+ 804917b:	e8 00 00 00 00[ 	]+call   8049180 <_start\+0x8>
+ 8049180:	59[ 	]+pop    %ecx
+ 8049181:	81 c1 80 0f 00 00[ 	]+add    \$0xf80,%ecx
+ 8049187:	90[ 	]+nop *
+ 8049188:	90[ 	]+nop *
+ 8049189:	90[ 	]+nop *
+ 804918a:	90[ 	]+nop *
+#  @gottpoff IE against global var
+ 804918b:	65 8b 15 00 00 00 00 	mov    %gs:0x0,%edx
+ 8049192:	90[ 	]+nop *
+ 8049193:	90[ 	]+nop *
+ 8049194:	2b 91 28 00 00 00[ 	]+sub    0x28\(%ecx\),%edx
+#				->R_386_TLS_TPOFF32	sG6
+ 804919a:	90[ 	]+nop *
+ 804919b:	90[ 	]+nop *
+ 804919c:	90[ 	]+nop *
+ 804919d:	90[ 	]+nop *
+#  @indntpoff IE against global var
+ 804919e:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ 80491a4:	90[ 	]+nop *
+ 80491a5:	90[ 	]+nop *
+ 80491a6:	03 05 18 a1 04 08[ 	]+add    0x804a118,%eax
+#				->R_386_TLS_TPOFF	sG7
+ 80491ac:	90[ 	]+nop *
+ 80491ad:	90[ 	]+nop *
+ 80491ae:	90[ 	]+nop *
+ 80491af:	90[ 	]+nop *
+#  @indntpoff direct %gs access IE against global var
+ 80491b0:	8b 15 30 a1 04 08[ 	]+mov    0x804a130,%edx
+#				->R_386_TLS_TPOFF	sG8
+ 80491b6:	90[ 	]+nop *
+ 80491b7:	90[ 	]+nop *
+ 80491b8:	65 8b 02[ 	]+mov    %gs:\(%edx\),%eax
+ 80491bb:	90[ 	]+nop *
+ 80491bc:	90[ 	]+nop *
+ 80491bd:	90[ 	]+nop *
+ 80491be:	90[ 	]+nop *
+#  @gottpoff IE -> LE against global var defined in exec
+ 80491bf:	65 8b 15 00 00 00 00 	mov    %gs:0x0,%edx
+ 80491c6:	90[ 	]+nop *
+ 80491c7:	90[ 	]+nop *
+ 80491c8:	81 ea 2c 00 00 00[ 	]+sub    \$0x2c,%edx
+#							bg6
+ 80491ce:	90[ 	]+nop *
+ 80491cf:	90[ 	]+nop *
+ 80491d0:	90[ 	]+nop *
+ 80491d1:	90[ 	]+nop *
+#  @indntpoff IE -> LE against global var defined in exec
+ 80491d2:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ 80491d8:	90[ 	]+nop *
+ 80491d9:	90[ 	]+nop *
+ 80491da:	81 c0 d8 ff ff ff[ 	]+add    \$0xffffffd8,%eax
+#							bg7
+ 80491e0:	90[ 	]+nop *
+ 80491e1:	90[ 	]+nop *
+ 80491e2:	90[ 	]+nop *
+ 80491e3:	90[ 	]+nop *
+#  @indntpoff direct %gs access IE -> LE against global var defined
+#  in exec
+ 80491e4:	c7 c2 dc ff ff ff[ 	]+mov    \$0xffffffdc,%edx
+#							bg8
+ 80491ea:	90[ 	]+nop *
+ 80491eb:	90[ 	]+nop *
+ 80491ec:	65 8b 02[ 	]+mov    %gs:\(%edx\),%eax
+ 80491ef:	90[ 	]+nop *
+ 80491f0:	90[ 	]+nop *
+ 80491f1:	90[ 	]+nop *
+ 80491f2:	90[ 	]+nop *
+#  @gottpoff IE -> LE against local var
+ 80491f3:	65 8b 15 00 00 00 00 	mov    %gs:0x0,%edx
+ 80491fa:	90[ 	]+nop *
+ 80491fb:	90[ 	]+nop *
+ 80491fc:	81 ea 0c 00 00 00[ 	]+sub    \$0xc,%edx
+#							bl6
+ 8049202:	90[ 	]+nop *
+ 8049203:	90[ 	]+nop *
+ 8049204:	90[ 	]+nop *
+ 8049205:	90[ 	]+nop *
+#  @indntpoff IE -> LE against local var
+ 8049206:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ 804920c:	90[ 	]+nop *
+ 804920d:	90[ 	]+nop *
+ 804920e:	81 c0 f8 ff ff ff[ 	]+add    \$0xfffffff8,%eax
+#							bl7
+ 8049214:	90[ 	]+nop *
+ 8049215:	90[ 	]+nop *
+ 8049216:	90[ 	]+nop *
+ 8049217:	90[ 	]+nop *
+#  @indntpoff direct %gs access IE -> LE against local var
+ 8049218:	c7 c2 fc ff ff ff[ 	]+mov    \$0xfffffffc,%edx
+#							bl8
+ 804921e:	90[ 	]+nop *
+ 804921f:	90[ 	]+nop *
+ 8049220:	65 8b 02[ 	]+mov    %gs:\(%edx\),%eax
+ 8049223:	90[ 	]+nop *
+ 8049224:	90[ 	]+nop *
+ 8049225:	90[ 	]+nop *
+ 8049226:	90[ 	]+nop *
+#  @gottpoff IE -> LE against hidden but not local var
+ 8049227:	65 8b 15 00 00 00 00 	mov    %gs:0x0,%edx
+ 804922e:	90[ 	]+nop *
+ 804922f:	90[ 	]+nop *
+ 8049230:	81 ea 4c 00 00 00[ 	]+sub    \$0x4c,%edx
+#							sh6
+ 8049236:	90[ 	]+nop *
+ 8049237:	90[ 	]+nop *
+ 8049238:	90[ 	]+nop *
+ 8049239:	90[ 	]+nop *
+#  @indntpoff IE -> LE against hidden but not local var
+ 804923a:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ 8049240:	90[ 	]+nop *
+ 8049241:	90[ 	]+nop *
+ 8049242:	81 c0 b8 ff ff ff[ 	]+add    \$0xffffffb8,%eax
+#							sh7
+ 8049248:	90[ 	]+nop *
+ 8049249:	90[ 	]+nop *
+ 804924a:	90[ 	]+nop *
+ 804924b:	90[ 	]+nop *
+#  @indntpoff direct %gs access IE -> LE against hidden but not
+#  local var
+ 804924c:	c7 c2 bc ff ff ff[ 	]+mov    \$0xffffffbc,%edx
+#							sh8
+ 8049252:	90[ 	]+nop *
+ 8049253:	90[ 	]+nop *
+ 8049254:	65 8b 02[ 	]+mov    %gs:\(%edx\),%eax
+ 8049257:	90[ 	]+nop *
+ 8049258:	90[ 	]+nop *
+ 8049259:	90[ 	]+nop *
+ 804925a:	90[ 	]+nop *
+#  LE @tpoff, global var defined in exec
+ 804925b:	ba a0 00 00 00[ 	]+mov    \$0xa0,%edx
+#							sg1
+ 8049260:	90[ 	]+nop *
+ 8049261:	90[ 	]+nop *
+ 8049262:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ 8049268:	90[ 	]+nop *
+ 8049269:	90[ 	]+nop *
+ 804926a:	29 d0[ 	]+sub    %edx,%eax
+ 804926c:	90[ 	]+nop *
+ 804926d:	90[ 	]+nop *
+ 804926e:	90[ 	]+nop *
+ 804926f:	90[ 	]+nop *
+#  LE @tpoff, local var
+ 8049270:	b8 1f 00 00 00[ 	]+mov    \$0x1f,%eax
+#							bl1+1
+ 8049275:	90[ 	]+nop *
+ 8049276:	90[ 	]+nop *
+ 8049277:	65 8b 15 00 00 00 00 	mov    %gs:0x0,%edx
+ 804927e:	90[ 	]+nop *
+ 804927f:	90[ 	]+nop *
+ 8049280:	29 c2[ 	]+sub    %eax,%edx
+ 8049282:	90[ 	]+nop *
+ 8049283:	90[ 	]+nop *
+ 8049284:	90[ 	]+nop *
+ 8049285:	90[ 	]+nop *
+#  LE @tpoff, hidden var defined in exec
+ 8049286:	b8 5d 00 00 00[ 	]+mov    \$0x5d,%eax
+#							sh1+3
+ 804928b:	90[ 	]+nop *
+ 804928c:	90[ 	]+nop *
+ 804928d:	65 8b 15 00 00 00 00 	mov    %gs:0x0,%edx
+ 8049294:	90[ 	]+nop *
+ 8049295:	90[ 	]+nop *
+ 8049296:	29 c2[ 	]+sub    %eax,%edx
+ 8049298:	90[ 	]+nop *
+ 8049299:	90[ 	]+nop *
+ 804929a:	90[ 	]+nop *
+ 804929b:	90[ 	]+nop *
+#  LE @ntpoff, global var defined in exec
+ 804929c:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ 80492a2:	90[ 	]+nop *
+ 80492a3:	90[ 	]+nop *
+ 80492a4:	8d 90 64 ff ff ff[ 	]+lea    0xffffff64\(%eax\),%edx
+#							sg2
+ 80492aa:	90[ 	]+nop *
+ 80492ab:	90[ 	]+nop *
+ 80492ac:	90[ 	]+nop *
+ 80492ad:	90[ 	]+nop *
+#  LE @ntpoff, local var, non-canonical sequence
+ 80492ae:	b8 e6 ff ff ff[ 	]+mov    \$0xffffffe6,%eax
+#							bl2+2
+ 80492b3:	90[ 	]+nop *
+ 80492b4:	90[ 	]+nop *
+ 80492b5:	65 8b 15 00 00 00 00 	mov    %gs:0x0,%edx
+ 80492bc:	90[ 	]+nop *
+ 80492bd:	90[ 	]+nop *
+ 80492be:	01 c2[ 	]+add    %eax,%edx
+ 80492c0:	90[ 	]+nop *
+ 80492c1:	90[ 	]+nop *
+ 80492c2:	90[ 	]+nop *
+ 80492c3:	90[ 	]+nop *
+#  LE @ntpoff, hidden var defined in exec, non-canonical sequence
+ 80492c4:	65 8b 15 00 00 00 00 	mov    %gs:0x0,%edx
+ 80492cb:	90[ 	]+nop *
+ 80492cc:	90[ 	]+nop *
+ 80492cd:	81 c2 a5 ff ff ff[ 	]+add    \$0xffffffa5,%edx
+#							sh2+1
+ 80492d3:	90[ 	]+nop *
+ 80492d4:	90[ 	]+nop *
+ 80492d5:	90[ 	]+nop *
+ 80492d6:	90[ 	]+nop *
+#  LE @ntpoff, global var defined in exec
+ 80492d7:	65 a1 68 ff ff ff[ 	]+mov    %gs:0xffffff68,%eax
+#							sg3
+ 80492dd:	90[ 	]+nop *
+ 80492de:	90[ 	]+nop *
+ 80492df:	90[ 	]+nop *
+ 80492e0:	90[ 	]+nop *
+#  LE @ntpoff, local var
+ 80492e1:	65 8b 15 eb ff ff ff 	mov    %gs:0xffffffeb,%edx
+#							bl3+3
+ 80492e8:	90[ 	]+nop *
+ 80492e9:	90[ 	]+nop *
+ 80492ea:	90[ 	]+nop *
+ 80492eb:	90[ 	]+nop *
+#  LE @ntpoff, hidden var defined in exec
+ 80492ec:	65 8b 15 a9 ff ff ff 	mov    %gs:0xffffffa9,%edx
+#							sh3+1
+ 80492f3:	90[ 	]+nop *
+ 80492f4:	90[ 	]+nop *
+ 80492f5:	90[ 	]+nop *
+ 80492f6:	90[ 	]+nop *
+ 80492f7:	8b 5d fc[ 	]+mov    0xfffffffc\(%ebp\),%ebx
+ 80492fa:	c9[ 	]+leave *
+ 80492fb:	c3[ 	]+ret *

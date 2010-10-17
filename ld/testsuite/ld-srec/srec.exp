@@ -1,0 +1,426 @@
+# Test linking directly to S-records.
+# By Ian Lance Taylor, Cygnus Support.
+#   Copyright 2001, 2002, 2003
+#   Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+# Get the offset from an S-record line to the start of the data.
+
+proc srec_off { l } {
+    if [string match "S1*" $l] {
+	return 8
+    } else { if [string match "S2*" $l] {
+	return 10
+    } else { if [string match "S3*" $l] {
+	return 12
+    } else {
+	return -1
+    } } }
+}
+
+# See if an S-record line contains only zero data.
+
+proc srec_zero { l } {
+    if [string match "S\[0789\]*" $l] {
+	return 1
+    }
+
+    # Strip the address and checksum.
+    if [string match "S\[123\]*" $l] {
+	set l [string range $l [srec_off $l] [expr [string length $l] - 3]]
+    } else {
+	return 0
+    }
+
+    # The rest must be zero.
+    return [string match "" [string trim $l "0"]]
+}
+
+# Get the address of an S-record line.
+
+proc srec_addr { l } {
+    if [string match "S\[123\]*" $l] {
+	set addr [string range $l 4 [expr [srec_off $l] - 1]]
+    } else {
+	return -1
+    }
+
+    return "0x$addr"
+}
+
+# Get the number of data bytes in an S-record line.
+
+proc srec_len { l } {
+    if ![string match "S\[123\]*" $l] {
+	return 0
+    }
+
+    return [expr "0x[string range $l 2 3]" - ([srec_off $l] - 4) / 2 - 1]
+}
+
+# Extract bytes from an S-record line.
+
+proc srec_extract { l start len } {
+    set off [srec_off $l]
+    set rlen [srec_len $l]
+    set stop [expr $start + $len]
+    if { $stop > $rlen } {
+	set stop [expr $rlen]
+    }
+    set start [expr $start * 2 + $off]
+    set stop [expr $stop * 2 + $off - 1]
+    return [string range $l $start $stop]
+}
+
+# See if a range of bytes in an S-record line is all zeroes.
+
+proc srec_zero_range { l start len } {
+    return [string match "" [string trim [srec_extract $l $start $len] "0"]]
+}
+
+# Trim an S-record line such that the specified number of bytes remain
+# at the end.
+
+proc srec_trim { l leave } {
+    set off [srec_off $l]
+    set addr [srec_addr $l]
+    set len [srec_len $l]
+
+    if { $leave >= $len } {
+	return $l
+    }
+
+    set s1 [string range $l 0 1]
+    set s2 [format "%02x" [expr ($off - 4) / 2 + $leave + 1]]
+    set s3 [format "%0[expr $off - 4]x" [expr $addr + $len - $leave]]
+    set s4 [string range $l [expr [string length $l] - ($leave * 2) - 2] end]
+    set s "${s1}${s2}${s3}${s4}"
+
+    verbose "srec_trim { '$l' $leave } returning '$s'" 2
+
+    return $s
+}
+
+# Report failure when comparing S-record lines
+
+proc srec_compare_fail { which l1 l2 } {
+    send_log "comparison failure $which:\n$l1\n$l2\n"
+    verbose "comparison failure $which:\n$l1\n$l2"
+}
+
+# Compare S-record files.  We don't want to fuss about things like
+# extra zeroes.  Note that BFD always sorts S-records by address.
+
+proc srec_compare { f1 f2 } {
+    set e1 [gets $f1 l1]
+    set e2 [gets $f2 l2]
+
+    while { $e1 != -1 } {
+	set l1 [string trimright $l1 "\r\n"]
+	set l2 [string trimright $l2 "\r\n"]
+	if { $e2 == -1 } {
+	    # If l1 contains data, it must be zero.
+	    if ![srec_zero $l1] {
+		send_log "data after EOF: $l1\n"
+		verbose "data after EOF: $l1"
+		return 0
+	    }
+	} else { if { [string compare $l1 $l2] == 0 } {
+	    set e1 [gets $f1 l1]
+	    set e2 [gets $f2 l2]
+	} else { if { [srec_zero $l1] } {
+	    set e1 [gets $f1 l1]
+	} else { if { [srec_zero $l2] } {
+	    set e2 [gets $f2 l2]
+	} else {
+	    # The strings are not the same, and neither is all zeroes.
+	    set a1 [srec_addr $l1]
+	    set n1 [srec_len $l1]
+	    set a2 [srec_addr $l2]
+	    set n2 [srec_len $l2]
+
+	    if { $a1 < $a2 && ![srec_zero_range $l1 0 [expr $a2 - $a1]] } {
+		verbose "$a1 $a2 [srec_extract $l1 0 [expr $a2 - $a1]]" 2
+		srec_compare_fail 1 $l1 $l2
+		return 0
+	    }
+	    if { $a2 < $a1 && ![srec_zero_range $l2 0 [expr $a1 - $a2]] } {
+		srec_compare_fail 2 $l1 $l2
+		return 0
+	    }
+
+	    # Here we know that any initial data in both lines is
+	    # zero.  Now make sure that any overlapping data matches.
+	    if { $a1 < $a2 } {
+		set os1 [expr $a2 - $a1]
+		set os2 0
+	    } else {
+		set os1 0
+		set os2 [expr $a1 - $a2]
+	    }
+	    if { $a1 + $n1 < $a2 + $n2 } {
+		set ol [expr $n1 - $os1]
+	    } else {
+		set ol [expr $n2 - $os2]
+	    }
+
+	    set x1 [srec_extract $l1 $os1 $ol]
+	    set x2 [srec_extract $l2 $os2 $ol]
+	    if { [string compare $x1 $x2] != 0 } {
+		verbose "$os1 $ol $x1" 2
+		verbose "$os2 $ol $x2" 2
+		srec_compare_fail 3 $l1 $l2
+		return 0
+	    }
+
+	    # These strings match.  Trim the data from the larger
+	    # string, read a new copy of the smaller string, and
+	    # continue.
+	    if { $a1 + $n1 < $a2 + $n2 } {
+		set l2 [srec_trim $l2 [expr ($a2 + $n2) - ($a1 + $n1)]]
+		set e1 [gets $f1 l1]
+	    } else { if { $a1 + $n1 > $a2 + $n2 } {
+		set l1 [srec_trim $l1 [expr ($a1 + $n1) - ($a2 + $n2)]]
+		set e2 [gets $f2 l2]
+	    } else {
+		set e1 [gets $f1 l1]
+		set e2 [gets $f2 l2]
+	    } }
+	} } } }
+    }
+
+    # We've reached the end of the first file.  The remainder of the
+    # second file must contain only zeroes.
+    while { $e2 != -1 } {
+	set l2 [string trimright $l2 "\r\n"]
+	if ![srec_zero $l2] {
+	    send_log "data after EOF: $l2\n"
+	    verbose "data after EOF: $l2"
+	    return 0
+	}
+	set e2 [gets $f2 l2]
+    }
+
+    return 1
+}
+
+# Link twice, objcopy, and compare
+
+proc run_srec_test { test objs } {
+    global ld
+    global objcopy
+    global sizeof_headers
+    global host_triplet
+
+    # Tell the ELF linker to not do anything clever with .eh_frame.
+    set flags "--traditional-format"
+
+    # If the linker script uses SIZEOF_HEADERS, use a -Ttext argument
+    # to force both the normal link and the S-record link to be put in
+    # the same place.  We don't always use -Ttext because it interacts
+    # poorly with a.out.
+
+    if { $sizeof_headers } {
+	set flags "$flags -Ttext 0x1000"
+    }
+
+    # The a29k compiled code calls V_SPILL and V_FILL.  Since we don't
+    # need to run this code, but we don't have definitions for those
+    # functions, we just define them out.
+    if [istarget a29k*-*-*] {
+	set flags "$flags --defsym V_SPILL=0 --defsym V_FILL=0"
+    }
+
+    if [istarget sh64*-*-elf] {
+        # This is what gcc passes to ld by default.
+        set flags "-mshelf32"
+        # SH64 targets cannot convert format in the linker 
+        # using the -oformat command line switch.
+	setup_xfail "sh64*-*-*"
+    }
+
+    if {[istarget arm*-*-*]       || \
+        [istarget strongarm*-*-*] || \
+        [istarget xscale*-*-*]    || \
+        [istarget thumb-*-*] } {
+    
+        # ARM targets call __gccmain
+        set flags "$flags --defsym __gccmain=0"
+
+        # ARM targets cannot convert format in the linker 
+        # using the --oformat command line switch
+	setup_xfail "*arm*-*-*"
+	setup_xfail "xscale-*-*"
+	setup_xfail "thumb-*-*"
+    }
+
+    # PowerPC EABI code calls __eabi.
+    if [istarget powerpc*-*-eabi*] {
+	set flags "$flags --defsym __eabi=0"
+    }
+
+    # mn10200 code calls __truncsipsi2_d0_d2.
+    if {[istarget mn10200*-*-*]} then {
+	set flags "$flags --defsym __truncsipsi2_d0_d2=0"
+    }
+
+    # m6811/m6812 code has references to soft registers.
+    if {[istarget m6811-*-*] || [istarget m6812-*-*]} {
+	set flags "$flags --defsym _.frame=0 --defsym _.d1=0 --defsym _.d2=0"
+	set flags "$flags --defsym _.d3=0 --defsym _.d4=0"
+	set flags "$flags --defsym _.tmp=0 --defsym _.xy=0 --defsym _.z=0"
+    }
+
+    # V850 targets need libgcc.a
+    if [istarget v850*-*-elf] {
+	set objs "$objs -L ../gcc -lgcc"
+    }
+
+    # Xtensa ELF targets relax by default; S-Record linker does not
+    if [istarget xtensa*-*-*] {
+	set flags "$flags -no-relax"
+    }
+    
+    if { ![ld_simple_link $ld tmpdir/sr1 "$flags $objs"] \
+	 || ![ld_simple_link $ld tmpdir/sr2.sr "$flags --oformat srec $objs"] } {
+	fail $test
+	return
+    }
+
+    send_log "$objcopy -O srec tmpdir/sr1 tmpdir/sr1.sr\n"
+    verbose "$objcopy -O srec tmpdir/sr1 tmpdir/sr1.sr"
+    catch "exec $objcopy -O srec tmpdir/sr1 tmpdir/sr1.sr" exec_output
+    set exec_output [prune_warnings $exec_output]
+    if ![string match "" $exec_output] {
+	send_log "$exec_output\n"
+	verbose "$exec_output"
+	unresolved $test
+	return
+    }
+
+    set f1 [open tmpdir/sr1.sr r]
+    set f2 [open tmpdir/sr2.sr r]
+    if [srec_compare $f1 $f2] {
+	pass $test
+    } else {
+	fail $test
+    }
+    close $f1
+    close $f2
+}
+
+set test1 "S-records"
+set test2 "S-records with constructors"
+
+# See whether the default linker script uses SIZEOF_HEADERS.
+catch "exec $ld --verbose" exec_output
+set sizeof_headers [string match "*SIZEOF_HEADERS*" $exec_output]
+
+# First test linking a C program.  We don't require any libraries.  We
+# link it normally, and objcopy to the S-record format, and then link
+# directly to the S-record format, and require that the two files
+# contain the same data.
+
+if { [which $CC] == 0 } {
+    untested $test1
+    untested $test2
+    return
+}
+
+if { ![ld_compile $CC $srcdir/$subdir/sr1.c tmpdir/sr1.o] \
+     || ![ld_compile $CC $srcdir/$subdir/sr2.c tmpdir/sr2.o] } {
+    unresolved $test1
+    unresolved $test2
+    return
+}
+
+# The i386-aout target is confused: the linker does not put the
+# sections where objdump finds them.  I don't know which is wrong.
+setup_xfail "i*86-*-aout*"
+
+# These tests fail on the native MIPS ELF targets because the GP value
+# in the .reginfo section is not updated when the S-record version is
+# written out.  The mips-elf target itself does not use a .reginfo section.
+setup_xfail "mips*-*-irix5*" "mips*-*-irix6*" "mips*-*-linux*"
+
+# The S-record linker doesn't do the magic TOC handling that XCOFF
+# linkers do.
+setup_xfail "*-*-aix*" "*-*-xcoff*"
+
+# The S-record linker doesn't build ARM/Thumb stubs.
+setup_xfail "arm-*-coff"
+setup_xfail "strongarm*-*-coff"
+setup_xfail "xscale*-*-coff"
+setup_xfail "arm-*-pe*"
+# setup_xfail "arm-*elf*"
+setup_xfail "thumb-*-coff*"
+setup_xfail "thumb-*-pe*"
+setup_xfail "thumb-*-elf*"
+setup_xfail "arm*-*-linux*"
+
+# The S-record linker doesn't build special EABI sections.
+# setup_xfail "powerpc*-*-eabi*"
+
+# The S-record linker doesn't include the .{zda} sections.
+setup_xfail "v850*-*-elf"
+
+# The S-record linker doesn't handle Alpha Elf relaxation.
+setup_xfail "alpha*-*-elf*" "alpha*-*-linux-gnu*" "alpha*-*-gnu*"
+setup_xfail "alpha*-*-netbsd*"
+
+# The S-record linker hasn't any hope of coping with HPPA relocs.
+setup_xfail "hppa*-*-*"
+
+# The S-record linker doesn't handle IA64 Elf relaxation.
+setup_xfail "ia64-*-*"
+
+# The S-record linker doesn't support the special PE headers - the PE
+# emulation tries to write pe-specific information to the PE headers
+# in the output bfd, but it's not a PE bfd (it's an srec bfd)
+setup_xfail "*-*-cygwin*" "*-*-mingw*" "*-*-pe*" "*-*-winnt*"
+
+run_srec_test $test1 "tmpdir/sr1.o tmpdir/sr2.o"
+
+# Now try linking a C++ program with global constructors and
+# destructors.  Note that since we are not linking against any
+# libraries, this program won't actually work or anything.
+
+if { [which $CXX] == 0 } {
+    untested $test2
+    return
+}
+
+if ![ld_compile "$CXX $CXXFLAGS -fno-exceptions" $srcdir/$subdir/sr3.cc tmpdir/sr3.o] {
+    unresolved $test2
+    return
+}
+
+# See above.
+setup_xfail "i*86-*-aout*"
+setup_xfail "mips*-*-irix5*" "mips*-*-irix6*" "mips*-*-linux*"
+setup_xfail "*-*-aix*" "*-*-xcoff*"
+setup_xfail "arm*-*-*"
+setup_xfail "strongarm*-*-*"
+setup_xfail "thumb-*-*"
+setup_xfail "powerpc*-*-eabi*"
+setup_xfail "v850*-*-elf"
+setup_xfail "alpha*-*-elf*" "alpha*-*-linux-gnu*" "alpha*-*-gnu*"
+setup_xfail "alpha*-*-netbsd*"
+setup_xfail "hppa*-*-*"
+setup_xfail "ia64-*-*"
+setup_xfail "*-*-cygwin*" "*-*-mingw*" "*-*-pe*" "*-*-winnt*"
+
+run_srec_test $test2 "tmpdir/sr3.o"

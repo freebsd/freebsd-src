@@ -1,0 +1,2 @@
+	.text
+	.long 0

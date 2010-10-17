@@ -1,0 +1,35 @@
+#
+# Some generic VAX tests
+#
+
+proc do_quad {} {
+    set testname "quad.s: quadword immediate values"
+    set x1 0
+    set x2 0
+    set x3 0
+    set file "quad.s"
+    if { [istarget vax-*-*elf*] || [istarget vax-*-linux-gnu*] } then {
+	set file "quad_elf.s"
+    }
+    gas_start $file "-al"
+    while 1 {
+	expect {
+	    -re "^ +2\[ \t\]+0000+ 7D8F7856\[ \t\]+movq\[^\n\]*\n" { set x1 1 }
+	    -re "^ +2\[ \t\]+3412DDCC\[^\n\]*\n"		   { set x2 1 }
+	    -re "^ +2\[ \t\]+BBAA50\[ \t\]*\r\n"		   { set x3 1 }
+	    -re "\[^\n\]*\n"				{ }
+	    timeout				{ perror "timeout\n"; break }
+	    eof					{ break }
+	}
+    }
+    gas_finish
+    if [all_ones $x1 $x2 $x3] then { pass $testname } else { fail $testname }
+}
+
+if [istarget vax-*-* ] then {
+    do_quad
+
+    if [istarget vax-*-*elf*] {
+	run_dump_test "elf-rel"
+    }
+}

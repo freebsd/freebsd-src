@@ -1,0 +1,59 @@
+# Test DEFINED in a linker script.
+# By Ian Lance Taylor, Cygnus Support.
+#   Copyright 2001
+#   Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+set testname "DEFINED"
+set prms_id 5699
+
+if ![ld_assemble $as $srcdir/$subdir/defined.s tmpdir/def.o] {
+    unresolved $testname
+    return
+}
+
+if ![ld_simple_link $ld tmpdir/def "-T $srcdir/$subdir/defined.t tmpdir/def.o"] {
+    fail $testname
+} else {
+    if ![ld_nm $nm "" tmpdir/def] {
+	unresolved $testname
+    } else {
+	if {![info exists nm_output(value1)] \
+	     || ![info exists nm_output(value2)]} {
+	    send_log "bad output from nm\n"
+	    verbose "bad output from nm"
+	    fail $testname
+	} else {
+	    if {$nm_output(value1) != 1} {
+		send_log "value1 == $nm_output(value1)\n"
+		verbose "value1 == $nm_output(value1)"
+		fail $testname
+	    } else {
+		if {$nm_output(value2) != 2} {
+		    send_log "value2 == $nm_output(value2)\n"
+		    verbose "value2 == $nm_output(value2)"
+		    fail $testname
+		} else {
+		    pass $testname
+		}
+	    }
+	}
+    }
+}
+
+set prms_id 0
+run_dump_test "defined2"
+run_dump_test "defined3"

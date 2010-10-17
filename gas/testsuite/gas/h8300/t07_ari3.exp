@@ -1,0 +1,480 @@
+#
+# Some h8300sx tests -- t07_ari3
+#
+
+proc do_t07_ari3_test {} {
+    set testname "t07_ari3.s -- h8sx arithmetic tests"
+
+    gas_start "t07_ari3.s" "-al"
+
+    # Check each instruction bit pattern to verify it got assembled correctly.
+
+    set x 0
+    expect {
+	-re ".*   7 0000 1781" { set x [expr $x+1]; exp_continue; }
+	-re ".*   8 0002 7D101780" { set x [expr $x+1]; exp_continue; }
+	-re ".*   9 0006 01776818" { set x [expr $x+1]; exp_continue; }
+	-re ".*   9      1780" { set x [expr $x+1]; exp_continue; }
+	-re ".*  10 000c 01746C18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  10      1780" { set x [expr $x+1]; exp_continue; }
+	-re ".*  11 0012 01776C18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  11      1780" { set x [expr $x+1]; exp_continue; }
+	-re ".*  12 0018 01756C18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  12      1780" { set x [expr $x+1]; exp_continue; }
+	-re ".*  13 001e 01766C18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  13      1780" { set x [expr $x+1]; exp_continue; }
+	-re ".*  14 0024 01746E18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  14      12341780" { set x [expr $x+1]; exp_continue; }
+	-re ".*  15 002c 78146A28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  15      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".*  15      1780" { set x [expr $x+1]; exp_continue; }
+	-re ".*  16 0036 01756E28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  16      12341780" { set x [expr $x+1]; exp_continue; }
+	-re ".*  17 003e 01766E28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  17      12341780" { set x [expr $x+1]; exp_continue; }
+	-re ".*  18 0046 01776E28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  18      12341780" { set x [expr $x+1]; exp_continue; }
+	-re ".*  19 004e 78256A28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  19      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".*  19      1780" { set x [expr $x+1]; exp_continue; }
+	-re ".*  20 0058 78266A28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  20      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".*  20      1780" { set x [expr $x+1]; exp_continue; }
+	-re ".*  21 0062 78276A28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  21      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".*  21      1780" { set x [expr $x+1]; exp_continue; }
+	-re ".*  22 006c 7F121780" { set x [expr $x+1]; exp_continue; }
+	-re ".*  23 0070 6A181234" { set x [expr $x+1]; exp_continue; }
+	-re ".*  23      1780" { set x [expr $x+1]; exp_continue; }
+	-re ".*  24 0076 6A381234" { set x [expr $x+1]; exp_continue; }
+	-re ".*  24      56781780" { set x [expr $x+1]; exp_continue; }
+	-re ".*  25              " {
+	    if [expr $x == 37] then {
+		pass "$testname: neg.b ..."
+	    } else {
+		fail "$testname: neg.b ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: neg.b ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".*  26 007e 1791" { set x [expr $x+1]; exp_continue; }
+	-re ".*  27 0080 7D901790" { set x [expr $x+1]; exp_continue; }
+	-re ".*  28 0084 01576918" { set x [expr $x+1]; exp_continue; }
+	-re ".*  28      1790" { set x [expr $x+1]; exp_continue; }
+	-re ".*  29 008a 01546D18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  29      1790" { set x [expr $x+1]; exp_continue; }
+	-re ".*  30 0090 01576D18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  30      1790" { set x [expr $x+1]; exp_continue; }
+	-re ".*  31 0096 01556D18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  31      1790" { set x [expr $x+1]; exp_continue; }
+	-re ".*  32 009c 01566D18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  32      1790" { set x [expr $x+1]; exp_continue; }
+	-re ".*  33 00a2 01546F18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  33      12341790" { set x [expr $x+1]; exp_continue; }
+	-re ".*  34 00aa 78146B28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  34      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".*  34      1790" { set x [expr $x+1]; exp_continue; }
+	-re ".*  35 00b4 01556F28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  35      12341790" { set x [expr $x+1]; exp_continue; }
+	-re ".*  36 00bc 01566F28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  36      12341790" { set x [expr $x+1]; exp_continue; }
+	-re ".*  37 00c4 01576F28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  37      12341790" { set x [expr $x+1]; exp_continue; }
+	-re ".*  38 00cc 78256B28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  38      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".*  38      1790" { set x [expr $x+1]; exp_continue; }
+	-re ".*  39 00d6 78266B28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  39      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".*  39      1790" { set x [expr $x+1]; exp_continue; }
+	-re ".*  40 00e0 78276B28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  40      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".*  40      1790" { set x [expr $x+1]; exp_continue; }
+	-re ".*  41 00ea 6B181234" { set x [expr $x+1]; exp_continue; }
+	-re ".*  41      1790" { set x [expr $x+1]; exp_continue; }
+	-re ".*  42 00f0 6B381234" { set x [expr $x+1]; exp_continue; }
+	-re ".*  42      56781790" { set x [expr $x+1]; exp_continue; }
+	-re ".*  43              " {
+	    if [expr $x == 36] then {
+		pass "$testname: neg.w ..."
+	    } else {
+		fail "$testname: neg.w ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: neg.w ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".*  44 00f8 17B1" { set x [expr $x+1]; exp_continue; }
+	-re ".*  45 00fa 01046918" { set x [expr $x+1]; exp_continue; }
+	-re ".*  45      17B0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  46 0100 01076918" { set x [expr $x+1]; exp_continue; }
+	-re ".*  46      17B0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  47 0106 01046D18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  47      17B0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  48 010c 01076D18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  48      17B0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  49 0112 01056D18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  49      17B0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  50 0118 01066D18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  50      17B0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  51 011e 01046F18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  51      123417B0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  52 0126 78946B28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  52      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".*  52      17B0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  53 0130 01056F28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  53      123417B0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  54 0138 01066F28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  54      123417B0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  55 0140 01076F28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  55      123417B0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  56 0148 78A56B28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  56      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".*  56      17B0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  57 0152 78A66B28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  57      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".*  57      17B0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  58 015c 78A76B28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  58      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".*  58      17B0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  59 0166 01046B08" { set x [expr $x+1]; exp_continue; }
+	-re ".*  59      123417B0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  60 016e 01046B28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  60      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".*  60      17B0" { set x [expr $x+1]; exp_continue; }
+	-re ".*  61              " {
+	    if [expr $x == 38] then {
+		pass "$testname: neg.l ..."
+	    } else {
+		fail "$testname: neg.l ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: neg.l ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".*  62 0178 01E07B1C" { set x [expr $x+1]; exp_continue; }
+	-re ".*  63              " {
+	    if [expr $x == 1] then {
+		pass "$testname: tas @er1"
+	    } else {
+		fail "$testname: tas @er1 ($x)"
+	    }
+	}
+        default	{ fail "$testname: tas @er1 ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".*  64 017c 1751" { set x [expr $x+1]; exp_continue; }
+	-re ".*  65 017e 7D901750" { set x [expr $x+1]; exp_continue; }
+	-re ".*  66 0182 01576918" { set x [expr $x+1]; exp_continue; }
+	-re ".*  66      1750" { set x [expr $x+1]; exp_continue; }
+	-re ".*  67 0188 01546D18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  67      1750" { set x [expr $x+1]; exp_continue; }
+	-re ".*  68 018e 01576D18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  68      1750" { set x [expr $x+1]; exp_continue; }
+	-re ".*  69 0194 01556D18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  69      1750" { set x [expr $x+1]; exp_continue; }
+	-re ".*  70 019a 01566D18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  70      1750" { set x [expr $x+1]; exp_continue; }
+	-re ".*  71 01a0 01546F18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  71      12341750" { set x [expr $x+1]; exp_continue; }
+	-re ".*  72 01a8 78146B28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  72      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".*  72      1750" { set x [expr $x+1]; exp_continue; }
+	-re ".*  73 01b2 01556F28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  73      12341750" { set x [expr $x+1]; exp_continue; }
+	-re ".*  74 01ba 01566F28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  74      12341750" { set x [expr $x+1]; exp_continue; }
+	-re ".*  75 01c2 01576F28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  75      12341750" { set x [expr $x+1]; exp_continue; }
+	-re ".*  76 01ca 78256B28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  76      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".*  76      1750" { set x [expr $x+1]; exp_continue; }
+	-re ".*  77 01d4 78266B28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  77      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".*  77      1750" { set x [expr $x+1]; exp_continue; }
+	-re ".*  78 01de 78276B28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  78      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".*  78      1750" { set x [expr $x+1]; exp_continue; }
+	-re ".*  79 01e8 6B181234" { set x [expr $x+1]; exp_continue; }
+	-re ".*  79      1750" { set x [expr $x+1]; exp_continue; }
+	-re ".*  80 01ee 6B381234" { set x [expr $x+1]; exp_continue; }
+	-re ".*  80      56781750" { set x [expr $x+1]; exp_continue; }
+	-re ".*  81              " {
+	    if [expr $x == 36] then {
+		pass "$testname: extu.w ..."
+	    } else {
+		fail "$testname: extu.w ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: extu.w ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".*  82 01f6 1771" { set x [expr $x+1]; exp_continue; }
+	-re ".*  83 01f8 01046918" { set x [expr $x+1]; exp_continue; }
+	-re ".*  83      1770" { set x [expr $x+1]; exp_continue; }
+	-re ".*  84 01fe 01076918" { set x [expr $x+1]; exp_continue; }
+	-re ".*  84      1770" { set x [expr $x+1]; exp_continue; }
+	-re ".*  85 0204 01046D18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  85      1770" { set x [expr $x+1]; exp_continue; }
+	-re ".*  86 020a 01076D18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  86      1770" { set x [expr $x+1]; exp_continue; }
+	-re ".*  87 0210 01056D18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  87      1770" { set x [expr $x+1]; exp_continue; }
+	-re ".*  88 0216 01066D18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  88      1770" { set x [expr $x+1]; exp_continue; }
+	-re ".*  89 021c 01046F18" { set x [expr $x+1]; exp_continue; }
+	-re ".*  89      12341770" { set x [expr $x+1]; exp_continue; }
+	-re ".*  90 0224 78946B28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  90      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".*  90      1770" { set x [expr $x+1]; exp_continue; }
+	-re ".*  91 022e 01056F28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  91      12341770" { set x [expr $x+1]; exp_continue; }
+	-re ".*  92 0236 01066F28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  92      12341770" { set x [expr $x+1]; exp_continue; }
+	-re ".*  93 023e 01076F28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  93      12341770" { set x [expr $x+1]; exp_continue; }
+	-re ".*  94 0246 78A56B28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  94      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".*  94      1770" { set x [expr $x+1]; exp_continue; }
+	-re ".*  95 0250 78A66B28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  95      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".*  95      1770" { set x [expr $x+1]; exp_continue; }
+	-re ".*  96 025a 78A76B28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  96      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".*  96      1770" { set x [expr $x+1]; exp_continue; }
+	-re ".*  97 0264 01046B08" { set x [expr $x+1]; exp_continue; }
+	-re ".*  97      12341770" { set x [expr $x+1]; exp_continue; }
+	-re ".*  98 026c 01046B28" { set x [expr $x+1]; exp_continue; }
+	-re ".*  98      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".*  98      1770" { set x [expr $x+1]; exp_continue; }
+	-re ".*  99              " {
+	    if [expr $x == 38] then {
+		pass "$testname: extu.l ..."
+	    } else {
+		fail "$testname: extu.l ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: extu.l ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 100 0276 1761" { set x [expr $x+1]; exp_continue; }
+	-re ".* 101 0278 01046918" { set x [expr $x+1]; exp_continue; }
+	-re ".* 101      1760" { set x [expr $x+1]; exp_continue; }
+	-re ".* 102 027e 01076918" { set x [expr $x+1]; exp_continue; }
+	-re ".* 102      1760" { set x [expr $x+1]; exp_continue; }
+	-re ".* 103 0284 01046D18" { set x [expr $x+1]; exp_continue; }
+	-re ".* 103      1760" { set x [expr $x+1]; exp_continue; }
+	-re ".* 104 028a 01076D18" { set x [expr $x+1]; exp_continue; }
+	-re ".* 104      1760" { set x [expr $x+1]; exp_continue; }
+	-re ".* 105 0290 01056D18" { set x [expr $x+1]; exp_continue; }
+	-re ".* 105      1760" { set x [expr $x+1]; exp_continue; }
+	-re ".* 106 0296 01066D18" { set x [expr $x+1]; exp_continue; }
+	-re ".* 106      1760" { set x [expr $x+1]; exp_continue; }
+	-re ".* 107 029c 01046F18" { set x [expr $x+1]; exp_continue; }
+	-re ".* 107      12341760" { set x [expr $x+1]; exp_continue; }
+	-re ".* 108 02a4 78946B28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 108      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 108      1760" { set x [expr $x+1]; exp_continue; }
+	-re ".* 109 02ae 01056F28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 109      12341760" { set x [expr $x+1]; exp_continue; }
+	-re ".* 110 02b6 01066F28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 110      12341760" { set x [expr $x+1]; exp_continue; }
+	-re ".* 111 02be 01076F28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 111      12341760" { set x [expr $x+1]; exp_continue; }
+	-re ".* 112 02c6 78A56B28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 112      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 112      1760" { set x [expr $x+1]; exp_continue; }
+	-re ".* 113 02d0 78A66B28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 113      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 113      1760" { set x [expr $x+1]; exp_continue; }
+	-re ".* 114 02da 78A76B28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 114      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 114      1760" { set x [expr $x+1]; exp_continue; }
+	-re ".* 115 02e4 01046B08" { set x [expr $x+1]; exp_continue; }
+	-re ".* 115      12341760" { set x [expr $x+1]; exp_continue; }
+	-re ".* 116 02ec 01046B28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 116      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 116      1760" { set x [expr $x+1]; exp_continue; }
+	-re ".* 117              " {
+	    if [expr $x == 38] then {
+		pass "$testname: extu.l #2, ..."
+	    } else {
+		fail "$testname: extu.l #2, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: extu.l #2, ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 118 02f6 17D1" { set x [expr $x+1]; exp_continue; }
+	-re ".* 119 02f8 7D9017D0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 120 02fc 01576918" { set x [expr $x+1]; exp_continue; }
+	-re ".* 120      17D0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 121 0302 01546D18" { set x [expr $x+1]; exp_continue; }
+	-re ".* 121      17D0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 122 0308 01576D18" { set x [expr $x+1]; exp_continue; }
+	-re ".* 122      17D0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 123 030e 01556D18" { set x [expr $x+1]; exp_continue; }
+	-re ".* 123      17D0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 124 0314 01566D18" { set x [expr $x+1]; exp_continue; }
+	-re ".* 124      17D0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 125 031a 01546F18" { set x [expr $x+1]; exp_continue; }
+	-re ".* 125      123417D0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 126 0322 78146B28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 126      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 126      17D0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 127 032c 01556F28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 127      123417D0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 128 0334 01566F28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 128      123417D0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 129 033c 01576F28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 129      123417D0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 130 0344 78256B28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 130      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 130      17D0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 131 034e 78266B28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 131      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 131      17D0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 132 0358 78276B28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 132      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 132      17D0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 133 0362 6B181234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 133      17D0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 134 0368 6B381234" { set x [expr $x+1]; exp_continue; }
+	-re ".* 134      567817D0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 135              " {
+	    if [expr $x == 36] then {
+		pass "$testname: exts.w ..."
+	    } else {
+		fail "$testname: exts.w ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: exts.w ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 136 0370 17F1" { set x [expr $x+1]; exp_continue; }
+	-re ".* 137 0372 01046918" { set x [expr $x+1]; exp_continue; }
+	-re ".* 137      17F0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 138 0378 01076918" { set x [expr $x+1]; exp_continue; }
+	-re ".* 138      17F0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 139 037e 01046D18" { set x [expr $x+1]; exp_continue; }
+	-re ".* 139      17F0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 140 0384 01076D18" { set x [expr $x+1]; exp_continue; }
+	-re ".* 140      17F0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 141 038a 01056D18" { set x [expr $x+1]; exp_continue; }
+	-re ".* 141      17F0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 142 0390 01066D18" { set x [expr $x+1]; exp_continue; }
+	-re ".* 142      17F0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 143 0396 01046F18" { set x [expr $x+1]; exp_continue; }
+	-re ".* 143      123417F0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 144 039e 78946B28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 144      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 144      17F0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 145 03a8 01056F28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 145      123417F0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 146 03b0 01066F28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 146      123417F0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 147 03b8 01076F28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 147      123417F0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 148 03c0 78A56B28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 148      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 148      17F0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 149 03ca 78A66B28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 149      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 149      17F0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 150 03d4 78A76B28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 150      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 150      17F0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 151 03de 01046B08" { set x [expr $x+1]; exp_continue; }
+	-re ".* 151      123417F0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 152 03e6 01046B28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 152      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 152      17F0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 153              " {
+	    if [expr $x == 38] then {
+		pass "$testname: exts.l ..."
+	    } else {
+		fail "$testname: exts.l ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: exts.l ... ($x)" }
+    }
+
+    set x 0
+    expect {
+	-re ".* 154 03f0 17E1" { set x [expr $x+1]; exp_continue; }
+	-re ".* 155 03f2 01046918" { set x [expr $x+1]; exp_continue; }
+	-re ".* 155      17E0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 156 03f8 01076918" { set x [expr $x+1]; exp_continue; }
+	-re ".* 156      17E0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 157 03fe 01046D18" { set x [expr $x+1]; exp_continue; }
+	-re ".* 157      17E0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 158 0404 01076D18" { set x [expr $x+1]; exp_continue; }
+	-re ".* 158      17E0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 159 040a 01056D18" { set x [expr $x+1]; exp_continue; }
+	-re ".* 159      17E0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 160 0410 01066D18" { set x [expr $x+1]; exp_continue; }
+	-re ".* 160      17E0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 161 0416 01046F18" { set x [expr $x+1]; exp_continue; }
+	-re ".* 161      123417E0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 162 041e 78946B28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 162      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 162      17E0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 163 0428 01056F28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 163      123417E0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 164 0430 01066F28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 164      123417E0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 165 0438 01076F28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 165      123417E0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 166 0440 78A56B28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 166      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 166      17E0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 167 044a 78A66B28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 167      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 167      17E0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 168 0454 78A76B28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 168      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 168      17E0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 169 045e 01046B08" { set x [expr $x+1]; exp_continue; }
+	-re ".* 169      123417E0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 170 0466 01046B28" { set x [expr $x+1]; exp_continue; }
+	-re ".* 170      12345678" { set x [expr $x+1]; exp_continue; }
+	-re ".* 170      17E0" { set x [expr $x+1]; exp_continue; }
+	-re ".* 171              " {
+	    if [expr $x == 38] then {
+		pass "$testname: exts.l #2, ..."
+	    } else {
+		fail "$testname: exts.l #2, ... ($x)"
+	    }
+	}
+        default	{ fail "$testname: exts.l #2, ... ($x)" }
+    }
+
+    # This was intended to do any cleanup necessary.
+    # It kinda looks like it isn't needed, but just
+    # in case, please keep it in for now.
+
+    gas_finish
+
+}
+
+if [istarget h8300*-*-elf] then {
+    # Test advanced h8300sx instructions.
+    do_t07_ari3_test
+}
+

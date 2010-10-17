@@ -1,0 +1,110 @@
+2003-10-31  Kevin Buettner  <kevin@redhat.com>
+
+	* sim-frv.h: New file.
+
+2003-10-15  J"orn Rennecke <joern.rennecke@superh.com>
+
+	* callback.h (struct host_callback_struct): New members ftruncate
+	and truncate.
+
+2003-06-10  Corinna Vinschen  <vinschen@redhat.com>
+
+	* gdb/fileio.h: New file.
+
+2003-05-07  Andrew Cagney  <cagney@redhat.com>
+
+	* sim-d10v.h (sim_d10v_translate_addr): Add regcache parameter.
+	(sim_d10v_translate_imap_addr): Add regcache parameter.
+	(sim_d10v_translate_dmap_addr): Ditto.
+
+2003-03-27  Nick Clifton  <nickc@redhat.com>
+
+	* sim-arm.h (sim_arm_regs): Add iWMMXt registers.
+
+2003-03-20  Nick Clifton  <nickc@redhat.com>
+
+	* sim-arm.h (sim_arm_regs): Add Maverick co-processor
+	registers.
+
+2003-02-27  Andrew Cagney  <cagney@redhat.com>
+
+	* remote-sim.h (sim_open, sim_load, sim_create_inferior): Rename
+	_bfd to bfd.
+
+2003-02-20  Andrew Cagney  <ac131313@redhat.com>
+
+	* remote-sim.h (SIM_RC): Delete unused SIM_RC_UNKNOWN_BREAKPOINT,
+	SIM_RC_INSUFFICIENT_RESOURCES and SIM_RC_DUPLICATE_BREAKPOINT.
+	(sim_set_breakpoint, sim_clear_breakpoint): Delete declarations.
+	(sim_clear_all_breakpoints, sim_enable_breakpoint): Ditto.
+	(sim_enable_all_breakpoints, sim_disable_breakpoint): Ditto.
+	(sim_disable_all_breakpoints): Ditto.
+
+2002-12-26  Kazu Hirata  <kazu@cs.umass.edu>
+
+	* sim-h8300.h: Remove ^M.
+
+2002-07-29  Andrey Volkov  <avolkov@transas.com>
+
+	* sim-h8300.h: Rename all enums from H8300_ to SIM_H8300_
+	 prefix.
+
+2002-07-23  Andrey Volkov  <avolkov@transas.com>
+
+	* sim-h8300.h: New file.
+
+2002-07-17  Andrew Cagney  <cagney@redhat.com>
+
+	* remote-sim.h: Update copyright.
+	(sim_set_callbacks, sim_size, sim_trace)
+	(sim_set_trace, sim_set_profile_size, sim_kill): Delete.  Moved to
+	"sim/common/run-sim.h".
+
+Wed Jul 17 19:36:38 2002  J"orn Rennecke <joern.rennecke@superh.com>
+
+	* sim-sh.h: Add enum constants for sh[1-4], sh3e, sh3?-dsp,
+	renumbering the sh-dsp registers to use distinct numbers.
+
+2002-06-15  Andrew Cagney  <ac131313@redhat.com>
+
+	* sim-arm.h (enum sim_arm_regs): Rename sim_arm_regnum.
+
+2002-06-12  Andrew Cagney  <ac131313@redhat.com>
+
+	* sim-arm.h: New file.
+
+2002-06-08  Andrew Cagney  <cagney@redhat.com>
+
+	* callback.h: Copy to here from directory above.
+	* remote-sim.h: Copy to here from directory above.
+
+2002-06-01  Andrew Cagney  <ac131313@redhat.com>
+
+	* sim-d10v.h (sim_d10v_regs): Expand to include all registers.
+	Update copyright.
+
+2002-05-23  Andrew Cagney  <ac131313@redhat.com>
+
+	* sim-d10v.h: New file.  Moved from include/sim-d10v.h.
+
+2002-05-10  Elena Zannoni  <ezannoni@redhat.com>
+
+        * sim-sh.h: New file, for sh gdb<->sim interface.
+
+2002-05-09  Daniel Jacobowitz  <drow@mvista.com>
+
+	* signals.h: Update comments.
+	(enum target_signal): Remove conditional compilation around
+	Mach-specific signals.  Move them to after TARGET_SIGNAL_DEFAULT.
+
+2002-03-10  Daniel Jacobowitz  <drow@mvista.com>
+
+	* signals.h: New file, from gdb/defs.h.
+
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

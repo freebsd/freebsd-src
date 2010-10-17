@@ -1,0 +1,215 @@
+@c Copyright (C) 2001, 2002 Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+@page
+@node SH64-Dependent
+@chapter SuperH SH64 Dependent Features
+
+@cindex SH64 support
+@menu
+* SH64 Options::              Options
+* SH64 Syntax::               Syntax
+* SH64 Directives::           SH64 Machine Directives
+* SH64 Opcodes::              Opcodes
+@end menu
+
+@node SH64 Options
+@section Options
+
+@cindex SH64 options
+@cindex options, SH64
+@table @code
+
+@cindex SH64 ISA options
+@cindex ISA options, SH64
+@item -isa=sh4 | sh4a
+Specify the sh4 or sh4a instruction set.
+@item -isa=dsp
+Enable sh-dsp insns, and disable sh3e / sh4 insns.
+@item -isa=fp
+Enable sh2e, sh3e, sh4, and sh4a insn sets.
+@item -isa=all
+Enable sh1, sh2, sh2e, sh3, sh3e, sh4, sh4a, and sh-dsp insn sets.
+@item -isa=shmedia | -isa=shcompact
+Specify the default instruction set.  @code{SHmedia} specifies the
+32-bit opcodes, and @code{SHcompact} specifies the 16-bit opcodes
+compatible with previous SH families.  The default depends on the ABI
+selected; the default for the 64-bit ABI is SHmedia, and the default for
+the 32-bit ABI is SHcompact.  If neither the ABI nor the ISA is
+specified, the default is 32-bit SHcompact.
+
+Note that the @code{.mode} pseudo-op is not permitted if the ISA is not
+specified on the command line.
+
+@cindex SH64 ABI options
+@cindex ABI options, SH64
+@item -abi=32 | -abi=64
+Specify the default ABI.  If the ISA is specified and the ABI is not,
+the default ABI depends on the ISA, with SHmedia defaulting to 64-bit
+and SHcompact defaulting to 32-bit.
+
+Note that the @code{.abi} pseudo-op is not permitted if the ABI is not
+specified on the command line.  When the ABI is specified on the command
+line, any @code{.abi} pseudo-ops in the source must match it.
+
+@item -shcompact-const-crange
+Emit code-range descriptors for constants in SHcompact code sections.
+
+@item -no-mix
+Disallow SHmedia code in the same section as constants and SHcompact
+code.
+
+@item -no-expand
+Do not expand MOVI, PT, PTA or PTB instructions.
+
+@item -expand-pt32
+With -abi=64, expand PT, PTA and PTB instructions to 32 bits only.
+
+@end table
+
+@node SH64 Syntax
+@section Syntax
+
+@menu
+* SH64-Chars::                Special Characters
+* SH64-Regs::                 Register Names
+* SH64-Addressing::           Addressing Modes
+@end menu
+
+@node SH64-Chars
+@subsection Special Characters
+
+@cindex line comment character, SH64
+@cindex SH64 line comment character
+@samp{!} is the line comment character.
+
+@cindex line separator, SH64
+@cindex statement separator, SH64
+@cindex SH64 line separator
+You can use @samp{;} instead of a newline to separate statements.
+
+@cindex symbol names, @samp{$} in
+@cindex @code{$} in symbol names
+Since @samp{$} has no special meaning, you may use it in symbol names.
+
+@node SH64-Regs
+@subsection Register Names
+
+@cindex SH64 registers
+@cindex registers, SH64
+You can use the predefined symbols @samp{r0} through @samp{r63} to refer
+to the SH64 general registers, @samp{cr0} through @code{cr63} for
+control registers, @samp{tr0} through @samp{tr7} for target address
+registers, @samp{fr0} through @samp{fr63} for single-precision floating
+point registers, @samp{dr0} through @samp{dr62} (even numbered registers
+only) for double-precision floating point registers, @samp{fv0} through
+@samp{fv60} (multiples of four only) for single-precision floating point
+vectors, @samp{fp0} through @samp{fp62} (even numbered registers only)
+for single-precision floating point pairs, @samp{mtrx0} through
+@samp{mtrx48} (multiples of 16 only) for 4x4 matrices of
+single-precision floating point registers, @samp{pc} for the program
+counter, and @samp{fpscr} for the floating point status and control
+register.
+
+You can also refer to the control registers by the mnemonics @samp{sr},
+@samp{ssr}, @samp{pssr}, @samp{intevt}, @samp{expevt}, @samp{pexpevt},
+@samp{tra}, @samp{spc}, @samp{pspc}, @samp{resvec}, @samp{vbr},
+@samp{tea}, @samp{dcr}, @samp{kcr0}, @samp{kcr1}, @samp{ctc}, and
+@samp{usr}.
+
+@node SH64-Addressing
+@subsection Addressing Modes
+
+@cindex addressing modes, SH64
+@cindex SH64 addressing modes
+
+SH64 operands consist of either a register or immediate value.  The
+immediate value can be a constant or label reference (or portion of a
+label reference), as in this example:
+
+@example
+	movi	4,r2
+	pt	function, tr4
+	movi	(function >> 16) & 65535,r0
+	shori	function & 65535, r0
+	ld.l	r0,4,r0
+@end example
+
+@cindex datalabel, SH64
+Instruction label references can reference labels in either SHmedia or
+SHcompact.  To differentiate between the two, labels in SHmedia sections
+will always have the least significant bit set (i.e. they will be odd),
+which SHcompact labels will have the least significant bit reset
+(i.e. they will be even).  If you need to reference the actual address
+of a label, you can use the @code{datalabel} modifier, as in this
+example:
+
+@example
+	.long	function
+	.long	datalabel function
+@end example
+
+In that example, the first longword may or may not have the least
+significant bit set depending on whether the label is an SHmedia label
+or an SHcompact label.  The second longword will be the actual address
+of the label, regardless of what type of label it is.
+
+@node SH64 Directives
+@section SH64 Machine Directives
+
+In addition to the SH directives, the SH64 provides the following
+directives:
+
+@cindex SH64 machine directives
+@cindex machine directives, SH64
+
+@table @code
+
+@item .mode [shmedia|shcompact]
+@itemx .isa [shmedia|shcompact]
+Specify the ISA for the following instructions (the two directives are
+equivalent).  Note that programs such as @code{objdump} rely on symbolic
+labels to determine when such mode switches occur (by checking the least
+significant bit of the label's address), so such mode/isa changes should
+always be followed by a label (in practice, this is true anyway).  Note
+that you cannot use these directives if you didn't specify an ISA on the
+command line.
+
+@item .abi [32|64]
+Specify the ABI for the following instructions.  Note that you cannot use
+this directive unless you specified an ABI on the command line, and the 
+ABIs specified must match.
+
+@item .uaquad
+Like .uaword and .ualong, this allows you to specify an intentionally
+unaligned quadword (64 bit word).
+
+@end table
+
+@node SH64 Opcodes
+@section Opcodes
+
+@cindex SH64 opcode summary
+@cindex opcode summary, SH64
+@cindex mnemonics, SH64
+@cindex instruction summary, SH64
+For detailed information on the SH64 machine instruction set, see
+@cite{SuperH 64 bit RISC Series Architecture Manual} (SuperH, Inc.).
+
+@code{@value{AS}} implements all the standard SH64 opcodes.  In
+addition, the following pseudo-opcodes may be expanded into one or more
+alternate opcodes:
+
+@table @code
+
+@item movi
+If the value doesn't fit into a standard @code{movi} opcode,
+@code{@value{AS}} will replace the @code{movi} with a sequence of
+@code{movi} and @code{shori} opcodes.
+
+@item pt
+This expands to a sequence of @code{movi} and @code{shori} opcode,
+followed by a @code{ptrel} opcode, or to a @code{pta} or @code{ptb}
+opcode, depending on the label referenced.
+
+@end table

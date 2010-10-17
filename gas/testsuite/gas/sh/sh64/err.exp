@@ -1,0 +1,9 @@
+load_lib gas-dg.exp
+dg-init
+
+if [istarget sh64-*-*] then {
+    dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/warn-*.s]] "" "--isa=SHmedia"
+    dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/err-*.s]] "" "--isa=SHmedia"
+}
+
+dg-finish

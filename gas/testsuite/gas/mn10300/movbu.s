@@ -1,0 +1,21 @@
+	.text
+	movbu (a2),d1
+	movbu (8,a2),d1
+	movbu (256,a2),d1
+	movbu (131071,a2),d1
+	movbu (8,sp),d1
+	movbu (256,sp),d1
+	movbu (131071,sp),d1
+	movbu (d1,a1),d2
+	movbu (32768),d1
+	movbu (131071),d1
+	movbu d1,(a2)
+	movbu d1,(32,a2)
+	movbu d1,(256,a2)
+	movbu d1,(131071,a2)
+	movbu d1,(32,sp)
+	movbu d1,(32768,sp)
+	movbu d1,(131071,sp)
+	movbu d1,(d2,a2)
+	movbu d1,(128)
+	movbu d1,(131071)

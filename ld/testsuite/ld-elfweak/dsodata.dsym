@@ -1,0 +1,2 @@
+[0-9a-f]*[ 	]+g[ 	]+DO[ 	]+.(s|)(data|bss)[	]+[0-9a-f]*[ 	]+(Base[ 	]+|[ 	]*)deallocate_foo
+[0-9a-f]*[ 	]+g[ 	]+DF[ 	]+.text[	]+[0-9a-f]*[ 	]+(Base[ 	]+|[ 	]*)(0x[0-9a-f]*|)[ 	]*foo

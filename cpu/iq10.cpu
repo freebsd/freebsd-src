@@ -1,0 +1,1111 @@
+; IQ10-only CPU description. -*- Scheme -*-
+;
+; Copyright 2001, 2002 Free Software Foundation, Inc.
+;
+; Contributed by Red Hat Inc; developed under contract from Vitesse.
+;
+; This file is part of the GNU Binutils.
+;
+; This program is free software; you can redistribute it and/or modify
+; it under the terms of the GNU General Public License as published by
+; the Free Software Foundation; either version 2 of the License, or
+; (at your option) any later version.
+;
+; This program is distributed in the hope that it will be useful,
+; but WITHOUT ANY WARRANTY; without even the implied warranty of
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+; GNU General Public License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with this program; if not, write to the Free Software
+; Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+
+; Instructions.
+
+(dni andoui-q10 "iq10 and upper ones immediate" (MACH10 USES-RS USES-RT)
+     "andoui $rt,$rs,$hi16"
+     (+ OP10_ANDOUI rs rt hi16)
+     (set rt (and rs (or (sll hi16 16) #xFFFF)))
+     ())
+
+(dni andoui2-q10 "iq10 and upper ones immediate" (ALIAS NO-DIS MACH10 USES-RS USES-RT)
+     "andoui ${rt-rs},$hi16"
+     (+ OP10_ANDOUI rt-rs hi16)
+     (set rt-rs (and rt-rs (or (sll hi16 16) #xFFFF)))
+     ())
+
+(dni orui-q10 "or upper immediate" (MACH10 USES-RS USES-RT)
+     "orui $rt,$rs,$hi16"
+     (+ OP10_ORUI rs rt hi16)
+     (set rt (or rs (sll hi16 16)))
+     ())
+
+(dni orui2-q10 "or upper immediate" (ALIAS NO-DIS MACH10 USES-RS USES-RT)
+     "orui ${rt-rs},$hi16"
+     (+ OP10_ORUI rt-rs hi16)
+     (set rt-rs (or rt-rs (sll hi16 16)))
+     ())
+
+(dni mrgbq10 "merge bytes" (MACH10 USES-RD USES-RS USES-RT)
+     "mrgb $rd,$rs,$rt,$maskq10"
+     (+ OP_SPECIAL rs rt rd maskq10 FUNC_MRGB)
+     (sequence ((SI temp))
+	       (if (bitclear? mask 0)
+		   (set temp (and rs #xFF))
+		   (set temp (and rt #xFF)))
+	       (if (bitclear? mask 1)
+		   (set temp (or temp (and rs #xFF00)))
+		   (set temp (or temp (and rt #xFF00))))
+	       (if (bitclear? mask 2)
+		   (set temp (or temp (and rs #xFF0000)))
+		   (set temp (or temp (and rt #xFF0000))))
+	       (if (bitclear? mask 3)
+		   (set temp (or temp (and rs #xFF000000)))
+		   (set temp (or temp (and rt #xFF000000))))
+	       (set rd temp))
+     ())
+
+(dni mrgbq102 "merge bytes" (ALIAS NO-DIS MACH10 USES-RD USES-RS USES-RT)
+     "mrgb ${rd-rs},$rt,$maskq10"
+     (+ OP_SPECIAL rt rd-rs maskq10 FUNC_MRGB)
+     (sequence ((SI temp))
+	       (if (bitclear? mask 0)
+		   (set temp (and rd-rs #xFF))
+		   (set temp (and rt #xFF)))
+	       (if (bitclear? mask 1)
+		   (set temp (or temp (and rd-rs #xFF00)))
+		   (set temp (or temp (and rt #xFF00))))
+	       (if (bitclear? mask 2)
+		   (set temp (or temp (and rd-rs #xFF0000)))
+		   (set temp (or temp (and rt #xFF0000))))
+	       (if (bitclear? mask 3)
+		   (set temp (or temp (and rd-rs #xFF000000)))
+		   (set temp (or temp (and rt #xFF000000))))
+	       (set rd-rs temp))
+     ())
+
+; In the future, we'll want the j & jal to use the 21 bit target, with 
+; the upper five bits shifted up.  For now, give 'em the 16 bit target.
+
+(dni jq10 "jump" (MACH10)
+     "j $jmptarg"
+     (+ OP_J (f-rs 0) (f-rt 0) jmptarg)
+;     "j $jmptargq10"
+;     (+ OP_J upper-5-jmptargq10 (f-rt 0) lower-16-jmptargq10)
+     (delay 1 (set pc jmptarg))
+     ())
+
+(dni jalq10 "jump and link" (MACH10 USES-RT)
+     "jal $rt,$jmptarg"
+     (+ OP_JAL (f-rs 0) rt jmptarg)
+;     "jal $rt,$jmptargq10"
+;     (+ OP_JAL upper-5-jmptargq10 rt lower-16-jmptargq10)
+     (delay 1
+	    (sequence ()
+		      (set rt (add pc 8))
+		      (set pc jmptarg)))
+     ())
+
+(dni jalq10-2 "jump and link, implied r31" (MACH10 USES-RT)
+     "jal $jmptarg"
+     (+ OP_JAL (f-rs 0) (f-rt 31) jmptarg)
+     (delay 1
+	    (sequence ()
+		      (set rt (add pc 8))
+		      (set pc jmptarg)))
+     ())
+
+; Branch instructions.
+
+(dni bbil "branch bit immediate likely" (MACH10 USES-RS)
+     "bbil $rs($bitnum),$offset"
+     (+ OP10_BBIL rs bitnum offset)
+     (if (bitset? rs bitnum)
+	 (delay 1 (set pc offset))
+	 (skip 1))
+     ())
+
+(dni bbinl "branch bit immediate negated likely" (MACH10 USES-RS)
+     "bbinl $rs($bitnum),$offset"
+     (+ OP10_BBINL rs bitnum offset)
+     (if (bitclear? rs bitnum)
+	 (delay 1 (set pc offset))
+	 (skip 1))
+     ())
+
+(dni bbvl "branch bit variable likely" (MACH10 USES-RS USES-RT)
+     "bbvl $rs,$rt,$offset"
+     (+ OP10_BBVL rs rt offset)
+     (if (bitset? rs (and rt #x1F))
+	 (delay 1 (set pc offset))
+	 (skip 1))
+     ())
+
+(dni bbvnl "branch bit variable negated likely" (MACH10 USES-RS USES-RT)
+     "bbvnl $rs,$rt,$offset"
+     (+ OP10_BBVNL rs rt offset)
+     (if (bitclear? rs (and rt #x1F))
+	 (delay 1 (set pc offset))
+	 (skip 1))
+     ())
+
+(dni bgtzal "branch if greater than zero and link" (MACH10 USES-RS USES-R31)
+     "bgtzal $rs,$offset"
+     (+ OP_REGIMM rs FUNC_BGTZAL offset)
+     (if (gt rs 0)
+	 (sequence ()
+		   (set (reg h-gr 31) (add pc 8))
+		   (delay 1 (set pc offset))))
+     ())
+
+(dni bgtzall
+     "branch if greater than zero and link likely" (MACH10 USES-RS USES-R31)
+     "bgtzall $rs,$offset"
+     (+ OP_REGIMM rs FUNC_BGTZALL offset)
+     (if (gt rs 0)
+	 (sequence ()
+		   (set (reg h-gr 31) (add pc 8))
+		   (delay 1 (set pc offset)))
+	 (skip 1))
+     ())
+
+(dni blezal "branch if less than or equal to zero and link" (MACH10 USES-RS USES-R31)
+     "blezal $rs,$offset"
+     (+ OP_REGIMM rs FUNC_BLEZAL offset)
+     (if (le rs 0)
+	 (sequence ()
+		   (set (reg h-gr 31) (add pc 8))
+		   (delay 1 (set pc offset))))
+     ())
+
+(dni blezall
+     "branch if less than or equal to zero and link likely" (MACH10 USES-RS USES-R31)
+     "blezall $rs,$offset"
+     (+ OP_REGIMM rs FUNC_BLEZALL offset)
+     (if (le rs 0)
+	 (sequence ()
+		   (set (reg h-gr 31) (add pc 8))
+		   (delay 1 (set pc offset)))
+	 (skip 1))
+     ())
+
+(dni bgtz-q10 "branch if greater than zero" (MACH10 USES-RS)
+     "bgtz $rs,$offset"
+     (+ OP_REGIMM rs FUNC_BGTZ offset)
+     (if (gt rs 0)
+	 (delay 1 (set pc offset)))
+     ())
+
+(dni bgtzl-q10 "branch if greater than zero likely" (MACH10 USES-RS)
+     "bgtzl $rs,$offset"
+     (+ OP_REGIMM rs FUNC_BGTZL offset)
+     (if (gt rs 0)
+	 (delay 1 (set pc offset))
+	 (skip 1))
+     ())
+
+
+(dni blez-q10 "branch if less than or equal to zero" (MACH10 USES-RS)
+     "blez $rs,$offset"
+     (+ OP_REGIMM rs FUNC_BLEZ offset)
+     (if (le rs 0)
+	 (delay 1 (set pc offset)))
+     ())
+
+(dni blezl-q10 "branch if less than or equal to zero likely" (MACH10 USES-RS)
+     "blezl $rs,$offset"
+     (+ OP_REGIMM rs FUNC_BLEZL offset)
+     (if (le rs 0)
+	 (delay 1 (set pc offset))
+	 (skip 1))
+     ())
+
+(dni bmb-q10 "branch if matching byte-lane" (MACH10 USES-RS USES-RT)
+     "bmb $rs,$rt,$offset"
+     (+ OP10_BMB rs rt offset)
+     (sequence ((BI branch?))
+	       (set branch? 0)
+	       (if (eq (and rs #xFF) (and rt #xFF))
+		   (set branch? 1))
+	       (if (eq (and rs #xFF00) (and rt #xFF00))
+		   (set branch? 1))
+	       (if (eq (and rs #xFF0000) (and rt #xFF0000))
+		   (set branch? 1))
+	       (if (eq (and rs #xFF000000) (and rt #xFF000000))
+		   (set branch? 1))
+	       (if branch?
+		   (delay 1 (set pc offset))))
+     ())
+
+(dni bmbl "branch if matching byte-lane likely" (MACH10 USES-RS USES-RT)
+     "bmbl $rs,$rt,$offset"
+     (+ OP10_BMBL rs rt offset)
+     (sequence ((BI branch?))
+	       (set branch? 0)
+	       (if (eq (and rs #xFF) (and rt #xFF))
+		   (set branch? 1))
+	       (if (eq (and rs #xFF00) (and rt #xFF00))
+		   (set branch? 1))
+	       (if (eq (and rs #xFF0000) (and rt #xFF0000))
+		   (set branch? 1))
+	       (if (eq (and rs #xFF000000) (and rt #xFF000000))
+		   (set branch? 1))
+	       (if branch?
+		   (delay 1 (set pc offset))
+		   (skip 1)))
+     ())
+
+(dni bri "branch if register invalid" (MACH10 USES-RS)
+     "bri $rs,$offset"
+     (+ OP_REGIMM rs FUNC_BRI offset)
+     (if (gt rs 0)
+	 (delay 1 (set pc offset))
+	 (skip 1))
+     ())
+
+(dni brv "branch if register invalid" (MACH10 USES-RS)
+     "brv $rs,$offset"
+     (+ OP_REGIMM rs FUNC_BRV offset)
+     (if (gt rs 0)
+	 (delay 1 (set pc offset))
+	 (skip 1))
+     ())
+
+; debug instructions
+
+(dni bctx "branch if the current context == instruction[21]" (MACH10 USES-RS)
+     "bctx $rs,$offset"
+     (+ OP_REGIMM rs FUNC_BCTX offset)
+     (delay 1 (set pc offset))
+     ())
+
+(dni yield "unconditional yield to the other context" (MACH10)
+     "yield"
+     (+ OP_SPECIAL (f-rs 0) (f-rt 0) (f-rd 0) (f-shamt 0) FUNC10_YIELD)
+     (unimp yield)
+     ())
+
+; Special instructions.
+
+(dni crc32 "CRC, 32 bit input" (MACH10 USES-RD USES-RS USES-RT)
+     "crc32 $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-shamt 0) FUNC10_CRC32)
+     (unimp crc32)
+     ())
+
+(dni crc32b "CRC, 8 bit input" (MACH10 USES-RD USES-RS USES-RT)
+     "crc32b $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-shamt 0) FUNC10_CRC32B)
+     (unimp crc32b)
+     ())
+
+(dni cnt1s "Count ones" (MACH10 USES-RD USES-RS)
+     "cnt1s $rd,$rs"
+     (+ OP_SPECIAL rs rt rd (f-shamt 0) FUNC10_CNT1S)
+     (unimp crcp)
+     ())
+
+
+; Special Instructions
+
+(dni avail "Mark Header Buffer Available" (MACH10 USES-RD)
+     "avail $rd"
+     (+ OP_COP3 (f-rs 0) (f-rt 0) rd (f-shamt 0) FUNC10_AVAIL)
+     (unimp avail)
+     ())
+
+(dni free "Mark Header Buffer Free" (MACH10 USES-RS USES-RD)
+     "free $rd,$rs"
+     (+ OP_COP3 rs (f-rt 0) rd (f-shamt 0) FUNC10_FREE)
+     (unimp free)
+     ())
+
+(dni tstod "Test Header Buffer Order Dependency" (MACH10 USES-RS USES-RD)
+     "tstod $rd,$rs"
+     (+ OP_COP3 rs (f-rt 0) rd (f-shamt 0) FUNC10_TSTOD)
+     (unimp tstod)
+     ())
+
+(dni cmphdr "Get a Complete Header" (MACH10 USES-RD)
+     "cmphdr $rd"
+     (+ OP_COP3 (f-rs 0) (f-rt 0) rd (f-shamt 0) FUNC10_CMPHDR)
+     (unimp cmphdr)
+     ())
+
+(dni mcid "Allocate a Multicast ID" (MACH10 USES-RD USES-RT)
+     "mcid $rd,$rt"
+     (+ OP_COP3 (f-rs 0) rt rd (f-shamt 0) FUNC10_MCID)
+     (unimp mcid)
+     ())
+
+(dni dba "Allocate a Data Buffer Pointer" (MACH10 USES-RD)
+     "dba $rd"
+     (+ OP_COP3 (f-rs 0) (f-rt 0) rd (f-shamt 0) FUNC10_DBA)
+     (unimp dba)
+     ())
+
+(dni dbd "Deallocate a Data Buffer Pointer" (MACH10 USES-RS USES-RT USES-RD)
+     "dbd $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-shamt 0) FUNC10_DBD)
+     (unimp dbd)
+     ())
+
+(dni dpwt "DSTN_PORT Write" (MACH10 USES-RS USES-RD)
+     "dpwt $rd,$rs"
+     (+ OP_COP3 rs (f-rt 0) rd (f-shamt 0) FUNC10_DPWT)
+     (unimp dpwt)
+     ())
+
+; Architectural and coprocessor instructions.
+
+(dni chkhdrq10 "" (MACH10 USES-RS USES-RD)
+     "chkhdr $rd,$rs"
+     (+ OP_COP3 rs (f-rt 0) rd (f-shamt 0) FUNC10_CHKHDR)
+     (unimp chkhdr)
+     ())
+
+; Coprocessor DMA Instructions (IQ10)
+
+(dni rba "Read Bytes Absolute" (MACH10 USES-RS USES-RT USES-RD)
+     "rba $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-shamt 0) FUNC10_RBA)
+     (unimp rba)
+     ())
+
+(dni rbal "Read Bytes Absolute and Lock" (MACH10 USES-RS USES-RT USES-RD)
+     "rbal $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-shamt 0) FUNC10_RBAL)
+     (unimp rbal)
+     ())
+
+(dni rbar "Read Bytes Absolute and Release" (MACH10 USES-RS USES-RT USES-RD)
+     "rbar $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-shamt 0) FUNC10_RBAR)
+     (unimp rbar)
+     ())
+
+(dni wba "Write Bytes Absolute" (MACH10 USES-RS USES-RT USES-RD)
+     "wba $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-shamt 0) FUNC10_WBA)
+     (unimp wba)
+     ())
+
+(dni wbau "Write Bytes Absolute and Unlock" (MACH10 USES-RS USES-RT USES-RD)
+     "wbau $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-shamt 0) FUNC10_WBAU)
+     (unimp wbau)
+     ())
+
+(dni wbac "Write Bytes Absolute Cacheable" (MACH10 USES-RS USES-RT USES-RD)
+     "wbac $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-shamt 0) FUNC10_WBAC)
+     (unimp wbac)
+     ())
+
+(dni rbi "Read Bytes Immediate" (MACH10 USES-RD USES-RS USES-RT)
+     "rbi $rd,$rs,$rt,$bytecount"
+     (+ OP_COP3 rs rt rd FUNC10_RBI bytecount)
+     (unimp rbi)
+     ())
+
+(dni rbil "Read Bytes Immediate and Lock" (MACH10 USES-RD USES-RS USES-RT)
+     "rbil $rd,$rs,$rt,$bytecount"
+     (+ OP_COP3 rs rt rd FUNC10_RBIL bytecount)
+     (unimp rbil)
+     ())
+
+(dni rbir "Read Bytes Immediate and Release" (MACH10 USES-RD USES-RS USES-RT)
+     "rbir $rd,$rs,$rt,$bytecount"
+     (+ OP_COP3 rs rt rd FUNC10_RBIR bytecount)
+     (unimp rbir)
+     ())
+
+(dni wbi "Write Bytes Immediate" (MACH10 USES-RD USES-RS USES-RT)
+     "wbi $rd,$rs,$rt,$bytecount"
+     (+ OP_COP3 rs rt rd FUNC10_WBI bytecount)
+     (unimp wbi)
+     ())
+
+(dni wbic "Write Bytes Immediate Cacheable" (MACH10 USES-RD USES-RS USES-RT)
+     "wbic $rd,$rs,$rt,$bytecount"
+     (+ OP_COP3 rs rt rd FUNC10_WBIC bytecount)
+     (unimp wbic)
+     ())
+
+(dni wbiu "Write Bytes Immediate" (MACH10 USES-RD USES-RS USES-RT)
+     "wbiu $rd,$rs,$rt,$bytecount"
+     (+ OP_COP3 rs rt rd FUNC10_WBIU bytecount)
+     (unimp wbiu)
+     ())
+
+(dni pkrli "Packet Release Immediate" (MACH10 USES-RD USES-RS USES-RT)
+     "pkrli $rd,$rs,$rt,$bytecount"
+     (+ OP_COP2 rs rt rd FUNC10_PKRLI bytecount)
+     (unimp pkrli)
+     ())
+
+(dni pkrlih "Packet Release Immediate and Hold" (MACH10 USES-RD USES-RS USES-RT)
+     "pkrlih $rd,$rs,$rt,$bytecount"
+     (+ OP_COP2 rs rt rd FUNC10_PKRLIH bytecount)
+     (unimp pkrlih)
+     ())
+
+(dni pkrliu "Packet Release Immediate Unconditional" (MACH10 USES-RD USES-RS USES-RT)
+     "pkrliu $rd,$rs,$rt,$bytecount"
+     (+ OP_COP2 rs rt rd FUNC10_PKRLIU bytecount)
+     (unimp pkrliu)
+     ())
+
+(dni pkrlic "Packet Release Immediate Continue" (MACH10 USES-RD USES-RS USES-RT)
+     "pkrlic $rd,$rs,$rt,$bytecount"
+     (+ OP_COP2 rs rt rd FUNC10_PKRLIC bytecount)
+     (unimp pkrlic)
+     ())
+
+(dni pkrla "Packet Release Absolute" (MACH10 USES-RS USES-RT USES-RD)
+     "pkrla $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-shamt 0) FUNC10_PKRLA)
+     (unimp pkrla)
+     ())
+
+(dni pkrlau "Packet Release Absolute Unconditional" (MACH10 USES-RS USES-RT USES-RD)
+     "pkrlau $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-shamt 0) FUNC10_PKRLAU)
+     (unimp pkrlau)
+     ())
+
+(dni pkrlah "Packet Release Absolute and Hold" (MACH10 USES-RS USES-RT USES-RD)
+     "pkrlah $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-shamt 0) FUNC10_PKRLAH)
+     (unimp pkrlah)
+     ())
+
+(dni pkrlac "Packet Release Absolute Continue" (MACH10 USES-RS USES-RT USES-RD)
+     "pkrlac $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-shamt 0) FUNC10_PKRLAC)
+     (unimp pkrlac)
+     ())
+
+; Main Memory Access Instructions
+
+(dni lock "lock memory" (MACH10 USES-RD USES-RT)
+     "lock $rd,$rt"
+     (+ OP_COP3 (f-rs 0) rt rd (f-shamt 0) FUNC10_LOCK)
+     (unimp lock)
+     ())
+
+(dni unlk "unlock memory" (MACH10 USES-RT USES-RD)
+     "unlk $rd,$rt"
+     (+ OP_COP3 (f-rs 0) rt rd (f-shamt 0) FUNC10_UNLK)
+     (unimp unlk)
+     ())
+     
+(dni swrd "Single Word Read" (MACH10 USES-RT USES-RD)
+     "swrd $rd,$rt"
+     (+ OP_COP3 (f-rs 0) rt rd (f-shamt 0) FUNC10_SWRD)
+     (unimp swrd)
+     ())
+
+(dni swrdl "Single Word Read and Lock" (MACH10 USES-RT USES-RD)
+     "swrdl $rd,$rt"
+     (+ OP_COP3 (f-rs 0) rt rd (f-shamt 0) FUNC10_SWRDL)
+     (unimp swrdl)
+     ())
+
+(dni swwr "Single Word Write" (MACH10 USES-RS USES-RT USES-RD)
+     "swwr $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-shamt 0) FUNC10_SWWR)
+     (unimp swwr)
+     ())
+
+(dni swwru "Single Word Write and Unlock" (MACH10 USES-RS USES-RT USES-RD)
+     "swwru $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-shamt 0) FUNC10_SWWRU)
+     (unimp swwru)
+     ())
+
+(dni dwrd "Double Word Read" (MACH10 EVEN-REG-NUM USES-RT USES-RD)
+     "dwrd $rd,$rt"
+     (+ OP_COP3 (f-rs 0) rt rd (f-shamt 0) FUNC10_DWRD)
+     (unimp dwrd)
+     ())
+
+(dni dwrdl "Double Word Read and Lock" (MACH10 EVEN-REG-NUM USES-RT USES-RD)
+     "dwrdl $rd,$rt"
+     (+ OP_COP3 (f-rs 0) rt rd (f-shamt 0) FUNC10_DWRDL)
+     (unimp dwrdl)
+     ())
+
+; CAM access instructions (IQ10)
+
+(dni cam36 "CAM Access in 36-bit Mode" (MACH10 USES-RT USES-RD)
+     "cam36 $rd,$rt,${cam-z},${cam-y}"
+     (+ OP_COP3 (f-rs 0) rt rd FUNC10_CAM36 cam-z cam-y)
+     (unimp cam36)
+     ())
+
+(dni cam72 "CAM Access in 72-bit Mode" (MACH10 USES-RT USES-RD)
+     "cam72 $rd,$rt,${cam-y},${cam-z}"
+     (+ OP_COP3 (f-rs 0) rt rd FUNC10_CAM72 cam-z cam-y)
+     (unimp cam72)
+     ())
+
+(dni cam144 "CAM Access in 144-bit Mode" (MACH10 USES-RT USES-RD)
+     "cam144 $rd,$rt,${cam-y},${cam-z}"
+     (+ OP_COP3 (f-rs 0) rt rd FUNC10_CAM144 cam-z cam-y)
+     (unimp cam144)
+     ())
+
+(dni cam288 "CAM Access in 288-bit Mode" (MACH10 USES-RT USES-RD)
+     "cam288 $rd,$rt,${cam-y},${cam-z}"
+     (+ OP_COP3 (f-rs 0) rt rd FUNC10_CAM288 cam-z cam-y)
+     (unimp cam288)
+     ())
+
+; Counter manager instructions (IQ10)
+
+(dni cm32and "Counter Manager And" (MACH10 USES-RS USES-RT USES-RD)
+     "cm32and $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM32AND)
+     (unimp cm32and)
+     ())
+
+(dni cm32andn "Counter Manager And With Inverse" (MACH10 USES-RS USES-RT USES-RD)
+     "cm32andn $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM32ANDN)
+     (unimp cm32andn)
+     ())
+
+(dni cm32or "Counter Manager Or" (MACH10 USES-RS USES-RT USES-RD)
+     "cm32or $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM32OR)
+     (unimp cm32or)
+     ())
+
+(dni cm32ra "Counter Manager 32-bit Rolling Add" (MACH10 USES-RS USES-RT USES-RD)
+     "cm32ra $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-shamt 2) FUNC10_CM32RA)
+     (unimp cm32ra)
+     ())
+
+(dni cm32rd "Counter Manager 32-bit Rolling Decrement" (MACH10 USES-RT USES-RD)
+     "cm32rd $rd,$rt"
+     (+ OP_COP3 (f-rs 0) rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM32RD)
+     (unimp cm32rd)
+     ())
+
+(dni cm32ri "Counter Manager 32-bit Rolling Increment" (MACH10 USES-RT USES-RD)
+     "cm32ri $rd,$rt"
+     (+ OP_COP3 (f-rs 0) rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM32RI)
+     (unimp cm32ri)
+     ())
+
+(dni cm32rs "Counter Manager 32-bit Rolling Subtract" (MACH10 USES-RS USES-RT USES-RD)
+     "cm32rs $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-shamt 2) FUNC10_CM32RS)
+     (unimp cm32rs)
+     ())
+
+(dni cm32sa "Counter Manager 32-bit Saturating Add" (MACH10 USES-RS USES-RT USES-RD)
+     "cm32sa $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM32SA)
+     (unimp cm32sa)
+     ())
+
+(dni cm32sd "Counter Manager 32-bit Saturating Decrement" (MACH10 USES-RT USES-RD)
+     "cm32sd $rd,$rt"
+     (+ OP_COP3 (f-rs 0) rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM32SD)
+     (unimp cm32sd)
+     ())
+
+(dni cm32si "Counter Manager 32-bit Saturating Increment" (MACH10 USES-RT USES-RD)
+     "cm32si $rd,$rt"
+     (+ OP_COP3 (f-rs 0) rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM32SI)
+     (unimp cm32si)
+     ())
+
+(dni cm32ss "Counter Manager 32-bit Saturating Subtract" (MACH10 USES-RS USES-RT USES-RD)
+     "cm32ss $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM32SS)
+     (unimp cm32ss)
+     ())
+
+(dni cm32xor "Counter Manager Xor" (MACH10 USES-RS USES-RT USES-RD)
+     "cm32xor $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM32XOR)
+     (unimp cm32xor)
+     ())
+
+(dni cm64clr "Counter Manager Clear" (MACH10 EVEN-REG-NUM USES-RT USES-RD)
+     "cm64clr $rd,$rt"
+     (+ OP_COP3 (f-rs 0) rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM64CLR)
+     (unimp cm64clr)
+     ())
+
+(dni cm64ra "Counter Manager 64-bit Rolling Add" (MACH10 EVEN-REG-NUM USES-RS USES-RT USES-RD)
+     "cm64ra $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM64RA)
+     (unimp cm64ra)
+     ())
+
+(dni cm64rd "Counter Manager 64-bit Rolling Decrement" (MACH10 EVEN-REG-NUM USES-RT USES-RD)
+     "cm64rd $rd,$rt"
+     (+ OP_COP3 (f-rs 0) rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM64RD)
+     (unimp cm64rd)
+     ())
+
+(dni cm64ri "Counter Manager 32-bit Rolling Increment" (MACH10 EVEN-REG-NUM USES-RT USES-RD)
+     "cm64ri $rd,$rt"
+     (+ OP_COP3 (f-rs 0) rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM64RI)
+     (unimp cm64ri)
+     ())
+
+(dni cm64ria2 "Counter Manager 32/32 Rolling Increment/Add" (MACH10 EVEN-REG-NUM USES-RS USES-RT USES-RD)
+     "cm64ria2 $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM64RIA2)
+     (unimp cm64ria2)
+     ())
+
+(dni cm64rs "Counter Manager 64-bit Rolling Subtract" (MACH10 EVEN-REG-NUM USES-RS USES-RT USES-RD)
+     "cm64rs $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM64RS)
+     (unimp cm64rs)
+     ())
+
+(dni cm64sa "Counter Manager 64-bit Saturating Add" (MACH10 EVEN-REG-NUM USES-RS USES-RT USES-RD)
+     "cm64sa $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM64SA)
+     (unimp cm64sa)
+     ())
+
+(dni cm64sd "Counter Manager 64-bit Saturating Decrement" (MACH10 EVEN-REG-NUM USES-RT USES-RD)
+     "cm64sd $rd,$rt"
+     (+ OP_COP3 (f-rs 0) rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM64SD)
+     (unimp cm64sd)
+     ())
+
+(dni cm64si "Counter Manager 64-bit Saturating Increment" (MACH10 EVEN-REG-NUM USES-RT USES-RD)
+     "cm64si $rd,$rt"
+     (+ OP_COP3 (f-rs 0) rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM64SI)
+     (unimp cm64si)
+     ())
+
+(dni cm64sia2 "Counter Manager 32/32 Saturating Increment/Add" (MACH10 EVEN-REG-NUM USES-RS USES-RT USES-RD)
+     "cm64sia2 $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM64SIA2)
+     (unimp cm64sia2)
+     ())
+
+(dni cm64ss "Counter Manager 64-bit Saturating Subtract" (MACH10 EVEN-REG-NUM USES-RS USES-RT USES-RD)
+     "cm64ss $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM64SS)
+     (unimp cm64ss)
+     ())
+
+(dni cm128ria2 "Counter Manager 128-bit 64/64 Rolling Increment/Add" (MACH10 EVEN-REG-NUM USES-RS USES-RT USES-RD)
+     "cm128ria2 $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM128RIA2)
+     (unimp cm128ria2)
+     ())
+
+(dni cm128ria3 "Counter Manager 128-bit 32/32/64 Rolling Increment/Add" (MACH10 EVEN-REG-NUM USES-RS USES-RT USES-RD)
+     "cm128ria3 $rd,$rs,$rt,${cm-3z}"
+     (+ OP_COP3 rs rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM128RIA3 cm-3z)
+     (unimp cm128ria3)
+     ())
+
+(dni cm128ria4 "Counter Manager 128-bit 32/32/32/32 Rolling Inc/Add" (MACH10 USES-RS USES-RT USES-RD)
+     "cm128ria4 $rd,$rs,$rt,${cm-4z}"
+     (+ OP_COP3 rs rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM128RIA4 cm-4z)
+     (unimp cm128ria4)
+     ())
+
+(dni cm128sia2 "Counter Manager 128-bit 64/64 Saturating Inc/Add" (MACH10 EVEN-REG-NUM USES-RS USES-RT USES-RD)
+     "cm128sia2 $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM128SIA2)
+     (unimp cm128sia2)
+     ())
+
+(dni cm128sia3 "Counter Manager 128-bit 32/32/64 Saturating Inc/Add" (MACH10 EVEN-REG-NUM USES-RS USES-RT USES-RD)
+     "cm128sia3 $rd,$rs,$rt,${cm-3z}"
+     (+ OP_COP3 rs rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM128SIA3 cm-3z)
+     (unimp cm128sia3)
+     ())
+
+(dni cm128sia4 "Counter Manager 128-bit 32/32/32/32 Saturating Inc/Add" (MACH10 USES-RS USES-RT USES-RD)
+     "cm128sia4 $rd,$rs,$rt,${cm-4z}"
+     (+ OP_COP3 rs rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM128SIA4 cm-4z)
+     (unimp cm128sia4)
+     ())
+
+(dni cm128vsa "Counter Manager Continuous State Dual Leaky Token Bucket Policing" (MACH10 USES-RS USES-RT USES-RD)
+     "cm128vsa $rd,$rs,$rt"
+     (+ OP_COP3 rs rt rd (f-cp-op 0) (f-cp-grp 2) FUNC10_CM128VSA)
+     (unimp cm128vsa)
+     ())
+
+; Coprocessor Data Movement Instructions
+
+; Note that we don't set the USES-RD or USES-RT attributes for many of the following 
+; instructions, as it's the COP register that's being specified.
+
+; ??? Is YIELD-INSN the right attribute for IQ10?  The IQ2000 used the attribute to warn about 
+; yielding instructions in a delay slot, but that's not relevant in IQ10.  What *is* relevant 
+; (and unique to IQ10) is instructions that yield if the destination register is accessed 
+; before the value is there, causing a yield.
+
+(dni cfc "copy from coprocessor control register" (MACH10 LOAD-DELAY USES-RD YIELD-INSN)
+     "cfc $rd,$rt"
+     (+ OP_COP3 (f-rs 0) rt rd (f-shamt 0) FUNC10_CFC)
+     (unimp cfc)
+     ())
+
+(dni ctc "copy to coprocessor control register" (MACH10 USES-RS)
+     "ctc $rs,$rt"
+     (+ OP_COP3 rs rt (f-rd 0) (f-shamt 0) FUNC10_CTC)
+     (unimp ctc)
+     ())
+
+; Macros
+
+(dnmi m-avail "Mark Header Buffer Available" (MACH10 NO-DIS)
+     "avail"
+     (emit avail (f-rd 0))
+)
+
+(dnmi m-cam36 "CAM Access in 36-bit Mode" (MACH10 USES-RT USES-RD NO-DIS)
+     "cam36 $rd,$rt,${cam-z}"
+     (emit cam36 rd rt cam-z (f-cam-y 0))
+)
+
+(dnmi m-cam72 "CAM Access in 72-bit Mode" (MACH10 USES-RT USES-RD NO-DIS)
+     "cam72 $rd,$rt,${cam-z}"
+     (emit cam72 rd rt cam-z (f-cam-y 0))
+)
+
+(dnmi m-cam144 "CAM Access in 144-bit Mode" (MACH10 USES-RT USES-RD NO-DIS)
+     "cam144 $rd,$rt,${cam-z}"
+     (emit cam144 rd rt cam-z (f-cam-y 0))
+)
+
+(dnmi m-cam288 "CAM Access in 288-bit Mode" (MACH10 USES-RT USES-RD NO-DIS)
+     "cam288 $rd,$rt,${cam-z}"
+     (emit cam288 rd rt cam-z (f-cam-y 0))
+)
+
+(dnmi m-cm32read "Counter Manager 32-bit Rolling Add R0" (MACH10 USES-RT USES-RD NO-DIS)
+     "cm32read $rd,$rt"
+     (emit cm32ra rd (f-rs 0) rt)
+)
+
+(dnmi m-cm64read "Counter Manager 64-bit Rolling Add R0" (MACH10 USES-RT USES-RD NO-DIS)
+     "cm64read $rd,$rt"
+     (emit cm64ra rd (f-rs 0) rt)
+)
+
+(dnmi m-cm32mlog "Counter Manager 32-bit or R0" (MACH10 USES-RS USES-RT NO-DIS)
+     "cm32mlog $rs,$rt"
+     (emit cm32or (f-rd 0) rs rt)
+)
+
+(dnmi m-cm32and "Counter Manager And" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "cm32and $rs,$rt"
+     (emit cm32and (f-rd 0) rs rt)
+)
+
+(dnmi m-cm32andn "Counter Manager And With Inverse" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "cm32andn $rs,$rt"
+     (emit cm32andn (f-rd 0) rs rt)
+)
+
+(dnmi m-cm32or "Counter Manager Or" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "cm32or $rs,$rt"
+     (emit cm32or (f-rd 0) rs rt)
+)
+
+(dnmi m-cm32ra "Counter Manager 32-bit Rolling Add" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "cm32ra $rs,$rt"
+     (emit cm32ra (f-rd 0) rs rt)
+)
+
+(dnmi m-cm32rd "Counter Manager 32-bit Rolling Decrement" (MACH10 USES-RT USES-RD NO-DIS)
+     "cm32rd $rt"
+     (emit cm32rd (f-rd 0) rt)
+)
+
+(dnmi m-cm32ri "Counter Manager 32-bit Rolling Increment" (MACH10 USES-RT USES-RD NO-DIS)
+     "cm32ri $rt"
+     (emit cm32ri (f-rd 0) rt)
+)
+
+(dnmi m-cm32rs "Counter Manager 32-bit Rolling Subtract" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "cm32rs $rs,$rt"
+     (emit cm32rs (f-rd 0) rs rt)
+)
+
+(dnmi m-cm32sa "Counter Manager 32-bit Saturating Add" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "cm32sa $rs,$rt"
+     (emit cm32sa (f-rd 0) rs rt)
+)
+
+(dnmi m-cm32sd "Counter Manager 32-bit Saturating Decrement" (MACH10 USES-RT USES-RD NO-DIS)
+     "cm32sd $rt"
+     (emit cm32sd (f-rd 0) rt)
+)
+
+(dnmi m-cm32si "Counter Manager 32-bit Saturating Increment" (MACH10 USES-RT USES-RD NO-DIS)
+     "cm32si $rt"
+     (emit cm32si (f-rd 0) rt)
+)
+
+(dnmi m-cm32ss "Counter Manager 32-bit Saturating Subtract" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "cm32ss $rs,$rt"
+     (emit cm32ss (f-rd 0) rs rt)
+)
+
+(dnmi m-cm32xor "Counter Manager Xor" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "cm32xor $rs,$rt"
+     (emit cm32xor (f-rd 0) rs rt)
+)
+
+(dnmi m-cm64clr "Counter Manager Clear" (MACH10 USES-RT USES-RD NO-DIS)
+     "cm64clr $rt"
+     (emit cm64clr (f-rd 0) rt)
+)
+
+(dnmi m-cm64ra "Counter Manager 64-bit Rolling Add" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "cm64ra $rs,$rt"
+     (emit cm64ra (f-rd 0) rs rt)
+)
+
+(dnmi m-cm64rd "Counter Manager 64-bit Rolling Decrement" (MACH10 USES-RT USES-RD NO-DIS)
+     "cm64rd $rt"
+     (emit cm64rd (f-rd 0) rt)
+)
+
+(dnmi m-cm64ri "Counter Manager 32-bit Rolling Increment" (MACH10 USES-RT USES-RD NO-DIS)
+     "cm64ri $rt"
+     (emit cm64ri (f-rd 0) rt)
+)
+
+(dnmi m-cm64ria2 "Counter Manager 32/32 Rolling Increment/Add" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "cm64ria2 $rs,$rt"
+     (emit cm64ria2 (f-rd 0) rs rt)
+)
+
+(dnmi m-cm64rs "Counter Manager 64-bit Rolling Subtract" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "cm64rs $rs,$rt"
+     (emit cm64rs (f-rd 0) rs rt)
+)
+
+(dnmi m-cm64sa "Counter Manager 64-bit Saturating Add" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "cm64sa $rs,$rt"
+     (emit cm64sa (f-rd 0) rs rt)
+)
+
+(dnmi m-cm64sd "Counter Manager 64-bit Saturating Decrement" (MACH10 USES-RT USES-RD NO-DIS)
+     "cm64sd $rt"
+     (emit cm64sd (f-rd 0) rt)
+)
+
+(dnmi m-cm64si "Counter Manager 64-bit Saturating Increment" (MACH10 USES-RT USES-RD NO-DIS)
+     "cm64si $rt"
+     (emit cm64si (f-rd 0) rt)
+)
+
+(dnmi m-cm64sia2 "Counter Manager 32/32 Saturating Increment/Add" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "cm64sia2 $rs,$rt"
+     (emit cm64sia2 (f-rd 0) rs rt)
+)
+
+(dnmi m-cm64ss "Counter Manager 64-bit Saturating Subtract" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "cm64ss $rs,$rt"
+     (emit cm64ss (f-rd 0) rs rt)
+)
+
+(dnmi m-cm128ria2 "Counter Manager 128-bit 64/64 Rolling Increment/Add" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "cm128ria2 $rs,$rt"
+     (emit cm128ria2 (f-rd 0) rs rt)
+)
+
+(dnmi m-cm128ria3 "Counter Manager 128-bit 32/32/64 Rolling Increment/Add" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "cm128ria3 $rs,$rt,${cm-3z}"
+     (emit cm128ria3 (f-rd 0) rs rt cm-3z)
+)
+
+(dnmi m-cm128ria4 "Counter Manager 128-bit 32/32/32/32 Rolling Inc/Add" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "cm128ria4 $rs,$rt,${cm-4z}"
+     (emit cm128ria4 (f-rd 0) rs rt cm-4z)
+)
+
+(dnmi m-cm128sia2 "Counter Manager 128-bit 64/64 Saturating Inc/Add" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "cm128sia2 $rs,$rt"
+     (emit cm128sia2 (f-rd 0) rs rt)
+)
+
+(dnmi m-cm128sia3 "Counter Manager 128-bit 32/32/64 Saturating Inc/Add" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "cm128sia3 $rs,$rt,${cm-3z}"
+     (emit cm128sia3 (f-rd 0) rs rt cm-3z)
+)
+
+(dnmi m-cm128sia4 "Counter Manager 128-bit 32/32/32/32 Saturating Inc/Add" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "cm128sia4 $rs,$rt,${cm-4z}"
+     (emit cm128sia4 (f-rd 0) rs rt cm-4z)
+)
+
+(dnmi m-cmphdr "Get a Complete Header" (MACH10 NO-DIS)
+     "cmphdr"
+     (emit cmphdr (f-rd 0))
+)
+
+(dnmi m-dbd "Deallocate a Data Buffer Pointer" (MACH10 USES-RD USES-RT NO-DIS)
+     "dbd $rd,$rt"
+     (emit dbd rd (f-rs 0) rt)
+)
+
+(dnmi m2-dbd "Deallocate a Data Buffer Pointer" (MACH10 USES-RT NO-DIS)
+     "dbd $rt"
+     (emit dbd (f-rd 0) (f-rs 0) rt)
+)
+
+(dnmi m-dpwt "DSTN_PORT Write" (MACH10 USES-RS NO-DIS)
+     "dpwt $rs"
+     (emit dpwt (f-rd 0) rs)
+)
+
+(dnmi m-free "" (MACH10 USES-RS USES-RD NO-DIS)
+     "free $rs"
+     (emit free (f-rd 0) rs)
+)
+
+;(dnmi m-jal "jump and link, implied r31" (MACH10 USES-RT NO-DIS)
+;     "jal $jmptarg"
+;     (emit jal (f-rt 31) jmptarg)
+;)
+
+(dnmi m-lock "lock memory" (MACH10 USES-RT NO-DIS)
+     "lock $rt"
+     (emit lock (f-rd 0) rt)
+)
+
+(dnmi m-pkrla "Packet Release Absolute" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "pkrla $rs,$rt"
+     (emit pkrla (f-rd 0) rs rt)
+)
+
+(dnmi m-pkrlac "Packet Release Absolute Continue" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "pkrlac $rs,$rt"
+     (emit pkrlac (f-rd 0) rs rt)
+)
+
+(dnmi m-pkrlah "Packet Release Absolute and Hold" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "pkrlah $rs,$rt"
+     (emit pkrlah (f-rd 0) rs rt)
+)
+
+(dnmi m-pkrlau "Packet Release Absolute Unconditional" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "pkrlau $rs,$rt"
+     (emit pkrlau (f-rd 0) rs rt)
+)
+
+(dnmi m-pkrli "Packet Release Immediate" (MACH10 USES-RD USES-RS USES-RT NO-DIS)
+     "pkrli $rs,$rt,$bytecount"
+     (emit pkrli (f-rd 0) rs rt bytecount)
+)
+
+(dnmi m-pkrlic "Packet Release Immediate Continue" (MACH10 USES-RS USES-RT NO-DIS)
+     "pkrlic $rs,$rt,$bytecount"
+     (emit pkrlic (f-rd 0) rs rt bytecount)
+)
+
+(dnmi m-pkrlih "Packet Release Immediate and Hold" (MACH10 USES-RD USES-RS USES-RT NO-DIS)
+     "pkrlih $rs,$rt,$bytecount"
+     (emit pkrlih (f-rd 0) rs rt bytecount)
+)
+
+(dnmi m-pkrliu "Packet Release Immediate Unconditional" (MACH10 USES-RD USES-RS USES-RT NO-DIS)
+     "pkrliu $rs,$rt,$bytecount"
+     (emit pkrliu (f-rd 0) rs rt bytecount)
+)
+
+(dnmi m-rba "Read Bytes Absolute" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "rba $rs,$rt"
+     (emit rba (f-rd 0) rs rt)
+)
+
+(dnmi m-rbal "Read Bytes Absolute and Lock" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "rbal $rs,$rt"
+     (emit rbal (f-rd 0) rs rt)
+)
+
+(dnmi m-rbar "Read Bytes Absolute and Release" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "rbar $rs,$rt"
+     (emit rbar (f-rd 0) rs rt)
+)
+
+(dnmi m-rbi "Read Bytes Immediate" (MACH10 USES-RS USES-RT NO-DIS)
+     "rbi $rs,$rt,$bytecount"
+     (emit rbi (f-rd 0) rs rt bytecount)
+)
+
+(dnmi m-rbil "Read Bytes Immediate and Lock" (MACH10 USES-RS USES-RT NO-DIS)
+     "rbil $rs,$rt,$bytecount"
+     (emit rbil (f-rd 0) rs rt bytecount)
+)
+
+(dnmi m-rbir "Read Bytes Immediate and Release" (MACH10 USES-RS USES-RT NO-DIS)
+     "rbir $rs,$rt,$bytecount"
+     (emit rbir (f-rd 0) rs rt bytecount)
+)
+
+(dnmi m-swwr "Single Word Write" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "swwr $rs,$rt"
+     (emit swwr (f-rd 0) rs rt)
+)
+
+(dnmi m-swwru "Single Word Write and Unlock" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "swwru $rs,$rt"
+     (emit swwru (f-rd 0) rs rt)
+)
+
+(dnmi m-tstod "Test Header Buffer Order Dependency" (MACH10 USES-RS USES-RD NO-DIS)
+     "tstod $rs"
+     (emit tstod (f-rd 0) rs)
+)
+
+(dnmi m-unlk "" (MACH10 USES-RT USES-RD NO-DIS)
+     "unlk $rt"
+     (emit unlk (f-rd 0) rt)
+)
+     
+(dnmi m-wba "Write Bytes Absolute" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "wba $rs,$rt"
+     (emit wba (f-rd 0) rs rt)
+)
+
+(dnmi m-wbac "Write Bytes Absolute Cacheable" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "wbac $rs,$rt"
+     (emit wbac (f-rd 0) rs rt)
+)
+
+(dnmi m-wbau "Write Bytes Absolute and Unlock" (MACH10 USES-RS USES-RT USES-RD NO-DIS)
+     "wbau $rs,$rt"
+     (emit wbau (f-rd 0) rs rt)
+)
+
+(dnmi m-wbi "Write Bytes Immediate" (MACH10 USES-RD USES-RS USES-RT NO-DIS)
+     "wbi $rs,$rt,$bytecount"
+     (emit wbi (f-rd 0) rs rt bytecount)
+)
+
+(dnmi m-wbic "Write Bytes Immediate Cacheable" (MACH10 USES-RD USES-RS USES-RT NO-DIS)
+     "wbic $rs,$rt,$bytecount"
+     (emit wbic (f-rd 0) rs rt bytecount)
+)
+
+(dnmi m-wbiu "Write Bytes Immediate" (MACH10 USES-RD USES-RS USES-RT NO-DIS)
+     "wbiu $rs,$rt,$bytecount"
+     (emit wbiu (f-rd 0) rs rt bytecount)
+)
+

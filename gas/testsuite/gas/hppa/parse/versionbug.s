@@ -1,0 +1,4 @@
+	.code
+
+	.VERSION "abc123"
+

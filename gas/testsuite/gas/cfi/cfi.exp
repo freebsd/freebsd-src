@@ -1,0 +1,66 @@
+# ??? This probably shouldn't be replicated here...
+proc run_list_test { name opts } {
+    global srcdir subdir
+    set testname "cfi $name"
+    set file $srcdir/$subdir/$name
+    gas_run ${name}.s $opts ">&dump.out"
+    if { [regexp_diff "dump.out" "${file}.l"] } then {
+        fail $testname
+        verbose "output is [file_contents "dump.out"]" 2
+        return
+    }
+    pass $testname
+}
+
+if ![is_elf_format] then {
+    return
+}
+
+if [istarget "x86_64-*"] then {
+    run_dump_test "cfi-x86_64"
+
+} elseif [istarget "i?86-*"] then {
+    run_dump_test "cfi-i386"
+
+} elseif { [istarget alpha*-*-*] } then {
+    run_dump_test "cfi-alpha-1"
+    run_dump_test "cfi-alpha-2"
+    run_dump_test "cfi-alpha-3"
+
+} elseif { [istarget ppc*-*-*] || [istarget powerpc*-*-*] } then {
+    run_dump_test "cfi-ppc-1"
+
+} elseif { [istarget s390*-*-*] } then {
+    run_dump_test "cfi-s390-1"
+    if { [istarget s390x*-*-*] } then {
+	run_dump_test "cfi-s390x-1"
+    }
+
+} elseif { [istarget "m68*-*"] } then {
+    run_dump_test "cfi-m68k"
+
+} elseif { [istarget sparc*-*-*] } then {
+    global NM
+    global NMFLAGS
+    global srcdir
+
+    catch "exec $srcdir/lib/run $NM $NMFLAGS --help" nm_help
+    run_dump_test "cfi-sparc-1"
+    if { [regexp "elf64\[_-\]sparc" $nm_help] } then {
+	run_dump_test "cfi-sparc64-1"
+    }
+
+} elseif [istarget "sh*-*"] then {
+    if { [istarget sh64*-*-*] || [istarget sh5*-*-*] } then {
+    } else {
+	run_dump_test "cfi-sh-1"
+    }
+
+} else {
+    return
+}
+
+run_list_test "cfi-diag-1" ""
+run_dump_test "cfi-common-1"
+run_dump_test "cfi-common-2"
+run_dump_test "cfi-common-3"

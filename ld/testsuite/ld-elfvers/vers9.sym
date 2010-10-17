@@ -1,0 +1,4 @@
+[0]* *F? *\*UND\*	[0]* foo@VERS_1.2
+[0-9a-f]* g     F .text	[0-9a-f]* (0x[0-9a-f][0-9a-f] )?foo@
+[0-9a-f]* g     F .text	[0-9a-f]* (0x[0-9a-f][0-9a-f] )?foo@VERS_1.1
+[0-9a-f]* g     F .text	[0-9a-f]* (0x[0-9a-f][0-9a-f] )?foo@@VERS_1.2

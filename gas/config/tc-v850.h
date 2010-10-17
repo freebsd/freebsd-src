@@ -37,16 +37,15 @@
 
 #define md_operand(x)
 
-#define obj_fix_adjustable(fixP) v850_fix_adjustable(fixP)
-extern boolean v850_fix_adjustable PARAMS ((struct fix *));
+#define tc_fix_adjustable(FIX) v850_fix_adjustable (FIX)
+extern bfd_boolean v850_fix_adjustable PARAMS ((struct fix *));
 
-#define TC_FORCE_RELOCATION(fixp) v850_force_relocation(fixp)
+#define TC_FORCE_RELOCATION(FIX) v850_force_relocation(FIX)
 extern int v850_force_relocation PARAMS ((struct fix *));
 
 #ifdef OBJ_ELF
-/* This arranges for gas/write.c to not apply a relocation if
-   obj_fix_adjustable() says it is not adjustable.  */
-#define TC_FIX_ADJUSTABLE(fixP) obj_fix_adjustable (fixP)
+/* Values passed to md_apply_fix3 don't include the symbol value.  */
+#define MD_APPLY_SYM_VALUE(FIX) 0
 #endif
 
 /* Permit temporary numeric labels.  */
@@ -70,29 +69,12 @@ extern void cons_fix_new_v850 PARAMS ((fragS *, int, int, expressionS *));
 #define TC_GENERIC_RELAX_TABLE md_relax_table
 extern const struct relax_type md_relax_table[];
 
-/* This section must be in the small data area (pointed to by GP).  */
-#define SHF_V850_GPREL		0x10000000
-/* This section must be in the tiny data area (pointed to by EP).  */
-#define SHF_V850_EPREL		0x20000000
-/* This section must be in the zero data area (pointed to by R0).  */
-#define SHF_V850_R0REL		0x40000000
+/* When relaxing, we need to generate
+   relocations for alignment directives.  */
+#define HANDLE_ALIGN(frag) v850_handle_align (frag)
+extern void v850_handle_align PARAMS ((fragS *));
 
-#define ELF_TC_SPECIAL_SECTIONS \
-  { ".sdata",	SHT_PROGBITS,		SHF_ALLOC + SHF_WRITE + SHF_V850_GPREL	}, \
-  { ".rosdata",	SHT_PROGBITS,		SHF_ALLOC +             SHF_V850_GPREL	}, \
-  { ".sbss",	SHT_NOBITS,		SHF_ALLOC + SHF_WRITE + SHF_V850_GPREL	}, \
-  { ".scommon",	SHT_V850_SCOMMON, 	SHF_ALLOC + SHF_WRITE + SHF_V850_GPREL	}, \
-  { ".tdata",	SHT_PROGBITS,		SHF_ALLOC + SHF_WRITE + SHF_V850_EPREL	}, \
-  { ".tbss",	SHT_NOBITS,		SHF_ALLOC + SHF_WRITE + SHF_V850_EPREL	}, \
-  { ".tcommon",	SHT_V850_TCOMMON,	SHF_ALLOC + SHF_WRITE + SHF_V850_R0REL	}, \
-  { ".zdata",	SHT_PROGBITS,		SHF_ALLOC + SHF_WRITE + SHF_V850_R0REL	}, \
-  { ".rozdata",	SHT_PROGBITS,		SHF_ALLOC +             SHF_V850_R0REL	}, \
-  { ".zbss",	SHT_NOBITS,	  	SHF_ALLOC + SHF_WRITE + SHF_V850_R0REL	}, \
-  { ".zcommon",	SHT_V850_ZCOMMON, 	SHF_ALLOC + SHF_WRITE + SHF_V850_R0REL	}, \
-  { ".call_table_data",	SHT_PROGBITS,	SHF_ALLOC + SHF_WRITE },	   \
-  { ".call_table_text",	SHT_PROGBITS,	SHF_ALLOC + SHF_WRITE + SHF_EXECINSTR },
-
-#define MD_PCREL_FROM_SECTION(fixP,section) v850_pcrel_from_section (fixP, section)
+#define MD_PCREL_FROM_SECTION(FIX, SEC) v850_pcrel_from_section (FIX, SEC)
 extern long v850_pcrel_from_section PARAMS ((struct fix *, asection *));
 
 #define DWARF2_LINE_MIN_INSN_LENGTH 2

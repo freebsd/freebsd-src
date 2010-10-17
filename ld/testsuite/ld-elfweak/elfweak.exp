@@ -1,0 +1,467 @@
+# Expect script for ld-weak tests
+#   Copyright 2001 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+# Written by H.J. Lu (hjl@gnu.org)
+#	     Eric Youngdale (eric@andante.jic.com)
+#
+
+# This test can only be run if ld generates native executables.
+if ![isnative] then {return}
+
+# This test can only be run on a couple of ELF platforms.
+# Square bracket expressions seem to confuse istarget.
+# This is similar to the test that is used in ld-shared, BTW.
+if {    ![istarget alpha*-*-linux*] \
+     && ![istarget arm*-*-linux*] \
+     && ![istarget hppa*64*-*-hpux*] \
+     && ![istarget hppa*-*-linux*] \
+     && ![istarget i?86-*-sysv4*] \
+     && ![istarget i?86-*-unixware] \
+     && ![istarget i?86-*-elf*] \
+     && ![istarget i?86-*-linux*] \
+     && ![istarget ia64-*-elf*] \
+     && ![istarget ia64-*-linux*] \
+     && ![istarget m68k-*-linux*] \
+     && ![istarget mips*-*-irix5*] \
+     && ![istarget mips*-*-linux*] \
+     && ![istarget powerpc-*-elf*] \
+     && ![istarget powerpc-*-linux*] \
+     && ![istarget powerpc-*-sysv4*] \
+     && ![istarget sh\[34\]*-*-linux*] \
+     && ![istarget sparc*-*-elf] \
+     && ![istarget sparc*-*-solaris2*] \
+     && ![istarget sparc*-*-linux*] } {
+    return
+}
+
+if { [istarget i?86-*-linux*aout*] \
+     || [istarget i?86-*-linux*oldld*] \
+     || [istarget m68k-*-linux*aout*] } {
+    return
+}
+
+if { [istarget rs6000*-*-aix*] || [istarget powerpc*-*-aix*] } {
+    return
+}
+
+set diff diff
+set tmpdir tmpdir
+set DOBJDUMP_FLAGS --dynamic-syms
+set SOBJDUMP_FLAGS --syms
+set shared --shared
+
+#
+# objdump_symstuff
+#	Dump non-dynamic symbol stuff and make sure that it is sane.
+#
+proc objdump_symstuff { objdump object expectfile } {
+    global SOBJDUMP_FLAGS
+    global version_output
+    global diff
+    global tmpdir
+
+    if ![info exists SOBJDUMP_FLAGS] { set SOBJDUMP_FLAGS "" }
+
+    verbose -log "$objdump $SOBJDUMP_FLAGS $object | grep foo$  > $tmpdir/objdump.out"
+
+    catch "exec $objdump $SOBJDUMP_FLAGS $object | grep foo$  > $tmpdir/objdump.out" exec_output
+    set exec_output [prune_warnings $exec_output]
+    if [string match "" $exec_output] then {
+
+# Now do a line-by-line comparison to effectively diff the darned things
+# The stuff coming from the expectfile is actually a regex, so we can
+# skip over the actual addresses and so forth.  This is currently very
+# simpleminded - it expects a one-to-one correspondence in terms of line
+# numbers.
+
+	if [file exists $expectfile] then {
+	    set file_a [open $expectfile r]
+	} else {
+	    perror "$expectfile doesn't exist"
+	    return 0
+	}
+	
+	if [file exists $tmpdir/objdump.out] then {
+	    set file_b [open $tmpdir/objdump.out r]
+	} else {
+	    perror "$tmpdir/objdump.out doesn't exist"
+	    return 0
+	}
+
+	verbose "# Diff'ing: $expectfile $tmpdir/objdump.out" 2
+
+	set eof -1
+	set differences 0
+
+	while { [gets $file_a line] != $eof } {
+	    if [regexp "^#.*$" $line] then {
+		continue
+	    } else {
+		lappend list_a $line
+	    }
+	}
+	close $file_a
+
+	while { [gets $file_b line] != $eof } {
+	    if [regexp "^#.*$" $line] then {
+		continue
+	    } else {
+		lappend list_b $line
+	    }
+	}
+	close $file_b
+	
+	for { set i 0 } { $i < [llength $list_a] } { incr i } {
+	    set line_a [lindex $list_a $i]
+	    set line_b [lindex $list_b $i]
+	    
+
+	    verbose "\t$expectfile: $i: $line_a" 3
+	    verbose "\t/tmp/objdump.out: $i: $line_b" 3
+	    if [regexp $line_a $line_b] then {
+		continue
+	    } else {
+		verbose -log "\t$expectfile: $i: $line_a"
+		verbose -log "\t$tmpdir/objdump.out: $i: $line_b"
+		
+		return 0
+	    }
+	}
+	
+	if { [llength $list_a] != [llength $list_b] } {
+	    verbose -log "Line count"
+	    return 0
+	}
+	
+	if $differences<1 then {
+	    return 1
+	}
+	
+	return 0
+    } else {
+	verbose -log "$exec_output"
+	return 0
+    }
+
+}
+
+#
+# objdump_dymsymstuff
+#	Dump dynamic symbol stuff and make sure that it is sane.
+#
+proc objdump_dynsymstuff { objdump object expectfile } {
+    global DOBJDUMP_FLAGS
+    global version_output
+    global diff
+    global tmpdir
+
+    if ![info exists DOBJDUMP_FLAGS] { set DOBJDUMP_FLAGS "" }
+
+    verbose -log "$objdump $DOBJDUMP_FLAGS $object | grep foo$ > $tmpdir/objdump.out"
+
+    catch "exec $objdump $DOBJDUMP_FLAGS $object | grep foo$ > $tmpdir/objdump.out" exec_output
+    set exec_output [prune_warnings $exec_output]
+    if [string match "" $exec_output] then {
+
+# Now do a line-by-line comparison to effectively diff the darned things
+# The stuff coming from the expectfile is actually a regex, so we can
+# skip over the actual addresses and so forth.  This is currently very
+# simpleminded - it expects a one-to-one correspondence in terms of line
+# numbers.
+
+	if [file exists $expectfile] then {
+	    set file_a [open $expectfile r]
+	} else {
+	    warning "$expectfile doesn't exist"
+	    return 0
+	}
+	
+	if [file exists $tmpdir/objdump.out] then {
+	    set file_b [open $tmpdir/objdump.out r]
+	} else {
+	    fail "$tmpdir/objdump.out doesn't exist"
+	    return 0
+	}
+
+	verbose "# Diff'ing: $expectfile $tmpdir/objdump.out" 2
+
+	set eof -1
+	set differences 0
+
+	while { [gets $file_a line] != $eof } {
+	    if [regexp "^#.*$" $line] then {
+		continue
+	    } else {
+		lappend list_a $line
+	    }
+	}
+	close $file_a
+
+	while { [gets $file_b line] != $eof } {
+	    if [regexp "^#.*$" $line] then {
+		continue
+	    } else {
+		lappend list_b $line
+	    }
+	}
+	close $file_b
+	
+	for { set i 0 } { $i < [llength $list_b] } { incr i } {
+	    set line_b [lindex $list_b $i]
+	    
+# The tests are rigged so that we should never export a symbol with the
+# word 'hide' in it.  Thus we just search for it, and bail if we find it.
+	    if [regexp "hide" $line_b] then {
+		verbose -log "\t$tmpdir/objdump.out: $i: $line_b"
+		
+		return 0
+	    }
+
+	    verbose "\t$expectfile: $i: $line_b" 3
+
+	    # We can't assume that the sort is consistent across
+	    # systems, so we must check each regexp.  When we find a
+	    # regexp, we null it out, so we don't match it twice.
+	    for { set j 0 } { $j < [llength $list_a] } { incr j } {
+		set line_a [lindex $list_a $j]
+
+		if [regexp $line_a $line_b] then {
+		    lreplace $list_a $j $j "CAN NOT MATCH"
+		    break
+		}
+	    }
+
+	    if { $j >= [llength $list_a] } {
+		verbose -log "\t$tmpdir/objdump.out: $i: $line_b"
+		
+		return 0
+	    }
+	}
+	
+	if { [llength $list_a] != [llength $list_b] } {
+	    verbose -log "Line count"
+	    return 0
+	}
+	
+	if $differences<1 then {
+	    return 1
+	}
+	
+	return 0
+    } else {
+	verbose -log "$exec_output"
+	return 0
+    }
+
+}
+
+proc build_lib {test libname objs dynsymexp} {
+    global CC
+    global objdump
+    global tmpdir
+    global shared
+    global srcdir
+    global subdir
+
+    set files ""
+    foreach obj $objs {
+      set files "$files $tmpdir/$obj"
+    }
+
+    if {![ld_simple_link $CC $tmpdir/$libname.so "$shared $files"]} {
+	fail $test
+	return
+    }
+
+    if {![objdump_dynsymstuff $objdump $tmpdir/$libname.so $srcdir/$subdir/$dynsymexp]} {
+	fail $test
+	return
+    }
+    pass $test
+}
+
+proc build_exec { test execname objs flags dat dynsymexp symexp} {
+    global CC
+    global objdump
+    global tmpdir
+    global shared
+    global srcdir
+    global subdir
+    global exec_output
+
+    set files ""
+    foreach obj $objs {
+      set files "$files $tmpdir/$obj"
+    }
+
+    if {![ld_simple_link $CC $tmpdir/$execname "$flags $files"]} {
+	fail "$test"
+	return
+    }
+
+    if {![string match "" $dynsymexp]} then {
+        if {![objdump_dynsymstuff $objdump $tmpdir/$execname $srcdir/$subdir/$dynsymexp]} {
+	    fail $test
+	    return
+	}
+    }
+
+    if {![string match "" $symexp]} then {
+        if {![objdump_symstuff $objdump $tmpdir/$execname $srcdir/$subdir/$symexp]} {
+	    fail $test
+	    return
+	}
+    }
+
+    # Run the resulting program
+    send_log "$tmpdir/$execname >$tmpdir/$execname.out\n"
+    verbose "$tmpdir/$execname >$tmpdir/$execname.out"
+    catch "exec $tmpdir/$execname >$tmpdir/$execname.out" exec_output
+    if ![string match "" $exec_output] then {
+	send_log "$exec_output\n"
+	verbose "$exec_output"
+	fail $test
+	return
+    }
+
+    send_log "diff $tmpdir/$execname.out $srcdir/$subdir/$dat.dat\n"
+    verbose "diff $tmpdir/$execname.out $srcdir/$subdir/$dat.dat"
+    catch "exec diff $tmpdir/$execname.out $srcdir/$subdir/$dat.dat" exec_output
+    set exec_output [prune_warnings $exec_output]
+
+    if {![string match "" $exec_output]} then {
+	send_log "$exec_output\n"
+	verbose "$exec_output"
+	fail $test
+        return
+    }
+
+    pass $test
+}
+
+if [istarget mips*-*-*] {
+    set picflag ""
+} else {
+    # Unfortunately, the gcc argument is -fpic and the cc argument is
+    # -KPIC.  We have to try both.
+    set picflag "-fpic"
+    send_log "$CC $picflag\n"
+    verbose "$CC $picflag"
+    catch "exec $CC $picflag" exec_output
+    send_log "$exec_output\n"
+    verbose "--" "$exec_output"
+    if { [string match "*illegal option*" $exec_output] \
+	 || [string match "*option ignored*" $exec_output] \
+	 || [string match "*unrecognized option*" $exec_output] \
+	 || [string match "*passed to ld*" $exec_output] } {
+	if [istarget *-*-sunos4*] {
+	    set picflag "-pic"
+	} else {
+	    set picflag "-KPIC"
+	}
+    }
+}
+verbose "Using $picflag to compile PIC code"
+
+if ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/foo.c $tmpdir/foo.o] {
+    unresolved "ELF weak"
+    return
+}
+
+if ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/bar.c $tmpdir/bar.o] {
+    unresolved "ELF weak"
+    return
+}
+
+if ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/main.c $tmpdir/main.o] {
+    unresolved "ELF weak"
+    return
+}
+
+if {![ld_simple_link $CC $tmpdir/libbar.so "$shared $tmpdir/bar.o"]} {
+    fail "ELF weak"
+    return
+}
+
+if ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/foo1a.c $tmpdir/foo1a.o] {
+    unresolved "ELF weak"
+    return
+}
+
+if ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/foo1b.c $tmpdir/foo1b.o] {
+    unresolved "ELF weak"
+    return
+}
+
+if ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/bar1a.c $tmpdir/bar1a.o] {
+    unresolved "ELF weak"
+    return
+}
+
+if ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/bar1b.c $tmpdir/bar1b.o] {
+    unresolved "ELF weak"
+    return
+}
+
+if ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/bar1c.c $tmpdir/bar1c.o] {
+    unresolved "ELF weak"
+    return
+}
+
+if ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/main1.c $tmpdir/main1.o] {
+    unresolved "ELF weak"
+    return
+}
+
+if {![ld_simple_link $CC $tmpdir/libfoo1a.so "$shared $tmpdir/foo1a.o"]} {
+    fail "ELF weak"
+    return
+}
+
+if {![ld_simple_link $CC $tmpdir/libfoo1b.so "$shared $tmpdir/foo1b.o"]} {
+    fail "ELF weak"
+    return
+}
+
+if {![ld_simple_link $CC $tmpdir/libbar1a.so "$shared $tmpdir/bar1a.o $tmpdir/libfoo1a.so"]} {
+    fail "ELF weak"
+    return
+}
+
+build_lib "ELF DSO weak func first" libfoo "foo.o bar.o" dso.dsym
+build_lib "ELF DSO weak func last" libfoo "bar.o foo.o" dso.dsym
+build_lib "ELF DSO weak func first DSO" libfoo "foo.o libbar.so" dsow.dsym
+build_lib "ELF DSO weak func last DSO" libfoo "libbar.so foo.o" dsow.dsym
+build_exec "ELF weak func first" foo "main.o bar.o" "" strong "" strong.sym
+build_exec "ELF weak func last" foo "bar.o main.o" "" strong "" strong.sym
+build_exec "ELF weak func first DSO" foo "main.o libbar.so" "-Wl,-rpath,." weak weak.dsym ""
+build_exec "ELF weak func last DSO" foo "libbar.so main.o" "-Wl,-rpath,." weak weak.dsym ""
+
+build_lib "ELF DSO weak data first" libfoo "bar1a.o foo1a.o" dsodata.dsym
+build_lib "ELF DSO weak data last" libfoo "foo1a.o bar1a.o" dsodata.dsym
+build_lib "ELF DSO weak data first DSO" libfoo "main1.o libfoo1a.so" dsowdata.dsym
+build_lib "ELF DSO weak data last DSO" libfoo "libfoo1a.so main1.o" dsowdata.dsym
+build_lib "ELF DSO weak data first DSO common" libfoo "main1.o libfoo1b.so" dsowdata.dsym
+build_lib "ELF DSO weak data last DSO common" libfoo "libfoo1b.so main1.o" dsowdata.dsym
+build_exec "ELF weak data first" foo "main1.o bar1a.o foo1a.o" "" strongdata "" strongdata.sym
+build_exec "ELF weak data last" foo "foo1a.o main1.o bar1a.o" "" strongdata "" strongdata.sym
+build_exec "ELF weak data first common" foo "main1.o bar1a.o foo1b.o" "" strongdata "" strongcomm.sym
+build_exec "ELF weak data last common" foo "foo1b.o main1.o bar1a.o" "" strongdata "" strongcomm.sym
+build_exec "ELF weak data first DSO" foo "main1.o libbar1a.so libfoo1a.so" "-Wl,-rpath,." weakdata weakdata.dsym ""
+build_exec "ELF weak data last DSO" foo "libfoo1a.so main1.o libbar1a.so" "-Wl,-rpath,." weakdata weakdata.dsym ""
+build_exec "ELF weak data first DSO common" foo "main1.o libbar1a.so libfoo1b.so" "-Wl,-rpath,." weakdata weakdata.dsym ""
+build_exec "ELF weak data last DSO common" foo "libfoo1b.so main1.o libbar1a.so" "-Wl,-rpath,." weakdata weakdata.dsym ""

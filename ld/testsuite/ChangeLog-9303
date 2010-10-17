@@ -1,0 +1,3376 @@
+2003-12-30  Mark Mitchell  <mark@codesourcery.com>
+
+	* ld-srec/srec.exp (run_srec_test): Remove -fgnu-linker, since GCC
+	3.4 does not support it.
+
+2003-12-18  Richard Sandiford  <rsandifo@redhat.com>
+
+	* ld-mips-elf/reloc-1[ab].s: New source files.
+	* ld-mips-elf/reloc-1-{n32,n64,rel}.d: New tests.
+	* ld-mips-elf/reloc-2[ab].s: New source files.
+	* ld-mips-elf/reloc-2.{d,ld}: New test.
+	* ld-mips-elf/reloc-3[ab].s: New source files.
+	* ld-mips-elf/reloc-3-{r,srec}.d: New tests.
+	* ld-mips-elf/mips-elf.exp: Run them.
+
+2003-12-07  Richard Sandiford  <rsandifo@redhat.com>
+
+	* ld-mips-elf/elf-rel-xgot-n32.d: Fix offset for "lw $5,dl1+34($5)".
+	* ld-mips-elf/elf-rel-xgot-n64-linux.d: Likewise.
+
+2003-12-01  Kaz Kojima  <kkojima@rr.iij4u.or.jp>
+
+	* ld-sh/sh64/shmix-1.s: Add align to match data alignment.
+	* ld-sh/sh64/shmix-3.s: Likewise.
+	* ld-sh/sh64/mix1.sd: Update.
+	* ld-sh/sh64/mix1.xd: Likewise.
+	* ld-sh/sh64/mix1-noexp.sd: Likewise.
+	* ld-sh/sh64/mix2.sd: Likewise.
+	* ld-sh/sh64/mix2.xd: Likewise.
+	* ld-sh/sh64/mix2-noexp.sd: Likewise.
+
+2003-12-01  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-sh/tlsbin-2.d: Update section alignment.
+	* ld-sh/tlspic-2.d: Likewise.
+	* ld-sh/sh64/abi32.xd: Likewise.
+	* ld-sh/sh64/abi64.xd: Likewise.
+	* ld-sh/sh64/cmpct1.xd: Likewise.
+	* ld-sh/sh64/rel32.xd: Likewise.
+	* ld-sh/sh64/rel64.xd: Likewise.
+	* ld-sh/sh64/shdl32.xd: Likewise.
+	* ld-sh/sh64/shdl64.xd: Likewise.
+
+2003-11-19  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/tlsexe32.d: Update for changed symbols from objdump.
+	* ld-powerpc/tlsso32.d: Likewise.
+
+2003-10-27  Stephane Carrez  <stcarrez@nerim.fr>
+
+	* ld-undefined/undefined.exp: Mark as xfail for m6811 and m6812
+	due to elf/Dwarf2 binutils limitation.
+
+2003-10-23  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-elfvers/vers.exp (test_ldfail): Add "-Wl," to pass the
+	linker option from gcc.
+
+2003-10-23  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/tlsexetoc.d: Correct.
+	* ld-powerpc/tlstoc.d: Correct.
+
+2003-10-18  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-mmix/greg-14.d, ld-mmix/greg-5.d, ld-mmix/pushja1b.d,
+	ld-mmix/pushja1f.d, ld-mmix/pushja7b.d, ld-mmix/pushja7f.d: Pass
+	--no-pushj-stubs to the assembler.
+	* ld-mmix/pushjs2b.d, ld-mmix/greg-14s.d, ld-mmix/pushjs1.d,
+	ld-mmix/greg-5s.d, ld-mmix/pushjs3b.d, ld-mmix/pushja1f-s.d,
+	ld-mmix/pushjs1m.d, ld-mmix/pushja7b-s.d, ld-mmix/pushja7f-s.d,
+	ld-mmix/pushja1b-s.d, ld-mmix/pushjs2.d, ld-mmix/pushjs3.d,
+	ld-mmix/pushjs4b.d, ld-mmix/pushjs4.d, ld-mmix/pushjs1bm.d,
+	ld-mmix/pushjs1b.d, ld-mmix/pushjs2m.d, ld-mmix/pushjs1r.d,
+	ld-mmix/pushjs3m.d, ld-mmix/pushjs2bm.d, ld-mmix/pushjs4m.d,
+	ld-mmix/pushjs3bm.d, ld-mmix/pushjs2r.d, ld-mmix/pushjs4bm.d,
+	ld-mmix/pushjs3r.d, ld-mmix/pushjs4r.d: New tests.
+
+2003-10-15  Kaz Kojima  <kkojima@rr.iij4u.or.jp>
+
+	* ld-sh/sh64/rd-sh64.exp: If the test matches *-dso.d, copy
+	the output of linker to the file tmpdir/*-dso.so.
+	* ld-sh/sh64/stobin-0-dso.d: New.
+	* ld-sh/sh64/stobin-1.d: New.
+	* ld-sh/sh64/stobin.s: New.
+	* ld-sh/sh64/stolib.s: New.
+
+2003-10-13  Richard Sandiford  <rsandifo@redht.com>
+
+	* ld-mips-elf/multi-got-1.d (RELSZ): Don't include the size of the
+	trailing null relocs.
+
+2003-10-12  Kaz Kojima  <kkojima@rr.iij4u.or.jp>
+
+	* ld-sh/rd-sh.exp (LDFLAGS): Define appropriately for each
+	sh64/sh5 targets.
+	* ld-sh/sh.exp: Don't do relaxing test for sh64*-*-* and
+	sh5*-*-* targets.
+	* ld-sh/sh64/relax.exp (emul32): Set to shelf32_nbsd for netbsd.
+	* ld-sh/sh64/relfail.exp: Set parameters for netbsd.
+	* ld-sh/sh64/sh64.exp: Skip this for netbsd.  Trim the section
+	numbers for crangerel1 and crengerel2 tests.
+	* ld-sh/sh64/abi32.sd: Update.
+	* ld-sh/sh64/abi32.xd: Likewise.
+	* ld-sh/sh64/abi64.sd: Likewise.
+	* ld-sh/sh64/abi64.xd: Likewise.
+	* ld-sh/sh64/abixx-noexp.sd: Likewise.
+	* ld-sh/sh64/cmpct1.sd: Likewise.
+	* ld-sh/sh64/cmpct1.xd: Likewise.
+	* ld-sh/sh64/crange1.rd: Likewise.
+	* ld-sh/sh64/crange2.rd: Likewise.
+	* ld-sh/sh64/crange3-cmpct.rd: Likewise.
+	* ld-sh/sh64/crange3-media.rd: Likewise.
+	* ld-sh/sh64/crange3.rd: Likewise.
+	* ld-sh/sh64/crangerel1.rd: Likewise.
+	* ld-sh/sh64/crangerel2.rd: Likewise.
+	* ld-sh/sh64/dlsection.sd: Likewise.
+	* ld-sh/sh64/endian.sbd: Likewise.
+	* ld-sh/sh64/endian.sld: Likewise.
+	* ld-sh/sh64/gotplt.d: Likewise.
+	* ld-sh/sh64/init-cmpct.d: Likewise.
+	* ld-sh/sh64/init-media.d: Likewise.
+	* ld-sh/sh64/init.s: Align functions.
+	* ld-sh/sh64/init64.d: Update.
+	* ld-sh/sh64/mix1-noexp.sd: Likewise.
+	* ld-sh/sh64/mix1.sd: Likewise.
+	* ld-sh/sh64/mix1.xd: Likewise.
+	* ld-sh/sh64/mix2-noexp.sd: Likewise.
+	* ld-sh/sh64/mix2.sd: Likewise.
+	* ld-sh/sh64/mix2.xd:Likewise.
+	* ld-sh/sh64/rel32.xd: Likewise.
+	* ld-sh/sh64/rel64.xd: Likewise.
+	* ld-sh/sh64/reldl32.rd: Likewise.
+	* ld-sh/sh64/reldl64.rd: Likewise.
+	* ld-sh/sh64/shdl32.xd: Update.
+	* ld-sh/sh64/shdl64.sd: Likewise.
+	* ld-sh/sh64/shdl64.xd: Likewise.
+	* ld-sh/shared-1.d: Add -z nocombreloc to ld option.  Update.
+	* ld-sh/sub2l-1.d: Make file format match with elf32-sh.*.
+	* ld-sh/weak1.d: Likewise.
+
+2003-10-11  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-scripts/defined3.d, ld-scripts/defined3.t: New test.
+	* ld-scripts/defined.exp: Run defined3.
+
+2003-10-08  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-scripts/defined2.d, ld-scripts/defined2.t: New test.
+	* ld-scripts/defined.exp: Run defined2.
+
+2003-10-07  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
+
+	* ld-elfvsb/elfvsb.exp: xfail non-pic shared library tests for
+	non 64-bit hppa*-*-linux* targets.
+	* ld-elfvsb/main.c (main_visibility_check): Cast value returned by
+	visibility_funptr () to a function pointer.
+	* ld-shared/shared.exp: xfail shared (non PIC), shared (non PIC, load
+	offset), and shared (PIC main, non PIC so) tests for non 64-bit
+	hppa*-*-linux* targets.
+
+2003-09-30  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-checks/checks.exp (section_check): Remove ia64-*-elf*.
+
+2003-09-30  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-checks/checks.exp (section_check): Skip ia64-*-* instead
+	of ia64-*-linux*.
+
+2003-09-30  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-ia64/ia64.exp: Remove -melf64_ia64.
+
+	* ld-ia64/tlsbin.dd: Remove -melf64_ia64. Match elf..-ia64-.*
+	instead of elf64-ia64-little.
+	* ld-ia64/tlsbin.rd: Likewise.
+	* ld-ia64/tlsbin.sd: Likewise.
+	* ld-ia64/tlsbin.td: Likewise.
+	* ld-ia64/tlsg.sd: Likewise.
+	* ld-ia64/tlspic.dd: Likewise.
+	* ld-ia64/tlspic.rd: Likewise.
+	* ld-ia64/tlspic.sd: Likewise.
+	* ld-ia64/tlspic.td: Likewise.
+
+2003-09-30  Chris Demetriou  <cgd@broadcom.com>
+
+	* ld-mips-elf/mips-elf-flags.exp: Add tests for combinations
+	with MIPS64r2.
+
+2003-09-29  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* lib/ld-lib.exp (proc is_elf64): New.
+
+	* ld-scripts/phdrs.exp: Use is_elf_format and is_elf64.
+
+2003-09-23  Alan Modra  <alan@modra.org>
+
+	* ld-discard/exit.s: Correct .text.exit attributes.
+	* ld-discard/extern.s: Likewise.
+	* ld-discard/static.s: Likewise.
+
+2003-09-21  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
+	* ld-mips-elf/relax-jalr-n32.d: Fix little endian test failure.
+	* ld-mips-elf/relax-jalr-n32-shared.d: Likewise.
+	* ld-mips-elf/relax-jalr-n64.d: Likewise.
+	* ld-mips-elf/relax-jalr-n64-shared.d: Likewise.
+
+2003-09-14  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-mmix/bpo-1.d, ld-mmix/bpo-10.d, ld-mmix/bpo-11.d,
+	ld-mmix/bpo-14.d, ld-mmix/bpo-16.d, ld-mmix/bpo-17.d,
+	ld-mmix/bpo-18.d, ld-mmix/bpo-19.d, ld-mmix/bpo-2.d,
+	ld-mmix/bpo-22.d, ld-mmix/bpo-3.d, ld-mmix/bpo-4.d,
+	ld-mmix/bpo-5.d, ld-mmix/bpo-6.d, ld-mmix/bpo-9.d,
+	ld-mmix/greg-19.d, ld-mmix/loc1.d, ld-mmix/loc2.d, ld-mmix/loc3.d,
+	ld-mmix/loc4.d, ld-mmix/loc6.d, ld-mmix/local12.d,
+	ld-mmix/locdo-1.d, ld-mmix/loct-1.d, ld-mmix/locto-1.d: Adjust for
+	objdump -d change.
+
+2003-09-11  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-elf/merge2.s: New.
+	* ld-elf/merge2.d: New.
+
+2003-08-16  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-mmix/bpo-9.d, ld-mmix/bpo-10.d, ld-mmix/bpo-11.d: Adjust for
+	recent objdump "Contents of ..." change.
+
+2003-08-02  Kaz Kojima  <kkojima@rr.iij4u.or.jp>
+
+	* ld-sh/shared-2.d, ld-sh/textrel1.s, ld-sh/textrel2.s: New test.
+
+2003-08-02  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-d10v/reloc-001.d: Adjust for objdump -d change.
+	* ld-d10v/reloc-002.d: Likewise.
+	* ld-d10v/reloc-005.d: Likewise.
+	* ld-d10v/reloc-006.d: Likewise.
+	* ld-d10v/reloc-009.d: Likewise.
+	* ld-d10v/reloc-010.d: Likewise.
+	* ld-d10v/reloc-013.d: Likewise.
+	* ld-d10v/reloc-014.d: Likewise.
+	* ld-xstormy16/pcrel.d: Likewise.
+
+2003-07-29  Jakub Jelinek  <jakub@redhat.com>
+
+	* ld-elfvsb/elf-offset.ld: Add .rel.toc, .rela.toc and .toc
+	sections.
+
+2003-07-29  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/tlsso.r: Update.
+	* ld-powerpc/tlstocso.r: Update.
+
+2003-07-29  Nick Clifton  <nickc@redhat.com>
+
+	* ld-alpha/tlsbin.dd: Update to account for .eh_frame section.
+	* ld-alpha/tlsbin.rd: Likewise.
+	* ld-alpha/tlsbin.sd: Likewise.
+	* ld-alpha/tlsbinr.dd: Likewise.
+	* ld-alpha/tlsbinr.rd: Likewise.
+	* ld-alpha/tlsbinr.sd: Likewise.
+	* ld-alpha/tlspic.dd: Likewise.
+	* ld-alpha/tlspic.rd: Likewise.
+	* ld-alpha/tlspic.sd: Likewise.
+
+2003-07-26  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/tlsexe32.d: Update.
+	* ld-powerpc/tlsso32.d: Update.
+
+2003-07-24  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-powerpc/tlsexe.r: .sbss is NOBITS, not PROGBITS.
+	* ld-powerpc/tlsexetoc.r: Likewise.
+	* ld-powerpc/tlsso.r: Likewise.
+	* ld-powerpc/tlstocso.r: Likewise.
+
+2003-07-23  Stephane Carrez  <stcarrez@nerim.fr>
+
+	* ld-srec/srec.exp: For m6811/m6812 use --defsym to define _.z soft
+	register.
+
+2003-07-22  H.J. Lu <hongjiu.lu@intel.com>
+
+	* ld-selective/selective.exp: Skip "ia64-*-*".
+
+	* ld-srec/srec.exp: Make xfail on "ia64-*-*".
+
+2003-07-11  Richard Sandiford  <rsandifo@redhat.com>
+
+	* ld-h8300/relax-3{.s,.d,-coff.d}: New test.
+	* ld-h8300/h8300.exp: Run it.
+
+2003-07-10  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/powerpc.exp: Dump output .got section rather than .toc.
+	* ld-powerpc/tlsexetoc.g: Update.
+	* ld-powerpc/tlsexetoc.r: Update.
+	* ld-powerpc/tlstoc.g: Update.
+	* ld-powerpc/tlstocso.g: Update.
+	* ld-powerpc/tlstocso.r: Update.
+
+2003-07-04  Richard Sandiford  <rsandifo@redhat.com>
+
+	* ld-h8300/h8300.exp: Replace loop with explicit list.  Run relax.d
+	unconditionally.  Run relax-2.d for *-elf targets.
+	* ld-h8300/relax.d: Fix typo.
+	* ld-h8300/relax.s: Add 0x prefixes.
+	* ld-h8300/relad-2.[sd]: New test.
+
+2003-06-29  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
+	* ld-mips-elf/mips-elf.exp: Use is_elf_format.
+
+2003-06-29  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
+	* ld-mips-elf/mips-elf-flags.exp: Use -melf32bsmip for IRIX6.
+
+2003-06-25  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/apuinfo.rd: Update.
+
+2003-06-21  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
+	* ld-mips-elf/elf-rel-got-n32.d: Remove special handling for n32 ABI.
+	* ld-mips-elf/elf-rel-xgot-n32.d: Likewise.
+
+2003-06-18  Hans-Peter Nilsson  <hp@axis.com>
+
+	* ld-cris/locref1.d, ld-cris/locref1.s, ld-cris/locref2.d,
+	ld-cris/locref2.s: New tests.
+
+	* ld-elfcomm/elfcomm.exp (dump_common1): Use $READELF, not plain
+	readelf as found using default path.
+
+2003-06-18  Alan Modra  <amodra@bigpond.net.au>
+
+	* lib/ld-lib.exp (default_ld_simple_link): Trim ld parms before
+	trying to trim ld path.
+	(default_ld_compile): Likewise for cc.
+
+	* lib/ld-lib.exp (default_ld_simple_link): Trim ld path before
+	looking for gcc match.
+	(default_ld_compile): Likewise for cc.
+
+2003-06-17  Loren James Rittle  <rittle@latour.rsch.comm.mot.com>
+
+	* ld-undefined/undefined.exp (i?86-*-freebsd*): Remove xfail.
+
+2003-06-16  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/tlsexetoc.d: Update.
+	* ld-powerpc/tlsso.d: Update.
+	* ld-powerpc/tlstoc.d: Update.
+	* ld-powerpc/tlstocso.d: Update.
+	* ld-powerpc/tlstocso.r: Update.
+
+2003-06-16  Hans-Peter Nilsson  <hp@axis.com>
+
+	* ld-cris/ldsym1.d: Restrict to cris-*-*elf* and cris-*-*aout*.
+	* ld-cris/noglob1.d: Ditto.
+	* ld-cris/badgotr1.d: Pass --underscore to gas.
+
+2003-06-12  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
+	* ld-mips-elf/elf-rel-got-n64-linux.d: New file.
+	* ld-mips-elf/elf-rel-xgot-n64-linux.d: New file.
+	* ld-mips-elf/mips-elf.exp: Use the new files for Linux.
+
+2003-06-12  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
+	* ld-mips-elf/relax-jalr.s: Fix testsuite breakage.
+	* ld-mips-elf/relax-jalr-n32.d: Likewise.
+	* ld-mips-elf/relax-jalr-n32-shared.d: Likewise.
+	* ld-mips-elf/relax-jalr-n64.d: Likewise.
+	* ld-mips-elf/relax-jalr-n64-shared.d: Likewise.
+
+2003-06-11  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
+	* ld-mips-elf/multi-got-1.d: Adjust addresses.
+	* ld-mips-elf/rel32-n32.d: Likewise.
+
+2003-06-11  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-srec/srec.exp (run_srec_test): Remove powerpc64 xfails, and
+	xfail for hppa duplicated elsewhere.
+
+2003-06-10  Thiemo Seufer <seufer@csv.ica.uni-stuttgart.de>
+
+	* ld-mips-elf/rel32-n32.d: Force big endian assembly.
+	* ld-mips-elf/rel32-o32.d: Likewise.
+	* ld-mips-elf/rel64.d: Likewise.
+
+2003-06-10  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-elfvsb/elfvsb.exp: Run for powerpc64 too.
+	* ld-powerpc/tls.t: Update.
+	* ld-powerpc/tlsexe.d: Update.
+	* ld-powerpc/tlsexe.r: Update.
+	* ld-powerpc/tlsexetoc.d: Update.
+	* ld-powerpc/tlsexetoc.r: Update.
+	* ld-powerpc/tlsexetoc.t: Update.
+	* ld-powerpc/tlsso.d: Update.
+	* ld-powerpc/tlsso.g: Update.
+	* ld-powerpc/tlsso.r: Update.
+	* ld-powerpc/tlsso.t: Update.
+	* ld-powerpc/tlstocso.d: Update.
+	* ld-powerpc/tlstocso.g: Update.
+	* ld-powerpc/tlstocso.r: Update.
+	* ld-powerpc/tlstocso.t: Update.
+
+2003-06-03  H.J. Lu <hongjiu.lu@intel.com>
+
+	* ld-discard/extern.d: Updated.
+	* ld-discard/start.d: Likewise.
+	* ld-discard/static.d: Likewise.
+
+2003-06-03  H.J. Lu <hongjiu.lu@intel.com>
+
+	* ld-elfcomm/elfcomm.exp: Mark tests untested if compiler is
+	not available.
+
+2003-06-02  Fabrizio Gennari  <fabrizio.ge@tiscalinet.it>
+
+	* ld-cygwin: New directory.
+	* ld-cygwin/exe-export.exp: New test script.  Checks building
+	cygwin executables with an export table.
+	* ld-cygwin/testdll.def: New source file.
+	* ld-cygwin/testexe.def: New source file.
+	* ld-cygwin/testdll.c: New source file.
+	* ld-cygwin/testexe.c: New source file.
+
+2003-05-30  H.J. Lu <hongjiu.lu@intel.com>
+
+	* config/default.exp: Load tmpdir/libpath.exp.
+	(gcc_ld_flag): Set from $libpath.
+
+2003-05-27  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* ld-elf/elf.exp: Use if_elf_format.
+	* ld-elf/sec64k.exp: Likewise.
+	* ld-elfcomm/elfcomm.exp: Likewise.
+	* lib/ld-lib.exp (is_elf_format): Match hppa*64*-*-hpux*.
+
+2003-05-25  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* ld-mips-elf/mips-elf.exp: Make all NetBSD targets match as elf.
+
+2003-05-20  Jakub Jelinek  <jakub@redhat.com>
+
+	* ld-elfvsb/common.c: New file.
+	* ld-elfvsb/elfvsb.exp: Add common.
+
+2003-05-20  H.J. Lu <hongjiu.lu@intel.com>
+
+	* ld-elfvsb/sh3.c: New file.
+	* ld-elfvsb/test.c: Likewise.
+
+	* ld-elfvsb/elfvsb.exp: Add new weak hidden symbol tests.
+
+2003-05-15  H.J. Lu <hongjiu.lu@intel.com>
+
+	* config/default.exp (gcc_ld_flag): New. Make the newly built
+	linker available to gcc.
+	* lib/ld-lib.exp (default_ld_simple_link): Pass $gcc_ld_flag
+	to gcc.
+
+	* ld-elfvers/vers.exp: Use "ld_simple_link $CC" to build shared
+	libraries.
+	* ld-elfvsb/elfvsb.exp: Likewise.
+	* ld-elfweak/elfweak.exp: Likewise.
+	* ld-shared/shared.exp: Likewise.
+
+	* ld-elfvers/vers.exp: Use "-Wl,-rpath,." to build shared
+	libraries.
+	* ld-elfvsb/elfvsb.exp: Likewise.
+
+	* ld-elfvsb/elfvsb.exp: Remove xfail for powerpc-*-linux*.
+
+	* ld-elfweak/elfweak.exp: Use PIC for shared libraries.
+
+2003-05-13  Stephane Carrez  <stcarrez@nerim.fr>
+
+	* ld-m68hc11/link-hcs12.d: New test.
+	* ld-m68hc11/link-hcs12.s: New file.
+	* ld-m68hc11/link-hc12.s: New file.
+
+2003-05-13  H.J. Lu <hongjiu.lu@intel.com>
+
+	* ld-elfweak/elfweak.exp: Fix typo.
+
+2003-05-13  Kaz Kojima  <kkojima@rr.iij4u.or.jp>
+
+	* ld-elfvers/vers.exp: Run on sh[34]*-*-linux*.
+	* ld-elfvsb/elfvsb.exp: Likewise.
+	* ld-elfweak/elfweak.exp: Likewise.
+
+2003-05-12  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-mmix/b-fixo2.d, ld-mmix/bpo-18.d, ld-mmix/bpo-18m.d,
+	ld-mmix/loc4.d, ld-mmix/loc4m.d, ld-mmix/loc6.d, ld-mmix/loc6m.d,
+	ld-mmix/locdo-1.d, ld-mmix/sec-1.d, ld-mmix/sec-2.d,
+	ld-mmix/sec-3.d, ld-mmix/sec-4.d, ld-mmix/sec-5.d,
+	ld-mmix/sec-7m.d, ld-mmix/sec-8m.d, ld-mmix/spec802.d,
+	ld-mmix/spec803.d, ld-mmix/spec804.d, ld-mmix/spec805.d,
+	ld-mmix/spec806.d, ld-mmix/spec807.d, ld-mmix/spec808.d: Tweak for
+	objdump no longer truncating dump addresses.
+
+2003-05-09  Martin Schwidefsky  <schwidefsky@de.ibm.com>
+
+	* ld-elfvsb/elf-offset.ld: Add .rel.eh_frame and .rela.eh_frame
+	to linker script.
+	* ld-elfvsb/elfvsb.exp (visibility_run): Add setup_xfails for s390x.
+	* ld-selective/selective.exp: Disable for s390 and s390x.
+	* ld-shared/elf-offset.ld: Add .rel.eh_frame and .rela.eh_frame
+	to linker script.
+	* ld-shared/shared.exp (shared_test): Add setup_xfails for s390x.
+	* ld-undefined/undefined.exp (checkund): Remove setup_xfail for s390x.
+
+2003-05-08  H.J. Lu <hongjiu.lu@intel.com>
+
+	* ld-elfvers/vers.exp: Add vers27d4 and vers27d5 to test
+	versioned reference for hidden symbol.
+
+	* ld-elfvers/vers27d4.dsym: New file.
+	* ld-elfvers/vers27d4.ver: Likewise.
+
+2003-05-07  H.J. Lu <hongjiu.lu@intel.com>
+
+	* ld-elfvers/vers27d3.c (__start): New.
+	(start): New.
+
+2003-05-07  H.J. Lu <hongjiu.lu@intel.com>
+
+	* ld-elfvers/vers.exp (build_binary): Support build exeutable.
+	(build_binary): Renamed from ...
+	(build_vers_lib): This.
+	(build_vers_lib_no_pic): Updated.
+	(build_vers_lib_pic): Likewise.
+	Add vers27d1, vers27d2 and vers27d3 to test versioned
+	definition for hidden symbol referenced by a DSO.
+
+	* ld-elfvers/vers27d.dsym: New file.
+	* ld-elfvers/vers27d.sym: Likewise.
+	* ld-elfvers/vers27d.ver: Likewise.
+	* ld-elfvers/vers27d1.c: Likewise.
+	* ld-elfvers/vers27d2.c: Likewise.
+	* ld-elfvers/vers27d3.c: Likewise.
+
+2003-05-07  Andreas Schwab  <schwab@suse.de>
+
+	* ld-elfvsb/elfvsb.exp: Run dump tests even when cross
+	compiling.
+
+2003-05-06  Alexandre Oliva  <aoliva@redhat.com>
+
+	* config/default.exp (gcc_gas_flags): Force ABI to n32 on
+	mips64-linux.
+	* ld-elf/merge.d: Xfail on mips64*-linux-gnu*.
+	* ld-mips-elf/mips-elf-flags.exp (ldemul): Set to o32-compatible
+	on mips-sgi-irix6*, mips64-linux-gnu and mips64el-linux-gnu.
+	(good_combination, bad_combination): Use it.
+	Add -32 or -mabi=o64 wherever the ABI was formerly implied.
+
+2003-05-06  H.J. Lu <hjl@gnu.org>
+
+	* ld-elfvers/vers.exp (objdump_versionstuff): Support comment
+	in expected version file.
+
+	* ld-elfvers/vers25b.c: Add a line of comment.
+	* ld-elfvers/vers25b.dsym: Likwise.
+	* ld-elfvers/vers25b.ver: Likwise.
+	* ld-elfvers/vers26b.dsym: Likwise.
+	* ld-elfvers/vers26b.ver: Likwise.
+	* ld-elfvers/vers27b.dsym: Likwise.
+	* ld-elfvers/vers27b.ver: Likwise.
+	* ld-elfvers/vers27c.c: Likwise.
+	* ld-elfvers/vers27c.dsym: Likwise.
+	* ld-elfvers/vers27c.ver: Likwise.
+
+2003-05-04  H.J. Lu <hjl@gnu.org>
+
+	* ld-elfvsb/main.c: Updated.
+	* ld-elfvsb/sh1.c: Likewise.
+
+2003-05-04  H.J. Lu <hjl@gnu.org>
+
+	* ld-elfvers/vers18.dsym: Updated for weak definiton change.
+	* ld-elfvers/vers18.ver: Likewise.
+	* ld-elfvers/vers19.ver: Likewise.
+	* ld-elfweak/dsowdata.dsym: Likewise.
+	* ld-elfweak/elfweak.exp: Likewise.
+	* ld-elfweak/weakdata.dsym: Likewise.
+
+	* ld-elfweak/elfweak.exp: Remove xfail.
+
+2003-05-04  Alexandre Oliva  <aoliva@redhat.com>
+
+	* ld-mips-elf/multi-got-1.d: Force into big-endian mode.
+	Turn relocation offsets into regexps.
+
+2003-05-03  H.J. Lu <hjl@gnu.org>
+
+	* ld-elfvers/vers.exp: Add vers27a, vers27b, vers27c1 and
+	vers27c2 to test versioned definition vs. hidden definition in
+	different files.
+
+	* ld-elfvers/vers27a.c: New file.
+	* ld-elfvers/vers27a.dsym: Likewise.
+	* ld-elfvers/vers27a.map: Likewise.
+	* ld-elfvers/vers27a.ver: Likewise.
+	* ld-elfvers/vers27b.c: Likewise.
+
+	* ld-elfvers/vers27b.dsym: New empty file.
+	* ld-elfvers/vers27b.ver: Likwise.
+	* ld-elfvers/vers27c.c: Likwise.
+	* ld-elfvers/vers27c.dsym: Likwise.
+	* ld-elfvers/vers27c.ver: Likwise.
+
+2003-05-02  Nick Clifton  <nickc@redhat.com>
+
+	* ld-xstormy16: New directory.
+	* ld-xstormy16/xstormy16.exp: New test script.
+	* ld-xstormy16/pcrel.s: Test assembler source file.
+	* ld-xstormy16/external.s: Test assembler source file.
+	* ld-xstormy16/pcrel.d: Test expected disassembly.
+
+2003-05-02  Andreas Jaeger  <aj@suse.de>
+
+	* ld-elfvers/vers.exp (build_exec): Disable vers26b3 on x86-64-linux.
+
+2003-04-29  H.J. Lu <hjl@gnu.org>
+
+	* ld-ia64/tlsbin.dd: Updated.
+	* ld-ia64/tlsbin.rd: Likewise.
+	* ld-ia64/tlsbin.sd: Likewise.
+	* ld-ia64/tlsbin.td: Likewise.
+	* ld-ia64/tlspic.rd: Likewise.
+	* ld-ia64/tlspic.sd: Likewise.
+	* ld-ia64/tlspic.td: Likewise.
+
+2003-04-29  J"orn Rennecke <joern.rennecke@superh.com>
+
+	* ld-selective/3.cc (start): New function.
+	* ld-selective/4.cc: Likewise.
+	* ld-selective/5.cc: Likewise.
+
+2003-04-28  H.J. Lu <hjl@gnu.org>
+
+	* ld-elfvers/vers.exp (picflag): Set PIC flag for compiler.
+	(build_vers_lib): Support PIC.
+	(build_vers_lib_no_pic): New. Change all calls to build_vers_lib
+	to build_vers_lib_no_pic.
+	(build_vers_lib_pic): New.
+	Add tests vers26a, vers26b1, vers26b2 and vers26b3 for versioned
+	definition vs. normal definition in different files.
+
+	* ld-elfvers/vers26a.c: New file.
+	* ld-elfvers/vers26a.dsym: Likewise.
+	* ld-elfvers/vers26a.map: Likewise.
+	* ld-elfvers/vers26a.ver: Likewise.
+	* ld-elfvers/vers26b.c: Likewise.
+
+	* ld-elfvers/vers26b.dsym: New empty file.
+	* ld-elfvers/vers26b.ver: Likewise.
+
+2003-04-27  H.J. Lu <hjl@gnu.org>
+
+	* ld-elfvsb/elfvsb.dat: Updated.
+	* ld-elfvsb/elfvsb.exp: Likewise.
+	* ld-elfvsb/main.c: Likewise.
+	* ld-elfvsb/sh1.c: Likewise.
+	* ld-elfvsb/sh2.c: Likewise.
+
+2003-04-26  Stephane Carrez  <stcarrez@nerim.fr>
+
+	* ld-m68hc11/bug-3331.d: New test.
+	* ld-m68hc11/bug-3331.s: New file.
+
+2003-04-25  Nick Clifton <nickc@redhat.com>
+	    J"orn Rennecke <joern.rennecke@superh.com>
+
+	* lib/ld-lib.exp (big_or_little_endian): Also check for -mb and -ml.
+
+2003-04-24  J"orn Rennecke <joern.rennecke@superh.com>
+
+	* ld-elfcomm/elfcomm.exp: Allow symbols to have '_' prepended.
+
+2003-04-23  Kaz Kojima  <kkojima@rr.iij4u.or.jp>
+
+	* ld-sh/tlsbin-1.d, ld-sh/tlsbin-2.d, ld-sh/tlsbin-3.d,
+	ld-sh/tlstpoff-1.d, ld-sh/tlstpoff-2.d: Update for removing
+	unnecessary TLS relocs.
+
+2003-04-23  J"orn Rennecke <joern.rennecke@superh.com>
+
+	* ld-sh/sh64/crange3-cmpct.rd (Machine): Change to refer to SuperH.
+	* ld-sh/sh64/crange3-media.rd (Machine): Likewise.
+
+2003-04-23  H.J. Lu <hjl@gnu.org>
+
+	* ld-elfvers/vers.exp (objdump_dynsymstuff): Support empty
+	files.
+	(objdump_versionstuff): Likewise.
+	Add tests vers25a, vers25b1 and vers25b2 for versioned
+	definition vs. normal definition in different files.
+
+	* ld-elfvers/vers25a.c: New file.
+	* ld-elfvers/vers25a.dsym: Likewise.
+	* ld-elfvers/vers25a.map: Likewise.
+	* ld-elfvers/vers25a.ver: Likewise.
+
+	* ld-elfvers/vers25b.c: New empty file.
+	* ld-elfvers/vers25b.dsym: Likewise.
+	* ld-elfvers/vers25b.ver: Likewise.
+
+2003-04-22  H.J. Lu <hjl@gnu.org>
+
+	* ld-elfcomm/elfcomm.exp: Support 64bit targets.
+
+2003-04-21  Stephane Carrez  <stcarrez@nerim.fr>
+
+	* ld-m68hc11/far-hc11.s: New file.
+	* ld-m68hc11/far-hc11.d: New test for HC11 trampoline generation.
+	* ld-m68hc11/far-hc12.s: New file.
+	* ld-m68hc11/far-hc12.d: New test for HC12 trampoline generation.
+	* ld-m68hc11/far-hc12.ld: New file.
+
+2003-04-15  H.J. Lu <hjl@gnu.org>
+
+	* ld-elfcom/elfcom.exp: Fix a typo.
+
+2003-04-14  H.J. Lu <hjl@gnu.org>
+
+	* ld-elfcom: New directory.
+	* ld-elfcom/elfcom.exp: New file: Test alignment of common symbols
+	under ELF.
+	* ld-elfcom/common1a.c: New file: Test source code.
+	* ld-elfcom/common1b.c: New file: Test source code.
+
+2003-04-15  Rohit Kumar Srivastava <rohits@kpitcummins.com>
+
+	* ld-sh/sh64/crange3-cmpct.rd: Replace occurrances of 'Hitachi'
+	with 'Renesas'.
+	* ld-sh/sh64/crange3-media.rd: Likewise.
+
+2002-04-13  Daniel Jacobowitz  <drow@mvista.com>
+
+	* ld-discard/extern.s, ld-discard/start.s, ld-discard/static.s,
+	ld-sh/refdbg.s: Add leading 0 to .debug_info to prevent parsing it
+	for error messages.
+
+2003-04-10  Alexandre Oliva  <aoliva@redhat.com>
+
+	* ld-mips-elf/elf-rel-got-n32.d,
+	ld-mips-elf/elf-rel-got-n64.d, ld-mips-elf/elf-rel-xgot-n32.d,
+	ld-mips-elf/elf-rel-xgot-n64.d: New.
+	* ld-mips-elf/mips-elf.exp (hasn32): Define as condition for
+	new tests to run.
+
+2003-04-04  Stephane Carrez  <stcarrez@nerim.fr>
+
+	* ld-m68hc11/bug-1417.d: Update to take into account jsr->bsr relax.
+
+2003-04-02  Bob Wilson  <bob.wilson@acm.org>
+
+	* ld-xtensa/coalesce.exp: Skip if target is not xtensa-*-*.
+	* ld-xtensa/lcall.exp: Likewise.
+
+2003-04-01  Bob Wilson  <bob.wilson@acm.org>
+
+	* ld-elf/merge.d: xfail xtensa-*-*.
+	* ld-scripts/crossref.exp: Add -mtext-section-literals to CFLAGS
+	for Xtensa targets.
+	* ld-srec/srec.exp: Add -no-relax flag for Xtensa targets.
+	* ld-xtensa/coalesce1.s: New file.
+	* ld-xtensa/coalesce2.s: Likewise.
+	* ld-xtensa/coalesce.exp: Likewise.
+	* ld-xtensa/coalesce.t: Likewise.
+	* ld-xtensa/lcall1.s: Likewise.
+	* ld-xtensa/lcall2.s: Likewise.
+	* ld-xtensa/lcall.exp: Likewise.
+	* ld-xtensa/lcall.t: Likewise.
+
+2003-03-25  Alexandre Oliva  <aoliva@redhat.com>
+
+	* ld-mips-elf/mips-elf.exp: Added...
+	* ld-mips-elf/relax-jalr.s, ld-mips-elf/relax-jalr-n32.d,
+	ld-mips-elf/relax-jalr-n32-shared.d, ld-mips-elf/relax-jalr-n64.d,
+	ld-mips-elf/relax-jalr-n64-shared.d: New tests.
+
+2003-03-11  Alexandre Oliva  <aoliva@redhat.com>
+
+	* ld-mips-elf/mips-elf.exp (linux_gnu): New variable.  Add:
+	* ld-mips-elf/rel32-o32.d, ld-mips-elf/rel32-n32.d,
+	ld-mips-elf/rel64.d, ld-mips-elf/rel32.s, ld-mips-elf/rel64.s: New
+	tests.
+
+2003-03-11  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/tlsso.r: Adjust for corrected zero symbol index relocs.
+	* ld-powerpc/tlsso32.r: Likewise.
+
+2003-02-18  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/tlsexe.d: Update for changed handling of invalid LD
+	relocs.
+	* ld-powerpc/tlsexe.g: Likewise.
+	* ld-powerpc/tlsexe.r: Likewise.
+	* ld-powerpc/tlsexe.t: Likewise.
+
+	* ld-powerpc/tls32.s: New file.
+	* ld-powerpc/tlslib32.s: New file.
+	* ld-powerpc/tls32.d: New file.
+	* ld-powerpc/tls32.g: New file.
+	* ld-powerpc/tls32.t: New file.
+	* ld-powerpc/tlsexe32.d: New file.
+	* ld-powerpc/tlsexe32.g: New file.
+	* ld-powerpc/tlsexe32.r: New file.
+	* ld-powerpc/tlsexe32.t: New file.
+	* ld-powerpc/tlsso32.d: New file.
+	* ld-powerpc/tlsso32.g: New file.
+	* ld-powerpc/tlsso32.r: New file.
+	* ld-powerpc/tlsso32.t: New file.
+	* ld-powerpc/powerpc.exp: Run new tests.
+
+2003-02-18  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/tlsexe.g: Update for 2003-02-14 elf64-ppc.c change.
+
+2003-02-10  Jakub Jelinek  <jakub@redhat.com>
+
+	* ld-shared/shared.exp: Run on s390*-*-linux* and x86_64-*-linux* too.
+	xfail tests linking non-pic code into shared libs on x86_64-*-linux*.
+	* ld-elfvsb/elfvsb.exp: Likewise.
+	* ld-elfvers/vers.exp: Likewise.  Add vers24a, vers24b and vers24c
+	tests.
+	* ld-elfvers/vers3.ver: Allow VERS_2.0 to come before GLIBC_*
+	version.
+	* ld-elfvers/vers19.ver: Likewise.
+	* ld-elfvers/vers24a.c: New test.
+	* ld-elfvers/vers24b.c: New test.
+	* ld-elfvers/vers24c.c: New test.
+	* ld-elfvers/vers24.map: New test.
+	* ld-elfvers/vers24.rd: New test.
+	* lib/ld-lib.exp (run_ld_link_tests): Add optional 7th argument
+	cflags.  If source files have .c extension, compile them first.
+
+2003-02-10  Kaz kojima  <kkojima@rr.iij4u.or.jp>
+
+	* ld-sh/tlstpoff-1.d: New.
+	* ld-sh/tlstpoff-2.d: New.
+	* ld-sh/tlstpoff1.s: New.
+	* ld-sh/tlstpoff2.s: New.
+
+2003-02-09  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/tlslib.s: Give .__tls_get_addr function type.
+	* ld-powerpc/tlsexe.d: Update for changed handling of (invalid) ld var
+	in dynamic lib.
+	* ld-powerpc/tlsexe.g: Likewise.
+	* ld-powerpc/tlsexe.r: Likewise.
+	* ld-powerpc/tlsexe.t: Likewise.
+	* ld-powerpc/tlsexetoc.d: Likewise.
+	* ld-powerpc/tlsexetoc.g: Likewise.
+	* ld-powerpc/tlsexetoc.r: Likewise.
+	* ld-powerpc/tlsexetoc.t: Likewise.
+
+2003-02-05  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/powerpc.exp (supports_ppc64): New.
+	(ppcelftests): Force 32 bit mode.
+	(ppc64elftests): New.
+	* ld-powerpc/tls.d: New.
+	* ld-powerpc/tls.g: New.
+	* ld-powerpc/tls.s: New.
+	* ld-powerpc/tls.t: New.
+	* ld-powerpc/tlsexe.d: New.
+	* ld-powerpc/tlsexe.g: New.
+	* ld-powerpc/tlsexe.r: New.
+	* ld-powerpc/tlsexe.t: New.
+	* ld-powerpc/tlsexetoc.d: New.
+	* ld-powerpc/tlsexetoc.g: New.
+	* ld-powerpc/tlsexetoc.r: New.
+	* ld-powerpc/tlsexetoc.t: New.
+	* ld-powerpc/tlslib.s: New.
+	* ld-powerpc/tlsso.d: New.
+	* ld-powerpc/tlsso.g: New.
+	* ld-powerpc/tlsso.r: New.
+	* ld-powerpc/tlsso.t: New.
+	* ld-powerpc/tlstoc.d: New.
+	* ld-powerpc/tlstoc.g: New.
+	* ld-powerpc/tlstoc.s: New.
+	* ld-powerpc/tlstoc.t: New.
+	* ld-powerpc/tlstocso.d: New.
+	* ld-powerpc/tlstocso.g: New.
+	* ld-powerpc/tlstocso.r: New.
+	* ld-powerpc/tlstocso.t: New.
+
+2003-01-27  Alexandre Oliva  <aoliva@redhat.com>
+
+	* ld-mips-elf/multi-got-1.d: New.
+	* ld-mips-elf/multi-got-1-1.s: New.
+	* ld-mips-elf/multi-got-1-2.s: New.
+	* ld-mips-elf/mips-elf.exp (elf): mips*-*-irix* is elf.
+	Run multi-got-1.
+
+2003-01-25  Jakub Jelinek  <jakub@redhat.com>
+
+	* ld-sparc/sparc.exp: New.
+	* ld-sparc/tlsg32.s: New test.
+	* ld-sparc/tlsg32.sd: Likewise.
+	* ld-sparc/tlsg64.s: Likewise.
+	* ld-sparc/tlsg64.sd: Likewise.
+	* ld-sparc/tlslib.s: Likewise.
+	* ld-sparc/tlsnopic.s: Likewise.
+	* ld-sparc/tlspic.s: Likewise.
+	* ld-sparc/tlssunbin32.dd: Likewise.
+	* ld-sparc/tlssunbin32.rd: Likewise.
+	* ld-sparc/tlssunbin32.s: Likewise.
+	* ld-sparc/tlssunbin32.sd: Likewise.
+	* ld-sparc/tlssunbin32.td: Likewise.
+	* ld-sparc/tlssunbin64.dd: Likewise.
+	* ld-sparc/tlssunbin64.rd: Likewise.
+	* ld-sparc/tlssunbin64.s: Likewise.
+	* ld-sparc/tlssunbin64.sd: Likewise.
+	* ld-sparc/tlssunbin64.td: Likewise.
+	* ld-sparc/tlssunbinpic32.s: Likewise.
+	* ld-sparc/tlssunbinpic64.s: Likewise.
+	* ld-sparc/tlssunnopic32.dd: Likewise.
+	* ld-sparc/tlssunnopic32.rd: Likewise.
+	* ld-sparc/tlssunnopic32.s: Likewise.
+	* ld-sparc/tlssunnopic32.sd: Likewise.
+	* ld-sparc/tlssunnopic64.dd: Likewise.
+	* ld-sparc/tlssunnopic64.rd: Likewise.
+	* ld-sparc/tlssunnopic64.s: Likewise.
+	* ld-sparc/tlssunnopic64.sd: Likewise.
+	* ld-sparc/tlssunpic32.dd: Likewise.
+	* ld-sparc/tlssunpic32.rd: Likewise.
+	* ld-sparc/tlssunpic32.s: Likewise.
+	* ld-sparc/tlssunpic32.sd: Likewise.
+	* ld-sparc/tlssunpic32.td: Likewise.
+	* ld-sparc/tlssunpic64.dd: Likewise.
+	* ld-sparc/tlssunpic64.rd: Likewise.
+	* ld-sparc/tlssunpic64.s: Likewise.
+	* ld-sparc/tlssunpic64.sd: Likewise.
+	* ld-sparc/tlssunpic64.td: Likewise.
+
+2003-01-24  Martin Schwidefsky  <schwidefsky@de.ibm.com>
+
+	* ld-s390/s390.exp: New file.
+	* ld-s390/tlsbin_64.dd: New file.
+	* ld-s390/tlsbin_64.rd: New file.
+	* ld-s390/tlsbin_64.s: New file.
+	* ld-s390/tlsbin_64.sd: New file.
+	* ld-s390/tlsbin_64.td: New file.
+	* ld-s390/tlsbin.dd: New file.
+	* ld-s390/tlsbinpic_64.s: New file.
+	* ld-s390/tlsbinpic.s: New file.
+	* ld-s390/tlsbin.rd: New file.
+	* ld-s390/tlsbin.s: New file.
+	* ld-s390/tlsbin.sd: New file.
+	* ld-s390/tlsbin.td: New file.
+	* ld-s390/tlslib_64.s: New file.
+	* ld-s390/tlslib.s: New file.
+	* ld-s390/tlspic1_64.s: New file.
+	* ld-s390/tlspic1.s: New file.
+	* ld-s390/tlspic2_64.s: New file.
+	* ld-s390/tlspic2.s: New file.
+	* ld-s390/tlspic_64.dd: New file.
+	* ld-s390/tlspic_64.rd: New file.
+	* ld-s390/tlspic_64.sd: New file.
+	* ld-s390/tlspic_64.td: New file.
+	* ld-s390/tlspic.dd: New file.
+	* ld-s390/tlspic.rd: New file.
+	* ld-s390/tlspic.sd: New file.
+	* ld-s390/tlspic.td: New file.
+
+2003-01-24  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-alpha/tlsbin.sd: Cope with truncated address in data dumps.
+	* ld-alpha/tlsbin.td: Likewise.
+	* ld-alpha/tlsbinr.sd: Likewise.
+
+2003-01-21  Richard Henderson  <rth@redhat.com>
+
+	* ld-alpha/alpha.exp: New.
+	* ld-alpha/align.s: New.
+	* ld-alpha/tlsbin.dd: New.
+	* ld-alpha/tlsbin.rd: New.
+	* ld-alpha/tlsbin.s: New.
+	* ld-alpha/tlsbin.sd: New.
+	* ld-alpha/tlsbin.td: New.
+	* ld-alpha/tlsbinpic.s: New.
+	* ld-alpha/tlsbinr.dd: New.
+	* ld-alpha/tlsbinr.rd: New.
+	* ld-alpha/tlsbinr.sd: New.
+	* ld-alpha/tlsg.s: New.
+	* ld-alpha/tlsg.sd: New.
+	* ld-alpha/tlslib.s: New.
+	* ld-alpha/tlspic.dd: New.
+	* ld-alpha/tlspic.rd: New.
+	* ld-alpha/tlspic.sd: New.
+	* ld-alpha/tlspic.td: New.
+	* ld-alpha/tlspic1.s: New.
+	* ld-alpha/tlspic2.s: New.
+
+2003-01-20  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-srec/srec.exp (run_srec_test): Pass --traditional-format to ld.
+
+2003-01-18  Jakub Jelinek  <jakub@redhat.com>
+
+	* ld-ia64/tlspic1.s: Add tests for IE in shared libraries.
+	* ld-ia64/tlspic.rd: Adjust.
+	* ld-ia64/tlspic.dd: Adjust.
+	* ld-ia64/tlspic.sd: Adjust.
+
+2003-01-16  Jakub Jelinek  <jakub@redhat.com>
+
+	* ld-ia64/ia64.exp: New.
+	* ld-ia64/tlsbin.dd: New test.
+	* ld-ia64/tlsbinpic.s: New test.
+	* ld-ia64/tlsbin.rd: New test.
+	* ld-ia64/tlsbin.s: New test.
+	* ld-ia64/tlsbin.sd: New test.
+	* ld-ia64/tlsbin.td: New test.
+	* ld-ia64/tlsg.s: New test.
+	* ld-ia64/tlsg.sd: New test.
+	* ld-ia64/tlslib.s: New test.
+	* ld-ia64/tlspic1.s: New test.
+	* ld-ia64/tlspic2.s: New test.
+	* ld-ia64/tlspic.dd: New test.
+	* ld-ia64/tlspic.rd: New test.
+	* ld-ia64/tlspic.sd: New test.
+	* ld-ia64/tlspic.td: New test.
+
+2003-01-02  Richard Sandiford  <rsandifo@redhat.com>
+
+	* ld-mips-elf/mips-elf-flags.exp: Add -mips4 to a -mgp64 test.
+
+2003-01-02  Richard Sandiford  <rsandifo@redhat.com>
+
+	* ld-mips-elf/jr.s: New file.
+	* ld-mips-elf/mips-elf-flags.exp: New test.
+
+2002-12-18  Ralf Habacker  <ralf.habacker@freenet.de>
+
+	* ld-auto-import: New directory.
+	* ld-auto-import/auto-import.exp: Test the auto importing direct
+	from a dll functionality.
+	* ld-auto-import/client.c: Source code for test.
+	* ld-auto-import/dll.c: Likewise.
+
+2002-12-12  Alexandre Oliva  <aoliva@redhat.com>
+
+	* ld-mips-elf/mips-elf.exp: Remove branch-misc-2 test.
+	* ld-mips-elf/branch-misc-2.d: Removed.
+
+2002-12-10  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* lib/ld-lib.exp (is_elf_format): Match NetBSD ELF targets.
+
+2002-12-03  Nick Clifton  <nickc@redhat.com>
+
+	* ld-powerpc/powerpc.exp (ppcelftests): Add apuinfo merging
+	test.
+	* ld-powerpc/apuinfo1.s: New assembler source file.
+	* ld-powerpc/apuinfo2.s: New assembler source file.
+	* ld-powerpc/apuinfo.rd: New expected output file.
+
+2002-12-01  Stephane Carrez  <stcarrez@nerim.fr>
+
+	Fix PR savannah/1417:
+	* ld-m68hc11/bug-1417.s: New test.
+	* ld-m68hc11/bug-1417.d: Likewise.
+
+2002-11-28  Jakub Jelinek  <jakub@redhat.com>
+
+	* ld-i386/tlsnopic.rd: Change NOTYPE to TLS for UND sg* symbols.
+
+2002-11-28  Kaz Kojima  <kkojima@rr.iij4u.or.jp>
+
+	* ld-sh/refdbg-0-dso.d: New test.
+	* ld-sh/refdbg-1.d: Likewise.
+	* ld-sh/refdbg.s: Likewise.
+	* ld-sh/refdbglib.s: Likewise.
+
+2002-11-22  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-elf/elf.exp: Remove sec64k test.
+	* ld-elf/sec64k.exp: Reinstate.
+
+2002-11-21  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-elf/elf.exp: Renamed from sec64k.exp.  Add test_list loop.
+	* ld-elf/merge.s: New file.
+	* ld-elf/merge.d: New file.
+	* ld-elf/merge.ld: New file.
+
+2002-11-18  Svein E. Seldal  <Svein.Seldal@solidas.com>
+
+	* ld-scripts/script.exp: Setup for tic4x testcase
+
+2002-11-15  Nick Clifton  <nickc@redhat.com>
+
+	* ld-h8300: New directory.
+	* ld-h8300/h8300.exp: New expect script.  Only run tests for h8300
+	targets.
+	* ld-h8300/relax.s: New assembler source file.
+	* ld-h8300/relax.d: New expected output file.
+
+2002-11-11  Hans-Peter Nilsson  <hp@axis.com>
+
+	* ld-elf/sec64k.exp: New test.
+	* lib/ld-lib.exp (run_dump_test): Don't prepend "$srcdir/$subdir/"
+	to a source file starting with "/".
+
+2002-11-10  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-mmix/local1.d, ld-mmix/local3.d, ld-mmix/local5.d,
+	ld-mmix/local7.d: Tweak for change in readelf output.
+
+2002-11-09  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-elfvsb/define.s: Avoid use of @ in .type directive.
+
+2002-11-07  Hans-Peter Nilsson  <hp@axis.com>
+
+	* ld-cris/expdyn6.d, ld-cris/weakref2.d, ld-cris/expdyn7.d,
+	ld-cris/nodyn5.d, ld-cris/expdyn5.d: New tests.
+
+2002-11-07  Nick Clifton  <nickc@redhat.com>
+
+	* ld-fastcall/fastcall.exp: Only run tests for PE type x86
+	targets.
+
+2002-11-07  Kaz Kojima  <kkojima@rr.iij4u.or.jp>
+
+	* ld-sh/rd-sh.exp: Set asflags_save always.
+
+2002-11-07  Casper S. Hornstrup  <chorns@users.sourceforge.net>
+
+	* ld-fastcall: New directory for testing fastcall support.
+	* ld-fastcall/export.s: New file for testing fastcall symbol
+	handling.
+	* ld-fastcall/import.s: Likewise.
+	* ld-fastcall/fastcall.exp: Likewise.
+
+2002-11-03  Kaz Kojima  <kkojima@rr.iij4u.or.jp>
+
+	* ld-sh/rd-sh.exp: Add -isa=SHcompact to ASFLAGS for SH-5.
+	* ld-sh/tlsbin-1.d: Handle GOT_BIAS appropriately for SH-5.
+	* ld-sh/tlspic-1.d: Likewise.
+	* ld-sh/tlspic-2.d: Likewise.
+	* ld-sh/tlsbin-2.d: Likewise. Make it robust for the symbols
+	defined by the linker scripts.
+
+2002-10-14  Stephane Carrez  <stcarrez@nerim.fr>
+
+	* ld-m68hc11/m68hc11.exp: Specific tests for 68HC11/68HC12.
+	* ld-m68hc11/adj-jump.d: New test for linker relaxation.
+	* ld-m68hc11/adj-jump.s: Likewise.
+	* ld-m68hc11/adj-brset.s: Likewise.
+	* ld-m68hc11/adj-brset.d: Likewise.
+	* ld-m68hc11/relax-direct.s: Likewise.
+	* ld-m68hc11/relax-direct.d: Likewise.
+	* ld-m68hc11/relax-group.s: Likewise.
+	* ld-m68hc11/relax-group.d: Likewise.
+	* ld-m68hc11/bug-1403.d: Likewise.
+	* ld-m68hc11/bug-1403.s: Likewise.
+
+2002-10-14  Stephen Clarke <stephen.clarke@superh.com>
+	* ld-sh/ld-r-1.d: Disable for sh64*-*-linux*.
+	* ld-sh/sh64/sh64.exp: Likewise.
+	* ld-sh/sh.exp: Disable relaxing tests for sh64*-*-linux*.
+	* ld-sh/sh64/abi32.sd: Adjust expected output to include
+	sh64*-*-linux* formats too.
+	* ld-sh/sh64/relax.exp: Add emul32 variable to hold target
+	emulation, and set it appropriately for sh*-*-linux*.
+	* ld-sh/sh64/relfail.exp: Add variables to hold target
+	emulation, output format, start symbol, and whether target
+	supports 64-bit ABI.  Set appropriately for sh*-*-linux*.
+
+2002-10-12  H.J. Lu  (hjl@gnu.org)
+
+	* ld-discard/extern.d: Remove $srcdir/$subdir/.
+	* ld-discard/start.d: Likewise.
+	* ld-discard/static.d: Likewise.
+	* ld-linkonce/zeroehl32.d: Likewise.
+	* ld-selective/keepdot.d: Likewise.
+	* ld-selective/keepdot0.d: Likewise.
+
+2002-10-11  Kaz Kojima  <kkojima@rr.iij4u.or.jp>
+
+	* ld-sh/rd-sh.exp: If the test matches *-dso.d, copy the output
+	of linker to the file tmpdir/*-dso.so.
+	* ld-sh/tlsbin.s, ld-sh/tlsbinpic.s, ld-sh/tlslib.s: New.
+	* ld-sh/tlsbin-0-dso.d: New.
+	* ld-sh/tlsbin-1.d: New.
+	* ld-sh/tlsbin-2.d: New.
+	* ld-sh/tlsbin-3.d: New.
+	* ld-sh/tlsbin-4.d: New.
+	* ld-sh/tlspic1.s, ld-sh/tlspic2.s: New.
+	* ld-sh/tlspic-1.d: New.
+	* ld-sh/tlspic-2.d: New.
+	* ld-sh/tlspic-3.d: New.
+	* ld-sh/tlspic-4.d: New.
+
+2002-10-10  Jakub Jelinek  <jakub@redhat.com>
+
+	* ld-i386/combreloc.s: New test.
+	* ld-i386/combreloc.d: New test.
+	* ld-i386/i386.exp (i386tests): Add it.
+
+2002-10-10  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-i386/i386.exp (reloc): Turn off combreloc.
+	* ld-i386/reloc.d: Likewise.
+	* ld-powerpc/powerpc.exp: Likewise.
+	* ld-powerpc/reloc.d: Likewise.
+
+2002-10-03  H.J. Lu <hjl@gnu.org>
+
+	* ld-elfvers/vers21.c (_old_foobar): Initialized to -1 for gcc
+	3.x.
+
+2002-10-03  Chris Demetriou  <cgd@broadcom.com>
+
+	* ld-mips-elf/branch-misc-1.d: Link at 0x500000 and use -N, to be
+	more compatible with non-embedded targets.
+	* ld-mips-elf/branch-misc-2.d: Likewise.
+
+	* ld-mips-elf/mips-elf.exp: Clean up some comments about embedded
+	PIC tests.
+	(elf): New variable, to control whether generic ELF tests are run.
+	(embedded_elf): New variable, to control whether ELF tests
+	requiring embedded PIC or embedded relocs are run.
+
+2002-10-02  Stephen Clarke <stephen.clarke@superh.com>
+
+	* ld-sh/sh64/gotplt.d, ld-sh/sh64/gotplt.map,
+	ld-sh/sh64/gotplt.s: New test.
+
+2002-10-02  Stephen Clarke <stephen.clarke@superh.com>
+	* ld-sh/sh64/cmpct1.sd : Fix linked file name.
+	* ld-sh/sh64/crange3.dd: Likewise.
+
+2002-10-01  Jakub Jelinek  <jakub@redhat.com>
+
+	* ld-i386/i386.exp: Add tlsindntpoff test.
+	* ld-i386/tlsindntpoff.s: New test.
+	* ld-i386/tlsindntpoff.dd: New test.
+
+2002-10-01  Jakub Jelinek  <jakub@redhat.com>
+
+	* ld-x86-64/tlspic1.s: Change TLSGD sequences.
+	* ld-x86-64/tlsbinpic.s: Likewise.
+	* ld-x86-64/tlspic.dd: Adjust.
+
+2002-10-01  Jakub Jelinek  <jakub@redhat.com>
+
+	* ld-i386/i386.exp: Add tlsg test.
+	* ld-i386/tlsg.s: New test.
+	* ld-i386/tlsg.sd: New test.
+	* ld-i386/tlsbin.dd: Change LD into LD -> LE in comments.
+	* ld-i386/tlsbinpic.s: Likewise.
+	* ld-x86-64/x86-64.exp: Add tlsg test.
+	* ld-x86-64/tlsg.s: New test.
+	* ld-x86-64/tlsg.sd: New test.
+	* ld-x86-64/tlsbin.dd: Change LD into LD -> LE in comments.
+	* ld-x86-64/tlsbinpic.s: Likewise.
+
+2002-09-30  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/powerpc.exp: Restrict to 32 bit ELF.
+
+2002-09-30  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/reloc.s, ld-powerpc/reloc.d: New.
+	* ld-powerpc/powerpc.exp: New.
+
+	* ld-i386/reloc.s, ld-i386/reloc.d: New.
+	* ld-i386/i386.exp: Run new test.
+
+2002-09-27  Jakub Jelinek  <jakub@redhat.com>
+
+	* lib/ld-lib.exp (run_ld_link_tests): Add.
+	* ld-sh/sh64/sh64.exp (run_ld_link_tests, regexp_diff,
+	file_contents): Remove.
+	(sh64tests): Add 6th field to the tests array.
+	* ld-i386/i386.exp (run_ld_link_tests): Remove.
+	* ld-x86-64/x86-64.exp: New.
+	* ld-x86-64/tlsbin.dd: New test.
+	* ld-x86-64/tlsbinpic.s: New test.
+	* ld-x86-64/tlsbin.rd: New test.
+	* ld-x86-64/tlsbin.s: New test.
+	* ld-x86-64/tlsbin.sd: New test.
+	* ld-x86-64/tlsbin.td: New test.
+	* ld-x86-64/tlslib.s: New test.
+	* ld-x86-64/tlspic1.s: New test.
+	* ld-x86-64/tlspic2.s: New test.
+	* ld-x86-64/tlspic.dd: New test.
+	* ld-x86-64/tlspic.rd: New test.
+	* ld-x86-64/tlspic.sd: New test.
+	* ld-x86-64/tlspic.td: New test.
+
+2002-09-21  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-undefined/undefined.exp: Adjust function test.
+
+2002-09-20  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-i386/i386.exp: Only run tests on ELF targets.
+
+2002-09-19  Jakub Jelinek  <jakub@redhat.com>
+
+	* ld-i386/i386.exp: New.
+	* ld-i386/tlsbin.dd: New test.
+	* ld-i386/tlsbinpic.s: New test.
+	* ld-i386/tlsbin.rd: New test.
+	* ld-i386/tlsbin.s: New test.
+	* ld-i386/tlsbin.sd: New test.
+	* ld-i386/tlsbin.td: New test.
+	* ld-i386/tlslib.s: New test.
+	* ld-i386/tlsnopic1.s: New test.
+	* ld-i386/tlsnopic2.s: New test.
+	* ld-i386/tlsnopic.dd: New test.
+	* ld-i386/tlsnopic.rd: New test.
+	* ld-i386/tlsnopic.sd: New test.
+	* ld-i386/tlspic1.s: New test.
+	* ld-i386/tlspic2.s: New test.
+	* ld-i386/tlspic.dd: New test.
+	* ld-i386/tlspic.rd: New test.
+	* ld-i386/tlspic.sd: New test.
+	* ld-i386/tlspic.td: New test.
+
+2002-09-18  Chris Demetriou  <cgd@broadcom.com>
+
+	* ld-mips-elf/branch-misc-1.d: New file.
+	* ld-mips-elf/branch-misc-2.d: New file.
+	* ld-mips-elf/mips-elf.exp: Run new tests.
+
+2002-09-05  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-sh/sh64/cmpct1.xd: Adjust for lack of abs section sym.
+	* ld-sh/sh64/crange3-cmpct.rd: Likewise.
+	* ld-sh/sh64/crange3-media.rd: Likewise.
+	* ld-sh/sh64/crange3.rd: Likewise.
+
+2002-08-31  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-mmix/bpo-10.d: Tweak for change in symbols handling.
+	* ld-mmix/bpo-11.d: Ditto.
+
+	* ld-mmix/b-nosym.d: Adjust for changed output for absence of
+	symbols.
+
+	* ld-mmix/sec-7m.d: Rename tested section from .debug_info to
+	.di.
+	* ld-mmix/sec-7a.s, ld-mmix/sec-7b.s, ld-mmix/sec-7c.s,
+	ld-mmix/sec-7d.s, ld-mmix/sec-7e.s: Ditto.
+
+2002-08-28  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-discard/discard.exp: xfail m6812.
+	* ld-scripts/map-address.d: Adjust for extras emitted by pe targets.
+
+2002-08-27  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-mmix/b-nosym.d: Revert last change.
+
+2002-08-26  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-mmix/b-nosym.d: Adjust for "no symbols" on stdout.
+
+2002-08-23  Stephen Clarke <stephen.clarke@superh.com>
+
+	* ld-sh/sh64/rd-sh64.exp: New framework file.
+	* ld-sh/sh64/init-cmpct.d, ld-sh/sh64/init-media.d,
+	ld-sh/sh64/init64.d, ld-sh/sh64/init.s: New tests for
+	correct setting of ISA bit for init and fini entry-points.
+
+2002-08-16  Stephen Clarke <stephen.clarke@superh.com>
+
+	* ld-sh/sh64/sh64.exp: Add dlsection.
+	* ld-sh/sh64/dlsection-1.s, ld-sh/sh64/dlsection.sd: New.
+
+2002-08-16  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-discard/discard.exp: xfail targets using generic linker.
+	* ld-discard/extern.d: Allow "data" to be reduced to a section sym.
+
+2002-08-15  Hans-Peter Nilsson  <hp@axis.com>
+
+	* ld-cris/libdso-4.d, ld-cris/undef1.d: New test.
+
+2002-08-13  H.J. Lu <hjl@gnu.org>
+
+	* ld-elfvers/vers.exp: Add vers23c and vers23d.
+
+	* ld-elfvers/vers23c.ver: New.
+	* ld-elfvers/vers23d.dsym: New.
+
+2002-08-12  H.J. Lu <hjl@gnu.org>
+
+	* ld-elfvers/vers.exp: Add vers23.
+
+	* ld-elfvers/vers23.c: New.
+	* ld-elfvers/vers23.dsym: New.
+	* ld-elfvers/vers23.ver: New.
+	* ld-elfvers/vers23a.c: New.
+	* ld-elfvers/vers23a.dsym: New.
+	* ld-elfvers/vers23a.map: New.
+	* ld-elfvers/vers23a.sym: New.
+	* ld-elfvers/vers23a.ver: New.
+	* ld-elfvers/vers23b.c: New.
+	* ld-elfvers/vers23b.dsym: New.
+	* ld-elfvers/vers23b.map: New.
+	* ld-elfvers/vers23b.ver: New.
+
+2002-08-12  Stephen Clarke <stephen.clarke@superh.com>
+
+	* ld-sh/sh64/abi32.xd: Adjust whitespace in elf32 section
+	listing.
+	* ld-sh/sh64/cmpct1.xd, ld-sh/sh64/mix1.xd, ld-sh/sh64/mix2.xd,
+	ld-sh/sh64/rel32.xd, ld-sh/sh64/shdl32.xd: Likewise.
+	* ld-sh/sh64/abi32.xd: Adjust as type of linker-script-symbols
+	is no longer set to object.
+	* ld-sh/sh64/abi64.xd, ld-sh/sh64/cmpct1.xd, ld-sh/sh64/crange1.rd,
+	ld-sh/sh64/crange2.rd, ld-sh/sh64/crange3-cmpct.rd,
+	ld-sh/sh64/crange3-media.rd, ld-sh/sh64/crange3.rd,
+	ld-sh/sh64/mix1.xd, ld-sh/sh64/mix2.xd, ld-sh/sh64/shdl32.xd,
+	ld-sh/sh64/shdl64.xd: Likewise.
+
+2002-08-10  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-discard/discard.exp: Don't run on linuxaout or linuxoldld.
+	* ld-linkonce/linkonce.exp: Likewise.
+	* ld-selective/sel-dump.exp: Likewise.
+	* ld-selective/selective.exp: Don't run on aout or bout.
+
+2002-08-08  H.J. Lu <hjl@gnu.org>
+
+	* ld-elfvers/vers.exp: Add vers22.
+
+	* ld-elfvers/vers22.c: New.
+	* ld-elfvers/vers22.dsym: New.
+	* ld-elfvers/vers22.map: New.
+	* ld-elfvers/vers22.ver: New.
+	* ld-elfvers/vers22a.c: New.
+	* ld-elfvers/vers22a.dsym: New.
+	* ld-elfvers/vers22a.sym: New.
+	* ld-elfvers/vers22a.ver: New.
+	* ld-elfvers/vers22b.c: New.
+	* ld-elfvers/vers22b.dsym: New.
+	* ld-elfvers/vers22b.ver: New.
+
+2002-08-07  H.J. Lu <hjl@gnu.org>
+
+	* ld-elfvers/vers.exp: Add --no-undefined-version.
+
+	* ld-elfvers/vers1.map: Remove the unused foo1 and foo2.
+	* ld-elfvers/vers8.map: Likewise.
+	* ld-elfvers/vers18.map: Likewise.
+
+2002-07-30  John David Anglin  <dave@hiauly1.hia.nrc.ca>
+
+	* ld-discard/discard.exp, ld-scripts/phdrs.exp, ld-scripts/phdrs2.exp,
+	ld-selective/sel-dump.exp: Test hppa*64*-*-hpux* target.
+	* ld-elfvers/vers.exp, ld-elfvsb/elfvsb.exp, ld-elfweak/elfweak.exp,
+	ld-linkonce/linkonce.exp, ld-shared/shared.exp,
+	ld-undefined/weak-undef.exp:  Test hppa*64*-*-hpux* and hppa*-*-linux*
+	targets.
+	* ld-discard/exit.s, ld-discard/extern.s, ld-discard/start.s,
+	ld-discard/static.s: Add whitespace before assembler directives.
+
+2002-07-29  Chris Demetriou  <cgd@broadcom.com>
+
+	* ld-mips-elf/mips16-1.d: Check that ASE flag is actually set.
+
+2002-07-26  Richard Sandiford  <rsandifo@redhat.com>
+
+	* ld-mips-elf/mips16-1.d,
+	* ld-mips-elf/mips16-1[ab].s: New test.
+	* ld-mips-elf/mips-elf.exp: Run it.
+
+2002-07-19  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-mmix/sec-1.d: Adjust for changes in padding.
+	* ld-mmix/sec-3.d: Ditto.
+
+2002-07-15  H.J. Lu <hjl@gnu.org>
+
+	* ld-elfvers/vers.exp: Add vers21.
+
+	* ld-elfvers/vers21.c: New.
+	* ld-elfvers/vers21.dsym: New.
+	* ld-elfvers/vers21.map: New.
+	* ld-elfvers/vers21.sym: New.
+	* ld-elfvers/vers21.ver: New.
+
+2002-07-12  Hans-Peter Nilsson  <hp@axis.com>
+
+	* ld-cris/nodyn4.d, ld-cris/expdyn4.d, ld-cris/comref1.s,
+	ld-cris/euwref1.s, ld-cris/expdyn3.d, ld-cris/expdyn2.d,
+	ld-cris/expdref1.s: New tests.
+
+2002-07-09  Richard Sandiford  <rsandifo@redhat.com>
+
+	* ld-scripts/dynamic-sections*: New test.
+
+2002-07-09  Hans-Peter Nilsson  <hp@axis.com>
+
+	* ld-cris/libdso-3.d, ld-cris/dso-3.s, ld-cris/noglob1.s,
+	ld-cris/noglob1.d: New tests.
+
+	* ld-cris/libdso-1.d: Tweak for change in size of dynamic sections.
+
+2002-07-03  Alan Modra  <amodra@bigpond.net.au>
+
+	* lib/ld-lib.exp (default_ld_nm): Run nm with LC_ALL=C to ensure
+	consistent sorting.
+	(run_dump_test): Likewise for objdump/nm/objcopy/readelf.
+	* ld-sh/sh64/sh64.exp (run_ld_link_tests): Likewise.
+
+2002-06-29  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-mmix/sec-8m.d, ld-mmix/sec-8m.s, ld-mmix/sec-8a.s,
+	ld-mmix/sec-8b.s, ld-mmix/sec-8d.s: New test.
+
+2002-06-18  Chris Demetriou  <cgd@broadcom.com>
+
+	* ld-mips-elf/empic2-ref.s: Add a missing .end, apparently
+	turned up by recent assembler changes.
+
+2002-06-17  Tom Rix  <trix@redhat.com>
+
+	* ld-d10v/d10v.exp: New driver for d10v.
+	* ld-d10v/default_layout.d : New test.
+	* ld-d10v/regression-001.lt: New test for a linker regression.
+	* ld-d10v/linktest-002.lt: New test for run_link_test.
+	* ld-d10v/reloc-001.d - reloc-016.d: New tests.
+
+2002-06-11  John David Anglin  <dave@hiauly1.hia.nrc.ca>
+
+	* ld-scripts/cross1.t: Add .hash, .dynstr and .dynsym sections to
+	script.
+
+2002-06-11  Andreas Jaeger  <aj@suse.de>
+
+	* ld-undefined/undefined.exp: Add s390x to dwarf2 xfails.
+
+2002-06-10  Richard Sandiford  <rsandifo@redhat.com>
+
+	* ld-mips-elf/region1a.s,
+	* ld-mips-elf/region1b.s,
+	* ld-mips-elf/region1.t,
+	* ld-mips-elf/region1.d: New test.
+	* ld-mips-elf/mips-elf.exp: Run it.
+
+2002-06-07  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* ld-scripts/phdrs2.s: Use .p2align instead of .align.
+	Use section names .foo and .bar instead of .text and .data.
+	* ld-scripts/phdrs2.t: Refer to .foo and .bar instead of .text
+	and .data.
+
+2002-06-06  David Heine <dlheine@tensilica.com>
+
+	* ld-scripts/phdrs2.exp: New file: Run second phdrs test.
+	* ld-scripts/phdrs2.s: New file: Dummy assembler source.
+	* ld-scripts/phdrs2.t: New file: Linker script with an empty
+	section at the start of a loadable segment.
+
+2005-06-02  H.J. Lu <hjl@gnu.org>
+
+	* ld-srec/sr3.cc (__dso_handle): Added for gcc 3.1 with
+	-fuse-cxa-atexit.
+	(__cxa_atexit): Likewise.
+
+2002-05-30  Richard Henderson  <rth@redhat.com>
+
+	* ld-bootstrap/bootstrap.exp: Test --relax.
+
+2002-05-28  Hans-Peter Nilsson  <hp@axis.com>
+
+	* ld-cris/libdso-2.d: Tweak for combreloc now default on.
+
+2002-05-07  Richard Sandiford  <rsandifo@redhat.com>
+
+	* lib/ld-lib.exp (run_dump_test): Add -L$srcdir/$subdir.
+	(is_elf_format): New, extracted from...
+	* ld-scripts/weak.exp: ...here.
+	* ld-scripts/overlay-size.exp: New test.
+	* ld-scripts/overlay-size.[tsd],
+	* ld-scripts/overlay-size-map.d: New files for it.
+
+2002-05-02  Richard Sandiford  <rsandifo@redhat.com>
+
+	* ld-scripts/map-address.exp: Quote conditions.
+
+2002-04-30  Richard Sandiford  <rsandifo@redhat.com>
+
+	* ld-scripts/map-address.exp: New test.
+	* ld-scripts/map-address.[td]: New files for it.
+
+2002-04-19  Richard Henderson  <rth@redhat.com>
+
+	* ld-elfvsb/elfvsb.exp: Mirror ia64 non-pic xfails for alpha.
+	* ld-shared/shared.exp: Likewise.
+	* ld-selective/selective.exp: Disable for alpha.
+	* ld-undefined/undefined.exp: Add alpha to dwarf2 xfails.
+
+2002-04-05  Hans-Peter Nilsson  <hp@axis.com>
+
+	* ld-cris/libdso-2.d, ld-cris/dso-2.s, ld-cris/hide1: New test.
+
+2002-03-19  Hans-Peter Nilsson  <hp@axis.com>
+
+	* ld-cris/ldsym1.d: New test.
+
+	* ld-mmix/bpo-1.d: Tweak for type of linker-script-symbols no
+	longer set to object.
+	* ld-mmix/undef-3.d, ld-mmix/start-1.d, ld-mmix/locto-1.d,
+	ld-mmix/loct-1.d, ld-mmix/locdo-1.d, ld-mmix/local7.d,
+	ld-mmix/local5.d, ld-mmix/local3.d, ld-mmix/local1.d,
+	ld-mmix/loc6.d, ld-mmix/loc4.d, ld-mmix/loc3.d, ld-mmix/loc2.d,
+	ld-mmix/loc1.d, ld-mmix/greg-7.d, ld-mmix/greg-6.d,
+	ld-mmix/greg-5.d, ld-mmix/greg-4.d, ld-mmix/greg-3.d,
+	ld-mmix/greg-2.d, ld-mmix/greg-19.d, ld-mmix/greg-1.d,
+	ld-mmix/bspec2.d, ld-mmix/bspec1.d, ld-mmix/bpo-9.d,
+	ld-mmix/bpo-6.d, ld-mmix/bpo-5.d, ld-mmix/bpo-4.d,
+	ld-mmix/bpo-3.d, ld-mmix/bpo-2.d, ld-mmix/bpo-19.d,
+	ld-mmix/bpo-18.d, ld-mmix/bpo-17.d, ld-mmix/bpo-16.d,
+	ld-mmix/bpo-14.d, ld-mmix/bpo-11.d, ld-mmix/bpo-10.d: Ditto.
+
+2002-03-11  Andreas Jaeger  <aj@suse.de>
+
+	* ld-elfweak/strongdata.sym: Allow bss section for GCC 3.2 that
+	places zero initialized data in the bss.
+	* ld-elfweak/lddsodata.dsym: Likewise.
+
+2002-03-07  Hans-Peter Nilsson  <hp@axis.com>
+
+	* ld-cris/expdyn1.d: Tweak for change in elf.sc.
+
+2002-02-24  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-sh/ld-r-1.d: Adjust to changes in readelf output.
+	* ld-sh/shared-1.d, ld-sh/sh64/crangerel1.rd, ld-sh/crangerel2.rd,
+	ld-sh/sh64/reldl32.rd, ld-sh/sh64/reldl64.rd: Ditto.
+
+2002-02-18  Daniel Jacobowitz  <drow@mvista.com>
+
+	* ld-elfvsb/sh1.c: Fix typo in last change.
+
+2002-02-17  Daniel Jacobowitz  <drow@mvista.com>
+
+	* ld-elfvsb/sh1.c: Use #pragma weak.
+
+2002-02-17  Daniel Jacobowitz  <drow@mvista.com>
+
+	* vers.exp: Do not call diff -q.
+
+2002-02-17  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-mmix/b-nosym.d, ld-mmix/sec-6.d: Tweak for change in symbol
+	output.
+	* ld-mmix/sec-7m.d, ld-mmix/sec-7a.s, ld-mmix/sec-7b.s,
+	ld-mmix/sec-7c.s, ld-mmix/sec-7d.s, ld-mmix/sec-7e.s: New test.
+
+	* ld-mmix/bpo-22.d: New test.
+
+	* ld-mmix/local12.d (Sections): Match any LMA for .data, .sbss,
+	and .bss.
+
+2002-02-12  John David Anglin  <dave@hiauly1.hia.nrc.ca>
+
+	* ld-selective/selective.exp: Link against libgcc on
+	hppa*-*-linux* targets.
+
+2002-02-11  Alexandre Oliva  <aoliva@redhat.com>
+
+	* ld-sh/sh64/reldl64.rd: Add relocation symbol data in info field.
+	* ld-sh/sh64/crange-2i.s: Add align to match align in crange-2h.s.
+	* ld-sh/sh64/crange3-cmpct.rd: Adjust to reflect modifications
+	in section ordering.
+	* ld-sh/sh64/crange3-media.rd: Likewise.
+	* ld-sh/sh64/crange3.rd: Likewise.
+	* ld-sh/sh64/crange3.dd: Likewise.
+
+	* ld-sh/shared-1.d: Fix relocation addend.
+
+2002-02-09  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-mmix/bpo-21.d, ld-mmix/bpo-21m.d, ld-mmix/bpo-11.s: New
+	tests.
+
+2002-02-08  Alexandre Oliva  <aoliva@redhat.com>
+
+	Contribute sh64-elf.
+	2002-02-02  Alexandre Oliva  <aoliva@redhat.com>
+	* ld-sh/sh64/crange3-cmpct.rd: Adjust offsets.
+	* ld-sh/sh64/crange3-media.rd: Likewise.
+	* ld-sh/sh64/crange3.rd: Likewise.
+	* ld-sh/sh64/crangerel1.rd: Likewise.
+	* ld-sh/sh64/crangerel2.rd: Likewise.
+	* ld-sh/sh64/reldl32.rd: Likewise.
+	* ld-sh/sh64/reldl64.rd: Likewise.
+	2002-01-28  Alexandre Oliva  <aoliva@redhat.com>
+	* ld-sh/sh64/abi32.xd: Formatting changes to match the current
+	output of objdump.
+	* ld-sh/sh64/cmpct1.xd: Likewise.
+	* ld-sh/sh64/crange1.rd: Likewise.
+	* ld-sh/sh64/crange2.rd: Likewise.
+	* ld-sh/sh64/crange3-cmpct.rd: Likewise.
+	* ld-sh/sh64/crange3-media.rd: Likewise.
+	* ld-sh/sh64/crange3.rd: Likewise.
+	* ld-sh/sh64/crangerel1.rd: Likewise.
+	* ld-sh/sh64/crangerel2.rd: Likewise.
+	* ld-sh/sh64/mix1.xd: Likewise.
+	* ld-sh/sh64/mix2.xd: Likewise.
+	* ld-sh/sh64/rel32.xd: Likewise.
+	* ld-sh/sh64/reldl32.rd: Likewise.
+	* ld-sh/sh64/reldl64.rd: Likewise.
+	* ld-sh/sh64/sh64.exp: Likewise.  Reordered cranges and stack
+	sessions, to match changes in the linker script.
+	2001-06-14  Alexandre Oliva  <aoliva@redhat.com>
+	* ld-sh/sh64/reldl32.rd, ld-sh/sh64/reldl64.rd: Adjust relocation
+	info to reflect renumbering of relocation types.
+	2001-03-14  DJ Delorie	<dj@redhat.com>
+	* ld-sh/sh64/endian.dbd: New file, endian tests.
+	* ld-sh/sh64/endian.dld: Ditto.
+	* ld-sh/sh64/endian.ld: Ditto.
+	* ld-sh/sh64/endian.s: Ditto.
+	* ld-sh/sh64/endian.sbd: Ditto.
+	* ld-sh/sh64/endian.sld: Ditto.
+	* ld-sh/sh64/sh64.exp: Add above tests.  Add -L option to ld.
+	2001-03-12  DJ Delorie	<dj@redhat.com>
+	* ld-sh/sh64/relax.exp: New file, test disabling relaxing.
+	* ld-sh/sh64/relax1.s: Ditto.
+	* ld-sh/sh64/relax2.s: Ditto.
+	* ld-sh/sh64/relax3.s: Ditto.
+	* ld-sh/sh64/relax4.s: Ditto.
+	* ld-sh/sh64/relfail.exp: New file, test for bogus relocs.
+	* ld-sh/sh64/relfail.s: Ditto.
+	2001-03-12  DJ Delorie	<dj@redhat.com>
+	* ld-sh/sh.exp: This test isn't appropriate for SH64 since it
+	uses SH32 assembler files.
+	2001-03-07  DJ Delorie	<dj@redhat.com>
+	* ld-selective/selective.exp: Pass "-e _start" for sh64 to
+	accomodate expected start symbol in test.
+	2001-03-06  DJ Delorie	<dj@redhat.com>
+	* ld-scripts/crossref.exp: Pass -mshelf32 to the linker for sh64,
+	to match what gcc passes to the linker by default.
+	* ld-selective/selective.exp: Ditto.
+	* ld-srec/srec.exp: Ditto, plus XFAIL for sh64.
+	* ld-undefined/undefined.exp: Add XFAIL for sh64 (it's dwarf2).
+	2001-03-06  DJ Delorie	<dj@redhat.com>
+	* ld-sh/sh64/abi32.xd (stack): Adjust for new default stack layout.
+	* ld-sh/sh64/abi64.xd (stack): Ditto.
+	* ld-sh/sh64/cmpct1.xd (stack): Ditto.
+	* ld-sh/sh64/crange1.rd (stack): Ditto.
+	* ld-sh/sh64/crange2.rd (stack): Ditto.
+	* ld-sh/sh64/crange3-cmpct.rd (stack): Ditto.
+	* ld-sh/sh64/crange3-media.rd (stack): Ditto.
+	* ld-sh/sh64/crange3.rd (stack): Ditto.
+	* ld-sh/sh64/mix1.xd (stack): Ditto.
+	* ld-sh/sh64/mix2.xd (stack): Ditto.
+	* ld-sh/sh64/shdl32.xd (stack): Ditto.
+	* ld-sh/sh64/shdl64.xd (stack): Ditto.
+	2001-01-14  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* ld-sh/sh64/mix1.xd: Add SORT_ENTRIES for .cranges section.
+	* ld-sh/sh64/mix2.xd: Ditto.
+	2001-01-08  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* ld-sh/sh64/abi32.xd: Adjust for bit 0 set on an entry address
+	being SHmedia.
+	* ld-sh/sh64/shdl64.xd: Ditto.
+	* ld-sh/sh64/shdl32.xd: Ditto.
+	* ld-sh/sh64/mix2.xd: Ditto.
+	* ld-sh/sh64/crange3-media.rd: Ditto.
+	* ld-sh/sh64/abi64.xd: Ditto.
+	2001-01-06  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* ld-sh/sh64/crange-2a.s (diversion2): New global symbol.
+	* ld-sh/sh64/crange1.rd: Adjust to presence of new symbol.
+	Adjust section type for .cranges; expect sorted contents.
+	* ld-sh/sh64/crange2.rd: Ditto.
+	* ld-sh/sh64/crange3.dd, ld-sh/sh64/crange3.rd: Ditto.
+	* ld-sh/sh64/crangerel1.rd: Adjust to presence of new symbol.
+	* ld-sh/sh64/crangerel2.rd: Ditto.
+	* ld-sh/sh64/mix1.xd: Adjust to DEBUGGING being set for .cranges.
+	* ld-sh/sh64/mix2.xd: Ditto.
+	* ld-sh/sh64/crange3-cmpct.rd, ld-sh/sh64/crange3-media.rd: New
+	tests.
+	* ld-sh/sh64/sh64.exp: Tweak test message.  Run new tests.
+	2001-01-05  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* ld-sh/sh64/shmix-1.s (start2): Add a NOP to provide a valid
+	target for (unexpanded) PTB.  Add an .align 2 to SHmedia code to
+	keep properly aligned.
+	* ld-sh/sh64/mix1.sd, ld-sh/sh64/mix1.xd: Adjust accordingly.
+	* ld-sh/sh64/mix1-noexp.sd, ld-sh/sh64/mix2-noexp.sd,
+	ld-sh/sh64/abixx-noexp.sd: New tests for GAS -no-expand and
+	R_SH_PT_16 relocation.
+	* ld-sh/sh64/sh64.exp: Run new tests.
+	2000-12-30  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* ld-sh/sh64/crange-2f.s, ld-sh/sh64/crange-2g.s,
+	ld-sh/sh64/crange-2h.s, ld-sh/sh64/crange-2i.s,
+	ld-sh/sh64/crange3.dd, ld-sh/sh64/crange3.rd: New tests.
+	* ld-sh/sh64/sh64.exp: Run new tests.
+	* ld-sh/sh64/crange1.rd: Correct section flags.
+	* ld-sh/sh64/crange2.rd: Ditto.
+	* ld-sh/sh64/crangerel1.rd: Ditto.
+	2000-12-18  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* ld-sh/sh64/crange-1.s, ld-sh/sh64/crange-2a.s,
+	ld-sh/sh64/crange-2b.s, ld-sh/sh64/crange-2c.s,
+	ld-sh/sh64/crange-2d.s, ld-sh/sh64/crange-2e.s,
+	ld-sh/sh64/crange1.rd, ld-sh/sh64/crange2.rd,
+	ld-sh/sh64/crangerel1.rd, ld-sh/sh64/crangerel2.rd: New tests for
+	handling .cranges section.
+	* ld-sh/sh64/sh64.exp: Run new tests.
+	* ld-sh/sh64/mix1.sd, ld-sh/sh64/mix1.xd, ld-sh/sh64/mix2.sd,
+	ld-sh/sh64/mix2.xd: Adjust for .cranges section.
+	2000-12-15  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* ld-sh/sh64/abi32.sd, ld-sh/sh64/abi32.xd, ld-sh/sh64/abi64.sd,
+	ld-sh/sh64/abi64.xd, ld-sh/sh64/cmpct1.xd, ld-sh/sh64/mix1.sd,
+	ld-sh/sh64/mix1.xd, ld-sh/sh64/mix2.sd, ld-sh/sh64/mix2.xd,
+	ld-sh/sh64/shdl32.xd, ld-sh/sh64/shdl64.xd: Adjust to .bss and
+	.data individually 8-byte aligned.
+	2000-12-09  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* ld-sh/sh64/rel-1.s, ld-sh/sh64/rel-2.s, ld-sh/sh64/rel32.xd,
+	ld-sh/sh64/rel64.xd, ld-sh/sh64/reldl-1.s, ld-sh/sh64/reldl-2.s,
+	ld-sh/sh64/reldl32.rd, ld-sh/sh64/reldl64.rd: New tests.
+	* ld-sh/sh64/sh64.exp: Make it possible to use readelf as
+	inspection tool.  Run new tests.
+	2000-12-07  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* ld-sh/sh64/abi64.sd, ld-sh/sh64/abi32.sd, ld-sh/sh64/mix1.sd,
+	ld-sh/sh64/mix2.sd: Correct offsets in PT/PTA/PTB expansions.
+	* ld-sh/sh64/shdl-1.s, ld-sh/sh64/shdl-2.s, ld-sh/sh64/shdl64.sd,
+	ld-sh/sh64/shdl64.xd, ld-sh/sh64/shdl32.xd: New tests.
+	* ld-sh/sh64/sh64.exp: Run new tests.
+	2000-12-01  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* ld-sh/sh64/cmpct1.sd, ld-sh/sh64/cmpct1.xd,
+	ld-sh/sh64/shcmp-1.s: New test.
+	* ld-sh/sh64/sh64.exp: Add new test to sh64tests.  Reformat.
+	2000-11-30  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* ld-sh/sh64/sh64.exp: Use linker option -mshelf64 for 64-bit ABI
+	test.
+	* ld-sh/sh64/abi64.xd: Tweak for 64-bit ELF.
+	2000-11-29  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* ld-sh/sh64/sh64.exp (sh64tests): Use linker option -mshelf32 for
+	tests.
+	2000-11-27  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* ld-sh/sh64/abi32.sd, ld-sh/sh64/abi64.sd: Correct MOVI
+	registers.
+	* ld-sh/sh64/mix1.sd, ld-sh/sh64/mix1.xd, ld-sh/sh64/shmix-1.s:
+	New test.
+	* ld-sh/sh64/mix2.sd, ld-sh/sh64/mix2.xd, ld-sh/sh64/shmix-2.s,
+	ld-sh/sh64/shmix-3.s: New test.
+	* ld-sh/sh64/sh64.exp: Add new tests to sh64tests.
+	2000-11-26  Hans-Peter Nilsson	<hpn@cygnus.com>
+	* ld-sh/sh64: New testsuite.
+
+2002-02-07  Hans-Peter Nilsson  <hp@axis.com>
+
+	* ld-selective/keepdot.s: Remove section specifier.
+
+2002-02-05  Hans-Peter Nilsson  <hp@axis.com>
+
+	* ld-selective/keepdot.d, ld-selective/keepdot.ld,
+	ld-selective/keepdot.s, ld-selective/keepdot0.d: New tests.
+	* ld-selective/sel-dump.exp: New, driver for run_dump_test:s.
+
+2002-02-04  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-mmix/bpo-18.d, ld-mmix/bpo64addr.ld, ld-mmix/bpo-18m.d,
+	ld-mmix/bpo-9.s, ld-mmix/bpo-19.d, ld-mmix/bpo-19m.d,
+	ld-mmix/bpo-10.s, ld-mmix/bpo-20.d, ld-mmix/bpo-20m.d: New tests
+	for on-demand global register allocation.
+
+2002-02-02  Alexandre Oliva  <aoliva@redhat.com>
+
+	* ld-sh/shared-1.d: Fix incorrect offsets.
+
+2002-02-01  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-mmix/bpo-1.d, ld-mmix/bpo-1.s, ld-mmix/bpo-1m.d,
+	ld-mmix/bpo-15.d, ld-mmix/bpo-4.s, ld-mmix/bpo-6.d,
+	ld-mmix/bpo-6.s, ld-mmix/bpo-2.d, ld-mmix/bpo-6m.d,
+	ld-mmix/bpo-12m.d, ld-mmix/bpo-2m.d, ld-mmix/bpo-2.s,
+	ld-mmix/bpo-5.s, ld-mmix/bpo-3.d, ld-mmix/start3.s,
+	ld-mmix/bpo-3m.d, ld-mmix/bpo-9m.d, ld-mmix/bpo-4.d,
+	ld-mmix/bpo-3.s, ld-mmix/bpo-4m.d, ld-mmix/bpo-7.d,
+	ld-mmix/bpo-5.d, ld-mmix/bpo-16.d, ld-mmix/bpo-5m.d,
+	ld-mmix/bpo-7m.d, ld-mmix/bpo-9.d, ld-mmix/bpo-8.d,
+	ld-mmix/start4.s, ld-mmix/bpo-8m.d, ld-mmix/bpo-13m.d,
+	ld-mmix/bpo-15m.d, ld-mmix/bpo-10.d, ld-mmix/bpo-11.d,
+	ld-mmix/bpo-14m.d, ld-mmix/bpo-13.d, ld-mmix/bpo-7.s,
+	ld-mmix/bpo-12.d, ld-mmix/bpo-16m.d, ld-mmix/bpo-14.d,
+	ld-mmix/bpo-8.s, ld-mmix/bpo-17.d, ld-mmix/bpo-17m.d: New tests.
+
+2002-01-31  Hans-Peter Nilsson  <hp@axis.com>
+
+	* ld-cris/weakref1.d, ld-cris/libdso-1.d, ld-cris/gotrel2.s,
+	ld-cris/expdyn1.d, ld-cris/expdyn1.s, ld-cris/dso-1.s: New tests.
+	* ld-cris/cris.exp: Split run_dump_tests in two parts, executing
+	tests named *dso-*.d first and copying their tmpdir/dump to files
+	named as the .d-file.
+
+2002-01-31  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-scripts/crossref.exp: Allow foo to have a leading dot.
+	* ld-scripts/cross1.t: Add .opd.
+	* ld-undefined/undefined.exp: Allow leading dot on sym names.
+	* lib/ld-lib.exp (default_ld_nm): Strip leading dots from syms.
+
+2002-01-29  Chris Demetriou  <cgd@broadcom.com>
+
+	* ld-mips-elf/emrelocs-eb.d: New file to test --embedded-relocs.
+	* ld-mips-elf/emrelocs-el.d: Likewise.
+	* ld-mips-elf/emrelocs1.s: Likewise.
+	* ld-mips-elf/emrelocs2.s: Likewise.
+	* ld-mips-elf/emrelocs.ld: Likewise.
+	* ld-mips-elf/mips-elf.exp: Add the above to the list of tests.
+
+2002-01-21  Hans-Peter Nilsson  <hp@axis.com>
+
+	* ld-cris: New testsuite directory.
+
+2002-01-15  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* ld-sh/sh.exp: Copy start.s file into test directory.
+
+2002-01-14  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* ld-selective/selective.exp: For ARM targets, link with libgcc.a.
+
+2002-01-02  Chris Demetriou  <cgd@broadcom.com>
+
+	* ld-mips-elf/empic1-ln.d: New file to test basic linking of
+	R_MIPS_GNU_REL_HI16 and R_MIPS_GNU_REL_LO16 relocations.
+	* ld-mips-elf/empic1-lp.d: Likewise.
+	* ld-mips-elf/empic1-mn.d: Likewise.
+	* ld-mips-elf/empic1-mp.d: Likewise.
+	* ld-mips-elf/empic1-sn.d: Likewise.
+	* ld-mips-elf/empic1-sp.d: Likewise.
+	* ld-mips-elf/empic1-ref.s: Likewise.
+	* ld-mips-elf/empic1-space.s: Likewise.
+	* ld-mips-elf/empic1-tgt.s: Likewise.
+	* ld-mips-elf/empic2-fwd-0.d: New file to test
+	R_MIPS_GNU_REL_HI16 and R_MIPS_GNU_REL_LO16 relocation edge
+	cases.
+	* ld-mips-elf/empic2-fwd-1.d: Likewise.
+	* ld-mips-elf/empic2-rev-0.d: Likewise.
+	* ld-mips-elf/empic2-rev-1.d: Likewise.
+	* ld-mips-elf/empic2-ref.s: Likewise.
+	* ld-mips-elf/empic2-space.s: Likewise.
+	* ld-mips-elf/empic2-fwd-tgt.s: Likewise.
+	* ld-mips-elf/empic2-rev-tgt.s: Likewise.
+	* ld-mips-elf/mips-elf.exp: New file to run MIPS 32-bit ELF
+	tests (including those above).
+
+2001-11-30  H.J. Lu <hjl@gnu.org>
+
+	* ld-elfvers/vers.exp (build_vers_lib): Preserve the library
+	order.
+
+2001-11-29  H.J. Lu <hjl@gnu.org>
+
+	* ld-elfvers/vers.exp (build_vers_lib): Support linking against
+	more than one libraries.
+	Add "vers20a" and "vers20" tests for common symbols.
+
+	* ld-elfvers/vers20.c: New.
+	* ld-elfvers/vers20.dsym: New.
+	* ld-elfvers/vers20.map: New.
+	* ld-elfvers/vers20.ver: New.
+	* ld-elfvers/vers20a.ver: New.
+
+2001-11-19  H.J. Lu <hjl@gnu.org>
+
+	* ld-elfvsb/define.s: Mark all global lables as object.
+
+	* ld-elfvsb/hidden0.d: Match large section number.
+	* ld-elfvsb/hidden1.d: Likewise.
+	* ld-elfvsb/internal0.d: Likewise.
+	* ld-elfvsb/internal1.d: Likewise.
+	* ld-elfvsb/protected0.d: Likewise.
+	* ld-elfvsb/protected1.d: Likewise.
+
+	* ld-elfvsb/hidden0.d: Change NOTYPE to OBJECT.
+	* ld-elfvsb/internal0.d: Likewise.
+	* ld-elfvsb/protected0.d: Likewise.
+
+2001-11-15  H.J. Lu <hjl@gnu.org>
+
+	* ld-sh/ld-r-1.d: Updated.
+
+2001-11-14  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* ld-bootstrap/bootstrap.exp: Only scan tail of executable for
+	PE targets.
+
+2001-11-12  Donn Terry <donnte@microsoft.com>
+
+	* ld-bootstrap/bootstrap.exp: Only compare the tail end of the two
+	binary files produced in order to avoid date stamp present in PE
+	binaries.
+
+2001-11-11  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-mmix/sec-5.d (Sections): Add whitespace missing in commit.
+
+2001-11-09  H.J. Lu <hjl@gnu.org>
+
+	* ld-discard/discard.exp: New. Test ld discard.
+	* ld-discard/discard.ld: Likewise.
+	* ld-discard/exit.s: Likewise.
+	* ld-discard/extern.d: Likewise.
+	* ld-discard/extern.s: Likewise.
+	* ld-discard/start.d: Likewise.
+	* ld-discard/start.s: Likewise.
+	* ld-discard/static.d: Likewise.
+	* ld-discard/static.s: Likewise.
+
+2001-11-02  H.J. Lu  <hjl@gnu.org>
+
+	* ld-elfvsb/elfvsb.exp: Add the "ld -r" test.
+
+	* ld-elfvsb/hidden0.d: New.
+	* ld-elfvsb/hidden1.d: New.
+	* ld-elfvsb/internal0.d: New.
+	* ld-elfvsb/internal1.d: New.
+	* ld-elfvsb/protected0.d: New.
+	* ld-elfvsb/protected1.d: New.
+	* ld-elfvsb/undef.s: New.
+	* ld-elfvsb/undef.s: New.
+
+2001-11-02  NIIBE Yutaka  <gniibe@m17n.org>
+
+	* ld-sh/sh.exp: Have its own start.s for linux.
+
+2001-10-31  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-mmix/locdo-1.d: Prune character dump part.
+	* ld-mmix/local7m.d, ld-mmix/loc4.d, ld-mmix/loc4m.d,
+	ld-mmix/loc1.d, ld-mmix/bspec1m.d, ld-mmix/bspec2m.d,
+	ld-mmix/b-nosym.d, ld-mmix/b-fixo2.d, ld-mmix/b-loc64k.d,
+	ld-mmix/undef-3m.d, ld-mmix/locto.s, ld-mmix/loct.s,
+	ld-mmix/local3m.d, ld-mmix/local1m.d, ld-mmix/loc6m.d,
+	ld-mmix/loc2.s, ld-mmix/loc1.s, ld-mmix/gregldo1.s,
+	ld-mmix/dloc1.s, ld-mmix/b-widec3.s, ld-mmix/b-nosym.s: Remove
+	unnecessary empty lines.
+
+2001-10-30  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-mmix: New testsuite directory.
+
+2001-10-14  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-sh/sub2l-1.d, ld-sh/shared-1.d, ld-sh/weak1.d: Only run on
+	sh*-*-elf.
+
+	* lib/ld-lib.exp (run_dump_test): Fix typo: asflags(), not asflags{}.
+
+	* ld-sh/rd-sh.exp: New framework file.
+	* ld-sh/ld-r-1.d, ld-sh/ldr1.s, ld-sh/ldr2.s, ld-sh/shared-1.d,
+	ld-sh/weak1.s, ld-sh/weak1.d, ld-sh/sub2l.s, ld-sh/sub2l-1.d: New
+	test files.
+
+2001-09-29  Hans-Peter Nilsson  <hp@axis.com>
+
+	* ld-linkonce/linkonce.exp: New file.
+	* ld-linkonce/x.s, ld-linkonce/y.s, ld-linkonce/zeroeh.ld,
+	ld-linkonce/zeroehl32.d: New test.
+
+2001-09-25  H.J. Lu  <hjl@gnu.org>
+
+	* ld-elfweak/dso.dsym: Updated for alpha.
+	* ld-elfweak/dsodata.dsym: Likewise.
+	* ld-elfweak/strong.sym: Likewise.
+	* ld-elfweak/strongcomm.sym: Likewise.
+	* ld-elfweak/strongdata.sym: Likewise.
+
+2001-09-15  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* lib/ld-lib.exp (run_dump_test): Handle new option
+	"objcopy_linked_file".  Return after failing, if errors were
+	expected but none were found.
+	(slurp_options): Support underscores in option names.
+
+2001-09-14  H.J. Lu  <hjl@gnu.org>
+
+	* ld-elfweak/bar.c: Updated.
+	* ld-elfweak/bar1a.c: Likewise.
+	* ld-elfweak/main.c: Likewise.
+	* ld-elfweak/main1.c: Likewise.
+	* ld-elfweak/elfweak.exp: Likewise.
+	* ld-elfweak/weakdata.dsym: Updated.
+
+2001-09-11  H.J. Lu  <hjl@gnu.org>
+
+	* ld-elfweak/elfweak.exp (build_lib): Take a list of object
+	files.
+	(build_exec): Likewise.
+	Add more tests and make some xfail.
+
+	* ld-elfweak/dso.dsym: Support symbol versioning.
+	* ld-elfweak/dsow.dsym: Likewise.
+
+	* ld-elfweak/main1.c: New.
+	* ld-elfweak/bar1a.c: Likewise.
+	* ld-elfweak/bar1b.c: Likewise.
+	* ld-elfweak/bar1c.c: Likewise.
+	* ld-elfweak/foo1a.c: Likewise.
+	* ld-elfweak/foo1b.c: Likewise.
+	* ld-elfweak/dsodata.dsym: Likewise.
+	* ld-elfweak/dsowdata.dsym: Likewise.
+	* ld-elfweak/weakdata.dsym: Likewise.
+	* ld-elfweak/strongcomm.sym: Likewise.
+	* ld-elfweak/strongdata.sym: Likewise.
+	* ld-elfweak/weakdata.dat: Likewise.
+	* ld-elfweak/strongdata.dat: Likewise.
+
+2001-09-10  H.J. Lu  <hjl@gnu.org>
+
+	* ld-elfweak/elfweak.exp: New.
+	* ld-elfweak/bar.c: Likewise.
+	* ld-elfweak/foo.c: Likewise.
+	* ld-elfweak/main.c: Likewise.
+	* ld-elfweak/dso.dsym: Likewise.
+	* ld-elfweak/dsow.dsym: Likewise.
+	* ld-elfweak/strong.sym: Likewise.
+	* ld-elfweak/strong.dat: Likewise.
+	* ld-elfweak/weak.dat: Likewise.
+
+2001-08-27  Alan Modra  <amodra@bigpond.net.au>
+	    Linus Nordberg  <linus@swox.se>
+
+	* ld-checks/checks.exp: .lcomm is incompatible with ppc coff.
+	* ld-scripts/cross1.t: Add .toc section.
+	* ld-scripts/cross2.t: Likewise.
+	* ld-scripts/phdrs.exp: powerpc64 is 64 bit.
+	* ld-srec/srec.exp: xfail powerpc64
+
+2001-08-21  John David Anglin  <dave@hiauly1.hia.nrc.ca>
+
+	* ld-selective/selective.exp: Return if target is `vax-*-ultrix*'.
+	Continue with other tests when there is a compilation error.
+
+2001-08-01  Loren J. Rittle  <ljrittle@acm.org>
+
+	* ld-cdtest/cdtest-nrv.dat: New file.
+	* ld-cdtest/cdtest.exp: Do not require any exception support
+	library.  Check results against NRV.
+
+2001-08-01  Loren J. Rittle  <ljrittle@acm.org>
+
+	* ld-srec/srec.exp: Do not require any exception support
+	library.
+
+2001-07-27  H.J. Lu  <hjl@gnu.org>
+
+	* ld-selective/selective.exp: Fix the error in the last change.
+
+2001-07-24  Loren J. Rittle  <ljrittle@acm.org>
+
+	* ld-selective/selective.exp: Support g++ V3 ABI (along side
+	the old ABI).  Make comparisons against normalized (to
+	V3-style) demangled nm output.
+
+2001-07-24  Alan Modra  <amodra@bigpond.net.au>
+
+	* config/default.exp (ld_nm): Add "nmflags" arg.
+	* lib/ld-lib.exp (default_ld_nm): Likewise.
+	* ld-empic/empic.exp: Adjust call to ld_nm.
+	* ld-scripts/defined.exp: Likewise.
+	* ld-scripts/script.exp: Likewise.
+	* ld-scripts/sizeof.exp: Likewise.
+	* ld-selective/selective.exp: Likewise.
+	* ld-sh/sh.exp: Likewise.
+
+2001-07-12  H.J. Lu  <hjl@gnu.org>
+
+	* ld-selective/selective.exp: Mark selective1, selective2,
+	selective4 and selective5 xfail on alpha*-*.
+
+2001-06-13  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* config/default.exp (AS, GASP, OBJDUMP, NM, NMFLAGS, OBJCOPY,
+	OBJCOPYFLAGS, READELF, READELFFLAGS, LD, LDFLAGS): Provide
+	default.
+
+	* lib/ld-lib.exp (run_dump_test): Import from gas testsuite.  Add
+	new options "ld", "source", "xfail", "target", "notarget" and
+	"error".  Support the runtest_file_p "*.exp=testname" feature.
+	(slurp_options, regexp_diff, file_contents, verbose_eval): Import
+	from gas testsuite.
+
+2001-06-12  Martin Schwidefsky <schwidefsky@de.ibm.com>
+
+	* testsuite/ld-undefined/undefined.exp: Correct setup_xfail rule.
+
+2001-06-06  H.J. Lu  <hjl@gnu.org>
+
+	* ld-bootstrap/bootstrap.exp: Rebuild tmpdir/ld2 with tmpdir/ld3
+	on Linux/mips.
+
+	* ld-elfvers/vers.exp: Also run on Linux/mips.
+	* ld-elfvsb/elfvsb.exp: Likewise.
+	* ld-shared/shared.exp: Likewise.
+
+	* ld-selective/selective.exp: Mark selective2, selective3,
+	selective4 and selective5 xfail on Linux/mips.
+
+	* ld-shared/main.c: Skip invalid -Bsymbolic tests on Linux/mips.
+
+	* symbolic.dat: Remove invalid -Bsymbolic tests on Linux/mips.
+
+	* ld-srec/srec.exp: Add Linux/mips to xfail.
+
+2001-06-06  Martin Schwidefsky <schwidefsky@de.ibm.com>
+
+	* ld-undefined/undefined.exp: Add a setup_xfail line for a test
+	that will always fail on s/390.
+
+2001-05-28  kaz Kojima  <kkojima@rr.iij4u.or.jp>
+
+	* ld-sh/sh.exp: For sh-*-linux-gnu target add a start address for
+	the text section.
+
+2001-05-25  Alan Modra  <amodra@one.net.au>
+
+	* ld-elfvers/vers.exp: Replace linuxoldld with linux*oldld and
+	linuxaout with linux*aout.
+
+2001-05-24  H.J. Lu  <hjl@gnu.org>
+
+	* ld-scripts/phdrs.exp: Add sparc64 to 64 bit platform.
+
+2001-05-18  H.J. Lu  <hjl@gnu.org>
+
+	* ld-elfvers/vers.exp: Revert the last change.
+
+	* ld-elfvers/vers2.ver: Put back "tmpdir/" the version
+	references.
+	* ld-elfvers/vers3.ver: Likewise.
+	* ld-elfvers/vers6.ver: Likewise.
+	* ld-elfvers/vers18.ver: Likewise.
+
+2001-05-17  H.J. Lu  <hjl@gnu.org>
+
+	* ld-elfvers/vers.exp: Pass "-rpath .:$tmpdir" to "vers19".
+
+	* ld-elfvers/vers1.ver: Remove "tmpdir/" from the version
+	definition.
+	* ld-elfvers/vers2.ver: Likewise.
+	* ld-elfvers/vers3.ver: Likewise.
+	* ld-elfvers/vers4a.ver: Likewise.
+	* ld-elfvers/vers6.ver: Likewise.
+	* ld-elfvers/vers7a.ver: Likewise.
+	* ld-elfvers/vers8.ver: Likewise.
+	* ld-elfvers/vers9.ver: Likewise.
+	* ld-elfvers/vers15.ver: Likewise.
+	* ld-elfvers/vers16a.ver: Likewise.
+	* ld-elfvers/vers17.ver: Likewise.
+	* ld-elfvers/vers18.ver: Likewise.
+
+2001-05-03  H.J. Lu  <hjl@gnu.org>
+
+	* ld-elfvers/vers19.ver: Expect vers17.so instead of
+	*tmpdir/vers17.so.
+
+2001-05-01  Andreas Jaeger  <aj@suse.de>, Andreas Schwab <schwab@suse.de>
+
+	* ld-scripts/phdrs.exp: Fix regexp, s390x is 64 bit platform.
+
+	* ld-scripts/phdrs.t: Use startaddress that's greater than any
+	MAXPAGESIZE used.
+
+2001-04-29  H.J. Lu  <hjl@gnu.org>
+
+	* ld-shared/symbolic.dat: New.
+
+	* ld-shared/shared.exp: Also check -Bsymbolic.
+
+2001-04-28  Andreas Jaeger  <aj@suse.de>
+
+	* ld-scripts/phdrs.exp: x86-64 is a 64 bit ELF platform, handle it
+	special.
+
+2001-04-01  David O'Brien  <obrien@FreeBSD.org>
+	* ld-undefined/undefined.exp: XFAIL on FreeBSD/i386 for the usual (even
+	though it doesn't use DWARF2 yet (but its output is identical).
+
+2001-04-01  David O'Brien  <obrien@FreeBSD.org>
+
+	* ld-selective/selective.exp: Use -O with gcc rather than -O2.
+	This optimization level is buggy on some platforms, and this test
+	is not intended to test compiler optimizations.
+
+2001-03-06  DJ Delorie  <dj@redhat.com>
+
+	* ld-scripts/cross2.t: Support any type of text/data sections, not
+	just the canonical ones.
+
+2001-02-28  Matt Hiller  <hiller@redhat.com>
+
+	* ld-scripts/crossref.exp: Initialize flags to [big_or_little_endian].
+	* ld-undefined/undefined.exp: Ditto, and include $flags in ld
+	invocations.
+	* lib/ld-lib.exp (big_or_little_endian): Recognize -EB, -eb, -EL
+	and -el.
+	(is_endian_output_format): New function.
+	(default_ld_link): Set flags to [big_or_little_endian] only if ld
+	is being invoked such that the output format being used is of
+	known endianness.
+	(default_ld_simple_link): Ditto.
+
+2001-02-22  Timothy Wall  <twall@cygnus.com>
+
+	* ld-bootstrap/bootstrap.exp: Exclude ia64 flavor from
+	AIX-specific test.
+
+2001-02-14  H.J. Lu  <hjl@gnu.org>
+
+	* ld-bootstrap/bootstrap.exp: Rebuild tmpdir/ld2 with tmpdir/ld3
+	for -static on ia64.
+
+	* ld-checks/checks.exp: Don't run on ia64-*-elf* nor
+	ia64-*-linux*.
+
+	* ld-elfvers/vers.exp: Also run ia64-*-elf* and ia64-*-linux*.
+
+	* ld-elfvsb/elfvsb.exp: Use i?86-*-*. Also run on ia64-*-linux*.
+	Set up expected failures for ia64-*-linux*.
+	* ld-shared/shared.exp: Likewise.
+
+2001-02-08  Stephane Carrez  <Stephane.Carrez@worldnet.fr>
+
+	* ld-srec/srec.exp (run_srec_test): m6811 code has references
+	to soft registers, define them with --defsym.
+	* ld-selective/selective.exp: Likewise.
+
+2000-01-23  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* ld-srec/sr3.cc (__rethrow): New.
+
+2001-01-14  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-sh/sh.exp: Use --oformat srec, not -oformat srec.
+
+2001-01-03  Philip Blundell  <pb@futuretv.com>
+
+	* ld-elfvsb/elfvsb.exp: Run test on Linux/Alpha.
+	* ld-shared/shared.exp: Likewise.
+
+2001-01-01  Philip Blundell  <philb@gnu.org>
+
+	* ld-undefined/weak-undef.exp: New test.
+	* ld-undefined/weak-undef.s, ld-undefined/weak-undef.t: Supporting
+	files for above.
+
+	* ld-elfvers/vers.exp: Run test on Linux/ARM.
+	* ld-elfvsb/elfvsb.exp: Likewise.
+	* ld-shared/shared.exp: Likewise.
+
+2000-12-31  Nick Clifton  <nickc@redhat.com>
+
+	* ld-srec/srec.exp: Use --oformat instead of -oformat.
+
+2000-12-09  Nick Clifton  <nickc@redhat.com>
+
+	* ld-selective/selective.exp: Link in libgcc when target is v850.
+
+	* ld-srec/srec.exp: Expect the srec_test to fail for ARM targets
+	because the -oformat linker command switch cannot be used.
+
+2000-11-06  Alan Modra  <alan@linuxcare.com.au>
+
+	* ld-elfvsb/main.c (PROTECTED_CHECK): Include stdio.h.
+	(main): Prune unused args.
+
+2000-10-29  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-selective/selective.exp <no CXX>: Fix typo for argument to
+	"untested".
+
+2000-10-19  H.J. Lu  (hjl@gnu.org)
+
+	* ld-elfvsb/elfvsb.exp (visibility_run): Set expected failures
+	for Linux/PPC.
+	* ld-shared/shared.exp: Likewise.
+
+2000-10-09  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-selective/selective.exp: Rearrange to be table-driven.
+
+2000-10-07  Alan Modra  <alan@linuxcare.com.au>
+
+	* ld-scripts/phdrs.exp: hppa*64*-*-* is 64-bit ELF too.
+
+2000-10-02  Alan Modra  <alan@linuxcare.com.au>
+
+	* ld-scripts/weak.exp: Don't set $global$ for hppa-elf any more.
+	* ld-scripts/crossref.exp: Ditto.
+
+2000-09-29  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-selective/5.cc: New test.
+	* ld-selective/selective.exp: Run it as xfailed.
+
+	* ld-selective/4.cc: Correct spelling of "lose".
+
+2000-09-05  Alan Modra  <alan@linuxcare.com.au>
+
+	* ld-selective/selective.exp: Remove the xfails for hppa.
+
+2000-08-30  Alexandre Oliva  <aoliva@redhat.com>
+
+	* ld-undefined/undefined.exp (hppa*64*-*-*, mn10300-*-elf,
+	sh-*-*): With dwarf-2, `undefined function' can't pass.
+
+2000-08-03  H.J. Lu  (hjl@gnu.org)
+
+	* ld-bootstrap/bootstrap.exp: Add strip.
+
+2000-07-24  H.J. Lu  (hjl@gnu.org)
+
+	* ld-elfvsb/elfvsb.exp: Add -g to $CC to get the location of
+	the undefined reference.
+
+2000-07-16  H.J. Lu  (hjl@gnu.org)
+
+	* ld-elfvsb/elfvsb.exp (support_protected): New variable. Check
+	and set to "yes" if the protected visibility is expected to
+	pass.
+	(visibility_run): Set expected to fail for the "protected"
+	and "protected_undef_def" tests only if $support_protected is
+	"no".
+
+	* ld-elfvsb/main.c (PROTECTED_CHECK): Check for the protected
+	visibility support if defined.
+
+2000-07-15  H.J. Lu  (hjl@gnu.org)
+
+	* ld-elfvsb/elfvsb.exp (visibility_run): Set expected failure
+	for "protected_undef_def".
+
+	* ld-elfvsb/main.c: Don't define HIDDEN_UNDEF_TEST when
+	PROTECTED_WEAK_TEST is defined.
+	Don't define PROTECTED_UNDEF_TEST when PROTECTED_WEAK_TEST is
+	defined.
+	Define PROTECTED_TEST when PROTECTED_UNDEF_TEST is defined.
+
+	* ld-elfvsb/sh1.c (visibility): Mark protected only if
+	PROTECTED_TEST, PROTECTED_UNDEF_TEST or PROTECTED_WEAK_TEST
+	is defined.
+	(visibility_var): Likewise.
+
+2000-07-10  Alan Modra  <alan@linuxcare.com.au>
+
+	* ld-srec/srec.exp: xfail hppa.
+
+	* ld-scripts/weak.exp: Define $global$ for hppa.
+
+	* ld-scripts/crossref.exp: Fix string quoting.
+
+2000-06-05  H.J. Lu  (hjl@gnu.org)
+
+	* lib/ld-lib.exp (default_ld_link): Redirect the linker output
+	to link_output and make it global.
+
+	* ld-elfvsb/elfvsb.exp (visibility_test): Add "hidden_undef",
+	"hidden_undef_def", "hidden_weak", "protected_undef",
+	"protected_undef_def" and "protected_weak".
+	(visibility_run): Likewise.
+	* ld-elfvsb/main.c: Likewise.
+	* ld-elfvsb/sh1.c: Likewise.
+	* ld-elfvsb/sh2.c: Likewise.
+
+	* ld-elfvsb/elfvsb.dat: Updated.
+
+2000-05-21  H.J. Lu  (hjl@gnu.org)
+
+	* ld-elfvsb/main.c (main_visibility_check): Fix the protected
+	visibility test.
+
+2000-05-13  H.J. Lu  (hjl@gnu.org)
+
+	* lib/ld-lib.exp (default_ld_link): Redirect the linker output
+	to link_output and make it global.
+
+	* ld-elfvsb/elf-offset.ld: New. ELF visibility fearture
+	tests.
+	* ld-elfvsb/elfvsb.dat: Likewise.
+	* ld-elfvsb/elfvsb.exp: Likewise.
+	* ld-elfvsb/main.c: Likewise.
+	* ld-elfvsb/sh1.c: Likewise.
+	* ld-elfvsb/sh2.c: Likewise.
+
+Fri Apr 21 15:16:07 2000  Richard Henderson  <rth@cygnus.com>
+
+	* ld-scripts/phdrs.exp: IA-64 is 64-bit ELF too.
+
+2000-04-12  Alan Modra  <alan@linuxcare.com.au>
+
+	* ld-selective/3.cc (_start): Add cheat for gcc-2.95.2 failure.
+
+	* ld-selective/selective.exp (test4): Test for presence of
+	foo__1B, not absence.  Also check for foo__1A and _start.
+	White space changes throughout file.
+
+2000-03-13  Nick Clifton  <nickc@cygnus.com>
+
+	* ld-scripts/phdrs.t: Discard all unexpected sections.
+
+2000-02-27 H.J. Lu  (hjl@gnu.org)
+
+	* lib/ld-lib.exp (default_ld_link): Added "$LIBS" to libs.
+
+1999-11-01  Nick Clifton  <nickc@cygnus.com>
+
+	* ld-selective/selective.exp: Fix test to disable these checks for
+	PE based targets.
+
+1999-10-29  Catherine Moore  <clm@cygnus.com>
+
+	* ld-selective/selective.exp:  Remove test6.
+	* ld-selective/5.cc: Delete.
+
+1999-10-28  Scott Bambrough  <scottb@netwinder.org>
+
+	* ld-srec/srec.exp: Setup expected failures for
+	srec tests on ARM Linux.
+
+1999-09-17  Alan Modra  <alan@spri.levels.unisa.edu.au>
+
+	* ld-shared/shared.exp: xfail linux*libc1 shared (non PIC, load
+	offset) test.
+
+1999-09-12  Ian Lance Taylor  <ian@zembu.com>
+
+	* ld-scripts/script.exp: Add --image-base 0 for PE targets.
+
+1999-08-17  H.J. Lu  <hjl@gnu.org>
+
+	* ld-cdtest/cdtest-foo.cc (Foo::init_foo): Use "%ld" for sizeof.
+
+1999-08-09  Jakub Jelinek  <jj@ultra.linux.cz>
+
+	* ld-elfvers/vers.exp: Run tests on sparc*-*-linux*.
+	* ld-shared/shared.exp: Likewise.
+
+1999-07-28  Nick Clifton  <nickc@cygnus.com>
+
+	* lib/ld-lib.exp (proc big_or_little_endian): New proc.
+	Determine if a big endian or little endian output format hass
+	been selected by any of the multilib options, and if so return
+	a suitable command line option for the linker/assembler.
+	(proc default_ld_link): Include the result of proc
+	big_or_little_endian on the command line to the linker.
+	(proc ld_simple_link): Include the result of proc
+	big_or_little_endian on the command line to the linker.
+	(proc default_ld_compile): Append multilib flags to compiler
+	switches.
+	(proc default_ld_assemble): Include the result of proc
+	big_or_little_endian on the command line to the linker.
+
+1999-07-21  H.J. Lu  <hjl@gnu.org>
+
+	* ld-elfvers/vers1.c: Add missing prototypes and include
+	<stdio.h> if necessary.
+	* ld-elfvers/vers15.c: Likewise.
+	* ld-elfvers/vers19.c: Likewise.
+	* ld-elfvers/vers2.c: Likewise.
+	* ld-elfvers/vers3.c: Likewise.
+	* ld-elfvers/vers4.c: Likewise.
+	* ld-elfvers/vers6.c: Likewise.
+	* ld-elfvers/vers7.c: Likewise.
+	* ld-elfvers/vers9.c: Likewise.
+	* ld-shared/main.c: Likewise.
+	* ld-srec/sr3.cc (Foo::Foo): Remove arg name.
+
+Thu Jul 15 18:00:30 1999  Mark P. Mitchell  <mark@codesourcery.com>
+
+	* ld-undefined/undefined.exp: XFAIL on IRIX6 for the usual as
+	with other DWARF2 targets.
+
+1999-07-13  Nick Clifton  <nickc@cygnus.com>
+
+	* ld-undefined/undefined.exp: Do not expect arm toolchains to fail
+	the undefined line test.
+
+1999-07-10  Ian Lance Taylor  <ian@zembu.com>
+
+	* ld-elfvers/vers.exp: Use -rpath in new vers19 test.
+
+1999-07-07  Ian Lance Taylor  <ian@zembu.com>
+
+	* ld-elfvers/vers.exp: Add new tests vers17 to vers19.
+	* ld-elfvers/{vers17.*, vers18.*, vers19.*}: New files.
+
+1999-06-13  Ian Lance Taylor  <ian@zembu.com>
+
+	* ld-checks/asm.s: Use a symbol name for .lcomm.
+	* ld-checks/checks.exp: Use different names for the two tests.
+	Don't add extra text when invoking fail.
+
+1999-06-12  Ian Lance Taylor  <ian@zembu.com>
+
+	* ld-scripts/phdrs.exp: Change target check from "*-*-linuxaout*"
+	to "*-*-linux*aout*".
+	* ld-scripts/weak.exp: Likewise.
+	* ld-shared/shared.exp: Likewise.  Simplify condition a bit.
+
+Wed Jun  9 12:02:33 1999  Andreas Schwab  <schwab@issan.cs.uni-dortmund.de>
+
+	* ld-cdtest/cdtest-main.cc: Avoid `implicit int' warning.
+	* ld-shared/sh1.c: Fix typo.
+
+1999-06-04  H.J. Lu  <hjl@gnu.org>
+
+	* lib/ld-lib.exp (default_ld_nm): Clear nm_output first if
+	necessary.
+
+1999-05-17  Nick Clifton  <nickc@cygnus.com>
+
+	* ld-undefined/undefined.exp: Add xfail for mcore-elf.
+
+1999-05-11  DJ Delorie  <dj@cygnus.com>
+
+	* ld-srec/srec.exp: Do not run tests for PE based ports.
+
+1999-03-05  Nick Clifton  <nickc@cygnus.com>
+
+	* ld-selective/selective.exp: Do not run tests for COFF or PE
+	based ports.
+
+1999-02-17  Nick Clifton  <nickc@cygnus.com>
+
+	* ld-undefined/undefined.exp: Add expected failures for StrongARM
+	targets.
+
+	* ld-srec/srec.exp: Add expected failures for StrongARM targets.
+
+	* ld-selective/selective.exp: Add expected failure for ARM-COFF
+	targets.
+
+1999-02-16  Nick Clifton  <nickc@cygnus.com>
+
+	* ld-checks/asm.s: Use .long instead of .word.
+	Replace custom section names with .text, .data and .bss.
+	* ld-checks/script: Replace custom section names with .text, .data
+	and .bss.
+	* ld-checks/checks.exp: Replace custom section names with .text,
+	.data and .bss.
+
+1999-02-11  Nick Clifton  <nickc@cygnus.com>
+
+	* ld-checks: New directory:  Tests for the linker's
+	--check-sections option.
+	* ld-checks/checks.exp: New file.
+	* ld-checks/script: Bogus linker script.
+	* ld-checks/asm.s: Simple test assembler file.
+
+Tue Feb  2 19:15:02 1999  Catherine Moore  <clm@cygnus.com>
+
+	* ld-selective/selective.exp:  Disable test for unsupported
+	targets.  Change tests to check for absence of symbols instead
+	of address zero.
+
+Mon Jan 18 03:44:52 1999  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/default.exp (get_link_files): Quote target_triplet and CC
+	when invoking shell.
+	(get_target_emul): Likewise.
+
+1999-01-03  Ken Raeburn  <raeburn@cygnus.com>
+
+	* config/default.exp (get_link_files, get_target_emul): New procs;
+	run shell commands to extract information from configure.host and
+	configure.tgt in the source tree.
+	(top level): Use them to get information needed to run tests, if
+	not otherwise provided.
+
+	* ld-shared/elf-offset.ld: New file.  Builds a shared library, but
+	gives non-zero addresses for memory region.
+	* ld-shared/shared.exp: Run the non-PIC non-AIX test again using
+	the new linker script.
+
+Tue Dec  8 22:56:05 1998  Geoff Keating  <geoffk@ozemail.com.au>
+
+	* ld-srec/srec.exp: Delete xfails for PPC Linux targets,
+	newer glibc lets link succeed.
+
+Sun Dec  6 12:59:37 1998  H.J. Lu  <hjl@gnu.org>
+
+	* ld-elfvers/vers1.c: Add missing return types and values.
+	* ld-elfvers/vers2.c: Likewise.
+	* ld-elfvers/vers3.c: Likewise.
+	* ld-elfvers/vers4.c: Likewise.
+	* ld-elfvers/vers5.c: Likewise.
+	* ld-elfvers/vers6.c: Likewise.
+	* ld-elfvers/vers7.c: Likewise.
+	* ld-elfvers/vers9.c: Likewise.
+	* ld-elfvers/vers15.c: Likewise.
+
+Fri Oct 23 16:28:29 1998 Catherine Moore  <clm@cygnus.com>
+
+	* ld-selective: New directory with new files to test
+	selective linking.
+
+	* lib/ld-lib.exp (ld_nm): Strip leading underscore from $name.
+
+Sun Oct  4 22:17:05 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-elfvers/vers16.dsym: Work correctly on a system without
+	versioned system libraries.
+
+Mon Sep 28 21:31:12 1998  Richard Henderson  <rth@cygnus.com>
+
+	* ld-elfvers/vers.exp: Run tests on alpha-linux.
+	* ld-elfvers/*.sym, ld-elfvers/*.dsym: Adjust patters to match
+	Alpha's use of st_other.
+
+1998-09-27  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* ld-elfvers/vers.exp (vers16, vers16a): New tests.
+	* ld-elfvers/{vers16.*, vers16a.*}: New files.
+
+Thu Sep 17 17:18:19 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* ld-undefined/undefined.exp: Make undefined line test be an xfail
+	for arm/thunb elf toolchains.
+
+Wed Sep  9 14:10:15 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* ld-undefined/undefined.exp: change test for elf/dwarf2 targets.
+
+	* ld-srec/srec.exp: Arm-elf now passes this test.
+
+Wed Aug 19 11:59:19 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* ld-srec/srec.exp: Add arm/thumb-elf expected failures.
+
+Thu Aug 13 12:41:58 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-bootstrap/bootstrap.exp: Don't run the --static bootstrap
+	test if we don't have a static libbfd.a.
+
+Wed Aug 12 15:19:35 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	Based on patch from H.J. Lu <hjl@gnu.org>:
+	* ld-srec/srec.exp: Add xfails for Alpha ELF targets.
+
+Mon Aug 10 15:42:20 1998  Richard Henderson  <rth@cygnus.com>
+
+	* ld-scripts/weak.t (.text, .data): Focus data to be used.
+	(/DISCARD/): All the rest.
+	* ld-scripts/weak1.s, ld-scripts/weak2.s: Put stuff in .data.
+
+Fri Jul 24 18:37:17 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/default.exp: Create tmpdir/gas subdirectory, add a
+	symlink to as-new, and set gcc_gas_flag variable.
+	* lib/ld-lib.exp (default_ld_compile): If the compiler appears to
+	be gcc, use gcc_gas_flag when compiling.
+
+Thu Jul 23 12:23:29 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-elfvers/vers.exp: Just check for i?86 rather than checking
+	for i386, i486, and i586.
+	(objdump_versionstuff): If we can't find the line, dump the file.
+
+Fri Jul  3 00:27:41 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-scripts/phdrs.exp: Run test on *-*-eabi*.
+	* ld-scripts/weak.exp: Likewise.
+
+Wed Jul  1 10:51:46 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* ld-srec/srec.exp: Add xfail for v850.
+
+	* ld-undefined/undefined.exp: arm and thumb PE toolchains now pass
+	these tests.
+
+Fri Jun 19 17:12:52 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-scripts/weak.exp: New test.
+	* ld-scripts/weak.t: New file.
+	* ld-scripts/weak1.s: New file.
+	* ld-scripts/weak2.s: New file.
+
+Tue Jun 16 12:40:38 1998  Geoff Keating  <geoffk@ozemail.com.au>
+
+	* ld-elfvers/vers.exp: Run tests on powerpc ELF targets.
+	* ld-shared/shared.exp: Likewise.
+	* ld-elfvers/vers1.dsym: Allow for .sdata.
+	* ld-srec/srec.exp: Add setup_xfails for PowerPC Linux.
+
+Fri May 29 15:02:50 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-srec/srec.exp: Add xfails for powerpc*-*-eabi.
+	(run_srec_test): On mn10200, define __truncsipsi2_do_d2.
+	* ld-srec/sr1.c (__main): Change return type to void.
+	* ld-srec/sr3.cc (__main): Likewise.
+	(__builtin_delete, __builtin_new): Likewise.
+	(__get_dynamic_handler_chain): Return 0.
+	(__get_eh_context): Likewise.
+
+Thu May 21 15:21:33 1998  Nick Clifton  <nickc@cygnus.com>
+
+	* ld-undefined/undefined.exp: Add support for thumb-pe target.
+	* ld-srec/srec.exp: Add support for arm-pe and thumb-pe targets.
+
+Mon May  4 17:54:20 1998  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* ld-shared/shared.exp: Remove setup_xfails for m68k-linux.
+
+Mon May  4 17:12:06 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-shared/main.c (shlib_overriddencall2): New function.
+	(main): Call shlib_shlibcall2.
+	* ld-shared/sh1.c (shlib_shlibcall2): New function.
+	(shlib_overriddencall2): New function.
+	* ld-shared/shared.dat: Add output line for new test.
+	* ld-shared/sun4.dat: Likewise.
+
+	* ld-srec/sr3.cc (__get_eh_context): New function.
+
+Tue Apr  7 12:50:17 1998  Manfred Hollstein  <manfred@s-direktnet.de>
+
+	* ld-cdtest/cdtest-foo.h (class Foo): Declare len to be static to
+	avoid compiler warning.
+	* ld-srec/sr3.cc (class Foo): Likewise.
+
+Tue Feb 10 16:42:40 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-srec/sr3.cc (__get_dynamic_handler_chain): New function.
+
+Mon Feb  2 14:17:48 1998  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-scripts/phdrs.exp: Adjust phdrs_regexp for a 64 bit target.
+
+Thu Dec 18 11:13:28 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* ld-srec/srec.exp: Duplicated Arm patch for Thumb targets.
+
+Tue Dec  2 09:50:19 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* ld-srec/srec.exp: Applied patch from Tony.Thompson@arm.com which
+	fixes ARM tests.
+
+Mon Dec  1 16:12:05 1997  Nick Clifton  <nickc@cygnus.com>
+
+	* ld-srec/srec.exp: Add expected failures of tests 1 and 2 for ARM
+	coff targets.
+
+Wed Nov 12 14:18:31 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-cdtest/cdtest-foo.h (class Foo): Declare len to be int to
+	avoid compiler warning.
+	* ld-srec/sr3.cc (class Foo): Likewise.
+
+Mon Nov 10 14:25:43 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* lib/ld-lib.exp (default_ld_simple_link): Permit the linker to
+	have any name when looking for entry symbol warnings.
+
+	* ld-srec/sr3.cc (__eh_pc): Define.
+
+Mon Oct 20 14:36:39 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-srec/sr3.cc: Add definitions for terminate, __terminate, and
+	__throw, since the current g++ expects them to be defined.
+
+Fri Oct  3 12:24:03 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-elfvers/vers.exp (objdump_emptyverstuff): Accept the output
+	file if the string libc appears in it.
+	(objdump_versionstuff): Accept unexpected lines in the output
+	file.  Compare lines using string match.
+	* ld-elfvers/vers6.ver: Permit any value in the vna_other field.
+
+Tue Aug 12 16:01:22 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-scripts/crossref.exp: Correct string quoting.
+
+Sat Aug  9 00:56:03 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/default.exp: Change ld, as, nm and strip from .new to
+	-new.  Load ld-lib.exp rather than ld.exp.
+	* ld-bootstrap/bootstrap.exp: Use ld-new rather than ld.new.
+	* lib/ld-lib.exp: Rename from lib/ld.exp, for the benefit of
+	DejaGnu changes.
+
+Thu Jun 26 12:07:03 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-elfvers/vers.exp: Use egrep rather than grep when looking for
+	an alternation.  From Greg Margo <gmargo@dl.com>.
+
+Wed Jun 25 12:47:22 1997  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* ld-shared/shared.exp: Add setup_xfail for m68k-linux on tests
+	with non PIC shared libraries.
+
+Fri Jun  6 17:35:47 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-elfvers/vers6.ver: Update for recent elflink.h patch to
+	version handling.
+
+Wed Jun  4 12:06:48 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-srec/srec.exp: Define ___get_dynamic_handler_chain as well.
+
+Fri May 30 12:21:39 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-srec/srec.exp: Define __get_dynamic_handler_chain when
+	linking.
+
+Mon May 12 11:17:55 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/default.exp: Use $base_dir rather than $objdir when
+	setting ld.  From John David Anglin <dave@hiauly1.hia.nrc.ca>.
+
+Fri Apr 25 09:07:00 1997  Jeffrey A Law  (law@cygnus.com)
+
+	* ld-srec/srec.exp: Define various out of line prologue/epilogue
+	functions for the mn10200 to avoid needing libgcc.a.
+
+Wed Mar 26 13:56:10 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-srec/srec.exp: Don't expect failures on mips*-*-elf*.
+
+Mon Mar 17 19:27:13 1997  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-elfvers/vers.exp: Don't run on SunOS or AIX.
+
+Wed Mar 12 21:44:19 1997  Eric Youngdale  <eric@andante.jic.com>
+
+	* ld-elfvers/vers.exp, *: New tests for symbol versioning.
+	* config/default.exp: Set ar and strip.
+
+Fri Feb  7 16:47:02 1997  Bob Manson  <manson@charmed.cygnus.com>
+
+	* ld-bootstrap/bootstrap.exp: Use prune_warnings instead of
+	prune_system_crud.
+	* ld-cdtest/cdtest.exp: Ditto.
+	* ld-scripts/crossref.exp: Ditto.
+	* ld-sh/sh.exp: Ditto.
+	* ld-shared/shared.exp: Ditto.
+	* ld-srec/srec.exp: Ditto.
+	* lib/ld.exp: Ditto.
+
+Wed Jan 29 00:47:29 1997  Bob Manson  <manson@charmed.cygnus.com>
+
+	* ld-cdtest/cdtest.exp: Put a slash between $srcdir/$subdir.
+	* ld-scripts/script.exp: Ditto.
+	* ld-sh/sh.exp: Ditto.
+	* ld-undefined/undefined.exp: Ditto.
+	* ld-versados/versados.exp: Ditto.
+	* lib/ld.exp: Ditto.
+
+Mon Dec 30 17:08:04 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-scripts/crossref.exp: Fix quoting for --defsym $global$.
+
+Tue Oct  1 15:52:31 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* lib/ld.exp (default_ld_version): Fix for current version
+	printing.
+
+Fri Sep 13 15:51:45 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-scripts/crossref.exp: Define $global$ for hppa-elf.
+
+Thu Aug  8 14:29:32 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-scripts/cross2.t: Map XCOFF sections to .text or .data.
+
+	* lib/ld.exp: Use verbose -log instead of calling both verbose and
+	send_log.
+
+Wed Aug  7 18:00:58 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-scripts/phdrs.exp: New test.
+	* ld-scripts/phdrs.s, ld-scripts/phdrs.t: New files.
+
+Sun Aug  4 21:58:12 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-scripts/crossref.exp: On a29k targets, use --defsym to define
+	V_SPILL and V_FILL.
+
+Thu Aug  1 14:10:27 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-scripts/crossref.exp: New test.
+	* ld-scripts/{cross1.c, cross2.c, cross3.c}: New files.
+	* ld-scripts/{cross1.t, cross2.t}: New files.
+
+Sat Jun 29 13:40:11 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-sh/sh.exp: Fix debugging messages.
+	* ld-sh/sh1.s: Use .align 4.
+
+Wed May  1 16:45:13 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-sh/sh.exp: Use -O when compiling with -mrelax.
+
+Mon Apr 29 10:33:10 1996  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+	* ld-shared/shared.exp: Run the shared library tests on
+	Linux/m68k.
+
+Fri Apr  5 16:20:55 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-shared/shared.exp: Run the shared library tests on Linux.
+
+Mon Feb 26 12:45:26 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-shared/shared.exp: Don't use -fpic on MIPS targets.
+
+Wed Jan 31 15:09:57 1996  Jeffrey A Law  (law@cygnus.com)
+
+	* ld-srec/srec.exp: Add xfails for hppa*-*-*elf*.
+	* ld-undefined/undefined.exp: Likewise.
+
+Fri Jan 26 18:43:03 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-undefined/undefined.exp: ELF targets should now pass the
+	undefined line test.
+
+Thu Jan 25 15:36:13 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-empic/empic.exp: Update for change to MIPS disassembler.
+
+Mon Jan 15 15:05:53 1996  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-bootstrap/bootstrap.exp: Expect failure for mips*-*-irix5*
+	when doing the --static test.
+	* ld-shared/shared.exp: Run tests on mips*-*-irix5*.
+
+Fri Dec 29 12:33:09 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-bootstrap/bootstrap.exp: On AIX, don't pass the -bI option
+	when creating ld-partial.o.
+
+Tue Dec 26 17:37:23 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-srec/srec.exp: If powerpc*-*-eabi*, use --defsym to define
+	__eabi.
+
+Tue Dec 19 18:01:01 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-srec/srec.exp: Add setup_xfails for XCOFF targets.
+
+Fri Dec 15 16:36:17 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-srec/srec.exp: On a29k targets, use --defsym to define
+	V_SPILL and V_FILL.
+	* ld-srec/sr1.c (V_SPILL, V_FILL): Remove definitions.
+	* ld-srec/sr3.cc: Likewise.
+
+	* ld-srec/srec.exp: Remove i960 COFF setup_xfail.
+
+Sat Dec  2 01:20:31 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-srec/srec.exp: Don't use [] in setup_xfail expressions.
+
+Fri Dec  1 13:18:18 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-srec/srec.exp: Add setup_xfails for MIPS ELF targets.
+
+Wed Nov 29 13:01:10 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-srec/srec.exp: Add setup_xfail for i960 COFF targets.
+
+Mon Nov 27 14:36:11 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-srec/srec.exp: Add setup_xfail calls for i[345]86-*-aout*.
+
+	* ld-srec/sr1.c (V_SPILL, V_FILL): Define.
+	* ld-srec/sr3.cc: Likewise.
+
+Tue Nov 21 16:05:53 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-empic/empic.exp: Update for changes in objdump output.
+
+Wed Nov 15 17:42:48 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-srec/srec.exp: New tests.
+	* ld-srec/sr1.c, ld-srec/sr2.c, ld-srec/sr3.cc: New files.
+	* lib/ld.exp (ld_simple_link): Discard warnings about not being
+	able to find the entry symbol.
+
+Tue Nov 14 20:03:54 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-sh/sh2.c (__main): Define.
+
+Mon Nov  6 14:39:18 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-empic/empic.exp: Accept a . in the address symbol.
+
+	* ld-shared/shared.exp: Run tests on rs6000*-*-aix* and
+	powerpc*-*-aix*.  Add code to create appropriate exports files,
+	and pass appropriate compilation flags, and test against
+	appropriate expected output.
+	* ld-shared/xcoff.dat: New file.
+	* ld-shared/main.c: Put #ifndef XCOFF_TEST around tests that can
+	not be linked using XCOFF.  Use shlib_shlibvar1 as a sample
+	function pointer, rather than shlib_mainvar.
+	* ld-shared/sh1.c: Likewise.
+	* ld-shared/shared.dat: Update for change from using shlib_mainvar
+	to using shlib_shlibvar1.
+	* ld-shared/sun4.dat: Likewise.
+
+Sat Oct 28 01:54:25 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-scripts/script.t: Put .pr in .text, and .rw in .data, for
+	convenience when testing XCOFF.
+
+Thu Oct 26 22:53:17 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-bootstrap/bootstrap.exp: On AIX, pass -bI/lib/syscalls.exp
+	along with --static.
+
+	* ld-scripts/script.s: Make symbols global.
+
+Fri Oct 20 12:22:16 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-undefined/undefined.exp: Add setup_xfails for arm*-*-pe*.
+
+Fri Sep 29 11:06:10 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-undefined/undefined.exp: Use -e when invoking the linker, to
+	prevent the SunOS linker from trying to create a shared library.
+
+Thu Sep 28 12:37:14 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-shared/shared.exp: Run the tests on sparc*-*-sunos4*.  Add
+	appropriate modifications and setup_xfails.
+	* ld-shared/sun4.dat: New file.
+
+Mon Sep 18 14:12:56 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* lib/ld.exp (default_ld_version): Call prune_system_crud.
+	(default_ld_relocate, default_ld_link): Likewise.
+	(default_ld_simple_link, default_ld_compile): Likewise.
+	(default_ld_assemble, default_ld_nm): Likewise.
+
+Fri Sep  8 17:15:38 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-cdtest/cdtest.exp: If the compiler does not exist, mark the
+	tests as untested rather than unresolved.
+
+Wed Aug 23 10:46:38 1995  Ian Lance Taylor  (ian@cygnus.com)
+
+	* ld-sh/sh.exp: Call prune_system_crud on the output of cmp.
+
+Tue Aug 15 17:35:35 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-scripts/script.exp: Split script verification into a proc.
+	Add simple test of MRI script.
+	* ld-scripts/scriptm.t: New file.
+
+Wed Jul 26 11:38:58 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-sh/sh.exp: Mark `SH confirm relaxing' test unresolved when
+	appropriate.
+
+Mon Jul 24 15:34:31 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* config/default.exp: Define objcopy if it is not defined.
+	* ld-sh/*: New tests for SH relaxing.
+
+	* ld-empic/empic.exp: If $CC does not exist, call untested rather
+	than unresolved.
+
+Thu Jul 20 15:09:26 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-undefined/undefined.exp: If $CC does not exist, mark the
+	tests as untested rather than unresolved.  Clear ELF xfails for
+	mips*, not just mips.
+
+Tue Jul 18 12:00:41 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-undefined/undefined.exp: Add setup_xfail for sh-*-* for
+	undefined line test.
+
+Fri Jul 14 13:07:48 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-undefined/undefined.exp: New test, to check reporting of
+	undefined symbols.
+	* ld-undefined/undefined.c: New file.
+
+Mon Jul 10 11:13:39 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-versados/versados.exp: If a test fails, report it correctly:
+	don't try to run the next test, and don't report a pass as well as
+	a fail.
+
+Mon Jul  3 14:26:37 1995  Steve Chamberlain  <sac@slash.cygnus.com>
+
+	* versados/(t1,t2).ld: End in newlines.
+
+Mon May 22 20:19:38 1995  Ken Raeburn  <raeburn@cujo.cygnus.com>
+
+	* lib/ld.exp (default_ld_compile): If cc argument is multiple
+	words, use only the first when trying to verify the availability
+	of the compiler.
+
+Mon Feb  6 11:46:49 1995  Ian Lance Taylor  <ian@cygnus.com>
+
+	* ld-scripts/defined.t: Mention .data and .bss explicitly.
+
+Tue Jan 24 14:51:48 1995  Ian Lance Taylor  <ian@sanguine.cygnus.com>
+
+	* ld-bootstrap/bootstrap.exp: If not in the ld build directory,
+	call untested for each test, rather than ignoring it.  If one test
+	fails, go on to the next one instead of returning.
+	* ld-cdtest/cdtest.exp: If compilations fail, mark tests as
+	unresolved.
+	* ld-empic/empic.exp: Likewise.  Also, always pass the same test
+	name to pass or fail.
+	* ld-shared/shared.exp: Likewise.  Also, always run all tests.
+	* ld-scripts/defined.exp: If as or nm fail, mark test as
+	unresolved.  Always pass the same test name to pass or fail.
+	* ld-scripts/script.exp: Likewise.
+	* ld-scripts/sizeof.exp: Likewise.
+
+Wed Jan 11 11:48:31 1995  Ian Lance Taylor  <ian@sanguine.cygnus.com>
+
+	* ld-scripts/sizeof.exp: New test, based on bug report from
+	anders.blomdell@control.lth.se.
+	* ld-scripts/sizeof.s: New file.
+	* ld-scripts/sizeof.t: New file.
+
+Wed Jan  4 18:56:27 1995  Ian Lance Taylor  <ian@sanguine.cygnus.com>
+
+	* lib/ld.exp: Use [which $ld] rather than [file exists $ld] to see
+	if the linker exists.
+
+Wed Dec 14 16:39:03 1994  Ken Raeburn  <raeburn@cujo.cygnus.com>
+
+	* lib/ld.exp (prune_system_crud): Define if not already defined,
+	in case the user isn't using the newest DejaGnu version that we
+	haven't released to the net yet.
+
+Fri Dec  2 14:17:02 1994  Ian Lance Taylor  <ian@rtl.cygnus.com>
+
+	* config/default.exp: Define objdump if it is not defined.
+	* ld-empic/*: New tests to test -membedded-pic code.
+
+Mon Nov 28 11:24:36 1994  Ian Lance Taylor  <ian@sanguine.cygnus.com>
+
+	* ld-bootstrap/bootstrap.exp: Pass cmp output through
+	prune_system_crud.
+	* ld-cdtest/cdtest.exp: Pass diff output through
+	prune_system_crud.
+	* ld-shared/shared.exp: Likewise.
+
+	* config/default.exp: Remove unused and useless proc ld_load.
+
+Sun Oct 30 13:02:34 1994  Ian Lance Taylor  <ian@sanguine.cygnus.com>
+
+	* lib/ld.exp (default_ld_compile): Remove the output file before
+	compiling.
+
+	* ld-shared/shared.exp: Move common test code into a procedure.
+	Add tests for compiling the non shared code PIC.
+	* ld-shared/main.c (main): Call main_called, and print the result.
+	* ld-shared/shared.dat: Adjust accordingly.
+
+Thu Oct 27 17:30:12 1994  Ian Lance Taylor  <ian@sanguine.cygnus.com>
+
+	* ld-shared: New directory, with new files to test generating ELF
+	shared libraries.
+
+	* lib/ld.exp (default_ld_compile): If the compilation worked, but
+	no object file was created, check to see if the compiler foolishly
+	ignored the -o switch when compiling, and move the resulting
+	object if it did.
+
+Thu Sep 29 12:36:51 1994  Ian Lance Taylor  (ian@sanguine.cygnus.com)
+
+	* VMS does not permits `.' in directory names.  Renamed
+	ld.bootstrap to ld-bootstrap, ld.cdtest to ld-cdtest, and
+	ld.scripts to ld-scripts.
+
+Wed Sep 28 12:18:54 1994  Ian Lance Taylor  (ian@sanguine.cygnus.com)
+
+	* config/default.exp: Set variables as and nm.  Create tmpdir if
+	it does not already exist.
+	* ld.bootstrap/bootstrap.exp: Don't create tmpdir here.
+	* ld.cdtest/cdtest.exp: Likewise.
+	* ld.scripts/defined.exp: Likewise.  Also, don't set as and nm
+	here.  Change perror for no variables found to fail.
+	* ld.scripts/script.exp: New test.
+	* ld.scripts/script.t, ld.scripts/script.s: New files.
+
+Tue Sep 27 14:59:51 1994  Ian Lance Taylor  (ian@sanguine.cygnus.com)
+
+	* ld.scripts: New directory.
+	* ld.scripts/defined.exp, ld.scripts/defined.s: New files.
+	* ld.scripts/defined.t: New file.
+	* lib/ld.exp (default_ld_simple_link): New function.
+	(default_ld_assemble, default_ld_nm): New functions.
+	* config/default.exp: Rename from unix-ld.exp.
+	(ld_simple_link, ld_assemble, ld_nm): New functions.
+
+	* config/unix-ld.exp: Set ld using findfile.
+	* lib/ld.exp (default_ld_relocate): Return a value.  Change format
+	of log messages.
+	(default_ld_compile): Likewise.
+	(default_ld_link): Likewise.  Also, don't include $BFDLIB and
+	$LIBIBERTY in link.
+	* ld.bootstrap/bootstrap.exp: Rewrite.
+	* ld.cdtest/cdtest.exp: Rewrite.
+	* ld.cdtest/cdtest-foo.cc: Update from top level ld directory.
+	* ld.cdtest/cdtest-foo.h: Likewise.
+	* ld.cdtest/cdtest-main.cc: Likewise.
+
+Fri May 27 09:35:04 1994  Ken Raeburn  (raeburn@cygnus.com)
+
+	* ld.cdtest/cdtest.exp: Don't look for $result before it's
+	defined.
+
+Tue May 17 15:06:49 1994  Bill Cox  (bill@rtl.cygnus.com)
+
+	* ld.bootstrap/bootstrap.exp, lib/ld.exp: Replace error proc
+	calls with perror calls.
+
+Wed May 11 16:47:46 1994  Ken Raeburn  (raeburn@rtl.cygnus.com)
+
+	* ld.cdtest/cdtest-bar.cc: Renamed from cdtest-func.cc.
+	* ld.cdtest/cdtest.exp: Adjusted.
+
+Fri Jan 28 13:25:41 1994  Ken Raeburn  (raeburn@cujo.cygnus.com)
+
+	* lib/ld.exp (simple_diff): Indicate failure if files have
+	different numbers of lines.  Don't muck with $differences to avoid
+	indicating a pass, just return.
+
+	* ld.cdtest/{cdtest-foo.h,cdtest-foo.cc,cdtest-main.cc}:
+	Fix test case to be valid ANSI C++.  Don't require use of header
+	files, so "../gcc/xgcc -B../gcc/" can be used for CXX.
+	* ld.cdtest/cdtest.exp: Combine "rm" lines.  Add some
+	commentary on things that are still broken with this test case.
+
+Fri Sep 10 09:58:23 1993  Jeffrey Wheat  (cassidy@cygnus.com)
+
+	* ld.cdtest/cdtest.exp: Added CXXFLAGS to compile stage.
+
+Thu Aug 12 16:05:37 1993  Jeffrey Wheat  (cassidy@cygnus.com)
+
+	* lib/ld.exp: add compiler and linker support
+	* config/unix-ld.exp: add compiler and linker support
+	* ld.bootstrap/bootstrap.exp: fixed to do partial links
+	* ld.cdtest/cdtest.exp: constructor/destructor testscase
+
+Wed Aug  4 21:00:18 1993  Jeffrey Wheat  (cassidy@cygnus.com)
+
+	* lib/ld.exp: new file
+	* config/unix-ld.exp: new file
+	* ld.bootstrap/bootstrap.exp: new file
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

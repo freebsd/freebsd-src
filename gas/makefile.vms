@@ -1,0 +1,115 @@
+#
+# makefile for gas
+#
+# Created by Klaus K"ampf, kkaempf@progis.de
+#
+CC=gcc
+ifeq ($(ARCH),ALPHA)
+ifeq ($(CC),gcc)
+DEFS=
+CFLAGS=/include=([],[-.bfd],[.config],[-.include],[-])$(DEFS)
+LFLAGS=
+LIBS=,GNU_CC_LIBRARY:libgcc/lib,sys$$library:vaxcrtl.olb/lib,GNU_CC_LIBRARY:crt0.obj
+else
+DEFS=/define=("table_size_of_flonum_powers_of_ten"="tabsiz_flonum_powers_of_ten",\
+"_bfd_generic_get_section_contents_in_window"="_bfd_generic_get_win_section_cont",\
+"_elf_section_from_bfd_section"="_bfd_elf_sec_from_bfd_sec","const=")
+CFLAGS=/noopt/nodebug/include=([],[-.bfd],[.config],[-.include],[-])$(DEFS)\
+/warnings=disable=(missingreturn,implicitfunc,ptrmismatch,undefescap,longextern,duptypespec)
+LFLAGS=
+LIBS=,sys$$library:vaxcrtl.olb/lib
+endif
+
+else	# ARCH not ALPHA
+
+ifeq ($(CC),gcc)
+DEFS=
+CFLAGS=/include=([],[.config],[-.include],[-])$(DEFS)
+LFLAGS=
+LIBS=,GNU_CC_LIBRARY:libgcc/lib,sys$$library:vaxcrtl.olb/lib,GNU_CC_LIBRARY:crtbegin.obj,GNU_CC_LIBRARY:crtend.obj
+#LIBS=,gnu_cc:[000000]gcclib.olb/lib,sys$$library:vaxcrtl.olb/lib
+else
+error DECC is broken on VAX
+DEFS=/define=("table_size_of_flonum_powers_of_ten"="tabsiz_flonum_powers_of_ten","const=")
+CFLAGS=/noopt/debug/include=([],[.config],[-.include],[-])$(DEFS)\
+/warnings=disable=(missingreturn,implicitfunc,ptrmismatch,undefescap,longextern,duptypespec)
+LFLAGS=
+LIBS=,sys$$library:vaxcrtl.olb/lib
+endif
+endif
+
+
+OBJS=targ-cpu.obj,obj-format.obj,atof-targ.obj,app.obj,as.obj,atof-generic.obj,\
+  bignum-copy.obj,cond.obj,depend.obj,expr.obj,flonum-konst.obj,flonum-copy.obj,\
+  flonum-mult.obj,frags.obj,hash.obj,input-file.obj,input-scrub.obj,\
+  literal.obj,messages.obj,output-file.obj,read.obj,subsegs.obj,symbols.obj,\
+  write.obj,listing.obj,ecoff.obj,stabs.obj,sb.obj,macro.obj,ehopt.obj
+
+LIBIBERTY = [-.libiberty]libiberty.olb
+
+ifeq ($(ARCH),ALPHA)
+LIBBFD = [-.bfd]libbfd.olb
+LIBOPCODES = [-.opcodes]libopcodes.olb
+BFDDEP = [-.bfd]bfd.h
+else
+LIBBFD =
+LIBOPCODES =
+BFDDEP =
+endif
+
+all: config.status $(BFDDEP) as.exe
+
+as.exe: $(OBJS) $(LIBOPCODES) $(LIBBFD) $(LIBIBERTY)
+ifeq ($(ARCH),ALPHA)
+	link$(LFLAGS)/exe=$@ $(OBJS),$(LIBOPCODES)/lib,$(LIBBFD)/lib,$(LIBIBERTY)/lib$(LIBS)
+else
+	link$(LFLAGS)/exe=$@ $(OBJS),$(LIBIBERTY)/lib$(LIBS)
+endif
+
+config.status:
+	$$ @config-gas
+
+ifeq ($(ARCH),ALPHA)
+CPU=alpha
+OBJFORMAT=evax
+FLTFORMAT=ieee
+else
+CPU=vax
+OBJFORMAT=vms
+FLTFORMAT=vax
+endif
+
+targ-cpu.c: [.config]tc-$(CPU).c
+	copy $< $@
+targ-cpu.h: [.config]tc-$(CPU).h
+	copy $< $@
+targ-env.h: [.config]te-generic.h
+	copy $< $@
+obj-format.h: [.config]obj-$(OBJFORMAT).h
+	copy $< $@
+obj-format.c: [.config]obj-$(OBJFORMAT).c
+	copy $< $@
+atof-targ.c: [.config]atof-$(FLTFORMAT).c
+	copy $< $@
+
+targ-cpu.obj: targ-cpu.c targ-cpu.h [.config]atof-vax.c
+
+[-.bfd]bfd.h:
+	$(CD) [-.bfd]
+	gmake -f makefile.vms "CC=$(CC)"
+	$(CD) [-.gas]
+
+install: as.exe
+	$(CP) $^ GNU_ROOT\:[BIN]
+
+clean:
+	$$ purge
+	$(RM) *.obj;
+	$(RM) *.exe;
+	$(RM) atof-targ.c;
+	$(RM) obj-format.c;
+	$(RM) obj-format.h;
+	$(RM) targ-env.h;
+	$(RM) targ-cpu.h;
+	$(RM) targ-cpu.c;
+	$(RM) config.status;

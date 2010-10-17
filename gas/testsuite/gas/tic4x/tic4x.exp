@@ -1,0 +1,65 @@
+
+#
+# Test x930509a -- correct assembly of differences involving forward
+# references.
+#
+proc do_930509a_tic4x {} {
+    set testname "difference between forward references (tic4x version)"
+    set x 0
+    gas_start "../all/x930509.s" "-al"
+    while 1 {
+# We need to accomodate both byte orders here.
+# If ".long" means an 8-byte value on some target someday, this test will have
+# to be fixed.
+	expect {
+	    -re "^ +1 .... 00 ?00 ?00 ?00" { fail $testname; set x 1 }
+	    -re "^ +1 .... 01 ?00 ?00 ?00" { pass $testname; set x 1 }
+	    -re "^ +1 .... 00 ?00 ?00 ?01" { pass $testname; set x 1 }
+	    -re "\[^\n\]*\n" { }
+	    timeout { perror "timeout\n"; break }
+	    eof { break }
+	}
+    }
+    gas_finish
+    if !$x then { fail $testname }
+}
+
+
+#
+# TI TMS320C4X tests.
+#
+if [istarget *c4x*-*-*] then {
+    do_930509a_tic4x
+
+    # Test zero-based disassemble test
+    run_dump_test "zeros"
+
+    # Test the register names on the c3x and on the c4x
+    run_dump_test "registers_c3x"
+    run_dump_test "registers_c4x"
+
+    # Make sure the c4x registers dont work on c3x
+    gas_test_error "registers.s" "-m30 --defsym TEST_C4X=1" "c4x register usage in c3x"
+
+    # Test data storage
+    run_dump_test "data"
+
+    # Test flonums
+    run_dump_test "float"
+
+    # Test all addressing modes
+    run_dump_test "addressing_c3x"
+    run_dump_test "addressing_c4x"
+
+    # Make sure the c4x addressing dont work on c3x
+    gas_test_error "addressing.s" "-m30 --defsym TEST_C4X=1" "c4x addressing usage in c3x"
+
+    # Test float instructions
+    run_dump_test "opcodes_c3x"
+    run_dump_test "opcodes_c4x"
+    run_dump_test "opcodes_new"
+
+    # Make sure the c4x ops dont work on c3x
+    #gas_test_error "opcodes.s" "-m30 --defsym TEST_C4X=1" "c4x instruction usage in c3x"
+    #  -- for some reason this test crashes dejagnu, hence disabled!
+}

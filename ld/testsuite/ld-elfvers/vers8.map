@@ -1,0 +1,15 @@
+VERSION {
+	VERS_1.1 {
+		 local:
+			 hide_old*; 
+			 hide_original*; 
+			 hide_new*; 
+	};
+	
+	VERS_1.2 {
+	} VERS_1.1;
+	
+	VERS_2.0 {
+			 show_bar1; show_bar2;
+	} VERS_1.2;
+}

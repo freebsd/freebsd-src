@@ -1,0 +1,57 @@
+
+.*:     file format .*-sh64
+.*
+architecture: sh5, flags 0x00000112:
+EXEC_P, HAS_SYMS, D_PAGED
+start address 0x0+1000
+
+Program Header:
+    LOAD off    0x0+100 vaddr 0x0+1000 paddr 0x0+1000 align 2\*\*7
+         filesz 0x0+48 memsz 0x0+48 flags r-x
+    LOAD off    0x0+148 vaddr 0x0+10c8 paddr 0x0+10c8 align 2\*\*7
+         filesz 0x0+c memsz 0x0+10 flags rw-
+    LOAD off    0x0+180 vaddr 0x0+80000 paddr 0x0+80000 align 2\*\*7
+         filesz 0x0+4 memsz 0x0+4 flags rw-
+Sections:
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 \.text         00000048  0+1000  0+1000  00000100  2\*\*2
+                  CONTENTS, ALLOC, LOAD, READONLY, CODE
+  1 \.data         0000000c  0+10c8  0+10c8  00000148  2\*\*2
+                  CONTENTS, ALLOC, LOAD, DATA
+  2 \.ctors        00000000  0+10d4  0+10d4  00000184  2\*\*0
+                  CONTENTS
+  3 \.dtors        00000000  0+10d4  0+10d4  00000184  2\*\*0
+                  CONTENTS
+  4 \.sbss         00000000  0+10d8  0+10d8  00000184  2\*\*0
+                  CONTENTS
+  5 \.bss          00000000  0+10d8  0+10d8  00000158  2\*\*0
+                  ALLOC
+  6 \.stack        00000004  0+80000  0+80000  00000180  2\*\*0
+                  CONTENTS, ALLOC, LOAD, DATA
+  7 \.cranges      00000014  0+  0+  00000184  2\*\*0
+                  CONTENTS, DEBUGGING, SORT_ENTRIES
+SYMBOL TABLE:
+0+1000 l    d  \.text	0+ 
+0+10c8 l    d  \.data	0+ 
+0+10d4 l    d  \.ctors	0+ 
+0+10d4 l    d  \.dtors	0+ 
+0+10d8 l    d  \.sbss	0+ 
+0+10d8 l    d  \.bss	0+ 
+0+80000 l    d  \.stack	0+ 
+0+ l    d  \.cranges	0+ 
+0+ l    d  \*ABS\*	0+ 
+0+ l    d  \*ABS\*	0+ 
+0+ l    d  \*ABS\*	0+ 
+0+1008 l       \.text	0+ forw
+0+1004 l       \.text	0+ start2
+0+1030 l       \.text	0+ 0x04 mediacode2
+0+1018 l       \.text	0+ 0x04 mediacode
+0+10d4 g       \.dtors	0+ ___dtors
+0+10d8 g       \*ABS\*	0+ __bss_start
+0+10d4 g       \.ctors	0+ ___ctors_end
+0+10d4 g       \.ctors	0+ ___ctors
+0+10d8 g       \*ABS\*	0+ _edata
+0+10d8 g       \*ABS\*	0+ _end
+0+1000 g       \.text	0+ start
+0+80000 g       \.stack	0+ _stack
+0+10d4 g       \.dtors	0+ ___dtors_end

@@ -1,0 +1,99 @@
+# Expect script for ld-versados tests
+#   Copyright 1995, 1997 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+# Written by Steve Chamberlain (sac@cygnus.com)
+#
+
+# Make sure that ld can read versados images and
+# generate binaries which are identical to the customer's
+# old method.
+
+# This test can only be run if ld generates native executables.
+
+# This test can only be run on 68k coff targets
+# Square bracket expressions seem to confuse istarget.
+if { ![istarget m68k-*-coff*] } then {
+    return
+}
+
+set testname "LD VERSADOS"
+
+
+proc inspect { whichone } {
+    global objdump
+    global exec_output
+    global srcdir
+    global subdir
+    global testname
+
+    send_log "$objdump -s tmpdir/$whichone.out >tmpdir/$whichone.dump\n"
+    catch "exec $objdump -s tmpdir/$whichone.out | grep -v srec >tmpdir/$whichone.dump" exec_output
+
+    if ![string match "" $exec_output] {
+	send_log "$exec_output\n"
+	verbose $exec_output
+	unresolved $testname
+	return 0
+    }
+
+    send_log "$objdump -s $srcdir/$subdir/$whichone.ook >tmpdir/$whichone.dok\n"
+    catch "exec $objdump -s $srcdir/$subdir/$whichone.ook | grep -v srec >tmpdir/$whichone.dok" exec_output
+
+    if ![string match "" $exec_output] {
+	send_log "$exec_output\n"
+	verbose $exec_output
+	unresolved $testname
+	return 0
+    }
+
+    # compare it with the correct output
+    catch "exec diff tmpdir/$whichone.dump tmpdir/$whichone.dok" exec_output
+    if ![string match "" $exec_output] {
+	send_log "$exec_output\n"
+	verbose $exec_output
+	fail $testname
+	return 0
+    }
+
+    return 1
+}
+
+if ![ld_simple_link $ld tmpdir/t1.out \
+	" -T $srcdir/$subdir/t1.ld $srcdir/$subdir/t1-1.ro  $srcdir/$subdir/t1-2.ro"] {
+    fail $testname
+    return
+} else {
+    # Get a dump of what we've got, and what we should have
+    if ![inspect t1] {
+	return
+    }
+}
+
+
+if ![ld_simple_link $ld  tmpdir/t2.out \
+	" -T $srcdir/$subdir/t2.ld $srcdir/$subdir/t2-2.ro \
+	$srcdir/$subdir/t2-1.ro  $srcdir/$subdir/t2-3.ro"] {
+    fail $testname
+    return
+} else {
+    # Get a dump of what we've got, and what we should have
+    if ![inspect t2] {
+	return
+    }
+}
+
+pass $testname

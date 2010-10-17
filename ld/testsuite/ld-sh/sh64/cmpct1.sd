@@ -1,0 +1,9 @@
+
+.*:     file format elf32-sh64
+
+Contents of section \.text:
+ 1000 c7000009 0009ea2a                    .*
+Contents of section \.rodata:
+ 1008 00001000 0000100c 00001004           .*
+Contents of section \.stack:
+ 80000 deaddead                            .*

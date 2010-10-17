@@ -1,0 +1,186 @@
+#
+# Some generic m68HC11 tests
+#
+if ![istarget "m68hc11-*-*"] then {
+    if ![istarget "m6811-*-*"] then {
+	if ![istarget "m68hc12-*-*"] then {
+	    if ![istarget "m6812-*-*"] then {
+		return
+	    }
+	}
+    }
+}
+
+# Simple test for --print-opcodes (list of supported opcodes)
+# We don't check the list result but just the syntax and the
+# number it 
+proc gas_m68hc11_opcode_list { flags expect_count } {
+    global comp_output
+
+    set testname "Opcode list generation \[$flags\]"
+    gas_run "x.s" "--print-opcodes $flags" ""
+
+    set lines [split $comp_output "\n"]
+    set cnt [llength $lines]
+    verbose -log "Found $cnt opcodes"
+    if { $cnt == $expect_count } then {
+        pass $testname
+    } else {
+        fail $testname
+    }
+}
+
+gas_m68hc11_opcode_list "-m68hc11" 149
+gas_m68hc11_opcode_list "-m68hc12" 192
+gas_m68hc11_opcode_list "-m68hcs12" 192
+
+
+# Test for a message produced when assembling a file
+proc gas_m68hc11_message { kind options line expect } {
+    global srcdir
+    global subdir
+
+    regsub -all "\n" "$line: $expect" " " title
+
+    # Make a file containing the instructions to assemble.
+    set fd [open "$srcdir/$subdir/tst-m68hc1x.s" "w"];
+    puts -nonewline $fd "$line"
+    close $fd
+
+    verbose -log "Test: $title"
+    gas_start "tst-m68hc1x.s" "$options"
+    set ok 0
+    while 1 {
+	expect {
+	    -re ".*: Assembler messages:\n" { }
+	    -re ".*1: $kind: $expect" { incr ok; break }
+	    timeout       { perror "timeout\n"; break }
+	    eof		  { verbose "EOF from gas"; break }
+	}
+    }
+    #sleep 1 # Uncomment this line when using gcov
+    gas_finish
+    if { $ok > 0 } then {
+	pass $title
+    } else {
+	fail $title
+    }
+    catch "exec rm -f $srcdir/$subdir/tst-m68hc1x.s"
+}
+
+# Test for an error message produced by gas
+proc gas_m68hc11_error { options line expect } {
+    gas_m68hc11_message "Error" $options $line $expect
+}
+
+# Test for a warning message produced by gas
+proc gas_m68hc11_warning { options line expect } {
+    gas_m68hc11_message "Warning" $options $line $expect
+}
+
+# ------------------
+# 68HC11 error tests
+gas_m68hc11_error "" "puld\n" "Opcode .puld. is not recognized"
+gas_m68hc11_error "" "ldab\n" "Invalid operand for .ldab."
+gas_m68hc11_error "" "ldab 256,x\n" "Operand out of 8-bit range:.*256"
+gas_m68hc11_error "" "ldab 257,y\n" "Operand out of 8-bit range:.*257"
+gas_m68hc11_error "" "ldab -1,y\n" "Operand out of 8-bit range:.*-1"
+gas_m68hc11_error "" "ldab bar,y\nbar=300" "value of 300 too large for field of 1 byte"
+gas_m68hc11_error "" "jmp \#23\n" "Immediate operand is not allowed"
+gas_m68hc11_error "" "ldab \[d,pc\]\n" "Indirect indexed addressing is not valid for 68HC11"
+gas_m68hc11_error "" "ldab ,t\n" "Spurious .,. or bad indirect register"
+gas_m68hc11_error "" "ldab 1,t\n" "Garbage at end of instruction:.*,t"
+gas_m68hc11_error "" "ldab 1,,x\n" "Garbage at end of instruction:.*,x"
+gas_m68hc11_error "" "ldab 1,+x\n" "Pre-increment mode is not valid"
+gas_m68hc11_error "" "ldab 1,-x\n" "Pre-increment mode is not valid"
+gas_m68hc11_error "" "ldab 1,x+\n" "Post-increment mode is not valid"
+gas_m68hc11_error "" "ldab 1,x-\n" "Post-decrement mode is not valid"
+gas_m68hc11_error "" "ldd \#65536\n" "Operand out of 16-bit range"
+gas_m68hc11_error "--short-branchs" "bne 200\n" \
+    "Operand out of range for a relative branch"
+gas_m68hc11_error "" "bar\n" "Opcode .bar. is not recognized."
+gas_m68hc11_error "--print-insn-syntax" "bne\n" \
+    "Instruction formats for .bne..*"
+
+# ------------------
+# 68HC12 error tests
+gas_m68hc11_error "-m68hc12" "ldab x,y\n" "Invalid accumulator register"
+gas_m68hc11_error "-m68hc12" "ldab \[d,y\n" \
+    "Missing .\]. to close indexed-indirect mode"
+gas_m68hc11_error "-m68hc12" "ldab 0,\n" "Garbage at end of instruction: .,."
+gas_m68hc11_error "-m68hc12" "ldab \[d\]\n" \
+    "Missing second register or offset for indexed-indirect mode"
+gas_m68hc11_error "-m68hc12" "ldab \[d x\]\n" \
+    "Missing second register for indexed-indirect mode"
+gas_m68hc11_error "-m68hc12" "ldab \[d d\]\n" \
+    "Missing second register for indexed-indirect mode"
+gas_m68hc11_error "-m68hc12" "ldab \[pc d\]\n" \
+    "Missing second register for indexed-indirect mode"
+gas_m68hc11_error "-m68hc12" "ldab 65536,x\n" \
+    "Offset out of 16-bit range:"
+gas_m68hc11_error "-m68hc12 -S" "ibeq d,500\n" \
+    "Operand out of range for a relative branch"
+gas_m68hc11_error "-m68hc12" "ibeq pc,3\n" \
+    "Invalid register for dbcc/tbcc instruction"
+gas_m68hc11_error "-m68hc12 -S" "ibeq pc,500\n" \
+    "Invalid register for dbcc/tbcc instruction"
+gas_m68hc11_error "-m68hc12" "orab 9,+x\n" \
+    "Increment/decrement value is out of range"
+gas_m68hc11_error "-m68hc12" "orab -9,x-\n" \
+    "Increment/decrement value is out of range"
+gas_m68hc11_error "-m68hc12" "orab -3,-pc\n" \
+    "Invalid register for post/pre increment"
+gas_m68hc11_error "-m68hc12" "trap \#0\n" "Trap id .0. is out of range"
+gas_m68hc11_error "-m68hc12" "trap \#300\n" "Trap id .300. is out of range"
+gas_m68hc11_error "-m68hc12" "trap \#bar\n" "The trap id must be a constant"
+gas_m68hc11_error "-m68hc12" "sex x,d\n" \
+    "Invalid source register for this instruction, use .tfr."
+gas_m68hc11_error "-m68hc12" "tfr pc,a\n" "Invalid source register"
+gas_m68hc11_error "-m68hc12" "movb 200,x,3,y\n" \
+    "Offset out of 5-bit range for movw/movb insn: 200"
+gas_m68hc11_error "-m68hc12" "movb 2,x,300,y\n" \
+    "Offset out of 5-bit range for movw/movb insn: 300"
+gas_m68hc11_error "-m68hc12" "movb 2,x,bar,y\nbar=300\n" \
+    "Offset out of 5-bit range for movw/movb insn: 300"
+gas_m68hc11_error "-m68hc12" "movb bar,y,2,x\nbar=300\n" \
+    "Offset out of 5-bit range for movw/movb insn: 300"
+gas_m68hc11_error "-m68hc12" "movb 200,pc,3,y\n" \
+    "Offset out of 5-bit range for movw/movb insn: 200"
+gas_m68hc11_error "-m68hc12" "movb 2,x,300,pc\n" \
+    "Offset out of 5-bit range for movw/movb insn: 300"
+gas_m68hc11_error "-m68hc12" "movb 2,x,bar,pc\nbar=300\n" \
+    "Offset out of 5-bit range for movw/movb insn: 300"
+gas_m68hc11_error "-m68hc12" "movb bar,pc,2,x\nbar=300\n" \
+    "Offset out of 5-bit range for movw/movb insn: 300"
+
+setup_xfail m6811-*-*
+setup_xfail m6812-*-*
+
+# ------------------
+# Specific commands
+gas_m68hc11_warning "" ".mode \"bar\"\n" "Invalid mode: .bar."
+gas_m68hc11_error "" ".relax 23\n" "bad .relax format"
+gas_m68hc11_error "" ".relax bar-23\n" "bad .relax format"
+gas_m68hc11_warning "" ".far bar bar\n" "rest of line ignored"
+
+
+run_dump_test insns
+run_dump_test lbranch
+run_dump_test all_insns
+run_dump_test insns-dwarf2
+run_dump_test lbranch-dwarf2
+run_dump_test abi-m68hc11-16-64
+run_dump_test abi-m68hc11-16-32
+run_dump_test abi-m68hc11-32-64
+
+# Compliance with Motorola Assembly Language Input Standard
+run_dump_test malis
+
+# Some 68HC12 tests
+run_dump_test opers12
+run_dump_test opers12-dwarf2
+run_dump_test branchs12
+run_dump_test insns12
+run_dump_test indexed12
+run_dump_test bug-1825
+run_dump_test movb

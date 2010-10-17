@@ -1,0 +1,3 @@
+	.text
+	.long	foo
+foo:

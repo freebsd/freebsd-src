@@ -1,0 +1,9 @@
+ARCH=mcore
+SCRIPT_NAME=mcorepe
+OUTPUT_FORMAT="pei-mcore-little"
+LITTLE_OUTPUT_FORMAT="pei-mcore-little"
+BIG_OUTPUT_FORMAT="pei-mcore-big"
+TEMPLATE_NAME=pe
+ENTRY="_mainCRTStartup"
+SUBSYSTEM=PE_DEF_SUBSYSTEM
+INITIAL_SYMBOL_CHAR=\"_\"

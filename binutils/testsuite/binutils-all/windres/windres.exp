@@ -1,0 +1,149 @@
+# Copyright 2001, 2003 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+# Please email any bugs, comments, and/or additions to this file to:
+# bug-dejagnu@prep.ai.mit.edu
+
+# Written by DJ Delorie <dj@redhat.com>
+
+if {![istarget "i*86-*-*"]} {
+    return
+}
+
+if {![istarget "i*86-*-*pe*"] \
+    && ![istarget "i*86-*-cygwin*"] \
+    && ![istarget "i*86-*-mingw32*"] } {
+    set target_xfail "yes"
+} else {
+    set target_xfail "no"
+}
+
+if {![info exists WINDRES]} then {
+    return
+}
+
+if {[which $WINDRES] == 0} then {
+    return
+}
+
+set wr "$WINDRES --include-dir $srcdir/$subdir"
+
+if [file exists "$srcdir/../../winsup/w32api/include"] {
+    set wr "$wr --include-dir $srcdir/../../winsup/w32api/include"
+    set target_xfail "no"
+} else {
+    send_log "\nWarning: Assuming windres can find the win32 headers\n\n"
+}
+
+set res_list [lsort [glob -nocomplain $srcdir/$subdir/*.rc]]
+
+proc oneline { file } {
+    while { 1 } {
+	if { [gets $file line] == -1 } {
+	    return ""
+	}
+	if [regexp "^ \[0-9a-z\]\[0-9a-z\]* " $line] {
+	    return $line
+	}
+    }
+}
+
+foreach res $res_list {
+    set sroot [file rootname $res]
+    set broot [file tail $sroot]
+    set done 0
+
+    set rc [open $res]
+    while { [gets $rc line] != -1 } {
+	if ![regexp "^(//|/\*|#)" $line] {
+	    break
+	}
+	if [regexp "\[xp\]fail *(\[^ \]*)" $line junk sys] {
+	    setup_xfail $sys
+	    continue;
+	}
+    }
+
+    if { "$broot" != "bmpalign" && "$target_xfail" == "yes" } {
+	setup_xfail *-*
+    }
+
+    verbose "$wr -J rc -O res $res tmpdir/$broot.res" 1
+    catch "exec $wr -J rc -O res $res tmpdir/$broot.res" err
+
+    if ![string match "" $err] then {
+	send_log "$err\n"
+	verbose "$err" 1
+	fail "windres/$broot (parse)"
+	continue;
+    }
+    pass "windres/$broot (parse)"
+
+    set rc [open $res]
+    while { [gets $rc line] != -1 } {
+	if ![regexp "^(//|/\*|#)" $line] {
+	    break
+	}
+	if [regexp "parse-only" $line] {
+	    file delete "tmpdir/$broot.res"
+	    set done 1
+	    break;
+	}
+	if [regexp "\[xc\]fail *(\[^ \]*)" $line junk sys] {
+	    setup_xfail $sys
+	    continue;
+	}
+    }
+    if { $done != 0 } {
+	continue;
+    }
+
+    if { "$broot" != "bmpalign" && "$target_xfail" == "yes" } {
+	setup_xfail *-*
+    }
+
+    verbose "$OBJDUMP -b binary -s tmpdir/$broot.res > tmpdir/$broot.dump" 1
+    catch "exec $OBJDUMP -b binary -s tmpdir/$broot.res > tmpdir/$broot.dump" err
+
+    if ![string match "" $err] then {
+	send_log "$err\n"
+	verbose "$err" 1
+	fail "windres/$broot (compare)"
+	continue;
+    }
+
+    set pat [open "$sroot.rsd"]
+    set out [open "tmpdir/$broot.dump"]
+    set patline "foo"
+
+    while { ![string match $patline ""] } {
+	set patline [oneline $pat]
+	set outline [oneline $out]
+
+	if ![string match $patline $outline] {
+	    send_log "< $patline\n";
+	    send_log "> $outline\n";
+	    fail "windres/$broot (compare)";
+	    set done 1
+	    break;
+	}
+    }
+    if { $done == 0 } {
+	pass "windres/$broot (compare)"
+	file delete "tmpdir/$broot.res"
+	file delete "tmpdir/$broot.dump"
+    }
+}

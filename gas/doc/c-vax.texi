@@ -1,0 +1,358 @@
+@c Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1998
+@c Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+@c VAX/VMS description enhanced and corrected by Klaus K"aempf, kkaempf@progis.de
+@ifset GENERIC
+@node Vax-Dependent
+@chapter VAX Dependent Features
+@cindex VAX support
+
+@end ifset
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter VAX Dependent Features
+@cindex VAX support
+
+@end ifclear
+
+@menu
+* VAX-Opts::                    VAX Command-Line Options
+* VAX-float::                   VAX Floating Point
+* VAX-directives::              Vax Machine Directives
+* VAX-opcodes::                 VAX Opcodes
+* VAX-branch::                  VAX Branch Improvement
+* VAX-operands::                VAX Operands
+* VAX-no::                      Not Supported on VAX
+@end menu
+
+
+@node VAX-Opts
+@section VAX Command-Line Options
+
+@cindex command-line options ignored, VAX
+@cindex VAX command-line options ignored
+The Vax version of @code{@value{AS}} accepts any of the following options,
+gives a warning message that the option was ignored and proceeds.
+These options are for compatibility with scripts designed for other
+people's assemblers.
+
+@table @code
+@cindex @code{-D}, ignored on VAX
+@cindex @code{-S}, ignored on VAX
+@cindex @code{-T}, ignored on VAX
+@item @code{-D} (Debug)
+@itemx @code{-S} (Symbol Table)
+@itemx @code{-T} (Token Trace)
+These are obsolete options used to debug old assemblers.
+
+@cindex @code{-d}, VAX option
+@item @code{-d} (Displacement size for JUMPs)
+This option expects a number following the @samp{-d}.  Like options
+that expect filenames, the number may immediately follow the
+@samp{-d} (old standard) or constitute the whole of the command line
+argument that follows @samp{-d} (@sc{gnu} standard).
+
+@cindex @code{-V}, redundant on VAX
+@item @code{-V} (Virtualize Interpass Temporary File)
+Some other assemblers use a temporary file.  This option
+commanded them to keep the information in active memory rather
+than in a disk file.  @code{@value{AS}} always does this, so this
+option is redundant.
+
+@cindex @code{-J}, ignored on VAX
+@item @code{-J} (JUMPify Longer Branches)
+Many 32-bit computers permit a variety of branch instructions
+to do the same job.  Some of these instructions are short (and
+fast) but have a limited range; others are long (and slow) but
+can branch anywhere in virtual memory.  Often there are 3
+flavors of branch: short, medium and long.  Some other
+assemblers would emit short and medium branches, unless told by
+this option to emit short and long branches.
+
+@cindex @code{-t}, ignored on VAX
+@item @code{-t} (Temporary File Directory)
+Some other assemblers may use a temporary file, and this option
+takes a filename being the directory to site the temporary
+file.  Since @code{@value{AS}} does not use a temporary disk file, this
+option makes no difference.  @samp{-t} needs exactly one
+filename.
+@end table
+
+@cindex VMS (VAX) options
+@cindex options for VAX/VMS
+@cindex VAX/VMS options
+@cindex Vax-11 C compatibility
+@cindex symbols with uppercase, VAX/VMS
+The Vax version of the assembler accepts additional options when
+compiled for VMS:
+
+@table @samp
+@cindex @samp{-h} option, VAX/VMS
+@item -h @var{n}
+External symbol or section (used for global variables) names are not
+case sensitive on VAX/VMS and always mapped to upper case.  This is
+contrary to the C language definition which explicitly distinguishes
+upper and lower case.  To implement a standard conforming C compiler,
+names must be changed (mapped) to preserve the case information.  The
+default mapping is to convert all lower case characters to uppercase and
+adding an underscore followed by a 6 digit hex value, representing a 24
+digit binary value.  The one digits in the binary value represent which
+characters are uppercase in the original symbol name.
+
+The @samp{-h @var{n}} option determines how we map names.  This takes
+several values.  No @samp{-h} switch at all allows case hacking as
+described above.  A value of zero (@samp{-h0}) implies names should be
+upper case, and inhibits the case hack.  A value of 2 (@samp{-h2})
+implies names should be all lower case, with no case hack.  A value of 3
+(@samp{-h3}) implies that case should be preserved.  The value 1 is
+unused.  The @code{-H} option directs @code{@value{AS}} to display
+every mapped symbol during assembly.
+
+Symbols whose names include a dollar sign @samp{$} are exceptions to the
+general name mapping.  These symbols are normally only used to reference
+VMS library names.  Such symbols are always mapped to upper case.
+
+@cindex @samp{-+} option, VAX/VMS
+@item -+
+The @samp{-+} option causes @code{@value{AS}} to truncate any symbol
+name larger than 31 characters.  The @samp{-+} option also prevents some
+code following the @samp{_main} symbol normally added to make the object
+file compatible with Vax-11 "C".
+
+@cindex @samp{-1} option, VAX/VMS
+@item -1
+This option is ignored for backward compatibility with @code{@value{AS}}
+version 1.x.
+
+@cindex @samp{-H} option, VAX/VMS
+@item -H
+The @samp{-H} option causes @code{@value{AS}} to print every symbol
+which was changed by case mapping.
+@end table
+
+@node VAX-float
+@section VAX Floating Point
+
+@cindex VAX floating point
+@cindex floating point, VAX
+Conversion of flonums to floating point is correct, and
+compatible with previous assemblers.  Rounding is
+towards zero if the remainder is exactly half the least significant bit.
+
+@code{D}, @code{F}, @code{G} and @code{H} floating point formats
+are understood.
+
+Immediate floating literals (@emph{e.g.} @samp{S`$6.9})
+are rendered correctly.  Again, rounding is towards zero in the
+boundary case.
+
+@cindex @code{float} directive, VAX
+@cindex @code{double} directive, VAX
+The @code{.float} directive produces @code{f} format numbers.
+The @code{.double} directive produces @code{d} format numbers.
+
+@node VAX-directives
+@section Vax Machine Directives
+
+@cindex machine directives, VAX
+@cindex VAX machine directives
+The Vax version of the assembler supports four directives for
+generating Vax floating point constants.  They are described in the
+table below.
+
+@cindex wide floating point directives, VAX
+@table @code
+@cindex @code{dfloat} directive, VAX
+@item .dfloat
+This expects zero or more flonums, separated by commas, and
+assembles Vax @code{d} format 64-bit floating point constants.
+
+@cindex @code{ffloat} directive, VAX
+@item .ffloat
+This expects zero or more flonums, separated by commas, and
+assembles Vax @code{f} format 32-bit floating point constants.
+
+@cindex @code{gfloat} directive, VAX
+@item .gfloat
+This expects zero or more flonums, separated by commas, and
+assembles Vax @code{g} format 64-bit floating point constants.
+
+@cindex @code{hfloat} directive, VAX
+@item .hfloat
+This expects zero or more flonums, separated by commas, and
+assembles Vax @code{h} format 128-bit floating point constants.
+
+@end table
+
+@node VAX-opcodes
+@section VAX Opcodes
+
+@cindex VAX opcode mnemonics
+@cindex opcode mnemonics, VAX
+@cindex mnemonics for opcodes, VAX
+All DEC mnemonics are supported.  Beware that @code{case@dots{}}
+instructions have exactly 3 operands.  The dispatch table that
+follows the @code{case@dots{}} instruction should be made with
+@code{.word} statements.  This is compatible with all unix
+assemblers we know of.
+
+@node VAX-branch
+@section VAX Branch Improvement
+
+@cindex VAX branch improvement
+@cindex branch improvement, VAX
+@cindex pseudo-ops for branch, VAX
+Certain pseudo opcodes are permitted.  They are for branch
+instructions.  They expand to the shortest branch instruction that
+reaches the target.  Generally these mnemonics are made by
+substituting @samp{j} for @samp{b} at the start of a DEC mnemonic.
+This feature is included both for compatibility and to help
+compilers.  If you do not need this feature, avoid these
+opcodes.  Here are the mnemonics, and the code they can expand into.
+
+@table @code
+@item jbsb
+@samp{Jsb} is already an instruction mnemonic, so we chose @samp{jbsb}.
+@table @asis
+@item (byte displacement)
+@kbd{bsbb @dots{}}
+@item (word displacement)
+@kbd{bsbw @dots{}}
+@item (long displacement)
+@kbd{jsb @dots{}}
+@end table
+@item jbr
+@itemx jr
+Unconditional branch.
+@table @asis
+@item (byte displacement)
+@kbd{brb @dots{}}
+@item (word displacement)
+@kbd{brw @dots{}}
+@item (long displacement)
+@kbd{jmp @dots{}}
+@end table
+@item j@var{COND}
+@var{COND} may be any one of the conditional branches
+@code{neq}, @code{nequ}, @code{eql}, @code{eqlu}, @code{gtr},
+@code{geq}, @code{lss}, @code{gtru}, @code{lequ}, @code{vc}, @code{vs},
+@code{gequ}, @code{cc}, @code{lssu}, @code{cs}.
+@var{COND} may also be one of the bit tests
+@code{bs}, @code{bc}, @code{bss}, @code{bcs}, @code{bsc}, @code{bcc},
+@code{bssi}, @code{bcci}, @code{lbs}, @code{lbc}.
+@var{NOTCOND} is the opposite condition to @var{COND}.
+@table @asis
+@item (byte displacement)
+@kbd{b@var{COND} @dots{}}
+@item (word displacement)
+@kbd{b@var{NOTCOND} foo ; brw @dots{} ; foo:}
+@item (long displacement)
+@kbd{b@var{NOTCOND} foo ; jmp @dots{} ; foo:}
+@end table
+@item jacb@var{X}
+@var{X} may be one of @code{b d f g h l w}.
+@table @asis
+@item (word displacement)
+@kbd{@var{OPCODE} @dots{}}
+@item (long displacement)
+@example
+@var{OPCODE} @dots{}, foo ;
+brb bar ;
+foo: jmp @dots{} ;
+bar:
+@end example
+@end table
+@item jaob@var{YYY}
+@var{YYY} may be one of @code{lss leq}.
+@item jsob@var{ZZZ}
+@var{ZZZ} may be one of @code{geq gtr}.
+@table @asis
+@item (byte displacement)
+@kbd{@var{OPCODE} @dots{}}
+@item (word displacement)
+@example
+@var{OPCODE} @dots{}, foo ;
+brb bar ;
+foo: brw @var{destination} ;
+bar:
+@end example
+@item (long displacement)
+@example
+@var{OPCODE} @dots{}, foo ;
+brb bar ;
+foo: jmp @var{destination} ;
+bar:
+@end example
+@end table
+@item aobleq
+@itemx aoblss
+@itemx sobgeq
+@itemx sobgtr
+@table @asis
+@item (byte displacement)
+@kbd{@var{OPCODE} @dots{}}
+@item (word displacement)
+@example
+@var{OPCODE} @dots{}, foo ;
+brb bar ;
+foo: brw @var{destination} ;
+bar:
+@end example
+@item (long displacement)
+@example
+@var{OPCODE} @dots{}, foo ;
+brb bar ;
+foo: jmp @var{destination} ;
+bar:
+@end example
+@end table
+@end table
+
+@node VAX-operands
+@section VAX Operands
+
+@cindex VAX operand notation
+@cindex operand notation, VAX
+@cindex immediate character, VAX
+@cindex VAX immediate character
+The immediate character is @samp{$} for Unix compatibility, not
+@samp{#} as DEC writes it.
+
+@cindex indirect character, VAX
+@cindex VAX indirect character
+The indirect character is @samp{*} for Unix compatibility, not
+@samp{@@} as DEC writes it.
+
+@cindex displacement sizing character, VAX
+@cindex VAX displacement sizing character
+The displacement sizing character is @samp{`} (an accent grave) for
+Unix compatibility, not @samp{^} as DEC writes it.  The letter
+preceding @samp{`} may have either case.  @samp{G} is not
+understood, but all other letters (@code{b i l s w}) are understood.
+
+@cindex register names, VAX
+@cindex VAX register names
+Register names understood are @code{r0 r1 r2 @dots{} r15 ap fp sp
+pc}.  Upper and lower case letters are equivalent.
+
+For instance
+@smallexample
+tstb *w`$4(r5)
+@end smallexample
+
+Any expression is permitted in an operand.  Operands are comma
+separated.
+
+@c There is some bug to do with recognizing expressions
+@c in operands, but I forget what it is.  It is
+@c a syntax clash because () is used as an address mode
+@c and to encapsulate sub-expressions.
+
+@node VAX-no
+@section Not Supported on VAX
+
+@cindex VAX bitfields not supported
+@cindex bitfields, not supported on VAX
+Vax bit fields can not be assembled with @code{@value{AS}}.  Someone
+can add the required code if they really need it.
