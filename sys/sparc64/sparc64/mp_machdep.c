@@ -431,6 +431,12 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	 */
 	cache_enable(pc->pc_impl);
 
+	/*
+	 * Clear (S)TICK timer(s) (including NPT) and ensure they are stopped.
+	 */
+	tick_clear(pc->pc_impl);
+	tick_stop(pc->pc_impl);
+
 	/* Lock the kernel TSB in the TLB. */
 	pmap_map_tsb();
 
@@ -443,7 +449,11 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	/* Initialize global registers. */
 	cpu_setregs(pc);
 
-	/* Enable interrupts. */
+	/*
+	 * Enable interrupts.
+	 * Note that the PIL we be lowered indirectly via sched_throw(NULL)
+	 * when fake spinlock held by the idle thread eventually is released.
+	 */
 	wrpr(pstate, 0, PSTATE_KERNEL);
 
 	/* Start the (S)TICK interrupts. */
