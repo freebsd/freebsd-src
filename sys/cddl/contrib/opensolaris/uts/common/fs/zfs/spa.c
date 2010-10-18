@@ -1110,6 +1110,33 @@ spa_check_removed(vdev_t *vd)
 }
 
 /*
+ * Load the slog device state from the config object since it's possible
+ * that the label does not contain the most up-to-date information.
+ */
+void
+spa_load_log_state(spa_t *spa)
+{
+	nvlist_t *nv, *nvroot, **child;
+	uint64_t is_log;
+	uint_t children, c;
+	vdev_t *rvd = spa->spa_root_vdev;
+
+	VERIFY(load_nvlist(spa, spa->spa_config_object, &nv) == 0);
+	VERIFY(nvlist_lookup_nvlist(nv, ZPOOL_CONFIG_VDEV_TREE, &nvroot) == 0);
+	VERIFY(nvlist_lookup_nvlist_array(nvroot, ZPOOL_CONFIG_CHILDREN,
+	    &child, &children) == 0);
+
+	for (c = 0; c < children; c++) {
+		vdev_t *tvd = rvd->vdev_child[c];
+
+		if (nvlist_lookup_uint64(child[c], ZPOOL_CONFIG_IS_LOG,
+		    &is_log) == 0 && is_log)
+			vdev_load_log_state(tvd, child[c]);
+	}
+	nvlist_free(nv);
+}
+
+/*
  * Check for missing log devices
  */
 int
@@ -1125,13 +1152,7 @@ spa_check_logs(spa_t *spa)
 			return (1);
 		}
 		break;
-
-	case SPA_LOG_CLEAR:
-		(void) dmu_objset_find(spa->spa_name, zil_clear_log_chain, NULL,
-		    DS_FIND_CHILDREN);
-		break;
 	}
-	spa->spa_log_state = SPA_LOG_GOOD;
 	return (0);
 }
 
@@ -1455,6 +1476,8 @@ spa_load(spa_t *spa, nvlist_t *config, spa_load_state_t state, int mosconfig)
 		spa_config_exit(spa, SCL_ALL, FTAG);
 	}
 
+	spa_load_log_state(spa);
+
 	if (spa_check_logs(spa)) {
 		vdev_set_state(rvd, B_TRUE, VDEV_STATE_CANT_OPEN,
 		    VDEV_AUX_BAD_LOG);
@@ -1542,6 +1565,7 @@ spa_load(spa_t *spa, nvlist_t *config, spa_load_state_t state, int mosconfig)
 		    zil_claim, tx, DS_FIND_CHILDREN);
 		dmu_tx_commit(tx);
 
+		spa->spa_log_state = SPA_LOG_GOOD;
 		spa->spa_sync_on = B_TRUE;
 		txg_sync_start(spa->spa_dsl_pool);
 
@@ -4222,10 +4246,16 @@ spa_sync(spa_t *spa, uint64_t txg)
 				if (svdcount == SPA_DVAS_PER_BP)
 					break;
 			}
-			error = vdev_config_sync(svd, svdcount, txg);
+			error = vdev_config_sync(svd, svdcount, txg, B_FALSE);
+			if (error != 0)
+				error = vdev_config_sync(svd, svdcount, txg,
+				    B_TRUE);
 		} else {
 			error = vdev_config_sync(rvd->vdev_child,
-			    rvd->vdev_children, txg);
+			    rvd->vdev_children, txg, B_FALSE);
+			if (error != 0)
+				error = vdev_config_sync(rvd->vdev_child,
+				    rvd->vdev_children, txg, B_TRUE);
 		}
 
 		spa_config_exit(spa, SCL_STATE, FTAG);
