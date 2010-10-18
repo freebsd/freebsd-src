@@ -317,9 +317,9 @@ struct rdma_event_channel *rdma_create_event_channel(void)
 	if (!channel)
 		return NULL;
 
-	channel->fd = open("/dev/infiniband/rdma_cm", O_RDWR);
+	channel->fd = open("/dev/rdma_cm", O_RDWR);
 	if (channel->fd < 0) {
-		printf("CMA: unable to open /dev/infiniband/rdma_cm\n");
+		printf("CMA: unable to open /dev/rdma_cm\n");
 		goto err;
 	}
 	return channel;
