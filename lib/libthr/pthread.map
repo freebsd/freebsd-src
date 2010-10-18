@@ -403,8 +403,8 @@ FBSD_1.1 {
 
 FBSD_1.2 {
 	openat;
-	setcontext;
-	swapcontext;
 	pthread_rwlockattr_getkind_np;
 	pthread_rwlockattr_setkind_np;
+	setcontext;
+	swapcontext;
 };
