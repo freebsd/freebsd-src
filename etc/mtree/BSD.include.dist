@@ -273,6 +273,8 @@
     ..
     protocols
     ..
+    rdma
+    ..
     readline
     ..
     rpc
