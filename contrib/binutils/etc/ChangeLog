@@ -1,3 +1,12 @@
+2003-05-16  Kelley Cook  <kelleycook@wideopenwest.com>
+
+	* configure.texi: Use "i[3-7]86" in example.
+
+2003-01-02  H.J. Lu <hjl@gnu.org>
+
+	* Makefile.in (DESTDIR): New.
+	(install-info): Use it.
+
 2002-06-11  Nick Clifton  <nickc@cambridge.redhat.com>
 
 	Import the following patches from the FSF GCC sources:

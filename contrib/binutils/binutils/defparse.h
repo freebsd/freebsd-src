@@ -28,14 +28,15 @@ typedef union {
 # define	SHARED	273
 # define	NONSHARED	274
 # define	NONAME	275
-# define	SINGLE	276
-# define	MULTIPLE	277
-# define	INITINSTANCE	278
-# define	INITGLOBAL	279
-# define	TERMINSTANCE	280
-# define	TERMGLOBAL	281
-# define	ID	282
-# define	NUMBER	283
+# define	PRIVATE	276
+# define	SINGLE	277
+# define	MULTIPLE	278
+# define	INITINSTANCE	279
+# define	INITGLOBAL	280
+# define	TERMINSTANCE	281
+# define	TERMGLOBAL	282
+# define	ID	283
+# define	NUMBER	284
 
 
 extern YYSTYPE yylval;
