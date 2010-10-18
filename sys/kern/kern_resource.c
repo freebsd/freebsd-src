@@ -699,8 +699,8 @@ kern_setrlimit(td, which, limp)
 		if (limp->rlim_max > maxssiz)
 			limp->rlim_max = maxssiz;
 		oldssiz = *alimp;
-		if (td->td_proc->p_sysent->sv_fixlimit != NULL)
-			td->td_proc->p_sysent->sv_fixlimit(&oldssiz,
+		if (p->p_sysent->sv_fixlimit != NULL)
+			p->p_sysent->sv_fixlimit(&oldssiz,
 			    RLIMIT_STACK);
 		break;
 
@@ -722,8 +722,8 @@ kern_setrlimit(td, which, limp)
 			limp->rlim_max = 1;
 		break;
 	}
-	if (td->td_proc->p_sysent->sv_fixlimit != NULL)
-		td->td_proc->p_sysent->sv_fixlimit(limp, which);
+	if (p->p_sysent->sv_fixlimit != NULL)
+		p->p_sysent->sv_fixlimit(limp, which);
 	*alimp = *limp;
 	p->p_limit = newlim;
 	PROC_UNLOCK(p);
