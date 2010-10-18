@@ -1,3 +1,29 @@
+2005-03-10  Aldy Hernandez  <aldyh@redhat.com>
+
+        * gas/ppc/e500.d: Fix encoding of efscfd.
+
+2004-10-06  Aldy Hernandez  <aldyh@redhat.com>
+
+	* gas/ppc/e500.s: Add double-precision instructions.
+	* gas/ppc/e500.d: Same.
+
+2004-09-07  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	Merge from mainline:
+	2004-04-19  Jakub Jelinek  <jakub@redhat.com>
+	* gas/cfi/cfi-sparc64-1.d: Update.
+
+2004-08-18  Thiemo Seufer  <seufer@csv.ica.uni-stuttgart.de>
+
+	* gas/mips/branch-swap.s: New testcase.
+	* gas/mips/branch-swap.d: New testcase.
+	* gas/mips/mips.exp: Run the testcase.
+
+2004-07-30  Michal Ludvig  <mludvig@suse.cz>
+
+	* gas/i386/padlock.s, gas/i386/padlock.d: New tests for
+	VIA PadLock instructions.
+
 2004-05-11  Daniel Jacobowitz  <dan@debian.org>
 
 	Revert patch for 2.15:

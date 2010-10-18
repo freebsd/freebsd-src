@@ -901,6 +901,14 @@ elf32_hppa_object_p (bfd *abfd)
 	  i_ehdrp->e_ident[EI_OSABI] != ELFOSABI_NONE) /* aka SYSV */
 	return FALSE;
     }
+  else if (strcmp (bfd_get_target (abfd), "elf32-hppa-netbsd") == 0)
+    {
+      /* GCC on hppa-netbsd produces binaries with OSABI=NetBSD,
+	 but the kernel produces corefiles with OSABI=SysV.  */
+      if (i_ehdrp->e_ident[EI_OSABI] != ELFOSABI_NETBSD &&
+	  i_ehdrp->e_ident[EI_OSABI] != ELFOSABI_NONE) /* aka SYSV */
+	return FALSE;
+    }
   else
     {
       if (i_ehdrp->e_ident[EI_OSABI] != ELFOSABI_HPUX)
@@ -2906,7 +2914,8 @@ elf32_hppa_set_gp (bfd *abfd, struct bfd_link_info *info)
 	 if either the .plt or .got is larger than 0x2000.  If both
 	 the .plt and .got are smaller than 0x2000, choose the end of
 	 the .plt section.  */
-      sec = splt;
+      sec = strcmp (bfd_get_target (abfd), "elf32-hppa-netbsd") == 0
+	  ? NULL : splt;
       if (sec != NULL)
 	{
 	  gp_val = sec->_raw_size;
@@ -2920,10 +2929,13 @@ elf32_hppa_set_gp (bfd *abfd, struct bfd_link_info *info)
 	  sec = sgot;
 	  if (sec != NULL)
 	    {
-	      /* We know we don't have a .plt.  If .got is large,
-		 offset our LTP.  */
-	      if (sec->_raw_size > 0x2000)
-		gp_val = 0x2000;
+	      if (strcmp (bfd_get_target (abfd), "elf32-hppa-netbsd") != 0)
+		{
+	          /* We know we don't have a .plt.  If .got is large,
+		     offset our LTP.  */
+	          if (sec->_raw_size > 0x2000)
+		    gp_val = 0x2000;
+		}
 	    }
 	  else
 	    {
@@ -4123,6 +4135,10 @@ elf32_hppa_post_process_headers (bfd *abfd,
     {
       i_ehdrp->e_ident[EI_OSABI] = ELFOSABI_LINUX;
     }
+  else if (strcmp (bfd_get_target (abfd), "elf32-hppa-netbsd") == 0)
+    {
+      i_ehdrp->e_ident[EI_OSABI] = ELFOSABI_NETBSD;
+    }
   else
     {
       i_ehdrp->e_ident[EI_OSABI] = ELFOSABI_HPUX;
@@ -4191,4 +4207,11 @@ elf32_hppa_elf_get_symbol_type (Elf_Internal_Sym *elf_sym, int type)
 #define TARGET_BIG_NAME			"elf32-hppa-linux"
 
 #define INCLUDED_TARGET_FILE 1
+#include "elf32-target.h"
+
+#undef TARGET_BIG_SYM
+#define TARGET_BIG_SYM			bfd_elf32_hppa_nbsd_vec
+#undef TARGET_BIG_NAME
+#define TARGET_BIG_NAME			"elf32-hppa-netbsd"
+
 #include "elf32-target.h"

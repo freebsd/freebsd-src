@@ -14,5 +14,11 @@ foo:
 	rep xcryptofb
 	xstore
 	rep xstore
+	montmul
+	rep montmul
+	xsha1
+	rep xsha1
+	xsha256
+	rep xsha256
 
 	.p2align 4,0

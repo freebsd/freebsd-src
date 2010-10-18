@@ -1,3 +1,17 @@
+2005-06-08  Kazuhiro Inaoka <inaoka.kazuhiro@renesas.com>
+
+	* config/tc-m32r.c (use_parallel): Change default value from 1 to 0.
+
+2004-08-18  Thiemo Seufer  <seufer@csv.ica.uni-stuttgart.de>
+
+	* config/tc-mips.c (append_insn): Handle delay slots in branch likely
+	correctly.
+
+2004-07-28  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* config/tc-hppa.h (TARGET_FORMAT): Set to "elf32-hppa-netbsd"
+	for TE_NetBSD.
+
 2004-05-23  Alan Modra  <amodra@bigpond.net.au>
 
 	* expr.c (operand, operator): Don't reject '++' and '--'.

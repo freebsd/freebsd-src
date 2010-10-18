@@ -127,7 +127,7 @@ static int warn_explicit_parallel_conflicts = 1;
 static int ignore_parallel_conflicts = 0;
 
 /* Non-zero if insns can be made parallel.  */
-static int use_parallel = 1;
+static int use_parallel = 0;
 
 /* Non-zero if optimizations should be performed.  */
 static int optimize;
