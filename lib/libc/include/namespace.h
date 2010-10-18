@@ -177,8 +177,10 @@
 #define		pthread_rwlock_unlock		_pthread_rwlock_unlock
 #define		pthread_rwlock_wrlock		_pthread_rwlock_wrlock
 #define		pthread_rwlockattr_destroy	_pthread_rwlockattr_destroy
+#define		pthread_rwlockattr_getkind_np	_pthread_rwlockattr_getkind_np
 #define		pthread_rwlockattr_getpshared	_pthread_rwlockattr_getpshared
 #define		pthread_rwlockattr_init		_pthread_rwlockattr_init
+#define		pthread_rwlockattr_setkind_np	_pthread_rwlockattr_setkind_np
 #define		pthread_rwlockattr_setpshared	_pthread_rwlockattr_setpshared
 #define		pthread_self			_pthread_self
 #define		pthread_set_name_np		_pthread_set_name_np
