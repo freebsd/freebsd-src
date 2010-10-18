@@ -2708,6 +2708,7 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 	  prev_insn_reloc_type[1] = BFD_RELOC_UNUSED;
 	  prev_insn_reloc_type[2] = BFD_RELOC_UNUSED;
 	  prev_insn_extended = 0;
+	  prev_insn_is_delay_slot = 1;
 	}
       else
 	{
