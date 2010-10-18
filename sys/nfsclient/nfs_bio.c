@@ -1375,13 +1375,9 @@ again:
 	/*
 	 * Try to create one if none are free.
 	 */
-	if (!gotiod) {
-		iod = nfs_nfsiodnew(1);
-		if (iod != -1)
-			gotiod = TRUE;
-	}
-
-	if (gotiod) {
+	if (!gotiod)
+		nfs_nfsiodnew();
+	else {
 		/*
 		 * Found one, so wake it up and tell it which
 		 * mount to process.
@@ -1401,7 +1397,7 @@ again:
 	if (!gotiod) {
 		if (nmp->nm_bufqiods > 0) {
 			NFS_DPF(ASYNCIO,
-				("nfs_asyncio: %d iods are already processing mount %p\n",
+		("nfs_asyncio: %d iods are already processing mount %p\n",
 				 nmp->nm_bufqiods, nmp));
 			gotiod = TRUE;
 		}
@@ -1416,9 +1412,9 @@ again:
 		 * Ensure that the queue never grows too large.  We still want
 		 * to asynchronize so we block rather then return EIO.
 		 */
-		while (nmp->nm_bufqlen >= 2*nfs_numasync) {
+		while (nmp->nm_bufqlen >= 2 * nfs_numasync) {
 			NFS_DPF(ASYNCIO,
-				("nfs_asyncio: waiting for mount %p queue to drain\n", nmp));
+		("nfs_asyncio: waiting for mount %p queue to drain\n", nmp));
 			nmp->nm_bufqwant = TRUE;
  			error = nfs_msleep(td, &nmp->nm_bufq, &nfs_iod_mtx, 
 					   slpflag | PRIBIO,
@@ -1426,7 +1422,7 @@ again:
 			if (error) {
 				error2 = nfs_sigintr(nmp, td);
 				if (error2) {
-					mtx_unlock(&nfs_iod_mtx);					
+					mtx_unlock(&nfs_iod_mtx);
 					return (error2);
 				}
 				if (slpflag == NFS_PCATCH) {
@@ -1438,17 +1434,13 @@ again:
 			 * We might have lost our iod while sleeping,
 			 * so check and loop if nescessary.
 			 */
-			if (nmp->nm_bufqiods == 0) {
-				NFS_DPF(ASYNCIO,
-					("nfs_asyncio: no iods after mount %p queue was drained, looping\n", nmp));
-				goto again;
-			}
+			goto again;
 		}
 
 		/* We might have lost our nfsiod */
 		if (nmp->nm_bufqiods == 0) {
 			NFS_DPF(ASYNCIO,
-				("nfs_asyncio: no iods after mount %p queue was drained, looping\n", nmp));
+("nfs_asyncio: no iods after mount %p queue was drained, looping\n", nmp));
 			goto again;
 		}
 
