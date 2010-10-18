@@ -49,7 +49,7 @@ struct net {
 
 extern struct net init_net;
 
-#define	MAX_ADDR_LEN		32 
+#define	MAX_ADDR_LEN		20
 
 #define	net_device	ifnet
 

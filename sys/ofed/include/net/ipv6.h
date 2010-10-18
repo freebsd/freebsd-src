@@ -29,10 +29,13 @@
 #ifndef _LINUX_NET_IPV6_H_
 #define	_LINUX_NET_IPV6_H_
 
+#include "opt_inet6.h"
+
 #define	ipv6_addr_loopback IN6_IS_ADDR_LOOPBACK
 #define	ipv6_addr_copy(dst, src)					\
 	memcpy((dst), (src), sizeof(struct in6_addr))
 
+#ifdef INET6
 static inline void
 ipv6_ib_mc_map(const struct in6_addr *addr, const unsigned char *broadcast,
     char *buf)
@@ -52,5 +55,6 @@ ipv6_ib_mc_map(const struct in6_addr *addr, const unsigned char *broadcast,
 	buf[9]  = broadcast[9];
 	memcpy(&buf[10], &addr->s6_addr[6], 10);
 }
+#endif
 
 #endif	/* _LINUX_NET_IPV6_H_ */

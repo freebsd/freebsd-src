@@ -29,4 +29,6 @@
 #ifndef	_LINUX_IN6_H_
 #define	_LINUX_IN6_H_
 
+#include "opt_inet6.h"
+
 #endif	/* _LINUX_IN6_H_ */
