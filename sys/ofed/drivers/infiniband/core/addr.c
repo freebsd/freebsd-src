@@ -104,7 +104,12 @@ int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct net_device *dev,
 int rdma_copy_addr(struct rdma_dev_addr *dev_addr, struct ifnet *dev,
 		     const unsigned char *dst_dev_addr)
 {
-	dev_addr->dev_type = dev->if_type;
+	if (dev->if_type == IFT_INFINIBAND)
+		dev_addr->dev_type = ARPHRD_INFINIBAND;
+	else if (dev->if_type == IFT_ETHER)
+		dev_addr->dev_type = ARPHRD_ETHER;
+	else
+		dev_addr->dev_type = 0;
 	memcpy(dev_addr->src_dev_addr, IF_LLADDR(dev), dev->if_addrlen);
 	memcpy(dev_addr->broadcast, __DECONST(char *, dev->if_broadcastaddr),
 	    dev->if_addrlen);
@@ -144,6 +149,7 @@ int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
 
 #if defined(INET6)
 	case AF_INET6:
+#ifdef __linux__
 		read_lock(&dev_base_lock);
 		for_each_netdev(&init_net, dev) {
 			if (ipv6_chk_addr(&init_net,
@@ -154,6 +160,7 @@ int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
 			}
 		}
 		read_unlock(&dev_base_lock);
+#endif
 		break;
 #endif
 	}
@@ -311,18 +318,18 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 
 #else
 #include <netinet/if_ether.h>
-#ifdef INET6
-#include <netinet6/nd6.h>
-#endif
 
 static int addr_resolve(struct sockaddr *src_in,
 			struct sockaddr *dst_in,
 			struct rdma_dev_addr *addr)
 {
+	struct sockaddr_in *sin;
+	struct sockaddr_in6 *sin6;
 	struct ifaddr *ifa;
 	struct ifnet *ifp;
 	struct llentry *lle;
 	struct rtentry *rte;
+	short port;
 	u_char edst[MAX_ADDR_LEN];
 	int multi;
 	int bcast;
@@ -334,26 +341,35 @@ static int addr_resolve(struct sockaddr *src_in,
 	 */
 	multi = 0;
 	bcast = 0;
+	sin = NULL;
+	sin6 = NULL;
 	ifp = NULL;
 	switch (dst_in->sa_family) {
 	case AF_INET:
-		if (((struct sockaddr_in *)dst_in)->sin_addr.s_addr ==
-		    INADDR_BROADCAST)
+		sin = (struct sockaddr_in *)dst_in;
+		if (sin->sin_addr.s_addr == INADDR_BROADCAST)
 			bcast = 1;
-		if (IN_MULTICAST((
-		    (struct sockaddr_in *)dst_in)->sin_addr.s_addr))
+		if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 			multi = 1;
-		if (((struct sockaddr_in *)src_in)->sin_addr.s_addr ==
-		    INADDR_ANY)
+		sin = (struct sockaddr_in *)src_in;
+		if (sin->sin_addr.s_addr != INADDR_ANY) {
+			/*
+			 * Address comparison fails if the port is set
+			 * cache it here to be restored later.
+			 */
+			port = sin->sin_port;
+			sin->sin_port = 0;
+			memset(&sin->sin_zero, 0, sizeof(sin->sin_zero));
+		} else
 			src_in = NULL; 
 		break;
 #ifdef INET6
 	case AF_INET6:
-		if (IN6_IS_ADDR_MULTICAST(
-		    &((struct sockaddr_in6 *)dst_in)->sin6_addr))
+		sin6 = (struct sockaddr_in6 *)dst_in;
+		if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			multi = 1;
-		if (IN6_IS_ADDR_UNSPECIFIED(
-		    &((struct sockaddr_in6 *)src_in)->sin6_addr))
+		sin6 = (struct sockaddr_in6 *)src_in;
+		if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr))
 			src_in = NULL;
 		break;
 #endif
@@ -365,7 +381,9 @@ static int addr_resolve(struct sockaddr *src_in,
 	 * that it is a local interface.
 	 */
 	if (src_in) {
-		ifa = ifa_ifwithdstaddr(src_in);
+		ifa = ifa_ifwithaddr(src_in);
+		if (sin)
+			sin->sin_port = port;
 		if (ifa == NULL)
 			return -ENETUNREACH;
 		ifp = ifa->ifa_ifp;
@@ -378,8 +396,8 @@ static int addr_resolve(struct sockaddr *src_in,
 	 */
 	rte = rtalloc1(dst_in, 1, 0);
 	if (rte == NULL || rte->rt_ifp == NULL || !RT_LINK_IS_UP(rte->rt_ifp)) {
-		if (rte)
-			RTFREE(rte);
+		if (rte) 
+			RTFREE_LOCKED(rte);
 		return -EHOSTUNREACH;
 	}
 	/*
@@ -387,11 +405,12 @@ static int addr_resolve(struct sockaddr *src_in,
 	 * requested interface return unreachable.
 	 */
 	if (multi || bcast) {
-		RTFREE(rte);
+		RTFREE_LOCKED(rte);
 	} else if (ifp && ifp != rte->rt_ifp) {
-		RTFREE(rte);
+		RTFREE_LOCKED(rte);
 		return -ENETUNREACH;
-	}
+	} else
+		RT_UNLOCK(rte);
 	if (ifp == NULL)
 		ifp = rte->rt_ifp;
 mcast:
