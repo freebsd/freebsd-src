@@ -63,13 +63,19 @@ __weak_reference(_pthread_rwlock_timedwrlock, pthread_rwlock_timedwrlock);
  */
 
 static int
-rwlock_init(pthread_rwlock_t *rwlock, const pthread_rwlockattr_t *attr __unused)
+rwlock_init(pthread_rwlock_t *rwlock, const pthread_rwlockattr_t *attr)
 {
 	pthread_rwlock_t prwlock;
 
 	prwlock = (pthread_rwlock_t)calloc(1, sizeof(struct pthread_rwlock));
 	if (prwlock == NULL)
 		return (ENOMEM);
+	if (attr != NULL)
+		prwlock->kind = (*attr)->kind;
+	else
+		prwlock->kind = PTHREAD_RWLOCK_DEFAULT_NP;
+	if (prwlock->kind == PTHREAD_RWLOCK_PREFER_READER_NP)
+		prwlock->lock.rw_flags |= URWLOCK_PREFER_READER;
 	*rwlock = prwlock;
 	return (0);
 }
@@ -112,7 +118,7 @@ init_static(struct pthread *thread, pthread_rwlock_t *rwlock)
 }
 
 int
-_pthread_rwlock_init (pthread_rwlock_t *rwlock, const pthread_rwlockattr_t *attr)
+_pthread_rwlock_init(pthread_rwlock_t *rwlock, const pthread_rwlockattr_t *attr)
 {
 	*rwlock = NULL;
 	return (rwlock_init(rwlock, attr));
@@ -260,6 +266,14 @@ rwlock_wrlock_common (pthread_rwlock_t *rwlock, const struct timespec *abstime)
 
 	CHECK_AND_INIT_RWLOCK
 
+	if (__predict_false(prwlock->owner == curthread)) {
+		if (__predict_false(
+			prwlock->kind == PTHREAD_RWLOCK_PREFER_WRITER_NP)) {
+			prwlock->recurse++;
+			return (0);
+		}
+	}
+
 	/*
 	 * POSIX said the validity of the abstimeout parameter need
 	 * not be checked if the lock can be immediately acquired.
@@ -335,6 +349,13 @@ _pthread_rwlock_unlock (pthread_rwlock_t *rwlock)
 	if (state & URWLOCK_WRITE_OWNER) {
 		if (__predict_false(prwlock->owner != curthread))
 			return (EPERM);
+		if (__predict_false(
+			prwlock->kind == PTHREAD_RWLOCK_PREFER_WRITER_NP)) {
+			if (prwlock->recurse > 0) {
+				prwlock->recurse--;
+				return (0);
+			}
+		}
 		prwlock->owner = NULL;
 	}
 
