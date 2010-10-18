@@ -403,7 +403,7 @@ ata_ahci_status(device_t dev)
 
 	/* do we have any PHY events ? */
 	if (istatus & (ATA_AHCI_P_IX_PRC | ATA_AHCI_P_IX_PC))
-	    ata_sata_phy_check_events(dev);
+	    ata_sata_phy_check_events(dev, -1);
 
 	/* do we have a potentially hanging engine to take care of? */
 	/* XXX SOS what todo on NCQ */
@@ -623,6 +623,25 @@ ata_ahci_pm_read(device_t dev, int port, int reg, u_int32_t *result)
 	(struct ata_ahci_cmd_tab *)(ch->dma.work + ATA_AHCI_CT_OFFSET);
     u_int8_t *fis = ch->dma.work + ATA_AHCI_FB_OFFSET + 0x40;
 
+    if (port < 0) {
+	*result = ATA_IDX_INL(ch, reg);
+	return (0);
+    }
+    if (port < ATA_PM) {
+	switch (reg) {
+	case ATA_SSTATUS:
+	    reg = 0;
+	    break;
+	case ATA_SERROR:
+	    reg = 1;
+	    break;
+	case ATA_SCONTROL:
+	    reg = 2;
+	    break;
+	default:
+	    return (EINVAL);
+	}
+    }
     bzero(ctp->cfis, 64);
     ctp->cfis[0] = 0x27;	/* host to device */
     ctp->cfis[1] = 0x8f;	/* command FIS to PM port */
@@ -649,6 +668,25 @@ ata_ahci_pm_write(device_t dev, int port, int reg, u_int32_t value)
 	(struct ata_ahci_cmd_tab *)(ch->dma.work + ATA_AHCI_CT_OFFSET);
     int offset = ch->unit << 7;
 
+    if (port < 0) {
+	ATA_IDX_OUTL(ch, reg, value);
+	return (0);
+    }
+    if (port < ATA_PM) {
+	switch (reg) {
+	case ATA_SSTATUS:
+	    reg = 0;
+	    break;
+	case ATA_SERROR:
+	    reg = 1;
+	    break;
+	case ATA_SCONTROL:
+	    reg = 2;
+	    break;
+	default:
+	    return (EINVAL);
+	}
+    }
     bzero(ctp->cfis, 64);
     ctp->cfis[0] = 0x27;	/* host to device */
     ctp->cfis[1] = 0x8f;	/* command FIS to PM port */
