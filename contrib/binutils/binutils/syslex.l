@@ -1,5 +1,5 @@
 %{
-/* Copyright 2001 Free Software Foundation, Inc.
+/* Copyright 2001, 2003 Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
 
@@ -24,7 +24,7 @@ int number;
 int unit;
 
 #ifndef yywrap
-static int yywrap () { return 1; }
+static int yywrap (void) { return 1; }
 #endif
 %}
 %%

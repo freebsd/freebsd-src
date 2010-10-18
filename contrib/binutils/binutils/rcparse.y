@@ -1,5 +1,5 @@
 %{ /* rcparse.y -- parser for Windows rc files
-   Copyright 1997, 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
    This file is part of GNU Binutils.
@@ -52,6 +52,11 @@ static unsigned long style;
 static unsigned long base_style;
 static unsigned long default_style;
 static unsigned long class;
+static struct res_id res_text_field;
+
+/* This is used for COMBOBOX, LISTBOX and EDITTEXT which
+   do not allow resource 'text' field in control definition. */
+static const struct res_id res_null_text = { 1, {{0, L""}}};
 
 %}
 
@@ -135,11 +140,11 @@ static unsigned long class;
 %type <vervar> vertrans
 %type <res_info> suboptions memflags_move_discard memflags_move
 %type <memflags> memflag
-%type <id> id resref
+%type <id> id optresidc resref
 %type <il> exstyle parennumber
 %type <il> numexpr posnumexpr cnumexpr optcnumexpr cposnumexpr
 %type <is> acc_options acc_option menuitem_flags menuitem_flag
-%type <s> optstringc file_name resname
+%type <s> file_name resname
 %type <i> sizednumexpr sizedposnumexpr
 
 %left '|'
@@ -533,70 +538,78 @@ controls:
 	;
 
 control:
-	  AUTO3STATE
+	  AUTO3STATE optresidc
 	    {
 	      default_style = BS_AUTO3STATE | WS_TABSTOP;
 	      base_style = BS_AUTO3STATE;
 	      class = CTL_BUTTON;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
-	| AUTOCHECKBOX
+	| AUTOCHECKBOX optresidc
 	    {
 	      default_style = BS_AUTOCHECKBOX | WS_TABSTOP;
 	      base_style = BS_AUTOCHECKBOX;
 	      class = CTL_BUTTON;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
-	| AUTORADIOBUTTON
+	| AUTORADIOBUTTON optresidc
 	    {
 	      default_style = BS_AUTORADIOBUTTON | WS_TABSTOP;
 	      base_style = BS_AUTORADIOBUTTON;
 	      class = CTL_BUTTON;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
-	| BEDIT
+	| BEDIT optresidc
 	    {
 	      default_style = ES_LEFT | WS_BORDER | WS_TABSTOP;
 	      base_style = ES_LEFT | WS_BORDER | WS_TABSTOP;
 	      class = CTL_EDIT;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	    if (dialog.ex == NULL)
 	      rcparse_warning (_("BEDIT requires DIALOGEX"));
 	    res_string_to_id (&$$->class, "BEDIT");
 	  }
-	| CHECKBOX
+	| CHECKBOX optresidc
 	    {
 	      default_style = BS_CHECKBOX | WS_TABSTOP;
 	      base_style = BS_CHECKBOX | WS_TABSTOP;
 	      class = CTL_BUTTON;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
 	| COMBOBOX
 	    {
+	      /* This is as per MSDN documentation.  With some (???)
+		 versions of MS rc.exe their is no default style.  */
 	      default_style = CBS_SIMPLE | WS_TABSTOP;
 	      base_style = 0;
 	      class = CTL_COMBOBOX;
+	      res_text_field = res_null_text;	
 	    }
 	    control_params
 	  {
 	    $$ = $3;
 	  }
-	| CONTROL optstringc numexpr cnumexpr control_styleexpr cnumexpr
+	| CONTROL optresidc numexpr cnumexpr control_styleexpr cnumexpr
 	    cnumexpr cnumexpr cnumexpr optcnumexpr opt_control_data
 	  {
 	    $$ = define_control ($2, $3, $6, $7, $8, $9, $4, style, $10);
@@ -607,7 +620,7 @@ control:
 		$$->data = $11;
 	      }
 	  }
-	| CONTROL optstringc numexpr cnumexpr control_styleexpr cnumexpr
+	| CONTROL optresidc numexpr cnumexpr control_styleexpr cnumexpr
 	    cnumexpr cnumexpr cnumexpr cnumexpr cnumexpr opt_control_data
 	  {
 	    $$ = define_control ($2, $3, $6, $7, $8, $9, $4, style, $10);
@@ -616,7 +629,7 @@ control:
 	    $$->help = $11;
 	    $$->data = $12;
 	  }
-	| CONTROL optstringc numexpr ',' QUOTEDSTRING control_styleexpr
+	| CONTROL optresidc numexpr ',' QUOTEDSTRING control_styleexpr
 	    cnumexpr cnumexpr cnumexpr cnumexpr optcnumexpr opt_control_data
 	  {
 	    $$ = define_control ($2, $3, $7, $8, $9, $10, 0, style, $11);
@@ -629,7 +642,7 @@ control:
 	    $$->class.named = 1;
   	    unicode_from_ascii (&$$->class.u.n.length, &$$->class.u.n.name, $5);
 	  }
-	| CONTROL optstringc numexpr ',' QUOTEDSTRING control_styleexpr
+	| CONTROL optresidc numexpr ',' QUOTEDSTRING control_styleexpr
 	    cnumexpr cnumexpr cnumexpr cnumexpr cnumexpr cnumexpr opt_control_data
 	  {
 	    $$ = define_control ($2, $3, $7, $8, $9, $10, 0, style, $11);
@@ -640,55 +653,60 @@ control:
 	    $$->class.named = 1;
   	    unicode_from_ascii (&$$->class.u.n.length, &$$->class.u.n.name, $5);
 	  }
-	| CTEXT
+	| CTEXT optresidc
 	    {
 	      default_style = SS_CENTER | WS_GROUP;
 	      base_style = SS_CENTER;
 	      class = CTL_STATIC;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
-	| DEFPUSHBUTTON
+	| DEFPUSHBUTTON optresidc
 	    {
 	      default_style = BS_DEFPUSHBUTTON | WS_TABSTOP;
 	      base_style = BS_DEFPUSHBUTTON | WS_TABSTOP;
 	      class = CTL_BUTTON;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
 	| EDITTEXT
 	    {
 	      default_style = ES_LEFT | WS_BORDER | WS_TABSTOP;
 	      base_style = ES_LEFT | WS_BORDER | WS_TABSTOP;
 	      class = CTL_EDIT;
+	      res_text_field = res_null_text;	
 	    }
 	    control_params
 	  {
 	    $$ = $3;
 	  }
-	| GROUPBOX
+	| GROUPBOX optresidc
 	    {
 	      default_style = BS_GROUPBOX;
 	      base_style = BS_GROUPBOX;
 	      class = CTL_BUTTON;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
-	| HEDIT
+	| HEDIT optresidc
 	    {
 	      default_style = ES_LEFT | WS_BORDER | WS_TABSTOP;
 	      base_style = ES_LEFT | WS_BORDER | WS_TABSTOP;
 	      class = CTL_EDIT;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	    if (dialog.ex == NULL)
 	      rcparse_warning (_("IEDIT requires DIALOGEX"));
 	    res_string_to_id (&$$->class, "HEDIT");
@@ -716,15 +734,16 @@ control:
 	    $$ = define_icon_control ($2, $3, $4, $5, style, $9, $10, $11,
 				      dialog.ex);
           }
-	| IEDIT
+	| IEDIT optresidc
 	    {
 	      default_style = ES_LEFT | WS_BORDER | WS_TABSTOP;
 	      base_style = ES_LEFT | WS_BORDER | WS_TABSTOP;
 	      class = CTL_EDIT;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	    if (dialog.ex == NULL)
 	      rcparse_warning (_("IEDIT requires DIALOGEX"));
 	    res_string_to_id (&$$->class, "IEDIT");
@@ -734,22 +753,24 @@ control:
 	      default_style = LBS_NOTIFY | WS_BORDER;
 	      base_style = LBS_NOTIFY | WS_BORDER;
 	      class = CTL_LISTBOX;
+	      res_text_field = res_null_text;	
 	    }
 	    control_params
 	  {
 	    $$ = $3;
 	  }
-	| LTEXT
+	| LTEXT optresidc
 	    {
 	      default_style = SS_LEFT | WS_GROUP;
 	      base_style = SS_LEFT;
 	      class = CTL_STATIC;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
-	| PUSHBOX
+	| PUSHBOX optresidc
 	    {
 	      default_style = BS_PUSHBOX | WS_TABSTOP;
 	      base_style = BS_PUSHBOX;
@@ -757,65 +778,70 @@ control:
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
-	| PUSHBUTTON
+	| PUSHBUTTON optresidc
 	    {
 	      default_style = BS_PUSHBUTTON | WS_TABSTOP;
 	      base_style = BS_PUSHBUTTON | WS_TABSTOP;
 	      class = CTL_BUTTON;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
-	| RADIOBUTTON
+	| RADIOBUTTON optresidc
 	    {
 	      default_style = BS_RADIOBUTTON | WS_TABSTOP;
 	      base_style = BS_RADIOBUTTON;
 	      class = CTL_BUTTON;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
-	| RTEXT
+	| RTEXT optresidc
 	    {
 	      default_style = SS_RIGHT | WS_GROUP;
 	      base_style = SS_RIGHT;
 	      class = CTL_STATIC;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
 	| SCROLLBAR
 	    {
 	      default_style = SBS_HORZ;
 	      base_style = 0;
 	      class = CTL_SCROLLBAR;
+	      res_text_field = res_null_text;	
 	    }
 	    control_params
 	  {
 	    $$ = $3;
 	  }
-	| STATE3
+	| STATE3 optresidc
 	    {
 	      default_style = BS_3STATE | WS_TABSTOP;
 	      base_style = BS_3STATE;
 	      class = CTL_BUTTON;
+	      res_text_field = $2;	
 	    }
 	    control_params
 	  {
-	    $$ = $3;
+	    $$ = $4;
 	  }
-	| USERBUTTON QUOTEDSTRING ',' numexpr ',' numexpr ',' numexpr ','
+	| USERBUTTON resref numexpr ',' numexpr ',' numexpr ','
 	    numexpr ',' numexpr ',' 
 	    { style = WS_CHILD | WS_VISIBLE; }
 	    styleexpr optcnumexpr
 	  {
-	    $$ = define_control ($2, $4, $6, $8, $10, $12, CTL_BUTTON,
-				 style, $16);
+	    $$ = define_control ($2, $3, $5, $7, $9, $11, CTL_BUTTON,
+				 style, $15);
 	  }
 	;
 
@@ -827,52 +853,56 @@ control:
    style.  CLASS is the class of the control.  */
 
 control_params:
-	  optstringc numexpr cnumexpr cnumexpr cnumexpr cnumexpr
-	    opt_control_data
+	  numexpr cnumexpr cnumexpr cnumexpr cnumexpr opt_control_data
 	  {
-	    $$ = define_control ($1, $2, $3, $4, $5, $6, class,
+	    $$ = define_control (res_text_field, $1, $2, $3, $4, $5, class,
 				 default_style | WS_CHILD | WS_VISIBLE, 0);
-	    if ($7 != NULL)
+	    if ($6 != NULL)
 	      {
 		if (dialog.ex == NULL)
 		  rcparse_warning (_("control data requires DIALOGEX"));
-		$$->data = $7;
+		$$->data = $6;
 	      }
 	  }
-	| optstringc numexpr cnumexpr cnumexpr cnumexpr cnumexpr
+	| numexpr cnumexpr cnumexpr cnumexpr cnumexpr
 	    control_params_styleexpr optcnumexpr opt_control_data
 	  {
-	    $$ = define_control ($1, $2, $3, $4, $5, $6, class, style, $8);
-	    if ($9 != NULL)
+	    $$ = define_control (res_text_field, $1, $2, $3, $4, $5, class, style, $7);
+	    if ($8 != NULL)
 	      {
 		if (dialog.ex == NULL)
 		  rcparse_warning (_("control data requires DIALOGEX"));
-		$$->data = $9;
+		$$->data = $8;
 	      }
 	  }
-	| optstringc numexpr cnumexpr cnumexpr cnumexpr cnumexpr
+	| numexpr cnumexpr cnumexpr cnumexpr cnumexpr
 	    control_params_styleexpr cnumexpr cnumexpr opt_control_data
 	  {
-	    $$ = define_control ($1, $2, $3, $4, $5, $6, class, style, $8);
+	    $$ = define_control (res_text_field, $1, $2, $3, $4, $5, class, style, $7);
 	    if (dialog.ex == NULL)
 	      rcparse_warning (_("help ID requires DIALOGEX"));
-	    $$->help = $9;
-	    $$->data = $10;
+	    $$->help = $8;
+	    $$->data = $9;
 	  }
 	;
 
-optstringc:
+optresidc:
 	  /* empty */
 	  {
-	    $$ = NULL;
+	    res_string_to_id (&$$, "");
+	  }
+	| posnumexpr ','
+	  {
+	    $$.named = 0;
+	    $$.u.id = $1;
 	  }
 	| QUOTEDSTRING
 	  {
-	    $$ = $1;
+	    res_string_to_id (&$$, $1);
 	  }
 	| QUOTEDSTRING ','
 	  {
-	    $$ = $1;
+	    res_string_to_id (&$$, $1);
 	  }
 	;
 
@@ -1732,8 +1762,7 @@ sizedposnumexpr:
 /* Set the language from the command line.  */
 
 void
-rcparse_set_language (lang)
-     int lang;
+rcparse_set_language (int lang)
 {
   language = lang;
 }
