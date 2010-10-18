@@ -374,7 +374,7 @@ ata_marvell_edma_status(device_t dev)
 	ATA_OUTL(ctlr->r_res1, 0x02008 + ATA_MV_EDMA_BASE(ch), 0x0);
 
 	/* do we have any PHY events ? */
-	ata_sata_phy_check_events(dev);
+	ata_sata_phy_check_events(dev, -1);
     }
 
     /* do we have any device action ? */
