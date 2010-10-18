@@ -87,7 +87,7 @@ main(int argc, char *argv[])
 		base64 = 1;
 
 	while ((ch = getopt(argc, argv, "cimo:prs")) != -1) {
-		switch(ch) {
+		switch (ch) {
 		case 'c':
 			if (oflag || rflag)
 				usage();
@@ -125,10 +125,10 @@ main(int argc, char *argv[])
 			usage();
 		}
 	}
-        argc -= optind;
-        argv += optind;
+	argc -= optind;
+	argv += optind;
 
-	if (*argv) {
+	if (*argv != NULL) {
 		rval = 0;
 		do {
 			infp = fopen(infile = *argv, "r");
@@ -184,7 +184,7 @@ decode2(void)
 	void *handle;
 	struct passwd *pw;
 	struct stat st;
-	char buf[MAXPATHLEN+1];
+	char buf[MAXPATHLEN + 1];
 
 	base64 = 0;
 	/* search for header line */
@@ -259,7 +259,7 @@ decode2(void)
 	if (pflag || strcmp(outfile, "/dev/stdout") == 0)
 		outfp = stdout;
 	else {
-		flags = O_WRONLY|O_CREAT|O_EXCL;
+		flags = O_WRONLY | O_CREAT | O_EXCL;
 		if (lstat(outfile, &st) == 0) {
 			if (iflag) {
 				warnc(EEXIST, "%s: %s", infile, outfile);
@@ -305,6 +305,7 @@ decode2(void)
 static int
 getline(char *buf, size_t size)
 {
+
 	if (fgets(buf, size, infp) != NULL)
 		return (2);
 	if (rflag)
@@ -341,17 +342,19 @@ uu_decode(void)
 	/* for each input line */
 	for (;;) {
 		switch (getline(buf, sizeof(buf))) {
-		case 0: return (0);
-		case 1: return (1);
+		case 0:
+			return (0);
+		case 1:
+			return (1);
 		}
 
-#define	DEC(c)	(((c) - ' ') & 077)		/* single character decode */
-#define IS_DEC(c) ( (((c) - ' ') >= 0) && (((c) - ' ') <= 077 + 1) )
+#define	DEC(c)		(((c) - ' ') & 077)	/* single character decode */
+#define IS_DEC(c)	 ( (((c) - ' ') >= 0) && (((c) - ' ') <= 077 + 1) )
 
 #define OUT_OF_RANGE do {						\
 	warnx("%s: %s: character out of range: [%d-%d]",		\
 	    infile, outfile, 1 + ' ', 077 + ' ' + 1);			\
-        return (1);							\
+	return (1);							\
 } while (0)
 
 		/*
@@ -364,8 +367,8 @@ uu_decode(void)
 		for (++p; i > 0; p += 4, i -= 3)
 			if (i >= 3) {
 				if (!(IS_DEC(*p) && IS_DEC(*(p + 1)) &&
-				     IS_DEC(*(p + 2)) && IS_DEC(*(p + 3))))
-                                	OUT_OF_RANGE;
+				    IS_DEC(*(p + 2)) && IS_DEC(*(p + 3))))
+					OUT_OF_RANGE;
 
 				ch = DEC(p[0]) << 2 | DEC(p[1]) >> 4;
 				putc(ch, outfp);
@@ -373,8 +376,7 @@ uu_decode(void)
 				putc(ch, outfp);
 				ch = DEC(p[2]) << 6 | DEC(p[3]);
 				putc(ch, outfp);
-			}
-			else {
+			} else {
 				if (i >= 1) {
 					if (!(IS_DEC(*p) && IS_DEC(*(p + 1))))
 	                                	OUT_OF_RANGE;
@@ -383,25 +385,28 @@ uu_decode(void)
 				}
 				if (i >= 2) {
 					if (!(IS_DEC(*(p + 1)) &&
-						IS_DEC(*(p + 2))))
-		                                OUT_OF_RANGE;
+					    IS_DEC(*(p + 2))))
+						OUT_OF_RANGE;
 
 					ch = DEC(p[1]) << 4 | DEC(p[2]) >> 2;
 					putc(ch, outfp);
 				}
 				if (i >= 3) {
 					if (!(IS_DEC(*(p + 2)) &&
-						IS_DEC(*(p + 3))))
-		                                OUT_OF_RANGE;
+					    IS_DEC(*(p + 3))))
+						OUT_OF_RANGE;
 					ch = DEC(p[2]) << 6 | DEC(p[3]);
 					putc(ch, outfp);
 				}
 			}
 	}
 	switch (getline(buf, sizeof(buf))) {
-	case 0:  return (0);
-	case 1:  return (1);
-	default: return (checkend(buf, "end", "no \"end\" line"));
+	case 0:
+		return (0);
+	case 1:
+		return (1);
+	default:
+		return (checkend(buf, "end", "no \"end\" line"));
 	}
 }
 
@@ -409,7 +414,7 @@ static int
 base64_decode(void)
 {
 	int n;
-	char inbuf[MAXPATHLEN+1];
+	char inbuf[MAXPATHLEN + 1];
 	unsigned char outbuf[MAXPATHLEN * 4];
 
 	for (;;) {
@@ -418,21 +423,22 @@ base64_decode(void)
 		case 1: return (1);
 		}
 		n = b64_pton(inbuf, outbuf, sizeof(outbuf));
+
 		if (n < 0)
 			break;
 		fwrite(outbuf, 1, n, outfp);
 	}
-	return (checkend(inbuf, "====",
-		    "error decoding base64 input stream"));
+	return (checkend(inbuf, "====", "error decoding base64 input stream"));
 }
 
 static void
 usage(void)
 {
+
 	(void)fprintf(stderr,
-"usage: uudecode [-cimprs] [file ...]\n"
-"       uudecode [-i] -o output_file [file]\n"
-"       b64decode [-cimprs] [file ...]\n"
-"       b64decode [-i] -o output_file [file]\n");
+	    "usage: uudecode [-cimprs] [file ...]\n"
+	    "       uudecode [-i] -o output_file [file]\n"
+	    "       b64decode [-cimprs] [file ...]\n"
+	    "       b64decode [-i] -o output_file [file]\n");
 	exit(1);
 }
