@@ -2746,9 +2746,9 @@ ofed/drivers/infiniband/core/verbs.c		optional infiniband	\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 
-#ofed/drivers/infiniband/ulp/ipoib/ipoib_cm.c	optional ipoib		\
-#	no-depend							\
-#	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/ipoib/"
+ofed/drivers/infiniband/ulp/ipoib/ipoib_cm.c	optional ipoib		\
+	no-depend							\
+	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/ipoib/"
 #ofed/drivers/infiniband/ulp/ipoib/ipoib_fs.c	optional ipoib		\
 #	no-depend							\
 #	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/ulp/ipoib/"
