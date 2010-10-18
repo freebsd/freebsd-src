@@ -36,8 +36,10 @@
 
 __weak_reference(_pthread_rwlockattr_destroy, pthread_rwlockattr_destroy);
 __weak_reference(_pthread_rwlockattr_getpshared, pthread_rwlockattr_getpshared);
+__weak_reference(_pthread_rwlockattr_getkind_np, pthread_rwlockattr_getkind_np);
 __weak_reference(_pthread_rwlockattr_init, pthread_rwlockattr_init);
 __weak_reference(_pthread_rwlockattr_setpshared, pthread_rwlockattr_setpshared);
+__weak_reference(_pthread_rwlockattr_setkind_np, pthread_rwlockattr_setkind_np);
 
 int
 _pthread_rwlockattr_destroy(pthread_rwlockattr_t *rwlockattr)
@@ -98,3 +100,21 @@ _pthread_rwlockattr_setpshared(pthread_rwlockattr_t *rwlockattr, int pshared)
 	return(0);
 }
 
+int
+_pthread_rwlockattr_setkind_np(pthread_rwlockattr_t *attr, int kind)
+{
+	if (kind != PTHREAD_RWLOCK_PREFER_READER_NP ||
+	    kind != PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP ||
+	    kind != PTHREAD_RWLOCK_PREFER_WRITER_NP) {
+		return (EINVAL);
+	}
+	(*attr)->kind = kind;
+	return (0);
+}
+
+int
+_pthread_rwlockattr_getkind_np(const pthread_rwlockattr_t *attr, int *kind)
+{
+	*kind = (*attr)->kind;
+	return (0);
+}
