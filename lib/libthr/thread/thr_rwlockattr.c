@@ -103,8 +103,8 @@ _pthread_rwlockattr_setpshared(pthread_rwlockattr_t *rwlockattr, int pshared)
 int
 _pthread_rwlockattr_setkind_np(pthread_rwlockattr_t *attr, int kind)
 {
-	if (kind != PTHREAD_RWLOCK_PREFER_READER_NP ||
-	    kind != PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP ||
+	if (kind != PTHREAD_RWLOCK_PREFER_READER_NP &&
+	    kind != PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP &&
 	    kind != PTHREAD_RWLOCK_PREFER_WRITER_NP) {
 		return (EINVAL);
 	}
