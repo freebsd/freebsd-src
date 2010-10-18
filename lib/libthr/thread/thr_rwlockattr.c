@@ -83,6 +83,7 @@ _pthread_rwlockattr_init(pthread_rwlockattr_t *rwlockattr)
 		return(ENOMEM);
 
 	prwlockattr->pshared 	= PTHREAD_PROCESS_PRIVATE;
+	prwlockattr->kind	= PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP;
 	*rwlockattr		= prwlockattr;
 
 	return(0);
