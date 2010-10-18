@@ -255,6 +255,7 @@ idr_get(struct idr *idr)
 		return (il);
 	}
 	il = malloc(sizeof(*il), M_IDR, M_ZERO | M_NOWAIT);
+	bitmap_fill(&il->bitmap, IDR_SIZE);
 	return (il);
 }
 
@@ -307,10 +308,11 @@ idr_get_new(struct idr *idr, void *ptr, int *idp)
 		if (layer == 0)
 			break;
 		if (il->ary[idx] == NULL) {
-			il = il->ary[idx] = idr_get(idr);
-			if (il == NULL)
+			il->ary[idx] = idr_get(idr);
+			if (il->ary[idx] == NULL)
 				goto out;
 		}
+		il = il->ary[idx];
 	}
 	/*
 	 * Allocate the leaf to the consumer.
@@ -328,10 +330,12 @@ idr_get_new(struct idr *idr, void *ptr, int *idp)
 	error = 0;
 out:
 	mtx_unlock(&idr->lock);
+#ifdef INVARIANTS
 	if (error == 0 && idr_find(idr, id) != ptr) {
 		panic("idr_get_new: Failed for idr %p, id %d, ptr %p\n",
 		    idr, id, ptr);
 	}
+#endif
 	return (error);
 }
 
@@ -357,6 +361,10 @@ restart:
 	while (idx & ~IDR_MASK) {
 		layer++;
 		idx >>= IDR_BITS;
+	}
+	if (layer == MAX_LEVEL + 1) {
+		error = -ENOSPC;
+		goto out;
 	}
 	/*
 	 * Expand the tree until there is free space at or beyond starting_id.
@@ -407,10 +415,11 @@ restart:
 		if (layer == 0)
 			break;
 		if (il->ary[idx] == NULL) {
-			il = il->ary[idx] = idr_get(idr);
-			if (il == NULL)
+			il->ary[idx] = idr_get(idr);
+			if (il->ary[idx] == NULL)
 				goto out;
 		}
+		il = il->ary[idx];
 	}
 	/*
 	 * Allocate the leaf to the consumer.
@@ -428,5 +437,11 @@ restart:
 	error = 0;
 out:
 	mtx_unlock(&idr->lock);
+#ifdef INVARIANTS
+	if (error == 0 && idr_find(idr, id) != ptr) {
+		panic("idr_get_new_above: Failed for idr %p, id %d, ptr %p\n",
+		    idr, id, ptr);
+	}
+#endif
 	return (error);
 }
