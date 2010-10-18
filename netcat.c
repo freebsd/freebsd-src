@@ -1,4 +1,4 @@
-/* $OpenBSD: netcat.c,v 1.95 2010/02/27 00:58:56 nicm Exp $ */
+/* $OpenBSD: netcat.c,v 1.98 2010/07/03 04:44:51 guenther Exp $ */
 /*
  * Copyright (c) 2001 Eric Jackson <ericj@monkey.org>
  *
@@ -84,7 +84,7 @@ int	Iflag;					/* TCP receive buffer size */
 int	Oflag;					/* TCP send buffer size */
 int	Sflag;					/* TCP MD5 signature option */
 int	Tflag = -1;				/* IP Type of Service */
-u_int	rdomain;
+u_int	rtableid;
 
 int timeout = -1;
 int family = AF_UNSPEC;
@@ -189,10 +189,10 @@ main(int argc, char *argv[])
 			uflag = 1;
 			break;
 		case 'V':
-			rdomain = (unsigned int)strtonum(optarg, 0,
+			rtableid = (unsigned int)strtonum(optarg, 0,
 			    RT_TABLEID_MAX, &errstr);
 			if (errstr)
-				errx(1, "rdomain %s: %s", errstr, optarg);
+				errx(1, "rtable %s: %s", errstr, optarg);
 			break;
 		case 'v':
 			vflag = 1;
@@ -323,11 +323,11 @@ main(int argc, char *argv[])
 			 */
 			if (uflag) {
 				int rv, plen;
-				char buf[8192];
+				char buf[16384];
 				struct sockaddr_storage z;
 
 				len = sizeof(z);
-				plen = jflag ? 8192 : 1024;
+				plen = jflag ? 16384 : 2048;
 				rv = recvfrom(s, buf, plen, MSG_PEEK,
 				    (struct sockaddr *)&z, &len);
 				if (rv < 0)
@@ -507,10 +507,10 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
 		    res0->ai_protocol)) < 0)
 			continue;
 
-		if (rdomain) {
-			if (setsockopt(s, IPPROTO_IP, SO_RDOMAIN, &rdomain,
-			    sizeof(rdomain)) == -1)
-				err(1, "setsockopt SO_RDOMAIN");
+		if (rtableid) {
+			if (setsockopt(s, IPPROTO_IP, SO_RTABLE, &rtableid,
+			    sizeof(rtableid)) == -1)
+				err(1, "setsockopt SO_RTABLE");
 		}
 
 		/* Bind to a local port or source address if specified. */
@@ -581,10 +581,10 @@ local_listen(char *host, char *port, struct addrinfo hints)
 		    res0->ai_protocol)) < 0)
 			continue;
 
-		if (rdomain) {
-			if (setsockopt(s, IPPROTO_IP, SO_RDOMAIN, &rdomain,
-			    sizeof(rdomain)) == -1)
-				err(1, "setsockopt SO_RDOMAIN");
+		if (rtableid) {
+			if (setsockopt(s, IPPROTO_IP, SO_RTABLE, &rtableid,
+			    sizeof(rtableid)) == -1)
+				err(1, "setsockopt SO_RTABLE");
 		}
 
 		ret = setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &x, sizeof(x));
@@ -619,12 +619,12 @@ void
 readwrite(int nfd)
 {
 	struct pollfd pfd[2];
-	unsigned char buf[8192];
+	unsigned char buf[16384];
 	int n, wfd = fileno(stdin);
 	int lfd = fileno(stdout);
 	int plen;
 
-	plen = jflag ? 8192 : 1024;
+	plen = jflag ? 16384 : 2048;
 
 	/* Setup Network FD */
 	pfd[0].fd = nfd;
@@ -766,10 +766,9 @@ build_ports(char *p)
 		hi = strtonum(p, 1, PORT_MAX, &errstr);
 		if (errstr)
 			errx(1, "port number %s: %s", errstr, p);
-		portlist[0] = calloc(1, PORT_MAX_LEN);
+		portlist[0] = strdup(p);
 		if (portlist[0] == NULL)
 			err(1, NULL);
-		portlist[0] = p;
 	}
 }
 
@@ -872,7 +871,7 @@ help(void)
 	\t-t		Answer TELNET negotiation\n\
 	\t-U		Use UNIX domain socket\n\
 	\t-u		UDP mode\n\
-	\t-V rdomain	Specify alternate routing domain\n\
+	\t-V rtable	Specify alternate routing table\n\
 	\t-v		Verbose\n\
 	\t-w secs\t	Timeout for connects and final net reads\n\
 	\t-X proto	Proxy protocol: \"4\", \"5\" (SOCKS) or \"connect\"\n\
@@ -888,7 +887,7 @@ usage(int ret)
 	fprintf(stderr,
 	    "usage: nc [-46DdhklnrStUuvz] [-I length] [-i interval] [-O length]\n"
 	    "\t  [-P proxy_username] [-p source_port] [-s source_ip_address] [-T ToS]\n"
-	    "\t  [-V rdomain] [-w timeout] [-X proxy_protocol]\n"
+	    "\t  [-V rtable] [-w timeout] [-X proxy_protocol]\n"
 	    "\t  [-x proxy_address[:port]] [hostname] [port]\n");
 	if (ret)
 		exit(1);
