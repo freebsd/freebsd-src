@@ -1088,9 +1088,9 @@ static int get_addr(char *dst, struct sockaddr *addr)
 static void usage(char *name)
 {
 	printf("%s -s [-vVd] [-S size] [-C count] [-a addr] [-p port]\n", 
-	       basename(name));
+	       name);
 	printf("%s -c [-vVd] [-S size] [-C count] -a addr [-p port]\n", 
-	       basename(name));
+	       name);
 	printf("\t-c\t\tclient side\n");
 	printf("\t-s\t\tserver side.  To bind to any address with IPv6 use -a ::0\n");
 	printf("\t-v\t\tdisplay ping data to stdout\n");
