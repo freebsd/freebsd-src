@@ -39,9 +39,11 @@ ip_dev_find(struct net *net, uint32_t addr)
 	struct ifnet *ifp;
 
 	ifp = NULL;
+	memset(&sin, 0, sizeof(sin));
 	sin.sin_addr.s_addr = addr;
 	sin.sin_port = 0;
 	sin.sin_len = sizeof(sin);
+	sin.sin_family = AF_INET;
 	ifa = ifa_ifwithaddr((struct sockaddr *)&sin);
 	if (ifa) {
 		ifp = ifa->ifa_ifp;
