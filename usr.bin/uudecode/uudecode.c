@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -413,15 +414,40 @@ uu_decode(void)
 static int
 base64_decode(void)
 {
-	int n;
-	char inbuf[MAXPATHLEN + 1];
+	int n, count, count4;
+	char inbuf[MAXPATHLEN + 1], *p;
 	unsigned char outbuf[MAXPATHLEN * 4];
+	char leftover[MAXPATHLEN + 1];
 
+	leftover[0] = '\0';
 	for (;;) {
-		switch (getline(inbuf, sizeof(inbuf))) {
-		case 0: return (0);
-		case 1: return (1);
+		strcpy(inbuf, leftover);
+		switch (getline(inbuf + strlen(inbuf),
+		    sizeof(inbuf) - strlen(inbuf))) {
+		case 0:
+			return (0);
+		case 1:
+			return (1);
 		}
+
+		count = 0;
+		count4 = -1;
+		p = inbuf;
+		while (*p != '\0') {
+			/*
+			 * Base64 encoded strings have the following
+			 * characters in them: A-Z, a-z, 0-9 and +, / and =
+			 */
+			if (isalnum(*p) || *p == '+' || *p == '/' || *p == '=')
+				count++;
+			if (count % 4 == 0)
+				count4 = p - inbuf;
+			p++;
+		}
+
+		strcpy(leftover, inbuf + count4 + 1);
+		inbuf[count4 + 1] = 0;
+
 		n = b64_pton(inbuf, outbuf, sizeof(outbuf));
 
 		if (n < 0)
