@@ -1265,6 +1265,7 @@ static void cma_set_compare_data(enum rdma_port_space ps, struct sockaddr *addr,
 			cma_mask->dst_addr.ip4.addr = htonl(~0);
 		}
 		break;
+#ifdef INET6
 	case AF_INET6:
 		ip6_addr = ((struct sockaddr_in6 *) addr)->sin6_addr;
 		if (ps == RDMA_PS_SDP) {
@@ -1281,6 +1282,7 @@ static void cma_set_compare_data(enum rdma_port_space ps, struct sockaddr *addr,
 			       sizeof cma_mask->dst_addr.ip6);
 		}
 		break;
+#endif
 	default:
 		break;
 	}
@@ -1373,7 +1375,7 @@ static int iw_conn_req_handler(struct iw_cm_id *cm_id,
 	mutex_lock_nested(&conn_id->handler_mutex, SINGLE_DEPTH_NESTING);
 	conn_id->state = CMA_CONNECT;
 
-	dev = ip_dev_find(&init_net, iw_event->local_addr.sin_addr.s_addr);
+	dev = ip_dev_find(NULL, iw_event->local_addr.sin_addr.s_addr);
 	if (!dev) {
 		ret = -EADDRNOTAVAIL;
 		mutex_unlock(&conn_id->handler_mutex);
@@ -2293,14 +2295,18 @@ out:
 static int cma_check_linklocal(struct rdma_dev_addr *dev_addr,
 			       struct sockaddr *addr)
 {
-#if defined(CONFIG_IPv6) || defined(CONFIG_IPV6_MODULE)
+#if defined(INET6)
 	struct sockaddr_in6 *sin6;
 
 	if (addr->sa_family != AF_INET6)
 		return 0;
 
 	sin6 = (struct sockaddr_in6 *) addr;
+#ifdef __linux__
 	if ((ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL) &&
+#else
+	if (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr) &&
+#endif
 	    !sin6->sin6_scope_id)
 			return -EINVAL;
 
