@@ -55,10 +55,14 @@
 #endif
 #else /* TARGET_ARCH_SIZE == 32 */
 #include "bfd/elf32-hppa.h"
-#if defined (TE_LINUX) || defined (TE_NetBSD)
+#if defined (TE_LINUX)
 #define TARGET_FORMAT "elf32-hppa-linux"
 #else
+#if defined (TE_NetBSD)
+#define TARGET_FORMAT "elf32-hppa-netbsd"
+#else
 #define TARGET_FORMAT "elf32-hppa"
+#endif
 #endif
 #endif
 #endif

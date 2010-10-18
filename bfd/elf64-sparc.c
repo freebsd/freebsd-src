@@ -2635,10 +2635,14 @@ sparc64_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 	    /* The Solaris native linker silently disregards
 	       overflows.  We don't, but this breaks stabs debugging
 	       info, whose relocations are only 32-bits wide.  Ignore
-	       overflows for discarded entries.  */
+	       overflows in this case and also for discarded entries.  */
 	    if ((r_type == R_SPARC_32 || r_type == R_SPARC_DISP32)
-		&& _bfd_elf_section_offset (output_bfd, info, input_section,
-					    rel->r_offset) == (bfd_vma) -1)
+		&& (((input_section->flags & SEC_DEBUGGING) != 0
+		     && strcmp (bfd_section_name (input_bfd, input_section),
+			       ".stab") == 0)
+		    || _bfd_elf_section_offset (output_bfd, info,
+						input_section,
+						rel->r_offset) == (bfd_vma)-1))
 	      break;
 
 	    if (h != NULL)
