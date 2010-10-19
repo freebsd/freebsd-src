@@ -254,12 +254,6 @@ TUNABLE_INT("debug.acpi.interpreter_slack", &acpi_interpreter_slack);
 SYSCTL_INT(_debug_acpi, OID_AUTO, interpreter_slack, CTLFLAG_RDTUN,
     &acpi_interpreter_slack, 1, "Turn on interpreter slack mode.");
 
-/* Power devices off and on in suspend and resume.  XXX Remove once tested. */
-static int acpi_do_powerstate = 1;
-TUNABLE_INT("debug.acpi.do_powerstate", &acpi_do_powerstate);
-SYSCTL_INT(_debug_acpi, OID_AUTO, do_powerstate, CTLFLAG_RW,
-    &acpi_do_powerstate, 1, "Turn off devices when suspending.");
-
 /* Reset system clock while resuming.  XXX Remove once tested. */
 static int acpi_reset_clock = 1;
 TUNABLE_INT("debug.acpi.reset_clock", &acpi_reset_clock);
@@ -667,9 +661,6 @@ acpi_set_power_children(device_t dev, int state)
 	device_t *devlist;
 	struct pci_devinfo *dinfo;
 	int dstate, i, numdevs;
-
-	if (!acpi_do_powerstate)
-		return;
 
 	if (device_get_children(dev, &devlist, &numdevs) != 0)
 		return;
@@ -1492,9 +1483,6 @@ acpi_set_powerstate(device_t child, int state)
 {
     ACPI_HANDLE h;
     ACPI_STATUS status;
-
-    if (!acpi_do_powerstate)
-	return (0);
 
     h = acpi_get_handle(child);
     if (state < ACPI_STATE_D0 || state > ACPI_D_STATES_MAX)
