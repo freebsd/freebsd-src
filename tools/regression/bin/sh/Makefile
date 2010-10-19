@@ -1,4 +1,7 @@
 # $FreeBSD$
 
+# Allow one to specify the 'sh' to regress.
+SH?=	/bin/sh
+
 all:
-	sh regress.sh
+	env SH=${SH} ${SH} regress.sh
