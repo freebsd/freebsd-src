@@ -1,5 +1,0 @@
-Carrots
-Barley
-Oatmeal
-Beans
-
