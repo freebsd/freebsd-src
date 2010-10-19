@@ -1,7 +1,0 @@
-# $FreeBSD$
-files	"../rmi/files.xlr"
-
-#
-# XXXMIPS: It's a stub, isn't it?
-#
-option	NOFPU
