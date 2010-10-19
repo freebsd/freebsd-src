@@ -1,3 +1,31 @@
+2005-03-07  Aldy Hernandez  <aldyh@redhat.com>
+
+	* ppc-opc.c (powerpc_opcodes): Fix encoding of efscfd.
+
+2004-12-11  David O'Brien  <obrien@FreeBSD.org>
+
+	Merge from mainline:
+	2004-04-20  Jakub Jelinek  <jakub@redhat.com>
+	* sparc-opc.c (fmoviccx, fmovfccx, fmovccx): Define.
+	(fmovicc, fmovfcc, fmovcc): Remove fpsize argument, change opcode to
+	suffix.  Use fmov*x macros, create all 3 fpsize variants in one
+	macro.  Adjust all users.
+
+2004-10-06  Aldy Hernandez  <aldyh@redhat.com>
+
+	* ppc-opc.c (powerpc_opcodes): Add efscfd, efdabs, efdnabs,
+	efdneg, efdadd, efdsub, efdmul, efddiv, efdcmpgt, efdcmplt,
+	efdcmpeq, efdtstgt, efdtstlt, efdtsteq, efdcfsi, efdcfsid,
+	efdcfui, efdcfuid, efdcfsf, efdcfuf, efdctsi, efdctsidz, efdctsiz,
+	efdctui, efdctuidz, efdctuiz, efdctsf, efdctuf, efdctuf, efdcfs.
+
+2004-07-30  Michal Ludvig  <mludvig@suse.cz>
+
+	* i386-dis.c (GRPPADLCK): Renamed to GRPPADLCK1
+	(GRPPADLCK2): New define.
+	(twobyte_has_modrm): True for 0xA6.
+	(grps): GRPPADLCK2 for opcode 0xA6.
+
 2004-05-13  Nick Clifton  <nickc@redhat.com>
 
 	* po/fr.po: Updated French translation.
