@@ -4,7 +4,7 @@
 # use the normal "Makefile.inc" mechanism, because we need some of these
 # definitions before the sub-Makefile is processed.
 
-VERSION=	"2.15 [FreeBSD] 2004-05-23"
+VERSION=	"2.15 [FreeBSD] 2005-06-08"
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 .if ${TARGET_ARCH} == "amd64"
