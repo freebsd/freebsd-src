@@ -46,7 +46,7 @@
 #include <sys/stdint.h>		/* for people using printf mainly */
 
 extern int cold;		/* nonzero if we are doing a cold boot */
-extern int rebooting;		/* boot() has been called. */
+extern int rebooting;		/* kern_reboot() has been called. */
 extern const char *panicstr;	/* panic message */
 extern char version[];		/* system version */
 extern char copyright[];	/* system copyright */
@@ -291,6 +291,7 @@ void	cpu_initclocks_ap(void);
 void	usrinfoinit(void);
 
 /* Finalize the world */
+void	kern_reboot(int) __dead2;
 void	shutdown_nice(int);
 
 /* Timeouts */

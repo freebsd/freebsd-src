@@ -1424,15 +1424,17 @@ vfs_filteropt(struct vfsoptlist *opts, const char **legal)
 			continue;
 		snprintf(errmsg, sizeof(errmsg),
 		    "mount option <%s> is unknown", p);
-		printf("%s\n", errmsg);
 		ret = EINVAL;
 	}
 	if (ret != 0) {
 		TAILQ_FOREACH(opt, opts, link) {
 			if (strcmp(opt->name, "errmsg") == 0) {
 				strncpy((char *)opt->value, errmsg, opt->len);
+				break;
 			}
 		}
+		if (opt == NULL)
+			printf("%s\n", errmsg);
 	}
 	return (ret);
 }

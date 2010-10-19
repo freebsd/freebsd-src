@@ -318,7 +318,7 @@ ap_start(phandle_t node, u_int mid, u_int cpu_impl)
 	if (OF_getprop(node, "clock-frequency", &clock, sizeof(clock)) <= 0)
 		panic("%s: couldn't determine CPU frequency", __func__);
 	if (clock != PCPU_GET(clock))
-		hardclock_use_stick = 1;
+		tick_et_use_stick = 1;
 
 	csa = &cpu_start_args;
 	csa->csa_state = 0;

@@ -66,10 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
 
-#include "pci_if.h"
-#include <dev/pci/pcivar.h>
-#include <dev/pci/pci_private.h>
-
 #include <vm/vm_param.h>
 
 MALLOC_DEFINE(M_ACPIDEV, "acpidev", "ACPI devices");
@@ -133,8 +129,7 @@ static ACPI_STATUS acpi_device_scan_cb(ACPI_HANDLE h, UINT32 level,
 		    void *context, void **retval);
 static ACPI_STATUS acpi_device_scan_children(device_t bus, device_t dev,
 		    int max_depth, acpi_scan_cb_t user_fn, void *arg);
-static int	acpi_set_powerstate_method(device_t bus, device_t child,
-		    int state);
+static int	acpi_set_powerstate(device_t child, int state);
 static int	acpi_isa_pnp_probe(device_t bus, device_t child,
 		    struct isa_pnp_id *ids);
 static void	acpi_probe_children(device_t bus);
@@ -205,9 +200,6 @@ static device_method_t acpi_methods[] = {
     DEVMETHOD(acpi_pwr_for_sleep,	acpi_device_pwr_for_sleep),
     DEVMETHOD(acpi_scan_children,	acpi_device_scan_children),
 
-    /* PCI emulation */
-    DEVMETHOD(pci_set_powerstate,	acpi_set_powerstate_method),
-
     /* ISA emulation */
     DEVMETHOD(isa_pnp_probe,		acpi_isa_pnp_probe),
 
@@ -261,12 +253,6 @@ static int acpi_interpreter_slack = 1;
 TUNABLE_INT("debug.acpi.interpreter_slack", &acpi_interpreter_slack);
 SYSCTL_INT(_debug_acpi, OID_AUTO, interpreter_slack, CTLFLAG_RDTUN,
     &acpi_interpreter_slack, 1, "Turn on interpreter slack mode.");
-
-/* Power devices off and on in suspend and resume.  XXX Remove once tested. */
-static int acpi_do_powerstate = 1;
-TUNABLE_INT("debug.acpi.do_powerstate", &acpi_do_powerstate);
-SYSCTL_INT(_debug_acpi, OID_AUTO, do_powerstate, CTLFLAG_RW,
-    &acpi_do_powerstate, 1, "Turn off devices when suspending.");
 
 /* Reset system clock while resuming.  XXX Remove once tested. */
 static int acpi_reset_clock = 1;
@@ -668,45 +654,43 @@ acpi_attach(device_t dev)
     return_VALUE (error);
 }
 
+static void
+acpi_set_power_children(device_t dev, int state)
+{
+	device_t child, parent;
+	device_t *devlist;
+	struct pci_devinfo *dinfo;
+	int dstate, i, numdevs;
+
+	if (device_get_children(dev, &devlist, &numdevs) != 0)
+		return;
+
+	/*
+	 * Retrieve and set D-state for the sleep state if _SxD is present.
+	 * Skip children who aren't attached since they are handled separately.
+	 */
+	parent = device_get_parent(dev);
+	for (i = 0; i < numdevs; i++) {
+		child = devlist[i];
+		dinfo = device_get_ivars(child);
+		dstate = state;
+		if (device_is_attached(child) &&
+		    acpi_device_pwr_for_sleep(parent, dev, &dstate) == 0)
+			acpi_set_powerstate(child, dstate);
+	}
+	free(devlist, M_TEMP);
+}
+
 static int
 acpi_suspend(device_t dev)
 {
-    device_t child, *devlist;
-    int error, i, numdevs, pstate;
+    int error;
 
     GIANT_REQUIRED;
 
-    /* First give child devices a chance to suspend. */
     error = bus_generic_suspend(dev);
-    if (error)
-	return (error);
-
-    /*
-     * Now, set them into the appropriate power state, usually D3.  If the
-     * device has an _SxD method for the next sleep state, use that power
-     * state instead.
-     */
-    error = device_get_children(dev, &devlist, &numdevs);
-    if (error)
-	return (error);
-    for (i = 0; i < numdevs; i++) {
-	/* If the device is not attached, we've powered it down elsewhere. */
-	child = devlist[i];
-	if (!device_is_attached(child))
-	    continue;
-
-	/*
-	 * Default to D3 for all sleep states.  The _SxD method is optional
-	 * so set the powerstate even if it's absent.
-	 */
-	pstate = PCI_POWERSTATE_D3;
-	error = acpi_device_pwr_for_sleep(device_get_parent(child),
-	    child, &pstate);
-	if ((error == 0 || error == ESRCH) && acpi_do_powerstate)
-	    pci_set_powerstate(child, pstate);
-    }
-    free(devlist, M_TEMP);
-    error = 0;
+    if (error == 0)
+	acpi_set_power_children(dev, ACPI_STATE_D3);
 
     return (error);
 }
@@ -714,28 +698,10 @@ acpi_suspend(device_t dev)
 static int
 acpi_resume(device_t dev)
 {
-    ACPI_HANDLE handle;
-    int i, numdevs, error;
-    device_t child, *devlist;
 
     GIANT_REQUIRED;
 
-    /*
-     * Put all devices in D0 before resuming them.  Call _S0D on each one
-     * since some systems expect this.
-     */
-    error = device_get_children(dev, &devlist, &numdevs);
-    if (error)
-	return (error);
-    for (i = 0; i < numdevs; i++) {
-	child = devlist[i];
-	handle = acpi_get_handle(child);
-	if (handle)
-	    AcpiEvaluateObject(handle, "_S0D", NULL, NULL);
-	if (device_is_attached(child) && acpi_do_powerstate)
-	    pci_set_powerstate(child, PCI_POWERSTATE_D0);
-    }
-    free(devlist, M_TEMP);
+    acpi_set_power_children(dev, ACPI_STATE_D0);
 
     return (bus_generic_resume(dev));
 }
@@ -811,7 +777,7 @@ static void
 acpi_probe_nomatch(device_t bus, device_t child)
 {
 #ifdef ACPI_ENABLE_POWERDOWN_NODRIVER
-    pci_set_powerstate(child, PCI_POWERSTATE_D3);
+    acpi_set_powerstate(child, ACPI_STATE_D3);
 #endif
 }
 
@@ -833,9 +799,9 @@ acpi_driver_added(device_t dev, driver_t *driver)
 	child = devlist[i];
 	if (device_get_state(child) == DS_NOTPRESENT) {
 #ifdef ACPI_ENABLE_POWERDOWN_NODRIVER
-	    pci_set_powerstate(child, PCI_POWERSTATE_D0);
+	    acpi_set_powerstate(child, ACPI_STATE_D0);
 	    if (device_probe_and_attach(child) != 0)
-		pci_set_powerstate(child, PCI_POWERSTATE_D3);
+		acpi_set_powerstate(child, ACPI_STATE_D3);
 #else
 	    device_probe_and_attach(child);
 #endif
@@ -1401,9 +1367,7 @@ acpi_device_pwr_for_sleep(device_t bus, device_t dev, int *dstate)
     ACPI_HANDLE handle;
     ACPI_STATUS status;
     char sxd[8];
-    int error;
 
-    sc = device_get_softc(bus);
     handle = acpi_get_handle(dev);
 
     /*
@@ -1412,7 +1376,7 @@ acpi_device_pwr_for_sleep(device_t bus, device_t dev, int *dstate)
      * set to D3 and it appears that such legacy devices may
      * need special handling in their drivers.
      */
-    if (handle == NULL ||
+    if (dstate == NULL || handle == NULL ||
 	acpi_MatchHid(handle, "PNP0500") ||
 	acpi_MatchHid(handle, "PNP0501") ||
 	acpi_MatchHid(handle, "PNP0502") ||
@@ -1421,28 +1385,19 @@ acpi_device_pwr_for_sleep(device_t bus, device_t dev, int *dstate)
 	return (ENXIO);
 
     /*
-     * Override next state with the value from _SxD, if present.  If no
-     * dstate argument was provided, don't fetch the return value.
+     * Override next state with the value from _SxD, if present.
+     * Note illegal _S0D is evaluated because some systems expect this.
      */
+    sc = device_get_softc(bus);
     snprintf(sxd, sizeof(sxd), "_S%dD", sc->acpi_sstate);
-    if (dstate)
-	status = acpi_GetInteger(handle, sxd, dstate);
-    else
-	status = AcpiEvaluateObject(handle, sxd, NULL, NULL);
-
-    switch (status) {
-    case AE_OK:
-	error = 0;
-	break;
-    case AE_NOT_FOUND:
-	error = ESRCH;
-	break;
-    default:
-	error = ENXIO;
-	break;
+    status = acpi_GetInteger(handle, sxd, dstate);
+    if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
+	    device_printf(dev, "failed to get %s on %s: %s\n", sxd,
+		acpi_name(handle), AcpiFormatException(status));
+	    return (ENXIO);
     }
 
-    return (error);
+    return (0);
 }
 
 /* Callback arg for our implementation of walking the namespace. */
@@ -1524,13 +1479,11 @@ acpi_device_scan_children(device_t bus, device_t dev, int max_depth,
  * device power states since it's close enough to ACPI.
  */
 static int
-acpi_set_powerstate_method(device_t bus, device_t child, int state)
+acpi_set_powerstate(device_t child, int state)
 {
     ACPI_HANDLE h;
     ACPI_STATUS status;
-    int error;
 
-    error = 0;
     h = acpi_get_handle(child);
     if (state < ACPI_STATE_D0 || state > ACPI_D_STATES_MAX)
 	return (EINVAL);
@@ -1539,12 +1492,16 @@ acpi_set_powerstate_method(device_t bus, device_t child, int state)
 
     /* Ignore errors if the power methods aren't present. */
     status = acpi_pwr_switch_consumer(h, state);
-    if (ACPI_FAILURE(status) && status != AE_NOT_FOUND
-	&& status != AE_BAD_PARAMETER)
-	device_printf(bus, "failed to set ACPI power state D%d on %s: %s\n",
-	    state, acpi_name(h), AcpiFormatException(status));
+    if (ACPI_SUCCESS(status)) {
+	if (bootverbose)
+	    device_printf(child, "set ACPI power state D%d on %s\n",
+		state, acpi_name(h));
+    } else if (status != AE_NOT_FOUND)
+	device_printf(child,
+	    "failed to set ACPI power state D%d on %s: %s\n", state,
+	    acpi_name(h), AcpiFormatException(status));
 
-    return (error);
+    return (0);
 }
 
 static int

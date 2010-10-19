@@ -2911,15 +2911,12 @@ pci_set_power_children(device_t dev, device_t *devlist, int numdevs,
 	struct pci_devinfo *dinfo;
 	int dstate, i;
 
-	if (!pci_do_power_resume)
-		return;
-
 	/*
 	 * Set the device to the given state.  If the firmware suggests
 	 * a different power state, use it instead.  If power management
 	 * is not present, the firmware is responsible for managing
 	 * device power.  Skip children who aren't attached since they
-	 * are handled separately.  Only manage type 0 devices for now.
+	 * are handled separately.
 	 */
 	pcib = device_get_parent(dev);
 	for (i = 0; i < numdevs; i++) {
@@ -2927,8 +2924,6 @@ pci_set_power_children(device_t dev, device_t *devlist, int numdevs,
 		dinfo = device_get_ivars(child);
 		dstate = state;
 		if (device_is_attached(child) &&
-		    (dinfo->cfg.hdrtype & PCIM_HDRTYPE) ==
-		    PCIM_HDRTYPE_NORMAL &&
 		    PCIB_POWER_FOR_SLEEP(pcib, dev, &dstate) == 0)
 			pci_set_powerstate(child, dstate);
 	}
@@ -2976,7 +2971,9 @@ pci_resume(device_t dev)
 	 */
 	if ((error = device_get_children(dev, &devlist, &numdevs)) != 0)
 		return (error);
-	pci_set_power_children(dev, devlist, numdevs, PCI_POWERSTATE_D0);
+	if (pci_do_power_resume)
+		pci_set_power_children(dev, devlist, numdevs,
+		    PCI_POWERSTATE_D0);
 
 	/* Now the device is powered up, restore its config space. */
 	for (i = 0; i < numdevs; i++) {
