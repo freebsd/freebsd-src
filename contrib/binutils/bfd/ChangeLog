@@ -1,3 +1,46 @@
+2005-01-05  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	* elf64-sparc.c (sparc64_elf_relocate_section): Ignore overflows
+	from STABS debugging sections again.
+
+2004-10-16  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elflink.c (elf_link_add_object_symbols): Also clear
+	_cooked_size for warning sections.
+
+2004-09-07  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	Merge from mainline:
+	2004-08-31  Eric Botcazou  <ebotcazou@libertysurf.fr>
+	* elf.c (special_sections): Add .gnu.linkonce.b modelled on .bss.
+
+	2004-06-09  Alexandre Oliva  <aoliva@redhat.com>
+	* elflink.c (elf_sort_symbol): Compare section id, not pointers.
+	(elf_link_add_object_symbols): Likewise.
+
+2004-08-10  Daniel Jacobowitz  <dan@debian.org>
+
+	* elf.c (assign_file_positions_except_relocs): Revert unintended
+	change from 2004-04-08.
+
+2004-05-28  Jason Thorpe  <thorpej@wasabisystems.com>
+
+	* config.bfd (hppa*-*-netbsd*): Set targ_defvec to
+	bfd_elf32_hppa_nbsd_vec.  Add bfd_elf32_hppa_linux_vec
+	to targ_selvecs.
+	* configure.in (bfd_elf32_hppa_nbsd_vec): Add case.
+	* configure: Regenerate.
+	* elf32-hppa.c (elf32_hppa_object_p): Add "elf32-hppa-netbsd"
+	case that accepts OSABI=NetBSD and OSABI=SysV.
+	(elf32_hppa_set_gp): For "elf32-hppa-netbsd", set the GP to
+	the base of .got or .data (if .got does not exist).
+	(elf32_hppa_post_process_headers): For elf32-hppa-netbsd,
+	set OSABI=NetBSD.
+	(TARGET_BIG_SYM): Add bfd_elf32_hppa_nbsd_vec case.
+	(TARGET_BIG_NAME): Add "elf32-hppa-netbsd" case.
+	* targets.c (bfd_elf32_hppa_nbsd_vec): Add extern declaration.
+	(_bfd_target_vector): Add bfd_elf32_hppa_nbsd_vec.
+
 2004-05-17  Daniel Jacobowitz  <dan@debian.org>
 
 	* configure.in: Mark unreleased for post-2.15 snapshots.

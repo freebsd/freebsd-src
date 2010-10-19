@@ -2026,6 +2026,7 @@ bfd_section_from_elf_index (bfd *abfd, unsigned int index)
 static struct bfd_elf_special_section const special_sections[] =
 {
   { ".bss",            4, -2, SHT_NOBITS,   SHF_ALLOC + SHF_WRITE },
+  { ".gnu.linkonce.b",15, -2, SHT_NOBITS,   SHF_ALLOC + SHF_WRITE },
   { ".comment",        8,  0, SHT_PROGBITS, 0 },
   { ".data",           5, -2, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE },
   { ".data1",          6,  0, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE },
@@ -4213,8 +4214,8 @@ assign_file_positions_except_relocs (bfd *abfd,
 	  Elf_Internal_Shdr *hdr;
 
 	  hdr = *hdrpp;
-	  if (hdr->sh_type == SHT_REL
-	      || hdr->sh_type == SHT_RELA
+	  if (((hdr->sh_type == SHT_REL || hdr->sh_type == SHT_RELA)
+	       && hdr->bfd_section == NULL)
 	      || i == tdata->symtab_section
 	      || i == tdata->symtab_shndx_section
 	      || i == tdata->strtab_section)
@@ -4269,7 +4270,9 @@ assign_file_positions_except_relocs (bfd *abfd,
 	      off = _bfd_elf_assign_file_position_for_section (hdr, off,
 							       FALSE);
 	    }
-	  else if (hdr == i_shdrpp[tdata->symtab_section]
+	  else if (((hdr->sh_type == SHT_REL || hdr->sh_type == SHT_RELA)
+		    && hdr->bfd_section == NULL)
+		   || hdr == i_shdrpp[tdata->symtab_section]
 		   || hdr == i_shdrpp[tdata->symtab_shndx_section]
 		   || hdr == i_shdrpp[tdata->strtab_section])
 	    hdr->sh_offset = -1;
