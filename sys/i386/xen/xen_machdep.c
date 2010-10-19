@@ -722,7 +722,9 @@ char *bootmem_start, *bootmem_current, *bootmem_end;
 pteinfo_t *pteinfo_list;
 void initvalues(start_info_t *startinfo);
 
-struct ringbuf_head *xen_store; /* XXX move me */
+struct xenstore_domain_interface;
+extern struct xenstore_domain_interface *xen_store;
+
 char *console_page;
 
 void *
@@ -1082,7 +1084,7 @@ initvalues(start_info_t *startinfo)
 	HYPERVISOR_shared_info = (shared_info_t *)cur_space;
 	cur_space += PAGE_SIZE;
 
-	xen_store = (struct ringbuf_head *)cur_space;
+	xen_store = (struct xenstore_domain_interface *)cur_space;
 	cur_space += PAGE_SIZE;
 
 	console_page = (char *)cur_space;
