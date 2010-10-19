@@ -1,4 +1,0 @@
-# $FreeBSD$
-
-SRCS+=	ia64-dis.c ia64-opc.c
-CFLAGS+= -DARCH_ia64
