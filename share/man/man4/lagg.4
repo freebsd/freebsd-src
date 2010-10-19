@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 8, 2010
+.Dd October 18, 2010
 .Dt LAGG 4
 .Os
 .Sh NAME
@@ -73,14 +73,14 @@ The interface link state is used to validate if the port is active or
 not.
 .Bl -tag -width loadbalance
 .It Ic failover
-Sends traffic only through the master port.
+Sends traffic only through the active port.
 If the master port becomes unavailable,
 the next active port is used.
 The first interface added is the master port;
 any interfaces added after that are used as failover devices.
 .Pp
 By default, received traffic is only accepted when they are received
-through the master port.
+through the active port.
 This constraint can be relaxed by setting the
 .Va net.link.lagg.failover_rx_all
 .Xr sysctl 8
