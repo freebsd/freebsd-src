@@ -713,7 +713,8 @@ parse_mount(char **conf)
 		goto out;
 	}
 
-	if (dev[0] != '\0' && !parse_mount_dev_present(dev)) {
+	if (strcmp(fs, "zfs") != 0 && dev[0] != '\0' &&
+	    !parse_mount_dev_present(dev)) {
 		printf("mountroot: waiting for device %s ...\n", dev);
 		delay = hz / 10;
 		timeout = root_mount_timeout * hz;
