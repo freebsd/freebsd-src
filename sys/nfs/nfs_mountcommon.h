@@ -34,7 +34,7 @@
  * used by the nlm. It includes a function pointer that provides
  * a mechanism for getting the client specific info for an nfs vnode.
  */
-typedef void	nfs_getinfofromvp_ftype(struct vnode *, uint8_t *, int *,
+typedef void	nfs_getinfofromvp_ftype(struct vnode *, uint8_t *, size_t *,
 		    struct sockaddr_storage *, int *, off_t *);
 
 struct	nfsmount_common {
