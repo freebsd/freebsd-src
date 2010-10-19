@@ -101,7 +101,7 @@ static void	nfs_decode_args(struct mount *mp, struct nfsmount *nmp,
 static int	mountnfs(struct nfs_args *, struct mount *,
 		    struct sockaddr *, char *, u_char *, u_char *, u_char *,
 		    struct vnode **, struct ucred *, struct thread *, int);
-static void	nfs_getnlminfo(struct vnode *, uint8_t *, int *,
+static void	nfs_getnlminfo(struct vnode *, uint8_t *, size_t *,
 		    struct sockaddr_storage *, int *, off_t *);
 static vfs_mount_t nfs_mount;
 static vfs_cmount_t nfs_cmount;
@@ -1464,7 +1464,7 @@ nfs_sysctl(struct mount *mp, fsctlop_t op, struct sysctl_req *req)
  * Extract the information needed by the nlm from the nfs vnode.
  */
 static void
-nfs_getnlminfo(struct vnode *vp, uint8_t *fhp, int *fhlenp,
+nfs_getnlminfo(struct vnode *vp, uint8_t *fhp, size_t *fhlenp,
     struct sockaddr_storage *sp, int *is_v3p, off_t *sizep)
 {
 	struct nfsmount *nmp;
@@ -1472,7 +1472,7 @@ nfs_getnlminfo(struct vnode *vp, uint8_t *fhp, int *fhlenp,
 
 	nmp = VFSTONFS(vp->v_mount);
 	if (fhlenp != NULL)
-		*fhlenp = np->n_fhp->nfh_len;
+		*fhlenp = (size_t)np->n_fhp->nfh_len;
 	if (fhp != NULL)
 		bcopy(np->n_fhp->nfh_fh, fhp, np->n_fhp->nfh_len);
 	if (sp != NULL)
