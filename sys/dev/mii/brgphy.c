@@ -280,6 +280,10 @@ brgphy_attach(device_t dev)
 
 	brgphy_reset(sc);
 
+	/* Read the PHY's capabilities. */
+	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
+	if (sc->mii_capabilities & BMSR_EXTSTAT)
+		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
 	device_printf(dev, " ");
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)

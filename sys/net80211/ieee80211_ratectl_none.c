@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Rui Paulo <rpaulo@FreeBSD.org>
+ * Copyright (c) 2010 Bernhard Schmidt <bschmidt@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,59 +26,88 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/systm.h>
+#include <sys/module.h>
 #include <sys/socket.h>
+#include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/if_media.h>
 
+#ifdef INET
+#include <netinet/in.h>
+#include <netinet/if_ether.h>
+#endif
+
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_ratectl.h>
 
-static const struct ieee80211_ratectl *ratectls[IEEE80211_RATECTL_MAX];
+static void
+none_init(struct ieee80211vap *vap)
+{
+}
 
-static const char *ratectl_modnames[IEEE80211_RATECTL_MAX] = {
-	[IEEE80211_RATECTL_AMRR]	= "wlan_amrr",
-	[IEEE80211_RATECTL_RSSADAPT]	= "wlan_rssadapt",
-	[IEEE80211_RATECTL_ONOE]	= "wlan_onoe",
-	[IEEE80211_RATECTL_SAMPLE]	= "wlan_sample",
-	[IEEE80211_RATECTL_NONE]	= "wlan_none",
+static void
+none_deinit(struct ieee80211vap *vap)
+{
+	free(vap->iv_rs, M_80211_RATECTL);
+}
+
+static void
+none_node_init(struct ieee80211_node *ni)
+{
+}
+
+static void
+none_node_deinit(struct ieee80211_node *ni)
+{
+}
+
+static int
+none_rate(struct ieee80211_node *ni, void *arg __unused, uint32_t iarg __unused)
+{
+	int rix = 0;
+
+	ni->ni_txrate = ni->ni_rates.rs_rates[rix] & IEEE80211_RATE_VAL;
+	return rix;
+}
+
+static void
+none_tx_complete(const struct ieee80211vap *vap,
+    const struct ieee80211_node *ni, int ok,
+    void *arg1, void *arg2 __unused)
+{
+}
+
+static void
+none_tx_update(const struct ieee80211vap *vap, const struct ieee80211_node *ni,
+    void *arg1, void *arg2, void *arg3)
+{
+}
+
+static void
+none_setinterval(const struct ieee80211vap *vap, int msecs)
+{
+}
+
+/* number of references from net80211 layer */
+static	int nrefs = 0;
+
+static const struct ieee80211_ratectl none = {
+	.ir_name	= "none",
+	.ir_attach	= NULL,
+	.ir_detach	= NULL,
+	.ir_init	= none_init,
+	.ir_deinit	= none_deinit,
+	.ir_node_init	= none_node_init,
+	.ir_node_deinit	= none_node_deinit,
+	.ir_rate	= none_rate,
+	.ir_tx_complete	= none_tx_complete,
+	.ir_tx_update	= none_tx_update,
+	.ir_setinterval	= none_setinterval,
 };
-
-MALLOC_DEFINE(M_80211_RATECTL, "80211ratectl", "802.11 rate control");
-
-void
-ieee80211_ratectl_register(int type, const struct ieee80211_ratectl *ratectl)
-{
-	if (type >= IEEE80211_RATECTL_MAX)
-		return;
-	ratectls[type] = ratectl;
-}
-
-void
-ieee80211_ratectl_unregister(int type)
-{
-	if (type >= IEEE80211_RATECTL_MAX)
-		return;
-	ratectls[type] = NULL;
-}
-
-void
-ieee80211_ratectl_set(struct ieee80211vap *vap, int type)
-{
-	if (type >= IEEE80211_RATECTL_MAX)
-		return;
-	if (ratectls[type] == NULL) {
-		ieee80211_load_module(ratectl_modnames[type]);
-		if (ratectls[type] == NULL) {
-			IEEE80211_DPRINTF(vap, IEEE80211_MSG_RATECTL,
-			    "%s: unable to load algo %u, module %s\n",
-			    __func__, type, ratectl_modnames[type]);
-			vap->iv_rate = ratectls[IEEE80211_RATECTL_NONE];
-			return;
-		}
-	}
-	vap->iv_rate = ratectls[type];
-}
+IEEE80211_RATECTL_MODULE(ratectl_none, 1);
+IEEE80211_RATECTL_ALG(none, IEEE80211_RATECTL_NONE, none);
