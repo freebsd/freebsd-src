@@ -2916,7 +2916,7 @@ pci_set_power_children(device_t dev, device_t *devlist, int numdevs,
 	 * a different power state, use it instead.  If power management
 	 * is not present, the firmware is responsible for managing
 	 * device power.  Skip children who aren't attached since they
-	 * are handled separately.  Only manage type 0 devices for now.
+	 * are handled separately.
 	 */
 	pcib = device_get_parent(dev);
 	for (i = 0; i < numdevs; i++) {
@@ -2924,8 +2924,6 @@ pci_set_power_children(device_t dev, device_t *devlist, int numdevs,
 		dinfo = device_get_ivars(child);
 		dstate = state;
 		if (device_is_attached(child) &&
-		    (dinfo->cfg.hdrtype & PCIM_HDRTYPE) ==
-		    PCIM_HDRTYPE_NORMAL &&
 		    PCIB_POWER_FOR_SLEEP(pcib, dev, &dstate) == 0)
 			pci_set_powerstate(child, dstate);
 	}
