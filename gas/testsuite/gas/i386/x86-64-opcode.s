@@ -20,22 +20,16 @@
 	# CMP
 
 	# MOV
-	MOVw %cs,(%r8)		      # 66  --  -- 41   8C 08				 ; REX to access upper reg. O16 for 16-bit operand size
-	MOVw %cs,(%rax)		      # 66  --  -- --   8C 08				 ; O16 for 16-bit operand size
-	MOVw %ss,(%r8)		      # 66  --  -- 41   8C 10				 ; REX to access upper reg. O16 for 16-bit operand size
-	MOVw %ss,(%rax)		      # 66  --  -- --   8C 10				 ; O16 for 16-bit operand size
-	MOVw %fs,(%r8)		      # 66  --  -- 41   8C 20				 ; REX to access upper reg. O16 for 16-bit operand size
-	MOVw %fs,(%rax)		      # 66  --  -- --   8C 20				 ; O16 for 16-bit operand size
-	MOVl %cs,(%r8)		      # --  --  -- 41   8C 08				 ; REX to access upper reg.
-	MOVl %cs,(%rax)		      # --  --  -- --   8C 08
-	MOVl %ss,(%r8)		      # --  --  -- 41   8C 10				 ; REX to access upper reg.
-	MOVl %ss,(%rax)		      # --  --  -- --   8C 10
-	MOVl %fs,(%r8)		      # --  --  -- 41   8C 20				 ; REX to access upper reg.
-	MOVl %fs,(%rax)		      # --  --  -- --   8C 20
-	MOVl (%r8),%ss		      # --  --  -- 41   8E 10				 ; REX to access upper reg.
-	MOVl (%rax),%ss		      # --  --  -- --   8E 10
-	MOVl (%r8),%fs		      # --  --  -- 41   8E 20				 ; REX to access upper reg.
-	MOVl (%rax),%fs		      # --  --  -- --   8E 20
+	MOVw %cs,(%r8)		      # --  --  -- 41   8C 08				 ; REX to access upper reg.
+	MOVw %cs,(%rax)		      # --  --  -- --   8C 08
+	MOVw %ss,(%r8)		      # --  --  -- 41   8C 10				 ; REX to access upper reg.
+	MOVw %ss,(%rax)		      # --  --  -- --   8C 10
+	MOVw %fs,(%r8)		      # --  --  -- 41   8C 20				 ; REX to access upper reg.
+	MOVw %fs,(%rax)		      # --  --  -- --   8C 20
+	MOVw (%r8),%ss		      # --  --  -- 41   8E 10				 ; REX to access upper reg.
+	MOVw (%rax),%ss		      # --  --  -- --   8E 10
+	MOVw (%r8),%fs		      # --  --  -- 41   8E 20				 ; REX to access upper reg.
+	MOVw (%rax),%fs		      # --  --  -- --   8E 20
 	MOVb $0,(%r8)		      # --  --  -- 41   C6 00 00			 ; REX to access upper reg.
 	MOVb $0,(%rax)		      # --  --  -- --   C6 00 00
 	MOVw $0x7000,(%r8)	      # 66  --  -- 41   C7 00 00 70			 ; REX to access upper reg. O16 for 16-bit operand size

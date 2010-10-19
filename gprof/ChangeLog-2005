@@ -1,0 +1,162 @@
+2005-12-27  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am (Makefile): Remove dependency.
+	* Makefile.in: Regenerate.
+	* aclocal.m4: Regenerate.
+	* gconfig.in: Regenerate.
+
+2005-11-16  Mark Mitchell  <mark@codesourcery.com>
+
+	* Makefile.am (gprof.info, gprof.1): Depend on config.texi.
+	(config.texi): New file.
+	* Makefile.in: Regenerated.
+
+2005-11-07  Steve Ellcey  <sje@cup.hp.com>
+
+	* configure: Regenerate after modifying bfd/warning.m4.
+
+2005-10-30  Mark Mitchell  <mark@codesourcery.com>
+
+	* gprof.c (usage): Document "@FILE".
+
+2005-09-30  Nick Clifton  <nickc@redhat.com>
+
+	* po/ga.po: New Irish translation.
+	* configure.in (ALL_LINGUAS): Add "ga".
+	* configure: Regenerate.
+
+2005-09-30  Mark Mitchell  <mark@codesourcery.com>
+
+	* gprof.c (main): Use expandargv.
+
+2005-09-30  Matthias Kurz  <mk@baerlap.north.de>
+
+	* gprof.c (main):Only invoke bindtextdomain() and textdomain() if
+	ENABLE_NLS is defined.
+
+2005-05-09  Nick Clifton  <nickc@redhat.com>
+
+	* Update the address and phone number of the FSF organization in
+	the GPL notices in the following files:
+	aclocal.m4, basic_blocks.c, basic_blocks.h, bb_exit_func.c,
+	bbconv.pl, call_graph.c, call_graph.h, cg_print.c, cg_print.h,
+	corefile.c, corefile.h, gmon_io.c, gmon_io.h, gmon_out.h,
+	gprof.texi, hist.c, hist.h, search_list.c, search_list.h,
+	source.c, source.h, sym_ids.c, sym_ids.h, symtab.c, symtab.h
+
+2005-04-25  Ben Elliston  <bje@au.ibm.com>
+
+	* corefile.h (core_num_syms): Remove unused extern declaration.
+	(core_syms): Likewise.
+	(min_insn_size): Likewise.
+
+2005-04-24  Ben Elliston  <bje@au.ibm.com>
+
+	* corefile.c (core_num_syms): Make static.
+	(core_syms): Likewise.
+	(min_insn_size): Likewise.
+	* gprof.c (abfd): Remove unused variable.
+	* hist.c (hist_dimension): Make static.
+	(hist_dimension_abbrev): Likewise.
+	* sym_ids.c (id_list): Likewise.
+	(table_name): Likewise.
+
+2005-04-14  Alan Modra  <amodra@bigpond.net.au>
+
+	* corefile.c (core_init): Call bfd_get_synthetic_symtab.
+
+2005-04-14  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am (NO_WERROR): Define.
+	* acinclude.m4: Include ../bfd/warning.m4.
+	* configure.in: Invoke AM_BINUTILS_WARNINGS.
+	* Makefile.in: Regenerate.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+
+2005-04-06  Nick Clifton  <nickc@redhat.com>
+
+	* po/rw.po: New translation: Kinyarwanda
+	* configure.in (ALL_LINGUAS): Add rw
+	* configure: Regenerate.
+
+2005-04-04  Nick Clifton  <nickc@redhat.com>
+
+	* configure.in: Add a check for <unistd.h> providing a prototype
+	for getopt() which is compatible with the one in
+	include/getopt.h.  If so then define HAVE_DECL_GETOPT.
+	* configure: Regenerate.
+	* gconfig.in (HAVE_DECL_GETOPT): Add.
+
+2005-03-29  Nick Clifton  <nickc@redhat.com>
+
+	* po/de.po: Updated German translation.
+
+2005-03-17  Nick Clifton  <nickc@redhat.com>
+
+	* po/vi.po: Updated Vietnamese translation.
+
+2005-03-16  Nick Clifton  <nickc@redhat.com>
+	    Ben Elliston  <bje@au.ibm.com>
+
+	* configure.in (werror): New switch: Add -Werror to the
+	compiler command line.  Enabled by default.  Disable via
+	--disable-werror.
+	* configure: Regenerate.
+
+2005-03-15  Nick Clifton  <nickc@redhat.com>
+
+	* basic_blocks.c (print_exec_counts): Step through sorted array of
+	basic blocks.
+
+2005-03-15  Alan Modra  <amodra@bigpond.net.au>
+
+	* po/es.po: Commit new Spanish translation.
+
+	* po/fr.po: Commit new French translation.
+
+2005-03-14  Alan Modra  <amodra@bigpond.net.au>
+
+	* gmon_io.c (gmon_write_raw_arc): Return 1 for invalid size.
+
+2005-03-14  Alan Modra  <amodra@bigpond.net.au>
+
+	* po/tr.po: Commit new Turkish translation.
+
+2005-03-05  Alan Modra  <amodra@bigpond.net.au>
+
+	* po/gprof.pot: Regenerate.
+
+2005-02-22  Alan Modra  <amodra@bigpond.net.au>
+
+	* basic_blocks.c: Warning fixes.
+	* gmon_io.c: Likewise.
+	* hist.c: Likewise.
+	* hist.h: Likewise.
+
+2005-01-31  Andrew Cagney  <cagney@gnu.org>
+
+	* configure: Regenerate to track ../gettext.m4.
+
+2005-01-31  Nick Clifton  <nickc@redhat.com>
+
+	* po/vi/po: New file: Vietnamese translation.
+	* configure.in: (ALL_LINGUAS): Add vi.
+	* configure: Regenerate.
+
+2005-01-27  Andrew Cagney  <cagney@gnu.org>
+
+	* configure: Regenerate to track ../gettext.m4 change.
+
+2005-01-21  Ben Elliston  <bje@au.ibm.com>
+
+	* gmon.h, alpha.c, vax.c: Remove #if 0'd chunks.
+
+For older changes see ChangeLog-2004
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

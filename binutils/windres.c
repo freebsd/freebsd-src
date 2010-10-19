@@ -1,5 +1,5 @@
 /* windres.c -- a program to manipulate Windows resources
-   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003
+   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
@@ -17,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* This program can read and write Windows resources in various
    formats.  In particular, it can act like the rc resource compiler
@@ -34,6 +34,12 @@
 
    * The res2coff program, written by Pedro A. Aranda <paag@tid.es>.  */
 
+#include "config.h"
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#include <assert.h>
+#include <time.h>
 #include "bfd.h"
 #include "getopt.h"
 #include "bucomm.h"
@@ -41,8 +47,6 @@
 #include "safe-ctype.h"
 #include "obstack.h"
 #include "windres.h"
-#include <assert.h>
-#include <time.h>
 
 /* Used by resrc.c at least.  */
 
@@ -620,7 +624,7 @@ format_from_filename (const char *filename, int input)
     return RES_FORMAT_RC;
 
   /* Otherwise, we give up.  */
-  fatal (_("can not determine type of file `%s'; use the -I option"),
+  fatal (_("can not determine type of file `%s'; use the -J option"),
 	 filename);
 
   /* Return something to silence the compiler warning.  */
@@ -655,6 +659,7 @@ usage (FILE *stream, int status)
 #endif
   fprintf (stream, _("\
   -r                           Ignored for compatibility with rc\n\
+  @<file>                      Read options from <file>\n\
   -h --help                    Print this help message\n\
   -V --version                 Print version information\n"));
   fprintf (stream, _("\
@@ -762,6 +767,8 @@ main (int argc, char **argv)
 
   program_name = argv[0];
   xmalloc_set_program_name (program_name);
+
+  expandargv (&argc, &argv);
 
   bfd_init ();
   set_default_bfd_target ();

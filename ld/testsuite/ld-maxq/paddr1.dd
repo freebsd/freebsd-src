@@ -1,0 +1,18 @@
+.*: +file format .*
+
+Disassembly of section .text:
+
+00000000 <main>:
+   0:	12 09       	MOVE  A\[0\], #12h
+   2:	3a da       	NOP 
+   4:	3a da       	NOP 
+	...
+Disassembly of section .data:
+
+0000a000 <lb>:
+    a000:	23 00       	MOVE  00h, #23h
+	...
+
+0000a004 <plc>:
+    a004:	00 a0       	MOVE  20h, 00h
+	...

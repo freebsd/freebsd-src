@@ -23,6 +23,9 @@ The BFD contains other BFDs and an optional index.
 @end itemize
 The BFD contains the result of an executable core dump.
 
+@subsection File format functions
+
+
 @findex bfd_check_format
 @subsubsection @code{bfd_check_format}
 @strong{Synopsis}

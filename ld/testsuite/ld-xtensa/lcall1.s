@@ -2,9 +2,7 @@
 .text
 	.align 4
 label1:
-	.begin literal
-	.word 0xffffffff
-	.end literal
+	.literal .Lunused, 0xffffffff
 	entry a5,16
 .begin longcalls
 	call4  foo

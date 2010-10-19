@@ -1,0 +1,79 @@
+# Test for error messages when a bad register name, an out of range operand, or 
+# invalid syntax is used.  Adapted from Ben Elliston's load-hazard testcase.
+
+# Run GAS and check that it emits the desired error for the test case.
+# Arguments:
+#   file -- name of the test case to assemble.
+#   testname -- a string describing the test.
+#   warnpattern -- a regular expression, suitable for use by the Tcl
+#     regexp command, to decide if the warning string was emitted by
+#     the assembler to stderr.
+
+proc mrisc1_error_test { file testname {warnpattern ""} } {
+    global comp_output
+
+    gas_run $file "" ">/dev/null"
+    verbose "output was $comp_output" 2
+
+    if {$warnpattern == ""} {
+	if {$comp_output == ""} { pass $testname } else { fail $testname }
+	return
+    }
+
+    if {[regexp "Error: $warnpattern" $comp_output]} {
+	pass $testname
+    } else {
+	fail $testname
+    }
+}
+
+if [istarget mt-*-*] {
+    foreach file [glob -nocomplain -- $srcdir/$subdir/bad*.s] {
+	set file [file tail $file]
+	switch -- $file {
+	    "badreg.s" {
+		set warnpattern "unrecognized keyword/register name *"
+	    }
+	    "badorder.s" {
+		set warnpattern "unrecognized form of instruction*"
+	    }
+	    "badsyntax.s" {
+		set warnpattern "unrecognized keyword/register name *"
+	    }
+	    "badsyntax1.s" {
+		set warnpattern "unrecognized form of instruction*"
+	    }
+	    "badoffsethigh.s" {
+		set warnpattern "Operand out of range. Must be between -32768 and 32767.*"
+	    }
+	    "badoffsetlow.s" {
+		set warnpattern "Operand out of range. Must be between -32768 and 32767.*"
+	    }
+	    "badunsignedimmhigh.s" {
+		set warnpattern "operand out of range (65536 not between 0 and 65535)*"
+	    }
+	    "badunsignedimmlow.s" {
+		set warnpattern "operand out of range (65536 not between 0 and 65535)*"
+	    }
+	    "badsignedimmhigh.s" {
+		set warnpattern "operand out of range.*"
+	    }
+	    "badsignedimmlow.s" {
+		set warnpattern "operand out of range.*"
+	    }
+	    "badinsn.s" {
+		set warnpattern "unrecognized instruction *"
+	    }
+	    "badinsn1.s" {
+		set warnpattern "junk at end of line *"
+	    }
+            default {
+                error "no expected result specified for $file"
+                return
+
+	    }
+	}
+	mrisc1_error_test $file "assembler emits error for $file" $warnpattern
+    }
+
+}

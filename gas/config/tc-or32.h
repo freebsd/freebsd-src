@@ -1,5 +1,5 @@
 /* tc-or32.h -- Assemble for the OpenRISC 1000.
-   Copyright (C) 2002 Free Software Foundation, Inc.
+   Copyright (C) 2002, 2003. 2005 Free Software Foundation, Inc.
    Contributed by Damjan Lampret <lampret@opencores.org>.
    Based upon a29k port.
 
@@ -17,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   the Free Software Foundation, 51 Franklin Street - Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 #define TC_OR32
 
@@ -38,16 +38,10 @@
 
 #define tc_unrecognized_line(c) or32_unrecognized_line (c)
 
-extern int or32_unrecognized_line PARAMS ((int));
+extern int or32_unrecognized_line (int);
 
-#define tc_headers_hook(a)    ; /* not used */
-#define tc_headers_hook(a)    ; /* not used */
-#define tc_crawl_symbol_chain(a)  ; /* not used */
-#define tc_coff_symbol_emit_hook(a) ; /* not used */
+#define tc_coff_symbol_emit_hook(a) ; /* Not used.  */
 
-#define AOUT_MACHTYPE               80
-#define TC_COFF_FIX2RTYPE(fix_ptr)  tc_coff_fix2rtype (fix_ptr)
-#define BFD_ARCH                    bfd_arch_or32
 #define COFF_MAGIC                  SIPFBOMAGIC
 
 /* No shared lib support, so we don't need to ensure externally
@@ -55,17 +49,8 @@ extern int or32_unrecognized_line PARAMS ((int));
 #define EXTERN_FORCE_RELOC 0
 
 #ifdef OBJ_ELF
-/* Values passed to md_apply_fix3 don't include the symbol value.  */
+/* Values passed to md_apply_fix don't include the symbol value.  */
 #define MD_APPLY_SYM_VALUE(FIX) 0
 #endif
-
-/* Should the reloc be output ?
-   on the 29k, this is true only if there is a symbol attached.
-   on the h8, this is always true, since no fixup is done.  */
-#define TC_COUNT_RELOC(x)           (x->fx_addsy)
-#define TC_CONS_RELOC               RELOC_32
-
-#define COFF_FLAGS                  F_AR32W
-#define NEED_FX_R_TYPE
 
 #define ZERO_BASED_SEGMENTS

@@ -46,20 +46,20 @@ Disassembly of section .text:
 0+0090 <[^>]*> sltu	at,a1,a0
 0+0094 <[^>]*> bnezl	at,0+0000 <text_label>
 0+0098 <[^>]*> nop
-#0+009c <[^>]*> sltu	at,a0,a1
-#0+00a0 <[^>]*> beqz	at,000000a0 <text_label\+0xa0>
-#[ 	]*a0: R_MIPS_PC16	external_label
-#0+00a4 <[^>]*> nop
-#0+00a8 <[^>]*> sltu	at,a1,a0
-#0+00ac <[^>]*> bnez	at,000000ac <text_label\+0xac>
-#[ 	]*ac: R_MIPS_PC16	external_label
-#0+00b0 <[^>]*> nop
-#0+00b4 <[^>]*> sltu	at,a0,a1
-#0+00b8 <[^>]*> beqzl	at,000000b8 <text_label\+0xb8>
-#[ 	]*b8: R_MIPS_PC16	external_label
-#0+00bc <[^>]*> nop
-#0+00c0 <[^>]*> sltu	at,a1,a0
-#0+00c4 <[^>]*> bnezl	at,000000c4 <text_label\+0xc4>
-#[ 	]*c4: R_MIPS_PC16	external_label
-#0+00c8 <[^>]*> nop
+0+009c <[^>]*> sltu	at,a0,a1
+0+00a0 <[^>]*> beqz	at,000000a0 <text_label\+0xa0>
+[ 	]*a0: R_MIPS_PC16	external_label
+0+00a4 <[^>]*> nop
+0+00a8 <[^>]*> sltu	at,a1,a0
+0+00ac <[^>]*> bnez	at,000000ac <text_label\+0xac>
+[ 	]*ac: R_MIPS_PC16	external_label
+0+00b0 <[^>]*> nop
+0+00b4 <[^>]*> sltu	at,a0,a1
+0+00b8 <[^>]*> beqzl	at,000000b8 <text_label\+0xb8>
+[ 	]*b8: R_MIPS_PC16	external_label
+0+00bc <[^>]*> nop
+0+00c0 <[^>]*> sltu	at,a1,a0
+0+00c4 <[^>]*> bnezl	at,000000c4 <text_label\+0xc4>
+[ 	]*c4: R_MIPS_PC16	external_label
+0+00c8 <[^>]*> nop
 	...

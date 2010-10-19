@@ -1,6 +1,6 @@
 /* m68k-parse.h -- header file for m68k assembler
    Copyright 1987, 1991, 1992, 1993, 1994, 1995, 1996, 1999, 2000,
-   2003 Free Software Foundation, Inc.
+   2003, 2004, 2005 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #ifndef M68K_PARSE_H
 #define M68K_PARSE_H
@@ -84,7 +84,12 @@ enum m68k_register
   ZPC,				/* Hack for Program space, but 0 addressing */
   SR,				/* Status Reg */
   CCR,				/* Condition code Reg */
-  ACC,				/* Accumulator Reg */
+  ACC,				/* Accumulator Reg0 (EMAC or ACC on MAC).  */
+  ACC1,				/* Accumulator Reg 1 (EMAC).  */
+  ACC2,				/* Accumulator Reg 2 (EMAC).  */
+  ACC3,				/* Accumulator Reg 3 (EMAC).  */
+  ACCEXT01,			/* Accumulator extension 0&1 (EMAC).  */
+  ACCEXT23,			/* Accumulator extension 2&3 (EMAC).  */
   MACSR,			/* MAC Status Reg */
   MASK,				/* Modulus Reg */
 
@@ -119,6 +124,7 @@ enum m68k_register
   MBAR0, MBAR1,			/* mcfv4e added these.  */
   ACR0, ACR1, ACR2, ACR3,       /* mcf5200 added these.  */
   FLASHBAR, RAMBAR,  		/* mcf528x added these.  */
+  MBAR2,  		        /* mcf5249 added this.  */
   MBAR,
 #define last_movec_reg MBAR
   /* End of movec ordering constraints.  */
@@ -295,6 +301,8 @@ enum m68k_operand_type
   BASE,
   POST,
   PRE,
+  LSH,  /* MAC/EMAC scalefactor '<<'.  */
+  RSH,  /* MAC/EMAC scalefactor '>>'.  */
   REGLST
 };
 
@@ -322,13 +330,16 @@ struct m68k_op
 
   /* The outer displacement.  */
   struct m68k_exp odisp;
+
+  /* Is a trailing '&' added to an <ea>? (for MAC/EMAC mask addressing).  */
+  int trailing_ampersand;
 };
 
 #endif /* ! defined (M68K_PARSE_H) */
 
 /* The parsing function.  */
 
-extern int m68k_ip_op PARAMS ((char *, struct m68k_op *));
+extern int m68k_ip_op (char *, struct m68k_op *);
 
 /* Whether register prefixes are optional.  */
 extern int flag_reg_prefix_optional;

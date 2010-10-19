@@ -1,5 +1,5 @@
 /* tc-mmix.c -- Assembler for Don Knuth's MMIX.
-   Copyright (C) 2001, 2002, 2003 Free Software Foundation.
+   Copyright (C) 2001, 2002, 2003, 2004, 2005 Free Software Foundation.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -15,8 +15,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   the Free Software Foundation, 51 Franklin Street - Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 /* Knuth's assembler mmixal does not provide a relocatable format; mmo is
    to be considered a final link-format.  In the final link, we make mmo,
@@ -47,27 +47,25 @@ enum mmix_fixup_action
    mmix_fixup_register_or_adjust_for_byte
  };
 
-static int get_spec_regno PARAMS ((char *));
-static int get_operands PARAMS ((int, char *, expressionS[]));
-static int get_putget_operands
-  PARAMS ((struct mmix_opcode *, char *, expressionS[]));
-static void s_prefix PARAMS ((int));
-static void s_greg PARAMS ((int));
-static void s_loc PARAMS ((int));
-static void s_bspec PARAMS ((int));
-static void s_espec PARAMS ((int));
-static void mmix_s_local PARAMS ((int));
-static void mmix_greg_internal PARAMS ((char *));
-static void mmix_set_geta_branch_offset PARAMS ((char *, offsetT value));
-static void mmix_set_jmp_offset PARAMS ((char *, offsetT));
-static void mmix_fill_nops PARAMS ((char *, int));
-static int cmp_greg_symbol_fixes PARAMS ((const PTR, const PTR));
-static int cmp_greg_val_greg_symbol_fixes
-  PARAMS ((const PTR p1, const PTR p2));
-static void mmix_handle_rest_of_empty_line PARAMS ((void));
-static void mmix_discard_rest_of_line PARAMS ((void));
-static void mmix_byte PARAMS ((void));
-static void mmix_cons PARAMS ((int));
+static int get_spec_regno (char *);
+static int get_operands (int, char *, expressionS *);
+static int get_putget_operands (struct mmix_opcode *, char *, expressionS *);
+static void s_prefix (int);
+static void s_greg (int);
+static void s_loc (int);
+static void s_bspec (int);
+static void s_espec (int);
+static void mmix_s_local (int);
+static void mmix_greg_internal (char *);
+static void mmix_set_geta_branch_offset (char *, offsetT);
+static void mmix_set_jmp_offset (char *, offsetT);
+static void mmix_fill_nops (char *, int);
+static int cmp_greg_symbol_fixes (const void *, const void *);
+static int cmp_greg_val_greg_symbol_fixes (const void *, const void *);
+static void mmix_handle_rest_of_empty_line (void);
+static void mmix_discard_rest_of_line (void);
+static void mmix_byte (void);
+static void mmix_cons (int);
 
 /* Continue the tradition of symbols.c; use control characters to enforce
    magic.  These are used when replacing e.g. 8F and 8B so we can handle
@@ -301,22 +299,9 @@ struct obstack mmix_sym_obstack;
 #define PUSHJ_4B GETA_3B
 
 /* We'll very rarely have sections longer than LONG_MAX, but we'll make a
-   feeble attempt at getting 64-bit C99 or gcc-specific values (assuming
-   long long is 64 bits on the host).  */
-#ifdef LLONG_MIN
-#define PUSHJSTUB_MIN LLONG_MIN
-#elsif defined (LONG_LONG_MIN)
-#define PUSHJSTUB_MIN LONG_LONG_MIN
-#else
-#define PUSHJSTUB_MIN LONG_MIN
-#endif
-#ifdef LLONG_MAX
-#define PUSHJSTUB_MAX LLONG_MAX
-#elsif defined (LONG_LONG_MAX)
-#define PUSHJSTUB_MAX LONG_LONG_MAX
-#else
-#define PUSHJSTUB_MAX LONG_MAX
-#endif
+   feeble attempt at getting 64-bit values.  */
+#define PUSHJSTUB_MAX ((offsetT) (((addressT) -1) >> 1))
+#define PUSHJSTUB_MIN (-PUSHJSTUB_MAX - 1)
 
 #define JMP_0F (65536 * 256 * 4 - 8)
 #define JMP_0B (-65536 * 256 * 4 - 4)
@@ -412,9 +397,7 @@ const char mmix_flt_chars[] = "rf";
 /* Fill in the offset-related part of GETA or Bcc.  */
 
 static void
-mmix_set_geta_branch_offset (opcodep, value)
-     char *opcodep;
-     offsetT value;
+mmix_set_geta_branch_offset (char *opcodep, offsetT value)
 {
   if (value < 0)
     {
@@ -429,9 +412,7 @@ mmix_set_geta_branch_offset (opcodep, value)
 /* Fill in the offset-related part of JMP.  */
 
 static void
-mmix_set_jmp_offset (opcodep, value)
-     char *opcodep;
-     offsetT value;
+mmix_set_jmp_offset (char *opcodep, offsetT value)
 {
   if (value < 0)
     {
@@ -446,9 +427,7 @@ mmix_set_jmp_offset (opcodep, value)
 /* Fill in NOP:s for the expanded part of GETA/JMP/Bcc/PUSHJ.  */
 
 static void
-mmix_fill_nops (opcodep, n)
-     char *opcodep;
-     int n;
+mmix_fill_nops (char *opcodep, int n)
 {
   int i;
 
@@ -459,9 +438,7 @@ mmix_fill_nops (opcodep, n)
 /* See macro md_parse_name in tc-mmix.h.  */
 
 int
-mmix_current_location (fn, exp)
-     void (*fn) PARAMS ((expressionS *));
-     expressionS *exp;
+mmix_current_location (void (*fn) (expressionS *), expressionS *exp)
 {
   (*fn) (exp);
 
@@ -472,10 +449,7 @@ mmix_current_location (fn, exp)
    General idea and code stolen from the tic80 port.  */
 
 static int
-get_operands (max_operands, s, exp)
-     int max_operands;
-     char *s;
-     expressionS exp[];
+get_operands (int max_operands, char *s, expressionS *exp)
 {
   char *p = s;
   int numexp = 0;
@@ -541,8 +515,7 @@ get_operands (max_operands, s, exp)
    one.  NAME is a null-terminated string.  */
 
 static int
-get_spec_regno (name)
-     char *name;
+get_spec_regno (char *name)
 {
   int i;
 
@@ -564,10 +537,8 @@ get_spec_regno (name)
 /* For GET and PUT, parse the register names "manually", so we don't use
    user labels.  */
 static int
-get_putget_operands (insn, operands, exp)
-     struct mmix_opcode *insn;
-     char *operands;
-     expressionS exp[];
+get_putget_operands (struct mmix_opcode *insn, char *operands,
+		     expressionS *exp)
 {
   expressionS *expp_reg;
   expressionS *expp_sreg;
@@ -661,9 +632,7 @@ get_putget_operands (insn, operands, exp)
 /* Handle MMIX-specific option.  */
 
 int
-md_parse_option (c, arg)
-     int c;
-     char *arg ATTRIBUTE_UNUSED;
+md_parse_option (int c, char *arg ATTRIBUTE_UNUSED)
 {
   switch (c)
     {
@@ -720,8 +689,7 @@ md_parse_option (c, arg)
 /* Display MMIX-specific help text.  */
 
 void
-md_show_usage (stream)
-     FILE * stream;
+md_show_usage (FILE * stream)
 {
   fprintf (stream, _(" MMIX-specific command line options:\n"));
   fprintf (stream, _("\
@@ -754,7 +722,7 @@ md_show_usage (stream)
 /* Step to end of line, but don't step over the end of the line.  */
 
 static void
-mmix_discard_rest_of_line ()
+mmix_discard_rest_of_line (void)
 {
   while (*input_line_pointer
 	 && (! is_end_of_line[(unsigned char) *input_line_pointer]
@@ -767,7 +735,7 @@ mmix_discard_rest_of_line ()
    delimiter).  */
 
 static void
-mmix_handle_rest_of_empty_line ()
+mmix_handle_rest_of_empty_line (void)
 {
   if (mmix_gnu_syntax)
     demand_empty_rest_of_line ();
@@ -781,7 +749,7 @@ mmix_handle_rest_of_empty_line ()
 /* Initialize GAS MMIX specifics.  */
 
 void
-mmix_md_begin ()
+mmix_md_begin (void)
 {
   int i;
   const struct mmix_opcode *opcode;
@@ -840,8 +808,7 @@ mmix_md_begin ()
 /* Assemble one insn in STR.  */
 
 void
-md_assemble (str)
-     char *str;
+md_assemble (char *str)
 {
   char *operands = str;
   char modified_char = 0;
@@ -1922,8 +1889,7 @@ md_assemble (str)
    tc_unrecognized_line too, through this function.  */
 
 int
-mmix_assemble_return_nonzero (str)
-     char *str;
+mmix_assemble_return_nonzero (char *str)
 {
   int last_error_count = had_errors ();
   char *s2 = str;
@@ -1952,8 +1918,7 @@ mmix_assemble_return_nonzero (str)
 /* The PREFIX pseudo.  */
 
 static void
-s_prefix (unused)
-     int unused ATTRIBUTE_UNUSED;
+s_prefix (int unused ATTRIBUTE_UNUSED)
 {
   char *p;
   int c;
@@ -1995,8 +1960,7 @@ s_prefix (unused)
    that.  (It might be worth a rewrite for other reasons, though).  */
 
 char *
-mmix_prefix_name (shortname)
-     char *shortname;
+mmix_prefix_name (char *shortname)
 {
   if (*shortname == ':')
     return shortname + 1;
@@ -2020,8 +1984,7 @@ mmix_prefix_name (shortname)
    be persistent, perhaps allocated on an obstack.  */
 
 static void
-mmix_greg_internal (label)
-     char *label;
+mmix_greg_internal (char *label)
 {
   expressionS *expP = &mmix_raw_gregs[n_of_raw_gregs].exp;
 
@@ -2057,8 +2020,7 @@ mmix_greg_internal (label)
 /* The ".greg label,expr" worker.  */
 
 static void
-s_greg (unused)
-     int unused ATTRIBUTE_UNUSED;
+s_greg (int unused ATTRIBUTE_UNUSED)
 {
   char *p;
   char c;
@@ -2087,8 +2049,7 @@ s_greg (unused)
 /* The "BSPEC expr" worker.  */
 
 static void
-s_bspec (unused)
-     int unused ATTRIBUTE_UNUSED;
+s_bspec (int unused ATTRIBUTE_UNUSED)
 {
   asection *expsec;
   asection *sec;
@@ -2153,8 +2114,7 @@ s_bspec (unused)
 /* The "ESPEC" worker.  */
 
 static void
-s_espec (unused)
-     int unused ATTRIBUTE_UNUSED;
+s_espec (int unused ATTRIBUTE_UNUSED)
 {
   /* First, check that we *do* have a BSPEC in progress.  */
   if (! doing_bspec)
@@ -2177,8 +2137,7 @@ s_espec (unused)
    Implementing this by means of contents in a section lost.  */
 
 static void
-mmix_s_local (unused)
-     int unused ATTRIBUTE_UNUSED;
+mmix_s_local (int unused ATTRIBUTE_UNUSED)
 {
   expressionS exp;
 
@@ -2208,9 +2167,7 @@ mmix_s_local (unused)
    function may be called multiple times.  */
 
 int
-md_estimate_size_before_relax (fragP, segment)
-     fragS *fragP;
-     segT    segment;
+md_estimate_size_before_relax (fragS *fragP, segT segment)
 {
   int length;
 
@@ -2281,10 +2238,7 @@ md_estimate_size_before_relax (fragP, segment)
    OK.  */
 
 char *
-md_atof (type, litP, sizeP)
-     int type;
-     char *litP;
-     int *sizeP;
+md_atof (int type, char *litP, int *sizeP)
 {
   int prec;
   LITTLENUM_TYPE words[4];
@@ -2327,10 +2281,8 @@ md_atof (type, litP, sizeP)
 /* Convert variable-sized frags into one or more fixups.  */
 
 void
-md_convert_frag (abfd, sec, fragP)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     segT sec ATTRIBUTE_UNUSED;
-     fragS *fragP;
+md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED, segT sec ATTRIBUTE_UNUSED,
+		 fragS *fragP)
 {
   /* Pointer to first byte in variable-sized part of the frag.  */
   char *var_partp;
@@ -2413,7 +2365,7 @@ md_convert_frag (abfd, sec, fragP)
       if (fragP->tc_frag_data == NULL)
 	{
 	  /* We must initialize data that's supposed to be "fixed up" to
-	     avoid emitting garbage, because md_apply_fix3 won't do
+	     avoid emitting garbage, because md_apply_fix won't do
 	     anything for undefined symbols.  */
 	  md_number_to_chars (var_partp, 0, 8);
 	  tmpfixP
@@ -2461,10 +2413,7 @@ md_convert_frag (abfd, sec, fragP)
    Note that this function isn't called when linkrelax != 0.  */
 
 void
-md_apply_fix3 (fixP, valP, segment)
-     fixS *   fixP;
-     valueT * valP;
-     segT     segment;
+md_apply_fix (fixS *fixP, valueT *valP, segT segment)
 {
   char *buf  = fixP->fx_where + fixP->fx_frag->fr_literal;
   /* Note: use offsetT because it is signed, valueT is unsigned.  */
@@ -2638,9 +2587,7 @@ md_apply_fix3 (fixP, valP, segment)
    definitions.  */
 
 static int
-cmp_greg_val_greg_symbol_fixes (p1, p2)
-     const PTR p1;
-     const PTR p2;
+cmp_greg_val_greg_symbol_fixes (const void *p1, const void *p2)
 {
   offsetT val1 = *(offsetT *) p1;
   offsetT val2 = ((struct mmix_symbol_greg_fixes *) p2)->offs;
@@ -2657,9 +2604,7 @@ cmp_greg_val_greg_symbol_fixes (p1, p2)
 /* Generate a machine-dependent relocation.  */
 
 arelent *
-tc_gen_reloc (section, fixP)
-     asection *section ATTRIBUTE_UNUSED;
-     fixS *fixP;
+tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixP)
 {
   bfd_signed_vma val
     = fixP->fx_offset
@@ -2707,7 +2652,7 @@ tc_gen_reloc (section, fixP)
 
       if (addsy == NULL || bfd_is_abs_section (addsec))
 	{
-	  /* Resolve this reloc now, as md_apply_fix3 would have done (not
+	  /* Resolve this reloc now, as md_apply_fix would have done (not
 	     called if -linkrelax).  There is no point in keeping a reloc
 	     to an absolute symbol.  No reloc that is subject to
 	     relaxation must be to an absolute symbol; difference
@@ -2907,9 +2852,9 @@ tc_gen_reloc (section, fixP)
 	}
       /* FALLTHROUGH.  */
 
-      /* The others are supposed to be handled by md_apply_fix3.
+      /* The others are supposed to be handled by md_apply_fix.
 	 FIXME: ... which isn't called when -linkrelax.  Move over
-	 md_apply_fix3 code here for everything reasonable.  */
+	 md_apply_fix code here for everything reasonable.  */
     badop:
     default:
       as_bad_where
@@ -2953,10 +2898,10 @@ tc_gen_reloc (section, fixP)
    ugly labels_without_colons etc.  */
 
 void
-mmix_handle_mmixal ()
+mmix_handle_mmixal (void)
 {
-  char *s0 = input_line_pointer;
-  char *s;
+  char *insn;
+  char *s = input_line_pointer;
   char *label = NULL;
   char c;
 
@@ -2966,44 +2911,20 @@ mmix_handle_mmixal ()
   if (mmix_gnu_syntax)
     return;
 
-  /* If the first character is a '.', then it's a pseudodirective, not a
-     label.  Make GAS not handle label-without-colon on this line.  We
-     also don't do mmixal-specific stuff on this line.  */
-  if (input_line_pointer[0] == '.')
-    {
-      label_without_colon_this_line = 0;
-      return;
-    }
-
-  /* Don't handle empty lines here.  */
-  while (1)
-    {
-      if (*s0 == 0 || is_end_of_line[(unsigned int) *s0])
-	return;
-
-      if (! ISSPACE (*s0))
-	break;
-
-      s0++;
-    }
-
   /* If we're on a line with a label, check if it's a mmixal fb-label.
      Save an indicator and skip the label; it must be set only after all
      fb-labels of expressions are evaluated.  */
-  if (ISDIGIT (input_line_pointer[0])
-      && input_line_pointer[1] == 'H'
-      && ISSPACE (input_line_pointer[2]))
+  if (ISDIGIT (s[0]) && s[1] == 'H' && ISSPACE (s[2]))
     {
-      char *s;
-      current_fb_label = input_line_pointer[0] - '0';
+      current_fb_label = s[0] - '0';
 
       /* We have to skip the label, but also preserve the newlineness of
 	 the previous character, since the caller checks that.  It's a
 	 mess we blame on the caller.  */
-      input_line_pointer[1] = input_line_pointer[-1];
-      input_line_pointer += 2;
+      s[1] = s[-1];
+      s += 2;
+      input_line_pointer = s;
 
-      s = input_line_pointer;
       while (*s && ISSPACE (*s) && ! is_end_of_line[(unsigned int) *s])
 	s++;
 
@@ -3027,32 +2948,61 @@ mmix_handle_mmixal ()
 			_("[0-9]H labels do not mix with dot-pseudos"));
 	  current_fb_label = -1;
 	}
+
+      /* Back off to the last space before the opcode so we don't handle
+	 the opcode as a label.  */
+      s--;
     }
   else
+    current_fb_label = -1;
+
+  if (*s == '.')
     {
-      current_fb_label = -1;
-      if (is_name_beginner (input_line_pointer[0]))
-	label = input_line_pointer;
+      /* If the first character is a '.', then it's a pseudodirective, not a
+	 label.  Make GAS not handle label-without-colon on this line.  We
+	 also don't do mmixal-specific stuff on this line.  */
+      label_without_colon_this_line = 0;
+      return;
     }
 
-  s0 = input_line_pointer;
-  /* Skip over label.  */
-  while (*s0 && is_part_of_name (*s0))
-    s0++;
+  if (*s == 0 || is_end_of_line[(unsigned int) *s])
+    /* We avoid handling empty lines here.  */
+    return;
+      
+  if (is_name_beginner (*s))
+    label = s;
 
-  /* Remove trailing ":" off labels, as they'd otherwise be considered
-     part of the name.  But don't do it for local labels.  */
-  if (s0 != input_line_pointer && s0[-1] == ':'
-      && (s0 - 2 != input_line_pointer
-	  || ! ISDIGIT (s0[-2])))
-    s0[-1] = ' ';
-  else if (label != NULL)
+  /* If there is a label, skip over it.  */
+  while (*s && is_part_of_name (*s))
+    s++;
+
+  /* Find the start of the instruction or pseudo following the label,
+     if there is one.  */
+  for (insn = s;
+       *insn && ISSPACE (*insn) && ! is_end_of_line[(unsigned int) *insn];
+       insn++)
+    /* Empty */
+    ;
+
+  /* Remove a trailing ":" off labels, as they'd otherwise be considered
+     part of the name.  But don't do this for local labels.  */
+  if (s != input_line_pointer && s[-1] == ':'
+      && (s - 2 != input_line_pointer
+	  || ! ISDIGIT (s[-2])))
+    s[-1] = ' ';
+  else if (label != NULL
+	   /* For a lone label on a line, we don't attach it to the next
+	      instruction or MMIXAL-pseudo (getting its alignment).  Thus
+	      is acts like a "normal" :-ended label.  Ditto if it's
+	      followed by a non-MMIXAL pseudo.  */
+	   && !is_end_of_line[(unsigned int) *insn]
+	   && *insn != '.')
     {
       /* For labels that don't end in ":", we save it so we can later give
 	 it the same alignment and address as the associated instruction.  */
 
       /* Make room for the label including the ending nul.  */
-      int len_0 = s0 - label + 1;
+      int len_0 = s - label + 1;
 
       /* Save this label on the MMIX symbol obstack.  Saving it on an
 	 obstack is needless for "IS"-pseudos, but it's harmless and we
@@ -3062,14 +3012,10 @@ mmix_handle_mmixal ()
       pending_label[len_0 - 1] = 0;
     }
 
-  while (*s0 && ISSPACE (*s0) && ! is_end_of_line[(unsigned int) *s0])
-    s0++;
-
-  if (pending_label != NULL && is_end_of_line[(unsigned int) *s0])
-    /* Whoops, this was actually a lone label on a line.  Like :-ended
-       labels, we don't attach such labels to the next instruction or
-       pseudo.  */
-    pending_label = NULL;
+  /* If we have a non-MMIXAL pseudo, we have not business with the rest of
+     the line.  */
+  if (*insn == '.')
+    return;
 
   /* Find local labels of operands.  Look for "[0-9][FB]" where the
      characters before and after are not part of words.  Break if a single
@@ -3081,7 +3027,6 @@ mmix_handle_mmixal ()
 
   /* First make sure we don't have any of the magic characters on the line
      appearing as input.  */
-  s = s0;
   while (*s)
     {
       c = *s++;
@@ -3092,7 +3037,7 @@ mmix_handle_mmixal ()
     }
 
   /* Scan again, this time looking for ';' after operands.  */
-  s = s0;
+  s = insn;
 
   /* Skip the insn.  */
   while (*s
@@ -3132,7 +3077,9 @@ mmix_handle_mmixal ()
 	{
 	  if ((s[1] != 'B' && s[1] != 'F')
 	      || is_part_of_name (s[-1])
-	      || is_part_of_name (s[2]))
+	      || is_part_of_name (s[2])
+	      /* Don't treat e.g. #1F as a local-label reference.  */
+	      || (s != input_line_pointer && s[-1] == '#'))
 	    s++;
 	  else
 	    {
@@ -3158,7 +3105,7 @@ mmix_handle_mmixal ()
 
   /* Make IS into an EQU by replacing it with "= ".  Only match upper-case
      though; let lower-case be a syntax error.  */
-  s = s0;
+  s = insn;
   if (s[0] == 'I' && s[1] == 'S' && ISSPACE (s[2]))
     {
       *s = '=';
@@ -3264,8 +3211,7 @@ mmix_handle_mmixal ()
    We fill in the label as an expression.  */
 
 void
-mmix_fb_label (expP)
-     expressionS *expP;
+mmix_fb_label (expressionS *expP)
 {
   symbolS *sym;
   char *fb_internal_name;
@@ -3314,8 +3260,7 @@ mmix_fb_label (expP)
    relaxing.  */
 
 int
-mmix_force_relocation (fixP)
-     fixS *fixP;
+mmix_force_relocation (fixS *fixP)
 {
   if (fixP->fx_r_type == BFD_RELOC_MMIX_LOCAL
       || fixP->fx_r_type == BFD_RELOC_MMIX_BASE_PLUS_OFFSET)
@@ -3324,10 +3269,10 @@ mmix_force_relocation (fixP)
   if (linkrelax)
     return 1;
 
-  /* All our pcrel relocations are must-keep.  Note that md_apply_fix3 is
+  /* All our pcrel relocations are must-keep.  Note that md_apply_fix is
      called *after* this, and will handle getting rid of the presumed
      reloc; a relocation isn't *forced* other than to be handled by
-     md_apply_fix3 (or tc_gen_reloc if linkrelax).  */
+     md_apply_fix (or tc_gen_reloc if linkrelax).  */
   if (fixP->fx_pcrel)
     return 1;
 
@@ -3338,9 +3283,7 @@ mmix_force_relocation (fixP)
    given a PC relative reloc.  */
 
 long
-md_pcrel_from_section (fixP, sec)
-     fixS * fixP;
-     segT   sec;
+md_pcrel_from_section (fixS *fixP, segT sec)
 {
   if (fixP->fx_addsy != (symbolS *) NULL
       && (! S_IS_DEFINED (fixP->fx_addsy)
@@ -3358,7 +3301,7 @@ md_pcrel_from_section (fixP, sec)
    register section.  */
 
 void
-mmix_adjust_symtab ()
+mmix_adjust_symtab (void)
 {
   symbolS *sym;
   symbolS *regsec = section_symbol (reg_section);
@@ -3368,7 +3311,7 @@ mmix_adjust_symtab ()
       {
 	if (sym == regsec)
 	  {
-	    if (S_IS_EXTERN (sym) || symbol_used_in_reloc_p (sym))
+	    if (S_IS_EXTERNAL (sym) || symbol_used_in_reloc_p (sym))
 	      abort ();
 	    symbol_remove (sym, &symbol_rootP, &symbol_lastP);
 	  }
@@ -3388,7 +3331,7 @@ mmix_adjust_symtab ()
    thought at the time I first wrote this.  */
 
 int
-mmix_label_without_colon_this_line ()
+mmix_label_without_colon_this_line (void)
 {
   int retval = label_without_colon_this_line;
 
@@ -3404,10 +3347,7 @@ mmix_label_without_colon_this_line ()
    join with.  */
 
 long
-mmix_md_relax_frag (seg, fragP, stretch)
-     segT seg;
-     fragS *fragP;
-     long stretch;
+mmix_md_relax_frag (segT seg, fragS *fragP, long stretch)
 {
   switch (fragP->fr_subtype)
     {
@@ -3533,7 +3473,7 @@ mmix_md_relax_frag (seg, fragP, stretch)
 /* Various things we punt until all input is seen.  */
 
 void
-mmix_md_end ()
+mmix_md_end (void)
 {
   fragS *fragP;
   symbolS *mainsym;
@@ -3708,9 +3648,7 @@ mmix_md_end ()
 /* qsort function for mmix_symbol_gregs.  */
 
 static int
-cmp_greg_symbol_fixes (parg, qarg)
-     const PTR parg;
-     const PTR qarg;
+cmp_greg_symbol_fixes (const void *parg, const void *qarg)
 {
   const struct mmix_symbol_greg_fixes *p
     = (const struct mmix_symbol_greg_fixes *) parg;
@@ -3727,7 +3665,7 @@ cmp_greg_symbol_fixes (parg, qarg)
    as an ELF section.  */
 
 void
-mmix_frob_file ()
+mmix_frob_file (void)
 {
   int i;
   struct mmix_symbol_gregs *all_greg_symbols[MAX_GREGS];
@@ -3811,18 +3749,11 @@ mmix_frob_file ()
 
   if (real_reg_section != NULL)
     {
-      asection **secpp;
-
       /* FIXME: Pass error state gracefully.  */
       if (bfd_get_section_flags (stdoutput, real_reg_section) & SEC_HAS_CONTENTS)
 	as_fatal (_("register section has contents\n"));
 
-      /* Really remove the section.  */
-      for (secpp = &stdoutput->sections;
-	   *secpp != real_reg_section;
-	   secpp = &(*secpp)->next)
-	;
-      bfd_section_list_remove (stdoutput, secpp);
+      bfd_section_list_remove (stdoutput, real_reg_section);
       --stdoutput->section_count;
     }
 
@@ -3835,9 +3766,7 @@ mmix_frob_file ()
    If the name isn't a built-in name and parsed into *EXPP, return zero.  */
 
 int
-mmix_parse_predefined_name (name, expP)
-     char *name;
-     expressionS *expP;
+mmix_parse_predefined_name (char *name, expressionS *expP)
 {
   char *canon_name;
   char *handler_charp;
@@ -3946,7 +3875,7 @@ mmix_parse_predefined_name (name, expP)
    section.  */
 
 void
-mmix_md_elf_section_change_hook ()
+mmix_md_elf_section_change_hook (void)
 {
   if (doing_bspec)
     as_bad (_("section change from within a BSPEC/ESPEC pair is not supported"));
@@ -3959,8 +3888,7 @@ mmix_md_elf_section_change_hook ()
    section too.   */
 
 static void
-s_loc (ignore)
-     int ignore ATTRIBUTE_UNUSED;
+s_loc (int ignore ATTRIBUTE_UNUSED)
 {
   segT section;
   expressionS exp;
@@ -4089,7 +4017,7 @@ s_loc (ignore)
    by comma.  */
 
 static void
-mmix_byte ()
+mmix_byte (void)
 {
   unsigned int c;
   char *start;
@@ -4179,8 +4107,7 @@ mmix_byte ()
    lenient than mmix_byte but FIXME: they should eventually merge.  */
 
 static void
-mmix_cons (nbytes)
-     int nbytes;
+mmix_cons (int nbytes)
 {
   expressionS exp;
   char *start;
@@ -4309,11 +4236,8 @@ mmix_cons (nbytes)
    Arguably this is a GCC bug.  */
 
 void
-mmix_md_do_align (n, fill, len, max)
-     int n;
-     char *fill ATTRIBUTE_UNUSED;
-     int len ATTRIBUTE_UNUSED;
-     int max ATTRIBUTE_UNUSED;
+mmix_md_do_align (int n, char *fill ATTRIBUTE_UNUSED,
+		  int len ATTRIBUTE_UNUSED, int max ATTRIBUTE_UNUSED)
 {
   last_alignment = n;
   want_unaligned = n == 0;

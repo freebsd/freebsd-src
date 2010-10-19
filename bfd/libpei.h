@@ -1,5 +1,5 @@
 /* Support for the generic parts of PE/PEI; common header information.
-   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003
+   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005
    Free Software Foundation, Inc.
    Written by Cygnus Solutions.
 
@@ -17,7 +17,7 @@
    
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* Most of this hacked by  Steve Chamberlain,
 			sac@cygnus.com
@@ -270,6 +270,11 @@
 
 #endif /* !COFF_WITH_pep */
 
+/* Macro: Returns true if the bfd is a PE executable as opposed to a PE object file.  */
+#define bfd_pe_executable_p(abfd) \
+  (strncmp ((abfd)->xvec->name, "pei-", 4) == 0		\
+   || strncmp ((abfd)->xvec->name, "efi-app-", 8) == 0)
+
 /* These functions are architecture dependent, and are in peicode.h:
    coff_swap_reloc_in
    int coff_swap_reloc_out
@@ -282,56 +287,39 @@
    implementations architecture types, and actually appear in
    peigen.c.  */
 
-void _bfd_XXi_swap_sym_in PARAMS ((bfd*, PTR, PTR));
-#define coff_swap_sym_in _bfd_XXi_swap_sym_in
-
-unsigned int _bfd_XXi_swap_sym_out PARAMS ((bfd*, PTR, PTR));
-#define coff_swap_sym_out _bfd_XXi_swap_sym_out
-
-void _bfd_XXi_swap_aux_in PARAMS ((bfd *, PTR, int, int, int, int, PTR));
-#define coff_swap_aux_in _bfd_XXi_swap_aux_in
-
-unsigned int _bfd_XXi_swap_aux_out \
-  PARAMS ((bfd *, PTR, int, int, int, int, PTR));
-#define coff_swap_aux_out _bfd_XXi_swap_aux_out
-
-void _bfd_XXi_swap_lineno_in PARAMS ((bfd*, PTR, PTR));
-#define coff_swap_lineno_in _bfd_XXi_swap_lineno_in
-
-unsigned int _bfd_XXi_swap_lineno_out PARAMS ((bfd*, PTR, PTR));
-#define coff_swap_lineno_out _bfd_XXi_swap_lineno_out
-
-void _bfd_XXi_swap_aouthdr_in PARAMS ((bfd*, PTR, PTR));
-#define coff_swap_aouthdr_in _bfd_XXi_swap_aouthdr_in
-
-unsigned int _bfd_XXi_swap_aouthdr_out PARAMS ((bfd *, PTR, PTR));
+#define coff_swap_sym_in      _bfd_XXi_swap_sym_in
+#define coff_swap_sym_out     _bfd_XXi_swap_sym_out
+#define coff_swap_aux_in      _bfd_XXi_swap_aux_in
+#define coff_swap_aux_out     _bfd_XXi_swap_aux_out
+#define coff_swap_lineno_in   _bfd_XXi_swap_lineno_in
+#define coff_swap_lineno_out  _bfd_XXi_swap_lineno_out
+#define coff_swap_aouthdr_in  _bfd_XXi_swap_aouthdr_in
 #define coff_swap_aouthdr_out _bfd_XXi_swap_aouthdr_out
-
-unsigned int _bfd_XXi_swap_scnhdr_out PARAMS ((bfd *, PTR, PTR));
-#define coff_swap_scnhdr_out _bfd_XXi_swap_scnhdr_out
-
-bfd_boolean _bfd_XX_print_private_bfd_data_common PARAMS ((bfd *, PTR));
-
-bfd_boolean _bfd_XX_bfd_copy_private_bfd_data_common PARAMS ((bfd *, bfd *));
-
-void _bfd_XX_get_symbol_info PARAMS ((bfd *, asymbol *, symbol_info *));
-
-bfd_boolean _bfd_XXi_final_link_postscript
-  PARAMS ((bfd *, struct coff_final_link_info *));
+#define coff_swap_scnhdr_out  _bfd_XXi_swap_scnhdr_out
 
 #ifndef coff_final_link_postscript
 #define coff_final_link_postscript _bfd_XXi_final_link_postscript
 #endif
+
+void        _bfd_XXi_swap_sym_in (bfd *, void *, void *);
+unsigned    _bfd_XXi_swap_sym_out (bfd *, void *, void *);
+void        _bfd_XXi_swap_aux_in (bfd *, void *, int, int, int, int, void *);
+unsigned    _bfd_XXi_swap_aux_out (bfd *, void *, int, int, int, int, void *);
+void        _bfd_XXi_swap_lineno_in (bfd *, void *, void *);
+unsigned    _bfd_XXi_swap_lineno_out (bfd *, void *, void *);
+void        _bfd_XXi_swap_aouthdr_in (bfd *, void *, void *);
+unsigned    _bfd_XXi_swap_aouthdr_out (bfd *, void *, void *);
+unsigned    _bfd_XXi_swap_scnhdr_out (bfd *, void *, void *);
+bfd_boolean _bfd_XX_print_private_bfd_data_common (bfd *, void *);
+bfd_boolean _bfd_XX_bfd_copy_private_bfd_data_common (bfd *, bfd *);
+void        _bfd_XX_get_symbol_info (bfd *, asymbol *, symbol_info *);
+bfd_boolean _bfd_XXi_final_link_postscript (bfd *, struct coff_final_link_info *);
+
 /* The following are needed only for ONE of pe or pei, but don't
    otherwise vary; peicode.h fixes up ifdefs but we provide the
    prototype.  */
 
-unsigned int _bfd_XX_only_swap_filehdr_out PARAMS ((bfd*, PTR, PTR));
-unsigned int _bfd_XXi_only_swap_filehdr_out PARAMS ((bfd*, PTR, PTR));
-bfd_boolean _bfd_XX_bfd_copy_private_section_data
-  PARAMS ((bfd *, asection *, bfd *, asection *));
+unsigned    _bfd_XX_only_swap_filehdr_out  (bfd *, void *, void *);
+unsigned    _bfd_XXi_only_swap_filehdr_out (bfd *, void *, void *);
+bfd_boolean _bfd_XX_bfd_copy_private_section_data (bfd *, asection *, bfd *, asection *);
 
-/* Macro: Returns true if the bfd is a PE executable as opposed to a PE object file.  */
-#define bfd_pe_executable_p(abfd) \
-  (strncmp ((abfd)->xvec->name, "pei-", 4) == 0		\
-   || strncmp ((abfd)->xvec->name, "efi-app-", 8) == 0)

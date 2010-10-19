@@ -11,7 +11,7 @@ Section Headers:
   \[ 6\] \.cranges          PROGBITS        00000000 000094 000046 00   W  0   0  1
   \[ 7\] \.rela\.cranges     RELA            00000000 0002e0 000054 0c      9   6  4
   \[ 8\] \.shstrtab         STRTAB          00000000 0000da 00004d 00      0   0  1
-  \[ 9\] \.symtab           SYMTAB          00000000 000334 000110 10     10  10  4
+  \[ 9\] \.symtab           SYMTAB          00000000 000334 000110 10     10  16  4
   \[10\] \.strtab           STRTAB          00000000 000444 000027 00      0   0  1
 Key to Flags:
   W \(write\), A \(alloc\), X \(execute\), M \(merge\), S \(strings\)

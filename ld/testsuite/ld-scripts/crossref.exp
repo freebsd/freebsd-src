@@ -1,6 +1,6 @@
 # Test NOCROSSREFS in a linker script.
 # By Ian Lance Taylor, Cygnus Support.
-#   Copyright 2001
+#   Copyright 2000, 2001, 2002, 2003, 2004
 #   Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
@@ -15,14 +15,16 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
 set test1 "NOCROSSREFS 1"
 set test2 "NOCROSSREFS 2"
+set test3 "NOCROSSREFS 3"
 
 if { [which $CC] == 0 } {
     untested $test1
     untested $test2
+    untested $test3
     return
 }
 
@@ -31,6 +33,13 @@ if { [which $CC] == 0 } {
 global CFLAGS
 if [istarget xtensa*-*-*] {
     set CFLAGS "$CFLAGS -mtext-section-literals"
+}
+
+# If we have a compiler that doesn't use/reference dot-symbols, then
+# calls to functions reference the .opd section function descriptor.
+# This makes NOCROSSREFS rather useless on powerpc64.
+if [istarget powerpc64*-*-*] {
+    set CFLAGS "$CFLAGS -mcall-aixdesc"
 }
 
 if { ![ld_compile $CC "$srcdir/$subdir/cross1.c" tmpdir/cross1.o] \
@@ -42,17 +51,13 @@ if { ![ld_compile $CC "$srcdir/$subdir/cross1.c" tmpdir/cross1.o] \
 
 set flags [big_or_little_endian]
 
-# The a29k compiled code calls V_SPILL and V_FILL.  Since we don't
-# need to run this code, but we don't have definitions for those
-# functions, we just define them out.
-if [istarget a29k*-*-*] {
-    set flags "$flags --defsym V_SPILL=0 --defsym V_FILL=0"
-}
-
 if [istarget sh64*-*-elf] {
     # This is what gcc passes to ld by default.
     set flags "-mshelf32"
 }
+
+# IA64 has both ordered and unordered sections in an input file.
+setup_xfail ia64-*-*
 
 verbose -log "$ld $flags -o tmpdir/cross1 -T $srcdir/$subdir/cross1.t tmpdir/cross1.o tmpdir/cross2.o"
 
@@ -97,4 +102,31 @@ if [string match "" $exec_output] then {
     } else {
 	fail $test2
     }
+}
+
+# Check cross references for ld -r
+
+if { ![ld_compile $CC "$srcdir/$subdir/cross4.c" tmpdir/cross4.o] } {
+    unresolved $test3
+    return
+}
+
+if ![ld_relocate $ld tmpdir/cross3-partial.o "tmpdir/cross1.o tmpdir/cross4.o"] {
+    unresolved $test3
+    return
+}
+
+verbose -log "$ld $flags -o tmpdir/cross3 -T $srcdir/$subdir/cross3.t tmpdir/cross3-partial.o tmpdir/cross2.o"
+
+catch "exec $ld $flags -o tmpdir/cross3 -T $srcdir/$subdir/cross3.t tmpdir/cross3-partial.o tmpdir/cross2.o" exec_output
+
+set exec_output [prune_warnings $exec_output]
+
+regsub -all "(^|\n)($ld: warning: cannot find entry symbol\[^\n\]*\n?)" $exec_output "\\1" exec_output
+
+if [string match "" $exec_output] then {
+    pass $test3
+} else {
+    verbose -log "$exec_output"
+    fail $test3
 }

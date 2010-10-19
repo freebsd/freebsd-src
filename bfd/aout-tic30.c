@@ -1,5 +1,6 @@
 /* BFD back-end for TMS320C30 a.out binaries.
-   Copyright 1998, 1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005
+   Free Software Foundation, Inc.
    Contributed by Steven Haworth (steve@pm.cse.rmit.edu.au)
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -16,15 +17,15 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #define TARGET_IS_BIG_ENDIAN_P
-#define N_HEADER_IN_TEXT(x) 1
-#define TEXT_START_ADDR 1024
-#define TARGET_PAGE_SIZE 128
-#define SEGMENT_SIZE TARGET_PAGE_SIZE
-#define DEFAULT_ARCH bfd_arch_tic30
+#define N_HEADER_IN_TEXT(x)	1
+#define TEXT_START_ADDR 	1024
+#define TARGET_PAGE_SIZE 	128
+#define SEGMENT_SIZE   		TARGET_PAGE_SIZE
+#define DEFAULT_ARCH 		bfd_arch_tic30
 #define ARCH_SIZE 32
 
 /* Do not "beautify" the CONCAT* macro args.  Traditional C will not
@@ -37,50 +38,17 @@
 #include "bfd.h"
 #include "sysdep.h"
 #include "libaout.h"
-
 #include "aout/aout64.h"
 #include "aout/stab_gnu.h"
 #include "aout/ar.h"
 
-static bfd_reloc_status_type tic30_aout_fix_16
-  PARAMS ((bfd *, arelent *, asymbol *, PTR, asection *, bfd *, char **));
-static bfd_reloc_status_type tic30_aout_fix_32
-  PARAMS ((bfd *, arelent *, asymbol *, PTR, asection *, bfd *, char **));
-static bfd_reloc_status_type tic30_aout_fix_pcrel_16
-  PARAMS ((bfd *, arelent *, asymbol *, PTR, asection *, bfd *, char **));
-static reloc_howto_type *tic30_aout_reloc_howto
-  PARAMS ((bfd *, struct reloc_std_external *, int *, int *, int *));
-static bfd_reloc_status_type tic30_aout_relocate_contents
-  PARAMS ((reloc_howto_type *, bfd *, bfd_vma, bfd_byte *));
-static bfd_reloc_status_type tic30_aout_final_link_relocate
-  PARAMS ((reloc_howto_type *, bfd *, asection *, bfd_byte *, bfd_vma,
-	   bfd_vma, bfd_vma));
-static const bfd_target *tic30_aout_object_p
-  PARAMS ((bfd *));
-static bfd_boolean tic30_aout_write_object_contents
-  PARAMS ((bfd *));
-static bfd_boolean tic30_aout_set_sizes
-  PARAMS ((bfd *));
-static const bfd_target * tic30_aout_callback
-  PARAMS ((bfd *));
-static bfd_boolean MY_bfd_copy_private_section_data
-  PARAMS ((bfd *, asection *, bfd *, asection *));
-static bfd_boolean MY_bfd_final_link
-  PARAMS ((bfd *, struct bfd_link_info *));
-reloc_howto_type * tic30_aout_reloc_type_lookup
-  PARAMS ((bfd *, bfd_reloc_code_real_type));
-enum machine_type tic30_aout_machine_type
-  PARAMS ((enum bfd_architecture, unsigned long, bfd_boolean *));
-bfd_boolean tic30_aout_set_arch_mach
-  PARAMS ((bfd *, enum bfd_architecture, unsigned long));
+#define MY_reloc_howto(BFD, REL, IN, EX, PC)   tic30_aout_reloc_howto (BFD, REL, & IN, & EX, & PC)
 
-#define MY_reloc_howto(BFD, REL, IN, EX, PC) \
-  tic30_aout_reloc_howto(BFD, REL, &IN, &EX, &PC)
-#define MY_final_link_relocate tic30_aout_final_link_relocate
-#define MY_object_p tic30_aout_object_p
-#define MY_mkobject NAME(aout,mkobject)
-#define MY_write_object_contents tic30_aout_write_object_contents
-#define MY_set_sizes tic30_aout_set_sizes
+#define MY_final_link_relocate    tic30_aout_final_link_relocate
+#define MY_object_p               tic30_aout_object_p
+#define MY_mkobject               NAME (aout,mkobject)
+#define MY_write_object_contents  tic30_aout_write_object_contents
+#define MY_set_sizes              tic30_aout_set_sizes
 
 #ifndef MY_exec_hdr_flags
 #define MY_exec_hdr_flags 1
@@ -119,13 +87,35 @@ bfd_boolean tic30_aout_set_arch_mach
 #define MY_finish_dynamic_link 0
 #endif
 
+static bfd_boolean
+tic30_aout_set_sizes (bfd *abfd)
+{
+  adata (abfd).page_size = TARGET_PAGE_SIZE;
+
+#ifdef SEGMENT_SIZE
+  adata (abfd).segment_size = SEGMENT_SIZE;
+#else
+  adata (abfd).segment_size = TARGET_PAGE_SIZE;
+#endif
+
+#ifdef ZMAGIC_DISK_BLOCK_SIZE
+  adata (abfd).zmagic_disk_block_size = ZMAGIC_DISK_BLOCK_SIZE;
+#else
+  adata (abfd).zmagic_disk_block_size = TARGET_PAGE_SIZE;
+#endif
+
+  adata (abfd).exec_bytes_size = EXEC_BYTES_SIZE;
+
+  return TRUE;
+}
+
 static const struct aout_backend_data tic30_aout_backend_data =
 {
   MY_zmagic_contiguous,
   MY_text_includes_header,
   MY_entry_is_text_address,
   MY_exec_hdr_flags,
-  0,				/* text vma? */
+  0,				/* Text vma?  */
   MY_set_sizes,
   MY_exec_header_not_counted,
   MY_add_dynamic_symbols,
@@ -138,42 +128,129 @@ static const struct aout_backend_data tic30_aout_backend_data =
 #define MY_backend_data &tic30_aout_backend_data
 #endif
 
+static reloc_howto_type *
+  tic30_aout_reloc_howto (bfd *, struct reloc_std_external *, int *, int *, int *);
+static bfd_reloc_status_type
+  tic30_aout_final_link_relocate
+    (reloc_howto_type *, bfd *, asection *, bfd_byte *, bfd_vma, bfd_vma, bfd_vma);
+
 /* FIXME: This is wrong.  aoutx.h should really only be included by
    aout32.c.  */
 
 #include "aoutx.h"
+
+/* This function is used to work out pc-relative offsets for the
+   TMS320C30.  The data already placed by md_pcrel_from within gas is
+   useless for a relocation, so we just get the offset value and place
+   a version of this within the object code.
+   tic30_aout_final_link_relocate will then calculate the required
+   relocation to add on to the value in the object code.  */
+
+static bfd_reloc_status_type
+tic30_aout_fix_pcrel_16 (bfd *abfd,
+			 arelent *reloc_entry,
+			 asymbol *symbol ATTRIBUTE_UNUSED,
+			 void * data,
+			 asection *input_section ATTRIBUTE_UNUSED,
+			 bfd *output_bfd ATTRIBUTE_UNUSED,
+			 char **error_message ATTRIBUTE_UNUSED)
+{
+  bfd_vma relocation = 1;
+  bfd_byte offset_data = bfd_get_8 (abfd, (bfd_byte *) data + reloc_entry->address - 1);
+
+  /* The byte before the location of the fix contains bits 23-16 of
+     the pcrel instruction.  Bit 21 is set for a delayed instruction
+     which requires on offset of 3 instead of 1.  */
+  if (offset_data & 0x20)
+    relocation -= 3;
+  else
+    relocation -= 1;
+  bfd_put_16 (abfd, relocation, (bfd_byte *) data + reloc_entry->address);
+  return bfd_reloc_ok;
+}
+
+/* This function is used as a callback for 16-bit relocs.  This is
+   required for relocations between segments.  A line in aoutx.h
+   requires that any relocations for the data section should point to
+   the end of the aligned text section, plus an offset.  By default,
+   this does not happen, therefore this function takes care of
+   that.  */
+
+static bfd_reloc_status_type
+tic30_aout_fix_16 (bfd *abfd,
+		   arelent *reloc_entry,
+		   asymbol *symbol,
+		   void * data,
+		   asection *input_section ATTRIBUTE_UNUSED,
+		   bfd *output_bfd,
+		   char **error_message ATTRIBUTE_UNUSED)
+{
+  bfd_vma relocation;
+
+  /* Make sure that the symbol's section is defined.  */
+  if (symbol->section == &bfd_und_section && (symbol->flags & BSF_WEAK) == 0)
+    return output_bfd ? bfd_reloc_ok : bfd_reloc_undefined;
+  /* Get the size of the input section and turn it into the TMS320C30
+     32-bit address format.  */
+  relocation = (symbol->section->vma >> 2);
+  relocation += bfd_get_16 (abfd, (bfd_byte *) data + reloc_entry->address);
+  bfd_put_16 (abfd, relocation, (bfd_byte *) data + reloc_entry->address);
+  return bfd_reloc_ok;
+}
+
+/* This function does the same thing as tic30_aout_fix_16 except for 32
+   bit relocations.  */
+
+static bfd_reloc_status_type
+tic30_aout_fix_32 (bfd *abfd,
+		   arelent *reloc_entry,
+		   asymbol *symbol,
+		   void * data,
+		   asection *input_section ATTRIBUTE_UNUSED,
+		   bfd *output_bfd,
+		   char **error_message ATTRIBUTE_UNUSED)
+{
+  bfd_vma relocation;
+
+  /* Make sure that the symbol's section is defined.  */
+  if (symbol->section == &bfd_und_section && (symbol->flags & BSF_WEAK) == 0)
+    return output_bfd ? bfd_reloc_ok : bfd_reloc_undefined;
+  /* Get the size of the input section and turn it into the TMS320C30
+     32-bit address format.  */
+  relocation = (symbol->section->vma >> 2);
+  relocation += bfd_get_32 (abfd, (bfd_byte *) data + reloc_entry->address);
+  bfd_put_32 (abfd, relocation, (bfd_byte *) data + reloc_entry->address);
+  return bfd_reloc_ok;
+}
 
 /* This table lists the relocation types for the TMS320C30.  There are
    only a few relocations required, and all must be divided by 4 (>>
    2) to get the 32-bit addresses in the format the TMS320C30 likes
    it.  */
 reloc_howto_type tic30_aout_howto_table[] =
-  {
-    EMPTY_HOWTO (-1),
-    HOWTO (1, 2, 1, 16, FALSE, 0, 0, tic30_aout_fix_16,
-	   "16", FALSE, 0x0000FFFF, 0x0000FFFF, FALSE),
-    HOWTO (2, 2, 2, 24, FALSE, 0, complain_overflow_bitfield, NULL,
-	   "24", FALSE, 0x00FFFFFF, 0x00FFFFFF, FALSE),
-    HOWTO (3, 18, 3, 24, FALSE, 0, complain_overflow_bitfield, NULL,
-	   "LDP", FALSE, 0x00FF0000, 0x000000FF, FALSE),
-    HOWTO (4, 2, 4, 32, FALSE, 0, complain_overflow_bitfield, tic30_aout_fix_32,
-	   "32", FALSE, 0xFFFFFFFF, 0xFFFFFFFF, FALSE),
-    HOWTO (5, 2, 1, 16, TRUE, 0, complain_overflow_signed,
-	   tic30_aout_fix_pcrel_16, "PCREL", TRUE, 0x0000FFFF, 0x0000FFFF, TRUE),
-    EMPTY_HOWTO (-1),
-    EMPTY_HOWTO (-1),
-    EMPTY_HOWTO (-1),
-    EMPTY_HOWTO (-1),
-    EMPTY_HOWTO (-1)
-  };
+{
+  EMPTY_HOWTO (-1),
+  HOWTO (1, 2, 1, 16, FALSE, 0, 0, tic30_aout_fix_16,
+	 "16", FALSE, 0x0000FFFF, 0x0000FFFF, FALSE),
+  HOWTO (2, 2, 2, 24, FALSE, 0, complain_overflow_bitfield, NULL,
+	 "24", FALSE, 0x00FFFFFF, 0x00FFFFFF, FALSE),
+  HOWTO (3, 18, 3, 24, FALSE, 0, complain_overflow_bitfield, NULL,
+	 "LDP", FALSE, 0x00FF0000, 0x000000FF, FALSE),
+  HOWTO (4, 2, 4, 32, FALSE, 0, complain_overflow_bitfield, tic30_aout_fix_32,
+	 "32", FALSE, 0xFFFFFFFF, 0xFFFFFFFF, FALSE),
+  HOWTO (5, 2, 1, 16, TRUE, 0, complain_overflow_signed,
+	 tic30_aout_fix_pcrel_16, "PCREL", TRUE, 0x0000FFFF, 0x0000FFFF, TRUE),
+  EMPTY_HOWTO (-1),
+  EMPTY_HOWTO (-1),
+  EMPTY_HOWTO (-1),
+  EMPTY_HOWTO (-1),
+  EMPTY_HOWTO (-1)
+};
 
-extern reloc_howto_type *NAME (aout, reloc_type_lookup)
-  PARAMS ((bfd *, bfd_reloc_code_real_type));
 
-reloc_howto_type *
-tic30_aout_reloc_type_lookup (abfd, code)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     bfd_reloc_code_real_type code;
+static reloc_howto_type *
+tic30_aout_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			      bfd_reloc_code_real_type code)
 {
   switch (code)
     {
@@ -189,17 +266,16 @@ tic30_aout_reloc_type_lookup (abfd, code)
     case BFD_RELOC_32:
       return &tic30_aout_howto_table[4];
     default:
-      return (reloc_howto_type *) NULL;
+      return NULL;
     }
 }
 
 static reloc_howto_type *
-tic30_aout_reloc_howto (abfd, relocs, r_index, r_extern, r_pcrel)
-     bfd *abfd;
-     struct reloc_std_external *relocs;
-     int *r_index;
-     int *r_extern;
-     int *r_pcrel;
+tic30_aout_reloc_howto (bfd *abfd,
+			struct reloc_std_external *relocs,
+			int *r_index,
+			int *r_extern,
+			int *r_pcrel)
 {
   unsigned int r_length;
   unsigned int r_pcrel_done;
@@ -224,95 +300,6 @@ tic30_aout_reloc_howto (abfd, relocs, r_index, r_extern, r_pcrel)
   return tic30_aout_howto_table + index;
 }
 
-/* This function is used as a callback for 16-bit relocs.  This is
-   required for relocations between segments.  A line in aoutx.h
-   requires that any relocations for the data section should point to
-   the end of the aligned text section, plus an offset.  By default,
-   this does not happen, therefore this function takes care of
-   that.  */
-
-static bfd_reloc_status_type
-tic30_aout_fix_16 (abfd, reloc_entry, symbol, data, input_section, output_bfd, error_message)
-     bfd *abfd;
-     arelent *reloc_entry;
-     asymbol *symbol;
-     PTR data;
-     asection *input_section ATTRIBUTE_UNUSED;
-     bfd *output_bfd;
-     char **error_message ATTRIBUTE_UNUSED;
-{
-  bfd_vma relocation;
-
-  /* Make sure that the symbol's section is defined.  */
-  if (symbol->section == &bfd_und_section && (symbol->flags & BSF_WEAK) == 0)
-    return output_bfd ? bfd_reloc_ok : bfd_reloc_undefined;
-  /* Get the size of the input section and turn it into the TMS320C30
-     32-bit address format.  */
-  relocation = (symbol->section->vma >> 2);
-  relocation += bfd_get_16 (abfd, (bfd_byte *) data + reloc_entry->address);
-  bfd_put_16 (abfd, relocation, (bfd_byte *) data + reloc_entry->address);
-  return bfd_reloc_ok;
-}
-
-/* This function does the same thing as tic30_aout_fix_16 except for 32
-   bit relocations.  */
-
-static bfd_reloc_status_type
-tic30_aout_fix_32 (abfd, reloc_entry, symbol, data, input_section,
-		   output_bfd, error_message)
-     bfd *abfd;
-     arelent *reloc_entry;
-     asymbol *symbol;
-     PTR data;
-     asection *input_section ATTRIBUTE_UNUSED;
-     bfd *output_bfd;
-     char **error_message ATTRIBUTE_UNUSED;
-{
-  bfd_vma relocation;
-
-  /* Make sure that the symbol's section is defined.  */
-  if (symbol->section == &bfd_und_section && (symbol->flags & BSF_WEAK) == 0)
-    return output_bfd ? bfd_reloc_ok : bfd_reloc_undefined;
-  /* Get the size of the input section and turn it into the TMS320C30
-     32-bit address format.  */
-  relocation = (symbol->section->vma >> 2);
-  relocation += bfd_get_32 (abfd, (bfd_byte *) data + reloc_entry->address);
-  bfd_put_32 (abfd, relocation, (bfd_byte *) data + reloc_entry->address);
-  return bfd_reloc_ok;
-}
-
-/* This function is used to work out pc-relative offsets for the
-   TMS320C30.  The data already placed by md_pcrel_from within gas is
-   useless for a relocation, so we just get the offset value and place
-   a version of this within the object code.
-   tic30_aout_final_link_relocate will then calculate the required
-   relocation to add on to the value in the object code.  */
-
-static bfd_reloc_status_type
-tic30_aout_fix_pcrel_16 (abfd, reloc_entry, symbol, data, input_section,
-			 output_bfd, error_message)
-     bfd *abfd;
-     arelent *reloc_entry;
-     asymbol *symbol ATTRIBUTE_UNUSED;
-     PTR data;
-     asection *input_section ATTRIBUTE_UNUSED;
-     bfd *output_bfd ATTRIBUTE_UNUSED;
-     char **error_message ATTRIBUTE_UNUSED;
-{
-  bfd_vma relocation = 1;
-  bfd_byte offset_data = bfd_get_8 (abfd, (bfd_byte *) data + reloc_entry->address - 1);
-
-  /* The byte before the location of the fix contains bits 23-16 of
-     the pcrel instruction.  Bit 21 is set for a delayed instruction
-     which requires on offset of 3 instead of 1.  */
-  if (offset_data & 0x20)
-    relocation -= 3;
-  else
-    relocation -= 1;
-  bfd_put_16 (abfd, relocation, (bfd_byte *) data + reloc_entry->address);
-  return bfd_reloc_ok;
-}
-
 /* These macros will get 24-bit values from the bfd definition.
    Big-endian only.  */
 #define bfd_getb_24(BFD,ADDR)			\
@@ -329,15 +316,14 @@ tic30_aout_fix_pcrel_16 (abfd, reloc_entry, symbol, data, input_section,
    This routine is called from some_aout_object_p just before it returns.  */
 
 static const bfd_target *
-tic30_aout_callback (abfd)
-     bfd *abfd;
+tic30_aout_callback (bfd *abfd)
 {
   struct internal_exec *execp = exec_hdr (abfd);
   unsigned int arch_align_power;
   unsigned long arch_align;
 
   /* Calculate the file positions of the parts of a newly read aout header.  */
-  obj_textsec (abfd)->_raw_size = N_TXTSIZE (*execp);
+  obj_textsec (abfd)->size = N_TXTSIZE (*execp);
 
   /* The virtual memory addresses of the sections.  */
   obj_textsec (abfd)->vma = N_TXTADDR (*execp);
@@ -368,19 +354,19 @@ tic30_aout_callback (abfd)
 #endif
 
   /* Now that we know the architecture, set the alignments of the
-     sections.  This is normally done by NAME(aout,new_section_hook),
+     sections.  This is normally done by NAME (aout,new_section_hook),
      but when the initial sections were created the architecture had
      not yet been set.  However, for backward compatibility, we don't
      set the alignment power any higher than as required by the size
      of the section.  */
   arch_align_power = bfd_get_arch_info (abfd)->section_align_power;
   arch_align = 1 << arch_align_power;
-  if ((BFD_ALIGN (obj_textsec (abfd)->_raw_size, arch_align)
-       == obj_textsec (abfd)->_raw_size)
-      && (BFD_ALIGN (obj_datasec (abfd)->_raw_size, arch_align)
-	  == obj_datasec (abfd)->_raw_size)
-      && (BFD_ALIGN (obj_bsssec (abfd)->_raw_size, arch_align)
-	  == obj_bsssec (abfd)->_raw_size))
+  if ((BFD_ALIGN (obj_textsec (abfd)->size, arch_align)
+       == obj_textsec (abfd)->size)
+      && (BFD_ALIGN (obj_datasec (abfd)->size, arch_align)
+	  == obj_datasec (abfd)->size)
+      && (BFD_ALIGN (obj_bsssec (abfd)->size, arch_align)
+	  == obj_bsssec (abfd)->size))
     {
       obj_textsec (abfd)->alignment_power = arch_align_power;
       obj_datasec (abfd)->alignment_power = arch_align_power;
@@ -390,38 +376,10 @@ tic30_aout_callback (abfd)
 }
 
 static bfd_reloc_status_type
-tic30_aout_final_link_relocate (howto, input_bfd, input_section, contents,
-				address, value, addend)
-     reloc_howto_type *howto;
-     bfd *input_bfd;
-     asection *input_section;
-     bfd_byte *contents;
-     bfd_vma address;
-     bfd_vma value;
-     bfd_vma addend;
-{
-  bfd_vma relocation;
-
-  if (address > input_section->_raw_size)
-    return bfd_reloc_outofrange;
-
-  relocation = value + addend;
-  if (howto->pc_relative)
-    {
-      relocation -= (input_section->output_section->vma + input_section->output_offset);
-      if (howto->pcrel_offset)
-	relocation -= address;
-    }
-  return tic30_aout_relocate_contents (howto, input_bfd, relocation,
-				       contents + address);
-}
-
-bfd_reloc_status_type
-tic30_aout_relocate_contents (howto, input_bfd, relocation, location)
-     reloc_howto_type *howto;
-     bfd *input_bfd;
-     bfd_vma relocation;
-     bfd_byte *location;
+tic30_aout_relocate_contents (reloc_howto_type *howto,
+			      bfd *input_bfd,
+			      bfd_vma relocation,
+			      bfd_byte *location)
 {
   bfd_vma x;
   bfd_boolean overflow;
@@ -494,6 +452,7 @@ tic30_aout_relocate_contents (howto, input_bfd, relocation, location)
 	  {
 	    bfd_signed_vma reloc_signed_max = (1 << (howto->bitsize - 1)) - 1;
 	    bfd_signed_vma reloc_signed_min = ~reloc_signed_max;
+
 	    if (signed_check > reloc_signed_max || signed_check < reloc_signed_min)
 	      overflow = TRUE;
 	  }
@@ -501,6 +460,7 @@ tic30_aout_relocate_contents (howto, input_bfd, relocation, location)
 	case complain_overflow_unsigned:
 	  {
 	    bfd_vma reloc_unsigned_max = (((1 << (howto->bitsize - 1)) - 1) << 1) | 1;
+
 	    if (check > reloc_unsigned_max)
 	      overflow = TRUE;
 	  }
@@ -508,6 +468,7 @@ tic30_aout_relocate_contents (howto, input_bfd, relocation, location)
 	case complain_overflow_bitfield:
 	  {
 	    bfd_vma reloc_bits = (((1 << (howto->bitsize - 1)) - 1) << 1) | 1;
+
 	    if ((check & ~reloc_bits) != 0
 		&& (((bfd_vma) signed_check & ~reloc_bits)
 		    != ((bfd_vma) -1 & ~reloc_bits)))
@@ -543,18 +504,42 @@ tic30_aout_relocate_contents (howto, input_bfd, relocation, location)
   return overflow ? bfd_reloc_overflow : bfd_reloc_ok;
 }
 
+static bfd_reloc_status_type
+tic30_aout_final_link_relocate (reloc_howto_type *howto,
+				bfd *input_bfd,
+				asection *input_section,
+				bfd_byte *contents,
+				bfd_vma address,
+				bfd_vma value,
+				bfd_vma addend)
+{
+  bfd_vma relocation;
+
+  if (address > bfd_get_section_limit (input_bfd, input_section))
+    return bfd_reloc_outofrange;
+
+  relocation = value + addend;
+  if (howto->pc_relative)
+    {
+      relocation -= (input_section->output_section->vma + input_section->output_offset);
+      if (howto->pcrel_offset)
+	relocation -= address;
+    }
+  return tic30_aout_relocate_contents (howto, input_bfd, relocation,
+				       contents + address);
+}
+
 /* Finish up the reading of an a.out file header.  */
 
 static const bfd_target *
-tic30_aout_object_p (abfd)
-     bfd *abfd;
+tic30_aout_object_p (bfd *abfd)
 {
   struct external_exec exec_bytes;	/* Raw exec header from file.  */
-  struct internal_exec exec;	/* Cleaned-up exec header.  */
+  struct internal_exec exec;		/* Cleaned-up exec header.  */
   const bfd_target *target;
   bfd_size_type amt = EXEC_BYTES_SIZE;
 
-  if (bfd_bread ((PTR) &exec_bytes, amt, abfd) != amt)
+  if (bfd_bread (& exec_bytes, amt, abfd) != amt)
     {
       if (bfd_get_error () != bfd_error_system_call)
 	bfd_set_error (bfd_error_wrong_format);
@@ -577,9 +562,9 @@ tic30_aout_object_p (abfd)
   NAME (aout, swap_exec_header_in) (abfd, &exec_bytes, &exec);
 
 #ifdef SWAP_MAGIC
-  /* swap_exec_header_in read in a_info with the wrong byte order */
+  /* Swap_exec_header_in read in a_info with the wrong byte order.  */
   exec.a_info = SWAP_MAGIC (exec_bytes.e_info);
-#endif /* SWAP_MAGIC */
+#endif
 
   target = NAME (aout, some_aout_object_p) (abfd, &exec, tic30_aout_callback);
 
@@ -600,7 +585,7 @@ tic30_aout_object_p (abfd)
       if (stat (abfd->filename, &buf) == 0 && (buf.st_mode & S_IXUSR))
 	abfd->flags |= EXEC_P;
     }
-#endif /* ENTRY_CAN_BE_ZERO */
+#endif
 
   return target;
 }
@@ -612,11 +597,10 @@ tic30_aout_object_p (abfd)
    after the section contents have been set.  */
 
 static bfd_boolean
-MY_bfd_copy_private_section_data (ibfd, isec, obfd, osec)
-     bfd *ibfd;
-     asection *isec ATTRIBUTE_UNUSED;
-     bfd *obfd;
-     asection *osec ATTRIBUTE_UNUSED;
+MY_bfd_copy_private_section_data (bfd *ibfd,
+				  asection *isec ATTRIBUTE_UNUSED,
+				  bfd *obfd,
+				  asection *osec ATTRIBUTE_UNUSED)
 {
   if (bfd_get_flavour (obfd) == bfd_target_aout_flavour)
     obj_aout_subformat (obfd) = obj_aout_subformat (ibfd);
@@ -628,8 +612,7 @@ MY_bfd_copy_private_section_data (ibfd, isec, obfd, osec)
    file header, symbols, and relocation.  */
 
 static bfd_boolean
-tic30_aout_write_object_contents (abfd)
-     bfd *abfd;
+tic30_aout_write_object_contents (bfd *abfd)
 {
   struct external_exec exec_bytes;
   struct internal_exec *execp = exec_hdr (abfd);
@@ -653,10 +636,11 @@ tic30_aout_write_object_contents (abfd)
     if (adata (abfd).exec_bytes_size > 0)
       {
 	bfd_size_type amt;
+
 	if (bfd_seek (abfd, (file_ptr) 0, SEEK_SET) != 0)
 	  return FALSE;
 	amt = adata (abfd).exec_bytes_size;
-	if (bfd_bwrite ((PTR) &exec_bytes, amt, abfd) != amt)
+	if (bfd_bwrite (& exec_bytes, amt, abfd) != amt)
 	  return FALSE;
       }
 
@@ -685,42 +669,15 @@ tic30_aout_write_object_contents (abfd)
   return TRUE;
 }
 
-static bfd_boolean
-tic30_aout_set_sizes (abfd)
-     bfd *abfd;
-{
-  adata (abfd).page_size = TARGET_PAGE_SIZE;
-
-#ifdef SEGMENT_SIZE
-  adata (abfd).segment_size = SEGMENT_SIZE;
-#else
-  adata (abfd).segment_size = TARGET_PAGE_SIZE;
-#endif
-
-#ifdef ZMAGIC_DISK_BLOCK_SIZE
-  adata (abfd).zmagic_disk_block_size = ZMAGIC_DISK_BLOCK_SIZE;
-#else
-  adata (abfd).zmagic_disk_block_size = TARGET_PAGE_SIZE;
-#endif
-
-  adata (abfd).exec_bytes_size = EXEC_BYTES_SIZE;
-
-  return TRUE;
-}
-
 #ifndef MY_final_link_callback
 
 /* Callback for the final_link routine to set the section offsets.  */
 
-static void MY_final_link_callback
-  PARAMS ((bfd *, file_ptr *, file_ptr *, file_ptr *));
-
 static void
-MY_final_link_callback (abfd, ptreloff, pdreloff, psymoff)
-     bfd *abfd;
-     file_ptr *ptreloff;
-     file_ptr *pdreloff;
-     file_ptr *psymoff;
+MY_final_link_callback (bfd *abfd,
+			file_ptr *ptreloff,
+			file_ptr *pdreloff,
+			file_ptr *psymoff)
 {
   struct internal_exec *execp = exec_hdr (abfd);
 
@@ -737,9 +694,7 @@ MY_final_link_callback (abfd, ptreloff, pdreloff, psymoff)
    offsets in the output file.  */
 
 static bfd_boolean
-MY_bfd_final_link (abfd, info)
-     bfd *abfd;
-     struct bfd_link_info *info;
+MY_bfd_final_link (bfd *abfd, struct bfd_link_info *info)
 {
   struct internal_exec *execp = exec_hdr (abfd);
   file_ptr pos;
@@ -756,8 +711,8 @@ MY_bfd_final_link (abfd, info)
   obj_textsec (abfd)->filepos = pos;
   obj_textsec (abfd)->vma = vma;
   obj_textsec (abfd)->user_set_vma = 1;
-  pos += obj_textsec (abfd)->_raw_size;
-  vma += obj_textsec (abfd)->_raw_size;
+  pos += obj_textsec (abfd)->size;
+  vma += obj_textsec (abfd)->size;
 
   /* Data.  */
   if (abfd->flags & D_PAGED)
@@ -768,9 +723,7 @@ MY_bfd_final_link (abfd, info)
 	obj_datasec (abfd)->vma = BFD_ALIGN (vma, adata (abfd).segment_size);
     }
   else
-    {
-      obj_datasec (abfd)->vma = BFD_ALIGN (vma, 4);
-    }
+    obj_datasec (abfd)->vma = BFD_ALIGN (vma, 4);
 
   if (obj_datasec (abfd)->vma < vma)
     obj_datasec (abfd)->vma = BFD_ALIGN (vma, 4);
@@ -779,14 +732,14 @@ MY_bfd_final_link (abfd, info)
   vma = obj_datasec (abfd)->vma;
   obj_datasec (abfd)->filepos = vma + adata (abfd).exec_bytes_size;
   execp->a_text = vma - obj_textsec (abfd)->vma;
-  obj_textsec (abfd)->_raw_size = execp->a_text;
+  obj_textsec (abfd)->size = execp->a_text;
 
   /* Since BSS follows data immediately, see if it needs alignment.  */
-  vma += obj_datasec (abfd)->_raw_size;
+  vma += obj_datasec (abfd)->size;
   pad = align_power (vma, obj_bsssec (abfd)->alignment_power) - vma;
-  obj_datasec (abfd)->_raw_size += pad;
-  pos += obj_datasec (abfd)->_raw_size;
-  execp->a_data = obj_datasec (abfd)->_raw_size;
+  obj_datasec (abfd)->size += pad;
+  pos += obj_datasec (abfd)->size;
+  execp->a_data = obj_datasec (abfd)->size;
 
   /* BSS.  */
   obj_bsssec (abfd)->vma = vma;
@@ -800,11 +753,10 @@ MY_bfd_final_link (abfd, info)
 
 #endif
 
-enum machine_type
-tic30_aout_machine_type (arch, machine, unknown)
-     enum bfd_architecture arch;
-     unsigned long machine ATTRIBUTE_UNUSED;
-     bfd_boolean *unknown;
+static enum machine_type
+tic30_aout_machine_type (enum bfd_architecture arch,
+			 unsigned long machine ATTRIBUTE_UNUSED,
+			 bfd_boolean *unknown)
 {
   enum machine_type arch_flags;
 
@@ -824,11 +776,10 @@ tic30_aout_machine_type (arch, machine, unknown)
   return arch_flags;
 }
 
-bfd_boolean
-tic30_aout_set_arch_mach (abfd, arch, machine)
-     bfd *abfd;
-     enum bfd_architecture arch;
-     unsigned long machine;
+static bfd_boolean
+tic30_aout_set_arch_mach (bfd *abfd,
+			  enum bfd_architecture arch,
+			  unsigned long machine)
 {
   if (!bfd_default_set_arch_mach (abfd, arch, machine))
     return FALSE;
@@ -864,21 +815,21 @@ tic30_aout_set_arch_mach (abfd, arch, machine)
   _bfd_archive_bsd_construct_extended_name_table
 #endif
 #ifndef	MY_write_armap
-#define	MY_write_armap		bsd_write_armap
+#define	MY_write_armap			bsd_write_armap
 #endif
 #ifndef MY_read_ar_hdr
-#define MY_read_ar_hdr		_bfd_generic_read_ar_hdr
+#define MY_read_ar_hdr			_bfd_generic_read_ar_hdr
 #endif
 #ifndef	MY_truncate_arname
 #define	MY_truncate_arname		bfd_bsd_truncate_arname
 #endif
 #ifndef MY_update_armap_timestamp
-#define MY_update_armap_timestamp _bfd_archive_bsd_update_armap_timestamp
+#define MY_update_armap_timestamp 	_bfd_archive_bsd_update_armap_timestamp
 #endif
 
 /* No core file defined here -- configure in trad-core.c separately.  */
 #ifndef	MY_core_file_failing_command
-#define	MY_core_file_failing_command _bfd_nocore_core_file_failing_command
+#define	MY_core_file_failing_command 	_bfd_nocore_core_file_failing_command
 #endif
 #ifndef	MY_core_file_failing_signal
 #define	MY_core_file_failing_signal	_bfd_nocore_core_file_failing_signal
@@ -888,7 +839,7 @@ tic30_aout_set_arch_mach (abfd, arch, machine)
 				_bfd_nocore_core_file_matches_executable_p
 #endif
 #ifndef	MY_core_file_p
-#define	MY_core_file_p		_bfd_dummy_target
+#define	MY_core_file_p			_bfd_dummy_target
 #endif
 
 #ifndef MY_bfd_debug_info_start
@@ -899,20 +850,20 @@ tic30_aout_set_arch_mach (abfd, arch, machine)
 #endif
 #ifndef MY_bfd_debug_info_accumulate
 #define MY_bfd_debug_info_accumulate	\
-		(void (*) PARAMS ((bfd*, struct bfd_section *))) bfd_void
+		(void (*) (bfd*, struct bfd_section *)) bfd_void
 #endif
 
 #ifndef MY_core_file_failing_command
-#define MY_core_file_failing_command NAME(aout,core_file_failing_command)
+#define MY_core_file_failing_command NAME (aout, core_file_failing_command)
 #endif
 #ifndef MY_core_file_failing_signal
-#define MY_core_file_failing_signal NAME(aout,core_file_failing_signal)
+#define MY_core_file_failing_signal NAME (aout, core_file_failing_signal)
 #endif
 #ifndef MY_core_file_matches_executable_p
-#define MY_core_file_matches_executable_p NAME(aout,core_file_matches_executable_p)
+#define MY_core_file_matches_executable_p NAME (aout, core_file_matches_executable_p)
 #endif
 #ifndef MY_set_section_contents
-#define MY_set_section_contents NAME(aout,set_section_contents)
+#define MY_set_section_contents NAME (aout, set_section_contents)
 #endif
 #ifndef MY_get_section_contents
 #define MY_get_section_contents aout_32_get_section_contents
@@ -921,40 +872,43 @@ tic30_aout_set_arch_mach (abfd, arch, machine)
 #define MY_get_section_contents_in_window _bfd_generic_get_section_contents_in_window
 #endif
 #ifndef MY_new_section_hook
-#define MY_new_section_hook NAME(aout,new_section_hook)
+#define MY_new_section_hook NAME (aout, new_section_hook)
 #endif
 #ifndef MY_get_symtab_upper_bound
-#define MY_get_symtab_upper_bound NAME(aout,get_symtab_upper_bound)
+#define MY_get_symtab_upper_bound NAME (aout, get_symtab_upper_bound)
 #endif
 #ifndef MY_canonicalize_symtab
-#define MY_canonicalize_symtab NAME(aout,canonicalize_symtab)
+#define MY_canonicalize_symtab NAME (aout, canonicalize_symtab)
 #endif
 #ifndef MY_get_reloc_upper_bound
-#define MY_get_reloc_upper_bound NAME(aout,get_reloc_upper_bound)
+#define MY_get_reloc_upper_bound NAME (aout, get_reloc_upper_bound)
 #endif
 #ifndef MY_canonicalize_reloc
-#define MY_canonicalize_reloc NAME(aout,canonicalize_reloc)
+#define MY_canonicalize_reloc NAME (aout, canonicalize_reloc)
 #endif
 #ifndef MY_make_empty_symbol
-#define MY_make_empty_symbol NAME(aout,make_empty_symbol)
+#define MY_make_empty_symbol NAME (aout, make_empty_symbol)
 #endif
 #ifndef MY_print_symbol
-#define MY_print_symbol NAME(aout,print_symbol)
+#define MY_print_symbol NAME (aout, print_symbol)
 #endif
 #ifndef MY_get_symbol_info
-#define MY_get_symbol_info NAME(aout,get_symbol_info)
+#define MY_get_symbol_info NAME (aout, get_symbol_info)
 #endif
 #ifndef MY_get_lineno
-#define MY_get_lineno NAME(aout,get_lineno)
+#define MY_get_lineno NAME (aout, get_lineno)
 #endif
 #ifndef MY_set_arch_mach
 #define MY_set_arch_mach tic30_aout_set_arch_mach
 #endif
 #ifndef MY_find_nearest_line
-#define MY_find_nearest_line NAME(aout,find_nearest_line)
+#define MY_find_nearest_line NAME (aout, find_nearest_line)
+#endif
+#ifndef MY_find_inliner_info
+#define MY_find_inliner_info _bfd_nosymbols_find_inliner_info
 #endif
 #ifndef MY_sizeof_headers
-#define MY_sizeof_headers NAME(aout,sizeof_headers)
+#define MY_sizeof_headers NAME (aout, sizeof_headers)
 #endif
 #ifndef MY_bfd_get_relocated_section_contents
 #define MY_bfd_get_relocated_section_contents \
@@ -969,8 +923,15 @@ tic30_aout_set_arch_mach (abfd, arch, machine)
 #ifndef MY_bfd_merge_sections
 #define MY_bfd_merge_sections bfd_generic_merge_sections
 #endif
+#ifndef MY_bfd_is_group_section
+#define MY_bfd_is_group_section bfd_generic_is_group_section
+#endif
 #ifndef MY_bfd_discard_group
 #define MY_bfd_discard_group bfd_generic_discard_group
+#endif
+#ifndef MY_section_already_linked
+#define MY_section_already_linked \
+  _bfd_generic_section_already_linked
 #endif
 #ifndef MY_bfd_reloc_type_lookup
 #define MY_bfd_reloc_type_lookup tic30_aout_reloc_type_lookup
@@ -979,19 +940,19 @@ tic30_aout_set_arch_mach (abfd, arch, machine)
 #define MY_bfd_make_debug_symbol 0
 #endif
 #ifndef MY_read_minisymbols
-#define MY_read_minisymbols NAME(aout,read_minisymbols)
+#define MY_read_minisymbols NAME (aout, read_minisymbols)
 #endif
 #ifndef MY_minisymbol_to_symbol
-#define MY_minisymbol_to_symbol NAME(aout,minisymbol_to_symbol)
+#define MY_minisymbol_to_symbol NAME (aout, minisymbol_to_symbol)
 #endif
 #ifndef MY_bfd_link_hash_table_create
-#define MY_bfd_link_hash_table_create NAME(aout,link_hash_table_create)
+#define MY_bfd_link_hash_table_create NAME (aout, link_hash_table_create)
 #endif
 #ifndef MY_bfd_link_hash_table_free
 #define MY_bfd_link_hash_table_free _bfd_generic_link_hash_table_free
 #endif
 #ifndef MY_bfd_link_add_symbols
-#define MY_bfd_link_add_symbols NAME(aout,link_add_symbols)
+#define MY_bfd_link_add_symbols NAME (aout, link_add_symbols)
 #endif
 #ifndef MY_bfd_link_just_syms
 #define MY_bfd_link_just_syms _bfd_generic_link_just_syms
@@ -1012,6 +973,10 @@ tic30_aout_set_arch_mach (abfd, arch, machine)
 #define MY_bfd_copy_private_symbol_data _bfd_generic_bfd_copy_private_symbol_data
 #endif
 
+#ifndef MY_bfd_copy_private_header_data
+#define MY_bfd_copy_private_header_data _bfd_generic_bfd_copy_private_header_data
+#endif
+
 #ifndef MY_bfd_print_private_bfd_data
 #define MY_bfd_print_private_bfd_data _bfd_generic_bfd_print_private_bfd_data
 #endif
@@ -1024,8 +989,13 @@ tic30_aout_set_arch_mach (abfd, arch, machine)
 #define MY_bfd_is_local_label_name bfd_generic_is_local_label_name
 #endif
 
+#ifndef MY_bfd_is_target_special_symbol
+#define MY_bfd_is_target_special_symbol  \
+  ((bfd_boolean (*) (bfd *, asymbol *)) bfd_false)
+#endif
+
 #ifndef MY_bfd_free_cached_info
-#define MY_bfd_free_cached_info NAME(aout,bfd_free_cached_info)
+#define MY_bfd_free_cached_info NAME (aout, bfd_free_cached_info)
 #endif
 
 #ifndef MY_close_and_cleanup
@@ -1040,6 +1010,10 @@ tic30_aout_set_arch_mach (abfd, arch, machine)
 #define MY_canonicalize_dynamic_symtab \
   _bfd_nodynamic_canonicalize_dynamic_symtab
 #endif
+#ifndef MY_get_synthetic_symtab
+#define MY_get_synthetic_symtab \
+  _bfd_nodynamic_get_synthetic_symtab
+#endif
 #ifndef MY_get_dynamic_reloc_upper_bound
 #define MY_get_dynamic_reloc_upper_bound \
   _bfd_nodynamic_get_dynamic_reloc_upper_bound
@@ -1049,12 +1023,12 @@ tic30_aout_set_arch_mach (abfd, arch, machine)
   _bfd_nodynamic_canonicalize_dynamic_reloc
 #endif
 
-/* Aout symbols normally have leading underscores */
+/* Aout symbols normally have leading underscores.  */
 #ifndef MY_symbol_leading_char
 #define MY_symbol_leading_char '_'
 #endif
 
-/* Aout archives normally use spaces for padding */
+/* Aout archives normally use spaces for padding.  */
 #ifndef AR_PAD_CHAR
 #define AR_PAD_CHAR ' '
 #endif
@@ -1062,27 +1036,27 @@ tic30_aout_set_arch_mach (abfd, arch, machine)
 #ifndef MY_BFD_TARGET
 const bfd_target tic30_aout_vec =
 {
-  TARGETNAME,			/* name */
+  TARGETNAME,			/* Name.  */
   bfd_target_aout_flavour,
-  BFD_ENDIAN_BIG,		/* target byte order (big) */
-  BFD_ENDIAN_BIG,		/* target headers byte order (big) */
-  (HAS_RELOC |			/* object flags */
+  BFD_ENDIAN_BIG,		/* Target byte order (big).  */
+  BFD_ENDIAN_BIG,		/* Target headers byte order (big).  */
+  (HAS_RELOC |			/* Object flags.  */
    HAS_SYMS | HAS_LOCALS | WP_TEXT | D_PAGED),
-  (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_RELOC),	/* section flags */
+  (SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_RELOC),	/* Section flags.  */
   MY_symbol_leading_char,
-  AR_PAD_CHAR,			/* ar_pad_char */
-  15,				/* ar_max_namelen */
+  AR_PAD_CHAR,			/* AR_pad_char.  */
+  15,				/* AR_max_namelen.  */
   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
-  bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* data */
+  bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* Data.  */
   bfd_getb64, bfd_getb_signed_64, bfd_putb64,
   bfd_getb32, bfd_getb_signed_32, bfd_putb32,
-  bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* hdrs */
-  {_bfd_dummy_target, MY_object_p,	/* bfd_check_format */
+  bfd_getb16, bfd_getb_signed_16, bfd_putb16,	/* Headers.  */
+  {_bfd_dummy_target, MY_object_p,		/* bfd_check_format.  */
    bfd_generic_archive_p, MY_core_file_p},
-  {bfd_false, MY_mkobject,	/* bfd_set_format */
+  {bfd_false, MY_mkobject,			/* bfd_set_format.  */
    _bfd_generic_mkarchive, bfd_false},
-  {bfd_false, MY_write_object_contents,		/* bfd_write_contents */
+  {bfd_false, MY_write_object_contents,		/* bfd_write_contents.  */
    _bfd_write_archive_contents, bfd_false},
 
   BFD_JUMP_TABLE_GENERIC (MY),
@@ -1097,6 +1071,6 @@ const bfd_target tic30_aout_vec =
 
   NULL,
 
-  (PTR) MY_backend_data
+  MY_backend_data
 };
 #endif /* MY_BFD_TARGET */

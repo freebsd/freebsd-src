@@ -1,5 +1,5 @@
 # Expect script for ld-x86_64 tests
-#   Copyright (C) 2002 Free Software Foundation
+#   Copyright (C) 2002, 2005, 2006 Free Software Foundation
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 
 # Test x86_64 linking; all types of relocs.  This tests the assembler and
@@ -39,6 +39,11 @@ set x86_64tests {
      {{readelf -WSsrl tlspic.rd} {objdump -drj.text tlspic.dd}
       {objdump -sj.got tlspic.sd} {objdump -sj.tdata tlspic.td}}
       "libtlspic.so"}
+    {"TLS descriptor -fpic -shared transitions" "-shared -melf_x86_64"
+     "--64" {tlsdesc.s tlspic2.s}
+     {{readelf -WSsrld tlsdesc.rd} {objdump -drj.text tlsdesc.dd}
+      {objdump "-s -j.got -j.got.plt" tlsdesc.sd} {objdump -sj.tdata tlsdesc.td}
+      {objdump -drj.plt tlsdesc.pd}} "libtlsdesc.so"}
     {"Helper shared library" "-shared -melf_x86_64"
      "--64" {tlslib.s} {} "libtlslib.so"}
     {"TLS -fpic and -fno-pic exec transitions"
@@ -46,9 +51,22 @@ set x86_64tests {
      {{readelf -WSsrl tlsbin.rd} {objdump -drj.text tlsbin.dd}
       {objdump -sj.got tlsbin.sd} {objdump -sj.tdata tlsbin.td}}
       "tlsbin"}
+    {"TLS descriptor -fpic and -fno-pic exec transitions"
+     "-melf_x86_64 tmpdir/libtlslib.so" "--64" {tlsbindesc.s tlsbin.s}
+     {{readelf -WSsrl tlsbindesc.rd} {objdump -drj.text tlsbindesc.dd}
+      {objdump -sj.got tlsbindesc.sd} {objdump -sj.tdata tlsbindesc.td}}
+      "tlsbindesc"}
+    {"TLS with global dynamic and descriptors"
+	"-shared -melf_x86_64" "--64" {tlsgdesc.s}
+     {{readelf -WSsrl tlsgdesc.rd} {objdump -drj.text tlsgdesc.dd}}
+      "libtlsgdesc.so"}
     {"TLS in debug sections" "-melf_x86_64"
      "--64" {tlsg.s}
      {{objdump -sj.debug_foobar tlsg.sd}} "tlsg"}
 }
 
 run_ld_link_tests $x86_64tests
+
+run_dump_test "abs"
+run_dump_test "pcrel8"
+run_dump_test "pcrel16"

@@ -8,7 +8,8 @@ TEMPLATE_NAME=elf32
 EXTRA_EM_FILE=armelf
 OTHER_TEXT_SECTIONS='*(.glue_7t) *(.glue_7)'
 OTHER_BSS_SYMBOLS='__bss_start__ = .;'
-OTHER_BSS_END_SYMBOLS='_bss_end__ = . ; __bss_end__ = . ; __end__ = . ;'
+OTHER_BSS_END_SYMBOLS='_bss_end__ = . ; __bss_end__ = . ;'
+OTHER_END_SYMBOLS='__end__ = . ;'
 
 DATA_START_SYMBOLS='__data_start = . ;';
 

@@ -1,5 +1,6 @@
 /* mips.h.  Mips opcode list for GDB, the GNU debugger.
-   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003
+   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
+   2003, 2004, 2005
    Free Software Foundation, Inc.
    Contributed by Ralph Campbell and OSF
    Commented and modified by Ian Lance Taylor, Cygnus Support
@@ -18,7 +19,7 @@ the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this file; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef _MIPS_H_
 #define _MIPS_H_
@@ -147,6 +148,38 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  *
 #define OP_MASK_EXTMSBD		0x1f	/* "ext" MSBD.  */
 #define OP_SH_EXTMSBD		11
 
+/* MIPS DSP ASE */
+#define OP_SH_DSPACC		11
+#define OP_MASK_DSPACC  	0x3
+#define OP_SH_DSPACC_S  	21
+#define OP_MASK_DSPACC_S	0x3
+#define OP_SH_DSPSFT		20
+#define OP_MASK_DSPSFT  	0x3f
+#define OP_SH_DSPSFT_7  	19
+#define OP_MASK_DSPSFT_7	0x7f
+#define OP_SH_SA3		21
+#define OP_MASK_SA3		0x7
+#define OP_SH_SA4		21
+#define OP_MASK_SA4		0xf
+#define OP_SH_IMM8		16
+#define OP_MASK_IMM8		0xff
+#define OP_SH_IMM10		16
+#define OP_MASK_IMM10		0x3ff
+#define OP_SH_WRDSP		11
+#define OP_MASK_WRDSP		0x3f
+#define OP_SH_RDDSP		16
+#define OP_MASK_RDDSP		0x3f
+
+/* MIPS MT ASE */
+#define OP_SH_MT_U		5
+#define OP_MASK_MT_U		0x1
+#define OP_SH_MT_H		4
+#define OP_MASK_MT_H		0x1
+#define OP_SH_MTACC_T		18
+#define OP_MASK_MTACC_T		0x3
+#define OP_SH_MTACC_D		13
+#define OP_MASK_MTACC_D		0x3
+
 #define	OP_OP_COP0		0x10
 #define	OP_OP_COP1		0x11
 #define	OP_OP_COP2		0x12
@@ -192,6 +225,8 @@ struct mips_opcode
      of bits describing the instruction, notably any relevant hazard
      information.  */
   unsigned long pinfo;
+  /* A collection of additional bits describing the instruction. */
+  unsigned long pinfo2;
   /* A collection of bits describing the instruction sets of which this
      instruction or macro is a member. */
   unsigned long membership;
@@ -293,6 +328,28 @@ struct mips_opcode
    "Y"	MDMX source register (OP_*_FS)
    "Z"	MDMX source register (OP_*_FT)
 
+   DSP ASE usage:
+   "3" 3 bit unsigned immediate (OP_*_SA3)
+   "4" 4 bit unsigned immediate (OP_*_SA4)
+   "5" 8 bit unsigned immediate (OP_*_IMM8)
+   "6" 5 bit unsigned immediate (OP_*_RS)
+   "7" 2 bit dsp accumulator register (OP_*_DSPACC)
+   "8" 6 bit unsigned immediate (OP_*_WRDSP)
+   "9" 2 bit dsp accumulator register (OP_*_DSPACC_S)
+   "0" 6 bit signed immediate (OP_*_DSPSFT)
+   ":" 7 bit signed immediate (OP_*_DSPSFT_7)
+   "'" 6 bit unsigned immediate (OP_*_RDDSP)
+   "@" 10 bit signed immediate (OP_*_IMM10)
+
+   MT ASE usage:
+   "!" 1 bit immediate at bit 5
+   "$" 1 bit immediate at bit 4
+   "*" 2 bit dsp/smartmips accumulator register (OP_*_MTACC_T)
+   "&" 2 bit dsp/smartmips accumulator register (OP_*_MTACC_D)
+   "g" 5 bit coprocessor 1 and 2 destination register (OP_*_RD)
+   "+t" 5 bit coprocessor 0 destination register (OP_*_RT)
+   "+T" 5 bit coprocessor 0 destination register (OP_*_RT) - disassembly only
+
    Other:
    "()" parens surrounding optional value
    ","  separates operands
@@ -300,13 +357,15 @@ struct mips_opcode
    "+"  Start of extension sequence.
 
    Characters used so far, for quick reference when adding more:
-   "%[]<>(),+"
+   "34567890"
+   "%[]<>(),+:'@!$*&"
    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-   "abcdefhijklopqrstuvwxz"
+   "abcdefghijklopqrstuvwxz"
 
    Extension character sequences used so far ("+" followed by the
    following), for quick reference when adding more:
-   "ABCDEFGHI"
+   "ABCDEFGHIT"
+   "t"
 */
 
 /* These are the bits which may be set in the pinfo field of an
@@ -376,10 +435,16 @@ struct mips_opcode
 #define INSN_MULT                   0x40000000
 /* Instruction synchronize shared memory.  */
 #define INSN_SYNC		    0x80000000
-/* Instruction reads MDMX accumulator.  XXX FIXME: No bits left!  */
-#define INSN_READ_MDMX_ACC	    0
-/* Instruction writes MDMX accumulator.  XXX FIXME: No bits left!  */
-#define INSN_WRITE_MDMX_ACC	    0
+
+/* These are the bits which may be set in the pinfo2 field of an
+   instruction. */
+
+/* Instruction is a simple alias (I.E. "move" for daddu/addu/or) */
+#define	INSN2_ALIAS		    0x00000001
+/* Instruction reads MDMX accumulator. */
+#define INSN2_READ_MDMX_ACC	    0x00000002
+/* Instruction writes MDMX accumulator. */
+#define INSN2_WRITE_MDMX_ACC	    0x00000004
 
 /* Instruction is actually a macro.  It should be ignored by the
    disassembler, and requires special treatment by the assembler.  */
@@ -402,8 +467,10 @@ struct mips_opcode
 #define INSN_ISA64R2              0x00000100
 
 /* Masks used for MIPS-defined ASEs.  */
-#define INSN_ASE_MASK		  0x0000f000
+#define INSN_ASE_MASK		  0x0400f000
 
+/* DSP ASE */ 
+#define INSN_DSP                  0x00001000
 /* MIPS 16 ASE */
 #define INSN_MIPS16               0x00002000
 /* MIPS-3D ASE */
@@ -433,6 +500,8 @@ struct mips_opcode
 #define INSN_5400		  0x01000000
 /* NEC VR5500 instruction.  */
 #define INSN_5500		  0x02000000
+/* MT ASE */
+#define INSN_MT                   0x04000000
 
 /* MIPS ISA defines, use instead of hardcoding ISA level.  */
 
@@ -470,6 +539,7 @@ struct mips_opcode
 #define CPU_R6000	6000
 #define CPU_RM7000	7000
 #define CPU_R8000	8000
+#define CPU_RM9000	9000
 #define CPU_R10000	10000
 #define CPU_R12000	12000
 #define CPU_MIPS16	16
@@ -489,6 +559,7 @@ struct mips_opcode
     (((insn)->membership & isa) != 0					\
      || (cpu == CPU_R4650 && ((insn)->membership & INSN_4650) != 0)	\
      || (cpu == CPU_RM7000 && ((insn)->membership & INSN_4650) != 0)	\
+     || (cpu == CPU_RM9000 && ((insn)->membership & INSN_4650) != 0)	\
      || (cpu == CPU_R4010 && ((insn)->membership & INSN_4010) != 0)	\
      || (cpu == CPU_VR4100 && ((insn)->membership & INSN_4100) != 0)	\
      || (cpu == CPU_R3900 && ((insn)->membership & INSN_3900) != 0)	\
@@ -857,7 +928,14 @@ extern int bfd_mips_num_opcodes;
    "A" 8 bit PC relative address * 4 (MIPS16OP_*_IMM8)
    "B" 5 bit PC relative address * 8 (MIPS16OP_*_IMM5)
    "E" 5 bit PC relative address * 4 (MIPS16OP_*_IMM5)
-   */
+   "m" 7 bit register list for save instruction (18 bit extended)
+   "M" 7 bit register list for restore instruction (18 bit extended)
+  */
+
+/* Save/restore encoding for the args field when all 4 registers are
+   either saved as arguments or saved/restored as statics.  */
+#define MIPS16_ALL_ARGS    0xe
+#define MIPS16_ALL_STATICS 0xb
 
 /* For the mips16, we use the same opcode table format and a few of
    the same flags.  However, most of the flags are different.  */

@@ -24,7 +24,7 @@ Disassembly of section .text:
 #  GD -> IE because variable is not defined in executable
   401004:	64 48 8b 04 25 00 00[ 	]+mov    %fs:0x0,%rax
   40100b:	00 00 *
-  40100d:	48 03 05 c4 11 10 00[ 	]+add    1053124\(%rip\),%rax +# 5021d8 <_GLOBAL_OFFSET_TABLE_\+0x38>
+  40100d:	48 03 05 d4 03 10 00[ 	]+add    1049556\(%rip\),%rax +# 5013e8 <.*>
 #				-> R_X86_64_TPOFF64	sG1
   401014:	90[ 	]+nop *
   401015:	90[ 	]+nop *
@@ -34,7 +34,7 @@ Disassembly of section .text:
 #  the variable is referenced through IE too
   401018:	64 48 8b 04 25 00 00[ 	]+mov    %fs:0x0,%rax
   40101f:	00 00 *
-  401021:	48 03 05 a0 11 10 00[ 	]+add    1053088\(%rip\),%rax +# 5021c8 <_GLOBAL_OFFSET_TABLE_\+0x28>
+  401021:	48 03 05 b0 03 10 00[ 	]+add    1049520\(%rip\),%rax +# 5013d8 <.*>
 #				-> R_X86_64_TPOFF64	sG2
   401028:	90[ 	]+nop *
   401029:	90[ 	]+nop *
@@ -102,7 +102,7 @@ Disassembly of section .text:
   4010b3:	00 00 *
   4010b5:	90[ 	]+nop *
   4010b6:	90[ 	]+nop *
-  4010b7:	4c 03 0d 0a 11 10 00[ 	]+add    1052938\(%rip\),%r9 +# 5021c8 <_GLOBAL_OFFSET_TABLE_\+0x28>
+  4010b7:	4c 03 0d 1a 03 10 00[ 	]+add    1049370\(%rip\),%r9 +# 5013d8 <.*>
 #				-> R_X86_64_TPOFF64	sG2
   4010be:	90[ 	]+nop *
   4010bf:	90[ 	]+nop *
@@ -143,7 +143,7 @@ Disassembly of section .text:
   401103:	90[ 	]+nop *
 #  Direct access through %fs
 #  IE against global var
-  401104:	48 8b 0d b5 10 10 00[ 	]+mov    1052853\(%rip\),%rcx +# 5021c0 <_GLOBAL_OFFSET_TABLE_\+0x20>
+  401104:	48 8b 0d c5 02 10 00[ 	]+mov    1049285\(%rip\),%rcx +# 5013d0 <.*>
 #				-> R_X86_64_TPOFF64	sG5
   40110b:	90[ 	]+nop *
   40110c:	90[ 	]+nop *
@@ -186,7 +186,7 @@ Disassembly of section .text:
   401147:	00 00 *
   401149:	90[ 	]+nop *
   40114a:	90[ 	]+nop *
-  40114b:	4c 03 1d 7e 10 10 00[ 	]+add    1052798\(%rip\),%r11 +# 5021d0 <_GLOBAL_OFFSET_TABLE_\+0x30>
+  40114b:	4c 03 1d 8e 02 10 00[ 	]+add    1049230\(%rip\),%r11 +# 5013e0 <.*>
 #				-> R_X86_64_TPOFF64	sG6
   401152:	90[ 	]+nop *
   401153:	90[ 	]+nop *

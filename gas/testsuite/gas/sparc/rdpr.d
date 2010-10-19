@@ -23,4 +23,5 @@ Disassembly of section .text:
   34:	9d 53 40 00 	rdpr  %otherwin, %sp
   38:	9f 53 80 00 	rdpr  %wstate, %o7
   3c:	a1 53 c0 00 	rdpr  %fq, %l0
-  40:	a3 57 c0 00 	rdpr  %ver, %l1
+  40:	a3 54 00 00 	rdpr  %gl, %l1
+  44:	a5 57 c0 00 	rdpr  %ver, %l2

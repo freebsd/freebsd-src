@@ -2,27 +2,27 @@
 #objdump: -dr -Mbooke
 #name: BookE tests
 
-.*: +file format elf(32)?(64)?-powerpc
+.*: +file format elf(32)?(64)?-powerpc.*
 
 Disassembly of section \.text:
 
 0+0000000 <start>:
    0:	24 25 00 30 	bce     1,4\*cr1\+gt,30 <branch_target_1>
    4:	24 46 00 3d 	bcel    2,4\*cr1\+eq,40 <branch_target_2>
-   8:	24 67 00 02 	bcea    3,4\*cr1\+so,0 <start>
-			8: R_PPC(64)?_ADDR14	branch_target_3
-   c:	24 88 00 03 	bcela   4,4\*cr2\+lt,0 <start>
-			c: R_PPC(64)?_ADDR14	branch_target_4
+   8:	24 67 00 52 	bcea    3,4\*cr1\+so,50 <branch_target_3>
+			8: R_PPC(64)?_ADDR14	\.text\+0x50
+   c:	24 88 00 73 	bcela   4,4\*cr2\+lt,70 <branch_target_4>
+			c: R_PPC(64)?_ADDR14	\.text\+0x70
   10:	4c a9 00 22 	bclre   5,4\*cr2\+gt
   14:	4c aa 00 23 	bclrel  5,4\*cr2\+eq
   18:	4d 0b 04 22 	bcctre  8,4\*cr2\+so
   1c:	4d 0c 04 23 	bcctrel 8,4\*cr3\+lt
   20:	58 00 00 74 	be      94 <branch_target_5>
   24:	58 00 00 89 	bel     ac <branch_target_6>
-  28:	58 00 00 02 	bea     0 <start>
-			28: R_PPC(64)?_ADDR24	branch_target_7
-  2c:	58 00 00 03 	bela    0 <start>
-			2c: R_PPC(64)?_ADDR24	branch_target_8
+  28:	58 00 00 f6 	bea     f4 <branch_target_7>
+			28: R_PPC(64)?_ADDR24	\.text\+0xf4
+  2c:	58 00 01 2b 	bela    128 <branch_target_8>
+			2c: R_PPC(64)?_ADDR24	\.text\+0x128
 
 0+0000030 <branch_target_1>:
   30:	e9 09 00 80 	lbze    r8,8\(r9\)
@@ -142,3 +142,11 @@ Disassembly of section \.text:
  1c0:	7c 00 06 ac 	mbar    
  1c4:	7c 00 06 ac 	mbar    
  1c8:	7c 20 06 ac 	mbar    1
+ 1cc:	7c 12 42 a6 	mfsprg  r0,2
+ 1d0:	7c 12 42 a6 	mfsprg  r0,2
+ 1d4:	7c 12 43 a6 	mtsprg  2,r0
+ 1d8:	7c 12 43 a6 	mtsprg  2,r0
+ 1dc:	7c 07 42 a6 	mfsprg  r0,7
+ 1e0:	7c 07 42 a6 	mfsprg  r0,7
+ 1e4:	7c 17 43 a6 	mtsprg  7,r0
+ 1e8:	7c 17 43 a6 	mtsprg  7,r0

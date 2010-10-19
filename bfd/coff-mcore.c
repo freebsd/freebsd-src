@@ -1,5 +1,6 @@
 /* BFD back-end for Motorola MCore COFF/PE
-   Copyright 1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005
+   Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -15,8 +16,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+Foundation, 51 Franklin Street - Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -39,10 +40,6 @@ Boston, MA 02111-1307, USA.  */
    final_link routine once.  */
 extern bfd_boolean mcore_bfd_coff_final_link
   PARAMS ((bfd *, struct bfd_link_info *));
-#if 0
-static struct bfd_link_hash_table *coff_mcore_link_hash_table_create
-  PARAMS ((bfd *));
-#endif
 static bfd_reloc_status_type mcore_coff_unsupported_reloc
   PARAMS ((bfd *, arelent *, asymbol *, PTR, asection *, bfd *, char **));
 static bfd_boolean coff_mcore_relocate_section
@@ -221,35 +218,6 @@ mcore_hash_table;
 #define coff_mcore_hash_table(info) \
   ((mcore_hash_table *) ((info)->hash))
 
-#if 0
-/* Create an MCore coff linker hash table.  */
-
-static struct bfd_link_hash_table *
-coff_mcore_link_hash_table_create (abfd)
-     bfd * abfd;
-{
-  mcore_hash_table * ret;
-
-  ret = (mcore_hash_table *) bfd_malloc ((bfd_size_type) sizeof (* ret));
-  if (ret == (mcore_hash_table *) NULL)
-    return NULL;
-
-  if (! _bfd_coff_link_hash_table_init
-      (& ret->root, abfd, _bfd_coff_link_hash_newfunc))
-    {
-      free (ret);
-      return (struct bfd_link_hash_table *) NULL;
-    }
-
-  ret->bfd_of_toc_owner = NULL;
-  ret->global_toc_size  = 0;
-  ret->import_table_size = 0;
-  ret->first_thunk_address = 0;
-  ret->thunk_size = 0;
-
-  return & ret->root.root;
-}
-#endif
 
 /* Add an entry to the base file.  */
 
@@ -284,8 +252,8 @@ mcore_coff_unsupported_reloc (abfd, reloc_entry, symbol, data, input_section,
 {
   BFD_ASSERT (reloc_entry->howto != (reloc_howto_type *)0);
 
-  _bfd_error_handler (_("%s: Relocation %s (%d) is not currently supported.\n"),
-		      bfd_archive_filename (abfd),
+  _bfd_error_handler (_("%B: Relocation %s (%d) is not currently supported.\n"),
+		      abfd,
 		      reloc_entry->howto->name,
 		      reloc_entry->howto->type);
 
@@ -399,8 +367,8 @@ coff_mcore_relocate_section (output_bfd, info, input_bfd, input_section,
       && output_bfd->xvec->byteorder != BFD_ENDIAN_UNKNOWN)
     {
       (*_bfd_error_handler)
-	(_("%s: compiled for a %s system and target is %s.\n"),
-	 bfd_archive_filename (input_bfd),
+	(_("%B: compiled for a %s system and target is %s.\n"),
+	 input_bfd,
          bfd_big_endian (input_bfd) ? _("big endian") : _("little endian"),
          bfd_big_endian (output_bfd) ? _("big endian") : _("little endian"));
 
@@ -506,21 +474,18 @@ coff_mcore_relocate_section (output_bfd, info, input_bfd, input_section,
       switch (r_type)
 	{
 	default:
-	  _bfd_error_handler (_("%s: unsupported relocation type 0x%02x"),
-			      bfd_archive_filename (input_bfd), r_type);
+	  _bfd_error_handler (_("%B: unsupported relocation type 0x%02x"),
+			      input_bfd, r_type);
 	  bfd_set_error (bfd_error_bad_value);
 	  return FALSE;
 
 	case IMAGE_REL_MCORE_ABSOLUTE:
-	  fprintf (stderr,
-		   _("Warning: unsupported reloc %s <file %s, section %s>\n"),
-		   howto->name,
-		   bfd_archive_filename (input_bfd),
-		   input_section->name);
-
-	  fprintf (stderr,"sym %ld (%s), r_vaddr %ld (%lx)\n",
-		   rel->r_symndx, my_name, (long) rel->r_vaddr,
-		   (unsigned long) rel->r_vaddr);
+	  _bfd_error_handler
+	    (_("Warning: unsupported reloc %s <file %B, section %A>\n"
+	       "sym %ld (%s), r_vaddr %ld (%lx)"),
+	     input_bfd, input_section, howto->name,
+	     rel->r_symndx, my_name, (long) rel->r_vaddr,
+	     (unsigned long) rel->r_vaddr);
 	  break;
 
 	case IMAGE_REL_MCORE_PCREL_IMM8BY4:
@@ -558,7 +523,7 @@ coff_mcore_relocate_section (output_bfd, info, input_bfd, input_section,
 
 	case bfd_reloc_overflow:
 	  if (! ((*info->callbacks->reloc_overflow)
-		 (info, my_name, howto->name,
+		 (info, (h ? &h->root : NULL), my_name, howto->name,
 		  (bfd_vma) 0, input_bfd,
 		  input_section, rel->r_vaddr - input_section->vma)))
 	    return FALSE;

@@ -285,6 +285,10 @@
  212 021d 67668984 248C0000 		movl	%eax,140\(%esp\)
  212      00
  213                       	
- 214                       		# Force a good alignment.
- 215 0226 00000000 00000000 		.p2align	4,0
- 215      0000
+ 214                       	.code32
+ 215                       	# Make sure that we won't remove movzb by accident.
+ 216 0226 660FB6F8          		movzb	%al,%di
+ 217 022a 0FB6C8            		movzb	%al,%ecx
+ 218                       	
+ 219                       		# Force a good alignment.
+ 220 022d 000000            		.p2align	4,0

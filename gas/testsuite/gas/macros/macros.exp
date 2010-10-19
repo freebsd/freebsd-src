@@ -1,5 +1,18 @@
 # Run some tests of gas macros.
 
+proc run_list_test { name opts } {
+    global srcdir subdir
+    set testname "macros $name"
+    set file $srcdir/$subdir/$name
+    gas_run ${name}.s $opts ">&dump.out"
+    if { [regexp_diff "dump.out" "${file}.l"] } then {
+	fail $testname
+	verbose "output is [file_contents "dump.out"]" 2
+	return
+    }
+    pass $testname
+}
+
 if { ![istarget hppa*-*-*] || [istarget *-*-linux*] } {
     run_dump_test test1
 }
@@ -13,11 +26,17 @@ run_dump_test test3
 if { ![istarget *c54x*-*-*] && ![istarget *c4x*-*-*] } {
     run_dump_test irp
     run_dump_test rept
+    run_dump_test repeat
+    run_dump_test vararg
 }
-
 
 gas_test_error "err.s" "" "macro infinite recursion"
 
+# The tic4x-coff target fails the next test because it defines '&'
+# as its line separator character, so the expression "(0 & TFLAG_C)"
+# becomes divided up into two lines and the parser complains about
+# a missing closing parenthesis for the first line.
+setup_xfail "tic4x*-*"
 gas_test "and.s" "" "" "logical and in macro definition"
 
 case $target_triplet in {
@@ -31,12 +50,13 @@ case $target_triplet in {
 
 if { ![istarget hppa*-*-*] || [istarget *-*-linux*] } {
     # FIXME: Due to macro mishandling of ONLY_STANDARD_ESCAPES.
-    setup_xfail "avr-*" "cris-*"
+    setup_xfail "avr-*" "cris-*" "crisv32-*" "msp430-*"
 
     # These fail due to NO_STRING_ESCAPES
     setup_xfail "powerpc*-*-aix*" "powerpc*-*-beos*" "powerpc*-*-macos*"
-    setup_xfail "powerpc*-*-mpw*" "powerpc*-*-pe" "powerpc*-*-*win*"
+    setup_xfail "powerpc*-*-pe" "powerpc*-*-*win*"
     setup_xfail "rs6000-*-*"
+    setup_xfail "z80-*-*"
 
     # FIXME: Due to difference in what "consecutive octets" means.
     setup_xfail "*c4x*-*-*" "*c54x*-*"
@@ -47,3 +67,24 @@ run_dump_test app1
 run_dump_test app2
 run_dump_test app3
 run_dump_test app4
+
+run_list_test badarg ""
+case $target_triplet in {
+    { *c54x*-*-* } { }
+    { *c4x*-*-* } { }
+    { h8500-*-* } { }
+    { m68*-*-* } { }
+    { m88*-*-* } { }
+    { mmix-* } { }
+    { z80-* } { }
+    default { run_list_test dot "-alm" }
+}
+run_list_test end ""
+run_list_test purge "--hash-size=8000"
+run_list_test redef ""
+
+# This test is valid only when '!' is not a comment character
+# (it is allowed to be a line comment character).
+if [string match "" [lindex [gas_run ../all/excl.s "-o /dev/null" ""] 0]] {
+    run_dump_test paren
+}

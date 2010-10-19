@@ -245,13 +245,50 @@ identified by keywords.  The keywords recognized are @samp{quad=@var{expr}}
 beginning of this subsection; a power of two), @samp{access=@var{expr}} (value
 for ``access rights'' field), @samp{sort=@var{expr}} (sorting order for this
 subspace in link), @samp{code_only} (subsection contains only code),
-@samp{unloadable} (subsection cannot be loaded into memory), @samp{common}
-(subsection is common block), @samp{dup_comm} (initialized data may have
-duplicate names), or @samp{zero} (subsection is all zeros, do not write in
-object file).
+@samp{unloadable} (subsection cannot be loaded into memory), @samp{comdat}
+(subsection is comdat), @samp{common} (subsection is common block),
+@samp{dup_comm} (subsection may have duplicate names), or @samp{zero}
+(subsection is all zeros, do not write in object file).
 
 @code{.nsubspa} always creates a new subspace with the given name, even
 if one with the same name already exists.
+
+@samp{comdat}, @samp{common} and @samp{dup_comm} can be used to implement
+various flavors of one-only support when using the SOM linker.  The SOM
+linker only supports specific combinations of these flags.  The details
+are not documented.  A brief description is provided here.
+
+@samp{comdat} provides a form of linkonce support.  It is useful for
+both code and data subspaces.  A @samp{comdat} subspace has a key symbol
+marked by the @samp{is_comdat} flag or @samp{ST_COMDAT}.  Only the first
+subspace for any given key is selected.  The key symbol becomes universal
+in shared links.  This is similar to the behavior of @samp{secondary_def}
+symbols.
+
+@samp{common} provides Fortran named common support.  It is only useful
+for data subspaces.  Symbols with the flag @samp{is_common} retain this
+flag in shared links.  Referencing a @samp{is_common} symbol in a shared
+library from outside the library doesn't work.  Thus, @samp{is_common}
+symbols must be output whenever they are needed.
+
+@samp{common} and @samp{dup_comm} together provide Cobol common support.
+The subspaces in this case must all be the same length.  Otherwise, this
+support is similar to the Fortran common support.
+
+@samp{dup_comm} by itself provides a type of one-only support for code.
+Only the first @samp{dup_comm} subspace is selected.  There is a rather
+complex algorithm to compare subspaces.  Code symbols marked with the
+@samp{dup_common} flag are hidden.  This support was intended for "C++
+duplicate inlines".
+
+A simplified technique is used to mark the flags of symbols based on
+the flags of their subspace.  A symbol with the scope SS_UNIVERSAL and
+type ST_ENTRY, ST_CODE or ST_DATA is marked with the corresponding
+settings of @samp{comdat}, @samp{common} and @samp{dup_comm} from the
+subspace, respectively.  This avoids having to introduce additional
+directives to mark these symbols.  The HP assembler sets @samp{is_common}
+from @samp{common}.  However, it doesn't set the @samp{dup_common} from
+@samp{dup_comm}.  It doesn't have @samp{comdat} support.
 
 @item .version "@var{str}"
 Write @var{str} as version identifier in object code.

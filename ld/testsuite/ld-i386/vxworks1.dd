@@ -1,0 +1,38 @@
+
+.*:     file format .*
+
+Disassembly of section \.plt:
+
+00080800 <_PROCEDURE_LINKAGE_TABLE_>:
+   80800:	ff 35 04 14 08 00    	pushl  0x81404
+			80802: R_386_32	_GLOBAL_OFFSET_TABLE_
+   80806:	ff 25 08 14 08 00    	jmp    \*0x81408
+			80808: R_386_32	_GLOBAL_OFFSET_TABLE_
+   8080c:	90                   	nop    
+   8080d:	90                   	nop    
+   8080e:	90                   	nop    
+   8080f:	90                   	nop    
+
+00080810 <sglobal@plt>:
+   80810:	ff 25 0c 14 08 00    	jmp    \*0x8140c
+			80812: R_386_32	_GLOBAL_OFFSET_TABLE_
+   80816:	68 00 00 00 00       	push   \$0x0
+   8081b:	e9 e0 ff ff ff       	jmp    80800 <_PROCEDURE_LINKAGE_TABLE_>
+
+00080820 <foo@plt>:
+   80820:	ff 25 10 14 08 00    	jmp    \*0x81410
+			80822: R_386_32	_GLOBAL_OFFSET_TABLE_
+   80826:	68 08 00 00 00       	push   \$0x8
+   8082b:	e9 d0 ff ff ff       	jmp    80800 <_PROCEDURE_LINKAGE_TABLE_>
+Disassembly of section \.text:
+
+00080c00 <_start>:
+   80c00:	e8 1b fc ff ff       	call   80820 <foo@plt>
+			80c01: R_386_PLT32	\.plt
+   80c05:	e8 05 00 00 00       	call   80c0f <sexternal>
+			80c06: R_386_PLT32	sexternal
+   80c0a:	e9 01 fc ff ff       	jmp    80810 <sglobal@plt>
+			80c0b: R_386_PLT32	\.plt
+
+00080c0f <sexternal>:
+   80c0f:	c3                   	ret    

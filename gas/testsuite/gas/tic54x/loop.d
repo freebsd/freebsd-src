@@ -5,10 +5,10 @@
 
 Disassembly of section .text:
 
-00000000 <.text>:
+0+000 <.text>:
 	...
 
-00000001 <label>:
+0+001 <label>:
    1:	0000.*
    2:	0001.*
    3:	0002.*

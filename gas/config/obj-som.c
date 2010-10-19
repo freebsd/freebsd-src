@@ -1,5 +1,6 @@
 /* SOM object file format.
-   Copyright 1993, 1994, 1998, 2000, 2002 Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1998, 2000, 2002, 2003, 2004, 2005
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -15,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.
 
    Written by the Center for Software Science at the University of Utah
    and by Cygnus Support.  */
@@ -26,14 +27,6 @@
 #include "aout/stab_gnu.h"
 #include "obstack.h"
 
-static void obj_som_weak PARAMS ((int));
-
-const pseudo_typeS obj_pseudo_table[] =
-{
-  {"weak", obj_som_weak, 0},
-  {NULL, NULL, 0}
-};
-
 static int version_seen = 0;
 static int copyright_seen = 0;
 static int compiler_seen = 0;
@@ -41,7 +34,7 @@ static int compiler_seen = 0;
 /* Unused by SOM.  */
 
 void
-obj_read_begin_hook ()
+obj_read_begin_hook (void)
 {
 }
 
@@ -51,8 +44,7 @@ obj_read_begin_hook ()
    string is "sourcefile language version" and is delimited by blanks.  */
 
 void
-obj_som_compiler (unused)
-     int unused;
+obj_som_compiler (int unused ATTRIBUTE_UNUSED)
 {
   char *buf;
   char c;
@@ -128,8 +120,7 @@ obj_som_compiler (unused)
 /* Handle a .version directive.  */
 
 void
-obj_som_version (unused)
-     int unused;
+obj_som_version (int unused ATTRIBUTE_UNUSED)
 {
   char *version, c;
 
@@ -174,8 +165,7 @@ obj_som_version (unused)
    If you care about copyright strings that much, you fix it.  */
 
 void
-obj_som_copyright (unused)
-     int unused;
+obj_som_copyright (int unused ATTRIBUTE_UNUSED)
 {
   char *copyright, c;
 
@@ -223,8 +213,7 @@ obj_som_copyright (unused)
    which BFD does not understand.  */
 
 void
-obj_som_init_stab_section (seg)
-     segT seg;
+obj_som_init_stab_section (segT seg)
 {
   segT saved_seg = now_seg;
   segT space;
@@ -248,7 +237,7 @@ obj_som_init_stab_section (seg)
      (just created above).  Also set some attributes which BFD does
      not understand.  In particular, access bits, sort keys, and load
      quadrant.  */
-  obj_set_subsection_attributes (seg, space, 0x1f, 73, 0);
+  obj_set_subsection_attributes (seg, space, 0x1f, 73, 0, 0, 0, 0);
   bfd_set_section_alignment (stdoutput, seg, 2);
 
   /* Make some space for the first special stab entry and zero the memory.
@@ -271,7 +260,7 @@ obj_som_init_stab_section (seg)
      not understand.  In particular, access bits, sort keys, and load
      quadrant.  */
   seg = bfd_get_section_by_name (stdoutput, "$GDB_STRINGS$");
-  obj_set_subsection_attributes (seg, space, 0x1f, 72, 0);
+  obj_set_subsection_attributes (seg, space, 0x1f, 72, 0, 0, 0, 0);
   bfd_set_section_alignment (stdoutput, seg, 2);
 
   subseg_set (saved_seg, saved_subseg);
@@ -280,10 +269,7 @@ obj_som_init_stab_section (seg)
 /* Fill in the counts in the first entry in a .stabs section.  */
 
 static void
-adjust_stab_sections (abfd, sec, xxx)
-     bfd *abfd;
-     asection *sec;
-     PTR xxx;
+adjust_stab_sections (bfd *abfd, asection *sec, PTR xxx ATTRIBUTE_UNUSED)
 {
   asection *strsec;
   char *p;
@@ -310,14 +296,13 @@ adjust_stab_sections (abfd, sec, xxx)
    stab entry and to set the starting address for each code subspace.  */
 
 void
-som_frob_file ()
+som_frob_file (void)
 {
   bfd_map_over_sections (stdoutput, adjust_stab_sections, (PTR) 0);
 }
 
 static void
-obj_som_weak (ignore)
-     int ignore ATTRIBUTE_UNUSED;
+obj_som_weak (int ignore ATTRIBUTE_UNUSED)
 {
   char *name;
   int c;
@@ -331,9 +316,6 @@ obj_som_weak (ignore)
       *input_line_pointer = c;
       SKIP_WHITESPACE ();
       S_SET_WEAK (symbolP);
-#if 0
-      symbol_get_obj (symbolP)->local = 1;
-#endif
       if (c == ',')
 	{
 	  input_line_pointer++;
@@ -345,3 +327,9 @@ obj_som_weak (ignore)
   while (c == ',');
   demand_empty_rest_of_line ();
 }
+
+const pseudo_typeS obj_pseudo_table[] =
+{
+  {"weak", obj_som_weak, 0},
+  {NULL, NULL, 0}
+};

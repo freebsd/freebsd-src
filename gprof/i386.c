@@ -34,12 +34,11 @@
 #include "corefile.h"
 #include "hist.h"
 
-static int i386_iscall PARAMS ((unsigned char *));
-void i386_find_call PARAMS ((Sym *, bfd_vma, bfd_vma));
+static int i386_iscall (unsigned char *);
+void i386_find_call (Sym *, bfd_vma, bfd_vma);
 
 static int
-i386_iscall (ip)
-     unsigned char *ip;
+i386_iscall (unsigned char *ip)
 {
   if (*ip == 0xe8)
     return 1;
@@ -48,10 +47,7 @@ i386_iscall (ip)
 
 
 void
-i386_find_call (parent, p_lowpc, p_highpc)
-     Sym *parent;
-     bfd_vma p_lowpc;
-     bfd_vma p_highpc;
+i386_find_call (Sym *parent, bfd_vma p_lowpc, bfd_vma p_highpc)
 {
   unsigned char *instructp;
   Sym *child;

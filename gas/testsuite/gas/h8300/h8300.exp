@@ -2114,6 +2114,67 @@ proc do_h8300h_mov32bug {} {
     if [expr $x == 1] then { pass $testname } else { fail $testname }
 }
 
+proc do_h8300hn_addressgen {} {
+    set testname "symaddgen.s: h8300hn symbol address generation"
+    set x 0
+
+    gas_start "symaddgen.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ .* 01006DF6\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ .* 0D76\[^\n\]*\n"       { set x [expr $x+1] }
+	    -re " +\[0-9\]+ .* 790207D0\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ .* 6B82F020\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ .* 79022710\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ .* 6B820000\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ .* 01006D76\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ .* 5470\[^\n\]*\n"       { set x [expr $x+1] }
+            
+	    eof					{ break }
+	}
+    }
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 8] then { pass $testname } else { fail $testname }
+}
+
+proc do_h8300_addsubrxcheck {} {
+    set testname "addsubrxcheck.s: h8300 check rx generation for adds subs instructions"
+    set x 0
+
+    gas_start "addsubrxcheck.s" "-al"
+
+    # Check each instruction bit pattern to verify it got
+    # assembled correctly.
+    while 1 {
+	expect {
+	    -re " +\[0-9\]+ .* 6DF6\[^\n\]*\n"       { set x [expr $x+1] }
+	    -re " +\[0-9\]+ .* 0D76\[^\n\]*\n"       { set x [expr $x+1] }
+	    -re " +\[0-9\]+ .* 1B87\[^\n\]*\n"       { set x [expr $x+1] }
+	    -re " +\[0-9\]+ .* 6F62FFFE\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ .* 1B82\[^\n\]*\n"       { set x [expr $x+1] }
+	    -re " +\[0-9\]+ .* 6FE2FFFE\[^\n\]*\n"   { set x [expr $x+1] }
+	    -re " +\[0-9\]+ .* 1922\[^\n\]*\n"       { set x [expr $x+1] }
+	    -re " +\[0-9\]+ .* 0D20\[^\n\]*\n"       { set x [expr $x+1] }
+	    -re " +\[0-9\]+ .* 0B87\[^\n\]*\n"       { set x [expr $x+1] }
+	    -re " +\[0-9\]+ .* 6D76\[^\n\]*\n"       { set x [expr $x+1] }
+	    -re " +\[0-9\]+ .* 5470\[^\n\]*\n"       { set x [expr $x+1] }
+
+	    eof					{ break }
+	}
+    }
+    # This was intended to do any cleanup necessary.  It kinda looks like it
+    # isn't needed, but just in case, please keep it in for now.
+    gas_finish
+    # Did we find what we were looking for?  If not, flunk it.
+    if [expr $x == 11] then { pass $testname } else { fail $testname }
+}
+
 if [istarget h8300*-*-*] then {
     # Test the basic h8300 instruction parser
     do_h8300_add_sub
@@ -2131,6 +2192,9 @@ if [istarget h8300*-*-*] then {
     do_h8300_movw
     do_h8300_pushpop
     do_h8300_rotate_shift
+    do_h8300hn_addressgen
+
+    do_h8300_addsubrxcheck
 
     # Now test the h8300h instruction parser
     do_h8300h_add_sub

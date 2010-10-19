@@ -319,8 +319,8 @@ SECTIONS
 
     ${RELOCATING+_etext = .;}
     ${RELOCATING+PROVIDE (etext = .);}
-
-  } ${RELOCATING+ > ${TEXT_MEMORY}}
+    ${RELOCATING+. = ALIGN(2);}
+  } ${RELOCATING+ > ${TEXT_MEMORY} =0xa7a7a7a7}
 
   .eh_frame ${RELOCATING-0} :
   {
@@ -337,12 +337,14 @@ SECTIONS
     *(.rodata)
     ${RELOCATING+*(.rodata.*)}
     ${RELOCATING+*(.gnu.linkonce.r*)}
-  } ${RELOCATING+ > ${TEXT_MEMORY}}
+    ${RELOCATING+. = ALIGN(2);}
+  } ${RELOCATING+ > ${TEXT_MEMORY} =0xffffffff}
 
   .rodata1 ${RELOCATING-0} :
   {
     *(.rodata1)
-  } ${RELOCATING+ > ${TEXT_MEMORY}}
+    ${RELOCATING+. = ALIGN(2);}
+  } ${RELOCATING+ > ${TEXT_MEMORY} =0xffffffff}
 
   /* Constructor and destructor tables are in ROM.  */
   ${RELOCATING+${CTOR}}
@@ -376,7 +378,8 @@ SECTIONS
 
     ${RELOCATING+_edata  =  .;}
     ${RELOCATING+PROVIDE (edata = .);}
-  } ${RELOCATING+ > ${DATA_MEMORY}}
+    ${RELOCATING+. = ALIGN(2);}
+  } ${RELOCATING+ > ${DATA_MEMORY} =0xffffffff}
 
   ${RELOCATING+__data_section_size = SIZEOF(.data);}
   ${RELOCATING+PROVIDE (__data_section_size = SIZEOF(.data));}

@@ -1,0 +1,187 @@
+@c Copyright 2005
+@c Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+@ifset GENERIC
+@page
+@node BFIN-Dependent
+@chapter Blackfin Dependent Features
+@end ifset
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter Blackfin Dependent Features
+@end ifclear
+
+@cindex Blackfin support
+@menu
+* BFIN Syntax::			BFIN Syntax
+* BFIN Directives::		BFIN Directives
+@end menu
+
+@node BFIN Syntax
+@section Syntax
+@cindex BFIN syntax
+@cindex syntax, BFIN
+
+@table @code
+@item Special Characters
+Assembler input is free format and may appear anywhere on the line.
+One instruction may extend across multiple lines or more than one
+instruction may appear on the same line.  White space (space, tab,
+comments or newline) may appear anywhere between tokens.  A token must
+not have embedded spaces.  Tokens include numbers, register names,
+keywords, user identifiers, and also some multicharacter special 
+symbols like "+=", "/*" or "||".
+
+@item Instruction Delimiting
+A semicolon must terminate every instruction.  Sometimes a complete
+instruction will consist of more than one operation.  There are two 
+cases where this occurs.  The first is when two general operations
+are combined.  Normally a comma separates the different parts, as in
+
+@smallexample
+a0= r3.h * r2.l, a1 = r3.l * r2.h ;
+@end smallexample
+
+The second case occurs when a general instruction is combined with one
+or two memory references for joint issue.  The latter portions are
+set off by a "||" token.
+
+@smallexample
+a0 = r3.h * r2.l || r1 = [p3++] || r4 = [i2++];
+@end smallexample
+
+@item Register Names
+
+The assembler treats register names and instruction keywords in a case
+insensitive manner.  User identifiers are case sensitive.  Thus, R3.l,
+R3.L, r3.l and r3.L are all equivalent input to the assembler.
+
+Register names are reserved and may not be used as program identifiers.
+
+Some operations (such as "Move Register") require a register pair. 
+Register pairs are always data registers and are denoted using a colon,
+eg., R3:2.  The larger number must be written firsts.  Note that the 
+hardware only supports odd-even pairs, eg., R7:6, R5:4, R3:2, and R1:0.
+
+Some instructions (such as --SP (Push Multiple)) require a group of
+adjacent registers.  Adjacent registers are denoted in the syntax by
+the range enclosed in parentheses and separated by a colon, eg., (R7:3).
+Again, the larger number appears first.
+
+Portions of a particular register may be individually specified.  This
+is written with a dot (".") following the register name and then a 
+letter denoting the desired portion.  For 32-bit registers, ".H"
+denotes the most significant ("High") portion.  ".L" denotes the
+least-significant portion.  The subdivisions of the 40-bit registers
+are described later.
+
+@item Accumulators
+The set of 40-bit registers A1 and A0 that normally contain data that
+is being manipulated.  Each accumulator can be accessed in four ways.
+
+@table @code
+@item one 40-bit register
+The register will be referred to as A1 or A0.
+@item one 32-bit register
+The registers are designated as A1.W or A0.W.
+@item two 16-bit registers
+The registers are designated as A1.H, A1.L, A0.H or A0.L.
+@item one 8-bit register
+The registers are designated as A1.X or A0.X for the bits that
+extend beyond bit 31.
+@end table
+
+@item Data Registers
+The set of 32-bit registers (R0, R1, R2, R3, R4, R5, R6 and R7) that
+normally contain data for manipulation.  These are abbreviated as 
+D-register or Dreg.  Data registers can be accessed as 32-bit registers
+or as two independent 16-bit registers.  The least significant 16 bits
+of each register is called the "low" half and is desginated with ".L"
+following the register name.  The most significant 16 bits are called
+the "high" half and is designated with ".H". following the name.
+
+@smallexample
+   R7.L, r2.h, r4.L, R0.H
+@end smallexample
+
+@item Pointer Registers
+The set of 32-bit registers (P0, P1, P2, P3, P4, P5, SP and FP) that
+normally contain byte addresses of data structures.  These are
+abbreviated as P-register or Preg.
+
+@smallexample
+p2, p5, fp, sp
+@end smallexample
+
+@item Stack Pointer SP
+The stack pointer contains the 32-bit address of the last occupied
+byte location in the stack.  The stack grows by decrementing the
+stack pointer.
+
+@item Frame Pointer FP
+The frame pointer contains the 32-bit address of the previous frame
+pointer in the stack.  It is located at the top of a frame.
+
+@item Loop Top
+LT0 and LT1.  These registers contain the 32-bit address of the top of
+a zero overhead loop.
+
+@item Loop Count
+LC0 and LC1.  These registers contain the 32-bit counter of the zero
+overhead loop executions.
+
+@item Loop Bottom
+LB0 and LB1.  These registers contain the 32-bit address of the bottom
+of a zero overhead loop.
+
+@item Index Registers
+The set of 32-bit registers (I0, I1, I2, I3) that normally contain byte
+addresses of data structures.  Abbreviated I-register or Ireg.
+
+@item Modify Registers
+The set of 32-bit registers (M0, M1, M2, M3) that normally contain
+offset values that are added and subracted to one of the index
+registers.  Abbreviated as Mreg.
+
+@item Length Registers
+The set of 32-bit registers (L0, L1, L2, L3) that normally contain the
+length in bytes of the circular buffer.  Abbreviated as Lreg.  Clear
+the Lreg to disable circular addressing for the corresponding Ireg.
+
+@item Base Registers
+The set of 32-bit registers (B0, B1, B2, B3) that normally contain the
+base address in bytes of the circular buffer.  Abbreviated as Breg.
+
+@item Floating Point
+The Blackfin family has no hardware floating point but the .float
+directive generates ieee floating point numbers for use with software
+floating point libraries.
+
+@item Blackfin Opcodes
+For detailed information on the Blackfin machine instruction set, see
+the Blackfin(r) Processor Instruction Set Reference.
+
+@end table
+
+@node BFIN Directives
+@section Directives
+@cindex BFIN directives
+@cindex directives, BFIN
+
+The following directives are provided for compatibility with the VDSP assembler.
+
+@table @code
+@item .byte2
+Initializes a four byte data object.
+@item .byte4
+Initializes a two byte data object.
+@item .db
+TBD
+@item .dd
+TBD
+@item .dw
+TBD
+@item .var
+Define and initialize a 32 bit data object.
+@end table

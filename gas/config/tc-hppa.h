@@ -1,6 +1,6 @@
 /* tc-hppa.h -- Header file for the PA
    Copyright 1989, 1993, 1994, 1995, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003 Free Software Foundation, Inc.
+   2003, 2004, 2005 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* HP PA-RISC support was contributed by the Center for Software Science
    at the University of Utah.  */
@@ -106,10 +106,6 @@ extern void pa_check_eof PARAMS ((void));
 extern const char	hppa_symbol_chars[];
 #define tc_symbol_chars	hppa_symbol_chars
 
-/* The PA does not need support for either of these.  */
-#define tc_crawl_symbol_chain(headers) {;}
-#define tc_headers_hook(headers) {;}
-
 #define RELOC_EXPANSION_POSSIBLE
 #define MAX_RELOC_EXPANSION 6
 
@@ -119,15 +115,9 @@ extern const char	hppa_symbol_chars[];
   parse_cons_expression_hppa (EXP)
 #define TC_CONS_FIX_NEW cons_fix_new_hppa
 
-/* On the PA, an equal sign often appears as a condition or nullification
-   completer in an instruction.  This can be detected by checking the
-   previous character, if the character is a comma, then the equal is
-   being used as part of an instruction.  */
-#define TC_EQUAL_IN_INSN(C, PTR)	((C) == ',')
-
-/* Similarly for an exclamation point.  It is used in FP comparison
-   instructions and as an end of line marker.  When used in an instruction
-   it will always follow a comma.  */
+/* On the PA, an exclamation point can appear in an instruction.  It is
+   used in FP comparison instructions and as an end of line marker.
+   When used in an instruction it will always follow a comma.  */
 #define TC_EOL_IN_INSN(PTR)	(*(PTR) == '!' && (PTR)[-1] == ',')
 
 int hppa_fix_adjustable PARAMS((struct fix *));
@@ -140,7 +130,7 @@ int hppa_fix_adjustable PARAMS((struct fix *));
    normally appear safe to handle it completely within GAS.  */
 #define TC_FORCE_RELOCATION(FIX) hppa_force_relocation (FIX)
 
-/* Values passed to md_apply_fix3 don't include the symbol value.  */
+/* Values passed to md_apply_fix don't include the symbol value.  */
 #define MD_APPLY_SYM_VALUE(FIX) 0
 
 #ifdef OBJ_SOM

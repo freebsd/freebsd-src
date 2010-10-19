@@ -1,5 +1,5 @@
 # Expect script for ld-i386 tests
-#   Copyright (C) 2002 Free Software Foundation
+#   Copyright (C) 2002, 2005, 2006 Free Software Foundation
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,16 +13,45 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 
 # Test i386 linking; all types of relocs.  This tests the assembler and
 # tools like objdump as well as the linker.
 
+if {[istarget "i?86-*-vxworks"]} {
+    set i386tests {
+	{"VxWorks shared library test 1" "-shared -Tvxworks1.ld"
+	 "" {vxworks1-lib.s}
+	 {{readelf --relocs vxworks1-lib.rd} {objdump -dr vxworks1-lib.dd}
+	  {readelf --symbols vxworks1-lib.nd}}
+	 "libvxworks1.so"}
+	{"VxWorks executable test 1 (dynamic)" \
+	 "tmpdir/libvxworks1.so -Tvxworks1.ld -q --force-dynamic"
+	 "" {vxworks1.s}
+	 {{readelf --relocs vxworks1.rd} {objdump -dr vxworks1.dd}}
+	 "vxworks1"}
+	{"VxWorks executable test 2 (dynamic)" \
+	 "-Tvxworks1.ld -q --force-dynamic"
+	 "" {vxworks2.s}
+	 {{readelf --segments vxworks2.sd}}
+	 "vxworks2"}
+	{"VxWorks executable test 2 (static)"
+	 "-Tvxworks1.ld"
+	 "" {vxworks2.s}
+	 {{readelf --segments vxworks2-static.sd}}
+	 "vxworks2"}
+    }
+    run_ld_link_tests $i386tests
+    run_dump_test "vxworks1-static"
+}
+
 if { !([istarget "i?86-*-elf*"]		
        || ([istarget "i?86-*-linux*"]
 	   && ![istarget "*-*-*aout*"]
-	   && ![istarget "*-*-*oldld*"])) } {
+	   && ![istarget "*-*-*oldld*"])
+       || [istarget "x86_64-*-linux*"]
+       || [istarget "amd64-*-linux*"]) } {
     return
 }
 
@@ -41,6 +70,11 @@ set i386tests {
      {{readelf -Ssrl tlspic.rd} {objdump -drj.text tlspic.dd}
       {objdump -sj.got tlspic.sd} {objdump -sj.tdata tlspic.td}}
       "libtlspic.so"}
+    {"TLS descriptor -fpic -shared transitions" "-shared -melf_i386"
+     "--32" {tlsdesc.s tlspic2.s}
+     {{readelf -Ssrl tlsdesc.rd} {objdump -drj.text tlsdesc.dd}
+      {objdump "-s -j.got -j.got.plt" tlsdesc.sd} {objdump -sj.tdata tlsdesc.td}}
+      "libtlsdesc.so"}
     {"Helper shared library" "-shared -melf_i386"
      "--32" {tlslib.s} {} "libtlslib.so"}
     {"TLS -fpic and -fno-pic exec transitions"
@@ -48,10 +82,19 @@ set i386tests {
      {{readelf -Ssrl tlsbin.rd} {objdump -drj.text tlsbin.dd}
       {objdump -sj.got tlsbin.sd} {objdump -sj.tdata tlsbin.td}}
       "tlsbin"}
+    {"TLS descriptor -fpic and -fno-pic exec transitions"
+     "-melf_i386 tmpdir/libtlslib.so" "--32" {tlsbindesc.s tlsbin.s}
+     {{readelf -Ssrl tlsbindesc.rd} {objdump -drj.text tlsbindesc.dd}
+      {objdump -sj.got tlsbindesc.sd} {objdump -sj.tdata tlsbindesc.td}}
+      "tlsbindesc"}
     {"TLS -fno-pic -shared" "-shared -melf_i386"
      "--32" {tlsnopic1.s tlsnopic2.s}
      {{readelf -Ssrl tlsnopic.rd} {objdump -drj.text tlsnopic.dd}
       {objdump -sj.got tlsnopic.sd}} "libtlsnopic.so"}
+    {"TLS with global dynamic and descriptors"
+	"-shared -melf_i386" "--32" {tlsgdesc.s}
+     {{readelf -Ssrl tlsgdesc.rd} {objdump -drj.text tlsgdesc.dd}}
+      "libtlsgdesc.so"}
     {"TLS in debug sections" "-melf_i386"
      "--32" {tlsg.s}
      {{objdump -sj.debug_foobar tlsg.sd}} "tlsg"}
@@ -59,8 +102,14 @@ set i386tests {
      {{objdump -drj.text tlsindntpoff.dd}} "tlsindntpoff"}
     {"Reloc section order" "-shared -melf_i386 -z nocombreloc" "--32"
      {reloc.s} {{objdump -hw reloc.d}} "reloc.so"}
+    {"Basic --emit-relocs support" "-shared -melf_i386 --emit-relocs" "--32"
+     {emit-relocs.s} {{readelf --relocs emit-relocs.d}} "emit-relocs.so"}
     {"-z combreloc relocation sections" "-shared -melf_i386 -z combreloc"
      "--32" {combreloc.s} {{readelf -r combreloc.d}} "combreloc.so"}
 }
 
 run_ld_link_tests $i386tests
+
+run_dump_test "abs"
+run_dump_test "pcrel8"
+run_dump_test "pcrel16"

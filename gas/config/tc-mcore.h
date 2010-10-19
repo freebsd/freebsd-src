@@ -1,6 +1,6 @@
 /* This file is tc-mcore.h
 
-   Copyright 1999, 2000, 2001, 2002, 2003
+   Copyright 1999, 2000, 2001, 2002, 2003, 2005
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -17,27 +17,17 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the
-   Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #ifndef	TC_MCORE
 #define TC_MCORE 1
-
-#ifndef BFD_ASSEMBLER
- #error MCORE support requires BFD_ASSEMBLER
-#endif
 
 #define TARGET_ARCH	bfd_arch_mcore
 /* Used to initialise target_big_endian.  */
 #define TARGET_BYTES_BIG_ENDIAN 0
 
-/* Don't write out relocs for pcrel stuff.  */
-#define TC_COUNT_RELOC(x) (((x)->fx_addsy || (x)->fx_subsy) && \
-			   (x)->fx_r_type < BFD_RELOC_MCORE_PCREL_IMM8BY4)
-
 #define IGNORE_NONSTANDARD_ESCAPES
-
-#define TC_RELOC_MANGLE(a,b,c) tc_reloc_mangle (a, b, c)
 
 /* Some pseudo-op semantic extensions.  */
 #define	PSEUDO_LCOMM_OPTIONAL_ALIGN
@@ -45,14 +35,8 @@
 #define LISTING_HEADER        	"M.CORE GAS Version 2.9.4"
 #define LISTING_LHS_CONT_LINES	4
 
-#define NEED_FX_R_TYPE	1
-#define COFF_FLAGS 	1
-
 /* We want local label support.  */
 #define LOCAL_LABELS_FB 1
-
-#define TC_COFF_SIZEMACHDEP(frag) tc_coff_sizemachdep (frag)
-int tc_coff_sizemachdep PARAMS ((struct frag *));
 
 extern const struct relax_type md_relax_table[];
 #define TC_GENERIC_RELAX_TABLE md_relax_table
@@ -89,12 +73,10 @@ struct mcore_tc_sy
 
 /* When relaxing, we need to emit various relocs we otherwise wouldn't.  */
 #define TC_FORCE_RELOCATION(fix) mcore_force_relocation (fix)
-extern int mcore_force_relocation PARAMS ((struct fix *));
 
 #define tc_fix_adjustable(FIX) mcore_fix_adjustable (FIX)
-extern bfd_boolean mcore_fix_adjustable PARAMS ((struct fix *));
 
-/* Values passed to md_apply_fix3 don't include the symbol value.  */
+/* Values passed to md_apply_fix don't include the symbol value.  */
 #define MD_APPLY_SYM_VALUE(FIX) 0
 
 #endif /* OBJ_ELF */
@@ -105,8 +87,10 @@ extern bfd_boolean mcore_fix_adjustable PARAMS ((struct fix *));
 
 #include "write.h"        /* For definition of fixS */
 
-extern void      md_mcore_end        PARAMS ((void));
-extern long      md_pcrel_from_section         PARAMS ((fixS *, segT));
-extern arelent * tc_gen_reloc                  PARAMS ((asection *, fixS *));
+extern void        md_mcore_end           (void);
+extern long        md_pcrel_from_section  (fixS *, segT);
+extern arelent *   tc_gen_reloc           (asection *, fixS *);
+extern int         mcore_force_relocation (fixS *);
+extern bfd_boolean mcore_fix_adjustable   (fixS *);
 
 #endif /* TC_MCORE */

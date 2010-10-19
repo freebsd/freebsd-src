@@ -1,3 +1,20 @@
+2005-04-13  H.J. Lu  <hongjiu.lu@intel.com>
+
+	Moved from ../ChangeLog
+
+	2003-04-04  Svein E. Seldal  <Svein.Seldal@solidas.com>
+	* tic4x.h: Namespace cleanup. Replace s/c4x/tic4x
+	and s/c3x/tic3x/
+
+	2003-01-20  Svein E. Seldal  <Svein.Seldal@solidas.com>
+	* tic4x.h (TICOFF_TARGET_MACHINE_GET): Fixed define bug
+	* ti.h (TICOFF_TARGET_MACHINE_GET): Added macros
+
+	2002-08-28  Michael Hayes <m.hayes@elec.canterbury.ac.nz>
+	* internal.h: Add new relocation types.
+	* ti.h: Add file-header flags for tic4x code.
+	* tic4x.h: New file
+
 2003-12-02  Graham Reed <grahamr@algorithmics.com>
 
 	* internal.h (C_WEAKEXT): Add alternative value for AIX 5.2

@@ -6,13 +6,13 @@
 @set lastupdate February 14, 2002
 @c %**end of header
 
-@ifinfo
+@ifnottex
 @format
 START-INFO-DIR-ENTRY
 * Standards: (standards).        GNU coding standards.
 END-INFO-DIR-ENTRY
 @end format
-@end ifinfo
+@end ifnottex
 
 @c @setchapternewpage odd
 @setchapternewpage off
@@ -28,11 +28,11 @@ END-INFO-DIR-ENTRY
 @iftex
 @set CHAPTER chapter
 @end iftex
-@ifinfo
+@ifnottex
 @set CHAPTER node
-@end ifinfo
+@end ifnottex
 
-@ifinfo
+@ifnottex
 GNU Coding Standards
 Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
 
@@ -43,7 +43,7 @@ with no Invariant Sections, with no
 Front-Cover Texts, and with no Back-Cover Texts.
 A copy of the license is included in the section entitled ``GNU
 Free Documentation License''.
-@end ifinfo
+@end ifnottex
 
 @titlepage
 @title GNU Coding Standards
@@ -63,12 +63,12 @@ A copy of the license is included in the section entitled ``GNU
 Free Documentation License''.
 @end titlepage
 
-@ifinfo
+@ifnottex
 @node Top, Preface, (dir), (dir)
 @top Version
 
 Last updated @value{lastupdate}.
-@end ifinfo
+@end ifnottex
 
 @menu
 * Preface::                     About the GNU Coding Standards

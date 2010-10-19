@@ -25,5 +25,5 @@ Disassembly of section .text:
 Disassembly of section .data:
 
 00000000 <in_data>:
-   0:	Address 0x0 is out of bounds.
+   0:	Address 0x0+ is out of bounds.
 

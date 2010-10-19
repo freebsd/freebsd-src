@@ -1,24 +1,7 @@
 ; IQ2000/IQ10 Common CPU description. -*- Scheme -*-
-;
-; Copyright 2000, 2001, 2002 Free Software Foundation, Inc.
-;
-; Contributed by Red Hat Inc; developed under contract from Vitesse.
-;
-; This file is part of the GNU Binutils.
-;
-; This program is free software; you can redistribute it and/or modify
-; it under the terms of the GNU General Public License as published by
-; the Free Software Foundation; either version 2 of the License, or
-; (at your option) any later version.
-;
-; This program is distributed in the hope that it will be useful,
-; but WITHOUT ANY WARRANTY; without even the implied warranty of
-; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-; GNU General Public License for more details.
-;
-; You should have received a copy of the GNU General Public License
-; along with this program; if not, write to the Free Software
-; Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+; Copyright (C) 2000, 2001, 2002 Red Hat, Inc.
+; This file is part of CGEN.
+; See file COPYING.CGEN for details.
 
 (include "simplify.inc")
 
@@ -350,10 +333,10 @@
     (name (.sym USES- (.upcase regfield)))
     (comment ("insn accesses register operand " regfield))))
 
-(define-reg-use-attr rd)
-(define-reg-use-attr rs)
-(define-reg-use-attr rt)
-(define-reg-use-attr r31)
+(define-reg-use-attr "rd")
+(define-reg-use-attr "rs")
+(define-reg-use-attr "rt")
+(define-reg-use-attr "r31")
 
 
 ; Operands.
@@ -374,7 +357,7 @@
 (dnop maskq10  "iq10 mask"               () h-uint  f-maskq10)
 (dnop maskl    "mask left"               () h-uint  f-maskl)
 (dnop count    "count"                   () h-uint  f-count)
-(dnop index    "index"                   () h-uint  f-index)
+(dnop _index   "index"                   () h-uint  f-index)
 (dnop execode  "execcode"                () h-uint  f-excode)
 (dnop bytecount "byte count"             () h-uint  f-bytecount)
 (dnop cam-y     "cam global opn y"       () h-uint  f-cam-y)
@@ -1190,10 +1173,10 @@
 
 
 (if (keep-mach? (iq2000))
-(include "iq2000m.cpu"))
+(include "../../cpu/iq2000m.cpu"))
 
 (if (keep-mach? (iq10))
-(include "iq10.cpu"))
+(include "../../cpu/iq10.cpu"))
 
 
 

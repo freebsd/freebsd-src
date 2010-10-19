@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+#   Copyright 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 #
 # This file is part of GLD, the Gnu Linker.
 #
@@ -15,7 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 
 # This file is sourced from elf32.em, and defines extra sh64
@@ -152,7 +152,7 @@ sh64_elf_${EMULATION_NAME}_before_allocation (void)
 		 isec = isec->next)
 	      {
 		if (isec->output_section == osec
-		    && isec->_raw_size != 0
+		    && isec->size != 0
 		    && (bfd_get_section_flags (isec->owner, isec)
 			& SEC_EXCLUDE) == 0)
 		  {
@@ -179,7 +179,7 @@ sh64_elf_${EMULATION_NAME}_before_allocation (void)
 		 isec = isec->next)
 	      {
 		if (isec->output_section == osec
-		    && isec->_raw_size != 0
+		    && isec->size != 0
 		    && (bfd_get_section_flags (isec->owner, isec)
 			& SEC_EXCLUDE) == 0)
 		  {
@@ -283,7 +283,7 @@ sh64_elf_${EMULATION_NAME}_after_allocation (void)
 		 isec = isec->next)
 	      {
 		if (isec->output_section == osec
-		    && isec->_raw_size != 0
+		    && isec->size != 0
 		    && (bfd_get_section_flags (isec->owner, isec)
 			& SEC_EXCLUDE) == 0)
 		  {
@@ -310,7 +310,7 @@ sh64_elf_${EMULATION_NAME}_after_allocation (void)
 		 isec = isec->next)
 	      {
 		if (isec->output_section == osec
-		    && isec->_raw_size != 0
+		    && isec->size != 0
 		    && (bfd_get_section_flags (isec->owner, isec)
 			& SEC_EXCLUDE) == 0)
 		  {
@@ -363,7 +363,7 @@ sh64_elf_${EMULATION_NAME}_after_allocation (void)
 		 isec = isec->next)
 	      {
 		if (isec->output_section == osec
-		    && isec->_raw_size != 0
+		    && isec->size != 0
 		    && (bfd_get_section_flags (isec->owner, isec)
 			& SEC_EXCLUDE) == 0
 		    && ((elf_section_data (isec)->this_hdr.sh_flags
@@ -388,7 +388,7 @@ sh64_elf_${EMULATION_NAME}_after_allocation (void)
   /* Make sure we have .cranges in memory even if there were only
      assembler-generated .cranges.  */
   cranges_growth = new_cranges * SH64_CRANGE_SIZE;
-  cranges->contents = xcalloc (cranges->_raw_size + cranges_growth, 1);
+  cranges->contents = xcalloc (cranges->size + cranges_growth, 1);
   bfd_set_section_flags (cranges->owner, cranges,
 			 bfd_get_section_flags (cranges->owner, cranges)
 			 | SEC_IN_MEMORY);
@@ -403,7 +403,7 @@ sh64_elf_${EMULATION_NAME}_after_allocation (void)
       return;
     }
 
-  crangesp = cranges->contents + cranges->_raw_size;
+  crangesp = cranges->contents + cranges->size;
 
   /* Now pass over the sections again, and make reloc orders for the new
      .cranges entries.  Constants are set as we go.  */
@@ -437,7 +437,7 @@ sh64_elf_${EMULATION_NAME}_after_allocation (void)
 		   as containing mixed data, thus already having .cranges
 		   entries.  */
 		if (isec->output_section == osec
-		    && isec->_raw_size != 0
+		    && isec->size != 0
 		    && (bfd_get_section_flags (isec->owner, isec)
 			& SEC_EXCLUDE) == 0
 		    && ((elf_section_data (isec)->this_hdr.sh_flags
@@ -458,9 +458,7 @@ sh64_elf_${EMULATION_NAME}_after_allocation (void)
 		    else
 		      cr_type = CRT_SH5_ISA16;
 
-		    cr_size
-		      = (isec->_cooked_size
-			 ? isec->_cooked_size : isec->_raw_size);
+		    cr_size = isec->size;
 
 		    /* Sections can be empty, like .text in a file that
 		       only contains other sections.  Ranges shouldn't be
@@ -522,13 +520,6 @@ sh64_elf_${EMULATION_NAME}_after_allocation (void)
 			bfd_put_32 (output_bfd, isec->output_offset,
 				    crangesp + SH64_CRANGE_CR_ADDR_OFFSET);
 			cr_addr_order->u.reloc.p->addend = 0;
-
-			/* We must update the number of relocations here,
-			   since the elf linker does not take link orders
-			   into account when setting header sizes.  The
-			   actual relocation orders are however executed
-			   correctly.  */
-			elf_section_data(cranges)->rel_count++;
 		      }
 		    else
 		      bfd_put_32 (output_bfd,
@@ -563,8 +554,8 @@ sh64_elf_${EMULATION_NAME}_after_allocation (void)
 
      Sorting before writing is done by sh64_elf_final_write_processing.  */
 
-  cranges->_cooked_size = crangesp - cranges->contents;
   sh64_elf_section_data (cranges)->sh64_info->cranges_growth
-    = cranges->_cooked_size - cranges->_raw_size;
-  cranges->_raw_size = cranges->_cooked_size;
+    = crangesp - cranges->contents - cranges->size;
+  cranges->size = crangesp - cranges->contents;
+  cranges->rawsize = cranges->size;
 }

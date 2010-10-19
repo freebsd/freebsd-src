@@ -14,3 +14,4 @@ Disassembly of section .text:
   10:	e0 40 40 00 	ldi.l	r4, 0x4000
   14:	20 55 de 00 	ldi.s	r5, 0x5	||	nop	
   18:	26 0d 5e 00 	jmp	r13	||	nop	
+#pass

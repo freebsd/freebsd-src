@@ -1,20 +1,21 @@
 /* pj-dis.c -- Disassemble picoJava instructions.
-   Copyright 1999, 2000, 2001 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001, 2002, 2005 Free Software Foundation, Inc.
    Contributed by Steve Chamberlain, of Transmeta (sac@pobox.com).
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 #include <stdio.h>
 #include "sysdep.h"
@@ -23,17 +24,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 extern const pj_opc_info_t pj_opc_info[512];
 
-static int get_int PARAMS ((bfd_vma, int *, struct disassemble_info *));
-
-
 static int
-get_int (memaddr, iptr, info)
-     bfd_vma memaddr;
-     int *iptr;
-     struct disassemble_info *info;
+get_int (bfd_vma memaddr, int *iptr, struct disassemble_info *info)
 {
   unsigned char ival[4];
-
   int status = info->read_memory_func (memaddr, ival, 4, info);
 
   *iptr = (ival[0] << 24)
@@ -45,9 +39,7 @@ get_int (memaddr, iptr, info)
 }
 
 int
-print_insn_pj (addr, info)
-     bfd_vma addr;
-     struct disassemble_info *info;
+print_insn_pj (bfd_vma addr, struct disassemble_info *info)
 {
   fprintf_ftype fprintf_fn = info->fprintf_func;
   void *stream = info->stream;
@@ -60,6 +52,7 @@ print_insn_pj (addr, info)
   if (opcode == 0xff)
     {
       unsigned char byte_2;
+
       if ((status = info->read_memory_func (addr + 1, &byte_2, 1, info)))
 	goto fail;
       fprintf_fn (stream, "%s\t", pj_opc_info[opcode + byte_2].u.name);
@@ -71,6 +64,7 @@ print_insn_pj (addr, info)
       int insn_start = addr;
       const pj_opc_info_t *op = &pj_opc_info[opcode];
       int a;
+
       addr++;
       fprintf_fn (stream, "%s", op->u.name);
 
@@ -115,7 +109,6 @@ print_insn_pj (addr, info)
       /* The lookupswitch instruction is followed by the default
 	 address, element count and pairs of values and
 	 addresses.  */
-
       if (strcmp (op->u.name, "lookupswitch") == 0)
 	{
 	  int count;
@@ -149,6 +142,7 @@ print_insn_pj (addr, info)
 	    }
 	  return addr - insn_start;
 	}
+
       for (a = 0; op->arg[a]; a++)
 	{
 	  unsigned char data[4];

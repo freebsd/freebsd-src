@@ -1,0 +1,20 @@
+#source: tlsdesc.s
+#source: tlspic2.s
+#as: --32
+#ld: -shared -melf_i386
+#objdump: -s -j.got -j.got.plt
+#target: i?86-*-*
+
+.*:     file format elf32-i386
+
+Contents of section \.got:
+ [0-9a-f]+ dcffffff 28000000 d4ffffff 2c000000  .*
+ [0-9a-f]+ 30000000 00000000 48000000 9cffffff  .*
+ [0-9a-f]+ 00000000 00000000 00000000 94ffffff  .*
+ [0-9a-f]+ 6c000000 b4ffffff 4c000000 68000000  .*
+ [0-9a-f]+ 50000000 70000000 00000000 bcffffff  .*
+Contents of section \.got\.plt:
+ [0-9a-f]+ ec150000 00000000 00000000 00000000  .*
+ [0-9a-f]+ 20000000 00000000 60000000 00000000  .*
+ [0-9a-f]+ 00000000 00000000 00000000 00000000  .*
+ [0-9a-f]+ 40000000 +.*

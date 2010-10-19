@@ -1,5 +1,5 @@
 # Expect script for ld-visibility tests
-#   Copyright 2000, 2001, 2003 Free Software Foundation, Inc.
+#   Copyright 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # Written by Ian Lance Taylor (ian@cygnus.com)
 #	     and H.J. Lu (hjl@gnu.org)
@@ -117,12 +117,12 @@ proc visibility_test { visibility progname testname main sh1 sh2 dat args } {
     }
     if {![ld_simple_link $CC $tmpdir/$progname.so "$shared $shldflags $tmpdir/$sh1 $tmpdir/$sh2"]} {
 	if { [ string match $visibility "hidden_undef" ]
-	     && [regexp ".*/sh1.c.*: undefined reference to \`visibility\'" $link_output]
-	     && [regexp ".*/sh1.c.*: undefined reference to \`visibility_var\'" $link_output] } {
+	     && [regexp "undefined reference to \`\.?visibility\'" $link_output]
+	     && [regexp "undefined reference to \`visibility_var\'" $link_output] } {
     	    pass "$testname"
 	} else { if { [ string match $visibility "protected_undef" ]
-	     && [regexp ".*/sh1.c.*: undefined reference to \`visibility\'" $link_output]
-	     && [regexp ".*/sh1.c.*: undefined reference to \`visibility_var\'" $link_output] } {
+	     && [regexp "undefined reference to \`\.?visibility\'" $link_output]
+	     && [regexp "undefined reference to \`visibility_var\'" $link_output] } {
     	    pass "$testname"
 	} else {
 	    fail "$testname"
@@ -140,14 +140,14 @@ proc visibility_test { visibility progname testname main sh1 sh2 dat args } {
     }
     if ![ld_simple_link $CC $tmpdir/$progname "-Wl,-rpath,$rpath $tmpdir/$main $tmpdir/$progname.so"] {
 	if { [ string match $visibility "hidden" ]
-	     && [regexp ".*/main.c.*: undefined reference to \`visibility\'" $link_output]
-	     && [regexp ".*/main.c.*: undefined reference to \`visibility_var\'" $link_output] } {
+	     && [regexp "undefined reference to \`\.?visibility\'" $link_output]
+	     && [regexp "undefined reference to \`visibility_var\'" $link_output] } {
     	    pass "$testname"
 	} else { if { [ string match $visibility "hidden_undef_def" ]
-	     && [regexp ".*/main.c.*: undefined reference to \`visibility\'" $link_output]
-	     && [regexp ".*/main.c.*: undefined reference to \`visibility_def\'" $link_output]
-	     && [regexp ".*/main.c.*: undefined reference to \`visibility_func\'" $link_output]
-	     && [regexp ".*/main.c.*: undefined reference to \`visibility_var\'" $link_output] } {
+	     && [regexp "undefined reference to \`\.?visibility\'" $link_output]
+	     && [regexp "undefined reference to \`visibility_def\'" $link_output]
+	     && [regexp "undefined reference to \`\.?visibility_func\'" $link_output]
+	     && [regexp "undefined reference to \`visibility_var\'" $link_output] } {
     	    pass "$testname"
 	} else {
     	    fail "$testname"
@@ -261,6 +261,9 @@ proc visibility_run {visibility} {
 		 && ![ string match $visibility "hidden_undef_def" ]
 		 && ![ string match $visibility "protected_undef" ] } {
 		setup_xfail "s390x-*-linux*"
+		if { [istarget sparc*-*-linux*] && [is_elf64 $tmpdir/mainnp.o] } {
+		    setup_xfail "sparc*-*-linux*"
+		}
 	    }
 	    setup_xfail "x86_64-*-linux*"
 	    if { ![istarget hppa*64*-*-linux*] } {
@@ -289,6 +292,10 @@ proc visibility_run {visibility} {
 		 || [ string match $visibility "protected_weak" ]
 		 || [ string match $visibility "normal" ] } {
 		setup_xfail "powerpc-*-linux*"
+		setup_xfail "s390x-*-linux*"
+		if { [istarget sparc*-*-linux*] && [is_elf64 $tmpdir/mainnp.o] } {
+		    setup_xfail "sparc*-*-linux*"
+		}
 	    }
 	    if { ![ string match $visibility "hidden_undef" ]
 		 && ![ string match $visibility "protected_undef" ] } {
@@ -358,6 +365,9 @@ proc visibility_run {visibility} {
 		     && ![ string match $visibility "hidden_undef_def" ]
 		     && ![ string match $visibility "protected_undef" ] } {
 		    setup_xfail "s390x-*-linux*"
+		    if { [istarget sparc*-*-linux*] && [is_elf64 $tmpdir/mainp.o] } {
+			setup_xfail "sparc*-*-linux*"
+		    }
 		}
 		setup_xfail "x86_64-*-linux*"
 		if { ![istarget hppa*64*-*-linux*] } {

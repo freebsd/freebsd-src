@@ -1,0 +1,158 @@
+#source: tlsgdesc.s
+#as: --32
+#ld: -shared -melf_i386
+#objdump: -drj.text
+#target: i?86-*-*
+
+.*: +file format elf32-i386
+
+Disassembly of section .text:
+
+[0-9a-f]+ <fc1>:
+ [0-9a-f]+:	55[ 	]+push   %ebp
+ [0-9a-f]+:	89 e5[ 	]+mov    %esp,%ebp
+ [0-9a-f]+:	53[ 	]+push   %ebx
+ [0-9a-f]+:	50[ 	]+push   %eax
+ [0-9a-f]+:	e8 00 00 00 00[ 	]+call   [0-9a-f]+ <.*>
+ [0-9a-f]+:	5b[ 	]+pop    %ebx
+ [0-9a-f]+:	81 c3 be 11 00 00[ 	]+add    \$0x[0-9a-f]+,%ebx
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  @gottpoff IE against global var
+ [0-9a-f]+:	65 8b 0d 00 00 00 00[ 	]+mov    %gs:0x0,%ecx
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	2b 8b e0 ff ff ff[ 	]+sub    0xffffffe0\(%ebx\),%ecx
+#				->R_386_TLS_TPOFF32	sG3
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  @gotntpoff IE against global var
+ [0-9a-f]+:	65 8b 0d 00 00 00 00[ 	]+mov    %gs:0x0,%ecx
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	03 8b f0 ff ff ff[ 	]+add    0xfffffff0\(%ebx\),%ecx
+#				->R_386_TLS_TPOFF	sG4
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  GD
+ [0-9a-f]+:	8d 04 1d f8 ff ff ff[ 	]+lea    0xfffffff8\(,%ebx,1\),%eax
+#				->R_386_TLS_DTPMOD32	sG1
+ [0-9a-f]+:	e8 a9 ff ff ff[ 	]+call   [0-9a-f]+ <___tls_get_addr@plt>
+#				->R_386_JUMP_SLOT	___tls_get_addr
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	8d 83 18 00 00 00[ 	]+lea    0x18\(%ebx\),%eax
+#				->R_386_TLS_DESC	sG1
+ [0-9a-f]+:	ff 10[ 	]+call   \*\(%eax\)
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	8d 83 10 00 00 00[ 	]+lea    0x10\(%ebx\),%eax
+#				->R_386_TLS_DESC	sG2
+ [0-9a-f]+:	ff 10[ 	]+call   \*\(%eax\)
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	8d 04 1d e8 ff ff ff[ 	]+lea    0xffffffe8\(,%ebx,1\),%eax
+#				->R_386_TLS_DTPMOD32	sG2
+ [0-9a-f]+:	e8 81 ff ff ff[ 	]+call   [0-9a-f]+ <___tls_get_addr@plt>
+#				->R_386_JUMP_SLOT	___tls_get_addr
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  GD -> IE because variable is referenced through @gottpoff too
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	2b 83 e0 ff ff ff[ 	]+sub    0xffffffe0\(%ebx\),%eax
+#				->R_386_TLS_TPOFF32	sG3
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	8b 83 e0 ff ff ff[ 	]+mov    0xffffffe0\(%ebx\),%eax
+#				->R_386_TLS_TPOFF32	sG3
+ [0-9a-f]+:	f7 d8[ 	]+neg    %eax
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  GD -> IE because variable is referenced through @gotntpoff too
+ [0-9a-f]+:	8b 83 f0 ff ff ff[ 	]+mov    0xfffffff0\(%ebx\),%eax
+#				->R_386_TLS_TPOFF	sG4
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	03 83 f0 ff ff ff[ 	]+add    0xfffffff0\(%ebx\),%eax
+#				->R_386_TLS_TPOFF	sG4
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  GD -> IE because variable is referenced through @gotntpoff too
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	03 83 e4 ff ff ff[ 	]+add    0xffffffe4\(%ebx\),%eax
+#				->R_386_TLS_TPOFF	sG5
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	8b 83 e4 ff ff ff[ 	]+mov    0xffffffe4\(%ebx\),%eax
+#				->R_386_TLS_TPOFF	sG5
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  GD -> IE because variable is referenced through @gottpoff too
+ [0-9a-f]+:	8b 83 f4 ff ff ff[ 	]+mov    0xfffffff4\(%ebx\),%eax
+#				->R_386_TLS_TPOFF32	sG6
+ [0-9a-f]+:	f7 d8[ 	]+neg    %eax
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
+ [0-9a-f]+:	2b 83 f4 ff ff ff[ 	]+sub    0xfffffff4\(%ebx\),%eax
+#				->R_386_TLS_TPOFF32	sG6
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  @gotntpoff IE against global var
+ [0-9a-f]+:	65 8b 0d 00 00 00 00[ 	]+mov    %gs:0x0,%ecx
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	03 8b e4 ff ff ff[ 	]+add    0xffffffe4\(%ebx\),%ecx
+#				->R_386_TLS_TPOFF	sG5
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+#  @gottpoff IE against global var
+ [0-9a-f]+:	65 8b 0d 00 00 00 00[ 	]+mov    %gs:0x0,%ecx
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	2b 8b f4 ff ff ff[ 	]+sub    0xfffffff4\(%ebx\),%ecx
+#				->R_386_TLS_TPOFF32	sG6
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	90[ 	]+nop *
+ [0-9a-f]+:	8b 5d fc[ 	]+mov    0xfffffffc\(%ebp\),%ebx
+ [0-9a-f]+:	c9[ 	]+leave *
+ [0-9a-f]+:	c3[ 	]+ret *

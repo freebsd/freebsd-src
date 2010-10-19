@@ -1,6 +1,6 @@
 /* BFD support for the ns32k architecture.
-   Copyright 1990, 1991, 1994, 1995, 1998, 2000, 2001, 2002, 2003
-   Free Software Foundation, Inc.
+   Copyright 1990, 1991, 1994, 1995, 1998, 1999, 2000, 2001, 2002, 2003,
+   2004, 2005 Free Software Foundation, Inc.
    Almost totally rewritten by Ian Dall from initial work
    by Andrew Cagney.
 
@@ -18,7 +18,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -191,7 +191,7 @@ do_ns32k_reloc (abfd, reloc_entry, symbol, data, input_section, output_bfd,
     flag = bfd_reloc_undefined;
 
   /* Is the address of the relocation really within the section?  */
-  if (reloc_entry->address > input_section->_cooked_size)
+  if (reloc_entry->address > bfd_get_section_limit (abfd, input_section))
     return bfd_reloc_outofrange;
 
   /* Work out which section the relocation is targeted at and the
@@ -279,7 +279,6 @@ do_ns32k_reloc (abfd, reloc_entry, symbol, data, input_section, output_bfd,
 	  /* WTF?? */
 	  if (abfd->xvec->flavour == bfd_target_coff_flavour)
 	    {
-#if 1
 	      /* For m68k-coff, the addend was being subtracted twice during
 		 relocation with -r.  Removing the line below this comment
 		 fixes that problem; see PR 2953.
@@ -355,7 +354,6 @@ do_ns32k_reloc (abfd, reloc_entry, symbol, data, input_section, output_bfd,
 		   7) if they are different you have to figure out which
 		      version is right.  */
 	      relocation -= reloc_entry->addend;
-#endif
 	      reloc_entry->addend = 0;
 	    }
 	  else
@@ -804,7 +802,7 @@ _bfd_ns32k_final_link_relocate (howto, input_bfd, input_section, contents,
   bfd_vma relocation;
 
   /* Sanity check the address.  */
-  if (address > input_section->_cooked_size)
+  if (address > bfd_get_section_limit (input_bfd, input_section))
     return bfd_reloc_outofrange;
 
   /* This function assumes that we are dealing with a basic relocation

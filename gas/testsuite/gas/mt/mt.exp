@@ -1,0 +1,11 @@
+# MRISC1 assembler testsuite.
+
+if [istarget mt-*-*] {
+    #
+    run_dump_test "allinsn"
+    run_dump_test "misc"
+    run_dump_test "msys"
+    run_dump_test "ms1-16-003"
+    run_dump_test "ms2"
+    #
+}

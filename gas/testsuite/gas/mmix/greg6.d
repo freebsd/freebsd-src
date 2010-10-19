@@ -6,14 +6,14 @@
 .*:     file format elf64-mmix
 
 SYMBOL TABLE:
-0+ l    d  \.text	0+ 
-0+ l    d  \.data	0+ 
-0+ l    d  \.bss	0+ 
+0+ l    d  \.text	0+ (|\.text)
+0+ l    d  \.data	0+ (|\.data)
+0+ l    d  \.bss	0+ (|\.bss)
 0+ l       \.text	0+ t
 2000000000000004 l       \*ABS\*	0+ x
 2000000000000000 l       \*ABS\*	0+ Data_Segment
 0+ l       \.data	0+ y
-0+ l    d  \.MMIX\.reg_contents	0+ 
+0+ l    d  \.MMIX\.reg_contents	0+ (|\.MMIX\.reg_contents)
 0+ g     F \.text	0+ Main
 2000000000000008 g       \*ABS\*	0+ __\.MMIX\.start\.\.data
 

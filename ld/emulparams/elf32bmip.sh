@@ -11,12 +11,17 @@ MAXPAGESIZE=0x40000
 COMMONPAGESIZE=0x1000
 NONPAGED_TEXT_START_ADDR=0x0400000
 SHLIB_TEXT_START_ADDR=0x5ffe0000
-test -n "${EMBEDDED}" || TEXT_DYNAMIC=
+TEXT_DYNAMIC=
 INITIAL_READONLY_SECTIONS="
   .reginfo      ${RELOCATING-0} : { *(.reginfo) }
 "
 OTHER_TEXT_SECTIONS='*(.mips16.fn.*) *(.mips16.call.*)'
+# If the output has a GOT section, there must be exactly 0x7ff0 bytes
+# between .got and _gp.  The ". = ." below stops the orphan code from
+# inserting other sections between the assignment to _gp and the start
+# of .got.
 OTHER_GOT_SYMBOLS='
+  . = .;
   _gp = ALIGN(16) + 0x7ff0;
 '
 OTHER_SDATA_SECTIONS="
@@ -29,9 +34,17 @@ OTHER_BSS_SYMBOLS='_fbss = .;'
 OTHER_SECTIONS='
   .gptab.sdata : { *(.gptab.data) *(.gptab.sdata) }
   .gptab.sbss : { *(.gptab.bss) *(.gptab.sbss) }
+  .mdebug.abi32 : { KEEP(*(.mdebug.abi32)) }
+  .mdebug.abiN32 : { KEEP(*(.mdebug.abiN32)) }
+  .mdebug.abi64 : { KEEP(*(.mdebug.abi64)) }
+  .mdebug.abiO64 : { KEEP(*(.mdebug.abiO64)) }
+  .mdebug.eabi32 : { KEEP(*(.mdebug.eabi32)) }
+  .mdebug.eabi64 : { KEEP(*(.mdebug.eabi64)) }
+  .gcc_compiled_long32 : { KEEP(*(.gcc_compiled_long32)) }
+  .gcc_compiled_long64 : { KEEP(*(.gcc_compiled_long64)) }
 '
 ARCH=mips
 MACHINE=
 TEMPLATE_NAME=elf32
-EXTRA_EM_FILE=mipself
 GENERATE_SHLIB_SCRIPT=yes
+GENERATE_PIE_SCRIPT=yes

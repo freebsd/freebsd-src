@@ -1,0 +1,474 @@
+/* Morpho Technologies mRISC opcode support, for GNU Binutils.  -*- C -*-
+   Copyright 2001 Free Software Foundation, Inc.
+
+   Contributed by Red Hat Inc; developed under contract from
+   Morpho Technologies.
+
+   This file is part of the GNU Binutils.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+
+*/
+
+/*
+   Each section is delimited with start and end markers.
+
+   <arch>-opc.h additions use: "-- opc.h"
+   <arch>-opc.c additions use: "-- opc.c"
+   <arch>-asm.c additions use: "-- asm.c"
+   <arch>-dis.c additions use: "-- dis.c"
+   <arch>-ibd.h additions use: "-- ibd.h"
+*/
+
+/* -- opc.h */
+
+/* Check applicability of instructions against machines.  */
+#define CGEN_VALIDATE_INSN_SUPPORTED
+
+/* Allows reason codes to be output when assembler errors occur.  */
+#define CGEN_VERBOSE_ASSEMBLER_ERRORS
+
+/* Override disassembly hashing - there are variable bits in the top
+   byte of these instructions.  */
+#define CGEN_DIS_HASH_SIZE 8
+#define CGEN_DIS_HASH(buf, value) (((* (unsigned char *) (buf)) >> 5) % CGEN_DIS_HASH_SIZE)
+
+#define CGEN_ASM_HASH_SIZE 127
+#define CGEN_ASM_HASH(insn) mt_asm_hash (insn)
+
+extern unsigned int mt_asm_hash (const char *);
+
+extern int mt_cgen_insn_supported (CGEN_CPU_DESC, const CGEN_INSN *);
+
+
+/* -- opc.c */
+#include "safe-ctype.h"
+
+/* Special check to ensure that instruction exists for given machine.  */
+
+int
+mt_cgen_insn_supported (CGEN_CPU_DESC cd, const CGEN_INSN *insn)
+{
+  int machs = CGEN_INSN_ATTR_VALUE (insn, CGEN_INSN_MACH);
+
+  /* No mach attribute?  Assume it's supported for all machs.  */
+  if (machs == 0)
+    return 1;
+  
+  return ((machs & cd->machs) != 0);
+}
+
+/* A better hash function for instruction mnemonics.  */
+
+unsigned int
+mt_asm_hash (const char* insn)
+{
+  unsigned int hash;
+  const char* m = insn;
+
+  for (hash = 0; *m && ! ISSPACE (*m); m++)
+    hash = (hash * 23) ^ (0x1F & TOLOWER (*m));
+
+  /* printf ("%s %d\n", insn, (hash % CGEN_ASM_HASH_SIZE)); */
+
+  return hash % CGEN_ASM_HASH_SIZE;
+}
+
+
+/* -- asm.c */
+/* Range checking for signed numbers.  Returns 0 if acceptable
+   and 1 if the value is out of bounds for a signed quantity.  */
+
+static int 
+signed_out_of_bounds (long val)
+{
+  if ((val < -32768) || (val > 32767))
+    return 1;
+  return 0;
+}
+
+static const char *
+parse_loopsize (CGEN_CPU_DESC cd,
+		const char **strp,
+		int opindex,
+		void *arg)
+{
+  signed long * valuep = (signed long *) arg;
+  const char *errmsg;
+  bfd_reloc_code_real_type code = BFD_RELOC_NONE;
+  enum cgen_parse_operand_result result_type;
+  bfd_vma value;
+
+  /* Is it a control transfer instructions?  */ 
+  if (opindex == (CGEN_OPERAND_TYPE) MT_OPERAND_LOOPSIZE)
+    {
+      code = BFD_RELOC_MT_PCINSN8;
+      errmsg = cgen_parse_address (cd, strp, opindex, code,
+                                   & result_type, & value);
+      *valuep = value;
+      return errmsg;
+    }
+
+  abort ();
+}
+
+static const char *
+parse_imm16 (CGEN_CPU_DESC cd,
+	     const char **strp,
+	     int opindex,
+	     void *arg)
+{
+  signed long * valuep = (signed long *) arg;
+  const char *errmsg;
+  enum cgen_parse_operand_result result_type;
+  bfd_reloc_code_real_type code = BFD_RELOC_NONE;
+  bfd_vma value;
+
+  /* Is it a control transfer instructions?  */ 
+  if (opindex == (CGEN_OPERAND_TYPE) MT_OPERAND_IMM16O)
+    {
+      code = BFD_RELOC_16_PCREL;
+      errmsg = cgen_parse_address (cd, strp, opindex, code,
+                                   & result_type, & value);
+      if (errmsg == NULL)
+	{
+	  if (signed_out_of_bounds (value))
+	    errmsg = _("Operand out of range. Must be between -32768 and 32767.");
+	}
+      *valuep = value;
+      return errmsg;
+    }
+
+  /* If it's not a control transfer instruction, then
+     we have to check for %OP relocating operators.  */
+  if (opindex == (CGEN_OPERAND_TYPE) MT_OPERAND_IMM16L)
+    ;
+  else if (strncmp (*strp, "%hi16", 5) == 0)
+    {
+      *strp += 5;
+      code = BFD_RELOC_HI16;
+    }
+  else if (strncmp (*strp, "%lo16", 5) == 0)
+    {
+      *strp += 5;
+      code = BFD_RELOC_LO16;
+    }
+
+  /* If we found a %OP relocating operator, then parse it as an address.
+     If not, we need to parse it as an integer, either signed or unsigned
+     depending on which operand type we have.  */
+  if (code != BFD_RELOC_NONE)
+    {
+       /* %OP relocating operator found.  */
+       errmsg = cgen_parse_address (cd, strp, opindex, code,
+                                   & result_type, & value);
+       if (errmsg == NULL)
+	 {
+           switch (result_type)
+	     {
+	     case (CGEN_PARSE_OPERAND_RESULT_NUMBER):
+	       if (code == BFD_RELOC_HI16)
+		 value = (value >> 16) & 0xFFFF;
+	       else if (code == BFD_RELOC_LO16)
+		 value = value  & 0xFFFF;
+	       else 
+		 errmsg = _("Biiiig Trouble in parse_imm16!");
+	       break;
+
+	     case (CGEN_PARSE_OPERAND_RESULT_QUEUED):
+	       /* No special processing for this case.  */
+	       break;
+
+	     default:
+	       errmsg = _("%operator operand is not a symbol");
+	       break;
+             }
+	 }
+       *valuep = value;
+    }
+  else
+    {
+      /* Parse hex values like 0xffff as unsigned, and sign extend
+	 them manually.  */
+      int parse_signed = (opindex == (CGEN_OPERAND_TYPE)MT_OPERAND_IMM16);
+
+      if ((*strp)[0] == '0'
+	  && ((*strp)[1] == 'x' || (*strp)[1] == 'X'))
+	parse_signed = 0;
+
+      /* No relocating operator.  Parse as an number.  */
+      if (parse_signed)
+	{
+          /* Parse as as signed integer.  */
+ 
+          errmsg = cgen_parse_signed_integer (cd, strp, opindex, valuep);
+
+          if (errmsg == NULL) 
+	    {
+#if 0
+	      /* Manual range checking is needed for the signed case.  */
+	      if (*valuep & 0x8000)
+                value = 0xffff0000 | *valuep;
+	      else 
+                value = *valuep;
+
+	      if (signed_out_of_bounds (value))
+	        errmsg = _("Operand out of range. Must be between -32768 and 32767.");
+	      /* Truncate to 16 bits. This is necessary
+		 because cgen will have sign extended *valuep.  */
+	      *valuep &= 0xFFFF; 
+#endif
+	    }
+	}
+      else  
+	{
+          /* MT_OPERAND_IMM16Z.  Parse as an unsigned integer.  */
+          errmsg = cgen_parse_unsigned_integer (cd, strp, opindex, (unsigned long *) valuep);
+
+	  if (opindex == (CGEN_OPERAND_TYPE) MT_OPERAND_IMM16
+	      && *valuep >= 0x8000
+	      && *valuep <= 0xffff)
+	    *valuep -= 0x10000;
+	}
+    }
+
+  return errmsg;
+}
+
+
+static const char *
+parse_dup (CGEN_CPU_DESC cd,
+	   const char **strp,
+	   int opindex,
+	   unsigned long *valuep)
+{
+  const char *errmsg = NULL;
+
+  if (strncmp (*strp, "dup", 3) == 0 || strncmp (*strp, "DUP", 3) == 0)
+    {
+      *strp += 3;
+      *valuep = 1;
+    }
+  else if (strncmp (*strp, "xx", 2) == 0 || strncmp (*strp, "XX", 2) == 0)
+    {
+      *strp += 2;
+      *valuep = 0;
+    }
+  else
+    errmsg = cgen_parse_unsigned_integer (cd, strp, opindex, valuep);
+
+  return errmsg;
+}
+
+
+static const char *
+parse_ball (CGEN_CPU_DESC cd,
+	    const char **strp,
+	    int opindex,
+	    unsigned long *valuep)
+{
+  const char *errmsg = NULL;
+
+  if (strncmp (*strp, "all", 3) == 0 || strncmp (*strp, "ALL", 3) == 0)
+    {
+      *strp += 3;
+      *valuep = 1;
+    }
+  else if (strncmp (*strp, "one", 3) == 0 || strncmp (*strp, "ONE", 3) == 0)
+    {
+      *strp += 3;
+      *valuep = 0;
+    }
+  else
+    errmsg = cgen_parse_unsigned_integer (cd, strp, opindex, valuep);
+
+  return errmsg;
+}
+
+static const char *
+parse_xmode (CGEN_CPU_DESC cd,
+	     const char **strp,
+	     int opindex,
+	     unsigned long *valuep)
+{
+  const char *errmsg = NULL;
+
+  if (strncmp (*strp, "pm", 2) == 0 || strncmp (*strp, "PM", 2) == 0)
+    {
+      *strp += 2;
+      *valuep = 1;
+    }
+  else if (strncmp (*strp, "xm", 2) == 0 || strncmp (*strp, "XM", 2) == 0)
+    {
+      *strp += 2;
+      *valuep = 0;
+    }
+  else
+    errmsg = cgen_parse_unsigned_integer (cd, strp, opindex, valuep);
+
+  return errmsg;
+}
+
+static const char *
+parse_rc (CGEN_CPU_DESC cd,
+	  const char **strp,
+	  int opindex,
+	  unsigned long *valuep)
+{
+  const char *errmsg = NULL;
+
+  if (strncmp (*strp, "r", 1) == 0 || strncmp (*strp, "R", 1) == 0)
+    {
+      *strp += 1;
+      *valuep = 1;
+    }
+  else if (strncmp (*strp, "c", 1) == 0 || strncmp (*strp, "C", 1) == 0)
+    {
+      *strp += 1;
+      *valuep = 0;
+    }
+  else
+    errmsg = cgen_parse_unsigned_integer (cd, strp, opindex, valuep);
+
+  return errmsg;
+}
+
+static const char *
+parse_cbrb (CGEN_CPU_DESC cd,
+	    const char **strp,
+	    int opindex,
+	    unsigned long *valuep)
+{
+  const char *errmsg = NULL;
+
+  if (strncmp (*strp, "rb", 2) == 0 || strncmp (*strp, "RB", 2) == 0)
+    {
+      *strp += 2;
+      *valuep = 1;
+    }
+  else if (strncmp (*strp, "cb", 2) == 0 || strncmp (*strp, "CB", 2) == 0)
+    {
+      *strp += 2;
+      *valuep = 0;
+    }
+  else
+    errmsg = cgen_parse_unsigned_integer (cd, strp, opindex, valuep);
+
+  return errmsg;
+}
+
+static const char *
+parse_rbbc (CGEN_CPU_DESC cd,
+	    const char **strp,
+	    int opindex,
+	    unsigned long *valuep)
+{
+  const char *errmsg = NULL;
+
+  if (strncmp (*strp, "rt", 2) == 0 || strncmp (*strp, "RT", 2) == 0)
+    {
+      *strp += 2;
+      *valuep = 0;
+    }
+  else if (strncmp (*strp, "br1", 3) == 0 || strncmp (*strp, "BR1", 3) == 0)
+    {
+      *strp += 3;
+      *valuep = 1;
+    }
+  else if (strncmp (*strp, "br2", 3) == 0 || strncmp (*strp, "BR2", 3) == 0)
+    {
+      *strp += 3;
+      *valuep = 2;
+    }
+  else if (strncmp (*strp, "cs", 2) == 0 || strncmp (*strp, "CS", 2) == 0)
+    {
+      *strp += 2;
+      *valuep = 3;
+    }
+  else
+    errmsg = cgen_parse_unsigned_integer (cd, strp, opindex, valuep);
+
+  return errmsg;
+}
+
+static const char *
+parse_type (CGEN_CPU_DESC cd,
+	    const char **strp,
+	    int opindex,
+	    unsigned long *valuep)
+{
+  const char *errmsg = NULL;
+
+  if (strncmp (*strp, "odd", 3) == 0 || strncmp (*strp, "ODD", 3) == 0)
+    {
+      *strp += 3;
+      *valuep = 0;
+    }
+  else if (strncmp (*strp, "even", 4) == 0 || strncmp (*strp, "EVEN", 4) == 0)
+    {
+      *strp += 4;
+      *valuep = 1;
+    }
+  else if (strncmp (*strp, "oe", 2) == 0 || strncmp (*strp, "OE", 2) == 0)
+    {
+      *strp += 2;
+      *valuep = 2;
+    }
+  else
+    errmsg = cgen_parse_unsigned_integer (cd, strp, opindex, valuep);
+
+ if ((errmsg == NULL) && (*valuep == 3))
+    errmsg = _("invalid operand.  type may have values 0,1,2 only.");
+
+  return errmsg;
+}
+
+/* -- dis.c */
+static void print_dollarhex (CGEN_CPU_DESC, PTR, long, unsigned, bfd_vma, int);
+static void print_pcrel (CGEN_CPU_DESC, PTR, long, unsigned, bfd_vma, int);
+
+static void
+print_dollarhex (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+		 void * dis_info,
+		 long value,
+		 unsigned int attrs ATTRIBUTE_UNUSED,
+		 bfd_vma pc ATTRIBUTE_UNUSED,
+		 int length ATTRIBUTE_UNUSED)
+{
+  disassemble_info *info = (disassemble_info *) dis_info;
+
+  info->fprintf_func (info->stream, "$%lx", value);
+
+  if (0)
+    print_normal (cd, dis_info, value, attrs, pc, length);
+}
+
+static void
+print_pcrel (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+	     void * dis_info,
+	     long value,
+	     unsigned int attrs ATTRIBUTE_UNUSED,
+	     bfd_vma pc ATTRIBUTE_UNUSED,
+	     int length ATTRIBUTE_UNUSED)
+{
+  print_address (cd, dis_info, value + pc, attrs, pc, length);
+}
+
+/* -- */
+
+
+
+
+

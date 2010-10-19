@@ -1,6 +1,6 @@
 /* tc-i386.h -- Header file for tc-i386.c
    Copyright 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004
+   2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -17,29 +17,19 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #ifndef TC_I386
 #define TC_I386 1
 
-#ifndef BFD_ASSEMBLER
-#error So, do you know what you are doing?
-#endif
-
-#ifdef ANSI_PROTOTYPES
 struct fix;
-#endif
 
 #define TARGET_BYTES_BIG_ENDIAN	0
 
-#ifdef TE_LYNX
-#define TARGET_FORMAT		"coff-i386-lynx"
-#endif
-
 #define TARGET_ARCH		bfd_arch_i386
 #define TARGET_MACH		(i386_mach ())
-extern unsigned long i386_mach PARAMS ((void));
+extern unsigned long i386_mach (void);
 
 #ifdef TE_FreeBSD
 #define AOUT_TARGET_FORMAT	"a.out-i386-freebsd"
@@ -65,7 +55,10 @@ extern unsigned long i386_mach PARAMS ((void));
 
 #ifdef TE_FreeBSD
 #define ELF_TARGET_FORMAT	"elf32-i386-freebsd"
+#elif defined (TE_VXWORKS)
+#define ELF_TARGET_FORMAT	"elf32-i386-vxworks"
 #endif
+
 #ifndef ELF_TARGET_FORMAT
 #define ELF_TARGET_FORMAT	"elf32-i386"
 #endif
@@ -94,6 +87,9 @@ extern void i386_elf_emit_arch_note PARAMS ((void));
 
 extern const char extra_symbol_chars[];
 #define tc_symbol_chars extra_symbol_chars
+
+extern const char *i386_comment_chars;
+#define tc_comment_chars i386_comment_chars
 
 #define MAX_OPERANDS 3		/* max operands per insn */
 #define MAX_IMMEDIATE_OPERANDS 2/* max immediates per insn (lcall, ljmp) */
@@ -145,18 +141,6 @@ extern const char extra_symbol_chars[];
 
 #define END_OF_INSN '\0'
 
-/* Intel Syntax */
-/* Values 0-4 map onto scale factor */
-#define BYTE_PTR     0
-#define WORD_PTR     1
-#define DWORD_PTR    2
-#define QWORD_PTR    3
-#define XWORD_PTR    4
-#define SHORT        5
-#define OFFSET_FLAT  6
-#define FLAT         7
-#define NONE_FOUND   8
-
 typedef struct
 {
   /* instruction name sans width suffix ("mov" for movl insns) */
@@ -190,18 +174,26 @@ typedef struct
 #define CpuAthlon	0x200	/* AMD Athlon or better required*/
 #define CpuSledgehammer 0x400	/* Sledgehammer or better required */
 #define CpuMMX		0x800	/* MMX support required */
-#define CpuSSE	       0x1000	/* Streaming SIMD extensions required */
-#define CpuSSE2	       0x2000	/* Streaming SIMD extensions 2 required */
-#define Cpu3dnow       0x4000	/* 3dnow! support required */
-#define CpuPNI	       0x8000	/* Prescott New Instructions required */
-#define CpuPadLock    0x10000	/* VIA PadLock required */
+#define CpuMMX2	       0x1000	/* extended MMX support (with SSE or 3DNow!Ext) required */
+#define CpuSSE	       0x2000	/* Streaming SIMD extensions required */
+#define CpuSSE2	       0x4000	/* Streaming SIMD extensions 2 required */
+#define Cpu3dnow       0x8000	/* 3dnow! support required */
+#define Cpu3dnowA     0x10000	/* 3dnow!Extensions support required */
+#define CpuSSE3	      0x20000	/* Streaming SIMD extensions 3 required */
+#define CpuPNI	      CpuSSE3	/* Prescott New Instructions required */
+#define CpuPadLock    0x40000	/* VIA PadLock required */
+#define CpuSVME	      0x80000	/* AMD Secure Virtual Machine Ext-s required */
+#define CpuVMX	     0x100000	/* VMX Instructions required */
+#define CpuMNI	     0x200000	/* Merom New Instructions required */
 
   /* These flags are set by gas depending on the flag_code.  */
 #define Cpu64	     0x4000000   /* 64bit support required  */
 #define CpuNo64      0x8000000   /* Not supported in the 64bit mode  */
 
   /* The default value for unknown CPUs - enable all features to avoid problems.  */
-#define CpuUnknownFlags (Cpu086|Cpu186|Cpu286|Cpu386|Cpu486|Cpu586|Cpu686|CpuP4|CpuSledgehammer|CpuMMX|CpuSSE|CpuSSE2|CpuPNI|Cpu3dnow|CpuK6|CpuAthlon|CpuPadLock)
+#define CpuUnknownFlags (Cpu086|Cpu186|Cpu286|Cpu386|Cpu486|Cpu586|Cpu686 \
+	|CpuP4|CpuSledgehammer|CpuMMX|CpuMMX2|CpuSSE|CpuSSE2|CpuPNI|CpuVMX \
+	|Cpu3dnow|Cpu3dnowA|CpuK6|CpuAthlon|CpuPadLock|CpuSVME|CpuMNI)
 
   /* the bits in opcode_modifier are used to generate the final opcode from
      the base_opcode.  These bits also are used to detect alternate forms of
@@ -399,14 +391,14 @@ arch_entry;
 #define GLOBAL_OFFSET_TABLE_NAME "_GLOBAL_OFFSET_TABLE_"
 #endif
 
-#ifndef LEX_AT
+#if (defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)) && !defined (LEX_AT)
 #define TC_PARSE_CONS_EXPRESSION(EXP, NBYTES) x86_cons (EXP, NBYTES)
 extern void x86_cons PARAMS ((expressionS *, int));
+#endif
 
 #define TC_CONS_FIX_NEW(FRAG,OFF,LEN,EXP) x86_cons_fix_new(FRAG, OFF, LEN, EXP)
 extern void x86_cons_fix_new
   PARAMS ((fragS *, unsigned int, unsigned int, expressionS *));
-#endif
 
 #define DIFF_EXPR_OK    /* foo-. gets turned into PC relative relocs */
 
@@ -418,7 +410,7 @@ void i386_validate_fix PARAMS ((struct fix *));
 #define tc_fix_adjustable(X)  tc_i386_fix_adjustable(X)
 extern int tc_i386_fix_adjustable PARAMS ((struct fix *));
 
-/* Values passed to md_apply_fix3 don't include the symbol value.  */
+/* Values passed to md_apply_fix don't include the symbol value.  */
 #define MD_APPLY_SYM_VALUE(FIX) 0
 
 /* ELF wants external syms kept, as does PE COFF.  */
@@ -446,7 +438,8 @@ extern int tc_i386_fix_adjustable PARAMS ((struct fix *));
    || (FIX)->fx_r_type == BFD_RELOC_386_GOTPC		\
    || TC_FORCE_RELOCATION (FIX))
 
-#define md_operand(x)
+extern int i386_parse_name (char *, expressionS *, char *);
+#define md_parse_name(s, e, m, c) i386_parse_name (s, e, c)
 
 extern const struct relax_type md_relax_table[];
 #define TC_GENERIC_RELAX_TABLE md_relax_table
@@ -499,5 +492,23 @@ extern int tc_x86_regname_to_dw2regnum PARAMS ((const char *regname));
 
 #define tc_cfi_frame_initial_instructions tc_x86_frame_initial_instructions
 extern void tc_x86_frame_initial_instructions PARAMS ((void));
+
+#define md_elf_section_type(str,len) i386_elf_section_type (str, len)
+extern int i386_elf_section_type PARAMS ((const char *, size_t len));
+
+/* Support for SHF_X86_64_LARGE */
+extern int x86_64_section_word PARAMS ((char *, size_t));
+extern int x86_64_section_letter PARAMS ((int letter, char **ptr_msg));
+#define md_elf_section_letter(LETTER, PTR_MSG)	x86_64_section_letter (LETTER, PTR_MSG)
+#define md_elf_section_word(STR, LEN)		x86_64_section_word (STR, LEN)
+
+#ifdef TE_PE
+
+#define O_secrel O_md1
+
+#define TC_DWARF2_EMIT_OFFSET  tc_pe_dwarf2_emit_offset
+void tc_pe_dwarf2_emit_offset (symbolS *, unsigned int);
+
+#endif /* TE_PE */
 
 #endif /* TC_I386 */

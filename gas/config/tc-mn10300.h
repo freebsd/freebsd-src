@@ -1,5 +1,5 @@
 /* tc-mn10300.h -- Header file for tc-mn10300.c.
-   Copyright 1996, 1997, 2000, 2001, 2002, 2003
+   Copyright 1996, 1997, 2000, 2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -16,16 +16,12 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #define TC_MN10300
 
 #define TARGET_BYTES_BIG_ENDIAN 0
-
-#ifndef BFD_ASSEMBLER
- #error MN10300 support requires BFD_ASSEMBLER
-#endif
 
 #define DIFF_EXPR_OK
 #define GLOBAL_OFFSET_TABLE_NAME "_GLOBAL_OFFSET_TABLE_"
@@ -40,9 +36,10 @@
 	   && S_IS_DEFINED ((FIX)->fx_addsy)			\
 	   && ! S_IS_COMMON ((FIX)->fx_addsy))))
 
-#define md_parse_name(name, exprP, nextcharP) \
-    mn10300_parse_name ((name), (exprP), (nextcharP))
-int mn10300_parse_name PARAMS ((char const *, expressionS *, char *));
+#define md_parse_name(name, exprP, mode, nextcharP) \
+    mn10300_parse_name ((name), (exprP), (mode), (nextcharP))
+int mn10300_parse_name PARAMS ((char const *, expressionS *,
+				enum expr_mode, char *));
 
 #define TC_CONS_FIX_NEW(FRAG, OFF, LEN, EXP) \
      mn10300_cons_fix_new ((FRAG), (OFF), (LEN), (EXP))
@@ -102,8 +99,8 @@ void mn10300_cons_fix_new PARAMS ((fragS *, int, int, expressionS *));
 #define md_number_to_chars number_to_chars_littleendian
 
 /* Don't bother to adjust relocs.  */
-#define tc_fix_adjustable(FIX) 0
-/* #define tc_fix_adjustable(FIX) mn10300_fix_adjustable (FIX) */
+/* #define tc_fix_adjustable(FIX) 0 */
+#define tc_fix_adjustable(FIX) mn10300_fix_adjustable (FIX)
 extern bfd_boolean mn10300_fix_adjustable PARAMS ((struct fix *));
 
 /* We do relaxing in the assembler as well as the linker.  */

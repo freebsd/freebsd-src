@@ -186,8 +186,8 @@
 	;;
 
 // CR[IRR%] (and others)
-	mov	r0 = cr.ivr
-	mov	r1 = cr.ivr
+	mov	r2 = cr.ivr
+	mov	r3 = cr.ivr
 	;;
 	
 // CR[ISR]
@@ -441,13 +441,13 @@
 // PSR.mc (rfi is the only writer)
 // PSR.mfh
 	mov	f32 = f33
-	mov	r0 = psr
+	mov	r10 = psr
 	;;
 	ssm	(1<<5)
 	ssm	(1<<5)
 	;;
 	ssm	(1<<5)
-	mov	psr.um = r0
+	mov	psr.um = r10
 	;;
 	rum	(1<<5)
 	rum	(1<<5)
@@ -458,13 +458,13 @@
 
 // PSR.mfl
 	mov	f2 = f3
-	mov	r0 = psr
+	mov	r10 = psr
 	;;
 	ssm	(1<<4)
 	ssm	(1<<4)
 	;;
 	ssm	(1<<4)
-	mov	psr.um = r0
+	mov	psr.um = r10
 	;;
 	rum	(1<<4)
 	rum	(1<<4)

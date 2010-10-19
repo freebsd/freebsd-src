@@ -1,6 +1,6 @@
 /* call_graph.c  -  Create call graphs.
 
-   Copyright 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001, 2002, 2004 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include "gprof.h"
 #include "search_list.h"
@@ -31,10 +31,7 @@
 #include "sym_ids.h"
 
 void
-cg_tally (from_pc, self_pc, count)
-     bfd_vma from_pc;
-     bfd_vma self_pc;
-     unsigned long count;
+cg_tally (bfd_vma from_pc, bfd_vma self_pc, unsigned long count)
 {
   Sym *parent;
   Sym *child;
@@ -80,9 +77,7 @@ cg_tally (from_pc, self_pc, count)
    for formatting error-messages only.  */
 
 void
-cg_read_rec (ifp, filename)
-     FILE *ifp;
-     const char *filename;
+cg_read_rec (FILE *ifp, const char *filename)
 {
   bfd_vma from_pc, self_pc;
   unsigned int count;
@@ -109,9 +104,7 @@ cg_read_rec (ifp, filename)
    only.  */
 
 void
-cg_write_arcs (ofp, filename)
-     FILE *ofp;
-     const char *filename;
+cg_write_arcs (FILE *ofp, const char *filename)
 {
   Arc *arc;
   Sym *sym;

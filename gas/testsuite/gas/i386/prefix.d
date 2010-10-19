@@ -12,4 +12,4 @@ Disassembly of section .text:
    b:	9b df e0 [ 	]*fstsw  %ax
    e:	9b 67 df e0 [ 	]*addr16 fstsw %ax
   12:	f3 67 66 36 a7 [ 	]*repz addr16 cmpsw %es:\(%di\),%ss:\(%si\)
-	...
+#pass

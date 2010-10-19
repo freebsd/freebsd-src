@@ -1,5 +1,5 @@
 /* This file defines the interface between the sh simulator and gdb.
-   Copyright (C) 2000, 2002 Free Software Foundation, Inc.
+   Copyright (C) 2000, 2002, 2004 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -129,8 +129,17 @@ enum
   SIM_SH_R4_BANK_REGNUM,
   SIM_SH_R5_BANK_REGNUM,
   SIM_SH_R6_BANK_REGNUM,
-  SIM_SH_R7_BANK_REGNUM
-  /* 100..127: room for expansion.  */
+  SIM_SH_R7_BANK_REGNUM,
+  /* 109..127: room for expansion.  */
+  SIM_SH_TBR_REGNUM,
+  SIM_SH_IBNR_REGNUM,
+  SIM_SH_IBCR_REGNUM,
+  SIM_SH_BANK_REGNUM,
+  SIM_SH_BANK_MACL_REGNUM,
+  SIM_SH_BANK_GBR_REGNUM,
+  SIM_SH_BANK_PR_REGNUM,
+  SIM_SH_BANK_IVN_REGNUM,
+  SIM_SH_BANK_MACH_REGNUM
 };
 
 enum

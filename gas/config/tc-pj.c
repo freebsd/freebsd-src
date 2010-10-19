@@ -1,6 +1,7 @@
 /*-
    tc-pj.c -- Assemble code for Pico Java
-   Copyright 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001, 2002, 2003, 2005
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -16,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   the Free Software Foundation, 51 Franklin Street - Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 /* Contributed by Steve Chamberlain of Transmeta <sac@pobox.com>.  */
 
@@ -27,43 +28,27 @@
 
 extern const pj_opc_info_t pj_opc_info[512];
 
-const char comment_chars[] = "!/";
+const char comment_chars[]        = "!/";
 const char line_separator_chars[] = ";";
-const char line_comment_chars[] = "/!#";
+const char line_comment_chars[]   = "/!#";
 
 static int pending_reloc;
 static struct hash_control *opcode_hash_control;
 
-static void little
-  PARAMS ((int));
-static void big
-  PARAMS ((int));
-static char *parse_exp_save_ilp
-  PARAMS ((char *, expressionS *));
-static int c_to_r
-  PARAMS ((char));
-static void ipush_code
-  PARAMS ((pj_opc_info_t *, char *));
-static void fake_opcode
-  PARAMS ((const char *, void (*) (struct pj_opc_info_t *, char *)));
-static void alias
-  PARAMS ((const char *, const char *));
-
 static void
-little (ignore)
-     int ignore ATTRIBUTE_UNUSED;
+little (int ignore ATTRIBUTE_UNUSED)
 {
   target_big_endian = 0;
 }
 
 static void
-big (ignore)
-     int ignore ATTRIBUTE_UNUSED;
+big (int ignore ATTRIBUTE_UNUSED)
 {
   target_big_endian = 1;
 }
 
-const pseudo_typeS md_pseudo_table[] = {
+const pseudo_typeS md_pseudo_table[] =
+{
   {"ml",    little, 0},
   {"mb",    big,    0},
   {0, 0, 0}
@@ -73,8 +58,7 @@ const char FLT_CHARS[] = "rRsSfFdDxXpP";
 const char EXP_CHARS[] = "eE";
 
 void
-md_operand (op)
-     expressionS *op;
+md_operand (expressionS *op)
 {
   if (strncmp (input_line_pointer, "%hi16", 5) == 0)
     {
@@ -84,6 +68,7 @@ md_operand (op)
       input_line_pointer += 5;
       expression (op);
     }
+
   if (strncmp (input_line_pointer, "%lo16", 5) == 0)
     {
       if (pending_reloc)
@@ -97,11 +82,10 @@ md_operand (op)
 /* Parse an expression and then restore the input line pointer.  */
 
 static char *
-parse_exp_save_ilp (s, op)
-     char *s;
-     expressionS *op;
+parse_exp_save_ilp (char *s, expressionS *op)
 {
   char *save = input_line_pointer;
+
   input_line_pointer = s;
   expression (op);
   s = input_line_pointer;
@@ -114,11 +98,7 @@ parse_exp_save_ilp (s, op)
    we want to handle magic pending reloc expressions specially.  */
 
 void
-pj_cons_fix_new_pj (frag, where, nbytes, exp)
-     fragS *frag;
-     int where;
-     int nbytes;
-     expressionS *exp;
+pj_cons_fix_new_pj (fragS *frag, int where, int nbytes, expressionS *exp)
 {
   static int rv[5][2] =
   { { 0, 0 },
@@ -138,8 +118,7 @@ pj_cons_fix_new_pj (frag, where, nbytes, exp)
    code which BFD can handle.  */
 
 static int
-c_to_r (x)
-     char x;
+c_to_r (int x)
 {
   switch (x)
     {
@@ -166,9 +145,7 @@ c_to_r (x)
    turns ipush <foo> into sipush lo16<foo>, sethi hi16<foo>.  */
 
 static void
-ipush_code (opcode, str)
-     pj_opc_info_t *opcode ATTRIBUTE_UNUSED;
-     char *str;
+ipush_code (pj_opc_info_t *opcode ATTRIBUTE_UNUSED, char *str)
 {
   char *b = frag_more (6);
   expressionS arg;
@@ -192,11 +169,10 @@ ipush_code (opcode, str)
    not opcodes.  The fakeness is indicated with an opcode of -1.  */
 
 static void
-fake_opcode (name, func)
-     const char *name;
-     void (*func) PARAMS ((struct pj_opc_info_t *, char *));
+fake_opcode (const char *name,
+	     void (*func) (struct pj_opc_info_t *, char *))
 {
-  pj_opc_info_t *fake = (pj_opc_info_t *) xmalloc (sizeof (pj_opc_info_t));
+  pj_opc_info_t * fake = xmalloc (sizeof (pj_opc_info_t));
 
   fake->opcode = -1;
   fake->opcode_next = -1;
@@ -208,9 +184,7 @@ fake_opcode (name, func)
    can have another name.  */
 
 static void
-alias (new, old)
-     const char *new;
-     const char *old;
+alias (const char *new, const char *old)
 {
   hash_insert (opcode_hash_control, new,
 	       (char *) hash_find (opcode_hash_control, old));
@@ -221,7 +195,7 @@ alias (new, old)
    some aliases for compatibility with other assemblers.  */
 
 void
-md_begin ()
+md_begin (void)
 {
   const pj_opc_info_t *opcode;
   opcode_hash_control = hash_new ();
@@ -250,15 +224,11 @@ md_begin ()
    the frags/bytes it assembles to.  */
 
 void
-md_assemble (str)
-     char *str;
+md_assemble (char *str)
 {
-  unsigned char *op_start;
-  unsigned char *op_end;
+  char *op_start;
+  char *op_end;
 
-#if 0
-  pj_operan_info operand[3];
-#endif
   pj_opc_info_t *opcode;
   char *output;
   int idx = 0;
@@ -271,8 +241,9 @@ md_assemble (str)
     str++;
 
   /* Find the op code end.  */
-  for (op_start = op_end = (unsigned char *) (str);
-       *op_end && !is_end_of_line[*op_end] && *op_end != ' ';
+  op_start = str;
+  for (op_end = str;
+       *op_end && !is_end_of_line[*op_end & 0xff] && *op_end != ' ';
        op_end++)
     nlen++;
 
@@ -349,10 +320,7 @@ md_assemble (str)
    returned, or NULL on OK.  */
 
 char *
-md_atof (type, litP, sizeP)
-     int type;
-     char *litP;
-     int *sizeP;
+md_atof (int type, char *litP, int *sizeP)
 {
   int prec;
   LITTLENUM_TYPE words[4];
@@ -402,8 +370,8 @@ md_atof (type, litP, sizeP)
 
 const char *md_shortopts = "";
 
-struct option md_longopts[] = {
-
+struct option md_longopts[] =
+{
 #define OPTION_LITTLE (OPTION_MD_BASE)
 #define OPTION_BIG    (OPTION_LITTLE + 1)
 
@@ -414,9 +382,7 @@ struct option md_longopts[] = {
 size_t md_longopts_size = sizeof (md_longopts);
 
 int
-md_parse_option (c, arg)
-     int c;
-     char *arg ATTRIBUTE_UNUSED;
+md_parse_option (int c, char *arg ATTRIBUTE_UNUSED)
 {
   switch (c)
     {
@@ -433,8 +399,7 @@ md_parse_option (c, arg)
 }
 
 void
-md_show_usage (stream)
-     FILE *stream;
+md_show_usage (FILE *stream)
 {
   fprintf (stream, _("\
 PJ options:\n\
@@ -445,10 +410,7 @@ PJ options:\n\
 /* Apply a fixup to the object file.  */
 
 void
-md_apply_fix3 (fixP, valP, seg)
-     fixS *fixP;
-     valueT * valP;
-     segT seg ATTRIBUTE_UNUSED;
+md_apply_fix (fixS *fixP, valueT * valP, segT seg ATTRIBUTE_UNUSED)
 {
   char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
   long val = *valP;
@@ -544,10 +506,7 @@ md_apply_fix3 (fixP, valP, seg)
    executable section into big endian order.  */
 
 void
-md_number_to_chars (ptr, use, nbytes)
-     char *ptr;
-     valueT use;
-     int nbytes;
+md_number_to_chars (char *ptr, valueT use, int nbytes)
 {
   if (target_big_endian || now_seg->flags & SEC_CODE)
     number_to_chars_bigendian (ptr, use, nbytes);
@@ -559,15 +518,13 @@ md_number_to_chars (ptr, use, nbytes)
    format.  */
 
 arelent *
-tc_gen_reloc (section, fixp)
-     asection *section ATTRIBUTE_UNUSED;
-     fixS *fixp;
+tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
 {
   arelent *rel;
   bfd_reloc_code_real_type r_type;
 
-  rel = (arelent *) xmalloc (sizeof (arelent));
-  rel->sym_ptr_ptr = (asymbol **) xmalloc (sizeof (asymbol *));
+  rel = xmalloc (sizeof (arelent));
+  rel->sym_ptr_ptr = xmalloc (sizeof (asymbol *));
   *rel->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
   rel->address = fixp->fx_frag->fr_address + fixp->fx_where;
 

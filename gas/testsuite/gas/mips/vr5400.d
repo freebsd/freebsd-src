@@ -119,7 +119,7 @@ Disassembly of section \.text:
 0+01bc <stuff\+0x1bc> rzu\.ob	\$f2,0xd
 0+01c0 <stuff\+0x1c0> rach\.ob	\$f2
 0+01c4 <stuff\+0x1c4> racl\.ob	\$f2
-0+01c8 <stuff\+0x1c8> bc2f	0+04c8 <stuff\+0x4c8>
+0+01c8 <stuff\+0x1c8> racm\.ob	\$f2
 0+01cc <stuff\+0x1cc> wach\.ob	\$f2
 0+01d0 <stuff\+0x1d0> wacl\.ob	\$f2,\$f4
 0+01d4 <stuff\+0x1d4> rorv	a0,a1,a2

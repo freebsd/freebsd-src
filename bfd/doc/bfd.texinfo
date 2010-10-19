@@ -1,22 +1,9 @@
 \input texinfo.tex
 @setfilename bfd.info
-@c Copyright 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1997, 2000, 2003
+@c Copyright 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1997, 2000,
+@c 2001, 2002, 2003
 @c Free Software Foundation, Inc.
 @c 
-@tex
-% NOTE LOCAL KLUGE TO AVOID TOO MUCH WHITESPACE
-\global\long\def\example{%
-\begingroup
-\let\aboveenvbreak=\par
-\let\afterenvbreak=\par
-\parskip=0pt
-\lisp}
-\global\long\def\Eexample{%
-\Elisp
-\endgroup
-\vskip -\parskip% to cancel out effect of following \par
-}
-@end tex
 @synindex fn cp
 
 @ifinfo

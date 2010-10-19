@@ -23,7 +23,7 @@ CTOR=".ctors ${CONSTRUCTING-0} :
     KEEP (*crtbegin*.o(.ctors))
 
     /* We don't want to include the .ctor section from
-       from the crtend.o file until after the sorted ctors.
+       the crtend.o file until after the sorted ctors.
        The .ctor section from the crtend file contains the
        end of ctors marker and it must be last */
 

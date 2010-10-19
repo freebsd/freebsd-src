@@ -1,6 +1,7 @@
 	.data
 	.global expobj
 	.type	expobj,@object
+	.size	expobj,4
 expobj:
 	.dword 0
 

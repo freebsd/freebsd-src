@@ -1,19 +1,20 @@
 /* Print DEC PDP-11 instructions.
-   Copyright 2001, 2002 Free Software Foundation, Inc.
+   Copyright 2001, 2002, 2004, 2005 Free Software Foundation, Inc.
 
-This file is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This file is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 #include "sysdep.h"
 #include "dis-asm.h"
@@ -22,31 +23,17 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define AFTER_INSTRUCTION	"\t"
 #define OPERAND_SEPARATOR	", "
 
-#define JUMP	0x1000	/* flag that this operand is used in a jump */
+#define JUMP	0x1000	/* Flag that this operand is used in a jump.  */
 
 #define FPRINTF	(*info->fprintf_func)
 #define F	info->stream
 
-/* sign-extend a 16-bit number in an int */
+/* Sign-extend a 16-bit number in an int.  */
 #define SIGN_BITS	(8 * sizeof (int) - 16)
 #define sign_extend(x) (((x) << SIGN_BITS) >> SIGN_BITS)
 
-static int read_word PARAMS ((bfd_vma memaddr, int *word,
-			      disassemble_info *info));
-static void print_signed_octal PARAMS ((int n, disassemble_info *info));
-static void print_reg PARAMS ((int reg, disassemble_info *info));
-static void print_freg PARAMS ((int freg, disassemble_info *info));
-static int print_operand PARAMS ((bfd_vma *memaddr, int code,
-				  disassemble_info *info));
-static int print_foperand PARAMS ((bfd_vma *memaddr, int code,
-                                   disassemble_info *info));
-int print_insn_pdp11 PARAMS ((bfd_vma memaddr, disassemble_info *info));
-
 static int
-read_word (memaddr, word, info)
-     bfd_vma memaddr;
-     int *word;
-     disassemble_info *info;
+read_word (bfd_vma memaddr, int *word, disassemble_info *info)
 {
   int status;
   bfd_byte x[2];
@@ -60,9 +47,7 @@ read_word (memaddr, word, info)
 }
 
 static void
-print_signed_octal (n, info)
-     int n;
-     disassemble_info *info;
+print_signed_octal (int n, disassemble_info *info)
 {
   if (n < 0)
     FPRINTF (F, "-%o", -n);
@@ -71,11 +56,9 @@ print_signed_octal (n, info)
 }
 
 static void
-print_reg (reg, info)
-     int reg;
-     disassemble_info *info;
+print_reg (int reg, disassemble_info *info)
 {
-  /* mask off the addressing mode, if any */
+  /* Mask off the addressing mode, if any.  */
   reg &= 7;
 
   switch (reg)
@@ -89,18 +72,13 @@ print_reg (reg, info)
 }
 
 static void
-print_freg (freg, info)
-     int freg;
-     disassemble_info *info;
+print_freg (int freg, disassemble_info *info)
 {
   FPRINTF (F, "fr%d", freg);
 }
 
 static int
-print_operand (memaddr, code, info)
-     bfd_vma *memaddr;
-     int code;
-     disassemble_info *info;
+print_operand (bfd_vma *memaddr, int code, disassemble_info *info)
 {
   int mode = (code >> 3) & 7;
   int reg = code & 7;
@@ -120,6 +98,7 @@ print_operand (memaddr, code, info)
       if (reg == 7)
 	{
 	  int data;
+
 	  if (read_word (*memaddr, &data, info) < 0)
 	    return -1;
 	  FPRINTF (F, "$");
@@ -137,6 +116,7 @@ print_operand (memaddr, code, info)
       if (reg == 7)
 	{
 	  int address;
+
 	  if (read_word (*memaddr, &address, info) < 0)
 	    return -1;
 	  FPRINTF (F, "*$%o", address);
@@ -167,6 +147,7 @@ print_operand (memaddr, code, info)
       if (reg == 7)
 	{
 	  bfd_vma address = *memaddr + sign_extend (disp);
+
 	  if (mode == 7)
 	    FPRINTF (F, "*");
 	  if (!(code & JUMP))
@@ -189,10 +170,7 @@ print_operand (memaddr, code, info)
 }
 
 static int
-print_foperand (memaddr, code, info)
-     bfd_vma *memaddr;
-     int code;
-     disassemble_info *info;
+print_foperand (bfd_vma *memaddr, int code, disassemble_info *info)
 {
   int mode = (code >> 3) & 7;
   int reg = code & 7;
@@ -209,9 +187,7 @@ print_foperand (memaddr, code, info)
    on INFO->STREAM.  Returns length of the instruction, in bytes.  */
 
 int
-print_insn_pdp11 (memaddr, info)
-     bfd_vma memaddr;
-     disassemble_info *info;
+print_insn_pdp11 (bfd_vma memaddr, disassemble_info *info)
 {
   bfd_vma start_memaddr = memaddr;
   int opcode;
@@ -342,7 +318,8 @@ print_insn_pdp11 (memaddr, info)
 	  case PDP11_OPCODE_REG_DISPL:
 	    {
 	      int displ = (opcode & 0x3f) << 10;
-	      bfd_vma address = memaddr + (sign_extend (displ) >> 9);
+	      bfd_vma address = memaddr - (displ >> 9);
+
 	      FPRINTF (F, OP.name);
 	      FPRINTF (F, AFTER_INSTRUCTION);
 	      print_reg (src, info);

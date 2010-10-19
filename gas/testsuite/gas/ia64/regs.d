@@ -1,3 +1,4 @@
+#as: -xnone
 #objdump: -d
 #name: ia64 regs
 
@@ -1264,8 +1265,8 @@ Disassembly of section \.text:
     1a26:	00 00 00 02 00 00 	            nop\.i 0x0
     1a2c:	00 00 04 00       	            nop\.i 0x0;;
     1a30:	01 08 00 00 00 21 	\[MII\]       mov r1=r0
-    1a36:	c0 00 00 00 42 00 	            mov r12=r0
-    1a3c:	00 00 04 00       	            nop\.i 0x0;;
+    1a36:	c0 00 00 00 42 a0 	            mov r12=r0
+    1a3c:	01 00 00 84       	            mov r13=r0;;
     1a40:	0d 00 00 00 01 00 	\[MFI\]       nop\.m 0x0
     1a46:	20 00 00 20 00 00 	            mov f2=f0
     1a4c:	00 00 04 00       	            nop\.i 0x0;;
@@ -2041,53 +2042,53 @@ Disassembly of section \.text:
     2a56:	00 00 00 02 00 20 	            nop\.m 0x0
     2a5c:	00 10 ca 00       	            mov\.i r1=ar\.ec;;
     2a60:	09 00 00 00 01 00 	\[MMI\]       nop\.m 0x0
-    2a66:	00 00 00 02 00 20 	            nop\.m 0x0
-    2a6c:	00 80 cb 00       	            mov\.i r1=ar112;;
+    2a66:	10 00 c0 45 08 00 	            mov\.m r1=ar112
+    2a6c:	00 00 04 00       	            nop\.i 0x0;;
     2a70:	09 00 00 00 01 00 	\[MMI\]       nop\.m 0x0
-    2a76:	00 00 00 02 00 20 	            nop\.m 0x0
-    2a7c:	00 88 cb 00       	            mov\.i r1=ar113;;
+    2a76:	10 00 c4 45 08 00 	            mov\.m r1=ar113
+    2a7c:	00 00 04 00       	            nop\.i 0x0;;
     2a80:	09 00 00 00 01 00 	\[MMI\]       nop\.m 0x0
-    2a86:	00 00 00 02 00 20 	            nop\.m 0x0
-    2a8c:	00 90 cb 00       	            mov\.i r1=ar114;;
+    2a86:	10 00 c8 45 08 00 	            mov\.m r1=ar114
+    2a8c:	00 00 04 00       	            nop\.i 0x0;;
     2a90:	09 00 00 00 01 00 	\[MMI\]       nop\.m 0x0
-    2a96:	00 00 00 02 00 20 	            nop\.m 0x0
-    2a9c:	00 98 cb 00       	            mov\.i r1=ar115;;
+    2a96:	10 00 cc 45 08 00 	            mov\.m r1=ar115
+    2a9c:	00 00 04 00       	            nop\.i 0x0;;
     2aa0:	09 00 00 00 01 00 	\[MMI\]       nop\.m 0x0
-    2aa6:	00 00 00 02 00 20 	            nop\.m 0x0
-    2aac:	00 a0 cb 00       	            mov\.i r1=ar116;;
+    2aa6:	10 00 d0 45 08 00 	            mov\.m r1=ar116
+    2aac:	00 00 04 00       	            nop\.i 0x0;;
     2ab0:	09 00 00 00 01 00 	\[MMI\]       nop\.m 0x0
-    2ab6:	00 00 00 02 00 20 	            nop\.m 0x0
-    2abc:	00 a8 cb 00       	            mov\.i r1=ar117;;
+    2ab6:	10 00 d4 45 08 00 	            mov\.m r1=ar117
+    2abc:	00 00 04 00       	            nop\.i 0x0;;
     2ac0:	09 00 00 00 01 00 	\[MMI\]       nop\.m 0x0
-    2ac6:	00 00 00 02 00 20 	            nop\.m 0x0
-    2acc:	00 b0 cb 00       	            mov\.i r1=ar118;;
+    2ac6:	10 00 d8 45 08 00 	            mov\.m r1=ar118
+    2acc:	00 00 04 00       	            nop\.i 0x0;;
     2ad0:	09 00 00 00 01 00 	\[MMI\]       nop\.m 0x0
-    2ad6:	00 00 00 02 00 20 	            nop\.m 0x0
-    2adc:	00 b8 cb 00       	            mov\.i r1=ar119;;
+    2ad6:	10 00 dc 45 08 00 	            mov\.m r1=ar119
+    2adc:	00 00 04 00       	            nop\.i 0x0;;
     2ae0:	09 00 00 00 01 00 	\[MMI\]       nop\.m 0x0
-    2ae6:	00 00 00 02 00 20 	            nop\.m 0x0
-    2aec:	00 c0 cb 00       	            mov\.i r1=ar120;;
+    2ae6:	10 00 e0 45 08 00 	            mov\.m r1=ar120
+    2aec:	00 00 04 00       	            nop\.i 0x0;;
     2af0:	09 00 00 00 01 00 	\[MMI\]       nop\.m 0x0
-    2af6:	00 00 00 02 00 20 	            nop\.m 0x0
-    2afc:	00 c8 cb 00       	            mov\.i r1=ar121;;
+    2af6:	10 00 e4 45 08 00 	            mov\.m r1=ar121
+    2afc:	00 00 04 00       	            nop\.i 0x0;;
     2b00:	09 00 00 00 01 00 	\[MMI\]       nop\.m 0x0
-    2b06:	00 00 00 02 00 20 	            nop\.m 0x0
-    2b0c:	00 d0 cb 00       	            mov\.i r1=ar122;;
+    2b06:	10 00 e8 45 08 00 	            mov\.m r1=ar122
+    2b0c:	00 00 04 00       	            nop\.i 0x0;;
     2b10:	09 00 00 00 01 00 	\[MMI\]       nop\.m 0x0
-    2b16:	00 00 00 02 00 20 	            nop\.m 0x0
-    2b1c:	00 d8 cb 00       	            mov\.i r1=ar123;;
+    2b16:	10 00 ec 45 08 00 	            mov\.m r1=ar123
+    2b1c:	00 00 04 00       	            nop\.i 0x0;;
     2b20:	09 00 00 00 01 00 	\[MMI\]       nop\.m 0x0
-    2b26:	00 00 00 02 00 20 	            nop\.m 0x0
-    2b2c:	00 e0 cb 00       	            mov\.i r1=ar124;;
+    2b26:	10 00 f0 45 08 00 	            mov\.m r1=ar124
+    2b2c:	00 00 04 00       	            nop\.i 0x0;;
     2b30:	09 00 00 00 01 00 	\[MMI\]       nop\.m 0x0
-    2b36:	00 00 00 02 00 20 	            nop\.m 0x0
-    2b3c:	00 e8 cb 00       	            mov\.i r1=ar125;;
+    2b36:	10 00 f4 45 08 00 	            mov\.m r1=ar125
+    2b3c:	00 00 04 00       	            nop\.i 0x0;;
     2b40:	09 00 00 00 01 00 	\[MMI\]       nop\.m 0x0
-    2b46:	00 00 00 02 00 20 	            nop\.m 0x0
-    2b4c:	00 f0 cb 00       	            mov\.i r1=ar126;;
+    2b46:	10 00 f8 45 08 00 	            mov\.m r1=ar126
+    2b4c:	00 00 04 00       	            nop\.i 0x0;;
     2b50:	09 00 00 00 01 00 	\[MMI\]       nop\.m 0x0
-    2b56:	00 00 00 02 00 20 	            nop\.m 0x0
-    2b5c:	00 f8 cb 00       	            mov\.i r1=ar127;;
+    2b56:	10 00 fc 45 08 00 	            mov\.m r1=ar127
+    2b5c:	00 00 04 00       	            nop\.i 0x0;;
     2b60:	09 00 00 00 01 00 	\[MMI\]       nop\.m 0x0
     2b66:	10 00 00 44 08 00 	            mov\.m r1=ar\.k0
     2b6c:	00 00 04 00       	            nop\.i 0x0;;

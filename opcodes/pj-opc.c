@@ -1,21 +1,20 @@
 /* pj-opc.c -- Definitions for picoJava opcodes.
-   Copyright 1999, 2000, 2002 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2002, 2003 Free Software Foundation, Inc.
    Contributed by Steve Chamberlain of Transmeta (sac@pobox.com).
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
-
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "sysdep.h"
 #include "opcode/pj.h"
@@ -190,8 +189,8 @@ const pj_opc_info_t pj_opc_info[512] =
 { 0xa5,   -1, 3, {O_R16, O_N}, {"if_acmpeq"}},
 { 0xa6,   -1, 3, {O_R16, O_N}, {"if_acmpne"}},
 { 0xa7,   -1, 3, {O_R16, O_N}, {"goto"}},
-{ 0xa8,   -1, 3, {O_N, O_N}, {"jsr"}},
-{ 0xa9,   -1, 2, {O_N, O_N}, {"ret"}},
+{ 0xa8,   -1, 3, {O_R16, O_N}, {"jsr"}},
+{ 0xa9,   -1, 2, {O_U8, O_N}, {"ret"}},
 { 0xaa,   -1, 1, {O_N, O_N}, {"tableswitch"}},
 { 0xab,   -1, 1, {O_N, O_N}, {"lookupswitch"}},
 { 0xac,   -1, 1, {O_N, O_N}, {"ireturn"}},
@@ -200,14 +199,14 @@ const pj_opc_info_t pj_opc_info[512] =
 { 0xaf,   -1, 1, {O_N, O_N}, {"dreturn"}},
 { 0xb0,   -1, 1, {O_N, O_N}, {"areturn"}},
 { 0xb1,   -1, 1, {O_N, O_N}, {"return"}},
-{ 0xb2,   -1, 3, {O_N, O_N}, {"getstatic"}},
-{ 0xb3,   -1, 3, {O_N, O_N}, {"putstatic"}},
-{ 0xb4,   -1, 3, {O_N, O_N}, {"getfield"}},
-{ 0xb5,   -1, 3, {O_N, O_N}, {"putfield"}},
-{ 0xb6,   -1, 3, {O_N, O_N}, {"invokevirtual"}},
-{ 0xb7,   -1, 3, {O_N, O_N}, {"invokespecial"}},
-{ 0xb8,   -1, 3, {O_N, O_N}, {"invokestatic"}},
-{ 0xb9,   -1, 5, {O_N, O_N}, {"invokeinterface"}},
+{ 0xb2,   -1, 3, {O_U16, O_N}, {"getstatic"}},
+{ 0xb3,   -1, 3, {O_U16, O_N}, {"putstatic"}},
+{ 0xb4,   -1, 3, {O_U16, O_N}, {"getfield"}},
+{ 0xb5,   -1, 3, {O_U16, O_N}, {"putfield"}},
+{ 0xb6,   -1, 3, {O_U16, O_N}, {"invokevirtual"}},
+{ 0xb7,   -1, 3, {O_U16, O_N}, {"invokespecial"}},
+{ 0xb8,   -1, 3, {O_U16, O_N}, {"invokestatic"}},
+{ 0xb9,   -1, 5, {O_U16, O_U8}, {"invokeinterface"}},
 { 0xba,   -1, 1, {O_N, O_N}, {"bad_ba"}},
 { 0xbb,   -1, 3, {O_N, O_N}, {"new"}},
 { 0xbc,   -1, 2, {O_N, O_N}, {"newarray"}},
@@ -222,43 +221,43 @@ const pj_opc_info_t pj_opc_info[512] =
 { 0xc5,   -1, 4, {O_N, O_N}, {"multianewarray"}},
 { 0xc6,   -1, 3, {O_N, O_N}, {"ifnull"}},
 { 0xc7,   -1, 3, {O_N, O_N}, {"ifnonnull"}},
-{ 0xc8,   -1, 5, {O_N, O_N}, {"goto_w"}},
-{ 0xc9,   -1, 5, {O_N, O_N}, {"jsr_w"}},
-{ 0xca,   -1, 1, {O_N, O_N}, {"breakpoint"}},
-{ 0xcb,   -1, 1, {O_N, O_N}, {"bytecode"}},
-{ 0xcc,   -1, 1, {O_N, O_N}, {"try"}},
-{ 0xcd,   -1, 1, {O_N, O_N}, {"endtry"}},
-{ 0xce,   -1, 1, {O_N, O_N}, {"catch"}},
-{ 0xcf,   -1, 1, {O_N, O_N}, {"var"}},
-{ 0xd0,   -1, 1, {O_N, O_N}, {"endvar"}},
-{ 0xd1,   -1, 1, {O_N, O_N}, {"bad_d1"}},
-{ 0xd2,   -1, 1, {O_N, O_N}, {"bad_d2"}},
-{ 0xd3,   -1, 1, {O_N, O_N}, {"bad_d3"}},
-{ 0xd4,   -1, 1, {O_N, O_N}, {"bad_d4"}},
-{ 0xd5,   -1, 1, {O_N, O_N}, {"bad_d5"}},
-{ 0xd6,   -1, 1, {O_N, O_N}, {"bad_d6"}},
-{ 0xd7,   -1, 1, {O_N, O_N}, {"bad_d7"}},
-{ 0xd8,   -1, 1, {O_N, O_N}, {"bad_d8"}},
-{ 0xd9,   -1, 1, {O_N, O_N}, {"bad_d9"}},
-{ 0xda,   -1, 1, {O_N, O_N}, {"bad_da"}},
+{ 0xc8,   -1, 5, {O_R32, O_N}, {"goto_w"}},
+{ 0xc9,   -1, 5, {O_R32, O_N}, {"jsr_w"}},
+{ 0xca,   -1, 3, {O_N, O_N}, {"breakpoint"}},
+{ 0xcb,   -1, 2, {O_U8, O_N}, {"ldc_quick"}},
+{ 0xcc,   -1, 3, {O_U16, O_N}, {"ldc_w_quick"}},
+{ 0xcd,   -1, 3, {O_U16, O_N}, {"ldc2_w_quick"}},
+{ 0xce,   -1, 3, {O_U16, O_N}, {"getfield_quick"}},
+{ 0xcf,   -1, 3, {O_U16, O_N}, {"putfield_quick"}},
+{ 0xd0,   -1, 3, {O_U16, O_N}, {"getfield2_quick"}},
+{ 0xd1,   -1, 3, {O_U16, O_N}, {"putfield2_quick"}},
+{ 0xd2,   -1, 3, {O_U16, O_N}, {"getstatic_quick"}},
+{ 0xd3,   -1, 3, {O_U16, O_N}, {"putstatic_quick"}},
+{ 0xd4,   -1, 3, {O_U16, O_N}, {"getstatic2_quick"}},
+{ 0xd5,   -1, 3, {O_U16, O_N}, {"putstatic2_quick"}},
+{ 0xd6,   -1, 3, {O_U16, O_N}, {"invokevirtual_quick"}},
+{ 0xd7,   -1, 3, {O_U16, O_N}, {"invokenonvirtual_quick"}},
+{ 0xd8,   -1, 3, {O_U16, O_N}, {"invokesuper_quick"}},
+{ 0xd9,   -1, 3, {O_U16, O_N}, {"invokestatic_quick"}},
+{ 0xda,   -1, 3, {O_U16, O_N}, {"invokeinterface_quick"}},
 { 0xdb,   -1, 1, {O_N, O_N}, {"bad_db"}},
-{ 0xdc,   -1, 1, {O_N, O_N}, {"bad_dc"}},
-{ 0xdd,   -1, 1, {O_N, O_N}, {"bad_dd"}},
-{ 0xde,   -1, 1, {O_N, O_N}, {"bad_de"}},
-{ 0xdf,   -1, 1, {O_N, O_N}, {"bad_df"}},
-{ 0xe0,   -1, 1, {O_N, O_N}, {"bad_e0"}},
-{ 0xe1,   -1, 1, {O_N, O_N}, {"bad_e1"}},
-{ 0xe2,   -1, 1, {O_N, O_N}, {"bad_e2"}},
-{ 0xe3,   -1, 1, {O_N, O_N}, {"bad_e3"}},
-{ 0xe4,   -1, 1, {O_N, O_N}, {"bad_e4"}},
-{ 0xe5,   -1, 1, {O_N, O_N}, {"bad_e5"}},
-{ 0xe6,   -1, 1, {O_N, O_N}, {"bad_e6"}},
-{ 0xe7,   -1, 1, {O_N, O_N}, {"bad_e7"}},
-{ 0xe8,   -1, 1, {O_N, O_N}, {"bad_e8"}},
-{ 0xe9,   -1, 1, {O_N, O_N}, {"bad_e9"}},
-{ 0xea,   -1, 1, {O_N, O_N}, {"bad_ea"}},
-{ 0xeb,   -1, 1, {O_N, O_N}, {"bad_eb"}},
-{ 0xec,   -1, 1, {O_N, O_N}, {"bad_ec"}},
+{ 0xdc,   -1, 1, {O_N, O_N}, {"aastore_quick"}},
+{ 0xdd,   -1, 3, {O_U16, O_N}, {"new_quick"}},
+{ 0xde,   -1, 3, {O_U16, O_N}, {"anewarray_quick"}},
+{ 0xdf,   -1, 3, {O_U16, O_N}, {"multianewarray_quick"}},
+{ 0xe0,   -1, 3, {O_U16, O_N}, {"checkcast_quick"}},
+{ 0xe1,   -1, 3, {O_U16, O_N}, {"instanceof_quick"}},
+{ 0xe2,   -1, 3, {O_U16, O_N}, {"invokevirtiual_quick_w"}},
+{ 0xe3,   -1, 3, {O_U16, O_N}, {"getfield_quick_w"}},
+{ 0xe4,   -1, 3, {O_U16, O_N}, {"putfield_quick_w"}},
+{ 0xe5,   -1, 1, {O_N, O_N}, {"nonnull_quick"}},
+{ 0xe6,   -1, 3, {O_U16, O_N}, {"agetfield_quick"}},
+{ 0xe7,   -1, 3, {O_U16, O_N}, {"aputfield_quick"}},
+{ 0xe8,   -1, 3, {O_U16, O_N}, {"agetstatic_quick"}},
+{ 0xe9,   -1, 3, {O_U16, O_N}, {"aputstatic_quick"}},
+{ 0xea,   -1, 2, {O_U8, O_N}, {"aldc_quick"}},
+{ 0xeb,   -1, 3, {O_U16, O_N}, {"aldc_w_quick"}},
+{ 0xec,   -1, 1, {O_N, O_N}, {"exit_sync_method"}},
 { 0xed,   -1, 3, {O_16, O_N}, {"sethi"}},
 { 0xee,   -1, 3, {O_U8, O_8}, {"load_word_index"}},
 { 0xef,   -1, 3, {O_U8, O_8}, {"load_short_index"}},
@@ -277,6 +276,7 @@ const pj_opc_info_t pj_opc_info[512] =
 { 0xfc,   -1, 1, {O_N, O_N}, {"bad_fc"}},
 { 0xfd,   -1, 1, {O_N, O_N}, {"bad_fd"}},
 { 0xfe,   -1, 1, {O_N, O_N}, {"bad_fe"}},
+
 { 0xff, 0x00, 2, {O_N, O_N}, {"load_ubyte"}},
 { 0xff, 0x01, 2, {O_N, O_N}, {"load_byte"}},
 { 0xff, 0x02, 2, {O_N, O_N}, {"load_char"}},
@@ -451,10 +451,10 @@ const pj_opc_info_t pj_opc_info[512] =
 { 0xff, 0xab, 2, {O_N, O_N}, {"bad"}},
 { 0xff, 0xac, 2, {O_N, O_N}, {"bad"}},
 { 0xff, 0xad, 2, {O_N, O_N}, {"bad"}},
-{ 0xff, 0xae, 2, {O_N, O_N}, {"tm_putchar"}},
-{ 0xff, 0xaf, 2, {O_N, O_N}, {"tm_exit"}},
-{ 0xff, 0xb0, 2, {O_N, O_N}, {"tm_trap"}},
-{ 0xff, 0xb1, 2, {O_N, O_N}, {"tm_minfo"}},
+{ 0xff, 0xae, 2, {O_N, O_N}, {"bad"}},	/*LM_FIXED*/
+{ 0xff, 0xaf, 2, {O_N, O_N}, {"bad"}},	/*LM_FIXED*/
+{ 0xff, 0xb0, 2, {O_N, O_N}, {"bad"}},	/*LM_FIXED*/
+{ 0xff, 0xb1, 2, {O_N, O_N}, {"bad"}},	/*LM_FIXED*/
 { 0xff, 0xb2, 2, {O_N, O_N}, {"bad"}},
 { 0xff, 0xb3, 2, {O_N, O_N}, {"bad"}},
 { 0xff, 0xb4, 2, {O_N, O_N}, {"bad"}},

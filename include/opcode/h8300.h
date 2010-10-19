@@ -1,5 +1,6 @@
 /* Opcode table for the H8/300
-   Copyright 1991, 1992, 1993, 1994, 1996, 1997, 1998, 2000, 2002, 2003, 2004
+   Copyright 1991, 1992, 1993, 1994, 1996, 1997, 1998, 2000, 2001, 2002,
+   2003, 2004
    Free Software Foundation, Inc.
    Written by Steve Chamberlain <sac@cygnus.com>.
    
@@ -17,8 +18,8 @@
    
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* Instructions are stored as a sequence of nibbles.
    If the nibble has value 15 or less than the representation is complete.
@@ -1418,7 +1419,7 @@ struct h8_opcode h8_opcodes[] =
   {O (O_JSR, SN), AV_H8SX, 0, "jsr", {{ABSJMP | L_32, E}}, {{0x5, 0xD, 0x0, 0x8, ABSJMP | L_32, DATA7, E}}},
 
   {O (O_JSR, SN), AV_H8,   8, "jsr", {{MEMIND, E}}, {{0x5, 0xF, SRC | MEMIND, DATA, E}}},
-  {O (O_JSR, SN), AV_H8,   8, "jsr", {{VECIND, E}}, {{0x5, 0xD, SRC | VECIND, DATA, E}}},
+  {O (O_JSR, SN), AV_H8SX, 8, "jsr", {{VECIND, E}}, {{0x5, 0xD, SRC | VECIND, DATA, E}}},
 
   {O (O_LDC, SB), AV_H8,   2, "ldc", {{IMM8,       CCR     | DST, E}}, {{                           0x0, 0x7, IMM8LIST, E}}},
   {O (O_LDC, SB), AV_H8S,  2, "ldc", {{IMM8,       EXR     | DST, E}}, {{0x0, 0x1, 0x4,  EXR | DST, 0x0, 0x7, IMM8LIST, E}}},

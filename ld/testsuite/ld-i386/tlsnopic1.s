@@ -1,4 +1,4 @@
-	.data
+	.section ".data.rel.ro", "aw", @progbits
 	/* Align, so that .got is likely at address 0x2080.  */
 	.balign	4096
 	.section ".tbss", "awT", @nobits

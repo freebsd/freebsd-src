@@ -1,6 +1,6 @@
 /* vms-tir.c -- BFD back-end for VAX (openVMS/VAX) and
    EVAX (openVMS/Alpha) files.
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2004, 2005
    Free Software Foundation, Inc.
 
    TIR record handling functions
@@ -23,7 +23,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* The following type abbreviations are used:
 
@@ -38,62 +38,15 @@
 #include "sysdep.h"
 #include "bfdlink.h"
 #include "libbfd.h"
-
 #include "vms.h"
-
-static void image_set_ptr
-  PARAMS ((bfd *abfd, int psect, uquad offset));
-static void image_inc_ptr
-  PARAMS ((bfd *abfd, uquad offset));
-static void image_dump
-  PARAMS ((bfd *abfd, unsigned char *ptr, int size, int offset));
-static void image_write_b
-  PARAMS ((bfd *abfd, unsigned int value));
-static void image_write_w
-  PARAMS ((bfd *abfd, unsigned int value));
-static void image_write_l
-  PARAMS ((bfd *abfd, unsigned long value));
-static void image_write_q
-  PARAMS ((bfd *abfd, uquad value));
-static int check_section
-  PARAMS ((bfd *, int));
-static bfd_boolean etir_sta
-  PARAMS ((bfd *, int, unsigned char *));
-static bfd_boolean etir_sto
-  PARAMS ((bfd *, int, unsigned char *));
-static bfd_boolean etir_opr
-  PARAMS ((bfd *, int, unsigned char *));
-static bfd_boolean etir_ctl
-  PARAMS ((bfd *, int, unsigned char *));
-static bfd_boolean etir_stc
-  PARAMS ((bfd *, int, unsigned char *));
-static asection *new_section
-  PARAMS ((bfd *, int));
-static int alloc_section
-  PARAMS ((bfd *, unsigned int));
-static int etir_cmd
-  PARAMS ((bfd *, int, unsigned char *));
-static int analyze_tir
-  PARAMS ((bfd *, unsigned char *, unsigned int));
-static int analyze_etir
-  PARAMS ((bfd *, unsigned char *, unsigned int));
-static unsigned char * tir_opr
-  PARAMS ((bfd *, unsigned char *));
-static const char * tir_cmd_name
-  PARAMS ((int));
-static const char * cmd_name
-  PARAMS ((int));
-
 
 static int
-check_section (abfd, size)
-     bfd *abfd;
-     int size;
+check_section (bfd * abfd, int size)
 {
   bfd_size_type offset;
 
   offset = PRIV (image_ptr) - PRIV (image_section)->contents;
-  if (offset + size > PRIV (image_section)->_raw_size)
+  if (offset + size > PRIV (image_section)->size)
     {
       PRIV (image_section)->contents
 	= bfd_realloc (PRIV (image_section)->contents, offset + size);
@@ -102,7 +55,7 @@ check_section (abfd, size)
 	  (*_bfd_error_handler) (_("No Mem !"));
 	  return -1;
 	}
-      PRIV (image_section)->_raw_size = offset + size;
+      PRIV (image_section)->size = offset + size;
       PRIV (image_ptr) = PRIV (image_section)->contents + offset;
     }
 
@@ -114,10 +67,7 @@ check_section (abfd, size)
 /* Initialize image buffer pointer to be filled.  */
 
 static void
-image_set_ptr (abfd, psect, offset)
-     bfd *abfd;
-     int psect;
-     uquad offset;
+image_set_ptr (bfd * abfd, int psect, uquad offset)
 {
 #if VMS_DEBUG
   _bfd_vms_debug (4, "image_set_ptr (%d=%s, %d)\n",
@@ -126,33 +76,27 @@ image_set_ptr (abfd, psect, offset)
 
   PRIV (image_ptr) = PRIV (sections)[psect]->contents + offset;
   PRIV (image_section) = PRIV (sections)[psect];
-  return;
 }
 
 /* Increment image buffer pointer by offset.  */
 
 static void
-image_inc_ptr (abfd, offset)
-     bfd *abfd;
-     uquad offset;
+image_inc_ptr (bfd * abfd, uquad offset)
 {
 #if VMS_DEBUG
   _bfd_vms_debug (4, "image_inc_ptr (%d)\n", offset);
 #endif
 
   PRIV (image_ptr) += offset;
-
-  return;
 }
 
 /* Dump multiple bytes to section image.  */
 
 static void
-image_dump (abfd, ptr, size, offset)
-    bfd *abfd;
-    unsigned char *ptr;
-    int size;
-    int offset ATTRIBUTE_UNUSED;
+image_dump (bfd * abfd,
+	    unsigned char *ptr,
+	    int size,
+	    int offset ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
   _bfd_vms_debug (8, "image_dump from (%p, %d) to (%p)\n", ptr, size,
@@ -165,36 +109,30 @@ image_dump (abfd, ptr, size, offset)
 
   while (size-- > 0)
     *PRIV (image_ptr)++ = *ptr++;
-  return;
 }
 
 /* Write byte to section image.  */
 
 static void
-image_write_b (abfd, value)
-     bfd *abfd;
-     unsigned int value;
+image_write_b (bfd * abfd, unsigned int value)
 {
 #if VMS_DEBUG
-  _bfd_vms_debug (6, "image_write_b(%02x)\n", (int) value);
+  _bfd_vms_debug (6, "image_write_b (%02x)\n", (int) value);
 #endif
 
   if (PRIV (is_vax) && check_section (abfd, 1))
     return;
 
   *PRIV (image_ptr)++ = (value & 0xff);
-  return;
 }
 
 /* Write 2-byte word to image.  */
 
 static void
-image_write_w (abfd, value)
-     bfd *abfd;
-     unsigned int value;
+image_write_w (bfd * abfd, unsigned int value)
 {
 #if VMS_DEBUG
-  _bfd_vms_debug (6, "image_write_w(%04x)\n", (int) value);
+  _bfd_vms_debug (6, "image_write_w (%04x)\n", (int) value);
 #endif
 
   if (PRIV (is_vax) && check_section (abfd, 2))
@@ -202,16 +140,12 @@ image_write_w (abfd, value)
 
   bfd_putl16 ((bfd_vma) value, PRIV (image_ptr));
   PRIV (image_ptr) += 2;
-
-  return;
 }
 
 /* Write 4-byte long to image.  */
 
 static void
-image_write_l (abfd, value)
-     bfd *abfd;
-     unsigned long value;
+image_write_l (bfd * abfd, unsigned long value)
 {
 #if VMS_DEBUG
   _bfd_vms_debug (6, "image_write_l (%08lx)\n", value);
@@ -222,16 +156,12 @@ image_write_l (abfd, value)
 
   bfd_putl32 ((bfd_vma) value, PRIV (image_ptr));
   PRIV (image_ptr) += 4;
-
-  return;
 }
 
 /* Write 8-byte quad to image.  */
 
 static void
-image_write_q (abfd, value)
-     bfd *abfd;
-     uquad value;
+image_write_q (bfd * abfd, uquad value)
 {
 #if VMS_DEBUG
   _bfd_vms_debug (6, "image_write_q (%016lx)\n", value);
@@ -242,13 +172,10 @@ image_write_q (abfd, value)
 
   bfd_putl64 (value, PRIV (image_ptr));
   PRIV (image_ptr) += 8;
-
-  return;
 }
 
 static const char *
-cmd_name (cmd)
-     int cmd;
+cmd_name (int cmd)
 {
   switch (cmd)
     {
@@ -304,12 +231,8 @@ cmd_name (cmd)
    see table B-8 of the openVMS linker manual.  */
 
 static bfd_boolean
-etir_sta (abfd, cmd, ptr)
-     bfd *abfd;
-     int cmd;
-     unsigned char *ptr;
+etir_sta (bfd * abfd, int cmd, unsigned char *ptr)
 {
-
 #if VMS_DEBUG
   _bfd_vms_debug (5, "etir_sta %d/%x\n", cmd, cmd);
   _bfd_hexdump (8, ptr, 16, (int) ptr);
@@ -317,13 +240,10 @@ etir_sta (abfd, cmd, ptr)
 
   switch (cmd)
     {
-      /* stack */
-
       /* stack global
 	 arg: cs	symbol name
 
-	 stack 32 bit value of symbol (high bits set to 0)  */
-
+	 stack 32 bit value of symbol (high bits set to 0).  */
     case ETIR_S_C_STA_GBL:
       {
 	char *name;
@@ -332,7 +252,7 @@ etir_sta (abfd, cmd, ptr)
 	name = _bfd_vms_save_counted_string (ptr);
 	entry = (vms_symbol_entry *)
 	  bfd_hash_lookup (PRIV (vms_symbol_table), name, FALSE, FALSE);
-	if (entry == (vms_symbol_entry *) NULL)
+	if (entry == NULL)
 	  {
 #if VMS_DEBUG
 	    _bfd_vms_debug (3, "%s: no symbol \"%s\"\n",
@@ -341,17 +261,14 @@ etir_sta (abfd, cmd, ptr)
 	    _bfd_vms_push (abfd, (uquad) 0, -1);
 	  }
 	else
-	  {
-	    _bfd_vms_push (abfd, (uquad) (entry->symbol->value), -1);
-	  }
+	  _bfd_vms_push (abfd, (uquad) (entry->symbol->value), -1);
       }
       break;
 
       /* stack longword
 	 arg: lw	value
 
-	 stack 32 bit value, sign extend to 64 bit  */
-
+	 stack 32 bit value, sign extend to 64 bit.  */
     case ETIR_S_C_STA_LW:
       _bfd_vms_push (abfd, (uquad) bfd_getl32 (ptr), -1);
       break;
@@ -359,8 +276,7 @@ etir_sta (abfd, cmd, ptr)
       /* stack global
 	 arg: qw	value
 
-	 stack 64 bit value of symbol	 */
-
+	 stack 64 bit value of symbol.  */
     case ETIR_S_C_STA_QW:
       _bfd_vms_push (abfd, (uquad) bfd_getl64 (ptr), -1);
       break;
@@ -370,8 +286,7 @@ etir_sta (abfd, cmd, ptr)
 	 qw	signed quadword offset (low 32 bits)
 
 	 stack qw argument and section index
-	 (see ETIR_S_C_STO_OFF, ETIR_S_C_CTL_SETRB)  */
-
+	 (see ETIR_S_C_STO_OFF, ETIR_S_C_CTL_SETRB).  */
     case ETIR_S_C_STA_PQ:
       {
 	uquad dummy;
@@ -385,7 +300,7 @@ etir_sta (abfd, cmd, ptr)
 	    bfd_set_error (bfd_error_bad_value);
 	    return FALSE;
 	  }
-	dummy = bfd_getl64 (ptr+4);
+	dummy = bfd_getl64 (ptr + 4);
 	_bfd_vms_push (abfd, dummy, (int) psect);
       }
       break;
@@ -408,8 +323,7 @@ etir_sta (abfd, cmd, ptr)
   return TRUE;
 }
 
-/*
-   etir_sto
+/* etir_sto
 
    vms store commands
 
@@ -419,10 +333,7 @@ etir_sta (abfd, cmd, ptr)
    see table B-9 of the openVMS linker manual.  */
 
 static bfd_boolean
-etir_sto (abfd, cmd, ptr)
-     bfd *abfd;
-     int cmd;
-     unsigned char *ptr;
+etir_sto (bfd * abfd, int cmd, unsigned char *ptr)
 {
   uquad dummy;
   int psect;
@@ -434,37 +345,24 @@ etir_sto (abfd, cmd, ptr)
 
   switch (cmd)
     {
-      /* store byte: pop stack, write byte
-	 arg: -  */
-
+      /* Store byte: pop stack, write byte
+	 arg: -.  */
     case ETIR_S_C_STO_B:
       dummy = _bfd_vms_pop (abfd, &psect);
-#if 0
-      if (is_share)		/* FIXME */
-	(*_bfd_error_handler) ("%s: byte fixups not supported",
-			       cmd_name (cmd));
-#endif
-      /* FIXME: check top bits */
+      /* FIXME: check top bits.  */
       image_write_b (abfd, (unsigned int) dummy & 0xff);
       break;
 
-      /* store word: pop stack, write word
-	 arg: -  */
-
+      /* Store word: pop stack, write word
+	 arg: -.  */
     case ETIR_S_C_STO_W:
       dummy = _bfd_vms_pop (abfd, &psect);
-#if 0
-      if (is_share)		/* FIXME */
-	(*_bfd_error_handler) ("%s: word fixups not supported",
-			       cmd_name (cmd));
-#endif
       /* FIXME: check top bits */
       image_write_w (abfd, (unsigned int) dummy & 0xffff);
       break;
 
-      /* store longword: pop stack, write longword
-	 arg: -  */
-
+      /* Store longword: pop stack, write longword
+	 arg: -.  */
     case ETIR_S_C_STO_LW:
       dummy = _bfd_vms_pop (abfd, &psect);
       dummy += (PRIV (sections)[psect])->vma;
@@ -472,19 +370,18 @@ etir_sto (abfd, cmd, ptr)
       image_write_l (abfd, (unsigned int) dummy & 0xffffffff);
       break;
 
-      /* store quadword: pop stack, write quadword
-	 arg: -  */
-
+      /* Store quadword: pop stack, write quadword
+	 arg: -.  */
     case ETIR_S_C_STO_QW:
       dummy = _bfd_vms_pop (abfd, &psect);
       dummy += (PRIV (sections)[psect])->vma;
-      image_write_q (abfd, dummy);		/* FIXME: check top bits */
+      /* FIXME: check top bits.  */
+      image_write_q (abfd, dummy);
       break;
 
-      /* store immediate repeated: pop stack for repeat count
+      /* Store immediate repeated: pop stack for repeat count
 	 arg: lw	byte count
-	 da	data  */
-
+	 da	data.  */
     case ETIR_S_C_STO_IMMR:
       {
 	int size;
@@ -496,9 +393,8 @@ etir_sto (abfd, cmd, ptr)
       }
       break;
 
-      /* store global: write symbol value
+      /* Store global: write symbol value
 	 arg: cs	global symbol name.  */
-
     case ETIR_S_C_STO_GBL:
       {
 	vms_symbol_entry *entry;
@@ -507,7 +403,7 @@ etir_sto (abfd, cmd, ptr)
 	name = _bfd_vms_save_counted_string (ptr);
 	entry = (vms_symbol_entry *) bfd_hash_lookup (PRIV (vms_symbol_table),
 						      name, FALSE, FALSE);
-	if (entry == (vms_symbol_entry *) NULL)
+	if (entry == NULL)
 	  {
 	    (*_bfd_error_handler) (_("%s: no symbol \"%s\""),
 				   cmd_name (cmd), name);
@@ -519,9 +415,8 @@ etir_sto (abfd, cmd, ptr)
       }
       break;
 
-      /* store code address: write address of entry point
+      /* Store code address: write address of entry point
 	 arg: cs	global symbol name (procedure).  */
-
     case ETIR_S_C_STO_CA:
       {
 	vms_symbol_entry *entry;
@@ -530,26 +425,26 @@ etir_sto (abfd, cmd, ptr)
 	name = _bfd_vms_save_counted_string (ptr);
 	entry = (vms_symbol_entry *) bfd_hash_lookup (PRIV (vms_symbol_table),
 						      name, FALSE, FALSE);
-	if (entry == (vms_symbol_entry *) NULL)
+	if (entry == NULL)
 	  {
 	    (*_bfd_error_handler) (_("%s: no symbol \"%s\""),
 				   cmd_name (cmd), name);
 	    return FALSE;
 	  }
 	else
-	  image_write_q (abfd, (uquad) (entry->symbol->value));	/* FIXME, reloc */
+	  /* FIXME, reloc.  */
+	  image_write_q (abfd, (uquad) (entry->symbol->value));
       }
       break;
 
       /* Store offset to psect: pop stack, add low 32 bits to base of psect
 	 arg: none.  */
-
     case ETIR_S_C_STO_OFF:
       {
 	uquad q;
 	int psect1;
 
-	q = _bfd_vms_pop (abfd, &psect1);
+	q = _bfd_vms_pop (abfd, & psect1);
 	q += (PRIV (sections)[psect1])->vma;
 	image_write_q (abfd, q);
       }
@@ -558,7 +453,6 @@ etir_sto (abfd, cmd, ptr)
       /* Store immediate
 	 arg: lw	count of bytes
 	      da	data.  */
-
     case ETIR_S_C_STO_IMM:
       {
 	int size;
@@ -574,7 +468,6 @@ etir_sto (abfd, cmd, ptr)
 	 FIXME, since the following is just a guess
 	 store global longword: store 32bit value of symbol
 	 arg: cs	symbol name.  */
-
     case ETIR_S_C_STO_GBL_LW:
       {
 	vms_symbol_entry *entry;
@@ -583,7 +476,7 @@ etir_sto (abfd, cmd, ptr)
 	name = _bfd_vms_save_counted_string (ptr);
 	entry = (vms_symbol_entry *) bfd_hash_lookup (PRIV (vms_symbol_table),
 						      name, FALSE, FALSE);
-	if (entry == (vms_symbol_entry *) NULL)
+	if (entry == NULL)
 	  {
 #if VMS_DEBUG
 	    _bfd_vms_debug (3, "%s: no symbol \"%s\"\n", cmd_name (cmd), name);
@@ -623,10 +516,7 @@ etir_sto (abfd, cmd, ptr)
    see table B-10 of the openVMS linker manual.  */
 
 static bfd_boolean
-etir_opr (abfd, cmd, ptr)
-     bfd *abfd;
-     int cmd;
-     unsigned char *ptr ATTRIBUTE_UNUSED;
+etir_opr (bfd * abfd, int cmd, unsigned char *ptr ATTRIBUTE_UNUSED)
 {
   long op1, op2;
 
@@ -637,28 +527,28 @@ etir_opr (abfd, cmd, ptr)
 
   switch (cmd)
     {
-    case ETIR_S_C_OPR_NOP:      /* no-op  */
+    case ETIR_S_C_OPR_NOP:      /* No-op.  */
       break;
 
-    case ETIR_S_C_OPR_ADD:      /* add  */
+    case ETIR_S_C_OPR_ADD:      /* Add.  */
       op1 = (long) _bfd_vms_pop (abfd, NULL);
       op2 = (long) _bfd_vms_pop (abfd, NULL);
       _bfd_vms_push (abfd, (uquad) (op1 + op2), -1);
       break;
 
-    case ETIR_S_C_OPR_SUB:      /* subtract  */
+    case ETIR_S_C_OPR_SUB:      /* Subtract.  */
       op1 = (long) _bfd_vms_pop (abfd, NULL);
       op2 = (long) _bfd_vms_pop (abfd, NULL);
       _bfd_vms_push (abfd, (uquad) (op2 - op1), -1);
       break;
 
-    case ETIR_S_C_OPR_MUL:      /* multiply  */
+    case ETIR_S_C_OPR_MUL:      /* Multiply.  */
       op1 = (long) _bfd_vms_pop (abfd, NULL);
       op2 = (long) _bfd_vms_pop (abfd, NULL);
       _bfd_vms_push (abfd, (uquad) (op1 * op2), -1);
       break;
 
-    case ETIR_S_C_OPR_DIV:      /* divide  */
+    case ETIR_S_C_OPR_DIV:      /* Divide.  */
       op1 = (long) _bfd_vms_pop (abfd, NULL);
       op2 = (long) _bfd_vms_pop (abfd, NULL);
       if (op2 == 0)
@@ -667,54 +557,54 @@ etir_opr (abfd, cmd, ptr)
 	_bfd_vms_push (abfd, (uquad) (op2 / op1), -1);
       break;
 
-    case ETIR_S_C_OPR_AND:      /* logical and  */
+    case ETIR_S_C_OPR_AND:      /* Logical AND.  */
       op1 = (long) _bfd_vms_pop (abfd, NULL);
       op2 = (long) _bfd_vms_pop (abfd, NULL);
       _bfd_vms_push (abfd, (uquad) (op1 & op2), -1);
       break;
 
-    case ETIR_S_C_OPR_IOR:      /* logical inclusive or	 */
+    case ETIR_S_C_OPR_IOR:      /* Logical inclusive OR.  */
       op1 = (long) _bfd_vms_pop (abfd, NULL);
       op2 = (long) _bfd_vms_pop (abfd, NULL);
       _bfd_vms_push (abfd, (uquad) (op1 | op2), -1);
       break;
 
-    case ETIR_S_C_OPR_EOR:      /* logical exclusive or  */
+    case ETIR_S_C_OPR_EOR:      /* Logical exclusive OR.  */
       op1 = (long) _bfd_vms_pop (abfd, NULL);
       op2 = (long) _bfd_vms_pop (abfd, NULL);
       _bfd_vms_push (abfd, (uquad) (op1 ^ op2), -1);
       break;
 
-    case ETIR_S_C_OPR_NEG:      /* negate  */
+    case ETIR_S_C_OPR_NEG:      /* Negate.  */
       op1 = (long) _bfd_vms_pop (abfd, NULL);
       _bfd_vms_push (abfd, (uquad) (-op1), -1);
       break;
 
-    case ETIR_S_C_OPR_COM:      /* complement  */
+    case ETIR_S_C_OPR_COM:      /* Complement.  */
       op1 = (long) _bfd_vms_pop (abfd, NULL);
       _bfd_vms_push (abfd, (uquad) (op1 ^ -1L), -1);
       break;
 
-    case ETIR_S_C_OPR_ASH:      /* arithmetic shift  */
+    case ETIR_S_C_OPR_ASH:      /* Arithmetic shift.  */
       op1 = (long) _bfd_vms_pop (abfd, NULL);
       op2 = (long) _bfd_vms_pop (abfd, NULL);
-      if (op2 < 0)		/* shift right */
+      if (op2 < 0)		/* Shift right.  */
 	op1 >>= -op2;
-      else			/* shift left */
+      else			/* Shift left.  */
 	op1 <<= op2;
       _bfd_vms_push (abfd, (uquad) op1, -1);
       break;
 
-    case ETIR_S_C_OPR_INSV:      /* insert field  */
+    case ETIR_S_C_OPR_INSV:      /* Insert field.   */
       (void) _bfd_vms_pop (abfd, NULL);
-    case ETIR_S_C_OPR_USH:       /* unsigned shift  */
-    case ETIR_S_C_OPR_ROT:       /* rotate  */
+    case ETIR_S_C_OPR_USH:       /* Unsigned shift.   */
+    case ETIR_S_C_OPR_ROT:       /* Rotate.  */
     case ETIR_S_C_OPR_REDEF:     /* Redefine symbol to current location.  */
     case ETIR_S_C_OPR_DFLIT:     /* Define a literal.  */
       (*_bfd_error_handler) (_("%s: not supported"), cmd_name (cmd));
       break;
 
-    case ETIR_S_C_OPR_SEL:      /* select  */
+    case ETIR_S_C_OPR_SEL:      /* Select.  */
       if ((long) _bfd_vms_pop (abfd, NULL) & 0x01L)
 	(void) _bfd_vms_pop (abfd, NULL);
       else
@@ -738,10 +628,7 @@ etir_opr (abfd, cmd, ptr)
    See table B-11 of the openVMS linker manual.  */
 
 static bfd_boolean
-etir_ctl (abfd, cmd, ptr)
-     bfd *abfd;
-     int cmd;
-     unsigned char *ptr;
+etir_ctl (bfd * abfd, int cmd, unsigned char *ptr)
 {
   uquad	 dummy;
   int psect;
@@ -753,44 +640,39 @@ etir_ctl (abfd, cmd, ptr)
 
   switch (cmd)
     {
-      /* set relocation base: pop stack, set image location counter
+      /* Det relocation base: pop stack, set image location counter
 	 arg: none.  */
-
     case ETIR_S_C_CTL_SETRB:
       dummy = _bfd_vms_pop (abfd, &psect);
       image_set_ptr (abfd, psect, dummy);
       break;
 
-      /* augment relocation base: increment image location counter by offset
-	 arg: lw	offset value  */
-
+      /* Augment relocation base: increment image location counter by offset
+	 arg: lw	offset value.  */
     case ETIR_S_C_CTL_AUGRB:
       dummy = bfd_getl32 (ptr);
       image_inc_ptr (abfd, dummy);
       break;
 
-      /* define location: pop index, save location counter under index
+      /* Define location: pop index, save location counter under index
 	 arg: none.  */
-
     case ETIR_S_C_CTL_DFLOC:
       dummy = _bfd_vms_pop (abfd, NULL);
       /* FIXME */
       break;
 
-      /* set location: pop index, restore location counter from index
+      /* Set location: pop index, restore location counter from index
 	 arg: none.  */
-
     case ETIR_S_C_CTL_STLOC:
       dummy = _bfd_vms_pop (abfd, &psect);
       /* FIXME */
       break;
 
-      /* stack defined location: pop index, push location counter from index
+      /* Stack defined location: pop index, push location counter from index
 	 arg: none.  */
-
     case ETIR_S_C_CTL_STKDL:
       dummy = _bfd_vms_pop (abfd, &psect);
-      /* FIXME */
+      /* FIXME.  */
       break;
 
     default:
@@ -800,15 +682,12 @@ etir_ctl (abfd, cmd, ptr)
   return TRUE;
 }
 
-/* store conditional commands
+/* Store conditional commands
 
    See table B-12 and B-13 of the openVMS linker manual.  */
 
 static bfd_boolean
-etir_stc (abfd, cmd, ptr)
-     bfd *abfd;
-     int cmd;
-     unsigned char *ptr ATTRIBUTE_UNUSED;
+etir_stc (bfd * abfd, int cmd, unsigned char *ptr ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
   _bfd_vms_debug (5, "etir_stc %d/%x\n", cmd, cmd);
@@ -819,7 +698,6 @@ etir_stc (abfd, cmd, ptr)
     {
       /* 200 Store-conditional Linkage Pair
 	 arg: none.  */
-
     case ETIR_S_C_STC_LP:
       (*_bfd_error_handler) (_("%s: not supported"), cmd_name (cmd));
       break;
@@ -829,7 +707,6 @@ etir_stc (abfd, cmd, ptr)
 		cs	procedure name
 		by	signature length
 		da	signature.  */
-
     case ETIR_S_C_STC_LP_PSB:
       image_inc_ptr (abfd, (uquad) 16);	/* skip entry,procval */
       break;
@@ -845,7 +722,6 @@ etir_stc (abfd, cmd, ptr)
       /* 203 Store-conditional Code Address at global address
 	 arg:	lw	linkage index
 		cs	procedure name.  */
-
     case ETIR_S_C_STC_GCA:
       (*_bfd_error_handler) (_("%s: not supported"), cmd_name (cmd));
       break;
@@ -854,64 +730,50 @@ etir_stc (abfd, cmd, ptr)
 	 arg:	lw	linkage index
 		lw	psect index
 		qw	offset.  */
-
     case ETIR_S_C_STC_PS:
       (*_bfd_error_handler) (_("%s: not supported"), cmd_name (cmd));
       break;
 
       /* 205 Store-conditional NOP at address of global
 	 arg: none.  */
-
     case ETIR_S_C_STC_NOP_GBL:
 
       /* 206 Store-conditional NOP at pect + offset
 	 arg: none.  */
-
     case ETIR_S_C_STC_NOP_PS:
 
       /* 207 Store-conditional BSR at global address
 	 arg: none.  */
-
     case ETIR_S_C_STC_BSR_GBL:
 
       /* 208 Store-conditional BSR at pect + offset
 	 arg: none.  */
-
     case ETIR_S_C_STC_BSR_PS:
 
       /* 209 Store-conditional LDA at global address
 	 arg: none.  */
-
     case ETIR_S_C_STC_LDA_GBL:
 
       /* 210 Store-conditional LDA at psect + offset
 	 arg: none.  */
-
     case ETIR_S_C_STC_LDA_PS:
 
       /* 211 Store-conditional BSR or Hint at global address
 	 arg: none.  */
-
     case ETIR_S_C_STC_BOH_GBL:
 
       /* 212 Store-conditional BSR or Hint at pect + offset
 	 arg: none.  */
-
     case ETIR_S_C_STC_BOH_PS:
 
       /* 213 Store-conditional NOP,BSR or HINT at global address
 	 arg: none.  */
-
     case ETIR_S_C_STC_NBH_GBL:
 
       /* 214 Store-conditional NOP,BSR or HINT at psect + offset
 	 arg: none.  */
-
     case ETIR_S_C_STC_NBH_PS:
       /* FIXME */
-#if 0
-      (*_bfd_error_handler) ("%s: not supported", cmd_name (cmd));
-#endif
       break;
 
     default:
@@ -924,9 +786,7 @@ etir_stc (abfd, cmd, ptr)
 }
 
 static asection *
-new_section (abfd, idx)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     int idx;
+new_section (bfd * abfd ATTRIBUTE_UNUSED, int idx)
 {
   asection *section;
   char sname[16];
@@ -939,7 +799,7 @@ new_section (abfd, idx)
 
   name = bfd_malloc ((bfd_size_type) strlen (sname) + 1);
   if (name == 0)
-    return 0;
+    return NULL;
   strcpy (name, sname);
 
   section = bfd_malloc ((bfd_size_type) sizeof (asection));
@@ -948,13 +808,12 @@ new_section (abfd, idx)
 #if VMS_DEBUG
       _bfd_vms_debug (6,  "bfd_make_section (%s) failed", name);
 #endif
-      return 0;
+      return NULL;
     }
 
-  section->_raw_size = 0;
+  section->size = 0;
   section->vma = 0;
   section->contents = 0;
-  section->_cooked_size = 0;
   section->name = name;
   section->index = idx;
 
@@ -962,9 +821,7 @@ new_section (abfd, idx)
 }
 
 static int
-alloc_section (abfd, idx)
-     bfd *abfd;
-     unsigned int idx;
+alloc_section (bfd * abfd, unsigned int idx)
 {
   bfd_size_type amt;
 
@@ -974,7 +831,7 @@ alloc_section (abfd, idx)
 
   amt = idx + 1;
   amt *= sizeof (asection *);
-  PRIV (sections) = (asection **) bfd_realloc (PRIV (sections), amt);
+  PRIV (sections) = bfd_realloc (PRIV (sections), amt);
   if (PRIV (sections) == 0)
     return -1;
 
@@ -1000,7 +857,7 @@ alloc_section (abfd, idx)
    See table 7-3 of the VAX/VMS linker manual.  */
 
 static unsigned char *
-tir_sta (bfd *abfd, unsigned char *ptr)
+tir_sta (bfd * abfd, unsigned char *ptr)
 {
   int cmd = *ptr++;
 
@@ -1023,8 +880,8 @@ tir_sta (bfd *abfd, unsigned char *ptr)
 	name = _bfd_vms_save_counted_string (ptr);
 
 	entry = _bfd_vms_enter_symbol (abfd, name);
-	if (entry == (vms_symbol_entry *) NULL)
-	  return 0;
+	if (entry == NULL)
+	  return NULL;
 
 	_bfd_vms_push (abfd, (uquad) (entry->symbol->value), -1);
 	ptr += *ptr + 1;
@@ -1181,8 +1038,8 @@ tir_sta (bfd *abfd, unsigned char *ptr)
 
 	name = _bfd_vms_save_counted_string (ptr);
 	entry = _bfd_vms_enter_symbol (abfd, name);
-	if (entry == (vms_symbol_entry *) NULL)
-	  return 0;
+	if (entry == NULL)
+	  return NULL;
 
 	(*_bfd_error_handler) (_("stack-entry-mask not fully implemented"));
 	_bfd_vms_push (abfd, (uquad) 0, -1);
@@ -1215,8 +1072,8 @@ tir_sta (bfd *abfd, unsigned char *ptr)
 	ptr += 2;
 	name = _bfd_vms_save_counted_string (ptr);
 	entry = _bfd_vms_enter_symbol (abfd, name);
-	if (entry == (vms_symbol_entry *) NULL)
-	  return 0;
+	if (entry == NULL)
+	  return NULL;
 	(*_bfd_error_handler) (_("stack-local-symbol not fully implemented"));
 	_bfd_vms_push (abfd, (uquad) 0, -1);
 	ptr += *ptr + 1;
@@ -1249,8 +1106,8 @@ tir_sta (bfd *abfd, unsigned char *ptr)
 	ptr += 2;
 	name = _bfd_vms_save_counted_string (ptr);
 	entry = _bfd_vms_enter_symbol (abfd, name);
-	if (entry == (vms_symbol_entry *) NULL)
-	  return 0;
+	if (entry == NULL)
+	  return NULL;
 	(*_bfd_error_handler) (_("stack-local-symbol-entry-point-mask not fully implemented"));
 	_bfd_vms_push (abfd, (uquad) 0, -1);
 	ptr += *ptr + 1;
@@ -1267,8 +1124,7 @@ tir_sta (bfd *abfd, unsigned char *ptr)
 }
 
 static const char *
-tir_cmd_name (cmd)
-     int cmd;
+tir_cmd_name (int cmd)
 {
   switch (cmd)
     {
@@ -1307,7 +1163,7 @@ tir_cmd_name (cmd)
    See table 7-4 of the VAX/VMS linker manual.  */
 
 static unsigned char *
-tir_sto (bfd *abfd, unsigned char *ptr)
+tir_sto (bfd * abfd, unsigned char *ptr)
 {
   unsigned long dummy;
   int size;
@@ -1320,28 +1176,28 @@ tir_sto (bfd *abfd, unsigned char *ptr)
   switch (*ptr++)
     {
     case TIR_S_C_STO_SB:
-      /* store signed byte: pop stack, write byte
+      /* Store signed byte: pop stack, write byte
 	 arg: none.  */
       dummy = _bfd_vms_pop (abfd, &psect);
       image_write_b (abfd, dummy & 0xff);	/* FIXME: check top bits */
       break;
 
     case TIR_S_C_STO_SW:
-      /* store signed word: pop stack, write word
+      /* Store signed word: pop stack, write word
 	 arg: none.  */
       dummy = _bfd_vms_pop (abfd, &psect);
       image_write_w (abfd, dummy & 0xffff);	/* FIXME: check top bits */
       break;
 
     case TIR_S_C_STO_LW:
-      /* store longword: pop stack, write longword
+      /* Store longword: pop stack, write longword
 	 arg: none.  */
       dummy = _bfd_vms_pop (abfd, &psect);
       image_write_l (abfd, dummy & 0xffffffff);	/* FIXME: check top bits */
       break;
 
     case TIR_S_C_STO_BD:
-      /* store byte displaced: pop stack, sub lc+1, write byte
+      /* Store byte displaced: pop stack, sub lc+1, write byte
 	 arg: none.  */
       dummy = _bfd_vms_pop (abfd, &psect);
       dummy -= ((PRIV (sections)[psect])->vma + 1);
@@ -1349,7 +1205,7 @@ tir_sto (bfd *abfd, unsigned char *ptr)
       break;
 
     case TIR_S_C_STO_WD:
-      /* store word displaced: pop stack, sub lc+2, write word
+      /* Store word displaced: pop stack, sub lc+2, write word
 	 arg: none.  */
       dummy = _bfd_vms_pop (abfd, &psect);
       dummy -= ((PRIV (sections)[psect])->vma + 2);
@@ -1357,7 +1213,7 @@ tir_sto (bfd *abfd, unsigned char *ptr)
       break;
 
     case TIR_S_C_STO_LD:
-      /* store long displaced: pop stack, sub lc+4, write long
+      /* Store long displaced: pop stack, sub lc+4, write long
 	 arg: none.  */
       dummy = _bfd_vms_pop (abfd, &psect);
       dummy -= ((PRIV (sections)[psect])->vma + 4);
@@ -1365,14 +1221,14 @@ tir_sto (bfd *abfd, unsigned char *ptr)
       break;
 
     case TIR_S_C_STO_LI:
-      /* store short literal: pop stack, write byte
+      /* Store short literal: pop stack, write byte
 	 arg: none.  */
       dummy = _bfd_vms_pop (abfd, &psect);
       image_write_b (abfd, dummy & 0xff);/* FIXME: check top bits */
       break;
 
     case TIR_S_C_STO_PIDR:
-      /* store position independent data reference: pop stack, write longword
+      /* Store position independent data reference: pop stack, write longword
 	 arg: none.
 	 FIXME: incomplete !  */
       dummy = _bfd_vms_pop (abfd, &psect);
@@ -1380,7 +1236,7 @@ tir_sto (bfd *abfd, unsigned char *ptr)
       break;
 
     case TIR_S_C_STO_PICR:
-      /* store position independent code reference: pop stack, write longword
+      /* Store position independent code reference: pop stack, write longword
 	 arg: none.
 	 FIXME: incomplete !  */
       dummy = _bfd_vms_pop (abfd, &psect);
@@ -1389,7 +1245,7 @@ tir_sto (bfd *abfd, unsigned char *ptr)
       break;
 
     case TIR_S_C_STO_RIVB:
-      /* store repeated immediate variable bytes
+      /* Store repeated immediate variable bytes
 	 1-byte count n field followed by n bytes of data
 	 pop stack, write n bytes <stack> times.  */
       size = *ptr++;
@@ -1400,19 +1256,19 @@ tir_sto (bfd *abfd, unsigned char *ptr)
       break;
 
     case TIR_S_C_STO_B:
-      /* store byte from top longword.  */
+      /* Store byte from top longword.  */
       dummy = (unsigned long) _bfd_vms_pop (abfd, NULL);
       image_write_b (abfd, dummy & 0xff);
       break;
 
     case TIR_S_C_STO_W:
-      /* store word from top longword.  */
+      /* Store word from top longword.  */
       dummy = (unsigned long) _bfd_vms_pop (abfd, NULL);
       image_write_w (abfd, dummy & 0xffff);
       break;
 
     case TIR_S_C_STO_RB:
-      /* store repeated byte from top longword.  */
+      /* Store repeated byte from top longword.  */
       size = (unsigned long) _bfd_vms_pop (abfd, NULL);
       dummy = (unsigned long) _bfd_vms_pop (abfd, NULL);
       while (size-- > 0)
@@ -1420,7 +1276,7 @@ tir_sto (bfd *abfd, unsigned char *ptr)
       break;
 
     case TIR_S_C_STO_RW:
-      /* store repeated word from top longword.  */
+      /* Store repeated word from top longword.  */
       size = (unsigned long) _bfd_vms_pop (abfd, NULL);
       dummy = (unsigned long) _bfd_vms_pop (abfd, NULL);
       while (size-- > 0)
@@ -1447,17 +1303,15 @@ tir_sto (bfd *abfd, unsigned char *ptr)
   return ptr;
 }
 
-/* stack operator commands
-   all 32 bit signed arithmetic
-   all word just like a stack calculator
-   arguments are popped from stack, results are pushed on stack
+/* Stack operator commands
+   All 32 bit signed arithmetic
+   All word just like a stack calculator
+   Arguments are popped from stack, results are pushed on stack
 
    See table 7-5 of the VAX/VMS linker manual.  */
 
 static unsigned char *
-tir_opr (abfd, ptr)
-     bfd *abfd;
-     unsigned char *ptr;
+tir_opr (bfd * abfd, unsigned char *ptr)
 {
   long op1, op2;
 
@@ -1465,31 +1319,31 @@ tir_opr (abfd, ptr)
   _bfd_vms_debug (5, "tir_opr %d\n", *ptr);
 #endif
 
+  /* Operation.  */
   switch (*ptr++)
     {
-      /* operation */
-    case TIR_S_C_OPR_NOP: /* no-op */
+    case TIR_S_C_OPR_NOP: /* No-op.  */
       break;
 
-    case TIR_S_C_OPR_ADD: /* add */
+    case TIR_S_C_OPR_ADD: /* Add.  */
       op1 = (long) _bfd_vms_pop (abfd, NULL);
       op2 = (long) _bfd_vms_pop (abfd, NULL);
       _bfd_vms_push (abfd, (uquad) (op1 + op2), -1);
       break;
 
-    case TIR_S_C_OPR_SUB: /* subtract */
+    case TIR_S_C_OPR_SUB: /* Subtract.  */
       op1 = (long) _bfd_vms_pop (abfd, NULL);
       op2 = (long) _bfd_vms_pop (abfd, NULL);
       _bfd_vms_push (abfd, (uquad) (op2 - op1), -1);
       break;
 
-    case TIR_S_C_OPR_MUL: /* multiply */
+    case TIR_S_C_OPR_MUL: /* Multiply.  */
       op1 = (long) _bfd_vms_pop (abfd, NULL);
       op2 = (long) _bfd_vms_pop (abfd, NULL);
       _bfd_vms_push (abfd, (uquad) (op1 * op2), -1);
       break;
 
-    case TIR_S_C_OPR_DIV: /* divide */
+    case TIR_S_C_OPR_DIV: /* Divide.  */
       op1 = (long) _bfd_vms_pop (abfd, NULL);
       op2 = (long) _bfd_vms_pop (abfd, NULL);
       if (op2 == 0)
@@ -1498,77 +1352,77 @@ tir_opr (abfd, ptr)
 	_bfd_vms_push (abfd, (uquad) (op2 / op1), -1);
       break;
 
-    case TIR_S_C_OPR_AND: /* logical and */
+    case TIR_S_C_OPR_AND: /* Logical AND.  */
       op1 = (long) _bfd_vms_pop (abfd, NULL);
       op2 = (long) _bfd_vms_pop (abfd, NULL);
       _bfd_vms_push (abfd, (uquad) (op1 & op2), -1);
       break;
 
-    case TIR_S_C_OPR_IOR: /* logical inclusive or */
+    case TIR_S_C_OPR_IOR: /* Logical inclusive OR.  */
       op1 = (long) _bfd_vms_pop (abfd, NULL);
       op2 = (long) _bfd_vms_pop (abfd, NULL);
       _bfd_vms_push (abfd, (uquad) (op1 | op2), -1);
       break;
 
-    case TIR_S_C_OPR_EOR: /* logical exclusive or */
+    case TIR_S_C_OPR_EOR: /* Logical exclusive OR.  */
       op1 = (long) _bfd_vms_pop (abfd, NULL);
       op2 = (long) _bfd_vms_pop (abfd, NULL);
       _bfd_vms_push (abfd, (uquad) (op1 ^ op2), -1);
       break;
 
-    case TIR_S_C_OPR_NEG: /* negate */
+    case TIR_S_C_OPR_NEG: /* Negate.  */
       op1 = (long) _bfd_vms_pop (abfd, NULL);
       _bfd_vms_push (abfd, (uquad) (-op1), -1);
       break;
 
-    case TIR_S_C_OPR_COM: /* complement */
+    case TIR_S_C_OPR_COM: /* Complement.  */
       op1 = (long) _bfd_vms_pop (abfd, NULL);
       _bfd_vms_push (abfd, (uquad) (op1 ^ -1L), -1);
       break;
 
-    case TIR_S_C_OPR_INSV: /* insert field */
+    case TIR_S_C_OPR_INSV: /* Insert field.  */
       (void) _bfd_vms_pop (abfd, NULL);
       (*_bfd_error_handler)  (_("%s: not fully implemented"),
 			      tir_cmd_name (ptr[-1]));
       break;
 
-    case TIR_S_C_OPR_ASH: /* arithmetic shift */
+    case TIR_S_C_OPR_ASH: /* Arithmetic shift.  */
       op1 = (long) _bfd_vms_pop (abfd, NULL);
       op2 = (long) _bfd_vms_pop (abfd, NULL);
-      if (HIGHBIT (op1))	/* shift right */
+      if (HIGHBIT (op1))	/* Shift right.  */
 	op2 >>= op1;
-      else			/* shift left */
+      else			/* Shift left.  */
 	op2 <<= op1;
       _bfd_vms_push (abfd, (uquad) op2, -1);
       (*_bfd_error_handler)  (_("%s: not fully implemented"),
 			      tir_cmd_name (ptr[-1]));
       break;
 
-    case TIR_S_C_OPR_USH: /* unsigned shift */
+    case TIR_S_C_OPR_USH: /* Unsigned shift.  */
       op1 = (long) _bfd_vms_pop (abfd, NULL);
       op2 = (long) _bfd_vms_pop (abfd, NULL);
-      if (HIGHBIT (op1))	/* shift right */
+      if (HIGHBIT (op1))	/* Shift right.  */
 	op2 >>= op1;
-      else			/* shift left */
+      else			/* Shift left.  */
 	op2 <<= op1;
       _bfd_vms_push (abfd, (uquad) op2, -1);
       (*_bfd_error_handler)  (_("%s: not fully implemented"),
 			      tir_cmd_name (ptr[-1]));
       break;
 
-    case TIR_S_C_OPR_ROT: /* rotate */
+    case TIR_S_C_OPR_ROT: /* Rotate.  */
       op1 = (long) _bfd_vms_pop (abfd, NULL);
       op2 = (long) _bfd_vms_pop (abfd, NULL);
-      if (HIGHBIT (0))	/* shift right */
+      if (HIGHBIT (0))	/* Shift right.  */
 	op2 >>= op1;
-      else		/* shift left */
+      else		/* Shift left.  */
 	op2 <<= op1;
       _bfd_vms_push (abfd, (uquad) op2, -1);
       (*_bfd_error_handler)  (_("%s: not fully implemented"),
 			      tir_cmd_name (ptr[-1]));
       break;
 
-    case TIR_S_C_OPR_SEL: /* select */
+    case TIR_S_C_OPR_SEL: /* Select.  */
       if ((long) _bfd_vms_pop (abfd, NULL) & 0x01L)
 	(void) _bfd_vms_pop (abfd, NULL);
       else
@@ -1593,12 +1447,12 @@ tir_opr (abfd, ptr)
   return ptr;
 }
 
-/* control commands
+/* Control commands
 
    See table 7-6 of the VAX/VMS linker manual.  */
 
 static unsigned char *
-tir_ctl (bfd *abfd, unsigned char *ptr)
+tir_ctl (bfd * abfd, unsigned char *ptr)
 {
   unsigned long dummy;
   unsigned int psect;
@@ -1612,7 +1466,7 @@ tir_ctl (bfd *abfd, unsigned char *ptr)
     case TIR_S_C_CTL_SETRB:
       /* Set relocation base: pop stack, set image location counter
 	 arg: none.  */
-      dummy = _bfd_vms_pop (abfd, &psect);
+      dummy = _bfd_vms_pop (abfd, (int *) &psect);
       if (psect >= PRIV (section_count))
 	alloc_section (abfd, psect);
       image_set_ptr (abfd, (int) psect, (uquad) dummy);
@@ -1636,7 +1490,7 @@ tir_ctl (bfd *abfd, unsigned char *ptr)
     case TIR_S_C_CTL_STLOC:
       /* Set location: pop index, restore location counter from index
 	 arg: none.  */
-      dummy = _bfd_vms_pop (abfd, &psect);
+      dummy = _bfd_vms_pop (abfd, (int *) &psect);
       (*_bfd_error_handler) (_("%s: not fully implemented"),
 			     tir_cmd_name (ptr[-1]));
       break;
@@ -1644,7 +1498,7 @@ tir_ctl (bfd *abfd, unsigned char *ptr)
     case TIR_S_C_CTL_STKDL:
       /* Stack defined location: pop index, push location counter from index
 	 arg: none.  */
-      dummy = _bfd_vms_pop (abfd, &psect);
+      dummy = _bfd_vms_pop (abfd, (int *) &psect);
       (*_bfd_error_handler) (_("%s: not fully implemented"),
 			     tir_cmd_name (ptr[-1]));
       break;
@@ -1659,7 +1513,7 @@ tir_ctl (bfd *abfd, unsigned char *ptr)
 /* Handle command from TIR section.  */
 
 static unsigned char *
-tir_cmd (bfd *abfd, unsigned char *ptr)
+tir_cmd (bfd * abfd, unsigned char *ptr)
 {
   struct
   {
@@ -1682,8 +1536,9 @@ tir_cmd (bfd *abfd, unsigned char *ptr)
   _bfd_hexdump (8, ptr, 16, (int) ptr);
 #endif
 
-  if (*ptr & 0x80)				/* store immediate */
+  if (*ptr & 0x80)
     {
+      /* Store immediate.  */
       i = 128 - (*ptr++ & 0x7f);
       image_dump (abfd, ptr, i, 0);
       ptr += i;
@@ -1713,16 +1568,13 @@ tir_cmd (bfd *abfd, unsigned char *ptr)
 /* Handle command from ETIR section.  */
 
 static int
-etir_cmd (abfd, cmd, ptr)
-     bfd *abfd;
-     int cmd;
-     unsigned char *ptr;
+etir_cmd (bfd * abfd, int cmd, unsigned char *ptr)
 {
   static struct
   {
     int mincod;
     int maxcod;
-    bfd_boolean (*explain) PARAMS ((bfd *, int, unsigned char *));
+    bfd_boolean (*explain) (bfd *, int, unsigned char *);
   }
   etir_table[] =
   {
@@ -1763,10 +1615,7 @@ etir_cmd (abfd, cmd, ptr)
    handle tir record.  */
 
 static int
-analyze_tir (abfd, ptr, length)
-     bfd *abfd;
-     unsigned char *ptr;
-     unsigned int length;
+analyze_tir (bfd * abfd, unsigned char *ptr, unsigned int length)
 {
   unsigned char *maxptr;
 
@@ -1790,10 +1639,7 @@ analyze_tir (abfd, ptr, length)
    handle etir record.  */
 
 static int
-analyze_etir (abfd, ptr, length)
-     bfd *abfd;
-     unsigned char *ptr;
-     unsigned int length;
+analyze_etir (bfd * abfd, unsigned char *ptr, unsigned int length)
 {
   int cmd;
   unsigned char *maxptr;
@@ -1826,9 +1672,7 @@ analyze_etir (abfd, ptr, length)
    Return 0 on success, -1 on error.  */
 
 int
-_bfd_vms_slurp_tir (abfd, objtype)
-     bfd *abfd;
-     int objtype;
+_bfd_vms_slurp_tir (bfd * abfd, int objtype)
 {
   int result;
 
@@ -1839,12 +1683,12 @@ _bfd_vms_slurp_tir (abfd, objtype)
   switch (objtype)
     {
     case EOBJ_S_C_ETIR:
-      PRIV (vms_rec) += 4;	/* skip type, size */
+      PRIV (vms_rec) += 4;	/* Skip type, size.  */
       PRIV (rec_size) -= 4;
       result = analyze_etir (abfd, PRIV (vms_rec), (unsigned) PRIV (rec_size));
       break;
     case OBJ_S_C_TIR:
-      PRIV (vms_rec) += 1;	/* skip type */
+      PRIV (vms_rec) += 1;	/* Skip type.  */
       PRIV (rec_size) -= 1;
       result = analyze_tir (abfd, PRIV (vms_rec), (unsigned) PRIV (rec_size));
       break;
@@ -1862,9 +1706,7 @@ _bfd_vms_slurp_tir (abfd, objtype)
    Not implemented yet.  */
 
 int
-_bfd_vms_slurp_dbg (abfd, objtype)
-     bfd *abfd;
-     int objtype ATTRIBUTE_UNUSED;
+_bfd_vms_slurp_dbg (bfd * abfd, int objtype ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
   _bfd_vms_debug (2, "DBG/EDBG\n");
@@ -1880,9 +1722,8 @@ _bfd_vms_slurp_dbg (abfd, objtype)
    Not implemented yet.  */
 
 int
-_bfd_vms_slurp_tbt (abfd, objtype)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     int objtype ATTRIBUTE_UNUSED;
+_bfd_vms_slurp_tbt (bfd * abfd ATTRIBUTE_UNUSED,
+		    int objtype ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
   _bfd_vms_debug (2, "TBT/ETBT\n");
@@ -1897,9 +1738,8 @@ _bfd_vms_slurp_tbt (abfd, objtype)
    Not implemented yet.  */
 
 int
-_bfd_vms_slurp_lnk (abfd, objtype)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     int objtype ATTRIBUTE_UNUSED;
+_bfd_vms_slurp_lnk (bfd * abfd ATTRIBUTE_UNUSED,
+		    int objtype ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
   _bfd_vms_debug (2, "LNK\n");
@@ -1908,23 +1748,42 @@ _bfd_vms_slurp_lnk (abfd, objtype)
   return 0;
 }
 
+/* Start ETIR record for section #index at virtual addr offset.  */
+
+static void
+start_etir_record (bfd * abfd, int index, uquad offset, bfd_boolean justoffset)
+{
+  if (!justoffset)
+    {
+      /* One ETIR per section.  */
+      _bfd_vms_output_begin (abfd, EOBJ_S_C_ETIR, -1);
+      _bfd_vms_output_push (abfd);
+    }
+
+  /* Push start offset.  */
+  _bfd_vms_output_begin (abfd, ETIR_S_C_STA_PQ, -1);
+  _bfd_vms_output_long (abfd, (unsigned long) index);
+  _bfd_vms_output_quad (abfd, (uquad) offset);
+  _bfd_vms_output_flush (abfd);
+
+  /* Start = pop ().  */
+  _bfd_vms_output_begin (abfd, ETIR_S_C_CTL_SETRB, -1);
+  _bfd_vms_output_flush (abfd);
+}
+
+static void
+end_etir_record (bfd * abfd)
+{
+  _bfd_vms_output_pop (abfd);
+  _bfd_vms_output_end (abfd);
+}
+
 /* WRITE ETIR SECTION
 
    This is still under construction and therefore not documented.  */
 
-static void start_etir_record
-  PARAMS ((bfd *abfd, int index, uquad offset, bfd_boolean justoffset));
-static void sto_imm
-  PARAMS ((bfd *abfd, vms_section *sptr, bfd_vma vaddr, int index));
-static void end_etir_record
-  PARAMS ((bfd *abfd));
-
 static void
-sto_imm (abfd, sptr, vaddr, index)
-     bfd *abfd;
-     vms_section *sptr;
-     bfd_vma vaddr;
-     int index;
+sto_imm (bfd * abfd, vms_section *sptr, bfd_vma vaddr, int index)
 {
   int size;
   int ssize;
@@ -1940,14 +1799,18 @@ sto_imm (abfd, sptr, vaddr, index)
 
   while (ssize > 0)
     {
-      size = ssize;				/* try all the rest */
+      /* Try all the rest.  */
+      size = ssize;
 
       if (_bfd_vms_output_check (abfd, size) < 0)
-	{					/* doesn't fit, split ! */
+	{
+	  /* Doesn't fit, split !  */
 	  end_etir_record (abfd);
 	  start_etir_record (abfd, index, vaddr, FALSE);
-	  size = _bfd_vms_output_check (abfd, 0);	/* get max size */
-	  if (size > ssize)			/* more than what's left ? */
+	  /* Get max size.  */
+	  size = _bfd_vms_output_check (abfd, 0);
+	  /* More than what's left ?  */
+	  if (size > ssize)
 	    size = ssize;
 	}
 
@@ -1967,46 +1830,10 @@ sto_imm (abfd, sptr, vaddr, index)
     }
 }
 
-/* Start ETIR record for section #index at virtual addr offset.  */
-
-static void
-start_etir_record (abfd, index, offset, justoffset)
-    bfd *abfd;
-    int index;
-    uquad offset;
-    bfd_boolean justoffset;
-{
-  if (!justoffset)
-    {
-      _bfd_vms_output_begin (abfd, EOBJ_S_C_ETIR, -1);	/* one ETIR per section */
-      _bfd_vms_output_push (abfd);
-    }
-
-  _bfd_vms_output_begin (abfd, ETIR_S_C_STA_PQ, -1);	/* push start offset */
-  _bfd_vms_output_long (abfd, (unsigned long) index);
-  _bfd_vms_output_quad (abfd, (uquad) offset);
-  _bfd_vms_output_flush (abfd);
-
-  _bfd_vms_output_begin (abfd, ETIR_S_C_CTL_SETRB, -1);	/* start = pop () */
-  _bfd_vms_output_flush (abfd);
-}
-
-/* End etir record.  */
-
-static void
-end_etir_record (abfd)
-    bfd *abfd;
-{
-  _bfd_vms_output_pop (abfd);
-  _bfd_vms_output_end (abfd);
-}
-
 /* Write section contents for bfd abfd.  */
 
 int
-_bfd_vms_write_tir (abfd, objtype)
-     bfd *abfd;
-     int objtype ATTRIBUTE_UNUSED;
+_bfd_vms_write_tir (bfd * abfd, int objtype ATTRIBUTE_UNUSED)
 {
   asection *section;
   vms_section *sptr;
@@ -2022,7 +1849,6 @@ _bfd_vms_write_tir (abfd, objtype)
   PRIV (vms_linkage_index) = 1;
 
   /* Dump all other sections.  */
-
   section = abfd->sections;
 
   while (section != NULL)
@@ -2031,7 +1857,7 @@ _bfd_vms_write_tir (abfd, objtype)
 #if VMS_DEBUG
       _bfd_vms_debug (4, "writing %d. section '%s' (%d bytes)\n",
 		      section->index, section->name,
-		      (int) (section->_raw_size));
+		      (int) (section->size));
 #endif
 
       if (section->flags & SEC_RELOC)
@@ -2039,10 +1865,8 @@ _bfd_vms_write_tir (abfd, objtype)
 	  int i;
 
 	  if ((i = section->reloc_count) <= 0)
-	    {
-	      (*_bfd_error_handler) (_("SEC_RELOC with no relocs in section %s"),
-				     section->name);
-	    }
+	    (*_bfd_error_handler) (_("SEC_RELOC with no relocs in section %s"),
+				   section->name);
 #if VMS_DEBUG
 	  else
 	    {
@@ -2067,7 +1891,8 @@ _bfd_vms_write_tir (abfd, objtype)
       if ((section->flags & SEC_HAS_CONTENTS)
 	  && (! bfd_is_com_section (section)))
 	{
-	  bfd_vma vaddr;		/* Virtual addr in section.  */
+	  /* Virtual addr in section.  */
+	  bfd_vma vaddr;
 
 	  sptr = _bfd_get_vms_section (abfd, section->index);
 	  if (sptr == NULL)
@@ -2081,11 +1906,12 @@ _bfd_vms_write_tir (abfd, objtype)
 	  start_etir_record (abfd, section->index, (uquad) sptr->offset,
 			     FALSE);
 
-	  while (sptr != NULL)	/* one STA_PQ, CTL_SETRB per vms_section */
+	  while (sptr != NULL)
 	    {
-
-	      if (section->flags & SEC_RELOC)	/* check for relocs */
+	      /* One STA_PQ, CTL_SETRB per vms_section.  */
+	      if (section->flags & SEC_RELOC)
 		{
+		  /* Check for relocs.  */
 		  arelent **rptr = section->orelocation;
 		  int i = section->reloc_count;
 
@@ -2093,18 +1919,22 @@ _bfd_vms_write_tir (abfd, objtype)
 		    {
 		      bfd_size_type addr = (*rptr)->address;
 		      bfd_size_type len = bfd_get_reloc_size ((*rptr)->howto);
-		      if (sptr->offset < addr)	/* sptr starts before reloc */
+		      if (sptr->offset < addr)
 			{
+			  /* Sptr starts before reloc.  */
 			  bfd_size_type before = addr - sptr->offset;
-			  if (sptr->size <= before)	/* complete before */
+			  if (sptr->size <= before)
 			    {
+			      /* Complete before.  */
 			      sto_imm (abfd, sptr, vaddr, section->index);
 			      vaddr += sptr->size;
 			      break;
 			    }
-			  else				/* partly before */
+			  else
 			    {
+			      /* Partly before.  */
 			      int after = sptr->size - before;
+
 			      sptr->size = before;
 			      sto_imm (abfd, sptr, vaddr, section->index);
 			      vaddr += sptr->size;
@@ -2113,8 +1943,9 @@ _bfd_vms_write_tir (abfd, objtype)
 			      sptr->size = after;
 			    }
 			}
-		      else if (sptr->offset == addr) /* sptr starts at reloc */
+		      else if (sptr->offset == addr)
 			{
+			  /* Sptr starts at reloc.  */
 			  asymbol *sym = *(*rptr)->sym_ptr_ptr;
 			  asection *sec = sym->section;
 
@@ -2197,6 +2028,7 @@ _bfd_vms_write_tir (abfd, objtype)
 				  {
 				    int slen = strlen ((char *) sym->name);
 				    char *hash;
+
 				    if (_bfd_vms_output_check (abfd, slen) < 0)
 				      {
 					end_etir_record (abfd);
@@ -2267,19 +2099,6 @@ _bfd_vms_write_tir (abfd, objtype)
 				sptr->size = len;
 				sto_imm (abfd, sptr, vaddr, section->index);
 				sptr->size = hint_size;
-#if 0
-				vms_output_begin (abfd,
-						  ETIR_S_C_STO_HINT_GBL, -1);
-				vms_output_long (abfd,
-						 (unsigned long) (sec->index));
-				vms_output_quad (abfd, (uquad) addr);
-
-				hash = (_bfd_vms_length_hash_symbol
-					(abfd, sym->name, EOBJ_S_C_SYMSIZ));
-				vms_output_counted (abfd, hash);
-
-				vms_output_flush (abfd);
-#endif
 			      }
 			      break;
 			    case ALPHA_R_LINKAGE:
@@ -2348,37 +2167,39 @@ _bfd_vms_write_tir (abfd, objtype)
 			      rptr++;
 			    }
 			}
-		      else			/* sptr starts after reloc */
+		      else
 			{
-			  i--;			/* check next reloc */
+			  /* Sptr starts after reloc.  */
+			  i--;
+			  /* Check next reloc.  */
 			  rptr++;
 			}
 
-		      if (i==0)			/* all reloc checked */
+		      if (i == 0)
 			{
+			  /* All reloc checked.  */
 			  if (sptr->size > 0)
 			    {
-			      /* dump rest */
+			      /* Dump rest.  */
 			      sto_imm (abfd, sptr, vaddr, section->index);
 			      vaddr += sptr->size;
 			    }
 			  break;
 			}
-		    } /* for (;;) */
-		} /* if SEC_RELOC */
-	      else				/* no relocs, just dump */
+		    }
+		}
+	      else
 		{
+		  /* No relocs, just dump.  */
 		  sto_imm (abfd, sptr, vaddr, section->index);
 		  vaddr += sptr->size;
 		}
 
 	      sptr = sptr->next;
-
-	    } /* while (sptr != 0) */
+	    }
 
 	  end_etir_record (abfd);
-
-	} /* has_contents */
+	}
 
       section = section->next;
     }
@@ -2390,9 +2211,8 @@ _bfd_vms_write_tir (abfd, objtype)
 /* Write traceback data for bfd abfd.  */
 
 int
-_bfd_vms_write_tbt (abfd, objtype)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     int objtype ATTRIBUTE_UNUSED;
+_bfd_vms_write_tbt (bfd * abfd ATTRIBUTE_UNUSED,
+		    int objtype ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
   _bfd_vms_debug (2, "vms_write_tbt (%p, %d)\n", abfd, objtype);
@@ -2404,9 +2224,8 @@ _bfd_vms_write_tbt (abfd, objtype)
 /* Write debug info for bfd abfd.  */
 
 int
-_bfd_vms_write_dbg (abfd, objtype)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     int objtype ATTRIBUTE_UNUSED;
+_bfd_vms_write_dbg (bfd * abfd ATTRIBUTE_UNUSED,
+		    int objtype ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
   _bfd_vms_debug (2, "vms_write_dbg (%p, objtype)\n", abfd, objtype);

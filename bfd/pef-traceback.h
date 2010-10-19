@@ -1,5 +1,5 @@
 /* PowerPC traceback table support for BFD.
-   Copyright 1993, 1998, 1999, 2000, 2001, 2002
+   Copyright 1993, 1998, 1999, 2000, 2001, 2002, 2005
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -16,7 +16,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software 
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* Originally written by Ira Ruben, 06/28/93 */
 
@@ -49,7 +49,7 @@
 #define TB_PL8 11U		/* PL8 */
 #define TB_ASM 12U		/* Asm */
  
-/* flags 1 */
+/* Flags 1.  */
 
 #define TB_GLOBALLINK 0x80U	/* Routine is Global Linkage.  */
 #define TB_is_eprol 0x40U	/* Out-of-line prolog or epilog routine.  */
@@ -60,7 +60,7 @@
 #define TB_FP_PRESENT 0x02U	/* Routine has floating point ops.  */ 
 #define TB_LOG_ABORT 0x01U	/* fp_present && log/abort compiler opt.  */
  
-/* flags 2 */
+/* Flags 2.  */
 
 #define TB_INT_HNDL 0x80U	/* Routine is an interrupt handler.  */
 #define TB_NAME_PRESENT 0x40U	/* Name_len/name set (extension field).  */
@@ -69,7 +69,7 @@
 #define TB_SAVES_CR 0x02U	/* Routine saves the CR.  */
 #define TB_SAVES_LR 0x01U	/* Routine saves the LR.  */
   
-/* cl_dis_inv "on condition" settings: */
+/* cl_dis_inv "on condition" settings:  */
  
 #define TB_CL_DIS_INV(x) (((x) & cl_dis_inv) >> 2U)
 
@@ -77,7 +77,7 @@
 #define TB_DISCARD_ONCOND 1U	/* Walk stack and discard.  */
 #define TB_INVOKE_ONCOND 2U	/* Invoke a specific system routine.  */
  
-/* flags 3 */
+/* Flags 3.  */
 
 #define TB_STORES_BC 0x80U	/* Routine saves frame ptr of caller.  */
 #define TB_SPARE2 0X40U		/* Spare bit.  */
@@ -86,7 +86,7 @@
 
 #define TB_NUM_FPR_SAVED(x) ((x) & fpr_saved)
  
-/* flags 4 */
+/* Flags 4.  */
 
 #define TB_HAS_VEC_INFO 0x80U	/* Routine uses vectors.  */
 #define TB_SPARE3 0X40U		/* Spare bit.  */
@@ -95,14 +95,14 @@
 
 #define TB_NUM_GPR_SAVED(x) ((x) & gpr_saved)
  
-/* flags 5 */
+/* Flags 5.  */
 
 #define TB_FLOATPARAMS 0xfeU	/* Number of floating point parameters.  */
 #define TB_PARAMSONSTK 0X01U	/* All parameters are on the stack.  */
  
 #define TB_NUM_FLOATPARAMS(X) (((x) & floatparams) >> 1U)
 
-/* traceback_table (fixed portion).  */
+/* Traceback_table (fixed portion).  */
 
 struct traceback_table
 {

@@ -1,4 +1,4 @@
-# Copyright 1993, 1996, 1997, 2002 Free Software Foundation, Inc.
+# Copyright 1993, 1996, 1997, 2002, 2004 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  
 
 # Please email any bugs, comments, and/or additions to this file to:
 # dejagnu@gnu.org
@@ -68,7 +68,7 @@ proc do_relocation_reduction_tests {} {
 
     if {[istarget hppa*64*-*-*]
         || [istarget hppa*-*-*elf*] || [istarget hppa*-*-linux*]} then {
-      return;
+      return
     }
 
     if [gas_test_old "reduce.s" "" "Relocation reductions (part1)"] then {
@@ -245,7 +245,7 @@ proc do_selector_scope_test {} {
     set x 0
 
     if [istarget hppa*64*-*-*] then {
-      return;
+      return
     }
 
     if [gas_test_old "selectorbug.s" "" "Test scope of field selector (part 1)"] {
@@ -348,7 +348,7 @@ proc do_exit_relocation_test {} {
     if {[istarget hppa*64*-*-*]
 	|| [istarget hppa*-*-*elf*] || [istarget hppa*-*-linux*]} then {
 	gas_test_old "exitbug.s" "" "Test for bogus R_EXIT relocation (part 1)"
-	return;
+	return
     }
 
     if [gas_test_old "exitbug.s" "" "Test for bogus R_EXIT relocation (part 1)"] {
@@ -381,7 +381,7 @@ proc do_cross_space_fixup_test_1 {} {
     # ELF doesn't really handle extra sections too well...
     if {[istarget hppa*64*-*-*]
 	|| [istarget hppa*-*-*elf*] || [istarget hppa*-*-linux*]} then {
-	return;
+	return
     }
 
     if [gas_test_old "fixupbug.s" "" "Test cross space jump/call fixup bug (part 1)"] {
@@ -415,7 +415,7 @@ proc do_cross_space_fixup_test_2 {} {
     # ELF doesn't really handle extra sections too well...
     if {[istarget hppa*64*-*-*]
 	|| [istarget hppa*-*-*elf*] || [istarget hppa*-*-linux*]} then {
-	return;
+	return
     }
 
     gas_start "fixupbug.s" "-al"
@@ -545,7 +545,7 @@ proc do_function_reloc_bug {} {
 	# Make sure we didn't put anything in the instruction itself!
 	while 1 {
 	    expect {
-	        -re "^0+cc\[^\n\]*ldil 0,r20\[^\n\]*\n" 
+	        -re "^0+cc\[^\n\]*ldil L%0,r20\[^\n\]*\n" 
 		    { set x [expr $x+1] }
 	        -re "^0+d0\[^\n\]*ldo 0\[\(\]+r20\[\)\]+,r19\[^\n\]*\n" 
 		    { set x [expr $x+1] }
@@ -600,7 +600,7 @@ proc do_pic_relocation_test {} {
     # ELF doesn't really handle extra sections too well...
     if {[istarget hppa*64*-*-*]
 	|| [istarget hppa*-*-*elf*] || [istarget hppa*-*-linux*]} then {
-	return;
+	return
     }
 
     gas_start "picreloc.s" "-al"
@@ -629,16 +629,16 @@ proc do_apply_test {} {
     # ELF doesn't really handle extra sections too well...
     if {[istarget hppa*64*-*-*]
 	|| [istarget hppa*-*-*elf*] || [istarget hppa*-*-linux*]} then {
-	return;
+	return
     }
 
     gas_start "applybug.s" "-al"
 
     while 1 {
 	expect {
-	    -re "^ +\[0-9\]+ 0000 00000000\[^\n\]*\n"	{ set x [expr $x+1] }
-	    -re "^ +\[0-9\]+ 0004 00000000\[^\n\]*\n"	{ set x [expr $x+1] }
-	    -re "^ +\[0-9\]+ 0008 00000000\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "^ +\[0-9\]+ 0000 00000044\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "^ +\[0-9\]+ 0004 00000058\[^\n\]*\n"	{ set x [expr $x+1] }
+	    -re "^ +\[0-9\]+ 0008 0000006C\[^\n\]*\n"	{ set x [expr $x+1] }
 	    -re "\[^\n\]*\n"				{ }
 	    timeout				{ perror "timeout\n"; break }
 	    eof					{ break }

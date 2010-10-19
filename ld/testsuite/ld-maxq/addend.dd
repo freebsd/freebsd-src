@@ -1,0 +1,21 @@
+.*: +file format .*
+
+Disassembly of section .text:
+
+00000000 <_main>:
+   0:	78 56 [ 	]*MOVE  56h, #78h
+	...
+
+00000004 <_buf1>:
+   4:	34 12 [ 	]*MOVE  12h, #34h
+	...
+
+00000008 <_start>:
+   8:	3a da [ 	]*NOP 
+   a:	3a da [ 	]*NOP 
+   c:	00 0b [ 	]*MOVE  PFX\[0\], #00h
+   e:	03 09 [ 	]*MOVE  A\[0\], #03h
+  10:	00 0b [ 	]*MOVE  PFX\[0\], #00h
+  12:	01 09 [ 	]*MOVE  A\[0\], #01h
+  14:	fa 3d [ 	]*CALL  #fah
+  16:	f8 3d [ 	]*CALL  #f8h

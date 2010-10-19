@@ -22,3 +22,4 @@ Disassembly of section .text:
   30:	99 93 40 00 	wrpr  %o5, %cleanwin
   34:	9b 93 80 00 	wrpr  %sp, %otherwin
   38:	9d 93 c0 00 	wrpr  %o7, %wstate
+  3c:	a1 94 00 00 	wrpr  %l0, %gl

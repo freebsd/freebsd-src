@@ -22,7 +22,7 @@ Disassembly of section .text:
 0+030 <[^>]*> ee715212 	mrc	2, 3, r5, cr1, cr2, \{0\}
 0+034 <[^>]*> aeb1f4f2 	mrcge	4, 5, pc, cr1, cr2, \{7\}
 0+038 <[^>]*> ee21f711 	mcr	7, 1, pc, cr1, cr1, \{0\}
-0+03c <[^>]*> be228519 	cfsh64lt	mvdx8, mvdx2, #9
+0+03c <[^>]*> be228519 	mcrlt	5, 1, r8, cr2, cr9, \{0\}
 0+040 <[^>]*> ec907300 	ldc	3, cr7, \[r0\], \{0\}
 0+044 <[^>]*> ec816e01 	stc	14, cr6, \[r1\], \{1\}
 0+048 <[^>]*> fc925502 	ldc2	5, cr5, \[r2\], \{2\}

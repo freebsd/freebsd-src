@@ -1,5 +1,5 @@
 # Expect script for common symbol tests
-#   Copyright 2003 Free Software Foundation, Inc.
+#   Copyright 2003, 2005 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # Written by H.J. Lu (hjl@gnu.org)
 #
@@ -45,7 +45,7 @@ proc dump_common1 { testname } {
 
     send_log "$READELF -s tmpdir/common1.o | grep foo\n"
     catch "exec $READELF -s tmpdir/common1.o | grep foo" exec_output
-    if { ![regexp "(\[ 	\]*)(\[0-9\]+):(\[ 	\]*)(\[0\]*)80(\[ 	\]+)4(\[ 	\]+)OBJECT(\[ 	\]+)GLOBAL(\[ 	\]+)DEFAULT(\[ 	\]+)COM(\[ 	\]+)_?foo2" $exec_output]
+    if { ![regexp "(\[ 	\]*)(\[0-9\]+):(\[ 	\]*)(\[0\]*)80(\[ 	\]+)4(\[ 	\]+)OBJECT(\[ 	\]+)GLOBAL(\[ 	\]+)DEFAULT(\[ 	\]+)(PRC\\\[0xff03\\\]|COM)(\[ 	\]+)_?foo2" $exec_output]
  	 || ![regexp "(\[ 	\]*)(\[0-9\]+):(\[ 	\]*)(\[0-9\]+)(\[ 	\]+)21(\[ 	\]+)OBJECT(\[ 	\]+)GLOBAL(\[ 	\]+)DEFAULT(\[ 	\]+)(\[0-9\]+)(\[ 	\]+)_?foo1" $exec_output] } {
 	send_log "$exec_output\n"
 	verbose $exec_output
@@ -72,7 +72,13 @@ if { [ld_simple_link $ld tmpdir/common1.o "-r tmpdir/common1a.o tmpdir/common1b.
 
 if { ![regexp "Warning: alignment (\[0-9\]+) of symbol \`_?foo1\' in tmpdir/common1b.o is smaller than 64 in tmpdir/common1a.o" $link_output]
      || ![regexp "Warning: size of symbol \`_?foo1\' changed from 2 in tmpdir/common1a.o to 21 in tmpdir/common1b.o" $link_output] } {
-    fail $test1w1
+    if { [istarget mips*-*-*] } {
+	# This test fails on MIPS because the backend sets type_change_ok.  The
+	# size change warning is suppressed.
+	xfail $test1w1
+    } else {
+	fail $test1w1
+    }
 } else {
     pass $test1w1
 }

@@ -12,7 +12,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
 if {![istarget mips*-*-*] || ![is_elf_format]} {
     return
@@ -158,3 +158,6 @@ good_combination { "-mips3 -32" "-mips64r2 -32" "-mips64 -32" } { mips64r2 }
 
 good_combination { "-march=vr4120 -mabi=32" "-mips3 -mabi=32" } { 4120 o32 }
 good_combination { "-march=sb1 -mgp32 -32" "-march=4000 -mgp32 -32" } { sb1 o32 }
+good_combination { "-mips32 -mabi=32" "-march=sb1 -mabi=32" } { sb1 o32 }
+good_combination { "-mips64r2 -mabi=32" "-mips32 -mabi=32" } { mips64r2 o32 }
+good_combination { "-mips5 -mabi=o64" "-mips64r2 -mabi=o64" } { mips64r2 o64 }

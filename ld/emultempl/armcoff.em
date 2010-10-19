@@ -5,7 +5,7 @@ cat >e${EMULATION_NAME}.c <<EOF
 
 /* emulate the original gld for the given ${EMULATION_NAME}
    Copyright 1991, 1993, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-   2004 Free Software Foundation, Inc.
+   2004, 2005 Free Software Foundation, Inc.
    Written by Steve Chamberlain steve@cygnus.com
 
 This file is part of GLD, the Gnu Linker.
@@ -22,7 +22,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #define TARGET_IS_${EMULATION_NAME}
 
@@ -125,6 +125,8 @@ gld${EMULATION_NAME}_before_allocation (void)
 
   /* We have seen it all. Allocate it, and carry on */
   bfd_arm_allocate_interworking_sections (& link_info);
+
+  before_allocation_default ();
 }
 
 static void
@@ -191,6 +193,8 @@ gld${EMULATION_NAME}_finish (void)
     }
   else
     einfo (_("%P: warning: connot find thumb start symbol %s\n"), thumb_entry_symbol);
+
+  finish_default ();
 }
 
 static char *

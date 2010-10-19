@@ -1,6 +1,6 @@
 /* tc-h8300.c -- Assemble code for the Renesas H8/300
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000,
-   2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+   2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* Written By Steve Chamberlain <sac@cygnus.com>.  */
 
@@ -25,10 +25,7 @@
 #include "as.h"
 #include "subsegs.h"
 #include "bfd.h"
-
-#ifdef BFD_ASSEMBLER
 #include "dwarf2dbg.h"
-#endif
 
 #define DEFINE_TABLE
 #define h8_opcodes ops
@@ -77,10 +74,8 @@ h8300hmode (int arg ATTRIBUTE_UNUSED)
 {
   Hmode = 1;
   Smode = 0;
-#ifdef BFD_ASSEMBLER
   if (!bfd_set_arch_mach (stdoutput, bfd_arch_h8300, bfd_mach_h8300h))
     as_warn (_("could not set architecture and machine"));
-#endif
 }
 
 static void
@@ -88,10 +83,8 @@ h8300smode (int arg ATTRIBUTE_UNUSED)
 {
   Smode = 1;
   Hmode = 1;
-#ifdef BFD_ASSEMBLER
   if (!bfd_set_arch_mach (stdoutput, bfd_arch_h8300, bfd_mach_h8300s))
     as_warn (_("could not set architecture and machine"));
-#endif
 }
 
 static void
@@ -100,10 +93,8 @@ h8300hnmode (int arg ATTRIBUTE_UNUSED)
   Hmode = 1;
   Smode = 0;
   Nmode = 1;
-#ifdef BFD_ASSEMBLER
   if (!bfd_set_arch_mach (stdoutput, bfd_arch_h8300, bfd_mach_h8300hn))
     as_warn (_("could not set architecture and machine"));
-#endif
 }
 
 static void
@@ -112,10 +103,8 @@ h8300snmode (int arg ATTRIBUTE_UNUSED)
   Smode = 1;
   Hmode = 1;
   Nmode = 1;
-#ifdef BFD_ASSEMBLER
   if (!bfd_set_arch_mach (stdoutput, bfd_arch_h8300, bfd_mach_h8300sn))
     as_warn (_("could not set architecture and machine"));
-#endif
 }
 
 static void
@@ -124,10 +113,8 @@ h8300sxmode (int arg ATTRIBUTE_UNUSED)
   Smode = 1;
   Hmode = 1;
   SXmode = 1;
-#ifdef BFD_ASSEMBLER
   if (!bfd_set_arch_mach (stdoutput, bfd_arch_h8300, bfd_mach_h8300sx))
     as_warn (_("could not set architecture and machine"));
-#endif
 }
 
 static void
@@ -137,10 +124,8 @@ h8300sxnmode (int arg ATTRIBUTE_UNUSED)
   Hmode = 1;
   SXmode = 1;
   Nmode = 1;
-#ifdef BFD_ASSEMBLER
   if (!bfd_set_arch_mach (stdoutput, bfd_arch_h8300, bfd_mach_h8300sxn))
     as_warn (_("could not set architecture and machine"));
-#endif
 }
 
 static void
@@ -184,8 +169,6 @@ const pseudo_typeS md_pseudo_table[] =
   {0, 0, 0}
 };
 
-const int md_reloc_size;
-
 const char EXP_CHARS[] = "eE";
 
 /* Chars that mean this number is a floating point constant
@@ -208,10 +191,8 @@ md_begin (void)
   char prev_buffer[100];
   int idx = 0;
 
-#ifdef BFD_ASSEMBLER
   if (!bfd_set_arch_mach (stdoutput, bfd_arch_h8300, bfd_mach_h8300))
     as_warn (_("could not set architecture and machine"));
-#endif
 
   opcode_hash_control = hash_new ();
   prev_buffer[0] = 0;
@@ -978,7 +959,8 @@ get_mova_operands (char *op_end, struct h8_op *operand)
 static void
 get_rtsl_operands (char *ptr, struct h8_op *operand)
 {
-  int mode, num, num2, len, type = 0;
+  int mode, len, type = 0;
+  unsigned int num, num2;
 
   ptr++;
   if (*ptr == '(')
@@ -1004,7 +986,7 @@ get_rtsl_operands (char *ptr, struct h8_op *operand)
       ptr += len;
       /* CONST_xxx are used as placeholders in the opcode table.  */
       num = num2 - num;
-      if (num < 0 || num > 3)
+      if (num > 3)
 	{
 	  as_bad (_("invalid register list"));
 	  return;
@@ -1192,15 +1174,6 @@ get_specific (const struct h8_instruction *instruction,
 		      x &= ~SIZE;
 		      x |= x_size = L_32;
 		    }
-
-#if 0 /* ??? */
-		  /* Promote an L8 to L_16 if it makes us match.  */
-		  if ((op_mode == ABS || op_mode == DISP) && x_size == L_8)
-		    {
-		      if (op_size == L_16)
-			x_size = L_16;
-		    }
-#endif
 
 		  if (((x_size == L_16 && op_size == L_16U)
 		       || (x_size == L_8 && op_size == L_8U)
@@ -2025,32 +1998,14 @@ md_assemble (char *str)
 
   build_bytes (instruction, operand);
 
-#ifdef BFD_ASSEMBLER
   dwarf2_emit_insn (instruction->length);
-#endif
 }
-
-#ifndef BFD_ASSEMBLER
-void
-tc_crawl_symbol_chain (object_headers *headers ATTRIBUTE_UNUSED)
-{
-  printf (_("call to tc_crawl_symbol_chain \n"));
-}
-#endif
 
 symbolS *
 md_undefined_symbol (char *name ATTRIBUTE_UNUSED)
 {
   return 0;
 }
-
-#ifndef BFD_ASSEMBLER
-void
-tc_headers_hook (object_headers *headers ATTRIBUTE_UNUSED)
-{
-  printf (_("call to tc_headers_hook \n"));
-}
-#endif
 
 /* Various routines to kill one day */
 /* Equal to MAX_PRECISION in atof-ieee.c */
@@ -2140,12 +2095,7 @@ tc_aout_fix_to_chars (void)
 }
 
 void
-md_convert_frag (
-#ifdef BFD_ASSEMBLER
-		 bfd *headers ATTRIBUTE_UNUSED,
-#else
-		 object_headers *headers ATTRIBUTE_UNUSED,
-#endif
+md_convert_frag (bfd *headers ATTRIBUTE_UNUSED,
 		 segT seg ATTRIBUTE_UNUSED,
 		 fragS *fragP ATTRIBUTE_UNUSED)
 {
@@ -2153,25 +2103,15 @@ md_convert_frag (
   abort ();
 }
 
-#ifdef BFD_ASSEMBLER
 valueT
 md_section_align (segT segment, valueT size)
 {
   int align = bfd_get_section_alignment (stdoutput, segment);
   return ((size + (1 << align) - 1) & (-1 << align));
 }
-#else
-valueT
-md_section_align (segT seg, valueT size)
-{
-  return ((size + (1 << section_alignment[(int) seg]) - 1)
-	  & (-1 << section_alignment[(int) seg]));
-}
-#endif
-
 
 void
-md_apply_fix3 (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
+md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 {
   char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
   long val = *valP;
@@ -2220,66 +2160,6 @@ md_pcrel_from (fixS *fixP ATTRIBUTE_UNUSED)
   abort ();
 }
 
-#ifndef BFD_ASSEMBLER
-void
-tc_reloc_mangle (fixS *fix_ptr, struct internal_reloc *intr, bfd_vma base)
-{
-  symbolS *symbol_ptr;
-
-  symbol_ptr = fix_ptr->fx_addsy;
-
-  /* If this relocation is attached to a symbol then it's ok
-     to output it.  */
-  if (fix_ptr->fx_r_type == TC_CONS_RELOC)
-    {
-      /* cons likes to create reloc32's whatever the size of the reloc..
-       */
-      switch (fix_ptr->fx_size)
-	{
-	case 4:
-	  intr->r_type = R_RELLONG;
-	  break;
-	case 2:
-	  intr->r_type = R_RELWORD;
-	  break;
-	case 1:
-	  intr->r_type = R_RELBYTE;
-	  break;
-	default:
-	  abort ();
-	}
-    }
-  else
-    {
-      intr->r_type = fix_ptr->fx_r_type;
-    }
-
-  intr->r_vaddr = fix_ptr->fx_frag->fr_address + fix_ptr->fx_where + base;
-  intr->r_offset = fix_ptr->fx_offset;
-
-  if (symbol_ptr)
-    {
-      if (symbol_ptr->sy_number != -1)
-	intr->r_symndx = symbol_ptr->sy_number;
-      else
-	{
-	  symbolS *segsym;
-
-	  /* This case arises when a reference is made to `.'.  */
-	  segsym = seg_info (S_GET_SEGMENT (symbol_ptr))->dot;
-	  if (segsym == NULL)
-	    intr->r_symndx = -1;
-	  else
-	    {
-	      intr->r_symndx = segsym->sy_number;
-	      intr->r_offset += S_GET_VALUE (symbol_ptr);
-	    }
-	}
-    }
-  else
-    intr->r_symndx = -1;
-}
-#else /* BFD_ASSEMBLER */
 arelent *
 tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
 {
@@ -2321,4 +2201,3 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
 
   return rel;
 }
-#endif

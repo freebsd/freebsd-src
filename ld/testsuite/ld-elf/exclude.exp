@@ -1,0 +1,137 @@
+# Expect script for --exclude-libs tests
+#   Copyright 2004 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+
+# Make sure that ld can hide symbols from libraries when building a shared
+# library.
+
+# This test can only be run on ELF platforms.
+if ![is_elf_format] {
+    return
+}
+
+# No shared lib support on this target.
+if { [istarget "mcore-*-*"] } {
+    return
+}
+
+global ar
+global as
+global ld
+global nm
+global nm_output
+
+set test1 "ld link shared library"
+set test2 "ld export symbols from archive"
+set test3 "ld link shared library with --exclude-libs"
+set test4 "ld exclude symbols from archive - --exclude-libs libexclude"
+set test5 "ld exclude symbols from archive - --exclude-libs libexclude.a"
+set test6 "ld exclude symbols from archive - --exclude-libs ALL"
+set test7 "ld exclude symbols from archive - --exclude-libs foo:libexclude.a"
+set test8 "ld exclude symbols from archive - --exclude-libs foo,libexclude.a"
+set test9 "ld don't exclude symbols from archive - --exclude-libs foo:bar"
+
+if { ![ld_assemble $as $srcdir/$subdir/exclude1.s tmpdir/exclude1.o ]
+     || ![ld_assemble $as $srcdir/$subdir/exclude2.s tmpdir/exclude2.o] } {
+    unresolved $test1
+    return
+}
+
+catch "exec rm -f tmpdir/libexclude.a" catch_output
+catch "exec $ar cq tmpdir/libexclude.a tmpdir/exclude2.o" catch_output
+if {![string match "" $catch_output]} {
+    unresolved $test1
+    return
+}
+
+# Test that the symbol is normally exported.
+
+if { [ld_simple_link $ld tmpdir/exclude.so "--shared tmpdir/exclude1.o -Ltmpdir -lexclude"] } {
+    pass $test1
+} else {
+    if [string match "*shared not supported*" $link_output] {
+	unsupported "$test1 - -shared is not supported by this target"
+    } else {
+	fail $test1
+    }
+    return
+}
+
+if ![ld_nm $nm "-D" tmpdir/exclude.so] {
+    unresolved $test2
+} elseif { [info exists nm_output(exclude_sym)] } {
+    pass $test2
+} else {
+    fail $test2
+}
+
+# Test --exclude-libs libexclude
+
+if { [ld_simple_link $ld tmpdir/exclude.so "--exclude-libs libexclude --shared tmpdir/exclude1.o -Ltmpdir -lexclude"] } {
+    pass $test3
+} else {
+    fail $test3
+}
+
+if ![ld_nm $nm "-D" tmpdir/exclude.so] {
+    unresolved $test4
+} elseif { ! [info exists nm_output(exclude_sym)] } {
+    pass $test4
+} else {
+    fail $test4
+}
+
+# Test alternate spellings of --exclude-libs
+
+if { [ld_simple_link $ld tmpdir/exclude.so "--exclude-libs libexclude.a --shared tmpdir/exclude1.o -Ltmpdir -lexclude"]
+     && [ld_nm $nm "-D" tmpdir/exclude.so]
+     && ! [info exists nm_output(exclude_sym)] } {
+    pass $test5
+} else {
+    fail $test5
+}
+
+if { [ld_simple_link $ld tmpdir/exclude.so "--exclude-libs ALL --shared tmpdir/exclude1.o -Ltmpdir -lexclude"]
+     && [ld_nm $nm "-D" tmpdir/exclude.so]
+     && ! [info exists nm_output(exclude_sym)] } {
+    pass $test6
+} else {
+    fail $test6
+}
+
+if { [ld_simple_link $ld tmpdir/exclude.so "--exclude-libs foo:libexclude.a --shared tmpdir/exclude1.o -Ltmpdir -lexclude"]
+     && [ld_nm $nm "-D" tmpdir/exclude.so]
+     && ! [info exists nm_output(exclude_sym)] } {
+    pass $test7
+} else {
+    fail $test7
+}
+
+if { [ld_simple_link $ld tmpdir/exclude.so "--exclude-libs foo,libexclude.a --shared tmpdir/exclude1.o -Ltmpdir -lexclude"]
+     && [ld_nm $nm "-D" tmpdir/exclude.so]
+     && ! [info exists nm_output(exclude_sym)] } {
+    pass $test8
+} else {
+    fail $test8
+}
+
+if { [ld_simple_link $ld tmpdir/exclude.so "--exclude-libs foo:bar --shared tmpdir/exclude1.o -Ltmpdir -lexclude"]
+     && [ld_nm $nm "-D" tmpdir/exclude.so]
+     && [info exists nm_output(exclude_sym)] } {
+    pass $test9
+} else {
+    fail $test9
+}

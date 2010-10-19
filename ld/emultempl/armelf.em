@@ -1,5 +1,6 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright 1991, 1993, 1996, 1997, 1998, 1999, 2000, 2002, 2003, 2004
+#   Copyright 1991, 1993, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
+#   2004, 2005
 #   Free Software Foundation, Inc.
 #
 # This file is part of GLD, the Gnu Linker.
@@ -16,17 +17,24 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 
 # This file is sourced from elf32.em, and defines extra arm-elf
 # specific routines.
 #
+test -z "$TARGET2_TYPE" && TARGET2_TYPE="rel"
 cat >>e${EMULATION_NAME}.c <<EOF
 
-static int no_pipeline_knowledge = 0;
+#include "elf/arm.h"
+
 static char *thumb_entry_symbol = NULL;
 static bfd *bfd_for_interwork;
+static int byteswap_code = 0;
+static int target1_is_rel = 0${TARGET1_IS_REL};
+static char *target2_type = "${TARGET2_TYPE}";
+static int fix_v4bx = 0;
+static int use_blx = 0;
 
 static void
 gld${EMULATION_NAME}_before_parse (void)
@@ -65,20 +73,27 @@ arm_elf_after_open (void)
 static void
 arm_elf_set_bfd_for_interworking (lang_statement_union_type *statement)
 {
-  if (statement->header.type == lang_input_section_enum
-      && !statement->input_section.ifile->just_syms_flag)
+  if (statement->header.type == lang_input_section_enum)
     {
       asection *i = statement->input_section.section;
-      asection *output_section = i->output_section;
 
-      ASSERT (output_section->owner == output_bfd);
-
-      if ((output_section->flags & SEC_HAS_CONTENTS) != 0
-	  && (i->flags & SEC_NEVER_LOAD) == 0
-	  && ! i->owner->output_has_begun)
+      if (!((lang_input_statement_type *) i->owner->usrdata)->just_syms_flag
+	  && (i->flags & SEC_EXCLUDE) == 0)
 	{
-	  bfd_for_interwork = i->owner;
-	  bfd_for_interwork->output_has_begun = TRUE;
+	  asection *output_section = i->output_section;
+
+	  ASSERT (output_section->owner == output_bfd);
+
+	  /* Don't attach the interworking stubs to a dynamic object, to
+	     an empty section, etc.  */
+	  if ((output_section->flags & SEC_HAS_CONTENTS) != 0
+	      && (i->flags & SEC_NEVER_LOAD) == 0
+	      && ! (i->owner->flags & DYNAMIC)
+	      && ! i->owner->output_has_begun)
+	    {
+	      bfd_for_interwork = i->owner;
+	      bfd_for_interwork->output_has_begun = TRUE;
+	    }
 	}
     }
 }
@@ -117,7 +132,7 @@ arm_elf_before_allocation (void)
     LANG_FOR_EACH_INPUT_STATEMENT (is)
       {
 	if (!bfd_elf32_arm_process_before_allocation (is->the_bfd, & link_info,
-						      no_pipeline_knowledge))
+						      byteswap_code))
 	  {
 	    /* xgettext:c-format */
 	    einfo (_("Errors encountered processing file %s"), is->filename);
@@ -137,11 +152,25 @@ arm_elf_finish (void)
   /* Call the elf32.em routine.  */
   gld${EMULATION_NAME}_finish ();
 
-  if (thumb_entry_symbol == NULL)
-    return;
+  if (thumb_entry_symbol)
+    {
+      h = bfd_link_hash_lookup (link_info.hash, thumb_entry_symbol,
+				FALSE, FALSE, TRUE);
+    }
+  else
+    {
+      struct elf_link_hash_entry * eh;
 
-  h = bfd_link_hash_lookup (link_info.hash, thumb_entry_symbol,
-			    FALSE, FALSE, TRUE);
+      if (!entry_symbol.name)
+	return;
+
+      h = bfd_link_hash_lookup (link_info.hash, entry_symbol.name,
+				FALSE, FALSE, TRUE);
+      eh = (struct elf_link_hash_entry *)h;
+      if (!h || ELF_ST_TYPE(eh->type) != STT_ARM_TFUNC)
+	return;
+    }
+
 
   if (h != (struct bfd_link_hash_entry *) NULL
       && (h->type == bfd_link_hash_defined
@@ -167,7 +196,8 @@ arm_elf_finish (void)
 
       sprintf_vma (buffer + 2, val);
 
-      if (entry_symbol.name != NULL && entry_from_cmdline)
+      if (thumb_entry_symbol != NULL && entry_symbol.name != NULL
+	  && entry_from_cmdline)
 	einfo (_("%P: warning: '--thumb-entry %s' is overriding '-e %s'\n"),
 	       thumb_entry_symbol, entry_symbol.name);
       entry_symbol.name = buffer;
@@ -177,6 +207,15 @@ arm_elf_finish (void)
 	   thumb_entry_symbol);
 }
 
+/* This is a convenitent point to tell BFD about target specific flags.
+   After the output has been created, but before inputs are read.  */
+static void
+arm_elf_create_output_section_statements (void)
+{
+  bfd_elf32_arm_set_target_relocs (&link_info, target1_is_rel, target2_type,
+                                   fix_v4bx, use_blx);
+}
+
 EOF
 
 # Define some shell vars to insert bits of code into the standard elf
@@ -184,6 +223,12 @@ EOF
 #
 PARSE_AND_LIST_PROLOGUE='
 #define OPTION_THUMB_ENTRY		301
+#define OPTION_BE8			302
+#define OPTION_TARGET1_REL		303
+#define OPTION_TARGET1_ABS		304
+#define OPTION_TARGET2			305
+#define OPTION_FIX_V4BX			306
+#define OPTION_USE_BLX			307
 '
 
 PARSE_AND_LIST_SHORTOPTS=p
@@ -191,20 +236,55 @@ PARSE_AND_LIST_SHORTOPTS=p
 PARSE_AND_LIST_LONGOPTS='
   { "no-pipeline-knowledge", no_argument, NULL, '\'p\''},
   { "thumb-entry", required_argument, NULL, OPTION_THUMB_ENTRY},
+  { "be8", no_argument, NULL, OPTION_BE8},
+  { "target1-rel", no_argument, NULL, OPTION_TARGET1_REL},
+  { "target1-abs", no_argument, NULL, OPTION_TARGET1_ABS},
+  { "target2", required_argument, NULL, OPTION_TARGET2},
+  { "fix-v4bx", no_argument, NULL, OPTION_FIX_V4BX},
+  { "use-blx", no_argument, NULL, OPTION_USE_BLX},
 '
 
 PARSE_AND_LIST_OPTIONS='
-  fprintf (file, _("  -p --no-pipeline-knowledge  Stop the linker knowing about the pipeline length\n"));
   fprintf (file, _("     --thumb-entry=<sym>      Set the entry point to be Thumb symbol <sym>\n"));
+  fprintf (file, _("     --be8                    Oputput BE8 format image\n"));
+  fprintf (file, _("     --target1=rel            Interpret R_ARM_TARGET1 as R_ARM_REL32\n"));
+  fprintf (file, _("     --target1=abs            Interpret R_ARM_TARGET1 as R_ARM_ABS32\n"));
+  fprintf (file, _("     --target2=<type>         Specify definition of R_ARM_TARGET2\n"));
+  fprintf (file, _("     --fix-v4bx               Rewrite BX rn as MOV pc, rn for ARMv4\n"));
+  fprintf (file, _("     --use-blx                Enable use of BLX instructions\n"));
 '
 
 PARSE_AND_LIST_ARGS_CASES='
     case '\'p\'':
-      no_pipeline_knowledge = 1;
+      /* Only here for backwards compatibility.  */
       break;
 
     case OPTION_THUMB_ENTRY:
       thumb_entry_symbol = optarg;
+      break;
+
+    case OPTION_BE8:
+      byteswap_code = 1;
+      break;
+
+    case OPTION_TARGET1_REL:
+      target1_is_rel = 1;
+      break;
+
+    case OPTION_TARGET1_ABS:
+      target1_is_rel = 0;
+      break;
+
+    case OPTION_TARGET2:
+      target2_type = optarg;
+      break;
+
+    case OPTION_FIX_V4BX:
+      fix_v4bx = 1;
+      break;
+
+    case OPTION_USE_BLX:
+      use_blx = 1;
       break;
 '
 
@@ -212,6 +292,7 @@ PARSE_AND_LIST_ARGS_CASES='
 # the standard routines, so give them a different name.
 LDEMUL_AFTER_OPEN=arm_elf_after_open
 LDEMUL_BEFORE_ALLOCATION=arm_elf_before_allocation
+LDEMUL_CREATE_OUTPUT_SECTION_STATEMENTS=arm_elf_create_output_section_statements
 
 # Replace the elf before_parse function with our own.
 LDEMUL_BEFORE_PARSE=gld"${EMULATION_NAME}"_before_parse

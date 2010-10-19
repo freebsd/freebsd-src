@@ -1,6 +1,6 @@
 # Test ALIGN in a linker script.
 # By Nathan Sidwell, CodeSourcery LLC
-#   Copyright 2004
+#   Copyright 2004, 2005
 #   Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
@@ -15,18 +15,24 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
 if [istarget "rs6000-*-aix*"] {
     # Target maps .text and .data to other sections.
     return
 }
 
-set testname "ALIGN"
+set testname "align1"
 
 if ![ld_assemble $as $srcdir/$subdir/align.s tmpdir/align.o] {
     unresolved $testname
     return
+}
+
+# Doesn't work on PECOFF, appears to be a genuine bug
+if [is_pecoff_format] {
+  global target_triplet
+  setup_xfail $target_triplet
 }
 
 if ![ld_simple_link $ld tmpdir/align "-T $srcdir/$subdir/align.t tmpdir/align.o"] {
@@ -34,3 +40,13 @@ if ![ld_simple_link $ld tmpdir/align "-T $srcdir/$subdir/align.t tmpdir/align.o"
 } else {
     pass $testname
 }
+
+if ![is_aout_format] {
+    # The z80-coff port defaults to a "binary" like output
+    # file format which does not include a data section.
+    setup_xfail "z80-*-coff"
+    run_dump_test align2a
+    setup_xfail "z80-*-coff"
+    run_dump_test align2b
+}
+run_dump_test align2c

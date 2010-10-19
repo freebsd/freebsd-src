@@ -1,4 +1,5 @@
-#   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
+#   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
+#   2004
 #   Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
@@ -13,7 +14,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
 # Please email any bugs, comments, and/or additions to this file to:
 # bug-dejagnu@prep.ai.mit.edu
@@ -29,15 +30,9 @@ if ![is_remote host] {
 
 send_user "Version [binutil_version $OBJCOPY]"
 
-if {![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o]} then {
-    perror "unresolved 1"
-    unresolved "objcopy (simple copy)"
-    return
-}
-
 if ![is_remote host] {
-    set tempfile tmpdir/bintest.o;
-    set copyfile tmpdir/copy;
+    set tempfile tmpdir/bintest.o
+    set copyfile tmpdir/copy
 } else {
     set tempfile [remote_download host tmpdir/bintest.o]
     set copyfile copy
@@ -45,61 +40,78 @@ if ![is_remote host] {
 
 # Test that objcopy does not modify a file when copying it.
 
-set got [binutils_run $OBJCOPY "$OBJCOPYFLAGS $tempfile ${copyfile}.o"]
+proc objcopy_test {testname srcfile} {
+    global OBJCOPY
+    global OBJCOPYFLAGS
+    global srcdir
+    global subdir
+    global tempfile
+    global copyfile
 
-if ![string match "" $got] then {
-    fail "objcopy (simple copy)"
-} else {
-    send_log "cmp $tempfile ${copyfile}.o\n"
-    verbose "cmp $tempfile ${copyfile}.o"
-    if [is_remote host] {
-	set src1 tmpdir/bintest.o
-	set src2 tmpdir/copy.o
-	remote_upload host $tempfile $src1;
-	remote_upload host ${copyfile}.o $src2;
-    } else {
-	set src1 ${tempfile}
-	set src2 ${copyfile}.o
+    if {![binutils_assemble $srcdir/$subdir/${srcfile} tmpdir/bintest.o]} then {
+ 	perror "unresolved $testname"
+	unresolved "objcopy ($testname)"
+	return
     }
-    set status [remote_exec build cmp "${src1} ${src2}"];
-    set exec_output [lindex $status 1];
-    set exec_output [prune_warnings $exec_output]
 
-    # On some systems the result of objcopy will not be identical.
-    # Usually this is just because gas isn't using bfd to write the files
-    # in the first place, and may order things a little differently.
-    # Those systems should use setup_xfail here.
+    set got [binutils_run $OBJCOPY "$OBJCOPYFLAGS $tempfile ${copyfile}.o"]
 
-    setup_xfail "a29k-*"
-    setup_xfail "h8300-*-rtems*" "h8300-*-coff"
-    setup_xfail "h8500-*-rtems*" "h8500-*-coff"
-    setup_xfail "hppa*-*-*"
-    setup_xfail "i960-*"
-    setup_xfail "m68*-*-*coff" "m68*-*-hpux*" "m68*-*-lynxos*"
-    setup_xfail "m68*-*-sysv*" "m68*-apple-aux*"
-    setup_xfail "m8*-*"
-    setup_xfail "or32-*-rtems*" "or32-*-coff"
-    setup_xfail "sh-*-coff*" "sh-*-rtems*" 
-    setup_xfail "tic4x-*-*" "tic80-*-*" "w65-*" "z8*-*"
-
-    clear_xfail "hppa*64*-*-hpux*" "hppa*-*-linux*" "hppa*-*-lites*"
-    clear_xfail "hppa*-*-*n*bsd*" "hppa*-*-rtems*" "*-*-*elf*" "m68*-*-sysv4*"
-
-    if [string match "" $exec_output] then {
-	pass "objcopy (simple copy)"
+    if ![string match "" $got] then {
+	fail "objcopy ($testname)"
     } else {
-	send_log "$exec_output\n"
-	verbose "$exec_output" 1
+	send_log "cmp $tempfile ${copyfile}.o\n"
+	verbose "cmp $tempfile ${copyfile}.o"
+	if [is_remote host] {
+	    set src1 tmpdir/bintest.o
+	    set src2 tmpdir/copy.o
+	    remote_upload host $tempfile $src1
+	    remote_upload host ${copyfile}.o $src2
+	} else {
+	    set src1 ${tempfile}
+	    set src2 ${copyfile}.o
+	}
+	set status [remote_exec build cmp "${src1} ${src2}"]
+	set exec_output [lindex $status 1]
+	set exec_output [prune_warnings $exec_output]
 
-	# On OSF/1, this succeeds with gas and fails with /bin/as.
-	setup_xfail "alpha*-*-osf*"
+	# On some systems the result of objcopy will not be identical.
+	# Usually this is just because gas isn't using bfd to write the
+	# files in the first place, and may order things a little
+	# differently. Those systems should use setup_xfail here.
 
-	# This fails for COFF i960-vxworks targets.
-	setup_xfail "i960-*-vxworks*"
+	setup_xfail "h8300-*-rtems*" "h8300-*-coff"
+	setup_xfail "h8500-*-rtems*" "h8500-*-coff"
+	setup_xfail "hppa*-*-*"
+	setup_xfail "i960-*"
+	setup_xfail "m68*-*-*coff" "m68*-*-hpux*" "m68*-*-lynxos*"
+	setup_xfail "m68*-*-sysv*" "m68*-apple-aux*"
+	setup_xfail "m8*-*"
+	setup_xfail "or32-*-rtems*" "or32-*-coff"
+	setup_xfail "sh-*-coff*" "sh-*-rtems*" 
+	setup_xfail "tic4x-*-*" "tic80-*-*" "w65-*"
 
-	fail "objcopy (simple copy)"
+	clear_xfail "hppa*64*-*-hpux*" "hppa*-*-linux*" "hppa*-*-lites*"
+	clear_xfail "hppa*-*-*n*bsd*" "hppa*-*-rtems*" "*-*-*elf*"
+	clear_xfail "m68*-*-sysv4*"
+
+	if [string match "" $exec_output] then {
+	    pass "objcopy ($testname)"
+	} else {
+	    send_log "$exec_output\n"
+	    verbose "$exec_output" 1
+
+	    # On OSF/1, this succeeds with gas and fails with /bin/as.
+	    setup_xfail "alpha*-*-osf*"
+
+	    # This fails for COFF i960-vxworks targets.
+	    setup_xfail "i960-*-vxworks*"
+
+	    fail "objcopy ($testname)"
+	}
     }
 }
+
+objcopy_test "simple copy" bintest.s
 
 # Test generating S records.
 
@@ -120,8 +132,8 @@ if ![string match "" $got] then {
     fail "objcopy -O srec"
 } else {
     if [is_remote host] {
-	remote_upload host ${srecfile} tmpdir/copy.srec;
-	set srecfile tmpdir/copy.srec;
+	remote_upload host ${srecfile} tmpdir/copy.srec
+	set srecfile tmpdir/copy.srec
     }
     set file [open ${srecfile} r]
 
@@ -332,7 +344,7 @@ proc strip_test { } {
 
     if [is_remote host] {
 	set archive libstrip.a
-	set objfile [remote_download host tmpdir/testprog.o];
+	set objfile [remote_download host tmpdir/testprog.o]
 	remote_file host delete $archive
     } else {
 	set archive tmpdir/libstrip.a
@@ -359,7 +371,7 @@ proc strip_test { } {
     }
 
     if [is_remote host] {
-	set objfile [remote_download host tmpdir/testprog.o];
+	set objfile [remote_download host tmpdir/testprog.o]
     } else {
 	set objfile tmpdir/testprog.o
     }
@@ -400,7 +412,7 @@ proc strip_test_with_saving_a_symbol { } {
     }
 
     if [is_remote host] {
-	set objfile [remote_download host tmpdir/testprog.o];
+	set objfile [remote_download host tmpdir/testprog.o]
     } else {
 	set objfile tmpdir/testprog.o
     }
@@ -437,14 +449,14 @@ proc copy_setup { } {
     global gcc_gas_flag
     global test_prog
     
-    set res [build_wrapper testglue.o];
-    set flags { debug };
+    set res [build_wrapper testglue.o]
+    set flags { debug }
     
     if { $res != "" } {
-	lappend flags "additional_flags=[lindex $res 1]";
-	set add_libs "testglue.o";
+	lappend flags "additional_flags=[lindex $res 1]"
+	set add_libs "testglue.o"
     } else {
-	set add_libs "";
+	set add_libs ""
     }
 
     if { [istarget *-*-linux*] } {
@@ -456,8 +468,8 @@ proc copy_setup { } {
 	return 2
     }
 
-    set result [remote_load target tmpdir/$test_prog];
-    set status [lindex $result 0];
+    set result [remote_load target tmpdir/$test_prog]
+    set status [lindex $result 0]
 
     if { $status != "pass"  } {
 	perror "unresolved setup, status = $status"
@@ -473,13 +485,13 @@ proc copy_executable { prog flags test1 test2 } {
     global test_prog
 
     if [is_remote host] {
-	set testfile [remote_download host tmpdir/$test_prog];
+	set testfile [remote_download host tmpdir/$test_prog]
 	set testcopy copyprog
     } else {
 	set testfile tmpdir/$test_prog
 	set testcopy tmpdir/copyprog
     }
-    remote_file host delete $testcopy;
+    remote_file host delete $testcopy
 
     set exec_output [binutils_run $prog "$flags $testfile $testcopy"]
 
@@ -494,7 +506,7 @@ proc copy_executable { prog flags test1 test2 } {
     }
 
     set status [remote_exec build "cmp" "tmpdir/$test_prog tmpdir/copyprog"]
-    set exec_output [lindex $status 1];
+    set exec_output [lindex $status 1]
 
     if [string match "" $exec_output] then {
 	pass $test1
@@ -527,7 +539,7 @@ proc copy_executable { prog flags test1 test2 } {
     }
 
     set output [remote_load target tmpdir/copyprog]
-    set status [lindex $output 0];
+    set status [lindex $output 0]
     if { $status != "pass" } {
 	fail $test2
     } else {
@@ -543,7 +555,7 @@ proc strip_executable { prog flags test } {
 
     remote_download build tmpdir/copyprog tmpdir/striprog
     if [is_remote host] {
-	set copyfile [remote_download host tmpdir/striprog];
+	set copyfile [remote_download host tmpdir/striprog]
     } else {
 	set copyfile tmpdir/striprog
     }
@@ -555,11 +567,11 @@ proc strip_executable { prog flags test } {
     }
 
     if [is_remote host] {
-	remote_upload host ${copyfile} tmpdir/striprog;
+	remote_upload host ${copyfile} tmpdir/striprog
     }
 
     set result [remote_load target tmpdir/striprog]
-    set status [lindex $result 0];
+    set status [lindex $result 0]
     if { $status != "pass" } {
 	fail $test
         return
@@ -581,7 +593,7 @@ proc strip_executable_with_saving_a_symbol { prog flags test } {
 
     remote_download build tmpdir/copyprog tmpdir/striprog
     if [is_remote host] {
-	set copyfile [remote_download host tmpdir/striprog];
+	set copyfile [remote_download host tmpdir/striprog]
     } else {
 	set copyfile tmpdir/striprog
     }
@@ -593,11 +605,11 @@ proc strip_executable_with_saving_a_symbol { prog flags test } {
     }
 
     if [is_remote host] {
-	remote_upload host ${copyfile} tmpdir/striprog;
+	remote_upload host ${copyfile} tmpdir/striprog
     }
 
     set result [remote_load target tmpdir/striprog]
-    set status [lindex $result 0];
+    set status [lindex $result 0]
     if { $status != "pass" } {
 	fail $test
         return
@@ -647,4 +659,62 @@ switch [copy_setup] {
 	strip_executable "$STRIP" "$STRIPFLAGS" "$test3"
 	strip_executable_with_saving_a_symbol "$STRIP" "-K main -K _main $STRIPFLAGS" "$test4"
     }
+}
+
+proc objcopy_test_readelf {testname srcfile} {
+    global OBJCOPY
+    global OBJCOPYFLAGS
+    global READELF
+    global srcdir
+    global subdir
+
+    if {![binutils_assemble $srcdir/$subdir/${srcfile} tmpdir/bintest.o]} then {
+	unresolved "objcopy ($testname)"
+	return
+    }
+
+    verbose -log "$OBJCOPY $OBJCOPYFLAGS tmpdir/bintest.o tmpdir/copy.o"
+    catch "exec $OBJCOPY $OBJCOPYFLAGS tmpdir/bintest.o tmpdir/copy.o" exec_output
+    if ![string match "" $exec_output] then {
+	fail "objcopy ($testname)"
+	return;
+    }
+
+    verbose -log "$READELF -a tmpdir/bintest.o > tmpdir/bintest.o.out"
+    catch "exec $READELF -a tmpdir/bintest.o > tmpdir/bintest.o.out" exec_output
+    set exec_output [prune_warnings $exec_output]
+    if ![string match "" $exec_output] then {
+	unresolved "objcopy ($testname)"
+	return
+    }
+
+    verbose -log "$READELF -a tmpdir/copy.o > tmpdir/copy.o.out"
+    catch "exec $READELF -a tmpdir/copy.o > tmpdir/copy.o.out" exec_output
+    set exec_output [prune_warnings $exec_output]
+    if ![string match "" $exec_output] then {
+	unresolved "objcopy ($testname)"
+	return
+    }
+
+    verbose -log "diff tmpdir/bintest.o.out tmpdir/copy.o.out"
+    catch "exec diff tmpdir/bintest.o.out tmpdir/copy.o.out" exec_output
+    set exec_output [prune_warnings $exec_output]
+
+    if [string match "" $exec_output] then {
+	pass "objcopy ($testname)"
+    } else {
+	fail "objcopy ($testname)"
+    }
+}
+
+# ia64 specific tests
+if { ([istarget "ia64-*-elf*"]
+       || [istarget "ia64-*-linux*"]) } {
+    objcopy_test "ia64 link order" link-order.s
+}
+
+# ELF specific tests
+if [is_elf_format] {
+    objcopy_test "ELF unknown section type" unknown.s
+    objcopy_test_readelf "ELF group" group.s
 }

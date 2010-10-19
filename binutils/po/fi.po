@@ -1,0 +1,5770 @@
+# Finnish messages for binutils.
+# Copyright (C) 2005 Free Software Foundation, Inc.
+# This file is distributed under the same license as the binutils package.
+# Jorma Karvonen <karvjorm@users.sourceforge.net>, 2005.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: binutils 2.15.96\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2005-03-03 21:03+1030\n"
+"PO-Revision-Date: 2005-11-19 14:57+0200\n"
+"Last-Translator: Jorma Karvonen <karvjorm@users.sourceforge.net>\n"
+"Language-Team: Finnish <translation-team-fi@lists.sourceforge.net>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Poedit-Language: Finnish\n"
+"X-Poedit-Country: FINLAND\n"
+"X-Poedit-SourceCharset: utf-8\n"
+
+# Käytetty option(s)-suomennoksessa monikkomuotoa. Samoin sanat addr(s) suomennettu monikon partitiivilla.
+#: addr2line.c:73
+#, c-format
+msgid "Usage: %s [option(s)] [addr(s)]\n"
+msgstr "Käyttö: %s [valitsimet] [osoitteita]\n"
+
+#: addr2line.c:74
+#, c-format
+msgid " Convert addresses into line number/file name pairs.\n"
+msgstr " Muuntaa osoitteet rivinumero-tiedostonimipareiksi.\n"
+
+#: addr2line.c:75
+#, c-format
+msgid " If no addresses are specified on the command line, they will be read from stdin\n"
+msgstr " Jos komentorivillä ei ole määritelty osoitteita, ne luetaan vakiosyötteestä\n"
+
+#: addr2line.c:76
+#, c-format
+msgid ""
+" The options are:\n"
+"  -b --target=<bfdname>  Set the binary file format\n"
+"  -e --exe=<executable>  Set the input file name (default is a.out)\n"
+"  -s --basenames         Strip directory names\n"
+"  -f --functions         Show function names\n"
+"  -C --demangle[=style]  Demangle function names\n"
+"  -h --help              Display this information\n"
+"  -v --version           Display the program's version\n"
+"\n"
+msgstr ""
+" Valitsimet ovat:\n"
+"  -b --target=<bfd-nimi>      Asettaa binaaritiedoston muodon\n"
+"  -e --exe=<suoritustiedosto> Asettaa syötetiedoston nimen (oletus on a.out)\n"
+"  -s --basenames              Poistaa hakemistonimet\n"
+"  -f --functions              Näyttää funktionimet\n"
+"  -C --demangle[=tyyli]       Eheyttää funktionimet\n"
+"  -h --help                   Näyttää nämä tiedot\n"
+"  -v --version                Näyttää ohjelman version\n"
+"\n"
+
+#: addr2line.c:88 ar.c:263 coffdump.c:467 nlmconv.c:1110 objcopy.c:478
+#: objcopy.c:512 readelf.c:2631 size.c:99 srconv.c:1731 strings.c:667
+#: sysdump.c:655 windres.c:672
+#, c-format
+msgid "Report bugs to %s\n"
+msgstr ""
+"Ilmoita ohjelmistovioista englanniksi osoitteeseen %s\n"
+"Suomennoksen virheistä voi ilmoittaa (suomeksi) osoitteeseen <mailto:translation-team-fi@lists.sourceforge.net>\n"
+
+#: addr2line.c:241
+#, c-format
+msgid "%s: can not get addresses from archive"
+msgstr "%s: osoitteita ei saa arkistosta"
+
+#: addr2line.c:311 nm.c:1519 objdump.c:2848
+#, c-format
+msgid "unknown demangling style `%s'"
+msgstr "tuntematon eheytystyyli \"%s\""
+
+#: ar.c:205
+#, c-format
+msgid "no entry %s in archive\n"
+msgstr "arkistossa ei ole alkiota %s\n"
+
+#: ar.c:221
+#, c-format
+msgid "Usage: %s [emulation options] [-]{dmpqrstx}[abcfilNoPsSuvV] [member-name] [count] archive-file file...\n"
+msgstr "Käyttö: %s [emulointivalitsimet] [-]{dmpqrstx}[abcfilNoPsSuvV] [jäsennimi] [lukumäärä] arkistotiedosto tiedosto...\n"
+
+#: ar.c:224
+#, c-format
+msgid "       %s -M [<mri-script]\n"
+msgstr "       %s -M [<mri-skripti]\n"
+
+#: ar.c:225
+#, c-format
+msgid " commands:\n"
+msgstr " komennot:\n"
+
+#: ar.c:226
+#, c-format
+msgid "  d            - delete file(s) from the archive\n"
+msgstr "  d            - poistaa tiedosto(t) arkistosta\n"
+
+#: ar.c:227
+#, c-format
+msgid "  m[ab]        - move file(s) in the archive\n"
+msgstr "  m[ab]        - siirtää tiedosto(t) arkistoon\n"
+
+#: ar.c:228
+#, c-format
+msgid "  p            - print file(s) found in the archive\n"
+msgstr "  p            - tulostaa arkistosta löytyvät tiedosto(t)\n"
+
+#: ar.c:229
+#, c-format
+msgid "  q[f]         - quick append file(s) to the archive\n"
+msgstr "  q[f]         - liittää tiedosto(t) nopeasti arkiston loppuun\n"
+
+#: ar.c:230
+#, c-format
+msgid "  r[ab][f][u]  - replace existing or insert new file(s) into the archive\n"
+msgstr "  r[ab][f][u]  - korvaa olemassa oleva(t) tai lisää uudet tiedosto(t) arkistoon\n"
+
+#: ar.c:231
+#, c-format
+msgid "  t            - display contents of archive\n"
+msgstr "  t            - näyttää arkiston sisällön\n"
+
+#: ar.c:232
+#, c-format
+msgid "  x[o]         - extract file(s) from the archive\n"
+msgstr "  x[o]         - purkaa tiedosto(t) arkistosta\n"
+
+# modifiers on tässä sama kuin options
+#: ar.c:233
+#, c-format
+msgid " command specific modifiers:\n"
+msgstr " komentokohtaiset valitsimet:\n"
+
+#: ar.c:234
+#, c-format
+msgid "  [a]          - put file(s) after [member-name]\n"
+msgstr "  [a]          - sijoittaa tiedosto(t) kohteen [jäsennimi] jälkeen\n"
+
+#: ar.c:235
+#, c-format
+msgid "  [b]          - put file(s) before [member-name] (same as [i])\n"
+msgstr "  [b]          - laittaa tiedosto(t) kohteen [jäsennimi] edelle (sama kuin [i])\n"
+
+# Otaksun, että kyse on jostain taulukkomuotoisesta oliosta, jossa on lukumäärän osoittama määrä alkioita. Ohjelmointikielissä se merkataan yleensä olio[5] tai nimi[5]. Valitsimella valitaan ilmeisesti tämän muotoinen ilmentymä.
+#: ar.c:236
+#, c-format
+msgid "  [N]          - use instance [count] of name\n"
+msgstr "  [N]          - käyttää nimen[lukumäärä]-ilmentymää\n"
+
+#: ar.c:237
+#, c-format
+msgid "  [f]          - truncate inserted file names\n"
+msgstr "  [f]          - katkaisee lisätyt tiedostonimet\n"
+
+#: ar.c:238
+#, c-format
+msgid "  [P]          - use full path names when matching\n"
+msgstr "  [P]          - käyttää täyttä polkunimeä, kun se täsmää\n"
+
+#: ar.c:239
+#, c-format
+msgid "  [o]          - preserve original dates\n"
+msgstr "  [o]          - säilyttää alkuperäiset päiväykset\n"
+
+#: ar.c:240
+#, c-format
+msgid "  [u]          - only replace files that are newer than current archive contents\n"
+msgstr "  [u]          - korvaa vain tiedostot, jotka ovat arkiston nykysisältöä uudempia\n"
+
+# modifiers on tässä sama kuin options
+#: ar.c:241
+#, c-format
+msgid " generic modifiers:\n"
+msgstr " yleiset valitsimet:\n"
+
+#: ar.c:242
+#, c-format
+msgid "  [c]          - do not warn if the library had to be created\n"
+msgstr "  [c]          - ei varoita, jos kirjasto pitää luoda\n"
+
+#: ar.c:243
+#, c-format
+msgid "  [s]          - create an archive index (cf. ranlib)\n"
+msgstr "  [s]          - luo arkiston sisältöhakemiston (vrt. ranlib)\n"
+
+#: ar.c:244
+#, c-format
+msgid "  [S]          - do not build a symbol table\n"
+msgstr "  [S]          - ei koosta symbolitaulua\n"
+
+#: ar.c:245
+#, c-format
+msgid "  [v]          - be verbose\n"
+msgstr "  [v]          - monisanaisesti\n"
+
+#: ar.c:246
+#, c-format
+msgid "  [V]          - display the version number\n"
+msgstr "  [V]          - näyttää versionumeron\n"
+
+#: ar.c:253
+#, c-format
+msgid "Usage: %s [options] archive\n"
+msgstr "Käyttö: %s [valitsimet] arkisto\n"
+
+#: ar.c:254
+#, c-format
+msgid " Generate an index to speed access to archives\n"
+msgstr " Luo sisältöhakemiston nopeuttamaan arkistohakua\n"
+
+#: ar.c:255
+#, c-format
+msgid ""
+" The options are:\n"
+"  -h --help                    Print this help message\n"
+"  -V --version                 Print version information\n"
+msgstr ""
+" Valitsimet ovat:\n"
+"  -h --help                    Tulostaa tämän ohjeen\n"
+"  -V --version                 Tulostaa versiotiedot\n"
+
+#: ar.c:483
+msgid "two different operation options specified"
+msgstr "kaksi erilaista toimintavalitsinta annettu"
+
+#: ar.c:558
+#, c-format
+msgid "illegal option -- %c"
+msgstr "virheellinen valitsin -- %c"
+
+#: ar.c:604
+msgid "no operation specified"
+msgstr "mitään toimintaa ei ole annettu"
+
+#: ar.c:607
+msgid "`u' is only meaningful with the `r' option."
+msgstr "\"u\" on merkityksellinen vain \"r\"-valitsimen kanssa."
+
+#: ar.c:615
+msgid "`N' is only meaningful with the `x' and `d' options."
+msgstr "\"N\" on merkityksellinen vain \"x\"- ja \"d\"-valitsimien kanssa."
+
+#: ar.c:618
+msgid "Value for `N' must be positive."
+msgstr "Arvon \"N\" on oltava positiivinen."
+
+#: ar.c:668
+#, c-format
+msgid "internal error -- this option not implemented"
+msgstr "sisäinen virhe -- tätä valitsinta ei ole toteutettu"
+
+#: ar.c:737
+#, c-format
+msgid "creating %s"
+msgstr "luodaan %s"
+
+# stat on *nix-ympäristön vakiokomentoja (katso: man stat)
+#: ar.c:786 ar.c:836 ar.c:1154 objcopy.c:1603
+#, c-format
+msgid "internal stat error on %s"
+msgstr "sisäinen stat-kutsuvirhe kohteessa %s"
+
+#: ar.c:790
+#, c-format
+msgid ""
+"\n"
+"<%s>\n"
+"\n"
+msgstr ""
+"\n"
+"<%s>\n"
+"\n"
+
+#: ar.c:806 ar.c:873
+#, c-format
+msgid "%s is not a valid archive"
+msgstr "%s ei ole kelvollinen arkisto"
+
+# stat on *nix-ympäristön vakiokomentoja (katso: man stat)
+#: ar.c:841
+#, c-format
+msgid "stat returns negative size for %s"
+msgstr "stat-kutsu palauttaa negatiivisen koon kohteelle %s"
+
+#: ar.c:1059
+#, c-format
+msgid "No member named `%s'\n"
+msgstr "Millään jäsenellä ei ole nimeä \"%s\"\n"
+
+#: ar.c:1109
+#, c-format
+msgid "no entry %s in archive %s!"
+msgstr "ei alkiota %s arkistossa %s!"
+
+# Ruotsinkielisessä käännöksessä todetaan, että archive map on lähdekoodissa sama kuin indeksi, tarkoittanee tässä sisältöhakemistoa?
+#: ar.c:1246
+#, c-format
+msgid "%s: no archive map to update"
+msgstr "%s: ei sisältöhakemistoa päivitettävänä"
+
+#: arsup.c:83
+#, c-format
+msgid "No entry %s in archive.\n"
+msgstr "Ei alkiota %s arkistossa.\n"
+
+#: arsup.c:109
+#, c-format
+msgid "Can't open file %s\n"
+msgstr "Tiedostoa %s ei voi avata\n"
+
+#: arsup.c:162
+#, c-format
+msgid "%s: Can't open output archive %s\n"
+msgstr "%s: Ei voi avata tulostearkistoa %s\n"
+
+#: arsup.c:179
+#, c-format
+msgid "%s: Can't open input archive %s\n"
+msgstr "%s: Ei voi avata syötearkistoa %s\n"
+
+#: arsup.c:188
+#, c-format
+msgid "%s: file %s is not an archive\n"
+msgstr "%s: tiedosto %s ei ole arkisto\n"
+
+#: arsup.c:227
+#, c-format
+msgid "%s: no output archive specified yet\n"
+msgstr "%s: tulostearkistoa ei ole vielä annettu\n"
+
+#: arsup.c:247 arsup.c:285 arsup.c:327 arsup.c:347 arsup.c:413
+#, c-format
+msgid "%s: no open output archive\n"
+msgstr "%s: ei avointa tulostearkistoa\n"
+
+#: arsup.c:258 arsup.c:368 arsup.c:394
+#, c-format
+msgid "%s: can't open file %s\n"
+msgstr "%s: ei voi avata tiedostoa %s\n"
+
+# Ruotsinkielisessä käännöksessä todetaan, että module file on sama kuin jäsen
+#: arsup.c:312 arsup.c:390 arsup.c:471
+#, c-format
+msgid "%s: can't find module file %s\n"
+msgstr "%s: ei voi löytää jäsentä %s\n"
+
+#: arsup.c:422
+#, c-format
+msgid "Current open archive is %s\n"
+msgstr "Nykyinen avoin arkisto on %s\n"
+
+#: arsup.c:446
+#, c-format
+msgid "%s: no open archive\n"
+msgstr "%s: ei avointa arkistoa\n"
+
+#: binemul.c:37
+#, c-format
+msgid "  No emulation specific options\n"
+msgstr "  Ei emulointikohtaisia valitsimia\n"
+
+#. Macros for common output.
+#: binemul.h:42
+#, c-format
+msgid " emulation options: \n"
+msgstr " emulointivalitsimet: \n"
+
+#: bucomm.c:109
+#, c-format
+msgid "can't set BFD default target to `%s': %s"
+msgstr "ei voi asettaa BFD-oletuskohteeksi \"%s\": %s"
+
+#: bucomm.c:120
+#, c-format
+msgid "%s: Matching formats:"
+msgstr "%s: Täsmäävät muodot:"
+
+#: bucomm.c:135
+#, c-format
+msgid "Supported targets:"
+msgstr "Tuetut kohteet:"
+
+#: bucomm.c:137
+#, c-format
+msgid "%s: supported targets:"
+msgstr "%s: tuetut kohteet:"
+
+#: bucomm.c:153
+#, c-format
+msgid "Supported architectures:"
+msgstr "Tuetut arkkitehtuurit:"
+
+#: bucomm.c:155
+#, c-format
+msgid "%s: supported architectures:"
+msgstr "%s: tuetut arkkitehtuurit:"
+
+#: bucomm.c:348
+#, c-format
+msgid "BFD header file version %s\n"
+msgstr "BFD-otsaketiedoston versio %s\n"
+
+#: bucomm.c:449
+#, c-format
+msgid "%s: bad number: %s"
+msgstr "%s: virheellinen numero: %s"
+
+# stat-kutsu epäonnistui, ensimmäinen parametri on tiedostonimi
+#: bucomm.c:466 strings.c:386
+#, c-format
+msgid "'%s': No such file"
+msgstr "Tiedostoa \"%s\" ei löydy"
+
+# stat-kutsu epäonnistui, ensimmäinen parametri on tiedostonimi
+#: bucomm.c:468 strings.c:388
+#, c-format
+msgid "Warning: could not locate '%s'.  reason: %s"
+msgstr "Varoitus: tiedostoa \"%s\" ei löytynyt.  syy: %s"
+
+#: bucomm.c:472
+#, c-format
+msgid "Warning: '%s' is not an ordinary file"
+msgstr "Varoitus: \"%s\" ei ole tavallinen tiedosto"
+
+#: coffdump.c:105
+#, c-format
+msgid "#lines %d "
+msgstr "#rivit %d "
+
+#: coffdump.c:459 sysdump.c:648
+#, c-format
+msgid "Usage: %s [option(s)] in-file\n"
+msgstr "Käyttö: %s [valitsimet] syötetiedosto\n"
+
+# Microsoft Portable Executable and CommonObject 
+# FileFormat Specification, Revision 6.0-dokumentin mukaan 
+# "object file" on tiedosto, joka annetaan syötteenä 
+# linkkerille. Linkkeri tuottaa "image file":n, jota 
+# vuorostaan käytetään syötteenä ohjelmalataajalle. Termi 
+# "object file" ei välttämättä sisällä mitään yhteyttä 
+# olioperustaiseen ohjelmointiin.
+#: coffdump.c:460
+#, c-format
+msgid " Print a human readable interpretation of a SYSROFF object file\n"
+msgstr " Tulosta luettavamerkkinen SYSROFF-objektitiedoston tulkinta\n"
+
+#: coffdump.c:461
+#, c-format
+msgid ""
+" The options are:\n"
+"  -h --help              Display this information\n"
+"  -v --version           Display the program's version\n"
+"\n"
+msgstr ""
+" Valitsimet ovat:\n"
+"  -h --help              Näyttää nämä tiedot\n"
+"  -v --version           Näyttää ohjelman version\n"
+"\n"
+
+#: coffdump.c:527 srconv.c:1819 sysdump.c:710
+msgid "no input file specified"
+msgstr "syötetiedostoa ei ole annettu"
+
+#: debug.c:648
+msgid "debug_add_to_current_namespace: no current file"
+msgstr "debug_add_to_current_namespace: ei nykyistä tiedostoa"
+
+#: debug.c:727
+msgid "debug_start_source: no debug_set_filename call"
+msgstr "debug_start_source: ei debug_set_filename-kutsua"
+
+#: debug.c:783
+msgid "debug_record_function: no debug_set_filename call"
+msgstr "debug_record_function: ei debug_set_filename-kutsua"
+
+#: debug.c:835
+msgid "debug_record_parameter: no current function"
+msgstr "debug_record_parameter: ei nykyistä funktiota"
+
+#: debug.c:867
+msgid "debug_end_function: no current function"
+msgstr "debug_end_function: ei nykyistä funktiota"
+
+#: debug.c:873
+msgid "debug_end_function: some blocks were not closed"
+msgstr "debug_end_function: joitakin lohkoja ei ollut suljettu"
+
+#: debug.c:901
+msgid "debug_start_block: no current block"
+msgstr "debug_start_block: ei nykyistä lohkoa"
+
+#: debug.c:937
+msgid "debug_end_block: no current block"
+msgstr "debug_end_block: ei nykyistä lohkoa"
+
+#: debug.c:944
+msgid "debug_end_block: attempt to close top level block"
+msgstr "debug_end_block: yritettiin sulkea ylimmän tason lohko"
+
+#: debug.c:967
+msgid "debug_record_line: no current unit"
+msgstr "debug_record_line: ei nykyistä yksikköä"
+
+#. FIXME
+#: debug.c:1020
+msgid "debug_start_common_block: not implemented"
+msgstr "debug_start_common_block: ei toteutettu"
+
+#. FIXME
+#: debug.c:1031
+msgid "debug_end_common_block: not implemented"
+msgstr "debug_end_common_block: ei toteutettu"
+
+#. FIXME.
+#: debug.c:1115
+msgid "debug_record_label: not implemented"
+msgstr "debug_record_label: ei toteutettu"
+
+#: debug.c:1137
+msgid "debug_record_variable: no current file"
+msgstr "debug_record_variable: ei nykyistä tiedostoa"
+
+# Ratkaisin tämän kohdan samalla tavalla kuin ruotsinkielisessä käännöksessä: kind tulee DEBUG_KIND_UNION-tyyppisestä tyyppinimestä. Ennen tätä ilmoitusta lähdekoodissa tutkitaan, onko debuggaustyyppi struct, union, class, union class vai enum ja jos mikään ei täsmää, palautetaan debug_type_null.
+#: debug.c:1665
+msgid "debug_make_undefined_type: unsupported kind"
+msgstr "debug_make_undefined_type: lajittelua ei tueta"
+
+#: debug.c:1842
+msgid "debug_name_type: no current file"
+msgstr "debug_name_type: ei nykyistä tiedostoa"
+
+#: debug.c:1887
+msgid "debug_tag_type: no current file"
+msgstr "debug_tag_type: ei nykyistä tiedostoa"
+
+#: debug.c:1895
+msgid "debug_tag_type: extra tag attempted"
+msgstr "debug_tag_type: yritetty asettaa ylimääräinen tunniste"
+
+#: debug.c:1932
+#, c-format
+msgid "Warning: changing type size from %d to %d\n"
+msgstr "Varoitus: tyyppikoko %d muutetaan kokoon %d\n"
+
+#: debug.c:1954
+msgid "debug_find_named_type: no current compilation unit"
+msgstr "debug_find_named_type: ei nykyistä käännösyksikköä"
+
+# Ihan outo käsite
+#: debug.c:2057
+#, fuzzy, c-format
+msgid "debug_get_real_type: circular debug information for %s\n"
+msgstr "debug_get_real_type: kehä-debug-tietoa kohteella %s\n"
+
+#: debug.c:2484
+msgid "debug_write_type: illegal type encountered"
+msgstr "debug_write_type: kohdattu virheellinen tyyppi"
+
+#: dlltool.c:773 dlltool.c:797 dlltool.c:826
+#, c-format
+msgid "Internal error: Unknown machine type: %d"
+msgstr "Sisäinen virhe: Tuntematon konetyyppi: %d"
+
+#: dlltool.c:862
+#, c-format
+msgid "Can't open def file: %s"
+msgstr "Ei voi avata def-tiedostoa: %s"
+
+#: dlltool.c:867
+#, c-format
+msgid "Processing def file: %s"
+msgstr "Käsitellään def-tiedostoa: %s"
+
+#: dlltool.c:871
+msgid "Processed def file"
+msgstr "Käsiteltiin def-tiedostoa"
+
+#: dlltool.c:895
+#, c-format
+msgid "Syntax error in def file %s:%d"
+msgstr "Syntaksivirhe def-tiedostossa %s:%d"
+
+# Microsoft Portable Executable and Common Object 
+#  File Format Specification, Revision 6.0-dokumentin mukaan 
+# "image file" on suoritettava tiedosto joko .EXE- tai 
+# .DLL-muodossa. Sitä voidaan pitää "memory imgage":na. 
+# Termiä "image file" on tavallisesti käytetty termin 
+# "executable file" sijasta, koska jälkimmäisen joskus 
+# oletetaan tarkoittavan vain .EXE-tiedostoa.
+#: dlltool.c:930
+#, c-format
+msgid "%s: Path components stripped from image name, '%s'."
+msgstr "%s: Polkukomponentit riisuttu tiedostovedosnimestä, \"%s\"."
+
+# A DEF file contains any number of the following commands:
+# NAME <name> [ , <base> ]
+# The result is going to be <name>.EXE
+#: dlltool.c:939
+#, c-format
+msgid "NAME: %s base: %x"
+msgstr "NAME-komento: %s kantaluku: %x"
+
+#: dlltool.c:942 dlltool.c:958
+msgid "Can't have LIBRARY and NAME"
+msgstr "Määriteltynä ei voi olla sekä LIBRARY- että NAME-komento"
+
+# A DEF file contains any number of the following commands:
+# LIBRARY <name> [ , <base> ]
+# The result is going to be <name>.DLL
+#: dlltool.c:955
+#, c-format
+msgid "LIBRARY: %s base: %x"
+msgstr "LIBRARY-komento: %s kantaluku: %x"
+
+# Lähdekoodissa tämä oli status error -tuloste
+#: dlltool.c:1191 resrc.c:269
+#, c-format
+msgid "wait: %s"
+msgstr "wait-tilavirhe: %s"
+
+#: dlltool.c:1196 dllwrap.c:418 resrc.c:274
+#, c-format
+msgid "subprocess got fatal signal %d"
+msgstr "aliprosessi sai tuhoisan signaalin %d"
+
+# Ensimmäinen parametri on ohjelma, josta poistutaan (esim. "ld").
+#: dlltool.c:1202 dllwrap.c:425 resrc.c:281
+#, c-format
+msgid "%s exited with status %d"
+msgstr "%s-ohjelmasta poistuttiin tilassa %d"
+
+# Microsoft Portable Executable and Common Object 
+#  File Format Specification, Revision 6.0-dokumentin mukaan 
+# "section" on PE/COFF-tiedoston sisällä koodin ja datan 
+# perusyksikkö. Objektitiedostossa, esimerkiksi, kaikki 
+# koodi voidaan yhdistää yhdeksi lohkoksi, tai (riippuen 
+# kääntäjän toiminnasta) jokainen funktio voi varata oman 
+# lohkon. "Section" on hämärästi samanlainen kuin "section" 
+# Intel® 8086-arkkitehtuurissa.
+#: dlltool.c:1233
+#, c-format
+msgid "Sucking in info from %s section in %s"
+msgstr "Imetään tietoja lohkosta %s kohteessa %s"
+
+#: dlltool.c:1358
+#, c-format
+msgid "Excluding symbol: %s"
+msgstr "Poissulkeva symboli: %s"
+
+#: dlltool.c:1447 dlltool.c:1458 nm.c:998 nm.c:1009
+#, c-format
+msgid "%s: no symbols"
+msgstr "%s: ei symboleja"
+
+#. FIXME: we ought to read in and block out the base relocations.
+#: dlltool.c:1484
+#, c-format
+msgid "Done reading %s"
+msgstr "Luettu %s"
+
+#: dlltool.c:1494
+#, c-format
+msgid "Unable to open object file: %s"
+msgstr "Objektitiedostoa %s ei voi avata"
+
+#: dlltool.c:1497
+#, c-format
+msgid "Scanning object file %s"
+msgstr "Selataan objektitiedostoa %s"
+
+#: dlltool.c:1512
+#, c-format
+msgid "Cannot produce mcore-elf dll from archive file: %s"
+msgstr "Ei voi tuottaa mcore-elf-dll:ää arkistotiedostosta: %s"
+
+#: dlltool.c:1598
+msgid "Adding exports to output file"
+msgstr "Viennit lisätään tulostetiedostoon"
+
+#: dlltool.c:1646
+msgid "Added exports to output file"
+msgstr "Viennit lisätty tulostetiedostoon"
+
+#: dlltool.c:1767
+#, c-format
+msgid "Generating export file: %s"
+msgstr "Luodaan vientitiedosto: %s"
+
+#: dlltool.c:1772
+#, c-format
+msgid "Unable to open temporary assembler file: %s"
+msgstr "Ei voi avata tilapäistä assembler-tiedostoa: %s"
+
+#: dlltool.c:1775
+#, c-format
+msgid "Opened temporary file: %s"
+msgstr "Avattu tilapäinen tiedosto: %s"
+
+# exports file == export file ??
+#: dlltool.c:1997
+msgid "Generated exports file"
+msgstr "Luotu vientitiedosto"
+
+# stub on PE-tiedostoon sisällytetty ohjelma, joka esimerkiksi MS-DOS-ikkunassa ilmoittaa "This program cannot be run in DOS mode"
+#: dlltool.c:2203
+#, c-format
+msgid "bfd_open failed open stub file: %s"
+msgstr "bfd_open ei onnistunut avaamaan stub-tiedostoa: %s"
+
+#: dlltool.c:2206
+#, c-format
+msgid "Creating stub file: %s"
+msgstr "Luodaan stub-tiedosto: %s"
+
+#: dlltool.c:2588
+#, c-format
+msgid "failed to open temporary head file: %s"
+msgstr "ei onnistuttu avaamaan tilapäistä head-tiedostoa: %s"
+
+#: dlltool.c:2647
+#, c-format
+msgid "failed to open temporary tail file: %s"
+msgstr "ei onnistuttu avamaan tilapäistä tail-tiedostoa: %s"
+
+#: dlltool.c:2714
+#, c-format
+msgid "Can't open .lib file: %s"
+msgstr "Ei voi avata .lib-tiedostoa: %s"
+
+#: dlltool.c:2717
+#, c-format
+msgid "Creating library file: %s"
+msgstr "Luodaan kirjastotiedosto: %s"
+
+#: dlltool.c:2800 dlltool.c:2806
+#, c-format
+msgid "cannot delete %s: %s"
+msgstr "ei voi poistaa kohdetta %s: %s"
+
+#: dlltool.c:2811
+msgid "Created lib file"
+msgstr "Luotu lib-tiedosto"
+
+#: dlltool.c:2904
+#, c-format
+msgid "Warning, ignoring duplicate EXPORT %s %d,%d"
+msgstr "Varoitus, ei välitetä EXPORT-kaksoiskappaleesta %s %d,%d"
+
+# Viimeisen sanan pitäisi ilmeisesti olla ordinals
+#: dlltool.c:2910
+#, c-format
+msgid "Error, duplicate EXPORT with oridinals: %s"
+msgstr "Virhe, EXPORT-kaksoiskappale järjestysluvuilla: %s"
+
+#: dlltool.c:3026
+msgid "Processing definitions"
+msgstr "Käsitellään määrittelyjä"
+
+#: dlltool.c:3058
+msgid "Processed definitions"
+msgstr "Käsiteltiin määrittelyjä"
+
+#. xgetext:c-format
+#: dlltool.c:3065 dllwrap.c:479
+#, c-format
+msgid "Usage %s <option(s)> <object-file(s)>\n"
+msgstr "Käyttö %s <valitsimet> <objektitiedosto(t)>\n"
+
+#. xgetext:c-format
+#: dlltool.c:3067
+#, c-format
+msgid "   -m --machine <machine>    Create as DLL for <machine>.  [default: %s]\n"
+msgstr "   -m --machine <kone>       Luodaan DLL:nä kohteelle <kone>.  [oletus: %s]\n"
+
+#: dlltool.c:3068
+#, c-format
+msgid "        possible <machine>: arm[_interwork], i386, mcore[-elf]{-le|-be}, ppc, thumb\n"
+msgstr "        mahdolliset <koneet>: arm[_interwork], i386, mcore[-elf]{-le|-be}, ppc, thumb\n"
+
+#: dlltool.c:3069
+#, c-format
+msgid "   -e --output-exp <outname> Generate an export file.\n"
+msgstr "   -e --output-exp <tulostenimi> Luo vientitiedoston.\n"
+
+#: dlltool.c:3070
+#, c-format
+msgid "   -l --output-lib <outname> Generate an interface library.\n"
+msgstr "   -l --output-lib <tulostenimi> Luo rajapintakirjaston.\n"
+
+# Lisäsin lainausmerkit käsitteen selventämiseksi
+#: dlltool.c:3071
+#, c-format
+msgid "   -a --add-indirect         Add dll indirects to export file.\n"
+msgstr "   -a --add-indirect         Lisää \"dll indirects\" vientitiedostoon.\n"
+
+#: dlltool.c:3072
+#, c-format
+msgid "   -D --dllname <name>       Name of input dll to put into interface lib.\n"
+msgstr "   -D --dllname <nimi>       Rajapintakirjastoon sijoitettavan syöte-dll:n nimi.\n"
+
+#: dlltool.c:3073
+#, c-format
+msgid "   -d --input-def <deffile>  Name of .def file to be read in.\n"
+msgstr "   -d --input-def <def-tiedosto>  Luettavan .def-syötetiedoston nimi.\n"
+
+#: dlltool.c:3074
+#, c-format
+msgid "   -z --output-def <deffile> Name of .def file to be created.\n"
+msgstr "   -z --output-def <def-tiedosto> Luotavan .def-tiedoston nimi.\n"
+
+#: dlltool.c:3075
+#, c-format
+msgid "      --export-all-symbols   Export all symbols to .def\n"
+msgstr "      --export-all-symbols   Vie kaikki symbolit .def-tiedostoon\n"
+
+#: dlltool.c:3076
+#, c-format
+msgid "      --no-export-all-symbols  Only export listed symbols\n"
+msgstr "      --no-export-all-symbols  Vie vain luetellut symbolit\n"
+
+# Tässä "list" suomennettiin sanalla "lista", koska ohjetekstin jälkiosan tekstin alku ei osu samalle kohdalle eri riveillä, jos alkuosa on liian pitkä.
+#: dlltool.c:3077
+#, c-format
+msgid "      --exclude-symbols <list> Don't export <list>\n"
+msgstr "      --exclude-symbols <lista> Ei vie <listan> symboleja\n"
+
+#: dlltool.c:3078
+#, c-format
+msgid "      --no-default-excludes  Clear default exclude symbols\n"
+msgstr "      --no-default-excludes  Nollaa oletuspoissulkevat symbolit\n"
+
+#: dlltool.c:3079
+#, c-format
+msgid "   -b --base-file <basefile> Read linker generated base file.\n"
+msgstr "   -b --base-file <kantatiedosto> Lukee linkkerin luoman kantatiedoston.\n"
+
+#: dlltool.c:3080
+#, c-format
+msgid "   -x --no-idata4            Don't generate idata$4 section.\n"
+msgstr "   -x --no-idata4            Ei luo idata$4-lohkoa.\n"
+
+#: dlltool.c:3081
+#, c-format
+msgid "   -c --no-idata5            Don't generate idata$5 section.\n"
+msgstr "   -c --no-idata5            Ei luo idata$5-lohkoa.\n"
+
+#: dlltool.c:3082
+#, c-format
+msgid "   -U --add-underscore       Add underscores to symbols in interface library.\n"
+msgstr "   -U --add-underscore       Lisää alaviivat rajapintakirjaston symboleihin.\n"
+
+#: dlltool.c:3083
+#, c-format
+msgid "   -k --kill-at              Kill @<n> from exported names.\n"
+msgstr "   -k --kill-at              Tuhoaa @<numeron> viedyistä nimistä.\n"
+
+#: dlltool.c:3084
+#, c-format
+msgid "   -A --add-stdcall-alias    Add aliases without @<n>.\n"
+msgstr "   -A --add-stdcall-alias    Lisää aliaksia ilman @<numeroa>.\n"
+
+#: dlltool.c:3085
+#, c-format
+msgid "   -p --ext-prefix-alias <prefix> Add aliases with <prefix>.\n"
+msgstr "   -p --ext-prefix-alias <etuliite> Lisää aliaksiin <etuliite>.\n"
+
+#: dlltool.c:3086
+#, c-format
+msgid "   -S --as <name>            Use <name> for assembler.\n"
+msgstr "   -S --as <nimi>            Käyttää <nimeä> assemblerina.\n"
+
+#: dlltool.c:3087
+#, c-format
+msgid "   -f --as-flags <flags>     Pass <flags> to the assembler.\n"
+msgstr "   -f --as-flags <liput>     Välittää <liput> assemblerille.\n"
+
+#: dlltool.c:3088
+#, c-format
+msgid "   -C --compat-implib        Create backward compatible import library.\n"
+msgstr "   -C --compat-implib        Luo taaksepäin yhteensopivan tuontikirjaston.\n"
+
+# Laskuria dontdeltemps kasvatetaan joka kerta kun -n esiintyy komentorivillä.
+#: dlltool.c:3089
+#, c-format
+msgid "   -n --no-delete            Keep temp files (repeat for extra preservation).\n"
+msgstr "   -n --no-delete            Pitää tilapäistiedostot (toisto lisäsäilytykseksi).\n"
+
+#: dlltool.c:3090
+#, c-format
+msgid "   -t --temp-prefix <prefix> Use <prefix> to construct temp file names.\n"
+msgstr "   -t --temp-prefix <etuliite> Liittää <etuliitteen> tilapäistiedostojen nimen eteen.\n"
+
+#: dlltool.c:3091
+#, c-format
+msgid "   -v --verbose              Be verbose.\n"
+msgstr "   -v --verbose              Monisanaisesti.\n"
+
+#: dlltool.c:3092
+#, c-format
+msgid "   -V --version              Display the program version.\n"
+msgstr "   -V --version              Näyttää ohjelman version.\n"
+
+#: dlltool.c:3093
+#, c-format
+msgid "   -h --help                 Display this information.\n"
+msgstr "   -h --help                 Näyttää nämä tiedot.\n"
+
+#: dlltool.c:3095
+#, c-format
+msgid "   -M --mcore-elf <outname>  Process mcore-elf object files into <outname>.\n"
+msgstr "   -M --mcore-elf <tulostenimi>  Käsittelee mcore-elf-objektitiedostot kohteeseen <tulostenimi>.\n"
+
+#: dlltool.c:3096
+#, c-format
+msgid "   -L --linker <name>        Use <name> as the linker.\n"
+msgstr "   -L --linker <nimi>        Käyttää parametriä <nimi> linkkerinä.\n"
+
+#: dlltool.c:3097
+#, c-format
+msgid "   -F --linker-flags <flags> Pass <flags> to the linker.\n"
+msgstr "   -F --linker-flags <liput> Välittää <liput> linkkerille.\n"
+
+#: dlltool.c:3211
+#, c-format
+msgid "Path components stripped from dllname, '%s'."
+msgstr "Polkukomponentit riisuttu dll-nimestä, \"%s\"."
+
+#: dlltool.c:3256
+#, c-format
+msgid "Unable to open base-file: %s"
+msgstr "Ei voi avata kantatiedostoa: %s"
+
+#: dlltool.c:3288
+#, c-format
+msgid "Machine '%s' not supported"
+msgstr "Konetta \"%s\" ei tueta"
+
+#: dlltool.c:3392 dllwrap.c:209
+#, c-format
+msgid "Tried file: %s"
+msgstr "Yritettiin tiedostoa: %s"
+
+#: dlltool.c:3399 dllwrap.c:216
+#, c-format
+msgid "Using file: %s"
+msgstr "Käytetään tiedostoa: %s"
+
+#: dllwrap.c:299
+#, c-format
+msgid "Keeping temporary base file %s"
+msgstr "Tilapäinen kantatiedosto %s pidetään"
+
+#: dllwrap.c:301
+#, c-format
+msgid "Deleting temporary base file %s"
+msgstr "Tilapäinen kantatiedosto %s poistetaan"
+
+#: dllwrap.c:315
+#, c-format
+msgid "Keeping temporary exp file %s"
+msgstr "Tilapäinen exp-tiedosto %s pidetään"
+
+#: dllwrap.c:317
+#, c-format
+msgid "Deleting temporary exp file %s"
+msgstr "Tilapäinen exp-tiedosto %s poistetaan"
+
+#: dllwrap.c:330
+#, c-format
+msgid "Keeping temporary def file %s"
+msgstr "Tilapäinen def-tiedosto %s pidetään"
+
+#: dllwrap.c:332
+#, c-format
+msgid "Deleting temporary def file %s"
+msgstr "Tilapäinen def-tiedosto %s poistetaan"
+
+#: dllwrap.c:480
+#, c-format
+msgid "  Generic options:\n"
+msgstr "  Yleiset valitsimet:\n"
+
+#: dllwrap.c:481
+#, c-format
+msgid "   --quiet, -q            Work quietly\n"
+msgstr "   --quiet, -q            Työskentelee hiljaa\n"
+
+#: dllwrap.c:482
+#, c-format
+msgid "   --verbose, -v          Verbose\n"
+msgstr "   --verbose, -v          Monisanaisesti\n"
+
+#: dllwrap.c:483
+#, c-format
+msgid "   --version              Print dllwrap version\n"
+msgstr "   --version              Tulostaa dllwrap-version\n"
+
+#: dllwrap.c:484
+#, c-format
+msgid "   --implib <outname>     Synonym for --output-lib\n"
+msgstr "   --implib <tulostenimi>     Synonyymi valitsimelle --output-lib\n"
+
+#: dllwrap.c:485
+#, c-format
+msgid "  Options for %s:\n"
+msgstr "  Valitsimet kohteelle %s:\n"
+
+#: dllwrap.c:486
+#, c-format
+msgid "   --driver-name <driver> Defaults to \"gcc\"\n"
+msgstr "   --driver-name <driveri> Oletukset kohteelle \"gcc\"\n"
+
+#: dllwrap.c:487
+#, c-format
+msgid "   --driver-flags <flags> Override default ld flags\n"
+msgstr "   --driver-flags <liput> Syrjäyttää ld-oletusliput\n"
+
+#: dllwrap.c:488
+#, c-format
+msgid "   --dlltool-name <dlltool> Defaults to \"dlltool\"\n"
+msgstr "   --dlltool-name <dlltool> Oletukset kohteelle \"dlltool\"\n"
+
+#: dllwrap.c:489
+#, c-format
+msgid "   --entry <entry>        Specify alternate DLL entry point\n"
+msgstr "   --entry <tulokohta>    Määrittelee vaihtoehtoisen DLL-tulokohdan\n"
+
+#: dllwrap.c:490
+#, c-format
+msgid "   --image-base <base>    Specify image base address\n"
+msgstr "   --image-base <base>    Määrittelee tiedostovedoksen kantaosoitteen\n"
+
+#: dllwrap.c:491
+#, c-format
+msgid "   --target <machine>     i386-cygwin32 or i386-mingw32\n"
+msgstr "   --target <kone>        i386-cygwin32 tai i386-mingw32\n"
+
+# Samalla tavalla kuin ruotsinnoksessa
+#: dllwrap.c:492
+#, c-format
+msgid "   --dry-run              Show what needs to be run\n"
+msgstr "   --dry-run              Näyttää mitä pitää ajaa, ei toteuta\n"
+
+#: dllwrap.c:493
+#, c-format
+msgid "   --mno-cygwin           Create Mingw DLL\n"
+msgstr "   --mno-cygwin           Luo Mingw DLL:n\n"
+
+#: dllwrap.c:494
+#, c-format
+msgid "  Options passed to DLLTOOL:\n"
+msgstr "  DLLTOOL:lle välitetyt valitsimet:\n"
+
+#: dllwrap.c:495
+#, c-format
+msgid "   --machine <machine>\n"
+msgstr "   --machine <kone>\n"
+
+#: dllwrap.c:496
+#, c-format
+msgid "   --output-exp <outname> Generate export file.\n"
+msgstr "   --output-exp <tulostenimi> Luo vientitiedoston.\n"
+
+#: dllwrap.c:497
+#, c-format
+msgid "   --output-lib <outname> Generate input library.\n"
+msgstr "   --output-lib <tulostenimi> Luo syötekirjaston.\n"
+
+# Lisäsin lainausmerkit selventämään käsitettä
+#: dllwrap.c:498
+#, c-format
+msgid "   --add-indirect         Add dll indirects to export file.\n"
+msgstr "   --add-indirect         Lisää \"dll indirects\" vientitiedostoon.\n"
+
+#: dllwrap.c:499
+#, c-format
+msgid "   --dllname <name>       Name of input dll to put into output lib.\n"
+msgstr "   --dllname <nimi>       Tulostekirjastoon laitettavan syöte-dll:n nimi.\n"
+
+#: dllwrap.c:500
+#, c-format
+msgid "   --def <deffile>        Name input .def file\n"
+msgstr "   --def <def-tiedosto>   Asettaa .def-syötetiedoston nimen\n"
+
+#: dllwrap.c:501
+#, c-format
+msgid "   --output-def <deffile> Name output .def file\n"
+msgstr "   --output-def <def-tiedosto> Asettaa .def-tulostetiedoston nimen\n"
+
+#: dllwrap.c:502
+#, c-format
+msgid "   --export-all-symbols     Export all symbols to .def\n"
+msgstr "   --export-all-symbols     Vie kaikki symbolit kohteeseen .def\n"
+
+#: dllwrap.c:503
+#, c-format
+msgid "   --no-export-all-symbols  Only export .drectve symbols\n"
+msgstr "   --no-export-all-symbols  Vie vain .drectve-symbolit\n"
+
+#: dllwrap.c:504
+#, c-format
+msgid "   --exclude-symbols <list> Exclude <list> from .def\n"
+msgstr "   --exclude-symbols <lista> Sulkee pois symbolit <listasta> .def\n"
+
+#: dllwrap.c:505
+#, c-format
+msgid "   --no-default-excludes    Zap default exclude symbols\n"
+msgstr "   --no-default-excludes    Poistaa oletuspoissulkevat symbolit\n"
+
+#: dllwrap.c:506
+#, c-format
+msgid "   --base-file <basefile> Read linker generated base file\n"
+msgstr "   --base-file <kantatiedosto> Lukee linkkerin luoman kantatiedoston\n"
+
+#: dllwrap.c:507
+#, c-format
+msgid "   --no-idata4           Don't generate idata$4 section\n"
+msgstr "   --no-idata4           Ei luo idata$4-lohkoa\n"
+
+#: dllwrap.c:508
+#, c-format
+msgid "   --no-idata5           Don't generate idata$5 section\n"
+msgstr "   --no-idata5           Ei luo idata$5-lohkoa\n"
+
+#: dllwrap.c:509
+#, c-format
+msgid "   -U                     Add underscores to .lib\n"
+msgstr "   -U                     Lisää alaviivat kohteeseen .lib\n"
+
+#: dllwrap.c:510
+#, c-format
+msgid "   -k                     Kill @<n> from exported names\n"
+msgstr "   -k                     Tuhoaa @<numeron> viedyistä nimistä\n"
+
+#: dllwrap.c:511
+#, c-format
+msgid "   --add-stdcall-alias    Add aliases without @<n>\n"
+msgstr "   --add-stdcall-alias    Lisää aliakset ilman @<numeroa>\n"
+
+#: dllwrap.c:512
+#, c-format
+msgid "   --as <name>            Use <name> for assembler\n"
+msgstr "   --as <nimi>            Käyttää ohjelmaa <nimi> assemblerina\n"
+
+#: dllwrap.c:513
+#, c-format
+msgid "   --nodelete             Keep temp files.\n"
+msgstr "   --nodelete             Pitää tilapäiset tiedostot.\n"
+
+# language driver tarkoittaa esimerkiksi gcc-kääntäjää
+#: dllwrap.c:514
+#, c-format
+msgid "  Rest are passed unmodified to the language driver\n"
+msgstr "  Loput on välitetty sellaisenaan ohjelmointikieliyksikölle\n"
+
+#: dllwrap.c:784
+msgid "Must provide at least one of -o or --dllname options"
+msgstr "Valitsimista on annettava joko -o tai --dllname"
+
+#: dllwrap.c:813
+msgid ""
+"no export definition file provided.\n"
+"Creating one, but that may not be what you want"
+msgstr ""
+"vientimäärittelytiedostoa ei ole (erikseen) annettu.\n"
+"Sen tilalle luotava ei ehkä ole sellainen kuin haluat"
+
+# Välilyöntejä lisätty ennen kaksoispistettä, jotta kaksoispiste olisi rivien 973 ja 975 kanssa samalla kohtaa
+#: dllwrap.c:972
+#, c-format
+msgid "DLLTOOL name    : %s\n"
+msgstr "DLLTOOL-nimi       : %s\n"
+
+#: dllwrap.c:973
+#, c-format
+msgid "DLLTOOL options : %s\n"
+msgstr "DLLTOOL-valitsimet : %s\n"
+
+# DRIVER on esimerkiksi gcc eli compilation unit eli käännösyksikkö. Välilyöntejä lisätty ennen kaksoispistettä, jotta kaksoispiste olisi rivien 973 ja 975 kanssa samalla kohtaa
+#: dllwrap.c:974
+#, c-format
+msgid "DRIVER name     : %s\n"
+msgstr "YKSIKKÖ-nimi       : %s\n"
+
+# DRIVER on esimerkiksi gcc eli compilation unit eli käännösyksikkö
+#: dllwrap.c:975
+#, c-format
+msgid "DRIVER options  : %s\n"
+msgstr "YKSIKKÖ-valitsimet : %s\n"
+
+#: emul_aix.c:51
+#, c-format
+msgid "  [-g]         - 32 bit small archive\n"
+msgstr "  [-g]         - 32-bittinen pieni arkisto\n"
+
+#: emul_aix.c:52
+#, c-format
+msgid "  [-X32]       - ignores 64 bit objects\n"
+msgstr "  [-X32]       - ei välitetä 64-bittisistä objekteista\n"
+
+#: emul_aix.c:53
+#, c-format
+msgid "  [-X64]       - ignores 32 bit objects\n"
+msgstr "  [-X64]       - ei välitetä 32-bittisistä objekteista\n"
+
+#: emul_aix.c:54
+#, c-format
+msgid "  [-X32_64]    - accepts 32 and 64 bit objects\n"
+msgstr "  [-X32_64]    - hyväksyy 32- ja 64-bittiset objektit\n"
+
+# Lähdekoodin kommentti ennen tulostusta: Report an unexpected EOF in the IEEE debugging information.
+#: ieee.c:311
+msgid "unexpected end of debugging information"
+msgstr "odottamaton IEEE-debuggaus-tietojen loppu"
+
+#: ieee.c:398
+msgid "invalid number"
+msgstr "virheellinen numero"
+
+#: ieee.c:451
+msgid "invalid string length"
+msgstr "virheellinen merkkijonopituus"
+
+#: ieee.c:506 ieee.c:547
+msgid "expression stack overflow"
+msgstr "lausekepinon ylivuoto"
+
+#: ieee.c:526
+msgid "unsupported IEEE expression operator"
+msgstr "ei-tuettu IEEE-lausekeoperaattori"
+
+#: ieee.c:541
+msgid "unknown section"
+msgstr "tuntematon lohko"
+
+#: ieee.c:562
+msgid "expression stack underflow"
+msgstr "lausekepinon ehtyminen"
+
+#: ieee.c:576
+msgid "expression stack mismatch"
+msgstr "lausekepinon täsmäämättömyys"
+
+#: ieee.c:613
+msgid "unknown builtin type"
+msgstr "tuntematon rakenteeseen sisältyvä tyyppi"
+
+#: ieee.c:758
+msgid "BCD float type not supported"
+msgstr "ei-tuettu BCD-liukulukutyyppi"
+
+#: ieee.c:895
+msgid "unexpected number"
+msgstr "odottamaton numero"
+
+#: ieee.c:902
+msgid "unexpected record type"
+msgstr "odottamaton tietuetyyppi"
+
+#: ieee.c:935
+msgid "blocks left on stack at end"
+msgstr "lohkoja jäi pinoon lopussa"
+
+# Handle an IEEE BB record.
+#: ieee.c:1198
+msgid "unknown BB type"
+msgstr "tuntematon IEEE-BB-tietuetyyppi"
+
+#: ieee.c:1207
+msgid "stack overflow"
+msgstr "pinon ylivuoto"
+
+#: ieee.c:1230
+msgid "stack underflow"
+msgstr "pinon ehtyminen"
+
+#: ieee.c:1342 ieee.c:1412 ieee.c:2109
+msgid "illegal variable index"
+msgstr "virheellinen muuttujaindeksi"
+
+#: ieee.c:1390
+msgid "illegal type index"
+msgstr "virheellinen tyyppi-indeksi"
+
+#: ieee.c:1400 ieee.c:1437
+msgid "unknown TY code"
+msgstr "tuntematon TY-koodi"
+
+#: ieee.c:1419
+msgid "undefined variable in TY"
+msgstr "määrittelemätön muuttuja kohteessa TY"
+
+#. Pascal file name.  FIXME.
+#: ieee.c:1830
+msgid "Pascal file name not supported"
+msgstr "Pascal-tiedostonimeä ei tueta"
+
+#: ieee.c:1878
+msgid "unsupported qualifier"
+msgstr "ei-tuettu tarkenne"
+
+#: ieee.c:2147
+msgid "undefined variable in ATN"
+msgstr "määrittelemätön muuttuja kohteessa ATN"
+
+#: ieee.c:2190
+msgid "unknown ATN type"
+msgstr "tuntematon ATN-tyyppi"
+
+#. Reserved for FORTRAN common.
+#: ieee.c:2312
+msgid "unsupported ATN11"
+msgstr "ei-tuettu ATN11"
+
+#. We have no way to record this information.  FIXME.
+#: ieee.c:2339
+msgid "unsupported ATN12"
+msgstr "ei-tuettu ATN12"
+
+# Kahdessa seuraavassa on kyse samasta tietueesta.
+#: ieee.c:2399
+msgid "unexpected string in C++ misc"
+msgstr "odottamaton merkkijono C++-misc-tietueessa"
+
+#: ieee.c:2412
+msgid "bad misc record"
+msgstr "virheellinen misc-tietue"
+
+#: ieee.c:2453
+msgid "unrecognized C++ misc record"
+msgstr "tunnistamaton C++-misc-tietue"
+
+#: ieee.c:2568
+msgid "undefined C++ object"
+msgstr "määrittelemätön C++-objekti"
+
+#: ieee.c:2602
+msgid "unrecognized C++ object spec"
+msgstr "tunnistamaton C++-objektimäärittely"
+
+#: ieee.c:2638
+msgid "unsupported C++ object type"
+msgstr "ei-tuettu C++-objektityyppi"
+
+#: ieee.c:2648
+msgid "C++ base class not defined"
+msgstr "C++-kantaluokkaa ei ole määritelty"
+
+#: ieee.c:2660 ieee.c:2765
+msgid "C++ object has no fields"
+msgstr "C++-objektissa ei ole kenttiä"
+
+#: ieee.c:2679
+msgid "C++ base class not found in container"
+msgstr "C++-kantaluokkaa ei löytynyt containerista"
+
+#: ieee.c:2786
+msgid "C++ data member not found in container"
+msgstr "C++-data-jäsentä ei löytynyt containerista"
+
+#: ieee.c:2827 ieee.c:2977
+msgid "unknown C++ visibility"
+msgstr "tuntematon C++-näkyvyys"
+
+#: ieee.c:2861
+msgid "bad C++ field bit pos or size"
+msgstr "virheellinen C++-kenttäbittisijainti tai koko"
+
+#: ieee.c:2953
+msgid "bad type for C++ method function"
+msgstr "virheellinen C++-metodifunktion tyyppi"
+
+#: ieee.c:2963
+msgid "no type information for C++ method function"
+msgstr "ei tyyppitietoa C++-metodifunktiossa"
+
+#: ieee.c:3002
+msgid "C++ static virtual method"
+msgstr "C++ staattinen virtuaalimetodi"
+
+#: ieee.c:3097
+msgid "unrecognized C++ object overhead spec"
+msgstr "tunnistamaton C++-objektin overhead-määritys"
+
+#: ieee.c:3136
+msgid "undefined C++ vtable"
+msgstr "määrittelemätön C++-vtable"
+
+#: ieee.c:3205
+msgid "C++ default values not in a function"
+msgstr "funktiossa ei ole C++-oletusarvoja"
+
+#: ieee.c:3245
+msgid "unrecognized C++ default type"
+msgstr "tunnistamaton C++-oletustyyppi"
+
+#: ieee.c:3276
+msgid "reference parameter is not a pointer"
+msgstr "viiteparametri ei ole osoitin"
+
+#: ieee.c:3359
+msgid "unrecognized C++ reference type"
+msgstr "tunnistamaton C++-viitetyyppi"
+
+#: ieee.c:3441
+msgid "C++ reference not found"
+msgstr "C++-viite ei löytynyt"
+
+#: ieee.c:3449
+msgid "C++ reference is not pointer"
+msgstr "C++-viite ei ole osoitin"
+
+#: ieee.c:3475 ieee.c:3483
+msgid "missing required ASN"
+msgstr "vaadittu ASN puuttuu"
+
+#: ieee.c:3510 ieee.c:3518
+msgid "missing required ATN65"
+msgstr "vaadittu ATN65 puuttuu"
+
+#: ieee.c:3532
+msgid "bad ATN65 record"
+msgstr "virheellinen ATN65-tietue"
+
+#: ieee.c:4160
+#, c-format
+msgid "IEEE numeric overflow: 0x"
+msgstr "IEEE numeerinen ylivuoto: 0x"
+
+#: ieee.c:4204
+#, c-format
+msgid "IEEE string length overflow: %u\n"
+msgstr "IEEE merkkijonopituuden ylivuoto: %u\n"
+
+#: ieee.c:5203
+#, c-format
+msgid "IEEE unsupported integer type size %u\n"
+msgstr "ei-tuettu IEEE kokonaislukutyyppikoko %u\n"
+
+#: ieee.c:5237
+#, c-format
+msgid "IEEE unsupported float type size %u\n"
+msgstr "ei-tuettu IEEE float-tyyppikoko %u\n"
+
+#: ieee.c:5271
+#, c-format
+msgid "IEEE unsupported complex type size %u\n"
+msgstr "ei-tuettu IEEE complex-tyyppikoko %u\n"
+
+#: nlmconv.c:267 srconv.c:1810
+msgid "input and output files must be different"
+msgstr "syöte- ja tulostetiedosto ei saa olla sama tiedosto"
+
+#: nlmconv.c:314
+msgid "input file named both on command line and with INPUT"
+msgstr "syötetiedosto nimetty sekä komentorivillä että INPUT-tiedostoissa"
+
+#: nlmconv.c:323
+msgid "no input file"
+msgstr "ei syötetiedostoa"
+
+#: nlmconv.c:353
+msgid "no name for output file"
+msgstr "ei tulostetiedoston nimeä"
+
+#: nlmconv.c:367
+msgid "warning: input and output formats are not compatible"
+msgstr "varoitus: syöte- ja tulostemuodot eivät ole yhteensopivia"
+
+#: nlmconv.c:396
+msgid "make .bss section"
+msgstr "tekee .bss-lohkon"
+
+#: nlmconv.c:405
+msgid "make .nlmsections section"
+msgstr "tekee .nlmsections-lohkon"
+
+#: nlmconv.c:407
+msgid "set .nlmsections flags"
+msgstr "asettaa .nlmsections-liput"
+
+# vma on Virtual Memory Address
+#: nlmconv.c:435
+msgid "set .bss vma"
+msgstr "asettaa .bss vma"
+
+#: nlmconv.c:442
+msgid "set .data size"
+msgstr "asettaa .data-koon"
+
+#: nlmconv.c:622
+#, c-format
+msgid "warning: symbol %s imported but not in import list"
+msgstr "varoitus: symboli %s tuotu mutta ei ole tuontiluettelossa"
+
+#: nlmconv.c:642
+msgid "set start address"
+msgstr "asettaa alkuosoitteen"
+
+#: nlmconv.c:691
+#, c-format
+msgid "warning: START procedure %s not defined"
+msgstr "varoitus: START-proseduuria %s ei ole määritelty"
+
+#: nlmconv.c:693
+#, c-format
+msgid "warning: EXIT procedure %s not defined"
+msgstr "varoitus: EXIT-proseduuria %s ei ole määritelty"
+
+#: nlmconv.c:695
+#, c-format
+msgid "warning: CHECK procedure %s not defined"
+msgstr "varoitus: CHECK-proseduuria %s ei ole määritelty"
+
+#: nlmconv.c:716 nlmconv.c:905
+msgid "custom section"
+msgstr "räätälöity lohko"
+
+#: nlmconv.c:737 nlmconv.c:934
+msgid "help section"
+msgstr "ohje-lohko"
+
+#: nlmconv.c:759 nlmconv.c:952
+msgid "message section"
+msgstr "sanoma-lohko"
+
+#: nlmconv.c:775 nlmconv.c:985
+msgid "module section"
+msgstr "moduli-lohko"
+
+#: nlmconv.c:795 nlmconv.c:1001
+msgid "rpc section"
+msgstr "rpc-lohko"
+
+#. There is no place to record this information.
+#: nlmconv.c:831
+#, c-format
+msgid "%s: warning: shared libraries can not have uninitialized data"
+msgstr "%s: varoitus: jaetuissa kirjastoissa ei voi olla alustamatonta dataa"
+
+#: nlmconv.c:852 nlmconv.c:1020
+msgid "shared section"
+msgstr "jaettu lohko"
+
+#: nlmconv.c:860
+msgid "warning: No version number given"
+msgstr "varoitus: Mitään versionumeroa ei ole annettu"
+
+# Tämän suomensin kuten ruotsalaisessa käännöksessä
+#: nlmconv.c:900 nlmconv.c:929 nlmconv.c:947 nlmconv.c:996 nlmconv.c:1015
+#, c-format
+msgid "%s: read: %s"
+msgstr "%s: lukuvirhe: %s"
+
+#: nlmconv.c:922
+msgid "warning: FULLMAP is not supported; try ld -M"
+msgstr "varoitus: FULLMAP ei ole tuettu; yritä ld -M"
+
+#: nlmconv.c:1098
+#, c-format
+msgid "Usage: %s [option(s)] [in-file [out-file]]\n"
+msgstr "Käyttö: %s [valitsimet] [syötetiedosto [tulostetiedosto]]\n"
+
+#: nlmconv.c:1099
+#, c-format
+msgid " Convert an object file into a NetWare Loadable Module\n"
+msgstr " Muuntaa objektitiedoston NetWare Loadable Module-muotoon\n"
+
+#: nlmconv.c:1100
+#, c-format
+msgid ""
+" The options are:\n"
+"  -I --input-target=<bfdname>   Set the input binary file format\n"
+"  -O --output-target=<bfdname>  Set the output binary file format\n"
+"  -T --header-file=<file>       Read <file> for NLM header information\n"
+"  -l --linker=<linker>          Use <linker> for any linking\n"
+"  -d --debug                    Display on stderr the linker command line\n"
+"  -h --help                     Display this information\n"
+"  -v --version                  Display the program's version\n"
+msgstr ""
+" Valitsimet ovat:\n"
+"  -I --input-target=<bfd-nimi>  Asettaa binaarin syötetiedoston muodon\n"
+"  -O --output-target=<bfd-nimi> Asettaa binaarin tulostetiedoston muodon\n"
+"  -T --header-file=<tiedosto>   Lukee tiedoston <tiedosto> NLM-otsaketiedoille\n"
+"  -l --linker=<linkkeri>        Käyttää parametriä <linkkeri> linkittämiseen\n"
+"  -d --debug                    Näyttää vakiovirhetulosteessa linkkerin komentorivin\n"
+"  -h --help                     Näyttää nämä tiedot\n"
+"  -v --version                  Näyttää ohjelman version\n"
+
+#: nlmconv.c:1140
+#, c-format
+msgid "support not compiled in for %s"
+msgstr "tukea ei ole käännetty kohteeseen %s"
+
+#: nlmconv.c:1177
+msgid "make section"
+msgstr "tekee lohkon"
+
+#: nlmconv.c:1191
+msgid "set section size"
+msgstr "asettaa lohkokoon"
+
+#: nlmconv.c:1197
+msgid "set section alignment"
+msgstr "asettaa lohkotasauksen"
+
+#: nlmconv.c:1201
+msgid "set section flags"
+msgstr "asettaa lohkoliput"
+
+#: nlmconv.c:1212
+msgid "set .nlmsections size"
+msgstr "asettaa .nlmsections-koon"
+
+#: nlmconv.c:1293 nlmconv.c:1301 nlmconv.c:1310 nlmconv.c:1315
+msgid "set .nlmsection contents"
+msgstr "asettaa .nlmsection-sisällöt"
+
+#: nlmconv.c:1794
+msgid "stub section sizes"
+msgstr "stub-lohkon koot"
+
+#: nlmconv.c:1841
+msgid "writing stub"
+msgstr "kirjoitetaan stub"
+
+# Selvensin tekstiä ylimääräisillä lainausmerkeillä
+#: nlmconv.c:1925
+#, c-format
+msgid "unresolved PC relative reloc against %s"
+msgstr "ratkaisematon \"PC relative reloc\" symbolille %s"
+
+#: nlmconv.c:1989
+#, c-format
+msgid "overflow when adjusting relocation against %s"
+msgstr "ylivuoto säädettäessä uudelleensijoitusta symbolille %s"
+
+#: nlmconv.c:2116
+#, c-format
+msgid "%s: execution of %s failed: "
+msgstr "%s: kohteen %s suoritus epäonnistui: "
+
+#: nlmconv.c:2131
+#, c-format
+msgid "Execution of %s failed"
+msgstr "Kohteen %s suoritus epäonnistui"
+
+#: nm.c:224 size.c:80 strings.c:651
+#, c-format
+msgid "Usage: %s [option(s)] [file(s)]\n"
+msgstr "Käyttö: %s [valitsimet] [tiedosto(t)]\n"
+
+#: nm.c:225
+#, c-format
+msgid " List symbols in [file(s)] (a.out by default).\n"
+msgstr " Luettelee symbolit kohteessa [tiedosto(t)] (oletus: a.out).\n"
+
+#: nm.c:226
+#, c-format
+msgid ""
+" The options are:\n"
+"  -a, --debug-syms       Display debugger-only symbols\n"
+"  -A, --print-file-name  Print name of the input file before every symbol\n"
+"  -B                     Same as --format=bsd\n"
+"  -C, --demangle[=STYLE] Decode low-level symbol names into user-level names\n"
+"                          The STYLE, if specified, can be `auto' (the default),\n"
+"                          `gnu', `lucid', `arm', `hp', `edg', `gnu-v3', `java'\n"
+"                          or `gnat'\n"
+"      --no-demangle      Do not demangle low-level symbol names\n"
+"  -D, --dynamic          Display dynamic symbols instead of normal symbols\n"
+"      --defined-only     Display only defined symbols\n"
+"  -e                     (ignored)\n"
+"  -f, --format=FORMAT    Use the output format FORMAT.  FORMAT can be `bsd',\n"
+"                           `sysv' or `posix'.  The default is `bsd'\n"
+"  -g, --extern-only      Display only external symbols\n"
+"  -l, --line-numbers     Use debugging information to find a filename and\n"
+"                           line number for each symbol\n"
+"  -n, --numeric-sort     Sort symbols numerically by address\n"
+"  -o                     Same as -A\n"
+"  -p, --no-sort          Do not sort the symbols\n"
+"  -P, --portability      Same as --format=posix\n"
+"  -r, --reverse-sort     Reverse the sense of the sort\n"
+"  -S, --print-size       Print size of defined symbols\n"
+"  -s, --print-armap      Include index for symbols from archive members\n"
+"      --size-sort        Sort symbols by size\n"
+"      --special-syms     Include special symbols in the output\n"
+"      --synthetic        Display synthetic symbols as well\n"
+"  -t, --radix=RADIX      Use RADIX for printing symbol values\n"
+"      --target=BFDNAME   Specify the target object format as BFDNAME\n"
+"  -u, --undefined-only   Display only undefined symbols\n"
+"  -X 32_64               (ignored)\n"
+"  -h, --help             Display this information\n"
+"  -V, --version          Display this program's version number\n"
+"\n"
+msgstr ""
+" Valitsimet ovat:\n"
+"  -a, --debug-syms       Näyttää vain debuggaussymbolit\n"
+"  -A, --print-file-name  Tulostaa syötetiedoston nimen ennen jokaista symbolia\n"
+"  -B                     Sama kuin --format=bsd\n"
+"  -C, --demangle[=TYYLI] Eheyttää alemman tason symbolinimet käyttäjätason nimiksi\n"
+"                          TYYLI, jos annettu, voi olla \"auto\" (oletus),\n"
+"                          \"gnu\", \"lucid\", \"arm\", \"hp\", \"edg\", \"gnu-v3\", \"java\"\n"
+"                          tai \"gnat\"\n"
+"      --no-demangle      Ei eheytä alemman tason symbolinimiä\n"
+"  -D, --dynamic          Näyttää dynaamiset symbolit normaalien symbolien sijasta\n"
+"      --defined-only     Näyttää vain määritellyt symbolit\n"
+"  -e                     (ei välitetä)\n"
+"  -f, --format=MUOTO     Käyttää tulostemuotoa MUOTO.  MUOTO voi olla \"bsd\",\n"
+"                          \"sysv\" tai \"posix\".  Oletus on \"bsd\"\n"
+"  -g, --extern-only      Näyttää vain ulkoiset symbolit\n"
+"  -l, --line-numbers     Käyttää debuggaustietoja tiedostonimen löytämiseen ja\n"
+"                          rivinumeroa jokaiselle symbolille\n"
+"  -n, --numeric-sort     Lajittelee symbolit numeerisesti osoitteen mukaan\n"
+"  -o                     Sama kuin -A\n"
+"  -p, --no-sort          Ei lajittele symboleja\n"
+"  -P, --portability      Sama kuin --format=posix\n"
+"  -r, --reverse-sort     Kääntää lajittelun käänteiseksi\n"
+"  -S, --print-size       Tulostaa määriteltyjen symbolien koon\n"
+"  -s, --print-armap      Sisällyttää indeksin arkistojäsensymboleille\n"
+"      --size-sort        Lajittelee symbolit koon mukaan\n"
+"      --special-syms     Sisällyttää erityissymbolit tulosteeseen\n"
+"      --synthetic        Näyttää myös synteettiset symbolit\n"
+"  -t, --radix=KANTALUKU  Käyttää KANTALUKUa symboliarvojen tulosteeseen\n"
+"      --target=BFD-NIMI  Määrittelee kohdeobjektin muodoksi BFD-NIMI\n"
+"  -u, --undefined-only   Näyttää vain määrittelemättömät symbolit\n"
+"  -X 32_64               (ei välitetä)\n"
+"  -h, --help             Näyttää nämä tiedot\n"
+"  -V, --version          Näyttää ohjelman versionumeron\n"
+"\n"
+
+#: nm.c:262 objdump.c:232
+#, c-format
+msgid "Report bugs to %s.\n"
+msgstr "Raportoi ohjelmointivirheistä englanniksi %s:lle.\n"
+
+#: nm.c:294
+#, c-format
+msgid "%s: invalid radix"
+msgstr "%s: virheellinen kantaluku"
+
+#: nm.c:318
+#, c-format
+msgid "%s: invalid output format"
+msgstr "%s: virheellinen tulostemuoto"
+
+#: nm.c:339 readelf.c:6342 readelf.c:6378
+#, c-format
+msgid "<processor specific>: %d"
+msgstr "<suoritinkohtainen>: %d"
+
+#: nm.c:341 readelf.c:6345 readelf.c:6390
+#, c-format
+msgid "<OS specific>: %d"
+msgstr "<Käyttöjärjestelmäkohtainen>: %d"
+
+#: nm.c:343 readelf.c:6347 readelf.c:6393
+#, c-format
+msgid "<unknown>: %d"
+msgstr "<tuntematon>: %d"
+
+#: nm.c:380
+#, c-format
+msgid ""
+"\n"
+"Archive index:\n"
+msgstr ""
+"\n"
+"Arkistoindeksi:\n"
+
+#: nm.c:1225
+#, c-format
+msgid ""
+"\n"
+"\n"
+"Undefined symbols from %s:\n"
+"\n"
+msgstr ""
+"\n"
+"\n"
+"Määrittelemättömiä symboleja kohteesta %s:\n"
+"\n"
+
+#: nm.c:1227
+#, c-format
+msgid ""
+"\n"
+"\n"
+"Symbols from %s:\n"
+"\n"
+msgstr ""
+"\n"
+"\n"
+"Symboleja kohteesta %s:\n"
+"\n"
+
+#: nm.c:1229 nm.c:1280
+#, c-format
+msgid ""
+"Name                  Value   Class        Type         Size     Line  Section\n"
+"\n"
+msgstr ""
+"Nimi                  Arvo    Luokka       Tyyppi       Koko    Rivi  Lohko\n"
+"\n"
+
+#: nm.c:1232 nm.c:1283
+#, c-format
+msgid ""
+"Name                  Value           Class        Type         Size             Line  Section\n"
+"\n"
+msgstr ""
+"Nimi                  Arvo            Luokka       Tyyppi       Koko             Rivi  Lohko\n"
+"\n"
+
+#: nm.c:1276
+#, c-format
+msgid ""
+"\n"
+"\n"
+"Undefined symbols from %s[%s]:\n"
+"\n"
+msgstr ""
+"\n"
+"\n"
+"Määrittelemättömiä symboleja kohteesta %s[%s]:\n"
+"\n"
+
+#: nm.c:1278
+#, c-format
+msgid ""
+"\n"
+"\n"
+"Symbols from %s[%s]:\n"
+"\n"
+msgstr ""
+"\n"
+"\n"
+"Symbolit kohteesta %s[%s]:\n"
+"\n"
+
+#: nm.c:1580
+msgid "Only -X 32_64 is supported"
+msgstr "Vain -X 32_64 on tuettuna"
+
+# Lisäsin ylimääräisiä lainausmerkkejä väliviivojen ja valitsimien erottamiseksi
+#: nm.c:1600
+msgid "Using the --size-sort and --undefined-only options together"
+msgstr "Käytetään \"--size-sort\"- ja \"--undefined-only\"-valitsimia yhdessä"
+
+#: nm.c:1601
+msgid "will produce no output, since undefined symbols have no size."
+msgstr "ei tuota mitään tulostetta, koska määrittelemättömissä symboleissa ei ole kokoa."
+
+#: nm.c:1629
+#, c-format
+msgid "data size %ld"
+msgstr "data-koko %ld"
+
+#: objcopy.c:396 srconv.c:1721
+#, c-format
+msgid "Usage: %s [option(s)] in-file [out-file]\n"
+msgstr "Käyttö: %s [valitsimet] syötetiedosto [tulostetiedosto]\n"
+
+#: objcopy.c:397
+#, c-format
+msgid " Copies a binary file, possibly transforming it in the process\n"
+msgstr " Kopioi binaaritiedoston, mahdollisesti muuntaen sitä käsittelyssä\n"
+
+#: objcopy.c:398 objcopy.c:487
+#, c-format
+msgid " The options are:\n"
+msgstr " Valitsimet ovat:\n"
+
+# demand paged ?? (demand = kysyntä, page = kuuluttaa, kutsua)  Only bring a page from the backing store  into memory when the page is needed (demanded). Pure demand paging is where no pages are initially brought into memory - a process begins execution by demand paging the first instructions. 
+# "--pure" ja "--impure"-valitsimet? Kun muistia varataan sivuina, osa viimeisestä sivusta voi jäädä käyttämättä. Jos tämä käyttämätön osa täytetään nollilla, se on pure. Jos käyttämättömässä osassa on roskaa, se on impure. Tarkoitetaanko sitä tässä?
+#: objcopy.c:399
+#, c-format
+msgid ""
+"  -I --input-target <bfdname>      Assume input file is in format <bfdname>\n"
+"  -O --output-target <bfdname>     Create an output file in format <bfdname>\n"
+"  -B --binary-architecture <arch>  Set arch of output file, when input is binary\n"
+"  -F --target <bfdname>            Set both input and output format to <bfdname>\n"
+"     --debugging                   Convert debugging information, if possible\n"
+"  -p --preserve-dates              Copy modified/access timestamps to the output\n"
+"  -j --only-section <name>         Only copy section <name> into the output\n"
+"     --add-gnu-debuglink=<file>    Add section .gnu_debuglink linking to <file>\n"
+"  -R --remove-section <name>       Remove section <name> from the output\n"
+"  -S --strip-all                   Remove all symbol and relocation information\n"
+"  -g --strip-debug                 Remove all debugging symbols & sections\n"
+"     --strip-unneeded              Remove all symbols not needed by relocations\n"
+"  -N --strip-symbol <name>         Do not copy symbol <name>\n"
+"     --strip-unneeded-symbol <name>\n"
+"                                   Do not copy symbol <name> unless needed by\n"
+"                                     relocations\n"
+"     --only-keep-debug             Strip everything but the debug information\n"
+"  -K --keep-symbol <name>          Only copy symbol <name>\n"
+"  -L --localize-symbol <name>      Force symbol <name> to be marked as a local\n"
+"  -G --keep-global-symbol <name>   Localize all symbols except <name>\n"
+"  -W --weaken-symbol <name>        Force symbol <name> to be marked as a weak\n"
+"     --weaken                      Force all global symbols to be marked as weak\n"
+"  -w --wildcard                    Permit wildcard in symbol comparison\n"
+"  -x --discard-all                 Remove all non-global symbols\n"
+"  -X --discard-locals              Remove any compiler-generated symbols\n"
+"  -i --interleave <number>         Only copy one out of every <number> bytes\n"
+"  -b --byte <num>                  Select byte <num> in every interleaved block\n"
+"     --gap-fill <val>              Fill gaps between sections with <val>\n"
+"     --pad-to <addr>               Pad the last section up to address <addr>\n"
+"     --set-start <addr>            Set the start address to <addr>\n"
+"    {--change-start|--adjust-start} <incr>\n"
+"                                   Add <incr> to the start address\n"
+"    {--change-addresses|--adjust-vma} <incr>\n"
+"                                   Add <incr> to LMA, VMA and start addresses\n"
+"    {--change-section-address|--adjust-section-vma} <name>{=|+|-}<val>\n"
+"                                   Change LMA and VMA of section <name> by <val>\n"
+"     --change-section-lma <name>{=|+|-}<val>\n"
+"                                   Change the LMA of section <name> by <val>\n"
+"     --change-section-vma <name>{=|+|-}<val>\n"
+"                                   Change the VMA of section <name> by <val>\n"
+"    {--[no-]change-warnings|--[no-]adjust-warnings}\n"
+"                                   Warn if a named section does not exist\n"
+"     --set-section-flags <name>=<flags>\n"
+"                                   Set section <name>'s properties to <flags>\n"
+"     --add-section <name>=<file>   Add section <name> found in <file> to output\n"
+"     --rename-section <old>=<new>[,<flags>] Rename section <old> to <new>\n"
+"     --change-leading-char         Force output format's leading character style\n"
+"     --remove-leading-char         Remove leading character from global symbols\n"
+"     --redefine-sym <old>=<new>    Redefine symbol name <old> to <new>\n"
+"     --redefine-syms <file>        --redefine-sym for all symbol pairs \n"
+"                                     listed in <file>\n"
+"     --srec-len <number>           Restrict the length of generated Srecords\n"
+"     --srec-forceS3                Restrict the type of generated Srecords to S3\n"
+"     --strip-symbols <file>        -N for all symbols listed in <file>\n"
+"     --strip-unneeded-symbols <file>\n"
+"                                   --strip-unneeded-symbol for all symbols listed\n"
+"                                     in <file>\n"
+"     --keep-symbols <file>         -K for all symbols listed in <file>\n"
+"     --localize-symbols <file>     -L for all symbols listed in <file>\n"
+"     --keep-global-symbols <file>  -G for all symbols listed in <file>\n"
+"     --weaken-symbols <file>       -W for all symbols listed in <file>\n"
+"     --alt-machine-code <index>    Use alternate machine code for output\n"
+"     --writable-text               Mark the output text as writable\n"
+"     --readonly-text               Make the output text write protected\n"
+"     --pure                        Mark the output file as demand paged\n"
+"     --impure                      Mark the output file as impure\n"
+"     --prefix-symbols <prefix>     Add <prefix> to start of every symbol name\n"
+"     --prefix-sections <prefix>    Add <prefix> to start of every section name\n"
+"     --prefix-alloc-sections <prefix>\n"
+"                                   Add <prefix> to start of every allocatable\n"
+"                                     section name\n"
+"  -v --verbose                     List all object files modified\n"
+"  -V --version                     Display this program's version number\n"
+"  -h --help                        Display this output\n"
+"     --info                        List object formats & architectures supported\n"
+msgstr ""
+"  -I --input-target <bfd-nimi>      Otaksuu, että syötetiedosto on muodossa <bfd-nimi>\n"
+"  -O --output-target <bfd-nimi>     Luo tulostetiedoston muodossa <bfd-nimi>\n"
+"  -B --binary-architecture <arkk>   Asettaa tulostetiedoston arkkitehtuurin, kun syöte on binaarinen\n"
+"  -F --target <bfd-nimi>            Asettaa sekä syöte- että tulostemuodoksi <bfd-nimi>\n"
+"     --debugging                    Muuntaa debuggaustiedot, jos mahdollista\n"
+"  -p --preserve-dates               Kopioi muutos- ja(/tai) käyttöaikaleiman tulosteeseen\n"
+"  -j --only-section <nimi>          Kopioi vain lohkon <nimi> tulosteeseen\n"
+"     --add-gnu-debuglink=<tiedosto> Lisää <tiedostoon> viittaavan .gnu-debuglink-lohkon\n"
+"  -R --remove-section <nimi>        Poistaa lohkon <nimi> tulosteesta\n"
+"  -S --strip-all                    Poistaa kaikki symboli- ja uudelleensijoitustiedot\n"
+"  -g --strip-debug                  Poistaa kaikki debuggaussymbolit & -lohkot\n"
+"     --strip-unneeded               Poistaa kaikki symbolit, joita ei tarvita uudelleensijoitukseen\n"
+"  -N --strip-symbol <nimi>          Ei kopioi symbolia <nimi>\n"
+"     --strip-unneeded-symbol <nimi> Ei kopioi symbolia <nimi>, ellei sitä tarvita\n"
+"                                    uudelleensijoituksessa\n"
+"     --only-keep-debug              Riisuu kaikki paitsi debuggaustiedot\n"
+"  -K --keep-symbol <nimi>           Kopioi vain symbolin <nimi>\n"
+"  -L --localize-symbol <nimi>       Pakottaa symbolin <nimi> merkityksi paikalliseksi\n"
+"  -G --keep-global-symbol <nimi>    Tekee kaikista symboleista paikallisia paitsi symbolista <nimi>\n"
+"  -W --weaken-symbol <nimi>         Pakottaa symbolin <nimi> merkittäväksi heikoksi\n"
+"     --weaken                       Pakottaa kaikki yleissymbolit merkittäväksi heikoiksi\n"
+"  -w --wildcard                     Sallii jokerimerkit symbolivertailussa\n"
+"  -x --discard-all                  Poistaa kaikki ei-yleiset symbolit\n"
+"  -X --discard-locals               Poistaa kaikki kääntäjän generoimat symbolit\n"
+"  -i --interleave <numero>          Kopioi vain yhden kaikista <numero> tavuista\n"
+"  -b --byte <numero>                Valitsee tavun <numero> kustakin lomitetusta lohkosta\n"
+"     --gap-fill <arvo>              Täyttää välit lohkojen välillä arvolla <arvo>\n"
+"     --pad-to <osoite>              Täyttää viimeisen lohkon aina osoitteeseen <osoite> asti\n"
+"     --set-start <osoite>           Asettaa alkuosoitteeksi <osoite>\n"
+"    {--change-start|--adjust-start} <kasvatusarvo>\n"
+"                                    Lisää <kasvatusarvon> alkuosoitteeseen\n"
+"    {--change-addresses|--adjust-vma} <kasvatusarvo>\n"
+"                                    Lisää <kasvatusarvon> latausmuistiosoitteisiin, virtuaalisiin\n"
+"                                       muistiosoitteisiin ja alkuosoitteisiin\n"
+"    {--change-section-address|--adjust-section-vma} <nimi>{=|+|-}<arvo>\n"
+"                                    Vaihtaa <nimi>-lohkon latausmuistiosoite- ja\n"
+"                                       virtuaalimuistiosoitearvoksi <arvo>\n"
+"     --change-section-lma <nimi>{=|+|-}<arvo>\n"
+"                                    Vaihtaa <nimi>-lohkon latausmuistiosoitearvoksi <arvo>\n"
+"     --change-section-vma <nimi>{=|+|-}<arvo>\n"
+"                                    Vaihtaa <nimi>-lohkon virtuaalimuistiosoitearvoksi <arvo>\n"
+"    {--[no-]change-warnings|--[no-]adjust-warnings}\n"
+"                                    Varoittaa, jos nimettyä lohkoa ei ole olemassa\n"
+"     --set-section-flags <nimi>=<liput>\n"
+"                                    Asettaa lohkon <nimi> ominaisuudet kohteen <liput> mukaiseksi\n"
+"     --add-section <nimi>=<tiedosto>   Lisää tulosteeseen lohkon <nimi>, joka löydettiin kohteesta <tiedosto>\n"
+"     --rename-section <vanha>=<uusi>[,<liput>] Uudelleennimeää lohkon <vanha> lohkoksi <uusi>\n"
+"     --change-leading-char          Pakottaa tulostemuodon alkukirjaintyyliseksi\n"
+"     --remove-leading-char          Poistaa edeltävät merkit yleissymboleista\n"
+"     --redefine-sym <vanha>=<uusi>  Määrittelee symbolinimen uudelleen symbolista <vanha> symboliksi <uusi>\n"
+"     --redefine-syms <tiedosto>     --redefine-sym kaikille symbolipareille, jotka on \n"
+"                                       lueteltu kohteessa <tiedosto>\n"
+"     --srec-len <number>            Rajoittaa luodun Srecords-rakenteen pituuden\n"
+"     --srec-forceS3                 Rajoittaa luodun Srecords-rakenteen tyypiksi S3\n"
+"     --strip-symbols <tiedosto>     -N kaikille kohteessa <tiedosto> luetelluille symboleille\n"
+"     --strip-unneeded-symbols <tiedosto>\n"
+"                                    --strip-unneeded-symbol kaikille symboleille, jotka on lueteltu\n"
+"                                       kohteessa <tiedosto>\n"
+"     --keep-symbols <tiedosto>         -K kaikille kohteessa <tiedosto> luetelluille symboleille\n"
+"     --localize-symbols <tiedosto>     -L kaikille kohteessa <tiedosto> luetelluille symboleille\n"
+"     --keep-global-symbols <tiedosto>  -G kaikille kohteessa <tiedosto> luetelluille symboleille\n"
+"     --weaken-symbols <tiedosto>       -W kaikille kohteessa <tiedosto> luetelluille symboleille\n"
+"     --alt-machine-code <indeksi>   Käyttää vaihtoehtoista konekoodia tulosteeseen\n"
+"     --writable-text                Merkkaa tulostetekstin kirjoitettavaksi\n"
+"     --readonly-text                Tekee tulostetiedostosta kirjoitussuojatun\n"
+"     --pure                         Merkkaa tulostetiedoston tarvittaessa kutsuttavaksi\n"
+"     --impure                       Merkkaa tulostetiedoston epäpuhtaaksi\n"
+"     --prefix-symbols <etuliite>    Lisää <etuliitteen> jokaisen symbolinimen alkuun\n"
+"     --prefix-sections <etuliite>   Lisää <etuliitteen> jokaisen lohkonimen alkuun\n"
+"     --prefix-alloc-sections <etuliite>\n"
+"                                    Lisää <etuliitteen> jokaisen varattavan lohkonimen\n"
+"                                       alkuun\n"
+"  -v --verbose                      Luettelee kaikki muokatut objektitiedostot\n"
+"  -V --version                      Näyttää ohjelman versionumeron\n"
+"  -h --help                         Näyttää tämän tulosteen\n"
+"     --info                         Luettelee tuetut objektimuodot & arkkitehtuurit\n"
+
+#: objcopy.c:485
+#, c-format
+msgid "Usage: %s <option(s)> in-file(s)\n"
+msgstr "Käyttö: %s <valitsimet> syötetiedosto(t)\n"
+
+#: objcopy.c:486
+#, c-format
+msgid " Removes symbols and sections from files\n"
+msgstr " Poistaa symbolit ja lohkot tiedostoista\n"
+
+#: objcopy.c:488
+#, c-format
+msgid ""
+"  -I --input-target=<bfdname>      Assume input file is in format <bfdname>\n"
+"  -O --output-target=<bfdname>     Create an output file in format <bfdname>\n"
+"  -F --target=<bfdname>            Set both input and output format to <bfdname>\n"
+"  -p --preserve-dates              Copy modified/access timestamps to the output\n"
+"  -R --remove-section=<name>       Remove section <name> from the output\n"
+"  -s --strip-all                   Remove all symbol and relocation information\n"
+"  -g -S -d --strip-debug           Remove all debugging symbols & sections\n"
+"     --strip-unneeded              Remove all symbols not needed by relocations\n"
+"     --only-keep-debug             Strip everything but the debug information\n"
+"  -N --strip-symbol=<name>         Do not copy symbol <name>\n"
+"  -K --keep-symbol=<name>          Only copy symbol <name>\n"
+"  -w --wildcard                    Permit wildcard in symbol comparison\n"
+"  -x --discard-all                 Remove all non-global symbols\n"
+"  -X --discard-locals              Remove any compiler-generated symbols\n"
+"  -v --verbose                     List all object files modified\n"
+"  -V --version                     Display this program's version number\n"
+"  -h --help                        Display this output\n"
+"     --info                        List object formats & architectures supported\n"
+"  -o <file>                        Place stripped output into <file>\n"
+msgstr ""
+"  -I --input-target=<bfd-nimi>     Otaksuu, että syötetiedosto on <bfd-nimi>-muodossa\n"
+"  -O --output-target=<bfd-nimi>    Luo tulostetiedoston <bfd-nimi>-muodossa\n"
+"  -F --target=<bfd-nimi>           Asettaa sekä syöte- että tulostetiedostomuodoksi <bfd-nimi>\n"
+"  -p --preserve-dates              Kopioi muutettu/pääsyaikaleimat tulosteeseen\n"
+"  -R --remove-section=<nimi>       Poistaa <nimi>-lohkon tulosteesta\n"
+"  -s --strip-all                   Poistaa kaikki symbolit ja uudelleensijoitustiedot\n"
+"  -g -S -d --strip-debug           Poistaa kaikki debuggaussymbolit & -lohkot\n"
+"     --strip-unneeded              Poistaa kaikki symbolit, joita ei tarvita uudelleensijoituksessa\n"
+"     --only-keep-debug             Riisuu kaikki paitsi debuggaustiedot\n"
+"  -N --strip-symbol=<nimi>         Ei kopioi symbolia <nimi>\n"
+"  -K --keep-symbol=<nimi>          Kopioi vain symbolin <nimi>\n"
+"  -w --wildcard                    Sallii jokerimerkit symbolien vertailussa\n"
+"  -x --discard-all                 Poistaa kaikki ei-yleiset symbolit\n"
+"  -X --discard-locals              Poistaa kaikki kääntäjän luomat symbolit\n"
+"  -v --verbose                     Luettelee kaikki muutetut objektitiedostot\n"
+"  -V --version                     Näyttää tämän ohjelman versionumeron\n"
+"  -h --help                        Näyttää tämän tulosteen\n"
+"     --info                        Luettelee tuetut objektimuodot & arkkitehtuurit\n"
+"  -o <tiedosto>                    Sijoittaa riisutun tulosteen kohteeseen <tiedosto>\n"
+
+#: objcopy.c:560
+#, c-format
+msgid "unrecognized section flag `%s'"
+msgstr "tunnistamaton lohkolippu \"%s\""
+
+#: objcopy.c:561
+#, c-format
+msgid "supported flags: %s"
+msgstr "tuetut liput: %s"
+
+#: objcopy.c:638
+#, c-format
+msgid "cannot open '%s': %s"
+msgstr "ei voi avata kohdetta \"%s\": %s"
+
+#: objcopy.c:641 objcopy.c:2629
+#, c-format
+msgid "%s: fread failed"
+msgstr "%s: fread-kutsu epäonnistui"
+
+#: objcopy.c:714
+#, c-format
+msgid "%s:%d: Ignoring rubbish found on this line"
+msgstr "%s:%d: Ei välitetä tältä riviltä löydetystä roskasta"
+
+#: objcopy.c:976
+#, c-format
+msgid "%s: Multiple redefinition of symbol \"%s\""
+msgstr "%s: Useita symbolin \"%s\" uudelleenmäärittelyjä"
+
+#: objcopy.c:980
+#, c-format
+msgid "%s: Symbol \"%s\" is target of more than one redefinition"
+msgstr "%s: Symboli \"%s\" on kohteena useammalle kuin yhdelle uudelleenmäärittelylle"
+
+#: objcopy.c:1008
+#, c-format
+msgid "couldn't open symbol redefinition file %s (error: %s)"
+msgstr "ei voitu avata symbolien uudelleenmäärittelytiedostoa %s (virhe: %s)"
+
+#: objcopy.c:1086
+#, c-format
+msgid "%s:%d: garbage found at end of line"
+msgstr "%s:%d: rivin lopusta löytyi roskaa"
+
+#: objcopy.c:1089
+#, c-format
+msgid "%s:%d: missing new symbol name"
+msgstr "%s:%d: uusi symbolinimi puuttuu"
+
+#: objcopy.c:1099
+#, c-format
+msgid "%s:%d: premature end of file"
+msgstr "%s:%d: ennenaikainen tiedoston loppu"
+
+#: objcopy.c:1124
+msgid "Unable to change endianness of input file(s)"
+msgstr "Ei voi muuttaa syötetiedosto(je)n tavujärjestystyyppiä"
+
+#: objcopy.c:1133
+#, c-format
+msgid "copy from %s(%s) to %s(%s)\n"
+msgstr "kopioitiin kohteesta %s(%s) kohteeseen %s(%s)\n"
+
+#: objcopy.c:1170
+#, c-format
+msgid "Unable to recognise the format of the input file %s"
+msgstr "Syötetiedoston %s muotoa ei voi tunnistaa"
+
+#: objcopy.c:1174
+#, c-format
+msgid "Warning: Output file cannot represent architecture %s"
+msgstr "Varoitus: Tulostetiedosto ei voi edustaa arkkitehtuuria %s"
+
+#: objcopy.c:1211
+#, c-format
+msgid "can't create section `%s': %s"
+msgstr "ei voi luoda lohkoa \"%s\": %s"
+
+#: objcopy.c:1277
+msgid "there are no sections to be copied!"
+msgstr "ei lohkoja kopioitavaksi!"
+
+#: objcopy.c:1323
+#, c-format
+msgid "Can't fill gap after %s: %s"
+msgstr "Ei voi täyttää väliä lohkon %s jälkeen: %s"
+
+#: objcopy.c:1348
+#, c-format
+msgid "Can't add padding to %s: %s"
+msgstr "Ei voi lisätä täytettä kohteeseen %s: %s"
+
+#: objcopy.c:1514
+#, c-format
+msgid "%s: error copying private BFD data: %s"
+msgstr "%s: virhe kopioitaessa yksityistä BFD-dataa: %s"
+
+#: objcopy.c:1525
+msgid "unknown alternate machine code, ignored"
+msgstr "tuntematon vaihtoehtoinen konekoodi, siitä ei välitetä"
+
+#: objcopy.c:1555 objcopy.c:1585
+#, c-format
+msgid "cannot mkdir %s for archive copying (error: %s)"
+msgstr "ei voi kutsua mkdir %s -komentoa arkiston kopiointiin (virhe: %s)"
+
+#: objcopy.c:1790
+#, c-format
+msgid "Multiple renames of section %s"
+msgstr "Useita lohkon %s uudelleennimeämisiä"
+
+#: objcopy.c:1841
+msgid "private header data"
+msgstr "yksityinen otsakedata"
+
+#: objcopy.c:1849
+#, c-format
+msgid "%s: error in %s: %s"
+msgstr "%s: virhe kohteessa %s: %s"
+
+#: objcopy.c:1903
+msgid "making"
+msgstr "tehdään"
+
+#: objcopy.c:1912
+msgid "size"
+msgstr "koko"
+
+# Virtual Memory Address eli virtuaalimuistiosoite
+#: objcopy.c:1926
+msgid "vma"
+msgstr "vma"
+
+#: objcopy.c:1951
+msgid "alignment"
+msgstr "tasaus"
+
+#: objcopy.c:1966
+msgid "flags"
+msgstr "liput"
+
+#: objcopy.c:1988
+msgid "private data"
+msgstr "yksityinen data"
+
+#: objcopy.c:1996
+#, c-format
+msgid "%s: section `%s': error in %s: %s"
+msgstr "%s: lohko \"%s\": virhe kohdassa %s: %s"
+
+#: objcopy.c:2274
+#, c-format
+msgid "%s: can't create debugging section: %s"
+msgstr "%s: ei voi luoda debuggauslohkoa: %s"
+
+#: objcopy.c:2288
+#, c-format
+msgid "%s: can't set debugging section contents: %s"
+msgstr "%s: ei voi asettaa debuggauslohkon sisältöä: %s"
+
+#: objcopy.c:2297
+#, c-format
+msgid "%s: don't know how to write debugging information for %s"
+msgstr "%s: ei tiedetä kuinka kirjoittaa debuggaustietoja kohteelle %s"
+
+#: objcopy.c:2472
+msgid "byte number must be non-negative"
+msgstr "tavunumeron on oltava ei-negatiivinen"
+
+#: objcopy.c:2482
+msgid "interleave must be positive"
+msgstr "lomituksen täytyy olla positiivinen"
+
+#: objcopy.c:2502 objcopy.c:2510
+#, c-format
+msgid "%s both copied and removed"
+msgstr "%s sekä kopioitu että poistettu"
+
+#: objcopy.c:2603 objcopy.c:2674 objcopy.c:2774 objcopy.c:2805 objcopy.c:2829
+#: objcopy.c:2833 objcopy.c:2853
+#, c-format
+msgid "bad format for %s"
+msgstr "virheellinen muoto kohteelle %s"
+
+#: objcopy.c:2624
+#, c-format
+msgid "cannot open: %s: %s"
+msgstr "ei voi avata: %s: %s"
+
+#: objcopy.c:2743
+#, c-format
+msgid "Warning: truncating gap-fill from 0x%s to 0x%x"
+msgstr "Varoitus: katkaistaan välitäyte 0x%s tavumuodoksi 0x%x"
+
+#: objcopy.c:2903
+msgid "alternate machine code index must be positive"
+msgstr "vaihtoehtoisen konekoodi-indeksin on oltava positiivinen"
+
+#: objcopy.c:2961
+msgid "byte number must be less than interleave"
+msgstr "tavunumeron on oltava lomitusta pienempi"
+
+#: objcopy.c:2991
+#, c-format
+msgid "architecture %s unknown"
+msgstr "arkkitehtuuri %s tuntematon"
+
+#: objcopy.c:2995
+msgid "Warning: input target 'binary' required for binary architecture parameter."
+msgstr "Varoitus: syötekohde \"binary\" vaatii binaariarkkitehtuuriparametrin."
+
+#: objcopy.c:2996
+#, c-format
+msgid " Argument %s ignored"
+msgstr " Argumentista %s ei välitetä"
+
+#: objcopy.c:3002
+#, c-format
+msgid "warning: could not locate '%s'.  System error message: %s"
+msgstr "varoitus: kohdetta \"%s\" ei voitu sijoittaa.  Järjestelmävirhesanoma: %s"
+
+# Ensimmäinen %s sisältää tekstin "--change-section-vma", toinen %s sisältää jonkin nimen, %c sisältää joko '=' tai '+' -merkin, viimeinen %s sisältää jonkun korkeintaan 20-merkkisen puskurin sisällön.
+#: objcopy.c:3042 objcopy.c:3056
+#, c-format
+msgid "%s %s%c0x%s never used"
+msgstr "%s %s%c0x%s ei käytetty koskaan"
+
+#: objdump.c:176
+#, c-format
+msgid "Usage: %s <option(s)> <file(s)>\n"
+msgstr "Käyttö: %s <valitsimet> <tiedosto(t)>\n"
+
+#: objdump.c:177
+#, c-format
+msgid " Display information from object <file(s)>.\n"
+msgstr " Näyttää tietoja objekti<tiedosto(i)sta>.\n"
+
+# Ohjenäytöllä puhutaan riviä ylempänä valitsimista. Siksi alla käytetään samaa termiä suomennoksessa.
+#: objdump.c:178
+#, c-format
+msgid " At least one of the following switches must be given:\n"
+msgstr " Seuraavista valitsimista on valittava vähintään yksi:\n"
+
+#: objdump.c:179
+#, c-format
+msgid ""
+"  -a, --archive-headers    Display archive header information\n"
+"  -f, --file-headers       Display the contents of the overall file header\n"
+"  -p, --private-headers    Display object format specific file header contents\n"
+"  -h, --[section-]headers  Display the contents of the section headers\n"
+"  -x, --all-headers        Display the contents of all headers\n"
+"  -d, --disassemble        Display assembler contents of executable sections\n"
+"  -D, --disassemble-all    Display assembler contents of all sections\n"
+"  -S, --source             Intermix source code with disassembly\n"
+"  -s, --full-contents      Display the full contents of all sections requested\n"
+"  -g, --debugging          Display debug information in object file\n"
+"  -e, --debugging-tags     Display debug information using ctags style\n"
+"  -G, --stabs              Display (in raw form) any STABS info in the file\n"
+"  -t, --syms               Display the contents of the symbol table(s)\n"
+"  -T, --dynamic-syms       Display the contents of the dynamic symbol table\n"
+"  -r, --reloc              Display the relocation entries in the file\n"
+"  -R, --dynamic-reloc      Display the dynamic relocation entries in the file\n"
+"  -v, --version            Display this program's version number\n"
+"  -i, --info               List object formats and architectures supported\n"
+"  -H, --help               Display this information\n"
+msgstr ""
+"  -a, --archive-headers    Näyttää arkisto-otsaketiedot\n"
+"  -f, --file-headers       Näyttää ylimmän tiedosto-otsakkeen sisällön\n"
+"  -p, --private-headers    Näyttää objektimuotokohtaisen tiedosto-otsakkeen sisällön\n"
+"  -h, --[section-]headers  Näyttää lohko-otsakkeiden sisällön\n"
+"  -x, --all-headers        Näyttää kaikkien otsakkeiden sisällön\n"
+"  -d, --disassemble        Näyttää suoritettavien lohkojen assembler-sisällön\n"
+"  -D, --disassemble-all    Näyttää kaikkien lohkojen assembler-sisällön\n"
+"  -S, --source             Sekoittaa lähdekoodin disassembly:n kanssa\n"
+"  -s, --full-contents      Näyttää kaikkien vaadittujen lohkojen koko sisällön\n"
+"  -g, --debugging          Näyttää debug-tiedot objektitiedostossa\n"
+"  -e, --debugging-tags     Näyttää debug-tiedot käyttäen ctags-tyyliä\n"
+"  -G, --stabs              Näyttää (raakamuodossa) kaikki tiedoston STABS-tiedot\n"
+"  -t, --syms               Näyttää symbolitaulu(je)n sisällön\n"
+"  -T, --dynamic-syms       Näyttää dynaamisen symbolitaulun sisällön\n"
+"  -r, --reloc              Näyttää tiedoston uudelleensijoitusalkiot\n"
+"  -R, --dynamic-reloc      Näyttää tiedoston dynaamiset uudelleensijoitusalkiot\n"
+"  -v, --version            Näyttää tämän ohjelman versionumeron\n"
+"  -i, --info               Luettelee tuetut objektimuodot ja arkkitehtuurit\n"
+"  -H, --help               Näyttää nämä tiedot\n"
+
+# Ohjenäytöllä puhutaan ylempänä valitsimista. Siksi alla käytetään samaa termiä suomennoksessa.
+#: objdump.c:202
+#, c-format
+msgid ""
+"\n"
+" The following switches are optional:\n"
+msgstr ""
+"\n"
+" Seuraavat valitsimet ovat valinnaisia:\n"
+
+#: objdump.c:203
+#, c-format
+msgid ""
+"  -b, --target=BFDNAME           Specify the target object format as BFDNAME\n"
+"  -m, --architecture=MACHINE     Specify the target architecture as MACHINE\n"
+"  -j, --section=NAME             Only display information for section NAME\n"
+"  -M, --disassembler-options=OPT Pass text OPT on to the disassembler\n"
+"  -EB --endian=big               Assume big endian format when disassembling\n"
+"  -EL --endian=little            Assume little endian format when disassembling\n"
+"      --file-start-context       Include context from start of file (with -S)\n"
+"  -I, --include=DIR              Add DIR to search list for source files\n"
+"  -l, --line-numbers             Include line numbers and filenames in output\n"
+"  -C, --demangle[=STYLE]         Decode mangled/processed symbol names\n"
+"                                  The STYLE, if specified, can be `auto', `gnu',\n"
+"                                  `lucid', `arm', `hp', `edg', `gnu-v3', `java'\n"
+"                                  or `gnat'\n"
+"  -w, --wide                     Format output for more than 80 columns\n"
+"  -z, --disassemble-zeroes       Do not skip blocks of zeroes when disassembling\n"
+"      --start-address=ADDR       Only process data whose address is >= ADDR\n"
+"      --stop-address=ADDR        Only process data whose address is <= ADDR\n"
+"      --prefix-addresses         Print complete address alongside disassembly\n"
+"      --[no-]show-raw-insn       Display hex alongside symbolic disassembly\n"
+"      --adjust-vma=OFFSET        Add OFFSET to all displayed section addresses\n"
+"      --special-syms             Include special symbols in symbol dumps\n"
+"\n"
+msgstr ""
+"  -b, --target=BFD-NIMI          Määrittelee kohdeobjektimuodoksi BFD-NIMEN\n"
+"  -m, --architecture=KONE        Määrittelee kohdearkkitehtuuriksi KONEEN\n"
+"  -j, --section=NIMI             Näyttää tiedot vain lohkosta NIMI\n"
+"  -M, --disassembler-options=OPT Välittää tekstin OPT disassemblerille\n"
+"  -EB --endian=big               Otaksuu, että big-endian-tavujärjestystä käytetään disassembloinnissa\n"
+"  -EL --endian=little            Otaksuu, että little-endian-tavujärjestystä käytetään disassembloinnissa\n"
+"      --file-start-context       Sisällyttää asiayhteyden tiedoston alusta (yhdessä -S:n kanssa)\n"
+"  -I, --include=HAKEMISTO        Lisää HAKEMISTOn lähdetiedostojen etsintäluetteloon\n"
+"  -l, --line-numbers             Sisällyttää rivinumerot ja tiedostonimet tulosteeseen\n"
+"  -C, --demangle[=TYYLI]         Eheyttää runnellut/käsitellyt symbolinimet\n"
+"                                  TYYLI, jos annettu, voi olla \"auto\", \"gnu\",\n"
+"                                  \"lucid\", \"arm\", \"hp\", \"edg\", \"gnu-v3\", \"java\"\n"
+"                                  tai \"gnat\"\n"
+"  -w, --wide                     Muotoilee tulosteen yli 80 sarakkeen levyiseksi\n"
+"  -z, --disassemble-zeroes       Ei hyppää nollalohkojen yli disassembloinnissa\n"
+"      --start-address=OSOITE     Käsittelee vain dataa, jonka osoite on >= OSOITE\n"
+"      --stop-address=OSOITE      Käsittelee vain dataa, jonka osoite on <= OSOITE\n"
+"      --prefix-addresses         Tulostaa disassemblyn mukana täydellisen osoitteen\n"
+"      --[no-]show-raw-insn       Näyttää heksadesimaaliluvut symbolisen disassemblyn mukana\n"
+"      --adjust-vma=SIIRROS       Lisää arvon SIIRROS kaikkiin näytettyihin lohko-osoitteisiin\n"
+"      --special-syms             Sisällyttää erikoissymbolit symbolivedoksiin\n"
+"\n"
+
+#: objdump.c:378
+#, c-format
+msgid "Sections:\n"
+msgstr "Lohkot:\n"
+
+# Rivin saa näkyviin esimerkiksi komennolla "objdump -x main.o"
+#: objdump.c:381 objdump.c:385
+#, c-format
+msgid "Idx Name          Size      VMA       LMA       File off  Algn"
+msgstr "Ind Nimi          Koko      VirMuisOs LatMuisOs TiedSiir  Tasaus"
+
+# Idx on ilmeisesti index. VMA on ilmeisesti Virtual Memory Address. LMA on ilmeisesti Load Memory Address: This is the address at which a section will be loaded.
+#: objdump.c:387
+#, c-format
+msgid "Idx Name          Size      VMA               LMA               File off  Algn"
+msgstr "Ind Nimi          Koko      VirtMuistiOsoite  LatausMuistOsoite TiedSiir  Tasaus"
+
+#: objdump.c:391
+#, c-format
+msgid "  Flags"
+msgstr "  Liput"
+
+#: objdump.c:393
+#, c-format
+msgid "  Pg"
+msgstr "  Sv"
+
+#: objdump.c:436
+#, c-format
+msgid "%s: not a dynamic object"
+msgstr "%s: ei ole dynaaminen objekti"
+
+#: objdump.c:1722
+#, c-format
+msgid "Disassembly of section %s:\n"
+msgstr "Lohkon %s disassembly:\n"
+
+#: objdump.c:1884
+#, c-format
+msgid "Can't use supplied machine %s"
+msgstr "Ei voi käyttää annettua konetta %s"
+
+#: objdump.c:1903
+#, c-format
+msgid "Can't disassemble for architecture %s\n"
+msgstr "Ei voi disassembloida arkkitehtuuria %s\n"
+
+#: objdump.c:1973
+#, c-format
+msgid ""
+"No %s section present\n"
+"\n"
+msgstr ""
+"Ei ole %s-lohkoa\n"
+"\n"
+
+#: objdump.c:1982
+#, c-format
+msgid "Reading %s section of %s failed: %s"
+msgstr "Lohkon %s lukeminen kohteesta %s epäonnistui: %s"
+
+#: objdump.c:2026
+#, c-format
+msgid ""
+"Contents of %s section:\n"
+"\n"
+msgstr ""
+"Lohkon %s sisältö:\n"
+"\n"
+
+#: objdump.c:2153
+#, c-format
+msgid "architecture: %s, "
+msgstr "arkkitehtuuri: %s, "
+
+#: objdump.c:2156
+#, c-format
+msgid "flags 0x%08x:\n"
+msgstr "liput 0x%08x:\n"
+
+#: objdump.c:2170
+#, c-format
+msgid ""
+"\n"
+"start address 0x"
+msgstr ""
+"\n"
+"aloitusosoite 0x"
+
+#: objdump.c:2210
+#, c-format
+msgid "Contents of section %s:\n"
+msgstr "Lohkon %s sisältö:\n"
+
+#: objdump.c:2335
+#, c-format
+msgid "no symbols\n"
+msgstr "ei symboleja\n"
+
+#: objdump.c:2342
+#, c-format
+msgid "no information for symbol number %ld\n"
+msgstr "ei tietoja symbolinumerolla %ld\n"
+
+#: objdump.c:2345
+#, c-format
+msgid "could not determine the type of symbol number %ld\n"
+msgstr "ei voitu määritellä symbolinumeron %ld tyyppiä\n"
+
+#: objdump.c:2611
+#, c-format
+msgid ""
+"\n"
+"%s:     file format %s\n"
+msgstr ""
+"\n"
+"%s:     tiedostomuoto %s\n"
+
+#: objdump.c:2662
+#, c-format
+msgid "%s: printing debugging information failed"
+msgstr "%s: debuggaustietojen tulostaminen epäonnistui"
+
+#: objdump.c:2753
+#, c-format
+msgid "In archive %s:\n"
+msgstr "Arkistossa %s:\n"
+
+# Lisäsin lainausmerkit väliviivan ja valitsinmerkin erottamiseksi
+#: objdump.c:2873
+msgid "unrecognized -E option"
+msgstr "tunnistamaton \"-E\"-valitsin"
+
+# Middle-Endian ? --endian-tavujärjestystyyppi lyhennetty tavujärjestystyypiksi, joka kertoo jo kaiken.
+#: objdump.c:2884
+#, c-format
+msgid "unrecognized --endian type `%s'"
+msgstr "tunnistamaton tavujärjestystyyppi \"%s\""
+
+#: rdcoff.c:196
+#, c-format
+msgid "parse_coff_type: Bad type code 0x%x"
+msgstr "parse_coff_type: Virheellinen tyyppikoodi 0x%x"
+
+#: rdcoff.c:404 rdcoff.c:509 rdcoff.c:697
+#, c-format
+msgid "bfd_coff_get_syment failed: %s"
+msgstr "bfd_coff_get_syment epäonnistui: %s"
+
+#: rdcoff.c:420 rdcoff.c:717
+#, c-format
+msgid "bfd_coff_get_auxent failed: %s"
+msgstr "bfd_coff_get_auxent epäonnistui: %s"
+
+#: rdcoff.c:784
+#, c-format
+msgid "%ld: .bf without preceding function"
+msgstr "%ld: .bf ilman edeltävää funktiota"
+
+#: rdcoff.c:834
+#, c-format
+msgid "%ld: unexpected .ef\n"
+msgstr "%ld: odottamaton .ef\n"
+
+#: rddbg.c:85
+#, c-format
+msgid "%s: no recognized debugging information"
+msgstr "%s: ei tunnistettavia debuggaustietoja"
+
+#: rddbg.c:394
+#, c-format
+msgid "Last stabs entries before error:\n"
+msgstr "Viimeiset stabs-alkiot ennen virhettä:\n"
+
+#: readelf.c:272
+#, c-format
+msgid "%s: Error: "
+msgstr "%s: Virhe: "
+
+#: readelf.c:283
+#, c-format
+msgid "%s: Warning: "
+msgstr "%s: Varoitus: "
+
+#: readelf.c:298
+#, c-format
+msgid "Unable to seek to 0x%x for %s\n"
+msgstr "Ei voi hakea siirrosta 0x%x kohteesta %s\n"
+
+#: readelf.c:310
+#, c-format
+msgid "Out of memory allocating 0x%x bytes for %s\n"
+msgstr "Muisti loppui varattaessa 0x%x tavua kohteelle %s\n"
+
+#: readelf.c:318
+#, c-format
+msgid "Unable to read in 0x%x bytes of %s\n"
+msgstr "Ei voi lukea 0x%x tavua kohteesta %s\n"
+
+#: readelf.c:364 readelf.c:412 readelf.c:615 readelf.c:647
+#, c-format
+msgid "Unhandled data length: %d\n"
+msgstr "Käsittelemätön data-pituus: %d\n"
+
+#: readelf.c:752
+msgid "Don't know about relocations on this machine architecture\n"
+msgstr "Tämän konearkkitehtuurin uudelleensijoituksia ei tunneta\n"
+
+# Viimeinen %s-parametri virheilmoitukseen: Unable to seek to 0x%x for %s\n
+# Määritelty ainakin <linux/elf.h> -tiedostossa.
+#: readelf.c:772 readelf.c:799 readelf.c:842 readelf.c:869
+msgid "relocs"
+msgstr "relocs"
+
+#: readelf.c:782 readelf.c:809 readelf.c:852 readelf.c:879
+msgid "out of memory parsing relocs"
+msgstr "muisti loppui jäsenneltäessä relocs-alkioita"
+
+#: readelf.c:933
+#, c-format
+msgid " Offset     Info    Type                Sym. Value  Symbol's Name + Addend\n"
+msgstr " Siirros    Tiedot  Tyyppi              Sym. arvo   Symbolin nimi + Lisättävä\n"
+
+#: readelf.c:935
+#, c-format
+msgid " Offset     Info    Type            Sym.Value  Sym. Name + Addend\n"
+msgstr " Siirros    Tiedot  Tyyppi          Sym.arvo   Sym. nimi + Lisättävä\n"
+
+#: readelf.c:940
+#, c-format
+msgid " Offset     Info    Type                Sym. Value  Symbol's Name\n"
+msgstr " Siirros    Tiedot  Tyyppi              Sym. arvo   Symbolin nimi\n"
+
+#: readelf.c:942
+#, c-format
+msgid " Offset     Info    Type            Sym.Value  Sym. Name\n"
+msgstr " Siirros  Tiedot   Tyyppi           Sym.arvo   Sym. nimi\n"
+
+#: readelf.c:950
+#, c-format
+msgid "    Offset             Info             Type               Symbol's Value  Symbol's Name + Addend\n"
+msgstr "    Siirros            Tiedot           Tyyppi             Symbolin arvo   Symbolin nimi + Lisättävä\n"
+
+#: readelf.c:952
+#, c-format
+msgid "  Offset          Info           Type           Sym. Value    Sym. Name + Addend\n"
+msgstr "  Siirros         Tiedot         Tyyppi         Sym. arvo     Sym. nimi + Lisättävä\n"
+
+#: readelf.c:957
+#, c-format
+msgid "    Offset             Info             Type               Symbol's Value  Symbol's Name\n"
+msgstr "    Siirros            Tiedot           Tyyppi             Symbolin arvo   Symbolin nimi\n"
+
+#: readelf.c:959
+#, c-format
+msgid "  Offset          Info           Type           Sym. Value    Sym. Name\n"
+msgstr "  Siirros         Tiedot         Tyyppi         Sym. arvo     Symbolinimi\n"
+
+#: readelf.c:1239 readelf.c:1241 readelf.c:1324 readelf.c:1326 readelf.c:1335
+#: readelf.c:1337
+#, c-format
+msgid "unrecognized: %-7lx"
+msgstr "tunnistamaton: %-7lx"
+
+#: readelf.c:1295
+#, c-format
+msgid "<string table index: %3ld>"
+msgstr "<merkkijonotaulun indeksi: %3ld>"
+
+#: readelf.c:1297
+#, c-format
+msgid "<corrupt string table index: %3ld>"
+msgstr "<rikkoutunut merkkijonotauluindeksi: %3ld>"
+
+#: readelf.c:1569
+#, c-format
+msgid "Processor Specific: %lx"
+msgstr "Suoritinkohtainen: %lx"
+
+#: readelf.c:1588
+#, c-format
+msgid "Operating System specific: %lx"
+msgstr "Käyttöjärjestelmäkohtainen: %lx"
+
+#: readelf.c:1592 readelf.c:2370
+#, c-format
+msgid "<unknown>: %lx"
+msgstr "<tuntematon>: %lx"
+
+#: readelf.c:1605
+msgid "NONE (None)"
+msgstr "NONE (Ei mitään)"
+
+#: readelf.c:1606
+msgid "REL (Relocatable file)"
+msgstr "REL (Uudelleensijoitettava tiedosto)"
+
+#: readelf.c:1607
+msgid "EXEC (Executable file)"
+msgstr "EXEC (Suoritettava tiedosto)"
+
+#: readelf.c:1608
+msgid "DYN (Shared object file)"
+msgstr "DYN (Jaettu objektitiedosto)"
+
+#: readelf.c:1609
+msgid "CORE (Core file)"
+msgstr "CORE (Muistivedos)"
+
+#: readelf.c:1613
+#, c-format
+msgid "Processor Specific: (%x)"
+msgstr "Suoritinkohtainen: (%x)"
+
+#: readelf.c:1615
+#, c-format
+msgid "OS Specific: (%x)"
+msgstr "Käyttöjärjestelmäkohtainen: (%x)"
+
+#: readelf.c:1617 readelf.c:1724 readelf.c:2554
+#, c-format
+msgid "<unknown>: %x"
+msgstr "<tuntematon>: %x"
+
+#: readelf.c:1629
+msgid "None"
+msgstr "Ei mitään"
+
+#: readelf.c:2229
+msgid "Standalone App"
+msgstr "Erillinen sovellus"
+
+#: readelf.c:2232 readelf.c:2952 readelf.c:2968
+#, c-format
+msgid "<unknown: %x>"
+msgstr "<tuntematon: %x>"
+
+#: readelf.c:2597
+#, c-format
+msgid "Usage: readelf <option(s)> elf-file(s)\n"
+msgstr "Käyttö: readelf <valitsimet> elf-tiedosto(t)\n"
+
+#: readelf.c:2598
+#, c-format
+msgid " Display information about the contents of ELF format files\n"
+msgstr " Näyttää tietoja ELF-muotoisten tiedostojen sisällöstä.\n"
+
+# Alla "core notes" on hiukan hankala suomentaa. Notes viittaan note-lohkoihin, joita valmistaja käyttää lisätietojen sisällyttämiseksi tiedostoon. Lisätiedot olisi ehkä merkitykseltään paras suomennos. Tiedostossa saattaa esiintyä yksi tai useampi maaginen .note-lohko, jota käytetään lisätietojen tallentamiseen. Ohjelmoijille .note-lohko voi olla tuttu, mutta he eivät välttämättä osaa yhdistää sanaa "lisätiedot" lohkoon .note.
+#: readelf.c:2599
+#, c-format
+msgid ""
+" Options are:\n"
+"  -a --all               Equivalent to: -h -l -S -s -r -d -V -A -I\n"
+"  -h --file-header       Display the ELF file header\n"
+"  -l --program-headers   Display the program headers\n"
+"     --segments          An alias for --program-headers\n"
+"  -S --section-headers   Display the sections' header\n"
+"     --sections          An alias for --section-headers\n"
+"  -g --section-groups    Display the section groups\n"
+"  -e --headers           Equivalent to: -h -l -S\n"
+"  -s --syms              Display the symbol table\n"
+"      --symbols          An alias for --syms\n"
+"  -n --notes             Display the core notes (if present)\n"
+"  -r --relocs            Display the relocations (if present)\n"
+"  -u --unwind            Display the unwind info (if present)\n"
+"  -d --dynamic           Display the dynamic section (if present)\n"
+"  -V --version-info      Display the version sections (if present)\n"
+"  -A --arch-specific     Display architecture specific information (if any).\n"
+"  -D --use-dynamic       Use the dynamic section info when displaying symbols\n"
+"  -x --hex-dump=<number> Dump the contents of section <number>\n"
+"  -w[liaprmfFsoR] or\n"
+"  --debug-dump[=line,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=str,=loc,=Ranges]\n"
+"                         Display the contents of DWARF2 debug sections\n"
+msgstr ""
+" Valitsimet ovat:\n"
+"  -a --all               Sama kuin: -h -l -S -s -r -d -V -A -I\n"
+"  -h --file-header       Näyttää ELF-tiedosto-otsakkeen\n"
+"  -l --program-headers   Näyttää ohjelmaotsakkeet\n"
+"     --segments          Alias valitsimelle --program-headers\n"
+"  -S --section-headers   Näyttää lohkon otsakkeen\n"
+"     --sections          Alias valitsimelle --section-headers\n"
+"  -g --section-groups    Näyttää lohkoryhmät\n"
+"  -e --headers           Sama kuin: -h -l -S\n"
+"  -s --syms              Näyttää symbolitaulun\n"
+"     --symbols           Alias valitsimelle --syms\n"
+"  -n --notes             Näyttää ydin notes (jos on olemassa)\n"
+"  -r --relocs            Näyttää uudelleensijoitukset (jos on olemassa)\n"
+"  -u --unwind            Näyttää unwind-tiedot (jos on olemassa)\n"
+"  -d --dynamic           Näyttää dynaamisen lohkon (jos on olemassa)\n"
+"  -V --version-info      Näyttää versiolohkot (jos on olemassa)\n"
+"  -A --arch-specific     Näyttää arkkitehtuurikohtaiset tiedot (jos niitä on).\n"
+"  -D --use-dynamic       Käyttää dynaamisia lohkotietoja, kun näytetään symboleja\n"
+"  -x --hex-dump=<numero> Vedostaa lohkon <numero> sisällön\n"
+"  -w[liaprmfFsoR] tai\n"
+"  --debug-dump[=line,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=str,=loc,=Ranges]\n"
+"                         Näyttää DWARF2-debug-lohkojen sisällön\n"
+
+#: readelf.c:2622
+#, c-format
+msgid ""
+"  -i --instruction-dump=<number>\n"
+"                         Disassemble the contents of section <number>\n"
+msgstr ""
+"  -i --instruction-dump=<numero>\n"
+"                         Disassembloi lohkon <numero> sisällöt\n"
+
+#: readelf.c:2626
+#, c-format
+msgid ""
+"  -I --histogram         Display histogram of bucket list lengths\n"
+"  -W --wide              Allow output width to exceed 80 characters\n"
+"  -H --help              Display this information\n"
+"  -v --version           Display the version number of readelf\n"
+msgstr ""
+"  -I --histogram         Näyttää bucket-luettelopituuksien histogrammin\n"
+"  -W --wide              Sallii yli 80 merkin levyisen tulosteen\n"
+"  -H --help              Näyttää nämä tiedot\n"
+"  -v --version           Näyttää readelf-ohjelman versionumeron\n"
+
+#: readelf.c:2651 readelf.c:12118
+msgid "Out of memory allocating dump request table."
+msgstr "Muisti loppui varattaessa tiedostovedospyyntötaulua."
+
+#: readelf.c:2820 readelf.c:2888
+#, c-format
+msgid "Unrecognized debug option '%s'\n"
+msgstr "Tunnistamaton debug-valitsin \"%s\"\n"
+
+#: readelf.c:2922
+#, c-format
+msgid "Invalid option '-%c'\n"
+msgstr "Virheellinen valitsin \"-%c\"\n"
+
+#: readelf.c:2936
+msgid "Nothing to do.\n"
+msgstr "Ei mitään tehtävää.\n"
+
+#: readelf.c:2948 readelf.c:2964 readelf.c:5906
+msgid "none"
+msgstr "ei mitään"
+
+# Selvennetty ylimääräisillä lainausmerkeillä
+#: readelf.c:2965
+msgid "2's complement, little endian"
+msgstr "kahden komplementti, \"little endian\"-tavujärjestys"
+
+# Selvennetty ylimääräisillä lainausmerkeillä
+#: readelf.c:2966
+msgid "2's complement, big endian"
+msgstr "kahden komplementti, \"big endian\"-tavujärjestys"
+
+# Valinnaisessa COFF-otsakkeessa on magic-kenttä, joka kertoo tiedoston tyypin.
+#: readelf.c:2984
+msgid "Not an ELF file - it has the wrong magic bytes at the start\n"
+msgstr "Ei ELF-tiedosto - siinä on väärät maagiset tavut alussa\n"
+
+#: readelf.c:2992
+#, c-format
+msgid "ELF Header:\n"
+msgstr "ELF-otsake:\n"
+
+# Valinnaisessa COFF-otsakkeessa on magic-kenttä, joka kertoo tiedoston tyypin. Joillakin COFF-lohkoilla voi olla magic-nimi, joka kertoo lohkon erikoistarkoituksesta.
+#: readelf.c:2993
+#, c-format
+msgid "  Magic:   "
+msgstr "  Maaginen numero:   "
+
+# Levennetty tarkoituksella
+#: readelf.c:2997
+#, c-format
+msgid "  Class:                             %s\n"
+msgstr "  Luokka:                               %s\n"
+
+# Levennetty tarkoituksella
+#: readelf.c:2999
+#, c-format
+msgid "  Data:                              %s\n"
+msgstr "  Data:                                 %s\n"
+
+# Levennetty tarkoituksella
+#: readelf.c:3001
+#, c-format
+msgid "  Version:                           %d %s\n"
+msgstr "  Versio:                               %d %s\n"
+
+# Levennetty tarkoituksella
+#: readelf.c:3008
+#, c-format
+msgid "  OS/ABI:                            %s\n"
+msgstr "  Käyttöjärjestelmä/ABI:                %s\n"
+
+# Levennetty tarkoituksella
+#: readelf.c:3010
+#, c-format
+msgid "  ABI Version:                       %d\n"
+msgstr "  ABI-versio:                           %d\n"
+
+# Levennetty tarkoituksella
+#: readelf.c:3012
+#, c-format
+msgid "  Type:                              %s\n"
+msgstr "  Tyyppi:                               %s\n"
+
+# Levennetty tarkoituksella
+#: readelf.c:3014
+#, c-format
+msgid "  Machine:                           %s\n"
+msgstr "  Kone:                                 %s\n"
+
+# Levennetty tarkoituksella
+#: readelf.c:3016
+#, c-format
+msgid "  Version:                           0x%lx\n"
+msgstr "  Versio:                               0x%lx\n"
+
+# Levennetty tarkoituksella
+#: readelf.c:3019
+#, c-format
+msgid "  Entry point address:               "
+msgstr "  Tulokohtaosoite:                      "
+
+# Levennetty tarkoituksella
+#: readelf.c:3021
+#, c-format
+msgid ""
+"\n"
+"  Start of program headers:          "
+msgstr ""
+"\n"
+"  Ohjelmaotsakkeiden alku:              "
+
+# Levennetty tarkoituksella
+#: readelf.c:3023
+#, c-format
+msgid ""
+" (bytes into file)\n"
+"  Start of section headers:          "
+msgstr ""
+" (tavua tiedostoon)\n"
+"  Lohko-otsakkeiden alku:               "
+
+#: readelf.c:3025
+#, c-format
+msgid " (bytes into file)\n"
+msgstr " (tavua tiedostoon)\n"
+
+# Levennetty tarkoituksella
+#: readelf.c:3027
+#, c-format
+msgid "  Flags:                             0x%lx%s\n"
+msgstr "  Liput:                                0x%lx%s\n"
+
+# Levennetty tarkoituksella
+#: readelf.c:3030
+#, c-format
+msgid "  Size of this header:               %ld (bytes)\n"
+msgstr "  Tämän otsakkeen koko:                 %ld (tavua)\n"
+
+# Levennetty tarkoituksella
+#: readelf.c:3032
+#, c-format
+msgid "  Size of program headers:           %ld (bytes)\n"
+msgstr "  Ohjelmaotsakkeiden koko:              %ld (tavua)\n"
+
+# Levennetty tarkoituksella
+#: readelf.c:3034
+#, c-format
+msgid "  Number of program headers:         %ld\n"
+msgstr "  Ohjelmaotsakkeiden lukumäärä:         %ld\n"
+
+# Levennetty tarkoituksella
+#: readelf.c:3036
+#, c-format
+msgid "  Size of section headers:           %ld (bytes)\n"
+msgstr "  Lohko-otsakkeiden koko:               %ld (tavua)\n"
+
+# Levennetty tarkoituksella
+#: readelf.c:3038
+#, c-format
+msgid "  Number of section headers:         %ld"
+msgstr "  Lohko-otsakkeiden lukumäärä:          %ld"
+
+# Yläpuolella olevat on levennetty tarkoituksella tämän levyisiksi
+#: readelf.c:3043
+#, c-format
+msgid "  Section header string table index: %ld"
+msgstr "  Lohko-otsakemerkkijonotaulun indeksi: %ld"
+
+#: readelf.c:3074 readelf.c:3107
+msgid "program headers"
+msgstr "ohjelmaotsakkeet"
+
+#: readelf.c:3145 readelf.c:3446 readelf.c:3487 readelf.c:3546 readelf.c:3609
+#: readelf.c:3993 readelf.c:4017 readelf.c:5247 readelf.c:5291 readelf.c:5489
+#: readelf.c:6450 readelf.c:6464 readelf.c:11493 readelf.c:11912
+#: readelf.c:11979
+msgid "Out of memory\n"
+msgstr "Muisti loppui\n"
+
+#: readelf.c:3172
+#, c-format
+msgid ""
+"\n"
+"There are no program headers in this file.\n"
+msgstr ""
+"\n"
+"Tässä tiedostossa ei ole ohjelmaotsakkeita.\n"
+
+#: readelf.c:3178
+#, c-format
+msgid ""
+"\n"
+"Elf file type is %s\n"
+msgstr ""
+"\n"
+"Elf-tiedostotyyppi on %s\n"
+
+#: readelf.c:3179
+#, c-format
+msgid "Entry point "
+msgstr "Tulokohta "
+
+#: readelf.c:3181
+#, c-format
+msgid ""
+"\n"
+"There are %d program headers, starting at offset "
+msgstr ""
+"\n"
+"Ohjelmaotsakkeita on %d kpl, alkaen siirroksesta "
+
+#: readelf.c:3193 readelf.c:3195
+#, c-format
+msgid ""
+"\n"
+"Program Headers:\n"
+msgstr ""
+"\n"
+"Ohjelmaotsakkeet:\n"
+
+#: readelf.c:3199
+#, c-format
+msgid "  Type           Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align\n"
+msgstr "  Tyyppi         Siirros  VirtOsoite FyysOsoite TiedKok MuisKok Lip Tasaus\n"
+
+#: readelf.c:3202
+#, c-format
+msgid "  Type           Offset   VirtAddr           PhysAddr           FileSiz  MemSiz   Flg Align\n"
+msgstr "  Tyyppi         Siirros  VirtuaaliOsoite    FyysinenOsoite     TiedKoko MuisKoko Lip Tasaus\n"
+
+#: readelf.c:3206
+#, c-format
+msgid "  Type           Offset             VirtAddr           PhysAddr\n"
+msgstr "  Tyyppi         Siirros            VirtuaaliOsoite    FyysinenOsoite\n"
+
+#: readelf.c:3208
+#, c-format
+msgid "                 FileSiz            MemSiz              Flags  Align\n"
+msgstr "                 TiedostoKoko       MuistiKoko          Liput  Tasaus\n"
+
+#: readelf.c:3301
+msgid "more than one dynamic segment\n"
+msgstr "useampi kuin yksi dynaaminen segmentti\n"
+
+#: readelf.c:3312
+msgid "no .dynamic section in the dynamic segment"
+msgstr "ei .dynamic-lohkoa dynaamisessa segmentissä"
+
+#: readelf.c:3321
+msgid "the .dynamic section is not contained within the dynamic segment"
+msgstr ".dynamic-lohko ei ole dynaamisen segmentin sisällä"
+
+#: readelf.c:3323
+msgid "the .dynamic section is not the first section in the dynamic segment."
+msgstr ".dynamic-lohko ei ole dynaamisen segmentin ensimmäinen lohko."
+
+#: readelf.c:3337
+msgid "Unable to find program interpreter name\n"
+msgstr "Ohjelmatulkin nimeä ei löydy\n"
+
+#: readelf.c:3344
+#, c-format
+msgid ""
+"\n"
+"      [Requesting program interpreter: %s]"
+msgstr ""
+"\n"
+"      [Pyydetään ohjelmatulkkia: %s]"
+
+# Kartassa kohteet sijoitetaan kartalle toistensa suhteen eri paikkoihin.
+#: readelf.c:3356
+#, c-format
+msgid ""
+"\n"
+" Section to Segment mapping:\n"
+msgstr ""
+"\n"
+" Lohkosta Segmenttiin sijoittelu:\n"
+
+#: readelf.c:3357
+#, c-format
+msgid "  Segment Sections...\n"
+msgstr "  Segmenttilohkot...\n"
+
+#: readelf.c:3408
+msgid "Cannot interpret virtual addresses without program headers.\n"
+msgstr "Virtuaalisia osoitteita ei voi tulkata ilman ohjelmaotsakkeita.\n"
+
+#: readelf.c:3424
+#, c-format
+msgid "Virtual address 0x%lx not located in any PT_LOAD segment.\n"
+msgstr "Virtuaaliosoite 0x%lx ei sijaitse missään PT_LOAD-segmentissä.\n"
+
+#: readelf.c:3438 readelf.c:3479
+msgid "section headers"
+msgstr "lohko-otsakkeet"
+
+# Viimeinen %s-parametri virheilmoituksessa: Unable to seek to 0x%x for %s\n
+#: readelf.c:3523 readelf.c:3586
+msgid "symbols"
+msgstr "symbolit"
+
+# Viimeinen %s-parametri virheilmoituksessa: Unable to seek to 0x%x for %s\n
+#: readelf.c:3533 readelf.c:3596
+msgid "symtab shndx"
+msgstr "\"symtab shndx\"-taululle"
+
+#: readelf.c:3697 readelf.c:3977
+#, c-format
+msgid ""
+"\n"
+"There are no sections in this file.\n"
+msgstr ""
+"\n"
+"Tässä tiedostossa ei ole lohkoja.\n"
+
+#: readelf.c:3703
+#, c-format
+msgid "There are %d section headers, starting at offset 0x%lx:\n"
+msgstr "Lohko-otsakkeita on %d kpl, alkaen siirroksesta 0x%lx:\n"
+
+# Viimeinen %s-parametri virheilmoituksessa: Unable to seek to 0x%x for %s\n
+#: readelf.c:3720 readelf.c:4079 readelf.c:4290 readelf.c:4591 readelf.c:5011
+#: readelf.c:6618
+msgid "string table"
+msgstr "merkkijonotaulu"
+
+#: readelf.c:3765
+msgid "File contains multiple dynamic symbol tables\n"
+msgstr "Tiedosto sisältää useita dynaamisia symbolitauluja\n"
+
+#: readelf.c:3777
+msgid "File contains multiple dynamic string tables\n"
+msgstr "Tiedosto sisältää useita dynaamisia merkkijonotauluja\n"
+
+# Viimeinen %s-parametri virheilmoituksessa: Unable to seek to 0x%x for %s\n
+#: readelf.c:3782
+msgid "dynamic strings"
+msgstr "dynaamiset merkkijonot"
+
+# Lisäsin lainausmerkit selventämään lausetta.
+#: readelf.c:3789
+msgid "File contains multiple symtab shndx tables\n"
+msgstr "Tiedosto sisältää useita \"symtab shndx\"-tauluja\n"
+
+# monikkomuoto seuraavasta msgid:stä
+#: readelf.c:3828
+#, c-format
+msgid ""
+"\n"
+"Section Headers:\n"
+msgstr ""
+"\n"
+"Lohko-otsakkeet:\n"
+
+# yksikkömuoto edellisestä msgid:stä
+#: readelf.c:3830
+#, c-format
+msgid ""
+"\n"
+"Section Header:\n"
+msgstr ""
+"\n"
+"Lohko-otsake:\n"
+
+# ES on kokonaiskoko, Flg on liput, Lk on Linkki, Inf on Tiedot
+#: readelf.c:3834
+#, c-format
+msgid "  [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al\n"
+msgstr "  [Nr] Nimi              Tyyppi          Osoite   Siirr. Koko  Yht Lip Lk Tdt Tasaus\n"
+
+# ES on kokonaiskoko, Flg on liput, Lk on Linkki, Inf on Tiedot
+#: readelf.c:3837
+#, c-format
+msgid "  [Nr] Name              Type            Address          Off    Size   ES Flg Lk Inf Al\n"
+msgstr "  [Nr] Nimi              Tyyppi          Osoite           Siirr. Koko  Yht Lip Lk Tdt Tasaus\n"
+
+#: readelf.c:3840
+#, c-format
+msgid "  [Nr] Name              Type             Address           Offset\n"
+msgstr "  [Nr] Nimi              Tyyppi           Osoite            Siirros\n"
+
+# EntSize voi tarkoittaa Entire Size tai Entity Size
+#: readelf.c:3841
+#, c-format
+msgid "       Size              EntSize          Flags  Link  Info  Align\n"
+msgstr "       Koko              KokonaisKoko     Liput  Link  Tiedot Tasaus\n"
+
+#: readelf.c:3936
+#, c-format
+msgid ""
+"Key to Flags:\n"
+"  W (write), A (alloc), X (execute), M (merge), S (strings)\n"
+"  I (info), L (link order), G (group), x (unknown)\n"
+"  O (extra OS processing required) o (OS specific), p (processor specific)\n"
+msgstr ""
+"Lippuavaimet:\n"
+"  W (kirjoita), A (varaa), X (suorita), M (lomita), S (merkkijonot)\n"
+"  I (tiedot), L (linkitysjärjestys), G (ryhmä), x (tuntematon)\n"
+"  O (vaatii käyttöjärjestelmäkohtaista lisäkäsittelyä) o (Käyttöjärjestelmäkohtainen),\n"
+"  p (suoritinkohtainen)\n"
+
+#: readelf.c:3954
+#, c-format
+msgid "[<unknown>: 0x%x]"
+msgstr "[<tuntematon>: 0x%x]"
+
+#: readelf.c:3984
+msgid "Section headers are not available!\n"
+msgstr "Lohko-otsakkeita ei ole saatavilla!\n"
+
+#: readelf.c:4008
+#, c-format
+msgid ""
+"\n"
+"There are no section groups in this file.\n"
+msgstr ""
+"\n"
+"Tässä tiedostossa ei ole lohkoryhmiä.\n"
+
+# The sh_link field of this section contains the index of the associated SHT_SYMTAB
+#: readelf.c:4042
+#, c-format
+msgid "Bad sh_link in group section `%s'\n"
+msgstr "Virheellinen sh_link-kenttä ryhmälohkossa \"%s\"\n"
+
+# The sh_info field holds the section header index, which is displayed in decimal.
+#: readelf.c:4061
+#, c-format
+msgid "Bad sh_info in group section `%s'\n"
+msgstr "Virheellinen sh_info-kenttä ryhmälohkossa \"%s\"\n"
+
+# Viimeinen %s-parametri virheilmoituksessa: Unable to seek to 0x%x for %s\n
+#: readelf.c:4085 readelf.c:6947
+msgid "section data"
+msgstr "lohkodata"
+
+#: readelf.c:4097
+#, c-format
+msgid "   [Index]    Name\n"
+msgstr "   [Indeksi]  Nimi\n"
+
+#: readelf.c:4114
+#, c-format
+msgid "section [%5u] already in group section [%5u]\n"
+msgstr "lohko [%5u] on jo ryhmälohkossa [%5u]\n"
+
+#: readelf.c:4127
+#, c-format
+msgid "section 0 in group section [%5u]\n"
+msgstr "lohko 0 ryhmälohkossa [%5u]\n"
+
+#: readelf.c:4224
+#, c-format
+msgid ""
+"\n"
+"'%s' relocation section at offset 0x%lx contains %ld bytes:\n"
+msgstr ""
+"\n"
+"\"%s\" uudelleensijoituslohko siirroksessa 0x%lx sisältää %ld tavua:\n"
+
+#: readelf.c:4236
+#, c-format
+msgid ""
+"\n"
+"There are no dynamic relocations in this file.\n"
+msgstr ""
+"\n"
+"Tässä tiedostossa ei ole dynaamisia uudelleensijoituksia.\n"
+
+# Kolme seuraava kuuluu yhteen. Siksi ensimmäinen genetiivimuodossa.
+#: readelf.c:4260
+#, c-format
+msgid ""
+"\n"
+"Relocation section "
+msgstr ""
+"\n"
+"Uudelleensijoituslohkon "
+
+# Kuuluu yhteen edellisen ja seuraavan kanssa.
+#: readelf.c:4265 readelf.c:4666 readelf.c:4680 readelf.c:5025
+#, c-format
+msgid "'%s'"
+msgstr "\"%s\""
+
+# Kuuluu yhteen kahden edellisen kanssa.
+#: readelf.c:4267 readelf.c:4682 readelf.c:5027
+#, c-format
+msgid " at offset 0x%lx contains %lu entries:\n"
+msgstr " siirroksessa 0x%lx on %lu alkiota:\n"
+
+#: readelf.c:4308
+#, c-format
+msgid ""
+"\n"
+"There are no relocations in this file.\n"
+msgstr ""
+"\n"
+"Tässä tiedostossa ei ole uudelleensijoituksia.\n"
+
+# Viimeinen %s-parametri virheilmoituksessa: Unable to seek to 0x%x for %s\n
+#: readelf.c:4482 readelf.c:4862
+msgid "unwind table"
+msgstr "unwind-taulu"
+
+#: readelf.c:4540 readelf.c:4959
+#, c-format
+msgid "Skipping unexpected relocation type %s\n"
+msgstr "Ohittaa odottamattoman uudelleensijoitustyypin %s\n"
+
+# Unwind tarkoittaa ilmeisesti jonkun aikaisemman tilanteen palautusta esimerkiksi virhetilanteessa.
+#: readelf.c:4598 readelf.c:5018 readelf.c:5069
+#, c-format
+msgid ""
+"\n"
+"There are no unwind sections in this file.\n"
+msgstr ""
+"\n"
+"Tässä tiedostossa ei ole unwind-lohkoja.\n"
+
+# Unwind tarkoittaa ilmeisesti jonkun aikaisemman tilanteen palautusta esimerkiksi virhetilanteessa.
+#: readelf.c:4661
+#, c-format
+msgid ""
+"\n"
+"Could not find unwind info section for "
+msgstr ""
+"\n"
+"Ei voitu löytää unwind-tietolohkoja kohteelle "
+
+# Unwind tarkoittaa ilmeisesti jonkun aikaisemman tilanteen palautusta esimerkiksi virhetilanteessa.
+#: readelf.c:4673
+msgid "unwind info"
+msgstr "unwind-tiedot"
+
+# Unwind on maaginen lohkonimi ja siksi sitä ei voi kääntää.
+#: readelf.c:4675 readelf.c:5024
+#, c-format
+msgid ""
+"\n"
+"Unwind section "
+msgstr ""
+"\n"
+"Unwind-lohko "
+
+#: readelf.c:5228 readelf.c:5272
+msgid "dynamic section"
+msgstr "dynaaminen lohko"
+
+#: readelf.c:5349
+#, c-format
+msgid ""
+"\n"
+"There is no dynamic section in this file.\n"
+msgstr ""
+"\n"
+"Tässä tiedostossa ei ole dynaamista lohkoa.\n"
+
+#: readelf.c:5387
+msgid "Unable to seek to end of file!"
+msgstr "Hakua ei voi suorittaa tiedoston loppuun!"
+
+#: readelf.c:5400
+msgid "Unable to determine the number of symbols to load\n"
+msgstr "Ei voi määritellä ladattavien symbolien lukumäärää\n"
+
+#: readelf.c:5435
+msgid "Unable to seek to end of file\n"
+msgstr "Hakua ei voi suorittaa tiedoston loppuun\n"
+
+#: readelf.c:5442
+msgid "Unable to determine the length of the dynamic string table\n"
+msgstr "Dynaamisen merkkijonotaulun pituutta ei voi määritellä\n"
+
+#: readelf.c:5447
+msgid "dynamic string table"
+msgstr "dynaaminen merkkijonotaulu"
+
+#: readelf.c:5482
+msgid "symbol information"
+msgstr "symbolitiedot"
+
+#: readelf.c:5507
+#, c-format
+msgid ""
+"\n"
+"Dynamic section at offset 0x%lx contains %u entries:\n"
+msgstr ""
+"\n"
+"Dynaaminen lohko siirroksessa 0x%lx sisältää %u alkiota:\n"
+
+#: readelf.c:5510
+#, c-format
+msgid "  Tag        Type                         Name/Value\n"
+msgstr "  Tunniste   Tyyppi                       Nimi/Arvo\n"
+
+#: readelf.c:5546
+#, c-format
+msgid "Auxiliary library"
+msgstr "Apukirjasto"
+
+#: readelf.c:5550
+#, c-format
+msgid "Filter library"
+msgstr "Suodatinkirjasto"
+
+#: readelf.c:5554
+#, c-format
+msgid "Configuration file"
+msgstr "Alustustiedosto"
+
+#: readelf.c:5558
+#, c-format
+msgid "Dependency audit library"
+msgstr "Riippuvuustarkastuskirjasto"
+
+#: readelf.c:5562
+#, c-format
+msgid "Audit library"
+msgstr "Tarkastuskirjasto"
+
+#: readelf.c:5580 readelf.c:5608 readelf.c:5636
+#, c-format
+msgid "Flags:"
+msgstr "Liput:"
+
+#: readelf.c:5583 readelf.c:5611 readelf.c:5638
+#, c-format
+msgid " None\n"
+msgstr "Ei mitään\n"
+
+#: readelf.c:5759
+#, c-format
+msgid "Shared library: [%s]"
+msgstr "Jaettu kirjasto: [%s]"
+
+#: readelf.c:5762
+#, c-format
+msgid " program interpreter"
+msgstr " ohjelmatulkki"
+
+# soname tarkoittanee *nix-ympäristössä dynaamisen kirjaston libxml.so.6.0.1 -tyyppistä nimeä
+#: readelf.c:5766
+#, c-format
+msgid "Library soname: [%s]"
+msgstr "Kirjaston so-nimi: [%s]"
+
+# rpath tarkoittanee samaa kuin run-path
+#: readelf.c:5770
+#, c-format
+msgid "Library rpath: [%s]"
+msgstr "Kirjaston rpath: [%s]"
+
+#: readelf.c:5774
+#, c-format
+msgid "Library runpath: [%s]"
+msgstr "Kirjaston run-polku: [%s]"
+
+#: readelf.c:5837
+#, c-format
+msgid "Not needed object: [%s]\n"
+msgstr "Tarpeeton objekti: [%s]\n"
+
+#: readelf.c:5951
+#, c-format
+msgid ""
+"\n"
+"Version definition section '%s' contains %ld entries:\n"
+msgstr ""
+"\n"
+"Versiomäärittelylohko \"%s\" sisältää %ld alkiota:\n"
+
+#: readelf.c:5954
+#, c-format
+msgid "  Addr: 0x"
+msgstr "  Osoite: 0x"
+
+#: readelf.c:5956 readelf.c:6148
+#, c-format
+msgid "  Offset: %#08lx  Link: %lx (%s)\n"
+msgstr "  Siirros: %#08lx Linkki: %lx (%s)\n"
+
+#: readelf.c:5961
+msgid "version definition section"
+msgstr "versiomäärittelylohko"
+
+# Rev on ilmeisesti revision. 
+#: readelf.c:5987
+#, c-format
+msgid "  %#06x: Rev: %d  Flags: %s"
+msgstr "  %#06x: Rev: %d  Liput: %s"
+
+#: readelf.c:5990
+#, c-format
+msgid "  Index: %d  Cnt: %d  "
+msgstr "  Indeksi: %d  Lkm: %d  "
+
+#: readelf.c:6001
+#, c-format
+msgid "Name: %s\n"
+msgstr "Nimi: %s\n"
+
+#: readelf.c:6003
+#, c-format
+msgid "Name index: %ld\n"
+msgstr "Nimi-indeksi: %ld\n"
+
+#: readelf.c:6018
+#, c-format
+msgid "  %#06x: Parent %d: %s\n"
+msgstr "  %#06x: Lähde %d: %s\n"
+
+#: readelf.c:6021
+#, c-format
+msgid "  %#06x: Parent %d, name index: %ld\n"
+msgstr "  %#06x: Lähde %d, nimi-indeksi: %ld\n"
+
+#: readelf.c:6040
+#, c-format
+msgid ""
+"\n"
+"Version needs section '%s' contains %ld entries:\n"
+msgstr ""
+"\n"
+"Versiotarpeet-lohko \"%s\" sisältää %ld alkiota:\n"
+
+#: readelf.c:6043
+#, c-format
+msgid " Addr: 0x"
+msgstr " Osoite: 0x"
+
+#: readelf.c:6045
+#, c-format
+msgid "  Offset: %#08lx  Link to section: %ld (%s)\n"
+msgstr "  Siirros: %#08lx  Linkki lohkoon: %ld (%s)\n"
+
+# kolme msgid ylempänä on Version needs section. Ilmeisesti tässä pitäisi olla sama
+#: readelf.c:6050
+msgid "version need section"
+msgstr "versiotarve-lohko"
+
+#: readelf.c:6072
+#, c-format
+msgid "  %#06x: Version: %d"
+msgstr "  %#06x: Versio:  %d"
+
+#: readelf.c:6075
+#, c-format
+msgid "  File: %s"
+msgstr "  Tiedosto: %s"
+
+#: readelf.c:6077
+#, c-format
+msgid "  File: %lx"
+msgstr "  Tiedosto: %lx"
+
+#: readelf.c:6079
+#, c-format
+msgid "  Cnt: %d\n"
+msgstr "  Lkm: %d\n"
+
+#: readelf.c:6097
+#, c-format
+msgid "  %#06x:   Name: %s"
+msgstr "  %#06x:   Nimi: %s"
+
+#: readelf.c:6100
+#, c-format
+msgid "  %#06x:   Name index: %lx"
+msgstr "  %#06x:   Nimi-indeksi: %lx"
+
+#: readelf.c:6103
+#, c-format
+msgid "  Flags: %s  Version: %d\n"
+msgstr "  Liput: %s  Versio: %d\n"
+
+#: readelf.c:6139
+msgid "version string table"
+msgstr "versiomerkkijonotaulu"
+
+#: readelf.c:6143
+#, c-format
+msgid ""
+"\n"
+"Version symbols section '%s' contains %d entries:\n"
+msgstr ""
+"\n"
+"Versiosymbolilohko \"%s\" sisältää %d alkiota:\n"
+
+#: readelf.c:6146
+#, c-format
+msgid " Addr: "
+msgstr " Osoite: "
+
+# Viimeinen %s-parametri virheilmoituksessa: Unable to seek to 0x%x for %s\n
+#: readelf.c:6156
+msgid "version symbol data"
+msgstr "versiosymbolidata"
+
+# Pituus maksimissaan 9 merkkiä, "*yleinen*" on tasan 9-merkkiä. Suomennos on hiukan slanginen
+#: readelf.c:6183
+msgid "   0 (*local*)    "
+msgstr "   0 (*lokaali*)  "
+
+# Pituus maksimissaan 9 merkkiä, (*globaali*) on liian pitkä
+#: readelf.c:6187
+msgid "   1 (*global*)   "
+msgstr "   1 (*yleinen*)  "
+
+# Viimeinen %s-parametri virheilmoituksessa: Unable to seek to 0x%x for %s\n
+# Viittaa Elf_External_Verneed-rakenteeseen
+#: readelf.c:6223 readelf.c:6677
+msgid "version need"
+msgstr "versiotarve"
+
+# Viimeinen %s-parametri virheilmoituksessa: Unable to seek to 0x%x for %s\n. 
+# Viittaa Elf_External_Vernaux -rakenteeseen.
+#: readelf.c:6233
+msgid "version need aux (2)"
+msgstr "ulkoinen versiotarve (2)"
+
+# Viimeinen %s-parametri virheilmoituksessa: Unable to seek to 0x%x for %s\n. 
+# Viittaa Elf_External_Verdef-rakenteeseen.
+#: readelf.c:6275 readelf.c:6740
+msgid "version def"
+msgstr "versiomäärittely"
+
+# Viimeinen %s-parametri virheilmoituksessa: Unable to seek to 0x%x for %s\n. 
+# Viittaa Elf_External_Verdaux-rakenteeseen.
+#: readelf.c:6294 readelf.c:6755
+msgid "version def aux"
+msgstr "ulkoinen versiomäärittely"
+
+#: readelf.c:6325
+#, c-format
+msgid ""
+"\n"
+"No version information found in this file.\n"
+msgstr ""
+"\n"
+"Tästä tiedostosta ei löytynyt versiotietoja.\n"
+
+#: readelf.c:6456
+msgid "Unable to read in dynamic data\n"
+msgstr "Ei voi lukea dynaamista dataa\n"
+
+#: readelf.c:6509
+msgid "Unable to seek to start of dynamic information"
+msgstr "Ei voi hakea dynaamisten tietojen alkua"
+
+#: readelf.c:6515
+msgid "Failed to read in number of buckets\n"
+msgstr "Buckets-lukumäärän lukeminen epäonnistui\n"
+
+#: readelf.c:6521
+msgid "Failed to read in number of chains\n"
+msgstr "Ketjujen lukumäärän lukeminen epäonnistui\n"
+
+#: readelf.c:6541
+#, c-format
+msgid ""
+"\n"
+"Symbol table for image:\n"
+msgstr ""
+"\n"
+"Symbolitaulu tiedostovedokselle:\n"
+
+#: readelf.c:6543
+#, c-format
+msgid "  Num Buc:    Value  Size   Type   Bind Vis      Ndx Name\n"
+msgstr "  Buc-lkm:    Arvo   Koko   Tyyppi Sidnta Näkyvyys Ind Nimi\n"
+
+# Num tarkoittaa ilmeisesti number-sanaa. Bind tarkoittaa ehkä samaa kuin jossain muussa taulukossa BoundTo ?
+#: readelf.c:6545
+#, c-format
+msgid "  Num Buc:    Value          Size   Type   Bind Vis      Ndx Name\n"
+msgstr "  Buc-lkm:    Arvo           Koko   Tyyppi Sidnta Näkyvyys Ind Nimi\n"
+
+#: readelf.c:6597
+#, c-format
+msgid ""
+"\n"
+"Symbol table '%s' contains %lu entries:\n"
+msgstr ""
+"\n"
+"Symbolitaulu \"%s\" sisältää %lu alkiota:\n"
+
+#: readelf.c:6601
+#, c-format
+msgid "   Num:    Value  Size Type    Bind   Vis      Ndx Name\n"
+msgstr "   Num:    Arvo   Koko Tyyppi  Sidnta Näkyvyys Ind Nimi\n"
+
+#: readelf.c:6603
+#, c-format
+msgid "   Num:    Value          Size Type    Bind   Vis      Ndx Name\n"
+msgstr "   Num:    Arvo           Koko Tyyppi  Sidnta Näkyvyys Ind Nimi\n"
+
+# Viimeinen %s-parametri virheilmoituksessa: Unable to seek to 0x%x for %s\n
+#: readelf.c:6649
+msgid "version data"
+msgstr "versiodata"
+
+# Viimeinen %s-parametri virheilmoituksessa: Unable to seek to 0x%x for %s\n
+# Viittaa Elf_External_Vernaux-rakenteeseen
+#: readelf.c:6690
+msgid "version need aux (3)"
+msgstr "ulkoinen versiotarve (3)"
+
+#: readelf.c:6715
+msgid "bad dynamic symbol"
+msgstr "virheellinen dynaaminen symboli"
+
+#: readelf.c:6778
+#, c-format
+msgid ""
+"\n"
+"Dynamic symbol information is not available for displaying symbols.\n"
+msgstr ""
+"\n"
+"Dynaamisia symbolitietoja ei ole näytettävälle symbolille.\n"
+
+#: readelf.c:6790
+#, c-format
+msgid ""
+"\n"
+"Histogram for bucket list length (total of %lu buckets):\n"
+msgstr ""
+"\n"
+"Bucket-luettelopituuden histogrammi (yhteensä %lu bucketista):\n"
+
+#: readelf.c:6792
+#, c-format
+msgid " Length  Number     %% of total  Coverage\n"
+msgstr " Pituus  Numero     %% kaikesta  Yhteensä\n"
+
+#: readelf.c:6797 readelf.c:6813 readelf.c:10967 readelf.c:11159
+msgid "Out of memory"
+msgstr "Muisti loppui"
+
+#: readelf.c:6862
+#, c-format
+msgid ""
+"\n"
+"Dynamic info segment at offset 0x%lx contains %d entries:\n"
+msgstr ""
+"\n"
+"Dynaaminen info-segmentti siirroksessa 0x%lx sisältää %d alkiota:\n"
+
+#: readelf.c:6865
+#, c-format
+msgid " Num: Name                           BoundTo     Flags\n"
+msgstr " Num: Nimi                           Sidotaan    Liput\n"
+
+#: readelf.c:6917
+#, c-format
+msgid ""
+"\n"
+"Assembly dump of section %s\n"
+msgstr ""
+"\n"
+"Lohkon %s assembly-vedos\n"
+
+#: readelf.c:6938
+#, c-format
+msgid ""
+"\n"
+"Section '%s' has no data to dump.\n"
+msgstr ""
+"\n"
+"Lohkossa \"%s\" ei ole vedostettavaa dataa.\n"
+
+#: readelf.c:6943
+#, c-format
+msgid ""
+"\n"
+"Hex dump of section '%s':\n"
+msgstr ""
+"\n"
+"Lohkon \"%s\" heksadesimaalilukuvedos:\n"
+
+#: readelf.c:7090
+msgid "badly formed extended line op encountered!\n"
+msgstr "virheellisesti muotoiltu laajennusrivin käskykoodi tavattu!\n"
+
+#: readelf.c:7097
+#, c-format
+msgid "  Extended opcode %d: "
+msgstr "  Laajennettu käskykoodi %d: "
+
+#: readelf.c:7102
+#, c-format
+msgid ""
+"End of Sequence\n"
+"\n"
+msgstr ""
+"Sekvenssin loppu\n"
+"\n"
+
+#: readelf.c:7108
+#, c-format
+msgid "set Address to 0x%lx\n"
+msgstr "aseta osoitteeksi 0x%lx\n"
+
+#: readelf.c:7113
+#, c-format
+msgid "  define new File Table entry\n"
+msgstr "  määrittele uusi tiedostotaulualkio\n"
+
+#: readelf.c:7114 readelf.c:9032
+#, c-format
+msgid "  Entry\tDir\tTime\tSize\tName\n"
+msgstr "  Alkio\tHakemisto\tAika\tKoko\tNimi\n"
+
+#: readelf.c:7116
+#, c-format
+msgid "   %d\t"
+msgstr "   %d\t"
+
+#: readelf.c:7119 readelf.c:7121 readelf.c:7123 readelf.c:9044 readelf.c:9046
+#: readelf.c:9048
+#, c-format
+msgid "%lu\t"
+msgstr "%lu\t"
+
+#: readelf.c:7124
+#, c-format
+msgid ""
+"%s\n"
+"\n"
+msgstr ""
+"%s\n"
+"\n"
+
+#: readelf.c:7128
+#, c-format
+msgid "UNKNOWN: length %d\n"
+msgstr "TUNTEMATON: pituus %d\n"
+
+# Viimeinen %s-parametri virheilmoituksessa: Unable to seek to 0x%x for %s\n
+#: readelf.c:7155
+msgid "debug_str section data"
+msgstr "debug_str-lohkodata"
+
+#: readelf.c:7173
+msgid "<no .debug_str section>"
+msgstr "<ei .debug_str-lohkoa>"
+
+#: readelf.c:7176
+msgid "<offset is too big>"
+msgstr "<siirros on liian suuri>"
+
+# Viimeinen %s-parametri virheilmoituksessa: Unable to seek to 0x%x for %s\n
+#: readelf.c:7201
+msgid "debug_loc section data"
+msgstr "debug_loc-lohkodata"
+
+#: readelf.c:7235
+msgid "debug_range section data"
+msgstr "debug_range-lohkodata"
+
+#: readelf.c:7307
+#, c-format
+msgid "%s: skipping unexpected symbol type %s in relocation in section .rela%s\n"
+msgstr "%s: hypättiin odottamattoman symbolityypin %s yli lohkoa .rela%s uudelleensijoiteltaessa\n"
+
+#: readelf.c:7321
+#, c-format
+msgid "skipping unexpected symbol type %s in relocation in section .rela.%s\n"
+msgstr "hypättiin odottamattoman symbolityypin %s yli lohkoa .rela.%s uudelleensijoiteltaessa\n"
+
+#: readelf.c:7565
+#, c-format
+msgid "Unknown TAG value: %lx"
+msgstr "Tuntematon tunnistearvo: %lx"
+
+#: readelf.c:7601
+#, c-format
+msgid "Unknown FORM value: %lx"
+msgstr "Tuntematon FORM-arvo: %lx"
+
+#: readelf.c:7610
+#, c-format
+msgid " %lu byte block: "
+msgstr " %lu:n tavun lohko: "
+
+#: readelf.c:7944
+#, c-format
+msgid "(User defined location op)"
+msgstr "(Käyttäjän määrittelemä sijoituskäskykoodi)"
+
+#: readelf.c:7946
+#, c-format
+msgid "(Unknown location op)"
+msgstr "(Tuntematon sijoituskäskykoodi)"
+
+#: readelf.c:8015
+msgid "Internal error: DWARF version is not 2 or 3.\n"
+msgstr "Sisäinen virhe: DWARF-versio ei ole 2 eikä 3.\n"
+
+#: readelf.c:8113
+msgid "DW_FORM_data8 is unsupported when sizeof (unsigned long) != 8\n"
+msgstr "DW_FORM_data8 ei ole tuettu, kun sizeof (unsigned long) != 8\n"
+
+#: readelf.c:8162
+#, c-format
+msgid " (indirect string, offset: 0x%lx): %s"
+msgstr " (epäsuora merkkijono, siirros: 0x%lx): %s"
+
+#: readelf.c:8171
+#, c-format
+msgid "Unrecognized form: %d\n"
+msgstr "Tunnistamaton muoto: %d\n"
+
+#: readelf.c:8256
+#, c-format
+msgid "(not inlined)"
+msgstr "(ei inline-funktiona)"
+
+#: readelf.c:8259
+#, c-format
+msgid "(inlined)"
+msgstr "(inline-funktiona)"
+
+#: readelf.c:8262
+#, c-format
+msgid "(declared as inline but ignored)"
+msgstr "(määritelty inline-funktiona, mutta määrittelystä ei ole välitetty)"
+
+#: readelf.c:8265
+#, c-format
+msgid "(declared as inline and inlined)"
+msgstr "(määritelty inline-funktiona ja toteutettu sellaisena)"
+
+#: readelf.c:8268
+#, c-format
+msgid "  (Unknown inline attribute value: %lx)"
+msgstr "  (Tuntematon inline-funktion attribuuttiarvo: %lx)"
+
+#: readelf.c:8413 readelf.c:9537
+#, c-format
+msgid " [without DW_AT_frame_base]"
+msgstr " [DW_AT_frame_base puuttuu]"
+
+#: readelf.c:8416
+#, c-format
+msgid "(location list)"
+msgstr "(sijoitusluettelo)"
+
+#: readelf.c:8534
+#, c-format
+msgid "Unknown AT value: %lx"
+msgstr "Tuntematon AT-arvo: %lx"
+
+# comp units tarkoittanee compilation unit eli käännösyksikköä?
+#: readelf.c:8602
+msgid "No comp units in .debug_info section ?"
+msgstr "Ei käännösyksikköjä .debug_info-lohkossa ?"
+
+#: readelf.c:8611
+#, c-format
+msgid "Not enough memory for a debug info array of %u entries"
+msgstr "Muistia ei ole tarpeeksi %u:n alkion debugtietotaulukolle"
+
+#: readelf.c:8619 readelf.c:9630
+#, c-format
+msgid ""
+"The section %s contains:\n"
+"\n"
+msgstr ""
+"Lohko %s sisältää:\n"
+"\n"
+
+#: readelf.c:8693
+#, c-format
+msgid "  Compilation Unit @ %lx:\n"
+msgstr "  Käännösyksikkö @ %lx:\n"
+
+# Välilyöntilisäys
+#: readelf.c:8694
+#, c-format
+msgid "   Length:        %ld\n"
+msgstr "   Pituus:         %ld\n"
+
+# Välilyöntilisäys
+#: readelf.c:8695
+#, c-format
+msgid "   Version:       %d\n"
+msgstr "   Versio:         %d\n"
+
+# Välilyöntilisäys
+#: readelf.c:8696
+#, c-format
+msgid "   Abbrev Offset: %ld\n"
+msgstr "   Lyhennesiirros: %ld\n"
+
+# Välilyöntilisäys
+#: readelf.c:8697
+#, c-format
+msgid "   Pointer Size:  %d\n"
+msgstr "   Osoitinkoko:    %d\n"
+
+#: readelf.c:8702
+msgid "Only version 2 and 3 DWARF debug information is currently supported.\n"
+msgstr "Vain version 2 ja 3 DWARF-debug-tietoja tuetaan nykyään.\n"
+
+#: readelf.c:8717
+msgid "Unable to locate .debug_abbrev section!\n"
+msgstr "Ei voi paikantaa .debug_abbrev-lohkoa!\n"
+
+# Viimeinen %s-parametri virheilmoituksessa: Unable to seek to 0x%x for %s\n
+#: readelf.c:8722
+msgid "debug_abbrev section data"
+msgstr "debug_abbrev-lohkodata"
+
+#: readelf.c:8759
+#, c-format
+msgid "Unable to locate entry %lu in the abbreviation table\n"
+msgstr "Lyhennetaulusta ei voi paikantaa alkiota %lu\n"
+
+#: readelf.c:8765
+#, c-format
+msgid " <%d><%lx>: Abbrev Number: %lu (%s)\n"
+msgstr " <%d><%lx>: Lyhennenumero: %lu (%s)\n"
+
+# %s-parametri on lohkon nimi. Valinnaisesti palautetaan offset debug_info-lohkoon, jos sellainen on
+#: readelf.c:8838
+#, c-format
+msgid "%s section needs a populated .debug_info section\n"
+msgstr "%s-lohkossa ei ole .debug_info-lohkoa\n"
+
+# %s-parametri on lohkon nimi. Lähdekoodissa tämä ja rivin 8847 teksti muodostavat yhteenliitetyn kahdelle riville jaetun sanoman.
+#: readelf.c:8845
+#, c-format
+msgid "%s section has more comp units than .debug_info section\n"
+msgstr "%s-lohkossa on useampia käännösyksikköjä kuin .debug_info-lohkossa.\n"
+
+# Lähdekoodissa tämä ja rivin 8845 teksti muodostavat yhteenliitetyn kahdelle riville jaetun sanoman.
+#: readelf.c:8847
+#, c-format
+msgid ""
+"assuming that the pointer size is %d, from the last comp unit in .debug_info\n"
+"\n"
+msgstr ""
+"Oletetaan, että osoitinkoko on sama kuin edellisessä .debug_info-lohkon käännösyksikössä eli %d.\n"
+"\n"
+
+#: readelf.c:8891
+msgid "extracting information from .debug_info section"
+msgstr "puretaan tietoja .debug_info-lohkosta"
+
+#: readelf.c:8909
+#, c-format
+msgid ""
+"\n"
+"Dump of debug contents of section %s:\n"
+"\n"
+msgstr ""
+"\n"
+"Lohkon %s debug-sisällön vedos:\n"
+"\n"
+
+#: readelf.c:8948
+msgid "The line info appears to be corrupt - the section is too small\n"
+msgstr "Rivitiedot näyttävät olevan rikkoutuneita - lohko on liian pieni\n"
+
+#: readelf.c:8957
+msgid "Only DWARF version 2 and 3 line info is currently supported.\n"
+msgstr "Vain DWARF-versioiden 2 ja 3 rivitiedot on nykyisin tuettu.\n"
+
+# DWARF2_Internal_LineInfo-lohkon pituus. Välilyönti lisätty tarkoituksella.
+#: readelf.c:8984
+#, c-format
+msgid "  Length:                      %ld\n"
+msgstr "  Pituus:                       %ld\n"
+
+# Välilyönti lisätty tarkoituksella.
+#: readelf.c:8985
+#, c-format
+msgid "  DWARF Version:               %d\n"
+msgstr "  DWARF-versio:                 %d\n"
+
+# Välilyönti lisätty tarkoituksella.
+#: readelf.c:8986
+#, c-format
+msgid "  Prologue Length:             %d\n"
+msgstr "  Esitoimipituus:               %d\n"
+
+# Välilyönti lisätty tarkoituksella.
+#: readelf.c:8987
+#, c-format
+msgid "  Minimum Instruction Length:  %d\n"
+msgstr "  Minimikäskypituus:            %d\n"
+
+#: readelf.c:8988
+#, c-format
+msgid "  Initial value of 'is_stmt':  %d\n"
+msgstr "  Kohteen \"is_stmt\" alkuarvo: %d\n"
+
+# Välilyönti lisätty tarkoituksella.
+#: readelf.c:8989
+#, c-format
+msgid "  Line Base:                   %d\n"
+msgstr "  Rivin kantaluku:              %d\n"
+
+# Välilyönti lisätty tarkoituksella.
+#: readelf.c:8990
+#, c-format
+msgid "  Line Range:                  %d\n"
+msgstr "  Rivinumeroalue:               %d\n"
+
+# Välilyönti lisätty tarkoituksella.
+#: readelf.c:8991
+#, c-format
+msgid "  Opcode Base:                 %d\n"
+msgstr "  Käskykoodin kantaluku:        %d\n"
+
+# Välilyönti lisätty tarkoituksella.
+#: readelf.c:8992
+#, c-format
+msgid "  (Pointer size:               %u)\n"
+msgstr "  (Osoitinkoko:                 %u)\n"
+
+#: readelf.c:9001
+#, c-format
+msgid ""
+"\n"
+" Opcodes:\n"
+msgstr ""
+"\n"
+" Käskykoodit:\n"
+
+#: readelf.c:9004
+#, c-format
+msgid "  Opcode %d has %d args\n"
+msgstr "  Käskykoodilla %d on %d argumenttia\n"
+
+#: readelf.c:9010
+#, c-format
+msgid ""
+"\n"
+" The Directory Table is empty.\n"
+msgstr ""
+"\n"
+" Hakemistotaulu on tyhjä.\n"
+
+#: readelf.c:9013
+#, c-format
+msgid ""
+"\n"
+" The Directory Table:\n"
+msgstr ""
+"\n"
+" Hakemistotaulu:\n"
+
+#: readelf.c:9017
+#, c-format
+msgid "  %s\n"
+msgstr "  %s\n"
+
+#: readelf.c:9028
+#, c-format
+msgid ""
+"\n"
+" The File Name Table is empty.\n"
+msgstr ""
+"\n"
+" Tiedostonimitaulu on tyhjä.\n"
+
+#: readelf.c:9031
+#, c-format
+msgid ""
+"\n"
+" The File Name Table:\n"
+msgstr ""
+"\n"
+" Tiedostonimitaulu:\n"
+
+#: readelf.c:9039
+#, c-format
+msgid "  %d\t"
+msgstr "  %d\t"
+
+#: readelf.c:9050
+#, c-format
+msgid "%s\n"
+msgstr "%s\n"
+
+#. Now display the statements.
+#: readelf.c:9058
+#, c-format
+msgid ""
+"\n"
+" Line Number Statements:\n"
+msgstr ""
+"\n"
+" Rivi Numero Lause:\n"
+
+#: readelf.c:9073
+#, c-format
+msgid "  Special opcode %d: advance Address by %d to 0x%lx"
+msgstr "  Erikoiskäskykoodi %d: etene %d tavua osoitteeseen 0x%lx"
+
+#: readelf.c:9077
+#, c-format
+msgid " and Line by %d to %d\n"
+msgstr " ja %d riviä riville %d\n"
+
+#: readelf.c:9088
+#, c-format
+msgid "  Copy\n"
+msgstr "  Kopioi\n"
+
+#: readelf.c:9095
+#, c-format
+msgid "  Advance PC by %d to %lx\n"
+msgstr "  Kasvata PC:tä arvolla %d arvoon %lx\n"
+
+#: readelf.c:9103
+#, c-format
+msgid "  Advance Line by %d to %d\n"
+msgstr "  Kasvata riviä arvolla %d arvoon %d\n"
+
+#: readelf.c:9110
+#, c-format
+msgid "  Set File Name to entry %d in the File Name Table\n"
+msgstr "  Aseta tiedostonimi tiedostonimitaulun alkioon %d\n"
+
+#: readelf.c:9118
+#, c-format
+msgid "  Set column to %d\n"
+msgstr "  Aseta sarakkeeksi %d\n"
+
+#: readelf.c:9125
+#, c-format
+msgid "  Set is_stmt to %d\n"
+msgstr "  Aseta is_stmt-arvoksi %d\n"
+
+#: readelf.c:9130
+#, c-format
+msgid "  Set basic block\n"
+msgstr "  Aseta peruslohko\n"
+
+#: readelf.c:9138
+#, c-format
+msgid "  Advance PC by constant %d to 0x%lx\n"
+msgstr "  Kasvata PC:tä vakiolla %d arvoon 0x%lx\n"
+
+#: readelf.c:9146
+#, c-format
+msgid "  Advance PC by fixed size amount %d to 0x%lx\n"
+msgstr "  Kasvata PC:tä kiinteäkokoisella summalla %d arvoon 0x%lx\n"
+
+#: readelf.c:9151
+#, c-format
+msgid "  Set prologue_end to true\n"
+msgstr "  Aseta prologue_end-arvoksi true\n"
+
+#: readelf.c:9155
+#, c-format
+msgid "  Set epilogue_begin to true\n"
+msgstr "  Aseta epilogue_begin-arvoksi true\n"
+
+#: readelf.c:9161
+#, c-format
+msgid "  Set ISA to %d\n"
+msgstr "  Aseta ISA-arvoksi %d\n"
+
+#: readelf.c:9165
+#, c-format
+msgid "  Unknown opcode %d with operands: "
+msgstr "  Tuntematon käskykoodi %d, jonka operandit ovat: "
+
+#: readelf.c:9193 readelf.c:9279 readelf.c:9354
+#, c-format
+msgid ""
+"Contents of the %s section:\n"
+"\n"
+msgstr ""
+"Lohkon %s sisältö:\n"
+"\n"
+
+# tarkoittaako pubnames julkisia nimiä?
+#: readelf.c:9233
+msgid "Only DWARF 2 and 3 pubnames are currently supported\n"
+msgstr "Vain DWARF 2:n ja 3:n pub-nimet ovat nykyisin tuettuja\n"
+
+#: readelf.c:9240
+#, c-format
+msgid "  Length:                              %ld\n"
+msgstr "  Pituus:                              %ld\n"
+
+#: readelf.c:9242
+#, c-format
+msgid "  Version:                             %d\n"
+msgstr "  Versio:                              %d\n"
+
+#: readelf.c:9244
+#, c-format
+msgid "  Offset into .debug_info section:     %ld\n"
+msgstr "  Siirros lohkoon .debug_info:         %ld\n"
+
+#: readelf.c:9246
+#, c-format
+msgid "  Size of area in .debug_info section: %ld\n"
+msgstr "  Alueen koko .debug_info-lohkossa:    %ld\n"
+
+#: readelf.c:9249
+#, c-format
+msgid ""
+"\n"
+"    Offset\tName\n"
+msgstr ""
+"\n"
+"    Siirros\tNimi\n"
+
+#: readelf.c:9300
+#, c-format
+msgid " DW_MACINFO_start_file - lineno: %d filenum: %d\n"
+msgstr " DW_MACINFO_start_file - rivinro:%d tied.nro:%d\n"
+
+#: readelf.c:9306
+#, c-format
+msgid " DW_MACINFO_end_file\n"
+msgstr " DW_MACINFO_end_file\n"
+
+# lineno tarkoittaa ilmeisesti rivinumeroa
+#: readelf.c:9314
+#, c-format
+msgid " DW_MACINFO_define - lineno : %d macro : %s\n"
+msgstr " DW_MACINFO_define - rivinro: %d makro : %s\n"
+
+# lineno tarkoittaa ilmeisesti rivinumeroa
+#: readelf.c:9323
+#, c-format
+msgid " DW_MACINFO_undef - lineno : %d macro : %s\n"
+msgstr " DW_MACINFO_undef - rivinro: %d makro : %s\n"
+
+#: readelf.c:9335
+#, c-format
+msgid " DW_MACINFO_vendor_ext - constant : %d string : %s\n"
+msgstr " DW_MACINFO_vendor_ext - vakio : %d merkkijono : %s\n"
+
+#  Seuraava on taulukon otsikko. Itse taulukko on leveydeltään: "   %ld      %s    [%s]". Viimeinen [%s] sisältää tekstin "has children" tai "no children". 
+#: readelf.c:9363
+#, c-format
+msgid "  Number TAG\n"
+msgstr "  Numero Tunniste\n"
+
+# Tämä pitäisi oikeastaan jättää pois käännettävistä teksteistä !!
+#: readelf.c:9369
+#, c-format
+msgid "   %ld      %s    [%s]\n"
+msgstr "   %ld      %s    [%s]\n"
+
+#: readelf.c:9372
+msgid "has children"
+msgstr "on jälkeläisiä"
+
+#: readelf.c:9372
+msgid "no children"
+msgstr "ei jälkeläisiä"
+
+# Seuraava pitäisi oikeastaan jättää pois käännettävistä teksteistä.
+#: readelf.c:9375
+#, c-format
+msgid "    %-18s %s\n"
+msgstr "    %-18s %s\n"
+
+#: readelf.c:9410
+#, c-format
+msgid ""
+"\n"
+"The .debug_loc section is empty.\n"
+msgstr ""
+"\n"
+"Lohko .debug_loc on tyhjä.\n"
+
+#. FIXME: Should we handle this case?
+#: readelf.c:9455
+msgid "Location lists in .debug_info section aren't in ascending order!\n"
+msgstr "Sijaintiluettelot .debug_info-lohkossa eivät ole nousevassa järjestyksessä!\n"
+
+#: readelf.c:9458
+msgid "No location lists in .debug_info section!\n"
+msgstr "Ei sijaintiluetteloja .debug_info-lohkossa!\n"
+
+#: readelf.c:9461
+#, c-format
+msgid "Location lists in .debug_loc section start at 0x%lx\n"
+msgstr "Sijaintiluettelot .debug_loc-lohkossa alkavat osoitteesta 0x%lx\n"
+
+#: readelf.c:9464
+#, c-format
+msgid ""
+"Contents of the .debug_loc section:\n"
+"\n"
+msgstr ""
+"Lohkon .debug_loc sisältö:\n"
+"\n"
+
+#: readelf.c:9465
+#, c-format
+msgid "    Offset   Begin    End      Expression\n"
+msgstr "    Siirros  Alku     Loppu    Lauseke\n"
+
+#: readelf.c:9495
+#, c-format
+msgid "There is a hole [0x%lx - 0x%lx] in .debug_loc section.\n"
+msgstr "Lohkossa .debug_loc on aukko [0x%lx - 0x%lx].\n"
+
+#: readelf.c:9498
+#, c-format
+msgid "There is an overlap [0x%lx - 0x%lx] in .debug_loc section.\n"
+msgstr "Lohkossa debug_loc on päällekkäisyys [0x%lx - 0x%lx].\n"
+
+#: readelf.c:9512 readelf.c:9837
+#, c-format
+msgid "    %8.8lx <End of list>\n"
+msgstr "    %8.8lx <Luettelon loppu>\n"
+
+#: readelf.c:9540 readelf.c:9854
+msgid " (start == end)"
+msgstr " (alku == loppu)"
+
+#: readelf.c:9542 readelf.c:9856
+msgid " (start > end)"
+msgstr " (alku > loppu)"
+
+#: readelf.c:9566
+#, c-format
+msgid ""
+"\n"
+"The .debug_str section is empty.\n"
+msgstr ""
+"\n"
+"Lohko .debug_str on tyhjä.\n"
+
+#: readelf.c:9570
+#, c-format
+msgid ""
+"Contents of the .debug_str section:\n"
+"\n"
+msgstr ""
+"Lohkon .debug_str sisältö:\n"
+"\n"
+
+#: readelf.c:9675
+msgid "Only DWARF 2 and 3 aranges are currently supported.\n"
+msgstr "Vain DWARF 2- ja 3-aranges on nykyisin tuettu.\n"
+
+#: readelf.c:9679
+#, c-format
+msgid "  Length:                   %ld\n"
+msgstr "  Pituus:                      %ld\n"
+
+#: readelf.c:9680
+#, c-format
+msgid "  Version:                  %d\n"
+msgstr "  Versio:                      %d\n"
+
+#: readelf.c:9681
+#, c-format
+msgid "  Offset into .debug_info:  %lx\n"
+msgstr "  Siirros lohkoon .debug_info: %lx\n"
+
+#: readelf.c:9682
+#, c-format
+msgid "  Pointer Size:             %d\n"
+msgstr "  Osoitinkoko:                 %d\n"
+
+#: readelf.c:9683
+#, c-format
+msgid "  Segment Size:             %d\n"
+msgstr "  Segmenttikoko:               %d\n"
+
+#: readelf.c:9685
+#, c-format
+msgid ""
+"\n"
+"    Address  Length\n"
+msgstr ""
+"\n"
+"    Osoite   Pituus\n"
+
+#: readelf.c:9741
+#, c-format
+msgid ""
+"\n"
+"The .debug_ranges section is empty.\n"
+msgstr ""
+"\n"
+"Lohko .debug_ranges on tyhjä.\n"
+
+#. FIXME: Should we handle this case?
+#: readelf.c:9786
+msgid "Range lists in .debug_info section aren't in ascending order!\n"
+msgstr "Lukualueluettelot .debug_info-lohkossa eivät ole nousevassa järjestyksessä!\n"
+
+#: readelf.c:9789
+msgid "No range lists in .debug_info section!\n"
+msgstr "Ei lukualueluetteloja .debug_info-lohkossa!\n"
+
+#: readelf.c:9792
+#, c-format
+msgid "Range lists in .debug_ranges section start at 0x%lx\n"
+msgstr "Lukualueluettelot .debug_ranges-lohkossa alkavat osoitteesta 0x%lx\n"
+
+#: readelf.c:9795
+#, c-format
+msgid ""
+"Contents of the .debug_ranges section:\n"
+"\n"
+msgstr ""
+"Lohkon .debug_ranges sisältö:\n"
+"\n"
+
+#: readelf.c:9796
+#, c-format
+msgid "    Offset   Begin    End\n"
+msgstr "    Siirros  Alku     Loppu\n"
+
+#: readelf.c:9820
+#, c-format
+msgid "There is a hole [0x%lx - 0x%lx] in .debug_ranges section.\n"
+msgstr "Lohkossa .debug_ranges on aukko [0x%lx - 0x%lx].\n"
+
+#: readelf.c:9823
+#, c-format
+msgid "There is an overlap [0x%lx - 0x%lx] in .debug_ranges section.\n"
+msgstr "Lohkossa .debug_ranges on päällekkäisyys [0x%lx - 0x%lx].\n"
+
+#: readelf.c:10017
+#, c-format
+msgid "The section %s contains:\n"
+msgstr "Lohko %s sisältää:\n"
+
+#: readelf.c:10663
+#, c-format
+msgid "unsupported or unknown DW_CFA_%d\n"
+msgstr "ei-tuettu tai tuntematon DW_CFA_%d\n"
+
+#: readelf.c:10688
+#, c-format
+msgid "Displaying the debug contents of section %s is not yet supported.\n"
+msgstr "Lohkon %s debug-sisällön näyttäminen ei ole vielä tuettu.\n"
+
+#: readelf.c:10732
+#, c-format
+msgid ""
+"\n"
+"Section '%s' has no debugging data.\n"
+msgstr ""
+"\n"
+"Lohkossa \"%s\" ei ole debuggausdataa.\n"
+
+# Viimeinen %s-parametri virheilmoituksessa: Unable to seek to 0x%x for %s\n
+#: readelf.c:10746
+msgid "debug section data"
+msgstr "debug-lohkodata"
+
+#: readelf.c:10765
+#, c-format
+msgid "Unrecognized debug section: %s\n"
+msgstr "Tunnistamaton debug-lohko: %s\n"
+
+#: readelf.c:10800
+#, c-format
+msgid "Section %d was not dumped because it does not exist!\n"
+msgstr "Lohkoa %d ei voitu vedostaa, koska sitä ei ole olemassa!\n"
+
+# liblist-merkkijonotaulu ?
+#: readelf.c:10872 readelf.c:11236
+msgid "liblist"
+msgstr "liblist"
+
+#: readelf.c:10961
+msgid "options"
+msgstr "valitsimet"
+
+#: readelf.c:10991
+#, c-format
+msgid ""
+"\n"
+"Section '%s' contains %d entries:\n"
+msgstr ""
+"\n"
+"Lohko \"%s\" sisältää %d alkiota:\n"
+
+# Virheilmoitus ennen maagisen .conflict-lohkon luontia (.conflict-lohkoa ei luoda).
+#: readelf.c:11152
+msgid "conflict list found without a dynamic symbol table"
+msgstr "ristiriitaluettelo löydetty ilman dynaamista symbolitaulua"
+
+# conflict-lohko ?
+#: readelf.c:11168 readelf.c:11182
+msgid "conflict"
+msgstr "ristiriita"
+
+#: readelf.c:11192
+#, c-format
+msgid ""
+"\n"
+"Section '.conflict' contains %lu entries:\n"
+msgstr ""
+"\n"
+"Lohko \".conflict\" sisältää %lu alkiota:\n"
+
+# Num on ehkä numero?
+#: readelf.c:11194
+msgid "  Num:    Index       Value  Name"
+msgstr "  Num:    Indeksi     Arvo   Nimi"
+
+#: readelf.c:11243
+msgid "liblist string table"
+msgstr "liblist-merkkijonotaulu"
+
+#: readelf.c:11252
+#, c-format
+msgid ""
+"\n"
+"Library list section '%s' contains %lu entries:\n"
+msgstr ""
+"\n"
+"Kirjastoluettelolohko \"%s\" sisältää %lu alkiota:\n"
+
+#: readelf.c:11303
+msgid "NT_AUXV (auxiliary vector)"
+msgstr "NT_AUXV (apuvektori)"
+
+#: readelf.c:11305
+msgid "NT_PRSTATUS (prstatus structure)"
+msgstr "NT_PRSTATUS (prstatus-rakenne)"
+
+#: readelf.c:11307
+msgid "NT_FPREGSET (floating point registers)"
+msgstr "NT_FPREGSET (liukulukurekistereitä)"
+
+#: readelf.c:11309
+msgid "NT_PRPSINFO (prpsinfo structure)"
+msgstr "NT_PRPSINFO (prpsinfo-rakenne)"
+
+# task on suomeksi tehtävä, mutta tässä tarkoitetaan 
+# ilmeisesti task (struct)-rakennetta
+#: readelf.c:11311
+msgid "NT_TASKSTRUCT (task structure)"
+msgstr "NT_TASKSTRUCT (task-rakenne)"
+
+#: readelf.c:11313
+msgid "NT_PRXFPREG (user_xfpregs structure)"
+msgstr "NT_PRXFPREG (user_xfpregs-rakenne)"
+
+#: readelf.c:11315
+msgid "NT_PSTATUS (pstatus structure)"
+msgstr "NT_PSTATUS (pstatus-rakenne)"
+
+#: readelf.c:11317
+msgid "NT_FPREGS (floating point registers)"
+msgstr "NT_FPREGS (liukulukurekistereitä)"
+
+#: readelf.c:11319
+msgid "NT_PSINFO (psinfo structure)"
+msgstr "NT_PSINFO (psinfo-rakenne)"
+
+#: readelf.c:11321
+msgid "NT_LWPSTATUS (lwpstatus_t structure)"
+msgstr "NT_LWPSTATUS (lwpstatus_t-rakenne)"
+
+#: readelf.c:11323
+msgid "NT_LWPSINFO (lwpsinfo_t structure)"
+msgstr "NT_LWPSINFO (lwpsinfo_t-rakenne)"
+
+#: readelf.c:11325
+msgid "NT_WIN32PSTATUS (win32_pstatus structure)"
+msgstr "NT_WIN32PSTATUS (win32_pstatus-rakenne)"
+
+#: readelf.c:11333
+msgid "NT_VERSION (version)"
+msgstr "NT_VERSION (versio)"
+
+#: readelf.c:11335
+msgid "NT_ARCH (architecture)"
+msgstr "NT_ARCH (arkkitehtuuri)"
+
+#: readelf.c:11340 readelf.c:11362
+#, c-format
+msgid "Unknown note type: (0x%08x)"
+msgstr "Tuntematon note-segmenttityyppi: (0x%08x)"
+
+#. NetBSD core "procinfo" structure.
+#: readelf.c:11352
+msgid "NetBSD procinfo structure"
+msgstr "NetBSD procinfo-rakenne"
+
+#: readelf.c:11379 readelf.c:11393
+msgid "PT_GETREGS (reg structure)"
+msgstr "PT_GETREGS (reg-rakenne)"
+
+# fpreg viittaa ilmeisesti floating point registers eli liukulukurekistereihin
+#: readelf.c:11381 readelf.c:11395
+msgid "PT_GETFPREGS (fpreg structure)"
+msgstr "PT_GETFPREGS (fpreg-rakenne)"
+
+#: readelf.c:11401
+#, c-format
+msgid "PT_FIRSTMACH+%d"
+msgstr "PT_FIRSTMACH+%d"
+
+# Viimeinen %s-parametri virheilmoituksessa: Unable to seek to 0x%x for %s\n
+#: readelf.c:11447
+msgid "notes"
+msgstr "notes"
+
+#: readelf.c:11453
+#, c-format
+msgid ""
+"\n"
+"Notes at offset 0x%08lx with length 0x%08lx:\n"
+msgstr ""
+"\n"
+"Notes-segmenttejä siirroksessa 0x%08lx pituudella 0x%08lx:\n"
+
+# Toinen sarkain pois ensimmäisestä väliköstä, koska Omistajat on pitempi kuin Owner
+#: readelf.c:11455
+#, c-format
+msgid "  Owner\t\tData size\tDescription\n"
+msgstr "  Omistajat\tData-koko\tKuvaus\n"
+
+#: readelf.c:11474
+#, c-format
+msgid "corrupt note found at offset %x into core notes\n"
+msgstr "rikkoutunut note-segmentti löytyi siirroksesta %x kohteeseen ydin notes\n"
+
+# Tarkoittaako descsize samaa kuin description size?
+#: readelf.c:11476
+#, c-format
+msgid " type: %x, namesize: %08lx, descsize: %08lx\n"
+msgstr " tyyppi:%x,nimikoko:%08lx,kuvauskoko: %08lx\n"
+
+#: readelf.c:11574
+#, c-format
+msgid "No note segments present in the core file.\n"
+msgstr "Ydintiedostossa ei ole note-segmenttejä\n"
+
+#: readelf.c:11653
+msgid ""
+"This instance of readelf has been built without support for a\n"
+"64 bit data type and so it cannot read 64 bit ELF files.\n"
+msgstr ""
+"Tähän readelf-binaariin ei ole käännetty tukea 64-bittiselle\n"
+"datatyypille, joten 64-bittisiä ELF-tiedostoja ei voida lukea.\n"
+
+#: readelf.c:11700 readelf.c:12059
+#, c-format
+msgid "%s: Failed to read file header\n"
+msgstr "%s: Tiedosto-otsakkeen lukeminen epäonnistui\n"
+
+#: readelf.c:11713
+#, c-format
+msgid ""
+"\n"
+"File: %s\n"
+msgstr ""
+"\n"
+"Tiedosto: %s\n"
+
+#: readelf.c:11876 readelf.c:11897 readelf.c:11934 readelf.c:12014
+#, c-format
+msgid "%s: failed to read archive header\n"
+msgstr "%s: ei voi lukea arkisto-otsaketta\n"
+
+#: readelf.c:11887
+#, c-format
+msgid "%s: failed to skip archive symbol table\n"
+msgstr "%s: ei voi hypätä arkistosymbolitaulun yli\n"
+
+#: readelf.c:11919
+#, c-format
+msgid "%s: failed to read string table\n"
+msgstr "%s: ei voi lukea merkkijonotaulua\n"
+
+#: readelf.c:11955
+#, c-format
+msgid "%s: invalid archive string table offset %lu\n"
+msgstr "%s: virheellinen arkistomerkkijonotaulun siirros %lu\n"
+
+#: readelf.c:11971
+#, c-format
+msgid "%s: bad archive file name\n"
+msgstr "%s: virheellinen arkistotiedostonimi\n"
+
+#: readelf.c:12003
+#, c-format
+msgid "%s: failed to seek to next archive header\n"
+msgstr "%s: seuraavan arkisto-otsakkeen haku epäonnistui\n"
+
+#: readelf.c:12037
+#, c-format
+msgid "'%s': No such file\n"
+msgstr "\"%s\": Tiedostoa ei löydy\n"
+
+# stat-kutsu tiedostonimellä %s epäonnistui, seurauksena tämä sanoma
+#: readelf.c:12039
+#, c-format
+msgid "Could not locate '%s'.  System error message: %s\n"
+msgstr "Tiedostoa \"%s\" ei löytynyt. Järjestelmävirhesanoma: %s\n"
+
+#: readelf.c:12046
+#, c-format
+msgid "'%s' is not an ordinary file\n"
+msgstr "\"%s\" ei ole tavallinen tiedosto\n"
+
+#: readelf.c:12053
+#, c-format
+msgid "Input file '%s' is not readable.\n"
+msgstr "Syötetiedosto \"%s\" ei ole luettava.\n"
+
+#: rename.c:127
+#, c-format
+msgid "%s: cannot set time: %s"
+msgstr "%s: ei voi asettaa aikaa: %s"
+
+# Lisäsin ylimääräisen pilkun selventämään suomennosta
+#. We have to clean up here.
+#: rename.c:162 rename.c:200
+#, c-format
+msgid "unable to rename '%s' reason: %s"
+msgstr "tiedoston \"%s\" nimeä ei onnistuttu muuttamaan, syy: %s"
+
+# Selvensin hiukan suomennosta lisäämällä ylimääräisen pilkun
+#: rename.c:208
+#, c-format
+msgid "unable to copy file '%s' reason: %s"
+msgstr "tiedostoa \"%s\" ei voitu kopioida, syy: %s "
+
+#: resbin.c:132
+#, c-format
+msgid "%s: not enough binary data"
+msgstr "%s: binaaridataa ei ole tarpeeksi"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:148
+msgid "null terminated unicode string"
+msgstr "null-päätteinen unicode-merkkijono"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:175 resbin.c:181
+msgid "resource ID"
+msgstr "resurssi-ID"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:221
+msgid "cursor"
+msgstr "kohdistin"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:253 resbin.c:260
+msgid "menu header"
+msgstr "valikko-otsake"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:270
+msgid "menuex header"
+msgstr "menuex-valikko-otsake"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:274
+msgid "menuex offset"
+msgstr "menuex-valikkosiirros"
+
+# parametri fatal-tulostukseen
+#: resbin.c:281
+#, c-format
+msgid "unsupported menu version %d"
+msgstr "ei-tuettu valikkoversio %d"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:306 resbin.c:321 resbin.c:384
+msgid "menuitem header"
+msgstr "menuitem-valikkoalkio-otsake"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:414
+msgid "menuitem"
+msgstr "menuitem-valikkoalkio"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:453 resbin.c:481
+msgid "dialog header"
+msgstr "valintaikkunaotsake"
+
+# parametri fatal-tulostukseen
+#: resbin.c:471
+#, c-format
+msgid "unexpected DIALOGEX version %d"
+msgstr "odottamaton DIALOGEX-versio %d"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:516
+msgid "dialog font point size"
+msgstr "valintaikkunan kirjainlajin pistekoko"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:524
+msgid "dialogex font information"
+msgstr "dialogex-valintaikkunan kirjainlajitietoja"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:550 resbin.c:568
+msgid "dialog control"
+msgstr "valintaikkunaohjain"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:560
+msgid "dialogex control"
+msgstr "dialogex-valintaikkunaohjain"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:589
+msgid "dialog control end"
+msgstr "valintaikkunaohjainloppu"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:601
+msgid "dialog control data"
+msgstr "valintaikkunaohjaindataa"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:642
+msgid "stringtable string length"
+msgstr "stringtable-merkkijonopituus"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:652
+msgid "stringtable string"
+msgstr "stringtable-merkkijono"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:683
+msgid "fontdir header"
+msgstr "fontdir-otsake"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:696
+msgid "fontdir"
+msgstr "fontdir"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:712
+msgid "fontdir device name"
+msgstr "fontdir-laitenimi"
+
+# alkuosa tulostukseen "%s: not enough binary data". Lainausmerkit lisätty.
+#: resbin.c:718
+msgid "fontdir face name"
+msgstr "\"fontdir face\"-nimi"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:759
+msgid "accelerator"
+msgstr "accelerator-rakenne"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:819
+msgid "group cursor header"
+msgstr "ryhmäkohdistinotsake"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:823
+#, c-format
+msgid "unexpected group cursor type %d"
+msgstr "odottamaton ryhmäkohdistintyyppi %d"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:838
+msgid "group cursor"
+msgstr "ryhmäkohdistin"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:875
+msgid "group icon header"
+msgstr "ryhmäkuvakeotsake"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:879
+#, c-format
+msgid "unexpected group icon type %d"
+msgstr "odottamaton ryhmäkuvaketyyppi %d"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:894
+msgid "group icon"
+msgstr "ryhmäkuvake"
+
+# parametri fatal-tulostukseen
+#: resbin.c:957 resbin.c:1174
+msgid "unexpected version string"
+msgstr "odottamaton versiomerkkijono"
+
+# parametri fatal-tulostukseen
+#: resbin.c:989
+#, c-format
+msgid "version length %d does not match resource length %lu"
+msgstr "versiopituus %d ei täsmää resurssipituuden %lu kanssa"
+
+# parametri fatal-tulostukseen
+#: resbin.c:993
+#, c-format
+msgid "unexpected version type %d"
+msgstr "odottamaton versiotyyppi %d"
+
+# parametri fatal-tulostukseen
+#: resbin.c:1005
+#, c-format
+msgid "unexpected fixed version information length %d"
+msgstr "odottamaton kiinteä versiotietopituus %d"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:1008
+msgid "fixed version info"
+msgstr "kiinteä versiotieto"
+
+# parametri fatal-tulostukseen
+#: resbin.c:1012
+#, c-format
+msgid "unexpected fixed version signature %lu"
+msgstr "odottamaton kiinteä versioallekirjoitus %lu"
+
+# parametri fatal-tulostukseen
+# versiotietoversio on hiukan tautofoninen?
+#: resbin.c:1016
+#, c-format
+msgid "unexpected fixed version info version %lu"
+msgstr "odottamaton kiinteä versiotietoversio %lu"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:1045
+msgid "version var info"
+msgstr "version var-tiedot"
+
+# parametri fatal-tulostukseen
+#: resbin.c:1062
+#, c-format
+msgid "unexpected stringfileinfo value length %d"
+msgstr "odottamaton stringfileinfo-arvopituus %d"
+
+# parametri fatal-tulostukseen
+#: resbin.c:1072
+#, c-format
+msgid "unexpected version stringtable value length %d"
+msgstr "odottamaton versio-stringtable-arvopituus %d"
+
+# parametri fatal-tulostukseen
+#: resbin.c:1106
+#, c-format
+msgid "unexpected version string length %d != %d + %d"
+msgstr "odottamaton versiomerkkijonopituus %d != %d + %d"
+
+# parametri fatal-tulostukseen
+#: resbin.c:1117
+#, c-format
+msgid "unexpected version string length %d < %d"
+msgstr "odottamaton versiomerkkijonopituus %d < %d"
+
+# parametri fatal-tulostukseen
+#: resbin.c:1134
+#, c-format
+msgid "unexpected varfileinfo value length %d"
+msgstr "odottamaton varfileinfo-arvopituus %d"
+
+# alkuosa tulostukseen "%s: not enough binary data"
+#: resbin.c:1153
+msgid "version varfileinfo"
+msgstr "versio varfileinfo"
+
+# parametri fatal-tulostukseen
+#: resbin.c:1168
+#, c-format
+msgid "unexpected version value length %d"
+msgstr "odottamaton versioarvopituus %d"
+
+#: rescoff.c:126
+msgid "filename required for COFF input"
+msgstr "COFF-syötteeseen vaaditaan tiedostonimi"
+
+# %s -parametri sisältää COFF-syötetiedoston nimen, resource section-nimi COFF-tiedostossa on aina .rsrc
+#: rescoff.c:143
+#, c-format
+msgid "%s: no resource section"
+msgstr "%s: ei resurssilohkoa"
+
+#: rescoff.c:150
+msgid "can't read resource section"
+msgstr "ei voi lukea resurssilohkoa"
+
+# ensimmäinen parametri tiedostonimi, toinen parametri virhesanoma
+#: rescoff.c:174
+#, c-format
+msgid "%s: %s: address out of bounds"
+msgstr "%s: %s: osoite ei ole lukualueen sisällä"
+
+# toinen parametri viestissä "%s: %s: osoite ei ole lukualueen sisällä"
+#: rescoff.c:190
+msgid "directory"
+msgstr "hakemisto"
+
+# toinen parametri viestissä "%s: %s: osoite ei ole lukualueen sisällä"
+#: rescoff.c:218
+msgid "named directory entry"
+msgstr "nimetty hakemistoalkio"
+
+# toinen parametri viestissä "%s: %s: osoite ei ole lukualueen sisällä"
+#: rescoff.c:227
+msgid "directory entry name"
+msgstr "hakemistoalkion nimi"
+
+# toinen parametri viestissä "%s: %s: osoite ei ole lukualueen sisällä"
+#: rescoff.c:247
+msgid "named subdirectory"
+msgstr "nimetty alihakemisto"
+
+# toinen parametri viestissä "%s: %s: osoite ei ole lukualueen sisällä"
+#: rescoff.c:255
+msgid "named resource"
+msgstr "nimetty resurssi"
+
+# toinen parametri viestissä "%s: %s: osoite ei ole lukualueen sisällä"
+#: rescoff.c:270
+msgid "ID directory entry"
+msgstr "ID-hakemiston alkio"
+
+# toinen parametri viestissä "%s: %s: osoite ei ole lukualueen sisällä"
+#: rescoff.c:287
+msgid "ID subdirectory"
+msgstr "ID-alihakemisto"
+
+# toinen parametri viestissä "%s: %s: osoite ei ole lukualueen sisällä"
+#: rescoff.c:295
+msgid "ID resource"
+msgstr "ID-resurssi"
+
+# fatal-tulosteen parametri
+#: rescoff.c:318
+msgid "resource type unknown"
+msgstr "resurssityyppi tuntematon"
+
+# toinen parametri viestissä "%s: %s: osoite ei ole lukualueen sisällä"
+#: rescoff.c:321
+msgid "data entry"
+msgstr "data-alkio"
+
+# toinen parametri viestissä "%s: %s: osoite ei ole lukualueen sisällä"
+#: rescoff.c:329
+msgid "resource data"
+msgstr "resurssidataa"
+
+# toinen parametri viestissä "%s: %s: osoite ei ole lukualueen sisällä"
+#: rescoff.c:334
+msgid "resource data size"
+msgstr "resurssidatakoko"
+
+# fatal-tulosteen parametri
+#: rescoff.c:427
+msgid "filename required for COFF output"
+msgstr "COFF-tulosteeseen vaaditaan tiedostonimi"
+
+# bfd_fatal-tulosteen parametri
+#: rescoff.c:719
+msgid "can't get BFD_RELOC_RVA relocation type"
+msgstr "ei voi saada BFD_RELOC_RVA-uudelleensijoitustyyppiä"
+
+#: resrc.c:238 resrc.c:309
+#, c-format
+msgid "can't open temporary file `%s': %s"
+msgstr "tilapäistä tiedostoa \"%s\" ei voi avata: %s"
+
+#: resrc.c:244
+#, c-format
+msgid "can't redirect stdout: `%s': %s"
+msgstr "vakiotulostetta: \"%s\" ei voi uudelleenohjata: %s"
+
+#: resrc.c:260
+#, c-format
+msgid "%s %s: %s"
+msgstr "%s %s: %s"
+
+#: resrc.c:305
+#, c-format
+msgid "can't execute `%s': %s"
+msgstr "kohdetta \"%s\": %s ei voi suorittaa"
+
+#: resrc.c:314
+#, c-format
+msgid "Using temporary file `%s' to read preprocessor output\n"
+msgstr "Käytetään tilapäistä tiedostoa \"%s\" lukemaan esikääntäjätuloste\n"
+
+#: resrc.c:321
+#, c-format
+msgid "can't popen `%s': %s"
+msgstr "ei voi kutsua popen:ia \"%s\": %s"
+
+#: resrc.c:323
+#, c-format
+msgid "Using popen to read preprocessor output\n"
+msgstr "Käytetään popen:ia lukemaan esikääntäjätuloste\n"
+
+#: resrc.c:362
+#, c-format
+msgid "Tried `%s'\n"
+msgstr "Yritettiin \"%s\"\n"
+
+#: resrc.c:373
+#, c-format
+msgid "Using `%s'\n"
+msgstr "Käytetään \"%s\"\n"
+
+# Ensimmäinen parametri errmsg_fmt, toinen parametrit errmsg_arg, kolmas parametri virhenumero muutettuna merkkijonoselitykseksi
+#: resrc.c:529
+#, c-format
+msgid "%s:%d: %s\n"
+msgstr "%s:%d: %s\n"
+
+#: resrc.c:537
+#, c-format
+msgid "%s: unexpected EOF"
+msgstr "%s: odottamaton tiedostonloppumerkki"
+
+# fread-kutsu palautti vähemmän kuin odotettiin
+#: resrc.c:586
+#, c-format
+msgid "%s: read of %lu returned %lu"
+msgstr "%s: lukeminen palautti %lu merkistä (vain) %lu"
+
+# stat on *nix-ympäristön vakiokomentoja (katso: man stat)
+#: resrc.c:624 resrc.c:1134
+#, c-format
+msgid "stat failed on bitmap file `%s': %s"
+msgstr "stat-kutsu ei onnistunut bittikarttatiedostossa \"%s\": %s"
+
+#: resrc.c:675
+#, c-format
+msgid "cursor file `%s' does not contain cursor data"
+msgstr "kohdistintiedosto \"%s\" ei sisällä kohdistindataa"
+
+# Ensimmäinen parametri %s sisältää tiedostonimen, parametri %lu sisältää offsetin ja viimeinen %s sisältää stderror(errno)-tyyppisen virheilmoituksen.
+#: resrc.c:707 resrc.c:1003
+#, c-format
+msgid "%s: fseek to %lu failed: %s"
+msgstr "%s: fseek-kutsu kohtaan %lu epäonnistui: %s"
+
+#: resrc.c:831
+msgid "help ID requires DIALOGEX"
+msgstr "Ohje-ID vaatii DIALOGEX:n"
+
+#: resrc.c:833
+msgid "control data requires DIALOGEX"
+msgstr "ohjaindata vaatii DIALOGEX:n"
+
+# stat on *nix-ympäristön vakiokomentoja (katso: man stat)
+#: resrc.c:861
+#, c-format
+msgid "stat failed on font file `%s': %s"
+msgstr "stat-kutsu ei onnistunut kirjasintiedostossa \"%s\": %s"
+
+#: resrc.c:972
+#, c-format
+msgid "icon file `%s' does not contain icon data"
+msgstr "kuvaketiedosto \"%s\" ei sisällä kuvakedataa"
+
+# stat on *nix-ympäristön vakiokomentoja (katso: man stat)
+#: resrc.c:1273 resrc.c:1308
+#, c-format
+msgid "stat failed on file `%s': %s"
+msgstr "stat-kutsu ei onnistunut tiedostossa \"%s\": %s"
+
+#: resrc.c:1494
+#, c-format
+msgid "can't open `%s' for output: %s"
+msgstr "ei voi avata kohdetta \"%s\" tulosteeseen: %s"
+
+#: size.c:81
+#, c-format
+msgid " Displays the sizes of sections inside binary files\n"
+msgstr " Näyttää binaaritiedostojen sisäisten lohkojen koot\n"
+
+#: size.c:82
+#, c-format
+msgid " If no input file(s) are specified, a.out is assumed\n"
+msgstr " Jos syötetiedosto(j)a ei ole annettu, a.out on oletussyötetiedostona\n"
+
+#: size.c:83
+#, c-format
+msgid ""
+" The options are:\n"
+"  -A|-B     --format={sysv|berkeley}  Select output style (default is %s)\n"
+"  -o|-d|-x  --radix={8|10|16}         Display numbers in octal, decimal or hex\n"
+"  -t        --totals                  Display the total sizes (Berkeley only)\n"
+"            --target=<bfdname>        Set the binary file format\n"
+"  -h        --help                    Display this information\n"
+"  -v        --version                 Display the program's version\n"
+"\n"
+msgstr ""
+" Valitsimet ovat:\n"
+"  -A|-B     --format={sysv|berkeley}  Valitsee tulostetyylin (oletus on %s)\n"
+"  -o|-d|-x  --radix={8|10|16}         Näyttää numerot oktaali-, desimaali- tai heksadesimaalilukuna\n"
+"  -t        --totals                  Näyttää kokonaiskoot (vain Berkeley)\n"
+"            --target=<bfd-nimi>       Asettaa binaaritiedoston muodon\n"
+"  -h        --help                    Näyttää nämä tiedot\n"
+"  -v        --version                 Näyttää ohjelman version\n"
+"\n"
+
+#: size.c:153
+#, c-format
+msgid "invalid argument to --format: %s"
+msgstr "virheellinen argumentti valitsimelle --format: %s"
+
+#: size.c:180
+#, c-format
+msgid "Invalid radix: %s\n"
+msgstr "Virheellinen kantaluku: %s\n"
+
+#: srconv.c:1722
+#, c-format
+msgid "Convert a COFF object file into a SYSROFF object file\n"
+msgstr "Muuntaa COFF-objektitiedoston SYSROFF-objektitiedostoksi\n"
+
+# COMMON on lohko,joka sisältää yleisiä symboleja, joille ei ole vielä varattu muistia.
+#: srconv.c:1723
+#, c-format
+msgid ""
+" The options are:\n"
+"  -q --quick       (Obsolete - ignored)\n"
+"  -n --noprescan   Do not perform a scan to convert commons into defs\n"
+"  -d --debug       Display information about what is being done\n"
+"  -h --help        Display this information\n"
+"  -v --version     Print the program's version number\n"
+msgstr ""
+" Valinnat ovat:\n"
+"  -q --quick       (Vanhentunut - ei välitetä)\n"
+"  -n --noprescan   Ei suorita selausta common-lohkojen muuntamiseksi defs-lohkoiksi\n"
+"  -d --debug       Näyttää tietoja siitä mitä ollaan tekemässä\n"
+"  -h --help        Näyttää nämä tiedot\n"
+"  -v --version     Tulostaa ohjelman versionumeron\n"
+
+#: srconv.c:1866
+#, c-format
+msgid "unable to open output file %s"
+msgstr "ei voi avata tulostetiedostoa %s"
+
+#: stabs.c:330 stabs.c:1708
+msgid "numeric overflow"
+msgstr "numeerinen ylivuoto"
+
+#: stabs.c:340
+#, c-format
+msgid "Bad stab: %s\n"
+msgstr "Virheellinen stab: %s\n"
+
+#: stabs.c:348
+#, c-format
+msgid "Warning: %s: %s\n"
+msgstr "Varoitus: %s: %s\n"
+
+#: stabs.c:458
+#, c-format
+msgid "N_LBRAC not within function\n"
+msgstr "N_LBRAC-symboli ei ole funktiossa\n"
+
+#: stabs.c:497
+#, c-format
+msgid "Too many N_RBRACs\n"
+msgstr "Liian monta N_RBRAC-symbolia\n"
+
+#: stabs.c:738
+msgid "unknown C++ encoded name"
+msgstr "tuntematon C++-koodattu nimi"
+
+#. Complain and keep going, so compilers can invent new
+#. cross-reference types.
+#: stabs.c:1253
+msgid "unrecognized cross reference type"
+msgstr "tunnistamaton ristiviitetyyppi"
+
+#. Does this actually ever happen?  Is that why we are worrying
+#. about dealing with it rather than just calling error_type?
+#: stabs.c:1800
+msgid "missing index type"
+msgstr "indeksityyppi puuttuu"
+
+#: stabs.c:2114
+msgid "unknown virtual character for baseclass"
+msgstr "tuntematon virtuaalimerkki kantaluokalle"
+
+#: stabs.c:2132
+msgid "unknown visibility character for baseclass"
+msgstr "tuntematon näkyvyysmerkki kantaluokalle"
+
+#: stabs.c:2318
+msgid "unnamed $vb type"
+msgstr "nimeämätön $vb-tyyppi"
+
+#: stabs.c:2324
+msgid "unrecognized C++ abbreviation"
+msgstr "tunnistamaton C++-lyhenne"
+
+#: stabs.c:2400
+msgid "unknown visibility character for field"
+msgstr "tuntematon näkyvyysmerkki kentälle"
+
+#: stabs.c:2652
+msgid "const/volatile indicator missing"
+msgstr "const/volatile-indikaattori puuttuu"
+
+#: stabs.c:2888
+#, c-format
+msgid "No mangling for \"%s\"\n"
+msgstr "Kohdetta \"%s\" ei eheytetä\n"
+
+# N_EXCL tarkoittaa include-tiedostoa, jonka linkkeri on poistanut tarpeettomana (duplikaattina), koska se on jo määritelty kerran jossain toisessa käännösyksikössä. Se on nyt siis exclude-tiedosto, ei include-tiedosto ;-)
+#: stabs.c:3188
+msgid "Undefined N_EXCL"
+msgstr "Määrittelemätön linkkerin poistama include-tiedosto"
+
+#: stabs.c:3268
+#, c-format
+msgid "Type file number %d out of range\n"
+msgstr "Tyyppitiedoston numero %d numeroalueen ulkopuolella\n"
+
+#: stabs.c:3273
+#, c-format
+msgid "Type index number %d out of range\n"
+msgstr "Tyyppi-indeksinumero %d numeroalueen ulkopuolella\n"
+
+#: stabs.c:3352
+#, c-format
+msgid "Unrecognized XCOFF type %d\n"
+msgstr "Tunnistamaton XCOFF-tyyppi %d\n"
+
+#: stabs.c:3644
+#, c-format
+msgid "bad mangled name `%s'\n"
+msgstr "virheellinen runneltu nimi \"%s\"\n"
+
+#: stabs.c:3739
+#, c-format
+msgid "no argument types in mangled string\n"
+msgstr "runnellussa merkkijonossa ei ole argumenttityyppiä\n"
+
+#: stabs.c:5093
+#, c-format
+msgid "Demangled name is not a function\n"
+msgstr "Eheytetty nimi ei ole funktio\n"
+
+# v3 arglist viittaa stabs.c -funktioon 
+# stab_demangle_v3_arglist(...). Funktion nimessä
+# v3 tarkoittaa ilmeisesti, että funktion struct 
+# demangle_component *arglist -argumentti järjestetään
+# v-muotoiseksi puuksi (three -> tree). Yhden argumentin
+# tyyppi on ei-odotettu, jolloin tulostetaan tämä tuloste.
+#: stabs.c:5135
+#, c-format
+msgid "Unexpected type in v3 arglist demangling\n"
+msgstr "Tuntematon tyyppi eheytettäessä puumuotoista argumenttiluetteloa\n"
+
+#: stabs.c:5202
+#, c-format
+msgid "Unrecognized demangle component %d\n"
+msgstr "Tunnistamaton eheytyskomponentti %d\n"
+
+#: stabs.c:5254
+#, c-format
+msgid "Failed to print demangled template\n"
+msgstr "Ei onnistuttu tulostaa runneltua mallinetta\n"
+
+#: stabs.c:5334
+#, c-format
+msgid "Couldn't get demangled builtin type\n"
+msgstr "Ei saatu eheytettyä rakenteeseen sisältyvää tyyppiä\n"
+
+# Lähdekoodissa tutkitaan bfd_boolean -tyyppistä *pvarargs-
+# parametriä ja jos se on NULL, niin tulostetaan alla oleva
+# ilmoitus. Muussa tapauksessa palautetaan parametrin kautta
+# TRUE. Boolean arvo kertoo, ottaako eheytetty metodi
+# vaihtelevan määrän parametrejä vai ei.
+#: stabs.c:5383
+#, c-format
+msgid "Unexpected demangled varargs\n"
+msgstr "Odottamaton eheytetty totuusarvo\n"
+
+#: stabs.c:5390
+#, c-format
+msgid "Unrecognized demangled builtin type\n"
+msgstr "Tunnistamaton eheytetty rakenteeseen sisältyvä tyyppi\n"
+
+#: strings.c:206
+#, c-format
+msgid "invalid number %s"
+msgstr "virheellinen numero %s"
+
+#: strings.c:643
+#, c-format
+msgid "invalid integer argument %s"
+msgstr "virheellinen kokonaislukuargumentti %s"
+
+#: strings.c:652
+#, c-format
+msgid " Display printable strings in [file(s)] (stdin by default)\n"
+msgstr " Näyttää tulostettavat merkkijonot kohteesta [tiedosto(t)] (oletuksena vakiosyöte)\n"
+
+# Tämä mahdollistaa vain Big-Endian ja Little-Endian-tavujärjestyksen määrittelyn. Middle-Endian on tuntematon.
+#: strings.c:653
+#, c-format
+msgid ""
+" The options are:\n"
+"  -a - --all                Scan the entire file, not just the data section\n"
+"  -f --print-file-name      Print the name of the file before each string\n"
+"  -n --bytes=[number]       Locate & print any NUL-terminated sequence of at\n"
+"  -<number>                 least [number] characters (default 4).\n"
+"  -t --radix={o,d,x}        Print the location of the string in base 8, 10 or 16\n"
+"  -o                        An alias for --radix=o\n"
+"  -T --target=<BFDNAME>     Specify the binary file format\n"
+"  -e --encoding={s,S,b,l,B,L} Select character size and endianness:\n"
+"                            s = 7-bit, S = 8-bit, {b,l} = 16-bit, {B,L} = 32-bit\n"
+"  -h --help                 Display this information\n"
+"  -v --version              Print the program's version number\n"
+msgstr ""
+" Valitsimet ovat:\n"
+"  -a - --all                  Selaa koko tiedoston, ei vain datalohkoa\n"
+"  -f --print-file-name        Tulostaa tiedostonimen ennen jokaista merkkijonoa\n"
+"  -n --bytes=[numero]         Paikantaa & tulostaa jokaisen NUL-päätteisen vähintään\n"
+"  -<numero>                   [numero] merkin sekvenssin (oletuksena 4).\n"
+"  -t --radix={o,d,x}          Tulostaa merkkijonon paikan kantaluvulla 8, 10 tai 16\n"
+"  -o                          Alias kohteelle --radix=o\n"
+"  -T --target=<BFD-NIMI>      Määrittelee binaaritiedostomuodon\n"
+"  -e --encoding={s,S,b,l,B,L} Valitsee merkin koon ja tavujärjestystyypin:\n"
+"                              s = 7-bittiä, S = 8-bittiä, {b,l} = 16-bittiä, {B,L} = 32-bitttiä\n"
+"  -h --help                   Näyttää nämä tiedot\n"
+"  -v --version                Tulostaa ohjelman versionumeron\n"
+
+#: sysdump.c:649
+#, c-format
+msgid "Print a human readable interpretation of a SYSROFF object file\n"
+msgstr "Tulostaa luettavan tulkinnan SYSROFF-objektitiedostosta\n"
+
+#: sysdump.c:650
+#, c-format
+msgid ""
+" The options are:\n"
+"  -h --help        Display this information\n"
+"  -v --version     Print the program's version number\n"
+msgstr ""
+" Valitsimet ovat:\n"
+"  -h --help        Näyttää nämä tiedot\n"
+"  -v --version     Tulostaa ohjelman versionumeron\n"
+
+#: sysdump.c:715
+#, c-format
+msgid "cannot open input file %s"
+msgstr "syötetiedostoa %s ei voi avata"
+
+#: version.c:35
+#, c-format
+msgid "Copyright 2005 Free Software Foundation, Inc.\n"
+msgstr "Copyright 2005 Free Software Foundation, Inc.\n"
+
+#: version.c:36
+#, c-format
+msgid ""
+"This program is free software; you may redistribute it under the terms of\n"
+"the GNU General Public License.  This program has absolutely no warranty.\n"
+msgstr ""
+"Tämä ohjelma on vapaa ohjelmisto; voit jakaa sitä edelleen GNU General Public License\n"
+"-ehtojen mukaisesti.  Tällä ohjelmalla ei ehdottomasti ole mitään takuuta.\n"
+
+#: windres.c:204
+#, c-format
+msgid "can't open %s `%s': %s"
+msgstr "ei voi avata kohdetta %s \"%s\": %s"
+
+#: windres.c:370
+#, c-format
+msgid ": expected to be a directory\n"
+msgstr ": otaksuttiin olevan hakemisto\n"
+
+#: windres.c:382
+#, c-format
+msgid ": expected to be a leaf\n"
+msgstr ": otaksuttiin olevan lehti\n"
+
+#: windres.c:391
+#, c-format
+msgid "%s: warning: "
+msgstr "%s: varoitus: "
+
+#: windres.c:393
+#, c-format
+msgid ": duplicate value\n"
+msgstr ": duplikaattiarvo\n"
+
+#: windres.c:543
+#, c-format
+msgid "unknown format type `%s'"
+msgstr "tuntematon muototyyppi \"%s\""
+
+#: windres.c:544
+#, c-format
+msgid "%s: supported formats:"
+msgstr "%s: tuetut muodot:"
+
+# Laitoin ylimääräiset lainausmerkit, jotta väliviiva erottuu selvemmin valitsinmerkistä.
+#. Otherwise, we give up.
+#: windres.c:627
+#, c-format
+msgid "can not determine type of file `%s'; use the -J option"
+msgstr "tiedoston \"%s\" tyyppiä ei voitu määritellä; käytä \"-J\"-valitsinta"
+
+#: windres.c:639
+#, c-format
+msgid "Usage: %s [option(s)] [input-file] [output-file]\n"
+msgstr "Käyttö: %s [valitsimet] [syötetiedosto] [tulostetiedosto]\n"
+
+#: windres.c:641
+#, c-format
+msgid ""
+" The options are:\n"
+"  -i --input=<file>            Name input file\n"
+"  -o --output=<file>           Name output file\n"
+"  -J --input-format=<format>   Specify input format\n"
+"  -O --output-format=<format>  Specify output format\n"
+"  -F --target=<target>         Specify COFF target\n"
+"     --preprocessor=<program>  Program to use to preprocess rc file\n"
+"  -I --include-dir=<dir>       Include directory when preprocessing rc file\n"
+"  -D --define <sym>[=<val>]    Define SYM when preprocessing rc file\n"
+"  -U --undefine <sym>          Undefine SYM when preprocessing rc file\n"
+"  -v --verbose                 Verbose - tells you what it's doing\n"
+"  -l --language=<val>          Set language when reading rc file\n"
+"     --use-temp-file           Use a temporary file instead of popen to read\n"
+"                               the preprocessor output\n"
+"     --no-use-temp-file        Use popen (default)\n"
+msgstr ""
+" Valitsimet ovat:\n"
+"  -i --input=<tiedosto>        Asettaa syötetiedoston nimen\n"
+"  -o --output=<tiedosto>       Asettaa tulostetiedoston nimen\n"
+"  -J --input-format=<muoto>    Määrittelee syötemuodon\n"
+"  -O --output-format=<muoto>   Määrittelee tulostemuodon\n"
+"  -F --target=<kohde>          Määrittelee COFF-kohteen\n"
+"     --preprocessor=<ohjelma>  Ohjelma, jota käytetään rc-tiedoston esikäsittelyyn\n"
+"  -I --include-dir=<hakemisto> Include-hakemisto rc-tiedoston esikäsittelyssä\n"
+"  -D --define <sym>[=<arvo>]   Määrittelee symbolin SYM, kun rc-tiedostoa esikäsitellään\n"
+"  -U --undefine <sym>          Poistaa SYM-määrittelyn, kun rc-tiedostoa esikäsitellään\n"
+"  -v --verbose                 Laveasti - kertoo mitä se on tekemässä\n"
+"  -l --language=<val>          Asettaa kielen, kun rc-tiedostoa luetaan\n"
+"     --use-temp-file           Käyttää tilapäistä tiedostoa, ei popen:ia lukemaan\n"
+"                               esikääntäjätulostetta\n"
+"     --no-use-temp-file        Käyttää popen:ia (oletus)\n"
+
+#: windres.c:657
+#, c-format
+msgid "     --yydebug                 Turn on parser debugging\n"
+msgstr "     --yydebug                 Kääntää jäsennindebuggauksen päälle\n"
+
+#: windres.c:660
+#, c-format
+msgid ""
+"  -r                           Ignored for compatibility with rc\n"
+"  -h --help                    Print this help message\n"
+"  -V --version                 Print version information\n"
+msgstr ""
+"  -r                           Ei välitä rc-yhteensopivuudesta\n"
+"  -h --help                    Tulostaa tämän ohjeen\n"
+"  -V --version                 Tulostaa versiotiedot\n"
+
+#: windres.c:664
+#, c-format
+msgid ""
+"FORMAT is one of rc, res, or coff, and is deduced from the file name\n"
+"extension if not specified.  A single file name is an input file.\n"
+"No input-file is stdin, default rc.  No output-file is stdout, default rc.\n"
+msgstr ""
+"MUOTO on yksi muodoista rc, res tai coff ja päätellään tiedostonimi-\n"
+"tarkentimesta, jos muotoa ei ole annettu. Yksi tiedostonimi on\n"
+"syötetiedosto, ei syötetiedostoa on vakiosyöte, oletusmuoto on rc.\n"
+"Ei tulostetiedostoa on vakiotuloste, oletusmuoto rc.\n"
+
+#: windres.c:800
+msgid "invalid option -f\n"
+msgstr "virheellinen valitsin -f\n"
+
+#: windres.c:805
+msgid "No filename following the -fo option.\n"
+msgstr "Mikään tiedostonimi ei seuraa valitsinta -fo.\n"
+
+#: windres.c:863
+#, c-format
+msgid "Option -I is deprecated for setting the input format, please use -J instead.\n"
+msgstr "Valitsin -I on vanhentunut syötemuodon asetukseen, käytä sen sijaan valitsinta -J.\n"
+
+#: windres.c:981
+msgid "no resources"
+msgstr "ei resursseja"
+
+#: wrstabs.c:354 wrstabs.c:1915
+#, c-format
+msgid "string_hash_lookup failed: %s"
+msgstr "string_hash_lookup epäonnistui: %s"
+
+#: wrstabs.c:635
+#, c-format
+msgid "stab_int_type: bad size %u"
+msgstr "stab_int_type: virheellinen koko %u"
+
+#: wrstabs.c:1393
+#, c-format
+msgid "%s: warning: unknown size for field `%s' in struct"
+msgstr "%s: varoitus: kentän \"%s\" koko tuntematon struct-rakenteessa"

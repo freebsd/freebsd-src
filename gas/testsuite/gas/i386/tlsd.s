@@ -26,13 +26,13 @@ fn:
 	call	___tls_get_addr@PLT
 
 	/* Just show that there can be arbitrary instructions here  */
-	leal	0(%edi, 1), %edi
+	addl	$0, %edi
 
 	leal	bar@DTPOFF(%eax), %edx
 	/* %edx now contains &bar  */
 
 	/* Again, arbitrary instructions  */
-	leal	0(%esi, 1), %esi
+	addl	$0, %esi
 
 	leal	baz@DTPOFF(%eax), %ecx
 	/* %ecx now contains &baz  */

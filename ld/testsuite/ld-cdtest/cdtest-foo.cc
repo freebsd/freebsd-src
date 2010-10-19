@@ -38,7 +38,7 @@ Foo::Foo ()
 #endif
 }
 
-Foo::Foo (char* msg)
+Foo::Foo (const char* msg)
 {
     i = ++foos;
     strncpy( message, msg, len);

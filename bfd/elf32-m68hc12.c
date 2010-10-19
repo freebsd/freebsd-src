@@ -1,5 +1,5 @@
 /* Motorola 68HC12-specific support for 32-bit ELF
-   Copyright 1999, 2000, 2002, 2003 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2002, 2003, 2004 Free Software Foundation, Inc.
    Contributed by Stephane Carrez (stcarrez@nerim.fr)
    (Heavily copied from the D10V port by Martin Hunt (hunt@cygnus.com))
 
@@ -17,7 +17,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -443,8 +443,8 @@ m68hc12_elf_build_one_stub (struct bfd_hash_entry *gen_entry, void *in_arg)
   stub_sec = stub_entry->stub_sec;
 
   /* Make a note of the offset within the stubs for this entry.  */
-  stub_entry->stub_offset = stub_sec->_raw_size;
-  stub_sec->_raw_size += 7;
+  stub_entry->stub_offset = stub_sec->size;
+  stub_sec->size += 7;
   loc = stub_sec->contents + stub_entry->stub_offset;
 
   stub_bfd = stub_sec->owner;
@@ -486,7 +486,7 @@ m68hc12_elf_size_one_stub (struct bfd_hash_entry *gen_entry,
   /* Massage our args to the form they really have.  */
   stub_entry = (struct elf32_m68hc11_stub_hash_entry *) gen_entry;
 
-  stub_entry->stub_sec->_raw_size += 7;
+  stub_entry->stub_sec->size += 7;
   return TRUE;
 }
 
@@ -535,11 +535,11 @@ m68hc12_elf_set_mach_from_flags (bfd *abfd)
      Page0 accesses are faster on the M68HC12.
    - The .vectors is the section that represents the interrupt
      vectors.  */
-static struct bfd_elf_special_section const elf32_m68hc12_special_sections[]=
+static const struct bfd_elf_special_section elf32_m68hc12_special_sections[] =
 {
   { ".eeprom",   7, 0, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE },
-  { ".softregs", 9, 0, SHT_NOBITS,   SHF_ALLOC + SHF_WRITE },
   { ".page0",    6, 0, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE },
+  { ".softregs", 9, 0, SHT_NOBITS,   SHF_ALLOC + SHF_WRITE },
   { ".vectors",  8, 0, SHT_PROGBITS, SHF_ALLOC },
   { NULL,        0, 0, 0,            0 }
 };

@@ -1,6 +1,6 @@
 # Test linking directly to S-records.
 # By Ian Lance Taylor, Cygnus Support.
-#   Copyright 2001, 2002, 2003
+#   Copyright 1999, 2000, 2001, 2002, 2003
 #   Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
 # Get the offset from an S-record line to the start of the data.
 
@@ -237,13 +237,6 @@ proc run_srec_test { test objs } {
 	set flags "$flags -Ttext 0x1000"
     }
 
-    # The a29k compiled code calls V_SPILL and V_FILL.  Since we don't
-    # need to run this code, but we don't have definitions for those
-    # functions, we just define them out.
-    if [istarget a29k*-*-*] {
-	set flags "$flags --defsym V_SPILL=0 --defsym V_FILL=0"
-    }
-
     if [istarget sh64*-*-elf] {
         # This is what gcc passes to ld by default.
         set flags "-mshelf32"
@@ -293,7 +286,14 @@ proc run_srec_test { test objs } {
     if [istarget xtensa*-*-*] {
 	set flags "$flags -no-relax"
     }
-    
+
+    # Some OpenBSD targets have ProPolice and reference __guard and
+    # __stack_smash_handler.
+    if [istarget *-*-openbsd*] {
+	set flags "$flags --defsym __guard=0"
+	set flags "$flags --defsym __stack_smash_handler=0"
+    }
+
     if { ![ld_simple_link $ld tmpdir/sr1 "$flags $objs"] \
 	 || ![ld_simple_link $ld tmpdir/sr2.sr "$flags --oformat srec $objs"] } {
 	fail $test
@@ -378,7 +378,7 @@ setup_xfail "arm*-*-linux*"
 setup_xfail "v850*-*-elf"
 
 # The S-record linker doesn't handle Alpha Elf relaxation.
-setup_xfail "alpha*-*-elf*" "alpha*-*-linux-gnu*" "alpha*-*-gnu*"
+setup_xfail "alpha*-*-elf*" "alpha*-*-linux-*" "alpha*-*-gnu*"
 setup_xfail "alpha*-*-netbsd*"
 
 # The S-record linker hasn't any hope of coping with HPPA relocs.
@@ -417,7 +417,7 @@ setup_xfail "strongarm*-*-*"
 setup_xfail "thumb-*-*"
 setup_xfail "powerpc*-*-eabi*"
 setup_xfail "v850*-*-elf"
-setup_xfail "alpha*-*-elf*" "alpha*-*-linux-gnu*" "alpha*-*-gnu*"
+setup_xfail "alpha*-*-elf*" "alpha*-*-linux-*" "alpha*-*-gnu*"
 setup_xfail "alpha*-*-netbsd*"
 setup_xfail "hppa*-*-*"
 setup_xfail "ia64-*-*"

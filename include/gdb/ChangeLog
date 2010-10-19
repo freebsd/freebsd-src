@@ -1,3 +1,48 @@
+2005-07-08  Ben Elliston  <bje@au.ibm.com>
+
+	* callback.h: Remove ANSI_PROTOTYPES conditional code.
+
+2005-01-28  Hans-Peter Nilsson  <hp@axis.com>
+
+	* callback.h (struct host_callback_struct): New members pipe,
+	pipe_empty, pipe_nonempty, ispipe, pipe_buffer and
+	target_sizeof_int.
+	(CB_SYS_pipe): New macro.
+
+	* callback.h: Include "bfd.h".
+	(struct host_callback_struct): New member target_endian.
+	(cb_store_target_endian): Declare.
+
+2004-12-15  Hans-Peter Nilsson  <hp@axis.com>
+
+	* callback.h (CB_SYS_truncate, CB_SYS_ftruncate): New macros.
+
+2004-12-13  Hans-Peter Nilsson  <hp@axis.com>
+
+	* callback.h (struct host_callback_struct): New member lstat.
+	(CB_SYS_lstat): New macro.
+	(CB_SYS_rename): New macro.
+
+2004-09-08  Michael Snyder  <msnyder@redhat.com>
+
+	Commited by Corinna Vinschen <vinschen@redhat.com>
+	* sim-sh.h: Add new sh2a banked registers.
+
+2004-08-04  Andrew Cagney  <cagney@gnu.org>
+
+	* sim-ppc.h: Add extern "C" wrapper.
+	(enum sim_ppc_regnum): Add full list of SPRs.
+
+2004-08-04  Jim Blandy  <jimb@redhat.com>
+
+	* sim-ppc.h: New file.
+
+2004-06-25  J"orn Rennecke <joern.rennecke@superh.com>
+
+	* callback.h (host_callback_struct): Replace members fdopen and
+	alwaysopen with fd_buddy.
+	[sim/common: * callback.c: Changed all users.  ]
+
 2003-10-31  Kevin Buettner  <kevin@redhat.com>
 
 	* sim-frv.h: New file.

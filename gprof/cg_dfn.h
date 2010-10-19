@@ -12,6 +12,6 @@
  * Depth-first numbering of a call-graph.
  */
 
-extern void cg_dfn PARAMS ((Sym * root));
+extern void cg_dfn (Sym * root);
 
 #endif /* cg_dfn_h */

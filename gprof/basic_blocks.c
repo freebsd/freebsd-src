@@ -2,7 +2,8 @@
    of basic-block info to/from gmon.out; computing and formatting of
    basic-block related statistics.
 
-   Copyright 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001, 2002, 2004, 2005
+   Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -18,8 +19,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include "libiberty.h"
 #include "gprof.h"
@@ -32,10 +33,10 @@
 #include "symtab.h"
 #include "sym_ids.h"
 
-static int cmp_bb PARAMS ((const PTR, const PTR));
-static int cmp_ncalls PARAMS ((const PTR, const PTR));
-static void fskip_string PARAMS ((FILE *));
-static void annotate_with_count PARAMS ((char *, unsigned int, int, PTR));
+static int cmp_bb (const PTR, const PTR);
+static int cmp_ncalls (const PTR, const PTR);
+static void fskip_string (FILE *);
+static void annotate_with_count (char *, unsigned int, int, PTR);
 
 /* Default option values:  */
 bfd_boolean bb_annotate_all_lines = FALSE;
@@ -52,9 +53,7 @@ static long num_lines_executed;
    number, and address (in that order).  */
 
 static int
-cmp_bb (lp, rp)
-     const PTR lp;
-     const PTR rp;
+cmp_bb (const PTR lp, const PTR rp)
 {
   int r;
   const Sym *left = *(const Sym **) lp;
@@ -83,9 +82,7 @@ cmp_bb (lp, rp)
 /* Helper for sorting.  Order basic blocks in decreasing number of
    calls, ties are broken in increasing order of line numbers.  */
 static int
-cmp_ncalls (lp, rp)
-     const PTR lp;
-     const PTR rp;
+cmp_ncalls (const PTR lp, const PTR rp)
 {
   const Sym *left = *(const Sym **) lp;
   const Sym *right = *(const Sym **) rp;
@@ -105,8 +102,7 @@ cmp_ncalls (lp, rp)
 
 /* Skip over variable length string.  */
 static void
-fskip_string (fp)
-     FILE *fp;
+fskip_string (FILE *fp)
 {
   int ch;
 
@@ -121,11 +117,9 @@ fskip_string (fp)
    of file IFP and is provided for formatting error-messages only.  */
 
 void
-bb_read_rec (ifp, filename)
-     FILE *ifp;
-     const char *filename;
+bb_read_rec (FILE *ifp, const char *filename)
 {
-  int nblocks, b;
+  unsigned int nblocks, b;
   bfd_vma addr, ncalls;
   Sym *sym;
 
@@ -211,9 +205,7 @@ bb_read_rec (ifp, filename)
    is the name of OFP and is provided for producing error-messages
    only.  */
 void
-bb_write_blocks (ofp, filename)
-     FILE *ofp;
-     const char *filename;
+bb_write_blocks (FILE *ofp, const char *filename)
 {
   unsigned int nblocks = 0;
   Sym *sym;
@@ -289,6 +281,8 @@ print_exec_counts ()
 
   for (i = 0; i < len; ++i)
     {
+      sym = sorted_bbs [i];
+      
       if (sym->ncalls > 0 || ! ignore_zeros)
 	{
 	  /* FIXME: This only works if bfd_vma is unsigned long.  */
@@ -323,11 +317,7 @@ print_exec_counts ()
    that starts the basic-block.  */
 
 static void
-annotate_with_count (buf, width, line_num, arg)
-     char *buf;
-     unsigned int width;
-     int line_num;
-     PTR arg;
+annotate_with_count (char *buf, unsigned int width, int line_num, PTR arg)
 {
   Source_File *sf = arg;
   Sym *b;

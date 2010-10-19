@@ -1,5 +1,5 @@
 # Expect script for ld-weak tests
-#   Copyright 2001 Free Software Foundation, Inc.
+#   Copyright 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # Written by H.J. Lu (hjl@gnu.org)
 #	     Eric Youngdale (eric@andante.jic.com)
@@ -287,7 +287,8 @@ proc build_lib {test libname objs dynsymexp} {
 	return
     }
 
-    if {![objdump_dynsymstuff $objdump $tmpdir/$libname.so $srcdir/$subdir/$dynsymexp]} {
+    if {![string match "" $dynsymexp] \
+	&& ![objdump_dynsymstuff $objdump $tmpdir/$libname.so $srcdir/$subdir/$dynsymexp]} {
 	fail $test
 	return
     }
@@ -465,3 +466,33 @@ build_exec "ELF weak data first DSO" foo "main1.o libbar1a.so libfoo1a.so" "-Wl,
 build_exec "ELF weak data last DSO" foo "libfoo1a.so main1.o libbar1a.so" "-Wl,-rpath,." weakdata weakdata.dsym ""
 build_exec "ELF weak data first DSO common" foo "main1.o libbar1a.so libfoo1b.so" "-Wl,-rpath,." weakdata weakdata.dsym ""
 build_exec "ELF weak data last DSO common" foo "libfoo1b.so main1.o libbar1a.so" "-Wl,-rpath,." weakdata weakdata.dsym ""
+
+if ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/size_foo.c $tmpdir/size_foo.o] {
+    unresolved "ELF weak (size)"
+    return
+}
+
+if ![ld_compile "$CC $CFLAGS $picflag" $srcdir/$subdir/size_bar.c $tmpdir/size_bar.o] {
+    unresolved "ELF weak (size)"
+    return
+}
+
+build_lib "ELF DSO small bar (size)" libsize_bar "size_bar.o" ""
+build_lib "ELF DSO foo with small bar (size)" libsize_foo "size_foo.o libsize_bar.so" ""
+
+if ![ld_compile "$CC $CFLAGS $picflag -DSIZE_BIG" $srcdir/$subdir/size_bar.c $tmpdir/size_bar.o] {
+    unresolved "ELF weak (size)"
+    return
+}
+
+build_lib "ELF DSO big bar (size)" libsize_bar "size_bar.o" ""
+
+if ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/size_main.c $tmpdir/size_main.o] {
+    unresolved "ELF weak (size)"
+    return
+}
+
+build_exec "ELF weak size" size_main "size_main.o libsize_foo.so libsize_bar.so" "-Wl,-rpath,." size "" ""
+
+verbose "size2"
+run_dump_test $srcdir/$subdir/size2

@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright 2003
+#   Copyright 2003, 2004, 2005, 2006
 #   Free Software Foundation, Inc.
 #
 # This file is part of GLD, the Gnu Linker.
@@ -16,7 +16,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 
 # This file is sourced from elf32.em, and defines extra xtensa-elf
@@ -25,9 +25,15 @@
 cat >>e${EMULATION_NAME}.c <<EOF
 
 #include <xtensa-config.h>
+#include "../bfd/elf-bfd.h"
+#include "../bfd/libbfd.h"
+#include "elf/xtensa.h"
+#include "bfd.h"
 
 static void xtensa_wild_group_interleave (lang_statement_union_type *);
 static void xtensa_colocate_output_literals (lang_statement_union_type *);
+static void xtensa_strip_inconsistent_linkonce_sections
+  (lang_statement_list_type *);
 
 
 /* Flag for the emulation-specific "--no-relax" option.  */
@@ -37,7 +43,7 @@ static bfd_boolean disable_relaxation = FALSE;
 static bfd_vma xtensa_page_power = 12; /* 4K pages.  */
 
 /* To force a page break between literals and text, change
-   xtensa_use_literal_pages to "true".  */
+   xtensa_use_literal_pages to "TRUE".  */
 static bfd_boolean xtensa_use_literal_pages = FALSE;
 
 #define EXTRA_VALIDATION 0
@@ -54,23 +60,266 @@ elf_xtensa_choose_target (int argc ATTRIBUTE_UNUSED,
 }
 
 
-static bfd_boolean
-elf_xtensa_place_orphan (lang_input_statement_type *file, asection *s)
-{
-  /* Early exit for relocatable links.  */
-  if (link_info.relocatable)
-    return FALSE;
-
-  return gld${EMULATION_NAME}_place_orphan (file, s);
-}
-
-
 static void
 elf_xtensa_before_parse (void)
 {
   /* Just call the default hook.... Tensilica's version of this function
      does some other work that isn't relevant here.  */
   gld${EMULATION_NAME}_before_parse ();
+}
+
+
+static void
+remove_section (bfd *abfd, asection *os)
+{
+  asection **spp;
+  for (spp = &abfd->sections; *spp; spp = &(*spp)->next)
+    if (*spp == os)
+      {
+	*spp = os->next;
+	os->owner->section_count--;
+	break;
+      }
+}
+
+
+static bfd_boolean
+replace_insn_sec_with_prop_sec (bfd *abfd,
+				const char *insn_sec_name,
+				const char *prop_sec_name,
+				char **error_message)
+{
+  asection *insn_sec;
+  asection *prop_sec;
+  bfd_byte *prop_contents = NULL;
+  bfd_byte *insn_contents = NULL;
+  unsigned entry_count;
+  unsigned entry;
+  Elf_Internal_Shdr *symtab_hdr;
+  Elf_Internal_Rela *internal_relocs = NULL;
+  unsigned reloc_count;
+ 
+  *error_message = "";
+  insn_sec = bfd_get_section_by_name (abfd, insn_sec_name);
+  if (insn_sec == NULL)
+    return TRUE;
+  entry_count = insn_sec->size / 8;
+
+  prop_sec = bfd_get_section_by_name (abfd, prop_sec_name);
+  if (prop_sec != NULL && insn_sec != NULL)
+    {
+      *error_message = _("file already has property tables");
+      return FALSE;
+    }
+  
+  if (insn_sec->size != 0)
+    {
+      insn_contents = (bfd_byte *) bfd_malloc (insn_sec->size);
+      if (insn_contents == NULL)
+	{
+	  *error_message = _("out of memory");
+	  goto cleanup;
+	}
+      if (! bfd_get_section_contents (abfd, insn_sec, insn_contents,
+				      (file_ptr) 0, insn_sec->size))
+	{
+	  *error_message = _("failed to read section contents");
+	  goto cleanup;
+	}
+    }
+
+  /* Create a Property table section and relocation section for it.  */
+  prop_sec_name = strdup (prop_sec_name);
+  prop_sec = bfd_make_section (abfd, prop_sec_name);
+  if (prop_sec == NULL
+      || ! bfd_set_section_flags (abfd, prop_sec, 
+				  bfd_get_section_flags (abfd, insn_sec))
+      || ! bfd_set_section_alignment (abfd, prop_sec, 2))
+    {
+      *error_message = _("could not create new section");
+      goto cleanup;
+    }
+  
+  if (! bfd_set_section_flags (abfd, prop_sec, 
+			       bfd_get_section_flags (abfd, insn_sec))
+      || ! bfd_set_section_alignment (abfd, prop_sec, 2))
+    {
+      *error_message = _("could not set new section properties");
+      goto cleanup;
+    }
+  prop_sec->size = entry_count * 12;
+  prop_contents = (bfd_byte *) bfd_zalloc (abfd, prop_sec->size);
+  elf_section_data (prop_sec)->this_hdr.contents = prop_contents;
+
+  /* The entry size and size must be set to allow the linker to compute
+     the number of relocations since it does not use reloc_count.  */
+  elf_section_data (prop_sec)->rel_hdr.sh_entsize =
+    sizeof (Elf32_External_Rela);
+  elf_section_data (prop_sec)->rel_hdr.sh_size = 
+    elf_section_data (insn_sec)->rel_hdr.sh_size;
+
+  if (prop_contents == NULL && prop_sec->size != 0)
+    {
+      *error_message = _("could not allocate section contents");
+      goto cleanup;
+    }
+
+  /* Read the relocations.  */
+  reloc_count = insn_sec->reloc_count;
+  if (reloc_count != 0)
+    {
+      /* If there is already an internal_reloc, then save it so that the
+	 read_relocs function freshly allocates a copy.  */
+      Elf_Internal_Rela *saved_relocs = elf_section_data (insn_sec)->relocs;
+      
+      elf_section_data (insn_sec)->relocs = NULL;
+      internal_relocs = 
+	_bfd_elf_link_read_relocs (abfd, insn_sec, NULL, NULL, FALSE);
+      elf_section_data (insn_sec)->relocs = saved_relocs;
+      
+      if (internal_relocs == NULL)
+	{
+	  *error_message = _("out of memory");
+	  goto cleanup;
+	}
+    }
+
+  /* Create a relocation section for the property section.  */
+  if (internal_relocs != NULL)
+    {
+      elf_section_data (prop_sec)->relocs = internal_relocs;
+      prop_sec->reloc_count = reloc_count;
+    }
+  
+  /* Now copy each insn table entry to the prop table entry with
+     appropriate flags.  */
+  for (entry = 0; entry < entry_count; ++entry)
+    {
+      unsigned value;
+      unsigned flags = (XTENSA_PROP_INSN | XTENSA_PROP_INSN_NO_TRANSFORM
+			| XTENSA_PROP_INSN_NO_REORDER);
+      value = bfd_get_32 (abfd, insn_contents + entry * 8 + 0);
+      bfd_put_32 (abfd, value, prop_contents + entry * 12 + 0);
+      value = bfd_get_32 (abfd, insn_contents + entry * 8 + 4);
+      bfd_put_32 (abfd, value, prop_contents + entry * 12 + 4);
+      bfd_put_32 (abfd, flags, prop_contents + entry * 12 + 8);
+    }
+
+  /* Now copy all of the relocations.  Change offsets for the
+     instruction table section to offsets in the property table
+     section.  */
+  if (internal_relocs)
+    {
+      unsigned i;
+      symtab_hdr = &elf_tdata (abfd)->symtab_hdr;
+
+      for (i = 0; i < reloc_count; i++)
+	{
+	  Elf_Internal_Rela *rela;
+	  unsigned r_offset;
+
+	  rela = &internal_relocs[i];
+
+	  /* If this relocation is to the .xt.insn section, 
+	     change the section number and the offset.  */
+	  r_offset = rela->r_offset;
+	  r_offset += 4 * (r_offset / 8);
+	  rela->r_offset = r_offset;
+	}
+    }
+
+  remove_section (abfd, insn_sec);
+  
+  if (insn_contents)
+    free (insn_contents);
+  
+  return TRUE;
+
+ cleanup:
+  if (prop_sec && prop_sec->owner)
+    remove_section (abfd, prop_sec);
+  if (insn_contents)
+    free (insn_contents);
+  if (internal_relocs)
+    free (internal_relocs);
+
+  return FALSE;
+}
+
+
+#define PROP_SEC_BASE_NAME ".xt.prop"
+#define INSN_SEC_BASE_NAME ".xt.insn"
+#define LINKONCE_SEC_OLD_TEXT_BASE_NAME ".gnu.linkonce.x."
+
+
+static void
+replace_instruction_table_sections (bfd *abfd, asection *sec)
+{
+  char *message = "";
+  const char *insn_sec_name = NULL;
+  char *prop_sec_name = NULL;
+  char *owned_prop_sec_name = NULL;
+  const char *sec_name;
+    
+  sec_name = bfd_get_section_name (abfd, sec);
+  if (strcmp (sec_name, INSN_SEC_BASE_NAME) == 0)
+    {
+      insn_sec_name = INSN_SEC_BASE_NAME;
+      prop_sec_name = PROP_SEC_BASE_NAME;
+    }
+  else if (strncmp (sec_name, LINKONCE_SEC_OLD_TEXT_BASE_NAME,
+		    strlen (LINKONCE_SEC_OLD_TEXT_BASE_NAME)) == 0)
+    {
+      insn_sec_name = sec_name;
+      owned_prop_sec_name = (char *) xmalloc (strlen (sec_name) + 20);
+      prop_sec_name = owned_prop_sec_name;
+      strcpy (prop_sec_name, ".gnu.linkonce.prop.t.");
+      strcat (prop_sec_name,
+	      sec_name + strlen (LINKONCE_SEC_OLD_TEXT_BASE_NAME));
+    }
+  if (insn_sec_name != NULL)
+    {
+      if (! replace_insn_sec_with_prop_sec (abfd, insn_sec_name, prop_sec_name,
+					    &message))
+	{
+	  einfo (_("%P: warning: failed to convert %s table in %B (%s); subsequent disassembly may be incomplete\n"),
+		 insn_sec_name, abfd, message);
+	}
+    }
+  if (owned_prop_sec_name)
+    free (owned_prop_sec_name);
+}
+
+
+/* This is called after all input sections have been opened to convert
+   instruction tables (.xt.insn, gnu.linkonce.x.*) tables into property
+   tables (.xt.prop) before any section placement.  */
+
+static void
+elf_xtensa_after_open (void)
+{
+  bfd *abfd;
+
+  /* First call the ELF version.  */
+  gld${EMULATION_NAME}_after_open ();
+  
+  /* Now search the input files looking for instruction table sections.  */
+  for (abfd = link_info.input_bfds;
+       abfd != NULL;
+       abfd = abfd->link_next)
+    {
+      asection *sec = abfd->sections;
+      asection *next_sec;
+
+      /* Do not use bfd_map_over_sections here since we are removing
+	 sections as we iterate.  */
+      while (sec != NULL)
+	{
+	  next_sec = sec->next;
+	  replace_instruction_table_sections (abfd, sec);
+	  sec = next_sec;
+	}
+    }
 }
 
 
@@ -122,6 +371,8 @@ elf_xtensa_before_allocation (void)
 
   if (!disable_relaxation)
     command_line.relax = TRUE;
+
+  xtensa_strip_inconsistent_linkonce_sections (stat_ptr);
 
   gld${EMULATION_NAME}_before_allocation ();
 
@@ -177,8 +428,7 @@ typedef void (*deps_callback_t) (asection *, /* src_sec */
 
 extern bfd_boolean xtensa_callback_required_dependence
   (bfd *, asection *, struct bfd_link_info *, deps_callback_t, void *);
-static void xtensa_ldlang_clear_addresses
-  (lang_statement_union_type *);
+static void xtensa_ldlang_clear_addresses (lang_statement_union_type *);
 static bfd_boolean ld_local_file_relocations_fit
   (lang_statement_union_type *, const reloc_deps_graph *);
 static bfd_vma ld_assign_relative_paged_dot
@@ -187,8 +437,7 @@ static bfd_vma ld_assign_relative_paged_dot
 static bfd_vma ld_xtensa_insert_page_offsets
   (bfd_vma, lang_statement_union_type *, reloc_deps_graph *, bfd_boolean);
 #if EXTRA_VALIDATION
-static size_t ld_count_children
-  (lang_statement_union_type *);
+static size_t ld_count_children (lang_statement_union_type *);
 #endif
 
 extern lang_statement_list_type constructor_list;
@@ -366,6 +615,7 @@ section_is_target (const reloc_deps_graph *deps ATTRIBUTE_UNUSED,
   return sec_deps && sec_deps->preds != NULL;
 }
 
+
 static bfd_boolean
 section_is_source_or_target (const reloc_deps_graph *deps ATTRIBUTE_UNUSED,
 			     lang_statement_union_type *s)
@@ -443,7 +693,7 @@ ld_xtensa_move_section_after (xtensa_ld_iter *to, xtensa_ld_iter *current)
 
 
 /* Can only be called with lang_statements that have lists.  Returns
-   false if the list is empty.  */
+   FALSE if the list is empty.  */
 
 static bfd_boolean
 iter_stack_empty (xtensa_ld_iter_stack **stack_p)
@@ -592,8 +842,7 @@ iter_stack_create (xtensa_ld_iter_stack **stack_p,
 
 
 static void
-iter_stack_copy_current (xtensa_ld_iter_stack **stack_p,
-			 xtensa_ld_iter *front)
+iter_stack_copy_current (xtensa_ld_iter_stack **stack_p, xtensa_ld_iter *front)
 {
   *front = (*stack_p)->iterloc;
 }
@@ -616,16 +865,6 @@ xtensa_colocate_literals (reloc_deps_graph *deps,
 
   if (deps->count == 0)
     return;
-
-#if 0
-  ld_assign_relative_paged_dot (0x100000, statement, deps,
-				xtensa_use_literal_pages);
-
-  if (!ld_local_file_relocations_fit (statement, deps))
-    fprintf (stderr, "initial relocation placement does not fit\n");
-
-  lang_for_each_statement_worker (xtensa_ldlang_clear_addresses, statement);
-#endif
 
   iter_stack_create (stack_p, statement);
 
@@ -759,9 +998,7 @@ xtensa_move_dependencies_to_front (reloc_deps_graph *deps,
 
 
 static bfd_boolean
-deps_has_sec_edge (const reloc_deps_graph *deps,
-		   asection *src,
-		   asection *tgt)
+deps_has_sec_edge (const reloc_deps_graph *deps, asection *src, asection *tgt)
 {
   const reloc_deps_section *sec_deps;
   const reloc_deps_e *sec_deps_e;
@@ -803,9 +1040,7 @@ deps_has_edge (const reloc_deps_graph *deps,
 
 
 static void
-add_deps_edge (reloc_deps_graph *deps,
-	       asection *src_sec,
-	       asection *tgt_sec)
+add_deps_edge (reloc_deps_graph *deps, asection *src_sec, asection *tgt_sec)
 {
   reloc_deps_section *src_sec_deps;
   reloc_deps_section *tgt_sec_deps;
@@ -895,7 +1130,7 @@ ld_build_required_section_dependence (lang_statement_union_type *s)
 	{
 	  lang_input_section_type *input;
 	  input = &l->input_section;
-	  xtensa_callback_required_dependence (input->ifile->the_bfd,
+	  xtensa_callback_required_dependence (input->section->owner,
 					       input->section,
 					       &link_info,
 					       /* Use the same closure.  */
@@ -924,6 +1159,145 @@ ld_count_children (lang_statement_union_type *s)
   return count;
 }
 #endif /* EXTRA_VALIDATION */
+
+
+/* Check if a particular section is included in the link.  This will only
+   be true for one instance of a particular linkonce section.  */
+
+static bfd_boolean input_section_found = FALSE;
+static asection *input_section_target = NULL;
+
+static void
+input_section_linked_worker (lang_statement_union_type *statement)
+{
+  if ((statement->header.type == lang_input_section_enum
+       && (statement->input_section.section == input_section_target)))
+    input_section_found = TRUE;
+}
+
+static bfd_boolean
+input_section_linked (asection *sec)
+{
+  input_section_found = FALSE;
+  input_section_target = sec;
+  lang_for_each_statement_worker (input_section_linked_worker, stat_ptr->head);
+  return input_section_found;
+}
+
+
+/* Strip out any linkonce literal sections or property tables where the
+   associated linkonce text is from a different object file.  Normally,
+   a matching set of linkonce sections is taken from the same object file,
+   but sometimes the files are compiled differently so that some of the
+   linkonce sections are not present in all files.  Stripping the
+   inconsistent sections like this is not completely robust -- a much
+   better solution is to use comdat groups.  */
+
+static int linkonce_len = sizeof (".gnu.linkonce.") - 1;
+
+static bfd_boolean
+is_inconsistent_linkonce_section (asection *sec)
+{
+  bfd *abfd = sec->owner;
+  const char *sec_name = bfd_get_section_name (abfd, sec);
+  char *prop_tag = 0;
+
+  if ((bfd_get_section_flags (abfd, sec) & SEC_LINK_ONCE) == 0
+      || strncmp (sec_name, ".gnu.linkonce.", linkonce_len) != 0)
+    return FALSE;
+
+  /* Check if this is an Xtensa property section.  */
+  if (strncmp (sec_name + linkonce_len, "p.", 2) == 0)
+    prop_tag = "p.";
+  else if (strncmp (sec_name + linkonce_len, "prop.", 5) == 0)
+    prop_tag = "prop.";
+  if (prop_tag)
+    {
+      int tag_len = strlen (prop_tag);
+      char *dep_sec_name = xmalloc (strlen (sec_name));
+      asection *dep_sec;
+
+      /* Get the associated linkonce text section and check if it is
+	 included in the link.  If not, this section is inconsistent
+	 and should be stripped.  */
+      strcpy (dep_sec_name, ".gnu.linkonce.");
+      strcat (dep_sec_name, sec_name + linkonce_len + tag_len);
+      dep_sec = bfd_get_section_by_name (abfd, dep_sec_name);
+      if (dep_sec == NULL || ! input_section_linked (dep_sec))
+	{
+	  free (dep_sec_name);
+	  return TRUE;
+	}
+      free (dep_sec_name);
+    }
+
+  return FALSE;
+}
+
+
+static void
+xtensa_strip_inconsistent_linkonce_sections (lang_statement_list_type *slist)
+{
+  lang_statement_union_type **s_p = &slist->head;
+  while (*s_p)
+    {
+      lang_statement_union_type *s = *s_p;
+      lang_statement_union_type *s_next = (*s_p)->header.next;
+
+      switch (s->header.type)
+	{
+	case lang_input_section_enum:
+	  if (is_inconsistent_linkonce_section (s->input_section.section))
+	    {
+	      *s_p = s_next;
+	      continue;
+	    }
+	  break;
+
+	case lang_constructors_statement_enum:
+	  xtensa_strip_inconsistent_linkonce_sections (&constructor_list);
+	  break;
+
+	case lang_output_section_statement_enum:
+	  if (s->output_section_statement.children.head)
+	    xtensa_strip_inconsistent_linkonce_sections
+	      (&s->output_section_statement.children);
+	  break;
+
+	case lang_wild_statement_enum:
+	  xtensa_strip_inconsistent_linkonce_sections
+	    (&s->wild_statement.children);
+	  break;
+
+	case lang_group_statement_enum:
+	  xtensa_strip_inconsistent_linkonce_sections
+	    (&s->group_statement.children);
+	  break;
+
+	case lang_data_statement_enum:
+	case lang_reloc_statement_enum:
+	case lang_object_symbols_statement_enum:
+	case lang_output_statement_enum:
+	case lang_target_statement_enum:
+	case lang_input_statement_enum:
+	case lang_assignment_statement_enum:
+	case lang_padding_statement_enum:
+	case lang_address_statement_enum:
+	case lang_fill_statement_enum:
+	  break;
+
+	default:
+	  FAIL ();
+	  break;
+	}
+
+      s_p = &(*s_p)->header.next;
+    }
+
+  /* Reset the tail of the list, in case the last entry was removed.  */
+  if (s_p != slist->tail)
+    slist->tail = s_p;
+}
 
 
 static void
@@ -1027,8 +1401,7 @@ xtensa_wild_group_interleave (lang_statement_union_type *s)
 
 
 static void
-xtensa_layout_wild (const reloc_deps_graph *deps,
-		    lang_wild_statement_type *w)
+xtensa_layout_wild (const reloc_deps_graph *deps, lang_wild_statement_type *w)
 {
   /* If it does not fit initially, we need to do this step.  Move all
      of the wild literal sections to a new list, then move each of
@@ -1252,7 +1625,7 @@ ld_assign_relative_paged_dot (bfd_vma dot,
 		bfd_boolean sec_is_target = section_is_target (deps, l);
 		bfd_boolean sec_is_source = section_is_source (deps, l);
 
-		if (section->_raw_size != 0
+		if (section->size != 0
 		    && (first_section
 			|| (in_literals && !sec_is_target)
 			|| (!in_literals && sec_is_target)))
@@ -1260,7 +1633,7 @@ ld_assign_relative_paged_dot (bfd_vma dot,
 		    do_xtensa_alignment = TRUE;
 		  }
 		first_section = FALSE;
-		if (section->_raw_size != 0)
+		if (section->size != 0)
 		  in_literals = (sec_is_target && !sec_is_source);
 	      }
 
@@ -1269,7 +1642,7 @@ ld_assign_relative_paged_dot (bfd_vma dot,
 
 	    dot = align_power (dot, align_pow);
 	    section->output_offset = dot;
-	    dot += section->_raw_size;
+	    dot += section->size;
 	  }
 	  break;
 	case lang_fill_statement_enum:
@@ -1336,7 +1709,7 @@ ld_local_file_relocations_fit (lang_statement_union_type *statement,
 		  && e->tgt->output_offset != 0)
 		{
 		  bfd_vma l32r_addr =
-		    align_power (e->src->output_offset + e->src->_raw_size, 2);
+		    align_power (e->src->output_offset + e->src->size, 2);
 		  bfd_vma target_addr = e->tgt->output_offset & ~3;
 		  if (l32r_addr < target_addr)
 		    {
@@ -1386,7 +1759,7 @@ ld_xtensa_insert_page_offsets (bfd_vma dot,
 
 	    if (lit_align)
 	      {
-		if (section->_raw_size != 0
+		if (section->size != 0
 		    && (first_section
 			|| (in_literals && !section_is_target (deps, l))
 			|| (!in_literals && section_is_target (deps, l))))
@@ -1394,7 +1767,7 @@ ld_xtensa_insert_page_offsets (bfd_vma dot,
 		    do_xtensa_alignment = TRUE;
 		  }
 		first_section = FALSE;
-		if (section->_raw_size != 0)
+		if (section->size != 0)
 		  {
 		    in_literals = (section_is_target (deps, l)
 				   && !section_is_source (deps, l));
@@ -1443,31 +1816,49 @@ ld_xtensa_insert_page_offsets (bfd_vma dot,
 
 EOF
 
-# Define some shell vars to insert bits of code into the standard elf
+# Define some shell vars to insert bits of code into the standard ELF
 # parse_args and list_options functions.
 #
 PARSE_AND_LIST_PROLOGUE='
-#define OPTION_NO_RELAX			301
+#define OPTION_OPT_SIZEOPT              (300)
+#define OPTION_NO_RELAX			(OPTION_OPT_SIZEOPT + 1)
+#define OPTION_LITERAL_MOVEMENT		(OPTION_NO_RELAX + 1)
+#define OPTION_NO_LITERAL_MOVEMENT	(OPTION_LITERAL_MOVEMENT + 1)
+extern int elf32xtensa_size_opt;
+extern int elf32xtensa_no_literal_movement;
 '
 
 PARSE_AND_LIST_LONGOPTS='
+  { "size-opt", no_argument, NULL, OPTION_OPT_SIZEOPT},
   { "no-relax", no_argument, NULL, OPTION_NO_RELAX},
+  { "literal-movement", no_argument, NULL, OPTION_LITERAL_MOVEMENT},
+  { "no-literal-movement", no_argument, NULL, OPTION_NO_LITERAL_MOVEMENT},
 '
 
 PARSE_AND_LIST_OPTIONS='
+  fprintf (file, _("  --size-opt\t\tWhen relaxing longcalls, prefer size optimization\n\t\t\t  over branch target alignment\n"));
   fprintf (file, _("  --no-relax\t\tDo not relax branches or coalesce literals\n"));
 '
 
 PARSE_AND_LIST_ARGS_CASES='
+    case OPTION_OPT_SIZEOPT:
+      elf32xtensa_size_opt = 1;
+      break;
     case OPTION_NO_RELAX:
       disable_relaxation = TRUE;
+      break;
+    case OPTION_LITERAL_MOVEMENT:
+      elf32xtensa_no_literal_movement = 0;
+      break;
+    case OPTION_NO_LITERAL_MOVEMENT:
+      elf32xtensa_no_literal_movement = 1;
       break;
 '
 
 # Replace some of the standard ELF functions with our own versions.
 #
 LDEMUL_BEFORE_PARSE=elf_xtensa_before_parse
+LDEMUL_AFTER_OPEN=elf_xtensa_after_open
 LDEMUL_CHOOSE_TARGET=elf_xtensa_choose_target
-LDEMUL_PLACE_ORPHAN=elf_xtensa_place_orphan
 LDEMUL_BEFORE_ALLOCATION=elf_xtensa_before_allocation
 

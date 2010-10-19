@@ -1,4 +1,4 @@
-# Copyright 2002 Free Software Foundation, Inc.
+# Copyright 2002, 2004 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
 if {![istarget "i*86-*-*"]} {
     return
@@ -41,7 +41,40 @@ if ![string match "" $err] then {
     send_log "$err\n"
     verbose "$err" 1
     fail "dlltool (fastcall export)"
-    continue;
+} else {
+    pass "dlltool (fastcall export)"
 }
 
-pass "dlltool (fastcall export)"
+if { "$target_xfail" == "yes" } {
+    setup_xfail *-*
+}
+
+verbose "$DLLTOOL -p prefix -l tmpdir/libalias.a -d $srcdir/$subdir/alias.def $dlltool_gas_flag" 1
+catch "exec $DLLTOOL -p prefix -l tmpdir/libalias.a -d $srcdir/$subdir/alias.def $dlltool_gas_flag" err
+
+if ![string match "" $err] then {
+    send_log "$err\n"
+    verbose "$err" 1
+    fail "dlltool -p (execution)"
+    continue
+}
+
+pass "dlltool -p (execution)"
+
+set got [binutils_run $NM "tmpdir/libalias.a"]
+set want "00000000 I __imp__prefix_symbol.*00000000 T _prefix_symbol.*00000000 I __imp__symbol.*00000000 T _symbol"
+
+if [regexp $want $got] then {
+    pass "dlltool -p (symbol names)"
+} else {
+    fail "dlltool -p (symbol names)"
+}
+
+set got [binutils_run $OBJDUMP "-s -j .idata\$6 tmpdir/libalias.a"]
+set want "(Contents of section .idata\\\$6:.*\\.\\.symbol\\.\\..*){2,2}"
+
+if [regexp $want $got] then {
+    pass "dlltool -p (import name)"
+} else {
+    fail "dlltool -p (import name)"
+}

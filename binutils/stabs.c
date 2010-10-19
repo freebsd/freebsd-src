@@ -17,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* This file contains code which parses stabs debugging information.
    The organization of this code is based on the gdb stabs reading
@@ -203,6 +203,8 @@ static debug_type *stab_demangle_argtypes
   (void *, struct stab_handle *, const char *, bfd_boolean *, unsigned int);
 static debug_type *stab_demangle_v3_argtypes
   (void *, struct stab_handle *, const char *, bfd_boolean *);
+static debug_type *stab_demangle_v3_arglist
+  (void *, struct stab_handle *, struct demangle_component *, bfd_boolean *);
 static debug_type stab_demangle_v3_arg
   (void *, struct stab_handle *, struct demangle_component *, debug_type,
    bfd_boolean *);
@@ -4319,7 +4321,8 @@ stab_demangle_template (struct stab_demangle_info *minfo, const char **pp,
 	    {
 	      unsigned int len;
 
-	      if (! stab_demangle_get_count (pp, &len))
+	      len = stab_demangle_count (pp);
+	      if (len == 0)
 		{
 		  stab_bad_demangle (orig);
 		  return FALSE;
@@ -5073,7 +5076,6 @@ stab_demangle_v3_argtypes (void *dhandle, struct stab_handle *info,
 {
   struct demangle_component *dc;
   void *mem;
-  unsigned int alloc, count;
   debug_type *pargs;
 
   dc = cplus_demangle_v3_components (physname, DMGL_PARAMS | DMGL_ANSI, &mem);
@@ -5093,13 +5095,35 @@ stab_demangle_v3_argtypes (void *dhandle, struct stab_handle *info,
       return NULL;
     }
 
+  pargs = stab_demangle_v3_arglist (dhandle, info,
+				    dc->u.s_binary.right->u.s_binary.right,
+				    pvarargs);
+
+  free (mem);
+
+  return pargs;
+}
+
+/* Demangle an argument list in a struct demangle_component tree.
+   Returns a DEBUG_TYPE_NULL terminated array of argument types, and
+   sets *PVARARGS to indicate whether this is a varargs function.  */
+
+static debug_type *
+stab_demangle_v3_arglist (void *dhandle, struct stab_handle *info,
+			  struct demangle_component *arglist,
+			  bfd_boolean *pvarargs)
+{
+  struct demangle_component *dc;
+  unsigned int alloc, count;
+  debug_type *pargs;
+
   alloc = 10;
   pargs = (debug_type *) xmalloc (alloc * sizeof *pargs);
   *pvarargs = FALSE;
 
   count = 0;
 
-  for (dc = dc->u.s_binary.right->u.s_binary.right;
+  for (dc = arglist;
        dc != NULL;
        dc = dc->u.s_binary.right)
     {
@@ -5108,8 +5132,8 @@ stab_demangle_v3_argtypes (void *dhandle, struct stab_handle *info,
 
       if (dc->type != DEMANGLE_COMPONENT_ARGLIST)
 	{
-	  fprintf (stderr, _("Unexpected type in demangle tree\n"));
-	  free (mem);
+	  fprintf (stderr, _("Unexpected type in v3 arglist demangling\n"));
+	  free (pargs);
 	  return NULL;
 	}
 
@@ -5122,7 +5146,7 @@ stab_demangle_v3_argtypes (void *dhandle, struct stab_handle *info,
 	      *pvarargs = TRUE;
 	      continue;
 	    }
-	  free (mem);
+	  free (pargs);
 	  return NULL;
 	}
 
@@ -5137,8 +5161,6 @@ stab_demangle_v3_argtypes (void *dhandle, struct stab_handle *info,
     }
 
   pargs[count] = DEBUG_TYPE_NULL;
-
-  free (mem);
 
   return pargs;
 }
@@ -5173,12 +5195,12 @@ stab_demangle_v3_arg (void *dhandle, struct stab_handle *info,
     case DEMANGLE_COMPONENT_COMPLEX:
     case DEMANGLE_COMPONENT_IMAGINARY:
     case DEMANGLE_COMPONENT_VENDOR_TYPE:
-    case DEMANGLE_COMPONENT_FUNCTION_TYPE:
     case DEMANGLE_COMPONENT_ARRAY_TYPE:
     case DEMANGLE_COMPONENT_PTRMEM_TYPE:
     case DEMANGLE_COMPONENT_ARGLIST:
     default:
-      fprintf (stderr, _("Unrecognized demangle component\n"));
+      fprintf (stderr, _("Unrecognized demangle component %d\n"),
+	       (int) dc->type);
       return NULL;
 
     case DEMANGLE_COMPONENT_NAME:
@@ -5268,6 +5290,34 @@ stab_demangle_v3_arg (void *dhandle, struct stab_handle *info,
 	case DEMANGLE_COMPONENT_REFERENCE:
 	  return debug_make_reference_type (dhandle, dt);
 	}
+
+    case DEMANGLE_COMPONENT_FUNCTION_TYPE:
+      {
+	debug_type *pargs;
+	bfd_boolean varargs;
+
+	if (dc->u.s_binary.left == NULL)
+	  {
+	    /* In this case the return type is actually unknown.
+	       However, I'm not sure this will ever arise in practice;
+	       normally an unknown return type would only appear at
+	       the top level, which is handled above.  */
+	    dt = debug_make_void_type (dhandle);
+	  }
+	else
+	  dt = stab_demangle_v3_arg (dhandle, info, dc->u.s_binary.left, NULL,
+				     NULL);
+	if (dt == NULL)
+	  return NULL;
+
+	pargs = stab_demangle_v3_arglist (dhandle, info,
+					  dc->u.s_binary.right,
+					  &varargs);
+	if (pargs == NULL)
+	  return NULL;
+
+	return debug_make_function_type (dhandle, dt, pargs, varargs);
+      }
 
     case DEMANGLE_COMPONENT_BUILTIN_TYPE:
       {

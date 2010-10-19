@@ -21,7 +21,7 @@ Disassembly of section \.text:
   401010:	09 00       	nop	
   401012:	09 00       	nop	
   401014:	09 00       	nop	
-  401016:	04 d0       	mov\.l	401028 <fn2\+0x28>,r0	! 0x1c
+  401016:	04 d0       	mov\.l	401028 <fn2\+0x28>,r0	! 0x1c .*
   401018:	12 04       	stc	gbr,r4
   40101a:	ce 00       	mov\.l	@\(r0,r12\),r0
   40101c:	4c 30       	add	r4,r0
@@ -38,7 +38,7 @@ Disassembly of section \.text:
   401032:	09 00       	nop	
   401034:	09 00       	nop	
   401036:	09 00       	nop	
-  401038:	03 d0       	mov\.l	401048 <fn2\+0x48>,r0	! 0x14
+  401038:	03 d0       	mov\.l	401048 <fn2\+0x48>,r0	! 0x14 .*
   40103a:	12 04       	stc	gbr,r4
   40103c:	ce 00       	mov\.l	@\(r0,r12\),r0
   40103e:	4c 30       	add	r4,r0
@@ -54,7 +54,7 @@ Disassembly of section \.text:
   401052:	09 00       	nop	
   401054:	09 00       	nop	
   401056:	09 00       	nop	
-  401058:	03 d4       	mov\.l	401068 <fn2\+0x68>,r4	! 0x8
+  401058:	03 d4       	mov\.l	401068 <fn2\+0x68>,r4	! 0x8 .*
   40105a:	12 00       	stc	gbr,r0
   40105c:	4c 30       	add	r4,r0
   40105e:	09 00       	nop	
@@ -70,7 +70,7 @@ Disassembly of section \.text:
   401072:	09 00       	nop	
   401074:	09 00       	nop	
   401076:	09 00       	nop	
-  401078:	03 d4       	mov\.l	401088 <fn2\+0x88>,r4	! 0x10
+  401078:	03 d4       	mov\.l	401088 <fn2\+0x88>,r4	! 0x10 .*
   40107a:	12 00       	stc	gbr,r0
   40107c:	4c 30       	add	r4,r0
   40107e:	09 00       	nop	
@@ -86,7 +86,7 @@ Disassembly of section \.text:
   401092:	09 00       	nop	
   401094:	09 00       	nop	
   401096:	09 00       	nop	
-  401098:	03 d4       	mov\.l	4010a8 <fn2\+0xa8>,r4	! 0x18
+  401098:	03 d4       	mov\.l	4010a8 <fn2\+0xa8>,r4	! 0x18 .*
   40109a:	12 00       	stc	gbr,r0
   40109c:	4c 30       	add	r4,r0
   40109e:	09 00       	nop	
@@ -116,11 +116,11 @@ Disassembly of section \.text:
   4010ce:	[0-9a-f]+ [0-9a-f]+       	.*[ 	]*.*
   4010d0:	09 00       	nop	
   4010d2:	09 00       	nop	
-  4010d4:	2c d1       	mov\.l	401188 <fn2\+0x188>,r1	! 0x10
+  4010d4:	2c d1       	mov\.l	401188 <fn2\+0x188>,r1	! 0x10 .*
   4010d6:	0c 31       	add	r0,r1
   4010d8:	09 00       	nop	
   4010da:	09 00       	nop	
-  4010dc:	2b d2       	mov\.l	40118c <fn2\+0x18c>,r2	! 0x14
+  4010dc:	2b d2       	mov\.l	40118c <fn2\+0x18c>,r2	! 0x14 .*
   4010de:	0c 32       	add	r0,r2
   4010e0:	09 00       	nop	
   4010e2:	09 00       	nop	
@@ -140,17 +140,17 @@ Disassembly of section \.text:
   4010fe:	[0-9a-f]+ [0-9a-f]+       	.*[ 	]*.*
   401100:	09 00       	nop	
   401102:	09 00       	nop	
-  401104:	22 d1       	mov\.l	401190 <fn2\+0x190>,r1	! 0x18
+  401104:	22 d1       	mov\.l	401190 <fn2\+0x190>,r1	! 0x18 .*
   401106:	0c 31       	add	r0,r1
   401108:	09 00       	nop	
   40110a:	09 00       	nop	
-  40110c:	21 d2       	mov\.l	401194 <fn2\+0x194>,r2	! 0x1c
+  40110c:	21 d2       	mov\.l	401194 <fn2\+0x194>,r2	! 0x1c .*
   40110e:	0c 32       	add	r0,r2
   401110:	09 00       	nop	
   401112:	09 00       	nop	
   401114:	09 00       	nop	
   401116:	09 00       	nop	
-  401118:	02 d0       	mov\.l	401124 <fn2\+0x124>,r0	! 0x14
+  401118:	02 d0       	mov\.l	401124 <fn2\+0x124>,r0	! 0x14 .*
   40111a:	12 01       	stc	gbr,r1
   40111c:	ce 00       	mov\.l	@\(r0,r12\),r0
   40111e:	03 a0       	bra	401128 <fn2\+0x128>
@@ -162,7 +162,7 @@ Disassembly of section \.text:
   40112a:	09 00       	nop	
   40112c:	09 00       	nop	
   40112e:	09 00       	nop	
-  401130:	02 d0       	mov\.l	40113c <fn2\+0x13c>,r0	! 0x18
+  401130:	02 d0       	mov\.l	40113c <fn2\+0x13c>,r0	! 0x18 .*
   401132:	12 01       	stc	gbr,r1
   401134:	ce 00       	mov\.l	@\(r0,r12\),r0
   401136:	03 a0       	bra	401140 <fn2\+0x140>
@@ -174,7 +174,7 @@ Disassembly of section \.text:
   401142:	09 00       	nop	
   401144:	09 00       	nop	
   401146:	09 00       	nop	
-  401148:	02 d0       	mov\.l	401154 <fn2\+0x154>,r0	! 0x8
+  401148:	02 d0       	mov\.l	401154 <fn2\+0x154>,r0	! 0x8 .*
   40114a:	12 01       	stc	gbr,r1
   40114c:	09 00       	nop	
   40114e:	03 a0       	bra	401158 <fn2\+0x158>
@@ -186,7 +186,7 @@ Disassembly of section \.text:
   40115a:	09 00       	nop	
   40115c:	09 00       	nop	
   40115e:	09 00       	nop	
-  401160:	02 d0       	mov\.l	40116c <fn2\+0x16c>,r0	! 0x18
+  401160:	02 d0       	mov\.l	40116c <fn2\+0x16c>,r0	! 0x18 .*
   401162:	12 01       	stc	gbr,r1
   401164:	09 00       	nop	
   401166:	03 a0       	bra	401170 <fn2\+0x170>
@@ -226,7 +226,7 @@ Disassembly of section \.text:
   40200e:	09 00       	nop	
   402010:	09 00       	nop	
   402012:	09 00       	nop	
-  402014:	02 d0       	mov\.l	402020 <_start\+0x20>,r0	! 0x10
+  402014:	02 d0       	mov\.l	402020 <_start\+0x20>,r0	! 0x10 .*
   402016:	12 01       	stc	gbr,r1
   402018:	ce 00       	mov\.l	@\(r0,r12\),r0
   40201a:	03 a0       	bra	402024 <_start\+0x24>
@@ -238,7 +238,7 @@ Disassembly of section \.text:
   402026:	09 00       	nop	
   402028:	09 00       	nop	
   40202a:	09 00       	nop	
-  40202c:	02 d0       	mov\.l	402038 <_start\+0x38>,r0	! 0x20
+  40202c:	02 d0       	mov\.l	402038 <_start\+0x38>,r0	! 0x20 .*
   40202e:	12 01       	stc	gbr,r1
   402030:	09 00       	nop	
   402032:	03 a0       	bra	40203c <_start\+0x3c>
@@ -262,7 +262,7 @@ Disassembly of section \.text:
   402056:	09 00       	nop	
   402058:	09 00       	nop	
   40205a:	09 00       	nop	
-  40205c:	02 d0       	mov\.l	402068 <_start\+0x68>,r0	! 0x1c
+  40205c:	02 d0       	mov\.l	402068 <_start\+0x68>,r0	! 0x1c .*
   40205e:	12 01       	stc	gbr,r1
   402060:	09 00       	nop	
   402062:	03 a0       	bra	40206c <_start\+0x6c>
@@ -275,7 +275,7 @@ Disassembly of section \.text:
   402070:	09 00       	nop	
   402072:	09 00       	nop	
   402074:	12 01       	stc	gbr,r1
-  402076:	0c d0       	mov\.l	4020a8 <_start\+0xa8>,r0	! 0x8
+  402076:	0c d0       	mov\.l	4020a8 <_start\+0xa8>,r0	! 0x8 .*
   402078:	1c 30       	add	r1,r0
   40207a:	09 00       	nop	
   40207c:	09 00       	nop	
@@ -289,7 +289,7 @@ Disassembly of section \.text:
   40208c:	09 00       	nop	
   40208e:	09 00       	nop	
   402090:	12 01       	stc	gbr,r1
-  402092:	07 d0       	mov\.l	4020b0 <_start\+0xb0>,r0	! 0x18
+  402092:	07 d0       	mov\.l	4020b0 <_start\+0xb0>,r0	! 0x18 .*
   402094:	1c 30       	add	r1,r0
   402096:	09 00       	nop	
   402098:	09 00       	nop	

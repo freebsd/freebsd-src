@@ -1,0 +1,62 @@
+# Expect script for FRV FDPIC TLS linker tests
+#   Copyright 2003, 2004, 2005 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+#
+
+if {![istarget frv*-*-*] || ![is_elf_format]} {
+    return
+}
+
+global ASFLAGS
+set saved_ASFLAGS "$ASFLAGS"
+set ASFLAGS "$ASFLAGS -mfdpic"
+
+global LDFLAGS
+set saved_LDFLAGS "$LDFLAGS"
+set LDFLAGS "$LDFLAGS -melf32frvfd"
+
+run_ld_link_tests [list [list "tls-1-dep" "$LDFLAGS -shared" "" "tls-1-dep.s" [list] "tls-1-dep.so" ""]]
+run_dump_test "tls-static-1"
+run_dump_test "tls-dynamic-1"
+run_dump_test "tls-pie-1"
+run_dump_test "tls-shared-1-fail"
+run_dump_test "tls-shared-1"
+
+run_dump_test "tls-relax-static-1"
+run_dump_test "tls-relax-dynamic-1"
+run_dump_test "tls-relax-pie-1"
+run_dump_test "tls-relax-shared-1"
+
+run_dump_test "tls-dynamic-2"
+run_dump_test "tls-shared-2"
+run_dump_test "tls-initial-shared-2"
+
+run_dump_test "tls-relax-dynamic-2"
+run_dump_test "tls-relax-shared-2"
+run_dump_test "tls-relax-initial-shared-2"
+
+run_dump_test "tls-static-3"
+run_dump_test "tls-dynamic-3"
+run_dump_test "tls-pie-3"
+run_dump_test "tls-shared-3"
+
+run_dump_test "tls-relax-static-3"
+run_dump_test "tls-relax-dynamic-3"
+run_dump_test "tls-relax-pie-3"
+run_dump_test "tls-relax-shared-3"
+
+set LDFLAGS "$saved_LDFLAGS"
+set ASFLAGS "$saved_ASFLAGS"

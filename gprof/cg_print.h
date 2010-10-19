@@ -1,6 +1,6 @@
 /* cg_print.h
 
-   Copyright 2000, 2001 Free Software Foundation, Inc.
+   Copyright 2000, 2001, 2002, 2004 Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
 
@@ -16,16 +16,16 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef cg_print_h
 #define cg_print_h
 
 extern double print_time;	/* Total of time being printed.  */
 
-extern void cg_print                    PARAMS ((Sym **));
-extern void cg_print_index              PARAMS ((void));
-extern void cg_print_file_ordering      PARAMS ((void));
-extern void cg_print_function_ordering  PARAMS ((void));
+extern void cg_print                    (Sym **);
+extern void cg_print_index              (void);
+extern void cg_print_file_ordering      (void);
+extern void cg_print_function_ordering  (void);
 
 #endif /* cg_print_h */

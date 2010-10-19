@@ -1,3 +1,5 @@
 #source: static.s
 #ld: -T discard.ld
-#error: local symbol 0: discarded in section `\.data\.exit' from tmpdir/dump0.o
+#error: `(\.data\.exit|data)' referenced in section `\.text' of tmpdir/dump0.o: defined in discarded section `\.data\.exit' of tmpdir/dump0.o
+#objdump: -p
+#pass

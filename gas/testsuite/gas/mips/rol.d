@@ -1,6 +1,5 @@
 #objdump: -dr --prefix-addresses
 #name: MIPS macro rol/ror
-#stderr: rol.l
 #as: -32
 
 # Test the rol and ror macros.

@@ -33,19 +33,22 @@
 #define GMON_HDRSIZE_BSD44_32 (4 + 4 + 4 + 4 + 4 + (3 * 4))
 #define GMON_HDRSIZE_BSD44_64 (8 + 8 + 4 + 4 + 4 + (3 * 4))
 
-#if 0 /* For documentation purposes only.  */
-  struct raw_phdr
-    {
-      char low_pc[sizeof(void *)]; /* base pc address of sample buffer */
-      char high_pc[sizeof(void *)];/* max pc address of sampled buffer */
-      char ncnt[4];		   /* size of sample buffer (plus this
-				      header) */
+/* *INDENT-OFF* */
+/* For documentation purposes only.
 
-      char version[4];		   /* version number */
-      char profrate[4];		   /* profiling clock rate */
-      char spare[3*4];		   /* reserved */
+   struct raw_phdr
+    {
+      char low_pc[sizeof(void *)];   -- base pc address of sample buffer
+      char high_pc[sizeof(void *)];  -- max pc address of sampled buffer
+      char ncnt[4];		     -- size of sample buffer (plus this
+				        header)
+
+      char version[4];		     -- version number
+      char profrate[4];		     -- profiling clock rate
+      char spare[3*4];		     -- reserved
     };
-#endif
+*/
+/* *INDENT-ON* */
 
 #define GMONVERSION     0x00051879
 
@@ -60,22 +63,24 @@
 #define GMON_HDRSIZE_OLDBSD_64 (8 + 8 + 4)
 #endif
 
-#if 0 /* For documentation purposes only.  */
+/* *INDENT-OFF* */
+/* For documentation purposes only.
+
   struct old_raw_phdr
     {
-      char low_pc[sizeof(void *)]; /* base pc address of sample buffer */
-      char high_pc[sizeof(void *)];/* max pc address of sampled buffer */
-      char ncnt[4];		   /* size of sample buffer (plus this
-				      header) */
-#if defined (__alpha__) && defined (__osf__)
-      /*
-       * DEC's OSF v3.0 uses 4 bytes of padding to bring the header to
-       * a size that is a multiple of 8.
-       */
-      char pad[4];
-#endif
+      char low_pc[sizeof(void *)];  -- base pc address of sample buffer
+      char high_pc[sizeof(void *)]  -- max pc address of sampled buffer
+      char ncnt[4];		    -- size of sample buffer (plus this
+				       header)
+
+      if defined (__alpha__) && defined (__osf__)
+      char pad[4];		    -- DEC's OSF v3.0 uses 4 bytes of padding
+				    -- to bring the header to a size that is a
+				    -- multiple of 8.
+      endif
     };
-#endif
+*/
+/* *INDENT-ON* */
 
 /*
  * Histogram counters are unsigned shorts:
@@ -130,14 +135,18 @@ struct tostruct
  * as to get a packed representation (otherwise, different compilers
  * might introduce different padding):
  */
-#if 0 /* For documentation purposes only.  */
+
+/* *INDENT-OFF* */
+/* For documentation purposes only.
+
   struct raw_arc
     {
       char from_pc[sizeof(void *)];
       char self_pc[sizeof(void *)];
       char count[sizeof(long)];
     };
-#endif
+*/
+/* *INDENT-ON* */
 
 /*
  * General rounding functions:

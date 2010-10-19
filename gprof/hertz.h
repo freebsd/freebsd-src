@@ -8,6 +8,6 @@
  * we return HZ_WRONG, an impossible sampling frequency.
  */
 
-extern int hertz PARAMS ((void));
+extern int hertz (void);
 
 #endif /* hertz_h */

@@ -1,7 +1,5 @@
 # Source file used to test the uld macro (harder).
 	
-	.set noat
-	
 	.text
 text_label:
 

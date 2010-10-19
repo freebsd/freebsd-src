@@ -254,7 +254,7 @@ proc mips_arch_list_matching {args} {
 	# properties actually are.
 	if { [string compare $arch default] == 0
 	     && [string length [mips_arch_properties default]] == 0} {
-	    continue;
+	    continue
 	}
 	if { [mips_arch_matches $arch $args] } {
 	    lappend l $arch
@@ -383,12 +383,14 @@ mips_arch_create sb1 	64	mips64	{ mips3d } \
 			{ -march=sb1 -mtune=sb1 } { -mmips:sb1 } \
 			{ mipsisa64sb1-*-* mipsisa64sb1el-*-* }
 
-
 #
-# And now begin the actual tests!
+# And now begin the actual tests!  VxWorks uses RELA rather than REL
+# relocations, so most of the generic dump tests will not work there.
 #
-
-if { [istarget mips*-*-*] } then {
+if { [istarget mips*-*-vxworks*] } {
+    run_dump_test "vxworks1"
+    run_dump_test "vxworks1-xgot"
+} elseif { [istarget mips*-*-*] } {
     set no_mips16 0
     set elf [expr [istarget *-*-elf*] || [istarget *-*-irix5*] || [istarget *-*-irix6* ] || [istarget *-*-linux*] || [istarget *-*-netbsd*] ]
     set ecoff [expr [istarget *-*-ecoff*] || [istarget *-*-ultrix*] || [istarget *-*-irix\[1-4\]*] ]
@@ -427,8 +429,11 @@ if { [istarget mips*-*-*] } then {
     run_dump_test_arches "blt"		[mips_arch_list_matching mips2]
     run_dump_test_arches "bltu"		[mips_arch_list_matching mips2]
     run_dump_test_arches "branch-misc-1" [mips_arch_list_matching mips1]
-    run_list_test_arches "branch-misc-2" "-32 -non_shared" [mips_arch_list_matching mips1]
-    run_list_test_arches "branch-misc-2pic" "-32 -call_shared" [mips_arch_list_matching mips1]
+    run_dump_test_arches "branch-misc-2" [mips_arch_list_matching mips1]
+    run_dump_test_arches "branch-misc-2pic" [mips_arch_list_matching mips1]
+    run_dump_test_arches "branch-misc-2-64" [mips_arch_list_matching mips3]
+    run_dump_test_arches "branch-misc-2pic-64" [mips_arch_list_matching mips3]
+    run_dump_test "branch-misc-3"
     run_dump_test "branch-swap"
 
     if $ilocks {
@@ -446,24 +451,11 @@ if { [istarget mips*-*-*] } then {
     }
     if $elf { run_dump_test "jal-svr4pic" }
     if $elf { run_dump_test "jal-xgot" }
-    # LOSE: As of 2002-02-08, the jal-empic test fails for target mips-ecoff.
-    # It appears that it broke between 2000-03-11 00:00UTC and
-    # 2000-03-12 00:00 UTC.
-    if $ecoff { run_dump_test "jal-empic" }
-    if $elf {
-	run_dump_test_arches "jal-empic-elf" [mips_arch_list_matching mips1]
-	run_dump_test_arches "jal-empic-elf-2" [mips_arch_list_matching mips1]
-	run_dump_test_arches "jal-empic-elf-3" [mips_arch_list_matching mips1]
-    }
     run_list_test_arches "jal-range" "-32" [mips_arch_list_matching mips1]
     if $has_newabi { run_dump_test "jal-newabi" }
     if !$aout { run_dump_test "la" }
     if $elf { run_dump_test "la-svr4pic" }
     if $elf { run_dump_test "la-xgot" }
-    # LOSE: As of 2002-02-08, the la-empic test fails for target mips-ecoff.
-    # Not sure when it first cropped up, but may be related to addition of
-    # "la" -> "addiu" pattern in MIPS opcode table long ago.
-    if $ecoff { run_dump_test "la-empic" }
     if $elf { run_dump_test "lca-svr4pic" }
     if $elf { run_dump_test "lca-xgot" }
     if !$aout {
@@ -472,7 +464,8 @@ if { [istarget mips*-*-*] } then {
 	run_dump_test_arches "lb"	[mips_arch_list_matching !mips2]
     }
     if $elf {
-	run_dump_test_arches "lb-svr4pic" [mips_arch_list_matching mips1]
+	run_dump_test_arches "lb-svr4pic" [mips_arch_list_matching !gpr_ilocks]
+	run_dump_test_arches "lb-svr4pic-ilocks" [mips_arch_list_matching gpr_ilocks]
     }
     if $elf {
 	# Both versions specify the cpu, so we can run both regardless of
@@ -480,7 +473,6 @@ if { [istarget mips*-*-*] } then {
 	run_dump_test "lb-xgot"
 	run_dump_test "lb-xgot-ilocks"
     }
-    if $ecoff { run_dump_test "lb-empic" }
     if !$aout {
         if !$gpr_ilocks {
             run_dump_test "ld"
@@ -494,15 +486,10 @@ if { [istarget mips*-*-*] } then {
     }
     if $elf { run_dump_test "ld-svr4pic" }
     if $elf { run_dump_test "ld-xgot" }
-    if $ecoff { run_dump_test "ld-empic" }
     run_dump_test_arches "li"		[mips_arch_list_matching mips1]
     if !$aout { run_dump_test "lifloat" }
     if $elf { run_dump_test "lif-svr4pic" }
     if $elf { run_dump_test "lif-xgot" }
-    # LOSE: As of 2002-02-08, the lif-empic test fails for target mips-ecoff.
-    # It appears that it broke between 2000-03-11 00:00UTC and
-    # 2000-03-12 00:00 UTC.
-    if $ecoff { run_dump_test "lif-empic" }
     run_dump_test_arches "mips4"	[mips_arch_list_matching mips4]
     run_dump_test_arches "mips5"	[mips_arch_list_matching mips5]
     if $ilocks {
@@ -524,7 +511,6 @@ if { [istarget mips*-*-*] } then {
     run_dump_test_arches "ulh2-el"	[mips_arch_list_matching mips1]
     if $elf { run_dump_test "ulh-svr4pic" }
     if $elf { run_dump_test "ulh-xgot" }
-    if $ecoff { run_dump_test "ulh-empic" }
     if !$aout {
 	run_dump_test "ulw"
 	run_dump_test "uld"
@@ -548,6 +534,11 @@ if { [istarget mips*-*-*] } then {
 	# Check jalx handling
 	run_dump_test "mips16-jalx"
 	run_dump_test "mips-jalx"
+	# Check MIPS16 HI16/LO16 relocations
+	run_dump_test "mips16-hilo"
+	if $has_newabi {
+	    run_dump_test "mips16-hilo-n32"
+	}
     }
     run_list_test "mips-no-jalx" "-32"
     run_dump_test "delay"
@@ -557,7 +548,8 @@ if { [istarget mips*-*-*] } then {
     run_dump_test "mips4100"
     run_dump_test "vr4111"
     run_dump_test "vr4120"
-    run_dump_test "vr4122"
+    run_dump_test "vr4120-2"
+    run_dump_test "vr4130"
     run_dump_test "vr5400"
     run_dump_test "vr5500"
     run_dump_test "rm7000"
@@ -680,18 +672,28 @@ if { [istarget mips*-*-*] } then {
 	    run_dump_test "elf-rel18"
 	}
 	run_dump_test "elf-rel19"
+	run_dump_test "elf-rel20"
+	if $has_newabi {
+	    run_dump_test "elf-rel21"
+	    run_dump_test "elf-rel22"
+	    run_dump_test "elf-rel23"
+	    run_dump_test "elf-rel23a"
+	    run_dump_test "elf-rel23b"
+	    run_dump_test "elf-rel24"
+	}
 
-	run_dump_test "${tmips}${el}empic"
-	run_dump_test "empic2"
-	run_dump_test "empic3_e"
-	run_dump_test "empic3_g1"
-	run_dump_test "empic3_g2"
+	run_dump_test "elf-rel25"
+	run_dump_test "elf-rel25a"
+
 	if { !$no_mips16 } {
 	    run_dump_test "${tmips}mips${el}16-e"
 	    run_dump_test "${tmips}mips${el}16-f"
 	}
 	run_dump_test "elf-consthilo"
 	run_dump_test "expr1"
+
+	run_list_test "tls-ill" "-32"
+	run_dump_test "tls-o32"
     }
 
     if $has_newabi {
@@ -729,12 +731,22 @@ if { [istarget mips*-*-*] } then {
     run_dump_test "hwr-names-mips64r2"
 
     run_dump_test "ldstla-32"
+    run_dump_test "ldstla-32-mips3"
     run_dump_test "ldstla-32-shared"
+    run_dump_test "ldstla-32-mips3-shared"
+    run_list_test "ldstla-32-1" "-mabi=32" \
+	"MIPS ld-st-la bad constants (ABI o32)"
+    run_list_test "ldstla-32-mips3-1" "-mabi=32" \
+	"MIPS ld-st-la bad constants (ABI o32, mips3)"
+    run_list_test "ldstla-32-1" "-KPIC -mabi=32" \
+	"MIPS ld-st-la bad constants (ABI o32, shared)"
+    run_list_test "ldstla-32-mips3-1" "-KPIC -mabi=32" \
+	"MIPS ld-st-la bad constants (ABI o32, mips3, shared)"
+    run_dump_test "ldstla-eabi64"
     if $has_newabi {
-	run_dump_test "ldstla-n32"
-	run_dump_test "ldstla-n32-shared"
 	run_dump_test "ldstla-n64"
 	run_dump_test "ldstla-n64-shared"
+	run_dump_test "ldstla-n64-sym32"
     }
 
     run_dump_test "macro-warn-1"
@@ -745,4 +757,28 @@ if { [istarget mips*-*-*] } then {
 	run_dump_test "macro-warn-1-n32"
 	run_dump_test "macro-warn-2-n32"
     }
+
+    run_dump_test "noat-1"
+    run_list_test "noat-2" ""
+    run_list_test "noat-3" ""
+    run_list_test "noat-4" ""
+    run_list_test "noat-5" ""
+    run_list_test "noat-6" ""
+    run_list_test "noat-7" ""
+
+    run_dump_test_arches "mips32-dsp"	[mips_arch_list_matching mips32 !sb1]
+    run_dump_test_arches "mips32-mt"	[mips_arch_list_matching mips32r2 !gpr64]
+
+    if { $elf && !$no_mips16 } {
+	run_dump_test "mips16-dwarf2"
+	if $has_newabi {
+	    run_dump_test "mips16-dwarf2-n32"
+	}
+    }
+    if { !$no_mips16 } { 
+        run_dump_test "mips16e-jrc"
+        run_dump_test "mips16e-save"
+    }
+    run_dump_test "vxworks1"
+    run_dump_test "vxworks1-xgot"
 }

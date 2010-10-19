@@ -1,5 +1,5 @@
 # Basic expect script for LD Regression Tests
-#   Copyright 1993, 1994, 1995, 1997, 1998, 1999
+#   Copyright 1993, 1994, 1995, 1997, 1998, 1999, 2001, 2003
 #   Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
@@ -14,7 +14,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # Written by Jeffrey Wheat (cassidy@cygnus.com)
 #
@@ -70,10 +70,28 @@ if {![file isdirectory tmpdir/ld]} then {
 set gcc_ld_flag "-B[pwd]/tmpdir/ld/"
 
 # load the linker path
-load_lib tmpdir/libpath.exp
+if {[file exists tmpdir/libpath.exp]} {
+    load_lib tmpdir/libpath.exp
 
-foreach dir $libpath {
-    set gcc_ld_flag "$gcc_ld_flag -L$dir"
+    foreach dir $libpath {
+	set gcc_ld_flag "$gcc_ld_flag -L$dir"
+    }
+}
+
+# The "make check" target in the Makefile passes in
+# "CC=$(CC_FOR_TARGET)".  But, if the user invokes runtest directly
+# (as when testing an installed linker), these flags may not be set.  
+if {![info exists CC]} {
+    set CC [find_gcc]
+}
+if {![info exists CFLAGS]} {
+    set CFLAGS "-g -O2"
+}
+if {![info exists CXX]} {
+    set CXX [find_g++]
+}
+if {![info exists CXXFLAGS]} {
+    set CXXFLAGS ""
 }
 
 # The mips64-*-linux-gnu compiler defaults to the N32 ABI after

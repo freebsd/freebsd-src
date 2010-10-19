@@ -18,196 +18,206 @@
 
 Disassembly of section .text:
 
-0+80000458 <fn2>:
+0+[0-9a-f]+ <fn2>:
 # function prolog
- +80000458:	eb 6e f0 30 00 24 	stmg	%r6,%r14,48\(%r15\)
- +8000045e:	a7 d5 00 3e       	bras	%r13,800004da <fn2\+0x82>
+ +[0-9a-f]+:	eb 6e f0 30 00 24 	stmg	%r6,%r14,48\(%r15\)
+ +[0-9a-f]+:	a7 d5 00 3e       	bras	%r13,[0-9a-f]+ <fn2\+0x82>
 # sG1@tlsgd
- +80000462:	00 00 00 00       	.long	0x00000000
- +80000466:	00 00 00 60       	.long	0x00000060
+ +[0-9a-f]+:	00 00 00 00       	.long	0x00000000
+ +[0-9a-f]+:	00 00 00 60       	.long	0x00000060
 # sG2@tlsgd
- +8000046a:	00 00 00 00       	.long	0x00000000
- +8000046e:	00 00 00 48       	.long	0x00000048
+ +[0-9a-f]+:	00 00 00 00       	.long	0x00000000
+ +[0-9a-f]+:	00 00 00 48       	.long	0x00000048
 # sg1@tlsgd
- +80000472:	ff ff ff ff       	.long	0xffffffff
- +80000476:	ff ff ff 60       	.long	0xffffff60
+ +[0-9a-f]+:	ff ff ff ff       	.long	0xffffffff
+ +[0-9a-f]+:	ff ff ff 60       	.long	0xffffff60
 # sl1@tlsgd
- +8000047a:	ff ff ff ff       	.long	0xffffffff
- +8000047e:	ff ff ff 80       	.long	0xffffff80
+ +[0-9a-f]+:	ff ff ff ff       	.long	0xffffffff
+ +[0-9a-f]+:	ff ff ff 80       	.long	0xffffff80
 # sh1@tlsgd
- +80000482:	ff ff ff ff       	.long	0xffffffff
- +80000486:	ff ff ff a0       	.long	0xffffffa0
+ +[0-9a-f]+:	ff ff ff ff       	.long	0xffffffff
+ +[0-9a-f]+:	ff ff ff a0       	.long	0xffffffa0
 # sl1@tlsldm
- +8000048a:	00 00 00 00       	.long	0x00000000
- +8000048e:	00 00 00 00       	.long	0x00000000
+ +[0-9a-f]+:	00 00 00 00       	.long	0x00000000
+ +[0-9a-f]+:	00 00 00 00       	.long	0x00000000
 # sl1@dtpoff
- +80000492:	ff ff ff ff       	.long	0xffffffff
- +80000496:	ff ff ff 80       	.long	0xffffff80
+ +[0-9a-f]+:	ff ff ff ff       	.long	0xffffffff
+ +[0-9a-f]+:	ff ff ff 80       	.long	0xffffff80
 # sl2@dtpoff
- +8000049a:	ff ff ff ff       	.long	0xffffffff
- +8000049e:	ff ff ff 84       	.long	0xffffff84
+ +[0-9a-f]+:	ff ff ff ff       	.long	0xffffffff
+ +[0-9a-f]+:	ff ff ff 84       	.long	0xffffff84
 # sh1@tlsldm
- +800004a2:	00 00 00 00       	.long	0x00000000
- +800004a6:	00 00 00 00       	.long	0x00000000
+ +[0-9a-f]+:	00 00 00 00       	.long	0x00000000
+ +[0-9a-f]+:	00 00 00 00       	.long	0x00000000
 # sh1@dtpoff
- +800004aa:	ff ff ff ff       	.long	0xffffffff
- +800004ae:	ff ff ff a0       	.long	0xffffffa0
+ +[0-9a-f]+:	ff ff ff ff       	.long	0xffffffff
+ +[0-9a-f]+:	ff ff ff a0       	.long	0xffffffa0
 # sh2@dtpoff
- +800004b2:	ff ff ff ff       	.long	0xffffffff
- +800004b6:	ff ff ff a4       	.long	0xffffffa4
+ +[0-9a-f]+:	ff ff ff ff       	.long	0xffffffff
+ +[0-9a-f]+:	ff ff ff a4       	.long	0xffffffa4
 # sG2@gotntpoff
- +800004ba:	00 00 00 00       	.long	0x00000000
- +800004be:	00 00 00 48       	.long	0x00000048
+ +[0-9a-f]+:	00 00 00 00       	.long	0x00000000
+ +[0-9a-f]+:	00 00 00 48       	.long	0x00000048
 # sg1@gotntpoff
- +800004c2:	ff ff ff ff       	.long	0xffffffff
- +800004c6:	ff ff ff 60       	.long	0xffffff60
+ +[0-9a-f]+:	ff ff ff ff       	.long	0xffffffff
+ +[0-9a-f]+:	ff ff ff 60       	.long	0xffffff60
 # sl1@gotntpoff
- +800004ca:	ff ff ff ff       	.long	0xffffffff
- +800004ce:	ff ff ff 80       	.long	0xffffff80
+ +[0-9a-f]+:	ff ff ff ff       	.long	0xffffffff
+ +[0-9a-f]+:	ff ff ff 80       	.long	0xffffff80
 # sh1@gotntpoff
- +800004d2:	ff ff ff ff       	.long	0xffffffff
- +800004d6:	ff ff ff a0       	.long	0xffffffa0
+ +[0-9a-f]+:	ff ff ff ff       	.long	0xffffffff
+ +[0-9a-f]+:	ff ff ff a0       	.long	0xffffffa0
 # function prolog
- +800004da:	b9 04 00 ef       	lgr	%r14,%r15
- +800004de:	a7 fb ff 60       	aghi	%r15,-160
- +800004e2:	c0 c0 00 00 09 d3 	larl	%r12,80001888 <_GLOBAL_OFFSET_TABLE_>
- +800004e8:	e3 e0 e0 00 00 24 	stg	%r14,0\(%r14\)
+ +[0-9a-f]+:	b9 04 00 ef       	lgr	%r14,%r15
+ +[0-9a-f]+:	a7 fb ff 60       	aghi	%r15,-160
+ +[0-9a-f]+:	c0 c0 [0-9a-f ]+ 	larl	%r12,[0-9a-f]+ <_GLOBAL_OFFSET_TABLE_>
+ +[0-9a-f]+:	e3 e0 e0 00 00 24 	stg	%r14,0\(%r14\)
 # extract TCB
- +800004ee:	b2 4f 00 90       	ear	%r9,%a0
- +800004f2:	eb 94 00 20 00 0d 	sllg	%r9,%r4,32
- +800004f8:	b2 4f 00 91       	ear	%r9,%a1
+ +[0-9a-f]+:	b2 4f 00 90       	ear	%r9,%a0
+ +[0-9a-f]+:	eb 94 00 20 00 0d 	sllg	%r9,%r4,32
+ +[0-9a-f]+:	b2 4f 00 91       	ear	%r9,%a1
 # GD -> IE because variable is not defined in executable
- +800004fc:	e3 c0 d0 00 00 04 	lg	%r12,0\(%r13\)
- +80000502:	e3 22 c0 00 00 04 	lg	%r2,0\(%r2,%r12\)
- +80000508:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
+ +[0-9a-f]+:	e3 c0 d0 00 00 04 	lg	%r12,0\(%r13\)
+ +[0-9a-f]+:	e3 22 c0 00 00 04 	lg	%r2,0\(%r2,%r12\)
+ +[0-9a-f]+:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
 # GD -> IE because variable is not defined in executable where
 # the variable is referenced through IE too
- +8000050c:	e3 20 d0 08 00 04 	lg	%r2,8\(%r13\)
- +80000512:	e3 22 c0 00 00 04 	lg	%r2,0\(%r2,%r12\)
- +80000518:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
+ +[0-9a-f]+:	e3 20 d0 08 00 04 	lg	%r2,8\(%r13\)
+ +[0-9a-f]+:	e3 22 c0 00 00 04 	lg	%r2,0\(%r2,%r12\)
+ +[0-9a-f]+:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
 # GD -> LE with global variable defined in executable
- +8000051c:	e3 20 d0 10 00 04 	lg	%r2,16\(%r13\)
- +80000522:	c0 04 00 00 00 00 	brcl	0,80000522 <fn2\+0xca>
- +80000528:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
+ +[0-9a-f]+:	e3 20 d0 10 00 04 	lg	%r2,16\(%r13\)
+ +[0-9a-f]+:	c0 04 00 00 00 00 	brcl	0,[0-9a-f]+ <fn2\+0xca>
+ +[0-9a-f]+:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
 # GD -> LE with local variable defined in executable
- +8000052c:	e3 20 d0 18 00 04 	lg	%r2,24\(%r13\)
- +80000532:	c0 04 00 00 00 00 	brcl	0,80000532 <fn2\+0xda>
- +80000538:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
+ +[0-9a-f]+:	e3 20 d0 18 00 04 	lg	%r2,24\(%r13\)
+ +[0-9a-f]+:	c0 04 00 00 00 00 	brcl	0,[0-9a-f]+ <fn2\+0xda>
+ +[0-9a-f]+:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
 # GD -> LE with hidden variable defined in executable
- +8000053c:	e3 20 d0 20 00 04 	lg	%r2,32\(%r13\)
- +80000542:	c0 04 00 00 00 00 	brcl	0,80000542 <fn2\+0xea>
- +80000548:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
+ +[0-9a-f]+:	e3 20 d0 20 00 04 	lg	%r2,32\(%r13\)
+ +[0-9a-f]+:	c0 04 00 00 00 00 	brcl	0,[0-9a-f]+ <fn2\+0xea>
+ +[0-9a-f]+:	41 22 90 00       	la	%r2,0\(%r2,%r9\)
 # LD -> LE
- +8000054c:	e3 20 d0 28 00 04 	lg	%r2,40\(%r13\)
- +80000552:	c0 04 00 00 00 00 	brcl	0,80000552 <fn2\+0xfa>
- +80000558:	41 32 90 00       	la	%r3,0\(%r2,%r9\)
- +8000055c:	e3 40 d0 30 00 04 	lg	%r4,48\(%r13\)
- +80000562:	41 54 30 00       	la	%r5,0\(%r4,%r3\)
- +80000566:	e3 40 d0 38 00 04 	lg	%r4,56\(%r13\)
- +8000056c:	41 54 30 00       	la	%r5,0\(%r4,%r3\)
- +80000570:	e3 20 d0 40 00 04 	lg	%r2,64\(%r13\)
- +80000576:	c0 04 00 00 00 00 	brcl	0,80000576 <fn2\+0x11e>
- +8000057c:	41 32 90 00       	la	%r3,0\(%r2,%r9\)
- +80000580:	e3 40 d0 48 00 04 	lg	%r4,72\(%r13\)
- +80000586:	41 54 30 00       	la	%r5,0\(%r4,%r3\)
- +8000058a:	e3 40 d0 50 00 04 	lg	%r4,80\(%r13\)
- +80000590:	41 54 30 00       	la	%r5,0\(%r4,%r3\)
+ +[0-9a-f]+:	e3 20 d0 28 00 04 	lg	%r2,40\(%r13\)
+ +[0-9a-f]+:	c0 04 00 00 00 00 	brcl	0,[0-9a-f]+ <fn2\+0xfa>
+ +[0-9a-f]+:	41 32 90 00       	la	%r3,0\(%r2,%r9\)
+ +[0-9a-f]+:	e3 40 d0 30 00 04 	lg	%r4,48\(%r13\)
+ +[0-9a-f]+:	41 54 30 00       	la	%r5,0\(%r4,%r3\)
+ +[0-9a-f]+:	e3 40 d0 38 00 04 	lg	%r4,56\(%r13\)
+ +[0-9a-f]+:	41 54 30 00       	la	%r5,0\(%r4,%r3\)
+ +[0-9a-f]+:	e3 20 d0 40 00 04 	lg	%r2,64\(%r13\)
+ +[0-9a-f]+:	c0 04 00 00 00 00 	brcl	0,[0-9a-f]+ <fn2\+0x11e>
+ +[0-9a-f]+:	41 32 90 00       	la	%r3,0\(%r2,%r9\)
+ +[0-9a-f]+:	e3 40 d0 48 00 04 	lg	%r4,72\(%r13\)
+ +[0-9a-f]+:	41 54 30 00       	la	%r5,0\(%r4,%r3\)
+ +[0-9a-f]+:	e3 40 d0 50 00 04 	lg	%r4,80\(%r13\)
+ +[0-9a-f]+:	41 54 30 00       	la	%r5,0\(%r4,%r3\)
 # IE against global var
- +80000594:	e3 30 d0 58 00 04 	lg	%r3,88\(%r13\)
- +8000059a:	e3 33 c0 00 00 04 	lg	%r3,0\(%r3,%r12\)
- +800005a0:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
+ +[0-9a-f]+:	e3 30 d0 58 00 04 	lg	%r3,88\(%r13\)
+ +[0-9a-f]+:	e3 33 c0 00 00 04 	lg	%r3,0\(%r3,%r12\)
+ +[0-9a-f]+:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
 # IE -> LE against global var defined in exec
- +800005a4:	e3 30 d0 60 00 04 	lg	%r3,96\(%r13\)
- +800005aa:	eb 43 00 00 00 0d 	sllg	%r4,%r3,0
- +800005b0:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
+ +[0-9a-f]+:	e3 30 d0 60 00 04 	lg	%r3,96\(%r13\)
+ +[0-9a-f]+:	eb 43 00 00 00 0d 	sllg	%r4,%r3,0
+ +[0-9a-f]+:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
 # IE -> LE against local var
- +800005b4:	e3 30 d0 68 00 04 	lg	%r3,104\(%r13\)
- +800005ba:	eb 43 00 00 00 0d 	sllg	%r4,%r3,0
- +800005c0:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
+ +[0-9a-f]+:	e3 30 d0 68 00 04 	lg	%r3,104\(%r13\)
+ +[0-9a-f]+:	eb 43 00 00 00 0d 	sllg	%r4,%r3,0
+ +[0-9a-f]+:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
 # IE -> LE against hidden var
- +800005c4:	e3 30 d0 70 00 04 	lg	%r3,112\(%r13\)
- +800005ca:	eb 43 00 00 00 0d 	sllg	%r4,%r3,0
- +800005d0:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
+ +[0-9a-f]+:	e3 30 d0 70 00 04 	lg	%r3,112\(%r13\)
+ +[0-9a-f]+:	eb 43 00 00 00 0d 	sllg	%r4,%r3,0
+ +[0-9a-f]+:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
 # IE against global var with larl got access
- +800005d4:	c0 30 00 00 09 6e 	larl	%r3,800018b0 <\_GLOBAL\_OFFSET\_TABLE\_\+0x28>
- +800005da:	e3 33 c0 00 00 04 	lg	%r3,0\(%r3,%r12\)
- +800005e0:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
+ +[0-9a-f]+:	c0 30 [0-9a-f ]+ 	larl	%r3,[0-9a-f]+ <_GLOBAL_OFFSET_TABLE_\+0x28>
+ +[0-9a-f]+:	e3 33 c0 00 00 04 	lg	%r3,0\(%r3,%r12\)
+ +[0-9a-f]+:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
 # IE against global var defined in exec with larl got access
- +800005e4:	c0 30 00 00 09 6e 	larl	%r3,800018c0 <\_GLOBAL\_OFFSET\_TABLE\_\+0x38>
- +800005ea:	eb 43 00 00 00 0d 	sllg	%r4,%r3,0
- +800005f0:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
+ +[0-9a-f]+:	c0 30 [0-9a-f ]+ 	larl	%r3,[0-9a-f]+ <_GLOBAL_OFFSET_TABLE_\+0x38>
+ +[0-9a-f]+:	eb 43 00 00 00 0d 	sllg	%r4,%r3,0
+ +[0-9a-f]+:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
 # IE against local var with larl got access
- +800005f4:	c0 30 00 00 09 5a 	larl	%r3,800018a8 <\_GLOBAL\_OFFSET\_TABLE\_\+0x20>
- +800005fa:	eb 43 00 00 00 0d 	sllg	%r4,%r3,0
- +80000600:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
+ +[0-9a-f]+:	c0 30 [0-9a-f ]+ 	larl	%r3,[0-9a-f]+ <_GLOBAL_OFFSET_TABLE_\+0x20>
+ +[0-9a-f]+:	eb 43 00 00 00 0d 	sllg	%r4,%r3,0
+ +[0-9a-f]+:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
 # IE against hidden var with larl got access
- +80000604:	c0 30 00 00 09 62 	larl	%r3,800018c8 <\_GLOBAL\_OFFSET\_TABLE\_\+0x40>
- +8000060a:	eb 43 00 00 00 0d 	sllg	%r4,%r3,0
- +80000610:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
+ +[0-9a-f]+:	c0 30 [0-9a-f ]+ 	larl	%r3,[0-9a-f]+ <_GLOBAL_OFFSET_TABLE_\+0x40>
+ +[0-9a-f]+:	eb 43 00 00 00 0d 	sllg	%r4,%r3,0
+ +[0-9a-f]+:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
 # IE against global var with small got access (no optimization)
- +80000614:	e3 30 c0 28 00 04 	lg	%r3,40\(%r12\)
- +8000061a:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
+ +[0-9a-f]+:	e3 30 c0 28 00 04 	lg	%r3,40\(%r12\)
+ +[0-9a-f]+:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
 # IE against global var defined in exec with small got access
 # (no optimization)
- +8000061e:	e3 30 c0 38 00 04 	lg	%r3,56\(%r12\)
- +80000624:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
+ +[0-9a-f]+:	e3 30 c0 38 00 04 	lg	%r3,56\(%r12\)
+ +[0-9a-f]+:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
 # IE against local var with small got access (no optimization)
- +80000628:	e3 30 c0 20 00 04 	lg	%r3,32\(%r12\)
- +8000062e:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
+ +[0-9a-f]+:	e3 30 c0 20 00 04 	lg	%r3,32\(%r12\)
+ +[0-9a-f]+:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
 # IE against hidden var with small got access (no optimization)
- +80000632:	e3 30 c0 40 00 04 	lg	%r3,64\(%r12\)
- +80000638:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
+ +[0-9a-f]+:	e3 30 c0 40 00 04 	lg	%r3,64\(%r12\)
+ +[0-9a-f]+:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
 # function epilog
- +8000063c:	eb 6e f0 d0 00 04 	lmg	%r6,%r14,208\(%r15\)
- +80000642:	07 fe             	br	%r14
+ +[0-9a-f]+:	eb 6e f0 d0 00 04 	lmg	%r6,%r14,208\(%r15\)
+ +[0-9a-f]+:	07 fe             	br	%r14
+ +[0-9a-f]+:	07 07             	bcr	0,%r7
+ +[0-9a-f]+:	07 07             	bcr	0,%r7
+ +[0-9a-f]+:	07 07             	bcr	0,%r7
+ +[0-9a-f]+:	07 07             	bcr	0,%r7
+ +[0-9a-f]+:	07 07             	bcr	0,%r7
+ +[0-9a-f]+:	07 07             	bcr	0,%r7
+ +[0-9a-f]+:	07 07             	bcr	0,%r7
+ +[0-9a-f]+:	07 07             	bcr	0,%r7
+ +[0-9a-f]+:	07 07             	bcr	0,%r7
+ +[0-9a-f]+:	07 07             	bcr	0,%r7
 
-0+80000644 <_start>:
+0+[0-9a-f]+ <_start>:
 # function prolog
- +80000644:	90 6e f0 18       	stm	%r6,%r14,24\(%r15\)
- +80000648:	a7 d5 00 16       	bras	%r13,80000674 <_start\+0x30>
+ +[0-9a-f]+:	90 6e f0 18       	stm	%r6,%r14,24\(%r15\)
+ +[0-9a-f]+:	a7 d5 00 16       	bras	%r13,[0-9a-f]+ <_start\+0x30>
 # sG6@indntpoff
- +8000064c:	00 00 00 00       	.long	0x00000000
- +80000650:	80 00 18 e0       	ssm	2272\(%r1\)
+ +[0-9a-f]+:	00 00 00 00       	.long	0x00000000
+ +[0-9a-f]+:	80 00 [0-9a-f ]+       	ssm	[0-9]+\(%r1\)
 # bg6@indntpoff
- +80000654:	ff ff ff ff       	.long	0xffffffff
- +80000658:	ff ff ff d4       	.long	0xffffffd4
+ +[0-9a-f]+:	ff ff ff ff       	.long	0xffffffff
+ +[0-9a-f]+:	ff ff ff d4       	.long	0xffffffd4
 # bl6@indntpoff
- +8000065c:	ff ff ff ff       	.long	0xffffffff
- +80000660:	ff ff ff f4       	.long	0xfffffff4
+ +[0-9a-f]+:	ff ff ff ff       	.long	0xffffffff
+ +[0-9a-f]+:	ff ff ff f4       	.long	0xfffffff4
 # sh6@indntpoff
- +80000664:	ff ff ff ff       	.long	0xffffffff
- +80000668:	ff ff ff b4       	.long	0xffffffb4
+ +[0-9a-f]+:	ff ff ff ff       	.long	0xffffffff
+ +[0-9a-f]+:	ff ff ff b4       	.long	0xffffffb4
 # sg3@indntpoff
- +8000066c:	ff ff ff ff       	.long	0xffffffff
- +80000670:	ff ff ff 68       	.long	0xffffff68
+ +[0-9a-f]+:	ff ff ff ff       	.long	0xffffffff
+ +[0-9a-f]+:	ff ff ff 68       	.long	0xffffff68
 # function prolog
- +80000674:	b9 04 00 ef       	lgr	%r14,%r15
- +80000678:	a7 fb ff 60       	aghi	%r15,-160
- +8000067c:	e3 e0 e0 00 00 24 	stg	%r14,0\(%r14\)
+ +[0-9a-f]+:	b9 04 00 ef       	lgr	%r14,%r15
+ +[0-9a-f]+:	a7 fb ff 60       	aghi	%r15,-160
+ +[0-9a-f]+:	e3 e0 e0 00 00 24 	stg	%r14,0\(%r14\)
 # extract TCB
- +80000682:	b2 4f 00 90       	ear	%r9,%a0
- +80000686:	eb 94 00 20 00 0d 	sllg	%r9,%r4,32
- +8000068c:	b2 4f 00 91       	ear	%r9,%a1
+ +[0-9a-f]+:	b2 4f 00 90       	ear	%r9,%a0
+ +[0-9a-f]+:	eb 94 00 20 00 0d 	sllg	%r9,%r4,32
+ +[0-9a-f]+:	b2 4f 00 91       	ear	%r9,%a1
 # IE against global var
- +80000690:	e3 30 d0 00 00 04 	lg	%r3,0\(%r13\)
- +80000696:	e3 33 c0 00 00 04 	lg	%r3,0\(%r3,%r12\)
- +8000069c:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
+ +[0-9a-f]+:	e3 30 d0 00 00 04 	lg	%r3,0\(%r13\)
+ +[0-9a-f]+:	e3 33 c0 00 00 04 	lg	%r3,0\(%r3,%r12\)
+ +[0-9a-f]+:	41 33 90 00       	la	%r3,0\(%r3,%r9\)
 # IE -> LE against global var defined in exec
- +800006a0:	e3 30 d0 08 00 04 	lg	%r3,8\(%r13\)
- +800006a6:	eb 43 00 00 00 0d 	sllg	%r4,%r3,0
- +800006ac:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
+ +[0-9a-f]+:	e3 30 d0 08 00 04 	lg	%r3,8\(%r13\)
+ +[0-9a-f]+:	eb 43 00 00 00 0d 	sllg	%r4,%r3,0
+ +[0-9a-f]+:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
 # IE -> LE against local var
- +800006b0:	e3 30 d0 10 00 04 	lg	%r3,16\(%r13\)
- +800006b6:	eb 43 00 00 00 0d 	sllg	%r4,%r3,0
- +800006bc:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
+ +[0-9a-f]+:	e3 30 d0 10 00 04 	lg	%r3,16\(%r13\)
+ +[0-9a-f]+:	eb 43 00 00 00 0d 	sllg	%r4,%r3,0
+ +[0-9a-f]+:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
 # IE -> LE against hidden but not local var
- +800006c0:	e3 30 d0 18 00 04 	lg	%r3,24\(%r13\)
- +800006c6:	eb 43 00 00 00 0d 	sllg	%r4,%r3,0
- +800006cc:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
+ +[0-9a-f]+:	e3 30 d0 18 00 04 	lg	%r3,24\(%r13\)
+ +[0-9a-f]+:	eb 43 00 00 00 0d 	sllg	%r4,%r3,0
+ +[0-9a-f]+:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
 # LE, global var defined in exec
- +800006d0:	e3 40 d0 20 00 04 	lg	%r4,32\(%r13\)
- +800006d6:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
+ +[0-9a-f]+:	e3 40 d0 20 00 04 	lg	%r4,32\(%r13\)
+ +[0-9a-f]+:	41 54 90 00       	la	%r5,0\(%r4,%r9\)
 # function epilog
- +800006da:	eb 6e f0 d0 00 04 	lmg	%r6,%r14,208\(%r15\)
- +800006e0:	07 fe             	br	%r14
- +800006e2:	07 07             	bcr	0,%r7
+ +[0-9a-f]+:	eb 6e f0 d0 00 04 	lmg	%r6,%r14,208\(%r15\)
+ +[0-9a-f]+:	07 fe             	br	%r14
+ +[0-9a-f]+:	07 07             	bcr	0,%r7

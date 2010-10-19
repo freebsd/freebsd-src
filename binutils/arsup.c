@@ -1,6 +1,6 @@
 /* arsup.c - Archive support for MRI compatibility
-   Copyright 1992, 1994, 1995, 1996, 1997, 2000, 2002, 2003, 2004
-   Free Software Foundation, Inc.
+   Copyright 1992, 1994, 1995, 1996, 1997, 1999, 2000, 2001, 2002, 2003,
+   2004 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -16,7 +16,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 
 /* Contributed by Steve Chamberlain
@@ -37,6 +37,10 @@ static void ar_directory_doer (bfd *, bfd *);
 static void ar_addlib_doer (bfd *, bfd *);
 
 extern int verbose;
+
+static bfd *obfd;
+static char *real_name;
+static FILE *outfile;
 
 static void
 map_over_list (bfd *arch, void (*function) (bfd *, bfd *), struct list *list)
@@ -86,7 +90,6 @@ map_over_list (bfd *arch, void (*function) (bfd *, bfd *), struct list *list)
 }
 
 
-FILE *outfile;
 
 static void
 ar_directory_doer (bfd *abfd, bfd *ignore ATTRIBUTE_UNUSED)
@@ -140,9 +143,6 @@ maybequit (void)
     xexit (9);
 }
 
-
-bfd *obfd;
-char *real_name;
 
 void
 ar_open (char *name, int t)

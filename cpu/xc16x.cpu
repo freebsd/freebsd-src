@@ -1,0 +1,245 @@
+/* XC16X opcode support.  -*- C -*-
+
+   Copyright 2006 Free Software Foundation, Inc.
+
+   Contributed by KPIT Cummins Infosystems Ltd.; developed under contract 
+   from Infineon Systems, GMBH , Germany.
+
+   This file is part of the GNU Binutils.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
+
+
+/* This file is an addendum to xc16x.cpu.  Heavy use of C code isn't
+   appropriate in .cpu files, so it resides here.  This especially applies
+   to assembly/disassembly where parsing/printing can be quite involved.
+   Such things aren't really part of the specification of the cpu, per se,
+   so .cpu files provide the general framework and .opc files handle the
+   nitty-gritty details as necessary.
+
+   Each section is delimited with start and end markers.
+
+   <arch>-opc.h additions use: "-- opc.h"
+   <arch>-opc.c additions use: "-- opc.c"
+   <arch>-asm.c additions use: "-- asm.c"
+   <arch>-dis.c additions use: "-- dis.c"
+   <arch>-ibd.h additions use: "-- ibd.h"  */
+
+/* -- opc.h */
+
+#define CGEN_DIS_HASH_SIZE 8
+#define CGEN_DIS_HASH(buf,value) (((* (unsigned char*) (buf)) >> 3) % CGEN_DIS_HASH_SIZE)
+
+/* -- */
+
+/* -- opc.c */
+                                                                                
+/* -- */
+
+/* -- asm.c */
+/* Handle '#' prefixes (i.e. skip over them).  */
+
+static const char *
+parse_hash (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+	    const char **strp,
+	    int opindex ATTRIBUTE_UNUSED,
+	    long *valuep ATTRIBUTE_UNUSED)
+{
+  if (**strp == '#')
+    {
+      ++*strp;
+      return NULL;
+    }
+  return _("Missing '#' prefix");
+}
+
+/* Handle '.' prefixes (i.e. skip over them).  */
+
+static const char *
+parse_dot (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+	   const char **strp,
+	   int opindex ATTRIBUTE_UNUSED,
+	   long *valuep ATTRIBUTE_UNUSED)
+{
+  if (**strp == '.')
+    {
+      ++*strp;
+      return NULL;
+    }
+  return _("Missing '.' prefix");
+}
+
+/* Handle 'pof:' prefixes (i.e. skip over them).  */
+
+static const char *
+parse_pof (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+	   const char **strp,
+	   int opindex ATTRIBUTE_UNUSED,
+	   long *valuep ATTRIBUTE_UNUSED)
+{
+  if (strncasecmp (*strp, "pof:", 4) == 0)
+    {
+      *strp += 4;
+      return NULL;
+    }
+  return _("Missing 'pof:' prefix");  
+}
+
+/* Handle 'pag:' prefixes (i.e. skip over them).  */
+
+static const char *
+parse_pag (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+	   const char **strp,
+	   int opindex ATTRIBUTE_UNUSED,
+	   long *valuep ATTRIBUTE_UNUSED)
+{
+  if (strncasecmp (*strp, "pag:", 4) == 0)
+    {
+      *strp += 4;
+      return NULL;
+    }
+  return _("Missing 'pag:' prefix");
+}
+
+/* Handle 'sof' prefixes (i.e. skip over them).  */
+
+static const char *
+parse_sof (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+	   const char **strp,
+	   int opindex ATTRIBUTE_UNUSED,
+	   long *valuep ATTRIBUTE_UNUSED)
+{
+  if (strncasecmp (*strp, "sof:", 4) == 0)
+    {
+      *strp += 4;
+      return NULL;
+    }
+  return _("Missing 'sof:' prefix");
+}
+
+/* Handle 'seg' prefixes (i.e. skip over them).  */
+
+static const char *
+parse_seg (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+	   const char **strp,
+	   int opindex ATTRIBUTE_UNUSED,
+	   long *valuep ATTRIBUTE_UNUSED)
+{
+  if (strncasecmp (*strp, "seg:", 4) == 0)
+    {
+      *strp += 4;
+      return NULL;
+    }
+  return _("Missing 'seg:' prefix");
+}
+/* -- */
+
+/* -- dis.c */
+
+#define CGEN_PRINT_NORMAL(cd, info, value, attrs, pc, length)	\
+  do								\
+    {								\
+      if (CGEN_BOOL_ATTR ((attrs), CGEN_OPERAND_DOT_PREFIX))	\
+        info->fprintf_func (info->stream, ".");			\
+      if (CGEN_BOOL_ATTR ((attrs), CGEN_OPERAND_POF_PREFIX))	\
+        info->fprintf_func (info->stream, "#pof:");		\
+      if (CGEN_BOOL_ATTR ((attrs), CGEN_OPERAND_PAG_PREFIX))	\
+        info->fprintf_func (info->stream, "#pag:");		\
+    }								\
+  while (0)
+
+/* Print a 'pof:' prefix to an operand.  */
+
+static void
+print_pof (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+	   void * dis_info ATTRIBUTE_UNUSED,
+	   long value ATTRIBUTE_UNUSED,
+	   unsigned int attrs ATTRIBUTE_UNUSED,
+	   bfd_vma pc ATTRIBUTE_UNUSED,
+	   int length ATTRIBUTE_UNUSED)
+{
+}
+
+/* Print a 'pag:' prefix to an operand.  */
+
+static void
+print_pag (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+	   void * dis_info ATTRIBUTE_UNUSED,
+	   long value ATTRIBUTE_UNUSED,
+	   unsigned int attrs ATTRIBUTE_UNUSED,
+	   bfd_vma pc ATTRIBUTE_UNUSED,
+	   int length ATTRIBUTE_UNUSED)
+{
+}
+
+/* Print a 'sof:' prefix to an operand.  */
+
+static void
+print_sof (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+	   void * dis_info,
+	   long value ATTRIBUTE_UNUSED,
+	   unsigned int attrs ATTRIBUTE_UNUSED,
+	   bfd_vma pc ATTRIBUTE_UNUSED,
+	   int length ATTRIBUTE_UNUSED)
+{
+  disassemble_info *info = (disassemble_info *) dis_info;
+
+  info->fprintf_func (info->stream, "sof:");
+}
+
+/* Print a 'seg:' prefix to an operand.  */
+
+static void
+print_seg (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+	   void * dis_info,
+	   long value ATTRIBUTE_UNUSED,
+	   unsigned int attrs ATTRIBUTE_UNUSED,
+	   bfd_vma pc ATTRIBUTE_UNUSED,
+	   int length ATTRIBUTE_UNUSED)
+{
+  disassemble_info *info = (disassemble_info *) dis_info;
+
+  info->fprintf_func (info->stream, "seg:");
+}
+
+/* Print a '#' prefix to an operand.  */
+
+static void
+print_hash (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+	    void * dis_info,
+	    long value ATTRIBUTE_UNUSED,
+	    unsigned int attrs ATTRIBUTE_UNUSED,
+	    bfd_vma pc ATTRIBUTE_UNUSED,
+	    int length ATTRIBUTE_UNUSED)
+{
+  disassemble_info *info = (disassemble_info *) dis_info;
+
+  info->fprintf_func (info->stream, "#");
+}
+
+/* Print a '.' prefix to an operand.  */
+
+static void
+print_dot (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+	   void * dis_info ATTRIBUTE_UNUSED,
+	   long value ATTRIBUTE_UNUSED,
+	   unsigned int attrs ATTRIBUTE_UNUSED,
+	   bfd_vma pc ATTRIBUTE_UNUSED,
+	   int length ATTRIBUTE_UNUSED)
+{
+}
+
+/* -- */

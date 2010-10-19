@@ -1,6 +1,6 @@
 /* This file is tc-sh.h
    Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003 Free Software Foundation, Inc.
+   2003, 2004, 2005 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -16,14 +16,13 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   the Free Software Foundation, 51 Franklin Street - Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 #define TC_SH
 
 #define TARGET_ARCH bfd_arch_sh
 
-#if ANSI_PROTOTYPES
 /* The type fixS is defined (to struct fix) in write.h, but write.h uses
    definitions from this file.  To avoid problems with including write.h
    after the "right" definitions, don't; just forward-declare struct fix
@@ -31,7 +30,6 @@
 struct fix;
 struct segment_info_struct;
 struct internal_reloc;
-#endif
 
 /* Whether -relax was used.  */
 extern int sh_relax;
@@ -62,16 +60,6 @@ extern int sh_force_relocation (struct fix *);
    to know about all such entries so that it can adjust them if
    necessary.  */
 
-#ifdef BFD_ASSEMBLER
-#define SWITCH_TABLE_CONS(FIX) (0)
-#else
-#define SWITCH_TABLE_CONS(FIX)				\
-  ((FIX)->fx_r_type == 0				\
-   && ((FIX)->fx_size == 2				\
-       || (FIX)->fx_size == 1				\
-       || (FIX)->fx_size == 4))
-#endif
-
 #define SWITCH_TABLE(FIX)				\
   ((FIX)->fx_addsy != NULL				\
    && (FIX)->fx_subsy != NULL				\
@@ -79,8 +67,7 @@ extern int sh_force_relocation (struct fix *);
    && S_GET_SEGMENT ((FIX)->fx_subsy) == text_section	\
    && ((FIX)->fx_r_type == BFD_RELOC_32			\
        || (FIX)->fx_r_type == BFD_RELOC_16		\
-       || (FIX)->fx_r_type == BFD_RELOC_8		\
-       || SWITCH_TABLE_CONS (FIX)))
+       || (FIX)->fx_r_type == BFD_RELOC_8))
 
 #define TC_FORCE_RELOCATION_SUB_SAME(FIX, SEC)		\
   (! SEG_NORMAL (SEC)					\
@@ -116,57 +103,28 @@ struct sh_segment_info_type
 
 /* We call a routine to emit a reloc for a label, so that the linker
    can align loads and stores without crossing a label.  */
-extern void sh_frob_label (void);
-#define tc_frob_label(sym) sh_frob_label ()
+extern void sh_frob_label (symbolS *);
+#define tc_frob_label(sym) sh_frob_label (sym)
 
 /* We call a routine to flush pending output in order to output a DATA
    reloc when required.  */
 extern void sh_flush_pending_output (void);
 #define md_flush_pending_output() sh_flush_pending_output ()
 
-#ifdef BFD_ASSEMBLER
 #define tc_frob_file_before_adjust sh_frob_file
-#else
-#define tc_frob_file sh_frob_file
-#endif
 extern void sh_frob_file (void);
 
 
 #ifdef OBJ_COFF
 /* COFF specific definitions.  */
 
-#define DO_NOT_STRIP 0
-
-/* This macro translates between an internal fix and a coff reloc type.  */
-#define TC_COFF_FIX2RTYPE(fix) ((fix)->fx_r_type)
-
-#define BFD_ARCH TARGET_ARCH
-
 #define COFF_MAGIC (!target_big_endian ? SH_ARCH_MAGIC_LITTLE : SH_ARCH_MAGIC_BIG)
-
-/* We need to write out relocs which have not been completed.  */
-#define TC_COUNT_RELOC(fix) ((fix)->fx_addsy != NULL)
-
-#define TC_RELOC_MANGLE(seg, fix, int, paddr) \
-  sh_coff_reloc_mangle ((seg), (fix), (int), (paddr))
-extern void sh_coff_reloc_mangle
-  (struct segment_info_struct *, struct fix *,
-   struct internal_reloc *, unsigned int);
 
 #define tc_coff_symbol_emit_hook(a) ; /* not used */
 
-#define NEED_FX_R_TYPE 1
-
 #define TC_KEEP_FX_OFFSET 1
 
-#define TC_COFF_SIZEMACHDEP(frag) tc_coff_sizemachdep(frag)
-extern int tc_coff_sizemachdep (fragS *);
-
-#ifdef BFD_ASSEMBLER
 #define SEG_NAME(SEG) segment_name (SEG)
-#else
-#define SEG_NAME(SEG) obj_segment_name (SEG)
-#endif
 
 /* We align most sections to a 16 byte boundary.  */
 #define SUB_SEGMENT_ALIGN(SEG, FRCHAIN)			\
@@ -189,6 +147,8 @@ extern int target_big_endian;
 #define TARGET_FORMAT (!target_big_endian ? "elf32-sh-linux" : "elf32-shbig-linux")
 #elif defined(TE_NetBSD)
 #define TARGET_FORMAT (!target_big_endian ? "elf32-shl-nbsd" : "elf32-sh-nbsd")
+#elif defined TARGET_SYMBIAN
+#define TARGET_FORMAT (!target_big_endian ? "elf32-shl-symbian" : "elf32-sh-symbian")
 #else
 #define TARGET_FORMAT (!target_big_endian ? "elf32-shl" : "elf32-sh")
 #endif
@@ -212,7 +172,7 @@ extern void sh_elf_final_processing (void);
 #define tc_fix_adjustable(FIX) sh_fix_adjustable(FIX)
 extern bfd_boolean sh_fix_adjustable (struct fix *);
 
-/* Values passed to md_apply_fix3 don't include symbol values.  */
+/* Values passed to md_apply_fix don't include symbol values.  */
 #define MD_APPLY_SYM_VALUE(FIX) 0
 
 /* This expression evaluates to true if the relocation is for a local object
@@ -246,9 +206,10 @@ extern bfd_boolean sh_fix_adjustable (struct fix *);
   ((FIX)->fx_r_type == BFD_RELOC_32_PLT_PCREL		\
    || (sh_relax && SWITCH_TABLE (FIX)))
 
-#define md_parse_name(name, exprP, nextcharP) \
-  sh_parse_name ((name), (exprP), (nextcharP))
-int sh_parse_name (char const *name, expressionS *exprP, char *nextchar);
+#define md_parse_name(name, exprP, mode, nextcharP) \
+  sh_parse_name ((name), (exprP), (mode), (nextcharP))
+int sh_parse_name (char const *name, expressionS *exprP,
+		   enum expr_mode mode, char *nextchar);
 
 #define TC_CONS_FIX_NEW(FRAG, OFF, LEN, EXP) \
   sh_cons_fix_new ((FRAG), (OFF), (LEN), (EXP))

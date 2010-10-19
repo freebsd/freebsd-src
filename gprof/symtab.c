@@ -1,6 +1,6 @@
 /* symtab.c
 
-   Copyright 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001, 2002, 2004 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include "gprof.h"
 #include "search_list.h"
@@ -26,7 +26,7 @@
 #include "cg_arcs.h"
 #include "corefile.h"
 
-static int cmp_addr PARAMS ((const PTR, const PTR));
+static int cmp_addr (const PTR, const PTR);
 
 Sym_Table symtab;
 
@@ -34,8 +34,7 @@ Sym_Table symtab;
 /* Initialize a symbol (so it's empty).  */
 
 void
-sym_init (sym)
-     Sym *sym;
+sym_init (Sym *sym)
 {
   memset (sym, 0, sizeof (*sym));
 
@@ -59,9 +58,7 @@ sym_init (sym)
    the global symbol survives.  */
 
 static int
-cmp_addr (lp, rp)
-     const PTR lp;
-     const PTR rp;
+cmp_addr (const PTR lp, const PTR rp)
 {
   const Sym *left = (const Sym *) lp;
   const Sym *right = (const Sym *) rp;
@@ -79,8 +76,7 @@ cmp_addr (lp, rp)
 
 
 void
-symtab_finalize (tab)
-     Sym_Table *tab;
+symtab_finalize (Sym_Table *tab)
 {
   Sym *src, *dst;
   bfd_vma prev_addr;
@@ -152,7 +148,8 @@ symtab_finalize (tab)
     }
 
   if (tab->len > 0 && dst[-1].end_addr == 0)
-    dst[-1].end_addr = core_text_sect->vma + core_text_sect->_raw_size - 1;
+    dst[-1].end_addr
+      = core_text_sect->vma + bfd_get_section_size (core_text_sect) - 1;
 
   DBG (AOUTDEBUG | IDDEBUG,
        printf ("[symtab_finalize]: removed %d duplicate entries\n",
@@ -177,9 +174,7 @@ symtab_finalize (tab)
 #ifdef DEBUG
 
 Sym *
-dbg_sym_lookup (sym_tab, address)
-     Sym_Table *sym_tab;
-     bfd_vma address;
+dbg_sym_lookup (Sym_Table *sym_tab, bfd_vma address)
 {
   long low, mid, high;
   Sym *sym;
@@ -218,9 +213,7 @@ dbg_sym_lookup (sym_tab, address)
 /* Look up an address in the symbol-table that is sorted by address.
    If address does not hit any symbol, 0 is returned.  */
 Sym *
-sym_lookup (sym_tab, address)
-     Sym_Table *sym_tab;
-     bfd_vma address;
+sym_lookup (Sym_Table *sym_tab, bfd_vma address)
 {
   long low, high;
   long mid = -1;

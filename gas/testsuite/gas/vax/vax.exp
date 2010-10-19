@@ -8,7 +8,7 @@ proc do_quad {} {
     set x2 0
     set x3 0
     set file "quad.s"
-    if { [istarget vax-*-*elf*] || [istarget vax-*-linux-gnu*] } then {
+    if { [istarget vax-*-*elf*] || [istarget vax-*-linux-*] } then {
 	set file "quad_elf.s"
     }
     gas_start $file "-al"
@@ -29,7 +29,9 @@ proc do_quad {} {
 if [istarget vax-*-* ] then {
     do_quad
 
-    if [istarget vax-*-*elf*] {
+    run_dump_test "flonum"
+
+    if { [istarget vax-*-*elf*] || [istarget vax-*-linux-*] } then {
 	run_dump_test "elf-rel"
     }
 }

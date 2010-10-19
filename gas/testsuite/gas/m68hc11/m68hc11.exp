@@ -43,7 +43,7 @@ proc gas_m68hc11_message { kind options line expect } {
     regsub -all "\n" "$line: $expect" " " title
 
     # Make a file containing the instructions to assemble.
-    set fd [open "$srcdir/$subdir/tst-m68hc1x.s" "w"];
+    set fd [open "$srcdir/$subdir/tst-m68hc1x.s" "w"]
     puts -nonewline $fd "$line"
     close $fd
 
@@ -153,15 +153,12 @@ gas_m68hc11_error "-m68hc12" "movb 2,x,bar,pc\nbar=300\n" \
 gas_m68hc11_error "-m68hc12" "movb bar,pc,2,x\nbar=300\n" \
     "Offset out of 5-bit range for movw/movb insn: 300"
 
-setup_xfail m6811-*-*
-setup_xfail m6812-*-*
-
 # ------------------
 # Specific commands
 gas_m68hc11_warning "" ".mode \"bar\"\n" "Invalid mode: .bar."
 gas_m68hc11_error "" ".relax 23\n" "bad .relax format"
 gas_m68hc11_error "" ".relax bar-23\n" "bad .relax format"
-gas_m68hc11_warning "" ".far bar bar\n" "rest of line ignored"
+gas_m68hc11_error "" ".far bar bar\n" "junk at end of line"
 
 
 run_dump_test insns

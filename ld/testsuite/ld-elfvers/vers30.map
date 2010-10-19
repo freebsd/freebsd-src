@@ -1,0 +1,6 @@
+VERS_30.0 {
+  global:
+    foo; info; global; extern "C" { extern; };
+  local:
+    local; bar; *;
+};

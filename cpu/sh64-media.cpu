@@ -1,0 +1,1732 @@
+; Hitachi SHmedia instruction set description.  -*- Scheme -*-
+;
+; Copyright 2000, 2001 Free Software Foundation, Inc.
+;
+; Contributed by Red Hat Inc; developed under contract from Hitachi
+; Semiconductor (America) Inc.
+;
+; This file is part of the GNU Binutils.
+;
+; This program is free software; you can redistribute it and/or modify
+; it under the terms of the GNU General Public License as published by
+; the Free Software Foundation; either version 2 of the License, or
+; (at your option) any later version.
+;
+; This program is distributed in the hope that it will be useful,
+; but WITHOUT ANY WARRANTY; without even the implied warranty of
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+; GNU General Public License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with this program; if not, write to the Free Software
+; Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+
+
+; dshmf -- define-normal-sh-media-field
+
+(define-pmacro (dshmf xname xcomment ignored xstart xlength)
+  (dnf xname xcomment ((ISA media)) xstart xlength))
+
+; dshmop -- define-normal-sh-media-operand
+
+(define-pmacro (dshmop xname xcomment ignored xhardware xfield)
+  (dnop xname xcomment ((ISA media)) xhardware xfield))
+
+; dnshmi -- define-normal-sh-media-insn
+
+(define-pmacro (dshmi xname xcomment xattrs xsyntax xformat xsemantics)
+  (define-insn
+    (name xname)
+    (comment xcomment)
+    (.splice attrs (.unsplice xattrs) (ISA media))
+    (syntax xsyntax)
+    (format xformat)
+    (semantics xsemantics)))
+
+; Saturation functions.
+; Force a value `i' into words `n' bits wide.
+; See Hitachi SH-5 CPU core, volume 2, p. 25 for details.
+
+; saturate -- signed saturatation function
+
+(define-pmacro (saturate mode n i)
+  (if mode (lt i (neg mode (sll mode 1 (sub n 1))))
+      (neg (sll mode 1 (sub n 1)))
+      (if mode (lt i (sll mode 1 (sub n 1)))
+	  i
+ 	  (sub mode (sll mode 1 (sub n 1)) 1))))
+
+; usaturate -- unsigned saturation function
+
+(define-pmacro (usaturate mode n i)
+  (if mode (lt i (const mode 0))
+      (const mode 0)
+      (if mode (lt i (sll mode 1 n))
+	  i
+	  (sub mode (sll mode 1 n) 1))))
+
+
+; Ifields.
+
+(dshmf f-op          "Opcode"                       ()  31  6)
+(dshmf f-ext         "Extension opcode"             ()  19  4)
+(dshmf f-rsvd        "Reserved"		    (RESERVED)   3  4)
+
+(dshmf f-left        "Left register"                ()  25  6)
+(dshmf f-right       "Right register"               ()  15  6)
+(dshmf f-dest        "Destination register"         ()   9  6)
+
+(define-multi-ifield
+  (name f-left-right)
+  (comment "Left and right matched register pair")
+  (attrs (ISA media))
+  (mode UINT)
+  (subfields f-left f-right)
+  (insert (sequence ()
+		    (set (ifield f-left)
+			 (and (ifield f-left-right) 63))
+		    (set (ifield f-right)
+			 (and (ifield f-left-right) 63))))
+  (extract (set (ifield f-left-right) (ifield f-left)))
+)
+
+(dshmf f-tra         "Target register"              ()   6  3)
+(dshmf f-trb         "Target register"              ()  22  3)
+(dshmf f-likely      "Likely bit"                   ()   9  1)
+(dshmf f-25          "Three unused bits at bit 25"  ()  25  3)
+(dshmf f-8-2         "Two unused bits at bit 8"     ()   8  2)
+
+(df f-imm6   "Immediate value (6 bits)"      ((ISA media)) 15 6 INT #f #f)
+(df f-imm10  "Immediate value (10 bits)"     ((ISA media)) 19 10 INT #f #f)
+(df f-imm16  "Immediate value (16 bits)"     ((ISA media)) 25 16 INT #f #f)
+
+(dshmf f-uimm6       "Immediate value (6 bits)"     ()  15  6)
+(dshmf f-uimm16      "Immediate value (16 bits)"    ()  25 16)
+
+; Various displacement fields.
+; The 10 bit field, for example, has different scaling for displacements.
+
+(df f-disp6	     "Displacement (6 bits)"        ((ISA media)) 15 6 INT #f #f)
+
+(df f-disp6x32       "Displacement (6 bits)"        ((ISA media)) 15 6 INT
+    ((value pc) (sra SI value 5))
+    ((value pc) (sll SI value 5)))
+
+(df f-disp10         "Displacement (10 bits)"       ((ISA media)) 19 10 INT #f #f)
+
+(df f-disp10x8       "Displacement (10 bits)"       ((ISA media)) 19 10 INT
+    ((value pc) (sra SI value 3))
+    ((value pc) (sll SI value 3)))
+
+(df f-disp10x4       "Displacement (10 bits)"       ((ISA media)) 19 10 INT
+    ((value pc) (sra SI value 2))
+    ((value pc) (sll SI value 2)))
+
+(df f-disp10x2       "Displacement (10 bits)"       ((ISA media)) 19 10 INT
+    ((value pc) (sra SI value 1))
+    ((value pc) (sll SI value 1)))
+
+(df f-disp16         "Displacement (16 bits)"       ((ISA media) PCREL-ADDR) 25 16 INT
+    ((value pc) (sra DI value 2))
+    ((value pc) (add DI (sll DI value 2) pc)))
+
+
+; Operands.
+
+(dshmop rm        "Left general purpose reg"            ()  h-gr    f-left)
+(dshmop rn        "Right general purpose reg"           ()  h-gr    f-right)
+(dshmop rd        "Destination general purpose reg"     ()  h-gr    f-dest)
+
+(dshmop frg       "Left single precision register"      ()  h-fr    f-left)
+(dshmop frh       "Right single precision register"     ()  h-fr    f-right)
+(dshmop frf       "Destination single precision reg"    ()  h-fr    f-dest)
+(dshmop frgh      "Single precision register pair"      ()  h-fr    f-left-right)
+
+(dshmop fpf       "Pair of single precision registers"  ()  h-fp    f-dest)
+
+(dshmop fvg       "Left single precision vector"        ()  h-fv    f-left)
+(dshmop fvh       "Right single precision vector"       ()  h-fv    f-right)
+(dshmop fvf       "Destination single precision vector" ()  h-fv    f-dest)
+(dshmop mtrxg     "Left single precision matrix"        ()  h-fmtx  f-left)
+
+(dshmop drg       "Left double precision register"      ()  h-dr    f-left)
+(dshmop drh       "Right double precision register"     ()  h-dr    f-right)
+(dshmop drf       "Destination double precision reg"    ()  h-dr    f-dest)
+(dshmop drgh      "Double precision register pair"      ()  h-dr    f-left-right)
+
+(dshmop fpscr     "Floating point status register"      ()  h-fpscr f-nil)
+(dshmop crj       "Control register j"                  ()  h-cr    f-dest)
+(dshmop crk       "Control register k"			()  h-cr    f-left)
+
+(dshmop tra       "Target register a"                   ()  h-tr    f-tra)
+(dshmop trb       "Target register b"                   ()  h-tr    f-trb)
+
+(dshmop disp6     "Displacement (6 bits)"		()  h-sint  f-disp6)
+(dshmop disp6x32  "Displacement (6 bits, scale 32)"     ()  h-sint  f-disp6x32)
+(dshmop disp10    "Displacement (10 bits)"              ()  h-sint  f-disp10)
+(dshmop disp10x2  "Displacement (10 bits, scale 2)"     ()  h-sint  f-disp10x2)
+(dshmop disp10x4  "Displacement (10 bits, scale 4)"     ()  h-sint  f-disp10x4)
+(dshmop disp10x8  "Displacement (10 bits, scale 8)"     ()  h-sint  f-disp10x8)
+(dshmop disp16    "Displacement (16 bits)"              ()  h-sint  f-disp16)
+
+(dshmop imm6      "Immediate (6 bits)"                  ()  h-sint  f-imm6)
+(dshmop imm10     "Immediate (10 bits)"                 ()  h-sint  f-imm10)
+(dshmop imm16     "Immediate (16 bits)"                 ()  h-sint  f-imm16)
+(dshmop uimm6     "Immediate (6 bits)"                  ()  h-uint  f-uimm6)
+(dshmop uimm16    "Unsigned immediate (16 bits)"        ()  h-uint  f-uimm16)
+
+; FIXME: provide these parse/print functions in `sh-media.opc'.
+
+(define-operand (name likely) (comment "Likely branch?") (attrs (ISA media))
+  (type h-uint) (index f-likely) (handlers (parse "likely") (print "likely")))
+
+
+; Instructions.
+
+(dshmi add "Add"
+       ()
+       "add $rm, $rn, $rd"
+       (+ (f-op 0) rm (f-ext 9) rn rd (f-rsvd 0))
+       (set rd (add rm rn)))
+
+(dshmi addl "Add long"
+       ()
+       "add.l $rm, $rn, $rd"
+       (+ (f-op 0) rm (f-ext 8) rn rd (f-rsvd 0))
+       (set rd (add (subword SI rm 1) (subword SI rn 1))))
+
+(dshmi addi "Add immediate"
+       ()
+       "addi $rm, $disp10, $rd"
+       (+ (f-op 52) rm disp10 rd (f-rsvd 0))
+       (set rd (add rm (ext DI disp10))))
+
+(dshmi addil "Add immediate long"
+       ()
+       "addi.l $rm, $disp10, $rd"
+       (+ (f-op 53) rm disp10 rd (f-rsvd 0))
+       (set rd (ext DI (add (ext SI disp10) (subword SI rm 1)))))
+
+(dshmi addzl "Add zero extended long"
+       ()
+       "addz.l $rm, $rn, $rd"
+       (+ (f-op 0) rm (f-ext 12) rn rd (f-rsvd 0))
+       (set rd (zext DI (add (subword SI rm 1) (subword SI rn 1)))))
+
+(dshmi alloco "Allocate operand cache block"
+       ()
+       "alloco $rm, $disp6x32"
+       (+ (f-op 56) rm (f-ext 4) disp6x32 (f-dest 63) (f-rsvd 0))
+       (unimp "alloco"))
+
+(dshmi and "AND"
+       ()
+       "and $rm, $rn, $rd"
+       (+ (f-op 1) rm (f-ext 11) rn rd (f-rsvd 0))
+       (set rd (and rm rn)))
+
+(dshmi andc "AND complement"
+       ()
+       "andc $rm, $rn, $rd"
+       (+ (f-op 1) rm (f-ext 15) rn rd (f-rsvd 0))
+       (set rd (and rm (inv rn))))
+
+(dshmi andi "AND immediate"
+       ()
+       "andi $rm, $disp10, $rd"
+       (+ (f-op 54) rm disp10 rd (f-rsvd 0))
+       (set rd (and rm (ext DI disp10))))
+
+(dshmi beq "Branch if equal"
+       ()
+       "beq$likely $rm, $rn, $tra"
+       (+ (f-op 25) rm (f-ext 1) rn likely (f-8-2 0) tra (f-rsvd 0))
+       (if (eq rm rn)
+	   (set pc tra)))
+
+(dshmi beqi "Branch if equal immediate"
+       ()
+       "beqi$likely $rm, $imm6, $tra"
+       (+ (f-op 57) rm (f-ext 1) imm6 likely (f-8-2 0) tra (f-rsvd 0))
+       (if (eq rm (ext DI imm6))
+	   (set pc tra)))
+
+(dshmi bge "Branch if greater than or equal"
+       ()
+       "bge$likely $rm, $rn, $tra"
+       (+ (f-op 25) rm (f-ext 3) rn likely (f-8-2 0) tra (f-rsvd 0))
+       (if (ge rm rn)
+	   (set pc tra)))
+
+(dshmi bgeu "Branch if greater than or equal (unsigned comparison)"
+       ()
+       "bgeu$likely $rm, $rn, $tra"
+       (+ (f-op 25) rm (f-ext 11) rn likely (f-8-2 0) tra (f-rsvd 0))
+       (if (geu rm rn)
+	   (set pc tra)))
+
+(dshmi bgt "Branch greater than"
+       ()
+       "bgt$likely $rm, $rn, $tra"
+       (+ (f-op 25) rm (f-ext 7) rn likely (f-8-2 0) tra (f-rsvd 0))
+       (if (gt rm rn)
+	   (set pc tra)))
+
+(dshmi bgtu "Branch greater than (unsigned comparison)"
+       ()
+       "bgtu$likely $rm, $rn, $tra"
+       (+ (f-op 25) rm (f-ext 15) rn likely (f-8-2 0) tra (f-rsvd 0))
+       (if (gtu rm rn)
+	   (set pc tra)))
+
+(dshmi blink "Branch and link"
+       ()
+       "blink $trb, $rd"
+       (+ (f-op 17) (f-25 0) trb (f-ext 1) (f-right 63) rd (f-rsvd 0))
+       (sequence ()
+		 (set rd (or (add pc 4) 1))
+		 (set pc trb)))
+
+(dshmi bne "Branch if not equal"
+       ()
+       "bne$likely $rm, $rn, $tra"
+       (+ (f-op 25) rm (f-ext 5) rn likely (f-8-2 0) tra (f-rsvd 0))
+       (if (ne rm rn)
+	   (set pc tra)))
+
+(dshmi bnei "Branch if not equal immediate"
+       ()
+       "bnei$likely $rm, $imm6, $tra"
+       (+ (f-op 57) rm (f-ext 5) rn likely (f-8-2 0) tra (f-rsvd 0))
+       (if (ne rm (ext DI imm6))
+	   (set pc tra)))
+
+(dshmi brk "Breakpoint instruction"
+       ()
+       "brk"
+       (+ (f-op 27) (f-left 63) (f-ext 5) (f-right 63) (f-dest 63) (f-rsvd 0))
+       (c-call "sh64_break" pc))
+
+(define-pmacro (-byterev-step)
+  (sequence ()
+    (set result (or (sll result 8) (and source 255)))
+    (set source (srl source 8)))
+)
+
+(dshmi byterev "Byte reverse"
+       ()
+       "byterev $rm, $rd"
+       (+ (f-op 0) rm (f-ext 15) (f-right 63) rd (f-rsvd 0))
+       (sequence ((DI source) (DI result))
+		 (set source rm)
+		 (set result 0)
+		 (-byterev-step)
+		 (-byterev-step)
+		 (-byterev-step)
+		 (-byterev-step)
+		 (-byterev-step)
+		 (-byterev-step)
+		 (-byterev-step)
+		 (-byterev-step)
+		 (set rd result)))
+
+(dshmi cmpeq "Compare equal"
+       ()
+       "cmpeq $rm, $rn, $rd"
+       (+ (f-op 0) rm (f-ext 1) rn rd (f-rsvd 0))
+       (set rd (if DI (eq rm rn) 1 0)))
+
+(dshmi cmpgt "Compare greater than"
+       ()
+       "cmpgt $rm, $rn, $rd"
+       (+ (f-op 0) rm (f-ext 3) rn rd (f-rsvd 0))
+       (set rd (if DI (gt rm rn) 1 0)))
+
+(dshmi cmpgtu "Compare greater than (unsigned comparison)"
+       ()
+       "cmpgtu $rm,$rn, $rd"
+       (+ (f-op 0) rm (f-ext 7) rn rd (f-rsvd 0))
+       (set rd (if DI (gtu rm rn) 1 0)))
+
+(dshmi cmveq "Conditional move if equal to zero"
+       ()
+       "cmveq $rm, $rn, $rd"
+       (+ (f-op 8) rm (f-ext 1) rn rd (f-rsvd 0))
+       (if (eq rm 0)
+	   (set rd rn)))
+
+(dshmi cmvne "Conditional move if not equal to zero"
+       ()
+       "cmvne $rm, $rn, $rd"
+       (+ (f-op 8) rm (f-ext 5) rn rd (f-rsvd 0))
+       (if (ne rm 0)
+	   (set rd rn)))
+
+(dshmi fabsd "Floating point absolute (double)"
+       ()
+       "fabs.d $drgh, $drf"
+       (+ (f-op 6) drgh (f-ext 1) drf (f-rsvd 0))
+       (set drf (c-call DF "sh64_fabsd" drgh)))
+
+(dshmi fabss "Floating point absolute (single)"
+       ()
+       "fabs.s $frgh, $frf"
+       (+ (f-op 6) frgh (f-ext 0) frf (f-rsvd 0))
+       (set frf (c-call SF "sh64_fabss" frgh)))
+
+(dshmi faddd "Floating point add (double)"
+       ()
+       "fadd.d $drg, $drh, $drf"
+       (+ (f-op 13) drg (f-ext 1) drh drf (f-rsvd 0))
+       (set drf (c-call DF "sh64_faddd" drg drh)))
+
+(dshmi fadds "Floating point add (single)"
+       ()
+       "fadd.s $frg, $frh, $frf"
+       (+ (f-op 13) frg (f-ext 0) frh frf (f-rsvd 0))
+       (set frf (c-call SF "sh64_fadds" frg frh)))
+
+(dshmi fcmpeqd "Floating point compare if equal (double)"
+       ()
+       "fcmpeq.d $drg, $drh, $rd"
+       (+ (f-op 12) drg (f-ext 9) drh rd (f-rsvd 0))
+       (set rd (zext DI (c-call BI "sh64_fcmpeqd" drg drh))))
+
+(dshmi fcmpeqs "Floating point compare if equal (single)"
+       ()
+       "fcmpeq.s $frg, $frh, $rd"
+       (+ (f-op 12) frg (f-ext 8) frh rd (f-rsvd 0))
+       (set rd (zext DI (c-call BI "sh64_fcmpeqs" frg frh))))
+
+(dshmi fcmpged "Floating compare compare if greater than or equal (double)"
+       ()
+       "fcmpge.d $drg, $drh, $rd"
+       (+ (f-op 12) drg (f-ext 15) drh rd (f-rsvd 0))
+       (set rd (zext DI (c-call BI "sh64_fcmpged" drg drh))))
+
+(dshmi fcmpges "Floating point compare if greater than or equal (single)"
+       ()
+       "fcmpge.s $frg, $frh, $rd"
+       (+ (f-op 12) frg (f-ext 14) frh rd (f-rsvd 0))
+       (set rd (zext DI (c-call BI "sh64_fcmpges" frg frh))))
+
+(dshmi fcmpgtd "Floating point compare if greater than (double)"
+       ()
+       "fcmpgt.d $drg, $drh, $rd"
+       (+ (f-op 12) drg (f-ext 13) drh rd (f-rsvd 0))
+       (set rd (zext DI (c-call BI "sh64_fcmpgtd" drg drh))))
+
+(dshmi fcmpgts "Floating point compare if greater than (single)"
+       ()
+       "fcmpgt.s $frg, $frh, $rd"
+       (+ (f-op 12) frg (f-ext 12) frh rd (f-rsvd 0))
+       (set rd (zext DI (c-call BI "sh64_fcmpgts" frg frh))))
+
+(dshmi fcmpund "Floating point unordered comparison (double)"
+       ()
+       "fcmpun.d $drg, $drh, $rd"
+       (+ (f-op 12) drg (f-ext 11) drh rd (f-rsvd 0))
+       (set rd (zext DI (c-call BI "sh64_fcmpund" drg drh))))
+
+(dshmi fcmpuns "Floating point unordered comparison (single)"
+       ()
+       "fcmpun.s $frg, $frh, $rd"
+       (+ (f-op 12) frg (f-ext 10) frh rd (f-rsvd 0))
+       (set rd (zext DI (c-call BI "sh64_fcmpuns" frg frh))))
+
+(dshmi fcnvds "Floating point coversion (double to single)"
+       ()
+       "fcnv.ds $drgh, $frf"
+       (+ (f-op 14) drgh (f-ext 7) frf (f-rsvd 0))
+       (set frf (c-call SF "sh64_fcnvds" drgh)))
+
+(dshmi fcnvsd "Floating point conversion (single to double)"
+       ()
+       "fcnv.sd $frgh, $drf"
+       (+ (f-op 14) frgh (f-ext 6) drf (f-rsvd 0))
+       (set drf (c-call DF "sh64_fcnvsd" frgh)))
+
+(dshmi fdivd "Floating point divide (double)"
+       ()
+       "fdiv.d $drg, $drh, $drf"
+       (+ (f-op 13) drg (f-ext 5) drh drf (f-rsvd 0))
+       (set drf (c-call DF "sh64_fdivd" drg drh)))
+
+(dshmi fdivs "Floating point divide (single)"
+       ()
+       "fdiv.s $frg, $frh, $frf"
+       (+ (f-op 13) frg (f-ext 4) frh frf (f-rsvd 0))
+       (set frf (c-call SF "sh64_fdivs" frg frh)))
+
+(dshmi fgetscr "Floating point get from FPSCR"
+       ()
+       "fgetscr $frf"
+       (+ (f-op 7) (f-left 63) (f-ext 2) (f-right 63) frf (f-rsvd 0))
+       (unimp "fputscr"))
+       ; FIXME: this should work!
+       ; (set frf fpscr))
+
+(dshmi fiprs "Floating point inner product (single)"
+       ()
+       "fipr.s $fvg, $fvh, $frf"
+       (+ (f-op 5) fvg (f-ext 6) fvh frf (f-rsvd 0))
+       (sequence ((UQI g) (UQI h) (SF temp))
+		 (set g (index-of fvg))
+		 (set h (index-of fvh))
+		 (set temp (c-call SF "sh64_fmuls" (reg h-fr g) (reg h-fr h)))
+		 (set temp (c-call SF "sh64_fadds" temp
+		   (c-call SF "sh64_fmuls" (reg h-fr (add g 1)) (reg h-fr (add h 1)))))
+		 (set temp (c-call SF "sh64_fadds" temp
+		   (c-call SF "sh64_fmuls" (reg h-fr (add g 2)) (reg h-fr (add h 2)))))
+		 (set temp (c-call SF "sh64_fadds" temp
+		   (c-call SF "sh64_fmuls" (reg h-fr (add g 3)) (reg h-fr (add h 3)))))
+		 (set frf temp)))
+
+(dshmi fldd "Floating point load (double)"
+       ()
+       "fld.d $rm, $disp10x8, $drf"
+       (+ (f-op 39) rm disp10x8 drf (f-rsvd 0))
+       (set drf (mem DF (add rm disp10x8))))
+
+(dshmi fldp "Floating point load (pair of singles)"
+       ()
+       "fld.p $rm, $disp10x8, $fpf"
+       (+ (f-op 38) rm disp10x8 fpf (f-rsvd 0))
+       (sequence ((QI f))
+		 (set f (index-of fpf))
+		 (set (reg h-fr f) (mem SF (add rm disp10x8)))
+		 (set (reg h-fr (add f 1)) (mem SF (add rm (add disp10x8 4))))))
+
+(dshmi flds "Floating point load (single)"
+       ()
+       "fld.s $rm, $disp10x4, $frf"
+       (+ (f-op 37) rm disp10x4 frf (f-rsvd 0))
+       (set frf (mem SF (add rm disp10x4))))
+
+(dshmi fldxd "Floating point extended load (double)"
+       ()
+       "fldx.d $rm, $rn, $drf"
+       (+ (f-op 7) rm (f-ext 9) rn frf (f-rsvd 0))
+       (set drf (mem DF (add rm rn))))
+
+(dshmi fldxp "Floating point extended load (pair of singles)"
+       ()
+       "fldx.p $rm, $rn, $fpf"
+       (+ (f-op 7) rm (f-ext 13) rn fpf (f-rsvd 0))
+       (sequence ((QI f))
+		 (set f (index-of fpf))
+		 (set (reg h-fr f) (mem SF (add rm rn)))
+		 (set (reg h-fr (add f 1)) (mem SF (add rm (add rn 4))))))
+
+(dshmi fldxs "Floating point extended load (single)"
+       ()
+       "fldx.s $rm, $rn, $frf"
+       (+ (f-op 7) rm (f-ext 8) rn frf (f-rsvd 0))
+       (set frf (mem SF (add rm rn))))
+
+(dshmi floatld "Floating point conversion (long to double)"
+       ()
+       "float.ld $frgh, $drf"
+       (+ (f-op 14) frgh (f-ext 14) drf (f-rsvd 0))
+       (set drf (c-call DF "sh64_floatld" frgh)))
+
+(dshmi floatls "Floating point conversion (long to single)"
+       ()
+       "float.ls $frgh, $frf"
+       (+ (f-op 14) frgh (f-ext 12) frf (f-rsvd 0))
+       (set frf (c-call SF "sh64_floatls" frgh)))
+
+(dshmi floatqd "Floating point conversion (quad to double)"
+       ()
+       "float.qd $drgh, $drf"
+       (+ (f-op 14) drgh (f-ext 13) drf (f-rsvd 0))
+       (set drf (c-call DF "sh64_floatqd" drgh)))
+
+(dshmi floatqs "Floating point conversion (quad to single)"
+       ()
+       "float.qs $drgh, $frf"
+       (+ (f-op 14) drgh (f-ext 15) frf (f-rsvd 0))
+       (set frf (c-call SF "sh64_floatqs" drgh)))
+
+(dshmi fmacs "Floating point multiply and accumulate (single)"
+       ()
+       "fmac.s $frg, $frh, $frf"
+       (+ (f-op 13) frg (f-ext 14) frh frf (f-rsvd 0))
+       (set frf (c-call SF "sh64_fadds" frf (c-call SF "sh64_fmuls" frg frh))))
+
+(dshmi fmovd "Floating point move double"
+       ()
+       "fmov.d $drgh, $drf"
+       (+ (f-op 14) drgh (f-ext 1) drf (f-rsvd 0))
+       (set drf drgh))
+
+(dshmi fmovdq "Floating point move (double to quad integer)"
+       ()
+       "fmov.dq $drgh, $rd"
+       (+ (f-op 12) drgh (f-ext 1) rd (f-rsvd 0))
+       (set rd (subword DI drgh 0)))
+
+(dshmi fmovls "Floating point move (lower to single)"
+       ()
+       "fmov.ls $rm, $frf"
+       (+ (f-op 7) rm (f-ext 0) (f-right 63) frf (f-rsvd 0))
+       (set frf (subword SF (subword SI rm 1) 0)))
+
+(dshmi fmovqd "Floating point move (quad to double)"
+       ()
+       "fmov.qd $rm, $drf"
+       (+ (f-op 7) rm (f-ext 1) (f-right 63) frf (f-rsvd 0))
+       (set drf (subword DF rm 0)))
+
+(dshmi fmovs "Floating point move (single)"
+       ()
+       "fmov.s $frgh, $frf"
+       (+ (f-op 14) frgh (f-ext 0) frf (f-rsvd 0))
+       (set frf frgh))
+
+(dshmi fmovsl "Floating point move (single to lower)"
+       ()
+       "fmov.sl $frgh, $rd"
+       (+ (f-op 12) frgh (f-ext 0) rd (f-rsvd 0))
+       (set rd (ext DI (subword SI frgh 1))))
+
+(dshmi fmuld "Floating point multiply (double)"
+       ()
+       "fmul.d $drg, $drh, $drf"
+       (+ (f-op 13) drg (f-ext 7) drh drf (f-rsvd 0))
+       (set drf (c-call DF "sh64_fmuld" drg drh)))
+
+(dshmi fmuls "Floating point multiply (single)"
+       ()
+       "fmul.s $frg, $frh, $frf"
+       (+ (f-op 13) frg (f-ext 6) frh frf (f-rsvd 0))
+       (set frf (c-call SF "sh64_fmuls" frg frh)))
+
+(dshmi fnegd "Floating point negate (double)"
+       ()
+       "fneg.d $drgh, $drf"
+       (+ (f-op 6) drgh (f-ext 3) drf (f-rsvd 0))
+       (set drf (c-call DF "sh64_fnegd" drgh)))
+
+(dshmi fnegs "Floating point negate (single)"
+       ()
+       "fneg.s $frgh, $frf"
+       (+ (f-op 6) frgh (f-ext 2) frf (f-rsvd 0))
+       (set frf (c-call SF "sh64_fnegs" frgh)))
+
+(dshmi fputscr "Floating point put to FPSCR"
+       ()
+       "fputscr $frgh"
+       (+ (f-op 12) frgh (f-ext 2) (f-dest 63) (f-rsvd 0))
+       (unimp "fputscr"))
+       ; FIXME: this should work!
+       ; (set fpscr (subword SI frgh 0)))
+
+(dshmi fsqrtd "Floating point square root (double)"
+       ()
+       "fsqrt.d $drgh, $drf"
+       (+ (f-op 14) drgh (f-ext 5) drf (f-rsvd 0))
+       (set drf (c-call DF "sh64_fsqrtd" drgh)))
+
+(dshmi fsqrts "Floating point squart root (single)"
+       ()
+       "fsqrt.s $frgh, $frf"
+       (+ (f-op 14) frgh (f-ext 4) frf (f-rsvd 0))
+       (set frf (c-call SF "sh64_fsqrts" frgh)))
+
+(dshmi fstd "Floating point store (double)"
+       ()
+       "fst.d $rm, $disp10x8, $drf"
+       (+ (f-op 47) rm disp10x8 drf (f-rsvd 0))
+       (set (mem DF (add rm disp10x8)) drf))
+
+(dshmi fstp "Floating point store (pair of singles)"
+       ()
+       "fst.p $rm, $disp10x8, $fpf"
+       (+ (f-op 46) rm disp10x8 fpf (f-rsvd 0))
+       (sequence ((QI f))
+		 (set f (index-of fpf))
+		 (set (mem SF (add rm disp10x8)) (reg h-fr f))
+		 (set (mem SF (add rm (add disp10x8 4))) (reg h-fr (add f 1)))))
+
+(dshmi fsts "Floating point store (single)"
+       ()
+       "fst.s $rm, $disp10x4, $frf"
+       (+ (f-op 45) rm disp10x4 frf (f-rsvd 0))
+       (set (mem SF (add rm disp10x4)) frf))
+
+(dshmi fstxd "Floating point extended store (double)"
+       ()
+       "fstx.d $rm, $rn, $drf"
+       (+ (f-op 15) rm (f-ext 9) rn drf (f-rsvd 0))
+       (set (mem DF (add rm rn)) drf))
+
+(dshmi fstxp "Floating point extended store (pair of singles)"
+       ()
+       "fstx.p $rm, $rn, $fpf"
+       (+ (f-op 15) rm (f-ext 13) rn fpf (f-rsvd 0))
+       (sequence ((QI f))
+		 (set f (index-of fpf))
+		 (set (mem SF (add rm rn)) (reg h-fr f))
+		 (set (mem SF (add rm (add rn 4))) (reg h-fr (add f 1)))))
+
+(dshmi fstxs "Floating point extended store (single)"
+       ()
+       "fstx.s $rm, $rn, $frf"
+       (+ (f-op 15) rm (f-ext 8) rn frf (f-rsvd 0))
+       (set (mem SF (add rm rn)) frf))
+
+(dshmi fsubd "Floating point subtract (double)"
+       ()
+       "fsub.d $drg, $drh, $drf"
+       (+ (f-op 13) frg (f-ext 3) frh frf (f-rsvd 0))
+       (set drf (c-call DF "sh64_fsubd" drg drh)))
+
+(dshmi fsubs "Floating point subtract (single)"
+       ()
+       "fsub.s $frg, $frh, $frf"
+       (+ (f-op 13) frg (f-ext 2) frh frf (f-rsvd 0))
+       (set frf (c-call SF "sh64_fsubs" frg frh)))
+
+(dshmi ftrcdl "Floating point conversion (double to long)"
+       ()
+       "ftrc.dl $drgh, $frf"
+       (+ (f-op 14) drgh (f-ext 11) frf (f-rsvd 0))
+       (set frf (c-call SF "sh64_ftrcdl" drgh)))
+
+(dshmi ftrcsl "Floating point conversion (single to long)"
+       ()
+       "ftrc.sl $frgh, $frf"
+       (+ (f-op 14) frgh (f-ext 8) frf (f-rsvd 0))
+       (set frf (c-call SF "sh64_ftrcsl" frgh)))
+
+(dshmi ftrcdq "Floating point conversion (double to quad)"
+       ()
+       "ftrc.dq $drgh, $drf"
+       (+ (f-op 14) drgh (f-ext 9) frf (f-rsvd 0))
+       (set drf (c-call DF "sh64_ftrcdq" drgh)))
+
+(dshmi ftrcsq "Floating point conversion (single to quad)"
+       ()
+       "ftrc.sq $frgh, $drf"
+       (+ (f-op 14) frgh (f-ext 10) drf (f-rsvd 0))
+       (set drf (c-call DF "sh64_ftrcsq" frgh)))
+
+(dshmi ftrvs "Floating point matrix multiply"
+       ()
+       "ftrv.s $mtrxg, $fvh, $fvf"
+       (+ (f-op 5) mtrxg (f-ext 14) fvh fvf (f-rsvd 0))
+       (c-call "sh64_ftrvs" (index-of mtrxg) (index-of fvh) (index-of fvf)))
+
+(dshmi getcfg "Get configuration register"
+       ()
+       "getcfg $rm, $disp6, $rd"
+       (+ (f-op 48) rm (f-ext 15) disp6 rd (f-rsvd 0))
+       (unimp "getcfg"))
+
+(dshmi getcon "Get control register"
+       ()
+       "getcon $crk, $rd"
+       (+ (f-op 9) crk (f-ext 15) (f-right 63) rd (f-rsvd 0))
+       (set rd crk))
+
+(dshmi gettr "Get target register"
+       ()
+       "gettr $trb, $rd"
+       (+ (f-op 17) (f-25 0) trb (f-ext 5) (f-right 63) rd (f-rsvd 0))
+       (set rd trb))
+
+(dshmi icbi "Invalidate instruction cache block"
+       ()
+       "icbi $rm, $disp6x32"
+       (+ (f-op 56) rm (f-ext 5) disp6x32 (f-dest 63) (f-rsvd 0))
+       (unimp "icbi"))
+
+(dshmi ldb "Load byte"
+       ()
+       "ld.b $rm, $disp10, $rd"
+       (+ (f-op 32) rm disp10 rd (f-rsvd 0))
+       (set rd (ext DI (mem QI (add rm (ext DI disp10))))))
+
+(dshmi ldl "Load long word"
+       ()
+       "ld.l $rm, $disp10x4, $rd"
+       (+ (f-op 34) rm disp10x4 rd (f-rsvd 0))
+       (set rd (ext DI (mem SI (add rm (ext DI disp10x4))))))
+
+(dshmi ldq "Load quad word"
+       ()
+       "ld.q $rm, $disp10x8, $rd"
+       (+ (f-op 35) rm disp10x8 rd (f-rsvd 0))
+       (set rd (mem DI (add rm (ext DI disp10x8)))))
+
+(dshmi ldub "Load unsigned byte"
+       ()
+       "ld.ub $rm, $disp10, $rd"
+       (+ (f-op 36) rm disp10 rd (f-rsvd 0))
+       (set rd (zext DI (mem QI (add rm (ext DI disp10))))))
+
+(dshmi lduw "Load unsigned word"
+       ()
+       "ld.uw $rm, $disp10x2, $rd"
+       (+ (f-op 44) rm disp10 rd (f-rsvd 0))
+       (set rd (zext DI (mem HI (add rm (ext DI disp10x2))))))
+
+(dshmi ldw "Load word"
+       ()
+       "ld.w $rm, $disp10x2, $rd"
+       (+ (f-op 33) rm disp10 rd (f-rsvd 0))
+       (set rd (ext DI (mem HI (add rm (ext DI disp10x2))))))
+
+(dshmi ldhil "Load high part (long word)"
+       ()
+       "ldhi.l $rm, $disp6, $rd"
+       (+ (f-op 48) rm (f-ext 6) disp6 rd (f-rsvd 0))
+       ; FIXME.
+       (unimp "ldhil"))
+
+(dshmi ldhiq "Load high part (quad word)"
+       ()
+       "ldhi.q $rm, $disp6, $rd"
+       (+ (f-op 48) rm (f-ext 7) disp6 rd (f-rsvd 0))
+       ; FIXME.
+       (unimp "ldhiq"))
+
+(dshmi ldlol "Load low part (long word)"
+       ()
+       "ldlo.l $rm, $disp6, $rd"
+       (+ (f-op 48) rm (f-ext 2) disp6 rd (f-rsvd 0))
+       ; FIXME.
+       (unimp "ldlol"))
+
+(dshmi ldloq "Load low part (quad word)"
+       ()
+       "ldlo.q $rm, $disp6, $rd"
+       (+ (f-op 48) rm (f-ext 3) disp6 rd (f-rsvd 0))
+       ; FIXME;
+       (unimp "ldloq"))
+
+(dshmi ldxb "Load byte (extended displacement)"
+       ()
+       "ldx.b $rm, $rn, $rd"
+       (+ (f-op 16) rm (f-ext 0) rn rd (f-rsvd 0))
+       (set rd (ext DI (mem QI (add rm rn)))))
+
+(dshmi ldxl "Load long word (extended displacement)"
+       ()
+       "ldx.l $rm, $rn, $rd"
+       (+ (f-op 16) rm (f-ext 2) rn rd (f-rsvd 0))
+       (set rd (ext DI (mem SI (add rm rn)))))
+
+(dshmi ldxq "Load quad word (extended displacement)"
+       ()
+       "ldx.q $rm, $rn, $rd"
+       (+ (f-op 16) rm (f-ext 3) rn rd (f-rsvd 0))
+       (set rd (mem DI (add rm rn))))
+
+(dshmi ldxub "Load unsigned byte (extended displacement)"
+       ()
+       "ldx.ub $rm, $rn, $rd"
+       (+ (f-op 16) rm (f-ext 4) rn rd (f-rsvd 0))
+       (set rd (zext DI (mem UQI (add rm rn)))))
+
+(dshmi ldxuw "Load unsigned word (extended displacement)"
+       ()
+       "ldx.uw $rm, $rn, $rd"
+       (+ (f-op 16) rm (f-ext 5) rn rd (f-rsvd 0))
+       (set rd (zext DI (mem UHI (add rm rn)))))
+
+(dshmi ldxw "Load word (extended displacement)"
+       ()
+       "ldx.w $rm, $rn, $rd"
+       (+ (f-op 16) rm (f-ext 1) rn rd (f-rsvd 0))
+       (set rd (ext DI (mem HI (add rm rn)))))
+
+
+; Macros to facilitate multimedia instructions.
+
+(define-pmacro (slice-byte expr)
+  (sequence ((QI result7) (QI result6) (QI result5) (QI result4)
+	     (QI result3) (QI result2) (QI result1) (QI result0))
+	    (set result0 (expr (subword QI rm 7) (subword QI rn 7)))
+	    (set result1 (expr (subword QI rm 6) (subword QI rn 6)))
+	    (set result2 (expr (subword QI rm 5) (subword QI rn 5)))
+	    (set result3 (expr (subword QI rm 4) (subword QI rn 4)))
+	    (set result4 (expr (subword QI rm 3) (subword QI rn 3)))
+	    (set result5 (expr (subword QI rm 2) (subword QI rn 2)))
+	    (set result6 (expr (subword QI rm 1) (subword QI rn 1)))
+	    (set result7 (expr (subword QI rm 0) (subword QI rn 0)))
+	    (set rd (-join-qi result7 result6 result5 result4 result3 result2
+			   result1 result0))))
+
+(define-pmacro (slice-word expr)
+  (sequence ((HI result3) (HI result2) (HI result1) (HI result0))
+	    (set result0 (expr (subword HI rm 3) (subword HI rn 3)))
+	    (set result1 (expr (subword HI rm 2) (subword HI rn 2)))
+	    (set result2 (expr (subword HI rm 1) (subword HI rn 1)))
+	    (set result3 (expr (subword HI rm 0) (subword HI rn 0)))
+	    (set rd (-join-hi result3 result2 result1 result0))))
+
+(define-pmacro (slice-word-unop expr)
+  (sequence ((HI result3) (HI result2) (HI result1) (HI result0))
+	    (set result0 (expr (subword HI rm 3)))
+	    (set result1 (expr (subword HI rm 2)))
+	    (set result2 (expr (subword HI rm 1)))
+	    (set result3 (expr (subword HI rm 0)))
+	    (set rd (-join-hi result3 result2 result1 result0))))
+
+(define-pmacro (slice-long expr)
+  (sequence ((SI result1) (SI result0))
+	    (set result0 (expr (subword SI rm 1) (subword SI rn 1)))
+	    (set result1 (expr (subword SI rm 0) (subword SI rn 0)))
+	    (set rd (-join-si result1 result0))))
+
+(define-pmacro (slice-long-unop expr)
+  (sequence ((SI result1) (SI result0))
+	    (set result0 (expr (subword SI rm 1)))
+	    (set result1 (expr (subword SI rm 0)))
+	    (set rd (-join-si result1 result0))))
+
+; Multimedia instructions.
+
+(dshmi mabsl "Multimedia absolute value (long word)"
+       ()
+       "mabs.l $rm, $rd"
+       (+ (f-op 10) rm (f-ext 10) (f-right 63) rd (f-rsvd 0))
+       (slice-long-unop abs))
+
+(dshmi mabsw "Multimedia absolute value (word)"
+       ()
+       "mabs.w $rm, $rd"
+       (+ (f-op 10) rm (f-ext 9) (f-right 63) rd (f-rsvd 0))
+       (slice-word-unop abs))
+
+(dshmi maddl "Multimedia add (long word)"
+       ()
+       "madd.l $rm, $rn, $rd"
+       (+ (f-op 2) rm (f-ext 2) rn rd (f-rsvd 0))
+       (slice-long add))
+
+(dshmi maddw "Multimedia add (word)"
+       ()
+       "madd.w $rm, $rn, $rd"
+       (+ (f-op 2) rm (f-ext 1) rn rd (f-rsvd 0))
+       (slice-word add))
+
+(define-pmacro (-maddsl arg1 arg2) (saturate SI 32 (add arg1 arg2)))
+(dshmi maddsl "Multimedia add (saturating, long word)"
+       ()
+       "madds.l $rm, $rn, $rd"
+       (+ (f-op 2) rm (f-ext 6) rn rd (f-rsvd 0))
+       (slice-long -maddsl))
+
+(define-pmacro (-maddsub arg1 arg2) (usaturate QI 8 (add arg1 arg2)))
+(dshmi maddsub "Multimedia add (saturating, unsigned byte)"
+       ()
+       "madds.ub $rm, $rn, $rd"
+       (+ (f-op 2) rm (f-ext 4) rn rd (f-rsvd 0))
+       (slice-byte -maddsub))
+
+(define-pmacro (-maddsw arg1 arg2) (saturate HI 16 (add arg1 arg2)))
+(dshmi maddsw "Multimedia add (saturating, word)"
+       ()
+       "madds.w $rm, $rn, $rd"
+       (+ (f-op 2) rm (f-ext 5) rn rd (f-rsvd 0))
+       (slice-word -maddsw))
+
+(define-pmacro (-mcmpeq mode arg1 arg2)
+  (if mode (eq arg1 arg2) (inv mode 0) (const mode 0)))
+
+(define-pmacro (-mcmpeqb arg1 arg2) (-mcmpeq QI arg1 arg2))
+(dshmi mcmpeqb "Multimedia compare equal (byte)"
+       ()
+       "mcmpeq.b $rm, $rn, $rd"
+       (+ (f-op 10) rm (f-ext 0) rn rd (f-rsvd 0))
+       (slice-byte -mcmpeqb))
+
+(define-pmacro (-mcmpeql arg1 arg2) (-mcmpeq SI arg1 arg2))
+(dshmi mcmpeql "Multimedia compare equal (long word)"
+       ()
+       "mcmpeq.l $rm, $rn, $rd"
+       (+ (f-op 10) rm (f-ext 2) rn rd (f-rsvd 0))
+       (slice-long -mcmpeql))
+
+(define-pmacro (-mcmpeqw arg1 arg2) (-mcmpeq HI arg1 arg2))
+(dshmi mcmpeqw "Multimedia compare equal (word)"
+       ()
+       "mcmpeq.w $rm, $rn, $rd"
+       (+ (f-op 10) rm (f-ext 1) rn rd (f-rsvd 0))
+       (slice-word -mcmpeqw))
+
+(define-pmacro (-mcmpgt mode arg1 arg2)
+  (if mode (gt arg1 arg2) (inv mode 0) (const mode 0)))
+(define-pmacro (-mcmpgtu mode arg1 arg2)
+  (if mode (gtu arg1 arg2) (inv mode 0) (const mode 0)))
+
+(define-pmacro (-mcmpgtl arg1 arg2) (-mcmpgt SI arg1 arg2))
+(dshmi mcmpgtl "Multimedia compare greater than (long word)"
+       ()
+       "mcmpgt.l $rm, $rn, $rd"
+       (+ (f-op 10) rm (f-ext 6) rn rd (f-rsvd 0))
+       (slice-long -mcmpgtl))
+
+(define-pmacro (-mcmpgtub arg1 arg2) (-mcmpgtu QI arg1 arg2))
+(dshmi mcmpgtub "Multimediate compare unsigned greater than (byte)"
+       ()
+       "mcmpgt.ub $rm, $rn, $rd"
+       (+ (f-op 10) rm (f-ext 4) rn rd (f-rsvd 0))
+       (slice-byte -mcmpgtub))
+
+(define-pmacro (-mcmpgtw arg1 arg2) (-mcmpgt HI arg1 arg2))
+(dshmi mcmpgtw "Multimedia compare greater than (word)"
+       ()
+       "mcmpgt.w $rm, $rn, $rd"
+       (+ (f-op 10) rm (f-ext 5) rn rd (f-rsvd 0))
+       (slice-word -mcmpgtw))
+
+(dshmi mcmv "Multimedia conditional move"
+       ()
+       "mcmv $rm, $rn, $rd"
+       (+ (f-op 18) rm (f-ext 3) rn rd (f-rsvd 0))
+       (set rd (or (and rm rn) (and rd (inv rn)))))
+
+(dshmi mcnvslw "Multimedia convert/saturate (long to word)"
+       ()
+       "mcnvs.lw $rm, $rn, $rd"
+       (+ (f-op 19) rm (f-ext 13) rn rd (f-rsvd 0))
+       (sequence ((HI result3) (HI result2) (HI result1) (HI result0))
+		 (set result0 (saturate HI 16 (subword SI rm 0)))
+		 (set result1 (saturate HI 16 (subword SI rm 1)))
+		 (set result2 (saturate HI 16 (subword SI rn 0)))
+		 (set result3 (saturate HI 16 (subword SI rn 1)))
+		 (set rd (-join-hi result3 result2 result1 result0))))
+
+(dshmi mcnvswb "Multimedia convert/saturate (word to byte)"
+       ()
+       "mcnvs.wb $rm, $rn, $rd"
+       (+ (f-op 19) rm (f-ext 8) rn rd (f-rsvd 0))
+       (sequence ((QI result7) (QI result6) (QI result5) (QI result4) 
+		  (QI result3) (QI result2) (QI result1) (QI result0))
+		 (set result0 (saturate QI 8 (subword HI rm 0)))
+		 (set result1 (saturate QI 8 (subword HI rm 1)))
+		 (set result2 (saturate QI 8 (subword HI rm 2)))
+		 (set result3 (saturate QI 8 (subword HI rm 3)))
+		 (set result4 (saturate QI 8 (subword HI rn 0)))
+		 (set result5 (saturate QI 8 (subword HI rn 1)))
+		 (set result6 (saturate QI 8 (subword HI rn 2)))
+		 (set result7 (saturate QI 8 (subword HI rn 3)))
+		 (set rd (-join-qi result7 result6 result5 result4
+				 result3 result2 result1 result0))))
+
+(dshmi mcnvswub "Multimedia convert/saturate (word to unsigned byte)"
+       ()
+       "mcnvs.wub $rm, $rn, $rd"
+       (+ (f-op 19) rm (f-ext 12) rn rd (f-rsvd 0))
+       (sequence ((QI result7) (QI result6) (QI result5) (QI result4)
+			       (QI result3) (QI result2) (QI result1) (QI result0))
+		 (set result0 (usaturate QI 8 (subword HI rm 0)))
+		 (set result1 (usaturate QI 8 (subword HI rm 1)))
+		 (set result2 (usaturate QI 8 (subword HI rm 2)))
+		 (set result3 (usaturate QI 8 (subword HI rm 3)))
+		 (set result4 (usaturate QI 8 (subword HI rn 0)))
+		 (set result5 (usaturate QI 8 (subword HI rn 1)))
+		 (set result6 (usaturate QI 8 (subword HI rn 2)))
+		 (set result7 (usaturate QI 8 (subword HI rn 3)))
+		 (set rd (-join-qi result7 result6 result5 result4 result3
+				 result2 result1 result0))))
+
+; mexter -- generate an mexterN instruction, where:
+;   op = primary opcode
+;   extop = extended opcode
+
+(define-pmacro (make-mextr n op extop)
+  (dshmi (.sym mextr n)
+	 (.str "Multimedia extract 64-bit slice (from byte " n ")")
+	 ()
+	 (.str "mextr" n " $rm, $rn, $rd")
+	 (+ (f-op op) rm (f-ext extop) rn rd (f-rsvd 0))
+	 (sequence ((QI count) (DI mask) (DI rhs))
+		   (set count (mul QI 8 (sub QI 8 n)))
+		   (set mask (sll DI (inv 0) count))
+		   (set rhs (srl (and rm mask) count))
+		   (set count (mul QI 8 n))
+		   (set mask (srl DI (inv 0) count))
+		   (set rd (or DI rhs (sll DI (and rn mask) count))))))
+
+(make-mextr 1 10  7)
+(make-mextr 2 10 11)
+(make-mextr 3 10 15)
+(make-mextr 4 11  3)
+(make-mextr 5 11  7)
+(make-mextr 6 11 11)
+(make-mextr 7 11 15)
+
+(dshmi mmacfxwl "Multimedia fractional multiply (word to long)"
+       ()
+       "mmacfx.wl $rm, $rn, $rd"
+       (+ (f-op 18) rm (f-ext 1) rn rd (f-rsvd 0))
+       (sequence ((SI temp) (SI result1) (SI result0))
+		 (set result0 (subword SI rd 0))
+		 (set result1 (subword SI rd 1))
+		 (set temp (mul (zext SI (subword HI rm 0)) (zext SI (subword HI rn 0))))
+		 (set temp (saturate SI 32 (sll temp 1)))
+		 (set result0 (saturate SI 32 (add result0 temp)))
+		 (set temp (mul (zext SI (subword HI rm 1)) (zext SI (subword HI rn 1))))
+		 (set temp (saturate SI 32 (sll temp 1)))
+		 (set result1 (saturate SI 32 (add result1 temp)))
+		 (set rd (-join-si result1 result0))))
+
+(dshmi mmacnfx.wl "Multimedia fractional multiple (word to long)"
+       ()
+       "mmacnfx.wl $rm, $rn, $rd"
+       (+ (f-op 18) rn (f-ext 5) rn rd (f-rsvd 0))
+       (sequence ((SI temp) (SI result1) (SI result0))
+		 (set result0 (subword SI rd 0))
+		 (set result1 (subword SI rd 1))
+		 (set temp (mul (zext SI (subword HI rm 0)) (zext SI (subword HI rn 0))))
+		 (set temp (saturate SI 32 (sll temp 1)))
+		 (set result0 (saturate SI 32 (sub result0 temp)))
+		 (set temp (mul (zext SI (subword HI rm 1)) (zext SI (subword HI rn 1))))
+		 (set temp (saturate SI 32 (sll temp 1)))
+		 (set result1 (saturate SI 32 (sub result1 temp)))
+		 (set rd (-join-si result1 result0))))
+
+(dshmi mmull "Multimedia multiply (long word)"
+       ()
+       "mmul.l $rm, $rn, $rd"
+       (+ (f-op 19) rm (f-ext 2) rn rd (f-rsvd 0))
+       (slice-long mul))
+
+(dshmi mmulw "Multimedia multiply (word)"
+       ()
+       "mmul.w $rm, $rn, $rd"
+       (+ (f-op 19) rm (f-ext 1) rn rd (f-rsvd 0))
+       (slice-word mul))
+
+(dshmi mmulfxl "Multimedia fractional multiply (long word)"
+       ()
+       "mmulfx.l $rm, $rn, $rd"
+       (+ (f-op 19) rm (f-ext 6) rn rd (f-rsvd 0))
+       (sequence ((DI temp) (SI result0) (SI result1))
+		 (set temp (mul (zext DI (subword SI rm 0)) (zext DI (subword SI rn 0))))
+		 (set result0 (saturate SI 32 (sra temp 31)))
+		 (set temp (mul (zext DI (subword SI rm 1)) (zext DI (subword SI rn 1))))
+		 (set result1 (saturate SI 32 (sra temp 31)))
+		 (set rd (-join-si result1 result0))))
+
+(dshmi mmulfxw "Multimedia fractional multiply (word)"
+       ()
+       "mmulfx.w $rm, $rn, $rd"
+       (+ (f-op 19) rm (f-ext 5) rn rd (f-rsvd 0))
+       (sequence ((SI temp) (HI result0) (HI result1) (HI result2) (HI result3))
+		 (set temp (mul (zext SI (subword HI rm 0)) (zext SI (subword HI rn 0))))
+		 (set result0 (saturate HI 16 (sra temp 15)))
+		 (set temp (mul (zext SI (subword HI rm 1)) (zext SI (subword HI rn 1))))
+		 (set result1 (saturate HI 16 (sra temp 15)))
+		 (set temp (mul (zext SI (subword HI rm 2)) (zext SI (subword HI rn 2))))
+		 (set result2 (saturate HI 16 (sra temp 15)))
+		 (set temp (mul (zext SI (subword HI rm 3)) (zext SI (subword HI rn 3))))
+		 (set result3 (saturate HI 16 (sra temp 15)))
+		 (set rd (-join-hi result3 result2 result1 result0))))
+
+(dshmi mmulfxrpw "Multimedia fractional multiply round positive (word op)"
+       ()
+       "mmulfxrp.w $rm, $rn, $rd"
+       (+ (f-op 19) rm (f-ext 9) rn rd (f-rsvd 0))
+       (sequence ((SI temp) (HI result0) (HI result1) (HI result2) (HI result3) (HI c))
+		 (set c (sll 1 14))
+		 (set temp (mul (zext SI (subword HI rm 0)) (zext SI (subword HI rn 0))))
+		 (set result0 (saturate HI 16 (sra (add temp c) 15)))
+		 (set temp (mul (zext SI (subword HI rm 1)) (zext SI (subword HI rn 1))))
+		 (set result1 (saturate HI 16 (sra (add temp c) 15)))
+		 (set temp (mul (zext SI (subword HI rm 2)) (zext SI (subword HI rn 2))))
+		 (set result2 (saturate HI 16 (sra (add temp c) 15)))
+		 (set temp (mul (zext SI (subword HI rm 3)) (zext SI (subword HI rn 3))))
+		 (set result3 (saturate HI 16 (sra (add temp c) 15)))
+		 (set rd (-join-hi result3 result2 result1 result0))))
+
+(dshmi mmulhiwl "Multimedia multiply higher halves (word to long)"
+       ()
+       "mmulhi.wl $rm, $rn, $rd"
+       (+ (f-op 19) rm (f-ext 14) rn rd (f-rsvd 0))
+       (sequence ((SI result1) (SI result0))
+		 (set result0 (mul (zext SI (subword HI rm 2)) (zext SI (subword HI rn 2))))
+		 (set result1 (mul (zext SI (subword HI rm 3)) (zext SI (subword HI rn 3))))
+		 (set rd (-join-si result1 result0))))
+
+(dshmi mmullowl "Multimedia multiply lower halves (word to long)"
+       ()
+       "mmullo.wl $rm, $rn, $rd"
+       (+ (f-op 19) rm (f-ext 10) rn rd (f-rsvd 0))
+       (sequence ((SI result1) (SI result0))
+		 (set result0 (mul (zext SI (subword HI rm 0)) (zext SI (subword HI rn 0))))
+		 (set result1 (mul (zext SI (subword HI rm 1)) (zext SI (subword HI rn 1))))
+		 (set rd (-join-si result1 result0))))
+
+(dshmi mmulsumwq "Multimedia multiply and accumulate (word to quad)"
+       ()
+       "mmulsum.wq $rm, $rn, $rd"
+       (+ (f-op 18) rm (f-ext 9) rn rd (f-rsvd 0))
+       (sequence ((DI acc))
+		 (set acc (mul SI (zext SI (subword HI rm 0)) (zext SI (subword HI rn 0))))
+		 (set acc (add acc (mul SI (zext SI (subword HI rm 1)) (zext SI (subword HI rn 1)))))
+		 (set acc (add acc (mul SI (zext SI (subword HI rm 2)) (zext SI (subword HI rn 2)))))
+		 (set acc (add acc (mul SI (zext SI (subword HI rm 3)) (zext SI (subword HI rn 3)))))
+		 (set rd (add rd acc))))
+
+(dshmi movi "Move immediate"
+       ()
+       "movi $imm16, $rd"
+       (+ (f-op 51) imm16 rd (f-rsvd 0))
+       (set rd (ext DI imm16)))
+
+(dshmi mpermw "Multimedia permutate word"
+       ()
+       "mperm.w $rm, $rn, $rd"
+       (+ (f-op 10) rm (f-ext 13) rn rd (f-rsvd 0))
+       (sequence ((QI control) (HI result3) (HI result2) (HI result1) (HI result0))
+		 (set control (and QI rn #x3f))
+		 (set result0 (subword HI rm (sub 3 (and control 3))))
+		 (set result1 (subword HI rm (sub 3 (and (srl control 2) 3))))
+		 (set result2 (subword HI rm (sub 3 (and (srl control 4) 3))))
+		 (set result3 (subword HI rm (sub 3 (and (srl control 6) 3))))
+		 (set rd (-join-hi result3 result2 result1 result0))))
+
+(dshmi msadubq "Multimedia absolute difference (byte)"
+       ()
+       "msad.ubq $rm, $rn, $rd"
+       (+ (f-op 18) rm (f-ext 0) rn rd (f-rsvd 0))
+       (sequence ((DI acc))
+		 (set acc (abs DI (sub (subword QI rm 0) (subword QI rn 1))))
+		 (set acc (add DI acc (abs (sub (subword QI rm 1) (subword QI rn 1)))))
+		 (set acc (add DI acc (abs (sub (subword QI rm 2) (subword QI rn 2)))))
+		 (set acc (add DI acc (abs (sub (subword QI rm 3) (subword QI rn 3)))))
+		 (set acc (add DI acc (abs (sub (subword QI rm 4) (subword QI rn 4)))))
+		 (set acc (add DI acc (abs (sub (subword QI rm 5) (subword QI rn 5)))))
+		 (set acc (add DI acc (abs (sub (subword QI rm 6) (subword QI rn 6)))))
+		 (set acc (add DI acc (abs (sub (subword QI rm 7) (subword QI rn 7)))))
+		 (set rd (add rd acc))))
+
+(define-pmacro (-mshaldsl arg) (saturate SI 32 (sll arg (and rn 31))))
+(dshmi mshaldsl "Multimedia saturating arithmetic left shift (long word)"
+       ()
+       "mshalds.l $rm, $rn, $rd"
+       (+ (f-op 3) rm (f-ext 6) rn rd (f-rsvd 0))
+       (slice-long-unop -mshaldsl))
+
+(define-pmacro (-mshaldsw arg) (saturate HI 16 (sll arg (and rn 15))))
+(dshmi mshaldsw "Multimedia saturating arithmetic left shift (word)"
+       ()
+       "mshalds.w $rm, $rn, $rd"
+       (+ (f-op 3) rm (f-ext 5) rn rd (f-rsvd 0))
+       (slice-word-unop -mshaldsw))
+
+(define-pmacro (-mshardl arg) (sra arg (and rn 31)))
+(dshmi mshardl "Multimedia arithmetic right shift (long)"
+       ()
+       "mshard.l $rm, $rn, $rd"
+       (+ (f-op 3) rm (f-ext 10) rn rd (f-rsvd 0))
+       (slice-long-unop -mshardl))
+
+(define-pmacro (-mshardw arg) (sra arg (and rn 15)))
+(dshmi mshardw "Multimedia arithmetic right shift (word)"
+       ()
+       "mshard.w $rm, $rn, $rd"
+       (+ (f-op 3) rm (f-ext 9) rn rd (f-rsvd 0))
+       (slice-word-unop -mshardw))
+
+(dshmi mshardsq "Multimedia saturating arithmetic right shift (quad word)"
+       ()
+       "mshards.q $rm, $rn, $rd"
+       (+ (f-op 3) rm (f-ext 11) rn rd (f-rsvd 0))
+       (set rd (saturate DI 16 (sra rm (and rn 63)))))
+
+(dshmi mshfhib "Multimedia shuffle higher-half (byte)"
+       ()
+       "mshfhi.b $rm, $rn, $rd"
+       (+ (f-op 11) rm (f-ext 4) rn rd (f-rsvd 0))
+       (sequence ((QI result7) (QI result6) (QI result5) (QI result4)
+		  (QI result3) (QI result2) (QI result1) (QI result0))
+		 (set result0 (subword QI rm 4))
+		 (set result1 (subword QI rn 4))
+		 (set result2 (subword QI rm 5))
+		 (set result3 (subword QI rn 5))
+		 (set result4 (subword QI rm 6))
+		 (set result5 (subword QI rn 6))
+		 (set result6 (subword QI rm 7))
+		 (set result7 (subword QI rn 7))
+		 (set rd (-join-qi result7 result6 result5 result4 result3
+				 result2 result1 result0))))
+
+(dshmi mshfhil "Multimedia shuffle higher-half (long)"
+       ()
+       "mshfhi.l $rm, $rn, $rd"
+       (+ (f-op 11) rm (f-ext 6) rn rd (f-rsvd 0))
+       (sequence ((SI result1) (SI result0))
+		 (set result0 (subword SI rm 1))
+		 (set result1 (subword SI rn 1))
+		 (set rd (-join-si result1 result0))))
+
+(dshmi mshfhiw "Multimedia shuffle higher-half (word)"
+       ()
+       "mshfhi.w $rm, $rn, $rd"
+       (+ (f-op 11) rm (f-ext 5) rn rd (f-rsvd 0))
+       (sequence ((HI result3) (HI result2) (HI result1) (HI result0))
+		 (set result0 (subword HI rm 2))
+		 (set result1 (subword HI rn 2))
+		 (set result2 (subword HI rm 3))
+		 (set result3 (subword HI rn 3))
+		 (set rd (-join-hi result3 result2 result1 result0))))
+
+(dshmi mshflob "Multimedia shuffle lower-half (byte)"
+       ()
+       "mshflo.b $rm, $rn, $rd"
+       (+ (f-op 11) rm (f-ext 0) rn rd (f-rsvd 0))
+       (sequence ((QI result7) (QI result6) (QI result5) (QI result4)
+		  (QI result3) (QI result2) (QI result1) (QI result0))
+		 (set result0 (subword QI rm 0))
+		 (set result1 (subword QI rn 0))
+		 (set result2 (subword QI rm 1))
+		 (set result3 (subword QI rn 1))
+		 (set result4 (subword QI rm 2))
+		 (set result5 (subword QI rn 2))
+		 (set result6 (subword QI rm 3))
+		 (set result7 (subword QI rn 3))
+		 (set rd (-join-qi result7 result6 result5 result4 result3
+				 result2 result1 result0))))
+
+(dshmi mshflol "Multimedia shuffle lower-half (long)"
+       ()
+       "mshflo.l $rm, $rn, $rd"
+       (+ (f-op 11) rm (f-ext 2) rn rd (f-rsvd 0))
+       (sequence ((SI result1) (SI result0))
+		 (set result0 (subword SI rm 0))
+		 (set result1 (subword SI rn 0))
+		 (set rd (-join-si result1 result0))))
+
+(dshmi mshflow "Multimedia shuffle lower-half (word)"
+       ()
+       "mshflo.w $rm, $rn, $rd"
+       (+ (f-op 11) rm (f-ext 1) rn rd (f-rsvd 0))
+       (sequence ((HI result3) (HI result2) (HI result1) (HI result0))
+		 (set result0 (subword HI rm 0))
+		 (set result1 (subword HI rn 0))
+		 (set result2 (subword HI rm 1))
+		 (set result3 (subword HI rn 1))
+		 (set rd (-join-hi result3 result2 result1 result0))))
+
+(define-pmacro (-mshlldl arg) (sll arg (and rn 31)))
+(dshmi mshlldl "Multimedia logical left shift (long word)"
+       ()
+       "mshlld.l $rm, $rn, $rd"
+       (+ (f-op 3) rm (f-ext 2) rn rd (f-rsvd 0))
+       (slice-long-unop -mshlldl))
+
+(define-pmacro (-mshlldw arg) (sll arg (and rn 15)))
+(dshmi mshlldw "Multimedia logical left shift (word)"
+       ()
+       "mshlld.w $rm, $rn, $rd"
+       (+ (f-op 3) rm (f-ext 1) rn rd (f-rsvd 0))
+       (slice-word-unop -mshlldw))
+
+(define-pmacro (-mshlrdl arg) (srl arg (and rn 31)))
+(dshmi mshlrdl "Multimedia logical right shift (long word)"
+       ()
+       "mshlrd.l $rm, $rn, $rd"
+       (+ (f-op 3) rm (f-ext 14) rn rd (f-rsvd 0))
+       (slice-long-unop -mshlrdl))
+
+(define-pmacro (-mshlrdw arg) (srl arg (and rn 15)))
+(dshmi mshlrdw "Multimedia logical right shift (word)"
+       ()
+       "mshlrd.w $rm, $rn, $rd"
+       (+ (f-op 3) rm (f-ext 13) rn rd (f-rsvd 0))
+       (slice-word-unop -mshlrdw))
+
+(dshmi msubl "Multimedia subtract (long word)"
+       ()
+       "msub.l $rm, $rn, $rd"
+       (+ (f-op 2) rm (f-ext 10) rn rd (f-rsvd 0))
+       (slice-long sub))
+
+(dshmi msubw "Multimedia add (word)"
+       ()
+       "msub.w $rm, $rn, $rd"
+       (+ (f-op 2) rm (f-ext 9) rn rd (f-rsvd 0))
+       (slice-word sub))
+
+(define-pmacro (-msubsl arg1 arg2) (saturate SI 32 (sub arg1 arg2)))
+(dshmi msubsl "Multimedia subtract (saturating long)"
+       ()
+       "msubs.l $rm, $rn, $rd"
+       (+ (f-op 2) rm (f-ext 14) rn rd (f-rsvd 0))
+       (slice-long -msubsl))
+
+(define-pmacro (-msubsub arg1 arg2) (usaturate QI 8 (sub arg1 arg2)))
+(dshmi msubsub "Multimedia subtract (saturating byte)"
+       ()
+       "msubs.ub $rm, $rn, $rd"
+       (+ (f-op 2) rm (f-ext 12) rn rd (f-rsvd 0))
+       (slice-byte -msubsub))
+
+(define-pmacro (-msubsw arg1 arg2) (saturate HI 16 (sub arg1 arg2)))
+(dshmi msubsw "Multimedia subtract (saturating word)"
+       ()
+       "msubs.w $rm, $rn, $rd"
+       (+ (f-op 2) rm (f-ext 13) rn rd (f-rsvd 0))
+       (slice-byte -msubsw))
+
+(dshmi mulsl "Multiply signed long"
+       ()
+       "muls.l $rm, $rn, $rd"
+       (+ (f-op 1) rm (f-ext 14) rn rd (f-rsvd 0))
+       (set rd (mul (ext DI (subword SI rm 1)) (ext DI (subword SI rn 1)))))
+
+(dshmi mulul "Multiply unsigned long"
+       ()
+       "mulu.l $rm, $rn, $rd"
+       (+ (f-op 0) rm (f-ext 14) rn rd (f-rsvd 0))
+       (set rd (mul (zext DI (subword SI rm 1)) (zext DI (subword SI rn 1)))))
+
+(dshmi nop "No operation"
+       ()
+       "nop"
+       (+ (f-op 27) (f-left 63) (f-ext 0) (f-right 63) (f-dest 63) (f-rsvd 0))
+       (nop))
+
+(dshmi nsb "Number of consecutive sign bits"
+       ()
+       "nsb $rm, $rd"
+       (+ (f-op 0) rm (f-ext 13) (f-right 63) rd (f-rsvd 0))
+       ; Semantics requires a loop construct, so punt to C.
+       (set rd (c-call DI "sh64_nsb" rm)))
+
+(dshmi ocbi "Invalidate operand cache block"
+       ()
+       "ocbi $rm, $disp6x32"
+       (+ (f-op 56) rm (f-ext 9) disp6x32 (f-dest 63) (f-rsvd 0))
+       (unimp "ocbi"))
+
+(dshmi ocbp "Purge operand cache block"
+       ()
+       "ocbp $rm, $disp6x32"
+       (+ (f-op 56) rm (f-ext 8) disp6x32 (f-dest 63) (f-rsvd 0))
+       (unimp "ocbp"))
+
+(dshmi ocbwb "Write-back operand cache block"
+       ()
+       "ocbwb $rm, $disp6x32"
+       (+ (f-op 56) rm (f-ext 12) disp6x32 (f-dest 63) (f-rsvd 0))
+       (unimp "ocbwb"))
+
+(dshmi or "OR"
+       ()
+       "or $rm, $rn, $rd"
+       (+ (f-op 1) rm (f-ext 9) rn rd (f-rsvd 0))
+       (set rd (or rm rn)))
+
+(dshmi ori "OR immediate"
+       ()
+       "ori $rm, $imm10, $rd"
+       (+ (f-op 55) rm imm10 rd (f-rsvd 0))
+       (set rd (or rm (ext DI imm10))))
+
+(dshmi prefi "Prefetch instruction"
+       ()
+       "prefi $rm, $disp6x32"
+       (+ (f-op 56) rm (f-ext 1) disp6x32 (f-right 63) (f-rsvd 0))
+       (unimp "prefi"))
+
+(dshmi pta "Prepare target register for SHmedia target"
+       ()
+       "pta$likely $disp16, $tra"
+       (+ (f-op 58) disp16 likely (f-8-2 0) tra (f-rsvd 0))
+       (set tra (add disp16 1)))
+
+(dshmi ptabs "Prepare target register with absolute value from register"
+       ()
+       "ptabs$likely $rn, $tra"
+       (+ (f-op 26) (f-left 63) (f-ext 1) rn likely (f-8-2 0) tra (f-rsvd 0))
+       (set tra rn))
+
+(dshmi ptb "Prepare target register for SHcompact target"
+       ()
+       "ptb$likely $disp16, $tra"
+       (+ (f-op 59) disp16 likely (f-8-2 0) tra (f-rsvd 0))
+       (set tra disp16))
+
+(dshmi ptrel "Prepare target register with relative value from register"
+       ()
+       "ptrel$likely $rn, $tra"
+       (+ (f-op 26) (f-left 63) (f-ext 5) rn likely (f-8-2 0) tra (f-rsvd 0))
+       (set tra (add pc rn)))
+
+(dshmi putcfg "Put configuration register"
+       ()
+       "putcfg $rm, $disp6, $rd"
+       (+ (f-op 56) rm (f-ext 15) disp6 rd (f-rsvd 0))
+       (unimp "putcfg"))
+
+(dshmi putcon "Put control register"
+       ()
+       "putcon $rm, $crj"
+       (+ (f-op 27) rm (f-ext 15) (f-right 63) crj (f-rsvd 0))
+       (set crj rm))
+
+(dshmi rte "Return from exception"
+       ()
+       "rte"
+       (+ (f-op 27) (f-left 63) (f-ext 3) (f-right 63) (f-dest 63) (f-rsvd 0))
+       (unimp "rte"))
+
+(dshmi shard "Arithmetic right shift"
+       ()
+       "shard $rm, $rn, $rd"
+       (+ (f-op 1) rm (f-ext 7) rn rd (f-rsvd 0))
+       (set rd (sra rm (and rn 63))))
+
+(dshmi shardl "Arithmetic right shift (long word)"
+       ()
+       "shard.l $rm, $rn, $rd"
+       (+ (f-op 1) rm (f-ext 6) rn rd (f-rsvd 0))
+       (set rd (ext DI (sra (subword SI rm 1) (and rn 63)))))
+
+(dshmi shari "Arithmetic right shift (immediate count)"
+       ()
+       "shari $rm, $uimm6, $rd"
+       (+ (f-op 49) rm (f-ext 7) uimm6 rd (f-rsvd 0))
+       (set rd (sra rm uimm6)))
+
+(dshmi sharil "Arithmetic right shift (long word, immediate count)"
+       ()
+       "shari.l $rm, $uimm6, $rd"
+       (+ (f-op 49) rm (f-ext 6) uimm6 rd (f-rsvd 0))
+       (set rd (ext DI (sra (subword SI rm 1) (and uimm6 63)))))
+
+(dshmi shlld "Logical left shift"
+       ()
+       "shlld $rm, $rn, $rd"
+       (+ (f-op 1) rm (f-ext 1) rn rd (f-rsvd 0))
+       (set rd (sll rm (and rn 63))))
+
+(dshmi shlldl "Logical left shift (long word)"
+       ()
+       "shlld.l $rm, $rn, $rd"
+       (+ (f-op 1) rm (f-ext 0) rn rd (f-rsvd 0))
+       (set rd (ext DI (sll (subword SI rm 1) (and rn 63)))))
+
+(dshmi shlli "Logical left shift (immediate count)"
+       ()
+       "shlli $rm, $uimm6, $rd"
+       (+ (f-op 49) rm (f-ext 1) uimm6 rd (f-rsvd 0))
+       (set rd (sll rm uimm6)))
+
+(dshmi shllil "Logical left shift (long word, immediate count)"
+       ()
+       "shlli.l $rm, $uimm6, $rd"
+       (+ (f-op 49) rm (f-ext 0) uimm6 rd (f-rsvd 0))
+       (set rd (ext DI (sll (subword SI rm 1) (and uimm6 63)))))
+
+(dshmi shlrd "Logical right shift"
+       ()
+       "shlrd $rm, $rn, $rd"
+       (+ (f-op 1) rm (f-ext 3) rn rd (f-rsvd 0))
+       (set rd (srl rm (and rn 63))))
+
+(dshmi shlrdl "Logical right shift (long word)"
+       ()
+       "shlrd.l $rm, $rn, $rd"
+       (+ (f-op 1) rm (f-ext 2) rn rd (f-rsvd 0))
+       (set rd (ext DI (srl (subword SI rm 1) (and rn 63)))))
+
+(dshmi shlri "Logical right shift (immediate count)"
+       ()
+       "shlri $rm, $uimm6, $rd"
+       (+ (f-op 49) rm (f-ext 3) uimm6 rd (f-rsvd 0))
+       (set rd (srl rm uimm6)))
+
+(dshmi shlril "Logical right shift (long word, immediate count)"
+       ()
+       "shlri.l $rm, $uimm6, $rd"
+       (+ (f-op 49) rm (f-ext 2) uimm6 rd (f-rsvd 0))
+       (set rd (ext DI (srl (subword SI rm 1) (and uimm6 63)))))
+
+(dshmi shori "Shift-or immediate"
+       ()
+       "shori $uimm16, $rd"
+       (+ (f-op 50) uimm16 rd (f-rsvd 0))
+       (set rd (or (sll rd 16) (zext DI uimm16))))
+
+(dshmi sleep "Sleep"
+       ()
+       "sleep"
+       (+ (f-op 27) (f-left 63) (f-ext 7) (f-right 63) (f-dest 63) (f-rsvd 0))
+       (unimp "sleep"))
+
+(dshmi stb "Store byte"
+       ()
+       "st.b $rm, $disp10, $rd"
+       (+ (f-op 40) rm disp10 rd (f-rsvd 0))
+       (set (mem UQI (add rm (ext DI disp10))) (and QI rd #xff)))
+
+(dshmi stl "Store long word"
+       ()
+       "st.l $rm, $disp10x4, $rd"
+       (+ (f-op 42) rm disp10x4 rd (f-rsvd 0))
+       (set (mem SI (add rm (ext DI disp10x4))) (and SI rd #xffffffff)))
+
+(dshmi stq "Store quad word"
+       ()
+       "st.q $rm, $disp10x8, $rd"
+       (+ (f-op 43) rm disp10x8 rd (f-rsvd 0))
+       (set (mem DI (add rm (ext DI disp10x8))) rd))
+
+(dshmi stw "Store word"
+       ()
+       "st.w $rm, $disp10x2, $rd"
+       (+ (f-op 41) rm disp10x2 rd (f-rsvd 0))
+       (set (mem HI (add rm (ext DI disp10x2))) (and HI rd #xffff)))
+
+(define-pmacro (-sthi-byte)
+  (sequence ()
+	    (set (mem UQI addr) (and QI val #xff))
+	    (set val (srl val 8))
+	    (set addr (add addr 1))))
+
+(dshmi sthil "Store high part (long word)"
+      ()
+       "sthi.l $rm, $disp6, $rd"
+       (+ (f-op 56) rm (f-ext 6) disp6 rd (f-rsvd 0))
+       (sequence ((DI addr) (QI bytecount) (DI val))
+		 (set addr (add rm disp6))
+		 (set bytecount (add (and addr 3) 1))
+		 (if endian
+		     (set val rd)
+		     (set val (srl rd (sub 32 (mul 8 bytecount)))))
+		 (set addr (add (sub addr bytecount) 1))
+		 (if (gt bytecount 3)
+		     (-sthi-byte))
+		 (if (gt bytecount 2)
+		     (-sthi-byte))
+		 (if (gt bytecount 1)
+		     (-sthi-byte))
+		 (if (gt bytecount 0)
+		     (-sthi-byte))))
+
+(dshmi sthiq "Store high part (quad word)"
+       ()
+       "sthi.q $rm, $disp6, $rd"
+       (+ (f-op 56) rm (f-ext 7) disp6 rd (f-rsvd 0))
+       (sequence ((DI addr) (QI bytecount) (DI val))
+		 (set addr (add rm disp6))
+		 (set bytecount (add (and addr 7) 1))
+		 (if endian
+		     (set val rd)
+		     (set val (srl rd (sub 64 (mul 8 bytecount)))))
+		 (set addr (add (sub addr bytecount) 1))
+		 (if (gt bytecount 7)
+		     (-sthi-byte))
+		 (if (gt bytecount 6)
+		     (-sthi-byte))
+		 (if (gt bytecount 5)
+		     (-sthi-byte))
+		 (if (gt bytecount 4)
+		     (-sthi-byte))
+		 (if (gt bytecount 3)
+		     (-sthi-byte))
+		 (if (gt bytecount 2)
+		     (-sthi-byte))
+		 (if (gt bytecount 1)
+		     (-sthi-byte))
+		 (if (gt bytecount 0)
+		     (-sthi-byte))))
+
+(dshmi stlol "Store low part (long word)"
+       ()
+       "stlo.l $rm, $disp6, $rd"
+       (+ (f-op 56) rm (f-ext 2) disp6 rd (f-rsvd 0))
+       ; FIXME.
+       (unimp "stlol"))
+
+(dshmi stloq "Store low part (quad word)"
+       ()
+       "stlo.q $rm, $disp6, $rd"
+       (+ (f-op 56) rm (f-ext 3) disp6 rd (f-rsvd 0))
+       ; FIXME.
+       (unimp "stloq"))
+
+(dshmi stxb "Store byte (extended displacement)"
+       ()
+       "stx.b $rm, $rn, $rd"
+       (+ (f-op 24) rm (f-ext 0) rn rd (f-rsvd 0))
+       (set (mem UQI (add rm rn)) (subword QI rd 7)))
+
+(dshmi stxl "Store long (extended displacement)"
+       ()
+       "stx.l $rm, $rn, $rd"
+       (+ (f-op 24) rm (f-ext 2) rn rd (f-rsvd 0))
+       (set (mem SI (add rm rn)) (subword SI rd 1)))
+
+(dshmi stxq "Store quad word (extended displacement)"
+       ()
+       "stx.q $rm, $rn, $rd"
+       (+ (f-op 24) rm (f-ext 3) rn rd (f-rsvd 0))
+       (set (mem DI (add rm rn)) rd))
+
+(dshmi stxw "Store word (extended displacement)"
+       ()
+       "stx.w $rm, $rn, $rd"
+       (+ (f-op 24) rm (f-ext 1) rn rd (f-rsvd 0))
+       (set (mem HI (add rm rn)) (subword HI rd 3)))
+
+(dshmi sub "Subtract"
+       ()
+       "sub $rm, $rn, $rd"
+       (+ (f-op 0) rm (f-ext 11) rn rd (f-rsvd 0))
+       (set rd (sub rm rn)))
+
+(dshmi subl "Subtract long"
+       ()
+       "sub.l $rm, $rn, $rd"
+       (+ (f-op 0) rm (f-ext 10) rn rd (f-rsvd 0))
+       (set rd (ext DI (sub (subword SI rm 1) (subword SI rn 1)))))
+
+(dshmi swapq "Swap quad words"
+       ()
+       "swap.q $rm, $rn, $rd"
+       (+ (f-op 8) rm (f-ext 3) rn rd (f-rsvd 0))
+       (sequence ((DI addr) (DI temp))
+		 (set addr (add rm rn))
+		 (set temp (mem DI addr))
+		 (set (mem DI addr) rd)
+		 (set rd temp)))
+
+(dshmi synci "Synchronise instruction fetch"
+       ()
+       "synci"
+       (+ (f-op 27) (f-left 63) (f-ext 2) (f-right 63) (f-dest 63) (f-rsvd 0))
+       (unimp "synci"))
+
+(dshmi synco "Synchronise data operations"
+       ()
+       "synco"
+       (+ (f-op 27) (f-left 63) (f-ext 6) (f-right 63) (f-dest 63) (f-rsvd 0))
+       (unimp "synco"))
+
+(dshmi trapa "Trap"
+       ()
+       "trapa $rm"
+       (+ (f-op 27) rm (f-ext 1) (f-right 63) (f-dest 63) (f-rsvd 0))
+       (c-call "sh64_trapa" rm pc))
+
+(dshmi xor "Exclusive OR"
+       ()
+       "xor $rm, $rn, $rd"
+       (+ (f-op 1) rm (f-ext 13) rn rd (f-rsvd 0))
+       (set rd (xor rm rn)))
+
+(dshmi xori "Exclusive OR immediate"
+       ()
+       "xori $rm, $imm6, $rd"
+       (+ (f-op 49) rm (f-ext 13) rn rd (f-rsvd 0))
+       (set rd (xor rm (ext DI imm6))))

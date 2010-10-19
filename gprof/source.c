@@ -1,6 +1,6 @@
 /* source.c - Keep track of source files.
 
-   Copyright 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright 2000, 2001, 2002, 2004 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include "gprof.h"
 #include "libiberty.h"
@@ -35,8 +35,7 @@ Source_File *first_src_file = 0;
 
 
 Source_File *
-source_file_lookup_path (path)
-     const char *path;
+source_file_lookup_path (const char *path)
 {
   Source_File *sf;
 
@@ -63,8 +62,7 @@ source_file_lookup_path (path)
 
 
 Source_File *
-source_file_lookup_name (filename)
-     const char *filename;
+source_file_lookup_name (const char *filename)
 {
   const char *fname;
   Source_File *sf;
@@ -91,11 +89,9 @@ source_file_lookup_name (filename)
 
 
 FILE *
-annotate_source (sf, max_width, annote, arg)
-     Source_File *sf;
-     unsigned int max_width;
-     void (*annote) PARAMS ((char *, unsigned int, int, void *));
-     void *arg;
+annotate_source (Source_File *sf, unsigned int max_width,
+     void (*annote) (char *, unsigned int, int, void *),
+     void *arg)
 {
   static bfd_boolean first_file = TRUE;
   int i, line_num, nread;

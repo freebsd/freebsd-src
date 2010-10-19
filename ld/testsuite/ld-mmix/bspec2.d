@@ -4,32 +4,26 @@
 #source: start.s
 #source: ext1.s
 #ld: -m elf64mmix
-#readelf: -Ssr -x1 -x5 -x6
+#readelf: -Ssr -x1 -x2 -x3
 
-There are 10 section headers, starting at offset 0x118:
+There are 7 section headers, starting at offset 0xd0:
 
 Section Headers:
   \[Nr\] Name              Type             Address           Offset
        Size              EntSize          Flags  Link  Info  Align
   \[ 0\]                   NULL             0+  0+
        0+  0+           0     0     0
-  \[ 1\] \.text             PROGBITS         0+  0+b0
+  \[ 1\] \.text             PROGBITS         0+  0+78
        0+4  0+  AX       0     0     4
-  \[ 2\] \.data             PROGBITS         2000000000000000  0+b4
-       0+  0+  WA       0     0     1
-  \[ 3\] \.sbss             PROGBITS         2000000000000000  0+b4
-       0+  0+   W       0     0     1
-  \[ 4\] \.bss              NOBITS           2000000000000000  0+b4
-       0+  0+  WA       0     0     1
-  \[ 5\] \.MMIX\.spec_data\.2 PROGBITS         0+  0+b4
+  \[ 2\] \.MMIX\.spec_data\.2 PROGBITS         0+  0+7c
        0+8  0+           0     0     4
-  \[ 6\] \.MMIX\.spec_data\.3 PROGBITS         0+  0+bc
+  \[ 3\] \.MMIX\.spec_data\.3 PROGBITS         0+  0+84
        0+4  0+           0     0     4
-  \[ 7\] \.shstrtab         STRTAB           0+  0+c0
-       0+56  0+           0     0     1
-  \[ 8\] \.symtab           SYMTAB           0+  0+398
-       0+198  0+18           9     a     8
-  \[ 9\] \.strtab           STRTAB           0+  0+530
+  \[ 4\] \.shstrtab         STRTAB           0+  0+88
+       0+45  0+           0     0     1
+  \[ 5\] \.symtab           SYMTAB           0+  0+290
+       0+150  0+18           6     7     8
+  \[ 6\] \.strtab           STRTAB           0+  0+3e0
        0+32  0+           0     0     1
 Key to Flags:
   W \(write\), A \(alloc\), X \(execute\), M \(merge\), S \(strings\)
@@ -38,21 +32,18 @@ Key to Flags:
 
 There are no relocations in this file\.
 
-Symbol table '\.symtab' contains 17 entries:
+Symbol table '\.symtab' contains 14 entries:
    Num:    Value          Size Type    Bind   Vis      Ndx Name
      0: 0+     0 NOTYPE  LOCAL  DEFAULT  UND 
      1: 0+     0 SECTION LOCAL  DEFAULT    1 
-     2: 2000000000000000     0 SECTION LOCAL  DEFAULT    2 
-     3: 2000000000000000     0 SECTION LOCAL  DEFAULT    3 
-     4: 2000000000000000     0 SECTION LOCAL  DEFAULT    4 
+     2: 0+     0 SECTION LOCAL  DEFAULT    2 
+     3: 0+     0 SECTION LOCAL  DEFAULT    3 
+     4: 0+     0 SECTION LOCAL  DEFAULT    4 
      5: 0+     0 SECTION LOCAL  DEFAULT    5 
      6: 0+     0 SECTION LOCAL  DEFAULT    6 
-     7: 0+     0 SECTION LOCAL  DEFAULT    7 
-     8: 0+     0 SECTION LOCAL  DEFAULT    8 
-     9: 0+     0 SECTION LOCAL  DEFAULT    9 
-    10: 0+     0 FUNC    GLOBAL DEFAULT    1 Main
-    11: 0+fc     0 NOTYPE  GLOBAL DEFAULT  ABS ext1
-    12: 0+     0 NOTYPE  GLOBAL DEFAULT    1 _start
+     7: 0+     0 FUNC    GLOBAL DEFAULT    1 Main
+     8: 0+fc     0 NOTYPE  GLOBAL DEFAULT  ABS ext1
+     9: 0+     0 NOTYPE  GLOBAL DEFAULT    1 _start
 #...
 
 Hex dump of section '\.text':

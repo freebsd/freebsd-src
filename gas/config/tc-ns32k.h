@@ -1,5 +1,5 @@
 /* tc-ns32k.h -- Opcode table for National Semi 32k processor
-   Copyright 1987, 1992, 1993, 1994, 1995, 1997, 2000, 2002
+   Copyright 1987, 1992, 1993, 1994, 1995, 1997, 2000, 2002, 2005
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -16,35 +16,27 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #define TC_NS32K
 
 #define TARGET_BYTES_BIG_ENDIAN	0
 
 #define TC_PCREL_ADJUST(F) md_pcrel_adjust(F)
-extern int md_pcrel_adjust PARAMS((fragS *fragP));
+extern int md_pcrel_adjust (fragS *);
 
-#ifdef BFD_ASSEMBLER
 #define NO_RELOC BFD_RELOC_NONE
 
 #define TARGET_ARCH		bfd_arch_ns32k
 
-#ifndef TARGET_FORMAT		/* Maybe defined in te-*.h */
+#ifndef TARGET_FORMAT		/* Maybe defined in te-*.h.  */
 #define TARGET_FORMAT		"a.out-pc532-mach"
-#endif
-#else
-#define NO_RELOC 0
 #endif
 
 #define LOCAL_LABELS_FB 1
 
 #include "bit_fix.h"
-
-#define tc_aout_pre_write_hook(x)	{;}	/* not used */
-#define tc_crawl_symbol_chain(a)	{;}	/* not used */
-#define tc_headers_hook(a)		{;}	/* not used */
 
 #ifdef SEQUENT_COMPATABILITY
 #define DEF_MODEC 20
@@ -63,15 +55,7 @@ extern int md_pcrel_adjust PARAMS((fragS *fragP));
 #define ARG_LEN 50
 
 #define TC_CONS_FIX_NEW cons_fix_new_ns32k
-extern void fix_new_ns32k_exp PARAMS ((fragS *, int, int, expressionS *,
-				       int, int, bit_fixS *, int, fragS *,
-				       unsigned int));
-
-extern void fix_new_ns32k PARAMS ((fragS *, int, int, symbolS *, long,
-				   int, int, bit_fixS *, int, fragS *,
-				   unsigned int));
-
-extern void cons_fix_new_ns32k PARAMS ((fragS *, int, int, expressionS *));
+extern void cons_fix_new_ns32k (fragS *, int, int, expressionS *);
 
 /* The NS32x32 has a non 0 nop instruction which should be used in aligns.  */
 #define NOP_OPCODE 0xa2

@@ -1,6 +1,6 @@
 /* ELF object file format.
    Copyright 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003 Free Software Foundation, Inc.
+   2002, 2003, 2004 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* HP PA-RISC support was contributed by the Center for Software Science
    at the University of Utah.  */
@@ -156,10 +156,17 @@ extern void elf_frob_file_before_adjust (void);
 #endif
 extern void elf_frob_file_after_relocs (void);
 
+/* If the target doesn't have special processing for labels, take care of
+   dwarf2 output at the object file level.  */
+#ifndef tc_frob_label
+#include "dwarf2dbg.h"
+#define obj_frob_label  dwarf2_emit_label
+#endif
+
 #ifndef obj_app_file
 #define obj_app_file elf_file_symbol
 #endif
-extern void elf_file_symbol (const char *);
+extern void elf_file_symbol (const char *, int);
 
 extern void obj_elf_section_change_hook (void);
 
@@ -241,10 +248,11 @@ extern void elf_pop_insert (void);
 
 #ifndef OBJ_MAYBE_ELF
 #define obj_ecoff_set_ext elf_ecoff_set_ext
-#ifdef ANSI_PROTOTYPES
 struct ecoff_extr;
-#endif
 extern void elf_ecoff_set_ext (symbolS *, struct ecoff_extr *);
 #endif
+extern asection *elf_com_section_ptr;
+extern symbolS * elf_common_parse (int ignore ATTRIBUTE_UNUSED, symbolS *symbolP,
+				   addressT size);
 
 #endif /* _OBJ_ELF_H */

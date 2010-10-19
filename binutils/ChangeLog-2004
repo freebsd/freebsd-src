@@ -1,0 +1,793 @@
+2004-12-31  Alan Modra  <amodra@bigpond.net.au>
+
+	* objdump.c (remove_useless_symbols): Discard section symbols.
+
+2004-12-27  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* readelf.c (read_leb128): Support 64bit host.
+
+2004-12-23  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/616
+	* readelf.c (debug_info): Add 'cu_offset' field.
+	(get+pointer_size_of_comp_unit): Rename to
+	'get_pointer_size_and_offset_of_comp_unit'.  Add code to return
+	the offset of the comp_unit if requested.
+	(get_debug_info): Record comp_unit offsets as well.
+	(display_debug_lines): Call get_pointer_size_of_comp_unit.
+	(decode_location_expression): Add an extra parameter - the offset
+	of the current comp-unit.  Use this when decoding the DW_OP_call2
+	and DW_OP_call4 operators.
+	(display_debug_loc): Call get_pointer_size_of_comp_unit, pass the
+	comp_unit offset on the decode_location_expression.
+	(read_and_display_attr_value): Pass the	comp_unit offset on the
+	decode_location_expression.
+	(display_debug_frames): Pass 0 as the comp_unit offset to
+	decode_location_expression.
+
+2004-12-22  Nick Clifton  <nickc@redhat.com>
+
+	* readelf.c (last_pointer_size, warned_about_missing_comp_units):
+	New variables associated with obtaining the pointer size for a
+	comp_unit.
+	(get_pointer_size_of_comp_unit): Add an extra parameter - the name
+	of the section requesting the pointer size.  Use this name in
+	error messages.  If there are not enough comp_units available
+	produce a warning message, but return the last known pointer size
+	so that section dumping can continue.
+	(get_debug_info): Reset the new variables.
+	(display_debug_lines): Add extra parameter to invocation of
+	get_pointer_size_of_comp_unit and remove error message when it
+	returns 0.
+	(display_debug_loc): Likewise.
+
+2004-12-15 Jan Beulich  <jbeulich@novell.com>
+
+	* doc/binutils.texi: Document --strip-unneeded-symbol and
+	--strip-unneeded-symbols.
+	* objcopy.c (strip_unneeded_list): New.
+	(enum command_line_switch): Add OPTION_STRIP_UNNEEDED_SYMBOL
+	and OPTION_STRIP_UNNEEDED_SYMBOLS.
+	(copy_options): Add  --strip-unneeded-symbol and
+	--strip-unneeded-symbols.
+	(copy_usage): Likewise.
+	(filter_symbols): Suppress copying of symbol if in strip_unneeded_list
+	and the symbol is not needed.
+	(copy_main): Handle OPTION_STRIP_UNNEEDED_SYMBOL and
+	OPTION_STRIP_UNNEEDED_SYMBOLS.
+
+2004-12-09  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* readelf.c (get_machine_flags): Handle E_MIPS_MACH_9000.
+
+2004-12-08  Ben Elliston  <bje@au.ibm.com>
+
+	* arlex.l: Fix formatting.
+
+2004-12-08  Ben Elliston  <bje@au.ibm.com>
+
+	* doc/Makefile.am (config.texi): Emit a @set UPDATED command to
+	config.texi whose value is the current month and year.
+	* doc/Makefile.in: Rebuild.
+	* doc/binutils.texi: Set the document subtitle to be the value of
+	the Texinfo UPDATED variable (obtained from config.texi).
+
+2004-12-07  Ben Elliston  <bje@au.ibm.com>
+
+	PR binutils/249
+	* doc/binutils.texi (def file format): New node.
+	(dlltool): Use the tool name as the @chapter name, like all the
+	other binutils.  Use @file{.def} throughout for consistency.
+
+2004-12-06  Ben Elliston  <bje@au.ibm.com>
+
+	* dlltool.c: Comment fix.
+
+2004-12-06  Ben Elliston  <bje@au.ibm.com>
+
+	* doc/binutils.texi: Update copyright years.
+
+2004-12-03  Richard Sandiford  <rsandifo@redhat.com>
+
+	* MAINTAINERS: Remove mention of config.if.
+
+2004-11-30  Tero Niemela  <tero_niemela@yahoo.com>
+
+	* Makefile.am: Change LOCALEDIR to $(datadir)/share.
+	* Makefile.in: Regenerate.
+
+2004-11-10  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	PR binutils/536
+	* stabs.c (stab_demangle_template): Call stab_demangle_count
+	rather than stab_demangle_get_count to get the length of a pointer
+	target.
+
+2004-11-10  Danny Smith  <dannysmith@users.sourceforge.net>
+
+	* defparse.y: Remove unnecessary commas from token list.
+
+2004-11-08  Aaron W. LaFramboise <aaron98wiridge9@aaronwl.com>
+
+	* doc/binutils.texi (nm): Update description of weak symbols.
+
+2004-11-03  Nick Clifton  <nickc@redhat.com>
+
+	* readelf.c (do_debug_ranges): New variable.
+	(usage): Document new switch: -wR or --debug-dump=Ranges.
+	(parse_args): Handle new switch.  Replace switch statement for the
+	long options with a more compact table structure.
+	(process_section_headers): Allow the dumping of .debug_ranges
+	sections if so requested.
+	(debug_displays): Likewise.
+	(load_debug_range): New function: Grabs the contents of a
+	.debug_ranges section.
+	(free_debug_range): New function: Releases the grabbed
+	.debug_ranges section.
+	(decode_64bit_range): New function: Displays a 64-bit range in a
+	.debug_ranges section.
+	(decode_range): New function: Displays a 32-bit range in a
+	.debug_ranges section.
+	(read_and_display_attr_value): Record the value of DW_AT_low_pc
+	attributes.  Use decode_ranges() to display a DW_AT_ranges
+	attribute.
+	(display_debug_info): Use load_debug_range() and
+	free_debug_range().
+	(display_64bit_debug_ranges): New function.  Displays the contents
+	of a 64-bit format .debug_ranges section.
+	(display_debug_ranges): New function: Displays the contents of a
+	32-bit .debug_ranges section.
+
+	(main): Move cmdline_dump_sects and num_cmdline_dump_sects into the
+	global scope.
+	(process_object): Initialise the dump_sects array from the
+	cmdline_dump_sects array before processing each object file.
+
+	(streq, strneq): New macros.  Use them to replace occurrences of
+	strcmp() and strncmp().
+
+	(debug_information): New structure array to replace
+	debug_line_pointer_sizes array.
+	(num_debug_info_entries): New variable to replace
+	num_debug_line_pointers.
+	(get_pointer_size_of_comp_unit): New function: Returns the pointer
+	size of a given compilation unit.
+	(get_debug_info): New function to replace
+	get_debug_line_pointer_sizes.
+	(display_debug_lines): Use the new functions.
+	(display_debug_loc): Likewise.
+
+	(disassemble_section): Change return type to int.
+	(display_debug_lines): Move local variables to their
+	innermost scope.
+	(display_debug_section): Likewise.  Also record the return value
+	of functions called and pass this back to the parent.  Also only
+	warn about undumped sections when the user explicitly requested
+	their dumping.
+
+	(debug_apply_rela_addends): Allow relocations against STT_OBJECT
+	types as well.
+
+	* NEWS: Mention the support for decoding .debug_ranges sections.
+	* doc/binutils.texi: Document the new command line switch to
+	readelf.
+
+2004-11-03  Randolph Chung  <tausq@debian.org>
+
+	* readelf.c (ia64_unw_aux_info, ia64_unw_table_entry): Rename from
+	unw_aux_info and unw_table_entry.
+	(find_symbol_for_address): Pass symtab and strtab info explicitly.
+	(dump_ia64_unwind): Rename unw_{aux_info,table_entry} with ia64_
+	prefix.
+	(slurp_ia64_unwind_table): Likewise.
+	(ia64_process_unwind): Rename from old process_unwind.
+	(hppa_unw_aux_info): New.
+	(dump_hppa_unwind): New.
+	(slurp_hppa_unwind_table): New.
+	(hppa_process_unwind): New.
+	(process_unwind): Factor out common unwinding checks; dispatch to
+	unwind handler based on machine type.
+
+2004-11-02  Nick Clifton  <nickc@redhat.com>
+
+	* readelf.c (display_debug_lines): Fix typo in error message.
+
+2004-10-26  Mark Mitchell  <mark@codesourcery.com>
+
+	* readelf.c (get_note_type): Handle notes not in core files.
+	(process_note_sections): New function.
+	(process_corefile_contents): Rename to ...
+	(process_notes): ... this.
+	(process_object): Call process_notes, not
+	process_corefile_contents.
+	* doc/binutils.texi: Update readelf -n documentation.
+
+2004-10-26  Jakub Jelinek  <jakub@redhat.com>
+
+	* ar.c (extract_file): Set atime to mtime for ar xo.
+
+2004-10-25  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* stabs.c (stab_demangle_v3_arglist): New static function, broken
+	out of stab_demangle_v3_argtypes.
+	(stab_demangle_v3_argtypes): Call it.
+	(stab_demangle_v3_arg): Handle DEMANGLE_COMPONENT_FUNCTION_TYPE.
+	If we find an unrecognized component, print out its number.
+
+2004-10-25  David Mosberger  <davidm@hpl.hp.com>
+
+	* readelf.c (slurp_ia64_unwind_table): Support relocations against
+	non-section symbols by adding in the symbol value.
+
+2004-10-25  Nick Clifton  <nickc@redhat.com>
+
+	PR 465
+	* readelf.c (dynamic_strings_length): New global variable.
+	(VALID_DYNAMIC_NAME, GET_DYNAMIC_NAME): New macros for accessing
+	strings in the dynamic string table.
+	(process_section_headers): Initialise dynamic_strings_length.
+	(process_dynamic_section): Likewise.
+	(process_object): Reset dynamic_string_length when the buffer is freed.
+	(dynamic_sections_mips_val): Use the new macros.
+	(process_dynamic_section): Likewise.
+	(process_version_sections): Likewise.
+	(process_symbol_table): Likewise.
+	(process_syminfo): Likewise.
+	(process_mips_specific): Likewise.
+	(dump_relocations): Add a new parameter 'strtablen' and use this
+	to verify that string offset in a given reloc is valid.  Print a
+	suitable error message otherwise.
+	(process_relocs): Pass the new argument to dump_relocations.
+
+2004-10-23  Aaron W. LaFramboise  <aaron98wiridge9@aaronwl.com>
+
+	* dlltool.c: Include <assert.h>.
+	(PREFIX_ALIAS_BASE): Define.
+	(struct export): Add member import_name;
+	(def_exports): Set import_name.
+	(make_one_lib_file): Remove prefix alias code, use import_name
+	in .idata$6.
+	(gen_lib_file): Create and delete aliases.
+
+2004-10-19  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* readelf.c (process_section_groups): Free symtab after use.
+
+2004-10-18  Tommy Pettersson <ptp@lysator.liu.se>
+	    Nick Clifton  <nickc@redhat.com>
+
+	* strings.c (usage): Place radix values for -t option into the
+	correct order.
+
+	* objcopy.c (add_redefine_syms_file): Change error messages to use
+	<filename>:<linenumber>: format for easier parsing by automatic
+	tools.
+
+	* srconv.c (show_usage): Fix spelling typo.
+
+	* windres.c (format_from_filename): Suggest the use of -J instead
+	of -I if the file type cannot be determined.
+
+2004-10-18  Aaron W. LaFramboise  <aaron98wiridge9@aaronwl.com>
+
+	* strings.c: Include <sys/stat.h>.
+
+2004-10-18  Alan Modra  <amodra@bigpond.net.au>
+
+	* budemang.c (demangle): Fix thinko.
+
+	* budemang.c (demangle): Handle "@plt" suffix.
+
+2004-10-14  Nick Clifton  <nickc@redhat.com>
+
+	* nm.c (usage): Fix description of --special-syms switch.
+
+2004-10-13  Jakub Jelinek  <jakub@redhat.com>
+
+	* strings.c (statbuf): New typedef.
+	(file_stat): Define.
+	(strings_object_file): Avoid using get_file_size, instead do the
+	checks here, using file_stat.
+	* configure.in (HAVE_STAT64): New test.
+	* configure: Rebuilt.
+	* config.in: Rebuilt.
+
+2004-10-12  Paul Brook  <paul@codesourcery.com>
+
+	* readelf.c (decode_ARM_machine_flags): Support EABI version 4.
+
+2004-10-11  Alan Modra  <amodra@bigpond.net.au>
+
+	* objdump.c (dump_symbols): Fix thinko last change.  Improve error
+	messages.
+
+2004-10-08  Nick Clifton  <nickc@redhat.com>
+
+	* nm.c: Add a new switch --special-syms which, if enabled, will
+	include the ARM Mapping symbols in nm's output.
+	(usage): Mention the switch.
+	(filter_symbols): Handle the switch.
+	* objdump.c: Add a similar switch.
+	(usage): Mention the switch.
+	(dump_symbols): Handle the switch.
+	* doc/binutils.texi: Document the new switches.
+	* NEWS: Mention the new switches.
+
+2004-10-08  Daniel Jacobowitz  <dan@debian.org>
+
+	* readelf.c (get_x86_64_section_type_name): New function.
+	(get_section_type_name): Use it.
+
+2004-10-08  Aaron W. LaFramboise  <aaron98wiridge9@aaronwl.com>
+
+	* dlltool.c (make_one_lib_file): Revert 2004-09-02 and 2004-09-04
+	patches.
+	* doc/binutils.texi (dlltool): Revert 2004-09-06 patch.
+
+2004-10-07  Alexandre Oliva  <aoliva@redhat.com>
+
+	* readelf.c (get_machine_flags): Don't fall through into m68k cpu
+	types.
+
+2004-10-01  Paul Brook  <paul@codesourcery.com>
+
+	* readelf.c (get_arm_section_type_name): New function.
+	(get_section_type_name): Use it.
+
+2004-09-28  Nick Clifton  <nickc@redhat.com>
+
+	* nm.c: Reorder functions to eliminate most of the static function
+	prototypes.
+
+2004-09-22  Alan Modra  <amodra@bigpond.net.au>
+
+	* readelf.c (process_program_headers): Don't include .tbss in non-TLS
+	segments.
+
+2004-09-17  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am: Run "make dep-am".
+	* Makefile.in: Regenerate.
+	* config.in: Regenerate.
+	* configure: Regenerate.
+	* doc/Makefile.in: Regenerate.
+	* po/binutils.pot: Regenerate.
+
+2004-09-12  Alan Modra  <amodra@bigpond.net.au>
+
+	* readelf.c (decode_location_expression): Sign extend value for
+	DW_OP_const1s, DW_OP_const2s, DW_OP_const4s, DW_OP_bra, DW_OP_skip.
+
+2004-09-09  Nick Clifton  <nickc@redhat.com>
+
+	PR 363
+	* ar.c (replace_members): Do not use get_file_size as
+	ar_emul_append correctly handles missing files.
+
+2004-09-07  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* configure: Regenerated with autconfig 2.13.
+
+2004-09-06  Danny Smith  <dannysmith@users.sourceforge.net>
+
+	* doc/binutils.texi (dlltool): Update --add-underscore, --kill-at
+	documentation.
+
+2004-09-06  Michael Wardle  <mbw@endbracket.net>
+
+	* doc/binutils.texi (objdump): Document that the -x switch includes
+	the effect of the -p switch.
+
+2004-09-04  Danny Smith  <dannysmith@users.sourceforge.net>
+
+	* dlltool.c (make_one_lib_file): Test if internal_name was
+	specified by user before using it.
+
+2004-09-02  Carlo Wood  <carlo@alinoe.com>
+
+	PR binutils/351
+	* dlltool.c (make_one_lib_file): For IDATA6 take the name from
+	exp->internal_name if it is present.
+
+2004-09-02  Alexandre Oliva  <aoliva@redhat.com>
+
+	* MAINTAINERS: Add self as co-maintainer of FR-V.
+	* readelf.c (get_machine_flags): Print FR-V cpu types.
+
+2004-08-28  Alan Modra  <amodra@bigpond.net.au>
+
+	* nm.c (show_synthetic): New var.
+	(long_options): Add "synthetic".
+	(usage): Here too.
+	(display_rel_file): Handle show_synthetic.
+
+2004-08-28  Alan Modra  <amodra@bigpond.net.au>
+
+	* objdump.c (dump_bfd): Pass both symbol tables to
+	bfd_get_synthetic_symtab.
+
+2004-08-17  Jakub Jelinek  <jakub@redhat.com>
+
+	* objdump.c (dump_bfd): For relocatable objects, pass syms instead
+	of dynsyms to bfd_get_synthetic_symtab.
+
+2004-08-16  Alan Modra  <amodra@bigpond.net.au>
+
+	* readelf.c (debug_apply_rela_addends): New function, extracted from..
+	(display_debug_info): ..here.
+	(display_debug_frames): Call debug_apply_rela_addends.  Don't do
+	DW_EH_PE_pcrel adjustment for ET_REL.
+
+2004-08-06  Andreas Schwab  <schwab@suse.de>
+
+	* readelf.c (dump_relocations): Fix typo when calculating
+	sec_index.
+
+2004-08-02  Jakub Bogusz  <qboosh@pld-linux.org>
+
+	* dllwrap.c (deduce_name): Fix typos introduced when program_name
+	was renamed to prog_name.
+
+2004-07-29  Alexandre Oliva  <aoliva@redhat.com>
+
+	* readelf.c (get_machine_flags <EM_SH>): Handle EF_SH2A and
+	EF_SH2A_NOFPU.
+
+2004-07-28  Alexandre Oliva  <aoliva@redhat.com>
+
+	2003-07-08  Alexandre Oliva  <aoliva@redhat.com>
+	* readelf.c (get_machine_flags <EM_SH)): Handle EF_SH4_NOFPU and
+	EF_SH4A_NOFPU.
+	2003-06-12  Alexandre Oliva  <aoliva@redhat.com>
+	* readelf.c (get_machine_flags <EM_SH>): Print SH ISA name.
+
+2004-07-21  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* objcopy.c (filter_symbols): Use bfd_coff_get_comdat_section
+	to access comdat.
+	* objdump.c (dump_section_header): Likewise.
+
+2004-07-15  Aravinda PR  <aravindapr@rediffmail.com>
+
+	* nlmconv.c (main): Pass map_file argument to link_inputs.
+	(link_inputs): Use map_file argument if it is defined.
+
+2004-07-13  Nick Clifton  <nickc@redhat.com>
+
+	* dllwrap.c: Replace 'program_name' with 'prog_name' to avoid
+	conflicts with exported global defined in bucomm.h.
+	(deduce_name): Rename parameter 'program_name' to 'name' to avoid
+	shadowing the global defined in bucomm.h.
+
+2004-07-12  Aaron W. LaFramboise  <aaron98wiridge9@aaronwl.com>
+
+	* dlltool.c (ext_prefix_alias): New global variable.
+	(make_one_lib_file): Add aliases with prefixes for external
+	and import definitions.
+	(usage): Document -p option.
+	(long_options): Add --ext-prefix-alias option.
+	(main): Handle -p.
+	* doc/binutils.texi: Document new switch.
+	* NEWS: Mention new switch.
+
+2004-07-09  Aaron W. LaFramboise <aaron98wiridge9@aaronwl.com>
+
+	* binutils/dlltool.c (asm_prefix): Add parameter: name.
+	No underscore for symbols beginning with ?.
+	(ASM_PREFIX): Add parameter: NAME.
+	(gen_exp_file): Use new parameter.
+	(make_label): Likewise.
+	(make_imp_label): Likewise.
+	(make_one_lib_file): Likewise.
+
+2004-07-07  Tomer Levi  <Tomer.Levi@nsc.com>
+
+	* MAINTAINERS: Added myself to the list.
+	* readelf.c: Include "elf/crx.h".
+	(guess_is_rela): Handle EM_CRX.
+	(get_machine_name): Likewise.
+	(dump_relocations): Likewise.
+
+2004-07-03  Aaron W. LaFramboise  <aaron98wiridge9@aaronwl.com>
+
+	* doc/binutils.texi (nm): Clarify weak symbol description.
+
+2004-06-24  Ben Elliston  <bje@au.ibm.com>
+
+	* readelf.c (get_segment_type): Display "GNU_STACK", not just
+	"STACK", when a PT_GNU_STACK segment is encountered.
+
+2004-06-24  Alan Modra  <amodra@bigpond.net.au>
+
+	* objcopy.c (copy_section): Don't set _cooked_size.
+
+2004-06-22  Alan Modra  <amodra@bigpond.net.au>
+
+	* readelf.c (Elf32_Word): Delete.
+	(get_32bit_dynamic_section): Handle SGI ELF dynamic segment.
+	(get_64bit_dynamic_section): Likewise.
+
+	* readelf.c (get_32bit_dynamic_section): Stop at first DT_NULL entry.
+	(get_64bit_dynamic_section): Likewise.
+
+	* readelf.c (dynamic_nent): New variable.
+	(get_32bit_dynamic_section): Set it.
+	(get_64bit_dynamic_section): Here too.
+	(process_dynamic_section): Use it instead of dynamic_size.
+	(process_syminfo): Likewise.
+
+	* readelf.c (get_32bit_dynamic_section): Correct number of entries
+	translated from external to internal form.
+	(get_64bit_dynamic_section): Likewise.
+
+2004-06-18  Jie Zhang  <zhangjie@magima.com.cn>
+
+	* readelf.c (process_program_headers): When locating the dynamic
+	section use the section table if it is present.
+	(dynamic_segment): Renamed to dynamic_section.
+	Replace references to dynamic segment with references to dynamic
+	section, except where appropriate.
+	(dynamic_segment_mips_val): Rename to dynamic_section_mips_val.
+	(dynamic_segment_parisc_val): Rename to dynamic_section_parisc_val.
+	(dynamic_segment_ia64_val): Rename to dynamic_section_ia64_val.
+	(get_32bit_dynamic_segment): Rename to get_32bit_dynamic_section.
+	Remove tag counting code as it is no longer needed.
+	(get_64bit_dynamic_segment): Rename to get_64bit_dynamic_section.
+	Remove tag counting code as it is no longer needed.
+	(process_dynamic_segment): Rename to process_dynamic_section.
+
+2004-06-15  Alan Modra  <amodra@bigpond.net.au>
+
+	* objcopy.c (copy_section): Use bfd_get_section_size instead of
+	_raw_size or bfd_get_section_size_before_reloc.  Don't set reloc_done.
+	(compare_section_lma): Likewise.
+	* addr2line.c (find_address_in_section): Likewise.
+	* coffgrok.c (do_sections_p1): Likewise.
+	* dlltool.c (scan_drectve_symbols): Likewise.
+	* nlmconv.c (main): Likewise.
+	(copy_sections): Likewise.
+	(powerpc_mangle_relocs): Likewise.
+	* objdump.c (disassemble_section): Likewise.
+	* prdbg.c (find_address_in_section): Likewise.
+	* size.c (berkeley_sum): Likewise.
+	* srconv.c (wr_ob): Likewise.
+	* strings.c (strings_a_section): Likewise.
+
+2004-05-28  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* readelf.c (decode_ARM_machine_flags): Add EF_ARM_VFP_FLOAT.
+
+2004-05-17  David Heine  <dlheine@tensilica.com>
+
+	* objcopy.c (setup_bfd_headers): New function.
+	(copy_object): Call setup_bfd_headers.
+
+2004-05-13  Paul Brook  <paul@codesourcery.com>
+
+	* readelf.c (display_debug_frames): Handle dwarf3 format CIE
+	entries.
+
+2004-05-13  Nick Clifton  <nickc@redhat.com>
+
+	* po/fr.po: Updated French translation.
+
+2004-05-11  Jakub Jelinek  <jakub@redhat.com>
+
+	* readelf.c (get_segment_type): Handle PT_GNU_RELRO.
+
+2004-05-07  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* readelf.c (section_groups): New.
+	(group_count): New.
+	(section_headers_groups): New.
+	(process_section_groups): Populate group_count, section_groups
+	and section_headers_groups.
+	(process_unwind): Support section group.
+	(process_object): Always call process_section_groups. Free
+	section_groups and section_headers_groups.
+
+2004-04-30  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* readelf.c (process_section_headers): Use %3lu on sh_info.
+
+2004-04-30  Michael Deutschmann  <michael@talamasca.ocis.net>
+
+	* ranlib.sh: Quote $1 argument in case it contains spaces.
+
+2004-04-27  John Paul Wallington  <jpw@gnu.org>
+
+	* objcopy.c (copy_usage, strip_usage): Fix spelling.
+
+2004-04-26  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* readelf.c (do_section_groups): New.
+	(options): Add --section-groups/-g.
+	(usage): Mention --section-groups/-g.
+	(parse_args): Support --section-groups/-g.
+	(get_group_flags): New.
+	(process_section_groups): New.
+	(process_object): Call process_section_groups.
+
+2004-04-24  Alan Modra  <amodra@bigpond.net.au>
+
+	* objdump.c (disassemble_section): Don't disassemble sections
+	without SEC_HAS_CONTENTS.
+
+2004-04-22  Jakub Jelinek  <jakub@redhat.com>
+
+	* objdump.c (synthsyms, synthcount): New variables.
+	(disassemble_data): Use dynsyms for stripped binaries or libraries.
+	Add synthetized symbols.
+	(dump_bfd): For disassemble, initialize dynsyms always and
+	also synthsyms.  Free synthsyms and clear {sym,dynsym,synth}count
+	before returning.
+
+2004-04-14  Alan Modra  <amodra@bigpond.net.au>
+
+	* strings.c (print_strings): Cast file_off to unsigned long in
+	printf arg list.
+
+2004-04-07  Benjamin Monate  <benjamin.monate@cea.fr>
+
+	PR 86
+	* arsup.c (ar_save): Use smart_rename.
+
+2004-04-01  Dean Luick <luick@cray.com>
+
+	* readelf.c (display_debug_pubnames): Align offset and data
+	columns.
+	(read_and_display_attr_value): Add missing break;
+	(debug_displays): Enable the display of the .debug_pubtypes
+	section.
+
+2004-03-30  Stan Shebs  <shebs@apple.com>
+
+	* mpw-config.in, mpw-make.sed, mac-binutils.r: Remove MPW
+	support files, no longer used.
+
+2004-03-23  Paul Brook  <paul@codesourcery.com>
+
+	* readelf.c (decode_ARM_machine_flags): Add EABI v3.
+
+2004-03-21  Richard Henderson  <rth@redhat.com>
+
+	* readelf.c (display_debug_frames): Don't crash for mismatched
+	DW_CFA_restore_state.
+
+2004-03-19  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am: Run "make dep-am".
+	* Makefile.in: Regenerate.
+	* aclocal.m4: Regenerate.
+	* config.in: Regenerate.
+	* configure: Regenerate.
+	* po/binutils.pot: Regenerate.
+
+2004-03-15  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* objdump.c (struct SFILE): Replace current pointer with pos
+	offset, rename size to alloc.
+	(objdump_sprintf): Avoid unnecessary copies in the common case
+	(disassemble_bytes): Keep sfile live throughout the
+	function. Adjust usage appropriately.
+
+2004-03-10  Ben Elliston  <bje@gnu.org>
+
+	* MAINTAINERS: Update my mail address.
+
+2004-03-08  Danny Smith  <dannysmith@users.sourceforge.net>
+
+	* deflex.l: Handle "PRIVATE" string.
+	* defparse.y (%token): Add PRIVATE.
+	(%type): Add opt_PRIVATE.
+	(expline): Pass opt_PRIVATE to def_exports.
+	(opt_PRIVATE): Handle PRIVATE token.
+	* dlltool.h (def_exports): Add 7th param for private flag to
+	declaration.
+	* dlltool.c: Add PRIVATE to comment on EXPORTS syntax.
+	(struct export): Add 'private' field.
+	(def_exports): Set 'private' field of struct exports.
+	(scan_drectve_symbols): Adjust calls to def_exports.
+	(scan_filtered_symbols): Likewise.
+	(dump_def_info): Print 'private' field.
+	(gen_def_file): Likewise.
+	(gen_lib_file): Skip generation of lib object if private.
+	Delete tmp object files in same order as they were generated.
+	Don't delete non-existent private object files.
+
+2004-02-27  Andreas Schwab  <schwab@suse.de>
+
+	* ar.c (main): Support POSIX-compatible argument parsing.
+
+2004-02-23  Daniel Lucq  <daniel@lucq.org>
+
+	* readelf.c (process_mips_specific): Print conflictsno as an
+	unsigned long.
+
+2004-02-21  Dmitry Timoshkov  <dmitry@baikal.ru>
+
+	* dlltool.c (gen_exp_file): Always output names for forwarded symbols.
+
+2004-02-19  Jakub Jelinek  <jakub@redhat.com>
+
+	* objcopy.c (copy_section): Avoid warnings.
+
+2004-02-14  Andrew Cagney  <cagney@redhat.com>
+
+	* ar.c (remove_output): Use bfd_cache_close.
+	* arsup.c (ar_end): Ditto.
+
+2004-01-21  Roland McGrath  <roland@redhat.com>
+
+	* readelf.c (get_note_type): Match NT_AUXV.
+
+2004-01-20  Nick Clifton  <nickc@redhat.com>
+
+	* version.c (print_version): Update copyright year to 2004.
+
+2004-01-14  Maciej W. Rozycki  <macro@ds2.pg.gda.pl>
+
+	* acinclude.m4: Quote names of macros to be defined by AC_DEFUN
+	throughout.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+
+2004-01-12  Jakub Jelinek  <jakub@redhat.com>
+
+	* objcopy.c: Include elf-bfd.h.
+	(is_strip_section): Don't strip debugging sections if
+	STRIP_NONDEBUG.
+	(setup_section): If STRIP_NONDEBUG make SEC_ALLOC sections
+	~(SEC_LOAD | SEC_HAS_CONTENTS) and on ELF targets also SHT_NOBITS.
+
+	* objcopy.c (copy_section): Free relpp if relcount == 0.
+
+2004-01-12  Ian Lance Taylor  <ian@wasabisystems.com>
+
+	* stabs.c (parse_stab_argtypes): Handle g++ ABI version 3 names.
+	(stab_demangle_argtypes): Likewise.
+	(stab_demangle_v3_argtypes): New static function.
+	(stab_demangle_v3_arg): New static function.
+
+2004-01-12  Nick Clifton  <nickc@redhat.com>
+
+	* objcopy.c (copy_object): Make the function boolean, returning
+	FALSE upon failure.
+	(copy_archive): Handle the return value from copy_object.
+	(copy_file): Likewise.
+
+2004-01-07  Nick Clifton  <nickc@redhat.com>
+
+	* readelf.c (find_section): New function.  Locates a named
+	section.
+	(get_debug_line_pointer_sizes): New function:  Initialises the
+	debug_line_pointer_sizes array.
+	(display_debug_lines): Call get_debug_line_pointer_sizes.
+	(display_debug_loc): Likewise.
+	(load_debug_loc): Use find_section.
+	(load_debug_str): Likewise.
+	(display_debug_info): Likewise.
+	(prescan_debug_info): Delete.
+	(debug_displays): Remove prescan field.
+	(process_section_contents): Do not perform prescans.
+
+2004-01-03  Alan Modra  <amodra@bigpond.net.au>
+
+	* objcopy.c (filter_bytes): Delete.  Move code to..
+	(copy_section): ..here.  Simplify size adjustment.  Divide
+	section lma by interleave.
+
+2004-01-02  Nick Clifton  <nickc@redhat.com>
+
+	* po/ru.po: New file: Russian translation.
+	* configure.in (ALL_LINGUAS): Add ru
+	* configure: Regenerate.
+
+For older changes see ChangeLog-0203
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

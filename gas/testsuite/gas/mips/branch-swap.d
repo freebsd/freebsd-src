@@ -1,4 +1,4 @@
-#as: -march=mips2
+#as: -march=mips2 -32
 #objdump: -dr
 #name: MIPS branch-swap
 

@@ -1,4 +1,4 @@
-@c Copyright 2002 Free Software Foundation, Inc.
+@c Copyright 2002, 2004 Free Software Foundation, Inc.
 @c This is part of the GAS manual.
 @c For copying conditions, see the file as.texinfo.
 @ifset GENERIC
@@ -19,14 +19,24 @@
 * MSP430 Floating Point::       Floating Point
 * MSP430 Directives::           MSP 430 Machine Directives
 * MSP430 Opcodes::              Opcodes
+* MSP430 Profiling Capability::	Profiling Capability
 @end menu
 
 @node MSP430 Options
 @section Options
 @cindex MSP 430 options (none)
 @cindex options for MSP430 (none)
-@code{@value{AS}} has only -m flag which selects the mpu arch. Currently has 
-no effect.
+@table @code
+
+@item -m
+select the mpu arch. Currently has no effect.
+@item -mP 
+enables polymorph instructions handler.
+
+@item -mQ 
+enables relaxation at assembly time. DANGEROUS!
+
+@end table
 
 @node MSP430 Syntax
 @section Syntax
@@ -116,6 +126,54 @@ Skips next N bytes followed by jump instruction and equivalent to
 
 @end table
 
+Also, there are some instructions, which cannot be found in other assemblers.
+These are branch instructions, which has different opcodes upon jump distance.
+They all got PC relative addressing mode.
+
+@table @code
+@item	beq label
+A polymorph instruction which is @samp{jeq label} in case if jump distance
+within allowed range for cpu's jump instruction. If not, this unrolls into
+a sequence of
+@smallexample
+  jne $+6
+  br  label
+@end smallexample
+
+@item bne label
+A polymorph instruction which is @samp{jne label} or @samp{jeq +4; br label}
+
+@item blt label
+A polymorph instruction which is @samp{jl label} or @samp{jge +4; br label}
+
+@item bltn label
+A polymorph instruction which is @samp{jn label} or @samp{jn +2; jmp +4; br label}
+
+@item bltu label
+A polymorph instruction which is @samp{jlo label} or @samp{jhs +2; br label}
+
+@item bge label
+A polymorph instruction which is @samp{jge label} or @samp{jl +4; br label}
+
+@item bgeu label
+A polymorph instruction which is @samp{jhs label} or @samp{jlo +4; br label}
+
+@item bgt label
+A polymorph instruction which is @samp{jeq +2; jge label} or @samp{jeq +6; jl  +4; br label}
+
+@item bgtu label
+A polymorph instruction which is @samp{jeq +2; jhs label} or @samp{jeq +6; jlo +4; br label}
+
+@item bleu label
+A polymorph instruction which is @samp{jeq label; jlo label} or @samp{jeq +2; jhs +4; br label}
+
+@item ble label
+A polymorph instruction which is @samp{jeq label; jl  label} or @samp{jeq +2; jge +4; br label}
+
+@item jump label
+A polymorph instruction which is @samp{jmp label} or @samp{br label}
+@end table
+
 
 @node MSP430 Floating Point
 @section Floating Point
@@ -150,6 +208,10 @@ MSP 430 assemblers.
 Currently this directive is ignored; it is accepted for compatibility with other
 MSP 430 assemblers.
 
+@cindex @code{profiler} directive, MSP 430
+@item .profiler
+This directive instructs assembler to add new profile entry to the object file.
+
 @end table
 
 @node MSP430 Opcodes
@@ -161,4 +223,99 @@ MSP 430 assemblers.
 additional pseudo-instructions are needed on this family.
 
 For information on the 430 machine instruction set, see @cite{MSP430
-User's Manual, document slau049b}, Texas Instrument, Inc.
+User's Manual, document slau049d}, Texas Instrument, Inc.
+
+@node MSP430 Profiling Capability
+@section Profiling Capability
+
+@cindex MSP 430 profiling capability
+@cindex profiling capability for MSP 430
+It is a performance hit to use gcc's profiling approach for this tiny target.
+Even more -- jtag hardware facility does not perform any profiling functions.
+However we've got gdb's built-in simulator where we can do anything.
+
+We define new section @samp{.profiler} which holds all profiling information.
+We define new pseudo operation @samp{.profiler} which will instruct assembler to
+add new profile entry to the object file. Profile should take place at the
+present address.
+
+Pseudo operation format:
+
+@samp{.profiler flags,function_to_profile [, cycle_corrector, extra]}
+
+
+where:
+
+@table @code
+
+@table @code
+
+@samp{flags} is a combination of the following characters:
+
+@item  s 
+function entry
+@item  x  
+function exit
+@item  i  
+function is in init section
+@item  f  
+function is in fini section
+@item  l  
+library call
+@item  c  
+libc standard call
+@item  d  
+stack value demand
+@item  I  
+interrupt service routine
+@item  P  
+prologue start
+@item  p  
+prologue end
+@item  E  
+epilogue start
+@item  e  
+epilogue end
+@item  j  
+long jump / sjlj unwind
+@item  a  
+an arbitrary code fragment
+@item t
+extra parameter saved (a constant value like frame size)
+@end table
+
+@item function_to_profile 
+a function address
+@item cycle_corrector  
+a value which should be added to the cycle counter, zero if omitted.
+@item extra  
+any extra parameter, zero if omitted.
+
+@end table
+
+For example:
+@smallexample
+.global fxx
+.type fxx,@@function
+fxx:
+.LFrameOffset_fxx=0x08
+.profiler "scdP", fxx     ; function entry.
+			  ; we also demand stack value to be saved
+  push r11
+  push r10
+  push r9
+  push r8
+.profiler "cdpt",fxx,0, .LFrameOffset_fxx  ; check stack value at this point
+					  ; (this is a prologue end)
+					  ; note, that spare var filled with 
+					  ; the farme size
+  mov r15,r8
+...
+.profiler cdE,fxx         ; check stack
+  pop r8
+  pop r9
+  pop r10
+  pop r11
+.profiler xcde,fxx,3      ; exit adds 3 to the cycle counter
+  ret                     ; cause 'ret' insn takes 3 cycles
+@end smallexample

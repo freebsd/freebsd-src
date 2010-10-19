@@ -5,7 +5,7 @@
 
 Disassembly of section .text:
 
-00000000 <_opcodes>:
+0+000 <_opcodes>:
    0:	e39a 	abdst  \*ar3\+,\*ar4\+
    1:	f485 	abs    a
    2:	f585 	abs    a,b

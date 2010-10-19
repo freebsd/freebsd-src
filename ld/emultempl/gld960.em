@@ -1,7 +1,7 @@
 # This shell script emits a C file. -*- C -*-
 # It does some substitutions.
 cat >e${EMULATION_NAME}.c <<EOF
-/* Copyright 1991, 1992, 1994, 1999, 2000, 2001, 2002, 2003
+/* Copyright 1991, 1992, 1994, 1999, 2000, 2001, 2002, 2003, 2005
    Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
@@ -18,7 +18,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GLD; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /*
  * emulate the Intels port of  gld
@@ -39,29 +39,6 @@ the Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307
 #include "ldfile.h"
 #include "ldemul.h"
 
-#ifdef GNU960
-
-static void
-gld960_before_parse (void)
-{
-  static char *env_variables[] = { "G960LIB", "G960BASE", 0 };
-  char **p;
-  char *env ;
-
-  for ( p = env_variables; *p; p++ ){
-    env =  (char *) getenv(*p);
-    if (env) {
-      ldfile_add_library_path (concat (env,
-				       "/lib/libbout",
-				       (const char *) NULL),
-			       FALSE);
-    }
-  }
-  ldfile_output_architecture = bfd_arch_i960;
-}
-
-#else	/* not GNU960 */
-
 static void gld960_before_parse (void)
 {
   char *env ;
@@ -75,9 +52,6 @@ static void gld960_before_parse (void)
   ldfile_output_architecture = bfd_arch_i960;
 }
 
-#endif	/* GNU960 */
-
-
 static void
 gld960_set_output_arch (void)
 {
@@ -87,13 +61,6 @@ gld960_set_output_arch (void)
 static char *
 gld960_choose_target (int argc ATTRIBUTE_UNUSED, char **argv ATTRIBUTE_UNUSED)
 {
-#ifdef GNU960
-
-  output_filename = "b.out";
-  return bfd_make_targ_name(BFD_BOUT_FORMAT, 0);
-
-#else
-
   char *from_outside = getenv(TARGET_ENVIRON);
   output_filename = "b.out";
 
@@ -101,8 +68,6 @@ gld960_choose_target (int argc ATTRIBUTE_UNUSED, char **argv ATTRIBUTE_UNUSED)
     return from_outside;
 
   return "b.out.little";
-
-#endif
 }
 
 static char *
@@ -172,7 +137,7 @@ struct ld_emulation_xfer_struct ld_gld960_emulation =
   gld960_get_script,
   "960",
   "",
-  NULL,	/* finish */
+  finish_default,
   NULL,	/* create output section statements */
   NULL,	/* open dynamic archive */
   NULL,	/* place orphan */

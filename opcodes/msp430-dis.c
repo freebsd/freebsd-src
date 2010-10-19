@@ -1,5 +1,5 @@
 /* Disassemble MSP430 instructions.
-   Copyright (C) 2002, 2004 Free Software Foundation, Inc.
+   Copyright (C) 2002, 2004, 2005 Free Software Foundation, Inc.
    
    Contributed by Dmitry Diky <diwil@mail.ru>
         
@@ -15,7 +15,8 @@
    
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 #include <stdio.h>
 #include <ctype.h>
@@ -31,28 +32,10 @@
 #undef DASM_SECTION
 
 
-static unsigned short msp430dis_opcode
-  PARAMS ((bfd_vma, disassemble_info *));
-int print_insn_msp430
-  PARAMS ((bfd_vma, disassemble_info *));
-int msp430_nooperands
-  PARAMS ((struct msp430_opcode_s *, bfd_vma, unsigned short, char *, int *));
-int msp430_singleoperand
-  PARAMS ((disassemble_info *, struct msp430_opcode_s *, bfd_vma, unsigned short,
-	   char *, char *, int *));
-int msp430_doubleoperand
-  PARAMS ((disassemble_info *, struct msp430_opcode_s *, bfd_vma, unsigned short,
-	   char *, char *, char *, char *, int *));
-int msp430_branchinstr
-  PARAMS ((disassemble_info *, struct msp430_opcode_s *, bfd_vma, unsigned short,
-	   char *, char *, int *));
-
 #define PS(x)   (0xffff & (x))
 
 static unsigned short
-msp430dis_opcode (addr, info)
-     bfd_vma addr;
-     disassemble_info *info;
+msp430dis_opcode (bfd_vma addr, disassemble_info *info)
 {
   bfd_byte buffer[2];
   int status;
@@ -66,138 +49,12 @@ msp430dis_opcode (addr, info)
   return bfd_getl16 (buffer);
 }
 
-int
-print_insn_msp430 (addr, info)
-     bfd_vma addr;
-     disassemble_info *info;
-{
-  void *stream = info->stream;
-  fprintf_ftype prin = info->fprintf_func;
-  struct msp430_opcode_s *opcode;
-  char op1[32], op2[32], comm1[64], comm2[64];
-  int cmd_len = 0;
-  unsigned short insn;
-  int cycles = 0;
-  char *bc = "";
-  char dinfo[32];		/* Debug purposes.  */
-
-  insn = msp430dis_opcode (addr, info);
-  sprintf (dinfo, "0x%04x", insn);
-
-  if (((int) addr & 0xffff) > 0xffdf)
-    {
-      (*prin) (stream, "interrupt service routine at 0x%04x", 0xffff & insn);
-      return 2;
-    }
-
-  *comm1 = 0;
-  *comm2 = 0;
-
-  for (opcode = msp430_opcodes; opcode->name; opcode++)
-    {
-      if ((insn & opcode->bin_mask) == opcode->bin_opcode
-	  && opcode->bin_opcode != 0x9300)
-	{
-	  *op1 = 0;
-	  *op2 = 0;
-	  *comm1 = 0;
-	  *comm2 = 0;
-
-	  /* r0 as destination. Ad should be zero.  */
-	  if (opcode->insn_opnumb == 3 && (insn & 0x000f) == 0
-	      && (0x0080 & insn) == 0)
-	    {
-	      cmd_len =
-		msp430_branchinstr (info, opcode, addr, insn, op1, comm1,
-				    &cycles);
-	      if (cmd_len)
-		break;
-	    }
-
-	  switch (opcode->insn_opnumb)
-	    {
-	    case 0:
-	      cmd_len = msp430_nooperands (opcode, addr, insn, comm1, &cycles);
-	      break;
-	    case 2:
-	      cmd_len =
-		msp430_doubleoperand (info, opcode, addr, insn, op1, op2,
-				      comm1, comm2, &cycles);
-	      if (insn & BYTE_OPERATION)
-		bc = ".b";
-	      break;
-	    case 1:
-	      cmd_len =
-		msp430_singleoperand (info, opcode, addr, insn, op1, comm1,
-				      &cycles);
-	      if (insn & BYTE_OPERATION && opcode->fmt != 3)
-		bc = ".b";
-	      break;
-	    default:
-	      break;
-	    }
-	}
-
-      if (cmd_len)
-	break;
-    }
-
-  dinfo[5] = 0;
-
-  if (cmd_len < 1)
-    {
-      /* Unknown opcode, or invalid combination of operands.  */
-      (*prin) (stream, ".word	0x%04x;	????", PS (insn));
-      return 2;
-    }
-
-  (*prin) (stream, "%s%s", opcode->name, bc);
-
-  if (*op1)
-    (*prin) (stream, "\t%s", op1);
-  if (*op2)
-    (*prin) (stream, ",");
-
-  if (strlen (op1) < 7)
-    (*prin) (stream, "\t");
-  if (!strlen (op1))
-    (*prin) (stream, "\t");
-
-  if (*op2)
-    (*prin) (stream, "%s", op2);
-  if (strlen (op2) < 8)
-    (*prin) (stream, "\t");
-
-  if (*comm1 || *comm2)
-    (*prin) (stream, ";");
-  else if (cycles)
-    {
-      if (*op2)
-	(*prin) (stream, ";");
-      else
-	{
-	  if (strlen (op1) < 7)
-	    (*prin) (stream, ";");
-	  else
-	    (*prin) (stream, "\t;");
-	}
-    }
-  if (*comm1)
-    (*prin) (stream, "%s", comm1);
-  if (*comm1 && *comm2)
-    (*prin) (stream, ",");
-  if (*comm2)
-    (*prin) (stream, " %s", comm2);
-  return cmd_len;
-}
-
-int
-msp430_nooperands (opcode, addr, insn, comm, cycles)
-     struct msp430_opcode_s *opcode;
-     bfd_vma addr ATTRIBUTE_UNUSED;
-     unsigned short insn ATTRIBUTE_UNUSED;
-     char *comm;
-     int *cycles;
+static int
+msp430_nooperands (struct msp430_opcode_s *opcode,
+		   bfd_vma addr ATTRIBUTE_UNUSED,
+		   unsigned short insn ATTRIBUTE_UNUSED,
+		   char *comm,
+		   int *cycles)
 {
   /* Pop with constant.  */
   if (insn == 0x43b2)
@@ -222,16 +79,14 @@ msp430_nooperands (opcode, addr, insn, comm, cycles)
   return 2;
 }
 
-
-int
-msp430_singleoperand (info, opcode, addr, insn, op, comm, cycles)
-     disassemble_info *info;
-     struct msp430_opcode_s *opcode;
-     bfd_vma addr;
-     unsigned short insn;
-     char *op;
-     char *comm;
-     int *cycles;
+static int
+msp430_singleoperand (disassemble_info *info,
+		      struct msp430_opcode_s *opcode,
+		      bfd_vma addr,
+		      unsigned short insn,
+		      char *op,
+		      char *comm,
+		      int *cycles)
 {
   int regs = 0, regd = 0;
   int ad = 0, as = 0;
@@ -277,7 +132,7 @@ msp430_singleoperand (info, opcode, addr, insn, op, comm, cycles)
 	  else
 	    sprintf (op, "r%d", regd);
 	}
-      else			/* ad == 1 msp430dis_opcode.  */
+      else	/* ad == 1 msp430dis_opcode.  */
 	{
 	  if (regd == 0)
 	    {
@@ -308,7 +163,6 @@ msp430_singleoperand (info, opcode, addr, insn, op, comm, cycles)
       break;
 
     case 2:	/* rrc, push, call, swpb, rra, sxt, push, call, reti etc...  */
-
       if (as == 0)
 	{
 	  if (regd == 3)
@@ -427,15 +281,16 @@ msp430_singleoperand (info, opcode, addr, insn, op, comm, cycles)
   return cmd_len;
 }
 
-int
-msp430_doubleoperand (info, opcode, addr, insn, op1, op2, comm1, comm2, cycles)
-     disassemble_info *info;
-     struct msp430_opcode_s *opcode;
-     bfd_vma addr;
-     unsigned short insn;
-     char *op1, *op2;
-     char *comm1, *comm2;
-     int *cycles;
+static int
+msp430_doubleoperand (disassemble_info *info,
+		      struct msp430_opcode_s *opcode,
+		      bfd_vma addr,
+		      unsigned short insn,
+		      char *op1,
+		      char *op2,
+		      char *comm1,
+		      char *comm2,
+		      int *cycles)
 {
   int regs = 0, regd = 0;
   int ad = 0, as = 0;
@@ -467,7 +322,7 @@ msp430_doubleoperand (info, opcode, addr, insn, op1, op2, comm1, comm2, cycles)
 	  /* Register mode.  */
 	  if (regd == 3)
 	    {
-	      strcpy (comm1, "Illegal as emulation instr");
+	      strcpy (comm1, _("Illegal as emulation instr"));
 	      return -1;
 	    }
 
@@ -518,7 +373,7 @@ msp430_doubleoperand (info, opcode, addr, insn, op1, op2, comm1, comm2, cycles)
   if (ad == 0 && regd == 3)
     {
       /* R2/R3 are illegal as dest: may be data section.  */
-      strcpy (comm1, "Illegal as 2-op instr");
+      strcpy (comm1, _("Illegal as 2-op instr"));
       return -1;
     }
 
@@ -579,7 +434,7 @@ msp430_doubleoperand (info, opcode, addr, insn, op1, op2, comm1, comm2, cycles)
       else if (regs == 0)
 	{
 	  *cycles = 3;
-	  /* Absolute. @pc+  */
+	  /* Absolute. @pc+.  */
 	  dst = msp430dis_opcode (addr + 2, info);
 	  cmd_len += 2;
 	  sprintf (op1, "#%d", dst);
@@ -647,7 +502,7 @@ msp430_doubleoperand (info, opcode, addr, insn, op1, op2, comm1, comm2, cycles)
       else
 	sprintf (op2, "r%d", regd);
     }
-  else				/* ad == 1.  */
+  else	/* ad == 1.  */
     {
       * cycles += 3;
 
@@ -679,16 +534,14 @@ msp430_doubleoperand (info, opcode, addr, insn, op1, op2, comm1, comm2, cycles)
   return cmd_len;
 }
 
-
-int
-msp430_branchinstr (info, opcode, addr, insn, op1, comm1, cycles)
-     disassemble_info *info;
-     struct msp430_opcode_s *opcode ATTRIBUTE_UNUSED;
-     bfd_vma addr ATTRIBUTE_UNUSED;
-     unsigned short insn;
-     char *op1;
-     char *comm1;
-     int *cycles;
+static int
+msp430_branchinstr (disassemble_info *info,
+		    struct msp430_opcode_s *opcode ATTRIBUTE_UNUSED,
+		    bfd_vma addr ATTRIBUTE_UNUSED,
+		    unsigned short insn,
+		    char *op1,
+		    char *comm1,
+		    int *cycles)
 {
   int regs = 0, regd = 0;
   int ad = 0, as = 0;
@@ -805,5 +658,128 @@ msp430_branchinstr (info, opcode, addr, insn, op1, comm1, cycles)
 	}
     }
 
+  return cmd_len;
+}
+
+int
+print_insn_msp430 (bfd_vma addr, disassemble_info *info)
+{
+  void *stream = info->stream;
+  fprintf_ftype prin = info->fprintf_func;
+  struct msp430_opcode_s *opcode;
+  char op1[32], op2[32], comm1[64], comm2[64];
+  int cmd_len = 0;
+  unsigned short insn;
+  int cycles = 0;
+  char *bc = "";
+  char dinfo[32];		/* Debug purposes.  */
+
+  insn = msp430dis_opcode (addr, info);
+  sprintf (dinfo, "0x%04x", insn);
+
+  if (((int) addr & 0xffff) > 0xffdf)
+    {
+      (*prin) (stream, "interrupt service routine at 0x%04x", 0xffff & insn);
+      return 2;
+    }
+
+  *comm1 = 0;
+  *comm2 = 0;
+
+  for (opcode = msp430_opcodes; opcode->name; opcode++)
+    {
+      if ((insn & opcode->bin_mask) == opcode->bin_opcode
+	  && opcode->bin_opcode != 0x9300)
+	{
+	  *op1 = 0;
+	  *op2 = 0;
+	  *comm1 = 0;
+	  *comm2 = 0;
+
+	  /* r0 as destination. Ad should be zero.  */
+	  if (opcode->insn_opnumb == 3 && (insn & 0x000f) == 0
+	      && (0x0080 & insn) == 0)
+	    {
+	      cmd_len =
+		msp430_branchinstr (info, opcode, addr, insn, op1, comm1,
+				    &cycles);
+	      if (cmd_len)
+		break;
+	    }
+
+	  switch (opcode->insn_opnumb)
+	    {
+	    case 0:
+	      cmd_len = msp430_nooperands (opcode, addr, insn, comm1, &cycles);
+	      break;
+	    case 2:
+	      cmd_len =
+		msp430_doubleoperand (info, opcode, addr, insn, op1, op2,
+				      comm1, comm2, &cycles);
+	      if (insn & BYTE_OPERATION)
+		bc = ".b";
+	      break;
+	    case 1:
+	      cmd_len =
+		msp430_singleoperand (info, opcode, addr, insn, op1, comm1,
+				      &cycles);
+	      if (insn & BYTE_OPERATION && opcode->fmt != 3)
+		bc = ".b";
+	      break;
+	    default:
+	      break;
+	    }
+	}
+
+      if (cmd_len)
+	break;
+    }
+
+  dinfo[5] = 0;
+
+  if (cmd_len < 1)
+    {
+      /* Unknown opcode, or invalid combination of operands.  */
+      (*prin) (stream, ".word	0x%04x;	????", PS (insn));
+      return 2;
+    }
+
+  (*prin) (stream, "%s%s", opcode->name, bc);
+
+  if (*op1)
+    (*prin) (stream, "\t%s", op1);
+  if (*op2)
+    (*prin) (stream, ",");
+
+  if (strlen (op1) < 7)
+    (*prin) (stream, "\t");
+  if (!strlen (op1))
+    (*prin) (stream, "\t");
+
+  if (*op2)
+    (*prin) (stream, "%s", op2);
+  if (strlen (op2) < 8)
+    (*prin) (stream, "\t");
+
+  if (*comm1 || *comm2)
+    (*prin) (stream, ";");
+  else if (cycles)
+    {
+      if (*op2)
+	(*prin) (stream, ";");
+      else
+	{
+	  if (strlen (op1) < 7)
+	    (*prin) (stream, ";");
+	  else
+	    (*prin) (stream, "\t;");
+	}
+    }
+  if (*comm1)
+    (*prin) (stream, "%s", comm1);
+  if (*comm1 && *comm2)
+    (*prin) (stream, ",");
+  if (*comm2)
+    (*prin) (stream, " %s", comm2);
   return cmd_len;
 }

@@ -1,5 +1,5 @@
-@c Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000, 2003
-@c Free Software Foundation, Inc.
+@c Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 2000, 2003,
+@c 2004 Free Software Foundation, Inc.
 @c This is part of the GAS manual.
 @c For copying conditions, see the file as.texinfo.
 @ifset GENERIC
@@ -31,6 +31,50 @@ The Motorola 680x0 version of @code{@value{AS}} has a few machine
 dependent options:
 
 @table @samp
+
+@cindex @samp{-march=} command line option, M680x0
+@item -march=@var{architecture}
+This option specifies a target architecture.  The following
+architectures are recognized:
+@code{68000},
+@code{68010},
+@code{68020},
+@code{68030},
+@code{68040},
+@code{68060},
+@code{cpu32},
+@code{isaa},
+@code{isaaplus},
+@code{isab} and
+@code{cfv4e}.
+
+
+@cindex @samp{-mcpu=} command line option, M680x0
+@item -mcpu=@var{cpu}
+This option specifies a target cpu.  When used in conjunction with the
+@option{-march} option, the cpu must be within the specified
+architecture.  Also, the generic features of the architecture are used
+for instruction generation, rather than those of the specific chip.
+
+@cindex @samp{-m[no-]68851} command line option, M680x0
+@cindex @samp{-m[no-]68881} command line option, M680x0
+@cindex @samp{-m[no-]div} command line option, M680x0
+@cindex @samp{-m[no-]usp} command line option, M680x0
+@cindex @samp{-m[no-]float} command line option, M680x0
+@cindex @samp{-m[no-]mac} command line option, M680x0
+@cindex @samp{-m[no-]emac} command line option, M680x0
+@item -m[no-]68851
+@item -m[no-]68881
+@item -m[no-]div
+@item -m[no-]usp
+@item -m[no-]float
+@item -m[no-]mac
+@item -m[no-]emac
+
+Enable or disable various architecture specific features.  If a chip
+or architecture by default supports an option (for instance
+@option{-march=isaaplus} includes the @option{-mdiv} option),
+explicitly disabling the option will override the default.
 
 @cindex @samp{-l} option, M680x0
 @item -l
@@ -169,9 +213,13 @@ Assemble for the CPU32 family of chips.
 @item -m5204
 @item -m5206
 @item -m5206e
+@item -m521x
+@item -m5249
 @item -m528x
 @item -m5307
 @item -m5407
+@item -m547x
+@item -m548x
 @item -mcfv4
 @item -mcfv4e
 Assemble for the ColdFire family of chips.
@@ -394,6 +442,25 @@ aligns the output to an even byte boundary.
 @cindex @code{skip} directive, M680x0
 @item .skip
 This directive is identical to a @code{.space} directive.
+
+@cindex @code{arch} directive, M680x0
+@item .arch @var{name}
+Select the target architecture and extension features.  Valid valuse
+for @var{name} are the same as for the @option{-march} command line
+option.  This directive cannot be specified after
+any instructions have been assembled.  If it is given multiple times,
+or in conjuction with the @option{-march} option, all uses must be for
+the same architecture and extension set.
+
+@cindex @code{cpu} directive, M680x0
+@item .cpu @var{name}
+Select the target cpu.  Valid valuse
+for @var{name} are the same as for the @option{-mcpu} command line
+option.  This directive cannot be specified after
+any instructions have been assembled.  If it is given multiple times,
+or in conjuction with the @option{-mopt} option, all uses must be for
+the same cpu.
+
 @end table
 
 @need 2000

@@ -1,0 +1,31 @@
+.*: +file format .*
+
+Disassembly of section .text:
+
+00000000 <_start>:
+   0:	00 0b [ 	]*MOVE  PFX\[0\], #00h
+   2:	0c 3d [ 	]*CALL  #0ch
+   4:	3a da [ 	]*NOP 
+   6:	3a da [ 	]*NOP 
+   8:	3a da [ 	]*NOP 
+   a:	3a da [ 	]*NOP 
+
+0000000c <_exit>:
+   c:	3a da [ 	]*NOP 
+   e:	3a da [ 	]*NOP 
+  10:	3a da [ 	]*NOP 
+
+00000012 <_abort>:
+  12:	3a da [ 	]*NOP 
+  14:	3a da [ 	]*NOP 
+	...
+
+00000018 <_main>:
+  18:	00 0b [ 	]*MOVE  PFX\[0\], #00h
+  1a:	06 3d [ 	]*CALL  #06h
+  1c:	00 0b [ 	]*MOVE  PFX\[0\], #00h
+  1e:	09 3d [ 	]*CALL  #09h
+  20:	00 0b [ 	]*MOVE  PFX\[0\], #00h
+  22:	09 0c [ 	]*JUMP  #09h
+  24:	00 0b [ 	]*MOVE  PFX\[0\], #00h
+  26:	06 0c [ 	]*JUMP  #06h

@@ -1,6 +1,6 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright 1991, 1993, 1994, 1997, 1999, 2000, 2001, 2002, 2003
-#   Free Software Foundation, Inc.
+#   Copyright 1991, 1993, 1994, 1997, 1999, 2000, 2001, 2002, 2003, 2004,
+#   2005 Free Software Foundation, Inc.
 #
 # This file is part of GLD, the Gnu Linker.
 #
@@ -16,7 +16,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 
 # This file is sourced from elf32.em, and defines extra hppa-elf
@@ -52,12 +52,12 @@ hppaelf_after_parse (void)
 {
   if (link_info.relocatable)
     lang_add_unique (".text");
-#if 0 /* Enable this once we split millicode stuff from libgcc.  */
-  else
-    lang_add_input_file ("milli",
-			 lang_input_file_is_l_enum,
-			 NULL);
-#endif
+
+  /* Enable this once we split millicode stuff from libgcc:
+     lang_add_input_file ("milli",
+     			  lang_input_file_is_l_enum,
+			  NULL);
+  */
 }
 
 /* This is called before the input files are opened.  We create a new
@@ -88,6 +88,7 @@ hppaelf_create_output_section_statements (void)
       return;
     }
 
+  stub_file->the_bfd->flags |= BFD_LINKER_CREATED;
   ldlang_add_file (stub_file);
 }
 
@@ -197,7 +198,7 @@ hppaelf_add_stub_section (const char *stub_sec_name, asection *input_section)
 
   info.input_section = input_section;
   lang_list_init (&info.add);
-  lang_add_section (&info.add, stub_sec, os, stub_file);
+  lang_add_section (&info.add, stub_sec, os);
 
   if (info.add.head == NULL)
     goto err_ret;
@@ -221,31 +222,24 @@ hppaelf_layout_sections_again (void)
      add even more stubs.  */
   need_laying_out = 0;
 
-  lang_reset_memory_regions ();
-
-  /* Resize the sections.  */
-  lang_size_sections (stat_ptr->head, abs_output_section,
-		      &stat_ptr->head, 0, (bfd_vma) 0, NULL, TRUE);
-
-  /* Redo special stuff.  */
-  ldemul_after_allocation ();
-
-  /* Do the assignments again.  */
-  lang_do_assignments (stat_ptr->head, abs_output_section,
-		       (fill_type *) 0, (bfd_vma) 0);
+  gld${EMULATION_NAME}_layout_sections_again ();
 }
 
 
 static void
 build_section_lists (lang_statement_union_type *statement)
 {
-  if (statement->header.type == lang_input_section_enum
-      && !statement->input_section.ifile->just_syms_flag
-      && statement->input_section.section->output_section != NULL
-      && statement->input_section.section->output_section->owner == output_bfd)
+  if (statement->header.type == lang_input_section_enum)
     {
-      elf32_hppa_next_input_section (&link_info,
-				     statement->input_section.section);
+      asection *i = statement->input_section.section;
+
+      if (!((lang_input_statement_type *) i->owner->usrdata)->just_syms_flag
+	  && (i->flags & SEC_EXCLUDE) == 0
+	  && i->output_section != NULL
+	  && i->output_section->owner == output_bfd)
+	{
+	  elf32_hppa_next_input_section (&link_info, i);
+	}
     }
 }
 
@@ -254,7 +248,7 @@ build_section_lists (lang_statement_union_type *statement)
    to build linker stubs.  */
 
 static void
-gld${EMULATION_NAME}_finish (void)
+hppaelf_finish (void)
 {
   /* bfd_elf_discard_info just plays with debugging sections,
      ie. doesn't affect any code, so we can delay resizing the
@@ -313,6 +307,8 @@ gld${EMULATION_NAME}_finish (void)
 	    einfo ("%X%P: can not build stubs: %E\n");
 	}
     }
+
+  finish_default ();
 }
 
 
@@ -385,5 +381,5 @@ PARSE_AND_LIST_ARGS_CASES='
 # Put these extra hppaelf routines in ld_${EMULATION_NAME}_emulation
 #
 LDEMUL_AFTER_PARSE=hppaelf_after_parse
-LDEMUL_FINISH=gld${EMULATION_NAME}_finish
+LDEMUL_FINISH=hppaelf_finish
 LDEMUL_CREATE_OUTPUT_SECTION_STATEMENTS=hppaelf_create_output_section_statements

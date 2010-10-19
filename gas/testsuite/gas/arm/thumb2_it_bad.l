@@ -1,0 +1,12 @@
+[^:]*: Assembler messages:
+[^:]*:8: Error: branch must be last instruction in IT block -- `beq foo'
+[^:]*:9: Error: branch must be last instruction in IT block -- `bleq foo'
+[^:]*:10: Error: branch must be last instruction in IT block -- `blxeq r0'
+[^:]*:11: Error: instruction not allowed in IT block -- `cbzeq r0,foo'
+[^:]*:13: Error: branch must be last instruction in IT block -- `bxeq r0'
+[^:]*:14: Error: branch must be last instruction in IT block -- `tbbeq \[r0,r1\]'
+[^:]*:15: Error: instruction not allowed in IT block -- `cpsieeq f'
+[^:]*:17: Error: instruction not allowed in IT block -- `cpseq #0x10'
+[^:]*:19: Error: instruction is always unconditional -- `bkpteq 0'
+[^:]*:20: Error: instruction not allowed in IT block -- `setendeq le'
+[^:]*:22: Error: instruction not allowed in IT block -- `iteq eq'

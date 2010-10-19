@@ -1,0 +1,3 @@
+	.arch isab
+
+	nop

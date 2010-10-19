@@ -288,34 +288,34 @@ Special entry points for gdb to swap in coff symbol table parts:
 typedef struct
 @{
   void (*_bfd_coff_swap_aux_in)
-    PARAMS ((bfd *, PTR, int, int, int, int, PTR));
+    (bfd *, void *, int, int, int, int, void *);
 
   void (*_bfd_coff_swap_sym_in)
-    PARAMS ((bfd *, PTR, PTR));
+    (bfd *, void *, void *);
 
   void (*_bfd_coff_swap_lineno_in)
-    PARAMS ((bfd *, PTR, PTR));
+    (bfd *, void *, void *);
 
   unsigned int (*_bfd_coff_swap_aux_out)
-    PARAMS ((bfd *, PTR, int, int, int, int, PTR));
+    (bfd *, void *, int, int, int, int, void *);
 
   unsigned int (*_bfd_coff_swap_sym_out)
-    PARAMS ((bfd *, PTR, PTR));
+    (bfd *, void *, void *);
 
   unsigned int (*_bfd_coff_swap_lineno_out)
-    PARAMS ((bfd *, PTR, PTR));
+    (bfd *, void *, void *);
 
   unsigned int (*_bfd_coff_swap_reloc_out)
-    PARAMS ((bfd *, PTR, PTR));
+    (bfd *, void *, void *);
 
   unsigned int (*_bfd_coff_swap_filehdr_out)
-    PARAMS ((bfd *, PTR, PTR));
+    (bfd *, void *, void *);
 
   unsigned int (*_bfd_coff_swap_aouthdr_out)
-    PARAMS ((bfd *, PTR, PTR));
+    (bfd *, void *, void *);
 
   unsigned int (*_bfd_coff_swap_scnhdr_out)
-    PARAMS ((bfd *, PTR, PTR));
+    (bfd *, void *, void *);
 
   unsigned int _bfd_filhsz;
   unsigned int _bfd_aoutsz;
@@ -332,86 +332,86 @@ typedef struct
   unsigned int _bfd_coff_debug_string_prefix_length;
 
   void (*_bfd_coff_swap_filehdr_in)
-    PARAMS ((bfd *, PTR, PTR));
+    (bfd *, void *, void *);
 
   void (*_bfd_coff_swap_aouthdr_in)
-    PARAMS ((bfd *, PTR, PTR));
+    (bfd *, void *, void *);
 
   void (*_bfd_coff_swap_scnhdr_in)
-    PARAMS ((bfd *, PTR, PTR));
+    (bfd *, void *, void *);
 
   void (*_bfd_coff_swap_reloc_in)
-    PARAMS ((bfd *abfd, PTR, PTR));
+    (bfd *abfd, void *, void *);
 
   bfd_boolean (*_bfd_coff_bad_format_hook)
-    PARAMS ((bfd *, PTR));
+    (bfd *, void *);
 
   bfd_boolean (*_bfd_coff_set_arch_mach_hook)
-    PARAMS ((bfd *, PTR));
+    (bfd *, void *);
 
-  PTR (*_bfd_coff_mkobject_hook)
-    PARAMS ((bfd *, PTR, PTR));
+  void * (*_bfd_coff_mkobject_hook)
+    (bfd *, void *, void *);
 
   bfd_boolean (*_bfd_styp_to_sec_flags_hook)
-    PARAMS ((bfd *, PTR, const char *, asection *, flagword *));
+    (bfd *, void *, const char *, asection *, flagword *);
 
   void (*_bfd_set_alignment_hook)
-    PARAMS ((bfd *, asection *, PTR));
+    (bfd *, asection *, void *);
 
   bfd_boolean (*_bfd_coff_slurp_symbol_table)
-    PARAMS ((bfd *));
+    (bfd *);
 
   bfd_boolean (*_bfd_coff_symname_in_debug)
-    PARAMS ((bfd *, struct internal_syment *));
+    (bfd *, struct internal_syment *);
 
   bfd_boolean (*_bfd_coff_pointerize_aux_hook)
-    PARAMS ((bfd *, combined_entry_type *, combined_entry_type *,
-            unsigned int, combined_entry_type *));
+    (bfd *, combined_entry_type *, combined_entry_type *,
+            unsigned int, combined_entry_type *);
 
   bfd_boolean (*_bfd_coff_print_aux)
-    PARAMS ((bfd *, FILE *, combined_entry_type *, combined_entry_type *,
-            combined_entry_type *, unsigned int));
+    (bfd *, FILE *, combined_entry_type *, combined_entry_type *,
+            combined_entry_type *, unsigned int);
 
   void (*_bfd_coff_reloc16_extra_cases)
-    PARAMS ((bfd *, struct bfd_link_info *, struct bfd_link_order *, arelent *,
-           bfd_byte *, unsigned int *, unsigned int *));
+    (bfd *, struct bfd_link_info *, struct bfd_link_order *, arelent *,
+           bfd_byte *, unsigned int *, unsigned int *);
 
   int (*_bfd_coff_reloc16_estimate)
-    PARAMS ((bfd *, asection *, arelent *, unsigned int,
-            struct bfd_link_info *));
+    (bfd *, asection *, arelent *, unsigned int,
+            struct bfd_link_info *);
 
   enum coff_symbol_classification (*_bfd_coff_classify_symbol)
-    PARAMS ((bfd *, struct internal_syment *));
+    (bfd *, struct internal_syment *);
 
   bfd_boolean (*_bfd_coff_compute_section_file_positions)
-    PARAMS ((bfd *));
+    (bfd *);
 
   bfd_boolean (*_bfd_coff_start_final_link)
-    PARAMS ((bfd *, struct bfd_link_info *));
+    (bfd *, struct bfd_link_info *);
 
   bfd_boolean (*_bfd_coff_relocate_section)
-    PARAMS ((bfd *, struct bfd_link_info *, bfd *, asection *, bfd_byte *,
-            struct internal_reloc *, struct internal_syment *, asection **));
+    (bfd *, struct bfd_link_info *, bfd *, asection *, bfd_byte *,
+            struct internal_reloc *, struct internal_syment *, asection **);
 
   reloc_howto_type *(*_bfd_coff_rtype_to_howto)
-    PARAMS ((bfd *, asection *, struct internal_reloc *,
+    (bfd *, asection *, struct internal_reloc *,
             struct coff_link_hash_entry *, struct internal_syment *,
-            bfd_vma *));
+            bfd_vma *);
 
   bfd_boolean (*_bfd_coff_adjust_symndx)
-    PARAMS ((bfd *, struct bfd_link_info *, bfd *, asection *,
-            struct internal_reloc *, bfd_boolean *));
+    (bfd *, struct bfd_link_info *, bfd *, asection *,
+            struct internal_reloc *, bfd_boolean *);
 
   bfd_boolean (*_bfd_coff_link_add_one_symbol)
-    PARAMS ((struct bfd_link_info *, bfd *, const char *, flagword,
+    (struct bfd_link_info *, bfd *, const char *, flagword,
             asection *, bfd_vma, const char *, bfd_boolean, bfd_boolean,
-            struct bfd_link_hash_entry **));
+            struct bfd_link_hash_entry **);
 
   bfd_boolean (*_bfd_coff_link_output_has_begun)
-    PARAMS ((bfd *, struct coff_final_link_info *));
+    (bfd *, struct coff_final_link_info *);
 
   bfd_boolean (*_bfd_coff_final_link_postscript)
-    PARAMS ((bfd *, struct coff_final_link_info *));
+    (bfd *, struct coff_final_link_info *);
 
 @} bfd_coff_backend_data;
 
@@ -541,9 +541,9 @@ typedef struct
    (info, abfd, name, flags, section, value, string, cp, coll, hashp))
 
 #define bfd_coff_link_output_has_begun(a,p) \
-  ((coff_backend_info (a)->_bfd_coff_link_output_has_begun) (a,p))
+  ((coff_backend_info (a)->_bfd_coff_link_output_has_begun) (a, p))
 #define bfd_coff_final_link_postscript(a,p) \
-  ((coff_backend_info (a)->_bfd_coff_final_link_postscript) (a,p))
+  ((coff_backend_info (a)->_bfd_coff_final_link_postscript) (a, p))
 
 @end example
 @subsubsection Writing relocations

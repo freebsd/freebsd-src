@@ -1,6 +1,6 @@
 /* sym_ids.c
 
-   Copyright 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001, 2002, 2004 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include "libiberty.h"
 #include "safe-ctype.h"
@@ -28,7 +28,7 @@
 #include "cg_arcs.h"
 #include "sym_ids.h"
 
-struct sym_id
+static struct sym_id
   {
     struct sym_id *next;
     char *spec;			/* Parsing modifies this.  */
@@ -47,19 +47,19 @@ struct sym_id
  *id_list;
 
 static void parse_spec
-  PARAMS ((char *, Sym *));
+  (char *, Sym *);
 static void parse_id
-  PARAMS ((struct sym_id *));
+  (struct sym_id *);
 static bfd_boolean match
-  PARAMS ((Sym *, Sym *));
+  (Sym *, Sym *);
 static void extend_match
-  PARAMS ((struct match *, Sym *, Sym_Table *, bfd_boolean));
+  (struct match *, Sym *, Sym_Table *, bfd_boolean);
 
 
 Sym_Table syms[NUM_TABLES];
 
 #ifdef DEBUG
-const char *table_name[] =
+static const char *table_name[] =
 {
   "INCL_GRAPH", "EXCL_GRAPH",
   "INCL_ARCS", "EXCL_ARCS",
@@ -84,9 +84,7 @@ static Source_File non_existent_file =
 
 
 void
-sym_id_add (spec, which_table)
-     const char *spec;
-     Table_Id which_table;
+sym_id_add (const char *spec, Table_Id which_table)
 {
   struct sym_id *id;
   int len = strlen (spec);
@@ -114,9 +112,7 @@ sym_id_add (spec, which_table)
    FILENAME not containing a dot can be specified by FILENAME.  */
 
 static void
-parse_spec (spec, sym)
-     char *spec;
-     Sym *sym;
+parse_spec (char *spec, Sym *sym)
 {
   char *colon;
 
@@ -171,8 +167,7 @@ parse_spec (spec, sym)
    by parse_spec().  */
 
 static void
-parse_id (id)
-     struct sym_id *id;
+parse_id (struct sym_id *id)
 {
   char *slash;
 
@@ -221,9 +216,7 @@ parse_id (id)
 /* Return TRUE iff PATTERN matches SYM.  */
 
 static bfd_boolean
-match (pattern, sym)
-     Sym *pattern;
-     Sym *sym;
+match (Sym *pattern, Sym *sym)
 {
   return (pattern->file ? pattern->file == sym->file : TRUE)
     && (pattern->line_num ? pattern->line_num == sym->line_num : TRUE)
@@ -235,11 +228,7 @@ match (pattern, sym)
 
 
 static void
-extend_match (m, sym, tab, second_pass)
-     struct match *m;
-     Sym *sym;
-     Sym_Table *tab;
-     bfd_boolean second_pass;
+extend_match (struct match *m, Sym *sym, Sym_Table *tab, bfd_boolean second_pass)
 {
   if (m->prev_match != sym - 1)
     {
@@ -373,10 +362,7 @@ sym_id_parse ()
    very big (the user has to type them!), so a linear search is probably
    tolerable.  */
 bfd_boolean
-sym_id_arc_is_present (sym_tab, from, to)
-     Sym_Table *sym_tab;
-     Sym *from;
-     Sym *to;
+sym_id_arc_is_present (Sym_Table *sym_tab, Sym *from, Sym *to)
 {
   Sym *sym;
 

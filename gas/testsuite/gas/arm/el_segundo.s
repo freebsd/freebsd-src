@@ -1,23 +1,9 @@
 # el_segundo.s
 #
 # Tests that we generate the right code for v5e instructions.
-# This is not a functional test, although it can be linked.
-# (The section at the rear is non-Coyanosa stuff for comparison.)
-# To verify a compiler, do:
-#	<gcc build area>/gcc/as el_segundo.s -o _temp.o
-#	<gcc build area>/binutils/objdump -dr _temp.o >! _temp.d
-#	diff _temp.d el_segundo.d
-
-	.section	.rdata
-	.align	0
-.LC0:
-	.ascii	"some data\000"
-
 	.text
 	.global main
-#	.type main,function
 	.align	0
-
 main:
 	smlabbgt r0,r1,r2,r3
 	smlabb r0,r1,r2,r3
@@ -52,3 +38,6 @@ main:
 	qsub r0,r1,r2
 	qdsub r0,r1,r2
 	qsub r0,r1,r2
+
+	@ padding for a.out's sake
+	nop

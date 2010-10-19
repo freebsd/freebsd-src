@@ -16,7 +16,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 
 # This file is sourced from elf32.em, and defines extra m68hc12-elf
@@ -272,7 +272,7 @@ m68hc11elf_add_stub_section (const char *stub_sec_name,
      at the correct place.  */
   info.input_section = tramp_section;
   lang_list_init (&info.add);
-  lang_add_section (&info.add, stub_sec, os, stub_file);
+  lang_add_section (&info.add, stub_sec, os);
 
   if (info.add.head == NULL)
     goto err_ret;
@@ -289,7 +289,7 @@ m68hc11elf_add_stub_section (const char *stub_sec_name,
    to build linker stubs.  */
 
 static void
-gld${EMULATION_NAME}_finish (void)
+m68hc11elf_finish (void)
 {
   /* Now build the linker stubs.  */
   if (stub_file->the_bfd->sections != NULL)
@@ -308,6 +308,8 @@ gld${EMULATION_NAME}_finish (void)
       if (!elf32_m68hc11_build_stubs (output_bfd, &link_info))
 	einfo ("%X%P: can not build stubs: %E\n");
     }
+
+  gld${EMULATION_NAME}_finish ();
 }
 
 
@@ -369,5 +371,5 @@ PARSE_AND_LIST_ARGS_CASES='
 # Put these extra m68hc11elf routines in ld_${EMULATION_NAME}_emulation
 #
 LDEMUL_BEFORE_ALLOCATION=m68hc11_elf_${EMULATION_NAME}_before_allocation
-LDEMUL_FINISH=gld${EMULATION_NAME}_finish
+LDEMUL_FINISH=m68hc11elf_finish
 LDEMUL_CREATE_OUTPUT_SECTION_STATEMENTS=m68hc11elf_create_output_section_statements

@@ -74,13 +74,13 @@ extern int visibility_var;
 
 #if !defined (HIDDEN_TEST) && defined (PROTECTED_TEST)
 int
-visibility ()
+visibility (void)
 {
   return 1;
 }
 
 static int
-main_visibility_check ()
+main_visibility_check (void)
 {
   return ((int (*) (void)) visibility_funptr ()) != visibility;
 }
@@ -88,7 +88,7 @@ main_visibility_check ()
 int visibility_var = 1;
 
 static int
-main_visibility_checkvar ()
+main_visibility_checkvar (void)
 {
   return visibility_varval () != visibility_var
 	 && visibility_varptr () != &visibility_var;
@@ -99,7 +99,7 @@ int shared_data = 1;
 asm (".protected shared_data");
 
 int
-shared_func ()
+shared_func (void)
 {
   return 1;
 }
@@ -112,7 +112,7 @@ extern func shared_func_p ();
 #endif
 #else
 static int
-main_visibility_check ()
+main_visibility_check (void)
 {
 #ifdef WEAK_TEST
   return visibility_funptr () == NULL;
@@ -122,7 +122,7 @@ main_visibility_check ()
 }
 
 static int
-main_visibility_checkvar ()
+main_visibility_checkvar (void)
 {
 #ifdef WEAK_TEST
   return visibility_varval () == 0
@@ -137,7 +137,7 @@ main_visibility_checkvar ()
 /* This function is called by the shared library.  */
 
 int
-main_called ()
+main_called (void)
 {
   return 6;
 }
@@ -145,7 +145,7 @@ main_called ()
 /* This function overrides a function in the shared library.  */
 
 int
-shlib_overriddencall2 ()
+shlib_overriddencall2 (void)
 {
   return 8;
 }
@@ -155,19 +155,19 @@ int visibility_com;
 asm (".hidden visibility_com");
 
 int
-main_visibility_checkcom ()
+main_visibility_checkcom (void)
 {
   return visibility_com == 0;
 }
 
 int
-main_visibility_checkweak ()
+main_visibility_checkweak (void)
 {
   return 1;
 }
 #elif defined (HIDDEN_WEAK_TEST)
 int
-main_visibility_checkcom ()
+main_visibility_checkcom (void)
 {
   return 1;
 }
@@ -203,32 +203,32 @@ extern int visibility_func ();
 asm (".hidden visibility_func");
 
 int
-main_visibility_checkcom ()
+main_visibility_checkcom (void)
 {
-  return &visibility_def != NULL;
+  return & visibility_def != NULL && visibility_def == 2;
 }
 
 int
-main_visibility_checkweak ()
+main_visibility_checkweak (void)
 {
-  return &visibility_func != NULL;
+  return & visibility_func != NULL && visibility_func () == 2;
 }
 #else
 int
-main_visibility_checkcom ()
+main_visibility_checkcom (void)
 {
   return 1;
 }
 
 int
-main_visibility_checkweak ()
+main_visibility_checkweak (void)
 {
   return 1;
 }
 #endif
 
 int
-main ()
+main (void)
 {
   int (*p) ();
   int ret = 0;

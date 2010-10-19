@@ -1,6 +1,6 @@
 /* hist.h
 
-   Copyright 2000, 2001 Free Software Foundation, Inc.
+   Copyright 2000, 2001, 2002, 2004, 2005 Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
 
@@ -16,7 +16,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef hist_h
 #define hist_h
@@ -24,7 +24,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 extern bfd_vma s_lowpc;		/* Lowpc from the profile file.  */
 extern bfd_vma s_highpc;	/* Highpc from the profile file.  */
 extern bfd_vma lowpc, highpc;	/* Range profiled, in UNIT's.  */
-extern int hist_num_bins;	/* Number of histogram bins.  */
+extern unsigned int hist_num_bins; /* Number of histogram bins.  */
 extern int *hist_sample;	/* Code histogram.  */
 
 /* Scale factor converting samples to pc values:
@@ -32,9 +32,9 @@ extern int *hist_sample;	/* Code histogram.  */
 extern double hist_scale;
 
 
-extern void hist_read_rec        PARAMS ((FILE *, const char *));
-extern void hist_write_hist      PARAMS ((FILE *, const char *));
-extern void hist_assign_samples  PARAMS ((void));
-extern void hist_print           PARAMS ((void));
+extern void hist_read_rec        (FILE *, const char *);
+extern void hist_write_hist      (FILE *, const char *);
+extern void hist_assign_samples  (void);
+extern void hist_print           (void);
 
 #endif /* hist_h */

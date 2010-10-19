@@ -1,5 +1,5 @@
 /* Declarations for stacks of tokenized Xtensa instructions.
-   Copyright (C) 2003 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -15,8 +15,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #ifndef XTENSA_ISTACK_H
 #define XTENSA_ISTACK_H
@@ -24,7 +24,7 @@
 #include "xtensa-isa.h"
 
 #define MAX_ISTACK 12
-#define MAX_INSN_ARGS 6
+#define MAX_INSN_ARGS 10
 
 enum itype_enum
 {
@@ -40,11 +40,23 @@ enum itype_enum
 typedef struct tinsn_struct
 {
   enum itype_enum insn_type;
-  
-  bfd_boolean is_specific_opcode; 
+
   xtensa_opcode opcode;	/* Literals have an invalid opcode.  */
+  bfd_boolean is_specific_opcode;
+  bfd_boolean keep_wide;
   int ntok;
   expressionS tok[MAX_INSN_ARGS];
+  unsigned linenum;
+
+  struct fixP *fixup;
+
+  /* Filled out by relaxation_requirements:  */
+  enum xtensa_relax_statesE subtype;
+  int literal_space;
+  /* Filled out by vinsn_to_insnbuf:  */
+  symbolS *symbol;
+  offsetT offset;
+  fragS *literal_frag;
 } TInsn;
 
 
@@ -57,17 +69,29 @@ typedef struct tinsn_stack
 } IStack;
 
 
-void         istack_init        PARAMS ((IStack *));
-bfd_boolean  istack_empty       PARAMS ((IStack *));
-bfd_boolean  istack_full        PARAMS ((IStack *));
-TInsn *      istack_top         PARAMS ((IStack *));
-void         istack_push        PARAMS ((IStack *, TInsn *));
-TInsn *      istack_push_space  PARAMS ((IStack *)); 
-void         istack_pop         PARAMS ((IStack *));
+void istack_init (IStack *);
+bfd_boolean istack_empty (IStack *);
+bfd_boolean istack_full (IStack *);
+TInsn *istack_top (IStack *);
+void istack_push (IStack *, TInsn *);
+TInsn *istack_push_space (IStack *);
+void istack_pop (IStack *);
 
 /* TInsn utilities.  */
-void         tinsn_init         PARAMS ((TInsn *));
-void         tinsn_copy         PARAMS ((TInsn *, const TInsn *));
-expressionS *tinsn_get_tok      PARAMS ((TInsn *, int));
+void tinsn_init (TInsn *);
+expressionS *tinsn_get_tok (TInsn *, int);
+
+
+/* vliw_insn: bundles of TInsns.  */
+
+typedef struct vliw_insn
+{
+  xtensa_format format;
+  int num_slots;
+  unsigned int inside_bundle;
+  TInsn slots[MAX_SLOTS];
+  xtensa_insnbuf insnbuf;
+  xtensa_insnbuf slotbuf[MAX_SLOTS];
+} vliw_insn;
 
 #endif /* !XTENSA_ISTACK_H */

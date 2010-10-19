@@ -1,3 +1,173 @@
+2006-02-14  Paolo Bonzini  <bonzini@gnu.org>
+            Andreas Schwab  <schwab@suse.de>
+
+        * acx.m4 (NCN_STRICT_CHECK_TARGET_TOOLS): Use correct program name.
+	(ACX_CHECK_INSTALLED_TARGET_TOOL): Likewise, and always set $1.
+
+2006-01-26  Paolo Bonzini  <bonzini@gnu.org>
+
+	* acx.m4 (NCN_STRICT_CHECK_TARGET_TOOLS): Test $with_build_time_tools.
+	(ACX_PATH_SEP): New.
+	(ACX_TOOL_DIRS): Move here from the gcc directory.
+	(ACX_CHECK_INSTALLED_TARGET_TOOL): New.
+	(GCC_TARGET_TOOL): Do not use a host tool if we found a target tool
+	with a complete path in either $with_build_time_tools or $exec_prefix.
+
+2006-01-02  Paolo Bonzini  <bonzini@gnu.org>
+
+        PR target/25259
+        * stdint.m4: New.
+
+2005-12-20  Paolo Bonzini  <bonzini@gnu.org>
+
+        Revert Ada-related part of the previous change.
+
+        * mt-ppc-aix: Delete.
+
+2005-12-19  Paolo Bonzini  <bonzini@gnu.org>
+        
+        * mt-ppc-aix, mh-ppc-aix: New.
+        
+2005-12-05  Paolo Bonzini  <bonzini@gnu.org>
+
+	* acx.m4 (GCC_TARGET_TOOL): New.
+
+2005-09-23  Tom Tromey  <tromey@redhat.com>
+
+	* enable.m4: New file.
+	* tls.m4: New file.
+
+2005-08-12  Paolo Bonzini  <bonzini@gnu.org>
+
+	* config/acx.m4 (NCN_CHECK_TARGET_TOOL, NCN_STRICT_CHECK_TOOL,
+	NCN_STRICT_CHECK_TARGET_TOOL): Remove.
+	(NCN_STRICT_CHECK_TOOLS, NCN_STRICT_CHECK_TARGET_TOOLS): New,
+	based on the deleted macros.
+
+2005-07-27  Mark Mitchell  <mark@codesourcery.com>
+
+	* mt-gnu (CXXFLAGS): Include SYSROOT_CFLAGS_FOR_TARGET.
+
+2005-07-16  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* all files: Update FSF address.
+
+2005-06-14  Tom Tromey  <tromey@redhat.com>
+
+	PR libgcj/19877:
+	* no-executables.m4: Call real AC_FUNC_MMAP when cache variable
+	is set but not 'no'.
+
+2005-06-13  Zack Weinberg  <zack@codesourcery.com>
+
+	* depstand.m4, lead-dot.m4: New files.
+
+2005-05-19  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* accross.m4: Delete file.
+
+2005-05-12  Ryota Kunisawa  <kunisawa@access.co.jp>
+
+	PR bootstrap/21230
+	* warnings.m4 (ACX_PROG_CC_WARNING_ALMOST_PEDANTIC): Add
+	double quotes around GCC variable.
+
+2005-04-29  Paolo Bonzini  <bonzini@gnu.org>
+
+	* acx.m4 (ACX_PROG_GNAT): Remove stray break.
+
+2005-03-31  Paolo Bonzini  <bonzini@gnu.org>
+
+	* gcc-lib-path.m4: Remove.
+
+2005-03-21  Zack Weinberg  <zack@codesourcery.com>
+
+	* gxx-include-dir.m4: In all substitutions, leave $(gcc_version)
+	to be expanded by the Makefile.
+
+2005-03-15  Zack Weinberg  <zack@codesourcery.com>
+
+	* gcc-version.m4: Delete.
+
+2005-02-28  Paolo Bonzini  <bonzini@gnu.org>
+
+	PR bootstrap/17383
+	* acx.m4 (GCC_TOPLEV_SUBDIRS): Set HOST_SUBDIR if an in-src
+	gcc build is going.
+
+2005-01-23  Joseph S. Myers  <joseph@codesourcery.com>
+
+	* warnings.m4 (ACX_PROG_CC_WARNING_ALMOST_PEDANTIC): Don't do
+	anything for non-GCC compilers.
+
+2004-12-03  Richard Sandiford  <rsandifo@redhat.com>
+
+	* gxx-include-dir.m4: New file.
+
+2004-12-02  Richard Sandiford  <rsandifo@redhat.com>
+
+	* gcc-version.m4: New file.
+
+2004-09-24  Zack Weinberg  <zack@codesourcery.com>
+
+	* warnings.m4: New file.
+
+2004-09-23  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR bootstrap/17369
+	* gcc-lib-path.m4: New file.
+
+2004-09-22  Kelley Cook  <kcook@gcc.gnu.org>
+
+	* gettext-sister.m4: Renamed from gettext.m4
+	* codeset.m4, gettext.m4, glibc21.m4, iconv.m4, intdiv0.m4, po.m4,
+	inttypes.m4, inttypes-pri.m4, inttypes_h.m4, lcmessage.m4, lib-ld.m4,
+	lib-link.m4, lib-prefix.m4, nls.m4, progtest.m4, stdint_h.m4,
+	uintmax_t.m4, ulonglong.m4: Import from gettext-0.12.1 sources.
+
+2004-08-31  Robert Bowdidge <bowdidge@apple.com>
+
+	* mh-ppc-darwin: Add file, and override BOOT_CFLAGS.
+
+2004-08-13  Nathanael Nerode  <neroden@gcc.gnu.org>
+
+	* Add ACX_{TARGET,HOST,BUILD}_NONCANONICAL,
+	which do an automatic AC_SUBST on _GCC_TOPLEV_*_NONCANONICAL.
+	The intention is that we will migrate to these bit by bit.
+
+2004-08-01  Robert Millan  <robertmh@gnu.org>
+
+	* mt-linux: Rename to ...
+	* mt-gnu: ... this.
+
+2004-06-09  Paolo Bonzini  <bonzini@gnu.org>
+
+	* acx.m4 (ACX_PROG_LN): From gcc, modified to
+	accept a parameter.
+
+2004-05-23  Paolo Bonzini  <bonzini@gnu.org>
+
+	* acx.m4 (ACX_HEADER_STDBOOL, ACX_HEADER_STRING):
+	From gcc.
+
+2004-04-16  Rainer Orth  <ro@TechFak.Uni-Bielefeld.DE>
+
+	* acx.m4 (ACX_PROG_GNAT): Check if ${CC} produces object file for
+	Ada compilation.
+	Fix acx_cv_cc_gcc_supports_ada spelling.
+
+2004-03-08  Paolo Bonzini  <bonzini@gnu.org>
+
+	PR ada/14131
+	Move language detection to the top level.
+	* acx.m4 (ACX_PROG_GNAT): New macro, moved here
+	from the gcc subdirectory.
+
+2004-03-09  Hans-Peter Nilsson  <hp@axis.com>
+
+	* accross.m4 (AC_C_BIGENDIAN_CROSS): Compile endian probe with
+	"-c".  Properly quote parameter for AC_MSG_ERROR.
+
 2004-01-14  Maciej W. Rozycki  <macro@ds2.pg.gda.pl>
 
 	* acinclude.m4: Quote names of macros to be defined by AC_DEFUN

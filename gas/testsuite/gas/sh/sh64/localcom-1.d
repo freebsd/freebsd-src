@@ -6,9 +6,9 @@
 .*:     file format .*-sh64.*
 
 SYMBOL TABLE:
-0+0 l    d  \.text	0+ 
-0+0 l    d  \.data	0+ 
-0+0 l    d  \.bss	0+ 
+0+0 l    d  \.text	0+ (|\.text)
+0+0 l    d  \.data	0+ (|\.data)
+0+0 l    d  \.bss	0+ (|\.bss)
 0+0 l       \.text	0+ start
 0+c l     O \.bss	0+4 dd
 0+c l     O \.bss	0+4 d

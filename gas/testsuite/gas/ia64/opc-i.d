@@ -1,3 +1,4 @@
+# as: -xnone -mtune=itanium1
 # objdump: -d
 # name: ia64 opc-i
 
@@ -258,6 +259,54 @@ Disassembly of section \.text:
  ab0:	00 00 00 00 01 c0 	\[MII\]       nop\.m 0x0
  ab6:	01 00 00 03 80 03 	      \(p07\) hint\.i 0x0
  abc:	00 00 06 00       	      \(p07\) hint\.i 0x0
- ac0:	0d 00 00 00 01 00 	\[MFI\]       nop\.m 0x0
- ac6:	00 00 00 02 80 e3 	            nop\.f 0x0
- acc:	ff ff 07 08       	      \(p07\) hint\.i 0x1fffff;;
+ ac0:	00 00 00 00 01 c0 	\[MII\]       nop\.m 0x0
+ ac6:	f1 ff ff 03 04 40 	      \(p07\) hint\.i 0x1fffff
+ acc:	f0 04 0c 50       	            tf\.z p2,p3=39
+ ad0:	00 00 00 00 01 00 	\[MII\]       nop\.m 0x0
+ ad6:	20 7c 02 06 28 40 	            tf\.z\.unc p2,p3=39
+ adc:	f0 04 0c 58       	            tf\.z\.and p2,p3=39
+ ae0:	00 00 00 00 01 00 	\[MII\]       nop\.m 0x0
+ ae6:	20 78 02 86 28 40 	            tf\.z\.or p2,p3=39
+ aec:	f0 04 0c 59       	            tf\.z\.or\.andcm p2,p3=39
+ af0:	00 00 00 00 01 00 	\[MII\]       nop\.m 0x0
+ af6:	30 7c 02 84 28 60 	            tf\.nz\.or p3,p2=39
+ afc:	f8 04 08 58       	            tf\.nz\.and p3,p2=39
+ b00:	00 00 00 00 01 00 	\[MII\]       nop\.m 0x0
+ b06:	30 7c 02 84 2c 60 	            tf\.nz\.or\.andcm p3,p2=39
+ b0c:	f0 04 08 50       	            tf\.z p3,p2=39
+ b10:	00 00 00 00 01 00 	\[MII\]       nop\.m 0x0
+ b16:	30 7c 02 04 28 40 	            tf\.z\.unc p3,p2=39
+ b1c:	f8 04 0c 58       	            tf\.nz\.and p2,p3=39
+ b20:	00 00 00 00 01 00 	\[MII\]       nop\.m 0x0
+ b26:	20 7c 02 86 28 40 	            tf\.nz\.or p2,p3=39
+ b2c:	f8 04 0c 59       	            tf\.nz\.or\.andcm p2,p3=39
+ b30:	00 00 00 00 01 00 	\[MII\]       nop\.m 0x0
+ b36:	30 78 02 84 28 60 	            tf\.z\.or p3,p2=39
+ b3c:	f0 04 08 58       	            tf\.z\.and p3,p2=39
+ b40:	00 00 00 00 01 00 	\[MII\]       nop\.m 0x0
+ b46:	30 78 02 84 ac 43 	            tf\.z\.or\.andcm p3,p2=39
+ b4c:	f0 04 0c 50       	      \(p07\) tf\.z p2,p3=39
+ b50:	00 00 00 00 01 c0 	\[MII\]       nop\.m 0x0
+ b56:	21 7c 02 06 a8 43 	      \(p07\) tf\.z\.unc p2,p3=39
+ b5c:	f0 04 0c 58       	      \(p07\) tf\.z\.and p2,p3=39
+ b60:	00 00 00 00 01 c0 	\[MII\]       nop\.m 0x0
+ b66:	21 78 02 86 a8 43 	      \(p07\) tf\.z\.or p2,p3=39
+ b6c:	f0 04 0c 59       	      \(p07\) tf\.z\.or\.andcm p2,p3=39
+ b70:	00 00 00 00 01 c0 	\[MII\]       nop\.m 0x0
+ b76:	31 7c 02 84 a8 63 	      \(p07\) tf\.nz\.or p3,p2=39
+ b7c:	f8 04 08 58       	      \(p07\) tf\.nz\.and p3,p2=39
+ b80:	00 00 00 00 01 c0 	\[MII\]       nop\.m 0x0
+ b86:	31 7c 02 84 ac 63 	      \(p07\) tf\.nz\.or\.andcm p3,p2=39
+ b8c:	f0 04 08 50       	      \(p07\) tf\.z p3,p2=39
+ b90:	00 00 00 00 01 c0 	\[MII\]       nop\.m 0x0
+ b96:	31 7c 02 04 a8 43 	      \(p07\) tf\.z\.unc p3,p2=39
+ b9c:	f8 04 0c 58       	      \(p07\) tf\.nz\.and p2,p3=39
+ ba0:	00 00 00 00 01 c0 	\[MII\]       nop\.m 0x0
+ ba6:	21 7c 02 86 a8 43 	      \(p07\) tf\.nz\.or p2,p3=39
+ bac:	f8 04 0c 59       	      \(p07\) tf\.nz\.or\.andcm p2,p3=39
+ bb0:	00 00 00 00 01 c0 	\[MII\]       nop\.m 0x0
+ bb6:	31 78 02 84 a8 63 	      \(p07\) tf\.z\.or p3,p2=39
+ bbc:	f0 04 08 58       	      \(p07\) tf\.z\.and p3,p2=39
+ bc0:	0d 00 00 00 01 00 	\[MFI\]       nop\.m 0x0
+ bc6:	00 00 00 02 80 63 	            nop\.f 0x0
+ bcc:	f0 04 08 59       	      \(p07\) tf\.z\.or\.andcm p3,p2=39;;

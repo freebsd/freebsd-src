@@ -2,6 +2,7 @@
 ; a hardware bug.
 
 ;  { dg-do assemble { target cris-*-* } }
+;  { dg-options "--em=criself" }
 
  ; First, .text isn't dword-aligned by default.
  .text

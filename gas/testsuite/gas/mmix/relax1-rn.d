@@ -2,8 +2,8 @@
 #as: -linkrelax -no-expand -x
 #source: relax1.s
 #
-# FIXME: This test-case assumes that out-of-range errors (still) cause
-# relocs to be emitted, rather than errors emitted.
+# This test-case assumes that out-of-range errors (still) cause
+# relocs to be emitted, rather than errors emitted.  FIXME.
 
 .*:     file format elf64-mmix
 

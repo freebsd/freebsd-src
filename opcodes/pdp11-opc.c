@@ -1,5 +1,5 @@
 /* Opcode table for PDP-11.
-   Copyright 2001, 2002 Free Software Foundation, Inc.
+   Copyright 2001, 2002, 2006 Free Software Foundation, Inc.
 
 This file is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "opcode/pdp11.h"
 
@@ -50,7 +50,7 @@ const struct pdp11_opcode pdp11_opcodes[] =
   { "cl_e",	0x00ae,	0xffff, PDP11_OPCODE_NO_OPS,	PDP11_BASIC },
   { "ccc",	0x00af,	0xffff, PDP11_OPCODE_NO_OPS,	PDP11_BASIC },
   { "se_0",	0x00b0,	0xffff, PDP11_OPCODE_NO_OPS,	PDP11_BASIC },
-  { "sec",	0x00a1,	0xffff, PDP11_OPCODE_NO_OPS,	PDP11_BASIC },
+  { "sec",	0x00b1,	0xffff, PDP11_OPCODE_NO_OPS,	PDP11_BASIC },
   { "sev",	0x00b2,	0xffff, PDP11_OPCODE_NO_OPS,	PDP11_BASIC },
   { "se_3",	0x00b3,	0xffff, PDP11_OPCODE_NO_OPS,	PDP11_BASIC },
   { "sez",	0x00b4,	0xffff, PDP11_OPCODE_NO_OPS,	PDP11_BASIC },

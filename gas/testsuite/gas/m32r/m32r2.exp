@@ -2,4 +2,5 @@
 
 if [istarget m32r*-*-*] {
     run_dump_test "m32r2"
+    run_dump_test "parallel-2"
 }

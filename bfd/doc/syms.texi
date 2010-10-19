@@ -309,6 +309,22 @@ local label.
 
 @end example
 
+@findex bfd_is_target_special_symbol
+@subsubsection @code{bfd_is_target_special_symbol}
+@strong{Synopsis}
+@example
+bfd_boolean bfd_is_target_special_symbol (bfd *abfd, asymbol *sym);
+@end example
+@strong{Description}@*
+Return TRUE iff a symbol @var{sym} in the BFD @var{abfd} is something
+special to the particular target represented by the BFD.  Such symbols
+should normally not be mentioned to the user.
+@example
+#define bfd_is_target_special_symbol(abfd, sym) \
+  BFD_SEND (abfd, _bfd_is_target_special_symbol, (abfd, sym))
+
+@end example
+
 @findex bfd_canonicalize_symtab
 @subsubsection @code{bfd_canonicalize_symtab}
 @strong{Description}@*

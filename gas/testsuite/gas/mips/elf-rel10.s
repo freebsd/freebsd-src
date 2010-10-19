@@ -14,6 +14,7 @@ bar:
 	.end	bar
 
 	.ent	frob
+frob:	
 	lw	$4,%got_page(foo)($gp)
 	addiu	$4,$4,%got_ofst(foo)
 

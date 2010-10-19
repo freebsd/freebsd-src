@@ -1,20 +1,21 @@
 /* Disassemble h8300 instructions.
-   Copyright 1993, 1994, 1996, 1998, 2000, 2001, 2002, 2003
+   Copyright 1993, 1994, 1996, 1998, 2000, 2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 #define DEFINE_TABLE
 
@@ -33,23 +34,11 @@ struct h8_instruction
 
 struct h8_instruction *h8_instructions;
 
-static void bfd_h8_disassemble_init PARAMS ((void));
-static void print_one_arg PARAMS ((disassemble_info *, bfd_vma, op_type,
-				   int, int, int, int, const char **, int));
-static unsigned int bfd_h8_disassemble PARAMS ((bfd_vma, 
-						disassemble_info *, 
-						int));
-static void extract_immediate PARAMS ((FILE *, 
-				       op_type, int, 
-				       unsigned char *,
-				       int *, int *,
-				       const struct h8_opcode *));
-
 /* Run through the opcodes and sort them into order to make them easy
    to disassemble.  */
 
 static void
-bfd_h8_disassemble_init ()
+bfd_h8_disassemble_init (void)
 {
   unsigned int i;
   unsigned int nopcodes;
@@ -58,8 +47,7 @@ bfd_h8_disassemble_init ()
 
   nopcodes = sizeof (h8_opcodes) / sizeof (struct h8_opcode);
 
-  h8_instructions = (struct h8_instruction *)
-    xmalloc (nopcodes * sizeof (struct h8_instruction));
+  h8_instructions = xmalloc (nopcodes * sizeof (struct h8_instruction));
 
   for (p = h8_opcodes, pi = h8_instructions; p->name; p++, pi++)
     {
@@ -97,13 +85,13 @@ bfd_h8_disassemble_init ()
 }
 
 static void
-extract_immediate (stream, looking_for, thisnib, data, cst, len, q)
-     FILE *stream;
-     op_type looking_for;
-     int thisnib;
-     unsigned char *data;
-     int *cst, *len;
-     const struct h8_opcode *q;
+extract_immediate (FILE *stream,
+		   op_type looking_for,
+		   int thisnib,
+		   unsigned char *data,
+		   int *cst,
+		   int *len,
+		   const struct h8_opcode *q)
 {
   switch (looking_for & SIZE)
     {
@@ -114,35 +102,37 @@ extract_immediate (stream, looking_for, thisnib, data, cst, len, q)
       /* DISP2 special treatment.  */
       if ((looking_for & MODE) == DISP)
 	{
-	  if (OP_KIND (q->how) == O_MOVAB ||
-	      OP_KIND (q->how) == O_MOVAW ||
-	      OP_KIND (q->how) == O_MOVAL)
+	  if (OP_KIND (q->how) == O_MOVAB
+	      || OP_KIND (q->how) == O_MOVAW
+	      || OP_KIND (q->how) == O_MOVAL)
 	    {
 	      /* Handling for mova insn.  */
-	      switch (q->args.nib[0] & MODE) {
-	      case INDEXB:
-	      default:
-		break;
-	      case INDEXW:
-		*cst *= 2;
-		break;
-	      case INDEXL:
-		*cst *= 4;
-		break;
-	      }
+	      switch (q->args.nib[0] & MODE)
+		{
+		case INDEXB:
+		default:
+		  break;
+		case INDEXW:
+		  *cst *= 2;
+		  break;
+		case INDEXL:
+		  *cst *= 4;
+		  break;
+		}
 	    }
 	  else
 	    {
 	      /* Handling for non-mova insn.  */
-	      switch (OP_SIZE (q->how)) {
-	      default: break;
-	      case SW:
-		*cst *= 2;
-		break;
-	      case SL:
-		*cst *= 4;
-		break;
-	      }
+	      switch (OP_SIZE (q->how))
+		{
+		default: break;
+		case SW:
+		  *cst *= 2;
+		  break;
+		case SL:
+		  *cst *= 4;
+		  break;
+		}
 	    }
 	}
       break;
@@ -156,7 +146,7 @@ extract_immediate (stream, looking_for, thisnib, data, cst, len, q)
       *cst = (data[0] << 8) + data [1];
 #if 0
       if ((looking_for & SIZE) == L_16)
-	*cst = (short) *cst;	/* sign extend */
+	*cst = (short) *cst;	/* Sign extend.  */
 #endif
       break;
     case L_32:
@@ -192,31 +182,25 @@ static const char *cregnames[] =
 };
 
 static void
-print_one_arg (info, addr, x, cst, cstlen, rdisp_n, rn, pregnames, len)
-     disassemble_info *info;
-     bfd_vma addr;
-     op_type x;
-     int cst, cstlen, rdisp_n, rn;
-     const char **pregnames;
-     int len;
+print_one_arg (disassemble_info *info,
+	       bfd_vma addr,
+	       op_type x,
+	       int cst,
+	       int cstlen,
+	       int rdisp_n,
+	       int rn,
+	       const char **pregnames,
+	       int len)
 {
-  void *stream = info->stream;
+  void * stream = info->stream;
   fprintf_ftype outfn = info->fprintf_func;
 
-  if ((x & SIZE) == L_3 ||
-      (x & SIZE) == L_3NZ)
-    {
-      outfn (stream, "#0x%x", (unsigned) cst);
-    }
+  if ((x & SIZE) == L_3 || (x & SIZE) == L_3NZ)
+    outfn (stream, "#0x%x", (unsigned) cst);
   else if ((x & MODE) == IMM)
-    {
-      outfn (stream, "#0x%x", (unsigned) cst);
-    }
-  else if ((x & MODE) == DBIT  ||
-	   (x & MODE) == KBIT)
-    {
-      outfn (stream, "#%d", (unsigned) cst);
-    }
+    outfn (stream, "#0x%x", (unsigned) cst);
+  else if ((x & MODE) == DBIT || (x & MODE) == KBIT)
+    outfn (stream, "#%d", (unsigned) cst);
   else if ((x & MODE) == CONST_2)
     outfn (stream, "#2");
   else if ((x & MODE) == CONST_4)
@@ -262,33 +246,26 @@ print_one_arg (info, addr, x, cst, cstlen, rdisp_n, rn, pregnames, len)
 	}
     }
   else if ((x & MODE) == POSTINC)
-    {
-      outfn (stream, "@%s+", pregnames[rn]);
-    }
+    outfn (stream, "@%s+", pregnames[rn]);
+
   else if ((x & MODE) == POSTDEC)
-    {
-      outfn (stream, "@%s-", pregnames[rn]);
-    }
+    outfn (stream, "@%s-", pregnames[rn]);
+
   else if ((x & MODE) == PREINC)
-    {
-      outfn (stream, "@+%s", pregnames[rn]);
-    }
+    outfn (stream, "@+%s", pregnames[rn]);
+
   else if ((x & MODE) == PREDEC)
-    {
-      outfn (stream, "@-%s", pregnames[rn]);
-    }
+    outfn (stream, "@-%s", pregnames[rn]);
+
   else if ((x & MODE) == IND)
-    {
-      outfn (stream, "@%s", pregnames[rn]);
-    }
+    outfn (stream, "@%s", pregnames[rn]);
+
   else if ((x & MODE) == ABS || (x & ABSJMP))
-    {
-      outfn (stream, "@0x%x:%d", (unsigned) cst, cstlen);
-    }
+    outfn (stream, "@0x%x:%d", (unsigned) cst, cstlen);
+
   else if ((x & MODE) == MEMIND)
-    {
-      outfn (stream, "@@%d (0x%x)", cst, cst);
-    }
+    outfn (stream, "@@%d (0x%x)", cst, cst);
+
   else if ((x & MODE) == VECIND)
     {
       /* FIXME Multiplier should be 2 or 4, depending on processor mode,
@@ -302,67 +279,54 @@ print_one_arg (info, addr, x, cst, cstlen, rdisp_n, rn, pregnames, len)
       if ((x & SIZE) == L_16 ||
 	  (x & SIZE) == L_16U)
 	{
-	  outfn (stream, ".%s%d (0x%x)",
+	  outfn (stream, ".%s%d (0x%lx)",
 		   (short) cst > 0 ? "+" : "",
 		   (short) cst, 
-		   addr + (short) cst + len);
+		   (long)(addr + (short) cst + len));
 	}
       else
 	{
-	  outfn (stream, ".%s%d (0x%x)",
+	  outfn (stream, ".%s%d (0x%lx)",
 		   (char) cst > 0 ? "+" : "",
 		   (char) cst, 
-		   addr + (char) cst + len);
+		   (long)(addr + (char) cst + len));
 	}
     }
   else if ((x & MODE) == DISP)
-    {
-      outfn (stream, "@(0x%x:%d,%s)", cst, cstlen, 
-	       pregnames[rdisp_n]);
-    }
+    outfn (stream, "@(0x%x:%d,%s)", cst, cstlen, pregnames[rdisp_n]);
+
   else if ((x & MODE) == INDEXB)
-    {
-      /* Always take low half of reg.  */
-      outfn (stream, "@(0x%x:%d,%s.b)", cst, cstlen, 
-	     regnames[rdisp_n < 8 ? rdisp_n + 8 : rdisp_n]);
-    }
+    /* Always take low half of reg.  */
+    outfn (stream, "@(0x%x:%d,%s.b)", cst, cstlen, 
+	   regnames[rdisp_n < 8 ? rdisp_n + 8 : rdisp_n]);
+
   else if ((x & MODE) == INDEXW)
-    {
-      /* Always take low half of reg.  */
-      outfn (stream, "@(0x%x:%d,%s.w)", cst, cstlen, 
-	       wregnames[rdisp_n < 8 ? rdisp_n : rdisp_n - 8]);
-    }
+    /* Always take low half of reg.  */
+    outfn (stream, "@(0x%x:%d,%s.w)", cst, cstlen, 
+	   wregnames[rdisp_n < 8 ? rdisp_n : rdisp_n - 8]);
+
   else if ((x & MODE) == INDEXL)
-    {
-      outfn (stream, "@(0x%x:%d,%s.l)", cst, cstlen, 
-	       lregnames[rdisp_n]);
-    }
+    outfn (stream, "@(0x%x:%d,%s.l)", cst, cstlen, lregnames[rdisp_n]);
+
   else if (x & CTRL)
-    {
-      outfn (stream, cregnames[rn]);
-    }
+    outfn (stream, cregnames[rn]);
+
   else if ((x & MODE) == CCR)
-    {
-      outfn (stream, "ccr");
-    }
+    outfn (stream, "ccr");
+
   else if ((x & MODE) == EXR)
-    {
-      outfn (stream, "exr");
-    }
+    outfn (stream, "exr");
+
   else if ((x & MODE) == MACREG)
-    {
-      outfn (stream, "mac%c", cst ? 'l' : 'h');
-    }
+    outfn (stream, "mac%c", cst ? 'l' : 'h');
+
   else
     /* xgettext:c-format */
     outfn (stream, _("Hmmmm 0x%x"), x);
 }
 
 static unsigned int
-bfd_h8_disassemble (addr, info, mach)
-     bfd_vma addr;
-     disassemble_info *info;
-     int mach;
+bfd_h8_disassemble (bfd_vma addr, disassemble_info *info, int mach)
 {
   /* Find the first entry in the table for this opcode.  */
   int regno[3] = { 0, 0, 0 };
@@ -501,12 +465,12 @@ bfd_h8_disassemble (addr, info, mach)
 
 		  cst[opnr] = (thisnib & 0x8) ? 2 : 1;
 		}
-	      else if ((looking_for & MODE) == DISP  ||
-		       (looking_for & MODE) == ABS   ||
-		       (looking_for & MODE) == PCREL ||
-		       (looking_for & MODE) == INDEXB ||
-		       (looking_for & MODE) == INDEXW ||
-		       (looking_for & MODE) == INDEXL)
+	      else if ((looking_for & MODE) == DISP
+		       || (looking_for & MODE) == ABS
+		       || (looking_for & MODE) == PCREL
+		       || (looking_for & MODE) == INDEXB
+		       || (looking_for & MODE) == INDEXW
+		       || (looking_for & MODE) == INDEXL)
 		{
 		  extract_immediate (stream, looking_for, thisnib, 
 				     data + len / 2, cst + opnr, 
@@ -515,36 +479,36 @@ bfd_h8_disassemble (addr, info, mach)
 		  if (q->how == O (O_BRAS, SB))
 		    cst[opnr] -= 1;
 		}
-	      else if ((looking_for & MODE) == REG     ||
-		       (looking_for & MODE) == LOWREG  ||
-		       (looking_for & MODE) == IND     ||
-		       (looking_for & MODE) == PREINC  ||
-		       (looking_for & MODE) == POSTINC ||
-		       (looking_for & MODE) == PREDEC  ||
-		       (looking_for & MODE) == POSTDEC)
+	      else if ((looking_for & MODE) == REG
+		       || (looking_for & MODE) == LOWREG
+		       || (looking_for & MODE) == IND
+		       || (looking_for & MODE) == PREINC
+		       || (looking_for & MODE) == POSTINC
+		       || (looking_for & MODE) == PREDEC
+		       || (looking_for & MODE) == POSTDEC)
 		{
 		  regno[opnr] = thisnib;
 		}
-	      else if (looking_for & CTRL)	/* Control Register */
+	      else if (looking_for & CTRL)	/* Control Register.  */
 		{
 		  thisnib &= 7;
-		  if (((looking_for & MODE) == CCR  && (thisnib != C_CCR))  ||
-		      ((looking_for & MODE) == EXR  && (thisnib != C_EXR))  ||
-		      ((looking_for & MODE) == MACH && (thisnib != C_MACH)) ||
-		      ((looking_for & MODE) == MACL && (thisnib != C_MACL)) ||
-		      ((looking_for & MODE) == VBR  && (thisnib != C_VBR))  ||
-		      ((looking_for & MODE) == SBR  && (thisnib != C_SBR)))
+		  if (((looking_for & MODE) == CCR  && (thisnib != C_CCR))
+		      || ((looking_for & MODE) == EXR  && (thisnib != C_EXR))
+		      || ((looking_for & MODE) == MACH && (thisnib != C_MACH))
+		      || ((looking_for & MODE) == MACL && (thisnib != C_MACL))
+		      || ((looking_for & MODE) == VBR  && (thisnib != C_VBR))
+		      || ((looking_for & MODE) == SBR  && (thisnib != C_SBR)))
 		    goto fail;
-		  if (((looking_for & MODE) == CCR_EXR && 
-		       (thisnib != C_CCR && thisnib != C_EXR)) ||
-		      ((looking_for & MODE) == VBR_SBR && 
-		       (thisnib != C_VBR && thisnib != C_SBR)) ||
-		      ((looking_for & MODE) == MACREG && 
-		       (thisnib != C_MACH && thisnib != C_MACL)))
+		  if (((looking_for & MODE) == CCR_EXR
+		       && (thisnib != C_CCR && thisnib != C_EXR))
+		      || ((looking_for & MODE) == VBR_SBR
+			  && (thisnib != C_VBR && thisnib != C_SBR))
+		      || ((looking_for & MODE) == MACREG
+			  && (thisnib != C_MACH && thisnib != C_MACL)))
 		    goto fail;
-		  if (((looking_for & MODE) == CC_EX_VB_SB && 
-		       (thisnib != C_CCR && thisnib != C_EXR &&
-			thisnib != C_VBR && thisnib != C_SBR)))
+		  if (((looking_for & MODE) == CC_EX_VB_SB
+		       && (thisnib != C_CCR && thisnib != C_EXR
+			   && thisnib != C_VBR && thisnib != C_SBR)))
 		    goto fail;
 
 		  regno[opnr] = thisnib;
@@ -559,8 +523,8 @@ bfd_h8_disassemble (addr, info, mach)
 		  cst[opnr] = thisnib;
 		  cstlen[opnr] = 4;
 		}
-	      else if ((looking_for & SIZE) == L_16 ||
-		       (looking_for & SIZE) == L_16U)
+	      else if ((looking_for & SIZE) == L_16
+		       || (looking_for & SIZE) == L_16U)
 		{
 		  cst[opnr] = (data[len / 2]) * 256 + data[(len + 2) / 2];
 		  cstlen[opnr] = 16;
@@ -622,8 +586,8 @@ bfd_h8_disassemble (addr, info, mach)
 		  cstlen[opnr] = 8;
 		  cst[opnr] = data[len / 2];
 		}
-	      else if ((looking_for & SIZE) == L_3 ||
-		       (looking_for & SIZE) == L_3NZ)
+	      else if ((looking_for & SIZE) == L_3
+		       || (looking_for & SIZE) == L_3NZ)
 		{
 		  cst[opnr] = thisnib & 0x7;
 		  if (cst[opnr] == 0 && (looking_for & SIZE) == L_3NZ)
@@ -640,14 +604,6 @@ bfd_h8_disassemble (addr, info, mach)
 		}
 	      else if (looking_for == (op_type) E)
 		{
-		  int i;
-
-		  for (i = 0; i < qi->length; i++)
-		    outfn (stream, "%02x ", data[i]);
-
-		  for (; i < 6; i++)
-		    outfn (stream, "   ");
-
 		  outfn (stream, "%s\t", q->name);
 
 		  /* Gross.  Disgusting.  */
@@ -678,10 +634,8 @@ bfd_h8_disassemble (addr, info, mach)
 		      if (regno[0] == 0)
 			outfn (stream, "er%d", regno[1]);
 		      else
-			{
-			  outfn (stream, "er%d-er%d", regno[1] - regno[0],
-				 regno[1]);
-			}
+			outfn (stream, "er%d-er%d", regno[1] - regno[0],
+			       regno[1]);
 		      return qi->length;
 		    }
 		  if (strncmp (q->name, "mova", 4) == 0)
@@ -716,8 +670,19 @@ bfd_h8_disassemble (addr, info, mach)
 		    int hadone = 0;
 		    int nargs;
 
+		    /* Special case handling for the adds and subs instructions
+		       since in H8 mode thay can only take the r0-r7 registers
+		       but in other (higher) modes they can take the er0-er7
+		       registers as well.  */
+		    if (strcmp (qi->opcode->name, "adds") == 0
+			|| strcmp (qi->opcode->name, "subs") == 0)
+		      {
+			outfn (stream, "#%d,%s", cst[0], pregnames[regno[1] & 0x7]);
+			return qi->length;
+		      }
+
 		    for (nargs = 0; 
-			 nargs < 3 && args[nargs] != (op_type) E; 
+			 nargs < 3 && args[nargs] != (op_type) E;
 			 nargs++)
 		      {
 			int x = args[nargs];
@@ -750,32 +715,24 @@ bfd_h8_disassemble (addr, info, mach)
     }
 
   /* Fell off the end.  */
-  outfn (stream, "%02x %02x        .word\tH'%x,H'%x",
-	   data[0], data[1],
-	   data[0], data[1]);
+  outfn (stream, ".word\tH'%x,H'%x", data[0], data[1]);
   return 2;
 }
 
 int
-print_insn_h8300 (addr, info)
-     bfd_vma addr;
-     disassemble_info *info;
+print_insn_h8300 (bfd_vma addr, disassemble_info *info)
 {
   return bfd_h8_disassemble (addr, info, 0);
 }
 
 int
-print_insn_h8300h (addr, info)
-     bfd_vma addr;
-     disassemble_info *info;
+print_insn_h8300h (bfd_vma addr, disassemble_info *info)
 {
   return bfd_h8_disassemble (addr, info, 1);
 }
 
 int
-print_insn_h8300s (addr, info)
-     bfd_vma addr;
-     disassemble_info *info;
+print_insn_h8300s (bfd_vma addr, disassemble_info *info)
 {
   return bfd_h8_disassemble (addr, info, 2);
 }

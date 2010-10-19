@@ -1,6 +1,7 @@
 #source: size-2.s
 #ld: -T size-2.t
 #readelf: -l --wide
+#xfail: "hppa64-*-*" "v850-*-*"
 
 #...
 Program Headers:
@@ -13,5 +14,5 @@ Program Headers:
  Section to Segment mapping:
  +Segment Sections\.\.\.
  +00 .*
- +01 +\.text \.tdata \.map 
- +02 +\.tdata \.tbss \.map 
+ +01.*\.text.*\.tdata.*
+ +02.*\.tdata.*

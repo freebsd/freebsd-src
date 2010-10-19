@@ -7,7 +7,6 @@
 #	OTHER_TEXT_SECTIONS - these get put in .text when relocating
 #	OTHER_READWRITE_SECTIONS - other than .data .bss .ctors .sdata ...
 #		(e.g., .PARISC.global)
-#	OTHER_BSS_SECTIONS - other than .bss .sbss ...
 #	OTHER_SECTIONS - at the end
 #	EXECUTABLE_SYMBOLS - symbols that must be defined for an
 #		executable (e.g., _DYNAMIC_LINK)
@@ -71,7 +70,7 @@ CTOR=".ctors ${CONSTRUCTING-0} :
     KEEP (*crtbegin*.o(.ctors))
 
     /* We don't want to include the .ctor section from
-       from the crtend.o file until after the sorted ctors.
+       the crtend.o file until after the sorted ctors.
        The .ctor section from the crtend file contains the
        end of ctors marker and it must be last */
 
@@ -144,23 +143,23 @@ SECTIONS
       .bss section disappears because there are no input sections.  */
    ${RELOCATING+. = ALIGN(${ALIGNMENT});}
   } > RAM
-  ${RELOCATING+${OTHER_BSS_SECTIONS}}
+  ${RELOCATING+${OTHER_BSS_END_SYMBOLS}}
   ${RELOCATING+. = ALIGN(${ALIGNMENT});}
+  ${RELOCATING+${OTHER_END_SYMBOLS}}
   ${RELOCATING+_end = .;}
   ${RELOCATING+__stack = .;}
-  ${RELOCATING+${OTHER_BSS_END_SYMBOLS}}
   ${RELOCATING+PROVIDE (end = .);}
 
   /* Read-only sections in ROM.  */
-  .int_vec     ${RELOCATING-0} : { *(.int_vec)	} > ROM
+  .int_vec     ${RELOCATING-0} : { *(.int_vec)	} ${RELOCATING+> ROM}
 
-  .rodata ${RELOCATING-0} : { *(.rodata) ${RELOCATING+*(.rodata.*)} ${RELOCATING+*(.gnu.linkonce.r.*)} } > ROM
+  .rodata ${RELOCATING-0} : { *(.rodata) ${RELOCATING+*(.rodata.*)} ${RELOCATING+*(.gnu.linkonce.r.*)} } ${RELOCATING+> ROM}
   ${RELOCATING+${CTOR}}
   ${RELOCATING+${DTOR}}
-  .jcr : { KEEP (*(.jcr)) } > ROM
-  .eh_frame : { KEEP (*(.eh_frame)) } > ROM
-  .gcc_except_table : { *(.gcc_except_table) } > ROM
-  .plt : { *(.plt) } > ROM
+  .jcr : { KEEP (*(.jcr)) } ${RELOCATING+> ROM}
+  .eh_frame : { KEEP (*(.eh_frame)) } ${RELOCATING+> ROM}
+  .gcc_except_table : { *(.gcc_except_table) } ${RELOCATING+> ROM}
+  .plt : { *(.plt) } ${RELOCATING+> ROM}
 
   .text    ${RELOCATING-0} :
   {
@@ -172,19 +171,19 @@ SECTIONS
     *(.gnu.warning)
     ${RELOCATING+*(.gnu.linkonce.t.*)}
     ${RELOCATING+${OTHER_TEXT_SECTIONS}}
-  } > ROM =${NOP-0}
+  } ${RELOCATING+> ROM =${NOP-0}}
   .init        ${RELOCATING-0} : 
   { 
     ${RELOCATING+${INIT_START}}
     KEEP (*(.init))
     ${RELOCATING+${INIT_END}}
-  } > ROM =${NOP-0}
+  } ${RELOCATING+> ROM =${NOP-0}}
   .fini    ${RELOCATING-0} :
   {
     ${RELOCATING+${FINI_START}}
     KEEP (*(.fini))
     ${RELOCATING+${FINI_END}}
-  } > ROM =${NOP-0}
+  } ${RELOCATING+> ROM =${NOP-0}}
   ${RELOCATING+PROVIDE (__etext = .);}
   ${RELOCATING+PROVIDE (_etext = .);}
   ${RELOCATING+PROVIDE (etext = .);}

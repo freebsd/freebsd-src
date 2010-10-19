@@ -1,5 +1,5 @@
 /* BFD back-end for OpenRISC 1000 COFF binaries.
-   Copyright 2002, 2003 Free Software Foundation, Inc.
+   Copyright 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
    Contributed by Ivan Guzvinec  <ivang@opencores.org>
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -16,7 +16,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #define OR32 1
 
@@ -148,23 +148,14 @@ or32_reloc (abfd, reloc_entry, symbol_in, data, input_section, output_bfd,
         signed_value = 0;
 
       signed_value += sym_value + reloc_entry->addend;
-#if 0
-      if ((signed_value & ~0x3ffff) == 0)
-        {                     /* Absolute jmp/call.  */
-          insn |= (1<<24);    /* Make it absolute.  */
-          /* FIXME: Should we change r_type to R_IABS.  */
-        }
-      else
-#endif
-        {
-          /* Relative jmp/call, so subtract from the value the
-             address of the place we're coming from.  */
-          signed_value -= (reloc_entry->address
-                           + input_section->output_section->vma
-                           + input_section->output_offset);
-          if (signed_value > 0x7ffffff || signed_value < -0x8000000)
-            return bfd_reloc_overflow;
-        }
+      /* Relative jmp/call, so subtract from the value the
+	 address of the place we're coming from.  */
+      signed_value -= (reloc_entry->address
+		       + input_section->output_section->vma
+		       + input_section->output_offset);
+      if (signed_value > 0x7ffffff || signed_value < -0x8000000)
+	return bfd_reloc_overflow;
+
       signed_value >>= 2;
       insn = INSERT_JUMPTARG (insn, signed_value);
       bfd_put_32 (abfd, insn, hit_data);
@@ -465,25 +456,15 @@ coff_or32_relocate_section (output_bfd, info, input_bfd, input_section,
           /* Determine the destination of the jump.  */
           signed_value += val;
 
-#if 0
-          if ((signed_value & ~0x3ffff) == 0)
-            {
-              /* We can use an absolute jump.  */
-              insn |= (1 << 24);
-            }
-          else
-#endif
-            {
-              /* Make the destination PC relative.  */
-              signed_value -= (input_section->output_section->vma
-                               + input_section->output_offset
-                               + (rel->r_vaddr - input_section->vma));
-              if (signed_value > 0x7ffffff || signed_value < - 0x8000000)
-                {
-                  overflow = TRUE;
-                  signed_value = 0;
-                }
-            }
+	  /* Make the destination PC relative.  */
+	  signed_value -= (input_section->output_section->vma
+			   + input_section->output_offset
+			   + (rel->r_vaddr - input_section->vma));
+	  if (signed_value > 0x7ffffff || signed_value < - 0x8000000)
+	    {
+	      overflow = TRUE;
+	      signed_value = 0;
+	    }
 
           /* Put the adjusted value back into the instruction.  */
           signed_value >>= 2;
@@ -545,7 +526,7 @@ coff_or32_relocate_section (output_bfd, info, input_bfd, input_section,
           if (symndx == -1)
             name = "*ABS*";
           else if (h != NULL)
-            name = h->root.root.string;
+            name = NULL;
           else if (sym == NULL)
             name = "*unknown*";
           else if (sym->_n._n_n._n_zeroes == 0
@@ -559,9 +540,9 @@ coff_or32_relocate_section (output_bfd, info, input_bfd, input_section,
             }
 
           if (! ((*info->callbacks->reloc_overflow)
-                 (info, name, howto_table[rel->r_type].name, (bfd_vma) 0,
-                  input_bfd, input_section,
-                  rel->r_vaddr - input_section->vma)))
+                 (info, (h ? &h->root : NULL), name,
+		  howto_table[rel->r_type].name, (bfd_vma) 0, input_bfd,
+		  input_section, rel->r_vaddr - input_section->vma)))
             return FALSE;
         }
     }

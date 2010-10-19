@@ -1,5 +1,5 @@
 # Expect script for ld-sparc tests
-#   Copyright (C) 2002, 2003 Free Software Foundation
+#   Copyright (C) 2002, 2003, 2005 Free Software Foundation
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,13 +13,41 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 
-# Test i386 linking; all types of relocs.  This tests the assembler and
+# Test SPARC linking; all types of relocs.  This tests the assembler and
 # tools like objdump as well as the linker.
 
-if { !([istarget "sparc*-*-elf*"]		
+if {[istarget "sparc-*-vxworks"]} {
+    set sparcvxworkstests {
+	{"VxWorks shared library test 1" "-shared -Tvxworks1.ld"
+	 "-KPIC" {vxworks1-lib.s}
+	 {{readelf --relocs vxworks1-lib.rd} {objdump -dr vxworks1-lib.dd}
+	  {readelf --symbols vxworks1-lib.nd}}
+	 "libvxworks1.so"}
+	{"VxWorks executable test 1 (dynamic)" \
+	 "tmpdir/libvxworks1.so -Tvxworks1.ld -q --force-dynamic"
+	 "" {vxworks1.s}
+	 {{readelf --relocs vxworks1.rd} {objdump -dr vxworks1.dd}}
+	 "vxworks1"}
+	{"VxWorks executable test 2 (dynamic)" \
+	 "-Tvxworks1.ld -q --force-dynamic"
+	 "" {vxworks2.s}
+	 {{readelf --segments vxworks2.sd}}
+	 "vxworks2"}
+	{"VxWorks executable test 2 (static)"
+	 "-Tvxworks1.ld"
+	 "" {vxworks2.s}
+	 {{readelf --segments vxworks2-static.sd}}
+	 "vxworks2"}
+    }
+    run_ld_link_tests $sparcvxworkstests
+    run_dump_test "vxworks1-static"
+}
+
+if { !([istarget "sparc*-*-elf*"]
+       || [istarget "sparc*-sun-solaris*"]
        || ([istarget "sparc*-*-linux*"]
 	   && ![istarget "*-*-*aout*"]
 	   && ![istarget "*-*-*oldld*"])) } {
@@ -36,53 +64,59 @@ if { !([istarget "sparc*-*-elf*"]
 # readelf: Apply readelf options on result.  Compare with regex (last arg).
 
 set sparctests {
-    {"TLS -fpic -shared transitions" "-shared -melf32_sparc"
+    {"32-bit: TLS -fpic -shared transitions" "-shared -melf32_sparc"
      "--32 -K PIC" {tlssunpic32.s tlspic.s}
      {{readelf -WSsrl tlssunpic32.rd} {objdump -drj.text tlssunpic32.dd}
       {objdump -sj.got tlssunpic32.sd} {objdump -sj.tdata tlssunpic32.td}}
       "libtlssunpic32.so"}
-    {"Helper shared library" "-shared -melf32_sparc"
+    {"32-bit: Helper shared library" "-shared -melf32_sparc"
      "--32 -K PIC" {tlslib.s} {} "libtlslib32.so"}
-    {"Another helper shared library" "-shared -melf32_sparc"
+    {"32-bit: Another helper shared library" "-shared -melf32_sparc"
      "--32 -K PIC" {tlssunbinpic32.s} {} "libtlssunbinpic32.so"}
-    {"TLS -fpic and -fno-pic exec transitions"
+    {"32-bit: TLS -fpic and -fno-pic exec transitions"
      "-melf32_sparc tmpdir/libtlslib32.so tmpdir/tlssunbinpic32.o"
      "--32" {tlssunbin32.s}
      {{readelf -WSsrl tlssunbin32.rd} {objdump -drj.text tlssunbin32.dd}
       {objdump -sj.got tlssunbin32.sd} {objdump -sj.tdata tlssunbin32.td}}
       "tlssunbin32"}
-    {"TLS -fno-pic -shared" "-shared -melf32_sparc"
+    {"32-bit: TLS -fno-pic -shared" "-shared -melf32_sparc"
      "--32" {tlssunnopic32.s tlsnopic.s}
      {{readelf -WSsrl tlssunnopic32.rd} {objdump -drj.text tlssunnopic32.dd}
       {objdump -sj.got tlssunnopic32.sd}} "libtlssunnopic32.so"}
-    {"TLS in debug sections" "-melf32_sparc"
+    {"32-bit: TLS in debug sections" "-melf32_sparc"
      "--32" {tlsg32.s}
      {{objdump -sj.debug_foobar tlsg32.sd}} "tlsg32"}
 }
 set sparc64tests {
-    {"TLS -fpic -shared transitions" "-shared -melf64_sparc"
+    {"64-bit: TLS -fpic -shared transitions" "-shared -melf64_sparc"
      "--64 -Av9 -K PIC" {tlssunpic64.s tlspic.s}
      {{readelf -WSsrl tlssunpic64.rd} {objdump -drj.text tlssunpic64.dd}
       {objdump -sj.got tlssunpic64.sd} {objdump -sj.tdata tlssunpic64.td}}
       "libtlssunpic64.so"}
-    {"Helper shared library" "-shared -melf64_sparc"
+    {"64-bit: Helper shared library" "-shared -melf64_sparc"
      "--64 -Av9 -K PIC" {tlslib.s} {} "libtlslib64.so"}
-    {"Another helper shared library" "-shared -melf64_sparc"
+    {"64-bit: Another helper shared library" "-shared -melf64_sparc"
      "--64 -Av9 -K PIC" {tlssunbinpic64.s} {} "libtlssunbinpic64.so"}
-    {"TLS -fpic and -fno-pic exec transitions"
+    {"64-bit: TLS -fpic and -fno-pic exec transitions"
      "-melf64_sparc tmpdir/libtlslib64.so tmpdir/tlssunbinpic64.o"
      "--64 -Av9" {tlssunbin64.s}
      {{readelf -WSsrl tlssunbin64.rd} {objdump -drj.text tlssunbin64.dd}
       {objdump -sj.got tlssunbin64.sd} {objdump -sj.tdata tlssunbin64.td}}
       "tlssunbin64"}
-    {"TLS -fno-pic -shared" "-shared -melf64_sparc"
+    {"64-bit: TLS -fno-pic -shared" "-shared -melf64_sparc"
      "--64 -Av9" {tlssunnopic64.s tlsnopic.s}
      {{readelf -WSsrl tlssunnopic64.rd} {objdump -drj.text tlssunnopic64.dd}
       {objdump -sj.got tlssunnopic64.sd}} "libtlssunnopic64.so"}
-    {"TLS in debug sections" "-melf64_sparc"
+    {"64-bit: TLS in debug sections" "-melf64_sparc"
      "--64 -Av9" {tlsg64.s}
      {{objdump -sj.debug_foobar tlsg64.sd}} "tlsg64"}
 }
 
-run_ld_link_tests $sparctests
-# run_ld_link_tests $sparc64tests
+if { ![istarget "sparc64-*-elf*"] } {
+    run_ld_link_tests $sparctests
+}
+if { !([istarget "sparc-*-elf*"]
+       || [istarget "sparc-sun-solaris2.5*"]
+       || [istarget "sparc-sun-solaris2.6"]) } {
+    run_ld_link_tests $sparc64tests
+}

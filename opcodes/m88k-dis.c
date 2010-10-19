@@ -1,24 +1,25 @@
 /* Print instructions for the Motorola 88000, for GDB and GNU Binutils.
-   Copyright 1986, 1987, 1988, 1989, 1990, 1991, 1993, 1998, 2000, 2001
-   Free Software Foundation, Inc.
+   Copyright 1986, 1987, 1988, 1989, 1990, 1991, 1993, 1998, 2000, 2001,
+   2002, 2005 Free Software Foundation, Inc.
    Contributed by Data General Corporation, November 1989.
    Partially derived from an earlier printcmd.c.
 
-This file is part of GDB and the GNU Binutils.
+   This file is part of GDB and the GNU Binutils.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 #include "sysdep.h"
 #include "dis-asm.h"
@@ -26,14 +27,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "opintl.h"
 #include "libiberty.h"
 
-typedef struct HASHTAB {
+typedef struct HASHTAB
+{
   const INSTAB	 *instr;
   struct HASHTAB *next;
 } HASHTAB;
 
 /* Opcode     Mnemonic       Op 1 Spec     Op 2 Spec    Op 3 Spec         Simflags             Next  */
 
-const INSTAB  instructions[] = {
+const INSTAB  instructions[] =
+{
   {0xf400c800,"jsr         ",{0,5,REG}   ,NO_OPERAND      ,NO_OPERAND   , {2,2,NA,JSR ,          0,0,1,0,0,0,0,1,0,0,0,0} },
   {0xf400cc00,"jsr.n       ",{0,5,REG}   ,NO_OPERAND      ,NO_OPERAND   , {1,1,NA,JSR ,          0,0,1,0,0,0,1,1,0,0,0,0} },
   {0xf400c000,"jmp         ",{0,5,REG}   ,NO_OPERAND      ,NO_OPERAND   , {2,2,NA,JMP ,          0,0,1,0,0,0,0,1,0,0,0,0} },
@@ -517,134 +520,64 @@ const INSTAB  instructions[] = {
 };
 
 HASHTAB  *hashtable[HASHVAL] = {0};
-
-static int
-m88kdis PARAMS ((bfd_vma, unsigned long, struct disassemble_info *));
-
-static void
-printop PARAMS ((struct disassemble_info *, const OPSPEC *, unsigned long, bfd_vma, int));
-
-static void
-init_disasm PARAMS ((void));
 
 
-/* Disassemble an M88000 instruction at `memaddr'.  */
-
-int
-print_insn_m88k (memaddr, info)
-     bfd_vma memaddr;
-     struct disassemble_info *info;
-{
-  bfd_byte buffer[4];
-  int status;
-
-  /* Instruction addresses may have low two bits set. Clear them.  */
-  memaddr &=~ (bfd_vma) 3;
-
-  status = (*info->read_memory_func) (memaddr, buffer, 4, info);
-  if (status != 0)
-    {
-      (*info->memory_error_func) (status, memaddr, info);
-      return -1;
-    }
-
-  return m88kdis (memaddr, bfd_getb32 (buffer), info);
-}
-
-/*
- * Disassemble the instruction in `instruction'.
- * `pc' should be the address of this instruction, it will be used to
- * print the target address if this is a relative jump or call the
- * disassembled instruction is written to `info'.
- *
- * The function returns the length of this instruction in bytes.
- */
-
-static int
-m88kdis (pc, instruction, info)
-     bfd_vma pc;
-     unsigned long instruction;
-     struct disassemble_info *info;
-{
-  static int ihashtab_initialized = 0;
-  unsigned int opcode;
-  const HASHTAB *entry_ptr;
-  int opmask;
-  unsigned int class;
-
-  if (! ihashtab_initialized)
-    {
-      init_disasm ();
-      ihashtab_initialized = 1;
-    }
-
-  /* Create the appropriate mask to isolate the opcode.  */
-  opmask = DEFMASK;
-  class = instruction & DEFMASK;
-  if ((class >= SFU0) && (class <= SFU7))
-    {
-      if (instruction < SFU1)
-	opmask = CTRLMASK;
-      else
-	opmask = SFUMASK;
-    }
-  else if (class == RRR)
-    opmask = RRRMASK;
-  else if (class == RRI10)
-    opmask = RRI10MASK;
-
-  /* Isolate the opcode.  */
-  opcode = instruction & opmask;
-
-  /* Search the hash table with the isolated opcode.  */
-  for (entry_ptr = hashtable[opcode % HASHVAL];
-       (entry_ptr != NULL) && (entry_ptr->instr->opcode != opcode);
-       entry_ptr = entry_ptr->next)
-    ;
-
-  if (entry_ptr == NULL)
-    (*info->fprintf_func) (info->stream, "word\t%08x", instruction);
-  else
-    {
-      (*info->fprintf_func) (info->stream, "%s", entry_ptr->instr->mnemonic);
-      printop (info, &(entry_ptr->instr->op1), instruction, pc, 1);
-      printop (info, &(entry_ptr->instr->op2), instruction, pc, 0);
-      printop (info, &(entry_ptr->instr->op3), instruction, pc, 0);
-    }
-
-  return 4;
-}
-
-/*
- * Decode an Operand of an instruction.
- *
- * This function formats and writes an operand of an instruction to
- * info based on the operand specification.  When the `first' flag is
- * set this is the first operand of an instruction.  Undefined operand
- * types cause a <dis error> message.
- *
- * Parameters:
- *  disassemble_info	where the operand may be printed
- *  OPSPEC  *opptr      pointer to an operand specification
- *  UINT    inst        instruction from which operand is extracted
- *  UINT    pc		pc of instruction; used for pc-relative disp.
- *  int     first       flag which if nonzero indicates the first
- *                      operand of an instruction
- *
- * The operand specified is extracted from the instruction and is
- * written to buf in the format specified. The operand is preceded by
- * a comma if it is not the first operand of an instruction and it is
- * not a register indirect form.  Registers are preceded by 'r' and
- * hex values by '0x'.
- */
+/* Initialize the disassembler instruction table.
+  
+   Initialize the hash table and instruction table for the
+   disassembler.  This should be called once before the first call to
+   disasm().  */
 
 static void
-printop (info, opptr, inst, pc, first)
-     struct disassemble_info *info;
-     const OPSPEC *opptr;
-     unsigned long inst;
-     bfd_vma pc;
-     int first;
+init_disasm (void)
+{
+  unsigned int hashvalue, hashsize;
+  struct HASHTAB *hashentries;
+  unsigned int i;
+
+  hashsize = sizeof (instructions) / sizeof (INSTAB);
+
+  hashentries = xmalloc (hashsize * sizeof (struct HASHTAB));
+
+  for (i = 0; i < HASHVAL; i++)
+    hashtable[i] = NULL;
+
+  for (i = 0; i < hashsize; i++)
+    {
+      hashvalue = (instructions[i].opcode) % HASHVAL;
+      hashentries[i].instr = &instructions[i];
+      hashentries[i].next = hashtable[hashvalue];
+      hashtable[hashvalue] = &hashentries[i];
+    }
+}
+ 
+/* Decode an Operand of an instruction.
+  
+   This function formats and writes an operand of an instruction to
+   info based on the operand specification.  When the `first' flag is
+   set this is the first operand of an instruction.  Undefined operand
+   types cause a <dis error> message.
+  
+   Parameters:
+    disassemble_info	where the operand may be printed
+    OPSPEC  *opptr      pointer to an operand specification
+    UINT    inst        instruction from which operand is extracted
+    UINT    pc		pc of instruction; used for pc-relative disp.
+    int     first       flag which if nonzero indicates the first
+                        operand of an instruction
+  
+   The operand specified is extracted from the instruction and is
+   written to buf in the format specified. The operand is preceded by
+   a comma if it is not the first operand of an instruction and it is
+   not a register indirect form.  Registers are preceded by 'r' and
+   hex values by '0x'.  */
+
+static void
+printop (struct disassemble_info *info,
+	 const OPSPEC *opptr,
+	 unsigned long inst,
+	 bfd_vma pc,
+	 int first)
 {
   int extracted_field;
   char *cond_mask_sym;
@@ -743,38 +676,88 @@ printop (info, opptr, inst, pc, first)
 
     default:
       /* xgettext:c-format */
-      (*info->fprintf_func) (info->stream, _("# <dis error: %08x>"), inst);
+      (*info->fprintf_func) (info->stream, _("# <dis error: %08lx>"), inst);
     }
 }
 
-/*
- * Initialize the disassembler instruction table.
- *
- * Initialize the hash table and instruction table for the
- * disassembler.  This should be called once before the first call to
- * disasm().
- */
+/* Disassemble the instruction in `instruction'.
+   `pc' should be the address of this instruction, it will be used to
+   print the target address if this is a relative jump or call the
+   disassembled instruction is written to `info'.
+  
+   The function returns the length of this instruction in bytes.  */
 
-static void
-init_disasm ()
+static int
+m88kdis (bfd_vma pc,
+	 unsigned long instruction,
+	 struct disassemble_info *info)
 {
-  unsigned int hashvalue, hashsize;
-  struct HASHTAB *hashentries;
-  unsigned int i;
+  static int ihashtab_initialized = 0;
+  unsigned int opcode;
+  const HASHTAB *entry_ptr;
+  int opmask;
+  unsigned int class;
 
-  hashsize = sizeof (instructions) / sizeof (INSTAB);
-
-  hashentries = (struct HASHTAB *) xmalloc (hashsize * sizeof (struct HASHTAB));
-
-  for (i = 0; i < HASHVAL; i++)
-    hashtable[i] = NULL;
-
-  for (i = 0; i < hashsize; i++)
+  if (! ihashtab_initialized)
     {
-      hashvalue = (instructions[i].opcode) % HASHVAL;
-      hashentries[i].instr = &instructions[i];
-      hashentries[i].next = hashtable[hashvalue];
-      hashtable[hashvalue] = &hashentries[i];
+      init_disasm ();
+      ihashtab_initialized = 1;
     }
+
+  /* Create the appropriate mask to isolate the opcode.  */
+  opmask = DEFMASK;
+  class = instruction & DEFMASK;
+  if ((class >= SFU0) && (class <= SFU7))
+    {
+      if (instruction < SFU1)
+	opmask = CTRLMASK;
+      else
+	opmask = SFUMASK;
+    }
+  else if (class == RRR)
+    opmask = RRRMASK;
+  else if (class == RRI10)
+    opmask = RRI10MASK;
+
+  /* Isolate the opcode.  */
+  opcode = instruction & opmask;
+
+  /* Search the hash table with the isolated opcode.  */
+  for (entry_ptr = hashtable[opcode % HASHVAL];
+       (entry_ptr != NULL) && (entry_ptr->instr->opcode != opcode);
+       entry_ptr = entry_ptr->next)
+    ;
+
+  if (entry_ptr == NULL)
+    (*info->fprintf_func) (info->stream, "word\t%08lx", instruction);
+  else
+    {
+      (*info->fprintf_func) (info->stream, "%s", entry_ptr->instr->mnemonic);
+      printop (info, &(entry_ptr->instr->op1), instruction, pc, 1);
+      printop (info, &(entry_ptr->instr->op2), instruction, pc, 0);
+      printop (info, &(entry_ptr->instr->op3), instruction, pc, 0);
+    }
+
+  return 4;
 }
- 
+
+/* Disassemble an M88000 instruction at `memaddr'.  */
+
+int
+print_insn_m88k (bfd_vma memaddr, struct disassemble_info *info)
+{
+  bfd_byte buffer[4];
+  int status;
+
+  /* Instruction addresses may have low two bits set. Clear them.  */
+  memaddr &=~ (bfd_vma) 3;
+
+  status = (*info->read_memory_func) (memaddr, buffer, 4, info);
+  if (status != 0)
+    {
+      (*info->memory_error_func) (status, memaddr, info);
+      return -1;
+    }
+
+  return m88kdis (memaddr, bfd_getb32 (buffer), info);
+}

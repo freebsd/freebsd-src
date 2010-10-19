@@ -1,5 +1,5 @@
 /* tc-frv.c -- Assembler for the Fujitsu FRV.
-   Copyright 2002, 2003 Free Software Foundation.
+   Copyright 2002, 2003, 2004, 2005, 2006 Free Software Foundation.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -15,8 +15,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   the Free Software Foundation, 51 Franklin Street - Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 #include <stdio.h>
 #include "as.h"
@@ -169,6 +169,7 @@ static FRV_VLIW vliw;
 #endif
 
 static unsigned long frv_mach = bfd_mach_frv;
+static bfd_boolean fr400_audio;
 
 /* Flags to set in the elf header */
 static flagword frv_flags = DEFAULT_FLAGS | DEFAULT_FDPIC;
@@ -362,10 +363,24 @@ md_parse_option (c, arg)
 	    frv_mach = bfd_mach_fr550;
 	  }
 
+	else if (strcmp (p, "fr450") == 0)
+	  {
+	    cpu_flags = EF_FRV_CPU_FR450;
+	    frv_mach = bfd_mach_fr450;
+	  }
+
+	else if (strcmp (p, "fr405") == 0)
+	  {
+	    cpu_flags = EF_FRV_CPU_FR405;
+	    frv_mach = bfd_mach_fr400;
+	    fr400_audio = TRUE;
+	  }
+
 	else if (strcmp (p, "fr400") == 0)
 	  {
 	    cpu_flags = EF_FRV_CPU_FR400;
 	    frv_mach = bfd_mach_fr400;
+	    fr400_audio = FALSE;
 	  }
 
 	else if (strcmp (p, "fr300") == 0)
@@ -462,7 +477,7 @@ md_show_usage (stream)
   fprintf (stream, _("-mlibrary-pic Compile library for large position indepedent code\n"));
   fprintf (stream, _("-mfdpic      Assemble for the FDPIC ABI\n"));
   fprintf (stream, _("-mnopic      Disable -mpic, -mPIC, -mlibrary-pic and -mfdpic\n"));
-  fprintf (stream, _("-mcpu={fr500|fr550|fr400|fr300|frv|simple|tomcat}\n"));
+  fprintf (stream, _("-mcpu={fr500|fr550|fr400|fr405|fr450|fr300|frv|simple|tomcat}\n"));
   fprintf (stream, _("             Record the cpu type\n"));
   fprintf (stream, _("-mtomcat-stats Print out stats for tomcat workarounds\n"));
   fprintf (stream, _("-mtomcat-debug Debug tomcat workarounds\n"));
@@ -633,11 +648,11 @@ frv_debug_tomcat (start_chain)
       for (this_insn = this_chain->insn_list; this_insn; this_insn = this_insn->next)
 	{
 	  if (this_insn->type == VLIW_LABEL_TYPE)
-	    fprintf (stderr, "Label Value: %d\n", (int) this_insn->sym);
+	    fprintf (stderr, "Label Value: %p\n", this_insn->sym);
 	  else if (this_insn->type == VLIW_BRANCH_TYPE)
-	    fprintf (stderr, "%s to %d\n", this_insn->insn->base->name, (int) this_insn->sym);
+	    fprintf (stderr, "%s to %p\n", this_insn->insn->base->name, this_insn->sym);
 	  else if (this_insn->type == VLIW_BRANCH_HAS_NOPS)
-	    fprintf (stderr, "nop'd %s to %d\n", this_insn->insn->base->name, (int) this_insn->sym);
+	    fprintf (stderr, "nop'd %s to %p\n", this_insn->insn->base->name, this_insn->sym);
 	  else if (this_insn->type == VLIW_NOP_TYPE)
 	    fprintf (stderr, "Nop\n");
 	  else
@@ -730,7 +745,7 @@ frv_tomcat_shuffle (this_nop_type, vliw_to_split, insert_before_insn)
 	  /* Set the packing bit on the previous insn.  */
 	  if (pack_prev)
 	    {
-	      unsigned char *buffer = prev_insn->address;
+	      char *buffer = prev_insn->address;
 	      buffer[0] |= 0x80;
 	    }
 	  /* The branch is in the middle.  Split this vliw insn into first
@@ -769,7 +784,7 @@ frv_tomcat_shuffle (this_nop_type, vliw_to_split, insert_before_insn)
 	  /* Set the packing bit on the previous insn.  */
 	  if (pack_prev)
 	    {
-	      unsigned char *buffer = prev_insn->address;
+	      char *buffer = prev_insn->address;
 	      buffer[0] |= 0x80;
 	    }
 
@@ -815,7 +830,7 @@ frv_tomcat_shuffle (this_nop_type, vliw_to_split, insert_before_insn)
 	  /* Set the packing bit on the previous insn.  */
 	  if (pack_prev)
 	    {
-	      unsigned char *buffer = prev_insn->address;
+	      char *buffer = prev_insn->address;
 	      buffer[0] |= 0x80;
 	    }
 
@@ -1064,6 +1079,36 @@ fr550_check_acc_range (FRV_VLIW *vliw, frv_insn *insn)
   return 0; /* all is ok */
 }
 
+/* Return true if the target implements instruction INSN.  */
+
+static bfd_boolean
+target_implements_insn_p (const CGEN_INSN *insn)
+{
+  switch (frv_mach)
+    {
+    default:
+      /* bfd_mach_frv or generic.  */
+      return TRUE;
+
+    case bfd_mach_fr300:
+    case bfd_mach_frvsimple:
+      return CGEN_INSN_MACH_HAS_P (insn, MACH_SIMPLE);
+
+    case bfd_mach_fr400:
+      return ((fr400_audio || !CGEN_INSN_ATTR_VALUE (insn, CGEN_INSN_AUDIO))
+	      && CGEN_INSN_MACH_HAS_P (insn, MACH_FR400));
+
+    case bfd_mach_fr450:
+      return CGEN_INSN_MACH_HAS_P (insn, MACH_FR450);
+
+    case bfd_mach_fr500:
+      return CGEN_INSN_MACH_HAS_P (insn, MACH_FR500);
+
+    case bfd_mach_fr550:
+      return CGEN_INSN_MACH_HAS_P (insn, MACH_FR550);
+    }
+}
+
 void
 md_assemble (str)
      char * str;
@@ -1147,6 +1192,11 @@ md_assemble (str)
      instructions, don't do vliw checking.  */
   else if (frv_mach != bfd_mach_frv)
     {
+      if (!target_implements_insn_p (insn.insn))
+	{
+	  as_bad (_("Instruction not supported by this architecture"));
+	  return;
+	}
       packing_constraint = frv_vliw_add_insn (& vliw, insn.insn);
       if (frv_mach == bfd_mach_fr550 && ! packing_constraint)
 	packing_constraint = fr550_check_acc_range (& vliw, & insn);
@@ -1330,12 +1380,18 @@ md_cgen_lookup_reloc (insn, operand, fixP)
 
     case FRV_OPERAND_LABEL24:
       fixP->fx_pcrel = TRUE;
+
+      if (fixP->fx_cgen.opinfo != 0)
+	return fixP->fx_cgen.opinfo;
+
       return BFD_RELOC_FRV_LABEL24;
 
     case FRV_OPERAND_UHI16:
     case FRV_OPERAND_ULO16:
     case FRV_OPERAND_SLO16:
-
+    case FRV_OPERAND_CALLANN:
+    case FRV_OPERAND_LDANN:
+    case FRV_OPERAND_LDDANN:
       /* The relocation type should be recorded in opinfo */
       if (fixP->fx_cgen.opinfo != 0)
         return fixP->fx_cgen.opinfo;
@@ -1366,9 +1422,45 @@ int
 frv_force_relocation (fix)
      fixS * fix;
 {
-  if (fix->fx_r_type == BFD_RELOC_FRV_GPREL12
-      || fix->fx_r_type == BFD_RELOC_FRV_GPRELU12)
-    return 1;
+  switch (fix->fx_r_type < BFD_RELOC_UNUSED
+	  ? (int) fix->fx_r_type
+	  : fix->fx_cgen.opinfo)
+    {
+    case BFD_RELOC_FRV_GPREL12:
+    case BFD_RELOC_FRV_GPRELU12:
+    case BFD_RELOC_FRV_GPREL32:
+    case BFD_RELOC_FRV_GPRELHI:
+    case BFD_RELOC_FRV_GPRELLO:
+    case BFD_RELOC_FRV_GOT12:
+    case BFD_RELOC_FRV_GOTHI:
+    case BFD_RELOC_FRV_GOTLO:
+    case BFD_RELOC_FRV_FUNCDESC_VALUE:
+    case BFD_RELOC_FRV_FUNCDESC_GOTOFF12:
+    case BFD_RELOC_FRV_FUNCDESC_GOTOFFHI:
+    case BFD_RELOC_FRV_FUNCDESC_GOTOFFLO:
+    case BFD_RELOC_FRV_GOTOFF12:
+    case BFD_RELOC_FRV_GOTOFFHI:
+    case BFD_RELOC_FRV_GOTOFFLO:
+    case BFD_RELOC_FRV_GETTLSOFF:
+    case BFD_RELOC_FRV_TLSDESC_VALUE:
+    case BFD_RELOC_FRV_GOTTLSDESC12:
+    case BFD_RELOC_FRV_GOTTLSDESCHI:
+    case BFD_RELOC_FRV_GOTTLSDESCLO:
+    case BFD_RELOC_FRV_TLSMOFF12:
+    case BFD_RELOC_FRV_TLSMOFFHI:
+    case BFD_RELOC_FRV_TLSMOFFLO:
+    case BFD_RELOC_FRV_GOTTLSOFF12:
+    case BFD_RELOC_FRV_GOTTLSOFFHI:
+    case BFD_RELOC_FRV_GOTTLSOFFLO:
+    case BFD_RELOC_FRV_TLSOFF:
+    case BFD_RELOC_FRV_TLSDESC_RELAX:
+    case BFD_RELOC_FRV_GETTLSOFF_RELAX:
+    case BFD_RELOC_FRV_TLSOFF_RELAX:
+      return 1;
+
+    default:
+      break;
+    }
 
   return generic_force_reloc (fix);
 }
@@ -1376,7 +1468,7 @@ frv_force_relocation (fix)
 /* Apply a fixup that could be resolved within the assembler.  */
 
 void
-md_apply_fix3 (fixP, valP, seg)
+md_apply_fix (fixP, valP, seg)
      fixS *   fixP;
      valueT * valP;
      segT     seg;
@@ -1390,9 +1482,67 @@ md_apply_fix3 (fixP, valP, seg)
       case BFD_RELOC_FRV_LO16:
 	*valP &= 0xffff;
 	break;
+
+	/* We need relocations for these, even if their symbols reduce
+	   to constants.  */
+      case BFD_RELOC_FRV_GPREL12:
+      case BFD_RELOC_FRV_GPRELU12:
+      case BFD_RELOC_FRV_GPREL32:
+      case BFD_RELOC_FRV_GPRELHI:
+      case BFD_RELOC_FRV_GPRELLO:
+      case BFD_RELOC_FRV_GOT12:
+      case BFD_RELOC_FRV_GOTHI:
+      case BFD_RELOC_FRV_GOTLO:
+      case BFD_RELOC_FRV_FUNCDESC_VALUE:
+      case BFD_RELOC_FRV_FUNCDESC_GOTOFF12:
+      case BFD_RELOC_FRV_FUNCDESC_GOTOFFHI:
+      case BFD_RELOC_FRV_FUNCDESC_GOTOFFLO:
+      case BFD_RELOC_FRV_GOTOFF12:
+      case BFD_RELOC_FRV_GOTOFFHI:
+      case BFD_RELOC_FRV_GOTOFFLO:
+      case BFD_RELOC_FRV_GETTLSOFF:
+      case BFD_RELOC_FRV_TLSDESC_VALUE:
+      case BFD_RELOC_FRV_GOTTLSDESC12:
+      case BFD_RELOC_FRV_GOTTLSDESCHI:
+      case BFD_RELOC_FRV_GOTTLSDESCLO:
+      case BFD_RELOC_FRV_TLSMOFF12:
+      case BFD_RELOC_FRV_TLSMOFFHI:
+      case BFD_RELOC_FRV_TLSMOFFLO:
+      case BFD_RELOC_FRV_GOTTLSOFF12:
+      case BFD_RELOC_FRV_GOTTLSOFFHI:
+      case BFD_RELOC_FRV_GOTTLSOFFLO:
+      case BFD_RELOC_FRV_TLSOFF:
+      case BFD_RELOC_FRV_TLSDESC_RELAX:
+      case BFD_RELOC_FRV_GETTLSOFF_RELAX:
+      case BFD_RELOC_FRV_TLSOFF_RELAX:
+	fixP->fx_addsy = expr_build_uconstant (0);
+	break;
+      }
+  else
+    switch (fixP->fx_cgen.opinfo)
+      {
+      case BFD_RELOC_FRV_GETTLSOFF:
+      case BFD_RELOC_FRV_TLSDESC_VALUE:
+      case BFD_RELOC_FRV_GOTTLSDESC12:
+      case BFD_RELOC_FRV_GOTTLSDESCHI:
+      case BFD_RELOC_FRV_GOTTLSDESCLO:
+      case BFD_RELOC_FRV_TLSMOFF12:
+      case BFD_RELOC_FRV_TLSMOFFHI:
+      case BFD_RELOC_FRV_TLSMOFFLO:
+      case BFD_RELOC_FRV_GOTTLSOFF12:
+      case BFD_RELOC_FRV_GOTTLSOFFHI:
+      case BFD_RELOC_FRV_GOTTLSOFFLO:
+      case BFD_RELOC_FRV_TLSOFF:
+      case BFD_RELOC_FRV_TLSDESC_RELAX:
+      case BFD_RELOC_FRV_GETTLSOFF_RELAX:
+      case BFD_RELOC_FRV_TLSOFF_RELAX:
+	/* Mark TLS symbols as such.  */
+	if (S_GET_SEGMENT (fixP->fx_addsy) != absolute_section)
+	  S_SET_THREAD_LOCAL (fixP->fx_addsy);
+	break;
       }
 
-  gas_cgen_md_apply_fix3 (fixP, valP, seg);
+  gas_cgen_md_apply_fix (fixP, valP, seg);
   return;
 }
 
@@ -1552,6 +1702,16 @@ frv_pic_ptr (nbytes)
 	  else
 	    as_bad ("missing ')'");
 	  reloc_type = BFD_RELOC_FRV_FUNCDESC;
+	}
+      else if (strncasecmp (input_line_pointer, "tlsmoff(", 8) == 0)
+	{
+	  input_line_pointer += 8;
+	  expression (&exp);
+	  if (*input_line_pointer == ')')
+	    input_line_pointer++;
+	  else
+	    as_bad ("missing ')'");
+	  reloc_type = BFD_RELOC_FRV_TLSMOFF;
 	}
       else
 	expression (&exp);

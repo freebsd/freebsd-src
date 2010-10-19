@@ -1,0 +1,807 @@
+#  Vietnamese Translation for Opcodes.
+#  Copyright © 2005 Free Software Foundation, Inc.
+#  Clytie Siddall <clytie@riverland.net.au>, 2005.
+# 
+msgid ""
+msgstr ""
+"Project-Id-Version: opcodes-2.15.96\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2005-03-05 20:32+1030\n"
+"PO-Revision-Date: 2006-04-05 15:14+0930\n"
+"Last-Translator: Clytie Siddall <clytie@riverland.net.au>\n"
+"Language-Team: Vietnamese <gnomevi-list@lists.sourceforge.net>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0\n"
+"X-Generator: LocFactoryEditor 1.6b36\n"
+
+#: alpha-opc.c:331
+msgid "branch operand unaligned"
+msgstr "chưa canh lề tác tử cành"
+
+#: alpha-opc.c:353 alpha-opc.c:374
+msgid "jump hint unaligned"
+msgstr "chưa canh lề lời gợi ý nhảy"
+
+#: arc-dis.c:76
+msgid "Illegal limm reference in last instruction!\n"
+msgstr "Không cho phép tham chiếu kiểu limm trong câu lệnh cuối cùng.\n"
+
+#: arm-dis.c:1267
+msgid "<illegal precision>"
+msgstr "<không cho phép độ chính xác>"
+
+#. XXX - should break 'option' at following delimiter.
+#: arm-dis.c:1912
+#, c-format
+msgid "Unrecognised register name set: %s\n"
+msgstr "Không chấp nhận tập hợp tên thanh ghi: %s\n"
+
+#. XXX - should break 'option' at following delimiter.
+#: arm-dis.c:1920
+#, c-format
+msgid "Unrecognised disassembler option: %s\n"
+msgstr "Không chấp nhận tùy chọn rã: %s\n"
+
+#: arm-dis.c:2093
+#, c-format
+msgid ""
+"\n"
+"The following ARM specific disassembler options are supported for use with\n"
+"the -M switch:\n"
+msgstr ""
+"\n"
+"Hỗ trợ những tùy chọn rã đặc trưng cho ARM theo đây để sử dụng với đối số -M:\n"
+
+#: avr-dis.c:112 avr-dis.c:122
+#, c-format
+msgid "undefined"
+msgstr "chưa định nghĩa"
+
+#: avr-dis.c:179
+#, c-format
+msgid "Internal disassembler error"
+msgstr "lỗi rã nội bộ"
+
+#: avr-dis.c:227
+#, c-format
+msgid "unknown constraint `%c'"
+msgstr "không biết ràng buộc « %c »"
+
+#: cgen-asm.c:336 fr30-ibld.c:197 frv-ibld.c:197 ip2k-ibld.c:197
+#: iq2000-ibld.c:197 m32r-ibld.c:197 openrisc-ibld.c:197 xstormy16-ibld.c:197
+#, c-format
+msgid "operand out of range (%ld not between %ld and %ld)"
+msgstr "tác tử ở ngoại phạm vị (%ld không phải ở giữa %ld và %ld)"
+
+#: cgen-asm.c:358
+#, c-format
+msgid "operand out of range (%lu not between %lu and %lu)"
+msgstr "tác tử ở ngoại phạm vị (%lu không phải ở giữa %lu và %lu)"
+
+#: d30v-dis.c:312
+#, c-format
+msgid "<unknown register %d>"
+msgstr "<không biết thanh ghi %d>"
+
+#. Can't happen.
+#: dis-buf.c:57
+#, c-format
+msgid "Unknown error %d\n"
+msgstr "Không biết lỗi %d\n"
+
+#: dis-buf.c:66
+#, c-format
+msgid "Address 0x%s is out of bounds.\n"
+msgstr "Địa chỉ 0x%s ở ngoại phạm vị. \n"
+
+#: fr30-asm.c:323 frv-asm.c:1298 ip2k-asm.c:530 iq2000-asm.c:465
+#: m32r-asm.c:338 openrisc-asm.c:252 xstormy16-asm.c:284
+#, c-format
+msgid "Unrecognized field %d while parsing.\n"
+msgstr "Không chấp nhận trường %d trong khi phân tách.\n"
+
+#: fr30-asm.c:372 frv-asm.c:1347 ip2k-asm.c:579 iq2000-asm.c:514
+#: m32r-asm.c:387 openrisc-asm.c:301 xstormy16-asm.c:333
+msgid "missing mnemonic in syntax string"
+msgstr "thiếu điều giúp trí nhớ trong chuỗi cú pháp"
+
+#. We couldn't parse it.
+#: fr30-asm.c:507 fr30-asm.c:511 fr30-asm.c:598 fr30-asm.c:699 frv-asm.c:1482
+#: frv-asm.c:1486 frv-asm.c:1573 frv-asm.c:1674 ip2k-asm.c:714 ip2k-asm.c:718
+#: ip2k-asm.c:805 ip2k-asm.c:906 iq2000-asm.c:649 iq2000-asm.c:653
+#: iq2000-asm.c:740 iq2000-asm.c:841 m32r-asm.c:522 m32r-asm.c:526
+#: m32r-asm.c:613 m32r-asm.c:714 openrisc-asm.c:436 openrisc-asm.c:440
+#: openrisc-asm.c:527 openrisc-asm.c:628 xstormy16-asm.c:468
+#: xstormy16-asm.c:472 xstormy16-asm.c:559 xstormy16-asm.c:660
+msgid "unrecognized instruction"
+msgstr "không chấp nhận câu lệnh"
+
+#: fr30-asm.c:554 frv-asm.c:1529 ip2k-asm.c:761 iq2000-asm.c:696
+#: m32r-asm.c:569 openrisc-asm.c:483 xstormy16-asm.c:515
+#, c-format
+msgid "syntax error (expected char `%c', found `%c')"
+msgstr "gặp lỗi cú pháp (ngờ ký tự « %c », còn tìm « %c »)"
+
+#: fr30-asm.c:564 frv-asm.c:1539 ip2k-asm.c:771 iq2000-asm.c:706
+#: m32r-asm.c:579 openrisc-asm.c:493 xstormy16-asm.c:525
+#, c-format
+msgid "syntax error (expected char `%c', found end of instruction)"
+msgstr "gặp lỗi cú pháp (ngờ ký tự « %c », còn tìm kết thức câu lệnh)"
+
+#: fr30-asm.c:592 frv-asm.c:1567 ip2k-asm.c:799 iq2000-asm.c:734
+#: m32r-asm.c:607 openrisc-asm.c:521 xstormy16-asm.c:553
+msgid "junk at end of line"
+msgstr "gặp rác tại kết thức dòng"
+
+#: fr30-asm.c:698 frv-asm.c:1673 ip2k-asm.c:905 iq2000-asm.c:840
+#: m32r-asm.c:713 openrisc-asm.c:627 xstormy16-asm.c:659
+msgid "unrecognized form of instruction"
+msgstr "không chấp nhận dạng câu lệnh"
+
+#: fr30-asm.c:710 frv-asm.c:1685 ip2k-asm.c:917 iq2000-asm.c:852
+#: m32r-asm.c:725 openrisc-asm.c:639 xstormy16-asm.c:671
+#, c-format
+msgid "bad instruction `%.50s...'"
+msgstr "câu lệnh sai « %.50s »"
+
+#: fr30-asm.c:713 frv-asm.c:1688 ip2k-asm.c:920 iq2000-asm.c:855
+#: m32r-asm.c:728 openrisc-asm.c:642 xstormy16-asm.c:674
+#, c-format
+msgid "bad instruction `%.50s'"
+msgstr "câu lệnh sai « %.50s »"
+
+#. Default text to print if an instruction isn't recognized.
+#: fr30-dis.c:41 frv-dis.c:41 ip2k-dis.c:41 iq2000-dis.c:41 m32r-dis.c:41
+#: mmix-dis.c:284 openrisc-dis.c:41 xstormy16-dis.c:41
+msgid "*unknown*"
+msgstr " • không rõ •"
+
+#: fr30-dis.c:319 frv-dis.c:410 ip2k-dis.c:313 iq2000-dis.c:191 m32r-dis.c:262
+#: openrisc-dis.c:137 xstormy16-dis.c:170
+#, c-format
+msgid "Unrecognized field %d while printing insn.\n"
+msgstr "Không chấp nhận trường %d trong khi in ra câu lệnh.\n"
+
+#: fr30-ibld.c:168 frv-ibld.c:168 ip2k-ibld.c:168 iq2000-ibld.c:168
+#: m32r-ibld.c:168 openrisc-ibld.c:168 xstormy16-ibld.c:168
+#, c-format
+msgid "operand out of range (%ld not between %ld and %lu)"
+msgstr "tác tử ở ngoại phạm vị (%ld không phải ở giữa %ld và %lu)"
+
+#: fr30-ibld.c:181 frv-ibld.c:181 ip2k-ibld.c:181 iq2000-ibld.c:181
+#: m32r-ibld.c:181 openrisc-ibld.c:181 xstormy16-ibld.c:181
+#, c-format
+msgid "operand out of range (%lu not between 0 and %lu)"
+msgstr "tác tử ở ngoại phạm vị (%lu không phải ở giữa 0 và %lu)"
+
+#: fr30-ibld.c:732 frv-ibld.c:858 ip2k-ibld.c:609 iq2000-ibld.c:715
+#: m32r-ibld.c:667 openrisc-ibld.c:635 xstormy16-ibld.c:680
+#, c-format
+msgid "Unrecognized field %d while building insn.\n"
+msgstr "Không chấp nhận trường %d trong khi xây dựng câu lệnh.\n"
+
+#: fr30-ibld.c:939 frv-ibld.c:1177 ip2k-ibld.c:686 iq2000-ibld.c:892
+#: m32r-ibld.c:806 openrisc-ibld.c:737 xstormy16-ibld.c:828
+#, c-format
+msgid "Unrecognized field %d while decoding insn.\n"
+msgstr "Không chấp nhận trường %d trong khi giải mã câu lệnh.\n"
+
+#: fr30-ibld.c:1088 frv-ibld.c:1458 ip2k-ibld.c:763 iq2000-ibld.c:1026
+#: m32r-ibld.c:922 openrisc-ibld.c:817 xstormy16-ibld.c:941
+#, c-format
+msgid "Unrecognized field %d while getting int operand.\n"
+msgstr "Không chấp nhận trường %d trong khi lấy tác tử số nguyên.\n"
+
+#: fr30-ibld.c:1217 frv-ibld.c:1719 ip2k-ibld.c:820 iq2000-ibld.c:1140
+#: m32r-ibld.c:1018 openrisc-ibld.c:877 xstormy16-ibld.c:1034
+#, c-format
+msgid "Unrecognized field %d while getting vma operand.\n"
+msgstr "Không chấp nhận trường %d trong khi lấy tác tử vma.\n"
+
+#: fr30-ibld.c:1351 frv-ibld.c:1989 ip2k-ibld.c:882 iq2000-ibld.c:1263
+#: m32r-ibld.c:1122 openrisc-ibld.c:946 xstormy16-ibld.c:1136
+#, c-format
+msgid "Unrecognized field %d while setting int operand.\n"
+msgstr "Không chấp nhận trường %d trong khi đặt tác tử số nguyên.\n"
+
+#: fr30-ibld.c:1473 frv-ibld.c:2247 ip2k-ibld.c:932 iq2000-ibld.c:1374
+#: m32r-ibld.c:1214 openrisc-ibld.c:1003 xstormy16-ibld.c:1226
+#, c-format
+msgid "Unrecognized field %d while setting vma operand.\n"
+msgstr "Không chấp nhận trường %d trong khi đặt tác tử vma.\n"
+
+#: frv-asm.c:978
+msgid "register number must be even"
+msgstr "số thanh ghi phải là số chẵn"
+
+#: h8300-dis.c:358
+#, c-format
+msgid "Hmmmm 0x%x"
+msgstr "Ừm 0x%x"
+
+#: h8300-dis.c:744
+#, c-format
+msgid "Don't understand 0x%x \n"
+msgstr "Không hiểu 0x%x \n"
+
+#: h8500-dis.c:143
+#, c-format
+msgid "can't cope with insert %d\n"
+msgstr "không thể xử lý điều chèn %d\n"
+
+#. Couldn't understand anything.
+#: h8500-dis.c:342
+#, c-format
+msgid "%02x\t\t*unknown*"
+msgstr "%02x\t\t • không rõ •"
+
+#: i386-dis.c:1733
+msgid "<internal disassembler error>"
+msgstr "<lỗi rã nội bộ>"
+
+#: ia64-gen.c:297
+#, c-format
+msgid "%s: Error: "
+msgstr "%s: Lỗi"
+
+#: ia64-gen.c:310
+#, c-format
+msgid "%s: Warning: "
+msgstr "%s: Cảnh báo : "
+
+#: ia64-gen.c:496 ia64-gen.c:730
+#, c-format
+msgid "multiple note %s not handled\n"
+msgstr "không xử lý được đa chú thích %s\n"
+
+#: ia64-gen.c:607
+msgid "can't find ia64-ic.tbl for reading\n"
+msgstr "không tìm thấy ia64-ic.tbl để đọc\n"
+
+#: ia64-gen.c:812
+#, c-format
+msgid "can't find %s for reading\n"
+msgstr "không tìm thấy %s để đọc\n"
+
+#: ia64-gen.c:1036
+#, c-format
+msgid ""
+"most recent format '%s'\n"
+"appears more restrictive than '%s'\n"
+msgstr ""
+"dạng thức gần đây nhất « %s »\n"
+"có vẻ hạn hẹp hơn « %s »\n"
+
+#: ia64-gen.c:1047
+#, c-format
+msgid "overlapping field %s->%s\n"
+msgstr "trường chồng lấp %s → %s\n"
+
+#: ia64-gen.c:1244
+#, c-format
+msgid "overwriting note %d with note %d (IC:%s)\n"
+msgstr "đang ghi đè chú thích %d bằng chú thích %d (IC:%s)\n"
+
+#: ia64-gen.c:1443
+#, c-format
+msgid "don't know how to specify %% dependency %s\n"
+msgstr "không biết cách ghi rõ %% dạng phụ thuộc %s\n"
+
+#: ia64-gen.c:1465
+#, c-format
+msgid "Don't know how to specify # dependency %s\n"
+msgstr "Không biết cách ghi rõ # dạng phụ thuộc %s\n"
+
+#: ia64-gen.c:1504
+#, c-format
+msgid "IC:%s [%s] has no terminals or sub-classes\n"
+msgstr "IC:%s [%s] không có điều mở rộng hoàn thành hay hạng con nào\n"
+
+#: ia64-gen.c:1507
+#, c-format
+msgid "IC:%s has no terminals or sub-classes\n"
+msgstr "IC:%s không có điều mở rộng hoàn thành hay hạng con nào\n"
+
+#: ia64-gen.c:1516
+#, c-format
+msgid "no insns mapped directly to terminal IC %s [%s]"
+msgstr "không ảnh xạ câu lệnh nào trực tiếp vào IC mở rộng hoàn thành %s [%s]"
+
+#: ia64-gen.c:1519
+#, c-format
+msgid "no insns mapped directly to terminal IC %s\n"
+msgstr "không ảnh xạ câu lệnh nào trực tiếp vào IC mở rộng hoàn thành %s\n"
+
+#: ia64-gen.c:1530
+#, c-format
+msgid "class %s is defined but not used\n"
+msgstr "đã định nghĩa còn chưa sử dụng hạng %s\n"
+
+#: ia64-gen.c:1541
+#, c-format
+msgid "Warning: rsrc %s (%s) has no chks%s\n"
+msgstr "Cảnh báo : tài nguyên %s (%s) không có cản trở %s\n"
+
+#: ia64-gen.c:1545
+#, c-format
+msgid "rsrc %s (%s) has no regs\n"
+msgstr "Tài nguyên %s (%s) không có tàì nguyên con\n"
+
+#: ia64-gen.c:2444
+#, c-format
+msgid "IC note %d in opcode %s (IC:%s) conflicts with resource %s note %d\n"
+msgstr "Chú thích IC %d trong opcode (mã thi hành) %s (IC:%s) thì xung đột với tài nguyên %s chú thích %d\n"
+
+#: ia64-gen.c:2472
+#, c-format
+msgid "IC note %d for opcode %s (IC:%s) conflicts with resource %s note %d\n"
+msgstr "Chú thích IC %d cho opcode (mã thi hành) %s (IC:%s) thì xung đột với tài nguyên %s chú thích %d\n"
+
+#: ia64-gen.c:2486
+#, c-format
+msgid "opcode %s has no class (ops %d %d %d)\n"
+msgstr "opcode (mã thi hành) %s không có hạng (những tác tử %d %d %d)\n"
+
+#: ia64-gen.c:2816
+#, c-format
+msgid "unable to change directory to \"%s\", errno = %s\n"
+msgstr "không thể chuyển đổi thư mục thành « %s », số lỗi = %s\n"
+
+#. We've been passed a w.  Return with an error message so that
+#. cgen will try the next parsing option.
+#: ip2k-asm.c:92
+msgid "W keyword invalid in FR operand slot."
+msgstr "Tử khóa W không hợp lệ trong vị trí tác tử FR."
+
+#. Invalid offset present.
+#: ip2k-asm.c:117
+msgid "offset(IP) is not a valid form"
+msgstr "offset(IP) (hiệu số) không phải là dạng hợp lệ"
+
+#. Found something there in front of (DP) but it's out
+#. of range.
+#: ip2k-asm.c:165
+msgid "(DP) offset out of range."
+msgstr "(DP) hiệu số ở ngoại phạm vị."
+
+#. Found something there in front of (SP) but it's out
+#. of range.
+#: ip2k-asm.c:206
+msgid "(SP) offset out of range."
+msgstr "(SP) hiệu số ở ngoại phạm vị."
+
+#: ip2k-asm.c:222
+msgid "illegal use of parentheses"
+msgstr "không cho phép cách sử dụng ngoặc"
+
+#: ip2k-asm.c:229
+msgid "operand out of range (not between 1 and 255)"
+msgstr "tác tử ở ngoại phạm vị (không phải ở giữa số 1 và số 255)"
+
+#. Something is very wrong. opindex has to be one of the above.
+#: ip2k-asm.c:254
+msgid "parse_addr16: invalid opindex."
+msgstr "parse_addr16: (địa chỉ phân tách) opindex (chỉ mục kiểu tác tử) không hợp lệ."
+
+#: ip2k-asm.c:309
+msgid "Byte address required. - must be even."
+msgstr "Cần đến địa chỉ byte — phải là số chẵn."
+
+#: ip2k-asm.c:318
+msgid "cgen_parse_address returned a symbol. Literal required."
+msgstr "cgen_parse_address (địa chỉ phân tách cgen) đã trả gởi một ký hiệu: còn cần đến điều nghĩa chữ."
+
+#: ip2k-asm.c:376
+#, fuzzy, c-format
+msgid "%operator operand is not a symbol"
+msgstr "%toán tử tác tử không phải là một ký hiệu"
+
+#: ip2k-asm.c:430
+msgid "Attempt to find bit index of 0"
+msgstr "Cố tìm ra chỉ mục bit của số 0"
+
+#: iq2000-asm.c:115 iq2000-asm.c:146
+msgid "immediate value cannot be register"
+msgstr "giá trị trực tiếp không thể là thanh ghi"
+
+#: iq2000-asm.c:126 iq2000-asm.c:156
+msgid "immediate value out of range"
+msgstr "giá trị trực tiếp ở ngoại pham vị"
+
+#: iq2000-asm.c:185
+msgid "21-bit offset out of range"
+msgstr "hiệu số 21-bit ở ngoại phạm vị"
+
+#: iq2000-asm.c:210 iq2000-asm.c:240 iq2000-asm.c:277 iq2000-asm.c:310
+#: openrisc-asm.c:90 openrisc-asm.c:144
+msgid "missing `)'"
+msgstr "thiếu dấu ngoặc đóng « ) »"
+
+#: m10200-dis.c:199
+#, c-format
+msgid "unknown\t0x%02x"
+msgstr "\t0x%02x không rõ"
+
+#: m10200-dis.c:339
+#, c-format
+msgid "unknown\t0x%04lx"
+msgstr "\t0x%04lx không rõ"
+
+#: m10300-dis.c:767
+#, c-format
+msgid "unknown\t0x%04x"
+msgstr "\t0x%04x không rõ"
+
+#: m68k-dis.c:295
+#, c-format
+msgid "<internal error in opcode table: %s %s>\n"
+msgstr "<lỗi nội bộ trong bảng opcode (mã thi hành): %s %s>\n"
+
+#: m68k-dis.c:1089
+#, c-format
+msgid "<function code %d>"
+msgstr "<mã hàm %d>"
+
+#: m88k-dis.c:746
+#, c-format
+msgid "# <dis error: %08x>"
+msgstr "# <lỗi rã: %08x>"
+
+#: mips-dis.c:720
+msgid "# internal error, incomplete extension sequence (+)"
+msgstr "# lỗi nội bộ, dãy mở rộng chưa hoàn thành (+)"
+
+#: mips-dis.c:779
+#, c-format
+msgid "# internal error, undefined extension sequence (+%c)"
+msgstr "# lỗi nội bộ, chưa định nghĩa dãy mở rộng (+%c)"
+
+#: mips-dis.c:1037
+#, c-format
+msgid "# internal error, undefined modifier(%c)"
+msgstr "# lỗi nội bộ, chưa định nghĩa điều sửa đổi(%c)"
+
+#: mips-dis.c:1793
+#, c-format
+msgid "# internal disassembler error, unrecognised modifier (%c)"
+msgstr "# lỗi rã nội bộ, không chấp nhận điều sửa đổi (%c)"
+
+#: mips-dis.c:1805
+#, c-format
+msgid ""
+"\n"
+"The following MIPS specific disassembler options are supported for use\n"
+"with the -M switch (multiple options should be separated by commas):\n"
+msgstr ""
+"\n"
+"Hỗ trợ sử dụng những tùy chọn rã đặc trưng cho MIPS theo đây\n"
+"với đối số -M (hãy phân cách nhiều tùy chọn bằng dấu phẩy):\n"
+
+#: mips-dis.c:1809
+#, c-format
+msgid ""
+"\n"
+"  gpr-names=ABI            Print GPR names according to  specified ABI.\n"
+"                           Default: based on binary being disassembled.\n"
+msgstr ""
+"\n"
+"  gpr-names=ABI            In ra các _tên GPR_ theo ABI được ghi rõ.\n"
+"                           Mặc định: trên cơ sở mã nhi phân đang bị rã\n"
+
+#: mips-dis.c:1813
+#, c-format
+msgid ""
+"\n"
+"  fpr-names=ABI            Print FPR names according to specified ABI.\n"
+"                           Default: numeric.\n"
+msgstr ""
+"\n"
+"  fpr-names=ABI            In ra các _tên FPR_ theo ABI được ghi rõ..\n"
+"                           Mặc định: dạng số\n"
+
+#: mips-dis.c:1817
+#, c-format
+msgid ""
+"\n"
+"  cp0-names=ARCH           Print CP0 register names according to\n"
+"                           specified architecture.\n"
+"                           Default: based on binary being disassembled.\n"
+msgstr ""
+"\n"
+"  cp0-names=ARCH           In ra các _tên CP0_ theo kiến trức được ghi rõ\n"
+"                           Mặc định: trên cơ sở mã nhi phân đang bị rã.\n"
+
+#: mips-dis.c:1822
+#, c-format
+msgid ""
+"\n"
+"  hwr-names=ARCH           Print HWR names according to specified \n"
+"\t\t\t   architecture.\n"
+"                           Default: based on binary being disassembled.\n"
+msgstr ""
+"\n"
+"  hwr-names=ARCH           In ra các _tên HWR_ theo kiến trức \t\t\t được ghi rõ.\n"
+"                           Mặc định: trên cơ sở mã nhi phân đang bị rã.\n"
+
+#: mips-dis.c:1827
+#, c-format
+msgid ""
+"\n"
+"  reg-names=ABI            Print GPR and FPR names according to\n"
+"                           specified ABI.\n"
+msgstr ""
+"\n"
+"  reg-names=ABI            In ra các _tên_ cả hai loại GPR và FPR theo ABI được ghi rõ.\n"
+
+#: mips-dis.c:1831
+#, c-format
+msgid ""
+"\n"
+"  reg-names=ARCH           Print CP0 register and HWR names according to\n"
+"                           specified architecture.\n"
+msgstr ""
+"\n"
+"  reg-names=ARCH           In ra các _tên_ HWR và thanh ghi CP0 theo\n"
+"\t\t\t\t\t\tkiến trức đươc ghi rõ.\n"
+
+#: mips-dis.c:1835
+#, c-format
+msgid ""
+"\n"
+"  For the options above, the following values are supported for \"ABI\":\n"
+"   "
+msgstr ""
+"\n"
+"  Với những tùy chọn ở trên, hỗ trợ những giá trị theo đây cho « ABI »:\n"
+"   "
+
+#: mips-dis.c:1840 mips-dis.c:1848 mips-dis.c:1850
+#, c-format
+msgid "\n"
+msgstr "\n"
+
+#: mips-dis.c:1842
+#, c-format
+msgid ""
+"\n"
+"  For the options above, The following values are supported for \"ARCH\":\n"
+"   "
+msgstr ""
+"\n"
+"  Với những tùy chọn ở trên, hỗ trợ những giá trị theo đây cho « ARCH »:\n"
+"   "
+
+#: mmix-dis.c:34
+#, c-format
+msgid "Bad case %d (%s) in %s:%d\n"
+msgstr "Chữ hoa/thường sai %d (%s) trong %s:%d\n"
+
+#: mmix-dis.c:44
+#, c-format
+msgid "Internal: Non-debugged code (test-case missing): %s:%d"
+msgstr "Nội bộ : chưa gỡ lỗi mã (thiếu trường hợp thử): %s:%d"
+
+#: mmix-dis.c:53
+msgid "(unknown)"
+msgstr "(không rõ)"
+
+#: mmix-dis.c:519
+#, c-format
+msgid "*unknown operands type: %d*"
+msgstr "• không biết kiểu tác tử: %d •"
+
+#. I and Z are output operands and can`t be immediate
+#. * A is an address and we can`t have the address of
+#. * an immediate either. We don't know how much to increase
+#. * aoffsetp by since whatever generated this is broken
+#. * anyway!
+#.
+#: ns32k-dis.c:631
+#, c-format
+msgid "$<undefined>"
+msgstr "$<chưa định nghĩa>"
+
+#: ppc-opc.c:794 ppc-opc.c:822
+msgid "invalid conditional option"
+msgstr "tùy chọn điều kiện không hợp lệ"
+
+#: ppc-opc.c:824
+msgid "attempt to set y bit when using + or - modifier"
+msgstr "cố lập « bit y » khi sử dụng điều sửa đổi + hay -"
+
+#: ppc-opc.c:852
+msgid "offset not a multiple of 16"
+msgstr "hiệu số không phải là bội số cho 16"
+
+#: ppc-opc.c:871
+msgid "offset not a multiple of 2"
+msgstr "hiệu số không phải là bội số cho 2"
+
+#: ppc-opc.c:873
+msgid "offset greater than 62"
+msgstr "hiệu số hơn 62"
+
+#: ppc-opc.c:892 ppc-opc.c:937 ppc-opc.c:981
+msgid "offset not a multiple of 4"
+msgstr "hiệu số không phải là bội số cho 4"
+
+#: ppc-opc.c:894
+msgid "offset greater than 124"
+msgstr "hiệu số hơn 124"
+
+#: ppc-opc.c:913
+msgid "offset not a multiple of 8"
+msgstr "hiệu số không phải là bội số cho 8"
+
+#: ppc-opc.c:915
+msgid "offset greater than 248"
+msgstr "hiệu số hơn 248"
+
+#: ppc-opc.c:958
+msgid "offset not between -2048 and 2047"
+msgstr "hiệu số không phải ở giữa -2048 và 2047"
+
+#: ppc-opc.c:979
+msgid "offset not between -8192 and 8191"
+msgstr "hiệu số không phải ở giữa -8192 và 8191"
+
+#: ppc-opc.c:1007
+msgid "invalid mask field"
+msgstr "trường mặt nạ không hợp lệ"
+
+#: ppc-opc.c:1033
+msgid "ignoring invalid mfcr mask"
+msgstr "đang bỏ qua mặt nạ mfcr không hợp lệ"
+
+#: ppc-opc.c:1075
+msgid "ignoring least significant bits in branch offset"
+msgstr "đang bỏ qua các bit trọng đai ít nhất trong hiệu số cành"
+
+#: ppc-opc.c:1105 ppc-opc.c:1140
+msgid "illegal bitmask"
+msgstr "không cho phép mặt nặ bit"
+
+#: ppc-opc.c:1205
+msgid "value out of range"
+msgstr "giá trị ở ngoại phạm vị"
+
+#: ppc-opc.c:1273
+msgid "index register in load range"
+msgstr "thanh ghi cơ số trong phạm vị tải"
+
+#: ppc-opc.c:1289
+msgid "source and target register operands must be different"
+msgstr "tác tử thanh ghi kiểu cả nguồn lẫn đích đều phải là khác nhau"
+
+#: ppc-opc.c:1304
+msgid "invalid register operand when updating"
+msgstr "gặp tác tử thanh ghi không hợp lệ khi cập nhật"
+
+#: ppc-opc.c:1343
+msgid "target register operand must be even"
+msgstr "tác tử thanh ghi đích phải là số chẵn"
+
+#: ppc-opc.c:1357
+msgid "source register operand must be even"
+msgstr "tác tử thanh ghi nguồn phải là số chẵn"
+
+#. Mark as non-valid instruction.
+#: sparc-dis.c:760
+msgid "unknown"
+msgstr "không rõ"
+
+#: sparc-dis.c:835
+#, c-format
+msgid "Internal error:  bad sparc-opcode.h: \"%s\", %#.8lx, %#.8lx\n"
+msgstr "Lỗi nội bộ : sparc-opcode.h sai: « %s », %#.8lx, %#.8lx\n"
+
+#: sparc-dis.c:846
+#, c-format
+msgid "Internal error: bad sparc-opcode.h: \"%s\", %#.8lx, %#.8lx\n"
+msgstr "Lỗi nội bộ : sparc-opcode.h sai: « %s », %#.8lx, %#.8lx\n"
+
+#: sparc-dis.c:895
+#, c-format
+msgid "Internal error: bad sparc-opcode.h: \"%s\" == \"%s\"\n"
+msgstr "Lỗi nội bộ : sparc-opcode.h sai: « %s » == \"%s\"\n"
+
+#: v850-dis.c:225
+#, c-format
+msgid "unknown operand shift: %x\n"
+msgstr "không biết cách dịch tác tử: %x\n"
+
+#: v850-dis.c:237
+#, c-format
+msgid "unknown pop reg: %d\n"
+msgstr "không biết thanh ghi trong câu lệnh pop đống: %d\n"
+
+#. The functions used to insert and extract complicated operands.
+#. Note: There is a conspiracy between these functions and
+#. v850_insert_operand() in gas/config/tc-v850.c.  Error messages
+#. containing the string 'out of range' will be ignored unless a
+#. specific command line option is given to GAS.
+#: v850-opc.c:69
+msgid "displacement value is not in range and is not aligned"
+msgstr "giá trị di chuyển ở ngoại phạm vị và chưa được canh lề"
+
+#: v850-opc.c:70
+msgid "displacement value is out of range"
+msgstr "giá trị di chuyển ở ngoại phạm vị"
+
+#: v850-opc.c:71
+msgid "displacement value is not aligned"
+msgstr "chưa canh lề giá trị di chuyển"
+
+#: v850-opc.c:73
+msgid "immediate value is out of range"
+msgstr "giá trị trực tiếp ở ngoại phạm vị"
+
+#: v850-opc.c:84
+msgid "branch value not in range and to odd offset"
+msgstr "giá trị cành ở ngoại phạm vị và đối với hiệu số lẻ"
+
+#: v850-opc.c:86 v850-opc.c:118
+msgid "branch value out of range"
+msgstr "giá trị cành ở ngoại phạm vị"
+
+#: v850-opc.c:89 v850-opc.c:121
+msgid "branch to odd offset"
+msgstr "nhánh đối với hiệu số lẻ"
+
+#: v850-opc.c:116
+msgid "branch value not in range and to an odd offset"
+msgstr "giá trị nhánh ở ngoại phạm vị và đối với hiệu số lẻ"
+
+#: v850-opc.c:347
+msgid "invalid register for stack adjustment"
+msgstr "thanh ghi không hợp lệ để điều chỉnh đống"
+
+#: v850-opc.c:371
+msgid "immediate value not in range and not even"
+msgstr "giá trị trực tiếp ở ngoạị phạm vị và không là số chẵn"
+
+#: v850-opc.c:376
+msgid "immediate value must be even"
+msgstr "giá trị trực tiếp phải là số chẵn"
+
+#: xstormy16-asm.c:76
+msgid "Bad register in preincrement"
+msgstr "Thanh ghi sai trong tiền lượng gia"
+
+#: xstormy16-asm.c:81
+msgid "Bad register in postincrement"
+msgstr "Thanh ghi sai trong hậu lượng gia"
+
+#: xstormy16-asm.c:83
+msgid "Bad register name"
+msgstr "Tên thanh ghi sai"
+
+#: xstormy16-asm.c:87
+msgid "Label conflicts with register name"
+msgstr "Nhãn xung đột với tên thanh ghi"
+
+#: xstormy16-asm.c:91
+msgid "Label conflicts with `Rx'"
+msgstr "Nhãn xung đột với « Rx »"
+
+#: xstormy16-asm.c:93
+msgid "Bad immediate expression"
+msgstr "Biểu thức trực tiếp sai"
+
+#: xstormy16-asm.c:115
+msgid "No relocation for small immediate"
+msgstr "Không có điều bố trí lại số nhỏ trực tiếp"
+
+#: xstormy16-asm.c:125
+msgid "Small operand was not an immediate number"
+msgstr "Tác tử nhỏ không phải đã là số trực tiếp"
+
+#: xstormy16-asm.c:164
+msgid "Operand is not a symbol"
+msgstr "Tác tử không phải là một ký hiệu"
+
+#: xstormy16-asm.c:172
+msgid "Syntax error: No trailing ')'"
+msgstr "Lỗi cú pháp: không có dấu ngoặc đóng « ) » đi theo"

@@ -3,5 +3,5 @@
 #nm: -B
 #...
 0+3 A baz
-0+0 D foo
+0+2000 D foo
 #pass

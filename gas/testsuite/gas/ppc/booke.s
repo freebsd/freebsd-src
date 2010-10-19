@@ -134,3 +134,12 @@ branch_target_8:
 	mbar
 	mbar	0
 	mbar	1
+
+	mfsprg 0, 2
+	mfsprg2 0
+	mtsprg 2, 0
+	mtsprg2 0
+	mfsprg 0, 7
+	mfsprg7 0
+	mtsprg 7, 0
+	mtsprg7 0

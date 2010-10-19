@@ -1,0 +1,98 @@
+2004-11-30  Tero Niemela  <tero_niemela@yahoo.com>
+
+	* Makefile.am: Change LOCALEDIR to $(datadir)/share.
+	* Makefile.in: Regenerate.
+
+2004-09-17  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.in: Regenerate.
+	* aclocal.m4: Regenerate.
+	* configure: Regenerate.
+	* po/gprof.pot: Regenerate.
+
+2004-07-13  Ben Elliston  <bje@au.ibm.com>
+
+	* gprof.c (main): For line-by-line profiling, there is no need to
+	specially exclude the default function set from the flat profile.
+
+2004-06-28  Maciej W. Rozycki  <macro@linux-mips.org>
+
+	* Makefile.in: Regenerate to clean up breakage.
+
+2004-06-15  Ben Elliston  <bje@au.ibm.com>
+
+	* configure.in: Run through autoupdate.
+	* configure: Regenerate with autoconf 2.59.
+	* Makefile.am (install-local): Rename from this ..
+	(install-data-local): .. to this.
+	* Makefile.in: Regenerate with automake 1.8.5.
+	* aclocal.m4: Regenerate with aclocal 1.8.5.
+
+2004-06-15  Alan Modra  <amodra@bigpond.net.au>
+
+	* corefile.c (core_init): Use bfd_get_section_size
+	instead of bfd_get_section_size_before_reloc or _raw_size.
+	* symtab.c (symtab_finalize): Likewise.
+
+2004-05-26  Andrew Cagney  <cagney@gnu.org>
+
+	* corefile.c (core_create_line_syms): Per ISO C '90, move
+	vma_high's declaration to the function's start.
+
+2004-05-26  Ben Elliston  <bje@au.ibm.com>
+
+	* gprof.c (main): Clean up some more.
+
+	* alpha.c, basic_blocks.c, basic_blocks.h, bb_exit_func.c,
+	call_graph.c, call_graph.h, cg_arcs.c, cg_arcs.h, cg_dfn.c,
+	cg_dfn.h, cg_print.c, cg_print.h, corefile.c, corefile.h,
+	gmon_io.c, gmon_io.h, gprof.c, gprof.h, hertz.h, hist.c, hist.h,
+	i386.c, mips.c, search_list.c, search_list.h, source.c, source.h,
+	sparc.c, sym_ids.c, sym_ids.h, symtab.c, symtab.h, tahoe.c,
+	utils.c, utils.h, vax.c, gen-c-prog.awk: Convert K&R C to ANSI C.
+
+2004-05-26  Ben Elliston  <bje@au.ibm.com>
+
+	* corefile.c (core_init): Use a separate local variable,
+	core_sym_bytes, to make the units from bfd_get_symtab_upper_bound
+	more obvious.
+	(core_create_function_syms): Discard cbfd argument.  Eliminate
+	`offset' variable and calculate VMA directly. Update all users.
+	* corefile.h (core_create_function_syms): Update prototype.
+	(core_create_line_syms): Likewise.
+	* gprof.c (main): Remove #ifdef PROF_SUPPORT_IMPLEMENTED code.
+	Tidy.
+
+2004-05-17  Ben Elliston  <bje@au.ibm.com>
+
+	* gprof.texi (Output Options): Correct last patch to use @itemx, not
+	@item, for options with long option alternatives.
+
+2004-05-17  Ben Elliston  <bje@au.ibm.com>
+
+	* gprof.texi (Introduction): Update synopsis.
+	(Output Options): Document -r and -R.
+	(Analysis Options): Document -t, --table-length.
+	(Miscellaneous Options): Document -h, --help.
+
+2004-05-13  Nick Clifton  <nickc@redhat.com>
+
+	* po/fr.po: Updated French translation.
+
+2004-03-19  Alan Modra  <amodra@bigpond.net.au>
+
+	* po/sv.po: Updated.
+
+	* Makefile.am: Run "make dep-am".
+	* Makefile.in: Regenerate.
+	* gconfig.in: Regenerate.
+	* po/gprof.pot: Regenerate.
+
+For older changes see ChangeLog-9203
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

@@ -7,5 +7,5 @@
 .*: +file format elf32-sparc
 
 Contents of section .got:
- 250e0 00025060 0+ 0+ 0+  .*
- 250f0 0+  .*
+ 23274 000231f4 0+ 0+ 0+  .*
+ 23284 0+  .*

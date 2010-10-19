@@ -1,0 +1,1747 @@
+; Hitachi SHcompact instruction set description.  -*- Scheme -*-
+;
+; Copyright 2000 Free Software Foundation, Inc.
+;
+; Contributed by Red Hat Inc; developed under contract from Hitachi
+; Semiconductor (America) Inc.
+;
+; This file is part of the GNU Binutils.
+;
+; This program is free software; you can redistribute it and/or modify
+; it under the terms of the GNU General Public License as published by
+; the Free Software Foundation; either version 2 of the License, or
+; (at your option) any later version.
+;
+; This program is distributed in the hope that it will be useful,
+; but WITHOUT ANY WARRANTY; without even the implied warranty of
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+; GNU General Public License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with this program; if not, write to the Free Software
+; Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+
+; dshcf -- define-normal-sh-compact-field
+
+(define-pmacro (dshcf xname xcomment ignored xstart xlength)
+  (dnf xname xcomment ((ISA compact)) xstart xlength))
+
+; dshcop -- define-normal-sh-compact-operand
+
+(define-pmacro (dshcop xname xcomment ignored xhardware xfield)
+  (dnop xname xcomment ((ISA compact)) xhardware xfield))
+
+
+; SHcompact-specific attributes.
+
+(define-attr
+  (for insn)
+  (type boolean)
+  (name ILLSLOT)
+  (comment "instruction may not appear in a delay slot")
+)
+
+(define-attr
+  (for insn)
+  (type boolean)
+  (name FP-INSN)
+  (comment "floating point instruction")
+)
+
+(define-keyword
+  (name frc-names)
+  (attrs (ISA compact))
+  (print-name h-frc)
+  (values (fr0   0) (fr1   1) (fr2   2) (fr3   3) (fr4   4) (fr5   5)
+	  (fr6   6) (fr7   7) (fr8   8) (fr9   9) (fr10 10) (fr11 11)
+	  (fr12 12) (fr13 13) (fr14 14) (fr15 15))
+)
+
+(define-keyword
+  (name drc-names)
+  (attrs (ISA compact))
+  (print-name h-drc)
+  (values (dr0 0) (dr2 2) (dr4 4) (dr6 6) (dr8 8) (dr10 10) (dr12 12) (dr14 14))
+)
+
+(define-keyword
+  (name xf-names)
+  (attrs (ISA compact))
+  (print-name h-xf)
+  (values (xf0   0) (xf1   1) (xf2   2) (xf3   3) (xf4   4) (xf5   5)
+	  (xf6   6) (xf7   7) (xf8   8) (xf9   9) (xf10 10) (xf11 11)
+	  (xf12 12) (xf13 13) (xf14 14) (xf15 15))
+)
+
+; Hardware specific to the SHcompact mode.
+
+(define-pmacro (front) (mul 16 frbit))
+(define-pmacro (back) (mul 16 (not frbit)))
+
+(define-hardware
+  (name h-frc)
+  (comment "Single precision floating point registers")
+  (attrs VIRTUAL (ISA compact))
+  (indices extern-keyword frc-names)
+  (type register SF (16))
+  (get (index) (reg h-fr (add (front) index)))
+  (set (index newval) (set (reg h-fr (add (front) index)) newval))
+)
+
+(define-hardware
+  (name h-drc)
+  (comment "Double precision floating point registers")
+  (attrs VIRTUAL (ISA compact))
+  (indices extern-keyword drc-names)
+  (type register DF (8))
+  (get (index) (reg h-dr (add (front) index)))
+  (set (index newval) (set (reg h-dr (add (front) index)) newval))
+)
+
+(define-hardware
+  (name h-xf)
+  (comment "Extended single precision floating point registers")
+  (attrs VIRTUAL (ISA compact))
+  (indices extern-keyword xf-names)
+  (type register SF (16))
+  (get (index) (reg h-fr (add (back) index)))
+  (set (index newval) (set (reg h-fr (add (back) index)) newval))
+)
+
+(define-hardware
+  (name h-xd)
+  (comment "Extended double precision floating point registers")
+  (attrs VIRTUAL (ISA compact))
+  (indices extern-keyword frc-names)
+  (type register DF (8))
+  (get (index) (reg h-dr (add (back) index)))
+  (set (index newval) (set (reg h-dr (add (back) index)) newval))
+)
+
+(define-hardware
+  (name h-fvc)
+  (comment "Single precision floating point vectors")
+  (attrs VIRTUAL (ISA compact))
+  (indices keyword "" ((fv0 0) (fv4 4) (fv8 8) (fv12 12)))
+  (type register SF (4))
+  (get (index) (reg h-fr (add (front) index)))
+  (set (index newval) (set (reg h-fr (add (front) index)) newval))
+)
+
+(define-hardware
+  (name h-fpccr)
+  (comment "SHcompact floating point status/control register")
+  (attrs VIRTUAL (ISA compact))
+  (type register SI)
+  (get () (or (or (or (raw-reg h-fpscr) (sll SI prbit 19)) (sll SI szbit 20)) (sll SI frbit 21)))
+  (set (newvalue) (sequence ()
+			    (set (reg h-fpscr) newvalue)
+			    (set prbit (and (srl newvalue 19) 1))
+			    (set szbit (and (srl newvalue 20) 1))
+			    (set frbit (and (srl newvalue 21) 1))))
+)
+
+(define-hardware
+  (name h-gbr)
+  (comment "Global base register")
+  (attrs VIRTUAL (ISA compact))
+  (type register SI)
+  (get () (subword SI (raw-reg h-gr 16) 1))
+  (set (newval) (set (raw-reg h-gr 16) (ext DI newval)))
+)
+
+(define-hardware
+  (name h-pr)
+  (comment "Procedure link register")
+  (attrs VIRTUAL (ISA compact))
+  (type register SI)
+  (get () (subword SI (raw-reg h-gr 18) 1))
+  (set (newval) (set (raw-reg h-gr 18) (ext DI newval)))
+)
+
+(define-hardware
+  (name h-macl)
+  (comment "Multiple-accumulate low register")
+  (attrs VIRTUAL (ISA compact))
+  (type register SI)
+  (get () (subword SI (raw-reg h-gr 17) 1))
+  (set (newval) (set (raw-reg h-gr 17) (-join-si (subword SI (raw-reg h-gr 17) 0) newval)))
+)
+
+(define-hardware
+  (name h-mach)
+  (comment "Multiply-accumulate high register")
+  (attrs VIRTUAL (ISA compact))
+  (type register SI)
+  (get () (subword SI (raw-reg h-gr 17) 0))
+  (set (newval) (set (raw-reg h-gr 17) (-join-si newval (subword SI (raw-reg h-gr 17) 1))))
+)
+  
+(define-hardware
+  (name h-tbit)
+  (comment "Condition code flag")
+  (attrs VIRTUAL (ISA compact))
+  (type register BI)
+  (get () (and BI (raw-reg h-gr 19) 1))
+  (set (newval) (set (raw-reg h-gr 19) (or (and (raw-reg h-gr 19) (inv DI 1)) (zext DI newval))))
+)
+
+
+(dshcf f-op4     "Opcode (4 bits)"         ()  15   4)
+(dshcf f-op8     "Opcode (8 bits)"         ()  15   8)
+(dshcf f-op16    "Opcode (16 bits)"        ()  15  16)
+
+(dshcf f-sub4    "Sub opcode (4 bits)"     ()   3   4)
+(dshcf f-sub8    "Sub opcode (8 bits)"     ()   7   8)
+(dshcf f-sub10   "Sub opcode (10 bits)"    ()   9  10)
+
+(dshcf f-rn      "Register selector n"     ()  11   4)
+(dshcf f-rm      "Register selector m"     ()   7   4)
+
+(dshcf f-8-1     "One bit at bit 8"        ()   8   1)
+
+(df  f-disp8  "Displacement (8 bits)"  ((ISA compact) PCREL-ADDR) 7 8 INT
+     ((value pc) (sra SI value 1))
+     ((value pc) (add SI (sll SI value 1) (add pc 4))))
+
+(df  f-disp12 "Displacement (12 bits)" ((ISA compact) PCREL-ADDR) 11 12 INT
+     ((value pc) (sra SI value 1))
+     ((value pc) (add SI (sll SI value 1) (add pc 4))))
+
+(dshcf f-imm8    "Immediate (8 bits)"      ()   7   8)
+(dshcf f-imm4    "Immediate (4 bits)"      ()   3   4)
+
+(df f-imm4x2     "Immediate (4 bits)"      ((ISA compact)) 3 4 UINT
+    ((value pc) (srl SI value 1))
+    ((value pc) (sll SI value 1)))
+
+(df f-imm4x4     "Immediate (4 bits)"      ((ISA compact)) 3 4 UINT
+    ((value pc) (srl SI value 2))
+    ((value pc) (sll SI value 2)))
+
+(df f-imm8x2     "Immediate (8 bits)"      ((ISA compact)) 7 8 UINT
+    ((value pc) (sra SI value 1))
+    ((value pc) (sll SI value 1)))
+
+(df f-imm8x4     "Immediate (8 bits)"      ((ISA compact)) 7 8 UINT
+    ((value pc) (sra SI value 2))
+    ((value pc) (sll SI value 2)))
+
+(df f-dn "Double selector n" ((ISA compact)) 11 3 UINT
+    ((value pc) (srl SI value 1))
+    ((value pc) (sll SI value 1)))
+
+(df f-dm         "Double selector m"       ((ISA compact)) 7 3 UINT
+    ((value pc) (srl SI value 1))
+    ((value pc) (sll SI value 1)))
+
+(df f-vn         "Vector selector n"       ((ISA compact)) 11 2 UINT
+    ((value pc) (srl SI value 2))
+    ((value pc) (sll SI value 2)))
+
+(df f-vm         "Vector selector m"       ((ISA compact)) 9 2 UINT
+    ((value pc) (srl SI value 2))
+    ((value pc) (sll SI value 2)))
+
+(df f-xn         "Extended selector n"     ((ISA compact)) 11 3 UINT
+    ((value pc) (srl SI value 1))
+    ((value pc) (add SI (sll SI value 1) 1)))
+
+(df f-xm         "Extended selector m"     ((ISA compact)) 7 3 UINT
+    ((value pc) (srl SI value 1))
+    ((value pc) (add SI (sll SI value 1) 1)))
+
+
+; Operands.
+
+(dshcop rm     "Left general purpose register"          ()   h-grc   f-rm)
+(dshcop rn     "Right general purpose register"         ()   h-grc   f-rn)
+(dshcop r0     "Register 0"                             ()   h-grc   0)
+
+(dshcop frn    "Single precision register"              ()   h-frc   f-rn)
+(dshcop frm    "Single precision register"              ()   h-frc   f-rm)
+
+(dshcop fvn    "Left floating point vector"             ()   h-fvc   f-vn)
+(dshcop fvm    "Right floating point vector"            ()   h-fvc   f-vm)
+
+(dshcop drn    "Left double precision register"         ()   h-drc   f-dn)
+(dshcop drm    "Right double precision register"        ()   h-drc   f-dm)
+
+(dshcop imm4   "Immediate value (4 bits)"		()   h-sint  f-imm4)
+(dshcop imm8   "Immediate value (8 bits)"               ()   h-sint  f-imm8)
+(dshcop uimm8  "Immediate value (8 bits unsigned)"      ()   h-uint  f-imm8)
+
+(dshcop imm4x2 "Immediate value (4 bits, 2x scale)"     ()   h-uint  f-imm4x2)
+(dshcop imm4x4 "Immediate value (4 bits, 4x scale)"     ()   h-uint  f-imm4x4)
+(dshcop imm8x2 "Immediate value (8 bits, 2x scale)"     ()   h-uint  f-imm8x2)
+(dshcop imm8x4 "Immediate value (8 bits, 4x scale)"     ()   h-uint  f-imm8x4)
+
+(dshcop disp8  "Displacement (8 bits)"                  ()   h-iaddr f-disp8)
+(dshcop disp12 "Displacement (12 bits)"                 ()   h-iaddr f-disp12)
+
+(dshcop rm64   "Register m (64 bits)"                   ()   h-gr    f-rm)
+(dshcop rn64   "Register n (64 bits)"                   ()   h-gr    f-rn)
+
+(dshcop gbr    "Global base register"                   ()   h-gbr   f-nil)
+(dshcop pr     "Procedure link register"                ()   h-pr    f-nil)
+
+(dshcop fpscr  "Floating point status/control register" ()   h-fpccr f-nil)
+
+(dshcop tbit   "Condition code flag"                    ()   h-tbit  f-nil)
+(dshcop sbit   "Multiply-accumulate saturation flag"    ()   h-sbit  f-nil)
+(dshcop mbit   "Divide-step M flag"                     ()   h-mbit  f-nil)
+(dshcop qbit   "Divide-step Q flag"                     ()   h-qbit  f-nil)
+(dshcop fpul   "Floating point ???"			()   h-fr    32)
+
+(dshcop frbit  "Floating point register bank bit"       ()   h-frbit f-nil)
+(dshcop szbit  "Floating point transfer size bit"       ()   h-szbit f-nil)
+(dshcop prbit  "Floating point precision bit"           ()   h-prbit f-nil)
+
+(dshcop macl   "Multiply-accumulate low register"       ()   h-macl  f-nil)
+(dshcop mach   "Multiply-accumulate high register"      ()   h-mach  f-nil)
+
+
+(define-operand (name fsdm) (comment "bar")
+  (attrs (ISA compact)) (type h-frc) (index f-rm) (handlers (parse "fsd")))
+
+(define-operand (name fsdn) (comment "bar")
+  (attrs (ISA compact)) (type h-frc) (index f-rn))
+
+
+; Cover macro to dni to indicate these are all SHcompact instructions.
+; dshmi: define-normal-sh-compact-insn
+
+(define-pmacro (dshci xname xcomment xattrs xsyntax xformat xsemantics)
+  (define-insn
+    (name (.sym xname -compact))
+    (comment xcomment)
+    (.splice attrs (.unsplice xattrs) (ISA compact))
+    (syntax xsyntax)
+    (format xformat)
+    (semantics xsemantics)))
+
+(define-pmacro (dr operand) (reg h-dr (index-of operand)))
+(define-pmacro (xd x) (reg h-xd (and (index-of x) (inv QI 1))))
+
+(dshci add "Add"
+       ()
+       "add $rm, $rn"
+       (+ (f-op4 3) rn rm (f-sub4 12))
+       (set rn (add rn rm)))
+
+(dshci addi "Add immediate"
+       ()
+       "add #$imm8, $rn"
+       (+ (f-op4 7) rn imm8)
+       (set rn (add rn (ext SI (and QI imm8 255)))))
+
+(dshci addc "Add with carry"
+       ()
+       "addc $rm, $rn"
+       (+ (f-op4 3) rn rm (f-sub4 14))
+       (sequence ((BI flag))
+		 (set flag (add-cflag rn rm tbit))
+		 (set rn (addc rn rm tbit))
+		 (set tbit flag)))
+
+(dshci addv "Add with overflow"
+       ()
+       "addv $rm, $rn"
+       (+ (f-op4 3) rn rm (f-sub4 15))
+       (sequence ((BI t))
+		 (set t (add-oflag rn rm 0))
+		 (set rn (add rn rm))
+		 (set tbit t)))
+
+(dshci and "Bitwise AND"
+       ()
+       "and $rm64, $rn64"
+       (+ (f-op4 2) rn64 rm64 (f-sub4 9))
+       (set rn64 (and rm64 rn64)))
+
+(dshci andi "Bitwise AND immediate"
+       ()
+       "and #$uimm8, r0"
+       (+ (f-op8 #xc9) uimm8)
+       (set r0 (and r0 (zext DI uimm8))))
+
+(dshci andb "Bitwise AND memory byte"
+       ()
+       "and.b #$imm8, @(r0, gbr)"
+       (+ (f-op8 #xcd) imm8)
+       (sequence ((DI addr) (UQI data))
+		 (set addr (add r0 gbr))
+		 (set data (and (mem UQI addr) imm8))
+		 (set (mem UQI addr) data)))
+
+(dshci bf "Conditional branch"
+       ()
+       "bf $disp8"
+       (+ (f-op8 #x8b) disp8)
+       (if (not tbit)
+	   (set pc disp8)))
+
+(dshci bfs "Conditional branch with delay slot"
+       ()
+       "bf/s $disp8"
+       (+ (f-op8 #x8f) disp8)
+       (if (not tbit)
+	   (delay 1 (set pc disp8))))
+
+(dshci bra "Branch"
+       ()
+       "bra $disp12"
+       (+ (f-op4 10) disp12)
+       (delay 1 (set pc disp12)))
+
+(dshci braf "Branch far"
+       ()
+       "braf $rn"
+       (+ (f-op4 0) rn (f-sub8 35))
+       (delay 1 (set pc (add (ext DI rn) (add pc 4)))))
+
+(dshci brk "Breakpoint"
+       ()
+       "brk"
+       (+ (f-op16 59))
+       (c-call "sh64_break" pc))
+
+(dshci bsr "Branch to subroutine"
+       ()
+       "bsr $disp12"
+       (+ (f-op4 11) disp12)
+       (delay 1 (sequence ()
+			  (set pr (add pc 4))
+			  (set pc disp12))))
+
+(dshci bsrf "Branch to far subroutine"
+       ()
+       "bsrf $rn"
+       (+ (f-op4 0) rn (f-sub8 3))
+       (delay 1 (sequence ()
+			  (set pr (add pc 4))
+			  (set pc (add (ext DI rn) (add pc 4))))))
+       
+(dshci bt "Conditional branch"
+       ()
+       "bt $disp8"
+       (+ (f-op8 #x89) disp8)
+       (if tbit
+	   (set pc disp8)))
+
+(dshci bts "Conditional branch with delay slot"
+       ()
+       "bt/s $disp8"
+       (+ (f-op8 #x8d) disp8)
+       (if tbit
+	   (delay 1 (set pc disp8))))
+
+(dshci clrmac "Clear MACL and MACH"
+       ()
+       "clrmac"
+       (+ (f-op16 40))
+       (sequence ()
+		 (set macl 0)
+		 (set mach 0)))
+
+(dshci clrs "Clear S-bit"
+       ()
+       "clrs"
+       (+ (f-op16 72))
+       (set sbit 0))
+
+(dshci clrt "Clear T-bit"
+       ()
+       "clrt"
+       (+ (f-op16 8))
+       (set tbit 0))
+
+(dshci cmpeq "Compare if equal"
+       ()
+       "cmp/eq $rm, $rn"
+       (+ (f-op4 3) rn rm (f-sub4 0))
+       (set tbit (eq rm rn)))
+
+(dshci cmpeqi "Compare if equal (immediate)"
+       ()
+       "cmp/eq #$imm8, r0"
+       (+ (f-op8 #x88) imm8)
+       (set tbit (eq r0 (ext SI (and QI imm8 255)))))
+
+(dshci cmpge "Compare if greater than or equal"
+       ()
+       "cmp/ge $rm, $rn"
+       (+ (f-op4 3) rn rm (f-sub4 3))
+       (set tbit (ge rn rm)))
+
+(dshci cmpgt "Compare if greater than"
+       ()
+       "cmp/gt $rm, $rn"
+       (+ (f-op4 3) rn rm (f-sub4 7))
+       (set tbit (gt rn rm)))
+
+(dshci cmphi "Compare if greater than (unsigned)"
+       ()
+       "cmp/hi $rm, $rn"
+       (+ (f-op4 3) rn rm (f-sub4 6))
+       (set tbit (gtu rn rm)))
+
+(dshci cmphs "Compare if greater than or equal (unsigned)"
+       ()
+       "cmp/hs $rm, $rn"
+       (+ (f-op4 3) rn rm (f-sub4 2))
+       (set tbit (geu rn rm)))
+
+(dshci cmppl "Compare if greater than zero"
+       ()
+       "cmp/pl $rn"
+       (+ (f-op4 4) rn (f-sub8 21))
+       (set tbit (gt rn 0)))
+
+(dshci cmppz "Compare if greater than or equal zero"
+       ()
+       "cmp/pz $rn"
+       (+ (f-op4 4) rn (f-sub8 17))
+       (set tbit (ge rn 0)))
+
+(dshci cmpstr "Compare bytes"
+       ()
+       "cmp/str $rm, $rn"
+       (+ (f-op4 2) rn rm (f-sub4 12))
+       (sequence ((BI t) (SI temp))
+		 (set temp (xor rm rn))
+		 (set t (eq (and temp #xff000000) 0))
+		 (set t (or (eq (and temp #xff0000) 0) t))
+		 (set t (or (eq (and temp #xff00) 0) t))
+		 (set t (or (eq (and temp #xff) 0) t))
+		 (set tbit (if BI (gtu t 0) 1 0))))
+
+(dshci div0s "Initialise divide-step state for signed division"
+       ()
+       "div0s $rm, $rn"
+       (+ (f-op4 2) rn rm (f-sub4 7))
+       (sequence ()
+		 (set qbit (srl rn 31))
+		 (set mbit (srl rm 31))
+		 (set tbit (if BI (eq (srl rm 31) (srl rn 31)) 0 1))))
+
+(dshci div0u "Initialise divide-step state for unsigned division"
+       ()
+       "div0u"
+       (+ (f-op16 25))
+       (sequence ()
+		 (set tbit 0)
+		 (set qbit 0)
+		 (set mbit 0)))
+
+(dshci div1 "Divide step"
+       ()
+       "div1 $rm, $rn"
+       (+ (f-op4 3) rn rm (f-sub4 4))
+       (sequence ((BI oldq) (SI tmp0) (UQI tmp1))
+		 (set oldq qbit)
+		 (set qbit (srl rn 31))
+		 (set rn (or (sll rn 1) (zext SI tbit)))
+		 (if (not oldq)
+		     (if (not mbit)
+			 (sequence ()
+				   (set tmp0 rn)
+				   (set rn (sub rn rm))
+				   (set tmp1 (gtu rn tmp0))
+				   (if (not qbit)
+				       (set qbit (if BI tmp1 1 0))
+				       (set qbit (if BI (eq tmp1 0) 1 0))))
+			 (sequence ()
+				   (set tmp0 rn)
+				   (set rn (add rn rm))
+				   (set tmp1 (ltu rn tmp0))
+				   (if (not qbit)
+				       (set qbit (if BI (eq tmp1 0) 1 0))
+				       (set qbit (if BI tmp1 1 0)))))
+		     (if (not mbit)
+			 (sequence ()
+				   (set tmp0 rn)
+				   (set rn (add rm rn))
+				   (set tmp1 (ltu rn tmp0))
+				   (if (not qbit)
+				       (set qbit (if BI tmp1 1 0))
+				       (set qbit (if BI (eq tmp1 0) 1 0))))
+			 (sequence ()
+				   (set tmp0 rn)
+				   (set rn (sub rn rm))
+				   (set tmp1 (gtu rn tmp0))
+				   (if (not qbit)
+				       (set qbit (if BI (eq tmp1 0) 1 0))
+				       (set qbit (if BI tmp1 1 0))))))
+		 (set tbit (if BI (eq qbit mbit) 1 0))))
+
+(dshci dmulsl "Multiply long (signed)"
+       ()
+       "dmuls.l $rm, $rn"
+       (+ (f-op4 3) rn rm (f-sub4 13))
+       (sequence ((DI result))
+		 (set result (mul (ext DI rm) (ext DI rn)))
+		 (set mach (subword SI result 0))
+		 (set macl (subword SI result 1))))
+
+(dshci dmulul "Multiply long (unsigned)"
+       ()
+       "dmulu.l $rm, $rn"
+       (+ (f-op4 3) rn rm (f-sub4 5))
+       (sequence ((DI result))
+		 (set result (mul (zext DI rm) (zext DI rn)))
+		 (set mach (subword SI result 0))
+		 (set macl (subword SI result 1))))
+
+(dshci dt "Decrement and set"
+       ()
+       "dt $rn"
+       (+ (f-op4 4) rn (f-sub8 16))
+       (sequence ()
+		 (set rn (sub rn 1))
+		 (set tbit (eq rn 0))))
+
+(dshci extsb "Sign extend byte"
+       ()
+       "exts.b $rm, $rn"
+       (+ (f-op4 6) rn rm (f-sub4 14))
+       (set rn (ext SI (subword QI rm 3))))
+
+(dshci extsw "Sign extend word"
+       ()
+       "exts.w $rm, $rn"
+       (+ (f-op4 6) rn rm (f-sub4 15))
+       (set rn (ext SI (subword HI rm 1))))
+
+(dshci extub "Zero extend byte"
+       ()
+       "extu.b $rm, $rn"
+       (+ (f-op4 6) rn rm (f-sub4 12))
+       (set rn (zext SI (subword QI rm 3))))
+
+(dshci extuw "Zero etxend word"
+       ()
+       "extu.w $rm, $rn"
+       (+ (f-op4 6) rn rm (f-sub4 13))
+       (set rn (zext SI (subword HI rm 1))))
+
+(dshci fabs "Floating point absolute"
+       (FP-INSN)
+       "fabs $fsdn"
+       (+ (f-op4 15) fsdn (f-sub8 #x5d))
+       (if prbit
+	   (set (dr fsdn) (c-call DF "sh64_fabsd" (dr fsdn)))
+	   (set fsdn (c-call SF "sh64_fabss" fsdn))))
+
+(dshci fadd "Floating point add"
+       (FP-INSN)
+       "fadd $fsdm, $fsdn"
+       (+ (f-op4 15) fsdn fsdm (f-sub4 0))
+       (if prbit
+	   (set (dr fsdn) (c-call DF "sh64_faddd" (dr fsdm) (dr fsdn)))
+	   (set fsdn (c-call SF "sh64_fadds" fsdm fsdn))))
+
+(dshci fcmpeq "Floating point compare equal"
+       (FP-INSN)
+       "fcmp/eq $fsdm, $fsdn"
+       (+ (f-op4 15) fsdn fsdm (f-sub4 4))
+       (if prbit
+	   (set tbit (c-call BI "sh64_fcmpeqd" (dr fsdm) (dr fsdn)))
+	   (set tbit (c-call BI "sh64_fcmpeqs" fsdm fsdn))))
+       
+(dshci fcmpgt "Floating point compare greater than"
+       (FP-INSN)
+       "fcmp/gt $fsdm, $fsdn"
+       (+ (f-op4 15) fsdn fsdm (f-sub4 5))
+       (if prbit
+	   (set tbit (c-call BI "sh64_fcmpgtd" (dr fsdn) (dr fsdm)))
+	   (set tbit (c-call BI "sh64_fcmpgts" fsdn fsdm))))
+
+(dshci fcnvds "Floating point convert (double to single)"
+       (FP-INSN)
+       "fcnvds $drn, fpul"
+       (+ (f-op4 15) drn (f-8-1 10) (f-sub8 #xbd))
+       (set fpul (c-call SF "sh64_fcnvds" drn)))
+
+(dshci fcnvsd "Floating point convert (single to double)"
+       (FP-INSN)
+       "fcnvsd fpul, $drn"
+       (+ (f-op4 15) drn (f-8-1 0) (f-sub8 #xad))
+       (set drn (c-call DF "sh64_fcnvsd" fpul)))
+
+(dshci fdiv "Floating point divide"
+       (FP-INSN)
+       "fdiv $fsdm, $fsdn"
+       (+ (f-op4 15) fsdn fsdm (f-sub4 3))
+       (if prbit
+	   (set (dr fsdn) (c-call DF "sh64_fdivd" (dr fsdn) (dr fsdm)))
+	   (set fsdn (c-call SF "sh64_fdivs" fsdn fsdm))))
+
+(dshci fipr "Floating point inner product"
+       (FP-INSN)
+       "fipr $fvm, $fvn"
+       (+ (f-op4 15) fvn fvm (f-sub8 #xed))
+       (sequence ((QI m) (QI n) (SF res))
+		 (set m (index-of fvm))
+		 (set n (index-of fvn))
+		 (set res (c-call SF "sh64_fmuls" fvm fvn))
+		 (set res (c-call SF "sh64_fadds" res (c-call SF "sh64_fmuls" (reg h-frc (add m 1)) (reg h-frc (add n 1)))))
+		 (set res (c-call SF "sh64_fadds" res (c-call SF "sh64_fmuls" (reg h-frc (add m 2)) (reg h-frc (add n 2)))))
+		 (set res (c-call SF "sh64_fadds" res (c-call SF "sh64_fmuls" (reg h-frc (add m 3)) (reg h-frc (add n 3)))))
+		 (set (reg h-frc (add n 3)) res)))
+
+(dshci flds "Floating point load status register"
+       (FP-INSN)
+       "flds $frn"
+       (+ (f-op4 15) frn (f-sub8 #x1d))
+       (set fpul frn))
+
+(dshci fldi0 "Floating point load immediate 0.0"
+       (FP-INSN)
+       "fldi0 $frn"
+       (+ (f-op4 15) frn (f-sub8 #x8d))
+       (set frn (c-call SF "sh64_fldi0")))
+
+(dshci fldi1 "Floating point load immediate 1.0"
+       (FP-INSN)
+       "fldi1 $frn"
+       (+ (f-op4 15) frn (f-sub8 #x9d))
+       (set frn (c-call SF "sh64_fldi1")))
+
+(dshci float "Floating point integer conversion"
+       (FP-INSN)
+       "float fpul, $fsdn"
+       (+ (f-op4 15) fsdn (f-sub8 #x2d))
+       (if prbit
+	   (set (dr fsdn) (c-call DF "sh64_floatld" fpul))
+	   (set fsdn (c-call SF "sh64_floatls" fpul))))
+
+(dshci fmac "Floating point multiply and accumulate"
+       (FP-INSN)
+       "fmac fr0, $frm, $frn"
+       (+ (f-op4 15) frn frm (f-sub4 14))
+       (set frn (c-call SF "sh64_fmacs" (reg h-frc 0) frm frn)))
+
+(define-pmacro (even x) (eq (and x 1) 0))
+(define-pmacro (odd x)  (eq (and x 1) 1))
+(define-pmacro (extd x) (odd (index-of x)))
+
+(dshci fmov1 "Floating point move (register to register)"
+       (FP-INSN)
+       "fmov $frm, $frn"
+       (+ (f-op4 15) frn frm (f-sub4 12))
+       (if (not szbit)
+	   ; single precision operation
+	   (set frn frm)
+	   ; double or extended operation
+	   (if (extd frm)
+	       (if (extd frn)
+		   (set (xd frn) (xd frm))
+		   (set (dr frn) (xd frm)))
+	       (if (extd frn)
+		   (set (xd frn) (dr frm))
+		   (set (dr frn) (dr frm))))))
+
+(dshci fmov2 "Floating point load"
+       (FP-INSN)
+       "fmov @$rm, $frn"
+       (+ (f-op4 15) frn rm (f-sub4 8))
+       (if (not szbit)
+	   ; single precision operation
+	   (set frn (mem SF rm))
+	   ; double or extended operation
+	   (if (extd frn)
+	       (set (xd frn) (mem DF rm))
+	       (set (dr frn) (mem DF rm)))))
+
+(dshci fmov3 "Floating point load (post-increment)"
+       (FP-INSN)
+       "fmov @${rm}+, frn"
+       (+ (f-op4 15) frn rm (f-sub4 9))
+       (if (not szbit)
+	   ; single precision operation
+	   (sequence ()
+		     (set frn (mem SF rm))
+		     (set rm (add rm 4)))
+	   ; double or extended operation
+	   (sequence ()
+		     (if (extd frn)
+			 (set (xd frn) (mem DF rm))
+			 (set (dr frn) (mem DF rm)))
+		     (set rm (add rm 8)))))
+
+(dshci fmov4 "Floating point load (register/register indirect)"
+       (FP-INSN)
+       "fmov @(r0, $rm), $frn"
+       (+ (f-op4 15) frn rm (f-sub4 6))
+       (if (not szbit)
+	   ; single precision operation
+	   (set frn (mem SF (add r0 rm)))
+	   ; double or extended operation
+	   (if (extd frn)
+	       (set (xd frn) (mem DF (add r0 rm)))
+	       (set (dr frn) (mem DF (add r0 rm))))))
+
+(dshci fmov5 "Floating point store"
+       (FP-INSN)
+       "fmov $frm, @$rn"
+       (+ (f-op4 15) rn frm (f-sub4 10))
+       (if (not szbit)
+	   ; single precision operation
+	   (set (mem SF rn) frm)
+	   ; double or extended operation
+	   (if (extd frm)
+	       (set (mem DF rn) (xd frm))
+	       (set (mem DF rn) (dr frm)))))
+
+(dshci fmov6 "Floating point store (pre-decrement)"
+       (FP-INSN)
+       "fmov $frm, @-$rn"
+       (+ (f-op4 15) rn frm (f-sub4 11))
+       (if (not szbit)
+	   ; single precision operation
+	   (sequence ()
+		     (set rn (sub rn 4))
+		     (set (mem SF rn) frm))
+	   ; double or extended operation
+	   (sequence ()
+		     (set rn (sub rn 8))
+		     (if (extd frm)
+			 (set (mem DF rn) (xd frm))
+			 (set (mem DF rn) (dr frm))))))
+
+(dshci fmov7 "Floating point store (register/register indirect)"
+       (FP-INSN)
+       "fmov $frm, @(r0, $rn)"
+       (+ (f-op4 15) rn frm (f-sub4 7))
+       (if (not szbit)
+	   ; single precision operation
+	   (set (mem SF (add r0 rn)) frm)
+	   ; double or extended operation
+	   (if (extd frm)
+	       (set (mem DF (add r0 rn)) (xd frm))
+	       (set (mem DF (add r0 rn)) (dr frm)))))
+
+(dshci fmul "Floating point multiply"
+       (FP-INSN)
+       "fmul $fsdm, $fsdn"
+       (+ (f-op4 15) fsdn fsdm (f-sub4 2))
+       (if prbit
+	   (set (dr fsdn) (c-call DF "sh64_fmuld" (dr fsdm) (dr fsdn)))
+	   (set fsdn (c-call SF "sh64_fmuls" fsdm fsdn))))
+
+(dshci fneg "Floating point negate"
+       (FP-INSN)
+       "fneg $fsdn"
+       (+ (f-op4 15) fsdn (f-sub8 #x4d))
+       (if prbit
+	   (set (dr fsdn) (c-call DF "sh64_fnegd" (dr fsdn)))
+	   (set fsdn (c-call SF "sh64_fnegs" fsdn))))
+
+(dshci frchg "Toggle floating point register banks"
+       (FP-INSN)
+       "frchg"
+       (+ (f-op16 #xfbfd))
+       (set frbit (not frbit)))
+
+(dshci fschg "Set size of floating point transfers"
+       (FP-INSN)
+       "fschg"
+       (+ (f-op16 #xf3fd))
+       (set szbit (not szbit)))
+
+(dshci fsqrt "Floating point square root"
+       (FP-INSN)
+       "fsqrt $fsdn"
+       (+ (f-op4 15) fsdn (f-sub8 #x6d))
+       (if prbit
+	   (set (dr fsdn) (c-call DF "sh64_fsqrtd" (dr fsdn)))
+	   (set fsdn (c-call SF "sh64_fsqrts" fsdn))))
+
+(dshci fsts "Floating point store status register"
+       (FP-INSN)
+      "fsts fpul, $frn"
+       (+ (f-op4 15) frn (f-sub8 13))
+       (set frn fpul))
+
+(dshci fsub "Floating point subtract"
+       (FP-INSN)
+       "fsub $fsdm, $fsdn"
+       (+ (f-op4 15) fsdn fsdm (f-sub4 1))
+       (if prbit
+	   (set (dr fsdn) (c-call DF "sh64_fsubd" (dr fsdn) (dr fsdm)))
+	   (set fsdn (c-call SF "sh64_fsubs" fsdn fsdm))))
+
+(dshci ftrc "Floating point truncate"
+       (FP-INSN)
+       "ftrc $fsdn, fpul"
+       (+ (f-op4 15) fsdn (f-sub8 #x3d))
+       (set fpul (if SF prbit
+		     (c-call SF "sh64_ftrcdl" (dr fsdn))
+		     (c-call SF "sh64_ftrcsl" fsdn))))
+
+(dshci ftrv "Floating point transform vector"
+       (FP-INSN)
+       "ftrv xmtrx, $fvn"
+       (+ (f-op4 15) fvn (f-sub10 #x1fd))
+       (sequence ((QI n) (SF res))
+		 (set n (index-of fvn))
+		 (set res (c-call SF "sh64_fmuls" (reg h-xf 0) (reg h-frc n)))
+		 (set res (c-call SF "sh64_fadds" res (c-call SF "sh64_fmuls" (reg h-xf 4)  (reg h-frc (add n 1)))))
+		 (set res (c-call SF "sh64_fadds" res (c-call SF "sh64_fmuls" (reg h-xf 8)  (reg h-frc (add n 2)))))
+		 (set res (c-call SF "sh64_fadds" res (c-call SF "sh64_fmuls" (reg h-xf 12) (reg h-frc (add n 3)))))
+		 (set (reg h-frc n) res)
+		 (set res (c-call SF "sh64_fmuls" (reg h-xf 1) (reg h-frc n)))
+		 (set res (c-call SF "sh64_fadds" res (c-call SF "sh64_fmuls" (reg h-xf 5)  (reg h-frc (add n 1)))))
+		 (set res (c-call SF "sh64_fadds" res (c-call SF "sh64_fmuls" (reg h-xf 9)  (reg h-frc (add n 2)))))
+		 (set res (c-call SF "sh64_fadds" res (c-call SF "sh64_fmuls" (reg h-xf 13) (reg h-frc (add n 3)))))
+		 (set (reg h-frc (add n 1)) res)
+		 (set res (c-call SF "sh64_fmuls" (reg h-xf 2) (reg h-frc n)))
+		 (set res (c-call SF "sh64_fadds" res (c-call SF "sh64_fmuls" (reg h-xf 6)  (reg h-frc (add n 1)))))
+		 (set res (c-call SF "sh64_fadds" res (c-call SF "sh64_fmuls" (reg h-xf 10) (reg h-frc (add n 2)))))
+		 (set res (c-call SF "sh64_fadds" res (c-call SF "sh64_fmuls" (reg h-xf 14) (reg h-frc (add n 3)))))
+		 (set (reg h-frc (add n 2)) res)
+		 (set res (c-call SF "sh64_fmuls" (reg h-xf 3) (reg h-frc n)))
+		 (set res (c-call SF "sh64_fadds" res (c-call SF "sh64_fmuls" (reg h-xf 7)  (reg h-frc (add n 1)))))
+		 (set res (c-call SF "sh64_fadds" res (c-call SF "sh64_fmuls" (reg h-xf 11) (reg h-frc (add n 2)))))
+		 (set res (c-call SF "sh64_fadds" res (c-call SF "sh64_fmuls" (reg h-xf 15) (reg h-frc (add n 3)))))
+		 (set (reg h-frc (add n 3)) res)))
+
+(dshci jmp "Jump"
+       ()
+       "jmp @$rn"
+       (+ (f-op4 4) rn (f-sub8 43))
+       (delay 1 (set pc rn)))
+
+(dshci jsr "Jump to subroutine"
+       ()
+       "jsr @$rn"
+       (+ (f-op4 4) rn (f-sub8 11))
+       (delay 1 (sequence ()
+			  (set pr (add pc 4))
+			  (set pc rn))))
+
+(dshci ldc "Load control register (GBR)"
+       ()
+       "ldc $rn, gbr"
+       (+ (f-op4 4) rn (f-sub8 30))
+       (set gbr rn))
+
+(dshci ldcl "Load control register (GBR)"
+       ()
+       "ldc.l @${rn}+, gbr"
+       (+ (f-op4 4) rn (f-sub8 39))
+       (sequence ()
+		 (set gbr (mem SI rn))
+		 (set rn (add rn 4))))
+
+(dshci lds-fpscr "Load status register (FPSCR)"
+       ()
+       "lds $rn, fpscr"
+       (+ (f-op4 4) rn (f-sub8 106))
+       (set fpscr rn))
+
+(dshci ldsl-fpscr "Load status register (FPSCR)"
+       ()
+       "lds.l @${rn}+, fpscr"
+       (+ (f-op4 4) rn (f-sub8 102))
+       (sequence ()
+		 (set fpscr (mem SI rn))
+		 (set rn (add rn 4))))
+
+(dshci lds-fpul "Load status register (FPUL)"
+       ()
+       "lds $rn, fpul"
+       (+ (f-op4 4) rn (f-sub8 90))
+       ; Use subword to convert rn's mode.
+       (set fpul (subword SF rn 0)))
+
+(dshci ldsl-fpul "Load status register (FPUL)"
+       ()
+       "lds.l @${rn}+, fpul"
+       (+ (f-op4 4) rn (f-sub8 86))
+       (sequence ()
+		 (set fpul (mem SF rn))
+		 (set rn (add rn 4))))
+
+(dshci lds-mach "Load status register (MACH)"
+       ()
+       "lds $rn, mach"
+       (+ (f-op4 4) rn (f-sub8 10))
+       (set mach rn))
+
+(dshci ldsl-mach "Load status register (MACH), post-increment"
+       ()
+       "lds.l @${rn}+, mach"
+       (+ (f-op4 4) rn (f-sub8 6))
+       (sequence ()
+		 (set mach (mem SI rn))
+		 (set rn (add rn 4))))
+
+(dshci lds-macl "Load status register (MACL)"
+       ()
+       "lds $rn, macl"
+       (+ (f-op4 4) rn (f-sub8 26))
+       (set macl rn))
+
+(dshci ldsl-macl "Load status register (MACL), post-increment"
+       ()
+       "lds.l @${rn}+, macl"
+       (+ (f-op4 4) rn (f-sub8 22))
+       (sequence ()
+		 (set macl (mem SI rn))
+		 (set rn (add rn 4))))
+
+(dshci lds-pr "Load status register (PR)"
+       ()
+       "lds $rn, pr"
+       (+ (f-op4 4) rn (f-sub8 42))
+       (set pr rn))
+
+(dshci ldsl-pr "Load status register (PR), post-increment"
+       ()
+       "lds.l @${rn}+, pr"
+       (+ (f-op4 4) rn (f-sub8 38))
+       (sequence ()
+		 (set pr (mem SI rn))
+		 (set rn (add rn 4))))
+
+(dshci macl "Multiply and accumulate (long)"
+       ()
+       "mac.l @${rm}+, @${rn}+"
+       (+ (f-op4 0) rn rm (f-sub4 15))
+       (sequence ((DI tmpry) (DI mac) (DI result) (SI x) (SI y))
+		 (set x (mem SI rn))
+		 (set rn (add rn 4))
+		 (if (eq (index-of rn) (index-of rm))
+		     (sequence ()
+			       (set rn (add rn 4))
+			       (set rm (add rm 4))))
+		 (set y (mem SI rm))
+		 (set rm (add rm 4))
+		 (set tmpry (mul (zext DI x) (zext DI y)))
+		 (set mac (or DI (sll (zext DI mach) 32) (zext DI macl)))
+		 (set result (add mac tmpry))
+		 (sequence ()
+			   (if sbit
+			       (sequence ((SI min) (SI max))
+					 (set max (srl (inv DI 0) 16))
+					; Preserve bit 48 for sign.
+					 (set min (srl (inv DI 0) 15))
+					 (if (gt result max)
+					     (set result max)
+					     (if (lt result min)
+						 (set result min)))))
+			   (set mach (subword SI result 0))
+			   (set macl (subword SI result 1)))))
+
+(dshci macw "Multiply and accumulate (word)"
+       ()
+       "mac.w @${rm}+, @${rn}+"
+       (+ (f-op4 4) rn rm (f-sub4 15))
+       (sequence ((SI tmpry) (DI mac) (DI result) (HI x) (HI y))
+		 (set x (mem HI rn))
+		 (set rn (add rn 2))
+		 (if (eq (index-of rn) (index-of rm))
+		     (sequence ()
+			       (set rn (add rn 2))
+			       (set rm (add rm 2))))
+		 (set y (mem HI rm))
+		 (set rm (add rm 2))
+		 (set tmpry (mul (zext SI x) (zext SI y)))
+		 (if sbit
+		     (sequence ()
+			       (if (add-oflag tmpry macl 0)
+				   (set mach 1))
+			       (set macl (add tmpry macl)))
+		     (sequence ()
+			       (set mac (or DI (sll (zext DI mach) 32) (zext DI macl)))
+			       (set result (add mac (ext DI tmpry)))
+			       (set mach (subword SI result 0))
+			       (set macl (subword SI result 1))))))
+
+(dshci mov "Move"
+       ()
+       "mov $rm64, $rn64"
+       (+ (f-op4 6) rn64 rm64 (f-sub4 3))
+       (set rn64 rm64))
+
+(dshci movi "Move immediate"
+       ()
+       "mov #$imm8, $rn"
+       (+ (f-op4 14) rn imm8)
+       (set rn (ext DI (and QI imm8 255))))
+
+(dshci movb1 "Store byte to memory (register indirect w/ zero displacement)"
+       ()
+       "mov.b $rm, @$rn"
+       (+ (f-op4 2) rn rm (f-sub4 0))
+       (set (mem UQI rn) (subword UQI rm 3)))
+
+(dshci movb2 "Store byte to memory (register indirect w/ pre-decrement)"
+       ()
+       "mov.b $rm, @-$rn"
+       (+ (f-op4 2) rn rm (f-sub4 4))
+       (sequence ((DI addr))
+		 (set addr (sub rn 1))
+		 (set (mem UQI addr) (subword UQI rm 3))
+		 (set rn addr)))
+
+(dshci movb3 "Store byte to memory (register/register indirect)"
+       ()
+       "mov.b $rm, @(r0,$rn)"
+       (+ (f-op4 0) rn rm (f-sub4 4))
+       (set (mem UQI (add r0 rn)) (subword UQI rm 3)))
+
+(dshci movb4 "Store byte to memory (GBR-relative w/ displacement)"
+       ()
+       "mov.b r0, @($imm8, gbr)"
+       (+ (f-op8 #xc0) imm8)
+       (sequence ((DI addr))
+		 (set addr (add gbr imm8))
+		 (set (mem UQI addr) (subword UQI r0 3))))
+
+(dshci movb5 "Store byte to memory (register indirect w/ displacement)"
+       ()
+       "mov.b r0, @($imm4, $rm)"
+       (+ (f-op8 #x80) rm imm4)
+       (sequence ((DI addr))
+		 (set addr (add rm imm4))
+		 (set (mem UQI addr) (subword UQI r0 3))))
+
+(dshci movb6 "Load byte from memory (register indirect w/ zero displacement)"
+       ()
+       "mov.b @$rm, $rn"
+       (+ (f-op4 6) rn rm (f-sub4 0))
+       (set rn (ext SI (mem QI rm))))
+
+(dshci movb7 "Load byte from memory (register indirect w/ post-increment)"
+       ()
+       "mov.b @${rm}+, $rn"
+       (+ (f-op4 6) rn rm (f-sub4 4))
+       (sequence ((QI data))
+		 (set data (mem QI rm))
+		 (if (eq (index-of rm) (index-of rn))
+		     (set rm (ext SI data))
+		     (set rm (add rm 1)))
+		 (set rn (ext SI data))))
+
+(dshci movb8 "Load byte from memory (register/register indirect)"
+       ()
+       "mov.b @(r0, $rm), $rn"
+       (+ (f-op4 0) rn rm (f-sub4 12))
+       (set rn (ext SI (mem QI (add r0 rm)))))
+
+(dshci movb9 "Load byte from memory (GBR-relative with displacement)"
+       ()
+       "mov.b @($imm8, gbr), r0"
+       (+ (f-op8 #xc4) imm8)
+       (set r0 (ext SI (mem QI (add gbr imm8)))))
+
+(dshci movb10 "Load byte from memory (register indirect w/ displacement)"
+       ()
+       "mov.b @($imm4, $rm), r0"
+       (+ (f-op8 #x84) rm imm4)
+       (set r0 (ext SI (mem QI (add rm imm4)))))
+
+(dshci movl1 "Store long word to memory (register indirect w/ zero displacement)"
+       ()
+       "mov.l $rm, @$rn"
+       (+ (f-op4 2) rn rm (f-sub4 2))
+       (set (mem SI rn) rm))
+
+(dshci movl2 "Store long word to memory (register indirect w/ pre-decrement)"
+       ()
+       "mov.l $rm, @-$rn"
+       (+ (f-op4 2) rn rm (f-sub4 6))
+       (sequence ((SI addr))
+		 (set addr (sub rn 4))
+		 (set (mem SI addr) rm)
+		 (set rn addr)))
+
+(dshci movl3 "Store long word to memory (register/register indirect)"
+       ()
+       "mov.l $rm, @(r0, $rn)"
+       (+ (f-op4 0) rn rm (f-sub4 6))
+       (set (mem SI (add r0 rn)) rm))
+
+(dshci movl4 "Store long word to memory (GBR-relative w/ displacement)"
+       ()
+       "mov.l r0, @($imm8x4, gbr)"
+       (+ (f-op8 #xc2) imm8x4)
+       (set (mem SI (add gbr imm8x4)) r0))
+
+(dshci movl5 "Store long word to memory (register indirect w/ displacement)"
+       ()
+       "mov.l $rm, @($imm4x4, $rn)"
+       (+ (f-op4 1) rn rm imm4x4)
+       (set (mem SI (add rn imm4x4)) rm))
+
+(dshci movl6 "Load long word to memory (register indirect w/ zero displacement)"
+       ()
+       "mov.l @$rm, $rn"
+       (+ (f-op4 6) rn rm (f-sub4 2))
+       (set rn (mem SI rm)))
+
+(dshci movl7 "Load long word from memory (register indirect w/ post-increment)"
+       ()
+       "mov.l @${rm}+, $rn"
+       (+ (f-op4 6) rn rm (f-sub4 6))
+       (sequence ()
+		 (set rn (mem SI rm))
+		 (if (eq (index-of rm) (index-of rn))
+		     (set rm rn)
+		     (set rm (add rm 4)))))
+
+(dshci movl8 "Load long word from memory (register/register indirect)"
+       ()
+       "mov.l @(r0, $rm), $rn"
+       (+ (f-op4 0) rn rm (f-sub4 14))
+       (set rn (mem SI (add r0 rm))))
+
+(dshci movl9 "Load long word from memory (GBR-relative w/ displacement)"
+       ()
+       "mov.l @($imm8x4, gbr), r0"
+       (+ (f-op8 #xc6) imm8x4)
+       (set r0 (mem SI (add gbr imm8x4))))
+
+(dshci movl10 "Load long word from memory (PC-relative w/ displacement)"
+       (ILLSLOT)
+       "mov.l @($imm8x4, pc), $rn"
+       (+ (f-op4 13) rn imm8x4)
+       (set rn (mem SI (add imm8x4 (and (add pc 4) (inv 3))))))
+
+(dshci movl11 "Load long word from memory (register indirect w/ displacement)"
+       ()
+       "mov.l @($imm4x4, $rm), $rn"
+       (+ (f-op4 5) rn rm imm4x4)
+       (set rn (mem SI (add rm imm4x4))))
+
+(dshci movw1 "Store word to memory (register indirect w/ zero displacement)"
+       ()
+       "mov.w $rm, @$rn"
+       (+ (f-op4 2) rn rm (f-sub4 1))
+       (set (mem HI rn) (subword HI rm 1)))
+
+(dshci movw2 "Store word to memory (register indirect w/ pre-decrement)"
+       ()
+       "mov.w $rm, @-$rn"
+       (+ (f-op4 2) rn rm (f-sub4 5))
+       (sequence ((DI addr))
+		 (set addr (sub rn 2))
+		 (set (mem HI addr) (subword HI rm 1))
+		 (set rn addr)))
+
+(dshci movw3 "Store word to memory (register/register indirect)"
+       ()
+       "mov.w $rm, @(r0, $rn)"
+       (+ (f-op4 0) rn rm (f-sub4 5))
+       (set (mem HI (add r0 rn)) (subword HI rm 1)))
+
+(dshci movw4 "Store word to memory (GBR-relative w/ displacement)"
+       ()
+       "mov.w r0, @($imm8x2, gbr)"
+       (+ (f-op8 #xc1) imm8x2)
+       (set (mem HI (add gbr imm8x2)) (subword HI r0 1)))
+
+(dshci movw5 "Store word to memory (register indirect w/ displacement)"
+       ()
+       "mov.w r0, @($imm4x2, $rn)"
+       (+ (f-op8 #x81) rn imm4x2)
+       (set (mem HI (add rn imm4x2)) (subword HI r0 1)))
+
+(dshci movw6 "Load word from memory (register indirect w/ zero displacement)"
+       ()
+       "mov.w @$rm, $rn"
+       (+ (f-op4 6) rn rm (f-sub4 1))
+       (set rn (ext SI (mem HI rm))))
+
+(dshci movw7 "Load word from memory (register indirect w/ post-increment)"
+       ()
+       "mov.w @${rm}+, $rn"
+       (+ (f-op4 6) rn rm (f-sub4 5))
+       (sequence ((HI data))
+		 (set data (mem HI rm))
+		 (if (eq (index-of rm) (index-of rn))
+		     (set rm (ext SI data))
+		     (set rm (add rm 2)))
+		 (set rn (ext SI data))))
+
+(dshci movw8 "Load word from memory (register/register indirect)"
+       ()
+       "mov.w @(r0, $rm), $rn"
+       (+ (f-op4 0) rn rm (f-sub4 13))
+       (set rn (ext SI (mem HI (add r0 rm)))))
+
+(dshci movw9 "Load word from memory (GBR-relative w/ displacement)"
+       ()
+       "mov.w @($imm8x2, gbr), r0"
+       (+ (f-op8 #xc5) imm8x2)
+       (set r0 (ext SI (mem HI (add gbr imm8x2)))))
+
+(dshci movw10 "Load word from memory (PC-relative w/ displacement)"
+       (ILLSLOT)
+       "mov.w @($imm8x2, pc), $rn"
+       (+ (f-op4 9) rn imm8x2)
+       (set rn (ext SI (mem HI (add (add pc 4) imm8x2)))))
+
+(dshci movw11 "Load word from memory (register indirect w/ displacement)"
+       ()
+       "mov.w @($imm4x2, $rm), r0"
+       (+ (f-op8 #x85) rm imm4x2)
+       (set r0 (ext SI (mem HI (add rm imm4x2)))))
+
+(dshci mova "Move effective address"
+       (ILLSLOT)
+       "mova @($imm8x4, pc), r0"
+       (+ (f-op8 #xc7) imm8x4)
+       (set r0 (add (and (add pc 4) (inv 3)) imm8x4)))
+
+(dshci movcal "Move with cache block allocation"
+       ()
+       "movca.l r0, @$rn"
+       (+ (f-op4 0) rn (f-sub8 #xc3))
+       (set (mem SI rn) r0))
+       
+(dshci movt "Move t-bit"
+       ()
+       "movt $rn"
+       (+ (f-op4 0) rn (f-sub8 41))
+       (set rn (zext SI tbit)))
+
+(dshci mull "Multiply"
+       ()
+       "mul.l $rm, $rn"
+       (+ (f-op4 0) rn rm (f-sub4 7))
+       (set macl (mul rm rn)))
+
+(dshci mulsw "Multiply words (signed)"
+       ()
+       "muls.w $rm, $rn"
+       (+ (f-op4 2) rn rm (f-sub4 15))
+       (set macl (mul (ext SI (subword HI rm 1)) (ext SI (subword HI rn 1)))))
+
+(dshci muluw "Multiply words (unsigned)"
+       ()
+       "mulu.w $rm, $rn"
+       (+ (f-op4 2) rn rm (f-sub4 14))
+       (set macl (mul (zext SI (subword HI rm 1)) (zext SI (subword HI rn 1)))))
+
+(dshci neg "Negate"
+       ()
+       "neg $rm, $rn"
+       (+ (f-op4 6) rn rm (f-sub4 11))
+       (set rn (neg rm)))
+
+(dshci negc "Negate with carry"
+       ()
+       "negc $rm, $rn"
+       (+ (f-op4 6) rn rm (f-sub4 10))
+       (sequence ((BI flag))
+		 (set flag (sub-cflag 0 rm tbit))
+		 (set rn (subc 0 rm tbit))
+		 (set tbit flag)))
+
+(dshci nop "No operation"
+       ()
+       "nop"
+       (+ (f-op16 9))
+       (nop))
+
+(dshci not "Bitwise NOT"
+       ()
+       "not $rm64, $rn64"
+       (+ (f-op4 6) rn64 rm64 (f-sub4 7))
+       (set rn64 (inv rm64)))
+
+(dshci ocbi "Invalidate operand cache block"
+       ()
+       "ocbi @$rn"
+       (+ (f-op4 0) rn (f-sub8 147))
+       (unimp "ocbi"))
+
+(dshci ocbp "Purge operand cache block"
+       ()
+       "ocbp @$rn"
+       (+ (f-op4 0) rn (f-sub8 163))
+       (unimp "ocbp"))
+
+(dshci ocbwb "Write back operand cache block"
+       ()
+       "ocbwb @$rn"
+       (+ (f-op4 0) rn (f-sub8 179))
+       (unimp "ocbwb"))
+
+(dshci or "Bitwise OR"
+       ()
+       "or $rm64, $rn64"
+       (+ (f-op4 2) rn64 rm64 (f-sub4 11))
+       (set rn64 (or rm64 rn64)))
+
+(dshci ori "Bitwise OR immediate"
+       ()
+       "or #$uimm8, r0"
+       (+ (f-op8 #xcb) uimm8)
+       (set r0 (or r0 (zext DI uimm8))))
+
+(dshci orb "Bitwise OR immediate"
+       ()
+       "or.b #$imm8, @(r0, gbr)"
+       (+ (f-op8 #xcf) imm8)
+       (sequence ((DI addr) (UQI data))
+		 (set addr (add r0 gbr))
+		 (set data (or (mem UQI addr) imm8))
+		 (set (mem UQI addr) data)))
+
+(dshci pref "Prefetch data"
+       ()
+       "pref @$rn"
+       (+ (f-op4 0) rn (f-sub8 131))
+       (unimp "pref"))
+
+(dshci rotcl "Rotate with carry left"
+       ()
+       "rotcl $rn"
+       (+ (f-op4 4) rn (f-sub8 36))
+       (sequence ((BI temp))
+		 (set temp (srl rn 31))
+		 (set rn (or (sll rn 1) tbit))
+		 (set tbit (if BI temp 1 0))))
+
+(dshci rotcr "Rotate with carry right"
+       ()
+       "rotcr $rn"
+       (+ (f-op4 4) rn (f-sub8 37))
+       (sequence ((BI lsbit) (SI temp))
+		 (set lsbit (if BI (eq (and rn 1) 0) 0 1))
+		 (set temp tbit)
+		 (set rn (or (srl rn 1) (sll temp 31)))
+		 (set tbit (if BI lsbit 1 0))))
+
+(dshci rotl "Rotate left"
+       ()
+       "rotl $rn"
+       (+ (f-op4 4) rn (f-sub8 4))
+       (sequence ((BI temp))
+		 (set temp (srl rn 31))
+		 (set rn (or (sll rn 1) temp))
+		 (set tbit (if BI temp 1 0))))
+
+(dshci rotr "Rotate right"
+       ()
+       "rotr $rn"
+       (+ (f-op4 4) rn (f-sub8 5))
+       (sequence ((BI lsbit) (SI temp))
+		 (set lsbit (if BI (eq (and rn 1) 0) 0 1))
+		 (set temp lsbit)
+		 (set rn (or (srl rn 1) (sll temp 31)))
+		 (set tbit (if BI lsbit 1 0))))
+
+(dshci rts "Return from subroutine"
+       ()
+       "rts"
+       (+ (f-op16 11))
+       (delay 1 (set pc pr)))
+
+(dshci sets "Set S-bit"
+       ()
+       "sets"
+       (+ (f-op16 88))
+       (set sbit 1))
+
+(dshci sett "Set T-bit"
+       ()
+       "sett"
+       (+ (f-op16 24))
+       (set tbit 1))
+
+(dshci shad "Shift arithmetic dynamic"
+       ()
+       "shad $rm, $rn"
+       (+ (f-op4 4) rn rm (f-sub4 12))
+       (sequence ((QI shamt))
+		 (set shamt (and QI rm 31))
+		 (if (ge rm 0)
+		     (set rn (sll rn shamt))
+		     (if (ne shamt 0)
+			 (set rn (sra rn (sub 32 shamt)))
+			 (if (lt rn 0)
+			     (set rn (neg 1))
+			     (set rn 0))))))
+
+(dshci shal "Shift left arithmetic one bit"
+       ()
+       "shal $rn"
+       (+ (f-op4 4) rn (f-sub8 32))
+       (sequence ((BI t))
+		 (set t (srl rn 31))
+		 (set rn (sll rn 1))
+		 (set tbit (if BI t 1 0))))
+
+(dshci shar "Shift right arithmetic one bit"
+       ()
+       "shar $rn"
+       (+ (f-op4 4) rn (f-sub8 33))
+       (sequence ((BI t))
+		 (set t (and rn 1))
+		 (set rn (sra rn 1))
+		 (set tbit (if BI t 1 0))))
+
+(dshci shld "Shift logical dynamic"
+       ()
+       "shld $rm, $rn"
+       (+ (f-op4 4) rn rm (f-sub4 13))
+       (sequence ((QI shamt))
+		 (set shamt (and QI rm 31))
+		 (if (ge rm 0)
+		     (set rn (sll rn shamt))
+		     (if (ne shamt 0)
+			 (set rn (srl rn (sub 32 shamt)))
+			 (set rn 0)))))
+
+(dshci shll "Shift left logical one bit"
+       ()
+       "shll $rn"
+       (+ (f-op4 4) rn (f-sub8 0))
+       (sequence ((BI t))
+		 (set t (srl rn 31))
+		 (set rn (sll rn 1))
+		 (set tbit (if BI t 1 0))))
+
+(dshci shll2 "Shift left logical two bits"
+       ()
+       "shll2 $rn"
+       (+ (f-op4 4) rn (f-sub8 8))
+       (set rn (sll rn 2)))
+
+(dshci shll8 "Shift left logical eight bits"
+       ()
+       "shll8 $rn"
+       (+ (f-op4 4) rn (f-sub8 24))
+       (set rn (sll rn 8)))
+
+(dshci shll16 "Shift left logical sixteen bits"
+       ()
+       "shll16 $rn"
+       (+ (f-op4 4) rn (f-sub8 40))
+       (set rn (sll rn 16)))
+
+(dshci shlr "Shift right logical one bit"
+       ()
+       "shlr $rn"
+       (+ (f-op4 4) rn (f-sub8 1))
+       (sequence ((BI t))
+		 (set t (and rn 1))
+		 (set rn (srl rn 1))
+		 (set tbit (if BI t 1 0))))
+
+(dshci shlr2 "Shift right logical two bits"
+       ()
+       "shlr2 $rn"
+       (+ (f-op4 4) rn (f-sub8 9))
+       (set rn (srl rn 2)))
+
+(dshci shlr8 "Shift right logical eight bits"
+       ()
+       "shlr8 $rn"
+       (+ (f-op4 4) rn (f-sub8 25))
+       (set rn (srl rn 8)))
+
+(dshci shlr16 "Shift right logical sixteen bits"
+       ()
+       "shlr16 $rn"
+       (+ (f-op4 4) rn (f-sub8 41))
+       (set rn (srl rn 16)))
+
+(dshci stc-gbr "Store control register (GBR)"
+       ()
+       "stc gbr, $rn"
+       (+ (f-op4 0) rn (f-sub8 18))
+       (set rn gbr))
+
+(dshci stcl-gbr "Store control register (GBR)"
+       ()
+       "stc.l gbr, @-$rn"
+       (+ (f-op4 4) rn (f-sub8 19))
+       (sequence ((DI addr))
+		 (set addr (sub rn 4))
+		 (set (mem SI addr) gbr)
+		 (set rn addr)))
+
+(dshci sts-fpscr "Store status register (FPSCR)"
+       ()
+       "sts fpscr, $rn"
+       (+ (f-op4 0) rn (f-sub8 106))
+       (set rn fpscr))
+
+(dshci stsl-fpscr "Store status register (FPSCR)"
+       ()
+       "sts.l fpscr, @-$rn"
+       (+ (f-op4 4) rn (f-sub8 98))
+       (sequence ((DI addr))
+		 (set addr (sub rn 4))
+		 (set (mem SI addr) fpscr)
+		 (set rn addr)))
+
+(dshci sts-fpul "Store status register (FPUL)"
+       ()
+       "sts fpul, $rn"
+       (+ (f-op4 0) rn (f-sub8 90))
+       (set rn (subword SI fpul 0)))
+
+(dshci stsl-fpul "Store status register (FPUL)"
+       ()
+       "sts.l fpul, @-$rn"
+       (+ (f-op4 4) rn (f-sub8 82))
+       (sequence ((DI addr))
+		 (set addr (sub rn 4))
+		 (set (mem SF addr) fpul)
+		 (set rn addr)))
+
+(dshci sts-mach "Store status register (MACH)"
+       ()
+       "sts mach, $rn"
+       (+ (f-op4 0) rn (f-sub8 10))
+       (set rn mach))
+
+(dshci stsl-mach "Store status register (MACH)"
+       ()
+       "sts.l mach, @-$rn"
+       (+ (f-op4 4) rn (f-sub8 2))
+       (sequence ((DI addr))
+		 (set addr (sub rn 4))
+		 (set (mem SI addr) mach)
+		 (set rn addr)))
+
+(dshci sts-macl "Store status register (MACL)"
+       ()
+       "sts macl, $rn"
+       (+ (f-op4 0) rn (f-sub8 26))
+       (set rn macl))
+
+(dshci stsl-macl "Store status register (MACL)"
+       ()
+       "sts.l macl, @-$rn"
+       (+ (f-op4 4) rn (f-sub8 18))
+       (sequence ((DI addr))
+		 (set addr (sub rn 4))
+		 (set (mem SI addr) macl)
+		 (set rn addr)))
+
+(dshci sts-pr "Store status register (PR)"
+       ()
+       "sts pr, $rn"
+       (+ (f-op4 0) rn (f-sub8 42))
+       (set rn pr))
+
+(dshci stsl-pr "Store status register (PR)"
+       ()
+       "sts.l pr, @-$rn"
+       (+ (f-op4 4) rn (f-sub8 34))
+       (sequence ((DI addr))
+		 (set addr (sub rn 4))
+		 (set (mem SI addr) pr)
+		 (set rn addr)))
+
+(dshci sub "Subtract"
+       ()
+       "sub $rm, $rn"
+       (+ (f-op4 3) rn rm (f-sub4 8))
+       (set rn (sub rn rm)))
+
+(dshci subc "Subtract and detect carry"
+       ()
+       "subc $rm, $rn"
+       (+ (f-op4 3) rn rm (f-sub4 10))
+       (sequence ((BI flag))
+		 (set flag (sub-cflag rn rm tbit))
+		 (set rn (subc rn rm tbit))
+		 (set tbit flag)))
+
+(dshci subv "Subtract and detect overflow"
+       ()
+       "subv $rm, $rn"
+       (+ (f-op4 3) rn rm (f-sub4 11))
+       (sequence ((BI t))
+		 (set t (sub-oflag rn rm 0))
+		 (set rn (sub rn rm))
+		 (set tbit (if BI t 1 0))))
+
+(dshci swapb "Swap bytes"
+       ()
+       "swap.b $rm, $rn"
+       (+ (f-op4 6) rn rm (f-sub4 8))
+       (sequence ((UHI top-half) (UQI byte1) (UQI byte0))
+		 (set top-half (subword HI rm 0))
+		 (set byte1 (subword QI rm 2))
+		 (set byte0 (subword QI rm 3))
+		 (set rn (or SI (sll SI top-half 16) (or SI (sll SI byte0 8) byte1)))))
+
+(dshci swapw "Swap words"
+       ()
+       "swap.w $rm, $rn"
+       (+ (f-op4 6) rn rm (f-sub4 9))
+       (set rn (or (srl rm 16) (sll rm 16))))
+
+(dshci tasb "Test and set byte"
+       ()
+       "tas.b @$rn"
+       (+ (f-op4 4) rn (f-sub8 27))
+       (sequence ((UQI byte))
+		 (set byte (mem UQI rn))
+		 (set tbit (if BI (eq byte 0) 1 0))
+		 (set byte (or byte 128))
+		 (set (mem UQI rn) byte)))
+
+(dshci trapa "Trap"
+       (ILLSLOT)
+       "trapa #$uimm8"
+       (+ (f-op8 #xc3) uimm8)
+       (c-call "sh64_compact_trapa" uimm8 pc))
+
+(dshci tst "Test and set t-bit"
+       ()
+       "tst $rm, $rn"
+       (+ (f-op4 2) rn rm (f-sub4 8))
+       (set tbit (if BI (eq (and rm rn) 0) 1 0)))
+
+(dshci tsti "Test and set t-bit immediate" 
+       ()
+       "tst #$uimm8, r0"
+       (+ (f-op8 #xc8) uimm8)
+       (set tbit (if BI (eq (and r0 (zext SI uimm8)) 0) 1 0)))
+
+(dshci tstb "Test and set t-bit immedate with memory byte"
+       ()
+       "tst.b #$imm8, @(r0, gbr)"
+       (+ (f-op8 #xcc) imm8)
+       (sequence ((DI addr))
+		 (set addr (add r0 gbr))
+		 (set tbit (if BI (eq (and (mem UQI addr) imm8) 0) 1 0))))
+
+(dshci xor "Exclusive OR"
+       ()
+       "xor $rm64, $rn64"
+       (+ (f-op4 2) rn64 rm64 (f-sub4 10))
+       (set rn64 (xor rn64 rm64)))
+
+(dshci xori "Exclusive OR immediate"
+       ()
+       "xor #$uimm8, r0"
+       (+ (f-op8 #xca) uimm8)
+       (set (reg h-gr 0) (xor (reg h-gr 0) (zext DI uimm8))))
+
+(dshci xorb "Exclusive OR immediate with memory byte"
+       ()
+       "xor.b #$imm8, @(r0, gbr)"
+       (+ (f-op8 #xce) imm8)
+       (sequence ((DI addr) (UQI data))
+		 (set addr (add r0 gbr))
+		 (set data (xor (mem UQI addr) imm8))
+		 (set (mem UQI addr) data)))
+
+(dshci xtrct "Extract"
+       ()
+       "xtrct $rm, $rn"
+       (+ (f-op4 2) rn rm (f-sub4 13))
+       (set rn (or (sll rm 16) (srl rn 16))))

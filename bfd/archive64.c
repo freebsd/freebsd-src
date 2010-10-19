@@ -19,7 +19,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* This file supports the 64-bit (MIPS) ELF archives.  */
 
@@ -156,7 +156,6 @@ bfd_elf64_archive_write_armap (bfd *arch,
   bfd *current = arch->archive_head;
   unsigned int count;
   struct ar_hdr hdr;
-  unsigned int i;
   int padding;
   bfd_byte buf[8];
 
@@ -169,19 +168,17 @@ bfd_elf64_archive_write_armap (bfd *arch,
 			     + sizeof (struct ar_hdr)
 			     + SARMAG);
 
-  memset (&hdr, 0, sizeof (struct ar_hdr));
-  strcpy (hdr.ar_name, "/SYM64/");
-  sprintf (hdr.ar_size, "%-10d", (int) mapsize);
-  sprintf (hdr.ar_date, "%ld", (long) time (NULL));
+  memset (&hdr, ' ', sizeof (struct ar_hdr));
+  memcpy (hdr.ar_name, "/SYM64/", strlen ("/SYM64/"));
+  _bfd_ar_spacepad (hdr.ar_size, sizeof (hdr.ar_size), "%-10ld",
+                    mapsize);
+  _bfd_ar_spacepad (hdr.ar_date, sizeof (hdr.ar_date), "%ld",
+                    time (NULL));
   /* This, at least, is what Intel coff sets the values to.: */
-  sprintf ((hdr.ar_uid), "%d", 0);
-  sprintf ((hdr.ar_gid), "%d", 0);
-  sprintf ((hdr.ar_mode), "%-7o", (unsigned) 0);
-  strncpy (hdr.ar_fmag, ARFMAG, 2);
-
-  for (i = 0; i < sizeof (struct ar_hdr); i++)
-    if (((char *) (&hdr))[i] == '\0')
-      (((char *) (&hdr))[i]) = ' ';
+  _bfd_ar_spacepad (hdr.ar_uid, sizeof (hdr.ar_uid), "%ld", 0);
+  _bfd_ar_spacepad (hdr.ar_gid, sizeof (hdr.ar_gid), "%ld", 0);
+  _bfd_ar_spacepad (hdr.ar_mode, sizeof (hdr.ar_mode), "%-7lo", 0);
+  memcpy (hdr.ar_fmag, ARFMAG, 2);
 
   /* Write the ar header for this item and the number of symbols */
 

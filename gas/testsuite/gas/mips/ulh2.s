@@ -1,7 +1,5 @@
 # Source file used to test the ulh and ulhu macros (harder).
 
-	.set noat
-	
 	.text
 text_label:
 

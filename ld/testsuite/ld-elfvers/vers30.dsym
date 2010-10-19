@@ -1,0 +1,5 @@
+[0]* g    DO \*ABS\*	[0]*  VERS_30.0   VERS_30.0
+[0-9a-f]* g    DF (.text|\*ABS\*)	[0-9a-f]*  VERS_30.0   global
+[0-9a-f]* g    DF (.text|\*ABS\*)	[0-9a-f]*  VERS_30.0   foo
+[0-9a-f]* g    DF (.text|\*ABS\*)	[0-9a-f]*  VERS_30.0   info
+[0-9a-f]* g    DF (.text|\*ABS\*)	[0-9a-f]*  VERS_30.0   extern

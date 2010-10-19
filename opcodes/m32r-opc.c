@@ -2,7 +2,7 @@
 
 THIS FILE IS MACHINE GENERATED WITH CGEN.
 
-Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+Copyright 1996-2005 Free Software Foundation, Inc.
 
 This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 
@@ -18,7 +18,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
 */
 
@@ -32,36 +32,34 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 /* -- opc.c */
 unsigned int
-m32r_cgen_dis_hash (buf, value)
-     const char * buf ATTRIBUTE_UNUSED;
-     CGEN_INSN_INT value;
+m32r_cgen_dis_hash (const char * buf ATTRIBUTE_UNUSED, CGEN_INSN_INT value)
 {
   unsigned int x;
-                                                                                
-  if (value & 0xffff0000) /* 32bit instructions */
+
+  if (value & 0xffff0000) /* 32bit instructions.  */
     value = (value >> 16) & 0xffff;
-                                                                                
-  x = (value>>8) & 0xf0;
+
+  x = (value >> 8) & 0xf0;
   if (x == 0x40 || x == 0xe0 || x == 0x60 || x == 0x50)
     return x;
-                                                                                
+
   if (x == 0x70 || x == 0xf0)
-    return x | ((value>>8) & 0x0f);
-                                                                                
+    return x | ((value >> 8) & 0x0f);
+
   if (x == 0x30)
     return x | ((value & 0x70) >> 4);
   else
     return x | ((value & 0xf0) >> 4);
 }
-                                                                                
+
 /* -- */
 /* The hash functions are recorded here to help keep assembler code out of
    the disassembler and vice versa.  */
 
-static int asm_hash_insn_p PARAMS ((const CGEN_INSN *));
-static unsigned int asm_hash_insn PARAMS ((const char *));
-static int dis_hash_insn_p PARAMS ((const CGEN_INSN *));
-static unsigned int dis_hash_insn PARAMS ((const char *, CGEN_INSN_INT));
+static int asm_hash_insn_p        (const CGEN_INSN *);
+static unsigned int asm_hash_insn (const char *);
+static int dis_hash_insn_p        (const CGEN_INSN *);
+static unsigned int dis_hash_insn (const char *, CGEN_INSN_INT);
 
 /* Instruction formats.  */
 
@@ -70,143 +68,143 @@ static unsigned int dis_hash_insn PARAMS ((const char *, CGEN_INSN_INT));
 #else
 #define F(f) & m32r_cgen_ifld_table[M32R_/**/f]
 #endif
-static const CGEN_IFMT ifmt_empty = {
+static const CGEN_IFMT ifmt_empty ATTRIBUTE_UNUSED = {
   0, 0, 0x0, { { 0 } }
 };
 
-static const CGEN_IFMT ifmt_add = {
+static const CGEN_IFMT ifmt_add ATTRIBUTE_UNUSED = {
   16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_add3 = {
+static const CGEN_IFMT ifmt_add3 ATTRIBUTE_UNUSED = {
   32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_and3 = {
+static const CGEN_IFMT ifmt_and3 ATTRIBUTE_UNUSED = {
   32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_UIMM16) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_or3 = {
+static const CGEN_IFMT ifmt_or3 ATTRIBUTE_UNUSED = {
   32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_UIMM16) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_addi = {
+static const CGEN_IFMT ifmt_addi ATTRIBUTE_UNUSED = {
   16, 16, 0xf000, { { F (F_OP1) }, { F (F_R1) }, { F (F_SIMM8) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_addv3 = {
+static const CGEN_IFMT ifmt_addv3 ATTRIBUTE_UNUSED = {
   32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_bc8 = {
+static const CGEN_IFMT ifmt_bc8 ATTRIBUTE_UNUSED = {
   16, 16, 0xff00, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP8) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_bc24 = {
+static const CGEN_IFMT ifmt_bc24 ATTRIBUTE_UNUSED = {
   32, 32, 0xff000000, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP24) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_beq = {
+static const CGEN_IFMT ifmt_beq ATTRIBUTE_UNUSED = {
   32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_DISP16) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_beqz = {
+static const CGEN_IFMT ifmt_beqz ATTRIBUTE_UNUSED = {
   32, 32, 0xfff00000, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_DISP16) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_cmp = {
+static const CGEN_IFMT ifmt_cmp ATTRIBUTE_UNUSED = {
   16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_cmpi = {
+static const CGEN_IFMT ifmt_cmpi ATTRIBUTE_UNUSED = {
   32, 32, 0xfff00000, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_cmpz = {
+static const CGEN_IFMT ifmt_cmpz ATTRIBUTE_UNUSED = {
   16, 16, 0xfff0, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_div = {
+static const CGEN_IFMT ifmt_div ATTRIBUTE_UNUSED = {
   32, 32, 0xf0f0ffff, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_jc = {
+static const CGEN_IFMT ifmt_jc ATTRIBUTE_UNUSED = {
   16, 16, 0xfff0, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_ld24 = {
+static const CGEN_IFMT ifmt_ld24 ATTRIBUTE_UNUSED = {
   32, 32, 0xf0000000, { { F (F_OP1) }, { F (F_R1) }, { F (F_UIMM24) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_ldi16 = {
+static const CGEN_IFMT ifmt_ldi16 ATTRIBUTE_UNUSED = {
   32, 32, 0xf0ff0000, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_machi_a = {
+static const CGEN_IFMT ifmt_machi_a ATTRIBUTE_UNUSED = {
   16, 16, 0xf070, { { F (F_OP1) }, { F (F_R1) }, { F (F_ACC) }, { F (F_OP23) }, { F (F_R2) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_mvfachi = {
+static const CGEN_IFMT ifmt_mvfachi ATTRIBUTE_UNUSED = {
   16, 16, 0xf0ff, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_mvfachi_a = {
+static const CGEN_IFMT ifmt_mvfachi_a ATTRIBUTE_UNUSED = {
   16, 16, 0xf0f3, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_ACCS) }, { F (F_OP3) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_mvfc = {
+static const CGEN_IFMT ifmt_mvfc ATTRIBUTE_UNUSED = {
   16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_mvtachi = {
+static const CGEN_IFMT ifmt_mvtachi ATTRIBUTE_UNUSED = {
   16, 16, 0xf0ff, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_mvtachi_a = {
+static const CGEN_IFMT ifmt_mvtachi_a ATTRIBUTE_UNUSED = {
   16, 16, 0xf0f3, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_ACCS) }, { F (F_OP3) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_mvtc = {
+static const CGEN_IFMT ifmt_mvtc ATTRIBUTE_UNUSED = {
   16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_nop = {
+static const CGEN_IFMT ifmt_nop ATTRIBUTE_UNUSED = {
   16, 16, 0xffff, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_rac_dsi = {
+static const CGEN_IFMT ifmt_rac_dsi ATTRIBUTE_UNUSED = {
   16, 16, 0xf3f2, { { F (F_OP1) }, { F (F_ACCD) }, { F (F_BITS67) }, { F (F_OP2) }, { F (F_ACCS) }, { F (F_BIT14) }, { F (F_IMM1) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_seth = {
+static const CGEN_IFMT ifmt_seth ATTRIBUTE_UNUSED = {
   32, 32, 0xf0ff0000, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_HI16) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_slli = {
+static const CGEN_IFMT ifmt_slli ATTRIBUTE_UNUSED = {
   16, 16, 0xf0e0, { { F (F_OP1) }, { F (F_R1) }, { F (F_SHIFT_OP2) }, { F (F_UIMM5) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_st_d = {
+static const CGEN_IFMT ifmt_st_d ATTRIBUTE_UNUSED = {
   32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_trap = {
+static const CGEN_IFMT ifmt_trap ATTRIBUTE_UNUSED = {
   16, 16, 0xfff0, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_UIMM4) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_satb = {
+static const CGEN_IFMT ifmt_satb ATTRIBUTE_UNUSED = {
   32, 32, 0xf0f0ffff, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_UIMM16) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_clrpsw = {
+static const CGEN_IFMT ifmt_clrpsw ATTRIBUTE_UNUSED = {
   16, 16, 0xff00, { { F (F_OP1) }, { F (F_R1) }, { F (F_UIMM8) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_bset = {
+static const CGEN_IFMT ifmt_bset ATTRIBUTE_UNUSED = {
   32, 32, 0xf8f00000, { { F (F_OP1) }, { F (F_BIT4) }, { F (F_UIMM3) }, { F (F_OP2) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_btst = {
+static const CGEN_IFMT ifmt_btst ATTRIBUTE_UNUSED = {
   16, 16, 0xf8f0, { { F (F_OP1) }, { F (F_BIT4) }, { F (F_UIMM3) }, { F (F_OP2) }, { F (F_R2) }, { 0 } }
 };
 
@@ -1135,147 +1133,147 @@ static const CGEN_OPCODE m32r_cgen_insn_opcode_table[MAX_INSNS] =
 #else
 #define F(f) & m32r_cgen_ifld_table[M32R_/**/f]
 #endif
-static const CGEN_IFMT ifmt_bc8r = {
+static const CGEN_IFMT ifmt_bc8r ATTRIBUTE_UNUSED = {
   16, 16, 0xff00, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP8) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_bc24r = {
+static const CGEN_IFMT ifmt_bc24r ATTRIBUTE_UNUSED = {
   32, 32, 0xff000000, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP24) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_bl8r = {
+static const CGEN_IFMT ifmt_bl8r ATTRIBUTE_UNUSED = {
   16, 16, 0xff00, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP8) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_bl24r = {
+static const CGEN_IFMT ifmt_bl24r ATTRIBUTE_UNUSED = {
   32, 32, 0xff000000, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP24) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_bcl8r = {
+static const CGEN_IFMT ifmt_bcl8r ATTRIBUTE_UNUSED = {
   16, 16, 0xff00, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP8) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_bcl24r = {
+static const CGEN_IFMT ifmt_bcl24r ATTRIBUTE_UNUSED = {
   32, 32, 0xff000000, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP24) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_bnc8r = {
+static const CGEN_IFMT ifmt_bnc8r ATTRIBUTE_UNUSED = {
   16, 16, 0xff00, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP8) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_bnc24r = {
+static const CGEN_IFMT ifmt_bnc24r ATTRIBUTE_UNUSED = {
   32, 32, 0xff000000, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP24) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_bra8r = {
+static const CGEN_IFMT ifmt_bra8r ATTRIBUTE_UNUSED = {
   16, 16, 0xff00, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP8) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_bra24r = {
+static const CGEN_IFMT ifmt_bra24r ATTRIBUTE_UNUSED = {
   32, 32, 0xff000000, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP24) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_bncl8r = {
+static const CGEN_IFMT ifmt_bncl8r ATTRIBUTE_UNUSED = {
   16, 16, 0xff00, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP8) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_bncl24r = {
+static const CGEN_IFMT ifmt_bncl24r ATTRIBUTE_UNUSED = {
   32, 32, 0xff000000, { { F (F_OP1) }, { F (F_R1) }, { F (F_DISP24) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_ld_2 = {
+static const CGEN_IFMT ifmt_ld_2 ATTRIBUTE_UNUSED = {
   16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_ld_d2 = {
+static const CGEN_IFMT ifmt_ld_d2 ATTRIBUTE_UNUSED = {
   32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_ldb_2 = {
+static const CGEN_IFMT ifmt_ldb_2 ATTRIBUTE_UNUSED = {
   16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_ldb_d2 = {
+static const CGEN_IFMT ifmt_ldb_d2 ATTRIBUTE_UNUSED = {
   32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_ldh_2 = {
+static const CGEN_IFMT ifmt_ldh_2 ATTRIBUTE_UNUSED = {
   16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_ldh_d2 = {
+static const CGEN_IFMT ifmt_ldh_d2 ATTRIBUTE_UNUSED = {
   32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_ldub_2 = {
+static const CGEN_IFMT ifmt_ldub_2 ATTRIBUTE_UNUSED = {
   16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_ldub_d2 = {
+static const CGEN_IFMT ifmt_ldub_d2 ATTRIBUTE_UNUSED = {
   32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_lduh_2 = {
+static const CGEN_IFMT ifmt_lduh_2 ATTRIBUTE_UNUSED = {
   16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_lduh_d2 = {
+static const CGEN_IFMT ifmt_lduh_d2 ATTRIBUTE_UNUSED = {
   32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_pop = {
+static const CGEN_IFMT ifmt_pop ATTRIBUTE_UNUSED = {
   16, 16, 0xf0ff, { { F (F_OP1) }, { F (F_R1) }, { F (F_OP2) }, { F (F_R2) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_ldi8a = {
+static const CGEN_IFMT ifmt_ldi8a ATTRIBUTE_UNUSED = {
   16, 16, 0xf000, { { F (F_OP1) }, { F (F_R1) }, { F (F_SIMM8) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_ldi16a = {
+static const CGEN_IFMT ifmt_ldi16a ATTRIBUTE_UNUSED = {
   32, 32, 0xf0ff0000, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R2) }, { F (F_R1) }, { F (F_SIMM16) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_rac_d = {
+static const CGEN_IFMT ifmt_rac_d ATTRIBUTE_UNUSED = {
   16, 16, 0xf3ff, { { F (F_OP1) }, { F (F_ACCD) }, { F (F_BITS67) }, { F (F_OP2) }, { F (F_ACCS) }, { F (F_BIT14) }, { F (F_IMM1) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_rac_ds = {
+static const CGEN_IFMT ifmt_rac_ds ATTRIBUTE_UNUSED = {
   16, 16, 0xf3f3, { { F (F_OP1) }, { F (F_ACCD) }, { F (F_BITS67) }, { F (F_OP2) }, { F (F_ACCS) }, { F (F_BIT14) }, { F (F_IMM1) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_rach_d = {
+static const CGEN_IFMT ifmt_rach_d ATTRIBUTE_UNUSED = {
   16, 16, 0xf3ff, { { F (F_OP1) }, { F (F_ACCD) }, { F (F_BITS67) }, { F (F_OP2) }, { F (F_ACCS) }, { F (F_BIT14) }, { F (F_IMM1) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_rach_ds = {
+static const CGEN_IFMT ifmt_rach_ds ATTRIBUTE_UNUSED = {
   16, 16, 0xf3f3, { { F (F_OP1) }, { F (F_ACCD) }, { F (F_BITS67) }, { F (F_OP2) }, { F (F_ACCS) }, { F (F_BIT14) }, { F (F_IMM1) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_st_2 = {
+static const CGEN_IFMT ifmt_st_2 ATTRIBUTE_UNUSED = {
   16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_st_d2 = {
+static const CGEN_IFMT ifmt_st_d2 ATTRIBUTE_UNUSED = {
   32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_stb_2 = {
+static const CGEN_IFMT ifmt_stb_2 ATTRIBUTE_UNUSED = {
   16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_stb_d2 = {
+static const CGEN_IFMT ifmt_stb_d2 ATTRIBUTE_UNUSED = {
   32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_sth_2 = {
+static const CGEN_IFMT ifmt_sth_2 ATTRIBUTE_UNUSED = {
   16, 16, 0xf0f0, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_sth_d2 = {
+static const CGEN_IFMT ifmt_sth_d2 ATTRIBUTE_UNUSED = {
   32, 32, 0xf0f00000, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { F (F_SIMM16) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_push = {
+static const CGEN_IFMT ifmt_push ATTRIBUTE_UNUSED = {
   16, 16, 0xf0ff, { { F (F_OP1) }, { F (F_OP2) }, { F (F_R1) }, { F (F_R2) }, { 0 } }
 };
 
@@ -1303,182 +1301,182 @@ static const CGEN_IBASE m32r_cgen_macro_insn_table[] =
 /* bc $disp8 */
   {
     -1, "bc8r", "bc", 16,
-    { 0|A(RELAXABLE)|A(COND_CTI)|A(ALIAS), { (1<<MACH_BASE), PIPE_O } }
+    { 0|A(RELAXABLE)|A(COND_CTI)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
   },
 /* bc $disp24 */
   {
     -1, "bc24r", "bc", 32,
-    { 0|A(RELAXED)|A(COND_CTI)|A(ALIAS), { (1<<MACH_BASE), PIPE_NONE } }
+    { 0|A(RELAXED)|A(COND_CTI)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
   },
 /* bl $disp8 */
   {
     -1, "bl8r", "bl", 16,
-    { 0|A(RELAXABLE)|A(FILL_SLOT)|A(UNCOND_CTI)|A(ALIAS), { (1<<MACH_BASE), PIPE_O } }
+    { 0|A(RELAXABLE)|A(FILL_SLOT)|A(UNCOND_CTI)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
   },
 /* bl $disp24 */
   {
     -1, "bl24r", "bl", 32,
-    { 0|A(RELAXED)|A(UNCOND_CTI)|A(ALIAS), { (1<<MACH_BASE), PIPE_NONE } }
+    { 0|A(RELAXED)|A(UNCOND_CTI)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
   },
 /* bcl $disp8 */
   {
     -1, "bcl8r", "bcl", 16,
-    { 0|A(RELAXABLE)|A(FILL_SLOT)|A(COND_CTI)|A(ALIAS), { (1<<MACH_M32RX)|(1<<MACH_M32R2), PIPE_O } }
+    { 0|A(RELAXABLE)|A(FILL_SLOT)|A(COND_CTI)|A(ALIAS), { { { (1<<MACH_M32RX)|(1<<MACH_M32R2), 0 } }, { { PIPE_O, 0 } } } }
   },
 /* bcl $disp24 */
   {
     -1, "bcl24r", "bcl", 32,
-    { 0|A(RELAXED)|A(COND_CTI)|A(ALIAS), { (1<<MACH_M32RX)|(1<<MACH_M32R2), PIPE_NONE } }
+    { 0|A(RELAXED)|A(COND_CTI)|A(ALIAS), { { { (1<<MACH_M32RX)|(1<<MACH_M32R2), 0 } }, { { PIPE_NONE, 0 } } } }
   },
 /* bnc $disp8 */
   {
     -1, "bnc8r", "bnc", 16,
-    { 0|A(RELAXABLE)|A(COND_CTI)|A(ALIAS), { (1<<MACH_BASE), PIPE_O } }
+    { 0|A(RELAXABLE)|A(COND_CTI)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
   },
 /* bnc $disp24 */
   {
     -1, "bnc24r", "bnc", 32,
-    { 0|A(RELAXED)|A(COND_CTI)|A(ALIAS), { (1<<MACH_BASE), PIPE_NONE } }
+    { 0|A(RELAXED)|A(COND_CTI)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
   },
 /* bra $disp8 */
   {
     -1, "bra8r", "bra", 16,
-    { 0|A(RELAXABLE)|A(FILL_SLOT)|A(UNCOND_CTI)|A(ALIAS), { (1<<MACH_BASE), PIPE_O } }
+    { 0|A(RELAXABLE)|A(FILL_SLOT)|A(UNCOND_CTI)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
   },
 /* bra $disp24 */
   {
     -1, "bra24r", "bra", 32,
-    { 0|A(RELAXED)|A(UNCOND_CTI)|A(ALIAS), { (1<<MACH_BASE), PIPE_NONE } }
+    { 0|A(RELAXED)|A(UNCOND_CTI)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
   },
 /* bncl $disp8 */
   {
     -1, "bncl8r", "bncl", 16,
-    { 0|A(RELAXABLE)|A(FILL_SLOT)|A(COND_CTI)|A(ALIAS), { (1<<MACH_M32RX)|(1<<MACH_M32R2), PIPE_O } }
+    { 0|A(RELAXABLE)|A(FILL_SLOT)|A(COND_CTI)|A(ALIAS), { { { (1<<MACH_M32RX)|(1<<MACH_M32R2), 0 } }, { { PIPE_O, 0 } } } }
   },
 /* bncl $disp24 */
   {
     -1, "bncl24r", "bncl", 32,
-    { 0|A(RELAXED)|A(COND_CTI)|A(ALIAS), { (1<<MACH_M32RX)|(1<<MACH_M32R2), PIPE_NONE } }
+    { 0|A(RELAXED)|A(COND_CTI)|A(ALIAS), { { { (1<<MACH_M32RX)|(1<<MACH_M32R2), 0 } }, { { PIPE_NONE, 0 } } } }
   },
 /* ld $dr,@($sr) */
   {
     -1, "ld-2", "ld", 16,
-    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE), PIPE_O } }
+    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
   },
 /* ld $dr,@($sr,$slo16) */
   {
     -1, "ld-d2", "ld", 32,
-    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE), PIPE_NONE } }
+    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
   },
 /* ldb $dr,@($sr) */
   {
     -1, "ldb-2", "ldb", 16,
-    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE), PIPE_O } }
+    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
   },
 /* ldb $dr,@($sr,$slo16) */
   {
     -1, "ldb-d2", "ldb", 32,
-    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE), PIPE_NONE } }
+    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
   },
 /* ldh $dr,@($sr) */
   {
     -1, "ldh-2", "ldh", 16,
-    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE), PIPE_O } }
+    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
   },
 /* ldh $dr,@($sr,$slo16) */
   {
     -1, "ldh-d2", "ldh", 32,
-    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE), PIPE_NONE } }
+    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
   },
 /* ldub $dr,@($sr) */
   {
     -1, "ldub-2", "ldub", 16,
-    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE), PIPE_O } }
+    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
   },
 /* ldub $dr,@($sr,$slo16) */
   {
     -1, "ldub-d2", "ldub", 32,
-    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE), PIPE_NONE } }
+    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
   },
 /* lduh $dr,@($sr) */
   {
     -1, "lduh-2", "lduh", 16,
-    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE), PIPE_O } }
+    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
   },
 /* lduh $dr,@($sr,$slo16) */
   {
     -1, "lduh-d2", "lduh", 32,
-    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE), PIPE_NONE } }
+    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
   },
 /* pop $dr */
   {
     -1, "pop", "pop", 16,
-    { 0|A(ALIAS), { (1<<MACH_BASE), PIPE_O } }
+    { 0|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
   },
 /* ldi $dr,$simm8 */
   {
     -1, "ldi8a", "ldi", 16,
-    { 0|A(ALIAS), { (1<<MACH_BASE), PIPE_OS } }
+    { 0|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_OS, 0 } } } }
   },
 /* ldi $dr,$hash$slo16 */
   {
     -1, "ldi16a", "ldi", 32,
-    { 0|A(ALIAS), { (1<<MACH_BASE), PIPE_NONE } }
+    { 0|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
   },
 /* rac $accd */
   {
     -1, "rac-d", "rac", 16,
-    { 0|A(ALIAS), { (1<<MACH_M32RX)|(1<<MACH_M32R2), PIPE_S } }
+    { 0|A(ALIAS), { { { (1<<MACH_M32RX)|(1<<MACH_M32R2), 0 } }, { { PIPE_S, 0 } } } }
   },
 /* rac $accd,$accs */
   {
     -1, "rac-ds", "rac", 16,
-    { 0|A(ALIAS), { (1<<MACH_M32RX)|(1<<MACH_M32R2), PIPE_S } }
+    { 0|A(ALIAS), { { { (1<<MACH_M32RX)|(1<<MACH_M32R2), 0 } }, { { PIPE_S, 0 } } } }
   },
 /* rach $accd */
   {
     -1, "rach-d", "rach", 16,
-    { 0|A(ALIAS), { (1<<MACH_M32RX)|(1<<MACH_M32R2), PIPE_S } }
+    { 0|A(ALIAS), { { { (1<<MACH_M32RX)|(1<<MACH_M32R2), 0 } }, { { PIPE_S, 0 } } } }
   },
 /* rach $accd,$accs */
   {
     -1, "rach-ds", "rach", 16,
-    { 0|A(ALIAS), { (1<<MACH_M32RX)|(1<<MACH_M32R2), PIPE_S } }
+    { 0|A(ALIAS), { { { (1<<MACH_M32RX)|(1<<MACH_M32R2), 0 } }, { { PIPE_S, 0 } } } }
   },
 /* st $src1,@($src2) */
   {
     -1, "st-2", "st", 16,
-    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE), PIPE_O } }
+    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
   },
 /* st $src1,@($src2,$slo16) */
   {
     -1, "st-d2", "st", 32,
-    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE), PIPE_NONE } }
+    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
   },
 /* stb $src1,@($src2) */
   {
     -1, "stb-2", "stb", 16,
-    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE), PIPE_O } }
+    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
   },
 /* stb $src1,@($src2,$slo16) */
   {
     -1, "stb-d2", "stb", 32,
-    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE), PIPE_NONE } }
+    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
   },
 /* sth $src1,@($src2) */
   {
     -1, "sth-2", "sth", 16,
-    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE), PIPE_O } }
+    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
   },
 /* sth $src1,@($src2,$slo16) */
   {
     -1, "sth-d2", "sth", 32,
-    { 0|A(NO_DIS)|A(ALIAS), { (1<<MACH_BASE), PIPE_NONE } }
+    { 0|A(NO_DIS)|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_NONE, 0 } } } }
   },
 /* push $src1 */
   {
     -1, "push", "push", 16,
-    { 0|A(ALIAS), { (1<<MACH_BASE), PIPE_O } }
+    { 0|A(ALIAS), { { { (1<<MACH_BASE), 0 } }, { { PIPE_O, 0 } } } }
   },
 };
 
@@ -1778,14 +1776,10 @@ dis_hash_insn (buf, value)
   return CGEN_DIS_HASH (buf, value);
 }
 
-static void set_fields_bitsize PARAMS ((CGEN_FIELDS *, int));
-
 /* Set the recorded length of the insn in the CGEN_FIELDS struct.  */
 
 static void
-set_fields_bitsize (fields, size)
-     CGEN_FIELDS *fields;
-     int size;
+set_fields_bitsize (CGEN_FIELDS *fields, int size)
 {
   CGEN_FIELDS_BITSIZE (fields) = size;
 }
@@ -1794,15 +1788,15 @@ set_fields_bitsize (fields, size)
    This plugs the opcode entries and macro instructions into the cpu table.  */
 
 void
-m32r_cgen_init_opcode_table (cd)
-     CGEN_CPU_DESC cd;
+m32r_cgen_init_opcode_table (CGEN_CPU_DESC cd)
 {
   int i;
   int num_macros = (sizeof (m32r_cgen_macro_insn_table) /
 		    sizeof (m32r_cgen_macro_insn_table[0]));
   const CGEN_IBASE *ib = & m32r_cgen_macro_insn_table[0];
   const CGEN_OPCODE *oc = & m32r_cgen_macro_insn_opcode_table[0];
-  CGEN_INSN *insns = (CGEN_INSN *) xmalloc (num_macros * sizeof (CGEN_INSN));
+  CGEN_INSN *insns = xmalloc (num_macros * sizeof (CGEN_INSN));
+
   memset (insns, 0, num_macros * sizeof (CGEN_INSN));
   for (i = 0; i < num_macros; ++i)
     {

@@ -1,23 +1,24 @@
 /* Disassembler for the PA-RISC. Somewhat derived from sparc-pinsn.c.
-   Copyright 1989, 1990, 1992, 1993, 1994, 1995, 1998, 1999, 2000, 2001, 2003
-   Free Software Foundation, Inc.
+   Copyright 1989, 1990, 1992, 1993, 1994, 1995, 1998, 1999, 2000, 2001, 2003,
+   2005 Free Software Foundation, Inc.
 
    Contributed by the Center for Software Science at the
    University of Utah (pa-gdb-bugs@cs.utah.edu).
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 #include "sysdep.h"
 #include "dis-asm.h"
@@ -27,32 +28,36 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 /* Integer register names, indexed by the numbers which appear in the
    opcodes.  */
 static const char *const reg_names[] =
- {"flags", "r1", "rp", "r3", "r4", "r5", "r6", "r7", "r8", "r9",
+{
+  "flags", "r1", "rp", "r3", "r4", "r5", "r6", "r7", "r8", "r9",
   "r10", "r11", "r12", "r13", "r14", "r15", "r16", "r17", "r18", "r19",
   "r20", "r21", "r22", "r23", "r24", "r25", "r26", "dp", "ret0", "ret1",
-  "sp", "r31"};
+  "sp", "r31"
+};
 
 /* Floating point register names, indexed by the numbers which appear in the
    opcodes.  */
 static const char *const fp_reg_names[] =
- {"fpsr", "fpe2", "fpe4", "fpe6",
+{
+  "fpsr", "fpe2", "fpe4", "fpe6",
   "fr4", "fr5", "fr6", "fr7", "fr8",
   "fr9", "fr10", "fr11", "fr12", "fr13", "fr14", "fr15",
   "fr16", "fr17", "fr18", "fr19", "fr20", "fr21", "fr22", "fr23",
-  "fr24", "fr25", "fr26", "fr27", "fr28", "fr29", "fr30", "fr31"};
+  "fr24", "fr25", "fr26", "fr27", "fr28", "fr29", "fr30", "fr31"
+};
 
 typedef unsigned int CORE_ADDR;
 
 /* Get at various relevent fields of an instruction word.  */
 
-#define MASK_5 0x1f
+#define MASK_5  0x1f
 #define MASK_10 0x3ff
 #define MASK_11 0x7ff
 #define MASK_14 0x3fff
 #define MASK_16 0xffff
 #define MASK_21 0x1fffff
 
-/* These macros get bit fields using HP's numbering (MSB = 0) */
+/* These macros get bit fields using HP's numbering (MSB = 0).  */
 
 #define GET_FIELD(X, FROM, TO) \
   ((X) >> (31 - (TO)) & ((1 << ((TO) - (FROM) + 1)) - 1))
@@ -63,7 +68,8 @@ typedef unsigned int CORE_ADDR;
 /* Some of these have been converted to 2-d arrays because they
    consume less storage this way.  If the maintenance becomes a
    problem, convert them back to const 1-d pointer arrays.  */
-static const char *const control_reg[] = {
+static const char *const control_reg[] =
+{
   "rctr", "cr1", "cr2", "cr3", "cr4", "cr5", "cr6", "cr7",
   "pidr1", "pidr2", "ccr", "sar", "pidr3", "pidr4",
   "iva", "eiem", "itmr", "pcsq", "pcoq", "iir", "isr",
@@ -71,55 +77,69 @@ static const char *const control_reg[] = {
   "tr4", "tr5", "tr6", "tr7"
 };
 
-static const char *const compare_cond_names[] = {
+static const char *const compare_cond_names[] =
+{
   "", ",=", ",<", ",<=", ",<<", ",<<=", ",sv", ",od",
   ",tr", ",<>", ",>=", ",>", ",>>=", ",>>", ",nsv", ",ev"
 };
-static const char *const compare_cond_64_names[] = {
+static const char *const compare_cond_64_names[] =
+{
   "", ",*=", ",*<", ",*<=", ",*<<", ",*<<=", ",*sv", ",*od",
   ",*tr", ",*<>", ",*>=", ",*>", ",*>>=", ",*>>", ",*nsv", ",*ev"
 };
-static const char *const cmpib_cond_64_names[] = {
+static const char *const cmpib_cond_64_names[] =
+{
   ",*<<", ",*=", ",*<", ",*<=", ",*>>=", ",*<>", ",*>=", ",*>"
 };
-static const char *const add_cond_names[] = {
+static const char *const add_cond_names[] =
+{
   "", ",=", ",<", ",<=", ",nuv", ",znv", ",sv", ",od",
   ",tr", ",<>", ",>=", ",>", ",uv", ",vnz", ",nsv", ",ev"
 };
-static const char *const add_cond_64_names[] = {
+static const char *const add_cond_64_names[] =
+{
   "", ",*=", ",*<", ",*<=", ",*nuv", ",*znv", ",*sv", ",*od",
   ",*tr", ",*<>", ",*>=", ",*>", ",*uv", ",*vnz", ",*nsv", ",*ev"
 };
-static const char *const wide_add_cond_names[] = {
+static const char *const wide_add_cond_names[] =
+{
   "", ",=", ",<", ",<=", ",nuv", ",*=", ",*<", ",*<=",
   ",tr", ",<>", ",>=", ",>", ",uv", ",*<>", ",*>=", ",*>"
 };
-static const char *const logical_cond_names[] = {
+static const char *const logical_cond_names[] =
+{
   "", ",=", ",<", ",<=", 0, 0, 0, ",od",
   ",tr", ",<>", ",>=", ",>", 0, 0, 0, ",ev"};
-static const char *const logical_cond_64_names[] = {
+static const char *const logical_cond_64_names[] =
+{
   "", ",*=", ",*<", ",*<=", 0, 0, 0, ",*od",
   ",*tr", ",*<>", ",*>=", ",*>", 0, 0, 0, ",*ev"};
-static const char *const unit_cond_names[] = {
+static const char *const unit_cond_names[] =
+{
   "", ",swz", ",sbz", ",shz", ",sdc", ",swc", ",sbc", ",shc",
   ",tr", ",nwz", ",nbz", ",nhz", ",ndc", ",nwc", ",nbc", ",nhc"
 };
-static const char *const unit_cond_64_names[] = {
+static const char *const unit_cond_64_names[] =
+{
   "", ",*swz", ",*sbz", ",*shz", ",*sdc", ",*swc", ",*sbc", ",*shc",
   ",*tr", ",*nwz", ",*nbz", ",*nhz", ",*ndc", ",*nwc", ",*nbc", ",*nhc"
 };
-static const char *const shift_cond_names[] = {
+static const char *const shift_cond_names[] =
+{
   "", ",=", ",<", ",od", ",tr", ",<>", ",>=", ",ev"
 };
-static const char *const shift_cond_64_names[] = {
+static const char *const shift_cond_64_names[] =
+{
   "", ",*=", ",*<", ",*od", ",*tr", ",*<>", ",*>=", ",*ev"
 };
-static const char *const bb_cond_64_names[] = {
+static const char *const bb_cond_64_names[] =
+{
   ",*<", ",*>="
 };
 static const char *const index_compl_names[] = {"", ",m", ",s", ",sm"};
 static const char *const short_ldst_compl_names[] = {"", ",ma", "", ",mb"};
-static const char *const short_bytes_compl_names[] = {
+static const char *const short_bytes_compl_names[] =
+{
   "", ",b,m", ",e", ",e,m"
 };
 static const char *const float_format_names[] = {",sgl", ",dbl", "", ",quad"};
@@ -146,51 +166,25 @@ static const char *const add_compl_names[] = { 0, "", ",l", ",tsv" };
 #define GET_COND(insn) (GET_FIELD ((insn), 16, 18) + \
 			(GET_FIELD ((insn), 19, 19) ? 8 : 0))
 
-static void fput_reg PARAMS ((unsigned int, disassemble_info *));
-static void fput_fp_reg PARAMS ((unsigned int, disassemble_info *));
-static void fput_fp_reg_r PARAMS ((unsigned int, disassemble_info *));
-static void fput_creg PARAMS ((unsigned int, disassemble_info *));
-static void fput_const PARAMS ((unsigned int, disassemble_info *));
-static int extract_3 PARAMS ((unsigned int));
-static int extract_5_load PARAMS ((unsigned int));
-static int extract_5_store PARAMS ((unsigned int));
-static unsigned extract_5r_store PARAMS ((unsigned int));
-static unsigned extract_5R_store PARAMS ((unsigned int));
-static unsigned extract_10U_store PARAMS ((unsigned int));
-static unsigned extract_5Q_store PARAMS ((unsigned int));
-static int extract_11 PARAMS ((unsigned int));
-static int extract_14 PARAMS ((unsigned int));
-static int extract_16 PARAMS ((unsigned int));
-static int extract_21 PARAMS ((unsigned int));
-static int extract_12 PARAMS ((unsigned int));
-static int extract_17 PARAMS ((unsigned int));
-static int extract_22 PARAMS ((unsigned int));
-
 /* Utility function to print registers.  Put these first, so gcc's function
    inlining can do its stuff.  */
 
 #define fputs_filtered(STR,F)	(*info->fprintf_func) (info->stream, "%s", STR)
 
 static void
-fput_reg (reg, info)
-     unsigned reg;
-     disassemble_info *info;
+fput_reg (unsigned reg, disassemble_info *info)
 {
   (*info->fprintf_func) (info->stream, reg ? reg_names[reg] : "r0");
 }
 
 static void
-fput_fp_reg (reg, info)
-     unsigned reg;
-     disassemble_info *info;
+fput_fp_reg (unsigned reg, disassemble_info *info)
 {
   (*info->fprintf_func) (info->stream, reg ? fp_reg_names[reg] : "fr0");
 }
 
 static void
-fput_fp_reg_r (reg, info)
-     unsigned reg;
-     disassemble_info *info;
+fput_fp_reg_r (unsigned reg, disassemble_info *info)
 {
   /* Special case floating point exception registers.  */
   if (reg < 4)
@@ -201,9 +195,7 @@ fput_fp_reg_r (reg, info)
 }
 
 static void
-fput_creg (reg, info)
-     unsigned reg;
-     disassemble_info *info;
+fput_creg (unsigned reg, disassemble_info *info)
 {
   (*info->fprintf_func) (info->stream, control_reg[reg]);
 }
@@ -211,12 +203,10 @@ fput_creg (reg, info)
 /* Print constants with sign.  */
 
 static void
-fput_const (num, info)
-     unsigned num;
-     disassemble_info *info;
+fput_const (unsigned num, disassemble_info *info)
 {
-  if ((int)num < 0)
-    (*info->fprintf_func) (info->stream, "-%x", -(int)num);
+  if ((int) num < 0)
+    (*info->fprintf_func) (info->stream, "-%x", - (int) num);
   else
     (*info->fprintf_func) (info->stream, "%x", num);
 }
@@ -226,81 +216,80 @@ fput_const (num, info)
 
 /* Extract a 3-bit space register number from a be, ble, mtsp or mfsp.  */
 static int
-extract_3 (word)
-     unsigned word;
+extract_3 (unsigned word)
 {
   return GET_FIELD (word, 18, 18) << 2 | GET_FIELD (word, 16, 17);
 }
 
 static int
-extract_5_load (word)
-     unsigned word;
+extract_5_load (unsigned word)
 {
   return low_sign_extend (word >> 16 & MASK_5, 5);
 }
 
 /* Extract the immediate field from a st{bhw}s instruction.  */
+
 static int
-extract_5_store (word)
-     unsigned word;
+extract_5_store (unsigned word)
 {
   return low_sign_extend (word & MASK_5, 5);
 }
 
 /* Extract the immediate field from a break instruction.  */
+
 static unsigned
-extract_5r_store (word)
-     unsigned word;
+extract_5r_store (unsigned word)
 {
   return (word & MASK_5);
 }
 
 /* Extract the immediate field from a {sr}sm instruction.  */
+
 static unsigned
-extract_5R_store (word)
-     unsigned word;
+extract_5R_store (unsigned word)
 {
   return (word >> 16 & MASK_5);
 }
 
 /* Extract the 10 bit immediate field from a {sr}sm instruction.  */
+
 static unsigned
-extract_10U_store (word)
-     unsigned word;
+extract_10U_store (unsigned word)
 {
   return (word >> 16 & MASK_10);
 }
 
 /* Extract the immediate field from a bb instruction.  */
+
 static unsigned
-extract_5Q_store (word)
-     unsigned word;
+extract_5Q_store (unsigned word)
 {
   return (word >> 21 & MASK_5);
 }
 
 /* Extract an 11 bit immediate field.  */
+
 static int
-extract_11 (word)
-     unsigned word;
+extract_11 (unsigned word)
 {
   return low_sign_extend (word & MASK_11, 11);
 }
 
 /* Extract a 14 bit immediate field.  */
+
 static int
-extract_14 (word)
-     unsigned word;
+extract_14 (unsigned word)
 {
   return low_sign_extend (word & MASK_14, 14);
 }
 
 /* Extract a 16 bit immediate field (PA2.0 wide only).  */
+
 static int
-extract_16 (word)
-     unsigned word;
+extract_16 (unsigned word)
 {
   int m15, m0, m1;
+
   m0 = GET_BIT (word, 16);
   m1 = GET_BIT (word, 17);
   m15 = GET_BIT (word, 31);
@@ -312,8 +301,7 @@ extract_16 (word)
 /* Extract a 21 bit constant.  */
 
 static int
-extract_21 (word)
-     unsigned word;
+extract_21 (unsigned word)
 {
   int val;
 
@@ -334,43 +322,39 @@ extract_21 (word)
 /* Extract a 12 bit constant from branch instructions.  */
 
 static int
-extract_12 (word)
-     unsigned word;
+extract_12 (unsigned word)
 {
-  return sign_extend (GET_FIELD (word, 19, 28) |
-		      GET_FIELD (word, 29, 29) << 10 |
-		      (word & 0x1) << 11, 12) << 2;
+  return sign_extend (GET_FIELD (word, 19, 28)
+		      | GET_FIELD (word, 29, 29) << 10
+		      | (word & 0x1) << 11, 12) << 2;
 }
 
 /* Extract a 17 bit constant from branch instructions, returning the
    19 bit signed value.  */
 
 static int
-extract_17 (word)
-     unsigned word;
+extract_17 (unsigned word)
 {
-  return sign_extend (GET_FIELD (word, 19, 28) |
-		      GET_FIELD (word, 29, 29) << 10 |
-		      GET_FIELD (word, 11, 15) << 11 |
-		      (word & 0x1) << 16, 17) << 2;
+  return sign_extend (GET_FIELD (word, 19, 28)
+		      | GET_FIELD (word, 29, 29) << 10
+		      | GET_FIELD (word, 11, 15) << 11
+		      | (word & 0x1) << 16, 17) << 2;
 }
 
 static int
-extract_22 (word)
-     unsigned word;
+extract_22 (unsigned word)
 {
-  return sign_extend (GET_FIELD (word, 19, 28) |
-		      GET_FIELD (word, 29, 29) << 10 |
-		      GET_FIELD (word, 11, 15) << 11 |
-		      GET_FIELD (word, 6, 10) << 16 |
-		      (word & 0x1) << 21, 22) << 2;
+  return sign_extend (GET_FIELD (word, 19, 28)
+		      | GET_FIELD (word, 29, 29) << 10
+		      | GET_FIELD (word, 11, 15) << 11
+		      | GET_FIELD (word, 6, 10) << 16
+		      | (word & 0x1) << 21, 22) << 2;
 }
 
 /* Print one instruction.  */
+
 int
-print_insn_hppa (memaddr, info)
-     bfd_vma memaddr;
-     disassemble_info *info;
+print_insn_hppa (bfd_vma memaddr, disassemble_info *info)
 {
   bfd_byte buffer[4];
   unsigned int insn, i;
@@ -390,9 +374,10 @@ print_insn_hppa (memaddr, info)
   for (i = 0; i < NUMOPCODES; ++i)
     {
       const struct pa_opcode *opcode = &pa_opcodes[i];
+
       if ((insn & opcode->mask) == opcode->match)
 	{
-	  register const char *s;
+	  const char *s;
 #ifndef BFD64
 	  if (opcode->arch == pa20w)
 	    continue;
@@ -633,7 +618,7 @@ print_insn_hppa (memaddr, info)
 			 read_write_names[GET_FIELD (insn, 25, 25)]);
 		      break;
 		    case 'W':
-		      (*info->fprintf_func) (info->stream, ",w");
+		      (*info->fprintf_func) (info->stream, ",w ");
 		      break;
 		    case 'r':
 		      if (GET_FIELD (insn, 23, 26) == 5)
@@ -789,10 +774,10 @@ print_insn_hppa (memaddr, info)
 			   float_comp_names[GET_FIELD (insn, 27, 31)]);
 			break;
 
-			/* these four conditions are for the set of instructions
+			/* These four conditions are for the set of instructions
 			   which distinguish true/false conditions by opcode
 			   rather than by the 'f' bit (sigh): comb, comib,
-			   addb, addib */
+			   addb, addib.  */
 		      case 't':
 			fputs_filtered
 			  (compare_cond_names[GET_FIELD (insn, 16, 18)], info);
@@ -927,6 +912,7 @@ print_insn_hppa (memaddr, info)
 		  fput_const (extract_14 (insn), info);
 		  break;
 		case 'k':
+		  fputs_filtered ("L%", info);
 		  fput_const (extract_21 (insn), info);
 		  break;
 		case '<':
@@ -966,12 +952,12 @@ print_insn_hppa (memaddr, info)
 
 		case 'Z':
 		  /* addil %r1 implicit output.  */
-		  (*info->fprintf_func) (info->stream, "%%r1");
+		  fputs_filtered ("r1", info);
 		  break;
 
 		case 'Y':
 		  /* be,l %sr0,%r31 implicit output.  */
-		  (*info->fprintf_func) (info->stream, "%%sr0,%%r31");
+		  fputs_filtered ("sr0,r31", info);
 		  break;
 
 		case '@':
@@ -987,7 +973,7 @@ print_insn_hppa (memaddr, info)
 					 GET_FIELD (insn, 22, 25));
 		  break;
 		case '!':
-		  (*info->fprintf_func) (info->stream, "%%sar");
+		  fputs_filtered ("sar", info);
 		  break;
 		case 'p':
 		  (*info->fprintf_func) (info->stream, "%d",
@@ -1070,8 +1056,8 @@ print_insn_hppa (memaddr, info)
 					 GET_FIELD (insn, 23, 25));
 		  break;
 		case 'F':
-		  /* if no destination completer and not before a completer
-		     for fcmp, need a space here */
+		  /* If no destination completer and not before a completer
+		     for fcmp, need a space here.  */
 		  if (s[1] == 'G' || s[1] == '?')
 		    fputs_filtered
 		      (float_format_names[GET_FIELD (insn, 19, 20)], info);
@@ -1094,8 +1080,8 @@ print_insn_hppa (memaddr, info)
 					   float_format_names[1]);
 		  break;
 		case 'I':
-		  /* if no destination completer and not before a completer
-		     for fcmp, need a space here */
+		  /* If no destination completer and not before a completer
+		     for fcmp, need a space here.  */
 		  if (s[1] == '?')
 		    fputs_filtered
 		      (float_format_names[GET_FIELD (insn, 20, 20)], info);
@@ -1171,6 +1157,7 @@ print_insn_hppa (memaddr, info)
 		    const char * const * source = float_format_names;
 		    const char * const * dest = float_format_names;
 		    char *t = "";
+
 		    if (sub == 4)
 		      {
 			fputs_filtered (",UND ", info);
@@ -1212,22 +1199,18 @@ print_insn_hppa (memaddr, info)
 		  {
 		    int cond = GET_FIELD (insn, 27, 31);
 
-		    if (cond == 0)
-		      fputs_filtered (" ", info);
-		    else if (cond == 1)
-		      fputs_filtered ("acc ", info);
-		    else if (cond == 2)
-		      fputs_filtered ("rej ", info);
-		    else if (cond == 5)
-		      fputs_filtered ("acc8 ", info);
-		    else if (cond == 6)
-		      fputs_filtered ("rej8 ", info);
-		    else if (cond == 9)
-		      fputs_filtered ("acc6 ", info);
-		    else if (cond == 13)
-		      fputs_filtered ("acc4 ", info);
-		    else if (cond == 17)
-		      fputs_filtered ("acc2 ", info);
+		    switch (cond)
+		      {
+		      case  0: fputs_filtered (" ", info); break;
+		      case  1: fputs_filtered ("acc ", info); break;
+		      case  2: fputs_filtered ("rej ", info); break;
+		      case  5: fputs_filtered ("acc8 ", info); break;
+		      case  6: fputs_filtered ("rej8 ", info); break;
+		      case  9: fputs_filtered ("acc6 ", info); break;
+		      case 13: fputs_filtered ("acc4 ", info); break;
+		      case 17: fputs_filtered ("acc2 ", info); break;
+		      default: break;
+		      }
 		    break;
 		  }
 
@@ -1236,16 +1219,16 @@ print_insn_hppa (memaddr, info)
 		    (memaddr + 8 + extract_22 (insn), info);
 		  break;
 		case 'L':
-		  fputs_filtered (",%r2", info);
+		  fputs_filtered (",rp", info);
 		  break;
 		default:
 		  (*info->fprintf_func) (info->stream, "%c", *s);
 		  break;
 		}
 	    }
-	  return sizeof(insn);
+	  return sizeof (insn);
 	}
     }
   (*info->fprintf_func) (info->stream, "#%8x", insn);
-  return sizeof(insn);
+  return sizeof (insn);
 }

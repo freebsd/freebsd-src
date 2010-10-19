@@ -21,7 +21,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -122,7 +122,7 @@ aix386_core_file_p (abfd)
     goto loser;
 
   core_regsec (abfd)->flags = SEC_HAS_CONTENTS;
-  core_regsec (abfd)->_raw_size = sizeof (core->cd_regs);
+  core_regsec (abfd)->size = sizeof (core->cd_regs);
   core_regsec (abfd)->vma = (bfd_vma) -1;
 
   /* We'll access the regs afresh in the core file, like any section.  */
@@ -135,7 +135,7 @@ aix386_core_file_p (abfd)
     goto loser;
 
   core_reg2sec (abfd)->flags = SEC_HAS_CONTENTS;
-  core_reg2sec (abfd)->_raw_size = sizeof (core->cd_fpregs);
+  core_reg2sec (abfd)->size = sizeof (core->cd_fpregs);
   core_reg2sec (abfd)->vma = (bfd_vma) -1;
   core_reg2sec (abfd)->filepos =
     (file_ptr) offsetof (struct corehdr, cd_fpregs);
@@ -180,7 +180,7 @@ aix386_core_file_p (abfd)
 	goto loser;
 
       core_section (abfd, n)->flags = flags;
-      core_section (abfd, n)->_raw_size = core->cd_segs[i].cs_len;
+      core_section (abfd, n)->size = core->cd_segs[i].cs_len;
       core_section (abfd, n)->vma       = core->cd_segs[i].cs_address;
       core_section (abfd, n)->filepos   = core->cd_segs[i].cs_offset;
       core_section (abfd, n)->alignment_power = 2;
@@ -204,14 +204,7 @@ aix386_core_file_failing_signal (abfd)
   return core_hdr (abfd)->cd_cursig;
 }
 
-static bfd_boolean
-aix386_core_file_matches_executable_p (core_bfd, exec_bfd)
-     bfd *core_bfd;
-     bfd *exec_bfd;
-{
-  /* FIXME: We have no way of telling at this point.  */
-  return TRUE;
-}
+#define aix386_core_file_matches_executable_p generic_core_file_matches_executable_p
 
 /* If somebody calls any byte-swapping routines, shoot them.  */
 

@@ -1,3 +1,5 @@
+sinclude(../bfd/warning.m4)
+
 dnl GAS_CHECK_DECL_NEEDED(name, typedefname, typedef, headers)
 AC_DEFUN([GAS_CHECK_DECL_NEEDED],[
 AC_MSG_CHECKING(whether declaration is required for $1)

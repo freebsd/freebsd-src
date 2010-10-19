@@ -1,22 +1,23 @@
 /* OpenRISC-specific support for 32-bit ELF.
-   Copyright 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+   Copyright 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
    Contributed by Johan Rydberg, jrydberg@opencores.org
 
-This file is part of BFD, the Binary File Descriptor library.
+   This file is part of BFD, the Binary File Descriptor library.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301,
+   USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -25,35 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "elf/openrisc.h"
 #include "libiberty.h"
 
-/* Forward declarations.  */
-
-static reloc_howto_type *openrisc_reloc_type_lookup
-  PARAMS ((bfd * , bfd_reloc_code_real_type));
-static void openrisc_info_to_howto_rela
-  PARAMS ((bfd *, arelent *, Elf_Internal_Rela *));
-static bfd_boolean openrisc_elf_relocate_section
-  PARAMS ((bfd *, struct bfd_link_info *, bfd *, asection *, bfd_byte *,
-	   Elf_Internal_Rela *, Elf_Internal_Sym *, asection **));
-static bfd_reloc_status_type openrisc_final_link_relocate
-  PARAMS ((reloc_howto_type *, bfd *, asection *, bfd_byte *,
-           Elf_Internal_Rela *, bfd_vma));
-static bfd_boolean openrisc_elf_gc_sweep_hook
-  PARAMS ((bfd *, struct bfd_link_info *, asection *,
-           const Elf_Internal_Rela *));
-static asection * openrisc_elf_gc_mark_hook
-  PARAMS ((asection *, struct bfd_link_info *, Elf_Internal_Rela *,
-	   struct elf_link_hash_entry *, Elf_Internal_Sym *));
-static bfd_boolean openrisc_elf_check_relocs
-  PARAMS ((bfd *, struct bfd_link_info *, asection *,
-	   const Elf_Internal_Rela *));
-static bfd_boolean openrisc_elf_object_p
-  PARAMS ((bfd *));
-static void openrisc_elf_final_write_processing
-  PARAMS ((bfd *, bfd_boolean));
-
-
 static reloc_howto_type openrisc_elf_howto_table[] =
-  {
+{
   /* This reloc does nothing.  */
   HOWTO (R_OPENRISC_NONE,	/* type */
 	 0,			/* rightshift */
@@ -172,7 +146,7 @@ static reloc_howto_type openrisc_elf_howto_table[] =
 	 0xffffffff,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* GNU extension to record C++ vtable hierarchy */
+  /* GNU extension to record C++ vtable hierarchy.  */
   HOWTO (R_OPENRISC_GNU_VTINHERIT, /* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
@@ -187,7 +161,7 @@ static reloc_howto_type openrisc_elf_howto_table[] =
 	 0,			/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* GNU extension to record C++ vtable member usage */
+  /* GNU extension to record C++ vtable member usage.  */
   HOWTO (R_OPENRISC_GNU_VTENTRY, /* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
@@ -206,29 +180,28 @@ static reloc_howto_type openrisc_elf_howto_table[] =
 /* Map BFD reloc types to OpenRISC ELF reloc types.  */
 
 struct openrisc_reloc_map
-  {
-    bfd_reloc_code_real_type bfd_reloc_val;
-    unsigned int openrisc_reloc_val;
-  };
+{
+  bfd_reloc_code_real_type bfd_reloc_val;
+  unsigned int openrisc_reloc_val;
+};
 
 static const struct openrisc_reloc_map openrisc_reloc_map[] =
-  {
-    { BFD_RELOC_NONE, 		R_OPENRISC_NONE },
-    { BFD_RELOC_32, 		R_OPENRISC_32 },
-    { BFD_RELOC_16, 		R_OPENRISC_16 },
-    { BFD_RELOC_8, 		R_OPENRISC_8 },
-    { BFD_RELOC_OPENRISC_REL_26,R_OPENRISC_INSN_REL_26 },
-    { BFD_RELOC_OPENRISC_ABS_26,R_OPENRISC_INSN_ABS_26 },
+{
+  { BFD_RELOC_NONE, 		R_OPENRISC_NONE },
+  { BFD_RELOC_32, 		R_OPENRISC_32 },
+  { BFD_RELOC_16, 		R_OPENRISC_16 },
+  { BFD_RELOC_8, 		R_OPENRISC_8 },
+  { BFD_RELOC_OPENRISC_REL_26,R_OPENRISC_INSN_REL_26 },
+  { BFD_RELOC_OPENRISC_ABS_26,R_OPENRISC_INSN_ABS_26 },
     { BFD_RELOC_HI16, 		R_OPENRISC_HI_16_IN_INSN },
-    { BFD_RELOC_LO16, 		R_OPENRISC_LO_16_IN_INSN },
-    { BFD_RELOC_VTABLE_INHERIT,	R_OPENRISC_GNU_VTINHERIT },
-    { BFD_RELOC_VTABLE_ENTRY, 	R_OPENRISC_GNU_VTENTRY }
-  };
+  { BFD_RELOC_LO16, 		R_OPENRISC_LO_16_IN_INSN },
+  { BFD_RELOC_VTABLE_INHERIT,	R_OPENRISC_GNU_VTINHERIT },
+  { BFD_RELOC_VTABLE_ENTRY, 	R_OPENRISC_GNU_VTENTRY }
+};
 
 static reloc_howto_type *
-openrisc_reloc_type_lookup (abfd, code)
-     bfd * abfd ATTRIBUTE_UNUSED;
-     bfd_reloc_code_real_type code;
+openrisc_reloc_type_lookup (bfd * abfd ATTRIBUTE_UNUSED,
+			    bfd_reloc_code_real_type code)
 {
   unsigned int i;
 
@@ -243,10 +216,9 @@ openrisc_reloc_type_lookup (abfd, code)
 /* Set the howto pointer for an OpenRISC ELF reloc.  */
 
 static void
-openrisc_info_to_howto_rela (abfd, cache_ptr, dst)
-     bfd * abfd ATTRIBUTE_UNUSED;
-     arelent * cache_ptr;
-     Elf_Internal_Rela * dst;
+openrisc_info_to_howto_rela (bfd * abfd ATTRIBUTE_UNUSED,
+			     arelent * cache_ptr,
+			     Elf_Internal_Rela * dst)
 {
   unsigned int r_type;
 
@@ -259,14 +231,12 @@ openrisc_info_to_howto_rela (abfd, cache_ptr, dst)
    routines, but a few relocs, we have to do them ourselves.  */
 
 static bfd_reloc_status_type
-openrisc_final_link_relocate (howto, input_bfd, input_section, contents, rel,
-			      relocation)
-     reloc_howto_type *howto;
-     bfd *input_bfd;
-     asection *input_section;
-     bfd_byte *contents;
-     Elf_Internal_Rela *rel;
-     bfd_vma relocation;
+openrisc_final_link_relocate (reloc_howto_type *howto,
+			      bfd *input_bfd,
+			      asection *input_section,
+			      bfd_byte *contents,
+			      Elf_Internal_Rela *rel,
+			      bfd_vma relocation)
 {
   bfd_reloc_status_type r = bfd_reloc_ok;
 
@@ -319,16 +289,14 @@ openrisc_final_link_relocate (howto, input_bfd, input_section, contents, rel,
    accordingly.  */
 
 static bfd_boolean
-openrisc_elf_relocate_section (output_bfd, info, input_bfd, input_section,
-			       contents, relocs, local_syms, local_sections)
-     bfd *output_bfd;
-     struct bfd_link_info *info;
-     bfd *input_bfd;
-     asection *input_section;
-     bfd_byte *contents;
-     Elf_Internal_Rela *relocs;
-     Elf_Internal_Sym *local_syms;
-     asection **local_sections;
+openrisc_elf_relocate_section (bfd *output_bfd,
+			       struct bfd_link_info *info,
+			       bfd *input_bfd,
+			       asection *input_section,
+			       bfd_byte *contents,
+			       Elf_Internal_Rela *relocs,
+			       Elf_Internal_Sym *local_syms,
+			       asection **local_sections)
 {
   Elf_Internal_Shdr *symtab_hdr;
   struct elf_link_hash_entry **sym_hashes;
@@ -396,14 +364,14 @@ openrisc_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 
       if (r != bfd_reloc_ok)
 	{
-	  const char *msg = (const char *) NULL;
+	  const char *msg = NULL;
 
 	  switch (r)
 	    {
 	    case bfd_reloc_overflow:
 	      r = info->callbacks->reloc_overflow
-		(info, name, howto->name, (bfd_vma) 0,
-		 input_bfd, input_section, rel->r_offset);
+		(info, (h ? &h->root : NULL), name, howto->name,
+		 (bfd_vma) 0, input_bfd, input_section, rel->r_offset);
 	      break;
 
 	    case bfd_reloc_undefined:
@@ -444,38 +412,35 @@ openrisc_elf_relocate_section (output_bfd, info, input_bfd, input_section,
    relocation.  */
 
 static asection *
-openrisc_elf_gc_mark_hook (sec, info, rel, h, sym)
-     asection *sec;
-     struct bfd_link_info *info ATTRIBUTE_UNUSED;
-     Elf_Internal_Rela *rel;
-     struct elf_link_hash_entry *h;
-     Elf_Internal_Sym *sym;
+openrisc_elf_gc_mark_hook (asection *sec,
+			   struct bfd_link_info *info ATTRIBUTE_UNUSED,
+			   Elf_Internal_Rela *rel,
+			   struct elf_link_hash_entry *h,
+			   Elf_Internal_Sym *sym)
 {
-  if (h != NULL)
+  if (h == NULL)
+    return bfd_section_from_elf_index (sec->owner, sym->st_shndx);
+
+  switch (ELF32_R_TYPE (rel->r_info))
     {
-      switch (ELF32_R_TYPE (rel->r_info))
+    case R_OPENRISC_GNU_VTINHERIT:
+    case R_OPENRISC_GNU_VTENTRY:
+      break;
+
+    default:
+      switch (h->root.type)
 	{
-	case R_OPENRISC_GNU_VTINHERIT:
-	case R_OPENRISC_GNU_VTENTRY:
-	  break;
+	case bfd_link_hash_defined:
+	case bfd_link_hash_defweak:
+	  return h->root.u.def.section;
+
+	case bfd_link_hash_common:
+	  return h->root.u.c.p->section;
 
 	default:
-	  switch (h->root.type)
-	    {
-	    case bfd_link_hash_defined:
-	    case bfd_link_hash_defweak:
-	      return h->root.u.def.section;
-
-	    case bfd_link_hash_common:
-	      return h->root.u.c.p->section;
-
-	    default:
-	      break;
-	    }
+	  break;
 	}
     }
-  else
-    return bfd_section_from_elf_index (sec->owner, sym->st_shndx);
 
   return NULL;
 }
@@ -483,11 +448,10 @@ openrisc_elf_gc_mark_hook (sec, info, rel, h, sym)
 /* Update the got entry reference counts for the section being removed.  */
 
 static bfd_boolean
-openrisc_elf_gc_sweep_hook (abfd, info, sec, relocs)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     struct bfd_link_info *info ATTRIBUTE_UNUSED;
-     asection *sec ATTRIBUTE_UNUSED;
-     const Elf_Internal_Rela *relocs ATTRIBUTE_UNUSED;
+openrisc_elf_gc_sweep_hook (bfd *abfd ATTRIBUTE_UNUSED,
+			    struct bfd_link_info *info ATTRIBUTE_UNUSED,
+			    asection *sec ATTRIBUTE_UNUSED,
+			    const Elf_Internal_Rela *relocs ATTRIBUTE_UNUSED)
 {
   return TRUE;
 }
@@ -497,11 +461,10 @@ openrisc_elf_gc_sweep_hook (abfd, info, sec, relocs)
    virtual table relocs for gc.  */
 
 static bfd_boolean
-openrisc_elf_check_relocs (abfd, info, sec, relocs)
-     bfd *abfd;
-     struct bfd_link_info *info;
-     asection *sec;
-     const Elf_Internal_Rela *relocs;
+openrisc_elf_check_relocs (bfd *abfd,
+			   struct bfd_link_info *info,
+			   asection *sec,
+			   const Elf_Internal_Rela *relocs)
 {
   Elf_Internal_Shdr *symtab_hdr;
   struct elf_link_hash_entry **sym_hashes, **sym_hashes_end;
@@ -528,7 +491,12 @@ openrisc_elf_check_relocs (abfd, info, sec, relocs)
       if (r_symndx < symtab_hdr->sh_info)
 	h = NULL;
       else
-	h = sym_hashes[r_symndx - symtab_hdr->sh_info];
+	{
+	  h = sym_hashes[r_symndx - symtab_hdr->sh_info];
+	  while (h->root.type == bfd_link_hash_indirect
+		 || h->root.type == bfd_link_hash_warning)
+	    h = (struct elf_link_hash_entry *) h->root.u.i.link;
+	}
 
       switch (ELF32_R_TYPE (rel->r_info))
 	{
@@ -554,24 +522,17 @@ openrisc_elf_check_relocs (abfd, info, sec, relocs)
 /* Set the right machine number.  */
 
 static bfd_boolean
-openrisc_elf_object_p (abfd)
-     bfd *abfd;
+openrisc_elf_object_p (bfd *abfd)
 {
-  switch (elf_elfheader (abfd)->e_flags & 0xf)
-    {
-    default:
-      (void) bfd_default_set_arch_mach (abfd, bfd_arch_openrisc, 0);
-      break;
-    }
+  bfd_default_set_arch_mach (abfd, bfd_arch_openrisc, 0);
   return TRUE;
 }
 
 /* Store the machine number in the flags field.  */
 
 static void
-openrisc_elf_final_write_processing (abfd, linker)
-     bfd *abfd;
-     bfd_boolean linker ATTRIBUTE_UNUSED;
+openrisc_elf_final_write_processing (bfd *abfd,
+				     bfd_boolean linker ATTRIBUTE_UNUSED)
 {
   unsigned long val;
 

@@ -1,0 +1,119 @@
+#objdump:-dw
+#name: 1st  Move operations
+
+.*: +file format .*
+
+Disassembly of section .text:
+0+000 <foo>:
+   0:	8a 8a [ 	]*XCH 
+   2:	7a 8a [ 	]*XCHN 
+   4:	01 76 [ 	]*MOVE  NUL, #01h
+   6:	08 f6 [ 	]*MOVE  NUL, AP
+   8:	18 f6 [ 	]*MOVE  NUL, APC
+   a:	48 f6 [ 	]*MOVE  NUL, PSF
+   c:	58 f6 [ 	]*MOVE  NUL, IC
+   e:	68 f6 [ 	]*MOVE  NUL, IMR
+  10:	88 f6 [ 	]*MOVE  NUL, SC
+  12:	b8 f6 [ 	]*MOVE  NUL, IIR
+  14:	e8 f6 [ 	]*MOVE  NUL, CKCN
+  16:	f8 f6 [ 	]*MOVE  NUL, WDCN
+  18:	09 f6 [ 	]*MOVE  NUL, A\[0\]
+  1a:	f9 f6 [ 	]*MOVE  NUL, A\[15\]
+  1c:	0a f6 [ 	]*MOVE  NUL, ACC
+  1e:	1a f6 [ 	]*MOVE  NUL, A\[AP\]
+  20:	0c f6 [ 	]*MOVE  NUL, IP
+  22:	0d f6 [ 	]*POP  NUL
+  24:	1d f6 [ 	]*MOVE  NUL, SP
+  26:	2d f6 [ 	]*MOVE  NUL, IV
+  28:	6d f6 [ 	]*MOVE  NUL, LC\[0\]
+  2a:	7d f6 [ 	]*MOVE  NUL, LC\[1\]
+  2c:	1e f6 [ 	]*MOVE  NUL, @BP\[OFFS\+\+\]
+  2e:	2e f6 [ 	]*MOVE  NUL, @BP\[OFFS\-\-\]
+  30:	3e f6 [ 	]*MOVE  NUL, OFFS
+  32:	4e f6 [ 	]*MOVE  NUL, DPC
+  34:	5e f6 [ 	]*MOVE  NUL, GR
+  36:	6e f6 [ 	]*MOVE  NUL, GRL
+  38:	7e f6 [ 	]*MOVE  NUL, BP
+  3a:	8e f6 [ 	]*MOVE  NUL, GRS
+  3c:	9e f6 [ 	]*MOVE  NUL, GRH
+  3e:	ae f6 [ 	]*MOVE  NUL, GRXL
+  40:	be f6 [ 	]*MOVE  NUL, FP
+  42:	0f f6 [ 	]*MOVE  NUL, @DP\[0\]
+  44:	4f f6 [ 	]*MOVE  NUL, @DP\[1\]
+  46:	1f f6 [ 	]*MOVE  NUL, @DP\[0\]\+\+
+  48:	5f f6 [ 	]*MOVE  NUL, @DP\[1\]\+\+
+  4a:	2f f6 [ 	]*MOVE  NUL, @DP\[0\]\-\-
+  4c:	6f f6 [ 	]*MOVE  NUL, @DP\[1\]\-\-
+  4e:	01 08 [ 	]*MOVE  AP, #01h
+  50:	18 88 [ 	]*MOVE  AP, APC
+  52:	48 88 [ 	]*MOVE  AP, PSF
+  54:	58 88 [ 	]*MOVE  AP, IC
+  56:	68 88 [ 	]*MOVE  AP, IMR
+  58:	88 88 [ 	]*MOVE  AP, SC
+  5a:	b8 88 [ 	]*MOVE  AP, IIR
+  5c:	e8 88 [ 	]*MOVE  AP, CKCN
+  5e:	f8 88 [ 	]*MOVE  AP, WDCN
+  60:	09 88 [ 	]*MOVE  AP, A\[0\]
+  62:	f9 88 [ 	]*MOVE  AP, A\[15\]
+  64:	0a 88 [ 	]*MOVE  AP, ACC
+  66:	1a 88 [ 	]*MOVE  AP, A\[AP\]
+  68:	0c 88 [ 	]*MOVE  AP, IP
+  6a:	0d 88 [ 	]*MOVE  AP, @SP\-\-
+  6c:	1d 88 [ 	]*MOVE  AP, SP
+  6e:	2d 88 [ 	]*MOVE  AP, IV
+  70:	6d 88 [ 	]*MOVE  AP, LC\[0\]
+  72:	7d 88 [ 	]*MOVE  AP, LC\[1\]
+  74:	1e 88 [ 	]*MOVE  AP, @BP\[OFFS\+\+\]
+  76:	2e 88 [ 	]*MOVE  AP, @BP\[OFFS\-\-\]
+  78:	3e 88 [ 	]*MOVE  AP, OFFS
+  7a:	4e 88 [ 	]*MOVE  AP, DPC
+  7c:	5e 88 [ 	]*MOVE  AP, GR
+  7e:	6e 88 [ 	]*MOVE  AP, GRL
+  80:	7e 88 [ 	]*MOVE  AP, BP
+  82:	8e 88 [ 	]*MOVE  AP, GRS
+  84:	9e 88 [ 	]*MOVE  AP, GRH
+  86:	ae 88 [ 	]*MOVE  AP, GRXL
+  88:	be 88 [ 	]*MOVE  AP, FP
+  8a:	0f 88 [ 	]*MOVE  AP, @DP\[0\]
+  8c:	4f 88 [ 	]*MOVE  AP, @DP\[1\]
+  8e:	1f 88 [ 	]*MOVE  AP, @DP\[0\]\+\+
+  90:	5f 88 [ 	]*MOVE  AP, @DP\[1\]\+\+
+  92:	2f 88 [ 	]*MOVE  AP, @DP\[0\]\-\-
+  94:	6f 88 [ 	]*MOVE  AP, @DP\[1\]\-\-
+  96:	01 18 [ 	]*MOVE  APC, #01h
+  98:	08 98 [ 	]*MOVE  APC, AP
+  9a:	48 98 [ 	]*MOVE  APC, PSF
+  9c:	58 98 [ 	]*MOVE  APC, IC
+  9e:	68 98 [ 	]*MOVE  APC, IMR
+  a0:	88 98 [ 	]*MOVE  APC, SC
+  a2:	b8 98 [ 	]*MOVE  APC, IIR
+  a4:	e8 98 [ 	]*MOVE  APC, CKCN
+  a6:	f8 98 [ 	]*MOVE  APC, WDCN
+  a8:	09 98 [ 	]*MOVE  APC, A\[0\]
+  aa:	f9 98 [ 	]*MOVE  APC, A\[15\]
+  ac:	0a 98 [ 	]*MOVE  APC, ACC
+  ae:	1a 98 [ 	]*MOVE  APC, A\[AP\]
+  b0:	0c 98 [ 	]*MOVE  APC, IP
+  b2:	0d 98 [ 	]*MOVE  APC, @SP\-\-
+  b4:	1d 98 [ 	]*MOVE  APC, SP
+  b6:	2d 98 [ 	]*MOVE  APC, IV
+  b8:	6d 98 [ 	]*MOVE  APC, LC\[0\]
+  ba:	7d 98 [ 	]*MOVE  APC, LC\[1\]
+  bc:	1e 98 [ 	]*MOVE  APC, @BP\[OFFS\+\+\]
+  be:	2e 98 [ 	]*MOVE  APC, @BP\[OFFS\-\-\]
+  c0:	3e 98 [ 	]*MOVE  APC, OFFS
+  c2:	4e 98 [ 	]*MOVE  APC, DPC
+  c4:	5e 98 [ 	]*MOVE  APC, GR
+  c6:	6e 98 [ 	]*MOVE  APC, GRL
+  c8:	7e 98 [ 	]*MOVE  APC, BP
+  ca:	8e 98 [ 	]*MOVE  APC, GRS
+  cc:	9e 98 [ 	]*MOVE  APC, GRH
+  ce:	ae 98 [ 	]*MOVE  APC, GRXL
+  d0:	be 98 [ 	]*MOVE  APC, FP
+  d2:	0f 98 [ 	]*MOVE  APC, @DP\[0\]
+  d4:	4f 98 [ 	]*MOVE  APC, @DP\[1\]
+  d6:	1f 98 [ 	]*MOVE  APC, @DP\[0\]\+\+
+  d8:	5f 98 [ 	]*MOVE  APC, @DP\[1\]\+\+
+  da:	2f 98 [ 	]*MOVE  APC, @DP\[0\]\-\-
+  dc:	6f 98 [ 	]*MOVE  APC, @DP\[1\]\-\-
+	...

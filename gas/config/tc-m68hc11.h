@@ -1,5 +1,6 @@
 /* tc-m68hc11.h -- Header file for tc-m68hc11.c.
-   Copyright 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001, 2002, 2003, 2005
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -15,15 +16,13 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #define TC_M68HC11
 #define TC_M68HC12
 
-#ifdef ANSI_PROTOTYPES
 struct fix;
-#endif
 
 /* Define TC_M68K so that we can use the MRI mode.  */
 #define TC_M68K
@@ -32,16 +31,6 @@ struct fix;
 
 /* Motorola assembler specs does not require '.' before pseudo-ops.  */
 #define NO_PSEUDO_DOT 1
-
-#if 0
-/* Treat the single quote as a string delimiter.
-   ??? This does not work at all.  */
-#define SINGLE_QUOTE_STRINGS 1
-#endif
-
-#ifndef BFD_ASSEMBLER
-#error M68HC11 support requires BFD_ASSEMBLER
-#endif
 
 /* The target BFD architecture.  */
 #define TARGET_ARCH (m68hc11_arch ())
@@ -98,7 +87,7 @@ extern long m68hc11_relax_frag (segT, fragS*, long);
 
 #define DIFF_EXPR_OK		/* .-foo gets turned into PC relative relocs */
 
-/* Values passed to md_apply_fix3 don't include the symbol value.  */
+/* Values passed to md_apply_fix don't include the symbol value.  */
 #define MD_APPLY_SYM_VALUE(FIX) 0
 
 /* No shared lib support, so we don't need to ensure externally
@@ -112,9 +101,6 @@ extern int tc_m68hc11_force_relocation (struct fix *);
 extern int tc_m68hc11_fix_adjustable (struct fix *);
 
 #define md_operand(x)
-#define tc_frob_label(sym) do {\
-  S_SET_VALUE (sym, (valueT) frag_now_fix ()); \
-} while (0)
 
 #define elf_tc_final_processing	m68hc11_elf_final_processing
 extern void m68hc11_elf_final_processing (void);

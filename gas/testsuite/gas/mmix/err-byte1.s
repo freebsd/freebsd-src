@@ -1,5 +1,5 @@
 % { dg-do assemble { target mmix-*-* } }
-% { dg-error "unterminated string" "" { target mmix-*-* } 10 }
+% { dg-error "unterminated string|missing closing" "" { target mmix-*-* } 10 }
 % { dg-bogus "end of file" "" { xfail mmix-*-* } 0 }
 
 # Note that the error is detected in the preformatter, before the text

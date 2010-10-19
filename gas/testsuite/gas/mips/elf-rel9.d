@@ -45,7 +45,7 @@ Disassembly of section \.text:
 			44: R_MIPS_LO16	\.data
   48:	8f840002 	lw	\$4,2\(\$28\)
 			48: R_MIPS_GOT16	\.data
-  4c:	2484f100 	addiu	\$4,\$4,-3840
+  4c:	24840000 	addiu	\$4,\$4,0
 			4c: R_MIPS_LO16	\.data
   50:	8f840003 	lw	\$4,3\(\$28\)
 			50: R_MIPS_GOT16	\.data

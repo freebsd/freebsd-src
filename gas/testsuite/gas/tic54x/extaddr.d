@@ -5,7 +5,7 @@
 
 Disassembly of section .text:
 
-00000000 <.text>:
+0+000 <.text>:
        0:	f062.*
        1:	0000.*
 .*1: RELEXTMS7.*
@@ -14,7 +14,7 @@ Disassembly of section .text:
 .*3: RELEXT16.*
        4:	f4e2.*
 
-00000005 <start>:
+0+005 <start>:
        5:	f881.*
        6:	0080.*
 .*5: ARELEXT.*
@@ -49,7 +49,7 @@ Disassembly of section .text:
       20:	f495.*
 	...
 
-00010080 <end>:
+0+010080 <end>:
    10080:	f881.*
    10081:	0080.*
 .*10080: ARELEXT.*

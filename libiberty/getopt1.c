@@ -1,5 +1,5 @@
 /* getopt_long and getopt_long_only entry points for GNU getopt.
-   Copyright (C) 1987,88,89,90,91,92,93,94,96,97,98
+   Copyright (C) 1987,88,89,90,91,92,93,94,96,97,98,2005
      Free Software Foundation, Inc.
 
    NOTE: This source is derived from an old version taken from the GNU C
@@ -17,14 +17,12 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301,
    USA.  */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
-
-#include "getopt.h"
 
 #if !defined __STDC__ || !__STDC__
 /* This is a separate conditional since some stdc systems
@@ -35,6 +33,8 @@
 #endif
 
 #include <stdio.h>
+
+#include "getopt.h"
 
 /* Comment out all this code if we are using the GNU C Library, and are not
    actually compiling the library itself.  This code is part of the GNU C
@@ -66,12 +66,8 @@
 #endif
 
 int
-getopt_long (argc, argv, options, long_options, opt_index)
-     int argc;
-     char *const *argv;
-     const char *options;
-     const struct option *long_options;
-     int *opt_index;
+getopt_long (int argc,  char *const *argv,  const char *options,
+             const struct option *long_options, int *opt_index)
 {
   return _getopt_internal (argc, argv, options, long_options, opt_index, 0);
 }
@@ -82,12 +78,8 @@ getopt_long (argc, argv, options, long_options, opt_index)
    instead.  */
 
 int
-getopt_long_only (argc, argv, options, long_options, opt_index)
-     int argc;
-     char *const *argv;
-     const char *options;
-     const struct option *long_options;
-     int *opt_index;
+getopt_long_only (int argc, char *const *argv, const char *options,
+                  const struct option *long_options, int *opt_index)
 {
   return _getopt_internal (argc, argv, options, long_options, opt_index, 1);
 }
@@ -100,9 +92,7 @@ getopt_long_only (argc, argv, options, long_options, opt_index)
 #include <stdio.h>
 
 int
-main (argc, argv)
-     int argc;
-     char **argv;
+main (int argc, char **argv)
 {
   int c;
   int digit_optind = 0;

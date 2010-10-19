@@ -134,7 +134,7 @@ Disassembly of section .text:
  108:	7c7f [	 ]*cvtlpi
  10a:	7d80 [	 ]*med
  10c:	7dea [	 ]*xfc	52
- 10e:	7e3e [	 ]*sob	r0, 10c <start2\+0x106>
+ 10e:	7e02 [	 ]*sob	r0, 10c <start2\+0x106>
  110:	80fd [	 ]*bpl	10c <start2\+0x106>
  112:	81fc [	 ]*bmi	10c <start2\+0x106>
  114:	82fb [	 ]*bhi	10c <start2\+0x106>
