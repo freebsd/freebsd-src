@@ -1644,10 +1644,6 @@ ndis_linksts_done(adapter)
 	default:
 		break;
 	}
-
-	/* Notify possible listners of interface change. */
-
-	rt_ifmsg(ifp);
 }
 
 static void
