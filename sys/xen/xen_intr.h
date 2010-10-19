@@ -76,7 +76,7 @@ extern int bind_ipi_to_irqhandler(unsigned int ipi, unsigned int cpu,
  */
 extern int bind_interdomain_evtchn_to_irqhandler(unsigned int remote_domain,
 	unsigned int remote_port, const char *devname,
-	driver_filter_t filter, driver_intr_t handler,
+	driver_intr_t handler, void *arg,
 	unsigned long irqflags, unsigned int *irqp);
 
 /*

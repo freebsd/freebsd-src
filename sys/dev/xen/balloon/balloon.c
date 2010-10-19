@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/xen/xenfunc.h>
 #include <machine/xen/xenvar.h>
 #include <xen/hypervisor.h>
-#include <xen/xenbus/xenbusvar.h>
+#include <xen/xenstore/xenstorevar.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -406,20 +406,20 @@ set_new_target(unsigned long target)
 	wakeup(balloon_process);
 }
 
-static struct xenbus_watch target_watch =
+static struct xs_watch target_watch =
 {
 	.node = "memory/target"
 };
 
 /* React to a change in the target key */
 static void 
-watch_target(struct xenbus_watch *watch,
+watch_target(struct xs_watch *watch,
 	     const char **vec, unsigned int len)
 {
 	unsigned long long new_target;
 	int err;
 
-	err = xenbus_scanf(XBT_NIL, "memory", "target", NULL,
+	err = xs_scanf(XST_NIL, "memory", "target", NULL,
 	    "%llu", &new_target);
 	if (err) {
 		/* This is ok (for domain0 at least) - so just return */
@@ -438,7 +438,7 @@ balloon_init_watcher(void *arg)
 {
 	int err;
 
-	err = register_xenbus_watch(&target_watch);
+	err = xs_register_watch(&target_watch);
 	if (err)
 		printf("Failed to set balloon watcher\n");
 
