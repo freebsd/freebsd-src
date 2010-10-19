@@ -3,9 +3,9 @@
 .*:     file format elf64-mmix
 
 SYMBOL TABLE:
-0+ l    d  \.text	0+ 
-0+ l    d  \.data	0+ 
-0+ l    d  \.bss	0+ 
+0+ l    d  \.text	0+ (|\.text)
+0+ l    d  \.data	0+ (|\.data)
+0+ l    d  \.bss	0+ (|\.bss)
 0+14 l       \.text	0+ L9
 0+18 l       \.text	0+ L12
 0+1c l       \.text	0+ L21

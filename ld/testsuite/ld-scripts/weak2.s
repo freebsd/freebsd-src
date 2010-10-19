@@ -1,4 +1,4 @@
-.data
+	.data
 	.global	foo2
 	.weak	sym1
 	.global	sym2

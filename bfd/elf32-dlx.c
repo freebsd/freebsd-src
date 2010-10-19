@@ -1,5 +1,5 @@
 /* DLX specific support for 32-bit ELF
-   Copyright 2002, 2003 Free Software Foundation, Inc.
+   Copyright 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -15,7 +15,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -23,210 +24,12 @@
 #include "elf-bfd.h"
 #include "elf/dlx.h"
 
-int    set_dlx_skip_hi16_flag PARAMS ((int));
-
-static bfd_boolean elf32_dlx_check_relocs
-  PARAMS ((bfd *, struct bfd_link_info *, asection *,
-	   const Elf_Internal_Rela *));
-static void elf32_dlx_info_to_howto
-  PARAMS ((bfd *, arelent *, Elf_Internal_Rela *));
-static void elf32_dlx_info_to_howto_rel
-  PARAMS ((bfd *, arelent *, Elf_Internal_Rela *));
-static bfd_reloc_status_type elf32_dlx_relocate16
-  PARAMS ((bfd *, arelent *, asymbol *, PTR, asection *, bfd *, char **));
-static bfd_reloc_status_type elf32_dlx_relocate26
-  PARAMS ((bfd *, arelent *, asymbol *, PTR, asection *, bfd *, char **));
-static reloc_howto_type *elf32_dlx_reloc_type_lookup
-  PARAMS ((bfd *, bfd_reloc_code_real_type));
-static bfd_reloc_status_type _bfd_dlx_elf_hi16_reloc
-  PARAMS ((bfd *, arelent *, asymbol *, PTR, asection *, bfd *, char **));
-static reloc_howto_type * dlx_rtype_to_howto
-  PARAMS ((unsigned int));
-
-
 #define USE_REL 1
 
 #define bfd_elf32_bfd_reloc_type_lookup elf32_dlx_reloc_type_lookup
 #define elf_info_to_howto               elf32_dlx_info_to_howto
 #define elf_info_to_howto_rel           elf32_dlx_info_to_howto_rel
 #define elf_backend_check_relocs        elf32_dlx_check_relocs
-
-static reloc_howto_type dlx_elf_howto_table[]=
-  {
-    /* No relocation.  */
-    HOWTO (R_DLX_NONE,            /* type */
-	   0,                     /* rightshift */
-	   0,                     /* size (0 = byte, 1 = short, 2 = long) */
-	   0,                     /* bitsize */
-	   FALSE,                 /* pc_relative */
-	   0,                     /* bitpos */
-	   complain_overflow_dont,/* complain_on_overflow */
-	   bfd_elf_generic_reloc, /* special_function */
-	   "R_DLX_NONE",          /* name */
-	   FALSE,                 /* partial_inplace */
-	   0,                     /* src_mask */
-	   0,                     /* dst_mask */
-	   FALSE),                /* pcrel_offset */
-
-    /* 8 bit relocation.  */
-    HOWTO (R_DLX_RELOC_8,         /* type */
-	   0,                     /* rightshift */
-	   0,                     /* size (0 = byte, 1 = short, 2 = long) */
-	   8,                     /* bitsize */
-	   FALSE,                 /* pc_relative */
-	   0,                     /* bitpos */
-	   complain_overflow_dont,/* complain_on_overflow */
-	   bfd_elf_generic_reloc, /* special_function */
-	   "R_DLX_RELOC_8",       /* name */
-	   TRUE,                  /* partial_inplace */
-	   0xff,                  /* src_mask */
-	   0xff,                  /* dst_mask */
-	   FALSE),                /* pcrel_offset */
-
-    /* 16 bit relocation.  */
-    HOWTO (R_DLX_RELOC_16,        /* type */
-	   0,                     /* rightshift */
-	   1,                     /* size (0 = byte, 1 = short, 2 = long) */
-	   16,                    /* bitsize */
-	   FALSE,                 /* pc_relative */
-	   0,                     /* bitpos */
-	   complain_overflow_dont,/* complain_on_overflow */
-	   bfd_elf_generic_reloc, /* special_function */
-	   "R_DLX_RELOC_16",      /* name */
-	   TRUE,                  /* partial_inplace */
-	   0xffff,                /* src_mask */
-	   0xffff,                /* dst_mask */
-	   FALSE),                /* pcrel_offset */
-
-#if 0
-    /* 26 bit jump address.  */
-    HOWTO (R_DLX_RELOC_26,        /* type */
-	   0,                     /* rightshift */
-	   2,                     /* size (0 = byte, 1 = short, 2 = long) */
-	   26,                    /* bitsize */
-	   FALSE,                 /* pc_relative */
-	   0,                     /* bitpos */
-	   complain_overflow_dont,/* complain_on_overflow */
-	   /* This needs complex overflow detection, because the upper four
-	      bits must match the PC + 4.  */
-	   bfd_elf_generic_reloc, /* special_function */
-	   "R_DLX_RELOC_26",      /* name */
-	   TRUE,                  /* partial_inplace */
-	   0x3ffffff,             /* src_mask */
-	   0x3ffffff,             /* dst_mask */
-	   FALSE),                /* pcrel_offset */
-#endif
-
-    /* 32 bit relocation.  */
-    HOWTO (R_DLX_RELOC_32,        /* type */
-	   0,                     /* rightshift */
-	   2,                     /* size (0 = byte, 1 = short, 2 = long) */
-	   32,                    /* bitsize */
-	   FALSE,                 /* pc_relative */
-	   0,                     /* bitpos */
-	   complain_overflow_dont,/* complain_on_overflow */
-	   bfd_elf_generic_reloc, /* special_function */
-	   "R_DLX_RELOC_32",      /* name */
-	   TRUE,                  /* partial_inplace */
-	   0xffffffff,            /* src_mask */
-	   0xffffffff,            /* dst_mask */
-	   FALSE),                /* pcrel_offset */
-
-    /* GNU extension to record C++ vtable hierarchy */
-    HOWTO (R_DLX_GNU_VTINHERIT,   /* type */
-	   0,			  /* rightshift */
-	   2,			  /* size (0 = byte, 1 = short, 2 = long) */
-	   0,			  /* bitsize */
-	   FALSE,		  /* pc_relative */
-	   0,			  /* bitpos */
-	   complain_overflow_dont,/* complain_on_overflow */
-	   NULL,		  /* special_function */
-	   "R_DLX_GNU_VTINHERIT", /* name */
-	   FALSE,		  /* partial_inplace */
-	   0,			  /* src_mask */
-	   0,			  /* dst_mask */
-	   FALSE),		  /* pcrel_offset */
-
-    /* GNU extension to record C++ vtable member usage */
-    HOWTO (R_DLX_GNU_VTENTRY,     /* type */
-	   0,			  /* rightshift */
-	   2,			  /* size (0 = byte, 1 = short, 2 = long) */
-	   0,			  /* bitsize */
-	   FALSE,		  /* pc_relative */
-	   0,			  /* bitpos */
-	   complain_overflow_dont,/* complain_on_overflow */
-	   _bfd_elf_rel_vtable_reloc_fn,/* special_function */
-	   "R_DLX_GNU_VTENTRY",	  /* name */
-	   FALSE,		  /* partial_inplace */
-	   0,			  /* src_mask */
-	   0,			  /* dst_mask */
-	   FALSE)		  /* pcrel_offset */
-  };
-
-/* 16 bit offset for pc-relative branches.  */
-static reloc_howto_type elf_dlx_gnu_rel16_s2 =
-HOWTO (R_DLX_RELOC_16_PCREL,  /* type */
-       0,                     /* rightshift */
-       1,                     /* size (0 = byte, 1 = short, 2 = long) */
-       16,                    /* bitsize */
-       TRUE,                  /* pc_relative */
-       0,                     /* bitpos */
-       complain_overflow_signed, /* complain_on_overflow */
-       elf32_dlx_relocate16,  /* special_function */
-       "R_DLX_RELOC_16_PCREL",/* name */
-       TRUE,                  /* partial_inplace */
-       0xffff,                /* src_mask */
-       0xffff,                /* dst_mask */
-       TRUE);                 /* pcrel_offset */
-
-/* 26 bit offset for pc-relative branches.  */
-static reloc_howto_type elf_dlx_gnu_rel26_s2 =
-HOWTO (R_DLX_RELOC_26_PCREL,  /* type */
-       0,                     /* rightshift */
-       2,                     /* size (0 = byte, 1 = short, 2 = long) */
-       26,                    /* bitsize */
-       TRUE,                  /* pc_relative */
-       0,                     /* bitpos */
-       complain_overflow_dont,/* complain_on_overflow */
-       elf32_dlx_relocate26,  /* special_function */
-       "R_DLX_RELOC_26_PCREL",/* name */
-       TRUE,                  /* partial_inplace */
-       0xffff,                /* src_mask */
-       0xffff,                /* dst_mask */
-       TRUE);                 /* pcrel_offset */
-
-/* High 16 bits of symbol value.  */
-static reloc_howto_type elf_dlx_reloc_16_hi =
-HOWTO (R_DLX_RELOC_16_HI,     /* type */
-       16,                    /* rightshift */
-       2,                     /* size (0 = byte, 1 = short, 2 = long) */
-       32,                    /* bitsize */
-       FALSE,                 /* pc_relative */
-       0,                     /* bitpos */
-       complain_overflow_dont, /* complain_on_overflow */
-       _bfd_dlx_elf_hi16_reloc,/* special_function */
-       "R_DLX_RELOC_16_HI",   /* name */
-       TRUE,                  /* partial_inplace */
-       0xFFFF,                /* src_mask */
-       0xffff,                /* dst_mask */
-       FALSE);                /* pcrel_offset */
-
-  /* Low 16 bits of symbol value.  */
-static reloc_howto_type elf_dlx_reloc_16_lo =
-HOWTO (R_DLX_RELOC_16_LO,     /* type */
-       0,                     /* rightshift */
-       1,                     /* size (0 = byte, 1 = short, 2 = long) */
-       16,                    /* bitsize */
-       FALSE,                 /* pc_relative */
-       0,                     /* bitpos */
-       complain_overflow_dont,/* complain_on_overflow */
-       bfd_elf_generic_reloc, /* special_function */
-       "R_DLX_RELOC_16_LO",   /* name */
-       TRUE,                  /* partial_inplace */
-       0xffff,                /* src_mask */
-       0xffff,                /* dst_mask */
-       FALSE);                /* pcrel_offset */
-
 
 /* The gas default behavior is not to preform the %hi modifier so that the
    GNU assembler can have the lower 16 bits offset placed in the insn, BUT
@@ -236,24 +39,23 @@ HOWTO (R_DLX_RELOC_16_LO,     /* type */
 
 static int skip_dlx_elf_hi16_reloc = 0;
 
+extern int set_dlx_skip_hi16_flag (int);
+
 int
-set_dlx_skip_hi16_flag (flag)
-     int flag;
+set_dlx_skip_hi16_flag (int flag)
 {
   skip_dlx_elf_hi16_reloc = flag;
   return flag;
 }
 
 static bfd_reloc_status_type
-_bfd_dlx_elf_hi16_reloc (abfd, reloc_entry, symbol, data,
-			 input_section, output_bfd, error_message)
-     bfd *abfd;
-     arelent *reloc_entry;
-     asymbol *symbol;
-     PTR data;
-     asection *input_section;
-     bfd *output_bfd;
-     char **error_message;
+_bfd_dlx_elf_hi16_reloc (bfd *abfd,
+			 arelent *reloc_entry,
+			 asymbol *symbol,
+			 void * data,
+			 asection *input_section,
+			 bfd *output_bfd,
+			 char **error_message)
 {
   bfd_reloc_status_type ret;
   bfd_vma relocation;
@@ -261,9 +63,6 @@ _bfd_dlx_elf_hi16_reloc (abfd, reloc_entry, symbol, data,
   /* If the skip flag is set then we simply do the generic relocating, this
      is more of a hack for dlx gas/gld, so we do not need to do the %hi/%lo
      fixup like mips gld did.   */
-#if 0
-  printf ("DEBUG: skip_dlx_elf_hi16_reloc = 0x%08x\n", skip_dlx_elf_hi16_reloc);
-#endif
   if (skip_dlx_elf_hi16_reloc)
     return bfd_elf_generic_reloc (abfd, reloc_entry, symbol, data,
                           input_section, output_bfd, error_message);
@@ -284,35 +83,14 @@ _bfd_dlx_elf_hi16_reloc (abfd, reloc_entry, symbol, data,
       && output_bfd == (bfd *) NULL)
     ret = bfd_reloc_undefined;
 
-#if 0
-  {
-    unsigned long vallo, val;
-
-    vallo = bfd_get_16 (abfd, (bfd_byte *) data + reloc_entry->address);
-    printf ("DEBUG: The relocation address = 0x%08x\n", reloc_entry->address);
-    printf ("DEBUG: The symbol        = 0x%08x\n", vallo);
-    printf ("DEBUG: The symbol name   = %s\n", bfd_asymbol_name (symbol));
-    printf ("DEBUG: The symbol->value = 0x%08x\n", symbol->value);
-    printf ("DEBUG: The vma           = 0x%08x\n", symbol->section->output_section->vma);
-    printf ("DEBUG: The output_offset = 0x%08x\n", symbol->section->output_offset);
-    printf ("DEBUG: The input_offset  = 0x%08x\n", input_section->output_offset);
-    printf ("DEBUG: The input_vma     = 0x%08x\n", input_section->vma);
-    printf ("DEBUG: The addend        = 0x%08x\n", reloc_entry->addend);
-  }
-#endif
-
   relocation = (bfd_is_com_section (symbol->section)) ? 0 : symbol->value;
   relocation += symbol->section->output_section->vma;
   relocation += symbol->section->output_offset;
   relocation += reloc_entry->addend;
   relocation += bfd_get_16 (abfd, (bfd_byte *)data + reloc_entry->address);
 
-  if (reloc_entry->address > input_section->_cooked_size)
+  if (reloc_entry->address > bfd_get_section_limit (abfd, input_section))
     return bfd_reloc_outofrange;
-
-#if 0
-  printf ("DEBUG: The finial relocation value = 0x%08x\n", relocation);
-#endif
 
   bfd_put_16 (abfd, (short)((relocation >> 16) & 0xFFFF),
               (bfd_byte *)data + reloc_entry->address);
@@ -331,15 +109,13 @@ _bfd_dlx_elf_hi16_reloc (abfd, reloc_entry, symbol, data,
    relocatable output against an external symbol.  */
 
 static bfd_reloc_status_type
-elf32_dlx_relocate16  (abfd, reloc_entry, symbol, data,
-                       input_section, output_bfd, error_message)
-     bfd *abfd;
-     arelent *reloc_entry;
-     asymbol *symbol;
-     PTR data;
-     asection *input_section;
-     bfd *output_bfd;
-     char **error_message ATTRIBUTE_UNUSED;
+elf32_dlx_relocate16 (bfd *abfd,
+		      arelent *reloc_entry,
+		      asymbol *symbol,
+		      void * data,
+		      asection *input_section,
+		      bfd *output_bfd,
+		      char **error_message ATTRIBUTE_UNUSED)
 {
   unsigned long insn, vallo, allignment;
   int           val;
@@ -353,12 +129,12 @@ elf32_dlx_relocate16  (abfd, reloc_entry, symbol, data,
     return bfd_elf_generic_reloc (abfd, reloc_entry, symbol, data,
                                  input_section, output_bfd, error_message);
 
-  /* Check undefined section and undefined symbols  */
+  /* Check undefined section and undefined symbols.  */
   if (bfd_is_und_section (symbol->section)
       && output_bfd == (bfd *) NULL)
     return bfd_reloc_undefined;
 
-  /* Can not support a long jump to sections other then .text   */
+  /* Can not support a long jump to sections other then .text.  */
   if (strcmp (input_section->name, symbol->section->output_section->name) != 0)
     {
       fprintf (stderr,
@@ -383,19 +159,6 @@ elf32_dlx_relocate16  (abfd, reloc_entry, symbol, data,
   val =  (symbol->section->output_offset +
 	  symbol->section->output_section->vma +
 	  symbol->value) - vallo;
-#if 0
-  printf ("DEBUG elf32_dlx_relocate: We are here\n");
-  printf ("DEBUG: The insn            = 0x%08x\n", insn);
-  printf ("DEBUG: The vallo           = 0x%08x\n", vallo);
-  printf ("DEBUG: The val             = 0x%08x\n", val);
-  printf ("DEBUG: The symbol name     = %s\n", bfd_asymbol_name (symbol));
-  printf ("DEBUG: The symbol->value   = 0x%08x\n", symbol->value);
-  printf ("DEBUG: The vma             = 0x%08x\n", symbol->section->output_section->vma);
-  printf ("DEBUG: The lma             = 0x%08x\n", symbol->section->output_section->lma);
-  printf ("DEBUG: The alignment_power = 0x%08x\n", symbol->section->output_section->alignment_power);
-  printf ("DEBUG: The output_offset   = 0x%08x\n", symbol->section->output_offset);
-  printf ("DEBUG: The addend          = 0x%08x\n", reloc_entry->addend);
-#endif
 
   if (abs ((int) val) > 0x00007FFF)
     return bfd_reloc_outofrange;
@@ -409,15 +172,13 @@ elf32_dlx_relocate16  (abfd, reloc_entry, symbol, data,
 }
 
 static bfd_reloc_status_type
-elf32_dlx_relocate26  (abfd, reloc_entry, symbol, data,
-                       input_section, output_bfd, error_message)
-     bfd *abfd;
-     arelent *reloc_entry;
-     asymbol *symbol;
-     PTR data;
-     asection *input_section;
-     bfd *output_bfd;
-     char **error_message ATTRIBUTE_UNUSED;
+elf32_dlx_relocate26 (bfd *abfd,
+		      arelent *reloc_entry,
+		      asymbol *symbol,
+		      void * data,
+		      asection *input_section,
+		      bfd *output_bfd,
+		      char **error_message ATTRIBUTE_UNUSED)
 {
   unsigned long insn, vallo, allignment;
   int           val;
@@ -461,21 +222,6 @@ elf32_dlx_relocate26  (abfd, reloc_entry, symbol, data,
   val = (symbol->section->output_offset +
 	 symbol->section->output_section->vma + symbol->value)
     - vallo;
-#if 0
-  printf ("DEBUG elf32_dlx_relocate26: We are here\n");
-  printf ("DEBUG: The insn          = 0x%08x\n", insn);
-  printf ("DEBUG: The vallo         = 0x%08x\n", vallo);
-  printf ("DEBUG: The val           = 0x%08x\n", val);
-  printf ("DEBUG: The abs(val)      = 0x%08x\n", abs (val));
-  printf ("DEBUG: The symbol name   = %s\n", bfd_asymbol_name (symbol));
-  printf ("DEBUG: The symbol->value = 0x%08x\n", symbol->value);
-  printf ("DEBUG: The vma           = 0x%08x\n", symbol->section->output_section->vma);
-  printf ("DEBUG: The output_offset = 0x%08x\n", symbol->section->output_offset);
-  printf ("DEBUG: The input_vma     = 0x%08x\n", input_section->output_section->vma);
-  printf ("DEBUG: The input_offset  = 0x%08x\n", input_section->output_offset);
-  printf ("DEBUG: The input_name    = %s\n", input_section->name);
-  printf ("DEBUG: The addend        = 0x%08x\n", reloc_entry->addend);
-#endif
 
   if (abs ((int) val) > 0x01FFFFFF)
     return bfd_reloc_outofrange;
@@ -486,6 +232,163 @@ elf32_dlx_relocate26  (abfd, reloc_entry, symbol, data,
 
   return bfd_reloc_ok;
 }
+
+static reloc_howto_type dlx_elf_howto_table[]=
+{
+  /* No relocation.  */
+  HOWTO (R_DLX_NONE,            /* Type. */
+	 0,                     /* Rightshift.  */
+	 0,                     /* size (0 = byte, 1 = short, 2 = long).  */
+	 0,                     /* Bitsize.  */
+	 FALSE,                 /* PC_relative.  */
+	 0,                     /* Bitpos.  */
+	 complain_overflow_dont,/* Complain_on_overflow.  */
+	 bfd_elf_generic_reloc, /* Special_function.  */
+	 "R_DLX_NONE",          /* Name.  */
+	 FALSE,                 /* Partial_inplace.  */
+	 0,                     /* Src_mask.  */
+	 0,                     /* Dst_mask.  */
+	 FALSE),                /* PCrel_offset.  */
+
+  /* 8 bit relocation.  */
+  HOWTO (R_DLX_RELOC_8,         /* Type. */
+	 0,                     /* Rightshift.  */
+	 0,                     /* Size (0 = byte, 1 = short, 2 = long).  */
+	 8,                     /* Bitsize.  */
+	 FALSE,                 /* PC_relative.  */
+	 0,                     /* Bitpos.  */
+	 complain_overflow_dont,/* Complain_on_overflow.  */
+	 bfd_elf_generic_reloc, /* Special_function.  */
+	 "R_DLX_RELOC_8",       /* Name.  */
+	 TRUE,                  /* Partial_inplace.  */
+	 0xff,                  /* Src_mask.  */
+	 0xff,                  /* Dst_mask.  */
+	 FALSE),                /* PCrel_offset.  */
+
+  /* 16 bit relocation.  */
+  HOWTO (R_DLX_RELOC_16,        /* Type. */
+	 0,                     /* Rightshift.  */
+	 1,                     /* Size (0 = byte, 1 = short, 2 = long).  */
+	 16,                    /* Bitsize.  */
+	 FALSE,                 /* PC_relative.  */
+	 0,                     /* Bitpos.  */
+	 complain_overflow_dont,/* Complain_on_overflow.  */
+	 bfd_elf_generic_reloc, /* Special_function.  */
+	 "R_DLX_RELOC_16",      /* Name.  */
+	 TRUE,                  /* Partial_inplace.  */
+	 0xffff,                /* Src_mask.  */
+	 0xffff,                /* Dst_mask.  */
+	 FALSE),                /* PCrel_offset.  */
+
+  /* 32 bit relocation.  */
+  HOWTO (R_DLX_RELOC_32,        /* Type. */
+	 0,                     /* Rightshift.  */
+	 2,                     /* Size (0 = byte, 1 = short, 2 = long).  */
+	 32,                    /* Bitsize.  */
+	 FALSE,                 /* PC_relative.  */
+	 0,                     /* Bitpos.  */
+	 complain_overflow_dont,/* Complain_on_overflow.  */
+	 bfd_elf_generic_reloc, /* Special_function.  */
+	 "R_DLX_RELOC_32",      /* Name.  */
+	 TRUE,                  /* Partial_inplace.  */
+	 0xffffffff,            /* Src_mask.  */
+	 0xffffffff,            /* Dst_mask.  */
+	 FALSE),                /* PCrel_offset.  */
+
+  /* GNU extension to record C++ vtable hierarchy.  */
+  HOWTO (R_DLX_GNU_VTINHERIT,   /* Type. */
+	 0,			/* Rightshift.  */
+	 2,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 0,			/* Bitsize.  */
+	 FALSE,			/* PC_relative.  */
+	 0,			/* Bitpos.  */
+	 complain_overflow_dont,/* Complain_on_overflow.  */
+	 NULL,			/* Special_function.  */
+	 "R_DLX_GNU_VTINHERIT", /* Name.  */
+	 FALSE,			/* Partial_inplace.  */
+	 0,			/* Src_mask.  */
+	 0,			/* Dst_mask.  */
+	 FALSE),		/* PCrel_offset.  */
+
+  /* GNU extension to record C++ vtable member usage.  */
+  HOWTO (R_DLX_GNU_VTENTRY,     /* Type. */
+	 0,			/* Rightshift.  */
+	 2,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 0,			/* Bitsize.  */
+	 FALSE,			/* PC_relative.  */
+	 0,			/* Bitpos.  */
+	 complain_overflow_dont,/* Complain_on_overflow.  */
+	 _bfd_elf_rel_vtable_reloc_fn,/* Special_function.  */
+	 "R_DLX_GNU_VTENTRY",	/* Name.  */
+	 FALSE,		  	/* Partial_inplace.  */
+	 0,			/* Src_mask.  */
+	 0,			/* Dst_mask.  */
+	 FALSE)		  	/* PCrel_offset.  */
+};
+
+/* 16 bit offset for pc-relative branches.  */
+static reloc_howto_type elf_dlx_gnu_rel16_s2 =
+  HOWTO (R_DLX_RELOC_16_PCREL,  /* Type. */
+	 0,                     /* Rightshift.  */
+	 1,                     /* Size (0 = byte, 1 = short, 2 = long).  */
+	 16,                    /* Bitsize.  */
+	 TRUE,                  /* PC_relative.  */
+	 0,                     /* Bitpos.  */
+	 complain_overflow_signed, /* Complain_on_overflow.  */
+	 elf32_dlx_relocate16,  /* Special_function.  */
+	 "R_DLX_RELOC_16_PCREL",/* Name.  */
+	 TRUE,                  /* Partial_inplace.  */
+	 0xffff,                /* Src_mask.  */
+	 0xffff,                /* Dst_mask.  */
+	 TRUE);                 /* PCrel_offset.  */
+
+/* 26 bit offset for pc-relative branches.  */
+static reloc_howto_type elf_dlx_gnu_rel26_s2 =
+  HOWTO (R_DLX_RELOC_26_PCREL,  /* Type. */
+	 0,                     /* Rightshift.  */
+	 2,                     /* Size (0 = byte, 1 = short, 2 = long).  */
+	 26,                    /* Bitsize.  */
+	 TRUE,                  /* PC_relative.  */
+	 0,                     /* Bitpos.  */
+	 complain_overflow_dont,/* Complain_on_overflow.  */
+	 elf32_dlx_relocate26,  /* Special_function.  */
+	 "R_DLX_RELOC_26_PCREL",/* Name.  */
+	 TRUE,                  /* Partial_inplace.  */
+	 0xffff,                /* Src_mask.  */
+	 0xffff,                /* Dst_mask.  */
+	 TRUE);                 /* PCrel_offset.  */
+
+/* High 16 bits of symbol value.  */
+static reloc_howto_type elf_dlx_reloc_16_hi =
+  HOWTO (R_DLX_RELOC_16_HI,     /* Type. */
+	 16,                    /* Rightshift.  */
+	 2,                     /* Size (0 = byte, 1 = short, 2 = long).  */
+	 32,                    /* Bitsize.  */
+	 FALSE,                 /* PC_relative.  */
+	 0,                     /* Bitpos.  */
+	 complain_overflow_dont,/* Complain_on_overflow.  */
+	 _bfd_dlx_elf_hi16_reloc,/* Special_function.  */
+	 "R_DLX_RELOC_16_HI",   /* Name.  */
+	 TRUE,                  /* Partial_inplace.  */
+	 0xFFFF,                /* Src_mask.  */
+	 0xffff,                /* Dst_mask.  */
+	 FALSE);                /* PCrel_offset.  */
+
+  /* Low 16 bits of symbol value.  */
+static reloc_howto_type elf_dlx_reloc_16_lo =
+  HOWTO (R_DLX_RELOC_16_LO,     /* Type. */
+	 0,                     /* Rightshift.  */
+	 1,                     /* Size (0 = byte, 1 = short, 2 = long).  */
+	 16,                    /* Bitsize.  */
+	 FALSE,                 /* PC_relative.  */
+	 0,                     /* Bitpos.  */
+	 complain_overflow_dont,/* Complain_on_overflow.  */
+	 bfd_elf_generic_reloc, /* Special_function.  */
+	 "R_DLX_RELOC_16_LO",   /* Name.  */
+	 TRUE,                  /* Partial_inplace.  */
+	 0xffff,                /* Src_mask.  */
+	 0xffff,                /* Dst_mask.  */
+	 FALSE);                /* PCrel_offset.  */
 
 /* A mapping from BFD reloc types to DLX ELF reloc types.
    Stolen from elf32-mips.c.
@@ -502,30 +405,25 @@ struct elf_reloc_map
 };
 
 static const struct elf_reloc_map dlx_reloc_map[] =
-  {
-    { BFD_RELOC_NONE,           R_DLX_NONE },
-    { BFD_RELOC_16,             R_DLX_RELOC_16 },
-#if 0
-    { BFD_RELOC_DLX_JMP26,      R_DLX_RELOC_26_PCREL },
-#endif
-    { BFD_RELOC_32,             R_DLX_RELOC_32 },
-    { BFD_RELOC_DLX_HI16_S,     R_DLX_RELOC_16_HI },
-    { BFD_RELOC_DLX_LO16,       R_DLX_RELOC_16_LO },
-    { BFD_RELOC_VTABLE_INHERIT,	R_DLX_GNU_VTINHERIT },
-    { BFD_RELOC_VTABLE_ENTRY,	R_DLX_GNU_VTENTRY }
-  };
-
+{
+  { BFD_RELOC_NONE,           R_DLX_NONE },
+  { BFD_RELOC_16,             R_DLX_RELOC_16 },
+  { BFD_RELOC_32,             R_DLX_RELOC_32 },
+  { BFD_RELOC_DLX_HI16_S,     R_DLX_RELOC_16_HI },
+  { BFD_RELOC_DLX_LO16,       R_DLX_RELOC_16_LO },
+  { BFD_RELOC_VTABLE_INHERIT,	R_DLX_GNU_VTINHERIT },
+  { BFD_RELOC_VTABLE_ENTRY,	R_DLX_GNU_VTENTRY }
+};
 
 /* Look through the relocs for a section during the first phase.
    Since we don't do .gots or .plts, we just need to consider the
    virtual table relocs for gc.  */
 
 static bfd_boolean
-elf32_dlx_check_relocs (abfd, info, sec, relocs)
-     bfd *abfd;
-     struct bfd_link_info *info;
-     asection *sec;
-     const Elf_Internal_Rela *relocs;
+elf32_dlx_check_relocs (bfd *abfd,
+			struct bfd_link_info *info,
+			asection *sec,
+			const Elf_Internal_Rela *relocs)
 {
   Elf_Internal_Shdr *symtab_hdr;
   struct elf_link_hash_entry **sym_hashes, **sym_hashes_end;
@@ -551,7 +449,12 @@ elf32_dlx_check_relocs (abfd, info, sec, relocs)
       if (r_symndx < symtab_hdr->sh_info)
         h = NULL;
       else
-        h = sym_hashes[r_symndx - symtab_hdr->sh_info];
+	{
+	  h = sym_hashes[r_symndx - symtab_hdr->sh_info];
+	  while (h->root.type == bfd_link_hash_indirect
+		 || h->root.type == bfd_link_hash_warning)
+	    h = (struct elf_link_hash_entry *) h->root.u.i.link;
+	}
 
       switch (ELF32_R_TYPE (rel->r_info))
         {
@@ -577,9 +480,8 @@ elf32_dlx_check_relocs (abfd, info, sec, relocs)
 /* Given a BFD reloc type, return a howto structure.  */
 
 static reloc_howto_type *
-elf32_dlx_reloc_type_lookup (abfd, code)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     bfd_reloc_code_real_type code;
+elf32_dlx_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			     bfd_reloc_code_real_type code)
 {
   unsigned int i;
 
@@ -604,8 +506,7 @@ elf32_dlx_reloc_type_lookup (abfd, code)
 }
 
 static reloc_howto_type *
-dlx_rtype_to_howto (r_type)
-     unsigned int r_type;
+dlx_rtype_to_howto (unsigned int r_type)
 {
   switch (r_type)
     {
@@ -630,19 +531,17 @@ dlx_rtype_to_howto (r_type)
 }
 
 static void
-elf32_dlx_info_to_howto (abfd, cache_ptr, dst)
-     bfd * abfd ATTRIBUTE_UNUSED;
-     arelent * cache_ptr ATTRIBUTE_UNUSED;
-     Elf_Internal_Rela * dst ATTRIBUTE_UNUSED;
+elf32_dlx_info_to_howto (bfd * abfd ATTRIBUTE_UNUSED,
+			 arelent * cache_ptr ATTRIBUTE_UNUSED,
+			 Elf_Internal_Rela * dst ATTRIBUTE_UNUSED)
 {
   abort ();
 }
 
 static void
-elf32_dlx_info_to_howto_rel (abfd, cache_ptr, dst)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     arelent *cache_ptr;
-     Elf_Internal_Rela *dst;
+elf32_dlx_info_to_howto_rel (bfd *abfd ATTRIBUTE_UNUSED,
+			     arelent *cache_ptr,
+			     Elf_Internal_Rela *dst)
 {
   unsigned int r_type;
 

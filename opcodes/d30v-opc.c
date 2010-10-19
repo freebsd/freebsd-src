@@ -1,125 +1,126 @@
 /* d30v-opc.c -- D30V opcode list
-   Copyright 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1997, 1998, 1999, 2000, 2005 Free Software Foundation, Inc.
    Written by Martin Hunt, Cygnus Support
 
-This file is part of GDB, GAS, and the GNU binutils.
+   This file is part of GDB, GAS, and the GNU binutils.
 
-GDB, GAS, and the GNU binutils are free software; you can redistribute
-them and/or modify them under the terms of the GNU General Public
-License as published by the Free Software Foundation; either version
-2, or (at your option) any later version.
+   GDB, GAS, and the GNU binutils are free software; you can redistribute
+   them and/or modify them under the terms of the GNU General Public
+   License as published by the Free Software Foundation; either version
+   2, or (at your option) any later version.
 
-GDB, GAS, and the GNU binutils are distributed in the hope that they
-will be useful, but WITHOUT ANY WARRANTY; without even the implied
-warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
-the GNU General Public License for more details.
+   GDB, GAS, and the GNU binutils are distributed in the hope that they
+   will be useful, but WITHOUT ANY WARRANTY; without even the implied
+   warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
+   the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this file; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this file; see the file COPYING.  If not, write to the Free
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 #include <stdio.h>
 #include "sysdep.h"
 #include "opcode/d30v.h"
 
-/* This table is sorted. */
-/* If you add anything, it MUST be in alphabetical order */
-/* The first field is the name the assembler uses when looking */
-/* up orcodes.  The second field is the name the disassembler will use. */
-/* This allows the assembler to assemble references to r63 (for example) */
-/* or "sp".  The disassembler will always use the preferred form (sp) */
+/* This table is sorted.
+   If you add anything, it MUST be in alphabetical order.
+   The first field is the name the assembler uses when looking
+   up orcodes.  The second field is the name the disassembler will use.
+   This allows the assembler to assemble references to r63 (for example)
+   or "sp".  The disassembler will always use the preferred form (sp).  */
 const struct pd_reg pre_defined_registers[] =
 {
-  { "a0", NULL, OPERAND_ACC+0 },
-  { "a1", NULL, OPERAND_ACC+1 },
-  { "bpc", NULL, OPERAND_CONTROL+3 },
-  { "bpsw", NULL, OPERAND_CONTROL+1 },
-  { "c", "c", OPERAND_FLAG+7 },
+  { "a0", NULL, OPERAND_ACC + 0 },
+  { "a1", NULL, OPERAND_ACC + 1 },
+  { "bpc", NULL, OPERAND_CONTROL + 3 },
+  { "bpsw", NULL, OPERAND_CONTROL + 1 },
+  { "c", "c", OPERAND_FLAG + 7 },
   { "cr0", "psw", OPERAND_CONTROL },
-  { "cr1", "bpsw", OPERAND_CONTROL+1 },
-  { "cr10", "mod_s", OPERAND_CONTROL+10 },
-  { "cr11", "mod_e", OPERAND_CONTROL+11 },
-  { "cr12", NULL, OPERAND_CONTROL+12 },
-  { "cr13", NULL, OPERAND_CONTROL+13 },
-  { "cr14", "iba", OPERAND_CONTROL+14 },
-  { "cr15", "eit_vb", OPERAND_CONTROL+15 },
-  { "cr16", "int_s", OPERAND_CONTROL+16 },
-  { "cr17", "int_m", OPERAND_CONTROL+17 },
-  { "cr18", NULL, OPERAND_CONTROL+18 },
-  { "cr19", NULL, OPERAND_CONTROL+19 },
-  { "cr2", "pc", OPERAND_CONTROL+2 },
-  { "cr20", NULL, OPERAND_CONTROL+20 },
-  { "cr21", NULL, OPERAND_CONTROL+21 },
-  { "cr22", NULL, OPERAND_CONTROL+22 },
-  { "cr23", NULL, OPERAND_CONTROL+23 },
-  { "cr24", NULL, OPERAND_CONTROL+24 },
-  { "cr25", NULL, OPERAND_CONTROL+25 },
-  { "cr26", NULL, OPERAND_CONTROL+26 },
-  { "cr27", NULL, OPERAND_CONTROL+27 },
-  { "cr28", NULL, OPERAND_CONTROL+28 },
-  { "cr29", NULL, OPERAND_CONTROL+29 },
-  { "cr3", "bpc", OPERAND_CONTROL+3 },
-  { "cr30", NULL, OPERAND_CONTROL+30 },
-  { "cr31", NULL, OPERAND_CONTROL+31 },
-  { "cr32", NULL, OPERAND_CONTROL+32 },
-  { "cr33", NULL, OPERAND_CONTROL+33 },
-  { "cr34", NULL, OPERAND_CONTROL+34 },
-  { "cr35", NULL, OPERAND_CONTROL+35 },
-  { "cr36", NULL, OPERAND_CONTROL+36 },
-  { "cr37", NULL, OPERAND_CONTROL+37 },
-  { "cr38", NULL, OPERAND_CONTROL+38 },
-  { "cr39", NULL, OPERAND_CONTROL+39 },
-  { "cr4", "dpsw", OPERAND_CONTROL+4 },
-  { "cr40", NULL, OPERAND_CONTROL+40 },
-  { "cr41", NULL, OPERAND_CONTROL+41 },
-  { "cr42", NULL, OPERAND_CONTROL+42 },
-  { "cr43", NULL, OPERAND_CONTROL+43 },
-  { "cr44", NULL, OPERAND_CONTROL+44 },
-  { "cr45", NULL, OPERAND_CONTROL+45 },
-  { "cr46", NULL, OPERAND_CONTROL+46 },
-  { "cr47", NULL, OPERAND_CONTROL+47 },
-  { "cr48", NULL, OPERAND_CONTROL+48 },
-  { "cr49", NULL, OPERAND_CONTROL+49 },
-  { "cr5","dpc", OPERAND_CONTROL+5 },
-  { "cr50", NULL, OPERAND_CONTROL+50 },
-  { "cr51", NULL, OPERAND_CONTROL+51 },
-  { "cr52", NULL, OPERAND_CONTROL+52 },
-  { "cr53", NULL, OPERAND_CONTROL+53 },
-  { "cr54", NULL, OPERAND_CONTROL+54 },
-  { "cr55", NULL, OPERAND_CONTROL+55 },
-  { "cr56", NULL, OPERAND_CONTROL+56 },
-  { "cr57", NULL, OPERAND_CONTROL+57 },
-  { "cr58", NULL, OPERAND_CONTROL+58 },
-  { "cr59", NULL, OPERAND_CONTROL+59 },
-  { "cr6", NULL, OPERAND_CONTROL+6 },
-  { "cr60", NULL, OPERAND_CONTROL+60 },
-  { "cr61", NULL, OPERAND_CONTROL+61 },
-  { "cr62", NULL, OPERAND_CONTROL+62 },
-  { "cr63", NULL, OPERAND_CONTROL+63 },
-  { "cr7", "rpt_c", OPERAND_CONTROL+7 },
-  { "cr8", "rpt_s", OPERAND_CONTROL+8 },
-  { "cr9", "rpt_e", OPERAND_CONTROL+9 },
-  { "dpc", NULL, OPERAND_CONTROL+5 },
-  { "dpsw", NULL, OPERAND_CONTROL+4 },
-  { "eit_vb", NULL, OPERAND_CONTROL+15 },
-  { "f0", NULL, OPERAND_FLAG+0 },
-  { "f1", NULL, OPERAND_FLAG+1 },
-  { "f2", NULL, OPERAND_FLAG+2 },
-  { "f3", NULL, OPERAND_FLAG+3 },
-  { "f4", "s", OPERAND_FLAG+4 },
-  { "f5", "v", OPERAND_FLAG+5 },
-  { "f6", "va", OPERAND_FLAG+6 },
-  { "f7", "c", OPERAND_FLAG+7 },
-  { "iba", NULL, OPERAND_CONTROL+14 },
-  { "int_m", NULL, OPERAND_CONTROL+17 },
-  { "int_s", NULL, OPERAND_CONTROL+16 },
+  { "cr1", "bpsw", OPERAND_CONTROL + 1 },
+  { "cr10", "mod_s", OPERAND_CONTROL + 10 },
+  { "cr11", "mod_e", OPERAND_CONTROL + 11 },
+  { "cr12", NULL, OPERAND_CONTROL + 12 },
+  { "cr13", NULL, OPERAND_CONTROL + 13 },
+  { "cr14", "iba", OPERAND_CONTROL + 14 },
+  { "cr15", "eit_vb", OPERAND_CONTROL + 15 },
+  { "cr16", "int_s", OPERAND_CONTROL + 16 },
+  { "cr17", "int_m", OPERAND_CONTROL + 17 },
+  { "cr18", NULL, OPERAND_CONTROL + 18 },
+  { "cr19", NULL, OPERAND_CONTROL + 19 },
+  { "cr2", "pc", OPERAND_CONTROL + 2 },
+  { "cr20", NULL, OPERAND_CONTROL + 20 },
+  { "cr21", NULL, OPERAND_CONTROL + 21 },
+  { "cr22", NULL, OPERAND_CONTROL + 22 },
+  { "cr23", NULL, OPERAND_CONTROL + 23 },
+  { "cr24", NULL, OPERAND_CONTROL + 24 },
+  { "cr25", NULL, OPERAND_CONTROL + 25 },
+  { "cr26", NULL, OPERAND_CONTROL + 26 },
+  { "cr27", NULL, OPERAND_CONTROL + 27 },
+  { "cr28", NULL, OPERAND_CONTROL + 28 },
+  { "cr29", NULL, OPERAND_CONTROL + 29 },
+  { "cr3", "bpc", OPERAND_CONTROL + 3 },
+  { "cr30", NULL, OPERAND_CONTROL + 30 },
+  { "cr31", NULL, OPERAND_CONTROL + 31 },
+  { "cr32", NULL, OPERAND_CONTROL + 32 },
+  { "cr33", NULL, OPERAND_CONTROL + 33 },
+  { "cr34", NULL, OPERAND_CONTROL + 34 },
+  { "cr35", NULL, OPERAND_CONTROL + 35 },
+  { "cr36", NULL, OPERAND_CONTROL + 36 },
+  { "cr37", NULL, OPERAND_CONTROL + 37 },
+  { "cr38", NULL, OPERAND_CONTROL + 38 },
+  { "cr39", NULL, OPERAND_CONTROL + 39 },
+  { "cr4", "dpsw", OPERAND_CONTROL + 4 },
+  { "cr40", NULL, OPERAND_CONTROL + 40 },
+  { "cr41", NULL, OPERAND_CONTROL + 41 },
+  { "cr42", NULL, OPERAND_CONTROL + 42 },
+  { "cr43", NULL, OPERAND_CONTROL + 43 },
+  { "cr44", NULL, OPERAND_CONTROL + 44 },
+  { "cr45", NULL, OPERAND_CONTROL + 45 },
+  { "cr46", NULL, OPERAND_CONTROL + 46 },
+  { "cr47", NULL, OPERAND_CONTROL + 47 },
+  { "cr48", NULL, OPERAND_CONTROL + 48 },
+  { "cr49", NULL, OPERAND_CONTROL + 49 },
+  { "cr5","dpc", OPERAND_CONTROL + 5 },
+  { "cr50", NULL, OPERAND_CONTROL + 50 },
+  { "cr51", NULL, OPERAND_CONTROL + 51 },
+  { "cr52", NULL, OPERAND_CONTROL + 52 },
+  { "cr53", NULL, OPERAND_CONTROL + 53 },
+  { "cr54", NULL, OPERAND_CONTROL + 54 },
+  { "cr55", NULL, OPERAND_CONTROL + 55 },
+  { "cr56", NULL, OPERAND_CONTROL + 56 },
+  { "cr57", NULL, OPERAND_CONTROL + 57 },
+  { "cr58", NULL, OPERAND_CONTROL + 58 },
+  { "cr59", NULL, OPERAND_CONTROL + 59 },
+  { "cr6", NULL, OPERAND_CONTROL + 6 },
+  { "cr60", NULL, OPERAND_CONTROL + 60 },
+  { "cr61", NULL, OPERAND_CONTROL + 61 },
+  { "cr62", NULL, OPERAND_CONTROL + 62 },
+  { "cr63", NULL, OPERAND_CONTROL + 63 },
+  { "cr7", "rpt_c", OPERAND_CONTROL + 7 },
+  { "cr8", "rpt_s", OPERAND_CONTROL + 8 },
+  { "cr9", "rpt_e", OPERAND_CONTROL + 9 },
+  { "dpc", NULL, OPERAND_CONTROL + 5 },
+  { "dpsw", NULL, OPERAND_CONTROL + 4 },
+  { "eit_vb", NULL, OPERAND_CONTROL + 15 },
+  { "f0", NULL, OPERAND_FLAG + 0 },
+  { "f1", NULL, OPERAND_FLAG + 1 },
+  { "f2", NULL, OPERAND_FLAG + 2 },
+  { "f3", NULL, OPERAND_FLAG + 3 },
+  { "f4", "s", OPERAND_FLAG + 4 },
+  { "f5", "v", OPERAND_FLAG + 5 },
+  { "f6", "va", OPERAND_FLAG + 6 },
+  { "f7", "c", OPERAND_FLAG + 7 },
+  { "iba", NULL, OPERAND_CONTROL + 14 },
+  { "int_m", NULL, OPERAND_CONTROL + 17 },
+  { "int_s", NULL, OPERAND_CONTROL + 16 },
   { "link", "r62", 62 },
-  { "mod_e", NULL, OPERAND_CONTROL+11 },
-  { "mod_s", NULL, OPERAND_CONTROL+10 },
-  { "pc", NULL, OPERAND_CONTROL+2 },
+  { "mod_e", NULL, OPERAND_CONTROL + 11 },
+  { "mod_s", NULL, OPERAND_CONTROL + 10 },
+  { "pc", NULL, OPERAND_CONTROL + 2 },
   { "psw", NULL, OPERAND_CONTROL },
-  { "pswh", NULL, OPERAND_CONTROL+MAX_CONTROL_REG+2 },
-  { "pswl", NULL, OPERAND_CONTROL+MAX_CONTROL_REG+1 },
+  { "pswh", NULL, OPERAND_CONTROL + MAX_CONTROL_REG + 2 },
+  { "pswl", NULL, OPERAND_CONTROL + MAX_CONTROL_REG + 1 },
   { "r0", NULL, 0 },
   { "r1", NULL, 1 },
   { "r10", NULL, 10 },
@@ -184,24 +185,26 @@ const struct pd_reg pre_defined_registers[] =
   { "r7", NULL, 7 },
   { "r8", NULL, 8 },
   { "r9", NULL, 9 },
-  { "rpt_c", NULL, OPERAND_CONTROL+7 },
-  { "rpt_e", NULL, OPERAND_CONTROL+9 },
-  { "rpt_s", NULL, OPERAND_CONTROL+8 },
-  { "s", NULL, OPERAND_FLAG+4 },
+  { "rpt_c", NULL, OPERAND_CONTROL + 7 },
+  { "rpt_e", NULL, OPERAND_CONTROL + 9 },
+  { "rpt_s", NULL, OPERAND_CONTROL + 8 },
+  { "s", NULL, OPERAND_FLAG + 4 },
   { "sp", NULL, 63 },
-  { "v", NULL, OPERAND_FLAG+5 },
-  { "va", NULL, OPERAND_FLAG+6 },
+  { "v", NULL, OPERAND_FLAG + 5 },
+  { "va", NULL, OPERAND_FLAG + 6 },
 };
 
 int 
-reg_name_cnt()
+reg_name_cnt (void)
 {
-  return (sizeof(pre_defined_registers) / sizeof(struct pd_reg));
+  return sizeof (pre_defined_registers) / sizeof (struct pd_reg);
 }
 
-/* OPCODE TABLE */
-/* The format of this table is defined in opcode/d30v.h */
-const struct d30v_opcode d30v_opcode_table[] = {
+/* OPCODE TABLE.
+   The format of this table is defined in opcode/d30v.h.  */
+
+const struct d30v_opcode d30v_opcode_table[] =
+{
   { "abs", IALU1, 0x8, { SHORT_U }, EITHER, 0, 0, 0 },
   { "add", IALU1, 0x0, { SHORT_A, LONG}, EITHER, 0, FLAG_CVVA, 0 },
   { "add2h", IALU1, 0x1, { SHORT_A, LONG}, EITHER, 0, 0, 0 },
@@ -335,52 +338,53 @@ const struct d30v_opcode d30v_opcode_table[] = {
 };
 
 
-/* now define the operand types */
-/* format is length, bits, position, flags */
+/* Now define the operand types.
+   Format is length, bits, position, flags.  */
+
 const struct d30v_operand d30v_operand_table[] =
 {
 #define UNUSED	(0)
   { 0, 0, 0, 0 },
 #define Ra	(UNUSED + 1)
-  { 6, 6, 0, OPERAND_REG|OPERAND_DEST },
+  { 6, 6, 0, OPERAND_REG | OPERAND_DEST },
 #define Ra2	(Ra + 1)
-  { 6, 6, 0, OPERAND_REG|OPERAND_DEST|OPERAND_2REG },
+  { 6, 6, 0, OPERAND_REG | OPERAND_DEST | OPERAND_2REG },
 #define Ra3	(Ra2 + 1)
   { 6, 6, 0, OPERAND_REG },
 #define Rb	(Ra3 + 1)
   { 6, 6, 6, OPERAND_REG },
 #define Rb2	(Rb + 1)
-  { 6, 6, 6, OPERAND_REG|OPERAND_DEST },
+  { 6, 6, 6, OPERAND_REG | OPERAND_DEST },
 #define Rc	(Rb2 + 1)
   { 6, 6, 12, OPERAND_REG },
 #define Aa	(Rc + 1)
-  { 6, 1, 0, OPERAND_ACC|OPERAND_REG|OPERAND_DEST },
+  { 6, 1, 0, OPERAND_ACC | OPERAND_REG | OPERAND_DEST },
 #define Ab	(Aa + 1)
-  { 6, 1, 6, OPERAND_ACC|OPERAND_REG },
+  { 6, 1, 6, OPERAND_ACC | OPERAND_REG },
 #define IMM5	(Ab + 1)
   { 6, 5, 12, OPERAND_NUM },
 #define IMM5U (IMM5 + 1)
-  { 6, 5, 12, OPERAND_NUM|OPERAND_SIGNED }, /* not used */
+  { 6, 5, 12, OPERAND_NUM | OPERAND_SIGNED }, /* Not used.  */
 #define IMM5S3        (IMM5U + 1)
-  { 6, 5, 12, OPERAND_NUM|OPERAND_SIGNED }, /* not used */
+  { 6, 5, 12, OPERAND_NUM | OPERAND_SIGNED }, /* Not used.  */
 #define IMM6  (IMM5S3 + 1)
-  { 6, 6, 12, OPERAND_NUM|OPERAND_SIGNED },
+  { 6, 6, 12, OPERAND_NUM | OPERAND_SIGNED },
 #define IMM6U (IMM6 + 1)
   { 6, 6, 0, OPERAND_NUM },
 #define IMM6U2        (IMM6U + 1)
   { 6, 6, 12, OPERAND_NUM },
 #define REL6S3        (IMM6U2 + 1)
-  { 6, 6, 0, OPERAND_NUM|OPERAND_SHIFT|OPERAND_PCREL },
+  { 6, 6, 0, OPERAND_NUM | OPERAND_SHIFT | OPERAND_PCREL },
 #define REL12S3       (REL6S3 + 1)
-  { 12, 12, 12, OPERAND_NUM|OPERAND_SIGNED|OPERAND_SHIFT|OPERAND_PCREL },
+  { 12, 12, 12, OPERAND_NUM | OPERAND_SIGNED | OPERAND_SHIFT | OPERAND_PCREL },
 #define IMM12S3       (REL12S3 + 1)
-  { 12, 12, 12, OPERAND_NUM|OPERAND_SIGNED|OPERAND_SHIFT },
+  { 12, 12, 12, OPERAND_NUM | OPERAND_SIGNED | OPERAND_SHIFT },
 #define REL18S3       (IMM12S3 + 1)
-  { 18, 18, 12, OPERAND_NUM|OPERAND_SIGNED|OPERAND_SHIFT|OPERAND_PCREL },
+  { 18, 18, 12, OPERAND_NUM | OPERAND_SIGNED | OPERAND_SHIFT | OPERAND_PCREL },
 #define IMM18S3       (REL18S3 + 1)
-  { 18, 18, 12, OPERAND_NUM|OPERAND_SIGNED|OPERAND_SHIFT },
+  { 18, 18, 12, OPERAND_NUM | OPERAND_SIGNED | OPERAND_SHIFT },
 #define REL32 (IMM18S3 + 1)
-  { 32, 32, 0, OPERAND_NUM|OPERAND_PCREL },
+  { 32, 32, 0, OPERAND_NUM | OPERAND_PCREL },
 #define IMM32 (REL32 + 1)
   { 32, 32, 0, OPERAND_NUM },
 #define Fa	(IMM32 + 1)
@@ -393,25 +397,26 @@ const struct d30v_operand d30v_operand_table[] =
   { 0, 0, 0, OPERAND_ATSIGN},
 #define ATPAR	(ATSIGN + 1)	/* "@(" */
   { 0, 0, 0, OPERAND_ATPAR},
-#define PLUS	(ATPAR + 1)	/* postincrement */
+#define PLUS	(ATPAR + 1)	/* Postincrement.  */
   { 0, 0, 0, OPERAND_PLUS},
-#define MINUS	(PLUS + 1)	/* postdecrement */
+#define MINUS	(PLUS + 1)	/* Postdecrement.  */
   { 0, 0, 0, OPERAND_MINUS},
-#define ATMINUS	(MINUS + 1)	/* predecrement */
+#define ATMINUS	(MINUS + 1)	/* Predecrement.  */
   { 0, 0, 0, OPERAND_ATMINUS},
-#define Ca	(ATMINUS + 1)	/* control register */
-  { 6, 6, 0, OPERAND_REG|OPERAND_CONTROL|OPERAND_DEST},
-#define Cb	(Ca + 1)	/* control register */
-  { 6, 6, 6, OPERAND_REG|OPERAND_CONTROL},
-#define CC	(Cb + 1)	/* condition code (CMPcc and CMPUcc) */
+#define Ca	(ATMINUS + 1)	/* Control register.  */
+  { 6, 6, 0, OPERAND_REG | OPERAND_CONTROL | OPERAND_DEST},
+#define Cb	(Ca + 1)	/* Control register.  */
+  { 6, 6, 6, OPERAND_REG | OPERAND_CONTROL},
+#define CC	(Cb + 1)	/* Condition code (CMPcc and CMPUcc).  */
   { 3, 3, -3, OPERAND_NAME},
-#define Fa2	(CC + 1)	/* flag register (CMPcc and CMPUcc) */
-  { 3, 3, 0, OPERAND_REG|OPERAND_FLAG|OPERAND_DEST},
-#define Fake	(Fa2 + 1)	/* place holder for "id" field in mvfsys and mvtsys */
+#define Fa2	(CC + 1)	/* Flag register (CMPcc and CMPUcc).  */
+  { 3, 3, 0, OPERAND_REG | OPERAND_FLAG | OPERAND_DEST},
+#define Fake	(Fa2 + 1)	/* Place holder for "id" field in mvfsys and mvtsys.  */
   { 6, 2, 12, OPERAND_SPECIAL},
 };
 
-/* now we need to define the instruction formats */
+/* Now we need to define the instruction formats.  */
+
 const struct d30v_format d30v_format_table[] =
 {
   { 0, 0, { 0 } },

@@ -1,5 +1,6 @@
 /* IEEE floating point support declarations, for GDB, the GNU Debugger.
-   Copyright 1991, 1994, 1995, 1997, 2000, 2003 Free Software Foundation, Inc.
+   Copyright 1991, 1994, 1995, 1997, 2000, 2003, 2005
+   Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -15,7 +16,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #if !defined (FLOATFORMAT_H)
 #define FLOATFORMAT_H 1
@@ -28,25 +29,26 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    (i.e. BITS_BIG_ENDIAN type numbering), and specify which bits each field
    contains with the *_start and *_len fields.  */
 
-/* What is the order of the bytes. */
+/* What is the order of the bytes?  */
 
 enum floatformat_byteorders {
-
   /* Standard little endian byte order.
      EX: 1.2345678e10 => 00 00 80 c5 e0 fe 06 42 */
-
   floatformat_little,
 
   /* Standard big endian byte order.
      EX: 1.2345678e10 => 42 06 fe e0 c5 80 00 00 */
-
   floatformat_big,
 
   /* Little endian byte order but big endian word order.
      EX: 1.2345678e10 => e0 fe 06 42 00 00 80 c5 */
+  floatformat_littlebyte_bigword,
 
-  floatformat_littlebyte_bigword
-
+  /* VAX byte order.  Little endian byte order with 16-bit words.  The
+     following example is an illustration of the byte order only; VAX
+     doesn't have a fully IEEE compliant floating-point format.
+     EX: 1.2345678e10 => 80 c5 00 00 06 42 e0 fe */
+  floatformat_vax
 };
 
 enum floatformat_intbit { floatformat_intbit_yes, floatformat_intbit_no };
@@ -82,7 +84,7 @@ struct floatformat
   const char *name;
 
   /* Validator method.  */
-  int (*is_valid) PARAMS ((const struct floatformat *fmt, const char *from));
+  int (*is_valid) (const struct floatformat *fmt, const void *from);
 };
 
 /* floatformats for IEEE single and double, big and little endian.  */
@@ -95,6 +97,12 @@ extern const struct floatformat floatformat_ieee_double_little;
 /* floatformat for ARM IEEE double, little endian bytes and big endian words */
 
 extern const struct floatformat floatformat_ieee_double_littlebyte_bigword;
+
+/* floatformats for VAX.  */
+
+extern const struct floatformat floatformat_vax_f;
+extern const struct floatformat floatformat_vax_d;
+extern const struct floatformat floatformat_vax_g;
 
 /* floatformats for various extendeds.  */
 
@@ -116,18 +124,17 @@ extern const struct floatformat floatformat_ia64_quad_little;
    Store the double in *TO.  */
 
 extern void
-floatformat_to_double PARAMS ((const struct floatformat *, const char *, double *));
+floatformat_to_double (const struct floatformat *, const void *, double *);
 
 /* The converse: convert the double *FROM to FMT
    and store where TO points.  */
 
 extern void
-floatformat_from_double PARAMS ((const struct floatformat *,
-				 const double *, char *));
+floatformat_from_double (const struct floatformat *, const double *, void *);
 
 /* Return non-zero iff the data at FROM is a valid number in format FMT.  */
 
 extern int
-floatformat_is_valid PARAMS ((const struct floatformat *fmt, const char *from));
+floatformat_is_valid (const struct floatformat *fmt, const void *from);
 
 #endif	/* defined (FLOATFORMAT_H) */

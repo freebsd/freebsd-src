@@ -1,0 +1,5871 @@
+# Vietnamese translation for BinUtils.
+# Copyright © 2006 Free Software Foundation, Inc.
+# Clytie Siddall <clytie@riverland.net.au>, 2006.
+# 
+msgid ""
+msgstr ""
+"Project-Id-Version: binutils-2.16.93\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2005-10-25 09:14+0930\n"
+"PO-Revision-Date: 2006-05-23 17:58+0930\n"
+"Last-Translator: Clytie Siddall <clytie@riverland.net.au>\n"
+"Language-Team: Vietnamese <gnomevi-list@lists.sourceforge.net>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0\n"
+"X-Generator: LocFactoryEditor 1.6b31\n"
+
+#: addr2line.c:76
+#, c-format
+msgid "Usage: %s [option(s)] [addr(s)]\n"
+msgstr "Cách sử dụng: %s [tùy_chọn...] [địa_chỉ...)]\n"
+
+#: addr2line.c:77
+#, c-format
+msgid " Convert addresses into line number/file name pairs.\n"
+msgstr " Chuyển đổi địa chỉ sang cặp số thứ tự dòng/tên tập tin.\n"
+
+#: addr2line.c:78
+#, c-format
+msgid " If no addresses are specified on the command line, they will be read from stdin\n"
+msgstr " Nếu chưa ghi rõ địa chỉ trên dòng lệnh, sẽ đọc chúng từ thiết bị nhập chuẩn\n"
+
+#: addr2line.c:79
+#, c-format
+msgid ""
+" The options are:\n"
+"  @<file>                Read options from <file>\n"
+"  -b --target=<bfdname>  Set the binary file format\n"
+"  -e --exe=<executable>  Set the input file name (default is a.out)\n"
+"  -i --inlines\t\t Unwind inlined functions\n"
+"  -s --basenames         Strip directory names\n"
+"  -f --functions         Show function names\n"
+"  -C --demangle[=style]  Demangle function names\n"
+"  -h --help              Display this information\n"
+"  -v --version           Display the program's version\n"
+"\n"
+msgstr ""
+" Tùy chọn:\n"
+"  @<tập_tin>\t\t\tđọc các tùy chọn từ tập tin đó\n"
+"    -b --target=<khuôn_dạng>  \tLập khuôn dạng tập tin nhị phân (_đích_)\n"
+"  -e --exe=<chương_trình>  \tLập tên tập tin nhập (mặc định là <a.out>)\n"
+"\t\t\t\t\t\t\t\t(_chương trình chạy được_)\n"
+"  -i --inlines\t\t\tTháo ra các hàm trực tiếp\n"
+"  -s --basenames\t\tTước các tên thư mục (_các tên cơ bản_)\n"
+"  -f --functions         \tHiện tên _các chức năng_\n"
+"  -C --demangle[=kiểu_dáng]  \t_Tháo gỡ_ tên chức năng\n"
+"  -h --help             \tHiện thông tin _trợ giúp_ này\n"
+"  -v --version           \tHiện _phiên bản_ của chương trình\n"
+"\n"
+
+#: addr2line.c:93 ar.c:263 coffdump.c:466 nlmconv.c:1113 objcopy.c:486
+#: objcopy.c:520 readelf.c:2622 size.c:102 srconv.c:1732 strings.c:725
+#: sysdump.c:648 windres.c:673
+#, c-format
+msgid "Report bugs to %s\n"
+msgstr "Hãy trình báo lỗi nào cho %s\n"
+
+#: addr2line.c:253
+#, c-format
+msgid "%s: can not get addresses from archive"
+msgstr "%s: không thể lấy địa chỉ từ kho"
+
+#: addr2line.c:325 nm.c:1523 objdump.c:3033
+#, c-format
+msgid "unknown demangling style `%s'"
+msgstr "không biết kiểu dáng tháo gõ « %s »"
+
+#: ar.c:203
+#, c-format
+msgid "no entry %s in archive\n"
+msgstr "không có mục nhập %s trong kho\n"
+
+#: ar.c:219
+#, c-format
+msgid "Usage: %s [emulation options] [-]{dmpqrstx}[abcfilNoPsSuvV] [member-name] [count] archive-file file...\n"
+msgstr "Cách sử dụng: %s [tùy chọn mô phỏng] [-]{dmpqrstx}[abcfilNoPsSuvV] [tên thành viên] [số đếm] tập_tin_kho tập_tin...\n"
+
+#: ar.c:222
+#, c-format
+msgid "       %s -M [<mri-script]\n"
+msgstr "       %s -M [<tập_lệnh-mri]\n"
+
+#: ar.c:223
+#, c-format
+msgid " commands:\n"
+msgstr " lệnh:\n"
+
+#: ar.c:224
+#, c-format
+msgid "  d            - delete file(s) from the archive\n"
+msgstr "  d            • _xóa bỏ_ tập tin ra kho\n"
+
+#: ar.c:225
+#, c-format
+msgid "  m[ab]        - move file(s) in the archive\n"
+msgstr "  m[ab]        • _di chuyển_ tập tin trong kho\n"
+
+#: ar.c:226
+#, c-format
+msgid "  p            - print file(s) found in the archive\n"
+msgstr "  p            • _in_ tập tin được tìm trong kho\n"
+
+#: ar.c:227
+#, c-format
+msgid "  q[f]         - quick append file(s) to the archive\n"
+msgstr "  q[f]         • phụ thêm _nhanh_ tập tin vào kho\n"
+
+#: ar.c:228
+#, c-format
+msgid "  r[ab][f][u]  - replace existing or insert new file(s) into the archive\n"
+msgstr "  r[ab][f][u]  • _thay thế_ tập tin đã có, hoặc chèn tập tin mới vào kho\n"
+
+#: ar.c:229
+#, c-format
+msgid "  t            - display contents of archive\n"
+msgstr "  t            • hiển thị nội dung kho\n"
+
+#: ar.c:230
+#, c-format
+msgid "  x[o]         - extract file(s) from the archive\n"
+msgstr "  x[o]         • trích tập tin ra kho\n"
+
+#: ar.c:231
+#, c-format
+msgid " command specific modifiers:\n"
+msgstr " bộ sửa đổi đặc trưng cho lệnh:\n"
+
+#: ar.c:232
+#, c-format
+msgid "  [a]          - put file(s) after [member-name]\n"
+msgstr "  [a]          • để tập tin _sau_ [tên thành viên]\n"
+
+#: ar.c:233
+#, c-format
+msgid "  [b]          - put file(s) before [member-name] (same as [i])\n"
+msgstr "  [b]          • để tập tin _trước_ [tên thành viên] (bằng [i])\n"
+
+#: ar.c:234
+#, c-format
+msgid "  [N]          - use instance [count] of name\n"
+msgstr "  [N]          • dùng lần [số đếm] gặp _tên_\n"
+
+#: ar.c:235
+#, c-format
+msgid "  [f]          - truncate inserted file names\n"
+msgstr "  [f]         • cắt bớt tên _tập tin_ đã chèn\n"
+
+#: ar.c:236
+#, c-format
+msgid "  [P]          - use full path names when matching\n"
+msgstr "  [P]          • dùng tên _đường dẫn_ đầy đủ khi khớp\n"
+
+#: ar.c:237
+#, c-format
+msgid "  [o]          - preserve original dates\n"
+msgstr "  [o]          • bảo tồn các ngày _gốc_\n"
+
+#: ar.c:238
+#, c-format
+msgid "  [u]          - only replace files that are newer than current archive contents\n"
+msgstr "  [u]          • thay thế chỉ những tập tin mới hơn nội dung kho hiện thời\n"
+
+#: ar.c:239
+#, c-format
+msgid " generic modifiers:\n"
+msgstr " bộ sửa đổi chung:\n"
+
+#: ar.c:240
+#, c-format
+msgid "  [c]          - do not warn if the library had to be created\n"
+msgstr "  [c]          • đừng cảnh báo nếu thư viên phải được _tạo_\n"
+
+#: ar.c:241
+#, c-format
+msgid "  [s]          - create an archive index (cf. ranlib)\n"
+msgstr "  [s]          • tạo chỉ mục kho (như ranlib)\n"
+
+#: ar.c:242
+#, c-format
+msgid "  [S]          - do not build a symbol table\n"
+msgstr "  [S]          • đừng xây dụng bảng _ký hiệu_\n"
+
+#: ar.c:243
+#, c-format
+msgid "  [v]          - be verbose\n"
+msgstr "  [v]          • _xuất chi tiết_\n"
+
+#: ar.c:244
+#, c-format
+msgid "  [V]          - display the version number\n"
+msgstr "  [V]          • hiển thị số thứ tự _phiên bản_\n"
+
+#: ar.c:245
+#, c-format
+msgid "  @<file>      - read options from <file>\n"
+msgstr "  @<tập_tin>\t\tđọc các tùy chọn từ tập tin đó\n"
+
+#: ar.c:252
+#, c-format
+msgid "Usage: %s [options] archive\n"
+msgstr "Cách sử dụng: %s [tùy_chọn] kho\n"
+
+#: ar.c:253
+#, c-format
+msgid " Generate an index to speed access to archives\n"
+msgstr " Tạo ra chỉ mục để tăng tốc độ truy cập kho\n"
+
+#: ar.c:254
+#, c-format
+msgid ""
+" The options are:\n"
+"  @<file>                      Read options from <file>\n"
+"  -h --help                    Print this help message\n"
+"  -V --version                 Print version information\n"
+msgstr ""
+"Tùy chọn:\n"
+"  @<tập_tin>\t\t\tđọc các tùy chọn từ tập tin đó\n"
+"    -h, --help                 \thiển thị _trợ giúp_ này\n"
+"  -V, --version            \txuất thông tin _phiên bản_\n"
+
+#: ar.c:485
+msgid "two different operation options specified"
+msgstr "hai tùy chọn thao tác khác đã xác định"
+
+#: ar.c:560
+#, c-format
+msgid "illegal option -- %c"
+msgstr "không cho phép tùy chọn « -- %c »"
+
+#: ar.c:606
+msgid "no operation specified"
+msgstr "chưa ghi rõ tùy chọn."
+
+#: ar.c:609
+msgid "`u' is only meaningful with the `r' option."
+msgstr "« u » có nghĩa chỉ cùng với tùy chọn « r »."
+
+#: ar.c:617
+msgid "`N' is only meaningful with the `x' and `d' options."
+msgstr "« N » có nghĩa chỉ cùng với tùy chọn « x » và « d »."
+
+#: ar.c:620
+msgid "Value for `N' must be positive."
+msgstr "Giá trị cho « N » phải là số dương."
+
+#: ar.c:670
+#, c-format
+msgid "internal error -- this option not implemented"
+msgstr "lỗi nội bộ: chưa thực hiện tùy chọn này"
+
+#: ar.c:739
+#, c-format
+msgid "creating %s"
+msgstr "đang tạo %s..."
+
+#: ar.c:788 ar.c:838 ar.c:1156 objcopy.c:1683
+#, c-format
+msgid "internal stat error on %s"
+msgstr "lỗi stat nôi bộ trên %s"
+
+# Variable: do not translate/ biến: đừng dịch
+#: ar.c:792
+#, c-format
+msgid ""
+"\n"
+"<%s>\n"
+"\n"
+msgstr ""
+"\n"
+"<%s>\n"
+"\n"
+
+#: ar.c:808 ar.c:875
+#, c-format
+msgid "%s is not a valid archive"
+msgstr "%s không phải là một kho hợp lệ"
+
+#: ar.c:843
+#, c-format
+msgid "stat returns negative size for %s"
+msgstr "việc stat (lấy các thông tin) trả gởi kích cỡ âm cho %s"
+
+#: ar.c:1061
+#, c-format
+msgid "No member named `%s'\n"
+msgstr "Không có thành viên tên « %s »\n"
+
+#: ar.c:1111
+#, c-format
+msgid "no entry %s in archive %s!"
+msgstr "không có mục nhập %s trong kho %s."
+
+#: ar.c:1248
+#, c-format
+msgid "%s: no archive map to update"
+msgstr "%s: không có ánh xạ kho cần cập nhật"
+
+#: arsup.c:87
+#, c-format
+msgid "No entry %s in archive.\n"
+msgstr "Không có mục nhập %s trong kho.\n"
+
+#: arsup.c:112
+#, c-format
+msgid "Can't open file %s\n"
+msgstr "Không thể mở tập tin %s\n"
+
+#: arsup.c:162
+#, c-format
+msgid "%s: Can't open output archive %s\n"
+msgstr "%s: Không thể mở kho xuất %s\n"
+
+#: arsup.c:179
+#, c-format
+msgid "%s: Can't open input archive %s\n"
+msgstr "%s: Không thể mở kho nhập %s\n"
+
+#: arsup.c:188
+#, c-format
+msgid "%s: file %s is not an archive\n"
+msgstr "%s: tập tin %s không phải là kho\n"
+
+#: arsup.c:227
+#, c-format
+msgid "%s: no output archive specified yet\n"
+msgstr "%s: chưa ghi rõ kho xuất\n"
+
+#: arsup.c:247 arsup.c:285 arsup.c:327 arsup.c:347 arsup.c:413
+#, c-format
+msgid "%s: no open output archive\n"
+msgstr "%s: không có kho xuất đã mở\n"
+
+#: arsup.c:258 arsup.c:368 arsup.c:394
+#, c-format
+msgid "%s: can't open file %s\n"
+msgstr "%s: không thể mở tập tin %s\n"
+
+#: arsup.c:312 arsup.c:390 arsup.c:471
+#, c-format
+msgid "%s: can't find module file %s\n"
+msgstr "%s: không tìm thấy tập tin mô-đun %s\n"
+
+#: arsup.c:422
+#, c-format
+msgid "Current open archive is %s\n"
+msgstr "Kho đã mở hiện thời là %s\n"
+
+#: arsup.c:446
+#, c-format
+msgid "%s: no open archive\n"
+msgstr "%s: không có kho đã mở\n"
+
+#: binemul.c:37
+#, c-format
+msgid "  No emulation specific options\n"
+msgstr "  Không có tùy chọn đặc trưng cho mô phỏng\n"
+
+#. Macros for common output.
+#: binemul.h:40
+#, c-format
+msgid " emulation options: \n"
+msgstr " tùy chọn mô phỏng:\n"
+
+#: bucomm.c:110
+#, c-format
+msgid "can't set BFD default target to `%s': %s"
+msgstr "không thể lập đích mặc định BFD thành « %s »: %s"
+
+#: bucomm.c:121
+#, c-format
+msgid "%s: Matching formats:"
+msgstr "%s: khuôn dạng khớp:"
+
+#: bucomm.c:136
+#, c-format
+msgid "Supported targets:"
+msgstr "Đích hỗ trợ :"
+
+#: bucomm.c:138
+#, c-format
+msgid "%s: supported targets:"
+msgstr "%s: đích hỗ trợ :"
+
+#: bucomm.c:154
+#, c-format
+msgid "Supported architectures:"
+msgstr "Kiến trúc hỗ trợ :"
+
+#: bucomm.c:156
+#, c-format
+msgid "%s: supported architectures:"
+msgstr "%s: kiến trúc hỗ trợ :"
+
+#: bucomm.c:349
+#, c-format
+msgid "BFD header file version %s\n"
+msgstr "Phiên bản tập tin đầu BFD %s\n"
+
+#: bucomm.c:450
+#, c-format
+msgid "%s: bad number: %s"
+msgstr "%s: số sai: %s"
+
+#: bucomm.c:467 strings.c:438
+#, c-format
+msgid "'%s': No such file"
+msgstr "« %s »: không có tập tin như vậy"
+
+#: bucomm.c:469 strings.c:440
+#, c-format
+msgid "Warning: could not locate '%s'.  reason: %s"
+msgstr "Cảnh báo : không thể định vị « %s ». Lý do : %s"
+
+#: bucomm.c:473
+#, c-format
+msgid "Warning: '%s' is not an ordinary file"
+msgstr "Cảnh báo : « %s » không phải là một tập tin chuẩn"
+
+#: coffdump.c:103
+#, c-format
+msgid "#lines %d "
+msgstr "#dòng %d "
+
+#: coffdump.c:457 sysdump.c:641
+#, c-format
+msgid "Usage: %s [option(s)] in-file\n"
+msgstr "Cách sử dụng: %s [tùy_chọn...] tập_tin_nhập\n"
+
+#: coffdump.c:458
+#, c-format
+msgid " Print a human readable interpretation of a SYSROFF object file\n"
+msgstr "In ra lời thông dịch cho phép người đọc của tập tin đối tượng SYSROFF\n"
+
+#: coffdump.c:459
+#, c-format
+msgid ""
+" The options are:\n"
+"  @<file>                Read options from <file>\n"
+"  -h --help              Display this information\n"
+"  -v --version           Display the program's version\n"
+"\n"
+msgstr ""
+"Tùy chọn:\n"
+"  @<tập_tin>\t\tđọc các tùy chọn từ tập tin đó\n"
+"   -h, --help            hiển thị _trợ giúp_ này\n"
+" -v --version         hiển thị _phiên bản_ của chương trình\n"
+
+#: coffdump.c:528 srconv.c:1822 sysdump.c:705
+msgid "no input file specified"
+msgstr "chưa ghi rõ tập tin nhập"
+
+#: debug.c:648
+msgid "debug_add_to_current_namespace: no current file"
+msgstr "debug_add_to_current_namespace: (gỡ lỗi thêm vào vùng tên hiện có) không có tập tin hiện thời"
+
+#: debug.c:727
+msgid "debug_start_source: no debug_set_filename call"
+msgstr "debug_start_source: (gỡ lỗi bắt đầu nguồn) không có cuộc gọi kiểu « debug_set_filename » (gỡ lỗi lập tên tập tin)"
+
+#: debug.c:783
+msgid "debug_record_function: no debug_set_filename call"
+msgstr "debug_record_function: (gỡ lỗi ghi lưu chứa năng) không có cuộc gọi kiểu « debug_set_filename » (gỡ lỗi lập tên tập tin)"
+
+#: debug.c:835
+msgid "debug_record_parameter: no current function"
+msgstr "debug_record_parameter: (gỡ lỗi ghi lưu tham số) không có chức năng hiện thời"
+
+#: debug.c:867
+msgid "debug_end_function: no current function"
+msgstr "debug_end_function: (gỡ lỗi kết thúc chức năng) không có chức năng hiện thời"
+
+#: debug.c:873
+msgid "debug_end_function: some blocks were not closed"
+msgstr "debug_end_function: (gỡ lỗi kết thúc chức năng) một số khối chưa được đóng"
+
+#: debug.c:901
+msgid "debug_start_block: no current block"
+msgstr "debug_start_block: (gỡ lỗi bắt đầu khối) không có khối hiện thời"
+
+#: debug.c:937
+msgid "debug_end_block: no current block"
+msgstr "debug_end_block: (gỡ lỗi kết thúc khối) không có khối hiện thời"
+
+#: debug.c:944
+msgid "debug_end_block: attempt to close top level block"
+msgstr "debug_end_block: (gỡ lỗi kết thúc khối) cố đóng khối cấp đầu"
+
+#: debug.c:967
+msgid "debug_record_line: no current unit"
+msgstr "debug_record_line: (gỡ lỗi ghi lưu dòng) không có đơn vị hiện thời"
+
+#. FIXME
+#: debug.c:1020
+msgid "debug_start_common_block: not implemented"
+msgstr "debug_start_common_block: not implemented"
+
+#. FIXME
+#: debug.c:1031
+msgid "debug_end_common_block: not implemented"
+msgstr "debug_end_common_block: not implemented"
+
+#. FIXME.
+#: debug.c:1115
+msgid "debug_record_label: not implemented"
+msgstr "debug_record_label: not implemented"
+
+#: debug.c:1137
+msgid "debug_record_variable: no current file"
+msgstr "debug_record_variable: (gỡ lỗi ghi lưu biến) không có tập tin hiện thờino current file"
+
+#: debug.c:1665
+msgid "debug_make_undefined_type: unsupported kind"
+msgstr "debug_make_undefined_type: (gỡ lỗi tạo kiểu chưa được định nghĩa) kiểu chưa được hỗ trợ"
+
+#: debug.c:1842
+msgid "debug_name_type: no current file"
+msgstr "debug_name_type: no current file"
+
+#: debug.c:1887
+msgid "debug_tag_type: no current file"
+msgstr "debug_tag_type: (gỡ lỗi kiểu thẻ) không có tập tin hiện thờiLưu tập tin hiện"
+
+#: debug.c:1895
+msgid "debug_tag_type: extra tag attempted"
+msgstr "debug_tag_type: (gỡ lỗi kiểu thẻ) đã cố thẻ thêm"
+
+#: debug.c:1932
+#, c-format
+msgid "Warning: changing type size from %d to %d\n"
+msgstr "Cảnh báo : đang thay đổi kích cỡ kiểu từ %d đến %d\n"
+
+#: debug.c:1954
+msgid "debug_find_named_type: no current compilation unit"
+msgstr "debug_find_named_type: (gỡ lỗi tìm kiểu tên đã cho) không có đơn vị biên dịch hiện thời"
+
+#: debug.c:2057
+#, c-format
+msgid "debug_get_real_type: circular debug information for %s\n"
+msgstr "debug_get_real_type: (gỡ lỗi lấy kiểu thật) thông tin gỡ lỗi vòng cho %s\n"
+
+#: debug.c:2484
+msgid "debug_write_type: illegal type encountered"
+msgstr "debug_write_type: (gỡ lỗi ghi kiểu) gặp kiểu không được phép"
+
+#: dlltool.c:765 dlltool.c:789 dlltool.c:818
+#, c-format
+msgid "Internal error: Unknown machine type: %d"
+msgstr "Lỗi nội bộ : không biết kiểu máy: %d"
+
+#: dlltool.c:854
+#, c-format
+msgid "Can't open def file: %s"
+msgstr "Không thể mở tập tin định nghĩa: %s"
+
+#: dlltool.c:859
+#, c-format
+msgid "Processing def file: %s"
+msgstr "Đang xử lý tập tin định nghĩa: %s"
+
+#: dlltool.c:863
+msgid "Processed def file"
+msgstr "Đã xử lý tập tin định nghĩa"
+
+#: dlltool.c:887
+#, c-format
+msgid "Syntax error in def file %s:%d"
+msgstr "Gặp lỗi cú pháp trong tập tin định nghĩa %s:%d"
+
+#: dlltool.c:922
+#, c-format
+msgid "%s: Path components stripped from image name, '%s'."
+msgstr "%s: các thành phần đường dẫn bị tước ra tên ảnh, « %s »."
+
+#: dlltool.c:931
+#, c-format
+msgid "NAME: %s base: %x"
+msgstr "TÊN: %s cơ bản: %x"
+
+#: dlltool.c:934 dlltool.c:950
+msgid "Can't have LIBRARY and NAME"
+msgstr "Không cho phép dùng cả THƯ VIÊN lẫn TÊN đều"
+
+#: dlltool.c:947
+#, c-format
+msgid "LIBRARY: %s base: %x"
+msgstr "THƯ VIÊN: %s cơ bản: %x"
+
+#: dlltool.c:1183 resrc.c:269
+#, c-format
+msgid "wait: %s"
+msgstr "đợi: %s"
+
+#: dlltool.c:1188 dllwrap.c:413 resrc.c:274
+#, c-format
+msgid "subprocess got fatal signal %d"
+msgstr "tiến trình con đã nhận tín hiệu nghiệm trọng %d"
+
+#: dlltool.c:1194 dllwrap.c:420 resrc.c:281
+#, c-format
+msgid "%s exited with status %d"
+msgstr "%s đã thoát với trạng thái %d"
+
+#: dlltool.c:1225
+#, c-format
+msgid "Sucking in info from %s section in %s"
+msgstr "Đang kéo vào thông tin từ phần %s trong %s..."
+
+#: dlltool.c:1350
+#, c-format
+msgid "Excluding symbol: %s"
+msgstr "Đang loại trừ ký hiệu : %s"
+
+#: dlltool.c:1439 dlltool.c:1450 nm.c:1000 nm.c:1011
+#, c-format
+msgid "%s: no symbols"
+msgstr "%s: không có ký hiệu"
+
+#. FIXME: we ought to read in and block out the base relocations.
+#: dlltool.c:1476
+#, c-format
+msgid "Done reading %s"
+msgstr "Đã đọc xong %s"
+
+#: dlltool.c:1486
+#, c-format
+msgid "Unable to open object file: %s"
+msgstr "Không thể mở tập tin đối tượng: %s"
+
+#: dlltool.c:1489
+#, c-format
+msgid "Scanning object file %s"
+msgstr "Đang quét tập tin đối tượng %s..."
+
+#: dlltool.c:1504
+#, c-format
+msgid "Cannot produce mcore-elf dll from archive file: %s"
+msgstr "Không thể cung cấp « mcore-elf dll » từ tập tin kho: %s"
+
+#: dlltool.c:1590
+msgid "Adding exports to output file"
+msgstr "Đang thêm các việc xuất vào nhóm kết xuất..."
+
+#: dlltool.c:1638
+msgid "Added exports to output file"
+msgstr "Đã thêm các việc xuất vào nhóm kết xuất"
+
+#: dlltool.c:1759
+#, c-format
+msgid "Generating export file: %s"
+msgstr "Đang tạo ra tập tin xuất: %s"
+
+#: dlltool.c:1764
+#, c-format
+msgid "Unable to open temporary assembler file: %s"
+msgstr "Không thể mở tập tin dịch mã số tạm thời: %s"
+
+#: dlltool.c:1767
+#, c-format
+msgid "Opened temporary file: %s"
+msgstr "Đã mở tập tin tạm thời: %s"
+
+#: dlltool.c:1989
+msgid "Generated exports file"
+msgstr "Đã tạo ra tập tin xuất"
+
+#: dlltool.c:2195
+#, c-format
+msgid "bfd_open failed open stub file: %s"
+msgstr "bfd_open không mở được tập tin stub: %s"
+
+#: dlltool.c:2198
+#, c-format
+msgid "Creating stub file: %s"
+msgstr "Đang tạo tập tin stub: %s"
+
+#: dlltool.c:2580
+#, c-format
+msgid "failed to open temporary head file: %s"
+msgstr "lỗi mở tập tin đầu tạm: %s"
+
+#: dlltool.c:2639
+#, c-format
+msgid "failed to open temporary tail file: %s"
+msgstr "lỗi mở tập tin đuôi tạm: %s"
+
+#: dlltool.c:2706
+#, c-format
+msgid "Can't open .lib file: %s"
+msgstr "Không thể mở tập tin « .lib » (thư viên): %s"
+
+#: dlltool.c:2709
+#, c-format
+msgid "Creating library file: %s"
+msgstr "Đang tạo tập tin thư viên: %s"
+
+#: dlltool.c:2792 dlltool.c:2798
+#, c-format
+msgid "cannot delete %s: %s"
+msgstr "không thể xóa bỏ %s: %s"
+
+#: dlltool.c:2803
+msgid "Created lib file"
+msgstr "Đã tạo  tập tin thư viên"
+
+#: dlltool.c:2882
+#, c-format
+msgid "Warning, ignoring duplicate EXPORT %s %d,%d"
+msgstr "Cảnh báo, đang bỏ qua XUẤT trùng %s %d,%d"
+
+#: dlltool.c:2888
+#, c-format
+msgid "Error, duplicate EXPORT with oridinals: %s"
+msgstr "Lỗi: XUẤT trùng với điều thứ tự : %s"
+
+#: dlltool.c:2993
+msgid "Processing definitions"
+msgstr "Đang xử lý các lời định nghĩa..."
+
+#: dlltool.c:3025
+msgid "Processed definitions"
+msgstr "Đã xử lý các lời định nghĩa"
+
+#. xgetext:c-format
+#: dlltool.c:3032 dllwrap.c:474
+#, c-format
+msgid "Usage %s <option(s)> <object-file(s)>\n"
+msgstr "Cách sử dụng %s <tùy_chọn...> <tập_tin_đối_tượng...>\n"
+
+#. xgetext:c-format
+#: dlltool.c:3034
+#, c-format
+msgid "   -m --machine <machine>    Create as DLL for <machine>.  [default: %s]\n"
+msgstr "   -m --machine <máy>    Tạo dạng DLL cho <máy>.  [mặc định: %s]\n"
+
+#: dlltool.c:3035
+#, c-format
+msgid "        possible <machine>: arm[_interwork], i386, mcore[-elf]{-le|-be}, ppc, thumb\n"
+msgstr "        <máy> có thể: arm[_interwork], i386, mcore[-elf]{-le|-be}, ppc, thumb\n"
+
+#: dlltool.c:3036
+#, c-format
+msgid "   -e --output-exp <outname> Generate an export file.\n"
+msgstr "   -e --output-exp <tên_tập_tin> \tTạo ra tập tin _xuất_.\n"
+
+#: dlltool.c:3037
+#, c-format
+msgid "   -l --output-lib <outname> Generate an interface library.\n"
+msgstr "   -l --output-lib <tên_tập_tin> \tTạo _ra thư viên_ giao diện.\n"
+
+#: dlltool.c:3038
+#, c-format
+msgid "   -a --add-indirect         Add dll indirects to export file.\n"
+msgstr "   -a --add-indirect         _Thêm lời gián tiếp_dạng dll vào tập tin xuất\n"
+
+#: dlltool.c:3039
+#, c-format
+msgid "   -D --dllname <name>       Name of input dll to put into interface lib.\n"
+msgstr "   -D --dllname <tên>       _Tên dll_ nhập cần để vào thư viên giao diện.\n"
+
+#: dlltool.c:3040
+#, c-format
+msgid "   -d --input-def <deffile>  Name of .def file to be read in.\n"
+msgstr "   -d --input-def <tên_tập_tin>  \tTên tập tin _định nghĩa_ cần đọc _vào_.\n"
+
+#: dlltool.c:3041
+#, c-format
+msgid "   -z --output-def <deffile> Name of .def file to be created.\n"
+msgstr "   -z --output-def <tên_tập_tin> Tên tập tin _định nghĩa_ cần tạo (_ra_).\n"
+
+#: dlltool.c:3042
+#, c-format
+msgid "      --export-all-symbols   Export all symbols to .def\n"
+msgstr "        --export-all-symbols    Tự động _xuất mọi ký hiệu_ vào tập tin định nghĩa\n"
+
+#: dlltool.c:3043
+#, c-format
+msgid "      --no-export-all-symbols  Only export listed symbols\n"
+msgstr ""
+"      --no-export-all-symbols  \tXuất chỉ những ký hiệu đã liệt kê\n"
+"\t\t\t\t\t\t\t\t(_không xuất mọi ký hiệu_)\n"
+
+#: dlltool.c:3044
+#, c-format
+msgid "      --exclude-symbols <list> Don't export <list>\n"
+msgstr ""
+"      --exclude-symbols <danh_sách>           Đừng xuất danh sách này\n"
+"\t\t\t\t\t\t\t\t(_loại trừ ký hiệu_)\n"
+
+#: dlltool.c:3045
+#, c-format
+msgid "      --no-default-excludes  Clear default exclude symbols\n"
+msgstr ""
+"      --no-default-excludes      Xóa các ký hiệu cần loại trừ theo mặc định\n"
+"\t\t\t\t\t\t\t\t(không loại trừ mặc định)\n"
+
+#: dlltool.c:3046
+#, c-format
+msgid "   -b --base-file <basefile> Read linker generated base file.\n"
+msgstr "   -b --base-file <tên_tập_tin>    Đọc _tập tin cơ bản_ do bộ liên kết tạo ra.\n"
+
+#: dlltool.c:3047
+#, c-format
+msgid "   -x --no-idata4            Don't generate idata$4 section.\n"
+msgstr "   -x --no-idata4            Đừng tạo ra phần « idata$4 ».\n"
+
+#: dlltool.c:3048
+#, c-format
+msgid "   -c --no-idata5            Don't generate idata$5 section.\n"
+msgstr "   -c --no-idata5            Đừng tạo ra phần « idata$5 ».\n"
+
+#: dlltool.c:3049
+#, c-format
+msgid "   -U --add-underscore       Add underscores to symbols in interface library.\n"
+msgstr ""
+"   -U --add-underscore     \t_Thêm dấu gạch dưới_ vào\n"
+"\t\t\t\t\t\tcác ký hiệu trong thư viên giao diện.\n"
+
+#: dlltool.c:3050
+#, c-format
+msgid "   -k --kill-at              Kill @<n> from exported names.\n"
+msgstr ""
+"   -k --kill-at              Xóa bỏ « @<n> » ra các tên đã xuất.\n"
+"\t\t\t\t\t\t(_buộc kết thúc tại_)\n"
+
+#: dlltool.c:3051
+#, c-format
+msgid "   -A --add-stdcall-alias    Add aliases without @<n>.\n"
+msgstr ""
+"   -A --add-stdcall-alias    \tThêm biệt hiệu không có « @<n> ».\n"
+"\t\t\t\t\t\t(_thêm biệt hiệu gọi chuẩn_)\n"
+
+#: dlltool.c:3052
+#, c-format
+msgid "   -p --ext-prefix-alias <prefix> Add aliases with <prefix>.\n"
+msgstr ""
+"   -p --ext-prefix-alias <tiền_tố> \tThêm các biệt hiệu có tiền tố này.\n"
+"\t\t\t\t\t\t(_biệt hiệu tiền tố thêm_)\n"
+
+#: dlltool.c:3053
+#, c-format
+msgid "   -S --as <name>            Use <name> for assembler.\n"
+msgstr "   -S --as <tên>            \tDùng tên này cho chương trình dịch mã số.\n"
+
+#: dlltool.c:3054
+#, c-format
+msgid "   -f --as-flags <flags>     Pass <flags> to the assembler.\n"
+msgstr ""
+"   -f --as-flags <các_cờ>     Gởi các cờ này qua cho chương trình dịch mã số.\n"
+"\t\t\t\t\t\t\t(_dạng cờ_)\n"
+
+#: dlltool.c:3055
+#, c-format
+msgid "   -C --compat-implib        Create backward compatible import library.\n"
+msgstr "   -C --compat-implib        \tTạo _thư viên nhập tương thích_ ngược.\n"
+
+#: dlltool.c:3056
+#, c-format
+msgid "   -n --no-delete            Keep temp files (repeat for extra preservation).\n"
+msgstr ""
+"   -n --no-delete \t\tGiữ lại các tập tin tạm thời (lặp lại để bảo tồn thêm)\n"
+"\t\t\t\t\t\t(_không xóa bỏ_)\n"
+
+#: dlltool.c:3057
+#, c-format
+msgid "   -t --temp-prefix <prefix> Use <prefix> to construct temp file names.\n"
+msgstr "   -t --temp-prefix <tiền_tố>\tDùng _tiền tố_ này để tạo tên tập tin _tạm_.\n"
+
+#: dlltool.c:3058
+#, c-format
+msgid "   -v --verbose              Be verbose.\n"
+msgstr "   -v --verbose               Xuất _chi tiết_.\n"
+
+#: dlltool.c:3059
+#, c-format
+msgid "   -V --version              Display the program version.\n"
+msgstr "   -V --version       \tHiển thị phiên bản chương trình.\n"
+
+#: dlltool.c:3060
+#, c-format
+msgid "   -h --help                 Display this information.\n"
+msgstr "   -h --help         \tHiển thị _trợ giúp_ này.\n"
+
+#: dlltool.c:3061
+#, c-format
+msgid "   @<file>                   Read options from <file>.\n"
+msgstr "   @<tập_tin>\t\tđọc các tùy chọn từ tập tin đó\n"
+
+#: dlltool.c:3063
+#, c-format
+msgid "   -M --mcore-elf <outname>  Process mcore-elf object files into <outname>.\n"
+msgstr ""
+"   -M --mcore-elf <tên_tập_tin>\n"
+"\t\tXử lý các tập tin đối tượng kiểu « mcore-elf » vào tập tin tên này.\n"
+
+#: dlltool.c:3064
+#, c-format
+msgid "   -L --linker <name>        Use <name> as the linker.\n"
+msgstr "   -L --linker <tên>   \t\tDùng tên này là _bộ liên kết_.\n"
+
+#: dlltool.c:3065
+#, c-format
+msgid "   -F --linker-flags <flags> Pass <flags> to the linker.\n"
+msgstr "   -F --linker-flags <các_cờ> \tGởi _các cờ_ này qua cho _bộ liên kết_.\n"
+
+#: dlltool.c:3181
+#, c-format
+msgid "Path components stripped from dllname, '%s'."
+msgstr "Các thành phần đường dẫn bị tước ra tên dll, « %s »."
+
+#: dlltool.c:3226
+#, c-format
+msgid "Unable to open base-file: %s"
+msgstr "Không thể mở tập tin cơ sở: %s"
+
+#: dlltool.c:3258
+#, c-format
+msgid "Machine '%s' not supported"
+msgstr "Không hỗ trợ máy « %s »"
+
+#: dlltool.c:3362 dllwrap.c:204
+#, c-format
+msgid "Tried file: %s"
+msgstr "Đã thử tập tin: %s"
+
+#: dlltool.c:3369 dllwrap.c:211
+#, c-format
+msgid "Using file: %s"
+msgstr "Đang dùng tập tin: %s"
+
+#: dllwrap.c:294
+#, c-format
+msgid "Keeping temporary base file %s"
+msgstr "Đang giữ tập tin cơ bản tạm thời %s"
+
+#: dllwrap.c:296
+#, c-format
+msgid "Deleting temporary base file %s"
+msgstr "Đang xóa bỏ tập tin cơ bản tạm thời %s..."
+
+#: dllwrap.c:310
+#, c-format
+msgid "Keeping temporary exp file %s"
+msgstr "Đang giữ tập tin xuất tạm thời %s"
+
+#: dllwrap.c:312
+#, c-format
+msgid "Deleting temporary exp file %s"
+msgstr "Đang xóa bỏ tập tin xuất tạm thời %s..."
+
+#: dllwrap.c:325
+#, c-format
+msgid "Keeping temporary def file %s"
+msgstr "Đang giữ tập tin định nghĩa tạm thời %s"
+
+#: dllwrap.c:327
+#, c-format
+msgid "Deleting temporary def file %s"
+msgstr "Đang xóa bỏ tập tin định nghĩa tạm thời %s..."
+
+#: dllwrap.c:475
+#, c-format
+msgid "  Generic options:\n"
+msgstr "  Tùy chọn chung:\n"
+
+#: dllwrap.c:476
+#, c-format
+msgid "   @<file>                Read options from <file>\n"
+msgstr "   @<tập_tin>\t\tđọc các tùy chọn từ tập tin đó\n"
+
+#: dllwrap.c:477
+#, c-format
+msgid "   --quiet, -q            Work quietly\n"
+msgstr "   --quiet, -q            Không xuất chi tiết (_im_)\n"
+
+#: dllwrap.c:478
+#, c-format
+msgid "   --verbose, -v          Verbose\n"
+msgstr "   --verbose, -v          Xuất _chi tiết_\n"
+
+#: dllwrap.c:479
+#, c-format
+msgid "   --version              Print dllwrap version\n"
+msgstr "   --version              In ra phiên bản dllwrap\n"
+
+#: dllwrap.c:480
+#, c-format
+msgid "   --implib <outname>     Synonym for --output-lib\n"
+msgstr "   --implib <tên_tập_tin>     Bằng « --output-lib »\n"
+
+#: dllwrap.c:481
+#, c-format
+msgid "  Options for %s:\n"
+msgstr "  Tùy chọn cho %s:\n"
+
+#: dllwrap.c:482
+#, c-format
+msgid "   --driver-name <driver> Defaults to \"gcc\"\n"
+msgstr ""
+"   --driver-name <trình_điều_khiển> \t        Mặc định là « gcc »\n"
+"\t\t\t\t\t\t\t\t(_tên trình điều khiển_)\n"
+
+#: dllwrap.c:483
+#, c-format
+msgid "   --driver-flags <flags> Override default ld flags\n"
+msgstr ""
+"   --driver-flags <các_cờ> \t\tCó quyền cao hơn các cờ ld mặc định\n"
+"\t\t\t\t\t\t\t\t(_các cờ trình điều khiển_)\n"
+
+#: dllwrap.c:484
+#, c-format
+msgid "   --dlltool-name <dlltool> Defaults to \"dlltool\"\n"
+msgstr ""
+"   --dlltool-name <dlltool> \t\tMặc định là « dlltool »\n"
+"\t\t\t\t\t\t\t\t(_tên công cụ dlltool_)\n"
+
+#: dllwrap.c:485
+#, c-format
+msgid "   --entry <entry>        Specify alternate DLL entry point\n"
+msgstr "   --entry <điểm_vào>        \t\tGhi rõ điểm _vào_ DLL xen kẽ\n"
+
+#: dllwrap.c:486
+#, c-format
+msgid "   --image-base <base>    Specify image base address\n"
+msgstr "   --image-base <cơ_bản>    \tGhi rõ địa chỉ _cơ bản ảnh_\n"
+
+#: dllwrap.c:487
+#, c-format
+msgid "   --target <machine>     i386-cygwin32 or i386-mingw32\n"
+msgstr "   --target <máy>     i386-cygwin32 hay i386-mingw32\n"
+
+#: dllwrap.c:488
+#, c-format
+msgid "   --dry-run              Show what needs to be run\n"
+msgstr "   --dry-run              \tHiển thị các điều cần chạy (_chạy thực hành_)\n"
+
+#: dllwrap.c:489
+#, c-format
+msgid "   --mno-cygwin           Create Mingw DLL\n"
+msgstr "   --mno-cygwin       \tTạo DLL dạng Mingw\n"
+
+#: dllwrap.c:490
+#, c-format
+msgid "  Options passed to DLLTOOL:\n"
+msgstr "  Các tùy chọn được gởi qua cho DLLTOOL:\n"
+
+#: dllwrap.c:491
+#, c-format
+msgid "   --machine <machine>\n"
+msgstr "   --machine <máy>\n"
+
+#: dllwrap.c:492
+#, c-format
+msgid "   --output-exp <outname> Generate export file.\n"
+msgstr "   --output-exp <tên_tập_tin> \t\tTạo ra tập tin _xuất_.\n"
+
+#: dllwrap.c:493
+#, c-format
+msgid "   --output-lib <outname> Generate input library.\n"
+msgstr "   --output-lib <tên_tập_tin> \t\tTạo _ra thư viên_ nhập.\n"
+
+#: dllwrap.c:494
+#, c-format
+msgid "   --add-indirect         Add dll indirects to export file.\n"
+msgstr "   --add-indirect         \t\t_Thêm_ các lời _gián tiếp_ vào tập tin xuất.\n"
+
+#: dllwrap.c:495
+#, c-format
+msgid "   --dllname <name>       Name of input dll to put into output lib.\n"
+msgstr "   --dllname <tên>       \t\t_Tên dll_ nhập cần để vào thư viên xuất.\n"
+
+#: dllwrap.c:496
+#, c-format
+msgid "   --def <deffile>        Name input .def file\n"
+msgstr "   --def <tên_tập_tin>        \tTên tập tin _định nghĩa_ nhập\n"
+
+#: dllwrap.c:497
+#, c-format
+msgid "   --output-def <deffile> Name output .def file\n"
+msgstr "   --output-def <tên_tập_tin>\tTên _tập tin định nghĩa xuất_\n"
+
+#: dllwrap.c:498
+#, c-format
+msgid "   --export-all-symbols     Export all symbols to .def\n"
+msgstr "   --export-all-symbols     _Xuất mọi ký hiệu_ vào tập tin định nghĩa\n"
+
+#: dllwrap.c:499
+#, c-format
+msgid "   --no-export-all-symbols  Only export .drectve symbols\n"
+msgstr ""
+"   --no-export-all-symbols  \tXuất chỉ ký hiệu kiểu « .drectve ».\n"
+"\t\t\t\t\t\t\t\t(_không xuất mọi ký hiệu_)\n"
+
+#: dllwrap.c:500
+#, c-format
+msgid "   --exclude-symbols <list> Exclude <list> from .def\n"
+msgstr ""
+"   --exclude-symbols <danh sách>\n"
+"\t\t\t\t\tLoại trừ danh sách này ra tập tin định nghĩa.\n"
+"\t\t\t\t\t\t\t\t(_loại trừ các ký hiệu_)\n"
+
+#: dllwrap.c:501
+#, c-format
+msgid "   --no-default-excludes    Zap default exclude symbols\n"
+msgstr ""
+"   --no-default-excludes    \t\tSửa mọi ký hiệu loại trừ mặc định.\n"
+"\t\t\t\t\t\t\t\t(_không loại trừ mặc định_)\n"
+
+#: dllwrap.c:502
+#, c-format
+msgid "   --base-file <basefile> Read linker generated base file\n"
+msgstr "   --base-file <tên_tập_tin>     Đọc _tập tin cơ bản_ do bộ liên kết tạo ra.\n"
+
+#: dllwrap.c:503
+#, c-format
+msgid "   --no-idata4           Don't generate idata$4 section\n"
+msgstr "   --no-idata4           Đừng tạo ra phần « idata$4 ».\n"
+
+#: dllwrap.c:504
+#, c-format
+msgid "   --no-idata5           Don't generate idata$5 section\n"
+msgstr "   --no-idata5           Đừng tạo ra phần « idata$5 ».\n"
+
+#: dllwrap.c:505
+#, c-format
+msgid "   -U                     Add underscores to .lib\n"
+msgstr "   -U                     Thêm dấu gạch _dưới_ vào thư viên\n"
+
+#: dllwrap.c:506
+#, c-format
+msgid "   -k                     Kill @<n> from exported names\n"
+msgstr ""
+"   -k                     Xóa bỏ « @<n> » ra các tên đã xuất\n"
+"\t\t\t\t\t(_buộc kết thúc_)\n"
+
+#: dllwrap.c:507
+#, c-format
+msgid "   --add-stdcall-alias    Add aliases without @<n>\n"
+msgstr ""
+"   --add-stdcall-alias    \tThêm biệt hiệu không có « @<n> ».\n"
+"\t\t\t\t\t\t\t(_thêm biệt hiệu gọi chuẩn_)\n"
+
+#: dllwrap.c:508
+#, c-format
+msgid "   --as <name>            Use <name> for assembler\n"
+msgstr "   --as <tên>           Dùng tên này cho chương trình dịch mã số (_dạng_)\n"
+
+#: dllwrap.c:509
+#, c-format
+msgid "   --nodelete             Keep temp files.\n"
+msgstr "   --nodelete             Giữ các tập tin tạm (_không xóa bỏ_)\n"
+
+#: dllwrap.c:510
+#, c-format
+msgid "  Rest are passed unmodified to the language driver\n"
+msgstr "  Các điều còn lại được gởi dạng chưa được sửa đổi qua cho trình điều khiển ngôn ngữ\n"
+
+#: dllwrap.c:782
+msgid "Must provide at least one of -o or --dllname options"
+msgstr "Phải cung cấp ít nhất một của hai tùy chọn « -o » hay « -dllname »"
+
+#: dllwrap.c:811
+msgid ""
+"no export definition file provided.\n"
+"Creating one, but that may not be what you want"
+msgstr ""
+"chưa cung cấp tập tin định nghĩa xuất.\n"
+"Đang tạo một điều, mà có lẽ không phải là điều bạn muốn"
+
+#: dllwrap.c:970
+#, c-format
+msgid "DLLTOOL name    : %s\n"
+msgstr "Tên công cụ DLLTOOL    : %s\n"
+
+#: dllwrap.c:971
+#, c-format
+msgid "DLLTOOL options : %s\n"
+msgstr "Tùy chọn DLLTOOL: %s\n"
+
+#: dllwrap.c:972
+#, c-format
+msgid "DRIVER name     : %s\n"
+msgstr "Tên TRÌNH ĐIỀU KHIỀN     : %s\n"
+
+#: dllwrap.c:973
+#, c-format
+msgid "DRIVER options  : %s\n"
+msgstr "Tùy chọn TRÌNH ĐIỀU KHIỂN  : %s\n"
+
+#: dwarf.c:93 dwarf.c:137 readelf.c:322 readelf.c:515
+#, c-format
+msgid "Unhandled data length: %d\n"
+msgstr "Độ dài dữ liệu không được quản lý: %d\n"
+
+#: dwarf.c:237
+msgid "badly formed extended line op encountered!\n"
+msgstr "gặp thao tác dòng đã mở rộng dạng sai.\n"
+
+#: dwarf.c:244
+#, c-format
+msgid "  Extended opcode %d: "
+msgstr "  Opcode (mã thao tác) đã mở rộng %d: "
+
+#: dwarf.c:249
+#, c-format
+msgid ""
+"End of Sequence\n"
+"\n"
+msgstr ""
+"Kết thúc dãy\n"
+"\n"
+
+#: dwarf.c:255
+#, c-format
+msgid "set Address to 0x%lx\n"
+msgstr "đặt Địa chỉ là 0x%lx\n"
+
+#: dwarf.c:260
+#, c-format
+msgid "  define new File Table entry\n"
+msgstr "  định nghĩa mục nhập Bảng Tập tin mới\n"
+
+#: dwarf.c:261 dwarf.c:1944
+#, c-format
+msgid "  Entry\tDir\tTime\tSize\tName\n"
+msgstr "  Mục\tTMục\tGiờ\tCỡ\tTên\n"
+
+# Variable: don't translate / Biến: đừng dịch
+#: dwarf.c:263
+#, c-format
+msgid "   %d\t"
+msgstr "   %d\t"
+
+# Variable: don't translate / Biến: đừng dịch
+#: dwarf.c:266 dwarf.c:268 dwarf.c:270 dwarf.c:1956 dwarf.c:1958 dwarf.c:1960
+#, c-format
+msgid "%lu\t"
+msgstr "%lu\t"
+
+# Variable: do not translate/ biến: đừng dịch
+#: dwarf.c:271
+#, c-format
+msgid ""
+"%s\n"
+"\n"
+msgstr ""
+"%s\n"
+"\n"
+
+#: dwarf.c:275
+#, c-format
+msgid "UNKNOWN: length %d\n"
+msgstr "KHÔNG RÕ: độ dài %d\n"
+
+#: dwarf.c:288
+msgid "<no .debug_str section>"
+msgstr "<no .debug_str section>"
+
+#: dwarf.c:294
+#, c-format
+msgid "DW_FORM_strp offset too big: %lx\n"
+msgstr "DW_FORM_strp hiệu số quá lớn: %lx\n"
+
+#: dwarf.c:295
+msgid "<offset is too big>"
+msgstr "<offset is too big>"
+
+#: dwarf.c:528
+#, c-format
+msgid "Unknown TAG value: %lx"
+msgstr "Giá trị TAG (thẻ) không rõ : %lx"
+
+#: dwarf.c:564
+#, c-format
+msgid "Unknown FORM value: %lx"
+msgstr "Giá trị FORM (dạng) không rõ : %lx"
+
+#: dwarf.c:573
+#, c-format
+msgid " %lu byte block: "
+msgstr " Khối %lu byte: "
+
+#: dwarf.c:907
+#, c-format
+msgid "(User defined location op)"
+msgstr "(Thao tác định vị do người dùng định nghĩa)"
+
+#: dwarf.c:909
+#, c-format
+msgid "(Unknown location op)"
+msgstr "(Thao tác định vị không rõ)"
+
+#: dwarf.c:955
+msgid "Internal error: DWARF version is not 2 or 3.\n"
+msgstr "Lỗi nội bộ: phiên bản DWARF không phải là 2 hay 3.\n"
+
+#: dwarf.c:1053
+msgid "DW_FORM_data8 is unsupported when sizeof (unsigned long) != 8\n"
+msgstr "Không hỗ trợ « DW_FORM_data8 » khi « sizeof (unsigned long) != 8 » [kích cỡ của (dài không ký)]\n"
+
+#: dwarf.c:1102
+#, c-format
+msgid " (indirect string, offset: 0x%lx): %s"
+msgstr " (chuỗi gián tiếp, hiệu số: 0x%lx): %s"
+
+#: dwarf.c:1111
+#, c-format
+msgid "Unrecognized form: %lu\n"
+msgstr "Không nhận diện dạng: %lu\n"
+
+#: dwarf.c:1196
+#, c-format
+msgid "(not inlined)"
+msgstr "(không đặt trực tiếp)"
+
+#: dwarf.c:1199
+#, c-format
+msgid "(inlined)"
+msgstr "(đặt trực tiếp)"
+
+#: dwarf.c:1202
+#, c-format
+msgid "(declared as inline but ignored)"
+msgstr "(khai báo là trực tiếp mà bị bỏ qua)"
+
+#: dwarf.c:1205
+#, c-format
+msgid "(declared as inline and inlined)"
+msgstr "(khai báo là trực tiếp và đặt trực tiếp)"
+
+#: dwarf.c:1208
+#, c-format
+msgid "  (Unknown inline attribute value: %lx)"
+msgstr "  (Không biết giá trị thuộc tính trực tiếp: %lx)"
+
+#: dwarf.c:1354 dwarf.c:2484
+#, c-format
+msgid " [without DW_AT_frame_base]"
+msgstr " [không có DW_AT_frame_base (cơ bản khung)]"
+
+#: dwarf.c:1357
+#, c-format
+msgid "(location list)"
+msgstr "(danh sách địa điểm)"
+
+#: dwarf.c:1475
+#, c-format
+msgid "Unknown AT value: %lx"
+msgstr "Không biết giá trị AT: %lx"
+
+#: dwarf.c:1544
+#, c-format
+msgid "No comp units in %s section ?"
+msgstr "Không có đơn vị biên dịch trong phần %s ?"
+
+#: dwarf.c:1553
+#, c-format
+msgid "Not enough memory for a debug info array of %u entries"
+msgstr "Không đủ bộ nhớ cho mảng thông tin gỡ lỗi có mục nhập %u"
+
+#: dwarf.c:1561 dwarf.c:2573
+#, c-format
+msgid ""
+"The section %s contains:\n"
+"\n"
+msgstr ""
+"Phần %s chứa:\n"
+"\n"
+
+#: dwarf.c:1569
+#, c-format
+msgid "Unable to locate %s section!\n"
+msgstr "Không thể định vị phần %s !\n"
+
+#: dwarf.c:1635
+#, c-format
+msgid "  Compilation Unit @ offset 0x%lx:\n"
+msgstr "  Đơn vị biên dịch @ hiệu số 0x%lx:\n"
+
+#: dwarf.c:1636
+#, c-format
+msgid "   Length:        %ld\n"
+msgstr "   Dài:        %ld\n"
+
+#: dwarf.c:1637
+#, c-format
+msgid "   Version:       %d\n"
+msgstr "   Phiên bản:       %d\n"
+
+#: dwarf.c:1638
+#, c-format
+msgid "   Abbrev Offset: %ld\n"
+msgstr "   Hiệu số tắt: %ld\n"
+
+#: dwarf.c:1639
+#, c-format
+msgid "   Pointer Size:  %d\n"
+msgstr "   Cỡ con trỏ :  %d\n"
+
+#: dwarf.c:1644
+msgid "Only version 2 and 3 DWARF debug information is currently supported.\n"
+msgstr "Hỗ trợ chỉ thông tin gỡ lỗi phiên bản DWARF 2 và 3 thôi.\n"
+
+#: dwarf.c:1685
+#, c-format
+msgid "Unable to locate entry %lu in the abbreviation table\n"
+msgstr "Không thể định vị mục nhâp %lu trong bảng viết tắt\n"
+
+#: dwarf.c:1691
+#, c-format
+msgid " <%d><%lx>: Abbrev Number: %lu (%s)\n"
+msgstr " <%d><%lx>: Số viết tắt: %lu (%s)\n"
+
+#: dwarf.c:1785
+#, c-format
+msgid "%s section needs a populated .debug_info section\n"
+msgstr "Phần %s cần phần « .debug_info » (thông tin gỡ lỗi) có dữ liệu\n"
+
+#: dwarf.c:1792
+#, c-format
+msgid "%s section has more comp units than .debug_info section\n"
+msgstr "Phần %s có nhiều đơn vị biên dịch hơn phần « .debug_info » (thông tin gỡ lỗi)\n"
+
+#: dwarf.c:1794
+#, c-format
+msgid ""
+"assuming that the pointer size is %d, from the last comp unit in .debug_info\n"
+"\n"
+msgstr ""
+"giả sử kích cỡ con trỏ là %d, từ đơn vị biên dịch cuối cùng trong « .debug_info » (thông tin gỡ lỗi)\n"
+"\n"
+
+#: dwarf.c:1819
+#, c-format
+msgid ""
+"\n"
+"Dump of debug contents of section %s:\n"
+"\n"
+msgstr ""
+"\n"
+"Việc đổ nội dung gỡ lỗi của phần %s:\n"
+
+#: dwarf.c:1858
+msgid "The line info appears to be corrupt - the section is too small\n"
+msgstr "Hình như dòng bị hỏng — phần quá nhỏ\n"
+
+#: dwarf.c:1867
+msgid "Only DWARF version 2 and 3 line info is currently supported.\n"
+msgstr "Hỗ trợ hiện thời chỉ thông tin dòng DWARF phiên bản 2 và 3.\n"
+
+#: dwarf.c:1894
+#, c-format
+msgid "  Length:                      %ld\n"
+msgstr "  Dài:                      %ld\n"
+
+#: dwarf.c:1895
+#, c-format
+msgid "  DWARF Version:               %d\n"
+msgstr "  Phiên bản DWARF:               %d\n"
+
+#: dwarf.c:1896
+#, c-format
+msgid "  Prologue Length:             %d\n"
+msgstr "  Dài đoạn mở đầu :             %d\n"
+
+#: dwarf.c:1897
+#, c-format
+msgid "  Minimum Instruction Length:  %d\n"
+msgstr "  Dài câu lệnh tối thiểu :  %d\n"
+
+#: dwarf.c:1898
+#, c-format
+msgid "  Initial value of 'is_stmt':  %d\n"
+msgstr "  Giá trị đầu của « is_stmt »:  %d\n"
+
+#: dwarf.c:1899
+#, c-format
+msgid "  Line Base:                   %d\n"
+msgstr "  Cơ bản dòng:                   %d\n"
+
+#: dwarf.c:1900
+#, c-format
+msgid "  Line Range:                  %d\n"
+msgstr "  Phạm vị dòng:                  %d\n"
+
+#: dwarf.c:1901
+#, c-format
+msgid "  Opcode Base:                 %d\n"
+msgstr "  Cơ bản mã thao tác:                 %d\n"
+
+#: dwarf.c:1902
+#, c-format
+msgid "  (Pointer size:               %u)%s\n"
+msgstr "  (Cỡ con trỏ :\t\t\t%u)%s\n"
+
+#: dwarf.c:1913
+#, c-format
+msgid ""
+"\n"
+" Opcodes:\n"
+msgstr ""
+"\n"
+" Mã thao tác:\n"
+
+#: dwarf.c:1916
+#, c-format
+msgid "  Opcode %d has %d args\n"
+msgstr "  Mã thao tác %d có %d đối số\n"
+
+#: dwarf.c:1922
+#, c-format
+msgid ""
+"\n"
+" The Directory Table is empty.\n"
+msgstr ""
+"\n"
+"  Bảng Thư mục rỗng\n"
+
+#: dwarf.c:1925
+#, c-format
+msgid ""
+"\n"
+" The Directory Table:\n"
+msgstr ""
+"\n"
+"  Bảng Thư mục:\n"
+
+# Variable: don't translate / Biến: đừng dịch
+#: dwarf.c:1929
+#, c-format
+msgid "  %s\n"
+msgstr "  %s\n"
+
+#: dwarf.c:1940
+#, c-format
+msgid ""
+"\n"
+" The File Name Table is empty.\n"
+msgstr ""
+"\n"
+" Bảng Tên Tập tin rỗng:\n"
+
+#: dwarf.c:1943
+#, c-format
+msgid ""
+"\n"
+" The File Name Table:\n"
+msgstr ""
+"\n"
+"  Bảng Tên Tập tin:\n"
+
+# Variable: don't translate / Biến: đừng dịch
+#: dwarf.c:1951
+#, c-format
+msgid "  %d\t"
+msgstr "  %d\t"
+
+# Variable: do not translate/ biến: đừng dịch
+#: dwarf.c:1962
+#, c-format
+msgid "%s\n"
+msgstr "%s\n"
+
+#. Now display the statements.
+#: dwarf.c:1970
+#, c-format
+msgid ""
+"\n"
+" Line Number Statements:\n"
+msgstr ""
+"\n"
+" Câu Số thứ tự Dòng:\n"
+
+#: dwarf.c:1986
+#, c-format
+msgid "  Special opcode %d: advance Address by %lu to 0x%lx"
+msgstr "  Mã thao tác đặc biệt %d: nâng cao Địa chỉ bước %lu tới 0x%lx"
+
+#: dwarf.c:1990
+#, c-format
+msgid " and Line by %d to %d\n"
+msgstr " và Dòng bước %d tới %d\n"
+
+#: dwarf.c:1998
+msgid "Extend line ops need a valid pointer size, guessing at 4\n"
+msgstr "Thao tác kéo dài đường cần thiết kích cỡ con trỏ hợp lệ, đang đoán nó là 4\n"
+
+#: dwarf.c:2007
+#, c-format
+msgid "  Copy\n"
+msgstr "  Chép\n"
+
+#: dwarf.c:2015
+#, c-format
+msgid "  Advance PC by %lu to 0x%lx\n"
+msgstr "  Nâng cao PC bước %lu tới %lx\n"
+
+#: dwarf.c:2023
+#, c-format
+msgid "  Advance Line by %d to %d\n"
+msgstr "  Nâng cao dòng bước %d tới %d\n"
+
+#: dwarf.c:2030
+#, c-format
+msgid "  Set File Name to entry %d in the File Name Table\n"
+msgstr "  Lập Tên Tập tin là mục nhập %d trong Bảng Tên Tập tin\n"
+
+#: dwarf.c:2038
+#, c-format
+msgid "  Set column to %lu\n"
+msgstr "  Lập cột thành %lu\n"
+
+#: dwarf.c:2045
+#, c-format
+msgid "  Set is_stmt to %d\n"
+msgstr "  Lập « is_stmt » (là câu) là %d\n"
+
+#: dwarf.c:2050
+#, c-format
+msgid "  Set basic block\n"
+msgstr "  Lập khối cơ bản\n"
+
+#: dwarf.c:2058
+#, c-format
+msgid "  Advance PC by constant %lu to 0x%lx\n"
+msgstr "  Nâng cao PC bước hằng số %lu tới 0x%lx\n"
+
+#: dwarf.c:2066
+#, c-format
+msgid "  Advance PC by fixed size amount %lu to 0x%lx\n"
+msgstr "  Nâng cao PC bước kích cỡ cố định %lu tới 0x%lx\n"
+
+#: dwarf.c:2071
+#, c-format
+msgid "  Set prologue_end to true\n"
+msgstr "  Lập « prologue_end » (kết thúc đoạn mở đầu) là true (đúng)\n"
+
+#: dwarf.c:2075
+#, c-format
+msgid "  Set epilogue_begin to true\n"
+msgstr "  Lập « epilogue_begin » (đầu phần kết) là true (đúng)\n"
+
+#: dwarf.c:2081
+#, c-format
+msgid "  Set ISA to %lu\n"
+msgstr "  Lập ISA thành %lu\n"
+
+#: dwarf.c:2085
+#, c-format
+msgid "  Unknown opcode %d with operands: "
+msgstr "  Gặp opcode (mã thao tác) không rõ %d với tác tử : "
+
+#: dwarf.c:2111 dwarf.c:2197 dwarf.c:2271 dwarf.c:2382 dwarf.c:2514
+#: dwarf.c:2739
+#, c-format
+msgid ""
+"Contents of the %s section:\n"
+"\n"
+msgstr ""
+"Nội dung của phần %s:\n"
+"\n"
+
+#: dwarf.c:2151
+msgid "Only DWARF 2 and 3 pubnames are currently supported\n"
+msgstr "Hỗ trợ hiện thời chỉ pubnames (tên công) DWARF phiên bản 2 và 3 thôi\n"
+
+#: dwarf.c:2158
+#, c-format
+msgid "  Length:                              %ld\n"
+msgstr "  Length:                              %ld\n"
+
+#: dwarf.c:2160
+#, c-format
+msgid "  Version:                             %d\n"
+msgstr "  Version:                             %d\n"
+
+#: dwarf.c:2162
+#, c-format
+msgid "  Offset into .debug_info section:     %ld\n"
+msgstr "  Hiệu số vào phầnO« ffset into .» (thông tin gỡ lỗi)nfo section:     %ld\n"
+
+#: dwarf.c:2164
+#, c-format
+msgid "  Size of area in .debug_info section: %ld\n"
+msgstr "  Kích cỡ của vùng trong phần « .debug_info » (thông tin gỡ lỗi): %ld\n"
+
+#: dwarf.c:2167
+#, c-format
+msgid ""
+"\n"
+"    Offset\tName\n"
+msgstr ""
+"\n"
+"    Hiệu\tTên\n"
+
+#: dwarf.c:2218
+#, c-format
+msgid " DW_MACINFO_start_file - lineno: %d filenum: %d\n"
+msgstr " DW_MACINFO_start_file (bắt đầu tập tin) — số_dòng: %d số_tập_tin: %d\n"
+
+#: dwarf.c:2224
+#, c-format
+msgid " DW_MACINFO_end_file\n"
+msgstr " DW_MACINFO_end_file (kết thúc tập tin)\n"
+
+#: dwarf.c:2232
+#, c-format
+msgid " DW_MACINFO_define - lineno : %d macro : %s\n"
+msgstr " DW_MACINFO_define (định nghĩa) — số_dòng : %d bộ_lệnh : %s\n"
+
+#: dwarf.c:2241
+#, c-format
+msgid " DW_MACINFO_undef - lineno : %d macro : %s\n"
+msgstr " DW_MACINFO_undef (chưa định nghĩa) — số_dòng : %d bộ_lệnh : %s\n"
+
+#: dwarf.c:2253
+#, c-format
+msgid " DW_MACINFO_vendor_ext - constant : %d string : %s\n"
+msgstr " DW_MACINFO_vendor_ext (phần mở rộng nhà bán) — hằng số : %d chuối : %s\n"
+
+#: dwarf.c:2282
+#, c-format
+msgid "  Number TAG\n"
+msgstr "  Số THẺ\n"
+
+# Variable: don't translate / Biến: đừng dịch
+#: dwarf.c:2288
+#, c-format
+msgid "   %ld      %s    [%s]\n"
+msgstr "   %ld      %s    [%s]\n"
+
+#: dwarf.c:2291
+msgid "has children"
+msgstr "có điều con"
+
+#: dwarf.c:2291
+msgid "no children"
+msgstr "không có con"
+
+# Variable: don't translate / Biến: đừng dịch
+#: dwarf.c:2294
+#, c-format
+msgid "    %-18s %s\n"
+msgstr "    %-18s %s\n"
+
+#: dwarf.c:2327 dwarf.c:2510 dwarf.c:2684
+#, c-format
+msgid ""
+"\n"
+"The %s section is empty.\n"
+msgstr ""
+"\n"
+"Phần %s là rỗng.\n"
+
+#. FIXME: Should we handle this case?
+#: dwarf.c:2372
+msgid "Location lists in .debug_info section aren't in ascending order!\n"
+msgstr "• Các danh sách địa điểm trong phần « .debug_info » (thông tin gỡ lỗi) không phải theo thứ tự dần. •\n"
+
+#: dwarf.c:2375
+msgid "No location lists in .debug_info section!\n"
+msgstr "• Không có danh sách địa điểm trong phần « .debug_info » (thông tin gỡ lỗi). •\n"
+
+#: dwarf.c:2379
+#, c-format
+msgid "Location lists in %s section start at 0x%lx\n"
+msgstr "Danh sách địa điểm trong phần %s bắt đầu tại 0x%lx\n"
+
+#: dwarf.c:2383
+#, c-format
+msgid "    Offset   Begin    End      Expression\n"
+msgstr "    HIệu   Đầu    Cuối      Biểu thức\n"
+
+#: dwarf.c:2414
+#, c-format
+msgid "There is a hole [0x%lx - 0x%lx] in .debug_loc section.\n"
+msgstr "Có một lỗ [0x%lx - 0x%lx] trong phần « .debug_info » (thông tin gỡ lỗi).\n"
+
+#: dwarf.c:2417
+#, c-format
+msgid "There is an overlap [0x%lx - 0x%lx] in .debug_loc section.\n"
+msgstr "Có một nơi chồng lấp [0x%lx - 0x%lx] trong phần « .debug_info » (thông tin gỡ lỗi).\n"
+
+#: dwarf.c:2424
+#, c-format
+msgid "Offset 0x%lx is bigger than .debug_loc section size.\n"
+msgstr "Có hiệu số 0x%lx lớn hơn kích cỡ của phần « .debug_loc » (địa điểm gỡ lỗi).\n"
+
+#: dwarf.c:2433 dwarf.c:2460 dwarf.c:2470
+#, c-format
+msgid "Location list starting at offset 0x%lx is not terminated.\n"
+msgstr "Danh sách địa điểm mà bắt đầu tại hiệu số 0x%lx chưa được kết thúc.\n"
+
+#: dwarf.c:2445 dwarf.c:2784
+#, c-format
+msgid "    %8.8lx <End of list>\n"
+msgstr "    %8.8lx <Kết thúc danh sách>\n"
+
+#: dwarf.c:2453
+#, c-format
+msgid "    %8.8lx %8.8lx %8.8lx (base address)\n"
+msgstr "    %8.8lx %8.8lx %8.8lx (địa chỉ cơ bản)\n"
+
+#: dwarf.c:2487 dwarf.c:2801
+msgid " (start == end)"
+msgstr " (start == end)"
+
+#: dwarf.c:2489 dwarf.c:2803
+msgid " (start > end)"
+msgstr " (start > end)"
+
+#: dwarf.c:2618
+msgid "Only DWARF 2 and 3 aranges are currently supported.\n"
+msgstr "Hỗ trợ hiện thời chỉ arange (phạm vị a) DWARF phiên bản 2 và 3 thôi.\n"
+
+#: dwarf.c:2622
+#, c-format
+msgid "  Length:                   %ld\n"
+msgstr "  Dài:                   %ld\n"
+
+#: dwarf.c:2623
+#, c-format
+msgid "  Version:                  %d\n"
+msgstr "  Phiên bản:                  %d\n"
+
+#: dwarf.c:2624
+#, c-format
+msgid "  Offset into .debug_info:  %lx\n"
+msgstr "  Hiệu số vào « .debug_info » (thông tin gỡ lỗi):  %lx\n"
+
+#: dwarf.c:2625
+#, c-format
+msgid "  Pointer Size:             %d\n"
+msgstr "  Kích cỡ con trỏ :             %d\n"
+
+#: dwarf.c:2626
+#, c-format
+msgid "  Segment Size:             %d\n"
+msgstr "  Kích cỡ phân đoạn:             %d\n"
+
+#: dwarf.c:2628
+#, c-format
+msgid ""
+"\n"
+"    Address  Length\n"
+msgstr ""
+"\n"
+"    Độ dài địa chỉ\n"
+
+#. FIXME: Should we handle this case?
+#: dwarf.c:2729
+msgid "Range lists in .debug_info section aren't in ascending order!\n"
+msgstr "• Các danh sách phạm vị trong phần « .debug_info » (thông tin gỡ lỗi) không phải theo thứ tự dần. •\n"
+
+#: dwarf.c:2732
+msgid "No range lists in .debug_info section!\n"
+msgstr "• Không có danh sách phạm vị trong phần « .debug_info » (thông tin gỡ lỗi). •\n"
+
+#: dwarf.c:2736
+#, c-format
+msgid "Range lists in %s section start at 0x%lx\n"
+msgstr "Danh sách phạm vị trong phần %s bắt đầu tại 0x%lx\n"
+
+#: dwarf.c:2740
+#, c-format
+msgid "    Offset   Begin    End\n"
+msgstr "    HIệu   Đầu    Cuối\n"
+
+#: dwarf.c:2765
+#, c-format
+msgid "There is a hole [0x%lx - 0x%lx] in %s section.\n"
+msgstr "Có một lỗ [0x%lx - 0x%lx] trong phần %s.\n"
+
+#: dwarf.c:2769
+#, c-format
+msgid "There is an overlap [0x%lx - 0x%lx] in %s section.\n"
+msgstr "Có một nơi chồng lấp [0x%lx - 0x%lx] trong phần %s.\n"
+
+#: dwarf.c:2964
+#, c-format
+msgid "The section %s contains:\n"
+msgstr "Phần %s chứa:\n"
+
+#: dwarf.c:3608
+#, c-format
+msgid "unsupported or unknown DW_CFA_%d\n"
+msgstr "« DW_CFA_%d » không được hỗ trợ, hay không rõ\n"
+
+#: dwarf.c:3632
+#, c-format
+msgid "Displaying the debug contents of section %s is not yet supported.\n"
+msgstr "Chưa hỗ trợ khả năng hiển thị nội dung phần %s.\n"
+
+#: dwarf.c:3674
+#, c-format
+msgid "%s: Error: "
+msgstr "%s: Lỗi: "
+
+#: dwarf.c:3685
+#, c-format
+msgid "%s: Warning: "
+msgstr "%s: Cảnh báo : "
+
+#: emul_aix.c:51
+#, c-format
+msgid "  [-g]         - 32 bit small archive\n"
+msgstr "  [-g]         • kho nhỏ 32-bit\n"
+
+#: emul_aix.c:52
+#, c-format
+msgid "  [-X32]       - ignores 64 bit objects\n"
+msgstr "  [-X32]       • bỏ qua các đối tượng kiểu 64 bit\n"
+
+#: emul_aix.c:53
+#, c-format
+msgid "  [-X64]       - ignores 32 bit objects\n"
+msgstr "  [-X64]       • bỏ qua các đối tượng kiểu 32 bit\n"
+
+#: emul_aix.c:54
+#, c-format
+msgid "  [-X32_64]    - accepts 32 and 64 bit objects\n"
+msgstr "  [-X32_64]    • chấp nhận các đối tượng kiểu cả 32 bit lẫn 64 bit đều\n"
+
+#: ieee.c:311
+msgid "unexpected end of debugging information"
+msgstr "gặp kết thúc thông tin gỡ lỗi bất ngờ"
+
+#: ieee.c:398
+msgid "invalid number"
+msgstr "số không hợp lệ"
+
+#: ieee.c:451
+msgid "invalid string length"
+msgstr "độ dài chuỗi không hợp lệ"
+
+#: ieee.c:506 ieee.c:547
+msgid "expression stack overflow"
+msgstr "trán đống biểu thức"
+
+#: ieee.c:526
+msgid "unsupported IEEE expression operator"
+msgstr "toán tử biểu thức IEE không được hỗ trợ"
+
+#: ieee.c:541
+msgid "unknown section"
+msgstr "không biết phần"
+
+#: ieee.c:562
+msgid "expression stack underflow"
+msgstr "trán ngược đống biểu thức"
+
+#: ieee.c:576
+msgid "expression stack mismatch"
+msgstr "đống biểu thức không khớp với nhau"
+
+#: ieee.c:613
+msgid "unknown builtin type"
+msgstr "không biết kiểu builtin"
+
+#: ieee.c:758
+msgid "BCD float type not supported"
+msgstr "Kiểu nổi BDC không được hỗ trợ"
+
+#: ieee.c:895
+msgid "unexpected number"
+msgstr "số bất ngờ"
+
+#: ieee.c:902
+msgid "unexpected record type"
+msgstr "kiểu mục ghi bất ngờ"
+
+#: ieee.c:935
+msgid "blocks left on stack at end"
+msgstr "có một số khối còn lại trên đống khi kết thúc"
+
+#: ieee.c:1198
+msgid "unknown BB type"
+msgstr "không biết kiểu BB"
+
+#: ieee.c:1207
+msgid "stack overflow"
+msgstr "trán đống"
+
+#: ieee.c:1230
+msgid "stack underflow"
+msgstr "trán ngược đống"
+
+#: ieee.c:1342 ieee.c:1412 ieee.c:2109
+msgid "illegal variable index"
+msgstr "chỉ mục biến không được phép"
+
+#: ieee.c:1390
+msgid "illegal type index"
+msgstr "chỉ mục kiểu không được phép"
+
+#: ieee.c:1400 ieee.c:1437
+msgid "unknown TY code"
+msgstr "không biết mã TY"
+
+#: ieee.c:1419
+msgid "undefined variable in TY"
+msgstr "gặp biến chưa được định nghĩa trong TY"
+
+#. Pascal file name.  FIXME.
+#: ieee.c:1830
+msgid "Pascal file name not supported"
+msgstr "Chưa hỗ trợ tên tập tin kiểu Pascal"
+
+#: ieee.c:1878
+msgid "unsupported qualifier"
+msgstr "bộ dè dặt chưa được hỗ trợ"
+
+#: ieee.c:2147
+msgid "undefined variable in ATN"
+msgstr "gặp biến chưa định nghĩa trong ATN"
+
+#: ieee.c:2190
+msgid "unknown ATN type"
+msgstr "không biết kiểu ATN"
+
+#. Reserved for FORTRAN common.
+#: ieee.c:2312
+msgid "unsupported ATN11"
+msgstr "ATN11 không được hỗ trơ"
+
+#. We have no way to record this information.  FIXME.
+#: ieee.c:2339
+msgid "unsupported ATN12"
+msgstr "ATN12 không được hỗ trơ"
+
+#: ieee.c:2399
+msgid "unexpected string in C++ misc"
+msgstr "gặp chuỗi không được hỗ trơ trong C++ lặt vặt"
+
+#: ieee.c:2412
+msgid "bad misc record"
+msgstr "mục ghi lặt vặt sai"
+
+#: ieee.c:2453
+msgid "unrecognized C++ misc record"
+msgstr "không chấp nhận mục ghi C++ lặt vặt"
+
+#: ieee.c:2568
+msgid "undefined C++ object"
+msgstr "đối tượng C++ chưa được định nghĩa"
+
+#: ieee.c:2602
+msgid "unrecognized C++ object spec"
+msgstr "chưa chấp nhận đặc tả đối tượng C++"
+
+#: ieee.c:2638
+msgid "unsupported C++ object type"
+msgstr "kiểu đối tượng C++ chưa được hỗ trợ"
+
+#: ieee.c:2648
+msgid "C++ base class not defined"
+msgstr "chưa định nghĩa hạng cơ bản C++"
+
+#: ieee.c:2660 ieee.c:2765
+msgid "C++ object has no fields"
+msgstr "Đối tượng C++ không có trường nào"
+
+#: ieee.c:2679
+msgid "C++ base class not found in container"
+msgstr "Không tìm thấy hạng cơ bản C++ trong bộ chứa"
+
+#: ieee.c:2786
+msgid "C++ data member not found in container"
+msgstr "Không tìm thấy bộ phạn dữ liệu C++ trong bộ chứa"
+
+#: ieee.c:2827 ieee.c:2977
+msgid "unknown C++ visibility"
+msgstr "không biết độ thấy rõ C++"
+
+#: ieee.c:2861
+msgid "bad C++ field bit pos or size"
+msgstr "vị trí bit hay kích cỡ trường C++ sai"
+
+#: ieee.c:2953
+msgid "bad type for C++ method function"
+msgstr "kiểu sai cho hàm phương pháp C++"
+
+#: ieee.c:2963
+msgid "no type information for C++ method function"
+msgstr "không có thông tin kiểu cho hàm phương pháp C++"
+
+#: ieee.c:3002
+msgid "C++ static virtual method"
+msgstr "phương pháp ảo tĩnh C++"
+
+#: ieee.c:3097
+msgid "unrecognized C++ object overhead spec"
+msgstr "chưa chấp nhận đặc tả duy tu đối tượng C++"
+
+#: ieee.c:3136
+msgid "undefined C++ vtable"
+msgstr "chưa định nghĩa vtable C++"
+
+#: ieee.c:3205
+msgid "C++ default values not in a function"
+msgstr "Giá trị C++ mặc định không phải trong hàm"
+
+#: ieee.c:3245
+msgid "unrecognized C++ default type"
+msgstr "chưa chấp nhận kiểu C++ mặc định"
+
+#: ieee.c:3276
+msgid "reference parameter is not a pointer"
+msgstr "tham số tham chiếu không phải là con trỏ"
+
+#: ieee.c:3359
+msgid "unrecognized C++ reference type"
+msgstr "chưa chấp nhận kiểu tham chiếu C++"
+
+#: ieee.c:3441
+msgid "C++ reference not found"
+msgstr "Không tìm thấy tham chiếu C++"
+
+#: ieee.c:3449
+msgid "C++ reference is not pointer"
+msgstr "Tham chiếu C++ không phải là con trỏ"
+
+#: ieee.c:3475 ieee.c:3483
+msgid "missing required ASN"
+msgstr "thiếu ASN cần thiết"
+
+#: ieee.c:3510 ieee.c:3518
+msgid "missing required ATN65"
+msgstr "thiếu ATN65 cần thiết"
+
+#: ieee.c:3532
+msgid "bad ATN65 record"
+msgstr "mục ghi ATN65 sai"
+
+#: ieee.c:4160
+#, c-format
+msgid "IEEE numeric overflow: 0x"
+msgstr "trán thuộc số IEEE: 0x"
+
+#: ieee.c:4204
+#, c-format
+msgid "IEEE string length overflow: %u\n"
+msgstr "Trán độ dài chuỗi IEEE: %u\n"
+
+#: ieee.c:5203
+#, c-format
+msgid "IEEE unsupported integer type size %u\n"
+msgstr "Kích cỡ kiểu số nguyên không được hỗ trợ IEEE %u\n"
+
+#: ieee.c:5237
+#, c-format
+msgid "IEEE unsupported float type size %u\n"
+msgstr "Kích cỡ kiểu nổi không được hỗ trợ IEEE %u\n"
+
+#: ieee.c:5271
+#, c-format
+msgid "IEEE unsupported complex type size %u\n"
+msgstr "Kích cỡ kiểu phức tạp không được hỗ trợ IEEE %u\n"
+
+#: nlmconv.c:269 srconv.c:1813
+msgid "input and output files must be different"
+msgstr "tập tin nhập và xuất phải là khác nhau"
+
+#: nlmconv.c:316
+msgid "input file named both on command line and with INPUT"
+msgstr "tên tập tin được lập cả trên dòng lệnh lẫn bằng INPUT đều"
+
+#: nlmconv.c:325
+msgid "no input file"
+msgstr "không có tập tin nhập nào"
+
+#: nlmconv.c:355
+msgid "no name for output file"
+msgstr "không có tên cho tập tin nhập"
+
+#: nlmconv.c:369
+msgid "warning: input and output formats are not compatible"
+msgstr "cảnh báo : khuôn dạng nhập và xuất không tương thích với nhau"
+
+#: nlmconv.c:398
+msgid "make .bss section"
+msgstr "tạo phần « .bss »"
+
+#: nlmconv.c:407
+msgid "make .nlmsections section"
+msgstr "tạo phần « .nlmsections »"
+
+#: nlmconv.c:409
+msgid "set .nlmsections flags"
+msgstr "đặt các cờ « .nlmsections »"
+
+#: nlmconv.c:437
+msgid "set .bss vma"
+msgstr "đặt vma .bss"
+
+#: nlmconv.c:444
+msgid "set .data size"
+msgstr "đặt kích cỡ dữ liệu .data"
+
+#: nlmconv.c:624
+#, c-format
+msgid "warning: symbol %s imported but not in import list"
+msgstr "cảnh báo : ký hiệu %s được nhập mà không phải trong danh sách nhập"
+
+#: nlmconv.c:644
+msgid "set start address"
+msgstr "đặt địa chỉ bắt đầu"
+
+#: nlmconv.c:693
+#, c-format
+msgid "warning: START procedure %s not defined"
+msgstr "cảnh báo : thủ tục START (bắt đầu) %s chưa được định nghĩa"
+
+#: nlmconv.c:695
+#, c-format
+msgid "warning: EXIT procedure %s not defined"
+msgstr "cảnh báo : thủ tục EXIT (thoát) %s chưa được định nghĩa"
+
+#: nlmconv.c:697
+#, c-format
+msgid "warning: CHECK procedure %s not defined"
+msgstr "cảnh báo : thủ tục CHECK (kiểm tra) %s chưa được định nghĩa"
+
+#: nlmconv.c:718 nlmconv.c:907
+msgid "custom section"
+msgstr "phần tự chọn"
+
+#: nlmconv.c:739 nlmconv.c:936
+msgid "help section"
+msgstr "phần trợ giúp"
+
+#: nlmconv.c:761 nlmconv.c:954
+msgid "message section"
+msgstr "phần thông điệp"
+
+#: nlmconv.c:777 nlmconv.c:987
+msgid "module section"
+msgstr "phần mô-đun"
+
+#: nlmconv.c:797 nlmconv.c:1003
+msgid "rpc section"
+msgstr "phần rpc"
+
+#. There is no place to record this information.
+#: nlmconv.c:833
+#, c-format
+msgid "%s: warning: shared libraries can not have uninitialized data"
+msgstr "%s: cảnh báo : thư viên dùng chung không thể chứa dữ liệu chưa được sở khởi"
+
+#: nlmconv.c:854 nlmconv.c:1022
+msgid "shared section"
+msgstr "phần dùng chung"
+
+#: nlmconv.c:862
+msgid "warning: No version number given"
+msgstr "cảnh báo : chưa đưa ra số thứ tự phiên bản"
+
+#: nlmconv.c:902 nlmconv.c:931 nlmconv.c:949 nlmconv.c:998 nlmconv.c:1017
+#, c-format
+msgid "%s: read: %s"
+msgstr "%s: đọc: %s"
+
+#: nlmconv.c:924
+msgid "warning: FULLMAP is not supported; try ld -M"
+msgstr "cảnh báo : chưa hỗ trợ FULLMAP; hãy thử « ld -M »"
+
+#: nlmconv.c:1100
+#, c-format
+msgid "Usage: %s [option(s)] [in-file [out-file]]\n"
+msgstr "Cách sử dụng: %s [tùy_chọn...] [tập_tin_nhập [tập_tin_xuất]]\n"
+
+#: nlmconv.c:1101
+#, c-format
+msgid " Convert an object file into a NetWare Loadable Module\n"
+msgstr " Chuyển đổi tập tin đối tượng sang Mô-đun Tải được NetWare (NetWare Loadable Module)\n"
+
+#: nlmconv.c:1102
+#, c-format
+msgid ""
+" The options are:\n"
+"  -I --input-target=<bfdname>   Set the input binary file format\n"
+"  -O --output-target=<bfdname>  Set the output binary file format\n"
+"  -T --header-file=<file>       Read <file> for NLM header information\n"
+"  -l --linker=<linker>          Use <linker> for any linking\n"
+"  -d --debug                    Display on stderr the linker command line\n"
+"  @<file>                       Read options from <file>.\n"
+"  -h --help                     Display this information\n"
+"  -v --version                  Display the program's version\n"
+msgstr ""
+" Tùy chọn:\n"
+"  -I --input-target=<tên_bfd>\t    Lập dạng thức tập tin nhị phân nhập\n"
+"\t\t\t\t\t\t\t\t    (_đích nhập_)\n"
+"  -O --output-target=<tên_bfd>\t    Lập dạng thức tập tin nhị phân xuất\n"
+"\t\t\t\t\t\t\t\t    (_đích xuất_)\n"
+"  -T --header-file=<tập_tin>\n"
+"\t\tĐọc tập tin này để  tìm thông tin phần đầu NLM (_tập tin phần đầu_)\n"
+"  -l --linker=<bộ_liên_kết>        \t    Dùng _bộ liên kết_ này khi liên kết\n"
+"  -d --debug\n"
+"\tHiển thị trên thiết bị lỗi chuẩn dòng lệnh của bộ liên kết (_gỡ lỗi_)\n"
+"  @<file>    \t\t\t\t\t    Đọc các tùy chọn từ tập tin đó\n"
+"  -h --help                    \t\t    Hiển thị _trợ giúp_ này\n"
+"  -v --version                 \t\t    Hiển thị _phiên bản_ chương trình\n"
+
+#: nlmconv.c:1143
+#, c-format
+msgid "support not compiled in for %s"
+msgstr "chưa biên dịch cách hỗ trợ %s"
+
+#: nlmconv.c:1180
+msgid "make section"
+msgstr "tạo phần"
+
+#: nlmconv.c:1194
+msgid "set section size"
+msgstr "lập kích cỡ phần"
+
+#: nlmconv.c:1200
+msgid "set section alignment"
+msgstr "lập canh lề phần"
+
+#: nlmconv.c:1204
+msgid "set section flags"
+msgstr "lập các cờ phân"
+
+#: nlmconv.c:1215
+msgid "set .nlmsections size"
+msgstr "lập kích cỡ « .nlmsections »"
+
+#: nlmconv.c:1296 nlmconv.c:1304 nlmconv.c:1313 nlmconv.c:1318
+msgid "set .nlmsection contents"
+msgstr "lập nội dung « .nlmsections »"
+
+#: nlmconv.c:1797
+msgid "stub section sizes"
+msgstr "kích cỡ phần stub"
+
+#: nlmconv.c:1844
+msgid "writing stub"
+msgstr "đang ghi stub..."
+
+#: nlmconv.c:1928
+#, c-format
+msgid "unresolved PC relative reloc against %s"
+msgstr "có việc định vị lại liên quan đến PC chưa tháo gỡ đối với %s"
+
+#: nlmconv.c:1992
+#, c-format
+msgid "overflow when adjusting relocation against %s"
+msgstr "trán khi điều chỉnh việc định vị lại đối với %s"
+
+#: nlmconv.c:2119
+#, c-format
+msgid "%s: execution of %s failed: "
+msgstr "%s: việc thực hiện %s bị lỗi: "
+
+#: nlmconv.c:2134
+#, c-format
+msgid "Execution of %s failed"
+msgstr "Việc thực hiện %s bị lỗi"
+
+#: nm.c:224 size.c:82 strings.c:708
+#, c-format
+msgid "Usage: %s [option(s)] [file(s)]\n"
+msgstr "Cách sử dụng: %s [tùy_chọn...] [tập_tin...]\n"
+
+#: nm.c:225
+#, c-format
+msgid " List symbols in [file(s)] (a.out by default).\n"
+msgstr " Liệt kê các ký hiệu trong những tập tin này (mặc định là <a.out>).\n"
+
+#: nm.c:226
+#, c-format
+msgid ""
+" The options are:\n"
+"  -a, --debug-syms       Display debugger-only symbols\n"
+"  -A, --print-file-name  Print name of the input file before every symbol\n"
+"  -B                     Same as --format=bsd\n"
+"  -C, --demangle[=STYLE] Decode low-level symbol names into user-level names\n"
+"                          The STYLE, if specified, can be `auto' (the default),\n"
+"                          `gnu', `lucid', `arm', `hp', `edg', `gnu-v3', `java'\n"
+"                          or `gnat'\n"
+"      --no-demangle      Do not demangle low-level symbol names\n"
+"  -D, --dynamic          Display dynamic symbols instead of normal symbols\n"
+"      --defined-only     Display only defined symbols\n"
+"  -e                     (ignored)\n"
+"  -f, --format=FORMAT    Use the output format FORMAT.  FORMAT can be `bsd',\n"
+"                           `sysv' or `posix'.  The default is `bsd'\n"
+"  -g, --extern-only      Display only external symbols\n"
+"  -l, --line-numbers     Use debugging information to find a filename and\n"
+"                           line number for each symbol\n"
+"  -n, --numeric-sort     Sort symbols numerically by address\n"
+"  -o                     Same as -A\n"
+"  -p, --no-sort          Do not sort the symbols\n"
+"  -P, --portability      Same as --format=posix\n"
+"  -r, --reverse-sort     Reverse the sense of the sort\n"
+"  -S, --print-size       Print size of defined symbols\n"
+"  -s, --print-armap      Include index for symbols from archive members\n"
+"      --size-sort        Sort symbols by size\n"
+"      --special-syms     Include special symbols in the output\n"
+"      --synthetic        Display synthetic symbols as well\n"
+"  -t, --radix=RADIX      Use RADIX for printing symbol values\n"
+"      --target=BFDNAME   Specify the target object format as BFDNAME\n"
+"  -u, --undefined-only   Display only undefined symbols\n"
+"  -X 32_64               (ignored)\n"
+"  @FILE                  Read options from FILE\n"
+"  -h, --help             Display this information\n"
+"  -V, --version          Display this program's version number\n"
+"\n"
+msgstr ""
+" Tùy chọn:\n"
+"  -a, --debug-syms       \tHiển thị _ký hiệu_ chỉ kiểu bộ _gỡ lỗi_ thôi\n"
+"  -A, --print-file-name  \t_In ra tên tập tin_ nhập trước mỗi ký hiệu\n"
+"  -B                     \t\t\tBằng « --format=bsd »\n"
+"  -C, --demangle[=KIỂU_DÁNG]\n"
+"\tGiải mã các tên ký hiệu cấp thấp thành tên cấp người dùng (_tháo gỡ_)\n"
+"       Kiểu dáng này, nếu được ghi rõ, có thể  là « auto » (tự động: mặc định)\n"
+"\t« gnu », « lucid », « arm », « hp », « edg », « gnu-v3 », « java » hay « gnat ».\n"
+"      --no-demangle      \t\t_Đừng tháo gỡ_ tên ký hiệu cấp thấp\n"
+"  -D, --dynamic          \t\tHiển thị ký hiệu _động_ thay vào ký hiệu chuẩn\n"
+"      --defined-only     \t\tHiển thị _chỉ_ ký hiệu _được định nghĩa_\n"
+"  -e                     \t\t\t(bị bỏ qua)\n"
+"  -f, --format=DẠNG_THỨC    \tDùng _dạng thức_ xuất này, một của\n"
+"\t\t\t\t\t\t\t« bsd » (mặc định), « sysv » hay « posix »\n"
+"  -g, --extern-only      \t\tHiển thị _chỉ_ ký hiệu _bên ngoài_\n"
+"  -l, --line-numbers     \t\tDùng thông tin gỡ lỗi để tìm tên tập tin\n"
+"\t\t\t\t\t\tvà _số thứ tự dòng_ cho mỗi ký hiệu\n"
+"  -n, --numeric-sort     \t\t_Sắp xếp_ ký hiệu một cách _thuộc số_ theo địa chỉ\n"
+"  -o                     \t\t\tBằng « -A »\n"
+"  -p, --no-sort          \t\t_Đừng sắp xếp_ ký hiệu\n"
+"  -P, --portability      \t\tBằng « --format=posix »\n"
+"  -r, --reverse-sort     \t\t_Sắp xếp ngược_\n"
+"  -S, --print-size       \t\tIn ra kích cỡ của các ký hiệu được định nghĩa\n"
+"  -s, --print-armap      \t\tGồm chỉ mục cho ký hiệu từ bộ phạn kho\n"
+"      --size-sort        \t\t_Sắp xếp_ ký hiệu theo _kích cỡ_\n"
+"      --special-syms     \t\tGồm _ký hiệu đặc biệt_ trong dữ liệu xuất\n"
+"      --synthetic        \t\tCũng hiển thị ký hiệu _tổng hợp_\n"
+"  -t, --radix=CƠ_SỞ      \tDùng _cơ sở_ này để in ra giá trị ký hiệu\n"
+"      --target=TÊN_BFD   \tGhi rõ dạng thức đối tượng _đích_ là tên BFD này\n"
+"  -u, --undefined-only   \tHiển thị _chỉ_ ký hiệu _chưa được định nghĩa_\n"
+"  -X 32_64               \t\t(bị bỏ qua)\n"
+"  @<file>    \t\t\t\t\t    Đọc các tùy chọn từ tập tin đó\n"
+"  -h, --help             \t\tHiển thị _trợ giúp_ này\n"
+"  -V, --version          \t\tHiển thị số thứ tự _phiên bản_ của chương trình này\n"
+"\n"
+
+#: nm.c:263 objdump.c:236
+#, c-format
+msgid "Report bugs to %s.\n"
+msgstr "Hãy trình báo lỗi nào cho %s\n"
+
+#: nm.c:295
+#, c-format
+msgid "%s: invalid radix"
+msgstr "%s: cơ sở không hợp lệ"
+
+#: nm.c:319
+#, c-format
+msgid "%s: invalid output format"
+msgstr "%s: dạng thức xuất không hợp lệ"
+
+#: nm.c:340 readelf.c:6623 readelf.c:6659
+#, c-format
+msgid "<processor specific>: %d"
+msgstr "<đặc trưng cho bộ xử lý>: %d"
+
+#: nm.c:342 readelf.c:6626 readelf.c:6671
+#, c-format
+msgid "<OS specific>: %d"
+msgstr "<đặc trưng cho hệ điều hành>: %d"
+
+#: nm.c:344 readelf.c:6628 readelf.c:6674
+#, c-format
+msgid "<unknown>: %d"
+msgstr "<không biết>: %d"
+
+#: nm.c:381
+#, c-format
+msgid ""
+"\n"
+"Archive index:\n"
+msgstr ""
+"\n"
+"Chỉ mục kho:\n"
+
+#: nm.c:1227
+#, c-format
+msgid ""
+"\n"
+"\n"
+"Undefined symbols from %s:\n"
+"\n"
+msgstr ""
+"\n"
+"\n"
+"Ký hiệu chưa được định nghĩa từ %s:\n"
+"\n"
+
+#: nm.c:1229
+#, c-format
+msgid ""
+"\n"
+"\n"
+"Symbols from %s:\n"
+"\n"
+msgstr ""
+"\n"
+"\n"
+"Ký hiệu từ %s:\n"
+"\n"
+
+#: nm.c:1231 nm.c:1282
+#, c-format
+msgid ""
+"Name                  Value   Class        Type         Size     Line  Section\n"
+"\n"
+msgstr ""
+"Tên                  Giá trị   Hạng        Kiểu         Cỡ     Dòng  Phần\n"
+"\n"
+
+#: nm.c:1234 nm.c:1285
+#, c-format
+msgid ""
+"Name                  Value           Class        Type         Size             Line  Section\n"
+"\n"
+msgstr ""
+"Name                  Value           Class        Type         Size             Line  Section\n"
+"\n"
+
+#: nm.c:1278
+#, c-format
+msgid ""
+"\n"
+"\n"
+"Undefined symbols from %s[%s]:\n"
+"\n"
+msgstr ""
+"\n"
+"\n"
+"Ký hiệu chưa được định nghĩa từUndefined symbols from %s[%s]:\n"
+"\n"
+
+#: nm.c:1280
+#, c-format
+msgid ""
+"\n"
+"\n"
+"Symbols from %s[%s]:\n"
+"\n"
+msgstr ""
+"\n"
+"\n"
+"Ký hiệu từ %s[%s]:\n"
+"\n"
+
+#: nm.c:1584
+msgid "Only -X 32_64 is supported"
+msgstr "Chỉ hỗ trợ « -X 32_64 »"
+
+#: nm.c:1604
+msgid "Using the --size-sort and --undefined-only options together"
+msgstr "Dùng tùy chọn cả « --size-sort » lẫn « --undefined-only » đều"
+
+#: nm.c:1605
+msgid "will produce no output, since undefined symbols have no size."
+msgstr "sẽ không xuất gì, vì ký hiệu chưa được định nghĩa không có kích cỡ nào."
+
+#: nm.c:1633
+#, c-format
+msgid "data size %ld"
+msgstr "cỡ dữ liệu %ld"
+
+#: objcopy.c:401 srconv.c:1721
+#, c-format
+msgid "Usage: %s [option(s)] in-file [out-file]\n"
+msgstr "Cách sử dụng: %s [tùy_chọn...] tập_tin_nhập [tập_tin_xuất]\n"
+
+#: objcopy.c:402
+#, c-format
+msgid " Copies a binary file, possibly transforming it in the process\n"
+msgstr " Sao chép tập tin nhị phân, cũng có thể chuyển đổi nó\n"
+
+#: objcopy.c:403 objcopy.c:495
+#, c-format
+msgid " The options are:\n"
+msgstr " Tùy chọn:\n"
+
+#: objcopy.c:404
+#, c-format
+msgid ""
+"  -I --input-target <bfdname>      Assume input file is in format <bfdname>\n"
+"  -O --output-target <bfdname>     Create an output file in format <bfdname>\n"
+"  -B --binary-architecture <arch>  Set arch of output file, when input is binary\n"
+"  -F --target <bfdname>            Set both input and output format to <bfdname>\n"
+"     --debugging                   Convert debugging information, if possible\n"
+"  -p --preserve-dates              Copy modified/access timestamps to the output\n"
+"  -j --only-section <name>         Only copy section <name> into the output\n"
+"     --add-gnu-debuglink=<file>    Add section .gnu_debuglink linking to <file>\n"
+"  -R --remove-section <name>       Remove section <name> from the output\n"
+"  -S --strip-all                   Remove all symbol and relocation information\n"
+"  -g --strip-debug                 Remove all debugging symbols & sections\n"
+"     --strip-unneeded              Remove all symbols not needed by relocations\n"
+"  -N --strip-symbol <name>         Do not copy symbol <name>\n"
+"     --strip-unneeded-symbol <name>\n"
+"                                   Do not copy symbol <name> unless needed by\n"
+"                                     relocations\n"
+"     --only-keep-debug             Strip everything but the debug information\n"
+"  -K --keep-symbol <name>          Do not strip symbol <name>\n"
+"  -L --localize-symbol <name>      Force symbol <name> to be marked as a local\n"
+"     --globalize-symbol <name>     Force symbol <name> to be marked as a global\n"
+"  -G --keep-global-symbol <name>   Localize all symbols except <name>\n"
+"  -W --weaken-symbol <name>        Force symbol <name> to be marked as a weak\n"
+"     --weaken                      Force all global symbols to be marked as weak\n"
+"  -w --wildcard                    Permit wildcard in symbol comparison\n"
+"  -x --discard-all                 Remove all non-global symbols\n"
+"  -X --discard-locals              Remove any compiler-generated symbols\n"
+"  -i --interleave <number>         Only copy one out of every <number> bytes\n"
+"  -b --byte <num>                  Select byte <num> in every interleaved block\n"
+"     --gap-fill <val>              Fill gaps between sections with <val>\n"
+"     --pad-to <addr>               Pad the last section up to address <addr>\n"
+"     --set-start <addr>            Set the start address to <addr>\n"
+"    {--change-start|--adjust-start} <incr>\n"
+"                                   Add <incr> to the start address\n"
+"    {--change-addresses|--adjust-vma} <incr>\n"
+"                                   Add <incr> to LMA, VMA and start addresses\n"
+"    {--change-section-address|--adjust-section-vma} <name>{=|+|-}<val>\n"
+"                                   Change LMA and VMA of section <name> by <val>\n"
+"     --change-section-lma <name>{=|+|-}<val>\n"
+"                                   Change the LMA of section <name> by <val>\n"
+"     --change-section-vma <name>{=|+|-}<val>\n"
+"                                   Change the VMA of section <name> by <val>\n"
+"    {--[no-]change-warnings|--[no-]adjust-warnings}\n"
+"                                   Warn if a named section does not exist\n"
+"     --set-section-flags <name>=<flags>\n"
+"                                   Set section <name>'s properties to <flags>\n"
+"     --add-section <name>=<file>   Add section <name> found in <file> to output\n"
+"     --rename-section <old>=<new>[,<flags>] Rename section <old> to <new>\n"
+"     --change-leading-char         Force output format's leading character style\n"
+"     --remove-leading-char         Remove leading character from global symbols\n"
+"     --redefine-sym <old>=<new>    Redefine symbol name <old> to <new>\n"
+"     --redefine-syms <file>        --redefine-sym for all symbol pairs \n"
+"                                     listed in <file>\n"
+"     --srec-len <number>           Restrict the length of generated Srecords\n"
+"     --srec-forceS3                Restrict the type of generated Srecords to S3\n"
+"     --strip-symbols <file>        -N for all symbols listed in <file>\n"
+"     --strip-unneeded-symbols <file>\n"
+"                                   --strip-unneeded-symbol for all symbols listed\n"
+"                                     in <file>\n"
+"     --keep-symbols <file>         -K for all symbols listed in <file>\n"
+"     --localize-symbols <file>     -L for all symbols listed in <file>\n"
+"     --globalize-symbols <file>    --globalize-symbol for all in <file>\n"
+"     --keep-global-symbols <file>  -G for all symbols listed in <file>\n"
+"     --weaken-symbols <file>       -W for all symbols listed in <file>\n"
+"     --alt-machine-code <index>    Use alternate machine code for output\n"
+"     --writable-text               Mark the output text as writable\n"
+"     --readonly-text               Make the output text write protected\n"
+"     --pure                        Mark the output file as demand paged\n"
+"     --impure                      Mark the output file as impure\n"
+"     --prefix-symbols <prefix>     Add <prefix> to start of every symbol name\n"
+"     --prefix-sections <prefix>    Add <prefix> to start of every section name\n"
+"     --prefix-alloc-sections <prefix>\n"
+"                                   Add <prefix> to start of every allocatable\n"
+"                                     section name\n"
+"  -v --verbose                     List all object files modified\n"
+"  @<file>                          Read options from <file>\n"
+"  -V --version                     Display this program's version number\n"
+"  -h --help                        Display this output\n"
+"     --info                        List object formats & architectures supported\n"
+msgstr ""
+"  -I --input-target <tên_bfd>\t\tGiả sử tập tin nhập có dạng <tên_bfd>\n"
+"\t\t\t\t\t\t\t\t    (_đích nhập_)\n"
+"  -O --output-target <tên_bfd>     \tTạo tập tin dạng <tên_bfd>\n"
+"\t\t\t\t\t\t\t\t    (_đích xuất_)\n"
+"  -B --binary-architecture <kiến_trúc>\n"
+"\t\t\tLập _kiến trúc_ của tập tin xuất, khi tập tin nhập là _nhị phân_\n"
+"  -F --target <tên_bfd>\n"
+"\t\t\tLập dạng thức cả nhập lẫn xuất đều thành <tên_bfd> (_đích_)\n"
+"     --debugging                   \t\t\tChuyển đổi thông tin _gỡ lỗi_, nếu có thể\n"
+"  -p --preserve-dates\n"
+"\tSao chép nhãn thời gian truy cập/sửa đổi vào kết xuất (_bảo tồn các ngày_)\n"
+"  -j --only-section <tên>         \t_Chỉ_ sao chép <tên> _phần_ vào kết xuất\n"
+"     --add-gnu-debuglink=<tập_tin>\n"
+"\t\t_Thêm_ khả năng liên kết phần « .gnu_debuglink » vào <tập_tin>\n"
+"  -R --remove-section <tên>       \t_Gỡ bỏ phần_ <tên> ra kết xuất\n"
+"  -S --strip-all                   \t\t\tGỡ bỏ mọi thông tin ký hiệu và định vị lại\n"
+"\t\t\t\t\t\t\t\t    (_tước hết_)\n"
+"  -g --strip-debug                 \t\tGỡ bỏ mọi ký hiệu và phần kiểu gỡ lỗi\n"
+"\t\t\t\t\t\t\t\t    (_tước gỡ lỗi_)\n"
+"     --strip-unneeded        \tGỡ bỏ mọi ký hiệu không cần thiết để định vị lại\n"
+"\t\t\t\t\t\t\t\t    (_tước không cần thiết_)\n"
+"  -N --strip-symbol <tên>        \t\t Đừng sao chép ký hiệu <tên>\n"
+"\t\t\t\t\t\t\t\t    (_tước ký hiệu_)\n"
+"     --strip-unneeded-symbol <tên>\n"
+"\tĐừng sao chép ký hiệu trừ cần thiết để định vị lại (_tước không cần thiết_)\n"
+"     --only-keep-debug\t\t\t\tTước hết, trừ thông tin gỡ lỗi\n"
+"\t\t\t\t\t\t\t\t    (_chỉ giữ gỡ lỗi_)\n"
+"  -K --keep-symbol <tên>          \tChỉ sao chép ký hiệu <tên>\n"
+"\t\t\t\t\t\t\t\t    (_giữ ký hiệu_)\n"
+"  -L --localize-symbol <tên>\n"
+"\t\t\t\tBuộc ký hiệu <tên>có nhãn điều cục bộ (_địa phương hóa_)\n"
+"  -G --keep-global-symbol <tên>   \tĐịa phương hóa mọi ký hiệu trừ <name>\n"
+"\t\t\t\t\t\t\t\t    (_giữ ký hiệu toàn cục_)\n"
+"      -W --weaken-symbol <tên>        \tBuộc ký hiệu <name> có nhãn điều yếu\n"
+"\t\t\t\t\t\t\t\t    (_làm yếu ký hiệu_)\n"
+"     --weaken                      \t\tBuộc mọi ký hiệu toàn cục có nhãn điều yếu\n"
+"\t\t\t\t\t\t\t\t    (_làm yếu đi_)\n"
+"  -w --wildcard          \t\tCho phép _ký tự đại diện_ trong sự so sánh ký hiệu\n"
+"  -x --discard-all                 \t\t\tGỡ bỏ mọi ký hiệu không toàn cục\n"
+"\t\t\t\t\t\t\t\t    (_hủy hết_)\n"
+"  -X --discard-locals              Gỡ bỏ ký hiệu nào được tạo ra bởi bộ biên dịch\n"
+"\t\t\t\t\t\t\t\t    (_hủy các điều cục bộ_)\n"
+"  -i --interleave <số>         \t\t\tChỉ sao chép một của mỗi <số> byte\n"
+"\t\t\t\t\t\t\t\t    (_chen vào_)\n"
+"  -b --byte <số>\n"
+"\t\t\t\tChọn byte số thứ tự <số> trong mỗi khối tin đã chen vào\n"
+"     --gap-fill <giá_trị>              \t_Điền vào khe_ giữa hai phần bằng <giá_trị>\n"
+"     --pad-to <địa_chỉ>\t\t_Đệm_ phần cuối cùng _đế_n địa chỉ <địa_chỉ>\n"
+"     --set-start <địa_chỉ>            \t\t_Lập_ địa chỉ _đầu_ thành <địa_chỉ>\n"
+"    {--change-start|--adjust-start} <tăng>\n"
+"\t\tThêm <tăng> vào địa chỉ đầu (_thay đổi đầu, điều chỉnh đầu_)\n"
+"    {--change-addresses|--adjust-vma} <tang>\n"
+"    \t\t\t\t\t\t\tThêm <tang> vào địa chỉ đầu, LMA và VMA\n"
+"\t\t\t\t\t\t\t    (_thay đổi địa chỉ, điều chỉnh vma_)\n"
+"    {--change-section-address|--adjust-section-vma} <tên>{=|+|-}<giá_trị>\n"
+"\t\t\t\t\tThay đổi LMA và VMA của phần <tên> bằng <giá_trị>\n"
+"\t\t\t\t\t\t(_thay đổi địa chỉ phần, điều chỉnh vma phần_)\n"
+"     --change-section-lma <tên>{=|+|-}<giá_trị>\n"
+"   \tThay đổi LMA của phần <tên> bằng <giá_trị> (_thay đổi LMA của phần_)\n"
+"     --change-section-vma <tên>{=|+|-}<giá_trị>\n"
+"  \tThay đổi VMA của phần <tên> bằng <giá_trị> (_thay đổi VMA của phần_)\n"
+"    {--[no-]change-warnings|--[no-]adjust-warnings}\n"
+"   \t\t\t\t\t\t\t\tCảnh báo nếu không có phần có tên\n"
+"\t\t(_[không] thay đổi các cảnh báo, [không] điều chỉnh các cảnh báo_)\n"
+"     --set-section-flags <tên>=<cờ ...>\n"
+"                                   \t\tLập thuộc tính của phần <tên> thành <cờ ...>\n"
+"\t\t\t\t\t\t\t\t    (_lập các cờ phần_)\n"
+"     --add-section <tên>=<tập_tin>\n"
+"\t\t\t\t_Thêm phần_ <tên> được tìm trong <tập_tin> vào kết  xuất\n"
+"     --rename-section <cũ>=<mới>[,<cờ ...>]\n"
+"\t\t\t\t\t\t\t\t_Thay đổi phần_ <cũ> thành <mới>\n"
+"     --change-leading-char\n"
+"\t\t\t\t\tBuộc kiểu dáng của ký tự đi trước của dạng thức xuất\n"
+"\t\t\t\t\t\t\t\t    (_thay đổi ký tự đi trước_)\n"
+"     --remove-leading-char\t\t_Gỡ bỏ ký tự đi trước_ ra các ký hiệu toàn cục\n"
+"     --redefine-sym <cũ>=<mới>\n"
+"\t\t\t\t\t\t_Định nghĩa lại_ tên _ký hiệu_ <cũ> thành <mới>\n"
+"     --redefine-syms <tập_tin>\n"
+"\t\t« --redefine-sym » cho mọi cặp ký hiệu được liệt kê trong <tập_tin>\n"
+"     --srec-len <số>           \t\tGiới hạn _độ dài_ của các Srecords đã tạo ra\n"
+"     --srec-forceS3                \tGiới hạn kiểu Srecords thành S3 (_buộc_)\n"
+"     --strip-symbols <tập_tin>\n"
+"\t« -N » cho mọi ký hiệu được liệt kê trong <tập_tin> (_tước các ký hiệu_)\n"
+"     --strip-unneeded-symbols <tập_tin>\n"
+"     \t\t\t\t\t\t\t« --strip-unneeded-symbol » cho mọi ký hiệu\n"
+"\t\t\t\t\t\t\t\tđược liệt kê trong <tập_tin>\n"
+"     --keep-symbols <tập_tin>\n"
+"\t\t\t\t\t« -K » cho mọi ký hiệu được liệt kê trong <tập_tin>\n"
+"\t\t\t\t\t\t\t\t    (_giữ các ký hiệu_)\n"
+"     --localize-symbols <tập_tin>\n"
+"\t\t\t\t\t« -L » cho mọi ký hiệu được liệt kê trong <tập_tin>\n"
+"\t\t\t\t\t\t\t\t    (_địa phương hóa các ký hiệu_)\n"
+"     --keep-global-symbols <tập_tin>\n"
+"\t\t\t\t\t« -G » cho mọi ký hiệu được liệt kê trong <tập_tin>\n"
+"\t\t\t\t\t\t\t\t    (_giữ các ký hiệu toàn cục_)\n"
+"     --weaken-symbols <tập_tin>\n"
+"\t\t\t\t\t« -W » cho mọi ký hiệu được liệt kê trong <tập_tin>\n"
+"\t\t\t\t\t\t\t\t    (_làm yếu các ký hiệu_)\n"
+"     --alt-machine-code <chỉ_mục>    Dùng _mã máy xen kẽ_ cho kết xuất\n"
+"     --writable-text               \t\tĐánh dấu _văn bản_ xuất _có khả năng ghi_\n"
+"     --readonly-text               \tLàm cho vân bản xuất được bảo vậ chống ghi\n"
+"\t\t\t\t\t\t\t\t    (_văn bản chỉ có khả năng đọc_)\n"
+"     --pure\n"
+"\t\t\tĐánh dấu tập tin xuất sẽ có trang được sắp xếp theo yêu cầu\n"
+"\t\t\t\t\t\t\t\t    (_tinh khiết_)\n"
+"     --impure                      \t\tĐánh dấu tập tin xuất _không tinh khiết_\n"
+"     --prefix-symbols <tiền_tố>\n"
+"\t\tThêm <tiền_tố> vào đầu của mọi tên ký hiệu (_tiền tố các ký hiệu_)\n"
+"     --prefix-sections <tiền_tố>\n"
+"\t\tThêm <tiền_tố> vào đầu của mọi tên phần (_tiền tố các phần_)\n"
+"     --prefix-alloc-sections <tiền_tố>\n"
+"\t\tThêm <tiền_tố> vào đầu của mọi tên phần có thể cấp phát\n"
+"\t\t\t\t\t\t\t\t(_tiền tố các phần có thể cấp phát_)\n"
+"  -v --verbose                     \t\tLiệt kê mọi tập tin đối tượng đã được sửa đổi\n"
+"\t\t\t\t\t\t\t\t    (_chi tiết_)\n"
+"  @<file>    \t\t\t\t\t    Đọc các tùy chọn từ tập tin đó\n"
+"  -V --version                    Hiển thị số thứ tự _phiên bản_ của chương trình này\n"
+"  -h --help                        \t\t\tHiển thị _trợ giúp_ này\n"
+"     --info                        \t\tLiệt kê các dạng thức và kiến trúc được hỗ trợ\n"
+"\t\t\t\t\t\t\t\t    (_thông tin_)\n"
+
+#: objcopy.c:493
+#, c-format
+msgid "Usage: %s <option(s)> in-file(s)\n"
+msgstr "Cách sử dụng: %s <tùy_chọn> tập_tin_nhập...\n"
+
+#: objcopy.c:494
+#, c-format
+msgid " Removes symbols and sections from files\n"
+msgstr " Gỡ bỏ ký hiệu và phần ra tập tin\n"
+
+#: objcopy.c:496
+#, c-format
+msgid ""
+"  -I --input-target=<bfdname>      Assume input file is in format <bfdname>\n"
+"  -O --output-target=<bfdname>     Create an output file in format <bfdname>\n"
+"  -F --target=<bfdname>            Set both input and output format to <bfdname>\n"
+"  -p --preserve-dates              Copy modified/access timestamps to the output\n"
+"  -R --remove-section=<name>       Remove section <name> from the output\n"
+"  -s --strip-all                   Remove all symbol and relocation information\n"
+"  -g -S -d --strip-debug           Remove all debugging symbols & sections\n"
+"     --strip-unneeded              Remove all symbols not needed by relocations\n"
+"     --only-keep-debug             Strip everything but the debug information\n"
+"  -N --strip-symbol=<name>         Do not copy symbol <name>\n"
+"  -K --keep-symbol=<name>          Do not strip symbol <name>\n"
+"  -w --wildcard                    Permit wildcard in symbol comparison\n"
+"  -x --discard-all                 Remove all non-global symbols\n"
+"  -X --discard-locals              Remove any compiler-generated symbols\n"
+"  -v --verbose                     List all object files modified\n"
+"  -V --version                     Display this program's version number\n"
+"  -h --help                        Display this output\n"
+"     --info                        List object formats & architectures supported\n"
+"  -o <file>                        Place stripped output into <file>\n"
+msgstr ""
+"  -I --input-target=<tên_bfd>        Giả sử tập tin nhập có dạng thức <tên_bfd>\n"
+"\t\t(đích nhập)\n"
+"  -O --output-target=<tên_bfd>  Tạo một tập tin xuất có dạng thức <tên_bfd>\n"
+"\t\t(đích xuất)\n"
+"  -F --target=<tên_bfd>   Đặt dạng thức cả nhập lẫn xuất đều thành <tên_bfd>\n"
+"\t\t(đích)\n"
+"  -p --preserve-dates\n"
+"\t\tSao chép các nhãn thời gian truy cập/đã sửa đổi vào kết xuất\n"
+"\t\t(bảo tồn các ngày)\n"
+"  -R --remove-section=<tên>       \t_Gỡ bỏ phần_ <name> ra dữ liệu xuất\n"
+"  -s --strip-all                   \t\tGỡ bỏ mọi thông tin kiểu ký hiệu và định vị lại\n"
+"\t\t(tước hết)\n"
+"  -g -S -d --strip-debug           \tGỡ bỏ mọi ký hiệu và phần kiểu gỡ lỗi\n"
+"\t\t(tước gỡ lỗi)\n"
+"     --strip-unneeded               Gỡ bỏ mọi ký hiệu không cần thiết khi định vị lại\n"
+"\t\t(tước không cần thiết)\n"
+"     --only-keep-debug             \tTước hết, trừ thông tin gỡ lỗi\n"
+"\t\t(chỉ giữ gỡ lỗi)\n"
+"  -N --strip-symbol=<tên>      \tĐừng sao chép ký hiệu <tên>\n"
+"\t\t(tước ký hiệu)\n"
+"  -K --keep-symbol=<tên>       \tSao chép chỉ ký hiệu <tên>\n"
+"\t\t(giữ ký hiệu)\n"
+"  -w --wildcard                Cho phép _ký tự đại diện_ trong chuỗi so sánh ký hiệu\n"
+"  -x --discard-all                 \t\tGỡ bỏ mọi ký hiệu không toàn cục\n"
+"\t\t(hủy hết)\n"
+"  -X --discard-locals              \tGỡ bo ký hiệu nào do bộ biên dịch tạo ra\n"
+"\t\t(hủy các điều cục bộ)\n"
+"  -v --verbose                     \t\tLiệt kê mọi tập tin đối tượng đã sửa đổi\n"
+"\t\t(chi tiết)\n"
+"  -V --version                     Hiển thị số thứ tự _phiên bản_ của chương trình này\n"
+"  -h --help                        \t\tHiển thị _trợ giúp_ này\n"
+"     --info                     Liệt kê các dạng thức đối tượng và kiến trúc được hỗ trợ\n"
+"\t\t(thông tin)  -o <tập_tin>                        \tĐể kết _xuất_ đã tướng vào <tập_tin>\n"
+"  @<file>    \t\t\t\t\t   Để dữ liệu xuất đã gỡ bỏ vào tập tin đó\n"
+
+#: objcopy.c:568
+#, c-format
+msgid "unrecognized section flag `%s'"
+msgstr "không nhận ra cờ phần « %s »"
+
+#: objcopy.c:569
+#, c-format
+msgid "supported flags: %s"
+msgstr "các cờ đã hỗ trợ : %s"
+
+#: objcopy.c:646
+#, c-format
+msgid "cannot open '%s': %s"
+msgstr "không thể mở « %s »: %s"
+
+#: objcopy.c:649 objcopy.c:2722
+#, c-format
+msgid "%s: fread failed"
+msgstr "%s: việc fread (đọc f) bị lỗi"
+
+#: objcopy.c:722
+#, c-format
+msgid "%s:%d: Ignoring rubbish found on this line"
+msgstr "%s:%d: Đang bỏ qua rác được gặp trên dòng này"
+
+#: objcopy.c:996
+#, c-format
+msgid "%s: Multiple redefinition of symbol \"%s\""
+msgstr "%s: Ký hiệu « %s » đã được định nghĩa lại nhiều lần"
+
+#: objcopy.c:1000
+#, c-format
+msgid "%s: Symbol \"%s\" is target of more than one redefinition"
+msgstr "%s: Ký hiệu « %s » là đích của nhiều lời định nghĩa lại"
+
+#: objcopy.c:1028
+#, c-format
+msgid "couldn't open symbol redefinition file %s (error: %s)"
+msgstr "không thể mở tập tin định nghĩa lại ký hiệu %s (lỗi: %s)"
+
+#: objcopy.c:1106
+#, c-format
+msgid "%s:%d: garbage found at end of line"
+msgstr "%s:%d: gặp rác tại kết thúc dòng"
+
+#: objcopy.c:1109
+#, c-format
+msgid "%s:%d: missing new symbol name"
+msgstr "%s:%d: thiếu tên ký hiệu mới"
+
+#: objcopy.c:1119
+#, c-format
+msgid "%s:%d: premature end of file"
+msgstr "%s:%d: gặp kết thúc tập tin quá sớm"
+
+#: objcopy.c:1145
+#, c-format
+msgid "stat returns negative size for `%s'"
+msgstr "việc stat (lấy các thông tin) trả gởi kích cỡ âm cho « %s »"
+
+#: objcopy.c:1157
+#, c-format
+msgid "copy from `%s' [unknown] to `%s' [unknown]\n"
+msgstr "chép từ « %s » [không rõ] sang « %s » [không rõ]\n"
+
+#: objcopy.c:1212
+msgid "Unable to change endianness of input file(s)"
+msgstr "Không thể thay đổi tính trạng cuối (endian) của (các) tập tin nhập"
+
+#: objcopy.c:1221
+#, c-format
+msgid "copy from `%s' [%s] to `%s' [%s]\n"
+msgstr "chép từ « %s » [%s] sang « %s » [%s]\n"
+
+#: objcopy.c:1258 objcopy.c:1715
+#, c-format
+msgid "Unable to recognise the format of the input file `%s'"
+msgstr "Không thể nhận diện dạng thức của tập tin nhập « %s »"
+
+#: objcopy.c:1261
+#, c-format
+msgid "Warning: Output file cannot represent architecture `%s'"
+msgstr "Cảnh báo : tập tin xuất không thể tiêu biểu kiến trúc « %s »"
+
+#: objcopy.c:1305
+#, c-format
+msgid "can't create section `%s': %s"
+msgstr "không thể tạo phần « %s »: %s"
+
+#: objcopy.c:1356
+msgid "there are no sections to be copied!"
+msgstr "• Không có phần cần sao chép. •"
+
+#: objcopy.c:1402
+#, c-format
+msgid "Can't fill gap after %s: %s"
+msgstr "Không thể điền vào khe sau : %s: %s"
+
+#: objcopy.c:1427
+#, c-format
+msgid "Can't add padding to %s: %s"
+msgstr "Không thể thêm đệm vào %s: %s"
+
+#: objcopy.c:1594
+#, c-format
+msgid "%s: error copying private BFD data: %s"
+msgstr "%s: gặp lỗi khi sao chép dữ liệu BFD riêng : %s"
+
+#: objcopy.c:1605
+msgid "unknown alternate machine code, ignored"
+msgstr "không biết mã máy xen kẽ nên bỏ qua nó"
+
+#: objcopy.c:1635 objcopy.c:1665
+#, c-format
+msgid "cannot mkdir %s for archive copying (error: %s)"
+msgstr "không thể mkdir (tạo thư mục) %s để sao chép kho (lỗi: %s)"
+
+#: objcopy.c:1787
+#, c-format
+msgid "error: the input file '%s' is empty"
+msgstr "lỗi : tập tin nhập « %s » là rỗng"
+
+#: objcopy.c:1889
+#, c-format
+msgid "Multiple renames of section %s"
+msgstr "Đã thay đổi tên phần %s nhiều lần"
+
+#: objcopy.c:1940
+msgid "private header data"
+msgstr "dữ liệu dòng đầu riêng"
+
+#: objcopy.c:1948
+#, c-format
+msgid "%s: error in %s: %s"
+msgstr "%s: lỗi trong %s: %s"
+
+#: objcopy.c:2007
+msgid "making"
+msgstr "làm"
+
+#: objcopy.c:2022
+msgid "size"
+msgstr "cỡ"
+
+#: objcopy.c:2036
+msgid "vma"
+msgstr "vma"
+
+#: objcopy.c:2061
+msgid "alignment"
+msgstr "canh lề"
+
+#: objcopy.c:2083
+msgid "private data"
+msgstr "dữ liệu riêng"
+
+#: objcopy.c:2091
+#, c-format
+msgid "%s: section `%s': error in %s: %s"
+msgstr "%s: phần « %s »: lỗi trong %s: %s"
+
+#: objcopy.c:2363
+#, c-format
+msgid "%s: can't create debugging section: %s"
+msgstr "%s: không thể tạo phần gỡ lỗi: %s"
+
+#: objcopy.c:2377
+#, c-format
+msgid "%s: can't set debugging section contents: %s"
+msgstr "%s: không thể đặt nội dung phần gỡ lỗi: %s"
+
+#: objcopy.c:2386
+#, c-format
+msgid "%s: don't know how to write debugging information for %s"
+msgstr "%s: không biết cách ghi thông tin gỡ lỗi cho %s"
+
+#: objcopy.c:2561
+msgid "byte number must be non-negative"
+msgstr "số byte phải là không âm"
+
+#: objcopy.c:2571
+msgid "interleave must be positive"
+msgstr "chen vào phải là dương"
+
+#: objcopy.c:2591 objcopy.c:2599
+#, c-format
+msgid "%s both copied and removed"
+msgstr "%s cả được sao chép lẫn bị gỡ bỏ đều"
+
+#: objcopy.c:2696 objcopy.c:2767 objcopy.c:2867 objcopy.c:2898 objcopy.c:2922
+#: objcopy.c:2926 objcopy.c:2946
+#, c-format
+msgid "bad format for %s"
+msgstr "dạng thức sai cho %s"
+
+#: objcopy.c:2717
+#, c-format
+msgid "cannot open: %s: %s"
+msgstr "không thể mở : %s: %s"
+
+#: objcopy.c:2836
+#, c-format
+msgid "Warning: truncating gap-fill from 0x%s to 0x%x"
+msgstr "Cảnh báo : đang cắt xén điền-khe từ 0x%s thành 0x%x"
+
+#: objcopy.c:3000
+msgid "alternate machine code index must be positive"
+msgstr "chỉ mục mã máy xen kẽ phải là dương"
+
+#: objcopy.c:3058
+msgid "byte number must be less than interleave"
+msgstr "số byte phải là ít hơn chen vào"
+
+#: objcopy.c:3088
+#, c-format
+msgid "architecture %s unknown"
+msgstr "không biết kiến trúc %s"
+
+#: objcopy.c:3092
+msgid "Warning: input target 'binary' required for binary architecture parameter."
+msgstr "Cảnh báo : đích nhập « binary » (nhị phân) cần thiết cho tham số kiến trúc nhị phân."
+
+#: objcopy.c:3093
+#, c-format
+msgid " Argument %s ignored"
+msgstr " Đối số %s bị bỏ qua"
+
+#: objcopy.c:3099
+#, c-format
+msgid "warning: could not locate '%s'.  System error message: %s"
+msgstr "cảnh báo : không thể định vị « %s ». Thông điệp lỗi hệ thống: %s"
+
+#: objcopy.c:3141 objcopy.c:3155
+#, c-format
+msgid "%s %s%c0x%s never used"
+msgstr "%s %s%c0x%s chưa bao giờ dùng"
+
+#: objdump.c:178
+#, c-format
+msgid "Usage: %s <option(s)> <file(s)>\n"
+msgstr "Cách sử dụng: %s <tùy_chọn...> <tập_tin...>\n"
+
+#: objdump.c:179
+#, c-format
+msgid " Display information from object <file(s)>.\n"
+msgstr " Hiển thị thông tin từ <tập_tin...> đối tượng.\n"
+
+#: objdump.c:180
+#, c-format
+msgid " At least one of the following switches must be given:\n"
+msgstr " Phải đưa ra ít nhất một của những cái chuyển theo sau :\n"
+
+#: objdump.c:181
+#, c-format
+msgid ""
+"  -a, --archive-headers    Display archive header information\n"
+"  -f, --file-headers       Display the contents of the overall file header\n"
+"  -p, --private-headers    Display object format specific file header contents\n"
+"  -h, --[section-]headers  Display the contents of the section headers\n"
+"  -x, --all-headers        Display the contents of all headers\n"
+"  -d, --disassemble        Display assembler contents of executable sections\n"
+"  -D, --disassemble-all    Display assembler contents of all sections\n"
+"  -S, --source             Intermix source code with disassembly\n"
+"  -s, --full-contents      Display the full contents of all sections requested\n"
+"  -g, --debugging          Display debug information in object file\n"
+"  -e, --debugging-tags     Display debug information using ctags style\n"
+"  -G, --stabs              Display (in raw form) any STABS info in the file\n"
+"  -W, --dwarf              Display DWARF info in the file\n"
+"  -t, --syms               Display the contents of the symbol table(s)\n"
+"  -T, --dynamic-syms       Display the contents of the dynamic symbol table\n"
+"  -r, --reloc              Display the relocation entries in the file\n"
+"  -R, --dynamic-reloc      Display the dynamic relocation entries in the file\n"
+"  @<file>                  Read options from <file>\n"
+"  -v, --version            Display this program's version number\n"
+"  -i, --info               List object formats and architectures supported\n"
+"  -H, --help               Display this information\n"
+msgstr ""
+"  -a, --archive-headers    \t\tHiển thị thông tin về _các phần đầu kho_\n"
+"  -f, --file-headers          Hiển thị nội dung của _toàn bộ phần đầu tập tin_\n"
+"  -p, --private-headers\n"
+"\t\tHiển thị nội dung của phần đầu tập tin đặc trưng cho đối tượng\n"
+"\t\t(các phần đầu riêng)\n"
+"  -h, --[section-]headers    Hiển thị nội dung của _các phần đầu của phần_\n"
+"  -x, --all-headers        \t\t     Hiển thị nội dung của _mọi phần đầu_\n"
+"  -d, --disassemble\n"
+"\t\tHiển thị nội dung của các phần có khả năng thực hiện\n"
+"\t\t(rã)\n"
+"  -D, --disassemble-all    \t    Hiển thị nội dung dịch mã số của mọi phần\n"
+"\t\t(rã hết)\n"
+"  -S, --source             \t\t\t\t      Trộn lẫn mã _nguồn_ với việc rã\n"
+"  -s, --full-contents   Hiển thị _nội dung đầy đủ_ của mọi phần đã yêu cầu\n"
+"  -g, --debugging          Hiển thị thông tin _gỡ lỗi_ trong tập tin đối tượng\n"
+"  -e, --debugging-tags      Hiển thị thông tin gỡ lỗi, dùng kiểu dáng ctags\n"
+"\t\t(các thẻ gỡ lỗi)\n"
+"  -G, --stabs         Hiển thị (dạng thô) thông tin STABS nào trong thông tin\n"
+"  -t, --syms               \t\t\t   Hiển thị nội dung của các bảng ký hiệu\n"
+"\t\t(các ký hiệu [viết tắt])\n"
+"  -T, --dynamic-syms       \t\tHiển thị nội dung của bảng ký hiệu động\n"
+"\t\t(các ký hiệu động [viết tắt])\n"
+"  -r, --reloc             \t\tHiển thị các mục nhập định vị lại trong tập tin\n"
+"\t\t(định vị lại [viết tắt])\n"
+"  -R, --dynamic-reloc\n"
+"\t\t\t\t      Hiển thị các mục nhập định vị lại động trong tập tin\n"
+"\t\t(định vị lại động [viết tắt])\n"
+"  @<file>    \t\t\t\t\t    Đọc các tùy chọn từ tập tin đó\n"
+"  -v, --version            Hiển thị số thự tự _phiên bản_ của chương trình này\n"
+"  -i, --info           Liệt kê các dạng thức đối tượng và kiến trúc được hỗ trợ\n"
+"\t\t(thông tin [viết tắt])\n"
+"  -H, --help              \tHiển thị _trợ giúp_ này\n"
+
+#: objdump.c:206
+#, c-format
+msgid ""
+"\n"
+" The following switches are optional:\n"
+msgstr ""
+"\n"
+" Những cái chuyển theo đây là tùy chọn:\n"
+
+#: objdump.c:207
+#, c-format
+msgid ""
+"  -b, --target=BFDNAME           Specify the target object format as BFDNAME\n"
+"  -m, --architecture=MACHINE     Specify the target architecture as MACHINE\n"
+"  -j, --section=NAME             Only display information for section NAME\n"
+"  -M, --disassembler-options=OPT Pass text OPT on to the disassembler\n"
+"  -EB --endian=big               Assume big endian format when disassembling\n"
+"  -EL --endian=little            Assume little endian format when disassembling\n"
+"      --file-start-context       Include context from start of file (with -S)\n"
+"  -I, --include=DIR              Add DIR to search list for source files\n"
+"  -l, --line-numbers             Include line numbers and filenames in output\n"
+"  -C, --demangle[=STYLE]         Decode mangled/processed symbol names\n"
+"                                  The STYLE, if specified, can be `auto', `gnu',\n"
+"                                  `lucid', `arm', `hp', `edg', `gnu-v3', `java'\n"
+"                                  or `gnat'\n"
+"  -w, --wide                     Format output for more than 80 columns\n"
+"  -z, --disassemble-zeroes       Do not skip blocks of zeroes when disassembling\n"
+"      --start-address=ADDR       Only process data whose address is >= ADDR\n"
+"      --stop-address=ADDR        Only process data whose address is <= ADDR\n"
+"      --prefix-addresses         Print complete address alongside disassembly\n"
+"      --[no-]show-raw-insn       Display hex alongside symbolic disassembly\n"
+"      --adjust-vma=OFFSET        Add OFFSET to all displayed section addresses\n"
+"      --special-syms             Include special symbols in symbol dumps\n"
+"\n"
+msgstr ""
+"  -b, --target=TÊN_BFD  \tGhi rõ dạng thức đối tượng _đích_ là TÊN_BFD\n"
+"  -m, --architecture=MÁY     \t\t          Ghi rõ _kiến trúc_ đích là MÁY\n"
+"  -j, --section=TÊN             \t\t     Hiển thị thông tin chỉ cho _phần_ TÊN\n"
+"  -M, --disassembler-options=TÙY_CHỌN\n"
+"\t\tGởi chuỗi TÙY_CHỌN qua cho _bộ rã_\n"
+"\t\t(các tùy chọn bộ rã)\n"
+"  -EB --endian=big\n"
+"\t\tGiả sử dạng thức tính trạng cuối lớn (big-endian) khi rã\n"
+"  -EL --endian=little\n"
+"\t\tGiả sử dạng thức tính trạng cuối nhỏ (little-endian) khi rã\n"
+"      --file-start-context       \tGồm _ngữ cảnh_ từ _đầu tập tin_ (bằng « -S »)\n"
+"  -I, --include=THƯ_MỤC\n"
+"\t\tThêm THƯ_MỤC vào danh sách tìm kiếm tập tin nguồn\n"
+"\t\t(bao gồm)\n"
+"  -l, --line-numbers\n"
+"\t\tGồm các _số thứ tự dòng_ và tên tập tin trong kết xuất\n"
+"  -C, --demangle[=KIỂU_DÁNG]           giải mã các tên ký hiệu đã rối/xử lý\n"
+"\t\t(tháo gỡ)\n"
+"\t\tKIỂU_DÁNG, nếu đã ghi rõ, có thể là:\n"
+"\t\t • auto\t\ttự động\n"
+"\t\t • gnu\n"
+"             \t • lucid\t\trõ ràng\n"
+"\t\t • arm\n"
+"\t\t • hp\n"
+"\t\t • edg\n"
+"\t\t • gnu-v3\n"
+" \t\t • java\n"
+"           \t • gnat\n"
+"  -w, --wide                     \t\tĐịnh dạng dữ liệu xuất chiếm hơn 80 cột\n"
+"\t\t(rộng)\n"
+"  -z, --disassemble-zeroes       \t\tĐừng nhảy qua khối  ố không khi rã\n"
+"\t\t(rã các số không)\n"
+"      --start-address=ĐỊA_CHỈ            Xử lý chỉ dữ liệu có địa chỉ ≥ ĐỊA_CHỈ\n"
+"      --stop-address=ĐỊA_CHỈ            Xử lý chỉ dữ liệu có địa chỉ ≤ ĐỊA_CHỈ\n"
+"      --prefix-addresses         \t\tIn ra địa chỉ hoàn toàn ở b        việc rã\n"
+"\t\t(thêm vào đầu các địa chỉ)\n"
+"      --[no-]show-raw-insn\n"
+"\t\tHiển thị thập lục phân ở bên việc rã kiểu ký hiệu\n"
+"hông] hiển thị câu lệnh thô)\n"
+"      --adjust-vma=HIỆU_SỐ\n"
+"\t\tThêm HIỆU_SỐ vào mọi địa chỉ phần đã hiển thị\n"
+"\t\t(điều chỉnh vma)      --special-syms          Gồm _các ký hiệu đặc biệt_ trong việc đổ ký hiệu\n"
+"\n"
+
+#: objdump.c:389
+#, c-format
+msgid "Sections:\n"
+msgstr "Phần:\n"
+
+#: objdump.c:392 objdump.c:396
+#, c-format
+msgid "Idx Name          Size      VMA       LMA       File off  Algn"
+msgstr "Idx Name          Size      VMA       LMA       File off  Algn"
+
+#: objdump.c:398
+#, c-format
+msgid "Idx Name          Size      VMA               LMA               File off  Algn"
+msgstr "Idx Name          Size      VMA               LMA               File off  Algn"
+
+#: objdump.c:402
+#, c-format
+msgid "  Flags"
+msgstr "  Cờ"
+
+#: objdump.c:404
+#, c-format
+msgid "  Pg"
+msgstr "  Tr"
+
+#: objdump.c:447
+#, c-format
+msgid "%s: not a dynamic object"
+msgstr "%s không phải là môt đối tượng động"
+
+#: objdump.c:1735
+#, c-format
+msgid "Disassembly of section %s:\n"
+msgstr "Việc rã phần %s:\n"
+
+#: objdump.c:1897
+#, c-format
+msgid "Can't use supplied machine %s"
+msgstr "Không thể sử dụng máy đã cung cấp %s"
+
+#: objdump.c:1916
+#, c-format
+msgid "Can't disassemble for architecture %s\n"
+msgstr "Không thể rã cho kiến trúc %s\n"
+
+#: objdump.c:2006
+#, c-format
+msgid ""
+"\n"
+"Can't get contents for section '%s'.\n"
+msgstr ""
+"\n"
+"Không thể lấy nội dung cho phần « %s ».\n"
+
+#: objdump.c:2143
+#, c-format
+msgid ""
+"No %s section present\n"
+"\n"
+msgstr ""
+"Không có phần %s ở\n"
+"\n"
+
+#: objdump.c:2152
+#, c-format
+msgid "Reading %s section of %s failed: %s"
+msgstr "Việc đọc phần %s của %s bị lỗi: %s"
+
+#: objdump.c:2196
+#, c-format
+msgid ""
+"Contents of %s section:\n"
+"\n"
+msgstr ""
+"Nội dung phần %s\n"
+"\n"
+
+#: objdump.c:2323
+#, c-format
+msgid "architecture: %s, "
+msgstr "kiến trúc: %s, "
+
+#: objdump.c:2326
+#, c-format
+msgid "flags 0x%08x:\n"
+msgstr "cờ 0x%08x:\n"
+
+#: objdump.c:2340
+#, c-format
+msgid ""
+"\n"
+"start address 0x"
+msgstr ""
+"\n"
+"địa chỉ đầu 0x"
+
+#: objdump.c:2380
+#, c-format
+msgid "Contents of section %s:\n"
+msgstr "Nội dung phần %s:\n"
+
+#: objdump.c:2505
+#, c-format
+msgid "no symbols\n"
+msgstr "không có ký hiệu\n"
+
+#: objdump.c:2512
+#, c-format
+msgid "no information for symbol number %ld\n"
+msgstr "không có thông tin cho ký hiệu số %ld\n"
+
+#: objdump.c:2515
+#, c-format
+msgid "could not determine the type of symbol number %ld\n"
+msgstr "không thể quyết định kiểu ký hiệu số %ld\n"
+
+#: objdump.c:2788
+#, c-format
+msgid ""
+"\n"
+"%s:     file format %s\n"
+msgstr ""
+"\n"
+"%s:    dạng thức tập tin %s\n"
+
+#: objdump.c:2845
+#, c-format
+msgid "%s: printing debugging information failed"
+msgstr "%s: việc in ra thông tin gỡ lỗi bị lỗi"
+
+#: objdump.c:2936
+#, c-format
+msgid "In archive %s:\n"
+msgstr "Trong kho %s\n"
+
+#: objdump.c:3058
+msgid "unrecognized -E option"
+msgstr "không nhận ra tùy chọn « -E »"
+
+#: objdump.c:3069
+#, c-format
+msgid "unrecognized --endian type `%s'"
+msgstr "không nhận ra kiểu tính trạng cuối (endian) « %s »"
+
+#: rdcoff.c:196
+#, c-format
+msgid "parse_coff_type: Bad type code 0x%x"
+msgstr "parse_coff_type: (phân tách kiểu coff) Mã kiểu sai 0x%x"
+
+#: rdcoff.c:404 rdcoff.c:509 rdcoff.c:697
+#, c-format
+msgid "bfd_coff_get_syment failed: %s"
+msgstr "« bfd_coff_get_syment » bị lỗi: %s"
+
+#: rdcoff.c:420 rdcoff.c:717
+#, c-format
+msgid "bfd_coff_get_auxent failed: %s"
+msgstr "« bfd_coff_get_auxent » bị lỗi: %s"
+
+#: rdcoff.c:784
+#, c-format
+msgid "%ld: .bf without preceding function"
+msgstr "%ld: « .bf » không có hàm đi trước"
+
+#: rdcoff.c:834
+#, c-format
+msgid "%ld: unexpected .ef\n"
+msgstr "%ld: « .ef » bất ngờ\n"
+
+#: rddbg.c:85
+#, c-format
+msgid "%s: no recognized debugging information"
+msgstr "%s: không có thông tin gỡ lỗi đã nhận ra"
+
+#: rddbg.c:394
+#, c-format
+msgid "Last stabs entries before error:\n"
+msgstr "Những mục nhập stabs cuối cùng trước lỗi:\n"
+
+#: readelf.c:264
+#, c-format
+msgid "Unable to seek to 0x%lx for %s\n"
+msgstr "Không thể nhảy tới 0x%lx tìm %s\n"
+
+#: readelf.c:279
+#, c-format
+msgid "Out of memory allocating 0x%lx bytes for %s\n"
+msgstr "Hết bộ nhớ khi cấp phát 0x%lx byte cho %s\n"
+
+#: readelf.c:289
+#, c-format
+msgid "Unable to read in 0x%lx bytes of %s\n"
+msgstr "Không thể đọc nhập 0x%lx byte của %s\n"
+
+#: readelf.c:623
+msgid "Don't know about relocations on this machine architecture\n"
+msgstr "Không biết về việc định vị lại trên kiến trúc máy này\n"
+
+#: readelf.c:643 readelf.c:671 readelf.c:715 readelf.c:743
+msgid "relocs"
+msgstr "đ.v. lại"
+
+#: readelf.c:654 readelf.c:682 readelf.c:726 readelf.c:754
+msgid "out of memory parsing relocs"
+msgstr "hết bộ nhớ khi phân tách việc định vị lại"
+
+#: readelf.c:808
+#, c-format
+msgid " Offset     Info    Type                Sym. Value  Symbol's Name + Addend\n"
+msgstr " Hiệu     Tin    Kiểu            Giá trị ký hiệu  Tên ký hiệu + gì thêm\n"
+
+#: readelf.c:810
+#, c-format
+msgid " Offset     Info    Type            Sym.Value  Sym. Name + Addend\n"
+msgstr " HIệu     Tin    Kiểu    Giá trị ký hiệu Tên ký hiệu + gì thêm\n"
+
+#: readelf.c:815
+#, c-format
+msgid " Offset     Info    Type                Sym. Value  Symbol's Name\n"
+msgstr " HIệu     Tin    Kiểu            Giá trị ký hiệu Tên ký hiệu\n"
+
+#: readelf.c:817
+#, c-format
+msgid " Offset     Info    Type            Sym.Value  Sym. Name\n"
+msgstr " Hiệu     Tin    Kiểu    Giá trị ký hiệu Tên ký hiệu\n"
+
+#: readelf.c:825
+#, c-format
+msgid "    Offset             Info             Type               Symbol's Value  Symbol's Name + Addend\n"
+msgstr "    Offset             Info             Type               Symbol's Value  Symbol's Name + Addend\n"
+
+#: readelf.c:827
+#, c-format
+msgid "  Offset          Info           Type           Sym. Value    Sym. Name + Addend\n"
+msgstr "  Hiệu        Tin         Kiểu     Giá trị ký hiệu  Tên ký hiệu + gì thêm\n"
+
+#: readelf.c:832
+#, c-format
+msgid "    Offset             Info             Type               Symbol's Value  Symbol's Name\n"
+msgstr "    Offset             Info             Type               Symbol's Value  Symbol's Name\n"
+
+#: readelf.c:834
+#, c-format
+msgid "  Offset          Info           Type           Sym. Value    Sym. Name\n"
+msgstr "  HIệu        Tin         Kiểu      Giá trị ký hiệu  Tên ký hiệu\n"
+
+#: readelf.c:1127 readelf.c:1129 readelf.c:1238 readelf.c:1240 readelf.c:1249
+#: readelf.c:1251
+#, c-format
+msgid "unrecognized: %-7lx"
+msgstr "không nhận ra: %-7lx"
+
+#: readelf.c:1154
+#, c-format
+msgid "<unknown addend: %lx>"
+msgstr "<số thêm vào không rõ : %lx>"
+
+#: readelf.c:1210
+#, c-format
+msgid "<string table index: %3ld>"
+msgstr "<chỉ mục bảng chuỗi: %3ld>"
+
+#: readelf.c:1212
+#, c-format
+msgid "<corrupt string table index: %3ld>"
+msgstr "<chỉ mục bảng chuỗi bị hỏng: %3ld>"
+
+#: readelf.c:1522
+#, c-format
+msgid "Processor Specific: %lx"
+msgstr "Đặc trưng cho bộ xử lý: %lx"
+
+#: readelf.c:1543
+#, c-format
+msgid "Operating System specific: %lx"
+msgstr "Đặc trưng cho Hệ điều hành: %lx"
+
+#: readelf.c:1547 readelf.c:2349
+#, c-format
+msgid "<unknown>: %lx"
+msgstr "<không rõ>: %lx"
+
+#: readelf.c:1560
+msgid "NONE (None)"
+msgstr "KHÔNG CÓ (Không có)"
+
+#: readelf.c:1561
+msgid "REL (Relocatable file)"
+msgstr "REL (Tập tin có thể _định vị lại_)"
+
+#: readelf.c:1562
+msgid "EXEC (Executable file)"
+msgstr "EXEC (Executable file)"
+
+#: readelf.c:1563
+msgid "DYN (Shared object file)"
+msgstr "DYN (Shared object file)"
+
+#: readelf.c:1564
+msgid "CORE (Core file)"
+msgstr "CORE (Core file)"
+
+#: readelf.c:1568
+#, c-format
+msgid "Processor Specific: (%x)"
+msgstr "Đặc trưng cho bộ xử lý: (%x)"
+
+#: readelf.c:1570
+#, c-format
+msgid "OS Specific: (%x)"
+msgstr "Đặc trưng cho HĐH: (%x)"
+
+#: readelf.c:1572 readelf.c:1681 readelf.c:2541
+#, c-format
+msgid "<unknown>: %x"
+msgstr "<không rõ>: %x"
+
+#: readelf.c:1584
+msgid "None"
+msgstr "Không có"
+
+#: readelf.c:2186
+msgid "Standalone App"
+msgstr "Ứng dụng Độc lập"
+
+#: readelf.c:2189 readelf.c:2948 readelf.c:2964
+#, c-format
+msgid "<unknown: %x>"
+msgstr "<không rõ : %x>"
+
+#: readelf.c:2586
+#, c-format
+msgid "Usage: readelf <option(s)> elf-file(s)\n"
+msgstr "Cách sử dụng: readelf <tùy_chọn...> tập_tin_elf...\n"
+
+#: readelf.c:2587
+#, c-format
+msgid " Display information about the contents of ELF format files\n"
+msgstr " Hiển thị thông tin về nội dung tập tin dạng thức ELF\n"
+
+#: readelf.c:2588
+#, c-format
+msgid ""
+" Options are:\n"
+"  -a --all               Equivalent to: -h -l -S -s -r -d -V -A -I\n"
+"  -h --file-header       Display the ELF file header\n"
+"  -l --program-headers   Display the program headers\n"
+"     --segments          An alias for --program-headers\n"
+"  -S --section-headers   Display the sections' header\n"
+"     --sections          An alias for --section-headers\n"
+"  -g --section-groups    Display the section groups\n"
+"  -t --section-details   Display the section details\n"
+"  -e --headers           Equivalent to: -h -l -S\n"
+"  -s --syms              Display the symbol table\n"
+"      --symbols          An alias for --syms\n"
+"  -n --notes             Display the core notes (if present)\n"
+"  -r --relocs            Display the relocations (if present)\n"
+"  -u --unwind            Display the unwind info (if present)\n"
+"  -d --dynamic           Display the dynamic section (if present)\n"
+"  -V --version-info      Display the version sections (if present)\n"
+"  -A --arch-specific     Display architecture specific information (if any).\n"
+"  -D --use-dynamic       Use the dynamic section info when displaying symbols\n"
+"  -x --hex-dump=<number> Dump the contents of section <number>\n"
+"  -w[liaprmfFsoR] or\n"
+"  --debug-dump[=line,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=str,=loc,=Ranges]\n"
+"                         Display the contents of DWARF2 debug sections\n"
+msgstr ""
+" Tùy chọn:\n"
+"  -a --all               \t\t\t\t\tBằng: -h -l -S -s -r -d -V -A -I\n"
+"\t(hết)\n"
+"  -h --file-header       \t\t\t\tHiển thị _dòng đầu tập tin_ ELF\n"
+"  -l --program-headers   \t\tHiển thị _các dòng đầu chương trình_\n"
+"     --segments          \t\t\tBiệt hiệu cho « --program-headers »\n"
+"\t(các phân đoạn)\n"
+"  -S --section-headers   \t\t\tHiển thị dòng đầu của các phần\n"
+"\t(các dòng đầu phần)\n"
+"     --sections          \t\t\tBiệt hiệu cho « --section-headers »\n"
+"\t(các phần)\n"
+"  -g --section-groups    \t\t\t     Hiển thị _các nhóm phần_\n"
+"  -t --section-details\t\t\tHiển thị _chi tiết về phần_\n"
+"  -e --headers           \t\t\t\tBằng: -h -l -S\n"
+"\t(các dòng đầu)\n"
+"  -s --syms              \t\t\tHiển thị bảng _ký hiệu_\n"
+"      --symbols          \t\t\tBiệt hiệu cho « --syms »\n"
+"\t(các ký hiệu [« syms » là viết tắt])\n"
+"  -n --notes             \t\t\tHiển thị _các ghi chú_ lõi (nếu có)\n"
+"  -r --relocs            \t\tHiển thị _các việc định vị lại_ (nếu có)\n"
+"  -u --unwind            \t\tHiển thị thông tin _tri ra_ (nếu có)\n"
+"  -d --dynamic           \t\tHiển thị phần _động_ (nếu có)\n"
+"  -V --version-info      \t\tHiển thị các phần phiên bản (nếu có)\n"
+"\t(thông tin phiên bản)\n"
+"  -A --arch-specific     Hiển thị thông tin _đặc trưng cho kiến trúc_ (nếu có)\n"
+"  -D --use-dynamic       _Dùng_ thông tin phần _động_ khi hiển thị ký hiệu\n"
+"  -x --hex-dump=<số> \t\t\tĐổ nội dung phần <số>\n"
+"\t(đổ thập lục)\n"
+"  -w[liaprmfFsoR] or\n"
+"  --debug-dump[=line,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=str,=loc,=Ranges]\n"
+"\t[line\t\t\tdòng\n"
+"\tinfo\t\t\tthông tin\n"
+"\tabbrev.\t\tviết tắt\n"
+"\tpubnames\tcác tên công\n"
+"\taranges\t\tcác phạm vị a\n"
+"\tmacro\t\tbộ lệnh\n"
+"\tframes\t\tcác khung\n"
+"\tstr\t\t\tchuỗi\n"
+"\tloc\t\t\tđịnh vị\n"
+"\tRanges\t\tCác phạm vị]\n"
+"       Hiển thị nội dung các phần gỡ lỗi kiểu DWARF2\n"
+
+#: readelf.c:2612
+#, c-format
+msgid ""
+"  -i --instruction-dump=<number>\n"
+"                         Disassemble the contents of section <number>\n"
+msgstr ""
+"  -i --instruction-dump=<số>\t\tTháo ra nội dung phần <số>\n"
+"\t(đổ câu lệnh)\n"
+
+#: readelf.c:2616
+#, c-format
+msgid ""
+"  -I --histogram         Display histogram of bucket list lengths\n"
+"  -W --wide              Allow output width to exceed 80 characters\n"
+"  @<file>                Read options from <file>\n"
+"  -H --help              Display this information\n"
+"  -v --version           Display the version number of readelf\n"
+msgstr ""
+"  -I --histogram\n"
+"\tHiển thị _biểu đồ tần xuất_ của các độ dài danh sách xô\n"
+"  -W --wide              Cho phép độ _rộng_ kết xuất vượt qua 80 ký tự\n"
+"  @<file>        \t\tĐọc các tùy chọn từ tập tin đó\n"
+"  -H --help             \tHiển thị _trợ giúp_ này\n"
+"  -v --version           \tHiển thị số thứ tự _phiên bản_ của readelf\n"
+
+#: readelf.c:2642 readelf.c:9180
+msgid "Out of memory allocating dump request table."
+msgstr "Hết bộ nhớ khi cấp phát bảng yêu cầu đổ."
+
+#: readelf.c:2816 readelf.c:2884
+#, c-format
+msgid "Unrecognized debug option '%s'\n"
+msgstr "Không nhận diện tùy chọn gỡ lỗi « %s »\n"
+
+#: readelf.c:2918
+#, c-format
+msgid "Invalid option '-%c'\n"
+msgstr "Tùy chọn không hợp lệ « -%c »\n"
+
+#: readelf.c:2932
+msgid "Nothing to do.\n"
+msgstr "Không có gì cần làm.\n"
+
+#: readelf.c:2944 readelf.c:2960 readelf.c:6169
+msgid "none"
+msgstr "không có"
+
+#: readelf.c:2961
+msgid "2's complement, little endian"
+msgstr "phần bù của 2, tính trạng cuối nhỏ"
+
+#: readelf.c:2962
+msgid "2's complement, big endian"
+msgstr "phần bù của 2, tính trạng cuối lớn"
+
+#: readelf.c:2980
+msgid "Not an ELF file - it has the wrong magic bytes at the start\n"
+msgstr "Không phải là tập tin ELF — có những byte ma thuật không đúng tại đầu nó.\n"
+
+#: readelf.c:2988
+#, c-format
+msgid "ELF Header:\n"
+msgstr "Dòng đầu ELF:\n"
+
+#: readelf.c:2989
+#, c-format
+msgid "  Magic:   "
+msgstr "  Ma thuật:   "
+
+#: readelf.c:2993
+#, c-format
+msgid "  Class:                             %s\n"
+msgstr "  Class:                             %s\n"
+
+#: readelf.c:2995
+#, c-format
+msgid "  Data:                              %s\n"
+msgstr "  Data:                              %s\n"
+
+#: readelf.c:2997
+#, c-format
+msgid "  Version:                           %d %s\n"
+msgstr "  Version:                           %d %s\n"
+
+#: readelf.c:3004
+#, c-format
+msgid "  OS/ABI:                            %s\n"
+msgstr "  OS/ABI:                            %s\n"
+
+#: readelf.c:3006
+#, c-format
+msgid "  ABI Version:                       %d\n"
+msgstr "  Phiên bản ABI:                       %d\n"
+
+#: readelf.c:3008
+#, c-format
+msgid "  Type:                              %s\n"
+msgstr "  Type:                              %s\n"
+
+#: readelf.c:3010
+#, c-format
+msgid "  Machine:                           %s\n"
+msgstr "  Machine:                           %s\n"
+
+#: readelf.c:3012
+#, c-format
+msgid "  Version:                           0x%lx\n"
+msgstr "  Version:                           0x%lx\n"
+
+#: readelf.c:3015
+#, c-format
+msgid "  Entry point address:               "
+msgstr "  Địa chỉ điểm vào :               "
+
+#: readelf.c:3017
+#, c-format
+msgid ""
+"\n"
+"  Start of program headers:          "
+msgstr ""
+"\n"
+"  Điểm đầu các dòng đầu chương trình:          "
+
+#: readelf.c:3019
+#, c-format
+msgid ""
+" (bytes into file)\n"
+"  Start of section headers:          "
+msgstr ""
+" (byte vào tập tin)\n"
+"  Đầu các dòng đầu phần:          "
+
+#: readelf.c:3021
+#, c-format
+msgid " (bytes into file)\n"
+msgstr " (byte vào tập tin)\n"
+
+#: readelf.c:3023
+#, c-format
+msgid "  Flags:                             0x%lx%s\n"
+msgstr "  Flags:                             0x%lx%s\n"
+
+#: readelf.c:3026
+#, c-format
+msgid "  Size of this header:               %ld (bytes)\n"
+msgstr "  Cỡ phần này:               %ld (byte)\n"
+
+#: readelf.c:3028
+#, c-format
+msgid "  Size of program headers:           %ld (bytes)\n"
+msgstr "  Cỡ các dòng đầu chương trình:           %ld (byte)\n"
+
+#: readelf.c:3030
+#, c-format
+msgid "  Number of program headers:         %ld\n"
+msgstr "  Số dòng đầu chương trình:         %ld\n"
+
+#: readelf.c:3032
+#, c-format
+msgid "  Size of section headers:           %ld (bytes)\n"
+msgstr "  Cỡ các dòng đầu phần:           %ld (byte)\n"
+
+#: readelf.c:3034
+#, c-format
+msgid "  Number of section headers:         %ld"
+msgstr "  Số dòng đầu phần:         %ld"
+
+#: readelf.c:3039
+#, c-format
+msgid "  Section header string table index: %ld"
+msgstr "  Chỉ mục bảng chuỗi dòng đầu phần: %ld"
+
+#: readelf.c:3070 readelf.c:3103
+msgid "program headers"
+msgstr "các dòng đầu chương trình"
+
+#: readelf.c:3141 readelf.c:3440 readelf.c:3481 readelf.c:3540 readelf.c:3603
+#: readelf.c:4208 readelf.c:4232 readelf.c:5510 readelf.c:5554 readelf.c:5752
+#: readelf.c:6734 readelf.c:6748 readelf.c:8564 readelf.c:8972 readelf.c:9039
+msgid "Out of memory\n"
+msgstr "Hết bộ nhớ\n"
+
+#: readelf.c:3168
+#, c-format
+msgid ""
+"\n"
+"There are no program headers in this file.\n"
+msgstr ""
+"\n"
+"Không có dòng đầu chương trình nào trong tập tin này.\n"
+
+#: readelf.c:3174
+#, c-format
+msgid ""
+"\n"
+"Elf file type is %s\n"
+msgstr ""
+"\n"
+"Kiểu tập tin Elf là %s\n"
+
+#: readelf.c:3175
+#, c-format
+msgid "Entry point "
+msgstr "Điểm vào "
+
+#: readelf.c:3177
+#, c-format
+msgid ""
+"\n"
+"There are %d program headers, starting at offset "
+msgstr ""
+"\n"
+"Có %d dòng đầu chương trình, bắt đầu tại hiệu số"
+
+#: readelf.c:3189 readelf.c:3191
+#, c-format
+msgid ""
+"\n"
+"Program Headers:\n"
+msgstr ""
+"\n"
+"Dòng đầu chương trình:\n"
+
+#: readelf.c:3195
+#, c-format
+msgid "  Type           Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align\n"
+msgstr "  Kiểu         HIệu   ĐChỉẢo   ĐChỉVật   CỡTập CỡNhớ  Cờ Cạnh lề\n"
+
+#: readelf.c:3198
+#, c-format
+msgid "  Type           Offset   VirtAddr           PhysAddr           FileSiz  MemSiz   Flg Align\n"
+msgstr "  Kiểu         HIệu   Địa Chỉ Ảo   Địa Chỉ Vật lý   CỡTập CỡNhớ  Cờ Cạnh lề\n"
+
+#: readelf.c:3202
+#, c-format
+msgid "  Type           Offset             VirtAddr           PhysAddr\n"
+msgstr "  Kiểu         HIệu         Địa Chỉ Ảo     Địa Chỉ Vật lý\n"
+
+#: readelf.c:3204
+#, c-format
+msgid "                 FileSiz            MemSiz              Flags  Align\n"
+msgstr "                 FileSiz            MemSiz              Flags  Align\n"
+
+#: readelf.c:3297
+msgid "more than one dynamic segment\n"
+msgstr "hơn một phân đoạn động\n"
+
+#: readelf.c:3308
+msgid "no .dynamic section in the dynamic segment"
+msgstr "không có phân đoạn « .dynamic » (động) trong phân đoạn động"
+
+#: readelf.c:3317
+msgid "the .dynamic section is not contained within the dynamic segment"
+msgstr "phần « .dynamic » (động) không có được chứa ở trong phân đoạn động"
+
+#: readelf.c:3319
+msgid "the .dynamic section is not the first section in the dynamic segment."
+msgstr "phần « .dynamic » (động) không phải là phần thứ nhất trong phân đoạn động."
+
+#: readelf.c:3333
+msgid "Unable to find program interpreter name\n"
+msgstr "Không tìm thấy tên bộ giải dịch chương trình\n"
+
+#: readelf.c:3340
+#, c-format
+msgid ""
+"\n"
+"      [Requesting program interpreter: %s]"
+msgstr ""
+"\n"
+"      [Đang yêu cầu bộ giải dịch chương trình: %s]"
+
+#: readelf.c:3352
+#, c-format
+msgid ""
+"\n"
+" Section to Segment mapping:\n"
+msgstr ""
+"\n"
+" Ánh xạ Phần đến Phân đoạn:\n"
+
+#: readelf.c:3353
+#, c-format
+msgid "  Segment Sections...\n"
+msgstr "  Các phần phân đoạn...\n"
+
+#: readelf.c:3402
+msgid "Cannot interpret virtual addresses without program headers.\n"
+msgstr "Không thể giải dịch địa chỉ ảo khi không có dòng đầu chương trình.\n"
+
+#: readelf.c:3418
+#, c-format
+msgid "Virtual address 0x%lx not located in any PT_LOAD segment.\n"
+msgstr "Địa chỉ ảo 0x%lx không được định vị trong phân đoạn kiểu « PT_LOAD » nào.\n"
+
+#: readelf.c:3432 readelf.c:3473
+msgid "section headers"
+msgstr "dòng đầu phần"
+
+#: readelf.c:3517 readelf.c:3580
+msgid "symbols"
+msgstr "ký hiệu"
+
+#: readelf.c:3527 readelf.c:3590
+msgid "symtab shndx"
+msgstr "symtab shndx"
+
+#: readelf.c:3817 readelf.c:4192
+#, c-format
+msgid ""
+"\n"
+"There are no sections in this file.\n"
+msgstr ""
+"\n"
+"Không có phần nào trong tập tin này.\n"
+
+#: readelf.c:3823
+#, c-format
+msgid "There are %d section headers, starting at offset 0x%lx:\n"
+msgstr "Có %d dòng đầu phần, bắt đầu tại hiệu số 0x%lx:\n"
+
+#: readelf.c:3842 readelf.c:4309 readelf.c:4544 readelf.c:4852 readelf.c:5267
+#: readelf.c:6906
+msgid "string table"
+msgstr "bảng chuỗi"
+
+#: readelf.c:3881
+#, c-format
+msgid "Section %d has invalid sh_entsize %lx (expected %lx)\n"
+msgstr "Phần %d có kích cỡ sh_entsize không hợp lệ %lx (ngờ %lx)\n"
+
+#: readelf.c:3901
+msgid "File contains multiple dynamic symbol tables\n"
+msgstr "Tập tin chứa nhiều bảng ký hiệu động\n"
+
+# Type: text
+# Description
+#: readelf.c:3914
+msgid "File contains multiple dynamic string tables\n"
+msgstr "Tập tin chứa nhiều bảng chuỗi động\n"
+
+#: readelf.c:3919
+msgid "dynamic strings"
+msgstr "chuỗi động"
+
+#: readelf.c:3926
+msgid "File contains multiple symtab shndx tables\n"
+msgstr "Tập tin chứa nhiều bảng symtab shndx\n"
+
+#: readelf.c:3973
+#, c-format
+msgid ""
+"\n"
+"Section Headers:\n"
+msgstr ""
+"\n"
+"Dòng đầu phần:\n"
+
+#: readelf.c:3975
+#, c-format
+msgid ""
+"\n"
+"Section Header:\n"
+msgstr ""
+"\n"
+"Dòng đầu phần:\n"
+
+#: readelf.c:3981 readelf.c:3992 readelf.c:4003
+#, c-format
+msgid "  [Nr] Name\n"
+msgstr "  [Nr] Tên\n"
+
+#: readelf.c:3982
+#, c-format
+msgid "       Type            Addr     Off    Size   ES   Lk Inf Al\n"
+msgstr "       Kiểu            ĐChỉ     Hiệu    Cỡ   ES   Lk Tin Cl\n"
+
+#: readelf.c:3986
+#, c-format
+msgid "  [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al\n"
+msgstr "  [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al\n"
+
+#: readelf.c:3993
+#, c-format
+msgid "       Type            Address          Off    Size   ES   Lk Inf Al\n"
+msgstr "       Kiểu            Địa chỉ          Hiệu    Cỡ   ES   Lk Tin Cl\n"
+
+#: readelf.c:3997
+#, c-format
+msgid "  [Nr] Name              Type            Address          Off    Size   ES Flg Lk Inf Al\n"
+msgstr "  [Nr] Name              Type            Address          Off    Size   ES Flg Lk Inf Al\n"
+
+#: readelf.c:4004
+#, c-format
+msgid "       Type              Address          Offset            Link\n"
+msgstr "       Kiểu              Địa chỉ          Hiệu số            Liên kết\n"
+
+#: readelf.c:4005
+#, c-format
+msgid "       Size              EntSize          Info              Align\n"
+msgstr "       Cỡ              CỡEnt          TTin              Canh lề\n"
+
+#: readelf.c:4009
+#, c-format
+msgid "  [Nr] Name              Type             Address           Offset\n"
+msgstr "  [Nr] Name              Type             Address           Offset\n"
+
+#: readelf.c:4010
+#, c-format
+msgid "       Size              EntSize          Flags  Link  Info  Align\n"
+msgstr "       Size              EntSize          Flags  Link  Info  Align\n"
+
+#: readelf.c:4015
+#, c-format
+msgid "       Flags\n"
+msgstr "       Cờ\n"
+
+#: readelf.c:4150
+#, c-format
+msgid ""
+"Key to Flags:\n"
+"  W (write), A (alloc), X (execute), M (merge), S (strings)\n"
+"  I (info), L (link order), G (group), x (unknown)\n"
+"  O (extra OS processing required) o (OS specific), p (processor specific)\n"
+msgstr ""
+"Cờ ey \tW\tghi\n"
+" \tA\tcấp phát\n"
+"\tX\tthực hiện\n"
+"\tM\ttrộn\n"
+"\tS\tcác chuỗi\n"
+"\tI\tthông tin\n"
+"\tL\tthứ tự liên kết\n"
+"\tG\tnhóm\n"
+"\tO\tcần thiết xử lý hệ điều hành thêm\n"
+"\to \tđặc trưng cho hệ điều hành\n"
+"\ts\tđặc trưng cho bộ xử lý\n"
+
+#: readelf.c:4168
+#, c-format
+msgid "[<unknown>: 0x%x]"
+msgstr "[<không rõ>: 0x%x]"
+
+#: readelf.c:4199
+msgid "Section headers are not available!\n"
+msgstr "Dòng đầu phần không sẵn sàng.\n"
+
+#: readelf.c:4223
+#, c-format
+msgid ""
+"\n"
+"There are no section groups in this file.\n"
+msgstr ""
+"\n"
+"Không có nhóm phần nào trong tập tin này.\n"
+
+#: readelf.c:4259
+#, c-format
+msgid "Bad sh_link in group section `%s'\n"
+msgstr "Có liên kết « sh_link » sai trong phần nhóm « %s »\n"
+
+#: readelf.c:4278
+#, c-format
+msgid "Bad sh_info in group section `%s'\n"
+msgstr "Có thông tin « sh_info » sai trong phần nhóm « %s »\n"
+
+#: readelf.c:4317 readelf.c:7243
+msgid "section data"
+msgstr "dữ liệu phần"
+
+#: readelf.c:4329
+#, c-format
+msgid "   [Index]    Name\n"
+msgstr "   [Chỉ mục]    Tên\n"
+
+#: readelf.c:4343
+#, c-format
+msgid "section [%5u] in group section [%5u] > maximum section [%5u]\n"
+msgstr "phần [%5u] trong phần nhóm [%5u]>phần tối đa [%5u]\n"
+
+#: readelf.c:4349
+#, c-format
+msgid "invalid section [%5u] in group section [%5u]\n"
+msgstr "phần không hợp lệ [%5u] trong phần nhóm [%5u]\n"
+
+#: readelf.c:4359
+#, c-format
+msgid "section [%5u] in group section [%5u] already in group section [%5u]\n"
+msgstr "phần [%5u] trong phần nhóm [%5u] đã có trong phần nhóm [%5u]\n"
+
+#: readelf.c:4372
+#, c-format
+msgid "section 0 in group section [%5u]\n"
+msgstr "phần 0 trong phần nhóm [%5u]\n"
+
+#: readelf.c:4468
+#, c-format
+msgid ""
+"\n"
+"'%s' relocation section at offset 0x%lx contains %ld bytes:\n"
+msgstr ""
+"\n"
+"phần định vị lại « %s » tại hiệu số 0x%lx chứa %ld byte:\n"
+
+#: readelf.c:4480
+#, c-format
+msgid ""
+"\n"
+"There are no dynamic relocations in this file.\n"
+msgstr ""
+"\n"
+"Không có việc định vị lại động nào trong tập tin này.\n"
+
+#: readelf.c:4504
+#, c-format
+msgid ""
+"\n"
+"Relocation section "
+msgstr ""
+"\n"
+"Phần định vị lại"
+
+#: readelf.c:4509 readelf.c:4928 readelf.c:4942 readelf.c:5282
+#, c-format
+msgid "'%s'"
+msgstr "« %s »"
+
+#: readelf.c:4511 readelf.c:4944 readelf.c:5284
+#, c-format
+msgid " at offset 0x%lx contains %lu entries:\n"
+msgstr " tại hiệu số 0x%lx chứa %lu mục nhập:\n"
+
+#: readelf.c:4563
+#, c-format
+msgid ""
+"\n"
+"There are no relocations in this file.\n"
+msgstr ""
+"\n"
+"Không có việc định vị lại nào trong tập tin này.\n"
+
+#: readelf.c:4742 readelf.c:5124
+msgid "unwind table"
+msgstr "tri ra bảng"
+
+#: readelf.c:4801 readelf.c:5214
+#, c-format
+msgid "Skipping unexpected relocation type %s\n"
+msgstr "Đang nhảy kiểu định vị lại bất ngờ %s\n"
+
+#: readelf.c:4860 readelf.c:5275 readelf.c:5326
+#, c-format
+msgid ""
+"\n"
+"There are no unwind sections in this file.\n"
+msgstr ""
+"\n"
+"Không có phần tri ra nào trong tập tin này.\n"
+
+#: readelf.c:4923
+#, c-format
+msgid ""
+"\n"
+"Could not find unwind info section for "
+msgstr ""
+"\n"
+"Không thể tìm thấy phần thông tin tri ra cho "
+
+#: readelf.c:4935
+msgid "unwind info"
+msgstr "thông tin tri ra"
+
+#: readelf.c:4937 readelf.c:5281
+#, c-format
+msgid ""
+"\n"
+"Unwind section "
+msgstr ""
+"\n"
+"Phần tri ra "
+
+#: readelf.c:5491 readelf.c:5535
+msgid "dynamic section"
+msgstr "phần động"
+
+#: readelf.c:5612
+#, c-format
+msgid ""
+"\n"
+"There is no dynamic section in this file.\n"
+msgstr ""
+"\n"
+"Không có phần động nào trong tập tin này.\n"
+
+#: readelf.c:5650
+msgid "Unable to seek to end of file!"
+msgstr "• Không thể tìm tới kết thúc tập tin. •"
+
+#: readelf.c:5663
+msgid "Unable to determine the number of symbols to load\n"
+msgstr "Không thể quyết định số ký hiệu cần tải\n"
+
+#: readelf.c:5698
+msgid "Unable to seek to end of file\n"
+msgstr "Không thể tìm tới kết thúc tập tin\n"
+
+#: readelf.c:5705
+msgid "Unable to determine the length of the dynamic string table\n"
+msgstr "Không thể quyết định độ dài của bảng chuỗi động\n"
+
+#: readelf.c:5710
+msgid "dynamic string table"
+msgstr "bảng chuỗi động"
+
+#: readelf.c:5745
+msgid "symbol information"
+msgstr "thông tin ký hiệu"
+
+#: readelf.c:5770
+#, c-format
+msgid ""
+"\n"
+"Dynamic section at offset 0x%lx contains %u entries:\n"
+msgstr ""
+"\n"
+"Phần động tại hiệu số 0x%lx chứa %u mục nhập:\n"
+
+#: readelf.c:5773
+#, c-format
+msgid "  Tag        Type                         Name/Value\n"
+msgstr "  Thẻ        Kiểu                     Tên/Giá trị\n"
+
+#: readelf.c:5809
+#, c-format
+msgid "Auxiliary library"
+msgstr "Thư viên phụ"
+
+#: readelf.c:5813
+#, c-format
+msgid "Filter library"
+msgstr "Thư viên lọc"
+
+#: readelf.c:5817
+#, c-format
+msgid "Configuration file"
+msgstr "Tập tin cấu hình"
+
+#: readelf.c:5821
+#, c-format
+msgid "Dependency audit library"
+msgstr "Thư viên kiểm tra cách phụ thuộc"
+
+#: readelf.c:5825
+#, c-format
+msgid "Audit library"
+msgstr "Thư viên kiểm tra"
+
+#: readelf.c:5843 readelf.c:5871 readelf.c:5899
+#, c-format
+msgid "Flags:"
+msgstr "Cờ :"
+
+#: readelf.c:5846 readelf.c:5874 readelf.c:5901
+#, c-format
+msgid " None\n"
+msgstr " Không có\n"
+
+#: readelf.c:6022
+#, c-format
+msgid "Shared library: [%s]"
+msgstr "Thư viện dùng chung: [%s]"
+
+#: readelf.c:6025
+#, c-format
+msgid " program interpreter"
+msgstr " bộ giải dịch chương trình"
+
+#: readelf.c:6029
+#, c-format
+msgid "Library soname: [%s]"
+msgstr "soname (tên so) thư viên: [%s]"
+
+#: readelf.c:6033
+#, c-format
+msgid "Library rpath: [%s]"
+msgstr "rpath (đường dẫn r) thư viên: [%s]"
+
+#: readelf.c:6037
+#, c-format
+msgid "Library runpath: [%s]"
+msgstr "runpath (đường dẫn chạy) thư viên: [%s]"
+
+#: readelf.c:6100
+#, c-format
+msgid "Not needed object: [%s]\n"
+msgstr "Đối tượng không cần thiết: [%s]\n"
+
+#: readelf.c:6214
+#, c-format
+msgid ""
+"\n"
+"Version definition section '%s' contains %ld entries:\n"
+msgstr ""
+"\n"
+"Phần định nghĩa phiên bản « %s » chứa %ld mục nhập:\n"
+
+#: readelf.c:6217
+#, c-format
+msgid "  Addr: 0x"
+msgstr "  ĐChỉ: 0x"
+
+#: readelf.c:6219 readelf.c:6426
+#, c-format
+msgid "  Offset: %#08lx  Link: %lx (%s)\n"
+msgstr "  HIệu: %#08lx  LKết: %lx (%s)\n"
+
+#: readelf.c:6228
+msgid "version definition section"
+msgstr "phần định nghĩa phiên bản"
+
+#: readelf.c:6254
+#, c-format
+msgid "  %#06x: Rev: %d  Flags: %s"
+msgstr "  %#06x: Bản: %d  Cờ: %s"
+
+#: readelf.c:6257
+#, c-format
+msgid "  Index: %d  Cnt: %d  "
+msgstr "  Chỉ mục: %d  Đếm: %d  "
+
+#: readelf.c:6268
+#, c-format
+msgid "Name: %s\n"
+msgstr "Tên: %s\n"
+
+#: readelf.c:6270
+#, c-format
+msgid "Name index: %ld\n"
+msgstr "Chỉ mục tên: %ld\n"
+
+#: readelf.c:6285
+#, c-format
+msgid "  %#06x: Parent %d: %s\n"
+msgstr "  %#06x: Mẹ %d: %s\n"
+
+#: readelf.c:6288
+#, c-format
+msgid "  %#06x: Parent %d, name index: %ld\n"
+msgstr "  %#06x: Mẹ %d, chỉ mục tên: %ld\n"
+
+#: readelf.c:6307
+#, c-format
+msgid ""
+"\n"
+"Version needs section '%s' contains %ld entries:\n"
+msgstr ""
+"\n"
+"Phần cần thiết phiên bản « %s » chứa %ld mục nhập:\n"
+
+#: readelf.c:6310
+#, c-format
+msgid " Addr: 0x"
+msgstr " ĐChỉ: 0x"
+
+#: readelf.c:6312
+#, c-format
+msgid "  Offset: %#08lx  Link to section: %ld (%s)\n"
+msgstr "  HIệu: %#08lx  Liên kết đến phần: %ld (%s)\n"
+
+#: readelf.c:6321
+msgid "version need section"
+msgstr "phần cần phiên bản"
+
+#: readelf.c:6343
+#, c-format
+msgid "  %#06x: Version: %d"
+msgstr "  %#06x: PhBản: %d"
+
+#: readelf.c:6346
+#, c-format
+msgid "  File: %s"
+msgstr "  Tập tin: %s"
+
+#: readelf.c:6348
+#, c-format
+msgid "  File: %lx"
+msgstr "  Tập tin: %lx"
+
+#: readelf.c:6350
+#, c-format
+msgid "  Cnt: %d\n"
+msgstr "  Đếm: %d\n"
+
+#: readelf.c:6368
+#, c-format
+msgid "  %#06x:   Name: %s"
+msgstr "  %#06x:   Tên: %s"
+
+#: readelf.c:6371
+#, c-format
+msgid "  %#06x:   Name index: %lx"
+msgstr "  %#06x:   Chỉ mục tên: %lx"
+
+#: readelf.c:6374
+#, c-format
+msgid "  Flags: %s  Version: %d\n"
+msgstr "  Cờ: %s  Phiên bản: %d\n"
+
+#: readelf.c:6417
+msgid "version string table"
+msgstr "bảng chuỗi phiên bản"
+
+#: readelf.c:6421
+#, c-format
+msgid ""
+"\n"
+"Version symbols section '%s' contains %d entries:\n"
+msgstr ""
+"\n"
+"Phần ký hiệu phiên bản « %s » chứa %d mục nhập:\n"
+
+#: readelf.c:6424
+#, c-format
+msgid " Addr: "
+msgstr " ĐChỉ: "
+
+#: readelf.c:6434
+msgid "version symbol data"
+msgstr "dữ liệu ký hiệu phiên bản"
+
+#: readelf.c:6461
+msgid "   0 (*local*)    "
+msgstr "   0 (*local*)    "
+
+#: readelf.c:6465
+msgid "   1 (*global*)   "
+msgstr "   1 (*toàn cụcglobal*)   "
+
+#: readelf.c:6503 readelf.c:6969
+msgid "version need"
+msgstr "phiên bản cần"
+
+#: readelf.c:6513
+msgid "version need aux (2)"
+msgstr "phiên bản cần phụ (2)"
+
+#: readelf.c:6555 readelf.c:7034
+msgid "version def"
+msgstr "phbản đ.nghĩa"
+
+#: readelf.c:6575 readelf.c:7049
+msgid "version def aux"
+msgstr "phbản đ.nghĩa phụ"
+
+#: readelf.c:6606
+#, c-format
+msgid ""
+"\n"
+"No version information found in this file.\n"
+msgstr ""
+"\n"
+"Không tìm thấy thông tin phiên bản trong tập tin này.\n"
+
+#: readelf.c:6740
+msgid "Unable to read in dynamic data\n"
+msgstr "Không thể đọc vào dữ liệu động\n"
+
+#: readelf.c:6793
+msgid "Unable to seek to start of dynamic information"
+msgstr "Không thể tìm tới đầu thông tin động"
+
+#: readelf.c:6799
+msgid "Failed to read in number of buckets\n"
+msgstr "Việc đọc vào số xô bị lỗi\n"
+
+#: readelf.c:6805
+msgid "Failed to read in number of chains\n"
+msgstr "Việc đọc vào số dây bị lỗi\n"
+
+#: readelf.c:6825
+#, c-format
+msgid ""
+"\n"
+"Symbol table for image:\n"
+msgstr ""
+"\n"
+"Bảng ký hiệu cho ảnh:\n"
+
+#: readelf.c:6827
+#, c-format
+msgid "  Num Buc:    Value  Size   Type   Bind Vis      Ndx Name\n"
+msgstr "  Số xô :    Giá trị  Cỡ   Kiểu   Trộn Hiện      Ndx Tên\n"
+
+#: readelf.c:6829
+#, c-format
+msgid "  Num Buc:    Value          Size   Type   Bind Vis      Ndx Name\n"
+msgstr "  Số xô :    Giá trị         Cỡ   Kiểu   Trộn Hiện     Ndx Tên\n"
+
+#: readelf.c:6882
+#, c-format
+msgid ""
+"\n"
+"Symbol table '%s' contains %lu entries:\n"
+msgstr ""
+"\n"
+"Bảng ký hiệu « %s » chứa %lu mục nhập:\n"
+
+#: readelf.c:6886
+#, c-format
+msgid "   Num:    Value  Size Type    Bind   Vis      Ndx Name\n"
+msgstr "   Số :    Giá trị  Cỡ Kiểu    Trộn   Hiện    Ndx Tên\n"
+
+#: readelf.c:6888
+#, c-format
+msgid "   Num:    Value          Size Type    Bind   Vis      Ndx Name\n"
+msgstr "   Số :    Giá trị        Cỡ Kiểu    Trộn   Hiện    Ndx Tên\n"
+
+#: readelf.c:6939
+msgid "version data"
+msgstr "dữ liệu phiên bản"
+
+#: readelf.c:6982
+msgid "version need aux (3)"
+msgstr "phiên bản cần phụ (3)"
+
+#: readelf.c:7009
+msgid "bad dynamic symbol"
+msgstr "ký hiệu động sai"
+
+#: readelf.c:7073
+#, c-format
+msgid ""
+"\n"
+"Dynamic symbol information is not available for displaying symbols.\n"
+msgstr ""
+"\n"
+"Không có thông tin ký hiệu động để hiển thị ký hiệu.\n"
+
+#: readelf.c:7085
+#, c-format
+msgid ""
+"\n"
+"Histogram for bucket list length (total of %lu buckets):\n"
+msgstr ""
+"\n"
+"Biểu đồ tần xuất cho độ dài danh sách xô (tổng số %lu xô):\n"
+
+#: readelf.c:7087
+#, c-format
+msgid " Length  Number     %% of total  Coverage\n"
+msgstr " Dài       Số           %% tổng phạm vị\n"
+
+#: readelf.c:7092 readelf.c:7108 readelf.c:8031 readelf.c:8223
+msgid "Out of memory"
+msgstr "Hết bộ nhớ"
+
+#: readelf.c:7157
+#, c-format
+msgid ""
+"\n"
+"Dynamic info segment at offset 0x%lx contains %d entries:\n"
+msgstr ""
+"\n"
+"Phân đoạn thông tin động tại hiệu số 0x%lx chứa %d mục nhập:\n"
+
+#: readelf.c:7160
+#, c-format
+msgid " Num: Name                           BoundTo     Flags\n"
+msgstr " Số : Tên                           ĐóngVới     Cờ\n"
+
+#: readelf.c:7212
+#, c-format
+msgid ""
+"\n"
+"Assembly dump of section %s\n"
+msgstr ""
+"\n"
+"Việc đổ thanh ghi của phần %s\n"
+
+#: readelf.c:7233
+#, c-format
+msgid ""
+"\n"
+"Section '%s' has no data to dump.\n"
+msgstr ""
+"\n"
+"Phần « %s » không có dữ liệu cần đổ.\n"
+
+#: readelf.c:7238
+#, c-format
+msgid ""
+"\n"
+"Hex dump of section '%s':\n"
+msgstr ""
+"\n"
+"Việc đổ thập lục của phần « %s »:\n"
+
+#: readelf.c:7359
+#, c-format
+msgid "skipping invalid relocation offset 0x%lx in section %s\n"
+msgstr "đang bỏ qua hiệu số định vị lại không hợp lệ 0x%lx trong phần %s\n"
+
+#: readelf.c:7376
+#, c-format
+msgid "skipping unexpected symbol type %s in relocation in section .rela%s\n"
+msgstr "đang bỏ qua kiểu ký hiệu bất ngờ %s trong việc định vị lại trong phần .rela%s\n"
+
+#: readelf.c:7402
+#, c-format
+msgid "skipping unexpected symbol type %s in relocation in section .rela.%s\n"
+msgstr "đang nhảy qua kiểu ký hiệu bất ngờ %s trong việc định vị lại trong phần .rela%s\n"
+
+#: readelf.c:7435
+#, c-format
+msgid "%s section data"
+msgstr "dữ liệu phần %s"
+
+#: readelf.c:7472
+#, c-format
+msgid ""
+"\n"
+"Section '%s' has no debugging data.\n"
+msgstr ""
+"\n"
+"Phần « %s » không có dữ liệu gỡ lỗi nào.\n"
+
+#: readelf.c:7498
+#, c-format
+msgid "Unrecognized debug section: %s\n"
+msgstr "Không nhận diện phần gỡ lỗi: %s\n"
+
+#: readelf.c:7533
+#, c-format
+msgid "Section %d was not dumped because it does not exist!\n"
+msgstr "• Phần %d không được đổ vì nó không tồn tại. •\n"
+
+#: readelf.c:7791
+msgid "attributes"
+msgstr "thuộc tính"
+
+#: readelf.c:7809
+#, c-format
+msgid "ERROR: Bad section length (%d > %d)\n"
+msgstr "LỖI : độ dài phần sai (%d > %d)\n"
+
+#: readelf.c:7830
+#, c-format
+msgid "ERROR: Bad subsection length (%d > %d)\n"
+msgstr "LỖI : độ dài phần phụ sai (%d > %d)\n"
+
+#: readelf.c:7880
+#, c-format
+msgid "Unknown format '%c'\n"
+msgstr "Không biết dạng thức %c\n"
+
+#: readelf.c:7936 readelf.c:8304
+msgid "liblist"
+msgstr "danh sách thư viên"
+
+#: readelf.c:8025
+msgid "options"
+msgstr "tùy chọn"
+
+#: readelf.c:8055
+#, c-format
+msgid ""
+"\n"
+"Section '%s' contains %d entries:\n"
+msgstr ""
+"\n"
+"Phần « %s » chứa %d mục nhập:\n"
+
+#: readelf.c:8216
+msgid "conflict list found without a dynamic symbol table"
+msgstr "tìm danh sách xung đột không có bảng ký hiệu động"
+
+#: readelf.c:8232 readelf.c:8246
+msgid "conflict"
+msgstr "xung đột"
+
+#: readelf.c:8256
+#, c-format
+msgid ""
+"\n"
+"Section '.conflict' contains %lu entries:\n"
+msgstr ""
+"\n"
+"Phần « .conflict » (xung đột) chứa %lu mục nhập:\n"
+
+#: readelf.c:8258
+msgid "  Num:    Index       Value  Name"
+msgstr "  Số :    CMục     Giá trị    Tên"
+
+#: readelf.c:8311
+msgid "liblist string table"
+msgstr "bảng chuỗi danh sách thư viên"
+
+#: readelf.c:8321
+#, c-format
+msgid ""
+"\n"
+"Library list section '%s' contains %lu entries:\n"
+msgstr ""
+"\n"
+"Phần danh sách thư viên « %s » chứa %lu mục nhập:\n"
+
+#: readelf.c:8374
+msgid "NT_AUXV (auxiliary vector)"
+msgstr "NT_AUXV (véc-tơ phụ)"
+
+#: readelf.c:8376
+msgid "NT_PRSTATUS (prstatus structure)"
+msgstr "NT_PRSTATUS (cấu trúc trạng thái prstatus)"
+
+#: readelf.c:8378
+msgid "NT_FPREGSET (floating point registers)"
+msgstr "NT_FPREGSET (thanh ghi điểm phù động)"
+
+#: readelf.c:8380
+msgid "NT_PRPSINFO (prpsinfo structure)"
+msgstr "NT_PRPSINFO (cấu trúc thông tin prpsinfo)"
+
+#: readelf.c:8382
+msgid "NT_TASKSTRUCT (task structure)"
+msgstr "NT_TASKSTRUCT (cấu trúc tác vụ)"
+
+#: readelf.c:8384
+msgid "NT_PRXFPREG (user_xfpregs structure)"
+msgstr "NT_PRXFPREG (cấu trúc « user_xfpregs »)"
+
+#: readelf.c:8386
+msgid "NT_PSTATUS (pstatus structure)"
+msgstr "NT_PSTATUS (cấu trúc trạng thái pstatus)"
+
+#: readelf.c:8388
+msgid "NT_FPREGS (floating point registers)"
+msgstr "NT_FPREGS (thanh ghi điểm phù động)"
+
+#: readelf.c:8390
+msgid "NT_PSINFO (psinfo structure)"
+msgstr "NT_PSINFO (cấu trúc thông tin psinfo)"
+
+#: readelf.c:8392
+msgid "NT_LWPSTATUS (lwpstatus_t structure)"
+msgstr "NT_LWPSTATUS (cấu trúc trạng thái « lwpstatus_t »)"
+
+#: readelf.c:8394
+msgid "NT_LWPSINFO (lwpsinfo_t structure)"
+msgstr "NT_LWPSINFO (cấu trúc thông tin « lwpsinfo_t »)"
+
+#: readelf.c:8396
+msgid "NT_WIN32PSTATUS (win32_pstatus structure)"
+msgstr "NT_WIN32PSTATUS (cấu trúc trạng thái « win32_pstatus »)"
+
+#: readelf.c:8404
+msgid "NT_VERSION (version)"
+msgstr "NT_VERSION (phiên bản)"
+
+#: readelf.c:8406
+msgid "NT_ARCH (architecture)"
+msgstr "NT_ARCH (architecture)"
+
+#: readelf.c:8411 readelf.c:8433
+#, c-format
+msgid "Unknown note type: (0x%08x)"
+msgstr "Không biết kiểu ghi chú : (0x%08x)"
+
+#. NetBSD core "procinfo" structure.
+#: readelf.c:8423
+msgid "NetBSD procinfo structure"
+msgstr "Cấu trúc thông tin tiến trình procinfo NetBSD"
+
+#: readelf.c:8450 readelf.c:8464
+msgid "PT_GETREGS (reg structure)"
+msgstr "PT_GETREGS (cấu trúc thanh ghi)"
+
+#: readelf.c:8452 readelf.c:8466
+msgid "PT_GETFPREGS (fpreg structure)"
+msgstr "PT_GETFPREGS (cấu trúc thanh ghi « fpreg »)"
+
+# Name: don't translate / Tên: đừng dịch
+#: readelf.c:8472
+#, c-format
+msgid "PT_FIRSTMACH+%d"
+msgstr "PT_FIRSTMACH+%d"
+
+#: readelf.c:8518
+msgid "notes"
+msgstr "ghi chú"
+
+#: readelf.c:8524
+#, c-format
+msgid ""
+"\n"
+"Notes at offset 0x%08lx with length 0x%08lx:\n"
+msgstr ""
+"\n"
+"Gặp ghi chú tại hiệu số 0x%08lx có độ dài 0x%08lx:\n"
+
+#: readelf.c:8526
+#, c-format
+msgid "  Owner\t\tData size\tDescription\n"
+msgstr "  Chủ\t\tCỡ dữ liệu\tMô tả\n"
+
+#: readelf.c:8545
+#, c-format
+msgid "corrupt note found at offset %lx into core notes\n"
+msgstr "tìm ghi chú bị hỏng tại hiệu số %lx vào ghi chú lõi\n"
+
+#: readelf.c:8547
+#, c-format
+msgid " type: %lx, namesize: %08lx, descsize: %08lx\n"
+msgstr " kiểu: %lx, cỡ_tên: %08lx, cỡ_mô_tả: %08lx\n"
+
+#: readelf.c:8645
+#, c-format
+msgid "No note segments present in the core file.\n"
+msgstr "Không có phân đoạn ghi chú trong tập tin lõi.\n"
+
+#: readelf.c:8726
+msgid ""
+"This instance of readelf has been built without support for a\n"
+"64 bit data type and so it cannot read 64 bit ELF files.\n"
+msgstr ""
+"Tức thời readelf này đã được xây dụng\n"
+"không có hỗ trợ kiểu dữ liệu 64-bit\n"
+"nên không thể đọc tập tin ELF kiểu 64-bit.\n"
+
+#: readelf.c:8775 readelf.c:9119
+#, c-format
+msgid "%s: Failed to read file header\n"
+msgstr "%s: việc đọc dòng đầu tập tin bị lỗi\n"
+
+#: readelf.c:8788
+#, c-format
+msgid ""
+"\n"
+"File: %s\n"
+msgstr ""
+"\n"
+"Tập tin: %s\n"
+
+#: readelf.c:8936 readelf.c:8957 readelf.c:8994 readelf.c:9074
+#, c-format
+msgid "%s: failed to read archive header\n"
+msgstr "%s: việc đọc dòng đầu kho bị lỗi\n"
+
+# Type: error
+# Description
+#: readelf.c:8947
+#, c-format
+msgid "%s: failed to skip archive symbol table\n"
+msgstr "%s: việc nhảy qua bảng ký hiệu kho bị lỗi\n"
+
+# Type: error
+# Description
+#: readelf.c:8979
+#, c-format
+msgid "%s: failed to read string table\n"
+msgstr "%s: việc đọc bảng chuỗi bị lỗi\n"
+
+#: readelf.c:9015
+#, c-format
+msgid "%s: invalid archive string table offset %lu\n"
+msgstr "%s: hiệu số bảng chuỗi kho không hợp lệ %lu\n"
+
+#: readelf.c:9031
+#, c-format
+msgid "%s: bad archive file name\n"
+msgstr "%s: tên tập tin kho sai\n"
+
+#: readelf.c:9063
+#, c-format
+msgid "%s: failed to seek to next archive header\n"
+msgstr "%s: việc tìm tới dòng đầu kho kế tiếp bị lỗi\n"
+
+#: readelf.c:9097
+#, c-format
+msgid "'%s': No such file\n"
+msgstr "« %s »: không có tập tin như vậy\n"
+
+#: readelf.c:9099
+#, c-format
+msgid "Could not locate '%s'.  System error message: %s\n"
+msgstr "Không thể định vị « %s ». Thông điệp lỗi hệ thống: %s\n"
+
+#: readelf.c:9106
+#, c-format
+msgid "'%s' is not an ordinary file\n"
+msgstr "« %s » không phải là tập tin chuẩn\n"
+
+#: readelf.c:9113
+#, c-format
+msgid "Input file '%s' is not readable.\n"
+msgstr "Tập tin nhập « %s » không có khả năng đọc.\n"
+
+#: rename.c:129
+#, c-format
+msgid "%s: cannot set time: %s"
+msgstr "%s: không thể lập thời gian: %s"
+
+#. We have to clean up here.
+#: rename.c:164 rename.c:202
+#, c-format
+msgid "unable to rename '%s' reason: %s"
+msgstr "không thể đổi tên %s vì lý do : %s"
+
+#: rename.c:210
+#, c-format
+msgid "unable to copy file '%s' reason: %s"
+msgstr "không thể sao chép tập tin « %s » vì lý do : %s"
+
+#: resbin.c:132
+#, c-format
+msgid "%s: not enough binary data"
+msgstr "%s: không đủ dữ liệu nhị phân"
+
+#: resbin.c:148
+msgid "null terminated unicode string"
+msgstr "chuỗi Unicode không được chấm dứt rỗng"
+
+#: resbin.c:175 resbin.c:181
+msgid "resource ID"
+msgstr "ID tài nguyên"
+
+#: resbin.c:221
+msgid "cursor"
+msgstr "con chạy"
+
+#: resbin.c:253 resbin.c:260
+msgid "menu header"
+msgstr "dòng đầu trình đơn"
+
+#: resbin.c:270
+msgid "menuex header"
+msgstr "dòng đầu trình đơn menuex"
+
+#: resbin.c:274
+msgid "menuex offset"
+msgstr "hiệu số trình đơn menuex"
+
+#: resbin.c:281
+#, c-format
+msgid "unsupported menu version %d"
+msgstr "phiên bản trình đơn không được hỗ trợ %d"
+
+#: resbin.c:306 resbin.c:321 resbin.c:384
+msgid "menuitem header"
+msgstr "dòng đầu mục trình đơn"
+
+#: resbin.c:414
+msgid "menuitem"
+msgstr "mục trình đơn"
+
+#: resbin.c:453 resbin.c:481
+msgid "dialog header"
+msgstr "dòng đầu đối thoại"
+
+#: resbin.c:471
+#, c-format
+msgid "unexpected DIALOGEX version %d"
+msgstr "ngờ đối thoại DIALOGEX phiên bản %d"
+
+#: resbin.c:516
+msgid "dialog font point size"
+msgstr "kích cỡ điểm phông chữ đối thoại"
+
+#: resbin.c:524
+msgid "dialogex font information"
+msgstr "thông tin phông chữ đối thoại dialogex"
+
+#: resbin.c:550 resbin.c:568
+msgid "dialog control"
+msgstr "điều kiện đối thoại"
+
+#: resbin.c:560
+msgid "dialogex control"
+msgstr "điều kiện đối thoại dialogex"
+
+#: resbin.c:589
+msgid "dialog control end"
+msgstr "kết thúc điều khiển đối thoại"
+
+#: resbin.c:601
+msgid "dialog control data"
+msgstr "dữ liệu điều khiển đối thoại"
+
+#: resbin.c:642
+msgid "stringtable string length"
+msgstr "độ dài bảng chuỗi"
+
+#: resbin.c:652
+msgid "stringtable string"
+msgstr "chuỗi bảng chuỗi"
+
+#: resbin.c:683
+msgid "fontdir header"
+msgstr "dòng đầu thư mục phông chữ"
+
+#: resbin.c:696
+msgid "fontdir"
+msgstr "thư mục phông chữ"
+
+#: resbin.c:712
+msgid "fontdir device name"
+msgstr "tên thiết bị thư mục phông chữ"
+
+#: resbin.c:718
+msgid "fontdir face name"
+msgstr "tên mặt thư mục phông chữ"
+
+#: resbin.c:759
+msgid "accelerator"
+msgstr "phím tắt"
+
+#: resbin.c:819
+msgid "group cursor header"
+msgstr "dòng đầu con chạy nhóm"
+
+#: resbin.c:823
+#, c-format
+msgid "unexpected group cursor type %d"
+msgstr "kiểu con chạy nhóm bất ngờ %d"
+
+#: resbin.c:838
+msgid "group cursor"
+msgstr "con chạy nhóm"
+
+#: resbin.c:875
+msgid "group icon header"
+msgstr "dòng đầu biểu tượng nhóm"
+
+#: resbin.c:879
+#, c-format
+msgid "unexpected group icon type %d"
+msgstr "kiểu biểu tượng nhóm bất ngờ %d"
+
+#: resbin.c:894
+msgid "group icon"
+msgstr "biểu tượng nhóm"
+
+#: resbin.c:957 resbin.c:1174
+msgid "unexpected version string"
+msgstr "chuỗi phiên bản bất ngờ"
+
+#: resbin.c:989
+#, c-format
+msgid "version length %d does not match resource length %lu"
+msgstr "độ dài phiên bản %d không khớp độ dài tài nguyên %lu."
+
+#: resbin.c:993
+#, c-format
+msgid "unexpected version type %d"
+msgstr "kiểu phiên bản bất ngờ %d"
+
+#: resbin.c:1005
+#, c-format
+msgid "unexpected fixed version information length %d"
+msgstr "độ dài thông tin phiên bản cố định bất ngờ %d"
+
+#: resbin.c:1008
+msgid "fixed version info"
+msgstr "thông tin phiên bản cố định"
+
+#: resbin.c:1012
+#, c-format
+msgid "unexpected fixed version signature %lu"
+msgstr "chữ ký phiên bản cố định bất ngờ %lu"
+
+#: resbin.c:1016
+#, c-format
+msgid "unexpected fixed version info version %lu"
+msgstr "phiên bản thông tin phiên bản cố định %lu"
+
+#: resbin.c:1045
+msgid "version var info"
+msgstr "hông tin tạm phiên bản"
+
+#: resbin.c:1062
+#, c-format
+msgid "unexpected stringfileinfo value length %d"
+msgstr "độ dài giá trị thông tin tập tin chuỗi bất ngờ %d"
+
+#: resbin.c:1072
+#, c-format
+msgid "unexpected version stringtable value length %d"
+msgstr "độ dài giá trị bảng chuỗi phiên bản bất ngờ %d"
+
+#: resbin.c:1106
+#, c-format
+msgid "unexpected version string length %d != %d + %d"
+msgstr "độ dài chuỗi phiên bản bất ngờ %d != %d + %d"
+
+#: resbin.c:1117
+#, c-format
+msgid "unexpected version string length %d < %d"
+msgstr "độ dài chuỗi phiên bản bất ngờ %d < %d"
+
+#: resbin.c:1134
+#, c-format
+msgid "unexpected varfileinfo value length %d"
+msgstr "độ dài giá trị thông tin tập tin tạm bất ngờ %d"
+
+#: resbin.c:1153
+msgid "version varfileinfo"
+msgstr "thông tin tập tin tạm phiên bản"
+
+#: resbin.c:1168
+#, c-format
+msgid "unexpected version value length %d"
+msgstr "nđộ dài giá trị phiên bản bất ngờ %d"
+
+#: rescoff.c:126
+msgid "filename required for COFF input"
+msgstr "tên tập tin cần thiết cho dữ liệu nhập COFF"
+
+#: rescoff.c:143
+#, c-format
+msgid "%s: no resource section"
+msgstr "%s: không có phần tài nguyên"
+
+#: rescoff.c:150
+msgid "can't read resource section"
+msgstr "không thể đọc phần tài nguyên"
+
+#: rescoff.c:174
+#, c-format
+msgid "%s: %s: address out of bounds"
+msgstr "%s: %s: địa chỉ ở ngoại phạm vị"
+
+#: rescoff.c:190
+msgid "directory"
+msgstr "thư mục"
+
+#: rescoff.c:218
+msgid "named directory entry"
+msgstr "mục nhập thư mục có tên"
+
+#: rescoff.c:227
+msgid "directory entry name"
+msgstr "tên mục nhập thư mục"
+
+#: rescoff.c:247
+msgid "named subdirectory"
+msgstr "thư mục con có tên"
+
+#: rescoff.c:255
+msgid "named resource"
+msgstr "tài nguyên có tên"
+
+#: rescoff.c:270
+msgid "ID directory entry"
+msgstr "mục nhập thư mục ID"
+
+#: rescoff.c:287
+msgid "ID subdirectory"
+msgstr "thư mục con ID"
+
+#: rescoff.c:295
+msgid "ID resource"
+msgstr "tài nguyên ID"
+
+#: rescoff.c:318
+msgid "resource type unknown"
+msgstr "không biết kiểu tài nguyên"
+
+#: rescoff.c:321
+msgid "data entry"
+msgstr "mục nhập dữ liệu"
+
+#: rescoff.c:329
+msgid "resource data"
+msgstr "dữ liệu tài nguyên"
+
+#: rescoff.c:334
+msgid "resource data size"
+msgstr "kích cỡ dữ liệu tài nguyên"
+
+#: rescoff.c:427
+msgid "filename required for COFF output"
+msgstr "tên tập tin cần thiết cho kết xuất COFF"
+
+#: rescoff.c:719
+msgid "can't get BFD_RELOC_RVA relocation type"
+msgstr "không thể lấy kiểu việc định vị lại « BFD_RELOC_RVA »"
+
+#: resrc.c:238 resrc.c:309
+#, c-format
+msgid "can't open temporary file `%s': %s"
+msgstr "không thể mở tập tin tạm thời « %s »: %s"
+
+#: resrc.c:244
+#, c-format
+msgid "can't redirect stdout: `%s': %s"
+msgstr "không thể chuyển hướng thiết bị xuất chuẩn « %s »: %s"
+
+# Variable: don't translate / Biến: đừng dịch
+#: resrc.c:260
+#, c-format
+msgid "%s %s: %s"
+msgstr "%s %s: %s"
+
+#: resrc.c:305
+#, c-format
+msgid "can't execute `%s': %s"
+msgstr "không thể thực hiện « %s »: %s"
+
+#: resrc.c:314
+#, c-format
+msgid "Using temporary file `%s' to read preprocessor output\n"
+msgstr "Đang dùng tập tin tạm thời « %s » để đọc dữ liệu xuất bộ tiền xử lý\n"
+
+#: resrc.c:321
+#, c-format
+msgid "can't popen `%s': %s"
+msgstr "Không thể popen (mở p) « %s »: %s"
+
+#: resrc.c:323
+#, c-format
+msgid "Using popen to read preprocessor output\n"
+msgstr "Đang dùng popen để đọc dữ liệu xuất bộ tiền xử lý\n"
+
+#: resrc.c:362
+#, c-format
+msgid "Tried `%s'\n"
+msgstr "Đã thử « %s »\n"
+
+#: resrc.c:373
+#, c-format
+msgid "Using `%s'\n"
+msgstr "Đang dùng « %s »\n"
+
+# Variable: don't translate / Biến: đừng dịch
+#: resrc.c:529
+#, c-format
+msgid "%s:%d: %s\n"
+msgstr "%s:%d: %s\n"
+
+#: resrc.c:537
+#, c-format
+msgid "%s: unexpected EOF"
+msgstr "%s: gặp kết thúc tập tin bất ngờ"
+
+#: resrc.c:586
+#, c-format
+msgid "%s: read of %lu returned %lu"
+msgstr "%s: việc đọc %lu đã trả gởi %lu"
+
+#: resrc.c:624 resrc.c:1134
+#, c-format
+msgid "stat failed on bitmap file `%s': %s"
+msgstr "việc lấy các thông tin bị lỗi trên tập tin bitmap « %s »: %s"
+
+#: resrc.c:675
+#, c-format
+msgid "cursor file `%s' does not contain cursor data"
+msgstr "tập tin con chạy « %s » không chứa dữ liệu con chạy"
+
+#: resrc.c:707 resrc.c:1003
+#, c-format
+msgid "%s: fseek to %lu failed: %s"
+msgstr "%s: việc fseek (tìm f) tới %lu bị lỗi: %s"
+
+#: resrc.c:831
+msgid "help ID requires DIALOGEX"
+msgstr "ID trợ giúp cần thiết DIALOGEX (đối thoại)"
+
+#: resrc.c:833
+msgid "control data requires DIALOGEX"
+msgstr "dữ liệu điều khiển cần thiết DIALOGEX (đối thoại)"
+
+#: resrc.c:861
+#, c-format
+msgid "stat failed on font file `%s': %s"
+msgstr "việc lấy các thông tin bị lỗi trên tập tin phông chữ « %s »: %s"
+
+#: resrc.c:972
+#, c-format
+msgid "icon file `%s' does not contain icon data"
+msgstr "tập tin biểu tượng « %s » không chứa dữ liệu biểu tượng"
+
+#: resrc.c:1273 resrc.c:1308
+#, c-format
+msgid "stat failed on file `%s': %s"
+msgstr "việc lấy các thông tin bị lỗi trên tập tin « %s »: %s"
+
+#: resrc.c:1494
+#, c-format
+msgid "can't open `%s' for output: %s"
+msgstr "không thể mở « %s » để xuất: %s"
+
+#: size.c:83
+#, c-format
+msgid " Displays the sizes of sections inside binary files\n"
+msgstr " Hiển thị kích cỡ của các phần ở trong tập tin nhị phân\n"
+
+#: size.c:84
+#, c-format
+msgid " If no input file(s) are specified, a.out is assumed\n"
+msgstr " Nếu chưa ghi rõ tập tin nhập, giả sử <a.out>\n"
+
+#: size.c:85
+#, c-format
+msgid ""
+" The options are:\n"
+"  -A|-B     --format={sysv|berkeley}  Select output style (default is %s)\n"
+"  -o|-d|-x  --radix={8|10|16}         Display numbers in octal, decimal or hex\n"
+"  -t        --totals                  Display the total sizes (Berkeley only)\n"
+"            --target=<bfdname>        Set the binary file format\n"
+"            @<file>                   Read options from <file>\n"
+"  -h        --help                    Display this information\n"
+"  -v        --version                 Display the program's version\n"
+"\n"
+msgstr ""
+" Tùy chọn:\n"
+"  -A|-B     --format={sysv|berkeley}\n"
+"\t\t\tChọn kiểu dáng xuất (mặc định là %s)\n"
+"\t\t\t(dạng thức)\n"
+"  -o|-d|-x  --radix={8|10|16}\n"
+"\t\t\tHiển thị số dạng bát phân, thập phân hay thập lục\n"
+"\t\t\t(cơ sở)\n"
+"  -t        --totals          Hiển thị các kích cỡ _tổng cổng_ (chỉ Berkeley)\n"
+"            --target=<tên_bfd>        \tLập dạng thức tập tin nhị phân\n"
+"\t\t\t(đích)\n"
+"            @<file>                   Đọc các tùy chọn từ tập tin đó\n"
+"  -h        --help                Hiển thị _trợ giúp_ này\n"
+"  -v        --version            Hiển thị _phiên bản_ của chương trình này\n"
+"\n"
+
+#: size.c:158
+#, c-format
+msgid "invalid argument to --format: %s"
+msgstr "đối sô không hợp lệ tới « --format » (dạng thức): %s"
+
+#: size.c:185
+#, c-format
+msgid "Invalid radix: %s\n"
+msgstr "Cơ sở không hợp lệ: %s\n"
+
+#: srconv.c:1722
+#, c-format
+msgid "Convert a COFF object file into a SYSROFF object file\n"
+msgstr "Chuyển đổi một tập tin đối tượng COFF thành một tập tin đối tượng SYSROFF\n"
+
+#: srconv.c:1723
+#, c-format
+msgid ""
+" The options are:\n"
+"  -q --quick       (Obsolete - ignored)\n"
+"  -n --noprescan   Do not perform a scan to convert commons into defs\n"
+"  -d --debug       Display information about what is being done\n"
+"  @<file>          Read options from <file>\n"
+"  -h --help        Display this information\n"
+"  -v --version     Print the program's version number\n"
+msgstr ""
+" Tùy chọn:\n"
+"  -q --quick       \t(Cũ nên bị bỏ qua)\n"
+"  -n --noprescan\n"
+"\t\tĐừng quét để chuyển đổi các điều dùng chung (common)\n"
+"\t\tthành lời định nghĩa (def)\n"
+"\t\t(không quét trước)\n"
+"  -d --debug       \t\t\tHiển thị thông tin về hành động hiện thời\n"
+"\t\t(gỡ lỗi)\n"
+"   @<file>                   Đọc các tùy chọn từ tập tin đó\n"
+"  -h --help        \t\t\tHiển thị _trợ giúp_ này\n"
+"  -v --version     \t\tIn ra số thứ tự _phiên bản_ của chương trình\n"
+
+#: srconv.c:1869
+#, c-format
+msgid "unable to open output file %s"
+msgstr "không thể mở tập tin kết xuất %s"
+
+#: stabs.c:330 stabs.c:1708
+msgid "numeric overflow"
+msgstr "tràn thuộc số"
+
+#: stabs.c:340
+#, c-format
+msgid "Bad stab: %s\n"
+msgstr "stab sai: %s\n"
+
+#: stabs.c:348
+#, c-format
+msgid "Warning: %s: %s\n"
+msgstr "Cảnh báo : %s: %s\n"
+
+#: stabs.c:458
+#, c-format
+msgid "N_LBRAC not within function\n"
+msgstr "« N_LBRAC » không phải ở trong hàm\n"
+
+#: stabs.c:497
+#, c-format
+msgid "Too many N_RBRACs\n"
+msgstr "Quá nhiều « N_RBRAC »\n"
+
+#: stabs.c:738
+msgid "unknown C++ encoded name"
+msgstr "không biết tên mã C++"
+
+#. Complain and keep going, so compilers can invent new
+#. cross-reference types.
+#: stabs.c:1253
+msgid "unrecognized cross reference type"
+msgstr "không nhận diện kiểu tham chiếu chéo"
+
+#. Does this actually ever happen?  Is that why we are worrying
+#. about dealing with it rather than just calling error_type?
+#: stabs.c:1800
+msgid "missing index type"
+msgstr "thiếu kiểu chỉ mục"
+
+#: stabs.c:2114
+msgid "unknown virtual character for baseclass"
+msgstr "không biết ký tự ảo cho hạng cơ bản"
+
+#: stabs.c:2132
+msgid "unknown visibility character for baseclass"
+msgstr "không biết ký tự tính trạng hiển thị cho hạng cơ bản"
+
+#: stabs.c:2318
+msgid "unnamed $vb type"
+msgstr "kiểu $vb chưa có tên"
+
+#: stabs.c:2324
+msgid "unrecognized C++ abbreviation"
+msgstr "không nhận biết viết tắt C++"
+
+#: stabs.c:2400
+msgid "unknown visibility character for field"
+msgstr "không biết ký tự tính trạng hiển thị cho trường"
+
+#: stabs.c:2652
+msgid "const/volatile indicator missing"
+msgstr "thiếu chỉ thị bất biến/hay thay đổi"
+
+#: stabs.c:2888
+#, c-format
+msgid "No mangling for \"%s\"\n"
+msgstr "Không có việc tháo gỡ cho « %s »\n"
+
+#: stabs.c:3188
+msgid "Undefined N_EXCL"
+msgstr "Chưa định nghĩa « N_EXCL »"
+
+#: stabs.c:3268
+#, c-format
+msgid "Type file number %d out of range\n"
+msgstr "Số kiểu tập tin %d ở ngoài phạm vi\n"
+
+#: stabs.c:3273
+#, c-format
+msgid "Type index number %d out of range\n"
+msgstr "Số kiểu chỉ mục %d ở ngoài phạm vi\n"
+
+#: stabs.c:3352
+#, c-format
+msgid "Unrecognized XCOFF type %d\n"
+msgstr "Không nhận diện kiểu XCOFF %d\n"
+
+#: stabs.c:3644
+#, c-format
+msgid "bad mangled name `%s'\n"
+msgstr "tên đã rối sai « %s »\n"
+
+#: stabs.c:3739
+#, c-format
+msgid "no argument types in mangled string\n"
+msgstr "không có kiểu đối số nào trong chuỗi đã rối\n"
+
+#: stabs.c:5093
+#, c-format
+msgid "Demangled name is not a function\n"
+msgstr "Tên đã tháo gỡ không phải là hàm\n"
+
+#: stabs.c:5135
+#, c-format
+msgid "Unexpected type in v3 arglist demangling\n"
+msgstr "Gặp kiểu bất ngờ trong việc tháo gỡ danh sách đối số v3\n"
+
+#: stabs.c:5202
+#, c-format
+msgid "Unrecognized demangle component %d\n"
+msgstr "Không nhận diện thành phần tháo gỡ %d\n"
+
+#: stabs.c:5254
+#, c-format
+msgid "Failed to print demangled template\n"
+msgstr "Việc in ra biểu mẫu đã tháo gỡ bị lỗi\n"
+
+#: stabs.c:5334
+#, c-format
+msgid "Couldn't get demangled builtin type\n"
+msgstr "Không thể lấy kiểu builtin (điều có sẵn) đã tháo gỡ\n"
+
+#: stabs.c:5383
+#, c-format
+msgid "Unexpected demangled varargs\n"
+msgstr "Gặp một số varargs (đối số biến) đã tháo gỡ bất ngờ\n"
+
+#: stabs.c:5390
+#, c-format
+msgid "Unrecognized demangled builtin type\n"
+msgstr "Không nhận diện kiểu builtin (điều có sẵn) đã tháo gỡ\n"
+
+#: strings.c:218
+#, c-format
+msgid "invalid number %s"
+msgstr "số không hợp lệ %s"
+
+#: strings.c:700
+#, c-format
+msgid "invalid integer argument %s"
+msgstr "đối số số nguyên không hợp lệ %s"
+
+#: strings.c:709
+#, c-format
+msgid " Display printable strings in [file(s)] (stdin by default)\n"
+msgstr " Hiển thị các chuỗi có khả năng in trong [tập tin...] (mặc định là thiết bị nhập chuẩn)\n"
+
+#: strings.c:710
+#, c-format
+msgid ""
+" The options are:\n"
+"  -a - --all                Scan the entire file, not just the data section\n"
+"  -f --print-file-name      Print the name of the file before each string\n"
+"  -n --bytes=[number]       Locate & print any NUL-terminated sequence of at\n"
+"  -<number>                 least [number] characters (default 4).\n"
+"  -t --radix={o,d,x}        Print the location of the string in base 8, 10 or 16\n"
+"  -o                        An alias for --radix=o\n"
+"  -T --target=<BFDNAME>     Specify the binary file format\n"
+"  -e --encoding={s,S,b,l,B,L} Select character size and endianness:\n"
+"                            s = 7-bit, S = 8-bit, {b,l} = 16-bit, {B,L} = 32-bit\n"
+"  @<file>                   Read options from <file>\n"
+"  -h --help                 Display this information\n"
+"  -v --version              Print the program's version number\n"
+msgstr ""
+" Tùy chọn:\n"
+"  -a - --all                \t\tQuét toàn bộ tập tin, không chỉ phần dữ liệu\n"
+"\t\t(hết)\n"
+"  -f --print-file-name      \t\t\t _In ra tên tập tin_ trước mỗi chuỗi\n"
+"  -n --bytes=[số]\n"
+"\t\tĐịnh vị và in ra dãy đã chấm dứt RỖNG nào tại số byte này\n"
+"  -<số>                 số ký tự tối thiểu (mặc định là 4).\n"
+"  -t --radix={o,d,x}\n"
+"\t\tIn ra địa điểm của chuỗi dạng bát phân, thập phân hay thập lục\n"
+"\t\t(cơ sở)\n"
+"  -o                        \t\tBiệt hiệu cho « --radix=o » \n"
+"  -T --target=<TÊN_BFD>     \t\tGhi rõ dạng thức tập tin nhị phân\n"
+"\t\t(đích)\n"
+"  -e --encoding={s,S,b,l,B,L}\n"
+"\t\tChọn kích cỡ ký tự và tính trạng cuối (endian):\n"
+"            \ts = 7-bit, S = 8-bit, {b,l} = 16-bit, {B,L} = 32-bit\n"
+"    @<file>                   Đọc các tùy chọn từ tập tin đó\n"
+"  -h --help                 \t\tHiển thị _trợ giúp_ này\n"
+"  -v --version              \t\tIn ra số thứ tự _phiên bản_ của chương trình\n"
+
+#: sysdump.c:642
+#, c-format
+msgid "Print a human readable interpretation of a SYSROFF object file\n"
+msgstr "In ra lời giải dịch tập tin đối tượng SYSROFF cho người đọc\n"
+
+#: sysdump.c:643
+#, c-format
+msgid ""
+" The options are:\n"
+"  -h --help        Display this information\n"
+"  -v --version     Print the program's version number\n"
+msgstr ""
+" Tùy chọn:\n"
+"  -h --help                 \t\tHiển thị _trợ giúp_ này\n"
+"  -v --version              \t\tIn ra số thứ tự _phiên bản_ của chương trình\n"
+
+#: sysdump.c:710
+#, c-format
+msgid "cannot open input file %s"
+msgstr "không thể mở tập tin nhập %s"
+
+#: version.c:35
+#, c-format
+msgid "Copyright 2005 Free Software Foundation, Inc.\n"
+msgstr "Bản quyền © năm 2005 Tổ chức Phần mềm Tự do.\n"
+
+#: version.c:36
+#, c-format
+msgid ""
+"This program is free software; you may redistribute it under the terms of\n"
+"the GNU General Public License.  This program has absolutely no warranty.\n"
+msgstr ""
+"Chương trình này là phần mềm tự do; bạn có thể phát hành lại\n"
+"nó với điều kiện của Quyền Công Chung GNU (GPL).\n"
+"Chương trình này không bảo đảm gì cả.\n"
+
+#: windres.c:204
+#, c-format
+msgid "can't open %s `%s': %s"
+msgstr "Không thể mở %s « %s »: %s"
+
+#: windres.c:370
+#, c-format
+msgid ": expected to be a directory\n"
+msgstr ": ngờ là thư mục\n"
+
+#: windres.c:382
+#, c-format
+msgid ": expected to be a leaf\n"
+msgstr ": ngờ là lá\n"
+
+#: windres.c:391
+#, c-format
+msgid "%s: warning: "
+msgstr "%s: cảnh báo : "
+
+#: windres.c:393
+#, c-format
+msgid ": duplicate value\n"
+msgstr ": giá trị trùng\n"
+
+#: windres.c:543
+#, c-format
+msgid "unknown format type `%s'"
+msgstr "không biết kiểu dạng thức « %s »"
+
+#: windres.c:544
+#, c-format
+msgid "%s: supported formats:"
+msgstr "%s: dạng thức hỗ trợ :"
+
+#. Otherwise, we give up.
+#: windres.c:627
+#, c-format
+msgid "can not determine type of file `%s'; use the -J option"
+msgstr "không thể quyết định kiểu tập tin « %s »: hãy sử dụng tùy chọn « -J »"
+
+#: windres.c:639
+#, c-format
+msgid "Usage: %s [option(s)] [input-file] [output-file]\n"
+msgstr "Usage: %s [tùy_chọn...] [tập_tin_nhập] [tập_tin_xuất]\n"
+
+#: windres.c:641
+#, c-format
+msgid ""
+" The options are:\n"
+"  -i --input=<file>            Name input file\n"
+"  -o --output=<file>           Name output file\n"
+"  -J --input-format=<format>   Specify input format\n"
+"  -O --output-format=<format>  Specify output format\n"
+"  -F --target=<target>         Specify COFF target\n"
+"     --preprocessor=<program>  Program to use to preprocess rc file\n"
+"  -I --include-dir=<dir>       Include directory when preprocessing rc file\n"
+"  -D --define <sym>[=<val>]    Define SYM when preprocessing rc file\n"
+"  -U --undefine <sym>          Undefine SYM when preprocessing rc file\n"
+"  -v --verbose                 Verbose - tells you what it's doing\n"
+"  -l --language=<val>          Set language when reading rc file\n"
+"     --use-temp-file           Use a temporary file instead of popen to read\n"
+"                               the preprocessor output\n"
+"     --no-use-temp-file        Use popen (default)\n"
+msgstr ""
+" Tùy chọn:\n"
+"  -i --input=<tập_tin>            \t\t                  Lập tập tin _nhập_\n"
+"  -o --output=<tập_tin>           \t\t                  Lập tập tin _xuất_\n"
+"  -J --input-format=<dạng_thức>   \t                  Ghi rõ _dạng thức nhập_\n"
+"  -O --output-format=<dạng_thức>  \t                  Ghi rõ _dạng thức xuất_\n"
+"  -F --target=<đích>         \t\t\t                  Ghi rõ _đích_ COFF\n"
+"     --preprocessor=<chương_trình>\n"
+"\t\tChương trình cần dùng để tiền xử lý tập tin rc (tài nguyên)\n"
+"\t\t(bộ tiền xử lý)\n"
+"  -I --include-dir=<thư_mục>\n"
+"\t\t_Gồm thư mục_ khi tiền xử lý tập tin rc (tài nguyên)\n"
+"  -D --define <ký_hiệu>[=<giá_trị>]\n"
+"\t\t_Định nghĩa_ ký hiệu khi tiền xử lý tập tin rc (tài nguyên)\n"
+"  -U --undefine <ký_hiệu>\n"
+"\t\t_Hủy định nghĩa_ ký hiệu khi tiền xử lý tập tin rc (tài nguyên)\n"
+"  -v --verbose                 _Chi tiết_: xuất thông tin về hành động hiện thời\n"
+"  -l --language=<giá_trị>    Lập _ngôn ngữ_ để đọc tập tin rc (tài nguyên)\n"
+"     --use-temp-file\n"
+"\t\t_Dùng tập tin tạm thời_ thay vào popen để đọc kết xuất tiền xử lý\n"
+"     --no-use-temp-file        \t\t\t                 Dùng popen (mặc định)\n"
+"\t\t(không dùng tập tin tạm thời)\n"
+
+#: windres.c:657
+#, c-format
+msgid "     --yydebug                 Turn on parser debugging\n"
+msgstr "     --yydebug                 Bật khả năng gỡ lỗi kiểu bộ phân tách\n"
+
+#: windres.c:660
+#, c-format
+msgid ""
+"  -r                           Ignored for compatibility with rc\n"
+"  @<file>                      Read options from <file>\n"
+"  -h --help                    Print this help message\n"
+"  -V --version                 Print version information\n"
+msgstr ""
+"  -r\t\t\t\t\t \t \t\t     Bị bỏ qua để tương thích với rc (tài nguyên)\n"
+"   @<file>                   Đọc các tùy chọn từ tập tin đó\n"
+"  -h, --help                  \t\t\t\t             rctrợ giúp_ này\n"
+"  -V, --version            \t\t\t\t           In ra thông tin _phiên bản_\n"
+
+#: windres.c:665
+#, c-format
+msgid ""
+"FORMAT is one of rc, res, or coff, and is deduced from the file name\n"
+"extension if not specified.  A single file name is an input file.\n"
+"No input-file is stdin, default rc.  No output-file is stdout, default rc.\n"
+msgstr ""
+"DẠNG THỨC là một của rc, res hay coff, và được quyết định\n"
+"từ phần mở rộng tên tập tin nếu chưa ghi rõ.\n"
+"Một tên tập tin đơn là tập tin nhập. Không có tập tin nhập thì\n"
+"thiết bị nhập chuẩn, mặc định là rc. Không có tập tin xuất thì\n"
+"thiết bị xuất chuẩn, mặc định là rc.\n"
+
+#: windres.c:803
+msgid "invalid option -f\n"
+msgstr "tùy chọn không hợp lệ « -f »\n"
+
+#: windres.c:808
+msgid "No filename following the -fo option.\n"
+msgstr "Không có tên tập tin đi sau tùy chọn « -fo ».\n"
+
+#: windres.c:866
+#, c-format
+msgid "Option -I is deprecated for setting the input format, please use -J instead.\n"
+msgstr "Tùy chọn « -l » bị phản đối để lập dạng thức nhập, hãy dùng « -J » thay thế.\n"
+
+#: windres.c:984
+msgid "no resources"
+msgstr "không có tài nguyên nào"
+
+#: wrstabs.c:354 wrstabs.c:1915
+#, c-format
+msgid "string_hash_lookup failed: %s"
+msgstr "việc « string_hash_lookup » (tra tìm băm chuỗi) bị lỗi: %s"
+
+#: wrstabs.c:635
+#, c-format
+msgid "stab_int_type: bad size %u"
+msgstr "stab_int_type: (kiểu số nguyên stab) kích cỡ sai %u"
+
+#: wrstabs.c:1393
+#, c-format
+msgid "%s: warning: unknown size for field `%s' in struct"
+msgstr "%s: cảnh báo : không biết kích cỡ cho trường « %s » trong cấu trúc"
+
+#~ msgid "flags"
+#~ msgstr "cờ"
+
+#~ msgid "debug_str section data"
+#~ msgstr "debug_str section data"
+
+#~ msgid "debug_loc section data"
+#~ msgstr "dữ liệu phần « debug_loc » (định vị gỡ lỗi)"
+
+#~ msgid "debug_range section data"
+#~ msgstr "dữ liệu phần « debug_range » (phạm vị gỡ lỗi)"
+
+#~ msgid "%s: skipping unexpected symbol type %s in relocation in section .rela%s\n"
+#~ msgstr "%s: đang nhảy qua kiểu ký hiệu bất ngờ %s trong việc định vị lại trong phần .rela%s\n"
+
+#~ msgid "debug_abbrev section data"
+#~ msgstr "dữ liệu phần « .debug_abbrev » (gỡ lỗi viết tắt)"
+
+#~ msgid "extracting information from .debug_info section"
+#~ msgstr "đang trích thông tin ra phần « .debug_info » (thông tin gỡ lỗi)"
+
+#~ msgid ""
+#~ "\n"
+#~ "The .debug_loc section is empty.\n"
+#~ msgstr ""
+#~ "\n"
+#~ "Phần « .debug_loc » (gỡ lỗi định vị) rỗng:\n"
+
+#~ msgid ""
+#~ "Contents of the .debug_loc section:\n"
+#~ "\n"
+#~ msgstr ""
+#~ "Nội dung của phần « .debug_info » (thông tin gỡ lỗi):\n"
+#~ "\n"
+
+#~ msgid ""
+#~ "Contents of the .debug_str section:\n"
+#~ "\n"
+#~ msgstr ""
+#~ "Nội dung của phần « .debug_str » (chuỗi gỡ lỗi):\n"
+#~ "\n"
+
+#~ msgid ""
+#~ "\n"
+#~ "The .debug_ranges section is empty.\n"
+#~ msgstr ""
+#~ "\n"
+#~ "Phần « .debug_ranges » (các phạm vị gỡ lỗi) rỗng.\n"
+
+#~ msgid ""
+#~ "Contents of the .debug_ranges section:\n"
+#~ "\n"
+#~ msgstr ""
+#~ "Nội dung của phần « .debug_ranges » (các phạm vị gỡ lỗi):\n"
+#~ "\n"
+
+#~ msgid "There is a hole [0x%lx - 0x%lx] in .debug_ranges section.\n"
+#~ msgstr "Có một lỗ [0x%lx - 0x%lx] trong phần « .debug_ranges » (các phạm vị gỡ lỗi).\n"
+
+#~ msgid "There is an overlap [0x%lx - 0x%lx] in .debug_ranges section.\n"
+#~ msgstr "Có một chồng lấp [0x%lx - 0x%lx] trong phần « .debug_ranges » (các phạm vị gỡ lỗi).\n"
+
+#~ msgid "debug section data"
+#~ msgstr "dữ liệu phần gỡ lỗi"

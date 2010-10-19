@@ -1,0 +1,55 @@
+@c Copyright 2006 Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+
+@page
+@node xc16x-Dependent
+@chapter Infineon xc16x Dependent Features
+
+@cindex xc16x support
+@menu
+* xc16x Directives::     xc16x Machine Directives
+@end menu
+
+@node xc16x Directives
+@section xc16x Machine Directives
+
+The xc16x version of the assembler supports the following machine
+directives:
+
+@table @code
+@cindex @code{align} directive, xc16x
+@item .align
+This directive aligns the section program counter on the next 2-byte
+boundary.
+
+
+@cindex @code{byte} directive, xc16x
+@item .byte @var{expr}
+This directive assembles a half-word (8-bit) constant.
+
+@cindex @code{word} directive, xc16x
+@item .word @var{expr}
+This assembles a word (16-bit) constant.
+
+@cindex @code{ascii} directive, xc16x
+@item .ascii "@var{ascii}"
+This directive used for copying @var{str} into the object file. 
+The string is terminated with a null byte.
+
+@cindex @code{set} directive, xc16x
+@item .set @var{symbol}, @var{value}
+This directive creates a symbol named @var{symbol} which is an alias for
+another symbol (possibly not yet defined).  This should not be confused
+with the mnemonic @code{set}, which is a legitimate xc16x instruction.
+
+
+
+@cindex @code{bss} directive, xc16x
+@item .bss @var{symbol}, @var{length}
+Reserve @var{length} bytes in the bss section for a local @var{symbol},
+aligned to the power of two specified by @var{align}.  @var{length} and
+@var{align} must be positive absolute expressions.  This directive
+differs from @samp{.lcomm} only in that it permits you to specify
+an alignment.  
+@end table

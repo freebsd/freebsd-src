@@ -1,6 +1,5 @@
 #objdump: -s -j .data
 #name: strings
-
 .*: .*
 
 Contents of section .data:

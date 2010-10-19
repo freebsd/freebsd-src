@@ -2940,7 +2940,7 @@ proc do_t03_add_test {} {
         default	{ fail "$testname: add.l @0x1234:16, ... ($x)" }
     }
     # FIXME return early, expect bombs out on the next group.
-    return;
+    return
     set x 0
     expect {
 	-re ".* 960 1f44 01046B2C" { set x [expr $x+1]; exp_continue; }

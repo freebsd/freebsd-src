@@ -2,21 +2,22 @@
    Copyright 2000, 2001, 2002 Free Software Foundation, Inc.
    Written by Hans-Peter Nilsson (hp@bitrange.com)
 
-This file is part of GDB and the GNU binutils.
+   This file is part of GDB and the GNU binutils.
 
-GDB and the GNU binutils are free software; you can redistribute
-them and/or modify them under the terms of the GNU General Public
-License as published by the Free Software Foundation; either version 2,
-or (at your option) any later version.
+   GDB and the GNU binutils are free software; you can redistribute
+   them and/or modify them under the terms of the GNU General Public
+   License as published by the Free Software Foundation; either version 2,
+   or (at your option) any later version.
 
-GDB and the GNU binutils are distributed in the hope that they
-will be useful, but WITHOUT ANY WARRANTY; without even the implied
-warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
-the GNU General Public License for more details.
+   GDB and the GNU binutils are distributed in the hope that they
+   will be useful, but WITHOUT ANY WARRANTY; without even the implied
+   warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
+   the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this file; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this file; see the file COPYING.  If not, write to the Free
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 #include <stdio.h>
 #include <string.h>
@@ -37,14 +38,14 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  *
    }						\
  while (0)
 
-#define FATAL_DEBUG								\
- do										\
-   {										\
-     fprintf (stderr,								\
-	      _("Internal: Non-debugged code (test-case missing): %s:%d"),	\
-	      __FILE__, __LINE__);						\
-     abort ();									\
-   }						\
+#define FATAL_DEBUG							\
+ do									\
+   {									\
+     fprintf (stderr,							\
+	      _("Internal: Non-debugged code (test-case missing): %s:%d"),\
+	      __FILE__, __LINE__);					\
+     abort ();								\
+   }									\
  while (0)
 
 #define ROUND_MODE(n)					\
@@ -66,17 +67,10 @@ struct mmix_dis_info
    char basic_reg_name[256][sizeof ("$255")];
  };
 
-static bfd_boolean initialize_mmix_dis_info
-  PARAMS ((struct disassemble_info *));
-static const struct mmix_opcode *get_opcode
-  PARAMS ((unsigned long));
-
-
 /* Initialize a target-specific array in INFO.  */
 
 static bfd_boolean
-initialize_mmix_dis_info (info)
-     struct disassemble_info *info;
+initialize_mmix_dis_info (struct disassemble_info *info)
 {
   struct mmix_dis_info *minfop = malloc (sizeof (struct mmix_dis_info));
   int i;
@@ -107,7 +101,8 @@ initialize_mmix_dis_info (info)
 	  long i;
 
 	  if (syms == NULL)
-	    { FATAL_DEBUG;
+	    {
+	      FATAL_DEBUG;
 	      free (minfop);
 	      return FALSE;
 	    }
@@ -138,7 +133,7 @@ initialize_mmix_dis_info (info)
   for (i = 0; mmix_spec_regs[i].name != NULL; i++)
     minfop->spec_reg_name[mmix_spec_regs[i].number] = mmix_spec_regs[i].name;
 
-  info->private_data = (PTR) minfop;
+  info->private_data = (void *) minfop;
   return TRUE;
 }
 
@@ -150,12 +145,12 @@ initialize_mmix_dis_info (info)
    "further entry" will just show that there was no other match.  */
 
 static const struct mmix_opcode *
-get_opcode (insn)
-     unsigned long insn;
+get_opcode (unsigned long insn)
 {
   static const struct mmix_opcode **opcodes = NULL;
   const struct mmix_opcode *opcodep = mmix_opcodes;
   unsigned int opcode_part = (insn >> 24) & 255;
+
   if (opcodes == NULL)
     opcodes = xcalloc (256, sizeof (struct mmix_opcode *));
 
@@ -213,6 +208,7 @@ get_opcode (insn)
 	case mmix_operands_roundregs:
 	  {
 	    int midbyte = (insn >> 8) & 255;
+
 	    if (midbyte <= 4)
 	      return opcodep;
 	  }
@@ -248,9 +244,7 @@ get_opcode (insn)
 /* The main disassembly function.  */
 
 int
-print_insn_mmix (memaddr, info)
-     bfd_vma memaddr;
-     struct disassemble_info *info;
+print_insn_mmix (bfd_vma memaddr, struct disassemble_info *info)
 {
   unsigned char buffer[4];
   unsigned long insn;

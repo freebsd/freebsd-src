@@ -1,0 +1,41 @@
+
+.*:     file format .*
+
+Disassembly of section \.plt:
+
+00080800 <_PROCEDURE_LINKAGE_TABLE_>:
+   80800:	ff b3 04 00 00 00    	pushl  0x4\(%ebx\)
+   80806:	ff a3 08 00 00 00    	jmp    \*0x8\(%ebx\)
+   8080c:	90                   	nop    
+   8080d:	90                   	nop    
+   8080e:	90                   	nop    
+   8080f:	90                   	nop    
+
+00080810 <sexternal@plt>:
+   80810:	ff a3 0c 00 00 00    	jmp    \*0xc\(%ebx\)
+   80816:	68 00 00 00 00       	push   \$0x0
+   8081b:	e9 e0 ff ff ff       	jmp    80800 <_PROCEDURE_LINKAGE_TABLE_>
+
+00080820 <sglobal@plt>:
+   80820:	ff a3 10 00 00 00    	jmp    \*0x10\(%ebx\)
+   80826:	68 08 00 00 00       	push   \$0x8
+   8082b:	e9 d0 ff ff ff       	jmp    80800 <_PROCEDURE_LINKAGE_TABLE_>
+Disassembly of section \.text:
+
+00080c00 <foo>:
+   80c00:	53                   	push   %ebx
+   80c01:	8b 1d 00 00 00 00    	mov    0x0,%ebx
+   80c07:	8b 99 00 00 00 00    	mov    0x0\(%ecx\),%ebx
+   80c0d:	8b 83 14 00 00 00    	mov    0x14\(%ebx\),%eax
+   80c13:	ff 00                	incl   \(%eax\)
+   80c15:	e8 0c 00 00 00       	call   80c26 <slocal>
+   80c1a:	e8 01 fc ff ff       	call   80820 <sglobal@plt>
+   80c1f:	e8 ec fb ff ff       	call   80810 <sexternal@plt>
+   80c24:	5b                   	pop    %ebx
+   80c25:	c3                   	ret    
+
+00080c26 <slocal>:
+   80c26:	c3                   	ret    
+
+00080c27 <sglobal>:
+   80c27:	c3                   	ret    

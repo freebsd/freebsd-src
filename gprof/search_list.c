@@ -1,6 +1,6 @@
 /* search-list.c
 
-   Copyright 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright 2000, 2001, 2002, 2004 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include "libiberty.h"
 #include "gprof.h"
@@ -25,9 +25,7 @@
 
 
 void
-search_list_append (list, paths)
-     Search_List *list;
-     const char *paths;
+search_list_append (Search_List *list, const char *paths)
 {
   Search_List_Elem *new_el;
   const char *beg, *colon;

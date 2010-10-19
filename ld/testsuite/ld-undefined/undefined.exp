@@ -1,7 +1,7 @@
 # Test that the linker reports undefined symbol errors correctly.
 # By Ian Lance Taylor, Cygnus Support
 #
-#   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001
+#   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
 #   Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
@@ -16,7 +16,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
 set testund "undefined"
 set testfn "undefined function"
@@ -69,33 +69,20 @@ checkund $mu $testund
 #setup_xfail "arm*-*-pe*"
 #setup_xfail "thumb*-*-pe*"
 
-# Just doesn't work for PA ELF.  No clue why.
-setup_xfail "hppa*-*-*elf*"
-
-# With dwarf-2, we can't get the function in which the reference
-# occurs; see below.
-setup_xfail "alpha*-*-linux*"
-setup_xfail "hppa*64*-*-*"
-setup_xfail "mn10300-*-elf"
-setup_xfail "sh-*-*"
-setup_xfail "m6811-*-*"
-setup_xfail "m6812-*-*"
-
 set mf "tmpdir/undefined.o* In function `function':"
 checkund $mf $testfn
 
-# COFF SH gets this test wrong--it reports line 10, because although
-# the jump is at line 9, the function address, and the reloc, is
-# stored at the end of the function.
-setup_xfail "sh-*-*"
+if ![is_elf_format] {
+    # COFF SH gets this test wrong--it reports line 10, because although
+    # the jump is at line 9, the function address, and the reloc, is
+    # stored at the end of the function.
+    setup_xfail "sh-*-*"
 
-# ARM PE defaults to using stabs debugging, which we can't handle for
-# a COFF file.
-#setup_xfail "arm*-*-pe*"
-#setup_xfail "thumb*-*-pe*"
-
-# Just doesn't work for PA ELF.  No clue why.
-setup_xfail "hppa*-*-*elf*"
+    # ARM PE defaults to using stabs debugging, which we can't handle for
+    # a COFF file.
+    #setup_xfail "arm*-*-pe*"
+    #setup_xfail "thumb*-*-pe*"
+}
 
 set ml "undefined.c:9: undefined reference to `*this_function_is_not_defined'"
 # With targets that use elf/dwarf2, such as the arm-elf and thumb-elf
@@ -134,8 +121,6 @@ set ml "undefined.c:9: undefined reference to `*this_function_is_not_defined'"
 setup_xfail mcore-*-elf
 setup_xfail mips-sgi-irix6*
 setup_xfail "sh64-*-*"
-setup_xfail "m6811-*-*"
-setup_xfail "m6812-*-*"
 
 # The undefined test fails on 31 bit s/390 because the address of the 
 # function `this_function_is_not_defined' is stored in the literal pool of

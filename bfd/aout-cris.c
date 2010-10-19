@@ -1,31 +1,31 @@
 /* BFD backend for CRIS a.out binaries.
-   Copyright 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+   Copyright 2000, 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
    Contributed by Axis Communications AB.
    Written by Hans-Peter Nilsson.
 
-This file is part of BFD, the Binary File Descriptor library.
+   This file is part of BFD, the Binary File Descriptor library.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* See info in the file PORTING for documentation of these macros and
    functions.  Beware; some of the information there is outdated.  */
 
 #define N_HEADER_IN_TEXT(x) 0
-#define N_TXTOFF(x) 32
+#define N_TXTOFF(x)         32
 #define ENTRY_CAN_BE_ZERO
-#define TEXT_START_ADDR 0
+#define TEXT_START_ADDR     0
 
 /* Without reading symbols to get the text start symbol, there is no way
    to know where the text segment starts in an a.out file.  Defaulting to
@@ -47,7 +47,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    *not* included in the text segment.  A simple workaround is to
    #define ZMAGIC_DISK_BLOCK_SIZE, which is used if defined; otherwise
    TARGET_PAGE_SIZE is used.  */
-#define ZMAGIC_DISK_BLOCK_SIZE N_TXTOFF (0)
+#define ZMAGIC_DISK_BLOCK_SIZE     N_TXTOFF (0)
 
 /* It seems odd at first to set a page-size this low, but gives greater
    freedom in where things can be linked.  The drawback is that you have
@@ -74,26 +74,23 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 /* Version 1 of the header.  */
 #define MY_exec_hdr_flags 1
 
-#define MY_write_object_contents MY(write_object_contents)
-static bfd_boolean MY(write_object_contents) PARAMS ((bfd *));
+#define MY_write_object_contents MY (write_object_contents)
+static bfd_boolean MY (write_object_contents) (bfd *);
 
 /* Forward this, so we can use a pointer to it in PARAMS.  */
 struct reloc_ext_external;
 
-#define MY_swap_ext_reloc_out MY(swap_ext_reloc_out)
-static void MY(swap_ext_reloc_out) PARAMS ((bfd *, arelent *,
-					    struct reloc_ext_external *));
+#define MY_swap_ext_reloc_out MY (swap_ext_reloc_out)
+static void MY (swap_ext_reloc_out) (bfd *, arelent *, struct reloc_ext_external *);
 
-#define MY_swap_ext_reloc_in MY(swap_ext_reloc_in)
-static void MY(swap_ext_reloc_in) PARAMS ((bfd *, struct
-					   reloc_ext_external *,
-					   arelent *, asymbol **,
-					   bfd_size_type));
+#define MY_swap_ext_reloc_in MY (swap_ext_reloc_in)
+static void MY (swap_ext_reloc_in) (bfd *, struct reloc_ext_external *,
+				    arelent *, asymbol **, bfd_size_type);
 
-#define MY_set_sizes MY(set_sizes)
-static bfd_boolean MY(set_sizes) PARAMS ((bfd *));
+#define MY_set_sizes MY (set_sizes)
+static bfd_boolean MY (set_sizes) (bfd *);
 
-/* To set back reloc_size to ext, we make MY(set_sizes) be called
+/* To set back reloc_size to ext, we make MY (set_sizes) be called
    through this construct.  Note that MY_set_arch_mach is only called
    through SET_ARCH_MACH.  The default bfd_default_set_arch_mach will
    not call set_sizes.  */
@@ -104,8 +101,8 @@ static bfd_boolean MY(set_sizes) PARAMS ((bfd *));
 
 /* These macros describe the binary layout of the reloc information we
    use in a file.  */
-#define RELOC_EXT_BITS_EXTERN_LITTLE 0x80
-#define RELOC_EXT_BITS_TYPE_LITTLE 3
+#define RELOC_EXT_BITS_EXTERN_LITTLE  0x80
+#define RELOC_EXT_BITS_TYPE_LITTLE    3
 #define RELOC_EXT_BITS_TYPE_SH_LITTLE 0
 
 #ifndef MY_get_section_contents
@@ -121,8 +118,7 @@ static bfd_boolean MY(set_sizes) PARAMS ((bfd *));
 /* We need our own version to set header flags.  */
 
 static bfd_boolean
-MY(write_object_contents) (abfd)
-     bfd *abfd;
+MY (write_object_contents) (bfd *abfd)
 {
   struct external_exec exec_bytes;
   struct internal_exec *execp = exec_hdr (abfd);
@@ -135,8 +131,8 @@ MY(write_object_contents) (abfd)
 
   /* Setting N_SET_MACHTYPE and using N_SET_FLAGS is not performed by
      the default definition.  */
-  if (bfd_get_arch(abfd) == bfd_arch_cris)
-    N_SET_MACHTYPE(*execp, M_CRIS);
+  if (bfd_get_arch (abfd) == bfd_arch_cris)
+    N_SET_MACHTYPE (*execp, M_CRIS);
 
   N_SET_FLAGS (*execp, aout_backend_info (abfd)->exec_hdr_flags);
 
@@ -150,10 +146,9 @@ MY(write_object_contents) (abfd)
    - Fix what seems to be a weak-bug (perhaps there for valid reasons).  */
 
 static void
-MY(swap_ext_reloc_out) (abfd, g, natptr)
-     bfd *abfd;
-     arelent *g;
-     struct reloc_ext_external *natptr;
+MY (swap_ext_reloc_out) (bfd *abfd,
+			 arelent *g,
+			 struct reloc_ext_external *natptr)
 {
   int r_index;
   int r_extern;
@@ -224,12 +219,11 @@ MY(swap_ext_reloc_out) (abfd, g, natptr)
 /* We need our own to assert that a normal 8, 16 or 32 reloc is input.  */
 
 static void
-MY(swap_ext_reloc_in) (abfd, bytes, cache_ptr, symbols, symcount)
-     bfd *abfd;
-     struct reloc_ext_external *bytes;
-     arelent *cache_ptr;
-     asymbol **symbols;
-     bfd_size_type symcount;
+MY (swap_ext_reloc_in) (bfd *abfd,
+			struct reloc_ext_external *bytes,
+			arelent *cache_ptr,
+			asymbol **symbols,
+			bfd_size_type symcount)
 {
   unsigned int r_index;
   int r_extern;
@@ -248,10 +242,10 @@ MY(swap_ext_reloc_in) (abfd, bytes, cache_ptr, symbols, symcount)
 
   if (r_type > 2)
     {
-      (*_bfd_error_handler) (_("%s: Invalid relocation type imported: %d"),
-			     bfd_archive_filename (abfd), r_type);
+      (*_bfd_error_handler) (_("%B: Invalid relocation type imported: %d"),
+			     abfd, r_type);
 
-      bfd_set_error(bfd_error_wrong_format);
+      bfd_set_error (bfd_error_wrong_format);
     }
 
   cache_ptr->howto =  howto_table_ext + r_type;
@@ -259,8 +253,7 @@ MY(swap_ext_reloc_in) (abfd, bytes, cache_ptr, symbols, symcount)
   if (r_extern && r_index > symcount)
     {
       (*_bfd_error_handler)
-        (_("%s: Bad relocation record imported: %d"),
-         bfd_archive_filename (abfd), r_index);
+        (_("%B: Bad relocation record imported: %d"), abfd, r_index);
 
       bfd_set_error (bfd_error_wrong_format);
 
@@ -279,15 +272,14 @@ MY(swap_ext_reloc_in) (abfd, bytes, cache_ptr, symbols, symcount)
    NAME (aout, set_arch_mach) in aoutx.  */
 
 static bfd_boolean
-MY(set_sizes) (abfd)
-     bfd *abfd;
+MY (set_sizes) (bfd *abfd)
 {
   /* Just as the default in aout-target.h (with some #ifdefs folded)...  */
 
-  adata(abfd).page_size = TARGET_PAGE_SIZE;
-  adata(abfd).segment_size = SEGMENT_SIZE;
-  adata(abfd).zmagic_disk_block_size = ZMAGIC_DISK_BLOCK_SIZE;
-  adata(abfd).exec_bytes_size = EXEC_BYTES_SIZE;
+  adata (abfd).page_size = TARGET_PAGE_SIZE;
+  adata (abfd).segment_size = SEGMENT_SIZE;
+  adata (abfd).zmagic_disk_block_size = ZMAGIC_DISK_BLOCK_SIZE;
+  adata (abfd).exec_bytes_size = EXEC_BYTES_SIZE;
 
   /* ... except for that we have the extended reloc.  The alternative
      would be to add a check on bfd_arch_cris in NAME (aout,
@@ -298,10 +290,3 @@ MY(set_sizes) (abfd)
 
   return TRUE;
 }
-
-/*
- * Local variables:
- * eval: (c-set-style "gnu")
- * indent-tabs-mode: t
- * End:
- */

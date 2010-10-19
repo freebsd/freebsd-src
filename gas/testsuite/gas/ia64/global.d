@@ -1,4 +1,4 @@
-#readelf: --sym
+#readelf: --syms
 #name: ia64 global label
 
 Symbol table '.symtab' contains 5 entries:

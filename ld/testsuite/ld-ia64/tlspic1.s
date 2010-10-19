@@ -30,8 +30,9 @@ sh5:	.long 261
 sh6:	.long 262
 sh7:	.long 263
 sh8:	.long 264
-	/* Force .text aligned to 4K, so it very likely gets at 0x1000.  */
+	.explicit
 	.pred.safe_across_calls p1-p5,p16-p63
+	/* Force .text aligned to 4K, so it very likely gets at 0x1000.  */
 	.text
 	.balign	4096
 	.globl	fn1#

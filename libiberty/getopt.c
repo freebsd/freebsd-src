@@ -3,8 +3,8 @@
    "Keep this file name-space clean" means, talk to drepper@gnu.org
    before changing it!
 
-   Copyright (C) 1987, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98
-   	Free Software Foundation, Inc.
+   Copyright (C) 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995,
+   1996, 1997, 1998, 2005 Free Software Foundation, Inc.
 
    NOTE: This source is derived from an old version taken from the GNU C
    Library (glibc).
@@ -21,7 +21,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301,
    USA.  */
 
 /* This tells Alpha OSF/1 not to define a getopt prototype in <stdio.h>.
@@ -42,6 +42,7 @@
 # endif
 #endif
 
+#include "ansidecl.h"
 #include <stdio.h>
 
 /* Comment out all this code if we are using the GNU C Library, and are not
@@ -212,14 +213,20 @@ static char *posixly_correct;
 /* Avoid depending on library functions or files
    whose names are inconsistent.  */
 
-#ifndef getenv
-extern char *getenv ();
+#if HAVE_STDLIB_H && HAVE_DECL_GETENV
+#  include <stdlib.h>
+#elif !defined(getenv)
+#  ifdef __cplusplus
+extern "C" {
+#  endif /* __cplusplus */
+extern char *getenv (const char *);
+#  ifdef __cplusplus
+}
+#  endif /* __cplusplus */
 #endif
 
 static char *
-my_index (str, chr)
-     const char *str;
-     int chr;
+my_index (const char *str, int chr)
 {
   while (*str)
     {
@@ -307,8 +314,7 @@ static void exchange (char **);
 #endif
 
 static void
-exchange (argv)
-     char **argv;
+exchange (char **argv)
 {
   int bottom = first_nonopt;
   int middle = last_nonopt;
@@ -328,7 +334,7 @@ exchange (argv)
     {
       /* We must extend the array.  The user plays games with us and
 	 presents new arguments.  */
-      char *new_str = malloc (top + 1);
+      char *new_str = (char *) malloc (top + 1);
       if (new_str == NULL)
 	nonoption_flags_len = nonoption_flags_max_len = 0;
       else
@@ -392,10 +398,9 @@ exchange (argv)
 static const char *_getopt_initialize (int, char *const *, const char *);
 #endif
 static const char *
-_getopt_initialize (argc, argv, optstring)
-     int argc;
-     char *const *argv;
-     const char *optstring;
+_getopt_initialize (int argc ATTRIBUTE_UNUSED,
+		    char *const *argv ATTRIBUTE_UNUSED,
+		    const char *optstring)
 {
   /* Start processing options with ARGV-element 1 (since ARGV-element 0
      is the program name); the sequence of previously skipped
@@ -514,13 +519,9 @@ _getopt_initialize (argc, argv, optstring)
    long-named options.  */
 
 int
-_getopt_internal (argc, argv, optstring, longopts, longind, long_only)
-     int argc;
-     char *const *argv;
-     const char *optstring;
-     const struct option *longopts;
-     int *longind;
-     int long_only;
+_getopt_internal (int argc, char *const *argv, const char *optstring,
+                  const struct option *longopts,
+                  int *longind, int long_only)
 {
   optarg = NULL;
 
@@ -970,10 +971,7 @@ _getopt_internal (argc, argv, optstring, longopts, longind, long_only)
 }
 
 int
-getopt (argc, argv, optstring)
-     int argc;
-     char *const *argv;
-     const char *optstring;
+getopt (int argc, char *const *argv, const char *optstring)
 {
   return _getopt_internal (argc, argv, optstring,
 			   (const struct option *) 0,
@@ -989,9 +987,7 @@ getopt (argc, argv, optstring)
    the above definition of `getopt'.  */
 
 int
-main (argc, argv)
-     int argc;
-     char **argv;
+main (int argc, char **argv)
 {
   int c;
   int digit_optind = 0;

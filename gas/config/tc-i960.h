@@ -1,6 +1,6 @@
 /* tc-i960.h - Basic 80960 instruction formats.
    Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1997, 1998, 1999,
-   2000, 2002, 2003
+   2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -17,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #ifndef TC_I960
 #define TC_I960 1
@@ -52,21 +52,12 @@
  */
 
 /* tailor gas */
-#define SYMBOLS_NEED_BACKPOINTERS
 #define LOCAL_LABELS_FB 1
 #define BITFIELD_CONS_EXPRESSIONS
 
 /* tailor the coff format */
-#define BFD_ARCH				bfd_arch_i960
-#define COFF_FLAGS				F_AR32WR
 #define COFF_MAGIC				I960ROMAGIC
-#define OBJ_COFF_SECTION_HEADER_HAS_ALIGNMENT
 #define OBJ_COFF_MAX_AUXENTRIES			(2)
-#define TC_COUNT_RELOC(FIX)			(!(FIX)->fx_done)
-#define TC_COFF_FIX2RTYPE(FIX)			tc_coff_fix2rtype (FIX)
-#define TC_COFF_SIZEMACHDEP(FRAGP)		tc_coff_sizemachdep (FRAGP)
-#define TC_COFF_SET_MACHINE(HDRS)		tc_headers_hook (HDRS)
-extern int tc_coff_sizemachdep PARAMS ((struct frag *));
 
 /* MEANING OF 'n_other' in the symbol record.
  *
@@ -172,10 +163,10 @@ extern int i960_validate_fix PARAMS ((struct fix *, segT));
 #define tc_fix_adjustable(FIX)		((FIX)->fx_bsr == 0)
 
 #ifndef OBJ_ELF
-/* Values passed to md_apply_fix3 sometimes include symbol values.  */
+/* Values passed to md_apply_fix sometimes include symbol values.  */
 #define MD_APPLY_SYM_VALUE(FIX) tc_fix_adjustable (FIX)
 #else
-/* Values passed to md_apply_fix3 don't include the symbol value.  */
+/* Values passed to md_apply_fix don't include the symbol value.  */
 #define MD_APPLY_SYM_VALUE(FIX) 0
 #endif
 
@@ -188,7 +179,6 @@ extern struct symbol *tc_get_bal_of_call PARAMS ((symbolS *));
 
 extern void i960_handle_align PARAMS ((struct frag *));
 #define HANDLE_ALIGN(FRAG)	i960_handle_align (FRAG)
-#define NEED_FX_R_TYPE
 #define NO_RELOC -1
 
 #define md_operand(x)

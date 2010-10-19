@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright 2004 Free Software Foundation, Inc.
+#   Copyright 2004, 2006 Free Software Foundation, Inc.
 #
 # This file is part of GLD, the Gnu Linker.
 #
@@ -15,7 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 
 cat >>e${EMULATION_NAME}.c <<EOF
@@ -32,7 +32,7 @@ static void
 irix_after_open (void)
 {
   if (link_info.shared && command_line.soname == 0)
-    command_line.soname = basename (bfd_get_filename (output_bfd));
+    command_line.soname = (char *) lbasename (bfd_get_filename (output_bfd));
 
   gld${EMULATION_NAME}_after_open ();
 }

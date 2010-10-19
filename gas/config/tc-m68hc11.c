@@ -1,5 +1,6 @@
 /* tc-m68hc11.c -- Assembler code for the Motorola 68HC11 & 68HC12.
-   Copyright 1999, 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005
+   Free Software Foundation, Inc.
    Written by Stephane Carrez (stcarrez@nerim.fr)
 
    This file is part of GAS, the GNU Assembler.
@@ -16,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   the Free Software Foundation, 51 Franklin Street - Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 #include "as.h"
 #include "safe-ctype.h"
@@ -2449,8 +2450,8 @@ md_assemble (char *str)
   struct m68hc11_opcode_def *opc;
   struct m68hc11_opcode *opcode;
 
-  unsigned char *op_start, *save;
-  unsigned char *op_end;
+  unsigned char *op_start, *op_end;
+  char *save;
   char name[20];
   int nlen = 0;
   operand operands[M6811_MAX_OPERANDS];
@@ -2464,7 +2465,7 @@ md_assemble (char *str)
 
   /* Find the opcode end and get the opcode in 'name'.  The opcode is forced
      lower case (the opcode table only has lower case op-codes).  */
-  for (op_start = op_end = (unsigned char *) (str);
+  for (op_start = op_end = (unsigned char *) str;
        *op_end && nlen < 20 && !is_end_of_line[*op_end] && *op_end != ' ';
        op_end++)
     {
@@ -2544,7 +2545,7 @@ md_assemble (char *str)
       return;
     }
   save = input_line_pointer;
-  input_line_pointer = op_end;
+  input_line_pointer = (char *) op_end;
 
   if (opc)
     {
@@ -3227,7 +3228,7 @@ tc_m68hc11_fix_adjustable (fixS *fixP)
 }
 
 void
-md_apply_fix3 (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
+md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 {
   char *where;
   long value = * valP;
@@ -3281,16 +3282,10 @@ md_apply_fix3 (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_M68HC11_LO8:
     case BFD_RELOC_8:
     case BFD_RELOC_M68HC11_PAGE:
-#if 0
-      bfd_putb8 ((bfd_vma) value, (unsigned char *) where);
-#endif
       ((bfd_byte *) where)[0] = (bfd_byte) value;
       break;
 
     case BFD_RELOC_8_PCREL:
-#if 0
-      bfd_putb8 ((bfd_vma) value, (unsigned char *) where);
-#endif
       ((bfd_byte *) where)[0] = (bfd_byte) value;
 
       if (value < -128 || value > 127)

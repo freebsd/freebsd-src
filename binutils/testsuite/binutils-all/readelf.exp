@@ -1,4 +1,4 @@
-#   Copyright 1999, 2000 Free Software Foundation, Inc.
+#   Copyright 1999, 2000, 2001, 2003, 2004 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
 # Please email any bugs, comments, and/or additions to this file to:
 # bug-dejagnu@prep.ai.mit.edu
@@ -245,16 +245,16 @@ proc readelf_wi_test {} {
     }
 
     # Download it.
-    set tempfile [remote_download host tmpdir/testprog.o];
+    set tempfile [remote_download host tmpdir/testprog.o]
 
     # Run "readelf -wi" on it.
     send_log "exec $READELF $READELFFLAGS -wi $tempfile > readelf.out\n"
     catch "exec $READELF $READELFFLAGS -wi $tempfile > readelf.out" got
 
     # Upload the results.
-    set output [remote_upload host readelf.out];
+    set output [remote_upload host readelf.out]
 
-    file_on_host delete $tempfile;
+    file_on_host delete $tempfile
     
     # Strip any superflous warnings.
     set got [prune_readelf_wi_warnings $got]
@@ -296,7 +296,7 @@ proc readelf_wi_test {} {
 	}
     }
 
-    file_on_host delete $output;
+    file_on_host delete $output
     
     # All done.
     pass "readelf -wi"
@@ -326,7 +326,7 @@ if {![binutils_assemble $srcdir/$subdir/bintest.s tmpdir/bintest.o]} then {
 }
 
 if ![is_remote host] {
-    set tempfile tmpdir/bintest.o;
+    set tempfile tmpdir/bintest.o
 } else {
     set tempfile [remote_download host tmpdir/bintest.o]
 }

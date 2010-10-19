@@ -1,26 +1,27 @@
 /* Assembler interface for targets using CGEN. -*- C -*-
    CGEN: Cpu tools GENerator
 
-THIS FILE IS MACHINE GENERATED WITH CGEN.
-- the resultant file is machine generated, cgen-asm.in isn't
+   THIS FILE IS MACHINE GENERATED WITH CGEN.
+   - the resultant file is machine generated, cgen-asm.in isn't
 
-Copyright 1996, 1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2005
+   Free Software Foundation, Inc.
 
-This file is part of the GNU Binutils and GDB, the GNU debugger.
+   This file is part of the GNU Binutils and GDB, the GNU debugger.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software Foundation, Inc.,
+   51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* ??? Eventually more and more of this stuff can go to cpu-independent files.
    Keep that in mind.  */
@@ -50,26 +51,13 @@ static const char * parse_insn_normal
 /* -- asm.c */
 /* Handle register lists for LDMx and STMx.  */
 
-static int parse_register_number
-  PARAMS ((const char **));
-static const char * parse_register_list
-  PARAMS ((CGEN_CPU_DESC, const char **, int, unsigned long *, int, int));
-static const char * parse_low_register_list_ld
-  PARAMS ((CGEN_CPU_DESC, const char **, int, unsigned long *));
-static const char * parse_hi_register_list_ld
-  PARAMS ((CGEN_CPU_DESC, const char **, int, unsigned long *));
-static const char * parse_low_register_list_st
-  PARAMS ((CGEN_CPU_DESC, const char **, int, unsigned long *));
-static const char * parse_hi_register_list_st
-  PARAMS ((CGEN_CPU_DESC, const char **, int, unsigned long *));
-
 static int
-parse_register_number (strp)
-     const char **strp;
+parse_register_number (const char **strp)
 {
   int regno;
+
   if (**strp < '0' || **strp > '9')
-    return -1; /* error.  */
+    return -1; /* Error.  */
   regno = **strp - '0';
   ++*strp;
 
@@ -83,30 +71,29 @@ parse_register_number (strp)
 }
 
 static const char *
-parse_register_list (cd, strp, opindex, valuep, high_low, load_store)
-     CGEN_CPU_DESC cd ATTRIBUTE_UNUSED;
-     const char **strp;
-     int opindex ATTRIBUTE_UNUSED;
-     unsigned long *valuep;
-     int high_low;   /* 0 == high, 1 == low */
-     int load_store; /* 0 == load, 1 == store */
+parse_register_list (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+		     const char **strp,
+		     int opindex ATTRIBUTE_UNUSED,
+		     unsigned long *valuep,
+		     int high_low,   /* 0 == high, 1 == low.  */
+		     int load_store) /* 0 == load, 1 == store.  */
 {
-  int regno;
-
   *valuep = 0;
   while (**strp && **strp != ')')
     {
+      int regno;
+
       if (**strp != 'R' && **strp != 'r')
 	break;
       ++*strp;
 
       regno = parse_register_number (strp);
       if (regno == -1)
-	return "Register number is not valid";
+	return _("Register number is not valid");
       if (regno > 7 && !high_low)
-	return "Register must be between r0 and r7";
+	return _("Register must be between r0 and r7");
       if (regno < 8 && high_low)
-	return "Register must be between r8 and r15";
+	return _("Register must be between r8 and r15");
 
       if (high_low)
 	regno -= 8;
@@ -125,55 +112,55 @@ parse_register_list (cd, strp, opindex, valuep, high_low, load_store)
     }
 
   if (!*strp || **strp != ')')
-    return "Register list is not valid";
+    return _("Register list is not valid");
 
   return NULL;
 }
 
 static const char *
-parse_low_register_list_ld (cd, strp, opindex, valuep)
-     CGEN_CPU_DESC cd;
-     const char **strp;
-     int opindex;
-     unsigned long *valuep;
+parse_low_register_list_ld (CGEN_CPU_DESC cd,
+			    const char **strp,
+			    int opindex,
+			    unsigned long *valuep)
 {
-  return parse_register_list (cd, strp, opindex, valuep, 0/*low*/, 0/*load*/);
+  return parse_register_list (cd, strp, opindex, valuep,
+			      0 /* Low.  */, 0 /* Load.  */);
 }
 
 static const char *
-parse_hi_register_list_ld (cd, strp, opindex, valuep)
-     CGEN_CPU_DESC cd;
-     const char **strp;
-     int opindex;
-     unsigned long *valuep;
+parse_hi_register_list_ld (CGEN_CPU_DESC cd,
+			   const char **strp,
+			   int opindex,
+			   unsigned long *valuep)
 {
-  return parse_register_list (cd, strp, opindex, valuep, 1/*high*/, 0/*load*/);
+  return parse_register_list (cd, strp, opindex, valuep,
+			      1 /* High.  */, 0 /* Load.  */);
 }
 
 static const char *
-parse_low_register_list_st (cd, strp, opindex, valuep)
-     CGEN_CPU_DESC cd;
-     const char **strp;
-     int opindex;
-     unsigned long *valuep;
+parse_low_register_list_st (CGEN_CPU_DESC cd,
+			    const char **strp,
+			    int opindex,
+			    unsigned long *valuep)
 {
-  return parse_register_list (cd, strp, opindex, valuep, 0/*low*/, 1/*store*/);
+  return parse_register_list (cd, strp, opindex, valuep,
+			      0 /* Low.  */, 1 /* Store.  */);
 }
 
 static const char *
-parse_hi_register_list_st (cd, strp, opindex, valuep)
-     CGEN_CPU_DESC cd;
-     const char **strp;
-     int opindex;
-     unsigned long *valuep;
+parse_hi_register_list_st (CGEN_CPU_DESC cd,
+			   const char **strp,
+			   int opindex,
+			   unsigned long *valuep)
 {
-  return parse_register_list (cd, strp, opindex, valuep, 1/*high*/, 1/*store*/);
+  return parse_register_list (cd, strp, opindex, valuep,
+			      1 /* High.  */, 1 /* Store.  */);
 }
 
 /* -- */
 
 const char * fr30_cgen_parse_operand
-  PARAMS ((CGEN_CPU_DESC, int, const char **, CGEN_FIELDS *));
+  (CGEN_CPU_DESC, int, const char **, CGEN_FIELDS *);
 
 /* Main entry point for operand parsing.
 
@@ -189,11 +176,10 @@ const char * fr30_cgen_parse_operand
    the handlers.  */
 
 const char *
-fr30_cgen_parse_operand (cd, opindex, strp, fields)
-     CGEN_CPU_DESC cd;
-     int opindex;
-     const char ** strp;
-     CGEN_FIELDS * fields;
+fr30_cgen_parse_operand (CGEN_CPU_DESC cd,
+			   int opindex,
+			   const char ** strp,
+			   CGEN_FIELDS * fields)
 {
   const char * errmsg = NULL;
   /* Used by scalar operands that still need to be parsed.  */
@@ -235,87 +221,87 @@ fr30_cgen_parse_operand (cd, opindex, strp, fields)
       errmsg = cgen_parse_keyword (cd, strp, & fr30_cgen_opval_dr_names, & fields->f_Rs2);
       break;
     case FR30_OPERAND_CC :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_CC, &fields->f_cc);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_CC, (unsigned long *) (& fields->f_cc));
       break;
     case FR30_OPERAND_CCC :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_CCC, &fields->f_ccc);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_CCC, (unsigned long *) (& fields->f_ccc));
       break;
     case FR30_OPERAND_DIR10 :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_DIR10, &fields->f_dir10);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_DIR10, (unsigned long *) (& fields->f_dir10));
       break;
     case FR30_OPERAND_DIR8 :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_DIR8, &fields->f_dir8);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_DIR8, (unsigned long *) (& fields->f_dir8));
       break;
     case FR30_OPERAND_DIR9 :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_DIR9, &fields->f_dir9);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_DIR9, (unsigned long *) (& fields->f_dir9));
       break;
     case FR30_OPERAND_DISP10 :
-      errmsg = cgen_parse_signed_integer (cd, strp, FR30_OPERAND_DISP10, &fields->f_disp10);
+      errmsg = cgen_parse_signed_integer (cd, strp, FR30_OPERAND_DISP10, (long *) (& fields->f_disp10));
       break;
     case FR30_OPERAND_DISP8 :
-      errmsg = cgen_parse_signed_integer (cd, strp, FR30_OPERAND_DISP8, &fields->f_disp8);
+      errmsg = cgen_parse_signed_integer (cd, strp, FR30_OPERAND_DISP8, (long *) (& fields->f_disp8));
       break;
     case FR30_OPERAND_DISP9 :
-      errmsg = cgen_parse_signed_integer (cd, strp, FR30_OPERAND_DISP9, &fields->f_disp9);
+      errmsg = cgen_parse_signed_integer (cd, strp, FR30_OPERAND_DISP9, (long *) (& fields->f_disp9));
       break;
     case FR30_OPERAND_I20 :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_I20, &fields->f_i20);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_I20, (unsigned long *) (& fields->f_i20));
       break;
     case FR30_OPERAND_I32 :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_I32, &fields->f_i32);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_I32, (unsigned long *) (& fields->f_i32));
       break;
     case FR30_OPERAND_I8 :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_I8, &fields->f_i8);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_I8, (unsigned long *) (& fields->f_i8));
       break;
     case FR30_OPERAND_LABEL12 :
       {
-        bfd_vma value;
+        bfd_vma value = 0;
         errmsg = cgen_parse_address (cd, strp, FR30_OPERAND_LABEL12, 0, NULL,  & value);
         fields->f_rel12 = value;
       }
       break;
     case FR30_OPERAND_LABEL9 :
       {
-        bfd_vma value;
+        bfd_vma value = 0;
         errmsg = cgen_parse_address (cd, strp, FR30_OPERAND_LABEL9, 0, NULL,  & value);
         fields->f_rel9 = value;
       }
       break;
     case FR30_OPERAND_M4 :
-      errmsg = cgen_parse_signed_integer (cd, strp, FR30_OPERAND_M4, &fields->f_m4);
+      errmsg = cgen_parse_signed_integer (cd, strp, FR30_OPERAND_M4, (long *) (& fields->f_m4));
       break;
     case FR30_OPERAND_PS :
       errmsg = cgen_parse_keyword (cd, strp, & fr30_cgen_opval_h_ps, & junk);
       break;
     case FR30_OPERAND_REGLIST_HI_LD :
-      errmsg = parse_hi_register_list_ld (cd, strp, FR30_OPERAND_REGLIST_HI_LD, &fields->f_reglist_hi_ld);
+      errmsg = parse_hi_register_list_ld (cd, strp, FR30_OPERAND_REGLIST_HI_LD, (unsigned long *) (& fields->f_reglist_hi_ld));
       break;
     case FR30_OPERAND_REGLIST_HI_ST :
-      errmsg = parse_hi_register_list_st (cd, strp, FR30_OPERAND_REGLIST_HI_ST, &fields->f_reglist_hi_st);
+      errmsg = parse_hi_register_list_st (cd, strp, FR30_OPERAND_REGLIST_HI_ST, (unsigned long *) (& fields->f_reglist_hi_st));
       break;
     case FR30_OPERAND_REGLIST_LOW_LD :
-      errmsg = parse_low_register_list_ld (cd, strp, FR30_OPERAND_REGLIST_LOW_LD, &fields->f_reglist_low_ld);
+      errmsg = parse_low_register_list_ld (cd, strp, FR30_OPERAND_REGLIST_LOW_LD, (unsigned long *) (& fields->f_reglist_low_ld));
       break;
     case FR30_OPERAND_REGLIST_LOW_ST :
-      errmsg = parse_low_register_list_st (cd, strp, FR30_OPERAND_REGLIST_LOW_ST, &fields->f_reglist_low_st);
+      errmsg = parse_low_register_list_st (cd, strp, FR30_OPERAND_REGLIST_LOW_ST, (unsigned long *) (& fields->f_reglist_low_st));
       break;
     case FR30_OPERAND_S10 :
-      errmsg = cgen_parse_signed_integer (cd, strp, FR30_OPERAND_S10, &fields->f_s10);
+      errmsg = cgen_parse_signed_integer (cd, strp, FR30_OPERAND_S10, (long *) (& fields->f_s10));
       break;
     case FR30_OPERAND_U10 :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_U10, &fields->f_u10);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_U10, (unsigned long *) (& fields->f_u10));
       break;
     case FR30_OPERAND_U4 :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_U4, &fields->f_u4);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_U4, (unsigned long *) (& fields->f_u4));
       break;
     case FR30_OPERAND_U4C :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_U4C, &fields->f_u4c);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_U4C, (unsigned long *) (& fields->f_u4c));
       break;
     case FR30_OPERAND_U8 :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_U8, &fields->f_u8);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_U8, (unsigned long *) (& fields->f_u8));
       break;
     case FR30_OPERAND_UDISP6 :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_UDISP6, &fields->f_udisp6);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, FR30_OPERAND_UDISP6, (unsigned long *) (& fields->f_udisp6));
       break;
 
     default :
@@ -333,8 +319,7 @@ cgen_parse_fn * const fr30_cgen_parse_handlers[] =
 };
 
 void
-fr30_cgen_init_asm (cd)
-     CGEN_CPU_DESC cd;
+fr30_cgen_init_asm (CGEN_CPU_DESC cd)
 {
   fr30_cgen_init_opcode_table (cd);
   fr30_cgen_init_ibld_table (cd);
@@ -717,30 +702,3 @@ fr30_cgen_assemble_insn (CGEN_CPU_DESC cd,
     return NULL;
   }
 }
-
-#if 0 /* This calls back to GAS which we can't do without care.  */
-
-/* Record each member of OPVALS in the assembler's symbol table.
-   This lets GAS parse registers for us.
-   ??? Interesting idea but not currently used.  */
-
-/* Record each member of OPVALS in the assembler's symbol table.
-   FIXME: Not currently used.  */
-
-void
-fr30_cgen_asm_hash_keywords (CGEN_CPU_DESC cd, CGEN_KEYWORD *opvals)
-{
-  CGEN_KEYWORD_SEARCH search = cgen_keyword_search_init (opvals, NULL);
-  const CGEN_KEYWORD_ENTRY * ke;
-
-  while ((ke = cgen_keyword_search_next (& search)) != NULL)
-    {
-#if 0 /* Unnecessary, should be done in the search routine.  */
-      if (! fr30_cgen_opval_supported (ke))
-	continue;
-#endif
-      cgen_asm_record_register (cd, ke->name, ke->value);
-    }
-}
-
-#endif /* 0 */

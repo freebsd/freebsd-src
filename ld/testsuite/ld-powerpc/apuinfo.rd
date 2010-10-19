@@ -1,7 +1,7 @@
 #source: apuinfo1.s
 #source: apuinfo2.s
 #as: -me500
-#readelf: -x5
+#readelf: -x2
 #target: powerpc-eabi*
 
 Hex dump of section '.PPC.EMB.apuinfo':

@@ -1,6 +1,6 @@
 /* cg_print.c -  Print routines for displaying call graphs.
 
-   Copyright 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright 2000, 2001, 2002, 2004 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include "libiberty.h"
 #include "gprof.h"
@@ -35,26 +35,26 @@
 #define	EQUALTO		0
 #define	GREATERTHAN	1
 
-static void print_header PARAMS ((void));
-static void print_cycle PARAMS ((Sym *));
-static int cmp_member PARAMS ((Sym *, Sym *));
-static void sort_members PARAMS ((Sym *));
-static void print_members PARAMS ((Sym *));
-static int cmp_arc PARAMS ((Arc *, Arc *));
-static void sort_parents PARAMS ((Sym *));
-static void print_parents PARAMS ((Sym *));
-static void sort_children PARAMS ((Sym *));
-static void print_children PARAMS ((Sym *));
-static void print_line PARAMS ((Sym *));
-static int cmp_name PARAMS ((const PTR, const PTR));
-static int cmp_arc_count PARAMS ((const PTR, const PTR));
-static int cmp_fun_nuses PARAMS ((const PTR, const PTR));
+static void print_header (void);
+static void print_cycle (Sym *);
+static int cmp_member (Sym *, Sym *);
+static void sort_members (Sym *);
+static void print_members (Sym *);
+static int cmp_arc (Arc *, Arc *);
+static void sort_parents (Sym *);
+static void print_parents (Sym *);
+static void sort_children (Sym *);
+static void print_children (Sym *);
+static void print_line (Sym *);
+static int cmp_name (const PTR, const PTR);
+static int cmp_arc_count (const PTR, const PTR);
+static int cmp_fun_nuses (const PTR, const PTR);
 static void order_and_dump_functions_by_arcs
-  PARAMS ((Arc **, unsigned long, int, Arc **, unsigned long *));
+  (Arc **, unsigned long, int, Arc **, unsigned long *);
 
 /* Declarations of automatically generated functions to output blurbs.  */
-extern void bsd_callg_blurb PARAMS ((FILE * fp));
-extern void fsf_callg_blurb PARAMS ((FILE * fp));
+extern void bsd_callg_blurb (FILE * fp);
+extern void fsf_callg_blurb (FILE * fp);
 
 double print_time = 0.0;
 
@@ -109,8 +109,7 @@ print_header ()
 /* Print a cycle header.  */
 
 static void
-print_cycle (cyc)
-     Sym *cyc;
+print_cycle (Sym *cyc)
 {
   char buf[BUFSIZ];
 
@@ -133,9 +132,7 @@ print_cycle (cyc)
    CG.PROP.SELF+CG.PROP.CHILD, secondary key is NCALLS+CG.SELF_CALLS.  */
 
 static int
-cmp_member (left, right)
-     Sym *left;
-     Sym *right;
+cmp_member (Sym *left, Sym *right)
 {
   double left_time = left->cg.prop.self + left->cg.prop.child;
   double right_time = right->cg.prop.self + right->cg.prop.child;
@@ -160,8 +157,7 @@ cmp_member (left, right)
 /* Sort members of a cycle.  */
 
 static void
-sort_members (cyc)
-     Sym *cyc;
+sort_members (Sym *cyc)
 {
   Sym *todo, *doing, *prev;
 
@@ -188,8 +184,7 @@ sort_members (cyc)
 /* Print the members of a cycle.  */
 
 static void
-print_members (cyc)
-     Sym *cyc;
+print_members (Sym *cyc)
 {
   Sym *member;
 
@@ -223,9 +218,7 @@ print_members (cyc)
 		arc count as minor key.  */
 
 static int
-cmp_arc (left, right)
-     Arc *left;
-     Arc *right;
+cmp_arc (Arc *left, Arc *right)
 {
   Sym *left_parent = left->parent;
   Sym *left_child = left->child;
@@ -311,8 +304,7 @@ cmp_arc (left, right)
 
 
 static void
-sort_parents (child)
-     Sym * child;
+sort_parents (Sym * child)
 {
   Arc *arc, *detached, sorted, *prev;
 
@@ -345,8 +337,7 @@ sort_parents (child)
 
 
 static void
-print_parents (child)
-     Sym *child;
+print_parents (Sym *child)
 {
   Sym *parent;
   Arc *arc;
@@ -400,8 +391,7 @@ print_parents (child)
 
 
 static void
-sort_children (parent)
-     Sym *parent;
+sort_children (Sym *parent)
 {
   Arc *arc, *detached, sorted, *prev;
 
@@ -434,8 +424,7 @@ sort_children (parent)
 
 
 static void
-print_children (parent)
-     Sym *parent;
+print_children (Sym *parent)
 {
   Sym *child;
   Arc *arc;
@@ -474,8 +463,7 @@ print_children (parent)
 
 
 static void
-print_line (np)
-     Sym *np;
+print_line (Sym *np)
 {
   char buf[BUFSIZ];
 
@@ -508,8 +496,7 @@ print_line (np)
 /* Print dynamic call graph.  */
 
 void
-cg_print (timesortsym)
-     Sym ** timesortsym;
+cg_print (Sym ** timesortsym)
 {
   unsigned int index;
   Sym *parent;
@@ -560,9 +547,7 @@ cg_print (timesortsym)
 
 
 static int
-cmp_name (left, right)
-     const PTR left;
-     const PTR right;
+cmp_name (const PTR left, const PTR right)
 {
   const Sym **npp1 = (const Sym **) left;
   const Sym **npp2 = (const Sym **) right;
@@ -686,9 +671,7 @@ cg_print_index ()
    We want to sort in descending order.  */
 
 static int
-cmp_arc_count (left, right)
-     const PTR left;
-     const PTR right;
+cmp_arc_count (const PTR left, const PTR right)
 {
   const Arc **npp1 = (const Arc **) left;
   const Arc **npp2 = (const Arc **) right;
@@ -705,9 +688,7 @@ cmp_arc_count (left, right)
    We want to sort in descending order.  */
 
 static int
-cmp_fun_nuses (left, right)
-     const PTR left;
-     const PTR right;
+cmp_fun_nuses (const PTR left, const PTR right)
 {
   const Sym **npp1 = (const Sym **) left;
   const Sym **npp2 = (const Sym **) right;

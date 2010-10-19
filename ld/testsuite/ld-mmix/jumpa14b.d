@@ -8,4 +8,4 @@
 #source: jumpa.s
 #as: -no-expand
 #ld: -m mmo
-#error: relocation truncated to fit: R_MMIX_ADDR27 a$
+#error: relocation truncated to fit: R_MMIX_ADDR27 against `a'$

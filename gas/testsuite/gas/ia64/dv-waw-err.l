@@ -81,7 +81,7 @@
 .*:108: Warning: This is the location of the conflicting usage
 .*:114: Warning: Use of 'st8\.spill' .* WAW dependency 'AR\[UNAT\]{%}, % in 0 - 63' \(impliedf\)
 .*:113: Warning: This is the location of the conflicting usage
-.*:119: Warning: Use of 'mov\.m' .* WAW dependency 'AR%, % in 48 - 63, 112-127' \(impliedf\), specific resource number is 48
+.*:119: Warning: Use of 'mov(\.[im])?' .* WAW dependency 'AR%, % in 48 - 63, 112-127' \(impliedf\), specific resource number is 48
 .*:118: Warning: This is the location of the conflicting usage
 .*:124: Warning: Use of 'mov' .* WAW dependency 'BR%, % in 0 - 7' \(impliedf\), specific resource number is 1
 .*:123: Warning: This is the location of the conflicting usage

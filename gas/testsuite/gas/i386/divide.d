@@ -1,3 +1,4 @@
+#as: --divide
 #objdump: -s
 #name: i386 divide
 

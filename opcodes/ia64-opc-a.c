@@ -1,5 +1,6 @@
 /* ia64-opc-a.c -- IA-64 `A' opcode table.
-   Copyright 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000, 2001, 2002, 2004
+   Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
    This file is part of GDB, GAS, and the GNU binutils.
@@ -16,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this file; see the file COPYING.  If not, write to the
-   Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include "ia64-opc.h"
 
@@ -107,7 +108,8 @@ struct ia64_opcode ia64_opcodes_a[] =
     {"or",	 A, OpX2aVeX4X2b (8, 0, 0, 0xb, 2), {R1, IMM8, R3}, EMPTY},
     {"xor",	 A, OpX2aVeX4X2b (8, 0, 0, 0xb, 3), {R1, IMM8, R3}, EMPTY},
     {"mov",	 A, OpX2aVeImm14 (8, 2, 0, 0), {R1, R3}, EMPTY},
-    {"mov",	 A, OpX2aVeR3a (8, 2, 0, 0), {R1, IMM14}, PSEUDO, 0, NULL},
+    /* A mov immediate pseudo for adds was deleted.  It failed for immediate
+       operands requiring relocs, e.g. @pltoff(a).  */
     {"adds",	 A, OpX2aVe (8, 2, 0), {R1, IMM14, R3}, EMPTY},
     {"addp4",	 A, OpX2aVe (8, 3, 0), {R1, IMM14, R3}, EMPTY},
     {"padd1",		 A, OpX2aZaZbX4X2b (8, 1, 0, 0, 0, 0), {R1, R2, R3}, EMPTY},

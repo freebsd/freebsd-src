@@ -1,4 +1,5 @@
 	.section ".tdata", "awT", @progbits
+	.balign 32
 	.globl sg1, sg2, sg3, sg4, sg5, sg6, sg7, sg8
 	.globl sh1, sh2, sh3, sh4, sh5, sh6, sh7, sh8
 	.hidden sh1, sh2, sh3, sh4, sh5, sh6, sh7, sh8
@@ -29,6 +30,7 @@ sh8:	.long 264
 	.text
 	.globl	fn1
 	.type	fn1,@function
+	.balign	64
 fn1:
 	/* Funtion prolog */
 	stmg	%r6,%r14,48(%r15)

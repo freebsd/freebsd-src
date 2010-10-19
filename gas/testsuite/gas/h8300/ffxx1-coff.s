@@ -13,7 +13,7 @@ main:   mov.b   #0x7f,r0l       ;port 6 ddr = 7F
 	mov.b   #seed,r0l       ;start with 0000001
 loop:   mov.b   r0l,@p6dr:16    ;output to port 6 
 delay:  mov.w   #0x0000,r1
-deloop: adds.w  #1,r1
+deloop: adds    #1,r1
 	bne     deloop:8        ;not = 0
 	rotl    r0l
         bra     loop:8

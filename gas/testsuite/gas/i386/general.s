@@ -211,5 +211,10 @@
 	leal	-1760(%ebp),%ebx
 	movl	%eax,140(%esp)
 
+.code32
+# Make sure that we won't remove movzb by accident.
+	movzb	%al,%di
+	movzb	%al,%ecx
+
 	# Force a good alignment.
 	.p2align	4,0

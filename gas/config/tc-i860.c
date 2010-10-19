@@ -19,7 +19,7 @@
 
    You should have received a copy of the GNU General Public License along
    with GAS; see the file COPYING.  If not, write to the Free Software
-   Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include <stdio.h>
 #include <string.h>
@@ -1338,7 +1338,7 @@ obtain_reloc_for_imm16 (fixS *fix, long *val)
    we will have to generate a reloc entry.  */
 
 void
-md_apply_fix3 (fixS *fix, valueT *valP, segT seg ATTRIBUTE_UNUSED)
+md_apply_fix (fixS *fix, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 {
   char *buf;
   long val = *valP;

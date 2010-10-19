@@ -39,8 +39,7 @@
  * Print name of symbol.  Return number of characters printed.
  */
 int
-print_name_only (self)
-     Sym *self;
+print_name_only (Sym *self)
 {
   const char *name = self->name;
   const char *filename;
@@ -99,8 +98,7 @@ print_name_only (self)
 
 
 void
-print_name (self)
-     Sym *self;
+print_name (Sym *self)
 {
   print_name_only (self);
 

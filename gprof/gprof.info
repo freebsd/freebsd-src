@@ -1,4 +1,5 @@
-This is gprof.info, produced by makeinfo version 4.6 from gprof.texi.
+This is .././gprof/gprof.info, produced by makeinfo version 4.8 from
+.././gprof/gprof.texi.
 
 START-INFO-DIR-ENTRY
 * gprof: (gprof).                Profiling your program's execution
@@ -50,8 +51,8 @@ section entitled "GNU Free Documentation License".
 
 File: gprof.info,  Node: Introduction,  Next: Compiling,  Prev: Top,  Up: Top
 
-Introduction to Profiling
-*************************
+1 Introduction to Profiling
+***************************
 
 Profiling allows you to learn where your program spent its time and
 which functions called which other functions while it was executing.
@@ -105,8 +106,8 @@ description of its implementation.  *Note Implementation::.
 
 File: gprof.info,  Node: Compiling,  Next: Executing,  Prev: Introduction,  Up: Top
 
-Compiling a Program for Profiling
-*********************************
+2 Compiling a Program for Profiling
+***********************************
 
 The first step in generating profile information for your program is to
 compile and link it with profiling enabled.
@@ -139,14 +140,14 @@ this:
 graph data you will still be able to see the time samples:
 
      Flat profile:
-     
+
      Each sample counts as 0.01 seconds.
        %   cumulative   self              self     total
       time   seconds   seconds    calls  Ts/call  Ts/call  name
       44.12      0.07     0.07                             zazLoop
       35.29      0.14     0.06                             main
       20.59      0.17     0.04                             bazMillion
-     
+
       %         the percentage of the total running time of the
 
    If you run the linker `ld' directly instead of through a compiler
@@ -198,8 +199,8 @@ used to implement an alternative profiling scheme.
 
 File: gprof.info,  Node: Executing,  Next: Invoking,  Prev: Compiling,  Up: Top
 
-Executing the Program
-*********************
+3 Executing the Program
+***********************
 
 Once the program is compiled for profiling, you must run it in order to
 generate the information that `gprof' needs.  Simply run the program as
@@ -253,8 +254,8 @@ of this translated information.  To do that, include BB-DATA on the
 
 File: gprof.info,  Node: Invoking,  Next: Output,  Prev: Executing,  Up: Top
 
-`gprof' Command Summary
-***********************
+4 `gprof' Command Summary
+*************************
 
 After you have a profile data file `gmon.out', you can run `gprof' to
 interpret the information in it.  The `gprof' program prints a flat
@@ -291,8 +292,8 @@ data files are summed together.
 
 File: gprof.info,  Node: Output Options,  Next: Analysis Options,  Up: Invoking
 
-Output Options
-==============
+4.1 Output Options
+==================
 
 These options specify which of several output formats `gprof' should
 produce.
@@ -379,6 +380,12 @@ which prints a flat profile and call graph analysis for all functions.
      If SYMSPEC is specified, `gprof' prints a call graph, but excludes
      matching symbols.
 
+`-t'
+`--table-length=NUM'
+     The `-t' option causes the NUM most active source lines in each
+     source file to be listed when source annotation is enabled.  The
+     default is 10.
+
 `-y'
 `--separate-files'
      This option affects annotated source output only.  Normally,
@@ -396,6 +403,7 @@ which prints a flat profile and call graph analysis for all functions.
      and the number of times each was called.  If SYMSPEC is specified,
      print tally, but exclude matching symbols.
 
+`-r'
 `--function-ordering'
      The `--function-ordering' option causes `gprof' to print a
      suggested function ordering for the program based on profiling
@@ -407,6 +415,7 @@ which prints a flat profile and call graph analysis for all functions.
      a particular order is system dependent and out of the scope of this
      manual.
 
+`-R MAP_FILE'
 `--file-ordering MAP_FILE'
      The `--file-ordering' option causes `gprof' to print a suggested
      .o link line ordering for the program based on profiling data.
@@ -462,8 +471,8 @@ which prints a flat profile and call graph analysis for all functions.
 
 File: gprof.info,  Node: Analysis Options,  Next: Miscellaneous Options,  Prev: Output Options,  Up: Invoking
 
-Analysis Options
-================
+4.2 Analysis Options
+====================
 
 `-a'
 `--no-static'
@@ -539,13 +548,17 @@ Analysis Options
 
 File: gprof.info,  Node: Miscellaneous Options,  Next: Deprecated Options,  Prev: Analysis Options,  Up: Invoking
 
-Miscellaneous Options
-=====================
+4.3 Miscellaneous Options
+=========================
 
 `-d[NUM]'
 `--debug[=NUM]'
      The `-d NUM' option specifies debugging options.  If NUM is not
      specified, enable all debugging.  *Note Debugging::.
+
+`-h'
+`--help'
+     The `-h' option prints command line usage.
 
 `-ONAME'
 `--file-format=NAME'
@@ -574,8 +587,8 @@ Miscellaneous Options
 
 File: gprof.info,  Node: Deprecated Options,  Next: Symspecs,  Prev: Miscellaneous Options,  Up: Invoking
 
-Deprecated Options
-==================
+4.4 Deprecated Options
+======================
 
      These options have been replaced with newer versions that use
      symspecs.
@@ -623,8 +636,8 @@ lists in the call graph all functions that were reached from either
 
 File: gprof.info,  Node: Symspecs,  Prev: Deprecated Options,  Up: Invoking
 
-Symspecs
-========
+4.5 Symspecs
+============
 
 Many of the output options allow functions to be included or excluded
 using "symspecs" (symbol specifications), which observe the following
@@ -673,8 +686,8 @@ syntax:
 
 File: gprof.info,  Node: Output,  Next: Inaccuracy,  Prev: Invoking,  Up: Top
 
-Interpreting `gprof''s Output
-*****************************
+5 Interpreting `gprof''s Output
+*******************************
 
 `gprof' can produce several different output styles, the most important
 of which are described below.  The simplest output styles (file
@@ -696,8 +709,8 @@ trigger them.  *Note Output Options::.
 
 File: gprof.info,  Node: Flat Profile,  Next: Call Graph,  Up: Output
 
-The Flat Profile
-================
+5.1 The Flat Profile
+====================
 
 The "flat profile" shows the total amount of time your program spent
 executing each function.  Unless the `-z' option is given, functions
@@ -709,7 +722,7 @@ it will be indistinguishable from a function that was never called.
    This is part of a flat profile for a small program:
 
      Flat profile:
-     
+
      Each sample counts as 0.01 seconds.
        %   cumulative   self              self     total
       time   seconds   seconds    calls  ms/call  ms/call  name
@@ -800,8 +813,8 @@ took.
 
 File: gprof.info,  Node: Call Graph,  Next: Line-by-line,  Prev: Flat Profile,  Up: Output
 
-The Call Graph
-==============
+5.2 The Call Graph
+==================
 
 The "call graph" shows how much time was spent in each function and its
 children.  From this information, you can find functions that, while
@@ -812,7 +825,7 @@ that did use unusual amounts of time.
 same `gprof' run as the flat profile example in the previous chapter.
 
      granularity: each sample hit covers 2 byte(s) for 20.00% of 0.05 seconds
-     
+
      index % time    self  children    called     name
                                                       <spontaneous>
      [1]    100.0    0.00    0.05                 start [1]
@@ -866,8 +879,8 @@ never mentioned in the call graph.
 
 File: gprof.info,  Node: Primary,  Next: Callers,  Up: Call Graph
 
-The Primary Line
-----------------
+5.2.1 The Primary Line
+----------------------
 
 The "primary line" in a call graph entry is the line that describes the
 function which the entry is about and gives the overall statistics for
@@ -938,8 +951,8 @@ the names of the fields:
 
 File: gprof.info,  Node: Callers,  Next: Subroutines,  Prev: Primary,  Up: Call Graph
 
-Lines for a Function's Callers
-------------------------------
+5.2.2 Lines for a Function's Callers
+------------------------------------
 
 A function's entry has a line for each function it was called by.
 These lines' fields correspond to the fields of the primary line, but
@@ -992,8 +1005,8 @@ name" and all other fields blank.  This can happen for signal handlers.
 
 File: gprof.info,  Node: Subroutines,  Next: Cycles,  Prev: Callers,  Up: Call Graph
 
-Lines for a Function's Subroutines
-----------------------------------
+5.2.3 Lines for a Function's Subroutines
+----------------------------------------
 
 A function's entry has a line for each of its subroutines--in other
 words, a line for each other function that it called.  These lines'
@@ -1039,8 +1052,8 @@ calling `report':
 
 File: gprof.info,  Node: Cycles,  Prev: Subroutines,  Up: Call Graph
 
-How Mutually Recursive Functions Are Described
-----------------------------------------------
+5.2.4 How Mutually Recursive Functions Are Described
+----------------------------------------------------
 
 The graph may be complicated by the presence of "cycles of recursion"
 in the call graph.  A cycle exists if a function calls another function
@@ -1170,8 +1183,8 @@ defining meanings for them when recursion is going on.
 
 File: gprof.info,  Node: Line-by-line,  Next: Annotated Source,  Prev: Call Graph,  Up: Output
 
-Line-by-line Profiling
-======================
+5.3 Line-by-line Profiling
+==========================
 
 `gprof''s `-l' option causes the program to perform "line-by-line"
 profiling.  In this mode, histogram samples are assigned not to
@@ -1190,20 +1203,20 @@ profiling.  Note that `ct_init' accounted for four histogram hits, and
 13327 calls to `init_block'.
 
      Flat profile:
-     
+
      Each sample counts as 0.01 seconds.
        %   cumulative   self              self     total
       time   seconds   seconds    calls  us/call  us/call  name
       30.77      0.13     0.04     6335     6.31     6.31  ct_init
-     
-     
+
+
      		     Call graph (explanation follows)
-     
-     
+
+
      granularity: each sample hit covers 4 byte(s) for 7.69% of 0.13 seconds
-     
+
      index % time    self  children    called     name
-     
+
                      0.00    0.00       1/13496       name_too_long
                      0.00    0.00      40/13496       deflate
                      0.00    0.00     128/13496       deflate_fast
@@ -1219,7 +1232,7 @@ into one call from line 396, 3071 calls from line 384, 3730 calls from
 line 385, and 6525 calls from 387.
 
      Flat profile:
-     
+
      Each sample counts as 0.01 seconds.
        %   cumulative   self
       time   seconds   seconds    calls  name
@@ -1227,15 +1240,15 @@ line 385, and 6525 calls from 387.
        7.69      0.11     0.01           ct_init (trees.c:351)
        7.69      0.12     0.01           ct_init (trees.c:382)
        7.69      0.13     0.01           ct_init (trees.c:385)
-     
-     
+
+
      		     Call graph (explanation follows)
-     
-     
+
+
      granularity: each sample hit covers 4 byte(s) for 7.69% of 0.13 seconds
-     
+
        % time    self  children    called     name
-     
+
                  0.00    0.00       1/13496       name_too_long (gzip.c:1440)
                  0.00    0.00       1/13496       deflate (deflate.c:763)
                  0.00    0.00       1/13496       ct_init (trees.c:396)
@@ -1253,8 +1266,8 @@ line 385, and 6525 calls from 387.
 
 File: gprof.info,  Node: Annotated Source,  Prev: Line-by-line,  Up: Output
 
-The Annotated Source Listing
-============================
+5.4 The Annotated Source Listing
+================================
 
 `gprof''s `-A' option triggers an annotated source listing, which lists
 the program's source code, each function labeled with the number of
@@ -1304,9 +1317,9 @@ annotated source listing for a sample `gzip' run:
                          unsigned n;
                  2 ->{
                          register ulg c;
-     
+
                          static ulg crc = (ulg)0xffffffffL;
-     
+
                  2 ->    if (s == NULL) {
                  1 ->	c = 0xffffffffL;
                  1 ->    } else {
@@ -1329,8 +1342,8 @@ it branched back to the beginning of the loop 26311 times.
 
 File: gprof.info,  Node: Inaccuracy,  Next: How do I?,  Prev: Output,  Up: Top
 
-Inaccuracy of `gprof' Output
-****************************
+6 Inaccuracy of `gprof' Output
+******************************
 
 * Menu:
 
@@ -1340,8 +1353,8 @@ Inaccuracy of `gprof' Output
 
 File: gprof.info,  Node: Sampling Error,  Next: Assumptions,  Up: Inaccuracy
 
-Statistical Sampling Error
-==========================
+6.1 Statistical Sampling Error
+==============================
 
 The run-time figures that `gprof' gives you are based on a sampling
 process, so they are subject to statistical inaccuracy.  If a function
@@ -1401,8 +1414,8 @@ how:
 
 File: gprof.info,  Node: Assumptions,  Prev: Sampling Error,  Up: Inaccuracy
 
-Estimating `children' Times
-===========================
+6.2 Estimating `children' Times
+===============================
 
 Some of the figures in the call graph are estimates--for example, the
 `children' time values and all the time figures in caller and
@@ -1433,8 +1446,8 @@ nonce, the estimated figures are usually more useful than misleading.
 
 File: gprof.info,  Node: How do I?,  Next: Incompatibilities,  Prev: Inaccuracy,  Up: Top
 
-Answers to Common Questions
-***************************
+7 Answers to Common Questions
+*****************************
 
 How can I get more exact information about hot spots in my program?
      Looking at the per-line call counts only tells part of the story.
@@ -1466,9 +1479,9 @@ How do I analyze a program that runs for less than a second?
             fastprog
             mv gmon.out gmon.out.$i
           done
-          
+
           gprof -s fastprog gmon.out.*
-          
+
           gprof fastprog gmon.sum
 
      If your program is completely deterministic, all the call counts
@@ -1479,8 +1492,8 @@ How do I analyze a program that runs for less than a second?
 
 File: gprof.info,  Node: Incompatibilities,  Next: Details,  Prev: How do I?,  Up: Top
 
-Incompatibilities with Unix `gprof'
-***********************************
+8 Incompatibilities with Unix `gprof'
+*************************************
 
 GNU `gprof' and Berkeley Unix `gprof' use the same data file
 `gmon.out', and provide essentially the same information.  But there
@@ -1514,8 +1527,8 @@ are a few differences.
 
 File: gprof.info,  Node: Details,  Next: GNU Free Documentation License,  Prev: Incompatibilities,  Up: Top
 
-Details of Profiling
-********************
+9 Details of Profiling
+**********************
 
 * Menu:
 
@@ -1527,8 +1540,8 @@ Details of Profiling
 
 File: gprof.info,  Node: Implementation,  Next: File Format,  Up: Details
 
-Implementation of Profiling
-===========================
+9.1 Implementation of Profiling
+===============================
 
 Profiling works by changing how every function in your program is
 compiled so that when it is called, it will stash away some information
@@ -1632,8 +1645,8 @@ won't directly affect the output you get.
 
 File: gprof.info,  Node: File Format,  Next: Internals,  Prev: Implementation,  Up: Details
 
-Profiling Data File Format
-==========================
+9.2 Profiling Data File Format
+==============================
 
 The old BSD-derived file format used for profile data does not contain a
 magic cookie that allows to check whether a data file really is a
@@ -1661,8 +1674,8 @@ compatible with each other and compute the union of all records.  For
 example, for basic-block execution counts, the union is simply the sum
 of all execution counts for each basic-block.
 
-Histogram Records
------------------
+9.2.1 Histogram Records
+-----------------------
 
 Histogram records consist of a header that is followed by an array of
 bins.  The header contains the text-segment range that the histogram
@@ -1687,8 +1700,8 @@ amount of text-space.  For example, if the text-segment is one thousand
 bytes long and if there are ten bins in the histogram, each bin
 represents one hundred bytes.
 
-Call-Graph Records
-------------------
+9.2.2 Call-Graph Records
+------------------------
 
 Call-graph records have a format that is identical to the one used in
 the BSD-derived file format.  It consists of an arc in the call graph
@@ -1702,8 +1715,8 @@ the addresses are as close to the call-site/entry-point as possible.
 This will ensure that the line-level call-graph is able to identify
 exactly which line of source code performed calls to a function.
 
-Basic-Block Execution Count Records
------------------------------------
+9.2.3 Basic-Block Execution Count Records
+-----------------------------------------
 
 Basic-block execution count records consist of a header followed by a
 sequence of address/count pairs.  The header simply specifies the
@@ -1715,8 +1728,8 @@ be used.
 
 File: gprof.info,  Node: Internals,  Next: Debugging,  Prev: File Format,  Up: Details
 
-`gprof''s Internal Operation
-============================
+9.3 `gprof''s Internal Operation
+================================
 
 Like most programs, `gprof' begins by processing its options.  During
 this stage, it may building its symspec list (`sym_ids.c:sym_id_add'),
@@ -1863,8 +1876,8 @@ by unused functions at the end.
 
 File: gprof.info,  Node: Debugging,  Prev: Internals,  Up: Details
 
-Debugging `gprof'
------------------
+9.3.1 Debugging `gprof'
+-----------------------
 
 If `gprof' was compiled with debugging enabled, the `-d' option
 triggers debugging output (to stdout) which can be helpful in
@@ -1916,15 +1929,15 @@ interpreted as a sum of the following options:
 
 File: gprof.info,  Node: GNU Free Documentation License,  Prev: Details,  Up: Top
 
-GNU Free Documentation License
-******************************
+10 GNU Free Documentation License
+*********************************
 
 GNU Free Documentation License
 
    Version 1.1, March 2000
 
-   Copyright (C) 2000  Free Software Foundation, Inc.    59 Temple
-Place, Suite 330, Boston, MA  02111-1307  USA
+   Copyright (C) 2000  Free Software Foundation, Inc.    51 Franklin
+Street, Fifth Floor, Boston, MA  02110-1301  USA
 
    Everyone is permitted to copy and distribute verbatim copies  of
 this license document, but changing it is not allowed.
@@ -2266,35 +2279,35 @@ permit their use in free software.
 
 
 Tag Table:
-Node: Top713
-Node: Introduction1952
-Node: Compiling4278
-Node: Executing8502
-Node: Invoking11290
-Node: Output Options12701
-Node: Analysis Options19510
-Node: Miscellaneous Options22704
-Node: Deprecated Options23866
-Node: Symspecs25937
-Node: Output27755
-Node: Flat Profile28777
-Node: Call Graph33704
-Node: Primary36916
-Node: Callers39445
-Node: Subroutines41550
-Node: Cycles43347
-Node: Line-by-line50109
-Node: Annotated Source53905
-Node: Inaccuracy56763
-Node: Sampling Error57017
-Node: Assumptions59579
-Node: How do I?61040
-Node: Incompatibilities62872
-Node: Details64336
-Node: Implementation64725
-Node: File Format70614
-Node: Internals74860
-Node: Debugging83229
-Node: GNU Free Documentation License84822
+Node: Top735
+Node: Introduction1974
+Node: Compiling4304
+Node: Executing8522
+Node: Invoking11314
+Node: Output Options12729
+Node: Analysis Options19751
+Node: Miscellaneous Options22953
+Node: Deprecated Options24186
+Node: Symspecs26265
+Node: Output28091
+Node: Flat Profile29117
+Node: Call Graph34047
+Node: Primary37262
+Node: Callers39803
+Node: Subroutines41920
+Node: Cycles43729
+Node: Line-by-line50503
+Node: Annotated Source54237
+Node: Inaccuracy57093
+Node: Sampling Error57351
+Node: Assumptions59921
+Node: How do I?61390
+Node: Incompatibilities63206
+Node: Details64674
+Node: Implementation65067
+Node: File Format70964
+Node: Internals75254
+Node: Debugging83631
+Node: GNU Free Documentation License85236
 
 End Tag Table

@@ -8,8 +8,8 @@
 
 2001-12-31  Jeffrey A Law  (law@redhat.com)
 
-        * config/tc-hppa.c (pa_ip): Handle new 'c' mode completers,
-        'X', 'M', and 'A'.
+	* config/tc-hppa.c (pa_ip): Handle new 'c' mode completers,
+	'X', 'M', and 'A'.
 
 2001-12-21  Jakub Jelinek  <jakub@redhat.com>
 
@@ -7701,3 +7701,10 @@
 	pseudo ops.
 
 For older changes see ChangeLog-9899
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

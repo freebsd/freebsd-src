@@ -13,7 +13,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 
 # Test ia64 linking; all types of relocs.  This tests the assembler and
@@ -35,14 +35,14 @@ if { !([istarget "ia64-*-elf*"]
 
 set ia64tests {
     {"TLS -fpic -shared" "-shared"
-     "" {tlspic1.s tlspic2.s}
+     "-mtune=itanium1" {tlspic1.s tlspic2.s}
      {{readelf -WSsrl tlspic.rd} {objdump -drj.text tlspic.dd}
       {objdump -sj.got tlspic.sd} {objdump -sj.tdata tlspic.td}}
       "libtlspic.so"}
     {"Helper shared library" "-shared"
      "" {tlslib.s} {} "libtlslib.so"}
     {"TLS -fpic and -fno-pic exec"
-     "tmpdir/libtlslib.so" "" {tlsbinpic.s tlsbin.s}
+     "tmpdir/libtlslib.so" "-mtune=itanium1" {tlsbinpic.s tlsbin.s}
      {{readelf -WSsrl tlsbin.rd} {objdump -drj.text tlsbin.dd}
       {objdump -sj.got tlsbin.sd} {objdump -sj.tdata tlsbin.td}}
       "tlsbin"}
@@ -52,3 +52,10 @@ set ia64tests {
 }
 
 run_ld_link_tests $ia64tests
+
+set test_list [lsort [glob -nocomplain $srcdir/$subdir/*.d]]
+foreach t $test_list {
+    # We need to strip the ".d", but can leave the dirname.
+    verbose [file rootname $t]
+    run_dump_test [file rootname $t]
+}

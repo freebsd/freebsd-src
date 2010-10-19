@@ -1,5 +1,5 @@
 /* tc-iq2000.c -- Assembler for the Sitera IQ2000.
-   Copyright (C) 2003, 2004 Free Software Foundation.
+   Copyright (C) 2003, 2004, 2005 Free Software Foundation.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -15,13 +15,13 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   the Free Software Foundation, 51 Franklin Street - Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 #include <stdio.h>
 #include "as.h"
 #include "safe-ctype.h"
-#include "subsegs.h"     
+#include "subsegs.h"
 #include "symcat.h"
 #include "opcodes/iq2000-desc.h"
 #include "opcodes/iq2000-opc.h"
@@ -55,23 +55,23 @@ typedef struct
 iq2000_insn;
 
 const char comment_chars[]        = "#";
-const char line_comment_chars[]   = "";
-const char line_separator_chars[] = ";"; 
+const char line_comment_chars[]   = "#";
+const char line_separator_chars[] = ";";
 const char EXP_CHARS[]            = "eE";
 const char FLT_CHARS[]            = "dD";
 
-/* Default machine */
-
+/* Default machine.  */
 #define DEFAULT_MACHINE bfd_mach_iq2000
 #define DEFAULT_FLAGS	EF_IQ2000_CPU_IQ2000
 
 static unsigned long iq2000_mach = bfd_mach_iq2000;
 static int cpu_mach = (1 << MACH_IQ2000);
 
-/* Flags to set in the elf header */
+/* Flags to set in the elf header.  */
 static flagword iq2000_flags = DEFAULT_FLAGS;
 
-typedef struct proc {
+typedef struct proc
+{
   symbolS *isym;
   unsigned long reg_mask;
   unsigned long reg_offset;
@@ -85,35 +85,6 @@ typedef struct proc {
 static procS cur_proc;
 static procS *cur_proc_ptr;
 static int numprocs;
-
-static void s_change_sec PARAMS ((int));
-static void s_iq2000_set PARAMS ((int));
-static void s_iq2000_mask PARAMS ((int));
-static void s_iq2000_frame PARAMS ((int));
-static void s_iq2000_ent PARAMS ((int));
-static void s_iq2000_end PARAMS ((int));
-static int  get_number PARAMS ((void));
-static symbolS * get_symbol PARAMS ((void));
-static void iq2000_record_hi16 PARAMS((int, fixS *, segT));
-
-
-/* The target specific pseudo-ops which we support.  */
-const pseudo_typeS md_pseudo_table[] =
-{
-    { "align",  s_align_bytes,           0 },
-    { "word",   cons,                    4 },
-    { "rdata",  s_change_sec, 		'r'},
-    { "sdata",  s_change_sec, 		's'},
-    { "set",	s_iq2000_set,		 0 },
-    { "ent",    s_iq2000_ent, 		 0 },
-    { "end",    s_iq2000_end,              0 },
-    { "frame",  s_iq2000_frame, 		 0 },
-    { "fmask",  s_iq2000_mask, 		'F' },
-    { "mask",   s_iq2000_mask, 		'R' },
-    { "dword",	cons, 			 8 },
-    { "half",	cons, 			 2 },
-    { NULL, 	NULL,			 0 }
-};
 
 /* Relocations against symbols are done in two
    parts, with a HI relocation and a LO relocation.  Each relocation
@@ -129,171 +100,39 @@ const pseudo_typeS md_pseudo_table[] =
 struct iq2000_hi_fixup
 {
   struct iq2000_hi_fixup * next;  /* Next HI fixup.  */
-  fixS *                  fixp;  /* This fixup.  */
-  segT                    seg;   /* The section this fixup is in.  */
-
+  fixS *                  fixp;   /* This fixup.  */
+  segT                    seg;    /* The section this fixup is in.  */
 };
 
 /* The list of unmatched HI relocs.  */
 static struct iq2000_hi_fixup * iq2000_hi_fixup_list;
 
+/* Macro hash table, which we will add to.  */
+extern struct hash_control *macro_hash;
 
-/* assembler options */
-#define OPTION_CPU_2000		(OPTION_MD_BASE)
-#define OPTION_CPU_10	        (OPTION_MD_BASE + 1)
-
+const char *md_shortopts = "";
 struct option md_longopts[] =
-{  
-  { "m2000",       no_argument,	      NULL, OPTION_CPU_2000   },
-  { "m10",         no_argument,	      NULL, OPTION_CPU_10     },
-  { NULL,          no_argument,       NULL, 0                 },
+{
+  {NULL, no_argument, NULL, 0}
 };
-
 size_t md_longopts_size = sizeof (md_longopts);
 
-const char * md_shortopts = "";
-
-static void iq2000_add_macro         PARAMS ((const char *, const char *, const char **));
-static void iq2000_load_macros       PARAMS ((void));
-static void iq10_load_macros         PARAMS ((void));
-
-/* macro hash table, which we will add to.  */
-extern struct hash_control *macro_hash;
-
 int
-md_parse_option (c, arg)
-    int c ATTRIBUTE_UNUSED;
-    char * arg ATTRIBUTE_UNUSED;
+md_parse_option (int c ATTRIBUTE_UNUSED,
+		 char * arg ATTRIBUTE_UNUSED)
 {
-  switch (c)
-    {
-    case OPTION_CPU_2000:
-      iq2000_flags = (iq2000_flags & ~EF_IQ2000_CPU_MASK) | EF_IQ2000_CPU_IQ2000;
-      iq2000_mach = bfd_mach_iq2000;
-      cpu_mach = (1 << MACH_IQ2000);
-      break;
-
-    case OPTION_CPU_10:
-      iq2000_flags = (iq2000_flags & ~EF_IQ2000_CPU_MASK) | EF_IQ2000_CPU_IQ10;
-      iq2000_mach = bfd_mach_iq10;
-      cpu_mach = (1 << MACH_IQ10);
-      /* only the first 3 pseudo ops (word, file, loc) are in IQ10 */
-      break;
-
-    default:
-      return 0;
-    }
-  return 1;
+  return 0;
 }
 
 void
-md_show_usage (stream)
-  FILE * stream;
+md_show_usage (FILE * stream ATTRIBUTE_UNUSED)
 {
-  fprintf (stream, _("IQ2000 specific command line options:\n"));
-  fprintf (stream, _("-m2000 <default>           IQ2000 processor\n"));
-  fprintf (stream, _("-m10                       IQ10 processor\n"));
-} 
-
+}
 
-void
-md_begin ()
-{
-  /* Initialize the `cgen' interface.  */
-  
-  /* Set the machine number and endian.  */
-  gas_cgen_cpu_desc = iq2000_cgen_cpu_open (CGEN_CPU_OPEN_MACHS, cpu_mach,
-					   CGEN_CPU_OPEN_ENDIAN,
-					   CGEN_ENDIAN_BIG,
-					   CGEN_CPU_OPEN_END);
-  iq2000_cgen_init_asm (gas_cgen_cpu_desc);
-
-  /* This is a callback from cgen to gas to parse operands.  */
-  cgen_set_parse_operand_fn (gas_cgen_cpu_desc, gas_cgen_parse_operand);
-
-  /* Set the ELF flags if desired. */
-  if (iq2000_flags)
-    bfd_set_private_flags (stdoutput, iq2000_flags);
-
-  /* Set the machine type */
-  bfd_default_set_arch_mach (stdoutput, bfd_arch_iq2000, iq2000_mach);
-
-  if (iq2000_mach == bfd_mach_iq2000)
-    iq2000_load_macros ();
-  else
-    iq10_load_macros ();
-}
-
-static void
-iq2000_add_macro (name, semantics, arguments)
-     const char  *name;
-     const char  *semantics;
-     const char **arguments;
-{
-  macro_entry *macro;
-  sb macro_name;
-  const char *namestr;
-
-  macro = (macro_entry *) xmalloc (sizeof (macro_entry));
-  sb_new (&macro->sub);
-  sb_new (&macro_name);
-
-  macro->formal_count = 0;
-  macro->formals = 0;
-
-  sb_add_string (&macro->sub, semantics);
-
-  if (arguments != NULL)
-    {
-      formal_entry **p = &macro->formals;
-      
-      macro->formal_count = 0;
-      macro->formal_hash = hash_new ();
-      while (*arguments != NULL)
-	{
-	  formal_entry *formal;
-	  
-	  formal = (formal_entry *) xmalloc (sizeof (formal_entry));
-	  
-	  sb_new (&formal->name);
-	  sb_new (&formal->def);
-	  sb_new (&formal->actual);
-	  
-	  /* chlm: Added the following to allow defaulted args.  */
-	  if (strchr (*arguments,'='))
-	    {
-	      char * tt_args = strdup(*arguments);
-	      char * tt_dflt = strchr(tt_args,'=');
-
-	      *tt_dflt = 0;
-	      sb_add_string (&formal->name, tt_args);
-	      sb_add_string (&formal->def,  tt_dflt + 1);
-	    }
-	  else
-	    sb_add_string (&formal->name, *arguments);
-
-	  /* Add to macro's hash table.  */
-	  hash_jam (macro->formal_hash, sb_terminate (&formal->name), formal);
-	  
-	  formal->index = macro->formal_count;
-	  macro->formal_count++;
-	  *p = formal;
-	  p = &formal->next;
-	  *p = NULL;
-	  ++arguments;
-	}
-    }
-
-  sb_add_string (&macro_name, name);  
-  namestr = sb_terminate (&macro_name);
-  hash_jam (macro_hash, namestr, (PTR) macro);
-
-  macro_defined = 1;
-}
-
 /* Automatically enter conditional branch macros.  */
 
-typedef struct {
+typedef struct
+{
   const char * mnemonic;
   const char ** expansion;
   const char ** args;
@@ -301,10 +140,8 @@ typedef struct {
 
 static const char * abs_args[] = { "rd", "rs", "scratch=%1", NULL };
 static const char * abs_expn   = "\n sra \\rd,\\rs,31\n xor \\scratch,\\rd,\\rs\n sub \\rd,\\scratch,\\rd\n";
-
 static const char * la_expn    = "\n lui \\reg,%hi(\\label)\n ori \\reg,\\reg,%lo(\\label)\n";
 static const char * la_args[]  = { "reg", "label", NULL };
-
 static const char * bxx_args[] = { "rs", "rt", "label", "scratch=%1", NULL };
 static const char * bge_expn   = "\n slt \\scratch,\\rs,\\rt\n beq %0,\\scratch,\\label\n";
 static const char * bgeu_expn  = "\n sltu \\scratch,\\rs,\\rt\n beq %0,\\scratch,\\label\n";
@@ -314,7 +151,6 @@ static const char * ble_expn   = "\n slt \\scratch,\\rt,\\rs\n beq %0,\\scratch,
 static const char * bleu_expn  = "\n sltu \\scratch,\\rt,\\rs\n beq %0,\\scratch,\\label\n";
 static const char * blt_expn   = "\n slt \\scratch,\\rs,\\rt\n bne %0,\\scratch,\\label\n";
 static const char * bltu_expn  = "\n sltu \\scratch,\\rs,\\rt\n bne %0,\\scratch,\\label\n";
-
 static const char * sxx_args[] = { "rd", "rs", "rt", NULL };
 static const char * sge_expn   = "\n slt \\rd,\\rs,\\rt\n xori \\rd,\\rd,1\n";
 static const char * sgeu_expn  = "\n sltu \\rd,\\rs,\\rt\n xori \\rd,\\rd,1\n";
@@ -324,7 +160,6 @@ static const char * sgt_expn   = "\n slt \\rd,\\rt,\\rs\n";
 static const char * sgtu_expn  = "\n sltu \\rd,\\rt,\\rs\n";
 static const char * sne_expn   = "\n xor \\rd,\\rt,\\rs\n sltu \\rd,%0,\\rd\n";
 static const char * seq_expn   = "\n xor \\rd,\\rt,\\rs\n sltu \\rd,%0,\\rd\n xori \\rd,\\rd,1\n";
-
 static const char * ai32_args[] = { "rt", "rs", "imm", NULL };
 static const char * andi32_expn = "\n\
  .if (\\imm & 0xffff0000 == 0xffff0000)\n\
@@ -350,7 +185,6 @@ static const char * ori32_expn  = "\n\
 static const char * neg_args[] = { "rd", "rs", NULL };
 static const char * neg_expn   = "\n sub \\rd,%0,\\rs\n";
 static const char * negu_expn  = "\n subu \\rd,%0,\\rs\n";
-
 static const char * li_args[]  = { "rt", "imm", NULL };
 static const char * li_expn    = "\n\
  .if (\\imm & 0xffff0000 == 0x0)\n\
@@ -363,38 +197,106 @@ static const char * li_expn    = "\n\
  lui \\rt,%uhi(\\imm)\n\
  ori \\rt,\\rt,%lo(\\imm)\n\
  .endif\n";
-  
-static iq2000_macro_defs_s iq2000_macro_defs[] = {
-  {"abs",  (const char **)&abs_expn,  (const char **)&abs_args},
-  {"la",   (const char **)&la_expn,   (const char **)&la_args},
-  {"bge",  (const char **)&bge_expn,  (const char **)&bxx_args},
-  {"bgeu", (const char **)&bgeu_expn, (const char **)&bxx_args},
-  {"bgt",  (const char **)&bgt_expn,  (const char **)&bxx_args},
-  {"bgtu", (const char **)&bgtu_expn, (const char **)&bxx_args},
-  {"ble",  (const char **)&ble_expn,  (const char **)&bxx_args},
-  {"bleu", (const char **)&bleu_expn, (const char **)&bxx_args},
-  {"blt",  (const char **)&blt_expn,  (const char **)&bxx_args},
-  {"bltu", (const char **)&bltu_expn, (const char **)&bxx_args},
-  {"sge",  (const char **)&sge_expn,  (const char **)&sxx_args},
-  {"sgeu", (const char **)&sgeu_expn, (const char **)&sxx_args},
-  {"sle",  (const char **)&sle_expn,  (const char **)&sxx_args},
-  {"sleu", (const char **)&sleu_expn, (const char **)&sxx_args},
-  {"sgt",  (const char **)&sgt_expn,  (const char **)&sxx_args},
-  {"sgtu", (const char **)&sgtu_expn, (const char **)&sxx_args},
-  {"seq",  (const char **)&seq_expn,  (const char **)&sxx_args},
-  {"sne",  (const char **)&sne_expn,  (const char **)&sxx_args},
-  {"neg",  (const char **)&neg_expn,  (const char **)&neg_args},
-  {"negu", (const char **)&negu_expn, (const char **)&neg_args},
-  {"li",   (const char **)&li_expn,   (const char **)&li_args},
-  {"ori32", (const char **)&ori32_expn, (const char **)&ai32_args},
-  {"andi32",(const char **)&andi32_expn,(const char **)&ai32_args},
+
+static iq2000_macro_defs_s iq2000_macro_defs[] =
+{
+  {"abs",   (const char **) & abs_expn,   (const char **) & abs_args},
+  {"la",    (const char **) & la_expn,    (const char **) & la_args},
+  {"bge",   (const char **) & bge_expn,   (const char **) & bxx_args},
+  {"bgeu",  (const char **) & bgeu_expn,  (const char **) & bxx_args},
+  {"bgt",   (const char **) & bgt_expn,   (const char **) & bxx_args},
+  {"bgtu",  (const char **) & bgtu_expn,  (const char **) & bxx_args},
+  {"ble",   (const char **) & ble_expn,   (const char **) & bxx_args},
+  {"bleu",  (const char **) & bleu_expn,  (const char **) & bxx_args},
+  {"blt",   (const char **) & blt_expn,   (const char **) & bxx_args},
+  {"bltu",  (const char **) & bltu_expn,  (const char **) & bxx_args},
+  {"sge",   (const char **) & sge_expn,   (const char **) & sxx_args},
+  {"sgeu",  (const char **) & sgeu_expn,  (const char **) & sxx_args},
+  {"sle",   (const char **) & sle_expn,   (const char **) & sxx_args},
+  {"sleu",  (const char **) & sleu_expn,  (const char **) & sxx_args},
+  {"sgt",   (const char **) & sgt_expn,   (const char **) & sxx_args},
+  {"sgtu",  (const char **) & sgtu_expn,  (const char **) & sxx_args},
+  {"seq",   (const char **) & seq_expn,   (const char **) & sxx_args},
+  {"sne",   (const char **) & sne_expn,   (const char **) & sxx_args},
+  {"neg",   (const char **) & neg_expn,   (const char **) & neg_args},
+  {"negu",  (const char **) & negu_expn,  (const char **) & neg_args},
+  {"li",    (const char **) & li_expn,    (const char **) & li_args},
+  {"ori32", (const char **) & ori32_expn, (const char **) & ai32_args},
+  {"andi32",(const char **) & andi32_expn,(const char **) & ai32_args},
 };
 
 static void
-iq2000_load_macros ()
+iq2000_add_macro (const char *  name,
+		  const char *  semantics,
+		  const char ** arguments)
+{
+  macro_entry *macro;
+  sb macro_name;
+  const char *namestr;
+
+  macro = xmalloc (sizeof (macro_entry));
+  sb_new (& macro->sub);
+  sb_new (& macro_name);
+
+  macro->formal_count = 0;
+  macro->formals = 0;
+
+  sb_add_string (& macro->sub, semantics);
+
+  if (arguments != NULL)
+    {
+      formal_entry ** p = &macro->formals;
+
+      macro->formal_count = 0;
+      macro->formal_hash = hash_new ();
+
+      while (*arguments != NULL)
+	{
+	  formal_entry *formal;
+
+	  formal = xmalloc (sizeof (formal_entry));
+
+	  sb_new (& formal->name);
+	  sb_new (& formal->def);
+	  sb_new (& formal->actual);
+
+	  /* chlm: Added the following to allow defaulted args.  */
+	  if (strchr (*arguments,'='))
+	    {
+	      char * tt_args = strdup (*arguments);
+	      char * tt_dflt = strchr (tt_args,'=');
+
+	      *tt_dflt = 0;
+	      sb_add_string (& formal->name, tt_args);
+	      sb_add_string (& formal->def,  tt_dflt + 1);
+	    }
+	  else
+	    sb_add_string (& formal->name, *arguments);
+
+	  /* Add to macro's hash table.  */
+	  hash_jam (macro->formal_hash, sb_terminate (& formal->name), formal);
+
+	  formal->index = macro->formal_count;
+	  macro->formal_count++;
+	  *p = formal;
+	  p = & formal->next;
+	  *p = NULL;
+	  ++arguments;
+	}
+    }
+
+  sb_add_string (&macro_name, name);
+  namestr = sb_terminate (&macro_name);
+  hash_jam (macro_hash, namestr, macro);
+
+  macro_defined = 1;
+}
+
+static void
+iq2000_load_macros (void)
 {
   int i;
-  int mcnt = sizeof (iq2000_macro_defs) / sizeof (iq2000_macro_defs_s);
+  int mcnt = ARRAY_SIZE (iq2000_macro_defs);
 
   for (i = 0; i < mcnt; i++)
     iq2000_add_macro (iq2000_macro_defs[i].mnemonic,
@@ -402,26 +304,33 @@ iq2000_load_macros ()
 		      iq2000_macro_defs[i].args);
 }
 
-static void
-iq10_load_macros ()
+void
+md_begin (void)
 {
-  /* Allow all iq2k macros in iq10, instead of just LA. */
+  /* Initialize the `cgen' interface.  */
+
+  /* Set the machine number and endian.  */
+  gas_cgen_cpu_desc = iq2000_cgen_cpu_open (CGEN_CPU_OPEN_MACHS, cpu_mach,
+					   CGEN_CPU_OPEN_ENDIAN,
+					   CGEN_ENDIAN_BIG,
+					   CGEN_CPU_OPEN_END);
+  iq2000_cgen_init_asm (gas_cgen_cpu_desc);
+
+  /* This is a callback from cgen to gas to parse operands.  */
+  cgen_set_parse_operand_fn (gas_cgen_cpu_desc, gas_cgen_parse_operand);
+
+  /* Set the ELF flags if desired.  */
+  if (iq2000_flags)
+    bfd_set_private_flags (stdoutput, iq2000_flags);
+
+  /* Set the machine type */
+  bfd_default_set_arch_mach (stdoutput, bfd_arch_iq2000, iq2000_mach);
+
   iq2000_load_macros ();
-#if 0
-  char *la_sem = "\n lui \\reg,%hi(\\label)\n ori \\reg,\\reg,%lo(\\label)\n";
-
-  char *la_arg_1 = "reg";
-  char *la_arg_2 = "label";
-  const char *la_args[3] = { la_arg_1, la_arg_2, NULL };
-
-  iq2000_add_macro ("la", la_sem, la_args);
-#endif
 }
 
-
 void
-md_assemble (str)
-     char * str;
+md_assemble (char * str)
 {
   static long delayed_load_register = 0;
   static int last_insn_had_delay_slot = 0;
@@ -448,28 +357,20 @@ md_assemble (str)
   gas_cgen_finish_insn (insn.insn, insn.buffer,
 			CGEN_FIELDS_BITSIZE (& insn.fields), 1, NULL);
 
-  /* We need to generate an error if there's a yielding instruction in the delay 
-     slot of a control flow modifying instruction (jump (yes), load (no))  */ 
+  /* We need to generate an error if there's a yielding instruction in the delay
+     slot of a control flow modifying instruction (jump (yes), load (no))  */
   if ((last_insn_had_delay_slot && !last_insn_has_load_delay) &&
       CGEN_INSN_ATTR_VALUE (insn.insn, CGEN_INSN_YIELD_INSN))
       as_bad (_("the yielding instruction %s may not be in a delay slot."),
               CGEN_INSN_NAME (insn.insn));
 
   /* Warn about odd numbered base registers for paired-register
-     instructions like LDW.  On iq2000, result is always rt. */
+     instructions like LDW.  On iq2000, result is always rt.  */
   if (iq2000_mach == bfd_mach_iq2000
       && CGEN_INSN_ATTR_VALUE (insn.insn, CGEN_INSN_EVEN_REG_NUM)
       && (insn.fields.f_rt % 2))
     as_bad (_("Register number (R%ld) for double word access must be even."),
 	    insn.fields.f_rt);
-
-  /* Warn about odd numbered base registers for paired-register
-     instructions like LDW.  On iq10, result is always rd. */
-  if (iq2000_mach == bfd_mach_iq10
-      && CGEN_INSN_ATTR_VALUE (insn.insn, CGEN_INSN_EVEN_REG_NUM)
-      && (insn.fields.f_rd % 2))
-    as_bad (_("Register number (R%ld) for double word access must be even."),
-	    insn.fields.f_rd);
 
   /* Warn about insns that reference the target of a previous load.  */
   /* NOTE: R0 is a special case and is not subject to load delays (except for ldw).  */
@@ -479,34 +380,34 @@ md_assemble (str)
 	  insn.fields.f_rd == delayed_load_register)
 	as_warn (_("operand references R%ld of previous load."),
 		 insn.fields.f_rd);
-      
+
       if (CGEN_INSN_ATTR_VALUE (insn.insn, CGEN_INSN_USES_RS) &&
 	  insn.fields.f_rs == delayed_load_register)
 	as_warn (_("operand references R%ld of previous load."),
 		 insn.fields.f_rs);
-      
+
       if (CGEN_INSN_ATTR_VALUE (insn.insn, CGEN_INSN_USES_RT) &&
 	  insn.fields.f_rt == delayed_load_register)
 	as_warn (_("operand references R%ld of previous load."),
 		 insn.fields.f_rt);
-      
+
       if (CGEN_INSN_ATTR_VALUE (insn.insn, CGEN_INSN_USES_R31) &&
 	  delayed_load_register == 31)
 	as_warn (_("instruction implicitly accesses R31 of previous load."));
     }
 
-  /* Warn about insns that reference the (target + 1) of a previous ldw */ 
-  if (last_insn_was_ldw) 
-    { 
-      if ((CGEN_INSN_ATTR_VALUE (insn.insn, CGEN_INSN_USES_RD) 
-           && insn.fields.f_rd == delayed_load_register + 1) 
-       || (CGEN_INSN_ATTR_VALUE (insn.insn, CGEN_INSN_USES_RS) 
-           && insn.fields.f_rs == delayed_load_register + 1) 
-       || (CGEN_INSN_ATTR_VALUE (insn.insn, CGEN_INSN_USES_RT) 
-           && insn.fields.f_rt == delayed_load_register + 1)) 
-        as_warn (_("operand references R%ld of previous load."), 
-                delayed_load_register + 1); 
-    } 
+  /* Warn about insns that reference the (target + 1) of a previous ldw.  */
+  if (last_insn_was_ldw)
+    {
+      if ((CGEN_INSN_ATTR_VALUE (insn.insn, CGEN_INSN_USES_RD)
+           && insn.fields.f_rd == delayed_load_register + 1)
+       || (CGEN_INSN_ATTR_VALUE (insn.insn, CGEN_INSN_USES_RS)
+           && insn.fields.f_rs == delayed_load_register + 1)
+       || (CGEN_INSN_ATTR_VALUE (insn.insn, CGEN_INSN_USES_RT)
+           && insn.fields.f_rt == delayed_load_register + 1))
+        as_warn (_("operand references R%ld of previous load."),
+                delayed_load_register + 1);
+    }
 
   last_insn_had_delay_slot =
     CGEN_INSN_ATTR_VALUE (insn.insn, CGEN_INSN_DELAY_SLOT);
@@ -520,28 +421,23 @@ md_assemble (str)
 	   || ! strcmp (CGEN_INSN_MNEMONIC (insn.insn), "jal"))
 	   last_insn_unconditional_jump = 1;
 
-  /* The meaning of EVEN_REG_NUM was overloaded to also imply LDW.  Since that's 
-     not true for IQ10, let's make the above logic specific to LDW. */
+  /* The meaning of EVEN_REG_NUM was overloaded to also imply LDW.  Since
+     that's not true for IQ10, let's make the above logic specific to LDW.  */
   last_insn_was_ldw = ! strcmp ("ldw", CGEN_INSN_NAME (insn.insn));
 
-  /* The assumption here is that the target of a load is always rt.
-     That is true for iq2000 & iq10. */
+  /* The assumption here is that the target of a load is always rt.  */
   delayed_load_register = insn.fields.f_rt;
 }
 
 valueT
-md_section_align (segment, size)
-     segT   segment;
-     valueT size;
+md_section_align (segT segment, valueT size)
 {
   int align = bfd_get_section_alignment (stdoutput, segment);
   return ((size + (1 << align) - 1) & (-1 << align));
 }
 
-
 symbolS *
-md_undefined_symbol (name)
-    char * name ATTRIBUTE_UNUSED;
+md_undefined_symbol (char * name ATTRIBUTE_UNUSED)
 {
     return 0;
 }
@@ -560,9 +456,8 @@ md_undefined_symbol (name)
    0 value.  */
 
 int
-md_estimate_size_before_relax (fragP, segment)
-     fragS * fragP;
-     segT    segment ATTRIBUTE_UNUSED;
+md_estimate_size_before_relax (fragS * fragP,
+			       segT    segment ATTRIBUTE_UNUSED)
 {
   int    old_fr_fix = fragP->fr_fix;
 
@@ -573,7 +468,7 @@ md_estimate_size_before_relax (fragP, segment)
      alignment requirements may move the insn about.  */
 
   return (fragP->fr_var + fragP->fr_fix - old_fr_fix);
-} 
+}
 
 /* *fragP has been relaxed to its final size, and now needs to have
    the bytes inside it modified to conform to the new size.
@@ -583,10 +478,9 @@ md_estimate_size_before_relax (fragP, segment)
    fragP->fr_subtype is the subtype of what the address relaxed to.  */
 
 void
-md_convert_frag (abfd, sec, fragP)
-    bfd   * abfd  ATTRIBUTE_UNUSED;
-    segT    sec   ATTRIBUTE_UNUSED;
-    fragS * fragP ATTRIBUTE_UNUSED;
+md_convert_frag (bfd   * abfd  ATTRIBUTE_UNUSED,
+		 segT    sec   ATTRIBUTE_UNUSED,
+		 fragS * fragP ATTRIBUTE_UNUSED)
 {
 }
 
@@ -594,9 +488,7 @@ md_convert_frag (abfd, sec, fragP)
 /* Functions concerning relocs.  */
 
 long
-md_pcrel_from_section (fixP, sec)
-     fixS * fixP;
-     segT   sec;
+md_pcrel_from_section (fixS * fixP, segT sec)
 {
   if (fixP->fx_addsy != (symbolS *) NULL
       && (! S_IS_DEFINED (fixP->fx_addsy)
@@ -607,7 +499,7 @@ md_pcrel_from_section (fixP, sec)
       return 0;
     }
 
-  /* return the address of the delay slot */
+  /* Return the address of the delay slot.  */
   return fixP->fx_size + fixP->fx_where + fixP->fx_frag->fr_address;
 }
 
@@ -616,28 +508,18 @@ md_pcrel_from_section (fixP, sec)
    *FIXP may be modified if desired.  */
 
 bfd_reloc_code_real_type
-md_cgen_lookup_reloc (insn, operand, fixP)
-     const CGEN_INSN *    insn     ATTRIBUTE_UNUSED;
-     const CGEN_OPERAND * operand;
-     fixS *               fixP     ATTRIBUTE_UNUSED;
+md_cgen_lookup_reloc (const CGEN_INSN *    insn     ATTRIBUTE_UNUSED,
+		      const CGEN_OPERAND * operand,
+		      fixS *               fixP     ATTRIBUTE_UNUSED)
 {
   switch (operand->type)
     {
-    case IQ2000_OPERAND_OFFSET:
-      return BFD_RELOC_16_PCREL_S2;
-    case IQ2000_OPERAND_JMPTARG:
-      return BFD_RELOC_IQ2000_OFFSET_16;
-    case IQ2000_OPERAND_JMPTARGQ10:
-      if (iq2000_mach == bfd_mach_iq10)
-	return BFD_RELOC_IQ2000_OFFSET_21;
-      return BFD_RELOC_NONE;
-    case IQ2000_OPERAND_HI16:
-      return BFD_RELOC_HI16;
-    case IQ2000_OPERAND_LO16:
-      return BFD_RELOC_LO16;
-    default:
-      /* Pacify gcc -Wall.  */
-      return BFD_RELOC_NONE;
+    case IQ2000_OPERAND_OFFSET:      return BFD_RELOC_16_PCREL_S2;
+    case IQ2000_OPERAND_JMPTARG:     return BFD_RELOC_IQ2000_OFFSET_16;
+    case IQ2000_OPERAND_JMPTARGQ10:  return BFD_RELOC_NONE;
+    case IQ2000_OPERAND_HI16:        return BFD_RELOC_HI16;
+    case IQ2000_OPERAND_LO16:        return BFD_RELOC_LO16;
+    default: break;
     }
 
   return BFD_RELOC_NONE;
@@ -646,21 +528,19 @@ md_cgen_lookup_reloc (insn, operand, fixP)
 /* Record a HI16 reloc for later matching with its LO16 cousin.  */
 
 static void
-iq2000_record_hi16 (reloc_type, fixP, seg)
-     int    reloc_type;
-     fixS * fixP;
-     segT   seg ATTRIBUTE_UNUSED;
+iq2000_record_hi16 (int    reloc_type,
+		    fixS * fixP,
+		    segT   seg ATTRIBUTE_UNUSED)
 {
   struct iq2000_hi_fixup * hi_fixup;
 
   assert (reloc_type == BFD_RELOC_HI16);
 
-  hi_fixup = ((struct iq2000_hi_fixup *)
-	      xmalloc (sizeof (struct iq2000_hi_fixup)));
+  hi_fixup = xmalloc (sizeof * hi_fixup);
   hi_fixup->fixp = fixP;
   hi_fixup->seg  = now_seg;
   hi_fixup->next = iq2000_hi_fixup_list;
-  
+
   iq2000_hi_fixup_list = hi_fixup;
 }
 
@@ -668,29 +548,22 @@ iq2000_record_hi16 (reloc_type, fixP, seg)
    We need to check for HI16 relocs and queue them up for later sorting.  */
 
 fixS *
-iq2000_cgen_record_fixup_exp (frag, where, insn, length, operand, opinfo, exp)
-     fragS *              frag;
-     int                  where;
-     const CGEN_INSN *    insn;
-     int                  length;
-     const CGEN_OPERAND * operand;
-     int                  opinfo;
-     expressionS *        exp;
+iq2000_cgen_record_fixup_exp (fragS *              frag,
+			      int                  where,
+			      const CGEN_INSN *    insn,
+			      int                  length,
+			      const CGEN_OPERAND * operand,
+			      int                  opinfo,
+			      expressionS *        exp)
 {
   fixS * fixP = gas_cgen_record_fixup_exp (frag, where, insn, length,
 					   operand, opinfo, exp);
 
-  switch (operand->type)
-    {
-    case IQ2000_OPERAND_HI16 :
+  if (operand->type == IQ2000_OPERAND_HI16
       /* If low/high was used, it is recorded in `opinfo'.  */
-      if (fixP->fx_cgen.opinfo == BFD_RELOC_HI16
-	  || fixP->fx_cgen.opinfo == BFD_RELOC_LO16)
-	iq2000_record_hi16 (fixP->fx_cgen.opinfo, fixP, now_seg);
-      break;
-    default : /* avoid -Wall warning */
-      break;
-    }
+      && (fixP->fx_cgen.opinfo == BFD_RELOC_HI16
+	  || fixP->fx_cgen.opinfo == BFD_RELOC_LO16))
+    iq2000_record_hi16 (fixP->fx_cgen.opinfo, fixP, now_seg);
 
   return fixP;
 }
@@ -701,11 +574,11 @@ iq2000_cgen_record_fixup_exp (frag, where, insn, length, operand, opinfo, exp)
 #define FX_OPINFO_R_TYPE(f) ((f)->fx_cgen.opinfo)
 
 /* Sort any unmatched HI16 relocs so that they immediately precede
-   the corresponding LO16 reloc.  This is called before md_apply_fix3 and
+   the corresponding LO16 reloc.  This is called before md_apply_fix and
    tc_gen_reloc.  */
 
 void
-iq2000_frob_file ()
+iq2000_frob_file (void)
 {
   struct iq2000_hi_fixup * l;
 
@@ -713,10 +586,10 @@ iq2000_frob_file ()
     {
       segment_info_type * seginfo;
       int                 pass;
-      
+
       assert (FX_OPINFO_R_TYPE (l->fixp) == BFD_RELOC_HI16
 	      || FX_OPINFO_R_TYPE (l->fixp) == BFD_RELOC_LO16);
-      
+
       /* Check quickly whether the next fixup happens to be a matching low.  */
       if (l->fixp->fx_next != NULL
 	  && FX_OPINFO_R_TYPE (l->fixp->fx_next) == BFD_RELOC_LO16
@@ -783,8 +656,7 @@ iq2000_frob_file ()
 /* See whether we need to force a relocation into the output file.  */
 
 int
-iq2000_force_relocation (fix)
-     fixS * fix;
+iq2000_force_relocation (fixS * fix)
 {
   if (fix->fx_r_type == BFD_RELOC_VTABLE_INHERIT
       || fix->fx_r_type == BFD_RELOC_VTABLE_ENTRY)
@@ -796,9 +668,25 @@ iq2000_force_relocation (fix)
 /* Handle the .set pseudo-op.  */
 
 static void
-s_iq2000_set (x)
-     int x ATTRIBUTE_UNUSED;
+s_iq2000_set (int x ATTRIBUTE_UNUSED)
 {
+  static const char * ignored_arguments [] =
+    {
+      "reorder",
+      "noreorder",
+      "at",
+      "noat",
+      "macro",
+      "nomacro",
+      "move",
+      "novolatile",
+      "nomove",
+      "volatile",
+      "bopt",
+      "nobopt",
+      NULL
+    };
+  const char ** ignored;
   char *name = input_line_pointer, ch;
   char *save_ILP = input_line_pointer;
 
@@ -807,43 +695,15 @@ s_iq2000_set (x)
   ch = *input_line_pointer;
   *input_line_pointer = '\0';
 
-  if (strcmp (name, "reorder") == 0)
-    {
-    }
-  else if (strcmp (name, "noreorder") == 0)
-    {
-    }
-  else if (strcmp (name, "at") == 0)
-    {
-    }
-  else if (strcmp (name, "noat") == 0)
-    {
-    }
-  else if (strcmp (name, "macro") == 0)
-    {
-    }
-  else if (strcmp (name, "nomacro") == 0)
-    {
-    }
-  else if (strcmp (name, "move") == 0 || strcmp (name, "novolatile") == 0)
-    {
-    }
-  else if (strcmp (name, "nomove") == 0 || strcmp (name, "volatile") == 0)
-    {
-    }
-  else if (strcmp (name, "bopt") == 0)
-    {
-    }
-  else if (strcmp (name, "nobopt") == 0)
-    {
-    }
-  else
+  for (ignored = ignored_arguments; * ignored; ignored ++)
+    if (strcmp (* ignored, name) == 0)
+      break;
+  if (* ignored == NULL)
     {
       /* We'd like to be able to use .set symbol, expn */
       input_line_pointer = save_ILP;
       s_set (0);
       return;
-      /*as_warn (_("Tried to set unrecognized symbol: %s\n"), name);*/
     }
   *input_line_pointer = ch;
   demand_empty_rest_of_line ();
@@ -852,19 +712,15 @@ s_iq2000_set (x)
 /* Write a value out to the object file, using the appropriate endianness.  */
 
 void
-md_number_to_chars (buf, val, n)
-     char * buf;
-     valueT val;
-     int    n;
+md_number_to_chars (char * buf, valueT val, int n)
 {
   number_to_chars_bigendian (buf, val, n);
 }
 
 void
-md_operand (exp)
-     expressionS * exp;
+md_operand (expressionS * exp)
 {
-  /* In case of a syntax error, escape back to try next syntax combo. */
+  /* In case of a syntax error, escape back to try next syntax combo.  */
   if (exp->X_op == O_absent)
     gas_cgen_md_operand (exp);
 }
@@ -878,10 +734,7 @@ md_operand (exp)
 #define MAX_LITTLENUMS 6
 
 char *
-md_atof (type, litP, sizeP)
-     char type;
-     char *litP;
-     int *sizeP;
+md_atof (int type, char * litP, int * sizeP)
 {
   int              i;
   int              prec;
@@ -915,7 +768,7 @@ md_atof (type, litP, sizeP)
   if (t)
     input_line_pointer = t;
   * sizeP = prec * sizeof (LITTLENUM_TYPE);
-  
+
   for (i = 0; i < prec; i++)
     {
       md_number_to_chars (litP, (valueT) words[i],
@@ -928,8 +781,7 @@ md_atof (type, litP, sizeP)
 
 
 bfd_boolean
-iq2000_fix_adjustable (fixP)
-   fixS * fixP;
+iq2000_fix_adjustable (fixS * fixP)
 {
   bfd_reloc_code_real_type reloc_type;
 
@@ -938,6 +790,7 @@ iq2000_fix_adjustable (fixP)
       const CGEN_INSN *insn = NULL;
       int opindex = (int) fixP->fx_r_type - (int) BFD_RELOC_UNUSED;
       const CGEN_OPERAND *operand = cgen_operand_lookup_by_num(gas_cgen_cpu_desc, opindex);
+
       reloc_type = md_cgen_lookup_reloc (insn, operand, fixP);
     }
   else
@@ -945,14 +798,14 @@ iq2000_fix_adjustable (fixP)
 
   if (fixP->fx_addsy == NULL)
     return TRUE;
-  
+
   /* Prevent all adjustments to global symbols.  */
-  if (S_IS_EXTERN (fixP->fx_addsy))
+  if (S_IS_EXTERNAL (fixP->fx_addsy))
     return FALSE;
-  
+
   if (S_IS_WEAK (fixP->fx_addsy))
     return FALSE;
-  
+
   /* We need the symbol name for the VTABLE entries.  */
   if (   reloc_type == BFD_RELOC_VTABLE_INHERIT
       || reloc_type == BFD_RELOC_VTABLE_ENTRY)
@@ -962,10 +815,8 @@ iq2000_fix_adjustable (fixP)
 }
 
 static void
-s_change_sec (sec)
-     int sec;
+s_change_sec (int sec)
 {
-
 #ifdef OBJ_ELF
   /* The ELF backend needs to know that we are changing sections, so
      that .previous works correctly.  We could do something like check
@@ -975,8 +826,6 @@ s_change_sec (sec)
      This should be cleaner, somehow.  */
   obj_elf_section_change_hook ();
 #endif
-
-  /*   iq2000_emit_delays (false); */
 
   switch (sec)
     {
@@ -990,144 +839,8 @@ s_change_sec (sec)
     }
 }
 
-/* The .end directive.  */
-
-static void
-s_iq2000_end (x)
-     int x ATTRIBUTE_UNUSED;
-{
-  symbolS *p;
-  int maybe_text;
-
-  if (!is_end_of_line[(unsigned char) *input_line_pointer])
-    {
-      p = get_symbol ();
-      demand_empty_rest_of_line ();
-    }
-  else
-    p = NULL;
-
-  if (1/*iq2000_mach == bfd_mach_iq2000*/)
-    {
-#ifdef BFD_ASSEMBLER
-      if ((bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) != 0)
-	maybe_text = 1;
-      else
-	maybe_text = 0;
-#else
-      if (now_seg != data_section && now_seg != bss_section)
-	maybe_text = 1;
-      else
-	maybe_text = 0;
-#endif
-      
-      if (!maybe_text)
-	as_warn (_(".end not in text section"));
-      
-      if (!cur_proc_ptr)
-	{
-	  as_warn (_(".end directive without a preceding .ent directive."));
-	  demand_empty_rest_of_line ();
-	  return;
-	}
-      
-      if (p != NULL)
-	{
-	  assert (S_GET_NAME (p));
-	  if (strcmp (S_GET_NAME (p), S_GET_NAME (cur_proc_ptr->isym)))
-	    as_warn (_(".end symbol does not match .ent symbol."));
-	}
-      else
-	as_warn (_(".end directive missing or unknown symbol"));
-      
-    }
-
-  cur_proc_ptr = NULL;
-}
-
-/* The .aent and .ent directives.  */
-
-static void
-s_iq2000_ent (aent)
-     int aent;
-{
-  int number = 0;
-  symbolS *symbolP;
-  int maybe_text;
-
-  if (1/*iq2000_mach == bfd_mach_iq2000*/)
-    {
-      symbolP = get_symbol ();
-      if (*input_line_pointer == ',')
-	input_line_pointer++;
-      SKIP_WHITESPACE ();
-      if (ISDIGIT (*input_line_pointer) || *input_line_pointer == '-')
-	number = get_number ();
-      
-#ifdef BFD_ASSEMBLER
-      if ((bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) != 0)
-	maybe_text = 1;
-      else
-	maybe_text = 0;
-#else
-      if (now_seg != data_section && now_seg != bss_section)
-	maybe_text = 1;
-      else
-	maybe_text = 0;
-#endif
-      
-      if (!maybe_text)
-	as_warn (_(".ent or .aent not in text section."));
-      
-      if (!aent && cur_proc_ptr)
-	as_warn (_("missing `.end'"));
-      
-      if (!aent)
-	{
-	  cur_proc_ptr = &cur_proc;
-	  memset (cur_proc_ptr, '\0', sizeof (procS));
-	  
-	  cur_proc_ptr->isym = symbolP;
-	  
-	  symbol_get_bfdsym (symbolP)->flags |= BSF_FUNCTION;
-	  
-	  numprocs++;
-	}
-    }
-  else
-    as_bad (_("unknown pseudo-op: `%s'"), ".ent");
-
-  demand_empty_rest_of_line ();
-}
-
-/* The .frame directive. If the mdebug section is present (IRIX 5 native)
-   then ecoff.c (ecoff_directive_frame) is used. For embedded targets,
-   s_iq2000_frame is used so that we can set the PDR information correctly.
-   We can't use the ecoff routines because they make reference to the ecoff
-   symbol table (in the mdebug section).  */
-
-static void
-s_iq2000_frame (ignore)
-     int ignore;
-{
-  s_ignore (ignore);
-}
-
-/* The .fmask and .mask directives. If the mdebug section is present
-   (IRIX 5 native) then ecoff.c (ecoff_directive_mask) is used. For
-   embedded targets, s_iq2000_mask is used so that we can set the PDR
-   information correctly. We can't use the ecoff routines because they
-   make reference to the ecoff symbol table (in the mdebug section).  */
-
-static void
-s_iq2000_mask (reg_type)
-     char reg_type;
-{
-  s_ignore (reg_type);
-}
-
 static symbolS *
-get_symbol ()
+get_symbol (void)
 {
   int c;
   char *name;
@@ -1140,8 +853,51 @@ get_symbol ()
   return p;
 }
 
+/* The .end directive.  */
+
+static void
+s_iq2000_end (int x ATTRIBUTE_UNUSED)
+{
+  symbolS *p;
+  int maybe_text;
+
+  if (!is_end_of_line[(unsigned char) *input_line_pointer])
+    {
+      p = get_symbol ();
+      demand_empty_rest_of_line ();
+    }
+  else
+    p = NULL;
+
+  if ((bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) != 0)
+    maybe_text = 1;
+  else
+    maybe_text = 0;
+
+  if (!maybe_text)
+    as_warn (_(".end not in text section"));
+
+  if (!cur_proc_ptr)
+    {
+      as_warn (_(".end directive without a preceding .ent directive."));
+      demand_empty_rest_of_line ();
+      return;
+    }
+
+  if (p != NULL)
+    {
+      assert (S_GET_NAME (p));
+      if (strcmp (S_GET_NAME (p), S_GET_NAME (cur_proc_ptr->isym)))
+	as_warn (_(".end symbol does not match .ent symbol."));
+    }
+  else
+    as_warn (_(".end directive missing or unknown symbol"));
+
+  cur_proc_ptr = NULL;
+}
+
 static int
-get_number ()
+get_number (void)
 {
   int negative = 0;
   long val = 0;
@@ -1197,3 +953,86 @@ get_number ()
   return negative ? -val : val;
 }
 
+/* The .aent and .ent directives.  */
+
+static void
+s_iq2000_ent (int aent)
+{
+  int number = 0;
+  symbolS *symbolP;
+  int maybe_text;
+
+  symbolP = get_symbol ();
+  if (*input_line_pointer == ',')
+    input_line_pointer++;
+  SKIP_WHITESPACE ();
+  if (ISDIGIT (*input_line_pointer) || *input_line_pointer == '-')
+    number = get_number ();
+
+  if ((bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) != 0)
+    maybe_text = 1;
+  else
+    maybe_text = 0;
+
+  if (!maybe_text)
+    as_warn (_(".ent or .aent not in text section."));
+
+  if (!aent && cur_proc_ptr)
+    as_warn (_("missing `.end'"));
+
+  if (!aent)
+    {
+      cur_proc_ptr = &cur_proc;
+      memset (cur_proc_ptr, '\0', sizeof (procS));
+
+      cur_proc_ptr->isym = symbolP;
+
+      symbol_get_bfdsym (symbolP)->flags |= BSF_FUNCTION;
+
+      numprocs++;
+    }
+
+  demand_empty_rest_of_line ();
+}
+
+/* The .frame directive. If the mdebug section is present (IRIX 5 native)
+   then ecoff.c (ecoff_directive_frame) is used. For embedded targets,
+   s_iq2000_frame is used so that we can set the PDR information correctly.
+   We can't use the ecoff routines because they make reference to the ecoff
+   symbol table (in the mdebug section).  */
+
+static void
+s_iq2000_frame (int ignore)
+{
+  s_ignore (ignore);
+}
+
+/* The .fmask and .mask directives. If the mdebug section is present
+   (IRIX 5 native) then ecoff.c (ecoff_directive_mask) is used. For
+   embedded targets, s_iq2000_mask is used so that we can set the PDR
+   information correctly. We can't use the ecoff routines because they
+   make reference to the ecoff symbol table (in the mdebug section).  */
+
+static void
+s_iq2000_mask (int reg_type)
+{
+  s_ignore (reg_type);
+}
+
+/* The target specific pseudo-ops which we support.  */
+const pseudo_typeS md_pseudo_table[] =
+{
+    { "align",  s_align_bytes,           0 },
+    { "word",   cons,                    4 },
+    { "rdata",  s_change_sec, 		'r'},
+    { "sdata",  s_change_sec, 		's'},
+    { "set",	s_iq2000_set,		 0 },
+    { "ent",    s_iq2000_ent, 		 0 },
+    { "end",    s_iq2000_end,            0 },
+    { "frame",  s_iq2000_frame, 	 0 },
+    { "fmask",  s_iq2000_mask, 		'F'},
+    { "mask",   s_iq2000_mask, 		'R'},
+    { "dword",	cons, 			 8 },
+    { "half",	cons, 			 2 },
+    { NULL, 	NULL,			 0 }
+};

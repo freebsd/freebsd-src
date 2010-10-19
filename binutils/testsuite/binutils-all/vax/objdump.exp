@@ -1,0 +1,64 @@
+#
+# Copyright 1993, 1994, 1995, 1997, 1999, 2000, 2002, 2005
+# Free Software Foundation, Inc.
+#
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 2 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+#   You should have received a copy of the GNU General Public License
+#   along with this program; if not, write to the Free Software
+#   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+#
+
+#
+# This file was written by Jan-Benedict Glaw <jbglaw@lug-owl.de>. It's goal
+# is to check the VAX-specific support of the -M entry:0xf00 switch, which
+# allows to force function entry masks at given addresses.
+#
+
+if ![istarget vax*-*-*] then {
+    return
+}
+
+if {[which $OBJDUMP] == 0} then {
+    perror "$OBJDUMP does not exist"
+    return
+}
+
+send_user "Version [binutil_version $OBJDUMP]"
+
+if {![binutils_assemble $srcdir/$subdir/entrymask.s tmpdir/entrymask.o]} then {
+    return
+}
+
+if [is_remote host] {
+    set objfile [remote_download host tmpdir/entrymask.o]
+} else {
+    set objfile tmpdir/entrymask.o
+}
+
+#
+# We check both function entry points. The second one at offset 2 will
+# show up automatically on ELF targets, but needs to be set on a.out
+# targets.
+#
+set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -d -M entry:0x0 -M entry:2 $objfile"]
+set want1 "\[ 	\]+0:\[ 	\]+10 01\[ 	\]+\\.word 0x0110.\*r8 r4"
+set want2 "\[ 	\]+2:\[ 	\]+24 02\[ 	\]+\\.word 0x0224.\*r9 r5 r2"
+if [regexp $want1 $got] then {
+    pass "entrymask test 1"
+} else {
+    fail "entrymask test 1"
+}
+if [regexp $want2 $got] then {
+    pass "entrymask test 2"
+} else {
+    fail "entrymask test 2"
+}

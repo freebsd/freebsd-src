@@ -1,0 +1,61 @@
+
+Dynamic section at offset 0xec contains 19 entries:
+  Tag        Type                         Name/Value
+ 0x00000004 \(HASH\)                       0x1ac
+ 0x00000005 \(STRTAB\)                     0x71db8
+ 0x00000006 \(SYMTAB\)                     0x23ad8
+ 0x0000000a \(STRSZ\)                      220091 \(bytes\)
+ 0x0000000b \(SYMENT\)                     16 \(bytes\)
+ 0x00000015 \(DEBUG\)                      0x0
+ 0x00000003 \(PLTGOT\)                     0x122420
+ 0x00000011 \(REL\)                        0xa7974
+ 0x00000012 \(RELSZ\)                      160072 \(bytes\)
+ 0x00000013 \(RELENT\)                     8 \(bytes\)
+ 0x70000001 \(MIPS_RLD_VERSION\)           1
+ 0x70000005 \(MIPS_FLAGS\)                 NOTPOT
+ 0x70000006 \(MIPS_BASE_ADDRESS\)          0
+ 0x7000000a \(MIPS_LOCAL_GOTNO\)           13
+ 0x70000011 \(MIPS_SYMTABNO\)              20014
+ 0x70000012 \(MIPS_UNREFEXTNO\)            11
+ 0x70000013 \(MIPS_GOTSYM\)                0xe
+ 0x0000001e \(FLAGS\)                      STATIC_TLS
+ 0x00000000 \(NULL\)                       0x0
+
+Relocation section '\.rel\.dyn' at offset 0x[0-9a-f]+ contains 20031 entries:
+ Offset     Info    Type            Sym.Value  Sym. Name
+00000000  00000000 R_MIPS_NONE      
+001495d0  00000026 R_MIPS_TLS_DTPMOD
+0013f948  00000026 R_MIPS_TLS_DTPMOD
+001495dc  00000626 R_MIPS_TLS_DTPMOD 00000000   tlsvar_gd
+001495e0  00000627 R_MIPS_TLS_DTPREL 00000000   tlsvar_gd
+0013f954  00000626 R_MIPS_TLS_DTPMOD 00000000   tlsvar_gd
+0013f958  00000627 R_MIPS_TLS_DTPREL 00000000   tlsvar_gd
+001495d8  00000c2f R_MIPS_TLS_TPREL3 00000004   tlsvar_ie
+0013f950  00000c2f R_MIPS_TLS_TPREL3 00000004   tlsvar_ie
+00135fcc  00000e03 R_MIPS_REL32      000e0a4c   sym_2_8355
+001424ac  00000f03 R_MIPS_REL32      000d3594   sym_1_4745
+#...
+001369b0  004e2c03 R_MIPS_REL32      000da930   sym_2_2140
+00142cec  004e2d03 R_MIPS_REL32      000cfa34   sym_1_0945
+00000000  00000000 R_MIPS_NONE      
+00000000  00000000 R_MIPS_NONE      
+00000000  00000000 R_MIPS_NONE      
+00000000  00000000 R_MIPS_NONE      
+00000000  00000000 R_MIPS_NONE      
+00000000  00000000 R_MIPS_NONE      
+00000000  00000000 R_MIPS_NONE      
+00000000  00000000 R_MIPS_NONE      
+00000000  00000000 R_MIPS_NONE      
+00000000  00000000 R_MIPS_NONE      
+00000000  00000000 R_MIPS_NONE      
+00000000  00000000 R_MIPS_NONE      
+00000000  00000000 R_MIPS_NONE      
+00000000  00000000 R_MIPS_NONE      
+00000000  00000000 R_MIPS_NONE      
+00000000  00000000 R_MIPS_NONE      
+00000000  00000000 R_MIPS_NONE      
+00000000  00000000 R_MIPS_NONE      
+00000000  00000000 R_MIPS_NONE      
+00000000  00000000 R_MIPS_NONE      
+00000000  00000000 R_MIPS_NONE      
+00000000  00000000 R_MIPS_NONE      

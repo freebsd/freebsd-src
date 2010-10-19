@@ -1,19 +1,20 @@
 /* Disassemble D10V instructions.
-   Copyright 1996, 1997, 1998, 2000, 2001 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 2000, 2001, 2005 Free Software Foundation, Inc.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 #include <stdio.h>
 
@@ -25,57 +26,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    so use this mask to keep the parts we want.  */
 #define PC_MASK	0x0303FFFF
 
-static void dis_2_short PARAMS ((unsigned long insn, bfd_vma memaddr,
-				 struct disassemble_info *info, int order));
-static void dis_long PARAMS ((unsigned long insn, bfd_vma memaddr,
-			      struct disassemble_info *info));
-static void print_operand
-  PARAMS ((struct d10v_operand *, long unsigned int, struct d10v_opcode *,
-	   bfd_vma, struct disassemble_info *));
-
-int
-print_insn_d10v (memaddr, info)
-     bfd_vma memaddr;
-     struct disassemble_info *info;
-{
-  int status;
-  bfd_byte buffer[4];
-  unsigned long insn;
-
-  status = (*info->read_memory_func) (memaddr, buffer, 4, info);
-  if (status != 0)
-    {
-      (*info->memory_error_func) (status, memaddr, info);
-      return -1;
-    }
-  insn = bfd_getb32 (buffer);
-
-  status = insn & FM11;
-  switch (status)
-    {
-    case 0:
-      dis_2_short (insn, memaddr, info, 2);
-      break;
-    case FM01:
-      dis_2_short (insn, memaddr, info, 0);
-      break;
-    case FM10:
-      dis_2_short (insn, memaddr, info, 1);
-      break;
-    case FM11:
-      dis_long (insn, memaddr, info);
-      break;
-    }
-  return 4;
-}
-
 static void
-print_operand (oper, insn, op, memaddr, info)
-     struct d10v_operand *oper;
-     unsigned long insn;
-     struct d10v_opcode *op;
-     bfd_vma memaddr;
-     struct disassemble_info *info;
+print_operand (struct d10v_operand *oper,
+	       unsigned long insn,
+	       struct d10v_opcode *op,
+	       bfd_vma memaddr,
+	       struct disassemble_info *info)
 {
   int num, shift;
 
@@ -117,6 +73,7 @@ print_operand (oper, insn, op, memaddr, info)
     {
       int i;
       int match = 0;
+
       num += (oper->flags
 	      & (OPERAND_GPR | OPERAND_FFLAG | OPERAND_CFLAG | OPERAND_CONTROL));
       if (oper->flags & (OPERAND_ACC0 | OPERAND_ACC1))
@@ -155,6 +112,7 @@ print_operand (oper, insn, op, memaddr, info)
 	{
 	  long max;
 	  int neg = 0;
+
 	  max = (1 << (oper->bits - 1));
 	  if (num & max)
 	    {
@@ -189,10 +147,9 @@ print_operand (oper, insn, op, memaddr, info)
 }
 
 static void
-dis_long (insn, memaddr, info)
-     unsigned long insn;
-     bfd_vma memaddr;
-     struct disassemble_info *info;
+dis_long (unsigned long insn,
+	  bfd_vma memaddr,
+	  struct disassemble_info *info)
 {
   int i;
   struct d10v_opcode *op = (struct d10v_opcode *) d10v_opcodes;
@@ -202,10 +159,12 @@ dis_long (insn, memaddr, info)
 
   while (op->name)
     {
-      if ((op->format & LONG_OPCODE) && ((op->mask & insn) == (unsigned long) op->opcode))
+      if ((op->format & LONG_OPCODE)
+	  && ((op->mask & insn) == (unsigned long) op->opcode))
 	{
 	  match = 1;
 	  (*info->fprintf_func) (info->stream, "%s\t", op->name);
+
 	  for (i = 0; op->operands[i]; i++)
 	    {
 	      oper = (struct d10v_operand *) &d10v_operands[op->operands[i]];
@@ -223,18 +182,17 @@ dis_long (insn, memaddr, info)
     }
 
   if (!match)
-    (*info->fprintf_func) (info->stream, ".long\t0x%08x", insn);
+    (*info->fprintf_func) (info->stream, ".long\t0x%08lx", insn);
 
   if (need_paren)
     (*info->fprintf_func) (info->stream, ")");
 }
 
 static void
-dis_2_short (insn, memaddr, info, order)
-     unsigned long insn;
-     bfd_vma memaddr;
-     struct disassemble_info *info;
-     int order;
+dis_2_short (unsigned long insn,
+	     bfd_vma memaddr,
+	     struct disassemble_info *info,
+	     int order)
 {
   int i, j;
   unsigned int ins[2];
@@ -253,7 +211,8 @@ dis_2_short (insn, memaddr, info, order)
       while (op->name)
 	{
 	  if ((op->format & SHORT_OPCODE)
-	      && ((op->mask & ins[j]) == (unsigned long) op->opcode))
+	      && ((((unsigned int) op->mask) & ins[j])
+		  == (unsigned int) op->opcode))
 	    {
 	      (*info->fprintf_func) (info->stream, "%s\t", op->name);
 	      for (i = 0; op->operands[i]; i++)
@@ -296,8 +255,42 @@ dis_2_short (insn, memaddr, info, order)
     }
 
   if (num_match == 0)
-    (*info->fprintf_func) (info->stream, ".long\t0x%08x", insn);
+    (*info->fprintf_func) (info->stream, ".long\t0x%08lx", insn);
 
   if (need_paren)
     (*info->fprintf_func) (info->stream, ")");
+}
+
+int
+print_insn_d10v (bfd_vma memaddr, struct disassemble_info *info)
+{
+  int status;
+  bfd_byte buffer[4];
+  unsigned long insn;
+
+  status = (*info->read_memory_func) (memaddr, buffer, 4, info);
+  if (status != 0)
+    {
+      (*info->memory_error_func) (status, memaddr, info);
+      return -1;
+    }
+  insn = bfd_getb32 (buffer);
+
+  status = insn & FM11;
+  switch (status)
+    {
+    case 0:
+      dis_2_short (insn, memaddr, info, 2);
+      break;
+    case FM01:
+      dis_2_short (insn, memaddr, info, 0);
+      break;
+    case FM10:
+      dis_2_short (insn, memaddr, info, 1);
+      break;
+    case FM11:
+      dis_long (insn, memaddr, info);
+      break;
+    }
+  return 4;
 }

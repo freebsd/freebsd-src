@@ -1,0 +1,571 @@
+# translation of gprof to Kinyarwanda.
+# Copyright (C) 2005 Free Software Foundation, Inc.
+# This file is distributed under the same license as the gprof package.
+# Steve Murphy <murf@e-tools.com>, 2005
+# Steve performed initial rough translation from compendium built from translations provided by the following translators:
+# Philibert Ndandali  <ndandali@yahoo.fr>, 2005.
+# Viateur MUGENZI <muvia1@yahoo.fr>, 2005.
+# Noëlla Mupole <s24211045@tuks.co.za>, 2005.
+# Carole Karema <karemacarole@hotmail.com>, 2005.
+# JEAN BAPTISTE NGENDAHAYO <ngenda_denis@yahoo.co.uk>, 2005.
+# Augustin KIBERWA  <akiberwa@yahoo.co.uk>, 2005.
+# Donatien NSENGIYUMVA <ndonatienuk@yahoo.co.uk>, 2005.
+# Antoine Bigirimana <antoine@e-tools.com>, 2005.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: gprof 2.15.96\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2005-03-03 21:05+1030\n"
+"PO-Revision-Date: 2005-04-03 10:55-0700\n"
+"Last-Translator: Steven Michael Murphy <murf@e-tools.com>\n"
+"Language-Team: Kinyarwanda <translation-team-rw@lists.sourceforge.net>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: alpha.c:102 mips.c:54
+#, fuzzy
+msgid "<indirect child>"
+msgstr "<BUZIGUYE"
+
+#: alpha.c:119 mips.c:71
+#, fuzzy, c-format
+msgid "[find_call] %s: 0x%lx to 0x%lx\n"
+msgstr "[Kuri"
+
+#: alpha.c:141
+#, c-format
+msgid "[find_call] 0x%lx: jsr%s <indirect_child>\n"
+msgstr ""
+
+#: alpha.c:151
+#, c-format
+msgid "[find_call] 0x%lx: bsr"
+msgstr ""
+
+#: basic_blocks.c:128 call_graph.c:89 hist.c:97
+#, fuzzy, c-format
+msgid "%s: %s: unexpected end of file\n"
+msgstr "%s:%s:Impera Bya"
+
+#: basic_blocks.c:196
+#, fuzzy, c-format
+msgid "%s: warning: ignoring basic-block exec counts (use -l or --line)\n"
+msgstr "%s:Iburira BASIC Funga Gukoresha L Cyangwa Umurongo"
+
+#. FIXME: This only works if bfd_vma is unsigned long.
+#: basic_blocks.c:287 basic_blocks.c:297
+#, c-format
+msgid "%s:%d: (%s:0x%lx) %lu executions\n"
+msgstr ""
+
+#: basic_blocks.c:288 basic_blocks.c:298
+#, fuzzy
+msgid "<unknown>"
+msgstr "<Itazwi>"
+
+#: basic_blocks.c:541
+#, c-format
+msgid ""
+"\n"
+"\n"
+"Top %d Lines:\n"
+"\n"
+"     Line      Count\n"
+"\n"
+msgstr ""
+
+#: basic_blocks.c:565
+#, c-format
+msgid ""
+"\n"
+"Execution Summary:\n"
+"\n"
+msgstr ""
+
+#: basic_blocks.c:566
+#, fuzzy, c-format
+msgid "%9ld   Executable lines in this file\n"
+msgstr "%9ldImirongo in iyi"
+
+#: basic_blocks.c:568
+#, c-format
+msgid "%9ld   Lines executed\n"
+msgstr ""
+
+#: basic_blocks.c:569
+#, fuzzy, c-format
+msgid "%9.2f   Percent of the file executed\n"
+msgstr ""
+"%9.Project- Id- Version: basctl\n"
+"POT- Creation- Date: 2003- 12- 07 17: 13+ 02\n"
+"PO- Revision- Date: 2004- 11- 04 10: 13- 0700\n"
+"Last- Translator: Language- Team:< en@ li. org> MIME- Version: 1. 0\n"
+"Content- Type: text/ plain; charset= UTF- 8\n"
+"Content- Transfer- Encoding: 8bit\n"
+"X- Generator: KBabel 1. 0\n"
+"."
+
+#: basic_blocks.c:573
+#, fuzzy, c-format
+msgid ""
+"\n"
+"%9lu   Total number of line executions\n"
+msgstr "%9luUmubare Bya Umurongo"
+
+#: basic_blocks.c:575
+#, fuzzy, c-format
+msgid "%9.2f   Average executions per line\n"
+msgstr ""
+"%9.Project- Id- Version: basctl\n"
+"POT- Creation- Date: 2003- 12- 07 17: 13+ 02\n"
+"PO- Revision- Date: 2004- 11- 04 10: 13- 0700\n"
+"Last- Translator: Language- Team:< en@ li. org> MIME- Version: 1. 0\n"
+"Content- Type: text/ plain; charset= UTF- 8\n"
+"Content- Transfer- Encoding: 8bit\n"
+"X- Generator: KBabel 1. 0\n"
+"."
+
+#: call_graph.c:68
+#, fuzzy, c-format
+msgid "[cg_tally] arc from %s to %s traversed %lu times\n"
+msgstr "[Agaheto Bivuye Kuri"
+
+#: cg_print.c:73
+#, c-format
+msgid ""
+"\t\t     Call graph (explanation follows)\n"
+"\n"
+msgstr ""
+
+#: cg_print.c:75
+#, c-format
+msgid ""
+"\t\t\tCall graph\n"
+"\n"
+msgstr ""
+
+#: cg_print.c:78 hist.c:359
+#, fuzzy, c-format
+msgid ""
+"\n"
+"granularity: each sample hit covers %ld byte(s)"
+msgstr "Urugero kanda Bayite S"
+
+#: cg_print.c:82
+#, fuzzy, c-format
+msgid ""
+" for %.2f%% of %.2f seconds\n"
+"\n"
+msgstr "kugirango."
+
+#: cg_print.c:86
+#, fuzzy, c-format
+msgid ""
+" no time propagated\n"
+"\n"
+msgstr "Oya Igihe"
+
+#: cg_print.c:95 cg_print.c:98 cg_print.c:100
+msgid "called"
+msgstr ""
+
+# #-#-#-#-#  sc.pot (PACKAGE VERSION)  #-#-#-#-#
+# sc/source\ui\src\autofmt.src:RID_SCDLG_AUTOFORMAT.STR_SUM.text
+# #-#-#-#-#  sc.pot (PACKAGE VERSION)  #-#-#-#-#
+# sc/source\ui\src\globstr.src:RID_GLOBSTR.STR_PIVOT_TOTAL.text
+#: cg_print.c:95 cg_print.c:100
+#, fuzzy
+msgid "total"
+msgstr "Igiteranyo"
+
+#: cg_print.c:95
+msgid "parents"
+msgstr ""
+
+#: cg_print.c:97 cg_print.c:98
+msgid "index"
+msgstr "Umubarendanga"
+
+# basctl/source\basicide\basidesh.src:RID_IMGBTN_REMOVEWATCH.text
+#: cg_print.c:97
+#, fuzzy, c-format
+msgid "%time"
+msgstr "%time"
+
+#: cg_print.c:97 cg_print.c:98
+msgid "self"
+msgstr ""
+
+#: cg_print.c:97
+msgid "descendants"
+msgstr ""
+
+#: cg_print.c:98 hist.c:385
+msgid "name"
+msgstr "izina"
+
+#: cg_print.c:100
+msgid "children"
+msgstr ""
+
+#: cg_print.c:105
+#, fuzzy, c-format
+msgid "index %% time    self  children    called     name\n"
+msgstr "Umubarendanga Igihe"
+
+#: cg_print.c:128
+#, fuzzy, c-format
+msgid " <cycle %d as a whole> [%d]\n"
+msgstr "<Uruziga Nka a"
+
+#: cg_print.c:354
+#, fuzzy, c-format
+msgid "%6.6s %5.5s %7.7s %11.11s %7.7s %7.7s     <spontaneous>\n"
+msgstr ""
+"%6.Project- Id- Version: basctl\n"
+"POT- Creation- Date: 2003- 12- 07 17: 13+ 02\n"
+"PO- Revision- Date: 2004- 11- 04 10: 13- 0700\n"
+"Last- Translator: Language- Team:< en@ li. org> MIME- Version: 1. 0\n"
+"Content- Type: text/ plain; charset= UTF- 8\n"
+"Content- Transfer- Encoding: 8bit\n"
+"X- Generator: KBabel 1. 0\n"
+"."
+
+#: cg_print.c:355
+#, fuzzy, c-format
+msgid "%6.6s %5.5s %7.7s %7.7s %7.7s %7.7s     <spontaneous>\n"
+msgstr ""
+"%6.Project- Id- Version: basctl\n"
+"POT- Creation- Date: 2003- 12- 07 17: 13+ 02\n"
+"PO- Revision- Date: 2004- 11- 04 10: 13- 0700\n"
+"Last- Translator: Language- Team:< en@ li. org> MIME- Version: 1. 0\n"
+"Content- Type: text/ plain; charset= UTF- 8\n"
+"Content- Transfer- Encoding: 8bit\n"
+"X- Generator: KBabel 1. 0\n"
+"."
+
+#: cg_print.c:589
+#, fuzzy, c-format
+msgid ""
+"Index by function name\n"
+"\n"
+msgstr "ku Umumaro"
+
+#: cg_print.c:646 cg_print.c:655
+#, fuzzy, c-format
+msgid "<cycle %d>"
+msgstr "<Uruziga"
+
+#: corefile.c:64
+#, fuzzy, c-format
+msgid "%s: could not open %s.\n"
+msgstr "%s:OYA Gufungura"
+
+#: corefile.c:78 corefile.c:112
+#, fuzzy, c-format
+msgid "%s: unable to parse mapping file %s.\n"
+msgstr "%s:Kuri Igereranya IDOSIYE"
+
+#: corefile.c:155
+#, fuzzy, c-format
+msgid "%s: %s: not in a.out format\n"
+msgstr "%s:%s:OYA in a Inyuma"
+
+#: corefile.c:166
+#, fuzzy, c-format
+msgid "%s: can't find .text section in %s\n"
+msgstr "%s:Gushaka Umwandiko Icyiciro in"
+
+#: corefile.c:224
+#, fuzzy, c-format
+msgid "%s: ran out room for %lu bytes of text space\n"
+msgstr "%s:Inyuma kugirango Bayite Bya Umwandiko"
+
+#: corefile.c:238
+#, c-format
+msgid "%s: can't do -c\n"
+msgstr ""
+
+#: corefile.c:272
+#, fuzzy, c-format
+msgid "%s: -c not supported on architecture %s\n"
+msgstr "%s:-C OYA ku"
+
+#: corefile.c:437
+#, fuzzy, c-format
+msgid "%s: file `%s' has no symbols\n"
+msgstr "%s:IDOSIYE Oya"
+
+#: corefile.c:751
+#, fuzzy, c-format
+msgid "%s: somebody miscounted: ltab.len=%d instead of %ld\n"
+msgstr "%s:LEN Bya"
+
+#: gmon_io.c:83
+#, fuzzy, c-format
+msgid "%s: address size has unexpected value of %u\n"
+msgstr "%s:Aderesi Ingano Agaciro Bya"
+
+#: gmon_io.c:317 gmon_io.c:413
+#, fuzzy, c-format
+msgid "%s: file too short to be a gmon file\n"
+msgstr "%s:IDOSIYE Kuri a"
+
+#: gmon_io.c:327 gmon_io.c:456
+#, fuzzy, c-format
+msgid "%s: file `%s' has bad magic cookie\n"
+msgstr "%s:IDOSIYE"
+
+#: gmon_io.c:338
+#, fuzzy, c-format
+msgid "%s: file `%s' has unsupported version %d\n"
+msgstr "%s:IDOSIYE Verisiyo"
+
+#: gmon_io.c:368
+#, fuzzy, c-format
+msgid "%s: %s: found bad tag %d (file corrupted?)\n"
+msgstr "%s:%s:Byabonetse Itagi: IDOSIYE"
+
+#: gmon_io.c:435
+#, fuzzy, c-format
+msgid "%s: profiling rate incompatible with first gmon file\n"
+msgstr "%s:Igipimo Na: Itangira"
+
+#: gmon_io.c:483
+#, fuzzy, c-format
+msgid "%s: incompatible with first gmon file\n"
+msgstr "%s:Na: Itangira"
+
+#: gmon_io.c:511
+#, fuzzy, c-format
+msgid "%s: file '%s' does not appear to be in gmon.out format\n"
+msgstr "%s:IDOSIYE OYA Kugaragara Kuri in Inyuma"
+
+#: gmon_io.c:532
+#, fuzzy, c-format
+msgid "%s: unexpected EOF after reading %d/%d bins\n"
+msgstr "%s:Nyuma"
+
+#: gmon_io.c:565
+#, fuzzy, c-format
+msgid "time is in ticks, not seconds\n"
+msgstr "Igihe ni in OYA"
+
+#: gmon_io.c:571 gmon_io.c:747
+#, fuzzy, c-format
+msgid "%s: don't know how to deal with file format %d\n"
+msgstr "%s:Kuri Na: IDOSIYE Imiterere"
+
+#: gmon_io.c:578
+#, fuzzy, c-format
+msgid "File `%s' (version %d) contains:\n"
+msgstr "Idosiye Verisiyo Kirimo"
+
+#: gmon_io.c:581
+#, c-format
+msgid "\t%d histogram record\n"
+msgstr ""
+
+#: gmon_io.c:582
+#, c-format
+msgid "\t%d histogram records\n"
+msgstr ""
+
+#: gmon_io.c:584
+#, c-format
+msgid "\t%d call-graph record\n"
+msgstr ""
+
+#: gmon_io.c:585
+#, c-format
+msgid "\t%d call-graph records\n"
+msgstr ""
+
+#: gmon_io.c:587
+#, fuzzy, c-format
+msgid "\t%d basic-block count record\n"
+msgstr "%dBASIC Funga IBARA"
+
+#: gmon_io.c:588
+#, fuzzy, c-format
+msgid "\t%d basic-block count records\n"
+msgstr "%dBASIC Funga IBARA"
+
+#: gprof.c:160
+#, fuzzy, c-format
+msgid ""
+"Usage: %s [-[abcDhilLsTvwxyz]] [-[ACeEfFJnNOpPqQZ][name]] [-I dirs]\n"
+"\t[-d[num]] [-k from/to] [-m min-count] [-t table-length]\n"
+"\t[--[no-]annotated-source[=name]] [--[no-]exec-counts[=name]]\n"
+"\t[--[no-]flat-profile[=name]] [--[no-]graph[=name]]\n"
+"\t[--[no-]time=name] [--all-lines] [--brief] [--debug[=level]]\n"
+"\t[--function-ordering] [--file-ordering]\n"
+"\t[--directory-path=dirs] [--display-unused-functions]\n"
+"\t[--file-format=name] [--file-info] [--help] [--line] [--min-count=n]\n"
+"\t[--no-static] [--print-path] [--separate-files]\n"
+"\t[--static-call-graph] [--sum] [--table-length=len] [--traditional]\n"
+"\t[--version] [--width=n] [--ignore-non-functions]\n"
+"\t[--demangle[=STYLE]] [--no-demangle]\n"
+"\t[image-file] [profile-file...]\n"
+msgstr "Izina: D K Bivuye Kuri M GITO IBARA T imbonerahamwe# Uburebure Oya Inkomoko Izina: Oya Izina: Oya Kirambuye Ibijyana Izina: Oya Izina: Oya Igihe Izina: Byose Imirongo Kosora amakosa urwego Umumaro IDOSIYE bushyinguro Inzira Kugaragaza Kidakoreshwa Imimaro IDOSIYE Imiterere Izina: IDOSIYE Ibisobanuro Ifashayobora Umurongo GITO IBARA N Oya Gucapa Inzira Idosiye Igiteranyo imbonerahamwe# Uburebure LEN Verisiyo Ubugari N Kwirengagiza Imimaro Oya Ishusho IDOSIYE Ibijyana IDOSIYE"
+
+#: gprof.c:176
+#, fuzzy, c-format
+msgid "Report bugs to %s\n"
+msgstr "Kuri"
+
+#: gprof.c:248
+#, fuzzy, c-format
+msgid "%s: debugging not supported; -d ignored\n"
+msgstr "%s:OYA D"
+
+#: gprof.c:328
+#, fuzzy, c-format
+msgid "%s: unknown file format %s\n"
+msgstr "%s:Kitazwi IDOSIYE Imiterere"
+
+#. This output is intended to follow the GNU standards document.
+#: gprof.c:412
+#, c-format
+msgid "GNU gprof %s\n"
+msgstr ""
+
+#: gprof.c:413
+#, fuzzy, c-format
+msgid "Based on BSD gprof, copyright 1983 Regents of the University of California.\n"
+msgstr "ku Uburenganzira bw'umuhimbyi Bya i Bya"
+
+#: gprof.c:414
+#, fuzzy, c-format
+msgid "This program is free software.  This program has absolutely no warranty.\n"
+msgstr "Porogaramu ni Kigenga Porogaramu Oya"
+
+#: gprof.c:455
+#, fuzzy, c-format
+msgid "%s: unknown demangling style `%s'\n"
+msgstr "%s:Kitazwi IMISUSIRE"
+
+#: gprof.c:475
+#, fuzzy, c-format
+msgid "%s: Only one of --function-ordering and --file-ordering may be specified.\n"
+msgstr "%s:Bya Umumaro Na IDOSIYE Gicurasi"
+
+#: gprof.c:525
+#, fuzzy, c-format
+msgid "%s: sorry, file format `prof' is not yet supported\n"
+msgstr "%s:IDOSIYE Imiterere ni OYA"
+
+#: gprof.c:574
+#, fuzzy, c-format
+msgid "%s: gmon.out file is missing histogram\n"
+msgstr "%s:Inyuma IDOSIYE ni Ibuze"
+
+#: gprof.c:581
+#, fuzzy, c-format
+msgid "%s: gmon.out file is missing call-graph data\n"
+msgstr "%s:Inyuma IDOSIYE ni Ibuze"
+
+#: hist.c:126
+#, fuzzy, c-format
+msgid "%s: `%s' is incompatible with first gmon file\n"
+msgstr "%s:`%s'ni Na: Itangira"
+
+#: hist.c:142
+#, fuzzy, c-format
+msgid "%s: %s: unexpected EOF after reading %u of %u samples\n"
+msgstr "%s:%s:Nyuma Bya"
+
+#: hist.c:355
+#, c-format
+msgid "%c%c/call"
+msgstr ""
+
+#: hist.c:363
+#, fuzzy, c-format
+msgid ""
+" for %.2f%% of %.2f %s\n"
+"\n"
+msgstr "kugirango."
+
+#: hist.c:369
+#, fuzzy, c-format
+msgid ""
+"\n"
+"Each sample counts as %g %s.\n"
+msgstr "Urugero Nka"
+
+#: hist.c:374
+#, fuzzy, c-format
+msgid ""
+" no time accumulated\n"
+"\n"
+msgstr "Oya Igihe"
+
+#: hist.c:381
+msgid "cumulative"
+msgstr ""
+
+#: hist.c:381
+msgid "self  "
+msgstr ""
+
+# #-#-#-#-#  sc.pot (PACKAGE VERSION)  #-#-#-#-#
+# sc/source\ui\src\autofmt.src:RID_SCDLG_AUTOFORMAT.STR_SUM.text
+# #-#-#-#-#  sc.pot (PACKAGE VERSION)  #-#-#-#-#
+# sc/source\ui\src\globstr.src:RID_GLOBSTR.STR_PIVOT_TOTAL.text
+#: hist.c:381
+#, fuzzy
+msgid "total "
+msgstr "Igiteranyo"
+
+#: hist.c:384
+#, fuzzy
+msgid "time"
+msgstr "Igihe"
+
+# 726
+#: hist.c:384
+#, fuzzy
+msgid "calls"
+msgstr "Ihamagara"
+
+#: hist.c:473
+#, fuzzy, c-format
+msgid ""
+"\n"
+"\n"
+"\n"
+"flat profile:\n"
+msgstr "Kirambuye Ibijyana"
+
+#: hist.c:479
+#, fuzzy, c-format
+msgid "Flat profile:\n"
+msgstr "Ibijyana"
+
+#: mips.c:82
+#, c-format
+msgid "[find_call] 0x%lx: jal"
+msgstr ""
+
+#: mips.c:107
+#, c-format
+msgid "[find_call] 0x%lx: jalr\n"
+msgstr ""
+
+#: source.c:162
+#, fuzzy, c-format
+msgid "%s: could not locate `%s'\n"
+msgstr "%s:OYA"
+
+#: source.c:237
+#, fuzzy, c-format
+msgid "*** File %s:\n"
+msgstr "***Idosiye"
+
+#: utils.c:107
+#, fuzzy, c-format
+msgid " <cycle %d>"
+msgstr "<Uruziga"

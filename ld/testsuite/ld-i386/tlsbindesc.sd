@@ -1,0 +1,13 @@
+#source: tlsbindesc.s
+#source: tlsbin.s
+#as: --32
+#ld: -melf_i386 tmpdir/libtlslib.so
+#objdump: -sj.got
+#target: i?86-*-*
+
+.*:     file format elf32-i386
+
+Contents of section \.got:
+ 804a0e0 [0-9a-f]+ 00000000 00000000 [0-9a-f]+  .*
+ 804a0f0 00000000 00000000 00000000 00000000  .*
+ 804a100 00000000  +.*

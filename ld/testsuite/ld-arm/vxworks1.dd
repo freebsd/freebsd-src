@@ -1,0 +1,37 @@
+
+.*:     file format .*
+
+Disassembly of section \.plt:
+
+00080800 <_PROCEDURE_LINKAGE_TABLE_>:
+   80800:	e52dc008 	str	ip, \[sp, #-8\]!
+   80804:	e59fc000 	ldr	ip, \[pc, #0\]	; 8080c <_PROCEDURE_LINKAGE_TABLE_\+0xc>
+   80808:	e59cf008 	ldr	pc, \[ip, #8\]
+   8080c:	00081400 	andeq	r1, r8, r0, lsl #8
+			8080c: R_ARM_ABS32	_GLOBAL_OFFSET_TABLE_
+   80810:	e59fc000 	ldr	ip, \[pc, #0\]	; 80818 <_PROCEDURE_LINKAGE_TABLE_\+0x18>
+   80814:	e59cf000 	ldr	pc, \[ip\]
+   80818:	0008140c 	andeq	r1, r8, ip, lsl #8
+			80818: R_ARM_ABS32	_GLOBAL_OFFSET_TABLE_\+0xc
+   8081c:	e59fc000 	ldr	ip, \[pc, #0\]	; 80824 <_PROCEDURE_LINKAGE_TABLE_\+0x24>
+   80820:	eafffff6 	b	80800 <_PROCEDURE_LINKAGE_TABLE_>
+   80824:	00000000 	andeq	r0, r0, r0
+   80828:	e59fc000 	ldr	ip, \[pc, #0\]	; 80830 <_PROCEDURE_LINKAGE_TABLE_\+0x30>
+   8082c:	e59cf000 	ldr	pc, \[ip\]
+   80830:	00081410 	andeq	r1, r8, r0, lsl r4
+			80830: R_ARM_ABS32	_GLOBAL_OFFSET_TABLE_\+0x10
+   80834:	e59fc000 	ldr	ip, \[pc, #0\]	; 8083c <_PROCEDURE_LINKAGE_TABLE_\+0x3c>
+   80838:	eafffff0 	b	80800 <_PROCEDURE_LINKAGE_TABLE_>
+   8083c:	0000000c 	andeq	r0, r0, ip
+Disassembly of section \.text:
+
+00080c00 <_start>:
+   80c00:	ebffff08 	bl	80428 <_PROCEDURE_LINKAGE_TABLE_-0x3d8>
+			80c00: R_ARM_PC24	\.plt\+0x20
+   80c04:	eb000000 	bl	80c14 <sexternal\+0x8>
+			80c04: R_ARM_PC24	sexternal\+0xfffffff8
+   80c08:	eaffff00 	b	80408 <_PROCEDURE_LINKAGE_TABLE_-0x3f8>
+			80c08: R_ARM_PC24	\.plt\+0x8
+
+00080c0c <sexternal>:
+   80c0c:	e1a0f00e 	mov	pc, lr

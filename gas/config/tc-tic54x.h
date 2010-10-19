@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #ifndef _TC_TIC54X_H_
 #define _TC_TIC54X_H_
@@ -29,7 +29,6 @@
 #define OCTETS_PER_BYTE_POWER 1
 
 #define TARGET_ARCH		bfd_arch_tic54x
-#define BFD_ARCH                TARGET_ARCH
 
 #define WORKING_DOT_WORD        1
 
@@ -47,10 +46,6 @@
 #define DOUBLEBAR_PARALLEL 1
 /* affects preprocessor */
 #define KEEP_WHITE_AROUND_COLON 1
-
-/* We need the extra field in the fixup struct to put the relocation in.  */
-
-#define NEED_FX_R_TYPE
 
 struct bit_info
 {
@@ -88,7 +83,7 @@ extern void tic54x_number_to_chars (char *, valueT, int);
 extern void tic54x_adjust_symtab (void);
 #define tc_unrecognized_line(ch) tic54x_unrecognized_line(ch)
 extern int tic54x_unrecognized_line (int ch);
-#define md_parse_name(s,e,c) tic54x_parse_name(s,e)
+#define md_parse_name(s,e,m,c) tic54x_parse_name(s,e)
 extern int tic54x_parse_name (char *name, expressionS *e);
 #define md_undefined_symbol(s) tic54x_undefined_symbol(s)
 extern symbolS *tic54x_undefined_symbol (char *name);
@@ -97,7 +92,8 @@ extern void tic54x_macro_start (void);
 #define md_macro_end() tic54x_macro_end()
 extern void tic54x_macro_end (void);
 #define md_macro_info(args) tic54x_macro_info(args)
-extern void tic54x_macro_info PARAMS((void *macro));
+struct macro_struct;
+extern void tic54x_macro_info PARAMS((const struct macro_struct *));
 #define tc_frob_label(sym) tic54x_define_label (sym)
 extern void tic54x_define_label PARAMS((symbolS *));
 

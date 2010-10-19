@@ -2,7 +2,7 @@
 
 THIS FILE IS MACHINE GENERATED WITH CGEN.
 
-Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+Copyright 1996-2005 Free Software Foundation, Inc.
 
 This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 
@@ -18,7 +18,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
 */
 
@@ -39,7 +39,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
    instructions have same mnemonics but different functionality. */
 #define CGEN_VALIDATE_INSN_SUPPORTED
 
-extern int iq2000_cgen_insn_supported (CGEN_CPU_DESC cd, CGEN_INSN *insn);
+extern int iq2000_cgen_insn_supported (CGEN_CPU_DESC, const CGEN_INSN *);
 
 /* -- asm.c */
 /* Enum declaration for iq2000 instruction types.  */

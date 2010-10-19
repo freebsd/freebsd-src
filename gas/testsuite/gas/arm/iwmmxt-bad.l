@@ -1,9 +1,10 @@
 [^:]*: Assembler messages:
-[^:]*:1: Error: conditional execution not supported with control register
-[^:]*:2: Error: non-word size not supported with control register
-[^:]*:3: Error: non-word size not supported with control register
-[^:]*:4: Error: non-word size not supported with control register
-[^:]*:5: Error: conditional execution not supported with control register
-[^:]*:6: Error: non-word size not supported with control register
-[^:]*:7: Error: non-word size not supported with control register
-[^:]*:8: Error: non-word size not supported with control register
+[^:]*:1: Error: instruction cannot be conditional -- `wldrwgt wcgr0,\[r1\]'
+[^:]*:2: Error: iWMMXt data register expected -- `wldrb wcgr0,\[r1\]'
+[^:]*:3: Error: iWMMXt data register expected -- `wldrh wcgr0,\[r1\]'
+[^:]*:4: Error: iWMMXt data register expected -- `wldrd wcgr0,\[r1\]'
+[^:]*:5: Error: instruction cannot be conditional -- `wstrwgt wcgr0,\[r1\]'
+[^:]*:6: Error: iWMMXt data register expected -- `wstrb wcgr0,\[r1\]'
+[^:]*:7: Error: iWMMXt data register expected -- `wstrh wcgr0,\[r1\]'
+[^:]*:8: Error: iWMMXt data register expected -- `wstrd wcgr0,\[r1\]'
+[^:]*:9: Error: iWMMXt control register expected -- `tmcr wibble,r1'

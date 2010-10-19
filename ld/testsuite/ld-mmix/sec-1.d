@@ -4,6 +4,9 @@
 #objcopy_linked_file: -O mmo
 #objdump: -sh
 
+# Test conversion from ELF to mmo with non-mmo-sections present,
+# testing that support.
+
 .*:     file format mmo
 
 Sections:

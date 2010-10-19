@@ -1,4 +1,5 @@
 #objdump: -dr
+#as: --underscore
 #name: brokw-3
 
 .*:     file format .*-cris

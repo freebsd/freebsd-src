@@ -8,4 +8,4 @@
 #source: getaa.s
 #as: -no-expand
 #ld: -m elf64mmix
-#error: relocation truncated to fit: R_MMIX_ADDR19 a$
+#error: relocation truncated to fit: R_MMIX_ADDR19 against symbol `a'

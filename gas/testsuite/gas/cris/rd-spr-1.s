@@ -1,0 +1,32 @@
+a:
+ move s0,r10
+ move s1,r9
+ move s1,r8
+ move s2,r7
+ move s2,r6
+ move s3,r5
+ move s3,r4
+ move s4,r3
+ move s4,r2
+ move s8,r1
+ move s9,r0
+ move s8,r15
+ move s9,r14
+ move s10,r13
+ move s15,r11
+b:
+ move r9,s0
+ move r10,s1
+ move r7,s1
+ move r8,s2
+ move r5,s2
+ move r6,s3
+ move r3,s3
+ move r4,s4
+ move r1,s4
+ move r0,s8
+ move r15,s9
+ move r2,s8
+ move r13,s9
+ move r11,s10
+ move r14,s15

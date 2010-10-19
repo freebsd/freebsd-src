@@ -54,7 +54,5 @@ data_label:
 	ld	$4,small_local_common+1($5)
 
 # Round to a 16 byte boundary, for ease in testing multiple targets.
-	.ifndef	EMPIC
 	nop
 	nop
-	.endif

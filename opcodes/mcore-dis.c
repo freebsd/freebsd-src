@@ -1,5 +1,5 @@
 /* Disassemble Motorola M*Core instructions.
-   Copyright 1993, 1999, 2000, 2002 Free Software Foundation, Inc.
+   Copyright 1993, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "sysdep.h"
 #include <stdio.h>
@@ -198,7 +198,7 @@ print_insn_mcore (memaddr, info)
 	    if (inst & 0x400)
 	      val |= 0xFFFFFC00;
 
-	    fprintf (stream, "\t0x%x", memaddr + 2 + (val << 1));
+	    fprintf (stream, "\t0x%lx", (long)(memaddr + 2 + (val << 1)));
 
 	    if (strcmp (op->name, "bsr") == 0)
 	      {
@@ -218,8 +218,8 @@ print_insn_mcore (memaddr, info)
 	  {
 	    long val;
 	    val = (inst & 0x000F);
-	    fprintf (stream, "\t%s, 0x%x",
-		     grname[(inst >> 4) & 0xF], memaddr - (val << 1));
+	    fprintf (stream, "\t%s, 0x%lx",
+		     grname[(inst >> 4) & 0xF], (long)(memaddr - (val << 1)));
 	  }
 	  break;
 
@@ -244,11 +244,11 @@ print_insn_mcore (memaddr, info)
 		| (ibytes[2] << 8) | (ibytes[3]);
 
 	    /* Removed [] around literal value to match ABI syntax 12/95.  */
-	    fprintf (stream, "\t%s, 0x%X", grname[(inst >> 8) & 0xF], val);
+	    fprintf (stream, "\t%s, 0x%lX", grname[(inst >> 8) & 0xF], val);
 
 	    if (val == 0)
-	      fprintf (stream, "\t// from address pool at 0x%x",
-		       (memaddr + 2 + ((inst & 0xFF) << 2)) & 0xFFFFFFFC);
+	      fprintf (stream, "\t// from address pool at 0x%lx",
+		       (long)(memaddr + 2 + ((inst & 0xFF) << 2)) & 0xFFFFFFFC);
 	  }
 	  break;
 
@@ -273,7 +273,7 @@ print_insn_mcore (memaddr, info)
 		| (ibytes[2] << 8) | (ibytes[3]);
 
 	    /* Removed [] around literal value to match ABI syntax 12/95.  */
-	    fprintf (stream, "\t0x%X", val);
+	    fprintf (stream, "\t0x%lX", val);
 	    /* For jmpi/jsri, we'll try to get a symbol for the target.  */
 	    if (info->print_address_func && val != 0)
 	      {
@@ -282,8 +282,8 @@ print_insn_mcore (memaddr, info)
 	      }
 	    else
 	      {
-		fprintf (stream, "\t// from address pool at 0x%x",
-			 (memaddr + 2 + ((inst & 0xFF) << 2)) & 0xFFFFFFFC);
+		fprintf (stream, "\t// from address pool at 0x%lx",
+			 (long)(memaddr + 2 + ((inst & 0xFF) << 2)) & 0xFFFFFFFC);
 	      }
 	  }
 	  break;

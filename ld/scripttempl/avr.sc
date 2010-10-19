@@ -75,6 +75,7 @@ SECTIONS
   .text :
   {
     *(.vectors)
+    KEEP(*(.vectors))
 
     ${CONSTRUCTING+ __ctors_start = . ; }
     ${CONSTRUCTING+ *(.ctors) }
@@ -82,34 +83,65 @@ SECTIONS
     ${CONSTRUCTING+ __dtors_start = . ; }
     ${CONSTRUCTING+ *(.dtors) }
     ${CONSTRUCTING+ __dtors_end = . ; }
+    KEEP(SORT(*)(.ctors))
+    KEEP(SORT(*)(.dtors))
 
+    /* For data that needs to reside in the lower 64k of progmem */
     *(.progmem.gcc*)
     *(.progmem*)
     ${RELOCATING+. = ALIGN(2);}
+    
+    /* for future tablejump instruction arrays for 3 byte pc devices */
+    *(.jumptables) 
+    *(.jumptables*) 
+    /* for code that needs to reside in the lower 128k progmem */
+    *(.lowtext)
+    *(.lowtext*)  
+
     *(.init0)  /* Start here after reset.  */
+    KEEP (*(.init0))
     *(.init1)
+    KEEP (*(.init1))
     *(.init2)  /* Clear __zero_reg__, set up stack pointer.  */
+    KEEP (*(.init2))
     *(.init3)
+    KEEP (*(.init3))
     *(.init4)  /* Initialize data and BSS.  */
+    KEEP (*(.init4))
     *(.init5)
+    KEEP (*(.init5))
     *(.init6)  /* C++ constructors.  */
+    KEEP (*(.init6))
     *(.init7)
+    KEEP (*(.init7))
     *(.init8)
+    KEEP (*(.init8))
     *(.init9)  /* Call main().  */
+    KEEP (*(.init9))
     *(.text)
     ${RELOCATING+. = ALIGN(2);}
     *(.text.*)
     ${RELOCATING+. = ALIGN(2);}
     *(.fini9)  /* _exit() starts here.  */
+    KEEP (*(.fini9))
     *(.fini8)
+    KEEP (*(.fini8))
     *(.fini7)
+    KEEP (*(.fini7))
     *(.fini6)  /* C++ destructors.  */
+    KEEP (*(.fini6))
     *(.fini5)
+    KEEP (*(.fini5))
     *(.fini4)
+    KEEP (*(.fini4))
     *(.fini3)
+    KEEP (*(.fini3))
     *(.fini2)
+    KEEP (*(.fini2))
     *(.fini1)
+    KEEP (*(.fini1))
     *(.fini0)  /* Infinite loop after program termination.  */
+    KEEP (*(.fini0))
     ${RELOCATING+ _etext = . ; }
   } ${RELOCATING+ > text}
 
@@ -117,6 +149,9 @@ SECTIONS
   {
     ${RELOCATING+ PROVIDE (__data_start = .) ; }
     *(.data)
+    *(.data*)
+    *(.rodata)  /* We need to include .rodata here if gcc is used */
+    *(.rodata*) /* with -fdata-sections.  */
     *(.gnu.linkonce.d*)
     ${RELOCATING+. = ALIGN(2);}
     ${RELOCATING+ _edata = . ; }
@@ -127,6 +162,7 @@ SECTIONS
   {
     ${RELOCATING+ PROVIDE (__bss_start = .) ; }
     *(.bss)
+    *(.bss*)
     *(COMMON)
     ${RELOCATING+ PROVIDE (__bss_end = .) ; }
   } ${RELOCATING+ > data}
@@ -145,7 +181,6 @@ SECTIONS
   } ${RELOCATING+ > data}
 
   .eeprom ${RELOCATING-0}:
-	${RELOCATING+AT (ADDR (.text) + SIZEOF (.text) + SIZEOF (.data))}
   {
     *(.eeprom*)
     ${RELOCATING+ __eeprom_end = . ; }

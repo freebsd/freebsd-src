@@ -1,5 +1,5 @@
 /* BFD back-end for Renesas H8/500 COFF binaries.
-   Copyright 1993, 1994, 1995, 1997, 1999, 2000, 2001, 2002, 2003
+   Copyright 1993, 1994, 1995, 1997, 1999, 2000, 2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    Written by Steve Chamberlain, <sac@cygnus.com>.
@@ -18,7 +18,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -245,16 +245,17 @@ extra_case (in_abfd, link_info, link_order, reloc, data, src_ptr, dst_ptr)
       {
 	bfd_vma dst = bfd_coff_reloc16_get_value (reloc, link_info,
 						  input_section);
-	bfd_vma dot = link_order->offset
-	  + *dst_ptr
-	    + link_order->u.indirect.section->output_section->vma;
+	bfd_vma dot = (*dst_ptr
+		       + input_section->output_offset
+		       + input_section->output_section->vma);
 	int gap = dst - dot - 1; /* -1 since were in the odd byte of the
 				    word and the pc's been incremented.  */
 
 	if (gap > 128 || gap < -128)
 	  {
 	    if (! ((*link_info->callbacks->reloc_overflow)
-		   (link_info, bfd_asymbol_name (*reloc->sym_ptr_ptr),
+		   (link_info, NULL,
+		    bfd_asymbol_name (*reloc->sym_ptr_ptr),
 		    reloc->howto->name, reloc->addend, input_section->owner,
 		    input_section, reloc->address)))
 	      abort ();
@@ -268,16 +269,17 @@ extra_case (in_abfd, link_info, link_order, reloc, data, src_ptr, dst_ptr)
       {
 	bfd_vma dst = bfd_coff_reloc16_get_value (reloc, link_info,
 						  input_section);
-	bfd_vma dot = link_order->offset
-	  + *dst_ptr
-	    + link_order->u.indirect.section->output_section->vma;
+	bfd_vma dot = (*dst_ptr
+		       + input_section->output_offset
+		       + input_section->output_section->vma);
 	int gap = dst - dot - 1; /* -1 since were in the odd byte of the
 				    word and the pc's been incremented.  */
 
 	if (gap > 32767 || gap < -32768)
 	  {
 	    if (! ((*link_info->callbacks->reloc_overflow)
-		   (link_info, bfd_asymbol_name (*reloc->sym_ptr_ptr),
+		   (link_info, NULL,
+		    bfd_asymbol_name (*reloc->sym_ptr_ptr),
 		    reloc->howto->name, reloc->addend, input_section->owner,
 		    input_section, reloc->address)))
 	      abort ();

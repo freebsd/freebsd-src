@@ -15,8 +15,8 @@ Library General Public License for more details.
 
 You should have received a copy of the GNU Library General Public
 License along with libiberty; see the file COPYING.LIB.  If
-not, write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+not, write to the Free Software Foundation, Inc., 51 Franklin Street - Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /*
 
@@ -30,19 +30,13 @@ Copies the string @var{src} into @var{dst}.  Returns a pointer to
 */
 
 #include <ansidecl.h>
-#ifdef ANSI_PROTOTYPES
 #include <stddef.h>
-#else
-#define size_t unsigned long
-#endif
 
-extern size_t strlen PARAMS ((const char *));
-extern PTR memcpy PARAMS ((PTR, const PTR, size_t));
+extern size_t strlen (const char *);
+extern PTR memcpy (PTR, const PTR, size_t);
 
 char *
-stpcpy (dst, src)
-     char *dst;
-     const char *src;
+stpcpy (char *dst, const char *src)
 {
   const size_t len = strlen (src);
   return (char *) memcpy (dst, src, len + 1) + len;

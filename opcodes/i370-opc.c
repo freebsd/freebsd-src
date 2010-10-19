@@ -1,24 +1,24 @@
 /* i370-opc.c -- Instruction 370 (ESA/390) architecture opcode list
-   Copyright 1994, 1999, 2000, 2001, 2003 Free Software Foundation, Inc.
+   Copyright 1994, 1999, 2000, 2001, 2003, 2005 Free Software Foundation, Inc.
    PowerPC version written by Ian Lance Taylor, Cygnus Support
    Rewritten for i370 ESA/390 support by Linas Vepstas <linas@linas.org> 1998, 1999
 
-This file is part of GDB, GAS, and the GNU binutils.
+   This file is part of GDB, GAS, and the GNU binutils.
 
-GDB, GAS, and the GNU binutils are free software; you can redistribute
-them and/or modify them under the terms of the GNU General Public
-License as published by the Free Software Foundation; either version
-2, or (at your option) any later version.
+   GDB, GAS, and the GNU binutils are free software; you can redistribute
+   them and/or modify them under the terms of the GNU General Public
+   License as published by the Free Software Foundation; either version
+   2, or (at your option) any later version.
 
-GDB, GAS, and the GNU binutils are distributed in the hope that they
-will be useful, but WITHOUT ANY WARRANTY; without even the implied
-warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
-the GNU General Public License for more details.
+   GDB, GAS, and the GNU binutils are distributed in the hope that they
+   will be useful, but WITHOUT ANY WARRANTY; without even the implied
+   warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
+   the GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this file; see the file COPYING.  If not, write to the Free
-Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this file; see the file COPYING.  If not, write to the Free
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include <stdio.h>
 #include "sysdep.h"
@@ -35,14 +35,49 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    inserting operands into instructions and vice-versa is kept in this
    file.  */
 
-/* Local insertion and extraction functions.  */
-static i370_insn_t insert_ss_b2 (i370_insn_t, long, const char **);
-static i370_insn_t insert_ss_d2 (i370_insn_t, long, const char **);
-static i370_insn_t insert_rxf_r3 (i370_insn_t, long, const char **);
-static long extract_ss_b2 (i370_insn_t, int *);
-static long extract_ss_d2 (i370_insn_t, int *);
-static long extract_rxf_r3 (i370_insn_t, int *);
+/* The functions used to insert and extract complicated operands.  */
 
+static i370_insn_t
+insert_ss_b2 (i370_insn_t insn, long value,
+	      const char **errmsg ATTRIBUTE_UNUSED)
+{
+  insn.i[1] |= (value & 0xf) << 28;
+  return insn;
+}
+
+static i370_insn_t
+insert_ss_d2 (i370_insn_t insn, long value,
+	      const char **errmsg ATTRIBUTE_UNUSED)
+{
+  insn.i[1] |= (value & 0xfff) << 16;
+  return insn;
+}
+
+static i370_insn_t
+insert_rxf_r3 (i370_insn_t insn, long value,
+	       const char **errmsg ATTRIBUTE_UNUSED)
+{
+  insn.i[1] |= (value & 0xf) << 28;
+  return insn;
+}
+
+static long
+extract_ss_b2 (i370_insn_t insn, int *invalid ATTRIBUTE_UNUSED)
+{
+  return (insn.i[1] >>28) & 0xf;
+}
+
+static long
+extract_ss_d2 (i370_insn_t insn, int *invalid ATTRIBUTE_UNUSED)
+{
+  return (insn.i[1] >>16) & 0xfff;
+}
+
+static long
+extract_rxf_r3 (i370_insn_t insn, int *invalid ATTRIBUTE_UNUSED)
+{
+  return (insn.i[1] >>28) & 0xf;
+}
 
 /* The operands table.
    The fields are bits, shift, insert, extract, flags, name.
@@ -53,8 +88,7 @@ static long extract_rxf_r3 (i370_insn_t, int *);
                       if absent, should take value of zero
    I370_OPERAND_INDEX index register; if present, must name a register
                       if absent, should take value of zero
-   I370_OPERAND_OPTIONAL other optional operand (usuall reg?)
-*/
+   I370_OPERAND_OPTIONAL other optional operand (usuall reg?).  */
 
 const struct i370_operand i370_operands[] =
 {
@@ -223,180 +257,135 @@ const struct i370_operand i370_operands[] =
 #define SS_D2 (SS_B2 + 1)
 #define SS_D2_MASK (0xfff)
   { 12, 0, insert_ss_d2, extract_ss_d2, I370_OPERAND_RELATIVE, "SS D2" },
-
-
+  
 };
-
-/* The functions used to insert and extract complicated operands.  */
-
-static i370_insn_t
-insert_ss_b2 (i370_insn_t insn, long value,
-	      const char **errmsg ATTRIBUTE_UNUSED)
-{
-  insn.i[1] |= (value & 0xf) << 28;
-  return insn;
-}
-
-static i370_insn_t
-insert_ss_d2 (i370_insn_t insn, long value,
-	      const char **errmsg ATTRIBUTE_UNUSED)
-{
-  insn.i[1] |= (value & 0xfff) << 16;
-  return insn;
-}
-
-static i370_insn_t
-insert_rxf_r3 (i370_insn_t insn, long value,
-	       const char **errmsg ATTRIBUTE_UNUSED)
-{
-  insn.i[1] |= (value & 0xf) << 28;
-  return insn;
-}
-
-static long
-extract_ss_b2 (i370_insn_t insn, int *invalid ATTRIBUTE_UNUSED)
-{
-  return (insn.i[1] >>28) & 0xf;
-}
-
-static long
-extract_ss_d2 (i370_insn_t insn, int *invalid ATTRIBUTE_UNUSED)
-{
-  return (insn.i[1] >>16) & 0xfff;
-}
-
-static long
-extract_rxf_r3 (i370_insn_t insn, int *invalid ATTRIBUTE_UNUSED)
-{
-  return (insn.i[1] >>28) & 0xf;
-}
 
 
 /* Macros used to form opcodes.  */
 
 /* The short-instruction opcode.  */
-#define OPS(x) ((((unsigned short)(x)) & 0xff) << 8)
+#define OPS(x) ((((unsigned short) (x)) & 0xff) << 8)
 #define OPS_MASK OPS (0xff)
 
 /* the extended instruction opcode */
-#define XOPS(x) ((((unsigned short)(x)) & 0xff) << 24)
+#define XOPS(x) ((((unsigned short) (x)) & 0xff) << 24)
 #define XOPS_MASK XOPS (0xff)
 
 /* the S instruction opcode */
-#define SOPS(x) ((((unsigned short)(x)) & 0xffff) << 16)
+#define SOPS(x) ((((unsigned short) (x)) & 0xffff) << 16)
 #define SOPS_MASK SOPS (0xffff)
 
 /* the E instruction opcode */
-#define EOPS(x) (((unsigned short)(x)) & 0xffff)
+#define EOPS(x) (((unsigned short) (x)) & 0xffff)
 #define EOPS_MASK EOPS (0xffff)
 
 /* the RI instruction opcode */
-#define ROPS(x) (((((unsigned short)(x)) & 0xff0) << 20) | \
-                 ((((unsigned short)(x)) & 0x00f) << 16))
+#define ROPS(x) (((((unsigned short) (x)) & 0xff0) << 20) | \
+                 ((((unsigned short) (x)) & 0x00f) << 16))
 #define ROPS_MASK ROPS (0xfff)
 
-/* --------------------------------------------------------- */
+
 /* An E form instruction.  */
 #define E(op)  (EOPS (op))
 #define E_MASK E (0xffff)
 
 /* An RR form instruction.  */
 #define RR(op, r1, r2) \
-  (OPS (op) | ((((unsigned short)(r1)) & 0xf) << 4) |   \
-              ((((unsigned short)(r2)) & 0xf) ))
+  (OPS (op) | ((((unsigned short) (r1)) & 0xf) << 4) |   \
+              ((((unsigned short) (r2)) & 0xf) ))
 
 #define RR_MASK RR (0xff, 0x0, 0x0)
 
 /* An SVC-style instruction.  */
 #define SVC(op, i) \
-  (OPS (op) | (((unsigned short)(i)) & 0xff))
+  (OPS (op) | (((unsigned short) (i)) & 0xff))
 
 #define SVC_MASK SVC (0xff, 0x0)
 
 /* An RRE form instruction.  */
 #define RRE(op, r1, r2) \
-  (SOPS (op) | ((((unsigned short)(r1)) & 0xf) << 4) |   \
-               ((((unsigned short)(r2)) & 0xf) ))
+  (SOPS (op) | ((((unsigned short) (r1)) & 0xf) << 4) |   \
+               ((((unsigned short) (r2)) & 0xf) ))
 
 #define RRE_MASK RRE (0xffff, 0x0, 0x0)
 
 /* An RRF form instruction.  */
 #define RRF(op, r3, r1, r2) \
-  (SOPS (op) | ((((unsigned short)(r3)) & 0xf) << 12) |   \
-               ((((unsigned short)(r1)) & 0xf) << 4)  |   \
-               ((((unsigned short)(r2)) & 0xf) ))
+  (SOPS (op) | ((((unsigned short) (r3)) & 0xf) << 12) |   \
+               ((((unsigned short) (r1)) & 0xf) << 4)  |   \
+               ((((unsigned short) (r2)) & 0xf) ))
 
 #define RRF_MASK RRF (0xffff, 0x0, 0x0, 0x0)
 
 /* An RX form instruction.  */
 #define RX(op, r1, x2, b2, d2) \
-  (XOPS(op) | ((((unsigned short)(r1)) & 0xf) << 20) |  \
-              ((((unsigned short)(x2)) & 0xf) << 16) |  \
-              ((((unsigned short)(b2)) & 0xf) << 12) |  \
-              ((((unsigned short)(d2)) & 0xfff)))
+  (XOPS(op) | ((((unsigned short) (r1)) & 0xf) << 20) |  \
+              ((((unsigned short) (x2)) & 0xf) << 16) |  \
+              ((((unsigned short) (b2)) & 0xf) << 12) |  \
+              ((((unsigned short) (d2)) & 0xfff)))
 
 #define RX_MASK RX (0xff, 0x0, 0x0, 0x0, 0x0)
 
 /* An RXE form instruction high word.  */
 #define RXEH(op, r1, x2, b2, d2) \
-  (XOPS(op) | ((((unsigned short)(r1)) & 0xf) << 20) |  \
-              ((((unsigned short)(x2)) & 0xf) << 16) |  \
-              ((((unsigned short)(b2)) & 0xf) << 12) |  \
-              ((((unsigned short)(d2)) & 0xfff)))
+  (XOPS(op) | ((((unsigned short) (r1)) & 0xf) << 20) |  \
+              ((((unsigned short) (x2)) & 0xf) << 16) |  \
+              ((((unsigned short) (b2)) & 0xf) << 12) |  \
+              ((((unsigned short) (d2)) & 0xfff)))
 
 #define RXEH_MASK RXEH (0xff, 0, 0, 0, 0)
 
 /* An RXE form instruction low word.  */
 #define RXEL(op) \
-              ((((unsigned short)(op)) & 0xff) << 16 )
+              ((((unsigned short) (op)) & 0xff) << 16 )
 
 #define RXEL_MASK RXEL (0xff)
 
 /* An RXF form instruction high word.  */
 #define RXFH(op, r1, x2, b2, d2) \
-  (XOPS(op) | ((((unsigned short)(r1)) & 0xf) << 20) |  \
-              ((((unsigned short)(x2)) & 0xf) << 16) |  \
-              ((((unsigned short)(b2)) & 0xf) << 12) |  \
-              ((((unsigned short)(d2)) & 0xfff)))
+  (XOPS(op) | ((((unsigned short) (r1)) & 0xf) << 20) |  \
+              ((((unsigned short) (x2)) & 0xf) << 16) |  \
+              ((((unsigned short) (b2)) & 0xf) << 12) |  \
+              ((((unsigned short) (d2)) & 0xfff)))
 
 #define RXFH_MASK RXFH (0xff, 0, 0, 0, 0)
 
 /* An RXF form instruction low word.  */
 #define RXFL(op, r3) \
-              (((((unsigned short)(r3)) & 0xf)  << 28 ) | \
-               ((((unsigned short)(op)) & 0xff) << 16 ))
+              (((((unsigned short) (r3)) & 0xf)  << 28 ) | \
+               ((((unsigned short) (op)) & 0xff) << 16 ))
 
 #define RXFL_MASK RXFL (0xff, 0)
 
 /* An RS form instruction.  */
 #define RS(op, r1, b3, b2, d2) \
-  (XOPS(op) | ((((unsigned short)(r1)) & 0xf) << 20) |  \
-              ((((unsigned short)(b3)) & 0xf) << 16) |  \
-              ((((unsigned short)(b2)) & 0xf) << 12) |  \
-              ((((unsigned short)(d2)) & 0xfff)))
+  (XOPS(op) | ((((unsigned short) (r1)) & 0xf) << 20) |  \
+              ((((unsigned short) (b3)) & 0xf) << 16) |  \
+              ((((unsigned short) (b2)) & 0xf) << 12) |  \
+              ((((unsigned short) (d2)) & 0xfff)))
 
 #define RS_MASK RS (0xff, 0x0, 0x0, 0x0, 0x0)
 
 /* An RSI form instruction.  */
 #define RSI(op, r1, r3, i2) \
-  (XOPS(op) | ((((unsigned short)(r1)) & 0xf) << 20) |  \
-              ((((unsigned short)(r3)) & 0xf) << 16) |  \
-              ((((unsigned short)(i2)) & 0xffff)))
+  (XOPS(op) | ((((unsigned short) (r1)) & 0xf) << 20) |  \
+              ((((unsigned short) (r3)) & 0xf) << 16) |  \
+              ((((unsigned short) (i2)) & 0xffff)))
 
 #define RSI_MASK RSI (0xff, 0x0, 0x0, 0x0)
 
 /* An RI form instruction.  */
 #define RI(op, r1, i2) \
-  (ROPS(op) | ((((unsigned short)(r1)) & 0xf) << 20) |  \
-              ((((unsigned short)(i2)) & 0xffff)))
+  (ROPS(op) | ((((unsigned short) (r1)) & 0xf) << 20) |  \
+              ((((unsigned short) (i2)) & 0xffff)))
 
 #define RI_MASK RI (0xfff, 0x0, 0x0)
 
 /* An SI form instruction.  */
 #define SI(op, i2, b1, d1) \
-  (XOPS(op) | ((((unsigned short)(i2)) & 0xff) << 16) |  \
-              ((((unsigned short)(b1)) & 0xf)  << 12) |  \
-              ((((unsigned short)(d1)) & 0xfff)))
+  (XOPS(op) | ((((unsigned short) (i2)) & 0xff) << 16) |  \
+              ((((unsigned short) (b1)) & 0xf)  << 12) |  \
+              ((((unsigned short) (d1)) & 0xfff)))
 
 #define SI_MASK SI (0xff, 0x0, 0x0, 0x0)
 
@@ -409,26 +398,26 @@ extract_rxf_r3 (i370_insn_t insn, int *invalid ATTRIBUTE_UNUSED)
 
 /* An SS form instruction high word.  */
 #define SSH(op, l, b1, d1) \
-  (XOPS(op) | ((((unsigned short)(l)) & 0xff) << 16) |  \
-              ((((unsigned short)(b1)) & 0xf)  << 12) |  \
-              ((((unsigned short)(d1)) & 0xfff)))
+  (XOPS(op) | ((((unsigned short) (l)) & 0xff) << 16) |  \
+              ((((unsigned short) (b1)) & 0xf)  << 12) |  \
+              ((((unsigned short) (d1)) & 0xfff)))
 
 /* An SS form instruction low word.  */
 #define SSL(b2, d2) \
-            ( ((((unsigned short)(b1)) & 0xf)   << 28) |  \
-              ((((unsigned short)(d1)) & 0xfff) << 16 ))
+            ( ((((unsigned short) (b1)) & 0xf)   << 28) |  \
+              ((((unsigned short) (d1)) & 0xfff) << 16 ))
 
 #define SS_MASK SSH (0xff, 0x0, 0x0, 0x0)
 
 /* An SSE form instruction high word.  */
 #define SSEH(op, b1, d1) \
-  (SOPS(op) | ((((unsigned short)(b1)) & 0xf)  << 12) |  \
-              ((((unsigned short)(d1)) & 0xfff)))
+  (SOPS(op) | ((((unsigned short) (b1)) & 0xf)  << 12) |  \
+              ((((unsigned short) (d1)) & 0xfff)))
 
 /* An SSE form instruction low word.  */
 #define SSEL(b2, d2) \
-            ( ((((unsigned short)(b1)) & 0xf)   << 28) |  \
-              ((((unsigned short)(d1)) & 0xfff) << 16 ))
+            ( ((((unsigned short) (b1)) & 0xf)   << 28) |  \
+              ((((unsigned short) (d1)) & 0xfff) << 16 ))
 
 #define SSE_MASK SSEH (0xffff, 0x0, 0x0)
 
@@ -436,8 +425,7 @@ extract_rxf_r3 (i370_insn_t insn, int *invalid ATTRIBUTE_UNUSED)
 /* Smaller names for the flags so each entry in the opcodes table will
    fit on a single line.  These flags are set up so that e.g. IXA means
    the insn is supported on the 370/XA or newer architecture.
-   Note that 370 or older obsolete insn's are not supported ...
- */
+   Note that 370 or older obsolete insn's are not supported ...  */
 #define	IBF	I370_OPCODE_ESA390_BF
 #define	IBS	I370_OPCODE_ESA390_BS
 #define	ICK	I370_OPCODE_ESA390_CK
@@ -479,8 +467,8 @@ extract_rxf_r3 (i370_insn_t insn, int *invalid ATTRIBUTE_UNUSED)
    specific instructions before more general instructions.  It is also
    sorted by major opcode.  */
 
-const struct i370_opcode i370_opcodes[] = {
-
+const struct i370_opcode i370_opcodes[] =
+{
 /* E form instructions */
 { "pr",     2, {{E(0x0101),    0}}, {{E_MASK,  0}}, IESA,  {0} },
 
@@ -546,10 +534,10 @@ const struct i370_opcode i370_opcodes[] = {
 { "sxr",    2, {{RR(0x37,0,0), 0}}, {{RR_MASK, 0}}, I370,  {RR_R1, RR_R2} },
 { "xr",     2, {{RR(0x17,0,0), 0}}, {{RR_MASK, 0}}, I370,  {RR_R1, RR_R2} },
 
-/* unusual RR formats */
+/* Unusual RR formats.  */
 { "svc",    2, {{SVC(0x0a,0), 0}},  {{SVC_MASK, 0}}, I370,  {RR_I} },
 
-/* RRE form instructions */
+/* RRE form instructions.  */
 { "adbr",   4, {{RRE(0xb31a,0,0),   0}}, {{RRE_MASK, 0}}, IBF,  {RRE_R1, RRE_R2} },
 { "aebr",   4, {{RRE(0xb30a,0,0),   0}}, {{RRE_MASK, 0}}, IBF,  {RRE_R1, RRE_R2} },
 { "axbr",   4, {{RRE(0xb34a,0,0),   0}}, {{RRE_MASK, 0}}, IBF,  {RRE_R1, RRE_R2} },
@@ -654,7 +642,7 @@ const struct i370_opcode i370_opcodes[] = {
 { "thdr",   4, {{RRE(0xb359,0,0),   0}}, {{RRE_MASK, 0}}, IFX,  {RRE_R1, RRE_R2} },
 { "thder",  4, {{RRE(0xb359,0,0),   0}}, {{RRE_MASK, 0}}, IFX,  {RRE_R1, RRE_R2} },
 
-/* RRF form instructions */
+/* RRF form instructions.  */
 { "cfdbr",  4, {{RRF(0xb399,0,0,0), 0}}, {{RRF_MASK, 0}}, IBF,  {RRF_R1, RRF_R3, RRF_R2} },
 { "cfdr",   4, {{RRF(0xb3b9,0,0,0), 0}}, {{RRF_MASK, 0}}, IHX,  {RRF_R1, RRF_R3, RRF_R2} },
 { "cfebr",  4, {{RRF(0xb398,0,0,0), 0}}, {{RRF_MASK, 0}}, IBF,  {RRF_R1, RRF_R3, RRF_R2} },
@@ -673,7 +661,7 @@ const struct i370_opcode i370_opcodes[] = {
 { "tbdr",   4, {{RRF(0xb351,0,0,0), 0}}, {{RRF_MASK, 0}}, IFX,  {RRF_R1, RRF_R3, RRF_R2} },
 { "tbedr",  4, {{RRF(0xb350,0,0,0), 0}}, {{RRF_MASK, 0}}, IFX,  {RRF_R1, RRF_R3, RRF_R2} },
 
-/* RX form instructions */
+/* RX form instructions.  */
 { "a",      4, {{RX(0x5a,0,0,0,0),  0}}, {{RX_MASK,  0}}, I370, {RX_R1, RX_D2, RX_X2, RX_B2} },
 { "ad",     4, {{RX(0x6a,0,0,0,0),  0}}, {{RX_MASK,  0}}, I370, {RX_R1, RX_D2, RX_X2, RX_B2} },
 { "ae",     4, {{RX(0x7a,0,0,0,0),  0}}, {{RX_MASK,  0}}, I370, {RX_R1, RX_D2, RX_X2, RX_B2} },
@@ -726,7 +714,7 @@ const struct i370_opcode i370_opcodes[] = {
 { "sw",     4, {{RX(0x6f,0,0,0,0),  0}}, {{RX_MASK,  0}}, I370, {RX_R1, RX_D2, RX_X2, RX_B2} },
 { "x",      4, {{RX(0x57,0,0,0,0),  0}}, {{RX_MASK,  0}}, I370, {RX_R1, RX_D2, RX_X2, RX_B2} },
 
-/* RXE form instructions */
+/* RXE form instructions.  */
 { "adb",    6, {{RXEH(0xed,0,0,0,0), RXEL(0x1a)}}, {{RXEH_MASK, RXEL_MASK}}, IBF, {RX_R1, RX_D2, RX_X2, RX_B2} },
 { "aeb",    6, {{RXEH(0xed,0,0,0,0), RXEL(0x0a)}}, {{RXEH_MASK, RXEL_MASK}}, IBF, {RX_R1, RX_D2, RX_X2, RX_B2} },
 { "cdb",    6, {{RXEH(0xed,0,0,0,0), RXEL(0x19)}}, {{RXEH_MASK, RXEL_MASK}}, IBF, {RX_R1, RX_D2, RX_X2, RX_B2} },
@@ -756,13 +744,13 @@ const struct i370_opcode i370_opcodes[] = {
 { "tceb",   6, {{RXEH(0xed,0,0,0,0), RXEL(0x10)}}, {{RXEH_MASK, RXEL_MASK}}, IBF, {RX_R1, RX_D2, RX_X2, RX_B2} },
 { "tcxb",   6, {{RXEH(0xed,0,0,0,0), RXEL(0x12)}}, {{RXEH_MASK, RXEL_MASK}}, IBF, {RX_R1, RX_D2, RX_X2, RX_B2} },
 
-/* RXF form instructions */
+/* RXF form instructions.  */
 { "madb",   6, {{RXFH(0xed,0,0,0,0), RXFL(0x1e,0)}}, {{RXFH_MASK, RXFL_MASK}}, IBF, {RX_R1, RXF_R3, RX_D2, RX_X2, RX_B2} },
 { "maeb",   6, {{RXFH(0xed,0,0,0,0), RXFL(0x0e,0)}}, {{RXFH_MASK, RXFL_MASK}}, IBF, {RX_R1, RXF_R3, RX_D2, RX_X2, RX_B2} },
 { "msdb",   6, {{RXFH(0xed,0,0,0,0), RXFL(0x1f,0)}}, {{RXFH_MASK, RXFL_MASK}}, IBF, {RX_R1, RXF_R3, RX_D2, RX_X2, RX_B2} },
 { "mseb",   6, {{RXFH(0xed,0,0,0,0), RXFL(0x0f,0)}}, {{RXFH_MASK, RXFL_MASK}}, IBF, {RX_R1, RXF_R3, RX_D2, RX_X2, RX_B2} },
 
-/* RS form instructions */
+/* RS form instructions.  */
 { "bxh",    4, {{RS(0x86,0,0,0,0), 0}}, {{RS_MASK, 0}}, I370, {RX_R1, RS_R3, RS_D2, RS_B2} },
 { "bxle",   4, {{RS(0x87,0,0,0,0), 0}}, {{RS_MASK, 0}}, I370, {RX_R1, RS_R3, RS_D2, RS_B2} },
 { "cds",    4, {{RS(0xbb,0,0,0,0), 0}}, {{RS_MASK, 0}}, IXA,  {RX_R1, RS_R3, RS_D2, RS_B2} },
@@ -781,7 +769,7 @@ const struct i370_opcode i370_opcodes[] = {
 { "stm",    4, {{RS(0x90,0,0,0,0), 0}}, {{RS_MASK, 0}}, I370, {RX_R1, RS_R3, RS_D2, RS_B2} },
 { "trace",  4, {{RS(0x99,0,0,0,0), 0}}, {{RS_MASK, 0}}, IXA,  {RX_R1, RS_R3, RS_D2, RS_B2} },
 
-/* RS form instructions with blank R3 and optional B2 (shift left/right) */
+/* RS form instructions with blank R3 and optional B2 (shift left/right).  */
 { "sla",    4, {{RS(0x8b,0,0,0,0), 0}}, {{RS_MASK, 0}}, I370, {RX_R1, RS_D2, RS_B2_OPT} },
 { "slda",   4, {{RS(0x8f,0,0,0,0), 0}}, {{RS_MASK, 0}}, I370, {RX_R1, RS_D2, RS_B2_OPT} },
 { "sldl",   4, {{RS(0x8d,0,0,0,0), 0}}, {{RS_MASK, 0}}, I370, {RX_R1, RS_D2, RS_B2_OPT} },
@@ -791,11 +779,11 @@ const struct i370_opcode i370_opcodes[] = {
 { "srdl",   4, {{RS(0x8c,0,0,0,0), 0}}, {{RS_MASK, 0}}, I370, {RX_R1, RS_D2, RS_B2_OPT} },
 { "srl",    4, {{RS(0x88,0,0,0,0), 0}}, {{RS_MASK, 0}}, I370, {RX_R1, RS_D2, RS_B2_OPT} },
 
-/* RSI form instructions */
+/* RSI form instructions.  */
 { "brxh",   4, {{RSI(0x84,0,0,0),  0}}, {{RSI_MASK, 0}}, IIR,  {RSI_R1, RSI_R3, RSI_I2} },
 { "brxle",  4, {{RSI(0x85,0,0,0),  0}}, {{RSI_MASK, 0}}, IIR,  {RSI_R1, RSI_R3, RSI_I2} },
 
-/* RI form instructions */
+/* RI form instructions.  */
 { "ahi",    4, {{RI(0xa7a,0,0),    0}}, {{RI_MASK,  0}}, IIR,  {RI_R1, RI_I2} },
 { "bras",   4, {{RI(0xa75,0,0),    0}}, {{RI_MASK,  0}}, IIR,  {RI_R1, RI_I2} },
 { "brc",    4, {{RI(0xa74,0,0),    0}}, {{RI_MASK,  0}}, IIR,  {RI_R1, RI_I2} },
@@ -806,7 +794,7 @@ const struct i370_opcode i370_opcodes[] = {
 { "tmh",    4, {{RI(0xa70,0,0),    0}}, {{RI_MASK,  0}}, IIR,  {RI_R1, RI_I2} },
 { "tml",    4, {{RI(0xa71,0,0),    0}}, {{RI_MASK,  0}}, IIR,  {RI_R1, RI_I2} },
 
-/* SI form instructions */
+/* SI form instructions.  */
 { "cli",    4, {{SI(0x95,0,0,0),   0}}, {{SI_MASK,  0}}, I370, {SI_D1, SI_B1, SI_I2} },
 { "mc",     4, {{SI(0xaf,0,0,0),   0}}, {{SI_MASK,  0}}, I370, {SI_D1, SI_B1, SI_I2} },
 { "mvi",    4, {{SI(0x92,0,0,0),   0}}, {{SI_MASK,  0}}, I370, {SI_D1, SI_B1, SI_I2} },
@@ -817,7 +805,7 @@ const struct i370_opcode i370_opcodes[] = {
 { "tm",     4, {{SI(0x91,0,0,0),   0}}, {{SI_MASK,  0}}, I370, {SI_D1, SI_B1, SI_I2} },
 { "xi",     4, {{SI(0x97,0,0,0),   0}}, {{SI_MASK,  0}}, I370, {SI_D1, SI_B1, SI_I2} },
 
-/* S form instructions */
+/* S form instructions.  */
 { "cfc",    4, {{S(0xb21a,0,0),    0}}, {{S_MASK,	 0}}, IXA,  {S_D2, S_B2} },
 { "csch",   4, {{S(0xb230,0,0),    0}}, {{S_MASK,	 0}}, IXA,  {0} },
 { "hsch",   4, {{S(0xb231,0,0),    0}}, {{S_MASK,	 0}}, IXA,  {0} },
@@ -858,7 +846,7 @@ const struct i370_opcode i370_opcodes[] = {
 { "ts",     4, {{S(0x9300,0,0),    0}}, {{S_MASK,	 0}}, I370, {S_D2, S_B2} },
 { "tsch",   4, {{S(0xb235,0,0),    0}}, {{S_MASK,	 0}}, IXA,  {S_D2, S_B2} },
 
-/* SS form instructions */
+/* SS form instructions.  */
 { "ap",     6, {{SSH(0xfa,0,0,0),  0}}, {{SS_MASK,  0}}, I370, {SS_D1,SS_L,SS_B1,SS_D2,SS_B2} },
 { "clc",    6, {{SSH(0xd5,0,0,0),  0}}, {{SS_MASK,  0}}, I370, {SS_D1,SS_L,SS_B1,SS_D2,SS_B2} },
 { "cp",     6, {{SSH(0xf9,0,0,0),  0}}, {{SS_MASK,  0}}, I370, {SS_D1,SS_L,SS_B1,SS_D2,SS_B2} },
@@ -885,7 +873,7 @@ const struct i370_opcode i370_opcodes[] = {
 { "xc",     6, {{SSH(0xd7,0,0,0),  0}}, {{SS_MASK,  0}}, I370, {SS_D1,SS_L,SS_B1,SS_D2,SS_B2} },
 { "zap",    6, {{SSH(0xf8,0,0,0),  0}}, {{SS_MASK,  0}}, I370, {SS_D1,SS_L,SS_B1,SS_D2,SS_B2} },
 
-/* SSE form instructions */
+/* SSE form instructions.  */
 { "lasp",   6, {{SSEH(0xe500,0,0), 0}}, {{SSE_MASK, 0}}, IXA,  {SS_D1, SS_B1, SS_D2, SS_B2} },
 { "mvcdk",  6, {{SSEH(0xe50f,0,0), 0}}, {{SSE_MASK, 0}}, IESA, {SS_D1, SS_B1, SS_D2, SS_B2} },
 { "mvcsk",  6, {{SSEH(0xe50e,0,0), 0}}, {{SSE_MASK, 0}}, IESA, {SS_D1, SS_B1, SS_D2, SS_B2} },
@@ -899,7 +887,8 @@ const int i370_num_opcodes =
 
 /* The macro table.  This is only used by the assembler.  */
 
-const struct i370_macro i370_macros[] = {
+const struct i370_macro i370_macros[] =
+{
 { "b",     1,   I370,	"bc  15,%0" },
 { "br",    1,   I370,	"bcr 15,%0" },
 

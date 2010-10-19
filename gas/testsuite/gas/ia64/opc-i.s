@@ -220,3 +220,39 @@ _start:
  (p7)	hint.i 0
  (p7)	hint.i @pause
  (p7)	hint.i 0x1fffff
+
+	# instructions added by SDM2.2:
+
+	tf.z p2, p3 = 39
+	tf.z.unc p2, p3 = 39
+	tf.z.and p2, p3 = 39
+	tf.z.or p2, p3 = 39
+	tf.z.or.andcm p2, p3 = 39
+	tf.z.orcm p2, p3 = 39
+	tf.z.andcm p2, p3 = 39
+	tf.z.and.orcm p2, p3 = 39
+	tf.nz p2, p3 = 39
+	tf.nz.unc p2, p3 = 39
+	tf.nz.and p2, p3 = 39
+	tf.nz.or p2, p3 = 39
+	tf.nz.or.andcm p2, p3 = 39
+	tf.nz.orcm p2, p3 = 39
+	tf.nz.andcm p2, p3 = 39
+	tf.nz.and.orcm p2, p3 = 39
+
+(p7)	tf.z p2, p3 = 39
+(p7)	tf.z.unc p2, p3 = 39
+(p7)	tf.z.and p2, p3 = 39
+(p7)	tf.z.or p2, p3 = 39
+(p7)	tf.z.or.andcm p2, p3 = 39
+(p7)	tf.z.orcm p2, p3 = 39
+(p7)	tf.z.andcm p2, p3 = 39
+(p7)	tf.z.and.orcm p2, p3 = 39
+(p7)	tf.nz p2, p3 = 39
+(p7)	tf.nz.unc p2, p3 = 39
+(p7)	tf.nz.and p2, p3 = 39
+(p7)	tf.nz.or p2, p3 = 39
+(p7)	tf.nz.or.andcm p2, p3 = 39
+(p7)	tf.nz.orcm p2, p3 = 39
+(p7)	tf.nz.andcm p2, p3 = 39
+(p7)	tf.nz.and.orcm p2, p3 = 39

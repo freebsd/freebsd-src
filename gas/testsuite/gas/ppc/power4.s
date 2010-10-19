@@ -68,6 +68,10 @@ dsym1:
 	mfcr	3,0x40
 	mfcr	3,0x80
 
+	dcbz    1, 2
+	dcbzl   3, 4
+	dcbz    5, 6
+
 	.section	".data"
 usym0:	.llong	0xcafebabe
 usym1:

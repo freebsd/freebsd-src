@@ -1,5 +1,5 @@
 #source: gotrel2.s
-#as: --pic --no-underscore
+#as: --pic --no-underscore --em=criself
 #ld: -m crislinux tmpdir/libdso-1.so
 #objdump: -R
 

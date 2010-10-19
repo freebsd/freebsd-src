@@ -1,6 +1,6 @@
-.text
-.align 0
-	
+	.text
+	.align 0
+l:
 	bx	r0
 	bxeq	r1
 
@@ -33,3 +33,6 @@ foo:
 	msr	SPSR_f, r11
 	msr	SPSR_all, r12
 bar:
+	@ section padding for a.out's benefit
+	nop
+	nop

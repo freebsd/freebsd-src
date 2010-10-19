@@ -12,7 +12,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
 # Please email any bugs, comments, and/or additions to this file to:
 # bug-dejagnu@prep.ai.mit.edu
@@ -53,6 +53,9 @@ if ![regexp $want $got all text data bss dtot hextot] then {
     fail "size (no arguments)"
 } else {
     if {$text < 8 || $data < 4} then {
+	# The z80-coff port defaults to a "binary" like output
+	# file format which does not include a data section.
+	setup_xfail "z80-*-coff"
 	fail "size (no arguments)"
     } else {
 	pass "size (no arguments)"

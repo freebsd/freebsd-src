@@ -16,6 +16,7 @@ bl5:	.space 4
 bl6:	.space 4
 bl7:	.space 4
 bl8:	.space 4
+	.explicit
 	.pred.safe_across_calls p1-p5,p16-p63
 	.text
 	.globl	_start#

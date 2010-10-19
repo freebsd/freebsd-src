@@ -1,6 +1,7 @@
 #ld: -Tdefined2.t
 #nm: -B
 #source: phdrs.s
+#xfail: "rs6000-*-aix*"
 
 # Check that arithmetic on DEFINED works.
 # Matching both A and T accounts for formats that can't tell a .text

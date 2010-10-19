@@ -1,8 +1,7 @@
 	/* Force .got aligned to 4K, so it very likely gets at 0x804a100
 	   (0x60 bytes .tdata and 0xa0 bytes .dynamic)  */
-	.data
-	.balign	4096
 	.section ".tdata", "awT", @progbits
+	.balign	4096
 	.globl sg1, sg2, sg3, sg4, sg5, sg6, sg7, sg8
 	.globl sh1, sh2, sh3, sh4, sh5, sh6, sh7, sh8
 	.hidden sh1, sh2, sh3, sh4, sh5, sh6, sh7, sh8

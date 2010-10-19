@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include "ansidecl.h"
 
-void  flat_blurb PARAMS ((FILE *));
+void  flat_blurb (FILE *);
 void
 flat_blurb (file)
      FILE *file;

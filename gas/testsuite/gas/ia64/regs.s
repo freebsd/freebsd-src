@@ -437,7 +437,7 @@ _start:
 	{ .mii;
 	mov gp = r0
 	mov sp = r0
-	nop.i 0;; }
+	mov tp = r0;; }
 
 // Floating point registers
 	{ .mfi; mov f2 = f0 ;; }

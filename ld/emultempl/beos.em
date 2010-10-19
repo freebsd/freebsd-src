@@ -7,8 +7,8 @@ else
 fi
 cat >e${EMULATION_NAME}.c <<EOF
 /* This file is part of GLD, the Gnu Linker.
-   Copyright 1995, 1996, 1997, 1998, 2000, 2001, 2002, 2003, 2004
-   Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
+   2005 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* For WINDOWS_NT */
 /* The original file generated returned different default scripts depending
@@ -187,10 +187,6 @@ set_pe_subsystem (void)
       { "wwindows", 2, "_wWinMainCRTStartup" },
       { "console", 3, "_mainCRTStartup" },
       { "wconsole", 3, "_wmainCRTStartup" },
-#if 0
-      /* The Microsoft linker does not recognize this.  */
-      { "os2", 5, "" },
-#endif
       { "posix", 7, "___PosixProcessStartup"},
       { 0, 0, 0 }
     };
@@ -220,23 +216,8 @@ set_pe_subsystem (void)
 	  set_pe_name ("__subsystem__", v[i].value);
 
 	  /* If the subsystem is windows, we use a different entry
-	     point.  We also register the entry point as an undefined
-	     symbol. from lang_add_entry() The reason we do
-	     this is so that the user
-	     doesn't have to because they would have to use the -u
-	     switch if they were specifying an entry point other than
-	     _mainCRTStartup.  Specifically, if creating a windows
-	     application, entry point _WinMainCRTStartup must be
-	     specified.  What I have found for non console
-	     applications (entry not _mainCRTStartup) is that the .obj
-	     that contains mainCRTStartup is brought in since it is
-	     the first encountered in libc.lib and it has other
-	     symbols in it which will be pulled in by the link
-	     process.  To avoid this, adding -u with the entry point
-	     name specified forces the correct .obj to be used.  We
-	     can avoid making the user do this by always adding the
-	     entry point name as an undefined symbol.  */
-	  lang_add_entry (v[i].entry, 1);
+	     point.  */
+	  lang_default_entry (v[i].entry);
 
 	  return;
 	}
@@ -416,13 +397,13 @@ sort_by_file_name (const void *a, const void *b)
   const lang_statement_union_type *const *rb = b;
   int i, a_sec, b_sec;
 
-  i = strcmp ((*ra)->input_section.ifile->the_bfd->my_archive->filename,
-	      (*rb)->input_section.ifile->the_bfd->my_archive->filename);
+  i = strcmp ((*ra)->input_section.section->owner->my_archive->filename,
+	      (*rb)->input_section.section->owner->my_archive->filename);
   if (i != 0)
     return i;
 
-  i = strcmp ((*ra)->input_section.ifile->filename,
-		 (*rb)->input_section.ifile->filename);
+  i = strcmp ((*ra)->input_section.section->owner->filename,
+		 (*rb)->input_section.section->owner->filename);
   if (i != 0)
     return i;
   /* the tail idata4/5 are the only ones without relocs to an
@@ -446,15 +427,15 @@ sort_by_file_name (const void *a, const void *b)
        if ( (strcmp( (*ra)->input_section.section->name, ".idata$6") == 0) )
           return 0; /* don't sort .idata$6 or .idata$7 FIXME dlltool eliminate .idata$7 */
 
-       if (! bfd_get_section_contents ((*ra)->input_section.ifile->the_bfd,
+       if (! bfd_get_section_contents ((*ra)->input_section.section->owner,
          (*ra)->input_section.section, &a_sec, (file_ptr) 0, (bfd_size_type)sizeof(a_sec)))
             einfo ("%F%B: Can't read contents of section .idata: %E\n",
-                 (*ra)->input_section.ifile->the_bfd);
+                 (*ra)->input_section.section->owner);
 
-       if (! bfd_get_section_contents ((*rb)->input_section.ifile->the_bfd,
+       if (! bfd_get_section_contents ((*rb)->input_section.section->owner,
         (*rb)->input_section.section, &b_sec, (file_ptr) 0, (bfd_size_type)sizeof(b_sec) ))
            einfo ("%F%B: Can't read contents of section .idata: %E\n",
-                (*rb)->input_section.ifile->the_bfd);
+                (*rb)->input_section.section->owner);
 
       i =  ((a_sec < b_sec) ? -1 : 0);
       if ( i != 0)
@@ -566,7 +547,7 @@ sort_sections (lang_statement_union_type *s)
 		    {
 		      lang_statement_union_type *start = *p;
 		      if (start->header.type != lang_input_section_enum
-			  || !start->input_section.ifile->the_bfd->my_archive)
+			  || !start->input_section.section->owner->my_archive)
 			p = &(start->header.next);
 		      else
 			{
@@ -665,6 +646,8 @@ gld_${EMULATION_NAME}_before_allocation (void)
 #endif /* TARGET_IS_ppcpe */
 
   sort_sections (stat_ptr->head);
+
+  before_allocation_default ();
 }
 
 /* Place an orphan section.  We use this to put sections with a '\$' in them
@@ -679,7 +662,7 @@ gld_${EMULATION_NAME}_before_allocation (void)
    which are not mentioned in the linker script.  */
 
 static bfd_boolean
-gld${EMULATION_NAME}_place_orphan (lang_input_statement_type *file, asection *s)
+gld${EMULATION_NAME}_place_orphan (asection *s)
 {
   const char *secname;
   char *output_secname, *ps;
@@ -733,36 +716,13 @@ gld${EMULATION_NAME}_place_orphan (lang_input_statement_type *file, asection *s)
       }
   ps[0] = 0;
   if (l == NULL)
-#if 1
     einfo ("%P%F: *(%s\$) missing from linker script\n", output_secname);
-#else /* FIXME: This block is untried.  It exists to convey the intent,
-	 should one decide to not require *(.foo\$) to appear in the linker
-	 script.  */
-    {
-      lang_wild_statement_type *new;
-      struct wildcard_list *tmp;
-
-      tmp = (struct wildcard_list *) xmalloc (sizeof *tmp);
-      tmp->next = NULL;
-      tmp->spec.name = xmalloc (strlen (output_secname) + 2);
-      sprintf (tmp->spec.name, "%s\$", output_secname);
-      tmp->spec.exclude_name_list = NULL;
-      tmp->sorted = FALSE;
-      new = new_stat (lang_wild_statement, &os->children);
-      new->filename = NULL;
-      new->filenames_sorted = FALSE;
-      new->section_list = tmp;
-      new->keep_sections = FALSE;
-      lang_list_init (&new->children);
-      l = new;
-    }
-#endif
 
   /* Link the input section in and we're done for now.
      The sections still have to be sorted, but that has to wait until
      all such sections have been processed by us.  The sorting is done by
      sort_sections.  */
-  lang_add_section (&l->wild_statement.children, s, os, file);
+  lang_add_section (&l->wild_statement.children, s, os);
 
   return TRUE;
 }
@@ -809,7 +769,7 @@ struct ld_emulation_xfer_struct ld_${EMULATION_NAME}_emulation =
   gld_${EMULATION_NAME}_get_script,
   "${EMULATION_NAME}",
   "${OUTPUT_FORMAT}",
-  NULL, /* finish */
+  finish_default,
   NULL, /* create output section statements */
   NULL, /* open dynamic archive */
   gld${EMULATION_NAME}_place_orphan,

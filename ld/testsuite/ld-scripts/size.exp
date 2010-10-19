@@ -13,22 +13,25 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 
-if [istarget "rs6000-*-aix*"] {
-    # Target maps .text and .data to other sections.
+# AIX maps .text and .data to other sections.
+# a.out objdump displays the file header inside the text segment,
+# confusing run_dump_test.
+
+if {[istarget "rs6000-*-aix*"] || [is_aout_format]} {
+    unsupported size-1
+    unsupported size-2
     return
 }
 
 run_dump_test size-1
 
-if ![is_elf_format] {
-    return
-}
-
-if [istarget "mips*-*-*"] {
-    # MIPS inserts a REGINFO PHDR
+# size-2 only works on ELF targets.
+# MIPS inserts a REGINFO PHDR
+if {![is_elf_format] || [istarget "mips*-*-*"]} {
+    unsupported size-2
     return
 }
 

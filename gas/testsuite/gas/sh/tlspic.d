@@ -11,9 +11,9 @@ Disassembly of section .text:
    2:	2f e6 [ 	]*mov\.l	r14,@-r15
    4:	6e f3 [ 	]*mov	r15,r14
    6:	c7 08 [ 	]*mova	28 <fn\+0x28>,r0
-   8:	dc 07 [ 	]*mov\.l	28 <fn\+0x28>,r12[ 	]+! 0x0
+   8:	dc 07 [ 	]*mov\.l	28 <fn\+0x28>,r12[ 	]+! 0x0 .*
    a:	3c 0c [ 	]*add	r0,r12
-   c:	d0 02 [ 	]*mov\.l	18 <fn\+0x18>,r0[ 	]+! 0x0
+   c:	d0 02 [ 	]*mov\.l	18 <fn\+0x18>,r0[ 	]+! 0x0 .*
    e:	01 12 [ 	]*stc	gbr,r1
   10:	00 ce [ 	]*mov\.l	@\(r0,r12\),r0
   12:	a0 03 [ 	]*bra	1c <fn\+0x1c>

@@ -1,23 +1,23 @@
 /* vms.c -- BFD back-end for VAX (openVMS/VAX) and
    EVAX (openVMS/Alpha) files.
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003
-   Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
+   2006 Free Software Foundation, Inc.
 
    Written by Klaus K"ampf (kkaempf@rmi.de)
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -26,246 +26,23 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include "vms.h"
 
-static bfd_boolean vms_initialize
-  PARAMS ((bfd *));
+#define vms_bfd_is_target_special_symbol ((bfd_boolean (*) (bfd *, asymbol *)) bfd_false)
+#define vms_make_empty_symbol             _bfd_generic_make_empty_symbol
+#define vms_bfd_link_just_syms            _bfd_generic_link_just_syms
+#define vms_bfd_is_group_section          bfd_generic_is_group_section
+#define vms_bfd_discard_group             bfd_generic_discard_group
+#define vms_section_already_linked        _bfd_generic_section_already_linked
+#define vms_bfd_copy_private_header_data  _bfd_generic_bfd_copy_private_header_data
+#define vms_get_synthetic_symtab          _bfd_nodynamic_get_synthetic_symtab
+
 static unsigned int priv_section_count;
-static bfd_boolean fill_section_ptr
-  PARAMS ((struct bfd_hash_entry *, PTR));
-static bfd_boolean vms_fixup_sections
-  PARAMS ((bfd *));
-static bfd_boolean copy_symbols
-  PARAMS ((struct bfd_hash_entry *, PTR));
-static bfd_reloc_status_type reloc_nil
-  PARAMS ((bfd *, arelent *, asymbol *, PTR, asection *, bfd *, char **));
-static const struct bfd_target *vms_object_p
-  PARAMS ((bfd *abfd));
-static const struct bfd_target *vms_archive_p
-  PARAMS ((bfd *abfd));
-static bfd_boolean vms_mkobject
-  PARAMS ((bfd *abfd));
-static bfd_boolean vms_write_object_contents
-  PARAMS ((bfd *abfd));
-static bfd_boolean vms_close_and_cleanup
-  PARAMS ((bfd *abfd));
-static bfd_boolean vms_bfd_free_cached_info
-  PARAMS ((bfd *abfd));
-static bfd_boolean vms_new_section_hook
-  PARAMS ((bfd *abfd, asection *section));
-static bfd_boolean vms_get_section_contents
-  PARAMS ((bfd *abfd, asection *section, PTR x1, file_ptr x2,
-	   bfd_size_type x3));
-static bfd_boolean vms_get_section_contents_in_window
-  PARAMS ((bfd *abfd, asection *section, bfd_window *w, file_ptr offset,
-	   bfd_size_type count));
-static bfd_boolean vms_bfd_copy_private_bfd_data
-  PARAMS ((bfd *src, bfd *dest));
-static bfd_boolean vms_bfd_copy_private_section_data
-  PARAMS ((bfd *srcbfd, asection *srcsec, bfd *dstbfd, asection *dstsec));
-static bfd_boolean vms_bfd_copy_private_symbol_data
-  PARAMS ((bfd *ibfd, asymbol *isym, bfd *obfd, asymbol *osym));
-static bfd_boolean vms_bfd_print_private_bfd_data
-  PARAMS ((bfd *abfd, void *file));
-static char *vms_core_file_failing_command
-  PARAMS ((bfd *abfd));
-static int vms_core_file_failing_signal
-  PARAMS ((bfd *abfd));
-static bfd_boolean vms_core_file_matches_executable_p
-  PARAMS ((bfd *abfd, bfd *bbfd));
-static bfd_boolean vms_slurp_armap
-  PARAMS ((bfd *abfd));
-static bfd_boolean vms_slurp_extended_name_table
-  PARAMS ((bfd *abfd));
-static bfd_boolean vms_construct_extended_name_table
-  PARAMS ((bfd *abfd, char **tabloc, bfd_size_type *tablen,
-	   const char **name));
-static void vms_truncate_arname
-  PARAMS ((bfd *abfd, const char *pathname, char *arhdr));
-static bfd_boolean vms_write_armap
-  PARAMS ((bfd *arch, unsigned int elength, struct orl *map,
-	   unsigned int orl_count, int stridx));
-static PTR vms_read_ar_hdr
-  PARAMS ((bfd *abfd));
-static bfd *vms_get_elt_at_index
-  PARAMS ((bfd *abfd, symindex index));
-static bfd *vms_openr_next_archived_file
-  PARAMS ((bfd *arch, bfd *prev));
-static bfd_boolean vms_update_armap_timestamp
-  PARAMS ((bfd *abfd));
-static int vms_generic_stat_arch_elt
-  PARAMS ((bfd *, struct stat *));
-static long vms_get_symtab_upper_bound
-  PARAMS ((bfd *abfd));
-static long vms_canonicalize_symtab
-  PARAMS ((bfd *abfd, asymbol **symbols));
-static void vms_print_symbol
-  PARAMS ((bfd *abfd, PTR file, asymbol *symbol, bfd_print_symbol_type how));
-static void vms_get_symbol_info
-  PARAMS ((bfd *abfd, asymbol *symbol, symbol_info *ret));
-static bfd_boolean vms_bfd_is_local_label_name
-  PARAMS ((bfd *abfd, const char *));
-static alent *vms_get_lineno
-  PARAMS ((bfd *abfd, asymbol *symbol));
-static bfd_boolean vms_find_nearest_line
-  PARAMS ((bfd *abfd, asection *section, asymbol **symbols, bfd_vma offset,
-	   const char **file, const char **func, unsigned int *line));
-static asymbol *vms_bfd_make_debug_symbol
-  PARAMS ((bfd *abfd, void *ptr, unsigned long size));
-static long vms_read_minisymbols
-  PARAMS ((bfd *abfd, bfd_boolean dynamic, PTR *minisymsp,
-	   unsigned int *sizep));
-static asymbol *vms_minisymbol_to_symbol
-  PARAMS ((bfd *abfd, bfd_boolean dynamic, const PTR minisym, asymbol *sym));
-static long vms_get_reloc_upper_bound
-  PARAMS ((bfd *abfd, asection *sect));
-static long vms_canonicalize_reloc
-  PARAMS ((bfd *abfd, asection *srcsec, arelent **location,
-	   asymbol **symbols));
-static const struct reloc_howto_struct *vms_bfd_reloc_type_lookup
-  PARAMS ((bfd *abfd, bfd_reloc_code_real_type code));
-static bfd_boolean vms_set_arch_mach
-  PARAMS ((bfd *abfd, enum bfd_architecture arch, unsigned long mach));
-static bfd_boolean vms_set_section_contents
-  PARAMS ((bfd *abfd, asection *section, const PTR location, file_ptr offset,
-	   bfd_size_type count));
-static int vms_sizeof_headers
-  PARAMS ((bfd *abfd, bfd_boolean reloc));
-static bfd_byte *vms_bfd_get_relocated_section_contents
-  PARAMS ((bfd *abfd, struct bfd_link_info *link_info,
-	   struct bfd_link_order *link_order, bfd_byte *data,
-	   bfd_boolean relocatable, asymbol **symbols));
-static bfd_boolean vms_bfd_relax_section
-  PARAMS ((bfd *abfd, asection *section, struct bfd_link_info *link_info,
-	   bfd_boolean *again));
-static bfd_boolean vms_bfd_gc_sections
-  PARAMS ((bfd *abfd, struct bfd_link_info *link_info));
-static bfd_boolean vms_bfd_merge_sections
-  PARAMS ((bfd *abfd, struct bfd_link_info *link_info));
-static struct bfd_link_hash_table *vms_bfd_link_hash_table_create
-  PARAMS ((bfd *abfd));
-static void vms_bfd_link_hash_table_free
-  PARAMS ((struct bfd_link_hash_table *hash));
-static bfd_boolean vms_bfd_link_add_symbols
-  PARAMS ((bfd *abfd, struct bfd_link_info *link_info));
-static bfd_boolean vms_bfd_final_link
-  PARAMS ((bfd *abfd, struct bfd_link_info *link_info));
-static bfd_boolean vms_bfd_link_split_section
-  PARAMS ((bfd *abfd, asection *section));
-static long vms_get_dynamic_symtab_upper_bound
-  PARAMS ((bfd *abfd));
-static long vms_canonicalize_dynamic_symtab
-  PARAMS ((bfd *abfd, asymbol **symbols));
-static long vms_get_dynamic_reloc_upper_bound
-  PARAMS ((bfd *abfd));
-static long vms_canonicalize_dynamic_reloc
-  PARAMS ((bfd *abfd, arelent **arel, asymbol **symbols));
-static bfd_boolean vms_bfd_merge_private_bfd_data
-  PARAMS ((bfd *ibfd, bfd *obfd));
-static bfd_boolean vms_bfd_set_private_flags
-  PARAMS ((bfd *abfd, flagword flags));
-
-#define vms_make_empty_symbol _bfd_generic_make_empty_symbol
-#define vms_bfd_link_just_syms _bfd_generic_link_just_syms
-#define vms_bfd_discard_group bfd_generic_discard_group
+extern const bfd_target vms_vax_vec;
+extern const bfd_target vms_alpha_vec;
 
-/*===========================================================================*/
-
-const bfd_target vms_alpha_vec =
-{
-  "vms-alpha",			/* name */
-  bfd_target_evax_flavour,
-  BFD_ENDIAN_LITTLE,		/* data byte order is little */
-  BFD_ENDIAN_LITTLE,		/* header byte order is little */
-
-  (HAS_RELOC | HAS_SYMS
-   | WP_TEXT | D_PAGED),	/* object flags */
-  (SEC_ALLOC | SEC_LOAD | SEC_RELOC
-   | SEC_READONLY | SEC_CODE | SEC_DATA
-   | SEC_HAS_CONTENTS | SEC_IN_MEMORY),		/* sect flags */
-  0,				/* symbol_leading_char */
-  ' ',				/* ar_pad_char */
-  15,				/* ar_max_namelen */
-  bfd_getl64, bfd_getl_signed_64, bfd_putl64,
-  bfd_getl32, bfd_getl_signed_32, bfd_putl32,
-  bfd_getl16, bfd_getl_signed_16, bfd_putl16,
-  bfd_getl64, bfd_getl_signed_64, bfd_putl64,
-  bfd_getl32, bfd_getl_signed_32, bfd_putl32,
-  bfd_getl16, bfd_getl_signed_16, bfd_putl16,
-
-  {_bfd_dummy_target, vms_object_p,		/* bfd_check_format */
-   vms_archive_p, _bfd_dummy_target},
-  {bfd_false, vms_mkobject,			/* bfd_set_format */
-   _bfd_generic_mkarchive, bfd_false},
-  {bfd_false, vms_write_object_contents,	/* bfd_write_contents */
-   _bfd_write_archive_contents, bfd_false},
-
-  BFD_JUMP_TABLE_GENERIC (vms),
-  BFD_JUMP_TABLE_COPY (vms),
-  BFD_JUMP_TABLE_CORE (vms),
-  BFD_JUMP_TABLE_ARCHIVE (vms),
-  BFD_JUMP_TABLE_SYMBOLS (vms),
-  BFD_JUMP_TABLE_RELOCS (vms),
-  BFD_JUMP_TABLE_WRITE (vms),
-  BFD_JUMP_TABLE_LINK (vms),
-  BFD_JUMP_TABLE_DYNAMIC (vms),
-
-  NULL,
-
-  (PTR) 0
-};
-
-const bfd_target vms_vax_vec =
-{
-  "vms-vax",			/* name */
-  bfd_target_ovax_flavour,
-  BFD_ENDIAN_LITTLE,		/* data byte order is little */
-  BFD_ENDIAN_LITTLE,		/* header byte order is little */
-
-  (HAS_RELOC | HAS_SYMS 	/* object flags */
-   | WP_TEXT | D_PAGED
-   | HAS_LINENO | HAS_DEBUG | HAS_LOCALS),
-
-  (SEC_ALLOC | SEC_LOAD | SEC_RELOC
-   | SEC_READONLY | SEC_CODE | SEC_DATA
-   | SEC_HAS_CONTENTS | SEC_IN_MEMORY),		/* sect flags */
-  0,				/* symbol_leading_char */
-  ' ',				/* ar_pad_char */
-  15,				/* ar_max_namelen */
-  bfd_getl64, bfd_getl_signed_64, bfd_putl64,
-  bfd_getl32, bfd_getl_signed_32, bfd_putl32,
-  bfd_getl16, bfd_getl_signed_16, bfd_putl16, /* data */
-  bfd_getl64, bfd_getl_signed_64, bfd_putl64,
-  bfd_getl32, bfd_getl_signed_32, bfd_putl32,
-  bfd_getl16, bfd_getl_signed_16, bfd_putl16, /* hdrs */
-
-  {_bfd_dummy_target, vms_object_p,		/* bfd_check_format */
-   vms_archive_p, _bfd_dummy_target},
-  {bfd_false, vms_mkobject,			/* bfd_set_format */
-   _bfd_generic_mkarchive, bfd_false},
-  {bfd_false, vms_write_object_contents,	/* bfd_write_contents */
-   _bfd_write_archive_contents, bfd_false},
-
-  BFD_JUMP_TABLE_GENERIC (vms),
-  BFD_JUMP_TABLE_COPY (vms),
-  BFD_JUMP_TABLE_CORE (vms),
-  BFD_JUMP_TABLE_ARCHIVE (vms),
-  BFD_JUMP_TABLE_SYMBOLS (vms),
-  BFD_JUMP_TABLE_RELOCS (vms),
-  BFD_JUMP_TABLE_WRITE (vms),
-  BFD_JUMP_TABLE_LINK (vms),
-  BFD_JUMP_TABLE_DYNAMIC (vms),
-
-  NULL,
-
-  (PTR) 0
-};
-
-/*===========================================================================*/
-
-/* Initialize private data  */
+/* Initialize private data.  */
 
 static bfd_boolean
-vms_initialize (abfd)
-     bfd *abfd;
+vms_initialize (bfd * abfd)
 {
   int i;
   bfd_size_type amt;
@@ -273,16 +50,16 @@ vms_initialize (abfd)
   bfd_set_start_address (abfd, (bfd_vma) -1);
 
   amt = sizeof (struct vms_private_data_struct);
-  abfd->tdata.any = (struct vms_private_data_struct*) bfd_alloc (abfd, amt);
-  if (abfd->tdata.any == 0)
+  abfd->tdata.any = bfd_alloc (abfd, amt);
+  if (abfd->tdata.any == NULL)
     return FALSE;
 
 #ifdef __ALPHA
-  PRIV (is_vax) = 0;
+  PRIV (is_vax) = FALSE;
 #else
-  PRIV (is_vax) = 1;
+  PRIV (is_vax) = TRUE;
 #endif
-  PRIV (vms_buf) = 0;
+  PRIV (vms_buf) = NULL;
   PRIV (buf_size) = 0;
   PRIV (rec_length) = 0;
   PRIV (file_format) = FF_UNKNOWN;
@@ -290,30 +67,31 @@ vms_initialize (abfd)
   PRIV (sections) = NULL;
 
   amt = sizeof (struct stack_struct) * STACKSIZE;
-  PRIV (stack) = (struct stack_struct *) bfd_alloc (abfd, amt);
-  if (PRIV (stack) == 0)
+  PRIV (stack) = bfd_alloc (abfd, amt);
+  if (PRIV (stack) == NULL)
     goto error_ret1;
   PRIV (stackptr) = 0;
 
   amt = sizeof (struct bfd_hash_table);
-  PRIV (vms_symbol_table) = (struct bfd_hash_table *) bfd_alloc (abfd, amt);
-  if (PRIV (vms_symbol_table) == 0)
+  PRIV (vms_symbol_table) = bfd_alloc (abfd, amt);
+  if (PRIV (vms_symbol_table) == NULL)
     goto error_ret1;
 
-  if (!bfd_hash_table_init (PRIV (vms_symbol_table), _bfd_vms_hash_newfunc))
+  if (!bfd_hash_table_init (PRIV (vms_symbol_table), _bfd_vms_hash_newfunc,
+			    sizeof (vms_symbol_entry)))
     goto error_ret1;
 
   amt = sizeof (struct location_struct) * LOCATION_SAVE_SIZE;
-  PRIV (location_stack) = (struct location_struct *) bfd_alloc (abfd, amt);
-  if (PRIV (location_stack) == 0)
+  PRIV (location_stack) = bfd_alloc (abfd, amt);
+  if (PRIV (location_stack) == NULL)
     goto error_ret2;
 
   for (i = 0; i < VMS_SECTION_COUNT; i++)
     PRIV (vms_section_table)[i] = NULL;
 
   amt = MAX_OUTREC_SIZE;
-  PRIV (output_buf) = (unsigned char *) bfd_alloc (abfd, amt);
-  if (PRIV (output_buf) == 0)
+  PRIV (output_buf) = bfd_alloc (abfd, amt);
+  if (PRIV (output_buf) == NULL)
     goto error_ret2;
 
   PRIV (push_level) = 0;
@@ -328,7 +106,7 @@ vms_initialize (abfd)
   bfd_hash_table_free (PRIV (vms_symbol_table));
  error_ret1:
   bfd_release (abfd, abfd->tdata.any);
-  abfd->tdata.any = 0;
+  abfd->tdata.any = NULL;
   return FALSE;
 }
 
@@ -339,30 +117,25 @@ vms_initialize (abfd)
 
    It has the correct value for referenced (undefined section) symbols
 
-   called from bfd_hash_traverse in vms_fixup_sections  */
+   called from bfd_hash_traverse in vms_fixup_sections.  */
 
 static bfd_boolean
-fill_section_ptr (entry, sections)
-     struct bfd_hash_entry *entry;
-     PTR sections;
+fill_section_ptr (struct bfd_hash_entry * entry, void * sections)
 {
   asection *sec;
   asymbol *sym;
 
-  sym =  ((vms_symbol_entry *)entry)->symbol;
+  sym = ((vms_symbol_entry *) entry)->symbol;
   sec = sym->section;
 
 #if VMS_DEBUG
   vms_debug (6, "fill_section_ptr: sym %p, sec %p\n", sym, sec);
 #endif
 
-  /* fill forward references (these contain section number, not section ptr).  */
-
-  if ((unsigned int) sec < priv_section_count)
-    {
-      sec = ((vms_symbol_entry *)entry)->symbol->section =
-	((asection **)sections)[(int)sec];
-    }
+  /* Fill forward references (these contain section number, not section ptr).  */
+  if ((unsigned int) (size_t) sec < priv_section_count)
+    sec = ((vms_symbol_entry *) entry)->symbol->section =
+      ((asection **) sections)[(unsigned int) (size_t) sec];
 
   if (strcmp (sym->name, sec->name) == 0)
     sym->flags |= BSF_SECTION_SYM;
@@ -377,47 +150,40 @@ fill_section_ptr (entry, sections)
    are always referenced by an index number.
 
    alloc PRIV(sections) according to abfd->section_count
-	copy abfd->sections to PRIV(sections)  */
+	copy abfd->sections to PRIV(sections).  */
 
 static bfd_boolean
-vms_fixup_sections (abfd)
-     bfd *abfd;
+vms_fixup_sections (bfd * abfd)
 {
   if (PRIV (fixup_done))
     return TRUE;
 
-  /*
-   * traverse symbol table and fill in all section pointers
-   */
+  /* Traverse symbol table and fill in all section pointers.  */
 
-  /* can't provide section count as argument to fill_section_ptr().  */
+  /* Can't provide section count as argument to fill_section_ptr().  */
   priv_section_count = PRIV (section_count);
-  bfd_hash_traverse (PRIV (vms_symbol_table), fill_section_ptr,
-		    (PTR) (PRIV (sections)));
+  bfd_hash_traverse (PRIV (vms_symbol_table), fill_section_ptr, (PRIV (sections)));
 
   PRIV (fixup_done) = TRUE;
 
   return TRUE;
 }
-
-/*===========================================================================*/
-
+
 /* Check the format for a file being read.
    Return a (bfd_target *) if it's an object file or zero if not.  */
 
 static const struct bfd_target *
-vms_object_p (abfd)
-     bfd *abfd;
+vms_object_p (bfd * abfd)
 {
   int err = 0;
   int prev_type;
-  const struct bfd_target *target_vector = 0;
-  const bfd_arch_info_type *arch = 0;
-  PTR tdata_save = abfd->tdata.any;
+  const struct bfd_target *target_vector = NULL;
+  const bfd_arch_info_type *arch = NULL;
+  void * tdata_save = abfd->tdata.any;
   bfd_vma saddr_save = bfd_get_start_address (abfd);
 
 #if VMS_DEBUG
-  vms_debug (1, "vms_object_p(%p)\n", abfd);
+  vms_debug (1, "vms_object_p (%p)\n", abfd);
 #endif
 
   if (!vms_initialize (abfd))
@@ -431,7 +197,7 @@ vms_object_p (abfd)
   do
     {
 #if VMS_DEBUG
-      vms_debug (7, "reading at %08lx\n", bfd_tell(abfd));
+      vms_debug (7, "reading at %08lx\n", bfd_tell (abfd));
 #endif
       if (_bfd_vms_next_record (abfd) < 0)
 	{
@@ -455,12 +221,12 @@ vms_object_p (abfd)
 
       prev_type = PRIV (rec_type);
 
-      if (target_vector == 0)
+      if (target_vector == NULL)
 	{
 	  if (prev_type <= OBJ_S_C_MAXRECTYP)
-	    target_vector = &vms_vax_vec;
+	    target_vector = & vms_vax_vec;
 	  else
-	    target_vector = &vms_alpha_vec;
+	    target_vector = & vms_alpha_vec;
 	}
 
       switch (prev_type)
@@ -506,7 +272,7 @@ vms_object_p (abfd)
     }
   while ((prev_type != EOBJ_S_C_EEOM) && (prev_type != OBJ_S_C_EOM) && (prev_type != OBJ_S_C_EOMW));
 
-  if (target_vector == &vms_vax_vec)
+  if (target_vector == & vms_vax_vec)
     {
       if (! vms_fixup_sections (abfd))
 	{
@@ -516,26 +282,26 @@ vms_object_p (abfd)
 	  goto err_wrong_format;
 	}
 
-      /* set arch_info to vax  */
+      /* Set arch_info to vax.  */
 
       arch = bfd_scan_arch ("vax");
-      PRIV (is_vax) = 1;
+      PRIV (is_vax) = TRUE;
 #if VMS_DEBUG
       vms_debug (2, "arch is vax\n");
 #endif
     }
-  else if (target_vector == &vms_alpha_vec)
+  else if (target_vector == & vms_alpha_vec)
     {
-      /* set arch_info to alpha  */
+      /* Set arch_info to alpha.   */
 
       arch = bfd_scan_arch ("alpha");
-      PRIV (is_vax) = 0;
+      PRIV (is_vax) = FALSE;
 #if VMS_DEBUG
       vms_debug (2, "arch is alpha\n");
 #endif
     }
 
-  if (arch == 0)
+  if (arch == NULL)
     {
 #if VMS_DEBUG
       vms_debug (2, "arch not found\n");
@@ -560,28 +326,26 @@ vms_object_p (abfd)
    Return a (bfd_target *) if it's an archive file or zero.  */
 
 static const struct bfd_target *
-vms_archive_p (abfd)
-     bfd *abfd ATTRIBUTE_UNUSED;
+vms_archive_p (bfd * abfd ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_archive_p(%p)\n", abfd);
+  vms_debug (1, "vms_archive_p (%p)\n", abfd);
 #endif
 
-  return 0;
+  return NULL;
 }
 
 /* Set the format of a file being written.  */
 
 static bfd_boolean
-vms_mkobject (abfd)
-     bfd *abfd;
+vms_mkobject (bfd * abfd)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_mkobject(%p)\n", abfd);
+  vms_debug (1, "vms_mkobject (%p)\n", abfd);
 #endif
 
   if (!vms_initialize (abfd))
-    return 0;
+    return FALSE;
 
   {
 #ifdef __VAX
@@ -589,10 +353,10 @@ vms_mkobject (abfd)
 #else
     const bfd_arch_info_type *arch = bfd_scan_arch ("alpha");
 #endif
-    if (arch == 0)
+    if (arch == NULL)
       {
-	bfd_set_error(bfd_error_wrong_format);
-	return 0;
+	bfd_set_error (bfd_error_wrong_format);
+	return FALSE;
       }
     abfd->arch_info = arch;
   }
@@ -603,11 +367,10 @@ vms_mkobject (abfd)
 /* Write cached information into a file being written, at bfd_close.  */
 
 static bfd_boolean
-vms_write_object_contents (abfd)
-     bfd *abfd;
+vms_write_object_contents (bfd * abfd)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_write_object_contents(%p)\n", abfd);
+  vms_debug (1, "vms_write_object_contents (%p)\n", abfd);
 #endif
 
   if (abfd->section_count > 0)			/* we have sections */
@@ -654,18 +417,17 @@ vms_write_object_contents (abfd)
   return TRUE;
 }
 
-/*-- 4.1, generic -----------------------------------------------------------*/
+/* 4.1, generic.  */
 
 /* Called when the BFD is being closed to do any necessary cleanup.  */
 
 static bfd_boolean
-vms_close_and_cleanup (abfd)
-     bfd *abfd;
+vms_close_and_cleanup (bfd * abfd)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_close_and_cleanup(%p)\n", abfd);
+  vms_debug (1, "vms_close_and_cleanup (%p)\n", abfd);
 #endif
-  if (abfd == 0)
+  if (abfd == NULL)
     return TRUE;
 
   if (PRIV (vms_buf) != NULL)
@@ -684,12 +446,12 @@ vms_close_and_cleanup (abfd)
 }
 
 /* Ask the BFD to free all cached information.  */
+
 static bfd_boolean
-vms_bfd_free_cached_info (abfd)
-     bfd *abfd ATTRIBUTE_UNUSED;
+vms_bfd_free_cached_info (bfd * abfd ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_bfd_free_cached_info(%p)\n", abfd);
+  vms_debug (1, "vms_bfd_free_cached_info (%p)\n", abfd);
 #endif
   return TRUE;
 }
@@ -697,9 +459,7 @@ vms_bfd_free_cached_info (abfd)
 /* Called when a new section is created.  */
 
 static bfd_boolean
-vms_new_section_hook (abfd, section)
-     bfd *abfd;
-     asection *section;
+vms_new_section_hook (bfd * abfd, asection *section)
 {
   /* Count hasn't been incremented yet.  */
   unsigned int section_count = abfd->section_count + 1;
@@ -714,8 +474,8 @@ vms_new_section_hook (abfd, section)
     {
       bfd_size_type amt = section_count;
       amt *= sizeof (asection *);
-      PRIV (sections) = (asection **) bfd_realloc (PRIV (sections), amt);
-      if (PRIV (sections) == 0)
+      PRIV (sections) = bfd_realloc (PRIV (sections), amt);
+      if (PRIV (sections) == NULL)
 	return FALSE;
       PRIV (section_count) = section_count;
     }
@@ -735,57 +495,52 @@ vms_new_section_hook (abfd, section)
    section data (starting at offset into section)  */
 
 static bfd_boolean
-vms_get_section_contents (abfd, section, buf, offset, buf_size)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     asection *section ATTRIBUTE_UNUSED;
-     PTR buf ATTRIBUTE_UNUSED;
-     file_ptr offset ATTRIBUTE_UNUSED;
-     bfd_size_type buf_size ATTRIBUTE_UNUSED;
+vms_get_section_contents (bfd * abfd ATTRIBUTE_UNUSED,
+			  asection *section ATTRIBUTE_UNUSED,
+			  void * buf ATTRIBUTE_UNUSED,
+			  file_ptr offset ATTRIBUTE_UNUSED,
+			  bfd_size_type buf_size ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_get_section_contents(%p, %s, %p, off %ld, size %d)\n",
+  vms_debug (1, "vms_get_section_contents (%p, %s, %p, off %ld, size %d)\n",
 		 abfd, section->name, buf, offset, (int)buf_size);
 #endif
 
-  /* shouldn't be called, since all sections are IN_MEMORY  */
-
+  /* Shouldn't be called, since all sections are IN_MEMORY.  */
   return FALSE;
 }
 
 /* Read the contents of a section.
    buf points to a buffer of buf_size bytes to be filled with
-   section data (starting at offset into section)  */
+   section data (starting at offset into section).  */
 
 static bfd_boolean
-vms_get_section_contents_in_window (abfd, section, w, offset, count)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     asection *section ATTRIBUTE_UNUSED;
-     bfd_window *w ATTRIBUTE_UNUSED;
-     file_ptr offset ATTRIBUTE_UNUSED;
-     bfd_size_type count ATTRIBUTE_UNUSED;
+vms_get_section_contents_in_window (bfd * abfd ATTRIBUTE_UNUSED,
+				    asection *section ATTRIBUTE_UNUSED,
+				    bfd_window *w ATTRIBUTE_UNUSED,
+				    file_ptr offset ATTRIBUTE_UNUSED,
+				    bfd_size_type count ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_get_section_contents_in_window(%p, %s, %p, off %ld, count %d)\n",
+  vms_debug (1, "vms_get_section_contents_in_window (%p, %s, %p, off %ld, count %d)\n",
 		 abfd, section->name, w, offset, (int)count);
 #endif
 
-  /* shouldn't be called, since all sections are IN_MEMORY  */
-
+  /* Shouldn't be called, since all sections are IN_MEMORY.  */
   return FALSE;
 }
 
-/*-- Part 4.2, copy private data --------------------------------------------*/
+/* Part 4.2, copy private data.  */
 
 /* Called to copy BFD general private data from one object file
    to another.  */
 
 static bfd_boolean
-vms_bfd_copy_private_bfd_data (src, dest)
-     bfd *src ATTRIBUTE_UNUSED;
-     bfd *dest ATTRIBUTE_UNUSED;
+vms_bfd_copy_private_bfd_data (bfd *src ATTRIBUTE_UNUSED,
+			       bfd *dest ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_bfd_copy_private_bfd_data(%p, %p)\n", src, dest);
+  vms_debug (1, "vms_bfd_copy_private_bfd_data (%p, %p)\n", src, dest);
 #endif
   return TRUE;
 }
@@ -798,12 +553,11 @@ vms_bfd_copy_private_bfd_data (src, dest)
      Not enough memory exists to create private data for @var{obfd}.  */
 
 static bfd_boolean
-vms_bfd_merge_private_bfd_data (ibfd, obfd)
-     bfd *ibfd ATTRIBUTE_UNUSED;
-     bfd *obfd ATTRIBUTE_UNUSED;
+vms_bfd_merge_private_bfd_data (bfd * ibfd ATTRIBUTE_UNUSED,
+				bfd * obfd ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1,"vms_bfd_merge_private_bfd_data(%p, %p)\n", ibfd, obfd);
+  vms_debug (1,"vms_bfd_merge_private_bfd_data (%p, %p)\n", ibfd, obfd);
 #endif
   return TRUE;
 }
@@ -816,12 +570,11 @@ vms_bfd_merge_private_bfd_data (ibfd, obfd)
      Not enough memory exists to create private data for @var{obfd}.  */
 
 static bfd_boolean
-vms_bfd_set_private_flags (abfd, flags)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     flagword flags ATTRIBUTE_UNUSED;
+vms_bfd_set_private_flags (bfd * abfd ATTRIBUTE_UNUSED,
+			   flagword flags ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1,"vms_bfd_set_private_flags(%p, %lx)\n", abfd, (long)flags);
+  vms_debug (1,"vms_bfd_set_private_flags (%p, %lx)\n", abfd, (long)flags);
 #endif
   return TRUE;
 }
@@ -830,14 +583,13 @@ vms_bfd_set_private_flags (abfd, flags)
    to another.  */
 
 static bfd_boolean
-vms_bfd_copy_private_section_data (srcbfd, srcsec, dstbfd, dstsec)
-     bfd *srcbfd ATTRIBUTE_UNUSED;
-     asection *srcsec ATTRIBUTE_UNUSED;
-     bfd *dstbfd ATTRIBUTE_UNUSED;
-     asection *dstsec ATTRIBUTE_UNUSED;
+vms_bfd_copy_private_section_data (bfd *srcbfd ATTRIBUTE_UNUSED,
+				   asection *srcsec ATTRIBUTE_UNUSED,
+				   bfd *dstbfd ATTRIBUTE_UNUSED,
+				   asection *dstsec ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_bfd_copy_private_section_data(%p, %s, %p, %s)\n",
+  vms_debug (1, "vms_bfd_copy_private_section_data (%p, %s, %p, %s)\n",
 		 srcbfd, srcsec->name, dstbfd, dstsec->name);
 #endif
   return TRUE;
@@ -847,43 +599,40 @@ vms_bfd_copy_private_section_data (srcbfd, srcsec, dstbfd, dstsec)
    to another.  */
 
 static bfd_boolean
-vms_bfd_copy_private_symbol_data (ibfd, isym, obfd, osym)
-     bfd *ibfd ATTRIBUTE_UNUSED;
-     asymbol *isym ATTRIBUTE_UNUSED;
-     bfd *obfd ATTRIBUTE_UNUSED;
-     asymbol *osym ATTRIBUTE_UNUSED;
+vms_bfd_copy_private_symbol_data (bfd *ibfd ATTRIBUTE_UNUSED,
+				  asymbol *isym ATTRIBUTE_UNUSED,
+				  bfd *obfd ATTRIBUTE_UNUSED,
+				  asymbol *osym ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_bfd_copy_private_symbol_data(%p, %s, %p, %s)\n",
+  vms_debug (1, "vms_bfd_copy_private_symbol_data (%p, %s, %p, %s)\n",
 		 ibfd, isym->name, obfd, osym->name);
 #endif
   return TRUE;
 }
 
-/*-- Part 4.3, core file ----------------------------------------------------*/
+/* Part 4.3, core file.  */
 
 /* Return a read-only string explaining which program was running
    when it failed and produced the core file abfd.  */
 
 static char *
-vms_core_file_failing_command (abfd)
-     bfd *abfd ATTRIBUTE_UNUSED;
+vms_core_file_failing_command (bfd * abfd ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_core_file_failing_command(%p)\n", abfd);
+  vms_debug (1, "vms_core_file_failing_command (%p)\n", abfd);
 #endif
-  return 0;
+  return NULL;
 }
 
 /* Returns the signal number which caused the core dump which
    generated the file the BFD abfd is attached to.  */
 
 static int
-vms_core_file_failing_signal (abfd)
-     bfd *abfd ATTRIBUTE_UNUSED;
+vms_core_file_failing_signal (bfd * abfd ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_core_file_failing_signal(%p)\n", abfd);
+  vms_debug (1, "vms_core_file_failing_signal (%p)\n", abfd);
 #endif
   return 0;
 }
@@ -892,27 +641,25 @@ vms_core_file_failing_signal (abfd)
    by a run of the executable file attached to exec_bfd, FALSE otherwise.  */
 
 static bfd_boolean
-vms_core_file_matches_executable_p (abfd, bbfd)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     bfd *bbfd ATTRIBUTE_UNUSED;
+vms_core_file_matches_executable_p (bfd * abfd ATTRIBUTE_UNUSED,
+				    bfd *bbfd ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_core_file_matches_executable_p(%p, %p)\n", abfd, bbfd);
+  vms_debug (1, "vms_core_file_matches_executable_p (%p, %p)\n", abfd, bbfd);
 #endif
   return FALSE;
 }
 
-/*-- Part 4.4, archive ------------------------------------------------------*/
+/* Part 4.4, archive.  */
 
 /* ???	do something with an archive map.
    Return FALSE on error, TRUE otherwise.  */
 
 static bfd_boolean
-vms_slurp_armap (abfd)
-     bfd *abfd ATTRIBUTE_UNUSED;
+vms_slurp_armap (bfd * abfd ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_slurp_armap(%p)\n", abfd);
+  vms_debug (1, "vms_slurp_armap (%p)\n", abfd);
 #endif
   return FALSE;
 }
@@ -921,11 +668,10 @@ vms_slurp_armap (abfd)
    Return FALSE on error, TRUE otherwise.  */
 
 static bfd_boolean
-vms_slurp_extended_name_table (abfd)
-     bfd *abfd ATTRIBUTE_UNUSED;
+vms_slurp_extended_name_table (bfd * abfd ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_slurp_extended_name_table(%p)\n", abfd);
+  vms_debug (1, "vms_slurp_extended_name_table (%p)\n", abfd);
 #endif
   return FALSE;
 }
@@ -934,44 +680,41 @@ vms_slurp_extended_name_table (abfd)
    Return FALSE on error, TRUE otherwise.  */
 
 static bfd_boolean
-vms_construct_extended_name_table (abfd, tabloc, tablen, name)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     char **tabloc ATTRIBUTE_UNUSED;
-     bfd_size_type *tablen ATTRIBUTE_UNUSED;
-     const char **name ATTRIBUTE_UNUSED;
+vms_construct_extended_name_table (bfd * abfd ATTRIBUTE_UNUSED,
+				   char **tabloc ATTRIBUTE_UNUSED,
+				   bfd_size_type *tablen ATTRIBUTE_UNUSED,
+				   const char **name ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_construct_extended_name_table(%p)\n", abfd);
+  vms_debug (1, "vms_construct_extended_name_table (%p)\n", abfd);
 #endif
   return FALSE;
 }
 
-/* Truncate the name of an archive to match system-dependent restrictions  */
+/* Truncate the name of an archive to match system-dependent restrictions.  */
 
 static void
-vms_truncate_arname (abfd, pathname, arhdr)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     const char *pathname ATTRIBUTE_UNUSED;
-     char *arhdr ATTRIBUTE_UNUSED;
+vms_truncate_arname (bfd * abfd ATTRIBUTE_UNUSED,
+		     const char *pathname ATTRIBUTE_UNUSED,
+		     char *arhdr ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_truncate_arname(%p, %s, %s)\n", abfd, pathname, arhdr);
+  vms_debug (1, "vms_truncate_arname (%p, %s, %s)\n", abfd, pathname, arhdr);
 #endif
   return;
 }
 
-/* ???	write archive map  */
+/* ???	write archive map.  */
 
 static bfd_boolean
-vms_write_armap (arch, elength, map, orl_count, stridx)
-     bfd *arch ATTRIBUTE_UNUSED;
-     unsigned int elength ATTRIBUTE_UNUSED;
-     struct orl *map ATTRIBUTE_UNUSED;
-     unsigned int orl_count ATTRIBUTE_UNUSED;
-     int stridx ATTRIBUTE_UNUSED;
+vms_write_armap (bfd *arch ATTRIBUTE_UNUSED,
+		 unsigned int elength ATTRIBUTE_UNUSED,
+		 struct orl *map ATTRIBUTE_UNUSED,
+		 unsigned int orl_count ATTRIBUTE_UNUSED,
+		 int stridx ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_write_armap(%p, %d, %p, %d %d)\n",
+  vms_debug (1, "vms_write_armap (%p, %d, %p, %d %d)\n",
 	arch, elength, map, orl_count, stridx);
 #endif
   return TRUE;
@@ -979,14 +722,13 @@ vms_write_armap (arch, elength, map, orl_count, stridx)
 
 /* Read archive header ???  */
 
-static PTR
-vms_read_ar_hdr (abfd)
-    bfd * abfd ATTRIBUTE_UNUSED;
+static void *
+vms_read_ar_hdr (bfd * abfd ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_read_ar_hdr(%p)\n", abfd);
+  vms_debug (1, "vms_read_ar_hdr (%p)\n", abfd);
 #endif
-  return (PTR)0;
+  return NULL;
 }
 
 /* Provided a BFD, @var{archive}, containing an archive and NULL, open
@@ -996,12 +738,11 @@ vms_read_ar_hdr (abfd)
    NULL is returned when there are no more.  */
 
 static bfd *
-vms_openr_next_archived_file (arch, prev)
-     bfd *arch ATTRIBUTE_UNUSED;
-     bfd *prev ATTRIBUTE_UNUSED;
+vms_openr_next_archived_file (bfd *arch ATTRIBUTE_UNUSED,
+			      bfd *prev ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_openr_next_archived_file(%p, %p)\n", arch, prev);
+  vms_debug (1, "vms_openr_next_archived_file (%p, %p)\n", arch, prev);
 #endif
   return NULL;
 }
@@ -1010,43 +751,38 @@ vms_openr_next_archived_file (arch, prev)
    INDEX.  INDEX should have been returned by bfd_get_next_mapent.  */
 
 static bfd *
-vms_get_elt_at_index (abfd, index)
-     bfd *abfd;
-     symindex index;
+vms_get_elt_at_index (bfd * abfd, symindex index)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_get_elt_at_index(%p, %p)\n", abfd, index);
+  vms_debug (1, "vms_get_elt_at_index (%p, %p)\n", abfd, index);
 #endif
-  return _bfd_generic_get_elt_at_index(abfd, index);
+  return _bfd_generic_get_elt_at_index (abfd, index);
 }
 
 /* ???
-   -> bfd_generic_stat_arch_elt  */
+   -> bfd_generic_stat_arch_elt.  */
 
 static int
-vms_generic_stat_arch_elt (abfd, st)
-     bfd *abfd;
-     struct stat *st;
+vms_generic_stat_arch_elt (bfd * abfd, struct stat *st)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_generic_stat_arch_elt(%p, %p)\n", abfd, st);
+  vms_debug (1, "vms_generic_stat_arch_elt (%p, %p)\n", abfd, st);
 #endif
   return bfd_generic_stat_arch_elt (abfd, st);
 }
 
-/* This is a new function in bfd 2.5  */
+/* This is a new function in bfd 2.5.  */
 
 static bfd_boolean
-vms_update_armap_timestamp (abfd)
-     bfd *abfd ATTRIBUTE_UNUSED;
+vms_update_armap_timestamp (bfd * abfd ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_update_armap_timestamp(%p)\n", abfd);
+  vms_debug (1, "vms_update_armap_timestamp (%p)\n", abfd);
 #endif
   return TRUE;
 }
 
-/*-- Part 4.5, symbols --------------------------------------------------------*/
+/* Part 4.5, symbols.  */
 
 /* Return the number of bytes required to store a vector of pointers
    to asymbols for all the symbols in the BFD abfd, including a
@@ -1054,30 +790,27 @@ vms_update_armap_timestamp (abfd)
    then return 0.  If an error occurs, return -1.  */
 
 static long
-vms_get_symtab_upper_bound (abfd)
-     bfd *abfd;
+vms_get_symtab_upper_bound (bfd * abfd)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_get_symtab_upper_bound(%p), %d symbols\n", abfd, PRIV (gsd_sym_count));
+  vms_debug (1, "vms_get_symtab_upper_bound (%p), %d symbols\n", abfd, PRIV (gsd_sym_count));
 #endif
-  return (PRIV (gsd_sym_count)+1) * sizeof (asymbol *);
+  return (PRIV (gsd_sym_count) + 1) * sizeof (asymbol *);
 }
 
 /* Copy symbols from hash table to symbol vector
 
    called from bfd_hash_traverse in vms_canonicalize_symtab
-   init counter to 0 if entry == 0  */
+   init counter to 0 if entry == 0.  */
 
 static bfd_boolean
-copy_symbols (entry, arg)
-     struct bfd_hash_entry *entry;
-     PTR arg;
+copy_symbols (struct bfd_hash_entry *entry, void * arg)
 {
-  bfd *abfd = (bfd *) arg;
+  bfd * abfd = (bfd *) arg;
 
-  if (entry == NULL)	/* init counter */
+  if (entry == NULL)	/* Init counter.  */
     PRIV (symnum) = 0;
-  else			/* fill vector, inc counter */
+  else			/* Fill vector, inc counter.  */
     PRIV (symcache)[PRIV (symnum)++] = ((vms_symbol_entry *)entry)->symbol;
 
   return TRUE;
@@ -1086,24 +819,21 @@ copy_symbols (entry, arg)
 /* Read the symbols from the BFD abfd, and fills in the vector
    location with pointers to the symbols and a trailing NULL.
 
-   return # of symbols read  */
+   Return number of symbols read.   */
 
 static long
-vms_canonicalize_symtab (abfd, symbols)
-     bfd *abfd;
-     asymbol **symbols;
+vms_canonicalize_symtab (bfd * abfd, asymbol **symbols)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_canonicalize_symtab(%p, <ret>)\n", abfd);
+  vms_debug (1, "vms_canonicalize_symtab (%p, <ret>)\n", abfd);
 #endif
 
-	/* init counter */
-  (void)copy_symbols((struct bfd_hash_entry *)0, abfd);
+  /* Init counter.  */
+  copy_symbols (NULL, abfd);
 
-	/* traverse table and fill symbols vector */
-
+  /* Traverse table and fill symbols vector.  */
   PRIV (symcache) = symbols;
-  bfd_hash_traverse(PRIV (vms_symbol_table), copy_symbols, (PTR)abfd);
+  bfd_hash_traverse (PRIV (vms_symbol_table), copy_symbols, abfd);
 
   symbols[PRIV (gsd_sym_count)] = NULL;
 
@@ -1113,17 +843,16 @@ vms_canonicalize_symtab (abfd, symbols)
 /* Print symbol to file according to how. how is one of
    bfd_print_symbol_name	just print the name
    bfd_print_symbol_more	print more (???)
-   bfd_print_symbol_all	print all we know, which is not much right now :-)  */
+   bfd_print_symbol_all	print all we know, which is not much right now :-).  */
 
 static void
-vms_print_symbol (abfd, file, symbol, how)
-     bfd *abfd;
-     PTR file;
-     asymbol *symbol;
-     bfd_print_symbol_type how;
+vms_print_symbol (bfd * abfd,
+		  void * file,
+		  asymbol *symbol,
+		  bfd_print_symbol_type how)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_print_symbol(%p, %p, %p, %d)\n", abfd, file, symbol, how);
+  vms_debug (1, "vms_print_symbol (%p, %p, %p, %d)\n", abfd, file, symbol, how);
 #endif
 
   switch (how)
@@ -1137,13 +866,12 @@ vms_print_symbol (abfd, file, symbol, how)
 	{
 	  const char *section_name = symbol->section->name;
 
-	  bfd_print_symbol_vandf (abfd, (PTR)file, symbol);
+	  bfd_print_symbol_vandf (abfd, file, symbol);
 
-	  fprintf ((FILE *)file," %-8s %s", section_name, symbol->name);
+	  fprintf ((FILE *) file," %-8s %s", section_name, symbol->name);
         }
       break;
     }
-  return;
 }
 
 /* Return information about symbol in ret.
@@ -1158,23 +886,22 @@ vms_print_symbol (abfd, file, symbol, how)
 	t	a static function symbol
 	T	text segment symbol
 	U	undefined
-	-	debug  */
+	-	debug.  */
 
 static void
-vms_get_symbol_info (abfd, symbol, ret)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     asymbol *symbol;
-     symbol_info *ret;
+vms_get_symbol_info (bfd * abfd ATTRIBUTE_UNUSED,
+		     asymbol *symbol,
+		     symbol_info *ret)
 {
   asection *sec;
 
 #if VMS_DEBUG
-  vms_debug (1, "vms_get_symbol_info(%p, %p, %p)\n", abfd, symbol, ret);
+  vms_debug (1, "vms_get_symbol_info (%p, %p, %p)\n", abfd, symbol, ret);
 #endif
 
   sec = symbol->section;
 
-  if (ret == 0)
+  if (ret == NULL)
     return;
 
   if (bfd_is_com_section (sec))
@@ -1199,35 +926,31 @@ vms_get_symbol_info (abfd, symbol, ret)
   else
     ret->value = 0;
   ret->name = symbol->name;
-
-  return;
 }
 
 /* Return TRUE if the given symbol sym in the BFD abfd is
    a compiler generated local label, else return FALSE.  */
 
 static bfd_boolean
-vms_bfd_is_local_label_name (abfd, name)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     const char *name;
+vms_bfd_is_local_label_name (bfd * abfd ATTRIBUTE_UNUSED,
+			     const char *name)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_bfd_is_local_label_name(%p, %s)\n", abfd, name);
+  vms_debug (1, "vms_bfd_is_local_label_name (%p, %s)\n", abfd, name);
 #endif
   return name[0] == '$';
 }
 
-/* Get source line number for symbol  */
+/* Get source line number for symbol.  */
 
 static alent *
-vms_get_lineno (abfd, symbol)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     asymbol *symbol ATTRIBUTE_UNUSED;
+vms_get_lineno (bfd * abfd ATTRIBUTE_UNUSED,
+		asymbol *symbol ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_get_lineno(%p, %p)\n", abfd, symbol);
+  vms_debug (1, "vms_get_lineno (%p, %p)\n", abfd, symbol);
 #endif
-  return 0;
+  return NULL;
 }
 
 /* Provided a BFD, a section and an offset into the section, calculate and
@@ -1235,18 +958,30 @@ vms_get_lineno (abfd, symbol)
    location.  */
 
 static bfd_boolean
-vms_find_nearest_line (abfd, section, symbols, offset, file, func, line)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     asection *section ATTRIBUTE_UNUSED;
-     asymbol **symbols ATTRIBUTE_UNUSED;
-     bfd_vma offset ATTRIBUTE_UNUSED;
-     const char **file ATTRIBUTE_UNUSED;
-     const char **func ATTRIBUTE_UNUSED;
-     unsigned int *line ATTRIBUTE_UNUSED;
+vms_find_nearest_line (bfd * abfd ATTRIBUTE_UNUSED,
+		       asection *section ATTRIBUTE_UNUSED,
+		       asymbol **symbols ATTRIBUTE_UNUSED,
+		       bfd_vma offset ATTRIBUTE_UNUSED,
+		       const char **file ATTRIBUTE_UNUSED,
+		       const char **func ATTRIBUTE_UNUSED,
+		       unsigned int *line ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_find_nearest_line(%p, %s, %p, %ld, <ret>, <ret>, <ret>)\n",
+  vms_debug (1, "vms_find_nearest_line (%p, %s, %p, %ld, <ret>, <ret>, <ret>)\n",
 	      abfd, section->name, symbols, (long int)offset);
+#endif
+  return FALSE;
+}
+
+static bfd_boolean
+vms_find_inliner_info (bfd * abfd ATTRIBUTE_UNUSED,
+		       const char **file ATTRIBUTE_UNUSED,
+		       const char **func ATTRIBUTE_UNUSED,
+		       unsigned int *line ATTRIBUTE_UNUSED)
+{
+#if VMS_DEBUG
+  vms_debug (1, "vms_find_inliner_info (%p, <ret>, <ret>, <ret>)\n",
+	     abfd);
 #endif
   return FALSE;
 }
@@ -1256,15 +991,14 @@ vms_find_nearest_line (abfd, section, symbols, offset, file, func, line)
    when creating COFF files.  */
 
 static asymbol *
-vms_bfd_make_debug_symbol (abfd, ptr, size)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     void *ptr ATTRIBUTE_UNUSED;
-     unsigned long size ATTRIBUTE_UNUSED;
+vms_bfd_make_debug_symbol (bfd * abfd ATTRIBUTE_UNUSED,
+			   void *ptr ATTRIBUTE_UNUSED,
+			   unsigned long size ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_bfd_make_debug_symbol(%p, %p, %ld)\n", abfd, ptr, size);
+  vms_debug (1, "vms_bfd_make_debug_symbol (%p, %p, %ld)\n", abfd, ptr, size);
 #endif
-  return 0;
+  return NULL;
 }
 
 /* Read minisymbols.  For minisymbols, we use the unmodified a.out
@@ -1272,14 +1006,13 @@ vms_bfd_make_debug_symbol (abfd, ptr, size)
    BFD asymbol structures.  */
 
 static long
-vms_read_minisymbols (abfd, dynamic, minisymsp, sizep)
-     bfd *abfd;
-     bfd_boolean dynamic;
-     PTR *minisymsp;
-     unsigned int *sizep;
+vms_read_minisymbols (bfd * abfd,
+		      bfd_boolean dynamic,
+		      void * *minisymsp,
+		      unsigned int *sizep)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_read_minisymbols(%p, %d, %p, %d)\n", abfd, dynamic, minisymsp, *sizep);
+  vms_debug (1, "vms_read_minisymbols (%p, %d, %p, %d)\n", abfd, dynamic, minisymsp, *sizep);
 #endif
   return _bfd_generic_read_minisymbols (abfd, dynamic, minisymsp, sizep);
 }
@@ -1289,31 +1022,29 @@ vms_read_minisymbols (abfd, dynamic, minisymsp, sizep)
    by bfd_make_empty_symbol, which we fill in here.  */
 
 static asymbol *
-vms_minisymbol_to_symbol (abfd, dynamic, minisym, sym)
-     bfd *abfd;
-     bfd_boolean dynamic;
-     const PTR minisym;
-     asymbol *sym;
+vms_minisymbol_to_symbol (bfd * abfd,
+			  bfd_boolean dynamic,
+			  const void * minisym,
+			  asymbol *sym)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_minisymbol_to_symbol(%p, %d, %p, %p)\n", abfd, dynamic, minisym, sym);
+  vms_debug (1, "vms_minisymbol_to_symbol (%p, %d, %p, %p)\n", abfd, dynamic, minisym, sym);
 #endif
   return _bfd_generic_minisymbol_to_symbol (abfd, dynamic, minisym, sym);
 }
 
-/*-- Part 4.6, relocations --------------------------------------------------*/
+/* Part 4.6, relocations.  */
 
 /* Return the number of bytes required to store the relocation information
    associated with section sect attached to bfd abfd.
    If an error occurs, return -1.  */
 
 static long
-vms_get_reloc_upper_bound (abfd, section)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     asection *section ATTRIBUTE_UNUSED;
+vms_get_reloc_upper_bound (bfd * abfd ATTRIBUTE_UNUSED,
+			   asection *section ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_get_reloc_upper_bound(%p, %s)\n", abfd, section->name);
+  vms_debug (1, "vms_get_reloc_upper_bound (%p, %s)\n", abfd, section->name);
 #endif
   return -1L;
 }
@@ -1325,35 +1056,32 @@ vms_get_reloc_upper_bound (abfd, section)
    Returns the number of relocs, or -1 on error.  */
 
 static long
-vms_canonicalize_reloc (abfd, section, location, symbols)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     asection *section ATTRIBUTE_UNUSED;
-     arelent **location ATTRIBUTE_UNUSED;
-     asymbol **symbols ATTRIBUTE_UNUSED;
+vms_canonicalize_reloc (bfd * abfd ATTRIBUTE_UNUSED,
+			asection *section ATTRIBUTE_UNUSED,
+			arelent **location ATTRIBUTE_UNUSED,
+			asymbol **symbols ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_canonicalize_reloc(%p, %s, <ret>, <ret>)\n", abfd, section->name);
+  vms_debug (1, "vms_canonicalize_reloc (%p, %s, <ret>, <ret>)\n", abfd, section->name);
 #endif
   return FALSE;
 }
-
-/*---------------------------------------------------------------------------*/
-/* this is just copied from ecoff-alpha, needs to be fixed probably */
+
+/* This is just copied from ecoff-alpha, needs to be fixed probably.  */
 
 /* How to process the various reloc types.  */
 
 static bfd_reloc_status_type
-reloc_nil (abfd, reloc, sym, data, sec, output_bfd, error_message)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     arelent *reloc ATTRIBUTE_UNUSED;
-     asymbol *sym ATTRIBUTE_UNUSED;
-     PTR data ATTRIBUTE_UNUSED;
-     asection *sec ATTRIBUTE_UNUSED;
-     bfd *output_bfd ATTRIBUTE_UNUSED;
-     char **error_message ATTRIBUTE_UNUSED;
+reloc_nil (bfd * abfd ATTRIBUTE_UNUSED,
+	   arelent *reloc ATTRIBUTE_UNUSED,
+	   asymbol *sym ATTRIBUTE_UNUSED,
+	   void * data ATTRIBUTE_UNUSED,
+	   asection *sec ATTRIBUTE_UNUSED,
+	   bfd *output_bfd ATTRIBUTE_UNUSED,
+	   char **error_message ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "reloc_nil(abfd %p, output_bfd %p)\n", abfd, output_bfd);
+  vms_debug (1, "reloc_nil (abfd %p, output_bfd %p)\n", abfd, output_bfd);
   vms_debug (2, "In section %s, symbol %s\n",
 	sec->name, sym->name);
   vms_debug (2, "reloc sym %s, addr %08lx, addend %08lx, reloc is a %s\n",
@@ -1361,7 +1089,7 @@ reloc_nil (abfd, reloc, sym, data, sec, output_bfd, error_message)
 		(unsigned long)reloc->address,
 		(unsigned long)reloc->addend, reloc->howto->name);
   vms_debug (2, "data at %p\n", data);
-/*  _bfd_hexdump (2, data, bfd_get_reloc_size(reloc->howto),0); */
+  /*  _bfd_hexdump (2, data, bfd_get_reloc_size (reloc->howto), 0); */
 #endif
 
   return bfd_reloc_ok;
@@ -1373,219 +1101,219 @@ reloc_nil (abfd, reloc, sym, data, sec, output_bfd, error_message)
 
 static reloc_howto_type alpha_howto_table[] =
 {
-  HOWTO (ALPHA_R_IGNORE,	/* type */
-	 0,			/* rightshift */
-	 0,			/* size (0 = byte, 1 = short, 2 = long) */
-	 8,			/* bitsize */
-	 TRUE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 reloc_nil,		/* special_function */
-	 "IGNORE",		/* name */
-	 TRUE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 0,			/* dst_mask */
-	 TRUE),			/* pcrel_offset */
+  HOWTO (ALPHA_R_IGNORE,	/* Type.  */
+	 0,			/* Rightshift.  */
+	 0,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 8,			/* Bitsize.  */
+	 TRUE,			/* PC relative.  */
+	 0,			/* Bitpos.  */
+	 complain_overflow_dont,/* Complain_on_overflow.  */
+	 reloc_nil,		/* Special_function.  */
+	 "IGNORE",		/* Name.  */
+	 TRUE,			/* Partial_inplace.  */
+	 0,			/* Source mask */
+	 0,			/* Dest mask.  */
+	 TRUE),			/* PC rel offset.  */
 
   /* A 64 bit reference to a symbol.  */
-  HOWTO (ALPHA_R_REFQUAD,	/* type */
-	 0,			/* rightshift */
-	 4,			/* size (0 = byte, 1 = short, 2 = long) */
-	 64,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_bitfield, /* complain_on_overflow */
-	 reloc_nil,		/* special_function */
-	 "REFQUAD",		/* name */
-	 TRUE,			/* partial_inplace */
-	 MINUS_ONE,		/* src_mask */
-	 MINUS_ONE,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  HOWTO (ALPHA_R_REFQUAD,	/* Type.  */
+	 0,			/* Rightshift.  */
+	 4,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 64,			/* Bitsize.  */
+	 FALSE,			/* PC relative.  */
+	 0,			/* Bitpos.  */
+	 complain_overflow_bitfield, /* Complain_on_overflow.  */
+	 reloc_nil,		/* Special_function.  */
+	 "REFQUAD",		/* Name.  */
+	 TRUE,			/* Partial_inplace.  */
+	 MINUS_ONE,		/* Source mask.  */
+	 MINUS_ONE,		/* Dest mask.  */
+	 FALSE),		/* PC rel offset.  */
 
   /* A 21 bit branch.  The native assembler generates these for
      branches within the text segment, and also fills in the PC
      relative offset in the instruction.  */
-  HOWTO (ALPHA_R_BRADDR,	/* type */
-	 2,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 21,			/* bitsize */
-	 TRUE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 reloc_nil,		/* special_function */
-	 "BRADDR",		/* name */
-	 TRUE,			/* partial_inplace */
-	 0x1fffff,		/* src_mask */
-	 0x1fffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  HOWTO (ALPHA_R_BRADDR,	/* Type.  */
+	 2,			/* Rightshift.  */
+	 2,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 21,			/* Bitsize.  */
+	 TRUE,			/* PC relative.  */
+	 0,			/* Bitpos.  */
+	 complain_overflow_signed, /* Complain_on_overflow.  */
+	 reloc_nil,		/* Special_function.  */
+	 "BRADDR",		/* Name.  */
+	 TRUE,			/* Partial_inplace.  */
+	 0x1fffff,		/* Source mask.  */
+	 0x1fffff,		/* Dest mask.  */
+	 FALSE),		/* PC rel offset.  */
 
   /* A hint for a jump to a register.  */
-  HOWTO (ALPHA_R_HINT,		/* type */
-	 2,			/* rightshift */
-	 1,			/* size (0 = byte, 1 = short, 2 = long) */
-	 14,			/* bitsize */
-	 TRUE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 reloc_nil,		/* special_function */
-	 "HINT",		/* name */
-	 TRUE,			/* partial_inplace */
-	 0x3fff,		/* src_mask */
-	 0x3fff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  HOWTO (ALPHA_R_HINT,		/* Type.  */
+	 2,			/* Rightshift.  */
+	 1,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 14,			/* Bitsize.  */
+	 TRUE,			/* PC relative.  */
+	 0,			/* Bitpos.  */
+	 complain_overflow_dont,/* Complain_on_overflow.  */
+	 reloc_nil,		/* Special_function.  */
+	 "HINT",		/* Name.  */
+	 TRUE,			/* Partial_inplace.  */
+	 0x3fff,		/* Source mask.  */
+	 0x3fff,		/* Dest mask.  */
+	 FALSE),		/* PC rel offset.  */
 
   /* 16 bit PC relative offset.  */
-  HOWTO (ALPHA_R_SREL16,	/* type */
-	 0,			/* rightshift */
-	 1,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
-	 TRUE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 reloc_nil,		/* special_function */
-	 "SREL16",		/* name */
-	 TRUE,			/* partial_inplace */
-	 0xffff,		/* src_mask */
-	 0xffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  HOWTO (ALPHA_R_SREL16,	/* Type.  */
+	 0,			/* Rightshift.  */
+	 1,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 16,			/* Bitsize.  */
+	 TRUE,			/* PC relative.  */
+	 0,			/* Bitpos.  */
+	 complain_overflow_signed, /* Complain_on_overflow.  */
+	 reloc_nil,		/* Special_function.  */
+	 "SREL16",		/* Name.  */
+	 TRUE,			/* Partial_inplace.  */
+	 0xffff,		/* Source mask.  */
+	 0xffff,		/* Dest mask.  */
+	 FALSE),		/* PC rel offset.  */
 
   /* 32 bit PC relative offset.  */
-  HOWTO (ALPHA_R_SREL32,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
-	 TRUE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 reloc_nil,		/* special_function */
-	 "SREL32",		/* name */
-	 TRUE,			/* partial_inplace */
-	 0xffffffff,		/* src_mask */
-	 0xffffffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  HOWTO (ALPHA_R_SREL32,	/* Type.  */
+	 0,			/* Rightshift.  */
+	 2,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 32,			/* Bitsize.  */
+	 TRUE,			/* PC relative.  */
+	 0,			/* Bitpos.  */
+	 complain_overflow_signed, /* Complain_on_overflow.  */
+	 reloc_nil,		/* Special_function.  */
+	 "SREL32",		/* Name.  */
+	 TRUE,			/* Partial_inplace.  */
+	 0xffffffff,		/* Source mask.  */
+	 0xffffffff,		/* Dest mask.  */
+	 FALSE),		/* PC rel offset.  */
 
   /* A 64 bit PC relative offset.  */
-  HOWTO (ALPHA_R_SREL64,	/* type */
-	 0,			/* rightshift */
-	 4,			/* size (0 = byte, 1 = short, 2 = long) */
-	 64,			/* bitsize */
-	 TRUE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 reloc_nil,		/* special_function */
-	 "SREL64",		/* name */
-	 TRUE,			/* partial_inplace */
-	 MINUS_ONE,		/* src_mask */
-	 MINUS_ONE,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  HOWTO (ALPHA_R_SREL64,	/* Type.  */
+	 0,			/* Rightshift.  */
+	 4,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 64,			/* Bitsize.  */
+	 TRUE,			/* PC relative.  */
+	 0,			/* Bitpos.  */
+	 complain_overflow_signed, /* Complain_on_overflow.  */
+	 reloc_nil,		/* Special_function.  */
+	 "SREL64",		/* Name.  */
+	 TRUE,			/* Partial_inplace.  */
+	 MINUS_ONE,		/* Source mask.  */
+	 MINUS_ONE,		/* Dest mask.  */
+	 FALSE),		/* PC rel offset.  */
 
   /* Push a value on the reloc evaluation stack.  */
-  HOWTO (ALPHA_R_OP_PUSH,	/* type */
-	 0,			/* rightshift */
-	 0,			/* size (0 = byte, 1 = short, 2 = long) */
-	 0,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 reloc_nil,		/* special_function */
-	 "OP_PUSH",		/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 0,			/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  HOWTO (ALPHA_R_OP_PUSH,	/* Type.  */
+	 0,			/* Rightshift.  */
+	 0,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 0,			/* Bitsize.  */
+	 FALSE,			/* PC relative.  */
+	 0,			/* Bitpos.  */
+	 complain_overflow_dont,/* Complain_on_overflow.  */
+	 reloc_nil,		/* Special_function.  */
+	 "OP_PUSH",		/* Name.  */
+	 FALSE,			/* Partial_inplace.  */
+	 0,			/* Source mask.  */
+	 0,			/* Dest mask.  */
+	 FALSE),		/* PC rel offset.  */
 
   /* Store the value from the stack at the given address.  Store it in
      a bitfield of size r_size starting at bit position r_offset.  */
-  HOWTO (ALPHA_R_OP_STORE,	/* type */
-	 0,			/* rightshift */
-	 4,			/* size (0 = byte, 1 = short, 2 = long) */
-	 64,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 reloc_nil,		/* special_function */
-	 "OP_STORE",		/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 MINUS_ONE,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  HOWTO (ALPHA_R_OP_STORE,	/* Type.  */
+	 0,			/* Rightshift.  */
+	 4,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 64,			/* Bitsize.  */
+	 FALSE,			/* PC relative.  */
+	 0,			/* Bitpos.  */
+	 complain_overflow_dont,/* Complain_on_overflow.  */
+	 reloc_nil,		/* Special_function.  */
+	 "OP_STORE",		/* Name.  */
+	 FALSE,			/* Partial_inplace.  */
+	 0,			/* Source mask.  */
+	 MINUS_ONE,		/* Dest mask.  */
+	 FALSE),		/* PC rel offset.  */
 
   /* Subtract the reloc address from the value on the top of the
      relocation stack.  */
-  HOWTO (ALPHA_R_OP_PSUB,	/* type */
-	 0,			/* rightshift */
-	 0,			/* size (0 = byte, 1 = short, 2 = long) */
-	 0,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 reloc_nil,		/* special_function */
-	 "OP_PSUB",		/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 0,			/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  HOWTO (ALPHA_R_OP_PSUB,	/* Type.  */
+	 0,			/* Rightshift.  */
+	 0,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 0,			/* Bitsize.  */
+	 FALSE,			/* PC relative.  */
+	 0,			/* Bitpos.  */
+	 complain_overflow_dont,/* Complain_on_overflow.  */
+	 reloc_nil,		/* Special_function.  */
+	 "OP_PSUB",		/* Name.  */
+	 FALSE,			/* Partial_inplace.  */
+	 0,			/* Source mask.  */
+	 0,			/* Dest mask.  */
+	 FALSE),		/* PC rel offset.  */
 
   /* Shift the value on the top of the relocation stack right by the
      given value.  */
-  HOWTO (ALPHA_R_OP_PRSHIFT,	/* type */
-	 0,			/* rightshift */
-	 0,			/* size (0 = byte, 1 = short, 2 = long) */
-	 0,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 reloc_nil,		/* special_function */
-	 "OP_PRSHIFT",		/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 0,			/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  HOWTO (ALPHA_R_OP_PRSHIFT,	/* Type.  */
+	 0,			/* Rightshift.  */
+	 0,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 0,			/* Bitsize.  */
+	 FALSE,			/* PC relative.  */
+	 0,			/* Bitpos.  */
+	 complain_overflow_dont,/* Complain_on_overflow.  */
+	 reloc_nil,		/* Special_function.  */
+	 "OP_PRSHIFT",		/* Name.  */
+	 FALSE,			/* Partial_inplace.  */
+	 0,			/* Source mask.  */
+	 0,			/* Dest mask.  */
+	 FALSE),		/* PC rel offset.  */
 
   /* Hack. Linkage is done by linker.  */
-  HOWTO (ALPHA_R_LINKAGE,	/* type */
-	 0,			/* rightshift */
-	 8,			/* size (0 = byte, 1 = short, 2 = long) */
-	 256,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 reloc_nil,		/* special_function */
-	 "LINKAGE",		/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 0,			/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  HOWTO (ALPHA_R_LINKAGE,	/* Type.  */
+	 0,			/* Rightshift.  */
+	 8,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 256,			/* Bitsize.  */
+	 FALSE,			/* PC relative.  */
+	 0,			/* Bitpos.  */
+	 complain_overflow_dont,/* Complain_on_overflow.  */
+	 reloc_nil,		/* Special_function.  */
+	 "LINKAGE",		/* Name.  */
+	 FALSE,			/* Partial_inplace.  */
+	 0,			/* Source mask.  */
+	 0,			/* Dest mask.  */
+	 FALSE),		/* PC rel offset.  */
 
   /* A 32 bit reference to a symbol.  */
-  HOWTO (ALPHA_R_REFLONG,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_bitfield, /* complain_on_overflow */
-	 reloc_nil,		/* special_function */
-	 "REFLONG",		/* name */
-	 TRUE,			/* partial_inplace */
-	 0xffffffff,		/* src_mask */
-	 0xffffffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  HOWTO (ALPHA_R_REFLONG,	/* Type.  */
+	 0,			/* Rightshift.  */
+	 2,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 32,			/* Bitsize.  */
+	 FALSE,			/* PC relative.  */
+	 0,			/* Bitpos.  */
+	 complain_overflow_bitfield, /* Complain_on_overflow.  */
+	 reloc_nil,		/* Special_function.  */
+	 "REFLONG",		/* Name.  */
+	 TRUE,			/* Partial_inplace.  */
+	 0xffffffff,		/* Source mask.  */
+	 0xffffffff,		/* Dest mask.  */
+	 FALSE),		/* PC rel offset.  */
 
   /* A 64 bit reference to a procedure, written as 32 bit value.  */
-  HOWTO (ALPHA_R_CODEADDR,	/* type */
-	 0,			/* rightshift */
-	 4,			/* size (0 = byte, 1 = short, 2 = long) */
-	 64,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_signed,/* complain_on_overflow */
-	 reloc_nil,		/* special_function */
-	 "CODEADDR",		/* name */
-	 FALSE,			/* partial_inplace */
-	 0xffffffff,		/* src_mask */
-	 0xffffffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  HOWTO (ALPHA_R_CODEADDR,	/* Type.  */
+	 0,			/* Rightshift.  */
+	 4,			/* Size (0 = byte, 1 = short, 2 = long).  */
+	 64,			/* Bitsize.  */
+	 FALSE,			/* PC relative.  */
+	 0,			/* Bitpos.  */
+	 complain_overflow_signed,/* Complain_on_overflow.  */
+	 reloc_nil,		/* Special_function.  */
+	 "CODEADDR",		/* Name.  */
+	 FALSE,			/* Partial_inplace.  */
+	 0xffffffff,		/* Source mask.  */
+	 0xffffffff,		/* Dest mask.  */
+	 FALSE),		/* PC rel offset.  */
 
 };
 
@@ -1593,14 +1321,13 @@ static reloc_howto_type alpha_howto_table[] =
    the relocation code on data from the architecture noted.  */
 
 static const struct reloc_howto_struct *
-vms_bfd_reloc_type_lookup (abfd, code)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     bfd_reloc_code_real_type code;
+vms_bfd_reloc_type_lookup (bfd * abfd ATTRIBUTE_UNUSED,
+			   bfd_reloc_code_real_type code)
 {
   int alpha_type;
 
 #if VMS_DEBUG
-  vms_debug (1, "vms_bfd_reloc_type_lookup(%p, %d)\t", abfd, code);
+  vms_debug (1, "vms_bfd_reloc_type_lookup (%p, %d)\t", abfd, code);
 #endif
 
   switch (code)
@@ -1618,30 +1345,29 @@ vms_bfd_reloc_type_lookup (abfd, code)
       case BFD_RELOC_ALPHA_CODEADDR:	alpha_type = ALPHA_R_CODEADDR;	break;
       default:
 	(*_bfd_error_handler) ("reloc (%d) is *UNKNOWN*", code);
-	return (const struct reloc_howto_struct *) NULL;
+	return NULL;
     }
 #if VMS_DEBUG
   vms_debug (2, "reloc is %s\n", alpha_howto_table[alpha_type].name);
 #endif
-  return &alpha_howto_table[alpha_type];
+  return & alpha_howto_table[alpha_type];
 }
 
-/*-- Part 4.7, writing an object file ---------------------------------------*/
+/* Part 4.7, writing an object file.  */
 
 /* Set the architecture and machine type in BFD abfd to arch and mach.
    Find the correct pointer to a structure and insert it into the arch_info
    pointer.  */
 
 static bfd_boolean
-vms_set_arch_mach (abfd, arch, mach)
-     bfd *abfd;
-     enum bfd_architecture arch ATTRIBUTE_UNUSED;
-     unsigned long mach ATTRIBUTE_UNUSED;
+vms_set_arch_mach (bfd * abfd,
+		   enum bfd_architecture arch ATTRIBUTE_UNUSED,
+		   unsigned long mach ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_set_arch_mach(%p, %d, %ld)\n", abfd, arch, mach);
+  vms_debug (1, "vms_set_arch_mach (%p, %d, %ld)\n", abfd, arch, mach);
 #endif
-  abfd->arch_info = bfd_scan_arch("alpha");
+  abfd->arch_info = bfd_scan_arch ("alpha");
 
   return TRUE;
 }
@@ -1656,32 +1382,30 @@ vms_set_arch_mach (abfd, arch, mach)
    o and some more too  */
 
 static bfd_boolean
-vms_set_section_contents (abfd, section, location, offset, count)
-     bfd *abfd;
-     asection *section;
-     const PTR location;
-     file_ptr offset;
-     bfd_size_type count;
+vms_set_section_contents (bfd * abfd,
+			  asection *section,
+			  const void * location,
+			  file_ptr offset,
+			  bfd_size_type count)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_set_section_contents(%p, sec %s, loc %p, off %ld, count %d)\n",
-					abfd, section->name, location, (long int)offset, (int)count);
-  vms_debug (2, "secraw %d, seccooked %d\n", (int)section->_raw_size, (int)section->_cooked_size);
+  vms_debug (1, "vms_set_section_contents (%p, sec %s, loc %p, off %ld, count %d)\n",
+	     abfd, section->name, location, (long int)offset, (int)count);
+  vms_debug (2, "size %d\n", (int) section->size);
 #endif
-  return _bfd_save_vms_section(abfd, section, location, offset, count);
+  return _bfd_save_vms_section (abfd, section, location, offset, count);
 }
 
-/*-- Part 4.8, linker -------------------------------------------------------*/
+/* Part 4.8, linker.  */
 
 /* Get the size of the section headers.  */
 
 static int
-vms_sizeof_headers (abfd, reloc)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     bfd_boolean reloc ATTRIBUTE_UNUSED;
+vms_sizeof_headers (bfd * abfd ATTRIBUTE_UNUSED,
+		    bfd_boolean reloc ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_sizeof_headers(%p, %s)\n", abfd, (reloc)?"True":"False");
+  vms_debug (1, "vms_sizeof_headers (%p, %s)\n", abfd, (reloc)?"True":"False");
 #endif
   return 0;
 }
@@ -1690,56 +1414,51 @@ vms_sizeof_headers (abfd, reloc)
    which can't be bothered to do it efficiently.  */
 
 static bfd_byte *
-vms_bfd_get_relocated_section_contents (abfd, link_info, link_order, data,
-					 relocatable, symbols)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     struct bfd_link_info *link_info ATTRIBUTE_UNUSED;
-     struct bfd_link_order *link_order ATTRIBUTE_UNUSED;
-     bfd_byte *data ATTRIBUTE_UNUSED;
-     bfd_boolean relocatable ATTRIBUTE_UNUSED;
-     asymbol **symbols ATTRIBUTE_UNUSED;
+vms_bfd_get_relocated_section_contents (bfd * abfd ATTRIBUTE_UNUSED,
+					struct bfd_link_info *link_info ATTRIBUTE_UNUSED,
+					struct bfd_link_order *link_order ATTRIBUTE_UNUSED,
+					bfd_byte *data ATTRIBUTE_UNUSED,
+					bfd_boolean relocatable ATTRIBUTE_UNUSED,
+					asymbol **symbols ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_bfd_get_relocated_section_contents(%p, %p, %p, %p, %s, %p)\n",
-			abfd, link_info, link_order, data, (relocatable)?"True":"False", symbols);
+  vms_debug (1, "vms_bfd_get_relocated_section_contents (%p, %p, %p, %p, %s, %p)\n",
+	     abfd, link_info, link_order, data, (relocatable)?"True":"False", symbols);
 #endif
-  return 0;
+  return NULL;
 }
 
 /* ???  */
 
 static bfd_boolean
-vms_bfd_relax_section (abfd, section, link_info, again)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     asection *section ATTRIBUTE_UNUSED;
-     struct bfd_link_info *link_info ATTRIBUTE_UNUSED;
-     bfd_boolean *again ATTRIBUTE_UNUSED;
+vms_bfd_relax_section (bfd * abfd ATTRIBUTE_UNUSED,
+		       asection *section ATTRIBUTE_UNUSED,
+		       struct bfd_link_info *link_info ATTRIBUTE_UNUSED,
+		       bfd_boolean *again ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_bfd_relax_section(%p, %s, %p, <ret>)\n",
-					abfd, section->name, link_info);
+  vms_debug (1, "vms_bfd_relax_section (%p, %s, %p, <ret>)\n",
+	     abfd, section->name, link_info);
 #endif
   return TRUE;
 }
 
 static bfd_boolean
-vms_bfd_gc_sections (abfd, link_info)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     struct bfd_link_info *link_info ATTRIBUTE_UNUSED;
+vms_bfd_gc_sections (bfd * abfd ATTRIBUTE_UNUSED,
+		     struct bfd_link_info *link_info ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_bfd_gc_sections(%p, %p)\n", abfd, link_info);
+  vms_debug (1, "vms_bfd_gc_sections (%p, %p)\n", abfd, link_info);
 #endif
   return TRUE;
 }
 
 static bfd_boolean
-vms_bfd_merge_sections (abfd, link_info)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     struct bfd_link_info *link_info ATTRIBUTE_UNUSED;
+vms_bfd_merge_sections (bfd * abfd ATTRIBUTE_UNUSED,
+			struct bfd_link_info *link_info ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_bfd_merge_sections(%p, %p)\n", abfd, link_info);
+  vms_debug (1, "vms_bfd_merge_sections (%p, %p)\n", abfd, link_info);
 #endif
   return TRUE;
 }
@@ -1748,35 +1467,32 @@ vms_bfd_merge_sections (abfd, link_info)
    different information in this table.  */
 
 static struct bfd_link_hash_table *
-vms_bfd_link_hash_table_create (abfd)
-     bfd *abfd ATTRIBUTE_UNUSED;
+vms_bfd_link_hash_table_create (bfd * abfd ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_bfd_link_hash_table_create(%p)\n", abfd);
+  vms_debug (1, "vms_bfd_link_hash_table_create (%p)\n", abfd);
 #endif
-  return 0;
+  return NULL;
 }
 
 /* Free a linker hash table.  */
 
 static void
-vms_bfd_link_hash_table_free (hash)
-     struct bfd_link_hash_table *hash ATTRIBUTE_UNUSED;
+vms_bfd_link_hash_table_free (struct bfd_link_hash_table *hash ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_bfd_link_hash_table_free(%p)\n", abfd);
+  vms_debug (1, "vms_bfd_link_hash_table_free (%p)\n", abfd);
 #endif
 }
 
 /* Add symbols from this object file into the hash table.  */
 
 static bfd_boolean
-vms_bfd_link_add_symbols (abfd, link_info)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     struct bfd_link_info *link_info ATTRIBUTE_UNUSED;
+vms_bfd_link_add_symbols (bfd * abfd ATTRIBUTE_UNUSED,
+			  struct bfd_link_info *link_info ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_bfd_link_add_symbols(%p, %p)\n", abfd, link_info);
+  vms_debug (1, "vms_bfd_link_add_symbols (%p, %p)\n", abfd, link_info);
 #endif
   return FALSE;
 }
@@ -1785,12 +1501,11 @@ vms_bfd_link_add_symbols (abfd, link_info)
    section of the BFD.  */
 
 static bfd_boolean
-vms_bfd_final_link (abfd, link_info)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     struct bfd_link_info *link_info ATTRIBUTE_UNUSED;
+vms_bfd_final_link (bfd * abfd ATTRIBUTE_UNUSED,
+		    struct bfd_link_info *link_info ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_bfd_final_link(%p, %p)\n", abfd, link_info);
+  vms_debug (1, "vms_bfd_final_link (%p, %p)\n", abfd, link_info);
 #endif
   return TRUE;
 }
@@ -1798,50 +1513,46 @@ vms_bfd_final_link (abfd, link_info)
 /* Should this section be split up into smaller pieces during linking.  */
 
 static bfd_boolean
-vms_bfd_link_split_section (abfd, section)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     asection *section ATTRIBUTE_UNUSED;
+vms_bfd_link_split_section (bfd * abfd ATTRIBUTE_UNUSED,
+			    asection *section ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_bfd_link_split_section(%p, %s)\n", abfd, section->name);
+  vms_debug (1, "vms_bfd_link_split_section (%p, %s)\n", abfd, section->name);
 #endif
   return FALSE;
 }
 
-/*-- Part 4.9, dynamic symbols and relocations ------------------------------*/
+/* Part 4.9, dynamic symbols and relocations.  */
 
 /* Get the amount of memory required to hold the dynamic symbols.  */
 
 static long
-vms_get_dynamic_symtab_upper_bound (abfd)
-     bfd *abfd ATTRIBUTE_UNUSED;
+vms_get_dynamic_symtab_upper_bound (bfd * abfd ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_get_dynamic_symtab_upper_bound(%p)\n", abfd);
+  vms_debug (1, "vms_get_dynamic_symtab_upper_bound (%p)\n", abfd);
 #endif
   return 0;
 }
 
 static bfd_boolean
-vms_bfd_print_private_bfd_data (abfd, file)
-    bfd *abfd ATTRIBUTE_UNUSED;
-    void *file ATTRIBUTE_UNUSED;
+vms_bfd_print_private_bfd_data (bfd * abfd ATTRIBUTE_UNUSED,
+				void *file ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_bfd_print_private_bfd_data(%p)\n", abfd);
+  vms_debug (1, "vms_bfd_print_private_bfd_data (%p)\n", abfd);
 #endif
-  return 0;
+  return FALSE;
 }
 
 /* Read in the dynamic symbols.  */
 
 static long
-vms_canonicalize_dynamic_symtab (abfd, symbols)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     asymbol **symbols ATTRIBUTE_UNUSED;
+vms_canonicalize_dynamic_symtab (bfd * abfd ATTRIBUTE_UNUSED,
+				 asymbol **symbols ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_canonicalize_dynamic_symtab(%p, <ret>)\n", abfd);
+  vms_debug (1, "vms_canonicalize_dynamic_symtab (%p, <ret>)\n", abfd);
 #endif
   return 0L;
 }
@@ -1849,11 +1560,10 @@ vms_canonicalize_dynamic_symtab (abfd, symbols)
 /* Get the amount of memory required to hold the dynamic relocs.  */
 
 static long
-vms_get_dynamic_reloc_upper_bound (abfd)
-     bfd *abfd ATTRIBUTE_UNUSED;
+vms_get_dynamic_reloc_upper_bound (bfd * abfd ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_get_dynamic_reloc_upper_bound(%p)\n", abfd);
+  vms_debug (1, "vms_get_dynamic_reloc_upper_bound (%p)\n", abfd);
 #endif
   return 0L;
 }
@@ -1861,13 +1571,102 @@ vms_get_dynamic_reloc_upper_bound (abfd)
 /* Read in the dynamic relocs.  */
 
 static long
-vms_canonicalize_dynamic_reloc (abfd, arel, symbols)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     arelent **arel ATTRIBUTE_UNUSED;
-     asymbol **symbols ATTRIBUTE_UNUSED;
+vms_canonicalize_dynamic_reloc (bfd * abfd ATTRIBUTE_UNUSED,
+				arelent **arel ATTRIBUTE_UNUSED,
+				asymbol **symbols ATTRIBUTE_UNUSED)
 {
 #if VMS_DEBUG
-  vms_debug (1, "vms_canonicalize_dynamic_reloc(%p)\n", abfd);
+  vms_debug (1, "vms_canonicalize_dynamic_reloc (%p)\n", abfd);
 #endif
   return 0L;
 }
+
+const bfd_target vms_alpha_vec =
+{
+  "vms-alpha",			/* Name.  */
+  bfd_target_evax_flavour,
+  BFD_ENDIAN_LITTLE,		/* Data byte order is little.  */
+  BFD_ENDIAN_LITTLE,		/* Header byte order is little.  */
+
+  (HAS_RELOC | HAS_SYMS
+   | WP_TEXT | D_PAGED),	/* Object flags.  */
+  (SEC_ALLOC | SEC_LOAD | SEC_RELOC
+   | SEC_READONLY | SEC_CODE | SEC_DATA
+   | SEC_HAS_CONTENTS | SEC_IN_MEMORY),		/* Sect flags.  */
+  0,				/* Symbol_leading_char.  */
+  ' ',				/* AR_pad_char.  */
+  15,				/* AR_max_namelen.  */
+  bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+  bfd_getl32, bfd_getl_signed_32, bfd_putl32,
+  bfd_getl16, bfd_getl_signed_16, bfd_putl16,
+  bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+  bfd_getl32, bfd_getl_signed_32, bfd_putl32,
+  bfd_getl16, bfd_getl_signed_16, bfd_putl16,
+
+  {_bfd_dummy_target, vms_object_p,		/* bfd_check_format.  */
+   vms_archive_p, _bfd_dummy_target},
+  {bfd_false, vms_mkobject,			/* bfd_set_format.  */
+   _bfd_generic_mkarchive, bfd_false},
+  {bfd_false, vms_write_object_contents,	/* bfd_write_contents.  */
+   _bfd_write_archive_contents, bfd_false},
+
+  BFD_JUMP_TABLE_GENERIC (vms),
+  BFD_JUMP_TABLE_COPY (vms),
+  BFD_JUMP_TABLE_CORE (vms),
+  BFD_JUMP_TABLE_ARCHIVE (vms),
+  BFD_JUMP_TABLE_SYMBOLS (vms),
+  BFD_JUMP_TABLE_RELOCS (vms),
+  BFD_JUMP_TABLE_WRITE (vms),
+  BFD_JUMP_TABLE_LINK (vms),
+  BFD_JUMP_TABLE_DYNAMIC (vms),
+
+  NULL,
+
+  NULL
+};
+
+const bfd_target vms_vax_vec =
+{
+  "vms-vax",			/* Name.  */
+  bfd_target_ovax_flavour,
+  BFD_ENDIAN_LITTLE,		/* Data byte order is little.  */
+  BFD_ENDIAN_LITTLE,		/* Header byte order is little.  */
+
+  (HAS_RELOC | HAS_SYMS 	/* Object flags.  */
+   | WP_TEXT | D_PAGED
+   | HAS_LINENO | HAS_DEBUG | HAS_LOCALS),
+
+  (SEC_ALLOC | SEC_LOAD | SEC_RELOC
+   | SEC_READONLY | SEC_CODE | SEC_DATA
+   | SEC_HAS_CONTENTS | SEC_IN_MEMORY),		/* Sect flags.  */
+  0,				/* Symbol_leading_char.  */
+  ' ',				/* AR_pad_char.  */
+  15,				/* AR_max_namelen.  */
+  bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+  bfd_getl32, bfd_getl_signed_32, bfd_putl32,
+  bfd_getl16, bfd_getl_signed_16, bfd_putl16, /* Data.  */
+  bfd_getl64, bfd_getl_signed_64, bfd_putl64,
+  bfd_getl32, bfd_getl_signed_32, bfd_putl32,
+  bfd_getl16, bfd_getl_signed_16, bfd_putl16, /* Headers.  */
+
+  {_bfd_dummy_target, vms_object_p,		/* bfd_check_format.  */
+   vms_archive_p, _bfd_dummy_target},
+  {bfd_false, vms_mkobject,			/* bfd_set_format.  */
+   _bfd_generic_mkarchive, bfd_false},
+  {bfd_false, vms_write_object_contents,	/* bfd_write_contents.  */
+   _bfd_write_archive_contents, bfd_false},
+
+  BFD_JUMP_TABLE_GENERIC (vms),
+  BFD_JUMP_TABLE_COPY (vms),
+  BFD_JUMP_TABLE_CORE (vms),
+  BFD_JUMP_TABLE_ARCHIVE (vms),
+  BFD_JUMP_TABLE_SYMBOLS (vms),
+  BFD_JUMP_TABLE_RELOCS (vms),
+  BFD_JUMP_TABLE_WRITE (vms),
+  BFD_JUMP_TABLE_LINK (vms),
+  BFD_JUMP_TABLE_DYNAMIC (vms),
+
+  NULL,
+
+  NULL
+};

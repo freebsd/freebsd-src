@@ -1,0 +1,52 @@
+# Expect script for ld-maxq tests
+#   Copyright (C) 2004 Free Software Foundation
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# Written by inderpreetb@noida.hcltech.com
+
+# Test maxq linking; all types of relocs.  This tests the assembler and
+# tools like objdump as well as the linker.
+
+if { !([istarget "maxq*-*-*"]  ) } {
+    return
+}
+
+# List contains test-items with 3 items followed by 2 lists:
+# 0:name 1:ld options 2:assembler options
+# 3:filenames of assembler files 4: action and options. 5: name of output file
+
+# Actions:
+# objdump: Apply objdump options on result.  Compare with regex (last arg).
+# nm: Apply nm options on result.  Compare with regex (last arg).
+# readelf: Apply readelf options on result.  Compare with regex (last arg).
+
+set maxqtests {
+{"32-bit Relocation check" "" ""
+{r32-1.s r32-2.s} {{objdump -drw r32.dd}}
+"r32.o" }
+{"maxq addend check" "" ""
+{addend.s} {{objdump -dw addend.dd}}
+"addendo.o" }
+{"16bit relocation test" "" ""
+{paddr.s} {{objdump -Dw paddr.dd}}
+"paddro.o" }
+{"16bit relocation test-1" "" ""
+{paddr1.s} {{objdump -Dw paddr1.dd}}
+"paddro1.o" }
+
+}
+
+run_ld_link_tests $maxqtests

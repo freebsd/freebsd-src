@@ -24,6 +24,6 @@ Relocation section '\.rela\.text' at offset .* contains 22 entries:
 0+002c * 0+..15 * R_MIPS_GOT_OFST * 0+0000 * \.text \+ c
 0+0030 * 0+..14 * R_MIPS_GOT_PAGE * 0+0000 * \.text \+ 33221d
 0+0034 * 0+..15 * R_MIPS_GOT_OFST * 0+0000 * \.text \+ 33221d
-0+0038 * 0+..14 * R_MIPS_GOT_PAGE * 0+0000 * frob \+ 0
-0+003c * 0+..15 * R_MIPS_GOT_OFST * 0+0000 * frob \+ 0
+0+0038 * 0+..14 * R_MIPS_GOT_PAGE * 0+0000 * \.text \+ 18
+0+003c * 0+..15 * R_MIPS_GOT_OFST * 0+0000 * \.text \+ 18
 #pass

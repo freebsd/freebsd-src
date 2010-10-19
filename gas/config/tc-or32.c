@@ -1,5 +1,5 @@
 /* Assembly backend for the OpenRISC 1000.
-   Copyright (C) 2002 Free Software Foundation, Inc.
+   Copyright (C) 2002, 2003, 2005 Free Software Foundation, Inc.
    Contributed by Damjan Lampret <lampret@opencores.org>.
    Modified bu Johan Rydberg, <johan.rydberg@netinsight.se>.
    Based upon a29k port.
@@ -18,18 +18,15 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   the Free Software Foundation, 51 Franklin Street - Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 /* tc-a29k.c used as a template.  */
 
 #include "safe-ctype.h"
 #include "as.h"
 #include "opcode/or32.h"
-
-#ifdef BFD_ASSEMBLER
 #include "elf/or32.h"
-#endif
 
 #define DEBUG 0
 
@@ -47,44 +44,32 @@
 static struct hash_control *op_hash = NULL;
 
 struct machine_it
-  {
-    char *          error;
-    unsigned long   opcode;
-    struct nlist *  nlistp;
-    expressionS     exp;
-    int             pcrel;
-    int             reloc_offset;   /* Offset of reloc within insn.  */
-    int             reloc;
-  }
+{
+  char *          error;
+  unsigned long   opcode;
+  struct nlist *  nlistp;
+  expressionS     exp;
+  int             pcrel;
+  int             reloc_offset;   /* Offset of reloc within insn.  */
+  int             reloc;
+}
 the_insn;
 
-static void machine_ip PARAMS ((char *));
-
 const pseudo_typeS md_pseudo_table[] =
-  {
-    {"align",   s_align_bytes,  4 },
-    {"space",   s_space,        0 },
-    {"cputype", s_ignore,       0 },
-    {"reg",     s_lsym,         0 },  /* Register equate, same as equ.  */
-    {"sect",    s_ignore,       0 },  /* Creation of coff sections.  */
-    {"proc",    s_ignore,       0 },  /* Start of a function.  */
-    {"endproc", s_ignore,       0 },  /* Function end.  */
-    {"word",    cons,           4 },
-    {NULL,      0,              0 },
-  };
+{
+  {"align",   s_align_bytes,  4 },
+  {"space",   s_space,        0 },
+  {"cputype", s_ignore,       0 },
+  {"reg",     s_lsym,         0 },  /* Register equate, same as equ.  */
+  {"sect",    s_ignore,       0 },  /* Creation of coff sections.  */
+  {"proc",    s_ignore,       0 },  /* Start of a function.  */
+  {"endproc", s_ignore,       0 },  /* Function end.  */
+  {"word",    cons,           4 },
+  {NULL,      0,              0 },
+};
 
 int md_short_jump_size  = 4;
 int md_long_jump_size   = 4;
-
-#if defined(BFD_HEADERS)
-#ifdef RELSZ
-const int md_reloc_size = RELSZ;  /* Coff headers.  */
-#else
-const int md_reloc_size = 12;   /* Something else headers.  */
-#endif
-#else
-const int md_reloc_size = 12;   /* Not bfdized.  */
-#endif
 
 /* This array holds the chars that always start a comment.
    If the pre-processor is disabled, these aren't very useful.  */
@@ -114,20 +99,17 @@ const char FLT_CHARS[] = "rRsSfFdDxXpP";
 /* "l.jalr r9" precalculated opcode.  */
 static unsigned long jalr_r9_opcode;
 
+static void machine_ip (char *);
 
-static int check_invalid_opcode PARAMS ((unsigned long));
-static void encode PARAMS ((const struct machine_opcode *, unsigned long *, signed long, char));
-static char *parse_operand PARAMS ((char *, expressionS *, int));
 
 /* Set bits in machine opcode according to insn->encoding
    description and passed operand.  */
 
 static void
-encode (insn, opcode, param_val, param_ch)
-     const struct machine_opcode *insn;
-     unsigned long *opcode;
-     signed long param_val;
-     char param_ch;
+encode (const struct machine_opcode *insn,
+	unsigned long *opcode,
+	signed long param_val,
+	char param_ch)
 {
   int opc_pos = 0;
   int param_pos = 0;
@@ -195,7 +177,7 @@ encode (insn, opcode, param_val, param_ch)
    need.  */
 
 void
-md_begin ()
+md_begin (void)
 {
   const char *retval = NULL;
   int lose = 0;
@@ -215,7 +197,7 @@ md_begin ()
           continue;
         }
 
-      retval = hash_insert (op_hash, name, (PTR) &machine_opcodes[i]);
+      retval = hash_insert (op_hash, name, (void *) &machine_opcodes[i]);
       if (retval != NULL)
         {
           fprintf (stderr, "internal error: can't hash `%s': %s\n",
@@ -233,8 +215,7 @@ md_begin ()
 /* Returns non zero if instruction is to be used.  */
 
 static int
-check_invalid_opcode (opcode)
-     unsigned long opcode;
+check_invalid_opcode (unsigned long opcode)
 {
   return opcode == jalr_r9_opcode;
 }
@@ -244,8 +225,7 @@ check_invalid_opcode (opcode)
    produce the bytes of data and relocation.  */
 
 void
-md_assemble (str)
-     char *str;
+md_assemble (char *str)
 {
   char *toP;
 
@@ -261,11 +241,7 @@ md_assemble (str)
   md_number_to_chars (toP, the_insn.opcode, 4);
 
   /* Put out the symbol-dependent stuff.  */
-#ifdef BFD_ASSEMBLER
   if (the_insn.reloc != BFD_RELOC_NONE)
-#else
-  if (the_insn.reloc != NO_RELOC)
-#endif
     {
       fix_new_exp (frag_now,
                    (toP - frag_now->fr_literal + the_insn.reloc_offset),
@@ -281,12 +257,8 @@ static int waiting_for_shift = 0;
 
 static int mask_or_shift = 0;
 
-#ifdef BFD_ASSEMBLER
 static char *
-parse_operand (s, operandp, opt)
-     char *s;
-     expressionS *operandp;
-     int opt;
+parse_operand (char *s, expressionS *operandp, int opt)
 {
   char *save = input_line_pointer;
   char *new;
@@ -348,90 +320,13 @@ parse_operand (s, operandp, opt)
 
   return new;
 }
-#else
-
-static char *
-parse_operand (s, operandp, opt)
-     char *s;
-     expressionS *operandp;
-     int opt;
-{
-  char *save = input_line_pointer;
-  char *new;
-
-#if DEBUG
-  printf ("  PROCESS NEW OPERAND(%s) == %c (%d)\n", s, opt ? opt : '!', opt);
-#endif
-
-  input_line_pointer = s;
-
-  if (strncasecmp (s, "HI(", 3) == 0)
-    {
-      waiting_for_shift = 1;
-      mask_or_shift = RELOC_CONSTH;
-
-      input_line_pointer += 3;
-    }
-  else if (strncasecmp (s, "LO(", 3) == 0)
-    {
-      mask_or_shift = RELOC_CONST;
-
-      input_line_pointer += 3;
-    }
-  else
-    mask_or_shift = 0;
-
-
-  expression (operandp);
-
-  if (operandp->X_op == O_absent)
-    {
-      if (! opt)
-        as_bad (_("missing operand"));
-      else
-        {
-          operandp->X_add_number = 0;
-          operandp->X_op = O_constant;
-        }
-    }
-
-  new = input_line_pointer;
-  input_line_pointer = save;
-
-  if ((operandp->X_op == O_symbol) && (*s != '_'))
-    {
-#if DEBUG
-      printf ("symbol: '%s'\n", save);
-#endif
-
-      for (save = s; s < new; s++)
-        if ((*s == REGISTER_PREFIX) && (*(s + 1) == 'r')) /* Register prefix.  */
-          s++;
-
-        if ((*s == 'r') && ISDIGIT (*(s + 1)))
-          {
-            operandp->X_add_number = strtol (s + 1, NULL, 10);
-            operandp->X_op = O_register;
-          }
-      s = save;
-    }
-
-#if DEBUG
-  printf ("  %s=parse_operand(%s): operandp->X_op = %u\n", new, s, operandp->X_op);
-#endif
-
-  return new;
-}
-#endif
 
 /* Instruction parsing.  Takes a string containing the opcode.
    Operands are at input_line_pointer.  Output is in the_insn.
    Warnings or errors are generated.  */
 
-#ifdef BFD_ASSEMBLER
 static void
-machine_ip (str)
-     char *str;
+machine_ip (char *str)
 {
   char *s;
   const char *args;
@@ -485,10 +380,8 @@ machine_ip (str)
      If an operand matches, we modify the_insn or opcode appropriately,
      and do a "continue".  If an operand fails to match, we "break".  */
   if (insn->args[0] != '\0')
-    {
-      /* Prime the pump.  */
-      s = parse_operand (s, operand, insn->args[0] == 'I');
-    }
+    /* Prime the pump.  */
+    s = parse_operand (s, operand, insn->args[0] == 'I');
 
   for (args = insn->args;; ++args)
     {
@@ -579,13 +472,7 @@ machine_ip (str)
             }
 
           if (*s == '(')
-            {
-              operand->X_op = O_constant;
-#if 0
-              operand->X_add_number = 0; /* ??? if enabled load/store offsets
-					    are zero.  */
-#endif
-            }
+	    operand->X_op = O_constant;
           else if (*s == ')')
             s += 1;
 #if DEBUG
@@ -642,221 +529,6 @@ machine_ip (str)
     }
 }
 
-#else
-
-static void
-machine_ip (str)
-     char *str;
-{
-  char *s;
-  const char *args;
-  const struct machine_opcode *insn;
-  char *argsStart;
-  unsigned long opcode;
-  expressionS the_operand;
-  expressionS *operand = &the_operand;
-  unsigned int regno;
-  int reloc = NO_RELOC;
-
-#if DEBUG
-  printf ("machine_ip(%s)\n", str);
-#endif
-
-  s = str;
-  for (; ISALNUM (*s) || *s == '.'; ++s)
-    if (ISUPPER (*s))
-      *s = TOLOWER (*s);
-
-  switch (*s)
-    {
-    case '\0':
-      break;
-
-    case ' ':     /* FIXME-SOMEDAY more whitespace.  */
-      *s++ = '\0';
-      break;
-
-    default:
-      as_bad (_("unknown opcode1: `%s'"), str);
-      return;
-    }
-
-  if ((insn = (struct machine_opcode *) hash_find (op_hash, str)) == NULL)
-    {
-      as_bad (_("unknown opcode2 `%s'."), str);
-      return;
-    }
-
-  argsStart = s;
-  opcode = 0;
-  memset (&the_insn, '\0', sizeof (the_insn));
-  the_insn.reloc = NO_RELOC;
-
-  reloc = NO_RELOC;
-
-  /* Build the opcode, checking as we go to make sure that the
-     operands match.
-
-     If an operand matches, we modify the_insn or opcode appropriately,
-     and do a "continue".  If an operand fails to match, we "break".  */
-  if (insn->args[0] != '\0')
-    /* Prime the pump.  */
-    s = parse_operand (s, operand,
-		       insn->args[0] == 'I'
-		       || strcmp (insn->name, "l.nop") == 0);
-
-  for (args = insn->args;; ++args)
-    {
-#if DEBUG
-      printf ("  args = %s\n", args);
-#endif
-      switch (*args)
-        {
-        case '\0':    /* End of args.  */
-          /* We have have 0 args, do the bazoooka!  */
-          if (args == insn->args)
-	    encode (insn, &opcode, 0, 0);
-
-          if (*s == '\0')
-            {
-              /* We are truly done.  */
-              the_insn.opcode = opcode;
-              if (check_invalid_opcode (opcode))
-                as_bad (_("instruction not allowed: %s"), str);
-              return;
-            }
-          as_bad (_("too many operands: %s"), s);
-          break;
-
-        case ',':   /* Must match a comma.  */
-          if (*s++ == ',')
-            {
-              reloc = NO_RELOC;
-
-              /* Parse next operand.  */
-              s = parse_operand (s, operand, args[1] == 'I');
-#if DEBUG
-	      printf ("    ',' case: operand->X_add_number = %d, *args = %s, *s = %s\n",
-		      operand->X_add_number, args, s);
-#endif
-              continue;
-            }
-          break;
-
-        case '(':   /* Must match a (.  */
-          s = parse_operand (s, operand, args[1] == 'I');
-          continue;
-
-        case ')':   /* Must match a ).  */
-          continue;
-
-        case 'r':   /* A general register.  */
-          args++;
-
-          if (operand->X_op != O_register)
-            break;    /* Only registers.  */
-
-          know (operand->X_add_symbol == 0);
-          know (operand->X_op_symbol == 0);
-          regno = operand->X_add_number;
-          encode (insn, &opcode, regno, *args);
-#if DEBUG
-          printf ("    r: operand->X_op = %d\n", operand->X_op);
-#endif
-          continue;
-
-        default:
-          /* if (! ISALPHA (*args))
-               break;  */   /* Only immediate values.  */
-
-          if (mask_or_shift)
-	    {
-#if DEBUG
-	      printf ("mask_or_shift = %d\n", mask_or_shift);
-#endif
-	      reloc = mask_or_shift;
-	    }
-          mask_or_shift = 0;
-
-          if (strncasecmp (args, "LO(", 3) == 0)
-            {
-#if DEBUG
-              printf ("reloc_const\n");
-#endif
-              reloc = RELOC_CONST;
-            }
-          else if (strncasecmp (args, "HI(", 3) == 0)
-            {
-#if DEBUG
-              printf ("reloc_consth\n");
-#endif
-              reloc = RELOC_CONSTH;
-            }
-
-          if (*s == '(')
-            {
-              operand->X_op = O_constant;
-#if 0
-              operand->X_add_number = 0; /* ??? if enabled load/store offsets
-					    are zero.  */
-#endif
-            }
-          else if (*s == ')')
-            s += 1;
-#if DEBUG
-          printf ("    default case: operand->X_add_number = %d, *args = %s, *s = %s\n",
-		  operand->X_add_number, args, s);
-#endif
-          if (operand->X_op == O_constant)
-            {
-	      if (reloc == NO_RELOC)
-		{
-		  unsigned long v, mask;
-
-		  mask = 0x3ffffff;
-		  v = abs (operand->X_add_number) & ~ mask;
-		  if (v)
-		    as_bad (_("call/jmp target out of range (1)"));
-		}
-
-              if (reloc == RELOC_CONSTH)
-		operand->X_add_number = ((operand->X_add_number>>16) & 0xffff);
-
-              the_insn.pcrel = 0;
-              encode (insn, &opcode, operand->X_add_number, *args);
-	      /* the_insn.reloc = NO_RELOC; */
-              continue;
-            }
-
-          if (reloc == NO_RELOC)
-            the_insn.reloc = RELOC_JUMPTARG;
-          else
-            the_insn.reloc = reloc;
-#if DEBUG
-          printf ("    reloc sym=%d\n", the_insn.reloc);
-          printf ("    NO_RELOC=%d\n", NO_RELOC);
-#endif
-          the_insn.exp = *operand;
-
-          /*  the_insn.reloc_offset = 1;  */
-          the_insn.pcrel = 1; /* Assume PC-relative jump.  */
-
-          /* FIXME-SOON, Do we figure out whether abs later, after
-             know sym val?  */
-          if (reloc == RELOC_CONST || reloc == RELOC_CONSTH)
-            the_insn.pcrel = 0;
-
-          encode (insn, &opcode, operand->X_add_number, *args);
-          continue;
-        }
-
-      /* Types or values of args don't match.  */
-      as_bad (_("invalid operands"));
-      return;
-    }
-}
-#endif
-
 /* This is identical to the md_atof in m68k.c.  I think this is right,
    but I'm not sure.
 
@@ -869,10 +541,7 @@ machine_ip (str)
 #define MAX_LITTLENUMS 6
 
 char *
-md_atof (type, litP, sizeP)
-     char   type;
-     char * litP;
-     int *  sizeP;
+md_atof (int type, char * litP, int *  sizeP)
 {
   int prec;
   LITTLENUM_TYPE words[MAX_LITTLENUMS];
@@ -928,20 +597,13 @@ md_atof (type, litP, sizeP)
 /* Write out big-endian.  */
 
 void
-md_number_to_chars (buf, val, n)
-     char *buf;
-     valueT val;
-     int n;
+md_number_to_chars (char *buf, valueT val, int n)
 {
   number_to_chars_bigendian (buf, val, n);
 }
 
-#ifdef BFD_ASSEMBLER
 void
-md_apply_fix3 (fixP, val, seg)
-     fixS *   fixP;
-     valueT * val;
-     segT     seg ATTRIBUTE_UNUSED;
+md_apply_fix (fixS * fixP, valueT * val, segT seg ATTRIBUTE_UNUSED)
 {
   char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
   long t_val;
@@ -1002,20 +664,7 @@ md_apply_fix3 (fixP, val, seg)
 
     case BFD_RELOC_32_GOT_PCREL:  /* 0000XXXX pattern in a word.  */
       if (!fixP->fx_done)
-        {
-          /* The linker tries to support both AMD and old GNU style
-             R_IREL relocs.  That means that if the addend is exactly
-             the negative of the address within the section, the
-             linker will not handle it correctly.  */
-#if 0
-          if (fixP->fx_pcrel
-              && t_val != 0
-              && t_val == - (fixP->fx_frag->fr_address + fixP->fx_where))
-            as_bad_where
-              (fixP->fx_file, fixP->fx_line,
-               _("the linker will not handle this relocation correctly (1)"));
-#endif
-        }
+        ;
       else if (fixP->fx_pcrel)
         {
           long v = t_val >> 28;
@@ -1048,218 +697,37 @@ md_apply_fix3 (fixP, val, seg)
   if (fixP->fx_addsy == (symbolS *) NULL)
     fixP->fx_done = 1;
 }
-#else
-void
-md_apply_fix3 (fixP, valP, seg)
-     fixS *fixP;
-     valueT *valP;
-     segT seg ATTRIBUTE_UNUSED;
-{
-  long val = *valP;
-  char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
-
-#if DEBUG
-  printf ("md_apply_fix val:%x\n", val);
-#endif
-
-  fixP->fx_addnumber = val; /* Remember value for emit_reloc.  */
-
-  know (fixP->fx_size == 4);
-  know (fixP->fx_r_type < NO_RELOC);
-
-  /* This is a hack.  There should be a better way to handle this.  */
-  if (fixP->fx_r_type == RELOC_WDISP30 && fixP->fx_addsy)
-    val += fixP->fx_where + fixP->fx_frag->fr_address;
-
-  switch (fixP->fx_r_type)
-    {
-    case RELOC_32:
-      buf[0] = val >> 24;
-      buf[1] = val >> 16;
-      buf[2] = val >> 8;
-      buf[3] = val;
-      break;
-
-    case RELOC_8:
-      buf[0] = val;
-      break;
-
-    case RELOC_WDISP30:
-      val = (val >> 2) + 1;
-      buf[0] |= (val >> 24) & 0x3f;
-      buf[1] = (val >> 16);
-      buf[2] = val >> 8;
-      buf[3] = val;
-      break;
-
-    case RELOC_HI22:
-      buf[1] |= (val >> 26) & 0x3f;
-      buf[2] = val >> 18;
-      buf[3] = val >> 10;
-      break;
-
-    case RELOC_LO10:
-      buf[2] |= (val >> 8) & 0x03;
-      buf[3] = val;
-      break;
-
-    case RELOC_BASE13:
-      buf[2] |= (val >> 8) & 0x1f;
-      buf[3] = val;
-      break;
-
-    case RELOC_WDISP22:
-      val = (val >> 2) + 1;
-      /* FALLTHROUGH */
-    case RELOC_BASE22:
-      buf[1] |= (val >> 16) & 0x3f;
-      buf[2] = val >> 8;
-      buf[3] = val;
-      break;
-
-    case RELOC_JUMPTARG:  /* 0000XXXX pattern in a word.  */
-      if (!fixP->fx_done)
-        {
-          /* The linker tries to support both AMD and old GNU style
-             R_IREL relocs.  That means that if the addend is exactly
-             the negative of the address within the section, the
-             linker will not handle it correctly.  */
-#if 0
-          if (fixP->fx_pcrel
-              && val != 0
-              && val == - (fixP->fx_frag->fr_address + fixP->fx_where))
-            as_bad_where
-              (fixP->fx_file, fixP->fx_line,
-               _("the linker will not handle this relocation correctly (1)"));
-#endif
-        }
-      else if (fixP->fx_pcrel)
-        {
-          long v = val >> 28;
-#if 1
-          if (v != 0 && v != -1)
-            as_bad_where (fixP->fx_file, fixP->fx_line,
-                          _("call/jmp target out of range (2)"));
-#endif
-        }
-      else
-        /* This case was supposed to be handled in machine_ip.  */
-        abort ();
-
-      buf[0] |= (val >> 26) & 0x03; /* Holds bits 0FFFFFFC of address.  */
-      buf[1] = val >> 18;
-      buf[2] = val >> 10;
-      buf[3] = val >> 2;
-      break;
-
-    case RELOC_CONST:     /* 0000XXXX pattern in a word.  */
-#if DEBUG
-      printf ("reloc_const: val=%x\n", val);
-#endif
-      buf[2] = val >> 8;  /* Holds bits 0000XXXX.  */
-      buf[3] = val;
-      break;
-
-    case RELOC_CONSTH:    /* 0000XXXX pattern in a word.  */
-#if DEBUG
-      printf ("reloc_consth: val=%x\n", val);
-#endif
-      buf[2] = val >> 24; /* Holds bits XXXX0000.  */
-      buf[3] = val >> 16;
-      break;
-
-    case BFD_RELOC_VTABLE_INHERIT:
-    case BFD_RELOC_VTABLE_ENTRY:
-      fixP->fx_done = 0;
-      break;
-
-    case NO_RELOC:
-    default:
-      as_bad (_("bad relocation type: 0x%02x"), fixP->fx_r_type);
-      break;
-    }
-
-  if (fixP->fx_addsy == (symbolS *) NULL)
-    fixP->fx_done = 1;
-}
-#endif
-
-#ifdef OBJ_COFF
-short
-tc_coff_fix2rtype (fixP)
-     fixS *fixP;
-{
-#if DEBUG
-  printf ("tc_coff_fix2rtype\n");
-#endif
-
-  switch (fixP->fx_r_type)
-    {
-    case RELOC_32:
-      return (R_WORD);
-    case RELOC_8:
-      return (R_BYTE);
-    case RELOC_CONST:
-      return (R_ILOHALF);
-    case RELOC_CONSTH:
-      return (R_IHIHALF);
-    case RELOC_JUMPTARG:
-      return (R_IREL);
-    default:
-      printf ("need %d\n", fixP->fx_r_type);
-      abort ();
-    }
-
-  return 0;
-}
-
-#endif /* OBJ_COFF */
 
 /* Should never be called for or32.  */
 
 void
-md_create_short_jump (ptr, from_addr, to_addr, frag, to_symbol)
-     char *    ptr       ATTRIBUTE_UNUSED;
-     addressT  from_addr ATTRIBUTE_UNUSED;
-     addressT  to_addr   ATTRIBUTE_UNUSED;
-     fragS *   frag      ATTRIBUTE_UNUSED;
-     symbolS * to_symbol ATTRIBUTE_UNUSED;
+md_create_short_jump (char *    ptr       ATTRIBUTE_UNUSED,
+		      addressT  from_addr ATTRIBUTE_UNUSED,
+		      addressT  to_addr   ATTRIBUTE_UNUSED,
+		      fragS *   frag      ATTRIBUTE_UNUSED,
+		      symbolS * to_symbol ATTRIBUTE_UNUSED)
 {
   as_fatal ("or32_create_short_jmp\n");
 }
 
 /* Should never be called for or32.  */
 
-#ifndef BFD_ASSEMBLER
 void
-md_convert_frag (headers, seg, fragP)
-     object_headers * headers ATTRIBUTE_UNUSED;
-     segT             seg     ATTRIBUTE_UNUSED;
-     register fragS * fragP   ATTRIBUTE_UNUSED;
+md_convert_frag (bfd *   headers ATTRIBUTE_UNUSED,
+		 segT    seg     ATTRIBUTE_UNUSED,
+		 fragS * fragP   ATTRIBUTE_UNUSED)
 {
   as_fatal ("or32_convert_frag\n");
 }
-
-#else
-void
-md_convert_frag (headers, seg, fragP)
-     bfd *   headers ATTRIBUTE_UNUSED;
-     segT    seg     ATTRIBUTE_UNUSED;
-     fragS * fragP   ATTRIBUTE_UNUSED;
-{
-  as_fatal ("or32_convert_frag\n");
-}
-#endif
 
 /* Should never be called for or32.  */
 
 void
-md_create_long_jump (ptr, from_addr, to_addr, frag, to_symbol)
-     char *    ptr       ATTRIBUTE_UNUSED;
-     addressT  from_addr ATTRIBUTE_UNUSED;
-     addressT  to_addr   ATTRIBUTE_UNUSED;
-     fragS *   frag      ATTRIBUTE_UNUSED;
-     symbolS * to_symbol ATTRIBUTE_UNUSED;
+md_create_long_jump (char *    ptr       ATTRIBUTE_UNUSED,
+		     addressT  from_addr ATTRIBUTE_UNUSED,
+		     addressT  to_addr   ATTRIBUTE_UNUSED,
+		     fragS *   frag      ATTRIBUTE_UNUSED,
+		     symbolS * to_symbol ATTRIBUTE_UNUSED)
 {
   as_fatal ("or32_create_long_jump\n");
 }
@@ -1267,9 +735,8 @@ md_create_long_jump (ptr, from_addr, to_addr, frag, to_symbol)
 /* Should never be called for or32.  */
 
 int
-md_estimate_size_before_relax (fragP, segtype)
-     fragS * fragP   ATTRIBUTE_UNUSED;
-     segT    segtype ATTRIBUTE_UNUSED;
+md_estimate_size_before_relax (fragS * fragP   ATTRIBUTE_UNUSED,
+			       segT    segtype ATTRIBUTE_UNUSED)
 {
   as_fatal ("or32_estimate_size_before_relax\n");
   return 0;
@@ -1285,10 +752,9 @@ md_estimate_size_before_relax (fragP, segtype)
 
 #ifdef OBJ_AOUT
 void
-tc_aout_fix_to_chars (where, fixP, segment_address_in_file)
-     char *where;
-     fixS *fixP;
-     relax_addressT segment_address_in_file;
+tc_aout_fix_to_chars (char *where,
+		      fixS *fixP,
+		      relax_addressT segment_address_in_file)
 {
   long r_symbolnum;
 
@@ -1322,22 +788,19 @@ tc_aout_fix_to_chars (where, fixP, segment_address_in_file)
 const char *md_shortopts = "";
 
 struct option md_longopts[] =
-  {
-    { NULL, no_argument, NULL, 0 }
-  };
+{
+  { NULL, no_argument, NULL, 0 }
+};
 size_t md_longopts_size = sizeof (md_longopts);
 
 int
-md_parse_option (c, arg)
-     int    c   ATTRIBUTE_UNUSED;
-     char * arg ATTRIBUTE_UNUSED;
+md_parse_option (int c ATTRIBUTE_UNUSED, char * arg ATTRIBUTE_UNUSED)
 {
   return 0;
 }
 
 void
-md_show_usage (stream)
-     FILE * stream ATTRIBUTE_UNUSED;
+md_show_usage (FILE * stream ATTRIBUTE_UNUSED)
 {
 }
 
@@ -1345,8 +808,7 @@ md_show_usage (stream)
    definitions of or32 style local labels.  */
 
 int
-or32_unrecognized_line (c)
-     int c;
+or32_unrecognized_line (int c)
 {
   int lab;
   char *s;
@@ -1381,75 +843,20 @@ or32_unrecognized_line (c)
   return 1;
 }
 
-#ifndef BFD_ASSEMBLER
-/* Record a fixup for a cons expression.  */
-/*
-  void
-or32_cons_fix_new (frag, where, nbytes, exp)
-     fragS *frag;
-     int where;
-     int nbytes;
-     expressionS *exp;
-{
-  fix_new_exp (frag, where, nbytes, exp, 0,
-		   nbytes == 5 ? RELOC_32
-                   : nbytes == 2 ? RELOC_16
-		   : RELOC_8);
-}
-void
-tc_aout_pre_write_hook ()
-{
-#if DEBUG
-  printf ("In tc_aout_pre_write_hook()\n");
-#endif
-}
-*/
-#endif
-
 /* Default the values of symbols known that should be "predefined".  We
    don't bother to predefine them unless you actually use one, since there
    are a lot of them.  */
 
 symbolS *
-md_undefined_symbol (name)
-     char *name ATTRIBUTE_UNUSED;
+md_undefined_symbol (char *name ATTRIBUTE_UNUSED)
 {
-#ifndef BFD_ASSEMBLER
-  long regnum;
-  char testbuf[5 + /*SLOP*/ 5];
-
-#if DEBUG
-  printf ("md_undefined_symbol(%s)\n", name);
-#endif
-
-  /* Register name.  */
-  if (name[0] == 'r' || name[0] == 'R' || name[0] == 'a' || name[0] == 'b')
-    {
-      /* Parse the number, make sure it has no extra zeroes or
-         trailing chars.  */
-      regnum = atol (& name[1]);
-
-      if (regnum > 31)
-        as_fatal (_("register out of range"));
-
-      sprintf (testbuf, "%ld", regnum);
-
-      if (strcmp (testbuf, &name[1]) != 0)
-        return NULL;  /* gr007 or lr7foo or whatever.  */
-
-      /* We have a wiener!  Define and return a new symbol for it.  */
-      return (symbol_new (name, SEG_REGISTER, (valueT) regnum,
-                          &zero_address_frag));
-    }
-#endif
   return NULL;
 }
 
 /* Parse an operand that is machine-specific.  */
 
 void
-md_operand (expressionP)
-     expressionS *expressionP;
+md_operand (expressionS *expressionP)
 {
 #if DEBUG
   printf ("  md_operand(input_line_pointer = %s)\n", input_line_pointer);
@@ -1577,9 +984,7 @@ md_operand (expressionP)
 /* Round up a section size to the appropriate boundary.  */
 
 valueT
-md_section_align (segment, size)
-     segT segment ATTRIBUTE_UNUSED;
-     valueT size ATTRIBUTE_UNUSED;
+md_section_align (segT segment ATTRIBUTE_UNUSED, valueT size ATTRIBUTE_UNUSED)
 {
   return size;      /* Byte alignment is fine.  */
 }
@@ -1589,24 +994,20 @@ md_section_align (segment, size)
    which we have set up as the address of the fixup too.  */
 
 long
-md_pcrel_from (fixP)
-     fixS *fixP;
+md_pcrel_from (fixS *fixP)
 {
   return fixP->fx_where + fixP->fx_frag->fr_address;
 }
 
 /* Generate a reloc for a fixup.  */
 
-#ifdef BFD_ASSEMBLER
 arelent *
-tc_gen_reloc (seg, fixp)
-     asection *seg ATTRIBUTE_UNUSED;
-     fixS *fixp;
+tc_gen_reloc (asection *seg ATTRIBUTE_UNUSED, fixS *fixp)
 {
   arelent *reloc;
 
-  reloc = (arelent *) xmalloc (sizeof (arelent));
-  reloc->sym_ptr_ptr = (asymbol **) xmalloc (sizeof (asymbol *));
+  reloc = xmalloc (sizeof (arelent));
+  reloc->sym_ptr_ptr = xmalloc (sizeof (asymbol *));
   *reloc->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
   reloc->address = fixp->fx_frag->fr_address + fixp->fx_where;
   /*  reloc->address = fixp->fx_frag->fr_address + fixp->fx_where + fixp->fx_addnumber;*/
@@ -1626,5 +1027,3 @@ tc_gen_reloc (seg, fixp)
   reloc->addend = fixp->fx_addnumber;
   return reloc;
 }
-#endif
-

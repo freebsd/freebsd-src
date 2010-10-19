@@ -16,14 +16,14 @@ Disassembly of section .text:
     1003:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
     1009:	90[ 	]+nop *
     100a:	90[ 	]+nop *
-    100b:	03 05 94 20 00 00[ 	]+add    0x2094,%eax
+    100b:	03 05 7c 21 00 00[ 	]+add    0x217c,%eax
 #				->R_386_TLS_TPOFF	sg1
     1011:	90[ 	]+nop *
     1012:	90[ 	]+nop *
     1013:	90[ 	]+nop *
     1014:	90[ 	]+nop *
 #  @indntpoff direct %gs access IE against global var
-    1015:	8b 15 98 20 00 00[ 	]+mov    0x2098,%edx
+    1015:	8b 15 80 21 00 00[ 	]+mov    0x2180,%edx
 #				->R_386_TLS_TPOFF	sg2
     101b:	90[ 	]+nop *
     101c:	90[ 	]+nop *
@@ -36,14 +36,14 @@ Disassembly of section .text:
     1024:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
     102a:	90[ 	]+nop *
     102b:	90[ 	]+nop *
-    102c:	03 05 9c 20 00 00[ 	]+add    0x209c,%eax
+    102c:	03 05 84 21 00 00[ 	]+add    0x2184,%eax
 #				->R_386_TLS_TPOFF	[0x14000000]
     1032:	90[ 	]+nop *
     1033:	90[ 	]+nop *
     1034:	90[ 	]+nop *
     1035:	90[ 	]+nop *
 #  @indntpoff direct %gs access IE against hidden var
-    1036:	8b 15 a0 20 00 00[ 	]+mov    0x20a0,%edx
+    1036:	8b 15 88 21 00 00[ 	]+mov    0x2188,%edx
 #				->R_386_TLS_TPOFF	[0x18000000]
     103c:	90[ 	]+nop *
     103d:	90[ 	]+nop *
@@ -56,14 +56,14 @@ Disassembly of section .text:
     1045:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
     104b:	90[ 	]+nop *
     104c:	90[ 	]+nop *
-    104d:	03 05 8c 20 00 00[ 	]+add    0x208c,%eax
+    104d:	03 05 74 21 00 00[ 	]+add    0x2174,%eax
 #				->R_386_TLS_TPOFF	[0x00000000]
     1053:	90[ 	]+nop *
     1054:	90[ 	]+nop *
     1055:	90[ 	]+nop *
     1056:	90[ 	]+nop *
 #  @indntpoff direct %gs access IE against local var
-    1057:	8b 15 90 20 00 00[ 	]+mov    0x2090,%edx
+    1057:	8b 15 78 21 00 00[ 	]+mov    0x2178,%edx
 #				->R_386_TLS_TPOFF	[0x04000000]
     105d:	90[ 	]+nop *
     105e:	90[ 	]+nop *

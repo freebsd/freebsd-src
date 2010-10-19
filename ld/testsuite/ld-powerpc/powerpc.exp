@@ -1,5 +1,5 @@
 # Expect script for ld-powerpc tests
-#   Copyright 2002, 2003 Free Software Foundation
+#   Copyright 2002, 2003, 2005 Free Software Foundation
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,10 +13,42 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 
 if { ![istarget "powerpc*-*-*"]	} {
+    return
+}
+
+if {[istarget "*-*-vxworks"]} {
+    set ppcvxtests {
+	{"VxWorks shared library test 1 (default script)" "-shared"
+	 "-mregnames" {vxworks1-lib.s}
+	 {{readelf --segments vxworks1-lib.sd}}
+	 "libvxworks1.so"}
+	{"VxWorks shared library test 1" "-shared -Tvxworks1.ld"
+	 "-mregnames" {vxworks1-lib.s}
+	 {{readelf --relocs vxworks1-lib.rd} {objdump -dr vxworks1-lib.dd}
+	  {readelf --symbols vxworks1-lib.nd}}
+	 "libvxworks1.so"}
+	{"VxWorks executable test 1 (dynamic)" \
+	 "tmpdir/libvxworks1.so -Tvxworks1.ld -q --force-dynamic"
+	 "-mregnames" {vxworks1.s}
+	 {{readelf --relocs vxworks1.rd} {objdump -dr vxworks1.dd}}
+	 "vxworks1"}
+	{"VxWorks executable test 2 (dynamic)" \
+	 "-Tvxworks1.ld -q --force-dynamic"
+	 "-mregnames" {vxworks2.s}
+	 {{readelf --segments vxworks2.sd}}
+	 "vxworks2"}
+	{"VxWorks executable test 2 (static)"
+	 "-Tvxworks1.ld"
+	 "-mregnames" {vxworks2.s}
+	 {{readelf --segments vxworks2-static.sd}}
+	 "vxworks2"}
+    }
+    run_ld_link_tests $ppcvxtests
+    run_dump_test "vxworks1-static"
     return
 }
 
@@ -54,7 +86,7 @@ set ppcelftests {
      {{objdump -hw reloc.d}} "reloc.so"}
     {"APUinfo section processing" "-melf32ppc"
      "-a32 -me500" {apuinfo1.s apuinfo2.s}
-    {{readelf -x5 apuinfo.rd}} "apuinfo"}
+    {{readelf -x2 apuinfo.rd}} "apuinfo"}
     {"TLS32 static exec" "-melf32ppc" "-a32"  {tls32.s tlslib32.s}
      {{objdump -dr tls32.d} {objdump -sj.got tls32.g}
       {objdump -sj.tdata tls32.t}}
@@ -69,6 +101,10 @@ set ppcelftests {
      {{readelf -WSsrl tlsso32.r} {objdump -dr tlsso32.d}
       {objdump -sj.got tlsso32.g} {objdump -sj.tdata tlsso32.t}}
       "tls32.so"}
+    {"Shared library with global symbol" "-shared -melf32ppc" "-a32" {sdalib.s}
+     {} "sdalib.so"}
+    {"Dynamic application with SDA" "-melf32ppc tmpdir/sdalib.so" "-a32" {sdadyn.s}
+     {{objdump -R sdadyn.d}} "sdadyn"}
 }
 
 set ppc64elftests {
@@ -98,6 +134,8 @@ set ppc64elftests {
      {{readelf -WSsrl tlstocso.r} {objdump -dr tlstocso.d}
       {objdump -sj.got tlstocso.g} {objdump -sj.tdata tlstocso.t}}
       "tlstoc.so"}
+    {"sym@tocbase" "-shared -melf64ppc" "-a64" {symtocbase-1.s symtocbase-2.s}
+	{{objdump -dj.data symtocbase.d}} "symtocbase.so"}
 }
 
 

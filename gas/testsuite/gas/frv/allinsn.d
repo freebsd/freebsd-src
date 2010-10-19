@@ -514,22 +514,22 @@ Disassembly of section .text:
  2a0:	80 0c 19 41 	stc cpr0,@\(sp,sp\)
 
 000002a4 <rstb>:
- 2a4:	82 0c 18 01 	rstb sp,@\(sp,sp\)
+ 2a4:	80 88 00 00 	nop
 
 000002a8 <rsth>:
- 2a8:	82 0c 18 41 	rsth sp,@\(sp,sp\)
+ 2a8:	80 88 00 00 	nop
 
 000002ac <rst>:
- 2ac:	82 0c 18 81 	rst sp,@\(sp,sp\)
+ 2ac:	80 88 00 00 	nop
 
 000002b0 <rstbf>:
- 2b0:	80 0c 1a 01 	rstbf fr0,@\(sp,sp\)
+ 2b0:	80 88 00 00 	nop
 
 000002b4 <rsthf>:
- 2b4:	80 0c 1a 41 	rsthf fr0,@\(sp,sp\)
+ 2b4:	80 88 00 00 	nop
 
 000002b8 <rstf>:
- 2b8:	80 0c 1a 81 	rstf fr0,@\(sp,sp\)
+ 2b8:	80 88 00 00 	nop
 
 000002bc <std>:
  2bc:	84 0c 10 c1 	std fp,@\(sp,sp\)
@@ -541,10 +541,10 @@ Disassembly of section .text:
  2c4:	80 0c 19 81 	stdc cpr0,@\(sp,sp\)
 
 000002c8 <rstd>:
- 2c8:	84 0c 18 c1 	rstd fp,@\(sp,sp\)
+ 2c8:	80 88 00 00 	nop
 
 000002cc <rstdf>:
- 2cc:	80 0c 1a c1 	rstdf fr0,@\(sp,sp\)
+ 2cc:	80 88 00 00 	nop
 
 000002d0 <stq>:
  2d0:	82 0c 11 01 	stq sp,@\(sp,sp\)
@@ -556,10 +556,10 @@ Disassembly of section .text:
  2d8:	80 0c 19 c1 	stqc cpr0,@\(sp,sp\)
 
 000002dc <rstq>:
- 2dc:	82 0c 19 01 	rstq sp,@\(sp,sp\)
+ 2dc:	80 88 00 00 	nop
 
 000002e0 <rstqf>:
- 2e0:	80 0c 1b 01 	rstqf fr0,@\(sp,sp\)
+ 2e0:	80 88 00 00 	nop
 
 000002e4 <stbu>:
  2e4:	82 0c 14 01 	stbu sp,@\(sp,sp\)

@@ -1,0 +1,76 @@
+/* SHmedia opcode support.  -*- C -*-
+
+   Copyright 2000, 2005 Free Software Foundation, Inc.
+
+   Contributed by Red Hat Inc; developed under contract from Hitachi
+   Semiconductor (America) Inc.
+
+   This file is part of the GNU Binutils.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
+
+/* This file is an addendum to sh-media.cpu.  Heavy use of C code isn't
+   appropriate in .cpu files, so it resides here.  This especially applies
+   to assembly/disassembly where parsing/printing can be quite involved.
+   Such things aren't really part of the specification of the cpu, per se,
+   so .cpu files provide the general framework and .opc files handle the
+   nitty-gritty details as necessary.
+
+   Each section is delimited with start and end markers.
+
+   <arch>-opc.h additions use: "-- opc.h"
+   <arch>-opc.c additions use: "-- opc.c"
+   <arch>-asm.c additions use: "-- asm.c"
+   <arch>-dis.c additions use: "-- dis.c"
+   <arch>-ibd.h additions use: "-- ibd.h"  */
+
+/* -- opc.h */
+
+/* Allows reason codes to be output when assembler errors occur.  */
+#define CGEN_VERBOSE_ASSEMBLER_ERRORS
+
+/* Override disassembly hashing - there are variable bits in the top
+   byte of these instructions.  */
+#define CGEN_DIS_HASH_SIZE 8
+#define CGEN_DIS_HASH(buf,value) (((* (unsigned char*) (buf)) >> 6) % CGEN_DIS_HASH_SIZE)
+
+/* -- asm.c */
+
+static const char *
+parse_fsd (CGEN_CPU_DESC cd,
+	   const char ** strp,
+	   int opindex,
+	   long * valuep)
+{
+  abort ();
+}
+
+/* -- dis.c */
+
+static void
+print_likely (CGEN_CPU_DESC cd,
+	      void * dis_info,
+	      long value,
+	      unsigned int attrs,
+	      bfd_vma pc,
+	      int length)
+{
+  disassemble_info *info = (disassemble_info *) dis_info;
+
+  (*info->fprintf_func) (info->stream, (value) ? "/l" : "/u");
+}
+
+/* -- */

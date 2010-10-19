@@ -16,7 +16,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -477,8 +477,9 @@ elf32_h8_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 	    {
 	    case bfd_reloc_overflow:
 	      if (! ((*info->callbacks->reloc_overflow)
-		     (info, name, howto->name, (bfd_vma) 0,
-		      input_bfd, input_section, rel->r_offset)))
+		     (info, (h ? &h->root : NULL), name, howto->name,
+		      (bfd_vma) 0, input_bfd, input_section,
+		      rel->r_offset)))
 		return FALSE;
 	      break;
 
@@ -679,11 +680,6 @@ elf32_h8_relax_section (bfd *abfd, asection *sec,
       || (sec->flags & SEC_CODE) == 0)
     return TRUE;
 
-  /* If this is the first time we have been called for this section,
-     initialize the cooked size.  */
-  if (sec->_cooked_size == 0)
-    sec->_cooked_size = sec->_raw_size;
-
   symtab_hdr = &elf_tdata (abfd)->symtab_hdr;
 
   /* Get a copy of the native relocations.  */
@@ -725,12 +721,7 @@ elf32_h8_relax_section (bfd *abfd, asection *sec,
 	  else
 	    {
 	      /* Go get them off disk.  */
-	      contents = (bfd_byte *) bfd_malloc (sec->_raw_size);
-	      if (contents == NULL)
-		goto error_return;
-
-	      if (! bfd_get_section_contents (abfd, sec, contents,
-					      (file_ptr) 0, sec->_raw_size))
+	      if (!bfd_malloc_and_get_section (abfd, sec, &contents))
 		goto error_return;
 	    }
 	}
@@ -1297,7 +1288,7 @@ elf32_h8_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, int count)
      power larger than the number of bytes we are deleting.  */
 
   irelalign = NULL;
-  toaddr = sec->_cooked_size;
+  toaddr = sec->size;
 
   irel = elf_section_data (sec)->relocs;
   irelend = irel + sec->reloc_count;
@@ -1305,7 +1296,7 @@ elf32_h8_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, int count)
   /* Actually delete the bytes.  */
   memmove (contents + addr, contents + addr + count,
 	   (size_t) (toaddr - addr - count));
-  sec->_cooked_size -= count;
+  sec->size -= count;
 
   /* Adjust all the relocs.  */
   for (irel = elf_section_data (sec)->relocs; irel < irelend; irel++)
@@ -1422,7 +1413,7 @@ elf32_h8_get_relocated_section_contents (bfd *output_bfd,
   symtab_hdr = &elf_tdata (input_bfd)->symtab_hdr;
 
   memcpy (data, elf_section_data (input_section)->this_hdr.contents,
-	  (size_t) input_section->_raw_size);
+	  (size_t) input_section->size);
 
   if ((input_section->flags & SEC_RELOC) != 0
       && input_section->reloc_count > 0)

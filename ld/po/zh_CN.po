@@ -1,0 +1,1942 @@
+# Simplified Chinese translation for ld.
+# Copyright (C) 2005 Free Software Foundation, Inc.
+# This file is distributed under the same license as the ld package.
+# Meng Jie <zuxyhere@eastday.com>, 2005.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: ld 2.15.96\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2005-03-03 21:05+1030\n"
+"PO-Revision-Date: 2006-01-15 01:40+0800\n"
+"Last-Translator: Meng Jie <zuxyhere@eastday.com>\n"
+"Language-Team: Chinese (simplified) <i18n-translation@lists.linux.net.cn>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: emultempl/armcoff.em:72
+#, c-format
+msgid "  --support-old-code   Support interworking with old code\n"
+msgstr "  --support-old-code   支持与旧式代码的交互工作\n"
+
+#: emultempl/armcoff.em:73
+#, c-format
+msgid "  --thumb-entry=<sym>  Set the entry point to be Thumb symbol <sym>\n"
+msgstr ""
+
+#: emultempl/armcoff.em:121
+#, c-format
+msgid "Errors encountered processing file %s"
+msgstr "处理文件 %s 时遇到错误"
+
+#: emultempl/armcoff.em:188 emultempl/pe.em:1455
+msgid "%P: warning: '--thumb-entry %s' is overriding '-e %s'\n"
+msgstr ""
+
+#: emultempl/armcoff.em:193 emultempl/pe.em:1460
+msgid "%P: warning: connot find thumb start symbol %s\n"
+msgstr ""
+
+#: emultempl/pe.em:301
+#, c-format
+msgid "  --base_file <basefile>             Generate a base file for relocatable DLLs\n"
+msgstr "  --base_file <基址文件>             为可重定位的 DLL 生成一个基址文件\n"
+
+#: emultempl/pe.em:302
+#, c-format
+msgid "  --dll                              Set image base to the default for DLLs\n"
+msgstr "  --dll                              设定 DLL 的默认映象基地址\n"
+
+#: emultempl/pe.em:303
+#, c-format
+msgid "  --file-alignment <size>            Set file alignment\n"
+msgstr "  --file-alignment <大小>            设定文件对齐边界\n"
+
+#: emultempl/pe.em:304
+#, c-format
+msgid "  --heap <size>                      Set initial size of the heap\n"
+msgstr "  --heap <大小>                      设定堆的初始大小\n"
+
+#: emultempl/pe.em:305
+#, c-format
+msgid "  --image-base <address>             Set start address of the executable\n"
+msgstr "  --image-base <地址>                设定可执行文件的起始地址\n"
+
+#: emultempl/pe.em:306
+#, c-format
+msgid "  --major-image-version <number>     Set version number of the executable\n"
+msgstr "  --major-image-version <数>         设定可执行文件的版本号\n"
+
+#: emultempl/pe.em:307
+#, c-format
+msgid "  --major-os-version <number>        Set minimum required OS version\n"
+msgstr "  --major-os-version <数>            设定对操作系统版本的最低要求\n"
+
+#: emultempl/pe.em:308
+#, c-format
+msgid "  --major-subsystem-version <number> Set minimum required OS subsystem version\n"
+msgstr "  --major-subsystem-version <数>     设定对操作系统子系统版本的最低要求\n"
+
+#: emultempl/pe.em:309
+#, c-format
+msgid "  --minor-image-version <number>     Set revision number of the executable\n"
+msgstr "  --minor-image-version <数>         设定可执行文件的修订版本号\n"
+
+#: emultempl/pe.em:310
+#, c-format
+msgid "  --minor-os-version <number>        Set minimum required OS revision\n"
+msgstr "  --minor-os-version <数>            设定对操作系统修订版本的最低要求\n"
+
+#: emultempl/pe.em:311
+#, c-format
+msgid "  --minor-subsystem-version <number> Set minimum required OS subsystem revision\n"
+msgstr "  --minor-subsystem-version <数>     设定对操作系统子系统修订版本的最低要求\n"
+
+#: emultempl/pe.em:312
+#, c-format
+msgid "  --section-alignment <size>         Set section alignment\n"
+msgstr "  --section-alignment <大小>         设定节的对齐边界\n"
+
+#: emultempl/pe.em:313
+#, c-format
+msgid "  --stack <size>                     Set size of the initial stack\n"
+msgstr "  --stack <大小>                     设定初始栈的大小\n"
+
+#: emultempl/pe.em:314
+#, c-format
+msgid "  --subsystem <name>[:<version>]     Set required OS subsystem [& version]\n"
+msgstr "  --subsystem <名>[:<版本>]          设定需要的操作系统子系统[和版本号]\n"
+
+#: emultempl/pe.em:315
+#, c-format
+msgid "  --support-old-code                 Support interworking with old code\n"
+msgstr "  --support-old-code                 支持与旧式代码的交互工作\n"
+
+#: emultempl/pe.em:316
+#, c-format
+msgid "  --thumb-entry=<symbol>             Set the entry point to be Thumb <symbol>\n"
+msgstr ""
+
+#: emultempl/pe.em:318
+#, c-format
+msgid "  --add-stdcall-alias                Export symbols with and without @nn\n"
+msgstr "  --add-stdcall-alias                导出带与不带 @nn 的符号\n"
+
+#: emultempl/pe.em:319
+#, c-format
+msgid "  --disable-stdcall-fixup            Don't link _sym to _sym@nn\n"
+msgstr "  --disable-stdcall-fixup            不将 _sym 链接至 _sym@nn\n"
+
+#: emultempl/pe.em:320
+#, c-format
+msgid "  --enable-stdcall-fixup             Link _sym to _sym@nn without warnings\n"
+msgstr "  --enable-stdcall-fixup             将 _sym 链接至 _sym@nn 而不给出警告\n"
+
+#: emultempl/pe.em:321
+#, c-format
+msgid "  --exclude-symbols sym,sym,...      Exclude symbols from automatic export\n"
+msgstr "  --exclude-symbols 符号,符号,...    将一些符号排除在自动导入以外\n"
+
+#: emultempl/pe.em:322
+#, c-format
+msgid "  --exclude-libs lib,lib,...         Exclude libraries from automatic export\n"
+msgstr "  --exclude-libs 库,库,...           将一些库排除在自动导入以外\n"
+
+#: emultempl/pe.em:323
+#, c-format
+msgid "  --export-all-symbols               Automatically export all globals to DLL\n"
+msgstr "  --export-all-symbols               自动将所有全局量导出至 DLL\n"
+
+#: emultempl/pe.em:324
+#, c-format
+msgid "  --kill-at                          Remove @nn from exported symbols\n"
+msgstr "  --kill-at                          从导出符号中移去 @nn\n"
+
+#: emultempl/pe.em:325
+#, c-format
+msgid "  --out-implib <file>                Generate import library\n"
+msgstr "  --out-implib <文件>                生成导入库\n"
+
+#: emultempl/pe.em:326
+#, c-format
+msgid "  --output-def <file>                Generate a .DEF file for the built DLL\n"
+msgstr "  --output-def <文件>                为建立的 DLL 生成一个 .DEF 文件\n"
+
+#: emultempl/pe.em:327
+#, c-format
+msgid "  --warn-duplicate-exports           Warn about duplicate exports.\n"
+msgstr "  --warn-duplicate-exports           对重复导出给出警告。\n"
+
+#: emultempl/pe.em:328
+#, c-format
+msgid ""
+"  --compat-implib                    Create backward compatible import libs;\n"
+"                                       create __imp_<SYMBOL> as well.\n"
+msgstr ""
+"  --compat-implib                    生成后向兼容的导入库；\n"
+"                                       同时生成 __imp_<符号>。\n"
+
+#: emultempl/pe.em:330
+#, c-format
+msgid ""
+"  --enable-auto-image-base           Automatically choose image base for DLLs\n"
+"                                       unless user specifies one\n"
+msgstr "  --enable-auto-image-base           除非用户指定否则自动选择映象基地址\n"
+
+#: emultempl/pe.em:332
+#, c-format
+msgid "  --disable-auto-image-base          Do not auto-choose image base. (default)\n"
+msgstr "  --disable-auto-image-base          不自动选择映象基地址。(默认)\n"
+
+#: emultempl/pe.em:333
+#, c-format
+msgid ""
+"  --dll-search-prefix=<string>       When linking dynamically to a dll without\n"
+"                                       an importlib, use <string><basename>.dll\n"
+"                                       in preference to lib<basename>.dll \n"
+msgstr ""
+"  --dll-search-prefix=<字符串>       动态链接至 DLL 而缺少导入库时，使用\n"
+"                                      <字符串><基本名>.dll 而不是 lib<基本名>.dll\n"
+
+#: emultempl/pe.em:336
+#, c-format
+msgid ""
+"  --enable-auto-import               Do sophistcated linking of _sym to\n"
+"                                       __imp_sym for DATA references\n"
+msgstr ""
+"  --enable-auto-import               为实现 DATA 引用，使用复杂的手段将 _sym\n"
+"                                       链接至 __imp_sym\n"
+
+#: emultempl/pe.em:338
+#, c-format
+msgid "  --disable-auto-import              Do not auto-import DATA items from DLLs\n"
+msgstr "  --disable-auto-import              不为 DLL 自动导入 DATA 项\n"
+
+#: emultempl/pe.em:339
+#, c-format
+msgid ""
+"  --enable-runtime-pseudo-reloc      Work around auto-import limitations by\n"
+"                                       adding pseudo-relocations resolved at\n"
+"                                       runtime.\n"
+msgstr ""
+
+#: emultempl/pe.em:342
+#, c-format
+msgid ""
+"  --disable-runtime-pseudo-reloc     Do not add runtime pseudo-relocations for\n"
+"                                       auto-imported DATA.\n"
+msgstr ""
+
+#: emultempl/pe.em:344
+#, c-format
+msgid ""
+"  --enable-extra-pe-debug            Enable verbose debug output when building\n"
+"                                       or linking to DLLs (esp. auto-import)\n"
+msgstr ""
+"  --enable-extra-pe-debug            当生成或链接至 DLL 时(尤其当自动导入时)启用\n"
+"                                       详细的调试输出\n"
+
+#: emultempl/pe.em:347
+#, c-format
+msgid ""
+"  --large-address-aware              Executable supports virtual addresses\n"
+"                                       greater than 2 gigabytes\n"
+msgstr "  --large-address-aware              可执行文件支持大于 2 GB 的虚拟内存地址\n"
+
+#: emultempl/pe.em:414
+msgid "%P: warning: bad version number in -subsystem option\n"
+msgstr ""
+
+#: emultempl/pe.em:445
+#, fuzzy
+msgid "%P%F: invalid subsystem type %s\n"
+msgstr "无效的指口类型"
+
+#: emultempl/pe.em:484
+msgid "%P%F: invalid hex number for PE parameter '%s'\n"
+msgstr ""
+
+#: emultempl/pe.em:501
+msgid "%P%F: strange hex info for PE parameter '%s'\n"
+msgstr ""
+
+#: emultempl/pe.em:518
+#, c-format
+msgid "%s: Can't open base file %s\n"
+msgstr "%s：无法打开基址文件 %s\n"
+
+#: emultempl/pe.em:734
+#, fuzzy
+msgid "%P: warning, file alignment > section alignment.\n"
+msgstr "  --section-alignment <大小>         设定节的对齐边界\n"
+
+#: emultempl/pe.em:821 emultempl/pe.em:848
+#, c-format
+msgid "Warning: resolving %s by linking to %s\n"
+msgstr ""
+
+#: emultempl/pe.em:826 emultempl/pe.em:853
+msgid "Use --enable-stdcall-fixup to disable these warnings\n"
+msgstr "使用 --enable-stdcall-fixup 来禁用这些警告\n"
+
+#: emultempl/pe.em:827 emultempl/pe.em:854
+msgid "Use --disable-stdcall-fixup to disable these fixups\n"
+msgstr "使用 --disable-stdcall-fixup 来禁用这些修正\n"
+
+#: emultempl/pe.em:873
+#, c-format
+msgid "%C: Cannot get section contents - auto-import exception\n"
+msgstr ""
+
+#: emultempl/pe.em:910
+#, c-format
+msgid "Info: resolving %s by linking to %s (auto-import)\n"
+msgstr ""
+
+#: emultempl/pe.em:983
+msgid "%F%P: PE operations on non PE file.\n"
+msgstr ""
+
+#: emultempl/pe.em:1258
+#, c-format
+msgid "Errors encountered processing file %s\n"
+msgstr "处理文件 %s 时出错\n"
+
+#: emultempl/pe.em:1281
+#, c-format
+msgid "Errors encountered processing file %s for interworking"
+msgstr ""
+
+#: emultempl/pe.em:1340 ldexp.c:570 ldlang.c:2408 ldlang.c:5135 ldlang.c:5166
+#: ldmain.c:1161
+msgid "%P%F: bfd_link_hash_lookup failed: %E\n"
+msgstr ""
+
+#: ldcref.c:153
+msgid "%X%P: bfd_hash_table_init of cref table failed: %E\n"
+msgstr ""
+
+#: ldcref.c:159
+#, fuzzy
+msgid "%X%P: cref_hash_lookup failed: %E\n"
+msgstr "主机寻找失败：%s：没有找到主机"
+
+#: ldcref.c:225
+#, c-format
+msgid ""
+"\n"
+"Cross Reference Table\n"
+"\n"
+msgstr ""
+"\n"
+"交叉引用表\n"
+"\n"
+
+#: ldcref.c:226
+msgid "Symbol"
+msgstr "符号"
+
+#: ldcref.c:234
+#, c-format
+msgid "File\n"
+msgstr "文件\n"
+
+#: ldcref.c:238
+#, c-format
+msgid "No symbols\n"
+msgstr "没有符号\n"
+
+#: ldcref.c:359 ldcref.c:478
+#, fuzzy
+msgid "%B%F: could not read symbols; %E\n"
+msgstr "%s：无法读取地址"
+
+#: ldcref.c:363 ldcref.c:482 ldmain.c:1226 ldmain.c:1230
+#, fuzzy
+msgid "%B%F: could not read symbols: %E\n"
+msgstr "%s：无法读取地址"
+
+#: ldcref.c:414
+msgid "%P: symbol `%T' missing from main hash table\n"
+msgstr ""
+
+#: ldcref.c:547 ldcref.c:554 ldmain.c:1273 ldmain.c:1280
+#, fuzzy
+msgid "%B%F: could not read relocs: %E\n"
+msgstr "%s：无法读取地址"
+
+#. We found a reloc for the symbol.  The symbol is defined
+#. in OUTSECNAME.  This reloc is from a section which is
+#. mapped into a section from which references to OUTSECNAME
+#. are prohibited.  We must report an error.
+#: ldcref.c:573
+msgid "%X%C: prohibited cross reference from %s to `%T' in %s\n"
+msgstr ""
+
+#: ldctor.c:84
+msgid "%P%X: Different relocs used in set %s\n"
+msgstr ""
+
+#: ldctor.c:102
+msgid "%P%X: Different object file formats composing set %s\n"
+msgstr ""
+
+#: ldctor.c:281 ldctor.c:295
+#, fuzzy
+msgid "%P%X: %s does not support reloc %s for set %s\n"
+msgstr "ISO C 不支持用 ~ 求共轭复数"
+
+#: ldctor.c:316
+#, fuzzy
+msgid "%P%X: Unsupported size %d for set %s\n"
+msgstr "扩展的寄存器不支持的操作数大小"
+
+#: ldctor.c:337
+#, fuzzy
+msgid ""
+"\n"
+"Set                 Symbol\n"
+"\n"
+msgstr "没有符号"
+
+#: ldemul.c:227
+#, fuzzy, c-format
+msgid "%S SYSLIB ignored\n"
+msgstr "被忽略的方法‘"
+
+#: ldemul.c:233
+#, fuzzy, c-format
+msgid "%S HLL ignored\n"
+msgstr "被忽略的方法‘"
+
+#: ldemul.c:253
+#, fuzzy
+msgid "%P: unrecognised emulation mode: %s\n"
+msgstr "未知的指令模式"
+
+#: ldemul.c:254
+msgid "Supported emulations: "
+msgstr "支持的仿真： "
+
+#: ldemul.c:296
+#, fuzzy, c-format
+msgid "  no emulation specific options.\n"
+msgstr "没有定义选项"
+
+#: ldexp.c:379
+#, c-format
+msgid "%F%S %% by zero\n"
+msgstr "%F%S 对零取模\n"
+
+#: ldexp.c:386
+#, c-format
+msgid "%F%S / by zero\n"
+msgstr "%F%S 被零除\n"
+
+#: ldexp.c:583
+#, c-format
+msgid "%X%S: unresolvable symbol `%s' referenced in expression\n"
+msgstr "%X%S：无法解析的符号‘%s’在表达式中被引用\n"
+
+#: ldexp.c:604
+#, c-format
+msgid "%F%S: undefined symbol `%s' referenced in expression\n"
+msgstr "%F%S：未定义的符号‘%s’在表达式中被引用\n"
+
+#: ldexp.c:665 ldexp.c:678
+#, c-format
+msgid "%F%S: undefined MEMORY region `%s' referenced in expression\n"
+msgstr "%F%S：未定义的 MEMORY 区域‘%s’在表达式中被引用\n"
+
+#: ldexp.c:757
+#, c-format
+msgid "%F%S can not PROVIDE assignment to location counter\n"
+msgstr ""
+
+#: ldexp.c:770
+#, c-format
+msgid "%F%S invalid assignment to location counter\n"
+msgstr ""
+
+#: ldexp.c:774
+#, c-format
+msgid "%F%S assignment to location counter invalid outside of SECTION\n"
+msgstr ""
+
+#: ldexp.c:783
+msgid "%F%S cannot move location counter backwards (from %V to %V)\n"
+msgstr ""
+
+#: ldexp.c:810
+msgid "%P%F:%s: hash creation failed\n"
+msgstr "%P%F:%s：创建散列表失败\n"
+
+#: ldexp.c:1077 ldexp.c:1109
+#, c-format
+msgid "%F%S nonconstant expression for %s\n"
+msgstr ""
+
+#: ldexp.c:1163
+#, fuzzy, c-format
+msgid "%F%S non constant expression for %s\n"
+msgstr "用非常量的数组表达式初始化数组"
+
+#: ldfile.c:139
+#, c-format
+msgid "attempt to open %s failed\n"
+msgstr "试图打开 %s 失败\n"
+
+#: ldfile.c:141
+#, c-format
+msgid "attempt to open %s succeeded\n"
+msgstr "试图打开 %s 成功\n"
+
+#: ldfile.c:147
+#, fuzzy
+msgid "%F%P: invalid BFD target `%s'\n"
+msgstr "无效的目标值！"
+
+#: ldfile.c:255 ldfile.c:282
+#, fuzzy
+msgid "%P: skipping incompatible %s when searching for %s\n"
+msgstr "搜索时总是检查两次"
+
+#: ldfile.c:267
+msgid "%F%P: attempted static link of dynamic object `%s'\n"
+msgstr ""
+
+#: ldfile.c:384
+msgid "%F%P: %s (%s): No such file: %E\n"
+msgstr "%F%P：%s (%s)：没有这个文件：%E\n"
+
+#: ldfile.c:387
+msgid "%F%P: %s: No such file: %E\n"
+msgstr "%F%P：%s：没有这个文件：%E\n"
+
+#: ldfile.c:417
+#, fuzzy
+msgid "%F%P: cannot find %s inside %s\n"
+msgstr "找不到 ‘nm’"
+
+#: ldfile.c:420
+msgid "%F%P: cannot find %s\n"
+msgstr "%F%P：找不到 %s\n"
+
+#: ldfile.c:437 ldfile.c:453
+#, c-format
+msgid "cannot find script file %s\n"
+msgstr "找不到脚本文件 %s\n"
+
+#: ldfile.c:439 ldfile.c:455
+#, c-format
+msgid "opened script file %s\n"
+msgstr "打开脚本文件 %s\n"
+
+#: ldfile.c:499
+msgid "%P%F: cannot open linker script file %s: %E\n"
+msgstr "%P%F：无法打开链接脚本文件 %s：%E\n"
+
+#: ldfile.c:546
+#, fuzzy
+msgid "%P%F: cannot represent machine `%s'\n"
+msgstr "激活自动应答机(&A)"
+
+#: ldlang.c:511
+msgid "%P%F: out of memory during initialization"
+msgstr "%P%F：初始化时内存不足"
+
+#: ldlang.c:551
+#, fuzzy
+msgid "%P:%S: warning: redeclaration of memory region '%s'\n"
+msgstr "警告：正在使用不安全的内存！\n"
+
+#: ldlang.c:557
+msgid "%P:%S: warning: memory region %s not declared\n"
+msgstr "%P：%S：警告：内存区域 %s 未声明\n"
+
+#: ldlang.c:1073
+msgid ""
+"\n"
+"Memory Configuration\n"
+"\n"
+msgstr ""
+"\n"
+"内存配置\n"
+"\n"
+
+#: ldlang.c:1075
+msgid "Name"
+msgstr "名称"
+
+#: ldlang.c:1075
+msgid "Origin"
+msgstr "来源"
+
+#: ldlang.c:1075
+msgid "Length"
+msgstr "长度"
+
+#: ldlang.c:1075
+msgid "Attributes"
+msgstr "属性"
+
+#: ldlang.c:1115
+#, c-format
+msgid ""
+"\n"
+"Linker script and memory map\n"
+"\n"
+msgstr ""
+
+#: ldlang.c:1183
+msgid "%P%F: Illegal use of `%s' section\n"
+msgstr "%P%F：对‘%s’节的非法使用\n"
+
+#: ldlang.c:1193
+msgid "%P%F: output format %s cannot represent section called %s\n"
+msgstr ""
+
+#: ldlang.c:1775
+msgid "%B: file not recognized: %E\n"
+msgstr "%B：无法识别文件：%E\n"
+
+#: ldlang.c:1776
+#, fuzzy
+msgid "%B: matching formats:"
+msgstr "可用格式"
+
+#: ldlang.c:1783
+#, fuzzy
+msgid "%F%B: file not recognized: %E\n"
+msgstr "文件格式无法识别。"
+
+#: ldlang.c:1847
+msgid "%F%B: member %B in archive is not an object\n"
+msgstr ""
+
+#: ldlang.c:1858 ldlang.c:1872
+#, fuzzy
+msgid "%F%B: could not read symbols: %E\n"
+msgstr "%s：无法读取地址"
+
+#: ldlang.c:2127
+msgid "%P: warning: could not find any targets that match endianness requirement\n"
+msgstr ""
+
+#: ldlang.c:2141
+#, fuzzy
+msgid "%P%F: target %s not found\n"
+msgstr "文件未找到‘%s’"
+
+#: ldlang.c:2143
+msgid "%P%F: cannot open output file %s: %E\n"
+msgstr "%P%F：无法打开输出文件 %s：%E\n"
+
+#: ldlang.c:2149
+#, fuzzy
+msgid "%P%F:%s: can not make object file: %E\n"
+msgstr "无法装入 .glade2 文件"
+
+#: ldlang.c:2153
+msgid "%P%F:%s: can not set architecture: %E\n"
+msgstr "%P%F:%s：无法设置架构：%E\n"
+
+#: ldlang.c:2157
+msgid "%P%F: can not create link hash table: %E\n"
+msgstr ""
+
+#: ldlang.c:2301
+msgid "%P%F: bfd_hash_lookup failed creating symbol %s\n"
+msgstr ""
+
+#: ldlang.c:2319
+msgid "%P%F: bfd_hash_allocate failed creating symbol %s\n"
+msgstr ""
+
+#: ldlang.c:2710
+#, fuzzy
+msgid " load address 0x%V"
+msgstr "从地址簿装入"
+
+#: ldlang.c:2874
+#, fuzzy
+msgid "%W (size before relaxing)\n"
+msgstr "启用链接器松弛"
+
+#: ldlang.c:2961
+#, fuzzy, c-format
+msgid "Address of section %s set to "
+msgstr "设定有名节的地址"
+
+#: ldlang.c:3114
+#, fuzzy, c-format
+msgid "Fail with %d\n"
+msgstr "配置为：%s\n"
+
+#: ldlang.c:3351
+#, fuzzy
+msgid "%X%P: section %s [%V -> %V] overlaps section %s [%V -> %V]\n"
+msgstr "节=地址"
+
+#: ldlang.c:3379
+msgid "%X%P: address 0x%v of %B section %s is not within region %s\n"
+msgstr ""
+
+#: ldlang.c:3388
+#, fuzzy
+msgid "%X%P: region %s is full (%B section %s)\n"
+msgstr "保存文章出错“%s”（%s满了？）"
+
+#: ldlang.c:3439
+msgid "%P%X: Internal error on COFF shared library section %s\n"
+msgstr ""
+
+#: ldlang.c:3493
+msgid "%P%F: error: no memory region specified for loadable section `%s'\n"
+msgstr ""
+
+#: ldlang.c:3498
+msgid "%P: warning: no memory region specified for loadable section `%s'\n"
+msgstr ""
+
+#: ldlang.c:3515
+msgid "%P: warning: changing start of section %s by %u bytes\n"
+msgstr ""
+
+#: ldlang.c:3532
+#, c-format
+msgid "%F%S: non constant or forward reference address expression for section %s\n"
+msgstr ""
+
+#: ldlang.c:3703
+#, fuzzy
+msgid "%P%F: can't relax section: %E\n"
+msgstr "未知的节名“%s”"
+
+#: ldlang.c:3960
+#, fuzzy
+msgid "%F%P: invalid data statement\n"
+msgstr "无效的表达式语句"
+
+#: ldlang.c:3999
+#, fuzzy
+msgid "%F%P: invalid reloc statement\n"
+msgstr "无效的表达式语句"
+
+#: ldlang.c:4141
+msgid "%P%F:%s: can't set start address\n"
+msgstr "%P%F:%s：无法设置起始地址\n"
+
+#: ldlang.c:4154 ldlang.c:4173
+msgid "%P%F: can't set start address\n"
+msgstr "%P%F：无法设置起始地址\n"
+
+#: ldlang.c:4166
+msgid "%P: warning: cannot find entry symbol %s; defaulting to %V\n"
+msgstr ""
+
+#: ldlang.c:4178
+msgid "%P: warning: cannot find entry symbol %s; not setting start address\n"
+msgstr ""
+
+#: ldlang.c:4227
+msgid "%P%F: Relocatable linking with relocations from format %s (%B) to format %s (%B) is not supported\n"
+msgstr ""
+
+#: ldlang.c:4237
+msgid "%P: warning: %s architecture of input file `%B' is incompatible with %s output\n"
+msgstr ""
+
+#: ldlang.c:4259
+msgid "%P%X: failed to merge target specific data of file %B\n"
+msgstr ""
+
+#: ldlang.c:4343
+msgid ""
+"\n"
+"Allocating common symbols\n"
+msgstr ""
+"\n"
+"分配公共符号\n"
+
+#: ldlang.c:4344
+msgid ""
+"Common symbol       size              file\n"
+"\n"
+msgstr ""
+"公共符号            大小              文件\n"
+"\n"
+
+#: ldlang.c:4470
+#, fuzzy
+msgid "%P%F: invalid syntax in flags\n"
+msgstr "Comment=语法有错"
+
+#: ldlang.c:4740
+msgid "%P%F: Failed to create hash table\n"
+msgstr "%P%F：无法创建散列表\n"
+
+#: ldlang.c:5057
+#, fuzzy
+msgid "%P%Fmultiple STARTUP files\n"
+msgstr "启动时重新打开文件(&F)"
+
+#: ldlang.c:5105
+msgid "%X%P:%S: section has both a load address and a load region\n"
+msgstr ""
+
+#: ldlang.c:5345
+#, fuzzy
+msgid "%F%P: bfd_record_phdr failed: %E\n"
+msgstr "%s：记录归零时失败：%s\n"
+
+#: ldlang.c:5365
+msgid "%X%P: section `%s' assigned to non-existent phdr `%s'\n"
+msgstr ""
+
+#: ldlang.c:5751
+#, fuzzy
+msgid "%X%P: unknown language `%s' in version information\n"
+msgstr "%%:version-compare 中有未知的操作数‘%s’"
+
+#: ldlang.c:5893
+msgid "%X%P: anonymous version tag cannot be combined with other version tags\n"
+msgstr ""
+
+#: ldlang.c:5902
+msgid "%X%P: duplicate version tag `%s'\n"
+msgstr "%X%P：重复的版本标记‘%s’\n"
+
+#: ldlang.c:5922 ldlang.c:5931 ldlang.c:5948 ldlang.c:5958
+msgid "%X%P: duplicate expression `%s' in version information\n"
+msgstr ""
+
+#: ldlang.c:5998
+#, fuzzy
+msgid "%X%P: unable to find version dependency `%s'\n"
+msgstr "无法打开动态依赖项‘%s’"
+
+#: ldlang.c:6020
+msgid "%X%P: unable to read .exports section contents\n"
+msgstr ""
+
+#: ldmain.c:229
+msgid "%X%P: can't set BFD default target to `%s': %E\n"
+msgstr ""
+
+#: ldmain.c:341
+msgid "%P%F: --relax and -r may not be used together\n"
+msgstr "%P%F：-relax 和 -r 不能一起使用\n"
+
+#: ldmain.c:343
+msgid "%P%F: -r and -shared may not be used together\n"
+msgstr "%P%F：-r 和 -shared 不能一起使用\n"
+
+#: ldmain.c:347
+msgid "%P%F: -static and -shared may not be used together\n"
+msgstr "%P%F：-static 和 -shared 不能一起使用\n"
+
+#: ldmain.c:352
+msgid "%P%F: -F may not be used without -shared\n"
+msgstr "%P%F：-F 必须与 -shared 一起作用\n"
+
+#: ldmain.c:354
+msgid "%P%F: -f may not be used without -shared\n"
+msgstr "%P%F：-f 必须与 -shared 一起作用\n"
+
+#: ldmain.c:396
+msgid "using external linker script:"
+msgstr "使用外部链接脚本："
+
+#: ldmain.c:398
+msgid "using internal linker script:"
+msgstr "使用内部链接脚本："
+
+#: ldmain.c:432
+msgid "%P%F: no input files\n"
+msgstr "%P%F：没有输入文件\n"
+
+#: ldmain.c:436
+msgid "%P: mode %s\n"
+msgstr "%P：模式 %s\n"
+
+#: ldmain.c:452
+#, fuzzy
+msgid "%P%F: cannot open map file %s: %E\n"
+msgstr "%s：无法打开图文件\n"
+
+#: ldmain.c:482
+msgid "%P: link errors found, deleting executable `%s'\n"
+msgstr ""
+
+#: ldmain.c:491
+#, fuzzy
+msgid "%F%B: final close failed: %E\n"
+msgstr "无法关闭文件“%s”：%s"
+
+#: ldmain.c:517
+#, fuzzy
+msgid "%X%P: unable to open for source of copy `%s'\n"
+msgstr "无法确定 %1 的源类型。"
+
+#: ldmain.c:520
+#, fuzzy
+msgid "%X%P: unable to open for destination of copy `%s'\n"
+msgstr "<qt>无法打开 <b>%1</b> 读取。</qt>"
+
+#: ldmain.c:527
+msgid "%P: Error writing file `%s'\n"
+msgstr "%P：写入文件‘%s’时出错\n"
+
+#: ldmain.c:532 pe-dll.c:1447
+#, c-format
+msgid "%P: Error closing file `%s'\n"
+msgstr "%P：关闭文件‘%s’时出错\n"
+
+#: ldmain.c:548
+#, c-format
+msgid "%s: total time in link: %ld.%06ld\n"
+msgstr ""
+
+#: ldmain.c:551
+#, fuzzy, c-format
+msgid "%s: data size %ld\n"
+msgstr "读取数据大小"
+
+#: ldmain.c:634
+#, fuzzy
+msgid "%P%F: missing argument to -m\n"
+msgstr "‘%s’缺少实参\n"
+
+#: ldmain.c:780 ldmain.c:798 ldmain.c:828
+msgid "%P%F: bfd_hash_table_init failed: %E\n"
+msgstr ""
+
+#: ldmain.c:784 ldmain.c:802
+#, fuzzy
+msgid "%P%F: bfd_hash_lookup failed: %E\n"
+msgstr "主机寻找失败：%s：没有找到主机"
+
+#: ldmain.c:816
+msgid "%X%P: error: duplicate retain-symbols-file\n"
+msgstr ""
+
+#: ldmain.c:858
+msgid "%P%F: bfd_hash_lookup for insertion failed: %E\n"
+msgstr ""
+
+#: ldmain.c:863
+msgid "%P: `-retain-symbols-file' overrides `-s' and `-S'\n"
+msgstr "%P：‘-retain-symbols-file’覆盖了‘-s’和‘-S’\n"
+
+#: ldmain.c:938
+#, c-format
+msgid ""
+"Archive member included because of file (symbol)\n"
+"\n"
+msgstr ""
+
+#: ldmain.c:1008
+#, fuzzy
+msgid "%X%C: multiple definition of `%T'\n"
+msgstr "%q#T 多次定义"
+
+#: ldmain.c:1011
+msgid "%D: first defined here\n"
+msgstr "%D：第一次在此定义\n"
+
+#: ldmain.c:1015
+msgid "%P: Disabling relaxation: it will not work with multiple definitions\n"
+msgstr ""
+
+#: ldmain.c:1045
+#, fuzzy
+msgid "%B: warning: definition of `%T' overriding common\n"
+msgstr "%s：%d：警告：%s 的定义未被转化\n"
+
+#: ldmain.c:1048
+#, fuzzy
+msgid "%B: warning: common is here\n"
+msgstr "%J被隐藏的声明在这里"
+
+#: ldmain.c:1055
+msgid "%B: warning: common of `%T' overridden by definition\n"
+msgstr ""
+
+#: ldmain.c:1058
+msgid "%B: warning: defined here\n"
+msgstr "%B：警告：在此定义\n"
+
+#: ldmain.c:1065
+msgid "%B: warning: common of `%T' overridden by larger common\n"
+msgstr ""
+
+#: ldmain.c:1068
+msgid "%B: warning: larger common is here\n"
+msgstr ""
+
+#: ldmain.c:1072
+msgid "%B: warning: common of `%T' overriding smaller common\n"
+msgstr ""
+
+#: ldmain.c:1075
+msgid "%B: warning: smaller common is here\n"
+msgstr ""
+
+#: ldmain.c:1079
+#, fuzzy
+msgid "%B: warning: multiple common of `%T'\n"
+msgstr ""
+"\n"
+"分配公共符号\n"
+
+#: ldmain.c:1081
+msgid "%B: warning: previous common is here\n"
+msgstr ""
+
+#: ldmain.c:1101 ldmain.c:1139
+#, fuzzy
+msgid "%P: warning: global constructor %s used\n"
+msgstr "寄存器用作两个全局寄存器变量"
+
+#: ldmain.c:1149
+msgid "%P%F: BFD backend error: BFD_RELOC_CTOR unsupported\n"
+msgstr ""
+
+#. We found a reloc for the symbol we are looking for.
+#: ldmain.c:1203 ldmain.c:1205 ldmain.c:1207 ldmain.c:1245 ldmain.c:1293
+msgid "warning: "
+msgstr "警告："
+
+#: ldmain.c:1327
+msgid "%F%P: bfd_hash_table_init failed: %E\n"
+msgstr ""
+
+#: ldmain.c:1334
+#, fuzzy
+msgid "%F%P: bfd_hash_lookup failed: %E\n"
+msgstr "主机寻找失败：%s：没有找到主机"
+
+#: ldmain.c:1355
+msgid "%X%C: undefined reference to `%T'\n"
+msgstr "%X%C：对‘%T’未定义的引用\n"
+
+#: ldmain.c:1358
+#, fuzzy
+msgid "%C: warning: undefined reference to `%T'\n"
+msgstr "%B：警告：对‘%T’未定义的引用\n"
+
+#: ldmain.c:1364
+msgid "%X%D: more undefined references to `%T' follow\n"
+msgstr ""
+
+#: ldmain.c:1367
+msgid "%D: warning: more undefined references to `%T' follow\n"
+msgstr ""
+
+#: ldmain.c:1378
+msgid "%X%B: undefined reference to `%T'\n"
+msgstr "%X%B：对‘%T’未定义的引用\n"
+
+#: ldmain.c:1381
+msgid "%B: warning: undefined reference to `%T'\n"
+msgstr "%B：警告：对‘%T’未定义的引用\n"
+
+#: ldmain.c:1387
+msgid "%X%B: more undefined references to `%T' follow\n"
+msgstr ""
+
+#: ldmain.c:1390
+msgid "%B: warning: more undefined references to `%T' follow\n"
+msgstr ""
+
+#: ldmain.c:1425 ldmain.c:1478 ldmain.c:1496
+msgid "%P%X: generated"
+msgstr "%P%X：已生成"
+
+#: ldmain.c:1432
+msgid " additional relocation overflows omitted from the output\n"
+msgstr ""
+
+#: ldmain.c:1445
+msgid " relocation truncated to fit: %s against undefined symbol `%T'"
+msgstr ""
+
+#: ldmain.c:1450
+msgid " relocation truncated to fit: %s against symbol `%T' defined in %A section in %B"
+msgstr ""
+
+#: ldmain.c:1460
+msgid " relocation truncated to fit: %s against `%T'"
+msgstr ""
+
+#: ldmain.c:1481
+#, c-format
+msgid "dangerous relocation: %s\n"
+msgstr "危险的重定位：%s\n"
+
+#: ldmain.c:1499
+msgid " reloc refers to symbol `%T' which is not being output\n"
+msgstr ""
+
+#: ldmisc.c:149
+#, c-format
+msgid "no symbol"
+msgstr "没有符号"
+
+#: ldmisc.c:240
+#, c-format
+msgid "built in linker script:%u"
+msgstr "内建链接脚本：%u"
+
+#: ldmisc.c:289 ldmisc.c:293
+msgid "%B%F: could not read symbols\n"
+msgstr "%B%F：无法读取符号\n"
+
+#: ldmisc.c:329
+msgid "%B: In function `%T':\n"
+msgstr "%B：在函数‘%T’中：\n"
+
+#: ldmisc.c:480
+msgid "%F%P: internal error %s %d\n"
+msgstr "%F%P：内部错误 %s %d\n"
+
+#: ldmisc.c:526
+msgid "%P: internal error: aborting at %s line %d in %s\n"
+msgstr ""
+
+#: ldmisc.c:529
+msgid "%P: internal error: aborting at %s line %d\n"
+msgstr "%P：内部错误：于 %s 行 %d 放弃\n"
+
+#: ldmisc.c:531
+msgid "%P%F: please report this bug\n"
+msgstr "%P%F：请报告此错误\n"
+
+#. Output for noisy == 2 is intended to follow the GNU standards.
+#: ldver.c:38
+#, c-format
+msgid "GNU ld version %s\n"
+msgstr "GNU ld 版本 %s\n"
+
+#: ldver.c:42
+#, c-format
+msgid "Copyright 2005 Free Software Foundation, Inc.\n"
+msgstr "版权所有 2005 自由软件基金会\n"
+
+#: ldver.c:43
+#, c-format
+msgid ""
+"This program is free software; you may redistribute it under the terms of\n"
+"the GNU General Public License.  This program has absolutely no warranty.\n"
+msgstr ""
+"本程序是自由软件；您可以在遵循 GNU 通用公共许可证的前提下分发。本程序不含任何\n"
+"担保。\n"
+
+#: ldver.c:52
+#, c-format
+msgid "  Supported emulations:\n"
+msgstr "  支持的仿真：\n"
+
+#: ldwrite.c:55 ldwrite.c:191
+msgid "%P%F: bfd_new_link_order failed\n"
+msgstr ""
+
+#: ldwrite.c:341
+msgid "%F%P: cannot create split section name for %s\n"
+msgstr ""
+
+#: ldwrite.c:353
+#, fuzzy
+msgid "%F%P: clone section failed: %E\n"
+msgstr "verify_ssa 失败"
+
+#: ldwrite.c:391
+#, fuzzy, c-format
+msgid "%8x something else\n"
+msgstr "#else 没有匹配的 #if"
+
+#: ldwrite.c:561
+#, fuzzy
+msgid "%F%P: final link failed: %E\n"
+msgstr "无法将“%s”链接到“%s”：%s"
+
+#: lexsup.c:195 lexsup.c:327
+msgid "KEYWORD"
+msgstr "关键字"
+
+#: lexsup.c:195
+msgid "Shared library control for HP/UX compatibility"
+msgstr ""
+
+#: lexsup.c:198
+msgid "ARCH"
+msgstr "架构"
+
+#: lexsup.c:198
+msgid "Set architecture"
+msgstr "设定 CPU 架构"
+
+#: lexsup.c:200 lexsup.c:421
+msgid "TARGET"
+msgstr "目标"
+
+#: lexsup.c:200
+msgid "Specify target for following input files"
+msgstr "指定随后的输入文件的目标"
+
+#: lexsup.c:203 lexsup.c:252 lexsup.c:264 lexsup.c:277 lexsup.c:380
+#: lexsup.c:433 lexsup.c:490
+msgid "FILE"
+msgstr "文件"
+
+#: lexsup.c:203
+msgid "Read MRI format linker script"
+msgstr "读取 MRI 格式的链接脚本"
+
+#: lexsup.c:205
+msgid "Force common symbols to be defined"
+msgstr "强制公共符号必须定义"
+
+#: lexsup.c:209 lexsup.c:475 lexsup.c:477 lexsup.c:479
+msgid "ADDRESS"
+msgstr "地址"
+
+#: lexsup.c:209
+msgid "Set start address"
+msgstr "设定起始地址"
+
+#: lexsup.c:211
+msgid "Export all dynamic symbols"
+msgstr "导出所有动态符号"
+
+#: lexsup.c:213
+msgid "Link big-endian objects"
+msgstr "链接高位字节在前的目标文件"
+
+#: lexsup.c:215
+msgid "Link little-endian objects"
+msgstr "链接低位字节在前的目标文件"
+
+#: lexsup.c:217 lexsup.c:220
+msgid "SHLIB"
+msgstr "共享库"
+
+#: lexsup.c:217
+msgid "Auxiliary filter for shared object symbol table"
+msgstr "指定为某共享对象符号表的辅助过滤器"
+
+#: lexsup.c:220
+msgid "Filter for shared object symbol table"
+msgstr "指定为某共享对象符号表的过滤器"
+
+#: lexsup.c:223
+msgid "Ignored"
+msgstr "忽略"
+
+#: lexsup.c:225
+msgid "SIZE"
+msgstr "大小"
+
+#: lexsup.c:225
+msgid "Small data size (if no size, same as --shared)"
+msgstr "小数据的大小(如果未给出大小，与 --shared 相同)"
+
+#: lexsup.c:228
+msgid "FILENAME"
+msgstr "文件名"
+
+#: lexsup.c:228
+msgid "Set internal name of shared library"
+msgstr "设定共享库的内部名称"
+
+#: lexsup.c:230
+msgid "PROGRAM"
+msgstr "程序"
+
+#: lexsup.c:230
+msgid "Set PROGRAM as the dynamic linker to use"
+msgstr "将“程序”设为要使用的动态链接器"
+
+#: lexsup.c:233
+msgid "LIBNAME"
+msgstr "库名"
+
+#: lexsup.c:233
+msgid "Search for library LIBNAME"
+msgstr "搜索库“库名”"
+
+#: lexsup.c:235
+msgid "DIRECTORY"
+msgstr "目录"
+
+#: lexsup.c:235
+msgid "Add DIRECTORY to library search path"
+msgstr "将“目录”添加到库搜索路径中"
+
+#: lexsup.c:238
+#, fuzzy
+msgid "Override the default sysroot location"
+msgstr "替代默认的主目录。"
+
+#: lexsup.c:240
+msgid "EMULATION"
+msgstr "仿真"
+
+#: lexsup.c:240
+msgid "Set emulation"
+msgstr "设定仿真"
+
+#: lexsup.c:242
+msgid "Print map file on standard output"
+msgstr "在标准输出上打印链接图文件"
+
+#: lexsup.c:244
+msgid "Do not page align data"
+msgstr "不将数据对齐至页边界"
+
+#: lexsup.c:246
+msgid "Do not page align data, do not make text readonly"
+msgstr "不将数据对齐至页边界，不将 text 节只读"
+
+#: lexsup.c:249
+msgid "Page align data, make text readonly"
+msgstr "将数据对齐至页边界，令 text 节只读"
+
+#: lexsup.c:252
+msgid "Set output file name"
+msgstr "设定输出文件名"
+
+#: lexsup.c:254
+msgid "Optimize output file"
+msgstr "优化输出文件"
+
+#: lexsup.c:256
+msgid "Ignored for SVR4 compatibility"
+msgstr "为 SVR4 兼容性所忽略"
+
+#: lexsup.c:260
+msgid "Generate relocatable output"
+msgstr "生成可重新定位的输出"
+
+#: lexsup.c:264
+msgid "Just link symbols (if directory, same as --rpath)"
+msgstr "仅链接符号 (如果是目标，与 --rpath 相同)"
+
+#: lexsup.c:267
+msgid "Strip all symbols"
+msgstr "剔除所有符号信息"
+
+#: lexsup.c:269
+msgid "Strip debugging symbols"
+msgstr "剔除调试符号信息"
+
+#: lexsup.c:271
+msgid "Strip symbols in discarded sections"
+msgstr "剔除被丢弃的节中的符号"
+
+#: lexsup.c:273
+msgid "Do not strip symbols in discarded sections"
+msgstr "不剔除被丢弃的节中的符号"
+
+#: lexsup.c:275
+msgid "Trace file opens"
+msgstr "跟踪文件打开操作"
+
+#: lexsup.c:277
+msgid "Read linker script"
+msgstr "读取链接脚本"
+
+#: lexsup.c:279 lexsup.c:297 lexsup.c:363 lexsup.c:378 lexsup.c:468
+#: lexsup.c:493 lexsup.c:520
+msgid "SYMBOL"
+msgstr "符号"
+
+#: lexsup.c:279
+msgid "Start with undefined reference to SYMBOL"
+msgstr ""
+
+#: lexsup.c:282
+msgid "[=SECTION]"
+msgstr "[=节]"
+
+#: lexsup.c:283
+msgid "Don't merge input [SECTION | orphan] sections"
+msgstr "不合并名为“节”的输入节或孤立节"
+
+#: lexsup.c:285
+msgid "Build global constructor/destructor tables"
+msgstr "生成全局构造/析构函数表"
+
+#: lexsup.c:287
+msgid "Print version information"
+msgstr "显示版本信息"
+
+#: lexsup.c:289
+msgid "Print version and emulation information"
+msgstr "显示版本和仿真信息"
+
+#: lexsup.c:291
+msgid "Discard all local symbols"
+msgstr "丢弃所有局部符号"
+
+#: lexsup.c:293
+msgid "Discard temporary local symbols (default)"
+msgstr "丢弃临时局部符号(默认)"
+
+#: lexsup.c:295
+msgid "Don't discard any local symbols"
+msgstr "不丢弃任何局部符号"
+
+#: lexsup.c:297
+#, fuzzy
+msgid "Trace mentions of SYMBOL"
+msgstr "符号‘%s’未知"
+
+#: lexsup.c:299 lexsup.c:435 lexsup.c:437
+msgid "PATH"
+msgstr "路径"
+
+#: lexsup.c:299
+msgid "Default search path for Solaris compatibility"
+msgstr ""
+
+#: lexsup.c:302
+msgid "Start a group"
+msgstr "开始一个组"
+
+#: lexsup.c:304
+msgid "End a group"
+msgstr "结束一个组"
+
+#: lexsup.c:308
+msgid "Accept input files whose architecture cannot be determined"
+msgstr "接受无法决定其架构的输入文件"
+
+#: lexsup.c:312
+msgid "Reject input files whose architecture is unknown"
+msgstr "拒绝架构不明的输入文件"
+
+#: lexsup.c:315
+msgid ""
+"Set DT_NEEDED tags for DT_NEEDED entries in\n"
+"\t\t\t\tfollowing dynamic libs"
+msgstr ""
+
+#: lexsup.c:318
+msgid ""
+"Do not set DT_NEEDED tags for DT_NEEDED entries\n"
+"\t\t\t\tin following dynamic libs"
+msgstr ""
+
+#: lexsup.c:321
+msgid "Only set DT_NEEDED for following dynamic libs if used"
+msgstr ""
+
+#: lexsup.c:324
+msgid "Always set DT_NEEDED for following dynamic libs"
+msgstr ""
+
+#: lexsup.c:327
+msgid "Ignored for SunOS compatibility"
+msgstr "为 SunOS 兼容性所忽略"
+
+#: lexsup.c:329
+msgid "Link against shared libraries"
+msgstr "链接到共享库"
+
+#: lexsup.c:335
+msgid "Do not link against shared libraries"
+msgstr "不链接到共享库"
+
+#: lexsup.c:343
+msgid "Bind global references locally"
+msgstr ""
+
+#: lexsup.c:345
+msgid "Check section addresses for overlaps (default)"
+msgstr ""
+
+#: lexsup.c:348
+msgid "Do not check section addresses for overlaps"
+msgstr ""
+
+#: lexsup.c:351
+msgid "Output cross reference table"
+msgstr "输出交叉引用表"
+
+#: lexsup.c:353
+msgid "SYMBOL=EXPRESSION"
+msgstr "符号=表达式"
+
+#: lexsup.c:353
+msgid "Define a symbol"
+msgstr "定义一个符号"
+
+#: lexsup.c:355
+msgid "[=STYLE]"
+msgstr "[=风格]"
+
+#: lexsup.c:355
+msgid "Demangle symbol names [using STYLE]"
+msgstr "解修饰符号名[使用“风格”]"
+
+#: lexsup.c:358
+#, fuzzy
+msgid "Generate embedded relocs"
+msgstr "格式字符串嵌有 %<\\0%>"
+
+#: lexsup.c:360
+msgid "Treat warnings as errors"
+msgstr "将警告当作错误"
+
+#: lexsup.c:363
+msgid "Call SYMBOL at unload-time"
+msgstr ""
+
+#: lexsup.c:365
+msgid "Force generation of file with .exe suffix"
+msgstr "强制为生成的文件添加 .exe 后缀"
+
+#: lexsup.c:367
+msgid "Remove unused sections (on some targets)"
+msgstr "删除未使用的节(在某些目标上)"
+
+#: lexsup.c:370
+msgid "Don't remove unused sections (default)"
+msgstr "不删除未使用的节(默认)"
+
+#: lexsup.c:373
+msgid "Set default hash table size close to <NUMBER>"
+msgstr "初始的散列表大小设定接近“数”"
+
+#: lexsup.c:376
+msgid "Print option help"
+msgstr "显示选项帮助"
+
+#: lexsup.c:378
+msgid "Call SYMBOL at load-time"
+msgstr ""
+
+#: lexsup.c:380
+msgid "Write a map file"
+msgstr "写入一个链接图文件"
+
+#: lexsup.c:382
+msgid "Do not define Common storage"
+msgstr ""
+
+#: lexsup.c:384
+msgid "Do not demangle symbol names"
+msgstr ""
+
+#: lexsup.c:386
+msgid "Use less memory and more disk I/O"
+msgstr "更多地使用磁盘 I/O 而不是内存"
+
+#: lexsup.c:388
+msgid "Do not allow unresolved references in object files"
+msgstr "不允许在目标文件中存在无法解析的引用"
+
+#: lexsup.c:391
+msgid "Allow unresolved references in shared libaries"
+msgstr "允许在目标文件中存在无法解析的引用"
+
+#: lexsup.c:395
+msgid "Do not allow unresolved references in shared libs"
+msgstr "不允许在共享库中存在无法解析的引用"
+
+#: lexsup.c:399
+msgid "Allow multiple definitions"
+msgstr "允许多个定义"
+
+#: lexsup.c:401
+msgid "Disallow undefined version"
+msgstr "不允许未定义的版本"
+
+#: lexsup.c:403
+msgid "Create default symbol version"
+msgstr "生成默认的符号版本"
+
+#: lexsup.c:406
+msgid "Create default symbol version for imported symbols"
+msgstr "为导入符号生成默认的符号版本"
+
+#: lexsup.c:409
+msgid "Don't warn about mismatched input files"
+msgstr "不为不匹配的输入文件发出警告"
+
+#: lexsup.c:411
+msgid "Turn off --whole-archive"
+msgstr "关闭 --whole-archive"
+
+#: lexsup.c:413
+msgid "Create an output file even if errors occur"
+msgstr ""
+
+#: lexsup.c:418
+msgid ""
+"Only use library directories specified on\n"
+"\t\t\t\tthe command line"
+msgstr "只使用命令行中给出的库目录"
+
+#: lexsup.c:421
+msgid "Specify target of output file"
+msgstr "指定输出文件的目标"
+
+#: lexsup.c:424
+msgid "Ignored for Linux compatibility"
+msgstr "为 Linux 兼容性所忽略"
+
+#: lexsup.c:427
+msgid "Reduce memory overheads, possibly taking much longer"
+msgstr ""
+
+#: lexsup.c:430
+msgid "Relax branches on certain targets"
+msgstr "为某些目标优化分支"
+
+#: lexsup.c:433
+msgid "Keep only symbols listed in FILE"
+msgstr "只保留在“文件”中列出的符号"
+
+#: lexsup.c:435
+msgid "Set runtime shared library search path"
+msgstr "设定运行时共享库的搜索路径"
+
+#: lexsup.c:437
+msgid "Set link time shared library search path"
+msgstr "设定链接时共享库的搜索路径"
+
+#: lexsup.c:440
+msgid "Create a shared library"
+msgstr "创建一个共享库"
+
+#: lexsup.c:444
+msgid "Create a position independent executable"
+msgstr "生成一个位置无关的可执行文件"
+
+#: lexsup.c:448
+#, fuzzy
+msgid "Sort common symbols by size"
+msgstr "按文件大小排序文件列表"
+
+#: lexsup.c:452
+msgid "name|alignment"
+msgstr "名称|对齐"
+
+#: lexsup.c:453
+msgid "Sort sections by name or maximum alignment"
+msgstr ""
+
+#: lexsup.c:455
+msgid "COUNT"
+msgstr "计数"
+
+#: lexsup.c:455
+msgid "How many tags to reserve in .dynamic section"
+msgstr ""
+
+#: lexsup.c:458
+msgid "[=SIZE]"
+msgstr "[=大小]"
+
+#: lexsup.c:458
+msgid "Split output sections every SIZE octets"
+msgstr ""
+
+#: lexsup.c:461
+msgid "[=COUNT]"
+msgstr "[=计数]"
+
+#: lexsup.c:461
+msgid "Split output sections every COUNT relocs"
+msgstr ""
+
+#: lexsup.c:464
+msgid "Print memory usage statistics"
+msgstr "打印内存使用统计"
+
+#: lexsup.c:466
+msgid "Display target specific options"
+msgstr "显示目标相关的选项"
+
+#: lexsup.c:468
+#, fuzzy
+msgid "Do task level linking"
+msgstr "任务下移(_W)"
+
+#: lexsup.c:470
+msgid "Use same format as native linker"
+msgstr ""
+
+#: lexsup.c:472
+msgid "SECTION=ADDRESS"
+msgstr "节=地址"
+
+#: lexsup.c:472
+msgid "Set address of named section"
+msgstr "设定有名节的地址"
+
+#: lexsup.c:475
+msgid "Set address of .bss section"
+msgstr "设定 .bss 节的地址"
+
+#: lexsup.c:477
+msgid "Set address of .data section"
+msgstr "设定 .data 节的地址"
+
+#: lexsup.c:479
+msgid "Set address of .text section"
+msgstr "设定 .text 节的地址"
+
+#: lexsup.c:482
+msgid ""
+"How to handle unresolved symbols.  <method> is:\n"
+"\t\t\t\tignore-all, report-all, ignore-in-object-files,\n"
+"\t\t\t\tignore-in-shared-libs"
+msgstr ""
+"如何处理不能解析的符号。方法可以是：\n"
+"\t\t\t\tignore-all，report-all，ignore-in-object-files，\n"
+"\t\t\t\tignore-in-shared-libs"
+
+#: lexsup.c:486
+msgid "Output lots of information during link"
+msgstr "链接过程中输出大量相关信息"
+
+#: lexsup.c:490
+msgid "Read version information script"
+msgstr "读取版本信息脚本"
+
+#: lexsup.c:493
+msgid ""
+"Take export symbols list from .exports, using\n"
+"\t\t\t\tSYMBOL as the version."
+msgstr ""
+
+#: lexsup.c:496
+msgid "Warn about duplicate common symbols"
+msgstr "为重复的公共符号给出警告"
+
+#: lexsup.c:498
+msgid "Warn if global constructors/destructors are seen"
+msgstr ""
+
+#: lexsup.c:501
+msgid "Warn if the multiple GP values are used"
+msgstr ""
+
+#: lexsup.c:503
+msgid "Warn only once per undefined symbol"
+msgstr "为每一个未定义的符号只警告一次"
+
+#: lexsup.c:505
+msgid "Warn if start of section changes due to alignment"
+msgstr ""
+
+#: lexsup.c:508
+msgid "Warn if shared object has DT_TEXTREL"
+msgstr ""
+
+#: lexsup.c:512
+msgid "Report unresolved symbols as warnings"
+msgstr "将不能解析的符号视作警告"
+
+#: lexsup.c:515
+msgid "Report unresolved symbols as errors"
+msgstr "将不能解析的符号视作错误"
+
+#: lexsup.c:517
+msgid "Include all objects from following archives"
+msgstr ""
+
+#: lexsup.c:520
+msgid "Use wrapper functions for SYMBOL"
+msgstr ""
+
+#: lexsup.c:667
+msgid "%P: unrecognized option '%s'\n"
+msgstr "%P：无法识别的选项‘%s’\n"
+
+#: lexsup.c:669
+msgid "%P%F: use the --help option for usage information\n"
+msgstr "%P%F：使用 --help 选项以获取使用信息\n"
+
+#: lexsup.c:687
+msgid "%P%F: unrecognized -a option `%s'\n"
+msgstr "%P%F：无法识别的 -a 选项‘%s’\n"
+
+#: lexsup.c:700
+msgid "%P%F: unrecognized -assert option `%s'\n"
+msgstr "%P%F：无法识别的 -assert 选项‘%s’\n"
+
+#: lexsup.c:743
+#, fuzzy
+msgid "%F%P: unknown demangling style `%s'"
+msgstr "未知的解修饰风格‘%s’"
+
+#: lexsup.c:805
+msgid "%P%F: invalid number `%s'\n"
+msgstr "%P%F：无效的数‘%s’\n"
+
+#: lexsup.c:897
+msgid "%P%F: bad --unresolved-symbols option: %s\n"
+msgstr "%P%F：--unresolved-symbols 选项无效：%s\n"
+
+#. This can happen if the user put "-rpath,a" on the command
+#. line.  (Or something similar.  The comma is important).
+#. Getopt becomes confused and thinks that this is a -r option
+#. but it cannot parse the text after the -r so it refuses to
+#. increment the optind counter.  Detect this case and issue
+#. an error message here.  We cannot just make this a warning,
+#. increment optind, and continue because getopt is too confused
+#. and will seg-fault the next time around.
+#: lexsup.c:968
+msgid "%P%F: bad -rpath option\n"
+msgstr "%P%F：错误的 -rpath 选项\n"
+
+#: lexsup.c:1080
+msgid "%P%F: -shared not supported\n"
+msgstr "%P%F：不支持 -shared\n"
+
+#: lexsup.c:1089
+msgid "%P%F: -pie not supported\n"
+msgstr "%P%F：不支持 -pie\n"
+
+#: lexsup.c:1099
+msgid "name"
+msgstr "名称"
+
+#: lexsup.c:1101
+msgid "alignment"
+msgstr "对齐"
+
+#: lexsup.c:1104
+#, fuzzy
+msgid "%P%F: invalid section sorting option: %s\n"
+msgstr "无效的选项参数 %qs"
+
+#: lexsup.c:1130
+msgid "%P%F: invalid argument to option \"--section-start\"\n"
+msgstr "%P%F：给予选项“--section-start”的参数无效\n"
+
+#: lexsup.c:1137
+msgid "%P%F: missing argument(s) to option \"--section-start\"\n"
+msgstr "%P%F：选项“--section-start”缺少参数\n"
+
+#: lexsup.c:1311
+msgid "%P%F: may not nest groups (--help for usage)\n"
+msgstr ""
+
+#: lexsup.c:1318
+msgid "%P%F: group ended before it began (--help for usage)\n"
+msgstr ""
+
+#: lexsup.c:1346
+msgid "%P%X: --hash-size needs a numeric argument\n"
+msgstr "%P%X：--hash-size 需要一个数字作为参数\n"
+
+#: lexsup.c:1397 lexsup.c:1410
+msgid "%P%F: invalid hex number `%s'\n"
+msgstr "%P%F：无效的十六进制数‘%s’\n"
+
+#: lexsup.c:1445
+#, c-format
+msgid "Usage: %s [options] file...\n"
+msgstr "用法：%s [选项] 文件...\n"
+
+#: lexsup.c:1447
+#, c-format
+msgid "Options:\n"
+msgstr "选项：\n"
+
+#. Note: Various tools (such as libtool) depend upon the
+#. format of the listings below - do not change them.
+#: lexsup.c:1530
+#, c-format
+msgid "%s: supported targets:"
+msgstr "%s：支持的目标："
+
+#: lexsup.c:1538
+#, c-format
+msgid "%s: supported emulations: "
+msgstr "%s：支持的仿真："
+
+#: lexsup.c:1543
+#, c-format
+msgid "%s: emulation specific options:\n"
+msgstr "%s：仿真特定选项：\n"
+
+#: lexsup.c:1547
+#, c-format
+msgid "Report bugs to %s\n"
+msgstr "向 %s 报告程序缺陷\n"
+
+#: mri.c:291
+msgid "%P%F: unknown format type %s\n"
+msgstr "%P%F：未知的格式类型 %s\n"
+
+#: pe-dll.c:303
+#, c-format
+msgid "%XUnsupported PEI architecture: %s\n"
+msgstr "%X不支持的 PEI 架构：%s\n"
+
+#: pe-dll.c:652
+#, c-format
+msgid "%XError, duplicate EXPORT with ordinals: %s (%d vs %d)\n"
+msgstr ""
+
+#: pe-dll.c:659
+#, c-format
+msgid "Warning, duplicate EXPORT: %s\n"
+msgstr "警告：重复的 EXPORT：%s\n"
+
+#: pe-dll.c:725
+#, c-format
+msgid "%XCannot export %s: symbol not defined\n"
+msgstr "%X不能导出 %s：符号未定义\n"
+
+#: pe-dll.c:731
+#, c-format
+msgid "%XCannot export %s: symbol wrong type (%d vs %d)\n"
+msgstr ""
+
+#: pe-dll.c:738
+#, c-format
+msgid "%XCannot export %s: symbol not found\n"
+msgstr "%X不能导出 %s：找不到符号\n"
+
+#: pe-dll.c:850
+#, c-format
+msgid "%XError, ordinal used twice: %d (%s vs %s)\n"
+msgstr ""
+
+#: pe-dll.c:1172
+#, c-format
+msgid "%XError: %d-bit reloc in dll\n"
+msgstr ""
+
+#: pe-dll.c:1300
+#, c-format
+msgid "%s: Can't open output def file %s\n"
+msgstr "%s：无法打开输出 def 文件 %s\n"
+
+#: pe-dll.c:1443
+#, c-format
+msgid "; no contents available\n"
+msgstr "；没有可用的内容\n"
+
+#: pe-dll.c:2205
+msgid "%C: variable '%T' can't be auto-imported. Please read the documentation for ld's --enable-auto-import for details.\n"
+msgstr "%C：变量‘%T’不能被自动导入。请阅读与 ld --enable-auto-import 相关的文档以获取更详细的信息。\n"
+
+#: pe-dll.c:2235
+#, c-format
+msgid "%XCan't open .lib file: %s\n"
+msgstr "%X无法打开 .lib 文件：%s\n"
+
+#: pe-dll.c:2240
+#, c-format
+msgid "Creating library file: %s\n"
+msgstr "正在创建库文件：%s\n"

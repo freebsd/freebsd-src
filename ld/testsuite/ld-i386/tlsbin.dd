@@ -25,14 +25,14 @@ Disassembly of section .text:
  8049004:	50[ 	]+push   %eax
  8049005:	e8 00 00 00 00[ 	]+call   804900a <fn2\+0xa>
  804900a:	5b[ 	]+pop    %ebx
- 804900b:	81 c3 f6 10 00 00[ 	]+add    \$0x10f6,%ebx
+ 804900b:	81 c3 1a 11 00 00[ 	]+add    \$0x111a,%ebx
  8049011:	90[ 	]+nop *
  8049012:	90[ 	]+nop *
  8049013:	90[ 	]+nop *
  8049014:	90[ 	]+nop *
 #  GD -> IE because variable is not defined in executable
  8049015:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
- 804901b:	2b 83 2c 00 00 00[ 	]+sub    0x2c\(%ebx\),%eax
+ 804901b:	2b 83 f8 ff ff ff[ 	]+sub    0xfffffff8\(%ebx\),%eax
 #				->R_386_TLS_TPOFF32	sG1
  8049021:	90[ 	]+nop *
  8049022:	90[ 	]+nop *
@@ -41,7 +41,7 @@ Disassembly of section .text:
 #  GD -> IE because variable is not defined in executable where
 #  the variable is referenced through @gottpoff too
  8049025:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
- 804902b:	2b 83 1c 00 00 00[ 	]+sub    0x1c\(%ebx\),%eax
+ 804902b:	2b 83 e8 ff ff ff[ 	]+sub    0xffffffe8\(%ebx\),%eax
 #				->R_386_TLS_TPOFF32	sG2
  8049031:	90[ 	]+nop *
  8049032:	90[ 	]+nop *
@@ -50,7 +50,7 @@ Disassembly of section .text:
 #  GD -> IE because variable is not defined in executable where
 #  the variable is referenced through @gotntpoff too
  8049035:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
- 804903b:	2b 83 10 00 00 00[ 	]+sub    0x10\(%ebx\),%eax
+ 804903b:	2b 83 dc ff ff ff[ 	]+sub    0xffffffdc\(%ebx\),%eax
 #				->R_386_TLS_TPOFF	sG3
  8049041:	90[ 	]+nop *
  8049042:	90[ 	]+nop *
@@ -59,7 +59,7 @@ Disassembly of section .text:
 #  GD -> IE because variable is not defined in executable where
 #  the variable is referenced through @gottpoff and @gotntpoff too
  8049045:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
- 804904b:	2b 83 20 00 00 00[ 	]+sub    0x20\(%ebx\),%eax
+ 804904b:	2b 83 ec ff ff ff[ 	]+sub    0xffffffec\(%ebx\),%eax
 #				->R_386_TLS_TPOFF32	sG4
  8049051:	90[ 	]+nop *
  8049052:	90[ 	]+nop *
@@ -67,7 +67,7 @@ Disassembly of section .text:
  8049054:	90[ 	]+nop *
 #  GD -> LE with global variable defined in executable
  8049055:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
- 804905b:	81 e8 a0 00 00 00[ 	]+sub    \$0xa0,%eax
+ 804905b:	81 e8 00 10 00 00[ 	]+sub    \$0x1000,%eax
 #							sg1
  8049061:	90[ 	]+nop *
  8049062:	90[ 	]+nop *
@@ -75,7 +75,7 @@ Disassembly of section .text:
  8049064:	90[ 	]+nop *
 #  GD -> LE with local variable defined in executable
  8049065:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
- 804906b:	81 e8 80 00 00 00[ 	]+sub    \$0x80,%eax
+ 804906b:	81 e8 e0 0f 00 00[ 	]+sub    \$0xfe0,%eax
 #							sl1
  8049071:	90[ 	]+nop *
  8049072:	90[ 	]+nop *
@@ -83,7 +83,7 @@ Disassembly of section .text:
  8049074:	90[ 	]+nop *
 #  GD -> LE with hidden variable defined in executable
  8049075:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
- 804907b:	81 e8 60 00 00 00[ 	]+sub    \$0x60,%eax
+ 804907b:	81 e8 c0 0f 00 00[ 	]+sub    \$0xfc0,%eax
 #							sh1
  8049081:	90[ 	]+nop *
  8049082:	90[ 	]+nop *
@@ -95,11 +95,11 @@ Disassembly of section .text:
  804908c:	8d 74 26 00[ 	]+lea    0x0\(%esi\),%esi
  8049090:	90[ 	]+nop *
  8049091:	90[ 	]+nop *
- 8049092:	8d 90 80 ff ff ff[ 	]+lea    0xffffff80\(%eax\),%edx
+ 8049092:	8d 90 20 f0 ff ff[ 	]+lea    0xfffff020\(%eax\),%edx
 #							sl1
  8049098:	90[ 	]+nop *
  8049099:	90[ 	]+nop *
- 804909a:	8d 88 84 ff ff ff[ 	]+lea    0xffffff84\(%eax\),%ecx
+ 804909a:	8d 88 24 f0 ff ff[ 	]+lea    0xfffff024\(%eax\),%ecx
 #							sl2
  80490a0:	90[ 	]+nop *
  80490a1:	90[ 	]+nop *
@@ -111,21 +111,21 @@ Disassembly of section .text:
  80490ab:	8d 74 26 00[ 	]+lea    0x0\(%esi\),%esi
  80490af:	90[ 	]+nop *
  80490b0:	90[ 	]+nop *
- 80490b1:	8d 90 a0 ff ff ff[ 	]+lea    0xffffffa0\(%eax\),%edx
+ 80490b1:	8d 90 40 f0 ff ff[ 	]+lea    0xfffff040\(%eax\),%edx
 #							sh1
  80490b7:	90[ 	]+nop *
  80490b8:	90[ 	]+nop *
- 80490b9:	8d 88 a4 ff ff ff[ 	]+lea    0xffffffa4\(%eax\),%ecx
+ 80490b9:	8d 88 44 f0 ff ff[ 	]+lea    0xfffff044\(%eax\),%ecx
 #							sh2
  80490bf:	90[ 	]+nop *
  80490c0:	90[ 	]+nop *
  80490c1:	90[ 	]+nop *
  80490c2:	90[ 	]+nop *
 #  @gottpoff IE against global var
- 80490c3:	65 8b 0d 00 00 00 00 	mov    %gs:0x0,%ecx
+ 80490c3:	65 8b 0d 00 00 00 00[ 	]+mov    %gs:0x0,%ecx
  80490ca:	90[ 	]+nop *
  80490cb:	90[ 	]+nop *
- 80490cc:	2b 8b 1c 00 00 00[ 	]+sub    0x1c\(%ebx\),%ecx
+ 80490cc:	2b 8b e8 ff ff ff[ 	]+sub    0xffffffe8\(%ebx\),%ecx
 #				->R_386_TLS_TPOFF32	sG2
  80490d2:	90[ 	]+nop *
  80490d3:	90[ 	]+nop *
@@ -135,17 +135,17 @@ Disassembly of section .text:
  80490d6:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
  80490dc:	90[ 	]+nop *
  80490dd:	90[ 	]+nop *
- 80490de:	2b 83 20 00 00 00[ 	]+sub    0x20\(%ebx\),%eax
+ 80490de:	2b 83 ec ff ff ff[ 	]+sub    0xffffffec\(%ebx\),%eax
 #				->R_386_TLS_TPOFF32	sG4
  80490e4:	90[ 	]+nop *
  80490e5:	90[ 	]+nop *
  80490e6:	90[ 	]+nop *
  80490e7:	90[ 	]+nop *
 #  @gotntpoff IE against global var
- 80490e8:	65 8b 0d 00 00 00 00 	mov    %gs:0x0,%ecx
+ 80490e8:	65 8b 0d 00 00 00 00[ 	]+mov    %gs:0x0,%ecx
  80490ef:	90[ 	]+nop *
  80490f0:	90[ 	]+nop *
- 80490f1:	03 8b 10 00 00 00[ 	]+add    0x10\(%ebx\),%ecx
+ 80490f1:	03 8b dc ff ff ff[ 	]+add    0xffffffdc\(%ebx\),%ecx
 #				->R_386_TLS_TPOFF	sG3
  80490f7:	90[ 	]+nop *
  80490f8:	90[ 	]+nop *
@@ -155,37 +155,37 @@ Disassembly of section .text:
  80490fb:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
  8049101:	90[ 	]+nop *
  8049102:	90[ 	]+nop *
- 8049103:	03 83 24 00 00 00[ 	]+add    0x24\(%ebx\),%eax
+ 8049103:	03 83 f0 ff ff ff[ 	]+add    0xfffffff0\(%ebx\),%eax
 #				->R_386_TLS_TPOFF	sG4
  8049109:	90[ 	]+nop *
  804910a:	90[ 	]+nop *
  804910b:	90[ 	]+nop *
  804910c:	90[ 	]+nop *
 #  @gottpoff IE -> LE against global var defined in exec
- 804910d:	65 8b 0d 00 00 00 00 	mov    %gs:0x0,%ecx
+ 804910d:	65 8b 0d 00 00 00 00[ 	]+mov    %gs:0x0,%ecx
  8049114:	90[ 	]+nop *
  8049115:	90[ 	]+nop *
- 8049116:	81 e9 a0 00 00 00[ 	]+sub    \$0xa0,%ecx
+ 8049116:	81 e9 00 10 00 00[ 	]+sub    \$0x1000,%ecx
 #							sg1
  804911c:	90[ 	]+nop *
  804911d:	90[ 	]+nop *
  804911e:	90[ 	]+nop *
  804911f:	90[ 	]+nop *
 #  @gotntpoff IE -> LE against local var
- 8049120:	65 8b 0d 00 00 00 00 	mov    %gs:0x0,%ecx
+ 8049120:	65 8b 0d 00 00 00 00[ 	]+mov    %gs:0x0,%ecx
  8049127:	90[ 	]+nop *
  8049128:	90[ 	]+nop *
- 8049129:	81 c0 80 ff ff ff[ 	]+add    \$0xffffff80,%eax
+ 8049129:	81 c0 20 f0 ff ff[ 	]+add    \$0xfffff020,%eax
 #							sl1
  804912f:	90[ 	]+nop *
  8049130:	90[ 	]+nop *
  8049131:	90[ 	]+nop *
  8049132:	90[ 	]+nop *
 #  @gottpoff IE -> LE against hidden var
- 8049133:	65 8b 0d 00 00 00 00 	mov    %gs:0x0,%ecx
+ 8049133:	65 8b 0d 00 00 00 00[ 	]+mov    %gs:0x0,%ecx
  804913a:	90[ 	]+nop *
  804913b:	90[ 	]+nop *
- 804913c:	81 e9 60 00 00 00[ 	]+sub    \$0x60,%ecx
+ 804913c:	81 e9 c0 0f 00 00[ 	]+sub    \$0xfc0,%ecx
 #							sh1
  8049142:	90[ 	]+nop *
  8049143:	90[ 	]+nop *
@@ -193,7 +193,7 @@ Disassembly of section .text:
  8049145:	90[ 	]+nop *
 #  Direct access through %gs
 #  @gotntpoff IE against global var
- 8049146:	8b 8b 14 00 00 00[ 	]+mov    0x14\(%ebx\),%ecx
+ 8049146:	8b 8b e0 ff ff ff[ 	]+mov    0xffffffe0\(%ebx\),%ecx
 #				->R_386_TLS_TPOFF	sG5
  804914c:	90[ 	]+nop *
  804914d:	90[ 	]+nop *
@@ -203,7 +203,7 @@ Disassembly of section .text:
  8049153:	90[ 	]+nop *
  8049154:	90[ 	]+nop *
 #  @gotntpoff IE->LE against local var
- 8049155:	c7 c0 90 ff ff ff[ 	]+mov    \$0xffffff90,%eax
+ 8049155:	c7 c0 30 f0 ff ff[ 	]+mov    \$0xfffff030,%eax
 #							sl5
  804915b:	90[ 	]+nop *
  804915c:	90[ 	]+nop *
@@ -213,7 +213,7 @@ Disassembly of section .text:
  8049162:	90[ 	]+nop *
  8049163:	90[ 	]+nop *
 #  @gotntpoff IE->LE against hidden var
- 8049164:	c7 c2 b0 ff ff ff[ 	]+mov    \$0xffffffb0,%edx
+ 8049164:	c7 c2 50 f0 ff ff[ 	]+mov    \$0xfffff050,%edx
 #							sh5
  804916a:	90[ 	]+nop *
  804916b:	90[ 	]+nop *
@@ -226,21 +226,21 @@ Disassembly of section .text:
  8049176:	c9[ 	]+leave *
  8049177:	c3[ 	]+ret *
 
-08049178 <_start>:
+0+8049178 <_start>:
  8049178:	55[ 	]+push   %ebp
  8049179:	89 e5[ 	]+mov    %esp,%ebp
  804917b:	e8 00 00 00 00[ 	]+call   8049180 <_start\+0x8>
  8049180:	59[ 	]+pop    %ecx
- 8049181:	81 c1 80 0f 00 00[ 	]+add    \$0xf80,%ecx
+ 8049181:	81 c1 a4 0f 00 00[ 	]+add    \$0xfa4,%ecx
  8049187:	90[ 	]+nop *
  8049188:	90[ 	]+nop *
  8049189:	90[ 	]+nop *
  804918a:	90[ 	]+nop *
 #  @gottpoff IE against global var
- 804918b:	65 8b 15 00 00 00 00 	mov    %gs:0x0,%edx
+ 804918b:	65 8b 15 00 00 00 00[ 	]+mov    %gs:0x0,%edx
  8049192:	90[ 	]+nop *
  8049193:	90[ 	]+nop *
- 8049194:	2b 91 28 00 00 00[ 	]+sub    0x28\(%ecx\),%edx
+ 8049194:	2b 91 f4 ff ff ff[ 	]+sub    0xfffffff4\(%ecx\),%edx
 #				->R_386_TLS_TPOFF32	sG6
  804919a:	90[ 	]+nop *
  804919b:	90[ 	]+nop *
@@ -250,14 +250,14 @@ Disassembly of section .text:
  804919e:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
  80491a4:	90[ 	]+nop *
  80491a5:	90[ 	]+nop *
- 80491a6:	03 05 18 a1 04 08[ 	]+add    0x804a118,%eax
+ 80491a6:	03 05 08 a1 04 08[ 	]+add    0x804a108,%eax
 #				->R_386_TLS_TPOFF	sG7
  80491ac:	90[ 	]+nop *
  80491ad:	90[ 	]+nop *
  80491ae:	90[ 	]+nop *
  80491af:	90[ 	]+nop *
 #  @indntpoff direct %gs access IE against global var
- 80491b0:	8b 15 30 a1 04 08[ 	]+mov    0x804a130,%edx
+ 80491b0:	8b 15 20 a1 04 08[ 	]+mov    0x804a120,%edx
 #				->R_386_TLS_TPOFF	sG8
  80491b6:	90[ 	]+nop *
  80491b7:	90[ 	]+nop *
@@ -267,10 +267,10 @@ Disassembly of section .text:
  80491bd:	90[ 	]+nop *
  80491be:	90[ 	]+nop *
 #  @gottpoff IE -> LE against global var defined in exec
- 80491bf:	65 8b 15 00 00 00 00 	mov    %gs:0x0,%edx
+ 80491bf:	65 8b 15 00 00 00 00[ 	]+mov    %gs:0x0,%edx
  80491c6:	90[ 	]+nop *
  80491c7:	90[ 	]+nop *
- 80491c8:	81 ea 2c 00 00 00[ 	]+sub    \$0x2c,%edx
+ 80491c8:	81 ea 8c 0f 00 00[ 	]+sub    \$0xf8c,%edx
 #							bg6
  80491ce:	90[ 	]+nop *
  80491cf:	90[ 	]+nop *
@@ -280,7 +280,7 @@ Disassembly of section .text:
  80491d2:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
  80491d8:	90[ 	]+nop *
  80491d9:	90[ 	]+nop *
- 80491da:	81 c0 d8 ff ff ff[ 	]+add    \$0xffffffd8,%eax
+ 80491da:	81 c0 78 f0 ff ff[ 	]+add    \$0xfffff078,%eax
 #							bg7
  80491e0:	90[ 	]+nop *
  80491e1:	90[ 	]+nop *
@@ -288,7 +288,7 @@ Disassembly of section .text:
  80491e3:	90[ 	]+nop *
 #  @indntpoff direct %gs access IE -> LE against global var defined
 #  in exec
- 80491e4:	c7 c2 dc ff ff ff[ 	]+mov    \$0xffffffdc,%edx
+ 80491e4:	c7 c2 7c f0 ff ff[ 	]+mov    \$0xfffff07c,%edx
 #							bg8
  80491ea:	90[ 	]+nop *
  80491eb:	90[ 	]+nop *
@@ -298,10 +298,10 @@ Disassembly of section .text:
  80491f1:	90[ 	]+nop *
  80491f2:	90[ 	]+nop *
 #  @gottpoff IE -> LE against local var
- 80491f3:	65 8b 15 00 00 00 00 	mov    %gs:0x0,%edx
+ 80491f3:	65 8b 15 00 00 00 00[ 	]+mov    %gs:0x0,%edx
  80491fa:	90[ 	]+nop *
  80491fb:	90[ 	]+nop *
- 80491fc:	81 ea 0c 00 00 00[ 	]+sub    \$0xc,%edx
+ 80491fc:	81 ea 6c 0f 00 00[ 	]+sub    \$0xf6c,%edx
 #							bl6
  8049202:	90[ 	]+nop *
  8049203:	90[ 	]+nop *
@@ -311,14 +311,14 @@ Disassembly of section .text:
  8049206:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
  804920c:	90[ 	]+nop *
  804920d:	90[ 	]+nop *
- 804920e:	81 c0 f8 ff ff ff[ 	]+add    \$0xfffffff8,%eax
+ 804920e:	81 c0 98 f0 ff ff[ 	]+add    \$0xfffff098,%eax
 #							bl7
  8049214:	90[ 	]+nop *
  8049215:	90[ 	]+nop *
  8049216:	90[ 	]+nop *
  8049217:	90[ 	]+nop *
 #  @indntpoff direct %gs access IE -> LE against local var
- 8049218:	c7 c2 fc ff ff ff[ 	]+mov    \$0xfffffffc,%edx
+ 8049218:	c7 c2 9c f0 ff ff[ 	]+mov    \$0xfffff09c,%edx
 #							bl8
  804921e:	90[ 	]+nop *
  804921f:	90[ 	]+nop *
@@ -328,10 +328,10 @@ Disassembly of section .text:
  8049225:	90[ 	]+nop *
  8049226:	90[ 	]+nop *
 #  @gottpoff IE -> LE against hidden but not local var
- 8049227:	65 8b 15 00 00 00 00 	mov    %gs:0x0,%edx
+ 8049227:	65 8b 15 00 00 00 00[ 	]+mov    %gs:0x0,%edx
  804922e:	90[ 	]+nop *
  804922f:	90[ 	]+nop *
- 8049230:	81 ea 4c 00 00 00[ 	]+sub    \$0x4c,%edx
+ 8049230:	81 ea ac 0f 00 00[ 	]+sub    \$0xfac,%edx
 #							sh6
  8049236:	90[ 	]+nop *
  8049237:	90[ 	]+nop *
@@ -341,7 +341,7 @@ Disassembly of section .text:
  804923a:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
  8049240:	90[ 	]+nop *
  8049241:	90[ 	]+nop *
- 8049242:	81 c0 b8 ff ff ff[ 	]+add    \$0xffffffb8,%eax
+ 8049242:	81 c0 58 f0 ff ff[ 	]+add    \$0xfffff058,%eax
 #							sh7
  8049248:	90[ 	]+nop *
  8049249:	90[ 	]+nop *
@@ -349,7 +349,7 @@ Disassembly of section .text:
  804924b:	90[ 	]+nop *
 #  @indntpoff direct %gs access IE -> LE against hidden but not
 #  local var
- 804924c:	c7 c2 bc ff ff ff[ 	]+mov    \$0xffffffbc,%edx
+ 804924c:	c7 c2 5c f0 ff ff[ 	]+mov    \$0xfffff05c,%edx
 #							sh8
  8049252:	90[ 	]+nop *
  8049253:	90[ 	]+nop *
@@ -359,7 +359,7 @@ Disassembly of section .text:
  8049259:	90[ 	]+nop *
  804925a:	90[ 	]+nop *
 #  LE @tpoff, global var defined in exec
- 804925b:	ba a0 00 00 00[ 	]+mov    \$0xa0,%edx
+ 804925b:	ba 00 10 00 00[ 	]+mov    \$0x1000,%edx
 #							sg1
  8049260:	90[ 	]+nop *
  8049261:	90[ 	]+nop *
@@ -372,11 +372,11 @@ Disassembly of section .text:
  804926e:	90[ 	]+nop *
  804926f:	90[ 	]+nop *
 #  LE @tpoff, local var
- 8049270:	b8 1f 00 00 00[ 	]+mov    \$0x1f,%eax
+ 8049270:	b8 7f 0f 00 00[ 	]+mov    \$0xf7f,%eax
 #							bl1+1
  8049275:	90[ 	]+nop *
  8049276:	90[ 	]+nop *
- 8049277:	65 8b 15 00 00 00 00 	mov    %gs:0x0,%edx
+ 8049277:	65 8b 15 00 00 00 00[ 	]+mov    %gs:0x0,%edx
  804927e:	90[ 	]+nop *
  804927f:	90[ 	]+nop *
  8049280:	29 c2[ 	]+sub    %eax,%edx
@@ -385,11 +385,11 @@ Disassembly of section .text:
  8049284:	90[ 	]+nop *
  8049285:	90[ 	]+nop *
 #  LE @tpoff, hidden var defined in exec
- 8049286:	b8 5d 00 00 00[ 	]+mov    \$0x5d,%eax
+ 8049286:	b8 bd 0f 00 00[ 	]+mov    \$0xfbd,%eax
 #							sh1+3
  804928b:	90[ 	]+nop *
  804928c:	90[ 	]+nop *
- 804928d:	65 8b 15 00 00 00 00 	mov    %gs:0x0,%edx
+ 804928d:	65 8b 15 00 00 00 00[ 	]+mov    %gs:0x0,%edx
  8049294:	90[ 	]+nop *
  8049295:	90[ 	]+nop *
  8049296:	29 c2[ 	]+sub    %eax,%edx
@@ -401,18 +401,18 @@ Disassembly of section .text:
  804929c:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
  80492a2:	90[ 	]+nop *
  80492a3:	90[ 	]+nop *
- 80492a4:	8d 90 64 ff ff ff[ 	]+lea    0xffffff64\(%eax\),%edx
+ 80492a4:	8d 90 04 f0 ff ff[ 	]+lea    0xfffff004\(%eax\),%edx
 #							sg2
  80492aa:	90[ 	]+nop *
  80492ab:	90[ 	]+nop *
  80492ac:	90[ 	]+nop *
  80492ad:	90[ 	]+nop *
 #  LE @ntpoff, local var, non-canonical sequence
- 80492ae:	b8 e6 ff ff ff[ 	]+mov    \$0xffffffe6,%eax
+ 80492ae:	b8 86 f0 ff ff[ 	]+mov    \$0xfffff086,%eax
 #							bl2+2
  80492b3:	90[ 	]+nop *
  80492b4:	90[ 	]+nop *
- 80492b5:	65 8b 15 00 00 00 00 	mov    %gs:0x0,%edx
+ 80492b5:	65 8b 15 00 00 00 00[ 	]+mov    %gs:0x0,%edx
  80492bc:	90[ 	]+nop *
  80492bd:	90[ 	]+nop *
  80492be:	01 c2[ 	]+add    %eax,%edx
@@ -421,31 +421,31 @@ Disassembly of section .text:
  80492c2:	90[ 	]+nop *
  80492c3:	90[ 	]+nop *
 #  LE @ntpoff, hidden var defined in exec, non-canonical sequence
- 80492c4:	65 8b 15 00 00 00 00 	mov    %gs:0x0,%edx
+ 80492c4:	65 8b 15 00 00 00 00[ 	]+mov    %gs:0x0,%edx
  80492cb:	90[ 	]+nop *
  80492cc:	90[ 	]+nop *
- 80492cd:	81 c2 a5 ff ff ff[ 	]+add    \$0xffffffa5,%edx
+ 80492cd:	81 c2 45 f0 ff ff[ 	]+add    \$0xfffff045,%edx
 #							sh2+1
  80492d3:	90[ 	]+nop *
  80492d4:	90[ 	]+nop *
  80492d5:	90[ 	]+nop *
  80492d6:	90[ 	]+nop *
 #  LE @ntpoff, global var defined in exec
- 80492d7:	65 a1 68 ff ff ff[ 	]+mov    %gs:0xffffff68,%eax
+ 80492d7:	65 a1 08 f0 ff ff[ 	]+mov    %gs:0xfffff008,%eax
 #							sg3
  80492dd:	90[ 	]+nop *
  80492de:	90[ 	]+nop *
  80492df:	90[ 	]+nop *
  80492e0:	90[ 	]+nop *
 #  LE @ntpoff, local var
- 80492e1:	65 8b 15 eb ff ff ff 	mov    %gs:0xffffffeb,%edx
+ 80492e1:	65 8b 15 8b f0 ff ff[ 	]+mov    %gs:0xfffff08b,%edx
 #							bl3+3
  80492e8:	90[ 	]+nop *
  80492e9:	90[ 	]+nop *
  80492ea:	90[ 	]+nop *
  80492eb:	90[ 	]+nop *
 #  LE @ntpoff, hidden var defined in exec
- 80492ec:	65 8b 15 a9 ff ff ff 	mov    %gs:0xffffffa9,%edx
+ 80492ec:	65 8b 15 49 f0 ff ff[ 	]+mov    %gs:0xfffff049,%edx
 #							sh3+1
  80492f3:	90[ 	]+nop *
  80492f4:	90[ 	]+nop *

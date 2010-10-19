@@ -1,5 +1,5 @@
 #source: expdyn1.s
-#as: --no-underscore
+#as: --no-underscore --em=criself
 #ld: -m crislinux -export-dynamic tmpdir/libdso-1.so
 #objdump: -T
 
@@ -9,6 +9,6 @@
 
 DYNAMIC SYMBOL TABLE:
 #...
-00080206 g    DF .text	00000002 expfn
-00082220 g    DO .data	00000000 expobj
+00080... g    DF .text	0+2 expfn
+00082... g    DO .data	0+4 expobj
 #pass

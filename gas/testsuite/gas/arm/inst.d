@@ -1,6 +1,8 @@
 #objdump: -dr --prefix-addresses --show-raw-insn
 #name: ARM basic instructions
 #as: -mcpu=arm7m -EL
+# WinCE has its own version of this test.
+#skip: *-wince-*
 
 # Test the standard ARM instructions:
 
@@ -157,15 +159,15 @@ Disassembly of section .text:
 0+24c <[^>]*> e9020018 ?	stmdb	r2, {r3, r4}
 0+250 <[^>]*> e8830003 ?	stmia	r3, {r0, r1}
 0+254 <[^>]*> e9c40300 ?	stmib	r4, {r8, r9}\^
-0+258 <[^>]*> ef123456 ?	swi	0x00123456
-0+25c <[^>]*> 2f000033 ?	swics	0x00000033
-0+260 <[^>]*> ebfffffe ?	bl	0+260 <[^>]*>
+0+258 <[^>]*> ef123456 ?	(swi|svc)	0x00123456
+0+25c <[^>]*> 2f000033 ?	(swi|svc)cs	0x00000033
+0+260 <[^>]*> eb...... ?	bl	0[0123456789abcdef]+ <[^>]*>
 [		]*260:.*_wombat.*
-0+264 <[^>]*> 5bfffffe ?	blpl	0+264 <[^>]*>
-[		]*264:.*ARM.*hohum
-0+268 <[^>]*> eafffffe ?	b	0+268 <[^>]*>
+0+264 <[^>]*> 5b...... ?	blpl	0[0123456789abcdef]+ <[^>]*>
+[		]*264:.*ARM.*hohum.*
+0+268 <[^>]*> ea...... ?	b	0[0123456789abcdef]+ <[^>]*>
 [		]*268:.*_wibble.*
-0+26c <[^>]*> dafffffe ?	ble	0+26c <[^>]*>
+0+26c <[^>]*> da...... ?	ble	0[0123456789abcdef]+ <[^>]*>
 [		]*26c:.*testerfunc.*
 0+270 <[^>]*> e1a01102 ?	mov	r1, r2, lsl #2
 0+274 <[^>]*> e1a01002 ?	mov	r1, r2

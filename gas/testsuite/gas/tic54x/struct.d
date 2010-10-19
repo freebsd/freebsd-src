@@ -5,7 +5,7 @@
 
 Disassembly of section .text:
 
-00000000 <.text>:
+0+000 <.text>:
    0:	0001.*
    1:	0002.*
    2:	8002.*

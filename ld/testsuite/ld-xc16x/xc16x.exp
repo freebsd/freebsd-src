@@ -1,0 +1,65 @@
+# Expect script for ld-xstormy16 tests
+#   Copyright (C) 2003 Free Software Foundation
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+#
+
+# Test xc16x linking of pc-relative relocs.  This tests the assembler and
+# tools like objdump as well as the linker.
+
+if {!([istarget "xc16x*-*-*"]) } {
+    return
+}
+
+# Set up a list as described in ld-lib.exp
+
+set xc16x_tests {
+    {   
+	"xc16x pc-relative relocs linker test"
+	""
+	""
+	{ "pcreloc.s" }
+	{ {objdump -Dz pcreloc.d} } 	
+	"pcreloc"
+    }
+}
+
+set xc16xabs_tests {
+    {   
+	"xc16x absolute relative address linker test"
+	""
+	""
+	{ "absrel.s" }
+	{ {objdump -Dz absrel.d} } 	
+	"absrel"
+    }
+}
+
+set xc16xoffset_tests {
+    {   
+	"xc16x offset linker test"
+	""
+	""
+	{ "offset.s" }
+	{ {objdump -Dz offset.d} } 	
+	"offset"
+    }
+}
+
+ run_ld_link_tests $xc16x_tests
+ run_ld_link_tests $xc16xabs_tests
+ run_ld_link_tests $xc16xoffset_tests
+
+

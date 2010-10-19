@@ -54,7 +54,7 @@ iwmmxt:
 	waddBUS		wr0,  wr2,  wr4
 	waddbssal	wr6,  wr8,  wr10
 	waddH		wr12, wr14, wr15
-	WADDHUSNV	wr13, wr12, wr11
+	WADDHUSLE	wr13, wr12, wr11
 	WADDHSSeq	wr10, wr9,  wr8
 	WADDWne		wr7,  wr6, wr5
 	waddwus		wr4,  wr3, wr2
@@ -88,7 +88,7 @@ iwmmxt:
 	wldrb		wr1, [r0, #36]
 	wldrheq		wr2, [r1, #24]!
 	wldrwne		wr3, [r2], #16
-	wldrdvs		wr4, [r3, #8]
+	wldrdvs		wr4, [r3, #-332]
 	wldrw		wcssf, [r1, #20]!
 	
 	wmacu		wr4, wr7, wr9
@@ -104,7 +104,7 @@ iwmmxt:
 	wmaxuhpl	wr3, wr4, wr5
 	wmaxshmi	wr3, wr4, wr5
 	wmaxuwge	wr3, wr4, wr5
-	wmaxswnv	wr3, wr4, wr5
+	wmaxswle	wr3, wr4, wr5
 
 	wminubul	wr4, wr12, wr10
 	wminsb		wr4, wr12, wr10
@@ -139,7 +139,7 @@ iwmmxt:
 	wsadb		wr2, wr0, wr10
 	wsadhal		wr2, wr0, wr10
 	wsadbz		wr2, wr0, wr10
-	wsadhznv	wr2, wr0, wr10
+	wsadhzle	wr2, wr0, wr10
 
 	wshufheq	wr4, wr9, #251
 
@@ -164,11 +164,11 @@ iwmmxt:
 	wsrlwgmi	wr1, wr5, wcgr0
 	wsrldg		wr1, wr5, wcgr1
 
-	wstrb		wr1, [r1, #4]
-	wstrh		wr1, [r1, #4]!
+	wstrb		wr1, [r1, #0xFF]
+	wstrh		wr1, [r1, #-0xFF]!
 	wstrw		wr1, [r1], #4
-	wstrd		wr1, [r1, #4]
-	wstrw		wcasf, [r1], #4
+	wstrd		wr1, [r1, #0x3FC]
+	wstrw		wcasf, [r1], #300
 
 	wsubbusul	wr1, wr3, wr14
 	wsubhus		wr1, wr3, wr14
@@ -202,3 +202,8 @@ iwmmxt:
 	wxorne		wr3, wr4, wr5
 
 	wzeroge		wr7
+
+	@ a.out-required section size padding
+	nop
+	nop
+	nop

@@ -1,5 +1,5 @@
 /* tc-tic4x.c -- Assemble for the Texas Instruments TMS320C[34]x.
-   Copyright (C) 1997,1998, 2002, 2003 Free Software Foundation.
+   Copyright (C) 1997,1998, 2002, 2003, 2005 Free Software Foundation.
 
    Contributed by Michael P. Hayes (m.hayes@elec.canterbury.ac.nz)
 
@@ -17,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330, 
-   Boston, MA 02111-1307, USA.  */
+   the Free Software Foundation, 51 Franklin Street - Fifth Floor, 
+   Boston, MA 02110-1301, USA.  */
 /*
   TODOs:
   ------
@@ -157,7 +157,7 @@ static void tic4x_insert_sym
 static char *tic4x_expression
   PARAMS ((char *, expressionS *));
 static char *tic4x_expression_abs
-  PARAMS ((char *, int *));
+  PARAMS ((char *, offsetT *));
 static void tic4x_emit_char
   PARAMS ((char, int));
 static void tic4x_seg_alloc
@@ -257,7 +257,6 @@ const pseudo_typeS
 
 int md_short_jump_size = 4;
 int md_long_jump_size = 4;
-const int md_reloc_size = RELSZ;	/* Coff headers.  */
 
 /* This array holds the chars that always start a comment.  If the
    pre-processor is disabled, these aren't very useful.  */
@@ -323,7 +322,7 @@ tic4x_gen_to_words (flonum, words, precision)
   unsigned int rbit;            /* Round bit. */
   int shift;			/* Shift count.  */
 
-  /* NOTE: Svein Seldal <Svein.Seldal@solidas.com>
+  /* NOTE: Svein Seldal <Svein@dev.seldal.com>
      The code in this function is altered slightly to support floats
      with 31-bits mantissas, thus the documentation below may be a
      little bit inaccurate.
@@ -708,7 +707,7 @@ tic4x_insert_reg (regname, regnum)
   symbol_table_insert (symbol_new (regname, reg_section, (valueT) regnum,
 				   &zero_address_frag));
   for (i = 0; regname[i]; i++)
-    buf[i] = islower (regname[i]) ? TOUPPER (regname[i]) : regname[i];
+    buf[i] = ISLOWER (regname[i]) ? TOUPPER (regname[i]) : regname[i];
   buf[i] = '\0';
 
   symbol_table_insert (symbol_new (buf, reg_section, (valueT) regnum,
@@ -747,7 +746,7 @@ tic4x_expression (str, exp)
 static char *
 tic4x_expression_abs (str, value)
      char *str;
-     int *value;
+     offsetT *value;
 {
   char *s;
   char *t;
@@ -843,7 +842,7 @@ tic4x_bss (x)
   char c;
   char *name;
   char *p;
-  int size;
+  offsetT size;
   segT current_seg;
   subsegT current_subseg;
   symbolS *symbolP;
@@ -864,7 +863,7 @@ tic4x_bss (x)
     tic4x_expression_abs (++input_line_pointer, &size);
   if (size < 0)
     {
-      as_bad (".bss size %d < 0!", size);
+      as_bad (".bss size %ld < 0!", (long) size);
       return;
     }
   subseg_set (bss_section, 0);
@@ -1024,7 +1023,7 @@ tic4x_eval (x)
      int x ATTRIBUTE_UNUSED;
 {
   char c;
-  int value;
+  offsetT value;
   char *name;
 
   SKIP_WHITESPACE ();
@@ -1060,7 +1059,7 @@ tic4x_sect (x)
   char *subsection_name;
   char *name;
   segT seg;
-  int num;
+  offsetT num;
 
   SKIP_WHITESPACE ();
   if (*input_line_pointer == '"')
@@ -1145,6 +1144,7 @@ tic4x_set (x)
 	  ignore_rest_of_line ();
 	  return;
 	}
+      ++input_line_pointer;
       symbolP = symbol_find_or_make (name);
     }
   else
@@ -1163,7 +1163,7 @@ tic4x_usect (x)
   char *name;
   char *section_name;
   segT seg;
-  int size, alignment_flag;
+  offsetT size, alignment_flag;
   segT current_seg;
   subsegT current_subseg;
 
@@ -1226,15 +1226,15 @@ static void
 tic4x_version (x)
      int x ATTRIBUTE_UNUSED;
 {
-  unsigned int temp;
+  offsetT temp;
 
   input_line_pointer =
     tic4x_expression_abs (input_line_pointer, &temp);
   if (!IS_CPU_TIC3X (temp) && !IS_CPU_TIC4X (temp))
-    as_bad ("This assembler does not support processor generation %d",
-	    temp);
+    as_bad ("This assembler does not support processor generation %ld",
+	    (long) temp);
 
-  if (tic4x_cpu && temp != tic4x_cpu)
+  if (tic4x_cpu && temp != (offsetT) tic4x_cpu)
     as_warn ("Changing processor generation on fly not supported...");
   tic4x_cpu = temp;
   demand_empty_rest_of_line ();
@@ -2675,7 +2675,7 @@ md_atof (type, litP, sizeP)
   int ieee;
   LITTLENUM_TYPE words[MAX_LITTLENUMS];
   LITTLENUM_TYPE *wordP;
-  unsigned char *t;
+  char *t;
 
   switch (type)
     {
@@ -2718,7 +2718,7 @@ md_atof (type, litP, sizeP)
   if (t)
     input_line_pointer = t;
   *sizeP = prec * sizeof (LITTLENUM_TYPE);
-  t = litP;
+
   /* This loops outputs the LITTLENUMs in REVERSE order; in accord with
      little endian byte order.  */
   /* SES: However it is required to put the words (32-bits) out in the
@@ -2742,7 +2742,7 @@ md_atof (type, litP, sizeP)
 }
 
 void 
-md_apply_fix3 (fixP, value, seg)
+md_apply_fix (fixP, value, seg)
      fixS *fixP;
      valueT *value;
      segT seg ATTRIBUTE_UNUSED;
@@ -3072,9 +3072,10 @@ long
 md_pcrel_from (fixP)
      fixS *fixP;
 {
-  unsigned char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
+  unsigned char *buf;
   unsigned int op;
 
+  buf = (unsigned char *) fixP->fx_frag->fr_literal + fixP->fx_where;
   op = (buf[3] << 24) | (buf[2] << 16) | (buf[1] << 8) | buf[0];
 
   return ((fixP->fx_where + fixP->fx_frag->fr_address) >> 2) +
@@ -3090,7 +3091,7 @@ tic4x_do_align (alignment, fill, len, max)
      int len ATTRIBUTE_UNUSED;
      int max ATTRIBUTE_UNUSED;
 {
-  unsigned long nop = NOP_OPCODE;
+  unsigned long nop = TIC_NOP_OPCODE;
 
   /* Because we are talking lwords, not bytes, adjust alignment to do words */
   alignment += 2;

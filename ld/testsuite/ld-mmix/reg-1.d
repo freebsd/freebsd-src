@@ -4,4 +4,4 @@
 #source: a.s
 #as: -x
 #ld: -m elf64mmix
-#error: relocation truncated to fit: R_MMIX_REG areg$
+#error: relocation truncated to fit: R_MMIX_REG against symbol `areg'

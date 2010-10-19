@@ -1,0 +1,5 @@
+101 DIALOG DISCARDABLE  0, 0, 186, 95
+BEGIN
+    LTEXT           "\xB0ABC",-1,23,46,28,8
+END
+

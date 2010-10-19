@@ -9,7 +9,7 @@ if [istarget xtensa*-*-*] then {
     set x1 0
     while 1 {
         expect {
-            -re ":4: Error:.*too large"           { set x1 1 }
+            -re ":4: Error:.*out of range"      { set x1 1 }
             timeout                             { perror "timeout\n"; break }
             eof                                 { break }
         }
@@ -47,19 +47,7 @@ if [istarget xtensa*-*-*] then {
     objdump_finish
     if [all_ones $x1] then { pass $testname } else { fail $testname }
 
-    gas_test "entry_align.s" "" "" "Xtensa autoalign entry"
-    set testname "entry_align.s: autoalign entry"
-    objdump_start_no_subdir "a.out" "-d -j .text"
-    set x1 0
-    while 1 {
-	expect {
-	    -re "^.*4:.*entry" { set x1 1 }
-	    timeout            { perror "timeout\n"; break }
-	    eof                { break }
-	}
-    }
-    objdump_finish
-    if [all_ones $x1] then { pass $testname } else { fail $testname }
+    gas_test_error "entry_align.s" "" "Xtensa entry alignment error"
 
     gas_test "loop_misalign.s" "" "" "Xtensa Loop misalignment"
     set testname "loop_misalign.s: Force loop misalignment"
@@ -90,9 +78,9 @@ if [istarget xtensa*-*-*] then {
     objdump_finish
     if [all_ones $x1] then { pass $testname } else { fail $testname }
 
-
+    run_dump_test "short_branch_offset"
 }
 
 if [info exists errorInfo] then {
     unset errorInfo
-    }
+}

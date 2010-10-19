@@ -21,31 +21,19 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, ALLOC, LOAD, READONLY, DATA
   2 \.data         00000010  0+10c8  0+10c8  00000148  2\*\*2
                   CONTENTS, ALLOC, LOAD, DATA
-  3 \.ctors        00000000  0+10d8  0+10d8  00000184  2\*\*0
-                  CONTENTS
-  4 \.dtors        00000000  0+10d8  0+10d8  00000184  2\*\*0
-                  CONTENTS
-  5 \.sbss         00000000  0+10d8  0+10d8  00000184  2\*\*0
-                  CONTENTS
-  6 \.bss          00000000  0+10d8  0+10d8  00000158  2\*\*0
-                  ALLOC
-  7 \.stack        00000004  0+80000  0+80000  00000180  2\*\*0
+  3 \.stack        00000004  0+80000  0+80000  00000180  2\*\*0
                   CONTENTS, ALLOC, LOAD, DATA
-  8 \.cranges      00000014  0+  0+  00000184  2\*\*0
+  4 \.cranges      00000014  0+  0+  00000184  2\*\*0
                   CONTENTS, DEBUGGING, SORT_ENTRIES
 SYMBOL TABLE:
-0+1000 l    d  \.text	0+ 
-0+1034 l    d  \.rodata	0+ 
-0+10c8 l    d  \.data	0+ 
-0+10d8 l    d  \.ctors	0+ 
-0+10d8 l    d  \.dtors	0+ 
-0+10d8 l    d  \.sbss	0+ 
-0+10d8 l    d  \.bss	0+ 
-0+80000 l    d  \.stack	0+ 
-0+ l    d  \.cranges	0+ 
-0+ l    d  \*ABS\*	0+ 
-0+ l    d  \*ABS\*	0+ 
-0+ l    d  \*ABS\*	0+ 
+0+1000 l    d  \.text	0+ (|\.text)
+0+1034 l    d  \.rodata	0+ (|\.rodata)
+0+10c8 l    d  \.data	0+ (|\.data)
+0+80000 l    d  \.stack	0+ (|\.stack)
+0+ l    d  \.cranges	0+ (|\.cranges)
+0+ l    d  \*ABS\*	0+ (|\.shstrtab)
+0+ l    d  \*ABS\*	0+ (|\.symtab)
+0+ l    d  \*ABS\*	0+ (|\.strtab)
 0+1020 l       \.text	0+ locallabel
 0+1040 g       \.rodata	0+ compactlabel4
 0+101c g       \.text	0+ 0x04 medialabel2
@@ -54,14 +42,14 @@ SYMBOL TABLE:
 0+1024 g       \.text	0+ compactlabel2
 0+1028 g       \.text	0+ compactlabel3
 0+1010 g       \.text	0+ 0x04 medialabel1
-0+10d8 g       \.dtors	0+ ___dtors
+0+10c8 g       \*ABS\*	0+ ___dtors
 0+10cc g       \.data	0+ medialabel4
 0+10d8 g       \*ABS\*	0+ __bss_start
-0+10d8 g       \.ctors	0+ ___ctors_end
+0+10c8 g       \*ABS\*	0+ ___ctors_end
 0+10d4 g       \.data	0+ compactlabel5
-0+10d8 g       \.ctors	0+ ___ctors
+0+10c8 g       \*ABS\*	0+ ___ctors
 0+10d8 g       \*ABS\*	0+ _edata
 0+10d8 g       \*ABS\*	0+ _end
 0+1000 g       \.text	0+ 0x04 start
 0+80000 g       \.stack	0+ _stack
-0+10d8 g       \.dtors	0+ ___dtors_end
+0+10c8 g       \*ABS\*	0+ ___dtors_end

@@ -1,0 +1,6 @@
+# M32R R_M32R_REL32 testcases
+
+if [istarget m32r*-*-*] {
+    run_dump_test "rel32"
+    run_dump_test "rel32-pic"
+}

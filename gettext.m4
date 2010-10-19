@@ -24,7 +24,6 @@ AC_DEFUN([CY_WITH_NLS],
 
     dnl If we use NLS figure out what method
     if test "$USE_NLS" = "yes"; then
-      AC_DEFINE(ENABLE_NLS, 1, [Define to 1 if NLS is requested])
       AC_MSG_CHECKING([whether included gettext is requested])
       AC_ARG_WITH(included-gettext,
         [  --with-included-gettext use the GNU gettext library included here],
@@ -40,7 +39,7 @@ AC_DEFUN([CY_WITH_NLS],
 	dnl catgets is only used if permitted by option --with-catgets.
 	nls_cv_header_intl=
 	nls_cv_header_libgt=
-	CATOBJEXT=NONE
+	CATOBJEXT=
 
 	AC_CHECK_HEADER(libintl.h,
 	  [AC_CACHE_CHECK([for gettext in libc], gt_cv_func_gettext_libc,
@@ -81,9 +80,9 @@ AC_DEFUN([CY_WITH_NLS],
 	dnl In the standard gettext, we would now check for catgets.
         dnl However, we never want to use catgets for our releases.
 
-        if test "$CATOBJEXT" = "NONE"; then
-	  dnl Neither gettext nor catgets in included in the C library.
-	  dnl Fall back on GNU gettext library.
+        if test x"$CATOBJEXT" = x && test -d $srcdir/../intl; then
+	  # Neither gettext nor catgets in included in the C library.
+	  # Fall back on GNU gettext library (assuming it is present).
 	  nls_cv_use_gnu_gettext=yes
         fi
       fi
@@ -156,6 +155,9 @@ AC_DEFUN([CY_WITH_NLS],
     AC_SUBST(INTLOBJS)
     AC_SUBST(POFILES)
     AC_SUBST(POSUB)
+    if test "x$CATOBJEXT" != "x"; then
+      AC_DEFINE(ENABLE_NLS, 1, [Define to 1 if NLS is requested])
+    fi
   ])
 
 AC_DEFUN([CY_GNU_GETTEXT],

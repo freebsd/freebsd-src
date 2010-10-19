@@ -1,6 +1,5 @@
 #objdump: -dr --prefix-addresses
 #name: MIPS macro drol/dror
-#stderr: rol64.l
 
 # Test the drol and dror macros.
 

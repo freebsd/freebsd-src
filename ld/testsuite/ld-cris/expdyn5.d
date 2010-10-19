@@ -1,6 +1,6 @@
 #source: expdyn1.s
 #source: expdref1.s --pic
-#as: --no-underscore
+#as: --no-underscore --em=criself
 #ld: -m crislinux --export-dynamic tmpdir/libdso-1.so
 #objdump: -s -j .got
 
@@ -9,5 +9,5 @@
 
 .*:     file format elf32-cris
 Contents of section \.got:
- 8228c 24220800 00000000 00000000 06020800  .*
- 8229c 20220800                             .*
+ 82244 dc210800 00000000 00000000 bf010800  .*
+ 82254 58220800                             .*

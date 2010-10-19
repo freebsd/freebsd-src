@@ -1,5 +1,5 @@
 # Expect script for MIPS ELF linker tests
-#   Copyright 2002, 2003 Free Software Foundation, Inc.
+#   Copyright 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,8 +13,36 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
+
+if {[istarget "mips*-*-vxworks"]} {
+    set mipsvxtests {
+	{"VxWorks shared library test 1" "-shared -Tvxworks1.ld"
+	 "-mips2" {vxworks1-lib.s}
+	 {{readelf --relocs vxworks1-lib.rd} {objdump -dr vxworks1-lib.dd}
+	  {readelf --symbols vxworks1-lib.nd}}
+	 "libvxworks1.so"}
+	{"VxWorks executable test 1 (dynamic)" \
+	 "tmpdir/libvxworks1.so -Tvxworks1.ld -q --force-dynamic"
+	 "-mips2" {vxworks1.s}
+	 {{readelf --relocs vxworks1.rd} {objdump -dr vxworks1.dd}}
+	 "vxworks1"}
+	{"VxWorks executable test 2 (dynamic)" \
+	 "-Tvxworks1.ld -q --force-dynamic"
+	 "-mips2" {vxworks2.s}
+	 {{readelf --segments vxworks2.sd}}
+	 "vxworks2"}
+	{"VxWorks executable test 2 (static)"
+	 "-Tvxworks1.ld"
+	 "-mips2" {vxworks2.s}
+	 {{readelf --segments vxworks2-static.sd}}
+	 "vxworks2"}
+    }
+    run_ld_link_tests $mipsvxtests
+    run_dump_test "vxworks1-static"
+    return
+}
 
 if {![istarget mips*-*-*] || ![is_elf_format]} {
     return
@@ -31,8 +59,12 @@ run_dump_test "mips16-1"
 # MIPS branch offset final link checking.
 run_dump_test "branch-misc-1"
 
-# Test multi-got link.
-run_dump_test "multi-got-1"
+# Test multi-got link.  We only do this on GNU/Linux because it requires
+# the "traditional" emulations.
+if { $linux_gnu } {
+    run_dump_test "multi-got-1"
+    run_dump_test "multi-got-no-shared"
+}
 
 if $has_newabi {
     run_dump_test "elf-rel-got-n32"
@@ -58,25 +90,6 @@ if { $linux_gnu } {
 }
 
 if { $embedded_elf } {
-    # Check basic Embedded-PIC PC-relative HI/LO relocs.
-    run_dump_test "empic1-ln"
-    run_dump_test "empic1-lp"
-    run_dump_test "empic1-mn"
-    run_dump_test "empic1-mp"
-    run_dump_test "empic1-sn"
-    run_dump_test "empic1-sp"
-
-    # Embedded-PIC PC-relative HI/LO reloc edge-case regression tests.
-    # As of 2001-12-26, the linker botches the fwd-0 and rev-1 tests.
-    run_dump_test "empic2-fwd-0"
-    run_dump_test "empic2-fwd-1"
-    run_dump_test "empic2-rev-0"
-    run_dump_test "empic2-rev-1"
-
-    # Check generation of embedded relocs section.
-    run_dump_test "emrelocs-eb"
-    run_dump_test "emrelocs-el"
-
     run_dump_test "region1"
 }
 
@@ -93,7 +106,140 @@ if $has_newabi {
     }
 }
 run_dump_test "reloc-2"
-if $embedded_elf {
-    run_dump_test "reloc-3-r"
-    run_dump_test "reloc-3-srec"
+run_dump_test "reloc-merge-lo16"
+if {$has_newabi && $linux_gnu} {
+    run_dump_test "eh-frame1-n32"
+    run_dump_test "eh-frame1-n64"
+    run_dump_test "eh-frame2-n32"
+    run_dump_test "eh-frame2-n64"
 }
+if {$embedded_elf} {
+    run_dump_test "eh-frame3"
+    run_dump_test "eh-frame4"
+}
+
+run_dump_test "jaloverflow"
+run_dump_test "jaloverflow-2"
+if {$has_newabi} {
+    run_dump_test "jalbal"
+}
+
+run_dump_test "mips16-hilo"
+if {$has_newabi} {
+    run_dump_test "mips16-hilo-n32"
+}
+
+if { $linux_gnu } {
+    run_dump_test "textrel-1"
+}
+
+if $has_newabi {
+    run_dump_test "emit-relocs-1"
+}
+
+if {[istarget mips*-*-linux*]} {
+     # The number of symbols that are always included in the symbol table
+     # for these tests.  The 5 are:
+     #
+     #     the null symbol entry
+     #     the .MIPS.stubs section symbol
+     #     the .text section symbol
+     #     _gp
+     #     _GLOBAL_OFFSET_TABLE_
+     set base_syms 5
+     foreach dynsym { 7fff 8000 fff0 10000 2fe80 } {
+	 run_ld_link_tests \
+	     [list [list \
+			"Stub for dynsym 0x$dynsym" \
+			"-shared -melf32btsmip -T stub-dynsym-1.ld" \
+			[concat \
+			     "-EB -march=mips1 -32 -KPIC" \
+			     "--defsym base_syms=$base_syms" \
+			     "--defsym dynsym=0x$dynsym"] \
+			[list "stub-dynsym-1.s"] \
+			[list [list \
+				   "objdump" "-dz" \
+				   "stub-dynsym-1-$dynsym.d"]] \
+			"stub-dynsym-1-$dynsym"]]
+     }
+ }
+
+# For tests which may involve multiple files, use run_ld_link_tests.
+
+# List contains test-items with 3 items followed by 2 lists:
+# 0:name 1:ld options 2:assembler options
+# 3:filenames of assembler files 4: action and options. 5: name of output file
+
+# Actions:
+# objdump: Apply objdump options on result.  Compare with regex (last arg).
+# nm: Apply nm options on result.  Compare with regex (last arg).
+# readelf: Apply readelf options on result.  Compare with regex (last arg).
+
+set mips_tls_tests {
+    {"Static executable with TLS" "-static -melf32btsmip -T mips-dyn.ld"
+     "-EB -march=mips1 -32 -KPIC" {tlsbin-o32.s}
+     {{objdump {-dr -m mips:isa32r2} tlsbin-o32.d} {objdump -srj.got tlsbin-o32.got}}
+     "tls-static-o32"}
+    {"Shared library with TLS" "-shared -melf32btsmip -T mips-lib.ld"
+     "-EB -march=mips1 -32 -KPIC" {tlslib-o32.s}
+     {{objdump {-dr -m mips:isa32r2} tlslib-o32.d} {objdump -Rsj.got tlslib-o32.got}}
+     "tlslib-o32.so"}
+    {"Dynamic executable with TLS"
+     "-melf32btsmip -T mips-dyn.ld tmpdir/tlslib-o32.so"
+     "-EB -march=mips1 -32 -KPIC" {tlsdyn-o32.s}
+     {{objdump {-dr -m mips:isa32r2} tlsdyn-o32.d} {objdump -Rsj.got tlsdyn-o32.got}}
+     "tls-dynamic-o32"}
+    {"Shared library with multiple GOTs and TLS"
+     "-shared -melf32btsmip -T mips-lib.ld"
+     "-EB -march=mips1 -32 -KPIC" {tls-multi-got-1-1.s tls-multi-got-1-2.s}
+     {{readelf {-d -r} tls-multi-got-1.r}
+      {objdump {-dr -m mips:isa32r2} tls-multi-got-1.d}
+      {objdump -Rsj.got tls-multi-got-1.got}}
+     "tlslib-multi.so"}
+    {"Shared library with TLS and versioning"
+     "-shared -melf32btsmip -T mips-lib.ld --version-script tlslib.ver"
+     "-EB -march=mips1 -32 -KPIC" {tlslib-o32.s}
+     {{objdump {-dr -m mips:isa32r2} tlslib-o32.d} {objdump -Rsj.got tlslib-o32-ver.got}}
+     "tlslib-o32-ver.so"}
+    {"Dynamic executable with TLS and versioning"
+     "-melf32btsmip -T mips-dyn.ld tmpdir/tlslib-o32-ver.so"
+     "-EB -march=mips1 -32 -KPIC" {tlsdyn-o32.s tlsdyn-o32-2.s}
+     {{objdump {-dr -m mips:isa32r2} tlsdyn-o32-1.d} {objdump -Rsj.got tlsdyn-o32-1.got}}
+     "tls-dynamic-o32-ver"}
+    {"Dynamic executable with TLS and versioning (order 2)"
+     "-melf32btsmip -T mips-dyn.ld tmpdir/tlsdyn-o32.o tmpdir/tlslib-o32-ver.so tmpdir/tlsdyn-o32-2.o"
+     "-EB -march=mips1 -32 -KPIC" {}
+     {{objdump {-dr -m mips:isa32r2} tlsdyn-o32-2.d} {objdump -Rsj.got tlsdyn-o32-2.got}}
+     "tls-dynamic-o32-ver-2"}
+    {"Dynamic executable with TLS and versioning (order 3)"
+     "-melf32btsmip -T mips-dyn.ld tmpdir/tlsdyn-o32-2.o tmpdir/tlslib-o32-ver.so tmpdir/tlsdyn-o32.o"
+     "-EB -march=mips1 -32 -KPIC" {}
+     {{objdump {-dr -m mips:isa32r2} tlsdyn-o32-3.d} {objdump -Rsj.got tlsdyn-o32-3.got}}
+     "tls-dynamic-o32-ver-3"}
+    {"Shared library with TLS and hidden symbols"
+     "-shared -melf32btsmip -T mips-lib.ld --version-script tlslib-hidden.ver"
+     "-EB -march=mips1 -32 -KPIC" {tlslib-o32.s}
+     {{objdump {-dr -m mips:isa32r2} tlslib-o32.d} {objdump -Rsj.got tlslib-o32-hidden.got}}
+     "tlslib-o32-hidden.so"}
+    {"Shared library with TLS and hidden symbols (2)"
+     "-shared -melf32btsmip -T mips-lib.ld"
+     "-EB -march=mips1 -32 -KPIC" {tls-hidden2a.s tls-hidden2b.s}
+     {{objdump -drj.text tls-hidden2.d} {objdump -sj.got tls-hidden2-got.d}}
+     "tls-hidden2.so"}
+    {"Shared library with TLS and hidden symbols (3)"
+     "-shared -melf32btsmip -T tls-hidden3.ld"
+     "-EB -march=mips2 -32 -KPIC" {tls-hidden3a.s tls-hidden3b.s}
+     {{objdump -dj.text tls-hidden3.d} {objdump -sj.got tls-hidden3.got}
+      {readelf --relocs tls-hidden3.r}}
+     "tls-hidden3.so"}
+    {"Shared library with TLS and hidden symbols (4)"
+     "-shared -melf32btsmip -T tls-hidden3.ld"
+     "-EB -march=mips2 -32 -KPIC" {tls-hidden4a.s tls-hidden4b.s}
+     {{objdump -sj.got tls-hidden4.got} {readelf --relocs tls-hidden4.r}}
+     "tls-hidden4.so"}
+}
+
+if {[istarget mips*-*-linux*]} {
+    run_ld_link_tests $mips_tls_tests
+}
+

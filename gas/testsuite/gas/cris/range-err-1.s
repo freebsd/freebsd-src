@@ -61,9 +61,9 @@ start:
  add.w 2781868,r13 ; { dg-error "Immediate value not in 16 bit range: 2781868" }
  add.w -2701867,r13 ; { dg-error "Immediate value not in 16 bit range: -2701867" }
 
- add.w 0x9ec0ceac,r13 ; { dg-error "Immediate value not in 16 bit range: -1631531348" }
+ add.w 0x9ec0ceac,r13 ; { dg-error "Immediate value not in 16 bit range: (2663435948|-1631531348)" }
  add.w -0x7ec0cead,r13 ; { dg-error "Immediate value not in 16 bit range: -2126565037" }
 
- add.w const_int_m32,r13 ; { dg-error "Immediate value not in 16 bit range: 781758389" }
+ add.w const_int_m32,r13 ; { dg-error "Immediate value not in 16 bit range: (-3513208907|781758389)" }
  add.w const_int_32,r13 ; { dg-error "Immediate value not in 16 bit range: 462701867" }
  add.w -(three2767+2),r5 ; { dg-error "Immediate value not in 16 bit range: -32769" }

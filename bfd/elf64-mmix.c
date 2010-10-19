@@ -1,5 +1,5 @@
 /* MMIX-specific support for 64-bit ELF.
-   Copyright 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+   Copyright 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
    Contributed by Hans-Peter Nilsson <hp@bitrange.com>
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -16,7 +16,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* No specific ABI or "processor-specific supplement" defined.  */
 
@@ -228,10 +228,6 @@ extern void mmix_dump_bpo_gregs
 static void
 mmix_set_relaxable_size
   PARAMS ((bfd *, asection *, void *));
-
-static bfd_boolean
-mmix_elf_get_section_contents
-  PARAMS ((bfd *, sec_ptr, void *, file_ptr, bfd_size_type));
 
 
 /* Watch out: this currently needs to have elements with the same index as
@@ -991,18 +987,15 @@ mmix_elf_perform_relocation (isec, howto, datap, addr, value)
 	goto pcrel_mmix_reloc_fits;
       else
 	{
-	  bfd_size_type raw_size
-	    = (isec->_raw_size
-	       - mmix_elf_section_data (isec)->pjs.n_pushj_relocs
-	       * MAX_PUSHJ_STUB_SIZE);
+	  bfd_size_type size = isec->rawsize ? isec->rawsize : isec->size;
 
 	  /* We have the bytes at the PUSHJ insn and need to get the
 	     position for the stub.  There's supposed to be room allocated
 	     for the stub.  */
 	  bfd_byte *stubcontents
-	    = ((char *) datap
+	    = ((bfd_byte *) datap
 	       - (addr - (isec->output_section->vma + isec->output_offset))
-	       + raw_size
+	       + size
 	       + mmix_elf_section_data (isec)->pjs.stub_offset);
 	  bfd_vma stubaddr;
 
@@ -1015,7 +1008,7 @@ mmix_elf_perform_relocation (isec, howto, datap, addr, value)
 					   addr,
 					   isec->output_section->vma
 					   + isec->output_offset
-					   + raw_size
+					   + size
 					   + (mmix_elf_section_data (isec)
 					      ->pjs.stub_offset)
 					   - addr);
@@ -1025,7 +1018,7 @@ mmix_elf_perform_relocation (isec, howto, datap, addr, value)
 	  stubaddr
 	    = (isec->output_section->vma
 	       + isec->output_offset
-	       + raw_size
+	       + size
 	       + mmix_elf_section_data (isec)->pjs.stub_offset);
 
 	  /* We generate a simple JMP if that suffices, else the whole 5
@@ -1045,9 +1038,8 @@ mmix_elf_perform_relocation (isec, howto, datap, addr, value)
 					       value + addr - stubaddr);
 	      mmix_elf_section_data (isec)->pjs.stub_offset += 4;
 
-	      if (raw_size
-		  + mmix_elf_section_data (isec)->pjs.stub_offset
-		  > isec->_cooked_size)
+	      if (size + mmix_elf_section_data (isec)->pjs.stub_offset
+		  > isec->size)
 		abort ();
 
 	      return r;
@@ -1277,7 +1269,7 @@ mmix_elf_reloc (abfd, reloc_entry, symbol, data, input_section,
     return bfd_reloc_undefined;
 
   /* Is the address of the relocation really within the section?  */
-  if (reloc_entry->address > input_section->_cooked_size)
+  if (reloc_entry->address > bfd_get_section_limit (abfd, input_section))
     return bfd_reloc_outofrange;
 
   /* Work out which section the relocation is targeted at and the
@@ -1342,15 +1334,19 @@ mmix_elf_relocate_section (output_bfd, info, input_bfd, input_section,
   struct elf_link_hash_entry **sym_hashes;
   Elf_Internal_Rela *rel;
   Elf_Internal_Rela *relend;
-  bfd_size_type raw_size
-    = (input_section->_raw_size
-       - mmix_elf_section_data (input_section)->pjs.n_pushj_relocs
-       * MAX_PUSHJ_STUB_SIZE);
+  bfd_size_type size;
   size_t pjsno = 0;
 
+  size = input_section->rawsize ? input_section->rawsize : input_section->size;
   symtab_hdr = &elf_tdata (input_bfd)->symtab_hdr;
   sym_hashes = elf_sym_hashes (input_bfd);
   relend = relocs + input_section->reloc_count;
+
+  /* Zero the stub area before we start.  */
+  if (input_section->rawsize != 0
+      && input_section->size > input_section->rawsize)
+    memset (contents + input_section->rawsize, 0,
+	    input_section->size - input_section->rawsize);
 
   for (rel = relocs; rel < relend; rel ++)
     {
@@ -1421,7 +1417,7 @@ mmix_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 						input_section
 						->output_section->vma
 						+ input_section->output_offset
-						+ raw_size
+						+ size
 						+ mmix_elf_section_data (input_section)
 						->pjs.stub_offset,
 						NULL, NULL) != bfd_reloc_ok)
@@ -1431,7 +1427,7 @@ mmix_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 		     R_MMIX_JMP reloc.  */
 		  bfd_put_32 (output_bfd, JMP_INSN_BYTE << 24,
 			      contents
-			      + raw_size
+			      + size
 			      + mmix_elf_section_data (input_section)
 			      ->pjs.stub_offset);
 
@@ -1439,7 +1435,7 @@ mmix_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 		     R_MMIX_JMP reloc.  */
 		  rel->r_info = ELF64_R_INFO (r_symndx, R_MMIX_JMP);
 		  rel->r_offset
-		    = (raw_size
+		    = (size
 		       + mmix_elf_section_data (input_section)
 		       ->pjs.stub_offset);
 
@@ -1504,8 +1500,8 @@ mmix_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 	    {
 	    case bfd_reloc_overflow:
 	      check_ok = info->callbacks->reloc_overflow
-		(info, name, howto->name, (bfd_vma) 0,
-		 input_bfd, input_section, rel->r_offset);
+		(info, (h ? &h->root : NULL), name, howto->name,
+		 (bfd_vma) 0, input_bfd, input_section, rel->r_offset);
 	      break;
 
 	    case bfd_reloc_undefined:
@@ -1894,19 +1890,17 @@ mmix_elf_check_common_relocs  (abfd, info, sec, relocs)
 	  if (allocated_gregs_section == NULL)
 	    {
 	      allocated_gregs_section
-		= bfd_make_section (bpo_greg_owner,
-				    MMIX_LD_ALLOCATED_REG_CONTENTS_SECTION_NAME);
+		= bfd_make_section_with_flags (bpo_greg_owner,
+					       MMIX_LD_ALLOCATED_REG_CONTENTS_SECTION_NAME,
+					       (SEC_HAS_CONTENTS
+						| SEC_IN_MEMORY
+						| SEC_LINKER_CREATED));
 	      /* Setting both SEC_ALLOC and SEC_LOAD means the section is
 		 treated like any other section, and we'd get errors for
 		 address overlap with the text section.  Let's set none of
 		 those flags, as that is what currently happens for usual
 		 GREG allocations, and that works.  */
 	      if (allocated_gregs_section == NULL
-		  || !bfd_set_section_flags (bpo_greg_owner,
-					     allocated_gregs_section,
-					     (SEC_HAS_CONTENTS
-					      | SEC_IN_MEMORY
-					      | SEC_LINKER_CREATED))
 		  || !bfd_set_section_alignment (bpo_greg_owner,
 						 allocated_gregs_section,
 						 3))
@@ -2020,7 +2014,12 @@ mmix_elf_check_relocs (abfd, info, sec, relocs)
       if (r_symndx < symtab_hdr->sh_info)
         h = NULL;
       else
-        h = sym_hashes[r_symndx - symtab_hdr->sh_info];
+	{
+	  h = sym_hashes[r_symndx - symtab_hdr->sh_info];
+	  while (h->root.type == bfd_link_hash_indirect
+		 || h->root.type == bfd_link_hash_warning)
+	    h = (struct elf_link_hash_entry *) h->root.u.i.link;
+	}
 
       switch (ELF64_R_TYPE (rel->r_info))
 	{
@@ -2185,7 +2184,10 @@ mmix_elf_add_symbol_hook (abfd, info, sym, namep, flagsp, secp, valp)
      bfd_vma *valp ATTRIBUTE_UNUSED;
 {
   if (sym->st_shndx == SHN_REGISTER)
-    *secp = bfd_make_section_old_way (abfd, MMIX_REG_SECTION_NAME);
+    {
+      *secp = bfd_make_section_old_way (abfd, MMIX_REG_SECTION_NAME);
+      (*secp)->flags |= SEC_LINKER_CREATED;
+    }
   else if ((*namep)[0] == '_' && (*namep)[1] == '_' && (*namep)[2] == '.'
 	   && strncmp (*namep, MMIX_LOC_SECTION_START_SYMBOL_PREFIX,
 		       strlen (MMIX_LOC_SECTION_START_SYMBOL_PREFIX)) == 0)
@@ -2253,7 +2255,6 @@ mmix_elf_final_link (abfd, info)
   /* We never output a register section, though we create one for
      temporary measures.  Check that nobody entered contents into it.  */
   asection *reg_section;
-  asection **secpp;
 
   reg_section = bfd_get_section_by_name (abfd, MMIX_REG_SECTION_NAME);
 
@@ -2263,13 +2264,12 @@ mmix_elf_final_link (abfd, info)
       if (bfd_get_section_flags (abfd, reg_section) & SEC_HAS_CONTENTS)
 	_bfd_abort (__FILE__, __LINE__, _("Register section has contents\n"));
 
-      /* Really remove the section.  */
-      for (secpp = &abfd->sections;
-	   *secpp != reg_section;
-	   secpp = &(*secpp)->next)
-	;
-      bfd_section_list_remove (abfd, secpp);
-      --abfd->section_count;
+      /* Really remove the section, if it hasn't already been done.  */
+      if (!bfd_section_removed_from_list (abfd, reg_section))
+	{
+	  bfd_section_list_remove (abfd, reg_section);
+	  --abfd->section_count;
+	}
     }
 
   if (! bfd_elf_final_link (abfd, info))
@@ -2287,22 +2287,14 @@ mmix_elf_final_link (abfd, info)
 				     greg_section->output_section,
 				     greg_section->contents,
 				     (file_ptr) greg_section->output_offset,
-				     greg_section->_cooked_size))
+				     greg_section->size))
 	return FALSE;
     }
   return TRUE;
 }
 
 /* We need to include the maximum size of PUSHJ-stubs in the initial
-   section size.  This is expected to shrink during linker relaxation.
-
-   You might think that we should set *only* _cooked_size, but that won't
-   work: section contents allocation will be using _raw_size in mixed
-   format linking and not enough storage will be allocated.  FIXME: That's
-   a major bug, including the name bfd_get_section_size_before_reloc; it
-   should be bfd_get_section_size_before_relax.  The relaxation functions
-   set _cooked size.  Relaxation happens before relocation.  All functions
-   *after relaxation* should be using _cooked size.  */
+   section size.  This is expected to shrink during linker relaxation.  */
 
 static void
 mmix_set_relaxable_size (abfd, sec, ptr)
@@ -2317,11 +2309,9 @@ mmix_set_relaxable_size (abfd, sec, ptr)
   if (mmix_elf_section_data (sec)->pjs.n_pushj_relocs == 0)
     return;
 
-  sec->_cooked_size
-    = (sec->_raw_size
-       + mmix_elf_section_data (sec)->pjs.n_pushj_relocs
-       * MAX_PUSHJ_STUB_SIZE);
-  sec->_raw_size = sec->_cooked_size;
+  sec->rawsize = sec->size;
+  sec->size += (mmix_elf_section_data (sec)->pjs.n_pushj_relocs
+		* MAX_PUSHJ_STUB_SIZE);
 
   /* For use in relocatable link, we start with a max stubs size.  See
      mmix_elf_relax_section.  */
@@ -2451,11 +2441,8 @@ _bfd_mmix_after_linker_allocation (abfd, link_info)
 
   n_gregs = gregdata->n_allocated_bpo_gregs;
 
-  /* We need to have a _raw_size contents even though there's only
-     _cooked_size worth of data, since the generic relocation machinery
-     will allocate and copy that much temporarily.  */
   bpo_gregs_section->contents
-    = contents = bfd_alloc (bpo_greg_owner, bpo_gregs_section->_raw_size);
+    = contents = bfd_alloc (bpo_greg_owner, bpo_gregs_section->size);
   if (contents == NULL)
     return FALSE;
 
@@ -2602,20 +2589,12 @@ mmix_elf_relax_section (abfd, sec, link_info, again)
   size_t pjsno = 0;
   bfd *bpo_greg_owner;
   Elf_Internal_Sym *isymbuf = NULL;
-  bfd_size_type raw_size
-    = (sec->_raw_size
-       - mmix_elf_section_data (sec)->pjs.n_pushj_relocs
-       * MAX_PUSHJ_STUB_SIZE);
+  bfd_size_type size = sec->rawsize ? sec->rawsize : sec->size;
 
   mmix_elf_section_data (sec)->pjs.stubs_size_sum = 0;
 
   /* Assume nothing changes.  */
   *again = FALSE;
-
-  /* If this is the first time we have been called for this section,
-     initialize the cooked size.  */
-  if (sec->_cooked_size == 0 && sec->_raw_size != 0)
-    abort ();
 
   /* We don't have to do anything if this section does not have relocs, or
      if this is not a code section.  */
@@ -2688,7 +2667,7 @@ mmix_elf_relax_section (abfd, sec, link_info, again)
 				      0,
 				      bfd_arch_bits_per_address (abfd),
 				      /* Output-stub location.  */
-				      sec->output_section->_cooked_size
+				      sec->output_section->rawsize
 				      + (mmix_elf_section_data (sec
 							       ->output_section)
 					 ->pjs.stubs_size_sum)
@@ -2781,7 +2760,7 @@ mmix_elf_relax_section (abfd, sec, link_info, again)
 	  bfd_vma stubaddr
 	    = (sec->output_section->vma
 	       + sec->output_offset
-	       + raw_size
+	       + size
 	       + mmix_elf_section_data (sec)->pjs.stubs_size_sum);
 
 	  if ((value & 3) == 0
@@ -2892,7 +2871,7 @@ mmix_elf_relax_section (abfd, sec, link_info, again)
 	  *again = TRUE;
 	}
 
-      bpo_gregs_section->_cooked_size = (regindex + 1) * 8;
+      bpo_gregs_section->size = (regindex + 1) * 8;
     }
 
   if (isymbuf != NULL && (unsigned char *) isymbuf != symtab_hdr->contents)
@@ -2910,15 +2889,12 @@ mmix_elf_relax_section (abfd, sec, link_info, again)
       && elf_section_data (sec)->relocs != internal_relocs)
     free (internal_relocs);
 
-  if (sec->_cooked_size
-      < raw_size + mmix_elf_section_data (sec)->pjs.stubs_size_sum)
+  if (sec->size < size + mmix_elf_section_data (sec)->pjs.stubs_size_sum)
     abort ();
 
-  if (sec->_cooked_size
-      > raw_size + mmix_elf_section_data (sec)->pjs.stubs_size_sum)
+  if (sec->size > size + mmix_elf_section_data (sec)->pjs.stubs_size_sum)
     {
-      sec->_cooked_size
-	= raw_size + mmix_elf_section_data (sec)->pjs.stubs_size_sum;
+      sec->size = size + mmix_elf_section_data (sec)->pjs.stubs_size_sum;
       *again = TRUE;
     }
 
@@ -2932,53 +2908,6 @@ mmix_elf_relax_section (abfd, sec, link_info, again)
     free (internal_relocs);
   return FALSE;
 }
-
-/* Because we set _raw_size to include the max size of pushj stubs,
-   i.e. larger than the actual section input size (see
-   mmix_set_relaxable_raw_size), we have to take care of that when reading
-   the section.  */
-
-static bfd_boolean
-mmix_elf_get_section_contents (abfd, section, location, offset, count)
-     bfd *abfd;
-     sec_ptr section;
-     void *location;
-     file_ptr offset;
-     bfd_size_type count;
-{
-  bfd_size_type raw_size
-    = (section->_raw_size
-       - mmix_elf_section_data (section)->pjs.n_pushj_relocs
-       * MAX_PUSHJ_STUB_SIZE);
-
-  if (offset + count > section->_raw_size)
-    {
-      abort();
-      bfd_set_error (bfd_error_invalid_operation);
-      return FALSE;
-    }
-
-  /* Check bounds against the faked raw_size.  */
-  if (offset + count > raw_size)
-    {
-      /* Clear the part in the faked area.  */
-      memset (location + raw_size - offset, 0, count - (raw_size - offset));
-
-      /* If there's no initial part within the "real" contents, we're
-         done.  */
-      if ((bfd_size_type) offset >= raw_size)
-	return TRUE;
-
-      /* Else adjust the count and fall through to call the generic
-         function.  */
-      count = raw_size - offset;
-    }
-
-  return
-    _bfd_generic_get_section_contents (abfd, section, location, offset,
-				       count);
-}
-
 
 #define ELF_ARCH		bfd_arch_mmix
 #define ELF_MACHINE_CODE 	EM_MMIX
@@ -3027,6 +2956,5 @@ mmix_elf_get_section_contents (abfd, section, location, offset, count)
 #define bfd_elf64_new_section_hook	mmix_elf_new_section_hook
 #define bfd_elf64_bfd_final_link	mmix_elf_final_link
 #define bfd_elf64_bfd_relax_section	mmix_elf_relax_section
-#define bfd_elf64_get_section_contents	mmix_elf_get_section_contents
 
 #include "elf64-target.h"

@@ -1,6 +1,7 @@
 #as: -J
 #objdump: -dw
 #name: i386 x86_64
+#stderr: x86_64.e
 .*: +file format .*
 
 Disassembly of section .text:
@@ -36,9 +37,9 @@ Disassembly of section .text:
 [ 	]+56:	41 0f 20 c0[ 	]+mov[ 	]+%cr0,%r8
 [ 	]+5a:	44 0f 20 c0[ 	]+mov[ 	]+%cr8,%rax
 [ 	]+5e:	44 0f 22 c0[ 	]+mov[ 	]+%rax,%cr8
-[ 	]+62:	f3 48 a5[ 	]+repz movsq %ds:\(%rsi\),%es:\(%rdi\)
-[ 	]+65:	f3 66 a5[ 	]+repz movsw %ds:\(%esi\),%es:\(%edi\)
-[ 	]+68:	f3 48 a5[ 	]+repz movsq %ds:\(%rsi\),%es:\(%rdi\)
+[ 	]+62:	f3 48 a5[ 	]+rep movsq %ds:\(%rsi\),%es:\(%rdi\)
+[ 	]+65:	f3 66 a5[ 	]+rep movsw %ds:\(%rsi\),%es:\(%rdi\)
+[ 	]+68:	f3 48 a5[ 	]+rep movsq %ds:\(%rsi\),%es:\(%rdi\)
 [ 	]+6b:	b0 11[ 	]+mov[ 	]+\$0x11,%al
 [ 	]+6d:	b4 11[ 	]+mov[ 	]+\$0x11,%ah
 [ 	]+6f:	40 b4 11[ 	]+mov[ 	]+\$0x11,%spl
@@ -117,10 +118,42 @@ Disassembly of section .text:
  1d7:	66 b8 00 00[ 	]+mov[ 	]+\$0x0,%ax
  1db:	b8 00 00 00 00[ 	]+mov[ 	]+\$0x0,%eax
  1e0:	48 c7 c0 00 00 00 00 	mov[ 	]+\$0x0,%rax
- 1e7:	8b 04 25 00 00 00 00 	mov[ 	]+0x0,%eax
- 1ee:	8b 04 25 00 00 00 00 	mov[ 	]+0x0,%eax
- 1f5:	a1 00 00 00 00 00 00 00 00 	mov[ 	]+0x0,%eax
- 1fe:	8b 04 25 00 00 00 00 	mov[ 	]+0x0,%eax
- 205:	8b 80 00 00 00 00[ 	]+mov[ 	]+0x0\(%rax\),%eax
- 20b:	8b 05 00 00 00 00[ 	]+mov[ 	]+0\(%rip\),%eax.*
-	...
+ 1e7:	a1 00 00 00 00 00 00 00 00 	mov[ 	]+0x0,%eax
+ 1f0:	8b 04 25 00 00 00 00 	mov[ 	]+0x0,%eax
+ 1f7:	8b 80 00 00 00 00[ 	]+mov[ 	]+0x0\(%rax\),%eax
+ 1fd:	8b 05 00 00 00 00[ 	]+mov[ 	]+0\(%rip\),%eax.*
+
+0+203 <foo>:
+ 203:	a0 11 22 33 44 55 66 77 88 	mov[ 	]+0x8877665544332211,%al
+ 20c:	66 a1 11 22 33 44 55 66 77 88 	mov[ 	]+0x8877665544332211,%ax
+ 216:	a1 11 22 33 44 55 66 77 88 	mov[ 	]+0x8877665544332211,%eax
+ 21f:	48 a1 11 22 33 44 55 66 77 88 	mov[ 	]+0x8877665544332211,%rax
+ 229:	a2 11 22 33 44 55 66 77 88 	mov[ 	]+%al,0x8877665544332211
+ 232:	66 a3 11 22 33 44 55 66 77 88 	mov[ 	]+%ax,0x8877665544332211
+ 23c:	a3 11 22 33 44 55 66 77 88 	mov[ 	]+%eax,0x8877665544332211
+ 245:	48 a3 11 22 33 44 55 66 77 88 	mov[ 	]+%rax,0x8877665544332211
+ 24f:	a0 11 22 33 44 55 66 77 88 	mov[ 	]+0x8877665544332211,%al
+ 258:	66 a1 11 22 33 44 55 66 77 88 	mov[ 	]+0x8877665544332211,%ax
+ 262:	a1 11 22 33 44 55 66 77 88 	mov[ 	]+0x8877665544332211,%eax
+ 26b:	48 a1 11 22 33 44 55 66 77 88 	mov[ 	]+0x8877665544332211,%rax
+ 275:	a2 11 22 33 44 55 66 77 88 	mov[ 	]+%al,0x8877665544332211
+ 27e:	66 a3 11 22 33 44 55 66 77 88 	mov[ 	]+%ax,0x8877665544332211
+ 288:	a3 11 22 33 44 55 66 77 88 	mov[ 	]+%eax,0x8877665544332211
+ 291:	48 a3 11 22 33 44 55 66 77 88 	mov[ 	]+%rax,0x8877665544332211
+ 29b:	8a 04 25 11 22 33 ff 	mov[ 	]+0xffffffffff332211,%al
+ 2a2:	66 8b 04 25 11 22 33 ff 	mov[ 	]+0xffffffffff332211,%ax
+ 2aa:	8b 04 25 11 22 33 ff 	mov[ 	]+0xffffffffff332211,%eax
+ 2b1:	48 8b 04 25 11 22 33 ff 	mov[ 	]+0xffffffffff332211,%rax
+ 2b9:	88 04 25 11 22 33 ff 	mov[ 	]+%al,0xffffffffff332211
+ 2c0:	66 89 04 25 11 22 33 ff 	mov[ 	]+%ax,0xffffffffff332211
+ 2c8:	89 04 25 11 22 33 ff 	mov[ 	]+%eax,0xffffffffff332211
+ 2cf:	48 89 04 25 11 22 33 ff 	mov[ 	]+%rax,0xffffffffff332211
+ 2d7:	8a 04 25 11 22 33 ff 	mov[ 	]+0xffffffffff332211,%al
+ 2de:	66 8b 04 25 11 22 33 ff 	mov[ 	]+0xffffffffff332211,%ax
+ 2e6:	8b 04 25 11 22 33 ff 	mov[ 	]+0xffffffffff332211,%eax
+ 2ed:	48 8b 04 25 11 22 33 ff 	mov[ 	]+0xffffffffff332211,%rax
+ 2f5:	88 04 25 11 22 33 ff 	mov[ 	]+%al,0xffffffffff332211
+ 2fc:	66 89 04 25 11 22 33 ff 	mov[ 	]+%ax,0xffffffffff332211
+ 304:	89 04 25 11 22 33 ff 	mov[ 	]+%eax,0xffffffffff332211
+ 30b:	48 89 04 25 11 22 33 ff 	mov[ 	]+%rax,0xffffffffff332211
+#pass

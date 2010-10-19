@@ -1,6 +1,6 @@
 /* This file is tc-h8300.h
    Copyright 1987, 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996,
-   1997, 1998, 2000, 2002, 2003
+   1997, 1998, 2000, 2001, 2002, 2003, 2005
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -17,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #define TC_H8300
 
@@ -26,10 +26,8 @@
 
 #define TARGET_ARCH bfd_arch_h8300
 
-#ifdef BFD_ASSEMBLER
 /* Fixup debug sections since we will never relax them.  */
 #define TC_LINKRELAX_FIXUP(seg) (seg->flags & SEC_ALLOC)
-#endif
 #ifdef OBJ_ELF
 #define TARGET_FORMAT "elf32-h8300"
 #define LOCAL_LABEL_PREFIX '.'
@@ -37,24 +35,15 @@
 #define FAKE_LABEL_NAME ".L0\001"
 #endif
 
-#if ANSI_PROTOTYPES
 struct fix;
 struct internal_reloc;
-#endif
 
 #define WORKING_DOT_WORD
 
-/* This macro translates between an internal fix and a coff reloc type.  */
-#define TC_COFF_FIX2RTYPE(fixP) abort ();
-
-#define BFD_ARCH bfd_arch_h8300
 #define COFF_MAGIC ( Smode && Nmode ? 0x8304 : Hmode && Nmode ? 0x8303 : Smode ? 0x8302 : Hmode ? 0x8301 : 0x8300)
-#define TC_COUNT_RELOC(x) (1)
 #define IGNORE_NONSTANDARD_ESCAPES
 
 #define tc_coff_symbol_emit_hook(a) ; /* not used */
-#define TC_RELOC_MANGLE(s,a,b,c) tc_reloc_mangle(a,b,c)
-extern void tc_reloc_mangle (struct fix *, struct internal_reloc *, bfd_vma);
 
 /* No shared lib support, so we don't need to ensure externally
    visible symbols can be overridden.  */
@@ -86,11 +75,7 @@ extern void tc_reloc_mangle (struct fix *, struct internal_reloc *, bfd_vma);
 #define tc_fix_adjustable(FIX) 0
 #endif
 
-#define TC_CONS_RELOC          (Hmode ? R_RELLONG: R_RELWORD)
-
-#define DO_NOT_STRIP 0
 #define LISTING_HEADER "Renesas H8/300 GAS "
-#define NEED_FX_R_TYPE 1
 #ifndef OBJ_ELF
 #define RELOC_32 1234
 #endif

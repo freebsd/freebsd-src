@@ -58,15 +58,14 @@ typedef enum tahoe_opermodes tahoe_operandenum;
  */
 static Sym indirectchild;
 
-static tahoe_operandenum tahoe_operandmode PARAMS ((unsigned char *));
-static char *tahoe_operandname PARAMS ((tahoe_operandenum));
-static long tahoe_operandlength PARAMS ((unsigned char *));
-static bfd_signed_vma tahoe_offset PARAMS ((unsigned char *));
-void tahoe_find_call PARAMS ((Sym *, bfd_vma, bfd_vma));
+static tahoe_operandenum tahoe_operandmode (unsigned char *);
+static char *tahoe_operandname (tahoe_operandenum);
+static long tahoe_operandlength (unsigned char *);
+static bfd_signed_vma tahoe_offset (unsigned char *);
+void tahoe_find_call (Sym *, bfd_vma, bfd_vma);
 
 static tahoe_operandenum
-tahoe_operandmode (modep)
-     unsigned char *modep;
+tahoe_operandmode (unsigned char *modep)
 {
   long usesreg = *modep & 0xf;
 
@@ -107,8 +106,7 @@ tahoe_operandmode (modep)
 }
 
 static char *
-tahoe_operandname (mode)
-     tahoe_operandenum mode;
+tahoe_operandname (tahoe_operandenum mode)
 {
 
   switch (mode)
@@ -161,8 +159,8 @@ tahoe_operandname (mode)
 }
 
 static long
-tahoe_operandlength (modep)
-     unsigned char *modep;
+tahoe_operandlength (unsigned char *modep
+)
 {
 
   switch (tahoe_operandmode (modep))
@@ -199,8 +197,7 @@ tahoe_operandlength (modep)
 }
 
 static bfd_signed_vma
-tahoe_offset (modep)
-     unsigned char *modep;
+tahoe_offset (unsigned char *modep)
 {
   tahoe_operandenum mode = tahoe_operandmode (modep);
 
@@ -220,10 +217,7 @@ tahoe_offset (modep)
 }
 
 void
-tahoe_find_call (parent, p_lowpc, p_highpc)
-     Sym *parent;
-     bfd_vma p_lowpc;
-     bfd_vma p_highpc;
+tahoe_find_call (Sym *parent, bfd_vma p_lowpc, bfd_vma p_highpc)
 {
   unsigned char *instructp;
   long length;

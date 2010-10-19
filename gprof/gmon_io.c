@@ -1,6 +1,7 @@
 /* gmon_io.c - Input and output from/to gmon.out files.
 
-   Copyright 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005
+   Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -16,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include "gprof.h"
 #include "search_list.h"
@@ -44,17 +45,17 @@ enum gmon_ptr_signedness {
   ptr_unsigned
 };
 
-static enum gmon_ptr_size gmon_get_ptr_size PARAMS ((void));
-static enum gmon_ptr_signedness gmon_get_ptr_signedness PARAMS ((void));
+static enum gmon_ptr_size gmon_get_ptr_size (void);
+static enum gmon_ptr_signedness gmon_get_ptr_signedness (void);
 
 #ifdef BFD_HOST_U_64_BIT
-static int gmon_io_read_64 PARAMS ((FILE *, BFD_HOST_U_64_BIT *));
-static int gmon_io_write_64 PARAMS ((FILE *, BFD_HOST_U_64_BIT));
+static int gmon_io_read_64 (FILE *, BFD_HOST_U_64_BIT *);
+static int gmon_io_write_64 (FILE *, BFD_HOST_U_64_BIT);
 #endif
 static int gmon_read_raw_arc
-  PARAMS ((FILE *, bfd_vma *, bfd_vma *, unsigned long *));
+  (FILE *, bfd_vma *, bfd_vma *, unsigned long *);
 static int gmon_write_raw_arc
-  PARAMS ((FILE *, bfd_vma, bfd_vma, unsigned long));
+  (FILE *, bfd_vma, bfd_vma, unsigned long);
 
 int gmon_input = 0;
 int gmon_file_version = 0;	/* 0 == old (non-versioned) file format.  */
@@ -98,9 +99,7 @@ gmon_get_ptr_signedness ()
 }
 
 int
-gmon_io_read_32 (ifp, valp)
-     FILE *ifp;
-     unsigned int *valp;
+gmon_io_read_32 (FILE *ifp, unsigned int *valp)
 {
   char buf[4];
 
@@ -112,9 +111,7 @@ gmon_io_read_32 (ifp, valp)
 
 #ifdef BFD_HOST_U_64_BIT
 static int
-gmon_io_read_64 (ifp, valp)
-     FILE *ifp;
-     BFD_HOST_U_64_BIT *valp;
+gmon_io_read_64 (FILE *ifp, BFD_HOST_U_64_BIT *valp)
 {
   char buf[8];
 
@@ -126,9 +123,7 @@ gmon_io_read_64 (ifp, valp)
 #endif
 
 int
-gmon_io_read_vma (ifp, valp)
-     FILE *ifp;
-     bfd_vma *valp;
+gmon_io_read_vma (FILE *ifp, bfd_vma *valp)
 {
   unsigned int val32;
 #ifdef BFD_HOST_U_64_BIT
@@ -163,10 +158,7 @@ gmon_io_read_vma (ifp, valp)
 }
 
 int
-gmon_io_read (ifp, buf, n)
-     FILE *ifp;
-     char *buf;
-     size_t n;
+gmon_io_read (FILE *ifp, char *buf, size_t n)
 {
   if (fread (buf, 1, n, ifp) != n)
     return 1;
@@ -174,9 +166,7 @@ gmon_io_read (ifp, buf, n)
 }
 
 int
-gmon_io_write_32 (ofp, val)
-     FILE *ofp;
-     unsigned int val;
+gmon_io_write_32 (FILE *ofp, unsigned int val)
 {
   char buf[4];
 
@@ -188,9 +178,7 @@ gmon_io_write_32 (ofp, val)
 
 #ifdef BFD_HOST_U_64_BIT
 static int
-gmon_io_write_64 (ofp, val)
-     FILE *ofp;	
-     BFD_HOST_U_64_BIT val;
+gmon_io_write_64 (FILE *ofp, BFD_HOST_U_64_BIT val)
 {
   char buf[8];
 
@@ -202,9 +190,7 @@ gmon_io_write_64 (ofp, val)
 #endif
 
 int
-gmon_io_write_vma (ofp, val)
-     FILE *ofp;
-     bfd_vma val;
+gmon_io_write_vma (FILE *ofp, bfd_vma val)
 {
 
   switch (gmon_get_ptr_size ())
@@ -225,9 +211,7 @@ gmon_io_write_vma (ofp, val)
 }
 
 int
-gmon_io_write_8 (ofp, val)
-     FILE *ofp;	
-     unsigned int val;
+gmon_io_write_8 (FILE *ofp, unsigned int val)
 {
   char buf[1];
 
@@ -238,10 +222,7 @@ gmon_io_write_8 (ofp, val)
 }
 
 int
-gmon_io_write (ofp, buf, n)
-     FILE *ofp;	
-     char *buf;
-     size_t n;
+gmon_io_write (FILE *ofp, char *buf, size_t n)
 {
   if (fwrite (buf, 1, n, ofp) != n)
     return 1;
@@ -249,11 +230,7 @@ gmon_io_write (ofp, buf, n)
 }
 
 static int
-gmon_read_raw_arc (ifp, fpc, spc, cnt)
-     FILE *ifp;
-     bfd_vma *fpc;
-     bfd_vma *spc;
-     unsigned long *cnt;
+gmon_read_raw_arc (FILE *ifp, bfd_vma *fpc, bfd_vma *spc, unsigned long *cnt)
 {
 #ifdef BFD_HOST_U_64_BIT
   BFD_HOST_U_64_BIT cnt64;
@@ -279,16 +256,15 @@ gmon_read_raw_arc (ifp, fpc, spc, cnt)
       *cnt = cnt64;
       break;
 #endif
+
+    default:
+      return 1;
     }
   return 0;
 }
 
 static int
-gmon_write_raw_arc (ofp, fpc, spc, cnt)
-     FILE *ofp;
-     bfd_vma fpc;
-     bfd_vma spc;
-     unsigned long cnt;
+gmon_write_raw_arc (FILE *ofp, bfd_vma fpc, bfd_vma spc, unsigned long cnt)
 {
 
   if (gmon_io_write_vma (ofp, fpc)
@@ -313,8 +289,7 @@ gmon_write_raw_arc (ofp, fpc, spc, cnt)
 }
 
 void
-gmon_out_read (filename)
-     const char *filename;
+gmon_out_read (const char *filename)
 {
   FILE *ifp;
   struct gmon_hdr ghdr;
@@ -407,15 +382,16 @@ gmon_out_read (filename)
       {
 	bfd_vma low_pc;
 	bfd_vma high_pc;
-	int ncnt;
+	unsigned int ncnt;
       };
-      int i, samp_bytes, header_size = 0;
+      unsigned int i;
+      int samp_bytes, header_size = 0;
       unsigned long count;
       bfd_vma from_pc, self_pc;
       static struct hdr h;
       UNIT raw_bin_count;
       struct hdr tmp;
-      int version;
+      unsigned int version;
 
       /* Information from a gmon.out file is in two parts: an array of
 	 sampling hits within pc ranges, and the arcs.  */
@@ -448,7 +424,7 @@ gmon_out_read (filename)
 
       if (version == GMONVERSION)
 	{
-	  int profrate;
+	  unsigned int profrate;
 
 	  /* 4.4BSD format header.  */
           if (gmon_io_read_32 (ifp, &profrate))
@@ -456,7 +432,7 @@ gmon_out_read (filename)
 
 	  if (!s_highpc)
 	    hz = profrate;
-	  else if (hz != profrate)
+	  else if (hz != (int) profrate)
 	    {
 	      fprintf (stderr,
 		       _("%s: profiling rate incompatible with first gmon file\n"),
@@ -619,8 +595,7 @@ gmon_out_read (filename)
 
 
 void
-gmon_out_write (filename)
-     const char *filename;
+gmon_out_write (const char *filename)
 {
   FILE *ofp;
   struct gmon_hdr ghdr;
@@ -660,7 +635,7 @@ gmon_out_write (filename)
   else if (file_format == FF_BSD || file_format == FF_BSD44)
     {
       UNIT raw_bin_count;
-      int i, hdrsize;
+      unsigned int i, hdrsize;
       unsigned padsize;
       char pad[3*4];
       Arc *arc;

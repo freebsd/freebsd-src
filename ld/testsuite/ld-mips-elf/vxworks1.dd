@@ -1,0 +1,51 @@
+
+.*:     file format .*
+
+Disassembly of section \.plt:
+
+00080800 <_PROCEDURE_LINKAGE_TABLE_>:
+   80800:	3c190008 	lui	t9,0x8
+			80800: R_MIPS_HI16	_GLOBAL_OFFSET_TABLE_
+   80804:	27391410 	addiu	t9,t9,5136
+			80804: R_MIPS_LO16	_GLOBAL_OFFSET_TABLE_
+   80808:	8f390008 	lw	t9,8\(t9\)
+   8080c:	00000000 	nop
+   80810:	03200008 	jr	t9
+   80814:	00000000 	nop
+   80818:	1000fff9 	b	80800 <_PROCEDURE_LINKAGE_TABLE_>
+   8081c:	24180000 	li	t8,0
+   80820:	3c190008 	lui	t9,0x8
+			80820: R_MIPS_HI16	_GLOBAL_OFFSET_TABLE_\+0xfffffff0
+   80824:	27391400 	addiu	t9,t9,5120
+			80824: R_MIPS_LO16	_GLOBAL_OFFSET_TABLE_\+0xfffffff0
+   80828:	8f390000 	lw	t9,0\(t9\)
+   8082c:	00000000 	nop
+   80830:	03200008 	jr	t9
+   80834:	00000000 	nop
+   80838:	1000fff1 	b	80800 <_PROCEDURE_LINKAGE_TABLE_>
+   8083c:	24180001 	li	t8,1
+   80840:	3c190008 	lui	t9,0x8
+			80840: R_MIPS_HI16	_GLOBAL_OFFSET_TABLE_\+0xfffffff4
+   80844:	27391404 	addiu	t9,t9,5124
+			80844: R_MIPS_LO16	_GLOBAL_OFFSET_TABLE_\+0xfffffff4
+   80848:	8f390000 	lw	t9,0\(t9\)
+   8084c:	00000000 	nop
+   80850:	03200008 	jr	t9
+   80854:	00000000 	nop
+Disassembly of section \.text:
+
+00080c00 <_start>:
+   80c00:	0c020210 	jal	80840 <_PROCEDURE_LINKAGE_TABLE_\+0x40>
+			80c00: R_MIPS_26	\.plt\+0x40
+   80c04:	00000000 	nop
+   80c08:	0c020306 	jal	80c18 <sexternal>
+			80c08: R_MIPS_26	sexternal
+   80c0c:	00000000 	nop
+   80c10:	08020208 	j	80820 <_PROCEDURE_LINKAGE_TABLE_\+0x20>
+			80c10: R_MIPS_26	\.plt\+0x20
+   80c14:	00000000 	nop
+
+00080c18 <sexternal>:
+   80c18:	03e00008 	jr	ra
+   80c1c:	00000000 	nop
+#pass

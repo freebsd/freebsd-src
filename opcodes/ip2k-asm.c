@@ -1,26 +1,27 @@
 /* Assembler interface for targets using CGEN. -*- C -*-
    CGEN: Cpu tools GENerator
 
-THIS FILE IS MACHINE GENERATED WITH CGEN.
-- the resultant file is machine generated, cgen-asm.in isn't
+   THIS FILE IS MACHINE GENERATED WITH CGEN.
+   - the resultant file is machine generated, cgen-asm.in isn't
 
-Copyright 1996, 1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2005
+   Free Software Foundation, Inc.
 
-This file is part of the GNU Binutils and GDB, the GNU debugger.
+   This file is part of the GNU Binutils and GDB, the GNU debugger.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software Foundation, Inc.,
+   51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* ??? Eventually more and more of this stuff can go to cpu-independent files.
    Keep that in mind.  */
@@ -49,23 +50,11 @@ static const char * parse_insn_normal
 
 /* -- asm.c */
 
-#define PARSE_FUNC_DECL(name) \
-static const char *name PARAMS ((CGEN_CPU_DESC, const char **, int, long *))
-
-PARSE_FUNC_DECL (parse_fr);
-PARSE_FUNC_DECL (parse_addr16);
-PARSE_FUNC_DECL (parse_addr16_p);
-PARSE_FUNC_DECL (parse_addr16_cjp);
-PARSE_FUNC_DECL (parse_lit8);
-PARSE_FUNC_DECL (parse_bit3);
-
-
 static const char *
-parse_fr (cd, strp, opindex, valuep)
-     CGEN_CPU_DESC cd;
-     const char **strp;
-     int opindex;
-     long *valuep;
+parse_fr (CGEN_CPU_DESC cd,
+	  const char **strp,
+	  int opindex,
+	  unsigned long *valuep)
 {
   const char *errmsg;
   const char *old_strp;
@@ -76,49 +65,43 @@ parse_fr (cd, strp, opindex, valuep)
   bfd_vma tempvalue;
 
   old_strp = *strp;
-  afteroffset = NULL; 
+  afteroffset = NULL;
 
-
-  /* Check here to see if you're about to try parsing a w as the first arg */
-  /* and return an error if you are.                                       */
-  if ( (strncmp(*strp,"w",1)==0) || (strncmp(*strp,"W",1)==0) )
+  /* Check here to see if you're about to try parsing a w as the first arg
+     and return an error if you are.  */
+  if ((strncmp (*strp, "w", 1) == 0) || (strncmp (*strp, "W", 1) == 0))
     {
       (*strp)++;
 
-      if ( (strncmp(*strp,",",1)==0) || ISSPACE(**strp) )
+      if ((strncmp (*strp, ",", 1) == 0) || ISSPACE (**strp))
 	{
-	  /* We've been passed a w.  Return with an error message so that  */
-	  /* cgen will try the next parsing option.                        */
+	  /* We've been passed a w.  Return with an error message so that
+	     cgen will try the next parsing option.  */
 	  errmsg = _("W keyword invalid in FR operand slot.");
 	  return errmsg;
 	}
       *strp = old_strp;
     }
 
-
   /* Attempt parse as register keyword. */
-  /* old_strp = *strp; */
-
   errmsg = cgen_parse_keyword (cd, strp, & ip2k_cgen_opval_register_names,
-			       valuep);
-  if ( *strp != NULL )
-    if (errmsg == NULL)
-      return errmsg;
+			       (long *) valuep);
+  if (*strp != NULL
+      && errmsg == NULL)
+    return errmsg;
 
-  /* Attempt to parse for "(IP)" */
-  afteroffset = strstr(*strp,"(IP)");
+  /* Attempt to parse for "(IP)".  */
+  afteroffset = strstr (*strp, "(IP)");
 
-  if ( afteroffset == NULL)
+  if (afteroffset == NULL)
+    /* Make sure it's not in lower case.  */
+    afteroffset = strstr (*strp, "(ip)");
+
+  if (afteroffset != NULL)
     {
-      /* Make sure it's not in lower case */
-      afteroffset = strstr(*strp,"(ip)");
-    }
-
-  if ( afteroffset != NULL )
-    {
-      if ( afteroffset != *strp )
+      if (afteroffset != *strp)
 	{
-	  /* Invalid offset present.*/
+	  /* Invalid offset present.  */
 	  errmsg = _("offset(IP) is not a valid form");
 	  return errmsg;
 	}
@@ -131,47 +114,42 @@ parse_fr (cd, strp, opindex, valuep)
 	}
     }
 
-  /* Attempt to parse for DP. ex: mov w, offset(DP)  */
-  /*                              mov offset(DP),w   */
+  /* Attempt to parse for DP. ex: mov w, offset(DP)
+                                  mov offset(DP),w   */
 
-  /* Try parsing it as an address and see what comes back */
+  /* Try parsing it as an address and see what comes back.  */
+  afteroffset = strstr (*strp, "(DP)");
 
-  afteroffset = strstr(*strp,"(DP)");
+  if (afteroffset == NULL)
+    /* Maybe it's in lower case.  */
+    afteroffset = strstr (*strp, "(dp)");
 
-  if ( afteroffset == NULL)
+  if (afteroffset != NULL)
     {
-      /* Maybe it's in lower case */
-      afteroffset = strstr(*strp,"(dp)");
-    }
-
-  if ( afteroffset != NULL )
-    {
-      if ( afteroffset == *strp )
+      if (afteroffset == *strp)
 	{
-	  /* No offset present. Use 0 by default. */
+	  /* No offset present. Use 0 by default.  */
 	  tempvalue = 0;
 	  errmsg = NULL;
 	}
       else
-	{
-	  errmsg = cgen_parse_address (cd, strp, opindex,
-				       BFD_RELOC_IP2K_FR_OFFSET,
-				       & result_type, & tempvalue);
-	}
+	errmsg = cgen_parse_address (cd, strp, opindex,
+				     BFD_RELOC_IP2K_FR_OFFSET,
+				     & result_type, & tempvalue);
 
       if (errmsg == NULL)
 	{
 	  if (tempvalue <= 127)
 	    {
-	      /* Value is ok.  Fix up the first 2 bits and return */       
+	      /* Value is ok.  Fix up the first 2 bits and return.  */
 	      *valuep = 0x0100 | tempvalue;
-	      *strp += 4; /* skip over the (DP) in *strp */
+	      *strp += 4; /* Skip over the (DP) in *strp.  */
 	      return errmsg;
 	    }
 	  else
 	    {
 	      /* Found something there in front of (DP) but it's out
-		 of range. */
+		 of range.  */
 	      errmsg = _("(DP) offset out of range.");
 	      return errmsg;
 	    }
@@ -179,54 +157,47 @@ parse_fr (cd, strp, opindex, valuep)
     }
 
 
-  /* Attempt to parse for SP. ex: mov w, offset(SP)  */
-  /*                              mov offset(SP), w  */
-
-
-  afteroffset = strstr(*strp,"(SP)");
+  /* Attempt to parse for SP. ex: mov w, offset(SP)
+                                  mov offset(SP), w.  */
+  afteroffset = strstr (*strp, "(SP)");
 
   if (afteroffset == NULL)
-    {
-      /* Maybe it's in lower case. */
-      afteroffset = strstr(*strp, "(sp)");
-    }
+    /* Maybe it's in lower case.  */
+    afteroffset = strstr (*strp, "(sp)");
 
-  if ( afteroffset != NULL )
+  if (afteroffset != NULL)
     {
-      if ( afteroffset ==  *strp )
+      if (afteroffset == *strp)
 	{
-	  /* No offset present. Use 0 by default. */
+	  /* No offset present. Use 0 by default.  */
 	  tempvalue = 0;
 	  errmsg = NULL;
 	}
       else
-	{
-	  errmsg = cgen_parse_address (cd, strp, opindex,
-				       BFD_RELOC_IP2K_FR_OFFSET,
-				       & result_type, & tempvalue);
-	}
+	errmsg = cgen_parse_address (cd, strp, opindex,
+				     BFD_RELOC_IP2K_FR_OFFSET,
+				     & result_type, & tempvalue);
+
       if (errmsg == NULL)
 	{
 	  if (tempvalue <= 127)
 	    {
-	      /* Value is ok.  Fix up the first 2 bits and return */
+	      /* Value is ok.  Fix up the first 2 bits and return.  */
 	      *valuep = 0x0180 | tempvalue;
-	      *strp += 4; /* skip over the (SP) in *strp */
+	      *strp += 4; /* Skip over the (SP) in *strp.  */
 	      return errmsg;
 	    }
 	  else
 	    {
 	      /* Found something there in front of (SP) but it's out
-		 of range. */
+		 of range.  */
 	      errmsg = _("(SP) offset out of range.");
 	      return errmsg;
 	    }
-        
 	}
     }
 
-
-  /* Attempt to parse as an address. */
+  /* Attempt to parse as an address.  */
   *strp = old_strp;
   errmsg = cgen_parse_address (cd, strp, opindex, BFD_RELOC_IP2K_FR9,
 			       & result_type, & value);
@@ -234,14 +205,12 @@ parse_fr (cd, strp, opindex, valuep)
     {
       *valuep = value;
 
-      /* if a parenthesis is found, warn about invalid form */
-
+      /* If a parenthesis is found, warn about invalid form.  */
       if (**strp == '(')
-	{
-	  errmsg = _("illegal use of parentheses");
-        }
-      /* if a numeric value is specified, ensure that it is between
-	 1 and 255 */
+	errmsg = _("illegal use of parentheses");
+
+      /* If a numeric value is specified, ensure that it is between
+	 1 and 255.  */
       else if (result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
 	{
 	  if (value < 0x1 || value > 0xff)
@@ -252,24 +221,23 @@ parse_fr (cd, strp, opindex, valuep)
 }
 
 static const char *
-parse_addr16 (cd, strp, opindex, valuep)
-     CGEN_CPU_DESC cd;
-     const char **strp;
-     int opindex;
-     long *valuep;
+parse_addr16 (CGEN_CPU_DESC cd,
+	      const char **strp,
+	      int opindex,
+	      unsigned long *valuep)
 {
   const char *errmsg;
   enum cgen_parse_operand_result result_type;
   bfd_reloc_code_real_type code = BFD_RELOC_NONE;
   bfd_vma value;
 
-  if ( opindex == (CGEN_OPERAND_TYPE)IP2K_OPERAND_ADDR16H )
+  if (opindex == (CGEN_OPERAND_TYPE) IP2K_OPERAND_ADDR16H)
     code = BFD_RELOC_IP2K_HI8DATA;
-  else if ( opindex == (CGEN_OPERAND_TYPE)IP2K_OPERAND_ADDR16L )
+  else if (opindex == (CGEN_OPERAND_TYPE) IP2K_OPERAND_ADDR16L)
     code = BFD_RELOC_IP2K_LO8DATA;
   else
     {
-      /* Something is very wrong. opindex has to be one of the above. */
+      /* Something is very wrong. opindex has to be one of the above.  */
       errmsg = _("parse_addr16: invalid opindex.");
       return errmsg;
     }
@@ -278,13 +246,14 @@ parse_addr16 (cd, strp, opindex, valuep)
 			       & result_type, & value);
   if (errmsg == NULL)
     {
-      /* We either have a relocation or a number now. */
-      if ( result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER )
+      /* We either have a relocation or a number now.  */
+      if (result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
 	{
-	  /* We got a number back. */
-	  if ( code == BFD_RELOC_IP2K_HI8DATA )
+	  /* We got a number back.  */
+	  if (code == BFD_RELOC_IP2K_HI8DATA)
             value >>= 8;
-	  else    /* code = BFD_RELOC_IP2K_LOW8DATA */
+	  else
+	    /* code = BFD_RELOC_IP2K_LOW8DATA.  */
 	    value &= 0x00FF;
 	}   
       *valuep = value;
@@ -293,66 +262,39 @@ parse_addr16 (cd, strp, opindex, valuep)
   return errmsg;
 }
 
-
 static const char *
-parse_addr16_p (cd, strp, opindex, valuep)
-     CGEN_CPU_DESC cd;
-     const char **strp;
-     int opindex;
-     long *valuep;
-{
-  const char *errmsg;
-  enum cgen_parse_operand_result result_type;
-  bfd_reloc_code_real_type code = BFD_RELOC_IP2K_PAGE3;
-  bfd_vma value;
- 
-  errmsg = cgen_parse_address (cd, strp, opindex, code,
-			       & result_type, & value);
-  if (errmsg == NULL)
-    {
-      if ( result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER )
-	*valuep = (value >> 13) & 0x7;
-      else if ( result_type == CGEN_PARSE_OPERAND_RESULT_QUEUED )
-	*valuep = value;
-    }
-  return errmsg; 
-}
-
-
-static const char *
-parse_addr16_cjp (cd, strp, opindex, valuep)
-     CGEN_CPU_DESC cd;
-     const char **strp;
-     int opindex;
-     long *valuep;
+parse_addr16_cjp (CGEN_CPU_DESC cd,
+		  const char **strp,
+		  int opindex,
+		  unsigned long *valuep)
 {
   const char *errmsg;
   enum cgen_parse_operand_result result_type;
   bfd_reloc_code_real_type code = BFD_RELOC_NONE;
   bfd_vma value;
  
-  if ( opindex == (CGEN_OPERAND_TYPE)IP2K_OPERAND_ADDR16CJP )
+  if (opindex == (CGEN_OPERAND_TYPE) IP2K_OPERAND_ADDR16CJP)
     code = BFD_RELOC_IP2K_ADDR16CJP;
-  else if ( opindex == (CGEN_OPERAND_TYPE)IP2K_OPERAND_ADDR16P )
+  else if (opindex == (CGEN_OPERAND_TYPE) IP2K_OPERAND_ADDR16P)
     code = BFD_RELOC_IP2K_PAGE3;
 
   errmsg = cgen_parse_address (cd, strp, opindex, code,
 			       & result_type, & value);
   if (errmsg == NULL)
     {
-      if ( result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER )
+      if (result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
 	{
-	  if ( (value & 0x1) == 0)  /* If the address is even .... */
+	  if ((value & 0x1) == 0)  /* If the address is even .... */
 	    {
-	      if ( opindex == (CGEN_OPERAND_TYPE)IP2K_OPERAND_ADDR16CJP )
-                *valuep = (value >> 1) & 0x1FFF;  /* Should mask be 1FFF? */
-	      else if ( opindex == (CGEN_OPERAND_TYPE)IP2K_OPERAND_ADDR16P )
+	      if (opindex == (CGEN_OPERAND_TYPE) IP2K_OPERAND_ADDR16CJP)
+                *valuep = (value >> 1) & 0x1FFF;  /* Should mask be 1FFF?  */
+	      else if (opindex == (CGEN_OPERAND_TYPE) IP2K_OPERAND_ADDR16P)
                 *valuep = (value >> 14) & 0x7;
 	    }
           else
  	    errmsg = _("Byte address required. - must be even.");
 	}
-      else if ( result_type == CGEN_PARSE_OPERAND_RESULT_QUEUED )
+      else if (result_type == CGEN_PARSE_OPERAND_RESULT_QUEUED)
 	{
 	  /* This will happen for things like (s2-s1) where s2 and s1
 	     are labels.  */
@@ -364,20 +306,18 @@ parse_addr16_cjp (cd, strp, opindex, valuep)
   return errmsg; 
 }
 
-
 static const char *
-parse_lit8 (cd, strp, opindex, valuep)
-     CGEN_CPU_DESC cd;
-     const char **strp;
-     int opindex;
-     long *valuep;
+parse_lit8 (CGEN_CPU_DESC cd,
+	    const char **strp,
+	    int opindex,
+	    long *valuep)
 {
   const char *errmsg;
   enum cgen_parse_operand_result result_type;
   bfd_reloc_code_real_type code = BFD_RELOC_NONE;
   bfd_vma value;
 
-  /* Parse %OP relocating operators. */
+  /* Parse %OP relocating operators.  */
   if (strncmp (*strp, "%bank", 5) == 0)
     {
       *strp += 5;
@@ -408,7 +348,6 @@ parse_lit8 (cd, strp, opindex, valuep)
       *strp += 8;
       code = BFD_RELOC_IP2K_HI8INSN;
     }
-  
 
   /* Parse %op operand.  */
   if (code != BFD_RELOC_NONE)
@@ -417,7 +356,7 @@ parse_lit8 (cd, strp, opindex, valuep)
 				   & result_type, & value);
       if ((errmsg == NULL) &&
 	  (result_type != CGEN_PARSE_OPERAND_RESULT_QUEUED))
-	errmsg = _("%operator operand is not a symbol");
+	errmsg = _("percent-operator operand is not a symbol");
 
       *valuep = value;
     }
@@ -426,7 +365,7 @@ parse_lit8 (cd, strp, opindex, valuep)
     {
       errmsg = cgen_parse_signed_integer (cd, strp, opindex, valuep);
 
-      /* Truncate to eight bits to accept both signed and unsigned input. */
+      /* Truncate to eight bits to accept both signed and unsigned input.  */
       if (errmsg == NULL)
 	*valuep &= 0xFF;
     }
@@ -435,11 +374,10 @@ parse_lit8 (cd, strp, opindex, valuep)
 }
 
 static const char *
-parse_bit3 (cd, strp, opindex, valuep)
-     CGEN_CPU_DESC cd;
-     const char **strp;
-     int opindex;
-     long *valuep;
+parse_bit3 (CGEN_CPU_DESC cd,
+	    const char **strp,
+	    int opindex,
+	    unsigned long *valuep)
 {
   const char *errmsg;
   char mode = 0;
@@ -462,13 +400,13 @@ parse_bit3 (cd, strp, opindex, valuep)
       mode = 2;
     }
 
-  errmsg = cgen_parse_signed_integer (cd, strp, opindex, valuep);
+  errmsg = cgen_parse_unsigned_integer (cd, strp, opindex, valuep);
   if (errmsg)
     return errmsg;
 
   if (mode)
     {
-      value = (unsigned long) *valuep;
+      value = * valuep;
       if (value == 0)
 	{
 	  errmsg = _("Attempt to find bit index of 0");
@@ -500,11 +438,10 @@ parse_bit3 (cd, strp, opindex, valuep)
   return errmsg;
 }
 
-
 /* -- dis.c */
 
 const char * ip2k_cgen_parse_operand
-  PARAMS ((CGEN_CPU_DESC, int, const char **, CGEN_FIELDS *));
+  (CGEN_CPU_DESC, int, const char **, CGEN_FIELDS *);
 
 /* Main entry point for operand parsing.
 
@@ -520,11 +457,10 @@ const char * ip2k_cgen_parse_operand
    the handlers.  */
 
 const char *
-ip2k_cgen_parse_operand (cd, opindex, strp, fields)
-     CGEN_CPU_DESC cd;
-     int opindex;
-     const char ** strp;
-     CGEN_FIELDS * fields;
+ip2k_cgen_parse_operand (CGEN_CPU_DESC cd,
+			   int opindex,
+			   const char ** strp,
+			   CGEN_FIELDS * fields)
 {
   const char * errmsg = NULL;
   /* Used by scalar operands that still need to be parsed.  */
@@ -533,40 +469,40 @@ ip2k_cgen_parse_operand (cd, opindex, strp, fields)
   switch (opindex)
     {
     case IP2K_OPERAND_ADDR16CJP :
-      errmsg = parse_addr16_cjp (cd, strp, IP2K_OPERAND_ADDR16CJP, &fields->f_addr16cjp);
+      errmsg = parse_addr16_cjp (cd, strp, IP2K_OPERAND_ADDR16CJP, (unsigned long *) (& fields->f_addr16cjp));
       break;
     case IP2K_OPERAND_ADDR16H :
-      errmsg = parse_addr16 (cd, strp, IP2K_OPERAND_ADDR16H, &fields->f_imm8);
+      errmsg = parse_addr16 (cd, strp, IP2K_OPERAND_ADDR16H, (unsigned long *) (& fields->f_imm8));
       break;
     case IP2K_OPERAND_ADDR16L :
-      errmsg = parse_addr16 (cd, strp, IP2K_OPERAND_ADDR16L, &fields->f_imm8);
+      errmsg = parse_addr16 (cd, strp, IP2K_OPERAND_ADDR16L, (unsigned long *) (& fields->f_imm8));
       break;
     case IP2K_OPERAND_ADDR16P :
-      errmsg = parse_addr16_cjp (cd, strp, IP2K_OPERAND_ADDR16P, &fields->f_page3);
+      errmsg = parse_addr16_cjp (cd, strp, IP2K_OPERAND_ADDR16P, (unsigned long *) (& fields->f_page3));
       break;
     case IP2K_OPERAND_BITNO :
-      errmsg = parse_bit3 (cd, strp, IP2K_OPERAND_BITNO, &fields->f_bitno);
+      errmsg = parse_bit3 (cd, strp, IP2K_OPERAND_BITNO, (unsigned long *) (& fields->f_bitno));
       break;
     case IP2K_OPERAND_CBIT :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, IP2K_OPERAND_CBIT, &junk);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, IP2K_OPERAND_CBIT, (unsigned long *) (& junk));
       break;
     case IP2K_OPERAND_DCBIT :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, IP2K_OPERAND_DCBIT, &junk);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, IP2K_OPERAND_DCBIT, (unsigned long *) (& junk));
       break;
     case IP2K_OPERAND_FR :
-      errmsg = parse_fr (cd, strp, IP2K_OPERAND_FR, &fields->f_reg);
+      errmsg = parse_fr (cd, strp, IP2K_OPERAND_FR, (unsigned long *) (& fields->f_reg));
       break;
     case IP2K_OPERAND_LIT8 :
-      errmsg = parse_lit8 (cd, strp, IP2K_OPERAND_LIT8, &fields->f_imm8);
+      errmsg = parse_lit8 (cd, strp, IP2K_OPERAND_LIT8, (long *) (& fields->f_imm8));
       break;
     case IP2K_OPERAND_PABITS :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, IP2K_OPERAND_PABITS, &junk);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, IP2K_OPERAND_PABITS, (unsigned long *) (& junk));
       break;
     case IP2K_OPERAND_RETI3 :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, IP2K_OPERAND_RETI3, &fields->f_reti3);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, IP2K_OPERAND_RETI3, (unsigned long *) (& fields->f_reti3));
       break;
     case IP2K_OPERAND_ZBIT :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, IP2K_OPERAND_ZBIT, &junk);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, IP2K_OPERAND_ZBIT, (unsigned long *) (& junk));
       break;
 
     default :
@@ -584,8 +520,7 @@ cgen_parse_fn * const ip2k_cgen_parse_handlers[] =
 };
 
 void
-ip2k_cgen_init_asm (cd)
-     CGEN_CPU_DESC cd;
+ip2k_cgen_init_asm (CGEN_CPU_DESC cd)
 {
   ip2k_cgen_init_opcode_table (cd);
   ip2k_cgen_init_ibld_table (cd);
@@ -968,30 +903,3 @@ ip2k_cgen_assemble_insn (CGEN_CPU_DESC cd,
     return NULL;
   }
 }
-
-#if 0 /* This calls back to GAS which we can't do without care.  */
-
-/* Record each member of OPVALS in the assembler's symbol table.
-   This lets GAS parse registers for us.
-   ??? Interesting idea but not currently used.  */
-
-/* Record each member of OPVALS in the assembler's symbol table.
-   FIXME: Not currently used.  */
-
-void
-ip2k_cgen_asm_hash_keywords (CGEN_CPU_DESC cd, CGEN_KEYWORD *opvals)
-{
-  CGEN_KEYWORD_SEARCH search = cgen_keyword_search_init (opvals, NULL);
-  const CGEN_KEYWORD_ENTRY * ke;
-
-  while ((ke = cgen_keyword_search_next (& search)) != NULL)
-    {
-#if 0 /* Unnecessary, should be done in the search routine.  */
-      if (! ip2k_cgen_opval_supported (ke))
-	continue;
-#endif
-      cgen_asm_record_register (cd, ke->name, ke->value);
-    }
-}
-
-#endif /* 0 */

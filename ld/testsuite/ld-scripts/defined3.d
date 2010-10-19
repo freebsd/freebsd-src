@@ -2,6 +2,7 @@
 #nm: -B
 #source: phdrs.s
 #source: defined.s
+#xfail: "rs6000-*-aix*"
 
 # Check that DEFINED matches only symbols defined before its location.
 # The ellipsis account for target-specific symbols.  Matching both A and T

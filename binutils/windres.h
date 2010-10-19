@@ -1,5 +1,6 @@
 /* windres.h -- header file for windres program.
-   Copyright 1997, 1998, 2000, 2002, 2003 Free Software Foundation, Inc.
+   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005
+   Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
    This file is part of GNU Binutils.
@@ -16,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include "ansidecl.h"
 
@@ -829,6 +830,8 @@ extern void define_messagetable
   (struct res_id, const struct res_res_info *, const char *);
 extern void define_rcdata
   (struct res_id, const struct res_res_info *, struct rcdata_item *);
+extern void define_rcdata_file 
+  (struct res_id, const struct res_res_info *, const char *);
 extern struct rcdata_item *define_rcdata_string
   (const char *, unsigned long);
 extern struct rcdata_item *define_rcdata_number (unsigned long, int);

@@ -1,22 +1,147 @@
+2006-04-10  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* lib/utils-lib.exp (default_binutils_run): Check exit status.
+
+2005-12-24  Ben Elliston  <bje@gnu.org>
+
+	* config/default.exp: Do not load the unneeded util-defs.exp.
+
+2005-11-15  Jan Beulich  <jbeulich@novell.com>
+
+	* config/default.exp (link_or_copy): New. Use it for setting
+	up assembler and linker for the compiler to use.
+
+2005-10-20  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/251
+	* binutils-all/group.s: New file.
+
+	* binutils-all/objcopy.exp (objcopy_test_readelf): New
+	procedure.
+	Use it to test ELF group.
+
+2005-10-19  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/1487
+	* binutils-all/objcopy.exp (objcopy_test): New procedure.
+	Use it to test simple copy, ia64 link order and ELF unknown
+	section type.
+
+	* binutils-all/unknown.s: New file.
+
+2005-10-19  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR binutils/1321
+	* binutils-all/link-order.s: New.
+
+	* binutils-all/objcopy.exp: Check ia64 link order.
+
+2005-10-11  Danny Smith  <dannysmith@users.sourceforge.net>
+
+	* binutils-all/windres/escapex-2.rc: New file.
+	* binutils-all/windres/escapex-2.rsd: Generate.
+
+2005-08-26  Christian Groessler  <chris@groessler.org>
+
+	* binutils-all/objcopy.exp: Don't setup_xfail "z8*-*".
+
+2005-08-18  Alan Modra  <amodra@bigpond.net.au>
+
+	* binutils-all/objcopy.exp: Remove a29k support.
+	* binutils-all/objdump.exp: Likewise, alliant and convex too.
+
+2005-05-07  Nick Clifton  <nickc@redhat.com>
+
+	* Update the address and phone number of the FSF organization in
+	the GPL notices in the following files:
+	binutils-all/ar.exp, binutils-all/dlltool.exp,
+	binutils-all/nm.exp, binutils-all/objcopy.exp,
+	binutils-all/objdump.exp, binutils-all/readelf.exp,
+	binutils-all/size.exp, binutils-all/hppa/objdump.exp,
+	binutils-all/m68k/objdump.exp, binutils-all/vax/objdump.exp,
+	binutils-all/windres/msupdate, binutils-all/windres/windres.exp,
+	config/default.exp, lib/utils-lib.exp
+
+2005-04-04  Jan-Benedict Glaw  <jbglaw@lug-owl.>
+
+	* binutils-all/vax/objdump.exp: Condense the two tests into one
+	and add a "-M entry:" for the second label.
+
+2005-03-29  Jan-Benedict Glaw  <jbglaw@lug-owl.de>
+
+	* binutils-all/vax: New directory.
+	* binutils-all/vax/objdump.exp: New script.  Test the -Mentry:
+	switch added to the VAX disassembler.
+	* binutils-all/vax/entrymask.s: New assembler source file.
+
+2005-03-08  Ben Elliston  <bje@au.ibm.com>
+
+       * config/default.exp: Remove send_user call for stray output.
+
+2005-01-04  Martin Koegler  <mkoegler@auto.tuwien.ac.at>
+
+	* binutils-all/testprog.c: Add prototype for printf() and make
+	type of "string" array be "char" in order to avoid compile time
+	warnings.
+
+2004-12-31  Alan Modra  <amodra@bigpond.net.au>
+
+	* binutils-all/readelf.ss: Allow for both .rel and .rela sections.
+
+2004-11-04  Hans-Peter Nilsson  <hp@axis.com>
+
+	* binutils-all/objdump.exp (cpus_expected): Append cris.
+
+2004-10-28  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* binutils-all/dlltool.exp: Set XFAIL if $target_xfail is yes.
+
+2004-10-23  Aaron W. LaFramboise  <aaron98wiridge9@aaronwl.com>
+
+	* binutils-all/alias.def: New file.
+	* binutils-all/dlltool.exp: Two new -p tests.
+	* config/default.exp (dlltool_gas_flag): New variable.
+	Copy gas and lds executables into tmpdir/gas directory rather than
+	making symlinks which might not be supported by the host OS.
+	Attempt to handle the case where the host OS does not use the .exe
+	extension but the target OS does.
+	* lib/utils-lib.exp (exe_ext): New procedure.
+
+2004-07-12  Nick Clifton  <nickc@redhat.com>
+
+	* binutils-all/dlltool.exp: Check that the -p switch is not
+	rejected.
+
+2004-07-09  Andreas Schwab  <schwab@suse.de>
+
+	* binutils-all/m68k/movem.s: New file.
+
+	* binutils-all/m68k/objdump.exp: New file.
+
 2004-05-15  Nick Clifton  <nickc@redhat.com>
 
 	* binutils-all/readelf.ss: Allow for ARM mapping symbols.
+
+2004-05-12  Ben Elliston  <bje@au.ibm.com>
+
+	* binutils-all/ar.exp: Remove stray semicolons.
+	* binutils-all/dlltool.exp: Likewise.
+	* binutils-all/objcopy.exp: Likewise.
+	* binutils-all/readelf.exp: Likewise.
+	* binutils-all/windres/windres.exp: Likewise.
+	* lib/utils-lib.exp: Likewise.
 
 2004-04-14  Richard Sandiford  <rsandifo@redhat.com>
 
 	* binutils-all/readelf.ss-mips: Allow named section symbols.
 
-2004-04-09  Daniel Jacobowitz  <drow@mvista.com>
+2004-03-30  Jakub Jelinek  <jakub@redhat.com>
 
-	Merge from mainline:
-	2004-02-27  Andreas Schwab  <schwab@suse.de>
-	* binutils-all/ar.exp (argument_parsing): New test.
-
-2004-04-08  Alan Modra  <amodra@bigpond.net.au>
-
-	Apply from mainline.
-	2004-03-30  Jakub Jelinek  <jakub@redhat.com>
 	* binutils-all/objcopy.exp: Accept main as a data symbol as well.
+
+2004-02-27  Andreas Schwab  <schwab@suse.de>
+
+	* binutils-all/ar.exp (argument_parsing): New test.
 
 2004-02-20  Nathan Sidwell  <nathan@codesourcery.com>
 

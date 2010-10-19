@@ -1,4 +1,4 @@
-# Copyright 2001, 2003 Free Software Foundation, Inc.
+# Copyright 2001, 2003, 2004 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
 # Please email any bugs, comments, and/or additions to this file to:
 # bug-dejagnu@prep.ai.mit.edu
@@ -73,7 +73,7 @@ foreach res $res_list {
 	}
 	if [regexp "\[xp\]fail *(\[^ \]*)" $line junk sys] {
 	    setup_xfail $sys
-	    continue;
+	    continue
 	}
     }
 
@@ -88,7 +88,7 @@ foreach res $res_list {
 	send_log "$err\n"
 	verbose "$err" 1
 	fail "windres/$broot (parse)"
-	continue;
+	continue
     }
     pass "windres/$broot (parse)"
 
@@ -100,15 +100,15 @@ foreach res $res_list {
 	if [regexp "parse-only" $line] {
 	    file delete "tmpdir/$broot.res"
 	    set done 1
-	    break;
+	    break
 	}
 	if [regexp "\[xc\]fail *(\[^ \]*)" $line junk sys] {
 	    setup_xfail $sys
-	    continue;
+	    continue
 	}
     }
     if { $done != 0 } {
-	continue;
+	continue
     }
 
     if { "$broot" != "bmpalign" && "$target_xfail" == "yes" } {
@@ -122,7 +122,7 @@ foreach res $res_list {
 	send_log "$err\n"
 	verbose "$err" 1
 	fail "windres/$broot (compare)"
-	continue;
+	continue
     }
 
     set pat [open "$sroot.rsd"]
@@ -134,11 +134,11 @@ foreach res $res_list {
 	set outline [oneline $out]
 
 	if ![string match $patline $outline] {
-	    send_log "< $patline\n";
-	    send_log "> $outline\n";
-	    fail "windres/$broot (compare)";
+	    send_log "< $patline\n"
+	    send_log "> $outline\n"
+	    fail "windres/$broot (compare)"
 	    set done 1
-	    break;
+	    break
 	}
     }
     if { $done == 0 } {

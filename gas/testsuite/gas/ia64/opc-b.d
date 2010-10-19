@@ -1,3 +1,4 @@
+#as: -xnone -mhint.b=ok -mtune=itanium1
 #objdump: -d
 #name: ia64 opc-b
 
@@ -1015,6 +1016,6 @@ Disassembly of section .text:
     2bf0:	16 f8 ff 0f 00 00 	\[BBB\]       break\.b 0x1ffff
     2bf6:	00 00 00 02 10 e0 	            hint\.b 0x0
     2bfc:	ff 3f 04 20       	            hint\.b 0x1ffff
-    2c00:	1d 00 00 00 01 00 	\[MFB\]       nop\.m 0x0
-    2c06:	00 00 00 02 00 e0 	            nop\.f 0x0
-    2c0c:	ff 3f 00 20       	            nop\.b 0x1ffff;;
+    2c00:	17 f8 ff 0f 00 08 	\[BBB\]       nop\.b 0x1ffff
+    2c06:	00 00 00 30 00 00 	            vmsw.0
+    2c0c:	00 00 64 00       	            vmsw.1;;

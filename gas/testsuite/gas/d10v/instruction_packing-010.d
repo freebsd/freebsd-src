@@ -12,3 +12,4 @@ Disassembly of section .text:
    8:	60 22 c0 67 	ldi.s	r2, 0x2	->	ldi.s	r3, 0x3
    c:	e0 40 40 00 	ldi.l	r4, 0x4000
   10:	60 55 cc 1a 	ldi.s	r5, 0x5	->	jmp	r13
+#pass

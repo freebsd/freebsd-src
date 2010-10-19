@@ -1,0 +1,56 @@
+
+.*:     file format .*
+
+Disassembly of section \.plt:
+
+00080800 <_PROCEDURE_LINKAGE_TABLE_>:
+   80800:	81 9e 00 08 	lwz     r12,8\(r30\)
+   80804:	7d 89 03 a6 	mtctr   r12
+   80808:	81 9e 00 04 	lwz     r12,4\(r30\)
+   8080c:	4e 80 04 20 	bctr
+   80810:	60 00 00 00 	nop
+   80814:	60 00 00 00 	nop
+   80818:	60 00 00 00 	nop
+   8081c:	60 00 00 00 	nop
+   80820:	3d 9e 00 00 	addis   r12,r30,0
+   80824:	81 8c 00 0c 	lwz     r12,12\(r12\)
+   80828:	7d 89 03 a6 	mtctr   r12
+   8082c:	4e 80 04 20 	bctr
+   80830:	39 60 00 00 	li      r11,0
+   80834:	4b ff ff cc 	b       80800 <_PROCEDURE_LINKAGE_TABLE_>
+   80838:	60 00 00 00 	nop
+   8083c:	60 00 00 00 	nop
+   80840:	3d 9e 00 00 	addis   r12,r30,0
+   80844:	81 8c 00 10 	lwz     r12,16\(r12\)
+   80848:	7d 89 03 a6 	mtctr   r12
+   8084c:	4e 80 04 20 	bctr
+   80850:	39 60 00 01 	li      r11,1
+   80854:	4b ff ff ac 	b       80800 <_PROCEDURE_LINKAGE_TABLE_>
+   80858:	60 00 00 00 	nop
+   8085c:	60 00 00 00 	nop
+Disassembly of section \.text:
+
+00080c00 <foo>:
+   80c00:	94 21 ff e8 	stwu    r1,-24\(r1\)
+   80c04:	7c 08 02 a6 	mflr    r0
+   80c08:	90 01 00 1c 	stw     r0,28\(r1\)
+   80c0c:	3f c0 00 00 	lis     r30,0
+   80c10:	83 de 00 00 	lwz     r30,0\(r30\)
+   80c14:	83 de 00 00 	lwz     r30,0\(r30\)
+   80c18:	80 3e 00 14 	lwz     r1,20\(r30\)
+   80c1c:	80 01 00 00 	lwz     r0,0\(r1\)
+   80c20:	38 00 00 01 	li      r0,1
+   80c24:	90 01 00 00 	stw     r0,0\(r1\)
+   80c28:	48 00 00 1d 	bl      80c44 <slocal>
+   80c2c:	4b ff fc 15 	bl      80840 <_PROCEDURE_LINKAGE_TABLE_\+0x40>
+   80c30:	4b ff fb f1 	bl      80820 <_PROCEDURE_LINKAGE_TABLE_\+0x20>
+   80c34:	80 01 00 1c 	lwz     r0,28\(r1\)
+   80c38:	7c 08 03 a6 	mtlr    r0
+   80c3c:	38 21 00 18 	addi    r1,r1,24
+   80c40:	4e 80 00 20 	blr
+
+00080c44 <slocal>:
+   80c44:	4e 80 00 20 	blr
+
+00080c48 <sglobal>:
+   80c48:	4e 80 00 20 	blr

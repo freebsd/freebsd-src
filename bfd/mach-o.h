@@ -1,5 +1,5 @@
 /* Mach-O support for BFD.
-   Copyright 1999, 2000, 2001, 2002
+   Copyright 1999, 2000, 2001, 2002, 2003, 2005
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -16,7 +16,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef _BFD_MACH_O_H_
 #define _BFD_MACH_O_H_
@@ -34,141 +34,141 @@
 #define BFD_MACH_O_N_INDR  0x0a	/* Indirect.  */
 
 typedef enum bfd_mach_o_ppc_thread_flavour
-  {
-    BFD_MACH_O_PPC_THREAD_STATE = 1,
-    BFD_MACH_O_PPC_FLOAT_STATE = 2,
-    BFD_MACH_O_PPC_EXCEPTION_STATE = 3,
-    BFD_MACH_O_PPC_VECTOR_STATE = 4
-  }
+{
+  BFD_MACH_O_PPC_THREAD_STATE = 1,
+  BFD_MACH_O_PPC_FLOAT_STATE = 2,
+  BFD_MACH_O_PPC_EXCEPTION_STATE = 3,
+  BFD_MACH_O_PPC_VECTOR_STATE = 4
+}
 bfd_mach_o_ppc_thread_flavour;
 
 typedef enum bfd_mach_o_i386_thread_flavour
-  {
-    BFD_MACH_O_i386_NEW_THREAD_STATE = 1,
-    BFD_MACH_O_i386_FLOAT_STATE = 2,
-    BFD_MACH_O_i386_ISA_PORT_MAP_STATE = 3,
-    BFD_MACH_O_i386_V86_ASSIST_STATE = 4,
-    BFD_MACH_O_i386_REGS_SEGS_STATE = 5,
-    BFD_MACH_O_i386_THREAD_SYSCALL_STATE = 6,
-    BFD_MACH_O_i386_THREAD_STATE_NONE = 7,
-    BFD_MACH_O_i386_SAVED_STATE = 8,
-    BFD_MACH_O_i386_THREAD_STATE = -1,
-    BFD_MACH_O_i386_THREAD_FPSTATE = -2,
-    BFD_MACH_O_i386_THREAD_EXCEPTSTATE = -3,
-    BFD_MACH_O_i386_THREAD_CTHREADSTATE = -4,
-  }
+{
+  BFD_MACH_O_i386_NEW_THREAD_STATE = 1,
+  BFD_MACH_O_i386_FLOAT_STATE = 2,
+  BFD_MACH_O_i386_ISA_PORT_MAP_STATE = 3,
+  BFD_MACH_O_i386_V86_ASSIST_STATE = 4,
+  BFD_MACH_O_i386_REGS_SEGS_STATE = 5,
+  BFD_MACH_O_i386_THREAD_SYSCALL_STATE = 6,
+  BFD_MACH_O_i386_THREAD_STATE_NONE = 7,
+  BFD_MACH_O_i386_SAVED_STATE = 8,
+  BFD_MACH_O_i386_THREAD_STATE = -1,
+  BFD_MACH_O_i386_THREAD_FPSTATE = -2,
+  BFD_MACH_O_i386_THREAD_EXCEPTSTATE = -3,
+  BFD_MACH_O_i386_THREAD_CTHREADSTATE = -4,
+}
 bfd_mach_o_i386_thread_flavour;
 
 #define BFD_MACH_O_LC_REQ_DYLD 0x80000000
 
 typedef enum bfd_mach_o_load_command_type
-  {
-    BFD_MACH_O_LC_SEGMENT = 0x1,	/* File segment to be mapped.  */
-    BFD_MACH_O_LC_SYMTAB = 0x2,		/* Link-edit stab symbol table info (obsolete).  */
-    BFD_MACH_O_LC_SYMSEG = 0x3,		/* Link-edit gdb symbol table info.  */
-    BFD_MACH_O_LC_THREAD = 0x4,		/* Thread.  */
-    BFD_MACH_O_LC_UNIXTHREAD = 0x5,	/* UNIX thread (includes a stack).  */
-    BFD_MACH_O_LC_LOADFVMLIB = 0x6,	/* Load a fixed VM shared library.  */
-    BFD_MACH_O_LC_IDFVMLIB = 0x7,	/* Fixed VM shared library id.  */
-    BFD_MACH_O_LC_IDENT = 0x8,		/* Object identification information (obsolete).  */
-    BFD_MACH_O_LC_FVMFILE = 0x9,	/* Fixed VM file inclusion.  */
-    BFD_MACH_O_LC_PREPAGE = 0xa,	/* Prepage command (internal use).  */
-    BFD_MACH_O_LC_DYSYMTAB = 0xb,	/* Dynamic link-edit symbol table info.  */
-    BFD_MACH_O_LC_LOAD_DYLIB = 0xc,	/* Load a dynamically linked shared library.  */
-    BFD_MACH_O_LC_ID_DYLIB = 0xd,	/* Dynamically linked shared lib identification.  */
-    BFD_MACH_O_LC_LOAD_DYLINKER = 0xe,	/* Load a dynamic linker.  */
-    BFD_MACH_O_LC_ID_DYLINKER = 0xf,	/* Dynamic linker identification.  */
-    BFD_MACH_O_LC_PREBOUND_DYLIB = 0x10,/* Modules prebound for a dynamically.  */
-    BFD_MACH_O_LC_ROUTINES = 0x11,	/* Image routines.  */
-    BFD_MACH_O_LC_SUB_FRAMEWORK = 0x12,	/* Sub framework.  */
-    BFD_MACH_O_LC_SUB_UMBRELLA = 0x13,	/* Sub umbrella.  */
-    BFD_MACH_O_LC_SUB_CLIENT = 0x14,	/* Sub client.  */
-    BFD_MACH_O_LC_SUB_LIBRARY = 0x15,   /* Sub library.  */
-    BFD_MACH_O_LC_TWOLEVEL_HINTS = 0x16,/* Two-level namespace lookup hints.  */
-    BFD_MACH_O_LC_PREBIND_CKSUM = 0x17, /* Prebind checksum.  */
-    /* Load a dynamically linked shared library that is allowed to be
+{
+  BFD_MACH_O_LC_SEGMENT = 0x1,		/* File segment to be mapped.  */
+  BFD_MACH_O_LC_SYMTAB = 0x2,		/* Link-edit stab symbol table info (obsolete).  */
+  BFD_MACH_O_LC_SYMSEG = 0x3,		/* Link-edit gdb symbol table info.  */
+  BFD_MACH_O_LC_THREAD = 0x4,		/* Thread.  */
+  BFD_MACH_O_LC_UNIXTHREAD = 0x5,	/* UNIX thread (includes a stack).  */
+  BFD_MACH_O_LC_LOADFVMLIB = 0x6,	/* Load a fixed VM shared library.  */
+  BFD_MACH_O_LC_IDFVMLIB = 0x7,		/* Fixed VM shared library id.  */
+  BFD_MACH_O_LC_IDENT = 0x8,		/* Object identification information (obsolete).  */
+  BFD_MACH_O_LC_FVMFILE = 0x9,		/* Fixed VM file inclusion.  */
+  BFD_MACH_O_LC_PREPAGE = 0xa,		/* Prepage command (internal use).  */
+  BFD_MACH_O_LC_DYSYMTAB = 0xb,		/* Dynamic link-edit symbol table info.  */
+  BFD_MACH_O_LC_LOAD_DYLIB = 0xc,	/* Load a dynamically linked shared library.  */
+  BFD_MACH_O_LC_ID_DYLIB = 0xd,		/* Dynamically linked shared lib identification.  */
+  BFD_MACH_O_LC_LOAD_DYLINKER = 0xe,	/* Load a dynamic linker.  */
+  BFD_MACH_O_LC_ID_DYLINKER = 0xf,	/* Dynamic linker identification.  */
+  BFD_MACH_O_LC_PREBOUND_DYLIB = 0x10,	/* Modules prebound for a dynamically.  */
+  BFD_MACH_O_LC_ROUTINES = 0x11,	/* Image routines.  */
+  BFD_MACH_O_LC_SUB_FRAMEWORK = 0x12,	/* Sub framework.  */
+  BFD_MACH_O_LC_SUB_UMBRELLA = 0x13,	/* Sub umbrella.  */
+  BFD_MACH_O_LC_SUB_CLIENT = 0x14,	/* Sub client.  */
+  BFD_MACH_O_LC_SUB_LIBRARY = 0x15,   	/* Sub library.  */
+  BFD_MACH_O_LC_TWOLEVEL_HINTS = 0x16,	/* Two-level namespace lookup hints.  */
+  BFD_MACH_O_LC_PREBIND_CKSUM = 0x17, 	/* Prebind checksum.  */
+  /* Load a dynamically linked shared library that is allowed to be
        missing (weak).  */
-    BFD_MACH_O_LC_LOAD_WEAK_DYLIB = 0x18
-  }
+  BFD_MACH_O_LC_LOAD_WEAK_DYLIB = 0x18
+}
 bfd_mach_o_load_command_type;
 
 typedef enum bfd_mach_o_cpu_type
-  {
-    BFD_MACH_O_CPU_TYPE_VAX = 1,
-    BFD_MACH_O_CPU_TYPE_MC680x0 = 6,
-    BFD_MACH_O_CPU_TYPE_I386 = 7,
-    BFD_MACH_O_CPU_TYPE_MIPS = 8,
-    BFD_MACH_O_CPU_TYPE_MC98000 = 10,
-    BFD_MACH_O_CPU_TYPE_HPPA = 11,
-    BFD_MACH_O_CPU_TYPE_ARM = 12,
-    BFD_MACH_O_CPU_TYPE_MC88000 = 13,
-    BFD_MACH_O_CPU_TYPE_SPARC = 14,
-    BFD_MACH_O_CPU_TYPE_I860 = 15,
-    BFD_MACH_O_CPU_TYPE_ALPHA = 16,
-    BFD_MACH_O_CPU_TYPE_POWERPC = 18
-  }
+{
+  BFD_MACH_O_CPU_TYPE_VAX = 1,
+  BFD_MACH_O_CPU_TYPE_MC680x0 = 6,
+  BFD_MACH_O_CPU_TYPE_I386 = 7,
+  BFD_MACH_O_CPU_TYPE_MIPS = 8,
+  BFD_MACH_O_CPU_TYPE_MC98000 = 10,
+  BFD_MACH_O_CPU_TYPE_HPPA = 11,
+  BFD_MACH_O_CPU_TYPE_ARM = 12,
+  BFD_MACH_O_CPU_TYPE_MC88000 = 13,
+  BFD_MACH_O_CPU_TYPE_SPARC = 14,
+  BFD_MACH_O_CPU_TYPE_I860 = 15,
+  BFD_MACH_O_CPU_TYPE_ALPHA = 16,
+  BFD_MACH_O_CPU_TYPE_POWERPC = 18
+}
 bfd_mach_o_cpu_type;
 
 typedef enum bfd_mach_o_filetype
-  {
-    BFD_MACH_O_MH_OBJECT = 1,
-    BFD_MACH_O_MH_EXECUTE = 2,
-    BFD_MACH_O_MH_FVMLIB = 3,
-    BFD_MACH_O_MH_CORE = 4,
-    BFD_MACH_O_MH_PRELOAD = 5,
-    BFD_MACH_O_MH_DYLIB = 6,
-    BFD_MACH_O_MH_DYLINKER = 7,
-    BFD_MACH_O_MH_BUNDLE = 8
-  }
+{
+  BFD_MACH_O_MH_OBJECT = 1,
+  BFD_MACH_O_MH_EXECUTE = 2,
+  BFD_MACH_O_MH_FVMLIB = 3,
+  BFD_MACH_O_MH_CORE = 4,
+  BFD_MACH_O_MH_PRELOAD = 5,
+  BFD_MACH_O_MH_DYLIB = 6,
+  BFD_MACH_O_MH_DYLINKER = 7,
+  BFD_MACH_O_MH_BUNDLE = 8
+}
 bfd_mach_o_filetype;
 
 /* Constants for the type of a section.  */
 
 typedef enum bfd_mach_o_section_type
-  {
-    /* Regular section.  */
-    BFD_MACH_O_S_REGULAR = 0x0,
+{
+  /* Regular section.  */
+  BFD_MACH_O_S_REGULAR = 0x0,
 
-    /* Zero fill on demand section.  */
-    BFD_MACH_O_S_ZEROFILL = 0x1,
+  /* Zero fill on demand section.  */
+  BFD_MACH_O_S_ZEROFILL = 0x1,
 
-    /* Section with only literal C strings.  */
-    BFD_MACH_O_S_CSTRING_LITERALS = 0x2,
+  /* Section with only literal C strings.  */
+  BFD_MACH_O_S_CSTRING_LITERALS = 0x2,
 
-    /* Section with only 4 byte literals.  */
-    BFD_MACH_O_S_4BYTE_LITERALS = 0x3,
+  /* Section with only 4 byte literals.  */
+  BFD_MACH_O_S_4BYTE_LITERALS = 0x3,
 
-    /* Section with only 8 byte literals.  */
-    BFD_MACH_O_S_8BYTE_LITERALS = 0x4,
+  /* Section with only 8 byte literals.  */
+  BFD_MACH_O_S_8BYTE_LITERALS = 0x4,
 
-    /* Section with only pointers to literals.  */
-    BFD_MACH_O_S_LITERAL_POINTERS = 0x5,
+  /* Section with only pointers to literals.  */
+  BFD_MACH_O_S_LITERAL_POINTERS = 0x5,
 
-    /* For the two types of symbol pointers sections and the symbol stubs
-       section they have indirect symbol table entries.  For each of the
-       entries in the section the indirect symbol table entries, in
-       corresponding order in the indirect symbol table, start at the index
-       stored in the reserved1 field of the section structure.  Since the
-       indirect symbol table entries correspond to the entries in the
-       section the number of indirect symbol table entries is inferred from
-       the size of the section divided by the size of the entries in the
-       section.  For symbol pointers sections the size of the entries in
-       the section is 4 bytes and for symbol stubs sections the byte size
-       of the stubs is stored in the reserved2 field of the section
-       structure.  */
+  /* For the two types of symbol pointers sections and the symbol stubs
+     section they have indirect symbol table entries.  For each of the
+     entries in the section the indirect symbol table entries, in
+     corresponding order in the indirect symbol table, start at the index
+     stored in the reserved1 field of the section structure.  Since the
+     indirect symbol table entries correspond to the entries in the
+     section the number of indirect symbol table entries is inferred from
+     the size of the section divided by the size of the entries in the
+     section.  For symbol pointers sections the size of the entries in
+     the section is 4 bytes and for symbol stubs sections the byte size
+     of the stubs is stored in the reserved2 field of the section
+     structure.  */
 
-    /* Section with only non-lazy symbol pointers.  */
-    BFD_MACH_O_S_NON_LAZY_SYMBOL_POINTERS = 0x6,
+  /* Section with only non-lazy symbol pointers.  */
+  BFD_MACH_O_S_NON_LAZY_SYMBOL_POINTERS = 0x6,
 
-    /* Section with only lazy symbol pointers.  */
-    BFD_MACH_O_S_LAZY_SYMBOL_POINTERS = 0x7,
+  /* Section with only lazy symbol pointers.  */
+  BFD_MACH_O_S_LAZY_SYMBOL_POINTERS = 0x7,
 
-    /* Section with only symbol stubs, byte size of stub in the reserved2 field.  */
-    BFD_MACH_O_S_SYMBOL_STUBS = 0x8,
+  /* Section with only symbol stubs, byte size of stub in the reserved2 field.  */
+  BFD_MACH_O_S_SYMBOL_STUBS = 0x8,
 
-    /* Section with only function pointers for initialization.  */
-    BFD_MACH_O_S_MOD_INIT_FUNC_POINTERS = 0x9
-  }
+  /* Section with only function pointers for initialization.  */
+  BFD_MACH_O_S_MOD_INIT_FUNC_POINTERS = 0x9
+}
 bfd_mach_o_section_type;
 
 typedef unsigned long bfd_mach_o_cpu_subtype;
@@ -463,46 +463,25 @@ mach_o_data_struct;
 
 typedef struct mach_o_data_struct bfd_mach_o_data_struct;
 
-bfd_boolean bfd_mach_o_valid
-  PARAMS ((bfd *));
-int bfd_mach_o_scan_read_symtab_symbol
-  PARAMS ((bfd *, bfd_mach_o_symtab_command *, asymbol *, unsigned long));
-int bfd_mach_o_scan_read_symtab_strtab
-  PARAMS ((bfd *, bfd_mach_o_symtab_command *));
-int bfd_mach_o_scan_read_symtab_symbols
-  PARAMS ((bfd *, bfd_mach_o_symtab_command *));
-int bfd_mach_o_scan_read_dysymtab_symbol
-  PARAMS ((bfd *, bfd_mach_o_dysymtab_command *, bfd_mach_o_symtab_command *,
-	   asymbol *, unsigned long));
-int bfd_mach_o_scan_start_address
-  PARAMS ((bfd *));
-int bfd_mach_o_scan
-  PARAMS ((bfd *, bfd_mach_o_header *, bfd_mach_o_data_struct *));
-bfd_boolean bfd_mach_o_mkobject
-  PARAMS ((bfd *));
-const bfd_target * bfd_mach_o_object_p
-  PARAMS ((bfd *));
-const bfd_target * bfd_mach_o_core_p
-  PARAMS ((bfd *));
-const bfd_target * bfd_mach_o_archive_p
-  PARAMS ((bfd *));
-bfd * bfd_mach_o_openr_next_archived_file
-  PARAMS ((bfd *, bfd *));
-int bfd_mach_o_lookup_section
-  PARAMS ((bfd *, asection *, bfd_mach_o_load_command **,
-	   bfd_mach_o_section **));
-int bfd_mach_o_lookup_command
-  PARAMS ((bfd *, bfd_mach_o_load_command_type, bfd_mach_o_load_command **));
-unsigned long bfd_mach_o_stack_addr
-  PARAMS ((enum bfd_mach_o_cpu_type));
-int bfd_mach_o_core_fetch_environment
-  PARAMS ((bfd *, unsigned char **, unsigned int *));
-char * bfd_mach_o_core_file_failing_command
-  PARAMS ((bfd *));
-int bfd_mach_o_core_file_failing_signal
-  PARAMS ((bfd *));
-bfd_boolean bfd_mach_o_core_file_matches_executable_p
-  PARAMS ((bfd *, bfd *));
+bfd_boolean        bfd_mach_o_valid  (bfd *);
+int                bfd_mach_o_scan_read_symtab_symbol        (bfd *, bfd_mach_o_symtab_command *, asymbol *, unsigned long);
+int                bfd_mach_o_scan_read_symtab_strtab        (bfd *, bfd_mach_o_symtab_command *);
+int                bfd_mach_o_scan_read_symtab_symbols       (bfd *, bfd_mach_o_symtab_command *);
+int                bfd_mach_o_scan_read_dysymtab_symbol      (bfd *, bfd_mach_o_dysymtab_command *, bfd_mach_o_symtab_command *, asymbol *, unsigned long);
+int                bfd_mach_o_scan_start_address             (bfd *);
+int                bfd_mach_o_scan                           (bfd *, bfd_mach_o_header *, bfd_mach_o_data_struct *);
+bfd_boolean        bfd_mach_o_mkobject                       (bfd *);
+const bfd_target * bfd_mach_o_object_p                       (bfd *);
+const bfd_target * bfd_mach_o_core_p                         (bfd *);
+const bfd_target * bfd_mach_o_archive_p                      (bfd *);
+bfd *              bfd_mach_o_openr_next_archived_file       (bfd *, bfd *);
+int                bfd_mach_o_lookup_section                 (bfd *, asection *, bfd_mach_o_load_command **, bfd_mach_o_section **);
+int                bfd_mach_o_lookup_command                 (bfd *, bfd_mach_o_load_command_type, bfd_mach_o_load_command **);
+unsigned long      bfd_mach_o_stack_addr                     (enum bfd_mach_o_cpu_type);
+int                bfd_mach_o_core_fetch_environment         (bfd *, unsigned char **, unsigned int *);
+char *             bfd_mach_o_core_file_failing_command      (bfd *);
+int                bfd_mach_o_core_file_failing_signal       (bfd *);
+bfd_boolean        bfd_mach_o_core_file_matches_executable_p (bfd *, bfd *);
 
 extern const bfd_target mach_o_be_vec;
 extern const bfd_target mach_o_le_vec;

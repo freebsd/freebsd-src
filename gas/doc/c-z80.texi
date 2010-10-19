@@ -1,0 +1,257 @@
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+
+@ifset GENERIC
+@page
+@node Z80-Dependent
+@chapter Z80 Dependent Features
+@end ifset
+
+
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter Z80 Dependent Features
+@end ifclear
+
+@cindex Z80 support
+@menu
+* Z80 Options::              Options
+* Z80 Syntax::               Syntax
+* Z80 Floating Point::       Floating Point
+* Z80 Directives::           Z80 Machine Directives
+* Z80 Opcodes::              Opcodes
+@end menu
+
+@node Z80 Options
+@section Options
+@cindex Z80 options
+@cindex options for Z80
+The Zilog Z80 and Ascii R800 version of @code{@value{AS}} have a few machine
+dependent options.
+@table @option
+@cindex @code{-z80} command line option, Z80
+@item -z80
+Produce code for the Z80 processor. There are additional options to
+request warnings and error messages for undocumented instructions.
+@item  -ignore-undocumented-instructions
+@itemx -Wnud
+Silently assemble undocumented Z80-instructions that have been adopted
+as documented R800-instructions.
+@item  -ignore-unportable-instructions
+@itemx -Wnup
+Silently assemble all undocumented Z80-instructions.
+@item  -warn-undocumented-instructions
+@itemx -Wud
+Issue warnings for undocumented Z80-instructions that work on R800, do
+not assemble other undocumented instructions without warning.
+@item  -warn-unportable-instructions
+@itemx -Wup
+Issue warnings for other undocumented Z80-instructions, do not treat any
+undocumented instructions as errors.
+@item  -forbid-undocumented-instructions
+@itemx -Fud
+Treat all undocumented z80-instructions as errors.
+@item  -forbid-unportable-instructions
+@itemx -Fup
+Treat undocumented z80-instructions that do not work on R800 as errors.
+
+@cindex @code{-r800} command line option, Z80
+@item -r800
+Produce code for the R800 processor. The assembler does not support
+undocumented instructions for the R800.
+In line with common practice, @code{@value{AS}} uses Z80 instriction names
+for the R800 processor, as far as they exist.
+@end table
+
+@cindex Z80 Syntax
+@node Z80 Syntax
+@section Syntax
+The assembler syntax closely follows the 'Z80 family CPU User Manual' by
+Zilog.
+In expressions a single @samp{=} may be used as ``is equal to''
+comparison operator.  
+
+Suffices can be used to indicate the radix of integer constants;
+@samp{H} or @samp{h} for hexadecimal, @samp{D} or @samp{d} for decimal,
+@samp{Q}, @samp{O}, @samp{q} or @samp{o} for octal, and @samp{B} for
+binary.
+
+The suffix @samp{b} denotes a backreference to local label.  
+
+@menu
+* Z80-Chars::                Special Characters
+* Z80-Regs::                 Register Names
+* Z80-Case::                 Case Sensitivity
+@end menu
+
+@node Z80-Chars
+@subsection Special Characters
+
+@cindex line comment character, Z80
+@cindex Z80 line comment character
+The semicolon @samp{;} is the line comment character; 
+
+@cindex location counter, Z80
+@cindex hexadecimal prefix, Z80
+@cindex Z80 $
+The dollar sign @samp{$} can be used as a prefix for hexadecimal numbers
+and as a symbol denoting the current location counter.
+
+@cindex character escapes, Z80
+@cindex Z80, \
+A backslash @samp{\} is an ordinary character for the Z80 assembler.
+ 
+@cindex character constant, Z80
+@cindex single quote, Z80
+@cindex Z80 '
+The single quote @samp{'} must be followed by a closing quote. If there
+is one character inbetween, it is a character constant, otherwise it is
+a string constant.
+
+@node Z80-Regs
+@subsection Register Names
+@cindex Z80 registers
+@cindex register names, Z80
+
+The registers are referred to with the letters assigned to them by
+Zilog. In addition @command{@value{AS}} recognises @samp{ixl} and 
+@samp{ixh} as the least and most significant octet in @samp{ix}, and
+similarly @samp{iyl} and  @samp{iyh} as parts of @samp{iy}. 
+
+@c The @samp{'} in @samp{ex af,af'} may be omitted.
+
+@node Z80-Case
+@subsection Case Sensitivity
+@cindex Z80, case sensitivity
+@cindex case sensitivity, Z80
+
+Upper and lower case are equivalent in register names, opcodes,
+condition codes  and assembler directives. 
+The case of letters is significant in labels and symbol names. The case
+is also important to distinguish the suffix @samp{b} for a backward reference
+to a local label from the suffix @samp{B} for a number in binary notation.
+
+@node Z80 Floating Point
+@section Floating Point
+@cindex floating point, Z80
+@cindex Z80 floating point
+Floating-point numbers are not supported.
+
+@node Z80 Directives
+@section Z80 Assembler Directives
+
+@command{@value{AS}} for the Z80 supports some additional directives for
+compatibility with other assemblers. 
+
+@cindex Z80-only directives
+These are the additional directives in @code{@value{AS}} for the Z80:
+
+@table @code
+@item db @var{expression}|@var{string}[,@var{expression}|@var{string}...]
+@itemx defb @var{expression}|@var{string}[,@var{expression}|@var{string}...]
+For each @var{string} the characters are copied to the object file, for
+each other @var{expression} the value is stored in one byte. 
+A warning is issued in case of an overflow. 
+
+@item dw @var{expression}[,@var{expression}...]
+@itemx defw @var{expression}[,@var{expression}...]
+For each @var{expression} the value is stored in two bytes, ignoring
+overflow. 
+
+@item d24 @var{expression}[,@var{expression}...]
+@itemx def24 @var{expression}[,@var{expression}...]
+For each @var{expression} the value is stored in three bytes, ignoring
+overflow. 
+
+@item d32 @var{expression}[,@var{expression}...]
+@itemx def32 @var{expression}[,@var{expression}...]
+For each @var{expression} the value is stored in four bytes, ignoring
+overflow. 
+
+@item ds @var{count}[, @var{value}]
+@itemx defs @var{count}[, @var{value}]
+@c Synonyms for @code{ds.b}, 
+@c which should have been described elsewhre
+Fill @var{count} bytes in the object file with @var{value}, if
+@var{value} is omitted it defaults to zero.
+
+@item @var{symbol} equ @var{expression}
+@itemx @var{symbol} defl @var{expression}
+These directives set the value of @var{symbol} to @var{expression}. If
+@code{equ} is used, it is an error if @var{symbol} is already defined.
+Symbols defined with @code{equ} are not protected from redefinition.
+
+@item set
+This is a normal instruction on Z80, and not an assembler directive. 
+
+@item psect @var{name}
+A synonym for @xref{Section}, no second argument should be given. 
+@ignore
+
+The following attributes will possibly be recognised in the future
+@table @code
+@item abs
+The section is to be absolute. @code{@value{AS}} will issue an error
+message because it can not produce an absolute section.
+@item global
+The section is to be concatenated with other sections of the same name
+by the linker, this is the default.
+@item local
+The section is not global. @code{@value{AS}} will issue a warning if
+object file format is not soff.
+@item ovrld
+The section is to be overlapped with other sections of the same name by
+the linker. @code{@value{AS}} will issue an error message
+because it can not mark a section as such.
+@item pure
+The section is marked as read only.
+@end table
+@end ignore
+
+@end table
+
+@node Z80 Opcodes
+@section Opcodes
+In line with commmon practice Z80 mnonics are used for both the Z80 and
+the R800. 
+
+In many instructions it is possible to use one of the half index
+registers (@samp{ixl},@samp{ixh},@samp{iyl},@samp{iyh}) in stead of an
+8-bit general purpose register. This yields instructions that are
+documented on the R800 and undocumented on the Z80.
+Similarly @code{in f,(c)} is documented on the R800 and undocumented on
+the Z80.
+
+The assembler also supports the following undocumented Z80-instructions,
+that have not been adopted in the R800 instruction set:
+@table @code
+@item out (c),0
+Sends zero to the port pointed to by register c.
+
+@item sli @var{m}
+Equivalent to @code{@var{m} = (@var{m}<<1)+1}, the operand @var{m} can
+be any operand that is valid for @samp{sla}. One can use @samp{sll} as a
+synonym for @samp{sli}.
+
+@item @var{op} (ix+@var{d}), @var{r}
+This is equivalent to 
+
+@example
+ld @var{r}, (ix+@var{d})
+@var{opc} @var{r}
+ld (ix+@var{d}), @var{r}
+@end example
+
+The operation @samp{@var{opc}} may be any of @samp{res @var{b},},
+@samp{set @var{b},}, @samp{rl}, @samp{rlc}, @samp{rr}, @samp{rrc},
+@samp{sla}, @samp{sli}, @samp{sra} and @samp{srl}, and the register
+@samp{@var{r}} may be any of @samp{a}, @samp{b}, @samp{c}, @samp{d},
+@samp{e}, @samp{h} and @samp{l}.
+
+@item @var{opc} (iy+@var{d}), @var{r}
+As above, but with @samp{iy} instead of @samp{ix}.
+@end table
+
+The web site at @uref{http://www.z80.info} is a good starting place to
+find more information on programming the Z80.
+

@@ -1,5 +1,5 @@
 /* Intel i860 specific support for 32-bit ELF.
-   Copyright 1993, 1995, 1999, 2000, 2001, 2002, 2003, 2004
+   Copyright 1993, 1995, 1999, 2000, 2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
 
    Full i860 support contributed by Jason Eckhardt <jle@cygnus.com>.
@@ -18,7 +18,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -63,7 +63,7 @@ i860_howto_pc26_reloc (bfd *abfd ATTRIBUTE_UNUSED,
   relocation += symbol->section->output_offset;
   relocation += reloc_entry->addend;
 
-  if (reloc_entry->address > input_section->_cooked_size)
+  if (reloc_entry->address > bfd_get_section_limit (abfd, input_section))
     return bfd_reloc_outofrange;
 
   /* Adjust for PC-relative relocation.  */
@@ -126,7 +126,7 @@ i860_howto_pc16_reloc (bfd *abfd,
   relocation += symbol->section->output_offset;
   relocation += reloc_entry->addend;
 
-  if (reloc_entry->address > input_section->_cooked_size)
+  if (reloc_entry->address > bfd_get_section_limit (abfd, input_section))
     return bfd_reloc_outofrange;
 
   /* Adjust for PC-relative relocation.  */
@@ -191,7 +191,7 @@ i860_howto_highadj_reloc (bfd *abfd,
   relocation += reloc_entry->addend;
   relocation += 0x8000;
 
-  if (reloc_entry->address > input_section->_cooked_size)
+  if (reloc_entry->address > bfd_get_section_limit (abfd, input_section))
     return bfd_reloc_outofrange;
 
   addr = (bfd_byte *) data + reloc_entry->address;
@@ -243,7 +243,7 @@ i860_howto_splitn_reloc (bfd *abfd,
   relocation += symbol->section->output_offset;
   relocation += reloc_entry->addend;
 
-  if (reloc_entry->address > input_section->_cooked_size)
+  if (reloc_entry->address > bfd_get_section_limit (abfd, input_section))
     return bfd_reloc_outofrange;
 
   addr = (bfd_byte *) data + reloc_entry->address;
@@ -1086,13 +1086,6 @@ elf32_i860_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
       int                          r_type;
 
       r_type = ELF32_R_TYPE (rel->r_info);
-
-#if 0
-      if (   r_type == R_860_GNU_VTINHERIT
-	  || r_type == R_860_GNU_VTENTRY)
-	continue;
-#endif
-
       r_symndx = ELF32_R_SYM (rel->r_info);
 
       howto = lookup_howto ((unsigned) ELF32_R_TYPE (rel->r_info));
@@ -1183,8 +1176,8 @@ elf32_i860_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	    {
 	    case bfd_reloc_overflow:
 	      r = info->callbacks->reloc_overflow
-		(info, name, howto->name, (bfd_vma) 0,
-		 input_bfd, input_section, rel->r_offset);
+		(info, (h ? &h->root : NULL), name, howto->name,
+		 (bfd_vma) 0, input_bfd, input_section, rel->r_offset);
 	      break;
 
 	    case bfd_reloc_undefined:

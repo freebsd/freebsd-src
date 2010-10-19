@@ -1,24 +1,24 @@
 /* NLM (NetWare Loadable Module) swapping routines for BFD.
-   Copyright 1993, 2000, 2001 Free Software Foundation, Inc.
+   Copyright 1993, 2000, 2001, 2005 Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, using ELF support as the
    template.
 
-This file is part of BFD, the Binary File Descriptor library.
+   This file is part of BFD, the Binary File Descriptor library.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* Although this is a header file, it defines functions.  It is
    included by NLM backends to define swapping functions that vary
@@ -29,22 +29,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    At the moment this is only needed for one structure, the fixed NLM
    file header.  */
 
-static void nlm_swap_fixed_header_in PARAMS ((bfd *, PTR,
-					      Nlm_Internal_Fixed_Header *));
-static void nlm_swap_fixed_header_out PARAMS ((bfd *,
-					       Nlm_Internal_Fixed_Header *,
-					       PTR));
-
 /* Translate an NLM fixed length file header in external format into an NLM
    file header in internal format.  */
 
 static void
-nlm_swap_fixed_header_in (abfd, realsrc, dst)
-     bfd *abfd;
-     PTR realsrc;
-     Nlm_Internal_Fixed_Header *dst;
+nlm_swap_fixed_header_in (bfd *abfd,
+			  void * realsrc,
+			  Nlm_Internal_Fixed_Header *dst)
 {
   Nlm_External_Fixed_Header *src = (Nlm_External_Fixed_Header *) realsrc;
+
   memcpy (dst->signature, src->signature, NLM_SIGNATURE_SIZE);
   memcpy (dst->moduleName, src->moduleName, NLM_MODULE_NAME_SIZE);
   dst->version =
@@ -99,12 +93,12 @@ nlm_swap_fixed_header_in (abfd, realsrc, dst)
    an NLM file header in external format.  */
 
 static void
-nlm_swap_fixed_header_out (abfd, src, realdst)
-     bfd *abfd;
-     Nlm_Internal_Fixed_Header *src;
-     PTR realdst;
+nlm_swap_fixed_header_out (bfd *abfd,
+			   Nlm_Internal_Fixed_Header *src,
+			   void * realdst)
 {
   Nlm_External_Fixed_Header *dst = (Nlm_External_Fixed_Header *) realdst;
+
   memset (dst, 0, sizeof *dst);
   memcpy (dst->signature, src->signature, NLM_SIGNATURE_SIZE);
   memcpy (dst->moduleName, src->moduleName, NLM_MODULE_NAME_SIZE);

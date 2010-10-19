@@ -1,5 +1,5 @@
 /* Instruction printing code for the OpenRISC 1000
-   Copyright (C) 2002 Free Software Foundation, Inc.
+   Copyright (C) 2002, 2005 Free Software Foundation, Inc.
    Contributed by Damjan Lampret <lampret@opencores.org>.
    Modified from a29k port.
 
@@ -17,7 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 #define DEBUG 0
 
@@ -29,20 +30,10 @@
 
 #define EXTEND29(x) ((x) & (unsigned long) 0x10000000 ? ((x) | (unsigned long) 0xf0000000) : ((x)))
 
-static void          find_bytes_big       PARAMS ((unsigned char *, unsigned long *));
-static void          find_bytes_little    PARAMS ((unsigned char *, unsigned long *));
-static unsigned long or32_extract         PARAMS ((char, char *, unsigned long));
-static int           or32_opcode_match    PARAMS ((unsigned long, char *));
-static void          or32_print_register  PARAMS ((char, char *, unsigned long, struct disassemble_info *));
-static void          or32_print_immediate PARAMS ((char, char *, unsigned long, struct disassemble_info *));
-static int           print_insn           PARAMS ((bfd_vma, struct disassemble_info *));
-
 /* Now find the four bytes of INSN_CH and put them in *INSN.  */
 
 static void
-find_bytes_big (insn_ch, insn)
-     unsigned char *insn_ch;
-     unsigned long *insn;
+find_bytes_big (unsigned char *insn_ch, unsigned long *insn)
 {
   *insn =
     ((unsigned long) insn_ch[0] << 24) +
@@ -55,9 +46,7 @@ find_bytes_big (insn_ch, insn)
 }
 
 static void
-find_bytes_little (insn_ch, insn)
-     unsigned char *insn_ch;
-     unsigned long *insn;
+find_bytes_little (unsigned char *insn_ch, unsigned long *insn)
 {
   *insn =
     ((unsigned long) insn_ch[3] << 24) +
@@ -66,14 +55,10 @@ find_bytes_little (insn_ch, insn)
     ((unsigned long) insn_ch[0]);
 }
 
-typedef void (*find_byte_func_type)
-     PARAMS ((unsigned char *, unsigned long *));
+typedef void (*find_byte_func_type) (unsigned char *, unsigned long *);
 
 static unsigned long
-or32_extract (param_ch, enc_initial, insn)
-     char param_ch;
-     char *enc_initial;
-     unsigned long insn;
+or32_extract (char param_ch, char *enc_initial, unsigned long insn)
 {
   char *enc;
   unsigned long ret = 0;
@@ -162,9 +147,7 @@ or32_extract (param_ch, enc_initial, insn)
 }
 
 static int
-or32_opcode_match (insn, encoding)
-     unsigned long insn;
-     char *encoding;
+or32_opcode_match (unsigned long insn, char *encoding)
 {
   unsigned long ones, zeros;
 
@@ -203,11 +186,10 @@ or32_opcode_match (insn, encoding)
 /* Print register to INFO->STREAM. Used only by print_insn.  */
 
 static void
-or32_print_register (param_ch, encoding, insn, info)
-     char param_ch;
-     char *encoding;
-     unsigned long insn;
-     struct disassemble_info *info;
+or32_print_register (char param_ch,
+		     char *encoding,
+		     unsigned long insn,
+		     struct disassemble_info *info)
 {
   int regnum = or32_extract (param_ch, encoding, insn);
   
@@ -231,11 +213,10 @@ or32_print_register (param_ch, encoding, insn, info)
 /* Print immediate to INFO->STREAM. Used only by print_insn.  */
 
 static void
-or32_print_immediate (param_ch, encoding, insn, info)
-     char param_ch;
-     char *encoding;
-     unsigned long insn;
-     struct disassemble_info *info;
+or32_print_immediate (char param_ch,
+		      char *encoding,
+		      unsigned long insn,
+		      struct disassemble_info *info)
 {
   int imm = or32_extract(param_ch, encoding, insn);
   
@@ -250,9 +231,7 @@ or32_print_immediate (param_ch, encoding, insn, info)
    Return the size of the instruction (always 4 on or32).  */
 
 static int
-print_insn (memaddr, info)
-     bfd_vma memaddr;
-     struct disassemble_info *info;
+print_insn (bfd_vma memaddr, struct disassemble_info *info)
 {
   /* The raw instruction.  */
   unsigned char insn_ch[4];
@@ -260,7 +239,7 @@ print_insn (memaddr, info)
   unsigned long addr;
   /* The four bytes of the instruction.  */
   unsigned long insn;
-  find_byte_func_type find_byte_func = (find_byte_func_type)info->private_data;
+  find_byte_func_type find_byte_func = (find_byte_func_type) info->private_data;
   struct or32_opcode const * opcode;
 
   {
@@ -321,28 +300,25 @@ print_insn (memaddr, info)
 
   /* This used to be %8x for binutils.  */
   (*info->fprintf_func)
-    (info->stream, ".word 0x%08x", insn);
+    (info->stream, ".word 0x%08lx", insn);
   return 4;
 }
 
 /* Disassemble a big-endian or32 instruction.  */
 
 int
-print_insn_big_or32 (memaddr, info)
-     bfd_vma memaddr;
-     struct disassemble_info *info;
+print_insn_big_or32 (bfd_vma memaddr, struct disassemble_info *info)
 {
-  info->private_data = (PTR) find_bytes_big;
+  info->private_data = find_bytes_big;
+
   return print_insn (memaddr, info);
 }
 
 /* Disassemble a little-endian or32 instruction.  */
 
 int
-print_insn_little_or32 (memaddr, info)
-     bfd_vma memaddr;
-     struct disassemble_info *info;
+print_insn_little_or32 (bfd_vma memaddr, struct disassemble_info *info)
 {
-  info->private_data = (PTR) find_bytes_little;
+  info->private_data = find_bytes_little;
   return print_insn (memaddr, info);
 }

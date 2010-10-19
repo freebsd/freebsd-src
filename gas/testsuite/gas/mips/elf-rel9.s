@@ -28,7 +28,7 @@ foo:
 	addiu	$4,$4,%lo(l2 + 0xfff)
 
 	lw	$4,%got(l2 + 0x1000)($28)
-	addiu	$4,$4,%lo(l2 + 0x100)
+	addiu	$4,$4,%lo(l2 + 0x1000)
 
 	lw	$4,%got(l2 + 0x12345)($28)
 	addiu	$4,$4,%lo(l2 + 0x12345)

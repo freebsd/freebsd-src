@@ -1,5 +1,6 @@
 # Expect script for ld-sh tests
-#   Copyright 1995, 1996, 1997, 2001 Free Software Foundation, Inc.
+#   Copyright 1995, 1996, 1997, 2001, 2002, 2003
+#   Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,7 +14,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # Written by Ian Lance Taylor (ian@cygnus.com)
 #
@@ -61,7 +62,7 @@ if ![ld_assemble $as "-relax $srcdir/$subdir/sh1.s" tmpdir/sh1.o] {
 
 set testsrec "SH relaxing to S-records"
 
-if [istarget sh*-linux-gnu] {
+if [istarget sh*-linux-*] {
     # This target needs the explicit entry address.
     catch "exec $objdump -x tmpdir/sh1 | grep start\\ address | sed s/start\\ address//" entry_addr
     set srec_relax_arg "-Ttext $entry_addr -relax --oformat srec tmpdir/sh1.o"
@@ -116,7 +117,7 @@ if { [which $CC] == 0 } {
     return
 }
 
-if [istarget sh*-linux-gnu] {
+if [istarget sh*-linux-*] {
     exec sed -e s/_main/main/ -e s/_trap/trap/ -e s/_stack/stack/ \
 	    < $srcdir/$subdir/start.s >tmpdir/start.s
 } else {

@@ -1,2 +1,2 @@
 #source: warning-016.s
-#error : Warning: resource conflict \(F flag\)
+#warning : Warning: resource conflict \(F flag\)

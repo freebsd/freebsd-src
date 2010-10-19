@@ -1,6 +1,6 @@
 # Test basic linker script functionality
 # By Ian Lance Taylor, Cygnus Support
-#   Copyright 2001
+#   Copyright 1999, 2000, 2001, 2002, 2004
 #   Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
@@ -15,7 +15,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
 set testname "script"
 
@@ -31,47 +31,63 @@ proc check_script { } {
 
     if ![ld_nm $nm "" tmpdir/script] {
 	unresolved $testname
+	return
+    } 
+
+    if {![info exists nm_output(text_start)] \
+	    || ![info exists nm_output(text_end)] \
+	    || ![info exists nm_output(data_start)] \
+	    || ![info exists nm_output(data_end)]} {
+	send_log "bad output from nm\n"
+	verbose "bad output from nm"
+	fail $testname
+	return
+    } 
+
+    set passes 1
+    set text_end 0x104
+    set data_end 0x1004
+
+    if [istarget *c4x*-*-*] then {
+	set text_end 0x101
+	set data_end 0x1001
+    }
+
+    if [istarget *c54x*-*-*] then {
+	set text_end 0x102
+	set data_end 0x1002
+    }
+
+    if {$nm_output(text_start) != 0x100} {
+	send_log "text_start == $nm_output(text_start)\n"
+	verbose "text_start == $nm_output(text_start)"
+	set passes 0
+    } 
+
+    if {$nm_output(text_end) < $text_end \
+	    || $nm_output(text_end) > 0x110} {
+	send_log "text_end == $nm_output(text_end)\n"
+	verbose "text_end == $nm_output(text_end)"
+	set passes 0
+    } 
+
+    if {$nm_output(data_start) != 0x1000} {
+	send_log "data_start == $nm_output(data_start)\n"
+	verbose "data_start == $nm_output(data_start)"
+	set passes 0
+    } 
+
+    if {$nm_output(data_end) < $data_end \
+	    || $nm_output(data_end) > 0x1010} {
+	send_log "data_end == $nm_output(data_end)\n"
+	verbose "data_end == $nm_output(data_end)"
+	set passes 0
+    } 
+
+    if { $passes } {
+	pass $testname
     } else {
-	if {![info exists nm_output(text_start)] \
-	     || ![info exists nm_output(text_end)] \
-	     || ![info exists nm_output(data_start)] \
-	     || ![info exists nm_output(data_end)]} {
-	    send_log "bad output from nm\n"
-	    verbose "bad output from nm"
-	    fail $testname
-	} else {
-	    set text_end 0x104
-	    set data_end 0x1004
-            if [istarget *c4x*-*-*] then {
-                set text_end 0x101
-                set data_end 0x1001
-            }
-	    if [istarget *c54x*-*-*] then {
-		set text_end 0x102
-		set data_end 0x1002
-	    }
-	    if {$nm_output(text_start) != 0x100} {
-		send_log "text_start == $nm_output(text_start)\n"
-		verbose "text_start == $nm_output(text_start)"
-		fail $testname
-	    } else { if {$nm_output(text_end) < $text_end \
-			  || $nm_output(text_end) > 0x110} {
-		send_log "text_end == $nm_output(text_end)\n"
-		verbose "text_end == $nm_output(text_end)"
-		fail $testname
-	    } else { if {$nm_output(data_start) != 0x1000} {
-		send_log "data_start == $nm_output(data_start)\n"
-		verbose "data_start == $nm_output(data_start)"
-		fail $testname
-	    } else { if {$nm_output(data_end) < $data_end \
-			 || $nm_output(data_end) > 0x1010} {
-		send_log "data_end == $nm_output(data_end)\n"
-		verbose "data_end == $nm_output(data_end)"
-		fail $testname
-	    } else {
-		pass $testname
-	    } } } }
-	}
+	fail $testname
     }
 }
 
@@ -81,7 +97,7 @@ if {[istarget "*-*-pe*"] \
     || [istarget "*-*-cygwin*"] \
     || [istarget "*-*-mingw32*"] \
     || [istarget "*-*-winnt*"] \
-    || [istarget "*-*-nt*"] \
+    || [istarget "*-*-nt"] \
     || [istarget "*-*-interix*"] } then {
   set flags "--image-base 0"
 }
@@ -99,3 +115,13 @@ if ![ld_simple_link $ld tmpdir/script "$flags -c $srcdir/$subdir/scriptm.t"] {
 } else {
     check_script
 }
+
+set testname "MEMORY"
+
+if ![ld_simple_link $ld tmpdir/script "$flags -T $srcdir/$subdir/memory.t tmpdir/script.o"] {
+    fail $testname
+} else {
+    check_script
+}
+
+

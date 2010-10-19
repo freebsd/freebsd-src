@@ -13,8 +13,8 @@
 
 Disassembly of section \.text:
 
-0+6 <__start>:
-   6:	0f05                	nop 
+0+ <__start>:
+   0:	0f05                	nop 
 
-0+8 <expfn>:
-   8:	0f05                	nop 
+0+2 <expfn>:
+   2:	0f05                	nop 

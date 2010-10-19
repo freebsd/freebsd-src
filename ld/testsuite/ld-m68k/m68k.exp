@@ -1,0 +1,56 @@
+# Expect script for run_dump_test based ld-m68k tests.
+#   Copyright 2006 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# Test m68k object merging
+
+if { ![is_elf_format] || ![istarget m68k-*-*] } {
+    return
+}
+
+# List contains test-items with 3 items followed by 2 lists:
+# 0:name 1:ld options 2:assembler options
+# 3:filenames of assembler files 4: action and options. 5: name of output file
+
+# Actions:
+# objdump: Apply objdump options on result.  Compare with regex (last arg).
+# nm: Apply nm options on result.  Compare with regex (last arg).
+# readelf: Apply readelf options on result.  Compare with regex (last arg).
+
+set m68k_mergeok_tests {
+    {"merge isa-a isa-a:nodiv" "-T merge.ld" ""
+	{isaa.s isaa-nodiv.s} {{objdump -p isaa.d}} "isaa"}
+    {"merge isa-a isa-b" "-T merge.ld" ""
+	{isaa.s isab.s} {{objdump -p isab.d}} "isab"}
+    {"merge isa-a isa-aplus" "-T merge.ld" ""
+	{isaa.s isaaplus.s} {{objdump -p isaaplus.d}} "isaplus"}
+    {"merge isa-b isa-b:nousp" "-T merge.ld" ""
+	{isab.s isab-nousp.s} {{objdump -p isab.d}} "isab"}
+    {"merge isa-a isa-a:mac" "-T merge.ld" ""
+	{isaa.s isaa-mac.s} {{objdump -p isaa-mac.d}} "isaa-mac"}
+    {"merge isa-b isa-b:float" "-T merge.ld" ""
+	{isab.s isab-float.s} {{objdump -p isab-float.d}} "isab-float"}}
+
+run_ld_link_tests $m68k_mergeok_tests
+
+run_dump_test "merge-error-1a"
+run_dump_test "merge-error-1b"
+run_dump_test "merge-error-1c"
+run_dump_test "merge-error-1d"
+run_dump_test "merge-error-1e"
+run_dump_test "merge-ok-1a"
+run_dump_test "merge-ok-1b"
+run_dump_test "merge-ok-1c"

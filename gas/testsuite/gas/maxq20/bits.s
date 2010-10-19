@@ -1,0 +1,92 @@
+;# bits.s
+;# checks all the bit operations in MAXQ20
+
+.text
+foo:
+ MOVE C, ACC.0	
+ MOVE C, ACC.1
+ MOVE C, ACC.2
+ MOVE C, ACC.3
+ MOVE C, ACC.4
+ MOVE C, ACC.5
+ MOVE C, ACC.6
+ MOVE C, ACC.7		;8 bits on a MAXQ10 machine
+ MOVE C, ACC.8		
+ MOVE C, ACC.9
+ MOVE C, ACC.10
+ MOVE C, ACC.11
+ MOVE C, ACC.12
+ MOVE C, ACC.13
+ MOVE C, ACC.14
+ MOVE C, ACC.15 
+ MOVE C, #0
+ MOVE C, #1
+ MOVE ACC.0, C	
+ MOVE ACC.1, C 
+ MOVE ACC.2, C
+ MOVE ACC.3, C
+ MOVE ACC.4, C
+ MOVE ACC.5, C
+ MOVE ACC.6, C
+ MOVE ACC.7, C		;8 bits on a MAXQ10 machine
+ MOVE ACC.8, C		
+ MOVE ACC.9, C
+ MOVE ACC.10, C
+ MOVE ACC.11, C
+ MOVE ACC.12, C
+ MOVE ACC.13, C
+ MOVE ACC.14, C
+ MOVE ACC.15, C
+ CPL C
+ AND ACC.0	;AND with carry
+ AND ACC.1	
+ AND ACC.2	
+ AND ACC.3	
+ AND ACC.4	
+ AND ACC.5	
+ AND ACC.6	
+ AND ACC.7	
+ AND ACC.8	
+ AND ACC.9	
+ AND ACC.10	
+ AND ACC.11	
+ AND ACC.12	
+ AND ACC.13	
+ AND ACC.14	
+ AND ACC.15	
+ OR ACC.0	;OR with carry
+ OR ACC.1	
+ OR ACC.2	
+ OR ACC.3	
+ OR ACC.4	
+ OR ACC.5	
+ OR ACC.6	
+ OR ACC.7	
+ OR ACC.8	
+ OR ACC.9	
+ OR ACC.10	
+ OR ACC.11	
+ OR ACC.12	
+ OR ACC.13	
+ OR ACC.14	
+ OR  ACC.15	
+ XOR ACC.0	;XOR with carry
+ XOR ACC.1	
+ XOR ACC.2	
+ XOR ACC.3	
+ XOR ACC.4	
+ XOR ACC.5	
+ XOR ACC.6	
+ XOR ACC.7	
+ XOR ACC.8	
+ XOR ACC.9	
+ XOR ACC.10	
+ XOR ACC.11	 
+ XOR ACC.12	
+ XOR ACC.13	
+ XOR ACC.14	;Error condition when ACC.n and n>15
+ XOR ACC.15	
+ MOVE C, SC.1
+ MOVE C, IMR.0
+ MOVE C, IC.0
+ MOVE C, PSF.0		;move program status flag bit 0

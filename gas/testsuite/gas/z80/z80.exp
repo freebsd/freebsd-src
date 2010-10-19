@@ -1,0 +1,12 @@
+# run tests for target Z80.
+
+if [istarget z80-*-*] then {
+# test redefinitions
+    run_dump_test "redef"
+# test parsing of " and '
+    run_dump_test "quotes"
+# test suffixes
+    run_dump_test "suffix"
+# test assembling and disassembling instructions involving offsets
+    run_dump_test "offset"
+}

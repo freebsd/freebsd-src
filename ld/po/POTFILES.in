@@ -1,4 +1,5 @@
 deffile.h
+elf-hints-local.h
 emultempl/armcoff.em
 emultempl/pe.em
 ldcref.c

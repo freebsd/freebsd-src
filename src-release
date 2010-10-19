@@ -13,7 +13,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 
 # This Makefile contains release scripts for gdb, binutils, and other
@@ -31,6 +31,9 @@ SHELL = /bin/sh
 BZIPPROG = bzip2
 MD5PROG = md5sum
 
+# (Default to avoid splitting info files by setting the threshold high.)
+MAKEINFOFLAGS = --split-size=5000000
+
 # pwd command to use.  Allow user to override default by setting PWDCMD in
 # the environment to account for automounters.  The make variable must not
 # be called PWDCMD, otherwise the value set here is passed to make
@@ -44,7 +47,7 @@ PWD = $${PWDCMD-pwd}
 # ChangeLog omitted because it may refer to files which are not in this
 # distribution (perhaps it would be better to include it anyway).
 DEVO_SUPPORT= README Makefile.in configure configure.in \
-	config.guess config.if config.sub config move-if-change \
+	config.guess config.sub config move-if-change \
 	COPYING COPYING.LIB install-sh config-ml.in symlink-tree \
 	mkinstalldirs ltconfig ltmain.sh missing ylwrap \
 	libtool.m4 gettext.m4 ltcf-c.sh ltcf-cxx.sh ltcf-gcj.sh \
@@ -146,9 +149,11 @@ do-proto-toplev: $(DEVO_SUPPORT) $(SUPPORT_FILES) texinfo/texinfo.tex
 	  if [ -d $$d ]; then \
 	    if [ ! -f $$d/Makefile ] ; then true ; \
 	    elif grep '^diststuff:' $$d/Makefile >/dev/null ; then \
-		(cd $$d ; $(MAKE) diststuff ) || exit 1 ; \
+		(cd $$d ; $(MAKE) MAKEINFOFLAGS="$(MAKEINFOFLAGS)" \
+			  diststuff ) || exit 1 ; \
 	    elif grep '^info:' $$d/Makefile >/dev/null ; then \
-	        (cd $$d ; $(MAKE) info ) || exit 1 ; \
+		(cd $$d ; $(MAKE) MAKEINFOFLAGS="$(MAKEINFOFLAGS)" \
+			  info ) || exit 1 ; \
 	    fi ; \
 	    if [ -d $$d/proto-$$d.dir ]; then \
 	      ln -s ../$$d/proto-$$d.dir proto-toplev/$$d ; \
@@ -157,16 +162,8 @@ do-proto-toplev: $(DEVO_SUPPORT) $(SUPPORT_FILES) texinfo/texinfo.tex
 	    fi ; \
 	  else ln -s ../$$d proto-toplev/$$d ; fi ; \
 	done
-	cd etc && $(MAKE) info
+	cd etc && $(MAKE) MAKEINFOFLAGS="$(MAKEINFOFLAGS)" info
 	$(MAKE) distclean
-	# Kludge for pr gdb/708.  'configure' configures in
-	# dejagnu/example/calc, but 'make distclean' does not clean in
-	# dejagnu/example.  Someday somebody might fix this in dejagnu,
-	# and then import a new dejagnu into sourceware.  Right now, a
-	# couple of 'rm' commands will get the gdb snapshots working
-	# again.  -- chastain 2003-08-15
-	rm -f dejagnu/example/calc/config.status
-	rm -f dejagnu/example/calc/config.log
 	# Kludge for pr gdb/857.  intl/Makefile.in lacks a couple
 	# of files in the distclean rule.  Zack W is planning to make
 	# the gcc version of intl/ the master version and then push
@@ -228,8 +225,9 @@ do-md5sum:
 	echo "==> Adding md5 checksum to top-level directory"
 	cd proto-toplev && find * -follow $(CVS_NAMES) -prune \
 			-o -type f -print \
-		| xargs $(MD5PROG) > ../md5.sum
-	mv md5.sum proto-toplev
+		| xargs $(MD5PROG) > ../md5.new
+	-rm -f proto-toplev/md5.sum
+	mv md5.new proto-toplev/md5.sum
 
 .PHONY: do-djunpack
 do-djunpack:
@@ -237,9 +235,8 @@ do-djunpack:
 	echo - 's /gdb-[0-9\.]*/$(PACKAGE)-'"$(VER)"'/'
 	sed < djunpack.bat > djunpack.new \
 		-e 's/gdb-[0-9][0-9\.]*/$(PACKAGE)-'"$(VER)"'/'
-	mv djunpack.new djunpack.bat
 	-rm -f proto-toplev/djunpack.bat
-	ln -s ../djunpack.bat proto-toplev/djunpack.bat
+	mv djunpack.new proto-toplev/djunpack.bat
 
 TEXINFO_SUPPORT= texinfo/texinfo.tex
 DIST_SUPPORT= $(DEVO_SUPPORT) $(TEXINFO_SUPPORT)
@@ -273,7 +270,7 @@ gnats.tar.bz2: $(DIST_SUPPORT) $(GNATS_SUPPORT_DIRS) gnats
 		SUPPORT_FILES="$(GNATS_SUPPORT_DIRS)"
 
 .PHONY: gdb.tar.bz2
-GDB_SUPPORT_DIRS= bfd include libiberty mmalloc opcodes readline sim utils intl
+GDB_SUPPORT_DIRS= bfd include libiberty opcodes readline sim
 gdb.tar.bz2: $(DIST_SUPPORT) $(GDB_SUPPORT_DIRS) gdb
 	$(MAKE) -f $(SELF) gdb-taz TOOL=gdb \
 		MD5PROG="$(MD5PROG)" \
@@ -284,32 +281,8 @@ gdb.tar: $(DIST_SUPPORT) $(GDB_SUPPORT_DIRS) gdb
 		MD5PROG="$(MD5PROG)" \
 		SUPPORT_FILES="$(GDB_SUPPORT_DIRS)"
 
-DEJAGNU_SUPPORT_DIRS=  tcl expect libiberty
-.PHONY: dejagnu.tar.bz2
-dejagnu.tar.bz2: $(DIST_SUPPORT) $(DEJAGNU_SUPPORT_DIRS) dejagnu
-	$(MAKE) -f $(SELF) gdb-taz TOOL=dejagnu \
-		MD5PROG="$(MD5PROG)" \
-		SUPPORT_FILES="$(DEJAGNU_SUPPORT_DIRS)"
-.PHONY: dejagnu.tar
-dejagnu.tar: $(DIST_SUPPORT) $(DEJAGNU_SUPPORT_DIRS) dejagnu
-	$(MAKE) -f $(SELF) gdb-tar TOOL=dejagnu \
-		MD5PROG="$(MD5PROG)" \
-		SUPPORT_FILES="$(DEJAGNU_SUPPORT_DIRS)"
-
-.PHONY: gdb+dejagnu.tar.bz2
-GDBD_SUPPORT_DIRS= $(GDB_SUPPORT_DIRS) tcl expect dejagnu
-gdb+dejagnu.tar.bz2: $(DIST_SUPPORT) $(GDBD_SUPPORT_DIRS) gdb
-	$(MAKE) -f $(SELF) gdb-taz TOOL=gdb PACKAGE=gdb+dejagnu \
-		MD5PROG="$(MD5PROG)" \
-		SUPPORT_FILES="$(GDBD_SUPPORT_DIRS)"
-.PHONY: gdb+dejagnu.tar
-gdb+dejagnu.tar: $(DIST_SUPPORT) $(GDBD_SUPPORT_DIRS) gdb
-	$(MAKE) -f $(SELF) gdb-tar TOOL=gdb PACKAGE=gdb+dejagnu \
-		MD5PROG="$(MD5PROG)" \
-		SUPPORT_FILES="$(GDBD_SUPPORT_DIRS)"
-
 .PHONY: insight.tar.bz2
-INSIGHT_SUPPORT_DIRS= $(GDB_SUPPORT_DIRS) tcl tk itcl tix libgui
+INSIGHT_SUPPORT_DIRS= $(GDB_SUPPORT_DIRS) tcl tk itcl libgui
 insight.tar.bz2: $(DIST_SUPPORT) $(GDB_SUPPORT_DIRS) gdb
 	$(MAKE) -f $(SELF) gdb-taz TOOL=gdb PACKAGE=insight \
 		MD5PROG="$(MD5PROG)" \
@@ -319,18 +292,6 @@ insight.tar: $(DIST_SUPPORT) $(GDB_SUPPORT_DIRS) gdb
 	$(MAKE) -f $(SELF) gdb-tar TOOL=gdb PACKAGE=insight \
 		MD5PROG="$(MD5PROG)" \
 		SUPPORT_FILES="$(INSIGHT_SUPPORT_DIRS)"
-
-.PHONY: insight+dejagnu.tar.bz2
-INSIGHTD_SUPPORT_DIRS= $(INSIGHT_SUPPORT_DIRS) expect dejagnu
-insight+dejagnu.tar.bz2: $(DIST_SUPPORT) $(INSIGHTD_SUPPORT_DIRS) gdb
-	$(MAKE) -f $(SELF) gdb-taz TOOL=gdb PACKAGE="insight+dejagnu" \
-		MD5PROG="$(MD5PROG)" \
-		SUPPORT_FILES="$(INSIGHTD_SUPPORT_DIRS)"
-.PHONY: insight+dejagnu.tar
-insight+dejagnu.tar: $(DIST_SUPPORT) $(INSIGHTD_SUPPORT_DIRS) gdb
-	$(MAKE) -f $(SELF) gdb-tar TOOL=gdb PACKAGE="insight+dejagnu" \
-		MD5PROG="$(MD5PROG)" \
-		SUPPORT_FILES="$(INSIGHTD_SUPPORT_DIRS)"
 
 .NOEXPORT:
 MAKEOVERRIDES=

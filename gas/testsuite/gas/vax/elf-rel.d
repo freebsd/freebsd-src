@@ -1,3 +1,4 @@
+#as: -k
 #objdump: -sr
 #name: VAX ELF relocations
 

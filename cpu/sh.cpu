@@ -1,0 +1,368 @@
+; Hitachi SH architecture description.  -*- Scheme -*-
+;
+; Copyright 2000, 2001 Free Software Foundation, Inc.
+;
+; Contributed by Red Hat Inc; developed under contract from Hitachi
+; Semiconductor (America) Inc.
+;
+; This file is part of the GNU Binutils.
+;
+; This program is free software; you can redistribute it and/or modify
+; it under the terms of the GNU General Public License as published by
+; the Free Software Foundation; either version 2 of the License, or
+; (at your option) any later version.
+;
+; This program is distributed in the hope that it will be useful,
+; but WITHOUT ANY WARRANTY; without even the implied warranty of
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+; GNU General Public License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with this program; if not, write to the Free Software
+; Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+
+
+(include "simplify.inc")
+
+(define-arch
+  (name sh)
+  (comment "Hitachi SuperH (SH)")
+  (insn-lsb0? #t)
+  (machs sh2 sh3 sh3e sh4 sh5)
+  (isas compact media)
+)
+
+
+; Instruction sets.
+
+(define-isa
+  (name media)
+  (comment "SHmedia 32-bit instruction set")
+  (base-insn-bitsize 32)
+)
+
+(define-isa
+  (name compact)
+  (comment "SHcompact 16-bit instruction set")
+  (base-insn-bitsize 16)
+)
+
+
+; CPU family.
+
+(define-cpu
+  (name sh64)
+  (comment "SH 64-bit family")
+  (endian either)
+  (word-bitsize 32)
+)
+
+
+(define-mach
+  (name sh2)
+  (comment "SH-2 CPU core")
+  (cpu sh64)
+  (isas compact)
+)
+
+(define-mach
+  (name sh3)
+  (comment "SH-3 CPU core")
+  (cpu sh64)
+  (isas compact)
+)
+
+(define-mach
+  (name sh3e)
+  (comment "SH-3e CPU core")
+  (cpu sh64)
+  (isas compact)
+)
+
+(define-mach
+  (name sh4)
+  (comment "SH-4 CPU core")
+  (cpu sh64)
+  (isas compact)
+)
+
+(define-mach
+  (name sh5)
+  (comment "SH-5 CPU core")
+  (cpu sh64)
+  (isas compact media)
+)
+
+(define-model
+  (name sh5)
+  (comment "SH-5 reference implementation")
+  (mach sh5)
+  (unit u-exec "Execution unit" ()
+	1 1 ; issue done
+	() () () ())
+)
+
+; Hardware elements.
+
+(define-hardware
+  (name h-pc)
+  (comment "Program counter")
+  (attrs PC (ISA compact,media))
+  (type pc UDI)
+  (get () (raw-reg h-pc))
+  (set (newval) (sequence ()
+			  (set (raw-reg h-ism) (and newval 1))
+			  (set (raw-reg h-pc) (and newval (inv UDI 1)))))
+)
+
+(define-pmacro (-build-greg-name n) ((.sym r n) n))
+
+(define-hardware
+  (name h-gr)
+  (comment "General purpose integer registers")
+  (attrs (ISA media,compact))
+  (type register DI (64))
+  (indices keyword "" (.map -build-greg-name (.iota 64)))
+  (get (index)
+       (if DI (eq index 63)
+	   (const 0)
+	   (raw-reg h-gr index)))
+  (set (index newval)
+       (if (ne index 63)
+	   (set (raw-reg h-gr index) newval)
+	   (nop)))
+)
+
+(define-hardware
+  (name h-grc)
+  (comment "General purpose integer registers (SHcompact view)")
+  (attrs VIRTUAL (ISA compact))
+  (type register SI (16))
+  (indices keyword "" (.map -build-greg-name (.iota 16)))
+  (get (index)
+	(and (raw-reg h-gr index) (zext DI #xFFFFFFFF)))
+  (set (index newval)
+       (set (raw-reg h-gr index) (ext DI newval)))
+)
+
+(define-pmacro (-build-creg-name n) ((.sym cr n) n))
+
+(define-hardware
+  (name h-cr)
+  (comment "Control registers")
+  (attrs (ISA media))
+  (type register DI (64))
+  (indices keyword "" (.map -build-creg-name (.iota 64)))
+  (get (index)
+       (if DI (eq index 0)
+	   (zext DI (reg h-sr))
+	   (raw-reg h-cr index)))
+  (set (index newval)
+       (if (eq index 0)
+	   (set (reg h-sr) newval)
+	   (set (raw-reg h-cr index) newval)))
+)
+
+(define-hardware
+  (name h-sr)
+  (comment "Status register")
+  (attrs (ISA compact,media))
+  (type register SI)
+)
+
+(define-hardware
+  (name h-fpscr)
+  (comment "Floating point status and control register")
+  (attrs (ISA compact,media))
+  (type register SI)
+)
+
+(define-hardware
+  (name h-frbit)
+  (comment "Floating point register file bit")
+  (attrs (ISA media,compact) VIRTUAL)
+  (type register BI)
+  (get () (and (srl (reg h-sr) 14) 1))
+  (set (newvalue) (set (reg h-sr) (or (and (reg h-sr) (inv (sll 1 14))) (sll SI newvalue 14))))
+)
+
+(define-hardware
+  (name h-szbit)
+  (comment "Floating point transfer size bit")
+  (attrs (ISA media,compact) VIRTUAL)
+  (type register BI)
+  (get () (and (srl (reg h-sr) 13) 1))
+  (set (newvalue) (set (reg h-sr) (or (and (reg h-sr) (inv (sll 1 13))) (sll SI newvalue 13))))
+)
+
+(define-hardware
+  (name h-prbit)
+  (comment "Floating point precision bit")
+  (attrs (ISA media,compact) VIRTUAL)
+  (type register BI)
+  (get () (and (srl (reg h-sr) 12) 1))
+  (set (newvalue) (set (reg h-sr) (or (and (reg h-sr) (inv (sll 1 12))) (sll SI newvalue 12))))
+)
+
+(define-hardware
+  (name h-sbit)
+  (comment "Multiply-accumulate saturation flag")
+  (attrs (ISA compact) VIRTUAL)
+  (type register BI)
+  (get () (and (srl (reg h-sr) 1) 1))
+  (set (newvalue) (set (reg h-sr) (or (and (reg h-sr) (inv 2)) (sll SI newvalue 1))))
+)
+
+(define-hardware
+  (name h-mbit)
+  (comment "Divide-step M flag")
+  (attrs (ISA compact) VIRTUAL)
+  (type register BI)
+  (get () (and (srl (reg h-sr) 9) 1))
+  (set (newvalue) (set (reg h-sr) (or (and (reg h-sr) (inv (sll 1 9))) (sll SI newvalue 9))))
+)
+
+(define-hardware
+  (name h-qbit)
+  (comment "Divide-step Q flag")
+  (attrs (ISA compact) VIRTUAL)
+  (type register BI)
+  (get () (and (srl (reg h-sr) 8) 1))
+  (set (newvalue) (set (reg h-sr) (or (and (reg h-sr) (inv (sll 1 8))) (sll SI newvalue 8))))
+)
+
+(define-pmacro (-build-freg-name n) ((.sym fr n) n))
+
+(define-hardware
+  (name h-fr)
+  (comment "Single precision floating point registers")
+  (attrs (ISA media,compact))
+  (type register SF (64))
+  (indices keyword "" (.map -build-freg-name (.iota 64)))
+)
+
+
+(define-pmacro (-build-fpair-name n) ((.sym fp n) n))
+
+(define-hardware
+  (name h-fp)
+  (comment "Single precision floating point register pairs")
+  (attrs (ISA media,compact))
+  (type register DF (32))
+  (indices keyword "" (.map -build-fpair-name (.iota 32)))
+)
+
+(define-pmacro (-build-fvec-name n) ((.sym fv n) n))
+
+(define-hardware
+  (name h-fv)
+  (comment "Single precision floating point vectors")
+  (attrs VIRTUAL (ISA media,compact))
+  (type register SF (16))
+  (indices keyword "" (.map -build-fvec-name (.iota 16)))
+  ; Mask with $F to ensure 0 <= index < 15.
+  (get (index) (reg h-fr (mul (and UQI index 15) 4)))
+  (set (index newval) (set (reg h-fr (mul (and UQI index 15) 4)) newval))
+)
+
+(define-hardware
+  (name h-fmtx)
+  (comment "Single precision floating point matrices")
+  (attrs VIRTUAL (ISA media))
+  (type register SF (4))
+  (indices keyword "" ((mtrx0 0) (mtrx1 1) (mtrx2 2) (mtrx3 3)))
+  ; Mask with $3 to ensure 0 <= index < 4.
+  (get (index) (reg h-fr (mul (and UQI index 3) 16)))
+  (set (index newval) (set (reg h-fr (mul (and UQI index 3) 16)) newval))
+)
+
+(define-pmacro (-build-dreg-name n) ((.sym dr n) n))
+
+(define-hardware
+  (name h-dr)
+  (comment "Double precision floating point registers")
+  (attrs (ISA media,compact) VIRTUAL)
+  (type register DF (32))
+  (indices keyword "" (.map -build-dreg-name (.iota 64)))
+  (get (index)
+       (subword DF
+		(or
+		 (sll DI (zext DI (subword SI (reg h-fr index) 0)) 32)
+		 (zext DI (subword SI (reg h-fr (add index 1)) 0))) 0))
+  (set (index newval)
+       (sequence ()
+		 (set (reg h-fr index)
+		      (subword SF (subword SI newval 0) 0))
+		 (set (reg h-fr (add index 1))
+		      (subword SF (subword SI newval 1) 0))))
+)
+
+(define-hardware
+  (name h-tr)
+  (comment "Branch target registers")
+  (attrs (ISA media))
+  (type register DI (8))
+  (indices keyword "" ((tr0 0) (tr1 1) (tr2 2) (tr3 3) (tr4 4) (tr5 5) (tr6 6) (tr7 7)))
+)
+
+(define-hardware
+  (name h-endian)
+  (comment "Current endian mode")
+  (attrs (ISA compact,media) VIRTUAL)
+  (type register BI)
+  (get () (c-call BI "sh64_endian"))
+  (set (newval) (error "cannot alter target byte order mid-program"))
+)
+
+(define-hardware
+  (name h-ism)
+  (comment "Current instruction set mode")
+  (attrs (ISA compact,media))
+  (type register BI)
+  (get () (raw-reg h-ism))
+  (set (newval) (error "cannot set ism directly"))
+)
+
+
+; Operands.
+
+(dnop endian "Endian mode" ((ISA compact,media)) h-endian f-nil)
+(dnop ism    "Instruction set mode" ((ISA compact,media)) h-ism f-nil)
+
+; Universally useful macros.
+
+; A pmacro for use in semantic bodies of unimplemented insns.
+(define-pmacro (unimp mnemonic) (nop))
+
+; Join 2 ints together in natural bit order.
+(define-pmacro (-join-si s1 s0)
+  (or (sll (zext DI s1) 32)
+      (zext DI s0)))
+
+; Join 4 half-ints together in natural bit order.
+(define-pmacro (-join-hi h3 h2 h1 h0)
+  (or (sll (zext DI h3) 48)
+      (or (sll (zext DI h2) 32)
+	  (or (sll (zext DI h1) 16)
+	      (zext DI h0)))))
+
+; Join 8 quarter-ints together in natural bit order.
+(define-pmacro (-join-qi b7 b6 b5 b4 b3 b2 b1 b0)
+  (or (sll (zext DI b7) 56)
+      (or (sll (zext DI b6) 48)
+	  (or (sll (zext DI b5) 40)
+	      (or (sll (zext DI b4) 32)
+		  (or (sll (zext DI b3) 24)
+		      (or (sll (zext DI b2) 16)
+			  (or (sll (zext DI b1) 8)
+			      (zext DI b0)))))))))
+
+
+; Include the two instruction set descriptions from their respective
+; source files.
+
+(if (keep-isa? (compact))
+    (include "sh64-compact.cpu"))
+
+(if (keep-isa? (media))
+    (include "sh64-media.cpu"))

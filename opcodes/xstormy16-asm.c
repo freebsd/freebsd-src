@@ -1,26 +1,27 @@
 /* Assembler interface for targets using CGEN. -*- C -*-
    CGEN: Cpu tools GENerator
 
-THIS FILE IS MACHINE GENERATED WITH CGEN.
-- the resultant file is machine generated, cgen-asm.in isn't
+   THIS FILE IS MACHINE GENERATED WITH CGEN.
+   - the resultant file is machine generated, cgen-asm.in isn't
 
-Copyright 1996, 1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2005
+   Free Software Foundation, Inc.
 
-This file is part of the GNU Binutils and GDB, the GNU debugger.
+   This file is part of the GNU Binutils and GDB, the GNU debugger.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software Foundation, Inc.,
+   51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* ??? Eventually more and more of this stuff can go to cpu-independent files.
    Keep that in mind.  */
@@ -48,12 +49,6 @@ static const char * parse_insn_normal
 /* -- assembler routines inserted here.  */
 
 /* -- asm.c */
-static const char * parse_mem8
-  PARAMS ((CGEN_CPU_DESC, const char **, int, unsigned long *));
-static const char * parse_small_immediate
-  PARAMS ((CGEN_CPU_DESC, const char **, int, unsigned long *));
-static const char * parse_immediate16
-  PARAMS ((CGEN_CPU_DESC, const char **, int, unsigned long *));
 
 /* The machine-independent code doesn't know how to disambiguate
      mov (foo),r3
@@ -62,11 +57,10 @@ static const char * parse_immediate16
    where 'foo' is a label.  This helps it out. */
 
 static const char *
-parse_mem8 (cd, strp, opindex, valuep)
-     CGEN_CPU_DESC cd;
-     const char **strp;
-     int opindex;
-     unsigned long *valuep;
+parse_mem8 (CGEN_CPU_DESC cd,
+	    const char **strp,
+	    int opindex,
+	    unsigned long *valuep)
 {
   if (**strp == '(')
     {
@@ -83,7 +77,7 @@ parse_mem8 (cd, strp, opindex, valuep)
 	return _("Bad register name");
     }
   else if (cgen_parse_keyword (cd, strp, & xstormy16_cgen_opval_gr_names, 
-			       valuep) == NULL)
+			       (long *) valuep) == NULL)
     return _("Label conflicts with register name");
   else if (strncasecmp (*strp, "rx,", 3) == 0
 	   || strncasecmp (*strp, "rxl,", 3) == 0
@@ -101,11 +95,10 @@ parse_mem8 (cd, strp, opindex, valuep)
    of the small size.  This is somewhat tricky.  */
    
 static const char *
-parse_small_immediate (cd, strp, opindex, valuep)
-     CGEN_CPU_DESC cd;
-     const char **strp;
-     int opindex;
-     unsigned long *valuep;
+parse_small_immediate (CGEN_CPU_DESC cd,
+		       const char **strp,
+		       int opindex,
+		       unsigned long *valuep)
 {
   bfd_vma value;
   enum cgen_parse_operand_result result;
@@ -116,7 +109,7 @@ parse_small_immediate (cd, strp, opindex, valuep)
 
   errmsg = (* cd->parse_operand_fn)
     (cd, CGEN_PARSE_OPERAND_INTEGER, strp, opindex, BFD_RELOC_NONE,
-     &result, &value);
+     & result, & value);
   
   if (errmsg)
     return errmsg;
@@ -128,14 +121,13 @@ parse_small_immediate (cd, strp, opindex, valuep)
   return NULL;
 }
 
-/* Literal scan be either a normal literal, a @hi() or @lo relocation. */
+/* Literal scan be either a normal literal, a @hi() or @lo relocation.  */
    
 static const char *
-parse_immediate16 (cd, strp, opindex, valuep)
-     CGEN_CPU_DESC cd;
-     const char **strp;
-     int opindex;
-     unsigned long *valuep;
+parse_immediate16 (CGEN_CPU_DESC cd,
+		   const char **strp,
+		   int opindex,
+		   unsigned long *valuep)
 {
   const char *errmsg;
   enum cgen_parse_operand_result result;
@@ -178,7 +170,7 @@ parse_immediate16 (cd, strp, opindex, valuep)
 /* -- */
 
 const char * xstormy16_cgen_parse_operand
-  PARAMS ((CGEN_CPU_DESC, int, const char **, CGEN_FIELDS *));
+  (CGEN_CPU_DESC, int, const char **, CGEN_FIELDS *);
 
 /* Main entry point for operand parsing.
 
@@ -194,11 +186,10 @@ const char * xstormy16_cgen_parse_operand
    the handlers.  */
 
 const char *
-xstormy16_cgen_parse_operand (cd, opindex, strp, fields)
-     CGEN_CPU_DESC cd;
-     int opindex;
-     const char ** strp;
-     CGEN_FIELDS * fields;
+xstormy16_cgen_parse_operand (CGEN_CPU_DESC cd,
+			   int opindex,
+			   const char ** strp,
+			   CGEN_FIELDS * fields)
 {
   const char * errmsg = NULL;
   /* Used by scalar operands that still need to be parsed.  */
@@ -225,7 +216,7 @@ xstormy16_cgen_parse_operand (cd, opindex, strp, fields)
       errmsg = cgen_parse_keyword (cd, strp, & xstormy16_cgen_opval_gr_names, & fields->f_Rs);
       break;
     case XSTORMY16_OPERAND_ABS24 :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, XSTORMY16_OPERAND_ABS24, &fields->f_abs24);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, XSTORMY16_OPERAND_ABS24, (unsigned long *) (& fields->f_abs24));
       break;
     case XSTORMY16_OPERAND_BCOND2 :
       errmsg = cgen_parse_keyword (cd, strp, & xstormy16_cgen_opval_h_branchcond, & fields->f_op2);
@@ -234,46 +225,46 @@ xstormy16_cgen_parse_operand (cd, opindex, strp, fields)
       errmsg = cgen_parse_keyword (cd, strp, & xstormy16_cgen_opval_h_branchcond, & fields->f_op5);
       break;
     case XSTORMY16_OPERAND_HMEM8 :
-      errmsg = parse_mem8 (cd, strp, XSTORMY16_OPERAND_HMEM8, &fields->f_hmem8);
+      errmsg = parse_mem8 (cd, strp, XSTORMY16_OPERAND_HMEM8, (unsigned long *) (& fields->f_hmem8));
       break;
     case XSTORMY16_OPERAND_IMM12 :
-      errmsg = cgen_parse_signed_integer (cd, strp, XSTORMY16_OPERAND_IMM12, &fields->f_imm12);
+      errmsg = cgen_parse_signed_integer (cd, strp, XSTORMY16_OPERAND_IMM12, (long *) (& fields->f_imm12));
       break;
     case XSTORMY16_OPERAND_IMM16 :
-      errmsg = parse_immediate16 (cd, strp, XSTORMY16_OPERAND_IMM16, &fields->f_imm16);
+      errmsg = parse_immediate16 (cd, strp, XSTORMY16_OPERAND_IMM16, (unsigned long *) (& fields->f_imm16));
       break;
     case XSTORMY16_OPERAND_IMM2 :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, XSTORMY16_OPERAND_IMM2, &fields->f_imm2);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, XSTORMY16_OPERAND_IMM2, (unsigned long *) (& fields->f_imm2));
       break;
     case XSTORMY16_OPERAND_IMM3 :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, XSTORMY16_OPERAND_IMM3, &fields->f_imm3);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, XSTORMY16_OPERAND_IMM3, (unsigned long *) (& fields->f_imm3));
       break;
     case XSTORMY16_OPERAND_IMM3B :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, XSTORMY16_OPERAND_IMM3B, &fields->f_imm3b);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, XSTORMY16_OPERAND_IMM3B, (unsigned long *) (& fields->f_imm3b));
       break;
     case XSTORMY16_OPERAND_IMM4 :
-      errmsg = parse_small_immediate (cd, strp, XSTORMY16_OPERAND_IMM4, &fields->f_imm4);
+      errmsg = parse_small_immediate (cd, strp, XSTORMY16_OPERAND_IMM4, (unsigned long *) (& fields->f_imm4));
       break;
     case XSTORMY16_OPERAND_IMM8 :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, XSTORMY16_OPERAND_IMM8, &fields->f_imm8);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, XSTORMY16_OPERAND_IMM8, (unsigned long *) (& fields->f_imm8));
       break;
     case XSTORMY16_OPERAND_IMM8SMALL :
-      errmsg = parse_small_immediate (cd, strp, XSTORMY16_OPERAND_IMM8SMALL, &fields->f_imm8);
+      errmsg = parse_small_immediate (cd, strp, XSTORMY16_OPERAND_IMM8SMALL, (unsigned long *) (& fields->f_imm8));
       break;
     case XSTORMY16_OPERAND_LMEM8 :
-      errmsg = parse_mem8 (cd, strp, XSTORMY16_OPERAND_LMEM8, &fields->f_lmem8);
+      errmsg = parse_mem8 (cd, strp, XSTORMY16_OPERAND_LMEM8, (unsigned long *) (& fields->f_lmem8));
       break;
     case XSTORMY16_OPERAND_REL12 :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, XSTORMY16_OPERAND_REL12, &fields->f_rel12);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, XSTORMY16_OPERAND_REL12, (unsigned long *) (& fields->f_rel12));
       break;
     case XSTORMY16_OPERAND_REL12A :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, XSTORMY16_OPERAND_REL12A, &fields->f_rel12a);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, XSTORMY16_OPERAND_REL12A, (unsigned long *) (& fields->f_rel12a));
       break;
     case XSTORMY16_OPERAND_REL8_2 :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, XSTORMY16_OPERAND_REL8_2, &fields->f_rel8_2);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, XSTORMY16_OPERAND_REL8_2, (unsigned long *) (& fields->f_rel8_2));
       break;
     case XSTORMY16_OPERAND_REL8_4 :
-      errmsg = cgen_parse_unsigned_integer (cd, strp, XSTORMY16_OPERAND_REL8_4, &fields->f_rel8_4);
+      errmsg = cgen_parse_unsigned_integer (cd, strp, XSTORMY16_OPERAND_REL8_4, (unsigned long *) (& fields->f_rel8_4));
       break;
     case XSTORMY16_OPERAND_WS2 :
       errmsg = cgen_parse_keyword (cd, strp, & xstormy16_cgen_opval_h_wordsize, & fields->f_op2m);
@@ -294,8 +285,7 @@ cgen_parse_fn * const xstormy16_cgen_parse_handlers[] =
 };
 
 void
-xstormy16_cgen_init_asm (cd)
-     CGEN_CPU_DESC cd;
+xstormy16_cgen_init_asm (CGEN_CPU_DESC cd)
 {
   xstormy16_cgen_init_opcode_table (cd);
   xstormy16_cgen_init_ibld_table (cd);
@@ -678,30 +668,3 @@ xstormy16_cgen_assemble_insn (CGEN_CPU_DESC cd,
     return NULL;
   }
 }
-
-#if 0 /* This calls back to GAS which we can't do without care.  */
-
-/* Record each member of OPVALS in the assembler's symbol table.
-   This lets GAS parse registers for us.
-   ??? Interesting idea but not currently used.  */
-
-/* Record each member of OPVALS in the assembler's symbol table.
-   FIXME: Not currently used.  */
-
-void
-xstormy16_cgen_asm_hash_keywords (CGEN_CPU_DESC cd, CGEN_KEYWORD *opvals)
-{
-  CGEN_KEYWORD_SEARCH search = cgen_keyword_search_init (opvals, NULL);
-  const CGEN_KEYWORD_ENTRY * ke;
-
-  while ((ke = cgen_keyword_search_next (& search)) != NULL)
-    {
-#if 0 /* Unnecessary, should be done in the search routine.  */
-      if (! xstormy16_cgen_opval_supported (ke))
-	continue;
-#endif
-      cgen_asm_record_register (cd, ke->name, ke->value);
-    }
-}
-
-#endif /* 0 */

@@ -1,5 +1,5 @@
 /* BFD back-end for Texas Instruments TMS320C80 Multimedia Video Processor (MVP).
-   Copyright 1996, 1997, 1999, 2000, 2001, 2002, 2003
+   Copyright 1996, 1997, 1999, 2000, 2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
 
    Written by Fred Fish (fnf@cygnus.com)
@@ -21,13 +21,21 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+Foundation, 51 Franklin Street - Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 #include "bfd.h"
 #include "bfdlink.h"
 #include "sysdep.h"
 #include "libbfd.h"
+#ifdef _CONST
+/* Newlib-based hosts define _CONST as a STDC-safe alias for const,
+  but to the tic80 toolchain it means something altogether different.
+  Since sysdep.h will have pulled in stdio.h and hence _ansi.h which
+  contains this definition, we must undef it before including the 
+  tic80-specific definition. */
+#undef _CONST
+#endif /* _CONST */
 #include "coff/tic80.h"
 #include "coff/internal.h"
 #include "libcoff.h"
@@ -684,10 +692,8 @@ coff_tic80_relocate_section (output_bfd, info, input_bfd,
 	  break;
 	case bfd_reloc_outofrange:
 	  (*_bfd_error_handler)
-	    (_("%s: bad reloc address 0x%lx in section `%s'"),
-	     bfd_archive_filename (input_bfd),
-	     (unsigned long) rel->r_vaddr,
-	     bfd_get_section_name (input_bfd, input_section));
+	    (_("%B: bad reloc address 0x%lx in section `%A'"),
+	     input_bfd, input_section, (unsigned long) rel->r_vaddr);
 	  return FALSE;
 	case bfd_reloc_overflow:
 	  {
@@ -697,7 +703,7 @@ coff_tic80_relocate_section (output_bfd, info, input_bfd,
 	    if (symndx == -1)
 	      name = "*ABS*";
 	    else if (h != NULL)
-	      name = h->root.root.string;
+	      name = NULL;
 	    else
 	      {
 		name = _bfd_coff_internal_syment_name (input_bfd, sym, buf);
@@ -706,8 +712,9 @@ coff_tic80_relocate_section (output_bfd, info, input_bfd,
 	      }
 
 	    if (! ((*info->callbacks->reloc_overflow)
-		   (info, name, howto->name, (bfd_vma) 0, input_bfd,
-		    input_section, rel->r_vaddr - input_section->vma)))
+		   (info, (h ? &h->root : NULL), name, howto->name,
+		    (bfd_vma) 0, input_bfd, input_section,
+		    rel->r_vaddr - input_section->vma)))
 	      return FALSE;
 	  }
 	}
@@ -715,6 +722,15 @@ coff_tic80_relocate_section (output_bfd, info, input_bfd,
   return TRUE;
 }
 
+/* Clear the r_reserved field in relocs.  */
+#define SWAP_OUT_RELOC_EXTRA(abfd,src,dst) \
+  do \
+    { \
+      dst->r_reserved[0] = 0; \
+      dst->r_reserved[1] = 0; \
+    } \
+  while (0)
+
 #define TIC80COFF 1		/* Customize coffcode.h */
 #undef C_AUTOARG		/* Clashes with TIc80's C_UEXT */
 #undef C_LASTENT		/* Clashes with TIc80's C_STATLAB */

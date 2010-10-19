@@ -1,5 +1,5 @@
 #name: MIPS ELF xgot reloc n64
-#as: -64 -KPIC -xgot
+#as: -EB -64 -KPIC -xgot
 #source: ../../../gas/testsuite/gas/mips/elf-rel-got-n64.s
 #ld: -melf64btsmip
 #objdump: -D --show-raw-insn

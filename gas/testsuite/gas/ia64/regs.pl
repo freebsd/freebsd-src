@@ -38,7 +38,7 @@ print "\n";
 print "\t{ .mii;\n";
 print "\tmov gp = r0\n";
 print "\tmov sp = r0\n";
-print "\tnop.i 0;; }\n\n";
+print "\tmov tp = r0;; }\n\n";
 
 print "// Floating point registers\n";
 for ($i = 2; $i < 128; ++$i) {

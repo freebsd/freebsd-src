@@ -1,0 +1,3 @@
+	.arch isaaplus
+
+	nop

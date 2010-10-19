@@ -1,5 +1,5 @@
 #source: dso-1.s
-#as: --pic --no-underscore
+#as: --pic --no-underscore --em=criself
 #ld: --shared -m crislinux
 #objdump: -T
 
@@ -9,5 +9,5 @@
 
 DYNAMIC SYMBOL TABLE:
 #...
-000002.[02468ace] g    DF .text	00000000 dsofn
+00000[12].[02468ace] g    DF .text	00000000 dsofn
 #pass

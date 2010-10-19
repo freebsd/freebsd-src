@@ -1,4 +1,4 @@
-#   Copyright 1995, 1997, 2004 Free Software Foundation, Inc.
+#   Copyright 1995, 1997, 2002, 2004 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
 # Please email any bugs, comments, and/or additions to this file to:
 # bug-dejagnu@prep.ai.mit.edu
@@ -67,14 +67,14 @@ proc long_filenames { } {
     close $f
 
     if [is_remote host] {
-	set file1 [remote_download host $file1];
-	set file2 [remote_download host $file2];
+	set file1 [remote_download host $file1]
+	set file2 [remote_download host $file2]
 	set dest artest.a
     } else {
 	set dest tmpdir/artest.a
     }
 
-    remote_file host delete $dest;
+    remote_file host delete $dest
 
     set got [binutils_run $AR "rc $dest $file1 $file2"]
     if [is_remote host] {
@@ -90,7 +90,7 @@ proc long_filenames { } {
 	return
     }
 
-    remote_file host delete $dest;
+    remote_file host delete $dest
     set got [binutils_run $AR "rc $dest $file1 $file2"]
 
     if ![string match "" $got] {
@@ -102,15 +102,15 @@ proc long_filenames { } {
     remote_file build delete tmpdir/$n2
 
     set got [binutils_run $AR "t $dest"]
-    regsub "\[\r\n \t\]*$" "$got" "" got;
+    regsub "\[\r\n \t\]*$" "$got" "" got
     if ![string match "$n1*$n2" $got] {
 	fail $testname
 	return
     }
     
     if [is_remote host] {
-	remote_file host delete $file1;
-	remote_file host delete $file2;
+	remote_file host delete $file1
+	remote_file host delete $file2
     }
 
     verbose -log "$AR x $dest"
@@ -123,8 +123,8 @@ proc long_filenames { } {
     }
 
     if [is_remote host] {
-	remote_upload host $n1 tmpdir/$n1;
-	remote_upload host $n2 tmpdir/$n2;
+	remote_upload host $n1 tmpdir/$n1
+	remote_upload host $n2 tmpdir/$n2
 	set file1 tmpdir/$n1
 	set file2 tmpdir/$n2
     } else {

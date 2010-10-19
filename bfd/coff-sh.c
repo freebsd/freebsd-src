@@ -1,6 +1,6 @@
 /* BFD back-end for Renesas Super-H COFF binaries.
-   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003
-   Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
+   2003, 2004, 2005 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    Written by Steve Chamberlain, <sac@cygnus.com>.
    Relaxing code written by Ian Lance Taylor, <ian@cygnus.com>.
@@ -19,7 +19,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -698,11 +698,9 @@ sh_relax_section (abfd, sec, link_info, again)
      bfd_boolean *again;
 {
   struct internal_reloc *internal_relocs;
-  struct internal_reloc *free_relocs = NULL;
   bfd_boolean have_code;
   struct internal_reloc *irel, *irelend;
   bfd_byte *contents = NULL;
-  bfd_byte *free_contents = NULL;
 
   *again = FALSE;
 
@@ -711,10 +709,13 @@ sh_relax_section (abfd, sec, link_info, again)
       || sec->reloc_count == 0)
     return TRUE;
 
-  /* If this is the first time we have been called for this section,
-     initialize the cooked size.  */
-  if (sec->_cooked_size == 0)
-    sec->_cooked_size = sec->_raw_size;
+  if (coff_section_data (abfd, sec) == NULL)
+    {
+      bfd_size_type amt = sizeof (struct coff_section_tdata);
+      sec->used_by_bfd = (PTR) bfd_zalloc (abfd, amt);
+      if (sec->used_by_bfd == NULL)
+	return FALSE;
+    }
 
   internal_relocs = (_bfd_coff_read_internal_relocs
 		     (abfd, sec, link_info->keep_memory,
@@ -722,8 +723,6 @@ sh_relax_section (abfd, sec, link_info, again)
 		      (struct internal_reloc *) NULL));
   if (internal_relocs == NULL)
     goto error_return;
-  if (! link_info->keep_memory)
-    free_relocs = internal_relocs;
 
   have_code = FALSE;
 
@@ -745,18 +744,11 @@ sh_relax_section (abfd, sec, link_info, again)
       /* Get the section contents.  */
       if (contents == NULL)
 	{
-	  if (coff_section_data (abfd, sec) != NULL
-	      && coff_section_data (abfd, sec)->contents != NULL)
+	  if (coff_section_data (abfd, sec)->contents != NULL)
 	    contents = coff_section_data (abfd, sec)->contents;
 	  else
 	    {
-	      contents = (bfd_byte *) bfd_malloc (sec->_raw_size);
-	      if (contents == NULL)
-		goto error_return;
-	      free_contents = contents;
-
-	      if (! bfd_get_section_contents (abfd, sec, contents,
-					      (file_ptr) 0, sec->_raw_size))
+	      if (!bfd_malloc_and_get_section (abfd, sec, &contents))
 		goto error_return;
 	    }
 	}
@@ -768,11 +760,10 @@ sh_relax_section (abfd, sec, link_info, again)
       laddr = irel->r_vaddr - sec->vma + 4;
       /* Careful to sign extend the 32-bit offset.  */
       laddr += ((irel->r_offset & 0xffffffff) ^ 0x80000000) - 0x80000000;
-      if (laddr >= sec->_raw_size)
+      if (laddr >= sec->size)
 	{
-	  (*_bfd_error_handler) ("%s: 0x%lx: warning: bad R_SH_USES offset",
-				 bfd_archive_filename (abfd),
-				 (unsigned long) irel->r_vaddr);
+	  (*_bfd_error_handler) ("%B: 0x%lx: warning: bad R_SH_USES offset",
+				 abfd, (unsigned long) irel->r_vaddr);
 	  continue;
 	}
       insn = bfd_get_16 (abfd, contents + laddr);
@@ -781,8 +772,8 @@ sh_relax_section (abfd, sec, link_info, again)
       if ((insn & 0xf000) != 0xd000)
 	{
 	  ((*_bfd_error_handler)
-	   ("%s: 0x%lx: warning: R_SH_USES points to unrecognized insn 0x%x",
-	    bfd_archive_filename (abfd), (unsigned long) irel->r_vaddr, insn));
+	   ("%B: 0x%lx: warning: R_SH_USES points to unrecognized insn 0x%x",
+	    abfd, (unsigned long) irel->r_vaddr, insn));
 	  continue;
 	}
 
@@ -795,11 +786,11 @@ sh_relax_section (abfd, sec, link_info, again)
       paddr = insn & 0xff;
       paddr *= 4;
       paddr += (laddr + 4) &~ (bfd_vma) 3;
-      if (paddr >= sec->_raw_size)
+      if (paddr >= sec->size)
 	{
 	  ((*_bfd_error_handler)
-	   ("%s: 0x%lx: warning: bad R_SH_USES load offset",
-	    bfd_archive_filename (abfd), (unsigned long) irel->r_vaddr));
+	   ("%B: 0x%lx: warning: bad R_SH_USES load offset",
+	    abfd, (unsigned long) irel->r_vaddr));
 	  continue;
 	}
 
@@ -812,17 +803,18 @@ sh_relax_section (abfd, sec, link_info, again)
 #ifdef COFF_WITH_PE
 	    && (irelfn->r_type == R_SH_IMM32
 		|| irelfn->r_type == R_SH_IMM32CE
-		|| irelfn->r_type == R_SH_IMAGEBASE))
+		|| irelfn->r_type == R_SH_IMAGEBASE)
 
 #else
-	    && irelfn->r_type == R_SH_IMM32)
+	    && irelfn->r_type == R_SH_IMM32
 #endif
+	    )
 	  break;
       if (irelfn >= irelend)
 	{
 	  ((*_bfd_error_handler)
-	   ("%s: 0x%lx: warning: could not find expected reloc",
-	    bfd_archive_filename (abfd), (unsigned long) paddr));
+	   ("%B: 0x%lx: warning: could not find expected reloc",
+	    abfd, (unsigned long) paddr));
 	  continue;
 	}
 
@@ -837,8 +829,8 @@ sh_relax_section (abfd, sec, link_info, again)
       if (sym.n_scnum != 0 && sym.n_scnum != sec->target_index)
 	{
 	  ((*_bfd_error_handler)
-	   ("%s: 0x%lx: warning: symbol in unexpected section",
-	    bfd_archive_filename (abfd), (unsigned long) paddr));
+	   ("%B: 0x%lx: warning: symbol in unexpected section",
+	    abfd, (unsigned long) paddr));
 	  continue;
 	}
 
@@ -894,21 +886,11 @@ sh_relax_section (abfd, sec, link_info, again)
 	 that would be more work, but would require less memory when
 	 the linker is run.  */
 
-      if (coff_section_data (abfd, sec) == NULL)
-	{
-	  bfd_size_type amt = sizeof (struct coff_section_tdata);
-	  sec->used_by_bfd = (PTR) bfd_zalloc (abfd, amt);
-	  if (sec->used_by_bfd == NULL)
-	    goto error_return;
-	}
-
       coff_section_data (abfd, sec)->relocs = internal_relocs;
       coff_section_data (abfd, sec)->keep_relocs = TRUE;
-      free_relocs = NULL;
 
       coff_section_data (abfd, sec)->contents = contents;
       coff_section_data (abfd, sec)->keep_contents = TRUE;
-      free_contents = NULL;
 
       obj_coff_keep_syms (abfd) = TRUE;
 
@@ -972,8 +954,8 @@ sh_relax_section (abfd, sec, link_info, again)
       if (irelcount >= irelend)
 	{
 	  ((*_bfd_error_handler)
-	   ("%s: 0x%lx: warning: could not find expected COUNT reloc",
-	    bfd_archive_filename (abfd), (unsigned long) paddr));
+	   ("%B: 0x%lx: warning: could not find expected COUNT reloc",
+	    abfd, (unsigned long) paddr));
 	  continue;
 	}
 
@@ -981,9 +963,8 @@ sh_relax_section (abfd, sec, link_info, again)
          just deleted one.  */
       if (irelcount->r_offset == 0)
 	{
-	  ((*_bfd_error_handler) ("%s: 0x%lx: warning: bad count",
-				  bfd_archive_filename (abfd),
-				  (unsigned long) paddr));
+	  ((*_bfd_error_handler) ("%B: 0x%lx: warning: bad count",
+				  abfd, (unsigned long) paddr));
 	  continue;
 	}
 
@@ -1011,18 +992,11 @@ sh_relax_section (abfd, sec, link_info, again)
       /* Get the section contents.  */
       if (contents == NULL)
 	{
-	  if (coff_section_data (abfd, sec) != NULL
-	      && coff_section_data (abfd, sec)->contents != NULL)
+	  if (coff_section_data (abfd, sec)->contents != NULL)
 	    contents = coff_section_data (abfd, sec)->contents;
 	  else
 	    {
-	      contents = (bfd_byte *) bfd_malloc (sec->_raw_size);
-	      if (contents == NULL)
-		goto error_return;
-	      free_contents = contents;
-
-	      if (! bfd_get_section_contents (abfd, sec, contents,
-					      (file_ptr) 0, sec->_raw_size))
+	      if (!bfd_malloc_and_get_section (abfd, sec, &contents))
 		goto error_return;
 	    }
 	}
@@ -1032,58 +1006,42 @@ sh_relax_section (abfd, sec, link_info, again)
 
       if (swapped)
 	{
-	  if (coff_section_data (abfd, sec) == NULL)
-	    {
-	      bfd_size_type amt = sizeof (struct coff_section_tdata);
-	      sec->used_by_bfd = (PTR) bfd_zalloc (abfd, amt);
-	      if (sec->used_by_bfd == NULL)
-		goto error_return;
-	    }
-
 	  coff_section_data (abfd, sec)->relocs = internal_relocs;
 	  coff_section_data (abfd, sec)->keep_relocs = TRUE;
-	  free_relocs = NULL;
 
 	  coff_section_data (abfd, sec)->contents = contents;
 	  coff_section_data (abfd, sec)->keep_contents = TRUE;
-	  free_contents = NULL;
 
 	  obj_coff_keep_syms (abfd) = TRUE;
 	}
     }
 
-  if (free_relocs != NULL)
-    {
-      free (free_relocs);
-      free_relocs = NULL;
-    }
-
-  if (free_contents != NULL)
+  if (internal_relocs != NULL
+      && internal_relocs != coff_section_data (abfd, sec)->relocs)
     {
       if (! link_info->keep_memory)
-	free (free_contents);
+	free (internal_relocs);
       else
-	{
-	  /* Cache the section contents for coff_link_input_bfd.  */
-	  if (coff_section_data (abfd, sec) == NULL)
-	    {
-	      bfd_size_type amt = sizeof (struct coff_section_tdata);
-	      sec->used_by_bfd = (PTR) bfd_zalloc (abfd, amt);
-	      if (sec->used_by_bfd == NULL)
-		goto error_return;
-	      coff_section_data (abfd, sec)->relocs = NULL;
-	    }
-	  coff_section_data (abfd, sec)->contents = contents;
-	}
+	coff_section_data (abfd, sec)->relocs = internal_relocs;
+    }
+
+  if (contents != NULL && contents != coff_section_data (abfd, sec)->contents)
+    {
+      if (! link_info->keep_memory)
+	free (contents);
+      else
+	/* Cache the section contents for coff_link_input_bfd.  */
+	coff_section_data (abfd, sec)->contents = contents;
     }
 
   return TRUE;
 
  error_return:
-  if (free_relocs != NULL)
-    free (free_relocs);
-  if (free_contents != NULL)
-    free (free_contents);
+  if (internal_relocs != NULL
+      && internal_relocs != coff_section_data (abfd, sec)->relocs)
+    free (internal_relocs);
+  if (contents != NULL && contents != coff_section_data (abfd, sec)->contents)
+    free (contents);
   return FALSE;
 }
 
@@ -1111,7 +1069,7 @@ sh_relax_delete_bytes (abfd, sec, addr, count)
      power larger than the number of bytes we are deleting.  */
 
   irelalign = NULL;
-  toaddr = sec->_cooked_size;
+  toaddr = sec->size;
 
   irel = coff_section_data (abfd, sec)->relocs;
   irelend = irel + sec->reloc_count;
@@ -1131,7 +1089,7 @@ sh_relax_delete_bytes (abfd, sec, addr, count)
   memmove (contents + addr, contents + addr + count,
 	   (size_t) (toaddr - addr - count));
   if (irelalign == NULL)
-    sec->_cooked_size -= count;
+    sec->size -= count;
   else
     {
       int i;
@@ -1377,8 +1335,8 @@ sh_relax_delete_bytes (abfd, sec, addr, count)
 	  if (overflow)
 	    {
 	      ((*_bfd_error_handler)
-	       ("%s: 0x%lx: fatal: reloc overflow while relaxing",
-		bfd_archive_filename (abfd), (unsigned long) irel->r_vaddr));
+	       ("%B: 0x%lx: fatal: reloc overflow while relaxing",
+		abfd, (unsigned long) irel->r_vaddr));
 	      bfd_set_error (bfd_error_bad_value);
 	      return FALSE;
 	    }
@@ -1443,17 +1401,12 @@ sh_relax_delete_bytes (abfd, sec, addr, count)
 		    ocontents = coff_section_data (abfd, o)->contents;
 		  else
 		    {
+		      if (!bfd_malloc_and_get_section (abfd, o, &ocontents))
+			return FALSE;
 		      /* We always cache the section contents.
                          Perhaps, if info->keep_memory is FALSE, we
                          should free them, if we are permitted to,
                          when we leave sh_coff_relax_section.  */
-		      ocontents = (bfd_byte *) bfd_malloc (o->_raw_size);
-		      if (ocontents == NULL)
-			return FALSE;
-		      if (! bfd_get_section_contents (abfd, o, ocontents,
-						      (file_ptr) 0,
-						      o->_raw_size))
-			return FALSE;
 		      coff_section_data (abfd, o)->contents = ocontents;
 		    }
 		}
@@ -1477,8 +1430,7 @@ sh_relax_delete_bytes (abfd, sec, addr, count)
       || obj_raw_syments (abfd) != NULL)
     {
       ((*_bfd_error_handler)
-       ("%s: fatal: generic symbols retrieved before relaxing",
-	bfd_archive_filename (abfd)));
+       ("%B: fatal: generic symbols retrieved before relaxing", abfd));
       bfd_set_error (bfd_error_invalid_operation);
       return FALSE;
     }
@@ -1704,26 +1656,6 @@ static const struct sh_opcode sh_opcode01[] =
   { 0x00ba, SETS1 | USESSP }			/* sts y1,rn */
 };
 
-/* These sixteen instructions can be handled with one table entry below.  */
-#if 0
-  { 0x0002, SETS1 | USESSP },			/* stc sr,rn */
-  { 0x0012, SETS1 | USESSP },			/* stc gbr,rn */
-  { 0x0022, SETS1 | USESSP },			/* stc vbr,rn */
-  { 0x0032, SETS1 | USESSP },			/* stc ssr,rn */
-  { 0x0042, SETS1 | USESSP },			/* stc spc,rn */
-  { 0x0052, SETS1 | USESSP },			/* stc mod,rn */
-  { 0x0062, SETS1 | USESSP },			/* stc rs,rn */
-  { 0x0072, SETS1 | USESSP },			/* stc re,rn */
-  { 0x0082, SETS1 | USESSP },			/* stc r0_bank,rn */
-  { 0x0092, SETS1 | USESSP },			/* stc r1_bank,rn */
-  { 0x00a2, SETS1 | USESSP },			/* stc r2_bank,rn */
-  { 0x00b2, SETS1 | USESSP },			/* stc r3_bank,rn */
-  { 0x00c2, SETS1 | USESSP },			/* stc r4_bank,rn */
-  { 0x00d2, SETS1 | USESSP },			/* stc r5_bank,rn */
-  { 0x00e2, SETS1 | USESSP },			/* stc r6_bank,rn */
-  { 0x00f2, SETS1 | USESSP }			/* stc r7_bank,rn */
-#endif
-
 static const struct sh_opcode sh_opcode02[] =
 {
   { 0x0002, SETS1 | USESSP },			/* stc <special_reg>,rn */
@@ -1854,44 +1786,6 @@ static const struct sh_opcode sh_opcode40[] =
   { 0x40b2, STORE | SETS1 | USES1 | USESSP },	/* sts.l y1,@-rn */
   { 0x40b6, LOAD | SETS1 | SETSSP | USES1 },	/* lds.l @rm+,y1 */
   { 0x40ba, SETSSP | USES1 }			/* lds.l rm,y1 */
-#if 0 /* These groups sixteen insns can be
-         handled with one table entry each below.  */
-  { 0x4003, STORE | SETS1 | USES1 | USESSP },	/* stc.l sr,@-rn */
-  { 0x4013, STORE | SETS1 | USES1 | USESSP },	/* stc.l gbr,@-rn */
-  { 0x4023, STORE | SETS1 | USES1 | USESSP },	/* stc.l vbr,@-rn */
-  { 0x4033, STORE | SETS1 | USES1 | USESSP },	/* stc.l ssr,@-rn */
-  { 0x4043, STORE | SETS1 | USES1 | USESSP },	/* stc.l spc,@-rn */
-  { 0x4053, STORE | SETS1 | USES1 | USESSP },	/* stc.l mod,@-rn */
-  { 0x4063, STORE | SETS1 | USES1 | USESSP },	/* stc.l rs,@-rn */
-  { 0x4073, STORE | SETS1 | USES1 | USESSP },	/* stc.l re,@-rn */
-  { 0x4083, STORE | SETS1 | USES1 | USESSP },	/* stc.l r0_bank,@-rn */
-  ..
-  { 0x40f3, STORE | SETS1 | USES1 | USESSP },	/* stc.l r7_bank,@-rn */
-
-  { 0x4007, LOAD | SETS1 | SETSSP | USES1 },	/* ldc.l @rm+,sr */
-  { 0x4017, LOAD | SETS1 | SETSSP | USES1 },	/* ldc.l @rm+,gbr */
-  { 0x4027, LOAD | SETS1 | SETSSP | USES1 },	/* ldc.l @rm+,vbr */
-  { 0x4037, LOAD | SETS1 | SETSSP | USES1 },	/* ldc.l @rm+,ssr */
-  { 0x4047, LOAD | SETS1 | SETSSP | USES1 },	/* ldc.l @rm+,spc */
-  { 0x4057, LOAD | SETS1 | SETSSP | USES1 },	/* ldc.l @rm+,mod */
-  { 0x4067, LOAD | SETS1 | SETSSP | USES1 },	/* ldc.l @rm+,rs */
-  { 0x4077, LOAD | SETS1 | SETSSP | USES1 },	/* ldc.l @rm+,re */
-  { 0x4087, LOAD | SETS1 | SETSSP | USES1 },	/* ldc.l @rm+,r0_bank */
-  ..
-  { 0x40f7, LOAD | SETS1 | SETSSP | USES1 },	/* ldc.l @rm+,r7_bank */
-
-  { 0x400e, SETSSP | USES1 },			/* ldc rm,sr */
-  { 0x401e, SETSSP | USES1 },			/* ldc rm,gbr */
-  { 0x402e, SETSSP | USES1 },			/* ldc rm,vbr */
-  { 0x403e, SETSSP | USES1 },			/* ldc rm,ssr */
-  { 0x404e, SETSSP | USES1 },			/* ldc rm,spc */
-  { 0x405e, SETSSP | USES1 },			/* ldc rm,mod */
-  { 0x406e, SETSSP | USES1 },			/* ldc rm,rs */
-  { 0x407e, SETSSP | USES1 }			/* ldc rm,re */
-  { 0x408e, SETSSP | USES1 }			/* ldc rm,r0_bank */
-  ..
-  { 0x40fe, SETSSP | USES1 }			/* ldc rm,r7_bank */
-#endif
 };
 
 static const struct sh_opcode sh_opcode41[] =
@@ -2694,7 +2588,7 @@ sh_align_loads (abfd, sec, internal_relocs, contents, pswapped)
       if (irel < irelend)
 	stop = irel->r_vaddr - sec->vma;
       else
-	stop = sec->_cooked_size;
+	stop = sec->size;
 
       if (! _bfd_sh_align_load_span (abfd, sec, contents, sh_swap_insns,
 				     (PTR) internal_relocs, &label,
@@ -2833,8 +2727,8 @@ sh_swap_insns (abfd, sec, relocs, contents, addr)
 	  if (overflow)
 	    {
 	      ((*_bfd_error_handler)
-	       ("%s: 0x%lx: fatal: reloc overflow while relaxing",
-		bfd_archive_filename (abfd), (unsigned long) irel->r_vaddr));
+	       ("%B: 0x%lx: fatal: reloc overflow while relaxing",
+		abfd, (unsigned long) irel->r_vaddr));
 	      bfd_set_error (bfd_error_bad_value);
 	      return FALSE;
 	    }
@@ -2897,8 +2791,8 @@ sh_relocate_section (output_bfd, info, input_bfd, input_section, contents,
 	      || (unsigned long) symndx >= obj_raw_syment_count (input_bfd))
 	    {
 	      (*_bfd_error_handler)
-		("%s: illegal symbol index %ld in relocs",
-		 bfd_archive_filename (input_bfd), symndx);
+		("%B: illegal symbol index %ld in relocs",
+		 input_bfd, symndx);
 	      bfd_set_error (bfd_error_bad_value);
 	      return FALSE;
 	    }
@@ -2994,7 +2888,7 @@ sh_relocate_section (output_bfd, info, input_bfd, input_section, contents,
 	    if (symndx == -1)
 	      name = "*ABS*";
 	    else if (h != NULL)
-	      name = h->root.root.string;
+	      name = NULL;
 	    else if (sym->_n._n_n._n_zeroes == 0
 		     && sym->_n._n_n._n_offset != 0)
 	      name = obj_coff_strings (input_bfd) + sym->_n._n_n._n_offset;
@@ -3006,8 +2900,9 @@ sh_relocate_section (output_bfd, info, input_bfd, input_section, contents,
 	      }
 
 	    if (! ((*info->callbacks->reloc_overflow)
-		   (info, name, howto->name, (bfd_vma) 0, input_bfd,
-		    input_section, rel->r_vaddr - input_section->vma)))
+		   (info, (h ? &h->root : NULL), name, howto->name,
+		    (bfd_vma) 0, input_bfd, input_section,
+		    rel->r_vaddr - input_section->vma)))
 	      return FALSE;
 	  }
 	}
@@ -3046,7 +2941,7 @@ sh_coff_get_relocated_section_contents (output_bfd, link_info, link_order,
 						       symbols);
 
   memcpy (data, coff_section_data (input_bfd, input_section)->contents,
-	  (size_t) input_section->_raw_size);
+	  (size_t) input_section->size);
 
   if ((input_section->flags & SEC_RELOC) != 0
       && input_section->reloc_count > 0)

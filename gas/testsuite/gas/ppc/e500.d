@@ -2,7 +2,7 @@
 #objdump: -dr -Me500
 #name: e500 tests
 
-.*: +file format elf(32)?(64)?-powerpc
+.*: +file format elf(32)?(64)?-powerpc.*
 
 Disassembly of section \.text:
 

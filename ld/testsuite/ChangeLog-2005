@@ -1,0 +1,1189 @@
+2005-12-19  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-elf/orphan2.d: Undo the last change.
+
+2005-12-19  Hans-Peter Nilsson  <hp@axis.com>
+
+	* ld-elf/unknown2.d: Only run for *-*-linux*.
+	* ld-elf/orphan2.d: Xfail everywhere.
+
+2005-12-18  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/2065
+	* ld-elf/orphan2.d: New file.
+	* ld-elf/orphan2.s: Likewise.
+
+2005-12-18  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-elf/unknown2.d: New.
+	* ld-elf/unknown2.s: Likewise.
+
+2005-12-12  Paul Brook  <paul@codesourcery.com>
+
+	* ld-arm/arm-call.d: New test.
+	* ld-arm/arm-call1.s: New file.
+	* ld-arm/arm-call1.s: New file.
+	* ld-arm/arm-elf.exp: Add arm-call and mixed-app-v5.
+	* ld-arm/arm.ld: Add .glue_7 and .ARM.attribues.
+	* ld-arm/mixed-app-v5.d: New file.
+	* ld-arm/mixed-app.r: Tweak expected output.
+
+2005-11-18  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/symtocbase.d: Adjust for alignment change.
+
+2005-11-17  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-mmix/sec-1.d: Adjust section order for recent ELF section
+	rearrangement.
+
+2005-11-15  Jan Beulich  <jbeulich@novell.com>
+
+	* ld-bootstrap/bootstrap.exp: Delete ld-partial.o and ld[123]*
+	after test.
+	* ld-elf/elf.exp: Delete preinit, init, and fini after test.
+	* ld-elf/sec64k.exp: Use macro and repeat in generated source
+	files. Delete object files after test.
+
+2005-11-11  Hans-Peter Nilsson  <hp@axis.com>
+
+	* ld-cris/noov.d: Restrict to cris-*-*elf*.
+
+2005-10-31  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	PR ld/1501
+	* ld-mmix/bpo-10.d: Adjust for empty-section-removal.
+
+2005-10-28  Hans-Peter Nilsson  <hp@axis.com>
+
+	PR ld/1567
+	* ld-cris/noov.s, ld-cris/noov.d: New test.
+
+2005-10-26  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-elf/empty2.d: Allow more symbols.
+
+2005-10-26  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* ld-mmix/bpo-6.d, ld-mmix/bpo-19.d: Adjust for symbols between
+	section symbols and the _start symbol.
+
+2005-10-25  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-elf/orphan.d: Adjust for mips.
+
+2005-10-24  Jan Beulich  <jbeulich@novell.com>
+
+	* ld-elf/empty2.[sd]: New.
+
+2005-10-23  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/1487
+	* ld-ia64/tlspic.rd: Updated.
+
+2005-10-21  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/1467
+	* ld-elf/orphan.d: New file.
+	* ld-elf/orphan.ld: Likewise.
+	* ld-elf/orphan.s: Likewise.
+
+2005-10-20  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-ia64/ia64.exp: Undo the last change. Add support for *.d.
+
+	* ld-ia64/link-order.d: New file.
+
+2005-10-20  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/251
+	* ld-elf/group2.d: New file.
+
+2005-10-19  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/1487
+	* ld-elf/unknown.d: New file.
+
+2005-10-19  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-ia64/ia64.exp: Check link order for ld -r.
+
+2005-10-18  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-scripts/crossref.exp: Add -mcall-aixdesc to CFLAGS for
+	powerpc64.
+
+2005-10-13 Mark Mitchell  <mark@codesourcery.com>
+
+	* ld-elfvers/vers.exp: Add vers31.
+	* ld-elfvers/vers31.c: New file.
+	* ld-elfvers/vers31.dsym: Likewise.
+	* ld-elfvers/vers31.map: Likewise.
+	* ld-elfvers/vers31.ver: Likewise.
+
+2005-10-08  Paul Brook  <paul@codesourcery.com>
+
+	* ld-arm/arm-rel31.d: Ignore Arm object attribute sections.
+	* ld-arm/arm-target1-abs.d: Ditto.
+	* ld-arm/arm-target1-rel.d: Ditto.
+	* ld-arm/arm-target2-abs.d: Ditto.
+	* ld-arm/arm-target2-got-rel.d: Ditto.
+	* ld-arm/arm-target2-rel.d: Ditto.
+
+2005-10-04  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/1396
+	* ld-scripts/cross3.t: New file.
+	* ld-scripts/cross4.c: Likewise.
+
+	* ld-scripts/crossref.exp: Add a new test for "ld -r".
+
+2005-09-30  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-elf/sec64k.exp: Enabled for all ELF targets.
+
+2005-09-30  Catherine Moore  <clm@cm00re.com>
+
+	* ld-elf/merge.d: Xfail bfin.
+
+2005-09-28  Alexandre Oliva  <aoliva@redhat.com>
+
+	* symtocbase-1.s, symtocbase-2.s, symtocbase.d: New test.
+	* powerpc.exp: Run it.
+
+2005-09-28  Jan Beulich  <jbeulich@novell.com>
+
+	* ld-x86-64/tlspic.dd: Adjust.
+
+2005-09-01  Hans-Peter Nilsson  <hp@axis.com>
+
+	* ld-cris: Skip tests unsuitable for testing target
+	cris-axis-linux-gnu.
+
+2005-08-18  David Daney  <ddaney@avtrex.com>
+
+	* ld-mips-elf/multi-got-1.d: Adjust for new ld behavior.
+	* ld-mips-elf/multi-got-no-shared.d: Likewise.
+	* ld-mips-elf/rel32-n32.d: Likewise.
+	* ld-mips-elf/rel32-o32.d: Likewise.
+	* ld-mips-elf/rel64.d: Likewise.
+
+2005-08-18  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-d10v/default_layout.d: Adjust for section removal.
+	* ld-elf/empty.s: Define "main".
+	* ld-elf/frame.exp: Don't run for hppa64 and v850.
+	* ld-elf/group1.d: xfail various targets.
+	* ld-elf/merge.d: Likewise.
+	* ld-elf/merge2.d: Likewise.
+	* ld-elf/warn1.d: Likewise.
+	* ld-scripts/defined2.d: Likewise.
+	* ld-scripts/defined3.d: Likewise.
+	* ld-scripts/empty-aligned.d: Likewise.
+	* ld-scripts/size-2.d: Likewise.
+	* ld-scripts/weak.exp: Likewise.
+	* ld-selective/sel-dump.exp: Likewise.
+	* ld-undefined/weak-undef.exp: Likewise.
+
+2005-08-18  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-scripts/crossref.exp: Remove a29k support.
+	* ld-srec/srec.exp: Likewise.
+
+2005-08-17  Jakub Jelinek  <jakub@redhat.com>
+
+	* lib/ld-lib.exp (default_ld_compile): Append $cc arguments after
+	$CFLAGS instead of prepending them.
+
+	* ld-elfvers/vers.exp: Add a new test, vers30.
+	* ld-elfvers/vers30.c: New file.
+	* ld-elfvers/vers30.map: New file.
+	* ld-elfvers/vers30.ver: New file.
+	* ld-elfvers/vers30.dsym: New file.
+
+2005-08-17  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-alpha/tlsbin.rd: Update.
+	* ld-alpha/tlsbinr.rd: Update.
+	* ld-cris/locref1.d: Update.
+	* ld-cris/locref2.d: Update.
+	* ld-i386/tlsbin.rd: Update.
+	* ld-ia64/tlsbin.rd: Update.
+	* ld-powerpc/tlsexe.r: Update.
+	* ld-powerpc/tlsexe32.r: Update.
+	* ld-powerpc/tlsexetoc.r: Update.
+	* ld-s390/tlsbin.rd: Update.
+	* ld-s390/tlsbin_64.rd: Update.
+	* ld-sparc/tlssunbin32.rd: Update.
+	* ld-sparc/tlssunbin64.rd: Update.
+	* ld-x86-64/tlsbin.rd: Update.
+
+2005-08-16  Hans-Peter Nilsson  <hp@axis.com>
+
+	* ld-cris/dso-1.s: Add missing alignment directive.
+	* ld-cris/libdso-10.d: Adjust accordingly.
+
+2005-08-16  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-alpha/tlsbin.rd: Adjust for dynamic sym changes.
+	* ld-alpha/tlsbinr.rd: Likewise.
+	* ld-alpha/tlspic.rd: Likewise.
+	* ld-arm/mixed-app.d: Likewise.
+	* ld-arm/mixed-app.sym: Likewise.
+	* ld-arm/mixed-lib.sym: Likewise.
+	* ld-arm/tls-app.d: Likewise.
+	* ld-arm/tls-app.r: Likewise.
+	* ld-cris/expdyn5.d: Likewise.
+	* ld-cris/expdyn6.d: Likewise.
+	* ld-cris/expdyn7.d: Likewise.
+	* ld-cris/gotplt1.d: Likewise.
+	* ld-cris/gotplt2.d: Likewise.
+	* ld-cris/gotplt3.d: Likewise.
+	* ld-cris/hiddef1.d: Likewise.
+	* ld-cris/libdso-10.d: Likewise.
+	* ld-cris/libdso-11.d: Likewise.
+	* ld-cris/libdso-12.d: Likewise.
+	* ld-cris/libdso-13.d: Likewise.
+	* ld-cris/libdso-14.d: Likewise.
+	* ld-cris/libdso-2.d: Likewise.
+	* ld-cris/pv32-1.d: Likewise.
+	* ld-cris/weakref2.d: Likewise.
+	* ld-frv/fdpic-pie-1.d: Likewise.
+	* ld-frv/fdpic-pie-2.d: Likewise.
+	* ld-frv/fdpic-pie-6.d: Likewise.
+	* ld-frv/fdpic-pie-7.d: Likewise.
+	* ld-frv/fdpic-pie-8.d: Likewise.
+	* ld-frv/fdpic-shared-1.d: Likewise.
+	* ld-frv/fdpic-shared-2.d: Likewise.
+	* ld-frv/fdpic-shared-3.d: Likewise.
+	* ld-frv/fdpic-shared-4.d: Likewise.
+	* ld-frv/fdpic-shared-5.d: Likewise.
+	* ld-frv/fdpic-shared-6.d: Likewise.
+	* ld-frv/fdpic-shared-7.d: Likewise.
+	* ld-frv/fdpic-shared-8.d: Likewise.
+	* ld-frv/fdpic-shared-local-2.d: Likewise.
+	* ld-frv/fdpic-shared-local-8.d: Likewise.
+	* ld-frv/fdpic-static-1.d: Likewise.
+	* ld-frv/fdpic-static-2.d: Likewise.
+	* ld-frv/fdpic-static-6.d: Likewise.
+	* ld-frv/fdpic-static-7.d: Likewise.
+	* ld-frv/fdpic-static-8.d: Likewise.
+	* ld-frv/tls-dynamic-1.d: Likewise.
+	* ld-frv/tls-dynamic-2.d: Likewise.
+	* ld-frv/tls-dynamic-3.d: Likewise.
+	* ld-frv/tls-initial-shared-2.d: Likewise.
+	* ld-frv/tls-pie-1.d: Likewise.
+	* ld-frv/tls-pie-3.d: Likewise.
+	* ld-frv/tls-relax-dynamic-1.d: Likewise.
+	* ld-frv/tls-relax-dynamic-2.d: Likewise.
+	* ld-frv/tls-relax-dynamic-3.d: Likewise.
+	* ld-frv/tls-relax-initial-shared-2.d: Likewise.
+	* ld-frv/tls-relax-pie-1.d: Likewise.
+	* ld-frv/tls-relax-pie-3.d: Likewise.
+	* ld-frv/tls-relax-shared-1.d: Likewise.
+	* ld-frv/tls-relax-shared-2.d: Likewise.
+	* ld-frv/tls-relax-shared-3.d: Likewise.
+	* ld-frv/tls-relax-static-1.d: Likewise.
+	* ld-frv/tls-shared-1.d: Likewise.
+	* ld-frv/tls-shared-2.d: Likewise.
+	* ld-frv/tls-shared-3.d: Likewise.
+	* ld-frv/tls-static-1.d: Likewise.
+	* ld-frv/tls-static-3.d: Likewise.
+	* ld-i386/tlsbin.rd: Likewise.
+	* ld-i386/tlsnopic.rd: Likewise.
+	* ld-i386/tlspic.rd: Likewise.
+	* ld-ia64/tlsbin.dd: Likewise.
+	* ld-ia64/tlsbin.rd: Likewise.
+	* ld-ia64/tlspic.dd: Likewise.
+	* ld-ia64/tlspic.rd: Likewise.
+	* ld-powerpc/tlsexe.g: Likewise.
+	* ld-powerpc/tlsexe.r: Likewise.
+	* ld-powerpc/tlsexe32.d: Likewise.
+	* ld-powerpc/tlsexe32.g: Likewise.
+	* ld-powerpc/tlsexe32.r: Likewise.
+	* ld-powerpc/tlsexetoc.g: Likewise.
+	* ld-powerpc/tlsexetoc.r: Likewise.
+	* ld-powerpc/tlsso.g: Likewise.
+	* ld-powerpc/tlsso.r: Likewise.
+	* ld-powerpc/tlsso32.d: Likewise.
+	* ld-powerpc/tlsso32.g: Likewise.
+	* ld-powerpc/tlsso32.r: Likewise.
+	* ld-powerpc/tlstocso.g: Likewise.
+	* ld-powerpc/tlstocso.r: Likewise.
+	* ld-s390/tlsbin.rd: Likewise.
+	* ld-s390/tlsbin_64.rd: Likewise.
+	* ld-s390/tlspic.rd: Likewise.
+	* ld-s390/tlspic_64.rd: Likewise.
+	* ld-sh/shared-1.d: Likewise.
+	* ld-sh/tlsbin-2.d: Likewise.
+	* ld-sh/tlsbin-3.d: Likewise.
+	* ld-sh/tlsbin-4.d: Likewise.
+	* ld-sh/tlspic-2.d: Likewise.
+	* ld-sh/sh64/abi32.xd: Likewise.
+	* ld-sh/sh64/abi64.xd: Likewise.
+	* ld-sh/sh64/cmpct1.xd: Likewise.
+	* ld-sh/sh64/crange1.rd: Likewise.
+	* ld-sh/sh64/crange2.rd: Likewise.
+	* ld-sh/sh64/crange3-cmpct.rd: Likewise.
+	* ld-sh/sh64/crange3-media.rd: Likewise.
+	* ld-sh/sh64/crange3.rd: Likewise.
+	* ld-sh/sh64/gotplt.d: Likewise.
+	* ld-sh/sh64/init-cmpct.d: Likewise.
+	* ld-sh/sh64/init-media.d: Likewise.
+	* ld-sh/sh64/init64.d: Likewise.
+	* ld-sh/sh64/mix1.xd: Likewise.
+	* ld-sh/sh64/mix2.xd: Likewise.
+	* ld-sh/sh64/sh64.exp: Likewise.
+	* ld-sh/sh64/shdl32.xd: Likewise.
+	* ld-sh/sh64/shdl64.xd: Likewise.
+	* ld-sparc/tlssunbin32.rd: Likewise.
+	* ld-sparc/tlssunbin64.rd: Likewise.
+	* ld-sparc/tlssunnopic32.rd: Likewise.
+	* ld-sparc/tlssunnopic64.rd: Likewise.
+	* ld-sparc/tlssunpic32.rd: Likewise.
+	* ld-sparc/tlssunpic64.rd: Likewise.
+	* ld-x86-64/tlsbin.rd: Likewise.
+	* ld-x86-64/tlspic.dd: Likewise.
+	* ld-x86-64/tlspic.rd: Likewise.
+
+2005-08-15  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-elf/empty.s: Define "start".
+	* ld-elf/merge2.d: xfail arc-*-* and dlx-*-*.
+	* ld-scripts/empty-aligned.s: No .data section.
+	* ld-scripts/empty-aligned.t: Discard most sections.
+	* ld-scripts/empty-aligned.d: Adjust.
+
+2005-08-11  Hans-Peter Nilsson  <hp@axis.com>
+
+	* ld-cris/expdyn1.s (expobj): Set size here, at definition...
+	* ld-cris/pv32.s: ...not here.
+	* ld-cris/expdyn1.d, ld-cris/libdso-12.d, ld-cris/locref1.d:
+	Adjust for expobj size being set at definition.
+
+	* ld-cris/v32-ba-1.d: Regexpize to adjust for symbol change.
+
+2005-08-08  Richard Earnshaw  <richard.earnshaw@arm.com>
+
+	* ld-arm/mixed-app.sym: Expact _stack to be in the ABS section.
+	* ld-arm/mixed-lib.sym: Likewise.
+	* tls-lib.d: Use a regexp for the address locations.
+	* tls-lib.r: Likewise.
+
+2005-08-03  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-i386/pcrel16.d: Updated.
+	* ld-i386/pcrel16.s: Likewise.
+	* ld-x86-64/pcrel16.d: Likewise.
+
+2005-08-01  Richard Sandiford  <richard@codesourcery.com>
+
+	* ld-mips/mips-elf-flags.exp: Add more good_combination tests.
+
+2005-07-28  Ben Elliston  <bje@gnu.org>
+
+	* lib/ld-lib.exp (run_ld_link_exec_tests): Add new parameter
+	${targets_to_xfail} that is applied for each test item.
+	* ld-elf/elf.exp: Pass *-*-netbsdelf* as an xfailed target.
+
+2005-07-27  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-elfweak/size2a.s: Extend test to check size for two weaks.
+	* ld-elfweak/size2b.s: Likewise.
+	* ld-elfweak/size2.d: Update.
+
+2005-07-18  Jan Beulich  <jbeulich@novell.com>
+
+	* ld-i386/abs.s, ld-i386/zero.s, ld-i386/abs.d, ld-x86-64/abs.d,
+	ld-i386/pcrel16.s, ld-i386/pcrel16.d, ld-x86-64/pcrel16.d,
+	ld-i386/pcrel8.s, ld-i386/pcrel8.d, ld-x86-64/pcrel8.d: New.
+	* ld-i386/i386.exp, ld-x86-64/x86-64.exp: Run new tests.
+
+2005-07-14  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* lib/ld-lib.exp (run_ld_link_exec_tests): Ignore assembler
+	warnings.
+
+2005-07-14  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* lib/ld-lib.exp (run_ld_link_exec_tests): Update comments.
+
+2005-07-14  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-elf/elf.exp (array_tests): New.
+	Call run_ld_link_exec_tests with array_tests.
+
+	* ld-elf/fini.c: New file.
+	* ld-elf/fini.out: Likewise.
+	* ld-elf/init.c: Likewise.
+	* ld-elf/init.out: Likewise.
+	* ld-elf/preinit.c: Likewise.
+	* ld-elf/preinit.out: Likewise.
+
+	* lib/ld-lib.exp (run_ld_link_exec_tests): New.
+
+2005-07-12  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/sdalib.s (lib_var): Size it.
+
+2005-07-08  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-ia64/tlsbin.rd: Update for empty section removal change.
+	* ld-ia64/tlsbin.sd: Likewise.
+	* ld-ia64/tlspic.dd: Likewise.
+	* ld-ia64/tlspic.rd: Likewise.
+	* ld-ia64/tlspic.sd: Likewise.
+	* ld-x86-64/tlspic.dd: Likewise.
+	* ld-x86-64/tlspic.rd: Likewise.
+
+2005-07-08  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-cris/pv32.s: Give expobj a size.
+	* ld-cris/pv32-1.d: Update.
+	* ld-alpha/tlsbin.dd: Update for empty section removal change.
+	* ld-alpha/tlsbin.sd: Likewise.
+	* ld-alpha/tlsbin.td: Likewise.
+	* ld-alpha/tlsbinr.dd: Likewise.
+	* ld-alpha/tlsbinr.rd: Likewise.
+	* ld-alpha/tlspic.dd: Likewise.
+	* ld-alpha/tlspic.rd: Likewise.
+	* ld-alpha/tlspic.sd: Likewise.
+	* ld-alpha/tlspic.td: Likewise.
+	* ld-arm/tls-lib.d: Likewise.
+	* ld-arm/tls-lib.r: Likewise.
+	* ld-cris/gotplt2.d: Likewise.
+	* ld-cris/gotplt3.d: Likewise.
+	* ld-cris/hiddef1.d: Likewise.
+	* ld-cris/libdso-10.d: Likewise.
+	* ld-cris/libdso-11.d: Likewise.
+	* ld-cris/libdso-12.d: Likewise.
+	* ld-cris/libdso-14.d: Likewise.
+	* ld-cris/libdso-2.d: Likewise.
+	* ld-i386/tlsnopic.dd: Likewise.
+	* ld-i386/tlsnopic.rd: Likewise.
+	* ld-i386/tlsnopic.sd: Likewise.
+	* ld-i386/tlspic.rd: Likewise.
+	* ld-mmix/bpo-10.d: Likewise.
+	* ld-mmix/bpo-22.d: Likewise.
+	* ld-mmix/sec-7m.d: Likewise.
+	* ld-powerpc/tlsexe.r: Likewise.
+	* ld-powerpc/tlsexetoc.r: Likewise.
+	* ld-powerpc/tlsso.g: Likewise.
+	* ld-powerpc/tlsso.r: Likewise.
+	* ld-powerpc/tlsso32.d: Likewise.
+	* ld-powerpc/tlsso32.g: Likewise.
+	* ld-powerpc/tlsso32.r: Likewise.
+	* ld-powerpc/tlstocso.g: Likewise.
+	* ld-powerpc/tlstocso.r: Likewise.
+
+2005-06-23  Andreas Schwab  <schwab@suse.de>
+
+	* ld-elfweak/size_foo.c (foo): Fix warning about implicit return
+	type.
+
+2005-06-10  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-cris/libdso-10.d: Adjust for elf.sc .bss change.
+	* ld-cris/libdso-2.d: Likewise.
+	* ld-mmix/loc6.d: Likewise.
+
+2005-06-10  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-scripts/empty-aligned.t: Adjust alignment expressions so
+	that no .text? section is kept.  Also check setting vma and
+	lma.
+	* ld-scripts/empty-aligned.d: Update.
+
+2005-06-09  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-scripts/empty-aligned.d: Adjust.
+
+2005-06-05  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-cris/hiddef1.d: Undo the last change.
+	* ld-cris/libdso-10.d: Likewise.
+	* ld-cris/libdso-2.d: Likewise.
+
+2005-06-04  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-cris/hiddef1.d: Updated.
+	* ld-cris/libdso-10.d: Likewise.
+	* ld-cris/libdso-2.d: Likewise.
+
+2005-06-02  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/powerpc.exp (ppcelftests): Assemble sda test with -a32.
+
+2005-05-31  Zack Weinberg  <zack@codesourcery.com>
+
+	* ld-scripts/align.exp: Mark align1 XFAIL on PECOFF targets.
+	* ld-scripts/data.exp: Mark data UNSUPPORTED on a.out targets.
+	* ld-scripts/provide.exp, ld-scripts/size.exp: Mark all tests
+	UNSUPPORTED on a.out targets.  Tidy.
+
+2005-05-27  Mark Mitchell  <mark@codesourcery.com>
+
+	* config/default.exp (CC): Use find_gcc.
+	(CFLAGS): Define, if no definition has been provided by the user.
+	(CXX): Likewise.
+	(CXXFLAGS): Likewise.
+
+2005-05-24  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-mmix/bpo-6.d: Updated.
+	* ld-mmix/bpo-19.d: Likewise.
+
+2005-05-22  Richard Henderson  <rth@redhat.com>
+
+	* ld-elfweak/dsow.dsym: Adjust for non-zero ST_OTHER.
+	* ld-elfweak/weak.dsym: Likewise.
+
+	* ld-selective/selective.exp: Don't test alpha.
+
+2005-05-20  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* ld-powerpc/sdalib.s, ld-powerpc/sdadyn.s, ld-powerpc/sdadyn.d: New
+	files.
+	* ld-powerpc/powerpc.exp: Run the new test.
+
+2005-05-20  Bob Wilson  <bob.wilson@acm.org>
+
+	* ld-undefined/undefined.exp: Revert xfail for xtensa-*-*.
+
+2005-05-17  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR 797
+	* empty-aligned.d: New file.
+	* empty-aligned.exp: Likewise.
+	* empty-aligned.s: Likewise.
+	* empty-aligned.t: Likewise.
+
+2005-05-11  Bob Wilson  <bob.wilson@acm.org>
+
+	* ld-undefined/undefined.exp: xfail xtensa-*-*.
+
+2005-05-07  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/tlsexe32.d: Update for changed got layout.
+	* ld-powerpc/tlsexe32.g: Likewise.
+	* ld-powerpc/tlsexe32.r: Likewise.
+	* ld-powerpc/tlsso32.d: Likewise.
+	* ld-powerpc/tlsso32.g: Likewise.
+	* ld-powerpc/tlsso32.r: Likewise.
+
+2005-05-06  Nick Clifton  <nickc@redhat.com>
+
+	Update the address and phone number of the FSF organization in
+	the GPL notices in the following files:
+	* config/default.exp, ld-alpha/alpha.exp, ld-arm/arm-elf.exp,
+	ld-auto-import/auto-import.exp, ld-bootstrap/bootstrap.exp,
+	ld-cdtest/cdtest.exp, ld-checks/checks.exp, ld-cris/cris.exp,
+	ld-crx/crx.exp, ld-cygwin/exe-export.exp, ld-d10v/d10v.exp,
+	ld-discard/discard.exp, ld-elf/elf.exp, ld-elf/exclude.exp,
+	ld-elf/frame.exp, ld-elf/sec64k.exp, ld-elfcomm/elfcomm.exp,
+	ld-elfvers/vers.exp, ld-elfvsb/elfvsb.exp, ld-elfweak/elfweak.exp,
+	ld-fastcall/fastcall.exp, ld-frv/fdpic.exp, ld-frv/tls.exp,
+	ld-h8300/h8300.exp, ld-i386/i386.exp, ld-ia64/ia64.exp,
+	ld-linkonce/linkonce.exp, ld-m68hc11/m68hc11.exp,
+	ld-maxq/maxq.exp, ld-mips-elf/mips-elf-flags.exp,
+	ld-mips-elf/mips-elf.exp, ld-mmix/mmix.exp, ld-pe/pe.exp,
+	ld-powerpc/powerpc.exp, ld-s390/s390.exp, ld-scripts/align.exp,
+	ld-scripts/assert.exp, ld-scripts/crossref.exp,
+	ld-scripts/data.exp, ld-scripts/defined.exp,
+	ld-scripts/empty-orphan.exp, ld-scripts/map-address.exp,
+	ld-scripts/overlay-size.exp, ld-scripts/phdrs.exp,
+	ld-scripts/phdrs2.exp, ld-scripts/provide.exp,
+	ld-scripts/script.exp, ld-scripts/size.exp, ld-scripts/sizeof.exp,
+	ld-scripts/sort.exp, ld-scripts/weak.exp,
+	ld-selective/sel-dump.exp, ld-selective/selective.exp,
+	ld-sh/rd-sh.exp, ld-sh/arch/arch.exp, ld-sh/sh64/rd-sh64.exp,
+	ld-sh/sh64/relax.exp, ld-sh/sh64/relfail.exp, ld-sh/sh64/sh64.exp,
+	ld-shared/shared.exp, ld-sparc/sparc.exp,
+	ld-undefined/undefined.exp, ld-undefined/weak-undef.exp,
+	ld-versados/versados.exp, ld-x86-64/x86-64.exp,
+	ld-xstormy16/xstormy16.exp, ld-xtensa/coalesce.exp,
+	ld-xtensa/lcall.exp, lib/ld-lib.exp
+
+2005-05-05  Mike Frysinger  <vapier@gentoo.org>
+
+	* ld-srec/srec.exp: Replace linux-gnu with linux-* to allow for
+	versions of Linux which do not use glibc.
+	* ld-sh/sh.exp: Likewise
+
+2005-05-05  Paul Brook  <paul@codesourcery.com>
+
+	* lib/ld-lib.exp (regexp_diff): Pass test if last line is "#...".
+	* ld-elfweak/elfweak.exp: Run size2.d.
+	* ld-elfweak/size2.d: New file.
+	* ld-elfweak/size2a.s: New file.
+	* ld-elfweak/size2b.s: New file.
+
+2005-04-26  Mark Kettenis  <kettenis@gnu.org>
+
+	* ld-fastcall/fastcall.exp: Don't run on i*86-*-openbsd*.
+
+	* ld-srec/srec.exp (run_srec_test): Deal with ProPolice on
+	*-*-openbsd*.
+
+2005-04-25  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-discard/extern.d: Expect error.
+	* ld-discard/start.d: Likewise.
+	* ld-discard/static.d: Likewise.
+
+2005-04-19  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/reloc.d: Update to suit removal of non-alloc relocs.
+
+2005-04-15  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-d10v/default_layout.d: Update for unused section removal.
+
+2005-04-14  David S. Miller  <davem@davemloft.net>
+
+	* ld-selective/sel-dump.exp: Do not exclude sparc64-*.
+	* ld-selective/selective.exp: Likewise.
+	* ld-sparc/sparc.exp: Add {32,64}-bit prefix to test
+	names so we know which one is failing.  Run sparc64 TLS
+	tests on multi-arch sparc platforms.
+	* ld-sparc/tls64.sd, ld-sparc/tlssunbin64.dd,
+	ld-sparc/tlssunbin64.rd, ld/ld-sparc/tlssunbin64.sd,
+	ld-sparc/tlssunbin64.td, ld-sparc/tlssunnopic64.dd,
+	ld-sparc/tlssunnopic64.rd, ld-sparc/tlssunnopic64.sd,
+	ld-sparc/tlssunpic64.dd, ld-sparc/tlssunpic64.rd,
+	ld-sparc/tlssunpic64.sd, ld-sparc/tlssunpic64.td): Update now
+	that sparc64 ELF does support TLS.
+
+2005-04-13  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-elf/empty.d: New file.
+	* ld-elf/empty.s: Likewise.
+
+2005-04-11  David S. Miller  <davem@davemloft.net>
+
+	* ld-sparc/tlssunbin32.dd: Update for TLS relocation fixes.
+	* ld-sparc/tlssunbin32.rd: Likewise.
+	* ld-sparc/tlssunbin32.sd: Likewise.
+	* ld-sparc/tlssunpic32.dd: Likewise.
+
+2005-03-30  Julian Brown  <julian@codesourcery.com>
+
+	* ld-arm/arm-app-abs32.d: Update expected output due to mapping symbols
+	being untyped.
+	* ld-arm/arm-app.d: Likewise.
+	* ld-arm/mixed-app.d: Likewise.
+
+2005-03-29  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* ld-arm/tls-lib.s, ld-arm/tls-lib.d, ld-arm/tls-lib.r,
+	ld-arm/tls-app.s, ld-arm/tls-app.d, ld-arm/tls-app.r: New files.
+	* ld-arm/arm-lib.ld, ld-arm/arm-dyn.ld: Increase data segment
+	alignment.
+	* ld-arm/arm-elf.exp: Run TLS tests.
+
+2005-03-28  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR 803
+	* ld-ia64/ia64.exp: Pass -mtune=itanium1 to as.
+
+2005-03-24  Mark Mitchell  <mark@codesourcery.com>
+
+	* config/default.exp: Do not load libpath.exp if it does not
+	exist.
+	(CC): Provide fallback definition.
+
+2005-03-24  Eric Christopher  <echristo@redhat.com>
+
+	* ld-mips-elf/rel32-n32.d: Revert changes.
+	* ld-mips-elf/rel32-o32.d: Ditto.
+	* ld-mips-elf/rel64.d: Ditto.
+
+2005-03-23  Eric Christopher  <echristo@redhat.com>
+
+	* ld-mips-elf/textrel-1.s, ld-mips-elf/textrel-1.d: New
+	test.
+	* ld-mips-elf/mips-elf.exp: Call it.
+	* ld-mips-elf/rel32-n32.d: Update for DF_TEXTREL removal.
+	* ld-mips-elf/rel32-o32.d: Ditto.
+	* ld-mips-elf/rel64.d: Ditto.
+
+2005-03-23  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-cris/expdyn5.d: Updated for alignment change in elf.sc.
+	* ld-cris/expdyn6.d: Likewise.
+	* ld-cris/expdyn7.d: Likewise.
+	* ld-cris/gotplt1.d: Likewise.
+	* ld-cris/gotplt2.d: Likewise.
+	* ld-cris/gotplt3.d: Likewise.
+	* ld-cris/libdso-10.d: Likewise.
+	* ld-cris/libdso-11.d: Likewise.
+	* ld-cris/libdso-12.d: Likewise.
+	* ld-cris/libdso-14.d: Likewise.
+	* ld-cris/libdso-2.d: Likewise.
+	* ld-cris/locref1.d: Likewise.
+	* ld-cris/locref2.d: Likewise.
+	* ld-cris/nodyn5.d: Likewise.
+	* ld-cris/pv32-1.d: Likewise.
+	* ld-cris/weakref2.d: Likewise.
+
+2005-03-23  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-elf/tbss.s: Don't start directives in first column.
+	* ld-scripts/weak1.s: Likewise.
+	* ld-scripts/weak2.s: Likewise.
+	* ld-undefined/weak-undef.s: Likewise.
+	* ld-undefined/undefined.exp: Enable tests for hppa-elf.
+
+2005-03-22  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/tlsexe32.r: Update.
+	* ld-powerpc/tlsso32.d: Update.
+	* ld-powerpc/tlsso32.g: Update.
+	* ld-powerpc/tlsso32.r: Update.
+
+2005-03-21  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/tlsexe.r: Update.
+	* ld-powerpc/tlsexetoc.r: Update.
+	* ld-powerpc/tlsso.r: Update.
+	* ld-powerpc/tlstocso.r: Update.
+
+2005-03-20  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-mmix/bpo-1.d: Updated for empty section removal.
+	* ld-mmix/bpo-10.d: Likewise.
+	* ld-mmix/bpo-11.d: Likewise.
+	* ld-mmix/bpo-14.d: Likewise.
+	* ld-mmix/bpo-16.d: Likewise.
+	* ld-mmix/bpo-17.d: Likewise.
+	* ld-mmix/bpo-18.d: Likewise.
+	* ld-mmix/bpo-19.d: Likewise.
+	* ld-mmix/bpo-2.d: Likewise.
+	* ld-mmix/bpo-3.d: Likewise.
+	* ld-mmix/bpo-4.d: Likewise.
+	* ld-mmix/bpo-5.d: Likewise.
+	* ld-mmix/bpo-6.d: Likewise.
+	* ld-mmix/bpo-9.d: Likewise.
+	* ld-mmix/bspec1.d: Likewise.
+	* ld-mmix/bspec2.d: Likewise.
+	* ld-mmix/greg-1.d: Likewise.
+	* ld-mmix/greg-19.d: Likewise.
+	* ld-mmix/greg-2.d: Likewise.
+	* ld-mmix/greg-3.d: Likewise.
+	* ld-mmix/greg-4.d: Likewise.
+	* ld-mmix/greg-5.d: Likewise.
+	* ld-mmix/greg-5s.d: Likewise.
+	* ld-mmix/greg-6.d: Likewise.
+	* ld-mmix/greg-7.d: Likewise.
+	* ld-mmix/loc1.d: Likewise.
+	* ld-mmix/loc2.d: Likewise.
+	* ld-mmix/loc3.d: Likewise.
+	* ld-mmix/loc4.d: Likewise.
+	* ld-mmix/loc6.d: Likewise.
+	* ld-mmix/local1.d: Likewise.
+	* ld-mmix/local12.d: Likewise.
+	* ld-mmix/local3.d: Likewise.
+	* ld-mmix/local5.d: Likewise.
+	* ld-mmix/local7.d: Likewise.
+	* ld-mmix/locdo-1.d: Likewise.
+	* ld-mmix/loct-1.d: Likewise.
+	* ld-mmix/locto-1.d: Likewise.
+	* ld-mmix/start-1.d: Likewise.
+	* ld-mmix/undef-3.d: Likewise.
+
+2005-03-16  David Heine  <dlheine@tensilica.com>
+	    Bob Wilson  <bob.wilson@acm.org>
+
+	* ld-scripts/empty-orphan.d, ld-scripts/empty-orphan.exp,
+	ld-scripts/empty-orphan.s, ld-scripts/emtpy-orphan.t: New test.
+
+2005-03-16  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-cris/hiddef1.d: Updated for empty section removal.
+	* ld-cris/libdso-10.d: Likewise.
+	* ld-cris/libdso-2.d: Likewise.
+
+2005-03-16  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-alpha/tlsbin.rd: Updated for empty section removal.
+	* ld-alpha/tlsbinr.rd: Likewise.
+	* ld-alpha/tlspic.rd: Likewise.
+	* ld-arm/mixed-lib.sym: Likewise.
+	* ld-i386/tlsbin.rd: Likewise.
+	* ld-i386/tlsnopic.rd: Likewise.
+	* ld-i386/tlspic.rd: Likewise.
+	* ld-ia64/tlsbin.rd: Likewise.
+	* ld-ia64/tlspic.rd: Likewise.
+	* ld-powerpc/apuinfo.rd: Likewise.
+	* ld-powerpc/powerpc.exp: Likewise.
+	* ld-powerpc/tlsexe32.r: Likewise.
+	* ld-s390/tlsbin.rd: Likewise.
+	* ld-s390/tlsbin_64.rd: Likewise.
+	* ld-s390/tlspic.rd: Likewise.
+	* ld-s390/tlspic_64.rd: Likewise.
+	* ld-sh/tlsbin-2.d: Likewise.
+	* ld-sh/tlspic-2.d: Likewise.
+	* ld-sparc/tlssunbin32.rd: Likewise.
+	* ld-sparc/tlssunnopic32.rd: Likewise.
+	* ld-sparc/tlssunpic32.rd: Likewise.
+	* ld-x86-64/tlsbin.rd: Likewise.
+	* ld-x86-64/tlspic.rd: Likewise.
+
+2005-03-16  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/tlsexe32.d: Update.
+	* ld-powerpc/tlsexe32.g: Update.
+	* ld-powerpc/tlsexe32.r: Update.
+	* ld-powerpc/tlsexe32.t: Update.
+	* ld-powerpc/tlsso32.d: Update.
+	* ld-powerpc/tlsso32.g: Update.
+	* ld-powerpc/tlsso32.r: Update.
+	* ld-powerpc/tlsso32.t: Update.
+
+2005-03-08  Hans-Peter Nilsson  <hp@axis.com>
+
+	Adjust testsuite for cris-axis-aout.
+	* ld-cris/noglob1.d: Adjust regexp for a.out output.
+	* ld-cris/badgotr1.d, ld-cris/expdyn1.d, ld-cris/expdyn2.d,
+	ld-cris/expdyn3.d, ld-cris/expdyn4.d, ld-cris/expdyn5.d,
+	ld-cris/expdyn6.d, ld-cris/expdyn7.d, ld-cris/gotplt1.d,
+	ld-cris/gotplt2.d, ld-cris/gotplt3.d, ld-cris/hiddef1.d,
+	ld-cris/libdso-1.d, ld-cris/libdso-10.d, ld-cris/libdso-11.d,
+	ld-cris/libdso-12.d, ld-cris/libdso-13.d, ld-cris/libdso-14.d,
+	ld-cris/libdso-2.d, ld-cris/libdso-3.d, ld-cris/libdso-4.d,
+	ld-cris/locref1.d, ld-cris/locref2.d, ld-cris/nodyn4.d,
+	ld-cris/nodyn5.d, ld-cris/pv32-1.d, ld-cris/undef1.d,
+	ld-cris/weakref1.d: ld-cris/weakref2.d: Pass --em=criself to gas.
+	* ld-cris/v10-v32.d, ld-cris/v10-va.d, ld-cris/v32-ba-1.d,
+	ld-cris/v32-v10.d, ld-cris/v32-va.d, ld-cris/va-v10.d,
+	ld-cris/va-v32.d: Ditto.  Pass -m criself to gld.
+	* ld-cris/v32-bin-1.d: Pass -m criself to gld.
+
+2005-03-05  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-alpha/tlsbin.dd: Update to suit changed section layout and
+	removed section symbols.
+	* ld-alpha/tlsbin.rd: Likewise.
+	* ld-alpha/tlsbin.sd: Likewise.
+	* ld-alpha/tlsbinr.dd: Likewise.
+	* ld-alpha/tlsbinr.rd: Likewise.
+	* ld-alpha/tlspic.dd: Likewise.
+	* ld-alpha/tlspic.rd: Likewise.
+	* ld-alpha/tlspic.sd: Likewise.
+
+	* ld-powerpc/tlsexe.g: Update for removed dot-symbols.
+	* ld-powerpc/tlsexe.r: Likewise.
+	* ld-powerpc/tlsexetoc.g: Likewise.
+	* ld-powerpc/tlsexetoc.r: Likewise.
+
+2005-03-04  David Daney  <ddaney@avtrex.com>
+
+	* ld-mips-elf/multi-got-no-shared-1.s,
+	ld-mips-elf/multi-got-no-shared-2.s,
+	ld-mips-elf/multi-got-no-shared.d: New tests.
+	* ld-mips-elf/mips-elf.exp: Run them.
+
+2005-03-02  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* ld-mips-elf/tlsbin-o32.s, ld-mips-elf/mips-dyn.ld,
+	ld-mips-elf/tlslib-o32.got, ld-mips-elf/tlslib-o32.d,
+	ld-mips-elf/tlslib-o32.s, ld-mips-elf/mips-lib.ld,
+	ld-mips-elf/tlsbin-o32.got, ld-mips-elf/tlsdyn-o32.d,
+	ld-mips-elf/tlsdyn-o32.got, ld-mips-elf/tlsbin-o32.d,
+	ld-mips-elf/tlsdyn-o32.s, ld-mips-elf/tls-multi-got-1.got,
+	ld-mips-elf/tls-multi-got-1-1.s, ld-mips-elf/tls-multi-got-1.d,
+	ld-mips-elf/tls-multi-got-1.r, ld-mips-elf/tls-multi-got-1-2.s,
+	ld-mips-elf/tlslib-o32-ver.got, ld-mips-elf/tlslib.ver,
+	ld-mips-elf/tlslib-o32-hidden.got, ld-mips-elf/tlslib-hidden.ver,
+	ld-mips-elf/tlsdyn-o32-1.d, ld-mips-elf/tlsdyn-o32-3.got,
+	ld-mips-elf/tlsdyn-o32-2.d, ld-mips-elf/tlsdyn-o32-2.s,
+	ld-mips-elf/tlsdyn-o32-3.d, ld-mips-elf/tlsdyn-o32-1.got,
+	ld-mips-elf/tlsdyn-o32-2.got: New files.
+	* ld-mips-elf/mips-elf.exp: Run the new tests.
+
+2005-03-01  Nick Clifton  <nickc@redhat.com>
+
+	* ld-d10v/default_layout.d: Adjust expected offsets to allow for
+	section alignment.
+
+	* ld-discard/extern.d: Adjust expected warning to take into
+	account the fact that the linker's name might be included and that
+	the reloc might have been adjusted to be against the section
+	symbol.
+
+2005-02-22  Eric Christopher  <echristo@redhat.com>
+
+	* ld-mips-elf/reloc-merge-lo16.d: Correct symbol
+	table size for __start.
+
+2005-02-22  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* ld-elfvsb/hidden2.d: Expect OBJECT.
+	* ld-elfvsb/hidden2.s: Force type OBJECT.
+	* ld-elfvsb/hidden2.ld: Place .dynamic explicitly.
+	* ld-elf/start.s: Provide __start for MIPS.
+	* ld-elfcomm/elfcomm.exp: Accept MIPS common section.  XFAIL size change
+	test.
+	* ld-elf/warn1.d: Use group.ld instead of -Ttext.
+
+2005-02-21  Alan Modra  <amodra@bigpond.net.au>
+
+	* lib/ld-lib.exp (run_dump_test): Don't require a dump program if
+	#warning given.  Rearrange to allow $program to remain unset.
+	Don't allow gas errors.  Append objcopy_as_link output to that
+	from the linker before testing against expected output.  Fail the
+	test if warning not found when expected.  Conversely fail the
+	test if ld errors or warnings given when not expected.
+
+2005-02-21  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-elf/exclude1.s: Use ".dc.a".
+	* ld-elfvsb/hidden2.s: Likewise.
+
+2005-02-21  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-elf/warn1.d: Specify -Ttext.
+	* ld-scripts/align.exp (align2a, align2b: Don't run on aout targets.
+	* ld-scripts/align2.t: Discard all but .text and .data.
+	* ld-scripts/align2a.d: Accept non-readonly for coff.
+	* ld-scripts/align2b.d: Likewise.
+	* lib/ld-lib.exp (is_aout_format): New function.
+
+2005-02-18  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-scripts/align2a.d: Don't assume anything about section
+	padding or alignment, or max page size.  Allow 64-bit addresses.
+	* ld-scripts/align2b.d: Likewise.
+
+2005-02-17  Zack Weinberg  <zack@codesourcery.com>
+
+	* ld-scripts/align.exp: Rename existing "ALIGN" test to "align1".
+	Add dump tests "align2a", "align2b", "align2c".
+	* ld-scripts/align2.t, ld-scripts/align2a.s, ld-scripts/align2a.d
+	* ld-scripts/align2b.s, ld-scripts/align2b.d
+	* ld-scripts/align2c.s, ld-scripts/align2c.d: New files.
+
+2005-02-17  Alexandre Oliva  <aoliva@redhat.com>
+
+	* ld-frv/fdpic-static-6.d: Update.
+	* ld-frv/fdpic*.d: Remove explicit -mfdpic from #as.  Update
+	spelling of errors and warnings.
+
+2005-02-15  Nigel Stephens  <nigel@mips.com>
+	    Maciej W. Rozycki  <macro@mips.com>
+
+	* ld-mips-elf/mips16-hilo.d: New test for the R_MIPS16_HI16 and
+	R_MIPS16_LO16 relocs.
+	* ld-mips-elf/mips16-hilo-n32.d: Likewise, for the n32 ABI.
+	* ld-mips-elf/mips16-hilo.s: Auxiliary source for the new tests.
+	* ld-mips-elf/mips-elf.exp: Run the new tests.
+
+2005-02-14  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	* ld-sparc/sparc.exp: Enable on Solaris.  Disable 32-bit tests
+	on sparc64-elf.
+
+2005-02-13  Jan Beulich  <jbeulich@novell.com>
+
+	* ld-elfvers/vers.exp (as_options): New. Set to -x for ia64.
+	(build_binary): Pass as_options to ld_assemble.
+	(test_ldfail): Likewise.
+	(build_exec): Likewise.
+	Pass as_options to run_ld_link_tests.
+	* ld-ia64/tlsbin.s: Add .explicit.
+	* ld-ia64/tlsbinpic.s: Likewise.
+	* ld-ia64/tlspic1.s: Likewise.
+
+2005-02-13  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	* ld-sparc/tlssunnopic32.rd: Adjust for .dynsym changes.
+	* ld-sparc/tlssunpic32.rd: Likewise.
+
+2005-02-13  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	* ld-elf/warn1.d: Do not run on sparc64-*-solaris2*.
+
+2005-02-11  Paul Brook  <paul@codesourcery.com>
+
+	* ld-elf/symbol1w.s: Avoid using @function syntax.
+
+2005-02-12  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-elfvsb/hidden2.s: Replace .word with .long.
+
+2005-02-10  Paul Brook  <paul@codesourcery.com>
+
+	* ld-elfvsb/hidden2.s: New file
+	* ld-elfvsb/hidden2.d: New file
+	* ld-elfvsb/hidden2.ld: New file
+
+2005-02-07  Alexandre Oliva  <aoliva@redhat.com>
+
+	* ld-frv/fdpic-shared-8-fail.d: Tweak error messages.
+
+2005-02-07  Hans-Peter Nilsson  <hp@axis.com>
+
+	* ld-cris/libdso-13.d: Adjust for being identified as warning.
+
+	* ld-cris/globsymw2.s: New file.
+	* ld-cris/warn3.d, ld-cris/warn4.d: New tests.
+
+	* ld-discard/extern.d, ld-discard/start.d, ld-discard/static.d:
+	Adjust for being identified as warnings.
+
+	* ld-cris/stabs1.s: New file.
+	* ld-cris/undef2.d, ld-cris/undef3.d: New tests.
+
+	* ld-elf/start.s, ld-elf/symbolref.s, ld-elf/symbol1w.s,
+	ld-elf/warn1.d: New test.
+
+	* lib/ld-lib.exp: Support new directive "warning".
+
+2005-02-02  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* ld-mips-elf/eh-frame3.d, ld-mips-elf/eh-frame4.d: Move comments
+	after test commands.
+	* ld-mips-elf/mips-elf.exp: Skip multi-got-1 on non-GNU/Linux
+	systems.
+
+2005-02-01  Alan Modra  <amodra@bigpond.net.au>
+
+	* ld-powerpc/tlsso.r: Update.
+	* ld-powerpc/tlstocso.r: Update.
+
+2005-01-31  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* ld-mips-elf/elf-rel-got-n32.d, ld-mips-elf/elf-rel-got-n64-linux.d,
+	ld-mips-elf/elf-rel-got-n64.d, ld-mips-elf/elf-rel-xgot-n32.d,
+	ld-mips-elf/elf-rel-xgot-n64-linux.d, ld-mips-elf/elf-rel-xgot-n64.d,
+	ld-mips-elf/jalbal.d: Force big-endian.
+	* ld-mips-elf/multi-got-1.d: Make more flexible.
+	* ld-mips-elf/rel32-n32.d, ld-mips-elf/rel32-o32.d,
+	ld-mips-elf/rel64.d: Update offsets.
+
+2005-01-31  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* ld-elf/group1.d: Accept OBJECT symbols.
+
+2005-01-31  Richard Sandiford  <rsandifo@redhat.com>
+
+	* ld-mips-elf/eh-frame1.s: Create a .gcc_compiled_long32 if using
+	32-bit pointers.
+	* ld-mips-elf/eh-frame1.d: Link in .gcc_compiled_long32 sections.
+	* ld-mips-elf/eh-frame[34].d: New tests.
+	* ld-mips-elf/mips-elf.exp: Run them.
+
+2005-01-28  Jan Beulich  <jbeulich@novell.com>
+
+	* ld/ia64/tlsbin.[rt]d: Widen expected offset/size ranges.
+	* ld/ia64/tlspic.[rt]d: Likewise.
+
+2005-01-25  Alexandre Oliva  <aoliva@redhat.com>
+
+	* ld-frv/fdpic.exp: Add -mfdpic to ASFLAGS.
+	* ld-frv/tls.exp: Likewise.
+	2004-11-26  Alexandre Oliva  <aoliva@redhat.com>
+	* ld-frv/tls-3.s: New.
+	* ld-frv/tls-static-3.d: New.
+	* ld-frv/tls-dynamic-3.d: New.
+	* ld-frv/tls-pie-3.d: New.
+	* ld-frv/tls-shared-3.d: New.
+	* ld-frv/tls-relax-static-3.d: New.
+	* ld-frv/tls-relax-dynamic-3.d: New.
+	* ld-frv/tls-relax-pie-3.d: New.
+	* ld-frv/tls-relax-shared-3.d: New.
+	* ld-frv/tls.exp: Run the new tests.
+	* ld-frv/tls-dynamic-2.d: Adjust for improved relaxation.
+	* ld-frv/tls-relax-dynamic-2.d: Likewise.
+	* ld-frv/tls-relax-initial-shared-2.d: Likewise.
+	2004-11-10  Alexandre Oliva  <aoliva@redhat.com>
+	* ld-frv/tls-1-dep.s: New.
+	* ld-frv/tls-1-shared.lds: New.
+	* ld-frv/tls-1.s: New.
+	* ld-frv/tls-2.s: New.
+	* ld-frv/tls-dynamic-1.d: New.
+	* ld-frv/tls-dynamic-2.d: New.
+	* ld-frv/tls-initial-shared-2.d: New.
+	* ld-frv/tls-pie-1.d: New.
+	* ld-frv/tls-relax-dynamic-1.d: New.
+	* ld-frv/tls-relax-dynamic-2.d: New.
+	* ld-frv/tls-relax-initial-shared-2.d: New.
+	* ld-frv/tls-relax-pie-1.d: New.
+	* ld-frv/tls-relax-shared-1.d: New.
+	* ld-frv/tls-relax-shared-2.d: New.
+	* ld-frv/tls-relax-static-1.d: New.
+	* ld-frv/tls-shared-1-fail.d: New.
+	* ld-frv/tls-shared-1.d: New.
+	* ld-frv/tls-shared-2.d: New.
+	* ld-frv/tls-static-1.d: New.
+	* ld-frv/tls.exp: New.
+	* ld-frv/fdpic-pie-1.d: Adjust for 64-bit host.
+	* ld-frv/fdpic-pie-2.d: Likewise.
+	* ld-frv/fdpic-pie-6.d: Likewise.
+	* ld-frv/fdpic-pie-7.d: Likewise.
+	* ld-frv/fdpic-pie-8.d: Likewise.
+	* ld-frv/fdpic-shared-1.d: Likewise.
+	* ld-frv/fdpic-shared-2.d: Likewise.
+	* ld-frv/fdpic-shared-3.d: Likewise.
+	* ld-frv/fdpic-shared-4.d: Likewise.
+	* ld-frv/fdpic-shared-5.d: Likewise.
+	* ld-frv/fdpic-shared-6.d: Likewise.
+	* ld-frv/fdpic-shared-7.d: Likewise.
+	* ld-frv/fdpic-shared-8.d: Likewise.
+	* ld-frv/fdpic-shared-local-2.d: Likewise.
+	* ld-frv/fdpic-shared-local-8.d: Likewise.
+	* ld-frv/fdpic-static-1.d: Likewise.
+	* ld-frv/fdpic-static-2.d: Likewise.
+	* ld-frv/fdpic-static-6.d: Likewise.
+	* ld-frv/fdpic-static-7.d: Likewise.
+	* ld-frv/fdpic-static-8.d: Likewise.
+
+2005-01-17  Richard Sandiford  <rsandifo@redhat.com>
+
+	* ld-mips-elf/eh-frame2-{n32,n64}.d: New tests.
+	* ld-mips-elf/mips-elf.exp: Run them.
+
+2005-01-17  Andrew Stubbs  <andrew.stubbs@st.com>
+
+	* ld-sh/arch/arch.exp: Correct the email address.
+	Correct a few comment typos.
+	(test_arch,test_arch_error): Use 'ld -r' to avoid illegal
+	relocations killing the test.
+	* ld-sh/arch/arch_expected.txt: Update/Correct the test results.
+	* ld-sh/arch/sh2a-nofpu-or-sh3-nommu.s: Regenerate.
+	* ld-sh/arch/sh2a-nofpu-or-sh4-nommu-nofpu.s: Regenerate.
+	* ld-sh/arch/sh2a-nofpu.s: Generate new file.
+	* ld-sh/arch/sh2a-or-sh3e.s: Regenerate.
+	* ld-sh/arch/sh2a-or-sh4.s: Regenerate.
+	* ld-sh/arch/sh2a.s: Generate new file.
+	* ld-sh/arch/sh2e.s: Regenerate.
+	* ld-sh/arch/sh2.s: Regenerate.
+	* ld-sh/arch/sh3-dsp.s: Regenerate.
+	* ld-sh/arch/sh3e.s: Regenerate.
+	* ld-sh/arch/sh3-nommu.s: Regenerate.
+	* ld-sh/arch/sh3.s: Regenerate.
+	* ld-sh/arch/sh4al-dsp.s: Regenerate.
+	* ld-sh/arch/sh4a-nofpu.s: Regenerate.
+	* ld-sh/arch/sh4a.s: Regenerate.
+	* ld-sh/arch/sh4-nofpu.s: Regenerate.
+	* ld-sh/arch/sh4-nommu-nofpu.s: Regenerate.
+	* ld-sh/arch/sh4.s: Regenerate.
+	* ld-sh/arch/sh-dsp.s: Regenerate.
+	* ld-sh/arch/sh.s: Regenerate.
+
+2005-01-11  Kaz Kojima  <kkojima@rr.iij4u.or.jp>
+
+	* ld-sh/shared-1.d: Update for changed dynamic syms.
+	* ld-sh/sh64/gotplt.d: Likewise.
+	* ld-sh/sh64/init-cmpct.d: Likewise.
+	* ld-sh/sh64/init-media.d: Likewise.
+	* ld-sh/sh64/init64.d: Likewise.
+
+For older changes see ChangeLog-2004
+
+Local Variables:
+mode: change-log
+left-margin: 8
+fill-column: 74
+version-control: never
+End:

@@ -1,6 +1,6 @@
 ; IQ2000-only CPU description. -*- Scheme -*-
 ;
-; Copyright 2000, 2001, 2002 Free Software Foundation, Inc.
+; Copyright 2000, 2001, 2002, 2004 Free Software Foundation, Inc.
 ;
 ; Contributed by Red Hat Inc; developed under contract from Vitesse.
 ;
@@ -18,7 +18,7 @@
 ;
 ; You should have received a copy of the GNU General Public License
 ; along with this program; if not, write to the Free Software
-; Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+; Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
 (dni andoui "and upper ones immediate" (MACH2000 USES-RS USES-RT)
      "andoui $rt,$rs,$hi16"
@@ -375,14 +375,14 @@
      ())
 
 (dni pkrlr1 "pkrlr1" (MACH2000 USES-RT YIELD-INSN)
-     "pkrlr1 $rt,$count"
-     (+ OP_COP3 (f-rs 29) rt count)
+     "pkrlr1 $rt,$_index,$count"
+     (+ OP_COP3 (f-rs 29) rt count _index)
      (unimp pkrlr1)
      ())
 
 (dni pkrlr30 "pkrlr30" (MACH2000 USES-RT YIELD-INSN)
-     "pkrlr30 $rt,$count"
-     (+ OP_COP3 (f-rs 31) rt count)
+     "pkrlr30 $rt,$_index,$count"
+     (+ OP_COP3 (f-rs 31) rt count _index)
      (unimp pkrlr30)
      ())
 
@@ -393,14 +393,14 @@
      ())
 
 (dni rbr1 "dma read bytes using r1" (MACH2000 USES-RT YIELD-INSN)
-     "rbr1 $rt,$count"
-     (+ OP_COP3 (f-rs 24) rt count)
+     "rbr1 $rt,$_index,$count"
+     (+ OP_COP3 (f-rs 24) rt count _index)
      (unimp rbr1)
      ())
 
 (dni rbr30 "dma read bytes using r30" (MACH2000 USES-RT YIELD-INSN)
-     "rbr30 $rt,$count"
-     (+ OP_COP3 (f-rs 26) rt count)
+     "rbr30 $rt,$_index,$count"
+     (+ OP_COP3 (f-rs 26) rt count _index)
      (unimp rbr30)
      ())
 
@@ -417,14 +417,14 @@
      ())
 
 (dni rxr1 "dma read word64s using r1" (MACH2000 USES-RT YIELD-INSN)
-     "rxr1 $rt,$count"
-     (+ OP_COP3 (f-rs 28) rt count)
+     "rxr1 $rt,$_index,$count"
+     (+ OP_COP3 (f-rs 28) rt count _index)
      (unimp rxr1)
      ())
 
 (dni rxr30 "dma read word 64s using r30" (MACH2000 USES-RT YIELD-INSN)
-     "rxr30 $rt,$count"
-     (+ OP_COP3 (f-rs 30) rt count)
+     "rxr30 $rt,$_index,$count"
+     (+ OP_COP3 (f-rs 30) rt count _index)
      (unimp rxr30)
      ())
 
@@ -495,26 +495,26 @@
      ())
 
 (dni wbr1 "dma write bytes using r1" (MACH2000 USES-RT YIELD-INSN)
-     "wbr1 $rt,$count"
-     (+ OP_COP3 (f-rs 16) rt count)
+     "wbr1 $rt,$_index,$count"
+     (+ OP_COP3 (f-rs 16) rt count _index)
      (unimp wbr1)
      ())
 
 (dni wbr1u "dma write bytes using r1 and unlock" (MACH2000 USES-RT YIELD-INSN)
-     "wbr1u $rt,$count"
-     (+ OP_COP3 (f-rs 17) rt count)
+     "wbr1u $rt,$_index,$count"
+     (+ OP_COP3 (f-rs 17) rt count _index)
      (unimp wbr1u)
      ())
 
 (dni wbr30 "dma write bytes using r30" (MACH2000 USES-RT YIELD-INSN)
-     "wbr30 $rt,$count"
-     (+ OP_COP3 (f-rs 18) rt count)
+     "wbr30 $rt,$_index,$count"
+     (+ OP_COP3 (f-rs 18) rt count _index)
      (unimp wbr30)
      ())
 
 (dni wbr30u "dma write bytes using r30 and unlock" (MACH2000 USES-RT YIELD-INSN)
-     "wbr30u $rt,$count"
-     (+ OP_COP3 (f-rs 19) rt count)
+     "wbr30u $rt,$_index,$count"
+     (+ OP_COP3 (f-rs 19) rt count _index)
      (unimp wbr30u)
      ())
 
@@ -531,26 +531,26 @@
      ())
 
 (dni wxr1 "dma write word64s using r1" (MACH2000 USES-RT YIELD-INSN)
-     "wxr1 $rt,$count"
-     (+ OP_COP3 (f-rs 20) rt count)
+     "wxr1 $rt,$_index,$count"
+     (+ OP_COP3 (f-rs 20) rt count _index)
      (unimp wxr1)
      ())
 
 (dni wxr1u "dma write word64s using r1 and unlock" (MACH2000 USES-RT YIELD-INSN)
-     "wxr1u $rt,$count"
-     (+ OP_COP3 (f-rs 21) rt count)
+     "wxr1u $rt,$_index,$count"
+     (+ OP_COP3 (f-rs 21) rt count _index)
      (unimp wxr1u)
      ())
 
 (dni wxr30 "dma write word64s using r30" (MACH2000 USES-RT YIELD-INSN)
-     "wxr30 $rt,$count"
-     (+ OP_COP3 (f-rs 22) rt count)
+     "wxr30 $rt,$_index,$count"
+     (+ OP_COP3 (f-rs 22) rt count _index)
      (unimp wxr30)
      ())
 
 (dni wxr30u "dma write word64s using r30 and unlock" (MACH2000 USES-RT YIELD-INSN)
-     "wxr30u $rt,$count"
-     (+ OP_COP3 (f-rs 23) rt count)
+     "wxr30u $rt,$_index,$count"
+     (+ OP_COP3 (f-rs 23) rt count _index)
      (unimp wxr30u)
      ())
 

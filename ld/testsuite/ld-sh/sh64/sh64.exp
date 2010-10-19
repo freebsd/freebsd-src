@@ -1,5 +1,5 @@
 # Expect script for ld-sh tests
-#   Copyright (C) 2000, 2001, 2002 Free Software Foundation
+#   Copyright (C) 2000, 2001, 2002, 2003 Free Software Foundation
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 
 # Test SH linking; all types of relocs.  This tests the assembler and
@@ -97,13 +97,13 @@ set sh64tests {
      {{readelf {-s -r -x 1 -x 3} reldl64.rd}} "reldl64.bin" }
     {"Handling SH64 assembler-generated .cranges" "-mshelf32"
      "--abi=32" {crange-2a.s crange-1.s}
-     {{readelf {-S -s -r -x 1 -x 2 -x 9} crange1.rd}} "crange1.bin" }
+     {{readelf {-S -s -r -x 1 -x 2 -x 4} crange1.rd}} "crange1.bin" }
     {"Handling SH64 assembler-generated .cranges, partial linking" "-mshelf32 -r"
      "--abi=32" {crange-2a.s}
      {{readelf {-S -s -r -x 2 -x 6} crangerel1.rd}} "crangerel1.bin" }
     {"Mixing SH64 assembler-generated with linker-generated .cranges" "-mshelf32"
      "--abi=32" {crange-2a.s crange-2b.s crange-1.s}
-     {{readelf {-S -s -r -x 2 -x 9} crange2.rd}} "crange2.bin" }
+     {{readelf {-S -s -r -x 2 -x 4} crange2.rd}} "crange2.bin" }
     {"Mixing SH64 assembler-generated with linker-generated .cranges, partial linking"
      "-mshelf32 -r"
      "--abi=32" {crange-2a.s crange-2c.s crange-2d.s crange-2e.s}
@@ -112,17 +112,17 @@ set sh64tests {
      "--abi=32"
      {crange-2e.s crange-2f.s crange-2g.s crange-2a.s crange-2d.s crange-2i.s
       crange-2h.s crange-1.s}
-      {{readelf {-S -s -x 2 -x 9} crange3.rd} {objdump -d crange3.dd}} "crange3.bin" }
+      {{readelf {-S -s -x 2 -x 4} crange3.rd} {objdump -d crange3.dd}} "crange3.bin" }
     {"Sorted SH64 .cranges, entry at SHcompact code" "-mshelf32 --entry diversion"
      "--abi=32"
      {crange-2e.s crange-2f.s crange-2g.s crange-2a.s crange-2d.s crange-2i.s
       crange-2h.s crange-1.s}
-      {{readelf {-h -S -s -x 2 -x 9} crange3-cmpct.rd}} "crange3-cmpct.bin" }
+      {{readelf {-h -S -s -x 2 -x 4} crange3-cmpct.rd}} "crange3-cmpct.bin" }
     {"Sorted SH64 .cranges, entry at SHmedia code" "-mshelf32 --entry diversion2"
      "--abi=32"
      {crange-2e.s crange-2f.s crange-2g.s crange-2a.s crange-2d.s crange-2i.s
       crange-2h.s crange-1.s}
-      {{readelf {-h -S -s -x 2 -x 9} crange3-media.rd}} "crange3-media.bin" }
+      {{readelf {-h -S -s -x 2 -x 4} crange3-media.rd}} "crange3-media.bin" }
     {"SH64 Big Endianness" "-mshelf64 -Tendian.ld"
      "--abi=64" {endian.s}
      {{objdump -s endian.sbd} {objdump -d endian.dbd}} "endianb.bin" }

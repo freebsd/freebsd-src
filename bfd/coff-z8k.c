@@ -1,24 +1,24 @@
 /* BFD back-end for Zilog Z800n COFF binaries.
-   Copyright 1992, 1993, 1994, 1995, 1997, 1999, 2000, 2001, 2002, 2003
-   Free Software Foundation, Inc.
+   Copyright 1992, 1993, 1994, 1995, 1997, 1999, 2000, 2001, 2002, 2003,
+   2004, 2005 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    Written by Steve Chamberlain, <sac@cygnus.com>.
 
-This file is part of BFD, the Binary File Descriptor library.
+   This file is part of BFD, the Binary File Descriptor library.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -55,29 +55,19 @@ HOWTO (R_REL16, 0, 1, 16, FALSE, 0,
        TRUE);
 
 static reloc_howto_type r_jr =
-HOWTO (R_JR, 0, 0, 8, TRUE, 0, complain_overflow_signed, 0,
-       "r_jr", TRUE, 0, 0, TRUE);
+HOWTO (R_JR, 1, 0, 8, TRUE, 0, complain_overflow_signed, 0,
+       "r_jr", TRUE, 0xff, 0xff, TRUE);
 
 static reloc_howto_type r_disp7 =
 HOWTO (R_DISP7, 0, 0, 7, TRUE, 0, complain_overflow_bitfield, 0,
-       "r_disp7", TRUE, 0, 0, TRUE);
+       "r_disp7", TRUE, 0x7f, 0x7f, TRUE);
 
 static reloc_howto_type r_callr =
-HOWTO (R_CALLR, 0, 1, 12, TRUE, 0, complain_overflow_signed, 0,
+HOWTO (R_CALLR, 1, 1, 12, TRUE, 0, complain_overflow_signed, 0,
        "r_callr", TRUE, 0xfff, 0xfff, TRUE);
 
-/* Turn a howto into a reloc number */
-
-static int
-coff_z8k_select_reloc (reloc_howto_type *howto)
-{
-  return howto->type;
-}
-
-#define SELECT_RELOC(x,howto) x.r_type = coff_z8k_select_reloc(howto)
-
 #define BADMAG(x) Z8KBADMAG(x)
-#define Z8K 1			/* Customize coffcode.h */
+#define Z8K 1			/* Customize coffcode.h.  */
 #define __A_MAGIC_SET__
 
 /* Code to swap in the reloc.  */
@@ -125,6 +115,25 @@ rtype2howto (arelent *internal, struct internal_reloc *dst)
 }
 
 #define RTYPE2HOWTO(internal, relocentry) rtype2howto (internal, relocentry)
+
+static reloc_howto_type *
+coff_z8k_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+                            bfd_reloc_code_real_type code)
+{
+  switch (code)
+    {
+    case BFD_RELOC_8:      	return & r_imm8;
+    case BFD_RELOC_16:      	return & r_da;
+    case BFD_RELOC_32:      	return & r_imm32;
+    case BFD_RELOC_8_PCREL:     return & r_jr;
+    case BFD_RELOC_16_PCREL:    return & r_rel16;
+    case BFD_RELOC_Z8K_DISP7:   return & r_disp7;
+    case BFD_RELOC_Z8K_CALLR:   return & r_callr;
+    case BFD_RELOC_Z8K_IMM4L:   return & r_imm4l;
+    default:			BFD_FAIL ();
+      return 0;
+    }
+}
 
 /* Perform any necessary magic to the addend in a reloc entry.  */
 
@@ -221,8 +230,8 @@ extra_case (bfd *in_abfd,
       {
 	bfd_vma dst = bfd_coff_reloc16_get_value (reloc, link_info,
 						  input_section);
-	bfd_vma dot = (link_order->offset
-		       + *dst_ptr
+	bfd_vma dot = (*dst_ptr
+		       + input_section->output_offset
 		       + input_section->output_section->vma);
 	int gap = dst - dot - 1;  /* -1, since we're in the odd byte of the
                                      word and the pc's been incremented.  */
@@ -233,7 +242,8 @@ extra_case (bfd *in_abfd,
 	if (gap > 128 || gap < -128)
 	  {
 	    if (! ((*link_info->callbacks->reloc_overflow)
-		   (link_info, bfd_asymbol_name (*reloc->sym_ptr_ptr),
+		   (link_info, NULL,
+		    bfd_asymbol_name (*reloc->sym_ptr_ptr),
 		    reloc->howto->name, reloc->addend, input_section->owner,
 		    input_section, reloc->address)))
 	      abort ();
@@ -248,8 +258,8 @@ extra_case (bfd *in_abfd,
       {
 	bfd_vma dst = bfd_coff_reloc16_get_value (reloc, link_info,
 						  input_section);
-	bfd_vma dot = (link_order->offset
-		       + *dst_ptr
+	bfd_vma dot = (*dst_ptr
+		       + input_section->output_offset
 		       + input_section->output_section->vma);
 	int gap = dst - dot - 1;  /* -1, since we're in the odd byte of the
                                      word and the pc's been incremented.  */
@@ -261,7 +271,8 @@ extra_case (bfd *in_abfd,
 	if (gap > 0 || gap < -127)
 	  {
 	    if (! ((*link_info->callbacks->reloc_overflow)
-		   (link_info, bfd_asymbol_name (*reloc->sym_ptr_ptr),
+		   (link_info, NULL,
+		    bfd_asymbol_name (*reloc->sym_ptr_ptr),
 		    reloc->howto->name, reloc->addend, input_section->owner,
 		    input_section, reloc->address)))
 	      abort ();
@@ -278,8 +289,8 @@ extra_case (bfd *in_abfd,
       {
 	bfd_vma dst = bfd_coff_reloc16_get_value (reloc, link_info,
 						  input_section);
-	bfd_vma dot = (link_order->offset
-		       + *dst_ptr
+	bfd_vma dot = (*dst_ptr
+		       + input_section->output_offset
 		       + input_section->output_section->vma);
 	int gap = dst - dot - 2;
 
@@ -288,7 +299,8 @@ extra_case (bfd *in_abfd,
 	if (gap > 4096 || gap < -4095)
 	  {
 	    if (! ((*link_info->callbacks->reloc_overflow)
-		   (link_info, bfd_asymbol_name (*reloc->sym_ptr_ptr),
+		   (link_info, NULL,
+		    bfd_asymbol_name (*reloc->sym_ptr_ptr),
 		    reloc->howto->name, reloc->addend, input_section->owner,
 		    input_section, reloc->address)))
 	      abort ();
@@ -306,15 +318,16 @@ extra_case (bfd *in_abfd,
       {
 	bfd_vma dst = bfd_coff_reloc16_get_value (reloc, link_info,
 						  input_section);
-	bfd_vma dot = (link_order->offset
-		       + *dst_ptr
+	bfd_vma dot = (*dst_ptr
+		       + input_section->output_offset
 		       + input_section->output_section->vma);
 	int gap = dst - dot - 2;
 
 	if (gap > 32767 || gap < -32768)
 	  {
 	    if (! ((*link_info->callbacks->reloc_overflow)
-		   (link_info, bfd_asymbol_name (*reloc->sym_ptr_ptr),
+		   (link_info, NULL,
+		    bfd_asymbol_name (*reloc->sym_ptr_ptr),
 		    reloc->howto->name, reloc->addend, input_section->owner,
 		    input_section, reloc->address)))
 	      abort ();
@@ -330,14 +343,16 @@ extra_case (bfd *in_abfd,
     }
 }
 
-#define coff_reloc16_extra_cases extra_case
+#define coff_reloc16_extra_cases    extra_case
+#define coff_bfd_reloc_type_lookup  coff_z8k_reloc_type_lookup
 
 #include "coffcode.h"
 
 #undef  coff_bfd_get_relocated_section_contents
-#undef coff_bfd_relax_section
 #define coff_bfd_get_relocated_section_contents \
   bfd_coff_reloc16_get_relocated_section_contents
+
+#undef  coff_bfd_relax_section
 #define coff_bfd_relax_section bfd_coff_reloc16_relax_section
 
 CREATE_BIG_COFF_TARGET_VEC (z8kcoff_vec, "coff-z8k", 0, 0, '_', NULL, COFF_SWAP_TABLE)

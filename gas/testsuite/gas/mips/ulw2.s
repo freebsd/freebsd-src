@@ -1,7 +1,5 @@
 # Source file used to test the ulw macro (harder).
 	
-	.set noat
-	
 	.text
 text_label:
 

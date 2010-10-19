@@ -2,4 +2,5 @@
 
 if [istarget m32r*-*-*] {
     run_dump_test "pic"
+    run_dump_test "pic2"
 }

@@ -2,7 +2,7 @@
 
 THIS FILE IS MACHINE GENERATED WITH CGEN.
 
-Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+Copyright 1996-2005 Free Software Foundation, Inc.
 
 This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 
@@ -18,7 +18,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
 */
 
@@ -34,16 +34,15 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "safe-ctype.h"
 
-/* A better hash function for instruction mnemonics. */
+/* A better hash function for instruction mnemonics.  */
 unsigned int
-ip2k_asm_hash (insn)
-     const char* insn;
+ip2k_asm_hash (const char* insn)
 {
   unsigned int hash;
   const char* m = insn;
 
-  for (hash = 0; *m && !ISSPACE(*m); m++)
-    hash = (hash * 23) ^ (0x1F & TOLOWER(*m));
+  for (hash = 0; *m && ! ISSPACE (*m); m++)
+    hash = (hash * 23) ^ (0x1F & TOLOWER (*m));
 
   /* printf ("%s %d\n", insn, (hash % CGEN_ASM_HASH_SIZE)); */
 
@@ -51,11 +50,10 @@ ip2k_asm_hash (insn)
 }
 
 
-/* Special check to ensure that instruction exists for given machine. */
+/* Special check to ensure that instruction exists for given machine.  */
+
 int
-ip2k_cgen_insn_supported (cd, insn)
-     CGEN_CPU_DESC cd;
-     const CGEN_INSN *insn;
+ip2k_cgen_insn_supported (CGEN_CPU_DESC cd, const CGEN_INSN *insn)
 {
   int machs = CGEN_INSN_ATTR_VALUE (insn, CGEN_INSN_MACH);
 
@@ -63,7 +61,7 @@ ip2k_cgen_insn_supported (cd, insn)
   if (machs == 0)
     return 1;
   
-  return ((machs & cd->machs) != 0);
+  return (machs & cd->machs) != 0;
 }
 
 
@@ -71,10 +69,10 @@ ip2k_cgen_insn_supported (cd, insn)
 /* The hash functions are recorded here to help keep assembler code out of
    the disassembler and vice versa.  */
 
-static int asm_hash_insn_p PARAMS ((const CGEN_INSN *));
-static unsigned int asm_hash_insn PARAMS ((const char *));
-static int dis_hash_insn_p PARAMS ((const CGEN_INSN *));
-static unsigned int dis_hash_insn PARAMS ((const char *, CGEN_INSN_INT));
+static int asm_hash_insn_p        (const CGEN_INSN *);
+static unsigned int asm_hash_insn (const char *);
+static int dis_hash_insn_p        (const CGEN_INSN *);
+static unsigned int dis_hash_insn (const char *, CGEN_INSN_INT);
 
 /* Instruction formats.  */
 
@@ -83,47 +81,47 @@ static unsigned int dis_hash_insn PARAMS ((const char *, CGEN_INSN_INT));
 #else
 #define F(f) & ip2k_cgen_ifld_table[IP2K_/**/f]
 #endif
-static const CGEN_IFMT ifmt_empty = {
+static const CGEN_IFMT ifmt_empty ATTRIBUTE_UNUSED = {
   0, 0, 0x0, { { 0 } }
 };
 
-static const CGEN_IFMT ifmt_jmp = {
+static const CGEN_IFMT ifmt_jmp ATTRIBUTE_UNUSED = {
   16, 16, 0xe000, { { F (F_OP3) }, { F (F_ADDR16CJP) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_sb = {
+static const CGEN_IFMT ifmt_sb ATTRIBUTE_UNUSED = {
   16, 16, 0xf000, { { F (F_OP4) }, { F (F_BITNO) }, { F (F_REG) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_xorw_l = {
+static const CGEN_IFMT ifmt_xorw_l ATTRIBUTE_UNUSED = {
   16, 16, 0xff00, { { F (F_OP4) }, { F (F_OP4MID) }, { F (F_IMM8) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_loadl_a = {
+static const CGEN_IFMT ifmt_loadl_a ATTRIBUTE_UNUSED = {
   16, 16, 0xff00, { { F (F_OP4) }, { F (F_OP4MID) }, { F (F_IMM8) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_loadh_a = {
+static const CGEN_IFMT ifmt_loadh_a ATTRIBUTE_UNUSED = {
   16, 16, 0xff00, { { F (F_OP4) }, { F (F_OP4MID) }, { F (F_IMM8) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_addcfr_w = {
+static const CGEN_IFMT ifmt_addcfr_w ATTRIBUTE_UNUSED = {
   16, 16, 0xfe00, { { F (F_OP6) }, { F (F_DIR) }, { F (F_REG) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_speed = {
+static const CGEN_IFMT ifmt_speed ATTRIBUTE_UNUSED = {
   16, 16, 0xff00, { { F (F_OP8) }, { F (F_IMM8) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_ireadi = {
+static const CGEN_IFMT ifmt_ireadi ATTRIBUTE_UNUSED = {
   16, 16, 0xffff, { { F (F_OP6) }, { F (F_OP6_10LOW) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_page = {
+static const CGEN_IFMT ifmt_page ATTRIBUTE_UNUSED = {
   16, 16, 0xfff8, { { F (F_OP6) }, { F (F_OP6_7LOW) }, { F (F_PAGE3) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_reti = {
+static const CGEN_IFMT ifmt_reti ATTRIBUTE_UNUSED = {
   16, 16, 0xfff8, { { F (F_OP6) }, { F (F_OP6_7LOW) }, { F (F_RETI3) }, { 0 } }
 };
 
@@ -680,27 +678,27 @@ static const CGEN_OPCODE ip2k_cgen_insn_opcode_table[MAX_INSNS] =
 #else
 #define F(f) & ip2k_cgen_ifld_table[IP2K_/**/f]
 #endif
-static const CGEN_IFMT ifmt_sc = {
+static const CGEN_IFMT ifmt_sc ATTRIBUTE_UNUSED = {
   16, 16, 0xffff, { { F (F_OP4) }, { F (F_BITNO) }, { F (F_REG) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_snc = {
+static const CGEN_IFMT ifmt_snc ATTRIBUTE_UNUSED = {
   16, 16, 0xffff, { { F (F_OP4) }, { F (F_BITNO) }, { F (F_REG) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_sz = {
+static const CGEN_IFMT ifmt_sz ATTRIBUTE_UNUSED = {
   16, 16, 0xffff, { { F (F_OP4) }, { F (F_BITNO) }, { F (F_REG) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_snz = {
+static const CGEN_IFMT ifmt_snz ATTRIBUTE_UNUSED = {
   16, 16, 0xffff, { { F (F_OP4) }, { F (F_BITNO) }, { F (F_REG) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_skip = {
+static const CGEN_IFMT ifmt_skip ATTRIBUTE_UNUSED = {
   16, 16, 0xffff, { { F (F_OP4) }, { F (F_BITNO) }, { F (F_REG) }, { 0 } }
 };
 
-static const CGEN_IFMT ifmt_skipb = {
+static const CGEN_IFMT ifmt_skipb ATTRIBUTE_UNUSED = {
   16, 16, 0xffff, { { F (F_OP4) }, { F (F_BITNO) }, { F (F_REG) }, { 0 } }
 };
 
@@ -728,32 +726,32 @@ static const CGEN_IBASE ip2k_cgen_macro_insn_table[] =
 /* sc */
   {
     -1, "sc", "sc", 16,
-    { 0|A(ALIAS), { (1<<MACH_BASE) } }
+    { 0|A(ALIAS), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* snc */
   {
     -1, "snc", "snc", 16,
-    { 0|A(ALIAS), { (1<<MACH_BASE) } }
+    { 0|A(ALIAS), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* sz */
   {
     -1, "sz", "sz", 16,
-    { 0|A(ALIAS), { (1<<MACH_BASE) } }
+    { 0|A(ALIAS), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* snz */
   {
     -1, "snz", "snz", 16,
-    { 0|A(ALIAS), { (1<<MACH_BASE) } }
+    { 0|A(ALIAS), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* skip */
   {
     -1, "skip", "skip", 16,
-    { 0|A(SKIPA)|A(ALIAS), { (1<<MACH_BASE) } }
+    { 0|A(SKIPA)|A(ALIAS), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* skip */
   {
     -1, "skipb", "skip", 16,
-    { 0|A(SKIPA)|A(ALIAS), { (1<<MACH_BASE) } }
+    { 0|A(SKIPA)|A(ALIAS), { { { (1<<MACH_BASE), 0 } } } }
   },
 };
 
@@ -873,14 +871,10 @@ dis_hash_insn (buf, value)
   return CGEN_DIS_HASH (buf, value);
 }
 
-static void set_fields_bitsize PARAMS ((CGEN_FIELDS *, int));
-
 /* Set the recorded length of the insn in the CGEN_FIELDS struct.  */
 
 static void
-set_fields_bitsize (fields, size)
-     CGEN_FIELDS *fields;
-     int size;
+set_fields_bitsize (CGEN_FIELDS *fields, int size)
 {
   CGEN_FIELDS_BITSIZE (fields) = size;
 }
@@ -889,15 +883,15 @@ set_fields_bitsize (fields, size)
    This plugs the opcode entries and macro instructions into the cpu table.  */
 
 void
-ip2k_cgen_init_opcode_table (cd)
-     CGEN_CPU_DESC cd;
+ip2k_cgen_init_opcode_table (CGEN_CPU_DESC cd)
 {
   int i;
   int num_macros = (sizeof (ip2k_cgen_macro_insn_table) /
 		    sizeof (ip2k_cgen_macro_insn_table[0]));
   const CGEN_IBASE *ib = & ip2k_cgen_macro_insn_table[0];
   const CGEN_OPCODE *oc = & ip2k_cgen_macro_insn_opcode_table[0];
-  CGEN_INSN *insns = (CGEN_INSN *) xmalloc (num_macros * sizeof (CGEN_INSN));
+  CGEN_INSN *insns = xmalloc (num_macros * sizeof (CGEN_INSN));
+
   memset (insns, 0, num_macros * sizeof (CGEN_INSN));
   for (i = 0; i < num_macros; ++i)
     {

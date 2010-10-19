@@ -1,5 +1,5 @@
 /* BFD back-end for CISCO crash dumps.
-   Copyright 1994, 1997, 1999, 2000, 2001, 2002
+   Copyright 1994, 1997, 1999, 2000, 2001, 2002, 2004
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -16,7 +16,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -75,7 +75,7 @@ static const bfd_target *cisco_core_file_validate PARAMS ((bfd *, int));
 static const bfd_target *cisco_core_file_p PARAMS ((bfd *));
 char *cisco_core_file_failing_command PARAMS ((bfd *));
 int cisco_core_file_failing_signal PARAMS ((bfd *));
-bfd_boolean cisco_core_file_matches_executable_p PARAMS ((bfd *, bfd *));
+#define cisco_core_file_matches_executable_p generic_core_file_matches_executable_p
 
 /* Examine the file for a crash info struct at the offset given by
    CRASH_INFO_LOC.  */
@@ -246,7 +246,7 @@ cisco_core_file_validate (abfd, crash_info_loc)
     goto error_return;
   asect->flags = SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS;
   /* The size of memory is the size of the core file itself.  */
-  asect->_raw_size = statbuf.st_size;
+  asect->size = statbuf.st_size;
   asect->vma = rambase;
   asect->filepos = 0;
 
@@ -259,7 +259,7 @@ cisco_core_file_validate (abfd, crash_info_loc)
   asect->flags = SEC_HAS_CONTENTS;
   asect->vma = 0;
   asect->filepos = crashinfo_offset;
-  asect->_raw_size = sizeof (crashinfo);
+  asect->size = sizeof (crashinfo);
 
   /* Create a ".reg" section to allow access to the saved
      registers.  */
@@ -274,7 +274,7 @@ cisco_core_file_validate (abfd, crash_info_loc)
      choose a register section size that is either the remaining part
      of the file, or 1024, whichever is smaller.  */
   nread = statbuf.st_size - asect->filepos;
-  asect->_raw_size = (nread < 1024) ? nread : 1024;
+  asect->size = (nread < 1024) ? nread : 1024;
 
   return abfd->xvec;
 
@@ -316,14 +316,6 @@ cisco_core_file_failing_signal (abfd)
      bfd *abfd ATTRIBUTE_UNUSED;
 {
   return abfd->tdata.cisco_core_data->sig;
-}
-
-bfd_boolean
-cisco_core_file_matches_executable_p (core_bfd, exec_bfd)
-     bfd *core_bfd ATTRIBUTE_UNUSED;
-     bfd *exec_bfd ATTRIBUTE_UNUSED;
-{
-  return TRUE;
 }
 
 extern const bfd_target cisco_core_little_vec;

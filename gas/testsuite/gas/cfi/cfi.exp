@@ -56,6 +56,11 @@ if [istarget "x86_64-*"] then {
 	run_dump_test "cfi-sh-1"
     }
 
+} elseif { [istarget "arm*-*"] || [istarget "xscale*-*"] } then {
+    run_dump_test "cfi-arm-1"
+
+} elseif { [istarget "mips*-*"] } then {
+    run_dump_test "cfi-mips-1"
 } else {
     return
 }
@@ -64,3 +69,4 @@ run_list_test "cfi-diag-1" ""
 run_dump_test "cfi-common-1"
 run_dump_test "cfi-common-2"
 run_dump_test "cfi-common-3"
+run_dump_test "cfi-common-4"

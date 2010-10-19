@@ -1,0 +1,515 @@
+# Copyright (C) 2004, 2005
+# Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  
+
+# Please email any bugs, comments, and/or additions to this file to:
+# binutils@sources.redhat.com
+
+# This scripts tests all available SH architectures with all the assembler
+# options related to the architecture. It ensures that those combinations
+# which should not work do not work, and that those that should work
+# produce the correct output architecture.
+#
+# It looks for files in the same directory as this file named sh*.s .
+# Each file must contain all the instructions available within
+# that architecture. The architecture name is inferred from the file name.
+#
+# The sh*.s files should NOT be hand edited. Whenever the script is run
+# (e.g. with 'make check') it creates a set of new (usually identical) files
+# in the <objdir>/gas/testsuite directory. These are compared against the
+# old ones in the testsuite. When the expected results change (or new
+# architectures are added) these new files can be used to replace the old
+# ones with no modification required.
+#
+# The script generates the architecture/option permutations automatically,
+# but it reads the expected results from the file arch_expected.txt (also
+# found in the same directory as this script).
+#
+# The arch_expected.txt file should NOT be hand edited. Whenever the script
+# is run (e.g. with 'make check') it creates a new (usually identical) file
+# named arch_results.txt in the <objdir>/gas/testsuite directory. When the
+# expected results change (or new architectures are added) this new file
+# can be used to replace arch_expected.txt with no modification required.
+
+if {[istarget sh*-*-*]} then {
+
+
+# This procedure extracts the architecture name from the objdump output.
+# If there is no architecture name (or objdump output changes significantly)
+# then the behaviour is undefined, but it will most likely return junk.
+
+proc get_sh_arch { ofile } {
+    global comp_output
+
+    objdump "-f $ofile"
+    send_log $comp_output
+
+    set comp_output [string replace $comp_output 0 \
+	    [expr [string first "architecture:" $comp_output] + 13] ""]
+
+    return [string range $comp_output 0 [expr [string first "," $comp_output] - 1]]
+}
+
+
+# This procedure runs two tests:
+#   Test 1: Check the assembler can assemble the given file with
+#           given options.
+#   Test 2: Check that the resultant architecture is as expected.
+# It also writes an entry to the arch_results.txt file.
+
+proc test_arch { file opt arch resultfile } {
+    global comp_output
+
+    set name [file tail $file]
+    set rootname [file rootname $name]
+
+    if [string equal $opt "default-options"] then {
+	gas_run $name "-o ${rootname}-#${opt}#.o" ""
+    } else {
+	gas_run $name "$opt -o ${rootname}-#${opt}#.o" ""
+    }
+
+    if [want_no_output "$rootname file should assemble with $opt"] then {
+	set result [get_sh_arch "${rootname}-#${opt}#.o"]
+	puts $resultfile [format "%-20s %-25s %s" $file $opt $result]
+
+	if {$result == $arch} then {
+	    pass "$rootname file with $opt should assemble to arch $arch"
+	    file delete "${rootname}-#${opt}#.o"
+	} else {
+	    send_log $comp_output
+	    fail "$rootname file with $opt should assemble to arch $arch"
+	}
+    } else {
+	puts $resultfile [format "%-20s %-25s ERROR" $file $opt]
+	untested "$rootname file with $opt should assemble to arch $arch"
+    }
+
+}
+
+
+# This procedure tests that a file that is not suposed to assemble
+# with a given option does, in fact, not assemble.
+# It also writes an entry to the arch_results.txt file.
+
+proc test_arch_error { file opt resultfile} {
+    global comp_output
+
+    set name [file tail $file]
+    set rootname [file rootname $name]
+
+    if [string equal $opt "default-options"] then {
+	gas_run $name "-o ${rootname}-#${opt}#.o" ""
+    } else {
+	gas_run $name "$opt -o ${rootname}-#${opt}#.o" ""
+    }
+
+    if [string match "" $comp_output] then {
+	fail "$rootname file with $opt should not assemble"
+	puts $resultfile [format "%-20s %-25s [get_sh_arch ${rootname}-#${opt}#.o]" $file $opt]
+    } else {
+	pass "$rootname file with $opt should not assemble"
+	puts $resultfile [format "%-20s %-25s ERROR" $file $opt]
+    }
+}   
+
+# These tests are not suitable for sh-coff because
+# coff does not store the architecture information.
+
+if [istarget sh*-*-elf] then {
+    global subdir srcdir
+
+    # Find all the architectures and generate the
+    # list of options we will test.
+
+    set filelist [lsort -ascii [glob "$srcdir/$subdir/sh*.s"]]
+    set optlist {"default-options" "-dsp" "-isa=any" "-isa=dsp" "-isa=fp"}
+    foreach file $filelist {
+	set arch [file rootname [file tail $file]]
+	lappend optlist "-isa=$arch" "-isa=${arch}-up"
+    }
+
+    # Initialise the results file
+
+    set outfile [open "arch_results.txt" w 0666]
+    puts $outfile "# Generated file. DO NOT EDIT"
+    puts $outfile "#"
+    puts $outfile "# This file is generated by gas/testsuite/gas/sh/arch/arch.exp ."
+    puts $outfile "# It contains the expected results of the tests."
+    puts $outfile "# If the tests are failing because the expected results"
+    puts $outfile "# have changed then run 'make check' and copy the new file"
+    puts $outfile "# from <objdir>/gas/testsuite/arch_results.txt"
+    puts $outfile "# to   <srcdir>/gas/testsuite/gas/sh/arch/arch_expected.txt ."
+    puts $outfile "# Make sure the new expected results are ALL correct."
+    puts $outfile "#"
+    puts $outfile [format "# %-18s %-25s %s" "FILE" "OPTION" "OUTPUT"]
+    puts $outfile [format "# %-18s %-25s %s" "----" "------" "------"]
+
+    # Open the expected results file and skip the header
+
+    set infile [open "$srcdir/$subdir/arch_expected.txt" r]
+    while {[gets $infile line] >= 0 && [string match {\#*} $line]} {send_log "reading '$line'\n"}
+
+    foreach file $filelist {
+	foreach opt $optlist {
+	    set name [file tail $file]
+	    set rootname [file rootname $name]
+
+	    # Decode the expected result from the file
+
+	    scan $line "%s %s %s" exfile exopt exarch
+	    send_log "exfile = '$exfile', exopt = '$exopt', exarch = '$exarch'\n"
+	    send_log "  name = '$name',   opt = '$opt'\n"
+
+	    if {[string equal $exfile $name] && [string equal $exopt $opt]} then {
+		# The expected result file makes sense and
+		# appears up-to-date (the file and options match)
+
+		if {[string equal $exarch "ERROR"]} then {
+		    test_arch_error $name $opt $outfile
+		} else {
+		    test_arch $name $opt $exarch $outfile
+		}
+	    } else {
+		# The expected result file isn't right somehow
+		# so just try any old test. This will cause
+		# many failures, but will generate the results file.
+
+		test_arch $name $opt $rootname $outfile
+	    }
+
+	    # Read the next line from the expected result file.
+	    # This is at the end because the process of skipping
+	    # the header reads the first real line
+
+	    if [gets $infile line] then {
+		send_log "reading '$line'\n"
+	    }
+	}
+    }
+
+    close $infile
+    close $outfile
+}
+
+
+#########################################################################
+# Generate one sh*.s file for each architecture defined in sh-opc.h
+# This will contain all the instructions valid on that platform
+#
+# This code produces pass or fail reports for each instruction
+# in order to ensure that problems are visible to the developer,
+# rather than just warnings hidden in the log file.
+
+# These variables will contains the architecture
+# and instruction data extracted from sh-opc.h
+array set arches {}
+set archcount 0
+array set insns {}
+set insncount 0
+
+# Pull the architecture inheritance macros out of sh-opc.h
+# Pull all the insns out of the sh-opc.h file.
+send_log "Reading sh-opc.h\n"
+send_log "--------------------------------------------------------\n"
+spawn -noecho cat "$srcdir/../../opcodes/sh-opc.h"   ;# -open doesn't seem to be reliable
+expect {
+    -re {#define\s+arch_([^ ]*)_up\s*\(([^)]*)\)} {
+	set arches($archcount) [string map {_ -} $expect_out(1,string)]
+	set arches($archcount,descendents) [string map {_ -} $expect_out(2,string)]
+	incr archcount
+	pass "Architecture arch_$expect_out(1,string) read OK"
+	exp_continue
+    }
+    # Match all 32 bit opcodes
+    -re {(?x)           # enable expanded regexp syntax
+         ^/\*           # open C comment at start of input
+         (?:\s*\S+){2}  #   2 binary words (for 32 bit opcodes)
+     \s+ ([^*]+?)       #   instruction mnemonics (must not leave comment)
+     \s* \*/            # close C comment
+     \s* \{             # open brace of data initialiser
+	 (?:[^\}]+\}){2}#   2 brace pairs (operands and nibbles)
+     \s* ,              #   comma
+     \s* arch_(\S+)_up  #   architecture name
+     \s* \|             #   literal or
+     \s* arch_op32      #   32 bit opcode indicator
+     \s* \}             # close brace of data initialiser
+	} {
+	    set insns(insn,$insncount) $expect_out(1,string)
+	    set insns(arch,$insncount) [string map {_ -} $expect_out(2,string)]
+	    set insns(context,$insncount) $expect_out(0,string)
+	    incr insncount
+	    pass "Instruction '$expect_out(1,string)' read OK"
+	    exp_continue
+	}
+    # Special case: Match the repeat pseudo op
+    -re {(?x)           # enable expanded regexp syntax
+	 ^/\*           # open C comment at start of input
+     \s* repeat         #   repeat does not have a bit pattern
+     \s+ start\s+end    #   don't read fake operands as such (replaced below)
+     \s+ ([^*]+?)       #   instruction operand
+     \s* \*/            # close C comment
+     \s* \{             # open brace of data initialiser
+	 (?:[^\}]+\}){2}#   2 brace pairs (operands and nibbles)
+     \s* ,              #   comma
+     \s* arch_(\S+)_up  #   architecture name
+     \s* \}             # close brace of data initialiser
+        } {
+	    set insns(insn,$insncount) "repeat 10 20 $expect_out(1,string)"
+	    set insns(arch,$insncount) [string map {_ -} $expect_out(2,string)]
+	    set insns(context,$insncount) $expect_out(0,string)
+	    incr insncount
+	    pass "Instruction '$expect_out(1,string)' read OK"
+	    exp_continue
+	}
+    # Match all 16 bit opcodes
+    -re {(?x)           # enable expanded regexp syntax
+         ^/\*           # open C comment at start of input
+     \s* \S+            #   1 binary word (for 16 bit opcodes)
+     \s+ ([^*]+?)       #   instruction mnemonics (must not leave comment)
+     \s* \*/            # close C comment
+     \s* \{             # open brace of data initialiser
+	 (?:[^\}]+\}){2}#   2 brace pairs (operands and nibbles)
+     \s* ,              #   comma
+     \s* arch_(\S+)_up  #   architecture name
+     \s* \}             # close brace of data initialiser
+	} {
+	    set insns(insn,$insncount) $expect_out(1,string)
+	    set insns(arch,$insncount) [string map {_ -} $expect_out(2,string)]
+	    set insns(context,$insncount) $expect_out(0,string)
+	    incr insncount
+	    pass "Instruction '$expect_out(1,string)' read OK"
+	    exp_continue
+	}
+    # Match all remaining possible instructions (error detection)
+    -re {(?x)           # enable expanded regexp syntax
+	 ^/\*           # open C comment at start of input
+	 (?:[^*]*(?:\*[^/])?)+ # match contents of comment allowing *
+	 \*/            # close C comment
+     \s* \{             # open brace of data initialiser
+	 (?:[^\}]+\}){2}#   2 brace pairs (operands and nibbles)
+     \s* ,              #   comma
+	 [^\}]*
+	 arch           #   look for 'arch' anywhere before closing brace
+	 [^\}]*
+	 \}             # close brace of data initialiser
+        } {
+	    fail "Found something that looks like an instruction but cannot be decoded:\n\t$expect_out(0,string)"
+	    exp_continue
+	}
+    # No match so move to next (possible) comment
+    -re {^.+?((?=/\*)|(?=\#\s*define))} exp_continue
+}
+send_log "--------------------------------------------------------\n"
+
+if {$archcount == 0} then {
+    fail "Unable to read any architectures from sh-opc.h"
+} else {
+    pass "Read architecture data from sh-opc.h"
+}
+if {$insncount == 0} then {
+    fail "Unable to read any instructions from sh-opc.h"
+} else {
+    pass "Read instruction data from sh-opc.h"
+}
+
+# Munge the insns such that they will assemble
+# Each instruction in sh-opc.h has an example format
+# with placeholders for the parameters. These placeholders
+# need to be replaced with real registers and constants
+# as appropriate in order to assemble correctly.
+for {set i 0} {$i < $insncount} {incr i} {
+    set out $insns(insn,$i)
+    if {[regexp {AY_.{3,4}_N} $insns(context,$i)] == 1} then {
+	regsub -nocase {<REG_N>} $out {r6} out
+    } else {
+	regsub -nocase {<REG_N>} $out {r4} out
+    }
+    regsub -nocase {<REG_M>} $out {r5} out
+    if {[regexp {IMM0_20BY8} $insns(context,$i)] == 1} then {
+	regsub -nocase {<imm>} $out {1024} out
+    } else {
+	regsub -nocase {<imm>} $out {4} out
+    }
+    regsub -nocase {<bdisp\d*>} $out {.+8} out
+    regsub -nocase {<disp12>} $out {2048} out
+    regsub -nocase {<disp\d*>} $out {8} out
+    regsub -nocase {Rn_BANK} $out {r1_bank} out
+    regsub -nocase {Rm_BANK} $out {r2_bank} out
+    regsub -nocase {<F_REG_N>} $out {fr1} out
+    regsub -nocase {<F_REG_M>} $out {fr2} out
+    regsub -nocase {<D_REG_N>} $out {dr2} out
+    regsub -nocase {<D_REG_M>} $out {dr4} out
+    regsub -nocase {<V_REG_N>} $out {fv0} out
+    regsub -nocase {<V_REG_M>} $out {fv4} out
+    regsub -nocase {<DX_REG_N>} $out {xd2} out
+    regsub -nocase {<DX_REG_M>} $out {xd4} out
+    regsub -nocase (XMTRX_M4) $out {xmtrx} out
+    regsub -nocase (<DSP_REG_X>) $out {x1} out
+    regsub -nocase (<DSP_REG_Y>) $out {y0} out
+    regsub -nocase (<DSP_REG_M>) $out {a1} out
+    regsub -nocase (<DSP_REG_N>) $out {m0} out
+    regsub -nocase (<REG_Axy>) $out {r1} out
+    regsub -nocase (<REG_Ayx>) $out {r3} out
+    regsub -nocase (<DSP_REG_XY>) $out {y1} out
+    regsub -nocase (<DSP_REG_YX>) $out {y1} out
+    regsub -nocase (<DSP_REG_AX>) $out {a0} out
+    regsub -nocase (<DSP_REG_AY>) $out {a0} out
+    regsub (Se) $out {x0} out
+    regsub (Sf) $out {y0} out
+    regsub (Dg) $out {m0} out
+    # Put in a dct in order to differentiate between
+    # conditional and non-conditional pabs and prnd
+    # i.e. between sh-dsp and sh4al-dsp
+    if {[regexp {PPIC} $insns(context,$i)] == 1} then {
+	set out "dct $out"
+    }
+    set insns(insn,$i) $out
+    set insns(context,$i) [string map {\n " " \r " "} $insns(context,$i)]
+}
+
+# Initialise the data structure for the inheritance
+array set archtree {}
+for {set a 0} {$a < $archcount} {incr a} {
+    set archtree($arches($a)) {}
+}
+
+# For each architecture, extract its immediate parents
+for {set a 0} {$a < $archcount} {incr a} {
+    set s $arches($a,descendents)
+    regsub -all {[\s|]+} $s { } s
+    foreach word [split $s { }] {
+	# Word should be one of arch-..., | (or), or arch-...-up
+	# We only want the -up information
+	# Note that the _ -> - translation was done above
+	if {[regexp {^arch-(.*)-up$} $word match arch] == 1} then {
+	    # $arch is the descendent of $arches($a),
+	    # so $arches($a) is the parent of $arch
+	    lappend archtree($arch) $arches($a)
+	}
+    }
+}
+
+# Propagate the inhertances through the list
+# Iterate to ensure all inheritances are found (necessary?)
+set changesmade 1
+while {$changesmade == 1} {
+    set changesmade 0
+    foreach a [array names archtree] {
+	foreach b [array names archtree] {
+	    # If arch 'a' is a parent of arch 'b' then b inherits from a
+	    if {[lsearch -exact $archtree($b) $a] != -1} then {
+		# Only add each arch if it is not already present
+		foreach arch $archtree($a) {
+		    if {[lsearch -exact $archtree($b) $arch] == -1} then {
+			lappend archtree($b) $arch
+			set changesmade 1
+		    }
+		}
+	    }
+	}
+    }
+}
+
+# Generate the assembler file for each architecture
+# Also count up how many instructions should be valid for each architecture
+array set insns_valid {}
+for {set arch 0} {$arch < $archcount} {incr arch} {
+    set insns_valid($arches($arch)) 0
+    set fd [open $arches($arch).s w 0666]
+    puts $fd "! Generated file. DO NOT EDIT.\n!"
+    puts $fd "! This file was generated by gas/testsuite/gas/sh/arch/arch.exp ."
+    puts $fd "! This file should contain every instruction valid on"
+    puts $fd "! architecture $arches($arch) but no more."
+    puts $fd "! If the tests are failing because the expected results"
+    puts $fd "! have changed then run 'make check' and copy the new file"
+    puts $fd "! from <objdir>/gas/testsuite/$arches($arch).s"
+    puts $fd "! to   <srcdir>/gas/testsuite/gas/sh/arch/$arches($arch).s ."
+    puts $fd "! Make sure there are no unexpected or missing instructions."
+    puts $fd "\n\t.section .text"
+    puts $fd "[string map {- _} $arches($arch)]:"
+    puts $fd "! Instructions introduced into $arches($arch)"
+    for {set i 0} {$i < $insncount} {incr i} {
+	if [string equal $arches($arch) $insns(arch,$i)] then {
+	    puts $fd [format "\t%-25s ;!%s" $insns(insn,$i) $insns(context,$i)]
+	    incr insns_valid($arches($arch))
+	}
+    }
+    puts $fd "\n! Instructions inherited from ancestors: [lsort -increasing $archtree($arches($arch))]"
+    for {set i 0} {$i < $insncount} {incr i} {
+	if {[string equal $arches($arch) $insns(arch,$i)] != 1 && [lsearch -exact $archtree($arches($arch)) $insns(arch,$i)] != -1} then {
+	    puts $fd [format "\t%-25s ;!%s" $insns(insn,$i) $insns(context,$i)]
+	    incr insns_valid($arches($arch))
+	}
+    }
+    close $fd
+}
+
+
+###################################################################
+# Compare the newly created sh*.s files with the existing
+# ones in the testsuite
+
+for {set arch 0} {$arch < $archcount} {incr arch} {
+    send_log "diff $srcdir/$subdir/$arches($arch).s $arches($arch).s\n"
+    catch "exec diff $srcdir/$subdir/$arches($arch).s $arches($arch).s" diff_output
+    if {[string equal $diff_output ""] == 0} then {
+	send_log $diff_output
+	fail "Check $arches($arch) architecture has not changed"
+    } else {
+	pass "Check $arches($arch) architecture has not changed"
+    }
+}
+
+
+###################################################################
+# Generate an assembler file with every instruction
+# Then use it to test how many failures there are for
+# each architecture. If this does not match the predicted value
+# then the assembler accepts too many instructions for a given
+# architecture.
+
+
+set fd [open "all_insns.s" w 0666]
+for {set i 0} {$i < $insncount} {incr i} {
+    puts $fd [format "\t%-25s ;!%s" $insns(insn,$i) $insns(context,$i)]
+}
+close $fd
+
+# Assemble the all_insns.s file for each isa and count how many failures there are
+foreach arch [array names insns_valid] {
+    set errormessages 0
+    set expected [expr $insncount - $insns_valid($arch)]
+
+    # The -Z option ensures that all error messages are output,
+    # even those from later phases of assembly (such as offset range errors)
+    send_log "$AS -Z -isa=$arch all_insns.s -o /dev/null\n"
+    spawn $AS -Z -isa=$arch all_insns.s -o /dev/null
+    expect Error: {incr errormessages; exp_continue}
+
+    if {$errormessages == $expected} then {
+	pass "$expected insns should not assemble on $arch"
+    } else {
+	if {([istarget sh*-*-coff] || [istarget sh*-hms]) && [string match {*dsp} $arch]} {
+	    xfail "$expected insns should not assemble on $arch ($errormessages did not)"
+	} else {
+	    fail "$expected insns should not assemble on $arch ($errormessages did not)"
+	}
+    }
+}
+
+
+} ;# istarget sh*-*-*

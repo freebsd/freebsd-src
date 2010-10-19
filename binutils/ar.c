@@ -1,6 +1,6 @@
 /* ar.c - Archive modify and extract.
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004
+   2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
@@ -17,7 +17,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /*
    Bugs: should use getopt the way tar does (complete w/optional -) and
@@ -49,8 +49,6 @@
 #define O_BINARY 0
 #endif
 
-#define BUFSIZE 8192
-
 /* Kludge declaration from BFD!  This is ugly!  FIXME!  XXX */
 
 struct ar_hdr *
@@ -65,11 +63,6 @@ static void map_over_members (bfd *, void (*)(bfd *), char **, int);
 static void print_contents (bfd * member);
 static void delete_members (bfd *, char **files_to_delete);
 
-#if 0
-static void do_quick_append
-  (const char *archive_filename, char **files_to_append);
-#endif
-
 static void move_members (bfd *, char **files_to_move);
 static void replace_members
   (bfd *, char **files_to_replace, bfd_boolean quick);
@@ -81,7 +74,7 @@ static void usage (int);
 
 /** Globals and flags */
 
-int mri_mode;
+static int mri_mode;
 
 /* This flag distinguishes between ar and ranlib:
    1 means this is 'ranlib'; 0 means this is 'ar'.
@@ -249,7 +242,8 @@ usage (int help)
       fprintf (s, _("  [S]          - do not build a symbol table\n"));
       fprintf (s, _("  [v]          - be verbose\n"));
       fprintf (s, _("  [V]          - display the version number\n"));
-
+      fprintf (s, _("  @<file>      - read options from <file>\n"));
+ 
       ar_emul_usage (s);
     }
   else
@@ -258,6 +252,7 @@ usage (int help)
       fprintf (s, _("Usage: %s [options] archive\n"), program_name);
       fprintf (s, _(" Generate an index to speed access to archives\n"));
       fprintf (s, _(" The options are:\n\
+  @<file>                      Read options from <file>\n\
   -h --help                    Print this help message\n\
   -V --version                 Print version information\n"));
     }
@@ -328,7 +323,7 @@ remove_output (void)
 	bfd_cache_close (output_bfd);
       if (output_file != NULL)
 	fclose (output_file);
-      unlink (output_filename);
+      unlink_if_ordinary (output_filename);
     }
 }
 
@@ -366,6 +361,8 @@ main (int argc, char **argv)
 
   program_name = argv[0];
   xmalloc_set_program_name (program_name);
+
+  expandargv (&argc, &argv);
 
   if (is_ranlib < 0)
     {
@@ -589,6 +586,10 @@ main (int argc, char **argv)
     {
       bfd *arch;
 
+      /* We don't use do_quick_append any more.  Too many systems
+	 expect ar to always rebuild the symbol table even when q is
+	 used.  */
+
       /* We can't write an armap when using ar q, so just do ar r
          instead.  */
       if (operation == quick_append && write_armap)
@@ -623,39 +624,6 @@ main (int argc, char **argv)
 
       files = arg_index < argc ? argv + arg_index : NULL;
       file_count = argc - arg_index;
-
-#if 0
-      /* We don't use do_quick_append any more.  Too many systems
-         expect ar to always rebuild the symbol table even when q is
-         used.  */
-
-      /* We can't do a quick append if we need to construct an
-	 extended name table, because do_quick_append won't be able to
-	 rebuild the name table.  Unfortunately, at this point we
-	 don't actually know the maximum name length permitted by this
-	 object file format.  So, we guess.  FIXME.  */
-      if (operation == quick_append && ! ar_truncate)
-	{
-	  char **chk;
-
-	  for (chk = files; chk != NULL && *chk != '\0'; chk++)
-	    {
-	      if (strlen (normalize (*chk, (bfd *) NULL)) > 14)
-		{
-		  operation = replace;
-		  break;
-		}
-	    }
-	}
-
-      if (operation == quick_append)
-	{
-	  /* Note that quick appending to a non-existent archive creates it,
-	     even if there are no files to append.  */
-	  do_quick_append (inarch_filename, files);
-	  xexit (0);
-	}
-#endif
 
       arch = open_inarch (inarch_filename,
 			  files == NULL ? (char *) NULL : files[0]);
@@ -935,129 +903,15 @@ extract_file (bfd *abfd)
   chmod (bfd_get_filename (abfd), buf.st_mode);
 
   if (preserve_dates)
-    set_times (bfd_get_filename (abfd), &buf);
+    {
+      /* Set access time to modification time.  Only st_mtime is
+	 initialized by bfd_stat_arch_elt.  */
+      buf.st_atime = buf.st_mtime;
+      set_times (bfd_get_filename (abfd), &buf);
+    }
 
   free (cbuf);
 }
-
-#if 0
-
-/* We don't use this anymore.  Too many systems expect ar to rebuild
-   the symbol table even when q is used.  */
-
-/* Just do it quickly; don't worry about dups, armap, or anything like that */
-
-static void
-do_quick_append (const char *archive_filename, char **files_to_append)
-{
-  FILE *ofile, *ifile;
-  char *buf = xmalloc (BUFSIZE);
-  long tocopy, thistime;
-  bfd *temp;
-  struct stat sbuf;
-  bfd_boolean newfile = FALSE;
-  bfd_set_error (bfd_error_no_error);
-
-  if (stat (archive_filename, &sbuf) != 0)
-    {
-
-#if !defined(__GO32__) || defined(__DJGPP__)
-
-      /* FIXME: I don't understand why this fragment was ifndef'ed
-	 away for __GO32__; perhaps it was in the days of DJGPP v1.x.
-	 stat() works just fine in v2.x, so I think this should be
-	 removed.  For now, I enable it for DJGPP v2.
-
-	 (And yes, I know this is all unused, but somebody, someday,
-	 might wish to resurrect this again... -- EZ.  */
-
-/* KLUDGE ALERT! Temporary fix until I figger why
-   stat() is wrong ... think it's buried in GO32's IDT - Jax  */
-
-      if (errno != ENOENT)
-	bfd_fatal (archive_filename);
-#endif
-
-      newfile = TRUE;
-    }
-
-  ofile = fopen (archive_filename, FOPEN_AUB);
-  if (ofile == NULL)
-    {
-      perror (program_name);
-      xexit (1);
-    }
-
-  temp = bfd_openr (archive_filename, NULL);
-  if (temp == NULL)
-    {
-      bfd_fatal (archive_filename);
-    }
-  if (!newfile)
-    {
-      if (!bfd_check_format (temp, bfd_archive))
-	/* xgettext:c-format */
-	fatal (_("%s is not an archive"), archive_filename);
-    }
-  else
-    {
-      fwrite (ARMAG, 1, SARMAG, ofile);
-      if (!silent_create)
-	/* xgettext:c-format */
-	non_fatal (_("creating %s"), archive_filename);
-    }
-
-  if (ar_truncate)
-    temp->flags |= BFD_TRADITIONAL_FORMAT;
-
-  /* assume it's an archive, go straight to the end, sans $200 */
-  fseek (ofile, 0, 2);
-
-  for (; files_to_append && *files_to_append; ++files_to_append)
-    {
-      struct ar_hdr *hdr = bfd_special_undocumented_glue (temp, *files_to_append);
-      if (hdr == NULL)
-	{
-	  bfd_fatal (*files_to_append);
-	}
-
-      BFD_SEND (temp, _bfd_truncate_arname, (temp, *files_to_append, (char *) hdr));
-
-      ifile = fopen (*files_to_append, FOPEN_RB);
-      if (ifile == NULL)
-	{
-	  bfd_nonfatal (*files_to_append);
-	}
-
-      if (stat (*files_to_append, &sbuf) != 0)
-	{
-	  bfd_nonfatal (*files_to_append);
-	}
-
-      tocopy = sbuf.st_size;
-
-      /* XXX should do error-checking! */
-      fwrite (hdr, 1, sizeof (struct ar_hdr), ofile);
-
-      while (tocopy > 0)
-	{
-	  thistime = tocopy;
-	  if (thistime > BUFSIZE)
-	    thistime = BUFSIZE;
-	  fread (buf, 1, thistime, ifile);
-	  fwrite (buf, 1, thistime, ofile);
-	  tocopy -= thistime;
-	}
-      fclose (ifile);
-      if ((sbuf.st_size % 2) == 1)
-	putc ('\012', ofile);
-    }
-  fclose (ofile);
-  bfd_close (temp);
-  free (buf);
-}
-
-#endif /* 0 */
 
 static void
 write_archive (bfd *iarch)
@@ -1268,7 +1122,7 @@ static void
 replace_members (bfd *arch, char **files_to_move, bfd_boolean quick)
 {
   bfd_boolean changed = FALSE;
-  bfd **after_bfd;		/* New entries go after this one */
+  bfd **after_bfd;		/* New entries go after this one.  */
   bfd *current;
   bfd **current_ptr;
 
@@ -1325,8 +1179,7 @@ replace_members (bfd *arch, char **files_to_move, bfd_boolean quick)
       /* Add to the end of the archive.  */
       after_bfd = get_pos_bfd (&arch->next, pos_end, NULL);
 
-      if (get_file_size (* files_to_move) > 0
-	  && ar_emul_append (after_bfd, *files_to_move, verbose))
+      if (ar_emul_append (after_bfd, *files_to_move, verbose))
 	changed = TRUE;
 
     next_file:;

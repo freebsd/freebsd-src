@@ -6,7 +6,7 @@
 
 Disassembly of section .text:
 
-00000000 <test_mov3q>:
+0+ <test_mov3q>:
    0:	a140           	mov3ql #-1,%d0
    2:	a349           	mov3ql #1,%a1
    4:	a552           	mov3ql #2,%a2@

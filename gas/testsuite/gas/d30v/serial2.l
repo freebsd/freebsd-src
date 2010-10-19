@@ -26,12 +26,9 @@ GAS LISTING .*
    2              		
    3              		.text
    4              		
-   5 \?\?\?\? 000000F0 		bra -3 -> add r3,r0,0	; Invalid
+   5 \?\?\?\? ........ 		bra -3 -> add r3,r0,0	; Invalid
 \*\*\*\*  Error:Unable to mix instructions as specified
-   5      000000F0 
-   5      000000F0 
-   5      0000000B 
-   5      FFFF00F0 
+   5      ........ 
    6 \?\?\?\? 08083000 		bsr -3 -> add r3,r0,0	; Invalid
 \*\*\*\*  Error:Unable to mix instructions as specified
    6      00F00000 
@@ -79,13 +76,13 @@ GAS LISTING .*
 \*\*\*\*  Error:Unable to mix instructions as specified
   17      00F00000 
   17      000BFFFF 
-GAS LISTING .*
-
-
   17      00F00000 
   18 \?\?\?\? 10080001 		bra/tx -3 -> bra 10     ;      Valid
 \*\*\*\*  Error:Unable to mix instructions as specified
   18      00F00000 
+GAS LISTING .*
+
+
   18      100BFFFF 
   18      00F00000 
   19 \?\?\?\? 00080001 		bra/tx -3 -> bra/fx 10  ;      Valid

@@ -1,0 +1,79 @@
+# Expect script for common symbol tests
+#   Copyright 2004 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# Written by H.J. Lu (hongjiu.lu@intel.com)
+#
+
+# Make sure that ld correctly handles frame sections in ELF.
+
+# This test can only be run on ELF platforms.
+if ![is_elf_format] {
+    return
+}
+
+# No shared lib support on this target.
+if { [istarget "mcore-*-*"] } {
+    return
+}
+
+# Too small MAXPAGESIZE on this target.
+if { [istarget "sh*-*-elf*"] } {
+    return
+}
+
+# ??? These targets have their own .tbss section, with different meaning
+# to the usual ELF .tbss.
+if { [istarget "hppa64-*-*"] || [istarget "v850-*-*"] } {
+    return
+}
+
+set test1	"read-only .eh_frame section"
+set test2	"read-only .gcc_except_table section"
+
+global as
+global ld
+
+if { ![ld_assemble $as $srcdir/$subdir/tbss.s tmpdir/tbss.o ]
+     || ![ld_assemble $as $srcdir/$subdir/frame.s tmpdir/frame.o] } {
+    unresolved "$test1"
+    return
+}
+
+if { [ld_simple_link $ld tmpdir/frame.so "--shared tmpdir/frame.o tmpdir/tbss.o"] } {
+    pass "$test1"
+} else {
+    if [string match "*shared not supported*" $link_output] {
+	unsupported "-shared is not supported by this target"
+    } else {
+	fail "$test1"
+    }
+}
+
+if ![ld_assemble $as $srcdir/$subdir/table.s tmpdir/table.o ] {
+    unresolved "$test2"
+    return
+}
+
+if { [ld_simple_link $ld tmpdir/table.so "--shared tmpdir/table.o tmpdir/tbss.o"] } {
+    pass "$test2"
+} else {
+    if [string match "*shared not supported*" $link_output] {
+	unsupported "-shared is not supported by this target"
+    } else {
+	fail "$test2"
+    }
+}

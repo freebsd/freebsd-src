@@ -520,7 +520,7 @@ foo:
  rcl    word ptr 0x90909090[eax], cl
  in     ax, 0x90
  out    0x90, ax
- call   word ptr .+3+0x9090
+ callw  .+3+0x9090
  jmpw   0x9090,0x9090
  in     ax, dx
  out    dx, ax
@@ -577,7 +577,7 @@ bar:
  call	gs_foo
  call	short_foo
  fstp   QWORD PTR [eax+edx*8]
- mov	ecx, OFFSET FLAT:ss
+ mov	ecx, OFFSET FLAT:xyz
  mov	BYTE PTR [esi+edx], al
  mov	BYTE PTR [edx+esi], al
  mov	BYTE PTR [edx*2+esi], al
@@ -615,4 +615,14 @@ rot5:
  jmp	[eax]
  jmp	[bar]
  jmp	bar
+
+	# Check arithmetic operators
+	mov	%eax,(( 17 ) + 1) 
+	and	%eax,~(1 << ( 18 )) 
+	and	%eax,0xFFFBFFFF
+	mov	%al, (( 0x4711  ) & 0xff) 
+	mov	%al, 0x11
+	mov	%bl, ((( 0x4711  ) >> 8) & 0xff) 
+	mov	%bl, 0x47
+	
  .p2align 4,0

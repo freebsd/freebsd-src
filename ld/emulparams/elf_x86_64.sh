@@ -12,6 +12,8 @@ TEMPLATE_NAME=elf32
 GENERATE_SHLIB_SCRIPT=yes
 GENERATE_PIE_SCRIPT=yes
 NO_SMALL_DATA=yes
+LARGE_SECTIONS=yes
+SEPARATE_GOTPLT=24
 
 if [ "x${host}" = "x${target}" ]; then
   case " $EMULATION_LIBPATH " in

@@ -1,0 +1,13 @@
+#...
+Elf file type is EXEC \(Executable file\)
+Entry point 0x80400
+#...
+Program Headers:
+  Type .*
+  PHDR .*
+#...
+  LOAD .* 0x00080000 0x00080000 .* R E 0x10000
+  LOAD .* 0x00090000 0x00090000 .* RW  0x10000
+  DYNAMIC .*
+
+#...
