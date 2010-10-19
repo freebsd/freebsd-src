@@ -52,7 +52,7 @@ CFLAGS+= -DDEFAULT_VECTOR=${DEFAULT_VECTOR}
 # XXX:DEO should grab BFD_VERSION_DATE from ${VERSION}...
 bfdver.h: Makefile
 	echo '#define BFD_VERSION	215000000'	> ${.TARGET}
-	echo '#define BFD_VERSION_DATE	20040517'	>> ${.TARGET}
+	echo '#define BFD_VERSION_DATE	20050317'	>> ${.TARGET}
 	echo '#define BFD_VERSION_STRING ${VERSION}'	>> ${.TARGET}
 
 targmatch.h: targmatch.sed config.bfd
