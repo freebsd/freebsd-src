@@ -202,6 +202,9 @@ SECTIONS
 
   ${HEAP_SECTION_MSP430}
 
+  /* Stabs for profiling information*/
+  .profiler 0 : { *(.profiler) }
+  
   /* Stabs debugging sections.  */
   .stab 0 : { *(.stab) } 
   .stabstr 0 : { *(.stabstr) }

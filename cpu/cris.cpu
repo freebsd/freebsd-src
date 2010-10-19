@@ -1,0 +1,4550 @@
+; CRIS CPU description.  -*- Scheme -*-
+;
+; Copyright 2003, 2004 Free Software Foundation, Inc.
+;
+; Contributed by Axis Communications AB.
+;
+; This file is part of the GNU Binutils.
+;
+; This program is free software; you can redistribute it and/or modify
+; it under the terms of the GNU General Public License as published by
+; the Free Software Foundation; either version 2 of the License, or
+; (at your option) any later version.
+;
+; This program is distributed in the hope that it will be useful,
+; but WITHOUT ANY WARRANTY; without even the implied warranty of
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+; GNU General Public License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with this program; if not, write to the Free Software
+; Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+
+(include "simplify.inc")
+
+;;;;;;;;;;;;;;;;;; -pmacro (generic ones)
+
+(define-pmacro (.car2 l) (.apply (.pmacro (a b) a) l))
+(define-pmacro (.cadr2 l) (.apply (.pmacro (a b) b) l))
+(define-pmacro (SI-ext x) "How to sign-extend a dword to dword (a nop)" x)
+(define-pmacro (HI-ext x) "How to sign-extend a word to dword" (ext SI x))
+(define-pmacro (QI-ext x) "How to sign-extend a byte to dword" (ext SI x))
+(define-pmacro (SI-zext x) "How to zero-extend a dword to dword (a nop)" x)
+(define-pmacro (HI-zext x) "How to zero-extend a word to dword" (zext SI x))
+(define-pmacro (QI-zext x) "How to zero-extend a byte to dword" (zext SI x))
+(define-pmacro
+  (define-pmacro-map x)
+  "On a list ((x0 y0) .. (xN yN)), 0 <= m <= N, (define-pmacro xm ym)"
+  (.splice
+   begin
+   (.unsplice
+    (.map
+     (.pmacro (l) (.apply (.pmacro (xm ym) (define-pmacro xm ym)) l)) x)))
+)
+
+;;;;;;;;;;;;;;;;;; -arch -isa -cpu -model
+
+(define-arch
+  (name cris)
+  (comment "Axis Communications CRIS")
+  (default-alignment unaligned)
+  (insn-lsb0? #t)
+  (machs crisv0 crisv3 crisv8 crisv10 crisv32)
+  (isas cris)
+)
+
+(define-isa
+  (name cris)
+  (base-insn-bitsize 16)
+  (liw-insns 1)
+  (parallel-insns 1)
+)
+
+(define-pmacro
+  (define-cpu-cris x-suffix x-comment)
+  "Define a CRIS CPU family"
+  (define-cpu
+    (name (.sym cris x-suffix f))
+    (comment x-comment)
+    (endian little)
+    ; CGEN-FIXME: Should be deduced from the default?
+    (word-bitsize 32)
+    (file-transform (.str x-suffix))
+  )
+)
+
+; Useful when there's a need to iterate over all models.
+(define-pmacro (cris-cpu-model-numbers)
+  "List of CRIS CPU model numbers (version register contents)"
+  (0 3 8 10 32)
+)
+
+(define-pmacro (cris-cpu-models)
+  "List of CRIS CPU model names"
+  (.map (.pmacro (n) (.sym v n)) (cris-cpu-model-numbers))
+)
+
+; Mapping from model name to number.
+(define-pmacro-map
+  (.map (.pmacro (n) ((.sym v n -number) n))
+	(cris-cpu-model-numbers)))
+
+; FIXME: Rationalize these rules.
+; CPU names must be distinct from the architecture name and machine names.
+; The "b" suffix stands for "base" and is the convention.
+; The "f" suffix stands for "family" and is the convention.
+; We ignore the "b" convention, partly because v0 isn't really a "base", at
+; least not for some aspects of v32.
+(define-cpu-cris v0 "CRIS base family")
+(define-cpu-cris v3 "CRIS v3 family")
+(define-cpu-cris v8 "CRIS v8 family")
+(define-cpu-cris v10 "CRIS v10 family")
+(define-cpu-cris v32 "CRIS v32 family")
+
+(define-pmacro MACH-PRE-V32 (MACH crisv0,crisv3,crisv8,crisv10))
+(define-pmacro MACH-V3-UP (MACH crisv3,crisv8,crisv10,crisv32))
+(define-pmacro MACH-V32 (MACH crisv32))
+(define-pmacro MACH-PC MACH-PRE-V32)
+(define-pmacro MACH-ACR MACH-V32)
+(define-pmacro MACH-BRANCH-OFFSET-AT-INSN MACH-V32)
+(define-pmacro MACH-BRANCH-OFFSET-AFTER-INSN MACH-PRE-V32)
+
+(define-pmacro
+  current-mach-is-v32
+  "Whether the generated code is for V32.  See comment at h-v32."
+  (reg h-v32)
+)
+
+(define-pmacro (define-mach-cris x-suffix x-comment x-name)
+  "Define a CRIS mach"
+  (define-mach
+    (name (.sym cris x-suffix))
+    ; They're all called "cris" in bfd.  Watch out for breakages for some
+    ; uses.
+    (bfd-name x-name)
+    (comment x-comment)
+    (cpu (.sym cris x-suffix f)))
+)
+
+(define-mach-cris v0 "Generic CRIS v0 CPU, ETRAX 1 .. 3" "cris")
+(define-mach-cris v3 "Generic CRIS v3 CPU, ETRAX 4" "cris")
+(define-mach-cris v8 "Generic CRIS v8 CPU, ETRAX 100" "cris")
+(define-mach-cris v10 "Generic CRIS v10 CPU, ETRAX 100 LX" "cris")
+(define-mach-cris v32 "Generic CRIS v32 CPU, ETRAX FS" "crisv32")
+
+(define-pmacro (define-model-simplecris x-name x-comment)
+  "Define a simple CRIS model"
+  (define-model
+    (name (.sym cris x-name))
+    (comment x-comment)
+    (mach (.sym cris x-name))
+
+    (unit u-exec "Execution Unit" () 1 1 () () () ())
+    (unit u-mem "Memory Unit" () 1 1 () () () ())
+
+    (unit u-const16 "Fetch 16-bit operand" () 1 1 () () () ())
+    (unit u-const32 "Fetch 32-bit operand" () 1 1
+	  () () () ())
+    ; Used in special-case insn, for example arithmetic with PC destination.
+    (unit u-stall "Stall unit" () 1 1 () () () ())
+    (unit u-skip4 "Skip 4 bytes" () 1 1 () () () ())
+    (unit u-multiply "Multiply Unit" () 1 1 ((MACH crisv10)) () () ())
+    (unit u-movem "Movem Unit" () 1 1 ()
+	  ((Rd INT -1))
+	  () ()))
+)
+
+(define-model-simplecris v0 "Model of CRIS v0, ETRAX 1 .. 3")
+(define-model-simplecris v3 "Model of CRIS v3, ETRAX 4")
+(define-model-simplecris v8 "Model of CRIS v8, ETRAX 100")
+(define-model-simplecris v10 "Model of CRIS v10, ETRAX 100 LX")
+
+; For some reason, we get an error:
+;  Generating arch.h ...
+;  ERROR: In procedure vector-ref:
+;  ERROR: Wrong type argument in position 1: ()
+; if we include timings for machs that we don't generate sims for.
+; Last checked: CVS as of 2004-11-18.
+; CGEN-FIXME: Looks like another CGEN bug.  When it's fixed (or when
+; generating sims for v0, v3 or v8), add 0, 3 and 8 to
+; simplecris-timing-models.  But before that, simplecris-timing-x has to
+; be rewritten to work on a multiple-element-list, not assume a single
+; element.  (A change which seems likely to depend on lexical scoping for
+; macros to be introduced: try the obvious implementation.)
+(define-pmacro simplecris-timing-models (10))
+(define-pmacro (simplecris-common-timing x-units)
+  "Make timing models, using x-units for all simplecris-timing-models"
+  ; CGEN-FIXME: Another CGEN bug: the part (.unsplice (10)) will remain
+  ; unexpanded in (.sym crisv (.unsplice (10)) if we write this as
+  ; ((.splice (.sym crisv (.unsplice simplecris-timing-models))
+  ;	      (.unsplice x-units)))
+  ((.splice (.sym crisv (.apply (.pmacro (x) x) simplecris-timing-models))
+  	    (.unsplice x-units)))
+)
+
+(define-pmacro-map
+  (
+   ; Timing for memory instructions running on a simple cris model.
+   ((simplecris-mem-timing)	(simplecris-common-timing
+				 ((unit u-mem) (unit u-exec))))
+   ; Timing for movem instructions running on a simple cris model.
+   ((simplecris-movem-timing)	(simplecris-common-timing
+				 ((unit u-movem) (unit u-exec))))
+   ; Similar, for an 8- or 16-bit constant ([PC+]) operand.
+   ((simplecris-const-timing-HI)
+				(simplecris-common-timing
+				 ((unit u-const16) (unit u-exec))))
+   ; Similar, for a 32-bit constant ([PC+]) operand.
+   ((simplecris-const-timing-SI)
+				(simplecris-common-timing
+				 ((unit u-const32) (unit u-exec))))
+   ; Similar, no particular operand.
+   ((simplecris-timing)		(simplecris-common-timing
+				 ((unit u-exec)))))
+)
+
+(define-model
+  (name crisv32)
+  (comment "Model of CRISv32")
+  (mach crisv32)
+
+  (state
+    ; Bitmask of h-gr register (0..15) and h-sr register (17..31)
+    ; modified by 3rd previous insn, updated by the u-exec unit.
+    ; Because there's no need to mark writes to special registers BZ and
+    ; WZ, bit 16 is for jump mark and bit 20 for memory-write mark.
+    (prev-prev-prev-modf-regs UINT)
+
+    ; Ditto for the 2nd previous insn.
+    (prev-prev-modf-regs UINT)
+
+    ; Ditto for the previous insn.
+    (prev-modf-regs UINT)
+
+    ; Bit-mask for regs modified by the current insn, propagated to
+    ; prev-modf-regs.
+    (modf-regs UINT)
+
+    ; Registers loaded by movem are not forwarded to the execution
+    ; stage, so we need to insert stall-cycles for ordinary insns
+    ; accessing such registers.  In addition to the *modf-regs
+    ; above, these are set to tell *ordinary* insns which registers
+    ; are inaccessible.
+
+    (prev-prev-prev-movem-dest-regs UINT)
+
+    ; Ditto for the 2nd previous insn.
+    (prev-prev-movem-dest-regs UINT)
+
+    ; Ditto for the previous insn.
+    (prev-movem-dest-regs UINT)
+
+    ; Bit-mask for regs modified by the current insn, propagated to
+    ; prev-movem-dest-regs.
+    (movem-dest-regs UINT))
+
+  ; It seems this pipeline description isn't used at all; this is just
+  ; for show.
+  ; Noteworthy is the placement of the memory stage before the execute stage.
+  (pipeline all "" () ((fetch) (decode) (memory) (execute) (writeback)))
+
+  ; Units that contribute only a constant pipeline delay are not included.
+  (unit u-mem "Memory Unit" () 1 1 ()
+	((Rs INT -1))
+	() ())
+
+  ; Artificial units for read/write-related hazard accounting.
+  (unit u-mem-r "Memory Unit Read" () 1 1 () () () ())
+  (unit u-mem-w "Memory Unit Write" () 1 1 () () () ())
+
+  (unit u-movem-rtom "Movem-to-memory Unit" () 1 1 ()
+	((Rs INT -1) (Rd INT -1))
+	() ())
+  (unit u-movem-mtor "Movem-to-register Unit" () 1 1 ()
+	((Rs INT -1) (Rd INT -1))
+	() ())
+  (unit u-multiply "Multiply Unit" () 1 1 ()
+	((Rs INT -1) (Rd INT -1))
+	() ())
+  (unit u-branch "Branch Unit" () 1 1 ()
+	()
+	() ())
+  (unit u-jump-r "Jump-to-register Unit" () 1 1 ()
+	((Rs INT -1))
+	() ())
+  (unit u-jump-sr "Jump-to-special-register Unit" () 1 1 ()
+	((Ps INT -1))
+	() ())
+  (unit u-jump "JAS/BAS Unit, saving PC" () 1 1 ()
+	()
+	((Pd INT -1)) ())
+
+  ; To keep track of PC; not really functional units.
+  (unit u-const16 "Fetch 16-bit operand" () 1 1 () () () ())
+  (unit u-const32 "Fetch 32-bit operand" () 1 1 () () () ())
+  (unit u-skip4 "Skip 4 bytes" () 1 1 () () () ())
+
+  ; For v32, we need to keep track of inputs (for movem destination
+  ; cycle penalties) and output (for e.g. memory source and jump
+  ; source cycle penalties).
+  (unit u-exec "Execution Unit" () 1 1 ()
+	((Rd INT -1) (Rs INT -1))
+	((Rd INT -1))
+	())
+
+  ; Special case of u-exec for movem: don't treat Rd as an incoming
+  ; parameter.
+  (unit u-exec-movem "Execution Unit" () 1 1 ()
+	((Rs INT -1))
+	((Rd INT -1))
+	())
+
+  ; Special case of u-exec when the destination is a special
+  ; register.
+  (unit u-exec-to-sr "Execution Unit" () 1 1 ()
+	((Rs INT -1))
+	((Pd INT -1)) ())
+)
+
+(define-pmacro (crisv32-timing-destreg d)
+  "Timing for instructions running on a crisv32 model"
+  ((crisv32
+    (.splice unit u-exec (.unsplice d))))
+)
+(define-pmacro (crisv32-timing) (crisv32-timing-destreg ()))
+
+(define-pmacro (cris-timing-Rd-sfield)
+  (crisv32-timing-destreg ((out Rd Rd-sfield)))
+)
+
+(define-pmacro (crisv32-timing-c-HI)
+  ((crisv32 (unit u-const16) (unit u-exec)))
+)
+
+(define-pmacro-map
+  ((crisv32-timing-c-QI crisv32-timing-c-HI)
+   ((crisv32-timing-c-SI) ((crisv32 (unit u-const32) (unit u-exec))))
+   ((crisv32-timing-c-sr-SI) ((crisv32 (unit u-const32) (unit u-exec-to-sr))))
+   ((crisv32-reg-sr-timing) ((crisv32 (unit u-exec-to-sr))))
+   ((crisv32-mem-sr-timing)
+    ((crisv32 (unit u-mem) (unit u-mem-r) (unit u-exec-to-sr))))
+   ((crisv32-mem-timing) ((crisv32 (unit u-mem) (unit u-mem-r) (unit u-exec))))
+   ((crisv32-mem-write-timing) ((crisv32 (unit u-mem) (unit u-exec) (unit u-mem-w)))))
+)
+
+(define-pmacro-map
+  (
+   ; Timing for instructions using memory operands.
+   ((cris-mem-timing)		(.splice (.unsplice (simplecris-mem-timing))
+					 (.unsplice (crisv32-mem-timing))))
+  ; Timing for instructions using memory operands.
+   ((cris-mem-write-timing)	(.splice
+				 (.unsplice (simplecris-mem-timing))
+				 (.unsplice (crisv32-mem-write-timing))))
+   ; Timing for moves from general register to special register.
+   ((cris-reg-sr-timing)	(.splice (.unsplice (simplecris-timing))
+					 (.unsplice (crisv32-reg-sr-timing))))
+   ; Timing for moves from memory to special register.
+   ((cris-mem-sr-timing)	(.splice (.unsplice (simplecris-mem-timing))
+					 (.unsplice (crisv32-mem-sr-timing))))
+   ; Timing for non-mul, non-memory, non-special-register, 16-bit instructions.
+   ((cris-timing)		(.splice (.unsplice (simplecris-timing))
+					 (.unsplice (crisv32-timing))))
+   ; Timing for instructions with 8- or 16-bit constant operand ([PC+]).
+   ((cris-timing-const-HI)	(.splice
+				 (.unsplice (simplecris-const-timing-HI))
+				 (.unsplice (crisv32-timing-c-HI))))
+   ; Timing for instructions with a 32-bit constant operand ([PC+]).
+   ((cris-timing-const-SI)	(.splice
+				 (.unsplice (simplecris-const-timing-SI))
+				 (.unsplice (crisv32-timing-c-SI))))
+   ; Like cris-timing-const-SI, but destination special register.
+   ((cris-timing-const-sr-SI)	(.splice
+				 (.unsplice (simplecris-const-timing-SI))
+				 (.unsplice (crisv32-timing-c-sr-SI))))
+   ; Like cris-timing-const-HI, but destination special register.
+   ((cris-timing-const-sr-HI)	(.splice
+				 (.unsplice (simplecris-const-timing-HI))
+				 (.unsplice (crisv32-timing-c-sr-SI)))))
+)
+
+(define-pmacro cris-timing-const-QI cris-timing-const-HI)
+(define-pmacro cris-timing-const-sr-QI cris-timing-const-sr-HI)
+
+(define-pmacro (simplecris-common-writable-specregs)
+  "The common writable special registers in pre-v32 models."
+  ((HI 5) (SI 9) (SI 10) (SI 11) (SI 12) (SI 13))
+)
+
+(define-pmacro (simplecris-common-readable-specregs)
+  "The common readable special registers in pre-v32 models."
+  (.splice (.unsplice (simplecris-common-writable-specregs))
+	   (QI 0) (QI 1) (HI 4) (SI 8))
+)
+
+(define-pmacro (cris-implemented-writable-specregs-v0)
+  "Special writable registers in v0 and their sizes"
+  (.splice (.unsplice (simplecris-common-writable-specregs)) (HI 6) (HI 7))
+)
+(define-pmacro
+  cris-implemented-specregs-const-v0
+  cris-implemented-writable-specregs-v0
+)
+(define-pmacro (cris-implemented-readable-specregs-v0)
+  "Special readable registers in v0 and their sizes"
+  (.splice (.unsplice (simplecris-common-readable-specregs)) (HI 6) (HI 7))
+)
+
+(define-pmacro (cris-implemented-writable-specregs-v3)
+  "Special writable registers in v3 and their sizes"
+  (.splice (.unsplice (cris-implemented-writable-specregs-v0)) (SI 14))
+)
+(define-pmacro
+  cris-implemented-specregs-const-v3
+  cris-implemented-writable-specregs-v3
+)
+(define-pmacro (cris-implemented-readable-specregs-v3)
+  "Special readable registers in v3 and their sizes"
+  (.splice (.unsplice (cris-implemented-readable-specregs-v0)) (SI 14))
+)
+
+(define-pmacro (cris-implemented-writable-specregs-v8)
+  "Special writable registers in v8 and their sizes"
+  (.splice (.unsplice (simplecris-common-writable-specregs)) (SI 14))
+)
+(define-pmacro
+  cris-implemented-specregs-const-v8
+  cris-implemented-writable-specregs-v8
+)
+(define-pmacro (cris-implemented-readable-specregs-v8)
+  "Special readable registers in v8 and their sizes"
+  (.splice (.unsplice (simplecris-common-readable-specregs)) (SI 14))
+)
+
+(define-pmacro (cris-implemented-writable-specregs-v10)
+  "Special writable registers in v10 and their sizes"
+  (.splice (.unsplice (simplecris-common-writable-specregs))
+	   (SI 7) (SI 14) (SI 15))
+)
+(define-pmacro
+  cris-implemented-specregs-const-v10
+  cris-implemented-writable-specregs-v10
+)
+(define-pmacro (cris-implemented-readable-specregs-v10)
+  "Special registers in v10 and their sizes"
+  (.splice (.unsplice (simplecris-common-readable-specregs))
+	   (SI 7) (SI 14) (SI 15))
+)
+
+(define-pmacro (cris-implemented-writable-specregs-v32)
+  "Special writable registers in v32 and their sizes"
+  ((QI 2) (QI 3)
+   (SI 5) (SI 6) (SI 7) (SI 9)
+   (SI 10) (SI 11) (SI 12) (SI 13) (SI 14) (SI 15))
+)
+(define-pmacro (cris-implemented-readable-specregs-v32)
+  "Special readable registers in v32 and their sizes"
+  (.splice (.unsplice (cris-implemented-writable-specregs-v32))
+	   (QI 0) (QI 1) (HI 4) (SI 8))
+)
+
+; For v32, all special register operations on constants (that is,
+; move) take 32-bit operands, not the real size of the register, as in
+; other move operations.
+(define-pmacro (cris-implemented-specregs-const-v32)
+  (.map (.pmacro (x) (SI (.cadr2 x)))
+	(cris-implemented-writable-specregs-v32))
+)
+
+(define-pmacro cris-swap-codes
+  "CRIS Swap codes in numeric order (no zero)"
+  (   r  b  br  w  wr  wb  wbr
+   n nr nb nbr nw nwr nwb nwbr)
+)
+
+(define-pmacro cris-flagnames
+  "CRIS flag field values, dest and src fields concatenated"
+  (c v z n x i u p) ; ... b m for pre-v32
+)
+
+(define-pmacro-map
+  ; Bitnumber for each respective flag.
+  (.map (.pmacro (x num) ((.sym x -bitnumber) num))
+	cris-flagnames (.iota 8))
+)
+
+; I give up.  Here's a perl-script to get the values I want for this macro
+; (not working along list principles, though).  You can run this region.
+; perl -e '$x = "cvznxiup"; for ($i = 0; $i < 256; $i++) { $s = "";
+;  for ($j = 0; $j < 8; $j++) { if ($i & (1 << $j)) {
+; $s .= substr ($x, $j, 1);}}
+; printf ("%s%s", $s eq "" ? "_" : $s, (($i + 1) % 8) == 0 ? "\n   " : " "); }'
+(define-pmacro cris-flag-combinations
+  "Combinations of flags in numeric order"
+  (_ c v cv z cz vz cvz
+   n cn vn cvn zn czn vzn cvzn
+   x cx vx cvx zx czx vzx cvzx
+   nx cnx vnx cvnx znx cznx vznx cvznx
+   i ci vi cvi zi czi vzi cvzi
+   ni cni vni cvni zni czni vzni cvzni
+   xi cxi vxi cvxi zxi czxi vzxi cvzxi
+   nxi cnxi vnxi cvnxi znxi cznxi vznxi cvznxi
+   u cu vu cvu zu czu vzu cvzu
+   nu cnu vnu cvnu znu cznu vznu cvznu
+   xu cxu vxu cvxu zxu czxu vzxu cvzxu
+   nxu cnxu vnxu cvnxu znxu cznxu vznxu cvznxu
+   iu ciu viu cviu ziu cziu vziu cvziu
+   niu cniu vniu cvniu zniu czniu vzniu cvzniu
+   xiu cxiu vxiu cvxiu zxiu czxiu vzxiu cvzxiu
+   nxiu cnxiu vnxiu cvnxiu znxiu cznxiu vznxiu cvznxiu
+   p cp vp cvp zp czp vzp cvzp
+   np cnp vnp cvnp znp cznp vznp cvznp
+   xp cxp vxp cvxp zxp czxp vzxp cvzxp
+   nxp cnxp vnxp cvnxp znxp cznxp vznxp cvznxp
+   ip cip vip cvip zip czip vzip cvzip
+   nip cnip vnip cvnip znip cznip vznip cvznip
+   xip cxip vxip cvxip zxip czxip vzxip cvzxip
+   nxip cnxip vnxip cvnxip znxip cznxip vznxip cvznxip
+   up cup vup cvup zup czup vzup cvzup
+   nup cnup vnup cvnup znup cznup vznup cvznup
+   xup cxup vxup cvxup zxup czxup vzxup cvzxup
+   nxup cnxup vnxup cvnxup znxup cznxup vznxup cvznxup
+   iup ciup viup cviup ziup cziup vziup cvziup
+   niup cniup vniup cvniup zniup czniup vzniup cvzniup
+   xiup cxiup vxiup cvxiup zxiup czxiup vzxiup cvzxiup
+   nxiup cnxiup vnxiup cvnxiup znxiup cznxiup vznxiup cvznxiup
+  )
+)
+
+(define-pmacro cc-condition (not cbit))
+(define-pmacro cs-condition cbit)
+(define-pmacro ne-condition (not zbit))
+(define-pmacro eq-condition zbit)
+(define-pmacro vc-condition (not vbit))
+(define-pmacro vs-condition vbit)
+(define-pmacro pl-condition (not nbit))
+(define-pmacro mi-condition nbit)
+(define-pmacro ls-condition (or cbit zbit))
+(define-pmacro hi-condition (not (or cbit zbit)))
+(define-pmacro ge-condition (not (xor vbit nbit)))
+(define-pmacro lt-condition (xor vbit nbit))
+(define-pmacro gt-condition (not (or (xor vbit nbit) zbit)))
+(define-pmacro le-condition (or (xor vbit nbit) zbit))
+(define-pmacro a-condition 1)
+
+; FIXME: define this properly for v10 and pre-v10.
+(define-pmacro wf-condition pbit)
+
+(define-pmacro (cris-condition condno)
+  "Return condition state for condition number CONDNO"
+  (sequence
+    BI
+    ((SI tmpcond) (BI condres))
+    (set tmpcond condno)
+     (.splice
+      cond
+      (.unsplice
+       (.map
+	(.pmacro
+	 (condn condc)
+	 ((eq tmpcond condn) (set condres (.sym condc -condition))))
+	(.iota 16)
+	cris-condition-codes)))
+     condres)
+)
+
+;;;;;;;;;;;;;;;;;; -keyword
+
+; General registers.
+(define-pmacro (cris-general-gregs)
+  (.splice (SP 14) (.unsplice (.map (.pmacro (n) ((.sym R n) n)) (.iota 15))))
+)
+
+; Can't keep more than one gr-names definition at the same time;
+; generated enum declarations in sim/cris/cris-desc.h will collide.
+; FIXME: (include "different-mach-parts")
+
+(define-keyword
+  (name gr-names-pcreg)
+  (attrs MACH-PC)
+  (print-name h-gr-real-pc)
+  ; Put PC first so it is preferred over r15.
+  (.splice values (PC 15) (.unsplice (cris-general-gregs)))
+)
+
+(define-keyword
+  (name gr-names-acr)
+  (attrs MACH-ACR)
+  ; The print-name directive will control the enum prefix.  With the
+  ; arguably more appropriate h-gr-v32 or h-gr-acr, we'd get names like
+  ; H_GR_ACR_R0 instead of H_GR_R0.  Since we have to choose something for
+  ; unprefixed names, we use the CRISv32 names.  FIXME: All users should
+  ; change to use H_GR_V32_R0 (etc.), then change this to h-gr-v32.
+  (print-name h-gr)
+  ; Put ACR first so it is preferred over r15.
+  (.splice values (ACR 15) (.unsplice (cris-general-gregs)))
+)
+
+(define-keyword
+  (name gr-names-v32)
+  (attrs MACH-V32)
+  ; In preparation for implementing the FIXME above.
+  (print-name h-gr-v32)
+  ; Put ACR first so it is preferred over r15.
+  (.splice values (ACR 15) (.unsplice (cris-general-gregs)))
+)
+
+; Special registers with names common to all.
+(define-pmacro (cris-general-pregs)
+  (.splice
+   (VR 1)
+   (SRP 11)
+   (.unsplice (.map (.pmacro (n) ((.sym P n) n)) (.iota 15))))
+)
+
+(define-keyword
+  (name p-names-v10)
+  (attrs MACH-PRE-V32)
+  (print-name h-sr-pre-v32)
+  (.splice
+   values
+   (CCR 5)
+   (MOF 7)
+   (IBR 9)
+   (IRP 10)
+   (BAR 12)
+   (DCCR 13)
+   (BRP 14)
+   (USP 15)
+   (.unsplice (cris-general-pregs)))
+)
+
+(define-keyword
+  (name p-names-v32)
+  (attrs MACH-V32)
+  ; See comment for gr-names-acr.
+  (print-name h-sr)
+  (.splice
+   values
+   (BZ 0)
+   (PID 2)
+   (SRS 3)
+   (WZ 4)
+   (EXS 5)
+   (EDA 6)
+   (MOF 7)
+   (DZ 8)
+   (EBP 9)
+   (ERP 10)
+   (NRP 12)
+   (CCS 13)
+   (USP 14)
+   (SPC 15)
+   (.unsplice (cris-general-pregs)))
+)
+
+; Similarly as for h-gr-v32, in preparation.
+(define-keyword
+  (name p-names-v32-x)
+  (attrs MACH-V32)
+  ; See comment for gr-names-acr.
+  (print-name h-sr-v32)
+  (.splice
+   values
+   (BZ 0)
+   (PID 2)
+   (SRS 3)
+   (WZ 4)
+   (EXS 5)
+   (EDA 6)
+   (MOF 7)
+   (DZ 8)
+   (EBP 9)
+   (ERP 10)
+   (NRP 12)
+   (CCS 13)
+   (USP 14)
+   (SPC 15)
+   (.unsplice (cris-general-pregs)))
+)
+
+(define-pmacro p0 (reg h-sr 0))
+(define-pmacro vr (reg h-sr 1))
+(define-pmacro pid (reg h-sr 2))
+(define-pmacro srs (reg h-sr 3))
+(define-pmacro p4 (reg h-sr 4))
+(define-pmacro ccr (reg h-sr 5))
+(define-pmacro mof (reg h-sr 7))
+(define-pmacro p8 (reg h-sr 8))
+(define-pmacro ibr (reg h-sr 9))
+(define-pmacro ebp (reg h-sr 9))
+(define-pmacro erp (reg h-sr 10))
+(define-pmacro srp (reg h-sr 11))
+(define-pmacro ccs (reg h-sr 13))
+(define-pmacro dccr (reg h-sr 13))
+(define-pmacro usp (reg h-sr 14))
+(define-pmacro spc (reg h-sr 15))
+
+(define-pmacro sp (reg h-gr 14))
+(define-pmacro acr (reg h-gr 15))
+
+(define-pmacro cris-condition-codes
+  "CRIS condition codes in numeric order"
+  (cc cs ne eq vc vs pl mi ls hi ge lt gt le a wf)
+)
+
+; No use having different lists; this is the only CC that
+; differs between v10 and v32, and mostly in the name.
+(define-pmacro sb wf)
+
+
+;;;;;;;;;;;;;;;;;; -hardware
+
+;; Various constant generators.
+
+(define-hardware
+  (name h-inc)
+  (comment "autoincrement-bit syntax specifier")
+  (type immediate (UINT 1))
+  (values keyword "" (("" 0) ("+" 1)))
+)
+
+(define-hardware
+  (name h-ccode)
+  (comment "Condition code specifier")
+  (type immediate (UINT 4))
+  (values keyword ""
+	  (.map (.pmacro (x y) ((.str x) y))
+		cris-condition-codes (.iota 16)))
+)
+
+(define-hardware
+  (name h-swap)
+  (comment "Swap option specifier")
+  (type immediate (UINT 4))
+  (values
+   keyword ""
+   (.splice
+    (" " 0)
+    (.unsplice
+     (.map
+      (.pmacro (x y) ((.str x) y)) cris-swap-codes (.iota 15 1)))))
+)
+
+(define-hardware
+  (name h-flagbits)
+  (comment "Flag bits specifier")
+  (type immediate (UINT 8))
+  (values
+   keyword ""
+   (.map (.pmacro (x y) ((.str x) y)) cris-flag-combinations (.iota 256)))
+)
+
+; Apparently, the semantic-name isn't used for accessors, so external
+; users like the sim glue and SID sees the -v32 and -pre-v32 munged names.
+; Defining "dispatchers"; virtual registers whose getter and setter works
+; on the "real" mach variants, seems to help.  CGEN-FIXME: Make
+; semantic-name set the generated names.
+(define-pmacro (cris-d-hwreg x-name x-type)
+  (define-hardware
+    (name x-name)
+    (comment (.str "Dispatcher for " x-name))
+    (attrs VIRTUAL)
+    (type register x-type)
+    (get () (reg (.sym x-name -x)))
+    (set (val) (set (reg (.sym x-name -x)) val)))
+)
+(define-pmacro (cris-d-hwregf-a x-name x-type x-n x-attrs)
+  (define-hardware
+    (name x-name)
+    (comment (.str "Dispatcher for " x-name))
+    (.splice attrs VIRTUAL (.unsplice x-attrs))
+    (type register x-type (x-n))
+    (get (index) (reg (.sym x-name -x) index))
+    (set (index val) (set-quiet (reg (.sym x-name -x) index) val)))
+)
+(define-pmacro (cris-d-hwregf x-name x-type x-n)
+  (cris-d-hwregf-a x-name x-type x-n ())
+)
+(define-pmacro (cris-d-hwregf-p x-name x-type x-n)
+  (cris-d-hwregf-a x-name x-type x-n (PROFILE))
+)
+
+; At first glance we could use (eq-attr (current-mach) ...) for
+; everything, but that seems sometimes (always?) to yield false.  For
+; ifields, it causes noncompilable C-code.  For the insn semantics code,
+; it causes tests movei.ms and mulv32.ms to fail, apparently because the
+; current-mach-is-v32 usage in flags setting is miscompiled as 0 (or
+; rather, misgenerated).  Instead we use different definitions of a
+; MACH-tagged virtual register yielding a constant, together with a
+; pmacro.  CGEN-FIXME: If eq-attr is someday fixed, we could just remove
+; these h-v32 virtual register definitions and change the pmacro
+; definition for current-mach-is-v32.
+(define-hardware
+  (semantic-name h-v32)
+  (name h-v32-v32)
+  (attrs MACH-V32 VIRTUAL)
+  (type register BI)
+  (get () (const BI 1))
+  (set (val) (error "Can't set h-v32"))
+)
+(define-hardware
+  (semantic-name h-v32)
+  (name h-v32-non-v32)
+  (attrs MACH-PRE-V32 VIRTUAL)
+  (type register BI)
+  (get () (const BI 0))
+  (set (val) (error "Can't set h-v32"))
+)
+
+;; "Real" hardware.
+
+(define-hardware
+  (name h-pc)
+  (comment "program counter")
+  (attrs PC PROFILE)
+  (type pc)
+  ; There's no bit 0 in PC, so just ignore it when jumping etc.
+  (set (val) (set (raw-reg h-pc) (and val (inv 1))))
+)
+
+; Note that setting register 15 isn't handled here, but in each insn, so
+; the proper "jump" attributes and other special stuff for speedy
+; execution can be present.
+(cris-d-hwregf-p h-gr SI 16)
+(define-hardware
+  (semantic-name h-gr-x)
+  (name h-gr-pc)
+  (attrs MACH-PC VIRTUAL)
+  (comment "General purpose registers, aborting on PC access")
+  (type register SI (16))
+  (indices extern-keyword gr-names-pcreg)
+  (get
+   (index)
+   (if SI (eq index 15)
+       (error SI "General register read of PC is not implemented.")
+       (reg SI h-gr-real-pc index)))
+  (set
+   (index val)
+   (sequence
+     ()
+     (if (eq index 15)
+	 (error "General register write to PC is not implemented."))
+     (set (reg SI h-gr-real-pc index) val)))
+)
+(define-hardware
+  (name h-gr-real-pc)
+  (attrs MACH-PC)
+  (comment "General purpose registers")
+  (type register SI (16))
+  (indices extern-keyword gr-names-pcreg)
+)
+
+; We have to use a virtual register trick to get the "raw", unaccounted
+; contents of the global register; the raw-reg RTX only works for
+; non-virtual register files.
+(define-hardware
+  (semantic-name h-raw-gr)
+  (name h-raw-gr-pc)
+  (attrs MACH-PC VIRTUAL)
+  (comment "Unaccounted version of general purpose registers")
+  (type register SI (16))
+  (get (index) (raw-reg h-gr-real-pc index))
+  (set (index val) (set-quiet (raw-reg h-gr-real-pc index) val))
+)
+(define-hardware
+  (semantic-name h-gr-x)
+  (name h-gr-acr)
+  (attrs MACH-ACR)
+  (comment "General purpose registers")
+  (type register SI (16))
+  (indices extern-keyword gr-names-acr)
+)
+(define-hardware
+  (semantic-name h-raw-gr)
+  (name h-raw-gr-acr)
+  (attrs MACH-ACR VIRTUAL)
+  (comment "Unaccounted version of general purpose registers")
+  (type register SI (16))
+  (get (index) (raw-reg h-gr-x index))
+  (set (index val) (set-quiet (raw-reg h-gr-x index) val))
+)
+
+; FIXME: get and set semantics?  Unknown how to split semantics best; with
+; get/set semantics or within the insn specification.  Doing the former for
+; now.  Should use different names for pre-v10.
+; FIXME: No dccr for v0 and v3.  Different high flag bits.
+(cris-d-hwregf-p h-sr SI 16)
+(define-pmacro
+  (cris-h-sr machver)
+  (define-hardware
+    (semantic-name h-sr-x)
+    (name (.sym h-sr-v machver))
+    (attrs (MACH (.sym crisv machver)))
+    (comment (.str "Special registers for v" machver))
+    (type register SI (16))
+    (indices extern-keyword p-names-v10)
+    (get
+     (index)
+     (cond
+      SI
+      ((orif (orif (eq index (regno p0)) (eq index (regno p4)))
+	     (eq index (regno p8))) 0)
+      ((eq index (regno vr)) machver)
+      ((orif (eq index (regno ccr))
+	     (eq index (regno dccr)))
+       ; Return "P U I X N Z V C" for the low 8 bits.
+       ; FIXME: More bits.
+       (or SI
+	   (and SI (raw-reg SI h-sr-x (regno ccr)) #xffffff00)
+	   (or
+	    (zext SI (reg BI h-cbit))
+	    (or
+	     (sll (zext SI (reg BI h-vbit)) 1)
+	     (or
+	      (sll (zext SI (reg BI h-zbit)) 2)
+	      (or
+	       (sll (zext SI (reg BI h-nbit)) 3)
+	       (or
+		(sll (zext SI (reg BI h-xbit)) 4)
+		(or
+		 (sll (zext SI (reg BI h-ibit)) 5)
+		 (or
+		  (sll (zext SI (reg BI h-ubit)) 6)
+		  (or
+		   (sll (zext SI (reg BI h-pbit)) 7)
+		   0))))))))))
+      (else (raw-reg SI h-sr-x index))))
+    (set
+     (index val)
+     (cond
+      ((orif (orif (eq index (regno p0)) (eq index (regno p4)))
+	     (orif (eq index (regno p8)) (eq index (regno vr))))
+       (nop))
+      ((orif (eq index (regno ccr)) (eq index (regno dccr)))
+       (sequence
+	 ()
+	 (set (reg BI h-cbit) (if BI (ne SI (and val (sll 1 0)) 0) 1 0))
+	 (set (reg BI h-vbit) (if BI (ne SI (and val (sll 1 1)) 0) 1 0))
+	 (set (reg BI h-zbit) (if BI (ne SI (and val (sll 1 2)) 0) 1 0))
+	 (set (reg BI h-nbit) (if BI (ne SI (and val (sll 1 3)) 0) 1 0))
+	 (set (reg BI h-xbit) (if BI (ne SI (and val (sll 1 4)) 0) 1 0))
+	 (set (reg BI h-ibit) (if BI (ne SI (and val (sll 1 5)) 0) 1 0))
+	 (set (reg BI h-ubit) (if BI (ne SI (and val (sll 1 6)) 0) 1 0))
+	 (set (reg BI h-pbit) (if BI (ne SI (and val (sll 1 7)) 0) 1 0))
+	 (set-quiet (raw-reg SI h-sr-x (regno ccr)) val)
+	 (set-quiet (raw-reg SI h-sr-x (regno dccr)) val)))
+      (else (set-quiet (raw-reg SI h-sr-x index) val)))))
+)
+
+(cris-h-sr 0)
+(cris-h-sr 3)
+(cris-h-sr 8)
+(cris-h-sr 10)
+
+(define-hardware
+  (semantic-name h-sr-x)
+  (name h-sr-v32)
+  (attrs MACH-V32)
+  (comment "Special registers for v32")
+  (type register SI (16))
+  (indices extern-keyword p-names-v32)
+
+  (get
+   (index)
+   (cond
+    SI
+    ((orif (orif (eq index (regno p0)) (eq index (regno p4)))
+	   (eq index (regno p8))) 0)
+    ((eq index (regno vr)) 32)
+    ((eq index (regno ccs))
+     ; Return "S R P U I X N Z V C" for the low 10 bits.
+     (or SI
+	 (and SI (raw-reg SI h-sr-x (regno ccs)) #x3ffffc00)
+	 (or
+	  (zext SI (reg BI h-cbit))
+	  (or
+	   (sll (zext SI (reg BI h-vbit)) 1)
+	   (or
+	    (sll (zext SI (reg BI h-zbit)) 2)
+	    (or
+	     (sll (zext SI (reg BI h-nbit)) 3)
+	     (or
+	      (sll (zext SI (reg BI h-xbit)) 4)
+	      (or
+	       (sll (zext SI (reg BI h-ibit)) 5)
+	       (or
+		(sll (zext SI (reg BI h-ubit)) 6)
+		(or
+		 (sll (zext SI (reg BI h-pbit)) 7)
+		 (or
+		  (sll (zext SI (reg BI h-rbit)) 8)
+		  (or
+		   (sll (zext SI (reg BI h-sbit)) 9)
+		   (or
+		    (sll (zext SI (reg BI h-mbit)) 30)
+		    (or
+		     (sll (zext SI (reg BI h-qbit)) 31)
+		     0))))))))))))))
+    ((eq index (regno usp))
+     ; In user mode, return general stack pointer.
+     (if BI (reg BI h-ubit)
+	 (raw-reg SI h-gr-x (regno sp))
+	 (raw-reg SI h-sr-x (regno usp))))
+    (else (raw-reg SI h-sr-x index))))
+
+  (set
+   (index val)
+   (cond
+    ((orif (orif (eq index (regno p0)) (eq index (regno p4)))
+	   (orif (eq index (regno p8)) (eq index (regno vr))))
+     (nop))
+    ((eq index (regno ccs))
+     (sequence
+       ()
+       ; Protected bits are handled as such in the respective setter function.
+       (set (reg BI h-cbit) (if BI (ne SI (and val (sll 1 0)) 0) 1 0))
+       (set (reg BI h-vbit) (if BI (ne SI (and val (sll 1 1)) 0) 1 0))
+       (set (reg BI h-zbit) (if BI (ne SI (and val (sll 1 2)) 0) 1 0))
+       (set (reg BI h-nbit) (if BI (ne SI (and val (sll 1 3)) 0) 1 0))
+       (set (reg BI h-xbit) (if BI (ne SI (and val (sll 1 4)) 0) 1 0))
+       (set (reg BI h-ibit) (if BI (ne SI (and val (sll 1 5)) 0) 1 0))
+       (set (reg BI h-sbit) (if BI (ne SI (and val (sll 1 9)) 0) 1 0))
+       (set (reg BI h-mbit) (if BI (ne SI (and val (sll 1 30)) 0) 1 0))
+       (set (reg BI h-pbit) (if BI (ne SI (and val (sll 1 7)) 0) 1 0))
+       (set (reg BI h-rbit) (if BI (ne SI (and val (sll 1 8)) 0) 1 0))
+       (set (reg BI h-qbit) (if BI (ne SI (and val (sll 1 31)) 0) 1 0))
+       ; Set the U bit last, so the setter functions for the other bits
+       ; don't see it as set from this operation.  It is not cleared from
+       ; this operation, so we don't have to handle that; it's only
+       ; cleared "manually" from within simulator-specific context-switch
+       ; machinery.
+       (set (reg BI h-ubit) (if BI (ne SI (and val (sll 1 6)) 0) 1 0))
+       (set-quiet (raw-reg SI h-sr-x index) val)))
+    ((eq index (regno usp))
+     ; In user mode, set general register 14 too, whenever setting USP.
+     (sequence
+       ()
+       (if (reg BI h-ubit) (set (raw-reg SI h-gr-x (regno sp)) val))
+       (set (raw-reg SI h-sr-x (regno usp)) val)))
+    ((eq index (regno srs))
+     (if (not (reg BI h-ubit)) (set (raw-reg h-sr-x (regno srs)) val)))
+    ((eq index (regno ebp))
+     (if (not (reg BI h-ubit)) (set (raw-reg h-sr-x (regno ebp)) val)))
+    ((eq index (regno pid))
+     (if (not (reg BI h-ubit))
+	 (sequence
+	   ()
+	   (c-call VOID "@cpu@_write_pid_handler" val)
+	   (set (raw-reg h-sr-x (regno pid)) val))))
+    ((eq index (regno spc))
+     (if (not (reg BI h-ubit)) (set (raw-reg h-sr-x (regno spc)) val)))
+    (else (set-quiet (raw-reg SI h-sr-x index) val))))
+)
+
+(define-hardware
+  (name h-supr)
+  (attrs MACH-V32 VIRTUAL)
+  (comment "Support registers")
+  (type register SI (16))
+  (values keyword "" (.map (.pmacro (y) ((.str S y) y)) (.iota 16)))
+  (get (index) (c-call SI "@cpu@_read_supr" index))
+  (set (index val) (c-call VOID "@cpu@_write_supr" index val))
+)
+
+(define-pmacro (cris-dsh semantic-name name comment attrs type)
+  "Like dsh, but the semantic-name is separate"
+  (define-full-hardware
+    name comment attrs semantic-name type () () () () () ())
+)
+
+; We define the condition codes that hold arithmetic flags separately
+; and "or" them in, in the get and set methods of the special
+; registers.  We define arithmetic flags as any of C V Z N X.  They
+; thankfully have that order (zero-based) in all processor versions.
+
+; To avoid having two variants of most move-type instructions because V32
+; doesn't set C and V (and N and Z), we fake the setting to virtual
+; registers which have two different implementations.
+(define-pmacro (cris-move-flag f f-name f-whence)
+  "Flag set differently in pre-v32 and v32 in some cases"
+  (begin
+    (dsh (.sym h- f bit) (.str f-name " bit") () (register BI))
+    (cris-d-hwreg (.sym h- f bit-move) BI)
+    (define-hardware
+      (semantic-name (.sym h- f bit-move-x))
+      (name (.sym h- f bit-move-v32))
+      (comment (.str f-name " bit set in " f-whence " instructions, ignored"))
+      (attrs MACH-V32 VIRTUAL)
+      (type register BI)
+      (get
+       ()
+       (sequence BI ()
+		 (error (.str "Can't get h-" f "bit-move on CRISv32")) 0))
+      (set (val) (nop)))
+    (define-hardware
+      (semantic-name (.sym h- f bit-move-x))
+      (name (.sym h- f bit-move-pre-v32))
+      (comment
+       (.str
+	f-name " bit set in " f-whence " instructions, same as " f "bit"))
+      (attrs MACH-PRE-V32 VIRTUAL)
+      (type register BI)
+      (get () (reg (.sym h- f bit)))
+      (set (val) (set (reg (.sym h- f bit)) val))))
+)
+
+(cris-move-flag c "carry" "move-type")
+(cris-move-flag v "overflow" "move-type")
+(cris-move-flag z "zero" "moveq")
+(cris-move-flag n "sign" "moveq")
+
+(dsh h-xbit "extended-arithmetic bit" () (register BI))
+(cris-d-hwreg h-ibit BI)
+(cris-dsh h-ibit-x h-ibit-pre-v32
+	  "interrupt-enable bit" (MACH-PRE-V32) (register BI))
+(dsh h-pbit "sequence-broken bit" ((MACH crisv10,crisv32)) (register BI))
+(dsh h-rbit "carry bit for MCP+restore-p bit" (MACH-V32) (register BI))
+(cris-d-hwreg h-ubit BI)
+(cris-dsh h-ubit-x h-ubit-pre-v32
+	  "user mode bit" ((MACH crisv10)) (register BI))
+(dsh h-gbit "guru mode bit" (MACH-V32) (register BI))
+
+; When doing a transition from kernel to user mode on V32, we save the
+; stack pointer in an internal register and copy USP to R14, so we don't
+; need non-trivial handlers for general registers.
+(dsh
+ h-kernel-sp
+ "Kernel stack pointer during user mode"
+ (MACH-V32)
+ (register SI)
+)
+
+(define-hardware
+  (semantic-name h-ubit-x)
+  (name h-ubit-v32)
+  (comment "User mode bit")
+  (attrs MACH-V32)
+  (type register BI)
+  (set
+   (val)
+   (sequence
+     ()
+     (if (andif val (not (raw-reg BI h-ubit-x)))
+	 (sequence
+	   ()
+	   (set (reg SI h-kernel-sp) (raw-reg h-gr-x (regno sp)))
+	   (set (raw-reg h-gr-x (regno sp)) (raw-reg h-sr-x (regno usp)))
+	   (set (raw-reg BI h-ubit-x) val)
+	   (c-call VOID "@cpu@_usermode_enabled")))))
+)
+
+(define-hardware
+  (semantic-name h-ibit-x)
+  (name h-ibit-v32)
+  (comment "Interrupt-enable bit")
+  (attrs MACH-V32)
+  (type register BI)
+  (set
+   (val)
+   (sequence
+     ()
+     (if (not (reg BI h-ubit))
+	 (sequence
+	   ((BI enabled))
+	   (set enabled (andif val (not (raw-reg BI h-ibit-x))))
+	   (set (raw-reg BI h-ibit-x) val)
+	   ; Call handler when enabling.
+	   (if enabled (c-call VOID "@cpu@_interrupts_enabled"))))))
+)
+
+(define-hardware
+  (name h-mbit)
+  (comment "NMI enable bit")
+  (attrs MACH-V32)
+  (type register BI)
+  (set
+   (val)
+   (sequence
+     ()
+     ; Don't allow clearing (through this handler) when once set.
+     (if (andif val (andif (not (raw-reg BI h-mbit)) (not (reg BI h-ubit))))
+	 (sequence
+	   ()
+	   (set (raw-reg BI h-mbit) 1)
+	   ; Call handler when enabling.
+	   (c-call VOID "@cpu@_nmi_enabled")))))
+)
+
+(define-pmacro
+  (dsh-cond-bit-v32 x-name x-comment x-cond)
+  "dsh bit for MACH-V32, with bit only changeable when X-COND"
+  (define-hardware
+    (name x-name)
+    (comment x-comment)
+    (attrs MACH-V32)
+    (type register BI)
+    (set (val) (sequence () (if x-cond (set (raw-reg BI x-name) val)))))
+)
+(define-pmacro
+  (dsh-protected-bit-v32 x-name x-comment)
+  "dsh bit for MACH-V32, with bit only changeable in kernel mode"
+  (dsh-cond-bit-v32 x-name x-comment (not (reg BI h-ubit)))
+)
+(dsh-protected-bit-v32 h-qbit "Pending single-step bit")
+
+(define-hardware
+  (name h-sbit)
+  (comment "Cause single step exception on ... [see CRISv32 ref] bit")
+  (attrs MACH-V32)
+  (type register BI)
+  (set
+   (val)
+   (sequence
+     ()
+     (if (not (reg BI h-ubit))
+	 (sequence
+	   ((BI enabled))
+	   (set enabled (andif val (not (raw-reg BI h-sbit))))
+	   (set (raw-reg BI h-sbit) val)
+	   ; Call handler when enabling.
+	   (if enabled (c-call VOID "@cpu@_single_step_enabled"))))))
+)
+
+(dnop cbit "" (SEM-ONLY) h-cbit f-nil)
+(dnop cbit-move
+      "cbit for pre-V32, nothing for newer" (SEM-ONLY) h-cbit-move f-nil)
+(dnop vbit "" (SEM-ONLY) h-vbit f-nil)
+(dnop vbit-move
+      "vbit for pre-V32, nothing for newer" (SEM-ONLY) h-vbit-move f-nil)
+(dnop zbit "" (SEM-ONLY) h-zbit f-nil)
+(dnop zbit-move
+      "zbit for pre-V32, nothing for newer" (SEM-ONLY) h-zbit-move f-nil)
+(dnop nbit "" (SEM-ONLY) h-nbit f-nil)
+(dnop nbit-move
+      "nbit for pre-V32, nothing for newer" (SEM-ONLY) h-nbit-move f-nil)
+(dnop xbit "" (SEM-ONLY) h-xbit f-nil)
+(dnop ibit "" (SEM-ONLY) h-ibit f-nil)
+(dnop ubit "" (SEM-ONLY (MACH crisv10,crisv32)) h-ubit f-nil)
+(dnop pbit "" (SEM-ONLY (MACH crisv10,crisv32)) h-pbit f-nil)
+(dnop
+ rbit "carry bit for MCP+restore-P flag bit" (SEM-ONLY MACH-V32) h-rbit f-nil)
+(dnop sbit "" (SEM-ONLY MACH-V32) h-sbit f-nil)
+(dnop mbit "" (SEM-ONLY MACH-V32) h-mbit f-nil)
+(dnop qbit "" (SEM-ONLY MACH-V32) h-qbit f-nil)
+
+(cris-d-hwreg h-insn-prefixed-p BI)
+(cris-dsh
+ h-insn-prefixed-p-x
+ h-insn-prefixed-p-pre-v32
+ "instruction-is-prefixed bit"
+ (MACH-PRE-V32)
+ (register BI)
+)
+
+; CRISv32 has no prefixing on memory accesses.  CGEN-FIXME: [Once (eq-attr
+; (current-mach) ...) works]: can we change andif and/or orif so it
+; doesn't look too close at short-circuited operands and avoid defining an
+; operand that doesn't apply to a certain mach?
+(define-hardware
+ (semantic-name h-insn-prefixed-p-x)
+ (name h-insn-prefixed-p-v32)
+ (attrs MACH-V32 VIRTUAL)
+ (comment "instruction-is-prefixed bit")
+ (type register BI)
+ (get () (const BI 0))
+ (set (val) (nop))
+)
+(dnop
+ prefix-set
+ "Instruction-prefixed flag"
+ (SEM-ONLY)
+ h-insn-prefixed-p
+ f-nil
+)
+
+(cris-dsh
+ h-prefixreg h-prefixreg-pre-v32
+ "Prefix-address register" (MACH-PRE-V32) (register SI))
+(define-hardware
+  (semantic-name h-prefixreg)
+  (name h-prefixreg-v32)
+  (comment "Prefix-address register, redirecting to ACR")
+  (attrs MACH-V32 VIRTUAL)
+  (type register SI)
+  ; Why can't we have just a "acr" a.k.a "(reg h-gr 15)" here?
+  (get () acr)
+  (set (value) (set acr value))
+)
+
+(dnop
+ prefixreg
+ "Prefix address"
+ (SEM-ONLY)
+ h-prefixreg
+ f-nil
+)
+
+;;;;;;;;;;;;;;;;;; -ifield
+
+;	  15                                            0
+;	 +-----------+-----+-----------+-----+-----------+
+;	 | Operand2  | Mode| Opcode    | Size| Operand1  |
+;	 +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+;
+;	 Figure 5.  General instruction format.
+;
+; Some deviations from this format exist, [see below].
+
+; Field specifiers in CGEN specify the highest numbered bit followed by
+; the number of bits.
+
+(dnf f-operand1 "Operand1" () 3 4)
+(dnf f-size "Size" () 5 2)
+(dnf f-opcode "Opcode" () 9 4)
+(dnf f-mode "Mode" () 11 2)
+(dnf f-operand2 "Operand2" () 15 4)
+
+; Subfields.  FIXME: unfortunately there's some limitation in CGEN so we
+; can't (as would be somewhat intuitive) make f-mode a multi-ifield
+; consisting of these two, concatenated.
+(dnf f-memmode "Indirect of autoincrement" () 10 1)
+(dnf f-membit "Memory specifier" () 11 1)
+
+(dnf f-b5 "Bit 5 (zero for some quick operands)" () 5 1)
+
+; When the addressing mode is quick immediate, the low bits are
+; part of the operand.
+(dnf f-opcode-hi "Opcode field, high bits" () 9 2)
+
+; Common synonyms for those fields.
+(define-pmacro f-source f-operand1)
+(define-pmacro f-dest f-operand2)
+
+(dnmf
+ f-dstsrc "Dest and source fields concatenated" () UINT
+ (f-dest f-source)
+ ; Insert-code.
+ (sequence
+   ((SI tmpval))
+   (set tmpval (ifield f-dstsrc))
+   (set (ifield f-dest) (and (srl tmpval 4) #xf))
+   (set (ifield f-source) (and tmpval #xf)))
+ ; Extract-code.
+ (set
+  (ifield f-dstsrc)
+  (and (or (ifield f-source) (sll (ifield f-dest) 4)) #xff))
+)
+
+;The 6-bit value may be sign or zero extended depending on the instruction.
+;
+;	  15                                            0
+;	 +-----------+-----+-----------+-----+-----------+
+;	 | Operand2  | Mode| Opcode    | Immediate value |
+;	 +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+;
+;   Figure 6.  Quick immediate addressing mode instruction format.
+
+(dnf f-u6 "Quick immediate unsigned 6-bit" () 5 6)
+(df f-s6 "Quick signed 6-bit" () 5 6 INT #f #f)
+
+; There's also a variant used with shift insns, with one bit larger opcode
+; and one bit smaller immediate value, though it doesn't have a general
+; graphic description.
+(dnf f-u5 "Quick unsigned 5-bit" () 4 5)
+
+; Similarly, a four-bit immediate field.
+(dnf f-u4 "Quick unsigned 4-bit" () 3 4)
+
+; An 8-bit signed value, which doesn't have a general graphic description.
+(df f-s8 "Source signed byte" () 7 8 INT #f #f)
+
+; The 9-bit branch offset, with bit 0 in the field being bit 8 in the
+; offset, and bit 0 in the offset always 0.
+(df f-disp9-hi "PC-relative 9-bit offset, sign bit" () 0 1 INT #f #f)
+(dnf f-disp9-lo "PC-relative 9-bit offset, low bits" () 7 7)
+
+; It would work to have this in two mach-specific variants, but
+; considering that current-mach-is-v32 is a compile-time constant, we
+; don't win any simulator performance.
+(dnmf
+ f-disp9 "PC-relative 9-bit offset"
+ (PCREL-ADDR)
+ INT
+ (f-disp9-hi f-disp9-lo)
+ ; Insert-code.
+ (sequence
+   ((SI absval))
+   (set absval (srl (sub (sub SI (ifield f-disp9) pc)
+			 (if SI current-mach-is-v32 0 2)) 1))
+   (set (ifield f-disp9-hi) (if (lt absval 0) 1 0))
+   (set (ifield f-disp9-lo) (and absval) #x7f))
+ ; Extract-code.
+ (sequence
+   ((SI abslo) (SI absval))
+   (set abslo (sll (ifield f-disp9-lo) 1))
+   (set absval
+	(or (if SI (ne (ifield f-disp9-hi) 0)
+		(inv SI #xff)
+		0)
+	    abslo))
+   (set (ifield f-disp9)
+	(add SI (add SI pc absval) (if SI current-mach-is-v32 0 2))))
+)
+
+; The operand of LAPCQ is PC-relative, similar to f-disp9 but unsigned,
+; and only four bits.
+(df
+ f-qo
+ "PC-relative 4-bit unsigned offset, counted from start of insn"
+ (MACH-V32 PCREL-ADDR)
+ 3 4
+ UINT
+ ; Insert-code.
+ ((value pc) (srl SI (sub SI value pc) 1))
+ ; Extract-code.
+ ((value pc) (add SI pc (sll SI value 1)))
+)
+
+; 8-bit, 16-bit and 32-bit immediates.  The 8-bit values are constructed
+; through encoding/decoding functions, since the PC increment is by a
+; word.
+(define-pmacro (dcrisf x-name x-comment x-attrs x-word-offset x-word-length
+		       x-start x-length x-mode x-encode x-decode)
+  (define-ifield
+    (name x-name)
+    (comment x-comment)
+    (.splice attrs (.unsplice x-attrs))
+    (word-offset x-word-offset)
+    (word-length x-word-length)
+    (start x-start)
+    (length x-length)
+    (mode x-mode)
+    (.splice encode (.unsplice x-encode))
+    (.splice decode (.unsplice x-decode))
+  )
+)
+
+(dcrisf
+ f-indir-pc+-byte "[PC+] 8-bit field" (SIGN-OPT)
+ 16 16
+ 15 16 ; CGEN-FIXME: Should be 7 8
+ INT (#f) (#f)
+)
+
+(dcrisf
+ f-indir-pc+-word "[PC+] 16-bit field" (SIGN-OPT)
+ 16 16 15 16 INT (#f) (#f)
+)
+
+; CGEN-FIXME: I shouldn't have to use trunc here, should I?
+; Sign-extension should be implicit through use of SI (as opposed to USI)
+; and additionally through SIGN-OPT.  The ext isn't actually needed, but
+; having it there rather than implicit makes more sense than to just have
+; the trunc.
+(dcrisf
+ f-indir-pc+-word-pcrel "[PC+] PC-relative 16-bit field"
+ (PCREL-ADDR SIGN-OPT)
+ 16 16 15 16 SI
+ ((value pc) (sub SI value (add SI pc (if SI current-mach-is-v32 0 4))))
+ ((value pc) (add SI (ext SI (trunc HI value)) (add SI pc (if SI current-mach-is-v32 0 4))))
+)
+
+(dcrisf
+ f-indir-pc+-dword "PC autoincrement - 32-bit field" (SIGN-OPT)
+ 16 32 31 32 INT (#f) (#f)
+)
+
+(dcrisf
+ f-indir-pc+-dword-pcrel
+ "[PC+] PC-relative 32-bit field, counted from start of insn"
+ (SIGN-OPT MACH-V32 PCREL-ADDR)
+ 16 32 31 32 INT
+ ((value pc) (sub SI value pc))
+ ((value pc) (add SI pc value))
+)
+
+;;;;;;;;;;;;;;;;;; -insn-enum -normal-operand -normal-derived-operand
+
+;; How different fields are transformed into something we put in insns.
+
+;	 m       := size modifier, byte (00), word (01) or dword (10)
+;	 z       := size modifier, byte (0) or word (1)
+; (For the latter, the "higher" bit is always 0, mapping trivially on m.)
+
+(define-normal-insn-enum
+  insn-size
+  "Standard instruction operand size"
+  ()
+  SIZE_
+  f-size
+  ("BYTE" "WORD" "DWORD" "FIXED")
+)
+
+; The mode field for insns with "s" operand (perhaps with a partial set of
+; operand types).
+(define-normal-insn-enum
+  insn-mode
+  "Standard instruction addressing modes"
+  ()
+  MODE_
+  f-mode
+  ("QUICK_IMMEDIATE" "REGISTER" "INDIRECT" "AUTOINCREMENT")
+)
+
+(define-normal-insn-enum
+  insn-memoryness-mode
+  "Whether the operand is indirect"
+  ()
+  MODEMEMP_
+  f-membit
+  ("NO" "YES")
+)
+
+; FIXME: Needed?
+(define-normal-insn-enum
+  insn-memincness-mode
+  "Whether the indirect operand is autoincrement"
+  ()
+  MODEINCP_
+  f-memmode
+  ("NO" "YES")
+)
+
+; Special semantics for multiply.
+(define-pmacro MODE_MULU MODE_INDIRECT)
+(define-pmacro MODE_MULS MODE_AUTOINCREMENT)
+
+(define-normal-insn-enum
+  insn-signed-size
+  "Signed instruction operand size"
+  ()
+  SIGNED_
+  f-size
+  ("UNDEF_SIZE_0" "UNDEF_SIZE_1" "BYTE" "WORD")
+)
+
+(define-normal-insn-enum
+  insn-unsigned-size
+  "Unsigned instruction operand size"
+  ()
+  UNSIGNED_
+  f-size
+  ("BYTE" "WORD" "UNDEF_SIZE_2" "UNDEF_SIZE_3")
+)
+
+;	 Rs      := source operand, register addressing mode
+(dnop Rs "Source general register" () h-gr f-source)
+
+;	 [Rs]    := source operand, indirect addressing mode
+; = MODE_INDIRECT Rs
+
+;	 [Rs+]   := source operand, autoincrement addressing mode  (see note!)
+; = MODE_AUTOINCREMENT Rs
+
+; The union of [Rs] and [Rs(+)]
+; = MODEMEMP_YES Rs
+
+; Whether an indirect operand is increment can be obtained as an operand by
+; = inc
+(dnop inc "Incrementness of indirect operand" () h-inc f-memmode)
+
+; or as an affirmative specifier
+; = MODEINCP_YES
+; (or MODEINCP_NO)
+
+;	 s       := source operand, any of the modes Rs, [Rs] or [Rs+]
+; No common operand; each are handled separately, using the above definitions.
+
+;	 Ps      := source operand, special register
+; It's in the field usually used for the destination.
+(dnop Ps "Source special register" () h-sr f-dest)
+
+;	 Ss      := source operand, support register
+; It's in the field usually used for the destination.
+(dnop Ss "Source support register" (MACH-V32) h-supr f-dest)
+
+;	 Sd      := source operand, support register
+(dnop Sd "Destination support register" (MACH-V32) h-supr f-dest)
+
+;	 i       := 6-bit signed immediate operand
+(dnop i "Quick signed 6-bit" () h-sint f-s6)
+
+;	 j       := 6-bit unsigned immediate operand
+(dnop j "Quick unsigned 6-bit" () h-uint f-u6)
+
+;	 c       := 5-bit immediate shift value
+(dnop c "Quick unsigned 5-bit" () h-uint f-u5)
+
+;	 qo      := 4-bit unsigned immediate operand
+(dnop qo "Quick unsigned 4-bit, PC-relative" (MACH-V32) h-addr f-qo)
+
+;	 Rd      := destination operand, register addressing mode
+(dnop Rd "Destination general register" () h-gr f-dest)
+(define-pmacro Rd-sfield Rs)
+(define-pmacro Rs-dfield Rd)
+
+;	 [Rd]    := destination operand, indirect addressing mode
+; = MODE_INDIRECT Rd
+
+;	 [Rd+]   := destination operand, autoincrement addressing mode
+; = MODE_AUTOINCREMENT Rd
+
+;	 [PC+]   := destination operand PC, autoincrement addressing mode
+; = MODE_AUTOINCREMENT (f-dest 15) X
+; where X is one of sconst8, uconst8, sconst16, uconst16 or const32.
+(dnop sconst8 "Signed byte [PC+]" () h-sint f-indir-pc+-byte)
+(dnop uconst8 "Unsigned byte [PC+]" () h-uint f-indir-pc+-byte)
+(dnop sconst16 "Signed word [PC+]" () h-sint f-indir-pc+-word)
+(dnop uconst16 "Unsigned word [PC+]" () h-uint f-indir-pc+-word)
+(dnop const32 "Dword [PC+]" () h-uint f-indir-pc+-dword)
+(dnop const32-pcrel "Dword [PC+]" () h-addr f-indir-pc+-dword-pcrel)
+
+;	 d       := destination operand, any of the modes Rd, [Rd] or [Rd+]
+; No common operand; each are handled separately, using the above definitions.
+
+;	 Pd      := destination operand, special register
+(dnop Pd "Destination special register" () h-sr f-dest)
+
+;	 o       := 8-bit immediate offset value
+(dnop o "Signed 8-bit" () h-sint f-s8)
+
+; The division of operand semantics and insn fields in the CRIS
+; instruction set reference doesn't permit a simple mapping to a
+; simulator description, and the division of insn fields and
+; semantics in CGEN is not between the define-normal-ifield
+; vs. define-normal-operand.  For example, the "o" operand is
+; PC-relative for branch insns, as described by the CGEN f-disp9
+; field.
+; See comment at f-disp9; thankfully the mach
+; attribute works here to have two different definitions by the
+; same name.
+(dnop o-pcrel "9-bit signed immediate PC-rel"
+      ()
+      h-iaddr f-disp9)
+
+(dnop o-word-pcrel "16-bit signed immediate PC-rel"
+      ()
+      h-iaddr f-indir-pc+-word-pcrel)
+
+;	 cc      := condition code
+(dnop cc "Condition codes" () h-ccode f-dest)
+
+;	 n       := 4 bit breakpoint exception vector index
+(dnop n "Quick unsigned 4-bit" () h-uint f-u4)
+
+; The "option" in the SWAP insn.
+(dnop swapoption "Swap option" () h-swap f-dest)
+
+(dnop list-of-flags "Flag bits as operand" () h-flagbits f-dstsrc)
+
+; Enumerations for insn codes, for use in insn definitions
+; instead of raw numbers.  See it as operand definitions for the
+; opcode field.
+
+(define-normal-insn-enum
+  insn-qi-opc
+  "Insns for MODE_QUICK_IMMEDIATE"
+  ()
+  Q_
+  f-opcode
+  ("BCC_0" "BCC_1" "BCC_2" "BCC_3"
+   "BDAP_0" "BDAP_1" "BDAP_2" "BDAP_3"
+   "ADDQ" "MOVEQ" "SUBQ" "CMPQ"
+   "ANDQ" "ORQ" "ASHQ" "LSHQ")
+)
+
+(define-normal-insn-enum
+  insn-qihi-opc
+  "Same as insn-qi-opc, though using only the high two bits of the opcode"
+  ()
+  QHI_
+  f-opcode-hi
+  ("BCC" "BDAP" "OTHER2" "OTHER3")
+)
+(define-pmacro QHI_ADDOQ QHI_BDAP)
+
+(define-normal-insn-enum
+  insn-r-opc
+  "Insns for MODE_REGISTER and either SIZE_BYTE, SIZE_WORD or SIZE_DWORD"
+  ()
+  R_
+  f-opcode
+  ("ADDX" "MOVX" "SUBX" "LSL"
+   "ADDI" "BIAP" "NEG" "BOUND"
+   "ADD" "MOVE" "SUB" "CMP"
+   "AND" "OR" "ASR" "LSR")
+)
+(define-pmacro R_ADDI_ACR R_BIAP)
+
+(define-normal-insn-enum
+  insn-rfix-opc
+  "Insns for MODE_REGISTER and SIZE_FIXED"
+  ()
+  RFIX_
+  f-opcode
+  ("ADDX" "MOVX" "SUBX" "BTST"
+   "SCC" "ADDC" "SETF" "CLEARF"
+   "MOVE_R_S" "MOVE_S_R" "ABS" "DSTEP"
+   "LZ" "SWAP" "XOR" "MSTEP")
+)
+(define-pmacro RFIX_MCP RFIX_MSTEP)
+
+(define-normal-insn-enum
+  insn-indir-opc
+  "Insns for (MODE_INDIRECT or MODE_AUTOINCREMENT) and either SIZE_BYTE, SIZE_WORD or SIZE_DWORD"
+  ()
+  INDIR_
+  f-opcode
+  ("ADDX" "MOVX" "SUBX" "CMPX"
+   "MUL" "BDAP_M" "ADDC" "BOUND"
+   "ADD" "MOVE_M_R" "SUB" "CMP"
+   "AND" "OR" "TEST" "MOVE_R_M")
+)
+(define-pmacro INDIR_ADDO INDIR_BDAP_M)
+
+(define-normal-insn-enum
+  insn-infix-opc
+  "Insns for (MODE_INDIRECT or MODE_AUTOINCREMENT) and SIZE_FIXED"
+  ()
+  INFIX_
+  f-opcode
+  ("ADDX" "MOVX" "SUBX" "CMPX"
+   "JUMP_M" "DIP" "JUMP_R" "BCC_M"
+   "MOVE_M_S" "MOVE_S_M" "BMOD" "BSTORE"
+   "RBF" "SBFS" "MOVEM_M_R" "MOVEM_R_M")
+)
+
+(define-pmacro INFIX_MOVE_SS INFIX_SBFS)
+(define-pmacro INFIX_LAPC INFIX_DIP)
+(define-pmacro INFIX_RFE INFIX_JUMP_M)
+(define-pmacro INFIX_RFN INFIX_JUMP_M)
+(define-pmacro INFIX_HALT INFIX_JUMP_M)
+(define-pmacro INFIX_SFE INFIX_JUMP_M)
+(define-pmacro INFIX_RFG INFIX_JUMP_M)
+(define-pmacro INFIX_JAS_R INFIX_JUMP_R)
+(define-pmacro INFIX_JAS_M INFIX_JUMP_R)
+(define-pmacro INFIX_JASC INFIX_RBF)
+(define-pmacro INFIX_JUMP_P INFIX_BCC_M)
+(define-pmacro INFIX_BAS INFIX_BMOD)
+(define-pmacro INFIX_BASC INFIX_BSTORE)
+(define-pmacro INFIX_BREAK INFIX_JUMP_M)
+(define-pmacro INFIX_FIDXI INFIX_JUMP_M)
+(define-pmacro INFIX_FIDXD INFIX_BAS)
+(define-pmacro INFIX_FTAGI INFIX_JUMP_M)
+(define-pmacro INFIX_FTAGD INFIX_BAS)
+
+; Classes of insns:
+; Move-to-register, move-to-memory, move-to/from-other-register,
+; logical, arithmetic, branch.
+; Classes of operands:
+; quick, register, memory-indirect, memory-postinc.
+
+
+;;;;;;;;;;;;;;;;;; -normal-insn
+
+(define-pmacro (dni-bwd-attr name comment attr syntax fmt fsem timing)
+  (begin
+    (dni (.sym name .b) (.str "byte " comment) attr (.str name ".b " syntax)
+	 (.splice (.unsplice fmt) SIZE_BYTE)
+	 (fsem QI)
+	 timing)
+    (dni (.sym name .w) (.str "word " comment) attr (.str name ".w " syntax)
+	 (.splice (.unsplice fmt) SIZE_WORD)
+	 (fsem HI)
+	 timing)
+    (dni (.sym name .d) (.str "dword " comment) attr (.str name ".d " syntax)
+	 (.splice (.unsplice fmt) SIZE_DWORD)
+	 (fsem SI)
+	 timing))
+)
+
+(define-pmacro (dni-cdt-attr name comment attr syntax fmt semantics)
+  "dni without specifying timing"
+  (dni name comment attr syntax fmt semantics (cris-timing))
+)
+
+(define-pmacro (dni-cdt-bwd-attr name comment attr syntax fmt fsem)
+  (begin
+    (dni-cdt-attr (.sym name .b-r) (.str "byte " comment) attr (.str name ".b " syntax)
+		  (.splice (.unsplice fmt) SIZE_BYTE)
+		  (fsem QI))
+    (dni-cdt-attr (.sym name .w-r) (.str "word " comment) attr (.str name ".w " syntax)
+		  (.splice (.unsplice fmt) SIZE_WORD)
+		  (fsem HI))
+    (dni-cdt-attr (.sym name .d-r) (.str "dword " comment) attr (.str name ".d " syntax)
+		  (.splice (.unsplice fmt) SIZE_DWORD)
+		  (fsem SI)))
+)
+
+; Some convenience macros based on the above ones.
+(define-pmacro (dni-cdt-bwd name comment syntax fmt fsem)
+  (dni-cdt-bwd-attr name comment () syntax fmt fsem)
+)
+
+(define-pmacro (dni-bwd name comment syntax fmt fsem timing)
+  (dni-bwd-attr comment () syntax fmt fsem timing)
+)
+
+(define-pmacro-map
+  (((dni-cdt name comment syntax fmt semantics)
+    (dni-cdt-attr name comment () syntax fmt semantics))
+   ((dni-c-QI-attr name comment attr syntax fmt fsem)
+    (dni name comment attr syntax fmt fsem (cris-timing-const-QI)))
+   ((dni-c-HI-attr name comment attr syntax fmt fsem)
+    (dni name comment attr syntax fmt fsem (cris-timing-const-HI)))
+   ((dni-c-SI-attr name comment attr syntax fmt fsem)
+    (dni name comment attr syntax fmt fsem (cris-timing-const-SI))))
+)
+
+(define-pmacro-map
+  (((dni-c-QI name comment syntax fmt fsem)
+    (dni-c-QI-attr name comment () syntax fmt fsem))
+   ((dni-c-HI name comment syntax fmt fsem)
+    (dni-c-HI-attr name comment () syntax fmt fsem))
+   ((dni-c-SI name comment syntax fmt fsem)
+    (dni-c-SI-attr name comment () syntax fmt fsem)))
+)
+
+; These flags are both cleared by all insns except prefixes (before
+; CRISv32) and "setf x", so we put them in a handy macro.
+(define-pmacro
+  (reset-x-p)
+  (sequence
+    ()
+    (set xbit 0)
+    (set prefix-set 0))
+)
+
+;        NOP           | 0  0  0  0| 0  1| 0  1  0  0| 0  0| 1  1  1  1|
+; (For V32, "SETF" (no flags) is used.)
+(dni-cdt-attr
+ nop "nop" (MACH-PC) "nop"
+ (+ (f-operand2 0) R_ADDI MODE_REGISTER SIZE_BYTE (f-operand1 15))
+ (reset-x-p)
+)
+
+; Pre- and v32+ variants MOVE insns set flags differently.  These two
+; macros for flag settings are meant to be used in all MOVE insns.
+(define-pmacro (setf-moveq value)
+  (sequence
+    ()
+    (set-quiet nbit-move (lt SI value 0))
+    (set-quiet zbit-move (andif BI (eq SI value 0) (if BI xbit zbit 1)))
+    (set-quiet cbit-move 0)
+    (set-quiet vbit-move 0)
+    (reset-x-p))
+)
+
+(define-pmacro (setf-move size value)
+  (sequence
+    ()
+    (set nbit (lt size value 0))
+    (set zbit (andif BI (eq size value 0) (if BI xbit zbit 1)))
+    (set-quiet cbit-move 0)
+    (set-quiet vbit-move 0)
+    (reset-x-p))
+)
+; The CGEN binop-with-bit operations are not documented well enough that I
+; trust their semantics to remain stable.  Better define local ones: the
+; semantics become explicit.
+(define-pmacro-map
+  (((add-overflow size R D S carry)
+    (orif BI (andif BI (andif BI (lt size S 0) (lt size D 0)) (ge size R 0))
+	  (andif BI (andif BI (ge size S 0) (ge size D 0)) (lt size R 0))))
+   ((add-carry size R D S carry)
+    (orif BI (andif BI (lt size S 0) (lt size D 0))
+	  (orif BI (andif BI (lt size D 0) (ge size R 0))
+		(andif BI (lt size S 0) (ge size R 0)))))
+   ((sub-overflow size R D S carry)
+    (orif BI (andif BI (andif BI (ge size S 0) (lt size D 0)) (ge size R 0))
+	  (andif BI (andif BI (lt size S 0) (ge size D 0)) (lt size R 0))))
+   ((sub-carry size R D S carry)
+    (orif BI (andif BI (lt size S 0) (ge size D 0))
+	  (orif BI (andif BI (ge size D 0) (lt size R 0))
+		(andif BI (lt size S 0) (lt size R 0)))))
+   ; Only valid for size := DI
+   ((mulu-overflow size R D S carry)
+    (ne DI R (zext DI (trunc SI R))))
+   ((mulu-carry size R D S carry)
+    (andif current-mach-is-v32 carry))
+   ((muls-overflow size R D S carry)
+    (ne DI R (ext DI (trunc SI R))))
+   ((muls-carry size R D S carry)
+    (andif current-mach-is-v32 carry)))
+)
+
+(define-pmacro (setf-arit2 size op source1 source2 result carryin carryout)
+  "Set no-prefix, x=0, carryout, v, z and n according to operation OP in size SIZE"
+  (sequence
+    ()
+    (set carryout ((.sym op -carry) size result source1 source2 carryin))
+    (set nbit (lt size result 0))
+    (set zbit (andif BI (eq size result 0) (orif BI zbit (not BI xbit))))
+    (set vbit ((.sym op -overflow) size result source1 source2 carryin))
+    (reset-x-p))
+)
+(define-pmacro (setf-arit size op source1 source2 result carry)
+  "Set no-prefix, x=0, c, v, z and n according to operation OP in size SIZE"
+  (setf-arit2 size op source1 source2 result carry cbit)
+)
+
+; Let's have convienence macros for arithmetic, including evaluation of the
+; operation, destination modification, flag setting and carry propagation.
+(define-pmacro
+  (cris-arit6-int arit size fdest fdest_op srcop1 srcop2 carryout carryin)
+  "Core for performing some three-operand arithmetic with carry as parameter"
+  (sequence
+   ((size tmpopd) (size tmpops) (BI carry) (size newval))
+   (set tmpops srcop2)
+   (set tmpopd srcop1)
+   (set carry carryin)
+   (set newval ((.sym arit c) tmpopd tmpops (if BI (eq xbit 0) 0 carry)))
+   (fdest size fdest_op newval)
+   (setf-arit2 size arit tmpopd tmpops newval carry carryout))
+)
+
+(define-pmacro
+  (cris-arit5-int arit size destregno srcop1 srcop2 carryout carryin)
+  "As cris-arit6-int, but to set a part of a general register"
+  (cris-arit6-int
+   arit
+   size
+   (.pmacro (sz regno val) (set-subreg-gr sz regno val))
+   destregno
+   srcop1
+   srcop2
+   carryout
+   carryin)
+)
+
+(define-pmacro (cris-arit5 arit size destreg srcop1 srcop2 carryout carryin)
+  "As cris-arit5-int, but takes a register as parameter, not register number"
+  (cris-arit5-int arit size (regno destreg) srcop1 srcop2 carryout carryin)
+)
+(define-pmacro (cris-arit3-int arit size destregno srcop1 srcop2)
+  "As cris-arit5-int, but with carry-in same as carry-out"
+  (cris-arit5-int arit size destregno srcop1 srcop2 cbit cbit)
+)
+(define-pmacro (cris-arit3 arit size destreg srcop1 srcop2)
+  "As cris-arit3-int, but takes a register as parameter, not register number"
+  (cris-arit3-int arit size (regno destreg) srcop1 srcop2)
+)
+(define-pmacro (cris-arit arit size destreg srcop)
+  "As cris-arit3, but with destination same as srcop1"
+  (cris-arit3 arit size destreg destreg srcop)
+)
+(define-pmacro (cris-arit-3op arit size destsrcop2 srcop1 dest-3op)
+  "Similar to cris-arit3-int, but for prefixed operand only"
+  (cris-arit3-int arit size
+		  (if SI (andif prefix-set (not inc))
+		      (regno dest-3op)
+		      (regno destsrcop2))
+		  destsrcop2 srcop1)
+)
+
+; Convenience macros to select a part of a value and its complement, for
+; the <op>.b, <op>.w and <op>.d operations.
+(define-pmacro (QI-part val) (and SI val #xff))
+(define-pmacro (non-QI-part val) (and SI val #xffffff00))
+(define-pmacro (HI-part val) (and SI val #xffff))
+(define-pmacro (non-HI-part val) (and SI val #xffff0000))
+(define-pmacro (SI-part val) val)
+(define-pmacro (non-SI-part val) 0)
+(define-pmacro
+  (set-subreg-gr-bw BWD gregno newval)
+  "Set a byte or word part or full dword of a general register"
+  (sequence
+    ((SI oldregval))
+    (set oldregval (reg h-raw-gr gregno))
+    (set (reg h-gr gregno)
+	 (or SI ((.sym BWD -part) newval) ((.sym non- BWD -part) oldregval))))
+)
+(define-pmacro (set-subreg-gr BWD gregno newval)
+  ((.sym set-subreg-gr- BWD) BWD gregno newval)
+)
+(define-pmacro (set-subreg-gr-SI SI gregno newval)
+  (set (reg h-gr gregno) newval)
+)
+(define-pmacro set-subreg-gr-HI set-subreg-gr-bw)
+(define-pmacro set-subreg-gr-QI set-subreg-gr-bw)
+
+; MOVE.m  Rs,Rd           [ Rd | 011001mm | Rs ]
+(dni-cdt-bwd
+ move "move.m r,R"
+ "move.m ${Rs},${Rd}"
+ (+ Rd MODE_REGISTER R_MOVE Rs)
+ (.pmacro
+  (BWD)
+  (sequence
+    ((BWD newval))
+    (set newval Rs)
+    (set-subreg-gr BWD (regno Rd) newval)
+    (setf-move BWD newval)))
+)
+
+; MOVE.D  PC,Rd           [ Rd | 01100110 | 1111 ]
+; This insn is used in PIC code to find out the code address.  It's an
+; exception to the (guarded) non-implementation of PC operands in this
+; file.
+(dni-cdt-attr
+ movepcr "move.d PC,R"
+ (MACH-PC UNCOND-CTI)
+ "move.d PC,${Rd}"
+ (+ Rd MODE_REGISTER R_MOVE SIZE_DWORD (f-source 15))
+ (sequence
+   ((SI pcval))
+   (set pcval (add SI pc 2))
+   (set Rd pcval)
+   (setf-move SI pcval))
+)
+
+; MOVEQ   i,Rd            [ Rd | 001001 | i ]
+(dni-cdt
+ moveq "moveq"
+ "moveq $i,$Rd"
+ (+ Rd MODE_QUICK_IMMEDIATE Q_MOVEQ i)
+ (sequence
+   ((SI newval))
+   (set newval i)
+   (set Rd newval)
+   (setf-moveq newval))
+)
+
+(define-pmacro (dni-cdt-sbw name comment syntax fmt fsem)
+  "Insn generator for insns with signed <op>.b and <op>.w variants"
+  (begin
+    (dni-cdt
+     (.sym name .b-r) (.str "byte " comment) (.str name ".b " syntax)
+     (.splice (.unsplice fmt) SIGNED_BYTE)
+     (fsem QI))
+    (dni-cdt
+     (.sym name .w-r) (.str "word " comment) (.str name ".w " syntax)
+     (.splice (.unsplice fmt) SIGNED_WORD)
+     (fsem HI)))
+)
+
+; MOVS.z  Rs,Rd           [ Rd | 0100011z | Rs ]
+(dni-cdt-sbw
+ movs "movs.m r,R"
+ "movs.m ${Rs},${Rd}"
+ (+ Rd MODE_REGISTER R_MOVX Rs)
+ (.pmacro
+  (BW)
+  (sequence
+    ((BW newval))
+    (set newval Rs)
+    (set Rd (ext SI newval))
+    (setf-move SI newval)))
+)
+
+(define-pmacro (dni-cdt-ubw name comment syntax fmt fsem)
+  "Similar to dni-cdt-sbw but for unsigned operations"
+  (begin
+    (dni-cdt
+     (.sym name .b-r) (.str "byte " comment) (.str name ".b " syntax)
+     (.splice (.unsplice fmt) UNSIGNED_BYTE)
+     (fsem QI))
+    (dni-cdt
+     (.sym name .w-r) (.str "word " comment) (.str name ".w " syntax)
+     (.splice (.unsplice fmt) UNSIGNED_WORD)
+     (fsem HI)))
+)
+
+; MOVU.z  Rs,Rd           [ Rd | 0100010z | Rs ]
+(dni-cdt-ubw
+ movu "movu.m r,R"
+ "movu.m ${Rs},${Rd}"
+ (+ Rd MODE_REGISTER R_MOVX Rs)
+ (.pmacro
+  (BW)
+  (sequence
+    ((BW newval))
+    (set newval Rs)
+    (set Rd (zext SI newval))
+    (setf-move SI newval)))
+)
+
+; (MOVE.m  [PC+],Rd        [ Rd | 111001mm | 1111 ])
+; For the moment, it doesn't seem worthwhile to make a dni-c-bwd macro;
+; too many places to parametrize.
+(dni-c-QI
+ movecbr "move.b [PC+],R"
+ "move.b ${sconst8},${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INDIR_MOVE_M_R SIZE_BYTE (f-source 15) sconst8)
+ (sequence
+   ((QI newval))
+   (set newval sconst8)
+   (set-subreg-gr QI (regno Rd) newval)
+   (setf-move QI newval))
+)
+
+(dni-c-HI
+ movecwr "move.w [PC+],R"
+ "move.w ${sconst16},${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INDIR_MOVE_M_R SIZE_WORD (f-source 15) sconst16)
+ (sequence
+   ((HI newval))
+   (set newval sconst16)
+   (set-subreg-gr HI (regno Rd) newval)
+   (setf-move HI newval))
+)
+
+(dni-c-SI
+ movecdr "move.d [PC+],R"
+ "move.d ${const32},${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INDIR_MOVE_M_R SIZE_DWORD (f-source 15) const32)
+ (sequence
+   ((SI newval))
+   (set newval const32)
+   (set Rd newval)
+   (setf-move SI newval))
+)
+
+; (MOVS.z  [PC+],Rd        [ Rd | 1100011z | 1111 ])
+; Similarly, no likely net improvement for a dni-c-bw.
+(dni-c-QI
+ movscbr "movs.b [PC+],R"
+ "movs.b ${sconst8},${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INDIR_MOVX SIGNED_BYTE (f-source 15) sconst8)
+ (sequence
+   ((SI newval))
+   ; FIXME: Make trunc unnecessary.
+   (set newval (ext SI (trunc QI sconst8)))
+   (set Rd newval)
+   (setf-move SI newval))
+)
+
+(dni-c-HI
+ movscwr "movs.w [PC+],R"
+ "movs.w ${sconst16},${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INDIR_MOVX SIGNED_WORD (f-source 15) sconst16)
+ (sequence
+   ((SI newval))
+   ; FIXME: Make trunc unnecessary.
+   (set newval (ext SI (trunc HI sconst16)))
+   (set Rd newval)
+   (setf-move SI newval))
+)
+
+; (MOVU.z  [PC+],Rd        [ Rd | 1100010z | 1111 ])
+(dni-c-QI
+ movucbr "movu.b [PC+],R"
+ "movu.b ${uconst8},${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INDIR_MOVX UNSIGNED_BYTE (f-source 15) uconst8)
+ (sequence
+   ((SI newval))
+   ; FIXME: Make trunc unnecessary.
+   (set newval (zext SI (trunc QI uconst8)))
+   (set Rd newval)
+   (setf-move SI newval))
+)
+
+(dni-c-HI
+ movucwr "movu.w [PC+],R"
+ "movu.w ${uconst16},${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INDIR_MOVX UNSIGNED_WORD (f-source 15) uconst16)
+ (sequence
+   ((SI newval))
+   ; FIXME: Make trunc unnecessary.
+   (set newval (zext SI (trunc HI uconst16)))
+   (set Rd newval)
+   (setf-move SI newval))
+)
+
+; ADDQ    j,Rd            [ Rd | 001000 | j ]
+(dni-cdt
+ addq "addq j,Rd"
+ "addq $j,$Rd"
+ (+ Rd MODE_QUICK_IMMEDIATE Q_ADDQ j)
+ (cris-arit add SI Rd j)
+)
+
+; SUBQ    j,Rd            [ Rd | 001010| j ]
+(dni-cdt
+ subq "subq j,Rd"
+ "subq $j,$Rd"
+ (+ Rd MODE_QUICK_IMMEDIATE Q_SUBQ j)
+ (cris-arit sub SI Rd j)
+)
+
+; Convenience macros for insns with a memory operand.
+(define-pmacro
+  (dni-cmt-attr-tim name comment attr syntax fmt semantics timing)
+  "dni with memory-access"
+  (dni name comment attr syntax
+       ; Specifying MODE_INDIRECT and MODE_AUTOINCREMENT in this
+       ; manner makes the autoincrementness handily available.
+       ; It also effectively excludes non-memory use of dni-cmt.
+       (.splice (.unsplice fmt) MODEMEMP_YES inc)
+       semantics
+       timing)
+)
+
+(define-pmacro (dni-cmt-attr name comment attr syntax fmt semantics)
+  "dni with read memory-access timing"
+  (dni-cmt-attr-tim name comment attr syntax fmt semantics
+		    (cris-mem-timing))
+)
+
+(define-pmacro (dni-cmwt-attr  name comment attr syntax fmt semantics)
+  "dni with write memory-access timing"
+  (dni-cmt-attr-tim name comment attr syntax fmt semantics
+		    (cris-mem-write-timing))
+)
+
+(define-pmacro QI-size 1)
+(define-pmacro HI-size 2)
+(define-pmacro SI-size 4)
+
+(define-pmacro (cris-get-mem size regop)
+  "Handle reading memory in <size>, with source address register\
+ (read once, maybe set once) in <regop> or prefixed"
+  (sequence
+    size
+    ((SI addr) (size tmp-mem) (BI postinc))
+
+    ; Cache the incrementness of the operand.
+    (set postinc inc)
+
+    ; Get the address from somewhere.
+    (set addr
+	 (if SI (eq prefix-set 0)
+	     ; If the insn was prefixed, it's in the prefix-register.
+	     regop
+	     prefixreg))
+
+    ; Get the memory contents.
+    (set tmp-mem (mem size addr))
+
+    ; For non-prefixed post-increment, we increment the address by the
+    ; size of the memory access.
+    (if (ne postinc 0)
+	(sequence
+	  ()
+	  (if (eq prefix-set 0)
+	      (set addr (add addr (.sym size -size))))
+	  ; Update the source-register for post-increments.
+	  (set regop addr)))
+
+    ; Don't forget the return-value.
+    tmp-mem)
+)
+
+(define-pmacro (cris-set-mem size regop value)
+  "Handle writing <value> of <size> to memory, with memory address register\
+ (read once, maybe set once) in <regop> or prefixed."
+  (sequence
+    ((SI addr) (BI postinc))
+
+    ; Cache the incrementness of the operand.
+    (set postinc inc)
+
+    ; Get the address from somewhere.
+    (set addr
+	 (if SI (eq prefix-set 0)
+	     ; If the insn was prefixed, it's in the prefix-register.
+	     regop
+	     prefixreg))
+
+    ; Set the memory contents.  Integral-write semantics apply.
+    ; FIXME: currently v32 only; when proper semantics needed, fix v10.
+    (if (andif current-mach-is-v32 (ne xbit 0))
+	(if (eq pbit 0)
+	    (sequence
+	      ()
+	      (set (mem size addr) value)
+	      ; Write failures are signalled (by whatever entity "sends
+	      ; the signal") by setting P at time of the write above, if X
+	      ; is set.  Here, we just need to copy P into C.
+	      (set cbit pbit))
+	    (set cbit 1))
+	(set (mem size addr) value))
+
+    ; For non-prefixed post-increment, we increment the address by the
+    ; size of the memory access.  As for the integral-write, this needs to
+    ; be tweaked for pre-v32: increment should have been performed if
+    ; there's a fault at the memory access above.
+    (if (ne postinc 0)
+	(sequence
+	  ()
+	  (if (eq prefix-set 0)
+	      (set addr (add addr (.sym size -size))))
+	  ; Update the source-register for post-increments.
+	  (set regop addr))))
+)
+
+(define-pmacro
+  (dni-cmt-bwd-attr-tim name comment attr syntax fmt fsem timing)
+  "Core generator macro for insns with <op>.b, <op>.w and <op>.d variants\
+ and a memory operand."
+  (begin
+    (dni-cmt-attr-tim
+     (.sym name .b-m)
+     (.str "byte mem " comment)
+     attr
+     (.str name ".b " syntax)
+     (.splice (.unsplice fmt) SIZE_BYTE)
+     (fsem QI)
+     timing)
+    (dni-cmt-attr-tim
+     (.sym name .w-m)
+     (.str "word mem " comment)
+     attr
+     (.str name ".w " syntax)
+     (.splice (.unsplice fmt) SIZE_WORD)
+     (fsem HI)
+     timing)
+    (dni-cmt-attr-tim
+     (.sym name .d-m)
+     (.str "dword mem " comment)
+     attr
+     (.str name ".d " syntax)
+     (.splice (.unsplice fmt) SIZE_DWORD)
+     (fsem SI)
+     timing))
+)
+
+; Further refinement macros.
+(define-pmacro (dni-cmt-bwd-attr name comment attr syntax fmt fsem)
+  (dni-cmt-bwd-attr-tim name comment attr syntax fmt fsem
+			(cris-mem-timing))
+)
+
+(define-pmacro (dni-cmwt-bwd name comment syntax fmt fsem)
+  (dni-cmt-bwd-attr-tim name comment () syntax fmt fsem
+			(cris-mem-write-timing))
+)
+
+(define-pmacro (dni-cmt-bwd name comment syntax fmt fsem)
+  (dni-cmt-bwd-attr name comment () syntax fmt fsem)
+)
+
+(define-pmacro (dni-cmt-sbw name comment syntax fmt fsem)
+  "Core generator macro for insns with <op>.b and <op>.w variants\
+ and a signed memory operand."
+  (begin
+    (dni-cmt-attr
+     (.sym name .b-m) (.str "byte mem " comment)
+     ()
+     (.str name ".b " syntax)
+     (.splice (.unsplice fmt) SIGNED_BYTE)
+     (fsem QI))
+    (dni-cmt-attr
+     (.sym name .w-m) (.str "word mem " comment)
+     ()
+     (.str name ".w " syntax)
+     (.splice (.unsplice fmt) SIGNED_WORD)
+     (fsem HI)))
+)
+
+(define-pmacro (dni-cmt-ubw name comment syntax fmt fsem)
+  "Core generator macro for insns with <op>.b and <op>.w variants\
+ and an unsigned memory operand."
+  (begin
+    (dni-cmt-attr
+     (.sym name .b-m) (.str "byte mem " comment)
+     ()
+     (.str name ".b " syntax)
+     (.splice (.unsplice fmt) UNSIGNED_BYTE)
+     (fsem QI))
+    (dni-cmt-attr
+     (.sym name .w-m) (.str "word mem " comment)
+     ()
+     (.str name ".w " syntax)
+     (.splice (.unsplice fmt) UNSIGNED_WORD)
+     (fsem HI)))
+)
+
+; CMP.m   Rs,Rd           [ Rd | 011011mm | Rs ]
+(dni-cdt-bwd
+ cmp-r "compare register to register"
+ "$Rs,$Rd"
+ (+ Rd MODE_REGISTER R_CMP Rs)
+ (.pmacro
+  (BWD)
+  (cris-arit6-int
+   sub BWD (.pmacro (sz regno val) (nop)) 0
+   Rd Rs cbit cbit))
+)
+
+; CMP.m   [Rs],Rd         [ Rd | 101011mm | Rs ]
+; CMP.m   [Rs+],Rd        [ Rd | 111011mm | Rs ]
+(dni-cmt-bwd
+ cmp-m "compare memory to register"
+ "[${Rs}${inc}],${Rd}"
+ (+ INDIR_CMP Rs Rd)
+ (.pmacro
+  (BWD)
+  (cris-arit6-int
+   sub BWD (.pmacro (sz regno val) (nop)) 0
+   Rd (cris-get-mem BWD Rs) cbit cbit))
+)
+
+; (CMP.m   [PC+],Rd        [ Rd | 111011mm | 1111 ])
+(dni-c-QI
+ cmpcbr "cmp constant byte to register"
+ "cmp.b $sconst8,$Rd"
+ (+ Rd MODE_AUTOINCREMENT INDIR_CMP SIZE_BYTE (f-source 15) sconst8)
+ (cris-arit6-int
+  sub QI (.pmacro (sz regno val) (nop)) 0
+  Rd (trunc QI sconst8) cbit cbit)
+)
+
+(dni-c-HI
+ cmpcwr "cmp constant word to register"
+ "cmp.w $sconst16,$Rd"
+ (+ Rd MODE_AUTOINCREMENT INDIR_CMP SIZE_WORD (f-source 15) sconst16)
+ (cris-arit6-int
+  sub HI (.pmacro (sz regno val) (nop)) 0
+  Rd (trunc HI sconst16) cbit cbit)
+)
+
+(dni-c-SI
+ cmpcdr "cmp constant dword to register"
+ "cmp.d $const32,$Rd"
+ (+ Rd MODE_AUTOINCREMENT INDIR_CMP SIZE_DWORD (f-source 15) const32)
+ (cris-arit6-int
+  sub SI (.pmacro (sz regno val) (nop)) 0
+  Rd const32 cbit cbit)
+)
+
+; CMPQ    i,Rd            [ Rd | 001011 | i ]
+(dni-cdt
+ cmpq "cmpq i,Rd"
+ "cmpq $i,$Rd"
+ (+ Rd MODE_QUICK_IMMEDIATE Q_CMPQ i)
+ (cris-arit6-int
+  sub SI (.pmacro (sz regno val) (nop)) 0
+  Rd i cbit cbit)
+)
+
+; CMPS.z  [Rs],Rd         [ Rd | 1000111z | Rs ]
+; CMPS.z  [Rs+],Rd        [ Rd | 1100111z | Rs ]
+(dni-cmt-sbw
+ cmps-m "cmp sign-extended from memory to register"
+ "[${Rs}${inc}],$Rd"
+ (+ Rd INDIR_CMPX Rs)
+ (.pmacro
+  (BW)
+  (cris-arit6-int
+   sub SI (.pmacro (sz regno val) (nop)) 0
+   Rd ((.sym BW -ext) (cris-get-mem BW Rs)) cbit cbit))
+)
+
+; (CMPS.z  [PC+],Rd        [ Rd | 1100111z | 1111 ])
+(dni-c-QI
+ cmpscbr "cmp sign-extended constant byte to register"
+ "[${Rs}${inc}],$Rd"
+ (+ Rd MODE_AUTOINCREMENT INDIR_CMPX SIGNED_BYTE (f-source 15) sconst8)
+ (cris-arit6-int
+  sub SI (.pmacro (sz regno val) (nop)) 0
+  Rd (ext SI (trunc QI sconst8)) cbit cbit)
+)
+(dni-c-HI
+ cmpscwr "cmp sign-extended constant word to register"
+ "[${Rs}${inc}],$Rd"
+ (+ Rd MODE_AUTOINCREMENT INDIR_CMPX SIGNED_WORD (f-source 15) sconst16)
+ (cris-arit6-int
+  sub SI (.pmacro (sz regno val) (nop)) 0
+  Rd (ext SI (trunc HI sconst16)) cbit cbit)
+)
+
+; CMPU.z  [Rs],Rd         [ Rd | 1000110z | Rs ]
+; CMPU.z  [Rs+],Rd        [ Rd | 1100110z | Rs ]
+(dni-cmt-ubw
+ cmpu-m "cmp zero-extended from memory to register"
+ "[${Rs}${inc}],$Rd"
+ (+ Rd INDIR_CMPX Rs)
+ (.pmacro
+  (BW)
+  (cris-arit6-int
+   sub SI (.pmacro (sz regno val) (nop)) 0
+   Rd ((.sym BW -zext) (cris-get-mem BW Rs)) cbit cbit))
+)
+
+; (CMPU.z  [PC+],Rd        [ Rd | 1100110z | 1111 ])
+(dni-c-QI
+ cmpucbr "cmp zero-extended constant byte to register"
+ "[${Rs}${inc}],$Rd"
+ (+ Rd MODE_AUTOINCREMENT INDIR_CMPX UNSIGNED_BYTE (f-source 15) uconst8)
+ (cris-arit6-int
+  sub SI (.pmacro (sz regno val) (nop)) 0
+  Rd (zext SI (trunc QI uconst8)) cbit cbit)
+)
+(dni-c-HI
+ cmpucwr "cmp zero-extended constant word to register"
+ "[${Rs}${inc}],$Rd"
+ (+ Rd MODE_AUTOINCREMENT INDIR_CMPX UNSIGNED_WORD (f-source 15) uconst16)
+ (cris-arit6-int
+  sub SI (.pmacro (sz regno val) (nop)) 0
+  Rd (zext SI (trunc HI uconst16)) cbit cbit)
+)
+
+; MOVE.m  [Rs],Rd         [ Rd | 101001mm | Rs ]
+; MOVE.m  [Rs+],Rd        [ Rd | 111001mm | Rs ]
+(dni-cmt-bwd
+ move-m "move from memory to register"
+ "[${Rs}${inc}],${Rd}"
+ (+ INDIR_MOVE_M_R Rs Rd)
+ (.pmacro
+  (BWD)
+  (sequence
+    ((SI tmp))
+    (set tmp (cris-get-mem BWD Rs))
+    (set-subreg-gr
+     BWD
+     (if SI (andif prefix-set (not inc)) (regno Rs) (regno Rd))
+     tmp)
+    (setf-move BWD tmp)))
+)
+
+; MOVS.z  [Rs],Rd         [ Rd | 1000011z | Rs ]
+; MOVS.z  [Rs+],Rd        [ Rd | 1100011z | Rs ]
+(dni-cmt-sbw
+ movs-m "movs from memory to register"
+ "[${Rs}${inc}],${Rd}"
+ (+ INDIR_MOVX Rs Rd)
+ (.pmacro
+  (BW)
+  (sequence
+    ((SI tmp))
+    (set tmp (ext SI (cris-get-mem BW Rs)))
+    (if (andif prefix-set (not inc))
+	(set Rs tmp)
+	(set Rd tmp))
+    (setf-move SI tmp)))
+)
+
+; MOVU.z  [Rs],Rd         [ Rd | 1000010z | Rs ]
+; MOVU.z  [Rs+],Rd        [ Rd | 1100010z | Rs ]
+(dni-cmt-ubw
+ movu-m "movu from memory to register"
+ "[${Rs}${inc}],${Rd}"
+ (+ INDIR_MOVX Rs Rd)
+ (.pmacro
+  (BW)
+  (sequence
+    ((SI tmp))
+    (set tmp (zext SI (cris-get-mem BW Rs)))
+    (if (andif prefix-set (not inc))
+	(set Rs tmp)
+	(set Rd tmp))
+    (setf-move SI tmp)))
+)
+
+; MOVE    Rs,Pd           [ Pd | 01100011 | Rs ]
+(.splice
+ begin
+ (.unsplice
+  (.map
+   (.pmacro
+    (VER)
+    (dni
+     (.sym move-r-spr VER)
+     "Move from general register to special register"
+     ((MACH (.sym cris VER)))
+     "move ${Rs},${Pd}"
+     (+ RFIX_MOVE_R_S MODE_REGISTER SIZE_FIXED Rs Pd)
+     (sequence
+       ((SI tmp) (SI rno))
+       (set tmp Rs)
+       (set rno (regno Pd))
+       (cond
+	; See reg-sr setter for most of the special-register semantics.
+	; The sanity check for known read-only registers is for program
+	; debug help; the real insn would be harmless and have no effect.
+	; CGEN-FIXME: regno of symbolic h-sr names doesn't work here.
+	((orif (orif (eq rno 0) (eq rno 1)) (orif (eq rno 4) (eq rno 8)))
+	 (error "move-r-spr: trying to set a read-only special register"))
+	(else (set Pd tmp)))
+       (reset-x-p))
+     (cris-reg-sr-timing)))
+   (cris-cpu-models)))
+)
+
+(define-pmacro (dni-cdt-ver-attr name comment fattr syntax fmt fsem)
+  "Generator for each MACH, using default timing."
+  (.splice
+   begin
+   (.unsplice
+    (.map
+     (.pmacro (v) (dni-cdt-attr name comment (fattr v) syntax fmt (fsem v)))
+     (cris-cpu-models))))
+)
+
+; MOVE    Ps,Rd           [ Ps | 01100111 | Rd ]
+; Note that in the insn format, the Rd operand is in the Rs field (the
+; Rd field by the definition used everywhere else is the Ps position in
+; this insn).
+; It gets a little weird here because we can't get this insn into a
+; define-pmacro unless we make named pmacros for e.g. a separate attr
+; function and a semantics function: a .pmacro can't refer to the
+; parameters of the outer define-pmacro.  (The manual refers to this as
+; not implementing "lexical scoping").
+(.splice
+ begin
+ (.unsplice
+  (.map
+   (.pmacro
+    (VER)
+    (dni-cdt-attr
+     (.sym move-spr-r VER)
+     "Move from special register to general register"
+     ((MACH (.sym cris VER)))
+     "move ${Ps},${Rd-sfield}"
+     (+ Ps RFIX_MOVE_S_R MODE_REGISTER SIZE_FIXED Rd-sfield)
+     (sequence
+       ((SI grno) (SI prno) (SI newval))
+       (set prno (regno Ps))
+       ; CGEN-FIXME: Can't use the following and then "grno" below because
+       ; CGEN will emit a "tmp_grno" *also* in decodev32.c:crisv32f_decode
+       ; (set grno (regno Rd-sfield))
+       (set newval Ps)
+       (.splice
+	cond
+	(.unsplice
+	 (.map
+	  (.pmacro
+	   (r)
+	   ((eq prno (.cadr2 r))
+	    (set-subreg-gr (.car2 r) (regno Rd-sfield) newval)))
+	  ((.sym cris-implemented-readable-specregs- VER))))
+	(else (error "move-spr-r from unimplemented register")))
+       (reset-x-p))))
+   (cris-cpu-models)))
+)
+
+; MOVE    Ps,PC           [ Ps | 01100111 | 1111 ]
+; The move-special-register-to-pc insns are return-type instructions and
+; have to be special-cased to get the delay-slot and avoid being indicated
+; as invalid.
+(dni-cdt-attr
+ ret-type
+ "ret-type"
+ (MACH-PC)
+ "ret/reti/retb"
+ (+ Ps MODE_REGISTER RFIX_MOVE_S_R SIZE_FIXED (f-source 15))
+ (sequence
+   ((SI retaddr))
+   (set retaddr Ps)
+   (reset-x-p)
+   (delay 1 (set pc retaddr)))
+)
+
+; MOVE    [Rs],Pd         [ Pd | 10100011 | Rs ]
+; MOVE    [Rs+],Pd        [ Pd | 11100011 | Rs ]
+; We make variants that loads constants or memory for each MACH version,
+; since each consider some subset of the "special registers" to have
+; different sizes.  FIXME: Should be able to simplify this.
+(.splice
+ begin
+ (.unsplice
+  (.map
+   (.pmacro
+    (VER)
+    (dni
+     (.sym move-m-spr VER)
+     "Move from memory to special register"
+     ((MACH (.sym cris VER)))
+     "move [${Rs}${inc}],${Pd}"
+     (+ Pd INFIX_MOVE_M_S MODEMEMP_YES inc SIZE_FIXED Rs)
+     (sequence
+       ((SI rno) (SI newval))
+       (set rno (regno Pd))
+       (.splice
+	cond
+	; No sanity check for constant special register here, since the
+	; memory read side-effect or post-increment may be the goal, or
+	; for pre-v32 a prefix assignment side-effect.
+	(.unsplice
+	 (.map
+	  (.pmacro
+	   (r)
+	   ((eq rno (.cadr2 r))
+	    (set newval ((.sym (.car2 r) -ext) (cris-get-mem (.car2 r) Rs)))))
+	  ((.sym cris-implemented-writable-specregs- VER))))
+	(else (error "Trying to set unimplemented special register")))
+       (set Pd newval)
+       (reset-x-p))
+     (cris-mem-sr-timing)))
+   (cris-cpu-models)))
+)
+
+(define-pmacro QI-operand sconst8)
+(define-pmacro HI-operand sconst16)
+(define-pmacro SI-operand const32)
+
+(define-pmacro
+  (cris-move-c-spr VER VERFN)
+  "Generator for loading constant into special register"
+  (.splice
+   begin
+   (.unsplice
+    (.map
+     (.pmacro
+      (srdef v)
+      (dni
+       (.sym move-c-spr v -p (.cadr2 srdef))
+       (.str "Move constant to special register p" (.cadr2 srdef))
+       ((MACH (.sym cris v)))
+       (.str "move ${" (.sym (.car2 srdef) -operand) "},${Pd}")
+       ; We use Pd in semantics without naming it in the format (which
+       ; would CGEN-FIXME: cause a CGEN error for some reason, likely
+       ; related to specifying an insn field multiple times).  This
+       ; currently works and is guarded with test-cases (specifically
+       ; wrt. the timing model) but may need to be tweaked in the future.
+       ; Note that using instead (ifield f-dest) causes incorrect timing
+       ; model to be generated; the timing model requires that Pd is set.
+       (+ (f-dest (.cadr2 srdef)) MODE_AUTOINCREMENT INFIX_MOVE_M_S SIZE_FIXED
+	  (f-source 15) (.sym (.car2 srdef) -operand))
+       (sequence
+	 ()
+	 (set Pd (.sym (.car2 srdef) -operand)) ; (reg h-sr (.cadr2 srdef))
+	 (reset-x-p))
+       ((.sym cris-timing-const-sr- (.car2 srdef)))))
+     ((.sym cris-implemented-specregs-const- VER))
+     (.map VERFN ((.sym cris-implemented-specregs-const- VER))))))
+)
+
+; CGEN-FIXME:
+; Unfortunately we can't iterate over the list of models due to the
+; problem with referring to the parameters of a surrounding pmacro from
+; within an enclosed .pmacro (perhaps related to "lexical scoping").
+; We get e.g. 'insn already defined:: (move-c-sprvn-p0)' with this:
+;(.splice
+; begin (.unsplice (.map (.pmacro (vn) (cris-move-c-spr vn (.pmacro (x) vn)))
+;			(cris-cpu-models)))
+;)
+(cris-move-c-spr v0 (.pmacro (x) v0))
+(cris-move-c-spr v3 (.pmacro (x) v3))
+(cris-move-c-spr v8 (.pmacro (x) v8))
+(cris-move-c-spr v10 (.pmacro (x) v10))
+(cris-move-c-spr v32 (.pmacro (x) v32))
+
+; MOVE    Ps,[Rd]         [ Ps | 10100111 | Rd ]
+; MOVE    Ps,[Rd+]        [ Ps | 11100111 | Rd ]
+(.splice
+ begin
+ (.unsplice
+  (.map
+   (.pmacro
+    (VER)
+    (dni-cmwt-attr
+     (.sym move-spr-m VER)
+     "Move from special register to memory"
+     ((MACH (.sym cris VER)))
+     "move ${Ps},[${Rd-sfield}${inc}]"
+     (+ INFIX_MOVE_S_M SIZE_FIXED Rd-sfield Ps)
+     (sequence
+       ((SI rno))
+       (set rno (regno Ps))
+       (.splice
+	cond
+	(.unsplice
+	 (.map
+	  (.pmacro
+	   (r)
+	   ((eq rno (.cadr2 r))
+	    (cris-set-mem (.car2 r) Rd-sfield Ps)))
+	  ((.sym cris-implemented-readable-specregs- VER))))
+	(else (error "write from unimplemented special register")))
+       (reset-x-p))))
+   (cris-cpu-models)))
+)
+
+; SBFS [Rs(+)]
+;  Instruction format:     |0 0 1 1 1 m 1 1 0 1 1 1| Dest. |
+(dni-cdt-attr
+ sbfs
+ "sbfs"
+ ((MACH crisv10))
+ "sbfs [${Rd-sfield}${inc}]"
+ (+ (f-dest 3) INFIX_SBFS SIZE_FIXED MODEMEMP_YES inc Rd-sfield)
+ (error "SBFS isn't implemented")
+)
+
+;  MOVE    Ss,Rd            [ Ss | 11110111 | Rd ]
+(dni-cdt-attr
+ move-ss-r
+ "move from support register to general register"
+ (MACH-V32)
+ "move ${Ss},${Rd-sfield}"
+ (+ Ss INFIX_MOVE_SS SIZE_FIXED (f-mode 3) Rd-sfield)
+ (sequence
+   ()
+   (set Rd-sfield Ss)
+   (reset-x-p))
+)
+
+; MOVE    Rs,Sd            [ Sd | 10110111 | Rs ]
+(dni-cdt-attr
+ move-r-ss
+ "move from general register to support register"
+ (MACH-V32)
+ "move ${Rs},${Sd}"
+ (+ Sd INFIX_MOVE_SS SIZE_FIXED (f-mode 2) Rs)
+ (sequence
+   ()
+   (set Sd Rs)
+   (reset-x-p))
+)
+
+; MOVEM   Rs,[Rd]         [ Rs | 10111111 | Rd ]
+; MOVEM   Rs,[Rd+]        [ Rs | 11111111 | Rd ]
+
+(define-pmacro (movem-to-mem-step regn)
+  ; Without the SI attribute, UINT is generated, which isn't supported by
+  ; the sim framework.
+  (if (ge SI (regno Rs-dfield) regn)
+      (sequence
+	((SI tmp))
+	(set tmp (reg h-gr regn))
+	(set (mem SI addr) tmp)
+	(set addr (add addr 4))))
+)
+
+(dni
+ movem-r-m
+ "movem to memory"
+ (MACH-PRE-V32)
+ "movem ${Rs-dfield},[${Rd-sfield}${inc}]"
+ (+ INFIX_MOVEM_R_M MODEMEMP_YES inc SIZE_FIXED Rs-dfield Rd-sfield)
+ (sequence
+   ((SI addr) (BI postinc))
+   ; FIXME: A copy of what's in cris-get-mem.
+
+   ; Cache the incrementness of the operand.
+   (set postinc inc)
+
+   ; CGEN-FIXME: Kludge to work around a CGEN bug: it doesn't see that
+   ; Rs-dfield is used as an input, causing the timing model to be wrong.
+   (sequence ((SI dummy)) (set dummy Rs-dfield))
+
+   ; Get the address from somewhere.  If the insn was prefixed, it's in
+   ; the prefix-register.
+   (set addr
+	(if SI (eq prefix-set 0)
+	    Rd-sfield
+	    prefixreg))
+
+   (.splice
+    sequence ()
+    (.unsplice (.map movem-to-mem-step (.iota 16 15 -1))))
+
+   ; Update the source-register for post-increments.
+   (if (ne postinc 0)
+       (set Rd-sfield
+	    (if SI (eq prefix-set 0) addr prefixreg)))
+   (reset-x-p))
+   (simplecris-movem-timing)
+)
+
+(dni
+ movem-r-m-v32
+ "movem to memory"
+ (MACH-V32)
+ "movem ${Rs-dfield},[${Rd-sfield}${inc}]"
+ (+ INFIX_MOVEM_R_M MODEMEMP_YES inc SIZE_FIXED Rs-dfield Rd-sfield)
+ (sequence
+   ((SI addr) (BI postinc))
+   ; FIXME: Mostly a copy of what's in cris-get-mem.
+
+   ; Cache the incrementness of the operand.
+   (set postinc inc)
+
+   ; CGEN-FIXME: See movem-r-m.
+   (sequence ((SI dummy)) (set dummy Rs-dfield))
+
+   (set addr Rd-sfield)
+
+   (.splice
+    sequence ()
+    (.unsplice (.map movem-to-mem-step (.iota 16))))
+
+   ; Update the source-register for post-increments.
+   (if (ne postinc 0)
+       (set Rd-sfield addr))
+   (reset-x-p))
+ ; Unit u-mem must be specified before the u-movem-* for memory address
+ ; register stall count to be right.
+ ((crisv32 (unit u-mem) (unit u-movem-rtom) (unit u-exec-movem)
+	   (unit u-mem-w)))
+)
+
+; MOVEM   [Rs],Rd         [ Rd | 10111011 | Rs ]
+; MOVEM   [Rs+],Rd        [ Rd | 11111011 | Rs ]
+
+(define-pmacro
+  (movem-to-reg-step regn)
+  ; Without the SI attribute, UINT is generated, which isn't supported by
+  ; the sim framework.
+  (if (ge SI (regno Rd) regn)
+      (sequence
+	((SI tmp))
+	(set tmp (mem SI addr))
+	(set (reg h-gr regn) tmp)
+	(set addr (add addr 4))))
+)
+
+(dni
+ movem-m-r
+ "movem to register"
+ (MACH-PRE-V32)
+ "movem [${Rs}${inc}],${Rd}"
+ (+ Rd INFIX_MOVEM_M_R MODEMEMP_YES inc SIZE_FIXED Rs)
+ (sequence
+   ((SI addr) (BI postinc))
+   ; FIXME: Mostly a copy of what's in cris-get-mem.
+
+   ; Cache the incrementness of the operand.
+   (set postinc inc)
+
+   ; Get the address from somewhere.  If the insn was prefixed, it's in
+   ; the prefix-register.
+   (set addr
+	(if SI (eq prefix-set 0)
+	    Rs
+	    prefixreg))
+
+   ; CGEN-FIXME: See movem-r-m.
+   (sequence ((SI dummy)) (set dummy Rd))
+
+   (.splice
+    sequence ()
+    ; The first movem step is left out because it can't happen; it's for
+    ; PC destination.  See the pattern below.
+    (.unsplice (.map movem-to-reg-step (.iota 15 14 -1))))
+
+   ; Update the source-register for post-increments.
+   ; FIXME: No postinc-prefixed for v0 IIRC.
+   (if (ne postinc 0)
+       (set Rs (if SI (eq prefix-set 0) addr prefixreg)))
+   (reset-x-p))
+   (simplecris-movem-timing)
+)
+
+; (MOVEM   [Rs],PC         [ 1111 | 10111011 | Rs ])
+; (MOVEM   [Rs+],PC        [ 1111 | 11111011 | Rs ])
+; We have to special-case it for PC destination; used in longjump.
+; We shouldn't *have* to special-case it; the main reason is (FIXME:)
+; misgeneration of the simulator when the PC case is folded into the
+; generic PRE-V32 movem; possibly related to then being a COND-CTI rather
+; than an UNCOND-CTI.
+(dni-cmt-attr
+ movem-m-pc
+ "movem to register, ending with PC"
+ (MACH-PRE-V32)
+ "movem [${Rs}${inc}],${Rd}"
+ (+ (f-dest 15) INFIX_MOVEM_M_R SIZE_FIXED Rs)
+ (sequence
+   ((SI addr) (BI postinc))
+   ; FIXME: Mostly a copy of what's in cris-get-mem.
+
+   ; Cache the incrementness of the operand.
+   (set postinc inc)
+
+   ; Get the address from somewhere.  If the insn was prefixed, it's in
+   ; the prefix-register.
+   (set addr
+	(if SI (eq prefix-set 0)
+	    Rs
+	    prefixreg))
+
+   ; FIXME: Add kludge here too *and* a test-case.
+
+   (.splice
+    sequence ()
+    ; The first movem step is for PC destination, used in longjmp.
+    (set pc (mem SI addr))
+    (set addr (add addr 4))
+    (.unsplice
+     (.map
+      (.pmacro
+       (regn)
+       (sequence
+	 ((SI tmp))
+	 (set tmp (mem SI addr))
+	 (set (reg h-gr regn) tmp)
+	 (set addr (add addr 4))))
+      (.iota 15 14 -1))))
+
+   ; Update the source-register for post-increments.
+   ; FIXME: No postinc-prefixed for v0.
+   (if (ne postinc 0)
+       (set Rs (if SI (eq prefix-set 0) addr prefixreg)))
+   (reset-x-p))
+)
+
+(dni
+ movem-m-r-v32
+ "movem to register"
+ (MACH-V32)
+ "movem [${Rs}${inc}],${Rd}"
+ (+ INFIX_MOVEM_M_R MODEMEMP_YES inc SIZE_FIXED Rs Rd)
+ (sequence
+   ((SI addr) (BI postinc))
+   ; FIXME: A copy of what's in cris-get-mem
+
+   ; Cache the incrementness of the operand.
+   (set postinc inc)
+
+   ; Get the address from somewhere.
+   (set addr Rs)
+
+   ; CGEN-FIXME: See movem-r-m.
+   (sequence ((SI dummy)) (set dummy Rd))
+
+   (.splice
+    sequence ()
+    (.unsplice (.map movem-to-reg-step (.iota 16))))
+
+   ; Update the source-register for post-increments.
+   ; FIXME: No postinc-prefixed for v0 IIRC.
+   (if (ne postinc 0)
+       (set Rs addr))
+   (reset-x-p))
+ ; u-mem must be specified before the u-movem-* for memory source
+ ; register stall count to be right.
+ ((crisv32 (unit u-mem) (unit u-mem-r) (unit u-movem-mtor)
+	   (unit u-exec-movem)))
+)
+
+; ADD.m   Rs,Rd           [ Rd | 011000mm | Rs ]
+(dni-cdt-bwd
+ add "add from register to register"
+ "$Rs,$Rd"
+ (+ Rd MODE_REGISTER R_ADD Rs)
+ (.pmacro (BWD) (cris-arit add BWD Rd Rs))
+)
+
+; ADD.m   [Rs],Rd         [ Rd | 101000mm | Rs ]
+; ADD.m   [Rs+],Rd        [ Rd | 111000mm | Rs ]
+(dni-cmt-bwd
+ add-m "add from memory to register"
+ "[${Rs}${inc}],${Rd}"
+ (+ INDIR_ADD Rs Rd)
+ (.pmacro (BWD) (cris-arit-3op add BWD Rd (cris-get-mem BWD Rs) Rs))
+)
+; (ADD.m   [PC+],Rd        [ Rd | 111000mm | 1111 ])
+(dni-c-QI
+ addcbr "add constant byte to register"
+ "add.b ${sconst8}],${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INDIR_ADD SIZE_BYTE (f-source 15) sconst8)
+ (cris-arit add QI Rd sconst8)
+)
+
+(dni-c-HI
+ addcwr "add constant word to register"
+ "add.w ${sconst16}],${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INDIR_ADD SIZE_WORD (f-source 15) sconst16)
+ (cris-arit add HI Rd sconst16)
+)
+
+(dni-c-SI
+ addcdr "add constant dword to register"
+ "add.d ${const32}],${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INDIR_ADD SIZE_DWORD (f-source 15) const32)
+ (cris-arit add SI Rd const32)
+)
+
+; (ADD.D   [PC+],PC        [ 1111 | 11100010 | 1111 ])
+; This insn is used for DSO-local jumps in PIC code.
+(dni
+ addcpc "Relative jump by adding constant to PC"
+ (MACH-PC)
+ "add.d ${sconst32},PC"
+ (+ (f-dest 15) MODE_AUTOINCREMENT INDIR_ADD SIZE_DWORD (f-source 15) const32)
+ (sequence
+   ((SI newpc) (SI oldpc) (SI offs))
+   (set offs const32)
+   (set oldpc (add SI pc 6))
+   (set newpc (add SI oldpc offs))
+   (set pc newpc)
+   (setf-arit SI add oldpc offs newpc cbit))
+ (simplecris-common-timing ((unit u-const32) (unit u-stall) (unit u-exec)))
+)
+
+; ADDS.z  Rs,Rd           [ Rd | 0100001z | Rs ]
+(dni-cdt-sbw
+ adds "add sign-extended from register to register"
+ "$Rs,$Rd"
+ (+ Rd MODE_REGISTER R_ADDX Rs)
+ (.pmacro (BW) (cris-arit add SI Rd ((.sym BW -ext) (trunc BW Rs))))
+)
+
+; ADDS.z  [Rs],Rd         [ Rd | 1000001z | Rs ]
+; ADDS.z  [Rs+],Rd        [ Rd | 1100001z | Rs ]
+(dni-cmt-sbw
+ adds-m "add sign-extended from memory to register"
+ "[${Rs}${inc}],$Rd"
+ (+ Rd INDIR_ADDX Rs)
+ (.pmacro (BW) (cris-arit-3op add SI Rd ((.sym BW -ext) (cris-get-mem BW Rs)) Rs))
+)
+
+; (ADDS.z  [PC+],Rd        [ Rd | 1100001z | 1111 ])
+(dni-c-QI
+ addscbr "add sign-extended constant byte to register"
+ "[${Rs}${inc}],$Rd"
+ (+ Rd MODE_AUTOINCREMENT INDIR_ADDX SIGNED_BYTE (f-source 15) sconst8)
+ (cris-arit add SI Rd (ext SI (trunc QI sconst8)))
+)
+(dni-c-HI
+ addscwr "add sign-extended constant word to register"
+ "[${Rs}${inc}],$Rd"
+ (+ Rd MODE_AUTOINCREMENT INDIR_ADDX SIGNED_WORD (f-source 15) sconst16)
+ (cris-arit add SI Rd (ext SI (trunc HI sconst16)))
+)
+
+; (ADDS.w  [],PC         [ 1111 | 10000011 | 1111 ])
+; For a PC destination, we support only the two-operand case
+; (dest == src), which is used in switch/case statements.
+; FIXME: Should implement ADD.D [PC],PC and ADDS.B [PC],PC for use if/when
+; implementing CASE_VECTOR_SHORTEN_MODE.
+(dni
+ addspcpc "add sign-extended prefixed arg to PC"
+ (MACH-PC)
+ "adds.w [PC],PC"
+ (+ (f-dest 15) MODE_INDIRECT INDIR_ADDX SIGNED_WORD (f-source 15))
+ (sequence
+   ((SI newpc) (SI oldpc) (HI offs))
+   (if (not prefix-set)
+       (error "Unexpected adds.w [PC],PC without prefix"))
+   ; We don't use cris-get-mem but instead special-case this one, since we
+   ; have most instruction fields fixed where cris-get-mem expects
+   ; field-parametrization by certain names.
+   (set offs (mem HI prefixreg))
+   (set oldpc (add SI pc 2))
+   (set newpc (add SI oldpc offs))
+   (set pc newpc)
+   (setf-arit SI add oldpc (ext SI offs) newpc cbit))
+ (simplecris-common-timing ((unit u-mem) (unit u-stall) (unit u-exec)))
+)
+
+; ADDU.z  Rs,Rd           [ Rd | 0100000z | Rs ]
+(dni-cdt-ubw
+ addu "add zero-extended from register to register"
+ "$Rs,$Rd"
+ (+ Rd MODE_REGISTER R_ADDX Rs)
+ (.pmacro (BW) (cris-arit add SI Rd ((.sym BW -zext) (trunc BW Rs))))
+)
+
+; ADDU.z  [Rs],Rd         [ Rd | 1000000z | Rs ]
+; ADDU.z  [Rs+],Rd        [ Rd | 1100000z | Rs ]
+(dni-cmt-ubw
+ addu-m "add zero-extended from memory to register"
+ "[${Rs}${inc}],$Rd"
+ (+ Rd INDIR_ADDX Rs)
+ (.pmacro (BW)
+	  (cris-arit-3op add SI Rd ((.sym BW -zext) (cris-get-mem BW Rs)) Rs))
+)
+
+; (ADDU.z  [PC+],Rd        [ Rd | 1100000z | 1111 ])
+(dni-c-QI
+ adducbr "add zero-extended constant byte to register"
+ "[${Rs}${inc}],$Rd"
+ (+ Rd MODE_AUTOINCREMENT INDIR_ADDX UNSIGNED_BYTE (f-source 15) sconst8)
+ (cris-arit add SI Rd (zext SI (trunc QI sconst8)))
+)
+(dni-c-HI
+ adducwr "add zero-extended constant word to register"
+ "[${Rs}${inc}],$Rd"
+ (+ Rd MODE_AUTOINCREMENT INDIR_ADDX UNSIGNED_WORD (f-source 15) sconst16)
+ (cris-arit add SI Rd (zext SI (trunc HI sconst16)))
+)
+
+; SUB.m   Rs,Rd           [ Rd | 011010mm | Rs ]
+(dni-cdt-bwd
+ sub "subtract from register to register"
+ "$Rs,$Rd"
+ (+ Rd MODE_REGISTER R_SUB Rs)
+ (.pmacro (BWD) (cris-arit sub BWD Rd Rs))
+)
+
+; SUB.m   [Rs],Rd         [ Rd | 101010mm | Rs ]
+; SUB.m   [Rs+],Rd        [ Rd | 111010mm | Rs ]
+(dni-cmt-bwd
+ sub-m "subtract from memory to register"
+ "[${Rs}${inc}],${Rd}"
+ (+ INDIR_SUB Rs Rd)
+ (.pmacro (BWD) (cris-arit-3op sub BWD Rd (cris-get-mem BWD Rs) Rs))
+)
+
+; (SUB.m   [PC+],Rd        [ Rd | 111010mm | 1111 ]
+(dni-c-QI
+ subcbr "subtract constant byte from register"
+ "sub.b ${sconst8}],${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INDIR_SUB SIZE_BYTE (f-source 15) sconst8)
+ (cris-arit sub QI Rd sconst8)
+)
+
+(dni-c-HI
+ subcwr "subtract constant word from register"
+ "sub.w ${sconst16}],${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INDIR_SUB SIZE_WORD (f-source 15) sconst16)
+ (cris-arit sub HI Rd sconst16)
+)
+
+(dni-c-SI
+ subcdr "subtract constant dword from register"
+ "sub.d ${const32}],${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INDIR_SUB SIZE_DWORD (f-source 15) const32)
+ (cris-arit sub SI Rd const32)
+)
+
+; SUBS.z  Rs,Rd           [ Rd | 0100101z | Rs ]
+(dni-cdt-sbw
+ subs "sub sign-extended from register to register"
+ "$Rs,$Rd"
+ (+ Rd MODE_REGISTER R_SUBX Rs)
+ (.pmacro (BW) (cris-arit sub SI Rd ((.sym BW -ext) (trunc BW Rs))))
+)
+
+; SUBS.z  [Rs],Rd         [ Rd | 1000101z | Rs ]
+; SUBS.z  [Rs+],Rd        [ Rd | 1100101z | Rs ]
+(dni-cmt-sbw
+ subs-m "sub sign-extended from memory to register"
+ "[${Rs}${inc}],$Rd"
+ (+ Rd INDIR_SUBX Rs)
+ (.pmacro (BW)
+	  (cris-arit-3op sub SI Rd ((.sym BW -ext) (cris-get-mem BW Rs)) Rs))
+)
+
+; (SUBS.z  [PC+],Rd        [ Rd | 1100101z | 1111 ])
+(dni-c-QI
+ subscbr "sub sign-extended constant byte to register"
+ "[${Rs}${inc}],$Rd"
+ (+ Rd MODE_AUTOINCREMENT INDIR_SUBX SIGNED_BYTE (f-source 15) sconst8)
+ (cris-arit sub SI Rd (ext SI (trunc QI sconst8)))
+)
+(dni-c-HI
+ subscwr "sub sign-extended constant word to register"
+ "[${Rs}${inc}],$Rd"
+ (+ Rd MODE_AUTOINCREMENT INDIR_SUBX SIGNED_WORD (f-source 15) sconst16)
+ (cris-arit sub SI Rd (ext SI (trunc HI sconst16)))
+)
+
+; SUBU.z  Rs,Rd           [ Rd | 0100100z | Rs ]
+(dni-cdt-ubw
+ subu "sub zero-extended from register to register"
+ "$Rs,$Rd"
+ (+ Rd MODE_REGISTER R_SUBX Rs)
+ (.pmacro (BW) (cris-arit sub SI Rd ((.sym BW -zext) (trunc BW Rs))))
+)
+
+; SUBU.z  [Rs],Rd         [ Rd | 1000100z | Rs ]
+; SUBU.z  [Rs+],Rd        [ Rd | 1100100z | Rs ]
+(dni-cmt-ubw
+ subu-m "sub zero-extended from memory to register"
+ "[${Rs}${inc}],$Rd"
+ (+ Rd INDIR_SUBX Rs)
+ (.pmacro (BW)
+	  (cris-arit-3op sub SI Rd ((.sym BW -zext) (cris-get-mem BW Rs)) Rs))
+)
+
+; (SUBU.z  [PC+],Rd        [ Rd | 1100100z | 1111 ])
+(dni-c-QI
+ subucbr "sub zero-extended constant byte to register"
+ "[${Rs}${inc}],$Rd"
+ (+ Rd MODE_AUTOINCREMENT INDIR_SUBX UNSIGNED_BYTE (f-source 15) sconst8)
+ (cris-arit sub SI Rd (zext SI (trunc QI sconst8)))
+)
+(dni-c-HI
+ subucwr "sub zero-extended constant word to register"
+ "[${Rs}${inc}],$Rd"
+ (+ Rd MODE_AUTOINCREMENT INDIR_SUBX UNSIGNED_WORD (f-source 15) sconst16)
+ (cris-arit sub SI Rd (zext SI (trunc HI sconst16)))
+)
+
+; ADDC    Rs,Rd           [ Rd | 01010111 | Rs ]
+(dni-cdt-attr
+ addc-r "addc from register to register"
+ (MACH-V32)
+ "addc $Rs,$Rd"
+ (+ Rd MODE_REGISTER RFIX_ADDC SIZE_FIXED Rs)
+ ; Since this is equivalent to "ax" plus "add.d Rs,Rd", we'll just do
+ ; that, semantically.
+ (sequence
+   ()
+   (set-quiet xbit 1)
+   (cris-arit add SI Rd Rs))
+)
+
+; ADDC    [Rs],Rd         [ Rd | 10011010 | Rs ]
+; ADDC    [Rs+],Rd        [ Rd | 11011010 | Rs ]
+(dni-cmt-attr
+ addc-m "addc from memory to register"
+ (MACH-V32)
+ "addc [${Rs}${inc}],${Rd}"
+ (+ Rd INDIR_ADDC SIZE_DWORD Rs)
+ (sequence
+   ()
+   (set-quiet xbit 1)
+   (cris-arit add SI Rd (cris-get-mem SI Rs)))
+)
+
+; (ADDC    [Rs+],Rd        [ Rd | 11011010 | 1111 ])
+(dni-c-SI-attr
+ addc-c "addc constant to register"
+ (MACH-V32)
+ "addc ${const32},${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INDIR_ADDC SIZE_DWORD (f-source 15) const32)
+ (sequence
+   ()
+   (set-quiet xbit 1)
+   (cris-arit add SI Rd const32))
+)
+
+; LAPC   [PC+],Rd         [ Rd | 11010111 1111 ]
+(dni-c-SI-attr
+ lapc-d "lapc.d"
+ (MACH-V32)
+ "lapc.d ${const32-pcrel},${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INFIX_LAPC SIZE_FIXED (f-source 15) const32-pcrel)
+ (sequence
+   ()
+   (set Rd const32-pcrel)
+   (reset-x-p))
+)
+
+; LAPCQ  qo,Rd            [ Rd | 10010111 | qo ]
+(dni-cdt-attr
+ lapcq "lapcq"
+ (MACH-V32)
+ "lapcq ${qo},${Rd}"
+ (+ Rd MODE_INDIRECT INFIX_LAPC SIZE_FIXED qo)
+ (sequence
+   ()
+   (set Rd qo)
+   (reset-x-p))
+)
+
+; ADDI    Rs.m,Rd         [ Rs | 010100mm | Rd ]
+(dni-cdt-bwd
+ addi "addi"
+ "${Rs-dfield}.m,${Rd-sfield}"
+ (+ Rd-sfield MODE_REGISTER R_ADDI Rs-dfield)
+ (.pmacro
+  (BWD)
+  (sequence
+    ()
+    (set Rd-sfield (add SI Rd-sfield (mul Rs-dfield (.sym BWD -size))))
+    (reset-x-p)))
+)
+
+;  NEG.m   Rs,Rd           [ Rd | 010110mm | Rs ]
+(dni-cdt-bwd
+ neg "neg.m Rs,Rd"
+ "$Rs,$Rd"
+ (+ Rd MODE_REGISTER R_NEG Rs)
+ (.pmacro (BWD) (cris-arit3 sub BWD Rd 0 Rs))
+)
+
+; TEST.m  [Rs]            [ 0000101110mm | Rs ]
+; TEST.m  [Rs+]           [ 0000111110mm | Rs ]
+(dni-cmt-bwd
+ test-m "test.m [Rs(+)]"
+ "[${Rs}${inc}]"
+ (+ (f-dest 0) INDIR_TEST Rs)
+ (.pmacro
+  (BWD)
+  (sequence
+    ((BWD tmpd))
+    (set tmpd (cris-get-mem BWD Rs))
+    ; This is supposed to be the same result as for cmpq 0,X, hence same code.
+    (cris-arit6-int
+     sub BWD (.pmacro (sz regno val) (nop)) 0 tmpd 0 cbit cbit)))
+)
+
+; MOVE.m  Rs,[Rd]         [ Rs | 101111mm | Rd ]
+; MOVE.m  Rs,[Rd+]        [ Rs | 111111mm | Rd ]
+
+(dni-cmwt-bwd
+ move-r-m "move.m R,[]"
+ "${Rs-dfield},[${Rd-sfield}${inc}]"
+ (+ Rs-dfield INDIR_MOVE_R_M Rd-sfield)
+ (.pmacro
+  (BWD)
+  (sequence
+    ((BWD tmpd))
+    (set tmpd Rs-dfield)
+    (cris-set-mem BWD Rd-sfield tmpd)
+    (reset-x-p)))
+)
+
+; MULS.m  Rs,Rd           [ Rd | 110100mm | Rs ]
+(dni-bwd-attr
+ muls "muls.m Rs,Rd"
+ ((MACH crisv10,crisv32))
+ "$Rs,$Rd"
+ (+ Rd MODE_MULS INDIR_MUL Rs)
+ (.pmacro
+  (BWD)
+  (sequence
+    ((DI src1) (DI src2) (DI tmpr))
+    (set src1 (ext DI (trunc BWD Rs)))
+    (set src2 (ext DI (trunc BWD Rd)))
+    (set tmpr (mul src1 src2))
+    (set Rd (trunc SI tmpr))
+    (set mof (trunc SI (srl tmpr 32)))
+    (setf-arit DI muls src1 src2 tmpr cbit)))
+ ((crisv10 (unit u-multiply) (unit u-exec))
+  (crisv32 (unit u-multiply) (unit u-exec)))
+)
+
+; MULU.m  Rs,Rd           [ Rd | 100100mm | Rs ]
+(dni-bwd-attr
+ mulu "mulu.m Rs,Rd"
+ ((MACH crisv10,crisv32))
+ "$Rs,$Rd"
+ (+ Rd MODE_MULU INDIR_MUL Rs)
+ (.pmacro
+  (BWD)
+  (sequence
+    ((DI src1) (DI src2) (DI tmpr))
+    (set src1 (zext DI (trunc BWD Rs)))
+    (set src2 (zext DI (trunc BWD Rd)))
+    (set tmpr (mul src1 src2))
+    (set Rd (trunc SI tmpr))
+    (set mof (trunc SI (srl tmpr 32)))
+    (setf-arit DI mulu src1 src2 tmpr cbit)))
+ ((crisv10 (unit u-multiply) (unit u-exec))
+  (crisv32 (unit u-multiply) (unit u-exec)))
+)
+
+; MCP     Ps,Rd           [ Ps | 01111111 | Rd ]
+(dni-cdt-attr
+ mcp "Multiply Carry Propagation"
+ (MACH-V32)
+ "mcp $Ps,$Rd"
+ (+ Ps MODE_REGISTER RFIX_MCP SIZE_FIXED Rd-sfield)
+ (sequence
+   ()
+   (set-quiet xbit 1)
+   (set-quiet zbit 1)
+   (cris-arit5 add SI Rd-sfield Rd-sfield Ps rbit rbit))
+)
+
+; MSTEP   Rs,Rd           [ Rd | 01111111 | Rs ]
+(dni-cdt-attr
+ mstep "Multiply step"
+ (MACH-PRE-V32)
+ "mstep $Rs,$Rd"
+ (+ Rd MODE_REGISTER RFIX_MSTEP SIZE_FIXED Rs)
+ (sequence
+   ((SI tmpd) (SI tmps))
+   (set tmps Rs)
+   (set tmpd (add (sll Rd 1) (if SI nbit tmps 0)))
+   (set Rd tmpd)
+   (setf-move SI tmpd))
+)
+
+; DSTEP   Rs,Rd           [ Rd | 01101111 | Rs ]
+(dni-cdt
+ dstep "Division step"
+ "dstep $Rs,$Rd"
+ (+ Rd MODE_REGISTER RFIX_DSTEP SIZE_FIXED Rs)
+ (sequence
+   ((SI tmp) (SI tmps) (SI tmpd))
+   (set tmps Rs)
+   (set tmp (sll Rd 1))
+   (set tmpd (if SI (geu tmp tmps) (sub tmp tmps) tmp))
+   (set Rd tmpd)
+   (setf-move SI tmpd))
+)
+
+;  ABS     Rs,Rd           [ Rd | 01101011 | Rs ]
+(dni-cdt
+ abs "Absolut Instruction"
+ "abs $Rs,$Rd"
+ (+ Rd MODE_REGISTER RFIX_ABS SIZE_FIXED Rs)
+ (sequence
+   ((SI tmpd))
+   (set tmpd (abs Rs))
+   (set Rd tmpd)
+   (setf-move SI tmpd))
+)
+
+; AND.m   Rs,Rd           [ Rd | 011100mm | Rs ]
+(dni-cdt-bwd
+ and "And from register to register"
+ "$Rs,$Rd"
+ (+ Rd MODE_REGISTER R_AND Rs)
+ (.pmacro
+  (BWD)
+  (sequence
+    ((BWD tmpd))
+    (set tmpd (and BWD Rd Rs))
+    (set-subreg-gr BWD (regno Rd) tmpd)
+    (setf-move BWD tmpd)))
+)
+
+; AND.m   [Rs],Rd         [ Rd | 101100mm | Rs ]
+; AND.m   [Rs+],Rd        [ Rd | 111100mm | Rs ]
+(dni-cmt-bwd
+ and-m "And from memory to register"
+ "[${Rs}${inc}],${Rd}"
+ (+ INDIR_AND Rs Rd)
+ (.pmacro
+  (BWD)
+  (sequence
+    ((BWD tmpd))
+    (set tmpd (and BWD Rd (cris-get-mem BWD Rs)))
+    (set-subreg-gr
+     BWD
+     (if SI (andif prefix-set (not inc)) (regno Rs) (regno Rd))
+     tmpd)
+    (setf-move BWD tmpd)))
+)
+
+; (AND.m   [PC+],Rd        [ Rd | 111100mm | 1111 ])
+(dni-c-QI
+ andcbr "And constant byte to register"
+ "and.b ${sconst8}],${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INDIR_AND SIZE_BYTE (f-source 15) sconst8)
+ (sequence
+   ((QI tmpd))
+   (set tmpd (and QI Rd sconst8))
+   (set-subreg-gr QI (regno Rd) tmpd)
+   (setf-move QI tmpd))
+)
+
+(dni-c-HI
+ andcwr "And constant word to register"
+ "and.w ${sconst16}],${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INDIR_AND SIZE_WORD (f-source 15) sconst16)
+ (sequence
+   ((HI tmpd))
+   (set tmpd (and HI Rd sconst16))
+   (set-subreg-gr HI (regno Rd) tmpd)
+   (setf-move HI tmpd))
+)
+
+(dni-c-SI
+ andcdr "And constant dword to register"
+ "and.d ${const32}],${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INDIR_AND SIZE_DWORD (f-source 15) const32)
+ (sequence
+   ((SI tmpd))
+   (set tmpd (and SI Rd const32))
+   (set-subreg-gr SI (regno Rd) tmpd)
+   (setf-move SI tmpd))
+)
+
+; ANDQ    i,Rd            [ Rd | 001100 | i ]
+(dni-cdt
+ andq "And quick-immediate to register"
+ "andq $i,$Rd"
+ (+ Rd MODE_QUICK_IMMEDIATE Q_ANDQ i)
+ (sequence
+   ((SI tmpd))
+   (set tmpd (and SI Rd i))
+   (set-subreg-gr SI (regno Rd) tmpd)
+   (setf-move SI tmpd))
+)
+
+; OR.m    Rs,Rd           [ Rd | 011101mm | Rs ]
+(dni-cdt-bwd
+ orr "Or from register to register"
+ "$Rs,$Rd"
+ (+ Rd MODE_REGISTER R_OR Rs)
+ (.pmacro
+  (BWD)
+  (sequence
+    ((BWD tmpd))
+    (set tmpd (or BWD Rd Rs))
+    (set-subreg-gr BWD (regno Rd) tmpd)
+    (setf-move BWD tmpd)))
+)
+
+; OR.m    [Rs],Rd         [ Rd | 101101mm | Rs ]
+; OR.m    [Rs+],Rd        [ Rd | 111101mm | Rs ]
+(dni-cmt-bwd
+ or-m "Or from memory to register"
+ "[${Rs}${inc}],${Rd}"
+ (+ INDIR_OR Rs Rd)
+ (.pmacro
+  (BWD)
+  (sequence
+    ((BWD tmpd))
+    (set tmpd (or BWD Rd (cris-get-mem BWD Rs)))
+    (set-subreg-gr
+     BWD
+     (if SI (andif prefix-set (not inc)) (regno Rs) (regno Rd))
+     tmpd)
+    (setf-move BWD tmpd)))
+)
+
+; (OR.m    [PC+],Rd        [ Rd | 111101mm | 1111 ])
+(dni-c-QI
+ orcbr "Or constant byte to register"
+ "or.b ${sconst8}],${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INDIR_OR SIZE_BYTE (f-source 15) sconst8)
+ (sequence
+   ((QI tmpd))
+   (set tmpd (or QI Rd sconst8))
+   (set-subreg-gr QI (regno Rd) tmpd)
+   (setf-move QI tmpd))
+)
+
+(dni-c-HI
+ orcwr "Or constant word to register"
+ "or.w ${sconst16}],${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INDIR_OR SIZE_WORD (f-source 15) sconst16)
+ (sequence
+   ((HI tmpd))
+   (set tmpd (or HI Rd sconst16))
+   (set-subreg-gr HI (regno Rd) tmpd)
+   (setf-move HI tmpd))
+)
+
+(dni-c-SI
+ orcdr "Or constant dword to register"
+ "or.d ${const32}],${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INDIR_OR SIZE_DWORD (f-source 15) const32)
+ (sequence
+   ((SI tmpd))
+   (set tmpd (or SI Rd const32))
+   (set-subreg-gr SI (regno Rd) tmpd)
+   (setf-move SI tmpd))
+)
+
+; ORQ     i,Rd            [ Rd | 001101 | i ]
+(dni-cdt
+ orq "Or quick-immediate to register"
+ "orq $i,$Rd"
+ (+ Rd MODE_QUICK_IMMEDIATE Q_ORQ i)
+ (sequence
+   ((SI tmpd))
+   (set tmpd (or SI Rd i))
+   (set-subreg-gr SI (regno Rd) tmpd)
+   (setf-move SI tmpd))
+)
+
+; XOR     Rs,Rd           [ Rd | 01111011 | Rs ]
+(dni-cdt
+ xor "Xor from register to register"
+ "xor $Rs,$Rd"
+ (+ Rd MODE_REGISTER RFIX_XOR SIZE_FIXED Rs)
+ (sequence
+   ((SI tmpd))
+   (set tmpd (xor SI Rd Rs))
+   (set Rd tmpd)
+   (setf-move SI tmpd))
+)
+
+(define-pmacro (swap-r x)
+  "Perform bit-wise swap within each byte"
+  (sequence
+    SI
+    ((SI tmpr))
+    (set tmpr x)
+    (or (sll (and tmpr #x1010101) 7)
+	(or (sll (and tmpr #x2020202) 5)
+	    (or (sll (and tmpr #x4040404) 3)
+		(or (sll (and tmpr #x8080808) 1)
+		    (or (srl (and tmpr #x10101010) 1)
+			(or (srl (and tmpr #x20202020) 3)
+			    (or (srl (and tmpr #x40404040) 5)
+				(srl (and tmpr #x80808080) 7)))))))))
+)
+
+(define-pmacro (swap-b x)
+  "Perform byte-wise swap within each word"
+  (sequence
+    SI
+    ((SI tmpb))
+    (set tmpb x)
+    (or (and (sll tmpb 8) #xff00ff00)
+	(and (srl tmpb 8) #xff00ff)))
+)
+
+(define-pmacro (swap-w x)
+  "Perform word-wise swap within each dword"
+  (sequence
+    SI
+    ((SI tmpb))
+    (set tmpb x)
+    (or (and (sll tmpb 16) #xffff0000)
+	(and (srl tmpb 16) #xffff)))
+)
+
+(define-pmacro (swap-_ x)
+  "Do nothing swap-wise"
+  (error SI "SWAP without swap modifier isn't implemented")
+)
+
+(define-pmacro (swap-n x)
+  "Perform bitwise not (that is, perform a not, not not perform)"
+  (inv x)
+)
+
+(define-pmacro (swap-br x) "Combine swap-r and swap-b" (swap-r (swap-b x)))
+(define-pmacro (swap-wr x) "Combine swap-r and swap-w" (swap-r (swap-w x)))
+(define-pmacro (swap-wb x) "Combine swap-b and swap-w" (swap-b (swap-w x)))
+(define-pmacro (swap-wbr x) "Combine swap-r and swap-wb" (swap-r (swap-wb x)))
+(define-pmacro (swap-nr x) "Combine swap-r and swap-n" (swap-r (swap-n x)))
+(define-pmacro (swap-nb x) "Combine swap-n and swap-b" (swap-b (swap-n x)))
+(define-pmacro (swap-nbr x) "Combine swap-r and swap-nb" (swap-r (swap-nb x)))
+(define-pmacro (swap-nw x) "Combine swap-n and swap-w" (swap-w (swap-n x)))
+(define-pmacro (swap-nwr x) "Combine swap-r and swap-nw" (swap-r (swap-nw x)))
+(define-pmacro (swap-nwb x) "Combine swap-b and swap-nw" (swap-b (swap-nw x)))
+(define-pmacro (swap-nwbr x) "Combine swap-r and swap-nwb" (swap-r (swap-nwb x)))
+
+(define-pmacro (cris-swap swapcode val)
+  (sequence
+    SI
+    ((SI tmpcode) (SI tmpval) (SI tmpres))
+    (set tmpcode swapcode)
+    (set tmpval val)
+    (.splice
+     cond
+     (.unsplice
+      (.map
+       (.pmacro
+	(x-swapcode x-swap)
+	((eq tmpcode x-swapcode)
+	 (set tmpres ((.sym swap- x-swap) tmpval))))
+       (.iota 16)
+       (.splice _ (.unsplice cris-swap-codes)))))
+    tmpres)
+)
+
+; NOT     Rd              alias for SWAPN Rd
+(dni-cdt-attr
+ not "Not"
+ ((MACH crisv0,crisv3))
+ "not ${Rs}"
+ (+ (f-dest 8) RFIX_SWAP MODE_REGISTER SIZE_FIXED Rd-sfield)
+ (sequence
+   ((SI tmp) (SI tmpd))
+   (set tmp Rd-sfield)
+   (set tmpd (cris-swap 8 tmp))
+   (set Rd-sfield tmpd)
+   (setf-move SI tmpd))
+)
+
+; SWAP<option>    Rd      [ N W B R | 01110111 | Rd ]
+(dni-cdt-attr
+ swap "Swap"
+ ((MACH crisv8,crisv10,crisv32))
+ "swap${swapoption} ${Rs}"
+ (+ swapoption RFIX_SWAP MODE_REGISTER SIZE_FIXED Rd-sfield)
+ (sequence
+   ((SI tmps) (SI tmpd))
+   (set tmps Rd-sfield)
+   (set tmpd (cris-swap swapoption tmps))
+   (set Rd-sfield tmpd)
+   (setf-move SI tmpd))
+)
+
+; ASR.m   Rs,Rd           [ Rd | 011110mm | Rs ]
+(dni-cdt-bwd
+ asrr "Arithmetic shift right register count"
+ "$Rs,$Rd"
+ (+ Rd MODE_REGISTER R_ASR Rs)
+ (.pmacro
+  (BWD)
+  (sequence
+    ((BWD tmpd) (SI cnt1) (SI cnt2))
+    (set cnt1 Rs)
+    (set cnt2 (if SI (ne (and cnt1 32) 0) 31 (and cnt1 31)))
+    (set tmpd (sra SI (ext SI (trunc BWD Rd)) cnt2))
+    (set-subreg-gr BWD (regno Rd) tmpd)
+    (setf-move BWD tmpd)))
+)
+
+; ASRQ    c,Rd            [ Rd | 0011101 | c ]
+(dni-cdt
+ asrq "Arithmetic shift right quick-immediate count"
+ "asrq $c,${Rd}"
+ (+ Rd Q_ASHQ MODE_QUICK_IMMEDIATE (f-b5 1) c)
+ (sequence
+   ((SI tmpd))
+   (set tmpd (sra Rd c))
+   (set Rd tmpd)
+   (setf-move SI tmpd))
+)
+
+; LSR.m   Rs,Rd           [ Rd | 011111mm | Rs ]
+(dni-cdt-bwd
+ lsrr "Logical shift right register count"
+ "$Rs,$Rd"
+ (+ Rd MODE_REGISTER R_LSR Rs)
+ (.pmacro
+  (BWD)
+  (sequence
+    ((SI tmpd) (SI cnt))
+    (set cnt (and Rs 63))
+    (set
+     tmpd
+     (if SI (ne (and cnt 32) 0)
+	 0
+	 (srl SI (zext SI (trunc BWD Rd)) (and cnt 31))))
+    (set-subreg-gr BWD (regno Rd) tmpd)
+    (setf-move BWD tmpd)))
+)
+
+; LSRQ    c,Rd            [ Rd | 0011111 | c ]
+(dni-cdt
+ lsrq "Logical shift right quick-immediate count"
+ "lsrq $c,${Rd}"
+ (+ Rd Q_LSHQ MODE_QUICK_IMMEDIATE (f-b5 1) c)
+ (sequence
+   ((SI tmpd))
+   (set tmpd (srl Rd c))
+   (set Rd tmpd)
+   (setf-move SI tmpd))
+)
+
+; LSL.m   Rs,Rd           [ Rd | 010011mm | Rs ]
+(dni-cdt-bwd
+ lslr "Logical shift left register count"
+ "$Rs,$Rd"
+ (+ Rd MODE_REGISTER R_LSL Rs)
+ (.pmacro
+  (BWD)
+  (sequence
+    ((SI tmpd) (SI cnt))
+    (set cnt (and Rs 63))
+    (set
+     tmpd
+     (if SI (ne (and cnt 32) 0)
+	 0
+	 (sll SI (zext SI (trunc BWD Rd)) (and cnt 31))))
+    (set-subreg-gr BWD (regno Rd) tmpd)
+    (setf-move BWD tmpd)))
+)
+
+; LSLQ    c,Rd            [ Rd | 0011110 | c ]
+(dni-cdt
+ lslq "Logical shift left quick-immediate count"
+ "lslq $c,${Rd}"
+ (+ Rd Q_LSHQ MODE_QUICK_IMMEDIATE (f-b5 0) c)
+ (sequence
+   ((SI tmpd))
+   (set tmpd (sll Rd c))
+   (set Rd tmpd)
+   (setf-move SI tmpd))
+)
+
+; BTST    Rs,Rd           [ Rd | 01001111 | Rs ]
+(dni-cdt
+ btst "Bit test register number"
+ "$Rs,$Rd"
+ (+ Rd MODE_REGISTER RFIX_BTST SIZE_FIXED Rs)
+ (sequence
+   ((SI tmpd) (SI cnt))
+   (set tmpd (sll Rd (sub 31 (and Rs 31))))
+   (setf-move SI tmpd))
+)
+
+; BTSTQ   c,Rd            [ Rd | 0011100 | c ]
+(dni-cdt
+ btstq "Bit test quick-immediate number"
+ "btstq $c,${Rd}"
+ (+ Rd Q_ASHQ MODE_QUICK_IMMEDIATE (f-b5 0) c)
+ (sequence
+   ((SI tmpd))
+   (set tmpd (sll Rd (sub 31 c)))
+   (setf-move SI tmpd))
+)
+
+; SETF    <list of flags> [ P U I X | 01011011 | N Z V C ]
+(dni-cdt
+ setf "Set condition code flags explicitly"
+ "setf ${list-of-flags}"
+ ; The zero-flags case gets flag operands wrong; there's a "_"
+ ; where there should have been nothing.  Also, flags are in
+ ; assembly code allowed to be specified in any order, which
+ ; doesn't match the "flagbits" settings.  Luckily we don't
+ ; use this field for assembly.
+ (+ RFIX_SETF MODE_REGISTER SIZE_FIXED list-of-flags)
+ (.splice
+  sequence
+  ((SI tmp))
+  (set tmp list-of-flags)
+  (.unsplice
+   (.map
+    (.pmacro (ccbit)
+	     (if (ne (and tmp (sll 1 (.sym ccbit -bitnumber))) 0)
+		 (set (.sym ccbit bit) 1)))
+    cris-flagnames))
+   (set prefix-set 0)
+   ; Unless x was specified to be set, set it to 0.
+   (if (eq (and tmp (sll 1 x-bitnumber)) 0)
+       (set xbit 0)))
+)
+
+; CLEARF  <list of flags> [ P U I X | 01011111 | N Z V C ]
+(dni-cdt
+ clearf "Clear condition code flags explicitly"
+ "clearf ${list-of-flags}"
+ ; The zero-flags case gets flag operands wrong; there's a "_"
+ ; where there should have been nothing.  Also, flags are in
+ ; assembly code allowed to be specified in any order, which
+ ; doesn't match the "flagbits" settings.  Luckily we don't
+ ; use this field for assembly.
+ (+ RFIX_CLEARF MODE_REGISTER SIZE_FIXED list-of-flags)
+ (.splice
+  sequence
+  ((SI tmp))
+  (set tmp list-of-flags)
+  (.unsplice
+   (.map
+    (.pmacro (ccbit)
+	     (if (ne (and tmp (sll 1 (.sym ccbit -bitnumber))) 0)
+		 (set (.sym ccbit bit) 0)))
+    cris-flagnames))
+   (reset-x-p))
+)
+
+(define-pmacro
+  (rfe-rfn-guts)
+  "Common parts of RFE and RFN"
+  (sequence
+    ((USI oldccs) (USI samebits) (USI shiftbits) (USI keepmask) (BI p1))
+    (set oldccs ccs)
+    ; Keeping U, S and I in user mode is handled by the CCS setter, so we
+    ; don't have to bother.  Actually Q and M are handled too.  The reason
+    ; to mask those out is to not have them shifted down into the second
+    ; flags level.
+    (set keepmask #xc0000000)
+    (set samebits (and oldccs keepmask))
+    ; The P bit has its own equation.
+    (set shiftbits (and (srl (and oldccs #x3ffdfc00) 10) (inv keepmask)))
+    (set p1 (ne 0 (and oldccs #x20000)))
+    (set ccs (or (or samebits shiftbits)
+		 (if SI (and rbit (not p1)) 0 #x80))))
+)
+
+; RFE                     [ 0010 10010011 0000 ]
+(dni-cdt-attr
+ rfe
+ "RFE"
+ (MACH-V32)
+ "rfe"
+ (+ (f-dest 2) MODE_INDIRECT INFIX_RFE SIZE_FIXED (f-source 0))
+ (rfe-rfn-guts)
+)
+
+; SFE                     [ 0011 10010011 0000 ]
+(dni-cdt-attr
+ sfe
+ "SFE"
+ (MACH-V32)
+ "sfe"
+ (+ (f-dest 3) MODE_INDIRECT INFIX_SFE SIZE_FIXED (f-source 0))
+ (sequence
+   ((SI oldccs) (SI savemask))
+   (set savemask #xc0000000)
+   (set oldccs ccs)
+   (set ccs
+	(or (and savemask oldccs)
+	    (and (inv savemask) (sll oldccs 10)))))
+)
+
+; RFG                     [ 0100 10010011 0000 ]
+(dni-cdt-attr
+ rfg
+ "RFG"
+ (MACH-V32)
+ "rfg"
+ (+ (f-dest 4) MODE_INDIRECT INFIX_RFG SIZE_FIXED (f-source 0))
+ (c-call VOID "@cpu@_rfg_handler" pc)
+)
+
+; RFN                     [ 0101 10010011 0000 ]
+(dni-cdt-attr
+ rfn
+ "RFN"
+ (MACH-V32)
+ "rfn"
+ (+ (f-dest 5) MODE_INDIRECT INFIX_RFN SIZE_FIXED (f-source 0))
+ (sequence () (rfe-rfn-guts) (set mbit 1))
+)
+
+; HALT                     [ 1111 10010011 0000 ]
+(dni-cdt-attr
+ halt
+ "HALT"
+ (MACH-V32)
+ "halt"
+ (+ (f-dest 15) MODE_INDIRECT INFIX_HALT SIZE_FIXED (f-source 0))
+ (set pc (c-call USI "@cpu@_halt_handler" pc))
+)
+
+; Bcc     o               [ cc | 0000 | o ]
+(dni
+ bcc-b "bcc byte operand"
+ ()
+ "b${cc} ${o-pcrel}"
+ (+ cc QHI_BCC MODE_QUICK_IMMEDIATE o-pcrel)
+ (sequence
+   ((BI truthval))
+   (set truthval (cris-condition cc))
+
+   ; Amazing as it may seem, there's no simpler way to find out
+   ; whether a branch is taken or not than to mark it through a kludge
+   ; like this.
+   (c-call VOID "@cpu@_branch_taken" pc o-pcrel truthval)
+
+   (reset-x-p)
+   (if truthval
+       (delay 1
+	      (set pc o-pcrel))))
+ (.splice (.unsplice (simplecris-timing))
+	  (crisv32 (unit u-branch) (unit u-exec)))
+)
+(dni
+ ba-b "ba byte operand"
+ ()
+ "ba ${o-pcrel}"
+ (+ (f-dest 14) QHI_BCC MODE_QUICK_IMMEDIATE o-pcrel)
+ (sequence
+   ()
+   (reset-x-p)
+   (delay 1
+	  (set pc o-pcrel)))
+ ((crisv32 (unit u-jump) (unit u-exec)))
+)
+
+; Bcc     [PC+]           [ cc | 11011111 1111 ]
+; (We don't implement the generic for pre-V32 but unused variant
+; "Bcc [Rn(+)]" where n != 15.)
+(dni
+ bcc-w "bcc, word operand"
+ ()
+ "b${cc} ${o-word-pcrel}"
+ (+ cc MODE_AUTOINCREMENT INFIX_BCC_M SIZE_FIXED (f-source 15) o-word-pcrel)
+ (sequence
+   ((BI truthval))
+   (set truthval (cris-condition cc))
+
+   ; Amazing as it may seem, there's no simpler way to find out
+   ; whether a branch is taken or not than to mark it through a kludge
+   ; like this.
+   (c-call VOID "@cpu@_branch_taken" pc o-word-pcrel truthval)
+
+   (reset-x-p)
+   (if truthval
+       (delay 1
+	      (set pc o-word-pcrel))))
+ (.splice
+  (.unsplice (simplecris-common-timing ((unit u-const16) (unit u-exec))))
+  (crisv32 (unit u-const16) (unit u-branch) (unit u-exec)))
+)
+(dni
+ ba-w "ba word operand"
+ ()
+ "ba ${o-word-pcrel}"
+ (+ (f-dest 14) MODE_AUTOINCREMENT INFIX_BCC_M SIZE_FIXED (f-source 15) o-word-pcrel)
+ (sequence
+   ()
+   (reset-x-p)
+   (delay 1
+	  (set pc o-word-pcrel)))
+ (.splice
+  (.unsplice (simplecris-common-timing ((unit u-const16) (unit u-exec))))
+  (crisv32 (unit u-const16) (unit u-jump) (unit u-exec)))
+)
+
+; JAS     Rs,Pd           [ Pd | 10011011 | Rs ]
+(dni
+ jas-r "JAS register"
+ (MACH-V32)
+ "jas ${Rs},${Pd}"
+ (+ Pd MODE_INDIRECT INFIX_JAS_R SIZE_FIXED Rs)
+ (sequence
+   ()
+   (reset-x-p)
+   (if (andif (eq (regno Rs) 1) (eq (regno Pd) 11))
+       ; We use this as a trigger; a normally reasonably rare instruction
+       ; used in the v32 trampoline.  See comment at bdapqpc.
+       ; CGEN-FIXME: can't use (regno srp) [== (regno (reg h-sr 11))]
+       (c-call VOID "cris_flush_simulator_decode_cache" pc))
+   (delay 1
+	  (sequence
+	    ()
+	    (set Pd (add SI pc 4))
+	    (set pc Rs))))
+ ((crisv32 (unit u-jump-r) (unit u-jump) (unit u-exec)))
+)
+; Same semantics in pre-V32, except no delay-slot.
+; FIXME: Missing JIRC/JSRC/JBRC.
+(dni-cdt-attr
+ jump-r "JUMP/JSR/JIR register"
+ (MACH-PC)
+ "jump/jsr/jir ${Rs}"
+ (+ Pd MODE_INDIRECT INFIX_JUMP_R SIZE_FIXED Rs)
+ (sequence
+   ()
+   (set Pd (add SI pc 2))
+   (set pc Rs)
+   (reset-x-p))
+)
+
+; JAS     [PC+],Pd        [ Pd | 11011011 1111 ]
+(dni
+ jas-c "JAS constant"
+ (MACH-V32)
+ "jas ${const32},${Pd}"
+ (+ Pd MODE_AUTOINCREMENT INFIX_JAS_M SIZE_FIXED (f-source 15) const32)
+ (sequence
+   ()
+   (reset-x-p)
+   (delay 1
+	  (sequence
+	    ()
+	    (set Pd (add SI pc 8))
+	    (set pc const32))))
+ ((crisv32 (unit u-const32) (unit u-jump) (unit u-exec)))
+)
+
+;        JUMP/JSR/JIR  | Special r.| 1  m| 0  1  0  0| 1  1| Source    |
+(dni-cmt-attr
+ jump-m "JUMP/JSR/JIR memory"
+ (MACH-PC)
+ "jump/jsr/jir [${Rs}${inc}]"
+ (+ Pd INFIX_JUMP_M SIZE_FIXED Rs)
+ (sequence
+   ()
+   (set Pd (add SI pc 2))
+   (set pc (cris-get-mem SI Rs))
+   (reset-x-p))
+)
+(dni-c-SI-attr
+ jump-c "JUMP/JSR/JIR constant"
+ (MACH-PC)
+ "jump/jsr/jir ${const32}"
+ (+ Pd MODE_AUTOINCREMENT INFIX_JUMP_M SIZE_FIXED (f-source 15) const32)
+ (sequence
+   ()
+   (set Pd (add SI pc 6))
+   (set pc const32)
+   (reset-x-p))
+)
+
+; JUMP    Ps              [ Ps | 10011111 0000 ]
+(dni
+ jump-p "JUMP special register"
+ (MACH-V32)
+ "jump ${Ps}"
+ (+ Ps MODE_INDIRECT INFIX_JUMP_P SIZE_FIXED (f-source 0))
+ (sequence
+   ()
+   (reset-x-p)
+   (delay 1
+	  (set pc Ps)))
+ ((crisv32 (unit u-jump-sr)
+	   (unit u-exec)))
+)
+
+; BAS     [PC+],Pd        [ Pd | 11101011 1111 ]
+(dni
+ bas-c "BAS constant"
+ (MACH-V32)
+ "bas ${const32},${Pd}"
+ (+ Pd MODE_AUTOINCREMENT INFIX_BAS SIZE_FIXED (f-source 15) const32-pcrel)
+ (sequence
+   ()
+   (reset-x-p)
+   (delay 1
+	  (sequence
+	    ()
+	    (set Pd (add SI pc 8))
+	    (set pc const32-pcrel))))
+ ((crisv32 (unit u-const32) (unit u-jump) (unit u-exec)))
+)
+
+; JASC    Rs,Pd           [ Pd | 10110011 | Rs ]
+(dni
+ jasc-r "JASC register"
+ (MACH-V32)
+ "jasc ${Rs},${Pd}"
+ (+ Pd MODE_INDIRECT INFIX_JASC SIZE_FIXED Rs)
+ (sequence
+   ()
+   (reset-x-p)
+   (delay 1
+	  (sequence
+	    ()
+	    (set Pd (add SI pc 8))
+	    (set pc Rs))))
+ ((crisv32 (unit u-jump-r) (unit u-skip4) (unit u-jump) (unit u-exec)))
+)
+
+; JASC    [PC+],Pd        [ Pd | 11110011 1111 ]
+(dni
+ jasc-c "JASC constant"
+ (MACH-V32)
+ "jasc ${const32},${Pd}"
+ (+ Pd MODE_AUTOINCREMENT INFIX_JASC SIZE_FIXED (f-source 15) const32)
+ (sequence
+   ()
+   (reset-x-p)
+   (delay 1
+	  (sequence
+	    ()
+	    (set Pd (add SI pc 12))
+	    (set pc const32))))
+ ((crisv32 (unit u-const32) (unit u-skip4) (unit u-jump) (unit u-exec)))
+)
+
+; BASC    [PC+],Pd        [ Pd | 11101111 1111 ]
+(dni
+ basc-c "BASC constant"
+ (MACH-V32)
+ "basc ${const32},${Pd}"
+ (+ Pd MODE_AUTOINCREMENT INFIX_BASC SIZE_FIXED (f-source 15) const32-pcrel)
+ (sequence
+   ()
+   (reset-x-p)
+   (delay 1
+	  (sequence
+	    ()
+	    (set Pd (add SI pc 12))
+	    (set pc const32-pcrel))))
+ ((crisv32 (unit u-const32) (unit u-skip4) (unit u-jump) (unit u-exec)))
+)
+
+; BREAK     n             [ 1110 | 10010011 | n ]
+
+(dni-cdt
+ break "break"
+ "break $n"
+ (+ (f-operand2 #xe) MODE_INDIRECT INFIX_BREAK SIZE_FIXED n)
+ (sequence () (reset-x-p) (set pc (c-call USI "@cpu@_break_handler" n pc)))
+)
+
+; BOUND.m Rs,Rd           [ Rd | 010111mm | Rs ]
+(dni-cdt-bwd
+ bound-r "Bound register"
+ "${Rs},${Rd}"
+ (+ Rd R_BOUND MODE_REGISTER Rs)
+ (.pmacro
+  (BWD)
+  (sequence
+    ((SI tmpopd) (SI tmpops) (SI newval))
+    (set tmpops ((.sym BWD -zext) (trunc BWD Rs)))
+    (set tmpopd Rd)
+    (set newval (if SI (ltu tmpops tmpopd) tmpops tmpopd))
+    (set Rd newval)
+    (setf-move SI newval)))
+)
+
+; BOUND.m [Rs],Rd         [ Rd | 100111mm | Rs ]
+; BOUND.m [Rs+],Rd        [ Rd | 110111mm | Rs ]
+(dni-cmt-bwd-attr
+ bound-m "Bound memory"
+ (MACH-PRE-V32)
+ "[${Rs}${inc}],${Rd}"
+ (+ Rd INDIR_BOUND Rs)
+ (.pmacro
+  (BWD)
+  (sequence
+    ((SI tmpopd) (SI tmpops) (SI newval))
+    (set tmpops ((.sym BWD -zext) (cris-get-mem BWD Rs)))
+    (set tmpopd Rd)
+    (set newval (if SI (ltu tmpops tmpopd) tmpops tmpopd))
+    (if (andif prefix-set (not inc))
+	(set Rs newval)
+	(set Rd newval))
+    (setf-move SI newval)))
+)
+
+; (BOUND.m [PC+],Rd        [ Rd | 110111mm | 1111 ])
+(dni-c-QI
+ bound-cb "Bound constant byte"
+ "bound.b [PC+],${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INDIR_BOUND SIZE_BYTE (f-source 15) uconst8)
+ (sequence
+   ((SI tmpopd) (SI tmpops) (SI newval))
+   (set tmpops (zext SI (trunc QI uconst8)))
+    (set tmpopd Rd)
+    (set newval (if SI (ltu tmpops tmpopd) tmpops tmpopd))
+    (set Rd newval)
+    (setf-move SI newval))
+)
+(dni-c-HI
+ bound-cw "Bound constant word"
+ "bound.w [PC+],${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INDIR_BOUND SIZE_WORD (f-source 15) uconst16)
+ (sequence
+   ((SI tmpopd) (SI tmpops) (SI newval))
+   (set tmpops (zext SI uconst16))
+    (set tmpopd Rd)
+    (set newval (if SI (ltu tmpops tmpopd) tmpops tmpopd))
+    (set Rd newval)
+    (setf-move SI newval))
+)
+(dni-c-SI
+ bound-cd "Bound constant dword"
+ "bound.d [PC+],${Rd}"
+ (+ Rd MODE_AUTOINCREMENT INDIR_BOUND SIZE_DWORD (f-source 15) const32)
+ (sequence
+   ((SI tmpopd) (SI tmpops) (SI newval))
+   (set tmpops const32)
+    (set tmpopd Rd)
+    (set newval (if SI (ltu tmpops tmpopd) tmpops tmpopd))
+    (set Rd newval)
+    (setf-move SI newval))
+)
+
+; Scc     Rd              [ cc | 01010011 | Rd ]
+(dni-cdt
+ scc "scc"
+ "s${cc} ${Rd-sfield}"
+ (+ cc MODE_REGISTER RFIX_SCC SIZE_FIXED Rd-sfield)
+ (sequence
+   ((BI truthval))
+   (set truthval (cris-condition cc))
+   (set Rd-sfield (zext SI truthval))
+   (reset-x-p))
+)
+
+; LZ      Rs,Rd           [ Rd | 01110011 | Rs ]
+(dni-cdt-attr
+ lz "lz"
+ (MACH-V3-UP)
+ "lz ${Rs},${Rd}"
+ (+ Rd MODE_REGISTER RFIX_LZ SIZE_FIXED Rs)
+ (sequence
+   ((SI tmpd) (SI tmp))
+   (set tmp Rs)
+   (set tmpd 0)
+   (.splice
+    sequence
+    ()
+    (.unsplice
+     (.map
+      (.pmacro (n)
+	       (if (ge tmp 0)
+		   (sequence
+		     ()
+		     (set tmp (sll tmp 1))
+		     (set tmpd (add tmpd 1)))))
+      (.iota 32))))
+   (set Rd tmpd)
+   (setf-move SI tmpd))
+)
+
+; ADDOQ   o,Rs,ACR        [ Rs | 0001 | o ]
+(dni-cdt
+ addoq "addoq"
+ "addoq $o,$Rs,ACR"
+ (+ Rs-dfield MODE_QUICK_IMMEDIATE QHI_ADDOQ o)
+ (sequence
+   ()
+   (set prefixreg (add SI Rs-dfield o))
+   (set prefix-set 1))
+)
+
+; (BDAPQ   o,PC        [ 1111 | 0001 | o ])
+; This [PC+I] prefix is used in trampolines.
+(dni-cdt-attr
+ bdapqpc "bdapq pc operand"
+ (MACH-PC UNCOND-CTI)
+ "bdapq $o,PC"
+ (+ (f-dest 15) MODE_QUICK_IMMEDIATE QHI_BDAP o)
+ (sequence
+   ()
+   (set prefixreg (add SI (add SI pc 2) o))
+   (set prefix-set 1)
+   ; When this *rare* instruction is seen, we're may be about to write
+   ; into code to be executed soon, *probably* covering addresses decoded
+   ; and executed before.  If the simulator does not implement snooping
+   ; and automatic decoder flush, it will execute old code.  This call
+   ; is a kludge for such simulators, asking it to abandon such cached
+   ; information.  Anyway, it is hopefully enough to make CGEN-sim not
+   ; hork on gcc trampolines.
+   ; We mark this insn as UNCOND-CTI so this insn will end a simulator
+   ; basic block (the atomic unit of translation).
+   (c-call VOID "cris_flush_simulator_decode_cache" pc))
+)
+
+; (BDAP.D  [PC+],PC   [ 1111 | 11010110 | 1111 ]
+; This [PC+I] prefix is used for DSO-local jumps in PIC code, together with
+; move-m-pcplus-p0: "move [pc=pc+N],p0"
+(dni-c-SI-attr
+ bdap-32-pc "bdap.d [PC+],PC"
+ (MACH-PC)
+ "bdap ${sconst32},PC"
+ (+ (f-dest 15) MODE_AUTOINCREMENT INDIR_BDAP_M SIZE_DWORD (f-source 15) const32)
+ (sequence
+   ((SI newpc) (SI oldpc) (SI offs))
+   (set offs const32)
+   (set oldpc (add SI pc 6))
+   (set newpc (add SI oldpc offs))
+   (set prefixreg newpc)
+   (set prefix-set 1))
+)
+
+; (MOVE    [PC+],P0        [ 0000 | 11100011 | 1111 ])
+; This insn is used for DSO-local jumps in PIC code.  See bdap-32-pc.
+(dni ; Must not use dni-cmt-* because we force MODE_AUTOINCREMENT.
+ move-m-pcplus-p0 "move [PC+],P0"
+ (MACH-PC)
+ "move [PC+],P0"
+ (+ (f-dest 0) MODE_AUTOINCREMENT INFIX_MOVE_M_S SIZE_FIXED (f-source 15))
+ (if prefix-set
+     (sequence
+       ((QI dummy))
+       ; We model the memory read, but throw the result away, as the
+       ; destination register is read-only.  We need to assign the result of
+       ; cris-get-mem though, as CGEN-FIXME: invalid C code will otherwise
+       ; be generated.
+       (set dummy (cris-get-mem QI pc))
+       (reset-x-p))
+     (error "move [PC+],P0 without prefix is not implemented"))
+ (cris-mem-timing)
+)
+
+; This insn is used in Linux in the form "move [$sp=$sp+16],$p8"; it's
+; similar to move-m-pcplus-p0 above.  The same comments apply here.
+(dni
+ move-m-spplus-p8 "move [SP+],P8"
+ (MACH-PC)
+ "move [SP+],P8"
+ (+ (f-dest 8) MODE_AUTOINCREMENT INFIX_MOVE_M_S SIZE_FIXED (f-source 14))
+ (if prefix-set
+     (sequence
+       ((SI dummy))
+       (set dummy (cris-get-mem SI sp))
+       (reset-x-p))
+     (error "move [SP+],P8 without prefix is not implemented"))
+ (cris-mem-timing)
+)
+
+; ADDO.m  [Rs],Rd,ACR    [ Rd | 100101mm | Rs ]
+; ADDO.m  [Rs+],Rd,ACR   [ Rd | 110101mm | Rs ]
+(dni-cmt-bwd
+ addo-m "addo.m memory"
+ "[${Rs}${inc}],$Rd,ACR"
+ (+ Rd INDIR_ADDO Rs)
+ (.pmacro
+  (BWD)
+  (sequence
+    ((BWD tmps))
+    (set tmps (cris-get-mem BWD Rs))
+    (set prefixreg (add SI Rd ((.sym BWD -ext) tmps)))
+    (set prefix-set 1)))
+)
+
+; (ADDO.m  [PC+],Rd,ACR   [ Rd | 110101mm | 1111 ]
+(dni-c-QI
+ addo-cb "addo.b const"
+ "addo.b [PC+],$Rd,ACR"
+ (+ Rd MODE_AUTOINCREMENT INDIR_ADDO SIZE_BYTE (f-source 15) sconst8)
+ (sequence
+   ()
+   (set prefixreg (add SI Rd (ext SI (trunc QI sconst8))))
+   (set prefix-set 1))
+)
+(dni-c-HI
+ addo-cw "addo.w const"
+ "addo.w [PC+],$Rd,ACR"
+ (+ Rd MODE_AUTOINCREMENT INDIR_ADDO SIZE_WORD (f-source 15) sconst16)
+ (sequence
+   ()
+   (set prefixreg (add SI Rd (ext SI (trunc HI sconst16))))
+   (set prefix-set 1))
+)
+(dni-c-SI
+ addo-cd "addo.d const"
+ "addo.d [PC+],$Rd,ACR"
+ (+ Rd MODE_AUTOINCREMENT INDIR_ADDO SIZE_DWORD (f-source 15) const32)
+ (sequence
+   ()
+   (set prefixreg (add SI Rd const32))
+   (set prefix-set 1))
+)
+
+;         DIP    []   | 0  0  0  0| 1  m| 0  1  0  1| 1  1| Source    |
+
+(dni-cmt-attr
+ dip-m "dip mem"
+ (MACH-PRE-V32)
+ "dip [${Rs}${inc}]"
+ (+ (f-dest 0) INFIX_DIP SIZE_FIXED Rs)
+ (sequence
+   ((SI tmps))
+   (set tmps (cris-get-mem SI Rs))
+   (set prefixreg tmps)
+   (set prefix-set 1))
+)
+
+;         (DIP    []   | 0  0  0  0| 1  m| 0  1  0  1| 1  1| Source    |    )
+(dni-c-SI-attr
+ dip-c "dip [PC+]"
+ (MACH-PC)
+ "dip [PC+]"
+ (+ (f-dest 0) MODE_AUTOINCREMENT INFIX_DIP SIZE_FIXED (f-source 15) const32)
+ (sequence
+   ()
+   (set prefixreg const32)
+   (set prefix-set 1))
+)
+
+; ADDI    Rs.m,Rd,ACR     [ Rs | 010101mm | Rd ]
+; a.k.a. biap
+(dni-cdt-bwd
+ addi-acr "addi prefix"
+ "${Rs-dfield}.m,${Rd-sfield},ACR"
+ (+ Rd-sfield MODE_REGISTER R_ADDI_ACR Rs-dfield)
+ (.pmacro
+  (BWD)
+  (sequence
+    ()
+    (set prefixreg (add SI Rd-sfield (mul Rs-dfield (.sym BWD -size))))
+    (set prefix-set 1)))
+)
+
+(dni-cdt-bwd-attr
+ biap-pc "biap.m ${Rs-dfield},PC"
+ (MACH-PC)
+ "${Rs-dfield}.m,PC"
+ (+ Rs-dfield MODE_REGISTER R_ADDI_ACR (f-source 15))
+ (.pmacro
+  (BWD)
+  (sequence
+    ()
+    (set prefixreg (add SI (add SI pc 4) (mul Rs-dfield (.sym BWD -size))))
+    (set prefix-set 1)))
+)
+
+; FIDXI    [Rs]            [ 0000 | 11010011 | Rs ]
+(dni-cdt-attr
+ fidxi "fidxi [Rs]"
+ (MACH-V32)
+ "fidxi [$Rs]"
+ (+ (f-dest 0) MODE_AUTOINCREMENT INFIX_FIDXI SIZE_FIXED Rs)
+ (set pc (c-call USI "@cpu@_fidxi_handler" pc Rs))
+)
+
+; FTAGI    [Rs]            [ 0001 | 11010011 | Rs ]
+(dni-cdt-attr
+ ftagi "ftagi [Rs]"
+ (MACH-V32)
+ "fidxi [$Rs]"
+ (+ (f-dest 1) MODE_AUTOINCREMENT INFIX_FTAGI SIZE_FIXED Rs)
+ (set pc (c-call USI "@cpu@_ftagi_handler" pc Rs))
+)
+
+; FIDXD    [Rs]            [ 0000 | 10101011 | Rs ]
+(dni-cdt-attr
+ fidxd "fidxd [Rs]"
+ (MACH-V32)
+ "fidxd [$Rs]"
+ (+ (f-dest 0) MODE_INDIRECT INFIX_FIDXD SIZE_FIXED Rs)
+ (set pc (c-call USI "@cpu@_fidxd_handler" pc Rs))
+)
+
+; FTAGD    [Rs]            [ 0001 | 10101011 | Rs ]
+(dni-cdt-attr
+ ftagd "ftagd [Rs]"
+ (MACH-V32)
+ "ftagd [$Rs]"
+ (+ (f-dest 1) MODE_INDIRECT INFIX_FTAGD SIZE_FIXED Rs)
+ (set pc (c-call USI "@cpu@_ftagd_handler" pc Rs))
+)

@@ -1,0 +1,3 @@
+	.text
+	.long symbol1
+

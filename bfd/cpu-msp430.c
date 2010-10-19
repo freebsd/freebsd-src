@@ -16,7 +16,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -64,23 +64,26 @@ static const bfd_arch_info_type arch_info_struct[] =
   /* msp430x16x.  */
   N (16, bfd_mach_msp16, "msp:16", FALSE, & arch_info_struct[7]),
 
+  /* msp430x21x.  */
+  N (16, bfd_mach_msp21, "msp:21", FALSE, & arch_info_struct[8]),
+
   /* msp430x31x.  */
-  N (16, bfd_mach_msp31, "msp:31", FALSE, & arch_info_struct[8]), 
+  N (16, bfd_mach_msp31, "msp:31", FALSE, & arch_info_struct[9]), 
 
   /* msp430x32x.  */
-  N (16, bfd_mach_msp32, "msp:32", FALSE, & arch_info_struct[9]), 
+  N (16, bfd_mach_msp32, "msp:32", FALSE, & arch_info_struct[10]), 
 
   /* msp430x33x.  */
-  N (16, bfd_mach_msp33, "msp:33", FALSE, & arch_info_struct[10]),
+  N (16, bfd_mach_msp33, "msp:33", FALSE, & arch_info_struct[11]),
   
   /* msp430x41x.  */
-  N (16, bfd_mach_msp41, "msp:41", FALSE, & arch_info_struct[11]),
+  N (16, bfd_mach_msp41, "msp:41", FALSE, & arch_info_struct[12]),
 
   /* msp430x42x.  */
-  N (16, bfd_mach_msp42, "msp:42", FALSE, & arch_info_struct[12]),
+  N (16, bfd_mach_msp42, "msp:42", FALSE, & arch_info_struct[13]),
 
   /* msp430x43x.  */
-  N (16, bfd_mach_msp43, "msp:43", FALSE, & arch_info_struct[13]),
+  N (16, bfd_mach_msp43, "msp:43", FALSE, & arch_info_struct[14]),
 
   /* msp430x44x.  */
   N (16, bfd_mach_msp43, "msp:44", FALSE, NULL)

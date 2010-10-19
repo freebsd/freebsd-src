@@ -1,3 +1,4 @@
+#as: -mtune=itanium1
 #objdump: -dr
 #name: ia64 ldxmov-1
 

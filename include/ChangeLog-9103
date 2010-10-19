@@ -8,6 +8,16 @@
 	* include/fibheap.h (fibnode): Use unsigned long int for
 	bit-fields if __GNUC__ is defined.
 
+2003-12-19  Andreas Tobler  <a.tobler@schweiz.ch>
+
+	* fibheap.h (fibnode): Use __extension__ for
+	bit-fields mark and degree if __GNUC__.
+
+2003-12-18  Kazu Hirata  <kazu@cs.umass.edu>
+
+	* fibheap.h (fibnode): Use unsigned long int for
+	bit-fields if __GNUC__ is defined.
+
 2003-12-04  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* bfdlink.h (bfd_link_info): Change relax_finalizing to
@@ -20,10 +30,6 @@
 2003-12-02  Alan Modra  <amodra@bigpond.net.au>
 
 	* bfdlink.h (struct bfd_link_info): Remove mpc860c0 field.
-
-2003-11-18  Maciej W. Rozycki  <macro@ds2.pg.gda.pl>
-
-	* opcode/mips.h: Define new enum members, M_LCA_AB and M_DLCA_AB.
 
 2003-11-14  Nick Clifton  <nickc@redhat.com>
 
@@ -71,11 +77,6 @@
 	(struct bfd_elf_version_tree): Add match field.
 	Change type of globals and locals fields
 	to struct bfd_elf_version_expr_head.
-
-2003-10-14  Bob Wilson  <bob.wilson@acm.org>
-
-	* elf/xtensa.h: Formatting.  Fix comments about property section
-	names for linkonce sections.
 
 2003-09-22  Andrew Cagney  <cagney@redhat.com>
 
@@ -158,7 +159,6 @@
 2003-05-23  Jakub Jelinek  <jakub@redhat.com>
 
 	* bfdlink.h (struct bfd_link_info): Add execstack and noexecstack.
-	* elf/common.h (PT_GNU_STACK): Define.
 
 2003-06-03  H.J. Lu <hongjiu.lu@intel.com>
 
@@ -198,13 +198,6 @@
 2003-04-23  H.J. Lu <hjl@gnu.org>
 
 	* bfdlink.h (bfd_link_callbacks): Add error_handler.
-
-2003-04-04  Svein E. Seldal  <Svein.Seldal@solidas.com>
-
-	* coff/tic4x.h: Namespace cleanup. Replace s/c4x/tic4x
-	and s/c3x/tic3x/
-	* coff/tc-tic4x.h: Ditto
-	* opcode/tic4x.h: Ditto
 
 2003-04-02  Bob Wilson  <bob.wilson@acm.org>
 
@@ -253,15 +246,6 @@
 	(htab_create_alloc_ex): New prototype.
 	(htab_set_functions_ex): New prototype.
 
-2003-01-25  Jakub Jelinek  <jakub@redhat.com>
-
-	* elf/sparc.h: Add TLS relocs.  Move R_SPARC_REV32 to 252.
-
-2003-01-20  Svein E. Seldal  <Svein.Seldal@solidas.com>
-
-	* coff/tic4x.h (TICOFF_TARGET_MACHINE_GET): Fixed define bug
-	* coff/ti.h (TICOFF_TARGET_MACHINE_GET): Added macros
-
 2002-07-17  Geoffrey Keating  <geoffk@redhat.com>
 
 	* splay-tree.h (GTY): Define if undefined.
@@ -303,12 +287,6 @@
 
 	* libiberty.h (make_relative_prefix): Add prototype.
 
-2002-11-16  Klee Dienes  <kdienes@apple.com>
-
-	* opcode/m88k.h (INSTAB): Remove 'next' field.
-	(instruction): Remove definition; replace with extern declaration
-	and mark as const.
-
 2002-11-14  Egor Duda  <deo@logos-m.ru>
 
 	* bfdlink.h (struct bfd_link_info): Add new boolean
@@ -334,10 +312,6 @@
 
 	* getopt.h: getopt is in unistd.h (based on SUSv2).
 
-2002-09-26  Jakub Jelinek  <jakub@redhat.com>
-
-	* elf/x86-64.h: Add TLS relocs.
-
 2002-09-26  Andrew Cagney  <ac131313@redhat.com>
 
 	* regs/: Delete directory.
@@ -346,11 +320,6 @@
 
 	* libiberty.h (asprintf, vasprintf): Don't declare them if the
 	corresponding HAVE_DECL_ macro is 1.
-
-2002-09-19  Jakub Jelinek  <jakub@redhat.com>
-
-	* elf/i386.h (R_386_TLS_TPOFF, R_386_TLS_IE, R_386_TLS_GOTIE):
-	Define.
 
 2002-09-19  Nathan Tallent  <eraxxon@alumni.rice.edu>
 
@@ -363,11 +332,7 @@
 
 2002-08-28  Michael Hayes <m.hayes@elec.canterbury.ac.nz>
 
-	* coff/internal.h: Add new relocation types.
-	* coff/ti.h: Add file-header flags for tic4x code.
 	* dis-asm.h: Add standard disassembler for tic4x.
-	* opcode/tic4x.h: New file.
-	* coff/tic4x.h: New file
 
 2002-08-07  H.J. Lu <hjl@gnu.org>
 
@@ -379,19 +344,10 @@
 	* bfdlink.h (bfd_link_common_skip_ar_symbols): New enum.
 	(struct bfd_link_info): Add new field 'common_skip_ar_symbols'.
 
-2002-07-25  Richard Sandiford  <rsandifo@redhat.com>
-
-	* opcode/mips.h (CPU_R2000): Remove.
-
 2002-07-19  Denis Chertykov  <denisc@overta.ru>
 	    Matthew Green  <mrg@redhat.com>
 
 	* dis-asm.h (print_insn_ip2k): Declare.
-
-2002-07-10  Jakub Jelinek  <jakub@redhat.com>
-
-	* elf/common.h (SHT_GNU_LIBLIST, DT_GNU_PRELINKED,
-	DT_GNU_CONFLICT*, DT_GNU_LIBLIST*): Define.
 
 2002-07-01  Alan Modra  <amodra@bigpond.net.au>
 
@@ -455,11 +411,6 @@
 	(htab_create): Replace with #define.
 	(htab_try_create): Delete.
 
-2002-05-31  Michal Ludvig  <mludvig@suse.cz>
-
-	* elf/dwarf2.h (DW_CFA_low_user, DW_CFA_high_user): Renamed
-	to DW_CFA_lo_user, DW_CFA_hi_user respectively.
-
 2002-05-28  Kuang Hwa Lin <kuang@sbcglobal.net>
 
 	* dis-asm.h: Prototype print_insn_dlx.
@@ -467,12 +418,6 @@
 2002-05-23  Andrew Cagney  <ac131313@redhat.com>
 
 	* sim-d10v.h: Delete file.  Moved to include/gdb/.
-
-2002-05-23  Jakub Jelinek  <jakub@redhat.com>
-
-	* elf/common.h (PT_TLS, SHF_TLS, STT_TLS, DF_STATIC_TLS): Define.
-	* elf/ia64.h (R_IA64_LTOFF_TPREL22): Renamed from R_IA64_LTOFF_TP22.
-	* elf/i386.h: Add TLS relocs.
 
 2002-05-21  H.J. Lu  (hjl@gnu.org)
 

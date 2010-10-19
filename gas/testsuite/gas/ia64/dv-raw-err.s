@@ -6,8 +6,8 @@
 .text
 	.explicit
 // AR[BSP]
-	mov	ar.bspstore = r1
-	mov	r0 = ar.bsp
+	mov	ar.bspstore = r0
+	mov	r1 = ar.bsp
 	;;
 
 // AR[BSPSTORE]	
@@ -108,12 +108,12 @@
 
 // BR%
 	mov	b0 = r0
-	mov	r0 = b0
+	mov	r2 = b0
 	;;
 	
 // CFM	
 	br.wtop.sptk	L
-	fadd	f0 = f1, f32	// read from rotating register region
+	fadd	f2 = f1, f32	// read from rotating register region
 	;;
 	
 // CR[CMCV]
@@ -276,7 +276,7 @@
 	;;
 
 // GR%
-	ld8.c.clr	r0 = [r1]	// no DV here
+	ld8.c.clr	r1 = [r1]	// no DV here
 	mov		r2 = r0		
 	;;
 	mov		r3 = r4
@@ -357,7 +357,7 @@
 	
 // PR63
 	br.wtop.sptk	L
-(p63)	add	r0 = r1, r2
+(p63)	add	r3 = r1, r2
 	;;
 	fcmp.eq p62, p63 = f2, f3
 (p63)	add	r3 = r4, r5	
@@ -368,17 +368,17 @@
 
 // PSR.ac
 	rum	(1<<3)
-	ld8	r0 = [r1]
+	ld8	r2 = [r1]
 	;;
 
 // PSR.be
 	rum	(1<<1)
-	ld8	r0 = [r1]
+	ld8	r2 = [r1]
 	;;
 	
 // PSR.bn
 	bsw.0
-	mov	r0 = r15	// no DV here, since gr < 16
+	mov	r1 = r15	// no DV here, since gr < 16
 	;;
 	bsw.1			// GAS automatically emits a stop after bsw.n
 	mov	r1 = r16	// so this conflict is avoided               
@@ -439,24 +439,24 @@
 	
 // PSR.di
 	rsm	(1<<22)
-	mov	r0 = psr
+	mov	r1 = psr
 	;;
 
 // PSR.dt
 	rsm	(1<<17)
-	ld8	r0 = [r1]
+	ld8	r1 = [r1]
 	;;
 	
 // PSR.ed (rfi is the only writer)
 // PSR.i
 	ssm	(1<<14)
-	mov	r0 = psr
+	mov	r1 = psr
 	;;
 	
 // PSR.ia (no DV semantics)
 // PSR.ic
 	ssm	(1<<13)
-	mov	r0 = psr
+	mov	r1 = psr
 	;;
 	srlz.d
 	rsm	(1<<13)
@@ -479,17 +479,17 @@
 // PSR.mc (rfi is the only writer)
 // PSR.mfh
 	mov	f32 = f33
-	mov	r0 = psr
+	mov	r1 = psr
 	;;
 
 // PSR.mfl
 	mov	f2 = f3
-	mov	r0 = psr
+	mov	r1 = psr
 	;;
 
 // PSR.pk
 	rsm	(1<<15)
-	ld8	r0 = [r1]
+	ld8	r1 = [r1]
 	;;
 	rsm	(1<<15)
 	mov	r2 = psr
@@ -497,7 +497,7 @@
 
 // PSR.pp
 	rsm	(1<<21)
-	mov	r0 = psr
+	mov	r1 = psr
 	;;
 
 // PSR.ri (no DV semantics)
@@ -509,7 +509,7 @@
 
 // PSR.si
 	rsm	(1<<23)
-	mov	r0 = ar.itc
+	mov	r1 = ar.itc
 	;;
 	ssm	(1<<23)
 	mov	r1 = ar.ec	// no DV here
@@ -517,13 +517,13 @@
 
 // PSR.sp
 	ssm	(1<<20)
-	mov	r0 = pmd[r1]
+	mov	r1 = pmd[r1]
 	;;
 	ssm	(1<<20)
 	rum	0xff
 	;;
 	ssm	(1<<20)
-	mov	r0 = rr[r1]
+	mov	r1 = rr[r1]
 	;;
 
 // PSR.ss (rfi is the only writer)
@@ -534,7 +534,7 @@
 
 // PSR.up
 	rsm	(1<<2)
-	mov	r0 = psr.um
+	mov	r1 = psr.um
 	;;
 	srlz.d
 
@@ -576,4 +576,27 @@
 (p27)	br.cond.sptk	b1	// no DV here
 	;;
 	
-L:	
+// postinc
+	st8	[r6] = r8, 16
+	add	r7 = 8, r6	// impliedf
+	;;
+	ldfd	f14 = [r6], 16
+	add	r7 = 8, r6	// impliedf
+	;;
+	stfd	[r6] = f14, 16
+	add	r7 = r8, r6
+	;;
+	add	r6 = 8, r7
+	ld8	r8 = [r6], 16	// impliedf, WAW
+	;;
+	add	r6 = 8, r7
+	ldfd	f14 = [r6], 16	// impliedf, WAW
+	;;
+
+L:
+	br.ret.sptk     rp
+
+// PSR.vm. New in SDM 2.2
+	vmsw.0
+	ld8	r2 = [r1]
+	;;

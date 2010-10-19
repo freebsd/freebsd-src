@@ -2,7 +2,7 @@
 
 THIS FILE IS MACHINE GENERATED WITH CGEN.
 
-Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+Copyright 1996-2005 Free Software Foundation, Inc.
 
 This file is part of the GNU Binutils and/or GDB, the GNU debugger.
 
@@ -18,7 +18,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
 */
 
@@ -43,7 +43,7 @@ static const CGEN_ATTR_ENTRY bool_attr[] =
   { 0, 0 }
 };
 
-static const CGEN_ATTR_ENTRY MACH_attr[] =
+static const CGEN_ATTR_ENTRY MACH_attr[] ATTRIBUTE_UNUSED =
 {
   { "base", MACH_BASE },
   { "openrisc", MACH_OPENRISC },
@@ -52,14 +52,14 @@ static const CGEN_ATTR_ENTRY MACH_attr[] =
   { 0, 0 }
 };
 
-static const CGEN_ATTR_ENTRY ISA_attr[] =
+static const CGEN_ATTR_ENTRY ISA_attr[] ATTRIBUTE_UNUSED =
 {
   { "or32", ISA_OR32 },
   { "max", ISA_MAX },
   { 0, 0 }
 };
 
-static const CGEN_ATTR_ENTRY HAS_CACHE_attr[] =
+static const CGEN_ATTR_ENTRY HAS_CACHE_attr[] ATTRIBUTE_UNUSED =
 {
   { "DATA_CACHE", HAS_CACHE_DATA_CACHE },
   { "INSN_CACHE", HAS_CACHE_INSN_CACHE },
@@ -136,41 +136,41 @@ static const CGEN_MACH openrisc_cgen_mach_table[] = {
 
 static CGEN_KEYWORD_ENTRY openrisc_cgen_opval_h_gr_entries[] =
 {
-  { "r0", 0, {0, {0}}, 0, 0 },
-  { "r1", 1, {0, {0}}, 0, 0 },
-  { "r2", 2, {0, {0}}, 0, 0 },
-  { "r3", 3, {0, {0}}, 0, 0 },
-  { "r4", 4, {0, {0}}, 0, 0 },
-  { "r5", 5, {0, {0}}, 0, 0 },
-  { "r6", 6, {0, {0}}, 0, 0 },
-  { "r7", 7, {0, {0}}, 0, 0 },
-  { "r8", 8, {0, {0}}, 0, 0 },
-  { "r9", 9, {0, {0}}, 0, 0 },
-  { "r10", 10, {0, {0}}, 0, 0 },
-  { "r11", 11, {0, {0}}, 0, 0 },
-  { "r12", 12, {0, {0}}, 0, 0 },
-  { "r13", 13, {0, {0}}, 0, 0 },
-  { "r14", 14, {0, {0}}, 0, 0 },
-  { "r15", 15, {0, {0}}, 0, 0 },
-  { "r16", 16, {0, {0}}, 0, 0 },
-  { "r17", 17, {0, {0}}, 0, 0 },
-  { "r18", 18, {0, {0}}, 0, 0 },
-  { "r19", 19, {0, {0}}, 0, 0 },
-  { "r20", 20, {0, {0}}, 0, 0 },
-  { "r21", 21, {0, {0}}, 0, 0 },
-  { "r22", 22, {0, {0}}, 0, 0 },
-  { "r23", 23, {0, {0}}, 0, 0 },
-  { "r24", 24, {0, {0}}, 0, 0 },
-  { "r25", 25, {0, {0}}, 0, 0 },
-  { "r26", 26, {0, {0}}, 0, 0 },
-  { "r27", 27, {0, {0}}, 0, 0 },
-  { "r28", 28, {0, {0}}, 0, 0 },
-  { "r29", 29, {0, {0}}, 0, 0 },
-  { "r30", 30, {0, {0}}, 0, 0 },
-  { "r31", 31, {0, {0}}, 0, 0 },
-  { "lr", 11, {0, {0}}, 0, 0 },
-  { "sp", 1, {0, {0}}, 0, 0 },
-  { "fp", 2, {0, {0}}, 0, 0 }
+  { "r0", 0, {0, {{{0, 0}}}}, 0, 0 },
+  { "r1", 1, {0, {{{0, 0}}}}, 0, 0 },
+  { "r2", 2, {0, {{{0, 0}}}}, 0, 0 },
+  { "r3", 3, {0, {{{0, 0}}}}, 0, 0 },
+  { "r4", 4, {0, {{{0, 0}}}}, 0, 0 },
+  { "r5", 5, {0, {{{0, 0}}}}, 0, 0 },
+  { "r6", 6, {0, {{{0, 0}}}}, 0, 0 },
+  { "r7", 7, {0, {{{0, 0}}}}, 0, 0 },
+  { "r8", 8, {0, {{{0, 0}}}}, 0, 0 },
+  { "r9", 9, {0, {{{0, 0}}}}, 0, 0 },
+  { "r10", 10, {0, {{{0, 0}}}}, 0, 0 },
+  { "r11", 11, {0, {{{0, 0}}}}, 0, 0 },
+  { "r12", 12, {0, {{{0, 0}}}}, 0, 0 },
+  { "r13", 13, {0, {{{0, 0}}}}, 0, 0 },
+  { "r14", 14, {0, {{{0, 0}}}}, 0, 0 },
+  { "r15", 15, {0, {{{0, 0}}}}, 0, 0 },
+  { "r16", 16, {0, {{{0, 0}}}}, 0, 0 },
+  { "r17", 17, {0, {{{0, 0}}}}, 0, 0 },
+  { "r18", 18, {0, {{{0, 0}}}}, 0, 0 },
+  { "r19", 19, {0, {{{0, 0}}}}, 0, 0 },
+  { "r20", 20, {0, {{{0, 0}}}}, 0, 0 },
+  { "r21", 21, {0, {{{0, 0}}}}, 0, 0 },
+  { "r22", 22, {0, {{{0, 0}}}}, 0, 0 },
+  { "r23", 23, {0, {{{0, 0}}}}, 0, 0 },
+  { "r24", 24, {0, {{{0, 0}}}}, 0, 0 },
+  { "r25", 25, {0, {{{0, 0}}}}, 0, 0 },
+  { "r26", 26, {0, {{{0, 0}}}}, 0, 0 },
+  { "r27", 27, {0, {{{0, 0}}}}, 0, 0 },
+  { "r28", 28, {0, {{{0, 0}}}}, 0, 0 },
+  { "r29", 29, {0, {{{0, 0}}}}, 0, 0 },
+  { "r30", 30, {0, {{{0, 0}}}}, 0, 0 },
+  { "r31", 31, {0, {{{0, 0}}}}, 0, 0 },
+  { "lr", 11, {0, {{{0, 0}}}}, 0, 0 },
+  { "sp", 1, {0, {{{0, 0}}}}, 0, 0 },
+  { "fp", 2, {0, {{{0, 0}}}}, 0, 0 }
 };
 
 CGEN_KEYWORD openrisc_cgen_opval_h_gr =
@@ -191,19 +191,19 @@ CGEN_KEYWORD openrisc_cgen_opval_h_gr =
 
 const CGEN_HW_ENTRY openrisc_cgen_hw_table[] =
 {
-  { "h-memory", HW_H_MEMORY, CGEN_ASM_NONE, 0, { 0, { (1<<MACH_BASE) } } },
-  { "h-sint", HW_H_SINT, CGEN_ASM_NONE, 0, { 0, { (1<<MACH_BASE) } } },
-  { "h-uint", HW_H_UINT, CGEN_ASM_NONE, 0, { 0, { (1<<MACH_BASE) } } },
-  { "h-addr", HW_H_ADDR, CGEN_ASM_NONE, 0, { 0, { (1<<MACH_BASE) } } },
-  { "h-iaddr", HW_H_IADDR, CGEN_ASM_NONE, 0, { 0, { (1<<MACH_BASE) } } },
-  { "h-pc", HW_H_PC, CGEN_ASM_NONE, 0, { 0|A(PROFILE)|A(PC), { (1<<MACH_BASE) } } },
-  { "h-gr", HW_H_GR, CGEN_ASM_KEYWORD, (PTR) & openrisc_cgen_opval_h_gr, { 0|A(PROFILE), { (1<<MACH_BASE) } } },
-  { "h-sr", HW_H_SR, CGEN_ASM_NONE, 0, { 0, { (1<<MACH_BASE) } } },
-  { "h-hi16", HW_H_HI16, CGEN_ASM_NONE, 0, { 0, { (1<<MACH_BASE) } } },
-  { "h-lo16", HW_H_LO16, CGEN_ASM_NONE, 0, { 0, { (1<<MACH_BASE) } } },
-  { "h-cbit", HW_H_CBIT, CGEN_ASM_NONE, 0, { 0, { (1<<MACH_BASE) } } },
-  { "h-delay-insn", HW_H_DELAY_INSN, CGEN_ASM_NONE, 0, { 0, { (1<<MACH_BASE) } } },
-  { 0, 0, CGEN_ASM_NONE, 0, {0, {0}} }
+  { "h-memory", HW_H_MEMORY, CGEN_ASM_NONE, 0, { 0, { { { (1<<MACH_BASE), 0 } } } } },
+  { "h-sint", HW_H_SINT, CGEN_ASM_NONE, 0, { 0, { { { (1<<MACH_BASE), 0 } } } } },
+  { "h-uint", HW_H_UINT, CGEN_ASM_NONE, 0, { 0, { { { (1<<MACH_BASE), 0 } } } } },
+  { "h-addr", HW_H_ADDR, CGEN_ASM_NONE, 0, { 0, { { { (1<<MACH_BASE), 0 } } } } },
+  { "h-iaddr", HW_H_IADDR, CGEN_ASM_NONE, 0, { 0, { { { (1<<MACH_BASE), 0 } } } } },
+  { "h-pc", HW_H_PC, CGEN_ASM_NONE, 0, { 0|A(PROFILE)|A(PC), { { { (1<<MACH_BASE), 0 } } } } },
+  { "h-gr", HW_H_GR, CGEN_ASM_KEYWORD, (PTR) & openrisc_cgen_opval_h_gr, { 0|A(PROFILE), { { { (1<<MACH_BASE), 0 } } } } },
+  { "h-sr", HW_H_SR, CGEN_ASM_NONE, 0, { 0, { { { (1<<MACH_BASE), 0 } } } } },
+  { "h-hi16", HW_H_HI16, CGEN_ASM_NONE, 0, { 0, { { { (1<<MACH_BASE), 0 } } } } },
+  { "h-lo16", HW_H_LO16, CGEN_ASM_NONE, 0, { 0, { { { (1<<MACH_BASE), 0 } } } } },
+  { "h-cbit", HW_H_CBIT, CGEN_ASM_NONE, 0, { 0, { { { (1<<MACH_BASE), 0 } } } } },
+  { "h-delay-insn", HW_H_DELAY_INSN, CGEN_ASM_NONE, 0, { 0, { { { (1<<MACH_BASE), 0 } } } } },
+  { 0, 0, CGEN_ASM_NONE, 0, { 0, { { { (1<<MACH_BASE), 0 } } } } }
 };
 
 #undef A
@@ -219,37 +219,37 @@ const CGEN_HW_ENTRY openrisc_cgen_hw_table[] =
 
 const CGEN_IFLD openrisc_cgen_ifld_table[] =
 {
-  { OPENRISC_F_NIL, "f-nil", 0, 0, 0, 0, { 0, { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_ANYOF, "f-anyof", 0, 0, 0, 0, { 0, { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_CLASS, "f-class", 0, 32, 31, 2, { 0, { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_SUB, "f-sub", 0, 32, 29, 4, { 0, { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_R1, "f-r1", 0, 32, 25, 5, { 0, { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_R2, "f-r2", 0, 32, 20, 5, { 0, { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_R3, "f-r3", 0, 32, 15, 5, { 0, { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_SIMM16, "f-simm16", 0, 32, 15, 16, { 0, { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_UIMM16, "f-uimm16", 0, 32, 15, 16, { 0, { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_UIMM5, "f-uimm5", 0, 32, 4, 5, { 0, { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_HI16, "f-hi16", 0, 32, 15, 16, { 0, { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_LO16, "f-lo16", 0, 32, 15, 16, { 0, { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_OP1, "f-op1", 0, 32, 31, 2, { 0, { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_OP2, "f-op2", 0, 32, 29, 4, { 0, { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_OP3, "f-op3", 0, 32, 25, 2, { 0, { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_OP4, "f-op4", 0, 32, 23, 3, { 0, { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_OP5, "f-op5", 0, 32, 25, 5, { 0, { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_OP6, "f-op6", 0, 32, 7, 3, { 0, { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_OP7, "f-op7", 0, 32, 3, 4, { 0, { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_I16_1, "f-i16-1", 0, 32, 10, 11, { 0, { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_I16_2, "f-i16-2", 0, 32, 25, 5, { 0, { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_DISP26, "f-disp26", 0, 32, 25, 26, { 0|A(PCREL_ADDR), { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_ABS26, "f-abs26", 0, 32, 25, 26, { 0|A(ABS_ADDR), { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_I16NC, "f-i16nc", 0, 0, 0, 0,{ 0|A(SIGN_OPT)|A(VIRTUAL), { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_F_15_8, "f-f-15-8", 0, 32, 15, 8, { 0|A(RESERVED), { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_F_10_3, "f-f-10-3", 0, 32, 10, 3, { 0|A(RESERVED), { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_F_4_1, "f-f-4-1", 0, 32, 4, 1, { 0|A(RESERVED), { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_F_7_3, "f-f-7-3", 0, 32, 7, 3, { 0|A(RESERVED), { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_F_10_7, "f-f-10-7", 0, 32, 10, 7, { 0|A(RESERVED), { (1<<MACH_BASE) } }  },
-  { OPENRISC_F_F_10_11, "f-f-10-11", 0, 32, 10, 11, { 0|A(RESERVED), { (1<<MACH_BASE) } }  },
-  { 0, 0, 0, 0, 0, 0, {0, {0}} }
+  { OPENRISC_F_NIL, "f-nil", 0, 0, 0, 0, { 0, { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_ANYOF, "f-anyof", 0, 0, 0, 0, { 0, { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_CLASS, "f-class", 0, 32, 31, 2, { 0, { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_SUB, "f-sub", 0, 32, 29, 4, { 0, { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_R1, "f-r1", 0, 32, 25, 5, { 0, { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_R2, "f-r2", 0, 32, 20, 5, { 0, { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_R3, "f-r3", 0, 32, 15, 5, { 0, { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_SIMM16, "f-simm16", 0, 32, 15, 16, { 0, { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_UIMM16, "f-uimm16", 0, 32, 15, 16, { 0, { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_UIMM5, "f-uimm5", 0, 32, 4, 5, { 0, { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_HI16, "f-hi16", 0, 32, 15, 16, { 0, { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_LO16, "f-lo16", 0, 32, 15, 16, { 0, { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_OP1, "f-op1", 0, 32, 31, 2, { 0, { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_OP2, "f-op2", 0, 32, 29, 4, { 0, { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_OP3, "f-op3", 0, 32, 25, 2, { 0, { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_OP4, "f-op4", 0, 32, 23, 3, { 0, { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_OP5, "f-op5", 0, 32, 25, 5, { 0, { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_OP6, "f-op6", 0, 32, 7, 3, { 0, { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_OP7, "f-op7", 0, 32, 3, 4, { 0, { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_I16_1, "f-i16-1", 0, 32, 10, 11, { 0, { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_I16_2, "f-i16-2", 0, 32, 25, 5, { 0, { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_DISP26, "f-disp26", 0, 32, 25, 26, { 0|A(PCREL_ADDR), { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_ABS26, "f-abs26", 0, 32, 25, 26, { 0|A(ABS_ADDR), { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_I16NC, "f-i16nc", 0, 0, 0, 0,{ 0|A(SIGN_OPT)|A(VIRTUAL), { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_F_15_8, "f-f-15-8", 0, 32, 15, 8, { 0|A(RESERVED), { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_F_10_3, "f-f-10-3", 0, 32, 10, 3, { 0|A(RESERVED), { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_F_4_1, "f-f-4-1", 0, 32, 4, 1, { 0|A(RESERVED), { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_F_7_3, "f-f-7-3", 0, 32, 7, 3, { 0|A(RESERVED), { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_F_10_7, "f-f-10-7", 0, 32, 10, 7, { 0|A(RESERVED), { { { (1<<MACH_BASE), 0 } } } }  },
+  { OPENRISC_F_F_10_11, "f-f-10-11", 0, 32, 10, 11, { 0|A(RESERVED), { { { (1<<MACH_BASE), 0 } } } }  },
+  { 0, 0, 0, 0, 0, 0, { 0, { { { (1<<MACH_BASE), 0 } } } } }
 };
 
 #undef A
@@ -288,71 +288,71 @@ const CGEN_OPERAND openrisc_cgen_operand_table[] =
 /* pc: program counter */
   { "pc", OPENRISC_OPERAND_PC, HW_H_PC, 0, 0,
     { 0, { (const PTR) &openrisc_cgen_ifld_table[OPENRISC_F_NIL] } }, 
-    { 0|A(SEM_ONLY), { (1<<MACH_BASE) } }  },
+    { 0|A(SEM_ONLY), { { { (1<<MACH_BASE), 0 } } } }  },
 /* sr: special register */
   { "sr", OPENRISC_OPERAND_SR, HW_H_SR, 0, 0,
     { 0, { (const PTR) 0 } }, 
-    { 0|A(SEM_ONLY), { (1<<MACH_BASE) } }  },
+    { 0|A(SEM_ONLY), { { { (1<<MACH_BASE), 0 } } } }  },
 /* cbit: condition bit */
   { "cbit", OPENRISC_OPERAND_CBIT, HW_H_CBIT, 0, 0,
     { 0, { (const PTR) 0 } }, 
-    { 0|A(SEM_ONLY), { (1<<MACH_BASE) } }  },
+    { 0|A(SEM_ONLY), { { { (1<<MACH_BASE), 0 } } } }  },
 /* simm-16: 16 bit signed immediate */
   { "simm-16", OPENRISC_OPERAND_SIMM_16, HW_H_SINT, 15, 16,
     { 0, { (const PTR) &openrisc_cgen_ifld_table[OPENRISC_F_SIMM16] } }, 
-    { 0, { (1<<MACH_BASE) } }  },
+    { 0, { { { (1<<MACH_BASE), 0 } } } }  },
 /* uimm-16: 16 bit unsigned immediate */
   { "uimm-16", OPENRISC_OPERAND_UIMM_16, HW_H_UINT, 15, 16,
     { 0, { (const PTR) &openrisc_cgen_ifld_table[OPENRISC_F_UIMM16] } }, 
-    { 0, { (1<<MACH_BASE) } }  },
+    { 0, { { { (1<<MACH_BASE), 0 } } } }  },
 /* disp-26: pc-rel 26 bit */
   { "disp-26", OPENRISC_OPERAND_DISP_26, HW_H_IADDR, 25, 26,
     { 0, { (const PTR) &openrisc_cgen_ifld_table[OPENRISC_F_DISP26] } }, 
-    { 0|A(PCREL_ADDR), { (1<<MACH_BASE) } }  },
+    { 0|A(PCREL_ADDR), { { { (1<<MACH_BASE), 0 } } } }  },
 /* abs-26: abs 26 bit */
   { "abs-26", OPENRISC_OPERAND_ABS_26, HW_H_IADDR, 25, 26,
     { 0, { (const PTR) &openrisc_cgen_ifld_table[OPENRISC_F_ABS26] } }, 
-    { 0|A(ABS_ADDR), { (1<<MACH_BASE) } }  },
+    { 0|A(ABS_ADDR), { { { (1<<MACH_BASE), 0 } } } }  },
 /* uimm-5: imm5 */
   { "uimm-5", OPENRISC_OPERAND_UIMM_5, HW_H_UINT, 4, 5,
     { 0, { (const PTR) &openrisc_cgen_ifld_table[OPENRISC_F_UIMM5] } }, 
-    { 0, { (1<<MACH_BASE) } }  },
+    { 0, { { { (1<<MACH_BASE), 0 } } } }  },
 /* rD: destination register */
   { "rD", OPENRISC_OPERAND_RD, HW_H_GR, 25, 5,
     { 0, { (const PTR) &openrisc_cgen_ifld_table[OPENRISC_F_R1] } }, 
-    { 0, { (1<<MACH_BASE) } }  },
+    { 0, { { { (1<<MACH_BASE), 0 } } } }  },
 /* rA: source register A */
   { "rA", OPENRISC_OPERAND_RA, HW_H_GR, 20, 5,
     { 0, { (const PTR) &openrisc_cgen_ifld_table[OPENRISC_F_R2] } }, 
-    { 0, { (1<<MACH_BASE) } }  },
+    { 0, { { { (1<<MACH_BASE), 0 } } } }  },
 /* rB: source register B */
   { "rB", OPENRISC_OPERAND_RB, HW_H_GR, 15, 5,
     { 0, { (const PTR) &openrisc_cgen_ifld_table[OPENRISC_F_R3] } }, 
-    { 0, { (1<<MACH_BASE) } }  },
+    { 0, { { { (1<<MACH_BASE), 0 } } } }  },
 /* op-f-23: f-op23 */
   { "op-f-23", OPENRISC_OPERAND_OP_F_23, HW_H_UINT, 23, 3,
     { 0, { (const PTR) &openrisc_cgen_ifld_table[OPENRISC_F_OP4] } }, 
-    { 0, { (1<<MACH_BASE) } }  },
+    { 0, { { { (1<<MACH_BASE), 0 } } } }  },
 /* op-f-3: f-op3 */
   { "op-f-3", OPENRISC_OPERAND_OP_F_3, HW_H_UINT, 25, 5,
     { 0, { (const PTR) &openrisc_cgen_ifld_table[OPENRISC_F_OP5] } }, 
-    { 0, { (1<<MACH_BASE) } }  },
+    { 0, { { { (1<<MACH_BASE), 0 } } } }  },
 /* hi16: high 16 bit immediate, sign optional */
   { "hi16", OPENRISC_OPERAND_HI16, HW_H_HI16, 15, 16,
     { 0, { (const PTR) &openrisc_cgen_ifld_table[OPENRISC_F_SIMM16] } }, 
-    { 0|A(SIGN_OPT), { (1<<MACH_BASE) } }  },
+    { 0|A(SIGN_OPT), { { { (1<<MACH_BASE), 0 } } } }  },
 /* lo16: low 16 bit immediate, sign optional */
   { "lo16", OPENRISC_OPERAND_LO16, HW_H_LO16, 15, 16,
     { 0, { (const PTR) &openrisc_cgen_ifld_table[OPENRISC_F_LO16] } }, 
-    { 0|A(SIGN_OPT), { (1<<MACH_BASE) } }  },
+    { 0|A(SIGN_OPT), { { { (1<<MACH_BASE), 0 } } } }  },
 /* ui16nc: 16 bit immediate, sign optional */
   { "ui16nc", OPENRISC_OPERAND_UI16NC, HW_H_LO16, 10, 16,
     { 2, { (const PTR) &OPENRISC_F_I16NC_MULTI_IFIELD[0] } }, 
-    { 0|A(SIGN_OPT)|A(VIRTUAL), { (1<<MACH_BASE) } }  },
+    { 0|A(SIGN_OPT)|A(VIRTUAL), { { { (1<<MACH_BASE), 0 } } } }  },
 /* sentinel */
   { 0, 0, 0, 0, 0,
     { 0, { (const PTR) 0 } },
-    { 0, { 0 } } }
+    { 0, { { { (1<<MACH_BASE), 0 } } } } }
 };
 
 #undef A
@@ -372,326 +372,326 @@ static const CGEN_IBASE openrisc_cgen_insn_table[MAX_INSNS] =
   /* Special null first entry.
      A `num' value of zero is thus invalid.
      Also, the special `invalid' insn resides here.  */
-  { 0, 0, 0, 0, {0, {0}} },
+  { 0, 0, 0, 0, { 0, { { { (1<<MACH_BASE), 0 } } } } },
 /* l.j ${abs-26} */
   {
     OPENRISC_INSN_L_J, "l-j", "l.j", 32,
-    { 0|A(NOT_IN_DELAY_SLOT)|A(UNCOND_CTI)|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(NOT_IN_DELAY_SLOT)|A(UNCOND_CTI)|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.jal ${abs-26} */
   {
     OPENRISC_INSN_L_JAL, "l-jal", "l.jal", 32,
-    { 0|A(NOT_IN_DELAY_SLOT)|A(UNCOND_CTI)|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(NOT_IN_DELAY_SLOT)|A(UNCOND_CTI)|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.jr $rA */
   {
     OPENRISC_INSN_L_JR, "l-jr", "l.jr", 32,
-    { 0|A(NOT_IN_DELAY_SLOT)|A(UNCOND_CTI)|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(NOT_IN_DELAY_SLOT)|A(UNCOND_CTI)|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.jalr $rA */
   {
     OPENRISC_INSN_L_JALR, "l-jalr", "l.jalr", 32,
-    { 0|A(NOT_IN_DELAY_SLOT)|A(UNCOND_CTI)|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(NOT_IN_DELAY_SLOT)|A(UNCOND_CTI)|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.bal ${disp-26} */
   {
     OPENRISC_INSN_L_BAL, "l-bal", "l.bal", 32,
-    { 0|A(NOT_IN_DELAY_SLOT)|A(UNCOND_CTI)|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(NOT_IN_DELAY_SLOT)|A(UNCOND_CTI)|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.bnf ${disp-26} */
   {
     OPENRISC_INSN_L_BNF, "l-bnf", "l.bnf", 32,
-    { 0|A(NOT_IN_DELAY_SLOT)|A(COND_CTI)|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(NOT_IN_DELAY_SLOT)|A(COND_CTI)|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.bf ${disp-26} */
   {
     OPENRISC_INSN_L_BF, "l-bf", "l.bf", 32,
-    { 0|A(NOT_IN_DELAY_SLOT)|A(COND_CTI)|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(NOT_IN_DELAY_SLOT)|A(COND_CTI)|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.brk ${uimm-16} */
   {
     OPENRISC_INSN_L_BRK, "l-brk", "l.brk", 32,
-    { 0|A(NOT_IN_DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(NOT_IN_DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.rfe $rA */
   {
     OPENRISC_INSN_L_RFE, "l-rfe", "l.rfe", 32,
-    { 0|A(NOT_IN_DELAY_SLOT)|A(UNCOND_CTI)|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(NOT_IN_DELAY_SLOT)|A(UNCOND_CTI)|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sys ${uimm-16} */
   {
     OPENRISC_INSN_L_SYS, "l-sys", "l.sys", 32,
-    { 0|A(NOT_IN_DELAY_SLOT)|A(UNCOND_CTI)|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(NOT_IN_DELAY_SLOT)|A(UNCOND_CTI)|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.nop */
   {
     OPENRISC_INSN_L_NOP, "l-nop", "l.nop", 32,
-    { 0, { (1<<MACH_BASE) } }
+    { 0, { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.movhi $rD,$hi16 */
   {
     OPENRISC_INSN_L_MOVHI, "l-movhi", "l.movhi", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.mfsr $rD,$rA */
   {
     OPENRISC_INSN_L_MFSR, "l-mfsr", "l.mfsr", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.mtsr $rA,$rB */
   {
     OPENRISC_INSN_L_MTSR, "l-mtsr", "l.mtsr", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.lw $rD,${simm-16}($rA) */
   {
     OPENRISC_INSN_L_LW, "l-lw", "l.lw", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.lbz $rD,${simm-16}($rA) */
   {
     OPENRISC_INSN_L_LBZ, "l-lbz", "l.lbz", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.lbs $rD,${simm-16}($rA) */
   {
     OPENRISC_INSN_L_LBS, "l-lbs", "l.lbs", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.lhz $rD,${simm-16}($rA) */
   {
     OPENRISC_INSN_L_LHZ, "l-lhz", "l.lhz", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.lhs $rD,${simm-16}($rA) */
   {
     OPENRISC_INSN_L_LHS, "l-lhs", "l.lhs", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sw ${ui16nc}($rA),$rB */
   {
     OPENRISC_INSN_L_SW, "l-sw", "l.sw", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sb ${ui16nc}($rA),$rB */
   {
     OPENRISC_INSN_L_SB, "l-sb", "l.sb", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sh ${ui16nc}($rA),$rB */
   {
     OPENRISC_INSN_L_SH, "l-sh", "l.sh", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sll $rD,$rA,$rB */
   {
     OPENRISC_INSN_L_SLL, "l-sll", "l.sll", 32,
-    { 0, { (1<<MACH_BASE) } }
+    { 0, { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.slli $rD,$rA,${uimm-5} */
   {
     OPENRISC_INSN_L_SLLI, "l-slli", "l.slli", 32,
-    { 0, { (1<<MACH_BASE) } }
+    { 0, { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.srl $rD,$rA,$rB */
   {
     OPENRISC_INSN_L_SRL, "l-srl", "l.srl", 32,
-    { 0, { (1<<MACH_BASE) } }
+    { 0, { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.srli $rD,$rA,${uimm-5} */
   {
     OPENRISC_INSN_L_SRLI, "l-srli", "l.srli", 32,
-    { 0, { (1<<MACH_BASE) } }
+    { 0, { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sra $rD,$rA,$rB */
   {
     OPENRISC_INSN_L_SRA, "l-sra", "l.sra", 32,
-    { 0, { (1<<MACH_BASE) } }
+    { 0, { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.srai $rD,$rA,${uimm-5} */
   {
     OPENRISC_INSN_L_SRAI, "l-srai", "l.srai", 32,
-    { 0, { (1<<MACH_BASE) } }
+    { 0, { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.ror $rD,$rA,$rB */
   {
     OPENRISC_INSN_L_ROR, "l-ror", "l.ror", 32,
-    { 0, { (1<<MACH_BASE) } }
+    { 0, { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.rori $rD,$rA,${uimm-5} */
   {
     OPENRISC_INSN_L_RORI, "l-rori", "l.rori", 32,
-    { 0, { (1<<MACH_BASE) } }
+    { 0, { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.add $rD,$rA,$rB */
   {
     OPENRISC_INSN_L_ADD, "l-add", "l.add", 32,
-    { 0, { (1<<MACH_BASE) } }
+    { 0, { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.addi $rD,$rA,$lo16 */
   {
     OPENRISC_INSN_L_ADDI, "l-addi", "l.addi", 32,
-    { 0, { (1<<MACH_BASE) } }
+    { 0, { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sub $rD,$rA,$rB */
   {
     OPENRISC_INSN_L_SUB, "l-sub", "l.sub", 32,
-    { 0, { (1<<MACH_BASE) } }
+    { 0, { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.subi $rD,$rA,$lo16 */
   {
     OPENRISC_INSN_L_SUBI, "l-subi", "l.subi", 32,
-    { 0, { (1<<MACH_BASE) } }
+    { 0, { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.and $rD,$rA,$rB */
   {
     OPENRISC_INSN_L_AND, "l-and", "l.and", 32,
-    { 0, { (1<<MACH_BASE) } }
+    { 0, { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.andi $rD,$rA,$lo16 */
   {
     OPENRISC_INSN_L_ANDI, "l-andi", "l.andi", 32,
-    { 0, { (1<<MACH_BASE) } }
+    { 0, { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.or $rD,$rA,$rB */
   {
     OPENRISC_INSN_L_OR, "l-or", "l.or", 32,
-    { 0, { (1<<MACH_BASE) } }
+    { 0, { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.ori $rD,$rA,$lo16 */
   {
     OPENRISC_INSN_L_ORI, "l-ori", "l.ori", 32,
-    { 0, { (1<<MACH_BASE) } }
+    { 0, { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.xor $rD,$rA,$rB */
   {
     OPENRISC_INSN_L_XOR, "l-xor", "l.xor", 32,
-    { 0, { (1<<MACH_BASE) } }
+    { 0, { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.xori $rD,$rA,$lo16 */
   {
     OPENRISC_INSN_L_XORI, "l-xori", "l.xori", 32,
-    { 0, { (1<<MACH_BASE) } }
+    { 0, { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.mul $rD,$rA,$rB */
   {
     OPENRISC_INSN_L_MUL, "l-mul", "l.mul", 32,
-    { 0, { (1<<MACH_BASE) } }
+    { 0, { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.muli $rD,$rA,$lo16 */
   {
     OPENRISC_INSN_L_MULI, "l-muli", "l.muli", 32,
-    { 0, { (1<<MACH_BASE) } }
+    { 0, { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.div $rD,$rA,$rB */
   {
     OPENRISC_INSN_L_DIV, "l-div", "l.div", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.divu $rD,$rA,$rB */
   {
     OPENRISC_INSN_L_DIVU, "l-divu", "l.divu", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sfgts $rA,$rB */
   {
     OPENRISC_INSN_L_SFGTS, "l-sfgts", "l.sfgts", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sfgtu $rA,$rB */
   {
     OPENRISC_INSN_L_SFGTU, "l-sfgtu", "l.sfgtu", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sfges $rA,$rB */
   {
     OPENRISC_INSN_L_SFGES, "l-sfges", "l.sfges", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sfgeu $rA,$rB */
   {
     OPENRISC_INSN_L_SFGEU, "l-sfgeu", "l.sfgeu", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sflts $rA,$rB */
   {
     OPENRISC_INSN_L_SFLTS, "l-sflts", "l.sflts", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sfltu $rA,$rB */
   {
     OPENRISC_INSN_L_SFLTU, "l-sfltu", "l.sfltu", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sfles $rA,$rB */
   {
     OPENRISC_INSN_L_SFLES, "l-sfles", "l.sfles", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sfleu $rA,$rB */
   {
     OPENRISC_INSN_L_SFLEU, "l-sfleu", "l.sfleu", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sfgtsi $rA,${simm-16} */
   {
     OPENRISC_INSN_L_SFGTSI, "l-sfgtsi", "l.sfgtsi", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sfgtui $rA,${uimm-16} */
   {
     OPENRISC_INSN_L_SFGTUI, "l-sfgtui", "l.sfgtui", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sfgesi $rA,${simm-16} */
   {
     OPENRISC_INSN_L_SFGESI, "l-sfgesi", "l.sfgesi", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sfgeui $rA,${uimm-16} */
   {
     OPENRISC_INSN_L_SFGEUI, "l-sfgeui", "l.sfgeui", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sfltsi $rA,${simm-16} */
   {
     OPENRISC_INSN_L_SFLTSI, "l-sfltsi", "l.sfltsi", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sfltui $rA,${uimm-16} */
   {
     OPENRISC_INSN_L_SFLTUI, "l-sfltui", "l.sfltui", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sflesi $rA,${simm-16} */
   {
     OPENRISC_INSN_L_SFLESI, "l-sflesi", "l.sflesi", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sfleui $rA,${uimm-16} */
   {
     OPENRISC_INSN_L_SFLEUI, "l-sfleui", "l.sfleui", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sfeq $rA,$rB */
   {
     OPENRISC_INSN_L_SFEQ, "l-sfeq", "l.sfeq", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sfeqi $rA,${simm-16} */
   {
     OPENRISC_INSN_L_SFEQI, "l-sfeqi", "l.sfeqi", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sfne $rA,$rB */
   {
     OPENRISC_INSN_L_SFNE, "l-sfne", "l.sfne", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 /* l.sfnei $rA,${simm-16} */
   {
     OPENRISC_INSN_L_SFNEI, "l-sfnei", "l.sfnei", 32,
-    { 0|A(DELAY_SLOT), { (1<<MACH_BASE) } }
+    { 0|A(DELAY_SLOT), { { { (1<<MACH_BASE), 0 } } } }
   },
 };
 
@@ -699,27 +699,23 @@ static const CGEN_IBASE openrisc_cgen_insn_table[MAX_INSNS] =
 #undef A
 
 /* Initialize anything needed to be done once, before any cpu_open call.  */
-static void init_tables PARAMS ((void));
 
 static void
-init_tables ()
+init_tables (void)
 {
 }
 
-static const CGEN_MACH * lookup_mach_via_bfd_name
-  PARAMS ((const CGEN_MACH *, const char *));
-static void build_hw_table  PARAMS ((CGEN_CPU_TABLE *));
-static void build_ifield_table  PARAMS ((CGEN_CPU_TABLE *));
-static void build_operand_table PARAMS ((CGEN_CPU_TABLE *));
-static void build_insn_table    PARAMS ((CGEN_CPU_TABLE *));
-static void openrisc_cgen_rebuild_tables PARAMS ((CGEN_CPU_TABLE *));
+static const CGEN_MACH * lookup_mach_via_bfd_name (const CGEN_MACH *, const char *);
+static void build_hw_table      (CGEN_CPU_TABLE *);
+static void build_ifield_table  (CGEN_CPU_TABLE *);
+static void build_operand_table (CGEN_CPU_TABLE *);
+static void build_insn_table    (CGEN_CPU_TABLE *);
+static void openrisc_cgen_rebuild_tables (CGEN_CPU_TABLE *);
 
 /* Subroutine of openrisc_cgen_cpu_open to look up a mach via its bfd name.  */
 
 static const CGEN_MACH *
-lookup_mach_via_bfd_name (table, name)
-     const CGEN_MACH *table;
-     const char *name;
+lookup_mach_via_bfd_name (const CGEN_MACH *table, const char *name)
 {
   while (table->name)
     {
@@ -733,8 +729,7 @@ lookup_mach_via_bfd_name (table, name)
 /* Subroutine of openrisc_cgen_cpu_open to build the hardware table.  */
 
 static void
-build_hw_table (cd)
-     CGEN_CPU_TABLE *cd;
+build_hw_table (CGEN_CPU_TABLE *cd)
 {
   int i;
   int machs = cd->machs;
@@ -760,8 +755,7 @@ build_hw_table (cd)
 /* Subroutine of openrisc_cgen_cpu_open to build the hardware table.  */
 
 static void
-build_ifield_table (cd)
-     CGEN_CPU_TABLE *cd;
+build_ifield_table (CGEN_CPU_TABLE *cd)
 {
   cd->ifld_table = & openrisc_cgen_ifld_table[0];
 }
@@ -769,8 +763,7 @@ build_ifield_table (cd)
 /* Subroutine of openrisc_cgen_cpu_open to build the hardware table.  */
 
 static void
-build_operand_table (cd)
-     CGEN_CPU_TABLE *cd;
+build_operand_table (CGEN_CPU_TABLE *cd)
 {
   int i;
   int machs = cd->machs;
@@ -778,8 +771,7 @@ build_operand_table (cd)
   /* MAX_OPERANDS is only an upper bound on the number of selected entries.
      However each entry is indexed by it's enum so there can be holes in
      the table.  */
-  const CGEN_OPERAND **selected =
-    (const CGEN_OPERAND **) xmalloc (MAX_OPERANDS * sizeof (CGEN_OPERAND *));
+  const CGEN_OPERAND **selected = xmalloc (MAX_OPERANDS * sizeof (* selected));
 
   cd->operand_table.init_entries = init;
   cd->operand_table.entry_size = sizeof (CGEN_OPERAND);
@@ -802,12 +794,11 @@ build_operand_table (cd)
    operand elements to be in the table [which they mightn't be].  */
 
 static void
-build_insn_table (cd)
-     CGEN_CPU_TABLE *cd;
+build_insn_table (CGEN_CPU_TABLE *cd)
 {
   int i;
   const CGEN_IBASE *ib = & openrisc_cgen_insn_table[0];
-  CGEN_INSN *insns = (CGEN_INSN *) xmalloc (MAX_INSNS * sizeof (CGEN_INSN));
+  CGEN_INSN *insns = xmalloc (MAX_INSNS * sizeof (CGEN_INSN));
 
   memset (insns, 0, MAX_INSNS * sizeof (CGEN_INSN));
   for (i = 0; i < MAX_INSNS; ++i)
@@ -820,11 +811,10 @@ build_insn_table (cd)
 /* Subroutine of openrisc_cgen_cpu_open to rebuild the tables.  */
 
 static void
-openrisc_cgen_rebuild_tables (cd)
-     CGEN_CPU_TABLE *cd;
+openrisc_cgen_rebuild_tables (CGEN_CPU_TABLE *cd)
 {
   int i;
-  unsigned int isas = cd->isas;
+  CGEN_BITSET *isas = cd->isas;
   unsigned int machs = cd->machs;
 
   cd->int_insn_p = CGEN_INT_INSN_P;
@@ -833,10 +823,10 @@ openrisc_cgen_rebuild_tables (cd)
 #define UNSET (CGEN_SIZE_UNKNOWN + 1)
   cd->default_insn_bitsize = UNSET;
   cd->base_insn_bitsize = UNSET;
-  cd->min_insn_bitsize = 65535; /* some ridiculously big number */
+  cd->min_insn_bitsize = 65535; /* Some ridiculously big number.  */
   cd->max_insn_bitsize = 0;
   for (i = 0; i < MAX_ISAS; ++i)
-    if (((1 << i) & isas) != 0)
+    if (cgen_bitset_contains (isas, i))
       {
 	const CGEN_ISA *isa = & openrisc_cgen_isa_table[i];
 
@@ -845,7 +835,7 @@ openrisc_cgen_rebuild_tables (cd)
 	if (cd->default_insn_bitsize == UNSET)
 	  cd->default_insn_bitsize = isa->default_insn_bitsize;
 	else if (isa->default_insn_bitsize == cd->default_insn_bitsize)
-	  ; /* this is ok */
+	  ; /* This is ok.  */
 	else
 	  cd->default_insn_bitsize = CGEN_SIZE_UNKNOWN;
 
@@ -854,7 +844,7 @@ openrisc_cgen_rebuild_tables (cd)
 	if (cd->base_insn_bitsize == UNSET)
 	  cd->base_insn_bitsize = isa->base_insn_bitsize;
 	else if (isa->base_insn_bitsize == cd->base_insn_bitsize)
-	  ; /* this is ok */
+	  ; /* This is ok.  */
 	else
 	  cd->base_insn_bitsize = CGEN_SIZE_UNKNOWN;
 
@@ -921,7 +911,7 @@ openrisc_cgen_cpu_open (enum cgen_cpu_open_arg arg_type, ...)
 {
   CGEN_CPU_TABLE *cd = (CGEN_CPU_TABLE *) xmalloc (sizeof (CGEN_CPU_TABLE));
   static int init_p;
-  unsigned int isas = 0;  /* 0 = "unspecified" */
+  CGEN_BITSET *isas = 0;  /* 0 = "unspecified" */
   unsigned int machs = 0; /* 0 = "unspecified" */
   enum cgen_endian endian = CGEN_ENDIAN_UNKNOWN;
   va_list ap;
@@ -940,7 +930,7 @@ openrisc_cgen_cpu_open (enum cgen_cpu_open_arg arg_type, ...)
       switch (arg_type)
 	{
 	case CGEN_CPU_OPEN_ISAS :
-	  isas = va_arg (ap, unsigned int);
+	  isas = va_arg (ap, CGEN_BITSET *);
 	  break;
 	case CGEN_CPU_OPEN_MACHS :
 	  machs = va_arg (ap, unsigned int);
@@ -966,14 +956,11 @@ openrisc_cgen_cpu_open (enum cgen_cpu_open_arg arg_type, ...)
     }
   va_end (ap);
 
-  /* mach unspecified means "all" */
+  /* Mach unspecified means "all".  */
   if (machs == 0)
     machs = (1 << MAX_MACHS) - 1;
-  /* base mach is always selected */
+  /* Base mach is always selected.  */
   machs |= 1;
-  /* isa unspecified means "all" */
-  if (isas == 0)
-    isas = (1 << MAX_ISAS) - 1;
   if (endian == CGEN_ENDIAN_UNKNOWN)
     {
       /* ??? If target has only one, could have a default.  */
@@ -981,7 +968,7 @@ openrisc_cgen_cpu_open (enum cgen_cpu_open_arg arg_type, ...)
       abort ();
     }
 
-  cd->isas = isas;
+  cd->isas = cgen_bitset_copy (isas);
   cd->machs = machs;
   cd->endian = endian;
   /* FIXME: for the sparc case we can determine insn-endianness statically.
@@ -1004,9 +991,7 @@ openrisc_cgen_cpu_open (enum cgen_cpu_open_arg arg_type, ...)
    MACH_NAME is the bfd name of the mach.  */
 
 CGEN_CPU_DESC
-openrisc_cgen_cpu_open_1 (mach_name, endian)
-     const char *mach_name;
-     enum cgen_endian endian;
+openrisc_cgen_cpu_open_1 (const char *mach_name, enum cgen_endian endian)
 {
   return openrisc_cgen_cpu_open (CGEN_CPU_OPEN_BFDMACH, mach_name,
 			       CGEN_CPU_OPEN_ENDIAN, endian,
@@ -1019,8 +1004,7 @@ openrisc_cgen_cpu_open_1 (mach_name, endian)
    place as some simulator ports use this but they don't use libopcodes.  */
 
 void
-openrisc_cgen_cpu_close (cd)
-     CGEN_CPU_DESC cd;
+openrisc_cgen_cpu_close (CGEN_CPU_DESC cd)
 {
   unsigned int i;
   const CGEN_INSN *insns;
@@ -1029,23 +1013,17 @@ openrisc_cgen_cpu_close (cd)
     {
       insns = cd->macro_insn_table.init_entries;
       for (i = 0; i < cd->macro_insn_table.num_init_entries; ++i, ++insns)
-	{
-	  if (CGEN_INSN_RX ((insns)))
-	    regfree (CGEN_INSN_RX (insns));
-	}
+	if (CGEN_INSN_RX ((insns)))
+	  regfree (CGEN_INSN_RX (insns));
     }
 
   if (cd->insn_table.init_entries)
     {
       insns = cd->insn_table.init_entries;
       for (i = 0; i < cd->insn_table.num_init_entries; ++i, ++insns)
-	{
-	  if (CGEN_INSN_RX (insns))
-	    regfree (CGEN_INSN_RX (insns));
-	}
-    }
-
-  
+	if (CGEN_INSN_RX (insns))
+	  regfree (CGEN_INSN_RX (insns));
+    }  
 
   if (cd->macro_insn_table.init_entries)
     free ((CGEN_INSN *) cd->macro_insn_table.init_entries);

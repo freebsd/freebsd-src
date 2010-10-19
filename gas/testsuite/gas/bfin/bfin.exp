@@ -1,0 +1,48 @@
+# Blackfin assembler testsuite
+
+proc run_list_test { name opts } {
+    global srcdir subdir
+    set testname "bfin $name"
+    set file $srcdir/$subdir/$name
+    gas_run ${name}.s $opts ">&dump.out"
+    if { [regexp_diff "dump.out" "${file}.l"] } then {
+	fail $testname
+	verbose "output is [file_contents "dump.out"]" 2
+	return
+    }
+    pass $testname
+}
+if [istarget bfin*-*-*] {
+	run_dump_test "arithmetic"
+	run_dump_test "bit"
+	run_dump_test "bit2"
+	run_dump_test "cache"
+	run_dump_test "cache2"
+	run_dump_test "control_code"
+	run_dump_test "control_code2"
+	run_dump_test "event"
+	run_dump_test "event2"
+	run_list_test "expected_errors" ""
+	run_list_test "expected_move_errors" ""
+	run_dump_test "flow"
+	run_dump_test "flow2"
+	run_dump_test "load"
+	run_dump_test "logical"
+	run_dump_test "logical2"
+	run_dump_test "move"
+	run_dump_test "move2"
+	run_dump_test "parallel"
+	run_dump_test "parallel2"
+	run_dump_test "parallel3"
+	run_dump_test "parallel4"
+	run_dump_test "reloc"
+	run_dump_test "shift"
+	run_dump_test "shift2"
+	run_dump_test "stack"
+	run_dump_test "stack2"
+	run_dump_test "store"
+	run_dump_test "vector"
+	run_dump_test "vector2"
+	run_dump_test "video"
+	run_dump_test "video2"
+}

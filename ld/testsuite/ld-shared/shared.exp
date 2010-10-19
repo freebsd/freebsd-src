@@ -1,5 +1,6 @@
 # Expect script for ld-shared tests
-#   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2003
+#   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
+#   2004
 #   Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
@@ -14,7 +15,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # Written by Ian Lance Taylor (ian@cygnus.com)
 #
@@ -203,6 +204,9 @@ if ![ld_compile "$CC $CFLAGS $SHCFLAG" $srcdir/$subdir/main.c $tmpdir/mainnp.o] 
 	if { ![istarget hppa*64*-*-linux*] } {
 	    setup_xfail "hppa*-*-linux*"
 	}
+	if { [istarget sparc*-*-linux*] && [is_elf64 $tmpdir/mainnp.o] } {
+	    setup_xfail "sparc*-*-linux*"
+	}
 	setup_xfail "x86_64-*-linux*"
 	setup_xfail "s390x-*-linux*"
 	shared_test shnp "shared (non PIC)" mainnp.o sh1np.o sh2np.o shared
@@ -220,7 +224,11 @@ if ![ld_compile "$CC $CFLAGS $SHCFLAG" $srcdir/$subdir/main.c $tmpdir/mainnp.o] 
 	if { ![istarget hppa*64*-*-linux*] } {
 	    setup_xfail "hppa*-*-linux*"
 	}
+	if { [istarget sparc*-*-linux*] && [is_elf64 $tmpdir/mainnp.o] } {
+	    setup_xfail "sparc*-*-linux*"
+	}
 	setup_xfail "x86_64-*-linux*"
+	setup_xfail "s390x-*-linux*"
 	shared_test shnp "shared (non PIC, load offset)" \
 		mainnp.o sh1np.o sh2np.o shared \
 		"-T $srcdir/$subdir/elf-offset.ld"
@@ -264,6 +272,9 @@ if ![ld_compile "$CC $CFLAGS $SHCFLAG $picflag" $srcdir/$subdir/main.c $tmpdir/m
 	    setup_xfail "alpha*-*-linux*"
 	    if { ![istarget hppa*64*-*-linux*] } {
 		setup_xfail "hppa*-*-linux*"
+	    }
+	    if { [istarget sparc*-*-linux*] && [is_elf64 $tmpdir/mainp.o] } {
+		setup_xfail "sparc*-*-linux*"
 	    }
 	    setup_xfail "x86_64-*-linux*"
 	    setup_xfail "s390x-*-linux*"

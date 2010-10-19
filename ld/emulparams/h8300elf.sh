@@ -10,3 +10,16 @@ ARCH=h8300
 TEMPLATE_NAME=elf32
 EMBEDDED=yes
 STACK_ADDR=0xfefc
+TINY_READONLY_SECTION=".tinyrodata :
+  {
+	*(.tinyrodata)
+  } =0"
+TINY_DATA_SECTION=".tinydata	0xff8000 :
+  {
+	*(.tinydata)
+	_tinydata = .;
+  }"
+TINY_BSS_SECTION=".tinybss	: AT (_tinydata)
+  {
+	*(.tinybss)
+  }"

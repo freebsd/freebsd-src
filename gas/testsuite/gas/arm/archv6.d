@@ -64,8 +64,8 @@ Disassembly of section .text:
 0+0e0 <[^>]*> 16a42475 ?	sxtabne	r2, r4, r5, ROR #8
 0+0e4 <[^>]*> e6142f37 ?	saddaddx	r2, r4, r7
 0+0e8 <[^>]*> 16142f37 ?	saddaddxne	r2, r4, r7
-0+0ec <[^>]*> e68210b3 ?	sel	r1, r2, r3
-0+0f0 <[^>]*> 168210b3 ?	selne	r1, r2, r3
+0+0ec <[^>]*> e6821fb3 ?	sel	r1, r2, r3
+0+0f0 <[^>]*> 16821fb3 ?	selne	r1, r2, r3
 0+0f4 <[^>]*> f1010200 ?	setend	be
 0+0f8 <[^>]*> f1010000 ?	setend	le
 0+0fc <[^>]*> e6342f17 ?	shadd16	r2, r4, r7

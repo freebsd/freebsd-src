@@ -1,5 +1,5 @@
 /* cris.h -- Header file for CRIS opcode and register tables.
-   Copyright (C) 2000, 2001 Free Software Foundation, Inc.
+   Copyright (C) 2000, 2001, 2004 Free Software Foundation, Inc.
    Contributed by Axis Communications AB, Lund, Sweden.
    Originally written for GAS 1.38.1 by Mikael Asker.
    Updated, BFDized and GNUified by Hans-Peter Nilsson.
@@ -18,7 +18,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef __CRIS_H_INCLUDED_
 #define __CRIS_H_INCLUDED_
@@ -38,14 +38,11 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    immediate operands.  */
 enum cris_insn_version_usage
 {
-  /* Any version. */
+  /* Any version.  */
   cris_ver_version_all=0,
 
   /* Indeterminate (intended for disassembly only, or obsolete).  */
   cris_ver_warning,
-
-  /* Simulator only (reserved).  */
-  cris_ver_sim,
 
   /* Only for v0..3 (Etrax 1..4).  */
   cris_ver_v0_3,
@@ -59,10 +56,28 @@ enum cris_insn_version_usage
   /* Only for v8 or higher (ETRAX 100, ETRAX 100 LX).  */
   cris_ver_v8p,
 
-  /* Only for v10 or higher (ETRAX 100 LX).
-     Of course some or all these of may change to cris_ver_v10p if/when
+  /* Only for v0..10.  FIXME: Not sure what to do with this.  */
+  cris_ver_sim_v0_10,
+
+  /* Only for v0..10.  */
+  cris_ver_v0_10,
+
+  /* Only for v3..10.  (ETRAX 4, ETRAX 100 and ETRAX 100 LX).  */
+  cris_ver_v3_10,
+
+  /* Only for v8..10 (ETRAX 100 and ETRAX 100 LX).  */
+  cris_ver_v8_10,
+
+  /* Only for v10 (ETRAX 100 LX) and same series.  */
+  cris_ver_v10,
+
+  /* Only for v10 (ETRAX 100 LX) and same series.  */
+  cris_ver_v10p,
+
+  /* Only for v32 or higher (codename GUINNESS).
+     Of course some or all these of may change to cris_ver_v32p if/when
      there's a new revision. */
-  cris_ver_v10p
+  cris_ver_v32p
 };
 
 
@@ -84,6 +99,25 @@ struct cris_spec_reg
   const char *const warning;
 };
 extern const struct cris_spec_reg cris_spec_regs[];
+
+
+/* Support registers (kind of special too, but not named as such).  */
+struct cris_support_reg
+{
+  const char *const name;
+  unsigned int number;
+};
+extern const struct cris_support_reg cris_support_regs[];
+
+struct cris_cond15
+{
+  /* The name of the condition.  */
+  const char *const name;
+
+  /* What CPU version this condition name applies to.  */
+  enum cris_insn_version_usage applicable_version;
+};
+extern const struct cris_cond15 cris_conds15[];
 
 /* Opcode-dependent constants.  */
 #define AUTOINCR_BIT (0x04)
@@ -160,12 +194,38 @@ extern const char *const cris_cc_strings[];
 #define JUMP_INDIR_Z_BITS (0xf2c0)
 #define JUMP_PC_INCR_OPCODE \
  (JUMP_INDIR_OPCODE + AUTOINCR_BIT * 0x0100 + REG_PC)
-#define ADD_PC_INCR_OPCODE \
- (0xfa00 + (2 << 4) + AUTOINCR_BIT * 0x0100 + REG_PC)
+
+#define MOVE_M_TO_PREG_OPCODE 0x0a30
+#define MOVE_M_TO_PREG_ZBITS 0x01c0
+
+/* BDAP.D N,PC.  */
+#define MOVE_PC_INCR_OPCODE_PREFIX \
+ (((BDAP_INCR_HIGH | (REG_PC << 4)) << 8) | BDAP_PC_LOW | (2 << 4))
+#define MOVE_PC_INCR_OPCODE_SUFFIX \
+ (MOVE_M_TO_PREG_OPCODE | REG_PC | (AUTOINCR_BIT << 8))
+
+#define JUMP_PC_INCR_OPCODE_V32 (0x0DBF)
+
+/* BA DWORD (V32).  */
+#define BA_DWORD_OPCODE (0x0EBF)
 
 /* Nop.  */
 #define NOP_OPCODE (0x050F)
-#define NOP_Z_BITS (0xFAF0)
+#define NOP_Z_BITS (0xFFFF ^ NOP_OPCODE)
+
+#define NOP_OPCODE_V32 (0x05B0)
+#define NOP_Z_BITS_V32 (0xFFFF ^ NOP_OPCODE_V32)
+
+/* For the compatibility mode, let's use "MOVE R0,P0".  Doesn't affect
+   registers or flags.  Unfortunately shuts off interrupts for one cycle
+   for < v32, but there doesn't seem to be any alternative without that
+   effect.  */
+#define NOP_OPCODE_COMMON (0x630)
+#define NOP_OPCODE_ZBITS_COMMON (0xffff & ~NOP_OPCODE_COMMON)
+
+/* LAPC.D  */
+#define LAPC_DWORD_OPCODE (0x0D7F)
+#define LAPC_DWORD_Z_BITS (0x0fff & ~LAPC_DWORD_OPCODE)
 
 /* Structure of an opcode table entry.  */
 enum cris_imm_oprnd_size_type
@@ -179,7 +239,13 @@ enum cris_imm_oprnd_size_type
   /* Indicated by size of special register.  */
   SIZE_SPEC_REG,
 
-  /* Indicated by size field.  */
+  /* Indicated by size field, signed.  */
+  SIZE_FIELD_SIGNED,
+
+  /* Indicated by size field, unsigned.  */
+  SIZE_FIELD_UNSIGNED,
+
+  /* Indicated by size field, no sign implied.  */
   SIZE_FIELD
 };
 

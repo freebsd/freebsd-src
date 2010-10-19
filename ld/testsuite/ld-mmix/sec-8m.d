@@ -13,7 +13,7 @@
 # with a leading multiple-of-four number of zero bytes, those zero bytes
 # would be omitted, and the "saved" bytes would be concatenated with the
 # following (not-all-zeros) bytes.  Hence a shift of the last bytes of the
-# first chunk.  Note that the section will be padded in the output.
+# first chunk.
 
 .*:     file format mmo
 
@@ -27,4 +27,4 @@ Contents of section \.text:
  10010 33000000 00000000 00000000 00000000  .*
  10020 00300000 00000000 00000000 00000000  .*
 #...
- 18020 31000000  .*
+ 18020 31        .*

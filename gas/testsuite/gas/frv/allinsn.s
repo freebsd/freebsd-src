@@ -681,27 +681,27 @@ stc:
 	.text
 	.global rstb
 rstb:
-	rstb sp,@(sp,sp)
+	nop
 	.text
 	.global rsth
 rsth:
-	rsth sp,@(sp,sp)
+	nop
 	.text
 	.global rst
 rst:
-	rst sp,@(sp,sp)
+	nop
 	.text
 	.global rstbf
 rstbf:
-	rstbf fr0,@(sp,sp)
+	nop
 	.text
 	.global rsthf
 rsthf:
-	rsthf fr0,@(sp,sp)
+	nop
 	.text
 	.global rstf
 rstf:
-	rstf fr0,@(sp,sp)
+	nop
 	.text
 	.global std
 std:
@@ -717,11 +717,11 @@ stdc:
 	.text
 	.global rstd
 rstd:
-	rstd fp,@(sp,sp)
+	nop
 	.text
 	.global rstdf
 rstdf:
-	rstdf fr0,@(sp,sp)
+	nop
 	.text
 	.global stq
 stq:
@@ -737,11 +737,11 @@ stqc:
 	.text
 	.global rstq
 rstq:
-	rstq sp,@(sp,sp)
+	nop
 	.text
 	.global rstqf
 rstqf:
-	rstqf fr0,@(sp,sp)
+	nop
 	.text
 	.global stbu
 stbu:

@@ -1,4 +1,4 @@
-@c Copyright 1996, 2000 Free Software Foundation, Inc.
+@c Copyright 1996, 2000, 2002 Free Software Foundation, Inc.
 @c This is part of the GAS manual.
 @c For copying conditions, see the file as.texinfo.
 @ifset GENERIC

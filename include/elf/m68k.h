@@ -1,5 +1,5 @@
 /* MC68k ELF support for BFD.
-   Copyright 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000, 2002, 2005, 2006 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -15,7 +15,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software Foundation,
-   Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef _ELF_M68K_H
 #define _ELF_M68K_H
@@ -52,7 +52,24 @@ START_RELOC_NUMBERS (elf_m68k_reloc_type)
   RELOC_NUMBER (R_68K_GNU_VTENTRY, 24)
 END_RELOC_NUMBERS (R_68K_max)
 
-#define EF_CPU32    0x00810000
-#define EF_M68000   0x01000000
+#define EF_M68K_CPU32    0x00810000
+#define EF_M68K_M68000   0x01000000
+#define EF_M68K_CFV4E    0x00008000
 
+/* We use the bottom 8 bits to encode information about the
+   coldfire variant.  */
+#define EF_M68K_ISA_MASK	0x0F  /* Which ISA */
+#define EF_M68K_ISA_A_NODIV	0x01  /* ISA A except for div */
+#define EF_M68K_ISA_A		0x02
+#define EF_M68K_ISA_A_PLUS	0x03
+#define EF_M68K_ISA_B_NOUSP	0x04  /* ISA_B except for USP */
+#define EF_M68K_ISA_B		0x05
+#define EF_M68K_ISA_C		0x06
+#define EF_M68K_MAC_MASK	0x30 
+#define EF_M68K_MAC		0x10  /* MAC */
+#define EF_M68K_EMAC		0x20  /* EMAC */
+#define EF_M68K_EMAC_B		0x30  /* EMAC_B */
+#define EF_M68K_FLOAT		0x40  /* Has float insns */
+#define EF_M68K_CF_MASK		0xFF
+     
 #endif

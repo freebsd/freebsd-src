@@ -7,4 +7,4 @@
 #source: a.s
 #as: -no-expand
 #ld: -m elf64mmix
-#error: relocation truncated to fit: R_MMIX_ADDR27 a$
+#error: relocation truncated to fit: R_MMIX_ADDR27 against symbol `a'

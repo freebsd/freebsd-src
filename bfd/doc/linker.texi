@@ -258,7 +258,7 @@ link.  These files are linked through the @code{link_next} field
 of the @code{bfd} structure.
 
 Each section in the output file will have a list of
-@code{link_order} structures attached to the @code{link_order_head}
+@code{link_order} structures attached to the @code{map_head.link_order}
 field (the @code{link_order} structure is defined in
 @code{bfdlink.h}).  These structures describe how to create the
 contents of the output section in terms of the contents of
@@ -360,6 +360,21 @@ reloceatable or final link.
 @example
 #define bfd_link_split_section(abfd, sec) \
        BFD_SEND (abfd, _bfd_link_split_section, (abfd, sec))
+
+@end example
+
+@findex bfd_section_already_linked
+@subsubsection @code{bfd_section_already_linked}
+@strong{Synopsis}
+@example
+void bfd_section_already_linked (bfd *abfd, asection *sec);
+@end example
+@strong{Description}@*
+Check if @var{sec} has been already linked during a reloceatable
+or final link.
+@example
+#define bfd_section_already_linked(abfd, sec) \
+       BFD_SEND (abfd, _section_already_linked, (abfd, sec))
 
 @end example
 

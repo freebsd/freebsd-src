@@ -7,5 +7,4 @@
 .*: +file format elf64-sparc
 
 Contents of section .debug_foobar:
-# FIXME
-#pass
+ 0+ 0+ 0+18  .*

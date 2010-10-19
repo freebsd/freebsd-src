@@ -2,6 +2,8 @@
 #name: ARM basic instructions (WinCE version)
 #as: -mcpu=arm7m -EL
 #source: inst.s
+# inst.d is used for non-WinCE targets.
+#not-skip: *-wince-*
 
 # This file is the same as inst.d except that the BL
 # instructions have not had a -8 bias inserted.
@@ -159,8 +161,8 @@ Disassembly of section .text:
 0+24c <[^>]*> e9020018 ?	stmdb	r2, {r3, r4}
 0+250 <[^>]*> e8830003 ?	stmia	r3, {r0, r1}
 0+254 <[^>]*> e9c40300 ?	stmib	r4, {r8, r9}\^
-0+258 <[^>]*> ef123456 ?	swi	0x00123456
-0+25c <[^>]*> 2f000033 ?	swics	0x00000033
+0+258 <[^>]*> ef123456 ?	(swi|svc)	0x00123456
+0+25c <[^>]*> 2f000033 ?	(swi|svc)cs	0x00000033
 0+260 <[^>]*> eb000000 ?	bl	0+268 <[^>]*>
 [		]*260:.*_wombat.*
 0+264 <[^>]*> 5b000000 ?	blpl	0+26c <[^>]*>

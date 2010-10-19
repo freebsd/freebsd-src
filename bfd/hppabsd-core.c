@@ -1,5 +1,5 @@
 /* BFD back-end for HPPA BSD core files.
-   Copyright 1993, 1994, 1995, 1998, 1999, 2001, 2002, 2003, 2004
+   Copyright 1993, 1994, 1995, 1998, 1999, 2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -16,7 +16,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
    Written by the Center for Software Science at the University of Utah
    and by Cygnus Support.
@@ -57,8 +57,7 @@ static char *hppabsd_core_core_file_failing_command
   PARAMS ((bfd *));
 static int hppabsd_core_core_file_failing_signal
   PARAMS ((bfd *));
-static bfd_boolean hppabsd_core_core_file_matches_executable_p
-  PARAMS ((bfd *, bfd *));
+#define hppabsd_core_core_file_matches_executable_p generic_core_file_matches_executable_p
 static void swap_abort
   PARAMS ((void));
 
@@ -81,11 +80,11 @@ struct hppabsd_core_struct
 #define core_regsec(bfd) (core_hdr(bfd)->reg_section)
 
 static asection *
-make_bfd_asection (abfd, name, flags, _raw_size, offset, alignment_power)
+make_bfd_asection (abfd, name, flags, size, offset, alignment_power)
      bfd *abfd;
      const char *name;
      flagword flags;
-     bfd_size_type _raw_size;
+     bfd_size_type size;
      file_ptr offset;
      unsigned int alignment_power;
 {
@@ -96,7 +95,7 @@ make_bfd_asection (abfd, name, flags, _raw_size, offset, alignment_power)
     return NULL;
 
   asect->flags = flags;
-  asect->_raw_size = _raw_size;
+  asect->size = size;
   asect->filepos = offset;
   asect->alignment_power = alignment_power;
 
@@ -137,13 +136,11 @@ hppabsd_core_core_file_p (abfd)
   /* Sanity checks.  Make sure the size of the core file matches the
      the size computed from information within the core itself.  */
   {
-    FILE *stream = bfd_cache_lookup (abfd);
     struct stat statbuf;
-    if (stream == NULL || fstat (fileno (stream), &statbuf) < 0)
-      {
-	bfd_set_error (bfd_error_system_call);
-	return NULL;
-      }
+
+    if (bfd_stat (abfd, &statbuf) < 0)
+      return NULL;
+
     if (NBPG * (UPAGES + u.u_dsize + u.u_ssize) > statbuf.st_size)
       {
 	bfd_set_error (bfd_error_file_truncated);
@@ -218,14 +215,6 @@ hppabsd_core_core_file_failing_signal (abfd)
      bfd *abfd;
 {
   return core_signal (abfd);
-}
-
-static bfd_boolean
-hppabsd_core_core_file_matches_executable_p (core_bfd, exec_bfd)
-     bfd *core_bfd, *exec_bfd;
-{
-  /* There's no way to know this...  */
-  return TRUE;
 }
 
 /* If somebody calls any byte-swapping routines, shoot them.  */

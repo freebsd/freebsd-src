@@ -1,5 +1,6 @@
 /* BFD back-end for TMS320C54X coff binaries.
-   Copyright 1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005
+   Free Software Foundation, Inc.
    Contributed by Timothy Wall (twall@cygnus.com)
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -16,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -327,6 +328,15 @@ ticoff_bfd_is_local_label_name (abfd, name)
 
 #define coff_bfd_is_local_label_name ticoff_bfd_is_local_label_name
 
+/* Clear the r_reserved field in relocs.  */
+#define SWAP_OUT_RELOC_EXTRA(abfd,src,dst) \
+  do \
+    { \
+      dst->r_reserved[0] = 0; \
+      dst->r_reserved[1] = 0; \
+    } \
+  while (0)
+
 /* Customize coffcode.h; the default coff_ functions are set up to use COFF2;
    coff_bad_format_hook uses BADMAG, so set that for COFF2.  The COFF1
    and COFF0 vectors use custom _bad_format_hook procs instead of setting
@@ -363,8 +373,8 @@ tic54x_reloc_processing (relent, reloc, symbols, abfd, section)
       if (reloc->r_symndx < 0 || reloc->r_symndx >= obj_conv_table_size (abfd))
         {
           (*_bfd_error_handler)
-            (_("%s: warning: illegal symbol index %ld in relocs"),
-             bfd_archive_filename (abfd), reloc->r_symndx);
+            (_("%B: warning: illegal symbol index %ld in relocs"),
+             abfd, reloc->r_symndx);
           relent->sym_ptr_ptr = bfd_abs_section_ptr->symbol_ptr_ptr;
           ptr = NULL;
         }

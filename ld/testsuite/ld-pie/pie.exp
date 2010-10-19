@@ -1,0 +1,40 @@
+# Expect script for various PIE tests.
+#   Copyright 2006 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+#
+
+# This test can only be run if ld generates native executables.
+if ![isnative] then {return}
+
+# Run on Linux only.
+if { ![istarget *-*-linux*] } {
+    return
+}
+
+# Check if -pie is supported or not.
+send_log "$CC -pie $srcdir/$subdir/pie.c -o tmpdir/pie"
+catch "exec $CC -pie $srcdir/$subdir/pie.c -o tmpdir/pie" exec_output
+send_log "$exec_output\n"
+if { ![string match "" $exec_output] } {
+    return
+}
+
+set array_tests {
+    {"weak undefined" "-pie" "" {weakundef.c} "weakundef" "weakundef.out" "-fPIC"}
+    {"weak undefined data" "-pie" "" {weakundef-data.c} "weakundef-data" "weakundef.out" "-fPIC"}
+}
+
+run_ld_link_exec_tests [] $array_tests

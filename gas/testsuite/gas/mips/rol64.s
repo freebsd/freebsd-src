@@ -1,8 +1,5 @@
 # Source file used to test the drol and dror macros.
 
-	# generate warnings for all uses of AT.
-	.set noat
-
 foo:
 	drol	$4,$5
 	drol	$4,$5,$6

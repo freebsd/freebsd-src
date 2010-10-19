@@ -13,14 +13,14 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  
 
 # Please email any bugs, comments, and/or additions to this file to:
 # dejagnu@gnu.org
 
 # Written by Cygnus Support.
 
-if [istarget "sh*-*-linux-gnu"] {
+if [istarget "sh*-*-linux-*"] {
     global ASFLAGS
     set ASFLAGS "$ASFLAGS -big"
 }
@@ -131,6 +131,8 @@ if [istarget sh*-*-*] then {
     # dumped as sh4.
     if {[istarget sh*-*coff] || [istarget sh*-pe*] || [istarget sh*-rtems]} then {
 	run_dump_test "pcrel-coff"
+    } elseif {[istarget sh*-hms] } {
+	run_dump_test "pcrel-hms"
     } elseif {![istarget sh64*-*-*] && ![istarget sh5*-*-*] } {
 	# Test DSP instructions
 	run_dump_test "dsp"
@@ -147,6 +149,8 @@ if [istarget sh*-*-*] then {
 
 	    run_dump_test "sh4a-dsp"
 	    run_dump_test "sh4al-dsp"
+
+	    run_dump_test "sh2a"
 	}
 
 	run_dump_test "pic"
@@ -158,8 +162,11 @@ if [istarget sh*-*-*] then {
 
 	run_dump_test "tlsnopic"
 
-	# Test -renesas.
+	# Test --renesas.
 	run_dump_test "renesas-1"
+
+	# Test --allow-reg-prefix.
+	run_dump_test "reg-prefix"
     }
 }
 

@@ -2921,7 +2921,7 @@ proc do_t10_and_test {} {
         default	{ fail "$testname: and.l @0x1234:16, ... ($x)" }
     }
     # FIXME return early, expect bombs out on the next group.
-    return;
+    return
     set x 0
     expect {
 	-re ".* 954 1f30 01046B2C" { set x [expr $x+1]; exp_continue; }

@@ -1,0 +1,50 @@
+
+.*:     file format .*
+
+Disassembly of section \.plt:
+
+00080800 <_PROCEDURE_LINKAGE_TABLE_>:
+   80800:	8f990008 	lw	t9,8\(gp\)
+   80804:	00000000 	nop
+   80808:	03200008 	jr	t9
+   8080c:	00000000 	nop
+	\.\.\.
+   80818:	1000fff9 	b	80800 <_PROCEDURE_LINKAGE_TABLE_>
+   8081c:	24180000 	li	t8,0
+   80820:	1000fff7 	b	80800 <_PROCEDURE_LINKAGE_TABLE_>
+   80824:	24180001 	li	t8,1
+Disassembly of section \.text:
+
+00080c00 <foo>:
+   80c00:	27bdffe0 	addiu	sp,sp,-32
+   80c04:	afbf0000 	sw	ra,0\(sp\)
+   80c08:	afbc0004 	sw	gp,4\(sp\)
+   80c0c:	3c1c0000 	lui	gp,0x0
+   80c10:	8f9c0000 	lw	gp,0\(gp\)
+   80c14:	8f9c0000 	lw	gp,0\(gp\)
+   80c18:	8f820014 	lw	v0,20\(gp\)
+   80c1c:	8c430000 	lw	v1,0\(v0\)
+   80c20:	24630001 	addiu	v1,v1,1
+   80c24:	ac430000 	sw	v1,0\(v0\)
+   80c28:	8f99000c 	lw	t9,12\(gp\)
+   80c2c:	0320f809 	jalr	t9
+   80c30:	00000000 	nop
+   80c34:	8f99fff4 	lw	t9,-12\(gp\)
+   80c38:	0320f809 	jalr	t9
+   80c3c:	00000000 	nop
+   80c40:	8f99fff0 	lw	t9,-16\(gp\)
+   80c44:	0320f809 	jalr	t9
+   80c48:	00000000 	nop
+   80c4c:	8fbf0000 	lw	ra,0\(sp\)
+   80c50:	8fbc0004 	lw	gp,4\(sp\)
+   80c54:	03e00008 	jr	ra
+   80c58:	27bd0020 	addiu	sp,sp,32
+
+00080c5c <slocal>:
+   80c5c:	03e00008 	jr	ra
+   80c60:	00000000 	nop
+
+00080c64 <sglobal>:
+   80c64:	03e00008 	jr	ra
+   80c68:	00000000 	nop
+#pass

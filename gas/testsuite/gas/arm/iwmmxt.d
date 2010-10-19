@@ -46,7 +46,7 @@ Disassembly of section .text:
 0+98 <[^>]*> ee120184[ 	]+waddbus[ 	]+wr0, wr2, wr4
 0+9c <[^>]*> ee38618a[ 	]+waddbss[ 	]+wr6, wr8, wr10
 0+a0 <[^>]*> ee4ec18f[ 	]+waddh[ 	]+wr12, wr14, wr15
-0+a4 <[^>]*> fe5cd18b[ 	]+waddhusnv[ 	]+wr13, wr12, wr11
+0+a4 <[^>]*> de5cd18b[ 	]+waddhusle[ 	]+wr13, wr12, wr11
 0+a8 <[^>]*> 0e79a188[ 	]+waddhsseq[ 	]+wr10, wr9, wr8
 0+ac <[^>]*> 1e867185[ 	]+waddwne[ 	]+wr7, wr6, wr5
 0+b0 <[^>]*> ee934182[ 	]+waddwus[ 	]+wr4, wr3, wr2
@@ -74,7 +74,7 @@ Disassembly of section .text:
 0+108 <[^>]*> ed901024[ 	]+wldrb[ 	]+wr1, \[r0, #36\]
 0+10c <[^>]*> 0df12018[ 	]+wldrheq[ 	]+wr2, \[r1, #24\]!
 0+110 <[^>]*> 1cb23104[ 	]+wldrwne[ 	]+wr3, \[r2\], #16
-0+114 <[^>]*> 6dd34102[ 	]+wldrdvs[ 	]+wr4, \[r3, #8\]
+0+114 <[^>]*> 6d534153[ 	]+wldrdvs[ 	]+wr4, \[r3, #-332\]
 0+118 <[^>]*> fdb12105[ 	]+wldrw[ 	]+wcssf, \[r1, #20\]!
 0+11c <[^>]*> ee474109[ 	]+wmacu[ 	]+wr4, wr7, wr9
 0+120 <[^>]*> 2e6a810e[ 	]+wmacscs[ 	]+wr8, wr10, wr14
@@ -87,7 +87,7 @@ Disassembly of section .text:
 0+13c <[^>]*> 5e443165[ 	]+wmaxuhpl[ 	]+wr3, wr4, wr5
 0+140 <[^>]*> 4e643165[ 	]+wmaxshmi[ 	]+wr3, wr4, wr5
 0+144 <[^>]*> ae843165[ 	]+wmaxuwge[ 	]+wr3, wr4, wr5
-0+148 <[^>]*> fea43165[ 	]+wmaxswnv[ 	]+wr3, wr4, wr5
+0+148 <[^>]*> dea43165[ 	]+wmaxswle[ 	]+wr3, wr4, wr5
 0+14c <[^>]*> 3e1c416a[ 	]+wminubcc[ 	]+wr4, wr12, wr10
 0+150 <[^>]*> ee3c416a[ 	]+wminsb[ 	]+wr4, wr12, wr10
 0+154 <[^>]*> 7e5c416a[ 	]+wminuhvc[ 	]+wr4, wr12, wr10
@@ -115,7 +115,7 @@ Disassembly of section .text:
 0+1ac <[^>]*> ee00212a[ 	]+wsadb[ 	]+wr2, wr0, wr10
 0+1b0 <[^>]*> ee40212a[ 	]+wsadh[ 	]+wr2, wr0, wr10
 0+1b4 <[^>]*> ee10212a[ 	]+wsadbz[ 	]+wr2, wr0, wr10
-0+1b8 <[^>]*> fe50212a[ 	]+wsadhznv[ 	]+wr2, wr0, wr10
+0+1b8 <[^>]*> de50212a[ 	]+wsadhzle[ 	]+wr2, wr0, wr10
 0+1bc <[^>]*> 0ef941eb[ 	]+wshufheq[ 	]+wr4, wr9, #251
 0+1c0 <[^>]*> ee592044[ 	]+wsllh[ 	]+wr2, wr9, wr4
 0+1c4 <[^>]*> ee992044[ 	]+wsllw[ 	]+wr2, wr9, wr4
@@ -135,11 +135,11 @@ Disassembly of section .text:
 0+1fc <[^>]*> ee65114b[ 	]+wsrlhg[ 	]+wr1, wr5, wcgr3
 0+200 <[^>]*> 4ea51148[ 	]+wsrlwgmi[ 	]+wr1, wr5, wcgr0
 0+204 <[^>]*> eee51149[ 	]+wsrldg[ 	]+wr1, wr5, wcgr1
-0+208 <[^>]*> ed811004[ 	]+wstrb[ 	]+wr1, \[r1, #4\]
-0+20c <[^>]*> ede11004[ 	]+wstrh[ 	]+wr1, \[r1, #4\]!
+0+208 <[^>]*> ed8110ff[ 	]+wstrb[ 	]+wr1, \[r1, #255\]
+0+20c <[^>]*> ed6110ff[ 	]+wstrh[ 	]+wr1, \[r1, #-255\]!
 0+210 <[^>]*> eca11101[ 	]+wstrw[ 	]+wr1, \[r1\], #4
-0+214 <[^>]*> edc11101[ 	]+wstrd[ 	]+wr1, \[r1, #4\]
-0+218 <[^>]*> fca13101[ 	]+wstrw[ 	]+wcasf, \[r1\], #4
+0+214 <[^>]*> edc111ff[ 	]+wstrd[ 	]+wr1, \[r1, #1020\]
+0+218 <[^>]*> fca1314b[ 	]+wstrw[ 	]+wcasf, \[r1\], #300
 0+21c <[^>]*> 3e1311ae[ 	]+wsubbuscc[ 	]+wr1, wr3, wr14
 0+220 <[^>]*> ee5311ae[ 	]+wsubhus[ 	]+wr1, wr3, wr14
 0+224 <[^>]*> 3e9311ae[ 	]+wsubwuscc[ 	]+wr1, wr3, wr14
@@ -166,3 +166,6 @@ Disassembly of section .text:
 0+278 <[^>]*> 0e9540ea[ 	]+wunpckilweq[ 	]+wr4, wr5, wr10
 0+27c <[^>]*> 1e143005[ 	]+wxorne[ 	]+wr3, wr4, wr5
 0+280 <[^>]*> ae377007[ 	]+wandnge[ 	]+wr7, wr7, wr7
+0+284 <[^>]*> e1a00000[ 	]+nop[ 	]+\(mov r0,r0\)
+0+288 <[^>]*> e1a00000[ 	]+nop[ 	]+\(mov r0,r0\)
+0+28c <[^>]*> e1a00000[ 	]+nop[ 	]+\(mov r0,r0\)

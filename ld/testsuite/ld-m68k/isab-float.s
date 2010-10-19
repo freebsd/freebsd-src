@@ -1,0 +1,3 @@
+	.arch isab,float
+
+	nop

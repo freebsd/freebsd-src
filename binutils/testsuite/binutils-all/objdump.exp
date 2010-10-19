@@ -1,4 +1,5 @@
-#   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000
+#   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
+#   2003, 2004
 #   Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
@@ -13,7 +14,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
 # Please email any bugs, comments, and/or additions to this file to:
 # bug-dejagnu@prep.ai.mit.edu
@@ -35,7 +36,7 @@ send_user "Version [binutil_version $OBJDUMP]"
 set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS -i"]
 
 set cpus_expected [list]
-lappend cpus_expected a29k alliant alpha arc arm convex 
+lappend cpus_expected alpha arc arm cris
 lappend cpus_expected d10v d30v fr30 fr500 fr550 h8 hppa i386 i860 i960 ip2022
 lappend cpus_expected m32r m68hc11 m68hc12 m68k m88k MCore
 lappend cpus_expected mips mn10200 mn10300 msp ns32k pj powerpc pyramid

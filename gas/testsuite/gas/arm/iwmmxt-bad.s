@@ -6,3 +6,4 @@
 	wstrb	wcgr0,[r1]
 	wstrh	wcgr0,[r1]
 	wstrd	wcgr0,[r1]
+	tmcr	wibble,r1

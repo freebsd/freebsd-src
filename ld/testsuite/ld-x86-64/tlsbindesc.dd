@@ -1,0 +1,307 @@
+#source: tlsbindesc.s
+#source: tlsbin.s
+#as: --64
+#ld: -shared -melf_x86_64
+#objdump: -drj.text
+#target: x86_64-*-*
+
+# PT_TLS layout is:
+# Offset from   Offset from     Name
+# TCB base      TCB end
+# 0x00          -0xa0           sg1..sg8
+# 0x20          -0x80           sl1..sl8
+# 0x40          -0x60           sh1..sh8
+# 0x60          -0x40           bg1..bg8
+# 0x80          -0x20           bl1..bl8
+
+.*: +file format elf64-x86-64
+
+Disassembly of section .text:
+
+0+401000 <fn2>:
+  [0-9a-f]+:	55[ 	]+push   %rbp
+  [0-9a-f]+:	48 89 e5[ 	]+mov    %rsp,%rbp
+#  GD -> IE because variable is not defined in executable
+  [0-9a-f]+:	48 8b 05 65 03 10 00[ 	]+mov    1049445\(%rip\),%rax +# 501370 <.*>
+#				-> R_X86_64_TPOFF64	sG1
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  GD -> IE because variable is not defined in executable where
+#  the variable is referenced through IE too
+  [0-9a-f]+:	48 8b 05 48 03 10 00[ 	]+mov    1049416\(%rip\),%rax +# 501360 <.*>
+#				-> R_X86_64_TPOFF64	sG2
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  GD -> LE with global variable defined in executable
+  [0-9a-f]+:	48 c7 c0 60 ff ff ff[ 	]+mov    \$0xf+60,%rax
+#							sg1
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  GD -> LE with local variable defined in executable
+  [0-9a-f]+:	48 c7 c0 80 ff ff ff[ 	]+mov    \$0xf+80,%rax
+#							sl1
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  GD -> LE with hidden variable defined in executable
+  [0-9a-f]+:	48 c7 c0 a0 ff ff ff[ 	]+mov    \$0xf+a0,%rax
+#							sh1
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  LD -> LE
+  [0-9a-f]+:	48 c7 c0 60 ff ff ff[ 	]+mov    \$0xf+60,%rax
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	48 8d 90 81 ff ff ff[ 	]+lea    0xf+81\(%rax\),%rdx
+#							sl1+1
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	4c 8d 88 86 ff ff ff[ 	]+lea    0xf+86\(%rax\),%r9
+#							sl2+2
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  LD -> LE against hidden variables
+  [0-9a-f]+:	48 8d 90 a0 ff ff ff[ 	]+lea    0xf+a0\(%rax\),%rdx
+#							sh1
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	48 8d 88 a7 ff ff ff[ 	]+lea    0xf+a7\(%rax\),%rcx
+#							sh2+3
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  IE against global var
+  [0-9a-f]+:	64 4c 8b 0c 25 00 00[ 	]+mov    %fs:0x0,%r9
+  [0-9a-f]+:	00 00 *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	4c 03 0d d6 02 10 00[ 	]+add    1049302\(%rip\),%r9 +# 501360 <.*>
+#				-> R_X86_64_TPOFF64	sG2
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  IE -> LE against global var defined in exec
+  [0-9a-f]+:	64 4c 8b 14 25 00 00[ 	]+mov    %fs:0x0,%r10
+  [0-9a-f]+:	00 00 *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	4d 8d 92 60 ff ff ff[ 	]+lea    0xf+60\(%r10\),%r10
+#							sg1
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  IE -> LE against local var
+  [0-9a-f]+:	64 48 8b 04 25 00 00[ 	]+mov    %fs:0x0,%rax
+  [0-9a-f]+:	00 00 *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	48 8d 80 80 ff ff ff[ 	]+lea    0xf+80\(%rax\),%rax
+#							sl1
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  IE -> LE against hidden var
+  [0-9a-f]+:	64 48 8b 0c 25 00 00[ 	]+mov    %fs:0x0,%rcx
+  [0-9a-f]+:	00 00 *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	48 8d 89 a0 ff ff ff[ 	]+lea    0xf+a0\(%rcx\),%rcx
+#							sh1
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  Direct access through %fs
+#  IE against global var
+  [0-9a-f]+:	48 8b 0d 81 02 10 00[ 	]+mov    1049217\(%rip\),%rcx +# 501358 <.*>
+#				-> R_X86_64_TPOFF64	sG5
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	64 48 8b 11[ 	]+mov    %fs:\(%rcx\),%rdx
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  IE->LE against local var
+  [0-9a-f]+:	49 c7 c3 90 ff ff ff[ 	]+mov    \$0xf+90,%r11
+#							sl5
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	64 4d 8b 23[ 	]+mov    %fs:\(%r11\),%r12
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  IE->LE against hidden var
+  [0-9a-f]+:	48 c7 c2 b0 ff ff ff[ 	]+mov    \$0xf+b0,%rdx
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	64 48 8b 12[ 	]+mov    %fs:\(%rdx\),%rdx
+#							sh5
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	c9[ 	]+leaveq *
+  [0-9a-f]+:	c3[ 	]+retq *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+
+[0-9a-f]+ <_start>:
+  [0-9a-f]+:	55[ 	]+push   %rbp
+  [0-9a-f]+:	48 89 e5[ 	]+mov    %rsp,%rbp
+#  IE against global var
+  [0-9a-f]+:	64 4c 8b 1c 25 00 00[ 	]+mov    %fs:0x0,%r11
+  [0-9a-f]+:	00 00 *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	4c 03 1d 4a 02 10 00[ 	]+add    1049162\(%rip\),%r11 +# 501368 <.*>
+#				-> R_X86_64_TPOFF64	sG6
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  IE -> LE against global var defined in exec
+  [0-9a-f]+:	64 48 8b 14 25 00 00[ 	]+mov    %fs:0x0,%rdx
+  [0-9a-f]+:	00 00 *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	48 8d 92 d4 ff ff ff[ 	]+lea    0xf+d4\(%rdx\),%rdx
+#							bg6
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  IE -> LE against local var
+  [0-9a-f]+:	64 4c 8b 24 25 00 00[ 	]+mov    %fs:0x0,%r12
+  [0-9a-f]+:	00 00 *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	49 81 c4 f4 ff ff ff[ 	]+add    \$0xf+f4,%r12
+#							bl6
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  direct %fs access IE -> LE against local var
+  [0-9a-f]+:	48 c7 c2 fc ff ff ff[ 	]+mov    \$0xf+fc,%rdx
+#							bl8
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	64 48 8b 02[ 	]+mov    %fs:\(%rdx\),%rax
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  IE -> LE against hidden but not local var
+  [0-9a-f]+:	64 48 8b 14 25 00 00[ 	]+mov    %fs:0x0,%rdx
+  [0-9a-f]+:	00 00 *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	48 8d 92 b4 ff ff ff[ 	]+lea    0xf+b4\(%rdx\),%rdx
+#							sh6
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  direct %fs access IE -> LE against hidden but not local var
+  [0-9a-f]+:	48 c7 c2 bc ff ff ff[ 	]+mov    \$0xf+bc,%rdx
+#							sh8
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	64 48 8b 02[ 	]+mov    %fs:\(%rdx\),%rax
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  LE, global var defined in exec
+  [0-9a-f]+:	64 48 8b 04 25 00 00[ 	]+mov    %fs:0x0,%rax
+  [0-9a-f]+:	00 00 *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	48 8d 90 64 ff ff ff[ 	]+lea    0xf+64\(%rax\),%rdx
+#							sg2
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  LE, local var, non-canonical sequence
+  [0-9a-f]+:	49 c7 c1 e6 ff ff ff[ 	]+mov    \$0xf+e6,%r9
+#							bl2+2
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	64 48 8b 14 25 00 00[ 	]+mov    %fs:0x0,%rdx
+  [0-9a-f]+:	00 00 *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	4c 01 ca[ 	]+add    %r9,%rdx
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  LE, hidden var defined in exec, non-canonical sequence
+  [0-9a-f]+:	64 48 8b 14 25 00 00[ 	]+mov    %fs:0x0,%rdx
+  [0-9a-f]+:	00 00 *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	48 81 c2 a5 ff ff ff[ 	]+add    \$0xf+a5,%rdx
+#							sh2+1
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  Direct %fs access
+#  LE, global var defined in exec
+  [0-9a-f]+:	64 48 8b 04 25 68 ff[ 	]+mov    %fs:0xf+68,%rax
+  [0-9a-f]+:	ff ff *
+#							sg3
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  LE, local var
+  [0-9a-f]+:	64 4c 8b 14 25 eb ff[ 	]+mov    %fs:0xf+eb,%r10
+  [0-9a-f]+:	ff ff *
+#							bl3+3
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+#  LE, hidden var defined in exec
+  [0-9a-f]+:	64 48 8b 14 25 a9 ff[ 	]+mov    %fs:0xf+a9,%rdx
+  [0-9a-f]+:	ff ff *
+#							sh3+1
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	c9[ 	]+leaveq *
+  [0-9a-f]+:	c3[ 	]+retq *

@@ -1,3 +1,4 @@
+sinclude(../bfd/warning.m4)
 sinclude(../libtool.m4)
 dnl The lines below arrange for aclocal not to bring libtool.m4
 dnl AM_PROG_LIBTOOL into aclocal.m4, while still arranging for automake

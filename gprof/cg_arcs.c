@@ -38,13 +38,13 @@
 #include "utils.h"
 #include "sym_ids.h"
 
-static int cmp_topo PARAMS ((const PTR, const PTR));
-static void propagate_time PARAMS ((Sym *));
-static void cycle_time PARAMS ((void));
-static void cycle_link PARAMS ((void));
-static void inherit_flags PARAMS ((Sym *));
-static void propagate_flags PARAMS ((Sym **));
-static int cmp_total PARAMS ((const PTR, const PTR));
+static int cmp_topo (const PTR, const PTR);
+static void propagate_time (Sym *);
+static void cycle_time (void);
+static void cycle_link (void);
+static void inherit_flags (Sym *);
+static void propagate_flags (Sym **);
+static int cmp_total (const PTR, const PTR);
 
 Sym *cycle_header;
 unsigned int num_cycles;
@@ -56,9 +56,7 @@ unsigned int numarcs;
  * range covered by CHILD.
  */
 Arc *
-arc_lookup (parent, child)
-     Sym *parent;
-     Sym *child;
+arc_lookup (Sym *parent, Sym *child)
 {
   Arc *arc;
 
@@ -87,10 +85,7 @@ arc_lookup (parent, child)
  * Add (or just increment) an arc:
  */
 void
-arc_add (parent, child, count)
-     Sym *parent;
-     Sym *child;
-     unsigned long count;
+arc_add (Sym *parent, Sym *child, unsigned long count)
 {
   static unsigned int maxarcs = 0;
   Arc *arc, **newarcs;
@@ -156,9 +151,7 @@ arc_add (parent, child, count)
 
 
 static int
-cmp_topo (lp, rp)
-     const PTR lp;
-     const PTR rp;
+cmp_topo (const PTR lp, const PTR rp)
 {
   const Sym *left = *(const Sym **) lp;
   const Sym *right = *(const Sym **) rp;
@@ -168,8 +161,7 @@ cmp_topo (lp, rp)
 
 
 static void
-propagate_time (parent)
-     Sym *parent;
+propagate_time (Sym *parent)
 {
   Arc *arc;
   Sym *child;
@@ -365,8 +357,7 @@ cycle_link ()
  * fractions from parents.
  */
 static void
-inherit_flags (child)
-     Sym *child;
+inherit_flags (Sym *child)
 {
   Sym *head, *parent, *member;
   Arc *arc;
@@ -444,8 +435,7 @@ inherit_flags (child)
  * and while we're here, sum time for functions.
  */
 static void
-propagate_flags (symbols)
-     Sym **symbols;
+propagate_flags (Sym **symbols)
 {
   int index;
   Sym *old_head, *child;
@@ -545,9 +535,7 @@ propagate_flags (symbols)
  * first.  All else being equal, compare by names.
  */
 static int
-cmp_total (lp, rp)
-     const PTR lp;
-     const PTR rp;
+cmp_total (const PTR lp, const PTR rp)
 {
   const Sym *left = *(const Sym **) lp;
   const Sym *right = *(const Sym **) rp;

@@ -58,4 +58,4 @@ OTHER_SECTIONS='
 # EXECUTABLE_SYMBOLS.
 # By default, put the high end of the stack where the register stack
 # begins.  They grow in opposite directions.  */
-OTHER_END_SYMBOLS="PROVIDE (__Stack_start = 0x6000000000000000);"
+OTHER_SYMBOLS="PROVIDE (__Stack_start = 0x6000000000000000);"

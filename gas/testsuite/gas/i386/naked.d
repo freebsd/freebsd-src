@@ -11,11 +11,11 @@ Disassembly of section .text:
    a:	b2 20 [ 	]*mov    \$0x20,%dl
    c:	bb 00 00 00 00 [ 	]*mov    \$0x0,%ebx	d: (R_386_)?(dir)?32	.text
   11:	d9 c9 [ 	]*fxch   %st\(1\)
-  13:	36 8c a4 81 d2 04 00 00 [ 	]*movl   %fs,%ss:0x4d2\(%ecx,%eax,4\)
-  1b:	8c 2c ed 00 00 00 00 [ 	]*movl   %gs,0x0\(,%ebp,8\)
+  13:	36 8c a4 81 d2 04 00 00 [ 	]*movw   %fs,%ss:0x4d2\(%ecx,%eax,4\)
+  1b:	8c 2c ed 00 00 00 00 [ 	]*movw   %gs,0x0\(,%ebp,8\)
   22:	26 88 25 00 00 00 00 [ 	]*mov    %ah,%es:0x0
   29:	2e 8b 74 14 80 [ 	]*mov    %cs:0xffffff80\(%esp,%edx,1\),%esi
-  2e:	f3 65 a5 [ 	]*repz movsl %gs:\(%esi\),%es:\(%edi\)
+  2e:	f3 65 a5 [ 	]*rep movsl %gs:\(%esi\),%es:\(%edi\)
   31:	ec [ 	]*in     \(%dx\),%al
   32:	66 ef [ 	]*out    %ax,\(%dx\)
   34:	67 d2 14 [ 	]*addr16 rclb %cl,\(%si\)

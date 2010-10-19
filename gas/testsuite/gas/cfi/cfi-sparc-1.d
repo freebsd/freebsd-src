@@ -14,8 +14,8 @@ The section .eh_frame contains:
 
   DW_CFA_def_cfa: r14 ofs 0
 
-00000014 00000014 00000018 FDE cie=00000000 pc=0000001c..00000040
-  DW_CFA_advance_loc: 4 to 00000020
+00000014 00000014 00000018 FDE cie=00000000 pc=00000000..00000024
+  DW_CFA_advance_loc: 4 to 00000004
   DW_CFA_def_cfa_reg: r30
   DW_CFA_GNU_window_save
   DW_CFA_register: r15 in r31

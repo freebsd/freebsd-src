@@ -831,3 +831,7 @@
 	hint.b	@pause
 	hint.b	0x1ffff
 	nop.b	0x1ffff
+
+	# instructions added by SDM2.2:
+	vmsw.0
+	vmsw.1

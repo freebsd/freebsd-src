@@ -1,5 +1,5 @@
 /* This file is obj-evax.h
-   Copyright 1996, 2000 Free Software Foundation, Inc.
+   Copyright 1996, 2000, 2005 Free Software Foundation, Inc.
    Contributed by Klaus Kämpf (kkaempf@progis.de) of
      proGIS Software, Aachen, Germany.
 
@@ -17,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA.  */
+   the Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston,
+   MA 02110-1301, USA.  */
 
 /*
  * This file is obj-evax.h and is intended to be a template for
@@ -31,9 +31,7 @@
 /* include whatever target cpu is appropriate.  */
 #include "targ-cpu.h"
 
-#ifdef BFD_ASSEMBLER
 #define OUTPUT_FLAVOR bfd_target_evax_flavour
-#endif
 
 /*
  * SYMBOLS
@@ -57,8 +55,6 @@ typedef struct
 obj_symbol_type;		/* should be the format's symbol structure */
 
 typedef void *object_headers;
-
-#define DEFAULT_MAGIC_NUMBER_FOR_OBJECT_FILE (0)	/* your magic number */
 
 #define OBJ_EMIT_LINENO(a,b,c)	/* must be *something*.  This no-op's it out.  */
 

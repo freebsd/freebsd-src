@@ -82,16 +82,16 @@ Disassembly of section .text:
 0+120 <[^>]*> eeb11a40 	fnegs	s2, s0
 0+124 <[^>]*> eef1fa40 	fnegs	s31, s0
 0+128 <[^>]*> eeb16a6a 	fnegs	s12, s21
-0+12c <[^>]*> ee300a20 	fadds	s0, s0, s0
-0+130 <[^>]*> ee300a01 	fadds	s0, s0, s0
-0+134 <[^>]*> ee300a2f 	fadds	s0, s0, s0
+0+12c <[^>]*> ee300a20 	fadds	s0, s0, s1
+0+130 <[^>]*> ee300a01 	fadds	s0, s0, s2
+0+134 <[^>]*> ee300a2f 	fadds	s0, s0, s31
 0+138 <[^>]*> ee300a80 	fadds	s0, s1, s0
 0+13c <[^>]*> ee310a00 	fadds	s0, s2, s0
 0+140 <[^>]*> ee3f0a80 	fadds	s0, s31, s0
-0+144 <[^>]*> ee700a00 	fadds	s1, s0, s1
-0+148 <[^>]*> ee301a00 	fadds	s2, s0, s2
-0+14c <[^>]*> ee70fa00 	fadds	s31, s0, s31
-0+150 <[^>]*> ee3a6aa2 	fadds	s12, s21, s12
+0+144 <[^>]*> ee700a00 	fadds	s1, s0, s0
+0+148 <[^>]*> ee301a00 	fadds	s2, s0, s0
+0+14c <[^>]*> ee70fa00 	fadds	s31, s0, s0
+0+150 <[^>]*> ee3a6aa2 	fadds	s12, s21, s5
 0+154 <[^>]*> eeb80ae0 	fsitos	s0, s1
 0+158 <[^>]*> eeb80ac1 	fsitos	s0, s2
 0+15c <[^>]*> eeb80aef 	fsitos	s0, s31
@@ -194,7 +194,7 @@ Disassembly of section .text:
 0+2e0 <[^>]*> 0ef0fa69 	fcpyseq	s31, s19
 0+2e4 <[^>]*> 0eb1aa44 	fnegseq	s20, s8
 0+2e8 <[^>]*> 0ef12ae3 	fsqrtseq	s5, s7
-0+2ec <[^>]*> 0e323a82 	faddseq	s6, s5, s6
+0+2ec <[^>]*> 0e323a82 	faddseq	s6, s5, s4
 0+2f0 <[^>]*> 0ec11a20 	fdivseq	s3, s2, s1
 0+2f4 <[^>]*> 0e4ffa2e 	fmacseq	s31, s30, s29
 0+2f8 <[^>]*> 0e1dea8d 	fmscseq	s28, s27, s26

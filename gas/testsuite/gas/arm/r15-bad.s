@@ -2,8 +2,8 @@
 .align 0
 
 label:
-	mul r15, r1
-	mul r1, r15
+	mul r15, r1, r2
+	mul r1, r15, r2
 	mla r15, r2, r3, r4
 	mla r1, r15, r3, r4
 	mla r1, r2, r15, r4

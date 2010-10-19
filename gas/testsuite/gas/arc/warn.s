@@ -9,3 +9,8 @@
 	mov r0,r1
 
 foo:
+.extCoreRegister roscreg,45,r,can_shortcut
+.extCoreRegister woscreg,46,w,can_shortcut
+        .section .text
+         add    r0,woscreg,r1   ; { dg-warning "Error: attempt to read writeonly register" }
+         add    roscreg,r1,r2   ; { dg-warning "Error: attempt to set readonly register" }

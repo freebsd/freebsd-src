@@ -561,8 +561,8 @@ warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
    You should have received a copy of the GNU Lesser General Public
    License along with the GNU C Library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-   02111-1307 USA.
+   Software Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+   02110-1301 USA.
 
 (22) Xavier Leroy LGPL License (i[3456]86-*-linux* targets only)
 
@@ -731,7 +731,7 @@ files in the newlib subdirectory default to the following copyright.
 It should be noted that Red Hat Incorporated now owns copyrights
 belonging to Cygnus Solutions and Cygnus Support.
 
-Copyright (c) 1994, 1997, 2001, 2002, 2003, 2004 Red Hat Incorporated.
+Copyright (c) 1994, 1997, 2001, 2002, 2003, 2004, 2005 Red Hat Incorporated.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without 

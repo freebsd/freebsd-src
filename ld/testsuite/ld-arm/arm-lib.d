@@ -1,5 +1,5 @@
 
-tmpdir/arm-lib.so:     file format elf32-littlearm
+tmpdir/arm-lib.so:     file format elf32-(little|big)arm
 architecture: arm, flags 0x00000150:
 HAS_SYMS, DYNAMIC, D_PAGED
 start address 0x.*

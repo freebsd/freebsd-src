@@ -1,5 +1,5 @@
 /* This file is tc-avr.h
-   Copyright 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001, 2002, 2005 Free Software Foundation, Inc.
 
    Contributed by Denis Chertykov <denisc@overta.ru>
 
@@ -17,12 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
-
-#ifndef BFD_ASSEMBLER
- #error AVR support requires BFD_ASSEMBLER
-#endif
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* By convention, you should define this macro in the `.h' file.  For
    example, `tc-m68k.h' defines `TC_M68K'.  You might have to use this
@@ -57,13 +53,13 @@
 /* You may define this macro to parse an expression used in a data
    allocation pseudo-op such as `.word'.  You can use this to
    recognize relocation directives that may appear in such directives.  */
-#define TC_PARSE_CONS_EXPRESSION(EXPR,N) avr_parse_cons_expression (EXPR,N)
-void avr_parse_cons_expression (expressionS *exp, int nbytes);
+#define TC_PARSE_CONS_EXPRESSION(EXPR,N) avr_parse_cons_expression (EXPR, N)
+extern void avr_parse_cons_expression (expressionS *, int);
 
 /* You may define this macro to generate a fixup for a data
    allocation pseudo-op.  */
-#define TC_CONS_FIX_NEW(FRAG,WHERE,N,EXP) avr_cons_fix_new(FRAG,WHERE,N,EXP)
-void avr_cons_fix_new(fragS *frag,int where, int nbytes, expressionS *exp);
+#define TC_CONS_FIX_NEW(FRAG,WHERE,N,EXP) avr_cons_fix_new (FRAG, WHERE, N, EXP)
+extern void avr_cons_fix_new (fragS *,int, int, expressionS *);
 
 /* This should just call either `number_to_chars_bigendian' or
    `number_to_chars_littleendian', whichever is appropriate.  On
@@ -96,7 +92,7 @@ void avr_cons_fix_new(fragS *frag,int where, int nbytes, expressionS *exp);
    visible symbols can be overridden.  */
 #define EXTERN_FORCE_RELOC 0
 
-/* Values passed to md_apply_fix3 don't include the symbol value.  */
+/* Values passed to md_apply_fix don't include the symbol value.  */
 #define MD_APPLY_SYM_VALUE(FIX) 0
 
 /* If you define this macro, it should return the offset between the
@@ -104,8 +100,8 @@ void avr_cons_fix_new(fragS *frag,int where, int nbytes, expressionS *exp);
    relative adjustment should be made.  On many processors, the base
    of a PC relative instruction is the next instruction, so this
    macro would return the length of an instruction.  */
-#define MD_PCREL_FROM_SECTION(FIX, SEC) md_pcrel_from_section(FIX, SEC)
-extern long md_pcrel_from_section PARAMS ((struct fix *, segT));
+#define MD_PCREL_FROM_SECTION(FIX, SEC) md_pcrel_from_section (FIX, SEC)
+extern long md_pcrel_from_section (struct fix *, segT);
 
 /* The number of bytes to put into a word in a listing.  This affects
    the way the bytes are clumped together in the listing.  For
@@ -124,3 +120,21 @@ extern long md_pcrel_from_section PARAMS ((struct fix *, segT));
    also affected by this macro.  The default definition will set
    P2VAR to the truncated power of two of sizes up to eight bytes.  */
 #define TC_IMPLICIT_LCOMM_ALIGNMENT(SIZE, P2VAR) (P2VAR) = 0
+
+/* We don't want gas to fixup the following program memory related relocations.
+   We will need them in case that we want to do linker relaxation.
+   We could in principle keep these fixups in gas when not relaxing.
+   However, there is no serious performance penilty when making the linker
+   make the fixup work.  */
+#define TC_VALIDATE_FIX(FIXP,SEG,SKIP)                     \
+ if (   (FIXP->fx_r_type == BFD_RELOC_AVR_7_PCREL          \
+      || FIXP->fx_r_type == BFD_RELOC_AVR_13_PCREL         \
+      || FIXP->fx_r_type == BFD_RELOC_AVR_LO8_LDI_PM       \
+      || FIXP->fx_r_type == BFD_RELOC_AVR_HI8_LDI_PM       \
+      || FIXP->fx_r_type == BFD_RELOC_AVR_HH8_LDI_PM       \
+      || FIXP->fx_r_type == BFD_RELOC_AVR_16_PM)           \
+     && (FIXP->fx_addsy))                                  \
+   {                                                       \
+     goto SKIP;                                            \
+   }
+

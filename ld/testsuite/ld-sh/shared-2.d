@@ -7,7 +7,7 @@
 
 # Make sure that there is no unnecessary DT_TEXTREL entry.
 
-Dynamic segment at offset 0x[0-9a-f]+ contains 9 entries:
+Dynamic section at offset 0x[0-9a-f]+ contains 9 entries:
   Tag        Type                         Name/Value
  0x00000004 \(HASH\)                       0x[0-9a-f]+
  0x00000005 \(STRTAB\)                     0x[0-9a-f]+

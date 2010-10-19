@@ -15,7 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 
 # This file is sourced from elf32.em and mmo.em, used to define
@@ -32,180 +32,65 @@ EOF
 
 cat >>e${EMULATION_NAME}.c <<EOF
 
-/* Find the last output section before given output statement.
-   Used by place_orphan.  */
-
-static asection *
-output_prev_sec_find (lang_output_section_statement_type *os)
-{
-  asection *s = NULL;
-  lang_statement_union_type *u;
-  lang_output_section_statement_type *lookup;
-
-  for (u = lang_output_section_statement.head;
-       u != (lang_statement_union_type *) NULL;
-       u = lookup->next)
-    {
-      lookup = &u->output_section_statement;
-      if (lookup == os)
-	break;
-      if (lookup->bfd_section != NULL
-	  && lookup->bfd_section != bfd_abs_section_ptr
-	  && lookup->bfd_section != bfd_com_section_ptr
-	  && lookup->bfd_section != bfd_und_section_ptr)
-	s = lookup->bfd_section;
-    }
-
-  if (u == NULL)
-    return NULL;
-
-  return s;
-}
-
-struct orphan_save {
-  lang_output_section_statement_type *os;
-  asection **section;
-  lang_statement_union_type **stmt;
-};
-
-#define HAVE_SECTION(hold, name) \
-(hold.os != NULL || (hold.os = lang_output_section_find (name)) != NULL)
-
 /* Place an orphan section.  We use this to put random SEC_CODE or
    SEC_READONLY sections right after MMO_TEXT_SECTION_NAME.  Much borrowed
    from elf32.em.  */
 
 static bfd_boolean
-mmo_place_orphan (lang_input_statement_type *file, asection *s)
+mmo_place_orphan (asection *s)
 {
-  static struct orphan_save hold_text;
+  static struct orphan_save hold_text =
+    {
+      MMO_TEXT_SECTION_NAME,
+      SEC_HAS_CONTENTS | SEC_ALLOC | SEC_LOAD | SEC_READONLY | SEC_CODE,
+      0, 0, 0, 0
+    };
   struct orphan_save *place;
+  const char *secname;
+  lang_output_section_statement_type *after;
   lang_output_section_statement_type *os;
-  lang_statement_list_type *old;
-  lang_statement_list_type add;
-  asection *snew, **pps, *bfd_section;
 
   /* We have nothing to say for anything other than a final link.  */
   if (link_info.relocatable
-      || (bfd_get_section_flags (s->owner, s)
-	  & (SEC_EXCLUDE | SEC_LOAD)) != SEC_LOAD)
+      || (s->flags & (SEC_EXCLUDE | SEC_LOAD)) != SEC_LOAD)
     return FALSE;
 
   /* Only care for sections we're going to load.  */
-  os = lang_output_section_find (bfd_get_section_name (s->owner, s));
+  secname = s->name;
+  os = lang_output_section_find (secname);
 
   /* We have an output section by this name.  Place the section inside it
      (regardless of whether the linker script lists it as input).  */
   if (os != NULL)
     {
-      lang_add_section (&os->children, s, os, file);
+      lang_add_section (&os->children, s, os);
       return TRUE;
     }
 
   /* If this section does not have .text-type section flags or there's no
      MMO_TEXT_SECTION_NAME, we don't have anything to say.  */
-  if ((bfd_get_section_flags (s->owner, s) & (SEC_CODE | SEC_READONLY)) == 0)
+  if ((s->flags & (SEC_CODE | SEC_READONLY)) == 0)
     return FALSE;
 
   if (hold_text.os == NULL)
-    hold_text.os = lang_output_section_find (MMO_TEXT_SECTION_NAME);
+    hold_text.os = lang_output_section_find (hold_text.name);
 
   place = &hold_text;
+  if (hold_text.os != NULL)
+    after = hold_text.os;
+  else
+    after = &lang_output_section_statement.head->output_section_statement;
 
   /* If there's an output section by this name, we'll use it, regardless
      of section flags, in contrast to what's done in elf32.em.  */
-
-  /* Start building a list of statements for this section.
-     First save the current statement pointer.  */
-  old = stat_ptr;
-
-  /* Add the output section statements for this orphan to our own private
-     list, inserting them later into the global statement list.  */
-  stat_ptr = &add;
-  lang_list_init (stat_ptr);
-
-  os = lang_enter_output_section_statement (bfd_get_section_name (s->owner,
-								  s),
-					    NULL, 0,
-					    (etree_type *) NULL,
-					    (etree_type *) NULL,
-					    (etree_type *) NULL);
-
-  lang_add_section (&os->children, s, os, file);
-
-  lang_leave_output_section_statement
-    ((bfd_vma) 0, "*default*",
-     (struct lang_output_section_phdr_list *) NULL, NULL);
-
-  /* Restore the global list pointer.  */
-  stat_ptr = old;
-
-  snew = os->bfd_section;
-  if (snew == NULL)
-    /* /DISCARD/ section.  */
-    return TRUE;
+  os = lang_insert_orphan (s, secname, after, place, NULL, NULL);
 
   /* We need an output section for .text as a root, so if there was none
      (might happen with a peculiar linker script such as in "map
      addresses", map-address.exp), we grab the output section created
      above.  */
   if (hold_text.os == NULL)
-    {
-      if (os == NULL)
-	return FALSE;
-      hold_text.os = os;
-    }
-
-  bfd_section = place->os->bfd_section;
-  if (place->section == NULL && bfd_section == NULL)
-    bfd_section = output_prev_sec_find (place->os);
-
-  if (place->section != NULL
-      || (bfd_section != NULL
-	  && bfd_section != snew))
-    {
-      /* Shuffle the section to make the output file look neater.  This is
-	 really only cosmetic.  */
-      if (place->section == NULL)
-	/* Put orphans after the first section on the list.  */
-	place->section = &bfd_section->next;
-
-      /* Unlink the section.  */
-      for (pps = &output_bfd->sections; *pps != snew; pps = &(*pps)->next)
-	;
-      bfd_section_list_remove (output_bfd, pps);
-
-      /* Now tack it on to the "place->os" section list.  */
-      bfd_section_list_insert (output_bfd, place->section, snew);
-    }
-  place->section = &snew->next;	/* Save the end of this list.  */
-
-  if (add.head != NULL)
-    {
-      /* We try to put the output statements in some sort of reasonable
-	 order here, because they determine the final load addresses of
-	 the orphan sections.  */
-      if (place->stmt == NULL)
-	{
-	  /* Put the new statement list right at the head.  */
-	  *add.tail = place->os->header.next;
-	  place->os->header.next = add.head;
-	}
-      else
-	{
-	  /* Put it after the last orphan statement we added.  */
-	  *add.tail = *place->stmt;
-	  *place->stmt = add.head;
-	}
-
-      /* Fix the global list pointer if we happened to tack our new list
-	 at the tail.  */
-      if (*old->tail == add.head)
-	old->tail = add.tail;
-
-      /* Save the end of this list.  */
-      place->stmt = add.tail;
-    }
+    hold_text.os = os;
 
   return TRUE;
 }
@@ -227,6 +112,7 @@ static void
 mmo_finish (void)
 {
   bfd_map_over_sections (output_bfd, mmo_wipe_sec_reloc_flag, NULL);
+  finish_default ();
 }
 
 /* To get on-demand global register allocation right, we need to parse the

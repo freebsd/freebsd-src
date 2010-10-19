@@ -13,7 +13,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* Generator of tests for Maverick.
 
@@ -75,16 +75,16 @@ arm_cond (func_arg * arg, insn_data * data)
 
 /* The sign of an offset is actually used to determined whether the
    absolute value of the offset should be added or subtracted, so we
-   must adjust negative values so that they do not overflow: -256 is
+   must adjust negative values so that they do not overflow: -1024 is
    not valid, but -0 is distinct from +0.  */
 int
 off8s (func_arg * arg, insn_data * data)
 #define off8s { off8s }
 {
   int val;
-  char value[6];
+  char value[9];
 
-  /* Values less that -255 or between -3 and 0 are problematical.
+  /* Zero values are problematical.
      The assembler performs translations on the addressing modes
      for these values, meaning that we cannot just recreate the
      disassembler string in the LDST macro without knowing what
@@ -93,26 +93,23 @@ off8s (func_arg * arg, insn_data * data)
     {
       val  = get_bits (9s);
     }
-  while (val < -255 || (val > -4 && val < 1));
+  while (val == -1 || val == 0);
   
+  val <<= 2;
   if (val < 0)
     {
-      val = - val;
-      val &= ~3;
+      val = -4 - val;
       sprintf (value, ", #-%i", val);
       data->dis_out = strdup (value);
       sprintf (value, ", #-%i", val);
       data->as_in = strdup (value);
-      val >>= 2;
-      data->bits = val;
+      data->bits = val >> 2;
     }
   else
     {
-      val &= ~3;
       sprintf (value, ", #%i", val);
       data->as_in = data->dis_out = strdup (value);
-      val >>= 2;
-      data->bits = val | (1 << 23);
+      data->bits = (val >> 2) | (1 << 23);
     }
   
   return 0;
@@ -273,13 +270,20 @@ imm7 (func_arg *arg, insn_data *data)
   MCRC2 (mv ## insname, cpnum, 0, 1, opcode2, \
 	 armreg (12), mvreg (regDSPname, 16))
 
+/* Move between coprocessor registers. A two operand CDP insn.   */
+#define MCC2(insname, opcode1, opcode2, reg1spec, reg2spec) \
+  mv_insn (insname, , \
+	   ((14 << 24) | ((opcode1) << 20) | \
+	    (4 << 8) | ((opcode2) << 5)), \
+	   reg1spec, comma, reg2spec)
+
 /* Define a move from a DSP register to a DSP accumulator.  */
 #define MVDSPACC(insname, opcode2, regDSPname) \
-  MCRC2 (mv ## insname, 6, 0, 1, opcode2, acreg (0), mvreg (regDSPname, 16))
+  MCC2 (mv ## insname, 2, opcode2, acreg (12), mvreg (regDSPname, 16))
 
 /* Define a move from a DSP accumulator to a DSP register.  */
 #define MVACCDSP(insname, opcode2, regDSPname) \
-  MCRC2 (mv ## insname, 6, 0, 0, opcode2, mvreg (regDSPname, 0), acreg (16))
+  MCC2 (mv ## insname, 1, opcode2, mvreg (regDSPname, 12), acreg (16))
 
 /* Define move insns between a float DSP register and an ARM
    register.  */
@@ -355,13 +359,13 @@ MVd (dlr, rdl, 0);
 MVd (dhr, rdh, 1);
 MVdx (64lr, r64l, 0);
 MVdx (64hr, r64h, 1);
-MVfxa (al32, 32al, 0);
-MVfxa (am32, 32am, 1);
-MVfxa (ah32, 32ah, 2);
-MVfxa (a32, 32a, 3);
-MVdxa (a64, 64a, 4);
-MCRC2 (mvsc32, 4, 1, 0, 7, dspsc, mvreg ("dx", 12));
-MCRC2 (mv32sc, 4, 0, 1, 7, mvreg ("dx", 12), dspsc);
+MVfxa (al32, 32al, 2);
+MVfxa (am32, 32am, 3);
+MVfxa (ah32, 32ah, 4);
+MVfxa (a32, 32a, 5);
+MVdxa (a64, 64a, 6);
+MCC2 (mvsc32, 2, 7, dspsc, mvreg ("dx", 12));
+MCC2 (mv32sc, 1, 7, mvreg ("dx", 12), dspsc);
 CDP2 (cpys, , 4, 0, 0, "f", "f");
 CDP2 (cpyd, , 4, 0, 1, "d", "d");
 

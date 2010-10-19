@@ -5,7 +5,7 @@
 #readelf: -Ssrl
 #target: i?86-*-*
 
-There are 18 section headers, starting at offset 0x[0-9a-f]+:
+There are 17 section headers, starting at offset 0x[0-9a-f]+:
 
 Section Headers:
   \[Nr\] Name +Type +Addr +Off +Size +ES Flg Lk Inf Al
@@ -18,15 +18,14 @@ Section Headers:
   \[ 6\] \.rel.plt +.*
   \[ 7\] \.plt +.*
   \[ 8\] \.text +PROGBITS +0+8049000 .*
-  \[ 9\] \.data +.*
-  \[10\] .tdata +PROGBITS +0+804a000 [0-9a-f]+ 000060 00 WAT  0   0  1
-  \[11\] .tbss +NOBITS +[0-9a-f]+ [0-9a-f]+ 000040 00 WAT  0   0  1
-  \[12\] \.dynamic +DYNAMIC +0+804a060 .*
-  \[13\] \.got +PROGBITS +0+804a100 .*
-  \[14\] \.bss +.*
-  \[15\] \.shstrtab +.*
-  \[16\] \.symtab +.*
-  \[17\] \.strtab +.*
+  \[ 9\] \.tdata +PROGBITS +0+804a000 [0-9a-f]+ 000060 00 WAT  0   0 4096
+  \[10\] \.tbss +NOBITS +[0-9a-f]+ [0-9a-f]+ 000040 00 WAT  0   0  1
+  \[11\] \.dynamic +DYNAMIC +0+804a060 .*
+  \[12\] \.got +PROGBITS +0+804a100 .*
+  \[13\] \.got\.plt +PROGBITS +0+804a124 .*
+  \[14\] \.shstrtab +.*
+  \[15\] \.symtab +.*
+  \[16\] \.strtab +.*
 Key to Flags:
 .*
 .*
@@ -44,124 +43,121 @@ Program Headers:
   LOAD.*
   LOAD.*
   DYNAMIC.*
-  TLS +0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ 0x0+60 0x0+a0 R +0x1
+  TLS +0x[0-9a-f]+ 0x[0-9a-f]+ 0x[0-9a-f]+ 0x0+60 0x0+a0 R +0x1000
 
  Section to Segment mapping:
   Segment Sections...
    00 +
    01 +.interp *
    02 +.interp .hash .dynsym .dynstr .rel.dyn .rel.plt .plt .text *
-   03 +.tdata .tbss .dynamic .got *
-   04 +.tbss .dynamic *
+   03 +.tdata .dynamic .got .got.plt *
+   04 +.dynamic *
    05 +.tdata .tbss *
 
 Relocation section '.rel.dyn' at offset 0x[0-9a-f]+ contains 9 entries:
  Offset +Info +Type +Sym.Value +Sym. Name
-0+804a110  0000010e R_386_TLS_TPOFF +0+ +sG3
-0+804a114  0000020e R_386_TLS_TPOFF +0+ +sG5
-0+804a118  0000040e R_386_TLS_TPOFF +0+ +sG7
-0+804a11c  00000525 R_386_TLS_TPOFF32 0+ +sG2
-0+804a120  00000625 R_386_TLS_TPOFF32 0+ +sG4
-0+804a124  0000060e R_386_TLS_TPOFF +0+ +sG4
-0+804a128  00000825 R_386_TLS_TPOFF32 0+ +sG6
-0+804a12c  00000925 R_386_TLS_TPOFF32 0+ +sG1
-0+804a130  00000d0e R_386_TLS_TPOFF +0+ +sG8
+[0-9a-f ]+R_386_TLS_TPOFF +0+ +sG3
+[0-9a-f ]+R_386_TLS_TPOFF +0+ +sG5
+[0-9a-f ]+R_386_TLS_TPOFF +0+ +sG7
+[0-9a-f ]+R_386_TLS_TPOFF32 0+ +sG2
+[0-9a-f ]+R_386_TLS_TPOFF32 0+ +sG4
+[0-9a-f ]+R_386_TLS_TPOFF +0+ +sG4
+[0-9a-f ]+R_386_TLS_TPOFF32 0+ +sG6
+[0-9a-f ]+R_386_TLS_TPOFF32 0+ +sG1
+[0-9a-f ]+R_386_TLS_TPOFF +0+ +sG8
 
-Relocation section '.rel.plt' at offset 0x30c contains 1 entries:
+Relocation section '.rel.plt' at offset 0x[0-9a-f]+ contains 1 entries:
  Offset +Info +Type +Sym.Value  Sym. Name
-0+804a10c  00000e07 R_386_JUMP_SLOT +[0-9a-f]+ +___tls_get_addr
+[0-9a-f ]+R_386_JUMP_SLOT +[0-9a-f]+ +___tls_get_addr
 
-Symbol table '.dynsym' contains 15 entries:
+Symbol table '.dynsym' contains 13 entries:
  +Num: +Value  Size Type +Bind +Vis +Ndx Name
- +0: 0+ +0 NOTYPE  LOCAL  DEFAULT  UND *
- +1: 0+ +0 TLS +GLOBAL DEFAULT  UND sG3
- +2: 0+ +0 TLS +GLOBAL DEFAULT  UND sG5
- +3: 0+804a060 +0 OBJECT  GLOBAL DEFAULT  ABS _DYNAMIC
- +4: 0+ +0 TLS +GLOBAL DEFAULT  UND sG7
- +5: 0+ +0 TLS +GLOBAL DEFAULT  UND sG2
- +6: 0+ +0 TLS +GLOBAL DEFAULT  UND sG4
- +7: [0-9a-f]+ +0 NOTYPE  GLOBAL DEFAULT  ABS __bss_start
- +8: 0+ +0 TLS +GLOBAL DEFAULT  UND sG6
- +9: 0+ +0 TLS +GLOBAL DEFAULT  UND sG1
- +10: [0-9a-f]+ +0 NOTYPE  GLOBAL DEFAULT  ABS _edata
- +11: 0+804a100 +0 OBJECT  GLOBAL DEFAULT  ABS _GLOBAL_OFFSET_TABLE_
- +12: [0-9a-f]+ +0 NOTYPE  GLOBAL DEFAULT  ABS _end
- +13: 0+ +0 TLS +GLOBAL DEFAULT  UND sG8
- +14: [0-9a-f]+ +0 FUNC +GLOBAL DEFAULT  UND ___tls_get_addr
+ +[0-9]+: 0+ +0 NOTYPE  LOCAL  DEFAULT  UND *
+ +[0-9]+: 0+ +0 TLS +GLOBAL DEFAULT  UND sG3
+ +[0-9]+: 0+ +0 TLS +GLOBAL DEFAULT  UND sG5
+ +[0-9]+: 0+ +0 TLS +GLOBAL DEFAULT  UND sG7
+ +[0-9]+: 0+ +0 TLS +GLOBAL DEFAULT  UND sG2
+ +[0-9]+: 0+ +0 TLS +GLOBAL DEFAULT  UND sG4
+ +[0-9]+: [0-9a-f]+ +0 NOTYPE  GLOBAL DEFAULT  ABS __bss_start
+ +[0-9]+: 0+ +0 TLS +GLOBAL DEFAULT  UND sG6
+ +[0-9]+: 0+ +0 TLS +GLOBAL DEFAULT  UND sG1
+ +[0-9]+: [0-9a-f]+ +0 NOTYPE  GLOBAL DEFAULT  ABS _edata
+ +[0-9]+: [0-9a-f]+ +0 NOTYPE  GLOBAL DEFAULT  ABS _end
+ +[0-9]+: 0+ +0 TLS +GLOBAL DEFAULT  UND sG8
+ +[0-9]+: [0-9a-f]+ +0 FUNC +GLOBAL DEFAULT  UND ___tls_get_addr
 
-Symbol table '.symtab' contains 74 entries:
+Symbol table '.symtab' contains 73 entries:
  +Num: +Value  Size Type +Bind +Vis +Ndx Name
- +0: 0+ +0 NOTYPE  LOCAL  DEFAULT  UND *
- +1: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +1 *
- +2: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +2 *
- +3: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +3 *
- +4: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +4 *
- +5: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +5 *
- +6: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +6 *
- +7: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +7 *
- +8: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +8 *
- +9: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +9 *
- +10: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +10 *
- +11: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +11 *
- +12: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +12 *
- +13: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +13 *
- +14: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +14 *
- +15: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +15 *
- +16: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +16 *
- +17: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +17 *
- +18: 00000020 +0 TLS +LOCAL  DEFAULT +10 sl1
- +19: 00000024 +0 TLS +LOCAL  DEFAULT +10 sl2
- +20: 00000028 +0 TLS +LOCAL  DEFAULT +10 sl3
- +21: 0000002c +0 TLS +LOCAL  DEFAULT +10 sl4
- +22: 00000030 +0 TLS +LOCAL  DEFAULT +10 sl5
- +23: 00000034 +0 TLS +LOCAL  DEFAULT +10 sl6
- +24: 00000038 +0 TLS +LOCAL  DEFAULT +10 sl7
- +25: 0000003c +0 TLS +LOCAL  DEFAULT +10 sl8
- +26: 00000080 +0 TLS +LOCAL  DEFAULT +11 bl1
- +27: 00000084 +0 TLS +LOCAL  DEFAULT +11 bl2
- +28: 00000088 +0 TLS +LOCAL  DEFAULT +11 bl3
- +29: 0000008c +0 TLS +LOCAL  DEFAULT +11 bl4
- +30: 00000090 +0 TLS +LOCAL  DEFAULT +11 bl5
- +31: 00000094 +0 TLS +LOCAL  DEFAULT +11 bl6
- +32: 00000098 +0 TLS +LOCAL  DEFAULT +11 bl7
- +33: 0000009c +0 TLS +LOCAL  DEFAULT +11 bl8
- +34: 0+ +0 TLS +GLOBAL DEFAULT  UND sG3
- +35: 0000001c +0 TLS +GLOBAL DEFAULT +10 sg8
- +36: 0000007c +0 TLS +GLOBAL DEFAULT +11 bg8
- +37: 00000074 +0 TLS +GLOBAL DEFAULT +11 bg6
- +38: 0+ +0 TLS +GLOBAL DEFAULT  UND sG5
- +39: 00000068 +0 TLS +GLOBAL DEFAULT +11 bg3
- +40: 0+804a060 +0 OBJECT  GLOBAL DEFAULT  ABS _DYNAMIC
- +41: 00000008 +0 TLS +GLOBAL DEFAULT +10 sg3
- +42: 0+ +0 TLS +GLOBAL DEFAULT  UND sG7
- +43: 00000048 +0 TLS +GLOBAL HIDDEN +10 sh3
- +44: 0+ +0 TLS +GLOBAL DEFAULT  UND sG2
- +45: 0000000c +0 TLS +GLOBAL DEFAULT +10 sg4
- +46: 0+ +0 TLS +GLOBAL DEFAULT  UND sG4
- +47: 00000010 +0 TLS +GLOBAL DEFAULT +10 sg5
- +48: 00000070 +0 TLS +GLOBAL DEFAULT +11 bg5
- +49: 00000058 +0 TLS +GLOBAL HIDDEN +10 sh7
- +50: 0000005c +0 TLS +GLOBAL HIDDEN +10 sh8
- +51: 0+ +0 TLS +GLOBAL DEFAULT +10 sg1
- +52: 0+8049178 +0 FUNC +GLOBAL DEFAULT +8 _start
- +53: 0000004c +0 TLS +GLOBAL HIDDEN +10 sh4
- +54: 00000078 +0 TLS +GLOBAL DEFAULT +11 bg7
- +55: 00000050 +0 TLS +GLOBAL HIDDEN +10 sh5
- +56: 0+804a134 +0 NOTYPE  GLOBAL DEFAULT  ABS __bss_start
- +57: 0+ +0 TLS +GLOBAL DEFAULT  UND sG6
- +58: 0+8049000 +0 FUNC +GLOBAL DEFAULT +8 fn2
- +59: 00000004 +0 TLS +GLOBAL DEFAULT +10 sg2
- +60: 0+ +0 TLS +GLOBAL DEFAULT  UND sG1
- +61: 00000040 +0 TLS +GLOBAL HIDDEN +10 sh1
- +62: 00000014 +0 TLS +GLOBAL DEFAULT +10 sg6
- +63: 00000018 +0 TLS +GLOBAL DEFAULT +10 sg7
- +64: [0-9a-f]+ +0 NOTYPE  GLOBAL DEFAULT  ABS _edata
- +65: 0+804a100 +0 OBJECT  GLOBAL DEFAULT  ABS _GLOBAL_OFFSET_TABLE_
- +66: [0-9a-f]+ +0 NOTYPE  GLOBAL DEFAULT  ABS _end
- +67: 00000044 +0 TLS +GLOBAL HIDDEN +10 sh2
- +68: 00000054 +0 TLS +GLOBAL HIDDEN +10 sh6
- +69: 0+ +0 TLS +GLOBAL DEFAULT  UND sG8
- +70: 00000064 +0 TLS +GLOBAL DEFAULT +11 bg2
- +71: 00000060 +0 TLS +GLOBAL DEFAULT +11 bg1
- +72: [0-9a-f]+ +0 FUNC +GLOBAL DEFAULT  UND ___tls_get_addr
- +73: 0000006c +0 TLS +GLOBAL DEFAULT +11 bg4
+ +[0-9]+: 0+ +0 NOTYPE  LOCAL  DEFAULT  UND *
+ +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +1 *
+ +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +2 *
+ +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +3 *
+ +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +4 *
+ +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +5 *
+ +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +6 *
+ +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +7 *
+ +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +8 *
+ +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +9 *
+ +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +10 *
+ +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +11 *
+ +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +12 *
+ +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +13 *
+ +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +14 *
+ +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +15 *
+ +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +16 *
+ +[0-9]+: 00000020 +0 TLS +LOCAL  DEFAULT +9 sl1
+ +[0-9]+: 00000024 +0 TLS +LOCAL  DEFAULT +9 sl2
+ +[0-9]+: 00000028 +0 TLS +LOCAL  DEFAULT +9 sl3
+ +[0-9]+: 0000002c +0 TLS +LOCAL  DEFAULT +9 sl4
+ +[0-9]+: 00000030 +0 TLS +LOCAL  DEFAULT +9 sl5
+ +[0-9]+: 00000034 +0 TLS +LOCAL  DEFAULT +9 sl6
+ +[0-9]+: 00000038 +0 TLS +LOCAL  DEFAULT +9 sl7
+ +[0-9]+: 0000003c +0 TLS +LOCAL  DEFAULT +9 sl8
+ +[0-9]+: 00000080 +0 TLS +LOCAL  DEFAULT +10 bl1
+ +[0-9]+: 00000084 +0 TLS +LOCAL  DEFAULT +10 bl2
+ +[0-9]+: 00000088 +0 TLS +LOCAL  DEFAULT +10 bl3
+ +[0-9]+: 0000008c +0 TLS +LOCAL  DEFAULT +10 bl4
+ +[0-9]+: 00000090 +0 TLS +LOCAL  DEFAULT +10 bl5
+ +[0-9]+: 00000094 +0 TLS +LOCAL  DEFAULT +10 bl6
+ +[0-9]+: 00000098 +0 TLS +LOCAL  DEFAULT +10 bl7
+ +[0-9]+: 0000009c +0 TLS +LOCAL  DEFAULT +10 bl8
+ +[0-9]+: 0+804a060 +0 OBJECT  LOCAL +HIDDEN +11 _DYNAMIC
+ +[0-9]+: [0-9a-f]+ +0 OBJECT  LOCAL +HIDDEN +13 _GLOBAL_OFFSET_TABLE_
+ +[0-9]+: 0+ +0 TLS +GLOBAL DEFAULT  UND sG3
+ +[0-9]+: 0000001c +0 TLS +GLOBAL DEFAULT +9 sg8
+ +[0-9]+: 0000007c +0 TLS +GLOBAL DEFAULT +10 bg8
+ +[0-9]+: 00000074 +0 TLS +GLOBAL DEFAULT +10 bg6
+ +[0-9]+: 0+ +0 TLS +GLOBAL DEFAULT  UND sG5
+ +[0-9]+: 00000068 +0 TLS +GLOBAL DEFAULT +10 bg3
+ +[0-9]+: 00000008 +0 TLS +GLOBAL DEFAULT +9 sg3
+ +[0-9]+: 0+ +0 TLS +GLOBAL DEFAULT  UND sG7
+ +[0-9]+: 00000048 +0 TLS +GLOBAL HIDDEN +9 sh3
+ +[0-9]+: 0+ +0 TLS +GLOBAL DEFAULT  UND sG2
+ +[0-9]+: 0000000c +0 TLS +GLOBAL DEFAULT +9 sg4
+ +[0-9]+: 0+ +0 TLS +GLOBAL DEFAULT  UND sG4
+ +[0-9]+: 00000010 +0 TLS +GLOBAL DEFAULT +9 sg5
+ +[0-9]+: 00000070 +0 TLS +GLOBAL DEFAULT +10 bg5
+ +[0-9]+: 00000058 +0 TLS +GLOBAL HIDDEN +9 sh7
+ +[0-9]+: 0000005c +0 TLS +GLOBAL HIDDEN +9 sh8
+ +[0-9]+: 0+ +0 TLS +GLOBAL DEFAULT +9 sg1
+ +[0-9]+: 0+8049178 +0 FUNC +GLOBAL DEFAULT +8 _start
+ +[0-9]+: 0000004c +0 TLS +GLOBAL HIDDEN +9 sh4
+ +[0-9]+: 00000078 +0 TLS +GLOBAL DEFAULT +10 bg7
+ +[0-9]+: 00000050 +0 TLS +GLOBAL HIDDEN +9 sh5
+ +[0-9]+: [0-9a-f]+ +0 NOTYPE  GLOBAL DEFAULT  ABS __bss_start
+ +[0-9]+: 0+ +0 TLS +GLOBAL DEFAULT  UND sG6
+ +[0-9]+: 0+8049000 +0 FUNC +GLOBAL DEFAULT +8 fn2
+ +[0-9]+: 00000004 +0 TLS +GLOBAL DEFAULT +9 sg2
+ +[0-9]+: 0+ +0 TLS +GLOBAL DEFAULT  UND sG1
+ +[0-9]+: 00000040 +0 TLS +GLOBAL HIDDEN +9 sh1
+ +[0-9]+: 00000014 +0 TLS +GLOBAL DEFAULT +9 sg6
+ +[0-9]+: 00000018 +0 TLS +GLOBAL DEFAULT +9 sg7
+ +[0-9]+: [0-9a-f]+ +0 NOTYPE  GLOBAL DEFAULT  ABS _edata
+ +[0-9]+: [0-9a-f]+ +0 NOTYPE  GLOBAL DEFAULT  ABS _end
+ +[0-9]+: 00000044 +0 TLS +GLOBAL HIDDEN +9 sh2
+ +[0-9]+: 00000054 +0 TLS +GLOBAL HIDDEN +9 sh6
+ +[0-9]+: 0+ +0 TLS +GLOBAL DEFAULT  UND sG8
+ +[0-9]+: 00000064 +0 TLS +GLOBAL DEFAULT +10 bg2
+ +[0-9]+: 00000060 +0 TLS +GLOBAL DEFAULT +10 bg1
+ +[0-9]+: [0-9a-f]+ +0 FUNC +GLOBAL DEFAULT  UND ___tls_get_addr
+ +[0-9]+: 0000006c +0 TLS +GLOBAL DEFAULT +10 bg4

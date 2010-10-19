@@ -58,11 +58,17 @@ text_label:
       wait    0                       # disassembles without code
       wait    0x56789
 
-      # Instructions in previous ISAs or CPUs which are now slightly
-      # different.
+      # For a while break for the mips32 ISA interpreted a single argument
+      # as a 20-bit code, placing it in the opcode differently to
+      # traditional ISAs.  This turned out to cause problems, so it has
+      # been removed.  This test is to assure consistent interpretation.
       break
       break   0                       # disassembles without code
-      break   0x12345
+      break   0x345
+      break   0x48,0x345              # this still specifies a 20-bit code
+
+      # Instructions in previous ISAs or CPUs which are now slightly
+      # different.
       sdbbp
       sdbbp   0                       # disassembles without code
       sdbbp   0x56789

@@ -1,5 +1,5 @@
 /* tc-tic30.h -- Header file for tc-tic30.c
-   Copyright 1998, 2000 Free Software Foundation, Inc.
+   Copyright 1998, 2000, 2002, 2005 Free Software Foundation, Inc.
    Contributed by Steven Haworth (steve@pm.cse.rmit.edu.au)
 
    This file is part of GAS, the GNU Assembler.
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #ifndef _TC_TIC30_H_
 #define _TC_TIC30_H_
@@ -30,28 +30,22 @@
 
 #define TARGET_ARCH		bfd_arch_tic30
 #define TARGET_BYTES_BIG_ENDIAN	1
-
 #define WORKING_DOT_WORD
-
-char *output_invalid PARAMS ((int c));
-
-#define END_OF_INSN '\0'
-#define MAX_OPERANDS 6
-#define DIRECT_REFERENCE '@'
-#define INDIRECT_REFERENCE '*'
-#define PARALLEL_SEPARATOR '|'
-#define INSN_SIZE 4
+#define END_OF_INSN 		'\0'
+#define MAX_OPERANDS 		6
+#define DIRECT_REFERENCE 	'@'
+#define INDIRECT_REFERENCE 	'*'
+#define PARALLEL_SEPARATOR 	'|'
+#define INSN_SIZE 		4
 
 /* Define this to 1 if you want the debug output to be on stdout,
    otherwise stderr will be used.  If stderr is used, there will be a
    better synchronisation with the as_bad outputs, but you can't
    capture the output.  */
-#define USE_STDOUT 0
+#define USE_STDOUT 		0
 
 #define tc_unrecognized_line tic30_unrecognized_line
 
-extern int tic30_unrecognized_line PARAMS ((int));
-
-#define tc_aout_pre_write_hook {}
+extern int tic30_unrecognized_line (int);
 
 #endif

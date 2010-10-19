@@ -5,10 +5,10 @@
 .*:     file format elf64-mmix
 
 SYMBOL TABLE:
-0+ l    d  \.text	0+ 
-0+ l    d  \.data	0+ 
-0+ l    d  \.bss	0+ 
-0+ l    d  \.MMIX\.reg_contents	0+ 
+0+ l    d  \.text	0+ (|\.text)
+0+ l    d  \.data	0+ (|\.data)
+0+ l    d  \.bss	0+ (|\.bss)
+0+ l    d  \.MMIX\.reg_contents	0+ (|\.MMIX\.reg_contents)
 0+ g       \.MMIX\.reg_contents	0+ areg
 0+c g     F \.text	0+ Main
 

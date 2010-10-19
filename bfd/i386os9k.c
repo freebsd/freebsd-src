@@ -1,6 +1,6 @@
 /* BFD back-end for os9000 i386 binaries.
-   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1998, 1999, 2001, 2002
-   Free Software Foundation, Inc.
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1998, 1999, 2001, 2002,
+   2004, 2005 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -17,7 +17,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 
 #include "bfd.h"
@@ -76,40 +76,6 @@ os9k_swap_exec_header_in (abfd, raw_bytes, execp)
 
   return TRUE;
 }
-
-#if 0
-/* Swaps the information in an internal exec header structure into the
-   supplied buffer ready for writing to disk.  */
-
-void os9k_swap_exec_header_out
-  PARAMS ((bfd *, struct internal_exec *, struct mh_com *));
-
-void
-os9k_swap_exec_header_out (abfd, execp, raw_bytes)
-     bfd *abfd;
-     struct internal_exec *execp;
-     mh_com *raw_bytes;
-{
-  mh_com *bytes = (mh_com *) raw_bytes;
-
-  /* Now fill in fields in the raw data, from the fields in the exec struct. */
-  H_PUT_32 (abfd, execp->a_info, bytes->e_info);
-  H_PUT_32 (abfd, execp->a_text, bytes->e_text);
-  H_PUT_32 (abfd, execp->a_data, bytes->e_data);
-  H_PUT_32 (abfd, execp->a_bss, bytes->e_bss);
-  H_PUT_32 (abfd, execp->a_syms, bytes->e_syms);
-  H_PUT_32 (abfd, execp->a_entry, bytes->e_entry);
-  H_PUT_32 (abfd, execp->a_trsize, bytes->e_trsize);
-  H_PUT_32 (abfd, execp->a_drsize, bytes->e_drsize);
-  H_PUT_32 (abfd, execp->a_tload, bytes->e_tload);
-  H_PUT_32 (abfd, execp->a_dload, bytes->e_dload);
-  bytes->e_talign[0] = execp->a_talign;
-  bytes->e_dalign[0] = execp->a_dalign;
-  bytes->e_balign[0] = execp->a_balign;
-  bytes->e_relaxable[0] = execp->a_relaxable;
-}
-
-#endif	/* 0 */
 
 static const bfd_target *
 os9k_object_p (abfd)
@@ -170,7 +136,7 @@ os9k_callback (abfd)
   obj_datasec (abfd)->vma = execp->a_dload;
 
   /* And reload the sizes, since the aout module zaps them.  */
-  obj_textsec (abfd)->_raw_size = execp->a_text;
+  obj_textsec (abfd)->size = execp->a_text;
 
   bss_start = execp->a_dload + execp->a_data;	/* BSS = end of data section.  */
   obj_bsssec (abfd)->vma = align_power (bss_start, execp->a_balign);
@@ -189,125 +155,6 @@ os9k_callback (abfd)
 
   return abfd->xvec;
 }
-
-#if 0
-struct bout_data_struct
-{
-  struct aoutdata a;
-  struct internal_exec e;
-};
-
-static bfd_boolean
-os9k_mkobject (abfd)
-     bfd *abfd;
-{
-  struct bout_data_struct *rawptr;
-  bfd_size_type amt = sizeof (struct bout_data_struct);
-
-  rawptr = (struct bout_data_struct *) bfd_zalloc (abfd, amt);
-  if (rawptr == NULL)
-    return FALSE;
-
-  abfd->tdata.bout_data = rawptr;
-  exec_hdr (abfd) = &rawptr->e;
-
-  obj_textsec (abfd) = (asection *) NULL;
-  obj_datasec (abfd) = (asection *) NULL;
-  obj_bsssec (abfd) = (asection *) NULL;
-
-  return TRUE;
-}
-
-static bfd_boolean
-os9k_write_object_contents (abfd)
-     bfd *abfd;
-{
-  struct external_exec swapped_hdr;
-
-  if (! aout_32_make_sections (abfd))
-    return FALSE;
-
-  exec_hdr (abfd)->a_info = BMAGIC;
-
-  exec_hdr (abfd)->a_text = obj_textsec (abfd)->_raw_size;
-  exec_hdr (abfd)->a_data = obj_datasec (abfd)->_raw_size;
-  exec_hdr (abfd)->a_bss = obj_bsssec (abfd)->_raw_size;
-  exec_hdr (abfd)->a_syms = bfd_get_symcount (abfd) * sizeof (struct nlist);
-  exec_hdr (abfd)->a_entry = bfd_get_start_address (abfd);
-  exec_hdr (abfd)->a_trsize = ((obj_textsec (abfd)->reloc_count) *
-			       sizeof (struct relocation_info));
-  exec_hdr (abfd)->a_drsize = ((obj_datasec (abfd)->reloc_count) *
-			       sizeof (struct relocation_info));
-
-  exec_hdr (abfd)->a_talign = obj_textsec (abfd)->alignment_power;
-  exec_hdr (abfd)->a_dalign = obj_datasec (abfd)->alignment_power;
-  exec_hdr (abfd)->a_balign = obj_bsssec (abfd)->alignment_power;
-
-  exec_hdr (abfd)->a_tload = obj_textsec (abfd)->vma;
-  exec_hdr (abfd)->a_dload = obj_datasec (abfd)->vma;
-
-  bout_swap_exec_header_out (abfd, exec_hdr (abfd), &swapped_hdr);
-
-  if (bfd_seek (abfd, (file_ptr) 0, SEEK_SET) != 0
-      || bfd_bwrite ((PTR) & swapped_hdr, (bfd_size_type) EXEC_BYTES_SIZE,
-		    abfd) != EXEC_BYTES_SIZE)
-    return FALSE;
-
-  /* Now write out reloc info, followed by syms and strings.  */
-  if (bfd_get_symcount (abfd) != 0)
-    {
-      if (bfd_seek (abfd, (file_ptr) (N_SYMOFF (*exec_hdr (abfd))), SEEK_SET)
-	  != 0)
-	return FALSE;
-
-      if (!aout_32_write_syms (abfd))
-	return FALSE;
-
-      if (bfd_seek (abfd, (file_ptr) (N_TROFF (*exec_hdr (abfd))), SEEK_SET)
-	  != 0)
-	return FALSE;
-
-      if (!b_out_squirt_out_relocs (abfd, obj_textsec (abfd)))
-	return FALSE;
-      if (bfd_seek (abfd, (file_ptr) (N_DROFF (*exec_hdr (abfd))), SEEK_SET)
-	  != 0)
-	return FALSE;
-
-      if (!b_out_squirt_out_relocs (abfd, obj_datasec (abfd)))
-	return FALSE;
-    }
-  return TRUE;
-}
-
-static bfd_boolean
-os9k_set_section_contents (abfd, section, location, offset, count)
-     bfd *abfd;
-     sec_ptr section;
-     unsigned char *location;
-     file_ptr offset;
-     int count;
-{
-
-  if (! abfd->output_has_begun)
-    {				/* set by bfd.c handler */
-      if (! aout_32_make_sections (abfd))
-	return FALSE;
-
-      obj_textsec (abfd)->filepos = sizeof (struct internal_exec);
-      obj_datasec (abfd)->filepos = obj_textsec (abfd)->filepos
-	+ obj_textsec (abfd)->_raw_size;
-
-    }
-  /* Regardless, once we know what we're doing, we might as well get going.  */
-  if (bfd_seek (abfd, section->filepos + offset, SEEK_SET) != 0)
-    return FALSE;
-
-  if (count != 0)
-    return bfd_bwrite ((PTR) location, (bfd_size_type) count, abfd) == count;
-
-  return TRUE;
-}
-#endif	/* 0 */
 
 static int
 os9k_sizeof_headers (ignore_abfd, ignore)
@@ -333,7 +180,10 @@ os9k_sizeof_headers (ignore_abfd, ignore)
 #define os9k_bfd_relax_section bfd_generic_relax_section
 #define os9k_bfd_gc_sections bfd_generic_gc_sections
 #define os9k_bfd_merge_sections bfd_generic_merge_sections
+#define os9k_bfd_is_group_section bfd_generic_is_group_section
 #define os9k_bfd_discard_group bfd_generic_discard_group
+#define os9k_section_already_linked \
+  _bfd_generic_section_already_linked
 #define os9k_bfd_link_hash_table_create _bfd_generic_link_hash_table_create
 #define os9k_bfd_link_hash_table_free _bfd_generic_link_hash_table_free
 #define os9k_bfd_link_add_symbols _bfd_generic_link_add_symbols

@@ -127,14 +127,14 @@ mov symbol(%rip), %eax
 .intel_syntax noprefix
 
 #immediates - various sizes:
-mov al, flat symbol
-mov ax, flat symbol
-mov eax, flat symbol
-mov rax, flat symbol
+mov al, flat:symbol
+mov ax, flat:symbol
+mov eax, flat:symbol
+mov rax, flat:symbol
 
-#parts
-mov eax, high part symbol
-mov eax, low part symbol
+#parts aren't supported by the parser, yet (and not at all for symbol refs)
+#mov eax, high part symbol
+#mov eax, low part symbol
 
 #addressing modes
 
@@ -149,6 +149,44 @@ mov eax, [rax+symbol]
 
 #RIP relative
 mov eax, [rip+symbol]
+
+foo:
+.att_syntax
+#absolute 64bit addressing
+mov 0x8877665544332211,%al
+mov 0x8877665544332211,%ax
+mov 0x8877665544332211,%eax
+mov 0x8877665544332211,%rax
+mov %al,0x8877665544332211
+mov %ax,0x8877665544332211
+mov %eax,0x8877665544332211
+mov %rax,0x8877665544332211
+movb 0x8877665544332211,%al
+movw 0x8877665544332211,%ax
+movl 0x8877665544332211,%eax
+movq 0x8877665544332211,%rax
+movb %al,0x8877665544332211
+movw %ax,0x8877665544332211
+movl %eax,0x8877665544332211
+movq %rax,0x8877665544332211
+
+#absolute signed 32bit addressing
+mov 0xffffffffff332211,%al
+mov 0xffffffffff332211,%ax
+mov 0xffffffffff332211,%eax
+mov 0xffffffffff332211,%rax
+mov %al,0xffffffffff332211
+mov %ax,0xffffffffff332211
+mov %eax,0xffffffffff332211
+mov %rax,0xffffffffff332211
+movb 0xffffffffff332211,%al
+movw 0xffffffffff332211,%ax
+movl 0xffffffffff332211,%eax
+movq 0xffffffffff332211,%rax
+movb %al,0xffffffffff332211
+movw %ax,0xffffffffff332211
+movl %eax,0xffffffffff332211
+movq %rax,0xffffffffff332211
 
 # Get a good alignment.
  .p2align	4,0

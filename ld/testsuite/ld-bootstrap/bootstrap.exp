@@ -1,5 +1,5 @@
 # Expect script for LD Bootstrap Tests
-#   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 2000, 2001
+#   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 2000, 2001, 2002, 2004
 #   Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
@@ -14,7 +14,7 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # Written by Jeffrey Wheat (cassidy@cygnus.com)
 # Rewritten by Ian Lance Taylor (ian@cygnus.com)
@@ -137,7 +137,13 @@ foreach flags {"" "strip" "--static" "--traditional-format"
     send_log "compare (tail of) tmpdir/ld2 tmpdir/ld3\n"
     verbose  "compare (tail of) tmpdir/ld2 tmpdir/ld3"
     if {[istarget "*-*-pe"]
-	|| [istarget "*-*-wince"]} {
+	|| [istarget "*-*-wince"]
+	|| [istarget "*-*-cygwin*"]
+	|| [istarget "*-*-winnt*"]
+	|| [istarget "*-*-mingw32*"]
+	|| [istarget "*-*-interix*"]
+	|| [istarget "*-*-beospe*"]
+	|| [istarget "*-*-netbsdpe*"]} {
         # Trim off the date present in PE binaries by only looking
         #   at the ends of the files
         # Although this works, a way to set the date would be better.
@@ -163,3 +169,6 @@ foreach flags {"" "strip" "--static" "--traditional-format"
 	fail $testname
     }
 }
+
+catch "exec rm -f tmpdir/ld-partial.o tmpdir/ld1 tmpdir/ld2 tmpdir/ld3" status
+catch "exec rm -f tmpdir/ld1tail tmpdir/ld2tail tmpdir/ld3tail" status

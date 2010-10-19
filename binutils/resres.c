@@ -1,5 +1,5 @@
 /* resres.c: read_res_file and write_res_file implementation for windres.
-   Copyright 1998, 1999 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2001, 2002 Free Software Foundation, Inc.
    Written by Anders Norlander <anorland@hem2.passagen.se>.
 
    This file is part of GNU Binutils.
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* FIXME: This file does not work correctly in a cross configuration.
    It assumes that it can use fread and fwrite to read and write
@@ -408,7 +408,7 @@ write_res_data (data, size, count)
      size_t size;
      int count;
 {
-  if (fwrite (data, size, count, fres) != (size_t) count)
+  if ((size_t) fwrite (data, size, count, fres) != (size_t) count)
     fatal ("%s: could not write to file", filename);
 }
 

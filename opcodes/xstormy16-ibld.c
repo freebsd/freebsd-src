@@ -1,25 +1,26 @@
 /* Instruction building/extraction support for xstormy16. -*- C -*-
 
-THIS FILE IS MACHINE GENERATED WITH CGEN: Cpu tools GENerator.
-- the resultant file is machine generated, cgen-ibld.in isn't
+   THIS FILE IS MACHINE GENERATED WITH CGEN: Cpu tools GENerator.
+   - the resultant file is machine generated, cgen-ibld.in isn't
 
-Copyright 1996, 1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2005, 2006
+   Free Software Foundation, Inc.
 
-This file is part of the GNU Binutils and GDB, the GNU debugger.
+   This file is part of the GNU Binutils and GDB, the GNU debugger.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software Foundation, Inc.,
+   51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* ??? Eventually more and more of this stuff can go to cpu-independent files.
    Keep that in mind.  */
@@ -35,9 +36,9 @@ along with this program; if not, write to the Free Software Foundation, Inc.,
 #include "opintl.h"
 #include "safe-ctype.h"
 
-#undef min
+#undef  min
 #define min(a,b) ((a) < (b) ? (a) : (b))
-#undef max
+#undef  max
 #define max(a,b) ((a) > (b) ? (a) : (b))
 
 /* Used by the ifield rtx function.  */
@@ -136,12 +137,6 @@ insert_normal (CGEN_CPU_DESC cd,
   if (length == 0)
     return NULL;
 
-#if 0
-  if (CGEN_INT_INSN_P
-      && word_offset != 0)
-    abort ();
-#endif
-
   if (word_length > 32)
     abort ();
 
@@ -173,13 +168,21 @@ insert_normal (CGEN_CPU_DESC cd,
   else if (! CGEN_BOOL_ATTR (attrs, CGEN_IFLD_SIGNED))
     {
       unsigned long maxval = mask;
-      
-      if ((unsigned long) value > maxval)
+      unsigned long val = (unsigned long) value;
+
+      /* For hosts with a word size > 32 check to see if value has been sign
+	 extended beyond 32 bits.  If so then ignore these higher sign bits
+	 as the user is attempting to store a 32-bit signed value into an
+	 unsigned 32-bit field which is allowed.  */
+      if (sizeof (unsigned long) > 4 && ((value >> 32) == -1))
+	val &= 0xFFFFFFFF;
+
+      if (val > maxval)
 	{
 	  /* xgettext:c-format */
 	  sprintf (errbuf,
-		   _("operand out of range (%lu not between 0 and %lu)"),
-		   value, maxval);
+		   _("operand out of range (0x%lx not between 0 and 0x%lx)"),
+		   val, maxval);
 	  return errbuf;
 	}
     }
@@ -286,7 +289,7 @@ insert_insn_normal (CGEN_CPU_DESC cd,
 
 #if CGEN_INT_INSN_P
 /* Cover function to store an insn value into an integral insn.  Must go here
- because it needs <prefix>-desc.h for CGEN_INT_INSN_P.  */
+   because it needs <prefix>-desc.h for CGEN_INT_INSN_P.  */
 
 static void
 put_insn_int_value (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
@@ -304,6 +307,7 @@ put_insn_int_value (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
       int shift = insn_length - length;
       /* Written this way to avoid undefined behaviour.  */
       CGEN_INSN_INT mask = (((1L << (length - 1)) - 1) << 1) | 1;
+
       *buf = (*buf & ~(mask << shift)) | ((value & mask) << shift);
     }
 }
@@ -374,9 +378,7 @@ extract_1 (CGEN_CPU_DESC cd,
 {
   unsigned long x;
   int shift;
-#if 0
-  int big_p = CGEN_CPU_INSN_ENDIAN (cd) == CGEN_ENDIAN_BIG;
-#endif
+
   x = cgen_get_insn_value (cd, bufp, word_length);
 
   if (CGEN_INSN_LSB0_P)
@@ -439,12 +441,6 @@ extract_normal (CGEN_CPU_DESC cd,
       return 1;
     }
 
-#if 0
-  if (CGEN_INT_INSN_P
-      && word_offset != 0)
-    abort ();
-#endif
-
   if (word_length > 32)
     abort ();
 
@@ -452,9 +448,8 @@ extract_normal (CGEN_CPU_DESC cd,
      word_length may be too big.  */
   if (cd->min_insn_bitsize < cd->base_insn_bitsize)
     {
-      if (word_offset == 0
-	  && word_length > total_length)
-	word_length = total_length;
+      if (word_offset + word_length > total_length)
+	word_length = total_length - word_offset;
     }
 
   /* Does the value reside in INSN_VALUE, and at the right alignment?  */
@@ -539,10 +534,10 @@ extract_insn_normal (CGEN_CPU_DESC cd,
   return CGEN_INSN_BITSIZE (insn);
 }
 
-/* machine generated code added here */
+/* Machine generated code added here.  */
 
 const char * xstormy16_cgen_insert_operand
-  PARAMS ((CGEN_CPU_DESC, int, CGEN_FIELDS *, CGEN_INSN_BYTES_PTR, bfd_vma));
+  (CGEN_CPU_DESC, int, CGEN_FIELDS *, CGEN_INSN_BYTES_PTR, bfd_vma);
 
 /* Main entry point for operand insertion.
 
@@ -559,12 +554,11 @@ const char * xstormy16_cgen_insert_operand
    resolved during parsing.  */
 
 const char *
-xstormy16_cgen_insert_operand (cd, opindex, fields, buffer, pc)
-     CGEN_CPU_DESC cd;
-     int opindex;
-     CGEN_FIELDS * fields;
-     CGEN_INSN_BYTES_PTR buffer;
-     bfd_vma pc ATTRIBUTE_UNUSED;
+xstormy16_cgen_insert_operand (CGEN_CPU_DESC cd,
+			     int opindex,
+			     CGEN_FIELDS * fields,
+			     CGEN_INSN_BYTES_PTR buffer,
+			     bfd_vma pc ATTRIBUTE_UNUSED)
 {
   const char * errmsg = NULL;
   unsigned int total_length = CGEN_FIELDS_BITSIZE (fields);
@@ -686,8 +680,7 @@ xstormy16_cgen_insert_operand (cd, opindex, fields, buffer, pc)
 }
 
 int xstormy16_cgen_extract_operand
-  PARAMS ((CGEN_CPU_DESC, int, CGEN_EXTRACT_INFO *, CGEN_INSN_INT,
-           CGEN_FIELDS *, bfd_vma));
+  (CGEN_CPU_DESC, int, CGEN_EXTRACT_INFO *, CGEN_INSN_INT, CGEN_FIELDS *, bfd_vma);
 
 /* Main entry point for operand extraction.
    The result is <= 0 for error, >0 for success.
@@ -705,13 +698,12 @@ int xstormy16_cgen_extract_operand
    the handlers.  */
 
 int
-xstormy16_cgen_extract_operand (cd, opindex, ex_info, insn_value, fields, pc)
-     CGEN_CPU_DESC cd;
-     int opindex;
-     CGEN_EXTRACT_INFO *ex_info;
-     CGEN_INSN_INT insn_value;
-     CGEN_FIELDS * fields;
-     bfd_vma pc;
+xstormy16_cgen_extract_operand (CGEN_CPU_DESC cd,
+			     int opindex,
+			     CGEN_EXTRACT_INFO *ex_info,
+			     CGEN_INSN_INT insn_value,
+			     CGEN_FIELDS * fields,
+			     bfd_vma pc)
 {
   /* Assume success (for those operands that are nops).  */
   int length = 1;
@@ -843,10 +835,8 @@ cgen_extract_fn * const xstormy16_cgen_extract_handlers[] =
   extract_insn_normal,
 };
 
-int xstormy16_cgen_get_int_operand
-  PARAMS ((CGEN_CPU_DESC, int, const CGEN_FIELDS *));
-bfd_vma xstormy16_cgen_get_vma_operand
-  PARAMS ((CGEN_CPU_DESC, int, const CGEN_FIELDS *));
+int xstormy16_cgen_get_int_operand     (CGEN_CPU_DESC, int, const CGEN_FIELDS *);
+bfd_vma xstormy16_cgen_get_vma_operand (CGEN_CPU_DESC, int, const CGEN_FIELDS *);
 
 /* Getting values from cgen_fields is handled by a collection of functions.
    They are distinguished by the type of the VALUE argument they return.
@@ -854,10 +844,9 @@ bfd_vma xstormy16_cgen_get_vma_operand
    not appropriate.  */
 
 int
-xstormy16_cgen_get_int_operand (cd, opindex, fields)
-     CGEN_CPU_DESC cd ATTRIBUTE_UNUSED;
-     int opindex;
-     const CGEN_FIELDS * fields;
+xstormy16_cgen_get_int_operand (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+			     int opindex,
+			     const CGEN_FIELDS * fields)
 {
   int value;
 
@@ -947,10 +936,9 @@ xstormy16_cgen_get_int_operand (cd, opindex, fields)
 }
 
 bfd_vma
-xstormy16_cgen_get_vma_operand (cd, opindex, fields)
-     CGEN_CPU_DESC cd ATTRIBUTE_UNUSED;
-     int opindex;
-     const CGEN_FIELDS * fields;
+xstormy16_cgen_get_vma_operand (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+			     int opindex,
+			     const CGEN_FIELDS * fields)
 {
   bfd_vma value;
 
@@ -1039,10 +1027,8 @@ xstormy16_cgen_get_vma_operand (cd, opindex, fields)
   return value;
 }
 
-void xstormy16_cgen_set_int_operand
-  PARAMS ((CGEN_CPU_DESC, int, CGEN_FIELDS *, int));
-void xstormy16_cgen_set_vma_operand
-  PARAMS ((CGEN_CPU_DESC, int, CGEN_FIELDS *, bfd_vma));
+void xstormy16_cgen_set_int_operand  (CGEN_CPU_DESC, int, CGEN_FIELDS *, int);
+void xstormy16_cgen_set_vma_operand  (CGEN_CPU_DESC, int, CGEN_FIELDS *, bfd_vma);
 
 /* Stuffing values in cgen_fields is handled by a collection of functions.
    They are distinguished by the type of the VALUE argument they accept.
@@ -1050,11 +1036,10 @@ void xstormy16_cgen_set_vma_operand
    not appropriate.  */
 
 void
-xstormy16_cgen_set_int_operand (cd, opindex, fields, value)
-     CGEN_CPU_DESC cd ATTRIBUTE_UNUSED;
-     int opindex;
-     CGEN_FIELDS * fields;
-     int value;
+xstormy16_cgen_set_int_operand (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+			     int opindex,
+			     CGEN_FIELDS * fields,
+			     int value)
 {
   switch (opindex)
     {
@@ -1140,11 +1125,10 @@ xstormy16_cgen_set_int_operand (cd, opindex, fields, value)
 }
 
 void
-xstormy16_cgen_set_vma_operand (cd, opindex, fields, value)
-     CGEN_CPU_DESC cd ATTRIBUTE_UNUSED;
-     int opindex;
-     CGEN_FIELDS * fields;
-     bfd_vma value;
+xstormy16_cgen_set_vma_operand (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+			     int opindex,
+			     CGEN_FIELDS * fields,
+			     bfd_vma value)
 {
   switch (opindex)
     {
@@ -1232,8 +1216,7 @@ xstormy16_cgen_set_vma_operand (cd, opindex, fields, value)
 /* Function to call before using the instruction builder tables.  */
 
 void
-xstormy16_cgen_init_ibld_table (cd)
-     CGEN_CPU_DESC cd;
+xstormy16_cgen_init_ibld_table (CGEN_CPU_DESC cd)
 {
   cd->insert_handlers = & xstormy16_cgen_insert_handlers[0];
   cd->extract_handlers = & xstormy16_cgen_extract_handlers[0];

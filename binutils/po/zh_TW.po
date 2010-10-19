@@ -1,0 +1,5497 @@
+# Traditional Chinese Messages for binutils
+# Copyright (C) 2003, 05 Free Software Foundation, Inc.
+# Wang Li <charles@linux.net.cn>, 2003
+# Wei-Lun Chao <chaoweilun@pcmail.com.tw>, 2005
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: binutils 2.15.96\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2005-03-03 21:03+1030\n"
+"PO-Revision-Date: 2005-06-02 09:05+0800\n"
+"Last-Translator: Wei-Lun Chao <chaoweilun@pcmail.com.tw>\n"
+"Language-Team: Chinese (traditional) <zh-l10n@linux.org.tw>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: addr2line.c:73
+#, c-format
+msgid "Usage: %s [option(s)] [addr(s)]\n"
+msgstr "用法：%s [選項] [位址]\n"
+
+#: addr2line.c:74
+#, c-format
+msgid " Convert addresses into line number/file name pairs.\n"
+msgstr " 將位址轉換成檔案名/列號對。\n"
+
+#: addr2line.c:75
+#, c-format
+msgid " If no addresses are specified on the command line, they will be read from stdin\n"
+msgstr " 如果沒有在命令列中指定位址，就從標準輸入中讀取它們\n"
+
+#: addr2line.c:76
+#, c-format
+msgid ""
+" The options are:\n"
+"  -b --target=<bfdname>  Set the binary file format\n"
+"  -e --exe=<executable>  Set the input file name (default is a.out)\n"
+"  -s --basenames         Strip directory names\n"
+"  -f --functions         Show function names\n"
+"  -C --demangle[=style]  Demangle function names\n"
+"  -h --help              Display this information\n"
+"  -v --version           Display the program's version\n"
+"\n"
+msgstr ""
+" 選項為：\n"
+"  -b --target=<bfdname>  設定二進制檔案格式\n"
+"  -e --exe=<executable>  設定輸入檔案名 (預設為 a.out)\n"
+"  -s --basenames         去除目錄名\n"
+"  -f --functions         顯示函數名\n"
+"  -C --demangle[=style]  解碼函數名\n"
+"  -h --help              顯示本資訊\n"
+"  -v --version           顯示程序的版本號\n"
+"\n"
+
+#: addr2line.c:88 ar.c:263 coffdump.c:467 nlmconv.c:1110 objcopy.c:478
+#: objcopy.c:512 readelf.c:2631 size.c:99 srconv.c:1731 strings.c:667
+#: sysdump.c:655 windres.c:672
+#, c-format
+msgid "Report bugs to %s\n"
+msgstr "將 bug 報告到 %s\n"
+
+#: addr2line.c:241
+#, c-format
+msgid "%s: can not get addresses from archive"
+msgstr "%s：無法從保存檔中得到位址"
+
+#: addr2line.c:311 nm.c:1519 objdump.c:2848
+#, c-format
+msgid "unknown demangling style `%s'"
+msgstr "未知的解碼(demangle)風格「%s」"
+
+#: ar.c:205
+#, c-format
+msgid "no entry %s in archive\n"
+msgstr "保存檔中沒有條目 %s\n"
+
+#: ar.c:221
+#, c-format
+msgid "Usage: %s [emulation options] [-]{dmpqrstx}[abcfilNoPsSuvV] [member-name] [count] archive-file file...\n"
+msgstr "用法：%s [模擬選項] [-]{dmpqrstx}[abcfilNoPsSuvV] [成員名] [計數] 保存檔 文件...\n"
+
+#: ar.c:224
+#, c-format
+msgid "       %s -M [<mri-script]\n"
+msgstr "       %s -M [<mri-命令稿]\n"
+
+#: ar.c:225
+#, c-format
+msgid " commands:\n"
+msgstr " 命令：\n"
+
+#: ar.c:226
+#, c-format
+msgid "  d            - delete file(s) from the archive\n"
+msgstr "  d            - 從保存檔中刪除檔案\n"
+
+#: ar.c:227
+#, c-format
+msgid "  m[ab]        - move file(s) in the archive\n"
+msgstr "  m[ab]        - 在保存檔中移動檔案\n"
+
+#: ar.c:228
+#, c-format
+msgid "  p            - print file(s) found in the archive\n"
+msgstr "  p            - 列印在保存檔中找到的檔案\n"
+
+#: ar.c:229
+#, c-format
+msgid "  q[f]         - quick append file(s) to the archive\n"
+msgstr "  q[f]         - 將檔案快速追加到保存檔中\n"
+
+#: ar.c:230
+#, c-format
+msgid "  r[ab][f][u]  - replace existing or insert new file(s) into the archive\n"
+msgstr "  r[ab][f][u]  - 替換保存檔中已有的檔案或加入新檔案\n"
+
+#: ar.c:231
+#, c-format
+msgid "  t            - display contents of archive\n"
+msgstr "  t            - 顯示保存檔的內容\n"
+
+#: ar.c:232
+#, c-format
+msgid "  x[o]         - extract file(s) from the archive\n"
+msgstr "  x[o]         - 從保存檔中分解檔案\n"
+
+#: ar.c:233
+#, c-format
+msgid " command specific modifiers:\n"
+msgstr " 特定命令修飾符：\n"
+
+#: ar.c:234
+#, c-format
+msgid "  [a]          - put file(s) after [member-name]\n"
+msgstr "  [a]          - 將檔案置於 [成員名] 之後\n"
+
+#: ar.c:235
+#, c-format
+msgid "  [b]          - put file(s) before [member-name] (same as [i])\n"
+msgstr "  [b]          - 將檔案置於 [成員名] 之前 (於 [i] 相同)\n"
+
+#: ar.c:236
+#, c-format
+msgid "  [N]          - use instance [count] of name\n"
+msgstr "  [N]          - 使用名稱的實例 [數量]\n"
+
+#: ar.c:237
+#, c-format
+msgid "  [f]          - truncate inserted file names\n"
+msgstr "  [f]          - 截去插入的檔案名稱\n"
+
+#: ar.c:238
+#, c-format
+msgid "  [P]          - use full path names when matching\n"
+msgstr "  [P]          - 在匹配時使用完整的路徑名\n"
+
+#: ar.c:239
+#, c-format
+msgid "  [o]          - preserve original dates\n"
+msgstr "  [o]          - 保留原來的日期\n"
+
+#: ar.c:240
+#, c-format
+msgid "  [u]          - only replace files that are newer than current archive contents\n"
+msgstr "  [u]          - 只替換比目前保存檔內容更新的檔案\n"
+
+#: ar.c:241
+#, c-format
+msgid " generic modifiers:\n"
+msgstr " 通用修飾符：\n"
+
+#: ar.c:242
+#, c-format
+msgid "  [c]          - do not warn if the library had to be created\n"
+msgstr "  [c]          - 不在必須建立函式庫的時候提出警告\n"
+
+#: ar.c:243
+#, c-format
+msgid "  [s]          - create an archive index (cf. ranlib)\n"
+msgstr "  [s]          - 建立保存檔索引 (cf. ranlib)\n"
+
+#: ar.c:244
+#, c-format
+msgid "  [S]          - do not build a symbol table\n"
+msgstr "  [S]          - 不要建立符號表\n"
+
+#: ar.c:245
+#, c-format
+msgid "  [v]          - be verbose\n"
+msgstr "  [v]          - 輸出較多資訊\n"
+
+#: ar.c:246
+#, c-format
+msgid "  [V]          - display the version number\n"
+msgstr "  [V]          - 顯示版本號\n"
+
+#: ar.c:253
+#, c-format
+msgid "Usage: %s [options] archive\n"
+msgstr "用法：%s [選項] 保存檔\n"
+
+#: ar.c:254
+#, c-format
+msgid " Generate an index to speed access to archives\n"
+msgstr " 產生索引以加快對保存檔的存取\n"
+
+#: ar.c:255
+#, c-format
+msgid ""
+" The options are:\n"
+"  -h --help                    Print this help message\n"
+"  -V --version                 Print version information\n"
+msgstr ""
+" 選項為：\n"
+"  -h --help                    列印本求助資訊\n"
+"  -V --version                 列印版本資訊\n"
+
+#: ar.c:483
+msgid "two different operation options specified"
+msgstr "指定了兩個不同的操作選項"
+
+#: ar.c:558
+#, c-format
+msgid "illegal option -- %c"
+msgstr "不正確選項 -- %c"
+
+#: ar.c:604
+msgid "no operation specified"
+msgstr "沒有指定操作"
+
+#: ar.c:607
+msgid "`u' is only meaningful with the `r' option."
+msgstr "「u」只在使用「r」選項的時候才有意義。"
+
+#: ar.c:615
+msgid "`N' is only meaningful with the `x' and `d' options."
+msgstr "「N」只在使用「x」和「d」選項的時候才有意義。"
+
+#: ar.c:618
+msgid "Value for `N' must be positive."
+msgstr "「N」的值必須是正數。"
+
+#: ar.c:668
+#, c-format
+msgid "internal error -- this option not implemented"
+msgstr "內部錯誤 -- 該選項尚未實現"
+
+#: ar.c:737
+#, c-format
+msgid "creating %s"
+msgstr "正在建立 %s"
+
+#: ar.c:786 ar.c:836 ar.c:1154 objcopy.c:1603
+#, c-format
+msgid "internal stat error on %s"
+msgstr "在 %s 內部狀態錯誤"
+
+#: ar.c:790
+#, c-format
+msgid ""
+"\n"
+"<%s>\n"
+"\n"
+msgstr ""
+"\n"
+"<%s>\n"
+"\n"
+
+#: ar.c:806 ar.c:873
+#, c-format
+msgid "%s is not a valid archive"
+msgstr "%s 不是有效的保存檔"
+
+#: ar.c:841
+#, c-format
+msgid "stat returns negative size for %s"
+msgstr "stat 回傳 %s 的大小為負數"
+
+#: ar.c:1059
+#, c-format
+msgid "No member named `%s'\n"
+msgstr "沒有名為「%s」的成員\n"
+
+#: ar.c:1109
+#, c-format
+msgid "no entry %s in archive %s!"
+msgstr "保存檔 %2$s 中沒有條目 %1$s！"
+
+#: ar.c:1246
+#, c-format
+msgid "%s: no archive map to update"
+msgstr "%s：沒有要更新的保存檔映射"
+
+#: arsup.c:83
+#, c-format
+msgid "No entry %s in archive.\n"
+msgstr "保存檔中沒有條目 %s。\n"
+
+#: arsup.c:109
+#, c-format
+msgid "Can't open file %s\n"
+msgstr "無法打開檔案 %s\n"
+
+#: arsup.c:162
+#, c-format
+msgid "%s: Can't open output archive %s\n"
+msgstr "%s：無法打開輸出保存檔 %s\n"
+
+#: arsup.c:179
+#, c-format
+msgid "%s: Can't open input archive %s\n"
+msgstr "%s：無法打開輸入保存檔 %s\n"
+
+#: arsup.c:188
+#, c-format
+msgid "%s: file %s is not an archive\n"
+msgstr "%s：檔案 %s 不是保存檔\n"
+
+#: arsup.c:227
+#, c-format
+msgid "%s: no output archive specified yet\n"
+msgstr "%s：尚未指定輸出保存檔\n"
+
+#: arsup.c:247 arsup.c:285 arsup.c:327 arsup.c:347 arsup.c:413
+#, c-format
+msgid "%s: no open output archive\n"
+msgstr "%s：未打開輸出保存檔\n"
+
+#: arsup.c:258 arsup.c:368 arsup.c:394
+#, c-format
+msgid "%s: can't open file %s\n"
+msgstr "%s：無法打開檔案 %s\n"
+
+#: arsup.c:312 arsup.c:390 arsup.c:471
+#, c-format
+msgid "%s: can't find module file %s\n"
+msgstr "%s：無法找到模組檔案 %s\n"
+
+#: arsup.c:422
+#, c-format
+msgid "Current open archive is %s\n"
+msgstr "目前打開的保存檔是 %s\n"
+
+#: arsup.c:446
+#, c-format
+msgid "%s: no open archive\n"
+msgstr "%s：未打開保存檔\n"
+
+#: binemul.c:37
+#, c-format
+msgid "  No emulation specific options\n"
+msgstr "  沒有模擬特有的選項\n"
+
+#. Macros for common output.
+#: binemul.h:42
+#, c-format
+msgid " emulation options: \n"
+msgstr " 模擬選項：\n"
+
+#: bucomm.c:109
+#, c-format
+msgid "can't set BFD default target to `%s': %s"
+msgstr "無法將 BFD 預設標的設置為「%s」：%s"
+
+#: bucomm.c:120
+#, c-format
+msgid "%s: Matching formats:"
+msgstr "%s：匹配格式："
+
+#: bucomm.c:135
+#, c-format
+msgid "Supported targets:"
+msgstr "支援的目標："
+
+#: bucomm.c:137
+#, c-format
+msgid "%s: supported targets:"
+msgstr "%s：支援的目標："
+
+#: bucomm.c:153
+#, c-format
+msgid "Supported architectures:"
+msgstr "支援的系統架構："
+
+#: bucomm.c:155
+#, c-format
+msgid "%s: supported architectures:"
+msgstr "%s：支援的系統架構："
+
+#: bucomm.c:348
+#, c-format
+msgid "BFD header file version %s\n"
+msgstr "BFD 標頭檔案版本 %s\n"
+
+#: bucomm.c:449
+#, c-format
+msgid "%s: bad number: %s"
+msgstr "%s：錯誤的編號：%s"
+
+#: bucomm.c:466 strings.c:386
+#, c-format
+msgid "'%s': No such file"
+msgstr "%s：無此檔案"
+
+#: bucomm.c:468 strings.c:388
+#, c-format
+msgid "Warning: could not locate '%s'.  reason: %s"
+msgstr "警告：無法找到 %s 的位置。原因：%s"
+
+#: bucomm.c:472
+#, c-format
+msgid "Warning: '%s' is not an ordinary file"
+msgstr "警告：'%s' 不是一般檔案"
+
+#: coffdump.c:105
+#, c-format
+msgid "#lines %d "
+msgstr "#列號 %d "
+
+#: coffdump.c:459 sysdump.c:648
+#, c-format
+msgid "Usage: %s [option(s)] in-file\n"
+msgstr "用法：%s [選項] 輸入檔案\n"
+
+#: coffdump.c:460
+#, c-format
+msgid " Print a human readable interpretation of a SYSROFF object file\n"
+msgstr " 列印適於閱讀的對 SYSROFF 目標檔案的解釋\n"
+
+#: coffdump.c:461
+#, c-format
+msgid ""
+" The options are:\n"
+"  -h --help              Display this information\n"
+"  -v --version           Display the program's version\n"
+"\n"
+msgstr ""
+" 選項為：\n"
+"  -h --help              顯示本求助資訊\n"
+"  -v --version           顯示程序的版本號\n"
+"\n"
+
+#: coffdump.c:527 srconv.c:1819 sysdump.c:710
+msgid "no input file specified"
+msgstr "未指定輸入檔案"
+
+#: debug.c:648
+msgid "debug_add_to_current_namespace: no current file"
+msgstr "debug_add_to_current_namespace：沒有目前檔案"
+
+#: debug.c:727
+msgid "debug_start_source: no debug_set_filename call"
+msgstr "debug_start_source：沒有 debug_set_filename 呼叫"
+
+#: debug.c:783
+msgid "debug_record_function: no debug_set_filename call"
+msgstr "debug_record_function：沒有 debug_set_filename 呼叫"
+
+#: debug.c:835
+msgid "debug_record_parameter: no current function"
+msgstr "debug_record_parameter：沒有目前函數"
+
+#: debug.c:867
+msgid "debug_end_function: no current function"
+msgstr "debug_end_function：沒有目前函數"
+
+#: debug.c:873
+msgid "debug_end_function: some blocks were not closed"
+msgstr "debug_end_function：某些區塊沒有關閉"
+
+#: debug.c:901
+msgid "debug_start_block: no current block"
+msgstr "debug_start_block：沒有目前區塊"
+
+#: debug.c:937
+msgid "debug_end_block: no current block"
+msgstr "debug_end_block：沒有目前區塊"
+
+#: debug.c:944
+msgid "debug_end_block: attempt to close top level block"
+msgstr "debug_end_block：試圖關閉頂層區塊"
+
+#: debug.c:967
+msgid "debug_record_line: no current unit"
+msgstr "debug_record_line：沒有目前單元"
+
+#. FIXME
+#: debug.c:1020
+msgid "debug_start_common_block: not implemented"
+msgstr "debug_start_common_block：未實作"
+
+#. FIXME
+#: debug.c:1031
+msgid "debug_end_common_block: not implemented"
+msgstr "debug_end_common_block：未實作"
+
+#. FIXME.
+#: debug.c:1115
+msgid "debug_record_label: not implemented"
+msgstr "debug_record_label：未實作"
+
+#: debug.c:1137
+msgid "debug_record_variable: no current file"
+msgstr "debug_record_variable：沒有目前檔案"
+
+#: debug.c:1665
+msgid "debug_make_undefined_type: unsupported kind"
+msgstr "debug_make_undefined_type：不支援的種類"
+
+#: debug.c:1842
+msgid "debug_name_type: no current file"
+msgstr "debug_name_type：沒有目前檔案"
+
+#: debug.c:1887
+msgid "debug_tag_type: no current file"
+msgstr "debug_tag_type：沒有目前檔案"
+
+#: debug.c:1895
+msgid "debug_tag_type: extra tag attempted"
+msgstr "debug_tag_type：已嘗試更多的標記"
+
+#: debug.c:1932
+#, c-format
+msgid "Warning: changing type size from %d to %d\n"
+msgstr "警告：類型大小由 %d 改為 %d\n"
+
+#: debug.c:1954
+msgid "debug_find_named_type: no current compilation unit"
+msgstr "debug_find_named_type：沒有目前編譯單元"
+
+#: debug.c:2057
+#, c-format
+msgid "debug_get_real_type: circular debug information for %s\n"
+msgstr "debug_get_real_type：關於 %s 的循環除錯資訊\n"
+
+#: debug.c:2484
+msgid "debug_write_type: illegal type encountered"
+msgstr "debug_write_type：遇到不正確類型"
+
+#: dlltool.c:773 dlltool.c:797 dlltool.c:826
+#, c-format
+msgid "Internal error: Unknown machine type: %d"
+msgstr "內部錯誤：未知的機器類型：%d"
+
+#: dlltool.c:862
+#, c-format
+msgid "Can't open def file: %s"
+msgstr "無法打開 def 檔案：%s"
+
+#: dlltool.c:867
+#, c-format
+msgid "Processing def file: %s"
+msgstr "處理 def 檔案：%s"
+
+#: dlltool.c:871
+msgid "Processed def file"
+msgstr "已處理的 def 檔案"
+
+#: dlltool.c:895
+#, c-format
+msgid "Syntax error in def file %s:%d"
+msgstr "def 檔案中語法錯誤 %s：%d"
+
+#: dlltool.c:930
+#, c-format
+msgid "%s: Path components stripped from image name, '%s'."
+msgstr "%s：從映像檔 '%s' 中截去路徑成分。"
+
+#: dlltool.c:939
+#, c-format
+msgid "NAME: %s base: %x"
+msgstr "名稱：%s 基於：%x"
+
+#: dlltool.c:942 dlltool.c:958
+msgid "Can't have LIBRARY and NAME"
+msgstr "不具有 LIBRARY 與 NAME"
+
+#: dlltool.c:955
+#, c-format
+msgid "LIBRARY: %s base: %x"
+msgstr "LIBRARY：%s 基於：%x"
+
+#: dlltool.c:1191 resrc.c:269
+#, c-format
+msgid "wait: %s"
+msgstr "等待：%s"
+
+#: dlltool.c:1196 dllwrap.c:418 resrc.c:274
+#, c-format
+msgid "subprocess got fatal signal %d"
+msgstr "子行程收到致命信號 %d"
+
+#: dlltool.c:1202 dllwrap.c:425 resrc.c:281
+#, c-format
+msgid "%s exited with status %d"
+msgstr "%s 以狀態 %d 離開"
+
+#: dlltool.c:1233
+#, c-format
+msgid "Sucking in info from %s section in %s"
+msgstr "從 %2$s 中的 %1$s 區段獲取資訊"
+
+#: dlltool.c:1358
+#, c-format
+msgid "Excluding symbol: %s"
+msgstr "排除符號：%s"
+
+#: dlltool.c:1447 dlltool.c:1458 nm.c:998 nm.c:1009
+#, c-format
+msgid "%s: no symbols"
+msgstr "%s：沒有符號"
+
+#. FIXME: we ought to read in and block out the base relocations.
+#: dlltool.c:1484
+#, c-format
+msgid "Done reading %s"
+msgstr "讀入 %s 完成"
+
+#: dlltool.c:1494
+#, c-format
+msgid "Unable to open object file: %s"
+msgstr "無法打開目標檔案：%s"
+
+#: dlltool.c:1497
+#, c-format
+msgid "Scanning object file %s"
+msgstr "正在掃瞄目標檔案 %s"
+
+#: dlltool.c:1512
+#, c-format
+msgid "Cannot produce mcore-elf dll from archive file: %s"
+msgstr "無法從保存檔中產生 mcore-elf 動態連接庫：%s"
+
+#: dlltool.c:1598
+msgid "Adding exports to output file"
+msgstr "正在加入導出至輸出檔案"
+
+#: dlltool.c:1646
+msgid "Added exports to output file"
+msgstr "已加入導出至輸出檔案"
+
+#: dlltool.c:1767
+#, c-format
+msgid "Generating export file: %s"
+msgstr "正在產生導出檔案：%s"
+
+#: dlltool.c:1772
+#, c-format
+msgid "Unable to open temporary assembler file: %s"
+msgstr "無法打開臨時組譯檔案：%s"
+
+#: dlltool.c:1775
+#, c-format
+msgid "Opened temporary file: %s"
+msgstr "已打開的臨時檔案：%s"
+
+#: dlltool.c:1997
+msgid "Generated exports file"
+msgstr "已產生的導出檔案"
+
+#: dlltool.c:2203
+#, c-format
+msgid "bfd_open failed open stub file: %s"
+msgstr "無法打開輸出檔案 %s"
+
+#: dlltool.c:2206
+#, c-format
+msgid "Creating stub file: %s"
+msgstr "正在建立佔位檔案：%s"
+
+#: dlltool.c:2588
+#, c-format
+msgid "failed to open temporary head file: %s"
+msgstr "打開臨時標頭檔案失敗：%s"
+
+#: dlltool.c:2647
+#, c-format
+msgid "failed to open temporary tail file: %s"
+msgstr "打開臨時標尾檔案失敗：%s"
+
+#: dlltool.c:2714
+#, c-format
+msgid "Can't open .lib file: %s"
+msgstr "無法打開 .lib 檔案：%s"
+
+#: dlltool.c:2717
+#, c-format
+msgid "Creating library file: %s"
+msgstr "正在建立函式庫檔案：%s"
+
+#: dlltool.c:2800 dlltool.c:2806
+#, c-format
+msgid "cannot delete %s: %s"
+msgstr "無法刪除 %s：%s"
+
+#: dlltool.c:2811
+msgid "Created lib file"
+msgstr "已建立的 lib 檔案"
+
+#: dlltool.c:2904
+#, c-format
+msgid "Warning, ignoring duplicate EXPORT %s %d,%d"
+msgstr "警告，正在忽略重覆的 EXPORT %s %d,%d"
+
+#: dlltool.c:2910
+#, c-format
+msgid "Error, duplicate EXPORT with oridinals: %s"
+msgstr "錯誤，重覆的 EXPORT 以及原始出處: %s"
+
+#: dlltool.c:3026
+msgid "Processing definitions"
+msgstr "正在處理定義"
+
+#: dlltool.c:3058
+msgid "Processed definitions"
+msgstr "已處理定義"
+
+#. xgetext:c-format
+#: dlltool.c:3065 dllwrap.c:479
+#, c-format
+msgid "Usage %s <option(s)> <object-file(s)>\n"
+msgstr "用法: %s <選項> <目標檔案>\n"
+
+#. xgetext:c-format
+#: dlltool.c:3067
+#, c-format
+msgid "   -m --machine <machine>    Create as DLL for <machine>.  [default: %s]\n"
+msgstr "   -m --machine <架構>    為 <架構> 建立 DLL。[預設：%s]\n"
+
+#: dlltool.c:3068
+#, c-format
+msgid "        possible <machine>: arm[_interwork], i386, mcore[-elf]{-le|-be}, ppc, thumb\n"
+msgstr "        可能的 <架構>：arm[_interwork]、i386、mcore[-elf]{-le|-be}、ppc、thumb\n"
+
+#: dlltool.c:3069
+#, c-format
+msgid "   -e --output-exp <outname> Generate an export file.\n"
+msgstr "   -e --output-exp <導出檔>  產生導出檔案。\n"
+
+#: dlltool.c:3070
+#, c-format
+msgid "   -l --output-lib <outname> Generate an interface library.\n"
+msgstr "   -l --output-lib <導出檔>  產生介面函式庫。\n"
+
+#: dlltool.c:3071
+#, c-format
+msgid "   -a --add-indirect         Add dll indirects to export file.\n"
+msgstr "   -a --add-indirect         間接添加 dll 至導出檔案。\n"
+
+#: dlltool.c:3072
+#, c-format
+msgid "   -D --dllname <name>       Name of input dll to put into interface lib.\n"
+msgstr "   -D --dllname <名稱>       要置入介面函式庫的輸入 dll 名稱。\n"
+
+#: dlltool.c:3073
+#, c-format
+msgid "   -d --input-def <deffile>  Name of .def file to be read in.\n"
+msgstr "   -d --input-def <定義檔>   將要讀入的 .def 檔案名。\n"
+
+#: dlltool.c:3074
+#, c-format
+msgid "   -z --output-def <deffile> Name of .def file to be created.\n"
+msgstr "   -z --output-def <定義檔>  將要建立的 .def 檔案名。\n"
+
+#: dlltool.c:3075
+#, c-format
+msgid "      --export-all-symbols   Export all symbols to .def\n"
+msgstr "      --export-all-symbols   將所有符號導出到 .def\n"
+
+#: dlltool.c:3076
+#, c-format
+msgid "      --no-export-all-symbols  Only export listed symbols\n"
+msgstr "      --no-export-all-symbols  只導出列舉的符號\n"
+
+#: dlltool.c:3077
+#, c-format
+msgid "      --exclude-symbols <list> Don't export <list>\n"
+msgstr "      --exclude-symbols <列表> 不要導出 <列表>\n"
+
+#: dlltool.c:3078
+#, c-format
+msgid "      --no-default-excludes  Clear default exclude symbols\n"
+msgstr "      --no-default-excludes  清空預設排除的符號\n"
+
+#: dlltool.c:3079
+#, c-format
+msgid "   -b --base-file <basefile> Read linker generated base file.\n"
+msgstr "   -b --base-file <基本檔>   讀取連接程式所產生的 base 檔案。\n"
+
+#: dlltool.c:3080
+#, c-format
+msgid "   -x --no-idata4            Don't generate idata$4 section.\n"
+msgstr "   -x --no-idata4            不產生 idata$4 區段。\n"
+
+#: dlltool.c:3081
+#, c-format
+msgid "   -c --no-idata5            Don't generate idata$5 section.\n"
+msgstr "   -c --no-idata5            不產生 idata$5 區段。\n"
+
+#: dlltool.c:3082
+#, c-format
+msgid "   -U --add-underscore       Add underscores to symbols in interface library.\n"
+msgstr "   -U --add-underscore       於介面中的符號添加底線。\n"
+
+#: dlltool.c:3083
+#, c-format
+msgid "   -k --kill-at              Kill @<n> from exported names.\n"
+msgstr "   -k --kill-at              刪去導出名稱中的 @<n>。\n"
+
+#: dlltool.c:3084
+#, c-format
+msgid "   -A --add-stdcall-alias    Add aliases without @<n>.\n"
+msgstr "   -A --add-stdcall-alias    添加不帶 @<n> 的別名。\n"
+
+#: dlltool.c:3085
+#, c-format
+msgid "   -p --ext-prefix-alias <prefix> Add aliases with <prefix>.\n"
+msgstr "   -p --ext-prefix-alias <前置>   添加附帶 <前置> 的別名。\n"
+
+#: dlltool.c:3086
+#, c-format
+msgid "   -S --as <name>            Use <name> for assembler.\n"
+msgstr "   -S --as <名稱>            用 <名稱> 做為組譯程式。\n"
+
+#: dlltool.c:3087
+#, c-format
+msgid "   -f --as-flags <flags>     Pass <flags> to the assembler.\n"
+msgstr "   -f --as-flags <旗標>      把 <旗標> 傳遞給組譯程式。\n"
+
+#: dlltool.c:3088
+#, c-format
+msgid "   -C --compat-implib        Create backward compatible import library.\n"
+msgstr "   -C --compat-implib        建立向後相容的導入函式庫。\n"
+
+#: dlltool.c:3089
+#, c-format
+msgid "   -n --no-delete            Keep temp files (repeat for extra preservation).\n"
+msgstr "   -n --no-delete            保留臨時檔案 (重覆以達到額外的保留)。\n"
+
+#: dlltool.c:3090
+#, c-format
+msgid "   -t --temp-prefix <prefix> Use <prefix> to construct temp file names.\n"
+msgstr "   -t --temp-prefix <前置>   使用 <前置> 來建構臨時檔案名稱。\n"
+
+#: dlltool.c:3091
+#, c-format
+msgid "   -v --verbose              Be verbose.\n"
+msgstr "   -v --verbose              輸出更多資訊。\n"
+
+#: dlltool.c:3092
+#, c-format
+msgid "   -V --version              Display the program version.\n"
+msgstr "   -V --version              顯示程式版本號碼。\n"
+
+#: dlltool.c:3093
+#, c-format
+msgid "   -h --help                 Display this information.\n"
+msgstr "   -h --help                 顯示本資訊。\n"
+
+#: dlltool.c:3095
+#, c-format
+msgid "   -M --mcore-elf <outname>  Process mcore-elf object files into <outname>.\n"
+msgstr "   -M --mcore-elf <輸出名稱> 處理 mcore-elf 物件檔案進入 <輸出名稱>。\n"
+
+#: dlltool.c:3096
+#, c-format
+msgid "   -L --linker <name>        Use <name> as the linker.\n"
+msgstr "   -L --linker <名稱>        以 <名稱> 做為連接程式。\n"
+
+#: dlltool.c:3097
+#, c-format
+msgid "   -F --linker-flags <flags> Pass <flags> to the linker.\n"
+msgstr "   -F --linker-flags <旗標>  把 <旗標> 傳遞給連接程式。\n"
+
+#: dlltool.c:3211
+#, c-format
+msgid "Path components stripped from dllname, '%s'."
+msgstr "已從 dll 名稱 '%s' 中截去路徑部分。"
+
+#: dlltool.c:3256
+#, c-format
+msgid "Unable to open base-file: %s"
+msgstr "無法開啟基本檔案：%s"
+
+#: dlltool.c:3288
+#, c-format
+msgid "Machine '%s' not supported"
+msgstr "不支援架構「%s」"
+
+#: dlltool.c:3392 dllwrap.c:209
+#, c-format
+msgid "Tried file: %s"
+msgstr "已試檔案：%s"
+
+#: dlltool.c:3399 dllwrap.c:216
+#, c-format
+msgid "Using file: %s"
+msgstr "正在處理檔案：%s"
+
+#: dllwrap.c:299
+#, c-format
+msgid "Keeping temporary base file %s"
+msgstr "保留臨時 base 檔案 %s"
+
+#: dllwrap.c:301
+#, c-format
+msgid "Deleting temporary base file %s"
+msgstr "刪除臨時 base 檔案 %s"
+
+#: dllwrap.c:315
+#, c-format
+msgid "Keeping temporary exp file %s"
+msgstr "保留臨時 exp 檔案 %s"
+
+#: dllwrap.c:317
+#, c-format
+msgid "Deleting temporary exp file %s"
+msgstr "刪除臨時 exp 檔案 %s"
+
+#: dllwrap.c:330
+#, c-format
+msgid "Keeping temporary def file %s"
+msgstr "保留臨時 def 檔案 %s"
+
+#: dllwrap.c:332
+#, c-format
+msgid "Deleting temporary def file %s"
+msgstr "刪除臨時 def 檔案 %s"
+
+#: dllwrap.c:480
+#, c-format
+msgid "  Generic options:\n"
+msgstr "  通用選項：\n"
+
+#: dllwrap.c:481
+#, c-format
+msgid "   --quiet, -q            Work quietly\n"
+msgstr "   --quiet, -q            安靜地工作\n"
+
+#: dllwrap.c:482
+#, c-format
+msgid "   --verbose, -v          Verbose\n"
+msgstr "   --verbose, -v          輸出較多資訊\n"
+
+#: dllwrap.c:483
+#, c-format
+msgid "   --version              Print dllwrap version\n"
+msgstr "   --version              列印 dllwrap 的版本號\n"
+
+#: dllwrap.c:484
+#, c-format
+msgid "   --implib <outname>     Synonym for --output-lib\n"
+msgstr "   --implib <outname>     --output-lib 的同義語\n"
+
+#: dllwrap.c:485
+#, c-format
+msgid "  Options for %s:\n"
+msgstr "  %s 的選項：\n"
+
+#: dllwrap.c:486
+#, c-format
+msgid "   --driver-name <driver> Defaults to \"gcc\"\n"
+msgstr "   --driver-name <驅動器> 預設為「gcc」\n"
+
+#: dllwrap.c:487
+#, c-format
+msgid "   --driver-flags <flags> Override default ld flags\n"
+msgstr "   --driver-flags <旗標>  覆蓋預設的 ld 旗標\n"
+
+#: dllwrap.c:488
+#, c-format
+msgid "   --dlltool-name <dlltool> Defaults to \"dlltool\"\n"
+msgstr "   --dlltool-name <dlltool> 預設為「dlltool」\n"
+
+#: dllwrap.c:489
+#, c-format
+msgid "   --entry <entry>        Specify alternate DLL entry point\n"
+msgstr "   --entry <入口>         指定額外的 DLL 進入點\n"
+
+#: dllwrap.c:490
+#, c-format
+msgid "   --image-base <base>    Specify image base address\n"
+msgstr "   --image-base <基址>    指定映像的基本位址\n"
+
+#: dllwrap.c:491
+#, c-format
+msgid "   --target <machine>     i386-cygwin32 or i386-mingw32\n"
+msgstr "   --target <架構>        i386-cygwin32 或 i386-mingw32\n"
+
+#: dllwrap.c:492
+#, c-format
+msgid "   --dry-run              Show what needs to be run\n"
+msgstr "   --dry-run              只顯示需要執行那些動作\n"
+
+#: dllwrap.c:493
+#, c-format
+msgid "   --mno-cygwin           Create Mingw DLL\n"
+msgstr "   --mno-cygwin           建立 Mingw DLL\n"
+
+#: dllwrap.c:494
+#, c-format
+msgid "  Options passed to DLLTOOL:\n"
+msgstr "  傳遞給 DLLTOOL 的選項：\n"
+
+#: dllwrap.c:495
+#, c-format
+msgid "   --machine <machine>\n"
+msgstr "   --machine <架構>\n"
+
+#: dllwrap.c:496
+#, c-format
+msgid "   --output-exp <outname> Generate export file.\n"
+msgstr "   --output-exp <導出名>  產生導出檔案。\n"
+
+#: dllwrap.c:497
+#, c-format
+msgid "   --output-lib <outname> Generate input library.\n"
+msgstr "   --output-lib <導出名>  產生輸入函式庫。\n"
+
+#: dllwrap.c:498
+#, c-format
+msgid "   --add-indirect         Add dll indirects to export file.\n"
+msgstr "   --add-indirect         間接添加 dll 至導出檔案。\n"
+
+#: dllwrap.c:499
+#, c-format
+msgid "   --dllname <name>       Name of input dll to put into output lib.\n"
+msgstr "   --dllname <名稱>       要置入輸出函式庫的輸入 dll 名稱。\n"
+
+#: dllwrap.c:500
+#, c-format
+msgid "   --def <deffile>        Name input .def file\n"
+msgstr "   --def <deffile>        輸入 .def 檔案的名稱\n"
+
+#: dllwrap.c:501
+#, c-format
+msgid "   --output-def <deffile> Name output .def file\n"
+msgstr "   --output-def <deffile> 輸出 .def 檔案的名稱\n"
+
+#: dllwrap.c:502
+#, c-format
+msgid "   --export-all-symbols     Export all symbols to .def\n"
+msgstr "   --export-all-symbols     將所有符號導出到 .def 中\n"
+
+#: dllwrap.c:503
+#, c-format
+msgid "   --no-export-all-symbols  Only export .drectve symbols\n"
+msgstr "   --no-export-all-symbols  只導出符號 .drectve\n"
+
+#: dllwrap.c:504
+#, c-format
+msgid "   --exclude-symbols <list> Exclude <list> from .def\n"
+msgstr "   --exclude-symbols <列表> 從 .def 中排除 <列表>\n"
+
+#: dllwrap.c:505
+#, c-format
+msgid "   --no-default-excludes    Zap default exclude symbols\n"
+msgstr "   --no-default-excludes    清空預設排除的符號\n"
+
+#: dllwrap.c:506
+#, c-format
+msgid "   --base-file <basefile> Read linker generated base file\n"
+msgstr "   --base-file <basefile> Read linker generated base file\n"
+
+#: dllwrap.c:507
+#, c-format
+msgid "   --no-idata4           Don't generate idata$4 section\n"
+msgstr "   --no-idata4           不產生 idata$4 區段\n"
+
+#: dllwrap.c:508
+#, c-format
+msgid "   --no-idata5           Don't generate idata$5 section\n"
+msgstr "   --no-idata5           不產生 idata$5 區段\n"
+
+#: dllwrap.c:509
+#, c-format
+msgid "   -U                     Add underscores to .lib\n"
+msgstr "   -U                     為 .lib 添加底線\n"
+
+#: dllwrap.c:510
+#, c-format
+msgid "   -k                     Kill @<n> from exported names\n"
+msgstr "   -k                     刪去導出名字中的 @<n>\n"
+
+#: dllwrap.c:511
+#, c-format
+msgid "   --add-stdcall-alias    Add aliases without @<n>\n"
+msgstr "   --add-stdcall-alias    添加不帶 @<n> 的別名\n"
+
+#: dllwrap.c:512
+#, c-format
+msgid "   --as <name>            Use <name> for assembler\n"
+msgstr "   --as <名稱>            以 <名稱> 做為組譯程式\n"
+
+#: dllwrap.c:513
+#, c-format
+msgid "   --nodelete             Keep temp files.\n"
+msgstr "   --nodelete             保留臨時檔案。\n"
+
+#: dllwrap.c:514
+#, c-format
+msgid "  Rest are passed unmodified to the language driver\n"
+msgstr "  其餘的都不加任何修改地傳遞給語言驅動器\n"
+
+#: dllwrap.c:784
+msgid "Must provide at least one of -o or --dllname options"
+msgstr "必須提供至少一個 -o 或 --dllname 選項"
+
+#: dllwrap.c:813
+msgid ""
+"no export definition file provided.\n"
+"Creating one, but that may not be what you want"
+msgstr ""
+"未提供導出定義檔案。\n"
+"現在建立一個，但可能不是您所要的"
+
+#: dllwrap.c:972
+#, c-format
+msgid "DLLTOOL name    : %s\n"
+msgstr "DLLTOOL 名稱    ：%s\n"
+
+#: dllwrap.c:973
+#, c-format
+msgid "DLLTOOL options : %s\n"
+msgstr "DLLTOOL 選項    ：%s\n"
+
+#: dllwrap.c:974
+#, c-format
+msgid "DRIVER name     : %s\n"
+msgstr "驅動器名稱      ：%s\n"
+
+#: dllwrap.c:975
+#, c-format
+msgid "DRIVER options  : %s\n"
+msgstr "驅動器選項      ：%s\n"
+
+#: emul_aix.c:51
+#, c-format
+msgid "  [-g]         - 32 bit small archive\n"
+msgstr "  [-g]         - 32 位元小型保存檔\n"
+
+#: emul_aix.c:52
+#, c-format
+msgid "  [-X32]       - ignores 64 bit objects\n"
+msgstr "  [-X32]       - 忽略 64 位元物件\n"
+
+#: emul_aix.c:53
+#, c-format
+msgid "  [-X64]       - ignores 32 bit objects\n"
+msgstr "  [-X64]       - 忽略 32 位元物件\n"
+
+#: emul_aix.c:54
+#, c-format
+msgid "  [-X32_64]    - accepts 32 and 64 bit objects\n"
+msgstr "  [-X32_64]    - 接受 32 位元和 64 位元物件\n"
+
+#: ieee.c:311
+msgid "unexpected end of debugging information"
+msgstr "除錯資訊意外結束"
+
+#: ieee.c:398
+msgid "invalid number"
+msgstr "無效的編號"
+
+#: ieee.c:451
+msgid "invalid string length"
+msgstr "無效的字串長度"
+
+#: ieee.c:506 ieee.c:547
+msgid "expression stack overflow"
+msgstr "表示式堆疊向上溢出"
+
+#: ieee.c:526
+msgid "unsupported IEEE expression operator"
+msgstr "不支援的 IEEE 表示式運算子"
+
+#: ieee.c:541
+msgid "unknown section"
+msgstr "未知的區段"
+
+#: ieee.c:562
+msgid "expression stack underflow"
+msgstr "表示式堆疊向下溢出"
+
+#: ieee.c:576
+msgid "expression stack mismatch"
+msgstr "表示式堆疊不匹配"
+
+#: ieee.c:613
+msgid "unknown builtin type"
+msgstr "未知的內建類型"
+
+#: ieee.c:758
+msgid "BCD float type not supported"
+msgstr "不支援的 BCD 浮點類型"
+
+#: ieee.c:895
+msgid "unexpected number"
+msgstr "意外的編號"
+
+#: ieee.c:902
+msgid "unexpected record type"
+msgstr "意外的紀錄類型"
+
+#: ieee.c:935
+msgid "blocks left on stack at end"
+msgstr "結束時仍留在堆疊中的區塊"
+
+#: ieee.c:1198
+msgid "unknown BB type"
+msgstr "未知的 BB 類型"
+
+#: ieee.c:1207
+msgid "stack overflow"
+msgstr "堆疊向上溢出"
+
+#: ieee.c:1230
+msgid "stack underflow"
+msgstr "堆疊向下溢出"
+
+#: ieee.c:1342 ieee.c:1412 ieee.c:2109
+msgid "illegal variable index"
+msgstr "不正確的變數索引"
+
+#: ieee.c:1390
+msgid "illegal type index"
+msgstr "不正確的類型索引"
+
+#: ieee.c:1400 ieee.c:1437
+msgid "unknown TY code"
+msgstr "未知的 TY 代碼"
+
+#: ieee.c:1419
+msgid "undefined variable in TY"
+msgstr "TY 中未定義的變量"
+
+#. Pascal file name.  FIXME.
+#: ieee.c:1830
+msgid "Pascal file name not supported"
+msgstr "不支援 Pascal 檔案名"
+
+#: ieee.c:1878
+msgid "unsupported qualifier"
+msgstr "不支援的限定符號"
+
+#: ieee.c:2147
+msgid "undefined variable in ATN"
+msgstr "ATN 中未定義的變數"
+
+#: ieee.c:2190
+msgid "unknown ATN type"
+msgstr "未知的 ATN 類型"
+
+#. Reserved for FORTRAN common.
+#: ieee.c:2312
+msgid "unsupported ATN11"
+msgstr "不支援 ATN11"
+
+#. We have no way to record this information.  FIXME.
+#: ieee.c:2339
+msgid "unsupported ATN12"
+msgstr "不支援 ATN12"
+
+#: ieee.c:2399
+msgid "unexpected string in C++ misc"
+msgstr "意外的 C++ 雜項字串"
+
+#: ieee.c:2412
+msgid "bad misc record"
+msgstr "不良的雜項記錄"
+
+#: ieee.c:2453
+msgid "unrecognized C++ misc record"
+msgstr "無法識別的 C++ 雜項紀錄"
+
+#: ieee.c:2568
+msgid "undefined C++ object"
+msgstr "未定義的 C++ 物件"
+
+#: ieee.c:2602
+msgid "unrecognized C++ object spec"
+msgstr "無法識別的 C++ 物件規格"
+
+#: ieee.c:2638
+msgid "unsupported C++ object type"
+msgstr "不支援的 C++ 物件類型"
+
+#: ieee.c:2648
+msgid "C++ base class not defined"
+msgstr "未定義 C++ 基本類別"
+
+#: ieee.c:2660 ieee.c:2765
+msgid "C++ object has no fields"
+msgstr "C++ 物件沒有欄位"
+
+#: ieee.c:2679
+msgid "C++ base class not found in container"
+msgstr "容器中找不到 C++ 基本類別"
+
+#: ieee.c:2786
+msgid "C++ data member not found in container"
+msgstr "容器中找不到 C++ 資料成員"
+
+#: ieee.c:2827 ieee.c:2977
+msgid "unknown C++ visibility"
+msgstr "未知的 C++ 可見度"
+
+#: ieee.c:2861
+msgid "bad C++ field bit pos or size"
+msgstr "不良的 C++ 欄位位元位置或大小"
+
+#: ieee.c:2953
+msgid "bad type for C++ method function"
+msgstr "不良的 C++ 方法函式類型"
+
+#: ieee.c:2963
+msgid "no type information for C++ method function"
+msgstr "對於 C++ 方法函式沒有類型資訊"
+
+#: ieee.c:3002
+msgid "C++ static virtual method"
+msgstr "C++ 靜態虛擬方法"
+
+#: ieee.c:3097
+msgid "unrecognized C++ object overhead spec"
+msgstr "無法識別的 C++ 物件頂層規格"
+
+#: ieee.c:3136
+msgid "undefined C++ vtable"
+msgstr "未定義的 C++ vtable"
+
+#: ieee.c:3205
+msgid "C++ default values not in a function"
+msgstr "C++ 預設值不在函式之中"
+
+#: ieee.c:3245
+msgid "unrecognized C++ default type"
+msgstr "無法識別的 C++ 預設類型"
+
+#: ieee.c:3276
+msgid "reference parameter is not a pointer"
+msgstr "參考參數不是指標"
+
+#: ieee.c:3359
+msgid "unrecognized C++ reference type"
+msgstr "無法識別的 C++ 參考類型"
+
+#: ieee.c:3441
+msgid "C++ reference not found"
+msgstr "找不到 C++ 參考"
+
+#: ieee.c:3449
+msgid "C++ reference is not pointer"
+msgstr "C++ 參考不是指標"
+
+#: ieee.c:3475 ieee.c:3483
+msgid "missing required ASN"
+msgstr "遺失必須的 ASN"
+
+#: ieee.c:3510 ieee.c:3518
+msgid "missing required ATN65"
+msgstr "遺失必須的 ATN65"
+
+#: ieee.c:3532
+msgid "bad ATN65 record"
+msgstr "不良的 ATN65 記錄"
+
+#: ieee.c:4160
+#, c-format
+msgid "IEEE numeric overflow: 0x"
+msgstr "IEEE 數值溢出：0x"
+
+#: ieee.c:4204
+#, c-format
+msgid "IEEE string length overflow: %u\n"
+msgstr "IEEE 字串長度溢出：%u\n"
+
+#: ieee.c:5203
+#, c-format
+msgid "IEEE unsupported integer type size %u\n"
+msgstr "IEEE 不支援的整數類型大小 %u\n"
+
+#: ieee.c:5237
+#, c-format
+msgid "IEEE unsupported float type size %u\n"
+msgstr "IEEE 不支援的浮點類型大小 %u\n"
+
+#: ieee.c:5271
+#, c-format
+msgid "IEEE unsupported complex type size %u\n"
+msgstr "IEEE 不支援的複數類型大小 %u\n"
+
+#: nlmconv.c:267 srconv.c:1810
+msgid "input and output files must be different"
+msgstr "輸入輸出檔案必須不同"
+
+#: nlmconv.c:314
+msgid "input file named both on command line and with INPUT"
+msgstr "同時在命令列和 INPUT 中輸入檔案名稱"
+
+#: nlmconv.c:323
+msgid "no input file"
+msgstr "沒有輸入檔案"
+
+#: nlmconv.c:353
+msgid "no name for output file"
+msgstr "輸出檔案沒有名稱"
+
+#: nlmconv.c:367
+msgid "warning: input and output formats are not compatible"
+msgstr "警告：輸入和輸出格式不相容"
+
+#: nlmconv.c:396
+msgid "make .bss section"
+msgstr "產生 .bss 區段"
+
+#: nlmconv.c:405
+msgid "make .nlmsections section"
+msgstr "產生 .nlmsections 區段"
+
+#: nlmconv.c:407
+msgid "set .nlmsections flags"
+msgstr "設定 .nlmsections 旗標"
+
+#: nlmconv.c:435
+msgid "set .bss vma"
+msgstr "設定 .bss vma"
+
+#: nlmconv.c:442
+msgid "set .data size"
+msgstr "設定 .data 的大小"
+
+#: nlmconv.c:622
+#, c-format
+msgid "warning: symbol %s imported but not in import list"
+msgstr "警告：導入的符號 %s 不在導入列表中"
+
+#: nlmconv.c:642
+msgid "set start address"
+msgstr "設定起始位址"
+
+#: nlmconv.c:691
+#, c-format
+msgid "warning: START procedure %s not defined"
+msgstr "警告：未定義 START 子程序 %s"
+
+#: nlmconv.c:693
+#, c-format
+msgid "warning: EXIT procedure %s not defined"
+msgstr "警告：未定義 EXIT 子程序 %s"
+
+#: nlmconv.c:695
+#, c-format
+msgid "warning: CHECK procedure %s not defined"
+msgstr "警告：未定義 CHECK 子程序 %s"
+
+#: nlmconv.c:716 nlmconv.c:905
+msgid "custom section"
+msgstr "自訂區段"
+
+#: nlmconv.c:737 nlmconv.c:934
+msgid "help section"
+msgstr "輔助區段"
+
+#: nlmconv.c:759 nlmconv.c:952
+msgid "message section"
+msgstr "訊息區段"
+
+#: nlmconv.c:775 nlmconv.c:985
+msgid "module section"
+msgstr "模組區段"
+
+#: nlmconv.c:795 nlmconv.c:1001
+msgid "rpc section"
+msgstr "rpc 區段"
+
+#. There is no place to record this information.
+#: nlmconv.c:831
+#, c-format
+msgid "%s: warning: shared libraries can not have uninitialized data"
+msgstr "%s：警告：共享函式庫不能含有未初始化的資料"
+
+#: nlmconv.c:852 nlmconv.c:1020
+msgid "shared section"
+msgstr "共享區段"
+
+#: nlmconv.c:860
+msgid "warning: No version number given"
+msgstr "警告：未指定版本號"
+
+#: nlmconv.c:900 nlmconv.c:929 nlmconv.c:947 nlmconv.c:996 nlmconv.c:1015
+#, c-format
+msgid "%s: read: %s"
+msgstr "%s：讀取：%s"
+
+#: nlmconv.c:922
+msgid "warning: FULLMAP is not supported; try ld -M"
+msgstr "警告：不支援 FULLMAP；請試用 ld -M"
+
+#: nlmconv.c:1098
+#, c-format
+msgid "Usage: %s [option(s)] [in-file [out-file]]\n"
+msgstr "用法：%s [選項] [輸入檔案 [輸出檔案]]\n"
+
+#: nlmconv.c:1099
+#, c-format
+msgid " Convert an object file into a NetWare Loadable Module\n"
+msgstr " 將物件檔案轉換為  NetWare 可載入模組\n"
+
+#: nlmconv.c:1100
+#, c-format
+msgid ""
+" The options are:\n"
+"  -I --input-target=<bfdname>   Set the input binary file format\n"
+"  -O --output-target=<bfdname>  Set the output binary file format\n"
+"  -T --header-file=<file>       Read <file> for NLM header information\n"
+"  -l --linker=<linker>          Use <linker> for any linking\n"
+"  -d --debug                    Display on stderr the linker command line\n"
+"  -h --help                     Display this information\n"
+"  -v --version                  Display the program's version\n"
+msgstr ""
+" 選項為：\n"
+"  -I --input-target=<bfdname>   設定輸入二進位檔案格式\n"
+"  -O --output-target=<bfdname>  設定輸出二進位檔案格式\n"
+"  -T --header-file=<file>       從 <file> 中讀入 NLM 頭資訊\n"
+"  -l --linker=<linker>          在所有連接中使用 <linker>\n"
+"  -d --debug                    在標準錯誤輸出中顯示連接器命令列\n"
+"  -h --help                     顯示本資訊\n"
+"  -v --version                  顯示程式的版本號\n"
+
+#: nlmconv.c:1140
+#, c-format
+msgid "support not compiled in for %s"
+msgstr "未將對於 %s 的支援編譯進去"
+
+#: nlmconv.c:1177
+msgid "make section"
+msgstr "製作區段"
+
+#: nlmconv.c:1191
+msgid "set section size"
+msgstr "設定區段大小"
+
+#: nlmconv.c:1197
+msgid "set section alignment"
+msgstr "設定區段對齊"
+
+#: nlmconv.c:1201
+msgid "set section flags"
+msgstr "設定區段旗標"
+
+#: nlmconv.c:1212
+msgid "set .nlmsections size"
+msgstr "設定 .nlmsections 大小"
+
+#: nlmconv.c:1293 nlmconv.c:1301 nlmconv.c:1310 nlmconv.c:1315
+msgid "set .nlmsection contents"
+msgstr "設定 .nlmsection 內容"
+
+#: nlmconv.c:1794
+msgid "stub section sizes"
+msgstr "佔位區段大小"
+
+#: nlmconv.c:1841
+msgid "writing stub"
+msgstr "正在寫入佔位區段"
+
+#: nlmconv.c:1925
+#, c-format
+msgid "unresolved PC relative reloc against %s"
+msgstr "無法解析的以 %s 為準之 PC 相對重定位"
+
+#: nlmconv.c:1989
+#, c-format
+msgid "overflow when adjusting relocation against %s"
+msgstr "以 %s 為準對齊重定位時發生溢出"
+
+#: nlmconv.c:2116
+#, c-format
+msgid "%s: execution of %s failed: "
+msgstr "%s：執行 %s 失敗："
+
+#: nlmconv.c:2131
+#, c-format
+msgid "Execution of %s failed"
+msgstr "執行 %s 失敗"
+
+#: nm.c:224 size.c:80 strings.c:651
+#, c-format
+msgid "Usage: %s [option(s)] [file(s)]\n"
+msgstr "用法：%s [選項] [檔案]\n"
+
+#: nm.c:225
+#, c-format
+msgid " List symbols in [file(s)] (a.out by default).\n"
+msgstr "列舉 [檔案] 中的符號 (預設為 a.out)。\n"
+
+#: nm.c:226
+#, c-format
+msgid ""
+" The options are:\n"
+"  -a, --debug-syms       Display debugger-only symbols\n"
+"  -A, --print-file-name  Print name of the input file before every symbol\n"
+"  -B                     Same as --format=bsd\n"
+"  -C, --demangle[=STYLE] Decode low-level symbol names into user-level names\n"
+"                          The STYLE, if specified, can be `auto' (the default),\n"
+"                          `gnu', `lucid', `arm', `hp', `edg', `gnu-v3', `java'\n"
+"                          or `gnat'\n"
+"      --no-demangle      Do not demangle low-level symbol names\n"
+"  -D, --dynamic          Display dynamic symbols instead of normal symbols\n"
+"      --defined-only     Display only defined symbols\n"
+"  -e                     (ignored)\n"
+"  -f, --format=FORMAT    Use the output format FORMAT.  FORMAT can be `bsd',\n"
+"                           `sysv' or `posix'.  The default is `bsd'\n"
+"  -g, --extern-only      Display only external symbols\n"
+"  -l, --line-numbers     Use debugging information to find a filename and\n"
+"                           line number for each symbol\n"
+"  -n, --numeric-sort     Sort symbols numerically by address\n"
+"  -o                     Same as -A\n"
+"  -p, --no-sort          Do not sort the symbols\n"
+"  -P, --portability      Same as --format=posix\n"
+"  -r, --reverse-sort     Reverse the sense of the sort\n"
+"  -S, --print-size       Print size of defined symbols\n"
+"  -s, --print-armap      Include index for symbols from archive members\n"
+"      --size-sort        Sort symbols by size\n"
+"      --special-syms     Include special symbols in the output\n"
+"      --synthetic        Display synthetic symbols as well\n"
+"  -t, --radix=RADIX      Use RADIX for printing symbol values\n"
+"      --target=BFDNAME   Specify the target object format as BFDNAME\n"
+"  -u, --undefined-only   Display only undefined symbols\n"
+"  -X 32_64               (ignored)\n"
+"  -h, --help             Display this information\n"
+"  -V, --version          Display this program's version number\n"
+"\n"
+msgstr ""
+" 選項為：\n"
+"  -a, --debug-syms       顯示只用於除錯的符號\n"
+"  -A, --print-file-name  在每個符號前印出輸入檔案名\n"
+"  -B                     與 --format=bsd 相同\n"
+"  -C, --demangle[=STYLE] 將低階符號名稱解碼為用戶階層名稱\n"
+"                          如果指定 STYLE，STYLE 可能為「auto」(預設)、\n"
+"                         「gnu」、「lucid」、「arm」、「hp」、「edg」、\n"
+"                         「gnu-v3」、「java」或「gnat」\n"
+"      --no-demangle      不要解碼低階符號名稱\n"
+"  -D, --dynamic          顯示動態符號而不是普通符號\n"
+"      --defined-only     只顯示已定義的符號\n"
+"  -e                     (忽略)\n"
+"  -f, --format=FORMAT    使用輸出格式 FORMAT。FORMAT 可能是「bsd」、\n"
+"                          「sysv」或「posix」。預設為「bsd」\n"
+"  -g, --extern-only      只顯示外部符號\n"
+"  -l, --line-numbers     使用除錯資訊以便為每個符號尋找檔案名和列號\n"
+"  -n, --numeric-sort     按位址排序符號\n"
+"  -o                     與 -A 相同\n"
+"  -p, --no-sort          不要對符號進行排序\n"
+"  -P, --portability      與 --format=posix 相同\n"
+"  -r, --reverse-sort     反轉排序順序\n"
+"  -S, --print-size       列印定義了的符號的大小\n"
+"  -s, --print-armap      列印保存檔成員中符號的索引\n"
+"      --size-sort        按大小排序符號\n"
+"      --special-syms     在輸出中包含特殊符號\n"
+"      --synthetic        同樣也顯示合成的符號\n"
+"  -t, --radix=RADIX      將 RADIX 用於印出符號值\n"
+"      --target=BFDNAME   將標的目標物件格式指定為 BFDNAME\n"
+"  -u, --undefined-only   只顯示未定義的符號\n"
+"  -X 32_64               (忽略)\n"
+"  -h, --help             顯示本資訊\n"
+"  -V, --version          顯示本程式的版本號碼\n"
+"\n"
+
+#: nm.c:262 objdump.c:232
+#, c-format
+msgid "Report bugs to %s.\n"
+msgstr "將程式錯誤報告到 %s。\n"
+
+#: nm.c:294
+#, c-format
+msgid "%s: invalid radix"
+msgstr "%s：無效的基數"
+
+#: nm.c:318
+#, c-format
+msgid "%s: invalid output format"
+msgstr "%s：無效的輸出格式"
+
+#: nm.c:339 readelf.c:6342 readelf.c:6378
+#, c-format
+msgid "<processor specific>: %d"
+msgstr "<特定處理器>：%d"
+
+#: nm.c:341 readelf.c:6345 readelf.c:6390
+#, c-format
+msgid "<OS specific>: %d"
+msgstr "<特定作業系統>：%d"
+
+#: nm.c:343 readelf.c:6347 readelf.c:6393
+#, c-format
+msgid "<unknown>: %d"
+msgstr "<未知>：%d"
+
+#: nm.c:380
+#, c-format
+msgid ""
+"\n"
+"Archive index:\n"
+msgstr ""
+"\n"
+"保存檔索引：\n"
+
+#: nm.c:1225
+#, c-format
+msgid ""
+"\n"
+"\n"
+"Undefined symbols from %s:\n"
+"\n"
+msgstr ""
+"\n"
+"\n"
+"來自 %s 的未定義符號：\n"
+"\n"
+
+#: nm.c:1227
+#, c-format
+msgid ""
+"\n"
+"\n"
+"Symbols from %s:\n"
+"\n"
+msgstr ""
+"\n"
+"\n"
+"來自 %s 的符號：\n"
+"\n"
+
+#: nm.c:1229 nm.c:1280
+#, c-format
+msgid ""
+"Name                  Value   Class        Type         Size     Line  Section\n"
+"\n"
+msgstr ""
+"名稱                  值      類別         型態         大小     列號  區段\n"
+"\n"
+
+#: nm.c:1232 nm.c:1283
+#, c-format
+msgid ""
+"Name                  Value           Class        Type         Size             Line  Section\n"
+"\n"
+msgstr ""
+"名稱                  值              類別         型態         大小             列號  區段\n"
+"\n"
+
+#: nm.c:1276
+#, c-format
+msgid ""
+"\n"
+"\n"
+"Undefined symbols from %s[%s]:\n"
+"\n"
+msgstr ""
+"\n"
+"\n"
+"來自 %s[%s] 的未定義的符號：\n"
+"\n"
+
+#: nm.c:1278
+#, c-format
+msgid ""
+"\n"
+"\n"
+"Symbols from %s[%s]:\n"
+"\n"
+msgstr ""
+"\n"
+"\n"
+"來自 %s[%s] 的符號：\n"
+"\n"
+
+#: nm.c:1580
+msgid "Only -X 32_64 is supported"
+msgstr "只支援 -X 32_64"
+
+#: nm.c:1600
+msgid "Using the --size-sort and --undefined-only options together"
+msgstr "同時使用 --size-sort 與 --undefined-only 選項"
+
+#: nm.c:1601
+msgid "will produce no output, since undefined symbols have no size."
+msgstr "由於未定義的符號不具大小，將不會產生輸出"
+
+#: nm.c:1629
+#, c-format
+msgid "data size %ld"
+msgstr "資料大小 %ld"
+
+#: objcopy.c:396 srconv.c:1721
+#, c-format
+msgid "Usage: %s [option(s)] in-file [out-file]\n"
+msgstr "用法：%s [選項] 輸入檔案 [輸出檔案]\n"
+
+#: objcopy.c:397
+#, c-format
+msgid " Copies a binary file, possibly transforming it in the process\n"
+msgstr " 複製二進位檔案，它可能在此過程中進行變換\n"
+
+#: objcopy.c:398 objcopy.c:487
+#, c-format
+msgid " The options are:\n"
+msgstr " 選項為：\n"
+
+#: objcopy.c:399
+#, c-format
+msgid ""
+"  -I --input-target <bfdname>      Assume input file is in format <bfdname>\n"
+"  -O --output-target <bfdname>     Create an output file in format <bfdname>\n"
+"  -B --binary-architecture <arch>  Set arch of output file, when input is binary\n"
+"  -F --target <bfdname>            Set both input and output format to <bfdname>\n"
+"     --debugging                   Convert debugging information, if possible\n"
+"  -p --preserve-dates              Copy modified/access timestamps to the output\n"
+"  -j --only-section <name>         Only copy section <name> into the output\n"
+"     --add-gnu-debuglink=<file>    Add section .gnu_debuglink linking to <file>\n"
+"  -R --remove-section <name>       Remove section <name> from the output\n"
+"  -S --strip-all                   Remove all symbol and relocation information\n"
+"  -g --strip-debug                 Remove all debugging symbols & sections\n"
+"     --strip-unneeded              Remove all symbols not needed by relocations\n"
+"  -N --strip-symbol <name>         Do not copy symbol <name>\n"
+"     --strip-unneeded-symbol <name>\n"
+"                                   Do not copy symbol <name> unless needed by\n"
+"                                     relocations\n"
+"     --only-keep-debug             Strip everything but the debug information\n"
+"  -K --keep-symbol <name>          Only copy symbol <name>\n"
+"  -L --localize-symbol <name>      Force symbol <name> to be marked as a local\n"
+"  -G --keep-global-symbol <name>   Localize all symbols except <name>\n"
+"  -W --weaken-symbol <name>        Force symbol <name> to be marked as a weak\n"
+"     --weaken                      Force all global symbols to be marked as weak\n"
+"  -w --wildcard                    Permit wildcard in symbol comparison\n"
+"  -x --discard-all                 Remove all non-global symbols\n"
+"  -X --discard-locals              Remove any compiler-generated symbols\n"
+"  -i --interleave <number>         Only copy one out of every <number> bytes\n"
+"  -b --byte <num>                  Select byte <num> in every interleaved block\n"
+"     --gap-fill <val>              Fill gaps between sections with <val>\n"
+"     --pad-to <addr>               Pad the last section up to address <addr>\n"
+"     --set-start <addr>            Set the start address to <addr>\n"
+"    {--change-start|--adjust-start} <incr>\n"
+"                                   Add <incr> to the start address\n"
+"    {--change-addresses|--adjust-vma} <incr>\n"
+"                                   Add <incr> to LMA, VMA and start addresses\n"
+"    {--change-section-address|--adjust-section-vma} <name>{=|+|-}<val>\n"
+"                                   Change LMA and VMA of section <name> by <val>\n"
+"     --change-section-lma <name>{=|+|-}<val>\n"
+"                                   Change the LMA of section <name> by <val>\n"
+"     --change-section-vma <name>{=|+|-}<val>\n"
+"                                   Change the VMA of section <name> by <val>\n"
+"    {--[no-]change-warnings|--[no-]adjust-warnings}\n"
+"                                   Warn if a named section does not exist\n"
+"     --set-section-flags <name>=<flags>\n"
+"                                   Set section <name>'s properties to <flags>\n"
+"     --add-section <name>=<file>   Add section <name> found in <file> to output\n"
+"     --rename-section <old>=<new>[,<flags>] Rename section <old> to <new>\n"
+"     --change-leading-char         Force output format's leading character style\n"
+"     --remove-leading-char         Remove leading character from global symbols\n"
+"     --redefine-sym <old>=<new>    Redefine symbol name <old> to <new>\n"
+"     --redefine-syms <file>        --redefine-sym for all symbol pairs \n"
+"                                     listed in <file>\n"
+"     --srec-len <number>           Restrict the length of generated Srecords\n"
+"     --srec-forceS3                Restrict the type of generated Srecords to S3\n"
+"     --strip-symbols <file>        -N for all symbols listed in <file>\n"
+"     --strip-unneeded-symbols <file>\n"
+"                                   --strip-unneeded-symbol for all symbols listed\n"
+"                                     in <file>\n"
+"     --keep-symbols <file>         -K for all symbols listed in <file>\n"
+"     --localize-symbols <file>     -L for all symbols listed in <file>\n"
+"     --keep-global-symbols <file>  -G for all symbols listed in <file>\n"
+"     --weaken-symbols <file>       -W for all symbols listed in <file>\n"
+"     --alt-machine-code <index>    Use alternate machine code for output\n"
+"     --writable-text               Mark the output text as writable\n"
+"     --readonly-text               Make the output text write protected\n"
+"     --pure                        Mark the output file as demand paged\n"
+"     --impure                      Mark the output file as impure\n"
+"     --prefix-symbols <prefix>     Add <prefix> to start of every symbol name\n"
+"     --prefix-sections <prefix>    Add <prefix> to start of every section name\n"
+"     --prefix-alloc-sections <prefix>\n"
+"                                   Add <prefix> to start of every allocatable\n"
+"                                     section name\n"
+"  -v --verbose                     List all object files modified\n"
+"  -V --version                     Display this program's version number\n"
+"  -h --help                        Display this output\n"
+"     --info                        List object formats & architectures supported\n"
+msgstr ""
+"  -I --input-target <bfdname>      假定輸入檔案的格式為 <bfdname>\n"
+"  -O --output-target <bfdname>     建立格式為 <bfdname> 的輸出檔案\n"
+"  -B --binary-architecture <arch>  當輸入檔案為二進位檔案時，設定輸出檔案的系統架構\n"
+"  -F --target <bfdname>            將輸入輸出格式設定為 <bfdname>\n"
+"     --debugging                   如果可能，轉換除錯資訊\n"
+"  -p --preserve-dates              將修改/存取時間戳記複製到輸出檔案\n"
+"  -j --only-section <name>         只將 <name> 區段複製到輸出檔案中\n"
+"     --add-gnu-debuglink=<file>    添加區段 .gnu_debuglink 的連結到 <file>\n"
+"  -R --remove-section <name>       從輸出中刪除 <name> 區段\n"
+"  -S --strip-all                   除去所有符號和重定位資訊\n"
+"  -g --strip-debug                 除去所有除錯符號\n"
+"     --strip-unneeded              除去所有重定位不需要的符號\n"
+"  -N --strip-symbol <name>         不要複製符號 <name>\n"
+"     --strip-unneeded-symbol <name>\n"
+"                                   不要複製符號 <name> 除非重定位時需要\n"
+"     --only-keep-debug             除去除錯相關以外的所有資訊\n"
+"  -K --keep-symbol <name>          只複製符號 <name>\n"
+"  -L --localize-symbol <name>      將符號 <name> 強制標識為本地符號\n"
+"  -G --keep-global-symbol <name>   將除了 <name> 以外的所有符號標識為本地\n"
+"  -W --weaken-symbol <name>        將符號 <name> 強制標識為弱符號\n"
+"     --weaken                      將所有全域符號標識為弱符號\n"
+"  -x --discard-all                 刪除所有非全域符號\n"
+"  -X --discard-locals              刪除所有編譯器產生的符號\n"
+"  -i --interleave <number>         只在每 <number> 個位元組中複製一個\n"
+"  -b --byte <num>                  在每個插入區塊中選擇位元組 <num>\n"
+"     --gap-fill <val>              在區段空隙中以 <val> 填充\n"
+"     --pad-to <addr>               補充最後一區段直到位址 <addr>\n"
+"     --set-start <addr>            將起始位址設置為 <addr>\n"
+"    {--change-start|--adjust-start} <incr>\n"
+"                                   將 <incr> 增加到起始位址\n"
+"    {--change-addresses|--adjust-vma} <incr>\n"
+"                                   將 <incr> 增加到 LMA、VMA 和起始位址\n"
+"    {--change-section-address|--adjust-section-vma} <name>{=|+|-}<val>\n"
+"                                   以 <val> 修改 <name> 區段的 LMA 和 VMA\n"
+"     --change-section-lma <name>{=|+|-}<val>\n"
+"                                   以 <val> 修改 <name> 區段的 LMA\n"
+"     --change-section-vma <name>{=|+|-}<val>\n"
+"                                   以 <val> 修改 <name> 區段的 VMA\n"
+"    {--[no-]change-warnings|--[no-]adjust-warnings}\n"
+"                                   如果命名區段不存在就產生警告\n"
+"     --set-section-flags <name>=<flags>\n"
+"                                   將 <name> 區段的屬性設置為 <flags>\n"
+"     --add-section <name>=<file>   將 <file> 中的 <name> 區段添加到輸出中\n"
+"     --rename-section <old>=<new>[,<flags>] 將區段由 <old> 改名為 <new>\n"
+"     --change-leading-char         強行設定輸出格式的前導字元風格\n"
+"     --remove-leading-char         刪除全域符號的前導字元\n"
+"     --redefine-sym <old>=<new>    將符號由 <old> 改名為 <new>\n"
+"     --redefine-syms <file>        對所有列於 <file> 中的符號執行 --redefine-sym\n"
+"     --srec-len <number>           限制所產生 Srecords 的長度\n"
+"     --srec-forceS3                將所產生 Srecords 的類型限制為 S3\n"
+"     --strip-symbols <file>        對列舉在 <file> 中的所有符號執行 -N\n"
+"     --strip-unneeded-symbols <file>\n"
+"                                   對所有列於 <file> 中的符號執行 --strip-unneeded-symbol\n"
+"     --keep-symbols <file>         對列舉在 <file> 中的所有符號執行 -K\n"
+"     --localize-symbols <file>     對列舉在 <file> 中的所有符號執行 -L\n"
+"     --keep-global-symbols <file>  對列舉在 <file> 中的所有符號執行 -G\n"
+"     --weaken-symbols <file>       對列舉在 <file> 中的所有符號執行 -W\n"
+"     --alt-machine-code <index>    輸出使用替代的機器碼\n"
+"     --writable-text               將輸出文字標記為可寫\n"
+"     --readonly-text               將輸出文字標記為防寫\n"
+"     --pure                        將輸出檔案標記為需要分頁\n"
+"     --impure                      將輸出檔案標記為混雜的\n"
+"     --prefix-symbols <prefix>     添加 <prefix> 至每個符號名稱的前端\n"
+"     --prefix-sections <prefix>    添加 <prefix> 至每個區段名稱的前端\n"
+"     --prefix-alloc-sections <prefix>\n"
+"                                   添加 <prefix> 至每個定位表區段名稱的前端\n"
+"  -v --verbose                     列出所有修改的目標檔案\n"
+"  -V --version                     顯示本程序的版本號碼\n"
+"  -h --help                        顯示本輸出\n"
+"     --info                        列出支援的物件格式 & 系統架構\n"
+
+#: objcopy.c:485
+#, c-format
+msgid "Usage: %s <option(s)> in-file(s)\n"
+msgstr "用法：%s <選項> 輸入檔案\n"
+
+#: objcopy.c:486
+#, c-format
+msgid " Removes symbols and sections from files\n"
+msgstr "從檔案中刪除符號和區段\n"
+
+#: objcopy.c:488
+#, c-format
+msgid ""
+"  -I --input-target=<bfdname>      Assume input file is in format <bfdname>\n"
+"  -O --output-target=<bfdname>     Create an output file in format <bfdname>\n"
+"  -F --target=<bfdname>            Set both input and output format to <bfdname>\n"
+"  -p --preserve-dates              Copy modified/access timestamps to the output\n"
+"  -R --remove-section=<name>       Remove section <name> from the output\n"
+"  -s --strip-all                   Remove all symbol and relocation information\n"
+"  -g -S -d --strip-debug           Remove all debugging symbols & sections\n"
+"     --strip-unneeded              Remove all symbols not needed by relocations\n"
+"     --only-keep-debug             Strip everything but the debug information\n"
+"  -N --strip-symbol=<name>         Do not copy symbol <name>\n"
+"  -K --keep-symbol=<name>          Only copy symbol <name>\n"
+"  -w --wildcard                    Permit wildcard in symbol comparison\n"
+"  -x --discard-all                 Remove all non-global symbols\n"
+"  -X --discard-locals              Remove any compiler-generated symbols\n"
+"  -v --verbose                     List all object files modified\n"
+"  -V --version                     Display this program's version number\n"
+"  -h --help                        Display this output\n"
+"     --info                        List object formats & architectures supported\n"
+"  -o <file>                        Place stripped output into <file>\n"
+msgstr ""
+"  -I --input-target=<bfdname>      假定輸入檔案的格式為 <bfdname>\n"
+"  -O --output-target=<bfdname>     建立格式為 <bfdname> 的輸出檔案\n"
+"  -F --target=<bfdname>            將輸入和輸出的格式設定為 <bfdname>\n"
+"  -p --preserve-dates              將 修改/存取 時間戳複製到輸出檔案\n"
+"  -R --remove-section=<name>       從輸出中刪除 <name> 區段\n"
+"  -s --strip-all                   除去所有符號和重定位資訊\n"
+"  -g -S -d --strip-debug           除去所有除錯符號\n"
+"     --strip-unneeded              除去所有重定位不需要的符號\n"
+"     --only-keep-debug             除去除錯以外的所有資訊\n"
+"  -N --strip-symbol=<name>         不要複製符號 <name>\n"
+"  -K --keep-symbol=<name>          只複製符號 <name>\n"
+"  -w --wildcard                    符號比較時容許萬用字元\n"
+"  -x --discard-all                 刪除所有非全域符號\n"
+"  -X --discard-locals              刪除所有編譯器產生的符號\n"
+"  -v --verbose                     列出所有修改過的目標檔案\n"
+"  -V --version                     顯示本程序的版本號碼\n"
+"  -h --help                        顯示本輸出\n"
+"     --info                        列出支援的物件格式 & 系統架構\n"
+"  -o <file>                        將 strip 過的輸出置於 <file>\n"
+
+#: objcopy.c:560
+#, c-format
+msgid "unrecognized section flag `%s'"
+msgstr "不能識別的區段旗標「%s」"
+
+#: objcopy.c:561
+#, c-format
+msgid "supported flags: %s"
+msgstr "支援的旗標：%s"
+
+#: objcopy.c:638
+#, c-format
+msgid "cannot open '%s': %s"
+msgstr "無法開啟：%s：%s"
+
+#: objcopy.c:641 objcopy.c:2629
+#, c-format
+msgid "%s: fread failed"
+msgstr "%s：fread 失敗"
+
+#: objcopy.c:714
+#, c-format
+msgid "%s:%d: Ignoring rubbish found on this line"
+msgstr "%s:%d: 忽略本列所含無用資料"
+
+#: objcopy.c:976
+#, c-format
+msgid "%s: Multiple redefinition of symbol \"%s\""
+msgstr "%s：多次重複定義符號「%s」"
+
+#: objcopy.c:980
+#, c-format
+msgid "%s: Symbol \"%s\" is target of more than one redefinition"
+msgstr "%s：符號「%s」是多次重複定義的標的"
+
+#: objcopy.c:1008
+#, c-format
+msgid "couldn't open symbol redefinition file %s (error: %s)"
+msgstr "無法開啟符號重定義檔 %s (錯誤: %s)"
+
+#: objcopy.c:1086
+#, c-format
+msgid "%s:%d: garbage found at end of line"
+msgstr "%s:%d: 列尾出現無用字元"
+
+#: objcopy.c:1089
+#, c-format
+msgid "%s:%d: missing new symbol name"
+msgstr "%s:%d: 缺少新的符號名稱"
+
+#: objcopy.c:1099
+#, c-format
+msgid "%s:%d: premature end of file"
+msgstr "%s:%d: 檔案末尾不完整"
+
+#: objcopy.c:1124
+msgid "Unable to change endianness of input file(s)"
+msgstr "無法改變輸入檔案的結尾格式"
+
+#: objcopy.c:1133
+#, c-format
+msgid "copy from %s(%s) to %s(%s)\n"
+msgstr "從 %s(%s) 複製到 %s(%s)\n"
+
+#: objcopy.c:1170
+#, c-format
+msgid "Unable to recognise the format of the input file %s"
+msgstr "無法確認輸入檔案 %s 的格式"
+
+#: objcopy.c:1174
+#, c-format
+msgid "Warning: Output file cannot represent architecture %s"
+msgstr "警告：輸出檔案無法代表系統架構 %s"
+
+#: objcopy.c:1211
+#, c-format
+msgid "can't create section `%s': %s"
+msgstr "無法建立區段「%s」：%s"
+
+#: objcopy.c:1277
+msgid "there are no sections to be copied!"
+msgstr "沒有可供複製的區段！"
+
+#: objcopy.c:1323
+#, c-format
+msgid "Can't fill gap after %s: %s"
+msgstr "無法填充 %s 之後的間隙：%s"
+
+#: objcopy.c:1348
+#, c-format
+msgid "Can't add padding to %s: %s"
+msgstr "無法添加 %s 旁邊的空隙：%s"
+
+#: objcopy.c:1514
+#, c-format
+msgid "%s: error copying private BFD data: %s"
+msgstr "%s：複製 BFD 私有資料出錯：%s"
+
+#: objcopy.c:1525
+msgid "unknown alternate machine code, ignored"
+msgstr "不明的額外機器碼，將它忽略"
+
+#: objcopy.c:1555 objcopy.c:1585
+#, c-format
+msgid "cannot mkdir %s for archive copying (error: %s)"
+msgstr "無法為保存檔複製建立目錄 %s (錯誤：%s)"
+
+#: objcopy.c:1790
+#, c-format
+msgid "Multiple renames of section %s"
+msgstr "多次將區段 %s 改名"
+
+#: objcopy.c:1841
+msgid "private header data"
+msgstr "私有標頭資料"
+
+#: objcopy.c:1849
+#, c-format
+msgid "%s: error in %s: %s"
+msgstr "%s：區段 %s 中出錯：%s"
+
+#: objcopy.c:1903
+msgid "making"
+msgstr "製作中"
+
+#: objcopy.c:1912
+msgid "size"
+msgstr "大小"
+
+#: objcopy.c:1926
+msgid "vma"
+msgstr "vma"
+
+#: objcopy.c:1951
+msgid "alignment"
+msgstr "對齊"
+
+#: objcopy.c:1966
+msgid "flags"
+msgstr "旗標"
+
+#: objcopy.c:1988
+msgid "private data"
+msgstr "私有資料"
+
+#: objcopy.c:1996
+#, c-format
+msgid "%s: section `%s': error in %s: %s"
+msgstr "%s：區段「%s」：%s 中出錯：%s"
+
+#: objcopy.c:2274
+#, c-format
+msgid "%s: can't create debugging section: %s"
+msgstr "%s：無法建立除錯區段：%s"
+
+#: objcopy.c:2288
+#, c-format
+msgid "%s: can't set debugging section contents: %s"
+msgstr "%s：無法設定除錯區段內容：%s"
+
+#: objcopy.c:2297
+#, c-format
+msgid "%s: don't know how to write debugging information for %s"
+msgstr "%s：不知道如何為 %s 寫入除錯資訊"
+
+#: objcopy.c:2472
+msgid "byte number must be non-negative"
+msgstr "位元組編號必須是非負數"
+
+#: objcopy.c:2482
+msgid "interleave must be positive"
+msgstr "間斷值必須是正數。"
+
+#: objcopy.c:2502 objcopy.c:2510
+#, c-format
+msgid "%s both copied and removed"
+msgstr "即要複製 %s 又要刪除它"
+
+#: objcopy.c:2603 objcopy.c:2674 objcopy.c:2774 objcopy.c:2805 objcopy.c:2829
+#: objcopy.c:2833 objcopy.c:2853
+#, c-format
+msgid "bad format for %s"
+msgstr "%s 格式錯誤"
+
+#: objcopy.c:2624
+#, c-format
+msgid "cannot open: %s: %s"
+msgstr "無法開啟：%s：%s"
+
+#: objcopy.c:2743
+#, c-format
+msgid "Warning: truncating gap-fill from 0x%s to 0x%x"
+msgstr "警告：將間隙填充由 0x%s 截短到 0x%x"
+
+#: objcopy.c:2903
+msgid "alternate machine code index must be positive"
+msgstr "額外機器碼索引值必須是正數。"
+
+#: objcopy.c:2961
+msgid "byte number must be less than interleave"
+msgstr "位元組編號必須小於間斷值"
+
+#: objcopy.c:2991
+#, c-format
+msgid "architecture %s unknown"
+msgstr "未知的系統架構 %s"
+
+#: objcopy.c:2995
+msgid "Warning: input target 'binary' required for binary architecture parameter."
+msgstr "警告：二進位的系統架構參數需要輸入目標 'binary'"
+
+#: objcopy.c:2996
+#, c-format
+msgid " Argument %s ignored"
+msgstr " 忽略引數 %s"
+
+#: objcopy.c:3002
+#, c-format
+msgid "warning: could not locate '%s'.  System error message: %s"
+msgstr "警告：無法找到 '%s' 的位置。系統錯誤訊息為：%s"
+
+#: objcopy.c:3042 objcopy.c:3056
+#, c-format
+msgid "%s %s%c0x%s never used"
+msgstr "%s %s%c0x%s 完全沒用過"
+
+#: objdump.c:176
+#, c-format
+msgid "Usage: %s <option(s)> <file(s)>\n"
+msgstr "用法：%s <選項> <檔案>\n"
+
+#: objdump.c:177
+#, c-format
+msgid " Display information from object <file(s)>.\n"
+msgstr " 顯示來自目標 <檔案> 的資訊。\n"
+
+#: objdump.c:178
+#, c-format
+msgid " At least one of the following switches must be given:\n"
+msgstr " 至少必須指定以下選項之一：\n"
+
+#: objdump.c:179
+#, c-format
+msgid ""
+"  -a, --archive-headers    Display archive header information\n"
+"  -f, --file-headers       Display the contents of the overall file header\n"
+"  -p, --private-headers    Display object format specific file header contents\n"
+"  -h, --[section-]headers  Display the contents of the section headers\n"
+"  -x, --all-headers        Display the contents of all headers\n"
+"  -d, --disassemble        Display assembler contents of executable sections\n"
+"  -D, --disassemble-all    Display assembler contents of all sections\n"
+"  -S, --source             Intermix source code with disassembly\n"
+"  -s, --full-contents      Display the full contents of all sections requested\n"
+"  -g, --debugging          Display debug information in object file\n"
+"  -e, --debugging-tags     Display debug information using ctags style\n"
+"  -G, --stabs              Display (in raw form) any STABS info in the file\n"
+"  -t, --syms               Display the contents of the symbol table(s)\n"
+"  -T, --dynamic-syms       Display the contents of the dynamic symbol table\n"
+"  -r, --reloc              Display the relocation entries in the file\n"
+"  -R, --dynamic-reloc      Display the dynamic relocation entries in the file\n"
+"  -v, --version            Display this program's version number\n"
+"  -i, --info               List object formats and architectures supported\n"
+"  -H, --help               Display this information\n"
+msgstr ""
+"  -a, --archive-headers    顯示保存檔頭資訊\n"
+"  -f, --file-headers       顯示整體檔案頭的內容\n"
+"  -p, --private-headers    顯示目標格式特有的檔案頭內容\n"
+"  -h, --[section-]headers  顯示區段頭的內容\n"
+"  -x, --all-headers        顯示所有標頭的內容\n"
+"  -d, --disassemble        顯示可執行區段的組譯內容\n"
+"  -D, --disassemble-all    顯示所有區段的組譯內容\n"
+"  -S, --source             將原始碼和反組譯混合起來\n"
+"  -s, --full-contents      顯示所有請求區段的完整內容\n"
+"  -g, --debugging          顯示目標檔案的除錯資訊\n"
+"  -e, --debugging-tags     顯示使用 ctags 風格的除錯資訊\n"
+"  -G, --stabs              以原始形式顯示檔案中所有的 STABS 資訊\n"
+"  -t, --syms               顯示符號表的內容\n"
+"  -T, --dynamic-syms       顯示動態符號表的內容\n"
+"  -r, --reloc              顯示檔案中的重定位條目\n"
+"  -R, --dynamic-reloc      顯示檔案中的動態重定位條目\n"
+"  -v, --version            顯示本程式的版本號碼\n"
+"  -i, --info               列舉支援的目標格式和系統架構\n"
+"  -H, --help               顯示本資訊\n"
+
+#: objdump.c:202
+#, c-format
+msgid ""
+"\n"
+" The following switches are optional:\n"
+msgstr ""
+"\n"
+" 以下選項是可選的：\n"
+
+#: objdump.c:203
+#, c-format
+msgid ""
+"  -b, --target=BFDNAME           Specify the target object format as BFDNAME\n"
+"  -m, --architecture=MACHINE     Specify the target architecture as MACHINE\n"
+"  -j, --section=NAME             Only display information for section NAME\n"
+"  -M, --disassembler-options=OPT Pass text OPT on to the disassembler\n"
+"  -EB --endian=big               Assume big endian format when disassembling\n"
+"  -EL --endian=little            Assume little endian format when disassembling\n"
+"      --file-start-context       Include context from start of file (with -S)\n"
+"  -I, --include=DIR              Add DIR to search list for source files\n"
+"  -l, --line-numbers             Include line numbers and filenames in output\n"
+"  -C, --demangle[=STYLE]         Decode mangled/processed symbol names\n"
+"                                  The STYLE, if specified, can be `auto', `gnu',\n"
+"                                  `lucid', `arm', `hp', `edg', `gnu-v3', `java'\n"
+"                                  or `gnat'\n"
+"  -w, --wide                     Format output for more than 80 columns\n"
+"  -z, --disassemble-zeroes       Do not skip blocks of zeroes when disassembling\n"
+"      --start-address=ADDR       Only process data whose address is >= ADDR\n"
+"      --stop-address=ADDR        Only process data whose address is <= ADDR\n"
+"      --prefix-addresses         Print complete address alongside disassembly\n"
+"      --[no-]show-raw-insn       Display hex alongside symbolic disassembly\n"
+"      --adjust-vma=OFFSET        Add OFFSET to all displayed section addresses\n"
+"      --special-syms             Include special symbols in symbol dumps\n"
+"\n"
+msgstr ""
+"  -b, --target=BFDNAME           將目標物件檔案格式指定為 BFDNAME\n"
+"  -m, --architecture=MACHINE     將目標系統架構指定為 MACHINE\n"
+"  -j, --section=NAME             只顯示 NAME 區段的資訊\n"
+"  -M, --disassembler-options=OPT 將文字傳遞到 OPT 反組譯程序\n"
+"  -EB --endian=big               反組譯時假定高位位元組在前\n"
+"  -EL --endian=little            反組譯時假定低位位元組在前\n"
+"      --file-start-context       從檔案的起點引入上下文 (帶有 -S)\n"
+"  -I, --include=DIR              將 DIR 加入搜尋原始碼檔案的列表\n"
+"  -l, --line-numbers             在輸出中指定列號和檔案名\n"
+"  -C, --demangle[=STYLE]         對於已損壞/處理過的符號名稱進行解碼\n"
+"                                  如果指定了 STYLE，STYLE 可能為「auto」、「gnu」、\n"
+"                                 「lucid」、「arm」、「hp」、「edg」、「gnu-v3」、「java」或「gnat」\n"
+"  -w, --wide                     以多於 80 行的寬度對輸出進行格式化\n"
+"  -z, --disassemble-zeroes       反組譯時不要跳過為零的區塊\n"
+"      --start-address=ADDR       只有行程資料的位址 >= ADDR\n"
+"      --stop-address=ADDR        只有行程資料的位址 <= ADDR\n"
+"      --prefix-addresses         同反組譯代碼並列顯示完整的位址\n"
+"      --[no-]show-raw-insn       同符號反組譯並列顯示十六進位值\n"
+"      --adjust-vma=OFFSET        為所有顯示的區段位址增加 OFFSET\n"
+"      --special-syms             在符號傾印中包含特殊符號\n"
+"\n"
+
+#: objdump.c:378
+#, c-format
+msgid "Sections:\n"
+msgstr "區段：\n"
+
+#: objdump.c:381 objdump.c:385
+#, c-format
+msgid "Idx Name          Size      VMA       LMA       File off  Algn"
+msgstr "索引名稱          大小      VMA       LMA       檔案關閉  對齊"
+
+#: objdump.c:387
+#, c-format
+msgid "Idx Name          Size      VMA               LMA               File off  Algn"
+msgstr "索引名稱          大小      VMA               LMA               檔案關閉 對齊"
+
+#: objdump.c:391
+#, c-format
+msgid "  Flags"
+msgstr "  旗標"
+
+#: objdump.c:393
+#, c-format
+msgid "  Pg"
+msgstr "  頁"
+
+#: objdump.c:436
+#, c-format
+msgid "%s: not a dynamic object"
+msgstr "%s：不是動態物件"
+
+#: objdump.c:1722
+#, c-format
+msgid "Disassembly of section %s:\n"
+msgstr "反組譯 %s 區段：\n"
+
+#: objdump.c:1884
+#, c-format
+msgid "Can't use supplied machine %s"
+msgstr "無法使用支援的機器 %s"
+
+#: objdump.c:1903
+#, c-format
+msgid "Can't disassemble for architecture %s\n"
+msgstr "無法反組譯系統架構 %s\n"
+
+#: objdump.c:1973
+#, c-format
+msgid ""
+"No %s section present\n"
+"\n"
+msgstr ""
+"%s 區段不存在\n"
+"\n"
+
+#: objdump.c:1982
+#, c-format
+msgid "Reading %s section of %s failed: %s"
+msgstr "讀入 %2$s 的 %1$s 區段失敗：%3$s"
+
+#: objdump.c:2026
+#, c-format
+msgid ""
+"Contents of %s section:\n"
+"\n"
+msgstr ""
+"%s 區段的內容：\n"
+"\n"
+
+#: objdump.c:2153
+#, c-format
+msgid "architecture: %s, "
+msgstr "系統架構：%s，"
+
+#: objdump.c:2156
+#, c-format
+msgid "flags 0x%08x:\n"
+msgstr "旗標 0x%08x：\n"
+
+#: objdump.c:2170
+#, c-format
+msgid ""
+"\n"
+"start address 0x"
+msgstr ""
+"\n"
+"起始位址 0x"
+
+#: objdump.c:2210
+#, c-format
+msgid "Contents of section %s:\n"
+msgstr "%s 區段的內容：\n"
+
+#: objdump.c:2335
+#, c-format
+msgid "no symbols\n"
+msgstr "無符號\n"
+
+#: objdump.c:2342
+#, c-format
+msgid "no information for symbol number %ld\n"
+msgstr "沒有關於符號號碼 %ld 的資訊\n"
+
+#: objdump.c:2345
+#, c-format
+msgid "could not determine the type of symbol number %ld\n"
+msgstr "無法確定符號號碼「%ld」的類型\n"
+
+#: objdump.c:2611
+#, c-format
+msgid ""
+"\n"
+"%s:     file format %s\n"
+msgstr ""
+"\n"
+"%s：     檔案格式 %s\n"
+
+#: objdump.c:2662
+#, c-format
+msgid "%s: printing debugging information failed"
+msgstr "%s：列印除錯資訊失敗"
+
+#: objdump.c:2753
+#, c-format
+msgid "In archive %s:\n"
+msgstr "在保存檔 %s 中：\n"
+
+#: objdump.c:2873
+msgid "unrecognized -E option"
+msgstr "無法識別的 -E 選項"
+
+#: objdump.c:2884
+#, c-format
+msgid "unrecognized --endian type `%s'"
+msgstr "無法識別的 --endian 類型「%s」"
+
+#: rdcoff.c:196
+#, c-format
+msgid "parse_coff_type: Bad type code 0x%x"
+msgstr "parse_coff_type：不良的類型碼 0x%x"
+
+#: rdcoff.c:404 rdcoff.c:509 rdcoff.c:697
+#, c-format
+msgid "bfd_coff_get_syment failed: %s"
+msgstr "bfd_coff_get_syment 失敗：%s"
+
+#: rdcoff.c:420 rdcoff.c:717
+#, c-format
+msgid "bfd_coff_get_auxent failed: %s"
+msgstr "bfd_coff_get_auxent 失敗：%s"
+
+#: rdcoff.c:784
+#, c-format
+msgid "%ld: .bf without preceding function"
+msgstr "%ld: .bf 未含前導函數"
+
+#: rdcoff.c:834
+#, c-format
+msgid "%ld: unexpected .ef\n"
+msgstr "%ld：意外的 .ef\n"
+
+#: rddbg.c:85
+#, c-format
+msgid "%s: no recognized debugging information"
+msgstr "%s：未識別的除錯資訊"
+
+#: rddbg.c:394
+#, c-format
+msgid "Last stabs entries before error:\n"
+msgstr "錯誤發生前最後的 stabs 進入點：\n"
+
+#: readelf.c:272
+#, c-format
+msgid "%s: Error: "
+msgstr "%s：錯誤："
+
+#: readelf.c:283
+#, c-format
+msgid "%s: Warning: "
+msgstr "%s：警告："
+
+#: readelf.c:298
+#, c-format
+msgid "Unable to seek to 0x%x for %s\n"
+msgstr "無法定位到 %2$s 的 0x%1$x\n"
+
+#: readelf.c:310
+#, c-format
+msgid "Out of memory allocating 0x%x bytes for %s\n"
+msgstr "分配 0x%x 位元組給 %s 時產生記憶體不足\n"
+
+#: readelf.c:318
+#, c-format
+msgid "Unable to read in 0x%x bytes of %s\n"
+msgstr "無法讀入 %2$s 的 0x%1$x 位元組\n"
+
+#: readelf.c:364 readelf.c:412 readelf.c:615 readelf.c:647
+#, c-format
+msgid "Unhandled data length: %d\n"
+msgstr "未處理的資料長度：%d\n"
+
+#: readelf.c:752
+msgid "Don't know about relocations on this machine architecture\n"
+msgstr "不知道關於本機器系統架構中重定位的情況\n"
+
+#: readelf.c:772 readelf.c:799 readelf.c:842 readelf.c:869
+msgid "relocs"
+msgstr "重定位"
+
+#: readelf.c:782 readelf.c:809 readelf.c:852 readelf.c:879
+msgid "out of memory parsing relocs"
+msgstr "解析重定位時記憶體不足"
+
+#: readelf.c:933
+#, c-format
+msgid " Offset     Info    Type                Sym. Value  Symbol's Name + Addend\n"
+msgstr " 偏移量     資訊    類型                符號值      符號名稱 + 加數\n"
+
+#: readelf.c:935
+#, c-format
+msgid " Offset     Info    Type            Sym.Value  Sym. Name + Addend\n"
+msgstr " 偏移量     資訊    類型            符號值      符號名稱 + 加數\n"
+
+#: readelf.c:940
+#, c-format
+msgid " Offset     Info    Type                Sym. Value  Symbol's Name\n"
+msgstr " 偏移量     資訊    類型                符號值      符號名稱\n"
+
+#: readelf.c:942
+#, c-format
+msgid " Offset     Info    Type            Sym.Value  Sym. Name\n"
+msgstr " 偏移量     資訊    類型            符號值      符號名稱\n"
+
+#: readelf.c:950
+#, c-format
+msgid "    Offset             Info             Type               Symbol's Value  Symbol's Name + Addend\n"
+msgstr "    偏移量             資訊             類型               符號值          符號名稱 + 加數\n"
+
+#: readelf.c:952
+#, c-format
+msgid "  Offset          Info           Type           Sym. Value    Sym. Name + Addend\n"
+msgstr "  偏移量          資訊           類型           符號值        符號名稱 + 加數\n"
+
+#: readelf.c:957
+#, c-format
+msgid "    Offset             Info             Type               Symbol's Value  Symbol's Name\n"
+msgstr "    偏移量             資訊             類型               符號值          符號名稱\n"
+
+#: readelf.c:959
+#, c-format
+msgid "  Offset          Info           Type           Sym. Value    Sym. Name\n"
+msgstr "  偏移量          資訊           類型           符號值        符號名稱\n"
+
+#: readelf.c:1239 readelf.c:1241 readelf.c:1324 readelf.c:1326 readelf.c:1335
+#: readelf.c:1337
+#, c-format
+msgid "unrecognized: %-7lx"
+msgstr "不能識別的：%-7lx"
+
+#: readelf.c:1295
+#, c-format
+msgid "<string table index: %3ld>"
+msgstr "<字串表索引：%3ld>"
+
+#: readelf.c:1297
+#, c-format
+msgid "<corrupt string table index: %3ld>"
+msgstr "<毀損字串表索引：%3ld>"
+
+#: readelf.c:1569
+#, c-format
+msgid "Processor Specific: %lx"
+msgstr "特定處理器：%lx"
+
+#: readelf.c:1588
+#, c-format
+msgid "Operating System specific: %lx"
+msgstr "特定作業系統：%lx"
+
+#: readelf.c:1592 readelf.c:2370
+#, c-format
+msgid "<unknown>: %lx"
+msgstr "<未知>：%lx"
+
+#: readelf.c:1605
+msgid "NONE (None)"
+msgstr "NONE (無)"
+
+#: readelf.c:1606
+msgid "REL (Relocatable file)"
+msgstr "REL (可重定位檔案)"
+
+#: readelf.c:1607
+msgid "EXEC (Executable file)"
+msgstr "EXEC (可執行檔案)"
+
+#: readelf.c:1608
+msgid "DYN (Shared object file)"
+msgstr "DYN (共享物件檔案)"
+
+#: readelf.c:1609
+msgid "CORE (Core file)"
+msgstr "CORE (核心檔案)"
+
+#: readelf.c:1613
+#, c-format
+msgid "Processor Specific: (%x)"
+msgstr "特定處理器：(%x)"
+
+#: readelf.c:1615
+#, c-format
+msgid "OS Specific: (%x)"
+msgstr "特定作業系統：(%x)"
+
+#: readelf.c:1617 readelf.c:1724 readelf.c:2554
+#, c-format
+msgid "<unknown>: %x"
+msgstr "<未知>：%x"
+
+#: readelf.c:1629
+msgid "None"
+msgstr "無"
+
+#: readelf.c:2229
+msgid "Standalone App"
+msgstr "獨立應用程式"
+
+#: readelf.c:2232 readelf.c:2952 readelf.c:2968
+#, c-format
+msgid "<unknown: %x>"
+msgstr "<未知：%x>"
+
+#: readelf.c:2597
+#, c-format
+msgid "Usage: readelf <option(s)> elf-file(s)\n"
+msgstr "用法：readelf <選項> elf-檔案\n"
+
+#: readelf.c:2598
+#, c-format
+msgid " Display information about the contents of ELF format files\n"
+msgstr " 顯示關於 ELF 格式檔案內容的資訊\n"
+
+#: readelf.c:2599
+#, c-format
+msgid ""
+" Options are:\n"
+"  -a --all               Equivalent to: -h -l -S -s -r -d -V -A -I\n"
+"  -h --file-header       Display the ELF file header\n"
+"  -l --program-headers   Display the program headers\n"
+"     --segments          An alias for --program-headers\n"
+"  -S --section-headers   Display the sections' header\n"
+"     --sections          An alias for --section-headers\n"
+"  -g --section-groups    Display the section groups\n"
+"  -e --headers           Equivalent to: -h -l -S\n"
+"  -s --syms              Display the symbol table\n"
+"      --symbols          An alias for --syms\n"
+"  -n --notes             Display the core notes (if present)\n"
+"  -r --relocs            Display the relocations (if present)\n"
+"  -u --unwind            Display the unwind info (if present)\n"
+"  -d --dynamic           Display the dynamic section (if present)\n"
+"  -V --version-info      Display the version sections (if present)\n"
+"  -A --arch-specific     Display architecture specific information (if any).\n"
+"  -D --use-dynamic       Use the dynamic section info when displaying symbols\n"
+"  -x --hex-dump=<number> Dump the contents of section <number>\n"
+"  -w[liaprmfFsoR] or\n"
+"  --debug-dump[=line,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=str,=loc,=Ranges]\n"
+"                         Display the contents of DWARF2 debug sections\n"
+msgstr ""
+" 選項為：\n"
+"  -a --all               等同於：-h -l -S -s -r -d -V -A -I\n"
+"  -h --file-header       顯示 ELF 檔案標頭\n"
+"  -l --program-headers   顯示程式標頭\n"
+"     --segments          --program-headers 的別名\n"
+"  -S --section-headers   顯示區段標頭\n"
+"     --sections          --section-headers 的別名\n"
+"  -g --section-groups    顯示區段群組\n"
+"  -e --headers           等同於：-h -l -S\n"
+"  -s --syms              顯示符號表\n"
+"      --symbols          --syms 的別名\n"
+"  -n --notes             顯示核心備註 (如果有的話)\n"
+"  -r --relocs            顯示重定位 (如果有的話)\n"
+"  -u --unwind            顯示展開(unwind)資訊 (如果有的話)\n"
+"  -d --dynamic           顯示動態區段 (如果有的話)\n"
+"  -V --version-info      顯示版本區段 (如果有的話)\n"
+"  -A --arch-specific     顯示系統架構特有的資訊 (如果有的話)\n"
+"  -D --use-dynamic       顯示符號的時候使用動態區段資訊\n"
+"  -x --hex-dump=<編號>   輸出 <編號> 區段的內容\n"
+"  -w[liaprmfFsoR] 或\n"
+"  --debug-dump[=line,=info,=abbrev,=pubnames,=aranges,=macro,=frames,=str,=loc,=Ranges]\n"
+"                         顯示 DWARF2 除錯區段的內容\n"
+
+#: readelf.c:2622
+#, c-format
+msgid ""
+"  -i --instruction-dump=<number>\n"
+"                         Disassemble the contents of section <number>\n"
+msgstr ""
+"  -i --instruction-dump=<編號>\n"
+"                         反組譯區段 <編號> 的內容\n"
+
+#: readelf.c:2626
+#, c-format
+msgid ""
+"  -I --histogram         Display histogram of bucket list lengths\n"
+"  -W --wide              Allow output width to exceed 80 characters\n"
+"  -H --help              Display this information\n"
+"  -v --version           Display the version number of readelf\n"
+msgstr ""
+"  -I --histogram         顯示存儲桶列表長度的長條圖\n"
+"  -W --wide              允許輸出寬度超過 80 個字元\n"
+"  -H --help              顯示本資訊\n"
+"  -v --version           顯示 readelf 的版本號碼\n"
+
+#: readelf.c:2651 readelf.c:12118
+msgid "Out of memory allocating dump request table."
+msgstr "傾印需求表時記憶體定位不足。"
+
+#: readelf.c:2820 readelf.c:2888
+#, c-format
+msgid "Unrecognized debug option '%s'\n"
+msgstr "無法識別的除錯選項「%s」\n"
+
+#: readelf.c:2922
+#, c-format
+msgid "Invalid option '-%c'\n"
+msgstr "無效的選項「-%c」\n"
+
+#: readelf.c:2936
+msgid "Nothing to do.\n"
+msgstr "無事可做。\n"
+
+#: readelf.c:2948 readelf.c:2964 readelf.c:5906
+msgid "none"
+msgstr "無"
+
+#: readelf.c:2965
+msgid "2's complement, little endian"
+msgstr "2 的補數，小尾序(little endian)"
+
+#: readelf.c:2966
+msgid "2's complement, big endian"
+msgstr "2 的補數，大尾序(big endian)"
+
+#: readelf.c:2984
+msgid "Not an ELF file - it has the wrong magic bytes at the start\n"
+msgstr "不是 ELF 檔案 - 它開頭的魔術位元組錯誤\n"
+
+#: readelf.c:2992
+#, c-format
+msgid "ELF Header:\n"
+msgstr "ELF 檔頭：\n"
+
+#: readelf.c:2993
+#, c-format
+msgid "  Magic:   "
+msgstr "魔術位元組："
+
+#: readelf.c:2997
+#, c-format
+msgid "  Class:                             %s\n"
+msgstr "  類別:                              %s\n"
+
+#: readelf.c:2999
+#, c-format
+msgid "  Data:                              %s\n"
+msgstr "  資料:                              %s\n"
+
+#: readelf.c:3001
+#, c-format
+msgid "  Version:                           %d %s\n"
+msgstr "  版本:                              %d %s\n"
+
+#: readelf.c:3008
+#, c-format
+msgid "  OS/ABI:                            %s\n"
+msgstr "  OS/ABI:                            %s\n"
+
+#: readelf.c:3010
+#, c-format
+msgid "  ABI Version:                       %d\n"
+msgstr "  ABI 版本:                          %d\n"
+
+#: readelf.c:3012
+#, c-format
+msgid "  Type:                              %s\n"
+msgstr "  類型:                              %s\n"
+
+#: readelf.c:3014
+#, c-format
+msgid "  Machine:                           %s\n"
+msgstr "  系統架構:                          %s\n"
+
+#: readelf.c:3016
+#, c-format
+msgid "  Version:                           0x%lx\n"
+msgstr "  版本:                              0x%lx\n"
+
+#: readelf.c:3019
+#, c-format
+msgid "  Entry point address:               "
+msgstr "  進入點位址：              "
+
+#: readelf.c:3021
+#, c-format
+msgid ""
+"\n"
+"  Start of program headers:          "
+msgstr ""
+"\n"
+"  程式標頭起點：            "
+
+#: readelf.c:3023
+#, c-format
+msgid ""
+" (bytes into file)\n"
+"  Start of section headers:          "
+msgstr ""
+" (檔案內之位元組)\n"
+"  區段標頭起點：                     "
+
+#: readelf.c:3025
+#, c-format
+msgid " (bytes into file)\n"
+msgstr " (檔案內之位元組)\n"
+
+#: readelf.c:3027
+#, c-format
+msgid "  Flags:                             0x%lx%s\n"
+msgstr "  旗標：             0x%lx%s\n"
+
+#: readelf.c:3030
+#, c-format
+msgid "  Size of this header:               %ld (bytes)\n"
+msgstr "  此標頭的大小：       %ld (位元組)\n"
+
+#: readelf.c:3032
+#, c-format
+msgid "  Size of program headers:           %ld (bytes)\n"
+msgstr "  程式標頭大小：       %ld (位元組)\n"
+
+#: readelf.c:3034
+#, c-format
+msgid "  Number of program headers:         %ld\n"
+msgstr "  程式標頭數量：       %ld\n"
+
+#: readelf.c:3036
+#, c-format
+msgid "  Size of section headers:           %ld (bytes)\n"
+msgstr "  區段標頭大小：         %ld (位元組)\n"
+
+#: readelf.c:3038
+#, c-format
+msgid "  Number of section headers:         %ld"
+msgstr "  區段標頭數量：         %ld"
+
+#: readelf.c:3043
+#, c-format
+msgid "  Section header string table index: %ld"
+msgstr "  字串表索引區段標頭： %ld"
+
+#: readelf.c:3074 readelf.c:3107
+msgid "program headers"
+msgstr "程式標頭"
+
+#: readelf.c:3145 readelf.c:3446 readelf.c:3487 readelf.c:3546 readelf.c:3609
+#: readelf.c:3993 readelf.c:4017 readelf.c:5247 readelf.c:5291 readelf.c:5489
+#: readelf.c:6450 readelf.c:6464 readelf.c:11493 readelf.c:11912
+#: readelf.c:11979
+msgid "Out of memory\n"
+msgstr "記憶體不足\n"
+
+#: readelf.c:3172
+#, c-format
+msgid ""
+"\n"
+"There are no program headers in this file.\n"
+msgstr ""
+"\n"
+"本檔案中沒有程式標頭。\n"
+
+#: readelf.c:3178
+#, c-format
+msgid ""
+"\n"
+"Elf file type is %s\n"
+msgstr ""
+"\n"
+"Elf 檔案類型為 %s\n"
+
+#: readelf.c:3179
+#, c-format
+msgid "Entry point "
+msgstr "進入點 "
+
+#: readelf.c:3181
+#, c-format
+msgid ""
+"\n"
+"There are %d program headers, starting at offset "
+msgstr ""
+"\n"
+"共有 %d 個程式標頭，開始於偏移量"
+
+#: readelf.c:3193 readelf.c:3195
+#, c-format
+msgid ""
+"\n"
+"Program Headers:\n"
+msgstr ""
+"\n"
+"程式標頭：\n"
+
+#: readelf.c:3199
+#, c-format
+msgid "  Type           Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align\n"
+msgstr "  類型           偏移量   虛擬位址   實體位址 檔案大小 記憶大小 旗標 對齊\n"
+
+#: readelf.c:3202
+#, c-format
+msgid "  Type           Offset   VirtAddr           PhysAddr           FileSiz  MemSiz   Flg Align\n"
+msgstr "  類型           偏移量   虛擬位址           實體位址          檔案大小  記憶大小 旗標 對齊\n"
+
+#: readelf.c:3206
+#, c-format
+msgid "  Type           Offset             VirtAddr           PhysAddr\n"
+msgstr "  類型           偏移量             虛擬位址           實體位址\n"
+
+#: readelf.c:3208
+#, c-format
+msgid "                 FileSiz            MemSiz              Flags  Align\n"
+msgstr "                檔案大小          記憶大小              旗標   對齊\n"
+
+#: readelf.c:3301
+msgid "more than one dynamic segment\n"
+msgstr "多於一個動態節區\n"
+
+#: readelf.c:3312
+msgid "no .dynamic section in the dynamic segment"
+msgstr "在動態節區中沒有動態區段"
+
+#: readelf.c:3321
+msgid "the .dynamic section is not contained within the dynamic segment"
+msgstr "在動態節區中未包含動態區段"
+
+#: readelf.c:3323
+msgid "the .dynamic section is not the first section in the dynamic segment."
+msgstr "動態節區中的第一區段並非動態區段"
+
+#: readelf.c:3337
+msgid "Unable to find program interpreter name\n"
+msgstr "無法找到程式解譯器名稱\n"
+
+#: readelf.c:3344
+#, c-format
+msgid ""
+"\n"
+"      [Requesting program interpreter: %s]"
+msgstr ""
+"\n"
+"      [正在要求程式解譯器：%s]"
+
+#: readelf.c:3356
+#, c-format
+msgid ""
+"\n"
+" Section to Segment mapping:\n"
+msgstr ""
+"\n"
+" 區段到節區映射中:\n"
+
+#: readelf.c:3357
+#, c-format
+msgid "  Segment Sections...\n"
+msgstr "  節區段...\n"
+
+#: readelf.c:3408
+msgid "Cannot interpret virtual addresses without program headers.\n"
+msgstr "無法不靠程式標頭而解譯虛擬位址\n"
+
+#: readelf.c:3424
+#, c-format
+msgid "Virtual address 0x%lx not located in any PT_LOAD segment.\n"
+msgstr "虛擬位址 0x%lx 不位於任何 PT_LOAD 節區中。\n"
+
+#: readelf.c:3438 readelf.c:3479
+msgid "section headers"
+msgstr "區段標頭"
+
+#: readelf.c:3523 readelf.c:3586
+msgid "symbols"
+msgstr "符號"
+
+#: readelf.c:3533 readelf.c:3596
+msgid "symtab shndx"
+msgstr "符號分頁索引"
+
+#: readelf.c:3697 readelf.c:3977
+#, c-format
+msgid ""
+"\n"
+"There are no sections in this file.\n"
+msgstr ""
+"\n"
+"本檔案中沒有區段。\n"
+
+#: readelf.c:3703
+#, c-format
+msgid "There are %d section headers, starting at offset 0x%lx:\n"
+msgstr "共有 %d 個區段標頭，從偏移量 0x%lx 開始：\n"
+
+#: readelf.c:3720 readelf.c:4079 readelf.c:4290 readelf.c:4591 readelf.c:5011
+#: readelf.c:6618
+msgid "string table"
+msgstr "字串表"
+
+#: readelf.c:3765
+msgid "File contains multiple dynamic symbol tables\n"
+msgstr "檔案含有多個動態符號表\n"
+
+#: readelf.c:3777
+msgid "File contains multiple dynamic string tables\n"
+msgstr "檔案含有多個動態字串表\n"
+
+#: readelf.c:3782
+msgid "dynamic strings"
+msgstr "動態字串"
+
+#: readelf.c:3789
+msgid "File contains multiple symtab shndx tables\n"
+msgstr "檔案含有多個符號分頁索引表\n"
+
+#: readelf.c:3828
+#, c-format
+msgid ""
+"\n"
+"Section Headers:\n"
+msgstr ""
+"\n"
+"區段標頭：\n"
+
+#: readelf.c:3830
+#, c-format
+msgid ""
+"\n"
+"Section Header:\n"
+msgstr ""
+"\n"
+"區段標頭：\n"
+
+#: readelf.c:3834
+#, c-format
+msgid "  [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al\n"
+msgstr "  [號] 名稱              類型            位址     偏移   大小   全 旗標 連結 資  齊\n"
+
+#: readelf.c:3837
+#, c-format
+msgid "  [Nr] Name              Type            Address          Off    Size   ES Flg Lk Inf Al\n"
+msgstr "  [號] 名稱              類型            位址            偏移    大小   全 標  連 資  齊\n"
+
+#: readelf.c:3840
+#, c-format
+msgid "  [Nr] Name              Type             Address           Offset\n"
+msgstr "  [號] 名稱              類型             位址              偏移量\n"
+
+#: readelf.c:3841
+#, c-format
+msgid "       Size              EntSize          Flags  Link  Info  Align\n"
+msgstr "       大小              全體大小         旗標   連結  資訊  對齊\n"
+
+#: readelf.c:3936
+#, c-format
+msgid ""
+"Key to Flags:\n"
+"  W (write), A (alloc), X (execute), M (merge), S (strings)\n"
+"  I (info), L (link order), G (group), x (unknown)\n"
+"  O (extra OS processing required) o (OS specific), p (processor specific)\n"
+msgstr ""
+"旗標關鍵字:\n"
+"  W (寫入), A (定位), X (執行), M (融合), S (字串)\n"
+"  I (資訊), L (連結順序), G (群組), x (未知)\n"
+"  O (要求額外的作業系統處理) o (特定作業系統), p (特定處理器)\n"
+
+#: readelf.c:3954
+#, c-format
+msgid "[<unknown>: 0x%x]"
+msgstr "[<未知>: 0x%x]"
+
+#: readelf.c:3984
+msgid "Section headers are not available!\n"
+msgstr "區段標頭無法取用！\n"
+
+#: readelf.c:4008
+#, c-format
+msgid ""
+"\n"
+"There are no section groups in this file.\n"
+msgstr ""
+"\n"
+"本檔案中沒有區段群組。\n"
+
+#: readelf.c:4042
+#, c-format
+msgid "Bad sh_link in group section `%s'\n"
+msgstr "在群組區段「%s」中不良的 sh_link\n"
+
+#: readelf.c:4061
+#, c-format
+msgid "Bad sh_info in group section `%s'\n"
+msgstr "在群組區段「%s」中不良的 sh_info\n"
+
+#: readelf.c:4085 readelf.c:6947
+msgid "section data"
+msgstr "區段資料"
+
+#: readelf.c:4097
+#, c-format
+msgid "   [Index]    Name\n"
+msgstr "   [索引]     名稱\n"
+
+#: readelf.c:4114
+#, c-format
+msgid "section [%5u] already in group section [%5u]\n"
+msgstr "區段 [%5u] 已在群組區段 [%5u] 之中\n"
+
+#: readelf.c:4127
+#, c-format
+msgid "section 0 in group section [%5u]\n"
+msgstr "區段 0 在群組區段 [%5u] 之中\n"
+
+#: readelf.c:4224
+#, c-format
+msgid ""
+"\n"
+"'%s' relocation section at offset 0x%lx contains %ld bytes:\n"
+msgstr ""
+"\n"
+"「%s」位於偏移量 0x%lx 的重定位區段含有 %ld 個位元組：\n"
+
+#: readelf.c:4236
+#, c-format
+msgid ""
+"\n"
+"There are no dynamic relocations in this file.\n"
+msgstr ""
+"\n"
+"本檔案中沒有動態重定位。\n"
+
+#: readelf.c:4260
+#, c-format
+msgid ""
+"\n"
+"Relocation section "
+msgstr ""
+"\n"
+"重定位區段 "
+
+#: readelf.c:4265 readelf.c:4666 readelf.c:4680 readelf.c:5025
+#, c-format
+msgid "'%s'"
+msgstr "「%s」"
+
+#: readelf.c:4267 readelf.c:4682 readelf.c:5027
+#, c-format
+msgid " at offset 0x%lx contains %lu entries:\n"
+msgstr " 位於偏移量 0x%lx 含有 %lu 個條目：\n"
+
+#: readelf.c:4308
+#, c-format
+msgid ""
+"\n"
+"There are no relocations in this file.\n"
+msgstr ""
+"\n"
+"該檔案中沒有重定位資訊。\n"
+
+#: readelf.c:4482 readelf.c:4862
+msgid "unwind table"
+msgstr "展開表格"
+
+#: readelf.c:4540 readelf.c:4959
+#, c-format
+msgid "Skipping unexpected relocation type %s\n"
+msgstr "跳過意外的重定位類型 %s\n"
+
+#: readelf.c:4598 readelf.c:5018 readelf.c:5069
+#, c-format
+msgid ""
+"\n"
+"There are no unwind sections in this file.\n"
+msgstr ""
+"\n"
+"本檔案中沒有展開的區段。\n"
+
+#: readelf.c:4661
+#, c-format
+msgid ""
+"\n"
+"Could not find unwind info section for "
+msgstr ""
+"\n"
+"找不到展開的資訊區段之於"
+
+#: readelf.c:4673
+msgid "unwind info"
+msgstr "展開的資訊"
+
+#: readelf.c:4675 readelf.c:5024
+#, c-format
+msgid ""
+"\n"
+"Unwind section "
+msgstr ""
+"\n"
+"展開的區段"
+
+#: readelf.c:5228 readelf.c:5272
+msgid "dynamic section"
+msgstr "動態區段"
+
+#: readelf.c:5349
+#, c-format
+msgid ""
+"\n"
+"There is no dynamic section in this file.\n"
+msgstr ""
+"\n"
+"本檔案沒有動態區段。\n"
+
+#: readelf.c:5387
+msgid "Unable to seek to end of file!"
+msgstr "無法搜索的檔案結尾！"
+
+#: readelf.c:5400
+msgid "Unable to determine the number of symbols to load\n"
+msgstr "無法確定要讀入的符號數量\n"
+
+#: readelf.c:5435
+msgid "Unable to seek to end of file\n"
+msgstr "無法搜索到檔案末尾\n"
+
+#: readelf.c:5442
+msgid "Unable to determine the length of the dynamic string table\n"
+msgstr "無法確定動態字串表的長度\n"
+
+#: readelf.c:5447
+msgid "dynamic string table"
+msgstr "動態字串表"
+
+#: readelf.c:5482
+msgid "symbol information"
+msgstr "符號資訊"
+
+#: readelf.c:5507
+#, c-format
+msgid ""
+"\n"
+"Dynamic section at offset 0x%lx contains %u entries:\n"
+msgstr ""
+"\n"
+"位於偏移量 0x%lx 處的動態區段含有 %u 個條目：\n"
+
+#: readelf.c:5510
+#, c-format
+msgid "  Tag        Type                         Name/Value\n"
+msgstr "  標記        類型                         名稱/值\n"
+
+#: readelf.c:5546
+#, c-format
+msgid "Auxiliary library"
+msgstr "附加函式庫"
+
+#: readelf.c:5550
+#, c-format
+msgid "Filter library"
+msgstr "過濾器函式庫"
+
+#: readelf.c:5554
+#, c-format
+msgid "Configuration file"
+msgstr "配置檔案"
+
+#: readelf.c:5558
+#, c-format
+msgid "Dependency audit library"
+msgstr "依存審查函式庫"
+
+#: readelf.c:5562
+#, c-format
+msgid "Audit library"
+msgstr "審查函式庫"
+
+#: readelf.c:5580 readelf.c:5608 readelf.c:5636
+#, c-format
+msgid "Flags:"
+msgstr "旗標："
+
+#: readelf.c:5583 readelf.c:5611 readelf.c:5638
+#, c-format
+msgid " None\n"
+msgstr " 無\n"
+
+#: readelf.c:5759
+#, c-format
+msgid "Shared library: [%s]"
+msgstr "共享函式庫：[%s]"
+
+#: readelf.c:5762
+#, c-format
+msgid " program interpreter"
+msgstr " 程式解譯器"
+
+#: readelf.c:5766
+#, c-format
+msgid "Library soname: [%s]"
+msgstr "函式庫檔名：[%s]"
+
+#: readelf.c:5770
+#, c-format
+msgid "Library rpath: [%s]"
+msgstr "函式庫路徑：[%s]"
+
+#: readelf.c:5774
+#, c-format
+msgid "Library runpath: [%s]"
+msgstr "函式庫執行路徑：[%s]"
+
+#: readelf.c:5837
+#, c-format
+msgid "Not needed object: [%s]\n"
+msgstr "不需要的物件：[%s]\n"
+
+#: readelf.c:5951
+#, c-format
+msgid ""
+"\n"
+"Version definition section '%s' contains %ld entries:\n"
+msgstr ""
+"\n"
+"版本定義區段「%s」含有 %ld 個條目：\n"
+
+#: readelf.c:5954
+#, c-format
+msgid "  Addr: 0x"
+msgstr "  位址：0x"
+
+#: readelf.c:5956 readelf.c:6148
+#, c-format
+msgid "  Offset: %#08lx  Link: %lx (%s)\n"
+msgstr "  偏移量：%#08lx  連結：%lx (%s)\n"
+
+#: readelf.c:5961
+msgid "version definition section"
+msgstr "版本定義區段"
+
+#: readelf.c:5987
+#, c-format
+msgid "  %#06x: Rev: %d  Flags: %s"
+msgstr "  %#06x: 修訂: %d  旗標: %s"
+
+#: readelf.c:5990
+#, c-format
+msgid "  Index: %d  Cnt: %d  "
+msgstr "  索引: %d  計數: %d  "
+
+#: readelf.c:6001
+#, c-format
+msgid "Name: %s\n"
+msgstr "名稱：%s\n"
+
+#: readelf.c:6003
+#, c-format
+msgid "Name index: %ld\n"
+msgstr "名稱索引：%ld\n"
+
+#: readelf.c:6018
+#, c-format
+msgid "  %#06x: Parent %d: %s\n"
+msgstr "  %#06x: 前一版 %d: %s\n"
+
+#: readelf.c:6021
+#, c-format
+msgid "  %#06x: Parent %d, name index: %ld\n"
+msgstr "  %#06x: 前一版 %d, 名稱索引: %ld\n"
+
+#: readelf.c:6040
+#, c-format
+msgid ""
+"\n"
+"Version needs section '%s' contains %ld entries:\n"
+msgstr ""
+"\n"
+"版本需要區段「%s」含有 %ld 個條目：\n"
+
+#: readelf.c:6043
+#, c-format
+msgid " Addr: 0x"
+msgstr " 位址：0x"
+
+#: readelf.c:6045
+#, c-format
+msgid "  Offset: %#08lx  Link to section: %ld (%s)\n"
+msgstr "  偏移量：%#08lx  連接到區段：%ld (%s)\n"
+
+#: readelf.c:6050
+msgid "version need section"
+msgstr "版本需要區段"
+
+#: readelf.c:6072
+#, c-format
+msgid "  %#06x: Version: %d"
+msgstr "  %#06x: 版本: %d"
+
+#: readelf.c:6075
+#, c-format
+msgid "  File: %s"
+msgstr "  檔案：%s"
+
+#: readelf.c:6077
+#, c-format
+msgid "  File: %lx"
+msgstr "  檔案：%lx"
+
+#: readelf.c:6079
+#, c-format
+msgid "  Cnt: %d\n"
+msgstr "  計數：%d\n"
+
+#: readelf.c:6097
+#, c-format
+msgid "  %#06x:   Name: %s"
+msgstr "  %#06x：名稱：%s"
+
+#: readelf.c:6100
+#, c-format
+msgid "  %#06x:   Name index: %lx"
+msgstr "  %#06x：名稱索引：%lx"
+
+#: readelf.c:6103
+#, c-format
+msgid "  Flags: %s  Version: %d\n"
+msgstr "  旗標：%s  版本：%d\n"
+
+#: readelf.c:6139
+msgid "version string table"
+msgstr "版本字串表"
+
+#: readelf.c:6143
+#, c-format
+msgid ""
+"\n"
+"Version symbols section '%s' contains %d entries:\n"
+msgstr ""
+"\n"
+"版本符號區段「%s」含有 %d 個條目：\n"
+
+#: readelf.c:6146
+#, c-format
+msgid " Addr: "
+msgstr " 位址："
+
+#: readelf.c:6156
+msgid "version symbol data"
+msgstr "版本符號資料"
+
+#: readelf.c:6183
+msgid "   0 (*local*)    "
+msgstr "   0 (*本地*)    "
+
+#: readelf.c:6187
+msgid "   1 (*global*)   "
+msgstr "   1 (*全域*)   "
+
+#: readelf.c:6223 readelf.c:6677
+msgid "version need"
+msgstr "版本需要"
+
+#: readelf.c:6233
+msgid "version need aux (2)"
+msgstr "版本需要外部 (2)"
+
+#: readelf.c:6275 readelf.c:6740
+msgid "version def"
+msgstr "版本定義"
+
+#: readelf.c:6294 readelf.c:6755
+msgid "version def aux"
+msgstr "版本定義外部"
+
+#: readelf.c:6325
+#, c-format
+msgid ""
+"\n"
+"No version information found in this file.\n"
+msgstr ""
+"\n"
+"本檔案中沒有區段資訊。\n"
+
+#: readelf.c:6456
+msgid "Unable to read in dynamic data\n"
+msgstr "無法讀入動態資料\n"
+
+#: readelf.c:6509
+msgid "Unable to seek to start of dynamic information"
+msgstr "無法定位到動態資訊的起點"
+
+#: readelf.c:6515
+msgid "Failed to read in number of buckets\n"
+msgstr "讀入存儲桶數量失敗\n"
+
+#: readelf.c:6521
+msgid "Failed to read in number of chains\n"
+msgstr "讀入鏈結數量失敗\n"
+
+#: readelf.c:6541
+#, c-format
+msgid ""
+"\n"
+"Symbol table for image:\n"
+msgstr ""
+"\n"
+"映像符號表：\n"
+
+#: readelf.c:6543
+#, c-format
+msgid "  Num Buc:    Value  Size   Type   Bind Vis      Ndx Name\n"
+msgstr " 存儲桶號:    值     大小   類型   約束 版本     索引名稱\n"
+
+#: readelf.c:6545
+#, c-format
+msgid "  Num Buc:    Value          Size   Type   Bind Vis      Ndx Name\n"
+msgstr " 存儲桶號:    值             大小   類型   約束 版本     索引名稱\n"
+
+#: readelf.c:6597
+#, c-format
+msgid ""
+"\n"
+"Symbol table '%s' contains %lu entries:\n"
+msgstr ""
+"\n"
+"符號表「%s」含有 %lu 個條目：\n"
+
+#: readelf.c:6601
+#, c-format
+msgid "   Num:    Value  Size Type    Bind   Vis      Ndx Name\n"
+msgstr "  編號:    值     大小 類型    約束   版本     索引名稱\n"
+
+#: readelf.c:6603
+#, c-format
+msgid "   Num:    Value          Size Type    Bind   Vis      Ndx Name\n"
+msgstr "  編號:    值             大小 類型    約束   版本     索引名稱\n"
+
+#: readelf.c:6649
+msgid "version data"
+msgstr "版本資料"
+
+#: readelf.c:6690
+msgid "version need aux (3)"
+msgstr "版本需要外部 (3)"
+
+#: readelf.c:6715
+msgid "bad dynamic symbol"
+msgstr "不良的動態符號"
+
+#: readelf.c:6778
+#, c-format
+msgid ""
+"\n"
+"Dynamic symbol information is not available for displaying symbols.\n"
+msgstr ""
+"\n"
+"無法取得顯示符號所需之動態符號資訊。\n"
+
+#: readelf.c:6790
+#, c-format
+msgid ""
+"\n"
+"Histogram for bucket list length (total of %lu buckets):\n"
+msgstr ""
+"\n"
+"存儲桶列表長度的長條圖 (總計 %lu 存儲桶)：\n"
+
+#: readelf.c:6792
+#, c-format
+msgid " Length  Number     %% of total  Coverage\n"
+msgstr " 長度    編號     總計之%%  覆蓋度\n"
+
+#: readelf.c:6797 readelf.c:6813 readelf.c:10967 readelf.c:11159
+msgid "Out of memory"
+msgstr "記憶體不足"
+
+#: readelf.c:6862
+#, c-format
+msgid ""
+"\n"
+"Dynamic info segment at offset 0x%lx contains %d entries:\n"
+msgstr ""
+"\n"
+"位於偏移量 0x%lx 的動態資訊節區含有 %d 個條目：\n"
+
+#: readelf.c:6865
+#, c-format
+msgid " Num: Name                           BoundTo     Flags\n"
+msgstr "編號: 名稱                           相約束      旗標\n"
+
+#: readelf.c:6917
+#, c-format
+msgid ""
+"\n"
+"Assembly dump of section %s\n"
+msgstr ""
+"\n"
+"「%s」區段的組合語言傾印：\n"
+
+#: readelf.c:6938
+#, c-format
+msgid ""
+"\n"
+"Section '%s' has no data to dump.\n"
+msgstr ""
+"\n"
+"「%s」區段沒有可傾印的資料。\n"
+
+#: readelf.c:6943
+#, c-format
+msgid ""
+"\n"
+"Hex dump of section '%s':\n"
+msgstr ""
+"\n"
+"「%s」區段的十六進位傾印：\n"
+
+#: readelf.c:7090
+msgid "badly formed extended line op encountered!\n"
+msgstr "遇到不正常的擴充型列操作碼！\n"
+
+#: readelf.c:7097
+#, c-format
+msgid "  Extended opcode %d: "
+msgstr "  擴充操作碼 %d： "
+
+#: readelf.c:7102
+#, c-format
+msgid ""
+"End of Sequence\n"
+"\n"
+msgstr ""
+"序列結尾\n"
+"\n"
+
+#: readelf.c:7108
+#, c-format
+msgid "set Address to 0x%lx\n"
+msgstr "設定位址至 0x%lx\n"
+
+#: readelf.c:7113
+#, c-format
+msgid "  define new File Table entry\n"
+msgstr "  定義新檔案表條目\n"
+
+#: readelf.c:7114 readelf.c:9032
+#, c-format
+msgid "  Entry\tDir\tTime\tSize\tName\n"
+msgstr "  條目\t目錄\t時間\t大小\t名稱\n"
+
+#: readelf.c:7116
+#, c-format
+msgid "   %d\t"
+msgstr "   %d\t"
+
+#: readelf.c:7119 readelf.c:7121 readelf.c:7123 readelf.c:9044 readelf.c:9046
+#: readelf.c:9048
+#, c-format
+msgid "%lu\t"
+msgstr "%lu\t"
+
+#: readelf.c:7124
+#, c-format
+msgid ""
+"%s\n"
+"\n"
+msgstr ""
+"%s\n"
+"\n"
+
+#: readelf.c:7128
+#, c-format
+msgid "UNKNOWN: length %d\n"
+msgstr "未知：長度 %d\n"
+
+#: readelf.c:7155
+msgid "debug_str section data"
+msgstr "debug_str 區段資料"
+
+#: readelf.c:7173
+msgid "<no .debug_str section>"
+msgstr "<沒有 .debug_str 區段>"
+
+#: readelf.c:7176
+msgid "<offset is too big>"
+msgstr "<偏移量過大>"
+
+#: readelf.c:7201
+msgid "debug_loc section data"
+msgstr "debug_loc 區段資料"
+
+#: readelf.c:7235
+msgid "debug_range section data"
+msgstr "debug_range 區段資料"
+
+#: readelf.c:7307
+#, c-format
+msgid "%s: skipping unexpected symbol type %s in relocation in section .rela%s\n"
+msgstr "%1$s: 在區段 .rela%3$s 中跳過意外的重定位符號類型 %2$s\n"
+
+#: readelf.c:7321
+#, c-format
+msgid "skipping unexpected symbol type %s in relocation in section .rela.%s\n"
+msgstr "在區段 .rela.%2$s 中跳過意外的重定位符號類型 %1$s\n"
+
+#: readelf.c:7565
+#, c-format
+msgid "Unknown TAG value: %lx"
+msgstr "未知的 TAG 值：%lx"
+
+#: readelf.c:7601
+#, c-format
+msgid "Unknown FORM value: %lx"
+msgstr "未知的 FORM 值：%lx"
+
+#: readelf.c:7610
+#, c-format
+msgid " %lu byte block: "
+msgstr " %lu 位元組的區塊："
+
+#: readelf.c:7944
+#, c-format
+msgid "(User defined location op)"
+msgstr "(使用者定義的定位操作碼)"
+
+#: readelf.c:7946
+#, c-format
+msgid "(Unknown location op)"
+msgstr "(未知的定位操作碼)"
+
+#: readelf.c:8015
+msgid "Internal error: DWARF version is not 2 or 3.\n"
+msgstr "內部錯誤：DWARF 版本號碼並非 2 或 3。\n"
+
+#: readelf.c:8113
+msgid "DW_FORM_data8 is unsupported when sizeof (unsigned long) != 8\n"
+msgstr "當 sizeof (unsigned long) != 8 時，不支援 DW_FORM_data8\n"
+
+#: readelf.c:8162
+#, c-format
+msgid " (indirect string, offset: 0x%lx): %s"
+msgstr " (間接字串，偏移量：0x%lx)： %s"
+
+#: readelf.c:8171
+#, c-format
+msgid "Unrecognized form: %d\n"
+msgstr "無法識別的形式：%d\n"
+
+#: readelf.c:8256
+#, c-format
+msgid "(not inlined)"
+msgstr "(非內嵌的)"
+
+#: readelf.c:8259
+#, c-format
+msgid "(inlined)"
+msgstr "(內嵌的)"
+
+#: readelf.c:8262
+#, c-format
+msgid "(declared as inline but ignored)"
+msgstr "(聲明為內嵌但被忽略)"
+
+#: readelf.c:8265
+#, c-format
+msgid "(declared as inline and inlined)"
+msgstr "(聲明為內嵌並已內嵌)"
+
+#: readelf.c:8268
+#, c-format
+msgid "  (Unknown inline attribute value: %lx)"
+msgstr "  (未知的內嵌屬性值：%lx)"
+
+#: readelf.c:8413 readelf.c:9537
+#, c-format
+msgid " [without DW_AT_frame_base]"
+msgstr " [不具 DW_AT_frame_base]"
+
+#: readelf.c:8416
+#, c-format
+msgid "(location list)"
+msgstr "(位置列表)"
+
+#: readelf.c:8534
+#, c-format
+msgid "Unknown AT value: %lx"
+msgstr "未知的 AT 值：%lx"
+
+#: readelf.c:8602
+msgid "No comp units in .debug_info section ?"
+msgstr "  在 .debug_info 區段中沒有編譯單元？"
+
+#: readelf.c:8611
+#, c-format
+msgid "Not enough memory for a debug info array of %u entries"
+msgstr "記憶體不足以容納 %u 個條目的除錯資訊陣列"
+
+#: readelf.c:8619 readelf.c:9630
+#, c-format
+msgid ""
+"The section %s contains:\n"
+"\n"
+msgstr ""
+"%s 區段含有：\n"
+"\n"
+
+#: readelf.c:8693
+#, c-format
+msgid "  Compilation Unit @ %lx:\n"
+msgstr "  編譯單元 @ %lx：\n"
+
+#: readelf.c:8694
+#, c-format
+msgid "   Length:        %ld\n"
+msgstr "   長度：        %ld\n"
+
+#: readelf.c:8695
+#, c-format
+msgid "   Version:       %d\n"
+msgstr "   版本：        %d\n"
+
+#: readelf.c:8696
+#, c-format
+msgid "   Abbrev Offset: %ld\n"
+msgstr "   縮寫偏移量：  %ld\n"
+
+#: readelf.c:8697
+#, c-format
+msgid "   Pointer Size:  %d\n"
+msgstr "   指標大小：    %d\n"
+
+#: readelf.c:8702
+msgid "Only version 2 and 3 DWARF debug information is currently supported.\n"
+msgstr "目前只支援第二與第三版 DWARF 除錯資訊。\n"
+
+#: readelf.c:8717
+msgid "Unable to locate .debug_abbrev section!\n"
+msgstr "無法找到 .debug_abbrev 區段的位置！\n"
+
+#: readelf.c:8722
+msgid "debug_abbrev section data"
+msgstr "debug_abbrev 區段資料"
+
+#: readelf.c:8759
+#, c-format
+msgid "Unable to locate entry %lu in the abbreviation table\n"
+msgstr "無法在縮寫表中找到條目 %lu 的位置\n"
+
+#: readelf.c:8765
+#, c-format
+msgid " <%d><%lx>: Abbrev Number: %lu (%s)\n"
+msgstr " <%d><%lx>：縮寫編號：%lu (%s)\n"
+
+#: readelf.c:8838
+#, c-format
+msgid "%s section needs a populated .debug_info section\n"
+msgstr "區段 %s 需要公開的 .debug_info 區段\n"
+
+#: readelf.c:8845
+#, c-format
+msgid "%s section has more comp units than .debug_info section\n"
+msgstr "區段 %s 具有比 .debug_info 區段更多的編譯單元\n"
+
+#: readelf.c:8847
+#, c-format
+msgid ""
+"assuming that the pointer size is %d, from the last comp unit in .debug_info\n"
+"\n"
+msgstr ""
+"從前一個 .debug_info 中的編譯單元，假定指標大小為 %d\n"
+"\n"
+
+#: readelf.c:8891
+msgid "extracting information from .debug_info section"
+msgstr "從 .debug_info 區段解開資訊"
+
+#: readelf.c:8909
+#, c-format
+msgid ""
+"\n"
+"Dump of debug contents of section %s:\n"
+"\n"
+msgstr ""
+"\n"
+"傾印 %s 區段的除錯內容：\n"
+"\n"
+
+#: readelf.c:8948
+msgid "The line info appears to be corrupt - the section is too small\n"
+msgstr "列資訊似乎已損壞 - 區段過小\n"
+
+#: readelf.c:8957
+msgid "Only DWARF version 2 and 3 line info is currently supported.\n"
+msgstr "目前只支援第二與第三版的 DWARF 列資訊。\n"
+
+#: readelf.c:8984
+#, c-format
+msgid "  Length:                      %ld\n"
+msgstr "  長度：                      %ld\n"
+
+#: readelf.c:8985
+#, c-format
+msgid "  DWARF Version:               %d\n"
+msgstr "  DWARF 版本：                %d\n"
+
+#: readelf.c:8986
+#, c-format
+msgid "  Prologue Length:             %d\n"
+msgstr "  前言長度：        %d\n"
+
+#: readelf.c:8987
+#, c-format
+msgid "  Minimum Instruction Length:  %d\n"
+msgstr "  最小指令長度：              %d\n"
+
+#: readelf.c:8988
+#, c-format
+msgid "  Initial value of 'is_stmt':  %d\n"
+msgstr " 「is_stmt」的初始值：       %d\n"
+
+#: readelf.c:8989
+#, c-format
+msgid "  Line Base:                   %d\n"
+msgstr "  列基數：                      %d\n"
+
+#: readelf.c:8990
+#, c-format
+msgid "  Line Range:                  %d\n"
+msgstr "  列範圍：                      %d\n"
+
+#: readelf.c:8991
+#, c-format
+msgid "  Opcode Base:                 %d\n"
+msgstr "  操作碼基數：                %d\n"
+
+#: readelf.c:8992
+#, c-format
+msgid "  (Pointer size:               %u)\n"
+msgstr "  (指標大小:               %u)\n"
+
+#: readelf.c:9001
+#, c-format
+msgid ""
+"\n"
+" Opcodes:\n"
+msgstr ""
+"\n"
+" 操作碼:\n"
+
+#: readelf.c:9004
+#, c-format
+msgid "  Opcode %d has %d args\n"
+msgstr "  操作碼 %d 具有 %d 個引數\n"
+
+#: readelf.c:9010
+#, c-format
+msgid ""
+"\n"
+" The Directory Table is empty.\n"
+msgstr ""
+"\n"
+" 目錄表為空。\n"
+
+#: readelf.c:9013
+#, c-format
+msgid ""
+"\n"
+" The Directory Table:\n"
+msgstr ""
+"\n"
+" 目錄表：\n"
+
+#: readelf.c:9017
+#, c-format
+msgid "  %s\n"
+msgstr "  %s\n"
+
+#: readelf.c:9028
+#, c-format
+msgid ""
+"\n"
+" The File Name Table is empty.\n"
+msgstr ""
+"\n"
+" 檔案名表為空。\n"
+
+#: readelf.c:9031
+#, c-format
+msgid ""
+"\n"
+" The File Name Table:\n"
+msgstr ""
+"\n"
+" 檔案名稱表：\n"
+
+#: readelf.c:9039
+#, c-format
+msgid "  %d\t"
+msgstr "  %d\t"
+
+#: readelf.c:9050
+#, c-format
+msgid "%s\n"
+msgstr "%s\n"
+
+#. Now display the statements.
+#: readelf.c:9058
+#, c-format
+msgid ""
+"\n"
+" Line Number Statements:\n"
+msgstr ""
+"\n"
+" 列號敍述句：\n"
+
+#: readelf.c:9073
+#, c-format
+msgid "  Special opcode %d: advance Address by %d to 0x%lx"
+msgstr "  特殊操作碼 %d: 增加位址由 %d 到 0x%lx"
+
+#: readelf.c:9077
+#, c-format
+msgid " and Line by %d to %d\n"
+msgstr "以及列號由 %d 到 %d\n"
+
+#: readelf.c:9088
+#, c-format
+msgid "  Copy\n"
+msgstr "  複製\n"
+
+#: readelf.c:9095
+#, c-format
+msgid "  Advance PC by %d to %lx\n"
+msgstr "  增加 PC 由 %d 到 %lx\n"
+
+#: readelf.c:9103
+#, c-format
+msgid "  Advance Line by %d to %d\n"
+msgstr "  增加列號由 %d 到 %d\n"
+
+#: readelf.c:9110
+#, c-format
+msgid "  Set File Name to entry %d in the File Name Table\n"
+msgstr "  設定檔案名稱為檔名表中的第 %d 條\n"
+
+#: readelf.c:9118
+#, c-format
+msgid "  Set column to %d\n"
+msgstr "  將行設定為 %d\n"
+
+#: readelf.c:9125
+#, c-format
+msgid "  Set is_stmt to %d\n"
+msgstr "  將 is_stmt 設定為 %d\n"
+
+#: readelf.c:9130
+#, c-format
+msgid "  Set basic block\n"
+msgstr "  設定基本區塊\n"
+
+#: readelf.c:9138
+#, c-format
+msgid "  Advance PC by constant %d to 0x%lx\n"
+msgstr "  增加 PC 常數 %d 到 0x%lx\n"
+
+#: readelf.c:9146
+#, c-format
+msgid "  Advance PC by fixed size amount %d to 0x%lx\n"
+msgstr "  增加 PC 固定大小的量 %d 到 0x%lx\n"
+
+#: readelf.c:9151
+#, c-format
+msgid "  Set prologue_end to true\n"
+msgstr "  將 prologue_end 設定為真\n"
+
+#: readelf.c:9155
+#, c-format
+msgid "  Set epilogue_begin to true\n"
+msgstr "  將 epilogue_begin 設定為真\n"
+
+#: readelf.c:9161
+#, c-format
+msgid "  Set ISA to %d\n"
+msgstr "  將 ISA 設定為 %d\n"
+
+#: readelf.c:9165
+#, c-format
+msgid "  Unknown opcode %d with operands: "
+msgstr "  未知操作碼 %d 應用於運算子："
+
+#: readelf.c:9193 readelf.c:9279 readelf.c:9354
+#, c-format
+msgid ""
+"Contents of the %s section:\n"
+"\n"
+msgstr ""
+"%s 區段的內容：\n"
+"\n"
+
+#: readelf.c:9233
+msgid "Only DWARF 2 and 3 pubnames are currently supported\n"
+msgstr "目前只支援第二與第三版 DWARF 的 pubname\n"
+
+#: readelf.c:9240
+#, c-format
+msgid "  Length:                              %ld\n"
+msgstr "  長度：                              %ld\n"
+
+#: readelf.c:9242
+#, c-format
+msgid "  Version:                             %d\n"
+msgstr "  版本：                              %d\n"
+
+#: readelf.c:9244
+#, c-format
+msgid "  Offset into .debug_info section:     %ld\n"
+msgstr "  在 .debug_info 區段中的偏移量：       %ld\n"
+
+#: readelf.c:9246
+#, c-format
+msgid "  Size of area in .debug_info section: %ld\n"
+msgstr "  在 .debug_info 區段中區域的大小：     %ld\n"
+
+#: readelf.c:9249
+#, c-format
+msgid ""
+"\n"
+"    Offset\tName\n"
+msgstr ""
+"\n"
+"    偏移量\t名稱\n"
+
+#: readelf.c:9300
+#, c-format
+msgid " DW_MACINFO_start_file - lineno: %d filenum: %d\n"
+msgstr " DW_MACINFO_start_file - 列號：%d 檔案編號：%d\n"
+
+#: readelf.c:9306
+#, c-format
+msgid " DW_MACINFO_end_file\n"
+msgstr " DW_MACINFO_end_file\n"
+
+#: readelf.c:9314
+#, c-format
+msgid " DW_MACINFO_define - lineno : %d macro : %s\n"
+msgstr " DW_MACINFO_define - 列號：%d 巨集：%s\n"
+
+#: readelf.c:9323
+#, c-format
+msgid " DW_MACINFO_undef - lineno : %d macro : %s\n"
+msgstr " DW_MACINFO_undef - 列號：%d 巨集：%s\n"
+
+#: readelf.c:9335
+#, c-format
+msgid " DW_MACINFO_vendor_ext - constant : %d string : %s\n"
+msgstr " DW_MACINFO_vendor_ext - 常數：%d 字串：%s\n"
+
+#: readelf.c:9363
+#, c-format
+msgid "  Number TAG\n"
+msgstr "  數字標記\n"
+
+#: readelf.c:9369
+#, c-format
+msgid "   %ld      %s    [%s]\n"
+msgstr "   %ld      %s    [%s]\n"
+
+#: readelf.c:9372
+msgid "has children"
+msgstr "含有子格位"
+
+#: readelf.c:9372
+msgid "no children"
+msgstr "沒有子格位"
+
+#: readelf.c:9375
+#, c-format
+msgid "    %-18s %s\n"
+msgstr "    %-18s %s\n"
+
+#: readelf.c:9410
+#, c-format
+msgid ""
+"\n"
+"The .debug_loc section is empty.\n"
+msgstr ""
+"\n"
+".debug_loc 區段為空。\n"
+
+#. FIXME: Should we handle this case?
+#: readelf.c:9455
+msgid "Location lists in .debug_info section aren't in ascending order!\n"
+msgstr ".debug_info 區段中的定位列表未依由小到大順序！\n"
+
+#: readelf.c:9458
+msgid "No location lists in .debug_info section!\n"
+msgstr ".debug_info 區段中沒有定位列表！\n"
+
+#: readelf.c:9461
+#, c-format
+msgid "Location lists in .debug_loc section start at 0x%lx\n"
+msgstr ".debug_info 區段中的定位列表起始自 0x%lx\n"
+
+#: readelf.c:9464
+#, c-format
+msgid ""
+"Contents of the .debug_loc section:\n"
+"\n"
+msgstr ""
+".debug_loc 區段的內容：\n"
+"\n"
+
+#: readelf.c:9465
+#, c-format
+msgid "    Offset   Begin    End      Expression\n"
+msgstr "    偏移量   起始   結束      表示式\n"
+
+#: readelf.c:9495
+#, c-format
+msgid "There is a hole [0x%lx - 0x%lx] in .debug_loc section.\n"
+msgstr "在 .debug_loc 區段中有一個漏洞 [0x%lx - 0x%lx]。\n"
+
+#: readelf.c:9498
+#, c-format
+msgid "There is an overlap [0x%lx - 0x%lx] in .debug_loc section.\n"
+msgstr "在 .debug_loc 區段中有一個重疊 [0x%lx - 0x%lx]。\n"
+
+#: readelf.c:9512 readelf.c:9837
+#, c-format
+msgid "    %8.8lx <End of list>\n"
+msgstr "    %8.8lx <表列尾端>\n"
+
+#: readelf.c:9540 readelf.c:9854
+msgid " (start == end)"
+msgstr " (開始 == 結束)"
+
+#: readelf.c:9542 readelf.c:9856
+msgid " (start > end)"
+msgstr " (開始 > 結束)"
+
+#: readelf.c:9566
+#, c-format
+msgid ""
+"\n"
+"The .debug_str section is empty.\n"
+msgstr ""
+"\n"
+".debug_str 區段為空。\n"
+
+#: readelf.c:9570
+#, c-format
+msgid ""
+"Contents of the .debug_str section:\n"
+"\n"
+msgstr ""
+".debug_str 區段的內容：\n"
+"\n"
+
+#: readelf.c:9675
+msgid "Only DWARF 2 and 3 aranges are currently supported.\n"
+msgstr "目前只支援第二與第三版 DWARF 的 arange。\n"
+
+#: readelf.c:9679
+#, c-format
+msgid "  Length:                   %ld\n"
+msgstr "  長度：                      %ld\n"
+
+#: readelf.c:9680
+#, c-format
+msgid "  Version:                  %d\n"
+msgstr "  版本：                %d\n"
+
+#: readelf.c:9681
+#, c-format
+msgid "  Offset into .debug_info:  %lx\n"
+msgstr "  在 .debug_info 區段中的偏移量：       %lx\n"
+
+#: readelf.c:9682
+#, c-format
+msgid "  Pointer Size:             %d\n"
+msgstr "  指標大小:             %d\n"
+
+#: readelf.c:9683
+#, c-format
+msgid "  Segment Size:             %d\n"
+msgstr "  節區大小:             %d\n"
+
+#: readelf.c:9685
+#, c-format
+msgid ""
+"\n"
+"    Address  Length\n"
+msgstr ""
+"\n"
+"    地址長度\n"
+
+#: readelf.c:9741
+#, c-format
+msgid ""
+"\n"
+"The .debug_ranges section is empty.\n"
+msgstr ""
+"\n"
+".debug_ranges 區段為空。\n"
+
+#. FIXME: Should we handle this case?
+#: readelf.c:9786
+msgid "Range lists in .debug_info section aren't in ascending order!\n"
+msgstr ".debug_info 區段中的範圍列表未依由小到大順序！\n"
+
+#: readelf.c:9789
+msgid "No range lists in .debug_info section!\n"
+msgstr ".debug_info 區段中沒有範圍列表！\n"
+
+#: readelf.c:9792
+#, c-format
+msgid "Range lists in .debug_ranges section start at 0x%lx\n"
+msgstr ".debug_ranges 區段中的範圍列表起始自 0x%lx\n"
+
+#: readelf.c:9795
+#, c-format
+msgid ""
+"Contents of the .debug_ranges section:\n"
+"\n"
+msgstr ""
+".debug_ranges 區段的內容：\n"
+"\n"
+
+#: readelf.c:9796
+#, c-format
+msgid "    Offset   Begin    End\n"
+msgstr "    偏移量   起始   結束\n"
+
+#: readelf.c:9820
+#, c-format
+msgid "There is a hole [0x%lx - 0x%lx] in .debug_ranges section.\n"
+msgstr "在 .debug_ranges 區段中有一個漏洞 [0x%lx - 0x%lx]。\n"
+
+#: readelf.c:9823
+#, c-format
+msgid "There is an overlap [0x%lx - 0x%lx] in .debug_ranges section.\n"
+msgstr "在 .debug_ranges 區段中有一個重疊 [0x%lx - 0x%lx]。\n"
+
+#: readelf.c:10017
+#, c-format
+msgid "The section %s contains:\n"
+msgstr "%s 區段含有：\n"
+
+#: readelf.c:10663
+#, c-format
+msgid "unsupported or unknown DW_CFA_%d\n"
+msgstr "不支援或未知的 DW_CFA_%d\n"
+
+#: readelf.c:10688
+#, c-format
+msgid "Displaying the debug contents of section %s is not yet supported.\n"
+msgstr "尚不支援顯示 %s 區段的除錯內容。\n"
+
+#: readelf.c:10732
+#, c-format
+msgid ""
+"\n"
+"Section '%s' has no debugging data.\n"
+msgstr ""
+"\n"
+"「%s」區段沒有正在除錯的資料。\n"
+
+#: readelf.c:10746
+msgid "debug section data"
+msgstr "除錯區段資料"
+
+#: readelf.c:10765
+#, c-format
+msgid "Unrecognized debug section: %s\n"
+msgstr "無法識別的除錯區段：%s\n"
+
+#: readelf.c:10800
+#, c-format
+msgid "Section %d was not dumped because it does not exist!\n"
+msgstr "沒有傾印區段 %d 是因為它們並不存在！\n"
+
+#: readelf.c:10872 readelf.c:11236
+msgid "liblist"
+msgstr "函式庫清單"
+
+#: readelf.c:10961
+msgid "options"
+msgstr "選項"
+
+#: readelf.c:10991
+#, c-format
+msgid ""
+"\n"
+"Section '%s' contains %d entries:\n"
+msgstr ""
+"\n"
+"「%s」區段含有 %d 個條目：\n"
+
+#: readelf.c:11152
+msgid "conflict list found without a dynamic symbol table"
+msgstr "不具動態符號表卻發現衝突的表列"
+
+#: readelf.c:11168 readelf.c:11182
+msgid "conflict"
+msgstr "衝突"
+
+#: readelf.c:11192
+#, c-format
+msgid ""
+"\n"
+"Section '.conflict' contains %lu entries:\n"
+msgstr ""
+"\n"
+"「.conflict」區段含有 %lu 個條目：\n"
+
+#: readelf.c:11194
+msgid "  Num:    Index       Value  Name"
+msgstr " 編號:    索引        值     名稱"
+
+#: readelf.c:11243
+msgid "liblist string table"
+msgstr "函式庫字串表"
+
+#: readelf.c:11252
+#, c-format
+msgid ""
+"\n"
+"Library list section '%s' contains %lu entries:\n"
+msgstr ""
+"\n"
+"「%s」函式庫列表區段含有 %lu 個條目：\n"
+
+#: readelf.c:11303
+msgid "NT_AUXV (auxiliary vector)"
+msgstr "NT_AUXV (auxiliary 向量)"
+
+#: readelf.c:11305
+msgid "NT_PRSTATUS (prstatus structure)"
+msgstr "NT_PRSTATUS (prstatus 結構)"
+
+#: readelf.c:11307
+msgid "NT_FPREGSET (floating point registers)"
+msgstr "NT_FPREGSET (浮點暫存器)"
+
+#: readelf.c:11309
+msgid "NT_PRPSINFO (prpsinfo structure)"
+msgstr "NT_PRPSINFO (prpsinfo 結構)"
+
+#: readelf.c:11311
+msgid "NT_TASKSTRUCT (task structure)"
+msgstr "NT_TASKSTRUCT (任務結構)"
+
+#: readelf.c:11313
+msgid "NT_PRXFPREG (user_xfpregs structure)"
+msgstr "NT_PRXFPREG (user_xfpregs 結構)"
+
+#: readelf.c:11315
+msgid "NT_PSTATUS (pstatus structure)"
+msgstr "NT_PSTATUS (pstatus 結構)"
+
+#: readelf.c:11317
+msgid "NT_FPREGS (floating point registers)"
+msgstr "NT_FPREGS (浮點暫存器)"
+
+#: readelf.c:11319
+msgid "NT_PSINFO (psinfo structure)"
+msgstr "NT_PSINFO (psinfo 結構)"
+
+#: readelf.c:11321
+msgid "NT_LWPSTATUS (lwpstatus_t structure)"
+msgstr "NT_LWPSTATUS (lwpstatus_t 結構)"
+
+#: readelf.c:11323
+msgid "NT_LWPSINFO (lwpsinfo_t structure)"
+msgstr "NT_LWPSINFO (lwpsinfo_t 結構)"
+
+#: readelf.c:11325
+msgid "NT_WIN32PSTATUS (win32_pstatus structure)"
+msgstr "NT_WIN32PSTATUS (win32_pstatus 結構)"
+
+#: readelf.c:11333
+msgid "NT_VERSION (version)"
+msgstr "NT_VERSION (版本)"
+
+#: readelf.c:11335
+msgid "NT_ARCH (architecture)"
+msgstr "NT_ARCH (系統架構)"
+
+#: readelf.c:11340 readelf.c:11362
+#, c-format
+msgid "Unknown note type: (0x%08x)"
+msgstr "未知的備註類型：(0x%08x)"
+
+#. NetBSD core "procinfo" structure.
+#: readelf.c:11352
+msgid "NetBSD procinfo structure"
+msgstr "NetBSD procinfo 結構"
+
+#: readelf.c:11379 readelf.c:11393
+msgid "PT_GETREGS (reg structure)"
+msgstr "PT_GETREGS (reg 結構)"
+
+#: readelf.c:11381 readelf.c:11395
+msgid "PT_GETFPREGS (fpreg structure)"
+msgstr "PT_GETFPREGS (fpreg 結構)"
+
+#: readelf.c:11401
+#, c-format
+msgid "PT_FIRSTMACH+%d"
+msgstr "PT_FIRSTMACH+%d"
+
+#: readelf.c:11447
+msgid "notes"
+msgstr "備註"
+
+#: readelf.c:11453
+#, c-format
+msgid ""
+"\n"
+"Notes at offset 0x%08lx with length 0x%08lx:\n"
+msgstr ""
+"\n"
+"備註位於偏移量 0x%08lx 長度為 0x%08lx：\n"
+
+#: readelf.c:11455
+#, c-format
+msgid "  Owner\t\tData size\tDescription\n"
+msgstr "  所有者\t\t資料大小\t描述\n"
+
+#: readelf.c:11474
+#, c-format
+msgid "corrupt note found at offset %x into core notes\n"
+msgstr "核心備註中位於偏移量 %x 處發現損毀的備註\n"
+
+#: readelf.c:11476
+#, c-format
+msgid " type: %x, namesize: %08lx, descsize: %08lx\n"
+msgstr " 類型：%x，名稱大小：%08lx，描述大小：%08lx\n"
+
+#: readelf.c:11574
+#, c-format
+msgid "No note segments present in the core file.\n"
+msgstr "核心檔案中沒有備註節區。\n"
+
+#: readelf.c:11653
+msgid ""
+"This instance of readelf has been built without support for a\n"
+"64 bit data type and so it cannot read 64 bit ELF files.\n"
+msgstr ""
+"本 readelf 實例於編譯時未加入 64 位元資料類型支援，\n"
+"因而無法讀入 64 位元 ELF 檔案。\n"
+
+#: readelf.c:11700 readelf.c:12059
+#, c-format
+msgid "%s: Failed to read file header\n"
+msgstr "%s：讀入檔案頭標失敗\n"
+
+#: readelf.c:11713
+#, c-format
+msgid ""
+"\n"
+"File: %s\n"
+msgstr ""
+"\n"
+"檔案：%s\n"
+
+#: readelf.c:11876 readelf.c:11897 readelf.c:11934 readelf.c:12014
+#, c-format
+msgid "%s: failed to read archive header\n"
+msgstr "%s：讀入保存檔標頭失敗\n"
+
+#: readelf.c:11887
+#, c-format
+msgid "%s: failed to skip archive symbol table\n"
+msgstr "%s：跳過保存檔符號表失敗\n"
+
+#: readelf.c:11919
+#, c-format
+msgid "%s: failed to read string table\n"
+msgstr "%s：讀入字串表失敗\n"
+
+#: readelf.c:11955
+#, c-format
+msgid "%s: invalid archive string table offset %lu\n"
+msgstr "%s：無效的保存檔字串表偏移量 %lu\n"
+
+#: readelf.c:11971
+#, c-format
+msgid "%s: bad archive file name\n"
+msgstr "%s：不良的保存檔案名稱\n"
+
+#: readelf.c:12003
+#, c-format
+msgid "%s: failed to seek to next archive header\n"
+msgstr "%s：搜索至下一個保存檔標頭失敗\n"
+
+#: readelf.c:12037
+#, c-format
+msgid "'%s': No such file\n"
+msgstr "「%s」：找不到此檔案\n"
+
+#: readelf.c:12039
+#, c-format
+msgid "Could not locate '%s'.  System error message: %s\n"
+msgstr "無法找到「%s」的位置。錯誤訊息為：%s\n"
+
+#: readelf.c:12046
+#, c-format
+msgid "'%s' is not an ordinary file\n"
+msgstr "「%s」不是一般的檔案\n"
+
+#: readelf.c:12053
+#, c-format
+msgid "Input file '%s' is not readable.\n"
+msgstr "輸入檔案「%s」並不可讀。\n"
+
+#: rename.c:127
+#, c-format
+msgid "%s: cannot set time: %s"
+msgstr "%s：無法設置時間：%s"
+
+#. We have to clean up here.
+#: rename.c:162 rename.c:200
+#, c-format
+msgid "unable to rename '%s' reason: %s"
+msgstr "無法更改「%s」的名稱，原因：%s"
+
+#: rename.c:208
+#, c-format
+msgid "unable to copy file '%s' reason: %s"
+msgstr "無法複製檔案「%s」，原因：%s"
+
+#: resbin.c:132
+#, c-format
+msgid "%s: not enough binary data"
+msgstr "%s：不足的二進位資料"
+
+#: resbin.c:148
+msgid "null terminated unicode string"
+msgstr "以 null 結束的 unicode 字串"
+
+#: resbin.c:175 resbin.c:181
+msgid "resource ID"
+msgstr "資源 ID"
+
+#: resbin.c:221
+msgid "cursor"
+msgstr "游標"
+
+#: resbin.c:253 resbin.c:260
+msgid "menu header"
+msgstr "選單標頭"
+
+#: resbin.c:270
+msgid "menuex header"
+msgstr "擴展選單標頭"
+
+#: resbin.c:274
+msgid "menuex offset"
+msgstr "擴展選單偏移量"
+
+#: resbin.c:281
+#, c-format
+msgid "unsupported menu version %d"
+msgstr "不支援的選單版本 %d"
+
+#: resbin.c:306 resbin.c:321 resbin.c:384
+msgid "menuitem header"
+msgstr "選單細項標頭"
+
+#: resbin.c:414
+msgid "menuitem"
+msgstr "選單細項"
+
+#: resbin.c:453 resbin.c:481
+msgid "dialog header"
+msgstr "對話框標頭"
+
+#: resbin.c:471
+#, c-format
+msgid "unexpected DIALOGEX version %d"
+msgstr "意外的 DIALOGEX 版本 %d"
+
+#: resbin.c:516
+msgid "dialog font point size"
+msgstr "對話框字型點數大小"
+
+#: resbin.c:524
+msgid "dialogex font information"
+msgstr "對話框擴展字型資訊"
+
+#: resbin.c:550 resbin.c:568
+msgid "dialog control"
+msgstr "對話框控制"
+
+#: resbin.c:560
+msgid "dialogex control"
+msgstr "對話框擴展控制"
+
+#: resbin.c:589
+msgid "dialog control end"
+msgstr "對話框控制結束"
+
+#: resbin.c:601
+msgid "dialog control data"
+msgstr "對話框控制資料"
+
+#: resbin.c:642
+msgid "stringtable string length"
+msgstr "字串表字串長度"
+
+#: resbin.c:652
+msgid "stringtable string"
+msgstr "字串表字串"
+
+#: resbin.c:683
+msgid "fontdir header"
+msgstr "字型目錄標頭"
+
+#: resbin.c:696
+msgid "fontdir"
+msgstr "字型目錄"
+
+#: resbin.c:712
+msgid "fontdir device name"
+msgstr "字型目錄設備名稱"
+
+#: resbin.c:718
+msgid "fontdir face name"
+msgstr "字型目錄字面名稱"
+
+#: resbin.c:759
+msgid "accelerator"
+msgstr "加速鍵"
+
+#: resbin.c:819
+msgid "group cursor header"
+msgstr "群組游標標頭"
+
+#: resbin.c:823
+#, c-format
+msgid "unexpected group cursor type %d"
+msgstr "意外的群組游標類型 %d"
+
+#: resbin.c:838
+msgid "group cursor"
+msgstr "群組游標"
+
+#: resbin.c:875
+msgid "group icon header"
+msgstr "群組圖示標頭"
+
+#: resbin.c:879
+#, c-format
+msgid "unexpected group icon type %d"
+msgstr "意外的群組圖示類型 %d"
+
+#: resbin.c:894
+msgid "group icon"
+msgstr "群組圖示"
+
+#: resbin.c:957 resbin.c:1174
+msgid "unexpected version string"
+msgstr "意外的版本字串"
+
+#: resbin.c:989
+#, c-format
+msgid "version length %d does not match resource length %lu"
+msgstr "版本長度 %d 不符合資源長度 %lu"
+
+#: resbin.c:993
+#, c-format
+msgid "unexpected version type %d"
+msgstr "意外的版本類型 %d"
+
+#: resbin.c:1005
+#, c-format
+msgid "unexpected fixed version information length %d"
+msgstr "意外的固定版本資訊長度 %d"
+
+#: resbin.c:1008
+msgid "fixed version info"
+msgstr "固定版本資訊"
+
+#: resbin.c:1012
+#, c-format
+msgid "unexpected fixed version signature %lu"
+msgstr "意外的固定版本簽名 %lu"
+
+#: resbin.c:1016
+#, c-format
+msgid "unexpected fixed version info version %lu"
+msgstr "意外的固定版本資訊版本 %lu"
+
+#: resbin.c:1045
+msgid "version var info"
+msgstr "版本變動資訊"
+
+#: resbin.c:1062
+#, c-format
+msgid "unexpected stringfileinfo value length %d"
+msgstr "意外的字串檔資訊值長度 %d"
+
+#: resbin.c:1072
+#, c-format
+msgid "unexpected version stringtable value length %d"
+msgstr "意外的版本字串表格值長度 %d"
+
+#: resbin.c:1106
+#, c-format
+msgid "unexpected version string length %d != %d + %d"
+msgstr "意外的版本字串長度 %d != %d + %d"
+
+#: resbin.c:1117
+#, c-format
+msgid "unexpected version string length %d < %d"
+msgstr "意外的版本字串長度 %d < %d"
+
+#: resbin.c:1134
+#, c-format
+msgid "unexpected varfileinfo value length %d"
+msgstr "意外的變動檔資訊值長度 %d"
+
+#: resbin.c:1153
+msgid "version varfileinfo"
+msgstr "版本變動檔資訊"
+
+#: resbin.c:1168
+#, c-format
+msgid "unexpected version value length %d"
+msgstr "意外的版本值長度 %d"
+
+#: rescoff.c:126
+msgid "filename required for COFF input"
+msgstr "COFF 輸入需要檔名"
+
+#: rescoff.c:143
+#, c-format
+msgid "%s: no resource section"
+msgstr "%s：沒有資源區段"
+
+#: rescoff.c:150
+msgid "can't read resource section"
+msgstr "無法讀入資源區段"
+
+#: rescoff.c:174
+#, c-format
+msgid "%s: %s: address out of bounds"
+msgstr "%s：%s：位址超出界限"
+
+#: rescoff.c:190
+msgid "directory"
+msgstr "目錄"
+
+#: rescoff.c:218
+msgid "named directory entry"
+msgstr "已命名的目錄條目"
+
+#: rescoff.c:227
+msgid "directory entry name"
+msgstr "目錄條目名稱"
+
+#: rescoff.c:247
+msgid "named subdirectory"
+msgstr "已命名的子目錄"
+
+#: rescoff.c:255
+msgid "named resource"
+msgstr "已命名的資源"
+
+#: rescoff.c:270
+msgid "ID directory entry"
+msgstr "ID 目錄項目"
+
+#: rescoff.c:287
+msgid "ID subdirectory"
+msgstr "ID 子目錄"
+
+#: rescoff.c:295
+msgid "ID resource"
+msgstr "ID 資源"
+
+#: rescoff.c:318
+msgid "resource type unknown"
+msgstr "資源類型未知"
+
+#: rescoff.c:321
+msgid "data entry"
+msgstr "資料條目"
+
+#: rescoff.c:329
+msgid "resource data"
+msgstr "資源資料"
+
+#: rescoff.c:334
+msgid "resource data size"
+msgstr "資源資料大小"
+
+#: rescoff.c:427
+msgid "filename required for COFF output"
+msgstr "COFF 輸出需要檔名"
+
+#: rescoff.c:719
+msgid "can't get BFD_RELOC_RVA relocation type"
+msgstr "無法得到 BFD_RELOC_RVA 重定向類型"
+
+#: resrc.c:238 resrc.c:309
+#, c-format
+msgid "can't open temporary file `%s': %s"
+msgstr "無法開啟臨時檔案「%s」：%s"
+
+#: resrc.c:244
+#, c-format
+msgid "can't redirect stdout: `%s': %s"
+msgstr "無法重定向標準輸出：「%s」：%s"
+
+#: resrc.c:260
+#, c-format
+msgid "%s %s: %s"
+msgstr "%s %s：%s"
+
+#: resrc.c:305
+#, c-format
+msgid "can't execute `%s': %s"
+msgstr "無法執行「%s」：%s"
+
+#: resrc.c:314
+#, c-format
+msgid "Using temporary file `%s' to read preprocessor output\n"
+msgstr "使用臨時檔案「%s」以讀入前置處理器輸出\n"
+
+#: resrc.c:321
+#, c-format
+msgid "can't popen `%s': %s"
+msgstr "無法 popen「%s」：%s"
+
+#: resrc.c:323
+#, c-format
+msgid "Using popen to read preprocessor output\n"
+msgstr "使用 popen 讀入前置處理器輸出\n"
+
+#: resrc.c:362
+#, c-format
+msgid "Tried `%s'\n"
+msgstr "已嘗試「%s」\n"
+
+#: resrc.c:373
+#, c-format
+msgid "Using `%s'\n"
+msgstr "正使用「%s」\n"
+
+#: resrc.c:529
+#, c-format
+msgid "%s:%d: %s\n"
+msgstr "%s：%d：%s\n"
+
+#: resrc.c:537
+#, c-format
+msgid "%s: unexpected EOF"
+msgstr "%s：檔案意外結尾"
+
+#: resrc.c:586
+#, c-format
+msgid "%s: read of %lu returned %lu"
+msgstr "%s：讀取 %lu 返回 %lu"
+
+#: resrc.c:624 resrc.c:1134
+#, c-format
+msgid "stat failed on bitmap file `%s': %s"
+msgstr "對位元圖檔案「%s」進行 stat 操作失敗：%s"
+
+#: resrc.c:675
+#, c-format
+msgid "cursor file `%s' does not contain cursor data"
+msgstr "游標檔案「%s」不含有游標資料"
+
+#: resrc.c:707 resrc.c:1003
+#, c-format
+msgid "%s: fseek to %lu failed: %s"
+msgstr "%s: fseek 到 %lu 操作失敗: %s"
+
+#: resrc.c:831
+msgid "help ID requires DIALOGEX"
+msgstr "輔助 ID 要求 DIALOGEX"
+
+#: resrc.c:833
+msgid "control data requires DIALOGEX"
+msgstr "控制資料要求 DIALOGEX"
+
+#: resrc.c:861
+#, c-format
+msgid "stat failed on font file `%s': %s"
+msgstr "對字型檔案「%s」進行 stat 操作失敗：%s"
+
+#: resrc.c:972
+#, c-format
+msgid "icon file `%s' does not contain icon data"
+msgstr "圖示檔案「%s」不含有圖示資料"
+
+#: resrc.c:1273 resrc.c:1308
+#, c-format
+msgid "stat failed on file `%s': %s"
+msgstr "對檔案「%s」進行 stat 操作失敗：%s"
+
+#: resrc.c:1494
+#, c-format
+msgid "can't open `%s' for output: %s"
+msgstr "無法為輸出而開啟「%s」：%s"
+
+#: size.c:81
+#, c-format
+msgid " Displays the sizes of sections inside binary files\n"
+msgstr " 顯示二進位檔案中區段的大小\n"
+
+#: size.c:82
+#, c-format
+msgid " If no input file(s) are specified, a.out is assumed\n"
+msgstr " 如果沒有指定輸入檔案，預設為 a.out\n"
+
+#: size.c:83
+#, c-format
+msgid ""
+" The options are:\n"
+"  -A|-B     --format={sysv|berkeley}  Select output style (default is %s)\n"
+"  -o|-d|-x  --radix={8|10|16}         Display numbers in octal, decimal or hex\n"
+"  -t        --totals                  Display the total sizes (Berkeley only)\n"
+"            --target=<bfdname>        Set the binary file format\n"
+"  -h        --help                    Display this information\n"
+"  -v        --version                 Display the program's version\n"
+"\n"
+msgstr ""
+" 選項為：\n"
+"  -A|-B     --format={sysv|berkeley}  選擇輸出風格 (預設為 %s)\n"
+"  -o|-d|-x  --radix={8|10|16}         以八進位、十進位或十六進位顯示數值\n"
+"  -t        --totals                  顯示總計大小 (只用於 Berkeley 風格)\n"
+"            --target=<bfdname>        設定二進位檔案格式\n"
+"  -h        --help                    顯示本資訊\n"
+"  -v        --version                 顯示程式的版本號碼\n"
+"\n"
+
+#: size.c:153
+#, c-format
+msgid "invalid argument to --format: %s"
+msgstr "--format 的無效引數：%s"
+
+#: size.c:180
+#, c-format
+msgid "Invalid radix: %s\n"
+msgstr "無效的 radix: %s\n"
+
+#: srconv.c:1722
+#, c-format
+msgid "Convert a COFF object file into a SYSROFF object file\n"
+msgstr "將 COFF 目標檔案轉換為 SYSROFF 目標檔案\n"
+
+#: srconv.c:1723
+#, c-format
+msgid ""
+" The options are:\n"
+"  -q --quick       (Obsolete - ignored)\n"
+"  -n --noprescan   Do not perform a scan to convert commons into defs\n"
+"  -d --debug       Display information about what is being done\n"
+"  -h --help        Display this information\n"
+"  -v --version     Print the program's version number\n"
+msgstr ""
+" 選項為：\n"
+"  -q --quick       (過期 - 忽略)\n"
+"  -n --noprescan   不執行掃瞄以將 commons 轉換為 defs\n"
+"  -d --debug       顯示關於已完成事件的資訊\n"
+"  -h --help        顯示本資訊\n"
+"  -v --version     列印程式的版本號碼\n"
+
+#: srconv.c:1866
+#, c-format
+msgid "unable to open output file %s"
+msgstr "無法打開輸出檔案 %s"
+
+#: stabs.c:330 stabs.c:1708
+msgid "numeric overflow"
+msgstr "數值溢出"
+
+#: stabs.c:340
+#, c-format
+msgid "Bad stab: %s\n"
+msgstr "不良 stab: %s\n"
+
+#: stabs.c:348
+#, c-format
+msgid "Warning: %s: %s\n"
+msgstr "警告：%s：%s\n"
+
+#: stabs.c:458
+#, c-format
+msgid "N_LBRAC not within function\n"
+msgstr "N_LBRAC 不在函數中\n"
+
+#: stabs.c:497
+#, c-format
+msgid "Too many N_RBRACs\n"
+msgstr "過多的 N_RBRAC\n"
+
+#: stabs.c:738
+msgid "unknown C++ encoded name"
+msgstr "未知的 C++ 編碼名稱"
+
+#. Complain and keep going, so compilers can invent new
+#. cross-reference types.
+#: stabs.c:1253
+msgid "unrecognized cross reference type"
+msgstr "無法識別的交叉參考類型"
+
+#. Does this actually ever happen?  Is that why we are worrying
+#. about dealing with it rather than just calling error_type?
+#: stabs.c:1800
+msgid "missing index type"
+msgstr "遺漏的索引類型"
+
+#: stabs.c:2114
+msgid "unknown virtual character for baseclass"
+msgstr "不明之做為基本類別的虚擬字元"
+
+#: stabs.c:2132
+msgid "unknown visibility character for baseclass"
+msgstr "不明之做為基本類別的可見字元"
+
+#: stabs.c:2318
+msgid "unnamed $vb type"
+msgstr "未命名的 $vb 類型"
+
+#: stabs.c:2324
+msgid "unrecognized C++ abbreviation"
+msgstr "無法識別的 C++ 縮寫"
+
+#: stabs.c:2400
+msgid "unknown visibility character for field"
+msgstr "欄位中未知的可見字元"
+
+#: stabs.c:2652
+msgid "const/volatile indicator missing"
+msgstr "遺漏 const/volatile 指示符號"
+
+#: stabs.c:2888
+#, c-format
+msgid "No mangling for \"%s\"\n"
+msgstr "\"%s\" 沒有損壞\n"
+
+#: stabs.c:3188
+msgid "Undefined N_EXCL"
+msgstr "未定義 N_EXCL"
+
+#: stabs.c:3268
+#, c-format
+msgid "Type file number %d out of range\n"
+msgstr "類型檔案編號 %d 超出範圍\n"
+
+#: stabs.c:3273
+#, c-format
+msgid "Type index number %d out of range\n"
+msgstr "類型索引編號 %d 超出範圍\n"
+
+#: stabs.c:3352
+#, c-format
+msgid "Unrecognized XCOFF type %d\n"
+msgstr "無法識別的 XCOFF 類型 %d\n"
+
+#: stabs.c:3644
+#, c-format
+msgid "bad mangled name `%s'\n"
+msgstr "不良的損毀名稱「%s」\n"
+
+#: stabs.c:3739
+#, c-format
+msgid "no argument types in mangled string\n"
+msgstr "已損毀字串中沒有引數類型\n"
+
+#: stabs.c:5093
+#, c-format
+msgid "Demangled name is not a function\n"
+msgstr "損毀後修復的名稱不是函數\n"
+
+#: stabs.c:5135
+#, c-format
+msgid "Unexpected type in v3 arglist demangling\n"
+msgstr "在 v3 引數表修復損毀時有意外的類型\n"
+
+#: stabs.c:5202
+#, c-format
+msgid "Unrecognized demangle component %d\n"
+msgstr "無法識別的損毀修復組成 %d\n"
+
+#: stabs.c:5254
+#, c-format
+msgid "Failed to print demangled template\n"
+msgstr "印出損毀修復之模版失敗\n"
+
+#: stabs.c:5334
+#, c-format
+msgid "Couldn't get demangled builtin type\n"
+msgstr "無法取得損毀修復之內建類型\n"
+
+#: stabs.c:5383
+#, c-format
+msgid "Unexpected demangled varargs\n"
+msgstr "意外的損毀修復變數\n"
+
+#: stabs.c:5390
+#, c-format
+msgid "Unrecognized demangled builtin type\n"
+msgstr "無法識別的損毀修復之內建類型\n"
+
+#: strings.c:206
+#, c-format
+msgid "invalid number %s"
+msgstr "無效的編號 %s"
+
+#: strings.c:643
+#, c-format
+msgid "invalid integer argument %s"
+msgstr "無效的整數引數 %s"
+
+#: strings.c:652
+#, c-format
+msgid " Display printable strings in [file(s)] (stdin by default)\n"
+msgstr " 顯示 [檔案] (預設為標準輸入) 中可列印的字串\n"
+
+#: strings.c:653
+#, c-format
+msgid ""
+" The options are:\n"
+"  -a - --all                Scan the entire file, not just the data section\n"
+"  -f --print-file-name      Print the name of the file before each string\n"
+"  -n --bytes=[number]       Locate & print any NUL-terminated sequence of at\n"
+"  -<number>                 least [number] characters (default 4).\n"
+"  -t --radix={o,d,x}        Print the location of the string in base 8, 10 or 16\n"
+"  -o                        An alias for --radix=o\n"
+"  -T --target=<BFDNAME>     Specify the binary file format\n"
+"  -e --encoding={s,S,b,l,B,L} Select character size and endianness:\n"
+"                            s = 7-bit, S = 8-bit, {b,l} = 16-bit, {B,L} = 32-bit\n"
+"  -h --help                 Display this information\n"
+"  -v --version              Print the program's version number\n"
+msgstr ""
+" 選項為：\n"
+"  -a - --all                掃瞄整個檔案，而非只有資料區段\n"
+"  -f --print-file-name      在每個字串之前印出檔案的名稱\n"
+"  -n --bytes=[number]       定址 & 印出任何以 NUL 結尾的序列於 number\n"
+"  -<number>                 至少 [number] 個字元 (預設 4)\n"
+"  -t --radix={o,d,x}        以八進位、十進位或十六進位印出字串位置\n"
+"  -o                        --radix=o 的別名\n"
+"  -T --target=<BFDNAME>     指定二進位檔案格式\n"
+"  -e --encoding={s,S,b,l,B,L} 選擇字元大小與尾序：\n"
+"                            s=7位元, S=8位元, {b,l}=16位元, {B,L}=32位元\n"
+"  -h --help                 顯示本資訊\n"
+"  -v --version              顯示程式的版本號碼\n"
+
+#: sysdump.c:649
+#, c-format
+msgid "Print a human readable interpretation of a SYSROFF object file\n"
+msgstr "印出適於閱讀之 SYSROFF 目標檔案的解釋\n"
+
+#: sysdump.c:650
+#, c-format
+msgid ""
+" The options are:\n"
+"  -h --help        Display this information\n"
+"  -v --version     Print the program's version number\n"
+msgstr ""
+" 選項為：\n"
+"  -h --help        顯示本資訊\n"
+"  -v --version     列印程式的版本號碼\n"
+
+#: sysdump.c:715
+#, c-format
+msgid "cannot open input file %s"
+msgstr "無法開啟輸入檔案 %s"
+
+#: version.c:35
+#, c-format
+msgid "Copyright 2005 Free Software Foundation, Inc.\n"
+msgstr "版權所有 2005 自由軟體基金會。\n"
+
+#: version.c:36
+#, c-format
+msgid ""
+"This program is free software; you may redistribute it under the terms of\n"
+"the GNU General Public License.  This program has absolutely no warranty.\n"
+msgstr ""
+"本程式是自由軟體；您可以按照 GNU 通用公共許可證\n"
+"的條款對其進行再發佈。本程式完全沒有任何擔保。\n"
+
+#: windres.c:204
+#, c-format
+msgid "can't open %s `%s': %s"
+msgstr "無法開啟 %s「%s」：%s"
+
+#: windres.c:370
+#, c-format
+msgid ": expected to be a directory\n"
+msgstr "：應該是目錄\n"
+
+#: windres.c:382
+#, c-format
+msgid ": expected to be a leaf\n"
+msgstr "：應該是分支\n"
+
+#: windres.c:391
+#, c-format
+msgid "%s: warning: "
+msgstr "%s：警告："
+
+#: windres.c:393
+#, c-format
+msgid ": duplicate value\n"
+msgstr "：重覆的值\n"
+
+#: windres.c:543
+#, c-format
+msgid "unknown format type `%s'"
+msgstr "未知的格式類型「%s」"
+
+#: windres.c:544
+#, c-format
+msgid "%s: supported formats:"
+msgstr "%s：支援的格式："
+
+#. Otherwise, we give up.
+#: windres.c:627
+#, c-format
+msgid "can not determine type of file `%s'; use the -J option"
+msgstr "無法確定檔案「%s」的類型；請使用 -J 選項"
+
+#: windres.c:639
+#, c-format
+msgid "Usage: %s [option(s)] [input-file] [output-file]\n"
+msgstr "用法：%s [選項] [輸入檔案] [輸出檔案]\n"
+
+#: windres.c:641
+#, c-format
+msgid ""
+" The options are:\n"
+"  -i --input=<file>            Name input file\n"
+"  -o --output=<file>           Name output file\n"
+"  -J --input-format=<format>   Specify input format\n"
+"  -O --output-format=<format>  Specify output format\n"
+"  -F --target=<target>         Specify COFF target\n"
+"     --preprocessor=<program>  Program to use to preprocess rc file\n"
+"  -I --include-dir=<dir>       Include directory when preprocessing rc file\n"
+"  -D --define <sym>[=<val>]    Define SYM when preprocessing rc file\n"
+"  -U --undefine <sym>          Undefine SYM when preprocessing rc file\n"
+"  -v --verbose                 Verbose - tells you what it's doing\n"
+"  -l --language=<val>          Set language when reading rc file\n"
+"     --use-temp-file           Use a temporary file instead of popen to read\n"
+"                               the preprocessor output\n"
+"     --no-use-temp-file        Use popen (default)\n"
+msgstr ""
+" 選項為：\n"
+"  -i --input=<file>            指名輸入檔案\n"
+"  -o --output=<file>           指名輸出檔案\n"
+"  -J --input-format=<format>   指定輸入格式\n"
+"  -O --output-format=<format>  指定輸出格式\n"
+"  -F --target=<target>         指定 COFF 目標\n"
+"     --preprocessor=<program>  用於前置處理 rc 檔案的程式\n"
+"  -I --include-dir=<dir>       前置處理 rc 檔案時包含的目錄\n"
+"  -D --define <sym>[=<val>]    前置處理 rc 檔案時定義 SYM\n"
+"  -U --undefine <sym>          前置處理 rc 檔案時解除 SYM\n"
+"  -v --verbose                 詳細 - 告訴您正在做什麼\n"
+"  -l --language=<val>          讀取 rc 檔案時設定之語言\n"
+"     --use-temp-file           使用臨時檔案而非 popen 來讀取前置處理器輸出\n"
+"     --no-use-temp-file        使用 popen (預設)\n"
+
+#: windres.c:657
+#, c-format
+msgid "     --yydebug                 Turn on parser debugging\n"
+msgstr "     --yydebug                 打開解析器除錯\n"
+
+#: windres.c:660
+#, c-format
+msgid ""
+"  -r                           Ignored for compatibility with rc\n"
+"  -h --help                    Print this help message\n"
+"  -V --version                 Print version information\n"
+msgstr ""
+" 選項為：\n"
+"  -r                           忽略與 rc 的相容性\n"
+"  -h --help                    列印本求助訊息\n"
+"  -V --version                 列印版本資訊\n"
+
+#: windres.c:664
+#, c-format
+msgid ""
+"FORMAT is one of rc, res, or coff, and is deduced from the file name\n"
+"extension if not specified.  A single file name is an input file.\n"
+"No input-file is stdin, default rc.  No output-file is stdout, default rc.\n"
+msgstr ""
+"FORMAT 是 rc、res 或 coff 之一，在未指定時根據檔案的擴展名進行判斷。\n"
+"單一檔名被認為是輸入檔案。沒有輸入檔案時就使用標準輸入，預設格式\n"
+"為 rc。沒有輸出檔案時就使用標準輸出，預設格式為 rc。\n"
+
+#: windres.c:800
+msgid "invalid option -f\n"
+msgstr "無效的選項「-f」\n"
+
+#: windres.c:805
+msgid "No filename following the -fo option.\n"
+msgstr "在選項 -fo 之後沒有檔名。\n"
+
+#: windres.c:863
+#, c-format
+msgid "Option -I is deprecated for setting the input format, please use -J instead.\n"
+msgstr "選項 -I 用做設定輸入格式已過時，請使用 -J 代替。\n"
+
+#: windres.c:981
+msgid "no resources"
+msgstr "沒有資源"
+
+#: wrstabs.c:354 wrstabs.c:1915
+#, c-format
+msgid "string_hash_lookup failed: %s"
+msgstr "string_hash_lookup 失敗：%s"
+
+#: wrstabs.c:635
+#, c-format
+msgid "stab_int_type: bad size %u"
+msgstr "stab_int_type：錯誤大小 %u"
+
+#: wrstabs.c:1393
+#, c-format
+msgid "%s: warning: unknown size for field `%s' in struct"
+msgstr "%s：警告：結構中「%s」欄位的大小未知"

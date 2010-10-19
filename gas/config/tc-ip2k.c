@@ -1,5 +1,5 @@
 /* tc-ip2k.c -- Assembler for the Scenix IP2xxx.
-   Copyright (C) 2000, 2002, 2003 Free Software Foundation.
+   Copyright (C) 2000, 2002, 2003, 2005 Free Software Foundation.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -15,8 +15,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   the Free Software Foundation, 51 Franklin Street - Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 #include <stdio.h>
 #include "as.h"
@@ -57,8 +57,52 @@ const char line_separator_chars[] = "";
 const char EXP_CHARS[]            = "eE";
 const char FLT_CHARS[]            = "dD";
 
-static void ip2k_elf_section_text (int);
-static void ip2k_elf_section_rtn (int);
+/* Flag to detect when switching to code section where insn alignment is
+   implied.  */
+static int force_code_align = 0;
+
+/* Mach selected from command line.  */
+static int ip2k_mach = 0;
+static unsigned ip2k_mach_bitmask = 0;
+
+
+static void
+ip2k_elf_section_rtn (int i)
+{
+  obj_elf_section(i);
+
+  if (force_code_align)
+    {
+      /* The s_align_ptwo function expects that we are just after a .align
+	 directive and it will either try and read the align value or stop
+	 if end of line so we must fake it out so it thinks we are at the
+	 end of the line.  */
+      char *old_input_line_pointer = input_line_pointer;
+      input_line_pointer = "\n";
+      s_align_ptwo (1);
+      force_code_align = 0;
+      /* Restore.  */
+      input_line_pointer = old_input_line_pointer;
+    }
+}
+
+static void
+ip2k_elf_section_text (int i)
+{
+  char *old_input_line_pointer;
+  obj_elf_text(i);
+
+  /* the s_align_ptwo function expects that we are just after a .align
+     directive and it will either try and read the align value or stop if
+     end of line so we must fake it out so it thinks we are at the end of
+     the line.  */
+  old_input_line_pointer = input_line_pointer;
+  input_line_pointer = "\n";
+  s_align_ptwo (1);
+  force_code_align = 0;
+  /* Restore.  */
+  input_line_pointer = old_input_line_pointer;
+}
 
 /* The target specific pseudo-ops which we support.  */
 const pseudo_typeS md_pseudo_table[] =
@@ -70,8 +114,11 @@ const pseudo_typeS md_pseudo_table[] =
 
 
 
-#define OPTION_CPU_IP2022    (OPTION_MD_BASE)
-#define OPTION_CPU_IP2022EXT (OPTION_MD_BASE+1)
+enum options
+{
+  OPTION_CPU_IP2022 = OPTION_MD_BASE,
+  OPTION_CPU_IP2022EXT
+};
 
 struct option md_longopts[] = 
 {
@@ -83,18 +130,8 @@ size_t md_longopts_size = sizeof (md_longopts);
 
 const char * md_shortopts = "";
 
-/* Flag to detect when switching to code section where insn alignment is
-   implied.  */
-static int force_code_align = 0;
-
-/* Mach selected from command line.  */
-int ip2k_mach = 0;
-unsigned ip2k_mach_bitmask = 0;
-
 int
-md_parse_option (c, arg)
-    int c ATTRIBUTE_UNUSED;
-    char * arg ATTRIBUTE_UNUSED;
+md_parse_option (int c ATTRIBUTE_UNUSED, char * arg ATTRIBUTE_UNUSED)
 {
   switch (c)
     {
@@ -115,10 +152,8 @@ md_parse_option (c, arg)
   return 1;
 }
 
-
 void
-md_show_usage (stream)
-    FILE * stream;
+md_show_usage (FILE * stream)
 {
   fprintf (stream, _("IP2K specific command line options:\n"));
   fprintf (stream, _("  -mip2022               restrict to IP2022 insns \n"));
@@ -127,7 +162,7 @@ md_show_usage (stream)
 
 
 void
-md_begin ()
+md_begin (void)
 {
   /* Initialize the `cgen' interface.  */
   
@@ -148,8 +183,7 @@ md_begin ()
 
 
 void
-md_assemble (str)
-     char * str;
+md_assemble (char * str)
 {
   ip2k_insn insn;
   char * errmsg;
@@ -173,7 +207,7 @@ md_assemble (str)
        the PCL (pc + 2) >> 1 is odd or even.  */
     {
       enum cgen_parse_operand_result result_type;
-      long value;
+      bfd_vma value;
       const char *curpc_plus_2 = ".+2";
       const char *err;
 
@@ -194,9 +228,7 @@ md_assemble (str)
 }
 
 valueT
-md_section_align (segment, size)
-     segT   segment;
-     valueT size;
+md_section_align (segT segment, valueT size)
 {
   int align = bfd_get_section_alignment (stdoutput, segment);
 
@@ -205,16 +237,14 @@ md_section_align (segment, size)
 
 
 symbolS *
-md_undefined_symbol (name)
-    char * name ATTRIBUTE_UNUSED;
+md_undefined_symbol (char * name ATTRIBUTE_UNUSED)
 {
     return 0;
 }
 
 int
-md_estimate_size_before_relax (fragP, segment)
-     fragS * fragP ATTRIBUTE_UNUSED;
-     segT    segment ATTRIBUTE_UNUSED;
+md_estimate_size_before_relax (fragS * fragP ATTRIBUTE_UNUSED,
+			       segT    segment ATTRIBUTE_UNUSED)
 {
   as_fatal (_("md_estimate_size_before_relax\n"));
   return 1;
@@ -229,10 +259,9 @@ md_estimate_size_before_relax (fragP, segment)
    fragP->fr_subtype is the subtype of what the address relaxed to.  */
 
 void
-md_convert_frag (abfd, sec, fragP)
-    bfd   * abfd  ATTRIBUTE_UNUSED;
-    segT    sec   ATTRIBUTE_UNUSED;
-    fragS * fragP ATTRIBUTE_UNUSED;
+md_convert_frag (bfd   * abfd  ATTRIBUTE_UNUSED,
+		 segT    sec   ATTRIBUTE_UNUSED,
+		 fragS * fragP ATTRIBUTE_UNUSED)
 {
 }
 
@@ -240,8 +269,7 @@ md_convert_frag (abfd, sec, fragP)
 /* Functions concerning relocs.  */
 
 long
-md_pcrel_from (fixP)
-     fixS *fixP;
+md_pcrel_from (fixS *fixP)
 {
   as_fatal (_("md_pcrel_from\n"));
 
@@ -255,10 +283,9 @@ md_pcrel_from (fixP)
    *FIXP may be modified if desired.  */
 
 bfd_reloc_code_real_type
-md_cgen_lookup_reloc (insn, operand, fixP)
-     const CGEN_INSN *    insn     ATTRIBUTE_UNUSED;
-     const CGEN_OPERAND * operand;
-     fixS *               fixP     ATTRIBUTE_UNUSED;
+md_cgen_lookup_reloc (const CGEN_INSN *    insn     ATTRIBUTE_UNUSED,
+		      const CGEN_OPERAND * operand,
+		      fixS *               fixP     ATTRIBUTE_UNUSED)
 {
   bfd_reloc_code_real_type result;
 
@@ -300,10 +327,7 @@ md_cgen_lookup_reloc (insn, operand, fixP)
 /* Write a value out to the object file, using the appropriate endianness.  */
 
 void
-md_number_to_chars (buf, val, n)
-     char * buf;
-     valueT val;
-     int    n;
+md_number_to_chars (char * buf, valueT val, int n)
 {
   number_to_chars_bigendian (buf, val, n);
 }
@@ -317,10 +341,7 @@ md_number_to_chars (buf, val, n)
 #define MAX_LITTLENUMS 6
 
 char *
-md_atof (type, litP, sizeP)
-     char   type;
-     char * litP;
-     int *  sizeP;
+md_atof (int type, char * litP, int *  sizeP)
 {
   int              prec;
   LITTLENUM_TYPE   words [MAX_LITTLENUMS];
@@ -374,8 +395,7 @@ md_atof (type, litP, sizeP)
    the instruction it will be eventually encoded within.  */
 
 int
-ip2k_force_relocation (fix)
-     fixS * fix;
+ip2k_force_relocation (fixS * fix)
 {
   switch (fix->fx_r_type)
     {
@@ -411,16 +431,13 @@ ip2k_force_relocation (fix)
 }
 
 void
-ip2k_apply_fix3 (fixP, valueP, seg)
-     fixS *fixP;
-     valueT *valueP;
-     segT seg;
+ip2k_apply_fix (fixS *fixP, valueT *valueP, segT seg)
 {
   if (fixP->fx_r_type == BFD_RELOC_IP2K_TEXT
       && ! fixP->fx_addsy
       && ! fixP->fx_subsy)
     {
-      *valueP = ((int)(*valueP)) / 2;
+      *valueP = ((int)(* valueP)) / 2;
       fixP->fx_r_type = BFD_RELOC_16;
     }
   else if (fixP->fx_r_type == BFD_RELOC_UNUSED + IP2K_OPERAND_FR)
@@ -428,7 +445,7 @@ ip2k_apply_fix3 (fixP, valueP, seg)
       /* Must be careful when we are fixing up an FR.  We could be
 	 fixing up an offset to (SP) or (DP) in which case we don't
 	 want to step on the top 2 bits of the FR operand.  The
-	 gas_cgen_md_apply_fix3 doesn't know any better and overwrites
+	 gas_cgen_md_apply_fix doesn't know any better and overwrites
 	 the entire operand.  We counter this by adding the bits
 	 to the new value.  */
       char *where = fixP->fx_frag->fr_literal + fixP->fx_where;
@@ -436,20 +453,19 @@ ip2k_apply_fix3 (fixP, valueP, seg)
       /* Canonical name, since used a lot.  */
       CGEN_CPU_DESC cd = gas_cgen_cpu_desc;
       CGEN_INSN_INT insn_value
-	= cgen_get_insn_value (cd, where,
+	= cgen_get_insn_value (cd, (unsigned char *) where,
 			       CGEN_INSN_BITSIZE (fixP->fx_cgen.insn));
       /* Preserve (DP) or (SP) specification.  */
       *valueP += (insn_value & 0x180);
     }
 
-  gas_cgen_md_apply_fix3 (fixP, valueP, seg);
+  gas_cgen_md_apply_fix (fixP, valueP, seg);
 }
 
 int
-ip2k_elf_section_flags (flags, attr, type)
-     int flags;
-     int attr ATTRIBUTE_UNUSED;
-     int type ATTRIBUTE_UNUSED;
+ip2k_elf_section_flags (int flags,
+			int attr ATTRIBUTE_UNUSED,
+			int type ATTRIBUTE_UNUSED)
 {
   /* This is used to detect when the section changes to an executable section.
      This function is called by the elf section processing.  When we note an
@@ -461,40 +477,3 @@ ip2k_elf_section_flags (flags, attr, type)
   return flags;
 }
 
-static void
-ip2k_elf_section_rtn (int i)
-{
-  obj_elf_section(i);
-
-  if (force_code_align)
-    {
-      /* The s_align_ptwo function expects that we are just after a .align
-	 directive and it will either try and read the align value or stop
-	 if end of line so we must fake it out so it thinks we are at the
-	 end of the line.  */
-      char *old_input_line_pointer = input_line_pointer;
-      input_line_pointer = "\n";
-      s_align_ptwo (1);
-      force_code_align = 0;
-      /* Restore.  */
-      input_line_pointer = old_input_line_pointer;
-    }
-}
-
-static void
-ip2k_elf_section_text (int i)
-{
-  char *old_input_line_pointer;
-  obj_elf_text(i);
-
-  /* the s_align_ptwo function expects that we are just after a .align
-     directive and it will either try and read the align value or stop if
-     end of line so we must fake it out so it thinks we are at the end of
-     the line.  */
-  old_input_line_pointer = input_line_pointer;
-  input_line_pointer = "\n";
-  s_align_ptwo (1);
-  force_code_align = 0;
-  /* Restore.  */
-  input_line_pointer = old_input_line_pointer;
-}

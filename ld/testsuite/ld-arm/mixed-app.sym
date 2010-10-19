@@ -1,0 +1,18 @@
+
+Symbol table for image:
+  Num Buc:    Value  Size   Type   Bind Vis      Ndx Name
+   ..  ..: ........     0  NOTYPE GLOBAL DEFAULT ABS _edata
+   ..  ..: ........     0  NOTYPE GLOBAL DEFAULT ABS __bss_start__
+   ..  ..: ........     0  NOTYPE GLOBAL DEFAULT ABS _end
+   ..  ..: ........     4  OBJECT GLOBAL DEFAULT  12 data_obj
+   ..  ..: ........     0  NOTYPE GLOBAL DEFAULT ABS __bss_end__
+   ..  ..: 0*[^0]*.*   20    FUNC GLOBAL DEFAULT UND lib_func1
+   ..  ..: ........     0  NOTYPE GLOBAL DEFAULT ABS __exidx_start
+   ..  ..: ........     0  NOTYPE GLOBAL DEFAULT  11 __data_start
+   ..  ..: ........     0  NOTYPE GLOBAL DEFAULT ABS _stack
+   ..  ..: ........     0  NOTYPE GLOBAL DEFAULT ABS __end__
+   ..  ..: ........     0  NOTYPE GLOBAL DEFAULT ABS __bss_start
+   ..  ..: .......0     0    FUNC GLOBAL DEFAULT   8 app_func2
+   ..  ..: 0*[^0]*.*    2    FUNC GLOBAL DEFAULT UND lib_func2
+   ..  ..: ........     0  NOTYPE GLOBAL DEFAULT ABS _bss_end__
+   ..  ..: ........     0  NOTYPE GLOBAL DEFAULT ABS __exidx_end

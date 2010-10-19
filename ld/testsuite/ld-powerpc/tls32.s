@@ -33,11 +33,11 @@ _start:
 #global syms
 #GD
  addi 3,31,gd0@got@tlsgd	#R_PPC_GOT_TLSGD16	gd0
- bl __tls_get_addr@plt		#R_PPC_PLTREL24		__tls_get_addr
+ bl __tls_get_addr+0x8000@plt	#R_PPC_PLTREL24		__tls_get_addr
 
 #LD
  addi 3,31,ld0@got@tlsld	#R_PPC_GOT_TLSLD16	ld0
- bl __tls_get_addr@plt		#R_PPC_PLTREL24		__tls_get_addr
+ bl __tls_get_addr+0x8000@plt	#R_PPC_PLTREL24		__tls_get_addr
 
  addi 9,3,ld0@dtprel		#R_PPC_DTPREL16		ld0
 

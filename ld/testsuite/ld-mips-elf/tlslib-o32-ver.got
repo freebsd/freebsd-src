@@ -1,0 +1,17 @@
+
+.*:     file format elf32-tradbigmips
+
+DYNAMIC RELOCATION RECORDS
+OFFSET   TYPE              VALUE 
+00000000 R_MIPS_NONE       \*ABS\*
+00040574 R_MIPS_TLS_DTPMOD32  \*ABS\*
+0004057c R_MIPS_TLS_DTPMOD32  tlsvar_gd
+00040580 R_MIPS_TLS_DTPREL32  tlsvar_gd
+00040570 R_MIPS_TLS_TPREL32  tlsvar_ie
+
+
+Contents of section .got:
+ 40550 00000000 80000000 00000000 00000000  ................
+ 40560 00000000 00000000 00000000 00000520  ................
+ 40570 00000000 00000000 00000000 00000000  ................
+ 40580 00000000                             ....            

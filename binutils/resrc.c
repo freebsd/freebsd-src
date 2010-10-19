@@ -1,5 +1,6 @@
 /* resrc.c -- read and write Windows rc files.
-   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005
+   Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
    This file is part of GNU Binutils.
@@ -16,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* This file contains functions that read and write Windows rc files.
    These are text files that represent resources.  */
@@ -857,7 +858,7 @@ define_font (struct res_id id, const struct res_res_info *resinfo,
   e = open_file_search (filename, FOPEN_RB, "font file", &real_filename);
 
   if (stat (real_filename, &s) < 0)
-    fatal (_("stat failed on bitmap file `%s': %s"), real_filename,
+    fatal (_("stat failed on font file `%s': %s"), real_filename,
 	   strerror (errno));
 
   data = (unsigned char *) res_alloc (s.st_size);
@@ -1249,10 +1250,43 @@ define_user_data (struct res_id id, struct res_id type,
   ids[2].named = 0;
   ids[2].u.id = resinfo->language;
 
-  r = define_resource (&resources, 3, ids, 0);
+  r = define_resource (& resources, 3, ids, 0);
   r->type = RES_TYPE_USERDATA;
   r->u.userdata = data;
   r->res_info = *resinfo;
+}
+
+void
+define_rcdata_file (struct res_id id, const struct res_res_info *resinfo,
+		    const char *filename)
+{
+  struct rcdata_item *ri;
+  FILE *e;
+  char *real_filename;
+  struct stat s;
+  unsigned char *data;
+
+  e = open_file_search (filename, FOPEN_RB, "file", &real_filename);
+
+
+  if (stat (real_filename, &s) < 0)
+    fatal (_("stat failed on file `%s': %s"), real_filename,
+	   strerror (errno));
+
+  data = (unsigned char *) res_alloc (s.st_size);
+
+  get_data (e, data, s.st_size, real_filename);
+
+  fclose (e);
+  free (real_filename);
+
+  ri = (struct rcdata_item *) res_alloc (sizeof *ri);
+  ri->next = NULL;
+  ri->type = RCDATA_BUFFER;
+  ri->u.buffer.length = s.st_size;
+  ri->u.buffer.data = data;
+
+  define_rcdata (id, resinfo, ri);
 }
 
 /* Define a user data resource where the data is in a file.  */
@@ -1268,10 +1302,10 @@ define_user_file (struct res_id id, struct res_id type,
   struct res_id ids[3];
   struct res_resource *r;
 
-  e = open_file_search (filename, FOPEN_RB, "font file", &real_filename);
+  e = open_file_search (filename, FOPEN_RB, "file", &real_filename);
 
   if (stat (real_filename, &s) < 0)
-    fatal (_("stat failed on bitmap file `%s': %s"), real_filename,
+    fatal (_("stat failed on file `%s': %s"), real_filename,
 	   strerror (errno));
 
   data = (unsigned char *) res_alloc (s.st_size);

@@ -1,0 +1,1351 @@
+; Morpho Technologies MT Arch description.  -*- Scheme -*-
+; Copyright 2001 Free Software Foundation, Inc.
+;
+; Contributed by Red Hat Inc; developed under contract from
+; Morpho Technologies.
+;
+; This file is part of the GNU Binutils.
+;
+; This program is free software; you can redistribute it and/or modify
+; it under the terms of the GNU General Public License as published by
+; the Free Software Foundation; either version 2 of the License, or
+; (at your option) any later version.
+;
+; This program is distributed in the hope that it will be useful,
+; but WITHOUT ANY WARRANTY; without even the implied warranty of
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+; GNU General Public License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with this program; if not, write to the Free Software
+; Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+
+(include "simplify.inc")
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Define The Architecture, Attributes, ISA, CPU, Machine, And Model. ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; define-arch must appear first
+(define-arch
+  (name mt) ; name of cpu family
+  (comment "Morpho Technologies mRISC family")
+  (default-alignment aligned)
+  (insn-lsb0? #t)
+  (machs ms1 ms1-003 ms2)
+  (isas mt)
+)
+
+; Instruction set parameters.
+
+(define-isa
+  (name mt)
+  (comment "Morpho Technologies MT ISA")
+  (default-insn-word-bitsize 32)
+  (default-insn-bitsize 32)
+  (base-insn-bitsize 32)
+  (parallel-insns 2)
+)
+
+; Cpu family definitions.
+
+
+(define-cpu
+  ; cpu names must be distinct from the architecture name and machine names.
+  (name ms1bf)
+  (comment "Morpho Technologies mRISC family")
+  (endian big)
+  (word-bitsize 32)
+)
+
+(define-cpu
+  ; cpu names must be distinct from the architecture name and machine names.
+  (name ms1-003bf)
+  (comment "Morpho Technologies mRISC family")
+  (endian big)
+  (word-bitsize 32)
+)
+
+(define-cpu
+  ; cpu names must be distinct from the architecture name and machine names.
+  (name ms2bf)
+  (comment "Morpho Technologies mRISC family")
+  (endian big)
+  (word-bitsize 32)
+)
+
+(define-mach
+  (name ms1)
+  (comment "Morpho Technologies mrisc")
+  (cpu ms1bf)
+  (isas mt)
+)
+
+(define-mach
+  (name ms1-003)
+  (comment "Morpho Technologies mrisc")
+  (cpu ms1-003bf)
+  (isas mt)
+)
+
+(define-mach
+  (name ms2)
+  (comment "Morpho Technologies ms2")
+  (cpu ms2bf)
+  (isas mt)
+)
+
+
+; Model descriptions.
+; Can probably take the u-exec out.  We'll see.
+(define-model
+  (name ms1)
+  (comment "Morpho Technologies mrisc")
+  (mach ms1)
+  (unit u-exec "Execution Unit" ()
+	1 1 ; issue done
+	() ; state
+	() ; inputs
+	() ; outputs
+	() ; profile action (default)
+	)
+)
+
+(define-model
+  (name ms1-003)
+  (comment "Morpho Technologies mrisc")
+  (mach ms1-003)
+  (unit u-exec "Execution Unit" ()
+	1 1 ; issue done
+	() ; state
+	() ; inputs
+	() ; outputs
+	() ; profile action (default)
+	)
+)
+
+(define-model
+  (name ms2)
+  (comment "Morpho Technologies ms2")
+  (mach ms2)
+  (unit u-exec "Execution Unit" ()
+	1 1 ; issue done
+	() ; state
+	() ; inputs
+	() ; outputs
+	() ; profile action (default)
+	)
+)
+
+; FIXME: It might simplify things to separate the execute process from the
+; one that updates the PC.
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;
+;; Instruction Fields ;;
+;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Attributes:
+; PCREL-ADDR: pc relative value (for reloc and disassembly purposes)
+; ABS-ADDR: absolute address (for reloc and disassembly purposes?)
+; RESERVED: bits are not used to decode insn, must be all 0
+; RELOC: there is a relocation associated with this field (experiment)
+;
+; f-msys: Identify a a morphosys insns.  1 if msys, 0 if not.
+; f-opc: 6 bit opcode for non-morphosys instructions.
+; f-msopc: 6 bit opcode for morphosys instructions.
+; f-imm: flag to indicate use of an immediate operand.  1 if yes, 0 if no.
+; f-sr1: source resgister 1. (also used for MSYS insns)
+; f-sr2: source register 2. (also used for MSYS insns)
+; f-dr: destination register when located in bits 19:16.
+; f-drrr: destination register when located in bits 15:12. (also for MSYS insns)
+; f-imm16: 16 bit immediate value when not an offset.
+; f-imm16a: 16 bit immediate value when it's a pc-rel offset.
+; f-uu4a: unused 4 bit field.
+; f-uu4b: second unsed 4 bit field.
+; f-uu1: unused 1 bit field
+; f-uu12: unused 12 bit field.
+; f-uu16: unused 16 bit field.
+; f-uu24: unused 24 bit field.
+
+(dnf f-msys      "morphosys insn flag"  	() 31 1)
+(dnf f-opc       "opcode field"			() 30 6)
+(dnf f-imm       "immedate flag"		() 24 1)
+(dnf f-uu24      "unused 24 bits"               () 23 24)
+(dnf f-sr1       "sr1 register field"	(ABS-ADDR) 23 4)
+(dnf f-sr2       "sr2 register field"	(ABS-ADDR) 19 4)
+(dnf f-dr        "dr register field"	(ABS-ADDR) 19 4)
+(dnf f-drrr      "drrr register field"	(ABS-ADDR) 15 4)
+(dnf f-imm16u    "unsigned 16 bit immediate"    () 15 16)
+(df  f-imm16s    "signed 16 bit immediate"      () 15 16 INT ((value pc) (add HI value 0)) ((value pc) (add HI value 0)))
+(dnf f-imm16a	 "pc-rel offset"      (PCREL-ADDR) 15 16)
+(dnf f-uu4a      "unused 4 bit field"		() 19 4)
+(dnf f-uu4b      "unused 4 bit field"		() 23 4)
+(dnf f-uu12      "unused 12 bit field"	        () 11 12)
+(dnf f-uu8       "unused 8 bit field"           () 15 8)
+(dnf f-uu16      "unused 16 bit field" 	        () 15 16)
+(dnf f-uu1       "unused 1 bit field" 	        ()  7 1)
+
+; The following ifields are used exclusively for the MorphoSys instructions.
+; In a few cases, a bit field is used for something in addition to what its
+; name suggests.  For the most part, the names are meaningful though.
+
+(dnf f-msopc     "opcode field"			() 30 5)
+(dnf f-uu-26-25  "unused 26 bits"               () 25 26)
+(dnf f-mask      "mask"	                        () 25 16)
+(dnf f-bankaddr  "bank address"	                () 25 13)
+(dnf f-rda       "rda"	                        () 25 1)
+(dnf f-uu-2-25   "unused bits  25 & 24"		() 25 2)
+(dnf f-rbbc      "Omega network configuration"	() 25 2)
+(dnf f-perm	 "perm"				() 25 2)
+(dnf f-mode      "mode"                         () 25 2)
+(dnf f-uu-1-24   "testing" 			() 24 1)
+(dnf f-wr        "wr"	                        () 24 1)
+(dnf f-fbincr    "fb incr"                      () 23 4)
+(dnf f-uu-2-23   "unused bits 23 and 22"	() 23 2)
+(dnf f-xmode     "xmode"	                () 23 1)
+(dnf f-a23	 "a23"				() 23 1)
+(dnf f-mask1     "mask1"	                () 22 3)
+(dnf f-cr 	 "cr"				() 22 3)
+(dnf f-type      "type"	                        () 21 2)
+(dnf f-incamt    "increment amount"             () 19 8)
+(dnf f-cbs	 "cbs"				() 19 2)
+(dnf f-uu-1-19   "unused bit 19"		() 19 1)
+(dnf f-ball      "b_all"	                () 19 1)
+(dnf f-colnum    "column number"		() 18 3)
+(dnf f-brc       "b_r_c"	                () 18 3)
+(dnf f-incr	 "incr"				() 17 6)
+(dnf f-fbdisp    "frame buffer displacement"	() 15 6)
+(dnf f-uu-4-15   "unused bits 15,14,13,12"	() 15 4)
+(dnf f-length	 "length"			() 15 3)
+(dnf f-uu-1-15   "unused bit 15"         	() 15 1)
+(dnf f-rc        "row/column context"		() 15 1)
+(dnf f-rcnum     "starting cell of cntxt mem."	() 14 3)
+(dnf f-rownum    "row number"		        () 14 3)
+(dnf f-cbx	 "cbx"				() 14 3)
+(dnf f-id        "id"                           () 14 1)
+(dnf f-size      "size"                         () 13 14)
+(dnf f-rownum1   "row number"		        () 12 3)
+(dnf f-uu-3-11   "unused 3 bits (11-9)"         () 11 3)
+(dnf f-rc1       "row/column context"		() 11 1)
+(dnf f-ccb	 "ccb"				() 11 1)
+(dnf f-cbrb      "data-bus orientation"		() 10 1)
+(dnf f-cdb	 "cdb"				() 10 1)
+(dnf f-rownum2   "row number"		        ()  9 3)
+(dnf f-cell      "cell"         		()  9 3)
+(dnf f-uu-3-9    "unused 3 bits (9-7)"          ()  9 3)
+(dnf f-contnum   "context number"		()  8 9)
+(dnf f-uu-1-6    "unused bit 6"                 ()  6 1)
+(dnf f-dup       "dup"           		()  6 1)
+(dnf f-rc2       "rc2"           		()  6 1)
+(dnf f-ctxdisp   "context displacement"		()  5 6)
+
+; additional fields in ms2
+(dnf f-imm16l    "loop count"                   () 23 16)
+(df  f-loopo	 "loop offset"			() 7 8 UINT
+    ((value pc) (srl SI value 2))
+    ((value pc) (add SI (sll value 2) 8))
+ )
+(dnf f-cb1sel    "cb1 select"                   () 25 3)
+(dnf f-cb2sel    "cb2 select"                   () 22 3)
+(dnf f-cb1incr   "cb1 increment"                (SIGNED) 19 6)
+(dnf f-cb2incr   "cb2 increment"                (SIGNED) 13 6)
+(dnf f-rc3       "row/colum context"            ()  7 1)
+
+; The following is just for a test
+(dnf f-msysfrsr2 "sr2 for msys"			() 19 4)
+(dnf f-brc2      "b_r_c2"                       () 14 3)
+(dnf f-ball2     "b_all2"                       () 15 1)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Enumerations Of Instruction Fields ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; insn-msys: bit 31.  1 for Morphosys Insns, 0 if not.
+(define-normal-insn-enum insn-msys "msys enums" () MSYS_ f-msys
+  (NO YES)
+)
+
+; insn-opc: bits 30 through 25 .  Non-MorphoSys Instructions
+; Note - the documentation is wrong for the encoding of the DBNZ
+; instruction.  It is actually 011110.  See Issue 67699.
+(define-normal-insn-enum insn-opc "opc enums" () OPC_ f-opc
+  (ADD  ADDU SUB  SUBU MUL   -      -    -
+   AND  OR   XOR  NAND NOR   XNOR   LDUI -
+   LSL  LSR  ASR  -    -     -      -    -
+   BRLT BRLE BREQ JMP  JAL   BRNEQ  DBNZ LOOP
+   LDW  STW  -    -    -     -      -    -
+   -    -    -    -    -     -      -    -
+   EI   DI   SI   RETI BREAK IFLUSH -    -
+  )
+)
+
+; insn-msopc: bits 30 through 26 .  MorphoSys Instructions
+(define-normal-insn-enum insn-msopc "msopc enums" () MSOPC_ f-msopc
+  (LDCTXT LDFB      STFB    FBCB     MFBCB    FBCCI     FBRCI     FBCRI
+   FBRRI  MFBCCI    MFBRCI  MFBCRI   MFBRRI   FBCBDR    RCFBCB    MRCFBCB
+   CBCAST DUPCBCAST WFBI    WFB      RCRISC   FBCBINC   RCXMODE   INTLVR
+   WFBINC MWFBINC   WFBINCR MWFBINCR FBCBINCS MFBCBINCS FBCBINCRS MFBCBINCRS
+   -      -         -       -        -        -         -         -
+  )
+)
+
+; insn-imm: bit 24.  Immediate operand indicator.
+(define-normal-insn-enum insn-imm "imm enums" () IMM_ f-imm
+  ; This bit specifies whether and immediate operand will be present.
+  ; It's 1 if there is, 0 if there is not.
+  (NO YES)
+)
+;;;;;;;;;;;;;;;;
+;; Attributes ;;
+;;;;;;;;;;;;;;;;
+
+; Might not need this.  Keep if for the sim just in case.
+;(define-attr
+;  (for insn)
+;  (type boolean)
+;  (name EXT-SKIP-INSN)
+;  (comment "instruction is a PAGE, LOADL or LOADH instruction")
+;)
+  
+(define-attr
+  (for insn)
+  (type boolean)
+  (name LOAD-DELAY)
+  (comment "insn has a load delay")
+)
+  
+(define-attr
+  (for insn)
+  (type boolean)
+  (name MEMORY-ACCESS)
+  (comment "insn performs a memory access")
+)
+
+(define-attr
+  (for insn)
+  (type boolean)
+  (name AL-INSN)
+  (comment "insn is an arithmetic or logic insn.")
+)
+
+(define-attr
+  (for insn)
+  (type boolean)
+  (name IO-INSN)
+  (comment "insn performs an I/O operation")
+)
+
+(define-attr
+  (for insn)
+  (type boolean)
+  (name BR-INSN)
+  (comment "insn performs an I/O operation")
+)
+
+(define-attr
+  (for insn)
+  (type boolean)
+  (name JAL-HAZARD)
+  (comment "insn has jal-like hazard")
+)
+
+(define-pmacro (define-reg-use-attr regfield)
+  (define-attr
+    (for insn)
+    (type boolean)
+    (name (.sym "USES-" (.upcase regfield)))
+    (comment ("insn accesses register operand " regfield))))
+
+(define-reg-use-attr "frdr")
+(define-reg-use-attr "frdrrr")
+(define-reg-use-attr "frsr1")
+(define-reg-use-attr "frsr2")
+
+
+; Might not need this.  Keep it for the sim just in case.
+(define-attr
+  (for insn)
+  (type boolean)
+  (name SKIPA)
+  (comment "instruction is a SKIP instruction")
+)
+
+ 
+;;;;;;;;;;;;;;;;;;;;; 
+;; Hardware Pieces ;;
+;;;;;;;;;;;;;;;;;;;;;
+
+;(define-pmacro (build-reg-name n) (.splice (.str "$" n) n))
+
+; These are the 16 registers that the chip has.  In later versions
+; where there will be more registers, this will need to be expanded.
+; Note that there are two entries for the registers with two names.
+(define-hardware
+  (name h-spr)
+  (comment "special-purpose registers")
+  (type register SI (16))
+  (indices keyword "" (("R0" 0) ("R1" 1) ("R2" 2) ("R3" 3) ("R4" 4) ("R5" 5)
+  ("R6" 6) ("R7" 7) ("R8" 8) ("R9" 9) ("R10" 10) ("R11" 11) ("R12" 12) ("fp" 12)
+  ("R13" 13) ("sp" 13) ("R14" 14) ("ra" 14) ("R15" 15) ("ira" 15)))
+;  (get (index) (and (raw-reg h-spr) #xffffffff))
+;  (set (index value) (set (raw-reg h-spr) (and value #xffffffff)))
+)
+
+; This is the  program counter.
+(dnh h-pc "program counter" (PC PROFILE) (pc) () () ())
+
+(define-keyword
+   (name msys-syms)
+   (print-name h-nil)
+   (prefix "")
+   (values (DUP 1) (XX 0))
+)
+
+;;;;;;;;;;;;;;
+;; Operands ;;
+;;;;;;;;;;;;;;
+
+(define-operand (name frsr1) (comment "register") (attrs) 
+  (type h-spr) (index f-sr1) )
+(define-operand (name frsr2) (comment "register") (attrs) 
+  (type h-spr) (index f-sr2) )
+(define-operand (name frdr) (comment "register") (attrs) 
+  (type h-spr) (index f-dr) )
+(define-operand (name frdrrr) (comment "register") (attrs) 
+  (type h-spr) (index f-drrr) )
+(define-operand (name imm16) (comment "immediate value - sign extd") (attrs) 
+  (type h-sint) (index f-imm16s) (handlers (parse "imm16") (print "dollarhex")))
+(define-operand (name imm16z) (comment "immediate value - zero extd") (attrs) 
+  (type h-uint) (index f-imm16u) (handlers (parse "imm16") (print "dollarhex")))
+(define-operand (name imm16o) (comment "immediate value") (attrs PCREL-ADDR) 
+  (type h-uint) (index f-imm16s) (handlers (parse "imm16") (print "pcrel")))
+
+; Operands for MorphoSys Instructions
+
+(define-operand (name rc) (comment "rc") (attrs) 
+  (type h-uint) (index f-rc) (handlers (parse "rc") (print "dollarhex")))
+
+(define-operand (name rcnum) (comment "rcnum") (attrs) 
+  (type h-uint) (index f-rcnum) (handlers (print "dollarhex")))
+
+(define-operand (name contnum) (comment "context number") (attrs) 
+  (type h-uint) (index f-contnum) (handlers (print "dollarhex")))
+
+(define-operand (name rbbc) (comment "omega network configuration") (attrs) 
+  (type h-uint) (index f-rbbc) (handlers (parse "rbbc") (print "dollarhex")))
+
+(define-operand (name colnum) (comment "column number") (attrs) 
+  (type h-uint) (index f-colnum) (handlers (print "dollarhex")))
+
+(define-operand (name rownum) (comment "row number") (attrs) 
+  (type h-uint) (index f-rownum) (handlers (print "dollarhex")))
+
+(define-operand (name rownum1) (comment "row number") (attrs) 
+  (type h-uint) (index f-rownum1) (handlers (print "dollarhex")))
+
+(define-operand (name rownum2) (comment "row number") (attrs) 
+  (type h-uint) (index f-rownum2) (handlers (print "dollarhex")))
+
+(define-operand (name rc1) (comment "rc1") (attrs) 
+  (type h-uint) (index f-rc1) (handlers (parse "rc") (print "dollarhex")))
+
+(define-operand (name rc2) (comment "rc2") (attrs) 
+  (type h-uint) (index f-rc2) (handlers (parse "rc") (print "dollarhex")))
+
+(define-operand (name cbrb) (comment "data-bus orientation") (attrs) 
+  (type h-uint) (index f-cbrb) (handlers (parse "cbrb") (print "dollarhex")))
+
+(define-operand (name cell) (comment "cell") (attrs) 
+  (type h-uint) (index f-cell) (handlers (print "dollarhex")))
+
+(define-operand (name dup) (comment "dup") (attrs) 
+  (type h-uint) (index f-dup) (handlers (parse "dup") (print "dollarhex")))
+
+(define-operand (name ctxdisp) (comment "context displacement") (attrs) 
+  (type h-uint) (index f-ctxdisp) (handlers (print "dollarhex")))
+
+(define-operand (name fbdisp) (comment "frame buffer displacement") (attrs) 
+  (type h-uint) (index f-fbdisp) (handlers (print "dollarhex")))
+
+(define-operand (name type) (comment "type") (attrs) 
+  (type h-uint) (index f-type) (handlers (parse "type") (print "dollarhex")))
+
+(define-operand (name mask) (comment "mask") (attrs) 
+  (type h-uint) (index f-mask) (handlers (print "dollarhex")))
+
+(define-operand (name bankaddr) (comment "bank address") (attrs) 
+  (type h-uint) (index f-bankaddr) (handlers (print "dollarhex")))
+
+(define-operand (name incamt) (comment "increment amount") (attrs) 
+  (type h-uint) (index f-incamt) (handlers (print "dollarhex")))
+
+(define-operand (name xmode) (comment "xmode") (attrs) 
+  (type h-uint) (index f-xmode) (handlers (parse "xmode") (print "dollarhex")))
+
+(define-operand (name mask1) (comment "mask1") (attrs) 
+  (type h-uint) (index f-mask1) (handlers (print "dollarhex")))
+
+(define-operand (name ball) (comment "b_all") (attrs) 
+  (type h-uint) (index f-ball) (handlers (parse "ball") (print "dollarhex")))
+
+(define-operand (name brc) (comment "b_r_c") (attrs) 
+  (type h-uint) (index f-brc) (handlers (print "dollarhex")))
+
+(define-operand (name rda) (comment "rd") (attrs) 
+  (type h-uint) (index f-rda) (handlers (print "dollarhex")))
+
+(define-operand (name wr) (comment "wr") (attrs) 
+  (type h-uint) (index f-wr) (handlers (print "dollarhex")))
+
+(define-operand (name ball2) (comment "b_all2") (attrs)
+  (type h-uint) (index f-ball2) (handlers (parse "ball") (print "dollarhex")))
+
+(define-operand (name brc2) (comment "b_r_c2") (attrs)
+  (type h-uint) (index f-brc2) (handlers (print "dollarhex")))
+(define-operand (name perm) (comment "perm") (attrs)
+  (type h-uint) (index f-perm) (handlers (print "dollarhex")))
+(define-operand (name a23)   (comment "a23") (attrs)
+  (type h-uint) (index f-a23) (handlers (print "dollarhex")))
+(define-operand (name cr)   (comment "c-r") (attrs)
+  (type h-uint) (index f-cr) (handlers (print "dollarhex")))
+(define-operand (name cbs)	(comment "cbs") (attrs)
+  (type h-uint) (index f-cbs) (handlers (print "dollarhex")))
+(define-operand (name incr)	(comment "incr") (attrs)
+  (type h-uint) (index f-incr) (handlers (print "dollarhex")))
+(define-operand (name length)	(comment "length") (attrs)
+  (type h-uint) (index f-length) (handlers (print "dollarhex")))
+(define-operand (name cbx)	(comment "cbx") (attrs)
+  (type h-uint) (index f-cbx) (handlers (print "dollarhex")))
+(define-operand (name ccb)	(comment "ccb") (attrs)
+  (type h-uint) (index f-ccb) (handlers (print "dollarhex")))
+(define-operand (name cdb)	(comment "cdb") (attrs)
+  (type h-uint) (index f-cdb) (handlers (print "dollarhex")))
+
+; For the INTLVR insn
+(define-operand (name mode) (comment "mode") (attrs)
+  (type h-uint) (index f-mode) (handlers (print "dollarhex")))
+(define-operand (name id) (comment "i/d") (attrs)
+  (type h-uint) (index f-id) (handlers (print "dollarhex")))
+(define-operand (name size) (comment "size") (attrs)
+  (type h-uint) (index f-size) (handlers (print "dollarhex")))
+
+(define-operand (name fbincr)	(comment "fb incr") (attrs)
+  (type h-uint) (index f-fbincr) (handlers (print "dollarhex")))
+
+; For the ms2 insns
+(define-operand (name loopsize) (comment "immediate value")
+  (attrs (MACH ms2) PCREL-ADDR)
+  (type h-uint) (index f-loopo) (handlers (parse "loopsize") (print "pcrel")))
+(define-operand (name imm16l) (comment "immediate value")
+  (attrs (MACH ms2))
+  (type h-uint) (index f-imm16l) (handlers (print "dollarhex")))
+(define-operand (name rc3) (comment "rc3") (attrs (MACH ms2))
+  (type h-uint) (index f-rc3) (handlers (parse "rc") (print "dollarhex")))
+(define-operand (name cb1sel) (comment "cb1sel") (attrs (MACH ms2))
+  (type h-uint) (index f-cb1sel) (handlers (print "dollarhex")))
+(define-operand (name cb2sel) (comment "cb2sel") (attrs (MACH ms2))
+  (type h-uint) (index f-cb2sel) (handlers (print "dollarhex")))
+(define-operand (name cb1incr) (comment "cb1incr") (attrs (MACH ms2))
+  (type h-sint) (index f-cb1incr) (handlers (print "dollarhex")))
+(define-operand (name cb2incr) (comment "cb2incr") (attrs (MACH ms2))
+  (type h-sint) (index f-cb2incr) (handlers (print "dollarhex")))
+
+; Probaby won't need most of these.
+(define-pmacro r0    (reg h-spr #x0))
+(define-pmacro r1    (reg h-spr #x01))
+(define-pmacro r2    (reg h-spr #x02))
+(define-pmacro r3    (reg h-spr #x03))
+(define-pmacro r4    (reg h-spr #x04))
+(define-pmacro r5    (reg h-spr #x05))
+(define-pmacro r6    (reg h-spr #x06))
+(define-pmacro r7    (reg h-spr #x07))
+(define-pmacro r8    (reg h-spr #x08))
+(define-pmacro r9    (reg h-spr #x09))
+(define-pmacro r10   (reg h-spr #xA))
+(define-pmacro r11   (reg h-spr #xB))
+(define-pmacro r12   (reg h-spr #xC))
+(define-pmacro fp    (reg h-spr #xC))
+(define-pmacro r13   (reg h-spr #xD))
+(define-pmacro sp    (reg h-spr #xD))
+(define-pmacro r14   (reg h-spr #xE))
+(define-pmacro ra    (reg h-spr #xE))
+(define-pmacro r15   (reg h-spr #xF))
+(define-pmacro ira   (reg h-spr #xF))
+
+; delayed set
+(define-pmacro (dset dest src) (set (delay 1 dest) src))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Instructions As Defined In the MorphoRisc ISA Document ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Arithmetic Instructions
+
+(dni add "ADD DstReg, SrcReg1, SrcReg2"
+     (AL-INSN USES-FRDRRR USES-FRSR1 USES-FRSR2)
+     "add $frdrrr,$frsr1,$frsr2"
+     (+ MSYS_NO OPC_ADD IMM_NO frsr1 frsr2 frdrrr (f-uu12 0))
+     (set frdrrr (add SI frsr1 frsr2))
+     ()
+)
+
+(dni addu "ADDU DstReg, SrcReg1, SrcReg2"
+     (AL-INSN USES-FRDRRR USES-FRSR1 USES-FRSR2)
+     "addu $frdrrr,$frsr1,$frsr2"
+     (+ MSYS_NO OPC_ADDU IMM_NO frsr1 frsr2 frdrrr (f-uu12 0))
+     (set frdrrr (add USI frsr1 frsr2))
+     ()
+)
+
+(dni addi "ADDI DstReg, SrcReg1 UnsImm"
+     (AL-INSN USES-FRDR USES-FRSR1)
+     "addi $frdr,$frsr1,#$imm16"
+     (+ MSYS_NO OPC_ADD IMM_YES frsr1 frdr imm16)
+     (sequence((HI tmp))
+        (set HI tmp (and imm16 #xffff))
+	(set frdr (add SI frsr1 (ext SI tmp)))
+     )
+     ()
+)
+
+(dni addui "ADDUI DstReg, SrcReg1, UnsImm"
+     (AL-INSN USES-FRDR USES-FRSR1)
+     "addui $frdr,$frsr1,#$imm16z"
+     (+ MSYS_NO OPC_ADDU IMM_YES frsr1 frdr imm16z)
+     (set frdr (add USI frsr1 (ext USI imm16z)))
+     ()
+)
+
+(dni sub "SUB DstReg, SrcReg1, SrcReg2"
+     (AL-INSN USES-FRDRRR USES-FRSR1 USES-FRSR2)
+     "sub $frdrrr,$frsr1,$frsr2"
+     (+ MSYS_NO OPC_SUB IMM_NO frsr1 frsr2 frdrrr (f-uu12 0))
+     (set frdrrr (sub SI frsr1 frsr2))
+     ()
+)
+
+(dni subu "SUBU DstReg, SrcReg1, SrcReg2"
+     (AL-INSN USES-FRDRRR USES-FRSR1 USES-FRSR2)
+     "subu $frdrrr,$frsr1,$frsr2"
+     (+ MSYS_NO OPC_SUBU IMM_NO frsr1 frsr2 frdrrr (f-uu12 0))
+     (set frdrrr (sub USI frsr1 frsr2))
+     ()
+)
+
+(dni subi "SUBI DstReg, SrcReg1, UnsImm"
+     (AL-INSN USES-FRDR USES-FRSR1)
+     "subi $frdr,$frsr1,#$imm16"
+     (+ MSYS_NO OPC_SUB IMM_YES frsr1 frdr imm16)
+     (sequence((HI tmp))
+        (set HI tmp (and imm16 #xffff))
+	(set frdr (sub SI frsr1 (ext SI tmp)))
+     )
+     ;(set frdr (sub SI frsr1 (ext SI imm16)))
+     ()
+)
+
+(dni subui "SUBUI DstReg, SrcReg1, UnsImm"
+     (AL-INSN USES-FRDR USES-FRSR1)
+     "subui $frdr,$frsr1,#$imm16z"
+     (+ MSYS_NO OPC_SUBU IMM_YES frsr1 frdr imm16z)
+     (set frdr (sub USI frsr1 (ext USI imm16z)))
+     ()
+)
+
+(dni mul "MUL DstReg, SrcReg1, SrcReg2"
+     ((MACH ms1-003,ms2) AL-INSN USES-FRDRRR USES-FRSR1 USES-FRSR2)
+     "mul $frdrrr,$frsr1,$frsr2"
+     (+ MSYS_NO OPC_MUL IMM_NO frsr1 frsr2 frdrrr (f-uu12 0))
+     (sequence((HI op1) (HI op2))
+	 (set op1 (and frsr1 #xffff))
+         (if (or (lt op1 (const -32768)) (gt op1 (const 32767)))
+            (error "operand out of range")
+         )
+	 (set op2 (and frsr2 #xffff))
+         (if (or (lt op2 (const -32768)) (gt op2 (const 32767)))
+            (error "operand out of range")
+         )
+	 (set frdrrr (mul SI (ext SI op1) (ext SI op2)))
+     )
+     ()
+)
+
+(dni muli "MULI DstReg, SrcReg1, UnsImm"
+     ((MACH ms1-003,ms2) AL-INSN USES-FRDR USES-FRSR1)
+     "muli $frdr,$frsr1,#$imm16"
+     (+ MSYS_NO OPC_MUL IMM_YES frsr1 frdr imm16)
+     (sequence((HI op1) (HI op2))
+	 (set op1 (and frsr1 #xffff))
+         (if (or (lt op1 (const -32768)) (gt op1 (const 32767)))
+            (error "operand out of range")
+         )
+         (set op2 (and imm16 #xffff))
+         (if (eq op1 (const 0))
+          (error "op1 is 0")
+         )
+         (if (eq op2 (const 0))
+          (error "op2 is 0")
+         )
+	 (set frdr (mul SI (ext SI op1) (ext SI op2)))
+     )
+     ()
+)
+
+; Logical Instructions
+
+(dni and "AND DstReg, SrcReg1, SrcReg2"
+     (AL-INSN USES-FRDRRR USES-FRSR1 USES-FRSR2)
+     "and $frdrrr,$frsr1,$frsr2"
+     (+ MSYS_NO OPC_AND IMM_NO frsr1 frsr2 frdrrr (f-uu12 0))
+     (set frdrrr (and frsr1 frsr2))
+     ()
+)
+
+(dni andi "ANDI DstReg, SrcReg1, UnsImm"
+     (AL-INSN USES-FRDR USES-FRSR1)
+     "andi $frdr,$frsr1,#$imm16z"
+     (+ MSYS_NO OPC_AND IMM_YES frsr1 frdr imm16z)
+     (set frdr (and frsr1 (ext USI imm16z)))
+     ()
+)
+
+(dni or "OR DstReg, SrcReg1, SrcReg2"
+     (AL-INSN USES-FRDRRR USES-FRSR1 USES-FRSR2)
+     "or $frdrrr,$frsr1,$frsr2"
+     (+ MSYS_NO OPC_OR IMM_NO frsr1 frsr2 frdrrr (f-uu12 0))
+     (set frdrrr (or frsr1 frsr2))
+     ()
+)
+
+(dni nop "nop"
+     ()
+     "nop"
+     (+ MSYS_NO OPC_OR IMM_NO (f-uu24 0))
+     (nop)
+     ()
+)
+
+(dni ori "ORI DstReg, SrcReg1, UnsImm"
+     (AL-INSN USES-FRDR USES-FRSR1)
+     "ori $frdr,$frsr1,#$imm16z"
+     (+ MSYS_NO OPC_OR IMM_YES frsr1 frdr imm16z)
+     (set frdr (or frsr1 (ext USI imm16z)))
+     ()
+)
+
+(dni xor "XOR DstReg, SrcReg1, SrcReg2"
+     (AL-INSN USES-FRDRRR USES-FRSR1 USES-FRSR2)
+     "xor $frdrrr,$frsr1,$frsr2"
+     (+ MSYS_NO OPC_XOR IMM_NO frsr1 frsr2 frdrrr (f-uu12 0))
+     (set frdrrr (xor frsr1 frsr2))
+     ()
+)
+
+(dni xori "XORI DstReg, SrcReg1, UnsImm"
+     (AL-INSN USES-FRDR USES-FRSR1)
+     "xori $frdr,$frsr1,#$imm16z"
+     (+ MSYS_NO OPC_XOR IMM_YES frsr1 frdr imm16z)
+     (set frdr (xor frsr1 (ext USI imm16z)))
+     ()
+)
+
+(dni nand "NAND DstReg, SrcReg1, SrcReg2"
+     (AL-INSN USES-FRDRRR USES-FRSR1 USES-FRSR2)
+     "nand $frdrrr,$frsr1,$frsr2"
+     (+ MSYS_NO OPC_NAND IMM_NO frsr1 frsr2 frdrrr (f-uu12 0))
+     (set frdrrr (inv (and frsr1 frsr2)))
+     ()
+)
+
+(dni nandi "NANDI DstReg, SrcReg1, UnsImm"
+     (AL-INSN USES-FRDR USES-FRSR1)
+     "nandi $frdr,$frsr1,#$imm16z"
+     (+ MSYS_NO OPC_NAND IMM_YES frsr1 frdr imm16z)
+     (set frdr (inv (and frsr1 (ext USI imm16z))))
+     ()
+)
+
+(dni nor "NOR DstReg, SrcReg1, SrcReg2"
+     (AL-INSN USES-FRDRRR USES-FRSR1 USES-FRSR2)
+     "nor $frdrrr,$frsr1,$frsr2"
+     (+ MSYS_NO OPC_NOR IMM_NO frsr1 frsr2 frdrrr (f-uu12 0))
+     (set frdrrr (inv (or frsr1 frsr2)))
+     ()
+)
+
+(dni nori "NORI DstReg, SrcReg1, UnsImm"
+     (AL-INSN USES-FRDR USES-FRSR1)
+     "nori $frdr,$frsr1,#$imm16z"
+     (+ MSYS_NO OPC_NOR IMM_YES frsr1 frdr imm16z)
+     (set frdr (inv (or frsr1 (ext USI imm16z))))
+     ()
+)
+
+(dni xnor "XNOR DstReg, SrcReg1, SrcReg2"
+     (AL-INSN USES-FRDRRR USES-FRSR1 USES-FRSR2)
+     "xnor $frdrrr,$frsr1,$frsr2"
+     (+ MSYS_NO OPC_XNOR IMM_NO frsr1 frsr2 frdrrr (f-uu12 0))
+     (set frdrrr (inv (xor frsr1 frsr2)))
+     ()
+)
+
+(dni xnori "XNORI DstReg, SrcReg1, UnsImm"
+     (AL-INSN USES-FRDR USES-FRSR1)
+     "xnori $frdr,$frsr1,#$imm16z"
+     (+ MSYS_NO OPC_XNOR IMM_YES frsr1 frdr imm16z)
+     (set frdr (inv (xor frsr1 (ext USI imm16z))))
+     ()
+)
+
+(dni ldui "LDUI DstReg, UnsImm"
+     (AL-INSN USES-FRDR)
+     "ldui $frdr,#$imm16z"
+     (+ MSYS_NO OPC_LDUI IMM_YES (f-uu4b 0) frdr imm16z)
+     (set frdr (and (sll imm16z 16) #xffff0000))
+     ()
+)
+
+; Shift Instructions
+
+(dni lsl "LSL DstReg, SrcReg1, SrcReg2"
+     (USES-FRDRRR USES-FRSR1 USES-FRSR2)
+     "lsl $frdrrr,$frsr1,$frsr2"
+     (+ MSYS_NO OPC_LSL IMM_NO frsr1 frsr2 frdrrr (f-uu12 0))
+     (set frdrrr (sll frsr1 frsr2))
+     ()
+)
+
+(dni lsli "LSLI DstReg, SrcReg1, UnsImm"
+     (USES-FRDR USES-FRSR1)
+     "lsli $frdr,$frsr1,#$imm16"
+     (+ MSYS_NO OPC_LSL IMM_YES frsr1 frdr imm16)
+     (set frdr (sll frsr1 imm16))
+     ()
+)
+
+(dni lsr "LSR DstReg, SrcReg1, SrcReg2"
+     (USES-FRDRRR USES-FRSR1 USES-FRSR2)
+     "lsr $frdrrr,$frsr1,$frsr2"
+     (+ MSYS_NO OPC_LSR IMM_NO frsr1 frsr2 frdrrr (f-uu12 0))
+     (set frdrrr (srl frsr1 frsr2))
+     ()
+)
+
+(dni lsri "LSRI DstReg, SrcReg1, UnsImm"
+     (USES-FRDR USES-FRSR1)
+     "lsri $frdr,$frsr1,#$imm16"
+     (+ MSYS_NO OPC_LSR IMM_YES frsr1 frdr imm16)
+     (set frdr (srl frsr1 imm16))
+     ()
+)
+
+(dni asr "ASR DstReg, SrcReg1, SrcReg2"
+     (USES-FRDRRR USES-FRSR1 USES-FRSR2)
+     "asr $frdrrr,$frsr1,$frsr2"
+     (+ MSYS_NO OPC_ASR IMM_NO frsr1 frsr2 frdrrr (f-uu12 0))
+     (set frdrrr (sra frsr1 frsr2))
+     ()
+)
+
+(dni asri "ASRI DstReg, SrcReg1, UnsImm"
+     (USES-FRDR USES-FRSR1)
+     "asri $frdr,$frsr1,#$imm16"
+     (+ MSYS_NO OPC_ASR IMM_YES frsr1 frdr imm16)
+     (set frdr (sra frsr1 imm16))
+     ()
+)
+
+; Control Transfer Instructions
+
+(dni brlt "BRLT SrcReg1, SrcReg2, label"
+     (BR-INSN DELAY-SLOT USES-FRDRRR USES-FRSR1 USES-FRSR2)
+     "brlt $frsr1,$frsr2,$imm16o"
+     (+ MSYS_NO OPC_BRLT IMM_YES frsr1 frsr2 imm16o)
+     (sequence()
+        (if (lt USI frsr1 frsr2)
+            (dset pc (add pc (ext SI imm16o))))
+     )
+     ()
+)
+
+(dni brle "BRLE SrcReg1, SrcReg2, label"
+     (BR-INSN DELAY-SLOT USES-FRSR1 USES-FRSR2)
+     "brle $frsr1,$frsr2,$imm16o"
+     (+ MSYS_NO OPC_BRLE IMM_YES frsr1 frsr2 imm16o)
+     (sequence()
+        (if (le USI frsr1 frsr2)
+            (dset pc (add pc (ext SI imm16o))))
+     )
+     ()
+)
+
+(dni breq "BREQ SrcReg1, SrcReg2, label"
+     (BR-INSN DELAY-SLOT USES-FRSR1 USES-FRSR2)
+     "breq $frsr1,$frsr2,$imm16o"
+     (+ MSYS_NO OPC_BREQ IMM_YES frsr1 frsr2 imm16o)
+     (sequence()
+        (if (eq USI frsr1 frsr2)
+            (dset pc (add pc (ext SI imm16o))))
+     )
+     ()
+)
+
+(dni brne "BRNE SrcReg1, SrcReg2, label"
+     (BR-INSN DELAY-SLOT USES-FRSR1 USES-FRSR2)
+     "brne $frsr1,$frsr2,$imm16o"
+     (+ MSYS_NO OPC_BRNEQ IMM_YES frsr1 frsr2 imm16o)
+     (sequence()
+        (if (not (eq USI frsr1 frsr2))
+            (dset pc (add pc (ext SI imm16o))))
+     )
+     ()
+)
+
+(dni jmp "JMP, label"
+     (DELAY-SLOT BR-INSN)
+     "jmp $imm16o"
+     (+ MSYS_NO OPC_JMP IMM_YES (f-uu4b 0) (f-uu4a 0) imm16o)
+     (dset pc (add pc (ext SI imm16o)))
+     ()
+)
+
+(dni jal "JAL DstReg, SrcReg1"
+     (BR-INSN DELAY-SLOT BR-INSN USES-FRDR USES-FRSR1 JAL-HAZARD)
+     "jal $frdrrr,$frsr1"
+     (+ MSYS_NO OPC_JAL IMM_NO frsr1 (f-uu4a 0) frdrrr (f-uu12 0))
+     (sequence()
+         (if (eq frsr1 #x0)
+	    (c-call VOID "do_syscall" pc)
+	    (sequence()   ; else part.  Do non-syscall stuff here.
+		(dset frdrrr (add pc #x8))
+		(dset pc frsr1)
+            ) 
+         )
+     )
+     ()
+)
+
+(dni dbnz "DBNZ SrcReg1, label"
+     ((MACH ms1-003,ms2) BR-INSN DELAY-SLOT USES-FRSR1)
+     "dbnz $frsr1,$imm16o"
+     (+ MSYS_NO OPC_DBNZ IMM_YES frsr1 (f-uu4a 0) imm16o)
+     (sequence()
+	 (if (not (eq USI frsr1 0))
+            (dset pc (add pc (ext SI imm16o))))
+     )
+     ()
+)
+
+; Interrupt Control Instructions
+
+(dni ei "EI - Enable Interrupt Processing"
+     ()
+     "ei"
+     (+ MSYS_NO OPC_EI IMM_NO (f-uu4b 0) (f-uu4a 0) (f-uu16 0))
+     (c-call VOID "enable_interrupts")
+     ()
+)
+
+(dni di "DI - Disable Interrupt Processing"
+     ()
+     "di"
+     (+ MSYS_NO OPC_DI IMM_NO (f-uu4b 0) (f-uu4a 0) (f-uu16 0))
+     (c-call VOID "disable_interrupts")
+     ()
+)
+
+(dni si "SI - Send software Interrupt"
+     (DELAY-SLOT BR-INSN USES-FRDR)
+     "si $frdrrr"
+     (+ MSYS_NO OPC_SI IMM_NO (f-uu4b 0) (f-uu4a 0) frdrrr (f-uu12 0))
+     ;(sequence() 
+     ;   (dset frdr (add pc #x4))
+     ;   (c-call VOID "do_syscall1" pc)
+     ;   ; (dset pc frsr1) Do this later when we have the address.
+     ;)
+     (sequence() 
+        (set frdrrr (add pc #x4))
+        (c-call VOID "do_syscall" pc)
+        ; (set pc frsr1) Do this later when we have the address.
+     )
+     ()
+)
+
+(dni reti "RETI SrcReg1"
+     (DELAY-SLOT BR-INSN USES-FRSR1 JAL-HAZARD)
+     "reti $frsr1"
+     (+ MSYS_NO OPC_RETI IMM_NO frsr1 (f-uu4a 0) (f-uu16 0))
+     (sequence()
+       (c-call VOID "enable_interrupts")
+       (dset pc frsr1)
+     )
+     ()
+)
+
+; Memory Access Instructions
+
+(dni ldw "LDW DstReg, SrcReg1, Imm"
+     (LOAD-DELAY MEMORY-ACCESS USES-FRDR USES-FRSR1)
+     "ldw $frdr,$frsr1,#$imm16"
+     (+ MSYS_NO OPC_LDW IMM_YES frsr1 frdr imm16)
+     (sequence((USI ea) (HI tmp))
+      (set HI tmp (and imm16 #xffff))
+      (set ea (and (add SI frsr1 (ext SI tmp)) #xfffffffc))
+      (set frdr (mem SI ea))
+     )
+     ()
+)
+
+(dni stw "STW SrcReg2, SrcReg1, Imm"
+     (MEMORY-ACCESS USES-FRSR1 USES-FRSR2)
+     "stw $frsr2,$frsr1,#$imm16"
+     (+ MSYS_NO OPC_STW IMM_YES frsr1 frsr2 imm16)
+     (sequence((USI ea) (HI tmp))
+      (set HI tmp (and imm16 #xffff))
+      (set ea (and (add SI frsr1 (ext SI tmp)) #xfffffffc))
+      (set (mem SI ea) frsr2)
+     )
+     ()
+)
+
+; Break Instruction
+
+(dni break "BREAK"
+     ()
+     "break"
+     (+ MSYS_NO OPC_BREAK (f-imm 0) (f-uu24 0))
+     (c-call VOID "do_break" pc)
+     ()
+)
+
+; Cache Flush Instruction
+
+(dni iflush "IFLUSH"
+     ((MACH ms1-003,ms2))
+     "iflush"
+     (+ MSYS_NO OPC_IFLUSH (f-imm 0) (f-uu24 0))
+     (nop)
+     ()
+)
+
+; MorphoSys Instructions
+
+(dni ldctxt "LDCTXT SRC1, SRC2, r/c, r/c#, context#"
+     ((MACH ms1))
+     "ldctxt $frsr1,$frsr2,#$rc,#$rcnum,#$contnum"
+     (+ MSYS_YES MSOPC_LDCTXT (f-uu-2-25 0) frsr1 frsr2 rc rcnum (f-uu-3-11 0)
+	contnum )
+     (nop)
+     ()
+)
+
+(dni ldfb "LDFB SRC1, byte#"
+     ((MACH ms1))
+     "ldfb $frsr1,$frsr2,#$imm16z"
+     (+ MSYS_YES MSOPC_LDFB (f-uu-2-25 0) frsr1 frsr2 imm16z)
+     (nop)
+     ()
+)
+
+(dni stfb "STFB SRC1, SRC2, byte "
+     ((MACH ms1))
+     "stfb $frsr1,$frsr2,#$imm16z"
+     (+ MSYS_YES MSOPC_STFB (f-uu-2-25 0) frsr1 frsr2 imm16z)
+     (nop)
+     ()
+)
+
+(dni fbcb "FBCB SRC1, RT/BR1/BR2/CS, B_all, B_r_c, r/c, CB/RB, cell, dup, ctx_disp"
+     ((MACH ms1,ms1-003))
+     "fbcb $frsr1,#$rbbc,#$ball,#$brc,#$rc1,#$cbrb,#$cell,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_FBCB rbbc frsr1 ball brc (f-uu-4-15 0) rc cbrb cell dup ctxdisp)
+     (nop)
+     ()
+)
+
+(dni mfbcb "MFBCB SRC1, RT/BR1/BR2/CS, SRC2, r/c, CB/RB, cell, dup, ctx_disp"
+     ()
+     "mfbcb $frsr1,#$rbbc,$frsr2,#$rc1,#$cbrb,#$cell,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_MFBCB rbbc frsr1 frsr2 (f-uu-4-15 0) rc1 cbrb cell dup ctxdisp)
+     (nop)
+     ()
+)
+
+(dni fbcci "FBCCI SRC1, RT/BR1/BR2/CS, B_all, B_r_c, FB_disp, cell, dup, ctx_disp"
+     ()
+     "fbcci $frsr1,#$rbbc,#$ball,#$brc,#$fbdisp,#$cell,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_FBCCI rbbc frsr1 ball brc fbdisp cell dup ctxdisp)
+     (nop)
+     ()
+)
+
+(dni fbrci "FBRCI SRC1, RT/BR1/BR2/CS, B_all, B_r_c, FB_disp, cell, dup, ctx_disp"
+     ()
+     "fbrci $frsr1,#$rbbc,#$ball,#$brc,#$fbdisp,#$cell,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_FBRCI rbbc frsr1 ball brc fbdisp cell dup ctxdisp)
+     (nop)
+     ()
+)
+
+(dni fbcri "FBCRI SRC1, RT/BR1/BR2/CS, B_all, B_r_c, FB_disp, cell, dup, ctx_disp"
+     ()
+     "fbcri $frsr1,#$rbbc,#$ball,#$brc,#$fbdisp,#$cell,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_FBCRI rbbc frsr1 ball brc fbdisp cell dup ctxdisp)
+     (nop)
+     ()
+)
+
+(dni fbrri "FBRRI SRC1, RT/BR1/BR2/CS, B_all, B_r_c, FB_disp, cell, dup, ctx_disp"
+     ()
+     "fbrri $frsr1,#$rbbc,#$ball,#$brc,#$fbdisp,#$cell,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_FBRRI rbbc frsr1 ball brc fbdisp cell dup ctxdisp)
+     (nop)
+     ()
+)
+
+(dni mfbcci "MFBCCI SRC1, RT/BR1/BR2/CS, SRC2, FB_disp, cell, dup, ctx_disp"
+     ()
+     "mfbcci $frsr1,#$rbbc,$frsr2,#$fbdisp,#$cell,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_MFBCCI rbbc frsr1 frsr2 fbdisp cell dup ctxdisp)
+     (nop)
+     ()
+)
+
+(dni mfbrci "MFBRCI SRC1, RT/BR1/BR2/CS, SRC2, FB_disp, cell, dup, ctx_disp"
+     ()
+     "mfbrci $frsr1,#$rbbc,$frsr2,#$fbdisp,#$cell,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_MFBRCI rbbc frsr1 frsr2 fbdisp cell dup ctxdisp)
+     (nop)
+     ()
+)
+
+(dni mfbcri "MFBCRI SRC1, RT/BR1/BR2/CS, SRC2, FB_disp, cell, dup, ctx_disp"
+     ()
+     "mfbcri $frsr1,#$rbbc,$frsr2,#$fbdisp,#$cell,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_MFBCRI rbbc frsr1 frsr2 fbdisp cell dup ctxdisp)
+     (nop)
+     ()
+)
+
+(dni mfbrri "MFBRRI SRC1, RT/BR1/BR2/CS, SRC2, FB_disp, cell, dup, ctx_disp"
+     ()
+     "mfbrri $frsr1,#$rbbc,$frsr2,#$fbdisp,#$cell,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_MFBRRI rbbc frsr1 frsr2 fbdisp cell dup ctxdisp)
+     (nop)
+     ()
+)
+
+(dni fbcbdr "FBCBDR SRC1, RT/BR1/BR2/CS, SRC2, B_all, B_r_c, r/c, CB/RB, cell, dup, ctx_disp"
+     ()
+     "fbcbdr $frsr1,#$rbbc,$frsr2,#$ball2,#$brc2,#$rc1,#$cbrb,#$cell,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_FBCBDR rbbc frsr1 frsr2 ball2 brc2 rc1 cbrb cell dup ctxdisp)
+     (nop)
+     ()
+)
+
+(dni rcfbcb "RCFBCB RT/BR1/BR2/CS, type, B_all, B_r_c, row#, r/c, CB/RB, cell, dup, ctx_disp"
+     ()
+     "rcfbcb #$rbbc,#$type,#$ball,#$brc,#$rownum,#$rc1,#$cbrb,#$cell,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_RCFBCB rbbc (f-uu-2-23 0) type ball brc (f-uu-1-15 0) rownum rc1 cbrb cell dup ctxdisp)
+     (nop)
+     ()
+)
+
+(dni mrcfbcb "MRCFBCB SRC2, RT/BR1/BR2/CS, type, row#, r/c, CB/RB, cell, dup, ctx_disp"
+     ()
+     "mrcfbcb $frsr2,#$rbbc,#$type,#$rownum,#$rc1,#$cbrb,#$cell,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_MRCFBCB rbbc (f-uu-2-23 0) type frsr2 (f-uu-1-15 0) rownum rc1 cbrb cell dup ctxdisp)
+     (nop)
+     ()
+)
+
+(dni cbcast "CBCAST mask, r/c, ctx_disp "
+     ()
+     "cbcast #$mask,#$rc2,#$ctxdisp"
+     (+ MSYS_YES MSOPC_CBCAST mask (f-uu-3-9 0) rc2 ctxdisp)
+     (nop)
+     ()
+)
+
+(dni dupcbcast "DUPCBCAST mask, cell, r/c, ctx_disp "
+     ()
+     "dupcbcast #$mask,#$cell,#$rc2,#$ctxdisp"
+     (+ MSYS_YES MSOPC_DUPCBCAST mask cell rc2 ctxdisp)
+     (nop)
+     ()
+)
+
+(dni wfbi "WFBI Bank_address, row#, cell, dup, ctx_disp "
+     ()
+    "wfbi #$bankaddr,#$rownum1,#$cell,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_WFBI bankaddr rownum1 cell dup ctxdisp)
+     (nop)
+     ()
+)
+
+;(dni wfb "WFB SRC1, SRC2, FB_disp, row#, ctx_disp"
+;     ()
+;     "wfb $frsr1,$frsr2,#$fbdisp,#$rownum,#$ctxdisp"
+;     (+ MSYS_YES MSOPC_WFB (f-uu-2-25 0) frsr1 frsr2 fbdisp rownum (f-uu-1-6 0) ctxdisp)
+;     (nop)
+;     ()
+;)
+
+(dni wfb "WFB, DRC1,SRC2,FB_disp,row#,ctx_disp"
+      ()
+      "wfb $frsr1,$frsr2,#$fbdisp,#$rownum2,#$ctxdisp"
+      (+ MSYS_YES MSOPC_WFB (f-uu-2-25 0) frsr1 frsr2 fbdisp rownum2 (f-uu-1-6 0) ctxdisp)
+      (nop)
+      ()
+)
+
+
+(dni rcrisc "RCRISC DEST, RT/BR1/BR2/CS, SRC1, column#, r/c, CB/RB, cell, dup, ctx_disp"
+     ()
+     "rcrisc $frdrrr,#$rbbc,$frsr1,#$colnum,#$rc1,#$cbrb,#$cell,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_RCRISC rbbc frsr1 (f-uu-1-19 0) colnum frdrrr rc1 cbrb cell dup ctxdisp)
+     (nop)
+     ()
+)
+
+(dni fbcbinc "FBCBINC SRC1, RT/BR1/BR2/CS, Incr_amount, r/c, CB/RB, cell, dup, ctx_disp "
+     ()
+     "fbcbinc $frsr1,#$rbbc,#$incamt,#$rc1,#$cbrb,#$cell,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_FBCBINC rbbc frsr1 incamt rc1 cbrb cell dup ctxdisp)
+     (nop)
+     ()
+)
+
+(dni rcxmode "RCXMODE SRC2, rd, wr, xmode, mask, FB_disp, row#, r/c, ctx_disp"
+     ()
+     "rcxmode $frsr2,#$rda,#$wr,#$xmode,#$mask1,#$fbdisp,#$rownum2,#$rc2,#$ctxdisp"
+     (+ MSYS_YES MSOPC_RCXMODE rda wr xmode mask1 frsr2 fbdisp rownum2 rc2 ctxdisp)
+     (nop)
+     ()
+)
+
+(dni interleaver "INTLVR ireg, mode, ireg, i/d, size"
+     ()
+     "intlvr $frsr1,#$mode,$frsr2,#$id,#$size"
+     (+ MSYS_YES MSOPC_INTLVR mode frsr1 frsr2 (f-uu-1-15 0) id size)
+     (nop)
+     ()
+)
+
+;; Issue 66262: The documenatation gives the wrong order for 
+;;               the arguments to the WFBINC instruction.
+(dni wfbinc "WFBINC type, ccb/rcb, incr, all, c/r, length, rca_row, word, dup, ctxt_disp"
+     ((MACH ms1-003,ms2))
+     "wfbinc #$rda,#$wr,#$fbincr,#$ball,#$colnum,#$length,#$rownum1,#$rownum2,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_WFBINC rda wr fbincr ball colnum length rownum1 rownum2 dup ctxdisp)
+     (nop)
+     ()
+)
+
+(dni mwfbinc "MWFBINC mreg, type, ccb/rcb, incr, length, rca_row, word, dup, ctxt_disp"
+     ((MACH ms1-003,ms2))
+     "mwfbinc $frsr2,#$rda,#$wr,#$fbincr,#$length,#$rownum1,#$rownum2,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_MWFBINC rda wr fbincr frsr2 length rownum1 rownum2 dup ctxdisp)
+     (nop)
+     ()
+)
+
+(dni wfbincr "WFBINCR ireg, type, ccb/rcb, all, c/r, length, rca_row, word, dup, ctxt_disp"
+     ((MACH ms1-003,ms2))
+     "wfbincr $frsr1,#$rda,#$wr,#$ball,#$colnum,#$length,#$rownum1,#$rownum2,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_WFBINCR rda wr frsr1 ball colnum length rownum1 rownum2 dup ctxdisp)
+     (nop)
+     ()
+)
+
+(dni mwfbincr "MWFBINCR ireg, mreg, type, ccb/rcb, length, rca_row, word, dup, ctxt_disp"
+     ((MACH ms1-003,ms2))
+     "mwfbincr $frsr1,$frsr2,#$rda,#$wr,#$length,#$rownum1,#$rownum2,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_MWFBINCR rda wr frsr1 frsr2 length rownum1 rownum2 dup ctxdisp)
+     (nop)
+     ()
+)
+
+(dni fbcbincs "FBCBINCS	     perm, all, c/r, cbs, incr, ccb/rcb, cdb/rdb, word, dup, ctxt_disp"
+     ((MACH ms1-003,ms2))
+     "fbcbincs #$perm,#$a23,#$cr,#$cbs,#$incr,#$ccb,#$cdb,#$rownum2,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_FBCBINCS perm a23 cr cbs incr ccb cdb rownum2 dup ctxdisp)
+     (nop)
+     ()
+)
+
+(dni mfbcbincs "MFBCBINCS		ireg, perm, cbs, incr, ccb/rcb, cdb/rdb, word, dup, ctxt_disp"
+     ((MACH ms1-003,ms2))
+     "mfbcbincs $frsr1,#$perm,#$cbs,#$incr,#$ccb,#$cdb,#$rownum2,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_MFBCBINCS perm frsr1 cbs incr ccb cdb rownum2 dup ctxdisp)
+     (nop)
+     ()
+)
+
+(dni fbcbincrs "FBCBINCRS	     ireg, perm, all, c/r, cbs, ccb/rcb, cdb/rdb, word, dup, ctxt_disp"
+     ((MACH ms1-003,ms2))
+     "fbcbincrs $frsr1,#$perm,#$ball,#$colnum,#$cbx,#$ccb,#$cdb,#$rownum2,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_FBCBINCRS perm frsr1 ball colnum (f-uu-1-15 0) cbx ccb cdb rownum2 dup ctxdisp)
+     (nop)
+     ()
+)
+
+(dni mfbcbincrs "MFBCBINCRS ireg, mreg, perm, cbs, ccb/rcb, cdb/rdb, word, dup, ctxt_disp"
+     ((MACH ms1-003,ms2))
+     "mfbcbincrs $frsr1,$frsr2,#$perm,#$cbx,#$ccb,#$cdb,#$rownum2,#$dup,#$ctxdisp"
+     (+ MSYS_YES MSOPC_MFBCBINCRS perm frsr1 frsr2 (f-uu-1-15 0) cbx ccb cdb rownum2 dup ctxdisp)
+     (nop)
+     ()
+)
+
+; MS2 instructions
+(dni loop "LOOP SrcReg1, label"
+     ((MACH ms2) DELAY-SLOT USES-FRSR1)
+     "loop $frsr1,$loopsize"
+     (+ MSYS_NO OPC_LOOP IMM_NO frsr1 (f-uu4a 0) (f-uu8 0) loopsize)
+     (nop)      ;; to be filled in
+     ()
+)
+
+(dni loopi "LOOPI niter, label"
+     ((MACH ms2) DELAY-SLOT)
+     "loopi #$imm16l,$loopsize"
+     (+ MSYS_NO OPC_LOOP IMM_YES imm16l loopsize)
+     (nop)      ;; to be filled in
+     ()
+)
+
+(dni dfbc "dfbc cb1sel,cb2sel,cb1inc,cb2inc,dr/c,cr/c,ctxdisp"
+     ((MACH ms2))
+     "dfbc #$cb1sel,#$cb2sel,#$cb1incr,#$cb2incr,#$rc3,#$rc2,#$ctxdisp"
+     (+ MSYS_YES MSOPC_LDCTXT cb1sel cb2sel cb1incr cb2incr rc3 rc2 ctxdisp)
+     (nop)
+     ()
+)
+
+(dni dwfb "dwfb cb1sel,cb2sel,cb1inc,cb2inc,cr/c,ctxdisp"
+     ((MACH ms2))
+     "dwfb #$cb1sel,#$cb2sel,#$cb1incr,#$cb2incr,#$rc2,#$ctxdisp"
+     (+ MSYS_YES MSOPC_LDFB cb1sel cb2sel cb1incr cb2incr (f-uu1 0) rc2 ctxdisp)
+     (nop)
+     ()
+)
+
+(dni fbwfb "fbwfb cb1sel,cb2sel,cb1inc,cb2inc,r0/1,cr/c,ctxdisp"
+     ((MACH ms2))
+     "fbwfb #$cb1sel,#$cb2sel,#$cb1incr,#$cb2incr,#$rc3,#$rc2,#$ctxdisp"
+     (+ MSYS_YES MSOPC_STFB cb1sel cb2sel cb1incr cb2incr rc3 rc2 ctxdisp)
+     (nop)
+     ()
+)
+
+(dni dfbr "dfbr cb1sel,cb2sel,reg,W/O1,W/O2,mode,cr/c,ctxdisp"
+     ((MACH ms2) USES-FRSR2)
+     "dfbr #$cb1sel,#$cb2sel,$frsr2,#$length,#$rownum1,#$rownum2,#$rc2,#$ctxdisp"
+     (+ MSYS_YES MSOPC_FBCB cb1sel cb2sel frsr2 length rownum1 rownum2 rc2 ctxdisp)
+     (nop)
+     ()
+)

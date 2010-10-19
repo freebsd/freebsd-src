@@ -2,7 +2,7 @@
 # elf tests
 #
 
-proc run_list_test { name suffix opts readelf_pipe } {
+proc run_list_test { name suffix opts readelf_opts readelf_pipe } {
     global READELF
     global srcdir subdir
     set testname "elf $name list"
@@ -14,8 +14,8 @@ proc run_list_test { name suffix opts readelf_pipe } {
 	verbose "output is [file_contents "dump.out"]" 2
 	return
     }
-    send_log "$READELF -s dump.o > dump.out\n"
-    catch "exec $READELF -s dump.o $readelf_pipe > dump.out\n" comp_output
+    send_log "$READELF $readelf_opts dump.o $readelf_pipe > dump.out\n"
+    catch "exec $READELF $readelf_opts dump.o $readelf_pipe > dump.out\n" comp_output
     if ![string match "" $comp_output] then {
 	send_log "$comp_output\n"
 	fail $testname
@@ -31,10 +31,13 @@ proc run_list_test { name suffix opts readelf_pipe } {
 }
 
 # We're testing bits in obj-elf -- don't run on anything else.
-if { ([istarget "*-*-elf*"]		
+if { ([istarget "*-*-*elf*"]		
       || [istarget "*-*-linux*"]
+      || [istarget "m6811-*"]
+      || [istarget "m6812-*"]
       || [istarget "sparc*-*-solaris*"]
-      || [istarget "mips*-*-irix6*"])
+      || [istarget "mips*-*-irix6*"]
+      || [istarget "arm*-*-eabi"])
      && ![istarget *-*-linux*aout*]
      && ![istarget *-*-linux*coff*]
      && ![istarget *-*-linux*oldld*]
@@ -47,11 +50,34 @@ if { ([istarget "*-*-elf*"]
     if {[istarget m32r*-*-*]} then {
 	set target_machine -m32r
     }
+    if { ([istarget "*arm*-*-*"]
+	  || [istarget "xscale*-*-*"])
+	&& ([istarget "*-*-*eabi"]
+	    || [istarget "*-*-symbianelf"])} then {
+	set target_machine -armeabi
+    }
     run_dump_test "ehopt0"
+    run_dump_test "group0a" 
+    run_dump_test "group0b" 
+    run_dump_test "group1a" 
+    run_dump_test "group1b" 
+    case $target_triplet in {
+	{ alpha*-*-* } { }
+	{ hppa*-*-* } { }
+	{ iq2000*-*-* } { }
+	{ mips*-*-* } { }
+	{ *c54x*-*-* } { }
+	default {
+	    run_dump_test redef
+	}
+    }
     run_dump_test "section0" 
     run_dump_test "section1" 
-    run_list_test "section2" "$target_machine" "-al" ""
+    run_list_test "section2" "$target_machine" "-al" "-s" ""
     run_dump_test "section3" 
+    run_dump_test "section4"
+    run_list_test "section5" "" "-al" "-SW" "| grep \" \\\\.test\\\[0-9\\\]\""
+    run_dump_test "struct" 
     run_dump_test "symver" 
-    run_list_test "type" "" "" "| grep \"1 \\\[FONT\\\]\""
+    run_list_test "type" "" "" "-s" "| grep \"1 \\\[FONT\\\]\""
 }

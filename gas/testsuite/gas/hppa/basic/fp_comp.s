@@ -1,3 +1,4 @@
+	.level 1.1
 	.code
 	.align 4
 ; Basic immediate instruction tests.  

@@ -1,5 +1,6 @@
 /* Table of opcodes for the Motorola M88k family.
-   Copyright 1989, 1990, 1991, 1993, 2001 Free Software Foundation, Inc.
+   Copyright 1989, 1990, 1991, 1993, 2001, 2002
+   Free Software Foundation, Inc.
 
 This file is part of GDB and GAS.
 
@@ -15,7 +16,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /*
  *			Disassembler Instruction Table
@@ -230,22 +231,22 @@ struct PROCESSOR
 
 /* Definitions for fields in psr.  */
 
-#define mode  31
-#define rbo   30
-#define ser   29
-#define carry 28
-#define sf7m  11
-#define sf6m  10
-#define sf5m   9
-#define sf4m   8
-#define sf3m   7
-#define sf2m   6
-#define sf1m   5
-#define mam    4
-#define inm    3
-#define exm    2
-#define trm    1
-#define ovfm   0
+#define psr_mode  31
+#define psr_rbo   30
+#define psr_ser   29
+#define psr_carry 28
+#define psr_sf7m  11
+#define psr_sf6m  10
+#define psr_sf5m   9
+#define psr_sf4m   8
+#define psr_sf3m   7
+#define psr_sf2m   6
+#define psr_sf1m   5
+#define psr_mam    4
+#define psr_inm    3
+#define psr_exm    2
+#define psr_trm    1
+#define psr_ovfm   0
 
 /* The 1 clock operations.  */
 

@@ -1,3 +1,27 @@
+2006-04-06  Carlos O'Donell  <carlos@codesourcery.com>
+
+	* intl/Makefile.in: Add html info and dvi and install-html to .PHONY
+	Add install-html target.
+
+2006-02-27  Carlos O'Donell  <carlos@codesourcery.com>
+
+	* intl/Makefile.in: Add html target.
+
+2005-05-13  Nick Clifton  <nickc@redhat.com>
+
+	* Update the address and phone number of the FSF organization in
+	the GPL notices in the following files:
+	Makefile.in, bindtextdom.c, cat-compat.c, dcgettext.c,
+	dgettext.c, explodename.c, finddomain.c, gettext.c, gettext.h,
+	gettextP.h, hash-string.h, intl-compat.c, intlh.inst.in,
+	l10nflist.c, libgettext.h, libintl.glibc, linux-msg.sed,
+	loadinfo.h, loadmsgcat.c, localealias.c, po2tbl.sed.in,
+	textdomain.c, xopen-msg.sed
+	
+2004-11-30  Tero Niemela  <tero_niemela@yahoo.com>
+
+	* Makefile.in: Change LOCALEDIR to $(datadir)/share.
+
 2002-01-21  Thomas Klausner <wiz@danbala.ifoer.tuwien.ac.at>
 
 	* linux-msg.sed: Comment typo fix.

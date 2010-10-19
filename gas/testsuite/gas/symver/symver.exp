@@ -16,6 +16,8 @@ proc run_error_test { name opts } {
 
 # symver is only supported by ELF targets.
 if { ([istarget "*-*-elf*"]		
+      || [istarget "m6811-*"]
+      || [istarget "m6812-*"]
       || [istarget "*-*-linux*"])
      && ![istarget *-*-linux*aout*]
      && ![istarget *-*-linux*oldld*] } then {

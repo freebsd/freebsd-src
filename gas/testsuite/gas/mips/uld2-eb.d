@@ -2,7 +2,6 @@
 #objdump: -dr --prefix-addresses --show-raw-insn -M reg-names=numeric
 #name: uld2 -EB
 #source: uld2.s
-#stderr: uld2.l
 
 # Further checks of uld macro.
 # XXX: note: when 'move' is changed to use 'or' rather than daddu, the

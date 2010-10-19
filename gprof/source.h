@@ -1,6 +1,6 @@
 /* source.h
 
-   Copyright 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright 2000, 2001, 2002, 2004 Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
 
@@ -16,7 +16,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef source_h
 #define source_h
@@ -44,8 +44,8 @@ extern Search_List src_search_list;
 extern Source_File *first_src_file;
 
 /* Returns pointer to source file descriptor for PATH/FILENAME.  */
-extern Source_File *source_file_lookup_path PARAMS ((const char *));
-extern Source_File *source_file_lookup_name PARAMS ((const char *));
+extern Source_File *source_file_lookup_path (const char *);
+extern Source_File *source_file_lookup_name (const char *);
 
 /* Read source file SF output annotated source.  The annotation is at
    MAX_WIDTH characters wide and for each source-line an annotation is
@@ -56,7 +56,7 @@ extern Source_File *source_file_lookup_name PARAMS ((const char *));
    that summary statistics can be printed.  If the returned file
    is not stdout, it should be closed when done with it.  */
 extern FILE *annotate_source
-  PARAMS ((Source_File *sf, unsigned int max_width,
+  (Source_File *sf, unsigned int max_width,
 	   void (*annote) (char *, unsigned int, int, PTR arg),
-	   PTR arg));
+	   PTR arg);
 #endif /* source_h */

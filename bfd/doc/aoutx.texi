@@ -121,7 +121,7 @@ turn by various format specific files (eg sunos.c).
 @example
 void aout_@var{size}_swap_exec_header_in,
    (bfd *abfd,
-    struct external_exec *raw_bytes,
+    struct external_exec *bytes,
     struct internal_exec *execp);
 @end example
 @strong{Description}@*
@@ -148,7 +148,8 @@ Swap the information in an internal exec header structure
 @example
 const bfd_target *aout_@var{size}_some_aout_object_p
    (bfd *abfd,
-    const bfd_target *(*callback_to_real_object_p) ());
+    struct internal_exec *execp,
+    const bfd_target *(*callback_to_real_object_p) (bfd *));
 @end example
 @strong{Description}@*
 Some a.out variant thinks that the file open in @var{abfd}
@@ -172,7 +173,8 @@ Initialize BFD @var{abfd} for use with a.out files.
 @example
 enum machine_type  aout_@var{size}_machine_type
    (enum bfd_architecture arch,
-    unsigned long machine));
+    unsigned long machine,
+    bfd_boolean *unknown);
 @end example
 @strong{Description}@*
 Keep track of machine architecture and machine type for
@@ -190,7 +192,7 @@ is always understood.
 bfd_boolean aout_@var{size}_set_arch_mach,
    (bfd *,
     enum bfd_architecture arch,
-    unsigned long machine));
+    unsigned long machine);
 @end example
 @strong{Description}@*
 Set the architecture and the machine of the BFD @var{abfd} to the
@@ -203,7 +205,7 @@ can support the architecture required.
 @example
 bfd_boolean aout_@var{size}_new_section_hook,
    (bfd *abfd,
-    asection *newsect));
+    asection *newsect);
 @end example
 @strong{Description}@*
 Called by the BFD in response to a @code{bfd_make_section}

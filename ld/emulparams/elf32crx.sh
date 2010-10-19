@@ -1,0 +1,6 @@
+SCRIPT_NAME=elf32crx
+TEMPLATE_NAME=elf32
+OUTPUT_FORMAT="elf32-crx"
+ARCH=crx
+ENTRY=_start
+EXTRA_EM_FILE=crxelf

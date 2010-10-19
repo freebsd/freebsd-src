@@ -1,6 +1,6 @@
 #source: expdyn1.s
 #source: dso-3.s
-#as: --pic --no-underscore
+#as: --pic --no-underscore --em=criself
 #ld: --shared -m crislinux
 #objdump: -R
 

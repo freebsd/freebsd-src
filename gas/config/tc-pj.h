@@ -1,5 +1,5 @@
 /* This file is tc-pj.h
-   Copyright 1999, 2000, 2002, 2003 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001, 2002, 2003, 2005 Free Software Foundation, Inc.
 
    Contributed by Steve Chamberlain of Transmeta, sac@pobox.com
 
@@ -17,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   the Free Software Foundation, 51 Franklin Street - Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 /* Contributed by Steve Chamberlain, of Transmeta. sac@pobox.com.  */
 
@@ -31,8 +31,8 @@
    ? "Pico Java GAS Big Endian"           				\
    : "Pico Java GAS Little Endian")
 
-void pj_cons_fix_new_pj PARAMS ((struct frag *, int, int, expressionS *));
-arelent *tc_gen_reloc PARAMS((asection *, struct fix *));
+void pj_cons_fix_new_pj (struct frag *, int, int, expressionS *);
+arelent *tc_gen_reloc (asection *, struct fix *);
 
 #define md_section_align(SEGMENT, SIZE)     (SIZE)
 #define md_convert_frag(B, S, F)            (as_fatal (_("convert_frag\n")), 0)
@@ -52,9 +52,9 @@ arelent *tc_gen_reloc PARAMS((asection *, struct fix *));
    visible symbols can be overridden.  */
 #define EXTERN_FORCE_RELOC 0
 
-/* Values passed to md_apply_fix3 don't include the symbol value.  */
+/* Values passed to md_apply_fix don't include the symbol value.  */
 #define MD_APPLY_SYM_VALUE(FIX) 0
 
 #define tc_fix_adjustable(FIX) 					\
-          (! ((FIX)->fx_r_type == BFD_RELOC_VTABLE_INHERIT         	\
+          (! ((FIX)->fx_r_type == BFD_RELOC_VTABLE_INHERIT     	\
 	   || (FIX)->fx_r_type == BFD_RELOC_VTABLE_ENTRY))

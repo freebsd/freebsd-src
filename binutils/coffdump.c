@@ -16,7 +16,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* Written by Steve Chamberlain <sac@cygnus.com>
 
@@ -38,11 +38,9 @@ static void dump_coff_lines (struct coff_line *);
 static void dump_coff_type (struct coff_type *);
 static void dump_coff_where (struct coff_where *);
 static void dump_coff_visible (struct coff_visible *);
-extern void dump_coff_symbol (struct coff_symbol *);
 static void dump_coff_scope (struct coff_scope *);
 static void dump_coff_sfile (struct coff_sfile *);
 static void dump_coff_section (struct coff_section *);
-extern void coff_dump (struct coff_ofile *);
 static void show_usage (FILE *, int);
 extern int main (int, char **);
 
@@ -325,7 +323,7 @@ dump_coff_visible (struct coff_visible *p)
   tab (-1);
 }
 
-void
+static void
 dump_coff_symbol (struct coff_symbol *p)
 {
   tab (1);
@@ -436,7 +434,7 @@ dump_coff_section (struct coff_section *ptr)
   tab (-1);
 }
 
-void
+static void
 coff_dump (struct coff_ofile *ptr)
 {
   int i;
@@ -459,6 +457,7 @@ show_usage (FILE *file, int status)
   fprintf (file, _("Usage: %s [option(s)] in-file\n"), program_name);
   fprintf (file, _(" Print a human readable interpretation of a SYSROFF object file\n"));
   fprintf (file, _(" The options are:\n\
+  @<file>                Read options from <file>\n\
   -h --help              Display this information\n\
   -v --version           Display the program's version\n\
 \n"));
@@ -495,6 +494,8 @@ main (int ac, char **av)
 
   program_name = av[0];
   xmalloc_set_program_name (program_name);
+
+  expandargv (&ac, &av);
 
   while ((opt = getopt_long (ac, av, "HhVv", long_options,
 			     (int *) NULL))

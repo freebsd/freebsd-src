@@ -1,5 +1,5 @@
 /* demangle.c -- A wrapper calling libiberty cplus_demangle
-   Copyright 2002, 2003 Free Software Foundation, Inc.
+   Copyright 2002, 2003, 2004 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -15,8 +15,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include "config.h"
 #include <stdlib.h>
@@ -38,8 +38,9 @@
 char *
 demangle (bfd *abfd, const char *name)
 {
-  char *res;
-  const char *p;
+  char *res, *alloc;
+  const char *pre, *suf;
+  size_t pre_len;
 
   if (abfd != NULL && bfd_get_symbol_leading_char (abfd) == name[0])
     ++name;
@@ -48,28 +49,52 @@ demangle (bfd *abfd, const char *name)
      or the MS PE format.  These formats have a number of leading '.'s
      on at least some symbols, so we remove all dots to avoid
      confusing the demangler.  */
-  p = name;
-  while (*p == '.')
-    ++p;
+  pre = name;
+  while (*name == '.')
+    ++name;
+  pre_len = name - pre;
 
-  res = cplus_demangle (p, DMGL_ANSI | DMGL_PARAMS);
-  if (res)
+  alloc = NULL;
+  suf = strchr (name, '@');
+  if (suf != NULL)
     {
-      size_t dots = p - name;
+      alloc = xmalloc (suf - name + 1);
+      memcpy (alloc, name, suf - name);
+      alloc[suf - name] = '\0';
+      name = alloc;
+    }
 
-      /* Now put back any stripped dots.  */
-      if (dots != 0)
+  res = cplus_demangle (name, DMGL_ANSI | DMGL_PARAMS);
+  if (res != NULL)
+    {
+      /* Now put back any suffix, or stripped dots.  */
+      if (pre_len != 0 || suf != NULL)
 	{
-	  size_t len = strlen (res) + 1;
-	  char *add_dots = xmalloc (len + dots);
+	  size_t len;
+	  size_t suf_len;
+	  char *final;
 
-	  memcpy (add_dots, name, dots);
-	  memcpy (add_dots + dots, res, len);
+	  if (alloc != NULL)
+	    free (alloc);
+
+	  len = strlen (res);
+	  if (suf == NULL)
+	    suf = res + len;
+	  suf_len = strlen (suf) + 1;
+	  final = xmalloc (pre_len + len + suf_len);
+
+	  memcpy (final, pre, pre_len);
+	  memcpy (final + pre_len, res, len);
+	  memcpy (final + pre_len + len, suf, suf_len);
 	  free (res);
-	  res = add_dots;
+	  res = final;
 	}
+
       return res;
     }
 
-  return xstrdup (name);
+  if (alloc != NULL)
+    free (alloc);
+
+  return xstrdup (pre);
 }

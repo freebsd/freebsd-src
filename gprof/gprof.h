@@ -134,6 +134,6 @@ extern File_Format file_format;		/* requested file format */
 
 extern bfd_boolean first_output;	/* no output so far? */
 
-extern void done PARAMS ((int status)) ATTRIBUTE_NORETURN;
+extern void done (int status) ATTRIBUTE_NORETURN;
 
 #endif /* gprof_h */

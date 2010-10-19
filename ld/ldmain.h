@@ -1,6 +1,6 @@
 /* ldmain.h -
-   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1999, 2002, 2003, 2004
-   Free Software Foundation, Inc.
+   Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1999, 2002, 2003, 2004,
+   2005 Free Software Foundation, Inc.
 
    This file is part of GLD, the Gnu Linker.
 
@@ -16,14 +16,14 @@
 
    You should have received a copy of the GNU General Public License
    along with GLD; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #ifndef LDMAIN_H
 #define LDMAIN_H
 
 extern char *program_name;
-extern char *ld_sysroot;
+extern const char *ld_sysroot;
 extern char *ld_canon_sysroot;
 extern int ld_canon_sysroot_len;
 extern bfd *output_bfd;
@@ -33,6 +33,7 @@ extern bfd_boolean trace_file_tries;
 extern bfd_boolean version_printed;
 extern bfd_boolean whole_archive;
 extern bfd_boolean as_needed;
+extern bfd_boolean add_needed;
 extern bfd_boolean demangling;
 extern int g_switch_value;
 extern const char *output_filename;

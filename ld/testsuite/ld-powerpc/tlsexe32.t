@@ -7,5 +7,5 @@
 .*: +file format elf32-powerpc
 
 Contents of section \.tdata:
- 18102fc 12345678 23456789 3456789a 456789ab  .*
- 181030c 56789abc 6789abcd 789abcde           .*
+.* 12345678 23456789 3456789a 456789ab  .*
+.* 56789abc 6789abcd 789abcde           .*

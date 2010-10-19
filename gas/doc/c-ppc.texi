@@ -1,4 +1,4 @@
-@c Copyright 2001, 2002
+@c Copyright 2001, 2002, 2003, 2005
 @c Free Software Foundation, Inc.
 @c This is part of the GAS manual.
 @c For copying conditions, see the file as.texinfo.
@@ -67,11 +67,17 @@ Generate code for 64-bit BookE.
 @item -mbooke, mbooke32
 Generate code for 32-bit BookE.
 
+@item -me300
+Generate code for PowerPC e300 family.
+
 @item -maltivec
 Generate code for processors with AltiVec instructions.
 
 @item -mpower4
 Generate code for Power4 architecture.
+
+@item -mpower5
+Generate code for Power5 architecture.
 
 @item -mcom
 Generate code Power/PowerPC common instructions.

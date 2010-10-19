@@ -17,7 +17,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* #define ENTRY_CAN_BE_ZERO */
 #define N_HEADER_IN_TEXT(x) 1
@@ -115,7 +115,6 @@ MY (choose_reloc_size) (abfd)
   switch (bfd_get_arch (abfd))
     {
     case bfd_arch_sparc:
-    case bfd_arch_a29k:
     case bfd_arch_mips:
       obj_reloc_entry_size (abfd) = RELOC_EXT_SIZE;
       break;
@@ -156,9 +155,6 @@ MY (write_object_contents) (abfd)
       break;
     case bfd_arch_i386:
       N_SET_MACHTYPE (*execp, M_386);
-      break;
-    case bfd_arch_a29k:
-      N_SET_MACHTYPE (*execp, M_29K);
       break;
     case bfd_arch_mips:
       switch (bfd_get_mach (abfd))

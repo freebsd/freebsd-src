@@ -1,0 +1,52 @@
+#
+# MAXQ10 tests
+#
+proc run_list_test { name opts } {
+    global srcdir subdir
+    set testname "maxq10 $name"
+    set file $srcdir/$subdir/$name
+    gas_run ${name}.s $opts ">&dump.out"
+    if { [regexp_diff "dump.out" "${file}.l"] } then {
+	fail $testname
+	verbose "output is [file_contents "dump.out"]" 2
+	return
+    }
+    pass $testname
+}
+
+proc gas_64_check { } {
+    global NM
+    global NMFLAGS
+    global srcdir
+
+    catch "exec $srcdir/lib/run $NM $NMFLAGS --help" nm_help
+    return [regexp "targets:.*maxq" $nm_help]
+}
+
+proc gas_32_check { } {
+    global NM
+    global NMFLAGS
+    global srcdir
+
+    catch "exec $srcdir/lib/run $NM $NMFLAGS --help" nm_help
+    return [regexp "targets:.*maxq" $nm_help]
+}
+
+if [expr ([istarget "maxq-*-*"] ||  [istarget "maxq-coff-*"]) && [gas_32_check]]  then {
+
+    global ASFLAGS
+    set old_ASFLAGS "$ASFLAGS"
+    set ASFLAGS "$ASFLAGS -MAXQ10"
+
+    run_dump_test "range"
+    run_dump_test "data3"
+    run_dump_test "data2"
+    run_dump_test "call"
+    run_dump_test "jump"
+    run_dump_test "logical"
+    run_dump_test "math"
+    run_dump_test "bits"
+
+    set ASFLAGS "$old_ASFLAGS"
+}
+

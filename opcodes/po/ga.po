@@ -1,0 +1,1022 @@
+# Irish translations for opcodes.
+# Copyright (C) 2005 Free Software Foundation, Inc.
+# This file is distributed under the same license as the opcodes package.
+# Kevin Patrick Scannell <scannell@SLU.EDU>, 2005, 2006.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: opcodes 2.16.93\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2005-10-25 10:50+0930\n"
+"PO-Revision-Date: 2006-05-22 18:42-0500\n"
+"Last-Translator: Kevin Patrick Scannell <scannell@SLU.EDU>\n"
+"Language-Team: Irish <gaeilge-gnulinux@lists.sourceforge.net>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=ISO-8859-1\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: alpha-opc.c:155
+msgid "branch operand unaligned"
+msgstr "oibreann brainse gan ailíniú"
+
+#: alpha-opc.c:171 alpha-opc.c:187
+msgid "jump hint unaligned"
+msgstr "leid léime gan ailíniú"
+
+#: arc-dis.c:75
+msgid "Illegal limm reference in last instruction!\n"
+msgstr "Tagairt neamhcheadaithe limm sa treoir is déanaí!\n"
+
+#: arc-opc.c:384
+msgid "unable to fit different valued constants into instruction"
+msgstr "ní féidir tairisigh le luachanna difriúla a chur isteach sa treoir"
+
+#: arc-opc.c:393
+msgid "auxiliary register not allowed here"
+msgstr "ní cheadaítear tabhall cúntach anseo"
+
+#: arc-opc.c:399 arc-opc.c:416
+msgid "attempt to set readonly register"
+msgstr "rinneadh iarracht ar thabhall léimh-amháin a shocrú"
+
+#: arc-opc.c:404 arc-opc.c:421
+msgid "attempt to read writeonly register"
+msgstr "rinneadh iarracht ar thabhall scríofa-amháin a léamh"
+
+#: arc-opc.c:426
+#, c-format
+msgid "invalid register number `%d'"
+msgstr "uimhir neamhbhailí `%d' ar thabhall"
+
+#: arc-opc.c:592 arc-opc.c:643 arc-opc.c:671
+msgid "too many long constants"
+msgstr "an iomarca tairiseach fada"
+
+#: arc-opc.c:666
+msgid "to many shimms in load"
+msgstr "an iomarca shimmeanna le linn luchtaithe"
+
+#. Do we have a limm already?
+#: arc-opc.c:779
+msgid "impossible store"
+msgstr "stóráil dhodhéanta"
+
+#: arc-opc.c:812
+msgid "st operand error"
+msgstr "earráid le hoibreann st"
+
+#: arc-opc.c:816 arc-opc.c:858
+msgid "address writeback not allowed"
+msgstr "ní cheadaítear ais-scríobh an tseolta"
+
+#: arc-opc.c:820
+msgid "store value must be zero"
+msgstr "caithfidh luach an stóir a bheith nialas"
+
+#: arc-opc.c:845
+msgid "invalid load/shimm insn"
+msgstr "insn luchtaithe/shimm neamhbhailí"
+
+#: arc-opc.c:854
+msgid "ld operand error"
+msgstr "earráid le hoibreann ld"
+
+#: arc-opc.c:941
+msgid "jump flags, but no .f seen"
+msgstr "bratacha léime, ach ní fhacthas .f ar bith"
+
+#: arc-opc.c:944
+msgid "jump flags, but no limm addr"
+msgstr "bratacha léime, ach gan seoladh limm"
+
+#: arc-opc.c:947
+msgid "flag bits of jump address limm lost"
+msgstr "cailleadh giotáin bhrataí den seoladh léime limm"
+
+#: arc-opc.c:950
+msgid "attempt to set HR bits"
+msgstr "rinneadh iarracht giotáin HR a shocrú"
+
+#: arc-opc.c:953
+msgid "bad jump flags value"
+msgstr "luach neamhbhailí ar bhratacha léime"
+
+#: arc-opc.c:986
+msgid "branch address not on 4 byte boundary"
+msgstr "seoladh brainse gan a bheith ar theorainn 4 bheart"
+
+#: arc-opc.c:1022
+msgid "must specify .jd or no nullify suffix"
+msgstr "ní mór duit .jd nó iarmhír gan neamhniú a shonrú"
+
+#: arm-dis.c:1302
+msgid "<illegal precision>"
+msgstr "<beachtas neamhcheadaithe>"
+
+#. XXX - should break 'option' at following delimiter.
+#: arm-dis.c:2746
+#, c-format
+msgid "Unrecognised register name set: %s\n"
+msgstr "Tacar anaithnid d'ainmneacha taibhle: %s\n"
+
+#. XXX - should break 'option' at following delimiter.
+#: arm-dis.c:2754
+#, c-format
+msgid "Unrecognised disassembler option: %s\n"
+msgstr "Rogha anaithnid dídhíolamóra: %s\n"
+
+#: arm-dis.c:2916
+#, c-format
+msgid ""
+"\n"
+"The following ARM specific disassembler options are supported for use with\n"
+"the -M switch:\n"
+msgstr ""
+"\n"
+"Tacaítear leis na roghanna a leanas, atá sainiúil do ARM agus le húsáid in éineacht\n"
+"leis an rogha -M:\n"
+
+#: avr-dis.c:109 avr-dis.c:119
+#, c-format
+msgid "undefined"
+msgstr "gan sainmhíniú"
+
+#: avr-dis.c:176
+#, c-format
+msgid "Internal disassembler error"
+msgstr "Earráid inmheánach dídhíolamóra"
+
+#: avr-dis.c:225
+#, c-format
+msgid "unknown constraint `%c'"
+msgstr "iallach anaithnid `%c'"
+
+#: cgen-asm.c:336 fr30-ibld.c:192 frv-ibld.c:192 ip2k-ibld.c:192
+#: iq2000-ibld.c:192 m32c-ibld.c:192 m32r-ibld.c:192 ms1-ibld.c:192
+#: openrisc-ibld.c:192 xstormy16-ibld.c:192
+#, c-format
+msgid "operand out of range (%ld not between %ld and %ld)"
+msgstr "oibreann as raon (níl %ld idir %ld agus %ld)"
+
+#: cgen-asm.c:358
+#, c-format
+msgid "operand out of range (%lu not between %lu and %lu)"
+msgstr "oibreann as raon (níl %lu idir %lu agus %lu)"
+
+#: d30v-dis.c:252
+#, c-format
+msgid "<unknown register %d>"
+msgstr "<tabhall anaithnid %d>"
+
+#. Can't happen.
+#: dis-buf.c:57
+#, c-format
+msgid "Unknown error %d\n"
+msgstr "Earráid anaithnid %d\n"
+
+#: dis-buf.c:66
+#, c-format
+msgid "Address 0x%s is out of bounds.\n"
+msgstr "Tá an seoladh 0x%s thar teorainn.\n"
+
+#: fr30-asm.c:92 m32c-asm.c:782 m32c-asm.c:789
+msgid "Register number is not valid"
+msgstr "uimhir neamhbhailí ar an tabhall"
+
+#: fr30-asm.c:94
+msgid "Register must be between r0 and r7"
+msgstr "Caithfidh an tabhall a bheith idir r0 agus r7"
+
+#: fr30-asm.c:96
+msgid "Register must be between r8 and r15"
+msgstr "Caithfidh an tabhall a bheith idir r8 agus r15"
+
+#: fr30-asm.c:115 m32c-asm.c:820
+msgid "Register list is not valid"
+msgstr "Níl liosta na dtaibhle bailí"
+
+#: fr30-asm.c:309 frv-asm.c:1262 ip2k-asm.c:510 iq2000-asm.c:456
+#: m32c-asm.c:1476 m32r-asm.c:323 ms1-asm.c:546 openrisc-asm.c:240
+#: xstormy16-asm.c:275
+#, c-format
+msgid "Unrecognized field %d while parsing.\n"
+msgstr "Réimse anaithnid %d le linn parsála.\n"
+
+#: fr30-asm.c:357 frv-asm.c:1310 ip2k-asm.c:558 iq2000-asm.c:504
+#: m32c-asm.c:1524 m32r-asm.c:371 ms1-asm.c:594 openrisc-asm.c:288
+#: xstormy16-asm.c:323
+msgid "missing mnemonic in syntax string"
+msgstr "cuimhneolaíoch ar iarraidh i dteaghrán comhréire"
+
+#. We couldn't parse it.
+#: fr30-asm.c:492 fr30-asm.c:496 fr30-asm.c:583 fr30-asm.c:684 frv-asm.c:1445
+#: frv-asm.c:1449 frv-asm.c:1536 frv-asm.c:1637 ip2k-asm.c:693 ip2k-asm.c:697
+#: ip2k-asm.c:784 ip2k-asm.c:885 iq2000-asm.c:639 iq2000-asm.c:643
+#: iq2000-asm.c:730 iq2000-asm.c:831 m32c-asm.c:1659 m32c-asm.c:1663
+#: m32c-asm.c:1750 m32c-asm.c:1851 m32r-asm.c:506 m32r-asm.c:510
+#: m32r-asm.c:597 m32r-asm.c:698 ms1-asm.c:729 ms1-asm.c:733 ms1-asm.c:820
+#: ms1-asm.c:921 openrisc-asm.c:423 openrisc-asm.c:427 openrisc-asm.c:514
+#: openrisc-asm.c:615 xstormy16-asm.c:458 xstormy16-asm.c:462
+#: xstormy16-asm.c:549 xstormy16-asm.c:650
+msgid "unrecognized instruction"
+msgstr "treoir anaithnid"
+
+#: fr30-asm.c:539 frv-asm.c:1492 ip2k-asm.c:740 iq2000-asm.c:686
+#: m32c-asm.c:1706 m32r-asm.c:553 ms1-asm.c:776 openrisc-asm.c:470
+#: xstormy16-asm.c:505
+#, c-format
+msgid "syntax error (expected char `%c', found `%c')"
+msgstr "earráid chomhréire (bhíothas ag súil le `%c', fuarthas `%c')"
+
+#: fr30-asm.c:549 frv-asm.c:1502 ip2k-asm.c:750 iq2000-asm.c:696
+#: m32c-asm.c:1716 m32r-asm.c:563 ms1-asm.c:786 openrisc-asm.c:480
+#: xstormy16-asm.c:515
+#, c-format
+msgid "syntax error (expected char `%c', found end of instruction)"
+msgstr "earráid chomhréire (bhíothas ag súil le `%c', fuarthas deireadh na treorach)"
+
+#: fr30-asm.c:577 frv-asm.c:1530 ip2k-asm.c:778 iq2000-asm.c:724
+#: m32c-asm.c:1744 m32r-asm.c:591 ms1-asm.c:814 openrisc-asm.c:508
+#: xstormy16-asm.c:543
+msgid "junk at end of line"
+msgstr "bruscar ag deireadh na líne"
+
+#: fr30-asm.c:683 frv-asm.c:1636 ip2k-asm.c:884 iq2000-asm.c:830
+#: m32c-asm.c:1850 m32r-asm.c:697 ms1-asm.c:920 openrisc-asm.c:614
+#: xstormy16-asm.c:649
+msgid "unrecognized form of instruction"
+msgstr "foirm anaithnid de threoir"
+
+#: fr30-asm.c:695 frv-asm.c:1648 ip2k-asm.c:896 iq2000-asm.c:842
+#: m32c-asm.c:1862 m32r-asm.c:709 ms1-asm.c:932 openrisc-asm.c:626
+#: xstormy16-asm.c:661
+#, c-format
+msgid "bad instruction `%.50s...'"
+msgstr "drochthreoir `%.50s...'"
+
+#: fr30-asm.c:698 frv-asm.c:1651 ip2k-asm.c:899 iq2000-asm.c:845
+#: m32c-asm.c:1865 m32r-asm.c:712 ms1-asm.c:935 openrisc-asm.c:629
+#: xstormy16-asm.c:664
+#, c-format
+msgid "bad instruction `%.50s'"
+msgstr "drochthreoir `%.50s'"
+
+#. Default text to print if an instruction isn't recognized.
+#: fr30-dis.c:41 frv-dis.c:41 ip2k-dis.c:41 iq2000-dis.c:41 m32c-dis.c:41
+#: m32r-dis.c:41 mmix-dis.c:278 ms1-dis.c:41 openrisc-dis.c:41
+#: xstormy16-dis.c:41
+msgid "*unknown*"
+msgstr "*anaithnid*"
+
+#: fr30-dis.c:299 frv-dis.c:396 ip2k-dis.c:288 iq2000-dis.c:189 m32c-dis.c:860
+#: m32r-dis.c:256 ms1-dis.c:258 openrisc-dis.c:135 xstormy16-dis.c:168
+#, c-format
+msgid "Unrecognized field %d while printing insn.\n"
+msgstr "Réimse anaithnid %d le linn priontála insn.\n"
+
+#: fr30-ibld.c:163 frv-ibld.c:163 ip2k-ibld.c:163 iq2000-ibld.c:163
+#: m32c-ibld.c:163 m32r-ibld.c:163 ms1-ibld.c:163 openrisc-ibld.c:163
+#: xstormy16-ibld.c:163
+#, c-format
+msgid "operand out of range (%ld not between %ld and %lu)"
+msgstr "oibreann as raon (níl %ld idir %ld agus %lu)"
+
+#: fr30-ibld.c:176 frv-ibld.c:176 ip2k-ibld.c:176 iq2000-ibld.c:176
+#: m32c-ibld.c:176 m32r-ibld.c:176 ms1-ibld.c:176 openrisc-ibld.c:176
+#: xstormy16-ibld.c:176
+#, c-format
+msgid "operand out of range (%lu not between 0 and %lu)"
+msgstr "oibreann as raon (níl %lu idir 0 agus %lu)"
+
+#: fr30-ibld.c:719 frv-ibld.c:845 ip2k-ibld.c:596 iq2000-ibld.c:702
+#: m32c-ibld.c:1668 m32r-ibld.c:654 ms1-ibld.c:713 openrisc-ibld.c:622
+#: xstormy16-ibld.c:667
+#, c-format
+msgid "Unrecognized field %d while building insn.\n"
+msgstr "Réimse anaithnid %d le linn tógála insn.\n"
+
+#: fr30-ibld.c:924 frv-ibld.c:1162 ip2k-ibld.c:671 iq2000-ibld.c:877
+#: m32c-ibld.c:2780 m32r-ibld.c:791 ms1-ibld.c:907 openrisc-ibld.c:722
+#: xstormy16-ibld.c:813
+#, c-format
+msgid "Unrecognized field %d while decoding insn.\n"
+msgstr "Réimse anaithnid %d le linn díchódaithe insn.\n"
+
+#: fr30-ibld.c:1070 frv-ibld.c:1440 ip2k-ibld.c:745 iq2000-ibld.c:1008
+#: m32c-ibld.c:3379 m32r-ibld.c:904 ms1-ibld.c:1086 openrisc-ibld.c:799
+#: xstormy16-ibld.c:923
+#, c-format
+msgid "Unrecognized field %d while getting int operand.\n"
+msgstr "Réimse anaithnid %d agus oibreann slánuimhriúil á fháil.\n"
+
+#: fr30-ibld.c:1198 frv-ibld.c:1700 ip2k-ibld.c:801 iq2000-ibld.c:1121
+#: m32c-ibld.c:3960 m32r-ibld.c:999 ms1-ibld.c:1247 openrisc-ibld.c:858
+#: xstormy16-ibld.c:1015
+#, c-format
+msgid "Unrecognized field %d while getting vma operand.\n"
+msgstr "Réimse anaithnid %d agus oibreann vma á fháil.\n"
+
+#: fr30-ibld.c:1329 frv-ibld.c:1967 ip2k-ibld.c:860 iq2000-ibld.c:1241
+#: m32c-ibld.c:4529 m32r-ibld.c:1100 ms1-ibld.c:1415 openrisc-ibld.c:924
+#: xstormy16-ibld.c:1114
+#, c-format
+msgid "Unrecognized field %d while setting int operand.\n"
+msgstr "Réimse anaithnid %d agus oibreann slánuimhriúil á shocrú.\n"
+
+#: fr30-ibld.c:1450 frv-ibld.c:2224 ip2k-ibld.c:909 iq2000-ibld.c:1351
+#: m32c-ibld.c:5088 m32r-ibld.c:1191 ms1-ibld.c:1573 openrisc-ibld.c:980
+#: xstormy16-ibld.c:1203
+#, c-format
+msgid "Unrecognized field %d while setting vma operand.\n"
+msgstr "Réimse anaithnid %d agus oibreann vma á shocrú.\n"
+
+#: frv-asm.c:607
+msgid "missing `]'"
+msgstr "`]' ar iarraidh"
+
+#: frv-asm.c:610 frv-asm.c:620
+msgid "Special purpose register number is out of range"
+msgstr "Uimhir thabhall sainchuspóirigh as raon"
+
+#: frv-asm.c:907
+msgid "Value of A operand must be 0 or 1"
+msgstr "caithfidh luach an oibrinn A a bheith 0 nó 1"
+
+#: frv-asm.c:943
+msgid "register number must be even"
+msgstr "caithfidh uimhir an tabhaill a bheith cothrom"
+
+#. -- assembler routines inserted here.
+#. -- asm.c
+#: frv-asm.c:971 iq2000-asm.c:55 m32c-asm.c:140 m32c-asm.c:211 m32c-asm.c:253
+#: m32c-asm.c:312 m32c-asm.c:334 m32r-asm.c:52 openrisc-asm.c:53
+msgid "missing `)'"
+msgstr "`)' ar iarraidh"
+
+#: h8300-dis.c:325
+#, c-format
+msgid "Hmmmm 0x%x"
+msgstr "Hmmmm 0x%x"
+
+#: h8300-dis.c:706
+#, c-format
+msgid "Don't understand 0x%x \n"
+msgstr "Ní thuigim 0x%x \n"
+
+#: h8500-dis.c:122
+#, c-format
+msgid "can't cope with insert %d\n"
+msgstr "ní féidir déileáil le hionsá %d\n"
+
+#. Couldn't understand anything.
+#: h8500-dis.c:322
+#, c-format
+msgid "%02x\t\t*unknown*"
+msgstr "%02x\t\t*anaithnid*"
+
+#: i386-dis.c:1742
+msgid "<internal disassembler error>"
+msgstr "<earráid inmheánach dídhíolamóra>"
+
+#: ia64-gen.c:297
+#, c-format
+msgid "%s: Error: "
+msgstr "%s: Earráid: "
+
+#: ia64-gen.c:310
+#, c-format
+msgid "%s: Warning: "
+msgstr "%s: Rabhadh: "
+
+#: ia64-gen.c:496 ia64-gen.c:730
+#, c-format
+msgid "multiple note %s not handled\n"
+msgstr "ilnóta %s gan láimhseáil\n"
+
+#: ia64-gen.c:607
+msgid "can't find ia64-ic.tbl for reading\n"
+msgstr "ní féidir ia64-ic.tbl a oscailt chun é a léamh\n"
+
+#: ia64-gen.c:812
+#, c-format
+msgid "can't find %s for reading\n"
+msgstr "ní féidir %s a oscailt chun é a léamh\n"
+
+#: ia64-gen.c:1036
+#, c-format
+msgid ""
+"most recent format '%s'\n"
+"appears more restrictive than '%s'\n"
+msgstr ""
+"is cosúil go bhfuil an fhormáid is\n"
+"déanaí '%s' níos sriantaí ná '%s'\n"
+
+#: ia64-gen.c:1047
+#, c-format
+msgid "overlapping field %s->%s\n"
+msgstr "réimse forluite %s->%s\n"
+
+#: ia64-gen.c:1244
+#, c-format
+msgid "overwriting note %d with note %d (IC:%s)\n"
+msgstr "nóta %d á fhorscríobh le nóta %d (IC:%s)\n"
+
+#: ia64-gen.c:1443
+#, c-format
+msgid "don't know how to specify %% dependency %s\n"
+msgstr "níl fhios agam conas a shonraítear spleáchas %% %s\n"
+
+#: ia64-gen.c:1465
+#, c-format
+msgid "Don't know how to specify # dependency %s\n"
+msgstr "Níl fhios agam conas a shonraítear spleáchas # %s\n"
+
+#: ia64-gen.c:1504
+#, c-format
+msgid "IC:%s [%s] has no terminals or sub-classes\n"
+msgstr "níl teirminéil ná fo-aicmí ag IC:%s [%s]\n"
+
+#: ia64-gen.c:1507
+#, c-format
+msgid "IC:%s has no terminals or sub-classes\n"
+msgstr "Níl teirminéil nó fo-aicmí ag IC:%s\n"
+
+#: ia64-gen.c:1516
+#, c-format
+msgid "no insns mapped directly to terminal IC %s [%s]"
+msgstr "níl aon insn mapáilte go díreach go IC teirminéalach %s [%s]"
+
+#: ia64-gen.c:1519
+#, c-format
+msgid "no insns mapped directly to terminal IC %s\n"
+msgstr "níl aon insn mapáilte go díreach go IC teirminéalach %s\n"
+
+#: ia64-gen.c:1530
+#, c-format
+msgid "class %s is defined but not used\n"
+msgstr "sainmhíníodh an aicme %s, ach níor baineadh úsáid as\n"
+
+#: ia64-gen.c:1541
+#, c-format
+msgid "Warning: rsrc %s (%s) has no chks%s\n"
+msgstr "Rabhadh: níl aon srian ar an acmhainn %s (%s)%s\n"
+
+#: ia64-gen.c:1545
+#, c-format
+msgid "rsrc %s (%s) has no regs\n"
+msgstr "níl aon tabhall ag acmhainn %s (%s)\n"
+
+#: ia64-gen.c:2444
+#, c-format
+msgid "IC note %d in opcode %s (IC:%s) conflicts with resource %s note %d\n"
+msgstr "Nóta IC %d sa chód oibríochta %s (IC:%s) i gcoinbhleacht le hacmhainn %s nóta %d\n"
+
+#: ia64-gen.c:2472
+#, c-format
+msgid "IC note %d for opcode %s (IC:%s) conflicts with resource %s note %d\n"
+msgstr "Nóta IC %d le haghaidh cóid oibríochta %s (IC:%s) i gcoinbhleacht le hacmhainn %s nóta %d\n"
+
+#: ia64-gen.c:2486
+#, c-format
+msgid "opcode %s has no class (ops %d %d %d)\n"
+msgstr "níl aicme ar bith ag cód oibríochta %s (oibrinn %d %d %d)\n"
+
+#: ia64-gen.c:2816
+#, c-format
+msgid "unable to change directory to \"%s\", errno = %s\n"
+msgstr "ní féidir an chomhadlann reatha a athrú go \"%s\", errno = %s\n"
+
+#. We've been passed a w.  Return with an error message so that
+#. cgen will try the next parsing option.
+#: ip2k-asm.c:80
+msgid "W keyword invalid in FR operand slot."
+msgstr "is neamhbhailí é lorgfhocal W i sliotán oibrinn FR."
+
+#. Invalid offset present.
+#: ip2k-asm.c:105
+msgid "offset(IP) is not a valid form"
+msgstr "is neamhbhailí é an fhoirm fritháireamh(IP)"
+
+#. Found something there in front of (DP) but it's out
+#. of range.
+#: ip2k-asm.c:153
+msgid "(DP) offset out of range."
+msgstr "fritháireamh (DP) as raon."
+
+#. Found something there in front of (SP) but it's out
+#. of range.
+#: ip2k-asm.c:194
+msgid "(SP) offset out of range."
+msgstr "fritháireamh (SP) as raon."
+
+#: ip2k-asm.c:210
+msgid "illegal use of parentheses"
+msgstr "úsáid neamhcheadaithe de lúibíní"
+
+#: ip2k-asm.c:217
+msgid "operand out of range (not between 1 and 255)"
+msgstr "oibreann as raon (ní idir 1 agus 255"
+
+#. Something is very wrong. opindex has to be one of the above.
+#: ip2k-asm.c:241
+msgid "parse_addr16: invalid opindex."
+msgstr "parse_addr16: innéacs neamhbhailí oibrinn."
+
+#: ip2k-asm.c:295
+msgid "Byte address required. - must be even."
+msgstr "Seoladh birt de dhíth. - ní mór dó a bheith cothrom."
+
+#: ip2k-asm.c:304
+msgid "cgen_parse_address returned a symbol. Literal required."
+msgstr "d'fhill cgen_parse_address siombail. Tá gá le teaghrán litriúil."
+
+#: ip2k-asm.c:359
+msgid "percent-operator operand is not a symbol"
+msgstr "níl an t-oibreann céatadáin ina shiombail"
+
+#: ip2k-asm.c:412
+msgid "Attempt to find bit index of 0"
+msgstr "Rinneadh iarracht innéacs giotáin 0 a aimsiú"
+
+#: iq2000-asm.c:111 iq2000-asm.c:141
+msgid "immediate value cannot be register"
+msgstr "ní féidir an luach láithreach a bheith tabhall"
+
+#: iq2000-asm.c:122 iq2000-asm.c:152
+msgid "immediate value out of range"
+msgstr "luach láithreach as raon"
+
+#: iq2000-asm.c:181
+msgid "21-bit offset out of range"
+msgstr "fritháireamh 21-giotán as raon"
+
+#: m10200-dis.c:156 m10300-dis.c:580
+#, c-format
+msgid "unknown\t0x%04lx"
+msgstr "anaithnid\t0x%04lx"
+
+#: m10200-dis.c:326
+#, c-format
+msgid "unknown\t0x%02lx"
+msgstr "anaithnid\t0x%02lx"
+
+#: m32c-asm.c:116
+msgid "imm:6 immediate is out of range"
+msgstr "luach láithreach imm:6 as raon"
+
+#: m32c-asm.c:146
+#, c-format
+msgid "%dsp8() takes a symbolic address, not a number"
+msgstr "glacann %dsp8() le seoladh siombalach, ní ghlacann sé le huimhir"
+
+#: m32c-asm.c:159 m32c-asm.c:163 m32c-asm.c:229
+msgid "dsp:8 immediate is out of range"
+msgstr "luach láithreach dsp:8 as raon"
+
+#: m32c-asm.c:184 m32c-asm.c:188
+msgid "Immediate is out of range -8 to 7"
+msgstr "Luach láithreach as raon -8 go dtí 7"
+
+#: m32c-asm.c:259
+#, c-format
+msgid "%dsp16() takes a symbolic address, not a number"
+msgstr "glacann %dsp16() le seoladh siombalach, ní ghlacann sé le huimhir"
+
+#: m32c-asm.c:282 m32c-asm.c:289 m32c-asm.c:352
+msgid "dsp:16 immediate is out of range"
+msgstr "luach láithreach dsp:16 as raon"
+
+#: m32c-asm.c:378
+msgid "dsp:20 immediate is out of range"
+msgstr "luach láithreach dsp:20 as raon"
+
+#: m32c-asm.c:404
+msgid "dsp:24 immediate is out of range"
+msgstr "luach láithreach dsp:24 as raon"
+
+#: m32c-asm.c:437
+msgid "immediate is out of range 1-2"
+msgstr "luach láithreach as raon 1-2"
+
+#: m32c-asm.c:455
+msgid "immediate is out of range 1-8"
+msgstr "luach láithreach as raon 1-8"
+
+#: m32c-asm.c:491
+msgid "immediate is out of range 2-9"
+msgstr "luach láithreach as raon 2-9"
+
+#: m32c-asm.c:509
+msgid "Bit number for indexing general register is out of range 0-15"
+msgstr "Uimhir ghiotáin le haghaidh innéacsú tabhall ginearálta as raon 0-15"
+
+#: m32c-asm.c:541 m32c-asm.c:576
+msgid "bit,base is out of range"
+msgstr "giotán,bunuimhir as raon"
+
+#: m32c-asm.c:712
+msgid "not a valid r0l/r0h pair"
+msgstr "cúpla neamhbhailí r0l/r0h"
+
+#: m32c-asm.c:742
+msgid "Invalid size specifier"
+msgstr "Sonraitheoir neamhbhailí méide"
+
+#: m68k-dis.c:1162
+#, c-format
+msgid "<function code %d>"
+msgstr "<cód feidhme %d>"
+
+#: m68k-dis.c:1313
+#, c-format
+msgid "<internal error in opcode table: %s %s>\n"
+msgstr "<earráid inmheánach sa tábla de chóid oibríochta: %s %s>\n"
+
+#: m88k-dis.c:679
+#, c-format
+msgid "# <dis error: %08lx>"
+msgstr "# <earráid dis: %08lx>"
+
+#: mips-dis.c:718
+msgid "# internal error, incomplete extension sequence (+)"
+msgstr "# earráid inmheánach, seicheamh neamhiomlán sínte (+)"
+
+#: mips-dis.c:805
+#, c-format
+msgid "# internal error, undefined extension sequence (+%c)"
+msgstr "# earráid inmheánach, seicheamh sínte gan sainmhíniú (+%c)"
+
+#: mips-dis.c:1153
+#, c-format
+msgid "# internal error, undefined modifier(%c)"
+msgstr "# earráid inmheánach, mionathraitheoir gan sainmhíniú(%c)"
+
+#: mips-dis.c:1663
+#, c-format
+msgid "# internal disassembler error, unrecognised modifier (%c)"
+msgstr "# earráid inmheánach dídhíolamóra, mionathraitheoir anaithnid (%c)"
+
+#: mips-dis.c:1894
+#, c-format
+msgid ""
+"\n"
+"The following MIPS specific disassembler options are supported for use\n"
+"with the -M switch (multiple options should be separated by commas):\n"
+msgstr ""
+"\n"
+"Tacaítear leis na roghanna dídhíolamóra a leanas, atá sainiúil do MIPS\n"
+"agus le húsáid in éineacht leis an rogha -M (ba chóir roghanna iomadúla\n"
+"a bheith scartha le camóga):\n"
+
+#: mips-dis.c:1898
+#, c-format
+msgid ""
+"\n"
+"  gpr-names=ABI            Print GPR names according to  specified ABI.\n"
+"                           Default: based on binary being disassembled.\n"
+msgstr ""
+"\n"
+"  gpr-names=ABI          Taispeáin ainmneacha GPR de réir an ABI sonraithe.\n"
+"                         Réamhshocrú: bunaithe ar chlár dénártha díolaimithe.\n"
+
+#: mips-dis.c:1902
+#, c-format
+msgid ""
+"\n"
+"  fpr-names=ABI            Print FPR names according to specified ABI.\n"
+"                           Default: numeric.\n"
+msgstr ""
+"\n"
+"  fpr-names=ABI          Taispeáin ainmneacha FPR de réir an ABI sonraithe.\n"
+"                         Réamhshocrú: uimhriúil.\n"
+
+#: mips-dis.c:1906
+#, c-format
+msgid ""
+"\n"
+"  cp0-names=ARCH           Print CP0 register names according to\n"
+"                           specified architecture.\n"
+"                           Default: based on binary being disassembled.\n"
+msgstr ""
+"\n"
+"  cp0-names=AILTIREACHT  Taispeáin ainmneacha na dtaibhle CP0 de réir na\n"
+"                         hailtireachta sonraithe.\n"
+"                         Réamhshocrú: bunaithe ar chlár dénártha díolaimithe.\n"
+
+#: mips-dis.c:1911
+#, c-format
+msgid ""
+"\n"
+"  hwr-names=ARCH           Print HWR names according to specified \n"
+"\t\t\t   architecture.\n"
+"                           Default: based on binary being disassembled.\n"
+msgstr ""
+"\n"
+"  hwr-names=AILTIREACHT  Taispeáin ainmneacha HWR de réir na\n"
+"                         hailtireachta sonraithe.\n"
+"                         Réamhshocrú: bunaithe ar chlár dénártha díolaimithe.\n"
+
+#: mips-dis.c:1916
+#, c-format
+msgid ""
+"\n"
+"  reg-names=ABI            Print GPR and FPR names according to\n"
+"                           specified ABI.\n"
+msgstr ""
+"\n"
+"  reg-names=ABI          Taispeáin ainmneacha GPR agus FPR de réir an\n"
+"                         ABI sonraithe.\n"
+
+#: mips-dis.c:1920
+#, c-format
+msgid ""
+"\n"
+"  reg-names=ARCH           Print CP0 register and HWR names according to\n"
+"                           specified architecture.\n"
+msgstr ""
+"\n"
+"  reg-names=AILTIREACHT  Taispeáin ainmneacha HWR agus ainmneacha na dtaibhle\n"
+"                         CP0 de réir na hailtireachta sonraithe.\n"
+
+#: mips-dis.c:1924
+#, c-format
+msgid ""
+"\n"
+"  For the options above, the following values are supported for \"ABI\":\n"
+"   "
+msgstr ""
+"\n"
+"  Le haghaidh na roghanna thuas, tacaítear leis na luachanna a leanas ar \"ABI\":\n"
+"   "
+
+#: mips-dis.c:1929 mips-dis.c:1937 mips-dis.c:1939
+#, c-format
+msgid "\n"
+msgstr "\n"
+
+#: mips-dis.c:1931
+#, c-format
+msgid ""
+"\n"
+"  For the options above, The following values are supported for \"ARCH\":\n"
+"   "
+msgstr ""
+"\n"
+"  Le haghaidh na roghanna thuas, tacaítear leis na luachanna a leanas ar \"ARCH\":\n"
+"   "
+
+#: mmix-dis.c:35
+#, c-format
+msgid "Bad case %d (%s) in %s:%d\n"
+msgstr "Droch-chás %d (%s) i %s:%d\n"
+
+#: mmix-dis.c:45
+#, c-format
+msgid "Internal: Non-debugged code (test-case missing): %s:%d"
+msgstr "Inmheánach: cód gan dífhabhtú (cás tástála ar iarraidh): %s:%d"
+
+#: mmix-dis.c:54
+msgid "(unknown)"
+msgstr "(anaithnid)"
+
+#: mmix-dis.c:513
+#, c-format
+msgid "*unknown operands type: %d*"
+msgstr "*cineál anaithnid oibrinn: %d*"
+
+#: ms1-asm.c:84 ms1-asm.c:162
+msgid "Operand out of range. Must be between -32768 and 32767."
+msgstr "Oibreann as raon. Caithfidh sé a bheith idir -32768 agus 32767."
+
+#: ms1-asm.c:121
+msgid "Biiiig Trouble in parse_imm16!"
+msgstr "Trioblóid An-An-Mhór i parse_imm16!"
+
+#: ms1-asm.c:129
+#, c-format
+msgid "%operator operand is not a symbol"
+msgstr "ní siombail é oibreann an %oibreora\""
+
+#: ms1-asm.c:367
+msgid "invalid operand.  type may have values 0,1,2 only."
+msgstr "oibreann neamhbhailí.  ní cheadaítear ach na luachanna 0,1,2."
+
+#. I and Z are output operands and can`t be immediate
+#. A is an address and we can`t have the address of
+#. an immediate either. We don't know how much to increase
+#. aoffsetp by since whatever generated this is broken
+#. anyway!
+#: ns32k-dis.c:535
+#, c-format
+msgid "$<undefined>"
+msgstr "$<gan sainmhíniú>"
+
+#: ppc-opc.c:800 ppc-opc.c:828
+msgid "invalid conditional option"
+msgstr "rogha neamhbhailí choinníollach"
+
+#: ppc-opc.c:830
+msgid "attempt to set y bit when using + or - modifier"
+msgstr "rinneadh iarracht y-giotán a shocrú agus mionathraitheoir + nó - in úsáid"
+
+#: ppc-opc.c:858
+msgid "offset not a multiple of 16"
+msgstr "ní iolraí de 16 é an fritháireamh"
+
+#: ppc-opc.c:877
+msgid "offset not a multiple of 2"
+msgstr "ní cothrom é an fritháireamh"
+
+#: ppc-opc.c:879
+msgid "offset greater than 62"
+msgstr "is níos mó ná 62 é an fritháireamh"
+
+#: ppc-opc.c:898 ppc-opc.c:943 ppc-opc.c:987
+msgid "offset not a multiple of 4"
+msgstr "ní iolraí de 4 é an fritháireamh"
+
+#: ppc-opc.c:900
+msgid "offset greater than 124"
+msgstr "is níos mó ná 124 é an fritháireamh"
+
+#: ppc-opc.c:919
+msgid "offset not a multiple of 8"
+msgstr "ní iolraí de 8 é an fritháireamh"
+
+#: ppc-opc.c:921
+msgid "offset greater than 248"
+msgstr "is níos mó ná 248 é an fritháireamh"
+
+#: ppc-opc.c:964
+msgid "offset not between -2048 and 2047"
+msgstr "ní idir -2048 agus 2047 é an fritháireamh"
+
+#: ppc-opc.c:985
+msgid "offset not between -8192 and 8191"
+msgstr "ní idir -8192 agus 8191 é an fritháireamh"
+
+#: ppc-opc.c:1013
+msgid "invalid mask field"
+msgstr "réimse neamhbhailí maisc"
+
+#: ppc-opc.c:1039
+msgid "ignoring invalid mfcr mask"
+msgstr "ag déanamh neamhshuim ar mhasc neamhbhailí mfcr"
+
+#: ppc-opc.c:1081
+msgid "ignoring least significant bits in branch offset"
+msgstr "ag déanamh neamhshuim ar na giotáin is lú suntas i bhfritháireamh brainse"
+
+#: ppc-opc.c:1111 ppc-opc.c:1146
+msgid "illegal bitmask"
+msgstr "giotánmhasc neamhcheadaithe"
+
+#: ppc-opc.c:1211
+msgid "value out of range"
+msgstr "luach as raon"
+
+#: ppc-opc.c:1279
+msgid "index register in load range"
+msgstr "tabhall innéacs i raon luchtaithe"
+
+#: ppc-opc.c:1295
+msgid "source and target register operands must be different"
+msgstr "caithfidh oibreann an tabhaill foinsigh agus oibreann an spriocthabhaill a bheith difriúil"
+
+#: ppc-opc.c:1310
+msgid "invalid register operand when updating"
+msgstr "oibreann neamhbhailí tabhaill le linn nuashonraithe"
+
+#: ppc-opc.c:1349
+msgid "target register operand must be even"
+msgstr "caithfidh oibreann an spriocthabhaill a bheith cothrom"
+
+#: ppc-opc.c:1363
+msgid "source register operand must be even"
+msgstr "caithfidh oibreann an tabhaill foinsigh a bheith cothrom"
+
+#: ppc-opc.c:1420
+msgid "invalid sprg number"
+msgstr "uimhir neamhbhailí sprg"
+
+#: sparc-dis.c:269
+#, c-format
+msgid "Internal error:  bad sparc-opcode.h: \"%s\", %#.8lx, %#.8lx\n"
+msgstr "Earráid inmheánach:  sparc-opcode.h go holc: \"%s\", %#.8lx, %#.8lx\n"
+
+#: sparc-dis.c:280
+#, c-format
+msgid "Internal error: bad sparc-opcode.h: \"%s\", %#.8lx, %#.8lx\n"
+msgstr "Earráid inmheánach: sparc-opcode.h go holc: \"%s\", %#.8lx, %#.8lx\n"
+
+#: sparc-dis.c:330
+#, c-format
+msgid "Internal error: bad sparc-opcode.h: \"%s\" == \"%s\"\n"
+msgstr "Earráid inmheánach: sparc-opcode.h go holc: \"%s\" == \"%s\"\n"
+
+#. Mark as non-valid instruction.
+#: sparc-dis.c:984
+msgid "unknown"
+msgstr "anaithnid"
+
+#: v850-dis.c:237
+#, c-format
+msgid "unknown operand shift: %x\n"
+msgstr "iomlaoid anaithnid oibrinn: %x\n"
+
+#: v850-dis.c:251
+#, c-format
+msgid "unknown pop reg: %d\n"
+msgstr "tabhall anaithnid plobtha: %d\n"
+
+#. The functions used to insert and extract complicated operands.
+#. Note: There is a conspiracy between these functions and
+#. v850_insert_operand() in gas/config/tc-v850.c.  Error messages
+#. containing the string 'out of range' will be ignored unless a
+#. specific command line option is given to GAS.
+#: v850-opc.c:46
+msgid "displacement value is not in range and is not aligned"
+msgstr "tá an luach díláithrithe as raon, agus ní ailínithe é"
+
+#: v850-opc.c:47
+msgid "displacement value is out of range"
+msgstr "luach díláithrithe as raon"
+
+#: v850-opc.c:48
+msgid "displacement value is not aligned"
+msgstr "luach díláithrithe gan ailíniú"
+
+#: v850-opc.c:50
+msgid "immediate value is out of range"
+msgstr "luach láithreach as raon"
+
+#: v850-opc.c:58
+msgid "branch value not in range and to odd offset"
+msgstr "luach brainse as raon, agus brainse go dtí fritháireamh corr"
+
+#: v850-opc.c:60 v850-opc.c:87
+msgid "branch value out of range"
+msgstr "luach an bhrainse as raon"
+
+#: v850-opc.c:63 v850-opc.c:90
+msgid "branch to odd offset"
+msgstr "brainse go dtí fritháireamh corr"
+
+#: v850-opc.c:85
+msgid "branch value not in range and to an odd offset"
+msgstr "luach brainse as raon agus brainse go dtí fritháireamh corr"
+
+#: v850-opc.c:277
+msgid "invalid register for stack adjustment"
+msgstr "tabhall neamhbhailí le haghaidh coigeartaithe na cruaiche"
+
+#: v850-opc.c:297
+msgid "immediate value not in range and not even"
+msgstr "luach láithreach as raon, agus ní cothrom é"
+
+#: v850-opc.c:302
+msgid "immediate value must be even"
+msgstr "caithfidh luach láithreach a bheith cothrom"
+
+#: xstormy16-asm.c:70
+msgid "Bad register in preincrement"
+msgstr "Drochthabhall i réamhincrimint"
+
+#: xstormy16-asm.c:75
+msgid "Bad register in postincrement"
+msgstr "Drochthabhall i iarincrimint"
+
+#: xstormy16-asm.c:77
+msgid "Bad register name"
+msgstr "Drochainm ar thabhall"
+
+#: xstormy16-asm.c:81
+msgid "Label conflicts with register name"
+msgstr "Lipéad i gcoinbhleacht le hainm tabhaill"
+
+#: xstormy16-asm.c:85
+msgid "Label conflicts with `Rx'"
+msgstr "Lipéad i gcoinbhleacht le `Rx'"
+
+#: xstormy16-asm.c:87
+msgid "Bad immediate expression"
+msgstr "Drochshlonn láithreach"
+
+#: xstormy16-asm.c:108
+msgid "No relocation for small immediate"
+msgstr "Luach beag láithreach gan athshuí"
+
+#: xstormy16-asm.c:118
+msgid "Small operand was not an immediate number"
+msgstr "Ní uimhir láithreach é an t-oibreann beag"
+
+#: xstormy16-asm.c:156
+msgid "Operand is not a symbol"
+msgstr "Ní siombail é an t-oibreann"
+
+#: xstormy16-asm.c:164
+msgid "Syntax error: No trailing ')'"
+msgstr "Earráid chomhréire: gan ')' chun deiridh"
+
+#~ msgid "unknown\t0x%04x"
+#~ msgstr "anaithnid\t0x%04x"

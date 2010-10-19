@@ -1,0 +1,204 @@
+#source: tlsdesc.s
+#source: tlspic2.s
+#as: --64
+#ld: -shared -melf_x86_64
+#objdump: -drj.text
+#target: x86_64-*-*
+
+.*: +file format elf64-x86-64
+
+Disassembly of section .text:
+
+0+[0-9a-f]+ <fn1>:
+ +[0-9a-f]+:	55[ 	]+push   %rbp
+ +[0-9a-f]+:	48 89 e5[ 	]+mov    %rsp,%rbp
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+#  GD
+ +[0-9a-f]+:	48 8d 05 89 03 10 00[ 	]+lea    1049481\(%rip\),%rax +# 101398 <.*>
+#				-> R_X86_64_TLSDESC	sg1
+ +[0-9a-f]+:	ff 10[ 	]+callq  \*\(%rax\)
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+#  GD -> IE because variable is referenced through IE too
+ +[0-9a-f]+:	48 8b 05 1c 03 10 00[ 	]+mov    1049372\(%rip\),%rax +# 101338 <.*>
+#				-> R_X86_64_TPOFF64	sg2
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+#  GD against local variable
+ +[0-9a-f]+:	48 8d 05 3f 03 10 00[ 	]+lea    1049407\(%rip\),%rax +# 101368 <.*>
+#				-> R_X86_64_TLSDESC	[0 0x2000000000000000]
+ +[0-9a-f]+:	ff 10[ 	]+callq  \*\(%rax\)
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+#  GD -> IE against local variable referenced through IE too
+ +[0-9a-f]+:	48 8b 05 d2 02 10 00[ 	]+mov    1049298\(%rip\),%rax +# 101308 <.*>
+#				-> R_X86_64_TPOFF64	*ABS*+0x24
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+#  GD against hidden and local variable
+ +[0-9a-f]+:	48 8d 05 65 03 10 00[ 	]+lea    1049445\(%rip\),%rax +# 1013a8 <.*>
+#				-> R_X86_64_TLSDESC	[0 0x4000000000000000]
+ +[0-9a-f]+:	ff 10[ 	]+callq  \*\(%rax\)
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+#  GD -> IE against hidden and local variable referenced through IE too
+ +[0-9a-f]+:	48 8b 05 f0 02 10 00[ 	]+mov    1049328\(%rip\),%rax +# 101340 <.*>
+#				-> R_X86_64_TPOFF64	*ABS*+0x44
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+#  GD against hidden but not local variable
+ +[0-9a-f]+:	48 8d 05 1b 03 10 00[ 	]+lea    1049371\(%rip\),%rax +# 101378 <.*>
+#				-> R_X86_64_TLSDESC	[0 0x6000000000000000]
+ +[0-9a-f]+:	ff 10[ 	]+callq  \*\(%rax\)
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+#  GD -> IE against hidden but not local variable referenced through IE too
+ +[0-9a-f]+:	48 8b 05 ae 02 10 00[ 	]+mov    1049262\(%rip\),%rax +# 101318 <.*>
+#				-> R_X86_64_TPOFF64	*ABS*+0x64
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+#  LD
+ +[0-9a-f]+:	48 8d 05 11 03 10 00[ 	]+lea    1049361\(%rip\),%rax +# 101388 <.*>
+#				-> R_X86_64_TLSDESC	[0 0x000000000000000]
+ +[0-9a-f]+:	ff 10[ 	]+callq  \*\(%rax\)
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	48 8d 90 20 00 00 00[ 	]+lea    0x20\(%rax\),%rdx
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	4c 8d 88 26 00 00 00[ 	]+lea    0x26\(%rax\),%r9
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+#  LD against hidden and local variables
+ +[0-9a-f]+:	48 8d 90 40 00 00 00[ 	]+lea    0x40\(%rax\),%rdx
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	48 8d 88 47 00 00 00[ 	]+lea    0x47\(%rax\),%rcx
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+#  LD against hidden but not local variables
+ +[0-9a-f]+:	4c 8d a0 60 00 00 00[ 	]+lea    0x60\(%rax\),%r12
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	48 8d 88 65 00 00 00[ 	]+lea    0x65\(%rax\),%rcx
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+#  IE against global var
+ +[0-9a-f]+:	64 48 8b 0c 25 00 00[ 	]+mov    %fs:0x0,%rcx
+ +[0-9a-f]+:	00 00 *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	48 03 0d 71 02 10 00[ 	]+add    1049201\(%rip\),%rcx +# 101338 <.*>
+#				-> R_X86_64_TPOFF64	sg2
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+#  IE against local var
+ +[0-9a-f]+:	64 4c 8b 34 25 00 00[ 	]+mov    %fs:0x0,%r14
+ +[0-9a-f]+:	00 00 *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	4c 03 35 2b 02 10 00[ 	]+add    1049131\(%rip\),%r14 +# 101308 <.*>
+#				-> R_X86_64_TPOFF64	*ABS*+0x24
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+#  IE against hidden and local var
+ +[0-9a-f]+:	64 48 8b 0c 25 00 00[ 	]+mov    %fs:0x0,%rcx
+ +[0-9a-f]+:	00 00 *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	48 03 0d 4d 02 10 00[ 	]+add    1049165\(%rip\),%rcx +# 101340 <.*>
+#				-> R_X86_64_TPOFF64	*ABS*+0x44
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+#  IE against hidden but not local var
+ +[0-9a-f]+:	64 48 8b 0c 25 00 00[ 	]+mov    %fs:0x0,%rcx
+ +[0-9a-f]+:	00 00 *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	48 03 0d 0f 02 10 00[ 	]+add    1049103\(%rip\),%rcx +# 101318 <.*>
+#				-> R_X86_64_TPOFF64	*ABS*+0x64
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+#  Direct access through %fs
+#  IE against global var
+ +[0-9a-f]+:	48 8b 0d 0c 02 10 00[ 	]+mov    1049100\(%rip\),%rcx +# 101320 <.*>
+#				-> R_X86_64_TPOFF64	sg5
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	64 48 8b 11[ 	]+mov    %fs:\(%rcx\),%rdx
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+#  IE against local var
+ +[0-9a-f]+:	4c 8b 15 eb 01 10 00[ 	]+mov    1049067\(%rip\),%r10 +# 101310 <.*>
+#				-> R_X86_64_TPOFF64	*ABS*+0x30
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	64 4d 8b 22[ 	]+mov    %fs:\(%r10\),%r12
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+#  IE against hidden and local var
+ +[0-9a-f]+:	48 8b 15 f2 01 10 00[ 	]+mov    1049074\(%rip\),%rdx +# 101328 <.*>
+#				-> R_X86_64_TPOFF64	*ABS*+0x50
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	64 48 8b 12[ 	]+mov    %fs:\(%rdx\),%rdx
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+#  IE against hidden but not local var
+ +[0-9a-f]+:	48 8b 0d e9 01 10 00[ 	]+mov    1049065\(%rip\),%rcx +# 101330 <.*>
+#				-> R_X86_64_TPOFF64	*ABS*+0x70
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	64 48 8b 11[ 	]+mov    %fs:\(%rcx\),%rdx
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	c9[ 	]+leaveq *
+ +[0-9a-f]+:	c3[ 	]+retq *
+ +[0-9a-f]+:	90[ 	]+nop *

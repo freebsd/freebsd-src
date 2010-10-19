@@ -1,0 +1,70 @@
+#objdump: -dr
+#name: cache2
+.*: +file format .*
+Disassembly of section .text:
+
+00000000 <.text>:
+   0:	40 02       	PREFETCH\[P0\];
+   2:	41 02       	PREFETCH\[P1\];
+   4:	42 02       	PREFETCH\[P2\];
+   6:	43 02       	PREFETCH\[P3\];
+   8:	44 02       	PREFETCH\[P4\];
+   a:	45 02       	PREFETCH\[P5\];
+   c:	46 02       	PREFETCH\[SP\];
+   e:	47 02       	PREFETCH\[FP\];
+  10:	60 02       	PREFETCH\[P0\+\+\];
+  12:	61 02       	PREFETCH\[P1\+\+\];
+  14:	62 02       	PREFETCH\[P2\+\+\];
+  16:	63 02       	PREFETCH\[P3\+\+\];
+  18:	64 02       	PREFETCH\[P4\+\+\];
+  1a:	65 02       	PREFETCH\[P5\+\+\];
+  1c:	66 02       	PREFETCH\[SP\+\+\];
+  1e:	67 02       	PREFETCH\[FP\+\+\];
+  20:	50 02       	FLUSH\[P0\];
+  22:	51 02       	FLUSH\[P1\];
+  24:	52 02       	FLUSH\[P2\];
+  26:	53 02       	FLUSH\[P3\];
+  28:	54 02       	FLUSH\[P4\];
+  2a:	55 02       	FLUSH\[P5\];
+  2c:	56 02       	FLUSH\[SP\];
+  2e:	57 02       	FLUSH\[FP\];
+  30:	70 02       	FLUSH\[P0\+\+\];
+  32:	71 02       	FLUSH\[P1\+\+\];
+  34:	72 02       	FLUSH\[P2\+\+\];
+  36:	73 02       	FLUSH\[P3\+\+\];
+  38:	74 02       	FLUSH\[P4\+\+\];
+  3a:	75 02       	FLUSH\[P5\+\+\];
+  3c:	76 02       	FLUSH\[SP\+\+\];
+  3e:	77 02       	FLUSH\[FP\+\+\];
+  40:	48 02       	FLUSHINV\[P0\];
+  42:	49 02       	FLUSHINV\[P1\];
+  44:	4a 02       	FLUSHINV\[P2\];
+  46:	4b 02       	FLUSHINV\[P3\];
+  48:	4c 02       	FLUSHINV\[P4\];
+  4a:	4d 02       	FLUSHINV\[P5\];
+  4c:	4e 02       	FLUSHINV\[SP\];
+  4e:	4f 02       	FLUSHINV\[FP\];
+  50:	68 02       	FLUSHINV\[P0\+\+\];
+  52:	69 02       	FLUSHINV\[P1\+\+\];
+  54:	6a 02       	FLUSHINV\[P2\+\+\];
+  56:	6b 02       	FLUSHINV\[P3\+\+\];
+  58:	6c 02       	FLUSHINV\[P4\+\+\];
+  5a:	6d 02       	FLUSHINV\[P5\+\+\];
+  5c:	6e 02       	FLUSHINV\[SP\+\+\];
+  5e:	6f 02       	FLUSHINV\[FP\+\+\];
+  60:	58 02       	IFLUSH\[P0\];
+  62:	59 02       	IFLUSH\[P1\];
+  64:	5a 02       	IFLUSH\[P2\];
+  66:	5b 02       	IFLUSH\[P3\];
+  68:	5c 02       	IFLUSH\[P4\];
+  6a:	5d 02       	IFLUSH\[P5\];
+  6c:	5e 02       	IFLUSH\[SP\];
+  6e:	5f 02       	IFLUSH\[FP\];
+  70:	78 02       	IFLUSH\[P0\+\+\];
+  72:	79 02       	IFLUSH\[P1\+\+\];
+  74:	7a 02       	IFLUSH\[P2\+\+\];
+  76:	7b 02       	IFLUSH\[P3\+\+\];
+  78:	7c 02       	IFLUSH\[P4\+\+\];
+  7a:	7d 02       	IFLUSH\[P5\+\+\];
+  7c:	7e 02       	IFLUSH\[SP\+\+\];
+  7e:	7f 02       	IFLUSH\[FP\+\+\];

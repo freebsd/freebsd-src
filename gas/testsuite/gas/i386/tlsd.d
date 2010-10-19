@@ -22,10 +22,10 @@ Disassembly of section .text:
 [ 	]+1f: R_386_TLS_LDM	bar
   23:	e8 fc ff ff ff [ 	]*call   24 <fn\+0x24>
 [ 	]+24: R_386_PLT32	___tls_get_addr
-  28:	8d 7f 00 [ 	]*lea    0x0\(%edi\),%edi
+  28:	83 c7 00 [ 	]*add    \$0x0,%edi
   2b:	8d 90 00 00 00 00 [ 	]*lea    0x0\(%eax\),%edx
 [ 	]+2d: R_386_TLS_LDO_32	bar
-  31:	8d 76 00 [ 	]*lea    0x0\(%esi\),%esi
+  31:	83 c6 00 [ 	]*add    \$0x0,%esi
   34:	8d 88 00 00 00 00 [ 	]*lea    0x0\(%eax\),%ecx
 [ 	]+36: R_386_TLS_LDO_32	baz
   3a:	8b 5d fc [ 	]*mov    0xfffffffc\(%ebp\),%ebx

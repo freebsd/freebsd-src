@@ -1,15 +1,34 @@
-2004-05-13  Nick Clifton  <nickc@redhat.com>
+2006-06-07  Joseph S. Myers  <joseph@codesourcery.com>
 
-	* po/fr.po: Updated French translation.
+	* po/Make-in (pdf, ps): New dummy targets.
 
-2004-04-09  Daniel Jacobowitz  <drow@mvista.com>
+2006-05-30  Nick Clifton  <nickc@redhat.com>
 
-	Merge from mainline:
-	2004-03-19  Alan Modra  <amodra@bigpond.net.au>
-	* po/sv.po: Updated.
+	* po/es.po: Updated Spanish translation.
 
+2006-04-06  Carlos O'Donell  <carlos@codesourcery.com>
 
-For older changes see ChangeLog-9203
+	* po/Make-in: Add install-html target.
+	* Makefile.am: Add install-html, install-html-am and 
+	install-html-recursive targets. 
+	* Makefile.in: Regenerate.
+	* configure.in: AC_SUBST datarootdir, docdir, htmldir.
+	* configure: Regenerate.
+
+2006-03-21  Ben Elliston  <bje@au.ibm.com>
+
+	* corefile.c (core_init): Report that the executable is not in the
+	expected executable format rather than "a.out" format.
+
+2006-03-09  Nick Clifton  <nickc@redhat.com>
+
+	* po/sv.po: Updated Swedish translation.
+
+2006-02-27  Carlos O'Donell  <carlos@codesourcery.com>
+
+	* po/Make-in: Add html target.
+
+For older changes see ChangeLog-2005
 
 Local Variables:
 mode: change-log

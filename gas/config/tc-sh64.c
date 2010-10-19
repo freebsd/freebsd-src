@@ -1,5 +1,5 @@
 /* tc-sh64.c -- Assemble code for the SuperH SH SHcompact and SHmedia.
-   Copyright 2000, 2001, 2002, 2003 Free Software Foundation.
+   Copyright 2000, 2001, 2002, 2003, 2004, 2005 Free Software Foundation.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -15,8 +15,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   the Free Software Foundation, 51 Franklin Street - Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 /* This file defines SHmedia ISA-specific functions and includes tc-sh.c.
    The SHcompact ISA is in all useful aspects the "old" sh4 as implemented
@@ -39,7 +39,7 @@
    symbol" or local symbol.  */
 #define DATALABEL_SUFFIX " DL"
 
-/* See shmedia_md_apply_fix3 and shmedia_md_pcrel_from_section for usage.  */
+/* See shmedia_md_apply_fix and shmedia_md_pcrel_from_section for usage.  */
 #define SHMEDIA_MD_PCREL_FROM_FIX(FIXP) \
  ((FIXP)->fx_size + (FIXP)->fx_where + (FIXP)->fx_frag->fr_address - 4)
 
@@ -136,7 +136,7 @@ static const unsigned char shmedia_little_nop_pattern[4] =
 static void shmedia_md_begin (void);
 static int shmedia_parse_reg (char *, int *, int *, shmedia_arg_type);
 static void shmedia_md_assemble (char *);
-static void shmedia_md_apply_fix3 (fixS *, valueT *);
+static void shmedia_md_apply_fix (fixS *, valueT *);
 static int shmedia_md_estimate_size_before_relax (fragS *, segT);
 static int shmedia_init_reloc (arelent *, fixS *);
 static char *shmedia_get_operands (shmedia_opcode_info *, char *,
@@ -284,7 +284,7 @@ shmedia_frob_file_before_adjust (void)
 
       if (mainsym != NULL
 	  && S_GET_OTHER (mainsym) != STO_SH5_ISA32
-	  && (S_IS_EXTERN (mainsym) || S_IS_WEAK (mainsym)))
+	  && (S_IS_EXTERNAL (mainsym) || S_IS_WEAK (mainsym)))
 	{
 	  symp->sy_value.X_op = O_symbol;
 	  symp->sy_value.X_add_symbol = mainsym;
@@ -577,10 +577,10 @@ shmedia_init_reloc (arelent *rel, fixS *fixP)
   return 0;
 }
 
-/* Hook called from md_apply_fix3 in tc-sh.c.  */
+/* Hook called from md_apply_fix in tc-sh.c.  */
 
 static void
-shmedia_md_apply_fix3 (fixS *fixP, valueT *valp)
+shmedia_md_apply_fix (fixS *fixP, valueT *valp)
 {
   offsetT val = *valp;
   char *buf = fixP->fx_where + fixP->fx_frag->fr_literal;
@@ -602,7 +602,7 @@ shmedia_md_apply_fix3 (fixS *fixP, valueT *valp)
 	  /* Because write.c calls MD_PCREL_FROM_SECTION twice, we need to
 	     undo one of the adjustments, if the relocation is not
 	     actually for a symbol within the same segment (which we
-	     cannot check, because we're not called from md_apply_fix3, so
+	     cannot check, because we're not called from md_apply_fix, so
 	     we have to keep the reloc).  FIXME: This is a bug in
 	     write.c:fixup_segment affecting most targets that change
 	     ordinary relocs to pcrel relocs in md_apply_fix.  */
@@ -691,7 +691,7 @@ shmedia_md_apply_fix3 (fixS *fixP, valueT *valp)
   if (fixP->fx_addsy == NULL && fixP->fx_pcrel == 0)
     {
       /* Emit error for an out-of-range value.  */
-      shmedia_check_limits (valp, fixP->fx_r_type, fixP);
+      shmedia_check_limits ((offsetT *) valp, fixP->fx_r_type, fixP);
 
       switch (fixP->fx_r_type)
 	{
@@ -737,6 +737,11 @@ shmedia_md_apply_fix3 (fixS *fixP, valueT *valp)
 	case BFD_RELOC_SH_IMMS10BY4:
 	  md_number_to_chars (buf,
 			      insn | ((val & (0x3ff << 2)) << (10 - 2)), 4);
+	  break;
+
+	case BFD_RELOC_SH_IMMS10BY8:
+	  md_number_to_chars (buf,
+			      insn | ((val & (0x3ff << 3)) << (10 - 3)), 4);
 	  break;
 
 	case BFD_RELOC_SH_SHMEDIA_CODE:
@@ -818,7 +823,7 @@ shmedia_md_convert_frag (bfd *output_bfd ATTRIBUTE_UNUSED,
        || sh_relax
        || symbolP == NULL
        || ! S_IS_DEFINED (symbolP)
-       || S_IS_EXTERN (symbolP)
+       || S_IS_EXTERNAL (symbolP)
        || S_IS_WEAK (symbolP)
        || (S_GET_SEGMENT (fragP->fr_symbol) != absolute_section
 	   && S_GET_SEGMENT (fragP->fr_symbol) != seg));
@@ -2672,7 +2677,10 @@ shmedia_build_Mytes (shmedia_opcode_info *opcode,
 
 	    /* Don't allow complex expressions here.  */
 	    if (opjp->immediate.X_op_symbol != NULL)
-	      return 0;
+	      {
+		as_bad(_("invalid operand: expression in PT target"));
+		return 0;
+	      }
 
 	    if (opjp->reloctype == BFD_RELOC_32_PLT_PCREL)
 	      init = max = min = SH64PCRELPLT;
@@ -2709,7 +2717,10 @@ shmedia_build_Mytes (shmedia_opcode_info *opcode,
 
 	    /* Don't allow complex expressions here.  */
 	    if (opjp->immediate.X_op_symbol != NULL)
-	      return 0;
+	      {
+		as_bad(_("invalid operand: expression in PT target"));
+		return 0;
+	      }
 
 	    if (opjp->reloctype == BFD_RELOC_32_PLT_PCREL)
 	      init = max = min = SH64PCRELPLT;
@@ -2725,7 +2736,7 @@ shmedia_build_Mytes (shmedia_opcode_info *opcode,
 			insn_loc);
 	    else
 	      /* This reloc-type is just temporary, so we can distinguish
-		 PTA from PT.  It is changed in shmedia_md_apply_fix3 to
+		 PTA from PT.  It is changed in shmedia_md_apply_fix to
 		 BFD_RELOC_SH_PT_16.  */
 	      insn |= shmedia_immediate_op (insn_loc, opjp, 1,
 					    opjp->reloctype == BFD_RELOC_NONE
@@ -2917,14 +2928,14 @@ sh64_target_format (void)
 {
 #ifdef TE_NetBSD
   /* For NetBSD, if the ISA is unspecified, always use SHmedia.  */
-  if (sh64_isa_mode == sh64_isa_unspecified)
+  if (preset_target_arch == 0 && sh64_isa_mode == sh64_isa_unspecified)
     sh64_isa_mode = sh64_isa_shmedia;
 
   /* If the ABI is unspecified, select a default: based on how
      we were configured: sh64 == sh64_abi_64, else sh64_abi_32.  */
   if (sh64_abi == sh64_abi_unspecified)
     {
-      if (sh64_isa_mode == sh64_isa_shcompact)
+      if (preset_target_arch != 0 || sh64_isa_mode == sh64_isa_shcompact)
 	sh64_abi = sh64_abi_32;
       else if (strncmp (TARGET_CPU, "sh64", 4) == 0)
         sh64_abi = sh64_abi_64;
@@ -2934,7 +2945,7 @@ sh64_target_format (void)
 #endif
 
 #ifdef TE_LINUX
-  if (sh64_isa_mode == sh64_isa_unspecified)
+  if (preset_target_arch == 0 && sh64_isa_mode == sh64_isa_unspecified)
     sh64_isa_mode = sh64_isa_shmedia;
 
   if (sh64_abi == sh64_abi_unspecified)
@@ -3233,8 +3244,9 @@ sh64_frob_label (symbolS *symp)
    symbol hook.  */
 
 int
-sh64_consume_datalabel (const char *name, expressionS *exp, char *cp,
-			segT (*operandf) (expressionS *))
+sh64_consume_datalabel (const char *name, expressionS *exp,
+			enum expr_mode mode, char *cp,
+			segT (*operandf) (expressionS *, enum expr_mode))
 {
   static int parsing_datalabel = 0;
 
@@ -3247,7 +3259,7 @@ sh64_consume_datalabel (const char *name, expressionS *exp, char *cp,
 
       *input_line_pointer = *cp;
       parsing_datalabel = 1;
-      (*operandf) (exp);
+      (*operandf) (exp, expr_normal);
       parsing_datalabel = save_parsing_datalabel;
 
       if (exp->X_op == O_symbol || exp->X_op == O_PIC_reloc)
@@ -3320,7 +3332,7 @@ sh64_consume_datalabel (const char *name, expressionS *exp, char *cp,
       return 1;
     }
 
-  return sh_parse_name (name, exp, cp);
+  return sh_parse_name (name, exp, mode, cp);
 }
 
 /* This function is called just before symbols are being output.  It
@@ -3502,3 +3514,18 @@ sh64_vtable_inherit (int ignore ATTRIBUTE_UNUSED)
   input_line_pointer = eol;
 }
 
+int
+sh64_fake_label (const char *name)
+{
+  size_t len;
+
+  if (strcmp (name, FAKE_LABEL_NAME) == 0)
+    return 1;
+
+  len = strlen (name);
+  if (len >= (sizeof (DATALABEL_SUFFIX) - 1))
+    return strcmp (&name [len - sizeof (DATALABEL_SUFFIX) + 1],
+		   DATALABEL_SUFFIX) == 0;
+
+  return 0;
+}

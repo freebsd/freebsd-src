@@ -1,21 +1,21 @@
 /* IQ2000-specific support for 32-bit ELF.
-   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004, 2005 Free Software Foundation, Inc.
 
-This file is part of BFD, the Binary File Descriptor library.
+   This file is part of BFD, the Binary File Descriptor library.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -25,23 +25,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* Forward declarations.  */
 
-/* Private relocation functions.  */
-static bfd_reloc_status_type iq2000_elf_relocate_hi16	       PARAMS ((bfd *, Elf_Internal_Rela *, bfd_byte *, bfd_vma));
-static reloc_howto_type *    iq2000_reloc_type_lookup	       PARAMS ((bfd *, bfd_reloc_code_real_type));
-static void		     iq2000_info_to_howto_rela	       PARAMS ((bfd *, arelent *, Elf_Internal_Rela *));
-static bfd_boolean	     iq2000_elf_relocate_section       PARAMS ((bfd *, struct bfd_link_info *, bfd *, asection *, bfd_byte *, Elf_Internal_Rela *, Elf_Internal_Sym *, asection **));
-static bfd_reloc_status_type iq2000_final_link_relocate	       PARAMS ((reloc_howto_type *, bfd *, asection *, bfd_byte *, Elf_Internal_Rela *, bfd_vma));
-static bfd_boolean	     iq2000_elf_gc_sweep_hook	       PARAMS ((bfd *, struct bfd_link_info *, asection *, const Elf_Internal_Rela *));
-static asection *	     iq2000_elf_gc_mark_hook	       PARAMS ((asection *sec, struct bfd_link_info *, Elf_Internal_Rela *, struct elf_link_hash_entry *, Elf_Internal_Sym *));
-static reloc_howto_type *    iq2000_reloc_type_lookup	       PARAMS ((bfd *, bfd_reloc_code_real_type));
-static int		     elf32_iq2000_machine	       PARAMS ((bfd *));
-static bfd_boolean	     iq2000_elf_object_p	       PARAMS ((bfd *));
-static bfd_boolean	     iq2000_elf_set_private_flags      PARAMS ((bfd *, flagword));
-static bfd_boolean	     iq2000_elf_copy_private_bfd_data  PARAMS ((bfd *, bfd *));
-static bfd_boolean	     iq2000_elf_merge_private_bfd_data PARAMS ((bfd *, bfd *));
-static bfd_boolean	     iq2000_elf_print_private_bfd_data PARAMS ((bfd *, PTR));
-static bfd_boolean	     iq2000_elf_check_relocs	       PARAMS ((bfd *, struct bfd_link_info *, asection *, const Elf_Internal_Rela *));
-static bfd_reloc_status_type iq2000_elf_howto_hi16_reloc       PARAMS ((bfd *, arelent *, asymbol *, PTR, asection *, bfd *, char **));
+static bfd_reloc_status_type iq2000_elf_howto_hi16_reloc (bfd *, arelent *, asymbol *, void *, asection *, bfd *, char **);
 
 
 static reloc_howto_type iq2000_elf_howto_table [] =
@@ -250,51 +234,20 @@ static reloc_howto_type iq2000_elf_vtentry_howto =
 	 FALSE);		   /* pcrel_offset */
 
 
-/* Map BFD reloc types to IQ2000 ELF reloc types.  */
-
-struct iq2000_reloc_map
-{
-  bfd_reloc_code_real_type bfd_reloc_val;
-  unsigned int iq2000_reloc_val;
-};
-
-static const struct iq2000_reloc_map iq2000_reloc_map [] =
-{
-  { BFD_RELOC_NONE,	       R_IQ2000_NONE },
-  { BFD_RELOC_16,	       R_IQ2000_16 },
-  { BFD_RELOC_32,	       R_IQ2000_32 },
-  { BFD_RELOC_MIPS_JMP,	       R_IQ2000_26 },
-  { BFD_RELOC_16_PCREL_S2,     R_IQ2000_PC16 },
-  { BFD_RELOC_HI16,	       R_IQ2000_HI16 },
-  { BFD_RELOC_LO16,	       R_IQ2000_LO16 },
-  { BFD_RELOC_IQ2000_OFFSET_16,R_IQ2000_OFFSET_16 },
-  { BFD_RELOC_IQ2000_OFFSET_21,R_IQ2000_OFFSET_21 },
-  { BFD_RELOC_IQ2000_UHI16,    R_IQ2000_UHI16 },
-  { BFD_RELOC_VTABLE_INHERIT,  R_IQ2000_GNU_VTINHERIT },
-  { BFD_RELOC_VTABLE_ENTRY,    R_IQ2000_GNU_VTENTRY },
-};
-
 static bfd_reloc_status_type
-iq2000_elf_howto_hi16_reloc (abfd,
-		     reloc_entry,
-		     symbol,
-		     data,
-		     input_section,
-		     output_bfd,
-		     error_message)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     arelent *reloc_entry;
-     asymbol *symbol;
-     PTR data;
-     asection *input_section;
-     bfd *output_bfd;
-     char **error_message ATTRIBUTE_UNUSED;
+iq2000_elf_howto_hi16_reloc (bfd *abfd ATTRIBUTE_UNUSED,
+			     arelent *reloc_entry,
+			     asymbol *symbol,
+			     void * data,
+			     asection *input_section,
+			     bfd *output_bfd,
+			     char **error_message ATTRIBUTE_UNUSED)
 {
   bfd_reloc_status_type ret;
   bfd_vma relocation;
 
-  /* If we're relocating, and this an external symbol, we don't want
-     to change anything.  */
+  /* If we're relocating and this an external symbol,
+     we don't want to change anything.  */
   if (output_bfd != (bfd *) NULL
       && (symbol->flags & BSF_SECTION_SYM) == 0
       && reloc_entry->addend == 0)
@@ -312,7 +265,7 @@ iq2000_elf_howto_hi16_reloc (abfd,
   relocation += symbol->section->output_offset;
   relocation += reloc_entry->addend;
 
-  /* if %lo will have sign-extension, compensate by add 0x10000 to hi portion */
+  /* If %lo will have sign-extension, compensate by add 0x10000 to hi portion.  */
   if (relocation & 0x8000)
     reloc_entry->addend += 0x10000;
 
@@ -320,7 +273,7 @@ iq2000_elf_howto_hi16_reloc (abfd,
   ret = bfd_elf_generic_reloc (abfd, reloc_entry, symbol, data,
 				input_section, output_bfd, error_message);
 
-  /* put it back the way it was */
+  /* Put it back the way it was.  */
   if (relocation & 0x8000)
     reloc_entry->addend -= 0x10000;
 
@@ -328,21 +281,20 @@ iq2000_elf_howto_hi16_reloc (abfd,
 }
 
 static bfd_reloc_status_type
-iq2000_elf_relocate_hi16 (input_bfd, relhi, contents, value)
-     bfd *input_bfd;
-     Elf_Internal_Rela *relhi;
-     bfd_byte *contents;
-     bfd_vma value;
+iq2000_elf_relocate_hi16 (bfd *input_bfd,
+			  Elf_Internal_Rela *relhi,
+			  bfd_byte *contents,
+			  bfd_vma value)
 {
   bfd_vma insn;
 
   insn = bfd_get_32 (input_bfd, contents + relhi->r_offset);
   
   value += relhi->r_addend;
-  value &= 0x7fffffff; /* mask off top-bit which is Harvard mask bit */
+  value &= 0x7fffffff; /* Mask off top-bit which is Harvard mask bit.  */
 
-  /* if top-bit of %lo value is on, this means that %lo will
-     sign-propagate and so we compensate by adding 1 to %hi value */
+  /* If top-bit of %lo value is on, this means that %lo will
+     sign-propagate and so we compensate by adding 1 to %hi value.  */
   if (value & 0x8000)
     value += 0x10000;
 
@@ -353,10 +305,11 @@ iq2000_elf_relocate_hi16 (input_bfd, relhi, contents, value)
   return bfd_reloc_ok;
 }
 
+/* Map BFD reloc types to IQ2000 ELF reloc types.  */
+
 static reloc_howto_type *
-iq2000_reloc_type_lookup (abfd, code)
-     bfd * abfd ATTRIBUTE_UNUSED;
-     bfd_reloc_code_real_type code;
+iq2000_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			  bfd_reloc_code_real_type code)
 {
   /* Note that the iq2000_elf_howto_table is indxed by the R_
      constants.	 Thus, the order that the howto records appear in the
@@ -401,13 +354,12 @@ iq2000_reloc_type_lookup (abfd, code)
    routines.  */
 
 static bfd_reloc_status_type
-iq2000_final_link_relocate (howto, input_bfd, input_section, contents, rel, relocation)
-     reloc_howto_type *	 howto;
-     bfd *		 input_bfd;
-     asection *		 input_section;
-     bfd_byte *		 contents;
-     Elf_Internal_Rela * rel;
-     bfd_vma		 relocation;
+iq2000_final_link_relocate (reloc_howto_type *	howto,
+			    bfd *		input_bfd,
+			    asection *		input_section,
+			    bfd_byte *		contents,
+			    Elf_Internal_Rela *	rel,
+			    bfd_vma		relocation)
 {
   return _bfd_final_link_relocate (howto, input_bfd, input_section,
 				   contents, rel->r_offset,
@@ -417,10 +369,9 @@ iq2000_final_link_relocate (howto, input_bfd, input_section, contents, rel, relo
 /* Set the howto pointer for a IQ2000 ELF reloc.  */
 
 static void
-iq2000_info_to_howto_rela (abfd, cache_ptr, dst)
-     bfd * abfd ATTRIBUTE_UNUSED;
-     arelent * cache_ptr;
-     Elf_Internal_Rela * dst;
+iq2000_info_to_howto_rela (bfd * abfd ATTRIBUTE_UNUSED,
+			   arelent * cache_ptr,
+			   Elf_Internal_Rela * dst)
 {
   unsigned int r_type;
 
@@ -446,11 +397,10 @@ iq2000_info_to_howto_rela (abfd, cache_ptr, dst)
    virtual table relocs for gc.	 */
  
 static bfd_boolean
-iq2000_elf_check_relocs (abfd, info, sec, relocs)
-     bfd *abfd;
-     struct bfd_link_info *info;
-     asection *sec;
-     const Elf_Internal_Rela *relocs;
+iq2000_elf_check_relocs (bfd *abfd,
+			 struct bfd_link_info *info,
+			 asection *sec,
+			 const Elf_Internal_Rela *relocs)
 {
   Elf_Internal_Shdr *symtab_hdr;
   struct elf_link_hash_entry **sym_hashes, **sym_hashes_end;
@@ -463,7 +413,7 @@ iq2000_elf_check_relocs (abfd, info, sec, relocs)
   
   symtab_hdr = &elf_tdata (abfd)->symtab_hdr;
   sym_hashes = elf_sym_hashes (abfd);
-  sym_hashes_end = sym_hashes + symtab_hdr->sh_size/sizeof(Elf32_External_Sym);
+  sym_hashes_end = sym_hashes + symtab_hdr->sh_size / sizeof (Elf32_External_Sym);
   if (!elf_bad_symtab (abfd))
     sym_hashes_end -= symtab_hdr->sh_info;
   
@@ -477,26 +427,31 @@ iq2000_elf_check_relocs (abfd, info, sec, relocs)
       if (r_symndx < symtab_hdr->sh_info)
 	h = NULL;
       else
-	h = sym_hashes[r_symndx - symtab_hdr->sh_info];
+	{
+	  h = sym_hashes[r_symndx - symtab_hdr->sh_info];
+	  while (h->root.type == bfd_link_hash_indirect
+		 || h->root.type == bfd_link_hash_warning)
+	    h = (struct elf_link_hash_entry *) h->root.u.i.link;
+	}
       
       switch (ELF32_R_TYPE (rel->r_info))
 	{
-	  /* This relocation describes the C++ object vtable hierarchy.
-	     Reconstruct it for later use during GC.  */
+	  /* This relocation describes the C++ object vtable
+	     hierarchy.  Reconstruct it for later use during GC.  */
 	case R_IQ2000_GNU_VTINHERIT:
 	  if (!bfd_elf_gc_record_vtinherit (abfd, sec, h, rel->r_offset))
 	    return FALSE;
 	  break;
 	  
-	  /* This relocation describes which C++ vtable entries are actually
-	     used.  Record for later use during GC.  */
+	  /* This relocation describes which C++ vtable entries
+	     are actually used.  Record for later use during GC.  */
 	case R_IQ2000_GNU_VTENTRY:
 	  if (!bfd_elf_gc_record_vtentry (abfd, sec, h, rel->r_addend))
 	    return FALSE;
 	  break;
 
 	case R_IQ2000_32:
-	  /* For debug section, change to special harvard-aware relocations */
+	  /* For debug section, change to special harvard-aware relocations.  */
 	  if (memcmp (sec->name, ".debug", 6) == 0
 	      || memcmp (sec->name, ".stab", 5) == 0
 	      || memcmp (sec->name, ".eh_frame", 9) == 0)
@@ -512,7 +467,7 @@ iq2000_elf_check_relocs (abfd, info, sec, relocs)
   if (changed)
     /* Note that we've changed relocs, otherwise if !info->keep_memory
        we'll free the relocs and lose our changes.  */
-    (const Elf_Internal_Rela *) (elf_section_data (sec)->relocs) = relocs;
+    elf_section_data (sec)->relocs = (Elf_Internal_Rela *) relocs;
 
   return TRUE;
 }
@@ -552,21 +507,22 @@ iq2000_elf_check_relocs (abfd, info, sec, relocs)
    accordingly.	 */
 
 static bfd_boolean
-iq2000_elf_relocate_section (output_bfd, info, input_bfd, input_section,
-			   contents, relocs, local_syms, local_sections)
-     bfd *		     output_bfd ATTRIBUTE_UNUSED;
-     struct bfd_link_info *  info;
-     bfd *		     input_bfd;
-     asection *		     input_section;
-     bfd_byte *		     contents;
-     Elf_Internal_Rela *     relocs;
-     Elf_Internal_Sym *	     local_syms;
-     asection **	     local_sections;
+iq2000_elf_relocate_section (bfd *		     output_bfd ATTRIBUTE_UNUSED,
+			     struct bfd_link_info *  info,
+			     bfd *		     input_bfd,
+			     asection *		     input_section,
+			     bfd_byte *		     contents,
+			     Elf_Internal_Rela *     relocs,
+			     Elf_Internal_Sym *	     local_syms,
+			     asection **	     local_sections)
 {
   Elf_Internal_Shdr *		symtab_hdr;
   struct elf_link_hash_entry ** sym_hashes;
   Elf_Internal_Rela *		rel;
   Elf_Internal_Rela *		relend;
+
+  if (info->relocatable)
+    return TRUE;
 
   symtab_hdr = & elf_tdata (input_bfd)->symtab_hdr;
   sym_hashes = elf_sym_hashes (input_bfd);
@@ -609,12 +565,6 @@ iq2000_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 	  name = bfd_elf_string_from_elf_section
 	    (input_bfd, symtab_hdr->sh_link, sym->st_name);
 	  name = (name == NULL) ? bfd_section_name (input_bfd, sec) : name;
-#ifdef DEBUG
-	  fprintf (stderr, "local: sec: %s, sym: %s (%d), value: %x + %x + %x addend %x\n",
-		   sec->name, name, sym->st_name,
-		   sec->output_section->vma, sec->output_offset,
-		   sym->st_value, rel->r_addend);
-#endif
 	}
       else
 	{
@@ -653,8 +603,8 @@ iq2000_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 	    {
 	    case bfd_reloc_overflow:
 	      r = info->callbacks->reloc_overflow
-		(info, name, howto->name, (bfd_vma) 0,
-		 input_bfd, input_section, rel->r_offset);
+		(info, (h ? &h->root : NULL), name, howto->name,
+		 (bfd_vma) 0, input_bfd, input_section, rel->r_offset);
 	      break;
 	      
 	    case bfd_reloc_undefined:
@@ -696,11 +646,10 @@ iq2000_elf_relocate_section (output_bfd, info, input_bfd, input_section,
    removed.  */
 
 static bfd_boolean
-iq2000_elf_gc_sweep_hook (abfd, info, sec, relocs)
-     bfd *		       abfd ATTRIBUTE_UNUSED;
-     struct bfd_link_info *    info ATTRIBUTE_UNUSED;
-     asection *		       sec ATTRIBUTE_UNUSED;
-     const Elf_Internal_Rela * relocs ATTRIBUTE_UNUSED;
+iq2000_elf_gc_sweep_hook (bfd *		            abfd ATTRIBUTE_UNUSED,
+			  struct bfd_link_info *    info ATTRIBUTE_UNUSED,
+			  asection *		    sec ATTRIBUTE_UNUSED,
+			  const Elf_Internal_Rela * relocs ATTRIBUTE_UNUSED)
 {
   return TRUE;
 }
@@ -709,38 +658,35 @@ iq2000_elf_gc_sweep_hook (abfd, info, sec, relocs)
    relocation.	*/
 
 static asection *
-iq2000_elf_gc_mark_hook (sec, info, rel, h, sym)
-     asection *			  sec;
-     struct bfd_link_info *	  info ATTRIBUTE_UNUSED;
-     Elf_Internal_Rela *	  rel;
-     struct elf_link_hash_entry * h;
-     Elf_Internal_Sym *		  sym;
+iq2000_elf_gc_mark_hook (asection *		      sec,
+			 struct bfd_link_info *	      info ATTRIBUTE_UNUSED,
+			 Elf_Internal_Rela *	      rel,
+			 struct elf_link_hash_entry * h,
+			 Elf_Internal_Sym *	      sym)
 {
-  if (h != NULL)
+  if (h == NULL)
+    return bfd_section_from_elf_index (sec->owner, sym->st_shndx);
+
+  switch (ELF32_R_TYPE (rel->r_info))
     {
-      switch (ELF32_R_TYPE (rel->r_info))
-	{
-	case R_IQ2000_GNU_VTINHERIT:
-	case R_IQ2000_GNU_VTENTRY:
-	  break;
+    case R_IQ2000_GNU_VTINHERIT:
+    case R_IQ2000_GNU_VTENTRY:
+      break;
 	  
+    default:
+      switch (h->root.type)
+	{
+	case bfd_link_hash_defined:
+	case bfd_link_hash_defweak:
+	  return h->root.u.def.section;
+	      
+	case bfd_link_hash_common:
+	  return h->root.u.c.p->section;
+	      
 	default:
-	  switch (h->root.type)
-	    {
-	    case bfd_link_hash_defined:
-	    case bfd_link_hash_defweak:
-	      return h->root.u.def.section;
-	      
-	    case bfd_link_hash_common:
-	      return h->root.u.c.p->section;
-	      
-	    default:
-	      break;
-	    }
+	  break;
 	}
     }
-  else
-    return bfd_section_from_elf_index (sec->owner, sym->st_shndx);
 
   return NULL;
 }
@@ -749,25 +695,24 @@ iq2000_elf_gc_mark_hook (sec, info, rel, h, sym)
 /* Return the MACH for an e_flags value.  */
 
 static int
-elf32_iq2000_machine (abfd)
-     bfd *abfd;
+elf32_iq2000_machine (bfd *abfd)
 {
   switch (elf_elfheader (abfd)->e_flags & EF_IQ2000_CPU_MASK)
     {
-    case EF_IQ2000_CPU_IQ2000:	return bfd_mach_iq2000;
-    case EF_IQ2000_CPU_IQ10:  return bfd_mach_iq10;
-    }
+    case EF_IQ2000_CPU_IQ10:
+      return bfd_mach_iq10;
 
-  return bfd_mach_iq2000;
+    case EF_IQ2000_CPU_IQ2000:
+    default:
+      return bfd_mach_iq2000;
+    }
 }
 
 
 /* Function to set the ELF flag bits.  */
 
 static bfd_boolean
-iq2000_elf_set_private_flags (abfd, flags)
-     bfd *abfd;
-     flagword flags;
+iq2000_elf_set_private_flags (bfd *abfd, flagword flags)
 {
   elf_elfheader (abfd)->e_flags = flags;
   elf_flags_init (abfd) = TRUE;
@@ -777,9 +722,7 @@ iq2000_elf_set_private_flags (abfd, flags)
 /* Copy backend specific data from one object module to another.  */
 
 static bfd_boolean
-iq2000_elf_copy_private_bfd_data (ibfd, obfd)
-     bfd *ibfd;
-     bfd *obfd;
+iq2000_elf_copy_private_bfd_data (bfd *ibfd, bfd *obfd)
 {
   if (bfd_get_flavour (ibfd) != bfd_target_elf_flavour
       || bfd_get_flavour (obfd) != bfd_target_elf_flavour)
@@ -793,13 +736,11 @@ iq2000_elf_copy_private_bfd_data (ibfd, obfd)
   return TRUE;
 }
 
-/* Merge backend specific data from an object file to the output
-   object file when linking.  */
+/* Merge backend specific data from an object
+   file to the output object file when linking.  */
 
 static bfd_boolean
-iq2000_elf_merge_private_bfd_data (ibfd, obfd)
-     bfd *ibfd;
-     bfd *obfd;
+iq2000_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
 {
   flagword old_flags, old_partial;
   flagword new_flags, new_partial;
@@ -811,12 +752,6 @@ iq2000_elf_merge_private_bfd_data (ibfd, obfd)
   new_flags = elf_elfheader (ibfd)->e_flags;
   old_flags = elf_elfheader (obfd)->e_flags;
 
-#ifdef DEBUG
-  (*_bfd_error_handler) ("old_flags = 0x%.8lx, new_flags = 0x%.8lx, init = %s, filename = %s",
-			 old_flags, new_flags, elf_flags_init (obfd) ? "yes" : "no",
-			 bfd_get_filename (ibfd));
-#endif
-
   if (!elf_flags_init (obfd))
     {
       /* First call, no flags set.  */
@@ -824,33 +759,37 @@ iq2000_elf_merge_private_bfd_data (ibfd, obfd)
       elf_elfheader (obfd)->e_flags = new_flags;
     }
 
-  else if (new_flags == old_flags)
-    /* Compatible flags are ok.	 */
-    ;
-
-  else		/* Possibly incompatible flags.	 */
+  else if (new_flags != old_flags)
     {
-      /* Warn if different cpu is used (allow a specific cpu to override
-	 the generic cpu).  */
+      /* Warn if different cpu is used, but allow a
+	 specific cpu to override the generic cpu.  */
       new_partial = (new_flags & EF_IQ2000_CPU_MASK);
       old_partial = (old_flags & EF_IQ2000_CPU_MASK);
-      if (new_partial == old_partial)
-	;
 
-      else
+      if (new_partial != old_partial)
 	{
 	  switch (new_partial)
 	    {
-	    default:		  strcat (new_opt, " -m2000");	break;
-	    case EF_IQ2000_CPU_IQ2000:	strcat (new_opt, " -m2000");  break;
-	    case EF_IQ2000_CPU_IQ10:  strcat (new_opt, " -m10");  break;
+	    case EF_IQ2000_CPU_IQ10:
+	      strcat (new_opt, " -m10");
+	      break;
+
+	    default:
+	    case EF_IQ2000_CPU_IQ2000:
+	      strcat (new_opt, " -m2000");
+	      break;
 	    }
 
 	  switch (old_partial)
 	    {
-	    default:		  strcat (old_opt, " -m2000");	break;
-	    case EF_IQ2000_CPU_IQ2000:	strcat (old_opt, " -m2000");  break;
-	    case EF_IQ2000_CPU_IQ10:  strcat (old_opt, " -m10");  break;
+	    case EF_IQ2000_CPU_IQ10:
+	      strcat (old_opt, " -m10");
+	      break;
+
+	    default:
+	    case EF_IQ2000_CPU_IQ2000:
+	      strcat (old_opt, " -m2000");
+	      break;
 	    }
 	}
       
@@ -858,7 +797,7 @@ iq2000_elf_merge_private_bfd_data (ibfd, obfd)
       if (new_opt[0])
 	{
 	  error = TRUE;
-	  (*_bfd_error_handler)
+	  _bfd_error_handler
 	    (_("%s: compiled with %s and linked with modules compiled with %s"),
 	     bfd_get_filename (ibfd), new_opt, old_opt);
 	}
@@ -870,7 +809,8 @@ iq2000_elf_merge_private_bfd_data (ibfd, obfd)
       if (new_flags != old_flags)
 	{
 	  error = TRUE;
-	  (*_bfd_error_handler)
+
+	  _bfd_error_handler
 	    (_("%s: uses different e_flags (0x%lx) fields than previous modules (0x%lx)"),
 	     bfd_get_filename (ibfd), (long)new_flags, (long)old_flags);
 	}
@@ -884,9 +824,7 @@ iq2000_elf_merge_private_bfd_data (ibfd, obfd)
 
 
 static bfd_boolean
-iq2000_elf_print_private_bfd_data (abfd, ptr)
-     bfd *abfd;
-     PTR ptr;
+iq2000_elf_print_private_bfd_data (bfd *abfd, void * ptr)
 {
   FILE *file = (FILE *) ptr;
   flagword flags;
@@ -901,9 +839,14 @@ iq2000_elf_print_private_bfd_data (abfd, ptr)
 
   switch (flags & EF_IQ2000_CPU_MASK)
     {
-    default:							break;
-    case EF_IQ2000_CPU_IQ2000:	fprintf (file, " -m2000");	break;
-    case EF_IQ2000_CPU_IQ10:  fprintf (file, " -m10");	break;
+    case EF_IQ2000_CPU_IQ10:
+      fprintf (file, " -m10");
+      break;
+    case EF_IQ2000_CPU_IQ2000:
+      fprintf (file, " -m2000");
+      break;
+    default:
+      break;
     }
 
   fputc ('\n', file);
@@ -912,14 +855,8 @@ iq2000_elf_print_private_bfd_data (abfd, ptr)
 
 static
 bfd_boolean
-iq2000_elf_object_p (abfd)
-     bfd *abfd;
+iq2000_elf_object_p (bfd *abfd)
 {
-  /* Irix 5 and 6 is broken.  Object file symbol tables are not always
-     sorted correctly such that local symbols precede global symbols,
-     and the sh_info field in the symbol table is not always right.  */
-  elf_bad_symtab (abfd) = TRUE;
-
   bfd_default_set_arch_mach (abfd, bfd_arch_iq2000,
 			     elf32_iq2000_machine (abfd));
   return TRUE;

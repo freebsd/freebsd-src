@@ -1,8 +1,5 @@
 # Source file used to test the rol and ror macros.
 
-	# generate warnings for all uses of AT.
-	.set noat
-
 foo:
 	rol	$4,$5
 	rol	$4,$5,$6

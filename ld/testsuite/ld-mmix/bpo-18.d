@@ -10,14 +10,12 @@
 .*:     file format elf64-mmix
 
 SYMBOL TABLE:
-0+100 l    d  \.text	0+ 
-4000000000001060 l    d  \.text\.away	0+ 
-0+7e0 l    d  \.MMIX\.reg_contents	0+ 
-4000000000001088 l    d  \.data	0+ 
-4000000000001088 l    d  \.bss	0+ 
-0+ l    d  \*ABS\*	0+ 
-0+ l    d  \*ABS\*	0+ 
-0+ l    d  \*ABS\*	0+ 
+0+100 l    d  \.text	0+ (|\.text)
+4000000000001060 l    d  \.text\.away	0+ (|\.text\.away)
+0+7e0 l    d  \.MMIX\.reg_contents	0+ (|\.MMIX\.reg_contents)
+0+ l    d  \*ABS\*	0+ (|\.shstrtab)
+0+ l    d  \*ABS\*	0+ (|\.symtab)
+0+ l    d  \*ABS\*	0+ (|\.strtab)
 4000000000001064 l       \.text\.away	0+ x
 0+100 g       \.text	0+ x
 4000000000001060 g       \.text\.away	0+ Main

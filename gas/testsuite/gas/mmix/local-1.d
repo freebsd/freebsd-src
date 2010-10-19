@@ -15,9 +15,9 @@ Idx Name          Size      VMA               LMA               File off  Algn
   2 \.bss          00000000  0000000000000000  0000000000000000  00000044  2\*\*0
                   ALLOC
 SYMBOL TABLE:
-0+ l    d  \.text	0+ 
-0+ l    d  \.data	0+ 
-0+ l    d  \.bss	0+ 
+0+ l    d  \.text	0+ (|\.text)
+0+ l    d  \.data	0+ (|\.data)
+0+ l    d  \.bss	0+ (|\.bss)
 0+90 l       \*REG\*	0+ reghere
 0+2d l       \*ABS\*	0+ consthere
 0+         \*UND\*	0+ extreg

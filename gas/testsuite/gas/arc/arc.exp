@@ -37,6 +37,7 @@ if [istarget arc*-*-*] then {
     run_dump_test bic
     run_dump_test xor
     run_dump_test nop
+    run_dump_test extensions
 }
 
 # ARC library extensions

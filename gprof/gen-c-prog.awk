@@ -13,7 +13,7 @@ NR == 1	{
 		print "}"
 	      curfun = FUNCTION
 	      print ""
-	      print "void ", FUNCTION, "PARAMS ((FILE *));"
+	      print "void ", FUNCTION, "(FILE *);"
 	      print "void";
 	      printf "%s (file)\n", FUNCTION
 	      print "     FILE *file;";

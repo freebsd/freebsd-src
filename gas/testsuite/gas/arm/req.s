@@ -2,7 +2,7 @@
 	.global test_dot_req_and_unreq
 test_dot_req_and_unreq:
 
-	#  Check that builtin register alias 'r0' works.
+	# Check that builtin register alias 'r0' works.
 	add r0, r0, r0
 
 	# Create an alias for r0.
@@ -17,9 +17,9 @@ test_dot_req_and_unreq:
 	# And make sure that it no longer works.
 	add foo, foo, foo
 
-	# Finally remove the builtin alias for r0.
+	# Attempt to remove the builtin alias for r0.
         .unreq r0
 
-	# And make sure that this no longer works.
+	# That is ignored, so this should still work.
 	add r0, r0, r0
 	

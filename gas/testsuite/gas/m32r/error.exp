@@ -10,6 +10,7 @@ if [istarget m32r-*-*] {
     dg-runtest "$srcdir/$subdir/interfere.s" "" ""
     dg-runtest "$srcdir/$subdir/outofrange.s" "" ""
     dg-runtest "$srcdir/$subdir/parallel.s" "" ""
+    dg-runtest "$srcdir/$subdir/rel32-err.s" "" ""
 
     dg-finish
 

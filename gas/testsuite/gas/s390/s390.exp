@@ -17,19 +17,21 @@ proc run_list_test { name opts } {
 
 if [expr [istarget "s390-*-*"] ||  [istarget "s390x-*-*"]]  then {
 
-    run_dump_test "opcode"
-    run_dump_test "reloc"
-    run_dump_test "operands"
+    run_dump_test "esa-g5" "{as -m31}"
+    run_dump_test "esa-z900" "{as -m31} {as -march=z900}"
+    run_dump_test "esa-z990" "{as -m31} {as -march=z990}"
+    run_dump_test "esa-z9-109" "{as -m31} {as -march=z9-109}"
+    run_dump_test "esa-reloc" "{as -m31}"
+    run_dump_test "esa-operands" "{as -m31}"
 
 #    # PIC is only supported on ELF targets.
 #    if { ([istarget "*-*-elf*"] || [istarget "*-*-linux*"] ) } then {
 #	run_dump_test "s390pic"
 #    }
-}
 
-if [istarget "s390x-*-*"] then {
-
-    run_dump_test "opcode64"
-    run_dump_test "reloc64"
-    run_dump_test "operands64"
+    run_dump_test "zarch-z900" "{as -m64}"
+    run_dump_test "zarch-z990" "{as -m64} {as -march=z990}"
+    run_dump_test "zarch-z9-109" "{as -m64} {as -march=z9-109}"
+    run_dump_test "zarch-reloc" "{as -m64}"
+    run_dump_test "zarch-operands" "{as -m64} {as -march=z9-109}"
 }

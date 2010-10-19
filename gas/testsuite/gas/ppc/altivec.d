@@ -2,7 +2,7 @@
 #objdump: -dr
 #name: AltiVec tests
 
-.*: +file format elf32-powerpc
+.*: +file format elf32-powerpc.*
 
 Disassembly of section \.text:
 

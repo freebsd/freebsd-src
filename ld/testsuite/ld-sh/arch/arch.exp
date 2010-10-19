@@ -1,0 +1,251 @@
+# Copyright (C) 2004, 2005
+# Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  
+
+# Please email any bugs, comments, and/or additions to this file to:
+# binutils@sources.redhat.com
+
+# This scripts tests of all available SH architectures with all other SH
+# architectures. It ensures that those combinations which should not work
+# do not work, and that those that should work produce the correct output
+# architecture.
+#
+# It looks for files in the same directory as this file named sh*.s .
+# Each file must contain one or more instructions which uniquely identifies
+# that architecture. The architecture name is inferred from the file name.
+# It is best to use the same files used by the assembler testsuite.
+#
+# It also creates another architecture named 'sh-unknown' by modifying
+# another arch type (there is no way to assemble such an arch) in order
+# to test what the linker would do with an older object file.
+#
+# The script generates the architecture permutations automatically,
+# but it reads the expected results from the file arch_expected.txt (also
+# found in the same directory as this script).
+#
+# The arch_expected.txt file should NOT be hand edited. Whenever the script
+# is run (e.g. with 'make check') it creates a new (usually identical) file
+# named arch_results.txt in the <objdir>/ld/testsuite directory. When the
+# expected results change (or new architectures are added) this new file
+# can be used to replace arch_expected.txt with no modification required.
+
+
+# The procedure extracts the architecture name from the objdump output.
+# If there is no architecture name (or objdump output changes significantly)
+# then the behaviour is undefined, but it will most likely return junk.
+
+proc get_sh_arch { ofile } {
+    global OBJDUMP
+
+    set cmd "$OBJDUMP -f $ofile"
+    verbose -log $cmd
+    catch "exec $cmd" objdump_output
+    verbose -log $objdump_output
+
+    set objdump_output [string replace $objdump_output 0 \
+	    [expr [string first "architecture:" $objdump_output] + 13] ""]
+
+    return [string range $objdump_output 0 [expr [string first "," $objdump_output] - 1]]
+}
+
+
+# This procedure runs two tests:
+#   Test 1: Check the linker can link the given files.
+#   Test 2: Check that the resultant architecture is as expected.
+# It also writes an entry to the arch_results.txt file.
+
+proc test_arch { file1 file2 arch resultfile } {
+    global LD
+
+    set name1 [file tail $file1]
+    set rootname1 [file rootname $name1]
+
+    set name2 [file tail $file2]
+    set rootname2 [file rootname $name2]
+
+    # This must use -r to prevent LD trying to relocate the (unrealistic) file
+    send_log "$LD -r -o ${rootname1}_${rootname2}.o $file1 $file2\n"
+    catch "exec $LD -r -o ${rootname1}_${rootname2}.o $file1 $file2" ld_output
+    send_log $ld_output
+
+    if {[string equal $ld_output ""] == 1} then {
+	pass "$rootname1 file should link with $rootname2 file"
+
+	set result [get_sh_arch "${rootname1}_${rootname2}.o"]
+	puts $resultfile [format "%-20s %-20s %s" $file1 $file2 $result]
+
+	if {$result == $arch} then {
+	    pass "$rootname1 file with $rootname2 file should link to arch $arch"
+	    file delete "${rootname1}_${rootname2}.o"
+	} else {
+	    fail "$rootname1 file with $rootname2 file should link to arch $arch"
+	}
+    } else {
+	fail "$rootname1 file should link with $rootname2 file"
+
+	puts $resultfile [format "%-20s %-20s ERROR" $file1 $file2]
+	untested "$rootname2 file with $rootname2 file should link to arch $arch"
+    }
+
+}
+
+
+
+# This procedure tests that a pair of files that are not
+# suposed to link does, in fact, not link.
+# It also writes an entry to the arch_results.txt file.
+
+proc test_arch_error { file1 file2 resultfile} {
+    global link_output LD
+
+    set name1 [file tail $file1]
+    set rootname1 [file rootname $name1]
+
+    set name2 [file tail $file2]
+    set rootname2 [file rootname $name2]
+
+    # This must use -r to prevent LD trying to relocate the (unrealistic) file
+    send_log "$LD -r -o ${rootname1}_${rootname2}.o $file1 $file2\n"
+    catch "exec $LD -r -o ${rootname1}_${rootname2}.o $file1 $file2" ld_output
+    send_log $ld_output
+
+    if {[string equal $ld_output ""] == 1} then {
+	fail "$rootname1 file should NOT link with $rootname2 file"
+	puts $resultfile [format "%-20s %-20s [get_sh_arch ${rootname1}_${rootname2}.o]" $file1 $file2]
+    } else {
+	pass "$rootname1 file should NOT link with $rootname2 file"
+	puts $resultfile [format "%-20s %-20s ERROR" $file1 $file2]
+    }
+}   
+
+# These tests are not suitable for sh-coff because
+# coff does not store the architecture information.
+
+if [istarget sh*-*-elf] then {
+    global subdir srcdir
+    global AS
+
+    # Find all the architectures and assemble all the files
+    # we will use for the linker tests.
+
+    set sfilelist [lsort -ascii [glob "$srcdir/$subdir/sh*.s"]]
+    set ofilelist {}
+    foreach sfile $sfilelist {
+	set ofile "[file rootname [file tail $sfile]].o"
+	lappend ofilelist $ofile
+
+	set endian "-big"
+	if [string equal [big_or_little_endian] " -EL"] then {
+	    set endian "-little"
+	}
+
+	set cmd "$AS $endian -isa=any $sfile -o $ofile"
+	verbose -log $cmd
+	catch "exec $cmd" as_output
+	if ![file exists $ofile] then {
+	    verbose -log $as_output
+	    perror "$sfile: assembly failed"
+	}
+    }
+
+    # Create the default arch ofile
+    # This cannot be created with the assembler
+    # sh4al-dsp is number 6, sh-unknown is 0
+
+    lappend ofilelist "sh-unknown.o"
+
+    if [string equal [big_or_little_endian] " -EL"] then {
+	set cmd {xxd sh4al-dsp.o | sed {s/\(^0000020: .... .... \)06/\100/} | xxd -r - sh-unknown.o}
+    } else {
+	set cmd {xxd sh4al-dsp.o | sed {s/\(^0000020: .... .... .... ..\)06/\100/} | xxd -r - sh-unknown.o}
+    }
+    verbose -log $cmd
+    catch "exec $cmd" xxd_output
+    verbose -log $xxd_output
+    if [string equal [get_sh_arch "sh-unknown.o"] "sh4al-dsp"] then {
+	perror "sh-unknown.o not generated correctly"
+    }
+
+
+    # Initialise the results file
+
+    set outfile [open "arch_results.txt" w 0666]
+    puts $outfile "# Generated file. DO NOT EDIT"
+    puts $outfile "#"
+    puts $outfile "# This file is generated by ld/testsuite/ld-sh/arch/arch.exp ."
+    puts $outfile "# It contains the expected results of the tests."
+    puts $outfile "# If the tests are failing because the expected results"
+    puts $outfile "# have changed then run 'make check' and copy the new file"
+    puts $outfile "# from <objdir>/ld/arch_results.txt"
+    puts $outfile "# to   <srcdir>/ld/testsuite/ld-sh/arch/arch_expected.txt ."
+    puts $outfile "# Make sure the new expected results are ALL correct."
+    puts $outfile "#"
+    puts $outfile [format "# %-18s %-20s %s" "FILE1" "FILE2" "OUTPUT"]
+    puts $outfile [format "# %-18s %-20s %s" "-----" "-----" "------"]
+
+    # Open the expected results file and skip the header
+
+    set infile [open "$srcdir/$subdir/arch_expected.txt" r]
+    while {[gets $infile line] >= 0 && [string match {\#*} $line]} {verbose -log "reading '$line'"}
+
+    foreach file1 $ofilelist {
+	foreach file2 $ofilelist {
+	    set name1 [file tail $file1]
+	    set rootname1 [file rootname $name1]
+
+	    set name2 [file tail $file2]
+	    set rootname2 [file rootname $name2]
+
+	    # Decode the expected result from the file
+
+	    scan $line "%s %s %s" exfile1 exfile2 exarch
+	    verbose -log "exfile1 = '$exfile1', exfile2 = '$exfile2', exarch = '$exarch'"
+	    verbose -log "  name1 = '$name1',   name2 = '$name2'"
+
+	    if {[string equal $exfile1 $name1] && [string equal $exfile2 $file2]} then {
+		# The expected result file makes sense and
+		# appears up-to-date (the file and options match)
+
+		if {[string equal $exarch "ERROR"]} then {
+		    test_arch_error $file1 $file2 $outfile
+		} else {
+		    test_arch $file1 $file2 $exarch $outfile
+		}
+	    } else {
+		# The expected result file isn't right somehow
+		# so just try any old test. This will cause
+		# many failures, but will genrate the results file.
+
+		test_arch $file1 $file2 $rootname1 $outfile
+	    }
+
+	    # Read the next line from the expected result file.
+	    # This is at the end because the process of skipping
+	    # the header reads the first real line
+
+	    if [gets $infile line] then {
+		verbose -log "reading '$line'"
+	    }
+	}
+    }
+
+    close $infile
+    close $outfile
+
+    foreach file $ofilelist {
+	file delete $file
+    }
+}

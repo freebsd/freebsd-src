@@ -10,7 +10,7 @@
 * configure: (configure).	The GNU configure and build system
 @end direntry
 
-@ifinfo
+@ifnottex
 This file documents the GNU configure and build system.
 
 Copyright (C) 1998 Cygnus Solutions.
@@ -35,7 +35,7 @@ Permission is granted to copy and distribute translations of this manual
 into another language, under the above conditions for modified versions,
 except that this permission notice may be stated in a translation approved
 by the Foundation.
-@end ifinfo
+@end ifnottex
 
 @titlepage
 @title The GNU configure and build system
@@ -60,7 +60,7 @@ except that this permission notice may be stated in a translation
 approved by the Free Software Foundation.
 @end titlepage
 
-@ifinfo
+@ifnottex
 @node Top
 @top GNU configure and build system
 
@@ -79,7 +79,7 @@ The GNU configure and build system.
 * Index::			Index.
 @end menu
 
-@end ifinfo
+@end ifnottex
 
 @node Introduction
 @chapter Introduction
@@ -276,7 +276,9 @@ directory is controlled by @samp{configure} options, as described below.
 
 In the Cygnus tree at present, the info files are built and installed as
 a separate step.  To build them, run @samp{make info}.  To install them,
-run @samp{make install-info}.
+run @samp{make install-info}. The equivalent html files are also built
+and installed in a separate step. To build the html files, run
+@samp{make html}. To install the html files run @samp{make install-html}.
 
 All @samp{configure} scripts support a wide variety of options.  The
 most interesting ones are @samp{--with} and @samp{--enable} options
@@ -1085,7 +1087,7 @@ are in rectangles with rounded corners
 @end ifnotinfo
 (e.g., @samp{autoheader} is the name of a tool, not the name of a file).
 
-@image{configdev}
+@image{configdev,,,,jpg}
 
 @node Written Developer Files
 @subsection Written Developer Files
@@ -1235,7 +1237,7 @@ Here is a picture of the files which will be created at build time.
 @file{config.status} is both a created file and a shell script which is
 run to create other files, and the picture attempts to show that.
 
-@image{configbuild}
+@image{configbuild,,,,jpg}
 
 @node Build Files Description
 @subsection Build Files Description

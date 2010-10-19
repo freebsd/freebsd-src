@@ -7,5 +7,5 @@
 Disassembly of section .text:
 
 00000100 <_start>:
- *100:	28 67       * mov.b	@0x67:8,r0l
- *102:	6a 08 43 21 * mov.b	@0x4321:16,r0l
+ *100:	mov.b	@0x67:8,r0l
+ *102:	mov.b	@0x4321:16,r0l

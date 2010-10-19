@@ -1,0 +1,1185 @@
+/* m32c opcode support.  -*- C -*-
+
+   Copyright 2005 Free Software Foundation, Inc.
+
+   Contributed by Red Hat Inc; developed under contract from Renesas
+
+   This file is part of the GNU Binutils.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
+
+/* This file is an addendum to m32c.cpu.  Heavy use of C code isn't
+   appropriate in .cpu files, so it resides here.  This especially applies
+   to assembly/disassembly where parsing/printing can be quite involved.
+   Such things aren't really part of the specification of the cpu, per se,
+   so .cpu files provide the general framework and .opc files handle the
+   nitty-gritty details as necessary.
+
+   Each section is delimited with start and end markers.
+
+   <arch>-opc.h additions use: "-- opc.h"
+   <arch>-opc.c additions use: "-- opc.c"
+   <arch>-asm.c additions use: "-- asm.c"
+   <arch>-dis.c additions use: "-- dis.c"
+   <arch>-ibd.h additions use: "-- ibd.h".  */
+
+/* -- opc.h */
+
+/* Needed for RTL's 'ext' and 'trunc' operators.  */
+#include "cgen-types.h"
+#include "cgen-ops.h"
+
+/* We can't use the default hash size because many bits are used by
+   operands.  */
+#define CGEN_DIS_HASH_SIZE 1
+#define CGEN_DIS_HASH(buf, value) 0
+#define CGEN_VERBOSE_ASSEMBLER_ERRORS
+#define CGEN_VALIDATE_INSN_SUPPORTED
+
+extern int m32c_cgen_insn_supported (CGEN_CPU_DESC, const CGEN_INSN *);
+
+#define CGEN_ASM_HASH_SIZE 0xffff
+#define CGEN_ASM_HASH(mnem) m32c_asm_hash ((mnem))
+
+/* -- */
+
+/* -- opc.c */
+static unsigned int
+m32c_asm_hash (const char *mnem)
+{
+  unsigned int h;
+  
+  /* The length of the mnemonic for the Jcnd insns is 1.  Hash jsri.  */
+  if (mnem[0] == 'j' && mnem[1] != 's')
+    return 'j';
+  
+  /* Don't hash scCND  */
+  if (mnem[0] == 's' && mnem[1] == 'c')
+    return 's';
+  
+  /* Don't hash bmCND  */
+  if (mnem[0] == 'b' && mnem[1] == 'm')
+    return 'b';
+  
+  for (h = 0; *mnem && *mnem != ' ' && *mnem != ':'; ++mnem)
+    h += *mnem;
+  return h % CGEN_ASM_HASH_SIZE;
+}
+
+/* -- asm.c */
+#include "safe-ctype.h"
+
+#define MACH_M32C 5		/* Must match md_begin.  */
+
+static int
+m32c_cgen_isa_register (const char **strp)
+ {
+   int u;
+   const char *s = *strp;
+   static char * m32c_register_names [] = 
+     {
+       "r0", "r1", "r2", "r3", "r0l", "r0h", "r1l", "r1h",
+       "a0", "a1", "r2r0", "r3r1", "sp", "fb", "dct0", "dct1", "flg", "svf",
+       "drc0", "drc1", "dmd0", "dmd1", "intb", "svp", "vct", "isp", "dma0",
+       "dma1", "dra0", "dra1", "dsa0", "dsa1", 0
+     };
+ 
+   for (u = 0; m32c_register_names[u]; u++)
+     {
+       int len = strlen (m32c_register_names[u]);
+
+       if (memcmp (m32c_register_names[u], s, len) == 0
+	   && (s[len] == 0 || ! ISALNUM (s[len])))
+        return 1;
+     }
+   return 0;
+}
+
+#define PARSE_UNSIGNED							\
+  do									\
+    {									\
+      /* Don't successfully parse literals beginning with '['.  */	\
+      if (**strp == '[')						\
+	return "Invalid literal"; /* Anything -- will not be seen.  */	\
+									\
+      errmsg = cgen_parse_unsigned_integer (cd, strp, opindex, & value);\
+      if (errmsg)							\
+	return errmsg;							\
+    }									\
+  while (0)
+
+#define PARSE_SIGNED							\
+  do									\
+    {									\
+      /* Don't successfully parse literals beginning with '['.  */	\
+      if (**strp == '[')						\
+	return "Invalid literal"; /* Anything -- will not be seen.  */	\
+									\
+      errmsg = cgen_parse_signed_integer (cd, strp, opindex, & value);  \
+      if (errmsg)							\
+	return errmsg;							\
+    }									\
+  while (0)
+
+static const char *
+parse_unsigned6 (CGEN_CPU_DESC cd, const char **strp,
+		 int opindex, unsigned long *valuep)
+{
+  const char *errmsg = 0;
+  unsigned long value;
+
+  PARSE_UNSIGNED;
+
+  if (value > 0x3f)
+    return _("imm:6 immediate is out of range");
+
+  *valuep = value;
+  return 0;
+}
+
+static const char *
+parse_unsigned8 (CGEN_CPU_DESC cd, const char **strp,
+		 int opindex, unsigned long *valuep)
+{
+  const char *errmsg = 0;
+  unsigned long value;
+  long have_zero = 0;
+
+  if (strncasecmp (*strp, "%dsp8(", 6) == 0)
+    {
+      enum cgen_parse_operand_result result_type;
+      bfd_vma value;
+      const char *errmsg;
+
+      *strp += 6;
+      errmsg = cgen_parse_address (cd, strp, opindex, BFD_RELOC_8,
+				   & result_type, & value);
+      if (**strp != ')')
+	return _("missing `)'");
+      (*strp) ++;
+
+      if (errmsg == NULL
+  	  && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	{
+	  return _("%dsp8() takes a symbolic address, not a number");
+	}
+      *valuep = value;
+      return errmsg;
+    }
+
+  if (strncmp (*strp, "0x0", 3) == 0 
+      || (**strp == '0' && *(*strp + 1) != 'x'))
+    have_zero = 1;
+
+  PARSE_UNSIGNED;
+
+  if (value > 0xff)
+    return _("dsp:8 immediate is out of range");
+
+  /* If this field may require a relocation then use larger dsp16.  */
+  if (! have_zero && value == 0)
+    return _("dsp:8 immediate is out of range");
+
+  *valuep = value;
+  return 0;
+}
+
+static const char *
+parse_signed4 (CGEN_CPU_DESC cd, const char **strp,
+	       int opindex, signed long *valuep)
+{
+  const char *errmsg = 0;
+  signed long value;
+  long have_zero = 0;
+
+  if (strncmp (*strp, "0x0", 3) == 0 
+      || (**strp == '0' && *(*strp + 1) != 'x'))
+    have_zero = 1;
+
+  PARSE_SIGNED;
+
+  if (value < -8 || value > 7)
+    return _("Immediate is out of range -8 to 7");
+
+  /* If this field may require a relocation then use larger dsp16.  */
+  if (! have_zero && value == 0)
+    return _("Immediate is out of range -8 to 7");
+
+  *valuep = value;
+  return 0;
+}
+
+static const char *
+parse_signed4n (CGEN_CPU_DESC cd, const char **strp,
+		int opindex, signed long *valuep)
+{
+  const char *errmsg = 0;
+  signed long value;
+  long have_zero = 0;
+
+  if (strncmp (*strp, "0x0", 3) == 0 
+      || (**strp == '0' && *(*strp + 1) != 'x'))
+    have_zero = 1;
+
+  PARSE_SIGNED;
+
+  if (value < -7 || value > 8)
+    return _("Immediate is out of range -7 to 8");
+
+  /* If this field may require a relocation then use larger dsp16.  */
+  if (! have_zero && value == 0)
+    return _("Immediate is out of range -7 to 8");
+
+  *valuep = -value;
+  return 0;
+}
+
+static const char *
+parse_signed8 (CGEN_CPU_DESC cd, const char **strp,
+	       int opindex, signed long *valuep)
+{
+  const char *errmsg = 0;
+  signed long value;
+
+  if (strncasecmp (*strp, "%hi8(", 5) == 0)
+    {
+      enum cgen_parse_operand_result result_type;
+      bfd_vma value;
+      const char *errmsg;
+
+      *strp += 5;
+      errmsg = cgen_parse_address (cd, strp, opindex, BFD_RELOC_M32C_HI8,
+				   & result_type, & value);
+      if (**strp != ')')
+	return _("missing `)'");
+      (*strp) ++;
+
+      if (errmsg == NULL
+  	  && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	{
+	  value >>= 16;
+	}
+      *valuep = value;
+      return errmsg;
+    }
+
+  PARSE_SIGNED;
+
+  if (value <= 255 && value > 127)
+    value -= 0x100;
+
+  if (value < -128 || value > 127)
+    return _("dsp:8 immediate is out of range");
+
+  *valuep = value;
+  return 0;
+}
+
+static const char *
+parse_unsigned16 (CGEN_CPU_DESC cd, const char **strp,
+		 int opindex, unsigned long *valuep)
+{
+  const char *errmsg = 0;
+  unsigned long value;
+  long have_zero = 0;
+
+  if (strncasecmp (*strp, "%dsp16(", 7) == 0)
+    {
+      enum cgen_parse_operand_result result_type;
+      bfd_vma value;
+      const char *errmsg;
+
+      *strp += 7;
+      errmsg = cgen_parse_address (cd, strp, opindex, BFD_RELOC_16,
+				   & result_type, & value);
+      if (**strp != ')')
+	return _("missing `)'");
+      (*strp) ++;
+
+      if (errmsg == NULL
+  	  && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	{
+	  return _("%dsp16() takes a symbolic address, not a number");
+	}
+      *valuep = value;
+      return errmsg;
+    }
+
+  /* Don't successfully parse literals beginning with '['.  */
+  if (**strp == '[')
+    return "Invalid literal"; /* Anything -- will not be seen.  */
+
+  /* Don't successfully parse register names.  */
+  if (m32c_cgen_isa_register (strp))
+    return "Invalid literal"; /* Anything -- will not be seen.  */
+
+  if (strncmp (*strp, "0x0", 3) == 0 
+      || (**strp == '0' && *(*strp + 1) != 'x'))
+    have_zero = 1;
+  
+  errmsg = cgen_parse_unsigned_integer (cd, strp, opindex, & value);
+  if (errmsg)
+    return errmsg;
+
+  if (value > 0xffff)
+    return _("dsp:16 immediate is out of range");
+
+  /* If this field may require a relocation then use larger dsp24.  */
+  if (cd->machs == MACH_M32C && ! have_zero && value == 0
+      && (strncmp (*strp, "[a", 2) == 0
+	  || **strp == ','
+	  || **strp == 0))
+    return _("dsp:16 immediate is out of range");
+
+  *valuep = value;
+  return 0;
+}
+
+static const char *
+parse_signed16 (CGEN_CPU_DESC cd, const char **strp,
+	       int opindex, signed long *valuep)
+{
+  const char *errmsg = 0;
+  signed long value;
+
+  if (strncasecmp (*strp, "%lo16(", 6) == 0)
+    {
+      enum cgen_parse_operand_result result_type;
+      bfd_vma value;
+      const char *errmsg;
+
+      *strp += 6;
+      errmsg = cgen_parse_address (cd, strp, opindex, BFD_RELOC_LO16,
+				   & result_type, & value);
+      if (**strp != ')')
+	return _("missing `)'");
+      (*strp) ++;
+
+      if (errmsg == NULL
+  	  && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	{
+	  value &= 0xffff;
+	}
+      *valuep = value;
+      return errmsg;
+    }
+
+  if (strncasecmp (*strp, "%hi16(", 6) == 0)
+    {
+      enum cgen_parse_operand_result result_type;
+      bfd_vma value;
+      const char *errmsg;
+
+      *strp += 6;
+      errmsg = cgen_parse_address (cd, strp, opindex, BFD_RELOC_HI16,
+				   & result_type, & value);
+      if (**strp != ')')
+	return _("missing `)'");
+      (*strp) ++;
+
+      if (errmsg == NULL
+  	  && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	{
+	  value >>= 16;
+	}
+      *valuep = value;
+      return errmsg;
+    }
+
+  PARSE_SIGNED;
+
+  if (value <= 65535 && value > 32767)
+    value -= 0x10000;
+
+  if (value < -32768 || value > 32767)
+    return _("dsp:16 immediate is out of range");
+
+  *valuep = value;
+  return 0;
+}
+
+static const char *
+parse_unsigned20 (CGEN_CPU_DESC cd, const char **strp,
+		 int opindex, unsigned long *valuep)
+{
+  const char *errmsg = 0;
+  unsigned long value;
+  
+  /* Don't successfully parse literals beginning with '['.  */
+  if (**strp == '[')
+    return "Invalid literal"; /* Anything -- will not be seen.  */
+
+  /* Don't successfully parse register names.  */
+  if (m32c_cgen_isa_register (strp))
+    return "Invalid literal"; /* Anything -- will not be seen.  */
+
+  errmsg = cgen_parse_unsigned_integer (cd, strp, opindex, & value);
+  if (errmsg)
+    return errmsg;
+
+  if (value > 0xfffff)
+    return _("dsp:20 immediate is out of range");
+
+  *valuep = value;
+  return 0;
+}
+
+static const char *
+parse_unsigned24 (CGEN_CPU_DESC cd, const char **strp,
+		 int opindex, unsigned long *valuep)
+{
+  const char *errmsg = 0;
+  unsigned long value;
+  
+  /* Don't successfully parse literals beginning with '['.  */
+  if (**strp == '[')
+    return "Invalid literal"; /* Anything -- will not be seen.  */
+
+  /* Don't successfully parse register names.  */
+  if (m32c_cgen_isa_register (strp))
+    return "Invalid literal"; /* Anything -- will not be seen.  */
+
+  errmsg = cgen_parse_unsigned_integer (cd, strp, opindex, & value);
+  if (errmsg)
+    return errmsg;
+
+  if (value > 0xffffff)
+    return _("dsp:24 immediate is out of range");
+
+  *valuep = value;
+  return 0;
+}
+
+/* This should only be used for #imm->reg.  */
+static const char *
+parse_signed24 (CGEN_CPU_DESC cd, const char **strp,
+		 int opindex, signed long *valuep)
+{
+  const char *errmsg = 0;
+  signed long value;
+
+  PARSE_SIGNED;
+
+  if (value <= 0xffffff && value > 0x7fffff)
+    value -= 0x1000000;
+
+  if (value > 0xffffff)
+    return _("dsp:24 immediate is out of range");
+
+  *valuep = value;
+  return 0;
+}
+
+static const char *
+parse_signed32 (CGEN_CPU_DESC cd, const char **strp,
+		int opindex, signed long *valuep)
+{
+  const char *errmsg = 0;
+  signed long value;
+  
+  errmsg = cgen_parse_signed_integer (cd, strp, opindex, & value);
+  if (errmsg)
+    return errmsg;
+
+  *valuep = value;
+  return 0;
+}
+
+static const char *
+parse_imm1_S (CGEN_CPU_DESC cd, const char **strp,
+	     int opindex, signed long *valuep)
+{
+  const char *errmsg = 0;
+  signed long value;
+
+  errmsg = cgen_parse_signed_integer (cd, strp, opindex, & value);
+  if (errmsg)
+    return errmsg;
+
+  if (value < 1 || value > 2)
+    return _("immediate is out of range 1-2");
+
+  *valuep = value;
+  return 0;
+}
+
+static const char *
+parse_imm3_S (CGEN_CPU_DESC cd, const char **strp,
+	     int opindex, signed long *valuep)
+{
+  const char *errmsg = 0;
+  signed long value;
+  
+  errmsg = cgen_parse_signed_integer (cd, strp, opindex, & value);
+  if (errmsg)
+    return errmsg;
+
+  if (value < 1 || value > 8)
+    return _("immediate is out of range 1-8");
+
+  *valuep = value;
+  return 0;
+}
+
+static const char *
+parse_bit3_S (CGEN_CPU_DESC cd, const char **strp,
+	     int opindex, signed long *valuep)
+{
+  const char *errmsg = 0;
+  signed long value;
+  
+  errmsg = cgen_parse_signed_integer (cd, strp, opindex, & value);
+  if (errmsg)
+    return errmsg;
+
+  if (value < 0 || value > 7)
+    return _("immediate is out of range 0-7");
+
+  *valuep = value;
+  return 0;
+}
+
+static const char *
+parse_lab_5_3 (CGEN_CPU_DESC cd,
+	       const char **strp,
+	       int opindex ATTRIBUTE_UNUSED,
+	       int opinfo,
+	       enum cgen_parse_operand_result *type_addr,
+	       bfd_vma *valuep)
+{
+  const char *errmsg = 0;
+  bfd_vma value;
+  enum cgen_parse_operand_result op_res;
+
+  errmsg = cgen_parse_address (cd, strp, M32C_OPERAND_LAB_5_3,
+			       opinfo, & op_res, & value);
+
+  if (type_addr)
+    *type_addr = op_res;
+
+  if (op_res == CGEN_PARSE_OPERAND_ADDRESS)
+    {
+      /* This is a hack; the field cannot handle near-zero signed
+	 offsets that CGEN wants to put in to indicate an "empty"
+	 operand at first.  */
+      *valuep = 2;
+      return 0;
+    }
+  if (errmsg)
+    return errmsg;
+
+  if (value < 2 || value > 9)
+    return _("immediate is out of range 2-9");
+
+  *valuep = value;
+  return 0;
+}
+
+static const char *
+parse_Bitno16R (CGEN_CPU_DESC cd, const char **strp,
+		int opindex, unsigned long *valuep)
+{
+  const char *errmsg = 0;
+  unsigned long value;
+
+  errmsg = cgen_parse_unsigned_integer (cd, strp, opindex, & value);
+  if (errmsg)
+    return errmsg;
+
+  if (value > 15)
+    return _("Bit number for indexing general register is out of range 0-15");
+
+  *valuep = value;
+  return 0;
+}
+
+static const char *
+parse_unsigned_bitbase (CGEN_CPU_DESC cd, const char **strp,
+			int opindex, unsigned long *valuep,
+			unsigned bits, int allow_syms)
+{
+  const char *errmsg = 0;
+  unsigned long bit;
+  unsigned long base;
+  const char *newp = *strp;
+  unsigned long long bitbase;
+  long have_zero = 0;
+
+  errmsg = cgen_parse_unsigned_integer (cd, & newp, opindex, & bit);
+  if (errmsg)
+    return errmsg;
+
+  if (*newp != ',')
+    return "Missing base for bit,base:8";
+
+  ++newp;
+
+  if (strncmp (newp, "0x0", 3) == 0 
+      || (newp[0] == '0' && newp[1] != 'x'))
+    have_zero = 1;
+
+  errmsg = cgen_parse_unsigned_integer (cd, & newp, opindex, & base);
+  if (errmsg)
+    return errmsg;
+
+  bitbase = (unsigned long long) bit + ((unsigned long long) base * 8);
+
+  if (bitbase >= (1ull << bits))
+    return _("bit,base is out of range");
+
+  /* If this field may require a relocation then use larger displacement.  */
+  if (! have_zero && base == 0)
+    {
+      switch (allow_syms) {
+      case 0:
+	return _("bit,base out of range for symbol");
+      case 1:
+	break;
+      case 2:
+	if (strncmp (newp, "[sb]", 4) != 0)
+	  return _("bit,base out of range for symbol");
+	break;
+      }
+    }
+
+  *valuep = bitbase;
+  *strp = newp;
+  return 0;
+}
+
+static const char *
+parse_signed_bitbase (CGEN_CPU_DESC cd, const char **strp,
+		      int opindex, signed long *valuep,
+		      unsigned bits, int allow_syms)
+{
+  const char *errmsg = 0;
+  unsigned long bit;
+  signed long base;
+  const char *newp = *strp;
+  long long bitbase;
+  long long limit;
+  long have_zero = 0;
+
+  errmsg = cgen_parse_unsigned_integer (cd, & newp, opindex, & bit);
+  if (errmsg)
+    return errmsg;
+
+  if (*newp != ',')
+    return "Missing base for bit,base:8";
+
+  ++newp;
+
+  if (strncmp (newp, "0x0", 3) == 0 
+      || (newp[0] == '0' && newp[1] != 'x'))
+    have_zero = 1;
+
+  errmsg = cgen_parse_signed_integer (cd, & newp, opindex, & base);
+  if (errmsg)
+    return errmsg;
+
+  bitbase = (long long)bit + ((long long)base * 8);
+
+  limit = 1ll << (bits - 1);
+  if (bitbase < -limit || bitbase >= limit)
+    return _("bit,base is out of range");
+
+  /* If this field may require a relocation then use larger displacement.  */
+  if (! have_zero && base == 0 && ! allow_syms)
+    return _("bit,base out of range for symbol");
+
+  *valuep = bitbase;
+  *strp = newp;
+  return 0;
+}
+
+static const char *
+parse_unsigned_bitbase8 (CGEN_CPU_DESC cd, const char **strp,
+			 int opindex, unsigned long *valuep)
+{
+  return parse_unsigned_bitbase (cd, strp, opindex, valuep, 8, 0);
+}
+
+static const char *
+parse_unsigned_bitbase11 (CGEN_CPU_DESC cd, const char **strp,
+			 int opindex, unsigned long *valuep)
+{
+  return parse_unsigned_bitbase (cd, strp, opindex, valuep, 11, 0);
+}
+
+static const char *
+parse_unsigned_bitbase16 (CGEN_CPU_DESC cd, const char **strp,
+			  int opindex, unsigned long *valuep)
+{
+  return parse_unsigned_bitbase (cd, strp, opindex, valuep, 16, 1);
+}
+
+static const char *
+parse_unsigned_bitbase19 (CGEN_CPU_DESC cd, const char **strp,
+			 int opindex, unsigned long *valuep)
+{
+  return parse_unsigned_bitbase (cd, strp, opindex, valuep, 19, 2);
+}
+
+static const char *
+parse_unsigned_bitbase27 (CGEN_CPU_DESC cd, const char **strp,
+			 int opindex, unsigned long *valuep)
+{
+  return parse_unsigned_bitbase (cd, strp, opindex, valuep, 27, 1);
+}
+
+static const char *
+parse_signed_bitbase8 (CGEN_CPU_DESC cd, const char **strp,
+		       int opindex, signed long *valuep)
+{
+  return parse_signed_bitbase (cd, strp, opindex, valuep, 8, 1);
+}
+
+static const char *
+parse_signed_bitbase11 (CGEN_CPU_DESC cd, const char **strp,
+		       int opindex, signed long *valuep)
+{
+  return parse_signed_bitbase (cd, strp, opindex, valuep, 11, 0);
+}
+
+static const char *
+parse_signed_bitbase19 (CGEN_CPU_DESC cd, const char **strp,
+		       int opindex, signed long *valuep)
+{
+  return parse_signed_bitbase (cd, strp, opindex, valuep, 19, 1);
+}
+
+/* Parse the suffix as :<char> or as nothing followed by a whitespace.  */
+
+static const char *
+parse_suffix (const char **strp, char suffix)
+{
+  const char *newp = *strp;
+  
+  if (**strp == ':' && TOLOWER (*(*strp + 1)) == suffix)
+    newp = *strp + 2;
+
+  if (ISSPACE (*newp))
+    {
+      *strp = newp;
+      return 0;
+    }
+	
+  return "Invalid suffix"; /* Anything -- will not be seen.  */
+}
+
+static const char *
+parse_S (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED, const char **strp,
+	 int opindex ATTRIBUTE_UNUSED, signed long *valuep ATTRIBUTE_UNUSED)
+{
+  return parse_suffix (strp, 's');
+}
+
+static const char *
+parse_G (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED, const char **strp,
+	 int opindex ATTRIBUTE_UNUSED, signed long *valuep ATTRIBUTE_UNUSED)
+{
+  return parse_suffix (strp, 'g');
+}
+
+static const char *
+parse_Q (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED, const char **strp,
+	 int opindex ATTRIBUTE_UNUSED, signed long *valuep ATTRIBUTE_UNUSED)
+{
+  return parse_suffix (strp, 'q');
+}
+
+static const char *
+parse_Z (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED, const char **strp,
+	 int opindex ATTRIBUTE_UNUSED, signed long *valuep ATTRIBUTE_UNUSED)
+{
+  return parse_suffix (strp, 'z');
+}
+
+/* Parse an empty suffix. Fail if the next char is ':'.  */
+
+static const char *
+parse_X (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED, const char **strp,
+	 int opindex ATTRIBUTE_UNUSED, signed long *valuep ATTRIBUTE_UNUSED)
+{
+  if (**strp == ':')
+    return "Unexpected suffix";
+  return 0;
+}
+
+static const char *
+parse_r0l_r0h (CGEN_CPU_DESC cd, const char **strp,
+	       int opindex ATTRIBUTE_UNUSED, signed long *valuep)
+{
+  const char *errmsg;
+  signed long value;
+  signed long junk;
+  const char *newp = *strp;
+
+  /* Parse r0[hl].  */
+  errmsg = cgen_parse_keyword (cd, & newp, & m32c_cgen_opval_h_r0l_r0h, & value);
+  if (errmsg)
+    return errmsg;
+
+  if (*newp != ',')
+    return _("not a valid r0l/r0h pair");
+  ++newp;
+
+  /* Parse the second register in the pair.  */
+  if (value == 0) /* r0l */
+    errmsg = cgen_parse_keyword (cd, & newp, & m32c_cgen_opval_h_r0h, & junk);
+  else
+    errmsg = cgen_parse_keyword (cd, & newp, & m32c_cgen_opval_h_r0l, & junk);
+  if (errmsg)
+    return errmsg;
+
+  *strp = newp;
+  *valuep = ! value;
+  return 0;
+}
+
+/* Accept .b or .w in any case.  */
+
+static const char *
+parse_size (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED, const char **strp,
+	    int opindex ATTRIBUTE_UNUSED, signed long *valuep ATTRIBUTE_UNUSED)
+{
+  if (**strp == '.'
+      && (*(*strp + 1) == 'b' || *(*strp + 1) == 'B'
+	  || *(*strp + 1) == 'w' || *(*strp + 1) == 'W'))
+    {
+      *strp += 2;
+      return NULL;
+    }
+
+  return _("Invalid size specifier");
+}
+
+/* Special check to ensure that instruction exists for given machine.  */
+
+int
+m32c_cgen_insn_supported (CGEN_CPU_DESC cd,
+			  const CGEN_INSN *insn)
+{
+  int machs = CGEN_INSN_ATTR_VALUE (insn, CGEN_INSN_MACH);
+  CGEN_BITSET isas = CGEN_INSN_BITSET_ATTR_VALUE (insn, CGEN_INSN_ISA);
+
+  /* If attributes are absent, assume no restriction.  */
+  if (machs == 0)
+    machs = ~0;
+
+  return ((machs & cd->machs)
+          && cgen_bitset_intersect_p (& isas, cd->isas));
+}
+
+/* Parse a set of registers, R0,R1,A0,A1,SB,FB.  */
+
+static const char *
+parse_regset (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+	      const char **strp,
+	      int opindex ATTRIBUTE_UNUSED,
+	      unsigned long *valuep,
+	      int push)
+{
+  const char *errmsg = 0;
+  int regno = 0;
+ 
+  *valuep = 0;
+  while (**strp && **strp != ')')
+    {
+      if (**strp == 'r' || **strp == 'R')
+	{
+	  ++*strp;
+	  regno = **strp - '0';
+	  if (regno > 4)
+	    errmsg = _("Register number is not valid");
+	}
+      else if (**strp == 'a' || **strp == 'A')
+	{
+	  ++*strp;
+	  regno = **strp - '0';
+	  if (regno > 2)
+	    errmsg = _("Register number is not valid");
+	  regno = **strp - '0' + 4;
+	}
+      
+      else if (strncasecmp (*strp, "sb", 2) == 0 || strncasecmp (*strp, "SB", 2) == 0)
+	{
+	  regno = 6;
+	  ++*strp;
+	}
+      
+      else if (strncasecmp (*strp, "fb", 2) == 0 || strncasecmp (*strp, "FB", 2) == 0)
+	{
+	  regno = 7;
+	  ++*strp;
+	}
+      
+      if (push) /* Mask is reversed for push.  */
+	*valuep |= 0x80 >> regno;
+      else
+	*valuep |= 1 << regno;
+
+      ++*strp;
+      if (**strp == ',')
+        {
+          if (*(*strp + 1) == ')')
+            break;
+          ++*strp;
+        }
+    }
+
+  if (!*strp)
+    errmsg = _("Register list is not valid");
+
+  return errmsg;
+}
+
+#define POP  0
+#define PUSH 1
+
+static const char *
+parse_pop_regset (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+		  const char **strp,
+		  int opindex ATTRIBUTE_UNUSED,
+		  unsigned long *valuep)
+{
+  return parse_regset (cd, strp, opindex, valuep, POP);
+}
+
+static const char *
+parse_push_regset (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+		   const char **strp,
+		   int opindex ATTRIBUTE_UNUSED,
+		   unsigned long *valuep)
+{
+  return parse_regset (cd, strp, opindex, valuep, PUSH);
+}
+
+/* -- dis.c */
+
+#include "elf/m32c.h"
+#include "elf-bfd.h"
+
+/* Always print the short insn format suffix as ':<char>'.  */
+
+static void
+print_suffix (void * dis_info, char suffix)
+{
+  disassemble_info *info = dis_info;
+
+  (*info->fprintf_func) (info->stream, ":%c", suffix);
+}
+
+static void
+print_S (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+	 void * dis_info,
+	 long value ATTRIBUTE_UNUSED,
+	 unsigned int attrs ATTRIBUTE_UNUSED,
+	 bfd_vma pc ATTRIBUTE_UNUSED,
+	 int length ATTRIBUTE_UNUSED)
+{
+  print_suffix (dis_info, 's');
+}
+
+
+static void
+print_G (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+	 void * dis_info,
+	 long value ATTRIBUTE_UNUSED,
+	 unsigned int attrs ATTRIBUTE_UNUSED,
+	 bfd_vma pc ATTRIBUTE_UNUSED,
+	 int length ATTRIBUTE_UNUSED)
+{
+  print_suffix (dis_info, 'g');
+}
+
+static void
+print_Q (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+	 void * dis_info,
+	 long value ATTRIBUTE_UNUSED,
+	 unsigned int attrs ATTRIBUTE_UNUSED,
+	 bfd_vma pc ATTRIBUTE_UNUSED,
+	 int length ATTRIBUTE_UNUSED)
+{
+  print_suffix (dis_info, 'q');
+}
+
+static void
+print_Z (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+	 void * dis_info,
+	 long value ATTRIBUTE_UNUSED,
+	 unsigned int attrs ATTRIBUTE_UNUSED,
+	 bfd_vma pc ATTRIBUTE_UNUSED,
+	 int length ATTRIBUTE_UNUSED)
+{
+  print_suffix (dis_info, 'z');
+}
+
+/* Print the empty suffix.  */
+
+static void
+print_X (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+	 void * dis_info ATTRIBUTE_UNUSED,
+	 long value ATTRIBUTE_UNUSED,
+	 unsigned int attrs ATTRIBUTE_UNUSED,
+	 bfd_vma pc ATTRIBUTE_UNUSED,
+	 int length ATTRIBUTE_UNUSED)
+{
+  return;
+}
+
+static void
+print_r0l_r0h (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+	       void * dis_info,
+	       long value,
+	       unsigned int attrs ATTRIBUTE_UNUSED,
+	       bfd_vma pc ATTRIBUTE_UNUSED,
+	       int length ATTRIBUTE_UNUSED)
+{
+  disassemble_info *info = dis_info;
+
+  if (value == 0)
+    (*info->fprintf_func) (info->stream, "r0h,r0l");
+  else
+    (*info->fprintf_func) (info->stream, "r0l,r0h");
+}
+
+static void
+print_unsigned_bitbase (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+			void * dis_info,
+			unsigned long value,
+			unsigned int attrs ATTRIBUTE_UNUSED,
+			bfd_vma pc ATTRIBUTE_UNUSED,
+			int length ATTRIBUTE_UNUSED)
+{
+  disassemble_info *info = dis_info;
+
+  (*info->fprintf_func) (info->stream, "%ld,0x%lx", value & 0x7, value >> 3);
+}
+
+static void
+print_signed_bitbase (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+		      void * dis_info,
+		      signed long value,
+		      unsigned int attrs ATTRIBUTE_UNUSED,
+		      bfd_vma pc ATTRIBUTE_UNUSED,
+		      int length ATTRIBUTE_UNUSED)
+{
+  disassemble_info *info = dis_info;
+
+  (*info->fprintf_func) (info->stream, "%ld,%ld", value & 0x7, value >> 3);
+}
+
+static void
+print_size (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+	    void * dis_info,
+	    long value ATTRIBUTE_UNUSED,
+	    unsigned int attrs ATTRIBUTE_UNUSED,
+	    bfd_vma pc ATTRIBUTE_UNUSED,
+	    int length ATTRIBUTE_UNUSED)
+{
+  /* Always print the size as '.w'.  */
+  disassemble_info *info = dis_info;
+
+  (*info->fprintf_func) (info->stream, ".w");
+}
+
+#define POP  0
+#define PUSH 1
+
+static void print_pop_regset  (CGEN_CPU_DESC, void *, long, unsigned int, bfd_vma, int);
+static void print_push_regset (CGEN_CPU_DESC, void *, long, unsigned int, bfd_vma, int);
+
+/* Print a set of registers, R0,R1,A0,A1,SB,FB.  */
+
+static void
+print_regset (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+	      void * dis_info,
+	      long value,
+	      unsigned int attrs ATTRIBUTE_UNUSED,
+	      bfd_vma pc ATTRIBUTE_UNUSED,
+	      int length ATTRIBUTE_UNUSED,
+	      int push)
+{
+  static char * m16c_register_names [] = 
+  {
+    "r0", "r1", "r2", "r3", "a0", "a1", "sb", "fb"
+  };
+  disassemble_info *info = dis_info;
+  int mask;
+  int index = 0;
+  char* comma = "";
+
+  if (push)
+    mask = 0x80;
+  else
+    mask = 1;
+ 
+  if (value & mask)
+    {
+      (*info->fprintf_func) (info->stream, "%s", m16c_register_names [0]);
+      comma = ",";
+    }
+
+  for (index = 1; index <= 7; ++index)
+    {
+      if (push)
+        mask >>= 1;
+      else
+        mask <<= 1;
+
+      if (value & mask)
+        {
+          (*info->fprintf_func) (info->stream, "%s%s", comma,
+				 m16c_register_names [index]);
+          comma = ",";
+        }
+    }
+}
+
+static void
+print_pop_regset (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+		  void * dis_info,
+		  long value,
+		  unsigned int attrs ATTRIBUTE_UNUSED,
+		  bfd_vma pc ATTRIBUTE_UNUSED,
+		  int length ATTRIBUTE_UNUSED)
+{
+  print_regset (cd, dis_info, value, attrs, pc, length, POP);
+}
+
+static void
+print_push_regset (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+		   void * dis_info,
+		   long value,
+		   unsigned int attrs ATTRIBUTE_UNUSED,
+		   bfd_vma pc ATTRIBUTE_UNUSED,
+		   int length ATTRIBUTE_UNUSED)
+{
+  print_regset (cd, dis_info, value, attrs, pc, length, PUSH);
+}
+
+static void
+print_signed4n (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
+		void * dis_info,
+		signed long value,
+		unsigned int attrs ATTRIBUTE_UNUSED,
+		bfd_vma pc ATTRIBUTE_UNUSED,
+		int length ATTRIBUTE_UNUSED)
+{
+  disassemble_info *info = dis_info;
+
+  (*info->fprintf_func) (info->stream, "%ld", -value);
+}

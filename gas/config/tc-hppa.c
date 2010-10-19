@@ -1,6 +1,6 @@
 /* tc-hppa.c -- Assemble for the PA
    Copyright 1989, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003 Free Software Foundation, Inc.
+   2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* HP PA-RISC support was contributed by the Center for Software Science
    at the University of Utah.  */
@@ -363,6 +363,9 @@ struct default_subspace_dict
     /* Nonzero if this subspace contains only code.  */
     char code_only;
 
+    /* Nonzero if this is a comdat subspace.  */
+    char comdat;
+
     /* Nonzero if this is a common subspace.  */
     char common;
 
@@ -544,7 +547,7 @@ static int need_pa11_opcode PARAMS ((void));
 static int pa_parse_number PARAMS ((char **, int));
 static label_symbol_struct *pa_get_label PARAMS ((void));
 #ifdef OBJ_SOM
-static int log2 PARAMS ((int));
+static int exact_log2 PARAMS ((int));
 static void pa_compiler PARAMS ((int));
 static void pa_align PARAMS ((int));
 static void pa_space PARAMS ((int));
@@ -555,13 +558,13 @@ static sd_chain_struct *create_new_space PARAMS ((char *, int, int,
 						  asection *, int));
 static ssd_chain_struct *create_new_subspace PARAMS ((sd_chain_struct *,
 						      char *, int, int,
-						      int, int, int,
+						      int, int, int, int,
 						      int, int, int, int,
 						      int, asection *));
 static ssd_chain_struct *update_subspace PARAMS ((sd_chain_struct *,
 						  char *, int, int, int,
 						  int, int, int, int,
-						  int, int, int,
+						  int, int, int, int,
 						  asection *));
 static sd_chain_struct *is_defined_space PARAMS ((char *));
 static ssd_chain_struct *is_defined_subspace PARAMS ((char *));
@@ -571,7 +574,6 @@ static ssd_chain_struct *pa_subsegment_to_subspace PARAMS ((asection *,
 static sd_chain_struct *pa_find_space_by_number PARAMS ((int));
 static unsigned int pa_subspace_start PARAMS ((sd_chain_struct *, int));
 static sd_chain_struct *pa_parse_space_stmt PARAMS ((char *, int));
-static int pa_next_subseg PARAMS ((sd_chain_struct *));
 static void pa_spaces_begin PARAMS ((void));
 #endif
 static void pa_ip PARAMS ((char *));
@@ -769,11 +771,15 @@ static label_symbol_struct *label_symbols_rootp = NULL;
 /* Holds the last field selector.  */
 static int hppa_field_selector;
 
-/* Nonzero when strict syntax checking is enabled.  Zero otherwise.
+/* Nonzero when strict matching is enabled.  Zero otherwise.
 
-   Each opcode in the table has a flag which indicates whether or not
-   strict syntax checking should be enabled for that instruction.  */
-static int strict = 0;
+   Each opcode in the table has a flag which indicates whether or
+   not strict matching should be enabled for that instruction.
+
+   Mainly, strict causes errors to be ignored when a match failure
+   occurs.  However, it also affects the parsing of register fields
+   by pa_parse_number.  */
+static int strict;
 
 /* pa_parse_number returns values in `pa_number'.  Mostly
    pa_parse_number is used to return a register number, with floating
@@ -809,6 +815,7 @@ static int print_errors = 1;
 
    %r26 - %r23 have %arg0 - %arg3 as synonyms
    %r28 - %r29 have %ret0 - %ret1 as synonyms
+   %fr4 - %fr7 have %farg0 - %farg3 as synonyms
    %r30 has %sp as a synonym
    %r27 has %dp as a synonym
    %r2  has %rp as a synonym
@@ -852,10 +859,10 @@ static const struct pd_reg pre_defined_registers[] =
   {"%dp",    27},
   {"%eiem",  15},
   {"%eirr",  23},
-  {"%farg0",  5},
-  {"%farg1",  6},
-  {"%farg2",  7},
-  {"%farg3",  8},
+  {"%farg0",  4 + FP_REG_BASE},
+  {"%farg1",  5 + FP_REG_BASE},
+  {"%farg2",  6 + FP_REG_BASE},
+  {"%farg3",  7 + FP_REG_BASE},
   {"%fr0",    0 + FP_REG_BASE},
   {"%fr0l",   0 + FP_REG_BASE},
   {"%fr0r",   0 + FP_REG_BASE + FP_REG_RSEL},
@@ -1117,12 +1124,12 @@ static const struct selector_entry selector_table[] =
 
 static struct default_subspace_dict pa_def_subspaces[] =
 {
-  {"$CODE$", 1, 1, 1, 0, 0, 0, 24, 0x2c, 0, 8, 0, 0, SUBSEG_CODE},
-  {"$DATA$", 1, 1, 0, 0, 0, 0, 24, 0x1f, 1, 8, 1, 1, SUBSEG_DATA},
-  {"$LIT$", 1, 1, 0, 0, 0, 0, 16, 0x2c, 0, 8, 0, 0, SUBSEG_LIT},
-  {"$MILLICODE$", 1, 1, 0, 0, 0, 0, 8, 0x2c, 0, 8, 0, 0, SUBSEG_MILLI},
-  {"$BSS$", 1, 1, 0, 0, 0, 1, 80, 0x1f, 1, 8, 1, 1, SUBSEG_BSS},
-  {NULL, 0, 1, 0, 0, 0, 0, 255, 0x1f, 0, 4, 0, 0, 0}
+  {"$CODE$", 1, 1, 1, 0, 0, 0, 0, 24, 0x2c, 0, 8, 0, 0, SUBSEG_CODE},
+  {"$DATA$", 1, 1, 0, 0, 0, 0, 0, 24, 0x1f, 1, 8, 1, 1, SUBSEG_DATA},
+  {"$LIT$", 1, 1, 0, 0, 0, 0, 0, 16, 0x2c, 0, 8, 0, 0, SUBSEG_LIT},
+  {"$MILLICODE$", 1, 1, 0, 0, 0, 0, 0, 8, 0x2c, 0, 8, 0, 0, SUBSEG_MILLI},
+  {"$BSS$", 1, 1, 0, 0, 0, 0, 1, 80, 0x1f, 1, 8, 1, 1, SUBSEG_BSS},
+  {NULL, 0, 1, 0, 0, 0, 0, 0, 255, 0x1f, 0, 4, 0, 0, 0}
 };
 
 static struct default_space_dict pa_def_spaces[] =
@@ -1172,7 +1179,7 @@ static struct default_space_dict pa_def_spaces[] =
       } \
   }
 
-/* Variant of CHECK_FIELD for use in md_apply_fix3 and other places where
+/* Variant of CHECK_FIELD for use in md_apply_fix and other places where
    the current file and line number are not valid.  */
 
 #define CHECK_FIELD_WHERE(FIELD, HIGH, LOW, FILENAME, LINE) \
@@ -1284,6 +1291,10 @@ pa_define_label (symbol)
 
       label_symbols_rootp = label_chain;
     }
+
+#ifdef OBJ_ELF
+  dwarf2_emit_label (symbol);
+#endif
 }
 
 /* Removes a label definition for the current space.
@@ -1611,7 +1622,8 @@ pa_ip (str)
       break;
 
     default:
-      as_fatal (_("Unknown opcode: `%s'"), str);
+      as_bad (_("Unknown opcode: `%s'"), str);
+      return;
     }
 
   /* Look up the opcode in the has table.  */
@@ -1638,21 +1650,9 @@ pa_ip (str)
 
       the_insn.reloc = R_HPPA_NONE;
 
-      /* If this instruction is specific to a particular architecture,
-	 then set a new architecture.  */
-      /* But do not automatically promote to pa2.0.  The automatic promotion
-	 crud is for compatibility with HP's old assemblers only.  */
-      if (insn->arch < 20
+      if (insn->arch >= pa20
 	  && bfd_get_mach (stdoutput) < insn->arch)
-	{
-	  if (!bfd_set_arch_mach (stdoutput, bfd_arch_hppa, insn->arch))
-	    as_warn (_("could not update architecture and machine"));
-	}
-      else if (bfd_get_mach (stdoutput) < insn->arch)
-	{
-	  match = FALSE;
-	  goto failed;
-	}
+	goto failed;
 
       /* Build the opcode, checking as we go to make
          sure that the operands match.  */
@@ -1847,9 +1847,9 @@ pa_ip (str)
 			else if ((strncasecmp (s, "s ", 2) == 0)
 				 || (strncasecmp (s, "s,", 2) == 0))
 			  uu = 1;
-			/* When in strict mode this is a match failure.  */
 			else if (strict)
 			  {
+			    /* This is a match failure.  */
 			    s--;
 			    break;
 			  }
@@ -1875,28 +1875,25 @@ pa_ip (str)
 		    int m = 0;
 		    if (*s == ',')
 		      {
-			int found = 0;
 			s++;
 			if (strncasecmp (s, "ma", 2) == 0)
 			  {
 			    a = 0;
 			    m = 1;
-			    found = 1;
+			    s += 2;
 			  }
 			else if (strncasecmp (s, "mb", 2) == 0)
 			  {
 			    a = 1;
 			    m = 1;
-			    found = 1;
+			    s += 2;
 			  }
-
-			/* When in strict mode, pass through for cache op.  */
-			if (!found && strict)
+			else if (strict)
+			  /* This is a match failure.  */
 			  s--;
 			else
 			  {
-			    if (!found)
-			      as_bad (_("Invalid Short Load/Store Completer."));
+			    as_bad (_("Invalid Short Load/Store Completer."));
 			    s += 2;
 			  }
 		      }
@@ -1949,7 +1946,7 @@ pa_ip (str)
 			  a = 0;
 			else if (strncasecmp (s, "e", 1) == 0)
 			  a = 1;
-			/* When in strict mode this is a match failure.  */
+			/* In strict mode, this is a match failure.  */
 			else if (strict)
 			  {
 			    s--;
@@ -3073,6 +3070,8 @@ pa_ip (str)
 
 	    /* Handle 14 bit immediate, shifted left three times.  */
 	    case '#':
+	      if (bfd_get_mach (stdoutput) != pa20)
+		break;
 	      the_insn.field_selector = pa_chk_field_selector (&s);
 	      get_expression (s);
 	      s = expr_end;
@@ -3959,6 +3958,17 @@ pa_ip (str)
 	  break;
 	}
 
+      /* If this instruction is specific to a particular architecture,
+	 then set a new architecture.  This automatic promotion crud is
+	 for compatibility with HP's old assemblers only.  */
+      if (match == TRUE
+	  && bfd_get_mach (stdoutput) < insn->arch
+	  && !bfd_set_arch_mach (stdoutput, bfd_arch_hppa, insn->arch))
+	{
+	  as_warn (_("could not update architecture and machine"));
+	  match = FALSE;
+	}
+
  failed:
       /* Check if the args matched.  */
       if (!match)
@@ -4421,12 +4431,12 @@ md_undefined_symbol (name)
 /* Apply a fixup to an instruction.  */
 
 void
-md_apply_fix3 (fixP, valP, seg)
+md_apply_fix (fixP, valP, seg)
      fixS *fixP;
      valueT *valP;
      segT seg ATTRIBUTE_UNUSED;
 {
-  unsigned char *buf;
+  char *fixpos;
   struct hppa_fix_struct *hppa_fixP;
   offsetT new_val;
   int insn, val, fmt;
@@ -4460,8 +4470,7 @@ md_apply_fix3 (fixP, valP, seg)
   if (fixP->fx_addsy == NULL && fixP->fx_pcrel == 0)
     fixP->fx_done = 1;
 
-  /* There should have been an HPPA specific fixup associated
-     with the GAS fixup.  */
+  /* There should be a HPPA specific fixup associated with the GAS fixup.  */
   hppa_fixP = (struct hppa_fix_struct *) fixP->tc_fix_data;
   if (hppa_fixP == NULL)
     {
@@ -4471,8 +4480,16 @@ md_apply_fix3 (fixP, valP, seg)
       return;
     }
 
-  buf = (unsigned char *) (fixP->fx_frag->fr_literal + fixP->fx_where);
-  insn = bfd_get_32 (stdoutput, buf);
+  fixpos = fixP->fx_frag->fr_literal + fixP->fx_where;
+
+  if (fixP->fx_size != 4 || hppa_fixP->fx_r_format == 32)
+    {
+      /* Handle constant output. */
+      number_to_chars_bigendian (fixpos, *valP, fixP->fx_size);
+      return;
+    }
+
+  insn = bfd_get_32 (stdoutput, fixpos);
   fmt = bfd_hppa_insn2fmt (stdoutput, insn);
 
   /* If there is a symbol associated with this fixup, then it's something
@@ -4642,7 +4659,7 @@ md_apply_fix3 (fixP, valP, seg)
     }
 
   /* Insert the relocation.  */
-  bfd_put_32 (stdoutput, insn, buf);
+  bfd_put_32 (stdoutput, insn, fixpos);
 }
 
 /* Exactly what point is a PC-relative offset relative TO?
@@ -5925,8 +5942,8 @@ pa_align (bytes)
 
   /* If bytes is a power of 2, then update the current subspace's
      alignment if necessary.  */
-  if (log2 (bytes) != -1)
-    record_alignment (current_subspace->ssd_seg, log2 (bytes));
+  if (exact_log2 (bytes) != -1)
+    record_alignment (current_subspace->ssd_seg, exact_log2 (bytes));
 }
 #endif
 
@@ -5936,10 +5953,7 @@ static void
 pa_block (z)
      int z ATTRIBUTE_UNUSED;
 {
-  char *p;
-  long int temp_fill;
   unsigned int temp_size;
-  unsigned int i;
 
 #ifdef OBJ_SOM
   /* We must have a valid space and subspace.  */
@@ -5948,20 +5962,16 @@ pa_block (z)
 
   temp_size = get_absolute_expression ();
 
-  /* Always fill with zeros, that's what the HP assembler does.  */
-  temp_fill = 0;
-
-  p = frag_var (rs_fill, (int) temp_size, (int) temp_size,
-		(relax_substateT) 0, (symbolS *) 0, (offsetT) 1, NULL);
-  memset (p, 0, temp_size);
-
-  /* Convert 2 bytes at a time.  */
-
-  for (i = 0; i < temp_size; i += 2)
+  if (temp_size > 0x3FFFFFFF)
     {
-      md_number_to_chars (p + i,
-			  (valueT) temp_fill,
-			  (int) ((temp_size - i) > 2 ? 2 : (temp_size - i)));
+      as_bad (_("Argument to .BLOCK/.BLOCKZ must be between 0 and 0x3fffffff"));
+      temp_size = 0;
+    }
+  else
+    {
+      /* Always fill with zeros, that's what the HP assembler does.  */
+      char *p = frag_var (rs_fill, 1, 1, 0, NULL, temp_size, NULL);
+      *p = 0;
     }
 
   pa_undefine_label ();
@@ -6390,7 +6400,7 @@ pa_comm (unused)
     {
       symbol_get_bfdsym (symbol)->flags |= BSF_OBJECT;
       S_SET_VALUE (symbol, size);
-      S_SET_SEGMENT (symbol, bfd_und_section_ptr);
+      S_SET_SEGMENT (symbol, bfd_com_section_ptr);
       S_SET_EXTERNAL (symbol);
 
       /* colon() has already set the frag to the current location in the
@@ -7147,7 +7157,7 @@ pa_procend (unused)
    return log2 (VALUE).  Else return -1.  */
 
 static int
-log2 (value)
+exact_log2 (value)
      int value;
 {
   int shift = 0;
@@ -7454,7 +7464,7 @@ pa_subspace (create_new)
      int create_new;
 {
   char *name, *ss_name, c;
-  char loadable, code_only, common, dup_common, zero, sort;
+  char loadable, code_only, comdat, common, dup_common, zero, sort;
   int i, access, space_index, alignment, quadrant, applicable, flags;
   sd_chain_struct *space;
   ssd_chain_struct *ssd;
@@ -7480,6 +7490,7 @@ pa_subspace (create_new)
       sort = 0;
       access = 0x7f;
       loadable = 1;
+      comdat = 0;
       common = 0;
       dup_common = 0;
       code_only = 0;
@@ -7514,6 +7525,7 @@ pa_subspace (create_new)
 	      if (strcasecmp (pa_def_subspaces[i].name, ss_name) == 0)
 		{
 		  loadable = pa_def_subspaces[i].loadable;
+		  comdat = pa_def_subspaces[i].comdat;
 		  common = pa_def_subspaces[i].common;
 		  dup_common = pa_def_subspaces[i].dup_common;
 		  code_only = pa_def_subspaces[i].code_only;
@@ -7549,7 +7561,7 @@ pa_subspace (create_new)
 		  *input_line_pointer = c;
 		  input_line_pointer++;
 		  alignment = get_absolute_expression ();
-		  if (log2 (alignment) == -1)
+		  if (exact_log2 (alignment) == -1)
 		    {
 		      as_bad (_("Alignment must be a power of 2"));
 		      alignment = 1;
@@ -7576,6 +7588,11 @@ pa_subspace (create_new)
 		{
 		  *input_line_pointer = c;
 		  loadable = 0;
+		}
+	      else if ((strncasecmp (name, "comdat", 6) == 0))
+		{
+		  *input_line_pointer = c;
+		  comdat = 1;
 		}
 	      else if ((strncasecmp (name, "common", 6) == 0))
 		{
@@ -7609,8 +7626,17 @@ pa_subspace (create_new)
 	flags |= (SEC_ALLOC | SEC_LOAD);
       if (code_only)
 	flags |= SEC_CODE;
-      if (common || dup_common)
-	flags |= SEC_IS_COMMON;
+
+      /* These flags are used to implement various flavors of initialized
+	 common.  The SOM linker discards duplicate subspaces when they
+	 have the same "key" symbol name.  This support is more like
+	 GNU linkonce than BFD common.  Further, pc-relative relocations
+	 are converted to section relative relocations in BFD common
+	 sections.  This complicates the handling of relocations in
+	 common sections containing text and isn't currently supported
+	 correctly in the SOM BFD backend.  */
+      if (comdat || common || dup_common)
+	flags |= SEC_LINK_ONCE;
 
       flags |= SEC_RELOC | SEC_HAS_CONTENTS;
 
@@ -7641,7 +7667,7 @@ pa_subspace (create_new)
       bfd_set_section_flags (stdoutput, section, applicable);
 
       /* Record any alignment request for this section.  */
-      record_alignment (section, log2 (alignment));
+      record_alignment (section, exact_log2 (alignment));
 
       /* Set the starting offset for this section.  */
       bfd_set_section_vma (stdoutput, section,
@@ -7652,16 +7678,16 @@ pa_subspace (create_new)
       if (ssd)
 
 	current_subspace = update_subspace (space, ss_name, loadable,
-					    code_only, common, dup_common,
-					    sort, zero, access, space_index,
-					    alignment, quadrant,
+					    code_only, comdat, common,
+					    dup_common, sort, zero, access,
+					    space_index, alignment, quadrant,
 					    section);
       else
 	current_subspace = create_new_subspace (space, ss_name, loadable,
-						code_only, common,
+						code_only, comdat, common,
 						dup_common, zero, sort,
 						access, space_index,
-					      alignment, quadrant, section);
+						alignment, quadrant, section);
 
       demand_empty_rest_of_line ();
       current_subspace->ssd_seg = section;
@@ -7782,6 +7808,7 @@ pa_spaces_begin ()
       create_new_subspace (space, name,
 			   pa_def_subspaces[i].loadable,
 			   pa_def_subspaces[i].code_only,
+			   pa_def_subspaces[i].comdat,
 			   pa_def_subspaces[i].common,
 			   pa_def_subspaces[i].dup_common,
 			   pa_def_subspaces[i].zero,
@@ -7803,7 +7830,7 @@ create_new_space (name, spnum, loadable, defined, private,
 		  sort, seg, user_defined)
      char *name;
      int spnum;
-     int loadable;
+     int loadable ATTRIBUTE_UNUSED;
      int defined;
      int private;
      int sort;
@@ -7883,16 +7910,19 @@ create_new_space (name, spnum, loadable, defined, private,
    order as defined by the SORT entries.  */
 
 static ssd_chain_struct *
-create_new_subspace (space, name, loadable, code_only, common,
+create_new_subspace (space, name, loadable, code_only, comdat, common,
 		     dup_common, is_zero, sort, access, space_index,
 		     alignment, quadrant, seg)
      sd_chain_struct *space;
      char *name;
-     int loadable, code_only, common, dup_common, is_zero;
+     int loadable ATTRIBUTE_UNUSED;
+     int code_only ATTRIBUTE_UNUSED;
+     int comdat, common, dup_common;
+     int is_zero ATTRIBUTE_UNUSED;
      int sort;
      int access;
-     int space_index;
-     int alignment;
+     int space_index ATTRIBUTE_UNUSED;
+     int alignment ATTRIBUTE_UNUSED;
      int quadrant;
      asection *seg;
 {
@@ -7945,8 +7975,8 @@ create_new_subspace (space, name, loadable, code_only, common,
     }
 
 #ifdef obj_set_subsection_attributes
-  obj_set_subsection_attributes (seg, space->sd_seg, access,
-				 sort, quadrant);
+  obj_set_subsection_attributes (seg, space->sd_seg, access, sort,
+				 quadrant, comdat, common, dup_common);
 #endif
 
   return chain_entry;
@@ -7956,19 +7986,20 @@ create_new_subspace (space, name, loadable, code_only, common,
    various arguments.   Return the modified subspace chain entry.  */
 
 static ssd_chain_struct *
-update_subspace (space, name, loadable, code_only, common, dup_common, sort,
-		 zero, access, space_index, alignment, quadrant, section)
+update_subspace (space, name, loadable, code_only, comdat, common, dup_common,
+		 sort, zero, access, space_index, alignment, quadrant, section)
      sd_chain_struct *space;
      char *name;
-     int loadable;
-     int code_only;
+     int loadable ATTRIBUTE_UNUSED;
+     int code_only ATTRIBUTE_UNUSED;
+     int comdat;
      int common;
      int dup_common;
-     int zero;
+     int zero ATTRIBUTE_UNUSED;
      int sort;
      int access;
-     int space_index;
-     int alignment;
+     int space_index ATTRIBUTE_UNUSED;
+     int alignment ATTRIBUTE_UNUSED;
      int quadrant;
      asection *section;
 {
@@ -7977,8 +8008,8 @@ update_subspace (space, name, loadable, code_only, common, dup_common, sort,
   chain_entry = is_defined_subspace (name);
 
 #ifdef obj_set_subsection_attributes
-  obj_set_subsection_attributes (section, space->sd_seg, access,
-				 sort, quadrant);
+  obj_set_subsection_attributes (section, space->sd_seg, access, sort,
+				 quadrant, comdat, common, dup_common);
 #endif
 
   return chain_entry;
@@ -8030,9 +8061,14 @@ pa_segment_to_space (seg)
   return NULL;
 }
 
-/* Return the space chain entry for the subspace with the name NAME or
-   NULL if no such subspace exists.
+/* Return the first space chain entry for the subspace with the name
+   NAME or NULL if no such subspace exists.
 
+   When there are multiple subspaces with the same name, switching to
+   the first (i.e., default) subspace is preferable in most situations.
+   For example, it wouldn't be desirable to merge COMDAT data with non
+   COMDAT data.
+    
    Uses a linear search through all the spaces and subspaces, this may
    not be appropriate if we ever being placing each function in its
    own subspace.  */
@@ -8137,16 +8173,6 @@ pa_subspace_start (space, quadrant)
   else
     return 0;
   return 0;
-}
-
-/* FIXME.  Needs documentation.  */
-static int
-pa_next_subseg (space)
-     sd_chain_struct *space;
-{
-
-  space->sd_last_subseg++;
-  return space->sd_last_subseg;
 }
 #endif
 
@@ -8370,27 +8396,19 @@ pa_lsym (unused)
    any fixup which creates entries in the DLT (eg they use "T" field
    selectors).
 
-   Reject reductions involving symbols with external scope; such
-   reductions make life a living hell for object file editors.
-
-   FIXME.  Also reject R_HPPA relocations which are 32bits wide in
-   the code space.  The SOM BFD backend doesn't know how to pull the
-   right bits out of an instruction.  */
+   ??? Reject reductions involving symbols with external scope; such
+   reductions make life a living hell for object file editors.  */
 
 int
 hppa_fix_adjustable (fixp)
      fixS *fixp;
 {
+#ifdef OBJ_ELF
   reloc_type code;
+#endif
   struct hppa_fix_struct *hppa_fix;
 
   hppa_fix = (struct hppa_fix_struct *) fixp->tc_fix_data;
-
-#ifdef OBJ_SOM
-  /* Reject reductions of symbols in 32bit relocs.  */
-  if (fixp->fx_r_type == R_HPPA && hppa_fix->fx_r_format == 32)
-    return 0;
-#endif
 
 #ifdef OBJ_ELF
   /* LR/RR selectors are implicitly used for a number of different relocation

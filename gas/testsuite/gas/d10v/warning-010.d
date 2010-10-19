@@ -1,2 +1,2 @@
 #source: warning-010.s
-#error : cr4 is a reserved control register
+#warning : cr4 is a reserved control register

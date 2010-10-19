@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include "ansidecl.h"
 
-void  fsf_callg_blurb PARAMS ((FILE *));
+void  fsf_callg_blurb (FILE *);
 void
 fsf_callg_blurb (file)
      FILE *file;

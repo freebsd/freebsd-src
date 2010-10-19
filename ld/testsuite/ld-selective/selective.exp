@@ -1,5 +1,6 @@
 # Expect script for LD selective linking tests
-#   Copyright 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+#   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004
+#   Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,7 +14,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # Written by Catherine Moore (clm@cygnus.com)
 # Make sure that constructors are handled correctly.
@@ -23,8 +24,8 @@ if ![is_elf_format] {
     return
 }
 
-# IA64 does not support selective linking
-if {[istarget "ia64-*-*"]} {
+# Alpha and IA64 do not support selective linking
+if {[istarget "alpha*-*-*"] || [istarget "ia64-*-*"]} {
     return
 }
 
@@ -83,12 +84,20 @@ foreach testitem $seltests {
     foreach xfail_target $xfails {
 	setup_xfail $xfail_target
     }
-    setup_xfail "alpha*-*" "arc*-*" "d30v*-*" "dlx*-*" "i370*-*" "i860*-*"
-    setup_xfail "i960*-*" "mn10200-*" "or32-*" "pj-*" "sparc64*-*"
+    setup_xfail "arc*-*" "d30v*-*" "dlx*-*" "i370*-*" "i860*-*"
+    setup_xfail "i960*-*" "mn10200-*" "or32-*" "pj-*"
 
     # It's either C or C++ at the moment.
     if { $testtype == "C++" } {
 	set testflags "$cflags $cxxflags"
+	if [string match "*gcc*" [lindex $CC 0]] {
+	    # Starting with 3.4.0, -fvtable-gc is no longer supported and thus
+	    # the functionality we try to test for cannot be expected to work.
+	    catch "exec -- $CC -dumpversion" version
+	    if [regexp "^(\[1-9\]\[0-9\]+|\[4-9\]|3.(\[1-9\]\[0-9\]+|\[4-9\]))\\." $version] {
+		setup_xfail {*-*-*}
+	    }
+	}
     } {
 	set testflags "$cflags"
     }
@@ -102,15 +111,15 @@ foreach testitem $seltests {
     }
 
     # V850 targets need libgcc.a
-    # FIXME: This does not work with installed toolchains!
     if [istarget v850*-*-elf] {
-	set objfile "$objfile -L ../gcc -lgcc"
+    	catch "exec $CC -print-libgcc-file-name" libgcc
+	set objfile "$objfile $libgcc"
     }
 
     # ARM targets need libgcc.a in THUMB mode so that __call_via_r3 is provided
-    # FIXME: This does not work with installed toolchains!
     if {[istarget arm-*-*] || [istarget xscale-*-*]} {
-	set objfile "$objfile -L ../gcc -lgcc"
+    	catch "exec $CC -print-libgcc-file-name" libgcc
+	set objfile "$objfile $libgcc"
     }
 
     # HPPA linux targets need libgcc.a for millicode routines ($$dyncall).

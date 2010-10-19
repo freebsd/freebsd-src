@@ -1,52 +1,125 @@
-#ifndef BISON_Y_TAB_H
-# define BISON_Y_TAB_H
+/* A Bison parser, made by GNU Bison 2.1.  */
 
-#ifndef YYSTYPE
-typedef union
-{
+/* Skeleton parser for Yacc-like parsing with Bison,
+   Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street, Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
+
+/* As a special exception, when this file is copied by Bison into a
+   Bison output file, you may use that output file without restriction.
+   This special exception was added by the Free Software Foundation
+   in version 1.24 of Bison.  */
+
+/* Tokens.  */
+#ifndef YYTOKENTYPE
+# define YYTOKENTYPE
+   /* Put the tokens into the symbol table, so that GDB and other debuggers
+      know about them.  */
+   enum yytokentype {
+     CHECK = 258,
+     CODESTART = 259,
+     COPYRIGHT = 260,
+     CUSTOM = 261,
+     DATE = 262,
+     DEBUG = 263,
+     DESCRIPTION = 264,
+     EXIT = 265,
+     EXPORT = 266,
+     FLAG_ON = 267,
+     FLAG_OFF = 268,
+     FULLMAP = 269,
+     HELP = 270,
+     IMPORT = 271,
+     INPUT = 272,
+     MAP = 273,
+     MESSAGES = 274,
+     MODULE = 275,
+     MULTIPLE = 276,
+     OS_DOMAIN = 277,
+     OUTPUT = 278,
+     PSEUDOPREEMPTION = 279,
+     REENTRANT = 280,
+     SCREENNAME = 281,
+     SHARELIB = 282,
+     STACK = 283,
+     START = 284,
+     SYNCHRONIZE = 285,
+     THREADNAME = 286,
+     TYPE = 287,
+     VERBOSE = 288,
+     VERSIONK = 289,
+     XDCDATA = 290,
+     STRING = 291,
+     QUOTED_STRING = 292
+   };
+#endif
+/* Tokens.  */
+#define CHECK 258
+#define CODESTART 259
+#define COPYRIGHT 260
+#define CUSTOM 261
+#define DATE 262
+#define DEBUG 263
+#define DESCRIPTION 264
+#define EXIT 265
+#define EXPORT 266
+#define FLAG_ON 267
+#define FLAG_OFF 268
+#define FULLMAP 269
+#define HELP 270
+#define IMPORT 271
+#define INPUT 272
+#define MAP 273
+#define MESSAGES 274
+#define MODULE 275
+#define MULTIPLE 276
+#define OS_DOMAIN 277
+#define OUTPUT 278
+#define PSEUDOPREEMPTION 279
+#define REENTRANT 280
+#define SCREENNAME 281
+#define SHARELIB 282
+#define STACK 283
+#define START 284
+#define SYNCHRONIZE 285
+#define THREADNAME 286
+#define TYPE 287
+#define VERBOSE 288
+#define VERSIONK 289
+#define XDCDATA 290
+#define STRING 291
+#define QUOTED_STRING 292
+
+
+
+
+#if ! defined (YYSTYPE) && ! defined (YYSTYPE_IS_DECLARED)
+#line 113 "nlmheader.y"
+typedef union YYSTYPE {
   char *string;
   struct string_list *list;
-} yystype;
-# define YYSTYPE yystype
+} YYSTYPE;
+/* Line 1447 of yacc.c.  */
+#line 117 "nlmheader.h"
+# define yystype YYSTYPE /* obsolescent; will be withdrawn */
+# define YYSTYPE_IS_DECLARED 1
 # define YYSTYPE_IS_TRIVIAL 1
 #endif
-# define	CHECK	257
-# define	CODESTART	258
-# define	COPYRIGHT	259
-# define	CUSTOM	260
-# define	DATE	261
-# define	DEBUG	262
-# define	DESCRIPTION	263
-# define	EXIT	264
-# define	EXPORT	265
-# define	FLAG_ON	266
-# define	FLAG_OFF	267
-# define	FULLMAP	268
-# define	HELP	269
-# define	IMPORT	270
-# define	INPUT	271
-# define	MAP	272
-# define	MESSAGES	273
-# define	MODULE	274
-# define	MULTIPLE	275
-# define	OS_DOMAIN	276
-# define	OUTPUT	277
-# define	PSEUDOPREEMPTION	278
-# define	REENTRANT	279
-# define	SCREENNAME	280
-# define	SHARELIB	281
-# define	STACK	282
-# define	START	283
-# define	SYNCHRONIZE	284
-# define	THREADNAME	285
-# define	TYPE	286
-# define	VERBOSE	287
-# define	VERSIONK	288
-# define	XDCDATA	289
-# define	STRING	290
-# define	QUOTED_STRING	291
-
 
 extern YYSTYPE yylval;
 
-#endif /* not BISON_Y_TAB_H */
+
+

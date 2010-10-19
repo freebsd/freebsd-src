@@ -1,0 +1,48 @@
+
+.*:     file format .*
+
+Disassembly of section \.plt:
+
+00080800 <_PROCEDURE_LINKAGE_TABLE_>:
+   80800:	3d 80 00 09 	lis     r12,9
+			80802: R_PPC_ADDR16_HA	_GLOBAL_OFFSET_TABLE_
+   80804:	39 8c 04 00 	addi    r12,r12,1024
+			80806: R_PPC_ADDR16_LO	_GLOBAL_OFFSET_TABLE_
+   80808:	80 0c 00 08 	lwz     r0,8\(r12\)
+   8080c:	7c 09 03 a6 	mtctr   r0
+   80810:	81 8c 00 04 	lwz     r12,4\(r12\)
+   80814:	4e 80 04 20 	bctr
+   80818:	60 00 00 00 	nop
+   8081c:	60 00 00 00 	nop
+   80820:	3d 80 00 09 	lis     r12,9
+			80822: R_PPC_ADDR16_HA	_GLOBAL_OFFSET_TABLE_\+0xc
+   80824:	81 8c 04 0c 	lwz     r12,1036\(r12\)
+			80826: R_PPC_ADDR16_LO	_GLOBAL_OFFSET_TABLE_\+0xc
+   80828:	7d 89 03 a6 	mtctr   r12
+   8082c:	4e 80 04 20 	bctr
+   80830:	39 60 00 00 	li      r11,0
+   80834:	4b ff ff cc 	b       80800 <_PROCEDURE_LINKAGE_TABLE_>
+   80838:	60 00 00 00 	nop
+   8083c:	60 00 00 00 	nop
+   80840:	3d 80 00 09 	lis     r12,9
+			80842: R_PPC_ADDR16_HA	_GLOBAL_OFFSET_TABLE_\+0x10
+   80844:	81 8c 04 10 	lwz     r12,1040\(r12\)
+			80846: R_PPC_ADDR16_LO	_GLOBAL_OFFSET_TABLE_\+0x10
+   80848:	7d 89 03 a6 	mtctr   r12
+   8084c:	4e 80 04 20 	bctr
+   80850:	39 60 00 01 	li      r11,1
+   80854:	4b ff ff ac 	b       80800 <_PROCEDURE_LINKAGE_TABLE_>
+   80858:	60 00 00 00 	nop
+   8085c:	60 00 00 00 	nop
+Disassembly of section \.text:
+
+00080c00 <_start>:
+   80c00:	4b ff fc 41 	bl      80840 <_PROCEDURE_LINKAGE_TABLE_\+0x40>
+			80c00: R_PPC_PLTREL24	\.plt\+0x40
+   80c04:	48 00 00 09 	bl      80c0c <sexternal>
+			80c04: R_PPC_PLTREL24	sexternal
+   80c08:	4b ff fc 19 	bl      80820 <_PROCEDURE_LINKAGE_TABLE_\+0x20>
+			80c08: R_PPC_PLTREL24	\.plt\+0x20
+
+00080c0c <sexternal>:
+   80c0c:	4e 80 00 20 	blr

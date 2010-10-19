@@ -1,5 +1,5 @@
 /* This file is tc-msp430.h
-   Copyright (C) 2002 Free Software Foundation, Inc.
+   Copyright (C) 2002, 2004, 2005 Free Software Foundation, Inc.
 
    Contributed by Dmitry Diky <diwil@mail.ru>
 
@@ -17,12 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
-
-#ifndef BFD_ASSEMBLER
- #error MSP430 support requires BFD_ASSEMBLER
-#endif
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #define TC_MSP430
 /*   By convention, you should define this macro in the `.h' file.  For
@@ -93,7 +89,7 @@
      of a PC relative instruction is the next instruction, so this
      macro would return the length of an instruction.  */
 
-extern long md_pcrel_from_section PARAMS ((struct fix *, segT));
+extern long md_pcrel_from_section (struct fix *, segT);
 
 #define LISTING_WORD_SIZE 2
 /*   The number of bytes to put into a word in a listing.  This affects
@@ -112,3 +108,15 @@ extern long md_pcrel_from_section PARAMS ((struct fix *, segT));
      should do nothing.  Some targets define a `.bss' directive that is
      also affected by this macro.  The default definition will set
      P2VAR to the truncated power of two of sizes up to eight bytes.  */
+
+#define md_relax_frag(SEG, FRAGP, STRETCH)             \
+   msp430_relax_frag (SEG, FRAGP, STRETCH)
+extern long msp430_relax_frag (segT, fragS *, long);
+
+#define TC_FORCE_RELOCATION_LOCAL(FIX)	\
+   msp430_force_relocation_local(FIX)
+extern int msp430_force_relocation_local(struct fix *);
+
+
+extern int msp430_enable_relax;
+extern int msp430_enable_polys;

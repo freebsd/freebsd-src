@@ -1,6 +1,6 @@
 \input texinfo @c -*-texinfo-*-
 @setfilename gprof.info
-@c Copyright 1988, 1992, 1993, 1998, 1999, 2000, 2001, 2003
+@c Copyright 1988, 1992, 1993, 1998, 1999, 2000, 2001, 2002, 2003, 2004
 @c Free Software Foundation, Inc.
 @settitle GNU gprof
 @setchapternewpage odd
@@ -105,9 +105,9 @@ section entitled "GNU Free Documentation License".
 
 @smallexample
 @c man begin SYNOPSIS
-gprof [ -[abcDhilLsTvwxyz] ] [ -[ACeEfFJnNOpPqQZ][@var{name}] ] 
+gprof [ -[abcDhilLrsTvwxyz] ] [ -[ACeEfFJnNOpPqQZ][@var{name}] ] 
  [ -I @var{dirs} ] [ -d[@var{num}] ] [ -k @var{from/to} ]
- [ -m @var{min-count} ] [ -t @var{table-length} ]
+ [ -m @var{min-count} ] [ -R @var{map_file} ] [ -t @var{table-length} ]
  [ --[no-]annotated-source[=@var{name}] ] 
  [ --[no-]exec-counts[=@var{name}] ]
  [ --[no-]flat-profile[=@var{name}] ] [ --[no-]graph[=@var{name}] ]
@@ -546,6 +546,12 @@ call graph.
 If @var{symspec} is specified, @code{gprof} prints a call graph,
 but excludes matching symbols.
 
+@item -t
+@itemx --table-length=@var{num}
+The @samp{-t} option causes the @var{num} most active source lines in
+each source file to be listed when source annotation is enabled.  The
+default is 10.
+
 @item -y
 @itemx --separate-files
 This option affects annotated source output only.
@@ -565,7 +571,8 @@ The @samp{-Z} option causes @code{gprof} not to
 print a tally of functions and the number of times each was called.
 If @var{symspec} is specified, print tally, but exclude matching symbols.
 
-@item --function-ordering
+@item -r
+@itemx --function-ordering
 The @samp{--function-ordering} option causes @code{gprof} to print a
 suggested function ordering for the program based on profiling data.
 This option suggests an ordering which may improve paging, tlb and
@@ -576,7 +583,8 @@ The exact details of how to force the linker to place functions
 in a particular order is system dependent and out of the scope of this
 manual.
 
-@item --file-ordering @var{map_file}
+@item -R @var{map_file}
+@itemx --file-ordering @var{map_file}
 The @samp{--file-ordering} option causes @code{gprof} to print a
 suggested .o link line ordering for the program based on profiling data.
 This option suggests an ordering which may improve paging, tlb and
@@ -725,6 +733,10 @@ that had no time spent in them.  This is useful in conjunction with the
 The @samp{-d @var{num}} option specifies debugging options.
 If @var{num} is not specified, enable all debugging.
 @xref{Debugging}.
+
+@item -h
+@itemx --help
+The @samp{-h} option prints command line usage.
 
 @item -O@var{name}
 @itemx --file-format=@var{name}
@@ -2187,7 +2199,7 @@ Tracks operation of @samp{-A} option
                    Version 1.1, March 2000
 
  Copyright (C) 2000  Free Software Foundation, Inc.
-  59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+  51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
      
  Everyone is permitted to copy and distribute verbatim copies
  of this license document, but changing it is not allowed.

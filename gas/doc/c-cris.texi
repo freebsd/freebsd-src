@@ -1,4 +1,4 @@
-@c Copyright 2002 Free Software Foundation, Inc.
+@c Copyright 2002, 2004 Free Software Foundation, Inc.
 @c This is part of the GAS manual.
 @c For copying conditions, see the file as.texinfo.
 @c CRIS description contributed by Axis Communications.
@@ -16,6 +16,7 @@
 @menu
 * CRIS-Opts::              Command-line Options
 * CRIS-Expand::            Instruction expansion
+* CRIS-Symbols::           Symbols
 * CRIS-Syntax::            Syntax
 @end menu
 
@@ -68,6 +69,39 @@ affect expansion of instructions.  The expansion with
 @option{--pic} will use PC-relative rather than (slightly
 faster) absolute addresses in those expansions.
 
+@cindex @option{--march=@var{architecture}} command line option, CRIS
+@cindex CRIS @option{--march=@var{architecture}} command line option
+@cindex Architecture variant option, CRIS
+@cindex CRIS architecture variant option
+The option @option{--march=@var{architecture}}
+@anchor{march-option}specifies the recognized instruction set
+and recognized register names.  It also controls the
+architecture type of the object file.  Valid values for
+@var{architecture} are:
+@table @code
+
+@item v0_v10
+All instructions and register names for any architecture variant
+in the set v0@dots{}v10 are recognized.  This is the
+default if the target is configured as cris-*.
+
+@item v10
+Only instructions and register names for CRIS v10 (as found in
+ETRAX 100 LX) are recognized.  This is the default if the target
+is configured as crisv10-*.
+
+@item v32
+Only instructions and register names for CRIS v32 (code name
+Guinness) are recognized.  This is the default if the target is
+configured as crisv32-*.  This value implies
+@option{--no-mul-bug-abort}.  (A subsequent
+@option{--mul-bug-abort} will turn it back on.)
+
+@item common_v10_v32
+Only instructions with register names and addressing modes with
+opcodes common to the v10 and v32 are recognized.
+@end table
+
 @cindex @option{-N} command line option, CRIS
 @cindex CRIS @option{-N} command line option
 When @option{-N} is specified, @code{@value{AS}} will emit a
@@ -113,6 +147,59 @@ full 32-bit address.  Since this does not correspond to a single
 instruction, such expansions can optionally be warned about.
 @xref{CRIS-Opts}.
 
+If the operand is found to fit the range, a @code{lapc} mnemonic
+will translate to a @code{lapcq} instruction.  Use @code{lapc.d}
+to force the 32-bit @code{lapc} instruction.
+
+Similarly, the @code{addo} mnemonic will translate to the
+shortest fitting instruction of @code{addoq}, @code{addo.w} and
+@code{addo.d}, when used with a operand that is a constant known
+at assembly time.
+
+@node CRIS-Symbols
+@section Symbols
+@cindex Symbols, built-in, CRIS
+@cindex Symbols, CRIS, built-in
+@cindex CRIS built-in symbols
+@cindex Built-in symbols, CRIS
+
+Some symbols are defined by the assembler.  They're intended to
+be used in conditional assembly, for example:
+@smallexample
+ .if ..asm.arch.cris.v32
+ @var{code for CRIS v32}
+ .elseif ..asm.arch.cris.common_v10_v32
+ @var{code common to CRIS v32 and CRIS v10}
+ .elseif ..asm.arch.cris.v10 | ..asm.arch.cris.any_v0_v10
+ @var{code for v10}
+ .else
+ .error "Code needs to be added here."
+ .endif
+@end smallexample
+
+These symbols are defined in the assembler, reflecting
+command-line options, either when specified or the default.
+They are always defined, to 0 or 1.
+@table @code
+
+@item ..asm.arch.cris.any_v0_v10
+This symbol is non-zero when @option{--march=v0_v10} is specified
+or the default.
+
+@item ..asm.arch.cris.common_v10_v32
+Set according to the option @option{--march=common_v10_v32}.
+
+@item ..asm.arch.cris.v10
+Reflects the option @option{--march=v10}.
+
+@item ..asm.arch.cris.v32
+Corresponds to @option{--march=v10}.
+@end table
+
+Speaking of symbols, when a symbol is used in code, it can have
+a suffix modifying its value for use in position-independent
+code. @xref{CRIS-Pic}.
+
 @node CRIS-Syntax
 @section Syntax
 
@@ -147,7 +234,8 @@ separate instructions can be specified on a single line.
 @cindex Position-independent code, symbols in, CRIS
 
 When generating @anchor{crispic}position-independent code (SVR4
-PIC) for use in cris-axis-linux-gnu shared libraries, symbol
+PIC) for use in cris-axis-linux-gnu or crisv32-axis-linux-gnu
+shared libraries, symbol
 suffixes are used to specify what kind of run-time symbol lookup
 will be used, expressed in the object as different
 @emph{relocation types}.  Usually, all absolute symbol values
@@ -271,7 +359,7 @@ each expression, a 32-bit little-endian constant is emitted.
 @cindex pseudo-op .syntax, CRIS
 @cindex CRIS assembler directive .syntax
 @cindex CRIS pseudo-op .syntax
-The @code{.syntax} directive takes as ARGUMENT one of the
+The @code{.syntax} directive takes as @var{ARGUMENT} one of the
 following case-sensitive choices.
 
 @table @code
@@ -304,6 +392,16 @@ This is the opposite of the @code{.syntax leading_underscore}
 directive and emits an error if the option @option{--underscore}
 is in effect.
 @end table
+
+@item .arch ARGUMENT
+@cindex assembler directive .arch, CRIS
+@cindex pseudo-op .arch, CRIS
+@cindex CRIS assembler directive .arch
+@cindex CRIS pseudo-op .arch
+This is an assertion directive, giving an error if the specified
+@var{ARGUMENT} is not the same as the specified or default value
+for the @option{--march=@var{architecture}} option
+(@pxref{march-option}).
 
 @c If you compare with md_pseudo_table, you see that we don't
 @c document ".file" and ".loc" here.  This is because we're just

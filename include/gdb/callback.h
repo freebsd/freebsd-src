@@ -50,12 +50,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #ifndef va_start
 #include <ansidecl.h>
-#ifdef ANSI_PROTOTYPES
 #include <stdarg.h>
-#else
-#include <varargs.h>
 #endif
-#endif
+/* Needed for enum bfd_endian.  */
+#include "bfd.h"
 
 /* Mapping of host/target values.  */
 /* ??? For debugging purposes, one might want to add a string of the
@@ -93,8 +91,17 @@ struct host_callback_struct
   void (*flush_stderr) PARAMS ((host_callback *));
   int (*stat) PARAMS ((host_callback *, const char *, struct stat *));
   int (*fstat) PARAMS ((host_callback *, int, struct stat *));
+  int (*lstat) PARAMS ((host_callback *, const char *, struct stat *));
   int (*ftruncate) PARAMS ((host_callback *, int, long));
   int (*truncate) PARAMS ((host_callback *, const char *, long));
+  int (*pipe) PARAMS ((host_callback *, int *));
+
+  /* Called by the framework when a read call has emptied a pipe buffer.  */
+  void (*pipe_empty) PARAMS ((host_callback *, int read_fd, int write_fd));
+
+  /* Called by the framework when a write call makes a pipe buffer
+     non-empty.  */
+  void (*pipe_nonempty) PARAMS ((host_callback *, int read_fd, int write_fd));
 
   /* When present, call to the client to give it the oportunity to
      poll any io devices for a request to quit (indicated by a nonzero
@@ -123,8 +130,31 @@ struct host_callback_struct
   int last_errno;		/* host format */
 
   int fdmap[MAX_CALLBACK_FDS];
-  char fdopen[MAX_CALLBACK_FDS];
-  char alwaysopen[MAX_CALLBACK_FDS];
+  /* fd_buddy is used to contruct circular lists of target fds that point to
+     the same host fd.  A uniquely mapped fd points to itself; for a closed
+     one, fd_buddy has the value -1.  The host file descriptors for stdin /
+     stdout / stderr are never closed by the simulators, so they are put
+     in a special fd_buddy circular list which also has MAX_CALLBACK_FDS
+     as a member.  */
+  /* ??? We don't have a callback entry for dup, although it is trival to
+     implement now.  */
+  short fd_buddy[MAX_CALLBACK_FDS+1];
+
+  /* 0 = none, >0 = reader (index of writer),
+     <0 = writer (negative index of reader).
+     If abs (ispipe[N]) == N, then N is an end of a pipe whose other
+     end is closed.  */
+  short ispipe[MAX_CALLBACK_FDS];
+
+  /* A writer stores the buffer at its index.  Consecutive writes
+     realloc the buffer and add to the size.  The reader indicates the
+     read part in its .size, until it has consumed it all, at which
+     point it deallocates the buffer and zeroes out both sizes.  */
+  struct pipe_write_buffer
+  {
+    int size;
+    char *buffer;
+  } pipe_buffer[MAX_CALLBACK_FDS];
 
   /* System call numbers.  */
   CB_TARGET_DEFS_MAP *syscall_map;
@@ -142,6 +172,16 @@ struct host_callback_struct
      use "name.bits".
      Example: "st_dev,4:st_ino,4:st_mode,4:..."  */
   const char *stat_map;
+
+  enum bfd_endian target_endian;
+
+  /* Size of an "int" on the target (for syscalls whose ABI uses "int").
+     This must include padding, and only padding-at-higher-address is
+     supported.  For example, a 64-bit target with 32-bit int:s which
+     are padded to 64 bits when in an array, should supposedly set this
+     to 8.  The default is 4 which matches ILP32 targets and 64-bit
+     targets with 32-bit ints and no padding.  */
+  int target_sizeof_int;
 
   /* Marker for those wanting to do sanity checks.
      This should remain the last member of this struct to help catch
@@ -181,6 +221,13 @@ extern host_callback default_callback;
 #define CB_SYS_chmod 	16
 #define CB_SYS_utime 	17
 #define CB_SYS_time 	18
+
+/* More standard syscalls.  */
+#define CB_SYS_lstat    19
+#define CB_SYS_rename	20
+#define CB_SYS_truncate	21
+#define CB_SYS_ftruncate 22
+#define CB_SYS_pipe 	23
 
 /* Struct use to pass and return information necessary to perform a
    system call.  */
@@ -265,6 +312,9 @@ int cb_host_to_target_signal PARAMS ((host_callback *, int));
    If stat struct ptr is NULL, just compute target stat struct size.
    Result is size of target stat struct or 0 if error.  */
 int cb_host_to_target_stat PARAMS ((host_callback *, const struct stat *, PTR));
+
+/* Translate a value to target endian.  */
+void cb_store_target_endian PARAMS ((host_callback *, char *, int, long));
 
 /* Perform a system call.  */
 CB_RC cb_syscall PARAMS ((host_callback *, CB_SYSCALL *));

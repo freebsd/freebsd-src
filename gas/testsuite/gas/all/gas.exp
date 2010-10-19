@@ -23,8 +23,9 @@ if { [istarget hppa*-*-*] || [istarget *c54x*-*-*] } then {
     gas_test "p1480.s" "" "-a>" "simplifiable double subtraction"
 }
 
-# No floating point support in assembly code for CRIS.
-if ![istarget cris-*-*] then {
+# No floating point support in assembly code for CRIS and Z80.
+if { ![istarget cris-*-*] && ![istarget crisv32-*-*] 
+     && ![istarget z80-*-*] } then {
     gas_test "float.s" ""   "" "simple FP constants"
 }
 
@@ -32,6 +33,66 @@ if ![istarget cris-*-*] then {
 # symbols is something that is (and must be) supported on the PA.
 if ![istarget hppa*-*-*] then {
     gas_test_error "diff1.s" "" "difference of two undefined symbols"
+}
+
+gas_test_error "equiv1.s" "" ".equiv for symbol already set to another one"
+gas_test_error "equiv2.s" "" ".equiv for symbol already set to an expression"
+
+# .equ works differently on some targets.
+case $target_triplet in {
+    { hppa*-*-* } { }
+    { *c54x*-*-* } { }
+    default {
+	gas_test "equ-ok.s" "" "" ".equ for symbol already set"
+	gas_test_error "equ-bad.s" "" ".equ for symbol already set through .eqv"
+    }
+}
+
+gas_test "eqv-ok.s" "" "" ".eqv support"
+gas_test_error "eqv-bad.s" "" ".eqv for symbol already set"
+
+gas_test "assign-ok.s" "" "" "== assignment support"
+gas_test_error "assign-bad.s" "" "== assignment for symbol already set"
+
+# .equ works differently on some targets.
+# linkrelax-ing prevents most forward references from working.
+case $target_triplet in {
+    { crx*-*-* } { }
+    { h8300*-*-* } { }
+    { hppa*-*-* } { }
+    { mn10\[23\]00*-*-* } { }
+    { *c54x*-*-* } { }
+    default {
+	# Some targets don't manage to resolve BFD_RELOC_8 for constants.
+	setup_xfail "alpha*-*-*" "avr-*-*" "*c30*-*-*" "*c4x*-*-*" \
+	    "d\[13\]0v*-*-*" "i860-*-*" "mips*-*-*" "msp430-*-*" \
+	    "pdp11-*-*" "sparc*-*-*" "xtensa-*-*"
+	run_dump_test forward
+    }
+}
+
+# .set works differently on some targets.
+case $target_triplet in {
+    { alpha*-*-* } { }
+    { mips*-*-* } { }
+    { *c54x*-*-* } { }
+    { z80-*-* } { }
+    default {
+	setup_xfail "*c30*-*-*" "*c4x*-*-*" "pdp11-*-*"
+	run_dump_test redef
+	setup_xfail "*c30*-*-*" "*c4x*-*-*" "*arm*-*-*aout*" "*arm*-*-*coff" \
+	    "*arm*-*-pe" "crx*-*-*" "h8300*-*-*" "m68hc*-*-*" "maxq-*-*" \
+	    "pdp11-*-*" "vax*-*-*" "z8k-*-*"
+	run_dump_test redef2
+	setup_xfail "*-*-aix*" "*-*-coff" "*-*-cygwin" "*-*-mingw*" "*-*-pe*" \
+	    "bfin-*-*" "*c4x*-*-*" "crx*-*-*" "h8300*-*-*" "hppa*-*-hpux*" \
+	    "m68hc*-*-*" "maxq-*-*" "or32-*-*" "pdp11-*-*" "vax*-*-*" "z8k-*-*"
+	run_dump_test redef3
+	setup_xfail "*c4x*-*-*"
+	gas_test_error "redef4.s" "" ".set for symbol already used as label"
+	setup_xfail "*c4x*-*-*"
+	gas_test_error "redef5.s" "" ".set for symbol already defined through .comm"
+    }
 }
 
 proc do_comment {} {
@@ -85,12 +146,13 @@ proc do_930509a {} {
     if !$x then { fail $testname }
 }
 
-# This test is meaningless for the PA; the difference of two symbols
+# This test is meaningless for the PA and CRX; the difference of two symbols
 # must not be resolved by the assembler.
 # C54x assembler (for compatibility) does not allow differences between
 # forward references
 # C30 counts a four byte offset as a difference of one.
 if { ![istarget hppa*-*-*] &&
+     ![istarget  crx*-*-*] &&
      ![istarget *c30*-*-*] &&
      ![istarget *c4x*-*-*] &&
      ![istarget *c54x*-*-*] } then {
@@ -113,17 +175,33 @@ case $target_triplet in {
     }
 }
 
+# '<' and '>' appear to have special meanings on the excluded targets
+case $target_triplet in {
+    { frv-*-* } { }
+    { hppa*-*-* } { }
+    { m32r-*-* } { }
+    { mmix-*-* } { }
+    { *c4x*-*-* } { }
+    { *c54x*-*-* } { }
+    { bfin-*-* } { }
+    default {
+	run_dump_test altmacro
+	# The second test is valid only when '!' is not a comment
+	# character (it is allowed to be a line comment character).
+	if [string match "" [lindex [gas_run excl.s "-o /dev/null" ""] 0]] {
+	    run_dump_test altmac2
+	    # Similarly this test does not work when ! is a line seperator.
+	    run_dump_test eval
+	}
+    }
+}
+
 # This test is for any COFF target.
-# We omit m88k COFF because it uses weird pseudo-op names.
 # We omit the ARM toolchains because they define locals to
 #  start with '.', which eliminates .eos, .text etc from the output.
 # Omit c54x, since .tag and .def mean something different on that target
-if {   ([istarget *-*-coff*] && ![istarget m88*-*-*] && ![istarget *arm*-*-coff] && ![istarget thumb*-*-coff] && ![istarget xscale-*-coff] && ![istarget *c4x*-*-coff] && ![istarget *c54x*-*-coff]) \
+if {   ([istarget *-*-coff*] && ![istarget *arm*-*-coff] && ![istarget thumb*-*-coff] && ![istarget xscale-*-coff] && ![istarget *c4x*-*-coff] && ![istarget *c54x*-*-coff]) \
      ||([istarget *-*-pe*] && ![istarget arm*-*-pe*] && ![istarget thumb*-*-pe*]) \
-     || [istarget a29k-*-udi*] \
-     || [istarget a29k-*-ebmon*] \
-     || [istarget a29k-*-sym*] \
-     || [istarget a29k-*-vxworks*] \
      || [istarget i*86-*-aix*] \
      || [istarget i*86-*-sco*] \
      || [istarget i*86-*-isc*] \
@@ -147,7 +225,7 @@ proc test_cond {} {
 	send_log "$comp_output\n"
 	fail $testname
     } else {
-	if { [regexp_diff dump.out $srcdir/$subdir/cond.d] } {
+	if { [regexp_diff dump.out $srcdir/$subdir/cond.l] } {
 	    fail $testname
 	} else {
 	    pass $testname
@@ -169,8 +247,40 @@ case $target_triplet in {
     }
 }
 
-if {   [istarget "i*86-*-*pe*"] \
+if {  ([istarget "i*86-*-*pe*"] && ![istarget "i*86-*-openbsd*"]) \
     || [istarget "i*86-*-cygwin*"] \
     || [istarget "i*86-*-mingw32*"] } {
   gas_test "fastcall.s" ""   "" "fastcall labels"
 }
+
+run_dump_test assign
+run_dump_test sleb128
+
+# .quad is 16 bytes on i960.
+if { ![istarget "i960-*-*"] } {
+    run_dump_test quad
+}
+
+
+# .set works differently on some targets.
+case $target_triplet in {
+    { alpha*-*-* } { }
+    { mips*-*-* } { }
+    { *c54x*-*-* } { }
+    { z80-*-* } { }
+    default {
+	run_dump_test weakref1
+	run_dump_test weakref1g
+	run_dump_test weakref1l
+	run_dump_test weakref1u
+	run_dump_test weakref1w
+    }
+}
+gas_test_error "weakref2.s" "" "e: would close weakref loop: e => a => b => c => d => e"
+gas_test_error "weakref3.s" "" "a: would close weakref loop: a => b => c => d => e => a"
+gas_test_error "weakref4.s" "" "is already defined"
+
+load_lib gas-dg.exp
+dg-init
+dg-runtest [lsort [glob -nocomplain $srcdir/$subdir/err-*.s $srcdir/$subdir/warn-*.s]] "" ""
+dg-finish

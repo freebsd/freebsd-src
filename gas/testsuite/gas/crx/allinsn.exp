@@ -1,0 +1,27 @@
+#
+# Driver for CRX assembler testsuite
+#
+
+proc run_list_test { name opts } {
+  global srcdir subdir
+  set testname "CRX $name"
+  set file $srcdir/$subdir/$name
+  gas_run ${name}.s $opts ">&dump.out"
+  if {[regexp_diff "dump.out" "${file}.l"] } {
+    fail $testname
+    verbose "output is [file_contents "dump.out"]" 2
+    return
+  }
+  pass $testname
+}
+
+if ![istarget crx-*-*] {
+    return
+}
+
+set test_list [lsort [glob -nocomplain $srcdir/$subdir/*.d]]
+foreach test $test_list {
+    # We need to strip the ".d", but can leave the dirname.
+    verbose [file rootname $test]
+    run_dump_test [file rootname $test]
+}

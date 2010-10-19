@@ -1,0 +1,116 @@
+@c Copyright 2005
+@c Free Software Foundation, Inc.
+@c This is part of the GAS manual.
+@c For copying conditions, see the file as.texinfo.
+@ifset GENERIC
+@page
+@node M32C-Dependent
+@chapter M32C Dependent Features
+@end ifset
+@ifclear GENERIC
+@node Machine Dependencies
+@chapter M32C Dependent Features
+@end ifclear
+ 
+@cindex M32C support
+
+@code{@value{AS}} can assemble code for several different members of
+the Renesas M32C family.  Normally the default is to assemble code for
+the M16C microprocessor.  The @code{-m32c} option may be used to
+change the default to the M32C microprocessor.
+
+@menu
+* M32C-Opts::                   M32C Options
+* M32C-Modifiers::              Symbolic Operand Modifiers
+@end menu
+ 
+@node M32C-Opts
+@section M32C Options
+ 
+@cindex options, M32C
+@cindex M32C options
+ 
+The Renesas M32C version of @code{@value{AS}} has two
+machine-dependent options:
+ 
+@table @code
+@item -m32c
+@cindex @samp{-m32c} option, M32C
+@cindex architecture options, M32C
+@cindex M32C architecture option
+Assemble M32C instructions.
+ 
+@item -m16c
+@cindex @samp{-m16c} option, M16C
+@cindex architecture options, M16C
+@cindex M16C architecture option
+Assemble M16C instructions (default).
+ 
+@end table
+
+@node M32C-Modifiers
+@section Symbolic Operand Modifiers
+
+@cindex M32C modifiers
+@cindex syntax, M32C
+
+The assembler supports several modifiers when using symbol addresses
+in M32C instruction operands.  The general syntax is the following:
+
+@smallexample
+%modifier(symbol)
+@end smallexample
+
+@table @code
+@cindex symbol modifiers
+
+@item %dsp8
+@itemx %dsp16
+
+These modifiers override the assembler's assumptions about how big a
+symbol's address is.  Normally, when it sees an operand like
+@samp{sym[a0]} it assumes @samp{sym} may require the widest
+displacement field (16 bits for @samp{-m16c}, 24 bits for
+@samp{-m32c}).  These modifiers tell it to assume the address will fit
+in an 8 or 16 bit (respectively) unsigned displacement.  Note that, of
+course, if it doesn't actually fit you will get linker errors.  Example:
+
+@smallexample
+mov.w %dsp8(sym)[a0],r1
+mov.b #0,%dsp8(sym)[a0]
+@end smallexample
+
+@item %hi8
+
+This modifier allows you to load bits 16 through 23 of a 24 bit
+address into an 8 bit register.  This is useful with, for example, the
+M16C @samp{smovf} instruction, which expects a 20 bit address in
+@samp{r1h} and @samp{a0}.  Example:
+
+@smallexample
+mov.b #%hi8(sym),r1h
+mov.w #%lo16(sym),a0
+smovf.b
+@end smallexample
+
+@item %lo16
+
+Likewise, this modifier allows you to load bits 0 through 15 of a 24
+bit address into a 16 bit register.
+
+@item %hi16
+
+This modifier allows you to load bits 16 through 31 of a 32 bit
+address into a 16 bit register.  While the M32C family only has 24
+bits of address space, it does support addresses in pairs of 16 bit
+registers (like @samp{a1a0} for the @samp{lde} instruction).  This
+modifier is for loading the upper half in such cases.  Example:
+
+@smallexample
+mov.w #%hi16(sym),a1
+mov.w #%lo16(sym),a0
+@dots{}
+lde.w [a1a0],r1
+@end smallexample
+
+@end table

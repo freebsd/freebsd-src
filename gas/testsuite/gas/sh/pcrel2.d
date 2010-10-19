@@ -8,8 +8,8 @@ Disassembly of section \.text:
 
 00000000 <code>:
    0:	8b 01       	bf	6 <foo>
-   2:	d0 02       	mov\.l	c <bar>,r0	! 0x6
-   4:	90 02       	mov\.w	c <bar>,r0	! 0x0
+   2:	d0 02       	mov\.l	c <bar>,r0	! 0x6 .*
+   4:	90 02       	mov\.w	c <bar>,r0	! 0x0 .*
 
 00000006 <foo>:
    6:	af fe       	bra	6 <foo>

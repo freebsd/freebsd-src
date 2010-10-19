@@ -6,9 +6,9 @@
 
 Disassembly of section \.text:
 0+00 <.*> lui	a0,0x0
-			0: R_MIPS_HI16	.barsec
-0+04 <.*> lw	a0,8\(a0\)
-			4: R_MIPS_LO16	.barsec
+			0: R_MIPS_HI16	bar
+0+04 <.*> lw	a0,0\(a0\)
+			4: R_MIPS_LO16	bar
 0+08 <.*> lui	a0,0x0
 			8: R_MIPS_HI16	bar
 0+0c <.*> lw	a0,4\(a0\)

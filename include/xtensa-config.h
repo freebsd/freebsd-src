@@ -1,5 +1,5 @@
 /* Xtensa configuration settings.
-   Copyright (C) 2001,2002,2003 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
    Contributed by Bob Wilson (bwilson@tensilica.com) at Tensilica.
 
    This program is free software; you can redistribute it and/or modify
@@ -14,7 +14,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef XTENSA_CONFIG_H
 #define XTENSA_CONFIG_H
@@ -42,6 +42,9 @@
 #undef XCHAL_HAVE_L32R
 #define XCHAL_HAVE_L32R			1
 
+#undef XSHAL_USE_ABSOLUTE_LITERALS
+#define XSHAL_USE_ABSOLUTE_LITERALS	0
+
 #undef XCHAL_HAVE_MAC16
 #define XCHAL_HAVE_MAC16		0
 
@@ -50,6 +53,9 @@
 
 #undef XCHAL_HAVE_MUL32
 #define XCHAL_HAVE_MUL32		0
+
+#undef XCHAL_HAVE_MUL32_HIGH
+#define XCHAL_HAVE_MUL32_HIGH		0
 
 #undef XCHAL_HAVE_DIV32
 #define XCHAL_HAVE_DIV32		0
@@ -86,6 +92,12 @@
 
 #undef XCHAL_HAVE_WINDOWED
 #define XCHAL_HAVE_WINDOWED		1
+
+#undef XCHAL_HAVE_WIDE_BRANCHES
+#define XCHAL_HAVE_WIDE_BRANCHES	0
+
+#undef XCHAL_HAVE_PREDICTED_BRANCHES
+#define XCHAL_HAVE_PREDICTED_BRANCHES	0
 
 
 #undef XCHAL_ICACHE_SIZE
@@ -130,10 +142,7 @@
 #define XCHAL_DEBUGLEVEL		4
 
 
-#undef XCHAL_EXTRA_SA_SIZE
-#define XCHAL_EXTRA_SA_SIZE		0
-
-#undef XCHAL_EXTRA_SA_ALIGN
-#define XCHAL_EXTRA_SA_ALIGN		1
+#undef XCHAL_INST_FETCH_WIDTH
+#define XCHAL_INST_FETCH_WIDTH		4
 
 #endif /* !XTENSA_CONFIG_H */

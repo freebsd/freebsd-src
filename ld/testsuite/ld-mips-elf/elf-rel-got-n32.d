@@ -1,5 +1,5 @@
 #name: MIPS ELF got reloc n32
-#as: -n32 -KPIC
+#as: -EB -n32 -KPIC
 #source: ../../../gas/testsuite/gas/mips/elf-rel-got-n32.s
 #ld: -melf32btsmipn32
 #objdump: -D --show-raw-insn

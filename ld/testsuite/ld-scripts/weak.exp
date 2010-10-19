@@ -1,6 +1,6 @@
 # Test weak symbols.
 # By Ian Lance Taylor, Cygnus Solutions.
-#   Copyright 2001
+#   Copyright 1999, 2000, 2002, 2004
 #   Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
@@ -15,16 +15,24 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
 set testname "weak symbols"
 
-# This test only works for ELF targets.  It ought to work for some
-# a.out targets, but it doesn't.
-if ![is_elf_format] {
+# This test only works for ELF targets.
+# It ought to work for some a.out targets, but it doesn't.
+if {! [is_elf_format] && ! [is_pecoff_format]} {
+    unsupported $testname
     return
 }
 
+# Weak symbols are broken for non-i386 PE targets.
+if {! [istarget i?86-*-*]} {
+    setup_xfail *-*-pe*
+}
+
+# hppa64 and or32 are incredibly broken
+setup_xfail hppa64-*-* or32-*-*
 
 if {! [ld_assemble $as $srcdir/$subdir/weak1.s tmpdir/weak1.o]
     || ! [ld_assemble $as $srcdir/$subdir/weak2.s tmpdir/weak2.o]} then {

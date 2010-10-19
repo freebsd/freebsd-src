@@ -1,3 +1,4 @@
+# as: -xnone
 # objdump: -d
 # name: ia64 opc-a
 

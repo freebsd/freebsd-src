@@ -1,0 +1,26 @@
+#source: tlsdesc.s
+#source: tlspic2.s
+#as: --64
+#ld: -shared -melf_x86_64
+#objdump: -drj.plt
+#target: x86_64-*-*
+
+.*: +file format elf64-x86-64
+
+Disassembly of section .plt:
+
+0000000000000470 <.*@plt-0x10>:
+ 470:	ff 35 e2 0e 10 00    	pushq  1052386\(%rip\)        # 101358 <_GLOBAL_OFFSET_TABLE_\+0x8>
+ 476:	ff 25 e4 0e 10 00    	jmpq   \*1052388\(%rip\)        # 101360 <_GLOBAL_OFFSET_TABLE_\+0x10>
+ 47c:	90                   	nop *
+ 47d:	90                   	nop *
+ 47e:	90                   	nop *
+ 47f:	90                   	nop *
+0000000000000480 <.*@plt>:
+ 480:	ff 35 d2 0e 10 00    	pushq  1052370\(%rip\)        # 101358 <_GLOBAL_OFFSET_TABLE_\+0x8>
+ 486:	ff 25 bc 0e 10 00    	jmpq   \*1052348\(%rip\)        # 101348 <_DYNAMIC\+0x190>
+ 48c:	90                   	nop *
+ 48d:	90                   	nop *
+ 48e:	90                   	nop *
+ 48f:	90                   	nop *
+

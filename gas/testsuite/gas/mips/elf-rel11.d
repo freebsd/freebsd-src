@@ -7,10 +7,10 @@ Relocation section '\.rela\.text' at offset .* contains 12 entries:
 0+0000 * 0+..0000001d * R_MIPS_HIGHEST * 0+0000 * bar \+ 0
  * Type2: R_MIPS_NONE *
  * Type3: R_MIPS_NONE *
-0+0008 * 0+..0000001c * R_MIPS_HIGHER * 0+0000 * bar \+ 0
+0+0004 * 0+..00000005 * R_MIPS_HI16 * 0+0000 * bar \+ 0
  * Type2: R_MIPS_NONE *
  * Type3: R_MIPS_NONE *
-0+0004 * 0+..00000005 * R_MIPS_HI16 * 0+0000 * bar \+ 0
+0+0008 * 0+..0000001c * R_MIPS_HIGHER * 0+0000 * bar \+ 0
  * Type2: R_MIPS_NONE *
  * Type3: R_MIPS_NONE *
 0+000c * 0+..00000006 * R_MIPS_LO16 * 0+0000 * bar \+ 0
@@ -19,10 +19,10 @@ Relocation section '\.rela\.text' at offset .* contains 12 entries:
 0+0018 * 0+..0000001d * R_MIPS_HIGHEST * 0+0000 * bar \+ 12345678
  * Type2: R_MIPS_NONE *
  * Type3: R_MIPS_NONE *
-0+0020 * 0+..0000001c * R_MIPS_HIGHER * 0+0000 * bar \+ 12345678
+0+001c * 0+..00000005 * R_MIPS_HI16 * 0+0000 * bar \+ 12345678
  * Type2: R_MIPS_NONE *
  * Type3: R_MIPS_NONE *
-0+001c * 0+..00000005 * R_MIPS_HI16 * 0+0000 * bar \+ 12345678
+0+0020 * 0+..0000001c * R_MIPS_HIGHER * 0+0000 * bar \+ 12345678
  * Type2: R_MIPS_NONE *
  * Type3: R_MIPS_NONE *
 0+0024 * 0+..00000006 * R_MIPS_LO16 * 0+0000 * bar \+ 12345678

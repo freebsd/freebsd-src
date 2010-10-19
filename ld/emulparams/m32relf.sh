@@ -9,4 +9,4 @@ MAXPAGESIZE=32
 EMBEDDED=yes
 
 # This sets the stack to the top of simulator memory (8MB).
-OTHER_END_SYMBOLS='PROVIDE (_stack = 0x800000);'
+OTHER_SYMBOLS='PROVIDE (_stack = 0x800000);'

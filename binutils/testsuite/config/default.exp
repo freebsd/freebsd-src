@@ -1,4 +1,4 @@
-#   Copyright 1993, 1994, 1995, 1997, 1999, 2001, 2002
+#   Copyright 1993, 1994, 1995, 1997, 1999, 2001, 2002, 2004, 2005
 #   Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
@@ -13,14 +13,13 @@
 # 
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 
 # Please email any bugs, comments, and/or additions to this file to:
 # bug-dejagnu@prep.ai.mit.edu
 
 # This file was written by Rob Savoye. (rob@cygnus.com)
 
-load_lib util-defs.exp
 load_lib utils-lib.exp
 
 if ![info exists NM] then {
@@ -71,19 +70,32 @@ if ![info exists DLLTOOL] then {
 
 if ![file isdirectory tmpdir] {catch "exec mkdir tmpdir" status}
 
-# Make a symlink from tmpdir/gas/as and tmpdir/gas/ld to the assembler
+# Make a copy from tmpdir/gas/as and tmpdir/gas/ld to the assembler
 # and linker in the build tree, so that we can use a -B option to gcc
 # to force it to use the newly built assembler/linker.
-if {![file isdirectory tmpdir/gas]} then {
-    catch "exec mkdir tmpdir/gas" status
-    if {[file isfile ../gas/as-new]} then {
-	catch "exec ln -s ../../../gas/as-new tmpdir/gas/as" status
-    }
-    if {[file isfile ../ld/ld-new]} then {
-	catch "exec ln -s ../../../ld/ld-new tmpdir/gas/ld" status
-    }
+if {![file isdirectory tmpdir/gas]} {catch "exec mkdir tmpdir/gas" status}
+
+proc link_or_copy { src dst } {
+    if ![catch "exec ln -sf ../../../$src tmpdir/gas/$dst" status] then {return 0}
+    if ![catch "exec ln -f ../$src tmpdir/gas/$dst" status] then {return 0}
+    catch "exec cp -fpu ../$src tmpdir/gas/$dst" status
+}
+
+if {[file isfile gas/as-new[exe_ext]]} then {
+    link_or_copy gas/as-new[exe_ext] as[exe_ext]
+} else {
+    # For non-Windows hosts there may be an executable
+    # without a .exe suffix, so try copying that instead.
+    link_or_copy gas/as-new as[exe_ext]
+}
+# This may not be needed any more...
+if {[file isfile ld/ld-new[exe_ext]]} then {
+    link_or_copy ld/ld-new[exe_ext] ld[exe_ext]
+} else {
+    link_or_copy ld/ld-new ld[exe_ext]
 }
 set gcc_gas_flag "-B[pwd]/tmpdir/gas/"
+set dlltool_gas_flag "-S [pwd]/tmpdir/gas/as[exe_ext]"
 
 #
 # binutils_run

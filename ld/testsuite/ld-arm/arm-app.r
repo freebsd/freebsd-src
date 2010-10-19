@@ -1,5 +1,5 @@
 
-tmpdir/arm-app:     file format elf32-littlearm
+tmpdir/arm-app:     file format elf32-(little|big)arm
 
 DYNAMIC RELOCATION RECORDS
 OFFSET   TYPE              VALUE 

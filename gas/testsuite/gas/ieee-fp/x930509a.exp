@@ -21,7 +21,7 @@ proc dotest {} {
     # float encoding is tested in c54x-specific tests.
     # No floating point support in assembly code for CRIS.
     setup_xfail "arc*-*-*" "cris-*-*" "*c30*-*-*" "*c54x*-*-*" "*c80*-*-*"
-    setup_xfail "vax*-*-*"
+    setup_xfail "vax*-*-*" "crisv32-*-*"
 
     if !$x then { fail "$testname (listing didn't match)" }
 }

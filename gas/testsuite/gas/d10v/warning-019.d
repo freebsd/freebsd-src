@@ -1,2 +1,2 @@
 #source: warning-019.s
-#error : Warning: resource conflict \(R0\)
+#warning : Warning: resource conflict \(R0\)

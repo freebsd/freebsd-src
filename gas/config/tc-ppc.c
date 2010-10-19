@@ -1,6 +1,6 @@
 /* tc-ppc.c -- Assemble for the PowerPC or POWER (RS/6000)
    Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-   2004 Free Software Foundation, Inc.
+   2004, 2005 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
    This file is part of GAS, the GNU Assembler.
@@ -17,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include <stdio.h>
 #include "as.h"
@@ -184,8 +184,10 @@ const char EXP_CHARS[] = "eE";
 const char FLT_CHARS[] = "dD";
 
 /* '+' and '-' can be used as postfix predicate predictors for conditional
-   branches.  So they need to be accepted as symbol characters.  */
-const char ppc_symbol_chars[] = "+-";
+   branches.  So they need to be accepted as symbol characters.
+   Also, anything that can start an operand needs to be mentioned here,
+   to stop the input scrubber eating whitespace.  */
+const char ppc_symbol_chars[] = "+-%[";
 
 /* The dwarf2 data alignment, adjusted for 32 or 64 bit.  */
 int ppc_cie_data_alignment;
@@ -858,6 +860,9 @@ parse_cpu (const char *arg)
 	   || strcmp (arg, "7455") == 0)
     ppc_cpu = (PPC_OPCODE_PPC | PPC_OPCODE_CLASSIC
 	       | PPC_OPCODE_ALTIVEC | PPC_OPCODE_32);
+  else if (strcmp (arg, "e300") == 0)
+    ppc_cpu = (PPC_OPCODE_PPC | PPC_OPCODE_CLASSIC | PPC_OPCODE_32
+	       | PPC_OPCODE_E300);
   else if (strcmp (arg, "altivec") == 0)
     {
       if (ppc_cpu == 0)
@@ -905,6 +910,12 @@ parse_cpu (const char *arg)
     {
       ppc_cpu = (PPC_OPCODE_PPC | PPC_OPCODE_CLASSIC
 		 | PPC_OPCODE_64 | PPC_OPCODE_POWER4);
+    }
+  else if (strcmp (arg, "power5") == 0)
+    {
+      ppc_cpu = (PPC_OPCODE_PPC | PPC_OPCODE_CLASSIC
+		 | PPC_OPCODE_64 | PPC_OPCODE_POWER4
+		 | PPC_OPCODE_POWER5);
     }
   /* -mcom means assemble for the common intersection between Power
      and PowerPC.  At present, we just allow the union, rather
@@ -1100,10 +1111,12 @@ PowerPC options:\n\
 -mbooke64		generate code for 64-bit PowerPC BookE\n\
 -mbooke, mbooke32	generate code for 32-bit PowerPC BookE\n\
 -mpower4		generate code for Power4 architecture\n\
+-mpower5		generate code for Power5 architecture\n\
 -mcom			generate code Power/PowerPC common instructions\n\
 -many			generate code for any architecture (PWR/PWRX/PPC)\n"));
   fprintf (stream, _("\
 -maltivec		generate code for AltiVec\n\
+-me300			generate code for PowerPC e300 family\n\
 -me500, -me500x2	generate code for Motorola e500 core complex\n\
 -mspe			generate code for Motorola SPE instructions\n\
 -mregnames		Allow symbolic names for registers\n\
@@ -1144,19 +1157,15 @@ ppc_set_cpu ()
       else if (strcmp (default_cpu, "rs6000") == 0)
 	ppc_cpu |= PPC_OPCODE_POWER | PPC_OPCODE_32;
       else if (strncmp (default_cpu, "powerpc", 7) == 0)
-	{
-	  if (default_cpu[7] == '6' && default_cpu[8] == '4')
-	    ppc_cpu |= PPC_OPCODE_PPC | PPC_OPCODE_CLASSIC | PPC_OPCODE_64;
-	  else
-	    ppc_cpu |= PPC_OPCODE_PPC | PPC_OPCODE_CLASSIC | PPC_OPCODE_32;
-	}
+	ppc_cpu |= PPC_OPCODE_PPC | PPC_OPCODE_CLASSIC | PPC_OPCODE_32;
       else
 	as_fatal (_("Unknown default cpu = %s, os = %s"),
 		  default_cpu, default_os);
     }
 }
 
-/* Figure out the BFD architecture to use.  */
+/* Figure out the BFD architecture to use.  This function and ppc_mach
+   are called well before md_begin, when the output file is opened.  */
 
 enum bfd_architecture
 ppc_arch ()
@@ -1208,9 +1217,13 @@ ppc_target_format ()
 #endif
 #endif
 #ifdef OBJ_ELF
+# ifdef TE_VXWORKS
+  return "elf32-powerpc-vxworks";
+# else
   return (target_big_endian
 	  ? (ppc_obj64 ? "elf64-powerpc" : "elf32-powerpc")
 	  : (ppc_obj64 ? "elf64-powerpcle" : "elf32-powerpcle"));
+# endif
 #endif
 }
 
@@ -1254,7 +1267,10 @@ ppc_setup_opcodes (void)
 	      || (ppc_cpu & PPC_OPCODE_BOOKE) == 0)
 	  && ((op->flags & (PPC_OPCODE_POWER4 | PPC_OPCODE_NOPOWER4)) == 0
 	      || ((op->flags & PPC_OPCODE_POWER4)
-		  == (ppc_cpu & PPC_OPCODE_POWER4))))
+		  == (ppc_cpu & PPC_OPCODE_POWER4)))
+	  && ((op->flags & PPC_OPCODE_POWER5) == 0
+	      || ((op->flags & PPC_OPCODE_POWER5)
+		  == (ppc_cpu & PPC_OPCODE_POWER5))))
 	{
 	  const char *retval;
 
@@ -1457,14 +1473,7 @@ ppc_insert_operand (insn, operand, val, file, line)
 	test = val;
 
       if (test < (offsetT) min || test > (offsetT) max)
-	{
-	  const char *err =
-	    _("operand out of range (%s not between %ld and %ld)");
-	  char buf[100];
-
-	  sprint_value (buf, test);
-	  as_bad_where (file, line, err, buf, min, max);
-	}
+	as_bad_value_out_of_range (_("operand"), test, (offsetT) min, (offsetT) max, file, line);
     }
 
   if (operand->insert)
@@ -1898,6 +1907,7 @@ void
 ppc_frob_file_before_adjust ()
 {
   symbolS *symp;
+  asection *toc;
 
   if (!ppc_obj64)
     return;
@@ -1921,14 +1931,18 @@ ppc_frob_file_before_adjust ()
       dotname = xmalloc (len + 1);
       dotname[0] = '.';
       memcpy (dotname + 1, name, len);
-      dotsym = symbol_find (dotname);
+      dotsym = symbol_find_noref (dotname, 1);
       free (dotname);
       if (dotsym != NULL && (symbol_used_p (dotsym)
 			     || symbol_used_in_reloc_p (dotsym)))
-	{
-	  symbol_mark_used (symp);
-	}
+	symbol_mark_used (symp);
+
     }
+
+  toc = bfd_get_section_by_name (stdoutput, ".toc");
+  if (toc != NULL
+      && bfd_section_size (stdoutput, toc) > 0x10000)
+    as_warn (_("TOC section size exceeds 64k"));
 
   /* Don't emit .TOC. symbol.  */
   symp = symbol_find (".TOC.");
@@ -2098,6 +2112,7 @@ md_assemble (str)
   struct ppc_fixup fixups[MAX_INSN_FIXUPS];
   int fc;
   char *f;
+  int addr_mod;
   int i;
 #ifdef OBJ_ELF
   bfd_reloc_code_real_type reloc;
@@ -2625,6 +2640,11 @@ md_assemble (str)
 
   /* Write out the instruction.  */
   f = frag_more (4);
+  addr_mod = frag_now_fix () & 3;
+  if (frag_now->has_code && frag_now->insn_addr != addr_mod)
+    as_bad (_("instruction address is not a multiple of 4"));
+  frag_now->insn_addr = addr_mod;
+  frag_now->has_code = 1;
   md_number_to_chars (f, insn, 4);
 
 #ifdef OBJ_ELF
@@ -2636,7 +2656,7 @@ md_assemble (str)
      BFD_RELOC_UNUSED plus the operand index.  This lets us easily
      handle fixups for any operand type, although that is admittedly
      not a very exciting feature.  We pick a BFD reloc type in
-     md_apply_fix3.  */
+     md_apply_fix.  */
   for (i = 0; i < fc; i++)
     {
       const struct powerpc_operand *operand;
@@ -4396,6 +4416,7 @@ ppc_pe_comm (lcomm)
     {
       S_SET_VALUE (symbolP, (valueT) temp);
       S_SET_EXTERNAL (symbolP);
+      S_SET_SEGMENT (symbolP, bfd_com_section_ptr);
     }
 
   demand_empty_rest_of_line ();
@@ -4820,6 +4841,10 @@ ppc_frob_label (sym)
 		     &symbol_rootP, &symbol_lastP);
       symbol_get_tc (ppc_current_csect)->within = sym;
     }
+
+#ifdef OBJ_ELF
+  dwarf2_emit_label (sym);
+#endif
 }
 
 /* This variable is set by ppc_frob_symbol if any absolute symbols are
@@ -4844,7 +4869,7 @@ ppc_frob_symbol (sym)
      table.  */
   if (! symbol_used_in_reloc_p (sym)
       && ((symbol_get_bfdsym (sym)->flags & BSF_SECTION_SYM) != 0
-	  || (! S_IS_EXTERNAL (sym)
+	  || (! (S_IS_EXTERNAL (sym) || S_IS_WEAK (sym))
 	      && ! symbol_get_tc (sym)->output
 	      && S_GET_STORAGE_CLASS (sym) != C_FILE)))
     return 1;
@@ -4910,7 +4935,7 @@ ppc_frob_symbol (sym)
 	}
     }
 
-  if (! S_IS_EXTERNAL (sym)
+  if (! (S_IS_EXTERNAL (sym) || S_IS_WEAK (sym))
       && (symbol_get_bfdsym (sym)->flags & BSF_SECTION_SYM) == 0
       && S_GET_STORAGE_CLASS (sym) != C_FILE
       && S_GET_STORAGE_CLASS (sym) != C_FCN
@@ -5455,6 +5480,7 @@ ppc_force_relocation (fix)
     case BFD_RELOC_PPC_B16_BRNTAKEN:
     case BFD_RELOC_PPC_BA16_BRTAKEN:
     case BFD_RELOC_PPC_BA16_BRNTAKEN:
+    case BFD_RELOC_24_PLT_PCREL:
     case BFD_RELOC_PPC64_TOC:
       return 1;
     default:
@@ -5480,12 +5506,7 @@ ppc_fix_adjustable (fix)
 	  && fix->fx_r_type != BFD_RELOC_VTABLE_INHERIT
 	  && fix->fx_r_type != BFD_RELOC_VTABLE_ENTRY
 	  && !(fix->fx_r_type >= BFD_RELOC_PPC_TLS
-	       && fix->fx_r_type <= BFD_RELOC_PPC64_DTPREL16_HIGHESTA)
-	  && (fix->fx_pcrel
-	      || (fix->fx_subsy != NULL
-		  && (S_GET_SEGMENT (fix->fx_subsy)
-		      == S_GET_SEGMENT (fix->fx_addsy)))
-	      || S_IS_LOCAL (fix->fx_addsy)));
+	       && fix->fx_r_type <= BFD_RELOC_PPC64_DTPREL16_HIGHESTA));
 }
 #endif
 
@@ -5499,7 +5520,7 @@ ppc_fix_adjustable (fix)
    fixup.  */
 
 void
-md_apply_fix3 (fixP, valP, seg)
+md_apply_fix (fixP, valP, seg)
      fixS *fixP;
      valueT * valP;
      segT seg ATTRIBUTE_UNUSED;
@@ -5517,11 +5538,11 @@ md_apply_fix3 (fixP, valP, seg)
     fixP->fx_done = 1;
 #else
   /* FIXME FIXME FIXME: The value we are passed in *valP includes
-     the symbol values.  Since we are using BFD_ASSEMBLER, if we are
-     doing this relocation the code in write.c is going to call
-     bfd_install_relocation, which is also going to use the symbol
-     value.  That means that if the reloc is fully resolved we want to
-     use *valP since bfd_install_relocation is not being used.
+     the symbol values.  If we are doing this relocation the code in
+     write.c is going to call bfd_install_relocation, which is also
+     going to use the symbol value.  That means that if the reloc is
+     fully resolved we want to use *valP since bfd_install_relocation is
+     not being used.
      However, if the reloc is not fully resolved we do not want to use
      *valP, and must use fx_offset instead.  However, if the reloc
      is PC relative, we do want to use *valP since it includes the
@@ -5707,8 +5728,6 @@ md_apply_fix3 (fixP, valP, seg)
 			      value, 8);
 	  break;
 
-	case BFD_RELOC_LO16:
-	case BFD_RELOC_16:
 	case BFD_RELOC_GPREL16:
 	case BFD_RELOC_16_GOT_PCREL:
 	case BFD_RELOC_16_GOTOFF:
@@ -5754,19 +5773,45 @@ md_apply_fix3 (fixP, valP, seg)
 			      value, 2);
 	  break;
 
+	case BFD_RELOC_16:
+	  if (fixP->fx_pcrel)
+	    fixP->fx_r_type = BFD_RELOC_16_PCREL;
+	  /* fall through */
+
+	case BFD_RELOC_16_PCREL:
+	  md_number_to_chars (fixP->fx_frag->fr_literal + fixP->fx_where,
+			      value, 2);
+	  break;
+
+	case BFD_RELOC_LO16:
+	  if (fixP->fx_pcrel)
+	    fixP->fx_r_type = BFD_RELOC_LO16_PCREL;
+	  /* fall through */
+
+	case BFD_RELOC_LO16_PCREL:
+	  md_number_to_chars (fixP->fx_frag->fr_literal + fixP->fx_where,
+			      value, 2);
+	  break;
+
 	  /* This case happens when you write, for example,
 	     lis %r3,(L1-L2)@ha
 	     where L1 and L2 are defined later.  */
 	case BFD_RELOC_HI16:
 	  if (fixP->fx_pcrel)
-	    abort ();
+	    fixP->fx_r_type = BFD_RELOC_HI16_PCREL;
+	  /* fall through */
+
+	case BFD_RELOC_HI16_PCREL:
 	  md_number_to_chars (fixP->fx_frag->fr_literal + fixP->fx_where,
 			      PPC_HI (value), 2);
 	  break;
 
 	case BFD_RELOC_HI16_S:
 	  if (fixP->fx_pcrel)
-	    abort ();
+	    fixP->fx_r_type = BFD_RELOC_HI16_S_PCREL;
+	  /* fall through */
+
+	case BFD_RELOC_HI16_S_PCREL:
 	  md_number_to_chars (fixP->fx_frag->fr_literal + fixP->fx_where,
 			      PPC_HA (value), 2);
 	  break;
@@ -5814,7 +5859,7 @@ md_apply_fix3 (fixP, valP, seg)
 	  if (fixP->fx_pcrel)
 	    abort ();
 	  {
-	    unsigned char *where = fixP->fx_frag->fr_literal + fixP->fx_where;
+	    char *where = fixP->fx_frag->fr_literal + fixP->fx_where;
 	    unsigned long val, mask;
 
 	    if (target_big_endian)
@@ -5841,6 +5886,8 @@ md_apply_fix3 (fixP, valP, seg)
 	  break;
 
 	case BFD_RELOC_PPC_TLS:
+	  break;
+
 	case BFD_RELOC_PPC_DTPMOD:
 	case BFD_RELOC_PPC_TPREL16:
 	case BFD_RELOC_PPC_TPREL16_LO:
@@ -5880,6 +5927,7 @@ md_apply_fix3 (fixP, valP, seg)
 	case BFD_RELOC_PPC64_DTPREL16_HIGHERA:
 	case BFD_RELOC_PPC64_DTPREL16_HIGHEST:
 	case BFD_RELOC_PPC64_DTPREL16_HIGHESTA:
+	  S_SET_THREAD_LOCAL (fixP->fx_addsy);
 	  break;
 #endif
 	  /* Because SDA21 modifies the register field, the size is set to 4
@@ -5972,6 +6020,13 @@ md_apply_fix3 (fixP, valP, seg)
 
 #ifdef OBJ_ELF
   fixP->fx_addnumber = value;
+
+  /* PowerPC uses RELA relocs, ie. the reloc addend is stored separately
+     from the section contents.  If we are going to be emitting a reloc
+     then the section contents are immaterial, so don't warn if they
+     happen to overflow.  Leave such warnings to ld.  */
+  if (!fixP->fx_done)
+    fixP->fx_no_overflow = 1;
 #else
   if (fixP->fx_r_type != BFD_RELOC_PPC_TOC16)
     fixP->fx_addnumber = 0;
@@ -6033,7 +6088,7 @@ tc_ppc_regname_to_dw2regnum (const char *regname)
     {
       { "sp", 1 }, { "r.sp", 1 }, { "rtoc", 2 }, { "r.toc", 2 },
       { "mq", 64 }, { "lr", 65 }, { "ctr", 66 }, { "ap", 67 },
-      { "cc", 68 }, { "xer", 76 }, { "vrsave", 109 }, { "vscr", 110 },
+      { "cr", 70 }, { "xer", 76 }, { "vrsave", 109 }, { "vscr", 110 },
       { "spe_acc", 111 }, { "spefscr", 112 }
     };
 

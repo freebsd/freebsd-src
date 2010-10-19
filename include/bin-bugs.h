@@ -1,3 +1,3 @@
 #ifndef REPORT_BUGS_TO
-#define REPORT_BUGS_TO	"bug-binutils@gnu.org"
+#define REPORT_BUGS_TO	"<URL:http://www.sourceware.org/bugzilla/>"
 #endif

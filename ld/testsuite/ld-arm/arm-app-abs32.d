@@ -1,5 +1,5 @@
 
-tmpdir/arm-app-abs32:     file format elf32-littlearm
+tmpdir/arm-app-abs32:     file format elf32-(little|big)arm
 architecture: arm, flags 0x00000112:
 EXEC_P, HAS_SYMS, D_PAGED
 start address .*
@@ -8,7 +8,7 @@ Disassembly of section .plt:
 
 .* <.plt>:
     .*:	e52de004 	str	lr, \[sp, #-4\]!
-    .*:	e59fe004 	ldr	lr, \[pc, #4\]	; .* <.plt\+0x10>
+    .*:	e59fe004 	ldr	lr, \[pc, #4\]	; .* <_start-0x10>
     .*:	e08fe00e 	add	lr, pc, lr
     .*:	e5bef008 	ldr	pc, \[lr, #8\]!
     .*:	.* 	.*

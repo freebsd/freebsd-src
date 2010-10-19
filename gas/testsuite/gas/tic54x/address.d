@@ -5,7 +5,7 @@
 
 Disassembly of section .text:
 
-00000000 <_addressing>:
+0+00 <_addressing>:
    0:	1801.*
    1:	1881.*
    2:	1989.*

@@ -4,4 +4,9 @@ AC_INIT(Makefile.in)
 
 AC_PROG_INSTALL
 
+AC_SUBST(datarootdir)
+AC_SUBST(docdir)
+AC_SUBST(htmldir)
+
+
 AC_OUTPUT(Makefile)

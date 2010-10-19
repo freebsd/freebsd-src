@@ -1,9 +1,210 @@
-#ifndef BISON_Y_TAB_H
-# define BISON_Y_TAB_H
+/* A Bison parser, made by GNU Bison 2.1.  */
 
-#ifndef YYSTYPE
-typedef union
-{
+/* Skeleton parser for Yacc-like parsing with Bison,
+   Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2, or (at your option)
+   any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street, Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
+
+/* As a special exception, when this file is copied by Bison into a
+   Bison output file, you may use that output file without restriction.
+   This special exception was added by the Free Software Foundation
+   in version 1.24 of Bison.  */
+
+/* Tokens.  */
+#ifndef YYTOKENTYPE
+# define YYTOKENTYPE
+   /* Put the tokens into the symbol table, so that GDB and other debuggers
+      know about them.  */
+   enum yytokentype {
+     BEG = 258,
+     END = 259,
+     ACCELERATORS = 260,
+     VIRTKEY = 261,
+     ASCII = 262,
+     NOINVERT = 263,
+     SHIFT = 264,
+     CONTROL = 265,
+     ALT = 266,
+     BITMAP = 267,
+     CURSOR = 268,
+     DIALOG = 269,
+     DIALOGEX = 270,
+     EXSTYLE = 271,
+     CAPTION = 272,
+     CLASS = 273,
+     STYLE = 274,
+     AUTO3STATE = 275,
+     AUTOCHECKBOX = 276,
+     AUTORADIOBUTTON = 277,
+     CHECKBOX = 278,
+     COMBOBOX = 279,
+     CTEXT = 280,
+     DEFPUSHBUTTON = 281,
+     EDITTEXT = 282,
+     GROUPBOX = 283,
+     LISTBOX = 284,
+     LTEXT = 285,
+     PUSHBOX = 286,
+     PUSHBUTTON = 287,
+     RADIOBUTTON = 288,
+     RTEXT = 289,
+     SCROLLBAR = 290,
+     STATE3 = 291,
+     USERBUTTON = 292,
+     BEDIT = 293,
+     HEDIT = 294,
+     IEDIT = 295,
+     FONT = 296,
+     ICON = 297,
+     LANGUAGE = 298,
+     CHARACTERISTICS = 299,
+     VERSIONK = 300,
+     MENU = 301,
+     MENUEX = 302,
+     MENUITEM = 303,
+     SEPARATOR = 304,
+     POPUP = 305,
+     CHECKED = 306,
+     GRAYED = 307,
+     HELP = 308,
+     INACTIVE = 309,
+     MENUBARBREAK = 310,
+     MENUBREAK = 311,
+     MESSAGETABLE = 312,
+     RCDATA = 313,
+     STRINGTABLE = 314,
+     VERSIONINFO = 315,
+     FILEVERSION = 316,
+     PRODUCTVERSION = 317,
+     FILEFLAGSMASK = 318,
+     FILEFLAGS = 319,
+     FILEOS = 320,
+     FILETYPE = 321,
+     FILESUBTYPE = 322,
+     BLOCKSTRINGFILEINFO = 323,
+     BLOCKVARFILEINFO = 324,
+     VALUE = 325,
+     BLOCK = 326,
+     MOVEABLE = 327,
+     FIXED = 328,
+     PURE = 329,
+     IMPURE = 330,
+     PRELOAD = 331,
+     LOADONCALL = 332,
+     DISCARDABLE = 333,
+     NOT = 334,
+     QUOTEDSTRING = 335,
+     STRING = 336,
+     NUMBER = 337,
+     SIZEDSTRING = 338,
+     IGNORED_TOKEN = 339,
+     NEG = 340
+   };
+#endif
+/* Tokens.  */
+#define BEG 258
+#define END 259
+#define ACCELERATORS 260
+#define VIRTKEY 261
+#define ASCII 262
+#define NOINVERT 263
+#define SHIFT 264
+#define CONTROL 265
+#define ALT 266
+#define BITMAP 267
+#define CURSOR 268
+#define DIALOG 269
+#define DIALOGEX 270
+#define EXSTYLE 271
+#define CAPTION 272
+#define CLASS 273
+#define STYLE 274
+#define AUTO3STATE 275
+#define AUTOCHECKBOX 276
+#define AUTORADIOBUTTON 277
+#define CHECKBOX 278
+#define COMBOBOX 279
+#define CTEXT 280
+#define DEFPUSHBUTTON 281
+#define EDITTEXT 282
+#define GROUPBOX 283
+#define LISTBOX 284
+#define LTEXT 285
+#define PUSHBOX 286
+#define PUSHBUTTON 287
+#define RADIOBUTTON 288
+#define RTEXT 289
+#define SCROLLBAR 290
+#define STATE3 291
+#define USERBUTTON 292
+#define BEDIT 293
+#define HEDIT 294
+#define IEDIT 295
+#define FONT 296
+#define ICON 297
+#define LANGUAGE 298
+#define CHARACTERISTICS 299
+#define VERSIONK 300
+#define MENU 301
+#define MENUEX 302
+#define MENUITEM 303
+#define SEPARATOR 304
+#define POPUP 305
+#define CHECKED 306
+#define GRAYED 307
+#define HELP 308
+#define INACTIVE 309
+#define MENUBARBREAK 310
+#define MENUBREAK 311
+#define MESSAGETABLE 312
+#define RCDATA 313
+#define STRINGTABLE 314
+#define VERSIONINFO 315
+#define FILEVERSION 316
+#define PRODUCTVERSION 317
+#define FILEFLAGSMASK 318
+#define FILEFLAGS 319
+#define FILEOS 320
+#define FILETYPE 321
+#define FILESUBTYPE 322
+#define BLOCKSTRINGFILEINFO 323
+#define BLOCKVARFILEINFO 324
+#define VALUE 325
+#define BLOCK 326
+#define MOVEABLE 327
+#define FIXED 328
+#define PURE 329
+#define IMPURE 330
+#define PRELOAD 331
+#define LOADONCALL 332
+#define DISCARDABLE 333
+#define NOT 334
+#define QUOTEDSTRING 335
+#define STRING 336
+#define NUMBER 337
+#define SIZEDSTRING 338
+#define IGNORED_TOKEN 339
+#define NEG 340
+
+
+
+
+#if ! defined (YYSTYPE) && ! defined (YYSTYPE_IS_DECLARED)
+#line 66 "rcparse.y"
+typedef union YYSTYPE {
   struct accelerator acc;
   struct accelerator *pacc;
   struct dialog_control *dialog_control;
@@ -40,95 +241,15 @@ typedef union
     unsigned long length;
     const char *s;
   } ss;
-} yystype;
-# define YYSTYPE yystype
+} YYSTYPE;
+/* Line 1447 of yacc.c.  */
+#line 247 "rcparse.h"
+# define yystype YYSTYPE /* obsolescent; will be withdrawn */
+# define YYSTYPE_IS_DECLARED 1
 # define YYSTYPE_IS_TRIVIAL 1
 #endif
-# define	BEG	257
-# define	END	258
-# define	ACCELERATORS	259
-# define	VIRTKEY	260
-# define	ASCII	261
-# define	NOINVERT	262
-# define	SHIFT	263
-# define	CONTROL	264
-# define	ALT	265
-# define	BITMAP	266
-# define	CURSOR	267
-# define	DIALOG	268
-# define	DIALOGEX	269
-# define	EXSTYLE	270
-# define	CAPTION	271
-# define	CLASS	272
-# define	STYLE	273
-# define	AUTO3STATE	274
-# define	AUTOCHECKBOX	275
-# define	AUTORADIOBUTTON	276
-# define	CHECKBOX	277
-# define	COMBOBOX	278
-# define	CTEXT	279
-# define	DEFPUSHBUTTON	280
-# define	EDITTEXT	281
-# define	GROUPBOX	282
-# define	LISTBOX	283
-# define	LTEXT	284
-# define	PUSHBOX	285
-# define	PUSHBUTTON	286
-# define	RADIOBUTTON	287
-# define	RTEXT	288
-# define	SCROLLBAR	289
-# define	STATE3	290
-# define	USERBUTTON	291
-# define	BEDIT	292
-# define	HEDIT	293
-# define	IEDIT	294
-# define	FONT	295
-# define	ICON	296
-# define	LANGUAGE	297
-# define	CHARACTERISTICS	298
-# define	VERSIONK	299
-# define	MENU	300
-# define	MENUEX	301
-# define	MENUITEM	302
-# define	SEPARATOR	303
-# define	POPUP	304
-# define	CHECKED	305
-# define	GRAYED	306
-# define	HELP	307
-# define	INACTIVE	308
-# define	MENUBARBREAK	309
-# define	MENUBREAK	310
-# define	MESSAGETABLE	311
-# define	RCDATA	312
-# define	STRINGTABLE	313
-# define	VERSIONINFO	314
-# define	FILEVERSION	315
-# define	PRODUCTVERSION	316
-# define	FILEFLAGSMASK	317
-# define	FILEFLAGS	318
-# define	FILEOS	319
-# define	FILETYPE	320
-# define	FILESUBTYPE	321
-# define	BLOCKSTRINGFILEINFO	322
-# define	BLOCKVARFILEINFO	323
-# define	VALUE	324
-# define	BLOCK	325
-# define	MOVEABLE	326
-# define	FIXED	327
-# define	PURE	328
-# define	IMPURE	329
-# define	PRELOAD	330
-# define	LOADONCALL	331
-# define	DISCARDABLE	332
-# define	NOT	333
-# define	QUOTEDSTRING	334
-# define	STRING	335
-# define	NUMBER	336
-# define	SIZEDSTRING	337
-# define	IGNORED_TOKEN	338
-# define	NEG	339
-
 
 extern YYSTYPE yylval;
 
-#endif /* not BISON_Y_TAB_H */
+
+

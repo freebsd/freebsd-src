@@ -13,8 +13,35 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
+
+if {[istarget "arm-*-vxworks"]} {
+    set armvxworkstests {
+	{"VxWorks shared library test 1" "-shared -Tvxworks1.ld"
+	 "" {vxworks1-lib.s}
+	 {{readelf --relocs vxworks1-lib.rd} {objdump -dr vxworks1-lib.dd}
+	  {readelf --symbols vxworks1-lib.nd}}
+	 "libvxworks1.so"}
+	{"VxWorks executable test 1 (dynamic)" \
+	 "tmpdir/libvxworks1.so -Tvxworks1.ld -q --force-dynamic"
+	 "" {vxworks1.s}
+	 {{readelf --relocs vxworks1.rd} {objdump -dr vxworks1.dd}}
+	 "vxworks1"}
+	{"VxWorks executable test 2 (dynamic)" \
+	 "-Tvxworks1.ld -q --force-dynamic"
+	 "" {vxworks2.s}
+	 {{readelf --segments vxworks2.sd}}
+	 "vxworks2"}
+	{"VxWorks executable test 2 (static)"
+	 "-Tvxworks1.ld"
+	 "" {vxworks2.s}
+	 {{readelf --segments vxworks2-static.sd}}
+	 "vxworks2"}
+    }
+    run_ld_link_tests $armvxworkstests
+    run_dump_test "vxworks1-static"
+}
 
 # Exclude non-ARM-ELF targets.
 
@@ -47,6 +74,54 @@ set armelftests {
     {"Non-pcrel function reference" "tmpdir/arm-lib.so" "" {arm-app-abs32.s}
      {{objdump -fdw arm-app-abs32.d} {objdump -Rw arm-app-abs32.r}}
      "arm-app-abs32"}
+    {"Mixed ARM/Thumb shared library" "-shared -T arm-lib.ld" ""
+     {mixed-lib.s}
+     {{objdump -fdw mixed-lib.d} {objdump -Rw mixed-lib.r}
+      {readelf -Ds mixed-lib.sym}}
+     "mixed-lib.so"}
+    {"Mixed ARM/Thumb dynamic application" "tmpdir/mixed-lib.so -T arm-dyn.ld" ""
+     {mixed-app.s}
+     {{objdump -fdw mixed-app.d} {objdump -Rw mixed-app.r}
+      {readelf -Ds mixed-app.sym}}
+     "mixed-app"}
+    {"Mixed ARM/Thumb arch5 dynamic application" "tmpdir/mixed-lib.so -T arm-dyn.ld --use-blx" ""
+     {mixed-app.s}
+     {{objdump -fdw mixed-app-v5.d} {objdump -Rw mixed-app.r}
+      {readelf -Ds mixed-app.sym}}
+     "mixed-app-v5"}
+    {"target1-abs" "-static --target1-abs -T arm.ld" "" {arm-target1.s}
+     {{objdump -s arm-target1-abs.d}}
+     "arm-target1-abs"}
+    {"target1-rel" "-static --target1-rel -T arm.ld" "" {arm-target1.s}
+     {{objdump -s arm-target1-rel.d}}
+     "arm-target1-rel"}
+    {"target2-rel" "-static --target2=rel -T arm.ld" "" {arm-target2.s}
+     {{objdump -s arm-target2-rel.d}}
+     "arm-target2-rel"}
+    {"target2-abs" "-static --target2=abs -T arm.ld" "" {arm-target2.s}
+     {{objdump -s arm-target2-abs.d}}
+     "arm-target2-abs"}
+    {"target2-got-rel" "-static --target2=got-rel -T arm.ld" "" {arm-target2.s}
+     {{objdump -s arm-target2-got-rel.d}}
+     "arm-target2-got-rel"}
+    {"arm-rel31" "-static -T arm.ld" "" {arm-rel31.s}
+     {{objdump -s arm-rel31.d}}
+     "arm-rel31"}
+    {"arm-call" "-static -T arm.ld" "-meabi=4" {arm-call1.s arm-call2.s}
+     {{objdump -d arm-call.d}}
+     "arm-call"}
+    {"TLS shared library" "-shared -T arm-lib.ld" "" {tls-lib.s}
+     {{objdump -fdw tls-lib.d} {objdump -Rw tls-lib.r}}
+     "tls-lib.so"}
+    {"TLS dynamic application" "-T arm-dyn.ld tmpdir/tls-lib.so" "" {tls-app.s}
+     {{objdump -fdw tls-app.d} {objdump -Rw tls-app.r}}
+     "tls-app"}
+    {"Thumb entry point" "-T arm.ld" "" {thumb-entry.s}
+     {{readelf -h thumb-entry.d}}
+     "thumb-entry"}
+    {"thumb-rel32" "-static -T arm.ld" "" {thumb-rel32.s}
+     {{objdump -s thumb-rel32.d}}
+     "thumb-rel32"}
 }
 
 run_ld_link_tests $armelftests

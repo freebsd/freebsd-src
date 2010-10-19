@@ -1,7 +1,8 @@
 dnl Process this file with autoconf to produce a configure script
 
-AC_PREREQ(2.57)
-AC_INIT(xmalloc.c)
+AC_PREREQ(2.59)
+AC_INIT
+AC_CONFIG_SRCDIR([xmalloc.c])
 
 # This works around the fact that libtool configuration may change LD
 # for this particular configuration, but some shells, instead of
@@ -112,8 +113,24 @@ GCC_NO_EXECUTABLES
 AC_PROG_CC
 AC_PROG_CPP_WERROR
 
+# Warn C++ incompatibilities if supported.
+AC_CACHE_CHECK(
+  [whether ${CC} accepts -Wc++-compat],
+  [ac_cv_prog_cc_w_cxx_compat],
+  [save_CFLAGS="$CFLAGS"
+  CFLAGS="-Wc++-compat"
+  AC_COMPILE_IFELSE([AC_LANG_SOURCE([[]])],
+                    [ac_cv_prog_cc_w_cxx_compat=yes],
+                    [ac_cv_prog_cc_w_cxx_compat=no])
+  CFLAGS="$save_CFLAGS"
+  ])
+
+
 if test x$GCC = xyes; then
-  ac_libiberty_warn_cflags='-W -Wall -Wtraditional -pedantic'
+  ac_libiberty_warn_cflags='-W -Wall -pedantic -Wwrite-strings -Wstrict-prototypes'
+fi
+if test $ac_cv_prog_cc_w_cxx_compat = yes ; then
+  ac_libiberty_warn_cflags="${ac_libiberty_warn_cflags} -Wc++-compat"
 fi
 AC_SUBST(ac_libiberty_warn_cflags)
 
@@ -129,7 +146,7 @@ AC_SUBST(OUTPUT_OPTION)
 
 AC_C_CONST
 AC_C_INLINE
-AC_C_BIGENDIAN_CROSS
+AC_C_BIGENDIAN
 
 dnl When we start using libtool:
 dnl Default to a non shared library.  This may be overridden by the
@@ -151,20 +168,125 @@ dnl When we start using automake:
 dnl AM_PROG_INSTALL
 AC_PROG_INSTALL
 
-. ${srcdir}/config.table
+# Don't build the shared library for build.
+if [[ -n "${with_build_subdir}" ]]; then
+  enable_shared=no
+fi
+
+frag=
+case "${host}" in
+  rs6000-ibm-aix3.1 | rs6000-ibm-aix)
+                        frag=mh-aix ;;
+  *-*-cxux7*)		frag=mh-cxux7 ;;
+  *-*-freebsd2.1.*)	frag=mh-fbsd21 ;;
+  *-*-freebsd2.2.[[012]])	frag=mh-fbsd21 ;;
+  i370-*-opened*)       frag=mh-openedition ;;
+  i[[34567]]86-*-windows*)	frag=mh-windows ;;
+esac
+
+if [[ -n "${frag}" ]]; then
+  frags=${libiberty_topdir}/libiberty/config/$frag
+else
+  frags=
+fi
+
+# If they didn't specify --enable-shared, don't generate shared libs.
+case "${enable_shared}" in
+  yes) shared=yes ;;
+  no) shared=no ;;
+  "") shared=no ;;
+  *) shared=yes ;;
+esac
+if [[ "${shared}" = "yes" ]]; then
+  frag=
+  case "${host}" in
+    *-*-cygwin*)	;;
+    alpha*-*-linux*)	frag=mh-elfalphapic ;;
+    arm*-*-*)		frag=mh-armpic ;;
+    hppa*-*-*)		frag=mh-papic ;;
+    i[[34567]]86-*-* | x86_64-*-*)
+			frag=mh-x86pic ;;
+    powerpc*-*-aix*)	;;
+    powerpc*-*-*)	frag=mh-ppcpic ;;
+    sparc*-*-*)		frag=mh-sparcpic ;;
+    s390*-*-*)		frag=mh-s390pic ;;
+    *)			frag=mh-${host_cpu}pic ;;
+  esac
+  if [[ -n "${frag}" ]]; then
+    frags="${frags} ${libiberty_topdir}/config/${frag}"
+  fi
+fi
+
+echo "# Warning: this fragment is automatically generated" > temp-frag
+
+for frag in ${frags}; do
+  if [[ -f ${frag} ]]; then
+    echo "Appending ${frag} to xhost-mkfrag"
+    echo "# Following fragment copied from ${frag}" >> temp-frag
+    cat ${frag} >> temp-frag
+  fi
+done
+
+# record if we want to build shared libs.
+if [[ "${shared}" = "yes" ]]; then
+  echo enable_shared = yes >> temp-frag
+else
+  echo enable_shared = no >> temp-frag
+fi
+
+frag=xhost-mkfrag
+${CONFIG_SHELL-/bin/sh} ${libiberty_topdir}/move-if-change temp-frag xhost-mkfrag
+
 host_makefile_frag=${frag}
 AC_SUBST_FILE(host_makefile_frag)
 
 # It's OK to check for header files.  Although the compiler may not be
 # able to link anything, it had better be able to at least compile
 # something.
-AC_CHECK_HEADERS(sys/file.h sys/param.h limits.h stdlib.h malloc.h string.h unistd.h strings.h sys/time.h time.h sys/resource.h sys/stat.h sys/mman.h fcntl.h alloca.h sys/pstat.h sys/sysmp.h sys/sysinfo.h machine/hal_sysinfo.h sys/table.h sys/sysctl.h sys/systemcfg.h)
+AC_CHECK_HEADERS(sys/file.h sys/param.h limits.h stdlib.h malloc.h string.h unistd.h strings.h sys/time.h time.h sys/resource.h sys/stat.h sys/mman.h fcntl.h alloca.h sys/pstat.h sys/sysmp.h sys/sysinfo.h machine/hal_sysinfo.h sys/table.h sys/sysctl.h sys/systemcfg.h stdint.h stdio_ext.h)
 AC_HEADER_SYS_WAIT
 AC_HEADER_TIME
 
 libiberty_AC_DECLARE_ERRNO
 
+# Determine the size of an int for struct fibnode.
+AC_CHECK_SIZEOF([int])
+
 AC_CHECK_TYPE(uintptr_t, unsigned long)
+
+# Look for a 64-bit type.
+AC_MSG_CHECKING([for a 64-bit type])
+AC_CACHE_VAL(liberty_cv_uint64,
+[AC_TRY_COMPILE(
+[#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif],
+[extern uint64_t foo;],
+liberty_cv_uint64=uint64_t,
+[AC_TRY_COMPILE(
+[#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+#ifndef CHAR_BIT
+#define CHAR_BIT 8
+#endif],
+[extern char foo[sizeof(long) * CHAR_BIT >= 64 ? 1 : -1];],
+liberty_cv_uint64="unsigned long",
+[AC_TRY_COMPILE(
+[#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+#ifndef CHAR_BIT
+#define CHAR_BIT 8
+#endif],
+[extern char foo[sizeof(long long) * CHAR_BIT >= 64 ? 1 : -1];],
+liberty_cv_uint64="unsigned long long", liberty_cv_uint64=none)])])])
+AC_MSG_RESULT($liberty_cv_uint64)
+if test "$liberty_cv_uint64" != none; then
+  AC_DEFINE_UNQUOTED(UNSIGNED_64BIT_TYPE, $liberty_cv_uint64,
+                     [Define to an unsigned 64-bit type available in the compiler.])
+fi
+
 # Given the above check, we always have uintptr_t or a fallback
 # definition.  So define HAVE_UINTPTR_T in case any imported code
 # relies on it.
@@ -187,6 +309,7 @@ funcs="$funcs clock"
 funcs="$funcs ffs"
 funcs="$funcs getcwd"
 funcs="$funcs getpagesize"
+funcs="$funcs gettimeofday"
 funcs="$funcs index"
 funcs="$funcs insque"
 funcs="$funcs memchr"
@@ -209,11 +332,13 @@ funcs="$funcs strcasecmp"
 funcs="$funcs strchr"
 funcs="$funcs strdup"
 funcs="$funcs strncasecmp"
+funcs="$funcs strndup"
 funcs="$funcs strrchr"
 funcs="$funcs strstr"
 funcs="$funcs strtod"
 funcs="$funcs strtol"
 funcs="$funcs strtoul"
+funcs="$funcs strverscmp"
 funcs="$funcs tmpnam"
 funcs="$funcs vasprintf"
 funcs="$funcs vfprintf"
@@ -228,20 +353,21 @@ vars="sys_errlist sys_nerr sys_siglist"
 
 checkfuncs="getrusage on_exit psignal strerror strsignal sysconf times sbrk gettimeofday"
 checkfuncs="$checkfuncs realpath canonicalize_file_name pstat_getstatic pstat_getdynamic sysmp"
-checkfuncs="$checkfuncs getsysinfo table sysctl"
+checkfuncs="$checkfuncs getsysinfo table sysctl wait3 wait4 __fsetlocking"
 
 # These are neither executed nor required, but they help keep
 # autoheader happy without adding a bunch of text to acconfig.h.
 if test "x" = "y"; then
   AC_CHECK_FUNCS(asprintf atexit basename bcmp bcopy bsearch bzero calloc clock \
-  getcwd getpagesize index insque mkstemps memchr memcmp memcpy \
+  getcwd getpagesize gettimeofday index insque mkstemps memchr memcmp memcpy \
   memmove mempcpy memset putenv random rename rindex sigsetmask \
-  strcasecmp setenv stpcpy stpncpy strchr strdup strncasecmp strrchr strstr \
-  strtod strtol strtoul tmpnam vasprintf vfprintf vprintf \
+  strcasecmp setenv stpcpy stpncpy strchr strdup strncasecmp strndup strrchr strstr \
+  strtod strtol strtoul strverscmp tmpnam vasprintf vfprintf vprintf \
   vsprintf waitpid getrusage on_exit psignal strerror strsignal \
   sysconf times sbrk gettimeofday ffs snprintf vsnprintf \
-  pstat_getstatic pstat_getdynamic sysmp getsysinfo table sysctl \
-  realpath canonicalize_file_name)
+  pstat_getstatic pstat_getdynamic sysmp getsysinfo table sysctl wait3 wait4 \
+  realpath canonicalize_file_name __fsetlocking)
+  AC_CHECK_DECLS([basename, ffs, asprintf, vasprintf, snprintf, vsnprintf])
   AC_DEFINE(HAVE_SYS_ERRLIST, 1, [Define if you have the sys_errlist variable.])
   AC_DEFINE(HAVE_SYS_NERR,    1, [Define if you have the sys_nerr variable.])
   AC_DEFINE(HAVE_SYS_SIGLIST, 1, [Define if you have the sys_siglist variable.])
@@ -287,7 +413,7 @@ if test -n "${with_target_subdir}"; then
     # dont have to check them here.
 
     # Of the functions in $checkfuncs, newlib only has strerror.
-    AC_DEFINE_NOAUTOHEADER(HAVE_STRERROR)
+    AC_DEFINE(HAVE_STRERROR)
 
     setobjs=yes
 
@@ -317,7 +443,7 @@ if test -n "${with_target_subdir}"; then
 else
 
    # Not a target library, so we set things up to run the test suite.
-   CHECK=check-cplus-dem
+   CHECK=really-check
 
 fi
 
@@ -326,8 +452,8 @@ AC_SUBST(target_header_dir)
 
 case "${host}" in
   *-*-cygwin* | *-*-mingw*)
-    AC_DEFINE_NOAUTOHEADER(HAVE_SYS_ERRLIST)
-    AC_DEFINE_NOAUTOHEADER(HAVE_SYS_NERR)
+    AC_DEFINE(HAVE_SYS_ERRLIST)
+    AC_DEFINE(HAVE_SYS_NERR)
     ;;
 esac
 
@@ -365,7 +491,7 @@ if test -z "${setobjs}"; then
     # don't have to check them here.
 
     # Of the functions in $checkfuncs, VxWorks only has strerror.
-    AC_DEFINE_NOAUTOHEADER(HAVE_STRERROR)
+    AC_DEFINE(HAVE_STRERROR)
 
     setobjs=yes
     ;;
@@ -407,6 +533,11 @@ if test -z "${setobjs}"; then
     libiberty_cv_var_sys_errlist=yes
     ;;
 
+  *-*-msdosdjgpp*)
+    # vfork and fork are stubs.
+    ac_cv_func_vfork_works=no
+    ;;
+
   *-*-uwin*)
     # Under some versions of uwin, vfork is notoriously buggy and the test 
     # can hang configure; on other versions, vfork exists just as a stub.
@@ -433,7 +564,7 @@ if test -z "${setobjs}"; then
   AC_ISC_POSIX
   AC_REPLACE_FUNCS($funcs)
   libiberty_AC_FUNC_C_ALLOCA
-  AC_FUNC_VFORK
+  AC_FUNC_FORK
   if test $ac_cv_func_vfork_works = no; then
     AC_LIBOBJ([vfork])
   fi
@@ -449,9 +580,9 @@ if test -z "${setobjs}"; then
   for v in $vars; do
     AC_MSG_CHECKING([for $v])
     AC_CACHE_VAL(libiberty_cv_var_$v,
-      [AC_TRY_LINK([int *p;], [extern int $v []; p = $v;],
-		   [eval "libiberty_cv_var_$v=yes"],
-		   [eval "libiberty_cv_var_$v=no"])])
+      [AC_LINK_IFELSE([AC_LANG_PROGRAM([[int *p;]],[[extern int $v []; p = $v;]])],
+		      [eval "libiberty_cv_var_$v=yes"],
+		      [eval "libiberty_cv_var_$v=no"])])
     if eval "test \"`echo '$libiberty_cv_var_'$v`\" = yes"; then
       AC_MSG_RESULT(yes)
       n=HAVE_`echo $v | tr 'abcdefghijklmnopqrstuvwxyz' 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'`
@@ -464,14 +595,17 @@ if test -z "${setobjs}"; then
   # special check for _system_configuration because AIX <4.3.2 do not
   # contain the `physmem' member.
   AC_MSG_CHECKING([for external symbol _system_configuration])
-  AC_TRY_COMPILE([#include <sys/systemcfg.h>],
-                 [double x = _system_configuration.physmem;],
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/systemcfg.h>]],
+			[[double x = _system_configuration.physmem;]])],
     [AC_MSG_RESULT([yes])
     AC_DEFINE(HAVE__SYSTEM_CONFIGURATION, 1,
-              [Define if you have the _system_configuration variable.])],
+	      [Define if you have the _system_configuration variable.])],
     [AC_MSG_RESULT([no])])
 
   AC_CHECK_FUNCS($checkfuncs)
+  AC_CHECK_DECLS([basename, ffs, asprintf, vasprintf, snprintf, vsnprintf])
+  AC_CHECK_DECLS([calloc, getenv, getopt, malloc, realloc, sbrk])
+  AC_CHECK_DECLS([strverscmp])
   libiberty_NEED_DECLARATION(canonicalize_file_name)
 fi
 
@@ -480,7 +614,6 @@ case "${host}" in
      *-*-mingw* | *-*-winnt*)	pexecute=./pex-win32.o  ;;
      *-*-msdosdjgpp*)		pexecute=./pex-djgpp.o  ;;
      *-*-msdos*)		pexecute=./pex-msdos.o  ;;
-     *-*-os2-emx*)		pexecute=./pex-os2.o    ;;
      *)				pexecute=./pex-unix.o   ;;
 esac
 AC_SUBST(pexecute)
@@ -506,25 +639,31 @@ for l in x $LIBOBJS; do
 done
 LIBOBJS="$L"
 
+dnl Required by html and install-html
+AC_SUBST(datarootdir)
+AC_SUBST(docdir)
+AC_SUBST(htmldir)
+
 # We need multilib support, but only if configuring for the target.
-AC_OUTPUT(Makefile testsuite/Makefile,
-[test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h
+AC_CONFIG_FILES([Makefile testsuite/Makefile])
+AC_CONFIG_COMMANDS([default],
+  [[test -z "$CONFIG_HEADERS" || echo timestamp > stamp-h
 if test -n "$CONFIG_FILES"; then
-  if test -n "${with_build_subdir}" || test -n "${with_target_subdir}"; then
+  if test -n "${with_target_subdir}"; then
     # FIXME: We shouldn't need to set ac_file
     ac_file=Makefile
     LD="${ORIGINAL_LD_FOR_MULTILIBS}"
     . ${libiberty_topdir}/config-ml.in
   fi
-fi],
-srcdir=${srcdir}
+fi]],
+[[srcdir=${srcdir}
 host=${host}
 target=${target}
 with_target_subdir=${with_target_subdir}
-with_build_subdir=${with_build_subdir}
 with_multisubdir=${with_multisubdir}
 ac_configure_args="--enable-multilib ${ac_configure_args}"
 CONFIG_SHELL=${CONFIG_SHELL-/bin/sh}
 ORIGINAL_LD_FOR_MULTILIBS="${ORIGINAL_LD_FOR_MULTILIBS}"
 libiberty_topdir=${libiberty_topdir}
-)
+]])
+AC_OUTPUT

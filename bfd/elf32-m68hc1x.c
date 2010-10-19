@@ -1,5 +1,5 @@
 /* Motorola 68HC11/HC12-specific support for 32-bit ELF
-   Copyright 1999, 2000, 2001, 2002, 2003, 2004
+   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
    Free Software Foundation, Inc.
    Contributed by Stephane Carrez (stcarrez@nerim.fr)
 
@@ -17,7 +17,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -70,8 +70,9 @@ m68hc11_elf_hash_table_create (bfd *abfd)
     return NULL;
 
   memset (ret, 0, amt);
-  if (! _bfd_elf_link_hash_table_init (&ret->root, abfd,
-				       _bfd_elf_link_hash_newfunc))
+  if (!_bfd_elf_link_hash_table_init (&ret->root, abfd,
+				      _bfd_elf_link_hash_newfunc,
+				      sizeof (struct elf_link_hash_entry)))
     {
       free (ret);
       return NULL;
@@ -85,7 +86,8 @@ m68hc11_elf_hash_table_create (bfd *abfd)
       free (ret);
       return NULL;
     }
-  if (!bfd_hash_table_init (ret->stub_hash_table, stub_hash_newfunc))
+  if (!bfd_hash_table_init (ret->stub_hash_table, stub_hash_newfunc,
+			    sizeof (struct elf32_m68hc11_stub_hash_entry)))
     return NULL;
 
   ret->stub_bfd = NULL;
@@ -158,9 +160,8 @@ m68hc12_add_stub (const char *stub_name, asection *section,
                                          TRUE, FALSE);
   if (stub_entry == NULL)
     {
-      (*_bfd_error_handler) (_("%s: cannot create stub entry %s"),
-			     bfd_archive_filename (section->owner),
-			     stub_name);
+      (*_bfd_error_handler) (_("%B: cannot create stub entry %s"),
+			     section->owner, stub_name);
       return NULL;
     }
 
@@ -266,7 +267,7 @@ elf32_m68hc11_setup_section_lists (bfd *output_bfd, struct bfd_link_info *info)
 
   /* We can't use output_bfd->section_count here to find the top output
      section index as some sections may have been removed, and
-     _bfd_strip_section_from_output doesn't renumber the indices.  */
+     strip_excluded_output_sections doesn't renumber the indices.  */
   for (section = output_bfd->sections, top_index = 0;
        section != NULL;
        section = section->next)
@@ -471,7 +472,8 @@ elf32_m68hc11_size_stubs (bfd *output_bfd, bfd *stub_bfd,
                             hash->root.u.i.link);
 
                   if (hash->root.type == bfd_link_hash_defined
-                      || hash->root.type == bfd_link_hash_defweak)
+                      || hash->root.type == bfd_link_hash_defweak
+                      || hash->root.type == bfd_link_hash_new)
                     {
                       if (!(hash->other & STO_M68HC12_FAR))
                         continue;
@@ -534,8 +536,7 @@ elf32_m68hc11_size_stubs (bfd *output_bfd, bfd *stub_bfd,
            stub_sec != NULL;
            stub_sec = stub_sec->next)
         {
-          stub_sec->_raw_size = 0;
-          stub_sec->_cooked_size = 0;
+          stub_sec->size = 0;
         }
 
       bfd_hash_traverse (htab->stub_hash_table, htab->size_one_stub, htab);
@@ -629,11 +630,11 @@ elf32_m68hc11_build_stubs (bfd *abfd, struct bfd_link_info *info)
       bfd_size_type size;
 
       /* Allocate memory to hold the linker stubs.  */
-      size = stub_sec->_raw_size;
+      size = stub_sec->size;
       stub_sec->contents = (unsigned char *) bfd_zalloc (htab->stub_bfd, size);
       if (stub_sec->contents == NULL && size != 0)
 	return FALSE;
-      stub_sec->_raw_size = 0;
+      stub_sec->size = 0;
     }
 
   /* Build the stubs as directed by the stub hash table.  */
@@ -803,7 +804,7 @@ m68hc11_elf_special_reloc (bfd *abfd ATTRIBUTE_UNUSED,
   if (output_bfd != NULL)
     return bfd_reloc_continue;
 
-  if (reloc_entry->address > input_section->_cooked_size)
+  if (reloc_entry->address > bfd_get_section_limit (abfd, input_section))
     return bfd_reloc_outofrange;
 
   abort();
@@ -886,7 +887,12 @@ elf32_m68hc11_check_relocs (bfd *abfd, struct bfd_link_info *info,
       if (r_symndx < symtab_hdr->sh_info)
         h = NULL;
       else
-        h = sym_hashes [r_symndx - symtab_hdr->sh_info];
+	{
+	  h = sym_hashes [r_symndx - symtab_hdr->sh_info];
+	  while (h->root.type == bfd_link_hash_indirect
+		 || h->root.type == bfd_link_hash_warning)
+	    h = (struct elf_link_hash_entry *) h->root.u.i.link;
+	}
 
       switch (ELF32_R_TYPE (rel->r_info))
         {
@@ -1001,7 +1007,7 @@ elf32_m68hc11_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
   Elf_Internal_Shdr *symtab_hdr;
   struct elf_link_hash_entry **sym_hashes;
   Elf_Internal_Rela *rel, *relend;
-  const char *name;
+  const char *name = NULL;
   struct m68hc11_page_info *pinfo;
   const struct elf_backend_data * const ebd = get_elf_backend_data (input_bfd);
 
@@ -1022,13 +1028,13 @@ elf32_m68hc11_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
       unsigned long r_symndx;
       Elf_Internal_Sym *sym;
       asection *sec;
-      bfd_vma relocation;
+      bfd_vma relocation = 0;
       bfd_reloc_status_type r = bfd_reloc_undefined;
       bfd_vma phys_page;
       bfd_vma phys_addr;
       bfd_vma insn_addr;
       bfd_vma insn_page;
-      bfd_boolean is_far;
+      bfd_boolean is_far = FALSE;
 
       r_symndx = ELF32_R_SYM (rel->r_info);
       r_type = ELF32_R_TYPE (rel->r_info);
@@ -1174,7 +1180,7 @@ elf32_m68hc11_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 	    {
 	    case bfd_reloc_overflow:
 	      if (!((*info->callbacks->reloc_overflow)
-		    (info, name, howto->name, (bfd_vma) 0,
+		    (info, NULL, name, howto->name, (bfd_vma) 0,
 		     input_bfd, input_section, rel->r_offset)))
 		return FALSE;
 	      break;
@@ -1274,17 +1280,15 @@ _bfd_m68hc11_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
   if ((new_flags & E_M68HC11_I32) != (old_flags & E_M68HC11_I32))
     {
       (*_bfd_error_handler)
-	(_("%s: linking files compiled for 16-bit integers (-mshort) "
-           "and others for 32-bit integers"),
-	 bfd_archive_filename (ibfd));
+	(_("%B: linking files compiled for 16-bit integers (-mshort) "
+           "and others for 32-bit integers"), ibfd);
       ok = FALSE;
     }
   if ((new_flags & E_M68HC11_F64) != (old_flags & E_M68HC11_F64))
     {
       (*_bfd_error_handler)
-	(_("%s: linking files compiled for 32-bit double (-fshort-double) "
-           "and others for 64-bit double"),
-	 bfd_archive_filename (ibfd));
+	(_("%B: linking files compiled for 32-bit double (-fshort-double) "
+           "and others for 64-bit double"), ibfd);
       ok = FALSE;
     }
 
@@ -1292,9 +1296,8 @@ _bfd_m68hc11_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
   if (!EF_M68HC11_CAN_MERGE_MACH (new_flags, old_flags))
     {
       (*_bfd_error_handler)
-	(_("%s: linking files compiled for HCS12 with "
-           "others compiled for HC12"),
-	 bfd_archive_filename (ibfd));
+	(_("%B: linking files compiled for HCS12 with "
+           "others compiled for HC12"), ibfd);
       ok = FALSE;
     }
   new_flags = ((new_flags & ~EF_M68HC11_MACH_MASK)
@@ -1309,9 +1312,8 @@ _bfd_m68hc11_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
   if (new_flags != old_flags)
     {
       (*_bfd_error_handler)
-	(_("%s: uses different e_flags (0x%lx) fields than previous modules (0x%lx)"),
-	 bfd_archive_filename (ibfd), (unsigned long) new_flags,
-	 (unsigned long) old_flags);
+	(_("%B: uses different e_flags (0x%lx) fields than previous modules (0x%lx)"),
+	 ibfd, (unsigned long) new_flags, (unsigned long) old_flags);
       ok = FALSE;
     }
 

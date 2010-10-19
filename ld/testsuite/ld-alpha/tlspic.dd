@@ -12,7 +12,7 @@ Disassembly of section .text:
 
 0+1000 <fn1>:
     1000:	02 00 bb 27 	ldah	gp,2\(t12\)
-    1004:	e8 91 bd 23 	lda	gp,-28184\(gp\)
+    1004:	a0 82 bd 23 	lda	gp,-32096\(gp\)
     1008:	3e 15 c2 43 	subq	sp,0x10,sp
     100c:	00 00 5e b7 	stq	ra,0\(sp\)
     1010:	08 00 3e b5 	stq	s0,8\(sp\)
@@ -22,23 +22,23 @@ Disassembly of section .text:
     1020:	00 80 7d a7 	ldq	t12,-32768\(gp\)
     1024:	00 40 5b 6b 	jsr	ra,\(t12\),1028 <.*>
     1028:	02 00 ba 27 	ldah	gp,2\(ra\)
-    102c:	c0 91 bd 23 	lda	gp,-28224\(gp\)
+    102c:	78 82 bd 23 	lda	gp,-32136\(gp\)
     1030:	30 80 1d 22 	lda	a0,-32720\(gp\)
     1034:	00 80 7d a7 	ldq	t12,-32768\(gp\)
     1038:	00 40 5b 6b 	jsr	ra,\(t12\),103c <.*>
     103c:	02 00 ba 27 	ldah	gp,2\(ra\)
-    1040:	ac 91 bd 23 	lda	gp,-28244\(gp\)
+    1040:	64 82 bd 23 	lda	gp,-32156\(gp\)
     1044:	40 80 1d 22 	lda	a0,-32704\(gp\)
     1048:	00 80 7d a7 	ldq	t12,-32768\(gp\)
     104c:	00 40 5b 6b 	jsr	ra,\(t12\),1050 <.*>
     1050:	02 00 ba 27 	ldah	gp,2\(ra\)
-    1054:	98 91 bd 23 	lda	gp,-28264\(gp\)
+    1054:	50 82 bd 23 	lda	gp,-32176\(gp\)
     1058:	21 00 20 20 	lda	t0,33\(v0\)
     105c:	40 80 1d 22 	lda	a0,-32704\(gp\)
     1060:	00 80 7d a7 	ldq	t12,-32768\(gp\)
     1064:	00 40 5b 6b 	jsr	ra,\(t12\),1068 <.*>
     1068:	02 00 ba 27 	ldah	gp,2\(ra\)
-    106c:	80 91 bd 23 	lda	gp,-28288\(gp\)
+    106c:	38 82 bd 23 	lda	gp,-32200\(gp\)
     1070:	40 00 20 20 	lda	t0,64\(v0\)
     1074:	62 00 20 20 	lda	t0,98\(v0\)
     1078:	00 00 20 24 	ldah	t0,0\(v0\)

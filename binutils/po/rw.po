@@ -1,0 +1,4990 @@
+# translation of binutils to Kinyarwanda.
+# Copyright (C) 2005 Free Software Foundation, Inc.
+# This file is distributed under the same license as the binutils package.
+# Steve Murphy <murf@e-tools.com>, 2005
+# Steve performed initial rough translation from compendium built from translations provided by the following translators:
+# Philibert Ndandali  <ndandali@yahoo.fr>, 2005.
+# Viateur MUGENZI <muvia1@yahoo.fr>, 2005.
+# Noëlla Mupole <s24211045@tuks.co.za>, 2005.
+# Carole Karema <karemacarole@hotmail.com>, 2005.
+# JEAN BAPTISTE NGENDAHAYO <ngenda_denis@yahoo.co.uk>, 2005.
+# Augustin KIBERWA  <akiberwa@yahoo.co.uk>, 2005.
+# Donatien NSENGIYUMVA <ndonatienuk@yahoo.co.uk>, 2005.
+# Antoine Bigirimana <antoine@e-tools.com>, 2005.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: binutils 2.15\n"
+"POT-Creation-Date: 2003-07-11 13:56+0930\n"
+"PO-Revision-Date: 2005-04-03 10:55-0700\n"
+"Last-Translator: Steven Michael Murphy <murf@e-tools.com>\n"
+"Language-Team: Kinyarwanda <translation-team-rw@lists.sourceforge.net>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: addr2line.c:74
+#, fuzzy, c-format
+msgid "Usage: %s [option(s)] [addr(s)]\n"
+msgstr "Ihitamo S Aderesi S"
+
+#: addr2line.c:75
+#, fuzzy
+msgid " Convert addresses into line number/file name pairs.\n"
+msgstr "Amaderesi Umurongo Umubare IDOSIYE Izina:"
+
+#: addr2line.c:76
+#, fuzzy
+msgid " If no addresses are specified on the command line, they will be read from stdin\n"
+msgstr "Oya Amaderesi ku i Komandi: Umurongo Gusoma Bivuye"
+
+#: addr2line.c:77
+#, fuzzy
+msgid ""
+" The options are:\n"
+"  -b --target=<bfdname>  Set the binary file format\n"
+"  -e --exe=<executable>  Set the input file name (default is a.out)\n"
+"  -s --basenames         Strip directory names\n"
+"  -f --functions         Show function names\n"
+"  -C --demangle[=style]  Demangle function names\n"
+"  -h --help              Display this information\n"
+"  -v --version           Display the program's version\n"
+"\n"
+msgstr "Amahitamo B Intego i Nyabibiri IDOSIYE E exe i Iyinjiza IDOSIYE Izina: Mburabuzi ni a Inyuma S bushyinguro F Imimaro Umumaro C IMISUSIRE Umumaro h Ifashayobora iyi v Verisiyo i"
+
+#: addr2line.c:89 ar.c:297 coffdump.c:479 nlmconv.c:1121 objcopy.c:484
+#: objcopy.c:518 readelf.c:2649 size.c:104 srconv.c:1962 strings.c:673
+#: sysdump.c:774 windres.c:702
+#, fuzzy, c-format
+msgid "Report bugs to %s\n"
+msgstr "Kuri"
+
+#: addr2line.c:245
+#, fuzzy, c-format
+msgid "%s: can not get addresses from archive"
+msgstr "%s:OYA Kubona Amaderesi Bivuye"
+
+#: addr2line.c:317 nm.c:433 objdump.c:2693
+#, fuzzy, c-format
+msgid "unknown demangling style `%s'"
+msgstr "Kitazwi IMISUSIRE"
+
+#: ar.c:238
+#, fuzzy, c-format
+msgid "no entry %s in archive\n"
+msgstr "Oya Icyinjijwe in"
+
+#: ar.c:255
+#, fuzzy, c-format
+msgid "Usage: %s [emulation options] [-]{dmpqrstx}[abcfilNoPsSuvV] [member-name] [count] archive-file file...\n"
+msgstr "Amahitamo Izina: IBARA IDOSIYE IDOSIYE"
+
+#: ar.c:258
+#, fuzzy, c-format
+msgid "       %s -M [<mri-script]\n"
+msgstr "%s-IYANDIKA"
+
+# sfx2/source\doc\docvor.src:DLG_ORGANIZE.BTN_EDIT.text
+#: ar.c:259
+#, fuzzy
+msgid " commands:\n"
+msgstr "Amabwiriza"
+
+#: ar.c:260
+#, fuzzy
+msgid "  d            - delete file(s) from the archive\n"
+msgstr "D Gusiba IDOSIYE S Bivuye i"
+
+#: ar.c:261
+#, fuzzy
+msgid "  m[ab]        - move file(s) in the archive\n"
+msgstr "M Kwimura IDOSIYE S in i"
+
+#: ar.c:262
+#, fuzzy
+msgid "  p            - print file(s) found in the archive\n"
+msgstr "P Gucapa IDOSIYE S Byabonetse in i"
+
+#: ar.c:263
+#, fuzzy
+msgid "  q[f]         - quick append file(s) to the archive\n"
+msgstr "Q F Kongeraho... IDOSIYE S Kuri i"
+
+#: ar.c:264
+#, fuzzy
+msgid "  r[ab][f][u]  - replace existing or insert new file(s) into the archive\n"
+msgstr "R F u Gusimbura Cyangwa Kongeramo Gishya IDOSIYE S i"
+
+#: ar.c:265
+#, fuzzy
+msgid "  t            - display contents of archive\n"
+msgstr "T Kugaragaza Ibigize Bya"
+
+#: ar.c:266
+#, fuzzy
+msgid "  x[o]         - extract file(s) from the archive\n"
+msgstr "X o IDOSIYE S Bivuye i"
+
+#: ar.c:267
+#, fuzzy
+msgid " command specific modifiers:\n"
+msgstr "Komandi:"
+
+#: ar.c:268
+#, fuzzy
+msgid "  [a]          - put file(s) after [member-name]\n"
+msgstr "[a Gushyira IDOSIYE S Nyuma Izina:"
+
+#: ar.c:269
+#, fuzzy
+msgid "  [b]          - put file(s) before [member-name] (same as [i])\n"
+msgstr "[B Gushyira IDOSIYE S Mbere Izina: Nka i"
+
+#: ar.c:270
+#, fuzzy
+msgid "  [N]          - use instance [count] of name\n"
+msgstr "[Gukoresha Urugero IBARA Bya"
+
+#: ar.c:271
+#, fuzzy
+msgid "  [f]          - truncate inserted file names\n"
+msgstr "[F Byinjijwemo IDOSIYE"
+
+#: ar.c:272
+#, fuzzy
+msgid "  [P]          - use full path names when matching\n"
+msgstr "[Gukoresha Inzira Amazina Ryari:"
+
+#: ar.c:273
+#, fuzzy
+msgid "  [o]          - preserve original dates\n"
+msgstr "[o Umwimerere"
+
+#: ar.c:274
+#, fuzzy
+msgid "  [u]          - only replace files that are newer than current archive contents\n"
+msgstr "[u Gusimbura Idosiye KIGEZWEHO"
+
+#: ar.c:275
+#, fuzzy
+msgid " generic modifiers:\n"
+msgstr "Gifitanye isano"
+
+#: ar.c:276
+#, fuzzy
+msgid "  [c]          - do not warn if the library had to be created\n"
+msgstr "[C OYA NIBA i Isomero Kuri"
+
+#: ar.c:277
+#, fuzzy
+msgid "  [s]          - create an archive index (cf. ranlib)\n"
+msgstr "[S Kurema Umubarendanga"
+
+#: ar.c:278
+#, fuzzy
+msgid "  [S]          - do not build a symbol table\n"
+msgstr "[OYA a IKIMENYETSO"
+
+#: ar.c:279
+#, fuzzy
+msgid "  [v]          - be verbose\n"
+msgstr "[v"
+
+#: ar.c:280
+#, fuzzy
+msgid "  [V]          - display the version number\n"
+msgstr "[V Kugaragaza i Verisiyo"
+
+#: ar.c:287
+#, fuzzy, c-format
+msgid "Usage: %s [options] archive\n"
+msgstr "Amahitamo"
+
+#: ar.c:288
+#, fuzzy
+msgid " Generate an index to speed access to archives\n"
+msgstr "Umubarendanga Kuri Umuvuduko Kuri"
+
+#: ar.c:289
+#, fuzzy
+msgid ""
+" The options are:\n"
+"  -h --help                    Print this help message\n"
+"  -V --version                 Print version information\n"
+msgstr "Amahitamo h Ifashayobora iyi Ifashayobora V Verisiyo Verisiyo"
+
+#: ar.c:512
+#, fuzzy
+msgid "two different operation options specified"
+msgstr "Amahitamo"
+
+#: ar.c:587
+#, fuzzy, c-format
+msgid "illegal option -- %c"
+msgstr "Ihitamo"
+
+#: ar.c:619
+#, fuzzy
+msgid "no operation specified"
+msgstr "Oya"
+
+#: ar.c:622
+#, fuzzy
+msgid "`u' is only meaningful with the `r' option."
+msgstr "`ni Na: i Ihitamo"
+
+#: ar.c:632
+#, fuzzy
+msgid "`N' is only meaningful with the `x' and `d' options."
+msgstr "`ni Na: i Na Amahitamo"
+
+#: ar.c:635
+#, fuzzy
+msgid "Value for `N' must be positive."
+msgstr "kugirango"
+
+#: ar.c:718
+#, fuzzy, c-format
+msgid "internal error -- this option not implemented"
+msgstr "By'imbere Ikosa iyi Ihitamo OYA"
+
+#: ar.c:837 ar.c:888 ar.c:1333 objcopy.c:1579
+#, fuzzy, c-format
+msgid "internal stat error on %s"
+msgstr "By'imbere Ikosa ku"
+
+#: ar.c:841
+#, c-format
+msgid ""
+"\n"
+"<member %s>\n"
+"\n"
+msgstr ""
+
+#: ar.c:857 ar.c:925
+#, fuzzy, c-format
+msgid "%s is not a valid archive"
+msgstr "%sni OYA a Byemewe"
+
+#: ar.c:893
+#, fuzzy, c-format
+msgid "stat returns negative size for %s"
+msgstr "Ingano kugirango"
+
+#: ar.c:1020
+#, fuzzy, c-format
+msgid "%s is not an archive"
+msgstr "%sni OYA"
+
+#: ar.c:1027
+#, c-format
+msgid "creating %s"
+msgstr ""
+
+#: ar.c:1233
+#, c-format
+msgid "No member named `%s'\n"
+msgstr ""
+
+#: ar.c:1285
+#, fuzzy, c-format
+msgid "no entry %s in archive %s!"
+msgstr "Oya Icyinjijwe in"
+
+#: ar.c:1422
+#, fuzzy, c-format
+msgid "%s: no archive map to update"
+msgstr "%s:Oya Kuri Kuvugurura"
+
+#: arsup.c:86
+#, fuzzy, c-format
+msgid "No entry %s in archive.\n"
+msgstr "Icyinjijwe in"
+
+# sfx2/source\appl\app.src:STR_ERR_NOFILE.text
+#: arsup.c:117
+#, fuzzy, c-format
+msgid "Can't open file %s\n"
+msgstr "Ntibishoboka gufungura idosiye$."
+
+#: arsup.c:172
+#, fuzzy, c-format
+msgid "%s: Can't open output archive %s\n"
+msgstr "%s:Gufungura Ibisohoka"
+
+#: arsup.c:189
+#, fuzzy, c-format
+msgid "%s: Can't open input archive %s\n"
+msgstr "%s:Gufungura Iyinjiza"
+
+#: arsup.c:198
+#, fuzzy, c-format
+msgid "%s: file %s is not an archive\n"
+msgstr "%s:IDOSIYE ni OYA"
+
+#: arsup.c:241
+#, fuzzy, c-format
+msgid "%s: no output archive specified yet\n"
+msgstr "%s:Oya Ibisohoka"
+
+#: arsup.c:262 arsup.c:301 arsup.c:343 arsup.c:364 arsup.c:430
+#, fuzzy, c-format
+msgid "%s: no open output archive\n"
+msgstr "%s:Oya Gufungura Ibisohoka"
+
+#: arsup.c:273 arsup.c:385 arsup.c:411
+#, fuzzy, c-format
+msgid "%s: can't open file %s\n"
+msgstr "%s:Gufungura IDOSIYE"
+
+#: arsup.c:328 arsup.c:407 arsup.c:489
+#, fuzzy, c-format
+msgid "%s: can't find module file %s\n"
+msgstr "%s:Gushaka Modire IDOSIYE"
+
+#: arsup.c:439
+#, fuzzy, c-format
+msgid "Current open archive is %s\n"
+msgstr "Gufungura ni"
+
+#: arsup.c:464
+#, fuzzy, c-format
+msgid "%s: no open archive\n"
+msgstr "%s:Oya Gufungura"
+
+#: binemul.c:39
+#, c-format
+msgid "  No emulation specific options\n"
+msgstr ""
+
+#. Macros for common output.
+#: binemul.h:52
+#, fuzzy, c-format
+msgid " emulation options: \n"
+msgstr "Amahitamo"
+
+#: bucomm.c:113
+#, fuzzy, c-format
+msgid "can't set BFD default target to `%s': %s"
+msgstr "Gushyiraho Mburabuzi Intego Kuri"
+
+#: bucomm.c:125
+#, fuzzy, c-format
+msgid "%s: Matching formats:"
+msgstr "%s:Imiterere"
+
+#: bucomm.c:142
+msgid "Supported targets:"
+msgstr ""
+
+#: bucomm.c:144
+#, c-format
+msgid "%s: supported targets:"
+msgstr ""
+
+#: bucomm.c:162
+msgid "Supported architectures:"
+msgstr ""
+
+#: bucomm.c:164
+#, c-format
+msgid "%s: supported architectures:"
+msgstr ""
+
+#: bucomm.c:360
+#, fuzzy, c-format
+msgid "BFD header file version %s\n"
+msgstr "Umutwempangano IDOSIYE Verisiyo"
+
+#: bucomm.c:467
+#, fuzzy, c-format
+msgid "%s: bad number: %s"
+msgstr "%s:Umubare"
+
+#: coffdump.c:107
+#, fuzzy, c-format
+msgid "#lines %d "
+msgstr "#Imirongo"
+
+#: coffdump.c:471 sysdump.c:767
+#, fuzzy, c-format
+msgid "Usage: %s [option(s)] in-file\n"
+msgstr "Ihitamo S in"
+
+#: coffdump.c:472
+#, fuzzy
+msgid " Print a human readable interpretation of a SYSROFF object file\n"
+msgstr "a Bya a Igikoresho"
+
+#: coffdump.c:473
+#, fuzzy
+msgid ""
+" The options are:\n"
+"  -h --help              Display this information\n"
+"  -v --version           Display the program's version\n"
+"\n"
+msgstr "Amahitamo h Ifashayobora iyi v Verisiyo i"
+
+#: coffdump.c:541 srconv.c:2052 sysdump.c:831
+#, fuzzy
+msgid "no input file specified"
+msgstr "Oya Iyinjiza IDOSIYE"
+
+#: debug.c:654
+#, fuzzy
+msgid "debug_add_to_current_namespace: no current file"
+msgstr "Oya KIGEZWEHO IDOSIYE"
+
+#: debug.c:737
+#, fuzzy
+msgid "debug_start_source: no debug_set_filename call"
+msgstr "Oya"
+
+#: debug.c:796
+#, fuzzy
+msgid "debug_record_function: no debug_set_filename call"
+msgstr "Oya"
+
+#: debug.c:852
+#, fuzzy
+msgid "debug_record_parameter: no current function"
+msgstr "Oya KIGEZWEHO Umumaro"
+
+#: debug.c:886
+#, fuzzy
+msgid "debug_end_function: no current function"
+msgstr "Oya KIGEZWEHO Umumaro"
+
+#: debug.c:892
+#, fuzzy
+msgid "debug_end_function: some blocks were not closed"
+msgstr "OYA"
+
+#: debug.c:922
+#, fuzzy
+msgid "debug_start_block: no current block"
+msgstr "Oya KIGEZWEHO Funga"
+
+#: debug.c:960
+#, fuzzy
+msgid "debug_end_block: no current block"
+msgstr "Oya KIGEZWEHO Funga"
+
+#: debug.c:967
+#, fuzzy
+msgid "debug_end_block: attempt to close top level block"
+msgstr "Kuri Gufunga Hejuru: urwego Funga"
+
+#: debug.c:993
+#, fuzzy
+msgid "debug_record_line: no current unit"
+msgstr "Oya KIGEZWEHO Igice:"
+
+#. FIXME
+#: debug.c:1047
+#, fuzzy
+msgid "debug_start_common_block: not implemented"
+msgstr "OYA"
+
+#. FIXME
+#: debug.c:1059
+#, fuzzy
+msgid "debug_end_common_block: not implemented"
+msgstr "OYA"
+
+#. FIXME.
+#: debug.c:1153
+#, fuzzy
+msgid "debug_record_label: not implemented"
+msgstr "OYA"
+
+#: debug.c:1179
+#, fuzzy
+msgid "debug_record_variable: no current file"
+msgstr "Oya KIGEZWEHO IDOSIYE"
+
+#: debug.c:1762
+msgid "debug_make_undefined_type: unsupported kind"
+msgstr ""
+
+#: debug.c:1963
+#, fuzzy
+msgid "debug_name_type: no current file"
+msgstr "Oya KIGEZWEHO IDOSIYE"
+
+#: debug.c:2011
+#, fuzzy
+msgid "debug_tag_type: no current file"
+msgstr "Oya KIGEZWEHO IDOSIYE"
+
+#: debug.c:2019
+#, fuzzy
+msgid "debug_tag_type: extra tag attempted"
+msgstr "Birenga Itagi:"
+
+#: debug.c:2058
+#, fuzzy, c-format
+msgid "Warning: changing type size from %d to %d\n"
+msgstr "Ubwoko Ingano Bivuye Kuri"
+
+#: debug.c:2082
+#, fuzzy
+msgid "debug_find_named_type: no current compilation unit"
+msgstr "Oya KIGEZWEHO Igice:"
+
+#: debug.c:2189
+#, fuzzy, c-format
+msgid "debug_get_real_type: circular debug information for %s\n"
+msgstr "Cy'uruziga Kosora amakosa Ibisobanuro kugirango"
+
+#: debug.c:2650
+#, fuzzy
+msgid "debug_write_type: illegal type encountered"
+msgstr "Ubwoko"
+
+#: dlltool.c:812 dlltool.c:837 dlltool.c:863
+#, fuzzy, c-format
+msgid "Internal error: Unknown machine type: %d"
+msgstr "Ikosa Ubwoko"
+
+#: dlltool.c:900
+#, fuzzy, c-format
+msgid "Can't open def file: %s"
+msgstr "Gufungura IDOSIYE"
+
+#: dlltool.c:905
+#, fuzzy, c-format
+msgid "Processing def file: %s"
+msgstr "IDOSIYE"
+
+#: dlltool.c:909
+#, fuzzy
+msgid "Processed def file"
+msgstr "IDOSIYE"
+
+#: dlltool.c:935
+#, fuzzy, c-format
+msgid "Syntax error in def file %s:%d"
+msgstr "Ikosa in IDOSIYE"
+
+#: dlltool.c:974
+#, fuzzy, c-format
+msgid "NAME: %s base: %x"
+msgstr "SHINGIRO"
+
+#: dlltool.c:977 dlltool.c:996
+#, fuzzy
+msgid "Can't have LIBRARY and NAME"
+msgstr "Na"
+
+#: dlltool.c:993
+#, fuzzy, c-format
+msgid "LIBRARY: %s base: %x"
+msgstr "SHINGIRO"
+
+#: dlltool.c:1251 resrc.c:271
+#, fuzzy, c-format
+msgid "wait: %s"
+msgstr "Tegereza"
+
+#: dlltool.c:1256 dllwrap.c:430 resrc.c:276
+#, c-format
+msgid "subprocess got fatal signal %d"
+msgstr ""
+
+#: dlltool.c:1262 dllwrap.c:437 resrc.c:283
+#, fuzzy, c-format
+msgid "%s exited with status %d"
+msgstr "%sNa: Imimerere"
+
+#: dlltool.c:1294
+#, fuzzy, c-format
+msgid "Sucking in info from %s section in %s"
+msgstr "in Ibisobanuro Bivuye Icyiciro in"
+
+#: dlltool.c:1423
+#, fuzzy, c-format
+msgid "Excluding symbol: %s"
+msgstr "IKIMENYETSO"
+
+#: dlltool.c:1518 dlltool.c:1529 nm.c:1004 nm.c:1015
+#, fuzzy, c-format
+msgid "%s: no symbols"
+msgstr "%s:Oya Ibimenyetso"
+
+#. FIXME: we ought to read in and block out the base relocations.
+#: dlltool.c:1556
+#, c-format
+msgid "Done reading %s"
+msgstr ""
+
+#: dlltool.c:1567
+#, fuzzy, c-format
+msgid "Unable to open object file: %s"
+msgstr "Kuri Gufungura Igikoresho IDOSIYE"
+
+#: dlltool.c:1570
+#, fuzzy, c-format
+msgid "Scanning object file %s"
+msgstr "Igikoresho IDOSIYE"
+
+#: dlltool.c:1585
+#, fuzzy, c-format
+msgid "Cannot produce mcore-elf dll from archive file: %s"
+msgstr "Bivuye IDOSIYE"
+
+#: dlltool.c:1677
+#, fuzzy
+msgid "Adding exports to output file"
+msgstr "Kuri Ibisohoka IDOSIYE"
+
+#: dlltool.c:1724
+#, fuzzy
+msgid "Added exports to output file"
+msgstr "Kuri Ibisohoka IDOSIYE"
+
+#: dlltool.c:1848
+#, fuzzy, c-format
+msgid "Generating export file: %s"
+msgstr "Kohereza IDOSIYE"
+
+#: dlltool.c:1853
+#, fuzzy, c-format
+msgid "Unable to open temporary assembler file: %s"
+msgstr "Kuri Gufungura By'igihe gito IDOSIYE"
+
+#: dlltool.c:1856
+#, fuzzy, c-format
+msgid "Opened temporary file: %s"
+msgstr "By'igihe gito IDOSIYE"
+
+#: dlltool.c:2086
+#, fuzzy
+msgid "Generated exports file"
+msgstr "IDOSIYE"
+
+#: dlltool.c:2378
+#, fuzzy, c-format
+msgid "bfd_open failed open stub file: %s"
+msgstr "Byanze Gufungura IDOSIYE"
+
+#: dlltool.c:2381
+#, fuzzy, c-format
+msgid "Creating stub file: %s"
+msgstr "IDOSIYE"
+
+#: dlltool.c:2766
+#, fuzzy, c-format
+msgid "failed to open temporary head file: %s"
+msgstr "Byanze Kuri Gufungura By'igihe gito IDOSIYE"
+
+#: dlltool.c:2825
+#, fuzzy, c-format
+msgid "failed to open temporary tail file: %s"
+msgstr "Byanze Kuri Gufungura By'igihe gito IDOSIYE"
+
+#: dlltool.c:2892
+#, fuzzy, c-format
+msgid "Can't open .lib file: %s"
+msgstr "Gufungura IDOSIYE"
+
+#: dlltool.c:2895
+#, fuzzy, c-format
+msgid "Creating library file: %s"
+msgstr "Isomero IDOSIYE"
+
+#: dlltool.c:2951
+#, fuzzy, c-format
+msgid "cannot delete %s: %s"
+msgstr "Gusiba"
+
+#: dlltool.c:2955
+#, fuzzy
+msgid "Created lib file"
+msgstr "IDOSIYE"
+
+#: dlltool.c:3062
+#, fuzzy, c-format
+msgid "Warning, ignoring duplicate EXPORT %s %d,%d"
+msgstr "Gusubiramo"
+
+#: dlltool.c:3068
+#, fuzzy, c-format
+msgid "Error, duplicate EXPORT with oridinals: %s"
+msgstr "Gusubiramo Na:"
+
+#: dlltool.c:3191
+msgid "Processing definitions"
+msgstr ""
+
+#: dlltool.c:3223
+msgid "Processed definitions"
+msgstr ""
+
+#. xgetext:c-format
+#: dlltool.c:3234 dllwrap.c:495
+#, fuzzy, c-format
+msgid "Usage %s <option(s)> <object-file(s)>\n"
+msgstr "Ihitamo S Igikoresho IDOSIYE S"
+
+#. xgetext:c-format
+#: dlltool.c:3236
+#, fuzzy, c-format
+msgid "   -m --machine <machine>    Create as DLL for <machine>.  [default: %s]\n"
+msgstr "-M Nka kugirango Mburabuzi"
+
+#: dlltool.c:3237
+#, fuzzy
+msgid "        possible <machine>: arm[_interwork], i386, mcore[-elf]{-le|-be}, ppc, thumb\n"
+msgstr "LE"
+
+#: dlltool.c:3238
+#, fuzzy
+msgid "   -e --output-exp <outname> Generate an export file.\n"
+msgstr "-E Ibisohoka EXP Kohereza IDOSIYE"
+
+#: dlltool.c:3239
+#, fuzzy
+msgid "   -l --output-lib <outname> Generate an interface library.\n"
+msgstr "-L Ibisohoka Isomero"
+
+#: dlltool.c:3240
+#, fuzzy
+msgid "   -a --add-indirect         Add dll indirects to export file.\n"
+msgstr "-a Kongeramo BUZIGUYE Kuri Kohereza IDOSIYE"
+
+#: dlltool.c:3241
+#, fuzzy
+msgid "   -D --dllname <name>       Name of input dll to put into interface lib.\n"
+msgstr "-Izina: Bya Iyinjiza Kuri Gushyira"
+
+#: dlltool.c:3242
+#, fuzzy
+msgid "   -d --input-def <deffile>  Name of .def file to be read in.\n"
+msgstr "-D Iyinjiza Bya IDOSIYE Kuri Gusoma in"
+
+#: dlltool.c:3243
+#, fuzzy
+msgid "   -z --output-def <deffile> Name of .def file to be created.\n"
+msgstr "-Z Ibisohoka Bya IDOSIYE Kuri Byaremwe"
+
+#: dlltool.c:3244
+#, fuzzy
+msgid "      --export-all-symbols   Export all symbols to .def\n"
+msgstr "--Kohereza Byose Ibimenyetso Byose Ibimenyetso Kuri"
+
+#: dlltool.c:3245
+#, fuzzy
+msgid "      --no-export-all-symbols  Only export listed symbols\n"
+msgstr "--Oya Kohereza Byose Ibimenyetso Kohereza"
+
+#: dlltool.c:3246
+#, fuzzy
+msgid "      --exclude-symbols <list> Don't export <list>\n"
+msgstr "--Ibimenyetso Urutonde Kohereza Urutonde"
+
+#: dlltool.c:3247
+#, fuzzy
+msgid "      --no-default-excludes  Clear default exclude symbols\n"
+msgstr "--Oya Mburabuzi Mburabuzi"
+
+#: dlltool.c:3248
+#, fuzzy
+msgid "   -b --base-file <basefile> Read linker generated base file.\n"
+msgstr "-B SHINGIRO IDOSIYE SHINGIRO IDOSIYE"
+
+#: dlltool.c:3249
+#, fuzzy
+msgid "   -x --no-idata4            Don't generate idata$4 section.\n"
+msgstr "-X Oya 4. Icyiciro"
+
+#: dlltool.c:3250
+#, fuzzy
+msgid "   -c --no-idata5            Don't generate idata$5 section.\n"
+msgstr "-C Oya 5 Icyiciro"
+
+#: dlltool.c:3251
+#, fuzzy
+msgid "   -U --add-underscore       Add underscores to symbols in interface library.\n"
+msgstr "-U Kongeramo Kuri Ibimenyetso in Isomero"
+
+#: dlltool.c:3252
+#, fuzzy
+msgid "   -k --kill-at              Kill @<n> from exported names.\n"
+msgstr "-K ku N Bivuye Amazina"
+
+#: dlltool.c:3253
+#, fuzzy
+msgid "   -A --add-stdcall-alias    Add aliases without @<n>.\n"
+msgstr "-A Kongeramo Irihimbano Irihimbano N"
+
+#: dlltool.c:3254
+#, fuzzy
+msgid "   -S --as <name>            Use <name> for assembler.\n"
+msgstr "-Nka Izina: Izina: kugirango"
+
+#: dlltool.c:3255
+#, fuzzy
+msgid "   -f --as-flags <flags>     Pass <flags> to the assembler.\n"
+msgstr "-F Nka Amabendera Amabendera Amabendera Kuri i"
+
+#: dlltool.c:3256
+#, fuzzy
+msgid "   -C --compat-implib        Create backward compatible import library.\n"
+msgstr "-C subira inyuma Kuzana Isomero"
+
+#: dlltool.c:3257
+#, fuzzy
+msgid "   -n --no-delete            Keep temp files (repeat for extra preservation).\n"
+msgstr "-N Oya Gusiba Idosiye Gusubiramo kugirango Birenga"
+
+#: dlltool.c:3258
+#, fuzzy
+msgid "   -v --verbose              Be verbose.\n"
+msgstr "-v"
+
+#: dlltool.c:3259
+#, fuzzy
+msgid "   -V --version              Display the program version.\n"
+msgstr "-V Verisiyo i Porogaramu Verisiyo"
+
+#: dlltool.c:3260
+#, fuzzy
+msgid "   -h --help                 Display this information.\n"
+msgstr "-h Ifashayobora iyi Ibisobanuro"
+
+#: dlltool.c:3262
+#, fuzzy
+msgid "   -M --mcore-elf <outname>  Process mcore-elf object files into <outname>.\n"
+msgstr "-Igikoresho Idosiye"
+
+#: dlltool.c:3263
+#, fuzzy
+msgid "   -L --linker <name>        Use <name> as the linker.\n"
+msgstr "-Izina: Izina: Nka i"
+
+#: dlltool.c:3264
+#, fuzzy
+msgid "   -F --linker-flags <flags> Pass <flags> to the linker.\n"
+msgstr "-Amabendera Amabendera Amabendera Kuri i"
+
+#: dlltool.c:3418
+#, fuzzy, c-format
+msgid "Unable to open base-file: %s"
+msgstr "Kuri Gufungura SHINGIRO IDOSIYE"
+
+#: dlltool.c:3450
+#, fuzzy, c-format
+msgid "Machine '%s' not supported"
+msgstr "OYA"
+
+#: dlltool.c:3553 dllwrap.c:214
+#, fuzzy, c-format
+msgid "Tried file: %s"
+msgstr "IDOSIYE"
+
+#: dlltool.c:3560 dllwrap.c:221
+#, fuzzy, c-format
+msgid "Using file: %s"
+msgstr "IDOSIYE"
+
+#: dllwrap.c:308
+#, fuzzy, c-format
+msgid "Keeping temporary base file %s"
+msgstr "By'igihe gito SHINGIRO IDOSIYE"
+
+#: dllwrap.c:310
+#, fuzzy, c-format
+msgid "Deleting temporary base file %s"
+msgstr "By'igihe gito SHINGIRO IDOSIYE"
+
+#: dllwrap.c:324
+#, fuzzy, c-format
+msgid "Keeping temporary exp file %s"
+msgstr "By'igihe gito EXP IDOSIYE"
+
+#: dllwrap.c:326
+#, fuzzy, c-format
+msgid "Deleting temporary exp file %s"
+msgstr "By'igihe gito EXP IDOSIYE"
+
+#: dllwrap.c:339
+#, fuzzy, c-format
+msgid "Keeping temporary def file %s"
+msgstr "By'igihe gito IDOSIYE"
+
+#: dllwrap.c:341
+#, fuzzy, c-format
+msgid "Deleting temporary def file %s"
+msgstr "By'igihe gito IDOSIYE"
+
+#: dllwrap.c:496
+#, fuzzy
+msgid "  Generic options:\n"
+msgstr "Amahitamo"
+
+#: dllwrap.c:497
+#, fuzzy
+msgid "   --quiet, -q            Work quietly\n"
+msgstr "--Q"
+
+#: dllwrap.c:498
+#, fuzzy
+msgid "   --verbose, -v          Verbose\n"
+msgstr "--v"
+
+#: dllwrap.c:499
+#, fuzzy
+msgid "   --version              Print dllwrap version\n"
+msgstr "--Verisiyo"
+
+#: dllwrap.c:500
+#, fuzzy
+msgid "   --implib <outname>     Synonym for --output-lib\n"
+msgstr "--kugirango Ibisohoka"
+
+#: dllwrap.c:501
+#, fuzzy, c-format
+msgid "  Options for %s:\n"
+msgstr "kugirango"
+
+#: dllwrap.c:502
+#, fuzzy
+msgid "   --driver-name <driver> Defaults to \"gcc\"\n"
+msgstr "--Musomyi: Izina: Musomyi: Kuri"
+
+#: dllwrap.c:503
+#, fuzzy
+msgid "   --driver-flags <flags> Override default ld flags\n"
+msgstr "--Musomyi: Amabendera Amabendera Mburabuzi"
+
+#: dllwrap.c:504
+#, fuzzy
+msgid "   --dlltool-name <dlltool> Defaults to \"dlltool\"\n"
+msgstr "--Izina: Kuri"
+
+#: dllwrap.c:505
+#, fuzzy
+msgid "   --entry <entry>        Specify alternate DLL entry point\n"
+msgstr "--Icyinjijwe Icyinjijwe Icyinjijwe"
+
+#: dllwrap.c:506
+#, fuzzy
+msgid "   --image-base <base>    Specify image base address\n"
+msgstr "--Ishusho SHINGIRO SHINGIRO Ishusho SHINGIRO"
+
+#: dllwrap.c:507
+#, fuzzy
+msgid "   --target <machine>     i386-cygwin32 or i386-mingw32\n"
+msgstr "--Intego Cyangwa"
+
+#: dllwrap.c:508
+#, fuzzy
+msgid "   --dry-run              Show what needs to be run\n"
+msgstr "--Gukoresha Kuri"
+
+#: dllwrap.c:509
+msgid "   --mno-cygwin           Create Mingw DLL\n"
+msgstr ""
+
+#: dllwrap.c:510
+#, fuzzy
+msgid "  Options passed to DLLTOOL:\n"
+msgstr "Kuri"
+
+#: dllwrap.c:511
+msgid "   --machine <machine>\n"
+msgstr ""
+
+#: dllwrap.c:512
+#, fuzzy
+msgid "   --output-exp <outname> Generate export file.\n"
+msgstr "--Ibisohoka EXP Kohereza IDOSIYE"
+
+#: dllwrap.c:513
+#, fuzzy
+msgid "   --output-lib <outname> Generate input library.\n"
+msgstr "--Ibisohoka Iyinjiza Isomero"
+
+#: dllwrap.c:514
+#, fuzzy
+msgid "   --add-indirect         Add dll indirects to export file.\n"
+msgstr "--Kongeramo BUZIGUYE Kuri Kohereza IDOSIYE"
+
+#: dllwrap.c:515
+#, fuzzy
+msgid "   --dllname <name>       Name of input dll to put into output lib.\n"
+msgstr "--Izina: Bya Iyinjiza Kuri Gushyira Ibisohoka"
+
+#: dllwrap.c:516
+#, fuzzy
+msgid "   --def <deffile>        Name input .def file\n"
+msgstr "--Iyinjiza"
+
+#: dllwrap.c:517
+#, fuzzy
+msgid "   --output-def <deffile> Name output .def file\n"
+msgstr "--Ibisohoka Ibisohoka"
+
+#: dllwrap.c:518
+#, fuzzy
+msgid "   --export-all-symbols     Export all symbols to .def\n"
+msgstr "--Kohereza Byose Ibimenyetso Byose Ibimenyetso Kuri"
+
+#: dllwrap.c:519
+#, fuzzy
+msgid "   --no-export-all-symbols  Only export .drectve symbols\n"
+msgstr "--Oya Kohereza Byose Ibimenyetso Kohereza"
+
+#: dllwrap.c:520
+#, fuzzy
+msgid "   --exclude-symbols <list> Exclude <list> from .def\n"
+msgstr "--Ibimenyetso Urutonde Urutonde Bivuye"
+
+#: dllwrap.c:521
+#, fuzzy
+msgid "   --no-default-excludes    Zap default exclude symbols\n"
+msgstr "--Oya Mburabuzi Mburabuzi"
+
+#: dllwrap.c:522
+#, fuzzy
+msgid "   --base-file <basefile> Read linker generated base file\n"
+msgstr "--SHINGIRO IDOSIYE SHINGIRO"
+
+#: dllwrap.c:523
+#, fuzzy
+msgid "   --no-idata4           Don't generate idata$4 section\n"
+msgstr "--Oya 4."
+
+#: dllwrap.c:524
+#, fuzzy
+msgid "   --no-idata5           Don't generate idata$5 section\n"
+msgstr "--Oya 5"
+
+#: dllwrap.c:525
+#, fuzzy
+msgid "   -U                     Add underscores to .lib\n"
+msgstr "-U Kuri"
+
+#: dllwrap.c:526
+#, fuzzy
+msgid "   -k                     Kill @<n> from exported names\n"
+msgstr "-K N Bivuye"
+
+#: dllwrap.c:527
+#, fuzzy
+msgid "   --add-stdcall-alias    Add aliases without @<n>\n"
+msgstr "--Kongeramo Irihimbano Irihimbano N"
+
+#: dllwrap.c:528
+#, fuzzy
+msgid "   --as <name>            Use <name> for assembler\n"
+msgstr "--Nka Izina: Izina: kugirango"
+
+#: dllwrap.c:529
+#, fuzzy
+msgid "   --nodelete             Keep temp files.\n"
+msgstr "--Idosiye"
+
+#: dllwrap.c:530
+#, fuzzy
+msgid "  Rest are passed unmodified to the language driver\n"
+msgstr "Kuri i Ururimi"
+
+#: dllwrap.c:802
+#, fuzzy
+msgid "Must provide at least one of -o or --dllname options"
+msgstr "ku Bya o Cyangwa Amahitamo"
+
+#: dllwrap.c:830
+#, fuzzy
+msgid ""
+"no export definition file provided.\n"
+"Creating one, but that may not be what you want"
+msgstr "Oya Kohereza Insobanuro IDOSIYE Gicurasi OYA"
+
+#: dllwrap.c:992
+#, fuzzy, c-format
+msgid "DLLTOOL name    : %s\n"
+msgstr "Izina:"
+
+#: dllwrap.c:993
+#, fuzzy, c-format
+msgid "DLLTOOL options : %s\n"
+msgstr "Amahitamo"
+
+# offmgr/source\offapp\dialog\connpooloptions.src:RID_OFAPAGE_CONNPOOLOPTIONS.STR_DRIVER_NAME.text
+#: dllwrap.c:994
+#, fuzzy, c-format
+msgid "DRIVER name     : %s\n"
+msgstr "Izina rya musomyi"
+
+#: dllwrap.c:995
+#, fuzzy, c-format
+msgid "DRIVER options  : %s\n"
+msgstr "Amahitamo"
+
+#: emul_aix.c:58
+#, fuzzy, c-format
+msgid "  [-g]         - 32 bit small archive\n"
+msgstr "[-g Gitoya"
+
+#: emul_aix.c:59
+msgid "  [-X32]       - ignores 64 bit objects\n"
+msgstr ""
+
+#: emul_aix.c:60
+msgid "  [-X64]       - ignores 32 bit objects\n"
+msgstr ""
+
+#: emul_aix.c:61
+#, fuzzy
+msgid "  [-X32_64]    - accepts 32 and 64 bit objects\n"
+msgstr "[-Na"
+
+#: ieee.c:326
+#, fuzzy
+msgid "unexpected end of debugging information"
+msgstr "Impera Bya Ibisobanuro"
+
+# sch/source\ui\app\strings.src:STR_INVALID_NUMBER.text
+#: ieee.c:421
+#, fuzzy
+msgid "invalid number"
+msgstr "Umubare utari wo"
+
+#: ieee.c:480
+#, fuzzy
+msgid "invalid string length"
+msgstr "Sibyo Ikurikiranyanyuguti Uburebure"
+
+#: ieee.c:537 ieee.c:578
+#, fuzzy
+msgid "expression stack overflow"
+msgstr "imvugo Byarenze urugero"
+
+#: ieee.c:557
+#, fuzzy
+msgid "unsupported IEEE expression operator"
+msgstr "imvugo Mukoresha"
+
+#: ieee.c:572
+#, fuzzy
+msgid "unknown section"
+msgstr "Kitazwi Icyiciro"
+
+#: ieee.c:593
+#, fuzzy
+msgid "expression stack underflow"
+msgstr "imvugo"
+
+#: ieee.c:607
+#, fuzzy
+msgid "expression stack mismatch"
+msgstr "imvugo"
+
+#: ieee.c:646
+#, fuzzy
+msgid "unknown builtin type"
+msgstr "Kitazwi Ubwoko"
+
+#: ieee.c:791
+#, fuzzy
+msgid "BCD float type not supported"
+msgstr "Kureremba Ubwoko OYA"
+
+#: ieee.c:937
+#, fuzzy
+msgid "unexpected number"
+msgstr "Umubare"
+
+#: ieee.c:944
+#, fuzzy
+msgid "unexpected record type"
+msgstr "Icyabitswe Ubwoko"
+
+#: ieee.c:977
+#, fuzzy
+msgid "blocks left on stack at end"
+msgstr "Ibumoso: ku ku Impera"
+
+#: ieee.c:1242
+#, fuzzy
+msgid "unknown BB type"
+msgstr "Kitazwi Ubwoko"
+
+#: ieee.c:1251
+#, fuzzy
+msgid "stack overflow"
+msgstr "Byarenze urugero"
+
+#: ieee.c:1276
+msgid "stack underflow"
+msgstr ""
+
+#: ieee.c:1390 ieee.c:1462 ieee.c:2161
+#, fuzzy
+msgid "illegal variable index"
+msgstr "IMPINDURAGACIRO Umubarendanga"
+
+#: ieee.c:1440
+#, fuzzy
+msgid "illegal type index"
+msgstr "Ubwoko Umubarendanga"
+
+#: ieee.c:1450 ieee.c:1487
+#, fuzzy
+msgid "unknown TY code"
+msgstr "Kitazwi ITEGEKONGENGA"
+
+#: ieee.c:1469
+#, fuzzy
+msgid "undefined variable in TY"
+msgstr "kidasobanuye IMPINDURAGACIRO in"
+
+#. Pascal file name.  FIXME.
+#: ieee.c:1880
+#, fuzzy
+msgid "Pascal file name not supported"
+msgstr "IDOSIYE Izina: OYA"
+
+#: ieee.c:1928
+msgid "unsupported qualifier"
+msgstr ""
+
+#: ieee.c:2199
+#, fuzzy
+msgid "undefined variable in ATN"
+msgstr "kidasobanuye IMPINDURAGACIRO in"
+
+#: ieee.c:2242
+#, fuzzy
+msgid "unknown ATN type"
+msgstr "Kitazwi Ubwoko"
+
+#. Reserved for FORTRAN common.
+#: ieee.c:2364
+msgid "unsupported ATN11"
+msgstr ""
+
+#. We have no way to record this information.  FIXME.
+#: ieee.c:2391
+msgid "unsupported ATN12"
+msgstr ""
+
+#: ieee.c:2451
+#, fuzzy
+msgid "unexpected string in C++ misc"
+msgstr "Ikurikiranyanyuguti in C"
+
+#: ieee.c:2464
+#, fuzzy
+msgid "bad misc record"
+msgstr "Icyabitswe"
+
+#: ieee.c:2507
+#, fuzzy
+msgid "unrecognized C++ misc record"
+msgstr "C Icyabitswe"
+
+#: ieee.c:2624
+#, fuzzy
+msgid "undefined C++ object"
+msgstr "kidasobanuye C Igikoresho"
+
+#: ieee.c:2658
+#, fuzzy
+msgid "unrecognized C++ object spec"
+msgstr "C Igikoresho"
+
+#: ieee.c:2694
+#, fuzzy
+msgid "unsupported C++ object type"
+msgstr "C Igikoresho Ubwoko"
+
+#: ieee.c:2704
+#, fuzzy
+msgid "C++ base class not defined"
+msgstr "C SHINGIRO ishuri OYA"
+
+#: ieee.c:2716 ieee.c:2821
+#, fuzzy
+msgid "C++ object has no fields"
+msgstr "C Igikoresho Oya Imyanya"
+
+#: ieee.c:2735
+#, fuzzy
+msgid "C++ base class not found in container"
+msgstr "C SHINGIRO ishuri OYA Byabonetse in"
+
+#: ieee.c:2842
+#, fuzzy
+msgid "C++ data member not found in container"
+msgstr "C Ibyatanzwe OYA Byabonetse in"
+
+#: ieee.c:2883 ieee.c:3033
+#, fuzzy
+msgid "unknown C++ visibility"
+msgstr "Kitazwi C Ukugaragara"
+
+#: ieee.c:2917
+#, fuzzy
+msgid "bad C++ field bit pos or size"
+msgstr "C Umwanya Cyangwa Ingano"
+
+#: ieee.c:3009
+#, fuzzy
+msgid "bad type for C++ method function"
+msgstr "Ubwoko kugirango C Uburyo Umumaro"
+
+#: ieee.c:3019
+#, fuzzy
+msgid "no type information for C++ method function"
+msgstr "Oya Ubwoko Ibisobanuro kugirango C Uburyo Umumaro"
+
+#: ieee.c:3058
+#, fuzzy
+msgid "C++ static virtual method"
+msgstr "C Kitaboneka Uburyo"
+
+#: ieee.c:3153
+#, fuzzy
+msgid "unrecognized C++ object overhead spec"
+msgstr "C Igikoresho"
+
+#: ieee.c:3192
+#, fuzzy
+msgid "undefined C++ vtable"
+msgstr "kidasobanuye C"
+
+#: ieee.c:3263
+#, fuzzy
+msgid "C++ default values not in a function"
+msgstr "C Mburabuzi Uduciro OYA in a Umumaro"
+
+#: ieee.c:3303
+#, fuzzy
+msgid "unrecognized C++ default type"
+msgstr "C Mburabuzi Ubwoko"
+
+#: ieee.c:3334
+#, fuzzy
+msgid "reference parameter is not a pointer"
+msgstr "Indango ni OYA a Mweretsi"
+
+#: ieee.c:3419
+#, fuzzy
+msgid "unrecognized C++ reference type"
+msgstr "C Indango Ubwoko"
+
+#: ieee.c:3501
+#, fuzzy
+msgid "C++ reference not found"
+msgstr "C Indango OYA Byabonetse"
+
+#: ieee.c:3509
+#, fuzzy
+msgid "C++ reference is not pointer"
+msgstr "C Indango ni OYA Mweretsi"
+
+#: ieee.c:3538 ieee.c:3546
+#, fuzzy
+msgid "missing required ASN"
+msgstr "Ibuze Bya ngombwa"
+
+#: ieee.c:3576 ieee.c:3584
+#, fuzzy
+msgid "missing required ATN65"
+msgstr "Ibuze Bya ngombwa"
+
+#: ieee.c:3598
+#, fuzzy
+msgid "bad ATN65 record"
+msgstr "Icyabitswe"
+
+#: ieee.c:4286
+#, fuzzy
+msgid "IEEE numeric overflow: 0x"
+msgstr "Bikurikije umubare Byarenze urugero"
+
+#: ieee.c:4332
+#, fuzzy, c-format
+msgid "IEEE string length overflow: %u\n"
+msgstr "Ikurikiranyanyuguti Uburebure Byarenze urugero"
+
+#: ieee.c:5382
+#, fuzzy, c-format
+msgid "IEEE unsupported integer type size %u\n"
+msgstr "Umubare wuzuye Ubwoko Ingano"
+
+#: ieee.c:5418
+#, fuzzy, c-format
+msgid "IEEE unsupported float type size %u\n"
+msgstr "Kureremba Ubwoko Ingano"
+
+#: ieee.c:5454
+#, fuzzy, c-format
+msgid "IEEE unsupported complex type size %u\n"
+msgstr "ITSINDA RY'IMIBARE C Ubwoko Ingano"
+
+#: nlmconv.c:282 srconv.c:2043
+#, fuzzy
+msgid "input and output files must be different"
+msgstr "Iyinjiza Na Ibisohoka Idosiye"
+
+#: nlmconv.c:329
+#, fuzzy
+msgid "input file named both on command line and with INPUT"
+msgstr "Iyinjiza IDOSIYE Byombi ku Komandi: Umurongo Na Na:"
+
+#: nlmconv.c:338
+#, fuzzy
+msgid "no input file"
+msgstr "Oya Iyinjiza IDOSIYE"
+
+#: nlmconv.c:368
+#, fuzzy
+msgid "no name for output file"
+msgstr "Oya Izina: kugirango Ibisohoka IDOSIYE"
+
+#: nlmconv.c:382
+#, fuzzy
+msgid "warning: input and output formats are not compatible"
+msgstr "Iburira Iyinjiza Na Ibisohoka Imiterere OYA"
+
+#: nlmconv.c:411
+#, fuzzy
+msgid "make .bss section"
+msgstr "Ubwoko."
+
+#: nlmconv.c:420
+#, fuzzy
+msgid "make .nlmsections section"
+msgstr "Ubwoko."
+
+#: nlmconv.c:422
+#, fuzzy
+msgid "set .nlmsections flags"
+msgstr "Gushyiraho."
+
+#: nlmconv.c:450
+#, fuzzy
+msgid "set .bss vma"
+msgstr "Gushyiraho."
+
+#: nlmconv.c:457
+#, fuzzy
+msgid "set .data size"
+msgstr "Gushyiraho."
+
+#: nlmconv.c:637
+#, fuzzy, c-format
+msgid "warning: symbol %s imported but not in import list"
+msgstr "Iburira IKIMENYETSO cyavuye ahandi/ cyatumijwe OYA in Kuzana Urutonde"
+
+#: nlmconv.c:657
+#, fuzzy
+msgid "set start address"
+msgstr "Gushyiraho Gutangira Aderesi"
+
+#: nlmconv.c:706
+#, fuzzy, c-format
+msgid "warning: START procedure %s not defined"
+msgstr "Iburira OYA"
+
+#: nlmconv.c:708
+#, fuzzy, c-format
+msgid "warning: EXIT procedure %s not defined"
+msgstr "Iburira OYA"
+
+#: nlmconv.c:710
+#, fuzzy, c-format
+msgid "warning: CHECK procedure %s not defined"
+msgstr "Iburira OYA"
+
+#: nlmconv.c:731 nlmconv.c:920
+#, fuzzy
+msgid "custom section"
+msgstr "Kunoza Icyiciro"
+
+#: nlmconv.c:752 nlmconv.c:949
+#, fuzzy
+msgid "help section"
+msgstr "Ifashayobora Icyiciro"
+
+#: nlmconv.c:774 nlmconv.c:967
+#, fuzzy
+msgid "message section"
+msgstr "Ubutumwa Icyiciro"
+
+#: nlmconv.c:790 nlmconv.c:1000
+#, fuzzy
+msgid "module section"
+msgstr "Modire Icyiciro"
+
+#: nlmconv.c:810 nlmconv.c:1016
+#, fuzzy
+msgid "rpc section"
+msgstr "Icyiciro"
+
+#. There is no place to record this information.
+#: nlmconv.c:846
+#, fuzzy, c-format
+msgid "%s: warning: shared libraries can not have uninitialized data"
+msgstr "%s:Iburira Amasomero OYA Itatangijwe Ibyatanzwe"
+
+#: nlmconv.c:867 nlmconv.c:1035
+#, fuzzy
+msgid "shared section"
+msgstr "Icyiciro"
+
+#: nlmconv.c:875
+#, fuzzy
+msgid "warning: No version number given"
+msgstr "Iburira Verisiyo Umubare"
+
+#: nlmconv.c:915 nlmconv.c:944 nlmconv.c:962 nlmconv.c:1011 nlmconv.c:1030
+#, fuzzy, c-format
+msgid "%s: read: %s"
+msgstr "%s:Gusoma"
+
+#: nlmconv.c:937
+#, fuzzy
+msgid "warning: MAP and FULLMAP are not supported; try ld -M"
+msgstr "Iburira Na OYA"
+
+#: nlmconv.c:1109
+#, fuzzy, c-format
+msgid "Usage: %s [option(s)] [in-file [out-file]]\n"
+msgstr "Ihitamo S in IDOSIYE Inyuma IDOSIYE"
+
+#: nlmconv.c:1110
+#, fuzzy
+msgid " Convert an object file into a NetWare Loadable Module\n"
+msgstr "Igikoresho IDOSIYE a"
+
+#: nlmconv.c:1111
+#, fuzzy
+msgid ""
+" The options are:\n"
+"  -I --input-target=<bfdname>   Set the input binary file format\n"
+"  -O --output-target=<bfdname>  Set the output binary file format\n"
+"  -T --header-file=<file>       Read <file> for NLM header information\n"
+"  -l --linker=<linker>          Use <linker> for any linking\n"
+"  -d --debug                    Display on stderr the linker command line\n"
+"  -h --help                     Display this information\n"
+"  -v --version                  Display the program's version\n"
+msgstr "Amahitamo Iyinjiza Intego i Iyinjiza Nyabibiri IDOSIYE Ibisohoka Intego i Ibisohoka Nyabibiri IDOSIYE Umutwempangano IDOSIYE IDOSIYE IDOSIYE kugirango Umutwempangano L kugirango D Kosora amakosa ku i Komandi: h Ifashayobora iyi v Verisiyo i"
+
+#: nlmconv.c:1153
+#, fuzzy, c-format
+msgid "support not compiled in for %s"
+msgstr "Gushigikira OYA in kugirango"
+
+#: nlmconv.c:1193
+#, fuzzy
+msgid "make section"
+msgstr "Ubwoko Icyiciro"
+
+#: nlmconv.c:1207
+#, fuzzy
+msgid "set section size"
+msgstr "Gushyiraho Icyiciro Ingano"
+
+#: nlmconv.c:1213
+#, fuzzy
+msgid "set section alignment"
+msgstr "Gushyiraho Icyiciro Itunganya"
+
+#: nlmconv.c:1217
+#, fuzzy
+msgid "set section flags"
+msgstr "Gushyiraho Icyiciro Amabendera"
+
+#: nlmconv.c:1228
+#, fuzzy
+msgid "set .nlmsections size"
+msgstr "Gushyiraho."
+
+#: nlmconv.c:1316 nlmconv.c:1324 nlmconv.c:1333 nlmconv.c:1338
+#, fuzzy
+msgid "set .nlmsection contents"
+msgstr "Gushyiraho."
+
+#: nlmconv.c:1839
+#, fuzzy
+msgid "stub section sizes"
+msgstr "Icyiciro"
+
+#: nlmconv.c:1888
+msgid "writing stub"
+msgstr ""
+
+#: nlmconv.c:1977
+#, fuzzy, c-format
+msgid "unresolved PC relative reloc against %s"
+msgstr "Bifitanye isano"
+
+#: nlmconv.c:2041
+#, fuzzy, c-format
+msgid "overflow when adjusting relocation against %s"
+msgstr "Byarenze urugero Ryari:"
+
+#: nlmconv.c:2158
+#, fuzzy, c-format
+msgid "%s: execution of %s failed: "
+msgstr "%s:Bya Byanze"
+
+#: nlmconv.c:2173
+#, fuzzy, c-format
+msgid "Execution of %s failed"
+msgstr "Bya Byanze"
+
+#: nm.c:283 size.c:85 strings.c:657
+#, fuzzy, c-format
+msgid "Usage: %s [option(s)] [file(s)]\n"
+msgstr "Ihitamo S IDOSIYE S"
+
+#: nm.c:284
+#, fuzzy
+msgid " List symbols in [file(s)] (a.out by default).\n"
+msgstr "Ibimenyetso in IDOSIYE S a Inyuma ku Mburabuzi"
+
+#: nm.c:285
+#, fuzzy
+msgid ""
+" The options are:\n"
+"  -a, --debug-syms       Display debugger-only symbols\n"
+"  -A, --print-file-name  Print name of the input file before every symbol\n"
+"  -B                     Same as --format=bsd\n"
+"  -C, --demangle[=STYLE] Decode low-level symbol names into user-level names\n"
+"                          The STYLE, if specified, can be `auto' (the default),\n"
+"                          `gnu', `lucid', `arm', `hp', `edg', `gnu-v3', `java'\n"
+"                          or `gnat'\n"
+"      --no-demangle      Do not demangle low-level symbol names\n"
+"  -D, --dynamic          Display dynamic symbols instead of normal symbols\n"
+"      --defined-only     Display only defined symbols\n"
+"  -e                     (ignored)\n"
+"  -f, --format=FORMAT    Use the output format FORMAT.  FORMAT can be `bsd',\n"
+"                           `sysv' or `posix'.  The default is `bsd'\n"
+"  -g, --extern-only      Display only external symbols\n"
+"  -l, --line-numbers     Use debugging information to find a filename and\n"
+"                           line number for each symbol\n"
+"  -n, --numeric-sort     Sort symbols numerically by address\n"
+"  -o                     Same as -A\n"
+"  -p, --no-sort          Do not sort the symbols\n"
+"  -P, --portability      Same as --format=posix\n"
+"  -r, --reverse-sort     Reverse the sense of the sort\n"
+"  -S, --print-size       Print size of defined symbols\n"
+"  -s, --print-armap      Include index for symbols from archive members\n"
+"      --size-sort        Sort symbols by size\n"
+"  -t, --radix=RADIX      Use RADIX for printing symbol values\n"
+"      --target=BFDNAME   Specify the target object format as BFDNAME\n"
+"  -u, --undefined-only   Display only undefined symbols\n"
+"  -X 32_64               (ignored)\n"
+"  -h, --help             Display this information\n"
+"  -V, --version          Display this program's version number\n"
+"\n"
+msgstr "Amahitamo a Kosora amakosa A Gucapa IDOSIYE Izina: Izina: Bya i Iyinjiza IDOSIYE Mbere buri Nka Imiterere C Byo hasi urwego IKIMENYETSO Amazina Ukoresha: urwego NIBA i Mburabuzi Cyangwa Oya OYA Byo hasi urwego IKIMENYETSO Ibimenyetso Bya Bisanzwe E F Imiterere i Ibisohoka Imiterere Cyangwa Mburabuzi ni g external L Umurongo Imibare Ibisobanuro Kuri Gushaka a Izina ry'idosiye: Umurongo Umubare kugirango N Bikurikije umubare Ishungura Ibimenyetso ku o Nka P Oya Ishungura OYA Ishungura i Nka Imiterere R Ihindurakerekezo Ishungura i Bya i Gucapa Ingano Ingano Bya S Gucapa Umubarendanga kugirango Ibimenyetso Bivuye Ingano Ishungura Ibimenyetso ku T radix kugirango Icapa... IKIMENYETSO Intego i Intego Igikoresho Imiterere Nka u kidasobanuye kidasobanuye h Ifashayobora iyi V Verisiyo iyi Verisiyo"
+
+#: nm.c:319 objdump.c:250
+#, fuzzy, c-format
+msgid "Report bugs to %s.\n"
+msgstr "Kuri"
+
+#: nm.c:352
+#, fuzzy, c-format
+msgid "%s: invalid radix"
+msgstr "%s:Sibyo radix"
+
+#: nm.c:377
+#, fuzzy, c-format
+msgid "%s: invalid output format"
+msgstr "%s:Sibyo Ibisohoka Imiterere"
+
+#: nm.c:494
+#, fuzzy
+msgid "Only -X 32_64 is supported"
+msgstr "ni"
+
+#: nm.c:514
+#, fuzzy
+msgid "Using the --size-sort and --undefined-only options together"
+msgstr "i Ingano Ishungura Na kidasobanuye Amahitamo"
+
+#: nm.c:515
+#, fuzzy
+msgid "will produce no output, since undefined symbols have no size."
+msgstr "Oya Ibisohoka guhera kidasobanuye Ibimenyetso Oya Ingano"
+
+#: nm.c:543
+#, fuzzy, c-format
+msgid "data size %ld"
+msgstr "Ibyatanzwe Ingano"
+
+#: nm.c:568 readelf.c:5809 readelf.c:5845
+#, c-format
+msgid "<processor specific>: %d"
+msgstr ""
+
+#: nm.c:570 readelf.c:5811 readelf.c:5857
+#, c-format
+msgid "<OS specific>: %d"
+msgstr ""
+
+#: nm.c:572 readelf.c:5813 readelf.c:5860
+#, fuzzy, c-format
+msgid "<unknown>: %d"
+msgstr "<Itazwi>"
+
+#: nm.c:1376
+#, fuzzy, c-format
+msgid ""
+"\n"
+"\n"
+"Undefined symbols from %s:\n"
+"\n"
+msgstr "Ibimenyetso Bivuye"
+
+#: nm.c:1378
+#, fuzzy, c-format
+msgid ""
+"\n"
+"\n"
+"Symbols from %s:\n"
+"\n"
+msgstr "Bivuye"
+
+#: nm.c:1380 nm.c:1438
+msgid ""
+"Name                  Value   Class        Type         Size     Line  Section\n"
+"\n"
+msgstr ""
+
+#: nm.c:1383 nm.c:1441
+msgid ""
+"Name                  Value           Class        Type         Size             Line  Section\n"
+"\n"
+msgstr ""
+
+#: nm.c:1434
+#, fuzzy, c-format
+msgid ""
+"\n"
+"\n"
+"Undefined symbols from %s[%s]:\n"
+"\n"
+msgstr "Ibimenyetso Bivuye"
+
+#: nm.c:1436
+#, fuzzy, c-format
+msgid ""
+"\n"
+"\n"
+"Symbols from %s[%s]:\n"
+"\n"
+msgstr "Bivuye"
+
+#: nm.c:1658
+#, fuzzy
+msgid ""
+"\n"
+"Archive index:\n"
+msgstr "Umubarendanga"
+
+#: objcopy.c:414 srconv.c:1952
+#, fuzzy, c-format
+msgid "Usage: %s [option(s)] in-file [out-file]\n"
+msgstr "Ihitamo S in IDOSIYE Inyuma IDOSIYE"
+
+#: objcopy.c:415
+#, fuzzy
+msgid " Copies a binary file, possibly transforming it in the process\n"
+msgstr "a Nyabibiri IDOSIYE in i"
+
+#: objcopy.c:416 objcopy.c:495
+#, fuzzy
+msgid " The options are:\n"
+msgstr "Amahitamo"
+
+#: objcopy.c:417
+#, fuzzy
+msgid ""
+"  -I --input-target <bfdname>      Assume input file is in format <bfdname>\n"
+"  -O --output-target <bfdname>     Create an output file in format <bfdname>\n"
+"  -B --binary-architecture <arch>  Set arch of output file, when input is binary\n"
+"  -F --target <bfdname>            Set both input and output format to <bfdname>\n"
+"     --debugging                   Convert debugging information, if possible\n"
+"  -p --preserve-dates              Copy modified/access timestamps to the output\n"
+"  -j --only-section <name>         Only copy section <name> into the output\n"
+"     --add-gnu-debuglink=<file>    Add section .gnu_debuglink linking to <file>\n"
+"  -R --remove-section <name>       Remove section <name> from the output\n"
+"  -S --strip-all                   Remove all symbol and relocation information\n"
+"  -g --strip-debug                 Remove all debugging symbols & sections\n"
+"     --strip-unneeded              Remove all symbols not needed by relocations\n"
+"  -N --strip-symbol <name>         Do not copy symbol <name>\n"
+"  -K --keep-symbol <name>          Only copy symbol <name>\n"
+"  -L --localize-symbol <name>      Force symbol <name> to be marked as a local\n"
+"  -G --keep-global-symbol <name>   Localize all symbols except <name>\n"
+"  -W --weaken-symbol <name>        Force symbol <name> to be marked as a weak\n"
+"     --weaken                      Force all global symbols to be marked as weak\n"
+"  -x --discard-all                 Remove all non-global symbols\n"
+"  -X --discard-locals              Remove any compiler-generated symbols\n"
+"  -i --interleave <number>         Only copy one out of every <number> bytes\n"
+"  -b --byte <num>                  Select byte <num> in every interleaved block\n"
+"     --gap-fill <val>              Fill gaps between sections with <val>\n"
+"     --pad-to <addr>               Pad the last section up to address <addr>\n"
+"     --set-start <addr>            Set the start address to <addr>\n"
+"    {--change-start|--adjust-start} <incr>\n"
+"                                   Add <incr> to the start address\n"
+"    {--change-addresses|--adjust-vma} <incr>\n"
+"                                   Add <incr> to LMA, VMA and start addresses\n"
+"    {--change-section-address|--adjust-section-vma} <name>{=|+|-}<val>\n"
+"                                   Change LMA and VMA of section <name> by <val>\n"
+"     --change-section-lma <name>{=|+|-}<val>\n"
+"                                   Change the LMA of section <name> by <val>\n"
+"     --change-section-vma <name>{=|+|-}<val>\n"
+"                                   Change the VMA of section <name> by <val>\n"
+"    {--[no-]change-warnings|--[no-]adjust-warnings}\n"
+"                                   Warn if a named section does not exist\n"
+"     --set-section-flags <name>=<flags>\n"
+"                                   Set section <name>'s properties to <flags>\n"
+"     --add-section <name>=<file>   Add section <name> found in <file> to output\n"
+"     --rename-section <old>=<new>[,<flags>] Rename section <old> to <new>\n"
+"     --change-leading-char         Force output format's leading character style\n"
+"     --remove-leading-char         Remove leading character from global symbols\n"
+"     --redefine-sym <old>=<new>    Redefine symbol name <old> to <new>\n"
+"     --redefine-syms <file>        --redefine-sym for all symbol pairs \n"
+"                                     listed in <file>\n"
+"     --srec-len <number>           Restrict the length of generated Srecords\n"
+"     --srec-forceS3                Restrict the type of generated Srecords to S3\n"
+"     --strip-symbols <file>        -N for all symbols listed in <file>\n"
+"     --keep-symbols <file>         -K for all symbols listed in <file>\n"
+"     --localize-symbols <file>     -L for all symbols listed in <file>\n"
+"     --keep-global-symbols <file>  -G for all symbols listed in <file>\n"
+"     --weaken-symbols <file>       -W for all symbols listed in <file>\n"
+"     --alt-machine-code <index>    Use alternate machine code for output\n"
+"     --prefix-symbols <prefix>     Add <prefix> to start of every symbol name\n"
+"     --prefix-sections <prefix>    Add <prefix> to start of every section name\n"
+"     --prefix-alloc-sections <prefix>\n"
+"                                   Add <prefix> to start of every allocatable\n"
+"                                     section name\n"
+"  -v --verbose                     List all object files modified\n"
+"  -V --version                     Display this program's version number\n"
+"  -h --help                        Display this output\n"
+"     --info                        List object formats & architectures supported\n"
+msgstr "-Iyinjiza Intego Iyinjiza IDOSIYE ni in Imiterere Ibisohoka Intego Ibisohoka IDOSIYE in Imiterere Nyabibiri Bya Ibisohoka IDOSIYE Ryari: Iyinjiza ni Intego Byombi Iyinjiza Na Ibisohoka Imiterere Kuri Ibisobanuro NIBA P Amatariki Byahinduwe Kuri i j Icyiciro Izina: Gukoporora Icyiciro Izina: i Kongeramo IDOSIYE Icyiciro Impuza Kuri IDOSIYE Gukuraho... Icyiciro Izina: Icyiciro Izina: Bivuye i Byose Byose IKIMENYETSO Na g Kosora amakosa Byose Ibimenyetso Byose Ibimenyetso OYA ku IKIMENYETSO Izina: OYA Gukoporora IKIMENYETSO Izina: Gumana: IKIMENYETSO Izina: Gukoporora IKIMENYETSO Izina: IKIMENYETSO Izina: IKIMENYETSO Izina: Kuri cy/ byagarajwe Nka a Gumana: IKIMENYETSO Izina: Byose Ibimenyetso Izina: IKIMENYETSO Izina: IKIMENYETSO Izina: Kuri cy/ byagarajwe Nka a Byose Ibimenyetso Kuri cy/ byagarajwe Nka X Kwanga Byose Byose Kwanga i Umubare Gukoporora Inyuma Bya buri Umubare B Bayite Bayite in buri Umwanya Kuzuza hagati Ibyatoranyijwe Na: Kuri Aderesi i Iheruka Icyiciro Hejuru Kuri Aderesi Aderesi Gushyiraho Gutangira Aderesi i Gutangira Aderesi Kuri Aderesi Guhindura>> Gutangira Gutangira Kuri i Gutangira Guhindura>> Amaderesi Kuri Na Gutangira Guhindura>> Icyiciro Aderesi Icyiciro Izina: Na Bya Icyiciro Izina: ku Guhindura>> Icyiciro Izina: i Bya Icyiciro Izina: ku Guhindura>> Icyiciro Izina: i Bya Icyiciro Izina: ku Oya Guhindura>> Iburira Oya Iburira NIBA a Icyiciro OYA Gushyiraho Icyiciro Amabendera Izina: Amabendera Icyiciro Izina: S Indangakintu... Kuri Amabendera Kongeramo Icyiciro Izina: IDOSIYE Icyiciro Izina: Byabonetse in IDOSIYE Kuri Guhindura izina Icyiciro ki/ bishaje Gishya Amabendera Icyiciro ki/ bishaje Kuri Gishya Guhindura>> Nyobora INYUGUTI Ibisohoka Nyobora Inyuguti Gukuraho... Nyobora INYUGUTI Nyobora Inyuguti Bivuye ki/ bishaje Gishya IKIMENYETSO Izina: ki/ bishaje Kuri Gishya IDOSIYE kugirango Byose IKIMENYETSO in IDOSIYE LEN Umubare i Uburebure Bya i Ubwoko Bya Kuri Ibimenyetso IDOSIYE kugirango Byose Ibimenyetso in IDOSIYE Gumana: Ibimenyetso IDOSIYE kugirango Byose Ibimenyetso in IDOSIYE Ibimenyetso IDOSIYE kugirango Byose Ibimenyetso in IDOSIYE Gumana: Ibimenyetso IDOSIYE kugirango Byose Ibimenyetso in IDOSIYE Ibimenyetso IDOSIYE kugirango Byose Ibimenyetso in IDOSIYE Alt ITEGEKONGENGA Umubarendanga ITEGEKONGENGA kugirango Imbanziriza Ibimenyetso Imbanziriza Imbanziriza Kuri Gutangira Bya buri IKIMENYETSO Imbanziriza Ibyatoranyijwe Imbanziriza Imbanziriza Kuri Gutangira Bya buri Icyiciro Imbanziriza Ibyatoranyijwe Imbanziriza Imbanziriza Kuri Gutangira Bya buri Icyiciro v Byose Igikoresho Idosiye V Verisiyo iyi Verisiyo h Ifashayobora iyi Ibisobanuro Igikoresho Imiterere"
+
+#: objcopy.c:493
+#, fuzzy, c-format
+msgid "Usage: %s <option(s)> in-file(s)\n"
+msgstr "Ihitamo S in IDOSIYE S"
+
+#: objcopy.c:494
+#, fuzzy
+msgid " Removes symbols and sections from files\n"
+msgstr "Ibimenyetso Na Ibyatoranyijwe Bivuye"
+
+#: objcopy.c:496
+#, fuzzy
+msgid ""
+"  -I --input-target=<bfdname>      Assume input file is in format <bfdname>\n"
+"  -O --output-target=<bfdname>     Create an output file in format <bfdname>\n"
+"  -F --target=<bfdname>            Set both input and output format to <bfdname>\n"
+"  -p --preserve-dates              Copy modified/access timestamps to the output\n"
+"  -R --remove-section=<name>       Remove section <name> from the output\n"
+"  -s --strip-all                   Remove all symbol and relocation information\n"
+"  -g -S -d --strip-debug           Remove all debugging symbols & sections\n"
+"     --strip-unneeded              Remove all symbols not needed by relocations\n"
+"  -N --strip-symbol=<name>         Do not copy symbol <name>\n"
+"  -K --keep-symbol=<name>          Only copy symbol <name>\n"
+"  -x --discard-all                 Remove all non-global symbols\n"
+"  -X --discard-locals              Remove any compiler-generated symbols\n"
+"  -v --verbose                     List all object files modified\n"
+"  -V --version                     Display this program's version number\n"
+"  -h --help                        Display this output\n"
+"     --info                        List object formats & architectures supported\n"
+"  -o <file>                        Place stripped output into <file>\n"
+msgstr "-Iyinjiza Intego Iyinjiza IDOSIYE ni in Imiterere Ibisohoka Intego Ibisohoka IDOSIYE in Imiterere Intego Byombi Iyinjiza Na Ibisohoka Imiterere Kuri P Amatariki Byahinduwe Kuri i Gukuraho... Icyiciro Izina: Icyiciro Izina: Bivuye i S Byose Byose IKIMENYETSO Na g D Kosora amakosa Byose Ibimenyetso Byose Ibimenyetso OYA ku IKIMENYETSO Izina: OYA Gukoporora IKIMENYETSO Izina: Gumana: IKIMENYETSO Izina: Gukoporora IKIMENYETSO Izina: X Kwanga Byose Byose Kwanga v Byose Igikoresho Idosiye V Verisiyo iyi Verisiyo h Ifashayobora iyi Ibisobanuro Igikoresho Imiterere o IDOSIYE Ibisohoka IDOSIYE"
+
+#: objcopy.c:567
+#, fuzzy, c-format
+msgid "unrecognized section flag `%s'"
+msgstr "Icyiciro Ibendera"
+
+#: objcopy.c:568
+#, fuzzy, c-format
+msgid "supported flags: %s"
+msgstr "Amabendera"
+
+#: objcopy.c:645 objcopy.c:2526
+#, c-format
+msgid "cannot stat: %s: %s"
+msgstr ""
+
+#: objcopy.c:652 objcopy.c:2544
+#, fuzzy, c-format
+msgid "cannot open: %s: %s"
+msgstr "Gufungura"
+
+#: objcopy.c:655 objcopy.c:2548
+#, fuzzy, c-format
+msgid "%s: fread failed"
+msgstr "%s:Byanze"
+
+#: objcopy.c:728
+#, fuzzy, c-format
+msgid "Ignoring rubbish found on line %d of %s"
+msgstr "Kwirengagiza Byabonetse ku Umurongo Bya"
+
+#: objcopy.c:979
+#, fuzzy, c-format
+msgid "%s: Multiple redefinition of symbol \"%s\""
+msgstr "%s:Bya IKIMENYETSO"
+
+#: objcopy.c:983
+#, fuzzy, c-format
+msgid "%s: Symbol \"%s\" is target of more than one redefinition"
+msgstr "%s:ni Intego Bya Birenzeho"
+
+#: objcopy.c:1010
+#, fuzzy, c-format
+msgid "couldn't open symbol redefinition file %s (error: %s)"
+msgstr "Gufungura IKIMENYETSO IDOSIYE Ikosa"
+
+#: objcopy.c:1088
+#, fuzzy, c-format
+msgid "%s: garbage at end of line %d"
+msgstr "%s:ku Impera Bya Umurongo"
+
+#: objcopy.c:1091
+#, fuzzy, c-format
+msgid "%s: missing new symbol name at line %d"
+msgstr "%s:Ibuze Gishya IKIMENYETSO Izina: ku Umurongo"
+
+#: objcopy.c:1101
+#, fuzzy, c-format
+msgid "%s: premature end of file at line %d"
+msgstr "%s:Impera Bya IDOSIYE ku Umurongo"
+
+#: objcopy.c:1147
+#, fuzzy
+msgid "Unable to change endianness of input file(s)"
+msgstr "Kuri Guhindura>> Bya Iyinjiza IDOSIYE S"
+
+#: objcopy.c:1155
+#, fuzzy, c-format
+msgid "copy from %s(%s) to %s(%s)\n"
+msgstr "Gukoporora Bivuye Kuri"
+
+#: objcopy.c:1182
+#, fuzzy, c-format
+msgid "Warning: Output file cannot represent architecture %s"
+msgstr "IDOSIYE"
+
+#: objcopy.c:1211
+#, fuzzy, c-format
+msgid "can't create section `%s': %s"
+msgstr "Kurema Icyiciro"
+
+#: objcopy.c:1304
+#, fuzzy, c-format
+msgid "Can't fill gap after %s: %s"
+msgstr "Kuzuza Umwanya Nyuma"
+
+#: objcopy.c:1329
+#, fuzzy, c-format
+msgid "Can't add padding to %s: %s"
+msgstr "Kongeramo Wuzuza: Kuri"
+
+#: objcopy.c:1485
+#, fuzzy, c-format
+msgid "%s: error copying private BFD data: %s"
+msgstr "%s:Ikosa By'umwihariko Ibyatanzwe"
+
+#: objcopy.c:1498
+#, fuzzy
+msgid "unknown alternate machine code, ignored"
+msgstr "Kitazwi ITEGEKONGENGA"
+
+#: objcopy.c:1531 objcopy.c:1561
+#, fuzzy, c-format
+msgid "cannot mkdir %s for archive copying (error: %s)"
+msgstr "kugirango Ikosa"
+
+#: objcopy.c:1749
+#, fuzzy, c-format
+msgid "Multiple renames of section %s"
+msgstr "Bya Icyiciro"
+
+#: objcopy.c:1840
+msgid "making"
+msgstr ""
+
+# sc/source\ui\src\scfuncs.src:RID_SC_FUNCTION_DESCRIPTIONS2.SC_OPCODE_CONFIDENCE.6.text
+#: objcopy.c:1849
+msgid "size"
+msgstr "ingano"
+
+#: objcopy.c:1863
+msgid "vma"
+msgstr ""
+
+#: objcopy.c:1888
+#, fuzzy
+msgid "alignment"
+msgstr "Itunganya"
+
+# svx/source\gallery2\galtheme.src:RID_GALLERYSTR_THEME_FLAGS.text
+#: objcopy.c:1896
+#, fuzzy
+msgid "flags"
+msgstr "Amabendera"
+
+# sw/source\ui\envelp\label.src:TP_PRIVATE_DATA.FL_DATA.text
+#: objcopy.c:1918
+#, fuzzy
+msgid "private data"
+msgstr "Ibyashyinguwe mwihariko"
+
+#: objcopy.c:1926
+#, fuzzy, c-format
+msgid "%s: section `%s': error in %s: %s"
+msgstr "%s:Icyiciro Ikosa in"
+
+#: objcopy.c:2199
+#, fuzzy, c-format
+msgid "%s: can't create debugging section: %s"
+msgstr "%s:Kurema Icyiciro"
+
+#: objcopy.c:2214
+#, fuzzy, c-format
+msgid "%s: can't set debugging section contents: %s"
+msgstr "%s:Gushyiraho Icyiciro Ibigize"
+
+#: objcopy.c:2223
+#, fuzzy, c-format
+msgid "%s: don't know how to write debugging information for %s"
+msgstr "%s:Kuri Kwandika Ibisobanuro kugirango"
+
+#: objcopy.c:2346
+#, c-format
+msgid "%s: cannot stat: %s"
+msgstr ""
+
+#: objcopy.c:2400
+#, fuzzy
+msgid "byte number must be non-negative"
+msgstr "Bayite Umubare"
+
+#: objcopy.c:2410
+msgid "interleave must be positive"
+msgstr ""
+
+#: objcopy.c:2430 objcopy.c:2438
+#, fuzzy, c-format
+msgid "%s both copied and removed"
+msgstr "%sByombi Na Cyavanyweho"
+
+#: objcopy.c:2523 objcopy.c:2593 objcopy.c:2693 objcopy.c:2724 objcopy.c:2748
+#: objcopy.c:2752 objcopy.c:2772
+#, fuzzy, c-format
+msgid "bad format for %s"
+msgstr "Imiterere kugirango"
+
+#: objcopy.c:2662
+#, fuzzy, c-format
+msgid "Warning: truncating gap-fill from 0x%s to 0x%x"
+msgstr "Umwanya Kuzuza Bivuye Kuri"
+
+#: objcopy.c:2818
+#, fuzzy
+msgid "alternate machine code index must be positive"
+msgstr "ITEGEKONGENGA Umubarendanga"
+
+#: objcopy.c:2856
+#, fuzzy
+msgid "byte number must be less than interleave"
+msgstr "Bayite Umubare Birutwa"
+
+#: objcopy.c:2883
+#, fuzzy, c-format
+msgid "architecture %s unknown"
+msgstr "Kitazwi"
+
+#: objcopy.c:2887
+#, fuzzy
+msgid "Warning: input target 'binary' required for binary architecture parameter."
+msgstr "Iyinjiza Intego Bya ngombwa kugirango Nyabibiri"
+
+#: objcopy.c:2888
+#, c-format
+msgid " Argument %s ignored"
+msgstr ""
+
+#: objcopy.c:2894
+#, c-format
+msgid "Cannot stat: %s: %s"
+msgstr ""
+
+#: objcopy.c:2934 objcopy.c:2948
+#, fuzzy, c-format
+msgid "%s %s%c0x%s never used"
+msgstr "%s%s%c0x%sNta narimwe"
+
+#: objdump.c:197
+#, fuzzy, c-format
+msgid "Usage: %s <option(s)> <file(s)>\n"
+msgstr "Ihitamo S IDOSIYE S"
+
+#: objdump.c:198
+#, fuzzy
+msgid " Display information from object <file(s)>.\n"
+msgstr "Ibisobanuro Bivuye Igikoresho IDOSIYE S"
+
+#: objdump.c:199
+#, fuzzy
+msgid " At least one of the following switches must be given:\n"
+msgstr "Bya i"
+
+#: objdump.c:200
+#, fuzzy
+msgid ""
+"  -a, --archive-headers    Display archive header information\n"
+"  -f, --file-headers       Display the contents of the overall file header\n"
+"  -p, --private-headers    Display object format specific file header contents\n"
+"  -h, --[section-]headers  Display the contents of the section headers\n"
+"  -x, --all-headers        Display the contents of all headers\n"
+"  -d, --disassemble        Display assembler contents of executable sections\n"
+"  -D, --disassemble-all    Display assembler contents of all sections\n"
+"  -S, --source             Intermix source code with disassembly\n"
+"  -s, --full-contents      Display the full contents of all sections requested\n"
+"  -g, --debugging          Display debug information in object file\n"
+"  -G, --stabs              Display (in raw form) any STABS info in the file\n"
+"  -t, --syms               Display the contents of the symbol table(s)\n"
+"  -T, --dynamic-syms       Display the contents of the dynamic symbol table\n"
+"  -r, --reloc              Display the relocation entries in the file\n"
+"  -R, --dynamic-reloc      Display the dynamic relocation entries in the file\n"
+"  -v, --version            Display this program's version number\n"
+"  -i, --info               List object formats and architectures supported\n"
+"  -H, --help               Display this information\n"
+msgstr "-a Imitwe Umutwempangano F IDOSIYE Imitwe i Ibigize Bya i IDOSIYE P By'umwihariko Imitwe Igikoresho Imiterere IDOSIYE Umutwempangano h Icyiciro Imitwe i Ibigize Bya i Icyiciro X Byose Imitwe i Ibigize Bya Byose D Gutandukanya Ibigize Bya Gutandukanya Byose Ibigize Bya Byose Inkomoko Inkomoko ITEGEKONGENGA Na: S Ibigize i Ibigize Bya Byose Ibyatoranyijwe g Kosora amakosa Ibisobanuro in Igikoresho in Ifishi Ibisobanuro in i T i Ibigize Bya i IKIMENYETSO imbonerahamwe# S i Ibigize Bya i IKIMENYETSO R i Ibyinjijwe in i i Ibyinjijwe in i v Verisiyo iyi Verisiyo i Ibisobanuro Igikoresho Imiterere Na H Ifashayobora iyi"
+
+#: objdump.c:222
+#, fuzzy
+msgid ""
+"\n"
+" The following switches are optional:\n"
+msgstr "Bitari ngombwa"
+
+#: objdump.c:223
+#, fuzzy
+msgid ""
+"  -b, --target=BFDNAME           Specify the target object format as BFDNAME\n"
+"  -m, --architecture=MACHINE     Specify the target architecture as MACHINE\n"
+"  -j, --section=NAME             Only display information for section NAME\n"
+"  -M, --disassembler-options=OPT Pass text OPT on to the disassembler\n"
+"  -EB --endian=big               Assume big endian format when disassembling\n"
+"  -EL --endian=little            Assume little endian format when disassembling\n"
+"      --file-start-context       Include context from start of file (with -S)\n"
+"  -l, --line-numbers             Include line numbers and filenames in output\n"
+"  -C, --demangle[=STYLE]         Decode mangled/processed symbol names\n"
+"                                  The STYLE, if specified, can be `auto', `gnu',\n"
+"                                  `lucid', `arm', `hp', `edg', `gnu-v3', `java'\n"
+"                                  or `gnat'\n"
+"  -w, --wide                     Format output for more than 80 columns\n"
+"  -z, --disassemble-zeroes       Do not skip blocks of zeroes when disassembling\n"
+"      --start-address=ADDR       Only process data whose address is >= ADDR\n"
+"      --stop-address=ADDR        Only process data whose address is <= ADDR\n"
+"      --prefix-addresses         Print complete address alongside disassembly\n"
+"      --[no-]show-raw-insn       Display hex alongside symbolic disassembly\n"
+"      --adjust-vma=OFFSET        Add OFFSET to all displayed section addresses\n"
+"\n"
+msgstr "-B Intego i Intego Igikoresho Imiterere Nka M i Intego Nka j Icyiciro Kugaragaza Ibisobanuro kugirango Icyiciro Amahitamo Umwandiko ku Kuri i Imiterere Ryari: Imiterere Ryari: IDOSIYE Gutangira Imvugiro Imvugiro Bivuye Gutangira Bya IDOSIYE Na: L Umurongo Imibare Umurongo Imibare Na in C IKIMENYETSO NIBA Cyangwa W Ibisohoka kugirango Birenzeho Z Gutandukanya OYA Bya Ryari: Gutangira Aderesi Ibyatanzwe bya Aderesi ni Guhagarara Aderesi Ibyatanzwe bya Aderesi ni Imbanziriza Amaderesi Byuzuye Aderesi Oya Garagaza Kuri Byose Icyiciro"
+
+# #-#-#-#-#  sw.pot (PACKAGE VERSION)  #-#-#-#-#
+# sw/source\ui\inc\swmn.hrc:MN_OBJECTMENU_TEXT.FN_EDIT_REGION.text
+# #-#-#-#-#  sw.pot (PACKAGE VERSION)  #-#-#-#-#
+# sw/source\ui\inc\swmn.hrc:MN_OBJECTMENU_TABLE.FN_EDIT_REGION.text
+#: objdump.c:391
+#, fuzzy
+msgid "Sections:\n"
+msgstr "Ibyiciro..."
+
+#: objdump.c:394 objdump.c:398
+#, fuzzy
+msgid "Idx Name          Size      VMA       LMA       File off  Algn"
+msgstr "Idosiye Bidakora"
+
+#: objdump.c:400
+#, fuzzy
+msgid "Idx Name          Size      VMA               LMA               File off  Algn"
+msgstr "Idosiye Bidakora"
+
+# svx/source\gallery2\galtheme.src:RID_GALLERYSTR_THEME_FLAGS.text
+#: objdump.c:404
+#, fuzzy
+msgid "  Flags"
+msgstr "Amabendera"
+
+#: objdump.c:406
+msgid "  Pg"
+msgstr ""
+
+#: objdump.c:451
+#, fuzzy, c-format
+msgid "%s: not a dynamic object"
+msgstr "%s:OYA a Igikoresho"
+
+#: objdump.c:1144
+#, fuzzy
+msgid "Out of virtual memory"
+msgstr "Bya Kitaboneka Ububiko"
+
+#: objdump.c:1574
+#, fuzzy, c-format
+msgid "Can't use supplied machine %s"
+msgstr "Gukoresha"
+
+#: objdump.c:1592
+#, fuzzy, c-format
+msgid "Can't disassemble for architecture %s\n"
+msgstr "Gutandukanya kugirango"
+
+#: objdump.c:1682
+#, fuzzy, c-format
+msgid "Disassembly of section %s:\n"
+msgstr "Bya Icyiciro"
+
+#: objdump.c:1847
+#, fuzzy, c-format
+msgid ""
+"No %s section present\n"
+"\n"
+msgstr "Icyiciro"
+
+#: objdump.c:1854
+#, fuzzy, c-format
+msgid "%s has no %s section"
+msgstr "%sOya Icyiciro"
+
+#: objdump.c:1868
+#, fuzzy, c-format
+msgid "Reading %s section of %s failed: %s"
+msgstr "Icyiciro Bya Byanze"
+
+#: objdump.c:1880
+#, fuzzy, c-format
+msgid "Reading %s section of %s failed: %s\n"
+msgstr "Icyiciro Bya Byanze"
+
+#: objdump.c:1923
+#, fuzzy, c-format
+msgid ""
+"Contents of %s section:\n"
+"\n"
+msgstr "Bya Icyiciro"
+
+#: objdump.c:2021
+#, c-format
+msgid "architecture: %s, "
+msgstr ""
+
+#: objdump.c:2024
+#, fuzzy, c-format
+msgid "flags 0x%08x:\n"
+msgstr "Amabendera"
+
+#: objdump.c:2038
+#, fuzzy
+msgid ""
+"\n"
+"start address 0x"
+msgstr "Gutangira Aderesi"
+
+#: objdump.c:2071
+#, fuzzy, c-format
+msgid ""
+"\n"
+"%s:     file format %s\n"
+msgstr "%s:IDOSIYE Imiterere"
+
+#: objdump.c:2111
+#, fuzzy, c-format
+msgid "%s: printing debugging information failed"
+msgstr "%s:Icapa... Ibisobanuro Byanze"
+
+#: objdump.c:2190
+#, c-format
+msgid "In archive %s:\n"
+msgstr ""
+
+#: objdump.c:2249
+#, fuzzy, c-format
+msgid "Contents of section %s:\n"
+msgstr "Bya Icyiciro"
+
+#: objdump.c:2369
+#, fuzzy
+msgid "no symbols\n"
+msgstr "Oya"
+
+#: objdump.c:2718
+#, fuzzy
+msgid "unrecognized -E option"
+msgstr "E Ihitamo"
+
+#: objdump.c:2729
+#, fuzzy, c-format
+msgid "unrecognized --endian type `%s'"
+msgstr "Ubwoko"
+
+#: rdcoff.c:206
+#, fuzzy, c-format
+msgid "parse_coff_type: Bad type code 0x%x"
+msgstr "Ubwoko ITEGEKONGENGA"
+
+#: rdcoff.c:424 rdcoff.c:532 rdcoff.c:731
+#, fuzzy, c-format
+msgid "bfd_coff_get_syment failed: %s"
+msgstr "Byanze"
+
+#: rdcoff.c:440 rdcoff.c:751
+#, fuzzy, c-format
+msgid "bfd_coff_get_auxent failed: %s"
+msgstr "Byanze"
+
+#: rdcoff.c:818
+#, fuzzy, c-format
+msgid "%ld: .bf without preceding function"
+msgstr ""
+"%ld:.Project- Id- Version: basctl\n"
+"POT- Creation- Date: 2003- 12- 07 17: 13+ 02\n"
+"PO- Revision- Date: 2004- 11- 04 10: 13- 0700\n"
+"Last- Translator: Language- Team:< en@ li. org> MIME- Version: 1. 0\n"
+"Content- Type: text/ plain; charset= UTF- 8\n"
+"Content- Transfer- Encoding: 8bit\n"
+"X- Generator: KBabel 1. 0\n"
+"."
+
+#: rdcoff.c:868
+#, c-format
+msgid "%ld: unexpected .ef\n"
+msgstr ""
+
+#: rddbg.c:91
+#, fuzzy, c-format
+msgid "%s: no recognized debugging information"
+msgstr "%s:Oya Ibisobanuro"
+
+#: rddbg.c:415
+#, fuzzy
+msgid "Last stabs entries before error:\n"
+msgstr "Ibyinjijwe Mbere Ikosa"
+
+# sw/source\ui\utlui\initui.src:RID_SW_SHELLRES.STR_CALC_DEFAULT.text
+#: readelf.c:455
+#, fuzzy, c-format
+msgid "%s: Error: "
+msgstr "%s:Ikosa**"
+
+#: readelf.c:466
+#, fuzzy, c-format
+msgid "%s: Warning: "
+msgstr "%s:Iburira"
+
+#: readelf.c:488
+#, fuzzy, c-format
+msgid "Unable to seek to 0x%x for %s\n"
+msgstr "Kuri Kuri kugirango"
+
+#: readelf.c:499
+#, fuzzy, c-format
+msgid "Out of memory allocating 0x%x bytes for %s\n"
+msgstr "Bya Ububiko Bayite kugirango"
+
+#: readelf.c:507
+#, fuzzy, c-format
+msgid "Unable to read in 0x%x bytes of %s\n"
+msgstr "Kuri Gusoma in Bayite Bya"
+
+#: readelf.c:560 readelf.c:614 readelf.c:798 readelf.c:833
+#, fuzzy, c-format
+msgid "Unhandled data length: %d\n"
+msgstr "Ibyatanzwe Uburebure"
+
+#: readelf.c:924
+#, fuzzy
+msgid "Don't know about relocations on this machine architecture\n"
+msgstr "Ibyerekeye ku iyi"
+
+#: readelf.c:946 readelf.c:975 readelf.c:1021 readelf.c:1049
+msgid "relocs"
+msgstr ""
+
+#: readelf.c:957 readelf.c:986 readelf.c:1031 readelf.c:1059
+#, fuzzy
+msgid "out of memory parsing relocs"
+msgstr "Inyuma Bya Ububiko"
+
+#: readelf.c:1112
+msgid " Offset     Info    Type                Sym. Value  Symbol's Name + Addend\n"
+msgstr ""
+
+#: readelf.c:1114
+msgid " Offset     Info    Type            Sym.Value  Sym. Name + Addend\n"
+msgstr ""
+
+#: readelf.c:1119
+msgid " Offset     Info    Type                Sym. Value  Symbol's Name\n"
+msgstr ""
+
+#: readelf.c:1121
+msgid " Offset     Info    Type            Sym.Value  Sym. Name\n"
+msgstr ""
+
+#: readelf.c:1129
+msgid "    Offset             Info             Type               Symbol's Value  Symbol's Name + Addend\n"
+msgstr ""
+
+#: readelf.c:1131
+msgid "  Offset          Info           Type           Sym. Value    Sym. Name + Addend\n"
+msgstr ""
+
+#: readelf.c:1136
+msgid "    Offset             Info             Type               Symbol's Value  Symbol's Name\n"
+msgstr ""
+
+#: readelf.c:1138
+msgid "  Offset          Info           Type           Sym. Value    Sym. Name\n"
+msgstr ""
+
+#: readelf.c:1414 readelf.c:1416 readelf.c:1492 readelf.c:1494 readelf.c:1503
+#: readelf.c:1505
+#, c-format
+msgid "unrecognized: %-7lx"
+msgstr ""
+
+#: readelf.c:1466
+#, fuzzy, c-format
+msgid "<string table index %3ld>"
+msgstr "<Ikurikiranyanyuguti imbonerahamwe# Umubarendanga"
+
+#: readelf.c:1743
+#, c-format
+msgid "Processor Specific: %lx"
+msgstr ""
+
+#: readelf.c:1762
+#, c-format
+msgid "Operating System specific: %lx"
+msgstr ""
+
+#: readelf.c:1765 readelf.c:2417
+#, fuzzy, c-format
+msgid "<unknown>: %lx"
+msgstr "<Itazwi>"
+
+#: readelf.c:1779
+msgid "NONE (None)"
+msgstr ""
+
+#: readelf.c:1780
+#, fuzzy
+msgid "REL (Relocatable file)"
+msgstr "IDOSIYE"
+
+#: readelf.c:1781
+#, fuzzy
+msgid "EXEC (Executable file)"
+msgstr "IDOSIYE"
+
+#: readelf.c:1782
+#, fuzzy
+msgid "DYN (Shared object file)"
+msgstr "Igikoresho IDOSIYE"
+
+#: readelf.c:1783
+#, fuzzy
+msgid "CORE (Core file)"
+msgstr "IDOSIYE"
+
+#: readelf.c:1787
+#, c-format
+msgid "Processor Specific: (%x)"
+msgstr ""
+
+#: readelf.c:1789
+#, c-format
+msgid "OS Specific: (%x)"
+msgstr ""
+
+#: readelf.c:1791 readelf.c:1898 readelf.c:2574
+#, fuzzy, c-format
+msgid "<unknown>: %x"
+msgstr "<Itazwi>"
+
+# goodies/source\filter.vcl\eps\dlgeps.src:DLG_EXPORT_EPS.RB_COMPRESSION_NONE.text
+#: readelf.c:1804
+msgid "None"
+msgstr "Nta na kimwe"
+
+#: readelf.c:2616
+#, fuzzy
+msgid "Usage: readelf <option(s)> elf-file(s)\n"
+msgstr "Ihitamo S IDOSIYE S"
+
+#: readelf.c:2617
+#, fuzzy
+msgid " Display information about the contents of ELF format files\n"
+msgstr "Ibisobanuro Ibyerekeye i Ibigize Bya Imiterere"
+
+#: readelf.c:2618
+#, fuzzy
+msgid ""
+" Options are:\n"
+"  -a --all               Equivalent to: -h -l -S -s -r -d -V -A -I\n"
+"  -h --file-header       Display the ELF file header\n"
+"  -l --program-headers   Display the program headers\n"
+"     --segments          An alias for --program-headers\n"
+"  -S --section-headers   Display the sections' header\n"
+"     --sections          An alias for --section-headers\n"
+"  -e --headers           Equivalent to: -h -l -S\n"
+"  -s --syms              Display the symbol table\n"
+"      --symbols          An alias for --syms\n"
+"  -n --notes             Display the core notes (if present)\n"
+"  -r --relocs            Display the relocations (if present)\n"
+"  -u --unwind            Display the unwind info (if present)\n"
+"  -d --dynamic           Display the dynamic segment (if present)\n"
+"  -V --version-info      Display the version sections (if present)\n"
+"  -A --arch-specific     Display architecture specific information (if any).\n"
+"  -D --use-dynamic       Use the dynamic section info when displaying symbols\n"
+"  -x --hex-dump=<number> Dump the contents of section <number>\n"
+"  -w[liaprmfFso] or\n"
+"  --debug-dump[=line,=info,=abbrev,=pubnames,=ranges,=macro,=frames,=str,=loc]\n"
+"                         Display the contents of DWARF2 debug sections\n"
+msgstr "a Byose Kuri h L S R D V A h IDOSIYE Umutwempangano i IDOSIYE L Porogaramu Imitwe i Porogaramu Ingeri Irihimbano kugirango Porogaramu Icyiciro Imitwe i Ibyatoranyijwe Irihimbano kugirango Icyiciro E Imitwe Kuri h L S i IKIMENYETSO Ibimenyetso Irihimbano kugirango N Ibisobanuro i Ibisobanuro NIBA R i NIBA u i Ibisobanuro NIBA D i NIBA V Verisiyo Ibisobanuro i Verisiyo Ibyatoranyijwe NIBA A Ibisobanuro NIBA Gukoresha i Icyiciro Ibisobanuro Ryari: X Umubare i Ibigize Bya Icyiciro Umubare W Kosora amakosa Umurongo Ibisobanuro Ibice Makoro Amakadiri i Ibigize Bya Kosora amakosa"
+
+#: readelf.c:2640
+#, fuzzy
+msgid ""
+"  -i --instruction-dump=<number>\n"
+"                         Disassemble the contents of section <number>\n"
+msgstr "-i Umubare i Ibigize Bya Icyiciro Umubare"
+
+#: readelf.c:2644
+#, fuzzy
+msgid ""
+"  -I --histogram         Display histogram of bucket list lengths\n"
+"  -W --wide              Allow output width to exceed 80 characters\n"
+"  -H --help              Display this information\n"
+"  -v --version           Display the version number of readelf\n"
+msgstr "-Bya Urutonde Ibisohoka Ubugari Kuri H Ifashayobora iyi v Verisiyo i Verisiyo Umubare Bya"
+
+#: readelf.c:2666 readelf.c:10765
+#, fuzzy
+msgid "Out of memory allocating dump request table."
+msgstr "Bya Ububiko Kubaza... imbonerahamwe#"
+
+#: readelf.c:2830 readelf.c:2906
+#, fuzzy, c-format
+msgid "Unrecognized debug option '%s'\n"
+msgstr "Kosora amakosa Ihitamo"
+
+#: readelf.c:2940
+#, fuzzy, c-format
+msgid "Invalid option '-%c'\n"
+msgstr "Ihitamo"
+
+#: readelf.c:2953
+#, fuzzy
+msgid "Nothing to do.\n"
+msgstr "Kuri"
+
+# svx/source\items\svxitems.src:RID_SVXITEMS_EMPHASIS_NONE_STYLE.text
+#: readelf.c:2966 readelf.c:2983 readelf.c:5366
+msgid "none"
+msgstr "ntacyo"
+
+#: readelf.c:2970 readelf.c:2987 readelf.c:3018
+#, fuzzy, c-format
+msgid "<unknown: %x>"
+msgstr "<Itazwi>"
+
+#: readelf.c:2984
+msgid "2's complement, little endian"
+msgstr ""
+
+#: readelf.c:2985
+msgid "2's complement, big endian"
+msgstr ""
+
+#: readelf.c:3015
+msgid "Standalone App"
+msgstr ""
+
+#: readelf.c:3034
+#, fuzzy
+msgid "Not an ELF file - it has the wrong magic bytes at the start\n"
+msgstr "IDOSIYE i Bayite ku i"
+
+#: readelf.c:3042
+msgid "ELF Header:\n"
+msgstr ""
+
+#: readelf.c:3043
+msgid "  Magic:   "
+msgstr ""
+
+# officecfg/registry\schema\org\openoffice\Office\Java.xcs:....VirtualMachine.UserClassPath.text
+#: readelf.c:3047
+#, fuzzy, c-format
+msgid "  Class:                             %s\n"
+msgstr "ishuri"
+
+#: readelf.c:3049
+#, fuzzy, c-format
+msgid "  Data:                              %s\n"
+msgstr "Ibyatanzwe"
+
+# goodies/source\filter.vcl\eps\dlgeps.src:DLG_EXPORT_EPS.GRP_VERSION.text
+#: readelf.c:3051
+#, fuzzy, c-format
+msgid "  Version:                           %d %s\n"
+msgstr "Verisiyo"
+
+#: readelf.c:3058
+#, c-format
+msgid "  OS/ABI:                            %s\n"
+msgstr ""
+
+#: readelf.c:3060
+#, c-format
+msgid "  ABI Version:                       %d\n"
+msgstr ""
+
+# #-#-#-#-#  dbaccess.pot (PACKAGE VERSION)  #-#-#-#-#
+# #-#-#-#-#  dbaccess.pot (PACKAGE VERSION)  #-#-#-#-#
+#: readelf.c:3062
+#, fuzzy, c-format
+msgid "  Type:                              %s\n"
+msgstr "Ubwoko"
+
+#: readelf.c:3064
+#, c-format
+msgid "  Machine:                           %s\n"
+msgstr ""
+
+#: readelf.c:3066
+#, c-format
+msgid "  Version:                           0x%lx\n"
+msgstr ""
+
+#: readelf.c:3069
+#, fuzzy
+msgid "  Entry point address:               "
+msgstr "Akadomo Aderesi"
+
+#: readelf.c:3071
+#, fuzzy
+msgid ""
+"\n"
+"  Start of program headers:          "
+msgstr "Gutangira Bya Porogaramu Imitwe"
+
+#: readelf.c:3073
+#, fuzzy
+msgid ""
+" (bytes into file)\n"
+"  Start of section headers:          "
+msgstr "(Bayite IDOSIYE Gutangira Bya Icyiciro Imitwe"
+
+#: readelf.c:3075
+#, fuzzy
+msgid " (bytes into file)\n"
+msgstr "(Bayite IDOSIYE"
+
+#: readelf.c:3077
+#, c-format
+msgid "  Flags:                             0x%lx%s\n"
+msgstr ""
+
+#: readelf.c:3080
+#, fuzzy, c-format
+msgid "  Size of this header:               %ld (bytes)\n"
+msgstr "Bya iyi Umutwempangano Bayite"
+
+#: readelf.c:3082
+#, fuzzy, c-format
+msgid "  Size of program headers:           %ld (bytes)\n"
+msgstr "Bya Porogaramu Imitwe Bayite"
+
+#: readelf.c:3084
+#, fuzzy, c-format
+msgid "  Number of program headers:         %ld\n"
+msgstr "Bya Porogaramu Imitwe"
+
+#: readelf.c:3086
+#, fuzzy, c-format
+msgid "  Size of section headers:           %ld (bytes)\n"
+msgstr "Bya Icyiciro Imitwe Bayite"
+
+#: readelf.c:3088
+#, fuzzy, c-format
+msgid "  Number of section headers:         %ld"
+msgstr "Bya Icyiciro Imitwe"
+
+#: readelf.c:3093
+#, fuzzy, c-format
+msgid "  Section header string table index: %ld"
+msgstr "Umutwempangano Ikurikiranyanyuguti imbonerahamwe# Umubarendanga"
+
+#: readelf.c:3127 readelf.c:3163
+#, fuzzy
+msgid "program headers"
+msgstr "Porogaramu Imitwe"
+
+#: readelf.c:3203 readelf.c:3480 readelf.c:3526 readelf.c:3589 readelf.c:3656
+#: readelf.c:4715 readelf.c:4758 readelf.c:4948 readelf.c:5917 readelf.c:5931
+#: readelf.c:10411
+#, fuzzy
+msgid "Out of memory\n"
+msgstr "Bya"
+
+#: readelf.c:3231
+#, fuzzy
+msgid ""
+"\n"
+"There are no program headers in this file.\n"
+msgstr "Oya Porogaramu Imitwe in iyi IDOSIYE"
+
+#: readelf.c:3237
+#, fuzzy, c-format
+msgid ""
+"\n"
+"Elf file type is %s\n"
+msgstr "IDOSIYE Ubwoko ni"
+
+#: readelf.c:3238
+#, fuzzy
+msgid "Entry point "
+msgstr "Akadomo"
+
+#: readelf.c:3240
+#, fuzzy, c-format
+msgid ""
+"\n"
+"There are %d program headers, starting at offset "
+msgstr "Porogaramu Imitwe ku Nta- boneza"
+
+#: readelf.c:3252 readelf.c:3254
+msgid ""
+"\n"
+"Program Headers:\n"
+msgstr ""
+
+#: readelf.c:3258
+msgid "  Type           Offset   VirtAddr   PhysAddr   FileSiz MemSiz  Flg Align\n"
+msgstr ""
+
+#: readelf.c:3261
+msgid "  Type           Offset   VirtAddr           PhysAddr           FileSiz  MemSiz   Flg Align\n"
+msgstr ""
+
+#: readelf.c:3265
+msgid "  Type           Offset             VirtAddr           PhysAddr\n"
+msgstr ""
+
+#: readelf.c:3267
+msgid "                 FileSiz            MemSiz              Flags  Align\n"
+msgstr ""
+
+#: readelf.c:3360
+#, fuzzy
+msgid "more than one dynamic segment\n"
+msgstr "Birenzeho"
+
+#: readelf.c:3368
+#, fuzzy
+msgid "Unable to find program interpreter name\n"
+msgstr "Kuri Gushaka Porogaramu"
+
+#: readelf.c:3375
+#, fuzzy, c-format
+msgid ""
+"\n"
+"      [Requesting program interpreter: %s]"
+msgstr "[Porogaramu"
+
+#: readelf.c:3387
+#, fuzzy
+msgid ""
+"\n"
+" Section to Segment mapping:\n"
+msgstr "Kuri Igereranya"
+
+#: readelf.c:3388
+msgid "  Segment Sections...\n"
+msgstr ""
+
+#: readelf.c:3437
+#, fuzzy
+msgid "Cannot interpret virtual addresses without program headers.\n"
+msgstr "Kitaboneka Amaderesi Porogaramu Imitwe"
+
+#: readelf.c:3453
+#, fuzzy, c-format
+msgid "Virtual address 0x%lx not located in any PT_LOAD segment.\n"
+msgstr "Aderesi OYA in"
+
+#: readelf.c:3471 readelf.c:3517
+#, fuzzy
+msgid "section headers"
+msgstr "Icyiciro Imitwe"
+
+# sch/source\ui\app\strings.src:STR_SYMBOL.text
+#: readelf.c:3565 readelf.c:3632
+#, fuzzy
+msgid "symbols"
+msgstr "Ibimenyetso"
+
+#: readelf.c:3576 readelf.c:3643
+msgid "symtab shndx"
+msgstr ""
+
+#: readelf.c:3745
+#, fuzzy
+msgid ""
+"\n"
+"There are no sections in this file.\n"
+msgstr "Oya Ibyatoranyijwe in iyi IDOSIYE"
+
+#: readelf.c:3751
+#, fuzzy, c-format
+msgid "There are %d section headers, starting at offset 0x%lx:\n"
+msgstr "Icyiciro Imitwe ku Nta- boneza"
+
+#: readelf.c:3768 readelf.c:4098 readelf.c:4433 readelf.c:6070
+#, fuzzy
+msgid "string table"
+msgstr "Ikurikiranyanyuguti imbonerahamwe#"
+
+#: readelf.c:3793
+#, fuzzy
+msgid "File contains multiple dynamic symbol tables\n"
+msgstr "Idosiye Kirimo Igikubo IKIMENYETSO"
+
+#: readelf.c:3805
+#, fuzzy
+msgid "File contains multiple dynamic string tables\n"
+msgstr "Idosiye Kirimo Igikubo Ikurikiranyanyuguti"
+
+#: readelf.c:3811
+#, fuzzy
+msgid "dynamic strings"
+msgstr "Ikurikiranyanyuguti"
+
+#: readelf.c:3817
+#, fuzzy
+msgid "File contains multiple symtab shndx tables\n"
+msgstr "Idosiye Kirimo Igikubo"
+
+#: readelf.c:3855
+msgid ""
+"\n"
+"Section Headers:\n"
+msgstr ""
+
+#: readelf.c:3857
+msgid ""
+"\n"
+"Section Header:\n"
+msgstr ""
+
+#: readelf.c:3861
+msgid "  [Nr] Name              Type            Addr     Off    Size   ES Flg Lk Inf Al\n"
+msgstr ""
+
+#: readelf.c:3864
+msgid "  [Nr] Name              Type            Address          Off    Size   ES Flg Lk Inf Al\n"
+msgstr ""
+
+#: readelf.c:3867
+msgid "  [Nr] Name              Type             Address           Offset\n"
+msgstr ""
+
+#: readelf.c:3868
+msgid "       Size              EntSize          Flags  Link  Info  Align\n"
+msgstr ""
+
+#: readelf.c:3963
+#, fuzzy
+msgid ""
+"Key to Flags:\n"
+"  W (write), A (alloc), X (execute), M (merge), S (strings)\n"
+"  I (info), L (link order), G (group), x (unknown)\n"
+"  O (extra OS processing required) o (OS specific), p (processor specific)\n"
+msgstr "Kuri Kwandika A Gukora Gukomatanya Ikurikiranyanyuguti Ibisobanuro Ihuza Itondekanya Itsinda X Kitazwi Birenga Inonosora Bya ngombwa o P"
+
+#: readelf.c:4031
+#, fuzzy, c-format
+msgid ""
+"\n"
+"'%s' relocation section at offset 0x%lx contains %ld bytes:\n"
+msgstr "'%s'Icyiciro ku Nta- boneza Kirimo Bayite"
+
+#: readelf.c:4043
+#, fuzzy
+msgid ""
+"\n"
+"There are no dynamic relocations in this file.\n"
+msgstr "Oya in iyi IDOSIYE"
+
+#: readelf.c:4070
+#, fuzzy
+msgid ""
+"\n"
+"Relocation section "
+msgstr "Icyiciro"
+
+# desktop/source\app\ssodlg.src:DLG_SSOLOGIN.text
+#: readelf.c:4075 readelf.c:4496 readelf.c:4510
+#, fuzzy, c-format
+msgid "'%s'"
+msgstr "'%s'"
+
+#: readelf.c:4077 readelf.c:4512
+#, fuzzy, c-format
+msgid " at offset 0x%lx contains %lu entries:\n"
+msgstr "ku Nta- boneza Kirimo Ibyinjijwe"
+
+#: readelf.c:4115
+#, fuzzy
+msgid ""
+"\n"
+"There are no relocations in this file.\n"
+msgstr "Oya in iyi IDOSIYE"
+
+#: readelf.c:4299
+#, fuzzy
+msgid "unwind table"
+msgstr "imbonerahamwe#"
+
+#: readelf.c:4350 readelf.c:4362 readelf.c:8499 readelf.c:8511
+#, fuzzy, c-format
+msgid "Skipping unexpected symbol type %u\n"
+msgstr "IKIMENYETSO Ubwoko"
+
+#: readelf.c:4370
+#, fuzzy, c-format
+msgid "Skipping unexpected relocation type %s\n"
+msgstr "Ubwoko"
+
+#: readelf.c:4415 readelf.c:4440
+#, fuzzy
+msgid ""
+"\n"
+"There are no unwind sections in this file.\n"
+msgstr "Oya Ibyatoranyijwe in iyi IDOSIYE"
+
+#: readelf.c:4491
+#, fuzzy
+msgid ""
+"\n"
+"Could not find unwind info section for "
+msgstr "OYA Gushaka Ibisobanuro Icyiciro kugirango"
+
+#: readelf.c:4503
+#, fuzzy
+msgid "unwind info"
+msgstr "Ibisobanuro"
+
+#: readelf.c:4505
+#, fuzzy
+msgid ""
+"\n"
+"Unwind section "
+msgstr "Icyiciro"
+
+#: readelf.c:4699 readelf.c:4742
+msgid "dynamic segment"
+msgstr ""
+
+#: readelf.c:4820
+#, fuzzy
+msgid ""
+"\n"
+"There is no dynamic segment in this file.\n"
+msgstr "ni Oya in iyi IDOSIYE"
+
+#: readelf.c:4854
+#, fuzzy
+msgid "Unable to seek to end of file!"
+msgstr "Kuri Kuri Impera Bya IDOSIYE"
+
+#: readelf.c:4865
+#, fuzzy
+msgid "Unable to determine the number of symbols to load\n"
+msgstr "Kuri i Umubare Bya Ibimenyetso Kuri"
+
+#: readelf.c:4895
+#, fuzzy
+msgid "Unable to seek to end of file\n"
+msgstr "Kuri Kuri Impera Bya"
+
+#: readelf.c:4901
+#, fuzzy
+msgid "Unable to determine the length of the dynamic string table\n"
+msgstr "Kuri i Uburebure Bya i Ikurikiranyanyuguti"
+
+#: readelf.c:4906
+#, fuzzy
+msgid "dynamic string table"
+msgstr "Ikurikiranyanyuguti imbonerahamwe#"
+
+#: readelf.c:4941
+#, fuzzy
+msgid "symbol information"
+msgstr "IKIMENYETSO Ibisobanuro"
+
+#: readelf.c:4965
+#, fuzzy, c-format
+msgid ""
+"\n"
+"Dynamic segment at offset 0x%lx contains %ld entries:\n"
+msgstr "ku Nta- boneza Kirimo Ibyinjijwe"
+
+#: readelf.c:4968
+msgid "  Tag        Type                         Name/Value\n"
+msgstr ""
+
+#: readelf.c:5004
+#, fuzzy
+msgid "Auxiliary library"
+msgstr "Isomero"
+
+#: readelf.c:5008
+#, fuzzy
+msgid "Filter library"
+msgstr "Isomero"
+
+# sfx2/source\explorer\explorer.src:STR_SFX_CFGFILE.text
+#: readelf.c:5012
+msgid "Configuration file"
+msgstr "Idosiye y'iboneza"
+
+#: readelf.c:5016
+#, fuzzy
+msgid "Dependency audit library"
+msgstr "Isomero"
+
+#: readelf.c:5020
+#, fuzzy
+msgid "Audit library"
+msgstr "Isomero"
+
+# svx/source\gallery2\galtheme.src:RID_GALLERYSTR_THEME_FLAGS.text
+#: readelf.c:5038 readelf.c:5066 readelf.c:5094
+#, fuzzy
+msgid "Flags:"
+msgstr "Amabendera"
+
+#: readelf.c:5041 readelf.c:5069 readelf.c:5096
+msgid " None\n"
+msgstr ""
+
+#: readelf.c:5217
+#, fuzzy, c-format
+msgid "Shared library: [%s]"
+msgstr "Isomero"
+
+#: readelf.c:5220
+#, fuzzy
+msgid " program interpreter"
+msgstr "Porogaramu"
+
+#: readelf.c:5224
+#, c-format
+msgid "Library soname: [%s]"
+msgstr ""
+
+#: readelf.c:5228
+#, c-format
+msgid "Library rpath: [%s]"
+msgstr ""
+
+#: readelf.c:5232
+#, c-format
+msgid "Library runpath: [%s]"
+msgstr ""
+
+#: readelf.c:5296
+#, fuzzy, c-format
+msgid "Not needed object: [%s]\n"
+msgstr "Igikoresho"
+
+#: readelf.c:5412
+#, fuzzy, c-format
+msgid ""
+"\n"
+"Version definition section '%s' contains %ld entries:\n"
+msgstr "Insobanuro Icyiciro Kirimo Ibyinjijwe"
+
+#: readelf.c:5415
+msgid "  Addr: 0x"
+msgstr ""
+
+#: readelf.c:5417 readelf.c:5612
+#, c-format
+msgid "  Offset: %#08lx  Link: %lx (%s)\n"
+msgstr ""
+
+#: readelf.c:5424
+#, fuzzy
+msgid "version definition section"
+msgstr "Verisiyo Insobanuro Icyiciro"
+
+#: readelf.c:5450
+#, c-format
+msgid "  %#06x: Rev: %d  Flags: %s"
+msgstr ""
+
+#: readelf.c:5453
+#, c-format
+msgid "  Index: %d  Cnt: %d  "
+msgstr ""
+
+# basctl/source\basicide\moduldlg.src:RID_DLG_NEWLIB.RID_FT_NEWLIB.text
+#: readelf.c:5464
+#, fuzzy, c-format
+msgid "Name: %s\n"
+msgstr "Izina:"
+
+#: readelf.c:5466
+#, fuzzy, c-format
+msgid "Name index: %ld\n"
+msgstr "Umubarendanga"
+
+#: readelf.c:5481
+#, c-format
+msgid "  %#06x: Parent %d: %s\n"
+msgstr ""
+
+#: readelf.c:5484
+#, fuzzy, c-format
+msgid "  %#06x: Parent %d, name index: %ld\n"
+msgstr "%#06x:Izina: Umubarendanga"
+
+#: readelf.c:5503
+#, fuzzy, c-format
+msgid ""
+"\n"
+"Version needs section '%s' contains %ld entries:\n"
+msgstr "Icyiciro Kirimo Ibyinjijwe"
+
+#: readelf.c:5506
+msgid " Addr: 0x"
+msgstr ""
+
+#: readelf.c:5508
+#, fuzzy, c-format
+msgid "  Offset: %#08lx  Link to section: %ld (%s)\n"
+msgstr "Kuri Icyiciro"
+
+#: readelf.c:5514
+#, fuzzy
+msgid "version need section"
+msgstr "Verisiyo Icyiciro"
+
+#: readelf.c:5536
+#, c-format
+msgid "  %#06x: Version: %d"
+msgstr ""
+
+# sc/source\ui\src\globstr.src:RID_GLOBSTR.STR_HFCMD_FILE.text
+#: readelf.c:5539
+#, fuzzy, c-format
+msgid "  File: %s"
+msgstr "IDOSIYE"
+
+# sc/source\ui\src\globstr.src:RID_GLOBSTR.STR_HFCMD_FILE.text
+#: readelf.c:5541
+#, fuzzy, c-format
+msgid "  File: %lx"
+msgstr "IDOSIYE"
+
+#: readelf.c:5543
+#, c-format
+msgid "  Cnt: %d\n"
+msgstr ""
+
+# sc/source\core\src\compiler.src:RID_SC_FUNCTION_NAMES.SC_OPCODE_NO_NAME.text
+#: readelf.c:5561
+#, fuzzy, c-format
+msgid "  %#06x: Name: %s"
+msgstr "%#06x:IZINA!"
+
+#: readelf.c:5564
+#, fuzzy, c-format
+msgid "  %#06x: Name index: %lx"
+msgstr "%#06x:Umubarendanga"
+
+#: readelf.c:5567
+#, c-format
+msgid "  Flags: %s  Version: %d\n"
+msgstr ""
+
+#: readelf.c:5603
+#, fuzzy
+msgid "version string table"
+msgstr "Verisiyo Ikurikiranyanyuguti imbonerahamwe#"
+
+#: readelf.c:5607
+#, fuzzy, c-format
+msgid ""
+"\n"
+"Version symbols section '%s' contains %d entries:\n"
+msgstr "Ibimenyetso Icyiciro Kirimo Ibyinjijwe"
+
+#: readelf.c:5610
+#, fuzzy
+msgid " Addr: "
+msgstr "Aderesi"
+
+#: readelf.c:5622
+#, fuzzy
+msgid "version symbol data"
+msgstr "Verisiyo IKIMENYETSO Ibyatanzwe"
+
+#: readelf.c:5649
+#, fuzzy
+msgid "   0 (*local*)    "
+msgstr "0"
+
+#: readelf.c:5653
+#, fuzzy
+msgid "   1 (*global*)   "
+msgstr "1."
+
+#: readelf.c:5689 readelf.c:6129
+#, fuzzy
+msgid "version need"
+msgstr "Verisiyo"
+
+#: readelf.c:5699
+#, fuzzy
+msgid "version need aux (2)"
+msgstr "Verisiyo 2."
+
+#: readelf.c:5741 readelf.c:6192
+#, fuzzy
+msgid "version def"
+msgstr "Verisiyo"
+
+#: readelf.c:5760 readelf.c:6207
+#, fuzzy
+msgid "version def aux"
+msgstr "Verisiyo"
+
+#: readelf.c:5791
+#, fuzzy
+msgid ""
+"\n"
+"No version information found in this file.\n"
+msgstr "Verisiyo Ibisobanuro Byabonetse in iyi IDOSIYE"
+
+#: readelf.c:5923
+#, fuzzy
+msgid "Unable to read in dynamic data\n"
+msgstr "Kuri Gusoma in"
+
+#: readelf.c:5967
+#, fuzzy
+msgid "Unable to seek to start of dynamic information"
+msgstr "Kuri Kuri Gutangira Bya Ibisobanuro"
+
+#: readelf.c:5973
+#, fuzzy
+msgid "Failed to read in number of buckets\n"
+msgstr "Kuri Gusoma in Umubare Bya"
+
+#: readelf.c:5979
+#, fuzzy
+msgid "Failed to read in number of chains\n"
+msgstr "Kuri Gusoma in Umubare Bya"
+
+#: readelf.c:5999
+#, fuzzy
+msgid ""
+"\n"
+"Symbol table for image:\n"
+msgstr "imbonerahamwe# kugirango Ishusho"
+
+#: readelf.c:6001
+msgid "  Num Buc:    Value  Size   Type   Bind Vis      Ndx Name\n"
+msgstr ""
+
+#: readelf.c:6003
+msgid "  Num Buc:    Value          Size   Type   Bind Vis      Ndx Name\n"
+msgstr ""
+
+#: readelf.c:6048
+#, fuzzy, c-format
+msgid ""
+"\n"
+"Symbol table '%s' contains %lu entries:\n"
+msgstr "imbonerahamwe# Kirimo Ibyinjijwe"
+
+#: readelf.c:6052
+msgid "   Num:    Value  Size Type    Bind   Vis      Ndx Name\n"
+msgstr ""
+
+#: readelf.c:6054
+msgid "   Num:    Value          Size Type    Bind   Vis      Ndx Name\n"
+msgstr ""
+
+#: readelf.c:6101
+#, fuzzy
+msgid "version data"
+msgstr "Verisiyo Ibyatanzwe"
+
+#: readelf.c:6142
+#, fuzzy
+msgid "version need aux (3)"
+msgstr "Verisiyo 3."
+
+#: readelf.c:6167
+#, fuzzy
+msgid "bad dynamic symbol"
+msgstr "IKIMENYETSO"
+
+#: readelf.c:6230
+#, fuzzy
+msgid ""
+"\n"
+"Dynamic symbol information is not available for displaying symbols.\n"
+msgstr "IKIMENYETSO Ibisobanuro ni OYA Bihari kugirango Ibimenyetso"
+
+#: readelf.c:6242
+#, fuzzy, c-format
+msgid ""
+"\n"
+"Histogram for bucket list length (total of %d buckets):\n"
+msgstr "kugirango Urutonde Uburebure Igiteranyo Bya"
+
+#: readelf.c:6244
+#, fuzzy, c-format
+msgid " Length  Number     %% of total  Coverage\n"
+msgstr "Bya Igiteranyo"
+
+# # @name NO_MEMORY
+# # @loc none
+#: readelf.c:6249 readelf.c:6268 readelf.c:9898 readelf.c:10090
+msgid "Out of memory"
+msgstr "Ububiko bwarenzwe"
+
+#: readelf.c:6317
+#, fuzzy, c-format
+msgid ""
+"\n"
+"Dynamic info segment at offset 0x%lx contains %d entries:\n"
+msgstr "Ibisobanuro ku Nta- boneza Kirimo Ibyinjijwe"
+
+#: readelf.c:6320
+msgid " Num: Name                           BoundTo     Flags\n"
+msgstr ""
+
+#: readelf.c:6373
+#, fuzzy, c-format
+msgid ""
+"\n"
+"Assembly dump of section %s\n"
+msgstr "Bya Icyiciro"
+
+#: readelf.c:6396
+#, fuzzy, c-format
+msgid ""
+"\n"
+"Section '%s' has no data to dump.\n"
+msgstr "Oya Ibyatanzwe Kuri"
+
+#: readelf.c:6401
+#, fuzzy, c-format
+msgid ""
+"\n"
+"Hex dump of section '%s':\n"
+msgstr "Bya Icyiciro"
+
+#: readelf.c:6406
+#, fuzzy
+msgid "section data"
+msgstr "Icyiciro Ibyatanzwe"
+
+#: readelf.c:6555
+#, fuzzy
+msgid "badly formed extended line op encountered!\n"
+msgstr "Byongerewe... Umurongo"
+
+#: readelf.c:6562
+#, c-format
+msgid "  Extended opcode %d: "
+msgstr ""
+
+#: readelf.c:6567
+#, fuzzy
+msgid ""
+"End of Sequence\n"
+"\n"
+msgstr "Impera Bya"
+
+#: readelf.c:6573
+#, fuzzy, c-format
+msgid "set Address to 0x%lx\n"
+msgstr "Gushyiraho Kuri"
+
+#: readelf.c:6578
+#, fuzzy
+msgid "  define new File Table entry\n"
+msgstr "Kugaragaza... Gishya Idosiye"
+
+#: readelf.c:6579 readelf.c:6726
+msgid "  Entry\tDir\tTime\tSize\tName\n"
+msgstr ""
+
+# basctl/source\basicide\basidesh.src:RID_IMGBTN_REMOVEWATCH.text
+#: readelf.c:6581
+#, fuzzy, c-format
+msgid "   %d\t"
+msgstr "%d"
+
+# basctl/source\basicide\basidesh.src:RID_IMGBTN_REMOVEWATCH.text
+#: readelf.c:6584 readelf.c:6586 readelf.c:6588 readelf.c:6738 readelf.c:6740
+#: readelf.c:6742
+#, fuzzy, c-format
+msgid "%lu\t"
+msgstr "%lu"
+
+# basctl/source\basicide\basidesh.src:RID_IMGBTN_REMOVEWATCH.text
+#: readelf.c:6589
+#, fuzzy, c-format
+msgid ""
+"%s\n"
+"\n"
+msgstr "%s"
+
+#: readelf.c:6593
+#, fuzzy, c-format
+msgid "UNKNOWN: length %d\n"
+msgstr "Uburebure"
+
+#: readelf.c:6621
+#, fuzzy, c-format
+msgid ""
+"\n"
+"Dump of debug contents of section %s:\n"
+"\n"
+msgstr "Bya Kosora amakosa Ibigize Bya Icyiciro"
+
+#: readelf.c:6649
+#, fuzzy
+msgid "The line info appears to be corrupt - the section is too small\n"
+msgstr "Umurongo Ibisobanuro Kuri i Icyiciro ni"
+
+#: readelf.c:6658
+#, fuzzy
+msgid "Only DWARF version 2 and 3 line info is currently supported.\n"
+msgstr "Verisiyo 2. Na 3. Umurongo Ibisobanuro ni"
+
+# #-#-#-#-#  dbaccess.pot (PACKAGE VERSION)  #-#-#-#-#
+# #-#-#-#-#  dbaccess.pot (PACKAGE VERSION)  #-#-#-#-#
+#: readelf.c:6679
+#, fuzzy, c-format
+msgid "  Length:                      %ld\n"
+msgstr "Uburebure"
+
+#: readelf.c:6680
+#, c-format
+msgid "  DWARF Version:               %d\n"
+msgstr ""
+
+#: readelf.c:6681
+#, c-format
+msgid "  Prologue Length:             %d\n"
+msgstr ""
+
+#: readelf.c:6682
+#, c-format
+msgid "  Minimum Instruction Length:  %d\n"
+msgstr ""
+
+#: readelf.c:6683
+#, fuzzy, c-format
+msgid "  Initial value of 'is_stmt':  %d\n"
+msgstr "Agaciro Bya"
+
+#: readelf.c:6684
+#, fuzzy, c-format
+msgid "  Line Base:                   %d\n"
+msgstr "Base"
+
+#: readelf.c:6685
+#, c-format
+msgid "  Line Range:                  %d\n"
+msgstr ""
+
+#: readelf.c:6686
+#, fuzzy, c-format
+msgid "  Opcode Base:                 %d\n"
+msgstr "Base"
+
+#: readelf.c:6695
+msgid ""
+"\n"
+" Opcodes:\n"
+msgstr ""
+
+#: readelf.c:6698
+#, c-format
+msgid "  Opcode %d has %d args\n"
+msgstr ""
+
+#: readelf.c:6704
+#, fuzzy
+msgid ""
+"\n"
+" The Directory Table is empty.\n"
+msgstr "ni ubusa"
+
+#: readelf.c:6707
+msgid ""
+"\n"
+" The Directory Table:\n"
+msgstr ""
+
+# basctl/source\basicide\basidesh.src:RID_IMGBTN_REMOVEWATCH.text
+#: readelf.c:6711
+#, fuzzy, c-format
+msgid "  %s\n"
+msgstr "%s"
+
+#: readelf.c:6722
+#, fuzzy
+msgid ""
+"\n"
+" The File Name Table is empty.\n"
+msgstr "Idosiye ni ubusa"
+
+#: readelf.c:6725
+#, fuzzy
+msgid ""
+"\n"
+" The File Name Table:\n"
+msgstr "Idosiye"
+
+# basctl/source\basicide\basidesh.src:RID_IMGBTN_REMOVEWATCH.text
+#: readelf.c:6733
+#, fuzzy, c-format
+msgid "  %d\t"
+msgstr "%d"
+
+# basctl/source\basicide\basidesh.src:RID_IMGBTN_REMOVEWATCH.text
+#: readelf.c:6744
+#, fuzzy, c-format
+msgid "%s\n"
+msgstr "%s"
+
+#. Now display the statements.
+#: readelf.c:6752
+msgid ""
+"\n"
+" Line Number Statements:\n"
+msgstr ""
+
+#: readelf.c:6768
+#, fuzzy, c-format
+msgid "  Special opcode %d: advance Address by %d to 0x%lx"
+msgstr "ku Kuri"
+
+#: readelf.c:6772
+#, fuzzy, c-format
+msgid " and Line by %d to %d\n"
+msgstr "Na ku Kuri"
+
+#: readelf.c:6783
+msgid "  Copy\n"
+msgstr ""
+
+#: readelf.c:6790
+#, fuzzy, c-format
+msgid "  Advance PC by %d to %lx\n"
+msgstr "ku Kuri"
+
+#: readelf.c:6798
+#, fuzzy, c-format
+msgid "  Advance Line by %d to %d\n"
+msgstr "ku Kuri"
+
+#: readelf.c:6805
+#, fuzzy, c-format
+msgid "  Set File Name to entry %d in the File Name Table\n"
+msgstr "Idosiye Kuri Icyinjijwe in i Idosiye"
+
+#: readelf.c:6813
+#, fuzzy, c-format
+msgid "  Set column to %d\n"
+msgstr "Inkingi Kuri"
+
+#: readelf.c:6820
+#, fuzzy, c-format
+msgid "  Set is_stmt to %d\n"
+msgstr "Kuri"
+
+#: readelf.c:6825
+#, fuzzy
+msgid "  Set basic block\n"
+msgstr "BASIC"
+
+#: readelf.c:6833
+#, fuzzy, c-format
+msgid "  Advance PC by constant %d to 0x%lx\n"
+msgstr "ku Kuri"
+
+#: readelf.c:6841
+#, fuzzy, c-format
+msgid "  Advance PC by fixed size amount %d to 0x%lx\n"
+msgstr "ku BIHAMYE Ingano Igiteranyo Kuri"
+
+#: readelf.c:6846
+#, fuzzy
+msgid "  Set prologue_end to true\n"
+msgstr "Kuri"
+
+#: readelf.c:6850
+#, fuzzy
+msgid "  Set epilogue_begin to true\n"
+msgstr "Kuri"
+
+#: readelf.c:6856
+#, fuzzy, c-format
+msgid "  Set ISA to %d\n"
+msgstr "Kuri"
+
+#: readelf.c:6860
+#, fuzzy, c-format
+msgid "  Unknown opcode %d with operands: "
+msgstr "Na:"
+
+#: readelf.c:6891 readelf.c:7371 readelf.c:7443
+#, fuzzy, c-format
+msgid ""
+"Contents of the %s section:\n"
+"\n"
+msgstr "Bya i Icyiciro"
+
+#: readelf.c:6931
+#, fuzzy
+msgid "Only DWARF 2 and 3 pubnames are currently supported\n"
+msgstr "2. Na 3."
+
+# #-#-#-#-#  dbaccess.pot (PACKAGE VERSION)  #-#-#-#-#
+# #-#-#-#-#  dbaccess.pot (PACKAGE VERSION)  #-#-#-#-#
+#: readelf.c:6938
+#, fuzzy, c-format
+msgid "  Length:                              %ld\n"
+msgstr "Uburebure"
+
+# goodies/source\filter.vcl\eps\dlgeps.src:DLG_EXPORT_EPS.GRP_VERSION.text
+#: readelf.c:6940
+#, fuzzy, c-format
+msgid "  Version:                             %d\n"
+msgstr "Verisiyo"
+
+#: readelf.c:6942
+#, fuzzy, c-format
+msgid "  Offset into .debug_info section:     %ld\n"
+msgstr "Icyiciro"
+
+#: readelf.c:6944
+#, fuzzy, c-format
+msgid "  Size of area in .debug_info section: %ld\n"
+msgstr "Bya Ubuso in Icyiciro"
+
+#: readelf.c:6947
+msgid ""
+"\n"
+"    Offset\tName\n"
+msgstr ""
+
+#: readelf.c:7042
+#, fuzzy, c-format
+msgid "Unknown TAG value: %lx"
+msgstr "Agaciro"
+
+#: readelf.c:7156
+#, fuzzy, c-format
+msgid "Unknown AT value: %lx"
+msgstr "Agaciro"
+
+#: readelf.c:7193
+#, fuzzy, c-format
+msgid "Unknown FORM value: %lx"
+msgstr "Agaciro"
+
+#: readelf.c:7392
+#, c-format
+msgid " DW_MACINFO_start_file - lineno: %d filenum: %d\n"
+msgstr ""
+
+#: readelf.c:7397
+msgid " DW_MACINFO_end_file\n"
+msgstr ""
+
+#: readelf.c:7405
+#, fuzzy, c-format
+msgid " DW_MACINFO_define - lineno : %d macro : %s\n"
+msgstr "Makoro"
+
+#: readelf.c:7413
+#, fuzzy, c-format
+msgid " DW_MACINFO_undef - lineno : %d macro : %s\n"
+msgstr "Makoro"
+
+#: readelf.c:7424
+#, fuzzy, c-format
+msgid " DW_MACINFO_vendor_ext - constant : %d string : %s\n"
+msgstr "Ikurikiranyanyuguti"
+
+#: readelf.c:7452
+msgid "  Number TAG\n"
+msgstr ""
+
+#: readelf.c:7458
+#, c-format
+msgid "   %ld      %s    [%s]\n"
+msgstr ""
+
+#: readelf.c:7461
+msgid "has children"
+msgstr ""
+
+#: readelf.c:7461
+#, fuzzy
+msgid "no children"
+msgstr "Oya"
+
+# #-#-#-#-#  dbaccess.pot (PACKAGE VERSION)  #-#-#-#-#
+# #-#-#-#-#  dbaccess.pot (PACKAGE VERSION)  #-#-#-#-#
+# #-#-#-#-#  dbaccess.pot (PACKAGE VERSION)  #-#-#-#-#
+#: readelf.c:7465
+#, fuzzy, c-format
+msgid "    %-18s %s\n"
+msgstr "%-18s%s"
+
+#: readelf.c:7486
+#, fuzzy, c-format
+msgid " %lu byte block: "
+msgstr "%luBayite Funga"
+
+#: readelf.c:7814
+#, fuzzy
+msgid "(User defined location op)"
+msgstr "(Ahantu"
+
+#: readelf.c:7816
+#, fuzzy
+msgid "(Unknown location op)"
+msgstr "(Ahantu"
+
+#: readelf.c:7855
+#, fuzzy
+msgid "debug_loc section data"
+msgstr "Icyiciro Ibyatanzwe"
+
+#: readelf.c:7887
+#, fuzzy
+msgid ""
+"\n"
+"The .debug_loc section is empty.\n"
+msgstr "Icyiciro ni ubusa"
+
+#: readelf.c:7891
+#, fuzzy
+msgid ""
+"Contents of the .debug_loc section:\n"
+"\n"
+msgstr "Bya i Icyiciro"
+
+#: readelf.c:7892
+#, fuzzy
+msgid ""
+"\n"
+"    Offset   Begin    End      Expression\n"
+msgstr "Impera"
+
+#: readelf.c:7968
+#, fuzzy
+msgid "debug_str section data"
+msgstr "Icyiciro Ibyatanzwe"
+
+#: readelf.c:7987
+#, fuzzy
+msgid "<no .debug_str section>"
+msgstr "<Oya."
+
+#: readelf.c:7990
+#, fuzzy
+msgid "<offset is too big>"
+msgstr "<Nta- boneza ni"
+
+#: readelf.c:8009
+#, fuzzy
+msgid ""
+"\n"
+"The .debug_str section is empty.\n"
+msgstr "Icyiciro ni ubusa"
+
+#: readelf.c:8013
+#, fuzzy
+msgid ""
+"Contents of the .debug_str section:\n"
+"\n"
+msgstr "Bya i Icyiciro"
+
+#: readelf.c:8088
+#, fuzzy
+msgid "Internal error: DWARF version is not 2 or 3.\n"
+msgstr "Ikosa Verisiyo ni OYA 2. Cyangwa 3."
+
+#: readelf.c:8203
+#, fuzzy, c-format
+msgid " (indirect string, offset: 0x%lx): %s"
+msgstr "(BUZIGUYE Ikurikiranyanyuguti Nta- boneza"
+
+#: readelf.c:8212
+#, fuzzy, c-format
+msgid "Unrecognized form: %d\n"
+msgstr "Ifishi"
+
+#: readelf.c:8226
+#, fuzzy
+msgid "(not inlined)"
+msgstr "(OYA"
+
+#: readelf.c:8229
+msgid "(inlined)"
+msgstr ""
+
+#: readelf.c:8232
+#, fuzzy
+msgid "(declared as inline but ignored)"
+msgstr "(Nka Mumurongo"
+
+#: readelf.c:8235
+#, fuzzy
+msgid "(declared as inline and inlined)"
+msgstr "(Nka Mumurongo Na"
+
+#: readelf.c:8238
+#, fuzzy, c-format
+msgid "  (Unknown inline attribute value: %lx)"
+msgstr "(Mumurongo Ikiranga Agaciro"
+
+#: readelf.c:8419 readelf.c:8646
+#, fuzzy, c-format
+msgid ""
+"The section %s contains:\n"
+"\n"
+msgstr "Icyiciro Kirimo"
+
+#: readelf.c:8535
+#, c-format
+msgid "  Compilation Unit @ %lx:\n"
+msgstr ""
+
+# #-#-#-#-#  dbaccess.pot (PACKAGE VERSION)  #-#-#-#-#
+# #-#-#-#-#  dbaccess.pot (PACKAGE VERSION)  #-#-#-#-#
+#: readelf.c:8536
+#, fuzzy, c-format
+msgid "   Length:        %ld\n"
+msgstr "Uburebure"
+
+# goodies/source\filter.vcl\eps\dlgeps.src:DLG_EXPORT_EPS.GRP_VERSION.text
+#: readelf.c:8537
+#, fuzzy, c-format
+msgid "   Version:       %d\n"
+msgstr "Verisiyo"
+
+#: readelf.c:8538
+#, c-format
+msgid "   Abbrev Offset: %ld\n"
+msgstr ""
+
+#: readelf.c:8539
+#, c-format
+msgid "   Pointer Size:  %d\n"
+msgstr ""
+
+#: readelf.c:8543
+#, fuzzy
+msgid "Only version 2 and 3 DWARF debug information is currently supported.\n"
+msgstr "Verisiyo 2. Na 3. Kosora amakosa Ibisobanuro ni"
+
+#: readelf.c:8563
+#, fuzzy
+msgid "Unable to locate .debug_abbrev section!\n"
+msgstr "Kuri Icyiciro"
+
+#: readelf.c:8569
+#, fuzzy
+msgid "debug_abbrev section data"
+msgstr "Icyiciro Ibyatanzwe"
+
+#: readelf.c:8606
+#, fuzzy, c-format
+msgid "Unable to locate entry %lu in the abbreviation table\n"
+msgstr "Kuri Icyinjijwe in i Impine"
+
+#: readelf.c:8611
+#, c-format
+msgid " <%d><%lx>: Abbrev Number: %lu (%s)\n"
+msgstr ""
+
+#: readelf.c:8691
+#, fuzzy
+msgid "Only DWARF 2 and 3 aranges are currently supported.\n"
+msgstr "2. Na 3."
+
+# #-#-#-#-#  dbaccess.pot (PACKAGE VERSION)  #-#-#-#-#
+# #-#-#-#-#  dbaccess.pot (PACKAGE VERSION)  #-#-#-#-#
+#: readelf.c:8695
+#, fuzzy, c-format
+msgid "  Length:                   %ld\n"
+msgstr "Uburebure"
+
+# goodies/source\filter.vcl\eps\dlgeps.src:DLG_EXPORT_EPS.GRP_VERSION.text
+#: readelf.c:8696
+#, fuzzy, c-format
+msgid "  Version:                  %d\n"
+msgstr "Verisiyo"
+
+#: readelf.c:8697
+#, c-format
+msgid "  Offset into .debug_info:  %lx\n"
+msgstr ""
+
+#: readelf.c:8698
+#, c-format
+msgid "  Pointer Size:             %d\n"
+msgstr ""
+
+#: readelf.c:8699
+#, c-format
+msgid "  Segment Size:             %d\n"
+msgstr ""
+
+#: readelf.c:8701
+msgid ""
+"\n"
+"    Address  Length\n"
+msgstr ""
+
+#: readelf.c:8903
+#, fuzzy, c-format
+msgid "The section %s contains:\n"
+msgstr "Icyiciro Kirimo"
+
+#: readelf.c:9538
+#, fuzzy, c-format
+msgid "Displaying the debug contents of section %s is not yet supported.\n"
+msgstr "i Kosora amakosa Ibigize Bya Icyiciro ni OYA"
+
+#: readelf.c:9634
+#, fuzzy, c-format
+msgid ""
+"\n"
+"Section '%s' has no debugging data.\n"
+msgstr "Oya Ibyatanzwe"
+
+#: readelf.c:9639 readelf.c:9701
+#, fuzzy
+msgid "debug section data"
+msgstr "Kosora amakosa Icyiciro Ibyatanzwe"
+
+#: readelf.c:9655
+#, fuzzy, c-format
+msgid "Unrecognized debug section: %s\n"
+msgstr "Kosora amakosa Icyiciro"
+
+#: readelf.c:9729
+#, fuzzy
+msgid "Some sections were not dumped because they do not exist!\n"
+msgstr "Ibyatoranyijwe OYA OYA"
+
+#: readelf.c:9806 readelf.c:10170
+msgid "liblist"
+msgstr ""
+
+# basctl/source\basicide\moduldlg.src:RID_DLG_LIBS.RID_FL_OPTIONS.text
+#: readelf.c:9891
+#, fuzzy
+msgid "options"
+msgstr "Amahitamo"
+
+#: readelf.c:9922
+#, fuzzy, c-format
+msgid ""
+"\n"
+"Section '%s' contains %d entries:\n"
+msgstr "Kirimo Ibyinjijwe"
+
+#: readelf.c:10083
+#, fuzzy
+msgid "conflict list found without a dynamic symbol table"
+msgstr "Urutonde Byabonetse a IKIMENYETSO imbonerahamwe#"
+
+#: readelf.c:10101 readelf.c:10117
+msgid "conflict"
+msgstr ""
+
+#: readelf.c:10127
+#, fuzzy, c-format
+msgid ""
+"\n"
+"Section '.conflict' contains %ld entries:\n"
+msgstr "Kirimo Ibyinjijwe"
+
+#: readelf.c:10129
+msgid "  Num:    Index       Value  Name"
+msgstr ""
+
+#: readelf.c:10178
+#, fuzzy
+msgid "liblist string table"
+msgstr "Ikurikiranyanyuguti imbonerahamwe#"
+
+#: readelf.c:10187
+#, fuzzy, c-format
+msgid ""
+"\n"
+"Library list section '%s' contains %lu entries:\n"
+msgstr "Urutonde Icyiciro Kirimo Ibyinjijwe"
+
+#: readelf.c:10236
+#, fuzzy
+msgid "NT_PRSTATUS (prstatus structure)"
+msgstr "Imiterere"
+
+#: readelf.c:10237
+#, fuzzy
+msgid "NT_FPREGSET (floating point registers)"
+msgstr "Bihindagurika Akadomo"
+
+#: readelf.c:10238
+#, fuzzy
+msgid "NT_PRPSINFO (prpsinfo structure)"
+msgstr "Imiterere"
+
+#: readelf.c:10239
+#, fuzzy
+msgid "NT_TASKSTRUCT (task structure)"
+msgstr "Igikorwa Imiterere"
+
+#: readelf.c:10240
+#, fuzzy
+msgid "NT_PRXFPREG (user_xfpregs structure)"
+msgstr "Imiterere"
+
+#: readelf.c:10241
+#, fuzzy
+msgid "NT_PSTATUS (pstatus structure)"
+msgstr "Imiterere"
+
+#: readelf.c:10242
+#, fuzzy
+msgid "NT_FPREGS (floating point registers)"
+msgstr "Bihindagurika Akadomo"
+
+#: readelf.c:10243
+#, fuzzy
+msgid "NT_PSINFO (psinfo structure)"
+msgstr "Imiterere"
+
+#: readelf.c:10244
+#, fuzzy
+msgid "NT_LWPSTATUS (lwpstatus_t structure)"
+msgstr "Imiterere"
+
+#: readelf.c:10245
+#, fuzzy
+msgid "NT_LWPSINFO (lwpsinfo_t structure)"
+msgstr "Imiterere"
+
+#: readelf.c:10246
+#, fuzzy
+msgid "NT_WIN32PSTATUS (win32_pstatus structure)"
+msgstr "Imiterere"
+
+#: readelf.c:10248 readelf.c:10272
+#, fuzzy, c-format
+msgid "Unknown note type: (0x%08x)"
+msgstr "Impugukirwa Ubwoko"
+
+#. NetBSD core "procinfo" structure.
+#: readelf.c:10262
+#, fuzzy
+msgid "NetBSD procinfo structure"
+msgstr "Imiterere"
+
+#: readelf.c:10289 readelf.c:10303
+#, fuzzy
+msgid "PT_GETREGS (reg structure)"
+msgstr "Imiterere"
+
+#: readelf.c:10291 readelf.c:10305
+#, fuzzy
+msgid "PT_GETFPREGS (fpreg structure)"
+msgstr "Imiterere"
+
+#: readelf.c:10311
+#, c-format
+msgid "PT_FIRSTMACH+%d"
+msgstr ""
+
+# #-#-#-#-#  officecfg.pot (PACKAGE VERSION)  #-#-#-#-#
+# officecfg/registry\schema\org\openoffice\Office\Impress.xcs:....Print.Content.Note.text
+# #-#-#-#-#  officecfg.pot (PACKAGE VERSION)  #-#-#-#-#
+# officecfg/registry\schema\org\openoffice\Office\WriterWeb.xcs:....Content.Display.Note.text
+# #-#-#-#-#  officecfg.pot (PACKAGE VERSION)  #-#-#-#-#
+# officecfg/registry\schema\org\openoffice\Office\Writer.xcs:....Content.Display.Note.text
+# #-#-#-#-#  officecfg.pot (PACKAGE VERSION)  #-#-#-#-#
+# officecfg/registry\schema\org\openoffice\Office\Writer.xcs:....Wizard.Agenda.Elements.Notes.text
+#: readelf.c:10365
+#, fuzzy
+msgid "notes"
+msgstr "Ibisobanuro"
+
+#: readelf.c:10371
+#, fuzzy, c-format
+msgid ""
+"\n"
+"Notes at offset 0x%08lx with length 0x%08lx:\n"
+msgstr "ku Nta- boneza Na: Uburebure"
+
+#: readelf.c:10373
+msgid "  Owner\t\tData size\tDescription\n"
+msgstr ""
+
+#: readelf.c:10392
+#, fuzzy, c-format
+msgid "corrupt note found at offset %x into core notes\n"
+msgstr "Impugukirwa Byabonetse ku Nta- boneza"
+
+#: readelf.c:10394
+#, fuzzy, c-format
+msgid " type: %x, namesize: %08lx, descsize: %08lx\n"
+msgstr "Ubwoko"
+
+#: readelf.c:10476
+#, fuzzy
+msgid "No note segments present in the core file.\n"
+msgstr "Impugukirwa Ingeri in i IDOSIYE"
+
+#: readelf.c:10560
+#, fuzzy
+msgid ""
+"This instance of readelf has been built without support for a\n"
+"64 bit data type and so it cannot read 64 bit ELF files.\n"
+msgstr "Urugero Bya Gushigikira kugirango Ibyatanzwe Ubwoko Na Gusoma Idosiye"
+
+#: readelf.c:10606
+#, fuzzy, c-format
+msgid "Cannot stat input file %s.\n"
+msgstr "Iyinjiza IDOSIYE"
+
+#: readelf.c:10613
+#, fuzzy, c-format
+msgid "Input file %s not found.\n"
+msgstr "IDOSIYE OYA Byabonetse"
+
+#: readelf.c:10619
+#, fuzzy, c-format
+msgid "%s: Failed to read file header\n"
+msgstr "%s:Kuri Gusoma IDOSIYE"
+
+# sc/source\ui\src\globstr.src:RID_GLOBSTR.STR_HFCMD_FILE.text
+#: readelf.c:10633
+#, fuzzy, c-format
+msgid ""
+"\n"
+"File: %s\n"
+msgstr "IDOSIYE"
+
+#: rename.c:132
+#, fuzzy, c-format
+msgid "%s: cannot set time: %s"
+msgstr "%s:Gushyiraho Igihe"
+
+#. We have to clean up here.
+#: rename.c:171 rename.c:204
+#, fuzzy, c-format
+msgid "%s: rename: %s"
+msgstr "%s:Guhindura izina"
+
+#: rename.c:212
+#, c-format
+msgid "%s: simple_copy: %s"
+msgstr ""
+
+#: resbin.c:134
+#, fuzzy, c-format
+msgid "%s: not enough binary data"
+msgstr "%s:OYA Nyabibiri Ibyatanzwe"
+
+#: resbin.c:153
+#, fuzzy
+msgid "null terminated unicode string"
+msgstr "NTAGIHARI Inikode Ikurikiranyanyuguti"
+
+#: resbin.c:183 resbin.c:189
+msgid "resource ID"
+msgstr ""
+
+# 1316
+#: resbin.c:233
+#, fuzzy
+msgid "cursor"
+msgstr "indanga"
+
+#: resbin.c:267 resbin.c:274
+#, fuzzy
+msgid "menu header"
+msgstr "Ibikubiyemo Umutwempangano"
+
+#: resbin.c:284
+#, fuzzy
+msgid "menuex header"
+msgstr "Umutwempangano"
+
+#: resbin.c:288
+#, fuzzy
+msgid "menuex offset"
+msgstr "Nta- boneza"
+
+#: resbin.c:295
+#, fuzzy, c-format
+msgid "unsupported menu version %d"
+msgstr "Ibikubiyemo Verisiyo"
+
+#: resbin.c:323 resbin.c:338 resbin.c:404
+#, fuzzy
+msgid "menuitem header"
+msgstr "Umutwempangano"
+
+#: resbin.c:434
+msgid "menuitem"
+msgstr ""
+
+#: resbin.c:475 resbin.c:503
+#, fuzzy
+msgid "dialog header"
+msgstr "Ikiganiro Umutwempangano"
+
+#: resbin.c:493
+#, fuzzy, c-format
+msgid "unexpected DIALOGEX version %d"
+msgstr "Verisiyo"
+
+#: resbin.c:538
+#, fuzzy
+msgid "dialog font point size"
+msgstr "Ikiganiro Intego- nyuguti Akadomo Ingano"
+
+#: resbin.c:546
+#, fuzzy
+msgid "dialogex font information"
+msgstr "Intego- nyuguti Ibisobanuro"
+
+#: resbin.c:572 resbin.c:590
+#, fuzzy
+msgid "dialog control"
+msgstr "Ikiganiro Igenzura"
+
+#: resbin.c:582
+#, fuzzy
+msgid "dialogex control"
+msgstr "Igenzura"
+
+#: resbin.c:611
+#, fuzzy
+msgid "dialog control end"
+msgstr "Ikiganiro Igenzura Impera"
+
+#: resbin.c:623
+#, fuzzy
+msgid "dialog control data"
+msgstr "Ikiganiro Igenzura Ibyatanzwe"
+
+#: resbin.c:666
+#, fuzzy
+msgid "stringtable string length"
+msgstr "Ikurikiranyanyuguti Uburebure"
+
+#: resbin.c:676
+#, fuzzy
+msgid "stringtable string"
+msgstr "Ikurikiranyanyuguti"
+
+#: resbin.c:709
+#, fuzzy
+msgid "fontdir header"
+msgstr "Umutwempangano"
+
+#: resbin.c:722
+msgid "fontdir"
+msgstr ""
+
+#: resbin.c:738
+#, fuzzy
+msgid "fontdir device name"
+msgstr "APAREYE Izina:"
+
+#: resbin.c:744
+#, fuzzy
+msgid "fontdir face name"
+msgstr "Izina:"
+
+#: resbin.c:787
+msgid "accelerator"
+msgstr ""
+
+#: resbin.c:851
+#, fuzzy
+msgid "group cursor header"
+msgstr "Itsinda indanga Umutwempangano"
+
+#: resbin.c:855
+#, fuzzy, c-format
+msgid "unexpected group cursor type %d"
+msgstr "Itsinda indanga Ubwoko"
+
+#: resbin.c:870
+#, fuzzy
+msgid "group cursor"
+msgstr "Itsinda indanga"
+
+#: resbin.c:909
+#, fuzzy
+msgid "group icon header"
+msgstr "Itsinda Agashushondanga Umutwempangano"
+
+#: resbin.c:913
+#, fuzzy, c-format
+msgid "unexpected group icon type %d"
+msgstr "Itsinda Agashushondanga Ubwoko"
+
+#: resbin.c:928
+#, fuzzy
+msgid "group icon"
+msgstr "Itsinda Agashushondanga"
+
+#: resbin.c:999 resbin.c:1218
+#, fuzzy
+msgid "unexpected version string"
+msgstr "Verisiyo Ikurikiranyanyuguti"
+
+#: resbin.c:1033
+#, fuzzy, c-format
+msgid "version length %d does not match resource length %lu"
+msgstr "Verisiyo Uburebure OYA BIHUYE Uburebure"
+
+#: resbin.c:1037
+#, fuzzy, c-format
+msgid "unexpected version type %d"
+msgstr "Verisiyo Ubwoko"
+
+#: resbin.c:1049
+#, fuzzy, c-format
+msgid "unexpected fixed version information length %d"
+msgstr "BIHAMYE Verisiyo Ibisobanuro Uburebure"
+
+#: resbin.c:1052
+#, fuzzy
+msgid "fixed version info"
+msgstr "BIHAMYE Verisiyo Ibisobanuro"
+
+#: resbin.c:1056
+#, fuzzy, c-format
+msgid "unexpected fixed version signature %lu"
+msgstr "BIHAMYE Verisiyo Isinya"
+
+#: resbin.c:1060
+#, fuzzy, c-format
+msgid "unexpected fixed version info version %lu"
+msgstr "BIHAMYE Verisiyo Ibisobanuro Verisiyo"
+
+#: resbin.c:1089
+#, fuzzy
+msgid "version var info"
+msgstr "Verisiyo VAR Ibisobanuro"
+
+#: resbin.c:1106
+#, fuzzy, c-format
+msgid "unexpected stringfileinfo value length %d"
+msgstr "Agaciro Uburebure"
+
+#: resbin.c:1116
+#, fuzzy, c-format
+msgid "unexpected version stringtable value length %d"
+msgstr "Verisiyo Agaciro Uburebure"
+
+#: resbin.c:1150
+#, fuzzy, c-format
+msgid "unexpected version string length %d != %d + %d"
+msgstr "Verisiyo Ikurikiranyanyuguti Uburebure"
+
+#: resbin.c:1161
+#, fuzzy, c-format
+msgid "unexpected version string length %d < %d"
+msgstr "Verisiyo Ikurikiranyanyuguti Uburebure"
+
+#: resbin.c:1178
+#, fuzzy, c-format
+msgid "unexpected varfileinfo value length %d"
+msgstr "Agaciro Uburebure"
+
+#: resbin.c:1197
+#, fuzzy
+msgid "version varfileinfo"
+msgstr "Verisiyo"
+
+#: resbin.c:1212
+#, fuzzy, c-format
+msgid "unexpected version value length %d"
+msgstr "Verisiyo Agaciro Uburebure"
+
+#: rescoff.c:128
+#, fuzzy
+msgid "filename required for COFF input"
+msgstr "Izina ry'idosiye: Bya ngombwa kugirango Iyinjiza"
+
+#: rescoff.c:145
+#, fuzzy, c-format
+msgid "%s: no resource section"
+msgstr "%s:Oya Icyiciro"
+
+#: rescoff.c:152
+#, fuzzy
+msgid "can't read resource section"
+msgstr "Gusoma Icyiciro"
+
+#: rescoff.c:178
+#, fuzzy, c-format
+msgid "%s: %s: address out of bounds"
+msgstr "%s:%s:Aderesi Inyuma Bya"
+
+# svtools/source\dialogs\filedlg2.src:STR_FILEDLG_DIR.text
+#: rescoff.c:197
+#, fuzzy
+msgid "directory"
+msgstr "Ububiko"
+
+#: rescoff.c:225
+#, fuzzy
+msgid "named directory entry"
+msgstr "bushyinguro Icyinjijwe"
+
+#: rescoff.c:234
+#, fuzzy
+msgid "directory entry name"
+msgstr "bushyinguro Icyinjijwe Izina:"
+
+#: rescoff.c:254
+msgid "named subdirectory"
+msgstr ""
+
+#: rescoff.c:262
+msgid "named resource"
+msgstr ""
+
+#: rescoff.c:277
+#, fuzzy
+msgid "ID directory entry"
+msgstr "bushyinguro Icyinjijwe"
+
+#: rescoff.c:294
+msgid "ID subdirectory"
+msgstr ""
+
+#: rescoff.c:302
+msgid "ID resource"
+msgstr ""
+
+#: rescoff.c:328
+#, fuzzy
+msgid "resource type unknown"
+msgstr "Ubwoko Kitazwi"
+
+#: rescoff.c:331
+#, fuzzy
+msgid "data entry"
+msgstr "Ibyatanzwe Icyinjijwe"
+
+#: rescoff.c:339
+#, fuzzy
+msgid "resource data"
+msgstr "Ibyatanzwe"
+
+#: rescoff.c:344
+#, fuzzy
+msgid "resource data size"
+msgstr "Ibyatanzwe Ingano"
+
+#: rescoff.c:439
+#, fuzzy
+msgid "filename required for COFF output"
+msgstr "Izina ry'idosiye: Bya ngombwa kugirango Ibisohoka"
+
+#: rescoff.c:738
+#, fuzzy
+msgid "can't get BFD_RELOC_RVA relocation type"
+msgstr "Kubona Ubwoko"
+
+#: resrc.c:240 resrc.c:312
+#, fuzzy, c-format
+msgid "can't open temporary file `%s': %s"
+msgstr "Gufungura By'igihe gito IDOSIYE"
+
+#: resrc.c:246
+#, c-format
+msgid "can't redirect stdout: `%s': %s"
+msgstr ""
+
+#: resrc.c:262
+#, c-format
+msgid "%s %s: %s"
+msgstr ""
+
+#: resrc.c:308
+#, fuzzy, c-format
+msgid "can't execute `%s': %s"
+msgstr "Gukora"
+
+#: resrc.c:317
+#, fuzzy, c-format
+msgid "Using temporary file `%s' to read preprocessor output\n"
+msgstr "By'igihe gito IDOSIYE Kuri Gusoma"
+
+#: resrc.c:324
+#, c-format
+msgid "can't popen `%s': %s"
+msgstr ""
+
+#: resrc.c:326
+#, fuzzy
+msgid "Using popen to read preprocessor output\n"
+msgstr "Kuri Gusoma"
+
+#: resrc.c:369
+#, c-format
+msgid "Tried `%s'\n"
+msgstr ""
+
+#: resrc.c:380
+#, fuzzy, c-format
+msgid "Using `%s'\n"
+msgstr "ikoresha"
+
+#: resrc.c:542
+#, fuzzy, c-format
+msgid "%s:%d: %s\n"
+msgstr "%s:%d:%sCYOSE"
+
+#: resrc.c:551
+#, c-format
+msgid "%s: unexpected EOF"
+msgstr ""
+
+#: resrc.c:608
+#, fuzzy, c-format
+msgid "%s: read of %lu returned %lu"
+msgstr "%s:Gusoma Bya"
+
+#: resrc.c:650 resrc.c:905 resrc.c:1178 resrc.c:1332
+#, fuzzy, c-format
+msgid "stat failed on bitmap file `%s': %s"
+msgstr "Byanze ku Bitimapu IDOSIYE"
+
+#: resrc.c:703
+#, fuzzy, c-format
+msgid "cursor file `%s' does not contain cursor data"
+msgstr "indanga IDOSIYE OYA indanga Ibyatanzwe"
+
+#: resrc.c:735 resrc.c:1049
+#, fuzzy, c-format
+msgid "%s: fseek to %lu failed: %s"
+msgstr "%s:Kuri Byanze"
+
+#: resrc.c:873
+#, fuzzy
+msgid "help ID requires DIALOGEX"
+msgstr "Ifashayobora"
+
+#: resrc.c:875
+#, fuzzy
+msgid "control data requires DIALOGEX"
+msgstr "Igenzura Ibyatanzwe"
+
+#: resrc.c:1018
+#, fuzzy, c-format
+msgid "icon file `%s' does not contain icon data"
+msgstr "Agashushondanga IDOSIYE OYA Agashushondanga Ibyatanzwe"
+
+#: resrc.c:1537
+#, fuzzy, c-format
+msgid "can't open `%s' for output: %s"
+msgstr "Gufungura kugirango Ibisohoka"
+
+#: size.c:86
+#, fuzzy
+msgid " Displays the sizes of sections inside binary files\n"
+msgstr "i Bya Ibyatoranyijwe Mo Imbere Nyabibiri"
+
+#: size.c:87
+#, fuzzy
+msgid " If no input file(s) are specified, a.out is assumed\n"
+msgstr "Oya Iyinjiza IDOSIYE S a Inyuma ni"
+
+#: size.c:88
+#, fuzzy, c-format
+msgid ""
+" The options are:\n"
+"  -A|-B     --format={sysv|berkeley}  Select output style (default is %s)\n"
+"  -o|-d|-x  --radix={8|10|16}         Display numbers in octal, decimal or hex\n"
+"  -t        --totals                  Display the total sizes (Berkeley only)\n"
+"            --target=<bfdname>        Set the binary file format\n"
+"  -h        --help                    Display this information\n"
+"  -v        --version                 Display the program's version\n"
+"\n"
+msgstr "Amahitamo A Imiterere Ibisohoka IMISUSIRE Mburabuzi ni o D X radix 8 10 Imibare in NYACUMI Cyangwa T i Igiteranyo Intego i Nyabibiri IDOSIYE h Ifashayobora iyi v Verisiyo i"
+
+#: size.c:160
+#, fuzzy, c-format
+msgid "invalid argument to --format: %s"
+msgstr "Sibyo Kuri Imiterere"
+
+#: size.c:187
+#, fuzzy, c-format
+msgid "Invalid radix: %s\n"
+msgstr "radix"
+
+#: srconv.c:1953
+#, fuzzy
+msgid "Convert a COFF object file into a SYSROFF object file\n"
+msgstr "a Igikoresho IDOSIYE a Igikoresho"
+
+#: srconv.c:1954
+#, fuzzy
+msgid ""
+" The options are:\n"
+"  -q --quick       (Obsolete - ignoerd)\n"
+"  -n --noprescan   Do not perform a scan to convert commons into defs\n"
+"  -d --debug       Display information about what is being done\n"
+"  -h --help        Display this information\n"
+"  -v --version     Print the program's version number\n"
+msgstr "Amahitamo Q N OYA a Gusikana Kuri GUHINDURA D Kosora amakosa Ibisobanuro Ibyerekeye ni h Ifashayobora iyi v Verisiyo i Verisiyo"
+
+#: srconv.c:2099
+#, fuzzy, c-format
+msgid "unable to open output file %s"
+msgstr "Kuri Gufungura Ibisohoka IDOSIYE"
+
+#: stabs.c:346 stabs.c:1755
+#, fuzzy
+msgid "numeric overflow"
+msgstr "Bikurikije umubare Byarenze urugero"
+
+#: stabs.c:357
+#, c-format
+msgid "Bad stab: %s\n"
+msgstr ""
+
+#: stabs.c:367
+#, fuzzy, c-format
+msgid "Warning: %s: %s\n"
+msgstr "Iburira"
+
+#: stabs.c:488
+#, fuzzy
+msgid "N_LBRAC not within function\n"
+msgstr "OYA muri"
+
+#: stabs.c:527
+msgid "Too many N_RBRACs\n"
+msgstr ""
+
+#: stabs.c:773
+#, fuzzy
+msgid "unknown C++ encoded name"
+msgstr "Kitazwi C Izina:"
+
+#. Complain and keep going, so compilers can invent new
+#. cross-reference types.
+#: stabs.c:1293
+#, fuzzy
+msgid "unrecognized cross reference type"
+msgstr "Kwambukiranya Indango Ubwoko"
+
+#. Does this actually ever happen?  Is that why we are worrying
+#. about dealing with it rather than just calling error_type?
+#: stabs.c:1847
+#, fuzzy
+msgid "missing index type"
+msgstr "Ibuze Umubarendanga Ubwoko"
+
+#: stabs.c:2174
+#, fuzzy
+msgid "unknown virtual character for baseclass"
+msgstr "Kitazwi Kitaboneka Inyuguti kugirango"
+
+#: stabs.c:2192
+#, fuzzy
+msgid "unknown visibility character for baseclass"
+msgstr "Kitazwi Ukugaragara Inyuguti kugirango"
+
+#: stabs.c:2384
+#, fuzzy
+msgid "unnamed $vb type"
+msgstr "Kitiswe Ubwoko"
+
+#: stabs.c:2390
+#, fuzzy
+msgid "unrecognized C++ abbreviation"
+msgstr "C Impine"
+
+#: stabs.c:2470
+#, fuzzy
+msgid "unknown visibility character for field"
+msgstr "Kitazwi Ukugaragara Inyuguti kugirango Umwanya"
+
+#: stabs.c:2726
+#, fuzzy
+msgid "const/volatile indicator missing"
+msgstr "Ibuze"
+
+#: stabs.c:2967
+#, fuzzy, c-format
+msgid "No mangling for \"%s\"\n"
+msgstr "kugirango"
+
+#: stabs.c:3281
+msgid "Undefined N_EXCL"
+msgstr ""
+
+#: stabs.c:3369
+#, fuzzy, c-format
+msgid "Type file number %d out of range\n"
+msgstr "IDOSIYE Umubare Inyuma Bya"
+
+#: stabs.c:3374
+#, fuzzy, c-format
+msgid "Type index number %d out of range\n"
+msgstr "Umubarendanga Umubare Inyuma Bya"
+
+#: stabs.c:3461
+#, fuzzy, c-format
+msgid "Unrecognized XCOFF type %d\n"
+msgstr "Ubwoko"
+
+#: stabs.c:3762
+#, fuzzy, c-format
+msgid "bad mangled name `%s'\n"
+msgstr "Izina:"
+
+#: stabs.c:3859
+#, fuzzy
+msgid "no argument types in mangled string\n"
+msgstr "Oya in"
+
+# sch/source\ui\app\strings.src:STR_INVALID_NUMBER.text
+#: strings.c:208
+#, fuzzy, c-format
+msgid "invalid number %s"
+msgstr "Umubare utari wo"
+
+#: strings.c:647
+#, fuzzy, c-format
+msgid "invalid integer argument %s"
+msgstr "Sibyo Umubare wuzuye"
+
+#: strings.c:658
+#, fuzzy
+msgid " Display printable strings in [file(s)] (stdin by default)\n"
+msgstr "Gicapika Ikurikiranyanyuguti in IDOSIYE S ku Mburabuzi"
+
+#: strings.c:659
+#, fuzzy
+msgid ""
+" The options are:\n"
+"  -a - --all                Scan the entire file, not just the data section\n"
+"  -f --print-file-name      Print the name of the file before each string\n"
+"  -n --bytes=[number]       Locate & print any NUL-terminated sequence of at\n"
+"  -<number>                 least [number] characters (default 4).\n"
+"  -t --radix={o,x,d}        Print the location of the string in base 8, 10 or 16\n"
+"  -o                        An alias for --radix=o\n"
+"  -T --target=<BFDNAME>     Specify the binary file format\n"
+"  -e --encoding={s,S,b,l,B,L} Select character size and endianness:\n"
+"                            s = 7-bit, S = 8-bit, {b,l} = 16-bit, {B,L} = 32-bit\n"
+"  -h --help                 Display this information\n"
+"  -v --version              Print the program's version number\n"
+msgstr "Amahitamo a Byose i IDOSIYE OYA i Ibyatanzwe F Gucapa IDOSIYE Izina: i Izina: Bya i IDOSIYE Mbere N Bayite Umubare Gucapa Bya Umubare Umubare Inyuguti Mburabuzi 4. T radix o X D i Ahantu Bya i Ikurikiranyanyuguti in SHINGIRO 8 10 Cyangwa o Irihimbano kugirango radix Intego i Nyabibiri IDOSIYE E Imisobekere: S B L Inyuguti Ingano Na S 7 8 B L h Ifashayobora iyi v Verisiyo i Verisiyo"
+
+#: sysdump.c:768
+#, fuzzy
+msgid "Print a human readable interpretation of a SYSROFF object file\n"
+msgstr "a Bya a Igikoresho"
+
+#: sysdump.c:769
+#, fuzzy
+msgid ""
+" The options are:\n"
+"  -h --help        Display this information\n"
+"  -v --version     Print the program's version number\n"
+msgstr "Amahitamo h Ifashayobora iyi v Verisiyo i Verisiyo"
+
+#: sysdump.c:836
+#, fuzzy, c-format
+msgid "cannot open input file %s"
+msgstr "Gufungura Iyinjiza IDOSIYE"
+
+#: version.c:36
+msgid "Copyright 2002 Free Software Foundation, Inc.\n"
+msgstr ""
+
+#: version.c:37
+#, fuzzy
+msgid ""
+"This program is free software; you may redistribute it under the terms of\n"
+"the GNU General Public License.  This program has absolutely no warranty.\n"
+msgstr "Porogaramu ni Kigenga Gicurasi i Porogaramu Oya"
+
+#: windres.c:205
+#, fuzzy, c-format
+msgid "can't open %s `%s': %s"
+msgstr "Gufungura"
+
+#: windres.c:384
+#, fuzzy
+msgid ": expected to be a directory\n"
+msgstr ":Ikitezwe: Kuri a"
+
+#: windres.c:396
+#, fuzzy
+msgid ": expected to be a leaf\n"
+msgstr ":Ikitezwe: Kuri a"
+
+#: windres.c:405
+#, fuzzy, c-format
+msgid "%s: warning: "
+msgstr "%s:Iburira"
+
+#: windres.c:407
+#, fuzzy
+msgid ": duplicate value\n"
+msgstr ":Gusubiramo"
+
+#: windres.c:569
+#, fuzzy, c-format
+msgid "unknown format type `%s'"
+msgstr "Kitazwi Imiterere Ubwoko"
+
+#: windres.c:570
+#, fuzzy, c-format
+msgid "%s: supported formats:"
+msgstr "%s:Imiterere"
+
+#. Otherwise, we give up.
+#: windres.c:655
+#, fuzzy, c-format
+msgid "can not determine type of file `%s'; use the -I option"
+msgstr "OYA Ubwoko Bya IDOSIYE Gukoresha i Ihitamo"
+
+#: windres.c:669
+#, fuzzy, c-format
+msgid "Usage: %s [option(s)] [input-file] [output-file]\n"
+msgstr "Ihitamo S Iyinjiza IDOSIYE Ibisohoka IDOSIYE"
+
+#: windres.c:671
+#, fuzzy
+msgid ""
+" The options are:\n"
+"  -i --input=<file>            Name input file\n"
+"  -o --output=<file>           Name output file\n"
+"  -J --input-format=<format>   Specify input format\n"
+"  -O --output-format=<format>  Specify output format\n"
+"  -F --target=<target>         Specify COFF target\n"
+"     --preprocessor=<program>  Program to use to preprocess rc file\n"
+"  -I --include-dir=<dir>       Include directory when preprocessing rc file\n"
+"  -D --define <sym>[=<val>]    Define SYM when preprocessing rc file\n"
+"  -U --undefine <sym>          Undefine SYM when preprocessing rc file\n"
+"  -v --verbose                 Verbose - tells you what it's doing\n"
+"  -l --language=<val>          Set language when reading rc file\n"
+"     --use-temp-file           Use a temporary file instead of popen to read\n"
+"                               the preprocessor output\n"
+"     --no-use-temp-file        Use popen (default)\n"
+msgstr "Amahitamo i Iyinjiza IDOSIYE Iyinjiza o Ibisohoka IDOSIYE Ibisohoka Iyinjiza Imiterere Imiterere Iyinjiza Ibisohoka Imiterere Imiterere Ibisohoka Intego Intego Porogaramu Kuri Gukoresha Kuri Gushyiramo bushyinguro Ryari: Kugaragaza... Ryari: U Ryari: v L Ururimi Ururimi Ryari: Gukoresha IDOSIYE a By'igihe gito IDOSIYE Bya Kuri i Oya Gukoresha IDOSIYE Mburabuzi"
+
+#: windres.c:687
+#, fuzzy
+msgid "     --yydebug                 Turn on parser debugging\n"
+msgstr "--ku"
+
+#: windres.c:690
+#, fuzzy
+msgid ""
+"  -r                           Ignored for compatibility with rc\n"
+"  -h --help                    Print this help message\n"
+"  -V --version                 Print version information\n"
+msgstr "-R kugirango Bihuye neza Na: h Ifashayobora iyi Ifashayobora V Verisiyo Verisiyo"
+
+#: windres.c:694
+#, fuzzy
+msgid ""
+"FORMAT is one of rc, res, or coff, and is deduced from the file name\n"
+"extension if not specified.  A single file name is an input file.\n"
+"No input-file is stdin, default rc.  No output-file is stdout, default rc.\n"
+msgstr "ni Bya Cyangwa Na ni Bivuye i IDOSIYE NIBA OYA A UMWE IDOSIYE Izina: ni Iyinjiza IDOSIYE Iyinjiza IDOSIYE ni Mburabuzi Ibisohoka IDOSIYE ni Mburabuzi"
+
+#: windres.c:833
+#, fuzzy
+msgid "invalid option -f\n"
+msgstr "Sibyo Ihitamo"
+
+#: windres.c:838
+#, fuzzy
+msgid "No filename following the -fo option.\n"
+msgstr "Izina ry'idosiye: i Ihitamo"
+
+#: windres.c:896
+#, fuzzy
+msgid "Option -I is deprecated for setting the input format, please use -J instead.\n"
+msgstr "ni Bitemewe. kugirango Igenamiterere i Iyinjiza Imiterere Gukoresha"
+
+#: windres.c:1014
+#, fuzzy
+msgid "no resources"
+msgstr "Oya"
+
+#: wrstabs.c:395 wrstabs.c:2055
+#, fuzzy, c-format
+msgid "string_hash_lookup failed: %s"
+msgstr "Byanze"
+
+#: wrstabs.c:695
+#, fuzzy, c-format
+msgid "stab_int_type: bad size %u"
+msgstr "Ingano"
+
+#: wrstabs.c:1495
+#, fuzzy, c-format
+msgid "%s: warning: unknown size for field `%s' in struct"
+msgstr "%s:Iburira Kitazwi Ingano kugirango Umwanya in"

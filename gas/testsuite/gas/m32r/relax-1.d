@@ -14,5 +14,5 @@ Disassembly of section .text:
 Disassembly of section .branch:
 
 0* <branch>:
- *0:	ff 00 00 01 	bra 4 <Work>
-[ 	]*0: R_M32R_26_PCREL_RELA	.text
+ *0:	ff 00 00 00 	bra 0 <branch>
+[ 	]*0: R_M32R_26_PCREL_RELA	.text\+0x4

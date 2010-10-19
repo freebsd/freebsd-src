@@ -15,8 +15,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to
-   the Free Software Foundation, 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
+   the Free Software Foundation, 51 Franklin Street - Fifth Floor,
+   Boston, MA 02110-1301, USA.  */
 
 #define TC_SH64
 #include "config/tc-sh.h"
@@ -124,10 +124,11 @@ extern int sh64_target_mach (void);
    expression, since we have handled it ourselves.  FIXME: What we really
    need is a new GAS infrastructure feature: md_qualifier.  */
 #undef md_parse_name
-#define md_parse_name(NAME, EXP, CP) \
- sh64_consume_datalabel (NAME, EXP, CP, operand)
-extern int sh64_consume_datalabel (const char *, expressionS *, char *,
-				   segT (*) (expressionS *));
+#define md_parse_name(NAME, EXP, MODE, CP) \
+ sh64_consume_datalabel (NAME, EXP, MODE, CP, operand)
+extern int sh64_consume_datalabel (const char *, expressionS *,
+				   enum expr_mode, char *,
+				   segT (*) (expressionS *, enum expr_mode));
 
 /* Saying "$" is the same as saying ".".  */
 #define DOLLAR_DOT
@@ -144,7 +145,7 @@ extern void sh64_frob_label (symbolS *);
 
 #undef  tc_frob_label
 #define tc_frob_label(sym) \
-  do { sh_frob_label (); sh64_frob_label (sym); } while (0)
+  do { sh_frob_label (sym); sh64_frob_label (sym); } while (0)
 
 #define tc_symbol_new_hook(s) sh64_frob_label (s)
 
@@ -221,3 +222,6 @@ void shmedia_md_end (void);
    we have to say we only have minimum byte-size insns.  */
 #undef  DWARF2_LINE_MIN_INSN_LENGTH
 #define DWARF2_LINE_MIN_INSN_LENGTH 1
+
+#define TC_FAKE_LABEL(NAME) sh64_fake_label(NAME)
+extern int sh64_fake_label (const char *);

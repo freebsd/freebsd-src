@@ -23,10 +23,10 @@ text_label:
 	bleul	$4,$5,text_label
 
 # Branch to an external label.
-#	bltu	$4,$5,external_label
-#	bleu	$4,$5,external_label
-#	bltul	$4,$5,external_label
-#	bleul	$4,$5,external_label
+	bltu	$4,$5,external_label
+	bleu	$4,$5,external_label
+	bltul	$4,$5,external_label
+	bleul	$4,$5,external_label
 
 # Round to a 16 byte boundary, for ease in testing multiple targets.
 	nop

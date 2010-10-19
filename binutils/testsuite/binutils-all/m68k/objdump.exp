@@ -1,0 +1,53 @@
+#   Copyright 2004
+#   Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+
+if {![istarget "m68*-*-*"] || [istarget "m68h*-*-*"] || [istarget "m681*-*-*"]} then {
+  return
+}
+
+if {[which $OBJDUMP] == 0} then {
+    perror "$OBJDUMP does not exist"
+    return
+}
+
+send_user "Version [binutil_version $OBJDUMP]"
+
+###########################
+# Set up the test of movem.s
+###########################
+
+if {![binutils_assemble $srcdir/$subdir/movem.s tmpdir/movem.o]} then {
+    return
+}
+
+if [is_remote host] {
+    set objfile [remote_download host tmpdir/movem.o]
+} else {
+    set objfile tmpdir/movem.o
+}
+
+# Make sure that the movem is correctly decoded.
+
+set got [binutils_run $OBJDUMP "$OBJDUMPFLAGS --disassemble $objfile"]
+
+set want "moveml %d0-%d3,%sp@-.*moveml %d0-%d3,%sp@\[\r\n\]"
+
+if [regexp $want $got] then {
+    pass "movem test"
+} else {
+    fail "movem test"
+}

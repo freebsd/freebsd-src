@@ -1,0 +1,12 @@
+#...
+Program Headers:
+  Type .* Flg Align
+  LOAD .* R E 0x10000
+  LOAD .* RW  0x10000
+  DYNAMIC .* RW  0x4
+
+ Section to Segment mapping:
+  Segment Sections\.\.\.
+   00 .* \.plt .*
+   01 .* \.got .*
+   02 .* \.dynamic $

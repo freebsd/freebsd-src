@@ -1,6 +1,6 @@
 /* Opcode table for the Atmel AVR micro controllers.
 
-   Copyright 2000 Free Software Foundation, Inc.
+   Copyright 2000, 2001, 2004, 2006 Free Software Foundation, Inc.
    Contributed by Denis Chertykov <denisc@overta.ru>
    
    This program is free software; you can redistribute it and/or modify
@@ -15,30 +15,36 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#define AVR_ISA_1200  0x0001 /* in the beginning there was ... */
+#define AVR_ISA_1200  0x0001 /* In the beginning there was ...  */
 #define AVR_ISA_LPM   0x0002 /* device has LPM */
 #define AVR_ISA_LPMX  0x0004 /* device has LPM Rd,Z[+] */
 #define AVR_ISA_SRAM  0x0008 /* device has SRAM (LD, ST, PUSH, POP, ...) */
 #define AVR_ISA_MEGA  0x0020 /* device has >8K program memory (JMP and CALL
 				supported, no 8K wrap on RJMP and RCALL) */
-#define AVR_ISA_MUL   0x0040 /* device has new core (MUL, MOVW, ...) */
+#define AVR_ISA_MUL   0x0040 /* device has new core (MUL, FMUL, ...) */
 #define AVR_ISA_ELPM  0x0080 /* device has >64K program memory (ELPM) */
 #define AVR_ISA_ELPMX 0x0100 /* device has ELPM Rd,Z[+] */
 #define AVR_ISA_SPM   0x0200 /* device can program itself */
 #define AVR_ISA_BRK   0x0400 /* device has BREAK (on-chip debug) */
 #define AVR_ISA_EIND  0x0800 /* device has >128K program memory (none yet) */
+#define AVR_ISA_MOVW  0x1000 /* device has MOVW */
 
 #define AVR_ISA_TINY1 (AVR_ISA_1200 | AVR_ISA_LPM)
-#define AVR_ISA_2xxx (AVR_ISA_TINY1 | AVR_ISA_SRAM)
-#define AVR_ISA_M8   (AVR_ISA_2xxx | AVR_ISA_MUL | AVR_ISA_LPMX | AVR_ISA_SPM)
-#define AVR_ISA_M603 (AVR_ISA_2xxx | AVR_ISA_MEGA)
-#define AVR_ISA_M103 (AVR_ISA_M603 | AVR_ISA_ELPM)
-#define AVR_ISA_M161 (AVR_ISA_M603 | AVR_ISA_MUL | AVR_ISA_LPMX | AVR_ISA_SPM)
-#define AVR_ISA_94K  (AVR_ISA_M603 | AVR_ISA_MUL | AVR_ISA_LPMX)
-#define AVR_ISA_M323 (AVR_ISA_M161 | AVR_ISA_BRK)
-#define AVR_ISA_M128 (AVR_ISA_M323 | AVR_ISA_ELPM | AVR_ISA_ELPMX)
+#define AVR_ISA_PWMx  (AVR_ISA_M8   | AVR_ISA_BRK)
+#define AVR_ISA_2xxx  (AVR_ISA_TINY1 | AVR_ISA_SRAM)
+#define AVR_ISA_TINY2 (AVR_ISA_2xxx | AVR_ISA_MOVW | AVR_ISA_LPMX | \
+                       AVR_ISA_SPM  | AVR_ISA_BRK)
+#define AVR_ISA_M8    (AVR_ISA_2xxx | AVR_ISA_MUL | AVR_ISA_MOVW | \
+                       AVR_ISA_LPMX | AVR_ISA_SPM)
+#define AVR_ISA_M603  (AVR_ISA_2xxx | AVR_ISA_MEGA)
+#define AVR_ISA_M103  (AVR_ISA_M603 | AVR_ISA_ELPM)
+#define AVR_ISA_M161  (AVR_ISA_M603 | AVR_ISA_MUL | AVR_ISA_MOVW | \
+                       AVR_ISA_LPMX | AVR_ISA_SPM)
+#define AVR_ISA_94K   (AVR_ISA_M603 | AVR_ISA_MUL | AVR_ISA_MOVW | AVR_ISA_LPMX)
+#define AVR_ISA_M323  (AVR_ISA_M161 | AVR_ISA_BRK)
+#define AVR_ISA_M128  (AVR_ISA_M323 | AVR_ISA_ELPM | AVR_ISA_ELPMX)
 
 #define AVR_ISA_ALL   0xFFFF
 
@@ -236,7 +242,7 @@ AVR_INSN (ror,  "r",   "1001010rrrrr0111", 1, AVR_ISA_1200, 0x9407)
 AVR_INSN (swap, "r",   "1001010rrrrr0010", 1, AVR_ISA_1200, 0x9402)
 
    /* Known to be decoded as `nop' by the old core.  */
-AVR_INSN (movw, "v,v", "00000001ddddrrrr", 1, AVR_ISA_MUL,  0x0100)
+AVR_INSN (movw, "v,v", "00000001ddddrrrr", 1, AVR_ISA_MOVW, 0x0100)
 AVR_INSN (muls, "d,d", "00000010ddddrrrr", 1, AVR_ISA_MUL,  0x0200)
 AVR_INSN (mulsu,"a,a", "000000110ddd0rrr", 1, AVR_ISA_MUL,  0x0300)
 AVR_INSN (fmul, "a,a", "000000110ddd1rrr", 1, AVR_ISA_MUL,  0x0308)

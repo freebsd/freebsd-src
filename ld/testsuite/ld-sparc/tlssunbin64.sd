@@ -7,5 +7,6 @@
 .*: +file format elf64-sparc
 
 Contents of section .got:
-# FIXME
-#pass
+ 202308 0+ 0+202208 0+ 0+  .*
+ 202318 0+ 0+ 0+ 0+  .*
+ 202328 0+ 0+ +.*

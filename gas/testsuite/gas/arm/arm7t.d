@@ -1,4 +1,4 @@
-#objdump: -Dr --prefix-addresses --show-raw-insn
+#objdump: -dr --prefix-addresses --show-raw-insn
 #name: ARM arm7t
 #as: -mcpu=arm7t -EL
 

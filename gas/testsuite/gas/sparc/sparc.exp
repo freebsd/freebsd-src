@@ -13,11 +13,11 @@ proc gas_64_check { } {
     global srcdir
 
     catch "exec $srcdir/lib/run $NM $NMFLAGS --help" nm_help
-    return [regexp "elf64\[_-\]sparc" $nm_help];
+    return [regexp "elf64\[_-\]sparc" $nm_help]
 }
 
 proc sparc_elf_setup { } {
-    setup_xfail "sparc*-*-*aout*" "sparc*-*-sunos4*" "sparc*-*-vxworks*"
+    setup_xfail "sparc*-*-*aout*" "sparc*-*-sunos4*"
     setup_xfail "sparc*-fujitsu-none" "sparc*-*-*n*bsd*"
     setup_xfail "sparc*-*-coff" "sparc*-*-lynxos*"
     clear_xfail "sparc64*-*-*n*bsd*"
@@ -40,11 +40,18 @@ if [istarget sparc*-*-*] {
 	run_dump_test "set64"
 	run_dump_test "synth64"
 	run_dump_test "rdpr"
+	run_dump_test "rdhpr"
 	run_dump_test "wrpr"
+	run_dump_test "wrhpr"
+	run_dump_test "window"
 	run_dump_test "reloc64"
 	run_dump_test "pcrel64"
 	run_dump_test "plt64"
     }
+}
+
+if [istarget sparc-*-vxworks*] {
+    run_dump_test "vxworks-pic"
 }
 
 if [istarget sparclet*-*-*] {

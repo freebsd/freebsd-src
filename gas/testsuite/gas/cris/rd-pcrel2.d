@@ -1,4 +1,5 @@
 #objdump: -dr
+#as: --em=criself
 
 .*:     file format .*-cris
 
