@@ -28,6 +28,7 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stdint.h>
 #include <sys/time.h>
 #include <sys/utsname.h>
 #include <sys/wait.h>
@@ -557,7 +558,8 @@ main(int argc, char *argv[])
 				if (j != 0)
 					printf(", ");
 				scale_timespec(&juggle_results[j], p);
-				printf("%u.%09lu", juggle_results[j].tv_sec,
+				printf("%jd.%09lu",
+				    (intmax_t)juggle_results[j].tv_sec,
 				    juggle_results[j].tv_nsec);
 			}
 			printf("\n");
@@ -567,7 +569,8 @@ main(int argc, char *argv[])
 				if (j != 0)
 					printf(", ");
 				scale_timespec(&process_results[j], p);
-				printf("%u.%09lu", process_results[j].tv_sec,
+				printf("%jd.%09lu",
+                                    (intmax_t)process_results[j].tv_sec,
 				    process_results[j].tv_nsec);
 			}
 			printf("\n");
@@ -577,7 +580,8 @@ main(int argc, char *argv[])
 				if (j != 0)
 					printf(", ");
 				scale_timespec(&thread_results[j], p);
-				printf("%u.%09lu", thread_results[j].tv_sec,
+				printf("%jd.%09lu",
+				    (intmax_t)thread_results[j].tv_sec,
 				    thread_results[j].tv_nsec);
 			}
 			printf("\n");
