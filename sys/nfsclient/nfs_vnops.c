@@ -215,8 +215,6 @@ struct mtx 	nfs_iod_mtx;
 enum nfsiod_state nfs_iodwant[NFS_MAXASYNCDAEMON];
 struct nfsmount *nfs_iodmount[NFS_MAXASYNCDAEMON];
 int		 nfs_numasync = 0;
-vop_advlock_t	*nfs_advlock_p = nfs_dolock;
-vop_reclaim_t	*nfs_reclaim_p = NULL;
 #define	DIRHDSIZ	(sizeof (struct dirent) - (MAXNAMLEN + 1))
 
 SYSCTL_DECL(_vfs_nfs);
