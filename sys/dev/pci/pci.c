@@ -2911,9 +2911,6 @@ pci_set_power_children(device_t dev, device_t *devlist, int numdevs,
 	struct pci_devinfo *dinfo;
 	int dstate, i;
 
-	if (!pci_do_power_resume)
-		return;
-
 	/*
 	 * Set the device to the given state.  If the firmware suggests
 	 * a different power state, use it instead.  If power management
@@ -2976,7 +2973,9 @@ pci_resume(device_t dev)
 	 */
 	if ((error = device_get_children(dev, &devlist, &numdevs)) != 0)
 		return (error);
-	pci_set_power_children(dev, devlist, numdevs, PCI_POWERSTATE_D0);
+	if (pci_do_power_resume)
+		pci_set_power_children(dev, devlist, numdevs,
+		    PCI_POWERSTATE_D0);
 
 	/* Now the device is powered up, restore its config space. */
 	for (i = 0; i < numdevs; i++) {
