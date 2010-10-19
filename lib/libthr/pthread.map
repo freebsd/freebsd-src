@@ -318,7 +318,9 @@ FBSDprivate_1.0 {
 	_pthread_rwlock_wrlock;
 	_pthread_rwlockattr_destroy;
 	_pthread_rwlockattr_getpshared;
+	_pthread_rwlockattr_getkind_np;
 	_pthread_rwlockattr_init;
+	_pthread_rwlockattr_setkind_np;
 	_pthread_rwlockattr_setpshared;
 	_pthread_self;
 	_pthread_set_name_np;
@@ -401,6 +403,8 @@ FBSD_1.1 {
 
 FBSD_1.2 {
 	openat;
+	pthread_rwlockattr_getkind_np;
+	pthread_rwlockattr_setkind_np;
 	setcontext;
 	swapcontext;
 };
