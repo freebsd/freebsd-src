@@ -3036,7 +3036,7 @@ nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	struct iovec iv;
 	struct vattr va, at, *vap = &va;
 	struct nfs_fattr *fp;
-	int len, nlen, rem, xfer, tsiz, i, error = 0, getret = 1;
+	int len, nlen, rem, xfer, tsiz, i, error = 0, error1, getret = 1;
 	int siz, cnt, fullsiz, eofflag, rdonly, dirlen, ncookies;
 	u_quad_t off, toff, verf;
 	u_long *cookies = NULL, *cookiep; /* needs to be int64_t or off_t */
@@ -3240,24 +3240,25 @@ again:
 				}
 				if (!VOP_ISLOCKED(vp))
 					vn_lock(vp, LK_SHARED | LK_RETRY);
-				if (VOP_LOOKUP(vp, &nvp, &cn) != 0)
+				if ((vp->v_vflag & VV_ROOT) != 0 &&
+				    (cn.cn_flags & ISDOTDOT) != 0) {
+					vref(vp);
+					nvp = vp;
+				} else if (VOP_LOOKUP(vp, &nvp, &cn) != 0)
 					goto invalid;
 			}
 
 			bzero((caddr_t)nfhp, NFSX_V3FH);
 			nfhp->fh_fsid = nvp->v_mount->mnt_stat.f_fsid;
-			if (VOP_VPTOFH(nvp, &nfhp->fh_fid)) {
+			if ((error1 = VOP_VPTOFH(nvp, &nfhp->fh_fid)) == 0)
+				error1 = VOP_GETATTR(nvp, vap, cred);
+			if (vp == nvp)
+				vunref(nvp);
+			else
 				vput(nvp);
-				nvp = NULL;
-				goto invalid;
-			}
-			if (VOP_GETATTR(nvp, vap, cred)) {
-				vput(nvp);
-				nvp = NULL;
-				goto invalid;
-			}
-			vput(nvp);
 			nvp = NULL;
+			if (error1 != 0)
+				goto invalid;
 
 			/*
 			 * If either the dircount or maxcount will be
