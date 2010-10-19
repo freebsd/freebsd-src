@@ -190,7 +190,7 @@ acpi_pci_set_powerstate_method(device_t dev, device_t child, int state)
 		device_printf(dev,
 		    "Failed to set ACPI power state D%d on %s: %s\n",
 		    state, acpi_name(h), AcpiFormatException(status));
-	if (old_state > state)
+	if (old_state > state && pci_do_power_resume)
 		error = pci_set_powerstate_method(dev, child, state);
 
 out:
