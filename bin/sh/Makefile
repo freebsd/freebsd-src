@@ -21,7 +21,7 @@ LDADD= -ll -ledit -ltermcap
 LFLAGS= -8	# 8-bit lex scanner for arithmetic
 CFLAGS+=-DSHELL -I. -I${.CURDIR}
 # for debug:
-# CFLAGS+= -g -DDEBUG=2
+# DEBUG_FLAGS+= -g -DDEBUG=2 -fno-inline
 WARNS?=	2
 WFORMAT=0
 
