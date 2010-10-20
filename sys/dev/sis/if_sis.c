@@ -1795,12 +1795,15 @@ sis_intr(void *arg)
 	if ((status & SIS_INTRS) == 0) {
 		/* Not ours. */
 		SIS_UNLOCK(sc);
+		return;
 	}
 
 	/* Disable interrupts. */
 	CSR_WRITE_4(sc, SIS_IER, 0);
 
 	for (;(status & SIS_INTRS) != 0;) {
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			break;
 		if (status &
 		    (SIS_ISR_TX_DESC_OK | SIS_ISR_TX_ERR |
 		    SIS_ISR_TX_OK | SIS_ISR_TX_IDLE) )
@@ -1825,11 +1828,13 @@ sis_intr(void *arg)
 		status = CSR_READ_4(sc, SIS_ISR);
 	}
 
-	/* Re-enable interrupts. */
-	CSR_WRITE_4(sc, SIS_IER, 1);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		/* Re-enable interrupts. */
+		CSR_WRITE_4(sc, SIS_IER, 1);
 
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		sis_startl(ifp);
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			sis_startl(ifp);
+	}
 
 	SIS_UNLOCK(sc);
 }
