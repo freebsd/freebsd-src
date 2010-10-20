@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 25, 2010
+.Dd October 20, 2010
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -119,6 +119,16 @@ utility:
 .Ar file
 .Ar prov
 .Nm
+.Cm suspend
+.Op Fl v
+.Fl a | Ar prov ...
+.Nm
+.Cm resume
+.Op Fl pv
+.Op Fl j Ar passfile
+.Op Fl k Ar keyfile
+.Ar prov
+.Nm
 .Cm resize
 .Op Fl v
 .Fl s Ar oldsize
@@ -207,6 +217,8 @@ Allows to attach a provider with a random, one-time key - useful for swap
 partitions and temporary file systems.
 .It
 Allows to verify data integrity (data authentication).
+.It
+Allows to suspend and resume encrypted devices.
 .El
 .Pp
 The first argument to
@@ -458,6 +470,8 @@ will not be detached even if all keys will be destroyed.
 It can be even rescued with the
 .Cm setkey
 subcommand.
+.Pp
+Additional options include:
 .Bl -tag -width ".Fl a Ar keyno"
 .It Fl a
 Destroy all keys (does not need
@@ -482,6 +496,8 @@ backup, your data is gone for good.
 In case the provider was attached with the
 .Fl r
 flag, the keys will not be destroyed, only the provider will be detached.
+.Pp
+Additional options include:
 .Bl -tag -width ".Fl a"
 .It Fl a
 If specified, all currently attached providers will be killed.
@@ -490,6 +506,8 @@ If specified, all currently attached providers will be killed.
 Backup metadata from the given provider to the given file.
 .It Cm restore
 Restore metadata from the given file to the given provider.
+.Pp
+Additional options include:
 .Bl -tag -width ".Fl f"
 .It Fl f
 Metadata contains the size of the provider to ensure that the correct
@@ -508,12 +526,73 @@ through
 and
 .Cm restore .
 .El
+.It Cm suspend
+Suspend device by waiting for all inflight request to finish, clearing all
+sensitive informations (like keys) from the kernel memory and blocking all
+further I/O requests until the
+.Cm resume
+subcommand is executed.
+This functionality is useful for eg. laptops - when one wants to suspend a
+laptop, one does not want to leave encrypted device attached.
+Instead of closing all files and directories opened from a file system placed
+on an encrypted device, unmounting the file system and detaching the device,
+the
+.Cm suspend
+subcommand can be used.
+Any access to the encrypted device will be blocked until the keys are
+recovered through
+.Cm resume
+subcommand, thus there is no need to close nor unmount anything.
+The
+.Cm suspend
+subcommand does not work with devices created with the
+.Cm onetime
+subcommand.
+Please note that sensitive data might still be present in memory after
+suspending encrypted device, because of file system cache, etc.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl a"
+.It Fl a
+Suspend all
+.Nm
+devices.
+.El
+.It Cm resume
+Resume previously suspended device.
+The caller must ensure that executing this subcommand won't try to access
+suspended device, which will lead to a deadlock.
+For example suspending device, which contains file system where the
+.Nm
+utility is stored is bad idea.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl j Ar passfile"
+.It Fl j Ar passfile
+Specifies a file which contains the passphrase or its part.
+For more information see the description of the
+.Fl J
+option for the
+.Cm init
+subcommand.
+.It Fl k Ar keyfile
+Specifies a file which contains part of the key.
+For more information see the description of the
+.Fl K
+option for the
+.Cm init
+subcommand.
+.It Fl p
+Do not use passphrase as the key component.
+.El
 .It Cm resize
 Inform
 .Nm
 that the provider has been resized.
 The old metadata block is relocated to the correct position at the end of the
 provider and the provider size is updated.
+.Pp
+Additional options include:
 .Bl -tag -width ".Fl s Ar oldsize"
 .It Fl s Ar oldsize
 The size of the provider before it was resized.
@@ -745,6 +824,19 @@ prompt:
 # geli detach da0
 # geli attach da0
 Enter passphrase: foobar
+.Ed
+.Pp
+Suspend all
+.Nm
+devices, suspend a laptop, then resume devices one by one after resuming a
+laptop:
+.Bd -literal -offset indent
+# geli suspend -a
+# zzz
+<resume your laptop>
+# geli resume -p -k keyfile gpt/secret
+# geli resume gpt/private
+Enter passphrase:
 .Ed
 .Sh ENCRYPTION MODES
 .Nm
