@@ -233,8 +233,7 @@ main(int argc, char *argv[])
 
 	setproctitle("-%s", getprogname());
 
-	for (cnt = getdtablesize(); cnt > 2; cnt--)
-		(void)close(cnt);
+	closefrom(3);
 
 	/*
 	 * Get current TTY
