@@ -3,12 +3,19 @@
 .include <bsd.own.mk>
 
 PROG=	jail
-MAN=	jail.8
-DPADD=	${LIBJAIL} ${LIBUTIL}
-LDADD=	-ljail -lutil
+MAN=	jail.8 jail.conf.5
+SRCS=	jail.c command.c config.c state.c jailp.h jaillex.l jailparse.y y.tab.h
+
+DPADD=	${LIBJAIL} ${LIBKVM} ${LIBUTIL} ${LIBL}
+LDADD=	-ljail -lkvm -lutil -ll
+
+YFLAGS+=-v
+CFLAGS+=-I. -I${.CURDIR}
 
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+= -DINET6
 .endif
+
+CLEANFILES= y.output
 
 .include <bsd.prog.mk>
