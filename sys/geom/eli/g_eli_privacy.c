@@ -166,6 +166,11 @@ g_eli_crypto_write_done(struct cryptop *crp)
 /*
  * This is the main function responsible for cryptography (ie. communication
  * with crypto(9) subsystem).
+ *
+ * BIO_READ:
+ *	g_eli_start -> g_io_request -> g_eli_read_done -> G_ELI_CRYPTO_RUN -> g_eli_crypto_read_done -> g_io_deliver
+ * BIO_WRITE:
+ *	g_eli_start -> G_ELI_CRYPTO_RUN -> g_eli_crypto_write_done -> g_io_request -> g_eli_write_done -> g_io_deliver
  */
 void
 g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
