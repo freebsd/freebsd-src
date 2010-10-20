@@ -283,14 +283,14 @@ xls_board_specific_overrides(struct xlr_board_info* board)
 		break;
 
 	case RMI_XLR_BOARD_ARIZONA_VIII:
-
-		if (blk1->enabled) { 
+		if (blk1->enabled) {
 			/* There is just one Octal PHY on the board and it is 
 			 * connected to the MII interface for NA Quad 0. */
-			blk1->gmac_port[0].mii_addr = XLR_IO_GMAC_0_OFFSET;
-			blk1->gmac_port[1].mii_addr = XLR_IO_GMAC_0_OFFSET;
-			blk1->gmac_port[2].mii_addr = XLR_IO_GMAC_0_OFFSET;
-			blk1->gmac_port[3].mii_addr = XLR_IO_GMAC_0_OFFSET;
+			for (i = 0; i < 4; i++) { 
+				blk1->gmac_port[i].mii_addr =
+				    XLR_IO_GMAC_0_OFFSET; 
+				blk1->gmac_port[i].mdint_id = 0; 
+			} 
 		}
 		break;
 
