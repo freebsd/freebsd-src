@@ -88,32 +88,32 @@ struct ifsregion {
 };
 
 
-STATIC char *expdest;			/* output of current string */
-STATIC struct nodelist *argbackq;	/* list of back quote expressions */
-STATIC struct ifsregion ifsfirst;	/* first struct in list of ifs regions */
-STATIC struct ifsregion *ifslastp;	/* last struct in list */
-STATIC struct arglist exparg;		/* holds expanded arg list */
+static char *expdest;			/* output of current string */
+static struct nodelist *argbackq;	/* list of back quote expressions */
+static struct ifsregion ifsfirst;	/* first struct in list of ifs regions */
+static struct ifsregion *ifslastp;	/* last struct in list */
+static struct arglist exparg;		/* holds expanded arg list */
 
-STATIC void argstr(char *, int);
-STATIC char *exptilde(char *, int);
-STATIC void expbackq(union node *, int, int);
-STATIC int subevalvar(char *, char *, int, int, int, int);
-STATIC char *evalvar(char *, int);
-STATIC int varisset(char *, int);
-STATIC void varvalue(char *, int, int, int);
-STATIC void recordregion(int, int, int);
-STATIC void removerecordregions(int);
-STATIC void ifsbreakup(char *, struct arglist *);
-STATIC void expandmeta(struct strlist *, int);
-STATIC void expmeta(char *, char *);
-STATIC void addfname(char *);
-STATIC struct strlist *expsort(struct strlist *);
-STATIC struct strlist *msort(struct strlist *, int);
-STATIC int pmatch(const char *, const char *, int);
-STATIC char *cvtnum(int, char *);
-STATIC int collate_range_cmp(int, int);
+static void argstr(char *, int);
+static char *exptilde(char *, int);
+static void expbackq(union node *, int, int);
+static int subevalvar(char *, char *, int, int, int, int);
+static char *evalvar(char *, int);
+static int varisset(char *, int);
+static void varvalue(char *, int, int, int);
+static void recordregion(int, int, int);
+static void removerecordregions(int);
+static void ifsbreakup(char *, struct arglist *);
+static void expandmeta(struct strlist *, int);
+static void expmeta(char *, char *);
+static void addfname(char *);
+static struct strlist *expsort(struct strlist *);
+static struct strlist *msort(struct strlist *, int);
+static int pmatch(const char *, const char *, int);
+static char *cvtnum(int, char *);
+static int collate_range_cmp(int, int);
 
-STATIC int
+static int
 collate_range_cmp(int c1, int c2)
 {
 	static char s1[2], s2[2];
@@ -201,7 +201,7 @@ expandarg(union node *arg, struct arglist *arglist, int flag)
  * $@ like $* since no splitting will be performed.
  */
 
-STATIC void
+static void
 argstr(char *p, int flag)
 {
 	char c;
@@ -263,7 +263,7 @@ argstr(char *p, int flag)
 breakloop:;
 }
 
-STATIC char *
+static char *
 exptilde(char *p, int flag)
 {
 	char c, *startp = p;
@@ -311,7 +311,7 @@ lose:
 }
 
 
-STATIC void
+static void
 removerecordregions(int endoff)
 {
 	if (ifslastp == NULL)
@@ -410,7 +410,7 @@ expari(int flag)
  * Expand stuff in backwards quotes.
  */
 
-STATIC void
+static void
 expbackq(union node *cmd, int quoted, int flag)
 {
 	struct backcmd in;
@@ -490,7 +490,7 @@ expbackq(union node *cmd, int quoted, int flag)
 
 
 
-STATIC int
+static int
 subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
   int varflags)
 {
@@ -616,7 +616,7 @@ recordleft:
  * input string.
  */
 
-STATIC char *
+static char *
 evalvar(char *p, int flag)
 {
 	int subtype;
@@ -804,7 +804,7 @@ record:
  * Test whether a specialized variable is set.
  */
 
-STATIC int
+static int
 varisset(char *name, int nulok)
 {
 
@@ -846,7 +846,7 @@ varisset(char *name, int nulok)
  * Add the value of a specialized variable to the stack string.
  */
 
-STATIC void
+static void
 varvalue(char *name, int quoted, int subtype, int flag)
 {
 	int num;
@@ -936,7 +936,7 @@ numvar:
  * string for IFS characters.
  */
 
-STATIC void
+static void
 recordregion(int start, int end, int inquotes)
 {
 	struct ifsregion *ifsp;
@@ -967,7 +967,7 @@ recordregion(int start, int end, int inquotes)
  * strings to the argument list.  The regions of the string to be
  * searched for IFS characters have been stored by recordregion.
  */
-STATIC void
+static void
 ifsbreakup(char *string, struct arglist *arglist)
 {
 	struct ifsregion *ifsp;
@@ -1073,10 +1073,10 @@ ifsbreakup(char *string, struct arglist *arglist)
  * should be escapes.  The results are stored in the list exparg.
  */
 
-STATIC char expdir[PATH_MAX];
+static char expdir[PATH_MAX];
 #define expdir_end (expdir + sizeof(expdir))
 
-STATIC void
+static void
 expandmeta(struct strlist *str, int flag __unused)
 {
 	char *p;
@@ -1123,7 +1123,7 @@ nometa:
  * Do metacharacter (i.e. *, ?, [...]) expansion.
  */
 
-STATIC void
+static void
 expmeta(char *enddir, char *name)
 {
 	char *p;
@@ -1261,7 +1261,7 @@ expmeta(char *enddir, char *name)
  * Add a file name to the list.
  */
 
-STATIC void
+static void
 addfname(char *name)
 {
 	char *p;
@@ -1282,7 +1282,7 @@ addfname(char *name)
  * work.
  */
 
-STATIC struct strlist *
+static struct strlist *
 expsort(struct strlist *str)
 {
 	int len;
@@ -1295,7 +1295,7 @@ expsort(struct strlist *str)
 }
 
 
-STATIC struct strlist *
+static struct strlist *
 msort(struct strlist *list, int len)
 {
 	struct strlist *p, *q = NULL;
@@ -1353,7 +1353,7 @@ patmatch(const char *pattern, const char *string, int squoted)
 }
 
 
-STATIC int
+static int
 pmatch(const char *pattern, const char *string, int squoted)
 {
 	const char *p, *q;
@@ -1530,7 +1530,7 @@ casematch(union node *pattern, const char *val)
  * Our own itoa().
  */
 
-STATIC char *
+static char *
 cvtnum(int num, char *buf)
 {
 	char temp[32];

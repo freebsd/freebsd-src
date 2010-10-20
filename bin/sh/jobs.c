@@ -72,12 +72,12 @@ __FBSDID("$FreeBSD$");
 #include "mystring.h"
 
 
-STATIC struct job *jobtab;	/* array of jobs */
-STATIC int njobs;		/* size of array */
+static struct job *jobtab;	/* array of jobs */
+static int njobs;		/* size of array */
 MKINIT pid_t backgndpid = -1;	/* pid of last background process */
 #if JOBS
-STATIC struct job *jobmru;	/* most recently used job list */
-STATIC pid_t initialpgrp;	/* pgrp of shell on invocation */
+static struct job *jobmru;	/* most recently used job list */
+static pid_t initialpgrp;	/* pgrp of shell on invocation */
 #endif
 int in_waitcmd = 0;		/* are we in waitcmd()? */
 int in_dowait = 0;		/* are we in dowait()? */
@@ -85,20 +85,20 @@ volatile sig_atomic_t breakwaitcmd = 0;	/* should wait be terminated? */
 static int ttyfd = -1;
 
 #if JOBS
-STATIC void restartjob(struct job *);
+static void restartjob(struct job *);
 #endif
-STATIC void freejob(struct job *);
-STATIC struct job *getjob(char *);
-STATIC pid_t dowait(int, struct job *);
-STATIC pid_t waitproc(int, int *);
-STATIC void cmdtxt(union node *);
-STATIC void cmdputs(const char *);
+static void freejob(struct job *);
+static struct job *getjob(char *);
+static pid_t dowait(int, struct job *);
+static pid_t waitproc(int, int *);
+static void cmdtxt(union node *);
+static void cmdputs(const char *);
 #if JOBS
-STATIC void setcurjob(struct job *);
-STATIC void deljob(struct job *);
-STATIC struct job *getcurjob(struct job *);
+static void setcurjob(struct job *);
+static void deljob(struct job *);
+static struct job *getcurjob(struct job *);
 #endif
-STATIC void showjob(struct job *, pid_t, int);
+static void showjob(struct job *, pid_t, int);
 
 
 /*
@@ -239,7 +239,7 @@ bgcmd(int argc, char **argv)
 }
 
 
-STATIC void
+static void
 restartjob(struct job *jp)
 {
 	struct procstat *ps;
@@ -298,7 +298,7 @@ jobscmd(int argc, char *argv[])
 	return (0);
 }
 
-STATIC void
+static void
 showjob(struct job *jp, pid_t pid, int mode)
 {
 	char s[64];
@@ -423,7 +423,7 @@ showjobs(int change, int mode)
  * Mark a job structure as unused.
  */
 
-STATIC void
+static void
 freejob(struct job *jp)
 {
 	struct procstat *ps;
@@ -519,7 +519,7 @@ jobidcmd(int argc __unused, char **argv)
  * Convert a job name to a job structure.
  */
 
-STATIC struct job *
+static struct job *
 getjob(char *name)
 {
 	int jobno;
@@ -659,7 +659,7 @@ makejob(union node *node __unused, int nprocs)
 }
 
 #if JOBS
-STATIC void
+static void
 setcurjob(struct job *cj)
 {
 	struct job *jp, *prev;
@@ -679,7 +679,7 @@ setcurjob(struct job *cj)
 	jobmru = cj;
 }
 
-STATIC void
+static void
 deljob(struct job *j)
 {
 	struct job *jp, *prev;
@@ -699,7 +699,7 @@ deljob(struct job *j)
  * Return the most recently used job that isn't `nj', and preferably one
  * that is stopped.
  */
-STATIC struct job *
+static struct job *
 getcurjob(struct job *nj)
 {
 	struct job *jp;
@@ -915,7 +915,7 @@ waitforjob(struct job *jp, int *origstatus)
  * Wait for a process to terminate.
  */
 
-STATIC pid_t
+static pid_t
 dowait(int block, struct job *job)
 {
 	pid_t pid;
@@ -1021,7 +1021,7 @@ dowait(int block, struct job *job)
  * stopped processes.  If block is zero, we return a value of zero
  * rather than blocking.
  */
-STATIC pid_t
+static pid_t
 waitproc(int block, int *status)
 {
 	int flags;
@@ -1066,8 +1066,8 @@ stoppedjobs(void)
  * jobs command.
  */
 
-STATIC char *cmdnextc;
-STATIC int cmdnleft;
+static char *cmdnextc;
+static int cmdnleft;
 #define MAXCMDTEXT	200
 
 char *
@@ -1083,7 +1083,7 @@ commandtext(union node *n)
 }
 
 
-STATIC void
+static void
 cmdtxt(union node *n)
 {
 	union node *np;
@@ -1216,7 +1216,7 @@ redir:
 
 
 
-STATIC void
+static void
 cmdputs(const char *s)
 {
 	const char *p;

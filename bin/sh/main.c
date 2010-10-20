@@ -76,8 +76,8 @@ __FBSDID("$FreeBSD$");
 int rootpid;
 int rootshell;
 
-STATIC void read_profile(const char *);
-STATIC char *find_dot_file(char *);
+static void read_profile(const char *);
+static char *find_dot_file(char *);
 
 /*
  * Main routine.  We initialize things, parse the arguments, execute
@@ -249,7 +249,7 @@ cmdloop(int top)
  * Read /etc/profile or .profile.  Return on error.
  */
 
-STATIC void
+static void
 read_profile(const char *name)
 {
 	int fd;
@@ -293,7 +293,7 @@ readcmdfile(const char *name)
  */
 
 
-STATIC char *
+static char *
 find_dot_file(char *basename)
 {
 	static char localname[FILENAME_MAX+1];
