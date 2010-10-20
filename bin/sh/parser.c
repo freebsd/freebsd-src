@@ -82,41 +82,41 @@ struct heredoc {
 
 
 
-STATIC struct heredoc *heredoclist;	/* list of here documents to read */
-STATIC int parsebackquote;	/* nonzero if we are inside backquotes */
-STATIC int doprompt;		/* if set, prompt the user */
-STATIC int needprompt;		/* true if interactive and at start of line */
-STATIC int lasttoken;		/* last token read */
+static struct heredoc *heredoclist;	/* list of here documents to read */
+static int parsebackquote;	/* nonzero if we are inside backquotes */
+static int doprompt;		/* if set, prompt the user */
+static int needprompt;		/* true if interactive and at start of line */
+static int lasttoken;		/* last token read */
 MKINIT int tokpushback;		/* last token pushed back */
-STATIC char *wordtext;		/* text of last word returned by readtoken */
+static char *wordtext;		/* text of last word returned by readtoken */
 MKINIT int checkkwd;            /* 1 == check for kwds, 2 == also eat newlines */
-STATIC struct nodelist *backquotelist;
-STATIC union node *redirnode;
-STATIC struct heredoc *heredoc;
-STATIC int quoteflag;		/* set if (part of) last token was quoted */
-STATIC int startlinno;		/* line # where last token started */
-STATIC int funclinno;		/* line # where the current function started */
+static struct nodelist *backquotelist;
+static union node *redirnode;
+static struct heredoc *heredoc;
+static int quoteflag;		/* set if (part of) last token was quoted */
+static int startlinno;		/* line # where last token started */
+static int funclinno;		/* line # where the current function started */
 
 /* XXX When 'noaliases' is set to one, no alias expansion takes place. */
 static int noaliases = 0;
 
 
-STATIC union node *list(int);
-STATIC union node *andor(void);
-STATIC union node *pipeline(void);
-STATIC union node *command(void);
-STATIC union node *simplecmd(union node **, union node *);
-STATIC union node *makename(void);
-STATIC void parsefname(void);
-STATIC void parseheredoc(void);
-STATIC int peektoken(void);
-STATIC int readtoken(void);
-STATIC int xxreadtoken(void);
-STATIC int readtoken1(int, char const *, char *, int);
-STATIC int noexpand(char *);
-STATIC void synexpect(int);
-STATIC void synerror(const char *);
-STATIC void setprompt(int);
+static union node *list(int);
+static union node *andor(void);
+static union node *pipeline(void);
+static union node *command(void);
+static union node *simplecmd(union node **, union node *);
+static union node *makename(void);
+static void parsefname(void);
+static void parseheredoc(void);
+static int peektoken(void);
+static int readtoken(void);
+static int xxreadtoken(void);
+static int readtoken1(int, char const *, char *, int);
+static int noexpand(char *);
+static void synexpect(int);
+static void synerror(const char *);
+static void setprompt(int);
 
 
 /*
@@ -146,7 +146,7 @@ parsecmd(int interact)
 }
 
 
-STATIC union node *
+static union node *
 list(int nlflag)
 {
 	union node *n1, *n2, *n3;
@@ -216,7 +216,7 @@ list(int nlflag)
 
 
 
-STATIC union node *
+static union node *
 andor(void)
 {
 	union node *n1, *n2, *n3;
@@ -243,7 +243,7 @@ andor(void)
 
 
 
-STATIC union node *
+static union node *
 pipeline(void)
 {
 	union node *n1, *n2, *pipenode;
@@ -285,7 +285,7 @@ pipeline(void)
 
 
 
-STATIC union node *
+static union node *
 command(void)
 {
 	union node *n1, *n2;
@@ -528,7 +528,7 @@ checkneg:
 }
 
 
-STATIC union node *
+static union node *
 simplecmd(union node **rpp, union node *redir)
 {
 	union node *args, **app;
@@ -606,7 +606,7 @@ checkneg:
 		return n;
 }
 
-STATIC union node *
+static union node *
 makename(void)
 {
 	union node *n;
@@ -619,7 +619,8 @@ makename(void)
 	return n;
 }
 
-void fixredir(union node *n, const char *text, int err)
+void
+fixredir(union node *n, const char *text, int err)
 {
 	TRACE(("Fix redir %s %d\n", text, err));
 	if (!err)
@@ -639,7 +640,7 @@ void fixredir(union node *n, const char *text, int err)
 }
 
 
-STATIC void
+static void
 parsefname(void)
 {
 	union node *n = redirnode;
@@ -681,7 +682,7 @@ parsefname(void)
  * Input any here documents.
  */
 
-STATIC void
+static void
 parseheredoc(void)
 {
 	struct heredoc *here;
@@ -705,7 +706,7 @@ parseheredoc(void)
 	}
 }
 
-STATIC int
+static int
 peektoken(void)
 {
 	int t;
@@ -715,7 +716,7 @@ peektoken(void)
 	return (t);
 }
 
-STATIC int
+static int
 readtoken(void)
 {
 	int t;
@@ -795,7 +796,7 @@ out:
 
 #define RETURN(token)	return lasttoken = token
 
-STATIC int
+static int
 xxreadtoken(void)
 {
 	int c;
@@ -886,7 +887,7 @@ breakloop:
 #define PARSEBACKQNEW()	{oldstyle = 0; goto parsebackq; parsebackq_newreturn:;}
 #define	PARSEARITH()	{goto parsearith; parsearith_return:;}
 
-STATIC int
+static int
 readtoken1(int firstc, char const *syntax, char *eofmark, int striptabs)
 {
 	int c = firstc;
@@ -1493,7 +1494,7 @@ RESET {
  * or backquotes).
  */
 
-STATIC int
+static int
 noexpand(char *text)
 {
 	char *p;
@@ -1539,7 +1540,7 @@ goodname(const char *name)
  * occur at this point.
  */
 
-STATIC void
+static void
 synexpect(int token)
 {
 	char msg[64];
@@ -1554,7 +1555,7 @@ synexpect(int token)
 }
 
 
-STATIC void
+static void
 synerror(const char *msg)
 {
 	if (commandname)
@@ -1563,7 +1564,7 @@ synerror(const char *msg)
 	error((char *)NULL);
 }
 
-STATIC void
+static void
 setprompt(int which)
 {
 	whichprompt = which;

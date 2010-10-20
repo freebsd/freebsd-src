@@ -75,10 +75,10 @@ __FBSDID("$FreeBSD$");
 
 
 int evalskip;			/* set if we are skipping commands */
-STATIC int skipcount;		/* number of levels to skip */
+static int skipcount;		/* number of levels to skip */
 MKINIT int loopnest;		/* current loop nesting level */
 int funcnest;			/* depth of function calls */
-STATIC int builtin_flags;	/* evalcommand flags for builtins */
+static int builtin_flags;	/* evalcommand flags for builtins */
 
 
 char *commandname;
@@ -87,14 +87,14 @@ int exitstatus;			/* exit status of last command */
 int oexitstatus;		/* saved exit status */
 
 
-STATIC void evalloop(union node *, int);
-STATIC void evalfor(union node *, int);
-STATIC void evalcase(union node *, int);
-STATIC void evalsubshell(union node *, int);
-STATIC void expredir(union node *);
-STATIC void evalpipe(union node *);
-STATIC void evalcommand(union node *, int, struct backcmd *);
-STATIC void prehash(union node *);
+static void evalloop(union node *, int);
+static void evalfor(union node *, int);
+static void evalcase(union node *, int);
+static void evalsubshell(union node *, int);
+static void expredir(union node *);
+static void evalpipe(union node *);
+static void evalcommand(union node *, int, struct backcmd *);
+static void prehash(union node *);
 
 
 /*
@@ -285,7 +285,7 @@ out:
 }
 
 
-STATIC void
+static void
 evalloop(union node *n, int flags)
 {
 	int status;
@@ -321,7 +321,7 @@ skipping:	  if (evalskip == SKIPCONT && --skipcount <= 0) {
 
 
 
-STATIC void
+static void
 evalfor(union node *n, int flags)
 {
 	struct arglist arglist;
@@ -361,7 +361,7 @@ out:
 
 
 
-STATIC void
+static void
 evalcase(union node *n, int flags)
 {
 	union node *cp;
@@ -394,7 +394,7 @@ out:
  * Kick off a subshell to evaluate a tree.
  */
 
-STATIC void
+static void
 evalsubshell(union node *n, int flags)
 {
 	struct job *jp;
@@ -420,7 +420,7 @@ evalsubshell(union node *n, int flags)
  * Compute the names of the files in a redirection list.
  */
 
-STATIC void
+static void
 expredir(union node *n)
 {
 	union node *redir;
@@ -458,7 +458,7 @@ expredir(union node *n)
  * of all the rest.)
  */
 
-STATIC void
+static void
 evalpipe(union node *n)
 {
 	struct job *jp;
@@ -571,7 +571,7 @@ out:
  * Execute a simple command.
  */
 
-STATIC void
+static void
 evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 {
 	struct stackmark smark;
@@ -926,7 +926,7 @@ out:
  * check that the name will not be subject to expansion.
  */
 
-STATIC void
+static void
 prehash(union node *n)
 {
 	struct cmdentry entry;
