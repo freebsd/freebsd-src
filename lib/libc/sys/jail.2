@@ -247,44 +247,6 @@ They return \-1 on failure, and set
 to indicate the error.
 .Pp
 .Rv -std jail_attach jail_remove
-.Sh PRISON?
-Once a process has been put in a prison, it and its descendants cannot escape
-the prison.
-.Pp
-Inside the prison, the concept of
-.Dq superuser
-is very diluted.
-In general,
-it can be assumed that nothing can be mangled from inside a prison which
-does not exist entirely inside that prison.
-For instance the directory
-tree below
-.Dq Li path
-can be manipulated all the ways a root can normally do it, including
-.Dq Li "rm -rf /*"
-but new device special nodes cannot be created because they reference
-shared resources (the device drivers in the kernel).
-The effective
-.Dq securelevel
-for a process is the greater of the global
-.Dq securelevel
-or, if present, the per-jail
-.Dq securelevel .
-.Pp
-All IP activity will be forced to happen to/from the IP number specified,
-which should be an alias on one of the network interfaces.
-All connections to/from the loopback address
-.Pf ( Li 127.0.0.1
-for IPv4,
-.Li ::1
-for IPv6) will be changed to be to/from the primary address
-of the jail for the given address family.
-.Pp
-It is possible to identify a process as jailed by examining
-.Dq Li /proc/<pid>/status :
-it will show a field near the end of the line, either as
-a single hyphen for a process at large, or the name currently
-set for the prison for jailed processes.
 .Sh ERRORS
 The
 .Fn jail
@@ -413,7 +375,7 @@ and
 .Fn jail_attach
 call
 .Xr chroot 2
-internally, so it can fail for all the same reasons.
+internally, so they can fail for all the same reasons.
 Please consult the
 .Xr chroot 2
 manual page for details.
