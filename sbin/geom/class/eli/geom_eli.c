@@ -67,6 +67,7 @@ static void eli_attach(struct gctl_req *req);
 static void eli_configure(struct gctl_req *req);
 static void eli_setkey(struct gctl_req *req);
 static void eli_delkey(struct gctl_req *req);
+static void eli_resume(struct gctl_req *req);
 static void eli_kill(struct gctl_req *req);
 static void eli_backup(struct gctl_req *req);
 static void eli_restore(struct gctl_req *req);
@@ -89,6 +90,8 @@ static int eli_backup_create(struct gctl_req *req, const char *prov,
  * configure [-bB] prov ...
  * setkey [-pPv] [-n keyno] [-j passfile] [-J newpassfile] [-k keyfile] [-K newkeyfile] prov
  * delkey [-afv] [-n keyno] prov
+ * suspend [-v] -a | prov ...
+ * resume [-pv] [-j passfile] [-k keyfile] prov
  * kill [-av] [prov ...]
  * backup [-v] prov file
  * restore [-fv] file prov
@@ -198,6 +201,22 @@ struct g_command class_commands[] = {
 	    },
 	    "[-afv] [-n keyno] prov"
 	},
+	{ "suspend", G_FLAG_VERBOSE, NULL,
+	    {
+		{ 'a', "all", NULL, G_TYPE_BOOL },
+		G_OPT_SENTINEL
+	    },
+	    "[-v] -a | prov ..."
+	},
+	{ "resume", G_FLAG_VERBOSE, eli_main,
+	    {
+		{ 'j', "passfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
+		{ 'k', "keyfile", G_VAL_OPTIONAL, G_TYPE_STRING | G_TYPE_MULTI },
+		{ 'p', "nopassphrase", NULL, G_TYPE_BOOL },
+		G_OPT_SENTINEL
+	    },
+	    "[-pv] [-j passfile] [-k keyfile] prov"
+	},
 	{ "kill", G_FLAG_VERBOSE, eli_main,
 	    {
 		{ 'a', "all", NULL, G_TYPE_BOOL },
@@ -280,6 +299,8 @@ eli_main(struct gctl_req *req, unsigned int flags)
 		eli_setkey(req);
 	else if (strcmp(name, "delkey") == 0)
 		eli_delkey(req);
+	else if (strcmp(name, "resume") == 0)
+		eli_resume(req);
 	else if (strcmp(name, "kill") == 0)
 		eli_kill(req);
 	else if (strcmp(name, "backup") == 0)
@@ -1116,6 +1137,44 @@ eli_delkey(struct gctl_req *req)
 		eli_delkey_attached(req, prov);
 	else
 		eli_delkey_detached(req, prov);
+}
+
+static void
+eli_resume(struct gctl_req *req)
+{
+	struct g_eli_metadata md;
+	unsigned char key[G_ELI_USERKEYLEN];
+	const char *prov;
+	off_t mediasize;
+	int nargs;
+
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs != 1) {
+		gctl_error(req, "Invalid number of arguments.");
+		return;
+	}
+	prov = gctl_get_ascii(req, "arg0");
+
+	if (eli_metadata_read(req, prov, &md) == -1)
+		return;
+
+	mediasize = g_get_mediasize(prov);
+	if (md.md_provsize != (uint64_t)mediasize) {
+		gctl_error(req, "Provider size mismatch.");
+		return;
+	}
+
+	if (eli_genkey(req, &md, key, false) == NULL) {
+		bzero(key, sizeof(key));
+		return;
+	}
+
+	gctl_ro_param(req, "key", sizeof(key), key);
+	if (gctl_issue(req) == NULL) {
+		if (verbose)
+			printf("Resumed %s.\n", prov);
+	}
+	bzero(key, sizeof(key));
 }
 
 static int

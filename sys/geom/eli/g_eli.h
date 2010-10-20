@@ -86,6 +86,10 @@
 #define	G_ELI_FLAG_NATIVE_BYTE_ORDER	0x00040000
 /* Provider uses single encryption key. */
 #define	G_ELI_FLAG_SINGLE_KEY		0x00080000
+/* Device suspended. */
+#define	G_ELI_FLAG_SUSPEND		0x00100000
+
+#define	G_ELI_NEW_BIO	255
 
 #define	SHA512_MDLEN		64
 #define	G_ELI_AUTH_SECKEYLEN	SHA256_DIGEST_LENGTH
@@ -140,6 +144,7 @@ struct g_eli_worker {
 	struct proc		*w_proc;
 	u_int			 w_number;
 	uint64_t		 w_sid;
+	boolean_t		 w_active;
 	LIST_ENTRY(g_eli_worker) w_next;
 };
 
@@ -160,6 +165,7 @@ struct g_eli_softc {
 	SHA256_CTX	  sc_ivctx;
 	int		  sc_nkey;
 	uint32_t	  sc_flags;
+	int		  sc_inflight;
 	off_t		  sc_mediasize;
 	size_t		  sc_sectorsize;
 	u_int		  sc_bytes_per_sector;
@@ -499,6 +505,7 @@ uint8_t *g_eli_crypto_key(struct g_eli_softc *sc, off_t offset,
 void g_eli_crypto_ivgen(struct g_eli_softc *sc, off_t offset, u_char *iv,
     size_t size);
 
+void g_eli_crypto_read(struct g_eli_softc *sc, struct bio *bp, boolean_t fromworker);
 void g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp);
 
 void g_eli_auth_read(struct g_eli_softc *sc, struct bio *bp);
