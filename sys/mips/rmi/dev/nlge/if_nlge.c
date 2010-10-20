@@ -861,7 +861,7 @@ nlge_mii_read(struct device *dev, int phyaddr, int regidx)
 	int val;
 
 	sc = device_get_softc(dev);
-	val = (sc->port_type != XLR_XGMII) ? (0xffff) :
+	val = (sc->port_type == XLR_XGMII) ? (0xffff) :
 	    nlge_mii_read_internal(sc->mii_base, phyaddr, regidx);
 
 	return (val);
