@@ -167,6 +167,14 @@ xlr_parse_mmu_options(void)
 	 */
 	xlr_ncores = 1;
 	cpu_map = xlr_boot1_info.cpu_online_map;
+
+#ifndef SMP /* Uniprocessor! */
+	if (cpu_map != 0x1) {
+		printf("WARNING: Starting uniprocessor kernel on cpumask [0x%lx]!\n"
+		   "WARNING: Other CPUs will be unused.\n", (u_long)cpu_map);
+		cpu_map = 0x1;
+	}
+#endif
 	core0_thr_mask = cpu_map & 0xf;
 	switch (core0_thr_mask) {
 	case 1:
@@ -188,9 +196,9 @@ xlr_parse_mmu_options(void)
 			xlr_ncores++;
 		}
 	}
+	xlr_hw_thread_mask = cpu_map;
 
 	/* setup hardware processor id to cpu id mapping */
-	xlr_hw_thread_mask = xlr_boot1_info.cpu_online_map;
 	for (i = 0; i< MAXCPU; i++)
 		xlr_cpuid_to_hwtid[i] = 
 		    xlr_hwtid_to_cpuid [i] = -1;
