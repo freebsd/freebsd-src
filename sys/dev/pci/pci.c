@@ -257,6 +257,12 @@ SYSCTL_INT(_hw_pci, OID_AUTO, do_power_resume, CTLFLAG_RW,
     &pci_do_power_resume, 1,
   "Transition from D3 -> D0 on resume.");
 
+int pci_do_power_suspend = 1;
+TUNABLE_INT("hw.pci.do_power_suspend", &pci_do_power_suspend);
+SYSCTL_INT(_hw_pci, OID_AUTO, do_power_suspend, CTLFLAG_RW,
+    &pci_do_power_suspend, 1,
+  "Transition from D0 -> D3 on suspend.");
+
 static int pci_do_msi = 1;
 TUNABLE_INT("hw.pci.enable_msi", &pci_do_msi);
 SYSCTL_INT(_hw_pci, OID_AUTO, enable_msi, CTLFLAG_RW, &pci_do_msi, 1,
@@ -2954,7 +2960,9 @@ pci_suspend(device_t dev)
 		free(devlist, M_TEMP);
 		return (error);
 	}
-	pci_set_power_children(dev, devlist, numdevs, PCI_POWERSTATE_D3);
+	if (pci_do_power_suspend)
+		pci_set_power_children(dev, devlist, numdevs,
+		    PCI_POWERSTATE_D3);
 	free(devlist, M_TEMP);
 	return (0);
 }
