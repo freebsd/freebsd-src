@@ -447,7 +447,7 @@ pcib_suspend(device_t dev)
 
 	pcib_cfg_save(device_get_softc(dev));
 	error = bus_generic_suspend(dev);
-	if (error == 0 && pci_do_power_resume) {
+	if (error == 0) {
 		dstate = PCI_POWERSTATE_D3;
 		pcib = device_get_parent(device_get_parent(dev));
 		if (PCIB_POWER_FOR_SLEEP(pcib, dev, &dstate) == 0)
