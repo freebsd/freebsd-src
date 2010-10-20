@@ -1,0 +1,218 @@
+/*-
+ * Copyright (c) 2010 James Gritton.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/jail.h>
+#include <sys/queue.h>
+#include <sys/time.h>
+
+#include <jail.h>
+
+#define CONF_FILE	"/etc/jail.conf"
+
+#define DEP_FROM	0
+#define DEP_TO		1
+
+#define DF_SEEN		0x01	/* Dependency has been followed */
+#define DF_LIGHT	0x02	/* Implied dependency on jail existence only */
+#define DF_NOFAIL	0x04	/* Don't propigate failed jails */
+
+#define PF_VAR		0x01	/* This is a variable, not a true parameter */
+#define PF_APPEND	0x02	/* Append to existing parameter list */
+#define PF_BAD		0x04	/* Unable to resolve parameter value */
+#define PF_INTERNAL	0x08	/* Internal parameter, not passed to kernel */
+#define PF_BOOL		0x10	/* Boolean parameter */
+#define PF_INT		0x20	/* Integer parameter */
+
+#define JF_START	0x0001	/* -c */
+#define JF_SET		0x0002	/* -m */
+#define JF_STOP		0x0004	/* -r */
+#define JF_DEPEND	0x0008	/* Operation required by dependency */
+#define JF_WILD		0x0010	/* Not specified on the command line */
+#define JF_FAILED	0x0020	/* Operation failed */
+#define JF_CHECKINT	0x0040	/* Checked internal parameters */
+#define JF_IPPARAMS	0x0080	/* Looked up jail hostname for IP_HOSTNAME */
+#define JF_RDTUN	0x0100	/* Create-only parameter check has been done */
+#define JF_IFUP		0x0200	/* IP addresses have been configured */
+#define JF_MOUNTED	0x0400	/* Filesystems have been mounted */
+#define JF_PERSIST	0x0800	/* Jail is temporarily persistent */
+#define JF_TIMEOUT	0x1000	/* A command (or process kill) timed out */
+#define JF_RUNQ		0x2000	/* Jail was in the run qeueue */
+#define JF_BACKGROUND	0x4000	/* Command was run in the background */
+
+#define JF_OP_MASK		(JF_START | JF_SET | JF_STOP)
+#define JF_RESTART		(JF_START | JF_STOP)
+#define JF_START_SET		(JF_START | JF_SET)
+#define JF_SET_RESTART		(JF_SET | JF_STOP)
+#define JF_START_SET_RESTART	(JF_START | JF_SET | JF_STOP)
+#define JF_DO_STOP(js)		(((js) & (JF_SET | JF_STOP)) == JF_STOP)
+
+enum intparam {
+	IP_ALLOW_DYING = 1,	/* Allow making changes to a dying jail */
+	IP_COMMAND,		/* Command run inside jail at creation */
+	IP_DEPEND,		/* Jail starts after (stops before) another */
+	IP_EXEC_CLEAN,		/* Run commands in a clean environment */
+	IP_EXEC_CONSOLELOG,	/* Redirect optput for commands run in jail */
+	IP_EXEC_FIB,		/* Run jailed commands with this FIB */
+	IP_EXEC_JAIL_USER,	/* Run jailed commands as this user */
+	IP_EXEC_POSTSTART,	/* Commands run outside jail after creating */
+	IP_EXEC_POSTSTOP,	/* Commands run outside jail after removing */
+	IP_EXEC_PRESTART,	/* Commands run outside jail before creating */
+	IP_EXEC_PRESTOP,	/* Commands run outside jail before removing */
+	IP_EXEC_START,		/* Commands run inside jail on creation */
+	IP_EXEC_STOP,		/* Commands run inside jail on removal */
+	IP_EXEC_SYSTEM_JAIL_USER,/* Get jail_user from system passwd file */
+	IP_EXEC_SYSTEM_USER,	/* Run non-jailed commands as this user */
+	IP_EXEC_TIMEOUT,	/* Time to wait for a command to complete */
+	IP_INTERFACE,		/* Add IP addresses to this interface */
+	IP_IP_HOSTNAME,		/* Get jail IP address(es) from hostname */
+	IP_MOUNT,		/* Mount points in fstab(5) form */
+	IP_MOUNT_FSTAB,		/* A standard fstab(5) file */
+	IP_MOUNT_DEVFS,		/* Mount /dev under prison root */
+	IP_MOUNT_DEVFS_RULESET,	/* Ruleset for the devfs mount */
+	IP_STOP_TIMEOUT,	/* Time to wait after sending SIGTERM */
+	IP__IP4_IFADDR,		/* Copy of ip4.addr with interface/netmask */
+#ifdef INET6
+	IP__IP6_IFADDR,		/* Copy of ip6.addr with interface/prefixlen */
+#endif
+	IP_VNET_INTERFACE,	/* Assign interface(s) to vnet jail */
+	KP_HOSTNAME,
+	KP_IP4_ADDR,
+#ifdef INET6
+	KP_IP6_ADDR,
+#endif
+	KP_JID,
+	KP_NAME,
+	KP_PATH,
+	KP_PERSIST,
+	KP_VNET,
+	IP_NPARAM
+};
+
+STAILQ_HEAD(cfvars, cfvar);
+
+struct cfvar {
+	STAILQ_ENTRY(cfvar)	tq;
+	char			*name;
+	size_t			pos;
+};
+
+STAILQ_HEAD(cfstrings, cfstring);
+
+struct cfstring {
+	STAILQ_ENTRY(cfstring)	tq;
+	char			*s;
+	size_t			len;
+	struct cfvars		vars;
+};
+
+TAILQ_HEAD(cfparams, cfparam);
+
+struct cfparam {
+	TAILQ_ENTRY(cfparam)	tq;
+	char			*name;
+	struct cfstrings	val;
+	unsigned		flags;
+	int			gen;
+};
+
+TAILQ_HEAD(cfjails, cfjail);
+STAILQ_HEAD(cfdepends, cfdepend);
+
+struct cfjail {
+	TAILQ_ENTRY(cfjail)	tq;
+	char			*name;
+	char			*comline;
+	struct cfparams		params;
+	struct cfdepends	dep[2];
+	struct cfjails		*queue;
+	struct cfparam		*intparams[IP_NPARAM];
+	struct cfstring		*comstring;
+	struct jailparam	*jp;
+	struct timespec		timeout;
+	enum intparam		comparam;
+	unsigned		flags;
+	int			jid;
+	int			seq;
+	int			pstatus;
+	int			ndeps;
+	int			njp;
+	int			nprocs;
+};
+
+struct cfdepend {
+	STAILQ_ENTRY(cfdepend)	tq[2];
+	struct cfjail		*j[2];
+	unsigned		flags;
+};
+
+extern void *emalloc(size_t);
+extern void *erealloc(void *, size_t);
+extern char *estrdup(const char *);
+extern void failed(struct cfjail *j);
+extern void jail_note(const struct cfjail *j, const char *fmt, ...);
+extern void jail_warnx(const struct cfjail *j, const char *fmt, ...);
+
+extern int run_command(struct cfjail *j, int *plimit, enum intparam comparam);
+extern int finish_command(struct cfjail *j, int *plimit);
+extern struct cfjail *next_proc(int nonblock);
+extern int term_procs(struct cfjail *j);
+
+extern void load_config(void);
+extern struct cfjail *add_jail(void);
+extern void add_param(struct cfjail *j, const struct cfparam *p,
+    const char *name, const char *value);
+extern void find_intparams(void);
+extern int check_intparams(struct cfjail *j);
+extern int bool_param(const struct cfparam *p);
+extern int int_param(const struct cfparam *p, int *ip);
+extern const char *string_param(const struct cfparam *p);
+extern int ip_params(struct cfjail *j);
+extern int import_params(struct cfjail *j);
+extern int equalopts(const char *opt1, const char *opt2);
+extern int wild_jail_name(const char *wname);
+extern int wild_jail_match(const char *jname, const char *wname);
+
+extern void dep_setup(int docf);
+extern int dep_check(struct cfjail *j);
+extern void dep_done(struct cfjail *j, unsigned flags);
+extern void dep_reset(struct cfjail *j);
+extern struct cfjail *next_jail(void);
+extern int start_state(const char *target, unsigned state, int running);
+extern void requeue(struct cfjail *j, struct cfjails *queue);
+
+extern void yyerror(const char *);
+extern int yylex(void);
+extern int yyparse(void);
+
+extern struct cfjails cfjails;
+extern struct cfjails ready;
+extern struct cfjails waiting;
+extern const char *cfname;
+extern int verbose;
