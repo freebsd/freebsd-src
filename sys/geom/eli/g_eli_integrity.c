@@ -392,6 +392,11 @@ g_eli_auth_read(struct g_eli_softc *sc, struct bio *bp)
 /*
  * This is the main function responsible for cryptography (ie. communication
  * with crypto(9) subsystem).
+ *
+ * BIO_READ:
+ *	g_eli_start -> g_eli_auth_read -> g_io_request -> g_eli_read_done -> G_ELI_AUTH_RUN -> g_eli_auth_read_done -> g_io_deliver
+ * BIO_WRITE:
+ *	g_eli_start -> G_ELI_AUTH_RUN -> g_eli_auth_write_done -> g_io_request -> g_eli_write_done -> g_io_deliver
  */
 void
 g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)
