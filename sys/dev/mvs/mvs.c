@@ -455,7 +455,7 @@ mvs_setup_edma_queues(device_t dev)
 	bus_dmamap_sync(ch->dma.workrq_tag, ch->dma.workrq_map,
 	    BUS_DMASYNC_PREWRITE);
 	/* Reponses queue. */
-	bzero(ch->dma.workrp, 256);
+	memset(ch->dma.workrp, 0xff, MVS_WORKRP_SIZE);
 	work = ch->dma.workrp_bus;
 	ATA_OUTL(ch->r_mem, EDMA_RESQBAH, work >> 32);
 	ATA_OUTL(ch->r_mem, EDMA_RESQIP, work & 0xffffffff);
@@ -980,38 +980,54 @@ mvs_crbq_intr(device_t dev)
 	struct mvs_channel *ch = device_get_softc(dev);
 	struct mvs_crpb *crpb;
 	union ccb *ccb;
-	int in_idx, cin_idx, slot;
+	int in_idx, fin_idx, cin_idx, slot;
+	uint32_t val;
 	uint16_t flags;
 
-	in_idx = (ATA_INL(ch->r_mem, EDMA_RESQIP) & EDMA_RESQP_ERPQP_MASK) >>
+	val = ATA_INL(ch->r_mem, EDMA_RESQIP);
+	if (val == 0)
+		val = ATA_INL(ch->r_mem, EDMA_RESQIP);
+	in_idx = (val & EDMA_RESQP_ERPQP_MASK) >>
 	    EDMA_RESQP_ERPQP_SHIFT;
 	bus_dmamap_sync(ch->dma.workrp_tag, ch->dma.workrp_map,
 	    BUS_DMASYNC_POSTREAD);
-	cin_idx = ch->in_idx;
+	fin_idx = cin_idx = ch->in_idx;
 	ch->in_idx = in_idx;
 	while (in_idx != cin_idx) {
 		crpb = (struct mvs_crpb *)
-		    (ch->dma.workrp + MVS_CRPB_OFFSET + (MVS_CRPB_SIZE * cin_idx));
+		    (ch->dma.workrp + MVS_CRPB_OFFSET +
+		    (MVS_CRPB_SIZE * cin_idx));
 		slot = le16toh(crpb->id) & MVS_CRPB_TAG_MASK;
 		flags = le16toh(crpb->rspflg);
-//device_printf(dev, "CRPB %d %d %04x\n", cin_idx, slot, flags);
 		/*
 		 * Handle only successfull completions here.
 		 * Errors will be handled by main intr handler.
 		 */
-		if (ch->numtslots != 0 || (flags & EDMA_IE_EDEVERR) == 0) {
-if ((flags >> 8) & ATA_S_ERROR)
-device_printf(dev, "ERROR STATUS CRPB %d %d %04x\n", cin_idx, slot, flags);
+		if (crpb->id == 0xffff && crpb->rspflg == 0xffff) {
+			device_printf(dev, "Unfilled CRPB "
+			    "%d (%d->%d) tag %d flags %04x rs %08x\n",
+			    cin_idx, fin_idx, in_idx, slot, flags, ch->rslots);
+		} else if (ch->numtslots != 0 ||
+		    (flags & EDMA_IE_EDEVERR) == 0) {
+			crpb->id = 0xffff;
+			crpb->rspflg = 0xffff;
 			if (ch->slot[slot].state >= MVS_SLOT_RUNNING) {
 				ccb = ch->slot[slot].ccb;
-				ccb->ataio.res.status = (flags & MVS_CRPB_ATASTS_MASK) >>
+				ccb->ataio.res.status =
+				    (flags & MVS_CRPB_ATASTS_MASK) >>
 				    MVS_CRPB_ATASTS_SHIFT;
 				mvs_end_transaction(&ch->slot[slot], MVS_ERR_NONE);
-			} else 
-device_printf(dev, "EMPTY CRPB %d (->%d) %d %04x\n", cin_idx, in_idx, slot, flags);
-		} else
-device_printf(dev, "ERROR FLAGS CRPB %d %d %04x\n", cin_idx, slot, flags);
-
+			} else {
+				device_printf(dev, "Unused tag in CRPB "
+				    "%d (%d->%d) tag %d flags %04x rs %08x\n",
+				    cin_idx, fin_idx, in_idx, slot, flags,
+				    ch->rslots);
+			}
+		} else {
+			device_printf(dev,
+			    "CRPB with error %d tag %d flags %04x\n",
+			    cin_idx, slot, flags);
+		}
 		cin_idx = (cin_idx + 1) & (MVS_MAX_SLOTS - 1);
 	}
 	bus_dmamap_sync(ch->dma.workrp_tag, ch->dma.workrp_map,
