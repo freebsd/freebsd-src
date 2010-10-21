@@ -10,9 +10,21 @@ CFLAGS+= -O1
 
 PROG=	ld
 SCRIPTDIR= /usr/libdata/ldscripts
-SRCS+=	ldcref.c ldctor.c ldemul.c ldemul-list.h ldexp.c ldfile.c \
-	ldgram.y ldlang.c ldlex.l ldmain.c ldmisc.c \
-	ldver.c ldwrite.c lexsup.c mri.c
+SRCS+=	ldcref.c \
+	ldctor.c \
+	ldemul-list.h \
+	ldemul.c \
+	ldexp.c \
+	ldfile.c \
+	ldgram.y \
+	ldlang.c \
+	ldlex.l \
+	ldmain.c \
+	ldmisc.c \
+	ldver.c \
+	ldwrite.c \
+	lexsup.c \
+	mri.c
 
 WARNS?=	0	# ldemul.h problem (`struct option' declared inside parameter list)
 CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
