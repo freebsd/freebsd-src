@@ -15,7 +15,6 @@ SRCS+=	app.c \
 	as.c \
 	atof-generic.c \
 	atof-ieee.c \
-	bignum-copy.c \
 	cond.c \
 	depend.c \
 	dw2gencfi.c \
@@ -54,8 +53,7 @@ SRCS+=	tc-i386.c
 .elif ${TARGET_ARCH} == "powerpc" || ${TARGET_ARCH} == "powerpc64"
 SRCS+=	tc-ppc.c
 .elif ${TARGET_ARCH} == "sparc64"
-# change back to tc-sparc.c when new binutils is imported
-SRCS+=	tc-sparc-fixed.c
+SRCS+=	tc-sparc.c
 .else
 SRCS+=	tc-${TARGET_ARCH}.c
 .endif
@@ -69,6 +67,7 @@ CFLAGS+= -DDEFAULT_ARCH=\"${BINUTILS_ARCH}\"
 CFLAGS+= -DTARGET_BYTES_BIG_ENDIAN=1
 .endif
 CFLAGS+= -DTARGET_CPU=\"${BINUTILS_ARCH}\"
+CFLAGS+= -DTARGET_OS=\"${TARGET_OS}\"
 CFLAGS+= -DTARGET_CANONICAL=\"${TARGET_TUPLE}\"
 CFLAGS+= -DTARGET_ALIAS=\"${TARGET_TUPLE}\"
 CFLAGS+= -DVERSION=\"${VERSION}\"
