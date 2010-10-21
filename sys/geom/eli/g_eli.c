@@ -686,14 +686,6 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 		sc->sc_bytes_per_sector =
 		    (md->md_sectorsize - 1) / sc->sc_data_per_sector + 1;
 		sc->sc_bytes_per_sector *= bpp->sectorsize;
-		/*
-		 * Precalculate SHA256 for HMAC key generation.
-		 * This is expensive operation and we can do it only once now or
-		 * for every access to sector, so now will be much better.
-		 */
-		SHA256_Init(&sc->sc_akeyctx);
-		SHA256_Update(&sc->sc_akeyctx, sc->sc_akey,
-		    sizeof(sc->sc_akey));
 	}
 
 	gp->softc = sc;
@@ -753,7 +745,16 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	 */
 	g_eli_mkey_propagate(sc, mkey);
 	sc->sc_ekeylen = md->md_keylen;
-
+	if (sc->sc_flags & G_ELI_FLAG_AUTH) {
+		/*
+		 * Precalculate SHA256 for HMAC key generation.
+		 * This is expensive operation and we can do it only once now or
+		 * for every access to sector, so now will be much better.
+		 */
+		SHA256_Init(&sc->sc_akeyctx);
+		SHA256_Update(&sc->sc_akeyctx, sc->sc_akey,
+		    sizeof(sc->sc_akey));
+	}
 	/*
 	 * Precalculate SHA256 for IV generation.
 	 * This is expensive operation and we can do it only once now or for
