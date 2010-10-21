@@ -11,6 +11,8 @@ SRCS+=	aout32.c	\
 	elf64-sparc.c	\
 	elf64-target.h	\
 	elflink.c	\
+	elfxx-sparc.c	\
+	elfxx-sparc.h	\
 	sparcnetbsd.c	\
 	sunos.c
 
