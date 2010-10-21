@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2004 Robert N. M. Watson
+ * Copyright (c) 2003-2004, 2010 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,26 +27,48 @@
  */
 
 #include <sys/types.h>
+#include <sys/mman.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/wait.h>
 
 #include <assert.h>
+#include <err.h>
+#include <fcntl.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#define timespecsub(vvp, uvp)                                           \
-        do {                                                            \
-                (vvp)->tv_sec -= (uvp)->tv_sec;                         \
-                (vvp)->tv_nsec -= (uvp)->tv_nsec;                       \
-                if ((vvp)->tv_nsec < 0) {                               \
-                        (vvp)->tv_sec--;                                \
-                        (vvp)->tv_nsec += 1000000000;                   \
-                }                                                       \
-        } while (0)
+static struct timespec ts_start, ts_end;
 
-inline void
+#define timespecsub(vvp, uvp)						\
+	do {								\
+		(vvp)->tv_sec -= (uvp)->tv_sec;				\
+		(vvp)->tv_nsec -= (uvp)->tv_nsec;			\
+		if ((vvp)->tv_nsec < 0) {				\
+			(vvp)->tv_sec--;				\
+			(vvp)->tv_nsec += 1000000000;			\
+		}							\
+	} while (0)
+
+static void
+benchmark_start(void)
+{
+
+	assert(clock_gettime(CLOCK_REALTIME, &ts_start) == 0);
+}
+
+static void
+benchmark_stop(void)
+{
+
+	assert(clock_gettime(CLOCK_REALTIME, &ts_end) == 0);
+}
+  
+void
 test_getuid(int num)
 {
 	int i;
@@ -55,11 +77,13 @@ test_getuid(int num)
 	 * Thread-local data should require no locking if system
 	 * call is MPSAFE.
 	 */
+	benchmark_start();
 	for (i = 0; i < num; i++)
 		getuid();
+	benchmark_stop();
 }
 
-inline void
+void
 test_getppid(int num)
 {
 	int i;
@@ -68,28 +92,28 @@ test_getppid(int num)
 	 * This is process-local, but can change, so will require a
 	 * lock.
 	 */
+	benchmark_start();
 	for (i = 0; i < num; i++)
 		getppid();
+	benchmark_stop();
 }
 
-inline void
+void
 test_clock_gettime(int num)
 {
 	struct timespec ts;
 	int i;
 
-	for (i = 0; i < num; i++) {
-		if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
-			perror("clock_gettime");
-			exit(-1);
-		}
-	}
+	benchmark_start();
+	for (i = 0; i < num; i++)
+		(void)clock_gettime(CLOCK_REALTIME, &ts);
+	benchmark_stop();
 }
 
-inline void
+void
 test_pipe(int num)
 {
-	int i;
+	int fd[2], i;
 
 	/*
 	 * pipe creation is expensive, as it will allocate a new file
@@ -97,153 +121,397 @@ test_pipe(int num)
 	 * Destroying is also expensive, as we now have to free up
 	 * the file descriptors and return the pipe.
 	 */
+	if (pipe(fd) < 0)
+		err(-1, "test_pipe: pipe");
+	close(fd[0]);
+	close(fd[1]);
+	benchmark_start();
 	for (i = 0; i < num; i++) {
-		int fd[2];
-		if (pipe(fd) == -1) {
-			perror("pipe");
-			exit(-1);
-		}
-
+		if (pipe(fd) == -1)
+			err(-1, "test_pipe: pipe");
 		close(fd[0]);
 		close(fd[1]);
 	}
+	benchmark_stop();
 }
 
-inline void
+void
 test_socket_stream(int num)
 {
 	int i, so;
 
+	so = socket(PF_LOCAL, SOCK_STREAM, 0);
+	if (so < 0)
+		err(-1, "test_socket_stream: socket");
+	close(so);
+	benchmark_start();
 	for (i = 0; i < num; i++) {
 		so = socket(PF_LOCAL, SOCK_STREAM, 0);
-		if (so == -1) {
-			perror("socket_stream");
-			exit(-1);
-		}
+		if (so == -1)
+			err(-1, "test_socket_stream: socket");
 		close(so);
 	}
+	benchmark_stop();
 }
 
-inline void
+void
 test_socket_dgram(int num)
 {
 	int i, so;
 
+	so = socket(PF_LOCAL, SOCK_DGRAM, 0);
+	if (so < 0)
+		err(-1, "test_socket_dgram: socket");
+	close(so);
+	benchmark_start();
 	for (i = 0; i < num; i++) {
 		so = socket(PF_LOCAL, SOCK_DGRAM, 0);
-		if (so == -1) {
-			perror("socket_dgram");
-			exit(-1);
-		}
+		if (so == -1)
+			err(-1, "test_socket_dgram: socket");
 		close(so);
 	}
+	benchmark_stop();
 }
 
-inline void
+void
 test_socketpair_stream(int num)
 {
 	int i, so[2];
 
+	if (socketpair(PF_LOCAL, SOCK_STREAM, 0, so) == -1)
+		err(-1, "test_socketpair_stream: socketpair");
+	close(so[0]);
+	close(so[1]);
+	benchmark_start();
 	for (i = 0; i < num; i++) {
-		if (socketpair(PF_LOCAL, SOCK_STREAM, 0, so) == -1) {
-			perror("socketpair_stream");
-			exit(-1);
-		}
+		if (socketpair(PF_LOCAL, SOCK_STREAM, 0, so) == -1)
+			err(-1, "test_socketpair_stream: socketpair");
 		close(so[0]);
 		close(so[1]);
 	}
+	benchmark_stop();
 }
 
-inline void
+void
 test_socketpair_dgram(int num)
 {
 	int i, so[2];
 
+	if (socketpair(PF_LOCAL, SOCK_DGRAM, 0, so) == -1)
+		err(-1, "test_socketpair_dgram: socketpair");
+	close(so[0]);
+	close(so[1]);
+	benchmark_start();
 	for (i = 0; i < num; i++) {
-		if (socketpair(PF_LOCAL, SOCK_DGRAM, 0, so) == -1) {
-			perror("socketpair_dgram");
-			exit(-1);
-		}
+		if (socketpair(PF_LOCAL, SOCK_DGRAM, 0, so) == -1)
+			err(-1, "test_socketpair_dgram: socketpair");
 		close(so[0]);
 		close(so[1]);
 	}
+	benchmark_stop();
 }
+
+void
+test_dup(int num)
+{
+	int fd, i, shmfd;
+
+	shmfd = shm_open(SHM_ANON, O_CREAT | O_RDWR, 0600);
+	if (shmfd < 0)
+		err(-1, "test_dup: shm_open");
+	fd = dup(shmfd);
+	if (fd >= 0)
+		close(fd);
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		fd = dup(shmfd);
+		if (fd >= 0)
+			close(fd);
+	}
+	benchmark_stop();
+	close(shmfd);
+}
+
+void
+test_shmfd(int num)
+{
+	int i, shmfd;
+
+	shmfd = shm_open(SHM_ANON, O_CREAT | O_RDWR, 0600);
+	if (shmfd < 0)
+		err(-1, "test_shmfd: shm_open");
+	close(shmfd);
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		shmfd = shm_open(SHM_ANON, O_CREAT | O_RDWR, 0600);
+		if (shmfd < 0)
+			err(-1, "test_shmfd: shm_open");
+		close(shmfd);
+	}
+	benchmark_stop();
+}
+
+void
+test_fstat_shmfd(int num)
+{
+	struct stat sb;
+	int i, shmfd;
+
+	shmfd = shm_open(SHM_ANON, O_CREAT | O_RDWR, 0600);
+	if (shmfd < 0)
+		err(-1, "test_fstat_shmfd: shm_open");
+	if (fstat(shmfd, &sb) < 0)
+		err(-1, "test_fstat_shmfd: fstat");
+	benchmark_start();
+	for (i = 0; i < num; i++)
+		(void)fstat(shmfd, &sb);
+	benchmark_stop();
+	close(shmfd);
+}
+
+void
+test_fork(int num)
+{
+	pid_t pid;
+	int i;
+
+	pid = fork();
+	if (pid < 0)
+		err(-1, "test_fork: fork");
+	if (pid == 0)
+		_exit(0);
+	if (waitpid(pid, NULL, 0) < 0)
+		err(-1, "test_fork: waitpid");
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		pid = fork();
+		if (pid < 0)
+			err(-1, "test_fork: fork");
+		if (pid == 0)
+			_exit(0);
+		if (waitpid(pid, NULL, 0) < 0)
+			err(-1, "test_fork: waitpid");
+	}
+	benchmark_stop();
+}
+
+void
+test_vfork(int num)
+{
+	pid_t pid;
+	int i;
+
+	pid = vfork();
+	if (pid < 0)
+		err(-1, "test_vfork: vfork");
+	if (pid == 0)
+		_exit(0);
+	if (waitpid(pid, NULL, 0) < 0)
+		err(-1, "test_vfork: waitpid");
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		pid = vfork();
+		if (pid < 0)
+			err(-1, "test_vfork: vfork");
+		if (pid == 0)
+			_exit(0);
+		if (waitpid(pid, NULL, 0) < 0)
+			err(-1, "test_vfork: waitpid");
+	}
+	benchmark_stop();
+}
+
+#define	USR_BIN_TRUE	"/usr/bin/true"
+static char *execve_args[] = { USR_BIN_TRUE, NULL};
+extern char **environ;
+
+void
+test_fork_exec(int num)
+{
+	pid_t pid;
+	int i;
+
+	pid = fork();
+	if (pid < 0)
+		err(-1, "test_fork_exec: fork");
+	if (pid == 0) {
+		(void)execve(USR_BIN_TRUE, execve_args, environ);
+		err(-1, "execve");
+	}
+	if (waitpid(pid, NULL, 0) < 0)
+		err(-1, "test_fork: waitpid");
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		pid = fork();
+		if (pid < 0)
+			err(-1, "test_fork_exec: fork");
+		if (pid == 0) {
+			(void)execve(USR_BIN_TRUE, execve_args, environ);
+			err(-1, "test_fork_exec: execve");
+		}
+		if (waitpid(pid, NULL, 0) < 0)
+			err(-1, "test_fork_exec: waitpid");
+	}
+	benchmark_stop();
+}
+
+void
+test_vfork_exec(int num)
+{
+	pid_t pid;
+	int i;
+
+	pid = vfork();
+	if (pid < 0)
+		err(-1, "test_vfork_exec: vfork");
+	if (pid == 0) {
+		(void)execve(USR_BIN_TRUE, execve_args, environ);
+		err(-1, "test_vfork_exec: execve");
+	}
+	if (waitpid(pid, NULL, 0) < 0)
+		err(-1, "test_vfork_exec: waitpid");
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		pid = vfork();
+		if (pid < 0)
+			err(-1, "test_vfork_exec: vfork");
+		if (pid == 0) {
+			(void)execve(USR_BIN_TRUE, execve_args, environ);
+			err(-1, "execve");
+		}
+		if (waitpid(pid, NULL, 0) < 0)
+			err(-1, "test_vfork_exec: waitpid");
+	}
+	benchmark_stop();
+}
+
+void
+test_chroot(int num)
+{
+	int i;
+
+	if (chroot("/") < 0)
+		err(-1, "test_chroot: chroot");
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		if (chroot("/") < 0)
+			err(-1, "test_chroot: chroot");
+	}
+	benchmark_stop();
+}
+
+void
+test_setuid(int num)
+{
+	uid_t uid;
+	int i;
+
+	uid = getuid();
+	if (setuid(uid) < 0)
+		err(-1, "test_setuid: setuid");
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		if (setuid(uid) < 0)
+			err(-1, "test_setuid: setuid");
+	}
+	benchmark_stop();
+}
+
+struct test {
+	const char	*t_name;
+	void		(*t_func)(int);
+};
+
+static const struct test tests[] = {
+	{ "getuid", test_getuid },
+	{ "getppid", test_getppid },
+	{ "clock_gettime", test_clock_gettime },
+	{ "pipe", test_pipe },
+	{ "socket_stream", test_socket_stream },
+	{ "socket_dgram", test_socket_dgram },
+	{ "socketpair_stream", test_socketpair_stream },
+	{ "socketpair_dgram", test_socketpair_dgram },
+	{ "dup", test_dup },
+	{ "shmfd", test_shmfd },
+	{ "fstat_shmfd", test_fstat_shmfd },
+	{ "fork", test_fork },
+	{ "vfork", test_vfork },
+	{ "fork_exec", test_fork_exec },
+	{ "vfork_exec", test_vfork_exec },
+	{ "chroot", test_chroot },
+	{ "setuid", test_setuid },
+};
+static const int tests_count = sizeof(tests) / sizeof(tests[0]);
 
 static void
 usage(void)
 {
+	int i;
 
-	fprintf(stderr, "syscall_timing [iterations] [test]\n");
-	fprintf(stderr,
-	    "supported tests: getuid getppid clock_gettime pipe\n"
-	    "socket_stream socket_dgram socketpair_stream\n"
-	    "socketpair_dgram\n");
+	fprintf(stderr, "syscall_timing [iterations] [loops] [test]\n");
+	for (i = 0; i < tests_count; i++)
+		fprintf(stderr, "  %s\n", tests[i].t_name);
 	exit(-1);
 }
 
 int
 main(int argc, char *argv[])
 {
-	struct timespec ts_start, ts_end, ts_res;
-	int count;
+	struct timespec ts_res;
+	const struct test *the_test;
+	long long ll;
+	char *endp;
+	int i, j, k;
+	int iterations, loops;
 
-	if (argc != 3)
+	if (argc < 4)
 		usage();
-	count = atoi(argv[1]);
+
+	ll = strtoll(argv[1], &endp, 10);
+	if (*endp != 0 || ll < 0 || ll > 100000)
+		usage();
+	iterations = ll;
+
+	ll = strtoll(argv[2], &endp, 10);
+	if (*endp != 0 || ll < 0 || ll > 100000)
+		usage();
+	loops = ll;
 
 	assert(clock_getres(CLOCK_REALTIME, &ts_res) == 0);
-	printf("Clock resolution: %d.%09lu\n", ts_res.tv_sec, ts_res.tv_nsec);
+	printf("Clock resolution: %ju.%ju\n", (uintmax_t)ts_res.tv_sec,
+	    (uintmax_t)ts_res.tv_nsec);
+	printf("test\tloop\ttotal\titerations\tperiteration\n");
 
-	if (strcmp(argv[2], "getuid") == 0) {
-		assert(clock_gettime(CLOCK_REALTIME, &ts_start) == 0);
-		test_getuid(count);
-		assert(clock_gettime(CLOCK_REALTIME, &ts_end) == 0);
-	} else if (strcmp(argv[2], "getppid") == 0) {
-		assert(clock_gettime(CLOCK_REALTIME, &ts_start) == 0);
-		test_getppid(count);
-		assert(clock_gettime(CLOCK_REALTIME, &ts_end) == 0);
-	} else if (strcmp(argv[2], "clock_gettime") == 0) {
-		assert(clock_gettime(CLOCK_REALTIME, &ts_start) == 0);
-		test_clock_gettime(count);
-		assert(clock_gettime(CLOCK_REALTIME, &ts_end) == 0);
-	} else if (strcmp(argv[2], "pipe") == 0) {
-		assert(clock_gettime(CLOCK_REALTIME, &ts_start) == 0);
-		test_pipe(count);
-		assert(clock_gettime(CLOCK_REALTIME, &ts_end) == 0);
-	} else if (strcmp(argv[2], "socket_stream") == 0) {
-		assert(clock_gettime(CLOCK_REALTIME, &ts_start) == 0);
-		test_socket_stream(count);
-		assert(clock_gettime(CLOCK_REALTIME, &ts_end) == 0);
-	} else if (strcmp(argv[2], "socket_dgram") == 0) {
-		assert(clock_gettime(CLOCK_REALTIME, &ts_start) == 0);
-		test_socket_dgram(count);
-		assert(clock_gettime(CLOCK_REALTIME, &ts_end) == 0);
-	} else if (strcmp(argv[2], "socketpair_stream") == 0) {
-		assert(clock_gettime(CLOCK_REALTIME, &ts_start) == 0);
-		test_socketpair_stream(count);
-		assert(clock_gettime(CLOCK_REALTIME, &ts_end) == 0);
-	} else if (strcmp(argv[2], "socketpair_dgram") == 0) {
-		assert(clock_gettime(CLOCK_REALTIME, &ts_start) == 0);
-		test_socketpair_dgram(count);
-		assert(clock_gettime(CLOCK_REALTIME, &ts_end) == 0);
-	 } else
-		usage();
+	for (j = 3; j < argc; j++) {
+		the_test = NULL;
+		for (i = 0; i < tests_count; i++) {
+			if (strcmp(argv[j], tests[i].t_name) == 0)
+				the_test = &tests[i];
+		}
+		if (the_test == NULL)
+			usage();
 
-	timespecsub(&ts_end, &ts_start);
+		/*
+		 * Run one warmup, then do the real thing (loops) times.
+		 */
+		the_test->t_func(iterations);
+		for (k = 0; k < loops; k++) {
+			the_test->t_func(iterations);
+			timespecsub(&ts_end, &ts_start);
+			printf("%s\t%d\t", the_test->t_name, k);
+			printf("%ju.%09ju\t%d\t", (uintmax_t)ts_end.tv_sec,
+			    (uintmax_t)ts_end.tv_nsec, iterations);
 
-	printf("test: %s\n", argv[2]);
-
-	printf("%d.%09lu for %d iterations\n", ts_end.tv_sec,
-	    ts_end.tv_nsec, count);
-
-	/*
-	 * Note.  This assumes that each iteration takes less than
-	 * a second, and that our total nanoseconds doesn't exceed
-	 * the room in our arithmetic unit.  Fine for system calls,
-	 * but not for long things.
-	 */
-	ts_end.tv_sec *= 1000000000 / count;
-	printf("0.%09lu per/iteration\n", 
-	    ts_end.tv_sec + ts_end.tv_nsec / count);
+		/*
+		 * Note.  This assumes that each iteration takes less than
+		 * a second, and that our total nanoseconds doesn't exceed
+		 * the room in our arithmetic unit.  Fine for system calls,
+		 * but not for long things.
+		 */
+			ts_end.tv_sec *= 1000000000 / iterations;
+			printf("0.%09ju\n", (uintmax_t)(ts_end.tv_sec +
+			    ts_end.tv_nsec / iterations));
+		}
+	}
 	return (0);
 }
