@@ -5,11 +5,41 @@
 .PATH: ${SRCDIR}/bfd ${SRCDIR}/opcodes
 
 LIB=	bfd
-SRCS+=	archive.c archive64.c archures.c bfd.c bfdwin.c binary.c cache.c \
-	coffgen.c corefile.c elf.c elf-eh-frame.c elf-strtab.c format.c \
-	hash.c ihex.c init.c libbfd.c linker.c merge.c opncls.c reloc.c \
-	section.c srec.c stab-syms.c stabs.c syms.c targets.c tekhex.c \
-	targmatch.h dwarf1.c dwarf2.c config.h bfdver.h bfdio.c simple.c
+SRCS+=	archive.c \
+	archive64.c \
+	archures.c \
+	bfd.c \
+	bfdio.c \
+	bfdver.h \
+	bfdwin.c \
+	binary.c \
+	cache.c \
+	coffgen.c \
+	config.h \
+	corefile.c \
+	dwarf1.c \
+	dwarf2.c \
+	elf-eh-frame.c \
+	elf-strtab.c \
+	elf.c \
+	format.c \
+	hash.c \
+	ihex.c \
+	init.c \
+	libbfd.c \
+	linker.c \
+	merge.c \
+	opncls.c \
+	reloc.c \
+	section.c \
+	simple.c \
+	srec.c \
+	stab-syms.c \
+	stabs.c \
+	syms.c \
+	targets.c \
+	targmatch.h \
+	tekhex.c
 WARNS?=	0
 .if (${TARGET_ARCH} == "ia64" || ${TARGET_ARCH} == "sparc64")
 WARNS?=	2
