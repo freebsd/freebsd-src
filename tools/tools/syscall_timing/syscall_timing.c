@@ -671,11 +671,12 @@ main(int argc, char *argv[])
 		/*
 		 * Run one warmup, then do the real thing (loops) times.
 		 */
-		calls = the_test->t_func(iterations, the_test->t_int,
+		the_test->t_func(iterations, the_test->t_int,
 		    the_test->t_string);
+		calls = 0;
 		for (k = 0; k < loops; k++) {
-			the_test->t_func(iterations, the_test->t_int,
-		    the_test->t_string);
+			calls = the_test->t_func(iterations,
+			    the_test->t_int, the_test->t_string);
 			timespecsub(&ts_end, &ts_start);
 			printf("%s\t%d\t", the_test->t_name, k);
 			printf("%ju.%09ju\t%d\t", (uintmax_t)ts_end.tv_sec,
