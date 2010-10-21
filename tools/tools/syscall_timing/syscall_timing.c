@@ -37,12 +37,16 @@
 #include <err.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <limits.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 static struct timespec ts_start, ts_end;
+static int alarm_timeout;
+static volatile int alarm_fired;
 
 #define timespecsub(vvp, uvp)						\
 	do {								\
@@ -55,9 +59,21 @@ static struct timespec ts_start, ts_end;
 	} while (0)
 
 static void
+alarm_handler(int signum)
+{
+
+	alarm_fired = 1;
+}
+
+static void
 benchmark_start(void)
 {
 
+	alarm_fired = 0;
+	if (alarm_timeout) {
+		signal(SIGALRM, alarm_handler);
+		alarm(alarm_timeout);
+	}
 	assert(clock_gettime(CLOCK_REALTIME, &ts_start) == 0);
 }
 
@@ -68,50 +84,62 @@ benchmark_stop(void)
 	assert(clock_gettime(CLOCK_REALTIME, &ts_end) == 0);
 }
   
-void
-test_getuid(int num)
+uint64_t
+test_getuid(uint64_t num, uint64_t int_arg, const char *string_arg)
 {
-	int i;
+	uint64_t i;
 
 	/*
 	 * Thread-local data should require no locking if system
 	 * call is MPSAFE.
 	 */
 	benchmark_start();
-	for (i = 0; i < num; i++)
+	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
 		getuid();
+	}
 	benchmark_stop();
+	return (i);
 }
 
-void
-test_getppid(int num)
+uint64_t
+test_getppid(uint64_t num, uint64_t int_arg, const char *string_arg)
 {
-	int i;
+	uint64_t i;
 
 	/*
 	 * This is process-local, but can change, so will require a
 	 * lock.
 	 */
 	benchmark_start();
-	for (i = 0; i < num; i++)
+	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
 		getppid();
+	}
 	benchmark_stop();
+	return (i);
 }
 
-void
-test_clock_gettime(int num)
+uint64_t
+test_clock_gettime(uint64_t num, uint64_t int_arg, const char *string_arg)
 {
 	struct timespec ts;
-	int i;
+	uint64_t i;
 
 	benchmark_start();
-	for (i = 0; i < num; i++)
+	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
 		(void)clock_gettime(CLOCK_REALTIME, &ts);
+	}
 	benchmark_stop();
+	return (i);
 }
 
-void
-test_pipe(int num)
+uint64_t
+test_pipe(uint64_t num, uint64_t int_arg, const char *string_arg)
 {
 	int fd[2], i;
 
@@ -127,56 +155,66 @@ test_pipe(int num)
 	close(fd[1]);
 	benchmark_start();
 	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
 		if (pipe(fd) == -1)
 			err(-1, "test_pipe: pipe");
 		close(fd[0]);
 		close(fd[1]);
 	}
 	benchmark_stop();
+	return (i);
 }
 
-void
-test_socket_stream(int num)
+uint64_t
+test_socket_stream(uint64_t num, uint64_t int_arg, const char *string_arg)
 {
-	int i, so;
+	uint64_t i, so;
 
-	so = socket(PF_LOCAL, SOCK_STREAM, 0);
+	so = socket(int_arg, SOCK_STREAM, 0);
 	if (so < 0)
 		err(-1, "test_socket_stream: socket");
 	close(so);
 	benchmark_start();
 	for (i = 0; i < num; i++) {
-		so = socket(PF_LOCAL, SOCK_STREAM, 0);
+		if (alarm_fired)
+			break;
+		so = socket(int_arg, SOCK_STREAM, 0);
 		if (so == -1)
 			err(-1, "test_socket_stream: socket");
 		close(so);
 	}
 	benchmark_stop();
+	return (i);
 }
 
-void
-test_socket_dgram(int num)
+uint64_t
+test_socket_dgram(uint64_t num, uint64_t int_arg, const char *string_arg)
 {
-	int i, so;
+	uint64_t i, so;
 
-	so = socket(PF_LOCAL, SOCK_DGRAM, 0);
+	so = socket(int_arg, SOCK_DGRAM, 0);
 	if (so < 0)
 		err(-1, "test_socket_dgram: socket");
 	close(so);
 	benchmark_start();
 	for (i = 0; i < num; i++) {
-		so = socket(PF_LOCAL, SOCK_DGRAM, 0);
+		if (alarm_fired)
+			break;
+		so = socket(int_arg, SOCK_DGRAM, 0);
 		if (so == -1)
 			err(-1, "test_socket_dgram: socket");
 		close(so);
 	}
 	benchmark_stop();
+	return (i);
 }
 
-void
-test_socketpair_stream(int num)
+uint64_t
+test_socketpair_stream(uint64_t num, uint64_t int_arg, const char *string_arg)
 {
-	int i, so[2];
+	uint64_t i;
+	int so[2];
 
 	if (socketpair(PF_LOCAL, SOCK_STREAM, 0, so) == -1)
 		err(-1, "test_socketpair_stream: socketpair");
@@ -184,18 +222,22 @@ test_socketpair_stream(int num)
 	close(so[1]);
 	benchmark_start();
 	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
 		if (socketpair(PF_LOCAL, SOCK_STREAM, 0, so) == -1)
 			err(-1, "test_socketpair_stream: socketpair");
 		close(so[0]);
 		close(so[1]);
 	}
 	benchmark_stop();
+	return (i);
 }
 
-void
-test_socketpair_dgram(int num)
+uint64_t
+test_socketpair_dgram(uint64_t num, uint64_t int_arg, const char *string_arg)
 {
-	int i, so[2];
+	uint64_t i;
+	int so[2];
 
 	if (socketpair(PF_LOCAL, SOCK_DGRAM, 0, so) == -1)
 		err(-1, "test_socketpair_dgram: socketpair");
@@ -203,16 +245,71 @@ test_socketpair_dgram(int num)
 	close(so[1]);
 	benchmark_start();
 	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
 		if (socketpair(PF_LOCAL, SOCK_DGRAM, 0, so) == -1)
 			err(-1, "test_socketpair_dgram: socketpair");
 		close(so[0]);
 		close(so[1]);
 	}
 	benchmark_stop();
+	return (i);
 }
 
-void
-test_dup(int num)
+uint64_t
+test_open_close(uint64_t num, uint64_t int_arg, const char *string_arg)
+{
+	const char *path = string_arg;
+	uint64_t i;
+	int fd;
+
+	fd = open(path, O_RDONLY);
+	if (fd < 0)
+		err(-1, "test_open_close: %s", path);
+	close(fd);
+
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
+		fd = open(path, O_RDONLY);
+		if (fd < 0)
+			err(-1, "test_open_close: %s", path);
+		close(fd);
+	}
+	benchmark_stop();
+	return (i);
+}
+
+uint64_t
+test_open_read_close(uint64_t num, uint64_t int_arg, const char *string_arg)
+{
+	char buf[int_arg];
+	uint64_t i;
+	int fd;
+
+	fd = open(string_arg, O_RDONLY);
+	if (fd < 0)
+		err(-1, "test_open_close: %s", string_arg);
+	(void)read(fd, buf, int_arg);
+	close(fd);
+
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
+		fd = open(string_arg, O_RDONLY);
+		if (fd < 0)
+			err(-1, "test_open_close: %s", string_arg);
+		(void)read(fd, buf, int_arg);
+		close(fd);
+	}
+	benchmark_stop();
+	return (i);
+}
+
+uint64_t
+test_dup(uint64_t num, uint64_t int_arg, const char *string_arg)
 {
 	int fd, i, shmfd;
 
@@ -224,18 +321,21 @@ test_dup(int num)
 		close(fd);
 	benchmark_start();
 	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
 		fd = dup(shmfd);
 		if (fd >= 0)
 			close(fd);
 	}
 	benchmark_stop();
 	close(shmfd);
+	return (i);
 }
 
-void
-test_shmfd(int num)
+uint64_t
+test_shmfd(uint64_t num, uint64_t int_arg, const char *string_arg)
 {
-	int i, shmfd;
+	uint64_t i, shmfd;
 
 	shmfd = shm_open(SHM_ANON, O_CREAT | O_RDWR, 0600);
 	if (shmfd < 0)
@@ -243,19 +343,22 @@ test_shmfd(int num)
 	close(shmfd);
 	benchmark_start();
 	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
 		shmfd = shm_open(SHM_ANON, O_CREAT | O_RDWR, 0600);
 		if (shmfd < 0)
 			err(-1, "test_shmfd: shm_open");
 		close(shmfd);
 	}
 	benchmark_stop();
+	return (i);
 }
 
-void
-test_fstat_shmfd(int num)
+uint64_t
+test_fstat_shmfd(uint64_t num, uint64_t int_arg, const char *string_arg)
 {
 	struct stat sb;
-	int i, shmfd;
+	uint64_t i, shmfd;
 
 	shmfd = shm_open(SHM_ANON, O_CREAT | O_RDWR, 0600);
 	if (shmfd < 0)
@@ -263,17 +366,21 @@ test_fstat_shmfd(int num)
 	if (fstat(shmfd, &sb) < 0)
 		err(-1, "test_fstat_shmfd: fstat");
 	benchmark_start();
-	for (i = 0; i < num; i++)
+	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
 		(void)fstat(shmfd, &sb);
+	}
 	benchmark_stop();
 	close(shmfd);
+	return (i);
 }
 
-void
-test_fork(int num)
+uint64_t
+test_fork(uint64_t num, uint64_t int_arg, const char *string_arg)
 {
 	pid_t pid;
-	int i;
+	uint64_t i;
 
 	pid = fork();
 	if (pid < 0)
@@ -284,6 +391,8 @@ test_fork(int num)
 		err(-1, "test_fork: waitpid");
 	benchmark_start();
 	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
 		pid = fork();
 		if (pid < 0)
 			err(-1, "test_fork: fork");
@@ -293,13 +402,14 @@ test_fork(int num)
 			err(-1, "test_fork: waitpid");
 	}
 	benchmark_stop();
+	return (i);
 }
 
-void
-test_vfork(int num)
+uint64_t
+test_vfork(uint64_t num, uint64_t int_arg, const char *string_arg)
 {
 	pid_t pid;
-	int i;
+	uint64_t i;
 
 	pid = vfork();
 	if (pid < 0)
@@ -310,6 +420,8 @@ test_vfork(int num)
 		err(-1, "test_vfork: waitpid");
 	benchmark_start();
 	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
 		pid = vfork();
 		if (pid < 0)
 			err(-1, "test_vfork: vfork");
@@ -319,17 +431,18 @@ test_vfork(int num)
 			err(-1, "test_vfork: waitpid");
 	}
 	benchmark_stop();
+	return (i);
 }
 
 #define	USR_BIN_TRUE	"/usr/bin/true"
 static char *execve_args[] = { USR_BIN_TRUE, NULL};
 extern char **environ;
 
-void
-test_fork_exec(int num)
+uint64_t
+test_fork_exec(uint64_t num, uint64_t int_arg, const char *string_arg)
 {
 	pid_t pid;
-	int i;
+	uint64_t i;
 
 	pid = fork();
 	if (pid < 0)
@@ -342,6 +455,8 @@ test_fork_exec(int num)
 		err(-1, "test_fork: waitpid");
 	benchmark_start();
 	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
 		pid = fork();
 		if (pid < 0)
 			err(-1, "test_fork_exec: fork");
@@ -353,13 +468,14 @@ test_fork_exec(int num)
 			err(-1, "test_fork_exec: waitpid");
 	}
 	benchmark_stop();
+	return (i);
 }
 
-void
-test_vfork_exec(int num)
+uint64_t
+test_vfork_exec(uint64_t num, uint64_t int_arg, const char *string_arg)
 {
 	pid_t pid;
-	int i;
+	uint64_t i;
 
 	pid = vfork();
 	if (pid < 0)
@@ -372,6 +488,8 @@ test_vfork_exec(int num)
 		err(-1, "test_vfork_exec: waitpid");
 	benchmark_start();
 	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
 		pid = vfork();
 		if (pid < 0)
 			err(-1, "test_vfork_exec: vfork");
@@ -383,43 +501,52 @@ test_vfork_exec(int num)
 			err(-1, "test_vfork_exec: waitpid");
 	}
 	benchmark_stop();
+	return (i);
 }
 
-void
-test_chroot(int num)
+uint64_t
+test_chroot(uint64_t num, uint64_t int_arg, const char *string_arg)
 {
-	int i;
+	uint64_t i;
 
 	if (chroot("/") < 0)
 		err(-1, "test_chroot: chroot");
 	benchmark_start();
 	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
 		if (chroot("/") < 0)
 			err(-1, "test_chroot: chroot");
 	}
 	benchmark_stop();
+	return (i);
 }
 
-void
-test_setuid(int num)
+uint64_t
+test_setuid(uint64_t num, uint64_t int_arg, const char *string_arg)
 {
 	uid_t uid;
-	int i;
+	uint64_t i;
 
 	uid = getuid();
 	if (setuid(uid) < 0)
 		err(-1, "test_setuid: setuid");
 	benchmark_start();
 	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
 		if (setuid(uid) < 0)
 			err(-1, "test_setuid: setuid");
 	}
 	benchmark_stop();
+	return (i);
 }
 
 struct test {
 	const char	*t_name;
-	void		(*t_func)(int);
+	uint64_t	(*t_func)(uint64_t, uint64_t, const char *);
+	uint64_t	 t_int;
+	const char	*t_string;
 };
 
 static const struct test tests[] = {
@@ -427,10 +554,26 @@ static const struct test tests[] = {
 	{ "getppid", test_getppid },
 	{ "clock_gettime", test_clock_gettime },
 	{ "pipe", test_pipe },
-	{ "socket_stream", test_socket_stream },
-	{ "socket_dgram", test_socket_dgram },
+	{ "socket_local_stream", test_socket_stream, .t_int = PF_LOCAL },
+	{ "socket_local_dgram", test_socket_dgram, .t_int = PF_LOCAL },
 	{ "socketpair_stream", test_socketpair_stream },
 	{ "socketpair_dgram", test_socketpair_dgram },
+	{ "socket_tcp", test_socket_stream, .t_int = PF_INET },
+	{ "socket_udp", test_socket_dgram, .t_int = PF_INET },
+	{ "open_close_devnull", test_open_close, .t_string = "/dev/null" },
+	{ "open_close_devzero", test_open_close, .t_string = "/dev/zero" },
+	{ "open_read_close_devzero_1", test_open_read_close,
+	    .t_string = "/dev/zero", .t_int = 1 },
+	{ "open_read_close_devzero_10", test_open_read_close,
+	    .t_string = "/dev/zero", .t_int = 10 },
+	{ "open_read_close_devzero_100", test_open_read_close,
+	    .t_string = "/dev/zero", .t_int = 100 },
+	{ "open_read_close_devzero_1000", test_open_read_close,
+	    .t_string = "/dev/zero", .t_int = 1000 },
+	{ "open_read_close_devzero_10000", test_open_read_close,
+	    .t_string = "/dev/zero", .t_int = 10000 },
+	{ "open_read_close_devzero_100000", test_open_read_close,
+	    .t_string = "/dev/zero", .t_int = 100000 },
 	{ "dup", test_dup },
 	{ "shmfd", test_shmfd },
 	{ "fstat_shmfd", test_fstat_shmfd },
@@ -448,7 +591,8 @@ usage(void)
 {
 	int i;
 
-	fprintf(stderr, "syscall_timing [iterations] [loops] [test]\n");
+	fprintf(stderr, "syscall_timing [-i iterations] [-l loops] "
+	    "[-s seconds] test\n");
 	for (i = 0; i < tests_count; i++)
 		fprintf(stderr, "  %s\n", tests[i].t_name);
 	exit(-1);
@@ -461,28 +605,61 @@ main(int argc, char *argv[])
 	const struct test *the_test;
 	long long ll;
 	char *endp;
-	int i, j, k;
-	int iterations, loops;
+	int ch, i, j, k;
+	uint64_t iterations, loops;
 
-	if (argc < 4)
-		usage();
+	alarm_timeout = 0;
+	iterations = 0;
+	loops = 0;
+	while ((ch = getopt(argc, argv, "i:l:s:")) != -1) {
+		switch (ch) {
+		case 'i':
+			ll = strtol(optarg, &endp, 10);
+			if (*endp != 0 || ll < 1 || ll > 100000)
+				usage();
+			iterations = ll;
+			break;
 
-	ll = strtoll(argv[1], &endp, 10);
-	if (*endp != 0 || ll < 0 || ll > 100000)
-		usage();
-	iterations = ll;
+		case 'l':
+			ll = strtol(optarg, &endp, 10);
+			if (*endp != 0 || ll < 1 || ll > 100000)
+				usage();
+			loops = ll;
+			break;
 
-	ll = strtoll(argv[2], &endp, 10);
-	if (*endp != 0 || ll < 0 || ll > 100000)
+		case 's':
+			ll = strtol(optarg, &endp, 10);
+			if (*endp != 0 || ll < 1 || ll > 60*60)
+				usage();
+			alarm_timeout = ll;
+			break;
+
+		case '?':
+		default:
+			usage();
+		}
+	}
+	argc -= optind;
+	argv += optind;
+
+	if (iterations < 1 && alarm_timeout < 1)
 		usage();
-	loops = ll;
+	if (iterations < 1)
+		iterations = UINT64_MAX;
+	if (loops < 1)
+		loops = 1;
+
+	if (argc != 1)
+		usage();
 
 	assert(clock_getres(CLOCK_REALTIME, &ts_res) == 0);
-	printf("Clock resolution: %ju.%ju\n", (uintmax_t)ts_res.tv_sec,
+	printf("Clock resolution: %ju.%08ju\n", (uintmax_t)ts_res.tv_sec,
 	    (uintmax_t)ts_res.tv_nsec);
 	printf("test\tloop\ttotal\titerations\tperiteration\n");
 
-	for (j = 3; j < argc; j++) {
+	for (j = 0; j < argc; j++) {
+		uint64_t calls;
+
 		the_test = NULL;
 		for (i = 0; i < tests_count; i++) {
 			if (strcmp(argv[j], tests[i].t_name) == 0)
@@ -494,13 +671,15 @@ main(int argc, char *argv[])
 		/*
 		 * Run one warmup, then do the real thing (loops) times.
 		 */
-		the_test->t_func(iterations);
+		calls = the_test->t_func(iterations, the_test->t_int,
+		    the_test->t_string);
 		for (k = 0; k < loops; k++) {
-			the_test->t_func(iterations);
+			the_test->t_func(iterations, the_test->t_int,
+		    the_test->t_string);
 			timespecsub(&ts_end, &ts_start);
 			printf("%s\t%d\t", the_test->t_name, k);
 			printf("%ju.%09ju\t%d\t", (uintmax_t)ts_end.tv_sec,
-			    (uintmax_t)ts_end.tv_nsec, iterations);
+			    (uintmax_t)ts_end.tv_nsec, calls);
 
 		/*
 		 * Note.  This assumes that each iteration takes less than
@@ -508,9 +687,9 @@ main(int argc, char *argv[])
 		 * the room in our arithmetic unit.  Fine for system calls,
 		 * but not for long things.
 		 */
-			ts_end.tv_sec *= 1000000000 / iterations;
+			ts_end.tv_sec *= 1000000000 / calls;
 			printf("0.%09ju\n", (uintmax_t)(ts_end.tv_sec +
-			    ts_end.tv_nsec / iterations));
+			    ts_end.tv_nsec / calls));
 		}
 	}
 	return (0);
