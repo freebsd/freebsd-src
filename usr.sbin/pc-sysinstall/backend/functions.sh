@@ -138,7 +138,7 @@ rc_halt()
   fi
 
   echo "Running: ${CMD}" >>${LOGOUT}
-  ${CMD} >>${LOGOUT} 2>>${LOGOUT}
+  eval ${CMD} >>${LOGOUT} 2>>${LOGOUT}
   STATUS="$?"
   if [ "${STATUS}" != "0" ]
   then
@@ -364,37 +364,37 @@ write_image()
 
     case "${COMPRESSION}" in
       lzw)
-        rc_halt "uncompress ${IMAGE_FILE} -c | dd of=${DEVICE_FILE} bs=128k"
+        rc_halt "uncompress ${IMAGE_FILE} -c | dd of=${DEVICE_FILE}"
         IMAGE_FILE="${IMAGE_FILE%.Z}"
         ;;
 
       lzo)
-        rc_halt "lzop -d $IMAGE_{FILE} -c | dd of=${DEVICE_FILE} bs=128k"
+        rc_halt "lzop -d $IMAGE_{FILE} -c | dd of=${DEVICE_FILE}"
         IMAGE_FILE="${IMAGE_FILE%.lzo}"
         ;;
 
       lzma)
-        rc_halt "lzma -d ${IMAGE_FILE} -c | dd of=${DEVICE_FILE} bs=128k"
+        rc_halt "lzma -d ${IMAGE_FILE} -c | dd of=${DEVICE_FILE}"
         IMAGE_FILE="${IMAGE_FILE%.lzma}"
         ;;
 
       gzip)
-        rc_halt "gunzip ${IMAGE_FILE} -c | dd of=${DEVICE_FILE} bs=128k"
+        rc_halt "gunzip ${IMAGE_FILE} -c | dd of=${DEVICE_FILE}"
         IMAGE_FILE="${IMAGE_FILE%.gz}"
         ;;
 
       bzip2)
-        rc_halt "bunzip2 ${IMAGE_FILE} -c | dd of=${DEVICE_FILE} bs=128k"
+        rc_halt "bunzip2 ${IMAGE_FILE} -c | dd of=${DEVICE_FILE}"
         IMAGE_FILE="${IMAGE_FILE%.bz2}"
         ;;
 
       xz)
-        rc_halt "xz -d ${IMAGE_FILE} -c | dd of=${DEVICE_FILE} bs=128k"
+        rc_halt "xz -d ${IMAGE_FILE} -c | dd of=${DEVICE_FILE}"
         IMAGE_FILE="${IMAGE_FILE%.xz}"
         ;;
 
       zip)
-        rc_halt "unzip ${IMAGE_FILE} -c | dd of=${DEVICE_FILE} bs=128k"
+        rc_halt "unzip ${IMAGE_FILE} -c | dd of=${DEVICE_FILE}"
         IMAGE_FILE="${IMAGE_FILE%.zip}"
         ;;
 
@@ -404,7 +404,7 @@ write_image()
     esac
 
   else
-    rc_halt "dd if=${IMAGE_FILE} of=${DEVICE_FILE} bs=128k"
+    rc_halt "dd if=${IMAGE_FILE} of=${DEVICE_FILE}"
 
   fi
 };
