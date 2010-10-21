@@ -11,8 +11,8 @@ INFOENTRY_ld=	"* Ld: (ld).		The GNU linker."
 INFOENTRY_binutils= "* Binutils: (binutils).		The GNU Binary Utilities."
 
 MAKEINFOFLAGS+= --no-validate
-MAKEINFOFLAGS+= -I ${SRCDIR}/gas/doc -I ${SRCDIR}/ld -I ${SRCDIR}/bfd/doc
-MAKEINFOFLAGS+= -I ${SRCDIR}/binutils
+MAKEINFOFLAGS+= -I ${SRCDIR}/libiberty
+MAKEINFOFLAGS+= -I ${SRCDIR}/bfd/doc
 
 CLEANFILES=	configdoc.texi config.texi gasver.texi ldver.texi
 
