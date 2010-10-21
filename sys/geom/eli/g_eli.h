@@ -113,6 +113,7 @@ extern int g_eli_debug;
 extern u_int g_eli_overwrites;
 extern u_int g_eli_batch;
 
+#define	G_ELI_CRYPTO_UNKNOWN	0
 #define	G_ELI_CRYPTO_HW		1
 #define	G_ELI_CRYPTO_SW		2
 
