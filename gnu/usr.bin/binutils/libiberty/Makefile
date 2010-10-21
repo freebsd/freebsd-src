@@ -24,6 +24,7 @@ SRCS=	argv.c \
 	objalloc.c \
 	obstack.c \
 	safe-ctype.c \
+	unlink-if-ordinary.c \
 	xatexit.c \
 	xexit.c \
 	xmalloc.c \
