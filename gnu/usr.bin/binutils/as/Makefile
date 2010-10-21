@@ -11,12 +11,37 @@ NO_WERROR=
 
 PROG=	as
 MAN=	doc/as.1
-SRCS+=	app.c as.c atof-generic.c atof-ieee.c bignum-copy.c \
-	cond.c dwarf2dbg.c ecoff.c expr.c flonum-copy.c flonum-konst.c \
-	flonum-mult.c frags.c hash.c input-file.c \
-	input-scrub.c listing.c literal.c macro.c messages.c \
-	obj-elf.c output-file.c read.c sb.c stabs.c \
-	subsegs.c symbols.c write.c depend.c ehopt.c dw2gencfi.c
+SRCS+=	app.c \
+	as.c \
+	atof-generic.c \
+	atof-ieee.c \
+	bignum-copy.c \
+	cond.c \
+	depend.c \
+	dw2gencfi.c \
+	dwarf2dbg.c \
+	ecoff.c \
+	ehopt.c \
+	expr.c \
+	flonum-copy.c \
+	flonum-konst.c \
+	flonum-mult.c \
+	frags.c \
+	hash.c \
+	input-file.c \
+	input-scrub.c \
+	listing.c \
+	literal.c \
+	macro.c \
+	messages.c \
+	obj-elf.c \
+	output-file.c \
+	read.c \
+	sb.c \
+	stabs.c \
+	subsegs.c \
+	symbols.c \
+	write.c
 # DEO: why not used?
 #SRCS+=	itbl-ops.c
 
