@@ -12,6 +12,7 @@ SRCS+=	arlex.l \
 	bucomm.c \
 	budemang.c \
 	debug.c \
+	dwarf.c \
 	emul_vanilla.c \
 	filemode.c \
 	ieee.c \
@@ -23,7 +24,7 @@ SRCS+=	arlex.l \
 	version.c \
 	wrstabs.c
 WARNS?=	0
-CFLAGS+= -DTARGET=\"${BINUTILS_ARCH}-obrien-freebsd\"
+CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
 CFLAGS+= -DBFD_VERSION_STRING=\"${VERSION}\"
 CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${SRCDIR}/binutils
