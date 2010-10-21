@@ -1356,7 +1356,7 @@ iwi_checkforqos(struct ieee80211vap *vap,
 
 	wme = NULL;
 	while (frm < efrm) {
-		IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1], return);
+		IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1], break);
 		switch (*frm) {
 		case IEEE80211_ELEMID_VENDOR:
 			if (iswmeoui(frm))
