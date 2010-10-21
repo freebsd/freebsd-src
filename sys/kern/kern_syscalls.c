@@ -184,10 +184,7 @@ syscall_module_handler(struct module *mod, int what, void *arg)
 		return EOPNOTSUPP;
 	}
 
-	if (data->chainevh)
-		return (data->chainevh(mod, what, data->chainarg));
-	else
-		return (0);
+	/* NOTREACHED */
 }
 
 int
