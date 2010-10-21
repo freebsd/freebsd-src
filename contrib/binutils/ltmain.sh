@@ -17,7 +17,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # As a special exception to the GNU General Public License, if you
 # distribute this file as part of a program that contains a
@@ -3550,7 +3550,7 @@ EOF
       # Now hardcode the library paths
       rpath=
       hardcode_libdirs=
-      for libdir in $compile_rpath $finalize_rpath; do
+      for libdir in $compile_rpath; do
 	if test -n "$hardcode_libdir_flag_spec"; then
 	  if test -n "$hardcode_libdir_separator"; then
 	    if test -z "$hardcode_libdirs"; then
@@ -4234,6 +4234,63 @@ fi\
 #	  fi
 #	done
 
+	# POSIX demands no paths to be encoded in archives.  We have
+	# to avoid creating archives with duplicate basenames if we
+	# might have to extract them afterwards, e.g., when creating a
+	# static archive out of a convenience library, or when linking
+	# the entirety of a libtool archive into another (currently
+	# not supported by libtool).
+        if (for obj in $oldobjs
+	    do
+	      $echo "X$obj" | $Xsed -e 's%^.*/%%'
+	    done | sort | sort -uc >/dev/null 2>&1); then
+	  :
+	else
+	  $echo "copying selected object files to avoid basename conflicts..."
+
+	  if test -z "$gentop"; then
+	    gentop="$output_objdir/${outputname}x"
+
+	    $show "${rm}r $gentop"
+	    $run ${rm}r "$gentop"
+	    $show "$mkdir $gentop"
+	    $run $mkdir "$gentop"
+	    status=$?
+	    if test $status -ne 0 && test ! -d "$gentop"; then
+	      exit $status
+	    fi
+	    generated="$generated $gentop"
+	  fi
+
+	  save_oldobjs=$oldobjs
+	  oldobjs=
+	  counter=1
+	  for obj in $save_oldobjs
+	  do
+	    objbase=`$echo "X$obj" | $Xsed -e 's%^.*/%%'`
+	    case " $oldobjs " in
+	    " ") oldobjs=$obj ;;
+	    *[\ /]"$objbase "*)
+	      while :; do
+		# Make sure we don't pick an alternate name that also
+		# overlaps.
+	        newobj=lt$counter-$objbase
+	        counter=`expr $counter + 1`
+		case " $oldobjs " in
+		*[\ /]"$newobj "*) ;;
+		*) if test ! -f "$gentop/$newobj"; then break; fi ;;
+		esac
+	      done
+	      $show "ln $obj $gentop/$newobj || cp $obj $gentop/$newobj"
+	      $run ln "$obj" "$gentop/$newobj" ||
+	      $run cp "$obj" "$gentop/$newobj"
+	      oldobjs="$oldobjs $gentop/$newobj"
+	      ;;
+	    *) oldobjs="$oldobjs $obj" ;;
+	    esac
+	  done
+	fi
+
         eval cmds=\"$old_archive_cmds\"
 
         if len=`expr "X$cmds" : ".*"` &&
@@ -4247,6 +4304,7 @@ fi\
           objlist=
           concat_cmds=
           save_oldobjs=$oldobjs
+
           for obj in $save_oldobjs
           do
             oldobjs="$objlist $obj"

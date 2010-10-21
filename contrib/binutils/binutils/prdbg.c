@@ -1,5 +1,6 @@
 /* prdbg.c -- Print out generic debugging information.
-   Copyright 1995, 1996, 2002, 2003 Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1999, 2002, 2003, 2004
+   Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
    Tags style generation written by Salvador E. Tropea <set@computer.org>.
 
@@ -17,8 +18,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* This file prints out the generic debugging information, by
    supplying a set of routines to debug_write.  */
@@ -1904,7 +1905,7 @@ find_address_in_section (bfd *abfd, asection *section, void *data)
   if (pc < vma)
     return;
 
-  size = bfd_get_section_size_before_reloc (section);
+  size = bfd_get_section_size (section);
   if (pc >= vma + size)
     return;
 

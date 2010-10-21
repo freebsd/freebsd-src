@@ -16,7 +16,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307,
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301,
    USA.  */
 #ifndef TERNARY_H_
 #define TERNARY_H_
@@ -38,14 +38,14 @@ ternary_node;
    already there, and replace is 0.
    Otherwise, replaces if it it exists, inserts if it doesn't, and
    returns the data you passed in. */
-PTR ternary_insert PARAMS ((ternary_tree *p, const char *s,
-			    PTR data, int replace));
+void *ternary_insert (ternary_tree *p, const char *s,
+		      void *data, int replace);
 
 /* Delete the ternary search tree rooted at P. 
    Does NOT delete the data you associated with the strings. */
-void ternary_cleanup PARAMS ((ternary_tree p));
+void ternary_cleanup (ternary_tree p);
 
 /* Search the ternary tree for string S, returning the data associated
    with it if found. */
-PTR ternary_search PARAMS ((const ternary_node *p, const char *s));
+void *ternary_search (const ternary_node *p, const char *s);
 #endif

@@ -1,4 +1,5 @@
-@c Copyright 1991, 1992, 1993, 1994, 1995, 1997, 1998, 1999, 2000, 2001
+@c Copyright 1991, 1992, 1993, 1994, 1995, 1997, 1998, 1999, 2000,
+@c 2001, 2003, 2004
 @c Free Software Foundation, Inc.
 @c This is part of the GAS manual.
 @c For copying conditions, see the file as.texinfo.
@@ -66,6 +67,15 @@ usage and use x86-64 as target platform).
 By default, x86 GAS replaces multiple nop instructions used for
 alignment within code sections with multi-byte nop instructions such
 as leal 0(%esi,1),%esi.  This switch disables the optimization.
+
+@cindex @samp{--divide} option, i386
+@item --divide
+On SVR4-derived platforms, the character @samp{/} is treated as a comment
+character, which means that it cannot be used in expressions.  The
+@samp{--divide} option turns @samp{/} into a normal character.  This does
+not disable @samp{/} at the beginning of a line starting a comment, or
+affect using @samp{#} for starting a comment.
+
 @end table
 
 @node i386-Syntax
@@ -227,7 +237,7 @@ The Intel-syntax conversion instructions
 (x86-64 only),
 
 @item
-@samp{cdo} --- sign-extend quad in @samp{%rax} to octuple in
+@samp{cqo} --- sign-extend quad in @samp{%rax} to octuple in
 @samp{%rdx:%rax} (x86-64 only),
 @end itemize
 
@@ -691,15 +701,16 @@ register is @samp{%st(i)}.
 @cindex x86-64 arch directive
 
 @code{@value{AS}} may be told to assemble for a particular CPU
-architecture with the @code{.arch @var{cpu_type}} directive.  This
+(sub-)architecture with the @code{.arch @var{cpu_type}} directive.  This
 directive enables a warning when gas detects an instruction that is not
 supported on the CPU specified.  The choices for @var{cpu_type} are:
 
 @multitable @columnfractions .20 .20 .20 .20
 @item @samp{i8086} @tab @samp{i186} @tab @samp{i286} @tab @samp{i386}
 @item @samp{i486} @tab @samp{i586} @tab @samp{i686} @tab @samp{pentium}
-@item @samp{pentiumpro} @tab @samp{pentium4} @tab @samp{k6} @tab @samp{athlon}
-@item @samp{sledgehammer}
+@item @samp{pentiumpro} @tab @samp{pentiumii} @tab @samp{pentiumiii} @tab @samp{pentium4}
+@item @samp{k6} @tab @samp{athlon} @samp{sledgehammer}
+@item @samp{.mmx} @samp{.sse} @samp{.sse2} @samp{.sse3} @samp{.3dnow}
 @end multitable
 
 Apart from the warning, there are only two other effects on
@@ -715,13 +726,14 @@ conditional jumps will be promoted when necessary to a two instruction
 sequence consisting of a conditional jump of the opposite sense around
 an unconditional jump to the target.
 
-Following the CPU architecture, you may specify @samp{jumps} or
-@samp{nojumps} to control automatic promotion of conditional jumps.
-@samp{jumps} is the default, and enables jump promotion;  All external
-jumps will be of the long variety, and file-local jumps will be promoted
-as necessary.  (@pxref{i386-Jumps})  @samp{nojumps} leaves external
-conditional jumps as byte offset jumps, and warns about file-local
-conditional jumps that @code{@value{AS}} promotes.
+Following the CPU architecture (but not a sub-architecture, which are those
+starting with a dot), you may specify @samp{jumps} or @samp{nojumps} to
+control automatic promotion of conditional jumps. @samp{jumps} is the
+default, and enables jump promotion;  All external jumps will be of the long
+variety, and file-local jumps will be promoted as necessary.
+(@pxref{i386-Jumps})  @samp{nojumps} leaves external conditional jumps as
+byte offset jumps, and warns about file-local conditional jumps that
+@code{@value{AS}} promotes.
 Unconditional jumps are treated as for @samp{jumps}.
 
 For example

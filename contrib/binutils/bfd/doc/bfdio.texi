@@ -1,3 +1,34 @@
+@findex struct bfd_iovec
+@subsubsection @code{struct bfd_iovec}
+@strong{Description}@*
+The @code{struct bfd_iovec} contains the internal file I/O class.
+Each @code{BFD} has an instance of this class and all file I/O is
+routed through it (it is assumed that the instance implements
+all methods listed below).
+@example
+struct bfd_iovec
+@{
+  /* To avoid problems with macros, a "b" rather than "f"
+     prefix is prepended to each method name.  */
+  /* Attempt to read/write NBYTES on ABFD's IOSTREAM storing/fetching
+     bytes starting at PTR.  Return the number of bytes actually
+     transfered (a read past end-of-file returns less than NBYTES),
+     or -1 (setting @code{bfd_error}) if an error occurs.  */
+  file_ptr (*bread) (struct bfd *abfd, void *ptr, file_ptr nbytes);
+  file_ptr (*bwrite) (struct bfd *abfd, const void *ptr,
+                      file_ptr nbytes);
+  /* Return the current IOSTREAM file offset, or -1 (setting @code{bfd_error}
+     if an error occurs.  */
+  file_ptr (*btell) (struct bfd *abfd);
+  /* For the following, on successful completion a value of 0 is returned.
+     Otherwise, a value of -1 is returned (and  @code{bfd_error} is set).  */
+  int (*bseek) (struct bfd *abfd, file_ptr offset, int whence);
+  int (*bclose) (struct bfd *abfd);
+  int (*bflush) (struct bfd *abfd);
+  int (*bstat) (struct bfd *abfd, struct stat *sb);
+@};
+@end example
+
 @findex bfd_get_mtime
 @subsubsection @code{bfd_get_mtime}
 @strong{Synopsis}

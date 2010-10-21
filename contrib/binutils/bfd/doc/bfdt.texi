@@ -21,14 +21,10 @@ struct bfd
   /* A pointer to the target jump table.  */
   const struct bfd_target *xvec;
 
-  /* To avoid dragging too many header files into every file that
-     includes `@code{bfd.h}', IOSTREAM has been declared as a "char *",
-     and MTIME as a "long".  Their correct types, to which they
-     are cast when used, are "FILE *" and "time_t".    The iostream
-     is the result of an fopen on the filename.  However, if the
-     BFD_IN_MEMORY flag is set, then iostream is actually a pointer
-     to a bfd_in_memory struct.  */
+  /* The IOSTREAM, and corresponding IO vector that provide access
+     to the file backing the BFD.  */
   void *iostream;
+  const struct bfd_iovec *iovec;
 
   /* Is the file descriptor being cached?  That is, can it be closed as
      needed, and re-opened when accessed later?  */
@@ -91,8 +87,8 @@ struct bfd
   /* Pointer to linked list of sections.  */
   struct bfd_section *sections;
 
-  /* The place where we add to the section list.  */
-  struct bfd_section **section_tail;
+  /* The last section on the section list.  */
+  struct bfd_section *section_last;
 
   /* The number of sections.  */
   unsigned int section_count;
@@ -112,6 +108,9 @@ struct bfd
 
   /* Pointer to structure which contains architecture information.  */
   const struct bfd_arch_info *arch_info;
+
+  /* Flag set if symbols from this BFD should not be exported.  */
+  bfd_boolean no_export;
 
   /* Stuff only useful for archives.  */
   void *arelt_data;
@@ -307,18 +306,10 @@ bfd_error_handler_type bfd_get_error_handler (void);
 @strong{Description}@*
 Return the BFD error handler function.
 
-@findex bfd_archive_filename
-@subsubsection @code{bfd_archive_filename}
-@strong{Synopsis}
-@example
-const char *bfd_archive_filename (bfd *);
-@end example
-@strong{Description}@*
-For a BFD that is a component of an archive, returns a string
-with both the archive name and file name.  For other BFDs, just
-returns the file name.
+@section Miscellaneous
 
-@section Symbols
+
+@subsection Miscellaneous functions
 
 
 @findex bfd_get_reloc_upper_bound
@@ -472,6 +463,31 @@ in octal if a leading zero is found, otherwise in decimal.
 If the value would overflow, the maximum @code{bfd_vma} value is
 returned.
 
+@findex bfd_copy_private_header_data
+@subsubsection @code{bfd_copy_private_header_data}
+@strong{Synopsis}
+@example
+bfd_boolean bfd_copy_private_header_data (bfd *ibfd, bfd *obfd);
+@end example
+@strong{Description}@*
+Copy private BFD header information from the BFD @var{ibfd} to the
+the BFD @var{obfd}.  This copies information that may require
+sections to exist, but does not require symbol tables.  Return
+@code{true} on success, @code{false} on error.
+Possible error returns are:
+
+@itemize @bullet
+
+@item
+@code{bfd_error_no_memory} -
+Not enough memory exists to create private data for @var{obfd}.
+@end itemize
+@example
+#define bfd_copy_private_header_data(ibfd, obfd) \
+     BFD_SEND (obfd, _bfd_copy_private_header_data, \
+               (ibfd, obfd))
+@end example
+
 @findex bfd_copy_private_bfd_data
 @subsubsection @code{bfd_copy_private_bfd_data}
 @strong{Synopsis}
@@ -552,6 +568,14 @@ The following functions exist but have not yet been documented.
        BFD_SEND (abfd, _bfd_find_nearest_line, \
                  (abfd, sec, syms, off, file, func, line))
 
+#define bfd_find_line(abfd, syms, sym, file, line) \
+       BFD_SEND (abfd, _bfd_find_line, \
+                 (abfd, syms, sym, file, line))
+
+#define bfd_find_inliner_info(abfd, file, func, line) \
+       BFD_SEND (abfd, _bfd_find_inliner_info, \
+                 (abfd, file, func, line))
+
 #define bfd_debug_info_start(abfd) \
        BFD_SEND (abfd, _bfd_debug_info_start, (abfd))
 
@@ -579,6 +603,9 @@ The following functions exist but have not yet been documented.
 #define bfd_merge_sections(abfd, link_info) \
        BFD_SEND (abfd, _bfd_merge_sections, (abfd, link_info))
 
+#define bfd_is_group_section(abfd, sec) \
+       BFD_SEND (abfd, _bfd_is_group_section, (abfd, sec))
+
 #define bfd_discard_group(abfd, sec) \
        BFD_SEND (abfd, _bfd_discard_group, (abfd, sec))
 
@@ -591,7 +618,7 @@ The following functions exist but have not yet been documented.
 #define bfd_link_add_symbols(abfd, info) \
        BFD_SEND (abfd, _bfd_link_add_symbols, (abfd, info))
 
-#define bfd_link_just_syms(sec, info) \
+#define bfd_link_just_syms(abfd, sec, info) \
        BFD_SEND (abfd, _bfd_link_just_syms, (sec, info))
 
 #define bfd_final_link(abfd, info) \
@@ -608,6 +635,10 @@ The following functions exist but have not yet been documented.
 
 #define bfd_canonicalize_dynamic_symtab(abfd, asymbols) \
        BFD_SEND (abfd, _bfd_canonicalize_dynamic_symtab, (abfd, asymbols))
+
+#define bfd_get_synthetic_symtab(abfd, count, syms, dyncount, dynsyms, ret) \
+       BFD_SEND (abfd, _bfd_get_synthetic_symtab, (abfd, count, syms, \
+                                                   dyncount, dynsyms, ret))
 
 #define bfd_get_dynamic_reloc_upper_bound(abfd) \
        BFD_SEND (abfd, _bfd_get_dynamic_reloc_upper_bound, (abfd))
@@ -643,7 +674,7 @@ struct bfd_preserve
   flagword flags;
   const struct bfd_arch_info *arch_info;
   struct bfd_section *sections;
-  struct bfd_section **section_tail;
+  struct bfd_section *section_last;
   unsigned int section_count;
   struct bfd_hash_table section_htab;
 @};

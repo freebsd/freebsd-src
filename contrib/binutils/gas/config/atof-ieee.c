@@ -1,5 +1,5 @@
 /* atof_ieee.c - turn a Flonum into an IEEE floating point number
-   Copyright 1987, 1992, 1994, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1987, 1992, 1994, 1996, 1997, 1998, 1999, 2000, 2001, 2005
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -16,29 +16,25 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include "as.h"
 
 /* Flonums returned here.  */
 extern FLONUM_TYPE generic_floating_point_number;
 
-static int next_bits PARAMS ((int));
-static void unget_bits PARAMS ((int));
-static void make_invalid_floating_point_number PARAMS ((LITTLENUM_TYPE *));
-
 extern const char EXP_CHARS[];
 /* Precision in LittleNums.  */
 /* Don't count the gap in the m68k extended precision format.  */
-#define MAX_PRECISION (5)
-#define F_PRECISION (2)
-#define D_PRECISION (4)
-#define X_PRECISION (5)
-#define P_PRECISION (5)
+#define MAX_PRECISION  5
+#define F_PRECISION    2
+#define D_PRECISION    4
+#define X_PRECISION    5
+#define P_PRECISION    5
 
 /* Length in LittleNums of guard bits.  */
-#define GUARD (2)
+#define GUARD          2
 
 #ifndef TC_LARGEST_EXPONENT_IS_NORMAL
 #define TC_LARGEST_EXPONENT_IS_NORMAL(PRECISION) 0
@@ -86,13 +82,13 @@ static int littlenums_left;
 static LITTLENUM_TYPE *littlenum_pointer;
 
 static int
-next_bits (number_of_bits)
-     int number_of_bits;
+next_bits (int number_of_bits)
 {
   int return_value;
 
   if (!littlenums_left)
-    return (0);
+    return 0;
+
   if (number_of_bits >= bits_left_in_littlenum)
     {
       return_value = mask[bits_left_in_littlenum] & *littlenum_pointer;
@@ -120,8 +116,7 @@ next_bits (number_of_bits)
 /* Num had better be less than LITTLENUM_NUMBER_OF_BITS.  */
 
 static void
-unget_bits (num)
-     int num;
+unget_bits (int num)
 {
   if (!littlenums_left)
     {
@@ -141,8 +136,7 @@ unget_bits (num)
 }
 
 static void
-make_invalid_floating_point_number (words)
-     LITTLENUM_TYPE *words;
+make_invalid_floating_point_number (LITTLENUM_TYPE *words)
 {
   as_bad (_("cannot create floating-point number"));
   /* Zero the leftmost bit.  */
@@ -165,10 +159,9 @@ make_invalid_floating_point_number (words)
 /* Returns pointer past text consumed.  */
 
 char *
-atof_ieee (str, what_kind, words)
-     char *str;			/* Text to convert to binary.  */
-     int what_kind;		/* 'd', 'f', 'g', 'h'.  */
-     LITTLENUM_TYPE *words;	/* Build the binary here.  */
+atof_ieee (char *str,			/* Text to convert to binary.  */
+	   int what_kind,		/* 'd', 'f', 'g', 'h'.  */
+	   LITTLENUM_TYPE *words)	/* Build the binary here.  */
 {
   /* Extra bits for zeroed low-order bits.
      The 1st MAX_PRECISION are zeroed, the last contain flonum bits.  */
@@ -242,7 +235,7 @@ atof_ieee (str, what_kind, words)
 		    &generic_floating_point_number))
     {
       make_invalid_floating_point_number (words);
-      return (NULL);
+      return NULL;
     }
   gen_to_words (words, precision, exponent_bits);
 
@@ -256,10 +249,7 @@ atof_ieee (str, what_kind, words)
 /* Turn generic_floating_point_number into a real float/double/extended.  */
 
 int
-gen_to_words (words, precision, exponent_bits)
-     LITTLENUM_TYPE *words;
-     int precision;
-     long exponent_bits;
+gen_to_words (LITTLENUM_TYPE *words, int precision, long exponent_bits)
 {
   int return_value = 0;
 
@@ -673,34 +663,10 @@ gen_to_words (words, precision, exponent_bits)
 	     but return a floating exception because we can't encode
 	     the number.  */
 	  *words &= ~(1 << (LITTLENUM_NUMBER_OF_BITS - 1));
-#if 0
-	  make_invalid_floating_point_number (words);
-	  return return_value;
-#endif
 	}
     }
   return return_value;
 }
-
-#if 0
-/* Unused.  */
-/* This routine is a real kludge.  Someone really should do it better,
-   but I'm too lazy, and I don't understand this stuff all too well
-   anyway. (JF)  */
-
-static void
-int_to_gen (x)
-     long x;
-{
-  char buf[20];
-  char *bufp;
-
-  sprintf (buf, "%ld", x);
-  bufp = &buf[0];
-  if (atof_generic (&bufp, ".", EXP_CHARS, &generic_floating_point_number))
-    as_bad (_("Error converting number to floating point (Exponent overflow?)"));
-}
-#endif
 
 #ifdef TEST
 char *

@@ -17,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* This file contains functions to convert between the binary resource
    format and the internal structures that we want to use.  The same
@@ -1331,7 +1331,7 @@ resid_to_bin (struct res_id id, int big_endian)
   if (! id.named)
     {
       d->length = 4;
-      d->data = (unsigned char *) reswr_alloc (4);
+      d->data = (unsigned char *) reswr_alloc (d->length);
       put_16 (big_endian, 0xffff, d->data);
       put_16 (big_endian, id.u.id, d->data + 2);
     }
@@ -1408,14 +1408,14 @@ res_to_bin_accelerator (const struct accelerator *accelerators,
 
       d = (struct bindata *) reswr_alloc (sizeof *d);
       d->length = 8;
-      d->data = (unsigned char *) reswr_alloc (8);
+      d->data = (unsigned char *) reswr_alloc (d->length);
 
       put_16 (big_endian,
 	      a->flags | (a->next != NULL ? 0 : ACC_LAST),
 	      d->data);
       put_16 (big_endian, a->key, d->data + 2);
       put_16 (big_endian, a->id, d->data + 4);
-      put_16 (big_endian, 0, d->data + 8);
+      put_16 (big_endian, 0, d->data + 6);
 
       d->next = NULL;
       *pp = d;
@@ -1434,7 +1434,7 @@ res_to_bin_cursor (const struct cursor *c, int big_endian)
 
   d = (struct bindata *) reswr_alloc (sizeof *d);
   d->length = 4;
-  d->data = (unsigned char *) reswr_alloc (4);
+  d->data = (unsigned char *) reswr_alloc (d->length);
 
   put_16 (big_endian, c->xhotspot, d->data);
   put_16 (big_endian, c->yhotspot, d->data + 2);
@@ -1459,7 +1459,7 @@ res_to_bin_group_cursor (const struct group_cursor *group_cursors,
 
   first = (struct bindata *) reswr_alloc (sizeof *first);
   first->length = 6;
-  first->data = (unsigned char *) reswr_alloc (6);
+  first->data = (unsigned char *) reswr_alloc (first->length);
 
   put_16 (big_endian, 0, first->data);
   put_16 (big_endian, 2, first->data + 2);
@@ -1476,7 +1476,7 @@ res_to_bin_group_cursor (const struct group_cursor *group_cursors,
 
       d = (struct bindata *) reswr_alloc (sizeof *d);
       d->length = 14;
-      d->data = (unsigned char *) reswr_alloc (14);
+      d->data = (unsigned char *) reswr_alloc (d->length);
 
       put_16 (big_endian, gc->width, d->data);
       put_16 (big_endian, gc->height, d->data + 2);
@@ -1642,7 +1642,7 @@ res_to_bin_dialog (const struct dialog *dialog, int big_endian)
 
       d = (struct bindata *) reswr_alloc (sizeof *d);
       d->length = 2;
-      d->data = (unsigned char *) reswr_alloc (2);
+      d->data = (unsigned char *) reswr_alloc (d->length);
 
       length += 2;
 
@@ -1687,7 +1687,7 @@ res_to_bin_fontdir (const struct fontdir *fontdirs, int big_endian)
 
   first = (struct bindata *) reswr_alloc (sizeof *first);
   first->length = 2;
-  first->data = (unsigned char *) reswr_alloc (2);
+  first->data = (unsigned char *) reswr_alloc (first->length);
 
   first->next = NULL;
   pp = &first->next;
@@ -1701,7 +1701,7 @@ res_to_bin_fontdir (const struct fontdir *fontdirs, int big_endian)
 
       d = (struct bindata *) reswr_alloc (sizeof *d);
       d->length = 2;
-      d->data = (unsigned char *) reswr_alloc (2);
+      d->data = (unsigned char *) reswr_alloc (d->length);
 
       put_16 (big_endian, fd->index, d->data);
 
@@ -1733,7 +1733,7 @@ res_to_bin_group_icon (const struct group_icon *group_icons, int big_endian)
 
   first = (struct bindata *) reswr_alloc (sizeof *first);
   first->length = 6;
-  first->data = (unsigned char *) reswr_alloc (6);
+  first->data = (unsigned char *) reswr_alloc (first->length);
 
   put_16 (big_endian, 0, first->data);
   put_16 (big_endian, 1, first->data + 2);
@@ -1750,7 +1750,7 @@ res_to_bin_group_icon (const struct group_icon *group_icons, int big_endian)
 
       d = (struct bindata *) reswr_alloc (sizeof *d);
       d->length = 14;
-      d->data = (unsigned char *) reswr_alloc (14);
+      d->data = (unsigned char *) reswr_alloc (d->length);
 
       d->data[0] = gi->width;
       d->data[1] = gi->height;
@@ -1875,7 +1875,7 @@ res_to_bin_menuexitems (const struct menuitem *items, int big_endian)
 
       d = (struct bindata *) reswr_alloc (sizeof *d);
       d->length = 12;
-      d->data = (unsigned char *) reswr_alloc (12);
+      d->data = (unsigned char *) reswr_alloc (d->length);
 
       length += 12;
 
@@ -1903,7 +1903,7 @@ res_to_bin_menuexitems (const struct menuitem *items, int big_endian)
 
 	  d = (struct bindata *) reswr_alloc (sizeof *d);
 	  d->length = 4;
-	  d->data = (unsigned char *) reswr_alloc (4);
+	  d->data = (unsigned char *) reswr_alloc (d->length);
 
 	  put_32 (big_endian, mi->help, d->data);
 
@@ -1948,13 +1948,13 @@ res_to_bin_rcdata (const struct rcdata_item *items, int big_endian)
 
 	case RCDATA_WORD:
 	  d->length = 2;
-	  d->data = (unsigned char *) reswr_alloc (2);
+	  d->data = (unsigned char *) reswr_alloc (d->length);
 	  put_16 (big_endian, ri->u.word, d->data);
 	  break;
 
 	case RCDATA_DWORD:
 	  d->length = 4;
-	  d->data = (unsigned char *) reswr_alloc (4);
+	  d->data = (unsigned char *) reswr_alloc (d->length);
 	  put_32 (big_endian, ri->u.dword, d->data);
 	  break;
 
@@ -2060,7 +2060,7 @@ res_to_bin_versioninfo (const struct versioninfo *versioninfo, int big_endian)
 
   first = (struct bindata *) reswr_alloc (sizeof *first);
   first->length = 6;
-  first->data = (unsigned char *) reswr_alloc (6);
+  first->data = (unsigned char *) reswr_alloc (first->length);
 
   length = 6;
 
@@ -2086,7 +2086,7 @@ res_to_bin_versioninfo (const struct versioninfo *versioninfo, int big_endian)
 
       d = (struct bindata *) reswr_alloc (sizeof *d);
       d->length = 52;
-      d->data = (unsigned char *) reswr_alloc (52);
+      d->data = (unsigned char *) reswr_alloc (d->length);
 
       length += 52;
 
@@ -2120,7 +2120,7 @@ res_to_bin_versioninfo (const struct versioninfo *versioninfo, int big_endian)
 
       vid = (struct bindata *) reswr_alloc (sizeof *vid);
       vid->length = 6;
-      vid->data = (unsigned char *) reswr_alloc (6);
+      vid->data = (unsigned char *) reswr_alloc (vid->length);
 
       length += 6;
       vilen = 6;
@@ -2153,7 +2153,7 @@ res_to_bin_versioninfo (const struct versioninfo *versioninfo, int big_endian)
 
 	    vsd = (struct bindata *) reswr_alloc (sizeof *vsd);
 	    vsd->length = 6;
-	    vsd->data = (unsigned char *) reswr_alloc (6);
+	    vsd->data = (unsigned char *) reswr_alloc (vsd->length);
 
 	    length += 6;
 	    vilen += 6;
@@ -2183,7 +2183,7 @@ res_to_bin_versioninfo (const struct versioninfo *versioninfo, int big_endian)
 
 		vssd = (struct bindata *) reswr_alloc (sizeof *vssd);
 		vssd->length = 6;
-		vssd->data = (unsigned char *) reswr_alloc (6);
+		vssd->data = (unsigned char *) reswr_alloc (vssd->length);
 
 		length += 6;
 		vilen += 6;
@@ -2241,7 +2241,7 @@ res_to_bin_versioninfo (const struct versioninfo *versioninfo, int big_endian)
 
 	    vvd = (struct bindata *) reswr_alloc (sizeof *vvd);
 	    vvd->length = 6;
-	    vvd->data = (unsigned char *) reswr_alloc (6);
+	    vvd->data = (unsigned char *) reswr_alloc (vvd->length);
 
 	    length += 6;
 	    vilen += 6;
@@ -2271,7 +2271,7 @@ res_to_bin_versioninfo (const struct versioninfo *versioninfo, int big_endian)
 
 		vvsd = (struct bindata *) reswr_alloc (sizeof *vvsd);
 		vvsd->length = 4;
-		vvsd->data = (unsigned char *) reswr_alloc (4);
+		vvsd->data = (unsigned char *) reswr_alloc (vvsd->length);
 
 		length += 4;
 		vilen += 4;

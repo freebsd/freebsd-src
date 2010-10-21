@@ -1,6 +1,6 @@
 /* write.c - emit .o file
    Copyright 1986, 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-   1998, 1999, 2000, 2001, 2002, 2003
+   1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -17,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* This thing should be set up to do byteordering correctly.  But...  */
 
@@ -71,13 +71,9 @@
 /* The PA needs this for PIC code generation.  */
 #define TC_VALIDATE_FIX_SUB(FIX) 1
 #else
-#ifdef BFD_ASSEMBLER
 #define TC_VALIDATE_FIX_SUB(FIX)		\
   ((FIX)->fx_r_type == BFD_RELOC_GPREL32	\
    || (FIX)->fx_r_type == BFD_RELOC_GPREL16)
-#else
-#define TC_VALIDATE_FIX_SUB(FIX) 0
-#endif
 #endif
 #endif
 
@@ -97,9 +93,8 @@
 #define MD_PCREL_FROM_SECTION(FIX, SEC) md_pcrel_from (FIX)
 #endif
 
-#ifndef WORKING_DOT_WORD
-extern const int md_short_jump_size;
-extern const int md_long_jump_size;
+#ifndef TC_FAKE_LABEL
+#define TC_FAKE_LABEL(NAME) (strcmp ((NAME), FAKE_LABEL_NAME) == 0)
 #endif
 
 /* Used to control final evaluation of expressions.  */
@@ -114,7 +109,6 @@ addressT dot_value;
 
 void print_fixup (fixS *);
 
-#ifdef BFD_ASSEMBLER
 static void renumber_sections (bfd *, asection *, PTR);
 
 /* We generally attach relocs to frag chains.  However, after we have
@@ -122,53 +116,18 @@ static void renumber_sections (bfd *, asection *, PTR);
    that must be attached to a segment.  This will include relocs added
    in md_estimate_size_for_relax, for example.  */
 static int frags_chained = 0;
-#endif
-
-#ifndef BFD_ASSEMBLER
-
-#ifndef MANY_SEGMENTS
-struct frag *text_frag_root;
-struct frag *data_frag_root;
-struct frag *bss_frag_root;
-
-struct frag *text_last_frag;	/* Last frag in segment.  */
-struct frag *data_last_frag;	/* Last frag in segment.  */
-static struct frag *bss_last_frag;	/* Last frag in segment.  */
-#endif
-
-#ifndef BFD
-static object_headers headers;
-#endif
-
-long string_byte_count;
-char *next_object_file_charP;	/* Tracks object file bytes.  */
-
-#ifndef OBJ_VMS
-int magic_number_for_object_file = DEFAULT_MAGIC_NUMBER_FOR_OBJECT_FILE;
-#endif
-
-#endif /* BFD_ASSEMBLER  */
 
 static int n_fixups;
 
-#ifdef BFD_ASSEMBLER
 #define RELOC_ENUM enum bfd_reloc_code_real
-#else
-#define RELOC_ENUM int
-#endif
 
 static fixS *fix_new_internal (fragS *, int where, int size,
 			       symbolS *add, symbolS *sub,
 			       offsetT offset, int pcrel,
 			       RELOC_ENUM r_type);
-#if defined (BFD_ASSEMBLER) || (!defined (BFD) && !defined (OBJ_VMS))
 static long fixup_segment (fixS *, segT);
-#endif
 static relax_addressT relax_align (relax_addressT addr, int align);
-#if defined (BFD_ASSEMBLER) || ! defined (BFD)
 static fragS *chain_frchains_together_1 (segT, struct frchain *);
-#endif
-#ifdef BFD_ASSEMBLER
 static void chain_frchains_together (bfd *, segT, PTR);
 static void cvt_frag_to_fill (segT, fragS *);
 static void adjust_reloc_syms (bfd *, asection *, PTR);
@@ -176,15 +135,7 @@ static void fix_segment (bfd *, asection *, PTR);
 static void write_relocs (bfd *, asection *, PTR);
 static void write_contents (bfd *, asection *, PTR);
 static void set_symtab (void);
-#endif
-#if defined (BFD_ASSEMBLER) || (! defined (BFD) && ! defined (OBJ_AOUT))
 static void merge_data_into_text (void);
-#endif
-#if ! defined (BFD_ASSEMBLER) && ! defined (BFD)
-static void cvt_frag_to_fill (object_headers *, segT, fragS *);
-static void remove_subsegs (frchainS *, int, fragS **, fragS **);
-static void relax_and_size_all_segments (void);
-#endif
 
 /* Create a fixS in obstack 'notes'.  */
 
@@ -219,9 +170,7 @@ fix_new_internal (fragS *frag,		/* Which frag?  */
   fixP->fx_dot_value = dot_value;
   fixP->fx_pcrel = pcrel;
   fixP->fx_plt = 0;
-#if defined(NEED_FX_R_TYPE) || defined (BFD_ASSEMBLER)
   fixP->fx_r_type = r_type;
-#endif
   fixP->fx_im_disp = 0;
   fixP->fx_pcrel_adjust = 0;
   fixP->fx_bit_fixP = 0;
@@ -248,14 +197,12 @@ fix_new_internal (fragS *frag,		/* Which frag?  */
      time option.  xoxorich.  */
   {
 
-#ifdef BFD_ASSEMBLER
     fixS **seg_fix_rootP = (frags_chained
 			    ? &seg_info (now_seg)->fix_root
 			    : &frchain_now->fix_root);
     fixS **seg_fix_tailP = (frags_chained
 			    ? &seg_info (now_seg)->fix_tail
 			    : &frchain_now->fix_tail);
-#endif
 
 #ifdef REVERSE_SORT_RELOCS
 
@@ -335,16 +282,7 @@ fix_new_exp (fragS *frag,		/* Which frag?  */
     case O_symbol_rva:
       add = exp->X_add_symbol;
       off = exp->X_add_number;
-
-#if defined(BFD_ASSEMBLER)
       r_type = BFD_RELOC_RVA;
-#else
-#if defined(TC_RVA_RELOC)
-      r_type = TC_RVA_RELOC;
-#else
-      as_fatal (_("rva not supported"));
-#endif
-#endif
       break;
 
     case O_uminus:
@@ -374,11 +312,13 @@ fix_new_exp (fragS *frag,		/* Which frag?  */
 int
 generic_force_reloc (fixS *fix)
 {
-#ifdef BFD_ASSEMBLER
   if (fix->fx_r_type == BFD_RELOC_VTABLE_INHERIT
       || fix->fx_r_type == BFD_RELOC_VTABLE_ENTRY)
     return 1;
-#endif
+
+  if (fix->fx_addsy == NULL)
+    return 0;
+
   return S_FORCE_RELOC (fix->fx_addsy, fix->fx_subsy == NULL);
 }
 
@@ -394,10 +334,6 @@ append (char **charPP, char *fromP, unsigned long length)
   *charPP += length;
 }
 
-#ifndef BFD_ASSEMBLER
-int section_alignment[SEG_MAXIMUM_ORDINAL];
-#endif
-
 /* This routine records the largest alignment seen for each segment.
    If the beginning of the segment is aligned on the worst-case
    boundary, all of the other alignments within it will work.  At
@@ -412,13 +348,9 @@ record_alignment (/* Segment to which alignment pertains.  */
 {
   if (seg == absolute_section)
     return;
-#ifdef BFD_ASSEMBLER
+
   if ((unsigned int) align > bfd_get_section_alignment (stdoutput, seg))
     bfd_set_section_alignment (stdoutput, seg, align);
-#else
-  if (align > section_alignment[(int) seg])
-    section_alignment[(int) seg] = align;
-#endif
 }
 
 int
@@ -426,14 +358,9 @@ get_recorded_alignment (segT seg)
 {
   if (seg == absolute_section)
     return 0;
-#ifdef BFD_ASSEMBLER
-  return bfd_get_section_alignment (stdoutput, seg);
-#else
-  return section_alignment[(int) seg];
-#endif
-}
 
-#ifdef BFD_ASSEMBLER
+  return bfd_get_section_alignment (stdoutput, seg);
+}
 
 /* Reset the section indices after removing the gas created sections.  */
 
@@ -446,24 +373,17 @@ renumber_sections (bfd *abfd ATTRIBUTE_UNUSED, asection *sec, PTR countparg)
   ++*countp;
 }
 
-#endif /* defined (BFD_ASSEMBLER)  */
-
-#if defined (BFD_ASSEMBLER) || ! defined (BFD)
-
 static fragS *
 chain_frchains_together_1 (segT section, struct frchain *frchp)
 {
   fragS dummy, *prev_frag = &dummy;
-#ifdef BFD_ASSEMBLER
   fixS fix_dummy, *prev_fix = &fix_dummy;
-#endif
 
   for (; frchp && frchp->frch_seg == section; frchp = frchp->frch_next)
     {
       prev_frag->fr_next = frchp->frch_root;
       prev_frag = frchp->frch_last;
       assert (prev_frag->fr_type != 0);
-#ifdef BFD_ASSEMBLER
       if (frchp->fix_root != (fixS *) NULL)
 	{
 	  if (seg_info (section)->fix_root == (fixS *) NULL)
@@ -472,16 +392,11 @@ chain_frchains_together_1 (segT section, struct frchain *frchp)
 	  seg_info (section)->fix_tail = frchp->fix_tail;
 	  prev_fix = frchp->fix_tail;
 	}
-#endif
     }
   assert (prev_frag->fr_type != 0);
   prev_frag->fr_next = 0;
   return prev_frag;
 }
-
-#endif
-
-#ifdef BFD_ASSEMBLER
 
 static void
 chain_frchains_together (bfd *abfd ATTRIBUTE_UNUSED,
@@ -502,28 +417,8 @@ chain_frchains_together (bfd *abfd ATTRIBUTE_UNUSED,
   frags_chained = 1;
 }
 
-#endif
-
-#if !defined (BFD) && !defined (BFD_ASSEMBLER)
-
-static void
-remove_subsegs (frchainS *head, int seg, fragS **root, fragS **last)
-{
-  *root = head->frch_root;
-  *last = chain_frchains_together_1 (seg, head);
-}
-
-#endif /* BFD  */
-
-#if defined (BFD_ASSEMBLER) || !defined (BFD)
-
-#ifdef BFD_ASSEMBLER
 static void
 cvt_frag_to_fill (segT sec ATTRIBUTE_UNUSED, fragS *fragP)
-#else
-static void
-cvt_frag_to_fill (object_headers *headersP, segT sec, fragS *fragP)
-#endif
 {
   switch (fragP->fr_type)
     {
@@ -577,11 +472,7 @@ cvt_frag_to_fill (object_headers *headersP, segT sec, fragS *fragP)
       break;
 
     case rs_machine_dependent:
-#ifdef BFD_ASSEMBLER
       md_convert_frag (stdoutput, sec, fragP);
-#else
-      md_convert_frag (headersP, sec, fragP);
-#endif
 
       assert (fragP->fr_next == NULL
 	      || ((offsetT) (fragP->fr_next->fr_address - fragP->fr_address)
@@ -616,24 +507,26 @@ cvt_frag_to_fill (object_headers *headersP, segT sec, fragS *fragP)
       BAD_CASE (fragP->fr_type);
       break;
     }
+#ifdef md_frag_check
+  md_frag_check (fragP);
+#endif
 }
 
-#endif /* defined (BFD_ASSEMBLER) || !defined (BFD)  */
-
-#ifdef BFD_ASSEMBLER
-static void relax_seg (bfd *, asection *, PTR);
+struct relax_seg_info
+{
+  int pass;
+  int changed;
+};
 
 static void
-relax_seg (bfd *abfd ATTRIBUTE_UNUSED, asection *sec, PTR xxx)
+relax_seg (bfd *abfd ATTRIBUTE_UNUSED, asection *sec, void *xxx)
 {
   segment_info_type *seginfo = seg_info (sec);
+  struct relax_seg_info *info = (struct relax_seg_info *) xxx;
 
   if (seginfo && seginfo->frchainP
-      && relax_segment (seginfo->frchainP->frch_root, sec))
-    {
-      int *result = (int *) xxx;
-      *result = 1;
-    }
+      && relax_segment (seginfo->frchainP->frch_root, sec, info->pass))
+    info->changed = 1;
 }
 
 static void size_seg (bfd *, asection *, PTR);
@@ -711,12 +604,8 @@ size_seg (bfd *abfd, asection *sec, PTR xxx ATTRIBUTE_UNUSED)
 
 #ifdef DEBUG2
 static void
-dump_section_relocs (abfd, sec, stream_)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     asection *sec;
-     char *stream_;
+dump_section_relocs (bfd *abfd ATTRIBUTE_UNUSED, asection *sec, FILE *stream)
 {
-  FILE *stream = (FILE *) stream_;
   segment_info_type *seginfo = seg_info (sec);
   fixS *fixp = seginfo->fix_root;
 
@@ -789,9 +678,10 @@ adjust_reloc_syms (bfd *abfd ATTRIBUTE_UNUSED,
 	if (fixp->fx_subsy != NULL)
 	  resolve_symbol_value (fixp->fx_subsy);
 
-	/* If this symbol is equated to an undefined symbol, convert
-           the fixup to being against that symbol.  */
-	if (symbol_equated_reloc_p (sym))
+	/* If this symbol is equated to an undefined or common symbol,
+	   convert the fixup to being against that symbol.  */
+	if (symbol_equated_reloc_p (sym)
+	    || S_IS_WEAKREFR (sym))
 	  {
 	    fixp->fx_offset += symbol_get_value_expression (sym)->X_add_number;
 	    sym = symbol_get_value_expression (sym)->X_add_symbol;
@@ -944,12 +834,12 @@ write_relocs (bfd *abfd, asection *sec, PTR xxx ATTRIBUTE_UNUSED)
 	  continue;
 	}
 
-#if 0
-      /* This test is triggered inappropriately for the SH.  */
-      if (fixp->fx_where + fixp->fx_size
-	  > fixp->fx_frag->fr_fix + fixp->fx_frag->fr_offset)
-	abort ();
-#endif
+      /*
+	This test is triggered inappropriately for the SH:
+         if (fixp->fx_where + fixp->fx_size
+	     > fixp->fx_frag->fr_fix + fixp->fx_frag->fr_offset)
+	     abort ();
+      */
 
       s = bfd_install_relocation (stdoutput, reloc,
 				  fixp->fx_frag->fr_literal,
@@ -1050,7 +940,7 @@ write_relocs (bfd *abfd, asection *sec, PTR xxx ATTRIBUTE_UNUSED)
 
 #ifdef DEBUG4
   {
-    int i, j, nsyms;
+    unsigned int i, j, nsyms;
     asymbol **sympp;
     sympp = bfd_get_outsymbols (stdoutput);
     nsyms = bfd_get_symcount (stdoutput);
@@ -1079,7 +969,7 @@ write_relocs (bfd *abfd, asection *sec, PTR xxx ATTRIBUTE_UNUSED)
 
 #ifdef DEBUG3
   {
-    int i;
+    unsigned int i;
     arelent *r;
     asymbol *s;
     fprintf (stderr, "relocs for sec %s\n", sec->name);
@@ -1087,8 +977,8 @@ write_relocs (bfd *abfd, asection *sec, PTR xxx ATTRIBUTE_UNUSED)
       {
 	r = relocs[i];
 	s = *r->sym_ptr_ptr;
-	fprintf (stderr, "  reloc %2d @%08x off %4x : sym %-10s addend %x\n",
-		 i, r, r->address, s->name, r->addend);
+	fprintf (stderr, "  reloc %2d @%p off %4lx : sym %-10s addend %lx\n",
+		 i, r, (unsigned long)r->address, s->name, (unsigned long)r->addend);
       }
   }
 #endif
@@ -1189,126 +1079,17 @@ write_contents (bfd *abfd ATTRIBUTE_UNUSED,
 	}
     }
 }
-#endif
 
-#if defined(BFD_ASSEMBLER) || (!defined (BFD) && !defined(OBJ_AOUT))
 static void
 merge_data_into_text (void)
 {
-#if defined(BFD_ASSEMBLER) || defined(MANY_SEGMENTS)
   seg_info (text_section)->frchainP->frch_last->fr_next =
     seg_info (data_section)->frchainP->frch_root;
   seg_info (text_section)->frchainP->frch_last =
     seg_info (data_section)->frchainP->frch_last;
   seg_info (data_section)->frchainP = 0;
-#else
-  fixS *tmp;
-
-  text_last_frag->fr_next = data_frag_root;
-  text_last_frag = data_last_frag;
-  data_last_frag = NULL;
-  data_frag_root = NULL;
-  if (text_fix_root)
-    {
-      for (tmp = text_fix_root; tmp->fx_next; tmp = tmp->fx_next);;
-      tmp->fx_next = data_fix_root;
-      text_fix_tail = data_fix_tail;
-    }
-  else
-    text_fix_root = data_fix_root;
-  data_fix_root = NULL;
-#endif
 }
-#endif /* BFD_ASSEMBLER || (! BFD && ! OBJ_AOUT)  */
 
-#if !defined (BFD_ASSEMBLER) && !defined (BFD)
-static void
-relax_and_size_all_segments ()
-{
-  fragS *fragP;
-
-  relax_segment (text_frag_root, SEG_TEXT);
-  relax_segment (data_frag_root, SEG_DATA);
-  relax_segment (bss_frag_root, SEG_BSS);
-
-  /* Now the addresses of frags are correct within the segment.  */
-  know (text_last_frag->fr_type == rs_fill && text_last_frag->fr_offset == 0);
-  H_SET_TEXT_SIZE (&headers, text_last_frag->fr_address);
-  text_last_frag->fr_address = H_GET_TEXT_SIZE (&headers);
-
-  /* Join the 2 segments into 1 huge segment.
-     To do this, re-compute every rn_address in the SEG_DATA frags.
-     Then join the data frags after the text frags.
-
-     Determine a_data [length of data segment].  */
-  if (data_frag_root)
-    {
-      register relax_addressT slide;
-
-      know ((text_last_frag->fr_type == rs_fill)
-	    && (text_last_frag->fr_offset == 0));
-
-      H_SET_DATA_SIZE (&headers, data_last_frag->fr_address);
-      data_last_frag->fr_address = H_GET_DATA_SIZE (&headers);
-      slide = H_GET_TEXT_SIZE (&headers);	/* & in file of the data segment.  */
-#ifdef OBJ_BOUT
-#define RoundUp(N,S) (((N)+(S)-1)&-(S))
-      /* For b.out: If the data section has a strict alignment
-	 requirement, its load address in the .o file will be
-	 rounded up from the size of the text section.  These
-	 two values are *not* the same!  Similarly for the bss
-	 section....  */
-      slide = RoundUp (slide, 1 << section_alignment[SEG_DATA]);
-#endif
-
-      for (fragP = data_frag_root; fragP; fragP = fragP->fr_next)
-	fragP->fr_address += slide;
-
-      know (text_last_frag != 0);
-      text_last_frag->fr_next = data_frag_root;
-    }
-  else
-    {
-      H_SET_DATA_SIZE (&headers, 0);
-    }
-
-#ifdef OBJ_BOUT
-  /* See above comments on b.out data section address.  */
-  {
-    addressT bss_vma;
-    if (data_last_frag == 0)
-      bss_vma = H_GET_TEXT_SIZE (&headers);
-    else
-      bss_vma = data_last_frag->fr_address;
-    bss_vma = RoundUp (bss_vma, 1 << section_alignment[SEG_BSS]);
-    bss_address_frag.fr_address = bss_vma;
-  }
-#else /* ! OBJ_BOUT  */
-  bss_address_frag.fr_address = (H_GET_TEXT_SIZE (&headers) +
-				 H_GET_DATA_SIZE (&headers));
-
-#endif /* ! OBJ_BOUT  */
-
-  /* Slide all the frags.  */
-  if (bss_frag_root)
-    {
-      relax_addressT slide = bss_address_frag.fr_address;
-
-      for (fragP = bss_frag_root; fragP; fragP = fragP->fr_next)
-	fragP->fr_address += slide;
-    }
-
-  if (bss_last_frag)
-    H_SET_BSS_SIZE (&headers,
-		    bss_last_frag->fr_address - bss_frag_root->fr_address);
-  else
-    H_SET_BSS_SIZE (&headers, 0);
-}
-#endif /* ! BFD_ASSEMBLER && ! BFD  */
-
-#if defined (BFD_ASSEMBLER) || !defined (BFD)
-
-#ifdef BFD_ASSEMBLER
 static void
 set_symtab (void)
 {
@@ -1344,7 +1125,6 @@ set_symtab (void)
   assert (result);
   symbol_table_frozen = 1;
 }
-#endif
 
 /* Finish the subsegments.  After every sub-segment, we fake an
    ".align ...".  This conforms to BSD4.2 brane-damage.  We then fake
@@ -1361,11 +1141,7 @@ set_symtab (void)
   (!(FRCHAIN)->frch_next || (FRCHAIN)->frch_next->frch_seg != (SEG)	\
    ? get_recorded_alignment (SEG) : 0)
 #else
-#ifdef BFD_ASSEMBLER
 #define SUB_SEGMENT_ALIGN(SEG, FRCHAIN) 0
-#else
-#define SUB_SEGMENT_ALIGN(SEG, FRCHAIN) 2
-#endif
 #endif
 #endif
 
@@ -1386,7 +1162,6 @@ subsegs_finish (void)
       if (!had_errors ())
 	{
 	  alignment = SUB_SEGMENT_ALIGN (now_seg, frchainP);
-#ifdef BFD_ASSEMBLER
 	  if ((bfd_get_section_flags (now_seg->owner, now_seg) & SEC_MERGE)
 	      && now_seg->entsize)
 	    {
@@ -1401,7 +1176,6 @@ subsegs_finish (void)
 	      if (entalign > alignment)
 		alignment = entalign;
 	    }
-#endif
 	}
 
       if (subseg_text_p (now_seg))
@@ -1425,7 +1199,8 @@ subsegs_finish (void)
 void
 write_object_file (void)
 {
-#if ! defined (BFD_ASSEMBLER) || ! defined (WORKING_DOT_WORD)
+  struct relax_seg_info rsi;
+#ifndef WORKING_DOT_WORD
   fragS *fragP;			/* Track along all frags.  */
 #endif
 
@@ -1462,49 +1237,30 @@ write_object_file (void)
   /* From now on, we don't care about sub-segments.  Build one frag chain
      for each segment. Linked thru fr_next.  */
 
-#ifdef BFD_ASSEMBLER
   /* Remove the sections created by gas for its own purposes.  */
   {
-    asection **seclist;
     int i;
 
-    seclist = &stdoutput->sections;
-    while (*seclist)
-      {
-	if (*seclist == reg_section || *seclist == expr_section)
-	  {
-	    bfd_section_list_remove (stdoutput, seclist);
-	    stdoutput->section_count--;
-	  }
-	else
-	  seclist = &(*seclist)->next;
-      }
+    bfd_section_list_remove (stdoutput, reg_section);
+    bfd_section_list_remove (stdoutput, expr_section);
+    stdoutput->section_count -= 2;
     i = 0;
     bfd_map_over_sections (stdoutput, renumber_sections, &i);
   }
 
   bfd_map_over_sections (stdoutput, chain_frchains_together, (char *) 0);
-#else
-  remove_subsegs (frchain_root, SEG_TEXT, &text_frag_root, &text_last_frag);
-  remove_subsegs (data0_frchainP, SEG_DATA, &data_frag_root, &data_last_frag);
-  remove_subsegs (bss0_frchainP, SEG_BSS, &bss_frag_root, &bss_last_frag);
-#endif
 
   /* We have two segments. If user gave -R flag, then we must put the
      data frags into the text segment. Do this before relaxing so
      we know to take advantage of -R and make shorter addresses.  */
-#if !defined (OBJ_AOUT) || defined (BFD_ASSEMBLER)
   if (flag_readonly_data_in_text)
     {
       merge_data_into_text ();
     }
-#endif
 
-#ifdef BFD_ASSEMBLER
+  rsi.pass = 0;
   while (1)
     {
-      int changed;
-
 #ifndef WORKING_DOT_WORD
       /* We need to reset the markers in the broken word list and
 	 associated frags between calls to relax_segment (via
@@ -1525,9 +1281,10 @@ write_object_file (void)
 	}
 #endif
 
-      changed = 0;
-      bfd_map_over_sections (stdoutput, relax_seg, &changed);
-      if (!changed)
+      rsi.changed = 0;
+      bfd_map_over_sections (stdoutput, relax_seg, &rsi);
+      rsi.pass++;
+      if (!rsi.changed)
 	break;
     }
 
@@ -1541,9 +1298,6 @@ write_object_file (void)
   finalize_syms = TC_FINALIZE_SYMS_BEFORE_SIZE_SEG;
 
   bfd_map_over_sections (stdoutput, size_seg, (char *) 0);
-#else
-  relax_and_size_all_segments ();
-#endif /* BFD_ASSEMBLER  */
 
   /* Relaxation has completed.  Freeze all syms.  */
   finalize_syms = 1;
@@ -1551,64 +1305,6 @@ write_object_file (void)
 #ifdef md_post_relax_hook
   md_post_relax_hook;
 #endif
-
-#ifndef BFD_ASSEMBLER
-  /* Crawl the symbol chain.
-
-     For each symbol whose value depends on a frag, take the address of
-     that frag and subsume it into the value of the symbol.
-     After this, there is just one way to lookup a symbol value.
-     Values are left in their final state for object file emission.
-     We adjust the values of 'L' local symbols, even if we do
-     not intend to emit them to the object file, because their values
-     are needed for fix-ups.
-
-     Unless we saw a -L flag, remove all symbols that begin with 'L'
-     from the symbol chain.  (They are still pointed to by the fixes.)
-
-     Count the remaining symbols.
-     Assign a symbol number to each symbol.
-     Count the number of string-table chars we will emit.
-     Put this info into the headers as appropriate.  */
-  know (zero_address_frag.fr_address == 0);
-  string_byte_count = sizeof (string_byte_count);
-
-  obj_crawl_symbol_chain (&headers);
-
-  if (string_byte_count == sizeof (string_byte_count))
-    string_byte_count = 0;
-
-  H_SET_STRING_SIZE (&headers, string_byte_count);
-
-  /* Addresses of frags now reflect addresses we use in the object file.
-     Symbol values are correct.
-     Scan the frags, converting any ".org"s and ".align"s to ".fill"s.
-     Also converting any machine-dependent frags using md_convert_frag();  */
-  subseg_change (SEG_TEXT, 0);
-
-  for (fragP = text_frag_root; fragP; fragP = fragP->fr_next)
-    {
-      /* At this point we have linked all the frags into a single
-         chain.  However, cvt_frag_to_fill may call md_convert_frag
-         which may call fix_new.  We need to ensure that fix_new adds
-         the fixup to the right section.  */
-      if (fragP == data_frag_root)
-	subseg_change (SEG_DATA, 0);
-
-      cvt_frag_to_fill (&headers, SEG_TEXT, fragP);
-
-      /* Some assert macros don't work with # directives mixed in.  */
-#ifndef NDEBUG
-      if (!(fragP->fr_next == NULL
-#ifdef OBJ_BOUT
-	    || fragP->fr_next == data_frag_root
-#endif
-	    || ((offsetT) (fragP->fr_next->fr_address - fragP->fr_address)
-		== (fragP->fr_fix + fragP->fr_offset * fragP->fr_var))))
-	abort ();
-#endif
-    }
-#endif /* ! BFD_ASSEMBLER  */
 
 #ifndef WORKING_DOT_WORD
   {
@@ -1626,7 +1322,6 @@ write_object_file (void)
 	  exp.X_add_symbol = lie->add;
 	  exp.X_op_symbol = lie->sub;
 	  exp.X_add_number = lie->addnum;
-#ifdef BFD_ASSEMBLER
 #ifdef TC_CONS_FIX_NEW
 	  TC_CONS_FIX_NEW (lie->frag,
 			   lie->word_goes_here - lie->frag->fr_literal,
@@ -1636,23 +1331,6 @@ write_object_file (void)
 		       lie->word_goes_here - lie->frag->fr_literal,
 		       2, &exp, 0, BFD_RELOC_16);
 #endif
-#else
-#if defined(TC_SPARC) || defined(TC_A29K) || defined(NEED_FX_R_TYPE)
-	  fix_new_exp (lie->frag,
-		       lie->word_goes_here - lie->frag->fr_literal,
-		       2, &exp, 0, NO_RELOC);
-#else
-#ifdef TC_NS32K
-	  fix_new_ns32k_exp (lie->frag,
-			     lie->word_goes_here - lie->frag->fr_literal,
-			     2, &exp, 0, 0, 2, 0, 0);
-#else
-	  fix_new_exp (lie->frag,
-		       lie->word_goes_here - lie->frag->fr_literal,
-		       2, &exp, 0, 0);
-#endif /* TC_NS32K  */
-#endif /* TC_SPARC|TC_A29K|NEED_FX_R_TYPE  */
-#endif /* BFD_ASSEMBLER  */
 	  *prevP = lie->next_broken_word;
 	}
       else
@@ -1723,132 +1401,6 @@ write_object_file (void)
   }
 #endif /* not WORKING_DOT_WORD  */
 
-#ifndef BFD_ASSEMBLER
-#ifndef	OBJ_VMS
-  {				/* not vms  */
-    char *the_object_file;
-    long object_file_size;
-    /* Scan every FixS performing fixups. We had to wait until now to
-       do this because md_convert_frag() may have made some fixSs.  */
-    int trsize, drsize;
-
-    subseg_change (SEG_TEXT, 0);
-    trsize = md_reloc_size * fixup_segment (text_fix_root, SEG_TEXT);
-    subseg_change (SEG_DATA, 0);
-    drsize = md_reloc_size * fixup_segment (data_fix_root, SEG_DATA);
-    H_SET_RELOCATION_SIZE (&headers, trsize, drsize);
-
-    /* FIXME: Move this stuff into the pre-write-hook.  */
-    H_SET_MAGIC_NUMBER (&headers, magic_number_for_object_file);
-    H_SET_ENTRY_POINT (&headers, 0);
-
-    obj_pre_write_hook (&headers);	/* Extra coff stuff.  */
-
-    object_file_size = H_GET_FILE_SIZE (&headers);
-    next_object_file_charP = the_object_file = xmalloc (object_file_size);
-
-    output_file_create (out_file_name);
-
-    obj_header_append (&next_object_file_charP, &headers);
-
-    know ((next_object_file_charP - the_object_file)
-	  == H_GET_HEADER_SIZE (&headers));
-
-    /* Emit code.  */
-    for (fragP = text_frag_root; fragP; fragP = fragP->fr_next)
-      {
-	register long count;
-	register char *fill_literal;
-	register long fill_size;
-
-	PROGRESS (1);
-	know (fragP->fr_type == rs_fill);
-	append (&next_object_file_charP, fragP->fr_literal,
-		(unsigned long) fragP->fr_fix);
-	fill_literal = fragP->fr_literal + fragP->fr_fix;
-	fill_size = fragP->fr_var;
-	know (fragP->fr_offset >= 0);
-
-	for (count = fragP->fr_offset; count; count--)
-	  append (&next_object_file_charP, fill_literal,
-		  (unsigned long) fill_size);
-      }
-
-    know ((next_object_file_charP - the_object_file)
-	  == (H_GET_HEADER_SIZE (&headers)
-	      + H_GET_TEXT_SIZE (&headers)
-	      + H_GET_DATA_SIZE (&headers)));
-
-    /* Emit relocations.  */
-    obj_emit_relocations (&next_object_file_charP, text_fix_root,
-			  (relax_addressT) 0);
-    know ((next_object_file_charP - the_object_file)
-	  == (H_GET_HEADER_SIZE (&headers)
-	      + H_GET_TEXT_SIZE (&headers)
-	      + H_GET_DATA_SIZE (&headers)
-	      + H_GET_TEXT_RELOCATION_SIZE (&headers)));
-#ifdef TC_I960
-    /* Make addresses in data relocation directives relative to beginning of
-       first data fragment, not end of last text fragment:  alignment of the
-       start of the data segment may place a gap between the segments.  */
-    obj_emit_relocations (&next_object_file_charP, data_fix_root,
-			  data0_frchainP->frch_root->fr_address);
-#else /* TC_I960  */
-    obj_emit_relocations (&next_object_file_charP, data_fix_root,
-			  text_last_frag->fr_address);
-#endif /* TC_I960  */
-
-    know ((next_object_file_charP - the_object_file)
-	  == (H_GET_HEADER_SIZE (&headers)
-	      + H_GET_TEXT_SIZE (&headers)
-	      + H_GET_DATA_SIZE (&headers)
-	      + H_GET_TEXT_RELOCATION_SIZE (&headers)
-	      + H_GET_DATA_RELOCATION_SIZE (&headers)));
-
-    /* Emit line number entries.  */
-    OBJ_EMIT_LINENO (&next_object_file_charP, lineno_rootP, the_object_file);
-    know ((next_object_file_charP - the_object_file)
-	  == (H_GET_HEADER_SIZE (&headers)
-	      + H_GET_TEXT_SIZE (&headers)
-	      + H_GET_DATA_SIZE (&headers)
-	      + H_GET_TEXT_RELOCATION_SIZE (&headers)
-	      + H_GET_DATA_RELOCATION_SIZE (&headers)
-	      + H_GET_LINENO_SIZE (&headers)));
-
-    /* Emit symbols.  */
-    obj_emit_symbols (&next_object_file_charP, symbol_rootP);
-    know ((next_object_file_charP - the_object_file)
-	  == (H_GET_HEADER_SIZE (&headers)
-	      + H_GET_TEXT_SIZE (&headers)
-	      + H_GET_DATA_SIZE (&headers)
-	      + H_GET_TEXT_RELOCATION_SIZE (&headers)
-	      + H_GET_DATA_RELOCATION_SIZE (&headers)
-	      + H_GET_LINENO_SIZE (&headers)
-	      + H_GET_SYMBOL_TABLE_SIZE (&headers)));
-
-    /* Emit strings.  */
-    if (string_byte_count > 0)
-      obj_emit_strings (&next_object_file_charP);
-
-#ifdef BFD_HEADERS
-    bfd_seek (stdoutput, (file_ptr) 0, 0);
-    bfd_bwrite (the_object_file, (bfd_size_type) object_file_size, stdoutput);
-#else
-
-    /* Write the data to the file.  */
-    output_file_append (the_object_file, object_file_size, out_file_name);
-    free (the_object_file);
-#endif
-  }
-#else /* OBJ_VMS  */
-  /* Now do the VMS-dependent part of writing the object file.  */
-  vms_write_object_file (H_GET_TEXT_SIZE (&headers),
-			 H_GET_DATA_SIZE (&headers),
-			 H_GET_BSS_SIZE (&headers),
-			 text_frag_root, data_frag_root);
-#endif /* OBJ_VMS  */
-#else /* BFD_ASSEMBLER  */
-
   /* Resolve symbol values.  This needs to be done before processing
      the relocations.  */
   if (symbol_rootP)
@@ -1884,11 +1436,21 @@ write_object_file (void)
   if (symbol_rootP)
     {
       symbolS *symp;
+      bfd_boolean skip_next_symbol = FALSE;
 
       for (symp = symbol_rootP; symp; symp = symbol_next (symp))
 	{
 	  int punt = 0;
 	  const char *name;
+
+	  if (skip_next_symbol)
+	    {
+	      /* Don't do anything besides moving the value of the
+		 symbol from the GAS value-field to the BFD value-field.  */
+	      symbol_get_bfdsym (symp)->value = S_GET_VALUE (symp);
+	      skip_next_symbol = FALSE;
+	      continue;
+	    }
 
 	  if (symbol_mri_common_p (symp))
 	    {
@@ -1917,24 +1479,22 @@ write_object_file (void)
 
 	  /* Skip symbols which were equated to undefined or common
              symbols.  */
-	  if (symbol_equated_reloc_p (symp))
+	  if (symbol_equated_reloc_p (symp)
+	      || S_IS_WEAKREFR (symp))
 	    {
+	      const char *name = S_GET_NAME (symp);
+	      if (S_IS_COMMON (symp)
+		  && !TC_FAKE_LABEL (name)
+		  && !S_IS_WEAKREFR (symp)
+		  && (!S_IS_EXTERNAL (symp) || S_IS_LOCAL (symp)))
+		{
+		  expressionS *e = symbol_get_value_expression (symp);
+		  as_bad (_("Local symbol `%s' can't be equated to common symbol `%s'"),
+			  name, S_GET_NAME (e->X_add_symbol));
+		}
 	      symbol_remove (symp, &symbol_rootP, &symbol_lastP);
 	      continue;
 	    }
-
-	  /* So far, common symbols have been treated like undefined symbols.
-	     Put them in the common section now.  */
-	  if (S_IS_DEFINED (symp) == 0
-	      && S_GET_VALUE (symp) != 0)
-	    S_SET_SEGMENT (symp, bfd_com_section_ptr);
-#if 0
-	  printf ("symbol `%s'\n\t@%x: value=%d flags=%x seg=%s\n",
-		  S_GET_NAME (symp), symp,
-		  S_GET_VALUE (symp),
-		  symbol_get_bfdsym (symp)->flags,
-		  segment_name (S_GET_SEGMENT (symp)));
-#endif
 
 #ifdef obj_frob_symbol
 	  obj_frob_symbol (symp, punt);
@@ -1952,11 +1512,12 @@ write_object_file (void)
 	  if (symp == abs_section_sym
 	      || (! EMIT_SECTION_SYMBOLS
 		  && symbol_section_p (symp))
-	      /* Note that S_IS_EXTERN and S_IS_LOCAL are not always
+	      /* Note that S_IS_EXTERNAL and S_IS_LOCAL are not always
 		 opposites.  Sometimes the former checks flags and the
 		 latter examines the name...  */
-	      || (!S_IS_EXTERN (symp)
-		  && (punt || S_IS_LOCAL (symp))
+	      || (!S_IS_EXTERNAL (symp)
+		  && (punt || S_IS_LOCAL (symp) ||
+		      (S_IS_WEAKREFD (symp) && ! symbol_used_p (symp)))
 		  && ! symbol_used_in_reloc_p (symp)))
 	    {
 	      symbol_remove (symp, &symbol_rootP, &symbol_lastP);
@@ -1978,6 +1539,12 @@ write_object_file (void)
 	  /* Set the value into the BFD symbol.  Up til now the value
 	     has only been kept in the gas symbolS struct.  */
 	  symbol_get_bfdsym (symp)->value = S_GET_VALUE (symp);
+
+	  /* A warning construct is a warning symbol followed by the
+	     symbol warned about.  Don't let anything object-format or
+	     target-specific muck with it; it's ready for output.  */
+	  if (symbol_get_bfdsym (symp)->flags & BSF_WARNING)
+	    skip_next_symbol = TRUE;
 	}
     }
 
@@ -2017,12 +1584,9 @@ write_object_file (void)
 #endif
 
   bfd_map_over_sections (stdoutput, write_contents, (char *) 0);
-#endif /* BFD_ASSEMBLER  */
 }
-#endif /* ! BFD  */
 
 #ifdef TC_GENERIC_RELAX_TABLE
-
 /* Relax a fragment by scanning TC_GENERIC_RELAX_TABLE.  */
 
 long
@@ -2053,12 +1617,6 @@ relax_frag (segT segment, fragS *fragP, long stretch)
       sym_frag = symbol_get_frag (symbolP);
 
 #ifndef DIFF_EXPR_OK
-#if !defined (MANY_SEGMENTS) && !defined (BFD_ASSEMBLER)
-      know ((S_GET_SEGMENT (symbolP) == SEG_ABSOLUTE)
-	    || (S_GET_SEGMENT (symbolP) == SEG_DATA)
-	    || (S_GET_SEGMENT (symbolP) == SEG_BSS)
-	    || (S_GET_SEGMENT (symbolP) == SEG_TEXT));
-#endif
       know (sym_frag != NULL);
 #endif
       know (S_GET_SEGMENT (symbolP) != absolute_section
@@ -2082,14 +1640,10 @@ relax_frag (segT segment, fragS *fragP, long stretch)
 #ifdef TC_PCREL_ADJUST
   /* Currently only the ns32k family needs this.  */
   aim += TC_PCREL_ADJUST (fragP);
-/* #else */
-  /* This machine doesn't want to use pcrel_adjust.
-     In that case, pcrel_adjust should be zero.  */
-#if 0
-  assert (fragP->fr_targ.ns32k.pcrel_adjust == 0);
 #endif
-#endif
-#ifdef md_prepare_relax_scan /* formerly called M68K_AIM_KLUDGE  */
+
+#ifdef md_prepare_relax_scan
+  /* Formerly called M68K_AIM_KLUDGE.  */
   md_prepare_relax_scan (fragP, address, aim, this_state, this_type);
 #endif
 
@@ -2161,22 +1715,22 @@ relax_align (register relax_addressT address,	/* Address now.  */
    addresses.  */
 
 int
-relax_segment (struct frag *segment_frag_root, segT segment)
+relax_segment (struct frag *segment_frag_root, segT segment, int pass)
 {
-  register struct frag *fragP;
-  register relax_addressT address;
+  unsigned long frag_count;
+  struct frag *fragP;
+  relax_addressT address;
   int ret;
 
-#if !defined (MANY_SEGMENTS) && !defined (BFD_ASSEMBLER)
-  know (segment == SEG_DATA || segment == SEG_TEXT || segment == SEG_BSS);
-#endif
   /* In case md_estimate_size_before_relax() wants to make fixSs.  */
   subseg_change (segment, 0);
 
   /* For each frag in segment: count and store  (a 1st guess of)
      fr_address.  */
   address = 0;
-  for (fragP = segment_frag_root; fragP; fragP = fragP->fr_next)
+  for (frag_count = 0, fragP = segment_frag_root;
+       fragP;
+       fragP = fragP->fr_next, frag_count ++)
     {
       fragP->relax_marker = 0;
       fragP->fr_address = address;
@@ -2252,6 +1806,7 @@ relax_segment (struct frag *segment_frag_root, segT segment)
 
   /* Do relax().  */
   {
+    unsigned long max_iterations;
     offsetT stretch;	/* May be any size, 0 or negative.  */
     /* Cumulative number of addresses we have relaxed this pass.
        We may have relaxed more than one address.  */
@@ -2260,6 +1815,21 @@ relax_segment (struct frag *segment_frag_root, segT segment)
        grew, and another shrank.  If a branch instruction doesn't fit anymore,
        we could be scrod.  */
 
+    /* We want to prevent going into an infinite loop where one frag grows
+       depending upon the location of a symbol which is in turn moved by
+       the growing frag.  eg:
+
+         foo = .
+         .org foo+16
+         foo = .
+
+	So we dictate that this algorithm can be at most O2.  */
+    max_iterations = frag_count * frag_count;
+    /* Check for overflow.  */
+    if (max_iterations < frag_count)
+      max_iterations = frag_count;
+
+    ret = 0;
     do
       {
 	stretch = 0;
@@ -2376,20 +1946,11 @@ relax_segment (struct frag *segment_frag_root, segT segment)
 
 		  if (symbolP)
 		    {
-#if !defined (MANY_SEGMENTS) && !defined (BFD_ASSEMBLER)
-		      know ((S_GET_SEGMENT (symbolP) == SEG_ABSOLUTE)
-			    || (S_GET_SEGMENT (symbolP) == SEG_DATA)
-			    || (S_GET_SEGMENT (symbolP) == SEG_TEXT)
-			    || S_GET_SEGMENT (symbolP) == SEG_BSS);
-		      know (symbolP->sy_frag);
-		      know (!(S_GET_SEGMENT (symbolP) == SEG_ABSOLUTE)
-			    || (symbolP->sy_frag == &zero_address_frag));
-#endif
                       /* Convert from an actual address to an octet offset
                          into the section.  Here it is assumed that the
                          section's VMA is zero, and can omit subtracting it
                          from the symbol's value to get the address offset.  */
-                      know (S_GET_SECTION (symbolP)->vma == 0);
+                      know (S_GET_SEGMENT (symbolP)->vma == 0);
 		      target += S_GET_VALUE (symbolP) * OCTETS_PER_BYTE;
 		    }
 
@@ -2398,6 +1959,26 @@ relax_segment (struct frag *segment_frag_root, segT segment)
 		  growth = target - after;
 		  if (growth < 0)
 		    {
+		      growth = 0;
+
+		      /* Don't error on first few frag relax passes.
+			 The symbol might be an expression involving
+			 symbol values from other sections.  If those
+			 sections have not yet been processed their
+			 frags will all have zero addresses, so we
+			 will calculate incorrect values for them.  The
+			 number of passes we allow before giving an
+			 error is somewhat arbitrary.  It should be at
+			 least one, with larger values requiring
+			 increasingly contrived dependencies between
+			 frags to trigger a false error.  */
+		      if (pass < 2)
+			{
+			  /* Force another pass.  */
+			  ret = 1;
+			  break;
+			}
+
 		      /* Growth may be negative, but variable part of frag
 			 cannot have fewer than 0 chars.  That is, we can't
 			 .org backwards.  */
@@ -2409,8 +1990,8 @@ relax_segment (struct frag *segment_frag_root, segT segment)
 		      fragP->fr_type = rs_align;
 		      fragP->fr_subtype = 0;
 		      fragP->fr_offset = 0;
-		      fragP->fr_fix = after - address;
-		      growth = stretch;
+		      fragP->fr_fix = after - was_address;
+		      break;
 		    }
 
 		  /* This is an absolute growth factor  */
@@ -2436,6 +2017,14 @@ relax_segment (struct frag *segment_frag_root, segT segment)
 		      }
 		    else if (amount < 0)
 		      {
+			/* Don't error on first few frag relax passes.
+			   See rs_org comment for a longer explanation.  */
+			if (pass < 2)
+			  {
+			    ret = 1;
+			    break;
+			  }
+
 			as_warn_where (fragP->fr_file, fragP->fr_line,
 				       _(".space or .fill with negative value, ignored"));
 			fragP->fr_symbol = 0;
@@ -2487,12 +2076,16 @@ relax_segment (struct frag *segment_frag_root, segT segment)
 		stretch += growth;
 		stretched = 1;
 	      }
-	  }			/* For each frag in the segment.  */
+	  }
       }
-    while (stretched);		/* Until nothing further to relax.  */
-  }				/* do_relax  */
+    /* Until nothing further to relax.  */
+    while (stretched && -- max_iterations);
 
-  ret = 0;
+    if (stretched)
+      as_fatal (_("Infinite loop encountered whilst attempting to compute the addresses of symbols in section %s"),
+		segment_name (segment));
+  }
+
   for (fragP = segment_frag_root; fragP; fragP = fragP->fr_next)
     if (fragP->last_fr_address != fragP->fr_address)
       {
@@ -2502,14 +2095,12 @@ relax_segment (struct frag *segment_frag_root, segT segment)
   return ret;
 }
 
-#if defined (BFD_ASSEMBLER) || (!defined (BFD) && !defined (OBJ_VMS))
-
 /* fixup_segment()
 
    Go through all the fixS's in a segment and see which ones can be
    handled now.  (These consist of fixS where we have since discovered
    the value of a symbol, or the address of the frag involved.)
-   For each one, call md_apply_fix3 to put the fix into the frag data.
+   For each one, call md_apply_fix to put the fix into the frag data.
 
    Result is a count of how many relocation structs will be needed to
    handle the remaining fixS's that we couldn't completely handle here.
@@ -2524,13 +2115,7 @@ fixup_segment (fixS *fixP, segT this_segment)
   segT add_symbol_segment = absolute_section;
 
   if (fixP != NULL && abs_section_sym == NULL)
-    {
-#ifndef BFD_ASSEMBLER
-      abs_section_sym = &abs_symbol;
-#else
-      abs_section_sym = section_symbol (absolute_section);
-#endif
-    }
+    abs_section_sym = section_symbol (absolute_section);
 
   /* If the linker is doing the relaxing, we must not do any fixups.
 
@@ -2577,7 +2162,6 @@ fixup_segment (fixS *fixP, segT this_segment)
       if (fixP->fx_addsy != NULL
 	  && symbol_mri_common_p (fixP->fx_addsy))
 	{
-	  know (fixP->fx_addsy->sy_value.X_op == O_symbol);
 	  add_number += S_GET_VALUE (fixP->fx_addsy);
 	  fixP->fx_offset = add_number;
 	  fixP->fx_addsy
@@ -2670,9 +2254,7 @@ fixup_segment (fixS *fixP, segT this_segment)
 	      fixP->fx_addsy = NULL;
 	    }
 	  else if (add_symbol_segment != undefined_section
-#ifdef BFD_ASSEMBLER
 		   && ! bfd_is_com_section (add_symbol_segment)
-#endif
 		   && MD_APPLY_SYM_VALUE (fixP))
 	    add_number += S_GET_VALUE (fixP->fx_addsy);
 	}
@@ -2691,7 +2273,7 @@ fixup_segment (fixS *fixP, segT this_segment)
 	}
 
       if (!fixP->fx_done)
-	md_apply_fix3 (fixP, &add_number, this_segment);
+	md_apply_fix (fixP, &add_number, this_segment);
 
       if (!fixP->fx_done)
 	{
@@ -2753,8 +2335,6 @@ fixup_segment (fixS *fixP, segT this_segment)
   return seg_reloc_count;
 }
 
-#endif /* defined (BFD_ASSEMBLER) || (!defined (BFD) && !defined (OBJ_VMS)) */
-
 void
 number_to_chars_bigendian (char *buf, valueT val, int n)
 {
@@ -2812,14 +2392,8 @@ print_fixup (fixS *fixp)
   fprintf (stderr, "\n    size=%d frag=%lx where=%ld offset=%lx addnumber=%lx",
 	   fixp->fx_size, (long) fixp->fx_frag, (long) fixp->fx_where,
 	   (long) fixp->fx_offset, (long) fixp->fx_addnumber);
-#ifdef BFD_ASSEMBLER
   fprintf (stderr, "\n    %s (%d)", bfd_get_reloc_code_name (fixp->fx_r_type),
 	   fixp->fx_r_type);
-#else
-#ifdef NEED_FX_R_TYPE
-  fprintf (stderr, " r_type=%d", fixp->fx_r_type);
-#endif
-#endif
   if (fixp->fx_addsy)
     {
       fprintf (stderr, "\n   +<");

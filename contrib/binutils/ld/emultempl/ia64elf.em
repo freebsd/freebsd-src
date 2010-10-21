@@ -15,7 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
 
 # This file is sourced from elf32.em, and defines extra ia64-elf
@@ -32,7 +32,7 @@ static int itanium = 0;
 static void
 gld${EMULATION_NAME}_after_parse (void)
 {
-  link_info.need_relax_finalize = TRUE;
+  link_info.relax_pass = 2;
   bfd_elf${ELFSIZE}_ia64_after_parse (itanium);
 }
 

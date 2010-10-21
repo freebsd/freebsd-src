@@ -1,6 +1,6 @@
 /* ELF support for BFD.
-   Copyright 1991, 1992, 1993, 1994, 1995, 1997, 1998, 2000, 2001, 2002
-   Free Software Foundation, Inc.
+   Copyright 1991, 1992, 1993, 1994, 1995, 1997, 1998, 2000, 2001, 2002,
+   2003 Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
    in "UNIX System V Release 4, Programmers Guide: ANSI C and
@@ -20,7 +20,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 
 /* This file is part of ELF support for BFD, and contains the portions
@@ -250,5 +250,30 @@ struct elf_segment_map
   /* Sections.  Actual number of elements is in count field.  */
   asection *sections[1];
 };
+
+/* Decide if the given sec_hdr is in the given segment in file.  */
+#define ELF_IS_SECTION_IN_SEGMENT_FILE(sec_hdr, segment)	\
+  (sec_hdr->sh_size > 0						\
+   /* PT_TLS segment contains only SHF_TLS sections.  */	\
+   && (segment->p_type != PT_TLS				\
+       || (sec_hdr->sh_flags & SHF_TLS) != 0)			\
+   /* Compare allocated sec_hdrs by VMA, unallocated sec_hdrs	\
+      by file offset.  */					\
+   && (sec_hdr->sh_flags & SHF_ALLOC				\
+       ? (sec_hdr->sh_addr >= segment->p_vaddr			\
+	  && sec_hdr->sh_addr + sec_hdr->sh_size		\
+	  <= segment->p_vaddr + segment->p_memsz)		\
+       : ((bfd_vma) sec_hdr->sh_offset >= segment->p_offset	\
+	  && (sec_hdr->sh_offset + sec_hdr->sh_size		\
+	      <= segment->p_offset + segment->p_filesz))))
+
+/* Decide if the given sec_hdr is in the given segment in memory.  */
+#define ELF_IS_SECTION_IN_SEGMENT_MEMORY(sec_hdr, segment)	\
+  (ELF_IS_SECTION_IN_SEGMENT_FILE (sec_hdr, segment)		\
+   /* .tbss is special.  It doesn't contribute memory space to	\
+      normal segments.  */					\
+   && (!((sec_hdr->sh_flags & SHF_TLS) != 0			\
+	 && sec_hdr->sh_type == SHT_NOBITS)			\
+       || segment->p_type == PT_TLS))
 
 #endif /* _ELF_INTERNAL_H */

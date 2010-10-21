@@ -1,5 +1,6 @@
 /* input_file.c - Deal with Input Files -
-   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1999, 2000, 2001, 2003
+   Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1999, 2000, 2001,
+   2002, 2003, 2005
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -16,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* Confines all details of reading source bytes to this module.
    All O/S specific crocks should live here.
@@ -77,12 +78,6 @@ unsigned int
 input_file_buffer_size (void)
 {
   return (BUFFER_SIZE);
-}
-
-int
-input_file_is_open (void)
-{
-  return f_in != (FILE *) 0;
 }
 
 /* Push the state of our input, returning a pointer to saved info that
@@ -146,21 +141,22 @@ input_file_open (char *filename, /* "" means use stdin. Must not be 0.  */
       file_name = _("{standard input}");
     }
 
-  if (f_in)
-    c = getc (f_in);
-
-  if (f_in == NULL || ferror (f_in))
+  if (f_in == NULL)
     {
-#ifdef BFD_ASSEMBLER
       bfd_set_error (bfd_error_system_call);
-#endif
+      as_perror (_("Can't open %s for reading"), file_name);
+      return;
+    }
+
+  c = getc (f_in);
+
+  if (ferror (f_in))
+    {
+      bfd_set_error (bfd_error_system_call);
       as_perror (_("Can't open %s for reading"), file_name);
 
-      if (f_in)
-	{
-	  fclose (f_in);
-	  f_in = NULL;
-	}
+      fclose (f_in);
+      f_in = NULL;
       return;
     }
 
@@ -219,9 +215,7 @@ input_file_get (char *buf, int buflen)
   size = fread (buf, sizeof (char), buflen, f_in);
   if (size < 0)
     {
-#ifdef BFD_ASSEMBLER
       bfd_set_error (bfd_error_system_call);
-#endif
       as_perror (_("Can't read from %s"), file_name);
       size = 0;
     }
@@ -248,9 +242,7 @@ input_file_give_next_buffer (char *where /* Where to place 1st character of new 
     size = fread (where, sizeof (char), BUFFER_SIZE, f_in);
   if (size < 0)
     {
-#ifdef BFD_ASSEMBLER
       bfd_set_error (bfd_error_system_call);
-#endif
       as_perror (_("Can't read from %s"), file_name);
       size = 0;
     }
@@ -260,9 +252,7 @@ input_file_give_next_buffer (char *where /* Where to place 1st character of new 
     {
       if (fclose (f_in))
 	{
-#ifdef BFD_ASSEMBLER
 	  bfd_set_error (bfd_error_system_call);
-#endif
 	  as_perror (_("Can't close %s"), file_name);
 	}
       f_in = (FILE *) 0;

@@ -1,6 +1,6 @@
 /* subsegs.c - subsegments -
    Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2002
+   1999, 2000, 2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -17,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* Segments & sub-segments.  */
 
@@ -31,44 +31,10 @@ frchainS *frchain_root, *frchain_now;
 
 static struct obstack frchains;
 
-#ifndef BFD_ASSEMBLER
-#ifdef MANY_SEGMENTS
-segment_info_type segment_info[SEG_MAXIMUM_ORDINAL];
-
-#else
-/* Commented in "subsegs.h".  */
-frchainS *data0_frchainP, *bss0_frchainP;
-
-#endif /* MANY_SEGMENTS */
-char const *const seg_name[] = {
-  "absolute",
-#ifdef MANY_SEGMENTS
-  "e0", "e1", "e2", "e3", "e4", "e5", "e6", "e7", "e8", "e9",
-  "e10", "e11", "e12", "e13", "e14", "e15", "e16", "e17", "e18", "e19",
-  "e20", "e21", "e22", "e23", "e24", "e25", "e26", "e27", "e28", "e29",
-  "e30", "e31", "e32", "e33", "e34", "e35", "e36", "e37", "e38", "e39",
-#else
-  "text",
-  "data",
-  "bss",
-#endif /* MANY_SEGMENTS */
-  "unknown",
-  "ASSEMBLER-INTERNAL-LOGIC-ERROR!",
-  "expr",
-  "debug",
-  "transfert vector preload",
-  "transfert vector postload",
-  "register",
-  "",
-};				/* Used by error reporters, dumpers etc.  */
-#else /* BFD_ASSEMBLER */
-
 /* Gas segment information for bfd_abs_section_ptr and
    bfd_und_section_ptr.  */
 static segment_info_type *abs_seg_info;
 static segment_info_type *und_seg_info;
-
-#endif /* BFD_ASSEMBLER */
 
 static void subseg_set_rest (segT, subsegT);
 
@@ -79,22 +45,6 @@ static frchainS absolute_frchain;
 void
 subsegs_begin (void)
 {
-  /* Check table(s) seg_name[], seg_N_TYPE[] is in correct order */
-#if !defined (MANY_SEGMENTS) && !defined (BFD_ASSEMBLER)
-  know (SEG_ABSOLUTE == 0);
-  know (SEG_TEXT == 1);
-  know (SEG_DATA == 2);
-  know (SEG_BSS == 3);
-  know (SEG_UNKNOWN == 4);
-  know (SEG_GOOF == 5);
-  know (SEG_EXPR == 6);
-  know (SEG_DEBUG == 7);
-  know (SEG_NTV == 8);
-  know (SEG_PTV == 9);
-  know (SEG_REGISTER == 10);
-  know (SEG_MAXIMUM_ORDINAL == SEG_REGISTER);
-#endif
-
   obstack_begin (&frchains, chunksize);
 #if __GNUC__ >= 2
   obstack_alignment_mask (&frchains) = __alignof__ (frchainS) - 1;
@@ -105,32 +55,9 @@ subsegs_begin (void)
 
   frag_now = &dummy_frag;
 
-#ifndef BFD_ASSEMBLER
-  now_subseg = 42;		/* Lie for 1st call to subseg_new.  */
-#ifdef MANY_SEGMENTS
-  {
-    int i;
-    for (i = SEG_E0; i < SEG_UNKNOWN; i++)
-      {
-	subseg_set (i, 0);
-	segment_info[i].frchainP = frchain_now;
-      }
-  }
-#else
-  subseg_set (SEG_DATA, 0);	/* .data 0 */
-  data0_frchainP = frchain_now;
-
-  subseg_set (SEG_BSS, 0);
-  bss0_frchainP = frchain_now;
-
-#endif /* ! MANY_SEGMENTS */
-#endif /* ! BFD_ASSEMBLER */
-
   absolute_frchain.frch_seg = absolute_section;
   absolute_frchain.frch_subseg = 0;
-#ifdef BFD_ASSEMBLER
   absolute_frchain.fix_root = absolute_frchain.fix_tail = 0;
-#endif
   absolute_frchain.frch_frag_now = &zero_address_frag;
   absolute_frchain.frch_root = absolute_frchain.frch_last = &zero_address_frag;
 }
@@ -148,56 +75,29 @@ subsegs_begin (void)
 void
 subseg_change (register segT seg, register int subseg)
 {
+  segment_info_type *seginfo;
   now_seg = seg;
   now_subseg = subseg;
 
   if (now_seg == absolute_section)
     return;
 
-#ifdef BFD_ASSEMBLER
-  {
-    segment_info_type *seginfo;
-    seginfo = (segment_info_type *) bfd_get_section_userdata (stdoutput, seg);
-    if (! seginfo)
-      {
-	seginfo = (segment_info_type *) xmalloc (sizeof (*seginfo));
-	memset ((PTR) seginfo, 0, sizeof (*seginfo));
-	seginfo->fix_root = NULL;
-	seginfo->fix_tail = NULL;
-	seginfo->bfd_section = seg;
-	seginfo->sym = 0;
-	if (seg == bfd_abs_section_ptr)
-	  abs_seg_info = seginfo;
-	else if (seg == bfd_und_section_ptr)
-	  und_seg_info = seginfo;
-	else
-	  bfd_set_section_userdata (stdoutput, seg, (PTR) seginfo);
-      }
-  }
-#else
-#ifdef MANY_SEGMENTS
-  seg_fix_rootP = &segment_info[seg].fix_root;
-  seg_fix_tailP = &segment_info[seg].fix_tail;
-#else
-  if (seg == SEG_DATA)
+  seginfo = (segment_info_type *) bfd_get_section_userdata (stdoutput, seg);
+  if (! seginfo)
     {
-      seg_fix_rootP = &data_fix_root;
-      seg_fix_tailP = &data_fix_tail;
+      seginfo = (segment_info_type *) xmalloc (sizeof (*seginfo));
+      memset ((PTR) seginfo, 0, sizeof (*seginfo));
+      seginfo->fix_root = NULL;
+      seginfo->fix_tail = NULL;
+      seginfo->bfd_section = seg;
+      seginfo->sym = 0;
+      if (seg == bfd_abs_section_ptr)
+	abs_seg_info = seginfo;
+      else if (seg == bfd_und_section_ptr)
+	und_seg_info = seginfo;
+      else
+	bfd_set_section_userdata (stdoutput, seg, (PTR) seginfo);
     }
-  else if (seg == SEG_TEXT)
-    {
-      seg_fix_rootP = &text_fix_root;
-      seg_fix_tailP = &text_fix_tail;
-    }
-  else
-    {
-      know (seg == SEG_BSS);
-      seg_fix_rootP = &bss_fix_root;
-      seg_fix_tailP = &bss_fix_tail;
-    }
-
-#endif
-#endif
 }
 
 static void
@@ -274,13 +174,13 @@ subseg_set_rest (segT seg, subsegT subseg)
       /*
        * This should be the only code that creates a frchainS.
        */
+      segment_info_type *seginfo;
+
       newP = (frchainS *) obstack_alloc (&frchains, sizeof (frchainS));
       newP->frch_subseg = subseg;
       newP->frch_seg = seg;
-#ifdef BFD_ASSEMBLER
       newP->fix_root = NULL;
       newP->fix_tail = NULL;
-#endif
       obstack_begin (&newP->frch_obstack, chunksize);
 #if __GNUC__ >= 2
       obstack_alignment_mask (&newP->frch_obstack) = __alignof__ (fragS) - 1;
@@ -293,14 +193,9 @@ subseg_set_rest (segT seg, subsegT subseg)
       *lastPP = newP;
       newP->frch_next = frcP;	/* perhaps NULL */
 
-#ifdef BFD_ASSEMBLER
-      {
-	segment_info_type *seginfo;
-	seginfo = seg_info (seg);
-	if (seginfo && seginfo->frchainP == frcP)
-	  seginfo->frchainP = newP;
-      }
-#endif
+      seginfo = seg_info (seg);
+      if (seginfo && (!seginfo->frchainP || seginfo->frchainP == frcP))
+	seginfo->frchainP = newP;
 
       frcP = newP;
     }
@@ -328,73 +223,6 @@ subseg_set_rest (segT seg, subsegT subseg)
  *	sub-segment.
  *	Frchain_root updated if needed.
  */
-
-#ifndef BFD_ASSEMBLER
-
-segT
-subseg_new (segname, subseg)
-     const char *segname;
-     subsegT subseg;
-{
-  int i;
-
-  for (i = 0; i < (int) SEG_MAXIMUM_ORDINAL; i++)
-    {
-      const char *s;
-
-      s = segment_name ((segT) i);
-      if (strcmp (segname, s) == 0
-	  || (segname[0] == '.'
-	      && strcmp (segname + 1, s) == 0))
-	{
-	  subseg_set ((segT) i, subseg);
-	  return (segT) i;
-	}
-#ifdef obj_segment_name
-      s = obj_segment_name ((segT) i);
-      if (strcmp (segname, s) == 0
-	  || (segname[0] == '.'
-	      && strcmp (segname + 1, s) == 0))
-	{
-	  subseg_set ((segT) i, subseg);
-	  return (segT) i;
-	}
-#endif
-    }
-
-#ifdef obj_add_segment
-  {
-    segT new_seg;
-    new_seg = obj_add_segment (segname);
-    subseg_set (new_seg, subseg);
-    return new_seg;
-  }
-#else
-  as_bad (_("attempt to switch to nonexistent segment \"%s\""), segname);
-  return now_seg;
-#endif
-}
-
-void
-subseg_set (seg, subseg)	/* begin assembly for a new sub-segment */
-     register segT seg;		/* SEG_DATA or SEG_TEXT */
-     register subsegT subseg;
-{
-#ifndef MANY_SEGMENTS
-  know (seg == SEG_DATA
-	|| seg == SEG_TEXT
-	|| seg == SEG_BSS
-	|| seg == SEG_ABSOLUTE);
-#endif
-
-  if (seg != now_seg || subseg != now_subseg)
-    {				/* we just changed sub-segments */
-      subseg_set_rest (seg, subseg);
-    }
-  mri_common_symbol = NULL;
-}
-
-#else /* BFD_ASSEMBLER */
 
 segT
 subseg_get (const char *segname, int force_new)
@@ -523,16 +351,18 @@ section_symbol (segT sec)
     }
   else
     {
-      s = symbol_find_base (sec->symbol->name, 0);
-      if (s == NULL)
+      segT seg;
+      s = symbol_find (sec->symbol->name);
+      /* We have to make sure it is the right symbol when we
+	 have multiple sections with the same section name.  */
+      if (s == NULL
+	  || ((seg = S_GET_SEGMENT (s)) != sec
+	      && seg != undefined_section))
 	s = symbol_new (sec->symbol->name, sec, 0, &zero_address_frag);
-      else
+      else if (seg == undefined_section)
 	{
-	  if (S_GET_SEGMENT (s) == undefined_section)
-	    {
-	      S_SET_SEGMENT (s, sec);
-	      symbol_set_frag (s, &zero_address_frag);
-	    }
+	  S_SET_SEGMENT (s, sec);
+	  symbol_set_frag (s, &zero_address_frag);
 	}
     }
 
@@ -548,49 +378,40 @@ section_symbol (segT sec)
   return s;
 }
 
-#endif /* BFD_ASSEMBLER */
-
 /* Return whether the specified segment is thought to hold text.  */
-
-#ifndef BFD_ASSEMBLER
-const char * const nontext_section_names[] = {
-  ".eh_frame",
-  ".gcc_except_table",
-#ifdef OBJ_COFF
-#ifndef COFF_LONG_SECTION_NAMES
-  ".eh_fram",
-  ".gcc_exc",
-#endif
-#endif
-  NULL
-};
-#endif /* ! BFD_ASSEMBLER */
 
 int
 subseg_text_p (segT sec)
 {
-#ifdef BFD_ASSEMBLER
   return (bfd_get_section_flags (stdoutput, sec) & SEC_CODE) != 0;
-#else /* ! BFD_ASSEMBLER */
-  const char * const *p;
+}
 
-  if (sec == data_section || sec == bss_section || sec == absolute_section)
+/* Return non zero if SEC has at least one byte of data.  It is
+   possible that we'll return zero even on a non-empty section because
+   we don't know all the fragment types, and it is possible that an
+   fr_fix == 0 one still contributes data.  Think of this as
+   seg_definitely_not_empty_p.  */
+
+int
+seg_not_empty_p (segT sec ATTRIBUTE_UNUSED)
+{
+  segment_info_type *seginfo = seg_info (sec);
+  frchainS *chain;
+  fragS *frag;
+
+  if (!seginfo)
     return 0;
-
-  for (p = nontext_section_names; *p != NULL; ++p)
+  
+  for (chain = seginfo->frchainP; chain; chain = chain->frch_next)
     {
-      if (strcmp (segment_name (sec), *p) == 0)
-	return 0;
-
-#ifdef obj_segment_name
-      if (strcmp (obj_segment_name (sec), *p) == 0)
-	return 0;
-#endif
+      for (frag = chain->frch_root; frag; frag = frag->fr_next)
+	if (frag->fr_fix)
+	  return 1;
+      if (obstack_next_free (&chain->frch_obstack)
+	  != chain->frch_last->fr_literal)
+	return 1;
     }
-
-  return 1;
-
-#endif /* ! BFD_ASSEMBLER */
+  return 0;
 }
 
 void
@@ -614,27 +435,6 @@ subsegs_print_statistics (FILE *file)
 
       for (fragp = frchp->frch_root; fragp; fragp = fragp->fr_next)
 	{
-#if 0
-	  switch (fragp->fr_type)
-	    {
-	    case rs_fill:
-	      fprintf (file, "f"); break;
-	    case rs_align:
-	      fprintf (file, "a"); break;
-	    case rs_align_code:
-	      fprintf (file, "c"); break;
-	    case rs_org:
-	      fprintf (file, "o"); break;
-	    case rs_machine_dependent:
-	      fprintf (file, "m"); break;
-	    case rs_space:
-	      fprintf (file, "s"); break;
-	    case 0:
-	      fprintf (file, "0"); break;
-	    default:
-	      fprintf (file, "?"); break;
-	    }
-#endif
 	  count++;
 	}
       fprintf (file, "\n");

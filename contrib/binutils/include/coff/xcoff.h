@@ -1,6 +1,6 @@
 /* Internal format of XCOFF object file data structures for BFD.
 
-   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003
+   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005
    Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>, Cygnus Support.
 
@@ -18,7 +18,7 @@
    
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef _INTERNAL_XCOFF_H
 #define _INTERNAL_XCOFF_H
@@ -409,7 +409,7 @@ struct xcoff_loader_info
   size_t string_size;
 
   /* String table.  */
-  bfd_byte *strings;
+  char *strings;
 
   /* Allocated size of string table.  */
   size_t string_alc;

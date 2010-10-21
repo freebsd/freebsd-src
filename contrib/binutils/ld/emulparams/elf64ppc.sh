@@ -15,13 +15,13 @@ NOP=0x60000000
 OTHER_TEXT_SECTIONS="*(.sfpr .glink)"
 BSS_PLT=
 OTHER_BSS_SYMBOLS="
-  .tocbss	${RELOCATING-0}${RELOCATING+ALIGN(8)} : { *(.tocbss)}"
+  .tocbss	${RELOCATING-0} :${RELOCATING+ ALIGN(8)} { *(.tocbss)}"
 OTHER_PLT_RELOC_SECTIONS="
   .rela.tocbss	${RELOCATING-0} : { *(.rela.tocbss) }"
 
 if test x${RELOCATING+set} = xset; then
   GOT="
-  .got		ALIGN(8) : { *(.got .toc) }"
+  .got		: ALIGN(8) { *(.got .toc) }"
 else
   GOT="
   .got		0 : { *(.got) }
@@ -30,8 +30,8 @@ fi
 OTHER_GOT_RELOC_SECTIONS="
   .rela.toc	${RELOCATING-0} : { *(.rela.toc) }"
 OTHER_READWRITE_SECTIONS="
-  .toc1		${RELOCATING-0}${RELOCATING+ALIGN(8)} : { *(.toc1) }
-  .opd		${RELOCATING-0}${RELOCATING+ALIGN(8)} : { KEEP (*(.opd)) }"
+  .toc1		${RELOCATING-0} :${RELOCATING+ ALIGN(8)} { *(.toc1) }
+  .opd		${RELOCATING-0} :${RELOCATING+ ALIGN(8)} { KEEP (*(.opd)) }"
 
 # Treat a host that matches the target with the possible exception of "64"
 # in the name as if it were native.

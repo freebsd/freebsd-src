@@ -1,6 +1,6 @@
 /* ELF object file format
    Copyright 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003 Free Software Foundation, Inc.
+   2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #define OBJ_HEADER "obj-elf.h"
 #include "as.h"
@@ -53,6 +53,10 @@
 #include "elf/i370.h"
 #endif
 
+#ifdef TC_I386
+#include "elf/x86-64.h"
+#endif
+
 static void obj_elf_line (int);
 static void obj_elf_size (int);
 static void obj_elf_type (int);
@@ -65,6 +69,7 @@ static void obj_elf_subsection (int);
 static void obj_elf_popsection (int);
 static void obj_elf_tls_common (int);
 static void obj_elf_lcomm (int);
+static void obj_elf_struct (int);
 
 static const pseudo_typeS elf_pseudo_table[] =
 {
@@ -110,9 +115,12 @@ static const pseudo_typeS elf_pseudo_table[] =
   /* These are used for dwarf2.  */
   { "file", (void (*) (int)) dwarf2_directive_file, 0 },
   { "loc",  dwarf2_directive_loc,  0 },
+  { "loc_mark_labels", dwarf2_directive_loc_mark_labels, 0 },
 
   /* We need to trap the section changing calls to handle .previous.  */
   {"data", obj_elf_data, 0},
+  {"offset", obj_elf_struct, 0},
+  {"struct", obj_elf_struct, 0},
   {"text", obj_elf_text, 0},
 
   {"tls_common", obj_elf_tls_common, 0},
@@ -171,6 +179,8 @@ static const pseudo_typeS ecoff_debug_pseudo_table[] =
 
 /* This is called when the assembler starts.  */
 
+asection *elf_com_section_ptr;
+
 void
 elf_begin (void)
 {
@@ -183,6 +193,7 @@ elf_begin (void)
   symbol_table_insert (section_symbol (s));
   s = bfd_get_section_by_name (stdoutput, BSS_SECTION_NAME);
   symbol_table_insert (section_symbol (s));
+  elf_com_section_ptr = bfd_com_section_ptr;
 }
 
 void
@@ -236,32 +247,38 @@ elf_sec_sym_ok_for_reloc (asection *sec)
 }
 
 void
-elf_file_symbol (const char *s)
+elf_file_symbol (const char *s, int appfile)
 {
-  symbolS *sym;
-
-  sym = symbol_new (s, absolute_section, 0, NULL);
-  symbol_set_frag (sym, &zero_address_frag);
-  symbol_get_bfdsym (sym)->flags |= BSF_FILE;
-
-  if (symbol_rootP != sym)
+  if (!appfile
+      || symbol_rootP == NULL
+      || symbol_rootP->bsym == NULL
+      || (symbol_rootP->bsym->flags & BSF_FILE) == 0)
     {
-      symbol_remove (sym, &symbol_rootP, &symbol_lastP);
-      symbol_insert (sym, symbol_rootP, &symbol_rootP, &symbol_lastP);
+      symbolS *sym;
+
+      sym = symbol_new (s, absolute_section, 0, NULL);
+      symbol_set_frag (sym, &zero_address_frag);
+      symbol_get_bfdsym (sym)->flags |= BSF_FILE;
+
+      if (symbol_rootP != sym)
+	{
+	  symbol_remove (sym, &symbol_rootP, &symbol_lastP);
+	  symbol_insert (sym, symbol_rootP, &symbol_rootP, &symbol_lastP);
 #ifdef DEBUG
-      verify_symbol_chain (symbol_rootP, symbol_lastP);
+	  verify_symbol_chain (symbol_rootP, symbol_lastP);
 #endif
+	}
     }
 
 #ifdef NEED_ECOFF_DEBUG
-  ecoff_new_file (s);
+  ecoff_new_file (s, appfile);
 #endif
 }
 
 /* Called from read.c:s_comm after we've parsed .comm symbol, size.
    Parse a possible alignment value.  */
 
-static symbolS *
+symbolS *
 elf_common_parse (int ignore ATTRIBUTE_UNUSED, symbolS *symbolP, addressT size)
 {
   addressT align = 0;
@@ -325,7 +342,7 @@ elf_common_parse (int ignore ATTRIBUTE_UNUSED, symbolS *symbolP, addressT size)
       S_SET_VALUE (symbolP, size);
       S_SET_ALIGN (symbolP, align);
       S_SET_EXTERNAL (symbolP);
-      S_SET_SEGMENT (symbolP, bfd_com_section_ptr);
+      S_SET_SEGMENT (symbolP, elf_com_section_ptr);
     }
 
   symbol_get_bfdsym (symbolP)->flags |= BSF_OBJECT;
@@ -469,6 +486,18 @@ struct section_stack
 
 static struct section_stack *section_stack;
 
+static bfd_boolean
+get_section (bfd *abfd ATTRIBUTE_UNUSED, asection *sec, void *inf)
+{
+  const char *gname = inf;
+  const char *group_name = elf_group_name (sec);
+  
+  return (group_name == gname
+	  || (group_name != NULL
+	      && gname != NULL
+	      && strcmp (group_name, gname) == 0));
+}
+
 /* Handle the .section pseudo-op.  This code supports two different
    syntaxes.
 
@@ -499,6 +528,7 @@ obj_elf_change_section (const char *name,
   asection *old_sec;
   segT sec;
   flagword flags;
+  const struct elf_backend_data *bed;
   const struct bfd_elf_special_section *ssect;
 
 #ifdef md_flush_pending_output
@@ -520,9 +550,18 @@ obj_elf_change_section (const char *name,
   previous_section = now_seg;
   previous_subsection = now_subseg;
 
-  old_sec = bfd_get_section_by_name (stdoutput, name);
-  sec = subseg_new (name, 0);
-  ssect = _bfd_elf_get_sec_type_attr (stdoutput, name);
+  old_sec = bfd_get_section_by_name_if (stdoutput, name, get_section,
+					(void *) group_name);
+  if (old_sec)
+    {
+      sec = old_sec;
+      subseg_set (sec, 0);
+    }
+  else
+    sec = subseg_force_new (name, 0);
+
+  bed = get_elf_backend_data (stdoutput);
+  ssect = (*bed->get_sec_type_attr) (stdoutput, sec);
 
   if (ssect != NULL)
     {
@@ -538,7 +577,16 @@ obj_elf_change_section (const char *name,
 		 .section .init_array,"aw",@progbits
 
 		 for __attribute__ ((section (".init_array"))).
+		 "@progbits" is incorrect.  Also for x86-64 large bss
+		 sections, gcc, as of 2005-07-06, will emit
+
+		 .section .lbss,"aw",@progbits
+
 		 "@progbits" is incorrect.  */
+#ifdef TC_I386
+	      && (bed->s->arch_size != 64
+		  || !(ssect->attr & SHF_X86_64_LARGE))
+#endif
 	      && ssect->type != SHT_INIT_ARRAY
 	      && ssect->type != SHT_FINI_ARRAY
 	      && ssect->type != SHT_PREINIT_ARRAY)
@@ -580,21 +628,21 @@ obj_elf_change_section (const char *name,
 		       || strcmp (name, ".strtab") == 0
 		       || strcmp (name, ".symtab") == 0))
 	    override = TRUE;
+	  /* .note.GNU-stack can have SHF_EXECINSTR.  */
+	  else if (attr == SHF_EXECINSTR
+		   && strcmp (name, ".note.GNU-stack") == 0)
+	    override = TRUE;
 	  else
 	    {
-	      as_warn (_("setting incorrect section attributes for %s"),
-		       name);
+	      if (group_name == NULL)
+		as_warn (_("setting incorrect section attributes for %s"),
+			 name);
 	      override = TRUE;
 	    }
 	}
       if (!override && old_sec == NULL)
 	attr |= ssect->attr;
     }
-
-  if (type != SHT_NULL)
-    elf_section_type (sec) = type;
-  if (attr != 0)
-    elf_section_flags (sec) = attr;
 
   /* Convert ELF type and flags to BFD flags.  */
   flags = (SEC_RELOC
@@ -609,16 +657,20 @@ obj_elf_change_section (const char *name,
   flags = md_elf_section_flags (flags, attr, type);
 #endif
 
+  if (linkonce)
+    flags |= SEC_LINK_ONCE | SEC_LINK_DUPLICATES_DISCARD;
+
   if (old_sec == NULL)
     {
       symbolS *secsym;
+
+      elf_section_type (sec) = type;
+      elf_section_flags (sec) = attr;
 
       /* Prevent SEC_HAS_CONTENTS from being inadvertently set.  */
       if (type == SHT_NOBITS)
 	seg_info (sec)->bss = 1;
 
-      if (linkonce)
-	flags |= SEC_LINK_ONCE | SEC_LINK_DUPLICATES_DISCARD;
       bfd_set_section_flags (stdoutput, sec, flags);
       if (flags & SEC_MERGE)
 	sec->entsize = entsize;
@@ -631,22 +683,26 @@ obj_elf_change_section (const char *name,
       else
 	symbol_table_insert (section_symbol (sec));
     }
-  else if (attr != 0)
+  else
     {
-      /* If section attributes are specified the second time we see a
-	 particular section, then check that they are the same as we
-	 saw the first time.  */
-      if (((old_sec->flags ^ flags)
-	   & (SEC_ALLOC | SEC_LOAD | SEC_READONLY | SEC_CODE
-	      | SEC_EXCLUDE | SEC_SORT_ENTRIES | SEC_MERGE | SEC_STRINGS
-	      | SEC_LINK_ONCE | SEC_LINK_DUPLICATES_DISCARD
-	      | SEC_THREAD_LOCAL)))
-	as_warn (_("ignoring changed section attributes for %s"), name);
-      if ((flags & SEC_MERGE) && old_sec->entsize != (unsigned) entsize)
-	as_warn (_("ignoring changed section entity size for %s"), name);
-      if ((attr & SHF_GROUP) != 0
-	  && strcmp (elf_group_name (old_sec), group_name) != 0)
-	as_warn (_("ignoring new section group for %s"), name);
+      if (type != SHT_NULL
+	  && (unsigned) type != elf_section_type (old_sec))
+	as_warn (_("ignoring changed section type for %s"), name);
+
+      if (attr != 0)
+	{
+	  /* If section attributes are specified the second time we see a
+	     particular section, then check that they are the same as we
+	     saw the first time.  */
+	  if (((old_sec->flags ^ flags)
+	       & (SEC_ALLOC | SEC_LOAD | SEC_READONLY | SEC_CODE
+		  | SEC_EXCLUDE | SEC_SORT_ENTRIES | SEC_MERGE | SEC_STRINGS
+		  | SEC_LINK_ONCE | SEC_LINK_DUPLICATES_DISCARD
+		  | SEC_THREAD_LOCAL)))
+	    as_warn (_("ignoring changed section attributes for %s"), name);
+	  if ((flags & SEC_MERGE) && old_sec->entsize != (unsigned) entsize)
+	    as_warn (_("ignoring changed section entity size for %s"), name);
+	}
     }
 
 #ifdef md_elf_section_change_hook
@@ -748,6 +804,12 @@ obj_elf_section_type (char *str, size_t len)
     return SHT_NOBITS;
   if (len == 4 && strncmp (str, "note", 4) == 0)
     return SHT_NOTE;
+  if (len == 10 && strncmp (str, "init_array", 10) == 0)
+    return SHT_INIT_ARRAY;
+  if (len == 10 && strncmp (str, "fini_array", 10) == 0)
+    return SHT_FINI_ARRAY;
+  if (len == 13 && strncmp (str, "preinit_array", 13) == 0)
+    return SHT_PREINIT_ARRAY;
 
 #ifdef md_elf_section_type
   {
@@ -990,6 +1052,24 @@ obj_elf_text (int i)
   previous_section = now_seg;
   previous_subsection = now_subseg;
   s_text (i);
+
+#ifdef md_elf_section_change_hook
+  md_elf_section_change_hook ();
+#endif
+}
+
+/* Change to the *ABS* section.  */
+
+void
+obj_elf_struct (int i)
+{
+#ifdef md_flush_pending_output
+  md_flush_pending_output ();
+#endif
+
+  previous_section = now_seg;
+  previous_subsection = now_subseg;
+  s_struct (i);
 
 #ifdef md_elf_section_change_hook
   md_elf_section_change_hook ();
@@ -1775,17 +1855,6 @@ elf_frob_symbol (symbolS *symp, int *puntp)
       && (symbol_get_bfdsym (symp)->flags & BSF_FUNCTION) == 0)
     symbol_get_bfdsym (symp)->flags |= BSF_OBJECT;
 #endif
-
-#if 0 /* TC_PPC */
-  /* If TC_PPC is defined, we used to force the type of a symbol to be
-     BSF_OBJECT if it was otherwise unset.  This was required by some
-     version of VxWorks.  Thomas de Lellis <tdel@windriver.com> says
-     that this is no longer needed, so it is now commented out.  */
-  if ((symbol_get_bfdsym (symp)->flags
-       & (BSF_FUNCTION | BSF_FILE | BSF_SECTION_SYM)) == 0
-      && S_IS_DEFINED (symp))
-    symbol_get_bfdsym (symp)->flags |= BSF_OBJECT;
-#endif
 }
 
 struct group_list
@@ -1864,6 +1933,7 @@ elf_frob_file (void)
       flagword flags;
       struct symbol *sy;
       int has_sym;
+      bfd_size_type size;
 
       flags = SEC_READONLY | SEC_HAS_CONTENTS | SEC_IN_MEMORY | SEC_GROUP;
       for (s = list.head[i]; s != NULL; s = elf_next_in_group (s))
@@ -1904,8 +1974,9 @@ elf_frob_file (void)
       if (has_sym)
 	elf_group_id (s) = sy->bsym;
 
-      s->_raw_size = 4 * (list.elt_count[i] + 1);
-      s->contents = frag_more (s->_raw_size);
+      size = 4 * (list.elt_count[i] + 1);
+      bfd_set_section_size (stdoutput, s, size);
+      s->contents = (unsigned char *) frag_more (size);
       frag_now->fr_fix = frag_now_fix_octets ();
     }
 
@@ -2014,7 +2085,8 @@ elf_frob_file_after_relocs (void)
 	 to force the ELF backend to allocate a file position, and then
 	 write out the data.  FIXME: Is this really the best way to do
 	 this?  */
-      sec->_raw_size = bfd_ecoff_debug_size (stdoutput, &debug, debug_swap);
+      bfd_set_section_size
+	(stdoutput, sec, bfd_ecoff_debug_size (stdoutput, &debug, debug_swap));
 
       /* Pass BUF to bfd_set_section_contents because this will
 	 eventually become a call to fwrite, and ISO C prohibits

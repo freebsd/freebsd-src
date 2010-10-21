@@ -1,5 +1,5 @@
 /* Routines to help build PEI-format DLLs (Win32 etc)
-   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004
+   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
    Written by DJ Delorie <dj@cygnus.com>
 
@@ -17,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GLD; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -398,7 +398,7 @@ auto_export (bfd *abfd, def_file *d, const char *n)
     libname = lbasename (abfd->my_archive->filename);
 
   /* We should not re-export imported stuff.  */
-  if (strncmp (n, "_imp__", 6) == 0)
+  if (strncmp (n, "_imp_", 5) == 0)
     return 0;
 
   for (i = 0; i < d->num_exports; i++)
@@ -515,7 +515,7 @@ process_def_file (bfd *abfd ATTRIBUTE_UNUSED, struct bfd_link_info *info)
       s = bfd_get_section_by_name (b, ".drectve");
       if (s)
 	{
-	  int size = bfd_get_section_size_before_reloc (s);
+	  long size = s->size;
 	  char *buf = xmalloc (size);
 
 	  bfd_get_section_contents (b, s, buf, 0, size);
@@ -527,7 +527,7 @@ process_def_file (bfd *abfd ATTRIBUTE_UNUSED, struct bfd_link_info *info)
   /* If we are not building a DLL, when there are no exports
      we do not build an export table at all.  */
   if (!pe_dll_export_everything && pe_def_file->num_exports == 0
-      && !info->shared)
+      && info->executable)
     return;
 
   /* Now, maybe export everything else the default way.  */
@@ -596,8 +596,13 @@ process_def_file (bfd *abfd ATTRIBUTE_UNUSED, struct bfd_link_info *info)
 		 have.  */
 	      int lead_at = (*pe_def_file->exports[i].name == '@');
 	      char *tmp = xstrdup (pe_def_file->exports[i].name + lead_at);
+	      char *tmp_at = strchr (tmp, '@');
 
-	      *(strchr (tmp, '@')) = 0;
+	      if (tmp_at)
+	        *tmp_at = 0;
+	      else
+	        einfo (_("%XCannot export %s: invalid export name\n"),
+		       pe_def_file->exports[i].name);
 	      pe_def_file->exports[i].name = tmp;
 	    }
 	}
@@ -680,6 +685,27 @@ process_def_file (bfd *abfd ATTRIBUTE_UNUSED, struct bfd_link_info *info)
     {
       char *name;
 
+      /* Check for forward exports */
+      if (strchr (pe_def_file->exports[i].internal_name, '.'))
+	{
+	  count_exported++;
+	  if (!pe_def_file->exports[i].flag_noname)
+	    count_exported_byname++;
+
+	  pe_def_file->exports[i].flag_forward = 1;
+
+	  if (pe_def_file->exports[i].ordinal != -1)
+	    {
+	      if (max_ordinal < pe_def_file->exports[i].ordinal)
+		max_ordinal = pe_def_file->exports[i].ordinal;
+	      if (min_ordinal > pe_def_file->exports[i].ordinal)
+		min_ordinal = pe_def_file->exports[i].ordinal;
+	      count_with_ordinals++;
+	    }
+
+	  continue;
+	}
+
       name = xmalloc (strlen (pe_def_file->exports[i].internal_name) + 2);
       if (pe_details->underscored
  	  && (*pe_def_file->exports[i].internal_name != '@'))
@@ -757,7 +783,7 @@ build_filler_bfd (int include_edata)
 			     bfd_get_arch (output_bfd),
 			     bfd_get_mach (output_bfd)))
     {
-      einfo ("%X%P: can not create BFD %E\n");
+      einfo ("%X%P: can not create BFD: %E\n");
       return;
     }
 
@@ -837,7 +863,8 @@ generate_edata (bfd *abfd, struct bfd_link_info *info ATTRIBUTE_UNUSED)
   /* Now we need to assign ordinals to those that don't have them.  */
   for (i = 0; i < NE; i++)
     {
-      if (exported_symbol_sections[i])
+      if (exported_symbol_sections[i] ||
+          pe_def_file->exports[i].flag_forward)
 	{
 	  if (pe_def_file->exports[i].ordinal != -1)
 	    {
@@ -856,19 +883,26 @@ generate_edata (bfd *abfd, struct bfd_link_info *info ATTRIBUTE_UNUSED)
 	    }
 	  name_table_size += strlen (pe_def_file->exports[i].name) + 1;
 	}
+
+      /* Reserve space for the forward name. */
+      if (pe_def_file->exports[i].flag_forward)
+	{
+	  name_table_size += strlen (pe_def_file->exports[i].internal_name) + 1;
+	}
     }
 
   next_ordinal = min_ordinal;
   for (i = 0; i < NE; i++)
-    if (exported_symbol_sections[i])
-      if (pe_def_file->exports[i].ordinal == -1)
-	{
-	  while (exported_symbols[next_ordinal - min_ordinal] != -1)
-	    next_ordinal++;
+    if ((exported_symbol_sections[i] ||
+         pe_def_file->exports[i].flag_forward) &&
+        pe_def_file->exports[i].ordinal == -1)
+      {
+	while (exported_symbols[next_ordinal - min_ordinal] != -1)
+	  next_ordinal++;
 
-	  exported_symbols[next_ordinal - min_ordinal] = i;
-	  pe_def_file->exports[i].ordinal = next_ordinal;
-	}
+	exported_symbols[next_ordinal - min_ordinal] = i;
+	pe_def_file->exports[i].ordinal = next_ordinal;
+      }
 
   /* OK, now we can allocate some memory.  */
   edata_sz = (40				/* directory */
@@ -920,7 +954,7 @@ fill_edata (bfd *abfd, struct bfd_link_info *info ATTRIBUTE_UNUSED)
   unsigned char *eaddresses;
   unsigned char *enameptrs;
   unsigned char *eordinals;
-  unsigned char *enamestr;
+  char *enamestr;
   time_t now;
 
   time (&now);
@@ -932,7 +966,7 @@ fill_edata (bfd *abfd, struct bfd_link_info *info ATTRIBUTE_UNUSED)
   eaddresses = edata_d + 40;
   enameptrs = eaddresses + 4 * export_table_size;
   eordinals = enameptrs + 4 * count_exported_byname;
-  enamestr = eordinals + 2 * count_exported_byname;
+  enamestr = (char *) eordinals + 2 * count_exported_byname;
 
 #define ERVA(ptr) (((unsigned char *)(ptr) - edata_d) \
 		   + edata_s->output_section->vma - image_base)
@@ -967,15 +1001,28 @@ fill_edata (bfd *abfd, struct bfd_link_info *info ATTRIBUTE_UNUSED)
   for (s = 0; s < NE; s++)
     {
       struct bfd_section *ssec = exported_symbol_sections[s];
-      if (ssec && pe_def_file->exports[s].ordinal != -1)
+      if (pe_def_file->exports[s].ordinal != -1 &&
+          (pe_def_file->exports[s].flag_forward || ssec != NULL))
 	{
-	  unsigned long srva = (exported_symbol_offsets[s]
-				+ ssec->output_section->vma
-				+ ssec->output_offset);
 	  int ord = pe_def_file->exports[s].ordinal;
 
-	  bfd_put_32 (abfd, srva - image_base,
-		      eaddresses + 4 * (ord - min_ordinal));
+	  if (pe_def_file->exports[s].flag_forward)
+	    {
+	      bfd_put_32 (abfd, ERVA (enamestr),
+		          eaddresses + 4 * (ord - min_ordinal));
+
+	      strcpy (enamestr, pe_def_file->exports[s].internal_name);
+	      enamestr += strlen (pe_def_file->exports[s].internal_name) + 1;
+	    }
+	  else
+	    {
+	      unsigned long srva = (exported_symbol_offsets[s]
+				    + ssec->output_section->vma
+				    + ssec->output_offset);
+
+	      bfd_put_32 (abfd, srva - image_base,
+		          eaddresses + 4 * (ord - min_ordinal));
+	    }
 
 	  if (!pe_def_file->exports[s].flag_noname)
 	    {
@@ -1178,9 +1225,6 @@ generate_reloc (bfd *abfd, struct bfd_link_info *info)
 	  free (relocs);
 	  /* Warning: the allocated symbols are remembered in BFD and
 	     reused later, so don't free them!  */
-#if 0
-	  free (symbol);
-#endif
 	}
     }
 
@@ -1252,7 +1296,7 @@ generate_reloc (bfd *abfd, struct bfd_link_info *info)
   if (page_ptr != (unsigned long) -1)
     bfd_put_32 (abfd, reloc_sz - page_ptr, reloc_d + page_ptr + 4);
 
-  while (reloc_sz < reloc_s->_raw_size)
+  while (reloc_sz < reloc_s->size)
     reloc_d[reloc_sz++] = 0;
 }
 
@@ -1674,7 +1718,7 @@ make_tail (bfd *parent)
   bfd_set_section_size (abfd, id7, len);
   d7 = xmalloc (len);
   id7->contents = d7;
-  strcpy (d7, dll_filename);
+  strcpy ((char *) d7, dll_filename);
 
   bfd_set_symtab (abfd, symtab, symptr);
 
@@ -1897,7 +1941,7 @@ make_one (def_file_export *exp, bfd *parent)
       memset (d6, 0, len);
       d6[0] = exp->hint & 0xff;
       d6[1] = exp->hint >> 8;
-      strcpy (d6 + 2, exp->name);
+      strcpy ((char *) d6 + 2, exp->name);
     }
 
   bfd_set_symtab (abfd, symtab, symptr);
@@ -2037,9 +2081,6 @@ make_import_fixup_entry (const char *name,
   symtab = xmalloc (6 * sizeof (asymbol *));
   id3 = quick_section (abfd, ".idata$3", SEC_HAS_CONTENTS, 2);
 
-#if 0
-  quick_symbol (abfd, U ("_head_"), dll_symname, "", id2, BSF_GLOBAL, 0);
-#endif
   quick_symbol (abfd, U ("_nm_thnk_"), name, "", UNDSEC, BSF_GLOBAL, 0);
   quick_symbol (abfd, U (""), dll_symname, "_iname", UNDSEC, BSF_GLOBAL, 0);
   quick_symbol (abfd, "", fixup_name, "", UNDSEC, BSF_GLOBAL, 0);
@@ -2231,7 +2272,7 @@ pe_dll_generate_implib (def_file *def, const char *impfilename)
     if (!ISALNUM (dll_symname[i]))
       dll_symname[i] = '_';
 
-  unlink (impfilename);
+  unlink_if_ordinary (impfilename);
 
   outarch = bfd_openw (impfilename, 0);
 
@@ -2243,8 +2284,8 @@ pe_dll_generate_implib (def_file *def, const char *impfilename)
     }
 
   /* xgettext:c-format */
-  einfo (_("Creating library file: %s\n"), impfilename);
-
+  info_msg (_("Creating library file: %s\n"), impfilename);
+ 
   bfd_set_format (outarch, bfd_archive);
   outarch->has_armap = 1;
 
@@ -2278,10 +2319,10 @@ pe_dll_generate_implib (def_file *def, const char *impfilename)
   head = ar_tail;
 
   if (! bfd_set_archive_head (outarch, head))
-    einfo ("%Xbfd_set_archive_head: %s\n", bfd_errmsg (bfd_get_error ()));
+    einfo ("%Xbfd_set_archive_head: %E\n");
 
   if (! bfd_close (outarch))
-    einfo ("%Xbfd_close %s: %s\n", impfilename, bfd_errmsg (bfd_get_error ()));
+    einfo ("%Xbfd_close %s: %E\n", impfilename);
 
   while (head != NULL)
     {
@@ -2303,7 +2344,7 @@ add_bfd_to_link (bfd *abfd, const char *name, struct bfd_link_info *link_info)
   ldlang_add_file (fake_file);
 
   if (!bfd_link_add_symbols (abfd, link_info))
-    einfo ("%Xaddsym %s: %s\n", name, bfd_errmsg (bfd_get_error ()));
+    einfo ("%Xaddsym %s: %E\n", name);
 }
 
 void
@@ -2418,18 +2459,6 @@ pe_get32 (bfd *abfd, int where)
   return b[0] + (b[1] << 8) + (b[2] << 16) + (b[3] << 24);
 }
 
-#if 0 /* This is not currently used.  */
-
-static unsigned int
-pe_as16 (void *ptr)
-{
-  unsigned char *b = ptr;
-
-  return b[0] + (b[1] << 8);
-}
-
-#endif
-
 static unsigned int
 pe_as32 (void *ptr)
 {
@@ -2445,7 +2474,8 @@ pe_implied_import_dll (const char *filename)
   unsigned long pe_header_offset, opthdr_ofs, num_entries, i;
   unsigned long export_rva, export_size, nsections, secptr, expptr;
   unsigned long exp_funcbase;
-  unsigned char *expdata, *erva;
+  unsigned char *expdata;
+  char *erva;
   unsigned long name_rvas, ordinals, nexp, ordbase;
   const char *dll_name;
   /* Initialization with start > end guarantees that is_data
@@ -2462,7 +2492,7 @@ pe_implied_import_dll (const char *filename)
   dll = bfd_openr (filename, pe_details->target_name);
   if (!dll)
     {
-      einfo ("%Xopen %s: %s\n", filename, bfd_errmsg (bfd_get_error ()));
+      einfo ("%Xopen %s: %E\n", filename);
       return FALSE;
     }
 
@@ -2555,7 +2585,7 @@ pe_implied_import_dll (const char *filename)
   expdata = xmalloc (export_size);
   bfd_seek (dll, (file_ptr) expptr, SEEK_SET);
   bfd_bread (expdata, (bfd_size_type) export_size, dll);
-  erva = expdata - export_rva;
+  erva = (char *) expdata - export_rva;
 
   if (pe_def_file == 0)
     pe_def_file = def_file_empty ();
@@ -2568,7 +2598,7 @@ pe_implied_import_dll (const char *filename)
 
   /* Use internal dll name instead of filename
      to enable symbolic dll linking.  */
-  dll_name = pe_as32 (expdata + 12) + erva;
+  dll_name = erva + pe_as32 (expdata + 12);
 
   /* Check to see if the dll has already been added to
      the definition list and if so return without error.
@@ -2653,19 +2683,19 @@ pe_dll_fill_sections (bfd *abfd, struct bfd_link_info *info)
       bfd_set_section_size (filler_bfd, reloc_s, reloc_sz);
 
       /* Resize the sections.  */
-      lang_size_sections (stat_ptr->head, abs_output_section,
-			  &stat_ptr->head, 0, 0, NULL, TRUE);
+      lang_reset_memory_regions ();
+      lang_size_sections (NULL, TRUE);
 
       /* Redo special stuff.  */
       ldemul_after_allocation ();
 
       /* Do the assignments again.  */
-      lang_do_assignments (stat_ptr->head, abs_output_section, NULL, 0);
+      lang_do_assignments ();
     }
 
   fill_edata (abfd, info);
 
-  if (info->shared)
+  if (info->shared && !info->pie)
     pe_data (abfd)->dll = 1;
 
   edata_s->contents = edata_d;
@@ -2684,14 +2714,14 @@ pe_exe_fill_sections (bfd *abfd, struct bfd_link_info *info)
       bfd_set_section_size (filler_bfd, reloc_s, reloc_sz);
 
       /* Resize the sections.  */
-      lang_size_sections (stat_ptr->head, abs_output_section,
-			  &stat_ptr->head, 0, 0, NULL, TRUE);
+      lang_reset_memory_regions ();
+      lang_size_sections (NULL, TRUE);
 
       /* Redo special stuff.  */
       ldemul_after_allocation ();
 
       /* Do the assignments again.  */
-      lang_do_assignments (stat_ptr->head, abs_output_section, NULL, 0);
+      lang_do_assignments ();
     }
   reloc_s->contents = reloc_d;
 }

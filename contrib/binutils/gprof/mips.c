@@ -36,13 +36,10 @@
 
 static Sym indirect_child;
 
-void mips_find_call PARAMS ((Sym *, bfd_vma, bfd_vma));
+void mips_find_call (Sym *, bfd_vma, bfd_vma);
 
 void
-mips_find_call (parent, p_lowpc, p_highpc)
-     Sym *parent;
-     bfd_vma p_lowpc;
-     bfd_vma p_highpc;
+mips_find_call (Sym *parent, bfd_vma p_lowpc, bfd_vma p_highpc)
 {
   bfd_vma pc, dest_pc;
   unsigned int op;
