@@ -2,6 +2,9 @@
  * Copyright (c) 2003-2004, 2010 Robert N. M. Watson
  * All rights reserved.
  *
+ * Portions of this software were developed at the University of Cambridge
+ * Computer Laboratory with support from a grant from Google, Inc.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
