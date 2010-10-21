@@ -325,64 +325,8 @@ get_compression_type()
   export VAL
 }
 
-decompress_file()
-{
-  local FILE
-  local COMPRESSION
-
-  FILE="$1"
-  COMPRESSION="$2"
-
-  if [ -n "${COMPRESSION}" ]
-  then
-    case "${COMPRESSION}" in
-      lzw)
-        rc_halt "uncompress ${FILE}"
-        VAL="${FILE%.Z}"
-        ;;
-
-      lzo)
-        rc_halt "lzop -d ${FILE}"
-        VAL="${FILE%.lzo}"
-        ;;
-
-      lzma)
-        rc_halt "lzma -d ${FILE}"
-        VAL="${FILE%.lzma}"
-        ;;
-
-      gzip)
-        rc_halt "gunzip ${FILE}"
-        VAL="${FILE%.gz}"
-        ;;
-
-      bzip2)
-        rc_halt "bunzip2 ${FILE}"
-        VAL="${FILE%.bz2}"
-        ;;
-
-      xz)
-        rc_halt "xz -d ${FILE}"
-        VAL="${FILE%.xz}"
-        ;;
-
-      zip)
-        rc_halt "unzip ${FILE}"
-        VAL="${FILE%.zip}"
-        ;;
-
-      *) 
-        exit_err "ERROR: ${COMPRESSION} compression is not supported"
-        ;;
-    esac
-  fi
-
-  export VAL
-}
-
 write_image()
 {
-  local IMAGE_FILE
   local DEVICE_FILE
 
   IMAGE_FILE="$1"
@@ -418,11 +362,51 @@ write_image()
     get_compression_type "${IMAGE_FILE}"
 	COMPRESSION="${VAL}"
 
-	decompress_file "${IMAGE_FILE}" "${COMPRESSION}"
-	IMAGE_FILE="${VAL}"
-  fi
+    case "${COMPRESSION}" in
+      lzw)
+        rc_halt "uncompress ${IMAGE_FILE} -c | dd of=${DEVICE_FILE} bs=128k"
+        IMAGE_FILE="${IMAGE_FILE%.Z}"
+        ;;
 
-  rc_halt "dd if=${IMAGE_FILE} of=${DEVICE_FILE} bs=128k"
+      lzo)
+        rc_halt "lzop -d $IMAGE_{FILE} -c | dd of=${DEVICE_FILE} bs=128k"
+        IMAGE_FILE="${IMAGE_FILE%.lzo}"
+        ;;
+
+      lzma)
+        rc_halt "lzma -d ${IMAGE_FILE} -c | dd of=${DEVICE_FILE} bs=128k"
+        IMAGE_FILE="${IMAGE_FILE%.lzma}"
+        ;;
+
+      gzip)
+        rc_halt "gunzip ${IMAGE_FILE} -c | dd of=${DEVICE_FILE} bs=128k"
+        IMAGE_FILE="${IMAGE_FILE%.gz}"
+        ;;
+
+      bzip2)
+        rc_halt "bunzip2 ${IMAGE_FILE} -c | dd of=${DEVICE_FILE} bs=128k"
+        IMAGE_FILE="${IMAGE_FILE%.bz2}"
+        ;;
+
+      xz)
+        rc_halt "xz -d ${IMAGE_FILE} -c | dd of=${DEVICE_FILE} bs=128k"
+        IMAGE_FILE="${IMAGE_FILE%.xz}"
+        ;;
+
+      zip)
+        rc_halt "unzip ${IMAGE_FILE} -c | dd of=${DEVICE_FILE} bs=128k"
+        IMAGE_FILE="${IMAGE_FILE%.zip}"
+        ;;
+
+      *) 
+        exit_err "ERROR: ${COMPRESSION} compression is not supported"
+        ;;
+    esac
+
+  else
+    rc_halt "dd if=${IMAGE_FILE} of=${DEVICE_FILE} bs=128k"
+
+  fi
 };
 
 install_fresh()
