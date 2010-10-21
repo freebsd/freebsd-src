@@ -1525,6 +1525,7 @@ gld_${EMULATION_NAME}_place_orphan (asection *s)
   char *dollar = NULL;
   lang_output_section_statement_type *os;
   lang_statement_list_type add_child;
+  lang_statement_union_type **pl;
 
   secname = bfd_get_section_name (s->owner, s);
 
@@ -1644,47 +1645,29 @@ gld_${EMULATION_NAME}_place_orphan (asection *s)
       os = lang_insert_orphan (s, secname, after, place, address, &add_child);
     }
 
-  {
-    lang_statement_union_type **pl = &os->children.head;
+  /* If the section name has a '\$', sort it with the other '\$'
+     sections.  */
+  for (pl = &os->children.head; *pl != NULL; pl = &(*pl)->header.next)
+    {
+      lang_input_section_type *ls;
+      const char *lname;
 
-    if (dollar != NULL)
-      {
-	bfd_boolean found_dollar;
+      if ((*pl)->header.type != lang_input_section_enum)
+	continue;
 
-	/* The section name has a '$'.  Sort it with the other '$'
-	   sections.  */
-	found_dollar = FALSE;
-	for ( ; *pl != NULL; pl = &(*pl)->header.next)
-	  {
-	    lang_input_section_type *ls;
-	    const char *lname;
+      ls = &(*pl)->input_section;
 
-	    if ((*pl)->header.type != lang_input_section_enum)
-	      continue;
+      lname = bfd_get_section_name (ls->section->owner, ls->section);
+      if (strchr (lname, '\$') != NULL
+	  && (dollar == NULL || strcmp (orig_secname, lname) < 0))
+	break;
+    }
 
-	    ls = &(*pl)->input_section;
-
-	    lname = bfd_get_section_name (ls->section->owner, ls->section);
-	    if (strchr (lname, '$') == NULL)
-	      {
-		if (found_dollar)
-		  break;
-	      }
-	    else
-	      {
-		found_dollar = TRUE;
-		if (strcmp (orig_secname, lname) < 0)
-		  break;
-	      }
-	  }
-      }
-
-    if (add_child.head != NULL)
-      {
-	add_child.head->header.next = *pl;
-	*pl = add_child.head;
-      }
-  }
+  if (add_child.head != NULL)
+    {
+      *add_child.tail = *pl;
+      *pl = add_child.head;
+    }
 
   return TRUE;
 }
