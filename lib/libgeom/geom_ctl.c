@@ -150,33 +150,9 @@ gctl_new_arg(struct gctl_req *req)
 	return (ap);
 }
 
-void
-gctl_ro_param(struct gctl_req *req, const char *name, int len, const void* value)
-{
-	struct gctl_req_arg *ap;
-
-	if (req == NULL || req->error != NULL)
-		return;
-	ap = gctl_new_arg(req);
-	if (ap == NULL)
-		return;
-	ap->name = strdup(name);
-	gctl_check_alloc(req, ap->name);
-	if (ap->name == NULL)
-		return;
-	ap->nlen = strlen(ap->name) + 1;
-	ap->value = __DECONST(void *, value);
-	ap->flag = GCTL_PARAM_RD;
-	if (len >= 0)
-		ap->len = len;
-	else if (len < 0) {
-		ap->flag |= GCTL_PARAM_ASCII;
-		ap->len = strlen(value) + 1;	
-	}
-}
-
-void
-gctl_rw_param(struct gctl_req *req, const char *name, int len, void* value)
+static void
+gctl_param_add(struct gctl_req *req, const char *name, int len, void *value,
+    int flag)
 {
 	struct gctl_req_arg *ap;
 
@@ -191,11 +167,27 @@ gctl_rw_param(struct gctl_req *req, const char *name, int len, void* value)
 		return;
 	ap->nlen = strlen(ap->name) + 1;
 	ap->value = value;
-	ap->flag = GCTL_PARAM_RW;
+	ap->flag = flag;
 	if (len >= 0)
 		ap->len = len;
-	else if (len < 0)
+	else if (len < 0) {
+		ap->flag |= GCTL_PARAM_ASCII;
 		ap->len = strlen(value) + 1;	
+	}
+}
+
+void
+gctl_ro_param(struct gctl_req *req, const char *name, int len, const void* value)
+{
+
+	gctl_param_add(req, name, len, __DECONST(void *, value), GCTL_PARAM_RD);
+}
+
+void
+gctl_rw_param(struct gctl_req *req, const char *name, int len, void *value)
+{
+
+	gctl_param_add(req, name, len, value, GCTL_PARAM_RW);
 }
 
 const char *
