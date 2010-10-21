@@ -4,15 +4,17 @@
 # use the normal "Makefile.inc" mechanism, because we need some of these
 # definitions before the sub-Makefile is processed.
 
-VERSION=	"2.15 [FreeBSD] 2005-06-08"
+VERSION=	"2.17 [FreeBSD] 2007-08-07"
 
 TARGET_ARCH?=	${MACHINE_ARCH}
+TARGET_VENDOR?=	unknown
+TARGET_OS?=	freebsd
 .if ${TARGET_ARCH} == "amd64"
 BINUTILS_ARCH=x86_64
 .else
 BINUTILS_ARCH=${TARGET_ARCH}
 .endif
-TARGET_TUPLE?=	${BINUTILS_ARCH}-obrien-freebsd
+TARGET_TUPLE?=	${BINUTILS_ARCH}-${TARGET_VENDOR}-${TARGET_OS}
 
 # RELTOP is the relative path to this point in the source or object
 # tree, from any subdirectory of same.  It gets extra "../" prefixes
