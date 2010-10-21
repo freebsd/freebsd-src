@@ -85,7 +85,7 @@ benchmark_stop(void)
 }
   
 uint64_t
-test_getuid(uint64_t num, uint64_t int_arg, const char *string_arg)
+test_getuid(uint64_t num, uint64_t int_arg, const char *path)
 {
 	uint64_t i;
 
@@ -104,7 +104,7 @@ test_getuid(uint64_t num, uint64_t int_arg, const char *string_arg)
 }
 
 uint64_t
-test_getppid(uint64_t num, uint64_t int_arg, const char *string_arg)
+test_getppid(uint64_t num, uint64_t int_arg, const char *path)
 {
 	uint64_t i;
 
@@ -123,7 +123,7 @@ test_getppid(uint64_t num, uint64_t int_arg, const char *string_arg)
 }
 
 uint64_t
-test_clock_gettime(uint64_t num, uint64_t int_arg, const char *string_arg)
+test_clock_gettime(uint64_t num, uint64_t int_arg, const char *path)
 {
 	struct timespec ts;
 	uint64_t i;
@@ -139,7 +139,7 @@ test_clock_gettime(uint64_t num, uint64_t int_arg, const char *string_arg)
 }
 
 uint64_t
-test_pipe(uint64_t num, uint64_t int_arg, const char *string_arg)
+test_pipe(uint64_t num, uint64_t int_arg, const char *path)
 {
 	int fd[2], i;
 
@@ -167,7 +167,7 @@ test_pipe(uint64_t num, uint64_t int_arg, const char *string_arg)
 }
 
 uint64_t
-test_socket_stream(uint64_t num, uint64_t int_arg, const char *string_arg)
+test_socket_stream(uint64_t num, uint64_t int_arg, const char *path)
 {
 	uint64_t i, so;
 
@@ -189,7 +189,7 @@ test_socket_stream(uint64_t num, uint64_t int_arg, const char *string_arg)
 }
 
 uint64_t
-test_socket_dgram(uint64_t num, uint64_t int_arg, const char *string_arg)
+test_socket_dgram(uint64_t num, uint64_t int_arg, const char *path)
 {
 	uint64_t i, so;
 
@@ -211,7 +211,7 @@ test_socket_dgram(uint64_t num, uint64_t int_arg, const char *string_arg)
 }
 
 uint64_t
-test_socketpair_stream(uint64_t num, uint64_t int_arg, const char *string_arg)
+test_socketpair_stream(uint64_t num, uint64_t int_arg, const char *path)
 {
 	uint64_t i;
 	int so[2];
@@ -234,7 +234,7 @@ test_socketpair_stream(uint64_t num, uint64_t int_arg, const char *string_arg)
 }
 
 uint64_t
-test_socketpair_dgram(uint64_t num, uint64_t int_arg, const char *string_arg)
+test_socketpair_dgram(uint64_t num, uint64_t int_arg, const char *path)
 {
 	uint64_t i;
 	int so[2];
@@ -257,9 +257,8 @@ test_socketpair_dgram(uint64_t num, uint64_t int_arg, const char *string_arg)
 }
 
 uint64_t
-test_open_close(uint64_t num, uint64_t int_arg, const char *string_arg)
+test_open_close(uint64_t num, uint64_t int_arg, const char *path)
 {
-	const char *path = string_arg;
 	uint64_t i;
 	int fd;
 
@@ -282,15 +281,15 @@ test_open_close(uint64_t num, uint64_t int_arg, const char *string_arg)
 }
 
 uint64_t
-test_open_read_close(uint64_t num, uint64_t int_arg, const char *string_arg)
+test_open_read_close(uint64_t num, uint64_t int_arg, const char *path)
 {
 	char buf[int_arg];
 	uint64_t i;
 	int fd;
 
-	fd = open(string_arg, O_RDONLY);
+	fd = open(path, O_RDONLY);
 	if (fd < 0)
-		err(-1, "test_open_close: %s", string_arg);
+		err(-1, "test_open_close: %s", path);
 	(void)read(fd, buf, int_arg);
 	close(fd);
 
@@ -298,9 +297,9 @@ test_open_read_close(uint64_t num, uint64_t int_arg, const char *string_arg)
 	for (i = 0; i < num; i++) {
 		if (alarm_fired)
 			break;
-		fd = open(string_arg, O_RDONLY);
+		fd = open(path, O_RDONLY);
 		if (fd < 0)
-			err(-1, "test_open_close: %s", string_arg);
+			err(-1, "test_open_close: %s", path);
 		(void)read(fd, buf, int_arg);
 		close(fd);
 	}
@@ -309,7 +308,7 @@ test_open_read_close(uint64_t num, uint64_t int_arg, const char *string_arg)
 }
 
 uint64_t
-test_dup(uint64_t num, uint64_t int_arg, const char *string_arg)
+test_dup(uint64_t num, uint64_t int_arg, const char *path)
 {
 	int fd, i, shmfd;
 
@@ -333,7 +332,7 @@ test_dup(uint64_t num, uint64_t int_arg, const char *string_arg)
 }
 
 uint64_t
-test_shmfd(uint64_t num, uint64_t int_arg, const char *string_arg)
+test_shmfd(uint64_t num, uint64_t int_arg, const char *path)
 {
 	uint64_t i, shmfd;
 
@@ -355,7 +354,7 @@ test_shmfd(uint64_t num, uint64_t int_arg, const char *string_arg)
 }
 
 uint64_t
-test_fstat_shmfd(uint64_t num, uint64_t int_arg, const char *string_arg)
+test_fstat_shmfd(uint64_t num, uint64_t int_arg, const char *path)
 {
 	struct stat sb;
 	uint64_t i, shmfd;
@@ -377,7 +376,7 @@ test_fstat_shmfd(uint64_t num, uint64_t int_arg, const char *string_arg)
 }
 
 uint64_t
-test_fork(uint64_t num, uint64_t int_arg, const char *string_arg)
+test_fork(uint64_t num, uint64_t int_arg, const char *path)
 {
 	pid_t pid;
 	uint64_t i;
@@ -406,7 +405,7 @@ test_fork(uint64_t num, uint64_t int_arg, const char *string_arg)
 }
 
 uint64_t
-test_vfork(uint64_t num, uint64_t int_arg, const char *string_arg)
+test_vfork(uint64_t num, uint64_t int_arg, const char *path)
 {
 	pid_t pid;
 	uint64_t i;
@@ -439,7 +438,7 @@ static char *execve_args[] = { USR_BIN_TRUE, NULL};
 extern char **environ;
 
 uint64_t
-test_fork_exec(uint64_t num, uint64_t int_arg, const char *string_arg)
+test_fork_exec(uint64_t num, uint64_t int_arg, const char *path)
 {
 	pid_t pid;
 	uint64_t i;
@@ -472,7 +471,7 @@ test_fork_exec(uint64_t num, uint64_t int_arg, const char *string_arg)
 }
 
 uint64_t
-test_vfork_exec(uint64_t num, uint64_t int_arg, const char *string_arg)
+test_vfork_exec(uint64_t num, uint64_t int_arg, const char *path)
 {
 	pid_t pid;
 	uint64_t i;
@@ -505,7 +504,7 @@ test_vfork_exec(uint64_t num, uint64_t int_arg, const char *string_arg)
 }
 
 uint64_t
-test_chroot(uint64_t num, uint64_t int_arg, const char *string_arg)
+test_chroot(uint64_t num, uint64_t int_arg, const char *path)
 {
 	uint64_t i;
 
@@ -523,7 +522,7 @@ test_chroot(uint64_t num, uint64_t int_arg, const char *string_arg)
 }
 
 uint64_t
-test_setuid(uint64_t num, uint64_t int_arg, const char *string_arg)
+test_setuid(uint64_t num, uint64_t int_arg, const char *path)
 {
 	uid_t uid;
 	uint64_t i;
@@ -546,7 +545,6 @@ struct test {
 	const char	*t_name;
 	uint64_t	(*t_func)(uint64_t, uint64_t, const char *);
 	uint64_t	 t_int;
-	const char	*t_string;
 };
 
 static const struct test tests[] = {
@@ -560,20 +558,13 @@ static const struct test tests[] = {
 	{ "socketpair_dgram", test_socketpair_dgram },
 	{ "socket_tcp", test_socket_stream, .t_int = PF_INET },
 	{ "socket_udp", test_socket_dgram, .t_int = PF_INET },
-	{ "open_close_devnull", test_open_close, .t_string = "/dev/null" },
-	{ "open_close_devzero", test_open_close, .t_string = "/dev/zero" },
-	{ "open_read_close_devzero_1", test_open_read_close,
-	    .t_string = "/dev/zero", .t_int = 1 },
-	{ "open_read_close_devzero_10", test_open_read_close,
-	    .t_string = "/dev/zero", .t_int = 10 },
-	{ "open_read_close_devzero_100", test_open_read_close,
-	    .t_string = "/dev/zero", .t_int = 100 },
-	{ "open_read_close_devzero_1000", test_open_read_close,
-	    .t_string = "/dev/zero", .t_int = 1000 },
-	{ "open_read_close_devzero_10000", test_open_read_close,
-	    .t_string = "/dev/zero", .t_int = 10000 },
-	{ "open_read_close_devzero_100000", test_open_read_close,
-	    .t_string = "/dev/zero", .t_int = 100000 },
+	{ "open_close", test_open_close },
+	{ "open_read_close_1", test_open_read_close, .t_int = 1 },
+	{ "open_read_close_10", test_open_read_close, .t_int = 10 },
+	{ "open_read_close_100", test_open_read_close, .t_int = 100 },
+	{ "open_read_close_1000", test_open_read_close, .t_int = 1000 },
+	{ "open_read_close_10000", test_open_read_close, .t_int = 10000 },
+	{ "open_read_close_100000", test_open_read_close, .t_int = 100000 },
 	{ "dup", test_dup },
 	{ "shmfd", test_shmfd },
 	{ "fstat_shmfd", test_fstat_shmfd },
@@ -592,7 +583,7 @@ usage(void)
 	int i;
 
 	fprintf(stderr, "syscall_timing [-i iterations] [-l loops] "
-	    "[-s seconds] test\n");
+	    "[-p path] [-s seconds] test\n");
 	for (i = 0; i < tests_count; i++)
 		fprintf(stderr, "  %s\n", tests[i].t_name);
 	exit(-1);
@@ -603,6 +594,7 @@ main(int argc, char *argv[])
 {
 	struct timespec ts_res;
 	const struct test *the_test;
+	const char *path;
 	long long ll;
 	char *endp;
 	int ch, i, j, k;
@@ -611,7 +603,8 @@ main(int argc, char *argv[])
 	alarm_timeout = 0;
 	iterations = 0;
 	loops = 0;
-	while ((ch = getopt(argc, argv, "i:l:s:")) != -1) {
+	path = NULL;
+	while ((ch = getopt(argc, argv, "i:l:p:s:")) != -1) {
 		switch (ch) {
 		case 'i':
 			ll = strtol(optarg, &endp, 10);
@@ -625,6 +618,10 @@ main(int argc, char *argv[])
 			if (*endp != 0 || ll < 1 || ll > 100000)
 				usage();
 			loops = ll;
+			break;
+
+		case 'p':
+			path = optarg;
 			break;
 
 		case 's':
@@ -671,12 +668,11 @@ main(int argc, char *argv[])
 		/*
 		 * Run one warmup, then do the real thing (loops) times.
 		 */
-		the_test->t_func(iterations, the_test->t_int,
-		    the_test->t_string);
+		the_test->t_func(iterations, the_test->t_int, path);
 		calls = 0;
 		for (k = 0; k < loops; k++) {
-			calls = the_test->t_func(iterations,
-			    the_test->t_int, the_test->t_string);
+			calls = the_test->t_func(iterations, the_test->t_int,
+			    path);
 			timespecsub(&ts_end, &ts_start);
 			printf("%s\t%d\t", the_test->t_name, k);
 			printf("%ju.%09ju\t%d\t", (uintmax_t)ts_end.tv_sec,
