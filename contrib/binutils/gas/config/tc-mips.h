@@ -1,5 +1,5 @@
 /* tc-mips.h -- header file for tc-mips.c.
-   Copyright 1993, 1994, 1995, 1996, 1997, 2000, 2001, 2002, 2003
+   Copyright 1993, 1994, 1995, 1996, 1997, 2000, 2001, 2002, 2003, 2004
    Free Software Foundation, Inc.
    Contributed by the OSF and Ralph Campbell.
    Written by Keith Knowles and Ralph Campbell, working independently.
@@ -19,8 +19,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #ifndef TC_MIPS
 #define TC_MIPS
@@ -58,10 +58,6 @@ extern void mips_handle_align (struct frag *);
 
 #define MAX_MEM_FOR_RS_ALIGN_CODE  (1 + 2)
 
-/* We permit PC relative difference expressions when generating
-   embedded PIC code.  */
-#define DIFF_EXPR_OK
-
 /* Tell assembler that we have an itbl_mips.h header file to include.  */
 #define HAVE_ITBL_CPU
 
@@ -80,11 +76,8 @@ enum mips_pic_level
   /* Generate PIC code as in the SVR4 MIPS ABI.  */
   SVR4_PIC,
 
-  /* Generate PIC code without using a global offset table: the data
-     segment has a maximum size of 64K, all data references are off
-     the $gp register, and all text references are PC relative.  This
-     is used on some embedded systems.  */
-  EMBEDDED_PIC
+  /* VxWorks's PIC model.  */
+  VXWORKS_PIC
 };
 
 extern enum mips_pic_level mips_pic;
@@ -117,17 +110,15 @@ extern void mips_frob_file_after_relocs (void);
 #define tc_fix_adjustable(fixp) mips_fix_adjustable (fixp)
 extern int mips_fix_adjustable (struct fix *);
 
-/* Values passed to md_apply_fix3 don't include symbol values.  */
+/* Values passed to md_apply_fix don't include symbol values.  */
 #define MD_APPLY_SYM_VALUE(FIX) 0
 
-/* Global syms must not be resolved, to support ELF shared libraries.
-   When generating embedded code, we don't have shared libs.  */
+/* Global syms must not be resolved, to support ELF shared libraries.  */
 #define EXTERN_FORCE_RELOC			\
-  (OUTPUT_FLAVOR == bfd_target_elf_flavour	\
-   && mips_pic != EMBEDDED_PIC)
+  (OUTPUT_FLAVOR == bfd_target_elf_flavour)
 
-/* When generating embedded PIC code we must keep PC relative
-   relocations.  */
+/* When generating NEWABI code, we may need to have to keep combined
+   relocations which don't have symbols.  */
 #define TC_FORCE_RELOCATION(FIX) mips_force_relocation (FIX)
 extern int mips_force_relocation (struct fix *);
 
@@ -149,10 +140,6 @@ extern void mips_elf_final_processing (void);
 extern void md_mips_end (void);
 #define md_end()	md_mips_end()
 
-#define USE_GLOBAL_POINTER_OPT	(OUTPUT_FLAVOR == bfd_target_ecoff_flavour \
-				 || OUTPUT_FLAVOR == bfd_target_coff_flavour \
-				 || OUTPUT_FLAVOR == bfd_target_elf_flavour)
-
 extern void mips_pop_insert (void);
 #define md_pop_insert()		mips_pop_insert()
 
@@ -165,6 +152,15 @@ extern void mips_enable_auto_align (void);
 extern enum dwarf2_format mips_dwarf2_format (void);
 #define DWARF2_FORMAT() mips_dwarf2_format ()
 
+extern int mips_dwarf2_addr_size (void);
 #define DWARF2_ADDR_SIZE(bfd) mips_dwarf2_addr_size ()
+
+#define TARGET_USE_CFIPOP 1
+
+#define tc_cfi_frame_initial_instructions mips_cfi_frame_initial_instructions
+extern void mips_cfi_frame_initial_instructions (void);
+
+#define DWARF2_DEFAULT_RETURN_COLUMN 31
+#define DWARF2_CIE_DATA_ALIGNMENT -4
 
 #endif /* TC_MIPS */

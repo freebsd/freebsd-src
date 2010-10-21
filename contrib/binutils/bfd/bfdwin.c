@@ -1,5 +1,6 @@
 /* Support for memory-mapped windows into a BFD.
-   Copyright 1995, 1996, 2001, 2002, 2003 Free Software Foundation, Inc.
+   Copyright 1995, 1996, 2001, 2002, 2003, 2005
+   Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -16,7 +17,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "sysdep.h"
 
@@ -144,7 +145,6 @@ bfd_get_file_window (bfd *abfd,
       file_ptr file_offset, offset2;
       size_t real_size;
       int fd;
-      FILE *f;
 
       /* Find the real file and the real offset into it.  */
       while (abfd->my_archive != NULL)
@@ -152,8 +152,13 @@ bfd_get_file_window (bfd *abfd,
 	  offset += abfd->origin;
 	  abfd = abfd->my_archive;
 	}
-      f = bfd_cache_lookup (abfd);
-      fd = fileno (f);
+
+      /* Seek into the file, to ensure it is open if cacheable.  */
+      if (abfd->iostream == NULL
+	  && (abfd->iovec == NULL
+	      || abfd->iovec->bseek (abfd, offset, SEEK_SET) != 0))
+	return FALSE;
+      fd = fileno ((FILE *) abfd->iostream);
 
       /* Compute offsets and size for mmap and for the user's data.  */
       offset2 = offset % pagesize;

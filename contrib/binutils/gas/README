@@ -57,14 +57,6 @@ facility to list all supported host and target names or aliases.
 abbreviations to full names; you can read the script, if you wish, or
 you can use it to test your guesses on abbreviations--for example:
 
-     % sh config.sub sun4
-     sparc-sun-sunos411
-     % sh config.sub sun3
-     m68k-sun-sunos411
-     % sh config.sub decstation
-     mips-dec-ultrix42
-     % sh config.sub hp300bsd
-     m68k-hp-bsd
      % sh config.sub i386v
      i386-unknown-sysv
      % sh config.sub i786v
@@ -138,75 +130,6 @@ The `--enable' options recognized by software in the gas distribution are:
      For most targets, this isn't supported yet.  For most targets where it has
      been done, it's already the default.  So generally you won't need to use
      this option.
-
-Supported platforms
-===================
-
-At this point I believe gas to be ANSI only code for most target cpu's.  That
-is, there should be relatively few, if any host system dependencies.  So
-porting (as a cross-assembler) to hosts not yet supported should be fairly
-easy.  Porting to a new target shouldn't be too tough if it's a variant of one
-already supported.
-
-Native assembling should work on:
-
-	sun3
-	sun4
-	386bsd
-	bsd/386
-	delta (m68k-sysv from Motorola)
-	delta88 (m88k-sysv from Motorola)
-	GNU/linux
-	m68k hpux 8.0 (hpux 7.0 may be a problem)
-	vax bsd, ultrix, vms
-	hp9000s300
-	decstation
-	irix 4
-	irix 5
-	miniframe (m68k-sysv from Convergent Technologies)
-	i386-aix (ps/2)
-	hppa (hpux 4.3bsd, osf1)
-	AIX
-	unixware
-	sco 3.2v4.2
-	sco openserver 5.0 (a.k.a. 3.2v5.0 )
-	sparc solaris
-	ns32k (netbsd, lites)
-
-I believe that gas as a cross-assembler can currently be targeted for
-most of the above hosts, plus
-
-        arm
-	decstation-bsd (a.out format, to be used in BSD 4.4)
-	ebmon29k
-	go32 (DOS on i386, with DJGPP -- old a.out version)
-	H8/300, H8/500 (Hitachi)
-	i386-aix (ps/2)
-	i960-coff
-	mips ecoff (decstation-ultrix, iris, mips magnum, mips-idt-ecoff)
-	Mitsubishi d10v and d30v
-	nindy960
-	powerpc EABI
-	SH (Hitachi)
-	sco386
-	TI tic30 and tic80
-	vax bsd or ultrix?
-	vms
-	vxworks68k
-	vxworks960
-	z8000 (Zilog)
-
-MIPS ECOFF support has been added, but GAS will not run a C-style
-preprocessor.  If you want that, rename your file to have a ".S" suffix, and
-run gcc on it.  Or run "gcc -xassembler-with-cpp foo.s".
-
-Support for ELF should work now for sparc, hppa, i386, alpha, m68k,
-MIPS, powerpc.
-
-Support for sequent (ns32k), tahoe, i860 may be suffering from bitrot.
-
-If you try out gas on some host or target not listed above, please let me know
-the results, so I can update the list.
 
 Compiler Support Hacks
 ======================

@@ -1,6 +1,6 @@
 /* input_scrub.c - Break up input buffers into whole numbers of lines.
    Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   2000
+   2000, 2001, 2003
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -17,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include <errno.h>		/* Need this to make errno declaration right */
 #include "as.h"
@@ -123,7 +123,6 @@ struct input_save {
 
 static struct input_save *input_scrub_push (char *saved_position);
 static char *input_scrub_pop (struct input_save *arg);
-static void as_1_char (unsigned int c, FILE * stream);
 
 /* Saved information about the file that .include'd this one.  When we hit EOF,
    we automatically pop to that file.  */
@@ -280,7 +279,7 @@ input_scrub_include_sb (sb *from, char *position, int is_expansion)
       /* Add the sentinel required by read.c.  */
       sb_add_char (&from_sb, '\n');
     }
-  sb_add_sb (&from_sb, from);
+  sb_scrub_and_add_sb (&from_sb, from);
   sb_index = 1;
 
   /* These variables are reset by input_scrub_push.  Restore them
@@ -475,40 +474,4 @@ as_where (char **namep, unsigned int *linep)
       if (linep != NULL)
 	*linep = 0;
     }
-}
-
-/* Output to given stream how much of line we have scanned so far.
-   Assumes we have scanned up to and including input_line_pointer.
-   No free '\n' at end of line.  */
-
-void
-as_howmuch (FILE *stream /* Opened for write please.  */)
-{
-  register char *p;		/* Scan input line.  */
-
-  for (p = input_line_pointer - 1; *p != '\n'; --p)
-    {
-    }
-  ++p;				/* p->1st char of line.  */
-  for (; p <= input_line_pointer; p++)
-    {
-      /* Assume ASCII. EBCDIC & other micro-computer char sets ignored.  */
-      as_1_char ((unsigned char) *p, stream);
-    }
-}
-
-static void
-as_1_char (unsigned int c, FILE *stream)
-{
-  if (c > 127)
-    {
-      (void) putc ('%', stream);
-      c -= 128;
-    }
-  if (c < 32)
-    {
-      (void) putc ('^', stream);
-      c += '@';
-    }
-  (void) putc (c, stream);
 }

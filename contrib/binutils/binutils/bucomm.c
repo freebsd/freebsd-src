@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* We might put this in a library someday so it could be dynamically
    loaded, but for now it's not necessary.  */
@@ -31,6 +31,7 @@
 
 #include <sys/stat.h>
 #include <time.h>		/* ctime, maybe time_t */
+#include <assert.h>
 
 #ifndef HAVE_TIME_T_IN_TIME_H
 #ifndef HAVE_TIME_T_IN_TYPES_H
@@ -188,7 +189,7 @@ display_target_list (void)
     {
       const bfd_target *p = bfd_target_vector[t];
       bfd *abfd = bfd_openw (dummy_name, p->name);
-      int a;
+      enum bfd_architecture a;
 
       printf ("%s\n (header %s, data %s)\n", p->name,
 	      endian_string (p->header_byteorder),
@@ -212,7 +213,7 @@ display_target_list (void)
 	  continue;
 	}
 
-      for (a = (int) bfd_arch_obscure + 1; a < (int) bfd_arch_last; a++)
+      for (a = bfd_arch_obscure + 1; a < bfd_arch_last; a++)
 	if (bfd_set_arch_mach (abfd, (enum bfd_architecture) a, 0))
 	  printf ("  %s\n",
 		  bfd_printable_arch_mach ((enum bfd_architecture) a, 0));
@@ -232,9 +233,9 @@ static int
 display_info_table (int first, int last)
 {
   int t;
-  int a;
   int ret = 1;
   char *dummy_name;
+  enum bfd_architecture a;
 
   /* Print heading of target names.  */
   printf ("\n%*s", (int) LONGEST_ARCH, " ");
@@ -243,7 +244,7 @@ display_info_table (int first, int last)
   putchar ('\n');
 
   dummy_name = make_temp_file (NULL);
-  for (a = (int) bfd_arch_obscure + 1; a < (int) bfd_arch_last; a++)
+  for (a = bfd_arch_obscure + 1; a < bfd_arch_last; a++)
     if (strcmp (bfd_printable_arch_mach (a, 0), "UNKNOWN!") != 0)
       {
 	printf ("%*s ", (int) LONGEST_ARCH - 1,
@@ -474,4 +475,39 @@ get_file_size (const char * file_name)
     return statbuf.st_size;
 
   return 0;
+}
+
+/* Return the filename in a static buffer.  */
+
+const char *
+bfd_get_archive_filename (bfd *abfd)
+{
+  static size_t curr = 0;
+  static char *buf;
+  size_t needed;
+
+  assert (abfd != NULL);
+  
+  if (!abfd->my_archive)
+    return bfd_get_filename (abfd);
+
+  needed = (strlen (bfd_get_filename (abfd->my_archive))
+	    + strlen (bfd_get_filename (abfd)) + 3);
+  if (needed > curr)
+    {
+      if (curr)
+	free (buf);
+      curr = needed + (needed >> 1);
+      buf = bfd_malloc (curr);
+      /* If we can't malloc, fail safe by returning just the file name.
+	 This function is only used when building error messages.  */
+      if (!buf)
+	{
+	  curr = 0;
+	  return bfd_get_filename (abfd);
+	}
+    }
+  sprintf (buf, "%s(%s)", bfd_get_filename (abfd->my_archive),
+	   bfd_get_filename (abfd));
+  return buf;
 }

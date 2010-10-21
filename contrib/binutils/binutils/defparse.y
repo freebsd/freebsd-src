@@ -1,6 +1,6 @@
 %{ /* defparse.y - parser for .def files */
 
-/*  Copyright 1995, 1997, 1998, 1999, 2004
+/*  Copyright 1995, 1997, 1998, 1999, 2001, 2004
     Free Software Foundation, Inc.
 
     This file is part of GNU Binutils.
@@ -17,7 +17,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "bfd.h"
 #include "bucomm.h"
@@ -29,8 +29,8 @@
   int number;
 };
 
-%token NAME, LIBRARY, DESCRIPTION, STACKSIZE, HEAPSIZE, CODE, DATA
-%token SECTIONS, EXPORTS, IMPORTS, VERSIONK, BASE, CONSTANT
+%token NAME LIBRARY DESCRIPTION STACKSIZE HEAPSIZE CODE DATA
+%token SECTIONS EXPORTS IMPORTS VERSIONK BASE CONSTANT
 %token READ WRITE EXECUTE SHARED NONSHARED NONAME PRIVATE
 %token SINGLE MULTIPLE INITINSTANCE INITGLOBAL TERMINSTANCE TERMGLOBAL
 %token <id> ID

@@ -20,10 +20,10 @@ fpcmp-s0;	fpcmp[Field(sf)==s0]
 fpcmp-s1;	fpcmp[Field(sf)==s1]
 fpcmp-s2;	fpcmp[Field(sf)==s2]
 fpcmp-s3;	fpcmp[Field(sf)==s3]
-fr-readers;	IC:fp-arith, IC:fp-non-arith, IC:pr-writers-fp, chk.s[Format in {M21}], getf, IC:mem-writers-fp
+fr-readers;	IC:fp-arith, IC:fp-non-arith, IC:mem-writers-fp, IC:pr-writers-fp, chk.s[Format in {M21}], getf
 fr-writers;	IC:fp-arith, IC:fp-non-arith\fclass, IC:mem-readers-fp, setf
 gr-readers;	IC:gr-readers-writers, IC:mem-readers, IC:mem-writers, chk.s, cmp, cmp4, fc, itc.i, itc.d, itr.i, itr.d, IC:mov-to-AR-gr, IC:mov-to-BR, IC:mov-to-CR, IC:mov-to-IND, IC:mov-from-IND, IC:mov-to-PR-allreg, IC:mov-to-PSR-l, IC:mov-to-PSR-um, IC:probe-all, ptc.e, ptc.g, ptc.ga, ptc.l, ptr.i, ptr.d, setf, tbit, tnat
-gr-readers-writers;	IC:mov-from-IND, add, addl, addp4, adds, and, andcm, IC:czx, dep\dep[Format in {I13}], extr, IC:mem-readers-int, IC:ld-all-postinc, IC:lfetch-postinc, IC:mix, IC:mux, or, IC:pack, IC:padd, IC:pavg, IC:pavgsub, IC:pcmp, IC:pmax, IC:pmin, IC:pmpy, IC:pmpyshr, popcnt, IC:probe-nofault, IC:psad, IC:pshl, IC:pshladd, IC:pshr, IC:pshradd, IC:psub, shl, shladd, shladdp4, shr, shrp, IC:st-postinc, sub, IC:sxt, tak, thash, tpa, ttag, IC:unpack, xor, IC:zxt
+gr-readers-writers;	IC:mov-from-IND, add, addl, addp4, adds, and, andcm, clz, IC:czx, dep\dep[Format in {I13}], extr, IC:mem-readers-int, IC:ld-all-postinc, IC:lfetch-postinc, IC:mix, IC:mux, or, IC:pack, IC:padd, IC:pavg, IC:pavgsub, IC:pcmp, IC:pmax, IC:pmin, IC:pmpy, IC:pmpyshr, popcnt, IC:probe-nofault, IC:psad, IC:pshl, IC:pshladd, IC:pshr, IC:pshradd, IC:psub, shl, shladd, shladdp4, shr, shrp, shrp4, IC:st-postinc, sub, IC:sxt, tak, thash, tpa, ttag, IC:unpack, xor, IC:zxt
 gr-writers;	alloc, dep, getf, IC:gr-readers-writers, IC:mem-readers-int, IC:mov-from-AR, IC:mov-from-BR, IC:mov-from-CR, IC:mov-from-PR, IC:mov-from-PSR, IC:mov-from-PSR-um, IC:mov-ip, movl
 indirect-brp;	brp[Format in {B7}]
 indirect-brs;	br.call[Format in {B5}], br.cond[Format in {B4}], br.ia, br.ret
@@ -127,8 +127,9 @@ mov-from-IND-MSR;	IC:mov-from-IND[Field(ireg) == msr]
 mov-from-IND-PKR;	IC:mov-from-IND[Field(ireg) == pkr]
 mov-from-IND-PMC;	IC:mov-from-IND[Field(ireg) == pmc]
 mov-from-IND-PMD;	IC:mov-from-IND[Field(ireg) == pmd]
-mov-from-IND-priv;	IC:mov-from-IND[Field(ireg) in {dbr ibr msr pkr pmc rr}]
+mov-from-IND-priv;	IC:mov-from-IND[Field(ireg) in {dbr ibr pkr pmc rr}]
 mov-from-IND-RR;	IC:mov-from-IND[Field(ireg) == rr]
+mov-from-interruption-CR;	IC:mov-from-CR-ITIR, IC:mov-from-CR-IFS, IC:mov-from-CR-IIM, IC:mov-from-CR-IIP, IC:mov-from-CR-IPSR, IC:mov-from-CR-ISR, IC:mov-from-CR-IFA, IC:mov-from-CR-IHA, IC:mov-from-CR-IIPA
 mov-from-PR;	mov_pr[Format in {I25}]
 mov-from-PSR;	mov_psr[Format in {M36}]
 mov-from-PSR-um;	mov_um[Format in {M36}]
@@ -194,12 +195,14 @@ mov-to-IND-PMC;	IC:mov-to-IND[Field(ireg) == pmc]
 mov-to-IND-PMD;	IC:mov-to-IND[Field(ireg) == pmd]
 mov-to-IND-priv;	IC:mov-to-IND
 mov-to-IND-RR;	IC:mov-to-IND[Field(ireg) == rr]
+mov-to-interruption-CR;	IC:mov-to-CR-ITIR, IC:mov-to-CR-IFS, IC:mov-to-CR-IIM, IC:mov-to-CR-IIP, IC:mov-to-CR-IPSR, IC:mov-to-CR-ISR, IC:mov-to-CR-IFA, IC:mov-to-CR-IHA, IC:mov-to-CR-IIPA
 mov-to-PR;	IC:mov-to-PR-allreg, IC:mov-to-PR-rotreg
 mov-to-PR-allreg;	mov_pr[Format in {I23}]
 mov-to-PR-rotreg;	mov_pr[Format in {I24}]
 mov-to-PSR-l;	mov_psr[Format in {M35}]
 mov-to-PSR-um;	mov_um[Format in {M35}]
 mux;	mux1, mux2
+non-access;	fc, lfetch, IC:probe-all, tpa, tak
 none;	-
 pack;	pack2, pack4
 padd;	padd1, padd2, padd4
@@ -212,19 +215,19 @@ pmpy;	pmpy2
 pmpyshr;	pmpyshr2
 pr-and-writers;	IC:pr-gen-writers-int[Field(ctype) in {and andcm}], IC:pr-gen-writers-int[Field(ctype) in {or.andcm and.orcm}]
 pr-gen-writers-fp;	fclass, fcmp
-pr-gen-writers-int;	cmp, cmp4, tbit, tnat
+pr-gen-writers-int;	cmp, cmp4, tbit, tf, tnat
 pr-norm-writers-fp;	IC:pr-gen-writers-fp[Field(ctype)==]
 pr-norm-writers-int;	IC:pr-gen-writers-int[Field(ctype)==]
 pr-or-writers;	IC:pr-gen-writers-int[Field(ctype) in {or orcm}], IC:pr-gen-writers-int[Field(ctype) in {or.andcm and.orcm}]
 pr-readers-br;	br.call, br.cond, brl.call, brl.cond, br.ret, br.wexit, br.wtop, break.b, hint.b, nop.b, IC:ReservedBQP
-pr-readers-nobr-nomovpr;	add, addl, addp4, adds, and, andcm, break.f, break.i, break.m, break.x, chk.s, IC:chk-a, cmp, cmp4, IC:cmpxchg, IC:czx, dep, extr, IC:fp-arith, IC:fp-non-arith, fc, fchkf, fclrf, fcmp, IC:fetchadd, fpcmp, fsetc, fwb, getf, hint.f, hint.i, hint.m, hint.x, IC:invala-all, itc.i, itc.d, itr.i, itr.d, IC:ld, IC:ldf, IC:ldfp, IC:lfetch-all, mf, IC:mix, IC:mov-from-AR-M, IC:mov-from-AR-IM, IC:mov-from-AR-I, IC:mov-to-AR-M, IC:mov-to-AR-I, IC:mov-to-AR-IM, IC:mov-to-BR, IC:mov-from-BR, IC:mov-to-CR, IC:mov-from-CR, IC:mov-to-IND, IC:mov-from-IND, IC:mov-ip, IC:mov-to-PSR-l, IC:mov-to-PSR-um, IC:mov-from-PSR, IC:mov-from-PSR-um, movl, IC:mux, nop.f, nop.i, nop.m, nop.x, or, IC:pack, IC:padd, IC:pavg, IC:pavgsub, IC:pcmp, IC:pmax, IC:pmin, IC:pmpy, IC:pmpyshr, popcnt, IC:probe-all, IC:psad, IC:pshl, IC:pshladd, IC:pshr, IC:pshradd, IC:psub, ptc.e, ptc.g, ptc.ga, ptc.l, ptr.d, ptr.i, IC:ReservedQP, rsm, setf, shl, shladd, shladdp4, shr, shrp, srlz.i, srlz.d, ssm, IC:st, IC:stf, sub, sum, IC:sxt, sync, tak, tbit, thash, tnat, tpa, ttag, IC:unpack, IC:xchg, xma, xmpy, xor, IC:zxt
+pr-readers-nobr-nomovpr;	add, addl, addp4, adds, and, andcm, break.f, break.i, break.m, break.x, chk.s, IC:chk-a, cmp, cmp4, IC:cmpxchg, clz, IC:czx, dep, extr, IC:fp-arith, IC:fp-non-arith, fc, fchkf, fclrf, fcmp, IC:fetchadd, fpcmp, fsetc, fwb, getf, hint.f, hint.i, hint.m, hint.x, IC:invala-all, itc.i, itc.d, itr.i, itr.d, IC:ld, IC:ldf, IC:ldfp, IC:lfetch-all, mf, IC:mix, IC:mov-from-AR-M, IC:mov-from-AR-IM, IC:mov-from-AR-I, IC:mov-to-AR-M, IC:mov-to-AR-I, IC:mov-to-AR-IM, IC:mov-to-BR, IC:mov-from-BR, IC:mov-to-CR, IC:mov-from-CR, IC:mov-to-IND, IC:mov-from-IND, IC:mov-ip, IC:mov-to-PSR-l, IC:mov-to-PSR-um, IC:mov-from-PSR, IC:mov-from-PSR-um, movl, IC:mux, nop.f, nop.i, nop.m, nop.x, or, IC:pack, IC:padd, IC:pavg, IC:pavgsub, IC:pcmp, IC:pmax, IC:pmin, IC:pmpy, IC:pmpyshr, popcnt, IC:probe-all, IC:psad, IC:pshl, IC:pshladd, IC:pshr, IC:pshradd, IC:psub, ptc.e, ptc.g, ptc.ga, ptc.l, ptr.d, ptr.i, IC:ReservedQP, rsm, setf, shl, shladd, shladdp4, shr, shrp, shrp4, srlz.i, srlz.d, ssm, IC:st, IC:stf, sub, sum, IC:sxt, sync, tak, tbit, tf, thash, tnat, tpa, ttag, IC:unpack, IC:xchg, xma, xmpy, xor, IC:zxt
 pr-unc-writers-fp;	IC:pr-gen-writers-fp[Field(ctype)==unc]+11, fprcpa+11, fprsqrta+11, frcpa+11, frsqrta+11
 pr-unc-writers-int;	IC:pr-gen-writers-int[Field(ctype)==unc]+11
 pr-writers;	IC:pr-writers-int, IC:pr-writers-fp
 pr-writers-fp;	IC:pr-norm-writers-fp, IC:pr-unc-writers-fp
 pr-writers-int;	IC:pr-norm-writers-int, IC:pr-unc-writers-int, IC:pr-and-writers, IC:pr-or-writers
 predicatable-instructions;	IC:mov-from-PR, IC:mov-to-PR, IC:pr-readers-br, IC:pr-readers-nobr-nomovpr
-priv-ops;	IC:mov-to-IND-priv, bsw, itc.i, itc.d, itr.i, itr.d, IC:mov-to-CR, IC:mov-from-CR, IC:mov-to-PSR-l, IC:mov-from-PSR, IC:mov-from-IND-priv, ptc.e, ptc.g, ptc.ga, ptc.l, ptr.i, ptr.d, rfi, rsm, ssm, tak, tpa
+priv-ops;	IC:mov-to-IND-priv, bsw, itc.i, itc.d, itr.i, itr.d, IC:mov-to-CR, IC:mov-from-CR, IC:mov-to-PSR-l, IC:mov-from-PSR, IC:mov-from-IND-priv, ptc.e, ptc.g, ptc.ga, ptc.l, ptr.i, ptr.d, rfi, rsm, ssm, tak, tpa, vmsw
 probe-all;	IC:probe-fault, IC:probe-nofault
 probe-fault;	probe[Format in {M40}]
 probe-nofault;	probe[Format in {M38 M39}]
@@ -244,7 +247,7 @@ stf;	stfs, stfd, stfe, stf8, stf.spill
 sxt;	sxt1, sxt2, sxt4
 sys-mask-writers-partial;	rsm, ssm
 unpack;	unpack1, unpack2, unpack4
-unpredicatable-instructions;	alloc, br.cloop, br.ctop, br.cexit, br.ia, brp, bsw, clrrrb, cover, epc, flushrs, loadrs, rfi
+unpredicatable-instructions;	alloc, br.cloop, br.ctop, br.cexit, br.ia, brp, bsw, clrrrb, cover, epc, flushrs, loadrs, rfi, vmsw
 user-mask-writers-partial;	rum, sum
 xchg;	xchg1, xchg2, xchg4, xchg8
 zxt;	zxt1, zxt2, zxt4

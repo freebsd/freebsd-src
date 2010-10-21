@@ -1,5 +1,5 @@
 /* obj-format for ieee-695 records.
-   Copyright 1991, 1992, 1993, 1994, 1997, 2000
+   Copyright 1991, 1992, 1993, 1994, 1997, 2000, 2001, 2002, 2003, 2005
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -16,8 +16,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* Created by Steve Chamberlain <steve@cygnus.com>.  */
 
@@ -208,12 +208,6 @@ do_relocs_for (idx)
 	  asymbol *s;
 	  reloc_ptr_vector[i] = to;
 	  to->howto = (reloc_howto_type *) (from->fx_r_type);
-
-#if 0
-	  /* We can't represent complicated things in a reloc yet.  */
-	  if (from->fx_addsy == 0 || from->fx_subsy != 0)
-	    abort ();
-#endif
 
 	  s = &(from->fx_addsy->sy_symbol.sy);
 	  to->address = ((char *) (from->fx_frag->fr_address +
@@ -561,21 +555,7 @@ write_object_file ()
       fragS **prev_frag_ptr_ptr;
       struct frchain *next_frchain_ptr;
 
-#if 0
-      struct frag **head_ptr = segment_info[i].frag_root;
-#endif
-
       segment_info[i].frag_root = segment_info[i].frchainP->frch_root;
-#if 0
-      /* I'm not sure what this is for.  */
-      for (frchain_ptr = segment_info[i].frchainP->frch_root;
-	   frchain_ptr != (struct frchain *) NULL;
-	   frchain_ptr = frchain_ptr->frch_next)
-	{
-	  *head_ptr = frchain_ptr;
-	  head_ptr = &frchain_ptr->next;
-	}
-#endif
     }
 
   for (i = SEG_E0; i < SEG_UNKNOWN; i++)

@@ -1,5 +1,5 @@
 /* FRV ELF support for BFD.
-   Copyright (C) 2002 Free Software Foundation, Inc.
+   Copyright (C) 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -15,7 +15,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifndef _ELF_FRV_H
 #define _ELF_FRV_H
@@ -49,6 +49,22 @@ START_RELOC_NUMBERS (elf_frv_reloc_type)
   RELOC_NUMBER (R_FRV_GOTOFF12, 22)
   RELOC_NUMBER (R_FRV_GOTOFFHI, 23)
   RELOC_NUMBER (R_FRV_GOTOFFLO, 24)
+  RELOC_NUMBER (R_FRV_GETTLSOFF, 25)
+  RELOC_NUMBER (R_FRV_TLSDESC_VALUE, 26)
+  RELOC_NUMBER (R_FRV_GOTTLSDESC12, 27)
+  RELOC_NUMBER (R_FRV_GOTTLSDESCHI, 28)
+  RELOC_NUMBER (R_FRV_GOTTLSDESCLO, 29)
+  RELOC_NUMBER (R_FRV_TLSMOFF12, 30)
+  RELOC_NUMBER (R_FRV_TLSMOFFHI, 31)
+  RELOC_NUMBER (R_FRV_TLSMOFFLO, 32)
+  RELOC_NUMBER (R_FRV_GOTTLSOFF12, 33)
+  RELOC_NUMBER (R_FRV_GOTTLSOFFHI, 34)
+  RELOC_NUMBER (R_FRV_GOTTLSOFFLO, 35)
+  RELOC_NUMBER (R_FRV_TLSOFF, 36)
+  RELOC_NUMBER (R_FRV_TLSDESC_RELAX, 37)
+  RELOC_NUMBER (R_FRV_GETTLSOFF_RELAX, 38)
+  RELOC_NUMBER (R_FRV_TLSOFF_RELAX, 39)
+  RELOC_NUMBER (R_FRV_TLSMOFF, 40)
   RELOC_NUMBER (R_FRV_GNU_VTINHERIT, 200)
   RELOC_NUMBER (R_FRV_GNU_VTENTRY, 201)
 END_RELOC_NUMBERS(R_FRV_max)
@@ -91,6 +107,8 @@ END_RELOC_NUMBERS(R_FRV_max)
 #define EF_FRV_CPU_TOMCAT	0x04000000	/* Tomcat, FR500 prototype */
 #define EF_FRV_CPU_FR400	0x05000000	/* FRV400 */
 #define EF_FRV_CPU_FR550	0x06000000	/* FRV550 */
+#define EF_FRV_CPU_FR405	0x07000000
+#define EF_FRV_CPU_FR450	0x08000000
 
 						/* Mask of PIC related bits */
 #define	EF_FRV_PIC_FLAGS	(EF_FRV_PIC | EF_FRV_LIBPIC | EF_FRV_BIGPIC \

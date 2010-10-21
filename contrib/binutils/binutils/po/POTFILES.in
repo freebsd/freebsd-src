@@ -19,6 +19,7 @@ debug.h
 dlltool.c
 dlltool.h
 dllwrap.c
+dwarf.c
 emul_aix.c
 emul_vanilla.c
 filemode.c

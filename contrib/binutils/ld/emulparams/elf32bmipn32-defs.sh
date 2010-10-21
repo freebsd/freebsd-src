@@ -30,13 +30,19 @@ fi
 LIBPATH_SUFFIX=$ELFSIZE
 
 GENERATE_SHLIB_SCRIPT=yes
+GENERATE_PIE_SCRIPT=yes
 
 TEXT_START_ADDR=0x10000000
 MAXPAGESIZE=0x100000
 ENTRY=__start
 
 # GOT-related settings.  
+# If the output has a GOT section, there must be exactly 0x7ff0 bytes
+# between .got and _gp.  The ". = ." below stops the orphan code from
+# inserting other sections between the assignment to _gp and the start
+# of .got.
 OTHER_GOT_SYMBOLS='
+  . = .;
   _gp = ALIGN(16) + 0x7ff0;
 '
 OTHER_SDATA_SECTIONS="
