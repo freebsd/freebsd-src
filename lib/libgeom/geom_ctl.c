@@ -54,7 +54,7 @@ static char nomemmsg[] = "Could not allocate memory";
 void
 gctl_dump(struct gctl_req *req, FILE *f)
 {
-	u_int i;
+	unsigned int i;
 	int j;
 	struct gctl_req_arg *ap;
 
@@ -126,10 +126,8 @@ gctl_check_alloc(struct gctl_req *req, void *ptr)
 struct gctl_req *
 gctl_get_handle(void)
 {
-	struct gctl_req *rp;
 
-	rp = calloc(1, sizeof *rp);
-	return (rp);
+	return (calloc(1, sizeof(struct gctl_req)));
 }
 
 /*
@@ -233,7 +231,7 @@ gctl_issue(struct gctl_req *req)
 void
 gctl_free(struct gctl_req *req)
 {
-	u_int i;
+	unsigned int i;
 
 	if (req == NULL)
 		return;
