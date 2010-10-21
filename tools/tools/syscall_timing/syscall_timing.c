@@ -87,10 +87,10 @@ benchmark_stop(void)
 	assert(clock_gettime(CLOCK_REALTIME, &ts_end) == 0);
 }
   
-uint64_t
-test_getuid(uint64_t num, uint64_t int_arg, const char *path)
+uintmax_t
+test_getuid(uintmax_t num, uintmax_t int_arg, const char *path)
 {
-	uint64_t i;
+	uintmax_t i;
 
 	/*
 	 * Thread-local data should require no locking if system
@@ -106,10 +106,10 @@ test_getuid(uint64_t num, uint64_t int_arg, const char *path)
 	return (i);
 }
 
-uint64_t
-test_getppid(uint64_t num, uint64_t int_arg, const char *path)
+uintmax_t
+test_getppid(uintmax_t num, uintmax_t int_arg, const char *path)
 {
-	uint64_t i;
+	uintmax_t i;
 
 	/*
 	 * This is process-local, but can change, so will require a
@@ -125,11 +125,11 @@ test_getppid(uint64_t num, uint64_t int_arg, const char *path)
 	return (i);
 }
 
-uint64_t
-test_clock_gettime(uint64_t num, uint64_t int_arg, const char *path)
+uintmax_t
+test_clock_gettime(uintmax_t num, uintmax_t int_arg, const char *path)
 {
 	struct timespec ts;
-	uint64_t i;
+	uintmax_t i;
 
 	benchmark_start();
 	for (i = 0; i < num; i++) {
@@ -141,8 +141,8 @@ test_clock_gettime(uint64_t num, uint64_t int_arg, const char *path)
 	return (i);
 }
 
-uint64_t
-test_pipe(uint64_t num, uint64_t int_arg, const char *path)
+uintmax_t
+test_pipe(uintmax_t num, uintmax_t int_arg, const char *path)
 {
 	int fd[2], i;
 
@@ -169,10 +169,10 @@ test_pipe(uint64_t num, uint64_t int_arg, const char *path)
 	return (i);
 }
 
-uint64_t
-test_socket_stream(uint64_t num, uint64_t int_arg, const char *path)
+uintmax_t
+test_socket_stream(uintmax_t num, uintmax_t int_arg, const char *path)
 {
-	uint64_t i, so;
+	uintmax_t i, so;
 
 	so = socket(int_arg, SOCK_STREAM, 0);
 	if (so < 0)
@@ -191,10 +191,10 @@ test_socket_stream(uint64_t num, uint64_t int_arg, const char *path)
 	return (i);
 }
 
-uint64_t
-test_socket_dgram(uint64_t num, uint64_t int_arg, const char *path)
+uintmax_t
+test_socket_dgram(uintmax_t num, uintmax_t int_arg, const char *path)
 {
-	uint64_t i, so;
+	uintmax_t i, so;
 
 	so = socket(int_arg, SOCK_DGRAM, 0);
 	if (so < 0)
@@ -213,10 +213,10 @@ test_socket_dgram(uint64_t num, uint64_t int_arg, const char *path)
 	return (i);
 }
 
-uint64_t
-test_socketpair_stream(uint64_t num, uint64_t int_arg, const char *path)
+uintmax_t
+test_socketpair_stream(uintmax_t num, uintmax_t int_arg, const char *path)
 {
-	uint64_t i;
+	uintmax_t i;
 	int so[2];
 
 	if (socketpair(PF_LOCAL, SOCK_STREAM, 0, so) == -1)
@@ -236,10 +236,10 @@ test_socketpair_stream(uint64_t num, uint64_t int_arg, const char *path)
 	return (i);
 }
 
-uint64_t
-test_socketpair_dgram(uint64_t num, uint64_t int_arg, const char *path)
+uintmax_t
+test_socketpair_dgram(uintmax_t num, uintmax_t int_arg, const char *path)
 {
-	uint64_t i;
+	uintmax_t i;
 	int so[2];
 
 	if (socketpair(PF_LOCAL, SOCK_DGRAM, 0, so) == -1)
@@ -259,10 +259,10 @@ test_socketpair_dgram(uint64_t num, uint64_t int_arg, const char *path)
 	return (i);
 }
 
-uint64_t
-test_open_close(uint64_t num, uint64_t int_arg, const char *path)
+uintmax_t
+test_open_close(uintmax_t num, uintmax_t int_arg, const char *path)
 {
-	uint64_t i;
+	uintmax_t i;
 	int fd;
 
 	fd = open(path, O_RDONLY);
@@ -283,11 +283,11 @@ test_open_close(uint64_t num, uint64_t int_arg, const char *path)
 	return (i);
 }
 
-uint64_t
-test_open_read_close(uint64_t num, uint64_t int_arg, const char *path)
+uintmax_t
+test_open_read_close(uintmax_t num, uintmax_t int_arg, const char *path)
 {
 	char buf[int_arg];
-	uint64_t i;
+	uintmax_t i;
 	int fd;
 
 	fd = open(path, O_RDONLY);
@@ -310,8 +310,8 @@ test_open_read_close(uint64_t num, uint64_t int_arg, const char *path)
 	return (i);
 }
 
-uint64_t
-test_dup(uint64_t num, uint64_t int_arg, const char *path)
+uintmax_t
+test_dup(uintmax_t num, uintmax_t int_arg, const char *path)
 {
 	int fd, i, shmfd;
 
@@ -334,10 +334,10 @@ test_dup(uint64_t num, uint64_t int_arg, const char *path)
 	return (i);
 }
 
-uint64_t
-test_shmfd(uint64_t num, uint64_t int_arg, const char *path)
+uintmax_t
+test_shmfd(uintmax_t num, uintmax_t int_arg, const char *path)
 {
-	uint64_t i, shmfd;
+	uintmax_t i, shmfd;
 
 	shmfd = shm_open(SHM_ANON, O_CREAT | O_RDWR, 0600);
 	if (shmfd < 0)
@@ -356,11 +356,11 @@ test_shmfd(uint64_t num, uint64_t int_arg, const char *path)
 	return (i);
 }
 
-uint64_t
-test_fstat_shmfd(uint64_t num, uint64_t int_arg, const char *path)
+uintmax_t
+test_fstat_shmfd(uintmax_t num, uintmax_t int_arg, const char *path)
 {
 	struct stat sb;
-	uint64_t i, shmfd;
+	uintmax_t i, shmfd;
 
 	shmfd = shm_open(SHM_ANON, O_CREAT | O_RDWR, 0600);
 	if (shmfd < 0)
@@ -378,11 +378,11 @@ test_fstat_shmfd(uint64_t num, uint64_t int_arg, const char *path)
 	return (i);
 }
 
-uint64_t
-test_fork(uint64_t num, uint64_t int_arg, const char *path)
+uintmax_t
+test_fork(uintmax_t num, uintmax_t int_arg, const char *path)
 {
 	pid_t pid;
-	uint64_t i;
+	uintmax_t i;
 
 	pid = fork();
 	if (pid < 0)
@@ -407,11 +407,11 @@ test_fork(uint64_t num, uint64_t int_arg, const char *path)
 	return (i);
 }
 
-uint64_t
-test_vfork(uint64_t num, uint64_t int_arg, const char *path)
+uintmax_t
+test_vfork(uintmax_t num, uintmax_t int_arg, const char *path)
 {
 	pid_t pid;
-	uint64_t i;
+	uintmax_t i;
 
 	pid = vfork();
 	if (pid < 0)
@@ -440,11 +440,11 @@ test_vfork(uint64_t num, uint64_t int_arg, const char *path)
 static char *execve_args[] = { USR_BIN_TRUE, NULL};
 extern char **environ;
 
-uint64_t
-test_fork_exec(uint64_t num, uint64_t int_arg, const char *path)
+uintmax_t
+test_fork_exec(uintmax_t num, uintmax_t int_arg, const char *path)
 {
 	pid_t pid;
-	uint64_t i;
+	uintmax_t i;
 
 	pid = fork();
 	if (pid < 0)
@@ -473,11 +473,11 @@ test_fork_exec(uint64_t num, uint64_t int_arg, const char *path)
 	return (i);
 }
 
-uint64_t
-test_vfork_exec(uint64_t num, uint64_t int_arg, const char *path)
+uintmax_t
+test_vfork_exec(uintmax_t num, uintmax_t int_arg, const char *path)
 {
 	pid_t pid;
-	uint64_t i;
+	uintmax_t i;
 
 	pid = vfork();
 	if (pid < 0)
@@ -506,10 +506,10 @@ test_vfork_exec(uint64_t num, uint64_t int_arg, const char *path)
 	return (i);
 }
 
-uint64_t
-test_chroot(uint64_t num, uint64_t int_arg, const char *path)
+uintmax_t
+test_chroot(uintmax_t num, uintmax_t int_arg, const char *path)
 {
-	uint64_t i;
+	uintmax_t i;
 
 	if (chroot("/") < 0)
 		err(-1, "test_chroot: chroot");
@@ -524,11 +524,11 @@ test_chroot(uint64_t num, uint64_t int_arg, const char *path)
 	return (i);
 }
 
-uint64_t
-test_setuid(uint64_t num, uint64_t int_arg, const char *path)
+uintmax_t
+test_setuid(uintmax_t num, uintmax_t int_arg, const char *path)
 {
 	uid_t uid;
-	uint64_t i;
+	uintmax_t i;
 
 	uid = getuid();
 	if (setuid(uid) < 0)
@@ -546,8 +546,8 @@ test_setuid(uint64_t num, uint64_t int_arg, const char *path)
 
 struct test {
 	const char	*t_name;
-	uint64_t	(*t_func)(uint64_t, uint64_t, const char *);
-	uint64_t	 t_int;
+	uintmax_t	(*t_func)(uintmax_t, uintmax_t, const char *);
+	uintmax_t	 t_int;
 };
 
 static const struct test tests[] = {
@@ -601,7 +601,7 @@ main(int argc, char *argv[])
 	long long ll;
 	char *endp;
 	int ch, i, j, k;
-	uint64_t iterations, loops;
+	uintmax_t iterations, loops;
 
 	alarm_timeout = 0;
 	iterations = 0;
@@ -649,16 +649,16 @@ main(int argc, char *argv[])
 	if (loops < 1)
 		loops = 1;
 
-	if (argc != 1)
+	if (argc < 1)
 		usage();
 
 	assert(clock_getres(CLOCK_REALTIME, &ts_res) == 0);
-	printf("Clock resolution: %ju.%08ju\n", (uintmax_t)ts_res.tv_sec,
+	printf("Clock resolution: %ju.%09ju\n", (uintmax_t)ts_res.tv_sec,
 	    (uintmax_t)ts_res.tv_nsec);
 	printf("test\tloop\ttotal\titerations\tperiteration\n");
 
 	for (j = 0; j < argc; j++) {
-		uint64_t calls;
+		uintmax_t calls, nsecsperit;
 
 		the_test = NULL;
 		for (i = 0; i < tests_count; i++) {
@@ -687,9 +687,10 @@ main(int argc, char *argv[])
 		 * the room in our arithmetic unit.  Fine for system calls,
 		 * but not for long things.
 		 */
-			ts_end.tv_sec *= 1000000000 / calls;
-			printf("0.%09ju\n", (uintmax_t)(ts_end.tv_sec +
-			    ts_end.tv_nsec / calls));
+			nsecsperit = ts_end.tv_sec * 1000000000;
+			nsecsperit += ts_end.tv_nsec;
+			nsecsperit /= calls;
+			printf("0.%09ju\n", (uintmax_t)nsecsperit);
 		}
 	}
 	return (0);
