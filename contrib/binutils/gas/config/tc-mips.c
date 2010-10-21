@@ -1216,6 +1216,12 @@ mips_target_format (void)
     case bfd_target_coff_flavour:
       return "pe-mips";
     case bfd_target_elf_flavour:
+#ifdef TE_VXWORKS
+      if (!HAVE_64BIT_OBJECTS && !HAVE_NEWABI)
+	return (target_big_endian
+		? "elf32-bigmips-vxworks"
+		: "elf32-littlemips-vxworks");
+#endif
 #ifdef TE_TMIPS
       /* This is traditional mips.  */
       return (target_big_endian
@@ -1556,9 +1562,9 @@ md_begin (void)
 
   if (OUTPUT_FLAVOR == bfd_target_elf_flavour)
     {
-      /* On a native system, sections must be aligned to 16 byte
-         boundaries.  When configured for an embedded ELF target, we
-	 don't bother.  */
+      /* On a native system other than VxWorks, sections must be aligned
+	 to 16 byte boundaries.  When configured for an embedded ELF
+	 target, we don't bother.  */
       if (strcmp (TARGET_OS, "elf") != 0
 	  && strcmp (TARGET_OS, "vxworks") != 0)
 	{
@@ -1719,8 +1725,12 @@ md_assemble (char *str)
 static inline bfd_boolean
 reloc_needs_lo_p (bfd_reloc_code_real_type reloc)
 {
-  return (reloc == BFD_RELOC_HI16_S
-	  || reloc == BFD_RELOC_MIPS_GOT16);
+  return (HAVE_IN_PLACE_ADDENDS
+	  && (reloc == BFD_RELOC_HI16_S
+	      || reloc == BFD_RELOC_MIPS16_HI16_S
+	      /* VxWorks R_MIPS_GOT16 relocs never need a matching %lo();
+		 all GOT16 relocations evaluate to "G".  */
+	      || (reloc == BFD_RELOC_MIPS_GOT16 && mips_pic != VXWORKS_PIC)));
 }
 
 /* Return true if the given fixup is followed by a matching R_MIPS_LO16
@@ -1730,7 +1740,8 @@ static inline bfd_boolean
 fixup_has_matching_lo_p (fixS *fixp)
 {
   return (fixp->fx_next != NULL
-	  && fixp->fx_next->fx_r_type == BFD_RELOC_LO16
+	  && (fixp->fx_next->fx_r_type == BFD_RELOC_LO16
+	     || fixp->fx_next->fx_r_type == BFD_RELOC_MIPS16_LO16)
 	  && fixp->fx_addsy == fixp->fx_next->fx_addsy
 	  && fixp->fx_offset == fixp->fx_next->fx_offset);
 }
@@ -2487,7 +2498,10 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 		  || reloc_type[0] == BFD_RELOC_MIPS_HIGHER
 		  || reloc_type[0] == BFD_RELOC_MIPS_SCN_DISP
 		  || reloc_type[0] == BFD_RELOC_MIPS_REL16
-		  || reloc_type[0] == BFD_RELOC_MIPS_RELGOT))
+		  || reloc_type[0] == BFD_RELOC_MIPS_RELGOT
+		  || reloc_type[0] == BFD_RELOC_MIPS16_GPREL
+		  || reloc_type[0] == BFD_RELOC_MIPS16_HI16_S
+		  || reloc_type[0] == BFD_RELOC_MIPS16_LO16))
 	    ip->fixp[0]->fx_no_overflow = 1;
 
 	  if (mips_relax.sequence)
@@ -5687,6 +5701,8 @@ macro (struct mips_cl_insn *ip)
 		}
 	    }
 	}
+      else if (mips_pic == VXWORKS_PIC)
+	as_bad (_("Non-PIC jump used in PIC library"));
       else
 	abort ();
 
@@ -9726,10 +9742,34 @@ mips16_ip (char *str, struct mips_cl_insn *ip)
 		      && *imm_reloc > BFD_RELOC_UNUSED
 		      && insn->pinfo != INSN_MACRO)
 		    {
+		      valueT tmp;
+
+		      switch (*offset_reloc)
+			{
+			  case BFD_RELOC_MIPS16_HI16_S:
+			    tmp = (imm_expr.X_add_number + 0x8000) >> 16;
+			    break;
+
+			  case BFD_RELOC_MIPS16_HI16:
+			    tmp = imm_expr.X_add_number >> 16;
+			    break;
+
+			  case BFD_RELOC_MIPS16_LO16:
+			    tmp = ((imm_expr.X_add_number + 0x8000) & 0xffff)
+				  - 0x8000;
+			    break;
+
+			  case BFD_RELOC_UNUSED:
+			    tmp = imm_expr.X_add_number;
+			    break;
+
+			  default:
+			    internalError ();
+			}
 		      *offset_reloc = BFD_RELOC_UNUSED;
 
 		      mips16_immed (NULL, 0, *imm_reloc - BFD_RELOC_UNUSED,
-				    imm_expr.X_add_number, TRUE, mips16_small,
+				    tmp, TRUE, mips16_small,
 				    mips16_ext, &ip->insn_opcode,
 				    &ip->use_extend, &ip->extend);
 		      imm_expr.X_op = O_absent;
@@ -10537,9 +10577,24 @@ static const struct percent_op_match mips_percent_op[] =
   {"%highest", BFD_RELOC_MIPS_HIGHEST},
   {"%higher", BFD_RELOC_MIPS_HIGHER},
   {"%neg", BFD_RELOC_MIPS_SUB},
+  {"%tlsgd", BFD_RELOC_MIPS_TLS_GD},
+  {"%tlsldm", BFD_RELOC_MIPS_TLS_LDM},
+  {"%dtprel_hi", BFD_RELOC_MIPS_TLS_DTPREL_HI16},
+  {"%dtprel_lo", BFD_RELOC_MIPS_TLS_DTPREL_LO16},
+  {"%tprel_hi", BFD_RELOC_MIPS_TLS_TPREL_HI16},
+  {"%tprel_lo", BFD_RELOC_MIPS_TLS_TPREL_LO16},
+  {"%gottprel", BFD_RELOC_MIPS_TLS_GOTTPREL},
 #endif
   {"%hi", BFD_RELOC_HI16_S}
 };
+
+static const struct percent_op_match mips16_percent_op[] =
+{
+  {"%lo", BFD_RELOC_MIPS16_LO16},
+  {"%gprel", BFD_RELOC_MIPS16_GPREL},
+  {"%hi", BFD_RELOC_MIPS16_HI16_S}
+};
+
 
 /* Return true if *STR points to a relocation operator.  When returning true,
    move *STR over the operator and store its relocation code in *RELOC.
@@ -10551,8 +10606,16 @@ parse_relocation (char **str, bfd_reloc_code_real_type *reloc)
   const struct percent_op_match *percent_op;
   size_t limit, i;
 
-  percent_op = mips_percent_op;
-  limit = ARRAY_SIZE (mips_percent_op);
+  if (mips_opts.mips16)
+    {
+      percent_op = mips16_percent_op;
+      limit = ARRAY_SIZE (mips16_percent_op);
+    }
+  else
+    {
+      percent_op = mips_percent_op;
+      limit = ARRAY_SIZE (mips_percent_op);
+    }
 
   for (i = 0; i < limit; i++)
     if (strncasecmp (*str, percent_op[i].str, strlen (percent_op[i].str)) == 0)
@@ -10902,6 +10965,8 @@ struct option md_longopts[] =
   {"mpdr", no_argument, NULL, OPTION_PDR},
 #define OPTION_NO_PDR	   (OPTION_ELF_BASE + 10)
   {"mno-pdr", no_argument, NULL, OPTION_NO_PDR},
+#define OPTION_MVXWORKS_PIC (OPTION_ELF_BASE + 11)
+  {"mvxworks-pic", no_argument, NULL, OPTION_MVXWORKS_PIC},
 #endif /* OBJ_ELF */
 
 #define OPTION_MOCTEON_UNSUPPORTED (OPTION_MISC_BASE + 28)
@@ -11297,6 +11362,10 @@ md_parse_option (int c, char *arg)
     case OPTION_NO_PDR:
       mips_flag_pdr = FALSE;
       break;
+
+    case OPTION_MVXWORKS_PIC:
+      mips_pic = VXWORKS_PIC;
+      break;
 #endif /* OBJ_ELF */
 
     default:
@@ -11509,7 +11578,7 @@ mips_frob_file_before_adjust (void)
 }
 
 /* Sort any unmatched HI16 and GOT16 relocs so that they immediately precede
-   the corresponding LO16 reloc.  This is called before md_apply_fix3 and
+   the corresponding LO16 reloc.  This is called before md_apply_fix and
    tc_gen_reloc.  Unmatched relocs can only be generated by use of explicit
    relocation operators.
 
@@ -11594,7 +11663,8 @@ mips_frob_file (void)
 	  if (*pos == l->fixp)
 	    hi_pos = pos;
 
-	  if ((*pos)->fx_r_type == BFD_RELOC_LO16
+	  if (((*pos)->fx_r_type == BFD_RELOC_LO16
+	       || (*pos)->fx_r_type == BFD_RELOC_MIPS16_LO16)
 	      && (*pos)->fx_addsy == l->fixp->fx_addsy
 	      && (*pos)->fx_offset >= l->fixp->fx_offset
 	      && (lo_pos == NULL
@@ -11650,7 +11720,7 @@ mips_force_relocation (fixS *fixp)
 /* Apply a fixup to the object file.  */
 
 void
-md_apply_fix3 (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
+md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 {
   bfd_byte *buf;
   long insn;
@@ -11688,6 +11758,16 @@ md_apply_fix3 (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 
   switch (fixP->fx_r_type)
     {
+    case BFD_RELOC_MIPS_TLS_GD:
+    case BFD_RELOC_MIPS_TLS_LDM:
+    case BFD_RELOC_MIPS_TLS_DTPREL_HI16:
+    case BFD_RELOC_MIPS_TLS_DTPREL_LO16:
+    case BFD_RELOC_MIPS_TLS_GOTTPREL:
+    case BFD_RELOC_MIPS_TLS_TPREL_HI16:
+    case BFD_RELOC_MIPS_TLS_TPREL_LO16:
+      S_SET_THREAD_LOCAL (fixP->fx_addsy);
+      /* fall through */
+
     case BFD_RELOC_MIPS_JMP:
     case BFD_RELOC_MIPS_SHIFT5:
     case BFD_RELOC_MIPS_SHIFT6:
@@ -11716,6 +11796,8 @@ md_apply_fix3 (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_MIPS_CALL_HI16:
     case BFD_RELOC_MIPS_CALL_LO16:
     case BFD_RELOC_MIPS16_GPREL:
+    case BFD_RELOC_MIPS16_HI16:
+    case BFD_RELOC_MIPS16_HI16_S:
       /* Nothing needed to do. The value comes from the reloc entry */
       break;
 
@@ -11766,6 +11848,7 @@ md_apply_fix3 (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
       break;
 
     case BFD_RELOC_LO16:
+    case BFD_RELOC_MIPS16_LO16:
       /* FIXME: Now that embedded-PIC is gone, some of this code/comment
 	 may be safe to remove, but if so it's not obvious.  */
       /* When handling an embedded PIC switch statement, we can wind
@@ -11809,7 +11892,7 @@ md_apply_fix3 (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	       && fixP->fx_done
 	       && fixP->fx_frag->fr_address >= text_section->vma
 	       && (fixP->fx_frag->fr_address
-		   < text_section->vma + text_section->_raw_size)
+		   < text_section->vma + bfd_get_section_size (text_section))
 	       && ((insn & 0xffff0000) == 0x10000000	 /* beq $0,$0 */
 		   || (insn & 0xffff0000) == 0x04010000	 /* bgez $0 */
 		   || (insn & 0xffff0000) == 0x04110000)) /* bgezal $0 */
@@ -13423,6 +13506,9 @@ md_estimate_size_before_relax (fragS *fragp, asection *segtype)
     change = nopic_need_relax (fragp->fr_symbol, 0);
   else if (mips_pic == SVR4_PIC)
     change = pic_need_relax (fragp->fr_symbol, segtype);
+  else if (mips_pic == VXWORKS_PIC)
+    /* For vxworks, GOT16 relocations never have a corresponding LO16.  */
+    change = 0;
   else
     abort ();
 
@@ -13468,6 +13554,7 @@ mips_fix_adjustable (fixS *fixp)
      this, it seems better not to force the issue, and instead keep the
      original symbol.  This will work with either linker behavior.  */
   if ((fixp->fx_r_type == BFD_RELOC_LO16
+       || fixp->fx_r_type == BFD_RELOC_MIPS16_LO16
        || reloc_needs_lo_p (fixp->fx_r_type))
       && HAVE_IN_PLACE_ADDENDS
       && (S_GET_SEGMENT (fixp->fx_addsy)->flags & SEC_MERGE) != 0)
@@ -13988,6 +14075,10 @@ mips_define_label (symbolS *sym)
   l->label = sym;
   l->next = insn_labels;
   insn_labels = l;
+
+#ifdef OBJ_ELF
+  dwarf2_emit_label (sym);
+#endif
 }
 
 #if defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)
@@ -14218,7 +14309,7 @@ s_mips_file (int x ATTRIBUTE_UNUSED)
       if (filename != NULL && ! first_file_directive)
 	{
 	  (void) new_logical_line (filename, -1);
-	  s_app_file_string (filename);
+	  s_app_file_string (filename, 0);
 	}
       first_file_directive = 1;
     }

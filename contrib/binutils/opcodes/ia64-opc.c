@@ -1,5 +1,5 @@
 /* ia64-opc.c -- Functions to access the compacted opcode table
-   Copyright 1999, 2000, 2003 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001, 2003, 2005 Free Software Foundation, Inc.
    Written by Bob Manson of Cygnus Solutions, <manson@cygnus.com>
 
    This file is part of GDB, GAS, and the GNU binutils.
@@ -16,12 +16,12 @@
 
    You should have received a copy of the GNU General Public License
    along with this file; see the file COPYING.  If not, write to the
-   Free Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #include "ansidecl.h"
-#include "libiberty.h"
 #include "sysdep.h"
+#include "libiberty.h"
 #include "ia64-asmtab.h"
 #include "ia64-asmtab.c"
 
@@ -365,7 +365,7 @@ locate_opcode_ent (ia64_insn opcode, enum ia64_insn_type type)
       unsigned int op;
       int currbitnum = bitpos[currstatenum];
       int oplen;
-      int opval[3];
+      int opval[3] = {0};
       int next_op;
       int currbit;
 

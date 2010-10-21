@@ -1,6 +1,6 @@
 /* BFD back-end for linux flavored i386 a.out binaries.
-   Copyright 1992, 1993, 1994, 1995, 1996, 1997, 2001, 2002, 2003
-   Free Software Foundation, Inc.
+   Copyright 1992, 1993, 1994, 1995, 1996, 1997, 1999, 2001, 2002, 2003,
+   2004, 2006 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -16,7 +16,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #define	TARGET_PAGE_SIZE	4096
 #define ZMAGIC_DISK_BLOCK_SIZE 1024
@@ -231,8 +231,9 @@ linux_link_hash_table_create (abfd)
   ret = (struct linux_link_hash_table *) bfd_alloc (abfd, amt);
   if (ret == (struct linux_link_hash_table *) NULL)
     return (struct bfd_link_hash_table *) NULL;
-  if (! NAME(aout,link_hash_table_init) (&ret->root, abfd,
-					 linux_link_hash_newfunc))
+  if (!NAME(aout,link_hash_table_init) (&ret->root, abfd,
+					linux_link_hash_newfunc,
+					sizeof (struct linux_link_hash_entry)))
     {
       free (ret);
       return (struct bfd_link_hash_table *) NULL;
@@ -316,7 +317,7 @@ linux_link_create_dynamic_sections (abfd, info)
       || ! bfd_set_section_flags (abfd, s, flags)
       || ! bfd_set_section_alignment (abfd, s, 2))
     return FALSE;
-  s->_raw_size = 0;
+  s->size = 0;
   s->contents = 0;
 
   return TRUE;
@@ -594,9 +595,9 @@ bfd_i386linux_size_dynamic_sections (output_bfd, info)
 			       ".linux-dynamic");
   if (s != NULL)
     {
-      s->_raw_size = linux_hash_table (info)->fixup_count + 1;
-      s->_raw_size *= 8;
-      s->contents = (bfd_byte *) bfd_zalloc (output_bfd, s->_raw_size);
+      s->size = linux_hash_table (info)->fixup_count + 1;
+      s->size *= 8;
+      s->contents = (bfd_byte *) bfd_zalloc (output_bfd, s->size);
       if (s->contents == NULL)
 	return FALSE;
     }
@@ -761,7 +762,7 @@ linux_finish_dynamic_link (output_bfd, info)
 		SEEK_SET) != 0)
     return FALSE;
 
-  if (bfd_bwrite ((PTR) s->contents, s->_raw_size, output_bfd) != s->_raw_size)
+  if (bfd_bwrite ((PTR) s->contents, s->size, output_bfd) != s->size)
     return FALSE;
 
   return TRUE;

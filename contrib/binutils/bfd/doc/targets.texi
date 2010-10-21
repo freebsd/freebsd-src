@@ -178,7 +178,7 @@ typedef struct bfd_target
   unsigned short ar_max_namelen;
 
   /* Entries for byte swapping for data. These are different from the
-     other entry points, since they don't take a BFD asthe first argument.
+     other entry points, since they don't take a BFD as the first argument.
      Certain other handlers could do the same.  */
   bfd_uint64_t   (*bfd_getx64) (const void *);
   bfd_int64_t    (*bfd_getx_signed_64) (const void *);
@@ -242,8 +242,10 @@ BFD_JUMP_TABLE macros.
 #define BFD_JUMP_TABLE_COPY(NAME) \
   NAME##_bfd_copy_private_bfd_data, \
   NAME##_bfd_merge_private_bfd_data, \
+  _bfd_generic_init_private_section_data, \
   NAME##_bfd_copy_private_section_data, \
   NAME##_bfd_copy_private_symbol_data, \
+  NAME##_bfd_copy_private_header_data, \
   NAME##_bfd_set_private_flags, \
   NAME##_bfd_print_private_bfd_data
 
@@ -253,6 +255,12 @@ BFD_JUMP_TABLE macros.
   /* Called to merge BFD general private data from one object file
      to a common output file when linking.  */
   bfd_boolean (*_bfd_merge_private_bfd_data) (bfd *, bfd *);
+  /* Called to initialize BFD private section data from one object file
+     to another.  */
+#define bfd_init_private_section_data(ibfd, isec, obfd, osec, link_info) \
+  BFD_SEND (obfd, _bfd_init_private_section_data, (ibfd, isec, obfd, osec, link_info))
+  bfd_boolean (*_bfd_init_private_section_data)
+    (bfd *, sec_ptr, bfd *, sec_ptr, struct bfd_link_info *);
   /* Called to copy BFD private section data from one object file
      to another.  */
   bfd_boolean (*_bfd_copy_private_section_data)
@@ -261,6 +269,10 @@ BFD_JUMP_TABLE macros.
      to another.  */
   bfd_boolean (*_bfd_copy_private_symbol_data)
     (bfd *, asymbol *, bfd *, asymbol *);
+  /* Called to copy BFD private header data from one object file
+     to another.  */
+  bfd_boolean (*_bfd_copy_private_header_data)
+    (bfd *, bfd *);
   /* Called to set private backend flags.  */
   bfd_boolean (*_bfd_set_private_flags) (bfd *, flagword);
 
@@ -312,8 +324,11 @@ BFD_JUMP_TABLE macros.
   NAME##_print_symbol, \
   NAME##_get_symbol_info, \
   NAME##_bfd_is_local_label_name, \
+  NAME##_bfd_is_target_special_symbol, \
   NAME##_get_lineno, \
   NAME##_find_nearest_line, \
+  _bfd_generic_find_line, \
+  NAME##_find_inliner_info, \
   NAME##_bfd_make_debug_symbol, \
   NAME##_read_minisymbols, \
   NAME##_minisymbol_to_symbol
@@ -330,11 +345,16 @@ BFD_JUMP_TABLE macros.
     (bfd *, struct bfd_symbol *, symbol_info *);
 #define bfd_get_symbol_info(b,p,e) BFD_SEND (b, _bfd_get_symbol_info, (b,p,e))
   bfd_boolean (*_bfd_is_local_label_name) (bfd *, const char *);
-
+  bfd_boolean (*_bfd_is_target_special_symbol) (bfd *, asymbol *);
   alent *     (*_get_lineno) (bfd *, struct bfd_symbol *);
   bfd_boolean (*_bfd_find_nearest_line)
     (bfd *, struct bfd_section *, struct bfd_symbol **, bfd_vma,
      const char **, const char **, unsigned int *);
+  bfd_boolean (*_bfd_find_line)
+    (bfd *, struct bfd_symbol **, struct bfd_symbol *,
+     const char **, unsigned int *);
+  bfd_boolean (*_bfd_find_inliner_info)
+    (bfd *, const char **, const char **, unsigned int *);
  /* Back-door to allow format-aware applications to create debug symbols
     while using BFD for everything else.  Currently used by the assembler
     when creating COFF files.  */
@@ -385,7 +405,9 @@ BFD_JUMP_TABLE macros.
   NAME##_bfd_link_split_section, \
   NAME##_bfd_gc_sections, \
   NAME##_bfd_merge_sections, \
-  NAME##_bfd_discard_group
+  NAME##_bfd_is_group_section, \
+  NAME##_bfd_discard_group, \
+  NAME##_section_already_linked \
 
   int         (*_bfd_sizeof_headers) (bfd *, bfd_boolean);
   bfd_byte *  (*_bfd_get_relocated_section_contents)
@@ -422,13 +444,21 @@ BFD_JUMP_TABLE macros.
   /* Attempt to merge SEC_MERGE sections.  */
   bfd_boolean (*_bfd_merge_sections) (bfd *, struct bfd_link_info *);
 
+  /* Is this section a member of a group?  */
+  bfd_boolean (*_bfd_is_group_section) (bfd *, const struct bfd_section *);
+
   /* Discard members of a group.  */
   bfd_boolean (*_bfd_discard_group) (bfd *, struct bfd_section *);
+
+  /* Check if SEC has been already linked during a reloceatable or
+     final link.  */
+  void (*_section_already_linked) (bfd *, struct bfd_section *);
 
   /* Routines to handle dynamic symbols and relocs.  */
 #define BFD_JUMP_TABLE_DYNAMIC(NAME) \
   NAME##_get_dynamic_symtab_upper_bound, \
   NAME##_canonicalize_dynamic_symtab, \
+  NAME##_get_synthetic_symtab, \
   NAME##_get_dynamic_reloc_upper_bound, \
   NAME##_canonicalize_dynamic_reloc
 
@@ -437,6 +467,10 @@ BFD_JUMP_TABLE macros.
   /* Read in the dynamic symbols.  */
   long        (*_bfd_canonicalize_dynamic_symtab)
     (bfd *, struct bfd_symbol **);
+  /* Create synthetized symbols.  */
+  long        (*_bfd_get_synthetic_symtab)
+    (bfd *, long, struct bfd_symbol **, long, struct bfd_symbol **,
+     struct bfd_symbol **);
   /* Get the amount of memory required to hold the dynamic relocs.  */
   long        (*_bfd_get_dynamic_reloc_upper_bound) (bfd *);
   /* Read in the dynamic relocs.  */

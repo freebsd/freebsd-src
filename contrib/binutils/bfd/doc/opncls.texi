@@ -1,6 +1,32 @@
 @section Opening and closing BFDs
 
 
+@subsection Functions for opening and closing
+
+
+@findex bfd_fopen
+@subsubsection @code{bfd_fopen}
+@strong{Synopsis}
+@example
+bfd *bfd_fopen (const char *filename, const char *target,
+    const char *mode, int fd);
+@end example
+@strong{Description}@*
+Open the file @var{filename} with the target @var{target}.
+Return a pointer to the created BFD.  If @var{fd} is not -1,
+then @code{fdopen} is used to open the file; otherwise, @code{fopen}
+is used.  @var{mode} is passed directly to @code{fopen} or
+@code{fdopen}. 
+
+Calls @code{bfd_find_target}, so @var{target} is interpreted as by
+that function.
+
+The new BFD is marked as cacheable iff @var{fd} is -1.
+
+If @code{NULL} is returned then an error has occured.   Possible errors
+are @code{bfd_error_no_memory}, @code{bfd_error_invalid_target} or
+@code{system_call} error.
+
 @findex bfd_openr
 @subsubsection @code{bfd_openr}
 @strong{Synopsis}
@@ -51,6 +77,50 @@ bfd *bfd_openstreamr (const char *, const char *, void *);
 @strong{Description}@*
 Open a BFD for read access on an existing stdio stream.  When
 the BFD is passed to @code{bfd_close}, the stream will be closed.
+
+@findex bfd_openr_iovec
+@subsubsection @code{bfd_openr_iovec}
+@strong{Synopsis}
+@example
+bfd *bfd_openr_iovec (const char *filename, const char *target,
+    void *(*open) (struct bfd *nbfd,
+    void *open_closure),
+    void *open_closure,
+    file_ptr (*pread) (struct bfd *nbfd,
+    void *stream,
+    void *buf,
+    file_ptr nbytes,
+    file_ptr offset),
+    int (*close) (struct bfd *nbfd,
+    void *stream));
+@end example
+@strong{Description}@*
+Create and return a BFD backed by a read-only @var{stream}.
+The @var{stream} is created using @var{open}, accessed using
+@var{pread} and destroyed using @var{close}.
+
+Calls @code{bfd_find_target}, so @var{target} is interpreted as by
+that function.
+
+Calls @var{open} (which can call @code{bfd_zalloc} and
+@code{bfd_get_filename}) to obtain the read-only stream backing
+the BFD.  @var{open} either succeeds returning the
+non-@code{NULL} @var{stream}, or fails returning @code{NULL}
+(setting @code{bfd_error}).
+
+Calls @var{pread} to request @var{nbytes} of data from
+@var{stream} starting at @var{offset} (e.g., via a call to
+@code{bfd_read}).  @var{pread} either succeeds returning the
+number of bytes read (which can be less than @var{nbytes} when
+end-of-file), or fails returning -1 (setting @code{bfd_error}).
+
+Calls @var{close} when the BFD is later closed using
+@code{bfd_close}.  @var{close} either succeeds returning 0, or
+fails returning -1 (setting @code{bfd_error}).
+
+If @code{bfd_openr_iovec} returns @code{NULL} then an error has
+occurred.  Possible errors are @code{bfd_error_no_memory},
+@code{bfd_error_invalid_target} and @code{bfd_error_system_call}.
 
 @findex bfd_openw
 @subsubsection @code{bfd_openw}
@@ -151,11 +221,41 @@ direction.
 @subsubsection @code{bfd_alloc}
 @strong{Synopsis}
 @example
-void *bfd_alloc (bfd *abfd, size_t wanted);
+void *bfd_alloc (bfd *abfd, bfd_size_type wanted);
 @end example
 @strong{Description}@*
 Allocate a block of @var{wanted} bytes of memory attached to
 @code{abfd} and return a pointer to it.
+
+@findex bfd_alloc2
+@subsubsection @code{bfd_alloc2}
+@strong{Synopsis}
+@example
+void *bfd_alloc2 (bfd *abfd, bfd_size_type nmemb, bfd_size_type size);
+@end example
+@strong{Description}@*
+Allocate a block of @var{nmemb} elements of @var{size} bytes each
+of memory attached to @code{abfd} and return a pointer to it.
+
+@findex bfd_zalloc
+@subsubsection @code{bfd_zalloc}
+@strong{Synopsis}
+@example
+void *bfd_zalloc (bfd *abfd, bfd_size_type wanted);
+@end example
+@strong{Description}@*
+Allocate a block of @var{wanted} bytes of zeroed memory
+attached to @code{abfd} and return a pointer to it.
+
+@findex bfd_zalloc2
+@subsubsection @code{bfd_zalloc2}
+@strong{Synopsis}
+@example
+void *bfd_zalloc2 (bfd *abfd, bfd_size_type nmemb, bfd_size_type size);
+@end example
+@strong{Description}@*
+Allocate a block of @var{nmemb} elements of @var{size} bytes each
+of zeroed memory attached to @code{abfd} and return a pointer to it.
 
 @findex bfd_calc_gnu_debuglink_crc32
 @subsubsection @code{bfd_calc_gnu_debuglink_crc32}

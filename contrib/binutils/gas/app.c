@@ -1,6 +1,6 @@
 /* This is the Assembler Pre-Processor
    Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2002, 2003
+   1999, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -17,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* Modified by Allen Wirfs-Brock, Instantiations Inc 2/90.  */
 /* App, the assembler pre-processor.  This pre-processor strips out excess
@@ -345,6 +345,8 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
   char *fromend;
   int fromlen;
   register int ch, ch2 = 0;
+  /* Character that started the string we're working on.  */
+  static char quotechar;
 
   /*State 0: beginning of normal line
 	  1: After first whitespace on line (flush more white)
@@ -373,6 +375,10 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	     predicate.
 	 15: After seeing a `(' at state 1, looking for a `)' as
 	     predicate.
+#endif
+#ifdef TC_Z80
+	 16: After seeing an 'a' or an 'A' at the start of a symbol
+	 17: After seeing an 'f' or an 'F' in state 16
 #endif
 	  */
 
@@ -536,11 +542,8 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	    for (s = from; s < fromend; s++)
 	      {
 		ch = *s;
-		/* This condition must be changed if the type of any
-		   other character can be LEX_IS_STRINGQUOTE.  */
 		if (ch == '\\'
-		    || ch == '"'
-		    || ch == '\''
+		    || ch == quotechar
 		    || ch == '\n')
 		  break;
 	      }
@@ -558,12 +561,12 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	  ch = GET ();
 	  if (ch == EOF)
 	    {
-	      as_warn (_("end of file in string; inserted '\"'"));
+	      as_warn (_("end of file in string; '%c' inserted"), quotechar);
 	      state = old_state;
 	      UNGET ('\n');
-	      PUT ('"');
+	      PUT (quotechar);
 	    }
-	  else if (lex[ch] == LEX_IS_STRINGQUOTE)
+	  else if (ch == quotechar)
 	    {
 	      state = old_state;
 	      PUT (ch);
@@ -603,8 +606,8 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	      continue;
 
 	    case EOF:
-	      as_warn (_("end of file in string; '\"' inserted"));
-	      PUT ('"');
+	      as_warn (_("end of file in string; '%c' inserted"), quotechar);
+	      PUT (quotechar);
 	      continue;
 
 	    case '"':
@@ -638,10 +641,9 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 
 	case 7:
 	  ch = GET ();
+	  quotechar = ch;
 	  state = 5;
 	  old_state = 8;
-	  if (ch == EOF)
-	    goto fromeof;
 	  PUT (ch);
 	  continue;
 
@@ -666,6 +668,32 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	  state = 1;
 	  PUT ('|');
 	  continue;
+#endif
+#ifdef TC_Z80
+	case 16:
+	  /* We have seen an 'a' at the start of a symbol, look for an 'f'.  */
+	  ch = GET ();
+	  if (ch == 'f' || ch == 'F') 
+	    {
+	      state = 17;
+	      PUT (ch);
+	    }
+	  else
+	    {
+	      state = 9;
+	      break;
+	    }
+	case 17:
+	  /* We have seen "af" at the start of a symbol,
+	     a ' here is a part of that symbol.  */
+	  ch = GET ();
+	  state = 9;
+	  if (ch == '\'')
+	    /* Change to avoid warning about unclosed string.  */
+	    PUT ('`');
+	  else
+	    UNGET (ch);
+	  break;
 #endif
 	}
 
@@ -975,6 +1003,7 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	  break;
 
 	case LEX_IS_STRINGQUOTE:
+	  quotechar = ch;
 	  if (state == 10)
 	    {
 	      /* Preserve the whitespace in foo "bar".  */
@@ -1243,6 +1272,30 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	      break;
 	    }
 
+#ifdef TC_Z80
+	  /* "af'" is a symbol containing '\''.  */
+	  if (state == 3 && (ch == 'a' || ch == 'A')) 
+	    {
+	      state = 16;
+	      PUT (ch);
+	      ch = GET ();
+	      if (ch == 'f' || ch == 'F') 
+		{
+		  state = 17;
+		  PUT (ch);
+		  break;
+		}
+	      else
+		{
+		  state = 9;
+		  if (!IS_SYMBOL_COMPONENT (ch)) 
+		    {
+		      UNGET (ch);
+		      break;
+		    }
+		}
+	    }
+#endif
 	  if (state == 3)
 	    state = 9;
 
@@ -1282,26 +1335,11 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	      if (len > 0)
 		{
 		  PUT (ch);
-		  if (len > 8)
-		    {
-		      memcpy (to, from, len);
-		      to += len;
-		      from += len;
-		    }
-		  else
-		    {
-		      switch (len)
-			{
-			case 8: *to++ = *from++;
-			case 7: *to++ = *from++;
-			case 6: *to++ = *from++;
-			case 5: *to++ = *from++;
-			case 4: *to++ = *from++;
-			case 3: *to++ = *from++;
-			case 2: *to++ = *from++;
-			case 1: *to++ = *from++;
-			}
-		    }
+		  memcpy (to, from, len);
+		  to += len;
+		  from += len;
+		  if (to >= toend)
+		    goto tofull;
 		  ch = GET ();
 		}
 	    }

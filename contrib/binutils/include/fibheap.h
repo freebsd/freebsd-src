@@ -16,8 +16,8 @@ General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+the Free Software Foundation, 51 Franklin Street - Fifth Floor,
+Boston, MA 02110-1301, USA.  */
 
 /* Fibonacci heaps are somewhat complex, but, there's an article in
    DDJ that explains them pretty well:
@@ -59,7 +59,7 @@ typedef struct fibnode
   struct fibnode *right;
   fibheapkey_t key;
   void *data;
-#ifdef __GNUC__
+#if defined (__GNUC__) && (!defined (SIZEOF_INT) || SIZEOF_INT < 4)
   __extension__ unsigned long int degree : 31;
   __extension__ unsigned long int mark : 1;
 #else
@@ -68,19 +68,19 @@ typedef struct fibnode
 #endif
 } *fibnode_t;
 
-extern fibheap_t fibheap_new PARAMS ((void));
-extern fibnode_t fibheap_insert PARAMS ((fibheap_t, fibheapkey_t, void *));
-extern int fibheap_empty PARAMS ((fibheap_t));
-extern fibheapkey_t fibheap_min_key PARAMS ((fibheap_t));
-extern fibheapkey_t fibheap_replace_key PARAMS ((fibheap_t, fibnode_t,
-						 fibheapkey_t));
-extern void *fibheap_replace_key_data PARAMS ((fibheap_t, fibnode_t,
-					       fibheapkey_t, void *));
-extern void *fibheap_extract_min PARAMS ((fibheap_t));
-extern void *fibheap_min PARAMS ((fibheap_t));
-extern void *fibheap_replace_data PARAMS ((fibheap_t, fibnode_t, void *));
-extern void *fibheap_delete_node PARAMS ((fibheap_t, fibnode_t));
-extern void fibheap_delete PARAMS ((fibheap_t));
-extern fibheap_t fibheap_union PARAMS ((fibheap_t, fibheap_t));
+extern fibheap_t fibheap_new (void);
+extern fibnode_t fibheap_insert (fibheap_t, fibheapkey_t, void *);
+extern int fibheap_empty (fibheap_t);
+extern fibheapkey_t fibheap_min_key (fibheap_t);
+extern fibheapkey_t fibheap_replace_key (fibheap_t, fibnode_t,
+                                         fibheapkey_t);
+extern void *fibheap_replace_key_data (fibheap_t, fibnode_t,
+                                       fibheapkey_t, void *);
+extern void *fibheap_extract_min (fibheap_t);
+extern void *fibheap_min (fibheap_t);
+extern void *fibheap_replace_data (fibheap_t, fibnode_t, void *);
+extern void *fibheap_delete_node (fibheap_t, fibnode_t);
+extern void fibheap_delete (fibheap_t);
+extern fibheap_t fibheap_union (fibheap_t, fibheap_t);
 
 #endif /* _FIBHEAP_H_ */

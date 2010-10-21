@@ -1,5 +1,5 @@
 /* GAS interface for targets using CGEN: Cpu tools GENerator.
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -16,7 +16,7 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free Software
-   Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include <setjmp.h>
 #include "ansidecl.h"
@@ -225,7 +225,7 @@ gas_cgen_swap_fixups (i)
    At this point we do not use a bfd_reloc_code_real_type for
    operands residing in the insn, but instead just use the
    operand index.  This lets us easily handle fixups for any
-   operand type.  We pick a BFD reloc type in md_apply_fix3.  */
+   operand type.  We pick a BFD reloc type in md_apply_fix.  */
 
 fixS *
 gas_cgen_record_fixup (frag, where, insn, length, operand, opinfo, symbol, offset)
@@ -264,7 +264,7 @@ gas_cgen_record_fixup (frag, where, insn, length, operand, opinfo, symbol, offse
    At this point we do not use a bfd_reloc_code_real_type for
    operands residing in the insn, but instead just use the
    operand index.  This lets us easily handle fixups for any
-   operand type.  We pick a BFD reloc type in md_apply_fix3.  */
+   operand type.  We pick a BFD reloc type in md_apply_fix.  */
 
 fixS *
 gas_cgen_record_fixup_exp (frag, where, insn, length, operand, opinfo, exp)
@@ -320,9 +320,11 @@ gas_cgen_parse_operand (cd, want, strP, opindex, opinfo, resultP, valueP)
   /* These are volatile to survive the setjmp.  */
   char * volatile hold;
   enum cgen_parse_operand_result * volatile resultP_1;
+  volatile int opinfo_1;
 #else
   static char *hold;
   static enum cgen_parse_operand_result *resultP_1;
+  int opinfo_1;
 #endif
   const char *errmsg;
   expressionS exp;
@@ -336,6 +338,7 @@ gas_cgen_parse_operand (cd, want, strP, opindex, opinfo, resultP, valueP)
   resultP_1 = resultP;
   hold = input_line_pointer;
   input_line_pointer = (char *) *strP;
+  opinfo_1 = opinfo;
 
   /* We rely on md_operand to longjmp back to us.
      This is done via gas_cgen_md_operand.  */
@@ -355,6 +358,10 @@ gas_cgen_parse_operand (cd, want, strP, opindex, opinfo, resultP, valueP)
   *strP = input_line_pointer;
   input_line_pointer = hold;
 
+#ifdef TC_CGEN_PARSE_FIX_EXP
+  opinfo_1 = TC_CGEN_PARSE_FIX_EXP (opinfo_1, & exp);
+#endif 
+
   /* FIXME: Need to check `want'.  */
 
   switch (exp.X_op)
@@ -368,6 +375,8 @@ gas_cgen_parse_operand (cd, want, strP, opindex, opinfo, resultP, valueP)
       *resultP = CGEN_PARSE_OPERAND_RESULT_ERROR;
       break;
     case O_constant:
+      if (want == CGEN_PARSE_OPERAND_SYMBOLIC)
+	goto de_fault;
       *valueP = exp.X_add_number;
       *resultP = CGEN_PARSE_OPERAND_RESULT_NUMBER;
       break;
@@ -375,8 +384,9 @@ gas_cgen_parse_operand (cd, want, strP, opindex, opinfo, resultP, valueP)
       *valueP = exp.X_add_number;
       *resultP = CGEN_PARSE_OPERAND_RESULT_REGISTER;
       break;
+    de_fault:
     default:
-      queue_fixup (opindex, opinfo, &exp);
+      queue_fixup (opindex, opinfo_1, &exp);
       *valueP = 0;
       *resultP = CGEN_PARSE_OPERAND_RESULT_QUEUED;
       break;
@@ -515,7 +525,7 @@ gas_cgen_finish_insn (insn, buf, length, relax_p, result)
   /* If we're recording insns as numbers (rather than a string of bytes),
      target byte order handling is deferred until now.  */
 #if CGEN_INT_INSN_P
-  cgen_put_insn_value (gas_cgen_cpu_desc, f, length, *buf);
+  cgen_put_insn_value (gas_cgen_cpu_desc, (unsigned char *) f, length, *buf);
 #else
   memcpy (f, buf, byte_len);
 #endif
@@ -570,7 +580,7 @@ gas_cgen_finish_insn (insn, buf, length, relax_p, result)
    should handle them all.  */
 
 void
-gas_cgen_md_apply_fix3 (fixP, valP, seg)
+gas_cgen_md_apply_fix (fixP, valP, seg)
      fixS *   fixP;
      valueT * valP;
      segT     seg ATTRIBUTE_UNUSED;
@@ -609,17 +619,19 @@ gas_cgen_md_apply_fix3 (fixP, valP, seg)
 #if CGEN_INT_INSN_P
 	  {
 	    CGEN_INSN_INT insn_value =
-	      cgen_get_insn_value (cd, where, CGEN_INSN_BITSIZE (insn));
+	      cgen_get_insn_value (cd, (unsigned char *) where,
+				   CGEN_INSN_BITSIZE (insn));
 
 	    /* ??? 0 is passed for `pc'.  */
 	    errmsg = CGEN_CPU_INSERT_OPERAND (cd) (cd, opindex, fields,
 						   &insn_value, (bfd_vma) 0);
-	    cgen_put_insn_value (cd, where, CGEN_INSN_BITSIZE (insn),
-				 insn_value);
+	    cgen_put_insn_value (cd, (unsigned char *) where,
+				 CGEN_INSN_BITSIZE (insn), insn_value);
 	  }
 #else
 	  /* ??? 0 is passed for `pc'.  */
-	  errmsg = CGEN_CPU_INSERT_OPERAND (cd) (cd, opindex, fields, where,
+	  errmsg = CGEN_CPU_INSERT_OPERAND (cd) (cd, opindex, fields,
+						 (unsigned char *) where,
 						 (bfd_vma) 0);
 #endif
 	  if (errmsg)

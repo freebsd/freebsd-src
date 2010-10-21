@@ -20,7 +20,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #ifdef PTRACE_CORE
 
@@ -51,8 +51,7 @@ struct trad_core_struct
 const bfd_target *ptrace_unix_core_file_p PARAMS ((bfd *abfd));
 char * ptrace_unix_core_file_failing_command PARAMS ((bfd *abfd));
 int ptrace_unix_core_file_failing_signal PARAMS ((bfd *abfd));
-bfd_boolean ptrace_unix_core_file_matches_executable_p
-  PARAMS ((bfd *core_bfd, bfd *exec_bfd));
+#define ptrace_unix_core_file_matches_executable_p generic_core_file_matches_executable_p
 static void swap_abort PARAMS ((void));
 
 const bfd_target *
@@ -108,9 +107,9 @@ ptrace_unix_core_file_p (abfd)
   core_datasec (abfd)->flags = SEC_ALLOC + SEC_LOAD + SEC_HAS_CONTENTS;
   core_regsec (abfd)->flags = SEC_HAS_CONTENTS;
 
-  core_datasec (abfd)->_raw_size =  u.pt_dsize;
-  core_stacksec (abfd)->_raw_size = u.pt_ssize;
-  core_regsec (abfd)->_raw_size = sizeof (u);
+  core_datasec (abfd)->size =  u.pt_dsize;
+  core_stacksec (abfd)->size = u.pt_ssize;
+  core_regsec (abfd)->size = sizeof (u);
 
   core_datasec (abfd)->vma = u.pt_o_data_start;
   core_stacksec (abfd)->vma = USRSTACK - u.pt_ssize;
@@ -150,15 +149,6 @@ ptrace_unix_core_file_failing_signal (abfd)
      bfd *abfd;
 {
   return abfd->tdata.trad_core_data->u.pt_sigframe.sig_num;
-}
-
-bfd_boolean
-ptrace_unix_core_file_matches_executable_p  (core_bfd, exec_bfd)
-     bfd *core_bfd, *exec_bfd;
-{
-  /* FIXME: Use pt_timdat field of the ptrace_user structure to match
-     the date of the executable */
-  return TRUE;
 }
 
 /* If somebody calls any byte-swapping routines, shoot them.  */

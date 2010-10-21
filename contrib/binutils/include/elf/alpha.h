@@ -1,5 +1,5 @@
 /* ALPHA ELF support for BFD.
-   Copyright 1996, 1998, 2000 Free Software Foundation, Inc.
+   Copyright 1996, 1998, 2000, 2001, 2002 Free Software Foundation, Inc.
 
    By Eric Youngdale, <eric@aib.com>.  No processor supplement available
    for this platform.
@@ -18,7 +18,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 /* This file holds definitions specific to the ALPHA ELF ABI.  Note
    that most of this is not actually implemented by BFD.  */
@@ -62,6 +62,9 @@ typedef struct
 
 #define STO_ALPHA_NOPV		0x80
 #define STO_ALPHA_STD_GPLOAD	0x88
+
+/* Special values for Elf64_Dyn tag.  */
+#define DT_ALPHA_PLTRO		DT_LOPROC
 
 #include "elf/reloc-macros.h"
 
@@ -122,5 +125,6 @@ END_RELOC_NUMBERS (R_ALPHA_max)
 #define LITUSE_ALPHA_JSR	3
 #define LITUSE_ALPHA_TLSGD	4
 #define LITUSE_ALPHA_TLSLDM	5
+#define LITUSE_ALPHA_JSRDIRECT	6
 
 #endif /* _ELF_ALPHA_H */

@@ -1,6 +1,6 @@
 /* BFD back end for traditional Unix core files (U-area and raw sections)
    Copyright 1988, 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004
+   2000, 2001, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
    Written by John Gilmore of Cygnus Support.
 
@@ -18,7 +18,7 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "bfd.h"
 #include "sysdep.h"
@@ -65,8 +65,7 @@ struct trad_core_struct
 const bfd_target *trad_unix_core_file_p PARAMS ((bfd *abfd));
 char * trad_unix_core_file_failing_command PARAMS ((bfd *abfd));
 int trad_unix_core_file_failing_signal PARAMS ((bfd *abfd));
-bfd_boolean trad_unix_core_file_matches_executable_p
-  PARAMS ((bfd *core_bfd, bfd *exec_bfd));
+#define trad_unix_core_file_matches_executable_p generic_core_file_matches_executable_p
 static void swap_abort PARAMS ((void));
 
 /* Handle 4.2-style (and perhaps also sysV-style) core dump file.  */
@@ -109,15 +108,11 @@ trad_unix_core_file_p (abfd)
 
   /* Check that the size claimed is no greater than the file size.  */
   {
-    FILE *stream = bfd_cache_lookup (abfd);
     struct stat statbuf;
-    if (stream == NULL)
+
+    if (bfd_stat (abfd, &statbuf) < 0)
       return 0;
-    if (fstat (fileno (stream), &statbuf) < 0)
-      {
-	bfd_set_error (bfd_error_system_call);
-	return 0;
-      }
+
     if ((unsigned long) (NBPG * (UPAGES + u.u_dsize
 #ifdef TRAD_CORE_DSIZE_INCLUDES_TSIZE
 				 - u.u_tsize
@@ -174,13 +169,13 @@ trad_unix_core_file_p (abfd)
   core_datasec (abfd)->flags = SEC_ALLOC + SEC_LOAD + SEC_HAS_CONTENTS;
   core_regsec (abfd)->flags = SEC_HAS_CONTENTS;
 
-  core_datasec (abfd)->_raw_size =  NBPG * u.u_dsize
+  core_datasec (abfd)->size =  NBPG * u.u_dsize
 #ifdef TRAD_CORE_DSIZE_INCLUDES_TSIZE
     - NBPG * u.u_tsize
 #endif
       ;
-  core_stacksec (abfd)->_raw_size = NBPG * u.u_ssize;
-  core_regsec (abfd)->_raw_size = NBPG * UPAGES; /* Larger than sizeof struct u */
+  core_stacksec (abfd)->size = NBPG * u.u_ssize;
+  core_regsec (abfd)->size = NBPG * UPAGES; /* Larger than sizeof struct u */
 
   /* What a hack... we'd like to steal it from the exec file,
      since the upage does not seem to provide it.  FIXME.  */
@@ -256,14 +251,6 @@ trad_unix_core_file_failing_signal (ignore_abfd)
 #else
   return -1;		/* FIXME, where is it? */
 #endif
-}
-
-bfd_boolean
-trad_unix_core_file_matches_executable_p  (core_bfd, exec_bfd)
-     bfd *core_bfd ATTRIBUTE_UNUSED;
-     bfd *exec_bfd ATTRIBUTE_UNUSED;
-{
-  return TRUE;		/* FIXME, We have no way of telling at this point */
 }
 
 /* If somebody calls any byte-swapping routines, shoot them.  */

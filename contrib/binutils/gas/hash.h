@@ -1,5 +1,6 @@
 /* hash.h -- header file for gas hash table routines
-   Copyright 1987, 1992, 1993, 1995, 1999 Free Software Foundation, Inc.
+   Copyright 1987, 1992, 1993, 1995, 1999, 2003
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -15,13 +16,17 @@
 
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
-   Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 #ifndef HASH_H
 #define HASH_H
 
 struct hash_control;
+
+/* Set the size of the hash table used.  */
+
+void set_gas_hash_table_size (unsigned long);
 
 /* Create a hash table.  This return a control block.  */
 
@@ -57,6 +62,11 @@ extern PTR hash_replace (struct hash_control *, const char *key,
    if the entry is not found.  */
 
 extern PTR hash_find (struct hash_control *, const char *key);
+
+/* As hash_find, but KEY is of length LEN and is not guaranteed to be
+   NUL-terminated.  */
+
+extern PTR hash_find_n (struct hash_control *, const char *key, size_t len);
 
 /* Delete an entry from a hash table.  This returns the value stored
    for that entry, or NULL if there is no such entry.  */

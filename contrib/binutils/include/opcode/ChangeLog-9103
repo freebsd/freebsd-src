@@ -1,3 +1,22 @@
+2005-04-13  H.J. Lu  <hongjiu.lu@intel.com>
+
+	2003-11-18  Maciej W. Rozycki  <macro@ds2.pg.gda.pl>
+	* mips.h: Define new enum members, M_LCA_AB and M_DLCA_AB.
+
+	2003-04-04  Svein E. Seldal  <Svein.Seldal@solidas.com>
+	* tic4x.h: Namespace cleanup. Replace s/c4x/tic4x
+
+	2002-11-16  Klee Dienes  <kdienes@apple.com>
+	* m88k.h (INSTAB): Remove 'next' field.
+	(instruction): Remove definition; replace with extern declaration
+	and mark as const.
+
+	2002-08-28  Michael Hayes <m.hayes@elec.canterbury.ac.nz>
+	* tic4x.h: New file.
+
+	2002-07-25  Richard Sandiford  <rsandifo@redhat.com>
+	* mips.h (CPU_R2000): Remove.
+
 2003-10-21  Peter Barada  <pbarada@mail.wm.sps.mot.com>
 	    Bernardo Innocenti  <bernie@develer.com>
 

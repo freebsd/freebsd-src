@@ -1,5 +1,5 @@
 /* rddbg.c -- Read debugging information into a generic form.
-   Copyright 1995, 1996, 1997, 2000, 2002, 2003
+   Copyright 1995, 1996, 1997, 2000, 2002, 2003, 2005
    Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
@@ -17,8 +17,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA.  */
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 /* This file reads debugging information into a generic form.  This
    file knows how to dig the debugging information out of an object
@@ -100,8 +100,13 @@ read_section_stabs_debugging_info (bfd *abfd, asymbol **syms, long symcount,
     {
       const char *secname;
       const char *strsecname;
-    } names[] = { { ".stab", ".stabstr" },
-		  { "LC_SYMTAB.stabs", "LC_SYMTAB.stabstr" } };
+    }
+  names[] =
+    {
+      { ".stab", ".stabstr" },
+      { "LC_SYMTAB.stabs", "LC_SYMTAB.stabstr" },
+      { "$GDB_SYMBOLS$", "$GDB_STRINGS$" }
+    };
   unsigned int i;
   void *shandle;
 

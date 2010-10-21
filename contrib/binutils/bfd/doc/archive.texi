@@ -50,6 +50,9 @@ of a restriction.
 
 Archives are supported in BFD in @code{archive.c}.
 
+@subsection Archive functions
+
+
 @findex bfd_get_next_mapent
 @subsubsection @code{bfd_get_next_mapent}
 @strong{Synopsis}
