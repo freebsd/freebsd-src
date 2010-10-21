@@ -1349,8 +1349,26 @@ lang_insert_orphan (asection *s,
       lang_list_init (stat_ptr);
     }
 
+  if (link_info.relocatable || (s->flags & (SEC_LOAD | SEC_ALLOC)) == 0)
+    address = exp_intop (0);
+
+  load_base = NULL;
+  if (after != NULL && after->load_base != NULL)
+    {
+      etree_type *lma_from_vma;
+      lma_from_vma = exp_binop ('-', after->load_base,
+				exp_nameop (ADDR, after->name));
+      load_base = exp_binop ('+', lma_from_vma,
+			     exp_nameop (ADDR, secname));
+    }
+
+  os_tail = ((lang_output_section_statement_type **)
+	     lang_output_section_statement.tail);
+  os = lang_enter_output_section_statement (secname, address, 0, NULL, NULL,
+					    load_base, 0);
+
   ps = NULL;
-  if (config.build_constructors)
+  if (config.build_constructors && *os_tail == os)
     {
       /* If the name of the section is representable in C, then create
 	 symbols to mark the start and the end of the section.  */
@@ -1372,24 +1390,6 @@ lang_insert_orphan (asection *s,
 					  exp_nameop (NAME, ".")));
 	}
     }
-
-  if (link_info.relocatable || (s->flags & (SEC_LOAD | SEC_ALLOC)) == 0)
-    address = exp_intop (0);
-
-  load_base = NULL;
-  if (after != NULL && after->load_base != NULL)
-    {
-      etree_type *lma_from_vma;
-      lma_from_vma = exp_binop ('-', after->load_base,
-				exp_nameop (ADDR, after->name));
-      load_base = exp_binop ('+', lma_from_vma,
-			     exp_nameop (ADDR, secname));
-    }
-
-  os_tail = ((lang_output_section_statement_type **)
-	     lang_output_section_statement.tail);
-  os = lang_enter_output_section_statement (secname, address, 0, NULL, NULL,
-					    load_base, 0);
 
   if (add_child == NULL)
     add_child = &os->children;
