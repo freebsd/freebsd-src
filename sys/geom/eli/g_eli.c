@@ -314,6 +314,69 @@ g_eli_start(struct bio *bp)
 	}
 }
 
+static int
+g_eli_newsession(struct g_eli_worker *wr)
+{
+	struct g_eli_softc *sc;
+	struct cryptoini crie, cria;
+	int error;
+
+	sc = wr->w_softc;
+
+	bzero(&crie, sizeof(crie));
+	crie.cri_alg = sc->sc_ealgo;
+	crie.cri_klen = sc->sc_ekeylen;
+	if (sc->sc_ealgo == CRYPTO_AES_XTS)
+		crie.cri_klen <<= 1;
+	crie.cri_key = sc->sc_ekeys[0];
+	if (sc->sc_flags & G_ELI_FLAG_AUTH) {
+		bzero(&cria, sizeof(cria));
+		cria.cri_alg = sc->sc_aalgo;
+		cria.cri_klen = sc->sc_akeylen;
+		cria.cri_key = sc->sc_akey;
+		crie.cri_next = &cria;
+	}
+
+	switch (sc->sc_crypto) {
+	case G_ELI_CRYPTO_SW:
+		error = crypto_newsession(&wr->w_sid, &crie,
+		    CRYPTOCAP_F_SOFTWARE);
+		break;
+	case G_ELI_CRYPTO_HW:
+		error = crypto_newsession(&wr->w_sid, &crie,
+		    CRYPTOCAP_F_HARDWARE);
+		break;
+	case G_ELI_CRYPTO_UNKNOWN:
+		error = crypto_newsession(&wr->w_sid, &crie,
+		    CRYPTOCAP_F_HARDWARE);
+		if (error == 0) {
+			mtx_lock(&sc->sc_queue_mtx);
+			if (sc->sc_crypto == G_ELI_CRYPTO_UNKNOWN)
+				sc->sc_crypto = G_ELI_CRYPTO_HW;
+			mtx_unlock(&sc->sc_queue_mtx);
+		} else {
+			error = crypto_newsession(&wr->w_sid, &crie,
+			    CRYPTOCAP_F_SOFTWARE);
+			mtx_lock(&sc->sc_queue_mtx);
+			if (sc->sc_crypto == G_ELI_CRYPTO_UNKNOWN)
+				sc->sc_crypto = G_ELI_CRYPTO_SW;
+			mtx_unlock(&sc->sc_queue_mtx);
+		}
+		break;
+	default:
+		panic("%s: invalid condition", __func__);
+	}
+
+	return (error);
+}
+
+static void
+g_eli_freesession(struct g_eli_worker *wr)
+{
+
+	crypto_freesession(wr->w_sid);
+}
+
 static void
 g_eli_cancel(struct g_eli_softc *sc)
 {
@@ -361,6 +424,7 @@ g_eli_worker(void *arg)
 	struct g_eli_softc *sc;
 	struct g_eli_worker *wr;
 	struct bio *bp;
+	int error;
 
 	wr = arg;
 	sc = wr->w_softc;
@@ -388,7 +452,7 @@ again:
 			if (sc->sc_flags & G_ELI_FLAG_DESTROY) {
 				g_eli_cancel(sc);
 				LIST_REMOVE(wr, w_next);
-				crypto_freesession(wr->w_sid);
+				g_eli_freesession(wr);
 				free(wr, M_ELI);
 				G_ELI_DEBUG(1, "Thread %s exiting.",
 				    curthread->td_proc->p_comm);
@@ -411,12 +475,21 @@ again:
 				 * Suspend requested, mark the worker as
 				 * suspended and go to sleep.
 				 */
-				wr->w_active = 0;
+				if (wr->w_active) {
+					g_eli_freesession(wr);
+					wr->w_active = FALSE;
+				}
 				wakeup(&sc->sc_workers);
 				msleep(sc, &sc->sc_queue_mtx, PRIBIO,
 				    "geli:suspend", 0);
-				if (!(sc->sc_flags & G_ELI_FLAG_SUSPEND))
-					wr->w_active = 1;
+				if (!wr->w_active &&
+				    !(sc->sc_flags & G_ELI_FLAG_SUSPEND)) {
+					error = g_eli_newsession(wr);
+					KASSERT(error == 0,
+					    ("g_eli_newsession() failed on resume (error=%d)",
+					    error));
+					wr->w_active = TRUE;
+				}
 				goto again;
 			}
 			msleep(sc, &sc->sc_queue_mtx, PDROP, "geli:w", 0);
@@ -630,7 +703,6 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	struct g_geom *gp;
 	struct g_provider *pp;
 	struct g_consumer *cp;
-	struct cryptoini crie, cria;
 	u_int i, threads;
 	int error;
 
@@ -658,7 +730,7 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 		gp->access = g_std_access;
 
 	sc->sc_inflight = 0;
-	sc->sc_crypto = G_ELI_CRYPTO_SW;
+	sc->sc_crypto = G_ELI_CRYPTO_UNKNOWN;
 	sc->sc_flags = md->md_flags;
 	/* Backward compatibility. */
 	if (md->md_version < 4)
@@ -772,20 +844,6 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 
 	LIST_INIT(&sc->sc_workers);
 
-	bzero(&crie, sizeof(crie));
-	crie.cri_alg = sc->sc_ealgo;
-	crie.cri_klen = sc->sc_ekeylen;
-	if (sc->sc_ealgo == CRYPTO_AES_XTS)
-		crie.cri_klen <<= 1;
-	crie.cri_key = sc->sc_ekeys[0];
-	if (sc->sc_flags & G_ELI_FLAG_AUTH) {
-		bzero(&cria, sizeof(cria));
-		cria.cri_alg = sc->sc_aalgo;
-		cria.cri_klen = sc->sc_akeylen;
-		cria.cri_key = sc->sc_akey;
-		crie.cri_next = &cria;
-	}
-
 	threads = g_eli_threads;
 	if (threads == 0)
 		threads = mp_ncpus;
@@ -805,20 +863,7 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 		wr->w_number = i;
 		wr->w_active = TRUE;
 
-		/*
-		 * If this is the first pass, try to get hardware support.
-		 * Use software cryptography, if we cannot get it.
-		 */
-		if (LIST_EMPTY(&sc->sc_workers)) {
-			error = crypto_newsession(&wr->w_sid, &crie,
-			    CRYPTOCAP_F_HARDWARE);
-			if (error == 0)
-				sc->sc_crypto = G_ELI_CRYPTO_HW;
-		}
-		if (sc->sc_crypto == G_ELI_CRYPTO_SW) {
-			error = crypto_newsession(&wr->w_sid, &crie,
-			    CRYPTOCAP_F_SOFTWARE);
-		}
+		error = g_eli_newsession(wr);
 		if (error != 0) {
 			free(wr, M_ELI);
 			if (req != NULL) {
@@ -834,7 +879,7 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 		error = kproc_create(g_eli_worker, wr, &wr->w_proc, 0, 0,
 		    "g_eli[%u] %s", i, bpp->name);
 		if (error != 0) {
-			crypto_freesession(wr->w_sid);
+			g_eli_freesession(wr);
 			free(wr, M_ELI);
 			if (req != NULL) {
 				gctl_error(req, "Cannot create kernel thread "
