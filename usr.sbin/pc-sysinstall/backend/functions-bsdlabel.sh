@@ -219,9 +219,17 @@ setup_mbr_partitions()
         USINGENCROOT="0" ; export USINGENCROOT
       fi
           
+      if [ -n "${IMAGE}" ]
+      then
+        FS="IMAGE"
+        SIZE=`ls -l "${IMAGE}" | awk '{ print $5 }'`
+        MNT=`echo $STRING | tr -s '\t' ' ' | cut -d ' ' -f 2`
+		SIZE=`convert_byte_to_megabyte $SIZE`
+      fi
+
       # Now check that these values are sane
       case $FS in
-        UFS|UFS+S|UFS+J|UFS+SUJ|ZFS|SWAP) ;;
+        UFS|UFS+S|UFS+J|UFS+SUJ|ZFS|SWAP|IMAGE) ;;
        *) exit_err "ERROR: Invalid file system specified on $line" ;;
       esac
 
