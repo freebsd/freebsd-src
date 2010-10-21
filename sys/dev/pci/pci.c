@@ -3664,9 +3664,15 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 	res = NULL;
 	pci_read_bar(child, *rid, &map, &testval);
 
-	/* Ignore a BAR with a base of 0. */
-	if ((*rid == PCIR_BIOS && pci_rombase(testval) == 0) ||
-	    pci_mapbase(testval) == 0)
+	/*
+	 * Determine the size of the BAR and ignore BARs with a size
+	 * of 0.  Device ROM BARs use a different mask value.
+	 */
+	if (*rid == PCIR_BIOS)
+		mapsize = pci_romsize(testval);
+	else
+		mapsize = pci_mapsize(testval);
+	if (mapsize == 0)
 		goto out;
 
 	if (PCI_BAR_MEM(testval) || *rid == PCIR_BIOS) {
@@ -3695,13 +3701,7 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 	 * actually uses and we would otherwise have a
 	 * situation where we might allocate the excess to
 	 * another driver, which won't work.
-	 *
-	 * Device ROM BARs use a different mask value.
 	 */
-	if (*rid == PCIR_BIOS)
-		mapsize = pci_romsize(testval);
-	else
-		mapsize = pci_mapsize(testval);
 	count = 1UL << mapsize;
 	if (RF_ALIGNMENT(flags) < mapsize)
 		flags = (flags & ~RF_ALIGNMENT_MASK) | RF_ALIGNMENT_LOG2(mapsize);
