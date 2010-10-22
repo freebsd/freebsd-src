@@ -147,6 +147,13 @@ Items are released back to the zone from which they were allocated by
 calling
 .Fn uma_zfree
 with a pointer to the zone and a pointer to the item.
+If
+.Fa item
+is
+.Dv NULL ,
+then
+.Fn uma_zfree
+does nothing.
 .Pp
 The variations
 .Fn uma_zalloc_arg
