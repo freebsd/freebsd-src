@@ -2250,6 +2250,10 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	CTR2(KTR_UMA, "uma_zfree_arg thread %x zone %s", curthread,
 	    zone->uz_name);
 
+        /* uma_zfree(..., NULL) does nothing, to match free(9). */
+        if (item == NULL)
+                return;
+
 	if (zone->uz_dtor)
 		zone->uz_dtor(item, keg->uk_size, udata);
 #ifdef INVARIANTS
