@@ -70,7 +70,7 @@ start_extract_uzip_tar()
       if [ "$?" != "0" ]
       then
         cd /
-        echo "TAR failure occured:" >>${LOGOUT}
+        echo "TAR failure occurred:" >>${LOGOUT}
         cat ${FSMNT}/.tar-extract.log | grep "tar:" >>${LOGOUT}
         umount ${FSMNT}.uzip
         mdconfig -d -u ${MDDEVICE}
@@ -275,7 +275,7 @@ EOF
   INSFILE="${OUTFILE}" ; export INSFILE
 }
 
-# Function which does the rsync download from the server specifed in cfg
+# Function which does the rsync download from the server specified in cfg
 start_rsync_copy()
 {
   # Load our rsync config values

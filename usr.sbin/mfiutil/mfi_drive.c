@@ -65,6 +65,10 @@ mfi_pdstate(enum mfi_pd_state state)
 		return ("REBUILD");
 	case MFI_PD_STATE_ONLINE:
 		return ("ONLINE");
+	case MFI_PD_STATE_COPYBACK:
+		return ("COPYBACK");
+	case MFI_PD_STATE_SYSTEM:
+		return ("SYSTEM");
 	default:
 		sprintf(buf, "PSTATE 0x%04x", state);
 		return (buf);

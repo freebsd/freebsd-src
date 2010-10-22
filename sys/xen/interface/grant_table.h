@@ -159,6 +159,8 @@ typedef struct grant_entry grant_entry_t;
  */
 typedef uint32_t grant_ref_t;
 
+#define	GRANT_REF_INVALID	0xffffffff
+
 /*
  * Handle to track a mapping created via a grant reference.
  */

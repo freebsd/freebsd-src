@@ -1933,7 +1933,15 @@ again:
 							vn_lock(vp,
 							    LK_EXCLUSIVE |
 							    LK_RETRY);
-						r = VOP_LOOKUP(vp, &nvp, &cn);
+						if ((vp->v_vflag & VV_ROOT) != 0
+						    && (cn.cn_flags & ISDOTDOT)
+						    != 0) {
+							vref(vp);
+							nvp = vp;
+							r = 0;
+						} else
+							r = VOP_LOOKUP(vp, &nvp,
+							    &cn);
 					}
 				}
 				if (!r) {

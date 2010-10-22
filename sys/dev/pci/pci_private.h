@@ -39,6 +39,7 @@
 DECLARE_CLASS(pci_driver);
 
 extern int 	pci_do_power_resume;
+extern int 	pci_do_power_suspend;
 
 void		pci_add_children(device_t dev, int domain, int busno,
 		    size_t dinfo_size);

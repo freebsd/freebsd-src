@@ -3008,19 +3008,20 @@ xen/gnttab.c			optional xen | xenhvm
 xen/features.c			optional xen | xenhvm
 xen/evtchn/evtchn.c		optional xen
 xen/evtchn/evtchn_dev.c		optional xen | xenhvm
-xen/reboot.c			optional xen
-xen/xenbus/xenbus_client.c	optional xen | xenhvm
-xen/xenbus/xenbus_comms.c	optional xen | xenhvm
-xen/xenbus/xenbus_dev.c		optional xen | xenhvm
 xen/xenbus/xenbus_if.m		optional xen | xenhvm
-xen/xenbus/xenbus_probe.c	optional xen | xenhvm
-#xen/xenbus/xenbus_probe_backend.c	optional xen
-xen/xenbus/xenbus_xs.c		optional xen | xenhvm
+xen/xenbus/xenbus.c		optional xen | xenhvm
+xen/xenbus/xenbusb_if.m		optional xen | xenhvm
+xen/xenbus/xenbusb.c		optional xen | xenhvm
+xen/xenbus/xenbusb_front.c	optional xen | xenhvm
+xen/xenbus/xenbusb_back.c	optional xen | xenhvm
+xen/xenstore/xenstore.c		optional xen | xenhvm
+xen/xenstore/xenstore_dev.c	optional xen | xenhvm
 dev/xen/balloon/balloon.c	optional xen | xenhvm
+dev/xen/blkfront/blkfront.c	optional xen | xenhvm
+dev/xen/blkback/blkback.c	optional xen | xenhvm
 dev/xen/console/console.c	optional xen
 dev/xen/console/xencons_ring.c	optional xen
-dev/xen/blkfront/blkfront.c	optional xen | xenhvm
+dev/xen/control/control.c	optional xen | xenhvm
 dev/xen/netfront/netfront.c	optional xen | xenhvm
 dev/xen/xenpci/xenpci.c		optional xenpci
 dev/xen/xenpci/evtchn.c         optional xenpci
-dev/xen/xenpci/machine_reboot.c optional xenpci

@@ -217,7 +217,7 @@ g_eli_ctl_detach(struct gctl_req *req, struct g_class *mp)
 			sc->sc_flags |= G_ELI_FLAG_RW_DETACH;
 			sc->sc_geom->access = g_eli_access;
 		} else {
-			error = g_eli_destroy(sc, *force);
+			error = g_eli_destroy(sc, *force ? TRUE : FALSE);
 			if (error != 0) {
 				gctl_error(req,
 				    "Cannot destroy device %s (error=%d).",
@@ -700,6 +700,213 @@ g_eli_ctl_delkey(struct gctl_req *req, struct g_class *mp)
 }
 
 static int
+g_eli_suspend_one(struct g_eli_softc *sc)
+{
+	struct g_eli_worker *wr;
+
+	g_topology_assert();
+
+	if (sc == NULL)
+		return (ENOENT);
+	if (sc->sc_flags & G_ELI_FLAG_ONETIME)
+		return (EOPNOTSUPP);
+
+	mtx_lock(&sc->sc_queue_mtx);
+	if (sc->sc_flags & G_ELI_FLAG_SUSPEND) {
+		mtx_unlock(&sc->sc_queue_mtx);
+		return (EALREADY);
+	}
+	sc->sc_flags |= G_ELI_FLAG_SUSPEND;
+	wakeup(sc);
+	for (;;) {
+		LIST_FOREACH(wr, &sc->sc_workers, w_next) {
+			if (wr->w_active)
+				break;
+		}
+		if (wr == NULL)
+			break;
+		/* Not all threads suspended. */
+		msleep(&sc->sc_workers, &sc->sc_queue_mtx, PRIBIO,
+		    "geli:suspend", 0);
+	}
+	/*
+	 * Clear sensitive data on suspend, they will be recovered on resume.
+	 */
+	bzero(sc->sc_mkey, sizeof(sc->sc_mkey));
+	bzero(sc->sc_ekeys,
+	    sc->sc_nekeys * (sizeof(uint8_t *) + G_ELI_DATAKEYLEN));
+	free(sc->sc_ekeys, M_ELI);
+	sc->sc_ekeys = NULL;
+	bzero(sc->sc_akey, sizeof(sc->sc_akey));
+	bzero(&sc->sc_akeyctx, sizeof(sc->sc_akeyctx));
+	bzero(sc->sc_ivkey, sizeof(sc->sc_ivkey));
+	bzero(&sc->sc_ivctx, sizeof(sc->sc_ivctx));
+	mtx_unlock(&sc->sc_queue_mtx);
+	G_ELI_DEBUG(0, "%s has been suspended.", sc->sc_name);
+	return (0);
+}
+
+static void
+g_eli_ctl_suspend(struct gctl_req *req, struct g_class *mp)
+{
+	struct g_eli_softc *sc;
+	int *all, *nargs;
+	int error;
+
+	g_topology_assert();
+
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "No '%s' argument.", "nargs");
+		return;
+	}
+	all = gctl_get_paraml(req, "all", sizeof(*all));
+	if (all == NULL) {
+		gctl_error(req, "No '%s' argument.", "all");
+		return;
+	}
+	if (!*all && *nargs == 0) {
+		gctl_error(req, "Too few arguments.");
+		return;
+	}
+
+	if (*all) {
+		struct g_geom *gp, *gp2;
+
+		LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2) {
+			sc = gp->softc;
+			if (sc->sc_flags & G_ELI_FLAG_ONETIME)
+				continue;
+			error = g_eli_suspend_one(sc);
+			if (error != 0)
+				gctl_error(req, "Not fully done.");
+		}
+	} else {
+		const char *prov;
+		char param[16];
+		int i;
+
+		for (i = 0; i < *nargs; i++) {
+			snprintf(param, sizeof(param), "arg%d", i);
+			prov = gctl_get_asciiparam(req, param);
+			if (prov == NULL) {
+				G_ELI_DEBUG(0, "No 'arg%d' argument.", i);
+				continue;
+			}
+
+			sc = g_eli_find_device(mp, prov);
+			if (sc == NULL) {
+				G_ELI_DEBUG(0, "No such provider: %s.", prov);
+				continue;
+			}
+			error = g_eli_suspend_one(sc);
+			if (error != 0)
+				gctl_error(req, "Not fully done.");
+		}
+	}
+}
+
+static void
+g_eli_ctl_resume(struct gctl_req *req, struct g_class *mp)
+{
+	struct g_eli_metadata md;
+	struct g_eli_softc *sc;
+	struct g_provider *pp;
+	struct g_consumer *cp;
+	const char *name;
+	u_char *key, mkey[G_ELI_DATAIVKEYLEN];
+	int *nargs, keysize, error;
+	u_int nkey;
+
+	g_topology_assert();
+
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "No '%s' argument.", "nargs");
+		return;
+	}
+	if (*nargs != 1) {
+		gctl_error(req, "Invalid number of arguments.");
+		return;
+	}
+
+	name = gctl_get_asciiparam(req, "arg0");
+	if (name == NULL) {
+		gctl_error(req, "No 'arg%u' argument.", 0);
+		return;
+	}
+	sc = g_eli_find_device(mp, name);
+	if (sc == NULL) {
+		gctl_error(req, "Provider %s is invalid.", name);
+		return;
+	}
+	if (!(sc->sc_flags & G_ELI_FLAG_SUSPEND)) {
+		gctl_error(req, "Provider %s not suspended.", name);
+		return;
+	}
+	cp = LIST_FIRST(&sc->sc_geom->consumer);
+	pp = cp->provider;
+	error = g_eli_read_metadata(mp, pp, &md);
+	if (error != 0) {
+		gctl_error(req, "Cannot read metadata from %s (error=%d).",
+		    name, error);
+		return;
+	}
+	if (md.md_keys == 0x00) {
+		bzero(&md, sizeof(md));
+		gctl_error(req, "No valid keys on %s.", pp->name);
+		return;
+	}
+
+	key = gctl_get_param(req, "key", &keysize);
+	if (key == NULL || keysize != G_ELI_USERKEYLEN) {
+		bzero(&md, sizeof(md));
+		gctl_error(req, "No '%s' argument.", "key");
+		return;
+	}
+
+	error = g_eli_mkey_decrypt(&md, key, mkey, &nkey);
+	bzero(key, keysize);
+	if (error == -1) {
+		bzero(&md, sizeof(md));
+		gctl_error(req, "Wrong key for %s.", pp->name);
+		return;
+	} else if (error > 0) {
+		bzero(&md, sizeof(md));
+		gctl_error(req, "Cannot decrypt Master Key for %s (error=%d).",
+		    pp->name, error);
+		return;
+	}
+	G_ELI_DEBUG(1, "Using Master Key %u for %s.", nkey, pp->name);
+
+	mtx_lock(&sc->sc_queue_mtx);
+	/* Restore sc_mkey, sc_ekeys, sc_akey and sc_ivkey. */
+	g_eli_mkey_propagate(sc, mkey);
+	bzero(mkey, sizeof(mkey));
+	bzero(&md, sizeof(md));
+	/* Restore sc_akeyctx. */
+	if (sc->sc_flags & G_ELI_FLAG_AUTH) {
+		SHA256_Init(&sc->sc_akeyctx);
+		SHA256_Update(&sc->sc_akeyctx, sc->sc_akey,
+		    sizeof(sc->sc_akey));
+	}
+	/* Restore sc_ivctx. */
+	switch (sc->sc_ealgo) {
+	case CRYPTO_AES_XTS:
+		break;
+	default:
+		SHA256_Init(&sc->sc_ivctx);
+		SHA256_Update(&sc->sc_ivctx, sc->sc_ivkey,
+		    sizeof(sc->sc_ivkey));
+		break;
+	}
+	sc->sc_flags &= ~G_ELI_FLAG_SUSPEND;
+	mtx_unlock(&sc->sc_queue_mtx);
+	G_ELI_DEBUG(1, "Resumed %s.", pp->name);
+	wakeup(sc);
+}
+
+static int
 g_eli_kill_one(struct g_eli_softc *sc)
 {
 	struct g_provider *pp;
@@ -749,7 +956,7 @@ g_eli_kill_one(struct g_eli_softc *sc)
 	}
 	if (error == 0)
 		G_ELI_DEBUG(0, "%s has been killed.", pp->name);
-	g_eli_destroy(sc, 1);
+	g_eli_destroy(sc, TRUE);
 	return (error);
 }
 
@@ -839,6 +1046,10 @@ g_eli_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 		g_eli_ctl_setkey(req, mp);
 	else if (strcmp(verb, "delkey") == 0)
 		g_eli_ctl_delkey(req, mp);
+	else if (strcmp(verb, "suspend") == 0)
+		g_eli_ctl_suspend(req, mp);
+	else if (strcmp(verb, "resume") == 0)
+		g_eli_ctl_resume(req, mp);
 	else if (strcmp(verb, "kill") == 0)
 		g_eli_ctl_kill(req, mp);
 	else
