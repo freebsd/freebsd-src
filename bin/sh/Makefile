@@ -62,4 +62,7 @@ syntax.c syntax.h: mksyntax
 token.h: mktokens
 	sh ${.CURDIR}/mktokens
 
+regress:
+	cd ${.CURDIR}/../../tools/regression/bin/sh && ${MAKE} SH=${.OBJDIR}/sh
+
 .include <bsd.prog.mk>
