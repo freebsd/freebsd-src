@@ -34,7 +34,7 @@ SRCS=	argv.c \
 # The following files are needed by gdb(1)
 SRCS+=	splay-tree.c
 
-WARNS?=	1
+WARNS?=	2
 CFLAGS+=	-DHAVE_CONFIG_H
 INTERNALLIB=
 
