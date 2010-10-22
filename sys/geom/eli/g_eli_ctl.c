@@ -840,10 +840,6 @@ g_eli_ctl_resume(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "Provider %s is invalid.", name);
 		return;
 	}
-	if (!(sc->sc_flags & G_ELI_FLAG_SUSPEND)) {
-		gctl_error(req, "Provider %s not suspended.", name);
-		return;
-	}
 	cp = LIST_FIRST(&sc->sc_geom->consumer);
 	pp = cp->provider;
 	error = g_eli_read_metadata(mp, pp, &md);
@@ -880,14 +876,18 @@ g_eli_ctl_resume(struct gctl_req *req, struct g_class *mp)
 	G_ELI_DEBUG(1, "Using Master Key %u for %s.", nkey, pp->name);
 
 	mtx_lock(&sc->sc_queue_mtx);
-	/* Restore sc_mkey, sc_ekeys, sc_akey and sc_ivkey. */
-	g_eli_mkey_propagate(sc, mkey);
-	sc->sc_flags &= ~G_ELI_FLAG_SUSPEND;
+	if (!(sc->sc_flags & G_ELI_FLAG_SUSPEND))
+		gctl_error(req, "Device %s is not suspended.", name);
+	else {
+		/* Restore sc_mkey, sc_ekeys, sc_akey and sc_ivkey. */
+		g_eli_mkey_propagate(sc, mkey);
+		sc->sc_flags &= ~G_ELI_FLAG_SUSPEND;
+		G_ELI_DEBUG(1, "Resumed %s.", pp->name);
+		wakeup(sc);
+	}
 	mtx_unlock(&sc->sc_queue_mtx);
 	bzero(mkey, sizeof(mkey));
 	bzero(&md, sizeof(md));
-	G_ELI_DEBUG(1, "Resumed %s.", pp->name);
-	wakeup(sc);
 }
 
 static int
