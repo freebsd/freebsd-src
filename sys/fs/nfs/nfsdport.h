@@ -73,7 +73,7 @@ struct nfsexstuff {
      bcmp(&(f1)->fh_fid, &(f2)->fh_fid, sizeof(struct fid)) == 0)
 
 #define	NFSLOCKHASH(f) 							\
-	(&nfslockhash[(*((u_int32_t *)((f)->fh_fid.fid_data))) % NFSLOCKHASHSIZE])
+	(&nfslockhash[nfsrv_hashfh(f) % NFSLOCKHASHSIZE])
 
 #define	NFSFPVNODE(f)	((struct vnode *)((f)->f_data))
 #define	NFSFPCRED(f)	((f)->f_cred)
