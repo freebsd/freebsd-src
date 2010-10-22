@@ -1356,7 +1356,7 @@ iwi_checkforqos(struct ieee80211vap *vap,
 
 	wme = NULL;
 	while (frm < efrm) {
-		IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1], return);
+		IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1], break);
 		switch (*frm) {
 		case IEEE80211_ELEMID_VENDOR:
 			if (iswmeoui(frm))
@@ -1368,7 +1368,7 @@ iwi_checkforqos(struct ieee80211vap *vap,
 
 	ni = vap->iv_bss;
 	ni->ni_capinfo = capinfo;
-	ni->ni_associd = associd;
+	ni->ni_associd = associd & 0x3fff;
 	if (wme != NULL)
 		ni->ni_flags |= IEEE80211_NODE_QOS;
 	else

@@ -32,7 +32,43 @@
 
 #ifndef __XEN_DRIVERS_BLOCK_H__
 #define __XEN_DRIVERS_BLOCK_H__
-#include <xen/interface/io/blkif.h>
+#include <xen/blkif.h>
+
+/**
+ * The maximum number of outstanding requests blocks (request headers plus
+ * additional segment blocks) we will allow in a negotiated block-front/back
+ * communication channel.
+ */
+#define XBF_MAX_REQUESTS		256
+
+/**
+ * The maximum mapped region size per request we will allow in a negotiated
+ * block-front/back communication channel.
+ *
+ * \note We reserve a segement from the maximum supported by the transport to
+ *       guarantee we can handle an unaligned transfer without the need to
+ *       use a bounce buffer..
+ */
+#define	XBF_MAX_REQUEST_SIZE		\
+	MIN(MAXPHYS, (BLKIF_MAX_SEGMENTS_PER_REQUEST - 1) * PAGE_SIZE)
+
+/**
+ * The maximum number of segments (within a request header and accompanying
+ * segment blocks) per request we will allow in a negotiated block-front/back
+ * communication channel.
+ */
+#define	XBF_MAX_SEGMENTS_PER_REQUEST		\
+	(MIN(BLKIF_MAX_SEGMENTS_PER_REQUEST,	\
+	     (XBF_MAX_REQUEST_SIZE / PAGE_SIZE) + 1))
+
+/**
+ * The maximum number of shared memory ring pages we will allow in a
+ * negotiated block-front/back communication channel.  Allow enough
+ * ring space for all requests to be  XBF_MAX_REQUEST_SIZE'd.
+ */
+#define XBF_MAX_RING_PAGES						    \
+	BLKIF_RING_PAGES(BLKIF_SEGS_TO_BLOCKS(XBF_MAX_SEGMENTS_PER_REQUEST) \
+		       * XBF_MAX_REQUESTS)
 
 struct xlbd_type_info
 {
@@ -62,18 +98,18 @@ struct xb_command {
 #define XB_ON_XBQ_COMPLETE	(1<<5)
 #define XB_ON_XBQ_MASK		((1<<2)|(1<<3)|(1<<4)|(1<<5))
 	bus_dmamap_t		map;
-	blkif_request_t		req;
+	uint64_t		id;
+	grant_ref_t		*sg_refs;
 	struct bio		*bp;
 	grant_ref_t		gref_head;
 	void			*data;
 	size_t			datalen;
+	u_int			nseg;
 	int			operation;
 	blkif_sector_t		sector_number;
 	int			status;
 	void			(* cm_complete)(struct xb_command *);
 };
-
-#define BLK_RING_SIZE __RING_SIZE((blkif_sring_t *)0, PAGE_SIZE)
 
 #define XBQ_FREE	0
 #define XBQ_BIO		1
@@ -108,10 +144,14 @@ struct xb_softc {
 	int			vdevice;
 	blkif_vdev_t		handle;
 	int			connected;
-	int			ring_ref;
+	u_int			ring_pages;
+	uint32_t		max_requests;
+	uint32_t		max_request_segments;
+	uint32_t		max_request_blocks;
+	uint32_t		max_request_size;
+	grant_ref_t		ring_ref[XBF_MAX_RING_PAGES];
 	blkif_front_ring_t	ring;
 	unsigned int		irq;
-	struct xlbd_major_info	*mi;
 	struct gnttab_free_callback	callback;
 	TAILQ_HEAD(,xb_command)	cm_free;
 	TAILQ_HEAD(,xb_command)	cm_ready;
@@ -126,11 +166,12 @@ struct xb_softc {
 	 */
 	int			users;
 	struct mtx		xb_io_lock;
-	struct xb_command	shadow[BLK_RING_SIZE];
+
+	struct xb_command      *shadow;
 };
 
-int xlvbd_add(struct xb_softc *, blkif_sector_t capacity, int device,
-	      uint16_t vdisk_info, uint16_t sector_size);
+int xlvbd_add(struct xb_softc *, blkif_sector_t sectors, int device,
+	      uint16_t vdisk_info, unsigned long sector_size);
 void xlvbd_del(struct xb_softc *);
 
 #define XBQ_ADD(sc, qname)					\
@@ -188,7 +229,8 @@ void xlvbd_del(struct xb_softc *);
 		struct xb_command *cm;					\
 									\
 		if ((cm = TAILQ_FIRST(&sc->cm_ ## name)) != NULL) {	\
-			if ((cm->cm_flags & XB_ON_ ## index) == 0) {	\
+			if ((cm->cm_flags & XB_ON_XBQ_MASK) !=		\
+			     XB_ON_ ## index) {				\
 				printf("command %p not in queue, "	\
 				    "flags = %#x, bit = %#x\n", cm,	\
 				    cm->cm_flags, XB_ON_ ## index);	\
@@ -203,7 +245,7 @@ void xlvbd_del(struct xb_softc *);
 	static __inline void						\
 	xb_remove_ ## name (struct xb_command *cm)			\
 	{								\
-		if ((cm->cm_flags & XB_ON_ ## index) == 0) {		\
+		if ((cm->cm_flags & XB_ON_XBQ_MASK) != XB_ON_ ## index){\
 			printf("command %p not in queue, flags = %#x, " \
 			    "bit = %#x\n", cm, cm->cm_flags,		\
 			    XB_ON_ ## index);				\

@@ -158,10 +158,8 @@
 #undef		pthread_rwlock_unlock
 #undef		pthread_rwlock_wrlock
 #undef		pthread_rwlockattr_destroy
-#undef		pthread_rwlockattr_getkind_np
 #undef		pthread_rwlockattr_getpshared
 #undef		pthread_rwlockattr_init
-#undef		pthread_rwlockattr_setkind_np
 #undef		pthread_rwlockattr_setpshared
 #undef		pthread_self
 #undef		pthread_set_name_np

@@ -374,6 +374,7 @@ static void bge_tick(void *);
 static void bge_stats_clear_regs(struct bge_softc *);
 static void bge_stats_update(struct bge_softc *);
 static void bge_stats_update_regs(struct bge_softc *);
+static struct mbuf *bge_check_short_dma(struct mbuf *);
 static struct mbuf *bge_setup_tso(struct bge_softc *, struct mbuf *,
     uint16_t *);
 static int bge_encap(struct bge_softc *, struct mbuf **, uint32_t *);
@@ -1692,6 +1693,11 @@ bge_blockinit(struct bge_softc *sc)
 		bge_writembx(sc, BGE_MBX_RX_MINI_PROD_LO, 0);
 	}
 
+	/* Choose de-pipeline mode for BCM5906 A1. */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5906 &&
+	    sc->bge_chiprev == BGE_CHIPID_BCM5906_A1)
+		CSR_WRITE_4(sc, BGE_ISO_PKT_TX,
+		    (CSR_READ_4(sc, BGE_ISO_PKT_TX) & ~3) | 2);
 	/*
 	 * The BD ring replenish thresholds control how often the
 	 * hardware fetches new BD's from the producer rings in host
@@ -2633,6 +2639,8 @@ bge_attach(device_t dev)
 	case BGE_ASICREV_BCM5752:
 	case BGE_ASICREV_BCM5906:
 		sc->bge_flags |= BGE_FLAG_575X_PLUS;
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5906)
+			sc->bge_flags |= BGE_FLAG_SHORT_DMA_BUG;
 		/* FALLTHROUGH */
 	case BGE_ASICREV_BCM5705:
 		sc->bge_flags |= BGE_FLAG_5705_PLUS;
@@ -4060,6 +4068,39 @@ bge_cksum_pad(struct mbuf *m)
 }
 
 static struct mbuf *
+bge_check_short_dma(struct mbuf *m)
+{
+	struct mbuf *n;
+	int found;
+
+	/*
+	 * If device receive two back-to-back send BDs with less than
+	 * or equal to 8 total bytes then the device may hang.  The two
+	 * back-to-back send BDs must in the same frame for this failure
+	 * to occur.  Scan mbuf chains and see whether two back-to-back
+	 * send BDs are there. If this is the case, allocate new mbuf
+	 * and copy the frame to workaround the silicon bug.
+	 */
+	for (n = m, found = 0; n != NULL; n = n->m_next) {
+		if (n->m_len < 8) {
+			found++;
+			if (found > 1)
+				break;
+			continue;
+		}
+		found = 0;
+	}
+
+	if (found > 1) {
+		n = m_defrag(m, M_DONTWAIT);
+		if (n == NULL)
+			m_freem(m);
+	} else
+		n = m;
+	return (n);
+}
+
+static struct mbuf *
 bge_setup_tso(struct bge_softc *sc, struct mbuf *m, uint16_t *mss)
 {
 	struct ip *ip;
@@ -4132,6 +4173,13 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 	csum_flags = 0;
 	mss = 0;
 	vlan_tag = 0;
+	if ((sc->bge_flags & BGE_FLAG_SHORT_DMA_BUG) != 0 &&
+	    m->m_next != NULL) {
+		*m_head = bge_check_short_dma(m);
+		if (*m_head == NULL)
+			return (ENOBUFS);
+		m = *m_head;
+	}
 	if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
 		*m_head = m = bge_setup_tso(sc, m, &mss);
 		if (*m_head == NULL)
@@ -4366,6 +4414,7 @@ bge_init_locked(struct bge_softc *sc)
 {
 	struct ifnet *ifp;
 	uint16_t *m;
+	uint32_t mode;
 
 	BGE_LOCK_ASSERT(sc);
 
@@ -4471,8 +4520,12 @@ bge_init_locked(struct bge_softc *sc)
 	/* Init TX ring. */
 	bge_init_tx_ring(sc);
 
+	/* Enable TX MAC state machine lockup fix. */
+	mode = CSR_READ_4(sc, BGE_TX_MODE);
+	if (BGE_IS_5755_PLUS(sc) || sc->bge_asicrev == BGE_ASICREV_BCM5906)
+		mode |= BGE_TXMODE_MBUF_LOCKUP_FIX;
 	/* Turn on transmitter. */
-	BGE_SETBIT(sc, BGE_TX_MODE, BGE_TXMODE_ENABLE);
+	CSR_WRITE_4(sc, BGE_TX_MODE, mode | BGE_TXMODE_ENABLE);
 
 	/* Turn on receiver. */
 	BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_ENABLE);

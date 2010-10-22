@@ -1,8 +1,8 @@
 /*
- * xenbus_dev.c
+ * xenstore_dev.c
  * 
- * Driver giving user-space access to the kernel's xenbus connection
- * to xenstore.
+ * Driver giving user-space access to the kernel's connection to the
+ * XenStore service.
  * 
  * Copyright (c) 2005, Christian Limpach
  * Copyright (c) 2005, Rusty Russell, IBM Corporation
@@ -45,18 +45,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 
 #include <machine/xen/xen-os.h>
-#include <xen/hypervisor.h>
-#include <xen/xenbus/xenbusvar.h>
-#include <xen/xenbus/xenbus_comms.h>
 
-struct xenbus_dev_transaction {
-	LIST_ENTRY(xenbus_dev_transaction) list;
-	struct xenbus_transaction handle;
+#include <xen/hypervisor.h>
+#include <xen/xenstore/xenstorevar.h>
+#include <xen/xenstore/xenstore_internal.h>
+
+struct xs_dev_transaction {
+	LIST_ENTRY(xs_dev_transaction) list;
+	struct xs_transaction handle;
 };
 
-struct xenbus_dev_data {
+struct xs_dev_data {
 	/* In-progress transaction. */
-	LIST_HEAD(xdd_list_head, xenbus_dev_transaction) transactions;
+	LIST_HEAD(xdd_list_head, xs_dev_transaction) transactions;
 
 	/* Partial request. */
 	unsigned int len;
@@ -72,13 +73,13 @@ struct xenbus_dev_data {
 };
 
 static int 
-xenbus_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
+xs_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	int error;
-	struct xenbus_dev_data *u = dev->si_drv1;
+	struct xs_dev_data *u = dev->si_drv1;
 
 	while (u->read_prod == u->read_cons) {
-		error = tsleep(u, PCATCH, "xbdread", hz/10);
+		error = tsleep(u, PCATCH, "xsdread", hz/10);
 		if (error && error != EWOULDBLOCK)
 			return (error);
 	}
@@ -96,7 +97,7 @@ xenbus_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 }
 
 static void
-queue_reply(struct xenbus_dev_data *u, char *data, unsigned int len)
+xs_queue_reply(struct xs_dev_data *u, char *data, unsigned int len)
 {
 	int i;
 
@@ -110,11 +111,11 @@ queue_reply(struct xenbus_dev_data *u, char *data, unsigned int len)
 }
 
 static int 
-xenbus_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
+xs_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	int error;
-	struct xenbus_dev_data *u = dev->si_drv1;
-	struct xenbus_dev_transaction *trans;
+	struct xs_dev_data *u = dev->si_drv1;
+	struct xs_dev_transaction *trans;
 	void *reply;
 	int len = uio->uio_resid;
 
@@ -141,10 +142,10 @@ xenbus_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 	case XS_MKDIR:
 	case XS_RM:
 	case XS_SET_PERMS:
-		error = xenbus_dev_request_and_reply(&u->u.msg, &reply);
+		error = xs_dev_request_and_reply(&u->u.msg, &reply);
 		if (!error) {
 			if (u->u.msg.type == XS_TRANSACTION_START) {
-				trans = malloc(sizeof(*trans), M_DEVBUF,
+				trans = malloc(sizeof(*trans), M_XENSTORE,
 				    M_WAITOK);
 				trans->handle.id = strtoul(reply, NULL, 0);
 				LIST_INSERT_HEAD(&u->transactions, trans, list);
@@ -156,11 +157,11 @@ xenbus_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 				BUG_ON(&trans->list == &u->transactions);
 #endif
 				LIST_REMOVE(trans, list);
-				free(trans, M_DEVBUF);
+				free(trans, M_XENSTORE);
 			}
-			queue_reply(u, (char *)&u->u.msg, sizeof(u->u.msg));
-			queue_reply(u, (char *)reply, u->u.msg.len);
-			free(reply, M_DEVBUF);
+			xs_queue_reply(u, (char *)&u->u.msg, sizeof(u->u.msg));
+			xs_queue_reply(u, (char *)reply, u->u.msg.len);
+			free(reply, M_XENSTORE);
 		}
 		break;
 
@@ -176,16 +177,14 @@ xenbus_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 }
 
 static int
-xenbus_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
+xs_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
-	struct xenbus_dev_data *u;
+	struct xs_dev_data *u;
 
-	if (xen_store_evtchn == 0)
-		return (ENOENT);
 #if 0 /* XXX figure out if equiv needed */
 	nonseekable_open(inode, filp);
 #endif
-	u = malloc(sizeof(*u), M_DEVBUF, M_WAITOK|M_ZERO);
+	u = malloc(sizeof(*u), M_XENSTORE, M_WAITOK|M_ZERO);
 	LIST_INIT(&u->transactions);
         dev->si_drv1 = u;
 
@@ -193,37 +192,33 @@ xenbus_dev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 }
 
 static int
-xenbus_dev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
+xs_dev_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 {
-	struct xenbus_dev_data *u = dev->si_drv1;
-	struct xenbus_dev_transaction *trans, *tmp;
+	struct xs_dev_data *u = dev->si_drv1;
+	struct xs_dev_transaction *trans, *tmp;
 
 	LIST_FOREACH_SAFE(trans, &u->transactions, list, tmp) {
-		xenbus_transaction_end(trans->handle, 1);
+		xs_transaction_end(trans->handle, 1);
 		LIST_REMOVE(trans, list);
-		free(trans, M_DEVBUF);
+		free(trans, M_XENSTORE);
 	}
 
-	free(u, M_DEVBUF);
+	free(u, M_XENSTORE);
 	return (0);
 }
 
-static struct cdevsw xenbus_dev_cdevsw = {
+static struct cdevsw xs_dev_cdevsw = {
 	.d_version = D_VERSION,	
-	.d_read = xenbus_dev_read,
-	.d_write = xenbus_dev_write,
-	.d_open = xenbus_dev_open,
-	.d_close = xenbus_dev_close,
-	.d_name = "xenbus_dev",
+	.d_read = xs_dev_read,
+	.d_write = xs_dev_write,
+	.d_open = xs_dev_open,
+	.d_close = xs_dev_close,
+	.d_name = "xs_dev",
 };
 
-static int
-xenbus_dev_sysinit(void)
+void
+xs_dev_init()
 {
-	make_dev(&xenbus_dev_cdevsw, 0, UID_ROOT, GID_WHEEL, 0400,
-	    "xen/xenbus");
-
-	return (0);
+	make_dev(&xs_dev_cdevsw, 0, UID_ROOT, GID_WHEEL, 0400,
+	    "xen/xenstore");
 }
-SYSINIT(xenbus_dev_sysinit, SI_SUB_DRIVERS, SI_ORDER_MIDDLE,
-    xenbus_dev_sysinit, NULL);

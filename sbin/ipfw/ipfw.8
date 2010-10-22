@@ -1009,11 +1009,11 @@ The second format
 with multiple addresses) is provided for convenience only and
 its use is discouraged.
 .It Ar addr : Oo Cm not Oc Bro
-.Bl -tag -width indent
 .Cm any | me | me6 |
 .Cm table Ns Pq Ar number Ns Op , Ns Ar value
 .Ar | addr-list | addr-set
 .Brc
+.Bl -tag -width indent
 .It Cm any
 matches any IP address.
 .It Cm me
@@ -2176,7 +2176,6 @@ Finally, the following parameters can be configured for both
 pipes and queues:
 .Pp
 .Bl -tag -width XXXX -compact
-.Pp
 .It Cm buckets Ar hash-table-size
 Specifies the size of the hash table used for storing the
 various queues.

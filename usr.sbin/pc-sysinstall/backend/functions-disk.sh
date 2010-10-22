@@ -507,17 +507,6 @@ setup_disk_slice()
 			DEST="${DISK}"
           fi 
 
-          if iscompressed "${IMAGE}"
-          then
-            local COMPRESSION
-  
-            get_compression_type "${IMAGE}"
-            COMPRESSION="${VAL}"
-  
-            decompress_file "${IMAGE}" "${COMPRESSION}"
-            IMAGE="${VAL}"
-          fi
-
           write_image "${IMAGE}" "${DEST}"
           check_disk_layout "${DEST}"
 		fi

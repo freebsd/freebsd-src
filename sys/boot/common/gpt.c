@@ -49,7 +49,7 @@ static int curent, bootonce;
 
 /*
  * Buffer below 64kB passed on gptread(), which can hold at least
- * one sector od data (512 bytes).
+ * one sector of data (512 bytes).
  */
 static char *secbuf;
 
@@ -62,7 +62,7 @@ gptupdate(const char *which, struct dsk *dskp, struct gpt_hdr *hdr,
 
 	/*
 	 * We need to update the following for both primary and backup GPT:
-	 * 1. Sector on disk that contains curent partition.
+	 * 1. Sector on disk that contains current partition.
 	 * 2. Partition table checksum.
 	 * 3. Header checksum.
 	 * 4. Header on disk.

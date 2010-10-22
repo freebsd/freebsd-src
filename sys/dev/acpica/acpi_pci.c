@@ -179,7 +179,7 @@ acpi_pci_set_powerstate_method(device_t dev, device_t child, int state)
 	 */
 	ACPI_SERIAL_BEGIN(pci_powerstate);
 	old_state = pci_get_powerstate(child);
-	if (old_state < state) {
+	if (old_state < state && pci_do_power_suspend) {
 		error = pci_set_powerstate_method(dev, child, state);
 		if (error)
 			goto out;
