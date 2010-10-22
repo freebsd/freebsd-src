@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 16, 2010
+.Dd October 21, 2010
 .Dt UNZIP 1
 .Os
 .Sh NAME
@@ -111,6 +111,10 @@ Note that only one of
 and
 .Fl u
 may be specified.
+If specified filename is
+.Va Qq - ,
+then data is read from
+.Va stdin .
 .Sh ENVIRONMENT
 If the
 .Ev UNZIP_DEBUG

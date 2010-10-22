@@ -182,6 +182,7 @@ struct pci_quirk {
 	int	type;
 #define	PCI_QUIRK_MAP_REG	1 /* PCI map register in weird place */
 #define	PCI_QUIRK_DISABLE_MSI	2 /* MSI/MSI-X doesn't work */
+#define	PCI_QUIRK_ENABLE_MSI_VM	3 /* Older chipset in VM where MSI works */
 	int	arg1;
 	int	arg2;
 };
@@ -217,6 +218,12 @@ struct pci_quirk pci_quirks[] = {
 	 * bridge.
 	 */
 	{ 0x74501022, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+
+	/*
+	 * Some virtualization environments emulate an older chipset
+	 * but support MSI just fine.  QEMU uses the Intel 82440.
+	 */
+	{ 0x12378086, PCI_QUIRK_ENABLE_MSI_VM,	0,	0 },
 
 	{ 0 }
 };
@@ -256,6 +263,12 @@ TUNABLE_INT("hw.pci.do_power_resume", &pci_do_power_resume);
 SYSCTL_INT(_hw_pci, OID_AUTO, do_power_resume, CTLFLAG_RW,
     &pci_do_power_resume, 1,
   "Transition from D3 -> D0 on resume.");
+
+int pci_do_power_suspend = 1;
+TUNABLE_INT("hw.pci.do_power_suspend", &pci_do_power_suspend);
+SYSCTL_INT(_hw_pci, OID_AUTO, do_power_suspend, CTLFLAG_RW,
+    &pci_do_power_suspend, 1,
+  "Transition from D0 -> D3 on suspend.");
 
 static int pci_do_msi = 1;
 TUNABLE_INT("hw.pci.enable_msi", &pci_do_msi);
@@ -594,7 +607,7 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 			if (cfg->pp.pp_cap == 0) {
 				cfg->pp.pp_cap = REG(ptr + PCIR_POWER_CAP, 2);
 				cfg->pp.pp_status = ptr + PCIR_POWER_STATUS;
-				cfg->pp.pp_pmcsr = ptr + PCIR_POWER_PMCSR;
+				cfg->pp.pp_bse = ptr + PCIR_POWER_BSE;
 				if ((nextptr - ptr) > PCIR_POWER_DATA)
 					cfg->pp.pp_data = ptr + PCIR_POWER_DATA;
 			}
@@ -1828,6 +1841,23 @@ pci_msi_device_blacklisted(device_t dev)
 }
 
 /*
+ * Returns true if a specified chipset supports MSI when it is
+ * emulated hardware in a virtual machine.
+ */
+static int
+pci_msi_vm_chipset(device_t dev)
+{
+	struct pci_quirk *q;
+
+	for (q = &pci_quirks[0]; q->devid; q++) {
+		if (q->devid == pci_get_devid(dev) &&
+		    q->type == PCI_QUIRK_ENABLE_MSI_VM)
+			return (1);
+	}
+	return (0);
+}
+
+/*
  * Determine if MSI is blacklisted globally on this sytem.  Currently,
  * we just check for blacklisted chipsets as represented by the
  * host-PCI bridge at device 0:0:0.  In the future, it may become
@@ -1843,8 +1873,14 @@ pci_msi_blacklisted(void)
 		return (0);
 
 	/* Blacklist all non-PCI-express and non-PCI-X chipsets. */
-	if (!(pcie_chipset || pcix_chipset))
+	if (!(pcie_chipset || pcix_chipset)) {
+		if (vm_guest != VM_GUEST_NO) {
+			dev = pci_find_bsf(0, 0, 0);
+			if (dev != NULL)
+				return (pci_msi_vm_chipset(dev) == 0);
+		}
 		return (1);
+	}
 
 	dev = pci_find_bsf(0, 0, 0);
 	if (dev != NULL)
@@ -2954,7 +2990,9 @@ pci_suspend(device_t dev)
 		free(devlist, M_TEMP);
 		return (error);
 	}
-	pci_set_power_children(dev, devlist, numdevs, PCI_POWERSTATE_D3);
+	if (pci_do_power_suspend)
+		pci_set_power_children(dev, devlist, numdevs,
+		    PCI_POWERSTATE_D3);
 	free(devlist, M_TEMP);
 	return (0);
 }
@@ -3656,9 +3694,15 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 	res = NULL;
 	pci_read_bar(child, *rid, &map, &testval);
 
-	/* Ignore a BAR with a base of 0. */
-	if ((*rid == PCIR_BIOS && pci_rombase(testval) == 0) ||
-	    pci_mapbase(testval) == 0)
+	/*
+	 * Determine the size of the BAR and ignore BARs with a size
+	 * of 0.  Device ROM BARs use a different mask value.
+	 */
+	if (*rid == PCIR_BIOS)
+		mapsize = pci_romsize(testval);
+	else
+		mapsize = pci_mapsize(testval);
+	if (mapsize == 0)
 		goto out;
 
 	if (PCI_BAR_MEM(testval) || *rid == PCIR_BIOS) {
@@ -3687,13 +3731,7 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 	 * actually uses and we would otherwise have a
 	 * situation where we might allocate the excess to
 	 * another driver, which won't work.
-	 *
-	 * Device ROM BARs use a different mask value.
 	 */
-	if (*rid == PCIR_BIOS)
-		mapsize = pci_romsize(testval);
-	else
-		mapsize = pci_mapsize(testval);
 	count = 1UL << mapsize;
 	if (RF_ALIGNMENT(flags) < mapsize)
 		flags = (flags & ~RF_ALIGNMENT_MASK) | RF_ALIGNMENT_LOG2(mapsize);

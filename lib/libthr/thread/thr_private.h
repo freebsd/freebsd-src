@@ -285,14 +285,11 @@ struct pthread_prio {
 
 struct pthread_rwlockattr {
 	int		pshared;
-	int		kind;
 };
 
 struct pthread_rwlock {
 	struct urwlock 	lock;
 	struct pthread	*owner;
-	int	recurse;
-	int	kind;
 };
 
 /*
