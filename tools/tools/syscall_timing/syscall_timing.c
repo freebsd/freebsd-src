@@ -284,6 +284,29 @@ test_open_close(uintmax_t num, uintmax_t int_arg, const char *path)
 }
 
 uintmax_t
+test_read(uintmax_t num, uintmax_t int_arg, const char *path)
+{
+	char buf[int_arg];
+	uintmax_t i;
+	int fd;
+
+	fd = open(path, O_RDONLY);
+	if (fd < 0)
+		err(-1, "test_open_close: %s", path);
+	(void)pread(fd, buf, int_arg, 0);
+
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
+		(void)pread(fd, buf, int_arg, 0);
+	}
+	benchmark_stop();
+	close(fd);
+	return (i);
+}
+
+uintmax_t
 test_open_read_close(uintmax_t num, uintmax_t int_arg, const char *path)
 {
 	char buf[int_arg];
@@ -547,8 +570,11 @@ test_setuid(uintmax_t num, uintmax_t int_arg, const char *path)
 struct test {
 	const char	*t_name;
 	uintmax_t	(*t_func)(uintmax_t, uintmax_t, const char *);
+	int		 t_flags;
 	uintmax_t	 t_int;
 };
+
+#define	FLAG_PATH	0x00000001
 
 static const struct test tests[] = {
 	{ "getuid", test_getuid },
@@ -561,13 +587,28 @@ static const struct test tests[] = {
 	{ "socketpair_dgram", test_socketpair_dgram },
 	{ "socket_tcp", test_socket_stream, .t_int = PF_INET },
 	{ "socket_udp", test_socket_dgram, .t_int = PF_INET },
-	{ "open_close", test_open_close },
-	{ "open_read_close_1", test_open_read_close, .t_int = 1 },
-	{ "open_read_close_10", test_open_read_close, .t_int = 10 },
-	{ "open_read_close_100", test_open_read_close, .t_int = 100 },
-	{ "open_read_close_1000", test_open_read_close, .t_int = 1000 },
-	{ "open_read_close_10000", test_open_read_close, .t_int = 10000 },
-	{ "open_read_close_100000", test_open_read_close, .t_int = 100000 },
+	{ "open_close", test_open_close, .t_flags = FLAG_PATH },
+	{ "open_read_close_1", test_open_read_close, .t_flags = FLAG_PATH,
+	    .t_int = 1 },
+	{ "open_read_close_10", test_open_read_close, .t_flags = FLAG_PATH,
+	    .t_int = 10 },
+	{ "open_read_close_100", test_open_read_close, .t_flags = FLAG_PATH,
+	    .t_int = 100 },
+	{ "open_read_close_1000", test_open_read_close, .t_flags = FLAG_PATH,
+	    .t_int = 1000 },
+	{ "open_read_close_10000", test_open_read_close,
+	    .t_flags = FLAG_PATH, .t_int = 10000 },
+	{ "open_read_close_100000", test_open_read_close,
+	    .t_flags = FLAG_PATH, .t_int = 100000 },
+	{ "open_read_close_1000000", test_open_read_close,
+	    .t_flags = FLAG_PATH, .t_int = 1000000 },
+	{ "read_1", test_read, .t_flags = FLAG_PATH, .t_int = 1 },
+	{ "read_10", test_read, .t_flags = FLAG_PATH, .t_int = 10 },
+	{ "read_100", test_read, .t_flags = FLAG_PATH, .t_int = 100 },
+	{ "read_1000", test_read, .t_flags = FLAG_PATH, .t_int = 1000 },
+	{ "read_10000", test_read, .t_flags = FLAG_PATH, .t_int = 10000 },
+	{ "read_100000", test_read, .t_flags = FLAG_PATH, .t_int = 100000 },
+	{ "read_1000000", test_read, .t_flags = FLAG_PATH, .t_int = 1000000 },
 	{ "dup", test_dup },
 	{ "shmfd", test_shmfd },
 	{ "fstat_shmfd", test_fstat_shmfd },
@@ -603,9 +644,9 @@ main(int argc, char *argv[])
 	int ch, i, j, k;
 	uintmax_t iterations, loops;
 
-	alarm_timeout = 0;
+	alarm_timeout = 1;
 	iterations = 0;
-	loops = 0;
+	loops = 10;
 	path = NULL;
 	while ((ch = getopt(argc, argv, "i:l:p:s:")) != -1) {
 		switch (ch) {
@@ -652,10 +693,27 @@ main(int argc, char *argv[])
 	if (argc < 1)
 		usage();
 
+	/*
+	 * Validate test list and that, if a path is required, it is
+	 * defined.
+	 */
+	for (j = 0; j < argc; j++) {
+		the_test = NULL;
+		for (i = 0; i < tests_count; i++) {
+			if (strcmp(argv[j], tests[i].t_name) == 0)
+				the_test = &tests[i];
+		}
+		if (the_test == NULL)
+			usage();
+		if ((the_test->t_flags & FLAG_PATH) && (path == NULL)) {
+			errx(-1, "%s requires -p", the_test->t_name);
+		}
+	}
+
 	assert(clock_getres(CLOCK_REALTIME, &ts_res) == 0);
 	printf("Clock resolution: %ju.%09ju\n", (uintmax_t)ts_res.tv_sec,
 	    (uintmax_t)ts_res.tv_nsec);
-	printf("test\tloop\ttotal\titerations\tperiteration\n");
+	printf("test\tloop\ttime\titerations\tperiteration\n");
 
 	for (j = 0; j < argc; j++) {
 		uintmax_t calls, nsecsperit;
@@ -665,8 +723,6 @@ main(int argc, char *argv[])
 			if (strcmp(argv[j], tests[i].t_name) == 0)
 				the_test = &tests[i];
 		}
-		if (the_test == NULL)
-			usage();
 
 		/*
 		 * Run one warmup, then do the real thing (loops) times.
