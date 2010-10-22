@@ -182,6 +182,7 @@ struct pci_quirk {
 	int	type;
 #define	PCI_QUIRK_MAP_REG	1 /* PCI map register in weird place */
 #define	PCI_QUIRK_DISABLE_MSI	2 /* MSI/MSI-X doesn't work */
+#define	PCI_QUIRK_ENABLE_MSI_VM	3 /* Older chipset in VM where MSI works */
 	int	arg1;
 	int	arg2;
 };
@@ -217,6 +218,12 @@ struct pci_quirk pci_quirks[] = {
 	 * bridge.
 	 */
 	{ 0x74501022, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+
+	/*
+	 * Some virtualization environments emulate an older chipset
+	 * but support MSI just fine.  QEMU uses the Intel 82440.
+	 */
+	{ 0x12378086, PCI_QUIRK_ENABLE_MSI_VM,	0,	0 },
 
 	{ 0 }
 };
@@ -1834,6 +1841,23 @@ pci_msi_device_blacklisted(device_t dev)
 }
 
 /*
+ * Returns true if a specified chipset supports MSI when it is
+ * emulated hardware in a virtual machine.
+ */
+static int
+pci_msi_vm_chipset(device_t dev)
+{
+	struct pci_quirk *q;
+
+	for (q = &pci_quirks[0]; q->devid; q++) {
+		if (q->devid == pci_get_devid(dev) &&
+		    q->type == PCI_QUIRK_ENABLE_MSI_VM)
+			return (1);
+	}
+	return (0);
+}
+
+/*
  * Determine if MSI is blacklisted globally on this sytem.  Currently,
  * we just check for blacklisted chipsets as represented by the
  * host-PCI bridge at device 0:0:0.  In the future, it may become
@@ -1849,8 +1873,14 @@ pci_msi_blacklisted(void)
 		return (0);
 
 	/* Blacklist all non-PCI-express and non-PCI-X chipsets. */
-	if (!(pcie_chipset || pcix_chipset))
+	if (!(pcie_chipset || pcix_chipset)) {
+		if (vm_guest != VM_GUEST_NO) {
+			dev = pci_find_bsf(0, 0, 0);
+			if (dev != NULL)
+				return (pci_msi_vm_chipset(dev) == 0);
+		}
 		return (1);
+	}
 
 	dev = pci_find_bsf(0, 0, 0);
 	if (dev != NULL)
