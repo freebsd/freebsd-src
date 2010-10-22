@@ -1054,7 +1054,7 @@ print_insn_args (const char *d,
 
 	/* Display 5 bits of bbit0/1 bit index amount. */
 	case '^':
-          (*info->fprintf_func) (info->stream, "0x%x",
+          (*info->fprintf_func) (info->stream, "0x%lx",
                                  (l >> OP_SH_BITIND) & OP_MASK_BITIND);
           break;
 
