@@ -44,23 +44,9 @@
 
 /*
  * Define a set for pcpu data.
- * 
- * We don't use SET_DECLARE because it defines the set as 'a' when we
- * want 'aw'.  gcc considers uninitialized data in a separate section
- * writable, and there is no generic zero initializer that works for
- * structs and scalars.
  */
 extern uintptr_t *__start_set_pcpu;
 extern uintptr_t *__stop_set_pcpu;
-
-__asm__(
-#ifdef __arm__
-	".section set_pcpu, \"aw\", %progbits\n"
-#else
-	".section set_pcpu, \"aw\", @progbits\n"
-#endif
-	"\t.p2align " __XSTRING(CACHE_LINE_SHIFT) "\n"
-	"\t.previous");
 
 /*
  * Array of dynamic pcpu base offsets.  Indexed by id.
