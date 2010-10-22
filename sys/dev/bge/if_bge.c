@@ -4409,6 +4409,7 @@ bge_init_locked(struct bge_softc *sc)
 {
 	struct ifnet *ifp;
 	uint16_t *m;
+	uint32_t mode;
 
 	BGE_LOCK_ASSERT(sc);
 
@@ -4514,8 +4515,12 @@ bge_init_locked(struct bge_softc *sc)
 	/* Init TX ring. */
 	bge_init_tx_ring(sc);
 
+	/* Enable TX MAC state machine lockup fix. */
+	mode = CSR_READ_4(sc, BGE_TX_MODE);
+	if (BGE_IS_5755_PLUS(sc) || sc->bge_asicrev == BGE_ASICREV_BCM5906)
+		mode |= BGE_TXMODE_MBUF_LOCKUP_FIX;
 	/* Turn on transmitter. */
-	BGE_SETBIT(sc, BGE_TX_MODE, BGE_TXMODE_ENABLE);
+	CSR_WRITE_4(sc, BGE_TX_MODE, mode | BGE_TXMODE_ENABLE);
 
 	/* Turn on receiver. */
 	BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_ENABLE);
