@@ -952,9 +952,12 @@ g_eli_destroy(struct g_eli_softc *sc, boolean_t force)
 	}
 	mtx_destroy(&sc->sc_queue_mtx);
 	gp->softc = NULL;
-	bzero(sc->sc_ekeys,
-	    sc->sc_nekeys * (sizeof(uint8_t *) + G_ELI_DATAKEYLEN));
-	free(sc->sc_ekeys, M_ELI);
+	if (sc->sc_ekeys != NULL) {
+		/* The sc_ekeys field can be NULL is device is suspended. */
+		bzero(sc->sc_ekeys,
+		    sc->sc_nekeys * (sizeof(uint8_t *) + G_ELI_DATAKEYLEN));
+		free(sc->sc_ekeys, M_ELI);
+	}
 	bzero(sc, sizeof(*sc));
 	free(sc, M_ELI);
 
