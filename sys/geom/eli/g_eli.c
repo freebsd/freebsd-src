@@ -1247,6 +1247,8 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	    sc->sc_ekeylen);
 	sbuf_printf(sb, "%s<EncryptionAlgorithm>%s</EncryptionAlgorithm>\n", indent,
 	    g_eli_algo2str(sc->sc_ealgo));
+	sbuf_printf(sb, "%s<State>%s</State>\n", indent,
+	    (sc->sc_flags & G_ELI_FLAG_SUSPEND) ? "SUSPENDED" : "ACTIVE");
 }
 
 static void
