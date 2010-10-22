@@ -36,7 +36,7 @@
 #define	__LIBC_COMPAT_H__
 
 #define	__sym_compat(sym,impl,verid)	\
-	.symver impl , sym @ verid
+	.symver impl, sym@verid
 
 __sym_compat(__semctl, freebsd7___semctl, FBSD_1.0);
 __sym_compat(msgctl, freebsd7_msgctl, FBSD_1.0);
