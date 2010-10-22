@@ -1084,15 +1084,14 @@ ifsbreakup(char *string, struct arglist *arglist)
 }
 
 
+static char expdir[PATH_MAX];
+#define expdir_end (expdir + sizeof(expdir))
+
 /*
  * Perform pathname generation and remove control characters.
  * At this point, the only control characters should be CTLESC and CTLQUOTEMARK.
  * The results are stored in the list exparg.
  */
-
-static char expdir[PATH_MAX];
-#define expdir_end (expdir + sizeof(expdir))
-
 static void
 expandmeta(struct strlist *str, int flag __unused)
 {
