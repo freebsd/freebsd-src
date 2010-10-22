@@ -256,10 +256,10 @@ read_alphacoff_dynamic_symtab (struct section_offsets *section_offsets,
       || si.got_sect == NULL)
     return;
 
-  sym_secsize = bfd_get_section_size_before_reloc (si.sym_sect);
-  str_secsize = bfd_get_section_size_before_reloc (si.str_sect);
-  dyninfo_secsize = bfd_get_section_size_before_reloc (si.dyninfo_sect);
-  got_secsize = bfd_get_section_size_before_reloc (si.got_sect);
+  sym_secsize = bfd_get_section_size (si.sym_sect);
+  str_secsize = bfd_get_section_size (si.str_sect);
+  dyninfo_secsize = bfd_get_section_size (si.dyninfo_sect);
+  got_secsize = bfd_get_section_size (si.got_sect);
   sym_secptr = xmalloc (sym_secsize);
   cleanups = make_cleanup (free, sym_secptr);
   str_secptr = xmalloc (str_secsize);

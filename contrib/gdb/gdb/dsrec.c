@@ -93,7 +93,7 @@ load_srec (struct serial *desc, const char *file, bfd_vma load_offset,
       {
 	int numbytes;
 	bfd_vma addr = bfd_get_section_vma (abfd, s) + load_offset;
-	bfd_size_type size = bfd_get_section_size_before_reloc (s);
+	bfd_size_type size = bfd_get_section_size (s);
 	char *section_name = (char *) bfd_get_section_name (abfd, s);
 	/* Both GDB and BFD have mechanisms for printing addresses.
            In the below, GDB's is used so that the address is

@@ -1693,7 +1693,7 @@ remote_set_transparent_ranges (void)
 
       anysecs = 1;
       lma = s->lma;
-      size = bfd_get_section_size_before_reloc (s);
+      size = bfd_get_section_size (s);
       sprintf_vma (tmp1, lma);
       sprintf_vma (tmp2, lma + size);
       sprintf (target_buf + strlen (target_buf), 
