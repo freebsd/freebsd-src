@@ -882,26 +882,10 @@ g_eli_ctl_resume(struct gctl_req *req, struct g_class *mp)
 	mtx_lock(&sc->sc_queue_mtx);
 	/* Restore sc_mkey, sc_ekeys, sc_akey and sc_ivkey. */
 	g_eli_mkey_propagate(sc, mkey);
-	bzero(mkey, sizeof(mkey));
-	bzero(&md, sizeof(md));
-	/* Restore sc_akeyctx. */
-	if (sc->sc_flags & G_ELI_FLAG_AUTH) {
-		SHA256_Init(&sc->sc_akeyctx);
-		SHA256_Update(&sc->sc_akeyctx, sc->sc_akey,
-		    sizeof(sc->sc_akey));
-	}
-	/* Restore sc_ivctx. */
-	switch (sc->sc_ealgo) {
-	case CRYPTO_AES_XTS:
-		break;
-	default:
-		SHA256_Init(&sc->sc_ivctx);
-		SHA256_Update(&sc->sc_ivctx, sc->sc_ivkey,
-		    sizeof(sc->sc_ivkey));
-		break;
-	}
 	sc->sc_flags &= ~G_ELI_FLAG_SUSPEND;
 	mtx_unlock(&sc->sc_queue_mtx);
+	bzero(mkey, sizeof(mkey));
+	bzero(&md, sizeof(md));
 	G_ELI_DEBUG(1, "Resumed %s.", pp->name);
 	wakeup(sc);
 }
