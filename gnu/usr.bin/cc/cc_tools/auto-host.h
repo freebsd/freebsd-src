@@ -891,7 +891,9 @@
 
 /* Define if your PowerPC64 linker only needs function descriptor syms. */
 #ifndef USED_FOR_TARGET
-/* #undef HAVE_LD_NO_DOT_SYMS */
+# ifdef __powerpc64_
+#  define HAVE_LD_NO_DOT_SYMS 1
+# endif
 #endif
 
 
