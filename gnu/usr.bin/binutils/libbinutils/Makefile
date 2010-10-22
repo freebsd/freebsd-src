@@ -23,7 +23,6 @@ SRCS+=	arlex.l \
 	unwind-ia64.c \
 	version.c \
 	wrstabs.c
-WARNS?=	0
 CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
 CFLAGS+= -DBFD_VERSION_STRING=\"${VERSION}\"
 CFLAGS+= -D_GNU_SOURCE

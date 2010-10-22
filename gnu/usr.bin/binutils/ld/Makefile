@@ -26,7 +26,6 @@ SRCS+=	ldcref.c \
 	lexsup.c \
 	mri.c
 
-WARNS?=	0	# ldemul.h problem (`struct option' declared inside parameter list)
 CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
 CFLAGS+= -DDEFAULT_EMULATION=\"${NATIVE_EMULATION}\"
 CFLAGS+= -DSCRIPTDIR=\"${TOOLS_PREFIX}/usr/libdata\"

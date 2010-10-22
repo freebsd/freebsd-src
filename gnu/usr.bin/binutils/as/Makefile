@@ -3,8 +3,6 @@
 
 # BINDIR
 .include "${.CURDIR}/../../Makefile.inc"
-WARNS?=	2
-NO_WERROR=
 .include "${.CURDIR}/../Makefile.inc0"
 
 .PATH: ${SRCDIR}/gas ${SRCDIR}/gas/config
