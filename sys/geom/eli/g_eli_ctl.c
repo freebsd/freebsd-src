@@ -699,22 +699,28 @@ g_eli_ctl_delkey(struct gctl_req *req, struct g_class *mp)
 		G_ELI_DEBUG(1, "Key %d removed from %s.", nkey, pp->name);
 }
 
-static int
-g_eli_suspend_one(struct g_eli_softc *sc)
+static void
+g_eli_suspend_one(struct g_eli_softc *sc, struct gctl_req *req)
 {
 	struct g_eli_worker *wr;
 
 	g_topology_assert();
 
-	if (sc == NULL)
-		return (ENOENT);
-	if (sc->sc_flags & G_ELI_FLAG_ONETIME)
-		return (EOPNOTSUPP);
+	KASSERT(sc != NULL, ("NULL sc"));
+
+	if (sc->sc_flags & G_ELI_FLAG_ONETIME) {
+		gctl_error(req,
+		    "Device %s is using one-time key, suspend not supported.",
+		    sc->sc_name);
+		return;
+	}
 
 	mtx_lock(&sc->sc_queue_mtx);
 	if (sc->sc_flags & G_ELI_FLAG_SUSPEND) {
 		mtx_unlock(&sc->sc_queue_mtx);
-		return (EALREADY);
+		gctl_error(req, "Device %s already suspended.",
+		    sc->sc_name);
+		return;
 	}
 	sc->sc_flags |= G_ELI_FLAG_SUSPEND;
 	wakeup(sc);
@@ -742,8 +748,7 @@ g_eli_suspend_one(struct g_eli_softc *sc)
 	bzero(sc->sc_ivkey, sizeof(sc->sc_ivkey));
 	bzero(&sc->sc_ivctx, sizeof(sc->sc_ivctx));
 	mtx_unlock(&sc->sc_queue_mtx);
-	G_ELI_DEBUG(0, "%s has been suspended.", sc->sc_name);
-	return (0);
+	G_ELI_DEBUG(0, "Device %s has been suspended.", sc->sc_name);
 }
 
 static void
@@ -751,7 +756,6 @@ g_eli_ctl_suspend(struct gctl_req *req, struct g_class *mp)
 {
 	struct g_eli_softc *sc;
 	int *all, *nargs;
-	int error;
 
 	g_topology_assert();
 
@@ -775,11 +779,13 @@ g_eli_ctl_suspend(struct gctl_req *req, struct g_class *mp)
 
 		LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2) {
 			sc = gp->softc;
-			if (sc->sc_flags & G_ELI_FLAG_ONETIME)
+			if (sc->sc_flags & G_ELI_FLAG_ONETIME) {
+				G_ELI_DEBUG(0,
+				    "Device %s is using one-time key, suspend not supported, skipping.",
+				    sc->sc_name);
 				continue;
-			error = g_eli_suspend_one(sc);
-			if (error != 0)
-				gctl_error(req, "Not fully done.");
+			}
+			g_eli_suspend_one(sc, req);
 		}
 	} else {
 		const char *prov;
@@ -799,9 +805,7 @@ g_eli_ctl_suspend(struct gctl_req *req, struct g_class *mp)
 				G_ELI_DEBUG(0, "No such provider: %s.", prov);
 				continue;
 			}
-			error = g_eli_suspend_one(sc);
-			if (error != 0)
-				gctl_error(req, "Not fully done.");
+			g_eli_suspend_one(sc, req);
 		}
 	}
 }
