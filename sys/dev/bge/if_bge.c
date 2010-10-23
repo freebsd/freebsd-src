@@ -1693,11 +1693,14 @@ bge_blockinit(struct bge_softc *sc)
 		bge_writembx(sc, BGE_MBX_RX_MINI_PROD_LO, 0);
 	}
 
-	/* Choose de-pipeline mode for BCM5906 A1. */
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5906 &&
-	    sc->bge_chiprev == BGE_CHIPID_BCM5906_A1)
-		CSR_WRITE_4(sc, BGE_ISO_PKT_TX,
-		    (CSR_READ_4(sc, BGE_ISO_PKT_TX) & ~3) | 2);
+	/* Choose de-pipeline mode for BCM5906 A0, A1 and A2. */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5906) {
+		if (sc->bge_chiprev == BGE_CHIPID_BCM5906_A0 ||
+		    sc->bge_chiprev == BGE_CHIPID_BCM5906_A1 ||
+		    sc->bge_chiprev == BGE_CHIPID_BCM5906_A2)
+			CSR_WRITE_4(sc, BGE_ISO_PKT_TX,
+			    (CSR_READ_4(sc, BGE_ISO_PKT_TX) & ~3) | 2);
+	}
 	/*
 	 * The BD ring replenish thresholds control how often the
 	 * hardware fetches new BD's from the producer rings in host
