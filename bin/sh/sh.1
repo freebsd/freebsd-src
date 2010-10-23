@@ -1142,7 +1142,7 @@ Quote Removal.
 The
 .Ql $
 character is used to introduce parameter expansion, command
-substitution, or arithmetic evaluation.
+substitution, or arithmetic expansion.
 .Ss Tilde Expansion (substituting a user's home directory)
 A word beginning with an unquoted tilde character
 .Pq Ql ~
@@ -1357,10 +1357,41 @@ The
 shell expands all tokens in the
 .Ar expression
 for parameter expansion,
-command substitution, and quote removal.
+command substitution,
+arithmetic expansion
+and quote removal.
 .Pp
-Next, the shell treats this as an arithmetic expression and
-substitutes the value of the expression.
+The allowed expressions are a subset of C expressions,
+summarized below.
+.Bl -tag -width "Variables" -offset indent
+.It Values
+All values are of type
+.Ft intmax_t .
+.It Constants
+Decimal, octal (starting with
+.Li 0 )
+and hexadecimal (starting with 
+.Li 0x )
+integer constants.
+.It Variables
+Shell variables can be read and written
+and contain integer constants.
+.It Unary operators
+.Li "! ~ + -"
+.It Binary operators
+.Li "* / % + - << >> < <= > >= == != & ^ | && ||"
+.It Assignment operators
+.Li "= += -= *= /= %= <<= >>= &= ^= |="
+.It Short-circuit evaluation
+The
+.Li &&
+and
+.Li ||
+operators always evaluate both sides.
+This is a bug.
+.El
+.Pp
+The result of the expression is substituted in decimal.
 .Ss White Space Splitting (Field Splitting)
 After parameter expansion, command substitution, and
 arithmetic expansion the shell scans the results of
