@@ -576,7 +576,7 @@ void nfsvno_unlockvfs(mount_t);
 int nfsvno_lockvfs(mount_t);
 int nfsrv_v4rootexport(void *, struct ucred *, NFSPROC_T *);
 int nfsvno_testexp(struct nfsrv_descript *, struct nfsexstuff *);
-int nfsrv_hashfh(fhandle_t *);
+uint32_t nfsrv_hashfh(fhandle_t *);
 
 /* nfs_commonkrpc.c */
 int newnfs_nmcancelreqs(struct nfsmount *);
