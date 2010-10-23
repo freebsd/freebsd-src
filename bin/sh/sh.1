@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd September 10, 2010
+.Dd October 16, 2010
 .Dt SH 1
 .Os
 .Sh NAME
@@ -732,6 +732,13 @@ both of a command is considered to be assigned by the
 pipeline before any redirection specified by redirection
 operators that are part of the command.
 .Pp
+Note that unlike some other shells,
+.Nm
+executes each process in a pipeline with more than one command
+in a subshell environment and as a child of the
+.Nm
+process.
+.Pp
 If the pipeline is not in the background (discussed later),
 the shell waits for all commands to complete.
 .Pp
@@ -769,15 +776,6 @@ to be executed sequentially;
 an
 .Ql &
 causes asynchronous execution of the preceding AND-OR-list.
-.Pp
-Note that unlike some other shells,
-.Nm
-executes each process in the pipeline as a child of the
-.Nm
-process.
-Shell built-in commands are the exception to this rule.
-They are executed in the current shell, although they do not affect its
-environment when used in pipelines.
 .Ss Background Commands (&)
 If a command is terminated by the control operator ampersand
 .Pq Ql & ,
