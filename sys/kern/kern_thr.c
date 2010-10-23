@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/posix4.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/smp.h>
@@ -284,23 +285,23 @@ thr_exit(struct thread *td, struct thr_exit_args *uap)
 		kern_umtx_wake(td, uap->state, INT_MAX, 0);
 	}
 
-	tidhash_remove(td);
-
+	rw_wlock(&tidhash_lock);
 	PROC_LOCK(p);
-	tdsigcleanup(td);
-	PROC_SLOCK(p);
-
 	/*
 	 * Shutting down last thread in the proc.  This will actually
 	 * call exit() in the trampoline when it returns.
 	 */
 	if (p->p_numthreads != 1) {
+		LIST_REMOVE(td, td_hash);
+		rw_wunlock(&tidhash_lock);
+		tdsigcleanup(td);
+		PROC_SLOCK(p);
 		thread_stopped(p);
 		thread_exit();
 		/* NOTREACHED */
 	}
-	PROC_SUNLOCK(p);
 	PROC_UNLOCK(p);
+	rw_wunlock(&tidhash_lock);
 	return (0);
 }
 
