@@ -411,11 +411,11 @@ character, with the exception of the newline character
 .Pq Ql \en .
 A backslash preceding a newline is treated as a line continuation.
 .El
-.Ss Reserved Words
-Reserved words are words that have special meaning to the
+.Ss Keywords
+Keywords or reserved words are words that have special meaning to the
 shell and are recognized at the beginning of a line and
 after a control operator.
-The following are reserved words:
+The following are keywords:
 .Bl -column "doneXX" "elifXX" "elseXX" "untilXX" "whileX" -offset center
 .It Li \&! Ta { Ta } Ta Ic case Ta Ic do
 .It Ic done Ta Ic elif Ta Ic else Ta Ic esac Ta Ic fi
@@ -425,8 +425,8 @@ The following are reserved words:
 An alias is a name and corresponding value set using the
 .Ic alias
 built-in command.
-Whenever a reserved word may occur (see above),
-and after checking for reserved words, the shell
+Whenever a keyword may occur (see above),
+and after checking for keywords, the shell
 checks the word to see if it matches an alias.
 If it does, it replaces it in the input stream with its value.
 For example, if there is an alias called
@@ -465,7 +465,7 @@ of this man page (refer to the BNF in the
 document).
 Essentially though, a line is read and if
 the first word of the line (or after a control operator)
-is not a reserved word, then the shell has recognized a
+is not a keyword, then the shell has recognized a
 simple command.
 Otherwise, a complex command or some
 other special construct may have been recognized.
@@ -685,7 +685,7 @@ Signal numbers are defined in the header file
 .In sys/signal.h .
 .Ss Complex Commands
 Complex commands are combinations of simple commands
-with control operators or reserved words, together creating a larger complex
+with control operators or keywords, together creating a larger complex
 command.
 More generally, a command is one of the following:
 .Bl -item -offset indent
@@ -729,7 +729,7 @@ operators that are part of the command.
 If the pipeline is not in the background (discussed later),
 the shell waits for all commands to complete.
 .Pp
-If the reserved word
+If the keyword
 .Ic !\&
 does not precede the pipeline, the
 exit status is the exit status of the last command specified
