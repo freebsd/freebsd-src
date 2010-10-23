@@ -257,10 +257,11 @@ set_option(struct g_command *cmd, struct gctl_req *req, struct g_option *opt,
 			err(EXIT_FAILURE, "Invalid value for '%c' argument",
 			    opt->go_char);
 		}
-		opt->go_val = malloc(sizeof(intmax_t));
-		if (opt->go_val == NULL)
+		ptr = malloc(sizeof(intmax_t));
+		if (ptr == NULL)
 			errx(EXIT_FAILURE, "No memory.");
-		*(intmax_t *)opt->go_val = number;
+		*(intmax_t *)ptr = number;
+		opt->go_val = ptr;
 		gctl_ro_param(req, opt->go_name, sizeof(intmax_t), opt->go_val);
 	} else if (G_OPT_TYPE(opt) == G_TYPE_ASCNUM) {
 		if (cmd->gc_argname == NULL || *val != '\0') {
@@ -280,10 +281,11 @@ set_option(struct g_command *cmd, struct gctl_req *req, struct g_option *opt,
 		if (cmd->gc_argname == NULL || *val != '\0')
 			gctl_ro_param(req, opt->go_name, -1, val);
 	} else if (G_OPT_TYPE(opt) == G_TYPE_BOOL) {
-		opt->go_val = malloc(sizeof(int));
-		if (opt->go_val == NULL)
+		ptr = malloc(sizeof(int));
+		if (ptr == NULL)
 			errx(EXIT_FAILURE, "No memory.");
-		*(int *)opt->go_val = *val - '0';
+		*(int *)ptr = *val - '0';
+		opt->go_val = ptr;
 		gctl_ro_param(req, opt->go_name, sizeof(int), opt->go_val);
 	} else {
 		assert(!"Invalid type");
@@ -378,7 +380,7 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 				char val[64];
 
 				snprintf(val, sizeof(val), "%jd",
-				    *(intmax_t *)opt->go_val);
+				    *(const intmax_t *)opt->go_val);
 				set_option(cmd, req, opt, val);
 			}
 		}

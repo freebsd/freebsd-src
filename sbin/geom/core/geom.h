@@ -62,7 +62,7 @@
 struct g_option {
 	char		 go_char;
 	const char	*go_name;
-	void		*go_val;
+	const void	*go_val;
 	unsigned	 go_type;
 };
 
