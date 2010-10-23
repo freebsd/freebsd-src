@@ -224,33 +224,61 @@ find_option(struct g_command *cmd, char ch)
  * Add given option to gctl_req.
  */
 static void
-set_option(struct gctl_req *req, struct g_option *opt, const char *val)
+set_option(struct g_command *cmd, struct gctl_req *req, struct g_option *opt,
+    const char *val)
 {
-	char *s;
-	intmax_t number;
+	const char *optname;
+	uint64_t number;
+	void *ptr;
 
-	if (G_OPT_TYPE(opt) == G_TYPE_NUMBER ||
-	    G_OPT_TYPE(opt) == G_TYPE_ASCNUM) {
+	if (G_OPT_ISMULTI(opt)) {
+		size_t optnamesize;
+
+		if (G_OPT_NUM(opt) == UCHAR_MAX)
+			errx(EXIT_FAILURE, "Too many -%c options.", opt->go_char);
+
+		/*
+		 * Base option name length plus 3 bytes for option number
+		 * (max. 255 options) plus 1 byte for terminating '\0'.
+		 */
+		optnamesize = strlen(opt->go_name) + 3 + 1;
+		ptr = malloc(optnamesize);
+		if (ptr == NULL)
+			errx(EXIT_FAILURE, "No memory.");
+		snprintf(ptr, optnamesize, "%s%u", opt->go_name, G_OPT_NUM(opt));
+		G_OPT_NUMINC(opt);
+		optname = ptr;
+	} else {
+		optname = opt->go_name;
+	}
+
+	if (G_OPT_TYPE(opt) == G_TYPE_NUMBER) {
 		if (expand_number(val, &number) == -1) {
-			err(EXIT_FAILURE, "Invalid value for '%c' argument.",
+			err(EXIT_FAILURE, "Invalid value for '%c' argument",
 			    opt->go_char);
 		}
-		if (G_OPT_TYPE(opt) == G_TYPE_NUMBER)
-			opt->go_val = malloc(sizeof(intmax_t));
-		else {
-			asprintf(&s, "%jd", number);
-			opt->go_val = s;
-		}
+		opt->go_val = malloc(sizeof(intmax_t));
 		if (opt->go_val == NULL)
 			errx(EXIT_FAILURE, "No memory.");
-		if (G_OPT_TYPE(opt) == G_TYPE_NUMBER) {
-			*(intmax_t *)opt->go_val = number;
-			gctl_ro_param(req, opt->go_name, sizeof(intmax_t),
-			    opt->go_val);
-		} else
+		*(intmax_t *)opt->go_val = number;
+		gctl_ro_param(req, opt->go_name, sizeof(intmax_t), opt->go_val);
+	} else if (G_OPT_TYPE(opt) == G_TYPE_ASCNUM) {
+		if (cmd->gc_argname == NULL || *val != '\0') {
+			char *s;
+
+			if (expand_number(val, &number) == -1) {
+				err(EXIT_FAILURE, "Invalid value for '%c' argument",
+				    opt->go_char);
+			}
+			asprintf(&s, "%jd", number);
+			if (s == NULL)
+				errx(EXIT_FAILURE, "No memory.");
+			opt->go_val = s;
 			gctl_ro_param(req, opt->go_name, -1, opt->go_val);
+		}
 	} else if (G_OPT_TYPE(opt) == G_TYPE_STRING) {
-		gctl_ro_param(req, opt->go_name, -1, val);
+		if (cmd->gc_argname == NULL || *val != '\0')
+			gctl_ro_param(req, opt->go_name, -1, val);
 	} else if (G_OPT_TYPE(opt) == G_TYPE_BOOL) {
 		opt->go_val = malloc(sizeof(int));
 		if (opt->go_val == NULL)
@@ -260,6 +288,9 @@ set_option(struct gctl_req *req, struct g_option *opt, const char *val)
 	} else {
 		assert(!"Invalid type");
 	}
+
+	if (G_OPT_ISMULTI(opt))
+		free(__DECONST(char *, optname));
 }
 
 /*
@@ -284,7 +315,10 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 		if (opt->go_name == NULL)
 			break;
 		assert(G_OPT_TYPE(opt) != 0);
-		assert((opt->go_type & ~G_TYPE_MASK) == 0);
+		assert((opt->go_type & ~(G_TYPE_MASK | G_TYPE_MULTI)) == 0);
+		/* Multiple bool arguments makes no sense. */
+		assert(G_OPT_TYPE(opt) != G_TYPE_BOOL ||
+		    (opt->go_type & G_TYPE_MULTI) == 0);
 		strlcatf(opts, sizeof(opts), "%c", opt->go_char);
 		if (G_OPT_TYPE(opt) != G_TYPE_BOOL)
 			strlcat(opts, ":", sizeof(opts));
@@ -304,16 +338,16 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 		opt = find_option(cmd, ch);
 		if (opt == NULL)
 			usage();
-		if (G_OPT_ISDONE(opt)) {
+		if (!G_OPT_ISMULTI(opt) && G_OPT_ISDONE(opt)) {
 			warnx("Option '%c' specified twice.", opt->go_char);
 			usage();
 		}
 		G_OPT_DONE(opt);
 
 		if (G_OPT_TYPE(opt) == G_TYPE_BOOL)
-			set_option(req, opt, "1");
+			set_option(cmd, req, opt, "1");
 		else
-			set_option(req, opt, optarg);
+			set_option(cmd, req, opt, optarg);
 	}
 	*argc -= optind;
 	*argv += optind;
@@ -330,26 +364,22 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 
 		if (G_OPT_TYPE(opt) == G_TYPE_BOOL) {
 			assert(opt->go_val == NULL);
-			set_option(req, opt, "0");
+			set_option(cmd, req, opt, "0");
 		} else {
 			if (opt->go_val == NULL) {
 				warnx("Option '%c' not specified.",
 				    opt->go_char);
 				usage();
-			} else {
-				if (G_OPT_TYPE(opt) == G_TYPE_NUMBER) {
-					gctl_ro_param(req, opt->go_name,
-					    sizeof(intmax_t), opt->go_val);
-				} else if (G_OPT_TYPE(opt) == G_TYPE_STRING ||
-				    G_OPT_TYPE(opt) == G_TYPE_ASCNUM) {
-					if (cmd->gc_argname == NULL ||
-					    opt->go_val == NULL ||
-					    *(char *)opt->go_val != '\0')
-						gctl_ro_param(req, opt->go_name,
-						    -1, opt->go_val);
-				} else {
-					assert(!"Invalid type");
-				}
+			} else if (opt->go_val == G_VAL_OPTIONAL) {
+				/* add nothing. */
+			} else if (G_OPT_TYPE(opt) == G_TYPE_STRING) {
+				set_option(cmd, req, opt, opt->go_val);
+			} else if (G_OPT_TYPE(opt) == G_TYPE_NUMBER) {
+				char val[64];
+
+				snprintf(val, sizeof(val), "%jd",
+				    *(intmax_t *)opt->go_val);
+				set_option(cmd, req, opt, val);
 			}
 		}
 	}
