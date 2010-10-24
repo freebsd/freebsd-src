@@ -411,7 +411,7 @@ fc_replace(const char *s, char *p, char *r)
 		} else
 			STPUTC(*s++, dest);
 	}
-	STACKSTRNUL(dest);
+	STPUTC('\0', dest);
 	dest = grabstackstr(dest);
 
 	return (dest);
