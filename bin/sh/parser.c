@@ -1224,10 +1224,7 @@ readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 				if (eofmark != NULL && newvarnest == 0)
 					USTPUTC(c, out);
 				else {
-					if (state[level].category == TSTATE_ARITH)
-						state[level].syntax = ARISYNTAX;
-					else
-						state[level].syntax = BASESYNTAX;
+					state[level].syntax = BASESYNTAX;
 					quotef++;
 				}
 				break;
@@ -1282,6 +1279,8 @@ readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 				break;
 			case CEOF:
 				goto endword;		/* exit outer loop */
+			case CIGN:
+				break;
 			default:
 				if (level == 0)
 					goto endword;	/* exit outer loop */
