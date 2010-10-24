@@ -813,13 +813,12 @@ axe_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 					err = EINVAL;
 					break;
 				}
-				err = uether_rxbuf(ue, pc, pos, len);
+				uether_rxbuf(ue, pc, pos, len);
 
 				pos += len + (len % 2);
 			}
-		} else {
-			err = uether_rxbuf(ue, pc, 0, actlen);
-		}
+		} else
+			uether_rxbuf(ue, pc, 0, actlen);
 
 		if (err != 0)
 			ifp->if_ierrors++;
