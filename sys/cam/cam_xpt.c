@@ -2876,7 +2876,7 @@ xpt_polled_action(union ccb *start_ccb)
 	struct	  cam_ed *dev;
 
 
-	timeout = start_ccb->ccb_h.timeout;
+	timeout = start_ccb->ccb_h.timeout * 10;
 	sim = start_ccb->ccb_h.path->bus->sim;
 	devq = sim->devq;
 	dev = start_ccb->ccb_h.path->device;
@@ -2892,7 +2892,7 @@ xpt_polled_action(union ccb *start_ccb)
 
 	while(((devq != NULL && devq->send_openings <= 0) ||
 	   dev->ccbq.dev_openings < 0) && (--timeout > 0)) {
-		DELAY(1000);
+		DELAY(100);
 		(*(sim->sim_poll))(sim);
 		camisr_runqueue(&sim->sim_doneq);
 	}
@@ -2908,7 +2908,7 @@ xpt_polled_action(union ccb *start_ccb)
 			if ((start_ccb->ccb_h.status  & CAM_STATUS_MASK)
 			    != CAM_REQ_INPROG)
 				break;
-			DELAY(1000);
+			DELAY(100);
 		}
 		if (timeout == 0) {
 			/*
