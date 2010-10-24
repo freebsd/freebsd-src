@@ -65,9 +65,16 @@ void ungrabstackstr(char *, char *);
 #define stackblock() stacknxt
 #define stackblocksize() stacknleft
 #define STARTSTACKSTR(p)	p = stackblock(), sstrnleft = stackblocksize()
-#define STPUTC(c, p)	(--sstrnleft >= 0? (*p++ = (c)) : (p = growstackstr(), *p++ = (c)))
+#define STPUTC(c, p)	(--sstrnleft >= 0? (*p++ = (c)) : (p = growstackstr(), --sstrnleft, *p++ = (c)))
 #define CHECKSTRSPACE(n, p)	{ if (sstrnleft < n) p = makestrspace(); }
 #define USTPUTC(c, p)	(--sstrnleft, *p++ = (c))
+/*
+ * STACKSTRNUL's use is where we want to be able to turn a stack
+ * (non-sentinel, character counting string) into a C string,
+ * and later pretend the NUL is not there.
+ * Note: Because of STACKSTRNUL's semantics, STACKSTRNUL cannot be used
+ * on a stack that will grabstackstr()ed.
+ */
 #define STACKSTRNUL(p)	(sstrnleft == 0? (p = growstackstr(), *p = '\0') : (*p = '\0'))
 #define STUNPUTC(p)	(++sstrnleft, --p)
 #define STTOPC(p)	p[-1]
