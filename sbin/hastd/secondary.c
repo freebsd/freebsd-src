@@ -323,6 +323,8 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		nv_free(nvout);
 		exit(EX_TEMPFAIL);
 	}
+	if (map != NULL)
+		free(map);
 	nv_free(nvout);
 	if (res->hr_secondary_localcnt > res->hr_primary_remotecnt &&
 	     res->hr_primary_localcnt > res->hr_secondary_remotecnt) {
