@@ -417,6 +417,24 @@ init_environment(struct hast_resource *res __unused)
 	}
 }
 
+static bool
+init_resuid(struct hast_resource *res)
+{
+
+	mtx_lock(&metadata_lock);
+	if (res->hr_resuid != 0) {
+		mtx_unlock(&metadata_lock);
+		return (false);
+	} else {
+		/* Initialize unique resource identifier. */
+		arc4random_buf(&res->hr_resuid, sizeof(res->hr_resuid));
+		mtx_unlock(&metadata_lock);
+		if (metadata_write(res) < 0)
+			exit(EX_NOINPUT);
+		return (true);
+	}
+}
+
 static void
 init_local(struct hast_resource *res)
 {
@@ -452,10 +470,12 @@ init_local(struct hast_resource *res)
 	if (res->hr_resuid != 0)
 		return;
 	/*
-	 * We're using provider for the first time, so we have to generate
-	 * resource unique identifier and initialize local and remote counts.
+	 * We're using provider for the first time. Initialize local and remote
+	 * counters. We don't initialize resuid here, as we want to do it just
+	 * in time. The reason for this is that we want to inform secondary
+	 * that there were no writes yet, so there is no need to synchronize
+	 * anything.
 	 */
-	arc4random_buf(&res->hr_resuid, sizeof(res->hr_resuid));
 	res->hr_primary_localcnt = 1;
 	res->hr_primary_remotecnt = 0;
 	if (metadata_write(res) < 0)
@@ -566,6 +586,19 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 	nv_add_string(nvout, res->hr_name, "resource");
 	nv_add_uint8_array(nvout, res->hr_token, sizeof(res->hr_token),
 	    "token");
+	if (res->hr_resuid == 0) {
+		/*
+		 * The resuid field was not yet initialized.
+		 * Because we do synchronization inside init_resuid(), it is
+		 * possible that someone already initialized it, the function
+		 * will return false then, but if we successfully initialized
+		 * it, we will get true. True means that there were no writes
+		 * to this resource yet and we want to inform secondary that
+		 * synchronization is not needed by sending "virgin" argument.
+		 */
+		if (init_resuid(res))
+			nv_add_int8(nvout, 1, "virgin");
+	}
 	nv_add_uint64(nvout, res->hr_resuid, "resuid");
 	nv_add_uint64(nvout, res->hr_primary_localcnt, "localcnt");
 	nv_add_uint64(nvout, res->hr_primary_remotecnt, "remotecnt");
@@ -1006,6 +1039,10 @@ ggate_recv_thread(void *arg)
 			QUEUE_INSERT1(hio, send, ncomp);
 			break;
 		case BIO_WRITE:
+			if (res->hr_resuid == 0) {
+				/* This is first write, initialize resuid. */
+				(void)init_resuid(res);
+			}
 			for (;;) {
 				mtx_lock(&range_lock);
 				if (rangelock_islocked(range_sync,
