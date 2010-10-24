@@ -144,11 +144,10 @@ e1000phy_attach(device_t dev)
 	mii = ma->mii_data;
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_inst = mii->mii_instance;
+	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = e1000phy_service;
 	sc->mii_pdata = mii;
-	mii->mii_instance++;
 
 	esc->mii_model = MII_MODEL(ma->mii_id2);
 	ifp = sc->mii_pdata->mii_ifp;
@@ -322,24 +321,9 @@ e1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 	switch (cmd) {
 	case MII_POLLSTAT:
-		/*
-		 * If we're not polling our PHY instance, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the media indicates a different PHY instance,
-		 * isolate ourselves.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-			reg = PHY_READ(sc, E1000_CR);
-			PHY_WRITE(sc, E1000_CR, reg | E1000_CR_ISOLATE);
-			return (0);
-		}
-
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
@@ -416,12 +400,6 @@ e1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 done:
 		break;
 	case MII_TICK:
-		/*
-		 * If we're not currently selected, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
-
 		/*
 		 * Is the interface even up?
 		 */

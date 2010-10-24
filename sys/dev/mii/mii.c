@@ -361,12 +361,28 @@ int
 mii_mediachg(struct mii_data *mii)
 {
 	struct mii_softc *child;
+	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int rv;
 
 	mii->mii_media_status = 0;
 	mii->mii_media_active = IFM_NONE;
 
 	LIST_FOREACH(child, &mii->mii_phys, mii_list) {
+		/*
+		 * If the media indicates a different PHY instance,
+		 * isolate this one.
+		 */
+		if (IFM_INST(ife->ifm_media) != child->mii_inst) {
+			if ((child->mii_flags & MIIF_NOISOLATE) != 0) {
+				device_printf(child->mii_dev, "%s: "
+				    "can't handle non-zero PHY instance %d\n",
+				    __func__, child->mii_inst);
+				continue;
+			}
+			PHY_WRITE(child, MII_BMCR, PHY_READ(child, MII_BMCR) |
+			    BMCR_ISO);
+			continue;
+		}
 		rv = (*child->mii_service)(child, mii, MII_MEDIACHG);
 		if (rv)
 			return (rv);
@@ -381,9 +397,17 @@ void
 mii_tick(struct mii_data *mii)
 {
 	struct mii_softc *child;
+	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 
-	LIST_FOREACH(child, &mii->mii_phys, mii_list)
+	LIST_FOREACH(child, &mii->mii_phys, mii_list) {
+		/*
+		 * If this PHY instance isn't currently selected, just skip
+		 * it.
+		 */
+		if (IFM_INST(ife->ifm_media) != child->mii_inst)
+			continue;
 		(void)(*child->mii_service)(child, mii, MII_TICK);
+	}
 }
 
 /*
@@ -393,12 +417,19 @@ void
 mii_pollstat(struct mii_data *mii)
 {
 	struct mii_softc *child;
+	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 
 	mii->mii_media_status = 0;
 	mii->mii_media_active = IFM_NONE;
 
-	LIST_FOREACH(child, &mii->mii_phys, mii_list)
+	LIST_FOREACH(child, &mii->mii_phys, mii_list) {
+		/*
+		 * If we're not polling this PHY instance, just skip it.
+		 */
+		if (IFM_INST(ife->ifm_media) != child->mii_inst)
+			continue;
 		(void)(*child->mii_service)(child, mii, MII_POLLSTAT);
+	}
 }
 
 /*
