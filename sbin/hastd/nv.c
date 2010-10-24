@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <ebuf.h>
 #include <nv.h>
 
+#define	NV_TYPE_NONE		0
+
 #define	NV_TYPE_INT8		1
 #define	NV_TYPE_UINT8		2
 #define	NV_TYPE_INT16		3
@@ -561,6 +563,29 @@ nv_get_string(struct nv *nv, const char *namefmt, ...)
 	return (str);
 }
 
+bool
+nv_exists(struct nv *nv, const char *namefmt, ...)
+{
+	struct nvhdr *nvh;
+	va_list nameap;
+	int snverror, serrno;
+
+	if (nv == NULL)
+		return (false);
+
+	serrno = errno;
+	snverror = nv->nv_error;
+
+	va_start(nameap, namefmt);
+	nvh = nv_find(nv, NV_TYPE_NONE, namefmt, nameap);
+	va_end(nameap);
+
+	errno = serrno;
+	nv->nv_error = snverror;
+
+	return (nvh != NULL);
+}
+
 /*
  * Dump content of the nv structure.
  */
@@ -797,7 +822,8 @@ nv_find(struct nv *nv, int type, const char *namefmt, va_list nameap)
 		assert(size >= NVH_SIZE(nvh));
 		nv_swap(nvh, true);
 		if (strcmp(nvh->nvh_name, name) == 0) {
-			if ((nvh->nvh_type & NV_TYPE_MASK) != type) {
+			if (type != NV_TYPE_NONE &&
+			    (nvh->nvh_type & NV_TYPE_MASK) != type) {
 				errno = EINVAL;
 				if (nv->nv_error == 0)
 					nv->nv_error = EINVAL;
