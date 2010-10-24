@@ -1776,52 +1776,13 @@ sdtossd(sd, ssd)
 	ssd->ssd_gran  = sd->sd_gran;
 }
 
-/*
- * Populate the (physmap) array with base/bound pairs describing the
- * available physical memory in the system, then test this memory and
- * build the phys_avail array describing the actually-available memory.
- *
- * If we cannot accurately determine the physical memory map, then use
- * value from the 0xE801 call, and failing that, the RTC.
- *
- * Total memory size may be set by the kernel environment variable
- * hw.physmem or the compile-time define MAXMEM.
- *
- * XXX first should be vm_paddr_t.
- */
 static void
-getmemsize(int first)
+basemem_setup(void)
 {
-	int i, off, physmap_idx, pa_indx, da_indx;
-	int pg_n;
-	u_long physmem_tunable;
-	u_int extmem;
-	u_int under16;
-	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
+	vm_paddr_t pa;
 	pt_entry_t *pte;
-	quad_t dcons_addr, dcons_size;
+	int i;
 
-	bzero(physmap, sizeof(physmap));
-
-	/* XXX - some of EPSON machines can't use PG_N */
-	pg_n = PG_N;
-	if (pc98_machine_type & M_EPSON_PC98) {
-		switch (epson_machine_id) {
-#ifdef WB_CACHE
-		default:
-#endif
-		case EPSON_PC486_HX:
-		case EPSON_PC486_HG:
-		case EPSON_PC486_HA:
-			pg_n = 0;
-			break;
-		}
-	}
-
-	/*
-	 * Perform "base memory" related probes & setup
-	 */
-	under16 = pc98_getmemsize(&basemem, &extmem);
 	if (basemem > 640) {
 		printf("Preposterous BIOS basemem of %uK, truncating to 640K\n",
 			basemem);
@@ -1853,12 +1814,62 @@ getmemsize(int first)
 		pmap_kenter(KERNBASE + pa, pa);
 
 	/*
-	 * if basemem != 640, map pages r/w into vm86 page table so 
-	 * that the bios can scribble on it.
+	 * Map pages between basemem and ISA_HOLE_START, if any, r/w into
+	 * the vm86 page table so that vm86 can scribble on them using
+	 * the vm86 map too.  XXX: why 2 ways for this and only 1 way for
+	 * page 0, at least as initialized here?
 	 */
 	pte = (pt_entry_t *)vm86paddr;
 	for (i = basemem / 4; i < 160; i++)
 		pte[i] = (i << PAGE_SHIFT) | PG_V | PG_RW | PG_U;
+}
+
+/*
+ * Populate the (physmap) array with base/bound pairs describing the
+ * available physical memory in the system, then test this memory and
+ * build the phys_avail array describing the actually-available memory.
+ *
+ * If we cannot accurately determine the physical memory map, then use
+ * value from the 0xE801 call, and failing that, the RTC.
+ *
+ * Total memory size may be set by the kernel environment variable
+ * hw.physmem or the compile-time define MAXMEM.
+ *
+ * XXX first should be vm_paddr_t.
+ */
+static void
+getmemsize(int first)
+{
+	int off, physmap_idx, pa_indx, da_indx;
+	u_long physmem_tunable;
+	vm_paddr_t physmap[PHYSMAP_SIZE];
+	pt_entry_t *pte;
+	quad_t dcons_addr, dcons_size;
+	int i;
+	int pg_n;
+	u_int extmem;
+	u_int under16;
+	vm_paddr_t pa;
+
+	bzero(physmap, sizeof(physmap));
+
+	/* XXX - some of EPSON machines can't use PG_N */
+	pg_n = PG_N;
+	if (pc98_machine_type & M_EPSON_PC98) {
+		switch (epson_machine_id) {
+#ifdef WB_CACHE
+		default:
+#endif
+		case EPSON_PC486_HX:
+		case EPSON_PC486_HG:
+		case EPSON_PC486_HA:
+			pg_n = 0;
+			break;
+		}
+	}
+
+	under16 = pc98_getmemsize(&basemem, &extmem);
+	basemem_setup();
 
 	physmap[0] = 0;
 	physmap[1] = basemem * 1024;
