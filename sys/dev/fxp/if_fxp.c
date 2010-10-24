@@ -1455,6 +1455,8 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 		 * Since 82550/82551 doesn't modify IP length and pseudo
 		 * checksum in the first frame driver should compute it.
 		 */
+		ip = (struct ip *)(mtod(m, char *) + ip_off);
+		tcp = (struct tcphdr *)(mtod(m, char *) + poff);
 		ip->ip_sum = 0;
 		ip->ip_len = htons(m->m_pkthdr.tso_segsz + (ip->ip_hl << 2) +
 		    (tcp->th_off << 2));

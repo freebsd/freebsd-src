@@ -1677,6 +1677,7 @@ ale_encap(struct ale_softc *sc, struct mbuf **m_head)
 				*m_head = NULL;
 				return (ENOBUFS);
 			}
+			ip = (struct ip *)(mtod(m, char *) + ip_off);
 			tcp = (struct tcphdr *)(mtod(m, char *) + poff);
 			m = m_pullup(m, poff + (tcp->th_off << 2));
 			if (m == NULL) {
