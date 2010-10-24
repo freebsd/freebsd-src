@@ -45,8 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/miivar.h>
 #include "miidevs.h"
 
-#include <dev/mii/axphyreg.h>
-
 #include "miibus_if.h"
 
 static int 	axphy_probe(device_t dev);
