@@ -1695,9 +1695,9 @@ bge_blockinit(struct bge_softc *sc)
 
 	/* Choose de-pipeline mode for BCM5906 A0, A1 and A2. */
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5906) {
-		if (sc->bge_chiprev == BGE_CHIPID_BCM5906_A0 ||
-		    sc->bge_chiprev == BGE_CHIPID_BCM5906_A1 ||
-		    sc->bge_chiprev == BGE_CHIPID_BCM5906_A2)
+		if (sc->bge_chipid == BGE_CHIPID_BCM5906_A0 ||
+		    sc->bge_chipid == BGE_CHIPID_BCM5906_A1 ||
+		    sc->bge_chipid == BGE_CHIPID_BCM5906_A2)
 			CSR_WRITE_4(sc, BGE_ISO_PKT_TX,
 			    (CSR_READ_4(sc, BGE_ISO_PKT_TX) & ~3) | 2);
 	}
