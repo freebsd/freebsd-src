@@ -328,7 +328,7 @@ pipeline(void)
 {
 	union node *n1, *n2, *pipenode;
 	struct nodelist *lp, *prev;
-	int negate;
+	int negate, t;
 
 	negate = 0;
 	checkkwd = 2;
@@ -347,7 +347,13 @@ pipeline(void)
 		do {
 			prev = lp;
 			lp = (struct nodelist *)stalloc(sizeof (struct nodelist));
-			lp->n = command();
+			checkkwd = 2;
+			t = readtoken();
+			tokpushback++;
+			if (t == TNOT)
+				lp->n = pipeline();
+			else
+				lp->n = command();
 			prev->next = lp;
 		} while (readtoken() == TPIPE);
 		lp->next = NULL;
@@ -372,7 +378,7 @@ command(void)
 	union node *ap, **app;
 	union node *cp, **cpp;
 	union node *redir, **rpp;
-	int t, negate = 0;
+	int t;
 
 	checkkwd = 2;
 	redir = NULL;
@@ -384,12 +390,6 @@ command(void)
 		*rpp = n2 = redirnode;
 		rpp = &n2->nfile.next;
 		parsefname();
-	}
-	tokpushback++;
-
-	while (readtoken() == TNOT) {
-		TRACE(("command: TNOT recognized\n"));
-		negate = !negate;
 	}
 	tokpushback++;
 
@@ -573,7 +573,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 	case TRP:
 		tokpushback++;
 		n1 = simplecmd(rpp, redir);
-		goto checkneg;
+		return n1;
 	default:
 		synexpect(-1);
 	}
@@ -596,15 +596,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		n1->nredir.redirect = redir;
 	}
 
-checkneg:
-	if (negate) {
-		n2 = (union node *)stalloc(sizeof (struct nnot));
-		n2->type = NNOT;
-		n2->nnot.com = n1;
-		return n2;
-	}
-	else
-		return n1;
+	return n1;
 }
 
 
