@@ -144,7 +144,7 @@ shutdown_conf(void *unused)
 {
 
 	EVENTHANDLER_REGISTER(shutdown_final, poweroff_wait, NULL,
-	    SHUTDOWN_PRI_FIRST + 100);
+	    SHUTDOWN_PRI_FIRST);
 	EVENTHANDLER_REGISTER(shutdown_final, shutdown_halt, NULL,
 	    SHUTDOWN_PRI_LAST + 100);
 	EVENTHANDLER_REGISTER(shutdown_final, shutdown_panic, NULL,
