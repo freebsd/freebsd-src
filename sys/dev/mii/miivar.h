@@ -227,12 +227,10 @@ int	miibus_detach(device_t);
 
 int	mii_attach(device_t, device_t *, struct ifnet *, ifm_change_cb_t,
 	    ifm_stat_cb_t, int, int, int, int);
-int	mii_anar(int);
 void	mii_down(struct mii_data *);
 int	mii_mediachg(struct mii_data *);
 void	mii_tick(struct mii_data *);
 void	mii_pollstat(struct mii_data *);
-void	mii_add_media(struct mii_softc *);
 void	mii_phy_add_media(struct mii_softc *);
 
 int	mii_phy_auto(struct mii_softc *);
