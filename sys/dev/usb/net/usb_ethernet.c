@@ -558,7 +558,7 @@ uether_rxbuf(struct usb_ether *ue, struct usb_page_cache *pc,
 
 	m = uether_newbuf();
 	if (m == NULL) {
-		ifp->if_ierrors++;
+		ifp->if_iqdrops++;
 		return (ENOMEM);
 	}
 
