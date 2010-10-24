@@ -243,13 +243,22 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 	 */
 	if (res->hr_resuid == 0) {
 		/*
-		 * Provider is used for the first time. Initialize everything.
+		 * Provider is used for the first time. If primary node done no
+		 * writes yet as well (we will find "virgin" argument) then
+		 * there is no need to synchronize anything. If primary node
+		 * done any writes already we have to synchronize everything.
 		 */
 		assert(res->hr_secondary_localcnt == 0);
 		res->hr_resuid = resuid;
 		if (metadata_write(res) < 0)
 			exit(EX_NOINPUT);
-		memset(map, 0xff, mapsize);
+		if (nv_exists(nvin, "virgin")) {
+			free(map);
+			map = NULL;
+			mapsize = 0;
+		} else {
+			memset(map, 0xff, mapsize);
+		}
 		nv_add_uint8(nvout, HAST_SYNCSRC_PRIMARY, "syncsrc");
 	} else if (
 	    /* Is primary is out-of-date? */
