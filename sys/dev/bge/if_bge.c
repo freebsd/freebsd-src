@@ -3835,9 +3835,11 @@ bge_setup_tso(struct bge_softc *sc, struct mbuf *m, uint16_t *mss)
 	 * checksum. These checksum computed by upper stack should be 0.
 	 */
 	*mss = m->m_pkthdr.tso_segsz;
+	ip = (struct ip *)(mtod(m, char *) + sizeof(struct ether_header));
 	ip->ip_sum = 0;
 	ip->ip_len = htons(*mss + (ip->ip_hl << 2) + (tcp->th_off << 2));
 	/* Clear pseudo checksum computed by TCP stack. */
+	tcp = (struct tcphdr *)(mtod(m, char *) + poff);
 	tcp->th_sum = 0;
 	/*
 	 * Broadcom controllers uses different descriptor format for
