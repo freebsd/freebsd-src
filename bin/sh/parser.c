@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include "alias.h"
 #include "show.h"
 #include "eval.h"
+#include "exec.h"	/* to check for special builtins */
 #ifndef NO_HISTORY
 #include "myhistedit.h"
 #endif
@@ -606,6 +607,7 @@ simplecmd(union node **rpp, union node *redir)
 	union node *args, **app;
 	union node **orig_rpp = rpp;
 	union node *n = NULL;
+	int special;
 
 	/* If we don't have any redirections already, then we must reset */
 	/* rpp to be the address of the local redir variable.  */
@@ -647,6 +649,9 @@ simplecmd(union node **rpp, union node *redir)
 			    strchr(n->narg.text, '/'))
 				synerror("Bad function name");
 			rmescapes(n->narg.text);
+			if (find_builtin(n->narg.text, &special) >= 0 &&
+			    special)
+				synerror("Cannot override a special builtin with a function");
 			n->type = NDEFUN;
 			n->narg.next = command();
 			funclinno = 0;
