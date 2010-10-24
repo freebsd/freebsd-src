@@ -126,6 +126,7 @@ const uint64_t *nv_get_uint64_array(struct nv *nv, size_t *sizep,
 const char *nv_get_string(struct nv *nv, const char *namefmt, ...)
     __printflike(2, 3);
 
+bool nv_exists(struct nv *nv, const char *namefmt, ...) __printflike(2, 3);
 void nv_dump(struct nv *nv);
 
 #endif	/* !_NV_H_ */
