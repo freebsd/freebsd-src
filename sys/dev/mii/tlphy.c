@@ -164,9 +164,7 @@ tlphy_attach(device_t dev)
 
 	mii->mii_instance++;
 
-	sc->sc_mii.mii_flags &= ~MIIF_NOISOLATE;
 	mii_phy_reset(&sc->sc_mii);
-	sc->sc_mii.mii_flags |= MIIF_NOISOLATE;
 
 	/*
 	 * Note that if we're on a device that also supports 100baseTX,
@@ -218,24 +216,9 @@ tlphy_service(struct mii_softc *self, struct mii_data *mii, int cmd)
 
 	switch (cmd) {
 	case MII_POLLSTAT:
-		/*
-		 * If we're not polling our PHY instance, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->sc_mii.mii_inst)
-			return (0);
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the media indicates a different PHY instance,
-		 * isolate ourselves.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->sc_mii.mii_inst) {
-			reg = PHY_READ(&sc->sc_mii, MII_BMCR);
-			PHY_WRITE(&sc->sc_mii, MII_BMCR, reg | BMCR_ISO);
-			return (0);
-		}
-
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
@@ -267,12 +250,6 @@ tlphy_service(struct mii_softc *self, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_TICK:
-		/*
-		 * If we're not currently selected, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->sc_mii.mii_inst)
-			return (0);
-
 		/*
 		 * Is the interface even up?
 		 */
