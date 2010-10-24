@@ -244,6 +244,8 @@ ruephy_status(struct mii_softc *phy)
 
 		if (msr & RUEPHY_MSR_DUPLEX)
 			mii->mii_media_active |= IFM_FDX;
+		else
+			mii->mii_media_active |= IFM_HDX;
 	} else
 		mii->mii_media_active = ife->ifm_media;
 }

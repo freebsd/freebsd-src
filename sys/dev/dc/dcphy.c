@@ -341,14 +341,14 @@ dcphy_status(struct mii_softc *sc)
 				mii->mii_media_active |= IFM_100_TX | IFM_FDX;
 			else if (anlpar & ANLPAR_T4 &&
 			    sc->mii_capabilities & BMSR_100T4)
-				mii->mii_media_active |= IFM_100_T4;
+				mii->mii_media_active |= IFM_100_T4 | IFM_HDX;
 			else if (anlpar & ANLPAR_TX &&
 			    sc->mii_capabilities & BMSR_100TXHDX)
-				mii->mii_media_active |= IFM_100_TX;
+				mii->mii_media_active |= IFM_100_TX | IFM_HDX;
 			else if (anlpar & ANLPAR_10_FD)
 				mii->mii_media_active |= IFM_10_T | IFM_FDX;
 			else if (anlpar & ANLPAR_10)
-				mii->mii_media_active |= IFM_10_T;
+				mii->mii_media_active |= IFM_10_T | IFM_HDX;
 			else
 				mii->mii_media_active |= IFM_NONE;
 			if (DC_IS_INTEL(dc_sc))
@@ -366,9 +366,9 @@ dcphy_status(struct mii_softc *sc)
 		 * change the media settings if we're wrong.
 		 */
 		if (!(reg & DC_TSTAT_LS100))
-			mii->mii_media_active |= IFM_100_TX;
+			mii->mii_media_active |= IFM_100_TX | IFM_HDX;
 		else if (!(reg & DC_TSTAT_LS10))
-			mii->mii_media_active |= IFM_10_T;
+			mii->mii_media_active |= IFM_10_T | IFM_HDX;
 		else
 			mii->mii_media_active |= IFM_NONE;
 		if (DC_IS_INTEL(dc_sc))
@@ -383,6 +383,8 @@ skip:
 		mii->mii_media_active |= IFM_100_TX;
 	if (CSR_READ_4(dc_sc, DC_NETCFG) & DC_NETCFG_FULLDUPLEX)
 		mii->mii_media_active |= IFM_FDX;
+	else
+		mii->mii_media_active |= IFM_HDX;
 }
 
 static int
