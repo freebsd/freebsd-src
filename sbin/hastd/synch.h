@@ -140,6 +140,8 @@ cv_init(pthread_cond_t *cv)
 	assert(error == 0);
 	error = pthread_cond_init(cv, &attr);
 	assert(error == 0);
+	error = pthread_condattr_destroy(&attr);
+	assert(error == 0);
 }
 static __inline void
 cv_wait(pthread_cond_t *cv, pthread_mutex_t *lock)
