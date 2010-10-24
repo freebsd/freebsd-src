@@ -318,10 +318,8 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		    (uintmax_t)res->hr_secondary_remotecnt);
 	}
 	if (hast_proto_send(res, res->hr_remotein, nvout, map, mapsize) < 0) {
-		pjdlog_errno(LOG_WARNING, "Unable to send activemap to %s",
+		pjdlog_exit(EX_TEMPFAIL, "Unable to send activemap to %s",
 		    res->hr_remoteaddr);
-		nv_free(nvout);
-		exit(EX_TEMPFAIL);
 	}
 	if (map != NULL)
 		free(map);
