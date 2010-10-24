@@ -701,8 +701,6 @@ main(int argc, char *argv[])
 	int debuglevel;
 	sigset_t mask;
 
-	g_gate_load();
-
 	foreground = false;
 	debuglevel = 0;
 	pidfile = HASTD_PIDFILE;
@@ -735,6 +733,8 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	pjdlog_debug_set(debuglevel);
+
+	g_gate_load();
 
 	pfh = pidfile_open(pidfile, 0600, &otherpid);
 	if (pfh == NULL) {
