@@ -639,10 +639,14 @@ simplecmd(union node **rpp, union node *redir)
 			if (readtoken() != TRP)
 				synexpect(TRP);
 			funclinno = plinno;
-#ifdef notdef
-			if (! goodname(n->narg.text))
+			/*
+			 * - Require plain text.
+			 * - Functions with '/' cannot be called.
+			 */
+			if (!noexpand(n->narg.text) || quoteflag ||
+			    strchr(n->narg.text, '/'))
 				synerror("Bad function name");
-#endif
+			rmescapes(n->narg.text);
 			n->type = NDEFUN;
 			n->narg.next = command();
 			funclinno = 0;
