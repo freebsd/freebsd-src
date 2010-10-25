@@ -50,7 +50,7 @@
 
 #define MACPY(s, d) bcopy((char *)s, (char *)d, 6)
 
-#define MAXTMO 20	/* seconds */
+#define MAXTMO 120	/* seconds */
 #define MINTMO 2	/* seconds */
 
 #define FNAME_SIZE 128
