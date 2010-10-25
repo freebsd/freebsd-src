@@ -217,8 +217,11 @@ movefd:
 		if (redir->ndup.dupfd >= 0) {	/* if not ">&-" */
 			if (memory[redir->ndup.dupfd])
 				memory[fd] = 1;
-			else
-				dup2(redir->ndup.dupfd, fd);
+			else {
+				if (dup2(redir->ndup.dupfd, fd) < 0)
+					error("%d: %s", redir->ndup.dupfd,
+							strerror(errno));
+			}
 		} else {
 			close(fd);
 		}

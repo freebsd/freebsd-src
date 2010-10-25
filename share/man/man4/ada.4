@@ -118,6 +118,9 @@ This variable determines how long the
 driver will wait before timing out an outstanding command.
 The units for this value are seconds, and the default is currently 30
 seconds.
+.It kern.cam.ada.spindown_shutdown
+.Pp
+This variable determines whether to spin-down disks when shutting down.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /dev/ada*" -compact

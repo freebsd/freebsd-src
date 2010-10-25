@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include "alias.h"
 #include "show.h"
 #include "eval.h"
+#include "exec.h"	/* to check for special builtins */
 #ifndef NO_HISTORY
 #include "myhistedit.h"
 #endif
@@ -328,7 +329,7 @@ pipeline(void)
 {
 	union node *n1, *n2, *pipenode;
 	struct nodelist *lp, *prev;
-	int negate;
+	int negate, t;
 
 	negate = 0;
 	checkkwd = 2;
@@ -347,7 +348,13 @@ pipeline(void)
 		do {
 			prev = lp;
 			lp = (struct nodelist *)stalloc(sizeof (struct nodelist));
-			lp->n = command();
+			checkkwd = 2;
+			t = readtoken();
+			tokpushback++;
+			if (t == TNOT)
+				lp->n = pipeline();
+			else
+				lp->n = command();
 			prev->next = lp;
 		} while (readtoken() == TPIPE);
 		lp->next = NULL;
@@ -372,7 +379,7 @@ command(void)
 	union node *ap, **app;
 	union node *cp, **cpp;
 	union node *redir, **rpp;
-	int t, negate = 0;
+	int t;
 
 	checkkwd = 2;
 	redir = NULL;
@@ -384,12 +391,6 @@ command(void)
 		*rpp = n2 = redirnode;
 		rpp = &n2->nfile.next;
 		parsefname();
-	}
-	tokpushback++;
-
-	while (readtoken() == TNOT) {
-		TRACE(("command: TNOT recognized\n"));
-		negate = !negate;
 	}
 	tokpushback++;
 
@@ -573,7 +574,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 	case TRP:
 		tokpushback++;
 		n1 = simplecmd(rpp, redir);
-		goto checkneg;
+		return n1;
 	default:
 		synexpect(-1);
 	}
@@ -596,15 +597,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		n1->nredir.redirect = redir;
 	}
 
-checkneg:
-	if (negate) {
-		n2 = (union node *)stalloc(sizeof (struct nnot));
-		n2->type = NNOT;
-		n2->nnot.com = n1;
-		return n2;
-	}
-	else
-		return n1;
+	return n1;
 }
 
 
@@ -614,6 +607,7 @@ simplecmd(union node **rpp, union node *redir)
 	union node *args, **app;
 	union node **orig_rpp = rpp;
 	union node *n = NULL;
+	int special;
 
 	/* If we don't have any redirections already, then we must reset */
 	/* rpp to be the address of the local redir variable.  */
@@ -647,10 +641,17 @@ simplecmd(union node **rpp, union node *redir)
 			if (readtoken() != TRP)
 				synexpect(TRP);
 			funclinno = plinno;
-#ifdef notdef
-			if (! goodname(n->narg.text))
+			/*
+			 * - Require plain text.
+			 * - Functions with '/' cannot be called.
+			 */
+			if (!noexpand(n->narg.text) || quoteflag ||
+			    strchr(n->narg.text, '/'))
 				synerror("Bad function name");
-#endif
+			rmescapes(n->narg.text);
+			if (find_builtin(n->narg.text, &special) >= 0 &&
+			    special)
+				synerror("Cannot override a special builtin with a function");
 			n->type = NDEFUN;
 			n->narg.next = command();
 			funclinno = 0;
@@ -1223,10 +1224,7 @@ readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 				if (eofmark != NULL && newvarnest == 0)
 					USTPUTC(c, out);
 				else {
-					if (state[level].category == TSTATE_ARITH)
-						state[level].syntax = ARISYNTAX;
-					else
-						state[level].syntax = BASESYNTAX;
+					state[level].syntax = BASESYNTAX;
 					quotef++;
 				}
 				break;
@@ -1281,6 +1279,8 @@ readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 				break;
 			case CEOF:
 				goto endword;		/* exit outer loop */
+			case CIGN:
+				break;
 			default:
 				if (level == 0)
 					goto endword;	/* exit outer loop */

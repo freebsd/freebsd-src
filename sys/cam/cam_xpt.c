@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
-#include <sys/reboot.h>
 #include <sys/interrupt.h>
 #include <sys/sbuf.h>
 #include <sys/taskqueue.h>
@@ -153,10 +152,6 @@ static struct xpt_softc xsoftc;
 TUNABLE_INT("kern.cam.boot_delay", &xsoftc.boot_delay);
 SYSCTL_INT(_kern_cam, OID_AUTO, boot_delay, CTLFLAG_RDTUN,
            &xsoftc.boot_delay, 0, "Bus registration wait time");
-static int	xpt_power_down = 0;
-TUNABLE_INT("kern.cam.power_down", &xpt_power_down);
-SYSCTL_INT(_kern_cam, OID_AUTO, power_down, CTLFLAG_RW,
-           &xpt_power_down, 0, "Power down devices on shutdown");
 
 /* Queues for our software interrupt handler */
 typedef TAILQ_HEAD(cam_isrq, ccb_hdr) cam_isrq_t;
@@ -250,7 +245,6 @@ static struct cam_ed*
 		 xpt_find_device(struct cam_et *target, lun_id_t lun_id);
 static void	 xpt_config(void *arg);
 static xpt_devicefunc_t xptpassannouncefunc;
-static void	 xpt_shutdown(void *arg, int howto);
 static void	 xptaction(struct cam_sim *sim, union ccb *work_ccb);
 static void	 xptpoll(struct cam_sim *sim);
 static void	 camisr(void *);
@@ -4538,12 +4532,6 @@ xpt_config(void *arg)
 #endif /* CAM_DEBUG_BUS */
 #endif /* CAMDEBUG */
 
-	/* Register our shutdown event handler */
-	if ((EVENTHANDLER_REGISTER(shutdown_final, xpt_shutdown, 
-				   NULL, SHUTDOWN_PRI_FIRST)) == NULL) {
-		printf("xpt_config: failed to register shutdown event.\n");
-	}
-
 	periphdriver_init(1);
 	xpt_hold_boot();
 	callout_init(&xsoftc.boot_callout, 1);
@@ -4623,87 +4611,6 @@ xpt_finishconfig_task(void *context, int pending)
 	xsoftc.xpt_config_hook = NULL;
 
 	free(context, M_CAMXPT);
-}
-
-/*
- * Power down all devices when we are going to power down the system.
- */
-static void
-xpt_shutdown_dev_done(struct cam_periph *periph, union ccb *done_ccb)
-{
-
-	/* No-op. We're polling. */
-	return;
-}
-
-static int
-xpt_shutdown_dev(struct cam_ed *device, void *arg)
-{
-	union ccb ccb;
-	struct cam_path path;
-
-	if (device->flags & CAM_DEV_UNCONFIGURED)
-		return (1);
-
-	if (device->protocol == PROTO_ATA) {
-		/* Only power down device if it supports power management. */
-		if ((device->ident_data.support.command1 &
-		    ATA_SUPPORT_POWERMGT) == 0)
-			return (1);
-	} else if (device->protocol != PROTO_SCSI)
-		return (1);
-
-	xpt_compile_path(&path,
-			 NULL,
-			 device->target->bus->path_id,
-			 device->target->target_id,
-			 device->lun_id);
-	xpt_setup_ccb(&ccb.ccb_h, &path, CAM_PRIORITY_NORMAL);
-	if (device->protocol == PROTO_ATA) {
-		cam_fill_ataio(&ccb.ataio,
-				    1,
-				    xpt_shutdown_dev_done,
-				    CAM_DIR_NONE,
-				    0,
-				    NULL,
-				    0,
-				    30*1000);
-		ata_28bit_cmd(&ccb.ataio, ATA_SLEEP, 0, 0, 0);
-	} else {
-		scsi_start_stop(&ccb.csio,
-				/*retries*/1,
-				xpt_shutdown_dev_done,
-				MSG_SIMPLE_Q_TAG,
-				/*start*/FALSE,
-				/*load/eject*/FALSE,
-				/*immediate*/TRUE,
-				SSD_FULL_SIZE,
-				/*timeout*/50*1000);
-	}
-	xpt_polled_action(&ccb);
-
-	if ((ccb.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
-		xpt_print(&path, "Device power down failed\n");
-	if ((ccb.ccb_h.status & CAM_DEV_QFRZN) != 0)
-		cam_release_devq(ccb.ccb_h.path,
-				 /*relsim_flags*/0,
-				 /*reduction*/0,
-				 /*timeout*/0,
-				 /*getcount_only*/0);
-	xpt_release_path(&path);
-	return (1);
-}
-
-static void
-xpt_shutdown(void * arg, int howto)
-{
-
-	if (!xpt_power_down)
-		return;
-	if ((howto & RB_POWEROFF) == 0)
-		return;
-
-	xpt_for_all_devices(xpt_shutdown_dev, NULL);
 }
 
 cam_status
