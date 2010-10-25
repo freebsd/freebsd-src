@@ -343,7 +343,7 @@ void
 npxinit(void)
 {
 	static union savefpu dummy;
-	register_t savecrit;
+	register_t saveintr;
 	u_short control;
 
 	if (!hw_float)
@@ -355,7 +355,7 @@ npxinit(void)
 	 *
 	 * It is too early for critical_enter() to work on AP.
 	 */
-	savecrit = intr_disable();
+	saveintr = intr_disable();
 	npxsave(&dummy);
 	stop_emulating();
 #ifdef CPU_ENABLE_SSE
@@ -366,7 +366,7 @@ npxinit(void)
 	control = __INITIAL_NPXCW__;
 	fldcw(control);
 	start_emulating();
-	intr_restore(savecrit);
+	intr_restore(saveintr);
 }
 
 /*
