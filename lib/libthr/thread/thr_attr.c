@@ -143,7 +143,7 @@ _pthread_attr_get_np(pthread_t pthread, pthread_attr_t *dstattr)
 	int	ret;
 	size_t	cpusetsize;
 
-	if (pthread == NULL || dst_attr == NULL || (dst = *dstattr) == NULL)
+	if (pthread == NULL || dstattr == NULL || (dst = *dstattr) == NULL)
 		return (EINVAL);
 	cpusetsize = _get_kern_cpuset_size();
 	if (dst->cpusetsize < cpusetsize) {
