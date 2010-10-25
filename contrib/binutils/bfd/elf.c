@@ -4787,12 +4787,13 @@ assign_file_positions_except_relocs (bfd *abfd,
 	    hdr->sh_offset = hdr->bfd_section->filepos;
 	  else if ((hdr->sh_flags & SHF_ALLOC) != 0)
 	    {
-	      ((*_bfd_error_handler)
-	       (_("%B: warning: allocated section `%s' not in segment"),
-		abfd,
-		(hdr->bfd_section == NULL
-		 ? "*unknown*"
-		 : hdr->bfd_section->name)));
+	      if (hdr->sh_size != 0)
+		((*_bfd_error_handler)
+		 (_("%B: warning: allocated section `%s' not in segment"),
+		    abfd,
+		    (hdr->bfd_section == NULL
+		     ? "*unknown*" 
+		     : hdr->bfd_section->name)));
 	      if ((abfd->flags & D_PAGED) != 0)
 		off += vma_page_aligned_bias (hdr->sh_addr, off,
 					      bed->maxpagesize);
