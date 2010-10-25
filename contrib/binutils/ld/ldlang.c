@@ -4447,7 +4447,7 @@ lang_size_sections_1
 			   output_section_statement->bfd_section,
 			   &newdot);
 
-	    if (newdot != dot && !output_section_statement->ignored)
+	    if (!output_section_statement->ignored)
 	      {
 		if (output_section_statement == abs_output_section)
 		  {
@@ -4456,7 +4456,7 @@ lang_size_sections_1
 		    lang_memory_region_lookup (DEFAULT_MEMORY_REGION,
 					       FALSE)->current = newdot;
 		  }
-		else
+		else if (newdot != dot)
 		  {
 		    /* Insert a pad after this statement.  We can't
 		       put the pad before when relaxing, in case the
