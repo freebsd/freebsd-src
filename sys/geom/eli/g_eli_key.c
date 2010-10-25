@@ -264,5 +264,30 @@ g_eli_mkey_propagate(struct g_eli_softc *sc, const unsigned char *mkey)
 		/* Generate all encryption keys. */
 		g_eli_ekeys_generate(sc);
 	}
+
+	if (sc->sc_flags & G_ELI_FLAG_AUTH) {
+		/*
+		 * Precalculate SHA256 for HMAC key generation.
+		 * This is expensive operation and we can do it only once now or
+		 * for every access to sector, so now will be much better.
+		 */
+		SHA256_Init(&sc->sc_akeyctx);
+		SHA256_Update(&sc->sc_akeyctx, sc->sc_akey,
+		    sizeof(sc->sc_akey));
+	}
+	/*
+	 * Precalculate SHA256 for IV generation.
+	 * This is expensive operation and we can do it only once now or for
+	 * every access to sector, so now will be much better.
+	 */
+	switch (sc->sc_ealgo) {
+	case CRYPTO_AES_XTS:
+		break;
+	default:
+		SHA256_Init(&sc->sc_ivctx);
+		SHA256_Update(&sc->sc_ivctx, sc->sc_ivkey,
+		    sizeof(sc->sc_ivkey));
+		break;
+	}
 }
 #endif

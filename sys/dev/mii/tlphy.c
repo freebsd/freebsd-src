@@ -124,6 +124,9 @@ static int
 tlphy_probe(device_t dev)
 {
 
+	if (strcmp(device_get_name(device_get_parent(device_get_parent(dev))),
+	    "tl") != 0)
+		return (ENXIO);
 	return (mii_phy_dev_probe(dev, tlphys, BUS_PROBE_DEFAULT));
 }
 
@@ -150,11 +153,17 @@ tlphy_attach(device_t dev)
 	sc->sc_mii.mii_service = tlphy_service;
 	sc->sc_mii.mii_pdata = mii;
 
+	/*
+	 * Note that if we're on a device that also supports 100baseTX,
+	 * we are not going to want to use the built-in 10baseT port,
+	 * since there will be another PHY on the MII wired up to the
+	 * UTP connector.
+	 */
 	capmask = BMSR_DEFCAPMASK;
 	if (mii->mii_instance &&
 	    device_get_children(sc->sc_mii.mii_dev, &devlist, &devs) == 0) {
 		for (i = 0; i < devs; i++) {
-			if (strcmp(device_get_name(devlist[i]), "tlphy")) {
+			if (devlist[i] != dev) {
 				other = device_get_softc(devlist[i]);
 				capmask &= ~other->mii_capabilities;
 				break;
@@ -167,38 +176,36 @@ tlphy_attach(device_t dev)
 
 	mii_phy_reset(&sc->sc_mii);
 
-	/*
-	 * Note that if we're on a device that also supports 100baseTX,
-	 * we are not going to want to use the built-in 10baseT port,
-	 * since there will be another PHY on the MII wired up to the
-	 * UTP connector.  The parent indicates this to us by specifying
-	 * the TLPHY_MEDIA_NO_10_T bit.
-	 */
 	sc->sc_mii.mii_capabilities =
 	    PHY_READ(&sc->sc_mii, MII_BMSR) & capmask;
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->sc_mii.mii_inst),
-	    BMCR_ISO);
-
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, IFM_LOOP,
-	    sc->sc_mii.mii_inst), BMCR_LOOP);
+	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, IFM_LOOP, sc->sc_mii.mii_inst),
+	    MII_MEDIA_100_TX);
 
 #define	PRINT(s)	printf("%s%s", sep, s); sep = ", "
 
-	device_printf(dev, " ");
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_2, 0, sc->sc_mii.mii_inst), 0);
-	PRINT("10base2/BNC");
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_5, 0, sc->sc_mii.mii_inst), 0);
-	PRINT("10base5/AUI");
-
-	if (sc->sc_mii.mii_capabilities & BMSR_MEDIAMASK) {
-		printf("%s", sep);
-		mii_add_media(&sc->sc_mii);
+	if ((sc->sc_mii.mii_flags & (MIIF_MACPRIV0 | MIIF_MACPRIV1)) != 0 &&
+	    (sc->sc_mii.mii_capabilities & BMSR_MEDIAMASK) != 0)
+		device_printf(dev, " ");
+	if ((sc->sc_mii.mii_flags & MIIF_MACPRIV0) != 0) {
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_2, 0, sc->sc_mii.mii_inst),
+		    0);
+		PRINT("10base2/BNC");
 	}
-
-	printf("\n");
+	if ((sc->sc_mii.mii_flags & MIIF_MACPRIV1) != 0) {
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_5, 0, sc->sc_mii.mii_inst),
+		    0);
+		PRINT("10base5/AUI");
+	}
+	if ((sc->sc_mii.mii_capabilities & BMSR_MEDIAMASK) != 0) {
+		printf("%s", sep);
+		mii_phy_add_media(&sc->sc_mii);
+	}
+	if ((sc->sc_mii.mii_flags & (MIIF_MACPRIV0 | MIIF_MACPRIV1)) != 0 &&
+	    (sc->sc_mii.mii_capabilities & BMSR_MEDIAMASK) != 0)
+		printf("\n");
 #undef ADD
 #undef PRINT
 	MIIBUS_MEDIAINIT(sc->sc_mii.mii_dev);
@@ -233,7 +240,7 @@ tlphy_service(struct mii_softc *self, struct mii_data *mii, int cmd)
 			 * an autonegotiation cycle, so there's no such
 			 * thing as "already in auto mode".
 			 */
-			(void) tlphy_auto(sc);
+			(void)tlphy_auto(sc);
 			break;
 		case IFM_10_2:
 		case IFM_10_5:
@@ -244,9 +251,7 @@ tlphy_service(struct mii_softc *self, struct mii_data *mii, int cmd)
 		default:
 			PHY_WRITE(&sc->sc_mii, MII_TLPHY_CTRL, 0);
 			DELAY(100000);
-			PHY_WRITE(&sc->sc_mii, MII_ANAR,
-			    mii_anar(ife->ifm_media));
-			PHY_WRITE(&sc->sc_mii, MII_BMCR, ife->ifm_data);
+			mii_phy_setmedia(&sc->sc_mii);
 		}
 		break;
 
@@ -283,7 +288,7 @@ tlphy_service(struct mii_softc *self, struct mii_data *mii, int cmd)
 
 		sc->sc_mii.mii_ticks = 0;
 		mii_phy_reset(&sc->sc_mii);
-		tlphy_auto(sc);
+		(void)tlphy_auto(sc);
 		return (0);
 	}
 

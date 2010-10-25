@@ -260,6 +260,34 @@ test_socketpair_dgram(uintmax_t num, uintmax_t int_arg, const char *path)
 }
 
 uintmax_t
+test_create_unlink(uintmax_t num, uintmax_t int_arg, const char *path)
+{
+	uintmax_t i;
+	int fd;
+
+	(void)unlink(path);
+	fd = open(path, O_RDWR | O_CREAT, 0600);
+	if (fd < 0)
+		err(-1, "test_create_unlink: create: %s", path);
+	close(fd);
+	if (unlink(path) < 0)
+		err(-1, "test_create_unlink: unlink: %s", path);
+	benchmark_start();
+	for (i = 0; i < num; i++) {
+		if (alarm_fired)
+			break;
+		fd = open(path, O_RDWR | O_CREAT, 0600);
+		if (fd < 0)
+			err(-1, "test_create_unlink: create: %s", path);
+		close(fd);
+		if (unlink(path) < 0)
+			err(-1, "test_create_unlink: unlink: %s", path);
+	}
+	benchmark_stop();
+	return (i);
+}
+
+uintmax_t
 test_open_close(uintmax_t num, uintmax_t int_arg, const char *path)
 {
 	uintmax_t i;
@@ -292,7 +320,7 @@ test_read(uintmax_t num, uintmax_t int_arg, const char *path)
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0)
-		err(-1, "test_open_close: %s", path);
+		err(-1, "test_open_read: %s", path);
 	(void)pread(fd, buf, int_arg, 0);
 
 	benchmark_start();
@@ -315,7 +343,7 @@ test_open_read_close(uintmax_t num, uintmax_t int_arg, const char *path)
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0)
-		err(-1, "test_open_close: %s", path);
+		err(-1, "test_open_read_close: %s", path);
 	(void)read(fd, buf, int_arg);
 	close(fd);
 
@@ -325,7 +353,7 @@ test_open_read_close(uintmax_t num, uintmax_t int_arg, const char *path)
 			break;
 		fd = open(path, O_RDONLY);
 		if (fd < 0)
-			err(-1, "test_open_close: %s", path);
+			err(-1, "test_open_read_close: %s", path);
 		(void)read(fd, buf, int_arg);
 		close(fd);
 	}
@@ -587,6 +615,7 @@ static const struct test tests[] = {
 	{ "socketpair_dgram", test_socketpair_dgram },
 	{ "socket_tcp", test_socket_stream, .t_int = PF_INET },
 	{ "socket_udp", test_socket_dgram, .t_int = PF_INET },
+	{ "create_unlink", test_create_unlink, .t_flags = FLAG_PATH },
 	{ "open_close", test_open_close, .t_flags = FLAG_PATH },
 	{ "open_read_close_1", test_open_read_close, .t_flags = FLAG_PATH,
 	    .t_int = 1 },

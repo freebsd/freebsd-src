@@ -227,6 +227,8 @@
             ..
             iscsi
             ..
+            jails
+            ..
             kld
                 cdev
                     module
