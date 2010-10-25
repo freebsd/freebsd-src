@@ -306,7 +306,7 @@ __rpc_taddr2uaddr_af(int af, const struct netbuf *nbuf)
 	switch (af) {
 	case AF_INET:
 		sin = nbuf->buf;
-		if (__rpc_inet_ntop(af, &sin->sin_addr, namebuf, sizeof namebuf)
+		if (inet_ntop(af, &sin->sin_addr, namebuf, sizeof namebuf)
 		    == NULL)
 			return NULL;
 		port = ntohs(sin->sin_port);
@@ -318,7 +318,7 @@ __rpc_taddr2uaddr_af(int af, const struct netbuf *nbuf)
 #ifdef INET6
 	case AF_INET6:
 		sin6 = nbuf->buf;
-		if (__rpc_inet_ntop(af, &sin6->sin6_addr, namebuf6, sizeof namebuf6)
+		if (inet_ntop(af, &sin6->sin6_addr, namebuf6, sizeof namebuf6)
 		    == NULL)
 			return NULL;
 		port = ntohs(sin6->sin6_port);
@@ -396,7 +396,7 @@ __rpc_uaddr2taddr_af(int af, const char *uaddr)
 		memset(sin, 0, sizeof *sin);
 		sin->sin_family = AF_INET;
 		sin->sin_port = htons(port);
-		if (__rpc_inet_pton(AF_INET, addrstr, &sin->sin_addr) <= 0) {
+		if (inet_pton(AF_INET, addrstr, &sin->sin_addr) <= 0) {
 			free(sin, M_RPC);
 			free(ret, M_RPC);
 			ret = NULL;
@@ -414,7 +414,7 @@ __rpc_uaddr2taddr_af(int af, const char *uaddr)
 		memset(sin6, 0, sizeof *sin6);
 		sin6->sin6_family = AF_INET6;
 		sin6->sin6_port = htons(port);
-		if (__rpc_inet_pton(AF_INET6, addrstr, &sin6->sin6_addr) <= 0) {
+		if (inet_pton(AF_INET6, addrstr, &sin6->sin6_addr) <= 0) {
 			free(sin6, M_RPC);
 			free(ret, M_RPC);
 			ret = NULL;

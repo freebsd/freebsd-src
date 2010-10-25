@@ -2283,6 +2283,8 @@ libkern/iconv_xlat16.c		optional libiconv
 libkern/index.c			standard
 libkern/inet_aton.c		standard
 libkern/inet_ntoa.c		standard
+libkern/inet_ntop.c		standard
+libkern/inet_pton.c		standard
 libkern/mcount.c		optional profiling-routine
 libkern/memcmp.c		standard
 libkern/qsort.c			standard
@@ -2689,8 +2691,6 @@ rpc/clnt_dg.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
 rpc/clnt_rc.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
 rpc/clnt_vc.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 rpc/getnetconfig.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-rpc/inet_ntop.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-rpc/inet_pton.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 rpc/replay.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
 rpc/rpc_callmsg.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 rpc/rpc_generic.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
