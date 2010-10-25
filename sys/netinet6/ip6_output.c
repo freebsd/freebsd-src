@@ -1798,6 +1798,7 @@ do { \
 			case IPV6_PORTRANGE:
 			case IPV6_RECVTCLASS:
 			case IPV6_AUTOFLOWLABEL:
+			case IPV6_BINDANY:
 				switch (optname) {
 
 				case IPV6_RECVHOPOPTS:
