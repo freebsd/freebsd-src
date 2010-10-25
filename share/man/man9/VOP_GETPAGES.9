@@ -41,9 +41,9 @@
 .In sys/vnode.h
 .In vm/vm.h
 .Ft int
-.Fn VOP_GETPAGES "struct vnode *vp" "vm_page_t *m" "int count" "int reqpage" "vm_ooffset_t offset"
+.Fn VOP_GETPAGES "struct vnode *vp" "vm_page_t *ma" "int count" "int reqpage" "vm_ooffset_t offset"
 .Ft int
-.Fn VOP_PUTPAGES "struct vnode *vp" "vm_page_t *m" "int count" "int sync" "int *rtvals" "vm_ooffset_t offset"
+.Fn VOP_PUTPAGES "struct vnode *vp" "vm_page_t *ma" "int count" "int sync" "int *rtvals" "vm_ooffset_t offset"
 .Sh DESCRIPTION
 The
 .Fn VOP_GETPAGES
@@ -66,11 +66,11 @@ The arguments are:
 .Bl -tag -width reqpage
 .It Fa vp
 The file to access.
-.It Fa m
-Pointer to the first element of an array of contiguous pages representing a
+.It Fa ma
+Pointer to the first element of an array of pages representing a
 contiguous region of the file to be read or written.
 .It Fa count
-The number of pages in the array.
+The number of bytes that should be read into the pages of the array.
 .It Fa sync
 .Dv VM_PAGER_PUT_SYNC
 if the write should be synchronous.
@@ -123,22 +123,27 @@ The page was not handled by this request.
 The
 .Fn VOP_GETPAGES
 method is expected to release any pages in
-.Fa m
+.Fa ma
 that it does not successfully handle, by calling
 .Xr vm_page_free 9 .
 When it succeeds,
 .Fn VOP_GETPAGES
-must set the valid bits appropriately, clear the dirty bit
-(using
-.Xr vm_page_undirty 9 ) ,
-either activate the page (if its wanted bit is set)
+must set the valid bits appropriately.
+.Fn VOP_GETPAGES
+must keep
+.Fa reqpage
+busy.
+It must unbusy all other successfully handled pages and put them
+on appropriate page queue(s).
+For example,
+.Fn VOP_GETPAGES
+may either activate a page (if its wanted bit is set)
 or deactivate it (otherwise), and finally call
 .Xr vm_page_wakeup 9
-to arouse any threads currently waiting for the page to be faulted in,
-for each page read.
+to arouse any threads currently waiting for the page to be faulted in.
 .Sh RETURN VALUES
 If it successfully reads
-.Fa m[reqpage] ,
+.Fa ma[reqpage] ,
 .Fn VOP_GETPAGES
 returns
 .Dv VM_PAGER_OK ;
