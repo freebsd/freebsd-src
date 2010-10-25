@@ -39,6 +39,8 @@ options 	INET		# InterNETworking
 options 	INET6		# IPv6 communications protocols
 options 	INVARIANTS	# Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT # required by INVARIANTS
+options 	KDB		# Kernel debugger related code
+options 	KDB_TRACE	# Print a stack trace for a panic
 options 	KTRACE		# ktrace(1) syscall trace support
 options 	MAC		# TrustedBSD MAC Framework
 options 	MD_ROOT		# MD usable as root device
