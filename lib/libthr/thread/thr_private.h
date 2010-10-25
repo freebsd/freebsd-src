@@ -230,6 +230,7 @@ struct pthread_atfork {
 };
 
 struct pthread_attr {
+#define pthread_attr_start_copy	sched_policy
 	int	sched_policy;
 	int	sched_inherit;
 	int	prio;
@@ -239,6 +240,7 @@ struct pthread_attr {
 	void	*stackaddr_attr;
 	size_t	stacksize_attr;
 	size_t	guardsize_attr;
+#define pthread_attr_end_copy	cpuset
 	cpuset_t	*cpuset;
 	size_t	cpusetsize;
 };

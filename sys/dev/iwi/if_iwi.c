@@ -1356,7 +1356,7 @@ iwi_checkforqos(struct ieee80211vap *vap,
 
 	wme = NULL;
 	while (frm < efrm) {
-		IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1], break);
+		IEEE80211_VERIFY_LENGTH(efrm - frm, frm[1], return);
 		switch (*frm) {
 		case IEEE80211_ELEMID_VENDOR:
 			if (iswmeoui(frm))
@@ -1483,7 +1483,7 @@ iwi_notification_intr(struct iwi_softc *sc, struct iwi_notif *notif)
 			IWI_STATE_END(sc, IWI_FW_ASSOCIATING);
 			iwi_checkforqos(vap,
 			    (const struct ieee80211_frame *)(assoc+1),
-			    le16toh(notif->len) - sizeof(*assoc));
+			    le16toh(notif->len) - sizeof(*assoc) - 1);
 			ieee80211_new_state(vap, IEEE80211_S_RUN, -1);
 			break;
 		case IWI_ASSOC_INIT:

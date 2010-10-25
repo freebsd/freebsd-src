@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <fs/nfs/nfsport.h>
+#include <sys/hash.h>
 #include <sys/sysctl.h>
 #include <nlm/nlm_prot.h>
 #include <nlm/nlm.h>
@@ -3085,6 +3086,18 @@ nfsvno_testexp(struct nfsrv_descript *nd, struct nfsexstuff *exp)
 			return (0);
 	}
 	return (1);
+}
+
+/*
+ * Calculate a hash value for the fid in a file handle.
+ */
+uint32_t
+nfsrv_hashfh(fhandle_t *fhp)
+{
+	uint32_t hashval;
+
+	hashval = hash32_buf(&fhp->fh_fid, sizeof(struct fid), 0);
+	return (hashval);
 }
 
 extern int (*nfsd_call_nfsd)(struct thread *, struct nfssvc_args *);

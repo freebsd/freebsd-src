@@ -817,30 +817,6 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	 */
 	g_eli_mkey_propagate(sc, mkey);
 	sc->sc_ekeylen = md->md_keylen;
-	if (sc->sc_flags & G_ELI_FLAG_AUTH) {
-		/*
-		 * Precalculate SHA256 for HMAC key generation.
-		 * This is expensive operation and we can do it only once now or
-		 * for every access to sector, so now will be much better.
-		 */
-		SHA256_Init(&sc->sc_akeyctx);
-		SHA256_Update(&sc->sc_akeyctx, sc->sc_akey,
-		    sizeof(sc->sc_akey));
-	}
-	/*
-	 * Precalculate SHA256 for IV generation.
-	 * This is expensive operation and we can do it only once now or for
-	 * every access to sector, so now will be much better.
-	 */
-	switch (sc->sc_ealgo) {
-	case CRYPTO_AES_XTS:
-		break;
-	default:
-		SHA256_Init(&sc->sc_ivctx);
-		SHA256_Update(&sc->sc_ivctx, sc->sc_ivkey,
-		    sizeof(sc->sc_ivkey));
-		break;
-	}
 
 	LIST_INIT(&sc->sc_workers);
 
@@ -976,9 +952,12 @@ g_eli_destroy(struct g_eli_softc *sc, boolean_t force)
 	}
 	mtx_destroy(&sc->sc_queue_mtx);
 	gp->softc = NULL;
-	bzero(sc->sc_ekeys,
-	    sc->sc_nekeys * (sizeof(uint8_t *) + G_ELI_DATAKEYLEN));
-	free(sc->sc_ekeys, M_ELI);
+	if (sc->sc_ekeys != NULL) {
+		/* The sc_ekeys field can be NULL is device is suspended. */
+		bzero(sc->sc_ekeys,
+		    sc->sc_nekeys * (sizeof(uint8_t *) + G_ELI_DATAKEYLEN));
+		free(sc->sc_ekeys, M_ELI);
+	}
 	bzero(sc, sizeof(*sc));
 	free(sc, M_ELI);
 
@@ -1268,6 +1247,8 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	    sc->sc_ekeylen);
 	sbuf_printf(sb, "%s<EncryptionAlgorithm>%s</EncryptionAlgorithm>\n", indent,
 	    g_eli_algo2str(sc->sc_ealgo));
+	sbuf_printf(sb, "%s<State>%s</State>\n", indent,
+	    (sc->sc_flags & G_ELI_FLAG_SUSPEND) ? "SUSPENDED" : "ACTIVE");
 }
 
 static void
