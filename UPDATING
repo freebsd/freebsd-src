@@ -18,8 +18,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 20101022:
 	A workaround for a fixed ld bug has been removed in kernel code,
 	so make sure that your system ld is built from sources after
-	revision 211583 (r210245 if building stable/8 kernel on head,
-	r211584 for stable/7).  A symptom of incorrect ld version is
+	revision 211583 from 2010-08-21 (r210245 from 2010-07-19 if
+	building stable/8 kernel on head, r211584 from 2010-08-21 for
+	stable/7).  A symptom of incorrect ld version is
 	different addresses for set_pcpu section and __start_set_pcpu
 	symbol in kernel and/or modules.
 
