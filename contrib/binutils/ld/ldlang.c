@@ -3244,6 +3244,7 @@ strip_excluded_output_sections (void)
 	continue;
 
       exclude = (output_section->rawsize == 0
+		 && !os->section_relative_symbol
 		 && (output_section->flags & SEC_KEEP) == 0
 		 && !bfd_section_removed_from_list (output_bfd,
 						    output_section));
@@ -4442,10 +4443,18 @@ lang_size_sections_1
 	case lang_assignment_statement_enum:
 	  {
 	    bfd_vma newdot = dot;
+	    etree_type *tree = s->assignment_statement.exp;
 
-	    exp_fold_tree (s->assignment_statement.exp,
+	    exp_fold_tree (tree,
 			   output_section_statement->bfd_section,
 			   &newdot);
+
+	    /* This symbol is relative to this section.  */
+	    if ((tree->type.node_class == etree_provided 
+		 || tree->type.node_class == etree_assign)
+		&& (tree->assign.dst [0] != '.'
+		    || tree->assign.dst [1] != '\0'))
+	      output_section_statement->section_relative_symbol = 1;
 
 	    if (!output_section_statement->ignored)
 	      {
