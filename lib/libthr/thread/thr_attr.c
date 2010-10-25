@@ -104,6 +104,8 @@
 
 #include "thr_private.h"
 
+static size_t	_get_kern_cpuset_size(void);
+
 __weak_reference(_pthread_attr_destroy, pthread_attr_destroy);
 
 int
@@ -116,6 +118,8 @@ _pthread_attr_destroy(pthread_attr_t *attr)
 		/* Invalid argument: */
 		ret = EINVAL;
 	else {
+		if ((*attr)->cpuset != NULL)
+			free((*attr)->cpuset);
 		/* Free the memory allocated to the attribute object: */
 		free(*attr);
 
@@ -132,28 +136,43 @@ _pthread_attr_destroy(pthread_attr_t *attr)
 __weak_reference(_pthread_attr_get_np, pthread_attr_get_np);
 
 int
-_pthread_attr_get_np(pthread_t pthread, pthread_attr_t *dst)
+_pthread_attr_get_np(pthread_t pthread, pthread_attr_t *dstattr)
 {
 	struct pthread *curthread;
-	struct pthread_attr attr;
+	struct pthread_attr attr, *dst;
 	int	ret;
+	size_t	cpusetsize;
 
-	if (pthread == NULL || dst == NULL || *dst == NULL)
+	if (pthread == NULL || dst_attr == NULL || (dst = *dstattr) == NULL)
 		return (EINVAL);
-
+	cpusetsize = _get_kern_cpuset_size();
+	if (dst->cpusetsize < cpusetsize) {
+		char *newset = realloc(dst->cpuset, cpusetsize);
+		if (newset == NULL)
+			return (errno);
+		memset(newset + dst->cpusetsize, 0, cpusetsize -
+			dst->cpusetsize);
+		dst->cpuset = (cpuset_t *)newset;
+		dst->cpusetsize = cpusetsize;
+	}
 	curthread = _get_curthread();
 	if ((ret = _thr_find_thread(curthread, pthread, /*include dead*/0)) != 0)
 		return (ret);
 	attr = pthread->attr;
 	if (pthread->flags & THR_FLAGS_DETACHED)
 		attr.flags |= PTHREAD_DETACHED;
+	ret = cpuset_getaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, TID(pthread),
+		dst->cpusetsize, dst->cpuset);
+	if (ret == -1)
+		ret = errno;
 	THR_THREAD_UNLOCK(curthread, pthread);
-
-	memcpy(*dst, &attr, sizeof(struct pthread_attr));
-	/* XXX */
-	(*dst)->cpuset = NULL;
-	(*dst)->cpusetsize = 0;
-	return (0);
+	if (ret == 0) {
+		memcpy(&dst->pthread_attr_start_copy, 
+			&attr.pthread_attr_start_copy, 
+			offsetof(struct pthread_attr, pthread_attr_end_copy) -
+			offsetof(struct pthread_attr, pthread_attr_start_copy));
+	}
+	return (ret);
 }
 
 __weak_reference(_pthread_attr_getdetachstate, pthread_attr_getdetachstate);
