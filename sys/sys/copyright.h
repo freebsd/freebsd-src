@@ -27,7 +27,7 @@
 
 
 /* Copyrights macros  */
-  
+
 /* FreeBSD */
 #define COPYRIGHT_FreeBSD \
 	"Copyright (c) 1992-2010 The FreeBSD Project.\n"
