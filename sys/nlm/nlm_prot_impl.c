@@ -1003,13 +1003,13 @@ nlm_find_host_by_addr(const struct sockaddr *addr, int vers)
 
 	switch (addr->sa_family) {
 	case AF_INET:
-		__rpc_inet_ntop(AF_INET,
+		inet_ntop(AF_INET,
 		    &((const struct sockaddr_in *) addr)->sin_addr,
 		    tmp, sizeof tmp);
 		break;
 #ifdef INET6
 	case AF_INET6:
-		__rpc_inet_ntop(AF_INET6,
+		inet_ntop(AF_INET6,
 		    &((const struct sockaddr_in6 *) addr)->sin6_addr,
 		    tmp, sizeof tmp);
 		break;
