@@ -2803,7 +2803,7 @@ ehci_early_takeover(device_t self)
 				    "SMM does not respond\n");
 		}
 		/* Disable interrupts */
-		offs = bus_read_1(res, EHCI_CAPLENGTH);
+		offs = EHCI_CAPLENGTH(bus_read_4(res, EHCI_CAPLEN_HCIVERSION));
 		bus_write_4(res, offs + EHCI_USBINTR, 0);
 	}
 	bus_release_resource(self, SYS_RES_MEMORY, rid, res);
