@@ -27,20 +27,20 @@
 .\" $FreeBSD$
 .\"
 .Dd July 13, 2001
-.Dt VM_PAGE_SLEEP_BUSY 9
+.Dt VM_PAGE_SLEEP_IF_BUSY 9
 .Os
 .Sh NAME
-.Nm vm_page_sleep_busy
+.Nm vm_page_sleep_if_busy
 .Nd "wait for a busy page to become unbusy"
 .Sh SYNOPSIS
 .In sys/param.h
 .In vm/vm.h
 .In vm/vm_page.h
 .Ft int
-.Fn vm_page_sleep_busy "vm_page_t m" "int also_m_busy" "const char *wmesg"
+.Fn vm_page_sleep_if_busy "vm_page_t m" "int also_m_busy" "const char *wmesg"
 .Sh DESCRIPTION
 The
-.Fn vm_page_sleep_busy
+.Fn vm_page_sleep_if_busy
 function waits until the
 .Dv VPO_BUSY
 flag is cleared.
@@ -51,7 +51,7 @@ is non-zero, it also waits for
 to become zero.
 .Sh RETURN VALUES
 If
-.Fn vm_page_sleep_busy
+.Fn vm_page_sleep_if_busy
 finds the page busy it returns
 .Dv TRUE .
 If not, it returns
@@ -59,7 +59,7 @@ If not, it returns
 Returning
 .Dv TRUE
 does not necessary mean that
-.Fn vm_page_sleep_busy
+.Fn vm_page_sleep_if_busy
 slept, but only that
 .Fn splvm
 was called.
