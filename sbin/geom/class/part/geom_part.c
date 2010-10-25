@@ -67,7 +67,6 @@ static char ssize[32];
 #define	GPART_PARAM_BOOTCODE	"bootcode"
 #define	GPART_PARAM_INDEX	"index"
 #define	GPART_PARAM_PARTCODE	"partcode"
-#define	GPART_PARAM_FORCE	"force"
 
 static struct gclass *find_class(struct gmesh *, const char *);
 static struct ggeom * find_geom(struct gclass *, const char *);
@@ -85,7 +84,6 @@ static void gpart_show_geom(struct ggeom *, const char *);
 static int gpart_show_hasopt(struct gctl_req *, const char *, const char *);
 static void gpart_write_partcode(struct ggeom *, int, void *, ssize_t);
 static void gpart_write_partcode_vtoc8(struct ggeom *, int, void *);
-static void gpart_destroy(struct gctl_req *, unsigned int);
 static void gpart_print_error(const char *);
 
 struct g_command PUBSYM(class_commands)[] = {
@@ -123,8 +121,8 @@ struct g_command PUBSYM(class_commands)[] = {
 		G_OPT_SENTINEL },
 	    "-i index [-f flags] geom"
 	},
-	{ "destroy", 0, gpart_destroy, {
-		{ 'F', GPART_PARAM_FORCE, NULL, G_TYPE_BOOL },
+	{ "destroy", 0, gpart_issue, {
+		{ 'F', "force", NULL, G_TYPE_BOOL },
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	    "[-F] [-f flags] geom"
@@ -166,6 +164,11 @@ struct g_command PUBSYM(class_commands)[] = {
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	    "[-s size] -i index [-f flags] geom"
+	},
+	{ "recover", 0, gpart_issue, {
+		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
+		G_OPT_SENTINEL },
+	    "[-f flags] geom"
 	},
 	G_CMD_SENTINEL
 };
@@ -539,13 +542,17 @@ gpart_show_geom(struct ggeom *gp, const char *element)
 	s = find_geomcfg(gp, "last");
 	last = (off_t)strtoimax(s, NULL, 0);
 	wblocks = strlen(s);
+	s = find_geomcfg(gp, "state");
+	if (s != NULL && *s != 'C')
+		s = NULL;
 	wname = strlen(gp->lg_name);
 	pp = LIST_FIRST(&gp->lg_consumer)->lg_provider;
 	secsz = pp->lg_sectorsize;
-	printf("=>%*jd  %*jd  %*s  %s  (%s)\n",
+	printf("=>%*jd  %*jd  %*s  %s  (%s)%s\n",
 	    wblocks, (intmax_t)first, wblocks, (intmax_t)(last - first + 1),
 	    wname, gp->lg_name,
-	    scheme, fmtsize(pp->lg_mediasize));
+	    scheme, fmtsize(pp->lg_mediasize),
+	    s ? " [CORRUPT]": "");
 
 	while ((pp = find_provider(gp, first)) != NULL) {
 		s = find_provcfg(pp, "start");
@@ -855,83 +862,6 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl)
 		gpart_issue(req, fl);
 
 	geom_deletetree(&mesh);
-}
-
-static void
-gpart_destroy(struct gctl_req *req, unsigned int fl)
-{
-	struct gmesh mesh;
-	struct gclass *classp;
-	struct gctl_req *req2;
-	struct ggeom *gp;
-	struct gprovider *pp;
-	const char *s;
-	int error, val;
-	intmax_t idx;
-
-	if (gctl_has_param(req, GPART_PARAM_FORCE)) {
-		val = gctl_get_int(req, GPART_PARAM_FORCE);
-		error = gctl_delete_param(req, GPART_PARAM_FORCE);
-		if (error)
-			errc(EXIT_FAILURE, error, "internal error");
-		if (val == 0)
-			goto done;
-		s = gctl_get_ascii(req, "class");
-		if (s == NULL)
-			abort();
-		error = geom_gettree(&mesh);
-		if (error != 0)
-			errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
-		classp = find_class(&mesh, s);
-		if (classp == NULL) {
-			geom_deletetree(&mesh);
-			errx(EXIT_FAILURE, "Class %s not found.", s);
-		}
-		s = gctl_get_ascii(req, "arg0");
-		if (s == NULL)
-			abort();
-		gp = find_geom(classp, s);
-		if (gp == NULL)
-			errx(EXIT_FAILURE, "No such geom: %s.", s);
-		val = 0;
-		LIST_FOREACH(pp, &gp->lg_provider, lg_provider){
-			s = find_provcfg(pp, "index");
-			if (s == NULL)
-				errx(EXIT_FAILURE, "Index not found for %s.",
-				    pp->lg_name);
-			idx = strtoimax(s, NULL, 0);
-			req2 = gctl_get_handle();
-			gctl_ro_param(req2, "class", -1, classp->lg_name);
-			gctl_ro_param(req2, "arg0", -1, gp->lg_name);
-			gctl_ro_param(req2, "verb", -1, "delete");
-			gctl_ro_param(req2, GPART_PARAM_INDEX,
-			    sizeof(intmax_t), &idx);
-			gctl_ro_param(req2, "flags", -1, "X");
-			s = gctl_issue(req2);
-			if (s != NULL && s[0] != '\0') {
-				gpart_print_error(s);
-				gctl_free(req2);
-				if (val) { /* try to undo changes */
-					req2 = gctl_get_handle();
-					gctl_ro_param(req2, "verb", -1,
-					    "undo");
-					gctl_ro_param(req2, "class", -1,
-					    classp->lg_name);
-					gctl_ro_param(req2, "arg0", -1,
-					    gp->lg_name);
-					gctl_issue(req2);
-					gctl_free(req2);
-				}
-				geom_deletetree(&mesh);
-				exit(EXIT_FAILURE);
-			}
-			gctl_free(req2);
-			val = 1;
-		}
-		geom_deletetree(&mesh);
-	}
-done:
-	gpart_issue(req, fl);
 }
 
 static void
