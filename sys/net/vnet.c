@@ -154,15 +154,6 @@ struct vnet *vnet0;
  */
 
 /*
- * Location of the kernel's 'set_vnet' linker set.
- */
-extern uintptr_t	*__start_set_vnet;
-extern uintptr_t	*__stop_set_vnet;
-
-#define	VNET_START	(uintptr_t)&__start_set_vnet
-#define	VNET_STOP	(uintptr_t)&__stop_set_vnet
-
-/*
  * Number of bytes of data in the 'set_vnet' linker set, and hence the total
  * size of all kernel virtualized global variables, and the malloc(9) type
  * that will be used to allocate it.
