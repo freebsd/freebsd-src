@@ -116,7 +116,7 @@ typedef enum {
 } cam_argmask;
 
 struct camcontrol_opts {
-	const char	*optname;	
+	const char	*optname;
 	cam_cmdmask	cmdnum;
 	cam_argmask	argnum;
 	const char	*subopt;
@@ -204,7 +204,7 @@ static int readdefects(struct cam_device *device, int argc, char **argv,
 		       char *combinedopt, int retry_count, int timeout);
 static void modepage(struct cam_device *device, int argc, char **argv,
 		     char *combinedopt, int retry_count, int timeout);
-static int scsicmd(struct cam_device *device, int argc, char **argv, 
+static int scsicmd(struct cam_device *device, int argc, char **argv,
 		   char *combinedopt, int retry_count, int timeout);
 static int tagcontrol(struct cam_device *device, int argc, char **argv,
 		      char *combinedopt);
@@ -234,7 +234,7 @@ static int atapm(struct cam_device *device, int argc, char **argv,
 #endif
 
 camcontrol_optret
-getoption(char *arg, cam_cmdmask *cmdnum, cam_argmask *argnum, 
+getoption(char *arg, cam_cmdmask *cmdnum, cam_argmask *argnum,
 	  const char **subopt)
 {
 	struct camcontrol_opts *opts;
@@ -622,7 +622,7 @@ scsistart(struct cam_device *device, int startstop, int loadeject,
 		else
 			fprintf(stdout,
 				"Error received from stop unit command\n");
-			
+
 		if (arglist & CAM_ARG_VERBOSE) {
 			cam_error_print(device, ccb, CAM_ESF_ALL,
 					CAM_EPF_ALL, stderr);
@@ -688,7 +688,7 @@ scsiinquiry(struct cam_device *device, int retry_count, int timeout)
 	union ccb *ccb;
 	struct scsi_inquiry_data *inq_buf;
 	int error = 0;
-	
+
 	ccb = cam_getccb(device);
 
 	if (ccb == NULL) {
@@ -721,13 +721,13 @@ scsiinquiry(struct cam_device *device, int retry_count, int timeout)
 	 *    scsi_inquiry() will convert an inq_len (which is passed in as
 	 *    a u_int32_t, but the field in the CDB is only 1 byte) of 256
 	 *    to 0.  Evidently, very few devices meet the spec in that
-	 *    regard.  Some devices, like many Seagate disks, take the 0 as 
+	 *    regard.  Some devices, like many Seagate disks, take the 0 as
 	 *    0, and don't return any data.  One Pioneer DVD-R drive
 	 *    returns more data than the command asked for.
 	 *
 	 *    So, since there are numerous devices that just don't work
 	 *    right with the full inquiry size, we don't send the full size.
-	 * 
+	 *
 	 *  - The second reason not to use the full inquiry data length is
 	 *    that we don't need it here.  The only reason we issue a
 	 *    standard inquiry is to get the vendor name, device name,
@@ -1181,7 +1181,7 @@ atacapprint(struct ata_params *parm)
 	}
 
 	printf("\nFeature                      "
-		"Support  Enable    Value           Vendor\n");
+		"Support  Enabled   Value           Vendor\n");
 	printf("read ahead                     %s	%s\n",
 		parm->support.command1 & ATA_SUPPORT_LOOKAHEAD ? "yes" : "no",
 		parm->enabled.command1 & ATA_SUPPORT_LOOKAHEAD ? "yes" : "no");
@@ -1201,16 +1201,13 @@ atacapprint(struct ata_params *parm)
 			    ATA_QUEUE_LEN(parm->queue) + 1);
 		} else
 			printf("\n");
-	if (parm->satacapabilities && parm->satacapabilities != 0xffff) {
-		printf("Native Command Queuing (NCQ)   %s	",
-			parm->satacapabilities & ATA_SUPPORT_NCQ ?
-				"yes" : "no");
-		if (parm->satacapabilities & ATA_SUPPORT_NCQ) {
-			printf("	%d tags\n",
-			    ATA_QUEUE_LEN(parm->queue) + 1);
-		} else
-			printf("\n");
-	}
+	printf("Native Command Queuing (NCQ)   ");
+	if (parm->satacapabilities != 0xffff &&
+	    (parm->satacapabilities & ATA_SUPPORT_NCQ)) {
+		printf("yes		%d tags\n",
+		    ATA_QUEUE_LEN(parm->queue) + 1);
+	} else
+		printf("no\n");
 	printf("SMART                          %s	%s\n",
 		parm->support.command1 & ATA_SUPPORT_SMART ? "yes" : "no",
 		parm->enabled.command1 & ATA_SUPPORT_SMART ? "yes" : "no");
@@ -1223,28 +1220,39 @@ atacapprint(struct ata_params *parm)
 	printf("power management               %s	%s\n",
 		parm->support.command1 & ATA_SUPPORT_POWERMGT ? "yes" : "no",
 		parm->enabled.command1 & ATA_SUPPORT_POWERMGT ? "yes" : "no");
-	printf("advanced power management      %s	%s	%d/0x%02X\n",
+	printf("advanced power management      %s	%s",
 		parm->support.command2 & ATA_SUPPORT_APM ? "yes" : "no",
-		parm->enabled.command2 & ATA_SUPPORT_APM ? "yes" : "no",
-		parm->apm_value, parm->apm_value);
-	printf("automatic acoustic management  %s	%s	"
-		"%d/0x%02X	%d/0x%02X\n",
+		parm->enabled.command2 & ATA_SUPPORT_APM ? "yes" : "no");
+		if (parm->support.command2 & ATA_SUPPORT_APM) {
+			printf("	%d/0x%02X\n",
+			    parm->apm_value, parm->apm_value);
+		} else
+			printf("\n");
+	printf("automatic acoustic management  %s	%s",
 		parm->support.command2 & ATA_SUPPORT_AUTOACOUSTIC ? "yes" :"no",
-		parm->enabled.command2 & ATA_SUPPORT_AUTOACOUSTIC ? "yes" :"no",
-		ATA_ACOUSTIC_CURRENT(parm->acoustic),
-		ATA_ACOUSTIC_CURRENT(parm->acoustic),
-		ATA_ACOUSTIC_VENDOR(parm->acoustic),
-		ATA_ACOUSTIC_VENDOR(parm->acoustic));
+		parm->enabled.command2 & ATA_SUPPORT_AUTOACOUSTIC ? "yes" :"no");
+		if (parm->support.command2 & ATA_SUPPORT_AUTOACOUSTIC) {
+			printf("	%d/0x%02X	%d/0x%02X\n",
+			    ATA_ACOUSTIC_CURRENT(parm->acoustic),
+			    ATA_ACOUSTIC_CURRENT(parm->acoustic),
+			    ATA_ACOUSTIC_VENDOR(parm->acoustic),
+			    ATA_ACOUSTIC_VENDOR(parm->acoustic));
+		} else
+			printf("\n");
 	printf("media status notification      %s	%s\n",
 		parm->support.command2 & ATA_SUPPORT_NOTIFY ? "yes" : "no",
 		parm->enabled.command2 & ATA_SUPPORT_NOTIFY ? "yes" : "no");
 	printf("power-up in Standby            %s	%s\n",
 		parm->support.command2 & ATA_SUPPORT_STANDBY ? "yes" : "no",
 		parm->enabled.command2 & ATA_SUPPORT_STANDBY ? "yes" : "no");
-	printf("write-read-verify              %s	%s	%d/0x%x\n",
+	printf("write-read-verify              %s	%s",
 		parm->support2 & ATA_SUPPORT_WRITEREADVERIFY ? "yes" : "no",
-		parm->enabled2 & ATA_SUPPORT_WRITEREADVERIFY ? "yes" : "no",
-		parm->wrv_mode, parm->wrv_mode);
+		parm->enabled2 & ATA_SUPPORT_WRITEREADVERIFY ? "yes" : "no");
+		if (parm->support2 & ATA_SUPPORT_WRITEREADVERIFY) {
+			printf("	%d/0x%x\n",
+			    parm->wrv_mode, parm->wrv_mode);
+		} else
+			printf("\n");
 	printf("unload                         %s	%s\n",
 		parm->support.extension & ATA_SUPPORT_UNLOAD ? "yes" : "no",
 		parm->enabled.extension & ATA_SUPPORT_UNLOAD ? "yes" : "no");
@@ -1254,7 +1262,6 @@ atacapprint(struct ata_params *parm)
 	printf("data set management (TRIM)     %s\n",
 		parm->support_dsm & ATA_SUPPORT_DSM_TRIM ? "yes" : "no");
 }
-
 
 static int
 ataidentify(struct cam_device *device, int retry_count, int timeout)
@@ -1902,7 +1909,7 @@ readdefects(struct cam_device *device, int argc, char **argv,
 
 	/*
 	 * XXX KDM  I should probably clean up the printout format for the
-	 * disk defects. 
+	 * disk defects.
 	 */
 	switch (returned_format & SRDDH10_DLIST_FORMAT_MASK){
 		case SRDDH10_PHYSICAL_SECTOR_FORMAT:
@@ -2011,7 +2018,7 @@ void
 reassignblocks(struct cam_device *device, u_int32_t *blocks, int num_blocks)
 {
 	union ccb *ccb;
-	
+
 	ccb = cam_getccb(device);
 
 	cam_freeccb(ccb);
@@ -2114,7 +2121,7 @@ mode_select(struct cam_device *device, int save_pages, int retry_count,
 			err(1, "error sending mode select command");
 		else
 			errx(1, "error sending mode select command");
-		
+
 	}
 
 	cam_freeccb(ccb);
@@ -2294,7 +2301,7 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 			if (arglist & CAM_ARG_CMD_IN) {
 				warnx("command must either be "
 				      "read or write, not both");
-				error = 1;	
+				error = 1;
 				goto scsicmd_bailout;
 			}
 			arglist |= CAM_ARG_CMD_OUT;
@@ -2611,7 +2618,7 @@ camdebug(int argc, char **argv, char *combinedopt)
 			warnx("bus:target, or bus:target:lun to debug");
 		}
 	}
-	
+
 	if (error == 0) {
 
 		ccb.ccb_h.func_code = XPT_DEBUG;
@@ -2874,7 +2881,7 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 }
 
 /*
- * Get a path inquiry CCB for the specified device.  
+ * Get a path inquiry CCB for the specified device.
  */
 static int
 get_cpi(struct cam_device *device, struct ccb_pathinq *cpi)
@@ -2913,7 +2920,7 @@ get_cpi_bailout:
 }
 
 /*
- * Get a get device CCB for the specified device.  
+ * Get a get device CCB for the specified device.
  */
 static int
 get_cgd(struct cam_device *device, struct ccb_getdev *cgd)
@@ -3764,9 +3771,9 @@ doreport:
 					fprintf(stdout,
 						"\rFormatting:  %ju.%02u %% "
 						"(%d/%d) done",
-						(uintmax_t)(percentage / 
+						(uintmax_t)(percentage /
 						(0x10000 * 100)),
-						(unsigned)((percentage / 
+						(unsigned)((percentage /
 						0x10000) % 100),
 						val, 0x10000);
 					fflush(stdout);
@@ -3956,7 +3963,7 @@ retry:
 			case RPL_LUNDATA_ATYP_PERIPH:
 				if ((lundata->luns[i].lundata[j] &
 				    RPL_LUNDATA_PERIPH_BUS_MASK) != 0)
-					fprintf(stdout, "%d:", 
+					fprintf(stdout, "%d:",
 						lundata->luns[i].lundata[j] &
 						RPL_LUNDATA_PERIPH_BUS_MASK);
 				else if ((j == 0)
@@ -3994,7 +4001,7 @@ retry:
 				field_len_code = (lundata->luns[i].lundata[j] &
 					RPL_LUNDATA_EXT_LEN_MASK) >> 4;
 				field_len = field_len_code * 2;
-		
+
 				if ((eam_code == RPL_LUNDATA_EXT_EAM_WK)
 				 && (field_len_code == 0x00)) {
 					fprintf(stdout, "%d",
@@ -4352,7 +4359,7 @@ bailout:
 
 #endif /* MINIMALISTIC */
 
-void 
+void
 usage(int verbose)
 {
 	fprintf(verbose ? stdout : stderr,
@@ -4494,7 +4501,7 @@ usage(int verbose)
 #endif /* MINIMALISTIC */
 }
 
-int 
+int
 main(int argc, char **argv)
 {
 	int c;
@@ -4544,7 +4551,7 @@ main(int argc, char **argv)
 	 * this.  getopt is kinda braindead, so you end up having to run
 	 * through the options twice, and give each invocation of getopt
 	 * the option string for the other invocation.
-	 * 
+	 *
 	 * You would think that you could just have two groups of options.
 	 * The first group would get parsed by the first invocation of
 	 * getopt, and the second group would get parsed by the second
@@ -4553,13 +4560,13 @@ main(int argc, char **argv)
 	 * to the argument _after_ the first argument in the second group.
 	 * So when the second invocation of getopt comes around, it doesn't
 	 * recognize the first argument it gets and then bails out.
-	 * 
+	 *
 	 * A nice alternative would be to have a flag for getopt that says
 	 * "just keep parsing arguments even when you encounter an unknown
 	 * argument", but there isn't one.  So there's no real clean way to
 	 * easily parse two sets of arguments without having one invocation
 	 * of getopt know about the other.
-	 * 
+	 *
 	 * Without this hack, the first invocation of getopt would work as
 	 * long as the generic arguments are first, but the second invocation
 	 * (in the subfunction) would fail in one of two ways.  In the case
@@ -4573,14 +4580,14 @@ main(int argc, char **argv)
 	 * whether optind had been incremented one option too far.  The
 	 * mechanics of that, however, are more daunting than just giving
 	 * both invocations all of the expect options for either invocation.
-	 * 
+	 *
 	 * Needless to say, I wouldn't mind if someone invented a better
 	 * (non-GPL!) command line parsing interface than getopt.  I
 	 * wouldn't mind if someone added more knobs to getopt to make it
 	 * work better.  Who knows, I may talk myself into doing it someday,
 	 * if the standards weenies let me.  As it is, it just leads to
 	 * hackery like this and causes people to avoid it in some cases.
-	 * 
+	 *
 	 * KDM, September 8th, 1998
 	 */
 	if (subopt != NULL)
