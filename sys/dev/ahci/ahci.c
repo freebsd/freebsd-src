@@ -969,6 +969,7 @@ err1:
 err0:
 	bus_release_resource(dev, SYS_RES_MEMORY, ch->unit, ch->r_mem);
 	mtx_unlock(&ch->mtx);
+	mtx_destroy(&ch->mtx);
 	return (error);
 }
 
