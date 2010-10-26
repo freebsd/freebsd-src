@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kerneldump.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/_inttypes.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
 
@@ -177,8 +176,8 @@ cb_dumpdata(struct md_pa *mdp, int seqnr, void *arg)
 	if (maxdumppgs == 0)	/* seatbelt */
 		maxdumppgs = 1;
 
-	printf("  chunk %d: %"PRIu64"MB (%"PRIu64" pages)", seqnr, PG2MB(pgs),
-	    pgs);
+	printf("  chunk %d: %jdMB (%jd pages)", seqnr, (uintmax_t)PG2MB(pgs),
+	    (uintmax_t)pgs);
 
 	while (pgs) {
 		chunk = pgs;
@@ -187,7 +186,7 @@ cb_dumpdata(struct md_pa *mdp, int seqnr, void *arg)
 		sz = chunk << PAGE_SHIFT;
 		counter += sz;
 		if (counter >> 24) {
-			printf(" %"PRIu64, PG2MB(pgs));
+			printf(" %jd", (uintmax_t)PG2MB(pgs));
 			counter &= (1<<24) - 1;
 		}
 		for (i = 0; i < chunk; i++) {
