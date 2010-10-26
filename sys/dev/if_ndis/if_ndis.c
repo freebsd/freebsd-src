@@ -1671,10 +1671,6 @@ ndis_linksts_done(adapter)
 		break;
 	}
 
-	/* Notify possible listners of interface change. */
-
-	rt_ifmsg(ifp);
-
 	return;
 }
 
