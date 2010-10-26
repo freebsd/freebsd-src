@@ -724,6 +724,7 @@ sctp_sendx(int sd, const void *msg, size_t msg_len,
     struct sctp_sndrcvinfo *sinfo,
     int flags)
 {
+	struct sctp_sndrcvinfo __sinfo;
 	ssize_t ret;
 	int i, cnt, *aa, saved_errno;
 	char *buf;
@@ -790,6 +791,10 @@ sctp_sendx(int sd, const void *msg, size_t msg_len,
 		return (ret);
 	}
 continue_send:
+	if (sinfo == NULL) {
+		sinfo = &__sinfo;
+		memset(&__sinfo, 0, sizeof(__sinfo));
+	}
 	sinfo->sinfo_assoc_id = sctp_getassocid(sd, addrs);
 	if (sinfo->sinfo_assoc_id == 0) {
 		printf("Huh, can't get associd? TSNH!\n");
