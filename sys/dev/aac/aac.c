@@ -1881,7 +1881,7 @@ aac_init(struct aac_softc *sc)
 
 	ip->InitFlags = 0;
 	if (sc->flags & AAC_FLAGS_NEW_COMM) {
-		ip->InitFlags = INITFLAGS_NEW_COMM_SUPPORTED;
+		ip->InitFlags |= AAC_INITFLAGS_NEW_COMM_SUPPORTED;
 		device_printf(sc->aac_dev, "New comm. interface enabled\n");
 	}
 

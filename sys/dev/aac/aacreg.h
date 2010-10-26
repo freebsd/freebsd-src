@@ -306,7 +306,7 @@ struct aac_adapter_init {
 	u_int32_t	HostElapsedSeconds;
 	/* ADAPTER_INIT_STRUCT_REVISION_4 begins here */
 	u_int32_t	InitFlags;			/* flags for supported features */
-#define INITFLAGS_NEW_COMM_SUPPORTED	1
+#define AAC_INITFLAGS_NEW_COMM_SUPPORTED	1
 	u_int32_t	MaxIoCommands;		/* max outstanding commands */
 	u_int32_t	MaxIoSize;			/* largest I/O command */
 	u_int32_t	MaxFibSize;			/* largest FIB to adapter */
@@ -1081,6 +1081,7 @@ typedef enum {
 	ST_DQUOT = 69,
 	ST_STALE = 70,
 	ST_REMOTE = 71,
+	ST_NOT_READY = 72,
 	ST_BADHANDLE = 10001,
 	ST_NOT_SYNC = 10002,
 	ST_BAD_COOKIE = 10003,
@@ -1091,7 +1092,8 @@ typedef enum {
 	ST_JUKEBOX = 10008,
 	ST_NOTMOUNTED = 10009,
 	ST_MAINTMODE = 10010,
-	ST_STALEACL = 10011
+	ST_STALEACL = 10011,
+	ST_BUS_RESET = 20001
 } AAC_FSAStatus;
 
 /*
