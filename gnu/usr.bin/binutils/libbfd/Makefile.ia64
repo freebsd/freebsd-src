@@ -23,8 +23,8 @@ VECS+=	${DEFAULT_VECTOR} \
 
 CLEANFILES+=	elf64-ia64.c pepigen.c # peigen.c
 
-elf64-ia64.c: elfxx-ia64.c elf-fbsd-brand.c
-	cat ${.ALLSRC} | sed -e s/NN/64/g > ${.TARGET}
+elf64-ia64.c: elf-fbsd-brand.c elfxx-ia64.c
+	sed -e s/NN/64/g ${.ALLSRC} > ${.TARGET}
 
 pepigen.c: peXXigen.c
 	sed -e s/XX/pep/g ${.ALLSRC} > ${.TARGET}
