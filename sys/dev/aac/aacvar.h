@@ -113,6 +113,7 @@ struct aac_container
 /*
  * Per-SIM data structure
  */
+struct aac_cam;
 struct aac_sim
 {
 	device_t		sim_dev;
@@ -120,6 +121,7 @@ struct aac_sim
 	int			BusNumber;
 	int			InitiatorBusId;
 	struct aac_softc	*aac_sc;
+	struct aac_cam		*aac_cam;
 	TAILQ_ENTRY(aac_sim)	sim_link;
 };
 
@@ -420,6 +422,9 @@ struct aac_softc
 	u_int32_t	aac_max_fib_size;		/* max. FIB size */
 	u_int32_t	aac_sg_tablesize;		/* max. sg count from host */
 	u_int32_t	aac_max_sectors;		/* max. I/O size from host (blocks) */
+#define AAC_CAM_TARGET_WILDCARD ~0
+	void			(*cam_rescan_cb)(struct aac_softc *, uint32_t,
+				    uint32_t);
 };
 
 /*

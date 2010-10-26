@@ -935,6 +935,11 @@ struct aac_AifEnsEnclosureEvent {
 	u_int32_t	eventType;	/* event type */
 } __packed;
 
+typedef enum {
+	AIF_EM_DRIVE_INSERTION=31,
+	AIF_EM_DRIVE_REMOVAL
+} aac_AifEMEventType;
+
 struct aac_AifEnsBatteryEvent {
 	AAC_NVBATT_TRANSITION	transition_type;	/* eg from low to ok */
 	AAC_NVBATTSTATUS	current_state;		/* current batt state */
