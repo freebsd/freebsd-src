@@ -474,8 +474,8 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	bcopy(generictrap, (void *)EXC_SC,   (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_FPA,  (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_VEC,  (size_t)&trapsize);
-	bcopy(generictrap, (void *)EXC_VECAST, (size_t)&trapsize);
-	bcopy(generictrap, (void *)EXC_THRM, (size_t)&trapsize);
+	bcopy(generictrap, (void *)EXC_VECAST_G4, (size_t)&trapsize);
+	bcopy(generictrap, (void *)EXC_VECAST_G5, (size_t)&trapsize);
 	__syncicache(EXC_RSVD, EXC_LAST - EXC_RSVD);
 
 	/*

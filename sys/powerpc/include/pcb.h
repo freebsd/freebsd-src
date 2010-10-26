@@ -58,7 +58,7 @@ struct pcb {
 		uint32_t vr[32][4];
 		register_t vrsave;
 		register_t spare[2];
-		register_t vscr;
+		register_t vscr;	/* aligned at vector element 3 */
 	} pcb_vec __attribute__((aligned(16)));	/* Vector processor */
 	unsigned int	pcb_veccpu;		/* which CPU had our vector
 							stuff. */
