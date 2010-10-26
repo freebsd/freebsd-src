@@ -71,6 +71,10 @@ struct image_params {
 	char *execpath;
 	unsigned long execpathp;
 	char *freepath;
+	unsigned long canary;
+	int canarylen;
+	unsigned long pagesizes;
+	int pagesizeslen;
 };
 
 #ifdef _KERNEL

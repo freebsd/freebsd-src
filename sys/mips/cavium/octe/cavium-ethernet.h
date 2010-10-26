@@ -72,9 +72,14 @@ typedef struct {
 
 	uint8_t mac[6];
 	int phy_id;
+	const char *phy_device;
+	int (*mdio_read)(struct ifnet *, int, int);
+	void (*mdio_write)(struct ifnet *, int, int, int);
 
 	struct ifqueue tx_free_queue[16];
 
+	int need_link_update;
+	struct task link_task;
 	struct ifmedia media;
 	int if_flags;
 

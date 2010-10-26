@@ -132,8 +132,8 @@ void
 elf64_dump_thread(struct thread *td __unused, void *dst __unused,
     size_t *off __unused)
 {
-}
 
+}
 
 /*
  * The following table holds for each relocation type:
@@ -155,6 +155,7 @@ elf64_dump_thread(struct thread *td __unused, void *dst __unused,
 #define _RF_G		0x10000000		/* GOT offset */
 #define _RF_B		0x08000000		/* Load address relative */
 #define _RF_U		0x04000000		/* Unaligned */
+#define	_RF_X		0x02000000		/* Bare symbols, needs proc */
 #define _RF_SZ(s)	(((s) & 0xff) << 8)	/* memory target size */
 #define _RF_RS(s)	( (s) & 0xff)		/* right shift */
 static const int reloc_target_flags[] = {
@@ -167,10 +168,10 @@ static const int reloc_target_flags[] = {
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(0),		/* DISP_32 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(2),		/* WDISP_30 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(2),		/* WDISP_22 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(10),	/* HI22 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 22 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 13 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* LO10 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(10),	/* HI22 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 22 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 13 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* LO10 */
 	_RF_G|			_RF_SZ(32) | _RF_RS(0),		/* GOT10 */
 	_RF_G|			_RF_SZ(32) | _RF_RS(0),		/* GOT13 */
 	_RF_G|			_RF_SZ(32) | _RF_RS(10),	/* GOT22 */
@@ -189,36 +190,36 @@ static const int reloc_target_flags[] = {
 	      _RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(0),		/* PCPLT32 */
 	      _RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(10),	/* PCPLT22 */
 	      _RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(0),		/* PCPLT10 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 10 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 11 */
-	_RF_S|_RF_A|		_RF_SZ(64) | _RF_RS(0),		/* 64 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 10 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 11 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(64) | _RF_RS(0),		/* 64 */
 	_RF_S|_RF_A|/*extra*/	_RF_SZ(32) | _RF_RS(0),		/* OLO10 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(42),	/* HH22 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(32),	/* HM10 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(10),	/* LM22 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(42),	/* HH22 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(32),	/* HM10 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(10),	/* LM22 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(42),	/* PC_HH22 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(32),	/* PC_HM10 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(10),	/* PC_LM22 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(2),		/* WDISP16 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(32) | _RF_RS(2),		/* WDISP19 */
 	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* GLOB_JMP */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 7 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 5 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* 6 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 7 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 5 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* 6 */
 	_RF_S|_RF_A|_RF_P|	_RF_SZ(64) | _RF_RS(0),		/* DISP64 */
 	      _RF_A|		_RF_SZ(64) | _RF_RS(0),		/* PLT64 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(10),	/* HIX22 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* LOX10 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(22),	/* H44 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(12),	/* M44 */
-	_RF_S|_RF_A|		_RF_SZ(32) | _RF_RS(0),		/* L44 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(10),	/* HIX22 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* LOX10 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(22),	/* H44 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(12),	/* M44 */
+	_RF_S|_RF_A|_RF_X|	_RF_SZ(32) | _RF_RS(0),		/* L44 */
 	_RF_S|_RF_A|		_RF_SZ(64) | _RF_RS(0),		/* REGISTER */
 	_RF_S|_RF_A|	_RF_U|	_RF_SZ(64) | _RF_RS(0),		/* UA64 */
 	_RF_S|_RF_A|	_RF_U|	_RF_SZ(16) | _RF_RS(0),		/* UA16 */
 };
 
 #if 0
-static const char *reloc_names[] = {
+static const char *const reloc_names[] = {
 	"NONE", "RELOC_8", "RELOC_16", "RELOC_32", "DISP_8",
 	"DISP_16", "DISP_32", "WDISP_30", "WDISP_22", "HI22",
 	"22", "13", "LO10", "GOT10", "GOT13",
@@ -238,6 +239,7 @@ static const char *reloc_names[] = {
 #define RELOC_BASE_RELATIVE(t)		((reloc_target_flags[t] & _RF_B) != 0)
 #define RELOC_UNALIGNED(t)		((reloc_target_flags[t] & _RF_U) != 0)
 #define RELOC_USE_ADDEND(t)		((reloc_target_flags[t] & _RF_A) != 0)
+#define	RELOC_BARE_SYMBOL(t)		((reloc_target_flags[t] & _RF_X) != 0)
 #define RELOC_TARGET_SIZE(t)		((reloc_target_flags[t] >> 8) & 0xff)
 #define RELOC_VALUE_RIGHTSHIFT(t)	(reloc_target_flags[t] & 0xff)
 
@@ -273,10 +275,9 @@ static const long reloc_target_bitmask[] = {
 
 int
 elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
-    int type, elf_lookup_fn lookup)
+    int type, elf_lookup_fn lookup __unused)
 {
 	const Elf_Rela *rela;
-	Elf_Addr value;
 	Elf_Addr *where;
 
 	if (type != ELF_RELOC_RELA)
@@ -286,10 +287,8 @@ elf_reloc_local(linker_file_t lf, Elf_Addr relocbase, const void *data,
 	if (ELF64_R_TYPE_ID(rela->r_info) != R_SPARC_RELATIVE)
 		return (-1);
 
-	value = rela->r_addend + (Elf_Addr)lf->address;
-	where = (Elf_Addr *)((Elf_Addr)lf->address + rela->r_offset);
-
-	*where = elf_relocaddr(lf, value);
+	where = (Elf_Addr *)(relocbase + rela->r_offset);
+	*where = elf_relocaddr(lf, rela->r_addend + relocbase);
 
 	return (0);
 }
@@ -334,6 +333,8 @@ elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
 		if (addr == 0)
 			return (-1);
 		value += addr;
+		if (RELOC_BARE_SYMBOL(rtype))
+			value = elf_relocaddr(lf, value);
 	}
 
 	if (rtype == R_SPARC_OLO10)
@@ -342,9 +343,8 @@ elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
 	if (RELOC_PC_RELATIVE(rtype))
 		value -= (Elf_Addr)where;
 
-	if (RELOC_BASE_RELATIVE(rtype)) {
+	if (RELOC_BASE_RELATIVE(rtype))
 		value = elf_relocaddr(lf, value + relocbase);
-	}
 
 	mask = RELOC_VALUE_BITMASK(rtype);
 	value >>= RELOC_VALUE_RIGHTSHIFT(rtype);

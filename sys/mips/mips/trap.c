@@ -304,7 +304,7 @@ trap(struct trapframe *trapframe)
 	 * return to userland.
 	 */
 	if (trapframe->sr & MIPS_SR_INT_IE) {
-		set_intr_mask(~(trapframe->sr & MIPS_SR_INT_MASK));
+		set_intr_mask(trapframe->sr & MIPS_SR_INT_MASK);
 		intr_enable();
 	} else {
 		intr_disable();

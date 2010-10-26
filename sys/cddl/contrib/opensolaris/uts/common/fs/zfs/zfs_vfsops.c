@@ -994,6 +994,7 @@ zfs_set_fuid_feature(zfsvfs_t *zfsvfs)
 		vfs_set_feature(zfsvfs->z_vfs, VFSFT_SYSATTR_VIEWS);
 		vfs_set_feature(zfsvfs->z_vfs, VFSFT_ACEMASKONACCESS);
 		vfs_set_feature(zfsvfs->z_vfs, VFSFT_ACLONCREATE);
+		vfs_set_feature(zfsvfs->z_vfs, VFSFT_ACCESS_FILTER);
 	}
 }
 
@@ -1162,8 +1163,7 @@ zfs_mount(vfs_t *vfsp)
 	 */
 	error = secpolicy_fs_mount(cr, mvp, vfsp);
 	if (error) {
-		error = dsl_deleg_access(osname, ZFS_DELEG_PERM_MOUNT, cr);
-		if (error != 0)
+		if (dsl_deleg_access(osname, ZFS_DELEG_PERM_MOUNT, cr) != 0)
 			goto out;
 
 		if (!(vfsp->vfs_flag & MS_REMOUNT)) {
@@ -1177,7 +1177,7 @@ zfs_mount(vfs_t *vfsp)
 			vattr.va_mask = AT_UID;
 
 			vn_lock(mvp, LK_SHARED | LK_RETRY);
-			if (error = VOP_GETATTR(mvp, &vattr, cr)) {
+			if (VOP_GETATTR(mvp, &vattr, cr)) {
 				VOP_UNLOCK(mvp, 0);
 				goto out;
 			}
@@ -1217,13 +1217,6 @@ zfs_mount(vfs_t *vfsp)
 	DROP_GIANT();
 	error = zfs_domount(vfsp, osname);
 	PICKUP_GIANT();
-
-	/*
-	 * Add an extra VFS_HOLD on our parent vfs so that it can't
-	 * disappear due to a forced unmount.
-	 */
-	if (error == 0 && ((zfsvfs_t *)vfsp->vfs_data)->z_issnap)
-		VFS_HOLD(mvp->v_vfsp);
 
 	/*
 	 * Add an extra VFS_HOLD on our parent vfs so that it can't
@@ -1439,9 +1432,8 @@ zfs_umount(vfs_t *vfsp, int fflag)
 
 	ret = secpolicy_fs_unmount(cr, vfsp);
 	if (ret) {
-		ret = dsl_deleg_access((char *)refstr_value(vfsp->vfs_resource),
-		    ZFS_DELEG_PERM_MOUNT, cr);
-		if (ret)
+		if (dsl_deleg_access((char *)refstr_value(vfsp->vfs_resource),
+		    ZFS_DELEG_PERM_MOUNT, cr))
 			return (ret);
 	}
 	/*
@@ -1563,15 +1555,9 @@ zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp)
 	int 		err;
 
 	/*
-	 * XXXPJD: zfs_zget() can't operate on virtual entires like .zfs/ or
-	 * .zfs/snapshot/ directories, so for now just return EOPNOTSUPP.
-	 * This will make NFS to fall back to using READDIR instead of
-	 * READDIRPLUS.
-	 * Also snapshots are stored in AVL tree, but based on their names,
-	 * not inode numbers, so it will be very inefficient to iterate
-	 * over all snapshots to find the right one.
-	 * Note that OpenSolaris READDIRPLUS implementation does LOOKUP on
-	 * d_name, and not VGET on d_fileno as we do.
+	 * zfs_zget() can't operate on virtual entires like .zfs/ or
+	 * .zfs/snapshot/ directories, that's why we return EOPNOTSUPP.
+	 * This will make NFS to switch to LOOKUP instead of using VGET.
 	 */
 	if (ino == ZFSCTL_INO_ROOT || ino == ZFSCTL_INO_SNAPDIR)
 		return (EOPNOTSUPP);

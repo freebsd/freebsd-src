@@ -751,6 +751,7 @@ device		glxsb		# AMD Geode LX Security Block
 # spic: Sony Programmable I/O controller (VAIO notebooks)
 # asmc: Apple System Management Controller
 # si: Specialix International SI/XIO or SX intelligent serial card driver
+# tpm: Trusted Platform Module
 
 # Notes on APM
 #  The flags takes the following meaning for apm0:
@@ -789,6 +790,7 @@ hint.spic.0.at="isa"
 hint.spic.0.port="0x10a0"
 device		asmc
 #device		si
+device		tpm
 
 #
 # Laptop/Notebook options:

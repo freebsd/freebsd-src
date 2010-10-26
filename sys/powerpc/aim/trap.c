@@ -34,8 +34,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ktrace.h"
-
 #include <sys/param.h>
 #include <sys/kdb.h>
 #include <sys/proc.h>
@@ -50,9 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/uio.h>
 #include <sys/signalvar.h>
-#ifdef KTRACE
-#include <sys/ktrace.h>
-#endif
 #include <sys/vmmeter.h>
 
 #include <security/audit/audit.h>
@@ -208,9 +203,19 @@ trap(struct trapframe *frame)
 			enable_vec(td);
 			break;
 
-		case EXC_VECAST:
-			printf("Vector assist exception!\n");
-			sig = SIGILL;
+		case EXC_VECAST_G4:
+		case EXC_VECAST_G5:
+			/*
+			 * We get a VPU assist exception for IEEE mode
+			 * vector operations on denormalized floats.
+			 * Emulating this is a giant pain, so for now,
+			 * just switch off IEEE mode and treat them as
+			 * zero.
+			 */
+
+			save_vec(td);
+			td->td_pcb->pcb_vec.vscr |= ALTIVEC_VSCR_NJ;
+			enable_vec(td);
 			break;
 
 		case EXC_ALI:
@@ -450,33 +455,35 @@ syscall(struct trapframe *frame)
 static int 
 handle_slb_spill(pmap_t pm, vm_offset_t addr)
 {
-	struct slb slb_entry;
-	int error, i;
+	struct slb *user_entry;
+	uint64_t esid;
+	int i;
+
+	esid = (uintptr_t)addr >> ADDR_SR_SHFT;
 
 	if (pm == kernel_pmap) {
-		error = va_to_slb_entry(pm, addr, &slb_entry);
-		if (error)
-			return (error);
-
-		slb_insert(pm, PCPU_GET(slb), &slb_entry);
+		slb_insert_kernel((esid << SLBE_ESID_SHIFT) | SLBE_VALID,
+		    kernel_va_to_slbv(addr));
 		return (0);
 	}
 
 	PMAP_LOCK(pm);
-	error = va_to_slb_entry(pm, addr, &slb_entry);
-	if (error != 0)
-		(void)allocate_vsid(pm, (uintptr_t)addr >> ADDR_SR_SHFT, 0);
-	else {
+	user_entry = user_va_to_slb_entry(pm, addr);
+
+	if (user_entry == NULL) {
+		/* allocate_vsid auto-spills it */
+		(void)allocate_user_vsid(pm, esid, 0);
+	} else {
 		/*
 		 * Check that another CPU has not already mapped this.
 		 * XXX: Per-thread SLB caches would be better.
 		 */
-		for (i = 0; i < 64; i++)
-			if (pm->pm_slb[i].slbe == (slb_entry.slbe | i))
+		for (i = 0; i < pm->pm_slb_len; i++)
+			if (pm->pm_slb[i] == user_entry)
 				break;
 
-		if (i == 64)
-			slb_insert(pm, pm->pm_slb, &slb_entry);
+		if (i == pm->pm_slb_len)
+			slb_insert_user(pm, user_entry);
 	}
 	PMAP_UNLOCK(pm);
 
@@ -518,19 +525,7 @@ trap_pfault(struct trapframe *frame, int user)
 			map = &p->p_vmspace->vm_map;
 
 			#ifdef __powerpc64__
-			user_sr = 0;
-			__asm ("slbmfev %0, %1"
-			    : "=r"(user_sr)
-			    : "r"(USER_SR));
-
-			PMAP_LOCK(&p->p_vmspace->vm_pmap);
-			user_sr >>= SLBV_VSID_SHIFT;
-			rv = vsid_to_esid(&p->p_vmspace->vm_pmap, user_sr,
-			    &user_sr);
-			PMAP_UNLOCK(&p->p_vmspace->vm_pmap);
-
-			if (rv != 0) 
-				return (SIGSEGV);
+			user_sr = td->td_pcb->pcb_cpu.aim.usr_segm;
 			#else
 			__asm ("mfsr %0, %1"
 			    : "=r"(user_sr)

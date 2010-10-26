@@ -48,7 +48,7 @@
 static __inline  void
 mips_sync(void)
 {
-        __asm __volatile (".set noreorder\n\t"
+	__asm __volatile (".set noreorder\n\t"
 			"sync\n\t"
 			"nop\n\t"
 			"nop\n\t"

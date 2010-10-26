@@ -1441,16 +1441,18 @@ static void t3_gate_rx_traffic(struct cmac *mac, u32 *rx_cfg,
 	t3_mac_disable_exact_filters(mac);
 
 	/* stop broadcast, multicast, promiscuous mode traffic */
-	*rx_cfg = t3_read_reg(mac->adapter, A_XGM_RX_CFG);
-	t3_set_reg_field(mac->adapter, A_XGM_RX_CFG, 
+	*rx_cfg = t3_read_reg(mac->adapter, A_XGM_RX_CFG + mac->offset);
+	t3_set_reg_field(mac->adapter, A_XGM_RX_CFG + mac->offset, 
 			 F_ENHASHMCAST | F_DISBCAST | F_COPYALLFRAMES,
 			 F_DISBCAST);
 
-	*rx_hash_high = t3_read_reg(mac->adapter, A_XGM_RX_HASH_HIGH);
-	t3_write_reg(mac->adapter, A_XGM_RX_HASH_HIGH, 0);
+	*rx_hash_high = t3_read_reg(mac->adapter, A_XGM_RX_HASH_HIGH +
+	    mac->offset);
+	t3_write_reg(mac->adapter, A_XGM_RX_HASH_HIGH + mac->offset, 0);
 
-	*rx_hash_low = t3_read_reg(mac->adapter, A_XGM_RX_HASH_LOW);
-	t3_write_reg(mac->adapter, A_XGM_RX_HASH_LOW, 0);
+	*rx_hash_low = t3_read_reg(mac->adapter, A_XGM_RX_HASH_LOW +
+	    mac->offset);
+	t3_write_reg(mac->adapter, A_XGM_RX_HASH_LOW + mac->offset, 0);
 
 	/* Leave time to drain max RX fifo */
 	msleep(1);
@@ -1460,11 +1462,13 @@ static void t3_open_rx_traffic(struct cmac *mac, u32 rx_cfg,
 			       u32 rx_hash_high, u32 rx_hash_low)
 {
 	t3_mac_enable_exact_filters(mac);
-	t3_set_reg_field(mac->adapter, A_XGM_RX_CFG, 
+	t3_set_reg_field(mac->adapter, A_XGM_RX_CFG + mac->offset,
 			 F_ENHASHMCAST | F_DISBCAST | F_COPYALLFRAMES,
 			 rx_cfg);
-	t3_write_reg(mac->adapter, A_XGM_RX_HASH_HIGH, rx_hash_high);
-	t3_write_reg(mac->adapter, A_XGM_RX_HASH_LOW, rx_hash_low);
+	t3_write_reg(mac->adapter, A_XGM_RX_HASH_HIGH + mac->offset,
+	    rx_hash_high);
+	t3_write_reg(mac->adapter, A_XGM_RX_HASH_LOW + mac->offset,
+	    rx_hash_low);
 }
 
 static int t3_detect_link_fault(adapter_t *adapter, int port_id)
@@ -1558,6 +1562,13 @@ void t3_link_changed(adapter_t *adapter, int port_id)
 				pi->link_fault = LF_YES;
 			}
 
+			if (uses_xaui(adapter)) {
+				if (adapter->params.rev >= T3_REV_C)
+					t3c_pcs_force_los(mac);
+				else
+					t3b_pcs_reset(mac);
+			}
+
 			/* Don't report link up */
 			link_ok = 0;
 		} else {
@@ -1584,12 +1595,20 @@ void t3_link_changed(adapter_t *adapter, int port_id)
 		/* down -> up, or up -> up with changed settings */
 
 		if (adapter->params.rev > 0 && uses_xaui(adapter)) {
+
+			if (adapter->params.rev >= T3_REV_C)
+				t3c_pcs_force_los(mac);
+			else
+				t3b_pcs_reset(mac);
+
 			t3_write_reg(adapter, A_XGM_XAUI_ACT_CTRL + mac->offset,
 				     F_TXACTENABLE | F_RXEN);
 		}
 
+		/* disable TX FIFO drain */
 		t3_set_reg_field(adapter, A_XGM_TXFIFO_CFG + mac->offset,
 				 F_ENDROPPKT, 0);
+
 		t3_mac_enable(mac, MAC_DIRECTION_TX | MAC_DIRECTION_RX);
 		t3_set_reg_field(adapter, A_XGM_STAT_CTRL + mac->offset,
 				 F_CLRSTATS, 1);
@@ -1609,20 +1628,21 @@ void t3_link_changed(adapter_t *adapter, int port_id)
 			t3_set_reg_field(adapter,
 					 A_XGM_INT_ENABLE + mac->offset,
 					 F_XGM_INT, 0);
-		}
 
-		if (!link_fault)
 			t3_mac_disable(mac, MAC_DIRECTION_RX);
 
-		/*
-		 * Make sure Tx FIFO continues to drain, even as rxen is left
-		 * high to help detect and indicate remote faults.
-		 */
-		t3_set_reg_field(adapter, A_XGM_TXFIFO_CFG + mac->offset, 0,
-				 F_ENDROPPKT);
-		t3_write_reg(adapter, A_XGM_RX_CTRL + mac->offset, 0);
-		t3_write_reg(adapter, A_XGM_TX_CTRL + mac->offset, F_TXEN);
-		t3_write_reg(adapter, A_XGM_RX_CTRL + mac->offset, F_RXEN);
+			/*
+			 * Make sure Tx FIFO continues to drain, even as rxen is
+			 * left high to help detect and indicate remote faults.
+			 */
+			t3_set_reg_field(adapter,
+			    A_XGM_TXFIFO_CFG + mac->offset, 0, F_ENDROPPKT);
+			t3_write_reg(adapter, A_XGM_RX_CTRL + mac->offset, 0);
+			t3_write_reg(adapter,
+			    A_XGM_TX_CTRL + mac->offset, F_TXEN);
+			t3_write_reg(adapter,
+			    A_XGM_RX_CTRL + mac->offset, F_RXEN);
+		}
 	}
 
 	t3_os_link_changed(adapter, port_id, link_ok, speed, duplex, fc,

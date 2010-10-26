@@ -741,6 +741,8 @@ rip_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 		if (err == 0)
 			ia->ia_flags |= IFA_ROUTE;
 		err = ifa_add_loopback_route((struct ifaddr *)ia, sa);
+		if (err == 0)
+			ia->ia_flags |= IFA_RTSELF;
 		ifa_free(&ia->ia_ifa);
 		break;
 	}
@@ -993,8 +995,8 @@ rip_pcblist(SYSCTL_HANDLER_ARGS)
 	 */
 	if (req->oldptr == 0) {
 		n = V_ripcbinfo.ipi_count;
-		req->oldidx = 2 * (sizeof xig)
-		    + (n + n/8) * sizeof(struct xinpcb);
+		n += imax(n / 8, 10);
+		req->oldidx = 2 * (sizeof xig) + n * sizeof(struct xinpcb);
 		return (0);
 	}
 

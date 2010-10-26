@@ -122,7 +122,7 @@
 
 /* Local prototypes */
 
-FILE *
+static FILE *
 FlOpenIncludeWithPrefix (
     char                    *PrefixDir,
     char                    *Filename);
@@ -546,7 +546,7 @@ FlAddIncludeDirectory (
  *
  ******************************************************************************/
 
-FILE *
+static FILE *
 FlOpenIncludeWithPrefix (
     char                    *PrefixDir,
     char                    *Filename)

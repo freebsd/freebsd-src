@@ -1287,12 +1287,12 @@ ip_drain(void)
  * in inetsw[], either statically or through pf_proto_register().
  */
 int
-ipproto_register(u_char ipproto)
+ipproto_register(short ipproto)
 {
 	struct protosw *pr;
 
 	/* Sanity checks. */
-	if (ipproto == 0)
+	if (ipproto <= 0 || ipproto >= IPPROTO_MAX)
 		return (EPROTONOSUPPORT);
 
 	/*
@@ -1310,24 +1310,20 @@ ipproto_register(u_char ipproto)
 	     pr < inetdomain.dom_protoswNPROTOSW; pr++) {
 		if (pr->pr_domain->dom_family == PF_INET &&
 		    pr->pr_protocol && pr->pr_protocol == ipproto) {
-			/* Be careful to only index valid IP protocols. */
-			if (pr->pr_protocol < IPPROTO_MAX) {
-				ip_protox[pr->pr_protocol] = pr - inetsw;
-				return (0);
-			} else
-				return (EINVAL);
+			ip_protox[pr->pr_protocol] = pr - inetsw;
+			return (0);
 		}
 	}
 	return (EPROTONOSUPPORT);
 }
 
 int
-ipproto_unregister(u_char ipproto)
+ipproto_unregister(short ipproto)
 {
 	struct protosw *pr;
 
 	/* Sanity checks. */
-	if (ipproto == 0)
+	if (ipproto <= 0 || ipproto >= IPPROTO_MAX)
 		return (EPROTONOSUPPORT);
 
 	/* Check if the protocol was indeed registered. */

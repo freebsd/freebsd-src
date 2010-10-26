@@ -60,7 +60,7 @@ struct legacy_device {
 static	int legacy_probe(device_t);
 static	int legacy_attach(device_t);
 static	int legacy_print_child(device_t, device_t);
-static device_t legacy_add_child(device_t bus, int order, const char *name,
+static device_t legacy_add_child(device_t bus, u_int order, const char *name,
 				int unit);
 static	int legacy_read_ivar(device_t, device_t, int, uintptr_t *);
 static	int legacy_write_ivar(device_t, device_t, int, uintptr_t);
@@ -149,7 +149,7 @@ legacy_print_child(device_t bus, device_t child)
 }
 
 static device_t
-legacy_add_child(device_t bus, int order, const char *name, int unit)
+legacy_add_child(device_t bus, u_int order, const char *name, int unit)
 {
 	device_t child;
 	struct legacy_device *atdev;
@@ -213,7 +213,7 @@ legacy_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 static void	cpu_identify(driver_t *driver, device_t parent);
 static int	cpu_read_ivar(device_t dev, device_t child, int index,
 		    uintptr_t *result);
-static device_t cpu_add_child(device_t bus, int order, const char *name,
+static device_t cpu_add_child(device_t bus, u_int order, const char *name,
 		    int unit);
 static struct resource_list *cpu_get_rlist(device_t dev, device_t child);
 
@@ -277,7 +277,7 @@ cpu_identify(driver_t *driver, device_t parent)
 }
 
 static device_t
-cpu_add_child(device_t bus, int order, const char *name, int unit)
+cpu_add_child(device_t bus, u_int order, const char *name, int unit)
 {
 	struct cpu_device *cd;
 	device_t child;

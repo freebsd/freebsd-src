@@ -127,7 +127,7 @@ spibus_read_ivar(device_t bus, device_t child, int which, u_int *result)
 }
 
 static device_t
-spibus_add_child(device_t dev, int order, const char *name, int unit)
+spibus_add_child(device_t dev, u_int order, const char *name, int unit)
 {
 	device_t child;
 	struct spibus_ivar *devi;

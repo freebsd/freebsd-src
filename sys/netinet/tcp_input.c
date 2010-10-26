@@ -571,7 +571,7 @@ findpcb:
 		 */
 		if ((tcp_log_in_vain == 1 && (thflags & TH_SYN)) ||
 		    tcp_log_in_vain == 2) {
-			if ((s = tcp_log_addrs(NULL, th, (void *)ip, ip6)))
+			if ((s = tcp_log_vain(NULL, th, (void *)ip, ip6)))
 				log(LOG_INFO, "%s; %s: Connection attempt "
 				    "to closed port\n", s, __func__);
 		}
@@ -1321,7 +1321,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					tcp_xmit_timer(tp,
 							ticks - tp->t_rtttime);
 				}
-				tcp_xmit_bandwidth_limit(tp, th->th_ack);
 				acked = th->th_ack - tp->snd_una;
 				TCPSTAT_INC(tcps_rcvackpack);
 				TCPSTAT_ADD(tcps_rcvackbyte, acked);
@@ -1441,7 +1440,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			if (V_tcp_do_autorcvbuf &&
 			    to.to_tsecr &&
 			    (so->so_rcv.sb_flags & SB_AUTOSIZE)) {
-				if (to.to_tsecr > tp->rfbuf_ts &&
+				if (TSTMP_GT(to.to_tsecr, tp->rfbuf_ts) &&
 				    to.to_tsecr - tp->rfbuf_ts < hz) {
 					if (tp->rfbuf_cnt >
 					    (so->so_rcv.sb_hiwat / 8 * 7) &&
@@ -2278,7 +2277,6 @@ process_ACK:
 				tp->t_rttlow = ticks - tp->t_rtttime;
 			tcp_xmit_timer(tp, ticks - tp->t_rtttime);
 		}
-		tcp_xmit_bandwidth_limit(tp, th->th_ack);
 
 		/*
 		 * If all outstanding data is acked, stop retransmit
@@ -3328,8 +3326,6 @@ tcp_mss(struct tcpcb *tp, int offer)
 		tp->snd_ssthresh = max(2 * mss, metrics.rmx_ssthresh);
 		TCPSTAT_INC(tcps_usedssthresh);
 	}
-	if (metrics.rmx_bandwidth)
-		tp->snd_bandwidth = metrics.rmx_bandwidth;
 
 	/*
 	 * Set the slow-start flight size depending on whether this

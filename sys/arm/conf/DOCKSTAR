@@ -1,0 +1,76 @@
+#
+# Custom kernel for Seagate DockStar (Marvell SheevaPlug based) devices.
+#
+# $FreeBSD$
+#
+
+ident		DOCKSTAR
+include		"../mv/kirkwood/std.sheevaplug"
+
+options 	SOC_MV_KIRKWOOD
+makeoptions	MODULES_OVERRIDE=""
+
+#makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+makeoptions	WERROR="-Werror"
+
+options 	SCHED_4BSD		#4BSD scheduler
+options 	INET			#InterNETworking
+options 	INET6			#IPv6 communications protocols
+options 	FFS			#Berkeley Fast Filesystem
+options 	NFSCLIENT		#Network Filesystem Client
+options 	NFSLOCKD		#Network Lock Manager
+options 	NFS_ROOT		#NFS usable as /, requires NFSCLIENT
+options 	BOOTP
+options 	BOOTP_NFSROOT
+options 	BOOTP_NFSV3
+options 	BOOTP_COMPAT
+options 	BOOTP_WIRED_TO=mge0
+
+# Root fs on USB device
+#options        ROOTDEVNAME=\"ufs:/dev/da0a\"
+
+options 	SYSVSHM			#SYSV-style shared memory
+options 	SYSVMSG			#SYSV-style message queues
+options 	SYSVSEM			#SYSV-style semaphores
+options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
+options 	MUTEX_NOINLINE
+options 	RWLOCK_NOINLINE
+options 	NO_FFS_SNAPSHOT
+options 	NO_SWAPPING
+
+# Debugging
+options 	ALT_BREAK_TO_DEBUGGER
+options 	DDB
+options 	KDB
+
+# Pseudo devices
+device		md
+device		random
+device		pty
+device		loop
+
+# Serial ports
+device		uart
+
+# Networking
+device		ether
+device		mge			# Marvell Gigabit Ethernet controller
+device		mii
+device		bpf
+options		HZ=1000
+options		DEVICE_POLLING
+device		vlan
+
+# USB
+options 	USB_DEBUG	# enable debug msgs
+device		usb
+device		ehci
+device		umass
+device		scbus
+device		pass
+device		da
+
+# Flattened Device Tree
+options 	FDT
+options		FDT_DTB_STATIC
+makeoptions	FDT_DTS_FILE=dockstar.dts

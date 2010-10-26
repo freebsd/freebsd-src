@@ -36,6 +36,9 @@
 enum xenbus_state {
     XenbusStateUnknown       = 0,
 
+    /*
+     * Initializing: Back-end is initializing.
+     */
     XenbusStateInitialising  = 1,
 
     /*
@@ -49,6 +52,9 @@ enum xenbus_state {
      */
     XenbusStateInitialised   = 3,
 
+    /*
+     * Connected: The normal state for a front to backend connection.
+     */
     XenbusStateConnected     = 4,
 
     /*
@@ -56,6 +62,9 @@ enum xenbus_state {
      */
     XenbusStateClosing       = 5,
 
+    /*
+     * Closed: No connection exists between front and back end.
+     */
     XenbusStateClosed        = 6,
 
     /*

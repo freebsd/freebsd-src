@@ -26,7 +26,10 @@ dev/cfi/cfi_bus_fdt.c		optional	cfi fdt
 dev/fb/fb.c			optional	sc
 dev/fdt/fdt_powerpc.c		optional	fdt
 dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
+dev/iicbus/ds1775.c		optional	ds1775 powermac
+dev/iicbus/max6690.c		optional	max6690 powermac
 dev/kbd/kbd.c			optional	sc
+dev/mem/memutil.c		optional	mem
 dev/ofw/openfirm.c		optional	aim | fdt
 dev/ofw/openfirmio.c		optional	aim | fdt
 dev/ofw/ofw_bus_if.m		optional	aim | fdt
@@ -52,6 +55,7 @@ dev/syscons/scvtb.c		optional	sc
 dev/tsec/if_tsec.c		optional	tsec
 dev/tsec/if_tsec_fdt.c		optional	tsec fdt
 dev/uart/uart_cpu_powerpc.c	optional	uart aim
+kern/kern_clocksource.c		standard
 kern/syscalls.c			optional	ktr
 libkern/ashldi3.c		optional	powerpc
 libkern/ashrdi3.c		optional	powerpc
@@ -82,7 +86,6 @@ powerpc/aim/mp_cpudep.c		optional	aim smp
 powerpc/aim/nexus.c		optional	aim
 powerpc/aim/ofw_machdep.c	optional	aim
 powerpc/aim/ofwmagic.S		optional	aim
-powerpc/aim/platform_chrp.c	optional	aim
 powerpc/aim/slb.c		optional	aim powerpc64
 powerpc/aim/swtch32.S		optional	aim powerpc
 powerpc/aim/swtch64.S		optional	aim powerpc64
@@ -102,15 +105,15 @@ powerpc/booke/trap.c		optional	e500
 powerpc/booke/vm_machdep.c	optional	e500
 powerpc/cpufreq/dfs.c		optional	cpufreq
 powerpc/cpufreq/pcr.c		optional	cpufreq aim
-powerpc/fpu/fpu_add.c		optional	fpu_emu
-powerpc/fpu/fpu_compare.c	optional	fpu_emu
-powerpc/fpu/fpu_div.c		optional	fpu_emu
-powerpc/fpu/fpu_emu.c		optional	fpu_emu
-powerpc/fpu/fpu_explode.c	optional	fpu_emu
-powerpc/fpu/fpu_implode.c	optional	fpu_emu
-powerpc/fpu/fpu_mul.c		optional	fpu_emu
-powerpc/fpu/fpu_sqrt.c		optional	fpu_emu
-powerpc/fpu/fpu_subr.c		optional	fpu_emu
+powerpc/fpu/fpu_add.c		optional	fpu_emu powerpc
+powerpc/fpu/fpu_compare.c	optional	fpu_emu powerpc
+powerpc/fpu/fpu_div.c		optional	fpu_emu powerpc
+powerpc/fpu/fpu_emu.c		optional	fpu_emu powerpc
+powerpc/fpu/fpu_explode.c	optional	fpu_emu powerpc
+powerpc/fpu/fpu_implode.c	optional	fpu_emu powerpc
+powerpc/fpu/fpu_mul.c		optional	fpu_emu powerpc
+powerpc/fpu/fpu_sqrt.c		optional	fpu_emu powerpc
+powerpc/fpu/fpu_subr.c		optional	fpu_emu powerpc
 powerpc/mambo/mambocall.S	optional	mambo
 powerpc/mambo/mambo.c		optional	mambo
 powerpc/mambo/mambo_console.c	optional	mambo
@@ -137,12 +140,14 @@ powerpc/powermac/ata_dbdma.c	optional	powermac ata | powermac atamacio
 powerpc/powermac/cuda.c		optional	powermac cuda
 powerpc/powermac/cpcht.c	optional	powermac pci
 powerpc/powermac/dbdma.c	optional	powermac pci
+powerpc/powermac/fcu.c		optional	powermac fcu
 powerpc/powermac/grackle.c	optional	powermac pci
 powerpc/powermac/hrowpic.c	optional	powermac pci
 powerpc/powermac/kiic.c		optional	powermac kiic
 powerpc/powermac/macgpio.c	optional	powermac pci 
 powerpc/powermac/macio.c	optional	powermac pci
 powerpc/powermac/openpic_macio.c optional	powermac pci
+powerpc/powermac/platform_powermac.c optional	powermac
 powerpc/powermac/pswitch.c	optional	powermac pswitch
 powerpc/powermac/pmu.c		optional	powermac pmu 
 powerpc/powermac/smu.c		optional	powermac smu 

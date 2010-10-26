@@ -74,6 +74,9 @@ options		USB_EHCI_BIG_ENDIAN_DESC        # handle big-endian byte order
 device		ohci
 device		ehci
 
+device		gpio
+device		gpioled
+
 device		spibus
 device		ar71xx_spi
 device		mx25l

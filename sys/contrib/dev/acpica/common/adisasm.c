@@ -147,18 +147,18 @@ LsSetupNsList (
 
 /* Local prototypes */
 
-void
+static void
 AdCreateTableHeader (
     char                    *Filename,
     ACPI_TABLE_HEADER       *Table);
 
-ACPI_STATUS
+static ACPI_STATUS
 AdDeferredParse (
     ACPI_PARSE_OBJECT       *Op,
     UINT8                   *Aml,
     UINT32                  AmlLength);
 
-ACPI_STATUS
+static ACPI_STATUS
 AdParseDeferredOps (
     ACPI_PARSE_OBJECT       *Root);
 
@@ -612,10 +612,10 @@ AdDisassemblerHeader (
 
     /* Header and input table info */
 
-    AcpiOsPrintf ("/*\n * Intel ACPI Component Architecture\n");
-    AcpiOsPrintf (" * AML Disassembler version %8.8X\n", ACPI_CA_VERSION);
+    AcpiOsPrintf ("/*\n");
+    AcpiOsPrintf (ACPI_COMMON_HEADER ("AML Disassembler", " * "));
 
-    AcpiOsPrintf (" *\n * Disassembly of %s, %s", Filename, ctime (&Timer));
+    AcpiOsPrintf (" * Disassembly of %s, %s", Filename, ctime (&Timer));
     AcpiOsPrintf (" *\n");
 }
 
@@ -634,7 +634,7 @@ AdDisassemblerHeader (
  *
  *****************************************************************************/
 
-void
+static void
 AdCreateTableHeader (
     char                    *Filename,
     ACPI_TABLE_HEADER       *Table)
@@ -781,7 +781,7 @@ AdDisplayTables (
  *
  *****************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AdDeferredParse (
     ACPI_PARSE_OBJECT       *Op,
     UINT8                   *Aml,
@@ -904,7 +904,7 @@ AdDeferredParse (
  *
  *****************************************************************************/
 
-ACPI_STATUS
+static ACPI_STATUS
 AdParseDeferredOps (
     ACPI_PARSE_OBJECT       *Root)
 {

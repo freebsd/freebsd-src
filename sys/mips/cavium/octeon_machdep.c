@@ -286,6 +286,18 @@ octeon_memory_init(void)
 		if (addr == -1)
 			break;
 
+		/*
+		 * The SDK needs to be able to easily map any memory that might
+		 * come to it e.g. in the form of an mbuf.  Because on !n64 we
+		 * can't direct-map some addresses and we don't want to manage
+		 * temporary mappings within the SDK, don't feed memory that
+		 * can't be direct-mapped to the kernel.
+		 */
+#if !defined(__mips_n64)
+		if (!MIPS_DIRECT_MAPPABLE(addr + (1 << 20) - 1))
+			continue;
+#endif
+
 		physmem += btoc(1 << 20);
 
 		if (i > 0 && phys_avail[i - 1] == addr) {

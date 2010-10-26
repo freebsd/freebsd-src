@@ -661,8 +661,121 @@ ENTRY(spitfire_block_copy)
 END(spitfire_block_copy)
 
 /*
- * void spitfire_block_zero(void *dst, size_t len)
+ * void zeus_block_copy(void *src, void *dst, size_t len)
  */
+ENTRY(zeus_block_copy)
+	prefetch [%o0 + (0 * 64)], 0
+
+	rdpr	%pil, %o3
+	wrpr	%g0, PIL_TICK, %pil
+
+	wr	%g0, ASI_BLK_S, %asi
+	wr	%g0, FPRS_FEF, %fprs
+
+	sub	PCB_REG, TF_SIZEOF, %o4
+	ldx	[%o4 + TF_FPRS], %o5
+	andcc	%o5, FPRS_FEF, %g0
+	bz,a,pt	%xcc, 1f
+	 nop
+	stda	%f0, [PCB_REG + PCB_UFP + (0 * 64)] %asi
+	stda	%f16, [PCB_REG + PCB_UFP + (1 * 64)] %asi
+	stda	%f32, [PCB_REG + PCB_UFP + (2 * 64)] %asi
+	stda	%f48, [PCB_REG + PCB_UFP + (3 * 64)] %asi
+	membar	#Sync
+
+	andn	%o5, FPRS_FEF, %o5
+	stx	%o5, [%o4 + TF_FPRS]
+	ldx	[PCB_REG + PCB_FLAGS], %o4
+	or	%o4, PCB_FEF, %o4
+	stx	%o4, [PCB_REG + PCB_FLAGS]
+
+1:	wrpr	%o3, 0, %pil
+
+	ldd	[%o0 + (0 * 8)], %f0
+	prefetch [%o0 + (1 * 64)], 0
+	ldd	[%o0 + (1 * 8)], %f2
+	prefetch [%o0 + (2 * 64)], 0
+	fmovd	%f0, %f32
+	ldd	[%o0 + (2 * 8)], %f4
+	prefetch [%o0 + (3 * 64)], 0
+	fmovd	%f2, %f34
+	ldd	[%o0 + (3 * 8)], %f6
+	prefetch [%o0 + (4 * 64)], 1
+	fmovd	%f4, %f36
+	ldd	[%o0 + (4 * 8)], %f8
+	prefetch [%o0 + (8 * 64)], 1
+	fmovd	%f6, %f38
+	ldd	[%o0 + (5 * 8)], %f10
+	prefetch [%o0 + (12 * 64)], 1
+	fmovd	%f8, %f40
+	ldd	[%o0 + (6 * 8)], %f12
+	prefetch [%o0 + (16 * 64)], 1
+	fmovd	%f10, %f42
+	ldd	[%o0 + (7 * 8)], %f14
+	ldd	[%o0 + (8 * 8)], %f0
+	sub	%o2, 64, %o2
+	add	%o0, 64, %o0
+	prefetch [%o0 + (19 * 64)], 1
+	ba,pt	%xcc, 2f
+	 prefetch [%o0 + (23 * 64)], 1
+	.align	32
+
+2:	ldd	[%o0 + (1 * 8)], %f2
+	fmovd	%f12, %f44
+	ldd	[%o0 + (2 * 8)], %f4
+	fmovd	%f14, %f46
+	stda	%f32, [%o1] %asi
+	ldd	[%o0 + (3 * 8)], %f6
+	fmovd	%f0, %f32
+	ldd	[%o0 + (4 * 8)], %f8
+	fmovd	%f2, %f34
+	ldd	[%o0 + (5 * 8)], %f10
+	fmovd	%f4, %f36
+	ldd	[%o0 + (6 * 8)], %f12
+	fmovd	%f6, %f38
+	ldd	[%o0 + (7 * 8)], %f14
+	fmovd	%f8, %f40
+	ldd	[%o0 + (8 * 8)], %f0
+	fmovd	%f10, %f42
+	sub	%o2, 64, %o2
+	prefetch [%o0 + (3 * 64)], 0
+	add	%o1, 64, %o1
+	prefetch [%o0 + (24 * 64)], 1
+	add	%o0, 64, %o0
+	cmp	%o2, 64 + 8
+	bgu,pt	%xcc, 2b
+	 prefetch [%o0 + (12 * 64)], 1
+	ldd	[%o0 + (1 * 8)], %f2
+	fsrc1	%f12, %f44
+	ldd	[%o0 + (2 * 8)], %f4
+	fsrc1	%f14, %f46
+	stda	%f32, [%o1] %asi
+	ldd	[%o0 + (3 * 8)], %f6
+	fsrc1	%f0, %f32
+	ldd	[%o0 + (4 * 8)], %f8
+	fsrc1	%f2, %f34
+	ldd	[%o0 + (5 * 8)], %f10
+	fsrc1	%f4, %f36
+	ldd	[%o0 + (6 * 8)], %f12
+	fsrc1	%f6, %f38
+	ldd	[%o0 + (7 * 8)], %f14
+	fsrc1	%f8, %f40
+	add	%o1, 64, %o1
+	fsrc1	%f10, %f42
+	fsrc1	%f12, %f44
+	fsrc1	%f14, %f46
+	stda	%f32, [%o1] %asi
+	membar	#Sync
+
+	retl
+	 wr	%g0, 0, %fprs
+END(zeus_block_copy)
+
+/*
+ * void spitfire_block_zero(void *dst, size_t len)
+ * void zeus_block_zero(void *dst, size_t len)
+ */
+ALTENTRY(zeus_block_zero)
 ENTRY(spitfire_block_zero)
 	rdpr	%pil, %o3
 	wrpr	%g0, PIL_TICK, %pil

@@ -38,7 +38,8 @@ __FBSDID("$FreeBSD$");
 char hw_serial[11] = "0";
 
 struct opensolaris_utsname utsname = {
-	.nodename = "unset"
+	.nodename = "unset",
+	.sysname  = "SunOS"
 };
 
 int

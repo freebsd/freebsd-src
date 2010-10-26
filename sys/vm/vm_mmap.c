@@ -579,6 +579,7 @@ munmap(td, uap)
 	 * Inform hwpmc if the address range being unmapped contains
 	 * an executable region.
 	 */
+	pkm.pm_address = (uintptr_t) NULL;
 	if (vm_map_lookup_entry(map, addr, &entry)) {
 		for (;
 		     entry != &map->header && entry->start < addr + size;
@@ -587,16 +588,23 @@ munmap(td, uap)
 				entry->end, VM_PROT_EXECUTE) == TRUE) {
 				pkm.pm_address = (uintptr_t) addr;
 				pkm.pm_size = (size_t) size;
-				PMC_CALL_HOOK(td, PMC_FN_MUNMAP,
-				    (void *) &pkm);
 				break;
 			}
 		}
 	}
 #endif
-	/* returns nothing but KERN_SUCCESS anyway */
 	vm_map_delete(map, addr, addr + size);
+
+#ifdef HWPMC_HOOKS
+	/* downgrade the lock to prevent a LOR with the pmc-sx lock */
+	vm_map_lock_downgrade(map);
+	if (pkm.pm_address != (uintptr_t) NULL)
+		PMC_CALL_HOOK(td, PMC_FN_MUNMAP, (void *) &pkm);
+	vm_map_unlock_read(map);
+#else
 	vm_map_unlock(map);
+#endif
+	/* vm_map_delete returns nothing but KERN_SUCCESS anyway */
 	return (0);
 }
 
@@ -1365,7 +1373,8 @@ vm_mmap_shm(struct thread *td, vm_size_t objsize,
 {
 	int error;
 
-	if ((*maxprotp & VM_PROT_WRITE) == 0 &&
+	if ((*flagsp & MAP_SHARED) != 0 &&
+	    (*maxprotp & VM_PROT_WRITE) == 0 &&
 	    (prot & PROT_WRITE) != 0)
 		return (EACCES);
 #ifdef MAC
@@ -1467,9 +1476,10 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		 */
 		if (handle == 0)
 			foff = 0;
-	} else {
+	} else if (flags & MAP_PREFAULT_READ)
+		docow = MAP_PREFAULT;
+	else
 		docow = MAP_PREFAULT_PARTIAL;
-	}
 
 	if ((flags & (MAP_ANON|MAP_SHARED)) == 0)
 		docow |= MAP_COPY_ON_WRITE;

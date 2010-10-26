@@ -1,5 +1,5 @@
 /*	$NetBSD: mii.h,v 1.9 2001/05/31 03:07:14 thorpej Exp $	*/
- 
+
 /*-
  * Copyright (c) 1997 Manuel Bouyer.  All rights reserved.
  *
@@ -14,11 +14,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by Manuel Bouyer.
- * 4. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -52,7 +47,7 @@
 #define	MII_COMMAND_WRITE	0x01
 #define	MII_COMMAND_ACK		0x02
 
-#define	MII_BMCR	0x00 	/* Basic mode control register (rw) */
+#define	MII_BMCR	0x00	/* Basic mode control register (rw) */
 #define	BMCR_RESET	0x8000	/* reset */
 #define	BMCR_LOOP	0x4000	/* loopback */
 #define	BMCR_SPEED0	0x2000	/* speed selection (LSB) */
@@ -86,6 +81,8 @@
 #define	BMSR_LINK	0x0004	/* Link status */
 #define	BMSR_JABBER	0x0002	/* Jabber detected */
 #define	BMSR_EXTCAP	0x0001	/* Extended capability */
+
+#define	BMSR_DEFCAPMASK	0xffffffff
 
 /*
  * Note that the EXTSTAT bit indicates that there is extended status

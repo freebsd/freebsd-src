@@ -58,6 +58,8 @@ struct md_utrap *utrap_hold(struct md_utrap *ut);
 
 cpu_block_copy_t spitfire_block_copy;
 cpu_block_zero_t spitfire_block_zero;
+cpu_block_copy_t zeus_block_copy;
+cpu_block_zero_t zeus_block_zero;
 
 extern	cpu_block_copy_t *cpu_block_copy;
 extern	cpu_block_zero_t *cpu_block_zero;

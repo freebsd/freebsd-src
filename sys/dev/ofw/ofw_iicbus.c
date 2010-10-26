@@ -46,8 +46,8 @@ __FBSDID("$FreeBSD$");
 /* Methods */
 static device_probe_t ofw_iicbus_probe;
 static device_attach_t ofw_iicbus_attach;
-static device_t ofw_iicbus_add_child(device_t dev, int order, const char *name,
-    int unit);
+static device_t ofw_iicbus_add_child(device_t dev, u_int order,
+    const char *name, int unit);
 static const struct ofw_bus_devinfo *ofw_iicbus_get_devinfo(device_t bus,
     device_t dev);
 
@@ -147,7 +147,7 @@ ofw_iicbus_attach(device_t dev)
 }
 
 static device_t
-ofw_iicbus_add_child(device_t dev, int order, const char *name, int unit)
+ofw_iicbus_add_child(device_t dev, u_int order, const char *name, int unit)
 {
 	device_t child;
 	struct ofw_iicbus_devinfo *devi;

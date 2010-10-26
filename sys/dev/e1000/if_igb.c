@@ -99,7 +99,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "version - 2.0.1";
+char igb_driver_version[] = "version - 2.0.4";
 
 
 /*********************************************************************
@@ -127,6 +127,8 @@ static igb_vendor_info_t igb_vendor_info_array[] =
 	{ 0x8086, E1000_DEV_ID_82576_SERDES_QUAD,
 						PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_82576_QUAD_COPPER,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_82576_QUAD_COPPER_ET2,
 						PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_82576_VF,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_82580_COPPER,	PCI_ANY_ID, PCI_ANY_ID, 0},
@@ -178,7 +180,7 @@ static int	igb_setup_msix(struct adapter *);
 static void	igb_free_pci_resources(struct adapter *);
 static void	igb_local_timer(void *);
 static void	igb_reset(struct adapter *);
-static void	igb_setup_interface(device_t, struct adapter *);
+static int	igb_setup_interface(device_t, struct adapter *);
 static int	igb_allocate_queues(struct adapter *);
 static void	igb_configure_queues(struct adapter *);
 
@@ -509,6 +511,20 @@ igb_attach(device_t dev)
 		adapter->stats =
 		    (struct e1000_hw_stats *)malloc(sizeof \
 		    (struct e1000_hw_stats), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (adapter->stats == NULL) {
+		device_printf(dev, "Can not allocate stats memory\n");
+		error = ENOMEM;
+		goto err_late;
+	}
+
+	/* Allocate multicast array memory. */
+	adapter->mta = malloc(sizeof(u8) * ETH_ADDR_LEN *
+	    MAX_NUM_MULTICAST_ADDRESSES, M_DEVBUF, M_NOWAIT);
+	if (adapter->mta == NULL) {
+		device_printf(dev, "Can not allocate multicast setup array\n");
+		error = ENOMEM;
+		goto err_late;
+	}
 
 	/*
 	** Start from a known state, this is
@@ -559,7 +575,8 @@ igb_attach(device_t dev)
 		goto err_late;
 
 	/* Setup OS specific network interface */
-	igb_setup_interface(dev, adapter);
+	if (igb_setup_interface(dev, adapter) != 0)
+		goto err_late;
 
 	/* Now get a good starting state */
 	igb_reset(adapter);
@@ -608,8 +625,11 @@ err_late:
 	igb_free_transmit_structures(adapter);
 	igb_free_receive_structures(adapter);
 	igb_release_hw_control(adapter);
+	if (adapter->ifp != NULL)
+		if_free(adapter->ifp);
 err_pci:
 	igb_free_pci_resources(adapter);
+	free(adapter->mta, M_DEVBUF);
 	IGB_CORE_LOCK_DESTROY(adapter);
 
 	return (error);
@@ -680,6 +700,7 @@ igb_detach(device_t dev)
 
 	igb_free_transmit_structures(adapter);
 	igb_free_receive_structures(adapter);
+	free(adapter->mta, M_DEVBUF);
 
 	IGB_CORE_LOCK_DESTROY(adapter);
 
@@ -1853,11 +1874,15 @@ igb_set_multi(struct adapter *adapter)
 	struct ifnet	*ifp = adapter->ifp;
 	struct ifmultiaddr *ifma;
 	u32 reg_rctl = 0;
-	u8  mta[MAX_NUM_MULTICAST_ADDRESSES * ETH_ADDR_LEN];
+	u8  *mta;
 
 	int mcnt = 0;
 
 	IOCTL_DEBUGOUT("igb_set_multi: begin");
+
+	mta = adapter->mta;
+	bzero(mta, sizeof(uint8_t) * ETH_ADDR_LEN *
+	    MAX_NUM_MULTICAST_ADDRESSES);
 
 #if __FreeBSD_version < 800000
 	IF_ADDR_LOCK(ifp);
@@ -1910,16 +1935,31 @@ igb_local_timer(void *arg)
 	igb_update_link_status(adapter);
 	igb_update_stats_counters(adapter);
 
+	/* 
+	** If flow control has paused us since last checking
+	** it invalidates the watchdog timing, so dont run it.
+	*/
+	if (adapter->pause_frames) {
+		adapter->pause_frames = 0;
+		goto out;
+	}
+
         /*
         ** Watchdog: check for time since any descriptor was cleaned
         */
 	for (int i = 0; i < adapter->num_queues; i++, txr++) {
-		if (txr->watchdog_check == FALSE)
+		IGB_TX_LOCK(txr);
+		if ((txr->watchdog_check == FALSE) ||
+		    (txr->tx_avail == adapter->num_tx_desc)) {
+			IGB_TX_UNLOCK(txr);
 			continue;
+		}
 		if ((ticks - txr->watchdog_time) > IGB_WATCHDOG)
 			goto timeout;
+		IGB_TX_UNLOCK(txr);
 	}
 
+out:
 	callout_reset(&adapter->timer, hz, igb_local_timer, adapter);
 	return;
 
@@ -1933,6 +1973,7 @@ timeout:
             txr->me, txr->tx_avail, txr->next_to_clean);
 	adapter->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	adapter->watchdog_events++;
+	IGB_TX_UNLOCK(txr);
 	igb_init_locked(adapter);
 }
 
@@ -2473,8 +2514,8 @@ igb_setup_msix(struct adapter *adapter)
 	if ((adapter->hw.mac.type == e1000_82575) && (queues > 4))
 		queues = 4;
 
-	/* Limit the VF adapter to one queues */
-	if ((adapter->hw.mac.type == e1000_vfadapt) && (queues > 2))
+	/* Limit the VF adapter to one queue */
+	if (adapter->hw.mac.type == e1000_vfadapt)
 		queues = 1;
 
 	/*
@@ -2653,7 +2694,7 @@ igb_reset(struct adapter *adapter)
  *  Setup networking device structure and register an interface.
  *
  **********************************************************************/
-static void
+static int
 igb_setup_interface(device_t dev, struct adapter *adapter)
 {
 	struct ifnet   *ifp;
@@ -2661,8 +2702,10 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 	INIT_DEBUGOUT("igb_setup_interface: begin");
 
 	ifp = adapter->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL)
-		panic("%s: can not if_alloc()", device_get_nameunit(dev));
+	if (ifp == NULL) {
+		device_printf(dev, "can not allocate ifnet structure\n");
+		return (-1);
+	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_init =  igb_init;
@@ -2739,6 +2782,7 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 	}
 	ifmedia_add(&adapter->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&adapter->media, IFM_ETHER | IFM_AUTO);
+	return (0);
 }
 
 
@@ -4166,9 +4210,11 @@ igb_rx_discard(struct rx_ring *rxr, int i)
 	mp = rbuf->m_pack;
 
 	/* Reuse loaded DMA map and just update mbuf chain */
-	mh->m_len = MHLEN;
-	mh->m_flags |= M_PKTHDR;
-	mh->m_next = NULL;
+	if (mh) {	/* with no hdr split would be null */
+		mh->m_len = MHLEN;
+		mh->m_flags |= M_PKTHDR;
+		mh->m_next = NULL;
+	}
 
 	mp->m_len = mp->m_pkthdr.len = adapter->rx_mbuf_sz;
 	mp->m_data = mp->m_ext.ext_buf;
@@ -4779,7 +4825,12 @@ igb_update_stats_counters(struct adapter *adapter)
 	stats->rlec += E1000_READ_REG(hw, E1000_RLEC);
 	stats->xonrxc += E1000_READ_REG(hw, E1000_XONRXC);
 	stats->xontxc += E1000_READ_REG(hw, E1000_XONTXC);
-	stats->xoffrxc += E1000_READ_REG(hw, E1000_XOFFRXC);
+	/*
+	** For watchdog management we need to know if we have been
+	** paused during the last interval, so capture that here.
+	*/ 
+        adapter->pause_frames = E1000_READ_REG(&adapter->hw, E1000_XOFFRXC);
+        stats->xoffrxc += adapter->pause_frames;
 	stats->xofftxc += E1000_READ_REG(hw, E1000_XOFFTXC);
 	stats->fcruc += E1000_READ_REG(hw, E1000_FCRUC);
 	stats->prc64 += E1000_READ_REG(hw, E1000_PRC64);
@@ -4797,9 +4848,9 @@ igb_update_stats_counters(struct adapter *adapter)
 	/* Both registers clear on the read of the high dword */
 
 	stats->gorc += E1000_READ_REG(hw, E1000_GORCL) +
-	  ((u64)E1000_READ_REG(hw, E1000_GORCH) << 32);
+	    ((u64)E1000_READ_REG(hw, E1000_GORCH) << 32);
 	stats->gotc += E1000_READ_REG(hw, E1000_GOTCL) +
-	  ((u64)E1000_READ_REG(hw, E1000_GOTCH) << 32) ;
+	    ((u64)E1000_READ_REG(hw, E1000_GOTCH) << 32);
 
 	stats->rnbc += E1000_READ_REG(hw, E1000_RNBC);
 	stats->ruc += E1000_READ_REG(hw, E1000_RUC);
@@ -4893,7 +4944,8 @@ igb_vf_init_stats(struct adapter *adapter)
 	struct e1000_vf_stats	*stats;
 
 	stats = (struct e1000_vf_stats	*)adapter->stats;
-
+	if (stats == NULL)
+		return;
         stats->last_gprc = E1000_READ_REG(hw, E1000_VFGPRC);
         stats->last_gorc = E1000_READ_REG(hw, E1000_VFGORC);
         stats->last_gptc = E1000_READ_REG(hw, E1000_VFGPTC);
@@ -4929,77 +4981,16 @@ igb_update_vf_stats_counters(struct adapter *adapter)
 	    stats->last_mprc, stats->mprc);
 }
 
-
-/** igb_sysctl_tdh_handler - Handler function
- *  Retrieves the TDH value from the hardware
- */
-static int 
-igb_sysctl_tdh_handler(SYSCTL_HANDLER_ARGS)
+/* Export a single 32-bit register via a read-only sysctl. */
+static int
+igb_sysctl_reg_handler(SYSCTL_HANDLER_ARGS)
 {
-	int error;
+	struct adapter *adapter;
+	u_int val;
 
-	struct tx_ring *txr = ((struct tx_ring *)oidp->oid_arg1);
-	if (!txr) return 0;
-
-	unsigned val = E1000_READ_REG(&txr->adapter->hw, E1000_TDH(txr->me));
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error || !req->newptr)
-		return error;
-	return 0;
-}
-
-/** igb_sysctl_tdt_handler - Handler function
- *  Retrieves the TDT value from the hardware
- */
-static int 
-igb_sysctl_tdt_handler(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-
-	struct tx_ring *txr = ((struct tx_ring *)oidp->oid_arg1);
-	if (!txr) return 0;
-
-	unsigned val = E1000_READ_REG(&txr->adapter->hw, E1000_TDT(txr->me));
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error || !req->newptr)
-		return error;
-	return 0;
-}
-
-/** igb_sysctl_rdh_handler - Handler function
- *  Retrieves the RDH value from the hardware
- */
-static int 
-igb_sysctl_rdh_handler(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-
-	struct rx_ring *rxr = ((struct rx_ring *)oidp->oid_arg1);
-	if (!rxr) return 0;
-
-	unsigned val = E1000_READ_REG(&rxr->adapter->hw, E1000_RDH(rxr->me));
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error || !req->newptr)
-		return error;
-	return 0;
-}
-
-/** igb_sysctl_rdt_handler - Handler function
- *  Retrieves the RDT value from the hardware
- */
-static int 
-igb_sysctl_rdt_handler(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-
-	struct rx_ring *rxr = ((struct rx_ring *)oidp->oid_arg1);
-	if (!rxr) return 0;
-
-	unsigned val = E1000_READ_REG(&rxr->adapter->hw, E1000_RDT(rxr->me));
-	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error || !req->newptr)
-		return error;
-	return 0;
+	adapter = oidp->oid_arg1;
+	val = E1000_READ_REG(&adapter->hw, oidp->oid_arg2);
+	return (sysctl_handle_int(oidp, &val, 0, req));
 }
 
 /*
@@ -5008,7 +4999,6 @@ igb_sysctl_rdt_handler(SYSCTL_HANDLER_ARGS)
 static void
 igb_add_hw_stats(struct adapter *adapter)
 {
-
 	device_t dev = adapter->dev;
 
 	struct tx_ring *txr = adapter->tx_rings;
@@ -5035,6 +5025,12 @@ igb_add_hw_stats(struct adapter *adapter)
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "tx_dma_fail", 
 			CTLFLAG_RD, &adapter->no_tx_dma_setup,
 			"Driver tx dma failure in xmit");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "rx_overruns",
+			CTLFLAG_RD, &adapter->rx_overruns,
+			"RX overruns");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "watchdog_timeouts",
+			CTLFLAG_RD, &adapter->watchdog_events,
+			"Watchdog timeouts");
 
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "device_control", 
 			CTLFLAG_RD, &adapter->device_control,
@@ -5061,19 +5057,21 @@ igb_add_hw_stats(struct adapter *adapter)
 			CTLFLAG_RD, &adapter->hw.fc.low_water, 0,
 			"Flow Control Low Watermark");
 
-	for (int i = 0; i < adapter->num_queues; i++, txr++) {
+	for (int i = 0; i < adapter->num_queues; i++, rxr++, txr++) {
+		struct lro_ctrl *lro = &rxr->lro;
+
 		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);
 		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
 					    CTLFLAG_RD, NULL, "Queue Name");
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_head", 
-				CTLFLAG_RD, txr, sizeof(txr),
-				igb_sysctl_tdh_handler, "IU",
+				CTLFLAG_RD, adapter, E1000_TDH(txr->me),
+				igb_sysctl_reg_handler, "IU",
  				"Transmit Descriptor Head");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_tail", 
-				CTLFLAG_RD, txr, sizeof(txr),
-				igb_sysctl_tdt_handler, "IU",
+				CTLFLAG_RD, adapter, E1000_TDT(txr->me),
+				igb_sysctl_reg_handler, "IU",
  				"Transmit Descriptor Tail");
 		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "no_desc_avail", 
 				CTLFLAG_RD, &txr->no_desc_avail,
@@ -5081,28 +5079,14 @@ igb_add_hw_stats(struct adapter *adapter)
 		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "tx_packets",
 				CTLFLAG_RD, &txr->tx_packets,
 				"Queue Packets Transmitted");
-	}
-
-	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
-		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);
-		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf, 
-					    CTLFLAG_RD, NULL, "Queue Name");
-		queue_list = SYSCTL_CHILDREN(queue_node);
-
-		struct lro_ctrl *lro = &rxr->lro;
-
-		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);
-		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf, 
-					    CTLFLAG_RD, NULL, "Queue Name");
-		queue_list = SYSCTL_CHILDREN(queue_node);
 
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_head", 
-				CTLFLAG_RD, rxr, sizeof(rxr),
-				igb_sysctl_rdh_handler, "IU",
+				CTLFLAG_RD, adapter, E1000_RDH(rxr->me),
+				igb_sysctl_reg_handler, "IU",
 				"Receive Descriptor Head");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_tail", 
-				CTLFLAG_RD, rxr, sizeof(rxr),
-				igb_sysctl_rdt_handler, "IU",
+				CTLFLAG_RD, adapter, E1000_RDT(rxr->me),
+				igb_sysctl_reg_handler, "IU",
 				"Receive Descriptor Tail");
 		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "rx_packets",
 				CTLFLAG_RD, &rxr->rx_packets,
@@ -5118,7 +5102,7 @@ igb_add_hw_stats(struct adapter *adapter)
 				"LRO Flushed");
 	}
 
-	/* MAC stats get the own sub node */
+	/* MAC stats get their own sub node */
 
 	stat_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "mac_stats", 
 				    CTLFLAG_RD, NULL, "MAC Statistics");
@@ -5138,9 +5122,9 @@ igb_add_hw_stats(struct adapter *adapter)
  	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_octets_recvd", 
  			CTLFLAG_RD, &stats->gorc, 
  			"Good Octets Received"); 
- 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_octest_txd", 
+ 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_octets_txd", 
  			CTLFLAG_RD, &stats->gotc, 
- 			"Good Octest Transmitted"); 
+ 			"Good Octets Transmitted"); 
 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "mcast_pkts_recvd",
 			CTLFLAG_RD, &stats->mprc,
 			"Multicast Packets Received");
@@ -5202,12 +5186,6 @@ igb_add_hw_stats(struct adapter *adapter)
 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "coll_ext_errs",
 			CTLFLAG_RD, &stats->cexterr,
 			"Collision/Carrier extension errors");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "rx_overruns",
-			CTLFLAG_RD, &adapter->rx_overruns,
-			"RX overruns");
-	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "watchdog_timeouts",
-			CTLFLAG_RD, &adapter->watchdog_events,
-			"Watchdog timeouts");
 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "xon_recvd",
 			CTLFLAG_RD, &stats->xonrxc,
 			"XON Received");
@@ -5256,9 +5234,9 @@ igb_add_hw_stats(struct adapter *adapter)
  			"Good Octets Received"); 
 
 	/* Packet Transmission Stats */
- 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_octest_txd", 
+ 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_octets_txd", 
  			CTLFLAG_RD, &stats->gotc, 
- 			"Good Octest Transmitted"); 
+ 			"Good Octets Transmitted"); 
 	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "total_pkts_txd",
 			CTLFLAG_RD, &stats->tpt,
 			"Total Packets Transmitted");

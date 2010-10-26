@@ -18,10 +18,4 @@ CFLAGS += -I${.CURDIR}/../../dev/e1000
 # DEVICE_POLLING for a non-interrupt-driven method
 #CFLAGS  += -DDEVICE_POLLING
 
-clean:
-	rm -f device_if.h bus_if.h pci_if.h setdef*
-	rm -f *.o *.kld *.ko
-	rm -f @ machine
-	rm -f ${CLEANFILES}
-
 .include <bsd.kmod.mk>

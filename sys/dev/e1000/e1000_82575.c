@@ -85,12 +85,44 @@ static void e1000_power_down_phy_copper_82575(struct e1000_hw *hw);
 static void e1000_shutdown_serdes_link_82575(struct e1000_hw *hw);
 static void e1000_power_up_serdes_link_82575(struct e1000_hw *hw);
 static s32 e1000_set_pcie_completion_timeout(struct e1000_hw *hw);
+static s32 e1000_reset_mdicnfg_82580(struct e1000_hw *hw);
 
 static const u16 e1000_82580_rxpbs_table[] =
 	{ 36, 72, 144, 1, 2, 4, 8, 16,
 	  35, 70, 140 };
 #define E1000_82580_RXPBS_TABLE_SIZE \
 	(sizeof(e1000_82580_rxpbs_table)/sizeof(u16))
+
+
+/**
+ *  e1000_sgmii_uses_mdio_82575 - Determine if I2C pins are for external MDIO
+ *  @hw: pointer to the HW structure
+ *
+ *  Called to determine if the I2C pins are being used for I2C or as an
+ *  external MDIO interface since the two options are mutually exclusive.
+ **/
+static bool e1000_sgmii_uses_mdio_82575(struct e1000_hw *hw)
+{
+	u32 reg = 0;
+	bool ext_mdio = FALSE;
+
+	DEBUGFUNC("e1000_sgmii_uses_mdio_82575");
+
+	switch (hw->mac.type) {
+	case e1000_82575:
+	case e1000_82576:
+		reg = E1000_READ_REG(hw, E1000_MDIC);
+		ext_mdio = !!(reg & E1000_MDIC_DEST);
+		break;
+	case e1000_82580:
+		reg = E1000_READ_REG(hw, E1000_MDICNFG);
+		ext_mdio = !!(reg & E1000_MDICNFG_EXT_MDIO);
+		break;
+	default:
+		break;
+	}
+	return ext_mdio;
+}
 
 /**
  *  e1000_init_phy_params_82575 - Init PHY func ptrs.
@@ -100,6 +132,7 @@ static s32 e1000_init_phy_params_82575(struct e1000_hw *hw)
 {
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val = E1000_SUCCESS;
+	u32 ctrl_ext;
 
 	DEBUGFUNC("e1000_init_phy_params_82575");
 
@@ -120,16 +153,26 @@ static s32 e1000_init_phy_params_82575(struct e1000_hw *hw)
 	phy->ops.get_cfg_done       = e1000_get_cfg_done_82575;
 	phy->ops.release            = e1000_release_phy_82575;
 
+	ctrl_ext = E1000_READ_REG(hw, E1000_CTRL_EXT);
+
 	if (e1000_sgmii_active_82575(hw)) {
 		phy->ops.reset      = e1000_phy_hw_reset_sgmii_82575;
+		ctrl_ext |= E1000_CTRL_I2C_ENA;
+	} else {
+		phy->ops.reset      = e1000_phy_hw_reset_generic;
+		ctrl_ext &= ~E1000_CTRL_I2C_ENA;
+	}
+
+	E1000_WRITE_REG(hw, E1000_CTRL_EXT, ctrl_ext);
+	e1000_reset_mdicnfg_82580(hw);
+		
+	if (e1000_sgmii_active_82575(hw) && !e1000_sgmii_uses_mdio_82575(hw)) {
 		phy->ops.read_reg   = e1000_read_phy_reg_sgmii_82575;
 		phy->ops.write_reg  = e1000_write_phy_reg_sgmii_82575;
 	} else if (hw->mac.type >= e1000_82580) {
-		phy->ops.reset      = e1000_phy_hw_reset_generic;
 		phy->ops.read_reg   = e1000_read_phy_reg_82580;
 		phy->ops.write_reg  = e1000_write_phy_reg_82580;
 	} else {
-		phy->ops.reset      = e1000_phy_hw_reset_generic;
 		phy->ops.read_reg   = e1000_read_phy_reg_igp;
 		phy->ops.write_reg  = e1000_write_phy_reg_igp;
 	}
@@ -256,26 +299,14 @@ static s32 e1000_init_mac_params_82575(struct e1000_hw *hw)
 	switch (ctrl_ext & E1000_CTRL_EXT_LINK_MODE_MASK) {
 	case E1000_CTRL_EXT_LINK_MODE_SGMII:
 		dev_spec->sgmii_active = TRUE;
-		ctrl_ext |= E1000_CTRL_I2C_ENA;
 		break;
 	case E1000_CTRL_EXT_LINK_MODE_1000BASE_KX:
 	case E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES:
 		hw->phy.media_type = e1000_media_type_internal_serdes;
-		ctrl_ext |= E1000_CTRL_I2C_ENA;
 		break;
 	default:
-		ctrl_ext &= ~E1000_CTRL_I2C_ENA;
 		break;
 	}
-
-	E1000_WRITE_REG(hw, E1000_CTRL_EXT, ctrl_ext);
-
-	/*
-	 * if using i2c make certain the MDICNFG register is cleared to prevent
-	 * communications from being misrouted to the mdic registers
-	 */
-	if ((ctrl_ext & E1000_CTRL_I2C_ENA) && (hw->mac.type == e1000_82580))
-		E1000_WRITE_REG(hw, E1000_MDICNFG, 0);
 
 	/* Set mta register count */
 	mac->mta_reg_count = 128;
@@ -367,6 +398,7 @@ void e1000_init_function_pointers_82575(struct e1000_hw *hw)
 	hw->mac.ops.init_params = e1000_init_mac_params_82575;
 	hw->nvm.ops.init_params = e1000_init_nvm_params_82575;
 	hw->phy.ops.init_params = e1000_init_phy_params_82575;
+	hw->mbx.ops.init_params = e1000_init_mbx_params_pf;
 }
 
 /**
@@ -492,6 +524,7 @@ static s32 e1000_get_phy_id_82575(struct e1000_hw *hw)
 	s32  ret_val = E1000_SUCCESS;
 	u16 phy_id;
 	u32 ctrl_ext;
+	u32 mdic;
 
 	DEBUGFUNC("e1000_get_phy_id_82575");
 
@@ -504,6 +537,28 @@ static s32 e1000_get_phy_id_82575(struct e1000_hw *hw)
 	 */
 	if (!e1000_sgmii_active_82575(hw)) {
 		phy->addr = 1;
+		ret_val = e1000_get_phy_id(hw);
+		goto out;
+	}
+
+	if (e1000_sgmii_uses_mdio_82575(hw)) {
+		switch (hw->mac.type) {
+		case e1000_82575:
+		case e1000_82576:
+			mdic = E1000_READ_REG(hw, E1000_MDIC);
+			mdic &= E1000_MDIC_PHY_MASK;
+			phy->addr = mdic >> E1000_MDIC_PHY_SHIFT;
+			break;
+		case e1000_82580:
+			mdic = E1000_READ_REG(hw, E1000_MDICNFG);
+			mdic &= E1000_MDICNFG_PHY_MASK;
+			phy->addr = mdic >> E1000_MDICNFG_PHY_SHIFT;
+			break;
+		default:
+			ret_val = -E1000_ERR_PHY;
+			goto out;
+			break;
+		}
 		ret_val = e1000_get_phy_id(hw);
 		goto out;
 	}
@@ -1243,6 +1298,7 @@ static s32 e1000_setup_serdes_link_82575(struct e1000_hw *hw)
 	case E1000_CTRL_EXT_LINK_MODE_1000BASE_KX:
 		/* disable PCS autoneg and support parallel detect only */
 		pcs_autoneg = FALSE;
+		/* fall through to default case */
 	default:
 		/*
 		 * non-SGMII modes only supports a speed of 1000/Full for the
@@ -1638,6 +1694,39 @@ out:
 	return ret_val;
 }
 
+
+/**
+ *  e1000_vmdq_set_anti_spoofing_pf - enable or disable anti-spoofing
+ *  @hw: pointer to the hardware struct
+ *  @enable: state to enter, either enabled or disabled
+ *  @pf: Physical Function pool - do not set anti-spoofing for the PF
+ *
+ *  enables/disables L2 switch anti-spoofing functionality.
+ **/
+void e1000_vmdq_set_anti_spoofing_pf(struct e1000_hw *hw, bool enable, int pf)
+{
+	u32 dtxswc;
+
+	switch (hw->mac.type) {
+	case e1000_82576:
+		dtxswc = E1000_READ_REG(hw, E1000_DTXSWC);
+		if (enable) {
+			dtxswc |= (E1000_DTXSWC_MAC_SPOOF_MASK |
+				   E1000_DTXSWC_VLAN_SPOOF_MASK);
+			/* The PF can spoof - it has to in order to
+			 * support emulation mode NICs */
+			dtxswc ^= (1 << pf | 1 << (pf + MAX_NUM_VFS));
+		} else {
+			dtxswc &= ~(E1000_DTXSWC_MAC_SPOOF_MASK |
+				    E1000_DTXSWC_VLAN_SPOOF_MASK);
+		}
+		E1000_WRITE_REG(hw, E1000_DTXSWC, dtxswc);
+		break;
+	default:
+		break;
+	}
+}
+
 /**
  *  e1000_vmdq_set_loopback_pf - enable or disable vmdq loopback
  *  @hw: pointer to the hardware struct
@@ -1739,6 +1828,45 @@ out:
 }
 
 /**
+ *  e1000_reset_mdicnfg_82580 - Reset MDICNFG destination and com_mdio bits
+ *  @hw: pointer to the HW structure
+ *
+ *  This resets the the MDICNFG.Destination and MDICNFG.Com_MDIO bits based on
+ *  the values found in the EEPROM.  This addresses an issue in which these
+ *  bits are not restored from EEPROM after reset.
+ **/
+static s32 e1000_reset_mdicnfg_82580(struct e1000_hw *hw)
+{
+	s32 ret_val = E1000_SUCCESS;
+	u32 mdicnfg;
+	u16 nvm_data;
+
+	DEBUGFUNC("e1000_reset_mdicnfg_82580");
+
+	if (hw->mac.type != e1000_82580)
+		goto out;
+	if (!e1000_sgmii_active_82575(hw))
+		goto out;
+
+	ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL3_PORT_A +
+	                           NVM_82580_LAN_FUNC_OFFSET(hw->bus.func), 1,
+	                           &nvm_data);
+	if (ret_val) {
+		DEBUGOUT("NVM Read Error\n");
+		goto out;
+	}
+
+	mdicnfg = E1000_READ_REG(hw, E1000_MDICNFG);
+	if (nvm_data & NVM_WORD24_EXT_MDIO)
+		mdicnfg |= E1000_MDICNFG_EXT_MDIO;
+	if (nvm_data & NVM_WORD24_COM_MDIO)
+		mdicnfg |= E1000_MDICNFG_COM_MDIO;
+	E1000_WRITE_REG(hw, E1000_MDICNFG, mdicnfg);
+out:
+	return ret_val;
+}
+
+/**
  *  e1000_reset_hw_82580 - Reset hardware
  *  @hw: pointer to the HW structure
  *
@@ -1813,6 +1941,10 @@ static s32 e1000_reset_hw_82580(struct e1000_hw *hw)
 	/* Clear any pending interrupt events. */
 	E1000_WRITE_REG(hw, E1000_IMC, 0xffffffff);
 	icr = E1000_READ_REG(hw, E1000_ICR);
+
+	ret_val = e1000_reset_mdicnfg_82580(hw);
+	if (ret_val)
+		DEBUGOUT("Could not reset MDICNFG based on EEPROM\n");
 
 	/* Install any alternate MAC address into RAR0 */
 	ret_val = e1000_check_alt_mac_addr_generic(hw);

@@ -551,20 +551,16 @@ static void dtrace_enabling_provide(dtrace_provider_t *);
 static int dtrace_enabling_match(dtrace_enabling_t *, int *);
 static void dtrace_enabling_matchall(void);
 static dtrace_state_t *dtrace_anon_grab(void);
-#if defined(sun)
 static uint64_t dtrace_helper(int, dtrace_mstate_t *,
     dtrace_state_t *, uint64_t, uint64_t);
 static dtrace_helpers_t *dtrace_helpers_create(proc_t *);
-#endif
 static void dtrace_buffer_drop(dtrace_buffer_t *);
 static intptr_t dtrace_buffer_reserve(dtrace_buffer_t *, size_t, size_t,
     dtrace_state_t *, dtrace_mstate_t *);
 static int dtrace_state_option(dtrace_state_t *, dtrace_optid_t,
     dtrace_optval_t);
 static int dtrace_ecb_create_enable(dtrace_probe_t *, void *);
-#if defined(sun)
 static void dtrace_helper_provider_destroy(dtrace_helper_provider_t *);
-#endif
 uint16_t dtrace_load16(uintptr_t);
 uint32_t dtrace_load32(uintptr_t);
 uint64_t dtrace_load64(uintptr_t);
@@ -2784,6 +2780,21 @@ dtrace_dif_variable(dtrace_mstate_t *mstate, dtrace_state_t *state, uint64_t v,
 		return (dtrace_getreg(lwp->lwp_regs, ndx));
 		return (0);
 	}
+#else
+	case DIF_VAR_UREGS: {
+		struct trapframe *tframe;
+
+		if (!dtrace_priv_proc(state))
+			return (0);
+
+		if ((tframe = curthread->td_frame) == NULL) {
+			DTRACE_CPUFLAG_SET(CPU_DTRACE_BADADDR);
+			cpu_core[curcpu].cpuc_dtrace_illval = 0;
+			return (0);
+		}
+
+		return (dtrace_getreg(tframe, ndx));
+	}
 #endif
 
 	case DIF_VAR_CURTHREAD:
@@ -2839,7 +2850,6 @@ dtrace_dif_variable(dtrace_mstate_t *mstate, dtrace_state_t *state, uint64_t v,
 		}
 		return (mstate->dtms_stackdepth);
 
-#if defined(sun)
 	case DIF_VAR_USTACKDEPTH:
 		if (!dtrace_priv_proc(state))
 			return (0);
@@ -2859,7 +2869,6 @@ dtrace_dif_variable(dtrace_mstate_t *mstate, dtrace_state_t *state, uint64_t v,
 			mstate->dtms_present |= DTRACE_MSTATE_USTACKDEPTH;
 		}
 		return (mstate->dtms_ustackdepth);
-#endif
 
 	case DIF_VAR_CALLER:
 		if (!dtrace_priv_kernel(state))
@@ -2896,7 +2905,6 @@ dtrace_dif_variable(dtrace_mstate_t *mstate, dtrace_state_t *state, uint64_t v,
 		}
 		return (mstate->dtms_caller);
 
-#if defined(sun)
 	case DIF_VAR_UCALLER:
 		if (!dtrace_priv_proc(state))
 			return (0);
@@ -2920,7 +2928,6 @@ dtrace_dif_variable(dtrace_mstate_t *mstate, dtrace_state_t *state, uint64_t v,
 		}
 
 		return (mstate->dtms_ucaller);
-#endif
 
 	case DIF_VAR_PROBEPROV:
 		ASSERT(mstate->dtms_present & DTRACE_MSTATE_PROBE);
@@ -5736,7 +5743,6 @@ dtrace_action_chill(dtrace_mstate_t *mstate, hrtime_t val)
 	cpu->cpu_dtrace_chilled += val;
 }
 
-#if defined(sun)
 static void
 dtrace_action_ustack(dtrace_mstate_t *mstate, dtrace_state_t *state,
     uint64_t *buf, uint64_t arg)
@@ -5849,7 +5855,6 @@ dtrace_action_ustack(dtrace_mstate_t *mstate, dtrace_state_t *state,
 out:
 	mstate->dtms_scratch_ptr = old;
 }
-#endif
 
 /*
  * If you're looking for the epicenter of DTrace, you just found it.  This
@@ -6172,7 +6177,6 @@ dtrace_probe(dtrace_id_t id, uintptr_t arg0, uintptr_t arg1,
 				    (uint32_t *)arg0);
 				continue;
 
-#if defined(sun)
 			case DTRACEACT_JSTACK:
 			case DTRACEACT_USTACK:
 				if (!dtrace_priv_proc(state))
@@ -6214,7 +6218,6 @@ dtrace_probe(dtrace_id_t id, uintptr_t arg0, uintptr_t arg1,
 				    DTRACE_USTACK_NFRAMES(rec->dtrd_arg) + 1);
 				DTRACE_CPUFLAG_CLEAR(CPU_DTRACE_NOFAULT);
 				continue;
-#endif
 
 			default:
 				break;
@@ -8141,7 +8144,6 @@ dtrace_helper_provide(dof_helper_t *dhp, pid_t pid)
 	dtrace_enabling_matchall();
 }
 
-#if defined(sun)
 static void
 dtrace_helper_provider_remove_one(dof_helper_t *dhp, dof_sec_t *sec, pid_t pid)
 {
@@ -8189,7 +8191,6 @@ dtrace_helper_provider_remove(dof_helper_t *dhp, pid_t pid)
 		dtrace_helper_provider_remove_one(dhp, sec, pid);
 	}
 }
-#endif
 
 /*
  * DTrace Meta Provider-to-Framework API Functions
@@ -8729,7 +8730,6 @@ dtrace_difo_validate(dtrace_difo_t *dp, dtrace_vstate_t *vstate, uint_t nregs,
 	return (err);
 }
 
-#if defined(sun)
 /*
  * Validate a DTrace DIF object that it is to be used as a helper.  Helpers
  * are much more constrained than normal DIFOs.  Specifically, they may
@@ -8887,7 +8887,6 @@ dtrace_difo_validate_helper(dtrace_difo_t *dp)
 
 	return (err);
 }
-#endif
 
 /*
  * Returns 1 if the expression in the DIF object can be cached on a per-thread
@@ -9219,7 +9218,6 @@ dtrace_difo_init(dtrace_difo_t *dp, dtrace_vstate_t *vstate)
 	dtrace_difo_hold(dp);
 }
 
-#if defined(sun)
 static dtrace_difo_t *
 dtrace_difo_duplicate(dtrace_difo_t *dp, dtrace_vstate_t *vstate)
 {
@@ -9263,7 +9261,6 @@ dtrace_difo_duplicate(dtrace_difo_t *dp, dtrace_vstate_t *vstate)
 	dtrace_difo_init(new, vstate);
 	return (new);
 }
-#endif
 
 static void
 dtrace_difo_destroy(dtrace_difo_t *dp, dtrace_vstate_t *vstate)
@@ -13791,7 +13788,6 @@ dtrace_anon_property(void)
 	}
 }
 
-#if defined(sun)
 /*
  * DTrace Helper Functions
  */
@@ -13855,9 +13851,7 @@ dtrace_helper_trace(dtrace_helper_action_t *helper,
 		    ((uint64_t *)(uintptr_t)svar->dtsv_data)[curcpu];
 	}
 }
-#endif
 
-#if defined(sun)
 static uint64_t
 dtrace_helper(int which, dtrace_mstate_t *mstate,
     dtrace_state_t *state, uint64_t arg0, uint64_t arg1)
@@ -13865,7 +13859,7 @@ dtrace_helper(int which, dtrace_mstate_t *mstate,
 	uint16_t *flags = &cpu_core[curcpu].cpuc_dtrace_flags;
 	uint64_t sarg0 = mstate->dtms_arg[0];
 	uint64_t sarg1 = mstate->dtms_arg[1];
-	uint64_t rval;
+	uint64_t rval = 0;
 	dtrace_helpers_t *helpers = curproc->p_dtrace_helpers;
 	dtrace_helper_action_t *helper;
 	dtrace_vstate_t *vstate;
@@ -14056,9 +14050,7 @@ dtrace_helper_destroygen(int gen)
 
 	return (0);
 }
-#endif
 
-#if defined(sun)
 static int
 dtrace_helper_validate(dtrace_helper_action_t *helper)
 {
@@ -14073,9 +14065,7 @@ dtrace_helper_validate(dtrace_helper_action_t *helper)
 
 	return (err == 0);
 }
-#endif
 
-#if defined(sun)
 static int
 dtrace_helper_action_add(int which, dtrace_ecbdesc_t *ep)
 {
@@ -14622,12 +14612,17 @@ dtrace_helpers_create(proc_t *p)
 	return (help);
 }
 
-static void
-dtrace_helpers_destroy(void)
+#if defined(sun)
+static
+#endif
+void
+dtrace_helpers_destroy(proc_t *p)
 {
 	dtrace_helpers_t *help;
 	dtrace_vstate_t *vstate;
+#if defined(sun)
 	proc_t *p = curproc;
+#endif
 	int i;
 
 	mutex_enter(&dtrace_lock);
@@ -14714,7 +14709,10 @@ dtrace_helpers_destroy(void)
 	mutex_exit(&dtrace_lock);
 }
 
-static void
+#if defined(sun)
+static
+#endif
+void
 dtrace_helpers_duplicate(proc_t *from, proc_t *to)
 {
 	dtrace_helpers_t *help, *newhelp;
@@ -14795,7 +14793,6 @@ dtrace_helpers_duplicate(proc_t *from, proc_t *to)
 	if (hasprovs)
 		dtrace_helper_provider_register(to, newhelp, NULL);
 }
-#endif
 
 #if defined(sun)
 /*
@@ -16466,6 +16463,7 @@ _fini(void)
 #else
 
 static d_ioctl_t	dtrace_ioctl;
+static d_ioctl_t	dtrace_ioctl_helper;
 static void		dtrace_load(void *);
 static int		dtrace_unload(void);
 #if __FreeBSD_version < 800039
@@ -16474,6 +16472,7 @@ static struct clonedevs	*dtrace_clones;		/* Ptr to the array of cloned devices. 
 static eventhandler_tag	eh_tag;			/* Event handler tag. */
 #else
 static struct cdev	*dtrace_dev;
+static struct cdev	*helper_dev;
 #endif
 
 void dtrace_invop_init(void);
@@ -16486,6 +16485,13 @@ static struct cdevsw dtrace_cdevsw = {
 	.d_ioctl	= dtrace_ioctl,
 	.d_open		= dtrace_open,
 	.d_name		= "dtrace",
+};
+
+static struct cdevsw helper_cdevsw = {
+	.d_version	= D_VERSION,
+	.d_flags	= D_TRACKCLOSE | D_NEEDMINOR,
+	.d_ioctl	= dtrace_ioctl_helper,
+	.d_name		= "helper",
 };
 
 #include <dtrace_anon.c>

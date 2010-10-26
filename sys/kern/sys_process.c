@@ -721,24 +721,13 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 				return (ESRCH);
 			}
 		} else {
-			/* this is slow, should be optimized */
-			sx_slock(&allproc_lock);
-			FOREACH_PROC_IN_SYSTEM(p) {
-				PROC_LOCK(p);
-				FOREACH_THREAD_IN_PROC(p, td2) {
-					if (td2->td_tid == pid)
-						break;
-				}
-				if (td2 != NULL)
-					break; /* proc lock held */
-				PROC_UNLOCK(p);
-			}
-			sx_sunlock(&allproc_lock);
-			if (p == NULL) {
+			td2 = tdfind(pid, -1);
+			if (td2 == NULL) {
 				if (proctree_locked)
 					sx_xunlock(&proctree_lock);
 				return (ESRCH);
 			}
+			p = td2->td_proc;
 			tid = pid;
 			pid = p->p_pid;
 		}

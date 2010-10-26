@@ -169,7 +169,11 @@ passcleanup(struct cam_periph *periph)
 		xpt_print(periph->path, "removing device entry\n");
 	devstat_remove_entry(softc->device_stats);
 	cam_periph_unlock(periph);
-	destroy_dev(softc->dev);
+	/*
+	 * passcleanup() is indirectly a d_close method via passclose,
+	 * so using destroy_dev(9) directly can result in deadlock.
+	 */
+	destroy_dev_sched(softc->dev);
 	cam_periph_lock(periph);
 	free(softc, M_DEVBUF);
 }

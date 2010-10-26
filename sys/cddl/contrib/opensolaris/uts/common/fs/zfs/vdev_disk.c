@@ -401,8 +401,9 @@ vdev_disk_io_start(zio_t *zio)
 
 	bioinit(bp);
 	bp->b_flags = B_BUSY | B_NOCACHE |
-	    (zio->io_type == ZIO_TYPE_READ ? B_READ : B_WRITE) |
-	    ((zio->io_flags & ZIO_FLAG_IO_RETRY) ? 0 : B_FAILFAST);
+	    (zio->io_type == ZIO_TYPE_READ ? B_READ : B_WRITE);
+	if (!(zio->io_flags & (ZIO_FLAG_IO_RETRY | ZIO_FLAG_TRYHARD)))
+		bp->b_flags |= B_FAILFAST;
 	bp->b_bcount = zio->io_size;
 	bp->b_un.b_addr = zio->io_data;
 	bp->b_lblkno = lbtodb(zio->io_offset);

@@ -180,10 +180,46 @@ usb_edesc_foreach(struct usb_config_descriptor *cd,
 		}
 		if (desc->bDescriptorType == UDESC_ENDPOINT) {
 			if (desc->bLength < sizeof(*ped)) {
-				/* endpoint index is invalid */
+				/* endpoint descriptor is invalid */
 				break;
 			}
 			return ((struct usb_endpoint_descriptor *)desc);
+		}
+	}
+	return (NULL);
+}
+
+/*------------------------------------------------------------------------*
+ *	usb_ed_comp_foreach
+ *
+ * This function will iterate all the endpoint companion descriptors
+ * within an endpoint descriptor in an interface descriptor. Starting
+ * value for the "ped" argument should be a valid endpoint companion
+ * descriptor.
+ *
+ * Return values:
+ *   NULL: End of descriptors
+ *   Else: A valid endpoint companion descriptor
+ *------------------------------------------------------------------------*/
+struct usb_endpoint_ss_comp_descriptor *
+usb_ed_comp_foreach(struct usb_config_descriptor *cd,
+    struct usb_endpoint_ss_comp_descriptor *ped)
+{
+	struct usb_descriptor *desc;
+
+	desc = ((struct usb_descriptor *)ped);
+
+	while ((desc = usb_desc_foreach(cd, desc))) {
+		if (desc->bDescriptorType == UDESC_INTERFACE)
+			break;
+		if (desc->bDescriptorType == UDESC_ENDPOINT)
+			break;
+		if (desc->bDescriptorType == UDESC_ENDPOINT_SS_COMP) {
+			if (desc->bLength < sizeof(*ped)) {
+				/* endpoint companion descriptor is invalid */
+				break;
+			}
+			return ((struct usb_endpoint_ss_comp_descriptor *)desc);
 		}
 	}
 	return (NULL);

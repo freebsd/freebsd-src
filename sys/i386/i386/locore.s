@@ -104,6 +104,9 @@ IdlePTD:	.long	0		/* phys addr of kernel PTD */
 IdlePDPT:	.long	0		/* phys addr of kernel PDPT */
 #endif
 
+	.globl	KPTmap
+KPTmap:		.long	0		/* address of kernel page tables */
+
 	.globl	KPTphys
 KPTphys:	.long	0		/* phys addr of kernel page tables */
 
@@ -715,6 +718,8 @@ no_kernend:
 /* Allocate Kernel Page Tables */
 	ALLOCPAGES(NKPT)
 	movl	%esi,R(KPTphys)
+	addl	$(KERNBASE-(KPTDI<<(PDRSHIFT-PAGE_SHIFT+PTESHIFT))),%esi
+	movl	%esi,R(KPTmap)
 
 /* Allocate Page Table Directory */
 #ifdef PAE
@@ -776,6 +781,11 @@ no_kernend:
 	xorl	%eax, %eax
 	movl	R(KERNend),%ecx
 	shrl	$PAGE_SHIFT,%ecx
+	fillkptphys($PG_RW)
+
+/* Map page table pages. */
+	movl	R(KPTphys),%eax
+	movl	$NKPT,%ecx
 	fillkptphys($PG_RW)
 
 /* Map page directory. */

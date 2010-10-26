@@ -220,8 +220,8 @@ extern int
 int	ip_output(struct mbuf *,
 	    struct mbuf *, struct route *, int, struct ip_moptions *,
 	    struct inpcb *);
-int	ipproto_register(u_char);
-int	ipproto_unregister(u_char);
+int	ipproto_register(short);
+int	ipproto_unregister(short);
 struct mbuf *
 	ip_reass(struct mbuf *);
 struct in_ifaddr *

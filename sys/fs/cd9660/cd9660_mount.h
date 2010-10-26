@@ -40,7 +40,7 @@
  */
 struct iso_args {
 	char	*fspec;			/* block special device to mount */
-	struct	export_args export;	/* network export info */
+	struct	oexport_args export;	/* network export info */
 	int	flags;			/* mounting flags, see below */
 	int	ssector;		/* starting sector, 0 for 1st session */
 	char	*cs_disk;		/* disk charset for Joliet cs conversion */

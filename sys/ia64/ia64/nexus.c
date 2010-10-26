@@ -82,7 +82,7 @@ static struct rman irq_rman, port_rman, mem_rman;
 static	int nexus_probe(device_t);
 static	int nexus_attach(device_t);
 static	int nexus_print_child(device_t, device_t);
-static device_t nexus_add_child(device_t bus, int order, const char *name,
+static device_t nexus_add_child(device_t bus, u_int order, const char *name,
 				int unit);
 static	struct resource *nexus_alloc_resource(device_t, device_t, int, int *,
 					      u_long, u_long, u_long, u_int);
@@ -220,7 +220,7 @@ nexus_print_child(device_t bus, device_t child)
 }
 
 static device_t
-nexus_add_child(device_t bus, int order, const char *name, int unit)
+nexus_add_child(device_t bus, u_int order, const char *name, int unit)
 {
 	device_t		child;
 	struct nexus_device	*ndev;

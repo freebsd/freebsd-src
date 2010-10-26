@@ -38,7 +38,7 @@ SLIST_HEAD(et_eventtimers_list, eventtimer);
 static struct et_eventtimers_list eventtimers = SLIST_HEAD_INITIALIZER(et_eventtimers);
 
 struct mtx	et_eventtimers_mtx;
-MTX_SYSINIT(et_eventtimers_init, &et_eventtimers_mtx, "et_mtx", MTX_SPIN);
+MTX_SYSINIT(et_eventtimers_init, &et_eventtimers_mtx, "et_mtx", MTX_DEF);
 
 SYSCTL_NODE(_kern, OID_AUTO, eventtimer, CTLFLAG_RW, 0, "Event timers");
 SYSCTL_NODE(_kern_eventtimer, OID_AUTO, et, CTLFLAG_RW, 0, "");
@@ -52,9 +52,15 @@ et_register(struct eventtimer *et)
 	struct eventtimer *tmp, *next;
 
 	if (et->et_quality >= 0 || bootverbose) {
-		printf("Event timer \"%s\" frequency %ju Hz quality %d\n",
-		    et->et_name, (uintmax_t)et->et_frequency,
-		    et->et_quality);
+		if (et->et_frequency == 0) {
+			printf("Event timer \"%s\" quality %d\n",
+			    et->et_name, et->et_quality);
+		} else {
+			printf("Event timer \"%s\" "
+			    "frequency %ju Hz quality %d\n",
+			    et->et_name, (uintmax_t)et->et_frequency,
+			    et->et_quality);
+		}
 	}
 	et->et_sysctl = SYSCTL_ADD_NODE(NULL,
 	    SYSCTL_STATIC_CHILDREN(_kern_eventtimer_et), OID_AUTO, et->et_name,
@@ -235,6 +241,7 @@ sysctl_kern_eventtimer_choice(SYSCTL_HANDLER_ARGS)
 
 	spc = "";
 	error = 0;
+	buf[0] = 0;
 	off = 0;
 	ET_LOCK();
 	SLIST_FOREACH(et, &eventtimers, et_all) {

@@ -804,10 +804,14 @@ fxp_attach(device_t dev)
 		ifmedia_add(&sc->sc_media, IFM_ETHER|IFM_MANUAL, 0, NULL);
 		ifmedia_set(&sc->sc_media, IFM_ETHER|IFM_MANUAL);
 	} else {
-		if (mii_phy_probe(dev, &sc->miibus, fxp_ifmedia_upd,
-		    fxp_ifmedia_sts)) {
-	                device_printf(dev, "MII without any PHY!\n");
-			error = ENXIO;
+		/*
+		 * i82557 wedge when isolating all of their PHYs.
+		 */
+		error = mii_attach(dev, &sc->miibus, ifp, fxp_ifmedia_upd,
+		    fxp_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY,
+		    MII_OFFSET_ANY, MIIF_NOISOLATE);
+		if (error != 0) {
+	                device_printf(dev, "attaching PHYs failed\n");
 			goto fail;
 		}
 	}
@@ -858,9 +862,9 @@ fxp_attach(device_t dev)
 	ifp->if_capenable |= IFCAP_VLAN_MTU; /* the hw bits already set */
 	if ((sc->flags & FXP_FLAG_EXT_RFA) != 0) {
 		ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING |
-		    IFCAP_VLAN_HWCSUM;
+		    IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWTSO;
 		ifp->if_capenable |= IFCAP_VLAN_HWTAGGING |
-		    IFCAP_VLAN_HWCSUM;
+		    IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWTSO;
 	}
 
 	/*
@@ -1454,6 +1458,8 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 		 * Since 82550/82551 doesn't modify IP length and pseudo
 		 * checksum in the first frame driver should compute it.
 		 */
+		ip = (struct ip *)(mtod(m, char *) + ip_off);
+		tcp = (struct tcphdr *)(mtod(m, char *) + poff);
 		ip->ip_sum = 0;
 		ip->ip_len = htons(m->m_pkthdr.tso_segsz + (ip->ip_hl << 2) +
 		    (tcp->th_off << 2));
@@ -2860,10 +2866,19 @@ fxp_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			if (ifp->if_flags & IFF_UP)
 				reinit++;
 		}
+		if ((mask & IFCAP_VLAN_HWCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWCSUM) != 0)
+			ifp->if_capenable ^= IFCAP_VLAN_HWCSUM;
+		if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
+		    (ifp->if_capabilities & IFCAP_VLAN_HWTSO) != 0)
+			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
 		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
 		    (ifp->if_capabilities & IFCAP_VLAN_HWTAGGING) != 0) {
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
-				reinit++;
+			if ((ifp->if_capenable & IFCAP_VLAN_HWTAGGING) == 0)
+				ifp->if_capenable &=
+				    ~(IFCAP_VLAN_HWTSO | IFCAP_VLAN_HWCSUM);
+			reinit++;
 		}
 		if (reinit > 0 && ifp->if_flags & IFF_UP)
 			fxp_init_body(sc);

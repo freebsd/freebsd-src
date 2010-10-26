@@ -266,6 +266,20 @@ int cvm_oct_common_init(struct ifnet *ifp)
 	memset(ifp->get_stats(ifp), 0, sizeof(struct ifnet_stats));
 #endif
 
+	/*
+	 * Do any last-minute board-specific initialization.
+	 */
+	switch (cvmx_sysinfo_get()->board_type) {
+#if defined(OCTEON_VENDOR_LANNER)
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
+		if (priv->phy_id == 16)
+			cvm_oct_mv88e61xx_setup_device(ifp);
+		break;
+#endif
+	default:
+		break;
+	}
+
 	device_attach(priv->dev);
 
 	return 0;

@@ -244,7 +244,7 @@ METHOD int interpret {
 	ofw_t		_ofw;
 	const char	*_cmd;
 	int		_nreturns;
-	unsigned long	*_returns;
+	cell_t		*_returns;
 };
 
 # Device I/O Functions (optional)

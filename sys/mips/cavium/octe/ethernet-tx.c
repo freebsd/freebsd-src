@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 
+#include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
 
@@ -239,6 +240,9 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 	} else {
 		/* Put this packet on the queue to be freed later */
 		_IF_ENQUEUE(&priv->tx_free_queue[qos], m);
+
+		/* Pass it to any BPF listeners.  */
+		ETHER_BPF_MTAP(ifp, m);
 	}
 	if (work != NULL)
 		cvmx_fpa_free(work, CVMX_FPA_WQE_POOL, DONT_WRITEBACK(1));

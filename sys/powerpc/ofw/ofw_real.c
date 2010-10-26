@@ -101,7 +101,7 @@ static ssize_t ofw_real_package_to_path(ofw_t, phandle_t package, char *buf,
 static int ofw_real_call_method(ofw_t, ihandle_t instance, const char *method, 
     int nargs, int nreturns, cell_t *args_and_returns);
 static int ofw_real_interpret(ofw_t ofw, const char *cmd, int nreturns,
-    unsigned long *returns);
+    cell_t *returns);
 static ihandle_t ofw_real_open(ofw_t, const char *device);
 static void ofw_real_close(ofw_t, ihandle_t instance);
 static ssize_t ofw_real_read(ofw_t, ihandle_t instance, void *addr, size_t len);
@@ -756,7 +756,7 @@ ofw_real_call_method(ofw_t ofw, ihandle_t instance, const char *method,
 		cell_t instance;
 		cell_t args_n_results[12];
 	} args;
-	cell_t *cp, *ap;
+	cell_t *ap, *cp;
 	int n;
 
 	args.name = (cell_t)(uintptr_t)"call-method";
@@ -791,8 +791,7 @@ ofw_real_call_method(ofw_t ofw, ihandle_t instance, const char *method,
 }
 
 static int
-ofw_real_interpret(ofw_t ofw, const char *cmd, int nreturns,
-    unsigned long *returns)
+ofw_real_interpret(ofw_t ofw, const char *cmd, int nreturns, cell_t *returns)
 {
 	vm_offset_t argsptr;
 	struct {

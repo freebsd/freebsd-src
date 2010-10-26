@@ -160,14 +160,6 @@ SYSCTL_VNET_PROC(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt,
    "Default TCP Maximum Segment Size for IPv6");
 #endif
 
-static int
-vnet_sysctl_msec_to_ticks(SYSCTL_HANDLER_ARGS)
-{
-
-	VNET_SYSCTL_ARG(req, arg1);
-	return (sysctl_msec_to_ticks(oidp, arg1, arg2, req));
-}
-
 /*
  * Minimum MSS we accept and use. This prevents DoS attacks where
  * we are forced to a ridiculous low MSS like 20 and send hundreds
@@ -213,50 +205,6 @@ SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, isn_reseed_interval, CTLFLAG_RW,
     &VNET_NAME(tcp_isn_reseed_interval), 0,
     "Seconds between reseeding of ISN secret");
 
-/*
- * TCP bandwidth limiting sysctls.  Note that the default lower bound of
- * 1024 exists only for debugging.  A good production default would be
- * something like 6100.
- */
-SYSCTL_NODE(_net_inet_tcp, OID_AUTO, inflight, CTLFLAG_RW, 0,
-    "TCP inflight data limiting");
-
-static VNET_DEFINE(int, tcp_inflight_enable) = 0;
-#define	V_tcp_inflight_enable		VNET(tcp_inflight_enable)
-SYSCTL_VNET_INT(_net_inet_tcp_inflight, OID_AUTO, enable, CTLFLAG_RW,
-    &VNET_NAME(tcp_inflight_enable), 0,
-    "Enable automatic TCP inflight data limiting");
-
-static int	tcp_inflight_debug = 0;
-SYSCTL_INT(_net_inet_tcp_inflight, OID_AUTO, debug, CTLFLAG_RW,
-    &tcp_inflight_debug, 0,
-    "Debug TCP inflight calculations");
-
-static VNET_DEFINE(int, tcp_inflight_rttthresh);
-#define	V_tcp_inflight_rttthresh	VNET(tcp_inflight_rttthresh)
-SYSCTL_VNET_PROC(_net_inet_tcp_inflight, OID_AUTO, rttthresh,
-    CTLTYPE_INT|CTLFLAG_RW, &VNET_NAME(tcp_inflight_rttthresh), 0,
-    vnet_sysctl_msec_to_ticks, "I",
-    "RTT threshold below which inflight will deactivate itself");
-
-static VNET_DEFINE(int, tcp_inflight_min) = 6144;
-#define	V_tcp_inflight_min		VNET(tcp_inflight_min)
-SYSCTL_VNET_INT(_net_inet_tcp_inflight, OID_AUTO, min, CTLFLAG_RW,
-    &VNET_NAME(tcp_inflight_min), 0,
-    "Lower-bound for TCP inflight window");
-
-static VNET_DEFINE(int, tcp_inflight_max) = TCP_MAXWIN << TCP_MAX_WINSHIFT;
-#define	V_tcp_inflight_max		VNET(tcp_inflight_max)
-SYSCTL_VNET_INT(_net_inet_tcp_inflight, OID_AUTO, max, CTLFLAG_RW,
-    &VNET_NAME(tcp_inflight_max), 0,
-    "Upper-bound for TCP inflight window");
-
-static VNET_DEFINE(int, tcp_inflight_stab) = 20;
-#define	V_tcp_inflight_stab		VNET(tcp_inflight_stab)
-SYSCTL_VNET_INT(_net_inet_tcp_inflight, OID_AUTO, stab, CTLFLAG_RW,
-    &VNET_NAME(tcp_inflight_stab), 0,
-    "Inflight Algorithm Stabilization 20 = 2 packets");
-
 #ifdef TCP_SORECEIVE_STREAM
 static int	tcp_soreceive_stream = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, soreceive_stream, CTLFLAG_RDTUN,
@@ -268,6 +216,8 @@ VNET_DEFINE(uma_zone_t, sack_hole_zone);
 
 static struct inpcb *tcp_notify(struct inpcb *, int);
 static void	tcp_isn_tick(void *);
+static char *	tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th,
+		    void *ip4hdr, const void *ip6hdr);
 
 /*
  * Target size of TCP PCB hash tables. Must be a power of two.
@@ -335,8 +285,6 @@ tcp_init(void)
 	}
 	in_pcbinfo_init(&V_tcbinfo, "tcp", &V_tcb, hashsize, hashsize,
 	    "tcp_inpcb", tcp_inpcb_init, NULL, UMA_ZONE_NOFREE);
-
-	V_tcp_inflight_rttthresh = TCPTV_INFLIGHT_RTTTHRESH;
 
 	/*
 	 * These have to be type stable for the benefit of the timers.
@@ -726,10 +674,8 @@ tcp_newtcpcb(struct inpcb *inp)
 	tp->t_rttmin = tcp_rexmit_min;
 	tp->t_rxtcur = TCPTV_RTOBASE;
 	tp->snd_cwnd = TCP_MAXWIN << TCP_MAX_WINSHIFT;
-	tp->snd_bwnd = TCP_MAXWIN << TCP_MAX_WINSHIFT;
 	tp->snd_ssthresh = TCP_MAXWIN << TCP_MAX_WINSHIFT;
 	tp->t_rcvtime = ticks;
-	tp->t_bw_rtttime = ticks;
 	/*
 	 * IPv4 TTL initialization is necessary for an IPv6 socket as well,
 	 * because the socket may be bound to an IPv6 wildcard address,
@@ -768,7 +714,6 @@ tcp_drop(struct tcpcb *tp, int errno)
 void
 tcp_discardcb(struct tcpcb *tp)
 {
-	struct tseg_qent *q;
 	struct inpcb *inp = tp->t_inpcb;
 	struct socket *so = inp->inp_socket;
 #ifdef INET6
@@ -847,8 +792,6 @@ tcp_discardcb(struct tcpcb *tp)
 
 		metrics.rmx_rtt = tp->t_srtt;
 		metrics.rmx_rttvar = tp->t_rttvar;
-		/* XXX: This wraps if the pipe is more than 4 Gbit per second */
-		metrics.rmx_bandwidth = tp->snd_bandwidth;
 		metrics.rmx_cwnd = tp->snd_cwnd;
 		metrics.rmx_sendpipe = 0;
 		metrics.rmx_recvpipe = 0;
@@ -857,13 +800,7 @@ tcp_discardcb(struct tcpcb *tp)
 	}
 
 	/* free the reassembly queue, if any */
-	while ((q = LIST_FIRST(&tp->t_segq)) != NULL) {
-		LIST_REMOVE(q, tqe_q);
-		m_freem(q->tqe_m);
-		uma_zfree(V_tcp_reass_zone, q);
-		tp->t_segqlen--;
-		V_tcp_reass_qsize--;
-	}
+	tcp_reass_flush(tp);
 	/* Disconnect offload device, if any. */
 	tcp_offload_detach(tp);
 		
@@ -921,7 +858,6 @@ tcp_drain(void)
 		CURVNET_SET(vnet_iter);
 		struct inpcb *inpb;
 		struct tcpcb *tcpb;
-		struct tseg_qent *te;
 
 	/*
 	 * Walk the tcpbs, if existing, and flush the reassembly queue,
@@ -937,14 +873,7 @@ tcp_drain(void)
 				continue;
 			INP_WLOCK(inpb);
 			if ((tcpb = intotcpcb(inpb)) != NULL) {
-				while ((te = LIST_FIRST(&tcpb->t_segq))
-			            != NULL) {
-					LIST_REMOVE(te, tqe_q);
-					m_freem(te->tqe_m);
-					uma_zfree(V_tcp_reass_zone, te);
-					tcpb->t_segqlen--;
-					V_tcp_reass_qsize--;
-				}
+				tcp_reass_flush(tcpb);
 				tcp_clean_sackreport(tcpb);
 			}
 			INP_WUNLOCK(inpb);
@@ -1020,10 +949,9 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	 * resource-intensive to repeat twice on every request.
 	 */
 	if (req->oldptr == NULL) {
-		m = syncache_pcbcount();
-		n = V_tcbinfo.ipi_count;
-		req->oldidx = 2 * (sizeof xig)
-			+ ((m + n) + n/8) * sizeof(struct xtcpcb);
+		n = V_tcbinfo.ipi_count + syncache_pcbcount();
+		n += imax(n / 8, 10);
+		req->oldidx = 2 * (sizeof xig) + n * sizeof(struct xtcpcb);
 		return (0);
 	}
 
@@ -1772,154 +1700,6 @@ ipsec_hdrsiz_tcp(struct tcpcb *tp)
 }
 #endif /* IPSEC */
 
-/*
- * TCP BANDWIDTH DELAY PRODUCT WINDOW LIMITING
- *
- * This code attempts to calculate the bandwidth-delay product as a
- * means of determining the optimal window size to maximize bandwidth,
- * minimize RTT, and avoid the over-allocation of buffers on interfaces and
- * routers.  This code also does a fairly good job keeping RTTs in check
- * across slow links like modems.  We implement an algorithm which is very
- * similar (but not meant to be) TCP/Vegas.  The code operates on the
- * transmitter side of a TCP connection and so only effects the transmit
- * side of the connection.
- *
- * BACKGROUND:  TCP makes no provision for the management of buffer space
- * at the end points or at the intermediate routers and switches.  A TCP
- * stream, whether using NewReno or not, will eventually buffer as
- * many packets as it is able and the only reason this typically works is
- * due to the fairly small default buffers made available for a connection
- * (typicaly 16K or 32K).  As machines use larger windows and/or window
- * scaling it is now fairly easy for even a single TCP connection to blow-out
- * all available buffer space not only on the local interface, but on
- * intermediate routers and switches as well.  NewReno makes a misguided
- * attempt to 'solve' this problem by waiting for an actual failure to occur,
- * then backing off, then steadily increasing the window again until another
- * failure occurs, ad-infinitum.  This results in terrible oscillation that
- * is only made worse as network loads increase and the idea of intentionally
- * blowing out network buffers is, frankly, a terrible way to manage network
- * resources.
- *
- * It is far better to limit the transmit window prior to the failure
- * condition being achieved.  There are two general ways to do this:  First
- * you can 'scan' through different transmit window sizes and locate the
- * point where the RTT stops increasing, indicating that you have filled the
- * pipe, then scan backwards until you note that RTT stops decreasing, then
- * repeat ad-infinitum.  This method works in principle but has severe
- * implementation issues due to RTT variances, timer granularity, and
- * instability in the algorithm which can lead to many false positives and
- * create oscillations as well as interact badly with other TCP streams
- * implementing the same algorithm.
- *
- * The second method is to limit the window to the bandwidth delay product
- * of the link.  This is the method we implement.  RTT variances and our
- * own manipulation of the congestion window, bwnd, can potentially
- * destabilize the algorithm.  For this reason we have to stabilize the
- * elements used to calculate the window.  We do this by using the minimum
- * observed RTT, the long term average of the observed bandwidth, and
- * by adding two segments worth of slop.  It isn't perfect but it is able
- * to react to changing conditions and gives us a very stable basis on
- * which to extend the algorithm.
- */
-void
-tcp_xmit_bandwidth_limit(struct tcpcb *tp, tcp_seq ack_seq)
-{
-	u_long bw;
-	u_long bwnd;
-	int save_ticks;
-
-	INP_WLOCK_ASSERT(tp->t_inpcb);
-
-	/*
-	 * If inflight_enable is disabled in the middle of a tcp connection,
-	 * make sure snd_bwnd is effectively disabled.
-	 */
-	if (V_tcp_inflight_enable == 0 ||
-	    tp->t_rttlow < V_tcp_inflight_rttthresh) {
-		tp->snd_bwnd = TCP_MAXWIN << TCP_MAX_WINSHIFT;
-		tp->snd_bandwidth = 0;
-		return;
-	}
-
-	/*
-	 * Figure out the bandwidth.  Due to the tick granularity this
-	 * is a very rough number and it MUST be averaged over a fairly
-	 * long period of time.  XXX we need to take into account a link
-	 * that is not using all available bandwidth, but for now our
-	 * slop will ramp us up if this case occurs and the bandwidth later
-	 * increases.
-	 *
-	 * Note: if ticks rollover 'bw' may wind up negative.  We must
-	 * effectively reset t_bw_rtttime for this case.
-	 */
-	save_ticks = ticks;
-	if ((u_int)(save_ticks - tp->t_bw_rtttime) < 1)
-		return;
-
-	bw = (int64_t)(ack_seq - tp->t_bw_rtseq) * hz /
-	    (save_ticks - tp->t_bw_rtttime);
-	tp->t_bw_rtttime = save_ticks;
-	tp->t_bw_rtseq = ack_seq;
-	if (tp->t_bw_rtttime == 0 || (int)bw < 0)
-		return;
-	bw = ((int64_t)tp->snd_bandwidth * 15 + bw) >> 4;
-
-	tp->snd_bandwidth = bw;
-
-	/*
-	 * Calculate the semi-static bandwidth delay product, plus two maximal
-	 * segments.  The additional slop puts us squarely in the sweet
-	 * spot and also handles the bandwidth run-up case and stabilization.
-	 * Without the slop we could be locking ourselves into a lower
-	 * bandwidth.
-	 *
-	 * Situations Handled:
-	 *	(1) Prevents over-queueing of packets on LANs, especially on
-	 *	    high speed LANs, allowing larger TCP buffers to be
-	 *	    specified, and also does a good job preventing
-	 *	    over-queueing of packets over choke points like modems
-	 *	    (at least for the transmit side).
-	 *
-	 *	(2) Is able to handle changing network loads (bandwidth
-	 *	    drops so bwnd drops, bandwidth increases so bwnd
-	 *	    increases).
-	 *
-	 *	(3) Theoretically should stabilize in the face of multiple
-	 *	    connections implementing the same algorithm (this may need
-	 *	    a little work).
-	 *
-	 *	(4) Stability value (defaults to 20 = 2 maximal packets) can
-	 *	    be adjusted with a sysctl but typically only needs to be
-	 *	    on very slow connections.  A value no smaller then 5
-	 *	    should be used, but only reduce this default if you have
-	 *	    no other choice.
-	 */
-#define USERTT	((tp->t_srtt + tp->t_rttbest) / 2)
-	bwnd = (int64_t)bw * USERTT / (hz << TCP_RTT_SHIFT) + V_tcp_inflight_stab * tp->t_maxseg / 10;
-#undef USERTT
-
-	if (tcp_inflight_debug > 0) {
-		static int ltime;
-		if ((u_int)(ticks - ltime) >= hz / tcp_inflight_debug) {
-			ltime = ticks;
-			printf("%p bw %ld rttbest %d srtt %d bwnd %ld\n",
-			    tp,
-			    bw,
-			    tp->t_rttbest,
-			    tp->t_srtt,
-			    bwnd
-			);
-		}
-	}
-	if ((long)bwnd < V_tcp_inflight_min)
-		bwnd = V_tcp_inflight_min;
-	if (bwnd > V_tcp_inflight_max)
-		bwnd = V_tcp_inflight_max;
-	if ((long)bwnd < tp->t_maxseg * 2)
-		bwnd = tp->t_maxseg * 2;
-	tp->snd_bwnd = bwnd;
-}
-
 #ifdef TCP_SIGNATURE
 /*
  * Callback function invoked by m_apply() to digest TCP segment data
@@ -2233,7 +2013,31 @@ SYSCTL_PROC(_net_inet_tcp, TCPCTL_DROP, drop,
  * and ip6_hdr pointers have to be passed as void pointers.
  */
 char *
+tcp_log_vain(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
+    const void *ip6hdr)
+{
+
+	/* Is logging enabled? */
+	if (tcp_log_in_vain == 0)
+		return (NULL);
+
+	return (tcp_log_addr(inc, th, ip4hdr, ip6hdr));
+}
+
+char *
 tcp_log_addrs(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
+    const void *ip6hdr)
+{
+
+	/* Is logging enabled? */
+	if (tcp_log_debug == 0)
+		return (NULL);
+
+	return (tcp_log_addr(inc, th, ip4hdr, ip6hdr));
+}
+
+static char *
+tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
     const void *ip6hdr)
 {
 	char *s, *sp;
@@ -2257,10 +2061,6 @@ tcp_log_addrs(struct in_conninfo *inc, struct tcphdr *th, void *ip4hdr,
 #else
 	    2 * INET_ADDRSTRLEN;
 #endif /* INET6 */
-
-	/* Is logging enabled? */
-	if (tcp_log_debug == 0 && tcp_log_in_vain == 0)
-		return (NULL);
 
 	s = malloc(size, M_TCPLOG, M_ZERO|M_NOWAIT);
 	if (s == NULL)

@@ -126,7 +126,6 @@
 
 int   AcpiGbl_Opterr = 1;
 int   AcpiGbl_Optind = 1;
-int   AcpiGbl_Optopt;
 char  *AcpiGbl_Optarg;
 
 
@@ -171,9 +170,7 @@ AcpiGetopt(
 
     /* Get the option */
 
-    CurrentChar =
-    AcpiGbl_Optopt =
-    argv[AcpiGbl_Optind][CurrentCharPtr];
+    CurrentChar = argv[AcpiGbl_Optind][CurrentCharPtr];
 
     /* Make sure that the option is legal */
 

@@ -1,6 +1,8 @@
 # $FreeBSD$
 
-.PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../gptboot ${.CURDIR}/../zfsboot
+.PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../gptboot \
+		${.CURDIR}/../zfsboot ${.CURDIR}/../common \
+		${.CURDIR}/../../common
 
 FILES=		gptzfsboot
 
@@ -14,7 +16,8 @@ REL1=	0x700
 ORG1=	0x7c00
 ORG2=	0x0
 
-CFLAGS=	-Os \
+CFLAGS=	-DBOOTPROG=\"gptzfsboot\" \
+	-Os \
 	-fno-guess-branch-probability \
 	-fomit-frame-pointer \
 	-fno-unit-at-a-time \
@@ -26,6 +29,7 @@ CFLAGS=	-Os \
 	-DSIOFMT=${B2SIOFMT} \
 	-DSIOSPD=${BOOT_COMCONSOLE_SPEED} \
 	-I${.CURDIR}/../../common \
+	-I${.CURDIR}/../common \
 	-I${.CURDIR}/../../zfs \
 	-I${.CURDIR}/../../../cddl/boot/zfs \
 	-I${.CURDIR}/../btx/lib -I. \
@@ -59,12 +63,12 @@ CLEANFILES+=	gptzfsboot.bin gptzfsboot.out zfsboot.o sio.o
 gptzfsboot.bin: gptzfsboot.out
 	objcopy -S -O binary gptzfsboot.out ${.TARGET}
 
-gptzfsboot.out: ${BTXCRT} zfsboot.o sio.o
+gptzfsboot.out: ${BTXCRT} zfsboot.o sio.o gpt.o drv.o cons.o util.o
 	${LD} ${LDFLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBSTAND}
 
 zfsboot.o: ${.CURDIR}/../../zfs/zfsimpl.c
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 beforedepend zfsboot.o: machine
 CLEANFILES+=	machine
 machine:

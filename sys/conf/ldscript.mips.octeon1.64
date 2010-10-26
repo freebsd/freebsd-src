@@ -7,24 +7,29 @@ ENTRY(_start)
    __DYNAMIC = 0;
 PROVIDE (_DYNAMIC = 0);
 
+PHDRS {
+	text PT_LOAD FLAGS(0x7);
+}
+
 SECTIONS {
 	. = KERNLOADADDR + SIZEOF_HEADERS;
 
-	.text . : {
+	.text : {
 	    	*(.text)
 		*(.dynamic)
 		etext = .;
 		_etext = .;
 		. = ALIGN(0x2000);
-	}
+	} : text
 
-	.rodata ALIGN(0x2000) : {
+	. = ALIGN(0x2000);
+	.rodata : {
 		_fdata = .;
 	    	*(.rodata)
 		. = ALIGN(32);
 	}
 	
-	.data . : {
+	.data : {
                 _rwdata = .;
 	    	*(.data)
 		. = ALIGN(32);
@@ -33,15 +38,15 @@ SECTIONS {
 
 	_gp = (. + 0x8000);
 
-	.sdata . : {
+	.sdata : {
                 _small_start = .;
 		*(.sdata)
 		. = ALIGN(32);
 		edata = .;
 		_edata = .;
-	}
+	} : text
 
-	.sbss . : {
+	.sbss : {
 		__bss_start = .;
 		_fbss = .;
 		*(.sbss) *(.scommon)
@@ -49,7 +54,7 @@ SECTIONS {
 		. = ALIGN(32);
 	}
 
-	.bss . : {
+	.bss : {
 		*(.bss)
 		*(COMMON)
 		. = ALIGN(32);

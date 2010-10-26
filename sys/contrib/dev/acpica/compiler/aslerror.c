@@ -304,7 +304,7 @@ AePrintException (
 
             if (Enode->LineNumber)
             {
-                fprintf (OutputFile, "%6u: ", Enode->LineNumber);
+                fprintf (OutputFile, " %6u: ", Enode->LineNumber);
 
                 /*
                  * Seek to the offset in the combined source file, read the source
@@ -358,7 +358,7 @@ AePrintException (
     {
         /* Decode the message ID */
 
-        fprintf (OutputFile, "%s %4.4d -",
+        fprintf (OutputFile, "%s %4.4d - ",
                     AslErrorLevel[Enode->Level],
                     Enode->MessageId + ((Enode->Level+1) * 1000));
 

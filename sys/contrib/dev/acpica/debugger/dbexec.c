@@ -567,14 +567,12 @@ AcpiDbMethodThread (
     if (Info->InitArgs)
     {
         AcpiDbUInt32ToHexString (Info->NumCreated, Info->IndexOfThreadStr);
-        AcpiDbUInt32ToHexString (ACPI_TO_INTEGER (AcpiOsGetThreadId ()),
-            Info->IdOfThreadStr);
+        AcpiDbUInt32ToHexString ((UINT32) AcpiOsGetThreadId (), Info->IdOfThreadStr);
     }
 
     if (Info->Threads && (Info->NumCreated < Info->NumThreads))
     {
-        Info->Threads[Info->NumCreated++] =
-            ACPI_TO_INTEGER (AcpiOsGetThreadId());
+        Info->Threads[Info->NumCreated++] = AcpiOsGetThreadId();
     }
 
     LocalInfo = *Info;
@@ -722,8 +720,8 @@ AcpiDbCreateExecutionThreads (
     /* Array to store IDs of threads */
 
     AcpiGbl_DbMethodInfo.NumThreads = NumThreads;
-    Size = 4 * AcpiGbl_DbMethodInfo.NumThreads;
-    AcpiGbl_DbMethodInfo.Threads = (UINT32 *) AcpiOsAllocate (Size);
+    Size = sizeof (ACPI_THREAD_ID) * AcpiGbl_DbMethodInfo.NumThreads;
+    AcpiGbl_DbMethodInfo.Threads = AcpiOsAllocate (Size);
     if (AcpiGbl_DbMethodInfo.Threads == NULL)
     {
         AcpiOsPrintf ("No memory for thread IDs array\n");

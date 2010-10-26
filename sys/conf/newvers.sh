@@ -38,15 +38,15 @@ if [ "X${BRANCH_OVERRIDE}" != "X" ]; then
 fi
 RELEASE="${REVISION}-${BRANCH}"
 VERSION="${TYPE} ${RELEASE}"
+SYSDIR=$(dirname $0)/..
 
 if [ "X${PARAMFILE}" != "X" ]; then
 	RELDATE=$(awk '/__FreeBSD_version.*propagated to newvers/ {print $3}' \
 		${PARAMFILE})
 else
 	RELDATE=$(awk '/__FreeBSD_version.*propagated to newvers/ {print $3}' \
-		$(dirname $0)/../sys/param.h)
+		${SYSDIR}/sys/param.h)
 fi
-
 
 b=share/examples/etc/bsd-style-copyright
 year=`date '+%Y'`
@@ -87,51 +87,43 @@ touch version
 v=`cat version` u=${USER:-root} d=`pwd` h=${HOSTNAME:-`hostname`} t=`date`
 i=`${MAKE:-make} -V KERN_IDENT`
 
-case "$d" in
-*/sys/*)
-	SRCDIR=${d##*obj}
-	if [ -n "$MACHINE" ]; then
-		SRCDIR=${SRCDIR##/$MACHINE}
+for dir in /bin /usr/bin /usr/local/bin; do
+	if [ -d "${SYSDIR}/.svn" -a -x "${dir}/svnversion" ] ; then
+		svnversion=${dir}/svnversion
+		break
 	fi
-	SRCDIR=${SRCDIR%%/sys/*}
-
-	for dir in /bin /usr/bin /usr/local/bin; do
-		if [ -d "${SRCDIR}/sys/.svn" -a -x "${dir}/svnversion" ] ; then
-			svnversion=${dir}/svnversion
-			break
-		fi
-		if [ -d "${SRCDIR}/.git" -a -x "${dir}/git" ] ; then
-			git_cmd="${dir}/git --git-dir=${SRCDIR}/.git"
-			break
-		fi
-	done
-
-	if [ -n "$svnversion" ] ; then
-		svn=" r`cd ${SRCDIR}/sys && $svnversion`"
+	if [ -d "${SYSDIR}/../.git" -a -x "${dir}/git" ] ; then
+		git_cmd="${dir}/git --git-dir=${SYSDIR}/../.git"
+		break
 	fi
-	if [ -n "$git_cmd" ] ; then
-		git=`$git_cmd rev-parse --verify --short HEAD 2>/dev/null`
-		svn=`$git_cmd svn find-rev $git 2>/dev/null`
-		if [ -n "$svn" ] ; then
+done
+
+if [ -n "$svnversion" ] ; then
+    echo "$svnversion"
+	svn=" r`cd ${SYSDIR} && $svnversion`"
+fi
+
+if [ -n "$git_cmd" ] ; then
+	git=`$git_cmd rev-parse --verify --short HEAD 2>/dev/null`
+	svn=`$git_cmd svn find-rev $git 2>/dev/null`
+	if [ -n "$svn" ] ; then
+		svn=" r${svn}"
+		git="=${git}"
+	else
+		svn=`$git_cmd log | fgrep 'git-svn-id:' | head -1 | \
+		     sed -n 's/^.*@\([0-9][0-9]*\).*$/\1/p'`
+		if [ -n $svn ] ; then
 			svn=" r${svn}"
-			git="=${git}"
+			git="+${git}"
 		else
-			svn=`$git_cmd log | fgrep 'git-svn-id:' | head -1 | \
-			     sed -n 's/^.*@\([0-9][0-9]*\).*$/\1/p'`
-			if [ -n $svn ] ; then
-				svn=" r${svn}"
-				git="+${git}"
-			else
-				git=" ${git}"
-			fi
-		fi
-		if $git_cmd --work-tree=${SRCDIR} diff-index \
-		    --name-only HEAD | read dummy; then
-			git="${git}-dirty"
+			git=" ${git}"
 		fi
 	fi
-	;;
-esac
+	if $git_cmd --work-tree=${SYSDIR}/.. diff-index \
+	    --name-only HEAD | read dummy; then
+		git="${git}-dirty"
+	fi
+fi
 
 cat << EOF > vers.c
 $COPYRIGHT

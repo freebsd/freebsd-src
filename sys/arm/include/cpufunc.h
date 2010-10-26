@@ -400,6 +400,7 @@ extern unsigned arm10_dcache_index_max;
 extern unsigned arm10_dcache_index_inc;
 
 u_int	sheeva_control_ext 		(u_int, u_int);
+void	sheeva_cpu_sleep		(int);
 void	sheeva_setttb			(u_int);
 void	sheeva_dcache_wbinv_range	(vm_offset_t, vm_size_t);
 void	sheeva_dcache_inv_range		(vm_offset_t, vm_size_t);

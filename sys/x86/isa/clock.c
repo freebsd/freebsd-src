@@ -95,7 +95,7 @@ int	clkintr_pending;
 u_int	i8254_freq = TIMER_FREQ;
 TUNABLE_INT("hw.i8254.freq", &i8254_freq);
 int	i8254_max_count;
-static int i8254_real_max_count;
+static int i8254_timecounter = 1;
 
 struct mtx clock_lock;
 static	struct intsrc *i8254_intsrc;
@@ -116,9 +116,15 @@ struct attimer_softc {
 	void *intr_handler;
 	struct timecounter tc;
 	struct eventtimer et;
-	uint32_t	intr_period;
+	int		mode;
+#define	MODE_STOP	0
+#define	MODE_PERIODIC	1
+#define	MODE_ONESHOT	2
+	uint32_t	period;
 };
 static struct attimer_softc *attimer_sc = NULL;
+
+static int timer0_period = -2;
 
 /* Values for timerX_state: */
 #define	RELEASED	0
@@ -129,14 +135,14 @@ static struct attimer_softc *attimer_sc = NULL;
 static	u_char	timer2_state;
 
 static	unsigned i8254_get_timecount(struct timecounter *tc);
-static	void	set_i8254_freq(u_int freq, uint32_t intr_period);
+static	void	set_i8254_freq(int mode, uint32_t period);
 
 static int
 clkintr(void *arg)
 {
 	struct attimer_softc *sc = (struct attimer_softc *)arg;
 
-	if (sc->intr_period != 0) {
+	if (i8254_timecounter && sc->period != 0) {
 		mtx_lock_spin(&clock_lock);
 		if (i8254_ticked)
 			i8254_ticked = 0;
@@ -148,7 +154,7 @@ clkintr(void *arg)
 		mtx_unlock_spin(&clock_lock);
 	}
 
-	if (sc && sc->et.et_active)
+	if (sc && sc->et.et_active && sc->mode != MODE_STOP)
 		sc->et.et_event_cb(&sc->et, sc->et.et_arg);
 
 #ifdef DEV_MCA
@@ -361,28 +367,43 @@ DELAY(int n)
 }
 
 static void
-set_i8254_freq(u_int freq, uint32_t intr_period)
+set_i8254_freq(int mode, uint32_t period)
 {
-	int new_i8254_real_max_count;
+	int new_count;
 
 	mtx_lock_spin(&clock_lock);
-	i8254_freq = freq;
-	if (intr_period == 0)
-		new_i8254_real_max_count = 0x10000;
-	else {
-		new_i8254_real_max_count =
-		    min(((uint64_t)i8254_freq * intr_period) >> 32, 0x10000);
+	if (mode == MODE_STOP) {
+		if (i8254_timecounter) {
+			mode = MODE_PERIODIC;
+			new_count = 0x10000;
+		} else
+			new_count = -1;
+	} else {
+		new_count = min(((uint64_t)i8254_freq * period +
+		    0x80000000LLU) >> 32, 0x10000);
 	}
-	if (new_i8254_real_max_count != i8254_real_max_count) {
-		i8254_real_max_count = new_i8254_real_max_count;
-		if (i8254_real_max_count == 0x10000)
-			i8254_max_count = 0xffff;
-		else
-			i8254_max_count = i8254_real_max_count;
+	if (new_count == timer0_period)
+		goto out;
+	i8254_max_count = ((new_count & ~0xffff) != 0) ? 0xffff : new_count;
+	timer0_period = (mode == MODE_PERIODIC) ? new_count : -1;
+	switch (mode) {
+	case MODE_STOP:
+		outb(TIMER_MODE, TIMER_SEL0 | TIMER_INTTC | TIMER_16BIT);
+		outb(TIMER_CNTR0, 0);
+		outb(TIMER_CNTR0, 0);
+		break;
+	case MODE_PERIODIC:
 		outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
-		outb(TIMER_CNTR0, i8254_real_max_count & 0xff);
-		outb(TIMER_CNTR0, i8254_real_max_count >> 8);
+		outb(TIMER_CNTR0, new_count & 0xff);
+		outb(TIMER_CNTR0, new_count >> 8);
+		break;
+	case MODE_ONESHOT:
+		outb(TIMER_MODE, TIMER_SEL0 | TIMER_INTTC | TIMER_16BIT);
+		outb(TIMER_CNTR0, new_count & 0xff);
+		outb(TIMER_CNTR0, new_count >> 8);
+		break;
 	}
+out:
 	mtx_unlock_spin(&clock_lock);
 }
 
@@ -390,11 +411,11 @@ static void
 i8254_restore(void)
 {
 
-	mtx_lock_spin(&clock_lock);
-	outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
-	outb(TIMER_CNTR0, i8254_real_max_count & 0xff);
-	outb(TIMER_CNTR0, i8254_real_max_count >> 8);
-	mtx_unlock_spin(&clock_lock);
+	timer0_period = -2;
+	if (attimer_sc != NULL)
+		set_i8254_freq(attimer_sc->mode, attimer_sc->period);
+	else
+		set_i8254_freq(0, 0);
 }
 
 #ifndef __amd64__
@@ -428,7 +449,7 @@ i8254_init(void)
 	if (pc98_machine_type & M_8M)
 		i8254_freq = 1996800L; /* 1.9968 MHz */
 #endif
-	set_i8254_freq(i8254_freq, 0);
+	set_i8254_freq(0, 0);
 }
 
 void
@@ -459,11 +480,12 @@ sysctl_machdep_i8254_freq(SYSCTL_HANDLER_ARGS)
 	freq = i8254_freq;
 	error = sysctl_handle_int(oidp, &freq, 0, req);
 	if (error == 0 && req->newptr != NULL) {
-		if (attimer_sc) {
-			set_i8254_freq(freq, attimer_sc->intr_period);
+		i8254_freq = freq;
+		if (attimer_sc != NULL) {
+			set_i8254_freq(attimer_sc->mode, attimer_sc->period);
 			attimer_sc->tc.tc_frequency = freq;
 		} else {
-			set_i8254_freq(freq, 0);
+			set_i8254_freq(0, 0);
 		}
 	}
 	return (error);
@@ -481,7 +503,7 @@ i8254_get_timecount(struct timecounter *tc)
 	uint16_t count;
 	u_int high, low;
 
-	if (sc->intr_period == 0)
+	if (sc->period == 0)
 		return (i8254_max_count - getit());
 
 #ifdef __amd64__
@@ -517,13 +539,19 @@ attimer_start(struct eventtimer *et,
 {
 	device_t dev = (device_t)et->et_priv;
 	struct attimer_softc *sc = device_get_softc(dev);
-	
-	sc->intr_period = period->frac >> 32;
-	set_i8254_freq(i8254_freq, sc->intr_period);
+
+	if (period != NULL) {
+		sc->mode = MODE_PERIODIC;
+		sc->period = period->frac >> 32;
+	} else {
+		sc->mode = MODE_ONESHOT;
+		sc->period = first->frac >> 32;
+	}
 	if (!sc->intr_en) {
 		i8254_intsrc->is_pic->pic_enable_source(i8254_intsrc);
 		sc->intr_en = 1;
 	}
+	set_i8254_freq(sc->mode, sc->period);
 	return (0);
 }
 
@@ -533,8 +561,9 @@ attimer_stop(struct eventtimer *et)
 	device_t dev = (device_t)et->et_priv;
 	struct attimer_softc *sc = device_get_softc(dev);
 	
-	sc->intr_period = 0;
-	set_i8254_freq(i8254_freq, sc->intr_period);
+	sc->mode = MODE_STOP;
+	sc->period = 0;
+	set_i8254_freq(sc->mode, sc->period);
 	return (0);
 }
 
@@ -630,14 +659,18 @@ attimer_attach(device_t dev)
 	i8254_intsrc = intr_lookup_source(0);
 	if (i8254_intsrc != NULL)
 		i8254_pending = i8254_intsrc->is_pic->pic_source_pending;
-	set_i8254_freq(i8254_freq, 0);
-	sc->tc.tc_get_timecount = i8254_get_timecount;
-	sc->tc.tc_counter_mask = 0xffff;
-	sc->tc.tc_frequency = i8254_freq;
-	sc->tc.tc_name = "i8254";
-	sc->tc.tc_quality = 0;
-	sc->tc.tc_priv = dev;
-	tc_init(&sc->tc);
+	resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "timecounter", &i8254_timecounter);
+	set_i8254_freq(0, 0);
+	if (i8254_timecounter) {
+		sc->tc.tc_get_timecount = i8254_get_timecount;
+		sc->tc.tc_counter_mask = 0xffff;
+		sc->tc.tc_frequency = i8254_freq;
+		sc->tc.tc_name = "i8254";
+		sc->tc.tc_quality = 0;
+		sc->tc.tc_priv = dev;
+		tc_init(&sc->tc);
+	}
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "clock", &i) != 0 || i != 0) {
 	    	sc->intr_rid = 0;
@@ -663,6 +696,8 @@ attimer_attach(device_t dev)
 		i8254_intsrc->is_pic->pic_enable_intr(i8254_intsrc);
 		sc->et.et_name = "i8254";
 		sc->et.et_flags = ET_FLAGS_PERIODIC;
+		if (!i8254_timecounter)
+			sc->et.et_flags |= ET_FLAGS_ONESHOT;
 		sc->et.et_quality = 100;
 		sc->et.et_frequency = i8254_freq;
 		sc->et.et_min_period.sec = 0;

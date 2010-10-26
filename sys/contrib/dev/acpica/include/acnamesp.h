@@ -514,22 +514,6 @@ AcpiNsLocal (
     ACPI_OBJECT_TYPE        Type);
 
 void
-AcpiNsReportError (
-    const char              *ModuleName,
-    UINT32                  LineNumber,
-    const char              *InternalName,
-    ACPI_STATUS             LookupStatus);
-
-void
-AcpiNsReportMethodError (
-    const char              *ModuleName,
-    UINT32                  LineNumber,
-    const char              *Message,
-    ACPI_NAMESPACE_NODE     *Node,
-    const char              *Path,
-    ACPI_STATUS             LookupStatus);
-
-void
 AcpiNsPrintNodePathname (
     ACPI_NAMESPACE_NODE     *Node,
     const char              *Msg);

@@ -105,6 +105,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #include <netinet6/mld6_var.h>
 #include <netinet6/nd6.h>
+#include <netinet6/send.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -414,6 +415,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 	int icmp6len = m->m_pkthdr.len - *offp;
 	int code, sum, noff;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
+	int ip6len, error;
 
 	ifp = m->m_pkthdr.rcvif;
 
@@ -428,6 +430,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 	 */
 
 	ip6 = mtod(m, struct ip6_hdr *);
+	ip6len = sizeof(struct ip6_hdr) + ntohs(ip6->ip6_plen);
 	if (icmp6len < sizeof(struct icmp6_hdr)) {
 		ICMP6STAT_INC(icp6s_tooshort);
 		goto freeit;
@@ -766,11 +769,33 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			goto badlen;
 		if ((n = m_copym(m, 0, M_COPYALL, M_DONTWAIT)) == NULL) {
 			/* give up local */
-			nd6_rs_input(m, off, icmp6len);
+
+			/* Send incoming SeND packet to user space. */
+			if (send_sendso_input_hook != NULL) {
+				IP6_EXTHDR_CHECK(m, off,
+				    icmp6len, IPPROTO_DONE);
+				error = send_sendso_input_hook(m, ifp,
+				    SND_IN, ip6len);
+				/* -1 == no app on SEND socket */
+				if (error == 0)
+					return (IPPROTO_DONE);
+				nd6_rs_input(m, off, icmp6len);
+			} else
+				nd6_rs_input(m, off, icmp6len);
 			m = NULL;
 			goto freeit;
 		}
-		nd6_rs_input(n, off, icmp6len);
+		if (send_sendso_input_hook != NULL) {
+			IP6_EXTHDR_CHECK(n, off,
+			    icmp6len, IPPROTO_DONE);
+                        error = send_sendso_input_hook(n, ifp,
+			    SND_IN, ip6len);
+			if (error == 0)
+				goto freeit;
+			/* -1 == no app on SEND socket */
+			nd6_rs_input(n, off, icmp6len);
+		} else
+			nd6_rs_input(n, off, icmp6len);
 		/* m stays. */
 		break;
 
@@ -781,12 +806,27 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 		if (icmp6len < sizeof(struct nd_router_advert))
 			goto badlen;
 		if ((n = m_copym(m, 0, M_COPYALL, M_DONTWAIT)) == NULL) {
-			/* give up local */
-			nd6_ra_input(m, off, icmp6len);
+
+			/* Send incoming SeND-protected/ND packet to user space. */
+			if (send_sendso_input_hook != NULL) {
+				error = send_sendso_input_hook(m, ifp,
+				    SND_IN, ip6len);
+				if (error == 0)
+					return (IPPROTO_DONE);
+				nd6_ra_input(m, off, icmp6len);
+			} else
+				nd6_ra_input(m, off, icmp6len);
 			m = NULL;
 			goto freeit;
 		}
-		nd6_ra_input(n, off, icmp6len);
+		if (send_sendso_input_hook != NULL) {
+			error = send_sendso_input_hook(n, ifp,
+			    SND_IN, ip6len);
+			if (error == 0)
+				goto freeit;
+			nd6_ra_input(n, off, icmp6len);
+		} else
+			nd6_ra_input(n, off, icmp6len);
 		/* m stays. */
 		break;
 
@@ -797,12 +837,25 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 		if (icmp6len < sizeof(struct nd_neighbor_solicit))
 			goto badlen;
 		if ((n = m_copym(m, 0, M_COPYALL, M_DONTWAIT)) == NULL) {
-			/* give up local */
-			nd6_ns_input(m, off, icmp6len);
+			if (send_sendso_input_hook != NULL) {
+				error = send_sendso_input_hook(m, ifp,
+				    SND_IN, ip6len);
+				if (error == 0)
+					return (IPPROTO_DONE);
+				nd6_ns_input(m, off, icmp6len);
+			} else
+				nd6_ns_input(m, off, icmp6len);
 			m = NULL;
 			goto freeit;
 		}
-		nd6_ns_input(n, off, icmp6len);
+		if (send_sendso_input_hook != NULL) {
+			error = send_sendso_input_hook(n, ifp,
+			    SND_IN, ip6len);
+			if (error == 0)
+				goto freeit;
+			nd6_ns_input(n, off, icmp6len);
+		} else
+			nd6_ns_input(n, off, icmp6len);
 		/* m stays. */
 		break;
 
@@ -813,12 +866,27 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 		if (icmp6len < sizeof(struct nd_neighbor_advert))
 			goto badlen;
 		if ((n = m_copym(m, 0, M_COPYALL, M_DONTWAIT)) == NULL) {
-			/* give up local */
-			nd6_na_input(m, off, icmp6len);
+
+			/* Send incoming SeND-protected/ND packet to user space. */
+			if (send_sendso_input_hook != NULL) {
+				error = send_sendso_input_hook(m, ifp,
+				    SND_IN, ip6len);
+				if (error == 0)
+					return (IPPROTO_DONE);
+				nd6_na_input(m, off, icmp6len);
+			} else
+				nd6_na_input(m, off, icmp6len);
 			m = NULL;
 			goto freeit;
 		}
-		nd6_na_input(n, off, icmp6len);
+		if (send_sendso_input_hook != NULL) {
+			error = send_sendso_input_hook(n, ifp,
+			    SND_IN, ip6len);
+			if (error == 0)
+				goto freeit;
+			nd6_na_input(n, off, icmp6len);
+		} else
+			nd6_na_input(n, off, icmp6len);
 		/* m stays. */
 		break;
 
@@ -829,12 +897,25 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 		if (icmp6len < sizeof(struct nd_redirect))
 			goto badlen;
 		if ((n = m_copym(m, 0, M_COPYALL, M_DONTWAIT)) == NULL) {
-			/* give up local */
-			icmp6_redirect_input(m, off);
+			if (send_sendso_input_hook != NULL) {
+				error = send_sendso_input_hook(m, ifp,
+				    SND_IN, ip6len);
+		 		if (error == 0)
+					return (IPPROTO_DONE);
+			    icmp6_redirect_input(m, off);
+			} else
+				icmp6_redirect_input(m, off);
 			m = NULL;
 			goto freeit;
 		}
-		icmp6_redirect_input(n, off);
+		if (send_sendso_input_hook != NULL) {
+			error = send_sendso_input_hook(n, ifp,
+			    SND_IN, ip6len);
+			if (error == 0)
+				goto freeit;
+			icmp6_redirect_input(n, off);
+		} else
+			icmp6_redirect_input(n, off);
 		/* m stays. */
 		break;
 
@@ -2476,6 +2557,7 @@ icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 	struct in6_addr *router_ll6;
 	struct ip6_hdr *sip6;	/* m0 as struct ip6_hdr */
 	struct mbuf *m = NULL;	/* newly allocated one */
+	struct m_tag *mtag;
 	struct ip6_hdr *ip6;	/* m as struct ip6_hdr */
 	struct nd_redirect *nd_rd;
 	struct llentry *ln = NULL;
@@ -2734,6 +2816,15 @@ noredhdropt:;
 	nd_rd->nd_rd_cksum = 0;
 	nd_rd->nd_rd_cksum = in6_cksum(m, IPPROTO_ICMPV6,
 	    sizeof(*ip6), ntohs(ip6->ip6_plen));
+
+        if (send_sendso_input_hook != NULL) {
+		mtag = m_tag_get(PACKET_TAG_ND_OUTGOING, sizeof(unsigned short),
+			M_NOWAIT);
+		if (mtag == NULL)
+			goto fail;
+		*(unsigned short *)(mtag + 1) = nd_rd->nd_rd_type;
+		m_tag_prepend(m, mtag);
+	}
 
 	/* send the packet to outside... */
 	ip6_output(m, NULL, NULL, 0, NULL, &outif, NULL);

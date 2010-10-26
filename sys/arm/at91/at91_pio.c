@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <machine/bus.h>
 
-#include <arm/at91/at91rm92reg.h>
+#include <arm/at91/at91reg.h>
 #include <arm/at91/at91_pioreg.h>
 #include <arm/at91/at91_piovar.h>
 
@@ -58,7 +58,7 @@ struct at91_pio_softc
 static inline uint32_t
 RD4(struct at91_pio_softc *sc, bus_size_t off)
 {
-	return bus_read_4(sc->mem_res, off);
+	return (bus_read_4(sc->mem_res, off));
 }
 
 static inline void
@@ -283,7 +283,7 @@ at91_pio_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 void
 at91_pio_use_periph_a(uint32_t pio, uint32_t periph_a_mask, int use_pullup)
 {
-	uint32_t *PIO = (uint32_t *)(AT91RM92_BASE + pio);
+	uint32_t *PIO = (uint32_t *)(AT91_BASE + pio);
 
 	PIO[PIO_ASR / 4] = periph_a_mask;
 	PIO[PIO_PDR / 4] = periph_a_mask;
@@ -296,7 +296,7 @@ at91_pio_use_periph_a(uint32_t pio, uint32_t periph_a_mask, int use_pullup)
 void
 at91_pio_use_periph_b(uint32_t pio, uint32_t periph_b_mask, int use_pullup)
 {
-	uint32_t *PIO = (uint32_t *)(AT91RM92_BASE + pio);
+	uint32_t *PIO = (uint32_t *)(AT91_BASE + pio);
 
 	PIO[PIO_BSR / 4] = periph_b_mask;
 	PIO[PIO_PDR / 4] = periph_b_mask;
@@ -309,7 +309,7 @@ at91_pio_use_periph_b(uint32_t pio, uint32_t periph_b_mask, int use_pullup)
 void
 at91_pio_use_gpio(uint32_t pio, uint32_t gpio_mask)
 {
-	uint32_t *PIO = (uint32_t *)(AT91RM92_BASE + pio);
+	uint32_t *PIO = (uint32_t *)(AT91_BASE + pio);
 
 	PIO[PIO_PER / 4] = gpio_mask;
 }
@@ -317,7 +317,7 @@ at91_pio_use_gpio(uint32_t pio, uint32_t gpio_mask)
 void
 at91_pio_gpio_input(uint32_t pio, uint32_t input_enable_mask)
 {
-	uint32_t *PIO = (uint32_t *)(AT91RM92_BASE + pio);
+	uint32_t *PIO = (uint32_t *)(AT91_BASE + pio);
 
 	PIO[PIO_ODR / 4] = input_enable_mask;
 }
@@ -325,7 +325,7 @@ at91_pio_gpio_input(uint32_t pio, uint32_t input_enable_mask)
 void
 at91_pio_gpio_output(uint32_t pio, uint32_t output_enable_mask, int use_pullup)
 {
-	uint32_t *PIO = (uint32_t *)(AT91RM92_BASE + pio);
+	uint32_t *PIO = (uint32_t *)(AT91_BASE + pio);
 
 	PIO[PIO_OER / 4] = output_enable_mask;
 	if (use_pullup)
@@ -337,7 +337,7 @@ at91_pio_gpio_output(uint32_t pio, uint32_t output_enable_mask, int use_pullup)
 void
 at91_pio_gpio_set(uint32_t pio, uint32_t data_mask)
 {
-	uint32_t *PIO = (uint32_t *)(AT91RM92_BASE + pio);
+	uint32_t *PIO = (uint32_t *)(AT91_BASE + pio);
 
 	PIO[PIO_SODR / 4] = data_mask;
 }
@@ -345,7 +345,7 @@ at91_pio_gpio_set(uint32_t pio, uint32_t data_mask)
 void
 at91_pio_gpio_clear(uint32_t pio, uint32_t data_mask)
 {
-	uint32_t *PIO = (uint32_t *)(AT91RM92_BASE + pio);
+	uint32_t *PIO = (uint32_t *)(AT91_BASE + pio);
 
 	PIO[PIO_CODR / 4] = data_mask;
 }
@@ -353,7 +353,7 @@ at91_pio_gpio_clear(uint32_t pio, uint32_t data_mask)
 uint8_t
 at91_pio_gpio_get(uint32_t pio, uint32_t data_mask)
 {
-	uint32_t *PIO = (uint32_t *)(AT91RM92_BASE + pio);
+	uint32_t *PIO = (uint32_t *)(AT91_BASE + pio);
 
 	data_mask &= PIO[PIO_PDSR / 4];
 
@@ -363,7 +363,7 @@ at91_pio_gpio_get(uint32_t pio, uint32_t data_mask)
 void
 at91_pio_gpio_set_deglitch(uint32_t pio, uint32_t data_mask, int use_deglitch)
 {
-	uint32_t *PIO = (uint32_t *)(AT91RM92_BASE + pio);
+	uint32_t *PIO = (uint32_t *)(AT91_BASE + pio);
 
 	if (use_deglitch)
 		PIO[PIO_IFER / 4] = data_mask;
@@ -376,7 +376,7 @@ void
 at91_pio_gpio_set_interrupt(uint32_t pio, uint32_t data_mask, 
 	int enable_interrupt)
 {
-	uint32_t *PIO = (uint32_t *)(AT91RM92_BASE + pio);
+	uint32_t *PIO = (uint32_t *)(AT91_BASE + pio);
 
 	if (enable_interrupt)
 		PIO[PIO_IER / 4] = data_mask;
@@ -388,7 +388,7 @@ at91_pio_gpio_set_interrupt(uint32_t pio, uint32_t data_mask,
 uint32_t
 at91_pio_gpio_clear_interrupt(uint32_t pio)
 {
-	uint32_t *PIO = (uint32_t *)(AT91RM92_BASE + pio);
+	uint32_t *PIO = (uint32_t *)(AT91_BASE + pio);
 	/* reading this register will clear the interrupts */
 	return (PIO[PIO_ISR / 4]);
 }

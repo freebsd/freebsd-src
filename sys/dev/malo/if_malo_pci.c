@@ -371,4 +371,4 @@ static	devclass_t malo_devclass;
 DRIVER_MODULE(malo, pci, malo_pci_driver, malo_devclass, 0, 0);
 MODULE_VERSION(malo, 1);
 MODULE_DEPEND(malo, wlan, 1, 1, 1);		/* 802.11 media layer */
-MODULE_DEPEND(malo, malofw_fw, 1, 1, 1);
+MODULE_DEPEND(malo, firmware, 1, 1, 1);

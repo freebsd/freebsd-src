@@ -1,5 +1,10 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
+# XXX: clang can compile the boot code just fine, but boot2 gets too big
+CC:=${CC:C/^(.*\/)?clang$/gcc/1}
+
 FILES=		boot boot1 boot2
 
 NM?=		nm
@@ -94,7 +99,7 @@ boot2.h: boot1.out
 	    ORG1=`printf "%d" ${ORG1}` \
 	    REL1=`printf "%d" ${REL1}` > ${.TARGET}
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 beforedepend boot2.s: machine
 CLEANFILES+=	machine
 machine:

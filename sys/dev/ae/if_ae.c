@@ -360,9 +360,6 @@ ae_attach(device_t dev)
 	if (error != 0)
 		goto fail;
 
-	/* Set default PHY address. */
-	sc->phyaddr = AE_PHYADDR_DEFAULT;
-
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
 		device_printf(dev, "could not allocate ifnet structure.\n");
@@ -390,10 +387,11 @@ ae_attach(device_t dev)
 	/*
 	 * Configure and attach MII bus.
 	 */
-	error = mii_phy_probe(dev, &sc->miibus, ae_mediachange,
-	    ae_mediastatus);
+	error = mii_attach(dev, &sc->miibus, ifp, ae_mediachange,
+	    ae_mediastatus, BMSR_DEFCAPMASK, AE_PHYADDR_DEFAULT,
+	    MII_OFFSET_ANY, 0);
 	if (error != 0) {
-		device_printf(dev, "no PHY found.\n");
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -565,6 +563,8 @@ ae_init_locked(ae_softc_t *sc)
 	AE_LOCK_ASSERT(sc);
 
 	ifp = sc->ifp;
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return (0);
 	mii = device_get_softc(sc->miibus);
 
 	ae_stop(sc);
@@ -811,9 +811,6 @@ ae_miibus_readreg(device_t dev, int phy, int reg)
 	 * Locking is done in upper layers.
 	 */
 
-	if (phy != sc->phyaddr)
-		return (0);
-
 	val = ((reg << AE_MDIO_REGADDR_SHIFT) & AE_MDIO_REGADDR_MASK) |
 	    AE_MDIO_START | AE_MDIO_READ | AE_MDIO_SUP_PREAMBLE |
 	    ((AE_MDIO_CLK_25_4 << AE_MDIO_CLK_SHIFT) & AE_MDIO_CLK_MASK);
@@ -848,9 +845,6 @@ ae_miibus_writereg(device_t dev, int phy, int reg, int val)
 	/*
 	 * Locking is done in upper layers.
 	 */
-
-	if (phy != sc->phyaddr)
-		return (0);
 
 	aereg = ((reg << AE_MDIO_REGADDR_SHIFT) & AE_MDIO_REGADDR_MASK) |
 	    AE_MDIO_START | AE_MDIO_SUP_PREAMBLE |
@@ -1786,7 +1780,10 @@ ae_int_task(void *arg, int pending)
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
 		if ((val & (AE_ISR_DMAR_TIMEOUT | AE_ISR_DMAW_TIMEOUT |
 		    AE_ISR_PHY_LINKDOWN)) != 0) {
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			ae_init_locked(sc);
+			AE_UNLOCK(sc);
+			return;
 		}
 		if ((val & AE_ISR_TX_EVENT) != 0)
 			ae_tx_intr(sc);
@@ -1997,6 +1994,7 @@ ae_watchdog(ae_softc_t *sc)
 		if_printf(ifp, "watchdog timeout - resetting.\n");
 
 	ifp->if_oerrors++;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ae_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		taskqueue_enqueue(sc->tq, &sc->tx_task);
@@ -2107,8 +2105,10 @@ ae_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		else if (ifp->if_mtu != ifr->ifr_mtu) {
 			AE_LOCK(sc);
 			ifp->if_mtu = ifr->ifr_mtu;
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				ae_init_locked(sc);
+			}
 			AE_UNLOCK(sc);
 		}
 		break;

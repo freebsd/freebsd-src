@@ -26,25 +26,25 @@
 #
 
 SUBDIR = usb
-SUBDIR += ehci musb ohci uhci uss820dci ${_at91dci} ${_atmegadci}
+SUBDIR += ehci musb ohci uhci xhci uss820dci ${_at91dci} ${_atmegadci}
 SUBDIR += rum run uath upgt ural zyd ${_urtw}
 SUBDIR += atp uhid ukbd ums udbp ufm
 SUBDIR += ucom u3g uark ubsa ubser uchcom ucycom ufoma uftdi ugensa uipaq ulpt \
 	  umct umodem umoscom uplcom uslcom uvisor uvscom
-SUBDIR += uether aue axe cdce cue kue rue udav uhso
+SUBDIR += uether aue axe cdce cue kue rue udav uhso ipheth
 SUBDIR += usfs umass urio
 SUBDIR += quirk template
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 _urtw=		urtw
 .endif
 
-.if ${MACHINE_ARCH} == "arm"
+.if ${MACHINE_CPUARCH} == "arm"
 _at91dci=	at91dci
 _atmegadci=	atmegadci
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 _urtw=		urtw
 .endif
 

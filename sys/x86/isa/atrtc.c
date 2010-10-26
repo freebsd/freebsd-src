@@ -242,15 +242,12 @@ atrtc_attach(device_t dev)
 {
 	struct atrtc_softc *sc;
 	u_long s;
-	int i, diag;
+	int i;
 
 	sc = device_get_softc(dev);
 	if (!(sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
 	    &sc->port_rid, IO_RTC, IO_RTC + 1, 2, RF_ACTIVE)))
 		device_printf(dev,"Warning: Couldn't map I/O.\n");
-	diag = rtcin(RTC_DIAG);
-	if (diag != 0)
-		printf("RTC BIOS diagnostic error %b\n", diag, RTCDG_BITS);
 	atrtc_start();
 	clock_register(dev, 1000000);
 	bzero(&sc->et, sizeof(struct eventtimer));

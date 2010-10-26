@@ -83,7 +83,8 @@ tw_cli_drain_complete_queue(struct tw_cli_ctlr_context *ctlr)
 	tw_cli_dbg_printf(3, ctlr->ctlr_handle, tw_osl_cur_func(), "entered");
 
 	/* Walk the busy queue. */
-	while ((req = tw_cli_req_q_remove_head(ctlr, TW_CLI_COMPLETE_Q))) {
+	while ((req = tw_cli_req_q_remove_head(ctlr, TW_CLI_COMPLETE_Q)) !=
+		TW_CL_NULL) {
 		if (req->flags & TW_CLI_REQ_FLAGS_INTERNAL) {
 			/*
 			 * It's an internal request.  Set the appropriate
@@ -97,20 +98,21 @@ tw_cli_drain_complete_queue(struct tw_cli_ctlr_context *ctlr)
 			req->error_code = TW_CL_ERR_REQ_BUS_RESET;
 			if (req->tw_cli_callback)
 				req->tw_cli_callback(req);
-		} else {
-			if ((req_pkt = req->orig_req)) {
-				/* It's a SCSI request.  Complete it. */
-				tw_cli_dbg_printf(2, ctlr->ctlr_handle,
-					tw_osl_cur_func(),
-					"Completing complete request %p "
-					"on reset",
-					req);
+		} else if (req->flags & TW_CLI_REQ_FLAGS_PASSTHRU) {
+			/* It's a passthru request.  Complete it. */
+			if ((req_pkt = req->orig_req) != TW_CL_NULL) {
 				req_pkt->status = TW_CL_ERR_REQ_BUS_RESET;
-				req_pkt->tw_osl_callback(req->req_handle);
+
+				if (req_pkt->tw_osl_callback)
+					req_pkt->tw_osl_callback(req->req_handle);
 			}
 			tw_cli_req_q_insert_tail(req, TW_CLI_FREE_Q);
+		} else {
+			/* It's an external (SCSI) request.  Add it to the reset queue. */
+			tw_osl_untimeout(req->req_handle);
+			tw_cli_req_q_insert_tail(req, TW_CLI_RESET_Q);
 		}
-	}
+	} /* End of while loop */
 }
 
 
@@ -135,7 +137,8 @@ tw_cli_drain_busy_queue(struct tw_cli_ctlr_context *ctlr)
 	tw_cli_dbg_printf(3, ctlr->ctlr_handle, tw_osl_cur_func(), "entered");
 
 	/* Walk the busy queue. */
-	while ((req = tw_cli_req_q_remove_head(ctlr, TW_CLI_BUSY_Q))) {
+	while ((req = tw_cli_req_q_remove_head(ctlr, TW_CLI_BUSY_Q)) !=
+		TW_CL_NULL) {
 		if (req->flags & TW_CLI_REQ_FLAGS_INTERNAL) {
 			/*
 			 * It's an internal request.  Set the appropriate
@@ -149,19 +152,21 @@ tw_cli_drain_busy_queue(struct tw_cli_ctlr_context *ctlr)
 			req->error_code = TW_CL_ERR_REQ_BUS_RESET;
 			if (req->tw_cli_callback)
 				req->tw_cli_callback(req);
-		} else {
-			if ((req_pkt = req->orig_req)) {
-				/* It's a SCSI request.  Complete it. */
-				tw_cli_dbg_printf(2, ctlr->ctlr_handle,
-					tw_osl_cur_func(),
-					"Completing busy request %p on reset",
-					req);
+		} else if (req->flags & TW_CLI_REQ_FLAGS_PASSTHRU) {
+			/* It's a passthru request.  Complete it. */
+			if ((req_pkt = req->orig_req) != TW_CL_NULL) {
 				req_pkt->status = TW_CL_ERR_REQ_BUS_RESET;
-				req_pkt->tw_osl_callback(req->req_handle);
+
+				if (req_pkt->tw_osl_callback)
+					req_pkt->tw_osl_callback(req->req_handle);
 			}
 			tw_cli_req_q_insert_tail(req, TW_CLI_FREE_Q);
+		} else {
+			/* It's an external (SCSI) request.  Add it to the reset queue. */
+			tw_osl_untimeout(req->req_handle);
+			tw_cli_req_q_insert_tail(req, TW_CLI_RESET_Q);
 		}
-	}
+	} /* End of while loop */
 }
 
 
@@ -188,7 +193,8 @@ tw_cli_drain_pending_queue(struct tw_cli_ctlr_context *ctlr)
 	/*
 	 * Pull requests off the pending queue, and complete them.
 	 */
-	while ((req = tw_cli_req_q_remove_head(ctlr, TW_CLI_PENDING_Q))) {
+	while ((req = tw_cli_req_q_remove_head(ctlr, TW_CLI_PENDING_Q)) !=
+		TW_CL_NULL) {
 		if (req->flags & TW_CLI_REQ_FLAGS_INTERNAL) {
 			/*
 			 * It's an internal request.  Set the appropriate
@@ -202,19 +208,21 @@ tw_cli_drain_pending_queue(struct tw_cli_ctlr_context *ctlr)
 			req->error_code = TW_CL_ERR_REQ_BUS_RESET;
 			if (req->tw_cli_callback)
 				req->tw_cli_callback(req);
-		} else {
-			if ((req_pkt = req->orig_req)) {
-				/* It's an external request.  Complete it. */
-				tw_cli_dbg_printf(2, ctlr->ctlr_handle,
-					tw_osl_cur_func(),
-					"Completing pending request %p "
-					"on reset", req);
+		} else if (req->flags & TW_CLI_REQ_FLAGS_PASSTHRU) {
+			/* It's a passthru request.  Complete it. */
+			if ((req_pkt = req->orig_req) != TW_CL_NULL) {
 				req_pkt->status = TW_CL_ERR_REQ_BUS_RESET;
-				req_pkt->tw_osl_callback(req->req_handle);
+
+				if (req_pkt->tw_osl_callback)
+					req_pkt->tw_osl_callback(req->req_handle);
 			}
 			tw_cli_req_q_insert_tail(req, TW_CLI_FREE_Q);
+		} else {
+			/* It's an external (SCSI) request.  Add it to the reset queue. */
+			tw_osl_untimeout(req->req_handle);
+			tw_cli_req_q_insert_tail(req, TW_CLI_RESET_Q);
 		}
-	}
+	} /* End of while loop */
 }
 
 
@@ -238,9 +246,6 @@ tw_cli_drain_response_queue(struct tw_cli_ctlr_context *ctlr)
 
 	for (;;) {
 		status_reg = TW_CLI_READ_STATUS_REGISTER(ctlr->ctlr_handle);
-
-		if (tw_cli_check_ctlr_state(ctlr, status_reg))
-			return(TW_OSL_EGENFAILURE);
 
 		if (status_reg & TWA_STATUS_RESPONSE_QUEUE_EMPTY)
 			return(TW_OSL_ESUCCESS); /* no more response queue entries */
@@ -272,9 +277,6 @@ tw_cli_find_response(struct tw_cli_ctlr_context *ctlr, TW_INT32 req_id)
 
 	for (;;) {
 		status_reg = TW_CLI_READ_STATUS_REGISTER(ctlr->ctlr_handle);
-
-		if (tw_cli_check_ctlr_state(ctlr, status_reg))
-			return(TW_OSL_EGENFAILURE);
 
 		if (status_reg & TWA_STATUS_RESPONSE_QUEUE_EMPTY)
 			return(TW_OSL_ENOTTY); /* no more response queue entries */
@@ -356,9 +358,11 @@ tw_cli_drain_aen_queue(struct tw_cli_ctlr_context *ctlr)
 
 		if ((error = req->cmd_pkt->command.cmd_pkt_9k.status)) {
 			cmd_hdr = &req->cmd_pkt->cmd_hdr;
+#if       0
 			tw_cli_create_ctlr_event(ctlr,
 				TW_CL_MESSAGE_SOURCE_CONTROLLER_ERROR,
 				cmd_hdr);
+#endif // 0
 			break;
 		}
 
@@ -714,7 +718,7 @@ tw_cli_check_ctlr_state(struct tw_cli_ctlr_context *ctlr, TW_UINT32 status_reg)
 
 		tw_osl_memzero(desc, 200);
 		if (!(ctlr->reset_phase1_in_progress)) {
-			tw_cl_create_event(ctlr_handle, TW_CL_TRUE,
+			tw_cl_create_event(ctlr_handle, TW_CL_FALSE,
 				TW_CL_MESSAGE_SOURCE_COMMON_LAYER_EVENT,
 				0x1301, 0x1, TW_CL_SEVERITY_ERROR_STRING,
 				"Missing expected status bit(s)",
@@ -738,7 +742,7 @@ tw_cli_check_ctlr_state(struct tw_cli_ctlr_context *ctlr, TW_UINT32 status_reg)
 		     (ctlr->device_id != TW_CL_DEVICE_ID_9K_SA)) ||
 		    (!(ctlr->reset_in_progress)) ||
 		    ((status_reg & TWA_STATUS_QUEUE_ERROR_INTERRUPT) == 0))
-		tw_cl_create_event(ctlr_handle, TW_CL_TRUE,
+		tw_cl_create_event(ctlr_handle, TW_CL_FALSE,
 			TW_CL_MESSAGE_SOURCE_COMMON_LAYER_EVENT,
 			0x1302, 0x1, TW_CL_SEVERITY_ERROR_STRING,
 			"Unexpected status bit(s)",
@@ -748,7 +752,7 @@ tw_cli_check_ctlr_state(struct tw_cli_ctlr_context *ctlr, TW_UINT32 status_reg)
 				TWA_STATUS_UNEXPECTED_BITS, desc));
 
 		if (status_reg & TWA_STATUS_PCI_PARITY_ERROR_INTERRUPT) {
-			tw_cl_create_event(ctlr_handle, TW_CL_TRUE,
+			tw_cl_create_event(ctlr_handle, TW_CL_FALSE,
 				TW_CL_MESSAGE_SOURCE_COMMON_LAYER_EVENT,
 				0x1303, 0x1, TW_CL_SEVERITY_ERROR_STRING,
 				"PCI parity error: clearing... "
@@ -768,7 +772,7 @@ tw_cli_check_ctlr_state(struct tw_cli_ctlr_context *ctlr, TW_UINT32 status_reg)
 		}
 
 		if (status_reg & TWA_STATUS_PCI_ABORT_INTERRUPT) {
-			tw_cl_create_event(ctlr_handle, TW_CL_TRUE,
+			tw_cl_create_event(ctlr_handle, TW_CL_FALSE,
 				TW_CL_MESSAGE_SOURCE_COMMON_LAYER_EVENT,
 				0x1304, 0x1, TW_CL_SEVERITY_ERROR_STRING,
 				"PCI abort: clearing... ",
@@ -791,7 +795,7 @@ tw_cli_check_ctlr_state(struct tw_cli_ctlr_context *ctlr, TW_UINT32 status_reg)
 			if (((ctlr->device_id != TW_CL_DEVICE_ID_9K_E) &&
 			     (ctlr->device_id != TW_CL_DEVICE_ID_9K_SA)) ||
 			    (!(ctlr->reset_in_progress)))
-				tw_cl_create_event(ctlr_handle, TW_CL_TRUE,
+				tw_cl_create_event(ctlr_handle, TW_CL_FALSE,
 						   TW_CL_MESSAGE_SOURCE_COMMON_LAYER_EVENT,
 						   0x1305, 0x1, TW_CL_SEVERITY_ERROR_STRING,
 						   "Controller queue error: clearing... ",
@@ -800,17 +804,6 @@ tw_cli_check_ctlr_state(struct tw_cli_ctlr_context *ctlr, TW_UINT32 status_reg)
 						   tw_cli_describe_bits(status_reg, desc));
 			TW_CLI_WRITE_CONTROL_REGISTER(ctlr->ctlr_handle,
 				TWA_CONTROL_CLEAR_QUEUE_ERROR);
-		}
-
-		if (status_reg & TWA_STATUS_MICROCONTROLLER_ERROR) {
-			tw_cl_create_event(ctlr_handle, TW_CL_TRUE,
-				TW_CL_MESSAGE_SOURCE_COMMON_LAYER_EVENT,
-				0x1307, 0x1, TW_CL_SEVERITY_ERROR_STRING,
-				"Micro-controller error! ",
-				"status reg = 0x%x %s",
-				status_reg,
-				tw_cli_describe_bits(status_reg, desc));
-			error = TW_OSL_EGENFAILURE;
 		}
 	}
 	return(error);
@@ -850,8 +843,6 @@ tw_cli_describe_bits(TW_UINT32 reg, TW_INT8 *str)
 		tw_osl_strcpy(&str[tw_osl_strlen(str)], "HOST_INTR,");
 	if (reg & TWA_STATUS_PCI_ABORT_INTERRUPT)
 		tw_osl_strcpy(&str[tw_osl_strlen(str)], "PCI_ABRT,");
-	if (reg & TWA_STATUS_MICROCONTROLLER_ERROR)
-		tw_osl_strcpy(&str[tw_osl_strlen(str)], "MC_ERR,");
 	if (reg & TWA_STATUS_QUEUE_ERROR_INTERRUPT)
 		tw_osl_strcpy(&str[tw_osl_strlen(str)], "Q_ERR,");
 	if (reg & TWA_STATUS_PCI_PARITY_ERROR_INTERRUPT)

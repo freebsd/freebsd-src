@@ -1402,28 +1402,22 @@ void
 itimer_fire(struct itimer *it)
 {
 	struct proc *p = it->it_proc;
-	int ret;
+	struct thread *td;
 
 	if (it->it_sigev.sigev_notify == SIGEV_SIGNAL ||
 	    it->it_sigev.sigev_notify == SIGEV_THREAD_ID) {
-		PROC_LOCK(p);
+		if (sigev_findtd(p, &it->it_sigev, &td) != 0) {
+			ITIMER_LOCK(it);
+			timespecclear(&it->it_time.it_value);
+			timespecclear(&it->it_time.it_interval);
+			callout_stop(&it->it_callout);
+			ITIMER_UNLOCK(it);
+			return;
+		}
 		if (!KSI_ONQ(&it->it_ksi)) {
 			it->it_ksi.ksi_errno = 0;
-			ret = psignal_event(p, &it->it_sigev, &it->it_ksi);
-			if (__predict_false(ret != 0)) {
-				it->it_overrun++;
-				/*
-				 * Broken userland code, thread went
-				 * away, disarm the timer.
-				 */
-				if (ret == ESRCH) {
-					ITIMER_LOCK(it);
-					timespecclear(&it->it_time.it_value);
-					timespecclear(&it->it_time.it_interval);
-					callout_stop(&it->it_callout);
-					ITIMER_UNLOCK(it);
-				}
-			}
+			ksiginfo_set_sigev(&it->it_ksi, &it->it_sigev);
+			tdsendsignal(p, td, it->it_ksi.ksi_signo, &it->it_ksi);
 		} else {
 			if (it->it_overrun < INT_MAX)
 				it->it_overrun++;

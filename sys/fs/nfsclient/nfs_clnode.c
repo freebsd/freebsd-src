@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/fcntl.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
@@ -53,12 +54,13 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfsclient/nfsmount.h>
 #include <fs/nfsclient/nfs.h>
 
+#include <nfs/nfs_lock.h>
+
 extern struct vop_vector newnfs_vnodeops;
 extern struct buf_ops buf_ops_newnfs;
 MALLOC_DECLARE(M_NEWNFSREQ);
 
 uma_zone_t newnfsnode_zone;
-vop_reclaim_t	*ncl_reclaim_p = NULL;
 
 void
 ncl_nhinit(void)
@@ -140,6 +142,7 @@ ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp)
 	/*
 	 * NFS supports recursive and shared locking.
 	 */
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE | LK_NOWITNESS, NULL);
 	VN_LOCK_AREC(vp);
 	VN_LOCK_ASHARE(vp);
 	/* 
@@ -157,7 +160,6 @@ ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp)
 	    M_NFSFH, M_WAITOK);
 	bcopy(fhp, np->n_fhp->nfh_fh, fhsize);
 	np->n_fhp->nfh_len = fhsize;
-	lockmgr(vp->v_vnlock, LK_EXCLUSIVE | LK_NOWITNESS, NULL);
 	error = insmntque(vp, mntp);
 	if (error != 0) {
 		*npp = NULL;
@@ -238,8 +240,8 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 	 * If the NLM is running, give it a chance to abort pending
 	 * locks.
 	 */
-	if (ncl_reclaim_p)
-		ncl_reclaim_p(ap);
+	if (nfs_reclaim_p != NULL)
+		nfs_reclaim_p(ap);
 
 	/*
 	 * Destroy the vm object and flush associated pages.

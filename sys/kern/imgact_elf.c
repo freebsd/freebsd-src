@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/procfs.h>
 #include <sys/resourcevar.h>
 #include <sys/sf_buf.h>
+#include <sys/smp.h>
 #include <sys/systm.h>
 #include <sys/signalvar.h>
 #include <sys/stat.h>
@@ -972,6 +973,16 @@ __elfN(freebsd_fixup)(register_t **stack_base, struct image_params *imgp)
 	AUXARGS_ENTRY(pos, AT_BASE, args->base);
 	if (imgp->execpathp != 0)
 		AUXARGS_ENTRY(pos, AT_EXECPATH, imgp->execpathp);
+	AUXARGS_ENTRY(pos, AT_OSRELDATE, osreldate);
+	if (imgp->canary != 0) {
+		AUXARGS_ENTRY(pos, AT_CANARY, imgp->canary);
+		AUXARGS_ENTRY(pos, AT_CANARYLEN, imgp->canarylen);
+	}
+	AUXARGS_ENTRY(pos, AT_NCPUS, mp_ncpus);
+	if (imgp->pagesizes != 0) {
+		AUXARGS_ENTRY(pos, AT_PAGESIZES, imgp->pagesizes);
+		AUXARGS_ENTRY(pos, AT_PAGESIZESLEN, imgp->pagesizeslen);
+	}
 	AUXARGS_ENTRY(pos, AT_NULL, 0);
 
 	free(imgp->auxargs, M_TEMP);

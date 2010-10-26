@@ -121,17 +121,16 @@ struct device {
 	int		busy;		/**< count of calls to device_busy() */
 	device_state_t	state;		/**< current device state  */
 	uint32_t	devflags;	/**< api level flags for device_get_flags() */
-	u_short		flags;		/**< internal device flags  */
-#define	DF_ENABLED	1		/* device should be probed/attached */
-#define	DF_FIXEDCLASS	2		/* devclass specified at create time */
-#define	DF_WILDCARD	4		/* unit was originally wildcard */
-#define	DF_DESCMALLOCED	8		/* description was malloced */
-#define	DF_QUIET	16		/* don't print verbose attach message */
-#define	DF_DONENOMATCH	32		/* don't execute DEVICE_NOMATCH again */
-#define	DF_EXTERNALSOFTC 64		/* softc not allocated by us */
-#define	DF_REBID	128		/* Can rebid after attach */
-	u_char	order;			/**< order from device_add_child_ordered() */
-	u_char	pad;
+	u_int		flags;		/**< internal device flags  */
+#define	DF_ENABLED	0x01		/* device should be probed/attached */
+#define	DF_FIXEDCLASS	0x02		/* devclass specified at create time */
+#define	DF_WILDCARD	0x04		/* unit was originally wildcard */
+#define	DF_DESCMALLOCED	0x08		/* description was malloced */
+#define	DF_QUIET	0x10		/* don't print verbose attach message */
+#define	DF_DONENOMATCH	0x20		/* don't execute DEVICE_NOMATCH again */
+#define	DF_EXTERNALSOFTC 0x40		/* softc not allocated by us */
+#define	DF_REBID	0x80		/* Can rebid after attach */
+	u_int	order;			/**< order from device_add_child_ordered() */
 	void	*ivars;			/**< instance variables  */
 	void	*softc;			/**< current driver's variables  */
 
@@ -1790,12 +1789,12 @@ device_add_child(device_t dev, const char *name, int unit)
  * @returns		the new device
  */
 device_t
-device_add_child_ordered(device_t dev, int order, const char *name, int unit)
+device_add_child_ordered(device_t dev, u_int order, const char *name, int unit)
 {
 	device_t child;
 	device_t place;
 
-	PDEBUG(("%s at %s with order %d as unit %d",
+	PDEBUG(("%s at %s with order %u as unit %d",
 	    name, DEVICENAME(dev), order, unit));
 
 	child = make_device(dev, name, unit);
@@ -3285,7 +3284,7 @@ resource_list_purge(struct resource_list *rl)
 }
 
 device_t
-bus_generic_add_child(device_t dev, int order, const char *name, int unit)
+bus_generic_add_child(device_t dev, u_int order, const char *name, int unit)
 {
 
 	return (device_add_child_ordered(dev, order, name, unit));
@@ -3999,15 +3998,6 @@ bus_setup_intr(device_t dev, struct resource *r, int flags,
 		return (error);
 	if (handler != NULL && !(flags & INTR_MPSAFE))
 		device_printf(dev, "[GIANT-LOCKED]\n");
-	if (bootverbose && (flags & INTR_MPSAFE))
-		device_printf(dev, "[MPSAFE]\n");
-	if (filter != NULL) {
-		if (handler == NULL)
-			device_printf(dev, "[FILTER]\n");
-		else 
-			device_printf(dev, "[FILTER+ITHREAD]\n");
-	} else 
-		device_printf(dev, "[ITHREAD]\n");
 	return (0);
 }
 

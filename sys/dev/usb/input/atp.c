@@ -2222,3 +2222,4 @@ static devclass_t atp_devclass;
 
 DRIVER_MODULE(atp, uhub, atp_driver, atp_devclass, NULL, 0);
 MODULE_DEPEND(atp, usb, 1, 1, 1);
+MODULE_VERSION(atp, 1);

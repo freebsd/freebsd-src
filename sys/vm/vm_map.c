@@ -128,6 +128,7 @@ static int vm_map_zinit(void *mem, int ize, int flags);
 static void vm_map_zfini(void *mem, int size);
 static void _vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min,
     vm_offset_t max);
+static void vm_map_entry_deallocate(vm_map_entry_t entry, boolean_t system_map);
 static void vm_map_entry_dispose(vm_map_t map, vm_map_entry_t entry);
 #ifdef INVARIANTS
 static void vm_map_zdtor(void *mem, int size, void *arg);
@@ -338,15 +339,11 @@ vmspace_dofree(struct vmspace *vm)
 void
 vmspace_free(struct vmspace *vm)
 {
-	int refcnt;
 
 	if (vm->vm_refcnt == 0)
 		panic("vmspace_free: attempt to free already freed vmspace");
 
-	do
-		refcnt = vm->vm_refcnt;
-	while (!atomic_cmpset_int(&vm->vm_refcnt, refcnt, refcnt - 1));
-	if (refcnt == 1)
+	if (atomic_fetchadd_int(&vm->vm_refcnt, -1) == 1)
 		vmspace_dofree(vm);
 }
 
@@ -454,30 +451,29 @@ _vm_map_lock(vm_map_t map, const char *file, int line)
 	map->timestamp++;
 }
 
+static void
+vm_map_process_deferred(void)
+{
+	struct thread *td;
+	vm_map_entry_t entry;
+
+	td = curthread;
+
+	while ((entry = td->td_map_def_user) != NULL) {
+		td->td_map_def_user = entry->next;
+		vm_map_entry_deallocate(entry, FALSE);
+	}
+}
+
 void
 _vm_map_unlock(vm_map_t map, const char *file, int line)
 {
-	vm_map_entry_t free_entry, entry;
-	vm_object_t object;
-
-	free_entry = map->deferred_freelist;
-	map->deferred_freelist = NULL;
 
 	if (map->system_map)
 		_mtx_unlock_flags(&map->system_mtx, 0, file, line);
-	else
+	else {
 		_sx_xunlock(&map->lock, file, line);
-
-	while (free_entry != NULL) {
-		entry = free_entry;
-		free_entry = free_entry->next;
-
-		if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0) {
-			object = entry->object.vm_object;
-			vm_object_deallocate(object);
-		}
-
-		vm_map_entry_dispose(map, entry);
+		vm_map_process_deferred();
 	}
 }
 
@@ -497,8 +493,10 @@ _vm_map_unlock_read(vm_map_t map, const char *file, int line)
 
 	if (map->system_map)
 		_mtx_unlock_flags(&map->system_mtx, 0, file, line);
-	else
+	else {
 		_sx_sunlock(&map->lock, file, line);
+		vm_map_process_deferred();
+	}
 }
 
 int
@@ -548,6 +546,7 @@ _vm_map_lock_upgrade(vm_map_t map, const char *file, int line)
 		if (!_sx_try_upgrade(&map->lock, file, line)) {
 			last_timestamp = map->timestamp;
 			_sx_sunlock(&map->lock, file, line);
+			vm_map_process_deferred();
 			/*
 			 * If the map's timestamp does not change while the
 			 * map is unlocked, then the upgrade succeeds.
@@ -624,19 +623,37 @@ _vm_map_assert_locked_read(vm_map_t map, const char *file, int line)
 #endif
 
 /*
- *	vm_map_unlock_and_wait:
+ *	_vm_map_unlock_and_wait:
+ *
+ *	Atomically releases the lock on the specified map and puts the calling
+ *	thread to sleep.  The calling thread will remain asleep until either
+ *	vm_map_wakeup() is performed on the map or the specified timeout is
+ *	exceeded.
+ *
+ *	WARNING!  This function does not perform deferred deallocations of
+ *	objects and map	entries.  Therefore, the calling thread is expected to
+ *	reacquire the map lock after reawakening and later perform an ordinary
+ *	unlock operation, such as vm_map_unlock(), before completing its
+ *	operation on the map.
  */
 int
-vm_map_unlock_and_wait(vm_map_t map, int timo)
+_vm_map_unlock_and_wait(vm_map_t map, int timo, const char *file, int line)
 {
 
 	mtx_lock(&map_sleep_mtx);
-	vm_map_unlock(map);
-	return (msleep(&map->root, &map_sleep_mtx, PDROP | PVM, "vmmaps", timo));
+	if (map->system_map)
+		_mtx_unlock_flags(&map->system_mtx, 0, file, line);
+	else
+		_sx_xunlock(&map->lock, file, line);
+	return (msleep(&map->root, &map_sleep_mtx, PDROP | PVM, "vmmaps",
+	    timo));
 }
 
 /*
  *	vm_map_wakeup:
+ *
+ *	Awaken any threads that have slept on the map using
+ *	vm_map_unlock_and_wait().
  */
 void
 vm_map_wakeup(vm_map_t map)
@@ -644,8 +661,8 @@ vm_map_wakeup(vm_map_t map)
 
 	/*
 	 * Acquire and release map_sleep_mtx to prevent a wakeup()
-	 * from being performed (and lost) between the vm_map_unlock()
-	 * and the msleep() in vm_map_unlock_and_wait().
+	 * from being performed (and lost) between the map unlock
+	 * and the msleep() in _vm_map_unlock_and_wait().
 	 */
 	mtx_lock(&map_sleep_mtx);
 	mtx_unlock(&map_sleep_mtx);
@@ -699,7 +716,6 @@ _vm_map_init(vm_map_t map, pmap_t pmap, vm_offset_t min, vm_offset_t max)
 	map->flags = 0;
 	map->root = NULL;
 	map->timestamp = 0;
-	map->deferred_freelist = NULL;
 }
 
 void
@@ -1143,6 +1159,9 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	}
 
 charged:
+	/* Expand the kernel pmap, if necessary. */
+	if (map == kernel_map && end > kernel_vm_end)
+		pmap_growkernel(end);
 	if (object != NULL) {
 		/*
 		 * OBJ_ONEMAPPING must be cleared unless this mapping
@@ -1279,7 +1298,7 @@ vm_map_findspace(vm_map_t map, vm_offset_t start, vm_size_t length,
     vm_offset_t *addr)	/* OUT */
 {
 	vm_map_entry_t entry;
-	vm_offset_t end, st;
+	vm_offset_t st;
 
 	/*
 	 * Request must fit within min/max VM address and must avoid
@@ -1293,7 +1312,7 @@ vm_map_findspace(vm_map_t map, vm_offset_t start, vm_size_t length,
 	/* Empty tree means wide open address space. */
 	if (map->root == NULL) {
 		*addr = start;
-		goto found;
+		return (0);
 	}
 
 	/*
@@ -1303,7 +1322,7 @@ vm_map_findspace(vm_map_t map, vm_offset_t start, vm_size_t length,
 	map->root = vm_map_entry_splay(start, map->root);
 	if (start + length <= map->root->start) {
 		*addr = start;
-		goto found;
+		return (0);
 	}
 
 	/*
@@ -1314,7 +1333,7 @@ vm_map_findspace(vm_map_t map, vm_offset_t start, vm_size_t length,
 	st = (start > map->root->end) ? start : map->root->end;
 	if (length <= map->root->end + map->root->adj_free - st) {
 		*addr = st;
-		goto found;
+		return (0);
 	}
 
 	/* With max_free, can immediately tell if no solution. */
@@ -1332,22 +1351,13 @@ vm_map_findspace(vm_map_t map, vm_offset_t start, vm_size_t length,
 			entry = entry->left;
 		else if (entry->adj_free >= length) {
 			*addr = entry->end;
-			goto found;
+			return (0);
 		} else
 			entry = entry->right;
 	}
 
 	/* Can't get here, so panic if we do. */
 	panic("vm_map_findspace: max_free corrupt");
-
-found:
-	/* Expand the kernel pmap, if necessary. */
-	if (map == kernel_map) {
-		end = round_page(*addr + length);
-		if (end > kernel_vm_end)
-			pmap_growkernel(end);
-	}
-	return (0);
 }
 
 int
@@ -2602,6 +2612,15 @@ vm_map_entry_unwire(vm_map_t map, vm_map_entry_t entry)
 	entry->wired_count = 0;
 }
 
+static void
+vm_map_entry_deallocate(vm_map_entry_t entry, boolean_t system_map)
+{
+
+	if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0)
+		vm_object_deallocate(entry->object.vm_object);
+	uma_zfree(system_map ? kmapentzone : mapentzone, entry);
+}
+
 /*
  *	vm_map_entry_delete:	[ internal use only ]
  *
@@ -2656,6 +2675,12 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 		VM_OBJECT_UNLOCK(object);
 	} else
 		entry->object.vm_object = NULL;
+	if (map->system_map)
+		vm_map_entry_deallocate(entry, TRUE);
+	else {
+		entry->next = curthread->td_map_def_user;
+		curthread->td_map_def_user = entry;
+	}
 }
 
 /*
@@ -2744,8 +2769,6 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 		 * will be set in the wrong object!)
 		 */
 		vm_map_entry_delete(map, entry);
-		entry->next = map->deferred_freelist;
-		map->deferred_freelist = entry;
 		entry = next;
 	}
 	return (KERN_SUCCESS);

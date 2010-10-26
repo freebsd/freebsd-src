@@ -46,12 +46,17 @@ __FBSDID("$FreeBSD$");
 /*
  * At the time of this writing, MAXSHELLCMDLEN == PAGE_SIZE.  This is
  * significant because the caller has only mapped in one page of the
- * file we're reading.  This code should be changed to know how to
- * read in the second page, but I'm not doing that just yet...
+ * file we're reading.
  */
 #if MAXSHELLCMDLEN > PAGE_SIZE
 #error "MAXSHELLCMDLEN is larger than a single page!"
 #endif
+
+/*
+ * MAXSHELLCMDLEN must be at least MAXINTERP plus the size of the `#!'
+ * prefix and terminating newline.
+ */
+CTASSERT(MAXSHELLCMDLEN >= MAXINTERP + 3);
 
 /**
  * Shell interpreter image activator. An interpreter name beginning at
@@ -98,20 +103,20 @@ exec_shell_imgact(imgp)
 	const char *image_header = imgp->image_header;
 	const char *ihp, *interpb, *interpe, *maxp, *optb, *opte, *fname;
 	int error, offset;
-	size_t length, clength;
+	size_t length;
 	struct vattr vattr;
 	struct sbuf *sname;
 
 	/* a shell script? */
-	if (((const short *) image_header)[0] != SHELLMAGIC)
-		return(-1);
+	if (((const short *)image_header)[0] != SHELLMAGIC)
+		return (-1);
 
 	/*
 	 * Don't allow a shell script to be the shell for a shell
 	 *	script. :-)
 	 */
 	if (imgp->interpreted)
-		return(ENOEXEC);
+		return (ENOEXEC);
 
 	imgp->interpreted = 1;
 
@@ -127,12 +132,9 @@ exec_shell_imgact(imgp)
 
 	/*
 	 * Copy shell name and arguments from image_header into a string
-	 *	buffer.  Remember that the caller has mapped only the
-	 *	first page of the file into memory.
+	 * buffer.
 	 */
-	clength = (vattr.va_size > PAGE_SIZE) ? PAGE_SIZE : vattr.va_size;
-
-	maxp = &image_header[clength];
+	maxp = &image_header[MIN(vattr.va_size, MAXSHELLCMDLEN)];
 	ihp = &image_header[2];
 
 	/*
@@ -149,7 +151,7 @@ exec_shell_imgact(imgp)
 	interpe = ihp;
 	if (interpb == interpe)
 		return (ENOEXEC);
-	if ((interpe - interpb) >= MAXSHELLCMDLEN)
+	if (interpe - interpb >= MAXINTERP)
 		return (ENAMETOOLONG);
 
 	/*
@@ -163,6 +165,8 @@ exec_shell_imgact(imgp)
 	while (ihp < maxp && ((*ihp != '\n') && (*ihp != '\0')))
 		ihp++;
 	opte = ihp;
+	if (opte == maxp)
+		return (ENOEXEC);
 	while (--ihp > optb && ((*ihp == ' ') || (*ihp == '\t')))
 		opte = ihp;
 

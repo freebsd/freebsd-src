@@ -162,6 +162,7 @@ vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
 	accmode_t priv_granted = 0;
 	int denied, explicitly_denied, access_mask, is_directory,
 	    must_be_owner = 0;
+	mode_t file_mode;
 
 	KASSERT((accmode & ~(VEXEC | VWRITE | VREAD | VADMIN | VAPPEND |
 	    VEXPLICIT_DENY | VREAD_NAMED_ATTRS | VWRITE_NAMED_ATTRS |
@@ -216,6 +217,17 @@ vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
 			denied = EPERM;
 	}
 
+	/*
+	 * For VEXEC, ensure that at least one execute bit is set for
+	 * non-directories. We have to check the mode here to stay
+	 * consistent with execve(2). See the test in
+	 * exec_check_permissions().
+	 */
+	acl_nfs4_sync_mode_from_acl(&file_mode, aclp);
+	if (!denied && !is_directory && (accmode & VEXEC) &&
+	    (file_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) == 0)
+		denied = EACCES;
+
 	if (!denied)
 		return (0);
 
@@ -236,8 +248,14 @@ vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
 		    PRIV_VFS_LOOKUP, 0))
 			priv_granted |= VEXEC;
 	} else {
-		if ((accmode & VEXEC) && !priv_check_cred(cred,
-		    PRIV_VFS_EXEC, 0))
+		/*
+		 * Ensure that at least one execute bit is on. Otherwise,
+		 * a privileged user will always succeed, and we don't want
+		 * this to happen unless the file really is executable.
+		 */
+		if ((accmode & VEXEC) && (file_mode &
+		    (S_IXUSR | S_IXGRP | S_IXOTH)) != 0 &&
+		    !priv_check_cred(cred, PRIV_VFS_EXEC, 0))
 			priv_granted |= VEXEC;
 	}
 
@@ -329,6 +347,61 @@ _acl_duplicate_entry(struct acl *aclp, int entry_index)
 	aclp->acl_cnt++;
 
 	return (&(aclp->acl_entry[entry_index + 1]));
+}
+
+/*
+ * Calculate trivial ACL in a manner compatible with PSARC/2010/029.
+ * Note that this results in an ACL different from (but semantically
+ * equal to) the "canonical six" trivial ACL computed using algorithm
+ * described in draft-ietf-nfsv4-minorversion1-03.txt, 3.16.6.2.
+ */
+void
+acl_nfs4_trivial_from_mode(struct acl *aclp, mode_t mode)
+{
+	acl_perm_t user_allow_first = 0, user_deny = 0, group_deny = 0;
+	acl_perm_t user_allow, group_allow, everyone_allow;
+
+	KASSERT(aclp->acl_cnt == 0, ("aclp->acl_cnt == 0"));
+
+	user_allow = group_allow = everyone_allow = ACL_READ_ACL |
+	    ACL_READ_ATTRIBUTES | ACL_READ_NAMED_ATTRS | ACL_SYNCHRONIZE;
+	user_allow |= ACL_WRITE_ACL | ACL_WRITE_OWNER | ACL_WRITE_ATTRIBUTES |
+	    ACL_WRITE_NAMED_ATTRS;
+
+	if (mode & S_IRUSR)
+		user_allow |= ACL_READ_DATA;
+	if (mode & S_IWUSR)
+		user_allow |= (ACL_WRITE_DATA | ACL_APPEND_DATA);
+	if (mode & S_IXUSR)
+		user_allow |= ACL_EXECUTE;
+
+	if (mode & S_IRGRP)
+		group_allow |= ACL_READ_DATA;
+	if (mode & S_IWGRP)
+		group_allow |= (ACL_WRITE_DATA | ACL_APPEND_DATA);
+	if (mode & S_IXGRP)
+		group_allow |= ACL_EXECUTE;
+
+	if (mode & S_IROTH)
+		everyone_allow |= ACL_READ_DATA;
+	if (mode & S_IWOTH)
+		everyone_allow |= (ACL_WRITE_DATA | ACL_APPEND_DATA);
+	if (mode & S_IXOTH)
+		everyone_allow |= ACL_EXECUTE;
+
+	user_deny = ((group_allow | everyone_allow) & ~user_allow);
+	group_deny = everyone_allow & ~group_allow;
+	user_allow_first = group_deny & ~user_deny;
+
+	if (user_allow_first != 0)
+		_acl_append(aclp, ACL_USER_OBJ, user_allow_first, ACL_ENTRY_TYPE_ALLOW);
+	if (user_deny != 0)
+		_acl_append(aclp, ACL_USER_OBJ, user_deny, ACL_ENTRY_TYPE_DENY);
+	if (group_deny != 0)
+		_acl_append(aclp, ACL_GROUP_OBJ, group_deny, ACL_ENTRY_TYPE_DENY);
+	_acl_append(aclp, ACL_USER_OBJ, user_allow, ACL_ENTRY_TYPE_ALLOW);
+	_acl_append(aclp, ACL_GROUP_OBJ, group_allow, ACL_ENTRY_TYPE_ALLOW);
+	_acl_append(aclp, ACL_EVERYONE, everyone_allow, ACL_ENTRY_TYPE_ALLOW);
 }
 
 void

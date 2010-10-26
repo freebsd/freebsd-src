@@ -340,7 +340,7 @@ sctp_log_lock(struct sctp_inpcb *inp, struct sctp_tcb *stcb, uint8_t from)
 		sctp_clog.x.lock.create_lock = SCTP_LOCK_UNKNOWN;
 	}
 	sctp_clog.x.lock.info_lock = rw_wowned(&SCTP_BASE_INFO(ipi_ep_mtx));
-	if (inp->sctp_socket) {
+	if (inp && (inp->sctp_socket)) {
 		sctp_clog.x.lock.sock_lock = mtx_owned(&(inp->sctp_socket->so_rcv.sb_mtx));
 		sctp_clog.x.lock.sockrcvbuf_lock = mtx_owned(&(inp->sctp_socket->so_rcv.sb_mtx));
 		sctp_clog.x.lock.socksndbuf_lock = mtx_owned(&(inp->sctp_socket->so_snd.sb_mtx));
@@ -893,10 +893,8 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	asoc->max_burst = m->sctp_ep.max_burst;
 	asoc->heart_beat_delay = TICKS_TO_MSEC(m->sctp_ep.sctp_timeoutticks[SCTP_TIMER_HEARTBEAT]);
 	asoc->cookie_life = m->sctp_ep.def_cookie_life;
-	asoc->sctp_cmt_on_off = (uint8_t) SCTP_BASE_SYSCTL(sctp_cmt_on_off);
-	/* EY Init nr_sack variable */
+	asoc->sctp_cmt_on_off = m->sctp_cmt_on_off;
 	asoc->sctp_nr_sack_on_off = (uint8_t) SCTP_BASE_SYSCTL(sctp_nr_sack_on_off);
-	/* JRS 5/21/07 - Init CMT PF variables */
 	asoc->sctp_cmt_pf = (uint8_t) SCTP_BASE_SYSCTL(sctp_cmt_pf);
 	asoc->sctp_frag_point = m->sctp_frag_point;
 #ifdef INET
@@ -1006,10 +1004,6 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	asoc->peers_rwnd = SCTP_SB_LIMIT_RCV(m->sctp_socket);
 
 	asoc->smallest_mtu = m->sctp_frag_point;
-#ifdef SCTP_PRINT_FOR_B_AND_M
-	SCTP_PRINTF("smallest_mtu init'd with asoc to :%d\n",
-	    asoc->smallest_mtu);
-#endif
 	asoc->minrto = m->sctp_ep.sctp_minrto;
 	asoc->maxrto = m->sctp_ep.sctp_maxrto;
 
@@ -2490,10 +2484,6 @@ sctp_mtu_size_reset(struct sctp_inpcb *inp,
 	struct sctp_tmit_chunk *chk;
 	unsigned int eff_mtu, ovh;
 
-#ifdef SCTP_PRINT_FOR_B_AND_M
-	SCTP_PRINTF("sctp_mtu_size_reset(%p, asoc:%p mtu:%d\n",
-	    inp, asoc, mtu);
-#endif
 	asoc->smallest_mtu = mtu;
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
 		ovh = SCTP_MIN_OVERHEAD;
@@ -2502,7 +2492,6 @@ sctp_mtu_size_reset(struct sctp_inpcb *inp,
 	}
 	eff_mtu = mtu - ovh;
 	TAILQ_FOREACH(chk, &asoc->send_queue, sctp_next) {
-
 		if (chk->send_size > eff_mtu) {
 			chk->flags |= CHUNK_FLAGS_FRAGMENT_OK;
 		}
@@ -3765,9 +3754,10 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock, int so_locked
 					sp->data = NULL;
 				}
 			}
-			if (sp->net)
+			if (sp->net) {
 				sctp_free_remote_addr(sp->net);
-			sp->net = NULL;
+				sp->net = NULL;
+			}
 			/* Free the chunk */
 			sctp_free_a_strmoq(stcb, sp);
 			/* sa_ignore FREED_MEMORY */
@@ -4820,7 +4810,10 @@ next_on_sent:
 					chk->rec.data.payloadtype = sp->ppid;
 					chk->rec.data.context = sp->context;
 					chk->flags = sp->act_flags;
-					chk->whoTo = sp->net;
+					if (sp->net)
+						chk->whoTo = sp->net;
+					else
+						chk->whoTo = stcb->asoc.primary_destination;
 					atomic_add_int(&chk->whoTo->ref_count, 1);
 					chk->rec.data.TSN_seq = atomic_fetchadd_int(&stcb->asoc.sending_seq, 1);
 					stcb->asoc.pr_sctp_cnt++;
@@ -5134,7 +5127,7 @@ sctp_sorecvmsg(struct socket *so,
 	int my_len = 0;
 	int cp_len = 0, error = 0;
 	struct sctp_queued_to_read *control = NULL, *ctl = NULL, *nxt = NULL;
-	struct mbuf *m = NULL, *embuf = NULL;
+	struct mbuf *m = NULL;
 	struct sctp_tcb *stcb = NULL;
 	int wakeup_read_socket = 0;
 	int freecnt_applied = 0;
@@ -5706,7 +5699,9 @@ get_more_data:
 				if ((SCTP_BUF_NEXT(m) == NULL) &&
 				    (control->end_added)) {
 					out_flags |= MSG_EOR;
-					if ((control->do_not_ref_stcb == 0) && ((control->spec_flags & M_NOTIFICATION) == 0))
+					if ((control->do_not_ref_stcb == 0) &&
+					    (control->stcb != NULL) &&
+					    ((control->spec_flags & M_NOTIFICATION) == 0))
 						control->stcb->asoc.strmin[control->sinfo_stream].delivery_started = 0;
 				}
 				if (control->spec_flags & M_NOTIFICATION) {
@@ -5728,7 +5723,6 @@ get_more_data:
 						sctp_sblog(&so->so_rcv,
 						    control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBRESULT, 0);
 					}
-					embuf = m;
 					copied_so_far += cp_len;
 					freed_so_far += cp_len;
 					freed_so_far += MSIZE;
@@ -5780,7 +5774,6 @@ get_more_data:
 						atomic_subtract_int(&stcb->asoc.sb_cc, cp_len);
 					}
 					copied_so_far += cp_len;
-					embuf = m;
 					freed_so_far += cp_len;
 					freed_so_far += MSIZE;
 					if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SB_LOGGING_ENABLE) {

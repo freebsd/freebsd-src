@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_clock.h"
 #include "opt_cpu.h"
 #include "opt_isa.h"
-#include "opt_ktrace.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -65,9 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/uio.h>
 #include <sys/vmmeter.h>
-#ifdef KTRACE
-#include <sys/ktrace.h>
-#endif
 #include <security/audit/audit.h>
 
 #include <vm/vm.h>

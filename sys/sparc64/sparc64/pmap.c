@@ -833,13 +833,14 @@ pmap_cache_remove(vm_page_t m, vm_offset_t va)
 	    m->md.colors[DCACHE_COLOR(va)]);
 	KASSERT((m->flags & PG_FICTITIOUS) == 0,
 	    ("pmap_cache_remove: fake page"));
-	KASSERT(m->md.colors[DCACHE_COLOR(va)] > 0,
-	    ("pmap_cache_remove: no mappings %d <= 0",
-	    m->md.colors[DCACHE_COLOR(va)]));
 	PMAP_STATS_INC(pmap_ncache_remove);
 
 	if (dcache_color_ignore != 0)
 		return;
+
+	KASSERT(m->md.colors[DCACHE_COLOR(va)] > 0,
+	    ("pmap_cache_remove: no mappings %d <= 0",
+	    m->md.colors[DCACHE_COLOR(va)]));
 
 	/*
 	 * Find the color for this virtual address and note the removal of

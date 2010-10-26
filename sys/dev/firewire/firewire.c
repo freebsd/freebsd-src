@@ -102,7 +102,7 @@ static void firewire_xfer_timeout(void *, int);
 #if 0
 static int firewire_shutdown    (device_t);
 #endif
-static device_t firewire_add_child   (device_t, int, const char *, int);
+static device_t firewire_add_child(device_t, u_int, const char *, int);
 static void fw_try_bmr (void *);
 static void fw_try_bmr_callback (struct fw_xfer *);
 static void fw_asystart (struct fw_xfer *);
@@ -488,7 +488,7 @@ firewire_attach(device_t dev)
  * Attach it as child.
  */
 static device_t
-firewire_add_child(device_t dev, int order, const char *name, int unit)
+firewire_add_child(device_t dev, u_int order, const char *name, int unit)
 {
         device_t child;
 	struct firewire_softc *sc;

@@ -52,7 +52,7 @@ _key_expansion_256a:
 	pxor	%xmm1,%xmm0
 	movaps	%xmm0,(%edx)
 	addl	$0x10,%edx
-	retq
+	retl
 	.cfi_endproc
 END(_key_expansion_128)
 
@@ -76,7 +76,7 @@ ENTRY(_key_expansion_192a)
 	shufps	$0b01001110,%xmm2,%xmm1
 	movaps	%xmm1,0x10(%edx)
 	addl	$0x20,%edx
-	retq
+	retl
 	.cfi_endproc
 END(_key_expansion_192a)
 

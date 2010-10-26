@@ -1179,6 +1179,7 @@ siis_end_transaction(struct siis_slot *slot, enum siis_err_type et)
 	device_t dev = slot->dev;
 	struct siis_channel *ch = device_get_softc(dev);
 	union ccb *ccb = slot->ccb;
+	int lastto;
 
 	mtx_assert(&ch->mtx, MA_OWNED);
 	bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
@@ -1262,11 +1263,6 @@ siis_end_transaction(struct siis_slot *slot, enum siis_err_type et)
 	ch->oslots &= ~(1 << slot->slot);
 	ch->rslots &= ~(1 << slot->slot);
 	ch->aslots &= ~(1 << slot->slot);
-	if (et != SIIS_ERR_TIMEOUT) {
-		if (ch->toslots == (1 << slot->slot))
-			xpt_release_simq(ch->sim, TRUE);
-		ch->toslots &= ~(1 << slot->slot);
-	}
 	slot->state = SIIS_SLOT_EMPTY;
 	slot->ccb = NULL;
 	/* Update channel stats. */
@@ -1274,6 +1270,13 @@ siis_end_transaction(struct siis_slot *slot, enum siis_err_type et)
 	if ((ccb->ccb_h.func_code == XPT_ATA_IO) &&
 	    (ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA)) {
 		ch->numtslots[ccb->ccb_h.target_id]--;
+	}
+	/* Cancel timeout state if request completed normally. */
+	if (et != SIIS_ERR_TIMEOUT) {
+		lastto = (ch->toslots == (1 << slot->slot));
+		ch->toslots &= ~(1 << slot->slot);
+		if (lastto)
+			xpt_release_simq(ch->sim, TRUE);
 	}
 	/* If it was our READ LOG command - process it. */
 	if (ch->readlog) {
