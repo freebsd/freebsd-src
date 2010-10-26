@@ -374,14 +374,8 @@ parse_arguments(struct g_command *cmd, struct gctl_req *req, int *argc,
 				usage();
 			} else if (opt->go_val == G_VAL_OPTIONAL) {
 				/* add nothing. */
-			} else if (G_OPT_TYPE(opt) == G_TYPE_STRING) {
+			} else {
 				set_option(cmd, req, opt, opt->go_val);
-			} else if (G_OPT_TYPE(opt) == G_TYPE_NUMBER) {
-				char val[64];
-
-				snprintf(val, sizeof(val), "%jd",
-				    *(const intmax_t *)opt->go_val);
-				set_option(cmd, req, opt, val);
 			}
 		}
 	}

@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_STRIPE_VERSION;
 
-static intmax_t default_stripesize = 65536;
+#define	GSTRIPE_STRIPESIZE	"65536"
 
 static void stripe_main(struct gctl_req *req, unsigned flags);
 static void stripe_clear(struct gctl_req *req);
@@ -59,7 +59,7 @@ struct g_command class_commands[] = {
 	},
 	{ "create", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL,
 	    {
-		{ 's', "stripesize", &default_stripesize, G_TYPE_NUMBER },
+		{ 's', "stripesize", GSTRIPE_STRIPESIZE, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
 	    NULL, "[-hv] [-s stripesize] name prov prov ..."
@@ -77,7 +77,7 @@ struct g_command class_commands[] = {
 	{ "label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, stripe_main,
 	    {
 		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
-		{ 's', "stripesize", &default_stripesize, G_TYPE_NUMBER },
+		{ 's', "stripesize", GSTRIPE_STRIPESIZE, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
 	    NULL, "[-hv] [-s stripesize] name prov prov ..."

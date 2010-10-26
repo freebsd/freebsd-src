@@ -48,8 +48,9 @@ __FBSDID("$FreeBSD$");
 
 uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_VIRSTOR_VERSION;
-static intmax_t chunk_size = 4 * 1024 * 1024; /* in kB (default: 4 MB) */
-static intmax_t vir_size = 2ULL << 40; /* in MB (default: 2 TB) */
+
+#define	GVIRSTOR_CHUNK_SIZE	"4M"
+#define	GVIRSTOR_VIR_SIZE	"2T"
 
 #if G_LIB_VERSION == 1
 /* Support RELENG_6 */
@@ -71,8 +72,8 @@ struct g_command class_commands[] = {
 	{"label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, virstor_main,
 		{
 			{'h', "hardcode", NULL, G_TYPE_BOOL},
-			{'m', "chunk_size", &chunk_size, G_TYPE_NUMBER},
-			{'s', "vir_size", &vir_size, G_TYPE_NUMBER},
+			{'m', "chunk_size", GVIRSTOR_CHUNK_SIZE, G_TYPE_NUMBER},
+			{'s', "vir_size", GVIRSTOR_VIR_SIZE, G_TYPE_NUMBER},
 			G_OPT_SENTINEL
 		},
 		NULL, "[-h] [-v] [-m chunk_size] [-s vir_size] name provider0 [provider1 ...]"

@@ -47,8 +47,6 @@ __FBSDID("$FreeBSD$");
 uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_JOURNAL_VERSION;
 
-static intmax_t default_jsize = -1;
-
 static void journal_main(struct gctl_req *req, unsigned flags);
 static void journal_clear(struct gctl_req *req);
 static void journal_dump(struct gctl_req *req);
@@ -66,7 +64,7 @@ struct g_command class_commands[] = {
 		{ 'c', "checksum", NULL, G_TYPE_BOOL },
 		{ 'f', "force", NULL, G_TYPE_BOOL },
 		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
-		{ 's', "jsize", &default_jsize, G_TYPE_NUMBER },
+		{ 's', "jsize", "-1", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
 	    NULL, "[-cfhv] [-s jsize] dataprov [jprov]"
