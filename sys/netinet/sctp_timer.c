@@ -870,6 +870,26 @@ start_again:
 	}
 #endif
 	*num_marked = num_mk;
+	/*
+	 * Now check for a ECN Echo that may be stranded And include the
+	 * cnt_mk'd to have all resends in the control queue.
+	 */
+	TAILQ_FOREACH(chk, &stcb->asoc.control_send_queue, sctp_next) {
+		if (chk->sent == SCTP_DATAGRAM_RESEND) {
+			cnt_mk++;
+		}
+		if ((chk->whoTo == net) &&
+		    (chk->rec.chunk_id.id == SCTP_ECN_ECHO)) {
+			sctp_free_remote_addr(chk->whoTo);
+			chk->whoTo = alt;
+			if (chk->sent != SCTP_DATAGRAM_RESEND) {
+				chk->sent = SCTP_DATAGRAM_RESEND;
+				sctp_ucount_incr(stcb->asoc.sent_queue_retran_cnt);
+				cnt_mk++;
+			}
+			atomic_add_int(&alt->ref_count, 1);
+		}
+	}
 	if ((stcb->asoc.sent_queue_retran_cnt == 0) && (could_be_sent)) {
 		/* fix it so we retransmit the highest acked anyway */
 		sctp_ucount_incr(stcb->asoc.sent_queue_retran_cnt);
@@ -884,19 +904,6 @@ start_again:
 #ifndef SCTP_AUDITING_ENABLED
 		stcb->asoc.sent_queue_retran_cnt = cnt_mk;
 #endif
-	}
-	/* Now check for a ECN Echo that may be stranded */
-	TAILQ_FOREACH(chk, &stcb->asoc.control_send_queue, sctp_next) {
-		if ((chk->whoTo == net) &&
-		    (chk->rec.chunk_id.id == SCTP_ECN_ECHO)) {
-			sctp_free_remote_addr(chk->whoTo);
-			chk->whoTo = alt;
-			if (chk->sent != SCTP_DATAGRAM_RESEND) {
-				chk->sent = SCTP_DATAGRAM_RESEND;
-				sctp_ucount_incr(stcb->asoc.sent_queue_retran_cnt);
-			}
-			atomic_add_int(&alt->ref_count, 1);
-		}
 	}
 	if (audit_tf) {
 		SCTPDBG(SCTP_DEBUG_TIMER4,
