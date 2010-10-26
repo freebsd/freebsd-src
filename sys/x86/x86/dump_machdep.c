@@ -176,7 +176,7 @@ cb_dumpdata(struct md_pa *mdp, int seqnr, void *arg)
 	if (maxdumppgs == 0)	/* seatbelt */
 		maxdumppgs = 1;
 
-	printf("  chunk %d: %jdMB (%jd pages)", seqnr, (uintmax_t)PG2MB(pgs),
+	printf("  chunk %d: %juMB (%ju pages)", seqnr, (uintmax_t)PG2MB(pgs),
 	    (uintmax_t)pgs);
 
 	while (pgs) {
@@ -186,7 +186,7 @@ cb_dumpdata(struct md_pa *mdp, int seqnr, void *arg)
 		sz = chunk << PAGE_SHIFT;
 		counter += sz;
 		if (counter >> 24) {
-			printf(" %jd", (uintmax_t)PG2MB(pgs));
+			printf(" %ju", (uintmax_t)PG2MB(pgs));
 			counter &= (1<<24) - 1;
 		}
 		for (i = 0; i < chunk; i++) {
