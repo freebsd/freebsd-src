@@ -49,3 +49,5 @@ elf_fbsd_post_process_headers (abfd, link_info)
   /* Put an ABI label supported by FreeBSD >= 4.1.  */
   i_ehdrp->e_ident[EI_OSABI] = ELFOSABI_FREEBSD;
 }
+
+#define elf_backend_post_process_headers elf_fbsd_post_process_headers
