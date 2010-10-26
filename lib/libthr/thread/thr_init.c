@@ -92,6 +92,12 @@ struct pthread_mutex_attr _pthread_mutexattr_default = {
 	.m_ceiling = 0
 };
 
+struct pthread_mutex_attr _pthread_mutexattr_adaptive_default = {
+	.m_type = PTHREAD_MUTEX_ADAPTIVE_NP,
+	.m_protocol = PTHREAD_PRIO_NONE,
+	.m_ceiling = 0
+};
+
 /* Default condition variable attributes: */
 struct pthread_cond_attr _pthread_condattr_default = {
 	.c_pshared = PTHREAD_PROCESS_PRIVATE,
