@@ -138,7 +138,6 @@ i386/i386/busdma_machdep.c	standard
 i386/i386/db_disasm.c		optional ddb
 i386/i386/db_interface.c	optional ddb
 i386/i386/db_trace.c		optional ddb
-i386/i386/dump_machdep.c	standard
 i386/i386/elf_machdep.c		standard
 i386/i386/exception.s		standard
 i386/i386/gdb_machdep.c		optional gdb
@@ -255,6 +254,7 @@ pc98/pc98/pc98_machdep.c	standard
 x86/isa/atpic.c			optional atpic	
 x86/isa/clock.c			standard
 x86/isa/isa.c			optional isa
+x86/x86/dump_machdep.c		standard
 x86/x86/io_apic.c		optional apic
 x86/x86/local_apic.c		optional apic
 x86/x86/mca.c			standard
