@@ -42,10 +42,8 @@ __FBSDID("$FreeBSD$");
 uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_CACHE_VERSION;
 
-static intmax_t blocksize_label = 65536;
-static intmax_t size_label = 100;
-static intmax_t blocksize_configure = 0;
-static intmax_t size_configure = 0;
+#define	GCACHE_BLOCKSIZE	"65536"
+#define	GCACHE_SIZE		"100"
 
 static void cache_main(struct gctl_req *req, unsigned flags);
 static void cache_clear(struct gctl_req *req);
@@ -58,16 +56,16 @@ struct g_command class_commands[] = {
 	},
 	{ "configure", G_FLAG_VERBOSE, NULL,
 	    {
-		{ 'b', "blocksize", &blocksize_configure, G_TYPE_NUMBER },
-		{ 's', "size", &size_configure, G_TYPE_NUMBER },
+		{ 'b', "blocksize", "0", G_TYPE_NUMBER },
+		{ 's', "size", "0", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
 	    NULL, "[-v] [-b blocksize] [-s size] name"
 	},
 	{ "create", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL,
 	    {
-		{ 'b', "blocksize", &blocksize_label, G_TYPE_NUMBER },
-		{ 's', "size", &size_label, G_TYPE_NUMBER },
+		{ 'b', "blocksize", GCACHE_BLOCKSIZE, G_TYPE_NUMBER },
+		{ 's', "size", GCACHE_SIZE, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
 	    NULL, "[-v] [-b blocksize] [-s size] name prov"
@@ -84,8 +82,8 @@ struct g_command class_commands[] = {
 	},
 	{ "label", G_FLAG_VERBOSE | G_FLAG_LOADKLD, cache_main,
 	    {
-		{ 'b', "blocksize", &blocksize_label, G_TYPE_NUMBER },
-		{ 's', "size", &size_label, G_TYPE_NUMBER },
+		{ 'b', "blocksize", GCACHE_BLOCKSIZE, G_TYPE_NUMBER },
+		{ 's', "size", GCACHE_SIZE, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
 	    NULL, "[-v] [-b blocksize] [-s size] name prov"

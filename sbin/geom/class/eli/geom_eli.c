@@ -55,15 +55,7 @@ uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_ELI_VERSION;
 
 #define	GELI_BACKUP_DIR	"/var/backups/"
-
-static char aalgo[] = "none";
-static char ealgo[] = "aes";
-static intmax_t keylen = 0;
-static intmax_t keyno = -1;
-static intmax_t iterations = -1;
-static intmax_t sectorsize = 0;
-static char keyfile[] = "", newkeyfile[] = "";
-static char backupfile[] = "";
+#define	GELI_ENC_ALGO	"aes"
 
 static void eli_main(struct gctl_req *req, unsigned flags);
 static void eli_init(struct gctl_req *req);
@@ -101,30 +93,30 @@ static int eli_backup_create(struct gctl_req *req, const char *prov,
 struct g_command class_commands[] = {
 	{ "init", G_FLAG_VERBOSE, eli_main,
 	    {
-		{ 'a', "aalgo", aalgo, G_TYPE_STRING },
+		{ 'a', "aalgo", "none", G_TYPE_STRING },
 		{ 'b', "boot", NULL, G_TYPE_BOOL },
-		{ 'B', "backupfile", backupfile, G_TYPE_STRING },
-		{ 'e', "ealgo", ealgo, G_TYPE_STRING },
-		{ 'i', "iterations", &iterations, G_TYPE_NUMBER },
-		{ 'K', "newkeyfile", newkeyfile, G_TYPE_STRING },
-		{ 'l', "keylen", &keylen, G_TYPE_NUMBER },
+		{ 'B', "backupfile", "", G_TYPE_STRING },
+		{ 'e', "ealgo", GELI_ENC_ALGO, G_TYPE_STRING },
+		{ 'i', "iterations", "-1", G_TYPE_NUMBER },
+		{ 'K', "newkeyfile", "", G_TYPE_STRING },
+		{ 'l', "keylen", "0", G_TYPE_NUMBER },
 		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
-		{ 's', "sectorsize", &sectorsize, G_TYPE_NUMBER },
+		{ 's', "sectorsize", "0", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
 	    NULL, "[-bPv] [-a aalgo] [-B backupfile] [-e ealgo] [-i iterations] [-l keylen] [-K newkeyfile] [-s sectorsize] prov"
 	},
 	{ "label", G_FLAG_VERBOSE, eli_main,
 	    {
-		{ 'a', "aalgo", aalgo, G_TYPE_STRING },
+		{ 'a', "aalgo", "none", G_TYPE_STRING },
 		{ 'b', "boot", NULL, G_TYPE_BOOL },
-		{ 'B', "backupfile", backupfile, G_TYPE_STRING },
-		{ 'e', "ealgo", ealgo, G_TYPE_STRING },
-		{ 'i', "iterations", &iterations, G_TYPE_NUMBER },
-		{ 'K', "newkeyfile", newkeyfile, G_TYPE_STRING },
-		{ 'l', "keylen", &keylen, G_TYPE_NUMBER },
+		{ 'B', "backupfile", "", G_TYPE_STRING },
+		{ 'e', "ealgo", GELI_ENC_ALGO, G_TYPE_STRING },
+		{ 'i', "iterations", "-1", G_TYPE_NUMBER },
+		{ 'K', "newkeyfile", "", G_TYPE_STRING },
+		{ 'l', "keylen", "0", G_TYPE_NUMBER },
 		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
-		{ 's', "sectorsize", &sectorsize, G_TYPE_NUMBER },
+		{ 's', "sectorsize", "0", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
 	    NULL, "- an alias for 'init'"
@@ -132,7 +124,7 @@ struct g_command class_commands[] = {
 	{ "attach", G_FLAG_VERBOSE | G_FLAG_LOADKLD, eli_main,
 	    {
 		{ 'd', "detach", NULL, G_TYPE_BOOL },
-		{ 'k', "keyfile", keyfile, G_TYPE_STRING },
+		{ 'k', "keyfile", "", G_TYPE_STRING },
 		{ 'p', "nopassphrase", NULL, G_TYPE_BOOL },
 		{ 'r', "readonly", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
@@ -157,11 +149,11 @@ struct g_command class_commands[] = {
 	},
 	{ "onetime", G_FLAG_VERBOSE | G_FLAG_LOADKLD, NULL,
 	    {
-		{ 'a', "aalgo", aalgo, G_TYPE_STRING },
+		{ 'a', "aalgo", "none", G_TYPE_STRING },
 		{ 'd', "detach", NULL, G_TYPE_BOOL },
-		{ 'e', "ealgo", ealgo, G_TYPE_STRING },
-		{ 'l', "keylen", &keylen, G_TYPE_NUMBER },
-		{ 's', "sectorsize", &sectorsize, G_TYPE_NUMBER },
+		{ 'e', "ealgo", GELI_ENC_ALGO, G_TYPE_STRING },
+		{ 'l', "keylen", "0", G_TYPE_NUMBER },
+		{ 's', "sectorsize", "0", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
 	    NULL, "[-d] [-a aalgo] [-e ealgo] [-l keylen] [-s sectorsize] prov"
@@ -176,10 +168,10 @@ struct g_command class_commands[] = {
 	},
 	{ "setkey", G_FLAG_VERBOSE, eli_main,
 	    {
-		{ 'i', "iterations", &iterations, G_TYPE_NUMBER },
-		{ 'k', "keyfile", keyfile, G_TYPE_STRING },
-		{ 'K', "newkeyfile", newkeyfile, G_TYPE_STRING },
-		{ 'n', "keyno", &keyno, G_TYPE_NUMBER },
+		{ 'i', "iterations", "-1", G_TYPE_NUMBER },
+		{ 'k', "keyfile", "", G_TYPE_STRING },
+		{ 'K', "newkeyfile", "", G_TYPE_STRING },
+		{ 'n', "keyno", "-1", G_TYPE_NUMBER },
 		{ 'p', "nopassphrase", NULL, G_TYPE_BOOL },
 		{ 'P', "nonewpassphrase", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
@@ -190,7 +182,7 @@ struct g_command class_commands[] = {
 	    {
 		{ 'a', "all", NULL, G_TYPE_BOOL },
 		{ 'f', "force", NULL, G_TYPE_BOOL },
-		{ 'n', "keyno", &keyno, G_TYPE_NUMBER },
+		{ 'n', "keyno", "-1", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
 	    NULL, "[-afv] [-n keyno] prov"

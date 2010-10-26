@@ -44,9 +44,9 @@ __FBSDID("$FreeBSD$");
 uint32_t lib_version = G_LIB_VERSION;
 uint32_t version = G_MIRROR_VERSION;
 
-static char label_balance[] = "load", configure_balance[] = "none";
-static intmax_t label_slice = 4096, configure_slice = -1;
-static intmax_t insert_priority = 0, configure_priority = -1;
+#define	GMIRROR_BALANCE		"load"
+#define	GMIRROR_SLICE		"4096"
+#define	GMIRROR_PRIORITY	"0"
 
 static void mirror_main(struct gctl_req *req, unsigned flags);
 static void mirror_activate(struct gctl_req *req);
@@ -64,14 +64,14 @@ struct g_command class_commands[] = {
 	{ "configure", G_FLAG_VERBOSE, NULL,
 	    {
 		{ 'a', "autosync", NULL, G_TYPE_BOOL },
-		{ 'b', "balance", configure_balance, G_TYPE_STRING },
+		{ 'b', "balance", "none", G_TYPE_STRING },
 		{ 'd', "dynamic", NULL, G_TYPE_BOOL },
 		{ 'f', "failsync", NULL, G_TYPE_BOOL },
 		{ 'F', "nofailsync", NULL, G_TYPE_BOOL },
 		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
 		{ 'n', "noautosync", NULL, G_TYPE_BOOL },
-		{ 'p', "priority", &configure_priority, G_TYPE_NUMBER },
-		{ 's', "slice", &configure_slice, G_TYPE_NUMBER },
+		{ 'p', "priority", "-1", G_TYPE_NUMBER },
+		{ 's', "slice", "-1", G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
 	    NULL, "[-adfFhnv] [-b balance] [-s slice] name\n"
@@ -88,11 +88,11 @@ struct g_command class_commands[] = {
 	},
 	{ "label", G_FLAG_VERBOSE, mirror_main,
 	    {
-		{ 'b', "balance", label_balance, G_TYPE_STRING },
+		{ 'b', "balance", GMIRROR_BALANCE, G_TYPE_STRING },
 		{ 'F', "nofailsync", NULL, G_TYPE_BOOL },
 		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
 		{ 'n', "noautosync", NULL, G_TYPE_BOOL },
-		{ 's', "slice", &label_slice, G_TYPE_NUMBER },
+		{ 's', "slice", GMIRROR_SLICE, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
 	    NULL, "[-Fhnv] [-b balance] [-s slice] name prov ..."
@@ -101,7 +101,7 @@ struct g_command class_commands[] = {
 	    {
 		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
 		{ 'i', "inactive", NULL, G_TYPE_BOOL },
-		{ 'p', "priority", &insert_priority, G_TYPE_NUMBER },
+		{ 'p', "priority", GMIRROR_PRIORITY, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
 	    NULL, "[-hiv] [-p priority] name prov ..."
