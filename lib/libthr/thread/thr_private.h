@@ -107,6 +107,15 @@ TAILQ_HEAD(mutex_queue, pthread_mutex);
 		}						\
 	} while (0)
 
+/* XXX These values should be same as those defined in pthread.h */
+#define	THR_MUTEX_INITIALIZER		((struct pthread_mutex *)NULL)
+#define	THR_ADAPTIVE_MUTEX_INITIALIZER	((struct pthread_mutex *)1)
+#define	THR_MUTEX_DESTROYED		((struct pthread_mutex *)2)
+#define	THR_COND_INITIALIZER		((struct pthread_cond *)NULL)
+#define	THR_COND_DESTROYED		((struct pthread_cond *)1)
+#define	THR_RWLOCK_INITIALIZER		((struct pthread_rwlock *)NULL)
+#define	THR_RWLOCK_DESTROYED		((struct pthread_rwlock *)1)
+
 struct pthread_mutex {
 	/*
 	 * Lock for accesses to this structure.
@@ -571,6 +580,7 @@ extern struct pthread_attr _pthread_attr_default __hidden;
 
 /* Default mutex attributes: */
 extern struct pthread_mutex_attr _pthread_mutexattr_default __hidden;
+extern struct pthread_mutex_attr _pthread_mutexattr_adaptive_default __hidden;
 
 /* Default condition variable attributes: */
 extern struct pthread_cond_attr _pthread_condattr_default __hidden;

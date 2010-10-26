@@ -104,6 +104,19 @@ init_static(struct pthread *thread, pthread_cond_t *cond)
 	return (ret);
 }
 
+#define CHECK_AND_INIT_COND							\
+	if (__predict_false((cv = (*cond)) <= THR_COND_DESTROYED)) {		\
+		if (cv == THR_COND_INITIALIZER) {				\
+			int ret;						\
+			ret = init_static(_get_curthread(), cond);		\
+			if (ret)						\
+				return (ret);					\
+		} else if (cv == THR_COND_DESTROYED) {				\
+			return (EINVAL);					\
+		}								\
+		cv = *cond;							\
+	}
+
 int
 _pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *cond_attr)
 {
@@ -119,16 +132,14 @@ _pthread_cond_destroy(pthread_cond_t *cond)
 	struct pthread_cond	*cv;
 	int			rval = 0;
 
-	if (*cond == NULL)
+	if ((cv = *cond) == THR_COND_INITIALIZER)
+		rval = 0;
+	else if (cv == THR_COND_DESTROYED)
 		rval = EINVAL;
 	else {
 		cv = *cond;
 		THR_UMUTEX_LOCK(curthread, &cv->c_lock);
-		/*
-		 * NULL the caller's pointer now that the condition
-		 * variable has been destroyed:
-		 */
-		*cond = NULL;
+		*cond = THR_COND_DESTROYED;
 		THR_UMUTEX_UNLOCK(curthread, &cv->c_lock);
 
 		/*
@@ -137,7 +148,6 @@ _pthread_cond_destroy(pthread_cond_t *cond)
 		 */
 		free(cv);
 	}
-	/* Return the completion status: */
 	return (rval);
 }
 
@@ -170,20 +180,18 @@ cond_wait_common(pthread_cond_t *cond, pthread_mutex_t *mutex,
 	struct timespec ts, ts2, *tsp;
 	struct cond_cancel_info info;
 	pthread_cond_t  cv;
-	int		ret = 0;
+	int		ret;
 
 	/*
 	 * If the condition variable is statically initialized,
 	 * perform the dynamic initialization:
 	 */
-	if (__predict_false(*cond == NULL &&
-	    (ret = init_static(curthread, cond)) != 0))
-		return (ret);
+	CHECK_AND_INIT_COND
 
 	cv = *cond;
 	THR_UMUTEX_LOCK(curthread, &cv->c_lock);
 	ret = _mutex_cv_unlock(mutex, &info.count);
-	if (ret) {
+	if (__predict_false(ret != 0)) {
 		THR_UMUTEX_UNLOCK(curthread, &cv->c_lock);
 		return (ret);
 	}
@@ -263,11 +271,8 @@ cond_signal_common(pthread_cond_t *cond, int broadcast)
 	 * If the condition variable is statically initialized, perform dynamic
 	 * initialization.
 	 */
-	if (__predict_false(*cond == NULL &&
-	    (ret = init_static(curthread, cond)) != 0))
-		return (ret);
+	CHECK_AND_INIT_COND
 
-	cv = *cond;
 	THR_UMUTEX_LOCK(curthread, &cv->c_lock);
 	if (!broadcast)
 		ret = _thr_ucond_signal(&cv->c_kerncv);
