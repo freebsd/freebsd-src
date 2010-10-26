@@ -438,8 +438,10 @@ usb_handle_remote_wakeup(struct usb_xfer *xfer, uint8_t is_on)
 
 	USB_BUS_UNLOCK(bus);
 
+#if USB_HAVE_POWERD
 	/* In case we are out of sync, update the power state. */
 	usb_bus_power_update(udev->bus);
+#endif
 	return (0);			/* success */
 }
 

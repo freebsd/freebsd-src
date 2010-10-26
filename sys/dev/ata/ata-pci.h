@@ -204,6 +204,29 @@ struct ata_pci_controller {
 #define ATA_I82801JI_AH         0x3a228086
 #define ATA_I82801JI_R1         0x3a258086
 #define ATA_I82801JI_S2         0x3a268086
+
+#define ATA_5Series_S1          0x3b208086
+#define ATA_5Series_S2          0x3b218086
+#define ATA_5Series_AH1         0x3b228086
+#define ATA_5Series_AH2         0x3b238086
+#define ATA_5Series_R1          0x3b258086
+#define ATA_5Series_S3          0x3b268086
+#define ATA_5Series_S4          0x3b288086
+#define ATA_5Series_AH3         0x3b298086
+#define ATA_5Series_R2          0x3b2c8086
+#define ATA_5Series_S5          0x3b2d8086
+#define ATA_5Series_S6          0x3b2e8086
+#define ATA_5Series_AH4         0x3b2f8086
+
+#define ATA_CPT_S1              0x1c008086
+#define ATA_CPT_S2              0x1c018086
+#define ATA_CPT_AH1             0x1c028086
+#define ATA_CPT_AH2             0x1c038086
+#define ATA_CPT_R1              0x1c048086
+#define ATA_CPT_R2              0x1c058086
+#define ATA_CPT_S3              0x1c088086
+#define ATA_CPT_S4              0x1c098086
+
 #define ATA_I31244              0x32008086
 #define ATA_ISCH                0x811a8086
 

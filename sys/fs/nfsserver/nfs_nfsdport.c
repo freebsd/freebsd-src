@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <fs/nfs/nfsport.h>
+#include <sys/hash.h>
 #include <sys/sysctl.h>
 #include <nlm/nlm_prot.h>
 #include <nlm/nlm.h>
@@ -1933,7 +1934,15 @@ again:
 							vn_lock(vp,
 							    LK_EXCLUSIVE |
 							    LK_RETRY);
-						r = VOP_LOOKUP(vp, &nvp, &cn);
+						if ((vp->v_vflag & VV_ROOT) != 0
+						    && (cn.cn_flags & ISDOTDOT)
+						    != 0) {
+							vref(vp);
+							nvp = vp;
+							r = 0;
+						} else
+							r = VOP_LOOKUP(vp, &nvp,
+							    &cn);
 					}
 				}
 				if (!r) {
@@ -2825,7 +2834,7 @@ nfsvno_advlock(struct vnode *vp, int ftype, u_int64_t first,
 	struct flock fl;
 	u_int64_t tlen;
 
-	if (!nfsrv_dolocallocks)
+	if (nfsrv_dolocallocks == 0)
 		return (0);
 	fl.l_whence = SEEK_SET;
 	fl.l_type = ftype;
@@ -2850,8 +2859,12 @@ nfsvno_advlock(struct vnode *vp, int ftype, u_int64_t first,
 	fl.l_sysid = (int)nfsv4_sysid;
 
 	NFSVOPUNLOCK(vp, 0, td);
-	error = VOP_ADVLOCK(vp, (caddr_t)td->td_proc, F_SETLK, &fl,
-	    (F_POSIX | F_REMOTE));
+	if (ftype == F_UNLCK)
+		error = VOP_ADVLOCK(vp, (caddr_t)td->td_proc, F_UNLCK, &fl,
+		    (F_POSIX | F_REMOTE));
+	else
+		error = VOP_ADVLOCK(vp, (caddr_t)td->td_proc, F_SETLK, &fl,
+		    (F_POSIX | F_REMOTE));
 	NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	return (error);
 }
@@ -3073,6 +3086,18 @@ nfsvno_testexp(struct nfsrv_descript *nd, struct nfsexstuff *exp)
 			return (0);
 	}
 	return (1);
+}
+
+/*
+ * Calculate a hash value for the fid in a file handle.
+ */
+uint32_t
+nfsrv_hashfh(fhandle_t *fhp)
+{
+	uint32_t hashval;
+
+	hashval = hash32_buf(&fhp->fh_fid, sizeof(struct fid), 0);
+	return (hashval);
 }
 
 extern int (*nfsd_call_nfsd)(struct thread *, struct nfssvc_args *);

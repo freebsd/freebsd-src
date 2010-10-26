@@ -445,6 +445,7 @@ si_new(uintptr_t key, int flags, void *arg)
 	si = malloc(l, M_DUMMYNET, M_NOWAIT | M_ZERO);
 	if (si == NULL)
 		goto error;
+
 	/* Set length only for the part passed up to userland. */
 	set_oid(&si->ni.oid, DN_SCH_I, sizeof(struct dn_flow));
 	set_oid(&(si->dline.oid), DN_DELAY_LINE,
@@ -1571,7 +1572,7 @@ config_profile(struct dn_profile *pf, struct dn_id *arg)
 		 */
 		if (s->profile == NULL)
 			s->profile = malloc(pf->oid.len,
-			    M_DUMMYNET, M_NOWAIT | M_ZERO);
+				    M_DUMMYNET, M_NOWAIT | M_ZERO);
 		if (s->profile == NULL) {
 			D("no memory for profile %d", i);
 			err = ENOMEM;
@@ -2300,7 +2301,7 @@ MODULE_VERSION(dummynet, 1);
  * VNET_SYSINIT is also called for each existing vnet and each new vnet.
  */
 //VNET_SYSINIT(vnet_dn_init, DN_SI_SUB, DN_MODEV_ORD+2, ip_dn_init, NULL);
- 
+
 /*
  * Shutdown handlers up shop. These are done in REVERSE ORDER, but still
  * after dummynet_modevent() has been called. Not called on reboot.

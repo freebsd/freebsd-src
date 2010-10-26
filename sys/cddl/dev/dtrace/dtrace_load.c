@@ -161,7 +161,10 @@ dtrace_load(void *dummy)
 	/* Setup device cloning events. */
 	eh_tag = EVENTHANDLER_REGISTER(dev_clone, dtrace_clone, 0, 1000);
 #else
-	dtrace_dev = make_dev(&dtrace_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "dtrace/dtrace");
+	dtrace_dev = make_dev(&dtrace_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
+	    "dtrace/dtrace");
+	helper_dev = make_dev(&helper_cdevsw, 0, UID_ROOT, GID_WHEEL, 0660,
+	    "dtrace/helper");
 #endif
 
 	return;

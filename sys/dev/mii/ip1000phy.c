@@ -111,19 +111,23 @@ ip1000phy_attach(device_t dev)
 	sc = &isc->mii_sc;
 	ma = device_get_ivars(dev);
 	sc->mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->mii_dev);
+	mii = ma->mii_data;
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_inst = mii->mii_instance;
+	sc->mii_flags = miibus_get_flags(dev);
+	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = ip1000phy_service;
 	sc->mii_pdata = mii;
-	sc->mii_flags |= MIIF_NOISOLATE;
 
-	mii->mii_instance++;
+	sc->mii_flags |= MIIF_NOISOLATE;
 
 	isc->model = MII_MODEL(ma->mii_id2);
 	isc->revision = MII_REV(ma->mii_id2);
+	if (isc->model == MII_MODEL_ICPLUS_IP1000A &&
+	     strcmp(mii->mii_ifp->if_dname, "stge") == 0 &&
+	     (sc->mii_flags & MIIF_MACPRIV0) != 0)
+		sc->mii_flags |= MIIF_PHYPRIV0;
 
 	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	if (sc->mii_capabilities & BMSR_EXTSTAT)
@@ -135,7 +139,7 @@ ip1000phy_attach(device_t dev)
 	printf("\n");
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
-	return(0);
+	return (0);
 }
 
 static int
@@ -146,25 +150,9 @@ ip1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 	switch (cmd) {
 	case MII_POLLSTAT:
-		/*
-		 * If we're not polling our PHY instance, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the media indicates a different PHY instance,
-		 * isolate ourselves.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-			reg = PHY_READ(sc, IP1000PHY_MII_BMCR);
-			PHY_WRITE(sc, IP1000PHY_MII_BMCR,
-			    reg | IP1000PHY_BMCR_ISO);
-			return (0);
-		}
-
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
@@ -236,11 +224,6 @@ done:
 		break;
 
 	case MII_TICK:
-		/*
-		 * If we're not currently selected, just return.
-		 */
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		/*
 		 * Is the interface even up?
 		 */
@@ -434,12 +417,8 @@ ip1000phy_load_dspcode(struct mii_softc *sc)
 static void
 ip1000phy_reset(struct mii_softc *sc)
 {
-	struct ip1000phy_softc *isc;
-	struct stge_softc *stge_sc;
-	struct mii_data *mii;
 	uint32_t reg;
 
-	isc = (struct ip1000phy_softc *)sc;
 	mii_phy_reset(sc);
 
 	/* clear autoneg/full-duplex as we don't want it after reset */
@@ -447,15 +426,6 @@ ip1000phy_reset(struct mii_softc *sc)
 	reg &= ~(IP1000PHY_BMCR_AUTOEN | IP1000PHY_BMCR_FDX);
 	PHY_WRITE(sc, MII_BMCR, reg);
 
-	mii = sc->mii_pdata;
-	/*
-	 * XXX There should be more general way to pass PHY specific
-	 * data via mii interface.
-	 */
-	if (isc->model == MII_MODEL_ICPLUS_IP1000A &&
-	     strcmp(mii->mii_ifp->if_dname, "stge") == 0) {
-		stge_sc = mii->mii_ifp->if_softc;
-		if (stge_sc->sc_rev >= 0x40 && stge_sc->sc_rev <= 0x4e)
-			ip1000phy_load_dspcode(sc);
-	}
+	if ((sc->mii_flags & MIIF_PHYPRIV0) != 0)
+		ip1000phy_load_dspcode(sc);
 }

@@ -58,10 +58,6 @@
 #ifndef _MIPS_CPUREGS_H_
 #define	_MIPS_CPUREGS_H_
 
-#if defined(_KERNEL_OPT)
-#include "opt_cputype.h"
-#endif
-
 /*
  * Address space.
  * 32-bit mips CPUS partition their 32-bit address space into four segments:
@@ -71,13 +67,13 @@
  * kseg1   0xa0000000 - 0xbfffffff  Physical memory, uncached, unmapped
  * kseg2   0xc0000000 - 0xffffffff  kernel-virtual,  mapped
  *
- * mips1 physical memory is limited to 512Mbytes, which is
- * doubly mapped in kseg0 (cached) and kseg1 (uncached.)
  * Caching of mapped addresses is controlled by bits in the TLB entry.
  */
 
-#define	MIPS_KSEG0_LARGEST_PHYS         (0x20000000)
-#define	MIPS_PHYS_MASK			(0x1fffffff)
+#define	MIPS_KSEG0_LARGEST_PHYS		(0x20000000)
+#define	MIPS_KSEG0_PHYS_MASK		(0x1fffffff)
+#define	MIPS_XKPHYS_LARGEST_PHYS	(0x10000000000)  /* 40 bit PA */
+#define	MIPS_XKPHYS_PHYS_MASK		(0x0ffffffffff)
 
 #ifndef LOCORE
 #define	MIPS_KUSEG_START		0x00000000
@@ -95,8 +91,8 @@
 
 #define	MIPS_PHYS_TO_KSEG0(x)		((uintptr_t)(x) | MIPS_KSEG0_START)
 #define	MIPS_PHYS_TO_KSEG1(x)		((uintptr_t)(x) | MIPS_KSEG1_START)
-#define	MIPS_KSEG0_TO_PHYS(x)		((uintptr_t)(x) & MIPS_PHYS_MASK)
-#define	MIPS_KSEG1_TO_PHYS(x)		((uintptr_t)(x) & MIPS_PHYS_MASK)
+#define	MIPS_KSEG0_TO_PHYS(x)		((uintptr_t)(x) & MIPS_KSEG0_PHYS_MASK)
+#define	MIPS_KSEG1_TO_PHYS(x)		((uintptr_t)(x) & MIPS_KSEG0_PHYS_MASK)
 
 #define	MIPS_IS_KSEG0_ADDR(x)					\
 	(((vm_offset_t)(x) >= MIPS_KSEG0_START) &&		\
@@ -106,9 +102,6 @@
 	    ((vm_offset_t)(x) <= MIPS_KSEG1_END))
 #define	MIPS_IS_VALID_PTR(x)		(MIPS_IS_KSEG0_ADDR(x) || \
 					    MIPS_IS_KSEG1_ADDR(x))
-
-#define	MIPS_XKPHYS_START		0x8000000000000000
-#define	MIPS_XKPHYS_END			0xbfffffffffffffff
 
 /*
  * Cache Coherency Attributes:
@@ -180,19 +173,34 @@
 #define	MIPS_PHYS_TO_XKPHYS_UNCACHED(x) \
 	((0x2ULL << 62) | ((unsigned long long)(MIPS_CCA_UNCACHED) << 59) | (x))
 
-#define	MIPS_XKPHYS_TO_PHYS(x)		((x) & 0x07ffffffffffffffULL)
+#define	MIPS_XKPHYS_TO_PHYS(x)		((uintptr_t)(x) & MIPS_XKPHYS_PHYS_MASK)
 
+#define	MIPS_XKPHYS_START		0x8000000000000000
+#define	MIPS_XKPHYS_END			0xbfffffffffffffff
 #define	MIPS_XUSEG_START		0x0000000000000000
 #define	MIPS_XUSEG_END			0x0000010000000000
-
 #define	MIPS_XKSEG_START		0xc000000000000000
 #define	MIPS_XKSEG_END			0xc00000ff80000000
+
+#ifdef __mips_n64
+#define	MIPS_DIRECT_MAPPABLE(pa)	1
+#define	MIPS_PHYS_TO_DIRECT(pa)		MIPS_PHYS_TO_XKPHYS_CACHED(pa)
+#define	MIPS_PHYS_TO_DIRECT_UNCACHED(pa)	MIPS_PHYS_TO_XKPHYS_UNCACHED(pa)
+#define	MIPS_DIRECT_TO_PHYS(va)		MIPS_XKPHYS_TO_PHYS(va)
+#else
+#define	MIPS_DIRECT_MAPPABLE(pa)	((pa) < MIPS_KSEG0_LARGEST_PHYS)
+#define	MIPS_PHYS_TO_DIRECT(pa)		MIPS_PHYS_TO_KSEG0(pa)
+#define	MIPS_PHYS_TO_DIRECT_UNCACHED(pa)	MIPS_PHYS_TO_KSEG1(pa)
+#define	MIPS_DIRECT_TO_PHYS(va)		MIPS_KSEG0_TO_PHYS(va)
+#endif
 
 /* CPU dependent mtc0 hazard hook */
 #ifdef CPU_CNMIPS
 #define	COP0_SYNC  nop; nop; nop; nop; nop;
 #elif defined(CPU_SB1)
 #define COP0_SYNC  ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop
+#elif defined(CPU_RMI)
+#define COP0_SYNC
 #else
 /*
  * Pick a reasonable default based on the "typical" spacing described in the
@@ -328,29 +336,6 @@
 #undef MIPS_SR_INT_IE
 #define	MIPS_SR_INT_IE		0x00010001		/* XXX */
 #endif
-
-/*
- * These definitions are for MIPS32 processors.
- */
-#define	MIPS32_SR_RP		0x08000000	/* reduced power mode */
-#define	MIPS32_SR_FR		0x04000000	/* 64-bit capable fpu */
-#define	MIPS32_SR_RE		0x02000000	/* reverse user endian */
-#define	MIPS32_SR_MX		0x01000000	/* MIPS64 */
-#define	MIPS32_SR_PX		0x00800000	/* MIPS64 */
-#define	MIPS32_SR_BEV		0x00400000	/* Use boot exception vector */
-#define	MIPS32_SR_TS		0x00200000	/* TLB multiple match */
-#define	MIPS32_SR_SOFT_RESET	0x00100000	/* soft reset occurred */
-#define	MIPS32_SR_NMI		0x00080000	/* NMI occurred */
-#define	MIPS32_SR_INT_MASK	0x0000ff00
-#define	MIPS32_SR_KX		0x00000080	/* MIPS64 */
-#define	MIPS32_SR_SX		0x00000040	/* MIPS64 */
-#define	MIPS32_SR_UX		0x00000020	/* MIPS64 */
-#define	MIPS32_SR_KSU_MASK	0x00000018	/* privilege mode */
-#define	MIPS32_SR_KSU_USER	0x00000010
-#define	MIPS32_SR_KSU_SUPER	0x00000008
-#define	MIPS32_SR_KSU_KERNEL	0x00000000
-#define	MIPS32_SR_ERL		0x00000004	/* error level */
-#define	MIPS32_SR_EXL		0x00000002	/* exception level */
 
 #define	MIPS_SR_SOFT_RESET	MIPS3_SR_SR
 #define	MIPS_SR_DIAG_CH		MIPS3_SR_DIAG_CH

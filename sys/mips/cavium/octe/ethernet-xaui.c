@@ -92,25 +92,7 @@ static void cvm_oct_xaui_poll(struct ifnet *ifp)
 
 	link_info = cvmx_helper_link_autoconf(priv->port);
 	priv->link_info = link_info.u64;
-
-	/* Tell Linux */
-	if (link_info.s.link_up) {
-
-	   	if_link_state_change(ifp, LINK_STATE_UP);
-		if (priv->queue != -1)
-			DEBUGPRINT("%s: %u Mbps %s duplex, port %2d, queue %2d\n",
-				   if_name(ifp), link_info.s.speed,
-				   (link_info.s.full_duplex) ? "Full" : "Half",
-				   priv->port, priv->queue);
-		else
-			DEBUGPRINT("%s: %u Mbps %s duplex, port %2d, POW\n",
-				   if_name(ifp), link_info.s.speed,
-				   (link_info.s.full_duplex) ? "Full" : "Half",
-				   priv->port);
-	} else {
-		if_link_state_change(ifp, LINK_STATE_DOWN);
-		DEBUGPRINT("%s: Link down\n", if_name(ifp));
-	}
+	priv->need_link_update = 1;
 }
 
 

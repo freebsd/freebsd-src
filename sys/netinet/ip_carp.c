@@ -2313,6 +2313,7 @@ carp_mod_cleanup(void)
 	if_clone_detach(&carp_cloner);
 #ifdef INET
 	if (proto_reg[CARP_INET] == 0) {
+		(void)ipproto_unregister(IPPROTO_CARP);
 		pf_proto_unregister(PF_INET, IPPROTO_CARP, SOCK_RAW);
 		proto_reg[CARP_INET] = -1;
 	}
@@ -2320,6 +2321,7 @@ carp_mod_cleanup(void)
 #endif
 #ifdef INET6
 	if (proto_reg[CARP_INET6] == 0) {
+		(void)ip6proto_unregister(IPPROTO_CARP);
 		pf_proto_unregister(PF_INET6, IPPROTO_CARP, SOCK_RAW);
 		proto_reg[CARP_INET6] = -1;
 	}
@@ -2335,6 +2337,7 @@ carp_mod_cleanup(void)
 static int
 carp_mod_load(void)
 {
+	int err;
 
 	if_detach_event_tag = EVENTHANDLER_REGISTER(ifnet_departure_event,
 		carp_ifdetach, NULL, EVENTHANDLER_PRI_ANY);
@@ -2355,7 +2358,13 @@ carp_mod_load(void)
 		printf("carp: error %d attaching to PF_INET6\n",
 		    proto_reg[CARP_INET6]);
 		carp_mod_cleanup();
-		return (EINVAL);
+		return (proto_reg[CARP_INET6]);
+	}
+	err = ip6proto_register(IPPROTO_CARP);
+	if (err) {
+		printf("carp: error %d registering with INET6\n", err);
+		carp_mod_cleanup();
+		return (err);
 	}
 #endif
 #ifdef INET
@@ -2365,7 +2374,13 @@ carp_mod_load(void)
 		printf("carp: error %d attaching to PF_INET\n",
 		    proto_reg[CARP_INET]);
 		carp_mod_cleanup();
-		return (EINVAL);
+		return (proto_reg[CARP_INET]);
+	}
+	err = ipproto_register(IPPROTO_CARP);
+	if (err) {
+		printf("carp: error %d registering with INET\n", err);
+		carp_mod_cleanup();
+		return (err);
 	}
 #endif
 	return 0;
@@ -2405,4 +2420,4 @@ static moduledata_t carp_mod = {
 	0
 };
 
-DECLARE_MODULE(carp, carp_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+DECLARE_MODULE(carp, carp_mod, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY);

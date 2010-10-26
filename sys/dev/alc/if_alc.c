@@ -235,9 +235,6 @@ alc_miibus_readreg(device_t dev, int phy, int reg)
 
 	sc = device_get_softc(dev);
 
-	if (phy != sc->alc_phyaddr)
-		return (0);
-
 	/*
 	 * For AR8132 fast ethernet controller, do not report 1000baseT
 	 * capability to mii(4). Even though AR8132 uses the same
@@ -273,9 +270,6 @@ alc_miibus_writereg(device_t dev, int phy, int reg, int val)
 	int i;
 
 	sc = device_get_softc(dev);
-
-	if (phy != sc->alc_phyaddr)
-		return (0);
 
 	CSR_WRITE_4(sc, ALC_MDIO, MDIO_OP_EXECUTE | MDIO_OP_WRITE |
 	    (val & MDIO_DATA_MASK) << MDIO_DATA_SHIFT |
@@ -978,9 +972,11 @@ alc_attach(device_t dev)
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Set up MII bus. */
-	if ((error = mii_phy_probe(dev, &sc->alc_miibus, alc_mediachange,
-	    alc_mediastatus)) != 0) {
-		device_printf(dev, "no PHY found!\n");
+	error = mii_attach(dev, &sc->alc_miibus, ifp, alc_mediachange,
+	    alc_mediastatus, BMSR_DEFCAPMASK, sc->alc_phyaddr, MII_OFFSET_ANY,
+	    0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -2019,7 +2015,7 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 	struct tcphdr *tcp;
 	bus_dma_segment_t txsegs[ALC_MAXTXSEGS];
 	bus_dmamap_t map;
-	uint32_t cflags, hdrlen, poff, vtag;
+	uint32_t cflags, hdrlen, ip_off, poff, vtag;
 	int error, idx, nsegs, prod;
 
 	ALC_LOCK_ASSERT(sc);
@@ -2029,7 +2025,7 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 	m = *m_head;
 	ip = NULL;
 	tcp = NULL;
-	poff = 0;
+	ip_off = poff = 0;
 	if ((m->m_pkthdr.csum_flags & (ALC_CSUM_FEATURES | CSUM_TSO)) != 0) {
 		/*
 		 * AR813x/AR815x requires offset of TCP/UDP header in its
@@ -2039,6 +2035,7 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 		 * cycles on FreeBSD so fast host CPU is required to get
 		 * smooth TSO performance.
 		 */
+		struct ether_header *eh;
 
 		if (M_WRITABLE(m) == 0) {
 			/* Get a writable copy. */
@@ -2052,15 +2049,32 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 			*m_head = m;
 		}
 
-		m = m_pullup(m, sizeof(struct ether_header) +
-		    sizeof(struct ip));
+		ip_off = sizeof(struct ether_header);
+		m = m_pullup(m, ip_off);
 		if (m == NULL) {
 			*m_head = NULL;
 			return (ENOBUFS);
 		}
-		ip = (struct ip *)(mtod(m, char *) +
-		    sizeof(struct ether_header));
-		poff = sizeof(struct ether_header) + (ip->ip_hl << 2);
+		eh = mtod(m, struct ether_header *);
+		/*
+		 * Check if hardware VLAN insertion is off.
+		 * Additional check for LLC/SNAP frame?
+		 */
+		if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
+			ip_off = sizeof(struct ether_vlan_header);
+			m = m_pullup(m, ip_off);
+			if (m == NULL) {
+				*m_head = NULL;
+				return (ENOBUFS);
+			}
+		}
+		m = m_pullup(m, ip_off + sizeof(struct ip));
+		if (m == NULL) {
+			*m_head = NULL;
+			return (ENOBUFS);
+		}
+		ip = (struct ip *)(mtod(m, char *) + ip_off);
+		poff = ip_off + (ip->ip_hl << 2);
 		if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
 			m = m_pullup(m, poff + sizeof(struct tcphdr));
 			if (m == NULL) {
@@ -2086,6 +2100,8 @@ alc_encap(struct alc_softc *sc, struct mbuf **m_head)
 			 * Reset IP checksum and recompute TCP pseudo
 			 * checksum as NDIS specification said.
 			 */
+			ip = (struct ip *)(mtod(m, char *) + ip_off);
+			tcp = (struct tcphdr *)(mtod(m, char *) + poff);
 			ip->ip_sum = 0;
 			tcp->th_sum = in_pseudo(ip->ip_src.s_addr,
 			    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
@@ -2948,8 +2964,8 @@ alc_rxeof(struct alc_softc *sc, struct rx_rdesc *rrd)
 		 *  errored frames.
 		 */
 		status |= RRD_TCP_UDPCSUM_NOK | RRD_IPCSUM_NOK;
-		if ((RRD_ERR_CRC | RRD_ERR_ALIGN | RRD_ERR_TRUNC |
-		    RRD_ERR_RUNT) != 0)
+		if ((status & (RRD_ERR_CRC | RRD_ERR_ALIGN |
+		    RRD_ERR_TRUNC | RRD_ERR_RUNT)) != 0)
 			return;
 	}
 

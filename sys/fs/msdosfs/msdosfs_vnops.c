@@ -1258,6 +1258,14 @@ abortit:
 		}
 	}
 
+	/*
+	 * The msdosfs lookup is case insensitive. Several aliases may
+	 * be inserted for a single directory entry. As a consequnce,
+	 * name cache purge done by lookup for fvp when DELETE op for
+	 * namei is specified, might be not enough to expunge all
+	 * namecache entries that were installed for this direntry.
+	 */
+	cache_purge(fvp);
 	VOP_UNLOCK(fvp, 0);
 bad:
 	if (xp)

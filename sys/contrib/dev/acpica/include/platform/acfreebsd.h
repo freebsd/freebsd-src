@@ -139,7 +139,6 @@
 
 #include "opt_acpi.h"
 
-#define ACPI_THREAD_ID      lwpid_t
 #define ACPI_MUTEX_TYPE     ACPI_OSL_MUTEX
 
 #ifdef ACPI_DEBUG
@@ -166,7 +165,7 @@
 #include <ctype.h>
 #endif
 
-#define ACPI_THREAD_ID      pthread_t
+#define ACPI_CAST_PTHREAD_T(pthread)    ((ACPI_THREAD_ID) ACPI_TO_INTEGER (pthread))
 
 #define ACPI_USE_STANDARD_HEADERS
 

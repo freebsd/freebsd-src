@@ -78,6 +78,8 @@ static struct resource	*ciu_alloc_resource(device_t, device_t, int, int *,
 static int		ciu_setup_intr(device_t, device_t, struct resource *,
 				       int, driver_filter_t *, driver_intr_t *,
 				       void *, void **);
+static int		ciu_teardown_intr(device_t, device_t,
+					  struct resource *, void *);
 static void		ciu_hinted_child(device_t, const char *, int);
 
 static void		ciu_en0_intr_mask(void *);
@@ -230,6 +232,19 @@ ciu_setup_intr(device_t bus, device_t child, struct resource *res, int flags,
 	return (0);
 }
 
+static int
+ciu_teardown_intr(device_t bus, device_t child, struct resource *res,
+		  void *cookie)
+{
+	int error;
+
+	error = intr_event_remove_handler(cookie);
+	if (error != 0)
+		return (error);
+
+	return (0);
+}
+
 static void
 ciu_hinted_child(device_t bus, const char *dname, int dunit)
 {
@@ -342,7 +357,7 @@ static device_method_t ciu_methods[] = {
 	DEVMETHOD(bus_alloc_resource,	ciu_alloc_resource),
 	DEVMETHOD(bus_activate_resource,bus_generic_activate_resource),
 	DEVMETHOD(bus_setup_intr,	ciu_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_teardown_intr,	ciu_teardown_intr),
 
 	DEVMETHOD(bus_add_child,	bus_generic_add_child),
 	DEVMETHOD(bus_hinted_child,	ciu_hinted_child),

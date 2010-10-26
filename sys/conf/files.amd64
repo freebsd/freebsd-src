@@ -87,7 +87,7 @@ acpi_wakecode.h			optional	acpi			\
 	clean		"acpi_wakecode.h"
 acpi_wakedata.h			optional	acpi			\
 	dependency	"acpi_wakecode.o"				\
-	compile-with	'nm -n --defined-only acpi_wakecode.o | while read offset dummy what; do echo "#define	$${what}	0x$${offset}"; done > ${.TARGET}' \
+	compile-with	'${NM} -n --defined-only acpi_wakecode.o | while read offset dummy what; do echo "#define	$${what}	0x$${offset}"; done > ${.TARGET}' \
 	no-obj no-implicit-rule	before-depend				\
 	clean		"acpi_wakedata.h"
 #
@@ -229,6 +229,9 @@ dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvesactl.c		optional	sc vga vesa
 dev/syscons/scvgarndr.c		optional	sc vga
 dev/syscons/scvtb.c		optional	sc
+dev/tpm/tpm.c			optional	tpm
+dev/tpm/tpm_acpi.c		optional	tpm acpi
+dev/tpm/tpm_isa.c		optional	tpm isa
 dev/uart/uart_cpu_amd64.c	optional	uart
 dev/wpi/if_wpi.c		optional	wpi
 isa/syscons_isa.c		optional	sc
@@ -317,6 +320,7 @@ x86/isa/isa.c			standard
 x86/isa/isa_dma.c		standard
 x86/isa/nmi.c			standard
 x86/isa/orm.c			optional	isa
+x86/pci/qpi.c			standard
 x86/x86/io_apic.c		standard
 x86/x86/local_apic.c		standard
 x86/x86/mca.c			standard

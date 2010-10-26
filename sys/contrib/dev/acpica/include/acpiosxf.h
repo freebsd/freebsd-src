@@ -406,16 +406,6 @@ AcpiOsWritePciConfiguration (
 
 
 /*
- * Interim function needed for PCI IRQ routing
- */
-void
-AcpiOsDerivePciId(
-    ACPI_HANDLE             Device,
-    ACPI_HANDLE             Region,
-    ACPI_PCI_ID             **PciId);
-
-
-/*
  * Miscellaneous
  */
 BOOLEAN

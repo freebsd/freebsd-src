@@ -143,11 +143,6 @@ __FBSDID("$FreeBSD$");
 #define	MOUSE_PS2PLUS_PACKET_TYPE(b)	\
     (((b[0] & 0x30) >> 2) | ((b[1] & 0x30) >> 4))
 
-/* some macros */
-#define	PSM_UNIT(dev)		(dev2unit(dev) >> 1)
-#define	PSM_NBLOCKIO(dev)	(dev2unit(dev) & 1)
-#define	PSM_MKMINOR(unit,block)	(((unit) << 1) | ((block) ? 0:1))
-
 /* ring buffer */
 typedef struct ringbuf {
 	int		count;	/* # of valid elements in the buffer */
@@ -305,8 +300,6 @@ struct psm_softc {		/* Driver status information */
 	struct sigio	*async;		/* Processes waiting for SIGIO */
 };
 static devclass_t psm_devclass;
-#define	PSM_SOFTC(unit)	\
-    ((struct psm_softc*)devclass_get_softc(psm_devclass, unit))
 
 /* driver state flags (state) */
 #define	PSM_VALID		0x80
@@ -1457,10 +1450,10 @@ psmattach(device_t dev)
 	}
 
 	/* Done */
-	sc->dev = make_dev(&psm_cdevsw, PSM_MKMINOR(unit, FALSE), 0, 0, 0666,
-	    "psm%d", unit);
-	sc->bdev = make_dev(&psm_cdevsw, PSM_MKMINOR(unit, TRUE), 0, 0, 0666,
-	    "bpsm%d", unit);
+	sc->dev = make_dev(&psm_cdevsw, 0, 0, 0, 0666, "psm%d", unit);
+	sc->dev->si_drv1 = sc;
+	sc->bdev = make_dev(&psm_cdevsw, 0, 0, 0, 0666, "bpsm%d", unit);
+	sc->bdev->si_drv1 = sc;
 
 	if (!verbose)
 		printf("psm%d: model %s, device ID %d\n",
@@ -1504,14 +1497,13 @@ psmdetach(device_t dev)
 static int
 psmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
-	int unit = PSM_UNIT(dev);
 	struct psm_softc *sc;
 	int command_byte;
 	int err;
 	int s;
 
 	/* Get device data */
-	sc = PSM_SOFTC(unit);
+	sc = dev->si_drv1;
 	if ((sc == NULL) || (sc->state & PSM_VALID) == 0) {
 		/* the device is no longer valid/functioning */
 		return (ENXIO);
@@ -1521,7 +1513,7 @@ psmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 	if (sc->state & PSM_OPEN)
 		return (EBUSY);
 
-	device_busy(devclass_get_device(psm_devclass, unit));
+	device_busy(devclass_get_device(psm_devclass, sc->unit));
 
 	/* Initialize state */
 	sc->mode.level = sc->dflt_mode.level;
@@ -1565,7 +1557,8 @@ psmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 		kbdc_lock(sc->kbdc, FALSE);
 		splx(s);
 		log(LOG_ERR,
-		    "psm%d: unable to set the command byte (psmopen).\n", unit);
+		    "psm%d: unable to set the command byte (psmopen).\n",
+		    sc->unit);
 		return (EIO);
 	}
 	/*
@@ -1590,8 +1583,7 @@ psmopen(struct cdev *dev, int flag, int fmt, struct thread *td)
 static int
 psmclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
-	int unit = PSM_UNIT(dev);
-	struct psm_softc *sc = PSM_SOFTC(unit);
+	struct psm_softc *sc = dev->si_drv1;
 	int stat[3];
 	int command_byte;
 	int s;
@@ -1615,7 +1607,8 @@ psmclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	    KBD_DISABLE_KBD_PORT | KBD_DISABLE_KBD_INT |
 	    KBD_ENABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
 		log(LOG_ERR,
-		    "psm%d: failed to disable the aux int (psmclose).\n", unit);
+		    "psm%d: failed to disable the aux int (psmclose).\n",
+		    sc->unit);
 		/* CONTROLLER ERROR;
 		 * NOTE: we shall force our way through. Because the only
 		 * ill effect we shall see is that we may not be able
@@ -1643,12 +1636,13 @@ psmclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 			 */
 			log(LOG_ERR,
 			    "psm%d: failed to disable the device (psmclose).\n",
-			    unit);
+			    sc->unit);
 		}
 
 		if (get_mouse_status(sc->kbdc, stat, 0, 3) < 3)
 			log(LOG_DEBUG,
-			    "psm%d: failed to get status (psmclose).\n", unit);
+			    "psm%d: failed to get status (psmclose).\n",
+			    sc->unit);
 	}
 
 	if (!set_controller_command_byte(sc->kbdc,
@@ -1661,7 +1655,7 @@ psmclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 		 */
 		log(LOG_ERR,
 		    "psm%d: failed to disable the aux port (psmclose).\n",
-		    unit);
+		    sc->unit);
 	}
 
 	/* remove anything left in the output buffer */
@@ -1676,7 +1670,7 @@ psmclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	/* close is almost always successful */
 	sc->state &= ~PSM_OPEN;
 	kbdc_lock(sc->kbdc, FALSE);
-	device_unbusy(devclass_get_device(psm_devclass, unit));
+	device_unbusy(devclass_get_device(psm_devclass, sc->unit));
 	return (0);
 }
 
@@ -1745,7 +1739,7 @@ tame_mouse(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *status,
 static int
 psmread(struct cdev *dev, struct uio *uio, int flag)
 {
-	register struct psm_softc *sc = PSM_SOFTC(PSM_UNIT(dev));
+	struct psm_softc *sc = dev->si_drv1;
 	u_char buf[PSM_SMALLBUFSIZE];
 	int error = 0;
 	int s;
@@ -1757,7 +1751,7 @@ psmread(struct cdev *dev, struct uio *uio, int flag)
 	/* block until mouse activity occured */
 	s = spltty();
 	while (sc->queue.count <= 0) {
-		if (PSM_NBLOCKIO(dev)) {
+		if (dev != sc->bdev) {
 			splx(s);
 			return (EWOULDBLOCK);
 		}
@@ -1892,7 +1886,7 @@ unblock_mouse_data(struct psm_softc *sc, int c)
 static int
 psmwrite(struct cdev *dev, struct uio *uio, int flag)
 {
-	register struct psm_softc *sc = PSM_SOFTC(PSM_UNIT(dev));
+	struct psm_softc *sc = dev->si_drv1;
 	u_char buf[PSM_SMALLBUFSIZE];
 	int error = 0, i, l;
 
@@ -1925,7 +1919,7 @@ static int
 psmioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
     struct thread *td)
 {
-	struct psm_softc *sc = PSM_SOFTC(PSM_UNIT(dev));
+	struct psm_softc *sc = dev->si_drv1;
 	mousemode_t mode;
 	mousestatus_t status;
 #if (defined(MOUSE_GETVARS))
@@ -3270,7 +3264,7 @@ psmsoftintr(void *arg)
 		MOUSE_BUTTON2DOWN | MOUSE_BUTTON3DOWN,
 		MOUSE_BUTTON1DOWN | MOUSE_BUTTON2DOWN | MOUSE_BUTTON3DOWN
 	};
-	register struct psm_softc *sc = arg;
+	struct psm_softc *sc = arg;
 	mousestatus_t ms;
 	packetbuf_t *pb;
 	int x, y, z, c, l, s;
@@ -3519,7 +3513,7 @@ next:
 static int
 psmpoll(struct cdev *dev, int events, struct thread *td)
 {
-	struct psm_softc *sc = PSM_SOFTC(PSM_UNIT(dev));
+	struct psm_softc *sc = dev->si_drv1;
 	int s;
 	int revents = 0;
 

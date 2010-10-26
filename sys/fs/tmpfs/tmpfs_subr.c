@@ -261,7 +261,8 @@ tmpfs_alloc_dirent(struct tmpfs_mount *tmp, struct tmpfs_node *node,
 	memcpy(nde->td_name, name, len);
 
 	nde->td_node = node;
-	node->tn_links++;
+	if (node != NULL)
+		node->tn_links++;
 
 	*de = nde;
 
@@ -287,9 +288,10 @@ tmpfs_free_dirent(struct tmpfs_mount *tmp, struct tmpfs_dirent *de,
 		struct tmpfs_node *node;
 
 		node = de->td_node;
-
-		MPASS(node->tn_links > 0);
-		node->tn_links--;
+		if (node != NULL) {
+			MPASS(node->tn_links > 0);
+			node->tn_links--;
+		}
 	}
 
 	free(de->td_name, M_TMPFSNAME);
@@ -518,6 +520,8 @@ tmpfs_alloc_file(struct vnode *dvp, struct vnode **vpp, struct vattr *vap,
 	/* Now that all required items are allocated, we can proceed to
 	 * insert the new node into the directory, an operation that
 	 * cannot fail. */
+	if (cnp->cn_flags & ISWHITEOUT)
+		tmpfs_dir_whiteout_remove(dvp, cnp);
 	tmpfs_dir_attach(dvp, de);
 
 out:
@@ -768,39 +772,44 @@ tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, off_t *cntp)
 
 		/* Create a dirent structure representing the current
 		 * tmpfs_node and fill it. */
-		d.d_fileno = de->td_node->tn_id;
-		switch (de->td_node->tn_type) {
-		case VBLK:
-			d.d_type = DT_BLK;
-			break;
+		if (de->td_node == NULL) {
+			d.d_fileno = 1;
+			d.d_type = DT_WHT;
+		} else {
+			d.d_fileno = de->td_node->tn_id;
+			switch (de->td_node->tn_type) {
+			case VBLK:
+				d.d_type = DT_BLK;
+				break;
 
-		case VCHR:
-			d.d_type = DT_CHR;
-			break;
+			case VCHR:
+				d.d_type = DT_CHR;
+				break;
 
-		case VDIR:
-			d.d_type = DT_DIR;
-			break;
+			case VDIR:
+				d.d_type = DT_DIR;
+				break;
 
-		case VFIFO:
-			d.d_type = DT_FIFO;
-			break;
+			case VFIFO:
+				d.d_type = DT_FIFO;
+				break;
 
-		case VLNK:
-			d.d_type = DT_LNK;
-			break;
+			case VLNK:
+				d.d_type = DT_LNK;
+				break;
 
-		case VREG:
-			d.d_type = DT_REG;
-			break;
+			case VREG:
+				d.d_type = DT_REG;
+				break;
 
-		case VSOCK:
-			d.d_type = DT_SOCK;
-			break;
+			case VSOCK:
+				d.d_type = DT_SOCK;
+				break;
 
-		default:
-			panic("tmpfs_dir_getdents: type %p %d",
-			    de->td_node, (int)de->td_node->tn_type);
+			default:
+				panic("tmpfs_dir_getdents: type %p %d",
+				    de->td_node, (int)de->td_node->tn_type);
+			}
 		}
 		d.d_namlen = de->td_namelen;
 		MPASS(de->td_namelen < sizeof(d.d_name));
@@ -835,6 +844,31 @@ tmpfs_dir_getdents(struct tmpfs_node *node, struct uio *uio, off_t *cntp)
 
 	node->tn_status |= TMPFS_NODE_ACCESSED;
 	return error;
+}
+
+int
+tmpfs_dir_whiteout_add(struct vnode *dvp, struct componentname *cnp)
+{
+	struct tmpfs_dirent *de;
+	int error;
+
+	error = tmpfs_alloc_dirent(VFS_TO_TMPFS(dvp->v_mount), NULL,
+	    cnp->cn_nameptr, cnp->cn_namelen, &de);
+	if (error != 0)
+		return (error);
+	tmpfs_dir_attach(dvp, de);
+	return (0);
+}
+
+void
+tmpfs_dir_whiteout_remove(struct vnode *dvp, struct componentname *cnp)
+{
+	struct tmpfs_dirent *de;
+
+	de = tmpfs_dir_lookup(VP_TO_TMPFS_DIR(dvp), NULL, cnp);
+	MPASS(de != NULL && de->td_node == NULL);
+	tmpfs_dir_detach(dvp, de);
+	tmpfs_free_dirent(VFS_TO_TMPFS(dvp->v_mount), de, TRUE);
 }
 
 /* --------------------------------------------------------------------- */

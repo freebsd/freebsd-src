@@ -58,7 +58,7 @@
  *		in the range 5 to 9.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 900016	/* Master, propagated to newvers */
+#define __FreeBSD_version 900023	/* Master, propagated to newvers */
 
 #ifndef LOCORE
 #include <sys/types.h>
@@ -73,7 +73,7 @@
 #include <sys/syslimits.h>
 
 #define	MAXCOMLEN	19		/* max command name remembered */
-#define	MAXINTERP	32		/* max interpreter file name length */
+#define	MAXINTERP	PATH_MAX	/* max interpreter file name length */
 #define	MAXLOGNAME	17		/* max login name length (incl. NUL) */
 #define	MAXUPRC		CHILD_MAX	/* max simultaneous processes */
 #define	NCARGS		ARG_MAX		/* max bytes for an exec function */

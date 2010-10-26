@@ -3036,12 +3036,13 @@ nfsrv_readdirplus(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	struct iovec iv;
 	struct vattr va, at, *vap = &va;
 	struct nfs_fattr *fp;
-	int len, nlen, rem, xfer, tsiz, i, error = 0, getret = 1;
+	int len, nlen, rem, xfer, tsiz, i, error = 0, error1, getret = 1;
 	int siz, cnt, fullsiz, eofflag, rdonly, dirlen, ncookies;
 	u_quad_t off, toff, verf;
 	u_long *cookies = NULL, *cookiep; /* needs to be int64_t or off_t */
 	int v3 = (nfsd->nd_flag & ND_NFSV3);
-	int vfslocked;
+	int usevget = 1, vfslocked;
+	struct componentname cn;
 
 	nfsdbprintf(("%s %d\n", __FILE__, __LINE__));
 	vfslocked = 0;
@@ -3186,28 +3187,6 @@ again:
 		goto again;
 	}
 
-	/*
-	 * Probe one of the directory entries to see if the filesystem
-	 * supports VGET.
-	 */
-	error = VFS_VGET(vp->v_mount, dp->d_fileno, LK_EXCLUSIVE, &nvp);
-	if (error) {
-		if (error == EOPNOTSUPP)
-			error = NFSERR_NOTSUPP;
-		else
-			error = NFSERR_SERVERFAULT;
-		vrele(vp);
-		vp = NULL;
-		free((caddr_t)cookies, M_TEMP);
-		free((caddr_t)rbuf, M_TEMP);
-		nfsm_reply(NFSX_V3POSTOPATTR);
-		nfsm_srvpostop_attr(getret, &at);
-		error = 0;
-		goto nfsmout;
-	}
-	vput(nvp);
-	nvp = NULL;
-
 	dirlen = len = NFSX_V3POSTOPATTR + NFSX_V3COOKIEVERF +
 	    2 * NFSX_UNSIGNED;
 	nfsm_reply(cnt);
@@ -3224,35 +3203,62 @@ again:
 			nlen = dp->d_namlen;
 			rem = nfsm_rndup(nlen)-nlen;
 
-			/*
-			 * For readdir_and_lookup get the vnode using
-			 * the file number.
-			 */
-			if (VFS_VGET(vp->v_mount, dp->d_fileno, LK_EXCLUSIVE,
-			    &nvp))
-				goto invalid;
+			if (usevget) {
+				/*
+				 * For readdir_and_lookup get the vnode using
+				 * the file number.
+				 */
+				error = VFS_VGET(vp->v_mount, dp->d_fileno,
+				    LK_SHARED, &nvp);
+				if (error != 0 && error != EOPNOTSUPP) {
+					error = 0;
+					goto invalid;
+				} else if (error == EOPNOTSUPP) {
+					/*
+					 * VFS_VGET() not supported?
+					 * Let's switch to VOP_LOOKUP().
+					 */
+					error = 0;
+					usevget = 0;
+					cn.cn_nameiop = LOOKUP;
+					cn.cn_flags = ISLASTCN | NOFOLLOW | \
+					    LOCKSHARED | LOCKLEAF | MPSAFE;
+					cn.cn_lkflags = LK_SHARED | LK_RETRY;
+					cn.cn_cred = cred;
+					cn.cn_thread = curthread;
+				}
+			}
+			if (!usevget) {
+				cn.cn_nameptr = dp->d_name;
+				cn.cn_namelen = dp->d_namlen;
+				if (dp->d_namlen == 2 &&
+				    dp->d_name[0] == '.' &&
+				    dp->d_name[1] == '.') {
+					cn.cn_flags |= ISDOTDOT;
+				} else {
+					cn.cn_flags &= ~ISDOTDOT;
+				}
+				if (!VOP_ISLOCKED(vp))
+					vn_lock(vp, LK_SHARED | LK_RETRY);
+				if ((vp->v_vflag & VV_ROOT) != 0 &&
+				    (cn.cn_flags & ISDOTDOT) != 0) {
+					vref(vp);
+					nvp = vp;
+				} else if (VOP_LOOKUP(vp, &nvp, &cn) != 0)
+					goto invalid;
+			}
+
 			bzero((caddr_t)nfhp, NFSX_V3FH);
-			nfhp->fh_fsid =
-				nvp->v_mount->mnt_stat.f_fsid;
-			/*
-			 * XXXRW: Assert the mountpoints are the same so that
-			 * we know that acquiring Giant based on the
-			 * directory is the right thing for the child.
-			 */
-			KASSERT(nvp->v_mount == vp->v_mount,
-			    ("nfsrv_readdirplus: nvp mount != vp mount"));
-			if (VOP_VPTOFH(nvp, &nfhp->fh_fid)) {
+			nfhp->fh_fsid = nvp->v_mount->mnt_stat.f_fsid;
+			if ((error1 = VOP_VPTOFH(nvp, &nfhp->fh_fid)) == 0)
+				error1 = VOP_GETATTR(nvp, vap, cred);
+			if (vp == nvp)
+				vunref(nvp);
+			else
 				vput(nvp);
-				nvp = NULL;
-				goto invalid;
-			}
-			if (VOP_GETATTR(nvp, vap, cred)) {
-				vput(nvp);
-				nvp = NULL;
-				goto invalid;
-			}
-			vput(nvp);
 			nvp = NULL;
+			if (error1 != 0)
+				goto invalid;
 
 			/*
 			 * If either the dircount or maxcount will be
@@ -3336,7 +3342,10 @@ invalid:
 		cookiep++;
 		ncookies--;
 	}
-	vrele(vp);
+	if (!usevget && VOP_ISLOCKED(vp))
+		vput(vp);
+	else
+		vrele(vp);
 	vp = NULL;
 	nfsm_clget;
 	*tl = nfsrv_nfs_false;

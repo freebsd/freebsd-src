@@ -1104,12 +1104,11 @@ static int
 tl_attach(dev)
 	device_t		dev;
 {
-	int			i;
 	u_int16_t		did, vid;
 	struct tl_type		*t;
 	struct ifnet		*ifp;
 	struct tl_softc		*sc;
-	int			unit, error = 0, rid;
+	int			error, flags, i, rid, unit;
 	u_char			eaddr[6];
 
 	vid = pci_get_vendor(dev);
@@ -1207,10 +1206,9 @@ tl_attach(dev)
 
 	bzero(sc->tl_ldata, sizeof(struct tl_list_data));
 
-	sc->tl_dinfo = t;
-	if (t->tl_vid == COMPAQ_VENDORID || t->tl_vid == TI_VENDORID)
+	if (vid == COMPAQ_VENDORID || vid == TI_VENDORID)
 		sc->tl_eeaddr = TL_EEPROM_EADDR;
-	if (t->tl_vid == OLICOM_VENDORID)
+	if (vid == OLICOM_VENDORID)
 		sc->tl_eeaddr = TL_EEPROM_EADDR_OC;
 
 	/* Reset the adapter. */
@@ -1241,7 +1239,7 @@ tl_attach(dev)
          * word. To make things even more confusing, neither 00:00:28
          * nor 00:00:24 appear in the IEEE OUI database.
          */
-        if (sc->tl_dinfo->tl_vid == OLICOM_VENDORID) {
+        if (vid == OLICOM_VENDORID) {
                 for (i = 0; i < ETHER_ADDR_LEN; i += 2) {
                         u_int16_t               *p;
                         p = (u_int16_t *)&eaddr[i];
@@ -1276,9 +1274,25 @@ tl_attach(dev)
 	 * Do MII setup. If no PHYs are found, then this is a
 	 * bitrate ThunderLAN chip that only supports 10baseT
 	 * and AUI/BNC.
+	 * XXX mii_attach() can fail for reason different than
+	 * no PHYs found!
 	 */
-	if (mii_phy_probe(dev, &sc->tl_miibus,
-	    tl_ifmedia_upd, tl_ifmedia_sts)) {
+	flags = 0;
+	if (vid == COMPAQ_VENDORID) {
+		if (did == COMPAQ_DEVICEID_NETEL_10_100_PROLIANT ||
+		    did == COMPAQ_DEVICEID_NETFLEX_3P_INTEGRATED ||
+		    did == COMPAQ_DEVICEID_NETFLEX_3P_BNC ||
+		    did == COMPAQ_DEVICEID_NETEL_10_T2_UTP_COAX)
+			flags |= MIIF_MACPRIV0;
+		if (did == COMPAQ_DEVICEID_NETEL_10 ||
+		    did == COMPAQ_DEVICEID_NETEL_10_100_DUAL ||
+		    did == COMPAQ_DEVICEID_NETFLEX_3P ||
+		    did == COMPAQ_DEVICEID_NETEL_10_100_EMBEDDED)
+			flags |= MIIF_MACPRIV1;
+	} else if (vid == OLICOM_VENDORID && did == OLICOM_DEVICEID_OC2183)
+			flags |= MIIF_MACPRIV0 | MIIF_MACPRIV1;
+	if (mii_attach(dev, &sc->tl_miibus, ifp, tl_ifmedia_upd,
+	    tl_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0)) {
 		struct ifmedia		*ifm;
 		sc->tl_bitrate = 1;
 		ifmedia_init(&sc->ifmedia, 0, tl_ifmedia_upd, tl_ifmedia_sts);

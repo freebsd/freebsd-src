@@ -2609,6 +2609,8 @@ device		uhci
 device		ohci
 # EHCI controller
 device		ehci
+# XHCI controller
+device		xhci
 # SL811 Controller
 #device		slhci
 # General USB code (mandatory for USB)

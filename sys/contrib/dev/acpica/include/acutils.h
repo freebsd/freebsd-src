@@ -818,24 +818,6 @@ AcpiUtStrtoul64 (
     UINT32                  Base,
     UINT64                  *RetInteger);
 
-void ACPI_INTERNAL_VAR_XFACE
-AcpiUtPredefinedWarning (
-    const char              *ModuleName,
-    UINT32                  LineNumber,
-    char                    *Pathname,
-    UINT8                   NodeFlags,
-    const char              *Format,
-    ...);
-
-void ACPI_INTERNAL_VAR_XFACE
-AcpiUtPredefinedInfo (
-    const char              *ModuleName,
-    UINT32                  LineNumber,
-    char                    *Pathname,
-    UINT8                   NodeFlags,
-    const char              *Format,
-    ...);
-
 /* Values for Base above (16=Hex, 10=Decimal) */
 
 #define ACPI_ANY_BASE        0
@@ -985,7 +967,44 @@ AcpiUtCreateList (
     UINT16                  ObjectSize,
     ACPI_MEMORY_LIST        **ReturnCache);
 
+#endif /* ACPI_DBG_TRACK_ALLOCATIONS */
 
-#endif
+
+/*
+ * utxferror - various error/warning output functions
+ */
+void ACPI_INTERNAL_VAR_XFACE
+AcpiUtPredefinedWarning (
+    const char              *ModuleName,
+    UINT32                  LineNumber,
+    char                    *Pathname,
+    UINT8                   NodeFlags,
+    const char              *Format,
+    ...);
+
+void ACPI_INTERNAL_VAR_XFACE
+AcpiUtPredefinedInfo (
+    const char              *ModuleName,
+    UINT32                  LineNumber,
+    char                    *Pathname,
+    UINT8                   NodeFlags,
+    const char              *Format,
+    ...);
+
+void
+AcpiUtNamespaceError (
+    const char              *ModuleName,
+    UINT32                  LineNumber,
+    const char              *InternalName,
+    ACPI_STATUS             LookupStatus);
+
+void
+AcpiUtMethodError (
+    const char              *ModuleName,
+    UINT32                  LineNumber,
+    const char              *Message,
+    ACPI_NAMESPACE_NODE     *Node,
+    const char              *Path,
+    ACPI_STATUS             LookupStatus);
 
 #endif /* _ACUTILS_H */

@@ -1059,8 +1059,10 @@ do_wait(struct thread *td, void *addr, u_long id,
 		umtxq_lock(&uq->uq_key);
 		for (;;) {
 			error = umtxq_sleep(uq, "uwait", tvtohz(&tv));
-			if (!(uq->uq_flags & UQF_UMTXQ))
+			if (!(uq->uq_flags & UQF_UMTXQ)) {
+				error = 0;
 				break;
+			}
 			if (error != ETIMEDOUT)
 				break;
 			umtxq_unlock(&uq->uq_key);
@@ -1586,20 +1588,15 @@ umtxq_sleep_pi(struct umtx_q *uq, struct umtx_pi *pi,
 	umtxq_insert(uq);
 	mtx_lock_spin(&umtx_lock);
 	if (pi->pi_owner == NULL) {
-		/* XXX
-		 * Current, We only support process private PI-mutex,
-		 * we need a faster way to find an owner thread for
-		 * process-shared mutex (not available yet).
-		 */
 		mtx_unlock_spin(&umtx_lock);
-		PROC_LOCK(curproc);
-		td1 = thread_find(curproc, owner);
+		/* XXX Only look up thread in current process. */
+		td1 = tdfind(owner, curproc->p_pid);
 		mtx_lock_spin(&umtx_lock);
 		if (td1 != NULL && pi->pi_owner == NULL) {
 			uq1 = td1->td_umtxq;
 			umtx_pi_setowner(pi, td1);
 		}
-		PROC_UNLOCK(curproc);
+		PROC_UNLOCK(td1->td_proc);
 	}
 
 	TAILQ_FOREACH(uq1, &pi->pi_blocked, uq_lockq) {
@@ -2404,25 +2401,14 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 		}
 	}
 
-	if (error != 0) {
-		if ((uq->uq_flags & UQF_UMTXQ) == 0) {
-			/*
-			 * If we concurrently got do_cv_signal()d
-			 * and we got an error or UNIX signals or a timeout,
-			 * then, perform another umtxq_signal to avoid
-			 * consuming the wakeup. This may cause supurious
-			 * wakeup for another thread which was just queued,
-			 * but SUSV3 explicitly allows supurious wakeup to
-			 * occur, and indeed a kernel based implementation
-			 * can not avoid it.
-			 */ 
-			if (!umtxq_signal(&uq->uq_key, 1))
-				error = 0;
-		}
+	if ((uq->uq_flags & UQF_UMTXQ) == 0)
+		error = 0;
+	else {
+		umtxq_remove(uq);
 		if (error == ERESTART)
 			error = EINTR;
 	}
-	umtxq_remove(uq);
+
 	umtxq_unlock(&uq->uq_key);
 	umtx_key_release(&uq->uq_key);
 	return (error);
@@ -2891,15 +2877,13 @@ do_sem_wait(struct thread *td, struct _usem *sem, struct timespec *timeout)
 		}
 	}
 
-	if (error != 0) {
-		if ((uq->uq_flags & UQF_UMTXQ) == 0) {
-			if (!umtxq_signal(&uq->uq_key, 1))
-				error = 0;
-		}
+	if ((uq->uq_flags & UQF_UMTXQ) == 0)
+		error = 0;
+	else {
+		umtxq_remove(uq);
 		if (error == ERESTART)
 			error = EINTR;
 	}
-	umtxq_remove(uq);
 	umtxq_unlock(&uq->uq_key);
 	umtx_key_release(&uq->uq_key);
 	return (error);

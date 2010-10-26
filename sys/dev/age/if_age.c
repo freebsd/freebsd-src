@@ -210,8 +210,6 @@ age_miibus_readreg(device_t dev, int phy, int reg)
 	int i;
 
 	sc = device_get_softc(dev);
-	if (phy != sc->age_phyaddr)
-		return (0);
 
 	CSR_WRITE_4(sc, AGE_MDIO, MDIO_OP_EXECUTE | MDIO_OP_READ |
 	    MDIO_SUP_PREAMBLE | MDIO_CLK_25_4 | MDIO_REG_ADDR(reg));
@@ -241,8 +239,6 @@ age_miibus_writereg(device_t dev, int phy, int reg, int val)
 	int i;
 
 	sc = device_get_softc(dev);
-	if (phy != sc->age_phyaddr)
-		return (0);
 
 	CSR_WRITE_4(sc, AGE_MDIO, MDIO_OP_EXECUTE | MDIO_OP_WRITE |
 	    (val & MDIO_DATA_MASK) << MDIO_DATA_SHIFT |
@@ -621,9 +617,11 @@ age_attach(device_t dev)
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Set up MII bus. */
-	if ((error = mii_phy_probe(dev, &sc->age_miibus, age_mediachange,
-	    age_mediastatus)) != 0) {
-		device_printf(dev, "no PHY found!\n");
+	error = mii_attach(dev, &sc->age_miibus, ifp, age_mediachange,
+	    age_mediastatus, BMSR_DEFCAPMASK, sc->age_phyaddr, MII_OFFSET_ANY,
+	    0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
@@ -1565,6 +1563,7 @@ age_encap(struct age_softc *sc, struct mbuf **m_head)
 				*m_head = NULL;
 				return (ENOBUFS);
 			}
+			ip = (struct ip *)(mtod(m, char *) + ip_off);
 			tcp = (struct tcphdr *)(mtod(m, char *) + poff);
 			/*
 			 * L1 requires IP/TCP header size and offset as
@@ -1781,6 +1780,7 @@ age_watchdog(struct age_softc *sc)
 	if ((sc->age_flags & AGE_FLAG_LINK) == 0) {
 		if_printf(sc->age_ifp, "watchdog timeout (missed link)\n");
 		ifp->if_oerrors++;
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		age_init_locked(sc);
 		return;
 	}
@@ -1793,6 +1793,7 @@ age_watchdog(struct age_softc *sc)
 	}
 	if_printf(sc->age_ifp, "watchdog timeout\n");
 	ifp->if_oerrors++;
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	age_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		taskqueue_enqueue(sc->age_tq, &sc->age_tx_task);
@@ -1817,8 +1818,10 @@ age_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		else if (ifp->if_mtu != ifr->ifr_mtu) {
 			AGE_LOCK(sc);
 			ifp->if_mtu = ifr->ifr_mtu;
-			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				age_init_locked(sc);
+			}
 			AGE_UNLOCK(sc);
 		}
 		break;
@@ -2165,6 +2168,7 @@ age_int_task(void *arg, int pending)
 			if ((status & INTR_DMA_WR_TO_RST) != 0)
 				device_printf(sc->age_dev,
 				    "DMA write error! -- resetting\n");
+			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			age_init_locked(sc);
 		}
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -2528,6 +2532,9 @@ age_init_locked(struct age_softc *sc)
 
 	ifp = sc->age_ifp;
 	mii = device_get_softc(sc->age_miibus);
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
 
 	/*
 	 * Cancel any pending I/O.

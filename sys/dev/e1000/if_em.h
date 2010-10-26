@@ -284,6 +284,10 @@ struct tx_ring {
         volatile u16            tx_avail;
 	u32			tx_tso;		/* last tx was tso */
         u16			last_hw_offload;
+	u8			last_hw_ipcso;
+	u8			last_hw_ipcss;
+	u8			last_hw_tucso;
+	u8			last_hw_tucss;
 #if __FreeBSD_version >= 800000
 	struct buf_ring         *br;
 #endif
@@ -320,10 +324,11 @@ struct rx_ring {
         void                    *tag;
         struct resource         *res;
         bus_dma_tag_t           rxtag;
-        bus_dmamap_t            rx_sparemap;
+	bool			discard;
 
         /* Soft stats */
         unsigned long		rx_irq;
+        unsigned long		rx_discarded;
         unsigned long		rx_packets;
         unsigned long		rx_bytes;
 };
@@ -354,6 +359,7 @@ struct adapter {
 	int		if_flags;
 	int		max_frame_size;
 	int		min_frame_size;
+	int		pause_frames;
 	struct mtx	core_mtx;
 	int		em_insert_vlan_header;
 	u32		ims;
@@ -390,6 +396,9 @@ struct adapter {
 	u32		wol;
 	bool		has_manage;
 	bool		has_amt;
+
+	/* Multicast array memory */
+	u8		*mta;
 
 	/* Info about the board itself */
 	uint8_t		link_active;

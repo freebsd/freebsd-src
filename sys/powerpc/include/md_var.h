@@ -47,8 +47,6 @@ extern	int	busdma_swi_pending;
 extern	vm_offset_t	kstack0;
 extern	vm_offset_t	kstack0_phys;
 
-extern	u_long	ns_per_tick;
-
 extern	int powerpc_pow_enabled;
 extern	int cacheline_size;
 extern  int hw_direct_map;

@@ -45,8 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/mii/miivar.h>
 #include "miidevs.h"
 
-#include <dev/mii/axphyreg.h>
-
 #include "miibus_if.h"
 
 static int 	axphy_probe(device_t dev);
@@ -96,15 +94,16 @@ axphy_attach(device_t dev)
 	sc = device_get_softc(dev);
 	ma = device_get_ivars(dev);
 	sc->mii_dev = device_get_parent(dev);
-	mii = device_get_softc(sc->mii_dev);
+	mii = ma->mii_data;
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
-	sc->mii_inst = mii->mii_instance;
+	sc->mii_flags = miibus_get_flags(dev);
+	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = axphy_service;
 	sc->mii_pdata = mii;
+
 	sc->mii_flags |= MIIF_NOISOLATE;
-	mii->mii_instance++;
 
 	mii_phy_reset(sc);
 
@@ -122,22 +121,12 @@ axphy_attach(device_t dev)
 static int
 axphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
-	int reg;
 
 	switch (cmd) {
 	case MII_POLLSTAT:
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		break;
 
 	case MII_MEDIACHG:
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-			reg = PHY_READ(sc, MII_BMCR);
-			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
-			return (0);
-		}
-
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
@@ -148,8 +137,6 @@ axphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_TICK:
-		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
-			return (0);
 		if (mii_phy_tick(sc) == EJUSTRETURN)
 			return (0);
 		break;
@@ -201,6 +188,8 @@ axphy_status(struct mii_softc *sc)
 			mii->mii_media_active |= IFM_10_T;
 		if (scr & SCR_FDX)
 			mii->mii_media_active |= IFM_FDX;
+		else
+			mii->mii_media_active |= IFM_HDX;
 #endif
 	} else
 		mii->mii_media_active = ife->ifm_media;

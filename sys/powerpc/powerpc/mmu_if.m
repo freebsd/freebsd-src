@@ -111,6 +111,24 @@ CODE {
 	{
 		return (NULL);
 	}
+
+	static void *mmu_null_mapdev_attr(mmu_t mmu, vm_offset_t pa,
+	    vm_size_t size, vm_memattr_t ma)
+	{
+		return MMU_MAPDEV(mmu, pa, size);
+	}
+
+	static void mmu_null_kenter_attr(mmu_t mmu, vm_offset_t va,
+	    vm_offset_t pa, vm_memattr_t ma)
+	{
+		MMU_KENTER(mmu, va, pa);
+	}
+
+	static void mmu_null_page_set_memattr(mmu_t mmu, vm_page_t m,
+	    vm_memattr_t ma)
+	{
+		return;
+	}
 };
 
 
@@ -747,6 +765,37 @@ METHOD void * mapdev {
 	vm_size_t	_size;
 };
 
+/**
+ * @brief Create a kernel mapping for a given physical address range.
+ * Called by bus code on behalf of device drivers. The mapping does not
+ * have to be a virtual address: it can be a direct-mapped physical address
+ * if that is supported by the MMU.
+ *
+ * @param _pa		start physical address
+ * @param _size		size in bytes of mapping
+ * @param _attr		cache attributes
+ *
+ * @retval addr		address of mapping.
+ */
+METHOD void * mapdev_attr {
+	mmu_t		_mmu;
+	vm_offset_t	_pa;
+	vm_size_t	_size;
+	vm_memattr_t	_attr;
+} DEFAULT mmu_null_mapdev_attr;
+
+/**
+ * @brief Change cache control attributes for a page. Should modify all
+ * mappings for that page.
+ *
+ * @param _m		page to modify
+ * @param _ma		new cache control attributes
+ */
+METHOD void page_set_memattr {
+	mmu_t		_mmu;
+	vm_page_t	_pg;
+	vm_memattr_t	_ma;
+} DEFAULT mmu_null_page_set_memattr;
 
 /**
  * @brief Remove the mapping created by mapdev. Called when a driver
@@ -787,6 +836,19 @@ METHOD void kenter {
 	vm_offset_t	_pa;
 };
 
+/**
+ * @brief Map a wired page into kernel virtual address space
+ *
+ * @param _va		mapping virtual address
+ * @param _pa		mapping physical address
+ * @param _ma		mapping cache control attributes
+ */
+METHOD void kenter_attr {
+	mmu_t		_mmu;
+	vm_offset_t	_va;
+	vm_offset_t	_pa;
+	vm_memattr_t	_ma;
+} DEFAULT mmu_null_kenter_attr;
 
 /**
  * @brief Determine if the given physical address range has been direct-mapped.

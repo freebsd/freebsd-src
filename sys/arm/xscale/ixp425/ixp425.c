@@ -369,7 +369,7 @@ ixp425_hinted_child(device_t bus, const char *dname, int dunit)
 }
 
 static device_t
-ixp425_add_child(device_t dev, int order, const char *name, int unit)
+ixp425_add_child(device_t dev, u_int order, const char *name, int unit)
 {
 	device_t child;
 	struct ixp425_ivar *ivar;

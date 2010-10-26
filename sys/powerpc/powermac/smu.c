@@ -165,6 +165,7 @@ static void	smu_manage_fans(device_t smu);
 static void	smu_set_sleepled(void *xdev, int onoff);
 static int	smu_server_mode(SYSCTL_HANDLER_ARGS);
 static void	smu_doorbell_intr(void *xdev);
+static void	smu_shutdown(void *xdev, int howto);
 
 /* where to find the doorbell GPIO */
 
@@ -390,6 +391,12 @@ smu_attach(device_t dev)
 	 * Connect RTC interface.
 	 */
 	clock_register(dev, 1000);
+
+	/*
+	 * Learn about shutdown events
+	 */
+	EVENTHANDLER_REGISTER(shutdown_final, smu_shutdown, dev,
+	    SHUTDOWN_PRI_LAST);
 
 	return (bus_generic_attach(dev));
 }
@@ -1113,6 +1120,25 @@ smu_server_mode(SYSCTL_HANDLER_ARGS)
 	cmd.data[2] = SMU_WAKEUP_AC_INSERT;
 
 	return (smu_run_cmd(smu, &cmd, 1));
+}
+
+static void
+smu_shutdown(void *xdev, int howto)
+{
+	device_t smu = xdev;
+	struct smu_cmd cmd;
+
+	cmd.cmd = SMU_POWER;
+	if (howto & RB_HALT)
+		strcpy(cmd.data, "SHUTDOWN");
+	else
+		strcpy(cmd.data, "RESTART");
+
+	cmd.len = strlen(cmd.data);
+
+	smu_run_cmd(smu, &cmd, 1);
+
+	for (;;);
 }
 
 static int

@@ -395,8 +395,8 @@ AcpiEvPciConfigRegionSetup (
     }
 
     /*
-     * Get the PCI device and function numbers from the _ADR object contained
-     * in the parent's scope.
+     * Get the PCI device and function numbers from the _ADR object
+     * contained in the parent's scope.
      */
     Status = AcpiUtEvaluateNumericObject (METHOD_NAME__ADR,
                 PciDeviceNode, &PciValue);
@@ -429,9 +429,14 @@ AcpiEvPciConfigRegionSetup (
         PciId->Bus = ACPI_LOWORD (PciValue);
     }
 
-    /* Complete this device's PciId */
+    /* Complete/update the PCI ID for this device */
 
-    AcpiOsDerivePciId (PciRootNode, RegionObj->Region.Node, &PciId);
+    Status = AcpiHwDerivePciId (PciId, PciRootNode, RegionObj->Region.Node);
+    if (ACPI_FAILURE (Status))
+    {
+        ACPI_FREE (PciId);
+        return_ACPI_STATUS (Status);
+    }
 
     *RegionContext = PciId;
     return_ACPI_STATUS (AE_OK);

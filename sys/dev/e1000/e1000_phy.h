@@ -230,12 +230,14 @@ s32  e1000_get_cable_length_82577(struct e1000_hw *hw);
 #define E1000_KMRNCTRLSTA_OFFSET          0x001F0000
 #define E1000_KMRNCTRLSTA_OFFSET_SHIFT    16
 #define E1000_KMRNCTRLSTA_REN             0x00200000
+#define E1000_KMRNCTRLSTA_CTRL_OFFSET     0x1    /* Kumeran Control */
 #define E1000_KMRNCTRLSTA_DIAG_OFFSET     0x3    /* Kumeran Diagnostic */
 #define E1000_KMRNCTRLSTA_TIMEOUTS        0x4    /* Kumeran Timeouts */
 #define E1000_KMRNCTRLSTA_INBAND_PARAM    0x9    /* Kumeran InBand Parameters */
 #define E1000_KMRNCTRLSTA_DIAG_NELPBK     0x1000 /* Nearend Loopback mode */
 #define E1000_KMRNCTRLSTA_K1_CONFIG        0x7
 #define E1000_KMRNCTRLSTA_K1_ENABLE        0x0002
+#define E1000_KMRNCTRLSTA_HD_CTRL         0x10   /* Kumeran HD Control */
 
 #define IFE_PHY_EXTENDED_STATUS_CONTROL 0x10
 #define IFE_PHY_SPECIAL_CONTROL     0x11 /* 100BaseTx PHY Special Control */

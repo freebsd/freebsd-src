@@ -126,8 +126,6 @@ struct gem_softc {
 	bus_dma_tag_t	sc_cdmatag;	/* control data bus DMA tag */
 	bus_dmamap_t	sc_dmamap;	/* bus DMA handle */
 
-	int		sc_phyad;	/* PHY to use or -1 for any */
-
 	u_int		sc_variant;
 #define	GEM_UNKNOWN		0	/* don't know */
 #define	GEM_SUN_GEM		1	/* Sun GEM */

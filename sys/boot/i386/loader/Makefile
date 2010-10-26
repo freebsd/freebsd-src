@@ -6,7 +6,7 @@ MK_SSP=		no
 LOADER?=	loader
 PROG=		${LOADER}.sym
 INTERNALPROG=
-NEWVERSWHAT?=	"bootstrap loader" i386
+NEWVERSWHAT?=	"bootstrap loader" x86
 
 # architecture-specific loader code
 SRCS=		main.c conf.c vers.c
@@ -119,7 +119,7 @@ LDADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBZFS} ${LIBI386} ${LIBSTAND}
 
 .include <bsd.prog.mk>
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 beforedepend ${OBJS}: machine
 CLEANFILES+=	machine
 machine:

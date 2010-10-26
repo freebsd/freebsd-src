@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_ktr.h"
-#include "opt_ktrace.h"
 
 #include <sys/param.h>
 #include <sys/kdb.h>
@@ -65,10 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/vmmeter.h>
-#ifdef KTRACE
-#include <sys/uio.h>
-#include <sys/ktrace.h>
-#endif
 #include <security/audit/audit.h>
 
 #include <dev/ofw/openfirm.h>

@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/lockf.h>
 #include <sys/mutex.h>
+#include <sys/taskqueue.h>
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -90,6 +91,8 @@ unsigned int nfs_iodmax = 20;
 /* Minimum number of nfsiod kthreads to keep as spares */
 static unsigned int nfs_iodmin = 0;
 
+static int nfs_nfsiodnew_sync(void);
+
 static int
 sysctl_iodmin(SYSCTL_HANDLER_ARGS)
 {
@@ -113,7 +116,7 @@ sysctl_iodmin(SYSCTL_HANDLER_ARGS)
 	 * than the new minimum, create some more.
 	 */
 	for (i = nfs_iodmin - nfs_numasync; i > 0; i--)
-		nfs_nfsiodnew(0);
+		nfs_nfsiodnew_sync();
 out:
 	mtx_unlock(&nfs_iod_mtx);	
 	return (0);
@@ -159,42 +162,55 @@ SYSCTL_PROC(_vfs_nfs, OID_AUTO, iodmax, CTLTYPE_UINT | CTLFLAG_RW, 0,
     sizeof (nfs_iodmax), sysctl_iodmax, "IU",
     "Max number of nfsiod kthreads");
 
-int
-nfs_nfsiodnew(int set_iodwant)
+static int
+nfs_nfsiodnew_sync(void)
 {
 	int error, i;
-	int newiod;
 
-	if (nfs_numasync >= nfs_iodmax)
-		return (-1);
-	newiod = -1;
-	for (i = 0; i < nfs_iodmax; i++)
+	mtx_assert(&nfs_iod_mtx, MA_OWNED);
+	for (i = 0; i < nfs_iodmax; i++) {
 		if (nfs_asyncdaemon[i] == 0) {
-			nfs_asyncdaemon[i]++;
-			newiod = i;
+			nfs_asyncdaemon[i] = 1;
 			break;
 		}
-	if (newiod == -1)
-		return (-1);
-	if (set_iodwant > 0)
-		nfs_iodwant[i] = NFSIOD_CREATED_FOR_NFS_ASYNCIO;
-	mtx_unlock(&nfs_iod_mtx);
-	error = kproc_create(nfssvc_iod, nfs_asyncdaemon + i, NULL, RFHIGHPID,
-	    0, "nfsiod %d", newiod);
-	mtx_lock(&nfs_iod_mtx);
-	if (error) {
-		if (set_iodwant > 0)
-			nfs_iodwant[i] = NFSIOD_NOT_AVAILABLE;
-		return (-1);
 	}
-	nfs_numasync++;
-	return (newiod);
+	if (i == nfs_iodmax)
+		return (0);
+	mtx_unlock(&nfs_iod_mtx);
+	error = kproc_create(nfssvc_iod, nfs_asyncdaemon + i, NULL,
+	    RFHIGHPID, 0, "nfsiod %d", i);
+	mtx_lock(&nfs_iod_mtx);
+	if (error == 0) {
+		nfs_numasync++;
+		nfs_iodwant[i] = NFSIOD_AVAILABLE;
+	} else
+		nfs_asyncdaemon[i] = 0;
+	return (error);
+}
+
+void
+nfs_nfsiodnew_tq(__unused void *arg, int pending)
+{
+
+	mtx_lock(&nfs_iod_mtx);
+	while (pending > 0) {
+		pending--;
+		nfs_nfsiodnew_sync();
+	}
+	mtx_unlock(&nfs_iod_mtx);
+}
+
+void
+nfs_nfsiodnew(void)
+{
+
+	mtx_assert(&nfs_iod_mtx, MA_OWNED);
+	taskqueue_enqueue(taskqueue_thread, &nfs_nfsiodnew_task);
 }
 
 static void
 nfsiod_setup(void *dummy)
 {
-	int i;
 	int error;
 
 	TUNABLE_INT_FETCH("vfs.nfs.iodmin", &nfs_iodmin);
@@ -203,8 +219,8 @@ nfsiod_setup(void *dummy)
 	if (nfs_iodmin > NFS_MAXASYNCDAEMON)
 		nfs_iodmin = NFS_MAXASYNCDAEMON;
 
-	for (i = 0; i < nfs_iodmin; i++) {
-		error = nfs_nfsiodnew(0);
+	while (nfs_numasync < nfs_iodmin) {
+		error = nfs_nfsiodnew_sync();
 		if (error == -1)
 			panic("nfsiod_setup: nfs_nfsiodnew failed");
 	}

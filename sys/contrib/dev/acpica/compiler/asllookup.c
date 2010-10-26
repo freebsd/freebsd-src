@@ -180,11 +180,7 @@ LsDoOnePathname (
     void                    *Context,
     void                    **ReturnValue);
 
-void
-LsSetupNsList (
-    void                    *Handle);
-
-ACPI_PARSE_OBJECT *
+static ACPI_PARSE_OBJECT *
 LkGetNameOp (
     ACPI_PARSE_OBJECT       *Op);
 
@@ -623,7 +619,7 @@ LkObjectExists (
  *
  ******************************************************************************/
 
-ACPI_PARSE_OBJECT *
+static ACPI_PARSE_OBJECT *
 LkGetNameOp (
     ACPI_PARSE_OBJECT       *Op)
 {

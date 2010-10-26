@@ -148,15 +148,21 @@
 #define ACPI_CONSTANT_EVAL_ONLY
 #define ACPI_LARGE_NAMESPACE_NODE
 #define ACPI_DATA_TABLE_DISASSEMBLY
+#define ACPI_SINGLE_THREADED
 #endif
 
-/* AcpiExec configuration */
+/* AcpiExec and AcpiBin configuration */
 
 #ifdef ACPI_EXEC_APP
 #define ACPI_APPLICATION
 #define ACPI_FULL_DEBUG
 #define ACPI_MUTEX_DEBUG
 #define ACPI_DBG_TRACK_ALLOCATIONS
+#endif
+
+#ifdef ACPI_BIN_APP
+#define ACPI_APPLICATION
+#define ACPI_SINGLE_THREADED
 #endif
 
 /* Linkable ACPICA library */
@@ -273,6 +279,12 @@
 
 #ifndef ACPI_FLUSH_CPU_CACHE
 #define ACPI_FLUSH_CPU_CACHE()
+#endif
+
+/* "inline" keywords - configurable since inline is not standardized */
+
+#ifndef ACPI_INLINE
+#define ACPI_INLINE
 #endif
 
 /*

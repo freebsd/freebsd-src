@@ -661,7 +661,7 @@ lbn_level(ufs_lbn_t lbn)
 
 /*
  * Size of the segment record header.  There is at most one for each disk
- * block n the journal.  The segment header is followed by an array of
+ * block in the journal.  The segment header is followed by an array of
  * records.  fsck depends on the first element in each record being 'op'
  * and the second being 'ino'.  Segments may span multiple disk blocks but
  * the header is present on each.

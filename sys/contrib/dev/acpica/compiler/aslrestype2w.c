@@ -338,12 +338,12 @@ RsDoWordIoDescriptor (
     /* Validate the Min/Max/Len/Gran values */
 
     RsLargeAddressCheck (
-        Descriptor->Address16.Minimum,
-        Descriptor->Address16.Maximum,
-        Descriptor->Address16.AddressLength,
-        Descriptor->Address16.Granularity,
+        (UINT64) Descriptor->Address16.Minimum,
+        (UINT64) Descriptor->Address16.Maximum,
+        (UINT64) Descriptor->Address16.AddressLength,
+        (UINT64) Descriptor->Address16.Granularity,
         Descriptor->Address16.Flags,
-        MinOp, MaxOp, LengthOp, GranOp);
+        MinOp, MaxOp, LengthOp, GranOp, Op);
 
     Rnode->BufferLength = sizeof (AML_RESOURCE_ADDRESS16) +
                             OptionIndex + StringLength;
@@ -544,12 +544,12 @@ RsDoWordBusNumberDescriptor (
     /* Validate the Min/Max/Len/Gran values */
 
     RsLargeAddressCheck (
-        Descriptor->Address16.Minimum,
-        Descriptor->Address16.Maximum,
-        Descriptor->Address16.AddressLength,
-        Descriptor->Address16.Granularity,
+        (UINT64) Descriptor->Address16.Minimum,
+        (UINT64) Descriptor->Address16.Maximum,
+        (UINT64) Descriptor->Address16.AddressLength,
+        (UINT64) Descriptor->Address16.Granularity,
         Descriptor->Address16.Flags,
-        MinOp, MaxOp, LengthOp, GranOp);
+        MinOp, MaxOp, LengthOp, GranOp, Op);
 
     Rnode->BufferLength = sizeof (AML_RESOURCE_ADDRESS16) +
                             OptionIndex + StringLength;
@@ -761,12 +761,12 @@ RsDoWordSpaceDescriptor (
     /* Validate the Min/Max/Len/Gran values */
 
     RsLargeAddressCheck (
-        Descriptor->Address16.Minimum,
-        Descriptor->Address16.Maximum,
-        Descriptor->Address16.AddressLength,
-        Descriptor->Address16.Granularity,
+        (UINT64) Descriptor->Address16.Minimum,
+        (UINT64) Descriptor->Address16.Maximum,
+        (UINT64) Descriptor->Address16.AddressLength,
+        (UINT64) Descriptor->Address16.Granularity,
         Descriptor->Address16.Flags,
-        MinOp, MaxOp, LengthOp, GranOp);
+        MinOp, MaxOp, LengthOp, GranOp, Op);
 
     Rnode->BufferLength = sizeof (AML_RESOURCE_ADDRESS16) +
                             OptionIndex + StringLength;

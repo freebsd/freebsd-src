@@ -45,11 +45,15 @@ LIST_HEAD(rmpriolist,rm_priotracker);
 
 struct rmlock {
 	struct lock_object lock_object; 
-	volatile int 	rm_noreadtoken;
+	volatile cpumask_t rm_writecpus;
 	LIST_HEAD(,rm_priotracker) rm_activeReaders;
-	struct mtx	rm_lock;
-
+	union {
+		struct mtx _rm_lock_mtx;
+		struct sx _rm_lock_sx;
+	} _rm_lock;
 };
+#define	rm_lock_mtx	_rm_lock._rm_lock_mtx
+#define	rm_lock_sx	_rm_lock._rm_lock_sx
 
 struct rm_priotracker {
 	struct rm_queue rmp_cpuQueue; /* Must be first */

@@ -84,7 +84,7 @@ dtrace_fork_func_t	dtrace_fasttrap_fork;
 #endif
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE(proc, kernel, , create);
+SDT_PROBE_DEFINE(proc, kernel, , create, create);
 SDT_PROBE_ARGTYPE(proc, kernel, , create, 0, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, , create, 1, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, , create, 2, "int");
@@ -456,7 +456,7 @@ again:
 	AUDIT_ARG_PID(p2->p_pid);
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
-
+	tidhash_add(td2);
 	PROC_LOCK(p2);
 	PROC_LOCK(p1);
 
@@ -645,21 +645,7 @@ again:
 	callout_init(&p2->p_itcallout, CALLOUT_MPSAFE);
 
 #ifdef KTRACE
-	/*
-	 * Copy traceflag and tracefile if enabled.
-	 */
-	mtx_lock(&ktrace_mtx);
-	KASSERT(p2->p_tracevp == NULL, ("new process has a ktrace vnode"));
-	if (p1->p_traceflag & KTRFAC_INHERIT) {
-		p2->p_traceflag = p1->p_traceflag;
-		if ((p2->p_tracevp = p1->p_tracevp) != NULL) {
-			VREF(p2->p_tracevp);
-			KASSERT(p1->p_tracecred != NULL,
-			    ("ktrace vnode with no cred"));
-			p2->p_tracecred = crhold(p1->p_tracecred);
-		}
-	}
-	mtx_unlock(&ktrace_mtx);
+	ktrprocfork(p1, p2);
 #endif
 
 	/*
@@ -670,15 +656,6 @@ again:
 		p2->p_stops = p1->p_stops;
 		p2->p_pfsflags = p1->p_pfsflags;
 	}
-
-#ifdef KDTRACE_HOOKS
-	/*
-	 * Tell the DTrace fasttrap provider about the new process
-	 * if it has registered an interest.
-	 */
-	if (dtrace_fasttrap_fork)
-		dtrace_fasttrap_fork(p1, p2);
-#endif
 
 	/*
 	 * This begins the section where we must prevent the parent
@@ -744,6 +721,21 @@ again:
 	PROC_SLOCK(p2);
 	p2->p_state = PRS_NORMAL;
 	PROC_SUNLOCK(p2);
+#ifdef KDTRACE_HOOKS
+	/*
+	 * Tell the DTrace fasttrap provider about the new process
+	 * if it has registered an interest. We have to do this only after
+	 * p_state is PRS_NORMAL since the fasttrap module will use pfind()
+	 * later on.
+	 */
+	if (dtrace_fasttrap_fork) {
+		PROC_LOCK(p1);
+		PROC_LOCK(p2);
+		dtrace_fasttrap_fork(p1, p2);
+		PROC_UNLOCK(p2);
+		PROC_UNLOCK(p1);
+	}
+#endif
 
 	/*
 	 * If RFSTOPPED not requested, make child runnable and add to

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:		${.CURDIR}/../boot2
+.PATH:		${.CURDIR}/../boot2 ${.CURDIR}/../common ${.CURDIR}/../../common
 
 FILES=		zfsboot
 
@@ -17,7 +17,8 @@ REL1=	0x700
 ORG1=	0x7c00
 ORG2=	0x2000
 
-CFLAGS=	-Os -g \
+CFLAGS=	-DBOOTPROG=\"zfsboot\" \
+	-Os -g \
 	-fno-guess-branch-probability \
 	-fomit-frame-pointer \
 	-fno-unit-at-a-time \
@@ -29,6 +30,8 @@ CFLAGS=	-Os -g \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \
 	-DSIOFMT=${B2SIOFMT} \
 	-DSIOSPD=${BOOT_COMCONSOLE_SPEED} \
+	-I${.CURDIR}/../../common \
+	-I${.CURDIR}/../common \
 	-I${.CURDIR}/../../zfs \
 	-I${.CURDIR}/../../../cddl/boot/zfs \
 	-I${.CURDIR}/../btx/lib -I. \
@@ -57,7 +60,7 @@ zfsldr.out: zfsldr.o
 	${LD} ${LDFLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} zfsldr.o
 
 CLEANFILES+=	zfsboot2 zfsboot.ld zfsboot.ldr zfsboot.bin zfsboot.out \
-		zfsboot.o zfsboot.s zfsboot.s.tmp zfsboot.h sio.o
+		zfsboot.o zfsboot.s zfsboot.s.tmp xreadorg.h sio.o
 
 # We currently allow 32768 bytes for zfsboot - in practice it could be
 # any size up to 3.5Mb but keeping it fixed size simplifies zfsldr.
@@ -79,26 +82,26 @@ zfsboot.ldr:
 zfsboot.bin: zfsboot.out
 	objcopy -S -O binary zfsboot.out ${.TARGET}
 
-zfsboot.out: ${BTXCRT} zfsboot.o sio.o
+zfsboot.out: ${BTXCRT} zfsboot.o sio.o drv.o cons.o util.o
 	${LD} ${LDFLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBSTAND}
 
 zfsboot.o: zfsboot.s
 
-SRCS=	zfsboot.c zfsboot.h
+SRCS=	zfsboot.c xreadorg.h
 
-zfsboot.s: zfsboot.c zfsboot.h ${.CURDIR}/../../zfs/zfsimpl.c
+zfsboot.s: zfsboot.c xreadorg.h ${.CURDIR}/../../zfs/zfsimpl.c
 	${CC} ${CFLAGS} -S -o zfsboot.s.tmp ${.CURDIR}/zfsboot.c
 	sed -e '/align/d' -e '/nop/d' < zfsboot.s.tmp > zfsboot.s
 	rm -f zfsboot.s.tmp
 
-zfsboot.h: zfsldr.out
+xreadorg.h: zfsldr.out
 	${NM} -t d ${.ALLSRC} | awk '/([0-9])+ T xread/ \
 	    { x = $$1 - ORG1; \
 	    printf("#define XREADORG %#x\n", REL1 + x) }' \
 	    ORG1=`printf "%d" ${ORG1}` \
 	    REL1=`printf "%d" ${REL1}` > ${.TARGET}
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 beforedepend zfsboot.s: machine
 CLEANFILES+=	machine
 machine:

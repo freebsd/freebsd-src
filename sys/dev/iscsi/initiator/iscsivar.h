@@ -203,10 +203,7 @@ struct isc_softc {
      struct unrhdr	*unit;
      struct sx 		unit_sx;
 
-     struct mtx		pdu_mtx;
      uma_zone_t		pdu_zone;	// pool of free pdu's
-     TAILQ_HEAD(,pduq)	freepdu;
-
 #ifdef  ISCSI_INITIATOR_DEBUG
      int		 npdu_alloc, npdu_max; // for instrumentation
 #endif
@@ -303,25 +300,15 @@ pdu_alloc(struct isc_softc *isc, int wait)
 {
      pduq_t	*pq;
 
-     mtx_lock(&isc->pdu_mtx);
-     if((pq = TAILQ_FIRST(&isc->freepdu)) == NULL) {
-	  mtx_unlock(&isc->pdu_mtx);
-	  pq = (pduq_t *)uma_zalloc(isc->pdu_zone, wait /* M_WAITOK or M_NOWAIT*/);
-     }
-     else {
-	  TAILQ_REMOVE(&isc->freepdu, pq, pq_link);
-	  mtx_unlock(&isc->pdu_mtx);
-     }
+     pq = (pduq_t *)uma_zalloc(isc->pdu_zone, wait /* M_WAITOK or M_NOWAIT*/);
      if(pq == NULL) {
 	  debug(7, "out of mem");
 	  return NULL;
      }
 #ifdef ISCSI_INITIATOR_DEBUG
-     mtx_lock(&isc->pdu_mtx);
      isc->npdu_alloc++;
      if(isc->npdu_alloc > isc->npdu_max)
 	  isc->npdu_max = isc->npdu_alloc;
-     mtx_unlock(&isc->pdu_mtx);
 #endif
      memset(pq, 0, sizeof(pduq_t));
 
@@ -337,12 +324,10 @@ pdu_free(struct isc_softc *isc, pduq_t *pq)
      if(pq->buf != NULL)
 	  free(pq->buf, M_ISCSIBUF);
 #endif
-     mtx_lock(&isc->pdu_mtx);
-     TAILQ_INSERT_TAIL(&isc->freepdu, pq, pq_link);
 #ifdef ISCSI_INITIATOR_DEBUG
      isc->npdu_alloc--;
 #endif
-     mtx_unlock(&isc->pdu_mtx);
+     uma_zfree(isc->pdu_zone, pq);
 }
 
 static __inline void

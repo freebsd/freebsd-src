@@ -214,7 +214,7 @@ Options (
     printf ("  -cr            Disable Resource Descriptor error checking\n");
     printf ("  -r<Revision>   Override table header Revision (1-255)\n");
 
-    printf ("\nListings:\n");
+    printf ("\nASL Listing Files:\n");
     printf ("  -l             Create mixed listing file (ASL source and AML) (*.lst)\n");
     printf ("  -ln            Create namespace file (*.nsp)\n");
     printf ("  -ls            Create combined source file (expanded includes) (*.src)\n");
@@ -296,7 +296,8 @@ Usage (
     void)
 {
 
-    printf ("Usage:    %s [Options] [Files]\n\n", CompilerName);
+    printf ("%s\n", ASL_COMPLIANCE);
+    printf ("Usage:    %s [Options] [Files]\n\n", ASL_INVOCATION_NAME);
     Options ();
 }
 
@@ -462,6 +463,7 @@ AslDoOptions (
     BOOLEAN                 IsResponseFile)
 {
     int                     j;
+    ACPI_STATUS             Status;
 
 
     /* Get the command line options */
@@ -554,7 +556,12 @@ AslDoOptions (
 
 
     case 'e':
-        AcpiDmAddToExternalFileList (AcpiGbl_Optarg);
+        Status = AcpiDmAddToExternalFileList (AcpiGbl_Optarg);
+        if (ACPI_FAILURE (Status))
+        {
+            printf ("Could not add %s to external list\n", AcpiGbl_Optarg);
+            return (-1);
+        }
         break;
 
 
@@ -601,7 +608,6 @@ AslDoOptions (
             printf ("Unknown option: -h%s\n", AcpiGbl_Optarg);
             return (-1);
         }
-        break;
 
 
     case 'I': /* Add an include file search directory */
@@ -891,13 +897,14 @@ AslCommandLine (
     char                    **argv)
 {
     int                     BadCommandLine = 0;
+    ACPI_STATUS             Status;
 
 
     /* Minimum command line contains at least the command and an input file */
 
     if (argc < 2)
     {
-        AslCompilerSignon (ASL_FILE_STDOUT);
+        printf (ACPI_COMMON_SIGNON (ASL_COMPILER_NAME));
         Usage ();
         exit (1);
     }
@@ -908,7 +915,11 @@ AslCommandLine (
 
     if (Gbl_DoTemplates)
     {
-        DtCreateTemplates (Gbl_TemplateSignature);
+        Status = DtCreateTemplates (Gbl_TemplateSignature);
+        if (ACPI_FAILURE (Status))
+        {
+            exit (-1);
+        }
         exit (1);
     }
 
@@ -924,7 +935,7 @@ AslCommandLine (
 
     if (Gbl_DoSignon)
     {
-        AslCompilerSignon (ASL_FILE_STDOUT);
+        printf (ACPI_COMMON_SIGNON (ASL_COMPILER_NAME));
     }
 
     /* Abort if anything went wrong on the command line */

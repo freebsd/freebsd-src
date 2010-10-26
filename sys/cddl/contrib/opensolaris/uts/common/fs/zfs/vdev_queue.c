@@ -233,7 +233,7 @@ vdev_queue_io_to_issue(vdev_queue_t *vq, uint64_t pending_limit)
 		ASSERT(size <= zfs_vdev_aggregation_limit);
 
 		aio = zio_vdev_delegated_io(fio->io_vd, fio->io_offset,
-		    zio_buf_alloc(size), size, fio->io_type, ZIO_PRIORITY_NOW,
+		    zio_buf_alloc(size), size, fio->io_type, ZIO_PRIORITY_AGG,
 		    flags | ZIO_FLAG_DONT_CACHE | ZIO_FLAG_DONT_QUEUE,
 		    vdev_queue_agg_io_done, NULL);
 

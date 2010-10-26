@@ -316,8 +316,8 @@ virstor_ctl_add(struct gctl_req *req, struct g_class *cp)
 			g_topology_unlock();
 			return;
 		}
-		if (strncmp(prov_name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-			prov_name += strlen(_PATH_DEV);
+		if (strncmp(prov_name, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
+			prov_name += sizeof(_PATH_DEV) - 1;
 
 		pp = g_provider_by_name(prov_name);
 		if (pp == NULL) {
@@ -574,8 +574,8 @@ virstor_ctl_remove(struct gctl_req *req, struct g_class *cp)
 			gctl_error(req, "Error fetching argument '%s'", param);
 			return;
 		}
-		if (strncmp(prov_name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-			prov_name += strlen(_PATH_DEV);
+		if (strncmp(prov_name, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
+			prov_name += sizeof(_PATH_DEV) - 1;
 
 		found = -1;
 		for (j = 0; j < sc->n_components; j++) {

@@ -147,6 +147,7 @@
 
 #include <contrib/dev/acpica/compiler/asldefine.h>
 #include <contrib/dev/acpica/compiler/asltypes.h>
+#include <contrib/dev/acpica/compiler/aslmessages.h>
 #include <contrib/dev/acpica/compiler/aslglobal.h>
 
 
@@ -686,6 +687,10 @@ ACPI_STATUS
 LsDisplayNamespace (
     void);
 
+void
+LsSetupNsList (
+    void                    *Handle);
+
 
 /*
  * aslutils - common compiler utilites
@@ -791,7 +796,8 @@ RsSmallAddressCheck (
     ACPI_PARSE_OBJECT       *MinOp,
     ACPI_PARSE_OBJECT       *MaxOp,
     ACPI_PARSE_OBJECT       *LengthOp,
-    ACPI_PARSE_OBJECT       *AlignOp);
+    ACPI_PARSE_OBJECT       *AlignOp,
+    ACPI_PARSE_OBJECT       *Op);
 
 void
 RsLargeAddressCheck (
@@ -803,7 +809,8 @@ RsLargeAddressCheck (
     ACPI_PARSE_OBJECT       *MinOp,
     ACPI_PARSE_OBJECT       *MaxOp,
     ACPI_PARSE_OBJECT       *LengthOp,
-    ACPI_PARSE_OBJECT       *GranOp);
+    ACPI_PARSE_OBJECT       *GranOp,
+    ACPI_PARSE_OBJECT       *Op);
 
 UINT16
 RsGetStringDataLength (

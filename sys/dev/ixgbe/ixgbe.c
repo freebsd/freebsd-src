@@ -119,7 +119,7 @@ static int	ixgbe_allocate_queues(struct adapter *);
 static int	ixgbe_setup_msix(struct adapter *);
 static void	ixgbe_free_pci_resources(struct adapter *);
 static void     ixgbe_local_timer(void *);
-static void     ixgbe_setup_interface(device_t, struct adapter *);
+static int      ixgbe_setup_interface(device_t, struct adapter *);
 static void     ixgbe_config_link(struct adapter *);
 
 static int      ixgbe_allocate_transmit_buffers(struct tx_ring *);
@@ -524,6 +524,15 @@ ixgbe_attach(device_t dev)
 		goto err_out;
 	}
 
+	/* Allocate multicast array memory. */
+	adapter->mta = malloc(sizeof(u8) * IXGBE_ETH_LENGTH_OF_ADDRESS *
+	    MAX_NUM_MULTICAST_ADDRESSES, M_DEVBUF, M_NOWAIT);
+	if (adapter->mta == NULL) {
+		device_printf(dev, "Can not allocate multicast setup array\n");
+		error = ENOMEM;
+		goto err_late;
+	}
+
 	/* Initialize the shared code */
 	error = ixgbe_init_shared_code(hw);
 	if (error == IXGBE_ERR_SFP_NOT_PRESENT) {
@@ -586,7 +595,8 @@ ixgbe_attach(device_t dev)
 		goto err_late;
 
 	/* Setup OS specific network interface */
-	ixgbe_setup_interface(dev, adapter);
+	if (ixgbe_setup_interface(dev, adapter) != 0)
+		goto err_late;
 
 	/* Sysctl for limiting the amount of work done in the taskqueue */
 	ixgbe_add_rx_process_limit(adapter, "rx_processing_limit",
@@ -632,7 +642,10 @@ err_late:
 	ixgbe_free_transmit_structures(adapter);
 	ixgbe_free_receive_structures(adapter);
 err_out:
+	if (adapter->ifp != NULL)
+		if_free(adapter->ifp);
 	ixgbe_free_pci_resources(adapter);
+	free(adapter->mta, M_DEVBUF);
 	return (error);
 
 }
@@ -703,6 +716,7 @@ ixgbe_detach(device_t dev)
 
 	ixgbe_free_transmit_structures(adapter);
 	ixgbe_free_receive_structures(adapter);
+	free(adapter->mta, M_DEVBUF);
 
 	IXGBE_CORE_LOCK_DESTROY(adapter);
 	return (0);
@@ -1805,13 +1819,17 @@ static void
 ixgbe_set_multi(struct adapter *adapter)
 {
 	u32	fctrl;
-	u8	mta[MAX_NUM_MULTICAST_ADDRESSES * IXGBE_ETH_LENGTH_OF_ADDRESS];
+	u8	*mta;
 	u8	*update_ptr;
 	struct	ifmultiaddr *ifma;
 	int	mcnt = 0;
 	struct ifnet   *ifp = adapter->ifp;
 
 	IOCTL_DEBUGOUT("ixgbe_set_multi: begin");
+
+	mta = adapter->mta;
+	bzero(mta, sizeof(u8) * IXGBE_ETH_LENGTH_OF_ADDRESS *
+	    MAX_NUM_MULTICAST_ADDRESSES);
 
 	fctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_FCTRL);
 	fctrl |= (IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
@@ -2357,7 +2375,7 @@ mem:
  *  Setup networking device structure and register an interface.
  *
  **********************************************************************/
-static void
+static int
 ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -2366,8 +2384,10 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 	INIT_DEBUGOUT("ixgbe_setup_interface: begin");
 
 	ifp = adapter->ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL)
-		panic("%s: can not if_alloc()\n", device_get_nameunit(dev));
+	if (ifp == NULL) {
+		device_printf(dev, "can not allocate ifnet structure\n");
+		return (-1);
+	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_baudrate = 1000000000;
@@ -2415,7 +2435,7 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 	ifmedia_add(&adapter->media, IFM_ETHER | IFM_AUTO, 0, NULL);
 	ifmedia_set(&adapter->media, IFM_ETHER | IFM_AUTO);
 
-	return;
+	return (0);
 }
 
 static void

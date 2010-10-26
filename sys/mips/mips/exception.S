@@ -1167,7 +1167,7 @@ eintrcnt:
 	.text
 VECTOR(MipsCache, unknown)
 	PTR_LA	k0, _C_LABEL(MipsCacheException)
-	li	k1, MIPS_PHYS_MASK
+	li	k1, MIPS_KSEG0_PHYS_MASK
 	and	k0, k1
 	PTR_LI	k1, MIPS_KSEG1_START
 	or	k0, k1

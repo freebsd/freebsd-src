@@ -1404,7 +1404,8 @@ ieee80211_fakeup_adhoc_node(struct ieee80211vap *vap,
 #endif
 		}
 		ieee80211_node_setuptxparms(ni);
-		ieee80211_ratectl_node_init(ni);
+		if (vap->iv_caps & IEEE80211_C_RATECTL)
+			ieee80211_ratectl_node_init(ni);
 		if (ic->ic_newassoc != NULL)
 			ic->ic_newassoc(ni, 1);
 		/* XXX not right for 802.1x/WPA */
@@ -1474,7 +1475,8 @@ ieee80211_add_neighbor(struct ieee80211vap *vap,
 		if (ieee80211_iserp_rateset(&ni->ni_rates))
 			ni->ni_flags |= IEEE80211_NODE_ERP;
 		ieee80211_node_setuptxparms(ni);
-		ieee80211_ratectl_node_init(ni);
+		if (vap->iv_caps & IEEE80211_C_RATECTL)
+			ieee80211_ratectl_node_init(ni);
 		if (ic->ic_newassoc != NULL)
 			ic->ic_newassoc(ni, 1);
 		/* XXX not right for 802.1x/WPA */
@@ -2343,7 +2345,8 @@ ieee80211_node_join(struct ieee80211_node *ni, int resp)
 	);
 
 	ieee80211_node_setuptxparms(ni);
-	ieee80211_ratectl_node_init(ni);
+	if (vap->iv_caps & IEEE80211_C_RATECTL)
+		ieee80211_ratectl_node_init(ni);
 	/* give driver a chance to setup state like ni_txrate */
 	if (ic->ic_newassoc != NULL)
 		ic->ic_newassoc(ni, newassoc);

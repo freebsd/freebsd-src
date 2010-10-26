@@ -74,35 +74,38 @@ enum zti_modes {
 	zti_mode_fixed,			/* value is # of threads (min 1) */
 	zti_mode_online_percent,	/* value is % of online CPUs */
 	zti_mode_tune,			/* fill from zio_taskq_tune_* */
+	zti_mode_null,			/* don't create a taskq */
 	zti_nmodes
 };
 
-#define	ZTI_THREAD_FIX(n)	{ zti_mode_fixed, (n) }
-#define	ZTI_THREAD_PCT(n)	{ zti_mode_online_percent, (n) }
-#define	ZTI_THREAD_TUNE		{ zti_mode_tune, 0 }
+#define	ZTI_FIX(n)	{ zti_mode_fixed, (n) }
+#define	ZTI_PCT(n)	{ zti_mode_online_percent, (n) }
+#define	ZTI_TUNE	{ zti_mode_tune, 0 }
+#define	ZTI_NULL	{ zti_mode_null, 0 }
 
-#define	ZTI_THREAD_ONE		ZTI_THREAD_FIX(1)
+#define	ZTI_ONE		ZTI_FIX(1)
 
 typedef struct zio_taskq_info {
-	const char *zti_name;
-	struct {
-		enum zti_modes zti_mode;
-		uint_t zti_value;
-	} zti_nthreads[ZIO_TASKQ_TYPES];
+	enum zti_modes zti_mode;
+	uint_t zti_value;
 } zio_taskq_info_t;
 
 static const char *const zio_taskq_types[ZIO_TASKQ_TYPES] = {
-				"issue",		"intr"
+		"issue", "issue_high", "intr", "intr_high"
 };
 
-const zio_taskq_info_t zio_taskqs[ZIO_TYPES] = {
-	/*			ISSUE			INTR		*/
-	{ "spa_zio_null",	{ ZTI_THREAD_ONE,	ZTI_THREAD_ONE } },
-	{ "spa_zio_read",	{ ZTI_THREAD_FIX(8),	ZTI_THREAD_TUNE } },
-	{ "spa_zio_write",	{ ZTI_THREAD_TUNE,	ZTI_THREAD_FIX(8) } },
-	{ "spa_zio_free",	{ ZTI_THREAD_ONE,	ZTI_THREAD_ONE } },
-	{ "spa_zio_claim",	{ ZTI_THREAD_ONE,	ZTI_THREAD_ONE } },
-	{ "spa_zio_ioctl",	{ ZTI_THREAD_ONE,	ZTI_THREAD_ONE } },
+/*
+ * Define the taskq threads for the following I/O types:
+ * 	NULL, READ, WRITE, FREE, CLAIM, and IOCTL
+ */
+const zio_taskq_info_t zio_taskqs[ZIO_TYPES][ZIO_TASKQ_TYPES] = {
+	/* ISSUE	ISSUE_HIGH	INTR		INTR_HIGH */
+	{ ZTI_ONE,	ZTI_NULL,	ZTI_ONE,	ZTI_NULL },
+	{ ZTI_FIX(8),	ZTI_NULL,	ZTI_TUNE,	ZTI_NULL },
+	{ ZTI_TUNE,	ZTI_FIX(5),	ZTI_FIX(8),	ZTI_FIX(5) },
+	{ ZTI_ONE,	ZTI_NULL,	ZTI_ONE,	ZTI_NULL },
+	{ ZTI_ONE,	ZTI_NULL,	ZTI_ONE,	ZTI_NULL },
+	{ ZTI_ONE,	ZTI_NULL,	ZTI_ONE,	ZTI_NULL },
 };
 
 enum zti_modes zio_taskq_tune_mode = zti_mode_online_percent;
@@ -581,14 +584,14 @@ spa_activate(spa_t *spa, int mode)
 	spa->spa_log_class = metaslab_class_create(zfs_metaslab_ops);
 
 	for (int t = 0; t < ZIO_TYPES; t++) {
-		const zio_taskq_info_t *ztip = &zio_taskqs[t];
 		for (int q = 0; q < ZIO_TASKQ_TYPES; q++) {
-			enum zti_modes mode = ztip->zti_nthreads[q].zti_mode;
-			uint_t value = ztip->zti_nthreads[q].zti_value;
+			const zio_taskq_info_t *ztip = &zio_taskqs[t][q];
+			enum zti_modes mode = ztip->zti_mode;
+			uint_t value = ztip->zti_value;
 			char name[32];
 
 			(void) snprintf(name, sizeof (name),
-			    "%s_%s", ztip->zti_name, zio_taskq_types[q]);
+			    "%s_%s", zio_type_name[t], zio_taskq_types[q]);
 
 			if (mode == zti_mode_tune) {
 				mode = zio_taskq_tune_mode;
@@ -611,6 +614,10 @@ spa_activate(spa_t *spa, int mode)
 				spa->spa_zio_taskq[t][q] = taskq_create(name,
 				    value, maxclsyspri, 50, INT_MAX,
 				    TASKQ_PREPOPULATE | TASKQ_THREADS_CPU_PCT);
+				break;
+
+			case zti_mode_null:
+				spa->spa_zio_taskq[t][q] = NULL;
 				break;
 
 			case zti_mode_tune:
@@ -659,7 +666,8 @@ spa_deactivate(spa_t *spa)
 
 	for (int t = 0; t < ZIO_TYPES; t++) {
 		for (int q = 0; q < ZIO_TASKQ_TYPES; q++) {
-			taskq_destroy(spa->spa_zio_taskq[t][q]);
+			if (spa->spa_zio_taskq[t][q] != NULL)
+				taskq_destroy(spa->spa_zio_taskq[t][q]);
 			spa->spa_zio_taskq[t][q] = NULL;
 		}
 	}
@@ -1102,6 +1110,33 @@ spa_check_removed(vdev_t *vd)
 }
 
 /*
+ * Load the slog device state from the config object since it's possible
+ * that the label does not contain the most up-to-date information.
+ */
+void
+spa_load_log_state(spa_t *spa)
+{
+	nvlist_t *nv, *nvroot, **child;
+	uint64_t is_log;
+	uint_t children, c;
+	vdev_t *rvd = spa->spa_root_vdev;
+
+	VERIFY(load_nvlist(spa, spa->spa_config_object, &nv) == 0);
+	VERIFY(nvlist_lookup_nvlist(nv, ZPOOL_CONFIG_VDEV_TREE, &nvroot) == 0);
+	VERIFY(nvlist_lookup_nvlist_array(nvroot, ZPOOL_CONFIG_CHILDREN,
+	    &child, &children) == 0);
+
+	for (c = 0; c < children; c++) {
+		vdev_t *tvd = rvd->vdev_child[c];
+
+		if (nvlist_lookup_uint64(child[c], ZPOOL_CONFIG_IS_LOG,
+		    &is_log) == 0 && is_log)
+			vdev_load_log_state(tvd, child[c]);
+	}
+	nvlist_free(nv);
+}
+
+/*
  * Check for missing log devices
  */
 int
@@ -1117,13 +1152,7 @@ spa_check_logs(spa_t *spa)
 			return (1);
 		}
 		break;
-
-	case SPA_LOG_CLEAR:
-		(void) dmu_objset_find(spa->spa_name, zil_clear_log_chain, NULL,
-		    DS_FIND_CHILDREN);
-		break;
 	}
-	spa->spa_log_state = SPA_LOG_GOOD;
 	return (0);
 }
 
@@ -1447,6 +1476,8 @@ spa_load(spa_t *spa, nvlist_t *config, spa_load_state_t state, int mosconfig)
 		spa_config_exit(spa, SCL_ALL, FTAG);
 	}
 
+	spa_load_log_state(spa);
+
 	if (spa_check_logs(spa)) {
 		vdev_set_state(rvd, B_TRUE, VDEV_STATE_CANT_OPEN,
 		    VDEV_AUX_BAD_LOG);
@@ -1534,6 +1565,7 @@ spa_load(spa_t *spa, nvlist_t *config, spa_load_state_t state, int mosconfig)
 		    zil_claim, tx, DS_FIND_CHILDREN);
 		dmu_tx_commit(tx);
 
+		spa->spa_log_state = SPA_LOG_GOOD;
 		spa->spa_sync_on = B_TRUE;
 		txg_sync_start(spa->spa_dsl_pool);
 
@@ -4220,10 +4252,16 @@ spa_sync(spa_t *spa, uint64_t txg)
 				if (svdcount == SPA_DVAS_PER_BP)
 					break;
 			}
-			error = vdev_config_sync(svd, svdcount, txg);
+			error = vdev_config_sync(svd, svdcount, txg, B_FALSE);
+			if (error != 0)
+				error = vdev_config_sync(svd, svdcount, txg,
+				    B_TRUE);
 		} else {
 			error = vdev_config_sync(rvd->vdev_child,
-			    rvd->vdev_children, txg);
+			    rvd->vdev_children, txg, B_FALSE);
+			if (error != 0)
+				error = vdev_config_sync(rvd->vdev_child,
+				    rvd->vdev_children, txg, B_TRUE);
 		}
 
 		spa_config_exit(spa, SCL_STATE, FTAG);

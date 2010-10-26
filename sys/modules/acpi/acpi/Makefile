@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.if ${MACHINE_ARCH} == "ia64"
+.if ${MACHINE_CPUARCH} == "ia64"
 .error "ACPI can only be compiled into the kernel on the ia64 platform"
 .endif
 
@@ -22,7 +22,7 @@
 	${.CURDIR}/../../../pci \
 	${.CURDIR}/../../../dev/acpica \
 	${.CURDIR}/../../../dev/acpica/Osd \
-	${.CURDIR}/../../../${MACHINE_ARCH}/acpica
+	${.CURDIR}/../../../${MACHINE_CPUARCH}/acpica
 
 KMOD=	acpi
 
@@ -39,7 +39,8 @@ SRCS+=	exconfig.c exconvrt.c excreate.c exdebug.c exdump.c exfield.c
 SRCS+=	exfldio.c exmisc.c exmutex.c exnames.c exoparg1.c exoparg2.c
 SRCS+=	exoparg3.c exoparg6.c exprep.c exregion.c exresnte.c exresolv.c
 SRCS+=	exresop.c exstore.c exstoren.c exstorob.c exsystem.c exutils.c
-SRCS+=	hwacpi.c hwgpe.c hwregs.c hwsleep.c hwtimer.c hwvalid.c hwxface.c
+SRCS+=	hwacpi.c hwgpe.c hwpci.c hwregs.c hwsleep.c hwtimer.c hwvalid.c
+SRCS+=	hwxface.c
 SRCS+=	nsaccess.c nsalloc.c nsdump.c nseval.c nsinit.c nsload.c nsnames.c
 SRCS+=	nsobject.c nsparse.c nspredef.c nsrepair.c nsrepair2.c nssearch.c
 SRCS+=	nsutils.c nswalk.c nsxfeval.c nsxfname.c nsxfobj.c
@@ -50,7 +51,7 @@ SRCS+=	rsmemory.c rsmisc.c rsutils.c rsxface.c
 SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c tbxfroot.c
 SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdelete.c uteval.c utglobal.c
 SRCS+=	utids.c utinit.c utlock.c utmath.c utmisc.c utmutex.c utobject.c
-SRCS+=	utosi.c utresrc.c utstate.c utxface.c
+SRCS+=	utosi.c utresrc.c utstate.c utxface.c utxferror.c
 
 # OSPM layer and core hardware drivers
 SRCS+=	acpi.c acpi_button.c acpi_isab.c acpi_package.c acpi_pci.c acpi_pcib.c
@@ -98,29 +99,35 @@ SRCS+=	acpi_machdep.c acpi_wakecode.h acpi_wakeup.c
 SRCS+=	assym.s madt.c
 CLEANFILES+=	acpi_wakecode.bin acpi_wakecode.h acpi_wakecode.o
 
-.if ${MACHINE_ARCH} == "amd64"
+SRCS+=	opt_global.h
+
+.if ${MACHINE_CPUARCH} == "amd64"
 .if !defined(KERNBUILDDIR)
 CFLAGS+=-DSMP
 .endif
 SRCS+=	acpi_switch.S acpi_wakedata.h
 CLEANFILES+=	acpi_wakedata.h
 ASM_CFLAGS=	-x assembler-with-cpp -DLOCORE ${CFLAGS}
+NORMAL_S=	${CC} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
+NM?=		nm
 acpi_switch.o:	acpi_switch.S
-	${CC} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
+	${NORMAL_S}
 acpi_wakecode.o: acpi_wakecode.S assym.s
-	${CC} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
+	${NORMAL_S}
 acpi_wakecode.bin: acpi_wakecode.o
 	objcopy -S -O binary acpi_wakecode.o ${.TARGET}
 acpi_wakecode.h: acpi_wakecode.bin
 	file2c -sx 'static char wakecode[] = {' '};' < acpi_wakecode.bin > \
 	    ${.TARGET}
 acpi_wakedata.h: acpi_wakecode.o
-	nm -n --defined-only ${.ALLSRC} | while read offset dummy what; do \
-	    echo "#define	$${what}	0x$${offset}"; done > ${.TARGET}
+	${NM} -n --defined-only acpi_wakecode.o | \
+	    while read offset dummy what; do \
+	    echo "#define	$${what}	0x$${offset}"; \
+	    done > ${.TARGET}
 .else
 acpi_wakecode.h: acpi_wakecode.S assym.s
-	${MAKE} -f ${.CURDIR}/../../../${MACHINE_ARCH}/acpica/Makefile \
-		MAKESRCPATH=${.CURDIR}/../../../${MACHINE_ARCH}/acpica
+	${MAKE} -f ${.CURDIR}/../../../${MACHINE_CPUARCH}/acpica/Makefile \
+		MAKESRCPATH=${.CURDIR}/../../../${MACHINE_CPUARCH}/acpica
 .endif
 
 .include <bsd.kmod.mk>

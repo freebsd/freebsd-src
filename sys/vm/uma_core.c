@@ -2517,6 +2517,10 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	CTR2(KTR_UMA, "uma_zfree_arg thread %x zone %s", curthread,
 	    zone->uz_name);
 
+        /* uma_zfree(..., NULL) does nothing, to match free(9). */
+        if (item == NULL)
+                return;
+
 	if (zone->uz_dtor)
 		zone->uz_dtor(item, zone->uz_size, udata);
 
@@ -2782,7 +2786,7 @@ zone_free_item(uma_zone_t zone, void *item, void *udata,
 }
 
 /* See uma.h */
-void
+int
 uma_zone_set_max(uma_zone_t zone, int nitems)
 {
 	uma_keg_t keg;
@@ -2792,8 +2796,48 @@ uma_zone_set_max(uma_zone_t zone, int nitems)
 	keg->uk_maxpages = (nitems / keg->uk_ipers) * keg->uk_ppera;
 	if (keg->uk_maxpages * keg->uk_ipers < nitems)
 		keg->uk_maxpages += keg->uk_ppera;
-
+	nitems = keg->uk_maxpages * keg->uk_ipers;
 	ZONE_UNLOCK(zone);
+
+	return (nitems);
+}
+
+/* See uma.h */
+int
+uma_zone_get_max(uma_zone_t zone)
+{
+	int nitems;
+	uma_keg_t keg;
+
+	ZONE_LOCK(zone);
+	keg = zone_first_keg(zone);
+	nitems = keg->uk_maxpages * keg->uk_ipers;
+	ZONE_UNLOCK(zone);
+
+	return (nitems);
+}
+
+/* See uma.h */
+int
+uma_zone_get_cur(uma_zone_t zone)
+{
+	int64_t nitems;
+	u_int i;
+
+	ZONE_LOCK(zone);
+	nitems = zone->uz_allocs - zone->uz_frees;
+	CPU_FOREACH(i) {
+		/*
+		 * See the comment in sysctl_vm_zone_stats() regarding the
+		 * safety of accessing the per-cpu caches. With the zone lock
+		 * held, it is safe, but can potentially result in stale data.
+		 */
+		nitems += zone->uz_cpu[i].uc_allocs -
+		    zone->uz_cpu[i].uc_frees;
+	}
+	ZONE_UNLOCK(zone);
+
+	return (nitems < 0 ? 0 : nitems);
 }
 
 /* See uma.h */
@@ -3157,36 +3201,16 @@ sysctl_vm_zone_stats(SYSCTL_HANDLER_ARGS)
 	uma_keg_t kz;
 	uma_zone_t z;
 	uma_keg_t k;
-	char *buffer;
-	int buflen, count, error, i;
+	int count, error, i;
 
-	mtx_lock(&uma_mtx);
-restart:
-	mtx_assert(&uma_mtx, MA_OWNED);
+	sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+
 	count = 0;
+	mtx_lock(&uma_mtx);
 	LIST_FOREACH(kz, &uma_kegs, uk_link) {
 		LIST_FOREACH(z, &kz->uk_zones, uz_link)
 			count++;
 	}
-	mtx_unlock(&uma_mtx);
-
-	buflen = sizeof(ush) + count * (sizeof(uth) + sizeof(ups) *
-	    (mp_maxid + 1)) + 1;
-	buffer = malloc(buflen, M_TEMP, M_WAITOK | M_ZERO);
-
-	mtx_lock(&uma_mtx);
-	i = 0;
-	LIST_FOREACH(kz, &uma_kegs, uk_link) {
-		LIST_FOREACH(z, &kz->uk_zones, uz_link)
-			i++;
-	}
-	if (i > count) {
-		free(buffer, M_TEMP);
-		goto restart;
-	}
-	count =  i;
-
-	sbuf_new(&sbuf, buffer, buflen, SBUF_FIXEDLEN);
 
 	/*
 	 * Insert stream header.
@@ -3195,11 +3219,7 @@ restart:
 	ush.ush_version = UMA_STREAM_VERSION;
 	ush.ush_maxcpus = (mp_maxid + 1);
 	ush.ush_count = count;
-	if (sbuf_bcat(&sbuf, &ush, sizeof(ush)) < 0) {
-		mtx_unlock(&uma_mtx);
-		error = ENOMEM;
-		goto out;
-	}
+	(void)sbuf_bcat(&sbuf, &ush, sizeof(ush));
 
 	LIST_FOREACH(kz, &uma_kegs, uk_link) {
 		LIST_FOREACH(z, &kz->uk_zones, uz_link) {
@@ -3232,12 +3252,7 @@ restart:
 			uth.uth_frees = z->uz_frees;
 			uth.uth_fails = z->uz_fails;
 			uth.uth_sleeps = z->uz_sleeps;
-			if (sbuf_bcat(&sbuf, &uth, sizeof(uth)) < 0) {
-				ZONE_UNLOCK(z);
-				mtx_unlock(&uma_mtx);
-				error = ENOMEM;
-				goto out;
-			}
+			(void)sbuf_bcat(&sbuf, &uth, sizeof(uth));
 			/*
 			 * While it is not normally safe to access the cache
 			 * bucket pointers while not on the CPU that owns the
@@ -3262,21 +3277,14 @@ restart:
 				ups.ups_allocs = cache->uc_allocs;
 				ups.ups_frees = cache->uc_frees;
 skip:
-				if (sbuf_bcat(&sbuf, &ups, sizeof(ups)) < 0) {
-					ZONE_UNLOCK(z);
-					mtx_unlock(&uma_mtx);
-					error = ENOMEM;
-					goto out;
-				}
+				(void)sbuf_bcat(&sbuf, &ups, sizeof(ups));
 			}
 			ZONE_UNLOCK(z);
 		}
 	}
 	mtx_unlock(&uma_mtx);
-	sbuf_finish(&sbuf);
-	error = SYSCTL_OUT(req, sbuf_data(&sbuf), sbuf_len(&sbuf));
-out:
-	free(buffer, M_TEMP);
+	error = sbuf_finish(&sbuf);
+	sbuf_delete(&sbuf);
 	return (error);
 }
 

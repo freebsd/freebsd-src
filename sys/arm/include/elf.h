@@ -76,8 +76,14 @@ __ElfType(Auxinfo);
 #define AT_GID          13      /* Real gid. */
 #define AT_EGID         14      /* Effective gid. */
 #define	AT_EXECPATH	15	/* Path to the executable. */
+#define	AT_CANARY	16	/* Canary for SSP */
+#define	AT_CANARYLEN	17	/* Length of the canary. */
+#define	AT_OSRELDATE	18	/* OSRELDATE. */
+#define	AT_NCPUS	19	/* Number of CPUs. */
+#define	AT_PAGESIZES	20	/* Pagesizes. */
+#define	AT_PAGESIZESLEN	21	/* Number of pagesizes. */
 
-#define AT_COUNT        16      /* Count of defined aux entry types. */
+#define AT_COUNT        22      /* Count of defined aux entry types. */
 
 #define	R_ARM_COUNT		33	/* Count of defined relocation types. */
 

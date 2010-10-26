@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 
+#include <machine/cpu.h>
 #include <machine/platform.h>
 #include <machine/platformvar.h>
 #include <machine/smp.h>
@@ -102,6 +103,15 @@ int
 platform_smp_start_cpu(struct pcpu *cpu)
 {
 	return (PLATFORM_SMP_START_CPU(plat_obj, cpu));
+}
+
+/*
+ * Reset back to firmware.
+ */
+void
+cpu_reset()
+{
+        PLATFORM_RESET(plat_obj);
 }
 
 /*

@@ -215,7 +215,8 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				 * not in PF state.
 				 */
 				/* Stop any running T3 timers here? */
-				if (SCTP_BASE_SYSCTL(sctp_cmt_on_off) && SCTP_BASE_SYSCTL(sctp_cmt_pf)) {
+				if ((stcb->asoc.sctp_cmt_on_off == 1) &&
+				    (stcb->asoc.sctp_cmt_pf > 0)) {
 					net->dest_state &= ~SCTP_ADDR_PF;
 					SCTPDBG(SCTP_DEBUG_TIMER4, "Destination %p moved from PF to unreachable.\n",
 					    net);
@@ -419,7 +420,7 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 				return (net);
 			}
 			min_errors_net->dest_state &= ~SCTP_ADDR_PF;
-			min_errors_net->cwnd = min_errors_net->mtu * SCTP_BASE_SYSCTL(sctp_cmt_pf);
+			min_errors_net->cwnd = min_errors_net->mtu * stcb->asoc.sctp_cmt_pf;
 			if (SCTP_OS_TIMER_PENDING(&min_errors_net->rxt_timer.timer)) {
 				sctp_timer_stop(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep,
 				    stcb, min_errors_net,
@@ -481,6 +482,9 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 
 	if (mnet == NULL) {
 		mnet = TAILQ_FIRST(&stcb->asoc.nets);
+		if (mnet == NULL) {
+			return (NULL);
+		}
 	}
 	do {
 		alt = TAILQ_NEXT(mnet, sctp_next);
@@ -490,6 +494,9 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 				break;
 			}
 			alt = TAILQ_FIRST(&stcb->asoc.nets);
+			if (alt == NULL) {
+				return (NULL);
+			}
 		}
 		if (alt->ro.ro_rt == NULL) {
 			if (alt->ro._s_addr) {
@@ -516,6 +523,9 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 		once = 0;
 		mnet = net;
 		do {
+			if (mnet == NULL) {
+				return (TAILQ_FIRST(&stcb->asoc.nets));
+			}
 			alt = TAILQ_NEXT(mnet, sctp_next);
 			if (alt == NULL) {
 				once++;
@@ -762,9 +772,7 @@ start_again:
 			}
 			if (stcb->asoc.peer_supports_prsctp && PR_SCTP_TTL_ENABLED(chk->flags)) {
 				/* Is it expired? */
-				if ((now.tv_sec > chk->rec.data.timetodrop.tv_sec) ||
-				    ((chk->rec.data.timetodrop.tv_sec == now.tv_sec) &&
-				    (now.tv_usec > chk->rec.data.timetodrop.tv_usec))) {
+				if (timevalcmp(&now, &chk->rec.data.timetodrop, >)) {
 					/* Yes so drop it */
 					if (chk->data) {
 						(void)sctp_release_pr_sctp_chunk(stcb,
@@ -843,7 +851,7 @@ start_again:
 			/*
 			 * CMT: Do not allow FRs on retransmitted TSNs.
 			 */
-			if (SCTP_BASE_SYSCTL(sctp_cmt_on_off) == 1) {
+			if (stcb->asoc.sctp_cmt_on_off == 1) {
 				chk->no_fr_allowed = 1;
 			}
 #ifdef THIS_SHOULD_NOT_BE_DONE
@@ -959,46 +967,6 @@ start_again:
 	return (0);
 }
 
-static void
-sctp_move_all_chunks_to_alt(struct sctp_tcb *stcb,
-    struct sctp_nets *net,
-    struct sctp_nets *alt)
-{
-	struct sctp_association *asoc;
-	struct sctp_stream_out *outs;
-	struct sctp_tmit_chunk *chk;
-	struct sctp_stream_queue_pending *sp;
-
-	if (net == alt)
-		/* nothing to do */
-		return;
-
-	asoc = &stcb->asoc;
-
-	/*
-	 * now through all the streams checking for chunks sent to our bad
-	 * network.
-	 */
-	TAILQ_FOREACH(outs, &asoc->out_wheel, next_spoke) {
-		/* now clean up any chunks here */
-		TAILQ_FOREACH(sp, &outs->outqueue, next) {
-			if (sp->net == net) {
-				sctp_free_remote_addr(sp->net);
-				sp->net = alt;
-				atomic_add_int(&alt->ref_count, 1);
-			}
-		}
-	}
-	/* Now check the pending queue */
-	TAILQ_FOREACH(chk, &asoc->send_queue, sctp_next) {
-		if (chk->whoTo == net) {
-			sctp_free_remote_addr(chk->whoTo);
-			chk->whoTo = alt;
-			atomic_add_int(&alt->ref_count, 1);
-		}
-	}
-
-}
 
 int
 sctp_t3rxt_timer(struct sctp_inpcb *inp,
@@ -1038,7 +1006,8 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 	 * addition, find an alternate destination with PF-based
 	 * find_alt_net().
 	 */
-	if (SCTP_BASE_SYSCTL(sctp_cmt_on_off) && SCTP_BASE_SYSCTL(sctp_cmt_pf)) {
+	if ((stcb->asoc.sctp_cmt_on_off == 1) &&
+	    (stcb->asoc.sctp_cmt_pf > 0)) {
 		if ((net->dest_state & SCTP_ADDR_PF) != SCTP_ADDR_PF) {
 			net->dest_state |= SCTP_ADDR_PF;
 			net->last_active = sctp_get_tick_count();
@@ -1046,7 +1015,7 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 			    net);
 		}
 		alt = sctp_find_alternate_net(stcb, net, 2);
-	} else if (SCTP_BASE_SYSCTL(sctp_cmt_on_off)) {
+	} else if (stcb->asoc.sctp_cmt_on_off == 1) {
 		/*
 		 * CMT: Using RTX_SSTHRESH policy for CMT. If CMT is being
 		 * used, then pick dest with largest ssthresh for any
@@ -1130,7 +1099,7 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 	}
 	if (net->dest_state & SCTP_ADDR_NOT_REACHABLE) {
 		/* Move all pending over too */
-		sctp_move_all_chunks_to_alt(stcb, net, alt);
+		sctp_move_chunks_from_net(stcb, net);
 
 		/*
 		 * Get the address that failed, to force a new src address
@@ -1162,7 +1131,9 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 				net->dest_state |= SCTP_ADDR_WAS_PRIMARY;
 			}
 		}
-	} else if (SCTP_BASE_SYSCTL(sctp_cmt_on_off) && SCTP_BASE_SYSCTL(sctp_cmt_pf) && (net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF) {
+	} else if ((stcb->asoc.sctp_cmt_on_off == 1) &&
+		    (stcb->asoc.sctp_cmt_pf > 0) &&
+	    ((net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF)) {
 		/*
 		 * JRS 5/14/07 - If the destination hasn't failed completely
 		 * but is in PF state, a PF-heartbeat needs to be sent
@@ -1243,7 +1214,7 @@ sctp_t1init_timer(struct sctp_inpcb *inp,
 
 		alt = sctp_find_alternate_net(stcb, stcb->asoc.primary_destination, 0);
 		if ((alt != NULL) && (alt != stcb->asoc.primary_destination)) {
-			sctp_move_all_chunks_to_alt(stcb, stcb->asoc.primary_destination, alt);
+			sctp_move_chunks_from_net(stcb, stcb->asoc.primary_destination);
 			stcb->asoc.primary_destination = alt;
 		}
 	}
@@ -1383,7 +1354,7 @@ sctp_strreset_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		 * If the address went un-reachable, we need to move to
 		 * alternates for ALL chk's in queue
 		 */
-		sctp_move_all_chunks_to_alt(stcb, net, alt);
+		sctp_move_chunks_from_net(stcb, net);
 	}
 	/* mark the retran info */
 	if (strrst->sent != SCTP_DATAGRAM_RESEND)
@@ -1474,8 +1445,7 @@ sctp_asconf_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			 * If the address went un-reachable, we need to move
 			 * to the alternate for ALL chunks in queue
 			 */
-			sctp_move_all_chunks_to_alt(stcb, net, alt);
-			net = alt;
+			sctp_move_chunks_from_net(stcb, net);
 		}
 		/* mark the retran info */
 		if (asconf->sent != SCTP_DATAGRAM_RESEND)

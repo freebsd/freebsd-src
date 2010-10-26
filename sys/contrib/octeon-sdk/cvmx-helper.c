@@ -101,6 +101,15 @@ static CVMX_SHARED cvmx_helper_link_info_t port_link_info[CVMX_PIP_NUM_INPUT_POR
  */
 int cvmx_helper_get_number_of_interfaces(void)
 {
+    switch (cvmx_sysinfo_get()->board_type) {
+#if defined(OCTEON_VENDOR_LANNER)
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR955:
+	    return 2;
+#endif
+	default:
+	    break;
+    }
+
     if (OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN52XX))
         return 4;
     else

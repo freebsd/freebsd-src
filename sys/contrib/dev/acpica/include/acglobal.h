@@ -214,6 +214,7 @@ ACPI_TABLE_FADT             AcpiGbl_FADT;
 UINT32                      AcpiCurrentGpeCount;
 UINT32                      AcpiGbl_TraceFlags;
 ACPI_NAME                   AcpiGbl_TraceMethodName;
+BOOLEAN                     AcpiGbl_SystemAwakeAndRunning;
 
 #endif
 
@@ -334,7 +335,6 @@ ACPI_EXTERN UINT8                       AcpiGbl_DebuggerConfiguration;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_StepToNextCall;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_AcpiHardwarePresent;
 ACPI_EXTERN BOOLEAN                     AcpiGbl_EventsInitialized;
-ACPI_EXTERN BOOLEAN                     AcpiGbl_SystemAwakeAndRunning;
 ACPI_EXTERN UINT8                       AcpiGbl_OsiData;
 ACPI_EXTERN ACPI_INTERFACE_INFO        *AcpiGbl_SupportedInterfaces;
 

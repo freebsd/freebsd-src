@@ -80,16 +80,28 @@ int	setfault(faultbuf);	/* defined in locore.S */
 static __inline void
 set_user_sr(pmap_t pm, const void *addr)
 {
+	struct slb *slb;
 	register_t esid, vsid, slb1, slb2;
 
 	esid = USER_ADDR >> ADDR_SR_SHFT;
-	PMAP_LOCK(pm);
-	vsid = va_to_vsid(pm, (vm_offset_t)addr);
-	PMAP_UNLOCK(pm);
+
+	/* Try lockless look-up first */
+	slb = user_va_to_slb_entry(pm, (vm_offset_t)addr);
+
+	if (slb == NULL) {
+		/* If it isn't there, we need to pre-fault the VSID */
+		PMAP_LOCK(pm);
+		vsid = va_to_vsid(pm, (vm_offset_t)addr);
+		PMAP_UNLOCK(pm);
+	} else {
+		vsid = slb->slbv >> SLBV_VSID_SHIFT;
+	}
 
 	slb1 = vsid << SLBV_VSID_SHIFT;
 	slb2 = (esid << SLBE_ESID_SHIFT) | SLBE_VALID | USER_SR;
 
+	curthread->td_pcb->pcb_cpu.aim.usr_segm =
+	    (uintptr_t)addr >> ADDR_SR_SHFT;
 	__asm __volatile ("slbie %0; slbmte %1, %2" :: "r"(esid << 28),
 	    "r"(slb1), "r"(slb2));
 	isync();

@@ -240,7 +240,7 @@ deget(pmp, dirclust, diroffset, depp)
 			*depp = NULL;
 			return (error);
 		}
-		DE_INTERNALIZE(ldep, direntptr);
+		(void)DE_INTERNALIZE(ldep, direntptr);
 		brelse(bp);
 	}
 

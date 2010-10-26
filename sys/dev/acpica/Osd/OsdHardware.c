@@ -34,12 +34,8 @@ __FBSDID("$FreeBSD$");
 
 #include <contrib/dev/acpica/include/acpi.h>
 
-#include <sys/bus.h>
-#include <sys/kernel.h>
 #include <machine/iodev.h>
 #include <machine/pci_cfgreg.h>
-#include <dev/acpica/acpivar.h>
-#include <dev/pci/pcireg.h>
 
 /*
  * ACPICA's rather gung-ho approach to hardware resource ownership is a little
@@ -121,95 +117,4 @@ AcpiOsWritePciConfiguration (ACPI_PCI_ID *PciId, UINT32 Register,
 	Value, Width / 8);
 
     return (AE_OK);
-}
-
-/*
- * Depth-first recursive case for finding the bus, given the slot/function.
- */
-static int
-acpi_bus_number(ACPI_HANDLE root, ACPI_HANDLE curr, ACPI_PCI_ID *PciId)
-{
-    ACPI_HANDLE parent;
-    ACPI_STATUS status;
-    ACPI_OBJECT_TYPE type;
-    UINT32 adr;
-    int bus, slot, func, class, subclass, header;
-
-    /* Try to get the _BBN object of the root, otherwise assume it is 0. */
-    bus = 0;
-    if (root == curr) {
-	status = acpi_GetInteger(root, "_BBN", &bus);
-	if (ACPI_FAILURE(status) && bootverbose)
-	    printf("acpi_bus_number: root bus has no _BBN, assuming 0\n");
-	return (bus);
-    }
-    status = AcpiGetParent(curr, &parent);
-    if (ACPI_FAILURE(status))
-	return (bus);
-
-    /* First, recurse up the tree until we find the host bus. */
-    bus = acpi_bus_number(root, parent, PciId);
-
-    /* Validate parent bus device type. */
-    if (ACPI_FAILURE(AcpiGetType(parent, &type)) || type != ACPI_TYPE_DEVICE) {
-	printf("acpi_bus_number: not a device, type %d\n", type);
-	return (bus);
-    }
-
-    /* Get the parent's slot and function. */
-    status = acpi_GetInteger(parent, "_ADR", &adr);
-    if (ACPI_FAILURE(status))
-	return (bus);
-    slot = ACPI_HIWORD(adr);
-    func = ACPI_LOWORD(adr);
-
-    /* Is this a PCI-PCI or Cardbus-PCI bridge? */
-    class = pci_cfgregread(bus, slot, func, PCIR_CLASS, 1);
-    if (class != PCIC_BRIDGE)
-	return (bus);
-    subclass = pci_cfgregread(bus, slot, func, PCIR_SUBCLASS, 1);
-
-    /* Find the header type, masking off the multifunction bit. */
-    header = pci_cfgregread(bus, slot, func, PCIR_HDRTYPE, 1) & PCIM_HDRTYPE;
-    if (header == PCIM_HDRTYPE_BRIDGE && subclass == PCIS_BRIDGE_PCI)
-	bus = pci_cfgregread(bus, slot, func, PCIR_SECBUS_1, 1);
-    else if (header == PCIM_HDRTYPE_CARDBUS && subclass == PCIS_BRIDGE_CARDBUS)
-	bus = pci_cfgregread(bus, slot, func, PCIR_SECBUS_2, 1);
-    return (bus);
-}
-
-/*
- * Find the bus number for a device
- *
- * Device: handle for the PCI root bridge device
- * Region: handle for the PCI configuration space operation region
- * PciId: pointer to device slot and function, we fill out bus
- */
-void
-AcpiOsDerivePciId(ACPI_HANDLE Device, ACPI_HANDLE Region, ACPI_PCI_ID **PciId)
-{
-    ACPI_HANDLE parent;
-    ACPI_STATUS status;
-    int bus;
-
-    if (pci_cfgregopen() == 0)
-	panic("AcpiOsDerivePciId unable to initialize pci bus");
-
-    /* Try to read _BBN for bus number if we're at the root. */
-    bus = 0;
-    if (Device == Region) {
-	status = acpi_GetInteger(Device, "_BBN", &bus);
-	if (ACPI_FAILURE(status) && bootverbose)
-	    printf("AcpiOsDerivePciId: root bus has no _BBN, assuming 0\n");
-    }
-
-    /* Get the parent handle and call the recursive case. */
-    if (ACPI_SUCCESS(AcpiGetParent(Region, &parent)))
-	bus = acpi_bus_number(Device, parent, *PciId);
-    (*PciId)->Bus = bus;
-    if (bootverbose) {
-	printf("AcpiOsDerivePciId: %s -> bus %d dev %d func %d\n",
-	    acpi_name(Region), (*PciId)->Bus, (*PciId)->Device,
-	    (*PciId)->Function);
-    }
 }

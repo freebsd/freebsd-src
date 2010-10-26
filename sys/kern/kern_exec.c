@@ -91,11 +91,11 @@ dtrace_execexit_func_t	dtrace_fasttrap_exec;
 #endif
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE(proc, kernel, , exec);
+SDT_PROBE_DEFINE(proc, kernel, , exec, exec);
 SDT_PROBE_ARGTYPE(proc, kernel, , exec, 0, "char *");
-SDT_PROBE_DEFINE(proc, kernel, , exec_failure);
+SDT_PROBE_DEFINE(proc, kernel, , exec_failure, exec-failure);
 SDT_PROBE_ARGTYPE(proc, kernel, , exec_failure, 0, "int");
-SDT_PROBE_DEFINE(proc, kernel, , exec_success);
+SDT_PROBE_DEFINE(proc, kernel, , exec_success, exec-success);
 SDT_PROBE_ARGTYPE(proc, kernel, , exec_success, 0, "char *");
 
 MALLOC_DEFINE(M_PARGS, "proc-args", "Process arguments");
@@ -385,6 +385,10 @@ do_execve(td, args, mac_p)
 	imgp->args = args;
 	imgp->execpath = imgp->freepath = NULL;
 	imgp->execpathp = 0;
+	imgp->canary = 0;
+	imgp->canarylen = 0;
+	imgp->pagesizes = 0;
+	imgp->pagesizeslen = 0;
 
 #ifdef MAC
 	error = mac_execve_enter(imgp, mac_p);
@@ -651,16 +655,8 @@ interpret:
 		setsugid(p);
 
 #ifdef KTRACE
-		if (p->p_tracevp != NULL &&
-		    priv_check_cred(oldcred, PRIV_DEBUG_DIFFCRED, 0)) {
-			mtx_lock(&ktrace_mtx);
-			p->p_traceflag = 0;
-			tracevp = p->p_tracevp;
-			p->p_tracevp = NULL;
-			tracecred = p->p_tracecred;
-			p->p_tracecred = NULL;
-			mtx_unlock(&ktrace_mtx);
-		}
+		if (priv_check_cred(oldcred, PRIV_DEBUG_DIFFCRED, 0))
+			ktrprocexec(p, &tracecred, &tracevp);
 #endif
 		/*
 		 * Close any file descriptors 0..2 that reference procfs,
@@ -1197,8 +1193,10 @@ exec_copyout_strings(imgp)
 	struct ps_strings *arginfo;
 	struct proc *p;
 	size_t execpath_len;
-	int szsigcode;
+	int szsigcode, szps;
+	char canary[sizeof(long) * 8];
 
+	szps = sizeof(pagesizes[0]) * MAXPAGESIZES;
 	/*
 	 * Calculate string base and vector table pointers.
 	 * Also deal with signal trampoline code for this exec type.
@@ -1214,6 +1212,8 @@ exec_copyout_strings(imgp)
 		szsigcode = *(p->p_sysent->sv_szsigcode);
 	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
 	    roundup(execpath_len, sizeof(char *)) -
+	    roundup(sizeof(canary), sizeof(char *)) -
+	    roundup(szps, sizeof(char *)) -
 	    roundup((ARG_MAX - imgp->args->stringspace), sizeof(char *));
 
 	/*
@@ -1233,6 +1233,23 @@ exec_copyout_strings(imgp)
 	}
 
 	/*
+	 * Prepare the canary for SSP.
+	 */
+	arc4rand(canary, sizeof(canary), 0);
+	imgp->canary = (uintptr_t)arginfo - szsigcode - execpath_len -
+	    sizeof(canary);
+	copyout(canary, (void *)imgp->canary, sizeof(canary));
+	imgp->canarylen = sizeof(canary);
+
+	/*
+	 * Prepare the pagesizes array.
+	 */
+	imgp->pagesizes = (uintptr_t)arginfo - szsigcode - execpath_len -
+	    roundup(sizeof(canary), sizeof(char *)) - szps;
+	copyout(pagesizes, (void *)imgp->pagesizes, szps);
+	imgp->pagesizeslen = szps;
+
+	/*
 	 * If we have a valid auxargs ptr, prepare some room
 	 * on the stack.
 	 */
@@ -1249,8 +1266,8 @@ exec_copyout_strings(imgp)
 		 * for argument of Runtime loader.
 		 */
 		vectp = (char **)(destp - (imgp->args->argc +
-		    imgp->args->envc + 2 + imgp->auxarg_size + execpath_len) *
-		    sizeof(char *));
+		    imgp->args->envc + 2 + imgp->auxarg_size)
+		    * sizeof(char *));
 	} else {
 		/*
 		 * The '+ 2' is for the null pointers at the end of each of
@@ -1338,17 +1355,17 @@ exec_check_permissions(imgp)
 	if (error)
 		return (error);
 #endif
-	
+
 	/*
-	 * 1) Check if file execution is disabled for the filesystem that this
-	 *	file resides on.
-	 * 2) Insure that at least one execute bit is on - otherwise root
-	 *	will always succeed, and we don't want to happen unless the
-	 *	file really is executable.
-	 * 3) Insure that the file is a regular file.
+	 * 1) Check if file execution is disabled for the filesystem that
+	 *    this file resides on.
+	 * 2) Ensure that at least one execute bit is on. Otherwise, a
+	 *    privileged user will always succeed, and we don't want this
+	 *    to happen unless the file really is executable.
+	 * 3) Ensure that the file is a regular file.
 	 */
 	if ((vp->v_mount->mnt_flag & MNT_NOEXEC) ||
-	    ((attr->va_mode & 0111) == 0) ||
+	    (attr->va_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) == 0 ||
 	    (attr->va_type != VREG))
 		return (EACCES);
 

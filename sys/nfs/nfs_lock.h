@@ -87,4 +87,6 @@ struct lockd_ans {
 
 #ifdef _KERNEL
 int	nfs_dolock(struct vop_advlock_args *ap);
+extern	vop_advlock_t *nfs_advlock_p;
+extern	vop_reclaim_t *nfs_reclaim_p;
 #endif

@@ -106,3 +106,6 @@ ZFS_OBJS +=			\
 	zfs_vfsops.o		\
 	zfs_vnops.o		\
 	zvol.o
+
+ZUT_OBJS +=			\
+	zut.o

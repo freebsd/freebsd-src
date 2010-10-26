@@ -185,7 +185,6 @@ rescan:
 	if (dvp) {
 		np->n_parent = VTONW(dvp)->n_fid;
 	}
-	VN_LOCK_AREC(vp);
 	sx_xlock(&nwhashlock);
 	/*
 	 * Another process can create vnode while we blocked in malloc() or
@@ -202,6 +201,7 @@ rescan:
 	nhpp = NWNOHASH(fid);
 	LIST_INSERT_HEAD(nhpp, np, n_hash);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	VN_LOCK_AREC(vp);
 	sx_xunlock(&nwhashlock);
 	
 	ASSERT_VOP_LOCKED(dvp, "nwfs_allocvp");
