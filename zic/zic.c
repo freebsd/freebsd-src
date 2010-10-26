@@ -3,7 +3,7 @@
 ** 2006-07-17 by Arthur David Olson.
 */
 
-static char	elsieid[] = "@(#)zic.c	8.22";
+static char	elsieid[] = "@(#)zic.c	8.24";
 
 #include "private.h"
 #include "locale.h"
@@ -1881,16 +1881,16 @@ const long			gmtoff;
 		register int	week;
 
 		if (rp->r_dycode == DC_DOWGEQ) {
-			week = 1 + rp->r_dayofmonth / DAYSPERWEEK;
-			if ((week - 1) * DAYSPERWEEK + 1 != rp->r_dayofmonth)
+			if ((rp->r_dayofmonth % DAYSPERWEEK) != 1)
 				return -1;
+			week = 1 + rp->r_dayofmonth / DAYSPERWEEK;
 		} else if (rp->r_dycode == DC_DOWLEQ) {
 			if (rp->r_dayofmonth == len_months[1][rp->r_month])
 				week = 5;
 			else {
-				week = 1 + rp->r_dayofmonth / DAYSPERWEEK;
-				if (week * DAYSPERWEEK - 1 != rp->r_dayofmonth)
+				if ((rp->r_dayofmonth % DAYSPERWEEK) != 0)
 					return -1;
+				week = rp->r_dayofmonth / DAYSPERWEEK;
 			}
 		} else	return -1;	/* "cannot happen" */
 		(void) sprintf(result, "M%d.%d.%d",
@@ -2018,6 +2018,7 @@ const int			zonecount;
 	register char *			envvar;
 	register int			max_abbr_len;
 	register int			max_envvar_len;
+	register int			prodstic; /* all rules are min to max */
 
 	max_abbr_len = 2 + max_format_len + max_abbrvar_len;
 	max_envvar_len = 2 * max_abbr_len + 5 * 9;
@@ -2032,6 +2033,7 @@ const int			zonecount;
 	timecnt = 0;
 	typecnt = 0;
 	charcnt = 0;
+	prodstic = zonecount == 1;
 	/*
 	** Thanks to Earl Chew
 	** for noting the need to unconditionally initialize startttisstd.
@@ -2053,6 +2055,8 @@ const int			zonecount;
 				updateminmax(rp->r_loyear);
 			if (rp->r_hiwasnum)
 				updateminmax(rp->r_hiyear);
+			if (rp->r_lowasnum || rp->r_hiwasnum)
+				prodstic = FALSE;
 		}
 	}
 	/*
@@ -2075,6 +2079,16 @@ wp = ecpyalloc(_("no POSIX environment variable for zone"));
 		if (max_year <= INT_MAX - YEARSPERREPEAT)
 			max_year += YEARSPERREPEAT;
 		else	max_year = INT_MAX;
+		/*
+		** Regardless of any of the above,
+		** for a "proDSTic" zone which specifies that its rules
+		** always have and always will be in effect,
+		** we only need one cycle to define the zone.
+		*/
+		if (prodstic) {
+			min_year = 1900;
+			max_year = min_year + YEARSPERREPEAT;
+		}
 	}
 	/*
 	** For the benefit of older systems,

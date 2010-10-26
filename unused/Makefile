@@ -1,5 +1,5 @@
 # <pre>
-# @(#)Makefile	8.8
+# @(#)Makefile	8.9
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
@@ -12,7 +12,7 @@
 #	make zonenames
 # to get a list of the values you can use for LOCALTIME.
 
-LOCALTIME=	Factory
+LOCALTIME=	GMT
 
 # If you want something other than Eastern United States time as a template
 # for handling POSIX-style time zone environment variables,
@@ -262,8 +262,8 @@ MANS=		newctime.3 newstrftime.3 newtzset.3 time2posix.3 \
 DOCS=		README Theory $(MANS) date.1 Makefile
 PRIMARY_YDATA=	africa antarctica asia australasia \
 		europe northamerica southamerica
-YDATA=		$(PRIMARY_YDATA) pacificnew etcetera factory backward
-NDATA=		systemv
+YDATA=		$(PRIMARY_YDATA) pacificnew etcetera backward
+NDATA=		systemv factory
 SDATA=		solar87 solar88 solar89
 TDATA=		$(YDATA) $(NDATA) $(SDATA)
 TABDATA=	iso3166.tab zone.tab

@@ -5,7 +5,7 @@
 
 #ifndef lint
 #ifndef NOID
-static char	elsieid[] = "@(#)localtime.c	8.14";
+static char	elsieid[] = "@(#)localtime.c	8.15";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
@@ -914,6 +914,7 @@ const int			lastditch;
 	register unsigned char *	typep;
 	register char *			cp;
 	register int			load_result;
+	static struct ttinfo		zttinfo;
 
 	INITIALIZE(dstname);
 	stdname = name;
@@ -986,6 +987,7 @@ const int			lastditch;
 			/*
 			** Two transitions per year, from EPOCH_YEAR forward.
 			*/
+			sp->ttis[0] = sp->ttis[1] = zttinfo;
 			sp->ttis[0].tt_gmtoff = -dstoffset;
 			sp->ttis[0].tt_isdst = 1;
 			sp->ttis[0].tt_abbrind = stdlen + 1;
@@ -1099,8 +1101,8 @@ const int			lastditch;
 			}
 			/*
 			** Finally, fill in ttis.
-			** ttisstd and ttisgmt need not be handled.
 			*/
+			sp->ttis[0] = sp->ttis[1] = zttinfo;
 			sp->ttis[0].tt_gmtoff = -stdoffset;
 			sp->ttis[0].tt_isdst = FALSE;
 			sp->ttis[0].tt_abbrind = 0;
@@ -1113,6 +1115,7 @@ const int			lastditch;
 		dstlen = 0;
 		sp->typecnt = 1;		/* only standard time */
 		sp->timecnt = 0;
+		sp->ttis[0] = zttinfo;
 		sp->ttis[0].tt_gmtoff = -stdoffset;
 		sp->ttis[0].tt_isdst = 0;
 		sp->ttis[0].tt_abbrind = 0;

@@ -1,4 +1,4 @@
-@(#)Theory	8.4
+@(#)Theory	8.5
 This file is in the public domain, so clarified as of
 2009-05-17 by Arthur David Olson.
 
@@ -287,8 +287,7 @@ and these older names are still supported.
 See the file `backward' for most of these older names
 (e.g. `US/Eastern' instead of `America/New_York').
 The other old-fashioned names still supported are
-`WET', `CET', `MET', `EET' (see the file `europe'),
-and `Factory' (see the file `factory').
+`WET', `CET', `MET', and `EET' (see the file `europe').
 
 
 ----- Time zone abbreviations -----
