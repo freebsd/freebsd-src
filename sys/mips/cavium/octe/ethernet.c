@@ -173,6 +173,7 @@ static void cvm_oct_update_link(void *context, int pending)
 static void cvm_do_timer(void *arg)
 {
 	static int port;
+	static int updated;
 	if (port < CVMX_PIP_NUM_INPUT_PORTS) {
 		if (cvm_oct_device[port]) {
 			int queues_per_port;
@@ -186,6 +187,7 @@ static void cvm_do_timer(void *arg)
 					MDIO_UNLOCK();
 
 					if (priv->need_link_update) {
+						updated++;
 						taskqueue_enqueue(cvm_oct_link_taskq, &priv->link_task);
 					}
 				}
@@ -220,9 +222,19 @@ static void cvm_do_timer(void *arg)
 		callout_reset(&cvm_oct_poll_timer, hz / 50, cvm_do_timer, NULL);
 	} else {
 		port = 0;
-		/* All ports have been polled. Start the next iteration through
-		   the ports in one second */
-		callout_reset(&cvm_oct_poll_timer, hz, cvm_do_timer, NULL);
+		/* If any updates were made in this run, continue iterating at
+		 * 1/50th of a second, so that if a link has merely gone down
+		 * temporarily (e.g. because of interface reinitialization) it
+		 * will not be forced to stay down for an entire second.
+		 */
+		if (updated > 0) {
+			updated = 0;
+			callout_reset(&cvm_oct_poll_timer, hz / 50, cvm_do_timer, NULL);
+		} else {
+			/* All ports have been polled. Start the next iteration through
+			   the ports in one second */
+			callout_reset(&cvm_oct_poll_timer, hz, cvm_do_timer, NULL);
+		}
 	}
 }
 

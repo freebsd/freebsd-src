@@ -67,6 +67,10 @@ pkg_perform(char **pkgs)
 	    Zipper = GZIP;
 	    pkg[len - 4] = '\0';
 	}
+	else if (!strcmp(&pkg[len - 4], ".txz")) {
+	    Zipper = XZ;
+	    pkg[len - 4] = '\0';
+	}
 	else if (!strcmp(&pkg[len - 4], ".tar")) {
 	    Zipper = NONE;
 	    pkg[len - 4] = '\0';
@@ -78,6 +82,8 @@ pkg_perform(char **pkgs)
     } else if (Zipper == GZIP) {
 	suf = "tgz";
 	setenv("GZIP", "-9", 0);
+    } else if (Zipper == XZ) {
+	suf = "txz";
     } else
 	suf = "tar";
 
@@ -374,6 +380,10 @@ make_dist(const char *homedir, const char *pkg, const char *suff, Package *plist
 	if (Zipper == BZIP2) {
 	    args[nargs++] = "-j";
 	    cname = "bzip'd ";
+	}
+	else if (Zipper == XZ) {
+	    args[nargs++] = "-J";
+	    cname = "xz'd ";
 	}
 	else {
 	    args[nargs++] = "-z";

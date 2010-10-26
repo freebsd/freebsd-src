@@ -48,7 +48,7 @@ vcmn_err(int ce, const char *fmt, va_list adx)
 		panic("Solaris: unknown severity level");
 	}
 	if (ce == CE_PANIC)
-		panic(buf);
+		panic("%s", buf);
 	if (ce != CE_IGNORE)
 		vprintf(buf, adx);
 }

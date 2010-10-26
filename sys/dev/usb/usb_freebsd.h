@@ -33,6 +33,7 @@
 
 /* Default USB configuration */
 #define	USB_HAVE_UGEN 1
+#define	USB_HAVE_DEVCTL 1
 #define	USB_HAVE_BUSDMA 1
 #define	USB_HAVE_COMPAT_LINUX 1
 #define	USB_HAVE_USER_IO 1

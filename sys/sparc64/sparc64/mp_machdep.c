@@ -318,7 +318,7 @@ ap_start(phandle_t node, u_int mid, u_int cpu_impl)
 	if (OF_getprop(node, "clock-frequency", &clock, sizeof(clock)) <= 0)
 		panic("%s: couldn't determine CPU frequency", __func__);
 	if (clock != PCPU_GET(clock))
-		hardclock_use_stick = 1;
+		tick_et_use_stick = 1;
 
 	csa = &cpu_start_args;
 	csa->csa_state = 0;
@@ -433,6 +433,12 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	 */
 	cache_enable(pc->pc_impl);
 
+	/*
+	 * Clear (S)TICK timer(s) (including NPT) and ensure they are stopped.
+	 */
+	tick_clear(pc->pc_impl);
+	tick_stop(pc->pc_impl);
+
 	/* Lock the kernel TSB in the TLB. */
 	pmap_map_tsb();
 
@@ -445,7 +451,11 @@ cpu_mp_bootstrap(struct pcpu *pc)
 	/* Initialize global registers. */
 	cpu_setregs(pc);
 
-	/* Enable interrupts. */
+	/*
+	 * Enable interrupts.
+	 * Note that the PIL we be lowered indirectly via sched_throw(NULL)
+	 * when fake spinlock held by the idle thread eventually is released.
+	 */
 	wrpr(pstate, 0, PSTATE_KERNEL);
 
 	smp_cpus++;

@@ -88,32 +88,19 @@ static void hook_free(struct hookproc *hp);
 static void
 descriptors(void)
 {
-	long maxfd;
 	int fd;
 
 	/*
-	 * Close all descriptors.
+	 * Close all (or almost all) descriptors.
 	 */
-	maxfd = sysconf(_SC_OPEN_MAX);
-	if (maxfd < 0) {
-		pjdlog_errno(LOG_WARNING, "sysconf(_SC_OPEN_MAX) failed");
-		maxfd = 1024;
-	}
-	for (fd = 0; fd <= maxfd; fd++) {
-		switch (fd) {
-		case STDIN_FILENO:
-		case STDOUT_FILENO:
-		case STDERR_FILENO:
-			if (pjdlog_mode_get() == PJDLOG_MODE_STD)
-				break;
-			/* FALLTHROUGH */
-		default:
-			close(fd);
-			break;
-		}
-	}
-	if (pjdlog_mode_get() == PJDLOG_MODE_STD)
+	if (pjdlog_mode_get() == PJDLOG_MODE_STD) {
+		closefrom(MAX(MAX(STDIN_FILENO, STDOUT_FILENO),
+		    STDERR_FILENO) + 1);
 		return;
+	}
+
+	closefrom(0);
+
 	/*
 	 * Redirect stdin, stdout and stderr to /dev/null.
 	 */
@@ -354,6 +341,7 @@ hook_execv(const char *path, va_list ap)
 	struct hookproc *hp;
 	char *args[64];
 	unsigned int ii;
+	sigset_t mask;
 	pid_t pid;
 
 	assert(hooks_initialized);
@@ -382,6 +370,8 @@ hook_execv(const char *path, va_list ap)
 		return;
 	case 0:		/* Child. */
 		descriptors();
+		PJDLOG_VERIFY(sigemptyset(&mask) == 0);
+		PJDLOG_VERIFY(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 		execv(path, args);
 		pjdlog_errno(LOG_ERR, "Unable to execute %s", path);
 		exit(EX_SOFTWARE);

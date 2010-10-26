@@ -1140,12 +1140,13 @@ bce_attach(device_t dev)
 	/* Handle any special PHY initialization for SerDes PHYs. */
 	bce_init_media(sc);
 
-	/* MII child bus by probing the PHY. */
-	if (mii_phy_probe(dev, &sc->bce_miibus, bce_ifmedia_upd,
-		bce_ifmedia_sts)) {
-		BCE_PRINTF("%s(%d): No PHY found on child MII bus!\n",
-		    __FILE__, __LINE__);
-		rc = ENXIO;
+	/* MII child bus by attaching the PHY. */
+	rc = mii_attach(dev, &sc->bce_miibus, ifp, bce_ifmedia_upd,
+	    bce_ifmedia_sts, BMSR_DEFCAPMASK, sc->bce_phy_addr,
+	    MII_OFFSET_ANY, 0);
+	if (rc != 0) {
+		BCE_PRINTF("%s(%d): attaching PHYs failed\n", __FILE__,
+		    __LINE__);
 		goto bce_attach_fail;
 	}
 
@@ -6736,6 +6737,7 @@ bce_tso_setup(struct bce_softc *sc, struct mbuf **m_head, u16 *flags)
 		}
 
 		/* Get the TCP header length in bytes (min 20) */
+		ip = (struct ip *)(m->m_data + sizeof(struct ether_header));
 		th = (struct tcphdr *)((caddr_t)ip + ip_hlen);
 		tcp_hlen = (th->th_off << 2);
 
@@ -6748,6 +6750,7 @@ bce_tso_setup(struct bce_softc *sc, struct mbuf **m_head, u16 *flags)
 		}
 
 		/* IP header length and checksum will be calc'd by hardware */
+		ip = (struct ip *)(m->m_data + sizeof(struct ether_header));
 		ip_len = ip->ip_len;
 		ip->ip_len = 0;
 		ip->ip_sum = 0;

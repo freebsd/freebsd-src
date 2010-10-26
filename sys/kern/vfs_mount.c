@@ -1424,15 +1424,17 @@ vfs_filteropt(struct vfsoptlist *opts, const char **legal)
 			continue;
 		snprintf(errmsg, sizeof(errmsg),
 		    "mount option <%s> is unknown", p);
-		printf("%s\n", errmsg);
 		ret = EINVAL;
 	}
 	if (ret != 0) {
 		TAILQ_FOREACH(opt, opts, link) {
 			if (strcmp(opt->name, "errmsg") == 0) {
 				strncpy((char *)opt->value, errmsg, opt->len);
+				break;
 			}
 		}
+		if (opt == NULL)
+			printf("%s\n", errmsg);
 	}
 	return (ret);
 }
@@ -1959,4 +1961,12 @@ kernel_vmount(int flags, ...)
 
 	error = kernel_mount(ma, flags);
 	return (error);
+}
+
+void
+vfs_oexport_conv(const struct oexport_args *oexp, struct export_args *exp)
+{
+
+	bcopy(oexp, exp, sizeof(*oexp));
+	exp->ex_numsecflavors = 0;
 }

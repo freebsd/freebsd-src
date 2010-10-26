@@ -489,6 +489,8 @@ again:
 			 * but it pessimize performance of sendfile/UFS, that's
 			 * why I handle this special case in ZFS code.
 			 */
+			KASSERT(off == 0,
+			    ("unexpected offset in mappedread for sendfile"));
 			if ((m->oflags & VPO_BUSY) != 0) {
 				/*
 				 * Reference the page before unlocking and
@@ -509,14 +511,15 @@ again:
 			}
 			if (error == 0) {
 				va = zfs_map_page(m, &sf);
-				error = dmu_read(os, zp->z_id, start + off,
-				    bytes, (void *)(va + off),
+				error = dmu_read(os, zp->z_id, start, bytes, va,
 				    DMU_READ_PREFETCH);
+				if (bytes != PAGE_SIZE)
+					bzero(va + bytes, PAGE_SIZE - bytes);
 				zfs_unmap_page(sf);
 			}
 			VM_OBJECT_LOCK(obj);
 			if (error == 0)
-				vm_page_set_valid(m, off, bytes);
+				m->valid = VM_PAGE_BITS_ALL;
 			vm_page_wakeup(m);
 			if (error == 0) {
 				uio->uio_resid -= bytes;
@@ -705,7 +708,7 @@ zfs_prefault_write(ssize_t n, struct uio *uio)
  *	IN:	vp	- vnode of file to be written to.
  *		uio	- structure supplying write location, range info,
  *			  and data buffer.
- *		ioflag	- IO_APPEND flag set if in append mode.
+ *		ioflag	- FAPPEND flag set if in append mode.
  *		cr	- credentials of caller.
  *		ct	- caller context (NFS/CIFS fem monitor only)
  *
@@ -772,7 +775,7 @@ zfs_write(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 	/*
 	 * If in append mode, set the io offset pointer to eof.
 	 */
-	if (ioflag & IO_APPEND) {
+	if (ioflag & FAPPEND) {
 		/*
 		 * Range lock for a file append:
 		 * The value for the start of range will be determined by
@@ -4181,6 +4184,111 @@ zfs_setsecattr(vnode_t *vp, vsecattr_t *vsecp, int flag, cred_t *cr,
 }
 
 static int
+ioflags(int ioflags)
+{
+	int flags = 0;
+
+	if (ioflags & IO_APPEND)
+		flags |= FAPPEND;
+	if (ioflags & IO_NDELAY)
+        	flags |= FNONBLOCK;
+	if (ioflags & IO_SYNC)
+		flags |= (FSYNC | FDSYNC | FRSYNC);
+
+	return (flags);
+}
+
+static int
+zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int reqpage)
+{
+	znode_t *zp = VTOZ(vp);
+	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
+	objset_t *os = zp->z_zfsvfs->z_os;
+	vm_page_t mreq;
+	vm_object_t object;
+	caddr_t va;
+	struct sf_buf *sf;
+	int i, error;
+	int pcount, size;
+
+	ZFS_ENTER(zfsvfs);
+	ZFS_VERIFY_ZP(zp);
+
+	pcount = round_page(count) / PAGE_SIZE;
+	mreq = m[reqpage];
+	object = mreq->object;
+	error = 0;
+
+	KASSERT(vp->v_object == object, ("mismatching object"));
+
+	VM_OBJECT_LOCK(object);
+
+	for (i = 0; i < pcount; i++) {
+		if (i != reqpage) {
+			vm_page_lock(m[i]);
+			vm_page_free(m[i]);
+			vm_page_unlock(m[i]);
+		}
+	}
+
+	if (mreq->valid) {
+		if (mreq->valid != VM_PAGE_BITS_ALL)
+			vm_page_zero_invalid(mreq, TRUE);
+		VM_OBJECT_UNLOCK(object);
+		ZFS_EXIT(zfsvfs);
+		return (VM_PAGER_OK);
+	}
+
+	PCPU_INC(cnt.v_vnodein);
+	PCPU_INC(cnt.v_vnodepgsin);
+
+	if (IDX_TO_OFF(mreq->pindex) >= object->un_pager.vnp.vnp_size) {
+		VM_OBJECT_UNLOCK(object);
+		ZFS_EXIT(zfsvfs);
+		return (VM_PAGER_BAD);
+	}
+
+	size = PAGE_SIZE;
+	if (IDX_TO_OFF(mreq->pindex) + size > object->un_pager.vnp.vnp_size)
+		size = object->un_pager.vnp.vnp_size - IDX_TO_OFF(mreq->pindex);
+
+	VM_OBJECT_UNLOCK(object);
+
+	va = zfs_map_page(mreq, &sf);
+	error = dmu_read(os, zp->z_id, IDX_TO_OFF(mreq->pindex),
+	    size, va, DMU_READ_PREFETCH);
+	if (size != PAGE_SIZE)
+		bzero(va + size, PAGE_SIZE - size);
+	zfs_unmap_page(sf);
+
+	VM_OBJECT_LOCK(object);
+
+	if (!error)
+		mreq->valid = VM_PAGE_BITS_ALL;
+	KASSERT(mreq->dirty == 0, ("zfs_getpages: page %p is dirty", mreq));
+
+	VM_OBJECT_UNLOCK(object);
+
+	ZFS_ACCESSTIME_STAMP(zfsvfs, zp);
+	ZFS_EXIT(zfsvfs);
+	return (error ? VM_PAGER_ERROR : VM_PAGER_OK);
+}
+
+static int
+zfs_freebsd_getpages(ap)
+	struct vop_getpages_args /* {
+		struct vnode *a_vp;
+		vm_page_t *a_m;
+		int a_count;
+		int a_reqpage;
+		vm_ooffset_t a_offset;
+	} */ *ap;
+{
+
+	return (zfs_getpages(ap->a_vp, ap->a_m, ap->a_count, ap->a_reqpage));
+}
+
+static int
 zfs_freebsd_open(ap)
 	struct vop_open_args /* {
 		struct vnode *a_vp;
@@ -4238,7 +4346,8 @@ zfs_freebsd_read(ap)
 	} */ *ap;
 {
 
-	return (zfs_read(ap->a_vp, ap->a_uio, ap->a_ioflag, ap->a_cred, NULL));
+	return (zfs_read(ap->a_vp, ap->a_uio, ioflags(ap->a_ioflag),
+	    ap->a_cred, NULL));
 }
 
 static int
@@ -4254,7 +4363,8 @@ zfs_freebsd_write(ap)
 	if (vn_rlimit_fsize(ap->a_vp, ap->a_uio, ap->a_uio->uio_td))
 		return (EFBIG);
 
-	return (zfs_write(ap->a_vp, ap->a_uio, ap->a_ioflag, ap->a_cred, NULL));
+	return (zfs_write(ap->a_vp, ap->a_uio, ioflags(ap->a_ioflag),
+	    ap->a_cred, NULL));
 }
 
 static int
@@ -5294,6 +5404,7 @@ struct vop_vector zfs_vnodeops = {
 	.vop_getacl =		zfs_freebsd_getacl,
 	.vop_setacl =		zfs_freebsd_setacl,
 	.vop_aclcheck =		zfs_freebsd_aclcheck,
+	.vop_getpages =		zfs_freebsd_getpages,
 };
 
 struct vop_vector zfs_fifoops = {

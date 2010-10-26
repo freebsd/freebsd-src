@@ -86,7 +86,6 @@ cn_drvinit(void *unused)
 		tp = tty_alloc(&mambo_ttydevsw, NULL);
 		tty_init_console(tp, 0);
 		tty_makedev(tp, NULL, "%s", "mambocons");
-		tty_makealias(tp, "mambocons");
 
 		polltime = 1;
 

@@ -72,6 +72,7 @@ typedef struct {
 
 	uint8_t mac[6];
 	int phy_id;
+	const char *phy_device;
 	int (*mdio_read)(struct ifnet *, int, int);
 	void (*mdio_write)(struct ifnet *, int, int, int);
 

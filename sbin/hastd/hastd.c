@@ -527,7 +527,8 @@ listen_accept(void)
 		} else if (res->hr_remotein != NULL) {
 			char oaddr[256];
 
-			proto_remote_address(conn, oaddr, sizeof(oaddr));
+			proto_remote_address(res->hr_remotein, oaddr,
+			    sizeof(oaddr));
 			pjdlog_debug(1,
 			    "Canceling half-open connection from %s on connection from %s.",
 			    oaddr, raddr);
@@ -700,8 +701,6 @@ main(int argc, char *argv[])
 	int debuglevel;
 	sigset_t mask;
 
-	g_gate_load();
-
 	foreground = false;
 	debuglevel = 0;
 	pidfile = HASTD_PIDFILE;
@@ -734,6 +733,8 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	pjdlog_debug_set(debuglevel);
+
+	g_gate_load();
 
 	pfh = pidfile_open(pidfile, 0600, &otherpid);
 	if (pfh == NULL) {

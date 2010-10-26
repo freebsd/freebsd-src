@@ -54,9 +54,13 @@
 #define	EHCI_LEGSUP_USBLEGCTLSTS	0x04
 
 /* EHCI capability registers */
-#define	EHCI_CAPLENGTH		0x00	/* RO Capability register length field */
-/* reserved			0x01 */
-#define	EHCI_HCIVERSION		0x02	/* RO Interface version number */
+#define	EHCI_CAPLEN_HCIVERSION	0x00	/* RO Capability register length
+					 * (least-significant byte) and 
+					 * interface version number (two
+					 * most significant)
+					 */
+#define EHCI_CAPLENGTH(x)	((x) & 0xff)
+#define EHCI_HCIVERSION(x)	(((x) >> 16) & 0xffff)
 #define	EHCI_HCSPARAMS		0x04	/* RO Structural parameters */
 #define	EHCI_HCS_DEBUGPORT(x)	(((x) >> 20) & 0xf)
 #define	EHCI_HCS_P_INDICATOR(x) ((x) & 0x10000)

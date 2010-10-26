@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Media to register setting conversion table.  Order matters.
  */
-const struct mii_media mii_media_table[MII_NMEDIA] = {
+static const struct mii_media mii_media_table[MII_NMEDIA] = {
 	/* None */
 	{ BMCR_ISO,		ANAR_CSMA,
 	  0, },
@@ -284,99 +284,6 @@ mii_phy_update(struct mii_softc *sc, int cmd)
 		MIIBUS_LINKCHG(sc->mii_dev);
 		sc->mii_media_status = mii->mii_media_status;
 	}
-}
-
-/*
- * Given an ifmedia word, return the corresponding ANAR value.
- */
-int
-mii_anar(int media)
-{
-	int rv;
-
-	switch (media & (IFM_TMASK|IFM_NMASK|IFM_FDX)) {
-	case IFM_ETHER|IFM_10_T:
-		rv = ANAR_10|ANAR_CSMA;
-		break;
-	case IFM_ETHER|IFM_10_T|IFM_FDX:
-		rv = ANAR_10_FD|ANAR_CSMA;
-		break;
-	case IFM_ETHER|IFM_100_TX:
-		rv = ANAR_TX|ANAR_CSMA;
-		break;
-	case IFM_ETHER|IFM_100_TX|IFM_FDX:
-		rv = ANAR_TX_FD|ANAR_CSMA;
-		break;
-	case IFM_ETHER|IFM_100_T4:
-		rv = ANAR_T4|ANAR_CSMA;
-		break;
-	default:
-		rv = 0;
-		break;
-	}
-
-	return (rv);
-}
-
-/*
- * Initialize generic PHY media based on BMSR, called when a PHY is
- * attached.  We expect to be set up to print a comma-separated list
- * of media names.  Does not print a newline.
- */
-void
-mii_add_media(struct mii_softc *sc)
-{
-	struct mii_data *mii = sc->mii_pdata;
-	const char *sep = "";
-
-	if ((sc->mii_capabilities & BMSR_MEDIAMASK) == 0) {
-		printf("no media present");
-		return;
-	}
-
-#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
-#define	PRINT(s)	printf("%s%s", sep, s); sep = ", "
-
-	if (sc->mii_capabilities & BMSR_10THDX) {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, 0, sc->mii_inst), 0);
-		PRINT("10baseT");
-	}
-	if (sc->mii_capabilities & BMSR_10TFDX) {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, IFM_FDX, sc->mii_inst),
-		    BMCR_FDX);
-		PRINT("10baseT-FDX");
-	}
-	if (sc->mii_capabilities & BMSR_100TXHDX) {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, 0, sc->mii_inst),
-		    BMCR_S100);
-		PRINT("100baseTX");
-	}
-	if (sc->mii_capabilities & BMSR_100TXFDX) {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_FDX, sc->mii_inst),
-		    BMCR_S100|BMCR_FDX);
-		PRINT("100baseTX-FDX");
-	}
-	if (sc->mii_capabilities & BMSR_100T4) {
-		/*
-		 * XXX How do you enable 100baseT4?  I assume we set
-		 * XXX BMCR_S100 and then assume the PHYs will take
-		 * XXX watever action is necessary to switch themselves
-		 * XXX into T4 mode.
-		 */
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_T4, 0, sc->mii_inst),
-		    BMCR_S100);
-		PRINT("100baseT4");
-	}
-	if (sc->mii_capabilities & BMSR_ANEG) {
-		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, sc->mii_inst),
-		    BMCR_AUTOEN);
-		PRINT("auto");
-	}
-
-
-
-#undef ADD
-#undef PRINT
 }
 
 /*

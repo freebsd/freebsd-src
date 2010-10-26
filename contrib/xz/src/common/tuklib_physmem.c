@@ -33,6 +33,10 @@
 #	include <syidef.h>
 #	include <ssdef.h>
 
+// AIX
+#elif defined(TUKLIB_PHYSMEM_AIX)
+#	include <sys/systemcfg.h>
+
 #elif defined(TUKLIB_PHYSMEM_SYSCONF)
 #	include <unistd.h>
 
@@ -41,6 +45,16 @@
 #		include <sys/param.h>
 #	endif
 #	include <sys/sysctl.h>
+
+// Tru64
+#elif defined(TUKLIB_PHYSMEM_GETSYSINFO)
+#	include <sys/sysinfo.h>
+#	include <machine/hal_sysinfo.h>
+
+// HP-UX
+#elif defined(TUKLIB_PHYSMEM_PSTAT_GETSTATIC)
+#	include <sys/param.h>
+#	include <sys/pstat.h>
 
 // IRIX
 #elif defined(TUKLIB_PHYSMEM_GETINVENT_R)
@@ -105,10 +119,13 @@ tuklib_physmem(void)
 	if (LIB$GETSYI(&val, &vms_mem, 0, 0, 0, 0) == SS$_NORMAL)
 		ret = (uint64_t)vms_mem * 8192;
 
+#elif defined(TUKLIB_PHYSMEM_AIX)
+	ret = _system_configuration.physmem;
+
 #elif defined(TUKLIB_PHYSMEM_SYSCONF)
 	const long pagesize = sysconf(_SC_PAGESIZE);
 	const long pages = sysconf(_SC_PHYS_PAGES);
-	if (pagesize != -1 || pages != -1)
+	if (pagesize != -1 && pages != -1)
 		// According to docs, pagesize * pages can overflow.
 		// Simple case is 32-bit box with 4 GiB or more RAM,
 		// which may report exactly 4 GiB of RAM, and "long"
@@ -139,6 +156,20 @@ tuklib_physmem(void)
 		else if (mem_ptr_size == sizeof(mem.u32))
 			ret = mem.u32;
 	}
+
+#elif defined(TUKLIB_PHYSMEM_GETSYSINFO)
+	// Docs are unclear if "start" is needed, but it doesn't hurt
+	// much to have it.
+	int memkb;
+	int start = 0;
+	if (getsysinfo(GSI_PHYSMEM, (caddr_t)&memkb, sizeof(memkb), &start)
+			!= -1)
+		ret = (uint64_t)memkb * 1024;
+
+#elif defined(TUKLIB_PHYSMEM_PSTAT_GETSTATIC)
+	struct pst_static pst;
+	if (pstat_getstatic(&pst, sizeof(pst), 1, 0) != -1)
+		ret = (uint64_t)pst.physical_memory * (uint64_t)pst.page_size;
 
 #elif defined(TUKLIB_PHYSMEM_GETINVENT_R)
 	inv_state_t *st = NULL;

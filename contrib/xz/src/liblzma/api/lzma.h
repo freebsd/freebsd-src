@@ -234,10 +234,6 @@
 #		define lzma_attribute(attr) __attribute__(attr)
 #	endif
 
-#	ifndef lzma_restrict
-#		define lzma_restrict __restrict__
-#	endif
-
 	/* warn_unused_result was added in GCC 3.4. */
 #	ifndef lzma_attr_warn_unused_result
 #		if __GNUC__ == 3 && __GNUC_MINOR__ < 4
@@ -248,14 +244,6 @@
 #else
 #	ifndef lzma_attribute
 #		define lzma_attribute(attr)
-#	endif
-
-#	ifndef lzma_restrict
-#		if __STDC_VERSION__ >= 199901L
-#			define lzma_restrict restrict
-#		else
-#			define lzma_restrict
-#		endif
 #	endif
 #endif
 
@@ -296,7 +284,6 @@ extern "C" {
 
 /* Filters */
 #include "lzma/filter.h"
-#include "lzma/subblock.h"
 #include "lzma/bcj.h"
 #include "lzma/delta.h"
 #include "lzma/lzma.h"

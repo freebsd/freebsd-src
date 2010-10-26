@@ -75,6 +75,7 @@ struct synclass synclass[] = {
 	{ "CEOF",	"end of file" },
 	{ "CCTL",	"like CWORD, except it must be escaped" },
 	{ "CSPCL",	"these terminate a word" },
+	{ "CIGN",       "character should be ignored" },
 	{ NULL,		NULL }
 };
 
@@ -232,7 +233,7 @@ main(int argc __unused, char **argv __unused)
 	add("\n", "CNL");
 	add("\\", "CBACK");
 	add("`", "CBQUOTE");
-	add("\"", "CDQUOTE");
+	add("\"", "CIGN");
 	add("$", "CVAR");
 	add("}", "CENDVAR");
 	add("(", "CLP");

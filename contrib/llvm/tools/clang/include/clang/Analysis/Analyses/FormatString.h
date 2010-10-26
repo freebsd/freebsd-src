@@ -147,6 +147,7 @@ public:
     // FreeBSD specific specifiers
     bArg,
     DArg,
+    rArg,
     
     // GlibC specific specifiers.
     PrintErrno,   // 'm'

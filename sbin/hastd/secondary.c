@@ -243,13 +243,22 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 	 */
 	if (res->hr_resuid == 0) {
 		/*
-		 * Provider is used for the first time. Initialize everything.
+		 * Provider is used for the first time. If primary node done no
+		 * writes yet as well (we will find "virgin" argument) then
+		 * there is no need to synchronize anything. If primary node
+		 * done any writes already we have to synchronize everything.
 		 */
 		assert(res->hr_secondary_localcnt == 0);
 		res->hr_resuid = resuid;
 		if (metadata_write(res) < 0)
 			exit(EX_NOINPUT);
-		memset(map, 0xff, mapsize);
+		if (nv_exists(nvin, "virgin")) {
+			free(map);
+			map = NULL;
+			mapsize = 0;
+		} else {
+			memset(map, 0xff, mapsize);
+		}
 		nv_add_uint8(nvout, HAST_SYNCSRC_PRIMARY, "syncsrc");
 	} else if (
 	    /* Is primary is out-of-date? */
@@ -318,11 +327,11 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		    (uintmax_t)res->hr_secondary_remotecnt);
 	}
 	if (hast_proto_send(res, res->hr_remotein, nvout, map, mapsize) < 0) {
-		pjdlog_errno(LOG_WARNING, "Unable to send activemap to %s",
+		pjdlog_exit(EX_TEMPFAIL, "Unable to send activemap to %s",
 		    res->hr_remoteaddr);
-		nv_free(nvout);
-		exit(EX_TEMPFAIL);
 	}
+	if (map != NULL)
+		free(map);
 	nv_free(nvout);
 	if (res->hr_secondary_localcnt > res->hr_primary_remotecnt &&
 	     res->hr_primary_localcnt > res->hr_secondary_remotecnt) {

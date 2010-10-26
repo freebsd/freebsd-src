@@ -144,7 +144,7 @@ static void
 pathgen(const char *name, char *path, size_t size)
 {
 
-	if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) != 0)
+	if (strncmp(name, _PATH_DEV, sizeof(_PATH_DEV) - 1) != 0)
 		snprintf(path, size, "%s%s", _PATH_DEV, name);
 	else
 		strlcpy(path, name, size);
@@ -375,7 +375,7 @@ virstor_label(struct gctl_req *req)
 		fflush(stdout);
 	}
 
-	if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+	if (strncmp(name, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
 		fd = open(name, O_RDWR);
 	else {
 		sprintf(param, "%s%s", _PATH_DEV, name);
@@ -453,8 +453,8 @@ virstor_label(struct gctl_req *req)
 			bzero(md.provider, sizeof(md.provider));
 		else {
 			/* convert "/dev/something" to "something" */
-			if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0) {
-				strlcpy(md.provider, name + strlen(_PATH_DEV),
+			if (strncmp(name, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0) {
+				strlcpy(md.provider, name + sizeof(_PATH_DEV) - 1,
 				    sizeof(md.provider));
 			} else
 				strlcpy(md.provider, name, sizeof(md.provider));
@@ -509,7 +509,7 @@ virstor_clear(struct gctl_req *req)
 			    "Not fully done (can't clear metadata).");
 			continue;
 		}
-		if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
+		if (strncmp(name, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
 			fd = open(name, O_RDWR);
 		else {
 			sprintf(param, "%s%s", _PATH_DEV, name);

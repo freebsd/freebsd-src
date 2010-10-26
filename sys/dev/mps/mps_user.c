@@ -33,6 +33,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
+
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -47,6 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/ioccom.h>
 #include <sys/endian.h>
+#include <sys/proc.h>
+#include <sys/sysent.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -64,16 +68,40 @@ __FBSDID("$FreeBSD$");
 
 static d_open_t		mps_open;
 static d_close_t	mps_close;
-static d_ioctl_t	mps_ioctl;
+static d_ioctl_t	mps_ioctl_devsw;
 
 static struct cdevsw mps_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_flags =	0,
 	.d_open =	mps_open,
 	.d_close =	mps_close,
-	.d_ioctl =	mps_ioctl,
+	.d_ioctl =	mps_ioctl_devsw,
 	.d_name =	"mps",
 };
+
+typedef int (mps_user_f)(struct mps_command *, struct mps_usr_command *);
+static mps_user_f	mpi_pre_ioc_facts;
+static mps_user_f	mpi_pre_port_facts;
+static mps_user_f	mpi_pre_fw_download;
+static mps_user_f	mpi_pre_fw_upload;
+static mps_user_f	mpi_pre_sata_passthrough;
+static mps_user_f	mpi_pre_smp_passthrough;
+static mps_user_f	mpi_pre_config;
+static mps_user_f	mpi_pre_sas_io_unit_control;
+
+static int mps_user_read_cfg_header(struct mps_softc *,
+				    struct mps_cfg_page_req *);
+static int mps_user_read_cfg_page(struct mps_softc *,
+				  struct mps_cfg_page_req *, void *);
+static int mps_user_read_extcfg_header(struct mps_softc *,
+				     struct mps_ext_cfg_page_req *);
+static int mps_user_read_extcfg_page(struct mps_softc *,
+				     struct mps_ext_cfg_page_req *, void *);
+static int mps_user_write_cfg_page(struct mps_softc *,
+				   struct mps_cfg_page_req *, void *);
+static int mps_user_setup_request(struct mps_command *,
+				  struct mps_usr_command *);
+static int mps_user_command(struct mps_softc *, struct mps_usr_command *);
 
 static MALLOC_DEFINE(M_MPSUSER, "mps_user", "Buffers for mps(4) ioctls");
 
@@ -294,43 +322,255 @@ mps_user_write_cfg_page(struct mps_softc *sc,
 	return (0);
 }
 
+static void
+mpi_init_sge(struct mps_command *cm, void *req, void *sge)
+{
+	int off, space;
+
+	space = (int)cm->cm_sc->facts->IOCRequestFrameSize * 4;
+	off = (uintptr_t)sge - (uintptr_t)req;
+
+	KASSERT(off < space, ("bad pointers %p %p, off %d, space %d",
+            req, sge, off, space));
+
+	cm->cm_sge = sge;
+	cm->cm_sglsize = space - off;
+}
+
+/*
+ * Prepare the mps_command for an IOC_FACTS request.
+ */
+static int
+mpi_pre_ioc_facts(struct mps_command *cm, struct mps_usr_command *cmd)
+{
+	MPI2_IOC_FACTS_REQUEST *req = (void *)cm->cm_req;
+	MPI2_IOC_FACTS_REPLY *rpl;
+
+	if (cmd->req_len != sizeof *req)
+		return (EINVAL);
+	if (cmd->rpl_len != sizeof *rpl)
+		return (EINVAL);
+
+	cm->cm_sge = NULL;
+	cm->cm_sglsize = 0;
+	return (0);
+}
+
+/*
+ * Prepare the mps_command for a PORT_FACTS request.
+ */
+static int
+mpi_pre_port_facts(struct mps_command *cm, struct mps_usr_command *cmd)
+{
+	MPI2_PORT_FACTS_REQUEST *req = (void *)cm->cm_req;
+	MPI2_PORT_FACTS_REPLY *rpl;
+
+	if (cmd->req_len != sizeof *req)
+		return (EINVAL);
+	if (cmd->rpl_len != sizeof *rpl)
+		return (EINVAL);
+
+	cm->cm_sge = NULL;
+	cm->cm_sglsize = 0;
+	return (0);
+}
+
+/*
+ * Prepare the mps_command for a FW_DOWNLOAD request.
+ */
+static int
+mpi_pre_fw_download(struct mps_command *cm, struct mps_usr_command *cmd)
+{
+	MPI2_FW_DOWNLOAD_REQUEST *req = (void *)cm->cm_req;
+	MPI2_FW_DOWNLOAD_REPLY *rpl;
+	MPI2_FW_DOWNLOAD_TCSGE tc;
+	int error;
+
+	/*
+	 * This code assumes there is room in the request's SGL for
+	 * the TransactionContext plus at least a SGL chain element.
+	 */
+	CTASSERT(sizeof req->SGL >= sizeof tc + MPS_SGC_SIZE);
+
+	if (cmd->req_len != sizeof *req)
+		return (EINVAL);
+	if (cmd->rpl_len != sizeof *rpl)
+		return (EINVAL);
+
+	if (cmd->len == 0)
+		return (EINVAL);
+
+	error = copyin(cmd->buf, cm->cm_data, cmd->len);
+	if (error != 0)
+		return (error);
+
+	mpi_init_sge(cm, req, &req->SGL);
+	bzero(&tc, sizeof tc);
+
+	/*
+	 * For now, the F/W image must be provided in a single request.
+	 */
+	if ((req->MsgFlags & MPI2_FW_DOWNLOAD_MSGFLGS_LAST_SEGMENT) == 0)
+		return (EINVAL);
+	if (req->TotalImageSize != cmd->len)
+		return (EINVAL);
+
+	/*
+	 * The value of the first two elements is specified in the
+	 * Fusion-MPT Message Passing Interface document.
+	 */
+	tc.ContextSize = 0;
+	tc.DetailsLength = 12;
+	tc.ImageOffset = 0;
+	tc.ImageSize = cmd->len;
+
+	cm->cm_flags |= MPS_CM_FLAGS_DATAOUT;
+
+	return (mps_push_sge(cm, &tc, sizeof tc, 0));
+}
+
+/*
+ * Prepare the mps_command for a FW_UPLOAD request.
+ */
+static int
+mpi_pre_fw_upload(struct mps_command *cm, struct mps_usr_command *cmd)
+{
+	MPI2_FW_UPLOAD_REQUEST *req = (void *)cm->cm_req;
+	MPI2_FW_UPLOAD_REPLY *rpl;
+	MPI2_FW_UPLOAD_TCSGE tc;
+
+	/*
+	 * This code assumes there is room in the request's SGL for
+	 * the TransactionContext plus at least a SGL chain element.
+	 */
+	CTASSERT(sizeof req->SGL >= sizeof tc + MPS_SGC_SIZE);
+
+	if (cmd->req_len != sizeof *req)
+		return (EINVAL);
+	if (cmd->rpl_len != sizeof *rpl)
+		return (EINVAL);
+
+	mpi_init_sge(cm, req, &req->SGL);
+	if (cmd->len == 0) {
+		/* Perhaps just asking what the size of the fw is? */
+		return (0);
+	}
+
+	bzero(&tc, sizeof tc);
+
+	/*
+	 * The value of the first two elements is specified in the
+	 * Fusion-MPT Message Passing Interface document.
+	 */
+	tc.ContextSize = 0;
+	tc.DetailsLength = 12;
+	/*
+	 * XXX Is there any reason to fetch a partial image?  I.e. to
+	 * set ImageOffset to something other than 0?
+	 */
+	tc.ImageOffset = 0;
+	tc.ImageSize = cmd->len;
+
+	return (mps_push_sge(cm, &tc, sizeof tc, 0));
+}
+
+/*
+ * Prepare the mps_command for a SATA_PASSTHROUGH request.
+ */
+static int
+mpi_pre_sata_passthrough(struct mps_command *cm, struct mps_usr_command *cmd)
+{
+	MPI2_SATA_PASSTHROUGH_REQUEST *req = (void *)cm->cm_req;
+	MPI2_SATA_PASSTHROUGH_REPLY *rpl;
+
+	if (cmd->req_len != sizeof *req)
+		return (EINVAL);
+	if (cmd->rpl_len != sizeof *rpl)
+		return (EINVAL);
+
+	mpi_init_sge(cm, req, &req->SGL);
+	return (0);
+}
+
+/*
+ * Prepare the mps_command for a SMP_PASSTHROUGH request.
+ */
+static int
+mpi_pre_smp_passthrough(struct mps_command *cm, struct mps_usr_command *cmd)
+{
+	MPI2_SMP_PASSTHROUGH_REQUEST *req = (void *)cm->cm_req;
+	MPI2_SMP_PASSTHROUGH_REPLY *rpl;
+
+	if (cmd->req_len != sizeof *req)
+		return (EINVAL);
+	if (cmd->rpl_len != sizeof *rpl)
+		return (EINVAL);
+
+	mpi_init_sge(cm, req, &req->SGL);
+	return (0);
+}
+
+/*
+ * Prepare the mps_command for a CONFIG request.
+ */
+static int
+mpi_pre_config(struct mps_command *cm, struct mps_usr_command *cmd)
+{
+	MPI2_CONFIG_REQUEST *req = (void *)cm->cm_req;
+	MPI2_CONFIG_REPLY *rpl;
+
+	if (cmd->req_len != sizeof *req)
+		return (EINVAL);
+	if (cmd->rpl_len != sizeof *rpl)
+		return (EINVAL);
+
+	mpi_init_sge(cm, req, &req->PageBufferSGE);
+	return (0);
+}
+
+/*
+ * Prepare the mps_command for a SAS_IO_UNIT_CONTROL request.
+ */
+static int
+mpi_pre_sas_io_unit_control(struct mps_command *cm,
+			     struct mps_usr_command *cmd)
+{
+
+	cm->cm_sge = NULL;
+	cm->cm_sglsize = 0;
+	return (0);
+}
+
+/*
+ * A set of functions to prepare an mps_command for the various
+ * supported requests.
+ */
 struct mps_user_func {
-	U8 Func;
-	U8 SgOff;
+	U8		Function;
+	mps_user_f	*f_pre;
 } mps_user_func_list[] = {
-	{ MPI2_FUNCTION_IOC_FACTS,	0 },
-	{ MPI2_FUNCTION_PORT_FACTS,	0 },
-	{ MPI2_FUNCTION_FW_DOWNLOAD, 	offsetof(Mpi2FWDownloadRequest,SGL)},
-	{ MPI2_FUNCTION_FW_UPLOAD,	offsetof(Mpi2FWUploadRequest_t,SGL)},
-	{ MPI2_FUNCTION_SATA_PASSTHROUGH,offsetof(Mpi2SataPassthroughRequest_t,SGL)},
-	{ MPI2_FUNCTION_SMP_PASSTHROUGH, offsetof(Mpi2SmpPassthroughRequest_t,SGL)},
-	{ MPI2_FUNCTION_CONFIG,		offsetof(Mpi2ConfigRequest_t,PageBufferSGE)},
-	{ MPI2_FUNCTION_SAS_IO_UNIT_CONTROL,	0 },
-};	
+	{ MPI2_FUNCTION_IOC_FACTS,		mpi_pre_ioc_facts },
+	{ MPI2_FUNCTION_PORT_FACTS,		mpi_pre_port_facts },
+	{ MPI2_FUNCTION_FW_DOWNLOAD, 		mpi_pre_fw_download },
+	{ MPI2_FUNCTION_FW_UPLOAD,		mpi_pre_fw_upload },
+	{ MPI2_FUNCTION_SATA_PASSTHROUGH,	mpi_pre_sata_passthrough },
+	{ MPI2_FUNCTION_SMP_PASSTHROUGH,	mpi_pre_smp_passthrough},
+	{ MPI2_FUNCTION_CONFIG,			mpi_pre_config},
+	{ MPI2_FUNCTION_SAS_IO_UNIT_CONTROL,	mpi_pre_sas_io_unit_control },
+	{ 0xFF,					NULL } /* list end */
+};
 
 static int
-mps_user_verify_request(MPI2_REQUEST_HEADER *hdr, MPI2_SGE_IO_UNION **psgl)
+mps_user_setup_request(struct mps_command *cm, struct mps_usr_command *cmd)
 {
-	int i, err = EINVAL;
+	MPI2_REQUEST_HEADER *hdr = (MPI2_REQUEST_HEADER *)cm->cm_req;	
+	struct mps_user_func *f;
 
-	for (i = 0; i < sizeof(mps_user_func_list) /
-	    sizeof(mps_user_func_list[0]); i++ ) {
-		struct mps_user_func *func = &mps_user_func_list[i];
-		
-		if (hdr->Function == func->Func) {
-			if (psgl != NULL) {
-				if (func->SgOff != 0)
-					*psgl = (PTR_MPI2_SGE_IO_UNION)
-					    ((char*)hdr + func->SgOff);
-				else
-					*psgl = NULL;
-				err = 0;
-				break;
-			}
-		}
-	}	
-
-	return err;
+	for (f = mps_user_func_list; f->f_pre != NULL; f++) {
+		if (hdr->Function == f->Function)
+			return (f->f_pre(cm, cmd));
+	}
+	return (EINVAL);
 }	
 
 static int
@@ -338,9 +578,8 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 {
 	MPI2_REQUEST_HEADER *hdr;	
 	MPI2_DEFAULT_REPLY *rpl;
-	MPI2_SGE_IO_UNION *sgl;	
-	void *buf;
-	struct mps_command *cm;
+	void *buf = NULL;
+	struct mps_command *cm = NULL;
 	int err = 0;
 	int sz;
 
@@ -359,16 +598,22 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 	mps_dprint(sc, MPS_INFO, "mps_user_command: req %p %d  rpl %p %d\n",
 		    cmd->req, cmd->req_len, cmd->rpl, cmd->rpl_len );
 
-	copyin(cmd->req, hdr, cmd->req_len);
+	if (cmd->req_len > (int)sc->facts->IOCRequestFrameSize * 4) {
+		err = EINVAL;
+		goto RetFreeUnlocked;
+	}
+	err = copyin(cmd->req, hdr, cmd->req_len);
+	if (err != 0)
+		goto RetFreeUnlocked;
 
 	mps_dprint(sc, MPS_INFO, "mps_user_command: Function %02X  "
 	    "MsgFlags %02X\n", hdr->Function, hdr->MsgFlags );
 
-	err = mps_user_verify_request(hdr, &sgl);
+	err = mps_user_setup_request(cm, cmd);
 	if (err != 0) {
 		mps_printf(sc, "mps_user_command: unsupported function 0x%X\n",
 		    hdr->Function );
-		goto RetFree;
+		goto RetFreeUnlocked;
 	}
 
 	if (cmd->len > 0) {
@@ -376,24 +621,22 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 		cm->cm_data = buf;
 		cm->cm_length = cmd->len;
 	} else {
-		buf = NULL;
 		cm->cm_data = NULL;
 		cm->cm_length = 0;
 	}
 
-	cm->cm_sge = sgl;
-	cm->cm_sglsize = sizeof(MPI2_SGE_IO_UNION);
 	cm->cm_flags = MPS_CM_FLAGS_SGE_SIMPLE | MPS_CM_FLAGS_WAKEUP;
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 
 	mps_lock(sc);
 	err = mps_map_command(sc, cm);
 
-	if (err != 0) {
-		mps_printf(sc, "mps_user_command: request timed out\n");
+	if (err != 0 && err != EINPROGRESS) {
+		mps_printf(sc, "%s: invalid request: error %d\n",
+		    __func__, err);
 		goto Ret;
 	}
-	msleep(cm, &sc->mps_mtx, 0, "mpsuser", 0); /* 30 seconds */
+	msleep(cm, &sc->mps_mtx, 0, "mpsuser", 0);
 
 	rpl = (MPI2_DEFAULT_REPLY *)cm->cm_reply;
 	sz = rpl->MsgLength * 4;
@@ -408,41 +651,29 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 
 	mps_unlock(sc);
 	copyout(rpl, cmd->rpl, sz);
-	if (buf != NULL) {
+	if (buf != NULL)
 		copyout(buf, cmd->buf, cmd->len);
-		free(buf, M_MPSUSER);
-	}
-	mps_lock(sc);
-
 	mps_dprint(sc, MPS_INFO, "mps_user_command: reply size %d\n", sz );
 
-RetFree:	   
-	mps_free_command(sc, cm);
-
+RetFreeUnlocked:
+	mps_lock(sc);
+	if (cm != NULL)
+		mps_free_command(sc, cm);
 Ret:
 	mps_unlock(sc);
-	return err;
+	if (buf != NULL)
+		free(buf, M_MPSUSER);
+	return (err);
 }	
 
-#ifdef __amd64__
-#define	PTRIN(p)		((void *)(uintptr_t)(p))
-#define PTROUT(v)		((u_int32_t)(uintptr_t)(v))
-#endif
-
 static int
-mps_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag,
+mps_ioctl(struct cdev *dev, u_long cmd, void *arg, int flag,
     struct thread *td)
 {
 	struct mps_softc *sc;
 	struct mps_cfg_page_req *page_req;
 	struct mps_ext_cfg_page_req *ext_page_req;
 	void *mps_page;
-#ifdef __amd64__
-	struct mps_cfg_page_req32 *page_req32;
-	struct mps_cfg_page_req page_req_swab;
-	struct mps_ext_cfg_page_req32 *ext_page_req32;
-	struct mps_ext_cfg_page_req ext_page_req_swab;
-#endif
 	int error;
 
 	mps_page = NULL;
@@ -450,47 +681,12 @@ mps_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag,
 	page_req = (void *)arg;
 	ext_page_req = (void *)arg;
 
-#ifdef __amd64__
-	/* Convert 32-bit structs to native ones. */
-	page_req32 = (void *)arg;
-	ext_page_req32 = (void *)arg;
 	switch (cmd) {
-	case MPSIO_READ_CFG_HEADER32:
-	case MPSIO_READ_CFG_PAGE32:
-	case MPSIO_WRITE_CFG_PAGE32:
-		page_req = &page_req_swab;
-		page_req->header = page_req32->header;
-		page_req->page_address = page_req32->page_address;
-		page_req->buf = PTRIN(page_req32->buf);
-		page_req->len = page_req32->len;
-		page_req->ioc_status = page_req32->ioc_status;
-		break;
-	case MPSIO_READ_EXT_CFG_HEADER32:
-	case MPSIO_READ_EXT_CFG_PAGE32:
-		ext_page_req = &ext_page_req_swab;
-		ext_page_req->header = ext_page_req32->header;
-		ext_page_req->page_address = ext_page_req32->page_address;
-		ext_page_req->buf = PTRIN(ext_page_req32->buf);
-		ext_page_req->len = ext_page_req32->len;
-		ext_page_req->ioc_status = ext_page_req32->ioc_status;
-		break;
-	default:
-		return (ENOIOCTL);
-	}
-#endif
-
-	switch (cmd) {
-#ifdef __amd64__
-	case MPSIO_READ_CFG_HEADER32:
-#endif
 	case MPSIO_READ_CFG_HEADER:
 		mps_lock(sc);
 		error = mps_user_read_cfg_header(sc, page_req);
 		mps_unlock(sc);
 		break;
-#ifdef __amd64__
-	case MPSIO_READ_CFG_PAGE32:
-#endif
 	case MPSIO_READ_CFG_PAGE:
 		mps_page = malloc(page_req->len, M_MPSUSER, M_WAITOK | M_ZERO);
 		error = copyin(page_req->buf, mps_page,
@@ -504,17 +700,11 @@ mps_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag,
 			break;
 		error = copyout(mps_page, page_req->buf, page_req->len);
 		break;
-#ifdef __amd64__
-	case MPSIO_READ_EXT_CFG_HEADER32:
-#endif
 	case MPSIO_READ_EXT_CFG_HEADER:
 		mps_lock(sc);
 		error = mps_user_read_extcfg_header(sc, ext_page_req);
 		mps_unlock(sc);
 		break;
-#ifdef __amd64__
-	case MPSIO_READ_EXT_CFG_PAGE32:
-#endif
 	case MPSIO_READ_EXT_CFG_PAGE:
 		mps_page = malloc(ext_page_req->len, M_MPSUSER, M_WAITOK|M_ZERO);
 		error = copyin(ext_page_req->buf, mps_page,
@@ -528,9 +718,6 @@ mps_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag,
 			break;
 		error = copyout(mps_page, ext_page_req->buf, ext_page_req->len);
 		break;
-#ifdef __amd64__
-	case MPSIO_WRITE_CFG_PAGE32:
-#endif
 	case MPSIO_WRITE_CFG_PAGE:
 		mps_page = malloc(page_req->len, M_MPSUSER, M_WAITOK|M_ZERO);
 		error = copyin(page_req->buf, mps_page, page_req->len);
@@ -551,33 +738,207 @@ mps_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag,
 	if (mps_page != NULL)
 		free(mps_page, M_MPSUSER);
 
-	if (error)
-		return (error);
+	return (error);
+}
 
-#ifdef __amd64__
-	/* Convert native structs to 32-bit ones. */
-	switch (cmd) {
+#ifdef COMPAT_FREEBSD32
+
+/* Macros from compat/freebsd32/freebsd32.h */
+#define	PTRIN(v)	(void *)(uintptr_t)(v)
+#define	PTROUT(v)	(uint32_t)(uintptr_t)(v)
+
+#define	CP(src,dst,fld) do { (dst).fld = (src).fld; } while (0)
+#define	PTRIN_CP(src,dst,fld)				\
+	do { (dst).fld = PTRIN((src).fld); } while (0)
+#define	PTROUT_CP(src,dst,fld) \
+	do { (dst).fld = PTROUT((src).fld); } while (0)
+
+struct mps_cfg_page_req32 {
+	MPI2_CONFIG_PAGE_HEADER header;
+	uint32_t page_address;
+	uint32_t buf;
+	int	len;	
+	uint16_t ioc_status;
+};
+
+struct mps_ext_cfg_page_req32 {
+	MPI2_CONFIG_EXTENDED_PAGE_HEADER header;
+	uint32_t page_address;
+	uint32_t buf;
+	int	len;
+	uint16_t ioc_status;
+};
+
+struct mps_raid_action32 {
+	uint8_t action;
+	uint8_t volume_bus;
+	uint8_t volume_id;
+	uint8_t phys_disk_num;
+	uint32_t action_data_word;
+	uint32_t buf;
+	int len;
+	uint32_t volume_status;
+	uint32_t action_data[4];
+	uint16_t action_status;
+	uint16_t ioc_status;
+	uint8_t write;
+};
+
+struct mps_usr_command32 {
+	uint32_t req;
+	uint32_t req_len;
+	uint32_t rpl;
+	uint32_t rpl_len;
+	uint32_t buf;
+	int len;
+	uint32_t flags;
+};
+
+#define	MPSIO_READ_CFG_HEADER32	_IOWR('M', 200, struct mps_cfg_page_req32)
+#define	MPSIO_READ_CFG_PAGE32	_IOWR('M', 201, struct mps_cfg_page_req32)
+#define	MPSIO_READ_EXT_CFG_HEADER32 _IOWR('M', 202, struct mps_ext_cfg_page_req32)
+#define	MPSIO_READ_EXT_CFG_PAGE32 _IOWR('M', 203, struct mps_ext_cfg_page_req32)
+#define	MPSIO_WRITE_CFG_PAGE32	_IOWR('M', 204, struct mps_cfg_page_req32)
+#define	MPSIO_RAID_ACTION32	_IOWR('M', 205, struct mps_raid_action32)
+#define	MPSIO_MPS_COMMAND32	_IOWR('M', 210, struct mps_usr_command32)
+
+static int
+mps_ioctl32(struct cdev *dev, u_long cmd32, void *_arg, int flag,
+    struct thread *td)
+{
+	struct mps_cfg_page_req32 *page32 = _arg;
+	struct mps_ext_cfg_page_req32 *ext32 = _arg;
+	struct mps_raid_action32 *raid32 = _arg;
+	struct mps_usr_command32 *user32 = _arg;
+	union {
+		struct mps_cfg_page_req page;
+		struct mps_ext_cfg_page_req ext;
+		struct mps_raid_action raid;
+		struct mps_usr_command user;
+	} arg;
+	u_long cmd;
+	int error;
+
+	switch (cmd32) {
 	case MPSIO_READ_CFG_HEADER32:
 	case MPSIO_READ_CFG_PAGE32:
 	case MPSIO_WRITE_CFG_PAGE32:
-		page_req32->header = page_req->header;
-		page_req32->page_address = page_req->page_address;
-		page_req32->buf = PTROUT(page_req->buf);
-		page_req32->len = page_req->len;
-		page_req32->ioc_status = page_req->ioc_status;
+		if (cmd32 == MPSIO_READ_CFG_HEADER32)
+			cmd = MPSIO_READ_CFG_HEADER;
+		else if (cmd32 == MPSIO_READ_CFG_PAGE32)
+			cmd = MPSIO_READ_CFG_PAGE;
+		else
+			cmd = MPSIO_WRITE_CFG_PAGE;
+		CP(*page32, arg.page, header);
+		CP(*page32, arg.page, page_address);
+		PTRIN_CP(*page32, arg.page, buf);
+		CP(*page32, arg.page, len);
+		CP(*page32, arg.page, ioc_status);
 		break;
+
 	case MPSIO_READ_EXT_CFG_HEADER32:
-	case MPSIO_READ_EXT_CFG_PAGE32:		
-		ext_page_req32->header = ext_page_req->header;
-		ext_page_req32->page_address = ext_page_req->page_address;
-		ext_page_req32->buf = PTROUT(ext_page_req->buf);
-		ext_page_req32->len = ext_page_req->len;
-		ext_page_req32->ioc_status = ext_page_req->ioc_status;
+	case MPSIO_READ_EXT_CFG_PAGE32:
+		if (cmd32 == MPSIO_READ_EXT_CFG_HEADER32)
+			cmd = MPSIO_READ_EXT_CFG_HEADER;
+		else
+			cmd = MPSIO_READ_EXT_CFG_PAGE;
+		CP(*ext32, arg.ext, header);
+		CP(*ext32, arg.ext, page_address);
+		PTRIN_CP(*ext32, arg.ext, buf);
+		CP(*ext32, arg.ext, len);
+		CP(*ext32, arg.ext, ioc_status);
+		break;
+
+	case MPSIO_RAID_ACTION32:
+		cmd = MPSIO_RAID_ACTION;
+		CP(*raid32, arg.raid, action);
+		CP(*raid32, arg.raid, volume_bus);
+		CP(*raid32, arg.raid, volume_id);
+		CP(*raid32, arg.raid, phys_disk_num);
+		CP(*raid32, arg.raid, action_data_word);
+		PTRIN_CP(*raid32, arg.raid, buf);
+		CP(*raid32, arg.raid, len);
+		CP(*raid32, arg.raid, volume_status);
+		bcopy(raid32->action_data, arg.raid.action_data,
+		    sizeof arg.raid.action_data);
+		CP(*raid32, arg.raid, ioc_status);
+		CP(*raid32, arg.raid, write);
+		break;
+
+	case MPSIO_MPS_COMMAND32:
+		cmd = MPSIO_MPS_COMMAND;
+		PTRIN_CP(*user32, arg.user, req);
+		CP(*user32, arg.user, req_len);
+		PTRIN_CP(*user32, arg.user, rpl);
+		CP(*user32, arg.user, rpl_len);
+		PTRIN_CP(*user32, arg.user, buf);
+		CP(*user32, arg.user, len);
+		CP(*user32, arg.user, flags);
 		break;
 	default:
 		return (ENOIOCTL);
 	}
-#endif
 
-	return (0);
+	error = mps_ioctl(dev, cmd, &arg, flag, td);
+	if (error == 0 && (cmd32 & IOC_OUT) != 0) {
+		switch (cmd32) {
+		case MPSIO_READ_CFG_HEADER32:
+		case MPSIO_READ_CFG_PAGE32:
+		case MPSIO_WRITE_CFG_PAGE32:
+			CP(arg.page, *page32, header);
+			CP(arg.page, *page32, page_address);
+			PTROUT_CP(arg.page, *page32, buf);
+			CP(arg.page, *page32, len);
+			CP(arg.page, *page32, ioc_status);
+			break;
+
+		case MPSIO_READ_EXT_CFG_HEADER32:
+		case MPSIO_READ_EXT_CFG_PAGE32:
+			CP(arg.ext, *ext32, header);
+			CP(arg.ext, *ext32, page_address);
+			PTROUT_CP(arg.ext, *ext32, buf);
+			CP(arg.ext, *ext32, len);
+			CP(arg.ext, *ext32, ioc_status);
+			break;
+
+		case MPSIO_RAID_ACTION32:
+			CP(arg.raid, *raid32, action);
+			CP(arg.raid, *raid32, volume_bus);
+			CP(arg.raid, *raid32, volume_id);
+			CP(arg.raid, *raid32, phys_disk_num);
+			CP(arg.raid, *raid32, action_data_word);
+			PTROUT_CP(arg.raid, *raid32, buf);
+			CP(arg.raid, *raid32, len);
+			CP(arg.raid, *raid32, volume_status);
+			bcopy(arg.raid.action_data, raid32->action_data,
+			    sizeof arg.raid.action_data);
+			CP(arg.raid, *raid32, ioc_status);
+			CP(arg.raid, *raid32, write);
+			break;
+
+		case MPSIO_MPS_COMMAND32:
+			PTROUT_CP(arg.user, *user32, req);
+			CP(arg.user, *user32, req_len);
+			PTROUT_CP(arg.user, *user32, rpl);
+			CP(arg.user, *user32, rpl_len);
+			PTROUT_CP(arg.user, *user32, buf);
+			CP(arg.user, *user32, len);
+			CP(arg.user, *user32, flags);
+			break;
+		}
+	}
+
+	return (error);
+}
+#endif /* COMPAT_FREEBSD32 */
+
+static int
+mps_ioctl_devsw(struct cdev *dev, u_long com, caddr_t arg, int flag,
+    struct thread *td)
+{
+#ifdef COMPAT_FREEBSD32
+	if (SV_CURPROC_FLAG(SV_ILP32))
+		return (mps_ioctl32(dev, com, arg, flag, td));
+#endif
+	return (mps_ioctl(dev, com, arg, flag, td));
 }

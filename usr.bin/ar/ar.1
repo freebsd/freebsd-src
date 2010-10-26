@@ -62,6 +62,7 @@
 .Op Fl a Ar position-after
 .Op Fl b Ar position-before
 .Op Fl c
+.Op Fl D
 .Op Fl i Ar position-before
 .Op Fl j
 .Op Fl s
@@ -179,6 +180,16 @@ from the archive specified by argument
 .Ar archive .
 The archive's symbol table, if present, is updated to reflect
 the new contents of the archive.
+.It Fl D
+When used in combination with the 
+.Fl r
+or
+.Fl q
+option, insert 0's instead of the real mtime, uid and gid values 
+and 0644 instead of file mode from the members named by arguments
+.Ar files ... .
+This ensures that checksums on the resulting archives are reproducible
+when member contents are identical.
 .It Fl f
 Synonymous with option
 .Fl T .

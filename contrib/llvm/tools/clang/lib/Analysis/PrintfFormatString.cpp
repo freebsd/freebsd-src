@@ -195,6 +195,8 @@ static PrintfSpecifierResult ParsePrintfSpecifier(FormatStringHandler &H,
     case 'm': k = ConversionSpecifier::PrintErrno; break;
     // FreeBSD format extensions
     case 'b': if (FormatExtensions) k = ConversionSpecifier::bArg; break; /* check for int and then char * */
+    case 'r': if (FormatExtensions) k = ConversionSpecifier::rArg; break;
+    case 'y': if (FormatExtensions) k = ConversionSpecifier::iArg; break;
     case 'D': if (FormatExtensions) k = ConversionSpecifier::DArg; break; /* check for u_char * pointer and a char * string */
   }
   PrintfConversionSpecifier CS(conversionPosition, k);
@@ -277,6 +279,7 @@ const char *ConversionSpecifier::toString() const {
   // FreeBSD specific specifiers.
   case bArg: return "b";
   case DArg: return "D";
+  case rArg: return "r";
 
   // GlibC specific specifiers.
   case PrintErrno: return "m";
@@ -489,6 +492,7 @@ bool PrintfSpecifier::hasValidPlusPrefix() const {
   case ConversionSpecifier::GArg:
   case ConversionSpecifier::aArg:
   case ConversionSpecifier::AArg:
+  case ConversionSpecifier::rArg:
     return true;
 
   default:
@@ -512,6 +516,7 @@ bool PrintfSpecifier::hasValidAlternativeForm() const {
   case ConversionSpecifier::FArg:
   case ConversionSpecifier::gArg:
   case ConversionSpecifier::GArg:
+  case ConversionSpecifier::rArg:
     return true;
 
   default:

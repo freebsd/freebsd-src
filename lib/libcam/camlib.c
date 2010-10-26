@@ -42,14 +42,9 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_pass.h>
 #include "camlib.h"
 
-struct cam_devequiv {
-	char *given_dev;
-	char *real_dev;
-};
 
-struct cam_devequiv devmatchtable[] = {
-	{"sd", "da"},
-	{"st", "sa"}
+static const char *nonrewind_devs[] = {
+	"sa"
 };
 
 char cam_errbuf[CAM_ERRBUF_SIZE];
@@ -103,19 +98,14 @@ cam_freeccb(union ccb *ccb)
 /*
  * Take a device name or path passed in by the user, and attempt to figure
  * out the device name and unit number.  Some possible device name formats are:
- * /dev/foo0a
- * /dev/rfoo0a
- * /dev/rfoos2c
+ * /dev/foo0
  * foo0
- * foo0a
- * rfoo0
- * rfoo0a
- * nrfoo0
+ * nfoo0
  * 
- * If the caller passes in an old style device name like 'sd' or 'st',
- * it will be converted to the new style device name based upon devmatchtable
- * above.
- * 
+ * Some peripheral drivers create separate device nodes with 'n' prefix for
+ * non-rewind operations.  Currently only sa(4) tape driver has this feature.
+ * We extract pure peripheral name as device name for this special case.
+ *
  * Input parameters:  device name/path, length of devname string
  * Output:            device name, unit number
  * Return values:     returns 0 for success, -1 for failure
@@ -127,7 +117,7 @@ cam_get_device(const char *path, char *dev_name, int devnamelen, int *unit)
 	char *tmpstr, *tmpstr2;
 	char *newpath;
 	int unit_offset;
-	int i, found = 0;
+	int i;
 
 
 	if (path == NULL) {
@@ -141,10 +131,6 @@ cam_get_device(const char *path, char *dev_name, int devnamelen, int *unit)
 	 */
 	newpath = (char *)strdup(path);
 	tmpstr = newpath;
-
-	/* Get rid of any leading white space */
-	while (isspace(*tmpstr) && (*tmpstr != '\0'))
-		tmpstr++;
 
 	/*
 	 * Check to see whether we have an absolute pathname.
@@ -166,61 +152,22 @@ cam_get_device(const char *path, char *dev_name, int devnamelen, int *unit)
 	 * Check to see whether the user has given us a nonrewound tape
 	 * device.
 	 */
-	if (*tmpstr == 'n')
-		tmpstr++;
-
-	if (*tmpstr == '\0') {
-		sprintf(cam_errbuf, "%s: no text after leading 'n'", func_name);
-		free(newpath);
-		return(-1);
-	}
-
-	/*
-	 * See if the user has given us a character device.
-	 */
-	if (*tmpstr == 'r')
-		tmpstr++;
-
-	if (*tmpstr == '\0') {
-		sprintf(cam_errbuf, "%s: no text after leading 'r'", func_name);
-		free(newpath);
-		return(-1);
-	}
-
-	/*
-	 * Try to get rid of any trailing white space or partition letters.
-	 */
-	tmpstr2 = &tmpstr[strlen(tmpstr) - 1];
-
-	while ((*tmpstr2 != '\0') && (tmpstr2 > tmpstr) &&(!isdigit(*tmpstr2))){
-		*tmpstr2 = '\0';
-		tmpstr2--;
-	}
-
-	/*
-	 * Check to see whether we have been given a partition with a slice
-	 * name.  If so, get rid of the slice name/number.
-	 */
-	if (strlen(tmpstr) > 3) {
-		/*
-		 * Basically, we're looking for a string that ends in the
-		 * following general manner:  1s1 -- a number, the letter
-		 * s, and then another number.  This indicates that the
-		 * user has given us a slice.  We substitute nulls for the
-		 * s and the slice number.
-		 */
-		if ((isdigit(tmpstr[strlen(tmpstr) - 1])) 
-		 && (tmpstr[strlen(tmpstr) - 2] == 's')
-		 && (isdigit(tmpstr[strlen(tmpstr) - 3]))) {
-			tmpstr[strlen(tmpstr) - 1] = '\0';
-			tmpstr[strlen(tmpstr) - 1] = '\0';
+	if (*tmpstr == 'n' || *tmpstr == 'e') {
+		for (i = 0; i < sizeof(nonrewind_devs)/sizeof(char *); i++) {
+			int len = strlen(nonrewind_devs[i]);
+			if (strncmp(tmpstr + 1, nonrewind_devs[i], len) == 0) {
+				if (isdigit(tmpstr[len + 1])) {
+					tmpstr++;
+					break;
+				}
+			}
 		}
 	}
 
 	/*
-	 * After we nuke off the slice, we should have just a device name
-	 * and unit number.  That means there must be at least 2
-	 * characters.  If we only have 1, we don't have a valid device name.
+	 * We should now have just a device name and unit number.
+	 * That means that there must be at least 2 characters.
+	 * If we only have 1, we don't have a valid device name.
 	 */
 	if (strlen(tmpstr) < 2) {
 		sprintf(cam_errbuf,
@@ -281,20 +228,7 @@ cam_get_device(const char *path, char *dev_name, int devnamelen, int *unit)
 	 */
 	tmpstr[strlen(tmpstr) - unit_offset] = '\0';
 
-	/*
-	 * Look through our equivalency table and see if the device name
-	 * the user gave us is an old style device name.  If so, translate
-	 * it to the new style device name.
-	 */
-	for (i = 0;i < (sizeof(devmatchtable)/sizeof(struct cam_devequiv));i++){
-		if (strcmp(tmpstr, devmatchtable[i].given_dev) == 0) {
-			strlcpy(dev_name,devmatchtable[i].real_dev, devnamelen);
-			found = 1;
-			break;
-		}
-	}
-	if (found == 0)
-		strlcpy(dev_name, tmpstr, devnamelen);
+	strlcpy(dev_name, tmpstr, devnamelen);
 
 	/* Clean up allocated memory */
 	free(newpath);

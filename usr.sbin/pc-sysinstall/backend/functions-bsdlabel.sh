@@ -165,7 +165,6 @@ setup_mbr_partitions()
   WRKSLICE="$2"
   FOUNDPARTS="1"
 
-
   # Lets setup the BSDLABEL
   BSDLABEL="${TMPDIR}/bsdLabel-${WRKSLICE}"
   export BSDLABEL
@@ -193,6 +192,11 @@ setup_mbr_partitions()
       SIZE=`echo $STRING | tr -s '\t' ' ' | cut -d ' ' -f 2` 
       MNT=`echo $STRING | tr -s '\t' ' ' | cut -d ' ' -f 3` 
 
+      if echo $STRING | grep -E '^/.+' >/dev/null 2>&1
+      then
+        IMAGE=`echo ${STRING} | cut -f1 -d' '`
+      fi
+
       # Check if we have a .eli extension on this FS
       echo ${FS} | grep ".eli" >/dev/null 2>/dev/null
       if [ "$?" = "0" ]
@@ -215,9 +219,17 @@ setup_mbr_partitions()
         USINGENCROOT="0" ; export USINGENCROOT
       fi
           
+      if [ -n "${IMAGE}" ]
+      then
+        FS="IMAGE"
+        SIZE=`ls -l "${IMAGE}" | awk '{ print $5 }'`
+        MNT=`echo $STRING | tr -s '\t' ' ' | cut -d ' ' -f 2`
+		SIZE=`convert_byte_to_megabyte $SIZE`
+      fi
+
       # Now check that these values are sane
       case $FS in
-        UFS|UFS+S|UFS+J|ZFS|SWAP) ;;
+        UFS|UFS+S|UFS+J|UFS+SUJ|ZFS|SWAP|IMAGE) ;;
        *) exit_err "ERROR: Invalid file system specified on $line" ;;
       esac
 
@@ -254,20 +266,20 @@ setup_mbr_partitions()
         # Check if we found a valid root partition
         check_for_mount "${MNT}" "/"
         if [ "$?" = "0" ] ; then
-            FOUNDROOT="0" ; export FOUNDROOT
+          FOUNDROOT="0" ; export FOUNDROOT
         fi
 
         # Check if we have a "/boot" instead
         check_for_mount "${MNT}" "/boot"
         if [ "${?}" = "0" ] ; then
           USINGBOOTPART="0" ; export USINGBOOTPART
-          if [ "${FS}" != "UFS" -a "${FS}" != "UFS+S" -a "${FS}" != "UFS+J" ]
+          if [ "${FS}" != "UFS" -a "${FS}" != "UFS+S" -a "${FS}" != "UFS+J" -a "${FS}" != "UFS+SUJ" ]
           then
             exit_err "/boot partition must be formatted with UFS"
           fi
         fi
 
-      else
+       else
         # Done with the a: partitions
 
         # Check if we found a valid root partition not on a:
@@ -306,7 +318,7 @@ setup_mbr_partitions()
       fi
 
       # Save this data to our partition config dir
-      echo "${FS}:${MNT}:${ENC}:${PLABEL}:MBR:${XTRAOPTS}" >${PARTDIR}/${WRKSLICE}${PARTLETTER}
+      echo "${FS}:${MNT}:${ENC}:${PLABEL}:MBR:${XTRAOPTS}:${IMAGE}" >${PARTDIR}/${WRKSLICE}${PARTLETTER}
 
       # If we have a enc password, save it as well
       if [ ! -z "${ENCPASS}" ] ; then
@@ -326,6 +338,8 @@ setup_mbr_partitions()
         h) PARTLETTER="ERR" ;;
         *) exit_err "ERROR: bsdlabel only supports up to letter h for partitions." ;;
       esac
+
+      unset IMAGE
 
     fi # End of subsection locating a slice in config
 
@@ -401,7 +415,7 @@ setup_gpt_partitions()
           
       # Now check that these values are sane
       case $FS in
-        UFS|UFS+S|UFS+J|ZFS|SWAP) ;;
+        UFS|UFS+S|UFS+J|UFS+SUJ|ZFS|SWAP) ;;
        *) exit_err "ERROR: Invalid file system specified on $line" ;;
       esac
 
@@ -438,7 +452,7 @@ setup_gpt_partitions()
       if [ "${?}" = "0" ] ; then
         if [ "${CURPART}" = "2" ] ; then
           USINGBOOTPART="0" ; export USINGBOOTPART
-          if [ "${FS}" != "UFS" -a "${FS}" != "UFS+S" -a "${FS}" != "UFS+J" ]
+          if [ "${FS}" != "UFS" -a "${FS}" != "UFS+S" -a "${FS}" != "UFS+J" -a "${FS}" != "UFS+SUJ" ]
           then
             exit_err "/boot partition must be formatted with UFS"
           fi
@@ -567,7 +581,7 @@ setup_disk_label()
 {
   # We are ready to start setting up the label, lets read the config and do the actions
   # First confirm that we have a valid WORKINGSLICES
-  if [ -z "${WORKINGSLICES}" -a -z "${WORKINGIMAGES}" ]; then
+  if [ -z "${WORKINGSLICES}" ]; then
     exit_err "ERROR: No slices were setup! Please report this to the maintainers"
   fi
 
@@ -612,12 +626,6 @@ setup_disk_label()
     populate_disk_label "${i}"
   done
 
-  for i in $WORKINGIMAGES
-  do
-    image=`echo "${i}"|cut -f2 -d:`
-    check_image_layout "${image}" 
-  done
-
   # Check if we made a root partition
   if [ "$FOUNDROOT" = "-1" ]
   then
@@ -653,7 +661,7 @@ check_fstab_mbr()
   then
     PARTLETTER=`echo "$SLICE" | sed -E 's|^.+([a-h])$|\1|'`
 
-    grep -E '^.+ +/ +' "${FSTAB}" >/dev/null 2>&1
+    cat "${FSTAB}" | awk '{ print $2 }' | grep -E '^/$' >/dev/null 2>&1
     if [ "$?" = "0" ]
     then
       if [ "${PARTLETTER}" = "a" ]
@@ -662,10 +670,14 @@ check_fstab_mbr()
       else
         FOUNDROOT="1"
       fi
+
+      ROOTIMAGE="1"
+
       export FOUNDROOT
+      export ROOTIMAGE
     fi
 
-    grep -E '^.+ +/boot +' "${FSTAB}" >/dev/null 2>&1
+    cat "${FSTAB}" | awk '{ print $2 }' | grep -E '^/boot$' >/dev/null 2>&1
     if [ "$?" = "0" ]
     then
       if [ "${PARTLETTER}" = "a" ]
@@ -700,7 +712,7 @@ check_fstab_gpt()
   then
     PARTNUMBER=`echo "${SLICE}" | sed -E 's|^.+p([0-9]*)$|\1|'`
 
-    grep -E '^.+ +/ +' "${FSTAB}" >/dev/null 2>&1
+    cat "${FSTAB}" | awk '{ print $2 }' | grep -E '^/$' >/dev/null 2>&1
     if [ "$?" = "0" ]
     then
       if [ "${PARTNUMBER}" = "2" ]
@@ -709,10 +721,14 @@ check_fstab_gpt()
       else
         FOUNDROOT="1"
       fi
+
+      ROOTIMAGE="1"
+
       export FOUNDROOT
+      export ROOTIMAGE
     fi
 
-    grep -E '^.+ +/boot +' "${FSTAB}" >/dev/null 2>&1
+    cat "${FSTAB}" | awk '{ print $2 }' | grep -E '^/boot$' >/dev/null 2>&1
     if [ "$?" = "0" ]
     then
       if [ "${PARTNUMBER}" = "2" ]
@@ -731,42 +747,45 @@ check_fstab_gpt()
   return 1
 };
 
-check_image_layout()
+check_disk_layout()
 {
   local SLICES
-  local IMAGE
   local TYPE
+  local DISK
   local RES
-  local MD
   local F
 
-  IMAGE="$1"
+  DISK="$1"
   TYPE="MBR"
 
-  if [ -z "${IMAGE}" ]
+  if [ -z "${DISK}" ]
   then
 	return 1
   fi
 
-  MD=`mdconfig -af "${IMAGE}"`
-  if [ "$?" != "0" ]
-  then
-	return 1
-  fi
+  SLICES_MBR=`ls /dev/${DISK}s[1-4]*[a-h]* 2>/dev/null`
+  SLICES_GPT=`ls /dev/${DISK}p[0-9]* 2>/dev/null`
+  SLICES_SLICE=`ls /dev/${DISK}[a-h]* 2>/dev/null`
 
-  SLICES=`ls /dev/${MD}s[1-4]*[a-h]* 2>/dev/null`
-  if [ "$?" != "0" ]
+  if [ -n "${SLICES_MBR}" ]
   then
-    SLICES=`ls /dev/${MD}p[0-9]* 2>/dev/null`
-    if [ -n "${SLICES}" ]
-    then
-      TYPE="GPT"
-      RES=0
-    fi
-  else
+    SLICES="${SLICES_MBR}"
+    TYPE="MBR"
     RES=0
   fi
-
+  if [ -n "${SLICES_GPT}" ]
+  then
+    SLICES="${SLICES_GPT}"
+    TYPE="GPT"
+    RES=0
+  fi
+  if [ -n "${SLICES_SLICE}" ]
+  then
+    SLICES="${SLICES_SLICE}"
+    TYPE="MBR"
+    RES=0
+  fi
+  
   for slice in ${SLICES}
   do
     F=1
@@ -796,6 +815,5 @@ check_image_layout()
     umount /mnt
   done
 
-  mdconfig -d -u "${MD}"
   return ${RES}
 };

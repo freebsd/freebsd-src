@@ -123,8 +123,8 @@ struct stack_block {
 };
 #define SPACE(sp)	((char*)(sp) + ALIGN(sizeof(struct stack_block)))
 
-STATIC struct stack_block *stackp;
-STATIC struct stackmark *markp;
+static struct stack_block *stackp;
+static struct stackmark *markp;
 char *stacknxt;
 int stacknleft;
 int sstrnleft;
@@ -295,6 +295,13 @@ grabstackblock(int len)
  * is space for at least one character.
  */
 
+static char *
+growstrstackblock(int n)
+{
+	growstackblock();
+	sstrnleft = stackblocksize() - n;
+	return stackblock() + n;
+}
 
 char *
 growstackstr(void)
@@ -304,12 +311,10 @@ growstackstr(void)
 	len = stackblocksize();
 	if (herefd >= 0 && len >= 1024) {
 		xwrite(herefd, stackblock(), len);
-		sstrnleft = len - 1;
+		sstrnleft = len;
 		return stackblock();
 	}
-	growstackblock();
-	sstrnleft = stackblocksize() - len - 1;
-	return stackblock() + len;
+	return growstrstackblock(len);
 }
 
 
@@ -323,9 +328,7 @@ makestrspace(void)
 	int len;
 
 	len = stackblocksize() - sstrnleft;
-	growstackblock();
-	sstrnleft = stackblocksize() - len;
-	return stackblock() + len;
+	return growstrstackblock(len);
 }
 
 

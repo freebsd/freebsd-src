@@ -191,7 +191,6 @@ struct axe_sframe_hdr {
 enum {
 	AXE_BULK_DT_WR,
 	AXE_BULK_DT_RD,
-	AXE_INTR_DT_RD,
 	AXE_N_TRANSFER,
 };
 

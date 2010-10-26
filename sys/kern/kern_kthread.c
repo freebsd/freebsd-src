@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
+#include <sys/rwlock.h>
 #include <sys/signalvar.h>
 #include <sys/sx.h>
 #include <sys/unistd.h>
@@ -295,6 +296,7 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 	thread_unlock(oldtd);
 	PROC_UNLOCK(p);
 
+	tidhash_add(newtd);
 
 	/* Delay putting it on the run queue until now. */
 	if (!(flags & RFSTOPPED)) {
@@ -314,15 +316,20 @@ kthread_exit(void)
 
 	p = curthread->td_proc;
 
+
 	/* A module may be waiting for us to exit. */
 	wakeup(curthread);
+	rw_wlock(&tidhash_lock);
 	PROC_LOCK(p);
 	if (p->p_numthreads == 1) {
 		PROC_UNLOCK(p);
+		rw_wunlock(&tidhash_lock);
 		kproc_exit(0);
 
 		/* NOTREACHED. */
 	}
+	LIST_REMOVE(curthread, td_hash);
+	rw_wunlock(&tidhash_lock);
 	PROC_SLOCK(p);
 	thread_exit();
 }

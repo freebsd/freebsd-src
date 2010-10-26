@@ -23,7 +23,6 @@ LZMAINCS+=	base.h \
 		index_hash.h \
 		lzma.h \
 		stream_flags.h \
-		subblock.h \
 		version.h \
 		vli.h
 
@@ -129,7 +128,6 @@ CFLAGS+=	-DHAVE_CONFIG_H \
 		-I${LZMADIR}/lz \
 		-I${LZMADIR}/rangecoder \
 		-I${LZMADIR}/lzma \
-		-I${LZMADIR}/subblock \
 		-I${LZMADIR}/delta \
 		-I${LZMADIR}/simple \
 		-I${LZMADIR}/../common

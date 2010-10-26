@@ -31,7 +31,7 @@
 .\"
 .\" $Begemot: bsnmp/snmpd/bsnmpd.1,v 1.12 2006/02/27 09:50:03 brandt_h Exp $
 .\"
-.Dd August 16, 2010
+.Dd October 23, 2010
 .Dt BSNMPD 1
 .Os
 .Sh NAME
@@ -68,11 +68,9 @@ Use
 .Ar file
 as configuration file instead of the standard one.
 .It Fl D Ar options
-Debugging options are specified with a
-.Fl o
-flag followed by a comma separated string of options.
+Debugging options are specified as a comma separated string.
 The following options are available.
-.Bl -tag -width ".It Cm trace Ns Cm = Ns Cm level"
+.Bl -tag -width "trace=level"
 .It Cm dump
 Dump all sent and received PDUs to the terminal.
 .It Cm events

@@ -306,6 +306,7 @@
 #define	BGE_CHIPID_BCM5787_A0		0xb000
 #define	BGE_CHIPID_BCM5787_A1		0xb001
 #define	BGE_CHIPID_BCM5787_A2		0xb002
+#define	BGE_CHIPID_BCM5906_A0		0xc000
 #define	BGE_CHIPID_BCM5906_A1		0xc001
 #define	BGE_CHIPID_BCM5906_A2		0xc002
 #define	BGE_CHIPID_BCM57780_A0		0x57780000
@@ -765,6 +766,7 @@
 #define	BGE_TXMODE_FLOWCTL_ENABLE	0x00000010
 #define	BGE_TXMODE_BIGBACKOFF_ENABLE	0x00000020
 #define	BGE_TXMODE_LONGPAUSE_ENABLE	0x00000040
+#define	BGE_TXMODE_MBUF_LOCKUP_FIX	0x00000100
 
 /* Transmit MAC status register */
 #define	BGE_TXSTAT_RX_XOFFED		0x00000001
@@ -879,6 +881,7 @@
 #define	BGE_SDI_STATS_CTL		0x0C08
 #define	BGE_SDI_STATS_ENABLE_MASK	0x0C0C
 #define	BGE_SDI_STATS_INCREMENT_MASK	0x0C10
+#define	BGE_ISO_PKT_TX			0x0C20
 #define	BGE_LOCSTATS_COS0		0x0C80
 #define	BGE_LOCSTATS_COS1		0x0C84
 #define	BGE_LOCSTATS_COS2		0x0C88
@@ -2727,6 +2730,7 @@ struct bge_softc {
 #define	BGE_FLAG_40BIT_BUG	0x01000000
 #define	BGE_FLAG_4G_BNDRY_BUG	0x02000000
 #define	BGE_FLAG_RX_ALIGNBUG	0x04000000
+#define	BGE_FLAG_SHORT_DMA_BUG	0x08000000
 	uint32_t		bge_phy_flags;
 #define	BGE_PHY_WIRESPEED	0x00000001
 #define	BGE_PHY_ADC_BUG		0x00000002
@@ -2757,7 +2761,6 @@ struct bge_softc {
 	uint32_t		bge_tx_max_coal_bds;
 	uint32_t		bge_mi_mode;
 	int			bge_if_flags;
-	int			bge_phy_addr;
 	int			bge_txcnt;
 	int			bge_link;	/* link state */
 	int			bge_link_evt;	/* pending link event */

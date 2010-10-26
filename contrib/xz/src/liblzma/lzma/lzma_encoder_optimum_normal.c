@@ -287,7 +287,7 @@ helper1(lzma_coder *restrict coder, lzma_mf *restrict mf,
 		matches_count = coder->matches_count;
 	}
 
-	const uint32_t buf_avail = MIN(mf_avail(mf) + 1, MATCH_LEN_MAX);
+	const uint32_t buf_avail = my_min(mf_avail(mf) + 1, MATCH_LEN_MAX);
 	if (buf_avail < 2) {
 		*back_res = UINT32_MAX;
 		*len_res = 1;
@@ -371,7 +371,7 @@ helper1(lzma_coder *restrict coder, lzma_mf *restrict mf,
 		}
 	}
 
-	const uint32_t len_end = MAX(len_main, rep_lens[rep_max_index]);
+	const uint32_t len_end = my_max(len_main, rep_lens[rep_max_index]);
 
 	if (len_end < 2) {
 		*back_res = coder->opts[1].back_prev;
@@ -565,12 +565,12 @@ helper2(lzma_coder *coder, uint32_t *reps, const uint8_t *buf,
 	if (buf_avail_full < 2)
 		return len_end;
 
-	const uint32_t buf_avail = MIN(buf_avail_full, nice_len);
+	const uint32_t buf_avail = my_min(buf_avail_full, nice_len);
 
 	if (!next_is_literal && match_byte != current_byte) { // speed optimization
 		// try literal + rep0
 		const uint8_t *const buf_back = buf - reps[0] - 1;
-		const uint32_t limit = MIN(buf_avail_full, nice_len + 1);
+		const uint32_t limit = my_min(buf_avail_full, nice_len + 1);
 
 		uint32_t len_test = 1;
 		while (len_test < limit && buf[len_test] == buf_back[len_test])
@@ -648,7 +648,7 @@ helper2(lzma_coder *coder, uint32_t *reps, const uint8_t *buf,
 
 
 		uint32_t len_test_2 = len_test + 1;
-		const uint32_t limit = MIN(buf_avail_full,
+		const uint32_t limit = my_min(buf_avail_full,
 				len_test_2 + nice_len);
 		for (; len_test_2 < limit
 				&& buf[len_test_2] == buf_back[len_test_2];
@@ -743,7 +743,7 @@ helper2(lzma_coder *coder, uint32_t *reps, const uint8_t *buf,
 				// Try Match + Literal + Rep0
 				const uint8_t *const buf_back = buf - cur_back - 1;
 				uint32_t len_test_2 = len_test + 1;
-				const uint32_t limit = MIN(buf_avail_full,
+				const uint32_t limit = my_min(buf_avail_full,
 						len_test_2 + nice_len);
 
 				for (; len_test_2 < limit &&
@@ -860,7 +860,7 @@ lzma_lzma_optimum_normal(lzma_coder *restrict coder, lzma_mf *restrict mf,
 
 		len_end = helper2(coder, reps, mf_ptr(mf) - 1, len_end,
 				position + cur, cur, mf->nice_len,
-				MIN(mf_avail(mf) + 1, OPTS - 1 - cur));
+				my_min(mf_avail(mf) + 1, OPTS - 1 - cur));
 	}
 
 	backward(coder, len_res, back_res, cur);

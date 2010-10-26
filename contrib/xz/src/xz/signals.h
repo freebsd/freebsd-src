@@ -21,7 +21,7 @@ extern volatile sig_atomic_t user_abort;
 extern void signals_init(void);
 
 
-#if defined(_WIN32) || defined(__VMS)
+#if (defined(_WIN32) && !defined(__CYGWIN__)) || defined(__VMS)
 #	define signals_block() do { } while (0)
 #	define signals_unblock() do { } while (0)
 #else
@@ -34,7 +34,7 @@ extern void signals_block(void);
 extern void signals_unblock(void);
 #endif
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__CYGWIN__)
 #	define signals_exit() do { } while (0)
 #else
 /// If user has sent us a signal earlier to terminate the process,

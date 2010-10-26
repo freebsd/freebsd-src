@@ -523,16 +523,6 @@ xl_miibus_readreg(device_t dev, int phy, int reg)
 
 	sc = device_get_softc(dev);
 
-	/*
-	 * Pretend that PHYs are only available at MII address 24.
-	 * This is to guard against problems with certain 3Com ASIC
-	 * revisions that incorrectly map the internal transceiver
-	 * control registers at all MII addresses. This can cause
-	 * the miibus code to attach the same PHY several times over.
-	 */
-	if ((sc->xl_flags & XL_FLAG_PHYOK) == 0 && phy != 24)
-		return (0);
-
 	bzero((char *)&frame, sizeof(frame));
 	frame.mii_phyaddr = phy;
 	frame.mii_regaddr = reg;
@@ -549,9 +539,6 @@ xl_miibus_writereg(device_t dev, int phy, int reg, int data)
 	struct xl_mii_frame	frame;
 
 	sc = device_get_softc(dev);
-
-	if ((sc->xl_flags & XL_FLAG_PHYOK) == 0 && phy != 24)
-		return (0);
 
 	bzero((char *)&frame, sizeof(frame));
 	frame.mii_phyaddr = phy;
@@ -1150,7 +1137,7 @@ xl_attach(device_t dev)
 	struct xl_softc		*sc;
 	struct ifnet		*ifp;
 	int			media, pmcap;
-	int			unit, error = 0, rid, res;
+	int			error = 0, phy, rid, res, unit;
 	uint16_t		did;
 
 	sc = device_get_softc(dev);
@@ -1467,10 +1454,19 @@ xl_attach(device_t dev)
 		if (bootverbose)
 			device_printf(dev, "found MII/AUTO\n");
 		xl_setcfg(sc);
-		if (mii_phy_probe(dev, &sc->xl_miibus,
-		    xl_ifmedia_upd, xl_ifmedia_sts)) {
-			device_printf(dev, "no PHY found!\n");
-			error = ENXIO;
+		/*
+		 * Attach PHYs only at MII address 24 if !XL_FLAG_PHYOK.
+		 * This is to guard against problems with certain 3Com ASIC
+		 * revisions that incorrectly map the internal transceiver
+		 * control registers at all MII addresses.
+		 */
+		phy = MII_PHY_ANY;
+		if ((sc->xl_flags & XL_FLAG_PHYOK) != 0)
+			phy = 24;
+		error = mii_attach(dev, &sc->xl_miibus, ifp, xl_ifmedia_upd,
+		    xl_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
+		if (error != 0) {
+			device_printf(dev, "attaching PHYs failed\n");
 			goto fail;
 		}
 		goto done;

@@ -269,8 +269,8 @@ journal_label(struct gctl_req *req)
 		if (!hardcode)
 			bzero(md.md_provider, sizeof(md.md_provider));
 		else {
-			if (strncmp(str, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-				str += strlen(_PATH_DEV);
+			if (strncmp(str, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
+				str += sizeof(_PATH_DEV) - 1;
 			strlcpy(md.md_provider, str, sizeof(md.md_provider));
 		}
 		journal_metadata_encode(&md, sector);

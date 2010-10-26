@@ -621,7 +621,7 @@ ng_detach_common(struct ngpcb *pcbp, int which)
 			priv->datasock = NULL;
 			break;
 		default:
-			panic(__func__);
+			panic("%s", __func__);
 		}
 		pcbp->sockdata = NULL;
 

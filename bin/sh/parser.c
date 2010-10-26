@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include "alias.h"
 #include "show.h"
 #include "eval.h"
+#include "exec.h"	/* to check for special builtins */
 #ifndef NO_HISTORY
 #include "myhistedit.h"
 #endif
@@ -86,44 +87,44 @@ struct parser_temp {
 };
 
 
-STATIC struct heredoc *heredoclist;	/* list of here documents to read */
-STATIC int doprompt;		/* if set, prompt the user */
-STATIC int needprompt;		/* true if interactive and at start of line */
-STATIC int lasttoken;		/* last token read */
+static struct heredoc *heredoclist;	/* list of here documents to read */
+static int doprompt;		/* if set, prompt the user */
+static int needprompt;		/* true if interactive and at start of line */
+static int lasttoken;		/* last token read */
 MKINIT int tokpushback;		/* last token pushed back */
-STATIC char *wordtext;		/* text of last word returned by readtoken */
+static char *wordtext;		/* text of last word returned by readtoken */
 MKINIT int checkkwd;            /* 1 == check for kwds, 2 == also eat newlines */
-STATIC struct nodelist *backquotelist;
-STATIC union node *redirnode;
-STATIC struct heredoc *heredoc;
-STATIC int quoteflag;		/* set if (part of) last token was quoted */
-STATIC int startlinno;		/* line # where last token started */
-STATIC int funclinno;		/* line # where the current function started */
-STATIC struct parser_temp *parser_temp;
+static struct nodelist *backquotelist;
+static union node *redirnode;
+static struct heredoc *heredoc;
+static int quoteflag;		/* set if (part of) last token was quoted */
+static int startlinno;		/* line # where last token started */
+static int funclinno;		/* line # where the current function started */
+static struct parser_temp *parser_temp;
 
 /* XXX When 'noaliases' is set to one, no alias expansion takes place. */
 static int noaliases = 0;
 
 
-STATIC union node *list(int);
-STATIC union node *andor(void);
-STATIC union node *pipeline(void);
-STATIC union node *command(void);
-STATIC union node *simplecmd(union node **, union node *);
-STATIC union node *makename(void);
-STATIC void parsefname(void);
-STATIC void parseheredoc(void);
-STATIC int peektoken(void);
-STATIC int readtoken(void);
-STATIC int xxreadtoken(void);
-STATIC int readtoken1(int, char const *, char *, int);
-STATIC int noexpand(char *);
-STATIC void synexpect(int) __dead2;
-STATIC void synerror(const char *) __dead2;
-STATIC void setprompt(int);
+static union node *list(int);
+static union node *andor(void);
+static union node *pipeline(void);
+static union node *command(void);
+static union node *simplecmd(union node **, union node *);
+static union node *makename(void);
+static void parsefname(void);
+static void parseheredoc(void);
+static int peektoken(void);
+static int readtoken(void);
+static int xxreadtoken(void);
+static int readtoken1(int, char const *, char *, int);
+static int noexpand(char *);
+static void synexpect(int) __dead2;
+static void synerror(const char *) __dead2;
+static void setprompt(int);
 
 
-STATIC void *
+static void *
 parser_temp_alloc(size_t len)
 {
 	struct parser_temp *t;
@@ -139,7 +140,7 @@ parser_temp_alloc(size_t len)
 }
 
 
-STATIC void *
+static void *
 parser_temp_realloc(void *ptr, size_t len)
 {
 	struct parser_temp *t;
@@ -154,7 +155,7 @@ parser_temp_realloc(void *ptr, size_t len)
 }
 
 
-STATIC void
+static void
 parser_temp_free_upto(void *ptr)
 {
 	struct parser_temp *t;
@@ -174,7 +175,7 @@ parser_temp_free_upto(void *ptr)
 }
 
 
-STATIC void
+static void
 parser_temp_free_all(void)
 {
 	struct parser_temp *t;
@@ -223,7 +224,7 @@ parsecmd(int interact)
 }
 
 
-STATIC union node *
+static union node *
 list(int nlflag)
 {
 	union node *n1, *n2, *n3;
@@ -296,7 +297,7 @@ list(int nlflag)
 
 
 
-STATIC union node *
+static union node *
 andor(void)
 {
 	union node *n1, *n2, *n3;
@@ -323,12 +324,12 @@ andor(void)
 
 
 
-STATIC union node *
+static union node *
 pipeline(void)
 {
 	union node *n1, *n2, *pipenode;
 	struct nodelist *lp, *prev;
-	int negate;
+	int negate, t;
 
 	negate = 0;
 	checkkwd = 2;
@@ -347,7 +348,13 @@ pipeline(void)
 		do {
 			prev = lp;
 			lp = (struct nodelist *)stalloc(sizeof (struct nodelist));
-			lp->n = command();
+			checkkwd = 2;
+			t = readtoken();
+			tokpushback++;
+			if (t == TNOT)
+				lp->n = pipeline();
+			else
+				lp->n = command();
 			prev->next = lp;
 		} while (readtoken() == TPIPE);
 		lp->next = NULL;
@@ -365,14 +372,14 @@ pipeline(void)
 
 
 
-STATIC union node *
+static union node *
 command(void)
 {
 	union node *n1, *n2;
 	union node *ap, **app;
 	union node *cp, **cpp;
 	union node *redir, **rpp;
-	int t, negate = 0;
+	int t;
 
 	checkkwd = 2;
 	redir = NULL;
@@ -384,12 +391,6 @@ command(void)
 		*rpp = n2 = redirnode;
 		rpp = &n2->nfile.next;
 		parsefname();
-	}
-	tokpushback++;
-
-	while (readtoken() == TNOT) {
-		TRACE(("command: TNOT recognized\n"));
-		negate = !negate;
 	}
 	tokpushback++;
 
@@ -573,7 +574,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 	case TRP:
 		tokpushback++;
 		n1 = simplecmd(rpp, redir);
-		goto checkneg;
+		return n1;
 	default:
 		synexpect(-1);
 	}
@@ -596,24 +597,17 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		n1->nredir.redirect = redir;
 	}
 
-checkneg:
-	if (negate) {
-		n2 = (union node *)stalloc(sizeof (struct nnot));
-		n2->type = NNOT;
-		n2->nnot.com = n1;
-		return n2;
-	}
-	else
-		return n1;
+	return n1;
 }
 
 
-STATIC union node *
+static union node *
 simplecmd(union node **rpp, union node *redir)
 {
 	union node *args, **app;
 	union node **orig_rpp = rpp;
 	union node *n = NULL;
+	int special;
 
 	/* If we don't have any redirections already, then we must reset */
 	/* rpp to be the address of the local redir variable.  */
@@ -647,10 +641,17 @@ simplecmd(union node **rpp, union node *redir)
 			if (readtoken() != TRP)
 				synexpect(TRP);
 			funclinno = plinno;
-#ifdef notdef
-			if (! goodname(n->narg.text))
+			/*
+			 * - Require plain text.
+			 * - Functions with '/' cannot be called.
+			 */
+			if (!noexpand(n->narg.text) || quoteflag ||
+			    strchr(n->narg.text, '/'))
 				synerror("Bad function name");
-#endif
+			rmescapes(n->narg.text);
+			if (find_builtin(n->narg.text, &special) >= 0 &&
+			    special)
+				synerror("Cannot override a special builtin with a function");
 			n->type = NDEFUN;
 			n->narg.next = command();
 			funclinno = 0;
@@ -670,7 +671,7 @@ simplecmd(union node **rpp, union node *redir)
 	return n;
 }
 
-STATIC union node *
+static union node *
 makename(void)
 {
 	union node *n;
@@ -683,7 +684,8 @@ makename(void)
 	return n;
 }
 
-void fixredir(union node *n, const char *text, int err)
+void
+fixredir(union node *n, const char *text, int err)
 {
 	TRACE(("Fix redir %s %d\n", text, err));
 	if (!err)
@@ -703,7 +705,7 @@ void fixredir(union node *n, const char *text, int err)
 }
 
 
-STATIC void
+static void
 parsefname(void)
 {
 	union node *n = redirnode;
@@ -745,7 +747,7 @@ parsefname(void)
  * Input any here documents.
  */
 
-STATIC void
+static void
 parseheredoc(void)
 {
 	struct heredoc *here;
@@ -769,7 +771,7 @@ parseheredoc(void)
 	}
 }
 
-STATIC int
+static int
 peektoken(void)
 {
 	int t;
@@ -779,7 +781,7 @@ peektoken(void)
 	return (t);
 }
 
-STATIC int
+static int
 readtoken(void)
 {
 	int t;
@@ -859,7 +861,7 @@ out:
 
 #define RETURN(token)	return lasttoken = token
 
-STATIC int
+static int
 xxreadtoken(void)
 {
 	int c;
@@ -930,7 +932,7 @@ breakloop:
 }
 
 
-#define MAXNEST_STATIC 8
+#define MAXNEST_static 8
 struct tokenstate
 {
 	const char *syntax; /* *SYNTAX */
@@ -949,7 +951,7 @@ struct tokenstate
  * Called to parse command substitutions.
  */
 
-STATIC char *
+static char *
 parsebackq(char *out, struct nodelist **pbqlist,
 		int oldstyle, int dblquote, int quoted)
 {
@@ -1130,7 +1132,7 @@ done:
 #define PARSESUB()	{goto parsesub; parsesub_return:;}
 #define	PARSEARITH()	{goto parsearith; parsearith_return:;}
 
-STATIC int
+static int
 readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 {
 	int c = firstc;
@@ -1142,8 +1144,8 @@ readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 	int newvarnest;
 	int level;
 	int synentry;
-	struct tokenstate state_static[MAXNEST_STATIC];
-	int maxnest = MAXNEST_STATIC;
+	struct tokenstate state_static[MAXNEST_static];
+	int maxnest = MAXNEST_static;
 	struct tokenstate *state = state_static;
 
 	startlinno = plinno;
@@ -1222,10 +1224,7 @@ readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 				if (eofmark != NULL && newvarnest == 0)
 					USTPUTC(c, out);
 				else {
-					if (state[level].category == TSTATE_ARITH)
-						state[level].syntax = ARISYNTAX;
-					else
-						state[level].syntax = BASESYNTAX;
+					state[level].syntax = BASESYNTAX;
 					quotef++;
 				}
 				break;
@@ -1280,6 +1279,8 @@ readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 				break;
 			case CEOF:
 				goto endword;		/* exit outer loop */
+			case CIGN:
+				break;
 			default:
 				if (level == 0)
 					goto endword;	/* exit outer loop */
@@ -1553,7 +1554,7 @@ parsesub: {
 					state = parser_temp_alloc(
 					    maxnest * sizeof(*state));
 					memcpy(state, state_static,
-					    MAXNEST_STATIC * sizeof(*state));
+					    MAXNEST_static * sizeof(*state));
 				} else
 					state = parser_temp_realloc(state,
 					    maxnest * sizeof(*state));
@@ -1596,7 +1597,7 @@ parsearith: {
 			state = parser_temp_alloc(
 			    maxnest * sizeof(*state));
 			memcpy(state, state_static,
-			    MAXNEST_STATIC * sizeof(*state));
+			    MAXNEST_static * sizeof(*state));
 		} else
 			state = parser_temp_realloc(state,
 			    maxnest * sizeof(*state));
@@ -1629,7 +1630,7 @@ RESET {
  * or backquotes).
  */
 
-STATIC int
+static int
 noexpand(char *text)
 {
 	char *p;
@@ -1675,7 +1676,7 @@ goodname(const char *name)
  * occur at this point.
  */
 
-STATIC void
+static void
 synexpect(int token)
 {
 	char msg[64];
@@ -1690,7 +1691,7 @@ synexpect(int token)
 }
 
 
-STATIC void
+static void
 synerror(const char *msg)
 {
 	if (commandname)
@@ -1699,7 +1700,7 @@ synerror(const char *msg)
 	error((char *)NULL);
 }
 
-STATIC void
+static void
 setprompt(int which)
 {
 	whichprompt = which;

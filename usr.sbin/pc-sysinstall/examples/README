@@ -153,7 +153,7 @@ specified this defaults to "round-robin"
 Setting this option will instruct pc-sysinstall to install the BSD boot Manager,
 or leave it empty
 
-# image=(/path/to/image/file)
+# image=(/path/to/image/file) (/mountpoint)
 
 Setting this option will instruct pc-sysinstall to write the image file
 specified by the path to the disk.
@@ -189,13 +189,14 @@ The notation is as follows:
 Available FileSystems: 
   UFS - Standard UFS2 FileSystem
 UFS+S - UFS2 + Softupdates enabled
+UFS+SUJ - UFS2 + Soft Updates + Journaling enabled
 UFS+J - UFS2 + Journaling through gjournal
   ZFS - Z File System, pools / mounts created automatically
  SWAP - BSD Swap space partition, mountpoint should be set to "none"
 
 Adding the ".eli" extension to any of the above file systems
 will enable disk encryption via geli
-(UFS.eli, UFS+S.eli, UFS+J.eli, ZFS.eli, SWAP.eli)
+(UFS.eli, UFS+S.eli, UFS+SUJ.eli, UFS+J.eli, ZFS.eli, SWAP.eli)
 
 If you with to use a passphrase with this encrypted partition, on the next line
 the flag "encpass=" should be entered:
@@ -217,7 +218,7 @@ If you with to just include the disk into the pool in "basic" mode, then use (ad
 The following settings specify the type, locations and sources
 for this installation
 
-# installMedium=(dvd, usb, ftp, rsync)
+# installMedium=(dvd, usb, ftp, rsync, image)
 
 Set installMedium= to the source type we will be using for this install.
 
@@ -226,6 +227,7 @@ Available Types:
   usb - Search for and mount the USB drive which contains the install archive
   ftp - The install archive will be fetched from a FTP / HTTP server before install
 rsync - Pull the system data from a ssh + rsync server, specified with variables below
+image - Install system from an image
 
 # installType=(PCBSD, FreeBSD)
 

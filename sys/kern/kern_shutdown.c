@@ -133,7 +133,6 @@ static struct dumperinfo dumper;	/* our selected dumper */
 struct pcb dumppcb;		/* Registers. */
 lwpid_t dumptid;		/* Thread ID. */
 
-static void boot(int) __dead2;
 static void poweroff_wait(void *, int);
 static void shutdown_halt(void *junk, int howto);
 static void shutdown_panic(void *junk, int howto);
@@ -145,7 +144,7 @@ shutdown_conf(void *unused)
 {
 
 	EVENTHANDLER_REGISTER(shutdown_final, poweroff_wait, NULL,
-	    SHUTDOWN_PRI_FIRST + 100);
+	    SHUTDOWN_PRI_FIRST);
 	EVENTHANDLER_REGISTER(shutdown_final, shutdown_halt, NULL,
 	    SHUTDOWN_PRI_LAST + 100);
 	EVENTHANDLER_REGISTER(shutdown_final, shutdown_panic, NULL,
@@ -173,7 +172,7 @@ reboot(struct thread *td, struct reboot_args *uap)
 		error = priv_check(td, PRIV_REBOOT);
 	if (error == 0) {
 		mtx_lock(&Giant);
-		boot(uap->opt);
+		kern_reboot(uap->opt);
 		mtx_unlock(&Giant);
 	}
 	return (error);
@@ -197,7 +196,7 @@ shutdown_nice(int howto)
 		PROC_UNLOCK(initproc);
 	} else {
 		/* No init(8) running, so simply reboot */
-		boot(RB_NOSYNC);
+		kern_reboot(RB_NOSYNC);
 	}
 	return;
 }
@@ -269,8 +268,8 @@ isbufbusy(struct buf *bp)
 /*
  * Shutdown the system cleanly to prepare for reboot, halt, or power off.
  */
-static void
-boot(int howto)
+void
+kern_reboot(int howto)
 {
 	static int first_buf_printf = 1;
 
@@ -283,7 +282,7 @@ boot(int howto)
 	thread_lock(curthread);
 	sched_bind(curthread, 0);
 	thread_unlock(curthread);
-	KASSERT(PCPU_GET(cpuid) == 0, ("boot: not running on cpu 0"));
+	KASSERT(PCPU_GET(cpuid) == 0, ("%s: not running on cpu 0", __func__));
 #endif
 	/* We're in the process of rebooting. */
 	rebooting = 1;
@@ -513,10 +512,6 @@ shutdown_reset(void *junk, int howto)
 	/* NOTREACHED */ /* assuming reset worked */
 }
 
-#ifdef SMP
-static u_int panic_cpu = NOCPU;
-#endif
-
 /*
  * Panic is called on unresolvable fatal errors.  It prints "panic: mesg",
  * and then reboots.  If we are called twice, then we avoid trying to sync
@@ -525,6 +520,9 @@ static u_int panic_cpu = NOCPU;
 void
 panic(const char *fmt, ...)
 {
+#ifdef SMP
+	static volatile u_int panic_cpu = NOCPU;
+#endif
 	struct thread *td = curthread;
 	int bootopt, newpanic;
 	va_list ap;
@@ -590,7 +588,7 @@ panic(const char *fmt, ...)
 	if (!sync_on_panic)
 		bootopt |= RB_NOSYNC;
 	critical_exit();
-	boot(bootopt);
+	kern_reboot(bootopt);
 }
 
 /*

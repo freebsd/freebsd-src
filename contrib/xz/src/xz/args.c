@@ -25,15 +25,40 @@ bool opt_robot = false;
 
 // We don't modify or free() this, but we need to assign it in some
 // non-const pointers.
-const char *stdin_filename = "(stdin)";
+const char stdin_filename[] = "(stdin)";
+
+
+/// Parse and set the memory usage limit for compression and/or decompression.
+static void
+parse_memlimit(const char *name, const char *name_percentage, char *str,
+		bool set_compress, bool set_decompress)
+{
+	bool is_percentage = false;
+	uint64_t value;
+
+	const size_t len = strlen(str);
+	if (len > 0 && str[len - 1] == '%') {
+		str[len - 1] = '\0';
+		is_percentage = true;
+		value = str_to_uint64(name_percentage, str, 1, 100);
+	} else {
+		// On 32-bit systems, SIZE_MAX would make more sense than
+		// UINT64_MAX. But use UINT64_MAX still so that scripts
+		// that assume > 4 GiB values don't break.
+		value = str_to_uint64(name, str, 0, UINT64_MAX);
+	}
+
+	hardware_memlimit_set(
+			value, set_compress, set_decompress, is_percentage);
+	return;
+}
 
 
 static void
 parse_real(args_info *args, int argc, char **argv)
 {
 	enum {
-		OPT_SUBBLOCK = INT_MIN,
-		OPT_X86,
+		OPT_X86 = INT_MIN,
 		OPT_POWERPC,
 		OPT_IA64,
 		OPT_ARM,
@@ -46,6 +71,9 @@ parse_real(args_info *args, int argc, char **argv)
 		OPT_NO_SPARSE,
 		OPT_FILES,
 		OPT_FILES0,
+		OPT_MEM_COMPRESS,
+		OPT_MEM_DECOMPRESS,
+		OPT_NO_ADJUST,
 		OPT_INFO_MEMORY,
 		OPT_ROBOT,
 	};
@@ -75,7 +103,11 @@ parse_real(args_info *args, int argc, char **argv)
 		// Basic compression settings
 		{ "format",       required_argument, NULL,  'F' },
 		{ "check",        required_argument, NULL,  'C' },
-		{ "memory",       required_argument, NULL,  'M' },
+		{ "memlimit-compress",   required_argument, NULL, OPT_MEM_COMPRESS },
+		{ "memlimit-decompress", required_argument, NULL, OPT_MEM_DECOMPRESS },
+		{ "memlimit",     required_argument, NULL,  'M' },
+		{ "memory",       required_argument, NULL,  'M' }, // Old alias
+		{ "no-adjust",    no_argument,       NULL,  OPT_NO_ADJUST },
 		{ "threads",      required_argument, NULL,  'T' },
 
 		{ "extreme",      no_argument,       NULL,  'e' },
@@ -92,7 +124,6 @@ parse_real(args_info *args, int argc, char **argv)
 		{ "armthumb",     optional_argument, NULL,  OPT_ARMTHUMB },
 		{ "sparc",        optional_argument, NULL,  OPT_SPARC },
 		{ "delta",        optional_argument, NULL,  OPT_DELTA },
-		{ "subblock",     optional_argument, NULL,  OPT_SUBBLOCK },
 
 		// Other options
 		{ "quiet",        no_argument,       NULL,  'q' },
@@ -104,7 +135,7 @@ parse_real(args_info *args, int argc, char **argv)
 		{ "long-help",    no_argument,       NULL,  'H' },
 		{ "version",      no_argument,       NULL,  'V' },
 
-		{ NULL,                 0,                 NULL,   0 }
+		{ NULL,           0,                 NULL,   0 }
 	};
 
 	int c;
@@ -118,28 +149,25 @@ parse_real(args_info *args, int argc, char **argv)
 			coder_set_preset(c - '0');
 			break;
 
-		// --memory
-		case 'M': {
-			// Support specifying the limit as a percentage of
-			// installed physical RAM.
-			size_t len = strlen(optarg);
-			if (len > 0 && optarg[len - 1] == '%') {
-				optarg[len - 1] = '\0';
-				hardware_memlimit_set_percentage(
-						str_to_uint64(
-						"memory%", optarg, 1, 100));
-			} else {
-				// On 32-bit systems, SIZE_MAX would make more
-				// sense than UINT64_MAX. But use UINT64_MAX
-				// still so that scripts that assume > 4 GiB
-				// values don't break.
-				hardware_memlimit_set(str_to_uint64(
-						"memory", optarg,
-						0, UINT64_MAX));
-			}
-
+		// --memlimit-compress
+		case OPT_MEM_COMPRESS:
+			parse_memlimit("memlimit-compress",
+					"memlimit-compress%", optarg,
+					true, false);
 			break;
-		}
+
+		// --memlimit-decompress
+		case OPT_MEM_DECOMPRESS:
+			parse_memlimit("memlimit-decompress",
+					"memlimit-decompress%", optarg,
+					false, true);
+			break;
+
+		// --memlimit
+		case 'M':
+			parse_memlimit("memlimit", "memlimit%", optarg,
+					true, true);
+			break;
 
 		// --suffix
 		case 'S':
@@ -179,7 +207,7 @@ parse_real(args_info *args, int argc, char **argv)
 		// --info-memory
 		case OPT_INFO_MEMORY:
 			// This doesn't return.
-			message_memlimit();
+			hardware_memlimit_show();
 
 		// --help
 		case 'h':
@@ -233,11 +261,6 @@ parse_real(args_info *args, int argc, char **argv)
 			break;
 
 		// Filter setup
-
-		case OPT_SUBBLOCK:
-			coder_add_filter(LZMA_FILTER_SUBBLOCK,
-					options_subblock(optarg));
-			break;
 
 		case OPT_X86:
 			coder_add_filter(LZMA_FILTER_X86,
@@ -374,6 +397,10 @@ parse_real(args_info *args, int argc, char **argv)
 
 			break;
 
+		case OPT_NO_ADJUST:
+			opt_auto_adjust = false;
+			break;
+
 		default:
 			message_try_help();
 			tuklib_exit(E_ERROR, E_ERROR, false);
@@ -385,9 +412,9 @@ parse_real(args_info *args, int argc, char **argv)
 
 
 static void
-parse_environment(args_info *args, char *argv0)
+parse_environment(args_info *args, char *argv0, const char *varname)
 {
-	char *env = getenv("XZ_OPT");
+	char *env = getenv(varname);
 	if (env == NULL)
 		return;
 
@@ -413,10 +440,11 @@ parse_environment(args_info *args, char *argv0)
 
 			// Keep argc small enough to fit into a singed int
 			// and to keep it usable for memory allocation.
-			if (++argc == MIN(INT_MAX, SIZE_MAX / sizeof(char *)))
+			if (++argc == my_min(
+					INT_MAX, SIZE_MAX / sizeof(char *)))
 				message_fatal(_("The environment variable "
-						"XZ_OPT contains too many "
-						"arguments"));
+						"%s contains too many "
+						"arguments"), varname);
 		}
 	}
 
@@ -504,8 +532,9 @@ args_parse(args_info *args, int argc, char **argv)
 		}
 	}
 
-	// First the flags from environment
-	parse_environment(args, argv[0]);
+	// First the flags from the environment
+	parse_environment(args, argv[0], "XZ_DEFAULTS");
+	parse_environment(args, argv[0], "XZ_OPT");
 
 	// Then from the command line
 	parse_real(args, argc, argv);

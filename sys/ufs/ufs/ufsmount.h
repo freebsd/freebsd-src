@@ -40,7 +40,7 @@
  */
 struct ufs_args {
 	char	*fspec;			/* block special device to mount */
-	struct	export_args export;	/* network export information */
+	struct	oexport_args export;	/* network export information */
 };
 
 #ifdef _KERNEL

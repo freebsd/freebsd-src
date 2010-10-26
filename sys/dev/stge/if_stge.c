@@ -576,7 +576,7 @@ stge_attach(device_t dev)
 	struct stge_softc *sc;
 	struct ifnet *ifp;
 	uint8_t enaddr[ETHER_ADDR_LEN];
-	int error, i;
+	int error, flags, i;
 	uint16_t cmd;
 	uint32_t val;
 
@@ -738,9 +738,14 @@ stge_attach(device_t dev)
 	    (PC_PhyDuplexPolarity | PC_PhyLnkPolarity);
 
 	/* Set up MII bus. */
-	if ((error = mii_phy_probe(sc->sc_dev, &sc->sc_miibus, stge_mediachange,
-	    stge_mediastatus)) != 0) {
-		device_printf(sc->sc_dev, "no PHY found!\n");
+	flags = 0;
+	if (sc->sc_rev >= 0x40 && sc->sc_rev <= 0x4e)
+		flags |= MIIF_MACPRIV0;
+	error = mii_attach(sc->sc_dev, &sc->sc_miibus, ifp, stge_mediachange,
+	    stge_mediastatus, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY,
+	    flags);
+	if (error != 0) {
+		device_printf(sc->sc_dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 

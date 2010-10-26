@@ -73,7 +73,7 @@ file_sanity_check "installMode disk0 installType installMedium packageType"
 check_value installMode "fresh upgrade"
 check_value bootManager "bsd none"
 check_value installType "PCBSD FreeBSD"
-check_value installMedium "dvd usb ftp rsync"
+check_value installMedium "dvd usb ftp rsync image"
 check_value packageType "uzip tar rsync split"
 if_check_value_exists partition "all s1 s2 s3 s4 free image"
 if_check_value_exists mirrorbal "load prefer round-robin split"
@@ -100,7 +100,12 @@ start_networking
 # If we are not doing an upgrade, lets go ahead and setup the disk
 case "${INSTALLMODE}" in
   fresh)
-	install_fresh
+    if [ "${INSTALLMEDIUM}" = "image" ]
+    then
+      install_image
+    else
+      install_fresh
+    fi
     ;;
 
   upgrade)
@@ -108,7 +113,7 @@ case "${INSTALLMODE}" in
     ;;
 
   *)
-	exit 1
+    exit 1
     ;;
 esac
 

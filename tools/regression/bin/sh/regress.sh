@@ -1,12 +1,18 @@
 # $FreeBSD$
 
+if [ -z "${SH}" ]; then
+	echo '${SH} is not set, please correct and re-run.'
+	exit 1
+fi
+export SH=${SH}
+
 COUNTER=1
 
 do_test() {
 	local c
 	c=${COUNTER}
 	COUNTER=$((COUNTER+1))
-	sh $1 > tmp.stdout 2> tmp.stderr
+	${SH} $1 > tmp.stdout 2> tmp.stderr
 	if [ $? -ne $2 ]; then
 		echo "not ok ${c} - ${1} # wrong exit status"
 		rm tmp.stdout tmp.stderr

@@ -127,7 +127,6 @@ lxtphy_attach(device_t dev)
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
 	struct mii_data *mii;
-	const char *nic;
 
 	sc = device_get_softc(dev);
 	ma = device_get_ivars(dev);
@@ -135,6 +134,7 @@ lxtphy_attach(device_t dev)
 	mii = ma->mii_data;
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
+	sc->mii_flags = miibus_get_flags(dev);
 	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = lxtphy_service;
@@ -144,15 +144,6 @@ lxtphy_attach(device_t dev)
 
 	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	device_printf(dev, " ");
-
-	/*
-	 * On Apple BMAC controllers, we end up in a weird state
-	 * of partially-completed autonegotiation on boot. So
-	 * force autonegotation to try again.
-	 */
-	nic = device_get_name(device_get_parent(sc->mii_dev));
-	if (strcmp(nic, "bm") == 0)
-		sc->mii_flags |= MIIF_FORCEANEG | MIIF_NOISOLATE;
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_FX, 0, sc->mii_inst),

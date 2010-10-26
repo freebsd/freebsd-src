@@ -227,9 +227,9 @@ main(int argc, char **argv)
 		    >= sizeof(temppackageroot))
 		    errx(1, "package name too long");
 		remotepkg = temppackageroot;
-		if (!((ptr = strrchr(remotepkg, '.')) && ptr[1] == 't' && 
-			(ptr[2] == 'b' || ptr[2] == 'g') && ptr[3] == 'z' &&
-			!ptr[4]))
+		if (!((ptr = strrchr(remotepkg, '.')) && ptr[1] == 't' &&
+			(ptr[2] == 'b' || ptr[2] == 'g' || ptr[2] == 'x') &&
+			ptr[3] == 'z' && !ptr[4]))
 		    if (strlcat(remotepkg, ".tbz",
 			sizeof(temppackageroot)) >= sizeof(temppackageroot))
 			errx(1, "package name too long");

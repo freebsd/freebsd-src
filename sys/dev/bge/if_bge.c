@@ -374,6 +374,7 @@ static void bge_tick(void *);
 static void bge_stats_clear_regs(struct bge_softc *);
 static void bge_stats_update(struct bge_softc *);
 static void bge_stats_update_regs(struct bge_softc *);
+static struct mbuf *bge_check_short_dma(struct mbuf *);
 static struct mbuf *bge_setup_tso(struct bge_softc *, struct mbuf *,
     uint16_t *);
 static int bge_encap(struct bge_softc *, struct mbuf **, uint32_t *);
@@ -550,6 +551,10 @@ bge_readmem_ind(struct bge_softc *sc, int off)
 	device_t dev;
 	uint32_t val;
 
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5906 &&
+	    off >= BGE_STATS_BLOCK && off < BGE_SEND_RING_1_TO_4)
+		return (0);
+
 	dev = sc->bge_dev;
 
 	pci_write_config(dev, BGE_PCI_MEMWIN_BASEADDR, off, 4);
@@ -562,6 +567,10 @@ static void
 bge_writemem_ind(struct bge_softc *sc, int off, int val)
 {
 	device_t dev;
+
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5906 &&
+	    off >= BGE_STATS_BLOCK && off < BGE_SEND_RING_1_TO_4)
+		return;
 
 	dev = sc->bge_dev;
 
@@ -773,10 +782,6 @@ bge_miibus_readreg(device_t dev, int phy, int reg)
 
 	sc = device_get_softc(dev);
 
-	/* Prevent the probe from finding incorrect devices. */
-	if (phy != sc->bge_phy_addr)
-		return (0);
-
 	/* Clear the autopoll bit if set, otherwise may trigger PCI errors. */
 	if ((sc->bge_mi_mode & BGE_MIMODE_AUTOPOLL) != 0) {
 		CSR_WRITE_4(sc, BGE_MI_MODE,
@@ -870,6 +875,29 @@ bge_miibus_statchg(device_t dev)
 	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->bge_miibus);
 
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+		case IFM_100_TX:
+			sc->bge_link = 1;
+			break;
+		case IFM_1000_T:
+		case IFM_1000_SX:
+		case IFM_2500_SX:
+			if (sc->bge_asicrev != BGE_ASICREV_BCM5906)
+				sc->bge_link = 1;
+			else
+				sc->bge_link = 0;
+			break;
+		default:
+			sc->bge_link = 0;
+			break;
+		}
+	} else
+		sc->bge_link = 0;
+	if (sc->bge_link == 0)
+		return;
 	BGE_CLRBIT(sc, BGE_MAC_MODE, BGE_MACMODE_PORTMODE);
 	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T ||
 	    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX)
@@ -1655,7 +1683,7 @@ bge_blockinit(struct bge_softc *sc)
 	}
 
 	/* Disable the mini receive producer ring RCB. */
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5700) {
+	if (BGE_IS_5700_FAMILY(sc)) {
 		rcb = &sc->bge_ldata.bge_info.bge_mini_rx_rcb;
 		rcb->bge_maxlen_flags =
 		    BGE_RCB_MAXLEN_FLAGS(0, BGE_RCB_FLAG_RING_DISABLED);
@@ -1665,6 +1693,14 @@ bge_blockinit(struct bge_softc *sc)
 		bge_writembx(sc, BGE_MBX_RX_MINI_PROD_LO, 0);
 	}
 
+	/* Choose de-pipeline mode for BCM5906 A0, A1 and A2. */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5906) {
+		if (sc->bge_chipid == BGE_CHIPID_BCM5906_A0 ||
+		    sc->bge_chipid == BGE_CHIPID_BCM5906_A1 ||
+		    sc->bge_chipid == BGE_CHIPID_BCM5906_A2)
+			CSR_WRITE_4(sc, BGE_ISO_PKT_TX,
+			    (CSR_READ_4(sc, BGE_ISO_PKT_TX) & ~3) | 2);
+	}
 	/*
 	 * The BD ring replenish thresholds control how often the
 	 * hardware fetches new BD's from the producer rings in host
@@ -1974,11 +2010,17 @@ bge_blockinit(struct bge_softc *sc)
 	    BGE_MACSTAT_LINK_CHANGED);
 	CSR_WRITE_4(sc, BGE_MI_STS, 0);
 
-	/* Enable PHY auto polling (for MII/GMII only) */
+	/*
+	 * Enable attention when the link has changed state for
+	 * devices that use auto polling.
+	 */
 	if (sc->bge_flags & BGE_FLAG_TBI) {
 		CSR_WRITE_4(sc, BGE_MI_STS, BGE_MISTS_LINK);
 	} else {
-		BGE_SETBIT(sc, BGE_MI_MODE, BGE_MIMODE_AUTOPOLL | (10 << 16));
+		if (sc->bge_mi_mode & BGE_MIMODE_AUTOPOLL) {
+			CSR_WRITE_4(sc, BGE_MI_MODE, sc->bge_mi_mode);
+			DELAY(80);
+		}
 		if (sc->bge_asicrev == BGE_ASICREV_BCM5700 &&
 		    sc->bge_chipid != BGE_CHIPID_BCM5700_B2)
 			CSR_WRITE_4(sc, BGE_MAC_EVT_ENB,
@@ -2526,7 +2568,7 @@ bge_attach(device_t dev)
 	struct bge_softc *sc;
 	uint32_t hwcfg = 0, misccfg;
 	u_char eaddr[ETHER_ADDR_LEN];
-	int error, msicount, reg, rid, trys;
+	int error, msicount, phy_addr, reg, rid, trys;
 
 	sc = device_get_softc(dev);
 	sc->bge_dev = dev;
@@ -2559,7 +2601,7 @@ bge_attach(device_t dev)
 	sc->bge_chiprev = BGE_CHIPREV(sc->bge_chipid);
 
 	/* Set default PHY address. */
-	sc->bge_phy_addr = 1;
+	phy_addr = 1;
 
 	/*
 	 * Don't enable Ethernet@WireSpeed for the 5700, 5906, or the
@@ -2600,6 +2642,8 @@ bge_attach(device_t dev)
 	case BGE_ASICREV_BCM5752:
 	case BGE_ASICREV_BCM5906:
 		sc->bge_flags |= BGE_FLAG_575X_PLUS;
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5906)
+			sc->bge_flags |= BGE_FLAG_SHORT_DMA_BUG;
 		/* FALLTHROUGH */
 	case BGE_ASICREV_BCM5705:
 		sc->bge_flags |= BGE_FLAG_5705_PLUS;
@@ -2644,6 +2688,9 @@ bge_attach(device_t dev)
 		sc->bge_mi_mode = BGE_MIMODE_500KHZ_CONST;
 	else
 		sc->bge_mi_mode = BGE_MIMODE_BASE;
+	/* Enable auto polling for BCM570[0-5]. */
+	if (BGE_IS_5700_FAMILY(sc) || sc->bge_asicrev == BGE_ASICREV_BCM5705)
+		sc->bge_mi_mode |= BGE_MIMODE_AUTOPOLL;
 
 	/*
 	 * All controllers that are not 5755 or higher have 4GB
@@ -2921,17 +2968,17 @@ bge_attach(device_t dev)
 again:
 		bge_asf_driver_up(sc);
 
-		if (mii_phy_probe(dev, &sc->bge_miibus,
-		    bge_ifmedia_upd, bge_ifmedia_sts)) {
+		error = (mii_attach(dev, &sc->bge_miibus, ifp,
+		    bge_ifmedia_upd, bge_ifmedia_sts, BMSR_DEFCAPMASK,
+		    phy_addr, MII_OFFSET_ANY, 0));
+		if (error != 0) {
 			if (trys++ < 4) {
 				device_printf(sc->bge_dev, "Try again\n");
 				bge_miibus_writereg(sc->bge_dev, 1, MII_BMCR,
 				    BMCR_RESET);
 				goto again;
 			}
-
-			device_printf(sc->bge_dev, "MII without any PHY!\n");
-			error = ENXIO;
+			device_printf(sc->bge_dev, "attaching PHYs failed\n");
 			goto fail;
 		}
 
@@ -3627,8 +3674,11 @@ bge_intr_task(void *arg, int pending)
 	sc = (struct bge_softc *)arg;
 	ifp = sc->bge_ifp;
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	BGE_LOCK(sc);
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+		BGE_UNLOCK(sc);
 		return;
+	}
 
 	/* Get updated status block. */
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
@@ -3643,26 +3693,27 @@ bge_intr_task(void *arg, int pending)
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
 	    sc->bge_cdata.bge_status_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+
+	if ((status & BGE_STATFLAG_LINKSTATE_CHANGED) != 0)
+		bge_link_upd(sc);
+
 	/* Let controller work. */
 	bge_writembx(sc, BGE_MBX_IRQ0_LO, 0);
 
-	if ((status & BGE_STATFLAG_LINKSTATE_CHANGED) != 0) {
-		BGE_LOCK(sc);
-		bge_link_upd(sc);
-		BGE_UNLOCK(sc);
-	}
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
+	    sc->bge_rx_saved_considx != rx_prod) {
 		/* Check RX return ring producer/consumer. */
+		BGE_UNLOCK(sc);
 		bge_rxeof(sc, rx_prod, 0);
+		BGE_LOCK(sc);
 	}
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		BGE_LOCK(sc);
 		/* Check TX ring producer/consumer. */
 		bge_txeof(sc, tx_cons);
 	    	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			bge_start_locked(ifp);
-		BGE_UNLOCK(sc);
 	}
+	BGE_UNLOCK(sc);
 }
 
 static void
@@ -4020,6 +4071,39 @@ bge_cksum_pad(struct mbuf *m)
 }
 
 static struct mbuf *
+bge_check_short_dma(struct mbuf *m)
+{
+	struct mbuf *n;
+	int found;
+
+	/*
+	 * If device receive two back-to-back send BDs with less than
+	 * or equal to 8 total bytes then the device may hang.  The two
+	 * back-to-back send BDs must in the same frame for this failure
+	 * to occur.  Scan mbuf chains and see whether two back-to-back
+	 * send BDs are there. If this is the case, allocate new mbuf
+	 * and copy the frame to workaround the silicon bug.
+	 */
+	for (n = m, found = 0; n != NULL; n = n->m_next) {
+		if (n->m_len < 8) {
+			found++;
+			if (found > 1)
+				break;
+			continue;
+		}
+		found = 0;
+	}
+
+	if (found > 1) {
+		n = m_defrag(m, M_DONTWAIT);
+		if (n == NULL)
+			m_freem(m);
+	} else
+		n = m;
+	return (n);
+}
+
+static struct mbuf *
 bge_setup_tso(struct bge_softc *sc, struct mbuf *m, uint16_t *mss)
 {
 	struct ip *ip;
@@ -4053,9 +4137,11 @@ bge_setup_tso(struct bge_softc *sc, struct mbuf *m, uint16_t *mss)
 	 * checksum. These checksum computed by upper stack should be 0.
 	 */
 	*mss = m->m_pkthdr.tso_segsz;
+	ip = (struct ip *)(mtod(m, char *) + sizeof(struct ether_header));
 	ip->ip_sum = 0;
 	ip->ip_len = htons(*mss + (ip->ip_hl << 2) + (tcp->th_off << 2));
 	/* Clear pseudo checksum computed by TCP stack. */
+	tcp = (struct tcphdr *)(mtod(m, char *) + poff);
 	tcp->th_sum = 0;
 	/*
 	 * Broadcom controllers uses different descriptor format for
@@ -4090,6 +4176,13 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 	csum_flags = 0;
 	mss = 0;
 	vlan_tag = 0;
+	if ((sc->bge_flags & BGE_FLAG_SHORT_DMA_BUG) != 0 &&
+	    m->m_next != NULL) {
+		*m_head = bge_check_short_dma(m);
+		if (*m_head == NULL)
+			return (ENOBUFS);
+		m = *m_head;
+	}
 	if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
 		*m_head = m = bge_setup_tso(sc, m, &mss);
 		if (*m_head == NULL)
@@ -4324,6 +4417,7 @@ bge_init_locked(struct bge_softc *sc)
 {
 	struct ifnet *ifp;
 	uint16_t *m;
+	uint32_t mode;
 
 	BGE_LOCK_ASSERT(sc);
 
@@ -4429,8 +4523,12 @@ bge_init_locked(struct bge_softc *sc)
 	/* Init TX ring. */
 	bge_init_tx_ring(sc);
 
+	/* Enable TX MAC state machine lockup fix. */
+	mode = CSR_READ_4(sc, BGE_TX_MODE);
+	if (BGE_IS_5755_PLUS(sc) || sc->bge_asicrev == BGE_ASICREV_BCM5906)
+		mode |= BGE_TXMODE_MBUF_LOCKUP_FIX;
 	/* Turn on transmitter. */
-	BGE_SETBIT(sc, BGE_TX_MODE, BGE_TXMODE_ENABLE);
+	CSR_WRITE_4(sc, BGE_TX_MODE, mode | BGE_TXMODE_ENABLE);
 
 	/* Turn on receiver. */
 	BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_ENABLE);
@@ -4631,6 +4729,7 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	switch (command) {
 	case SIOCSIFMTU:
+		BGE_LOCK(sc);
 		if (ifr->ifr_mtu < ETHERMIN ||
 		    ((BGE_IS_JUMBO_CAPABLE(sc)) &&
 		    ifr->ifr_mtu > BGE_JUMBO_MTU) ||
@@ -4639,9 +4738,12 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			error = EINVAL;
 		else if (ifp->if_mtu != ifr->ifr_mtu) {
 			ifp->if_mtu = ifr->ifr_mtu;
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-			bge_init(sc);
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+				bge_init_locked(sc);
+			}
 		}
+		BGE_UNLOCK(sc);
 		break;
 	case SIOCSIFFLAGS:
 		BGE_LOCK(sc);
@@ -5014,7 +5116,7 @@ bge_link_upd(struct bge_softc *sc)
 				if_printf(sc->bge_ifp, "link DOWN\n");
 			if_link_state_change(sc->bge_ifp, LINK_STATE_DOWN);
 		}
-	} else if (CSR_READ_4(sc, BGE_MI_MODE) & BGE_MIMODE_AUTOPOLL) {
+	} else if ((sc->bge_mi_mode & BGE_MIMODE_AUTOPOLL) != 0) {
 		/*
 		 * Some broken BCM chips have BGE_STATFLAG_LINKSTATE_CHANGED bit
 		 * in status word always set. Workaround this bug by reading
@@ -5042,9 +5144,12 @@ bge_link_upd(struct bge_softc *sc)
 		}
 	} else {
 		/*
-		 * Discard link events for MII/GMII controllers
-		 * if MI auto-polling is disabled.
+		 * For controllers that call mii_tick, we have to poll
+		 * link status.
 		 */
+		mii = device_get_softc(sc->bge_miibus);
+		mii_pollstat(mii);
+		bge_miibus_statchg(sc->bge_dev);
 	}
 
 	/* Clear the attention. */

@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/if_macbvar.h>
 #include <arm/at91/at91_piovar.h>
 
-#include <arm/at91/at91_pio_sam9.h>
 #include <arm/at91/at91sam9g20reg.h>
 
 #include <machine/bus.h>
@@ -1365,9 +1364,10 @@ macb_attach(device_t dev)
 	write_4(sc, EMAC_NCR, MPE_ENABLE); //enable MPE
 
 	sc->ifp = ifp = if_alloc(IFT_ETHER);
-	if (mii_phy_probe(dev, &sc->miibus, macb_ifmedia_upd, macb_ifmedia_sts)) {
-		device_printf(dev, "Cannot find my PHY.\n");
-		err = ENXIO;
+	err = mii_attach(dev, &sc->miibus, ifp, macb_ifmedia_upd,
+	    macb_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	if (err != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto out;
 	}
 

@@ -52,15 +52,6 @@ static const struct {
 		.changes_size = true,
 	},
 #endif
-#if defined(HAVE_ENCODER_SUBBLOCK) || defined(HAVE_DECODER_SUBBLOCK)
-	{
-		.id = LZMA_FILTER_SUBBLOCK,
-		.options_size = sizeof(lzma_options_subblock),
-		.non_last_ok = true,
-		.last_ok = true,
-		.changes_size = true,
-	},
-#endif
 #ifdef HAVE_DECODER_X86
 	{
 		.id = LZMA_FILTER_X86,

@@ -129,6 +129,7 @@ g_eli_auth_keygen(struct g_eli_softc *sc, off_t offset, u_char *key)
 static int
 g_eli_auth_read_done(struct cryptop *crp)
 {
+	struct g_eli_softc *sc;
 	struct bio *bp;
 
 	if (crp->crp_etype == EAGAIN) {
@@ -152,8 +153,8 @@ g_eli_auth_read_done(struct cryptop *crp)
 	 */
 	if (bp->bio_inbed < bp->bio_children)
 		return (0);
+	sc = bp->bio_to->geom->softc;
 	if (bp->bio_error == 0) {
-		struct g_eli_softc *sc;
 		u_int i, lsec, nsec, data_secsize, decr_secsize, encr_secsize;
 		u_char *srcdata, *dstdata, *auth;
 		off_t coroff, corsize;
@@ -161,7 +162,6 @@ g_eli_auth_read_done(struct cryptop *crp)
 		/*
 		 * Verify data integrity based on calculated and read HMACs.
 		 */
-		sc = bp->bio_to->geom->softc;
 		/* Sectorsize of decrypted provider eg. 4096. */
 		decr_secsize = bp->bio_to->sectorsize;
 		/* The real sectorsize of encrypted provider, eg. 512. */
@@ -240,6 +240,7 @@ g_eli_auth_read_done(struct cryptop *crp)
 	 * Read is finished, send it up.
 	 */
 	g_io_deliver(bp, bp->bio_error);
+	atomic_subtract_int(&sc->sc_inflight, 1);
 	return (0);
 }
 
@@ -276,6 +277,7 @@ g_eli_auth_write_done(struct cryptop *crp)
 	 */
 	if (bp->bio_inbed < bp->bio_children)
 		return (0);
+	sc = bp->bio_to->geom->softc;
 	if (bp->bio_error != 0) {
 		G_ELI_LOGREQ(0, bp, "Crypto WRITE request failed (error=%d).",
 		    bp->bio_error);
@@ -285,9 +287,9 @@ g_eli_auth_write_done(struct cryptop *crp)
 		bp->bio_driver1 = NULL;
 		g_destroy_bio(cbp);
 		g_io_deliver(bp, bp->bio_error);
+		atomic_subtract_int(&sc->sc_inflight, 1);
 		return (0);
 	}
-	sc = bp->bio_to->geom->softc;
 	cp = LIST_FIRST(&sc->sc_geom->consumer);
 	cbp = bp->bio_driver1;
 	bp->bio_driver1 = NULL;
@@ -392,6 +394,11 @@ g_eli_auth_read(struct g_eli_softc *sc, struct bio *bp)
 /*
  * This is the main function responsible for cryptography (ie. communication
  * with crypto(9) subsystem).
+ *
+ * BIO_READ:
+ *	g_eli_start -> g_eli_auth_read -> g_io_request -> g_eli_read_done -> G_ELI_AUTH_RUN -> g_eli_auth_read_done -> g_io_deliver
+ * BIO_WRITE:
+ *	g_eli_start -> G_ELI_AUTH_RUN -> g_eli_auth_write_done -> g_io_request -> g_eli_write_done -> g_io_deliver
  */
 void
 g_eli_auth_run(struct g_eli_worker *wr, struct bio *bp)

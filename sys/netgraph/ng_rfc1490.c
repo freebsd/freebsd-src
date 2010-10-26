@@ -440,7 +440,7 @@ switch_on_etype:		etype = ntohs(*((const u_int16_t *)ptr));
 		mtod(m, u_char *)[7] = 0x07;
 		NG_FWD_NEW_DATA(error, item, priv->downlink, m);
 	} else
-		panic(__func__);
+		panic("%s", __func__);
 
 done:
 	if (item)
@@ -485,7 +485,7 @@ ng_rfc1490_disconnect(hook_p hook)
 	else if (hook == priv->ethernet)
 		priv->ethernet = NULL;
 	else
-		panic(__func__);
+		panic("%s", __func__);
 	return (0);
 }
 

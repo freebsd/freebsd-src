@@ -2517,6 +2517,10 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	CTR2(KTR_UMA, "uma_zfree_arg thread %x zone %s", curthread,
 	    zone->uz_name);
 
+        /* uma_zfree(..., NULL) does nothing, to match free(9). */
+        if (item == NULL)
+                return;
+
 	if (zone->uz_dtor)
 		zone->uz_dtor(item, zone->uz_size, udata);
 
@@ -2782,7 +2786,7 @@ zone_free_item(uma_zone_t zone, void *item, void *udata,
 }
 
 /* See uma.h */
-void
+int
 uma_zone_set_max(uma_zone_t zone, int nitems)
 {
 	uma_keg_t keg;
@@ -2792,8 +2796,10 @@ uma_zone_set_max(uma_zone_t zone, int nitems)
 	keg->uk_maxpages = (nitems / keg->uk_ipers) * keg->uk_ppera;
 	if (keg->uk_maxpages * keg->uk_ipers < nitems)
 		keg->uk_maxpages += keg->uk_ppera;
-
+	nitems = keg->uk_maxpages * keg->uk_ipers;
 	ZONE_UNLOCK(zone);
+
+	return (nitems);
 }
 
 /* See uma.h */
@@ -2805,13 +2811,33 @@ uma_zone_get_max(uma_zone_t zone)
 
 	ZONE_LOCK(zone);
 	keg = zone_first_keg(zone);
-	if (keg->uk_maxpages)
-		nitems = keg->uk_maxpages * keg->uk_ipers;
-	else
-		nitems = 0;
+	nitems = keg->uk_maxpages * keg->uk_ipers;
 	ZONE_UNLOCK(zone);
 
 	return (nitems);
+}
+
+/* See uma.h */
+int
+uma_zone_get_cur(uma_zone_t zone)
+{
+	int64_t nitems;
+	u_int i;
+
+	ZONE_LOCK(zone);
+	nitems = zone->uz_allocs - zone->uz_frees;
+	CPU_FOREACH(i) {
+		/*
+		 * See the comment in sysctl_vm_zone_stats() regarding the
+		 * safety of accessing the per-cpu caches. With the zone lock
+		 * held, it is safe, but can potentially result in stale data.
+		 */
+		nitems += zone->uz_cpu[i].uc_allocs -
+		    zone->uz_cpu[i].uc_frees;
+	}
+	ZONE_UNLOCK(zone);
+
+	return (nitems < 0 ? 0 : nitems);
 }
 
 /* See uma.h */
