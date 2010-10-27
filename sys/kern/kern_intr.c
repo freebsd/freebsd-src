@@ -74,7 +74,7 @@ struct intr_thread {
 
 /* Interrupt thread flags kept in it_flags */
 #define	IT_DEAD		0x000001	/* Thread is waiting to exit. */
-#define	IT_WAIT		0x000001	/* Thread is waiting for completion. */
+#define	IT_WAIT		0x000002	/* Thread is waiting for completion. */
 
 struct	intr_entropy {
 	struct	thread *td;
