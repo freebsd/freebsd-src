@@ -428,9 +428,9 @@ ipoib_mark_paths_invalid(struct ifnet *dev)
 	spin_lock_irq(&priv->lock);
 
 	list_for_each_entry_safe(path, tp, &priv->path_list, list) {
-		ipoib_dbg(priv, "mark path LID 0x%04x GID %pI6 invalid\n",
+		ipoib_dbg(priv, "mark path LID 0x%04x GID %16D invalid\n",
 			be16_to_cpu(path->pathrec.dlid),
-			path->pathrec.dgid.raw);
+			path->pathrec.dgid.raw, ":");
 		path->valid =  0;
 	}
 
@@ -477,11 +477,11 @@ path_rec_completion(int status, struct ib_sa_path_rec *pathrec, void *path_ptr)
 	unsigned long flags;
 
 	if (!status)
-		ipoib_dbg(priv, "PathRec LID 0x%04x for GID %pI6\n",
-			  be16_to_cpu(pathrec->dlid), pathrec->dgid.raw);
+		ipoib_dbg(priv, "PathRec LID 0x%04x for GID %16D\n",
+			  be16_to_cpu(pathrec->dlid), pathrec->dgid.raw, ":");
 	else
-		ipoib_dbg(priv, "PathRec status %d for GID %pI6\n",
-			  status, path->pathrec.dgid.raw);
+		ipoib_dbg(priv, "PathRec status %d for GID %16D\n",
+			  status, path->pathrec.dgid.raw, ":");
 
 	bzero(&mbqueue, sizeof(mbqueue));
 
@@ -596,8 +596,8 @@ path_rec_start(struct ifnet *dev, struct ipoib_path *path)
 		p_rec.mtu_selector = 0;
 	}
 
-	ipoib_dbg(priv, "Start path record lookup for %pI6 MTU > %d\n",
-		  p_rec.dgid.raw,
+	ipoib_dbg(priv, "Start path record lookup for %16D MTU > %d\n",
+		  p_rec.dgid.raw, ":",
 		  comp_mask ? ib_mtu_enum_to_int(p_rec.mtu) : 0);
 
 	init_completion(&path->done);

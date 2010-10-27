@@ -468,6 +468,7 @@ void ipoib_mcast_carrier_on_task(struct work_struct *work);
 void ipoib_mcast_send(struct ifnet *dev, void *mgid, struct mbuf *mb);
 
 void ipoib_mcast_restart_task(struct work_struct *work);
+void ipoib_mcast_restart(struct ipoib_dev_priv *);
 int ipoib_mcast_start_thread(struct ifnet *dev);
 int ipoib_mcast_stop_thread(struct ifnet *dev, int flush);
 
