@@ -177,7 +177,7 @@ main(int argc, char *argv[])
 			mountmode = V3;
 			break;
 		case 'a':
-			printf("-a deprecated, use -o readhead=<value>\n");
+			printf("-a deprecated, use -o readahead=<value>\n");
 			build_iovec(&iov, &iovlen, "readahead", optarg, (size_t)-1);
 			break;
 		case 'b':
