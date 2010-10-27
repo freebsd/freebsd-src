@@ -160,6 +160,25 @@ int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
 			}
 		}
 		read_unlock(&dev_base_lock);
+#else
+		{
+			struct sockaddr_in6 *sin6;
+			struct ifaddr *ifa;
+			in_port_t port;
+
+			sin6 = (struct sockaddr_in6 *)addr;
+			port = sin6->sin6_port;
+			sin6->sin6_port = 0;
+			ifa = ifa_ifwithaddr(addr);
+			sin6->sin6_port = port;
+			if (ifa == NULL) {
+				ret = -ENODEV;
+				break;
+			}
+			ret = rdma_copy_addr(dev_addr, ifa->ifa_ifp, NULL);
+			ifa_free(ifa);
+			break;
+		}
 #endif
 		break;
 #endif
@@ -329,7 +348,7 @@ static int addr_resolve(struct sockaddr *src_in,
 	struct ifnet *ifp;
 	struct llentry *lle;
 	struct rtentry *rte;
-	short port;
+	in_port_t port;
 	u_char edst[MAX_ADDR_LEN];
 	int multi;
 	int bcast;
@@ -344,6 +363,7 @@ static int addr_resolve(struct sockaddr *src_in,
 	sin = NULL;
 	sin6 = NULL;
 	ifp = NULL;
+	rte = NULL;
 	switch (dst_in->sa_family) {
 	case AF_INET:
 		sin = (struct sockaddr_in *)dst_in;
@@ -369,7 +389,10 @@ static int addr_resolve(struct sockaddr *src_in,
 		if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			multi = 1;
 		sin6 = (struct sockaddr_in6 *)src_in;
-		if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr))
+		if (!IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr)) {
+			port = sin6->sin6_port;
+			sin6->sin6_port = 0;
+		} else
 			src_in = NULL;
 		break;
 #endif
@@ -384,6 +407,8 @@ static int addr_resolve(struct sockaddr *src_in,
 		ifa = ifa_ifwithaddr(src_in);
 		if (sin)
 			sin->sin_port = port;
+		if (sin6)
+			sin6->sin6_port = port;
 		if (ifa == NULL)
 			return -ENETUNREACH;
 		ifp = ifa->ifa_ifp;
