@@ -48,6 +48,12 @@ __FBSDID("$FreeBSD$");
 
 #define JP_RDTUN(jp)	(((jp)->jp_ctltype & CTLFLAG_RDTUN) == CTLFLAG_RDTUN)
 
+struct permspec {
+	const char	*name;
+	enum intparam	ipnum;
+	int		rev;
+};
+
 const char *cfname;
 int verbose;
 
@@ -63,19 +69,13 @@ static void print_param(FILE *fp, const struct cfparam *p, int sep, int doname);
 static void quoted_print(FILE *fp, char *str);
 static void usage(void);
 
-static const char *perm_sysctl[][3] = {
-	{ "security.jail.set_hostname_allowed",
-	  "allow.noset_hostname", "allow.set_hostname" },
-	{ "security.jail.sysvipc_allowed",
-	  "allow.nosysvipc", "allow.sysvipc" },
-	{ "security.jail.allow_raw_sockets",
-	  "allow.noraw_sockets", "allow.raw_sockets" },
-	{ "security.jail.chflags_allowed",
-	  "allow.nochflags", "allow.chflags" },
-	{ "security.jail.mount_allowed",
-	  "allow.nomount", "allow.mount" },
-	{ "security.jail.socket_unixiproute_only",
-	  "allow.socket_af", "allow.nosocket_af" },
+static struct permspec perm_sysctl[] = {
+	{ "security.jail.set_hostname_allowed", KP_ALLOW_SET_HOSTNAME, 0 },
+	{ "security.jail.sysvipc_allowed", KP_ALLOW_SYSVIPC, 0 },
+	{ "security.jail.allow_raw_sockets", KP_ALLOW_RAW_SOCKETS, 0 },
+	{ "security.jail.chflags_allowed", KP_ALLOW_CHFLAGS, 0 },
+	{ "security.jail.mount_allowed", KP_ALLOW_MOUNT, 0 },
+	{ "security.jail.socket_unixiproute_only", KP_ALLOW_SOCKET_AF, 1 },
 };
 
 int
@@ -113,7 +113,7 @@ main(int argc, char **argv)
 			cfname = optarg;
 			break;
 		case 'h':
-			add_param(NULL, NULL, "ip_hostname", NULL);
+			add_param(NULL, NULL, IP_IP_HOSTNAME, NULL);
 			docf = 0;
 			break;
 		case 'i':
@@ -124,14 +124,14 @@ main(int argc, char **argv)
 			JidFile = optarg;
 			break;
 		case 'l':
-			add_param(NULL, NULL, "exec.clean", NULL);
+			add_param(NULL, NULL, IP_EXEC_CLEAN, NULL);
 			docf = 0;
 			break;
 		case 'm':
 			op |= JF_SET;
 			break;
 		case 'n':
-			add_param(NULL, NULL, "name", optarg);
+			add_param(NULL, NULL, KP_NAME, optarg);
 			docf = 0;
 			break;
 		case 'p':
@@ -150,17 +150,18 @@ main(int argc, char **argv)
 			Rflag = 1;
 			break;
 		case 's':
-			add_param(NULL, NULL, "securelevel", optarg);
+			add_param(NULL, NULL, KP_SECURELEVEL, optarg);
 			docf = 0;
 			break;
 		case 'u':
-			add_param(NULL, NULL, "exec.jail_user", optarg);
-			add_param(NULL, NULL, "exec.system_jail_user", NULL);
+			add_param(NULL, NULL, IP_EXEC_JAIL_USER, optarg);
+			add_param(NULL, NULL, IP_EXEC_SYSTEM_JAIL_USER, NULL);
 			docf = 0;
 			break;
 		case 'U':
-			add_param(NULL, NULL, "exec.jail_user", optarg);
-			add_param(NULL, NULL, "exec.nosystem_jail_user", NULL);
+			add_param(NULL, NULL, IP_EXEC_JAIL_USER, optarg);
+			add_param(NULL, NULL, IP_EXEC_SYSTEM_JAIL_USER,
+			    "false");
 			docf = 0;
 			break;
 		case 'v':
@@ -182,8 +183,8 @@ main(int argc, char **argv)
 		op = JF_START;
 		docf = 0;
 		oldcl = 1;
-		add_param(NULL, NULL, "path", argv[0]);
-		add_param(NULL, NULL, "host.hostname", argv[1]);
+		add_param(NULL, NULL, KP_PATH, argv[0]);
+		add_param(NULL, NULL, KP_HOST_HOSTNAME, argv[1]);
 		if (argv[2][0] != '\0') {
 			for (cs = argv[2];; cs = ncs + 1) {
 				ncs = strchr(cs, ',');
@@ -192,15 +193,15 @@ main(int argc, char **argv)
 				add_param(NULL, NULL,
 #ifdef INET6
 				    inet_pton(AF_INET6, cs, &addr6) == 1
-				    ? "ip6.addr" :
+				    ? KP_IP6_ADDR :
 #endif
-				    "ip4.addr", cs);
+				    KP_IP4_ADDR, cs);
 				if (!ncs)
 					break;
 			}
 		}
 		for (i = 3; i < argc; i++)
-			add_param(NULL, NULL, "command", argv[i]);
+			add_param(NULL, NULL, IP_COMMAND, argv[i]);
 		/* Emulate the defaults from security.jail.* sysctls. */
 		sysvallen = sizeof(sysval);
 		if (sysctlbyname("security.jail.jailed", &sysval, &sysvallen,
@@ -208,18 +209,20 @@ main(int argc, char **argv)
 			for (pi = 0; pi < sizeof(perm_sysctl) /
 			     sizeof(perm_sysctl[0]); pi++) {
 				sysvallen = sizeof(sysval);
-				if (sysctlbyname(perm_sysctl[pi][0],
+				if (sysctlbyname(perm_sysctl[pi].name,
 				    &sysval, &sysvallen, NULL, 0) == 0)
 					add_param(NULL, NULL,
-					    perm_sysctl[pi][sysval ? 2 : 1],
-					    NULL);
+					    perm_sysctl[pi].ipnum,
+					    (sysval ? 1 : 0) ^ 
+					    perm_sysctl[pi].rev
+					    ? NULL : "false");
 			}
 			sysvallen = sizeof(sysval);
 			if (sysctlbyname("security.jail.enforce_statfs",
 			    &sysval, &sysvallen, NULL, 0) == 0) {
 				snprintf(enforce_statfs,
 				    sizeof(enforce_statfs), "%d", sysval);
-				add_param(NULL, NULL, "enforce_statfs",
+				add_param(NULL, NULL, KP_ENFORCE_STATFS,
 				    enforce_statfs);
 			}
 		}
@@ -243,16 +246,14 @@ main(int argc, char **argv)
 			if (!strncmp(argv[i], "command", 7) &&
 			    (argv[i][7] == '\0' || argv[i][7] == '=')) {
 				if (argv[i][7]  == '=')
-					add_param(NULL, NULL, "command",
+					add_param(NULL, NULL, IP_COMMAND,
 					    argv[i] + 8);
 				for (i++; i < argc; i++)
-					add_param(NULL, NULL, "command",
+					add_param(NULL, NULL, IP_COMMAND,
 					    argv[i]);
 				break;
 			}
-			if ((cs = strchr(argv[i], '=')))
-				*cs++ = '\0';
-			add_param(NULL, NULL, argv[i], cs);
+			add_param(NULL, NULL, 0, argv[i]);
 		}
 	} else {
 		/* From the config file, perhaps with a specified jail */
@@ -262,7 +263,6 @@ main(int argc, char **argv)
 	}
 
 	/* Find out which jails will be run. */
-	find_intparams();
 	dep_setup(docf);
 	error = 0;
 	if (op == JF_STOP) {
@@ -315,7 +315,7 @@ main(int argc, char **argv)
 		{
 			j->flags |= JF_CHECKINT;
 			if (dflag)
-				add_param(j, NULL, "allow.dying", NULL);
+				add_param(j, NULL, IP_ALLOW_DYING, NULL);
 			if (check_intparams(j) < 0)
 				continue;
 		}
@@ -959,7 +959,7 @@ print_jail(FILE *fp, struct cfjail *j, int oldcl)
 		fprintf(fp, "%d\t", j->jid);
 		print_param(fp, j->intparams[KP_PATH], ',', 0);
 		putc('\t', fp);
-		print_param(fp, j->intparams[KP_HOSTNAME], ',', 0);
+		print_param(fp, j->intparams[KP_HOST_HOSTNAME], ',', 0);
 		putc('\t', fp);
 		print_param(fp, j->intparams[KP_IP4_ADDR], ',', 0);
 #ifdef INET6
