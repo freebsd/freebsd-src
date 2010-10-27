@@ -231,6 +231,6 @@ The
 .Fl P
 option assumes that the underlying file system updates existing blocks
 in-place and does not store new data in a new location.
-This is true for UFS but not for ZFS, which is using a Copy-On-Write strategy.
-In addition, only regular files are overwritten, other types of files
-are not.
+This is true for UFS, but not for ZFS or other file systems which use
+copy-on-write semantics.
+In addition, only regular files are overwritten.
