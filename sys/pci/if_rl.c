@@ -1613,6 +1613,7 @@ rl_intr(void *arg)
 	struct rl_softc		*sc = arg;
 	struct ifnet		*ifp = sc->rl_ifp;
 	uint16_t		status;
+	int			count;
 
 	RL_LOCK(sc);
 
@@ -1624,30 +1625,41 @@ rl_intr(void *arg)
 		goto done_locked;
 #endif
 
-	for (;;) {
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		goto done_locked2;
+	status = CSR_READ_2(sc, RL_ISR);
+	if (status == 0xffff || (status & RL_INTRS) == 0)
+		goto done_locked;
+	/*
+	 * Ours, disable further interrupts.
+	 */
+	CSR_WRITE_2(sc, RL_IMR, 0);
+	for (count = 16; count > 0; count--) {
+		CSR_WRITE_2(sc, RL_ISR, status);
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			if (status & (RL_ISR_RX_OK | RL_ISR_RX_ERR))
+				rl_rxeof(sc);
+			if (status & (RL_ISR_TX_OK | RL_ISR_TX_ERR))
+				rl_txeof(sc);
+			if (status & RL_ISR_SYSTEM_ERR) {
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+				rl_init_locked(sc);
+				RL_UNLOCK(sc);
+				return;
+			}
+		}
 		status = CSR_READ_2(sc, RL_ISR);
 		/* If the card has gone away, the read returns 0xffff. */
-		if (status == 0xffff)
+		if (status == 0xffff || (status & RL_INTRS) == 0)
 			break;
-		if (status != 0)
-			CSR_WRITE_2(sc, RL_ISR, status);
-		if ((status & RL_INTRS) == 0)
-			break;
-		if (status & RL_ISR_RX_OK)
-			rl_rxeof(sc);
-		if (status & RL_ISR_RX_ERR)
-			rl_rxeof(sc);
-		if ((status & RL_ISR_TX_OK) || (status & RL_ISR_TX_ERR))
-			rl_txeof(sc);
-		if (status & RL_ISR_SYSTEM_ERR) {
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-			rl_init_locked(sc);
-		}
 	}
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		rl_start_locked(ifp);
 
+done_locked2:
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		CSR_WRITE_2(sc, RL_IMR, RL_INTRS);
 done_locked:
 	RL_UNLOCK(sc);
 }
