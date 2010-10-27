@@ -364,7 +364,6 @@ MAN=	accept_filter.9 \
 	VOP_STRATEGY.9 \
 	VOP_VPTOCNP.9 \
 	VOP_VPTOFH.9 \
-	vput.9 \
 	vref.9 \
 	vrefcnt.9 \
 	vrele.9 \
@@ -1359,6 +1358,8 @@ MLINKS+=VOP_RDWR.9 VOP_READ.9 \
 	VOP_RDWR.9 VOP_WRITE.9
 MLINKS+=VOP_REMOVE.9 VOP_RMDIR.9
 MLINKS+=vref.9 VREF.9
+MLINKS+=vrele.9 vput.9 \
+	vrele.9 vunref.9
 MLINKS+=vslock.9 vsunlock.9
 MLINKS+=zero_copy.9 zero_copy_sockets.9
 MLINKS+=zone.9 uma.9 \
