@@ -580,13 +580,23 @@ ip_params(struct cfjail *j)
 			}
 			if ((cs = strchr(s->s, '/'))) {
 				prefix = strtol(cs + 1, &ep, 10);
-				if (!isip6 && *ep == '.'
+				if (
+#ifdef INET6
+				    !isip6 &&
+#endif
+				    *ep == '.'
 				    ? inet_pton(AF_INET, cs + 1, &addr4) != 1
-				    : *ep || prefix < 0 || prefix >
-				    (isip6 ? 128 : 32)) {
-					jail_warnx(j, isip6
-					    ? "ip6.addr: bad prefixlen \"%s\""
-					    : "ip4.addr: bad netmask \"%s\"",
+				    : *ep || prefix < 0 || prefix > (
+#ifdef INET6
+				      isip6 ? 128 :
+#endif
+				      32)) {
+					jail_warnx(j,
+#ifdef INET6
+					    isip6
+					    ? "ip6.addr: bad prefixlen \"%s\"" :
+#endif
+					    "ip4.addr: bad netmask \"%s\"",
 					    cs);
 					error = -1;	
 				}
