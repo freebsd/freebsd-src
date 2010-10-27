@@ -119,14 +119,16 @@ ntfs_cmount (
 	void *data,
 	int flags)
 {
-	int error;
 	struct ntfs_args args;
+	struct export_args exp;
+	int error;
 
-	error = copyin(data, (caddr_t)&args, sizeof args);
+	error = copyin(data, &args, sizeof(args));
 	if (error)
 		return (error);
+	vfs_oexport_conv(&args.export, &exp);
 	ma = mount_argsu(ma, "from", args.fspec, MAXPATHLEN);
-	ma = mount_arg(ma, "export", &args.export, sizeof args.export);
+	ma = mount_arg(ma, "export", &exp, sizeof(exp));
 	ma = mount_argf(ma, "uid", "%d", args.uid);
 	ma = mount_argf(ma, "gid", "%d", args.gid);
 	ma = mount_argf(ma, "mode", "%d", args.mode);

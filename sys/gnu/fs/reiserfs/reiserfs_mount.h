@@ -39,7 +39,7 @@ struct reiserfs_mount {
 /* Arguments to mount ReiserFS filesystems. */
 struct reiserfs_args {
 	char	*fspec;		/* blocks special holding the fs to mount */
-	struct export_args export;	/* network export information */
+	struct oexport_args export;	/* network export information */
 };
 
 #endif /* !defined _GNU_REISERFS_REISERFS_MOUNT_H */
