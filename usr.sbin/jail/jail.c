@@ -891,8 +891,7 @@ running_jid(struct cfjail *j, int dflag)
 	char *ep;
 	int jid;
 
-	pval = string_param(j->intparams[KP_JID]);
-	if (pval != NULL) {
+	if ((pval = string_param(j->intparams[KP_JID]))) {
 		if (!(jid = strtol(pval, &ep, 10)) || *ep) {
 			j->jid = -1;
 			return;
@@ -901,13 +900,15 @@ running_jid(struct cfjail *j, int dflag)
 		jiov[0].iov_len = sizeof("jid");
 		jiov[1].iov_base = &jid;
 		jiov[1].iov_len = sizeof(jid);
-	} else {
-		pval = string_param(j->intparams[KP_NAME]);
+	} else if ((pval = string_param(j->intparams[KP_NAME]))) {
 		*(const void **)&jiov[0].iov_base = "name";
 		jiov[0].iov_len = sizeof("name");
 		jiov[1].iov_len = strlen(pval) + 1;
 		jiov[1].iov_base = alloca(jiov[1].iov_len);
 		strcpy(jiov[1].iov_base, pval);
+	} else {
+		j->jid = -1;
+		return;
 	}
 	j->jid = jail_get(jiov, 2, dflag ? JAIL_DYING : 0);
 }
