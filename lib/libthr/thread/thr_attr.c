@@ -574,13 +574,14 @@ _get_kern_cpuset_size(void)
 
 	if (kern_cpuset_size == 0) {
 		size_t len;
+		int maxcpus;
 
-		len = sizeof(kern_cpuset_size);
-		if (sysctlbyname("kern.smp.maxcpus", &kern_cpuset_size,
-		    &len, NULL, 0))
+		len = sizeof(maxcpus);
+		if (sysctlbyname("kern.smp.maxcpus", &maxcpus, &len, NULL, 0))
 			PANIC("failed to get sysctl kern.smp.maxcpus");
-
-		kern_cpuset_size = (kern_cpuset_size + 7) / 8;
+		int nbits_long = sizeof(long) * NBBY;
+		int num_long = (maxcpus + nbits_long - 1) / nbits_long;
+		kern_cpuset_size = num_long * sizeof(long);
 	}
 
 	return (kern_cpuset_size);
