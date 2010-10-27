@@ -257,10 +257,8 @@ _mutex_fork(struct pthread *curthread)
 int
 _pthread_mutex_destroy(pthread_mutex_t *mutex)
 {
-	struct pthread *curthread = _get_curthread();
 	pthread_mutex_t m;
-	uint32_t id;
-	int ret = 0;
+	int ret;
 
 	m = *mutex;
 	if (m < THR_MUTEX_DESTROYED) {
@@ -268,34 +266,13 @@ _pthread_mutex_destroy(pthread_mutex_t *mutex)
 	} else if (m == THR_MUTEX_DESTROYED) {
 		ret = EINVAL;
 	} else {
-		id = TID(curthread);
-
-		/*
-		 * Try to lock the mutex structure, we only need to
-		 * try once, if failed, the mutex is in used.
-		 */
-		ret = _thr_umutex_trylock(&m->m_lock, id);
-		if (ret)
-			return (ret);
-		/*
-		 * Check mutex other fields to see if this mutex is
-		 * in use. Mostly for prority mutex types, or there
-		 * are condition variables referencing it.
-		 */
 		if (m->m_owner != NULL || m->m_refcount != 0) {
-			if (m->m_lock.m_flags & UMUTEX_PRIO_PROTECT)
-				set_inherited_priority(curthread, m);
-			_thr_umutex_unlock(&m->m_lock, id);
 			ret = EBUSY;
 		} else {
 			*mutex = THR_MUTEX_DESTROYED;
-
-			if (m->m_lock.m_flags & UMUTEX_PRIO_PROTECT)
-				set_inherited_priority(curthread, m);
-			_thr_umutex_unlock(&m->m_lock, id);
-
 			MUTEX_ASSERT_NOT_OWNED(m);
 			free(m);
+			ret = 0;
 		}
 	}
 
