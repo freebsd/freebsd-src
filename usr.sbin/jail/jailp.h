@@ -49,6 +49,7 @@
 #define PF_INTERNAL	0x08	/* Internal parameter, not passed to kernel */
 #define PF_BOOL		0x10	/* Boolean parameter */
 #define PF_INT		0x20	/* Integer parameter */
+#define PF_CONV		0x40	/* Parameter duplicated in converted form */
 
 #define JF_START	0x0001	/* -c */
 #define JF_SET		0x0002	/* -m */
@@ -93,16 +94,23 @@ enum intparam {
 	IP_INTERFACE,		/* Add IP addresses to this interface */
 	IP_IP_HOSTNAME,		/* Get jail IP address(es) from hostname */
 	IP_MOUNT,		/* Mount points in fstab(5) form */
-	IP_MOUNT_FSTAB,		/* A standard fstab(5) file */
 	IP_MOUNT_DEVFS,		/* Mount /dev under prison root */
 	IP_MOUNT_DEVFS_RULESET,	/* Ruleset for the devfs mount */
+	IP_MOUNT_FSTAB,		/* A standard fstab(5) file */
 	IP_STOP_TIMEOUT,	/* Time to wait after sending SIGTERM */
+	IP_VNET_INTERFACE,	/* Assign interface(s) to vnet jail */
 	IP__IP4_IFADDR,		/* Copy of ip4.addr with interface/netmask */
 #ifdef INET6
 	IP__IP6_IFADDR,		/* Copy of ip6.addr with interface/prefixlen */
 #endif
-	IP_VNET_INTERFACE,	/* Assign interface(s) to vnet jail */
-	KP_HOSTNAME,
+	KP_ALLOW_CHFLAGS,
+	KP_ALLOW_MOUNT,
+	KP_ALLOW_RAW_SOCKETS,
+	KP_ALLOW_SET_HOSTNAME,
+	KP_ALLOW_SOCKET_AF,
+	KP_ALLOW_SYSVIPC,
+	KP_ENFORCE_STATFS,
+	KP_HOST_HOSTNAME,
 	KP_IP4_ADDR,
 #ifdef INET6
 	KP_IP6_ADDR,
@@ -111,6 +119,7 @@ enum intparam {
 	KP_NAME,
 	KP_PATH,
 	KP_PERSIST,
+	KP_SECURELEVEL,
 	KP_VNET,
 	IP_NPARAM
 };
@@ -187,8 +196,7 @@ extern int term_procs(struct cfjail *j);
 extern void load_config(void);
 extern struct cfjail *add_jail(void);
 extern void add_param(struct cfjail *j, const struct cfparam *p,
-    const char *name, const char *value);
-extern void find_intparams(void);
+    enum intparam ipnum, const char *value);
 extern int check_intparams(struct cfjail *j);
 extern int bool_param(const struct cfparam *p);
 extern int int_param(const struct cfparam *p, int *ip);
