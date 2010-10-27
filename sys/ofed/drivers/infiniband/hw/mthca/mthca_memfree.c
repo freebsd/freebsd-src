@@ -564,8 +564,7 @@ out:
 	}
 	start = uaddr & PAGE_MASK;
 	ret = vm_map_wire(&proc->p_vmspace->vm_map, start, start + PAGE_SIZE,
-	    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES /* | VM_MAP_WIRE_READ |
-	    VM_MAP_WIRE_WRITE */);
+	    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES | VM_MAP_WIRE_WRITE);
         if (ret != KERN_SUCCESS) {
 		start = 0;
 		ret = -ENOMEM;
