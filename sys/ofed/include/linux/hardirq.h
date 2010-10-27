@@ -28,6 +28,12 @@
 #ifndef _LINUX_HARDIRQ_H_
 #define	_LINUX_HARDIRQ_H_
 
-#define	synchronize_irq(irq)	printf("synchronize_irq: Unimplemented\n")
+#include <linux/types.h>
+
+#include <sys/param.h>
+#include <sys/bus.h>
+#include <sys/interrupt.h>
+
+#define	synchronize_irq(irq)	intr_drain((irq))
 
 #endif	/* _LINUX_HARDIRQ_H_ */
