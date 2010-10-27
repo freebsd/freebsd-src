@@ -69,7 +69,6 @@
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 
-#include <machine/_inttypes.h>
 #include <machine/in_cksum.h>
 #include <machine/pcb.h>
 
@@ -1107,8 +1106,8 @@ netdump_dumper(void *priv, void *virtual, vm_offset_t physical, off_t offset,
 
 	(void)priv;
 
-	NETDDEBUGV("netdump_dumper(%p, %p, %"PRIxPTR", %"PRIx64", %zu)\n",
-	    priv, virtual, physical, (uint64_t)offset, length);
+	NETDDEBUGV("netdump_dumper(%p, %p, 0x%jx, %ju, %zu)\n",
+	    priv, virtual, (uintmax_t)physical, (uintmax_t)offset, length);
 
 	if (length > sizeof(buf))
 		return ENOSPC;
