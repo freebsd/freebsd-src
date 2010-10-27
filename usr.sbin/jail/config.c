@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 
 struct ipspec {
 	const char	*name;
-	enum intparam	ipnum;
 	unsigned	flags;
 };
 
@@ -53,52 +52,57 @@ extern int yynerrs;
 
 struct cfjails cfjails = TAILQ_HEAD_INITIALIZER(cfjails);
 
-static int cmp_intparam(const void *a, const void *b);
 static void free_param(struct cfparams *pp, struct cfparam *p);
 static void free_param_strings(struct cfparam *p);
 
-/* Note these must be in sort order */
 static const struct ipspec intparams[] = {
-    {"allow.dying",		IP_ALLOW_DYING,		PF_INTERNAL | PF_BOOL },
-    {"allow.nodying",		IP_ALLOW_DYING,		PF_INTERNAL | PF_BOOL },
-    {"command",			IP_COMMAND,		PF_INTERNAL },
-    {"depend",			IP_DEPEND,		PF_INTERNAL },
-    {"exec.clean",		IP_EXEC_CLEAN,		PF_INTERNAL | PF_BOOL },
-    {"exec.consolelog",		IP_EXEC_CONSOLELOG,	PF_INTERNAL },
-    {"exec.fib",		IP_EXEC_FIB,		PF_INTERNAL | PF_INT },
-    {"exec.jail_user",		IP_EXEC_JAIL_USER,	PF_INTERNAL },
-    {"exec.noclean",		IP_EXEC_CLEAN,		PF_INTERNAL | PF_BOOL },
-    {"exec.nosystem_jail_user",IP_EXEC_SYSTEM_JAIL_USER,PF_INTERNAL | PF_BOOL },
-    {"exec.poststart",		IP_EXEC_POSTSTART,	PF_INTERNAL },
-    {"exec.poststop",		IP_EXEC_POSTSTOP,	PF_INTERNAL },
-    {"exec.prestart",		IP_EXEC_PRESTART,	PF_INTERNAL },
-    {"exec.prestop",		IP_EXEC_PRESTOP,	PF_INTERNAL },
-    {"exec.start",		IP_EXEC_START,		PF_INTERNAL },
-    {"exec.stop",		IP_EXEC_STOP,		PF_INTERNAL },
-    {"exec.system_jail_user", IP_EXEC_SYSTEM_JAIL_USER,	PF_INTERNAL | PF_BOOL },
-    {"exec.system_user",	IP_EXEC_SYSTEM_USER,	PF_INTERNAL },
-    {"exec.timeout",		IP_EXEC_TIMEOUT,	PF_INTERNAL | PF_INT },
-    {"host.hostname",		KP_HOSTNAME,		0 },
-    {"interface",		IP_INTERFACE,		PF_INTERNAL },
-    {"ip4.addr",		KP_IP4_ADDR,		0 },
+    [IP_ALLOW_DYING] =		{"allow.dying",		PF_INTERNAL | PF_BOOL},
+    [IP_COMMAND] =		{"command",		PF_INTERNAL},
+    [IP_DEPEND] =		{"depend",		PF_INTERNAL},
+    [IP_EXEC_CLEAN] =		{"exec.clean",		PF_INTERNAL | PF_BOOL},
+    [IP_EXEC_CONSOLELOG] =	{"exec.consolelog",	PF_INTERNAL},
+    [IP_EXEC_FIB] =		{"exec.fib",		PF_INTERNAL | PF_INT},
+    [IP_EXEC_JAIL_USER] =	{"exec.jail_user",	PF_INTERNAL},
+    [IP_EXEC_POSTSTART] =	{"exec.poststart",	PF_INTERNAL},
+    [IP_EXEC_POSTSTOP] =	{"exec.poststop",	PF_INTERNAL},
+    [IP_EXEC_PRESTART] =	{"exec.prestart",	PF_INTERNAL},
+    [IP_EXEC_PRESTOP] =		{"exec.prestop",	PF_INTERNAL},
+    [IP_EXEC_START] =		{"exec.start",		PF_INTERNAL},
+    [IP_EXEC_STOP] =		{"exec.stop",		PF_INTERNAL},
+    [IP_EXEC_SYSTEM_JAIL_USER]=	{"exec.system_jail_user",
+							PF_INTERNAL | PF_BOOL},
+    [IP_EXEC_SYSTEM_USER] =	{"exec.system_user",	PF_INTERNAL},
+    [IP_EXEC_TIMEOUT] =		{"exec.timeout",	PF_INTERNAL | PF_INT},
+    [IP_INTERFACE] =		{"interface",		PF_INTERNAL},
+    [IP_IP_HOSTNAME] =		{"ip_hostname",		PF_INTERNAL | PF_BOOL},
+    [IP_MOUNT] =		{"mount",		PF_INTERNAL},
+    [IP_MOUNT_DEVFS] =		{"mount.devfs",		PF_INTERNAL | PF_BOOL},
+    [IP_MOUNT_DEVFS_RULESET]=	{"mount.devfs.ruleset",	PF_INTERNAL},
+    [IP_MOUNT_FSTAB] =		{"mount.fstab",		PF_INTERNAL},
+    [IP_STOP_TIMEOUT] =		{"stop.timeout",	PF_INTERNAL | PF_INT},
+    [IP_VNET_INTERFACE] =	{"vnet.interface",	PF_INTERNAL},
+    [IP__IP4_IFADDR] =		{"ip4.addr",		PF_INTERNAL | PF_CONV},
 #ifdef INET6
-    {"ip6.addr",		KP_IP6_ADDR,		0 },
+    [IP__IP6_IFADDR] =		{"ip6.addr",		PF_INTERNAL | PF_CONV},
 #endif
-    {"ip_hostname",		IP_IP_HOSTNAME,		PF_INTERNAL | PF_BOOL },
-    {"jid",			KP_JID,			PF_INT },
-    {"mount",			IP_MOUNT,		PF_INTERNAL },
-    {"mount.devfs",		IP_MOUNT_DEVFS,		PF_INTERNAL | PF_BOOL },
-    {"mount.devfs.ruleset",	IP_MOUNT_DEVFS_RULESET,	PF_INTERNAL },
-    {"mount.fstab",		IP_MOUNT_FSTAB,		PF_INTERNAL },
-    {"mount.nodevfs",		IP_MOUNT_DEVFS,		PF_INTERNAL | PF_BOOL },
-    {"name",			KP_NAME,		0 },
-    {"noip_hostname",		IP_IP_HOSTNAME,		PF_INTERNAL | PF_BOOL },
-    {"nopersist",		KP_PERSIST,		PF_BOOL },
-    {"path",			KP_PATH,		0 },
-    {"persist",			KP_PERSIST,		PF_BOOL },
-    {"stop.timeout",		IP_STOP_TIMEOUT,	PF_INTERNAL | PF_INT },
-    {"vnet",			KP_VNET,		0 },
-    {"vnet.interface",		IP_VNET_INTERFACE,	PF_INTERNAL },
+    [KP_ALLOW_CHFLAGS] =	{"allow.chflags",	0},
+    [KP_ALLOW_MOUNT] =		{"allow.mount",		0},
+    [KP_ALLOW_RAW_SOCKETS] =	{"allow.raw_sockets",	0},
+    [KP_ALLOW_SET_HOSTNAME]=	{"allow.set_hostname",	0},
+    [KP_ALLOW_SOCKET_AF] =	{"allow.socket_af",	0},
+    [KP_ALLOW_SYSVIPC] =	{"allow.sysvipc",	0},
+    [KP_ENFORCE_STATFS] =	{"enforce_statfs",	0},
+    [KP_HOST_HOSTNAME] =	{"host.hostname",	0},
+    [KP_IP4_ADDR] =		{"ip4.addr",		0},
+#ifdef INET6
+    [KP_IP6_ADDR] =		{"ip6.addr",		0},
+#endif
+    [KP_JID] =			{"jid",			0},
+    [KP_NAME] =			{"name",		0},
+    [KP_PATH] =			{"path",		0},
+    [KP_PERSIST] =		{"persist",		0},
+    [KP_SECURELEVEL] =		{"securelevel",		0},
+    [KP_VNET] =			{"vnet",		0},
 };
 
 /*
@@ -146,7 +150,7 @@ load_config(void)
 		 * though they may also be explicitly set later on.
 		 */
 		add_param(j, NULL,
-		    strtol(j->name, &ep, 10) && !*ep ? "jid" : "name",
+		    strtol(j->name, &ep, 10) && !*ep ? KP_JID : KP_NAME,
 		    j->name);
 		/*
 		 * Collect parameters for the jail, global parameters/variables,
@@ -156,16 +160,16 @@ load_config(void)
 		TAILQ_FOREACH(wj, &wild, tq) {
 			if (j->seq < wj->seq && !did_self) {
 				TAILQ_FOREACH(p, &opp, tq)
-					add_param(j, p, NULL, NULL);
+					add_param(j, p, 0, NULL);
 				did_self = 1;
 			}
 			if (wild_jail_match(j->name, wj->name))
 				TAILQ_FOREACH(p, &wj->params, tq)
-					add_param(j, p, NULL, NULL);
+					add_param(j, p, 0, NULL);
 		}
 		if (!did_self)
 			TAILQ_FOREACH(p, &opp, tq)
-				add_param(j, p, NULL, NULL);
+				add_param(j, p, 0, NULL);
 
 		/* Resolve any variable substitutions. */
 		pgen = 0;
@@ -274,13 +278,16 @@ add_jail(void)
  * Add a parameter to a jail.
  */
 void
-add_param(struct cfjail *j, const struct cfparam *p, const char *name,
+add_param(struct cfjail *j, const struct cfparam *p, enum intparam ipnum,
     const char *value)
 {
 	struct cfstrings nss;
 	struct cfparam *dp, *np;
 	struct cfstring *s, *ns;
 	struct cfvar *v, *nv;
+	struct ipspec *ips;
+	const char *name;
+	char *cs, *tname;
 	unsigned flags;
 
 	if (j == NULL) {
@@ -312,6 +319,18 @@ add_param(struct cfjail *j, const struct cfparam *p, const char *name,
 		}
 	} else {
 		flags = PF_APPEND;
+		if (ipnum != 0) {
+			name = intparams[ipnum].name;
+			flags |= intparams[ipnum].flags;
+		} else if ((cs = strchr(value, '='))) {
+			tname = alloca(cs - value + 1);
+			strlcpy(tname, value, cs - value + 1);
+			name = tname;
+			value = cs + 1;
+		} else {
+			name = value;
+			value = NULL;
+		}
 		if (value != NULL) {
 			ns = emalloc(sizeof(struct cfstring));
 			ns->s = estrdup(value);
@@ -322,21 +341,23 @@ add_param(struct cfjail *j, const struct cfparam *p, const char *name,
 	}
 
 	/* See if this parameter has already been added. */
-	TAILQ_FOREACH(dp, &j->params, tq) {
-		if (equalopts(dp->name, name)) {
-			/* Found it - append or replace. */
-			if (strcmp(dp->name, name)) {
-				free(dp->name);
-				dp->name = estrdup(name);
-			}
-			if (!(flags & PF_APPEND) || STAILQ_EMPTY(&nss))
-				free_param_strings(dp);
-			STAILQ_CONCAT(&dp->val, &nss);
-			dp->flags |= flags;
-			break;
+	if (ipnum != 0)
+		dp = j->intparams[ipnum];
+	else
+		TAILQ_FOREACH(dp, &j->params, tq)
+			if (!(dp->flags & PF_CONV) && equalopts(dp->name, name))
+				break;
+	if (dp != NULL) {
+		/* Found it - append or replace. */
+		if (strcmp(dp->name, name)) {
+			free(dp->name);
+			dp->name = estrdup(name);
 		}
-	}
-	if (dp == NULL) {
+		if (!(flags & PF_APPEND) || STAILQ_EMPTY(&nss))
+			free_param_strings(dp);
+		STAILQ_CONCAT(&dp->val, &nss);
+		dp->flags |= flags;
+	} else {
 		/* Not found - add it. */
 		np = emalloc(sizeof(struct cfparam));
 		np->name = estrdup(name);
@@ -345,29 +366,16 @@ add_param(struct cfjail *j, const struct cfparam *p, const char *name,
 		np->flags = flags;
 		np->gen = 0;
 		TAILQ_INSERT_TAIL(&j->params, np, tq);
-	}
-}
-
-/*
- * Find internal or known parameters.
- */
-void
-find_intparams(void)
-{
-	struct cfjail *j;
-	struct cfparam *p;
-	struct ipspec *ip;
-
-	TAILQ_FOREACH(j, &cfjails, tq) {
-		TAILQ_FOREACH(p, &j->params, tq) {
-			ip = bsearch(p->name, intparams,
-			    sizeof(intparams) / sizeof(intparams[0]),
-			    sizeof(struct ipspec), cmp_intparam);
-			if (ip != NULL) {
-				j->intparams[ip->ipnum] = p;
-				p->flags |= ip->flags;
-			}
-		}
+		if (ipnum != 0)
+			j->intparams[ipnum] = np;
+		else
+			for (ipnum = 1; ipnum < IP_NPARAM; ipnum++)
+				if (!(intparams[ipnum].flags & PF_CONV) &&
+				    equalopts(name, intparams[ipnum].name)) {
+					j->intparams[ipnum] = np;
+					np->flags |= intparams[ipnum].flags;
+					break;
+				}
 	}
 }
 
@@ -457,7 +465,6 @@ ip_params(struct cfjail *j)
 {
 	struct in_addr addr4;
 	struct addrinfo hints, *ai0, *ai;
-	struct cfparam *np;
 	struct cfstring *s, *ns;
 	char *cs, *ep;
 	const char *hostname;
@@ -477,7 +484,7 @@ ip_params(struct cfjail *j)
 	 * for any IP addresses it finds.
 	 */
 	if (bool_param(j->intparams[IP_IP_HOSTNAME]) &&
-	    (hostname = string_param(j->intparams[KP_HOSTNAME]))) {
+	    (hostname = string_param(j->intparams[KP_HOST_HOSTNAME]))) {
 		j->intparams[IP_IP_HOSTNAME] = NULL;
 		/*
 		 * Silently ignore unsupported address families from
@@ -526,7 +533,7 @@ ip_params(struct cfjail *j)
 						    &addr4, avalue4,
 						    INET_ADDRSTRLEN) == NULL)
 							err(1, "inet_ntop");
-						add_param(j, NULL, "ip4.addr",
+						add_param(j, NULL, KP_IP4_ADDR,
 						    avalue4);
 						break;
 #ifdef INET6
@@ -539,7 +546,7 @@ ip_params(struct cfjail *j)
 						    &addr6, avalue6,
 						    INET6_ADDRSTRLEN) == NULL)
 							err(1, "inet_ntop");
-						add_param(j, NULL, "ip6.addr",
+						add_param(j, NULL, KP_IP6_ADDR,
 						    avalue6);
 						break;
 #endif
@@ -562,28 +569,14 @@ ip_params(struct cfjail *j)
 	{
 		if (j->intparams[KP_IP4_ADDR + isip6] == NULL)
 			continue;
-		np = j->intparams[IP__IP4_IFADDR + isip6];
 		STAILQ_FOREACH(s, &j->intparams[KP_IP4_ADDR + isip6]->val, tq) {
 			cs = strchr(s->s, '|');
-			if (cs || defif) {
-				if (np == NULL) {
-					np = j->intparams[IP__IP4_IFADDR +
-					    isip6] =
-					    emalloc(sizeof(struct cfparam));
-					np->name = estrdup(j->intparams
-					    [KP_IP4_ADDR + isip6]->name);
-					STAILQ_INIT(&np->val);
-					np->flags = PF_INTERNAL;
-				}
-				ns = emalloc(sizeof(struct cfstring));
-				ns->s = estrdup(s->s);
-				ns->len = s->len;
-				STAILQ_INIT(&ns->vars);
-				STAILQ_INSERT_TAIL(&np->val, ns, tq);
-				if (cs != NULL) {
-					strcpy(s->s, cs + 1);
-					s->len -= cs - s->s + 1;
-				}
+			if (cs || defif)
+				add_param(j, NULL, IP__IP4_IFADDR + isip6,
+				    s->s);
+			if (cs) {
+				strcpy(s->s, cs + 1);
+				s->len -= cs + 1 - s->s;
 			}
 			if ((cs = strchr(s->s, '/'))) {
 				prefix = strtol(cs + 1, &ep, 10);
@@ -743,16 +736,6 @@ wild_jail_name(const char *wname)
 		    (wc[1] == '\0' || wc[1] == '.'))
 			return 1;
 	return 0;
-}
-
-/*
- * Compare strings and intparams for bsearch.
- */
-
-static int
-cmp_intparam(const void *a, const void *b)
-{
-	return strcmp((const char *)a, ((const struct ipspec *)b)->name);
 }
 
 /*
