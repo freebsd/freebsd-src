@@ -889,6 +889,10 @@ cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
 	int error;
 	size_t size;
 
+	if (uap->cpusetsize == 0) {
+		td->td_retval[0] = sizeof(cpuset_t);
+		return (0);
+	}
 	if (uap->cpusetsize < sizeof(cpuset_t) ||
 	    uap->cpusetsize > CPU_MAXSIZE / NBBY)
 		return (ERANGE);
