@@ -73,7 +73,11 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 	struct sctp_nets *net;
 	int refcount_up = 0;
 	uint32_t vrf_id = 0;
+
+#ifdef IPSEC
 	struct inpcb *in6p_ip;
+
+#endif
 	struct sctp_chunkhdr *ch;
 	int length, offset, iphlen;
 	uint8_t ecn_bits;
@@ -224,11 +228,11 @@ sctp_skip_csum:
 	} else if (stcb == NULL) {
 		refcount_up = 1;
 	}
-	in6p_ip = (struct inpcb *)in6p;
 #ifdef IPSEC
 	/*
 	 * Check AH/ESP integrity.
 	 */
+	in6p_ip = (struct inpcb *)in6p;
 	if (in6p_ip && (ipsec6_in_reject(m, in6p_ip))) {
 /* XXX */
 		MODULE_GLOBAL(ipsec6stat).in_polvio++;
@@ -813,7 +817,6 @@ sctp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
     struct mbuf *control, struct thread *p)
 {
 	struct sctp_inpcb *inp;
-	struct inpcb *in_inp;
 	struct in6pcb *inp6;
 
 #ifdef INET
@@ -832,7 +835,6 @@ sctp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, EINVAL);
 		return EINVAL;
 	}
-	in_inp = (struct inpcb *)inp;
 	inp6 = (struct in6pcb *)inp;
 	/*
 	 * For the TCP model we may get a NULL addr, if we are a connected
