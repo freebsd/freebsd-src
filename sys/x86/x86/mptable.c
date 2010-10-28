@@ -27,6 +27,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_mptable_force_htt.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
@@ -50,10 +51,19 @@ __FBSDID("$FreeBSD$");
 /* string defined by the Intel MP Spec as identifying the MP table */
 #define	MP_SIG			0x5f504d5f	/* _MP_ */
 
+#ifdef __amd64__
 #define	MAX_LAPIC_ID		63	/* Max local APIC ID for HTT fixup */
+#else
+#define	MAX_LAPIC_ID		31	/* Max local APIC ID for HTT fixup */
+#endif
 
+#ifdef PC98
+#define BIOS_BASE		(0xe8000)
+#define BIOS_SIZE		(0x18000)
+#else
 #define BIOS_BASE		(0xf0000)
 #define BIOS_SIZE		(0x10000)
+#endif
 #define BIOS_COUNT		(BIOS_SIZE/4)
 
 typedef	void mptable_entry_handler(u_char *entry, void *arg);
@@ -152,7 +162,7 @@ static int	lookup_bus_type(char *name);
 static void	mptable_count_items(void);
 static void	mptable_count_items_handler(u_char *entry, void *arg);
 #ifdef MPTABLE_FORCE_HTT
-static void	mptable_hyperthread_fixup(u_long id_mask);
+static void	mptable_hyperthread_fixup(u_int id_mask);
 #endif
 static void	mptable_parse_apics_and_busses(void);
 static void	mptable_parse_apics_and_busses_handler(u_char *entry,
@@ -218,12 +228,11 @@ static int
 mptable_probe(void)
 {
 	int     x;
-	u_int32_t segment;
+	u_long  segment;
 	u_int32_t target;
 
 	/* see if EBDA exists */
-	segment = (u_int32_t) *(u_short *)(KERNBASE + 0x40e);
-	if (segment != 0) {
+	if ((segment = (u_long) * (u_short *) (KERNBASE + 0x40e)) != 0) {
 		/* search first 1K of EBDA */
 		target = (u_int32_t) (segment << 4);
 		if ((x = search_for_sig(target, 1024 / 4)) >= 0)
@@ -294,7 +303,7 @@ found:
 static int
 mptable_probe_cpus(void)
 {
-	u_long cpu_mask;
+	u_int cpu_mask;
 
 	/* Is this a pre-defined config? */
 	if (mpfps->config_type != 0) {
@@ -380,8 +389,8 @@ mptable_register(void *dummy __unused)
 
 	apic_register_enumerator(&mptable_enumerator);
 }
-SYSINIT(mptable_register, SI_SUB_TUNABLES - 1, SI_ORDER_FIRST,
-    mptable_register, NULL);
+SYSINIT(mptable_register, SI_SUB_CPU - 1, SI_ORDER_FIRST, mptable_register,
+    NULL);
 
 /*
  * Call the handler routine for each entry in the MP config table.
@@ -414,7 +423,7 @@ static void
 mptable_probe_cpus_handler(u_char *entry, void *arg)
 {
 	proc_entry_ptr proc;
-	u_long *cpu_mask;
+	u_int *cpu_mask;
 
 	switch (*entry) {
 	case MPCT_ENTRY_PROCESSOR:
@@ -423,7 +432,7 @@ mptable_probe_cpus_handler(u_char *entry, void *arg)
 			lapic_create(proc->apic_id, proc->cpu_flags &
 			    PROCENTRY_FLAG_BP);
 			if (proc->apic_id < MAX_LAPIC_ID) {
-				cpu_mask = (u_long *)arg;
+				cpu_mask = (u_int *)arg;
 				*cpu_mask |= (1ul << proc->apic_id);
 			}
 		}
@@ -578,16 +587,20 @@ conforming_trigger(u_char src_bus, u_char src_bus_irq)
 	KASSERT(src_bus <= mptable_maxbusid, ("bus id %d too large", src_bus));
 	switch (busses[src_bus].bus_type) {
 	case ISA:
+#ifndef PC98
 		if (elcr_found)
 			return (elcr_read_trigger(src_bus_irq));
 		else
+#endif
 			return (INTR_TRIGGER_EDGE);
 	case PCI:
 		return (INTR_TRIGGER_LEVEL);
+#ifndef PC98
 	case EISA:
 		KASSERT(src_bus_irq < 16, ("Invalid EISA IRQ %d", src_bus_irq));
 		KASSERT(elcr_found, ("Missing ELCR"));
 		return (elcr_read_trigger(src_bus_irq));
+#endif
 	default:
 		panic("%s: unknown bus type %d", __func__,
 		    busses[src_bus].bus_type);
@@ -870,7 +883,7 @@ mptable_parse_ints(void)
  * with the number of logical CPU's in the processor.
  */
 static void
-mptable_hyperthread_fixup(u_long id_mask)
+mptable_hyperthread_fixup(u_int id_mask)
 {
 	u_int i, id, logical_cpus;
 
@@ -902,7 +915,7 @@ mptable_hyperthread_fixup(u_long id_mask)
 	 * Ok, the ID's checked out, so perform the fixup by
 	 * adding the logical CPUs.
 	 */
-	while ((id = ffsl(id_mask)) != 0) {
+	while ((id = ffs(id_mask)) != 0) {
 		id--;
 		for (i = id + 1; i < id + logical_cpus; i++) {
 			if (bootverbose)
