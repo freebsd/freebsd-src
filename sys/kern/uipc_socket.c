@@ -2225,7 +2225,12 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
 			m_freem(m);
 			return (error);
 		}
-		m = m_free(m);
+		if (len == m->m_len)
+			m = m_free(m);
+		else {
+			m->m_data += len;
+			m->m_len -= len;
+		}
 	}
 	if (m != NULL)
 		flags |= MSG_TRUNC;
