@@ -5135,7 +5135,7 @@ sctp_sorecvmsg(struct socket *so,
 	int my_len = 0;
 	int cp_len = 0, error = 0;
 	struct sctp_queued_to_read *control = NULL, *ctl = NULL, *nxt = NULL;
-	struct mbuf *m = NULL, *embuf = NULL;
+	struct mbuf *m = NULL;
 	struct sctp_tcb *stcb = NULL;
 	int wakeup_read_socket = 0;
 	int freecnt_applied = 0;
@@ -5731,7 +5731,6 @@ get_more_data:
 						sctp_sblog(&so->so_rcv,
 						    control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBRESULT, 0);
 					}
-					embuf = m;
 					copied_so_far += cp_len;
 					freed_so_far += cp_len;
 					freed_so_far += MSIZE;
@@ -5783,7 +5782,6 @@ get_more_data:
 						atomic_subtract_int(&stcb->asoc.sb_cc, cp_len);
 					}
 					copied_so_far += cp_len;
-					embuf = m;
 					freed_so_far += cp_len;
 					freed_so_far += MSIZE;
 					if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SB_LOGGING_ENABLE) {
