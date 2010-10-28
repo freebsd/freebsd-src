@@ -309,8 +309,7 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 		 * Does anybody ever bridge one form of LAN traffic
 		 * over a networking type that uses 802.2 LLC?
 		 */
-		ret = snap_print(p+3, length-3, caplen-3, extracted_ethertype,
-		    2);
+		ret = snap_print(p+3, length-3, caplen-3, 2);
 		if (ret)
 			return (ret);
 	}
@@ -378,8 +377,7 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 }
 
 int
-snap_print(const u_char *p, u_int length, u_int caplen,
-    u_short *extracted_ethertype, u_int bridge_pad)
+snap_print(const u_char *p, u_int length, u_int caplen, u_int bridge_pad)
 {
 	u_int32_t orgcode;
 	register u_short et;
@@ -419,8 +417,7 @@ snap_print(const u_char *p, u_int length, u_int caplen,
 		 * Cisco hardware; the protocol ID is
 		 * an Ethernet protocol type.
 		 */
-		ret = ether_encap_print(et, p, length, caplen,
-		    extracted_ethertype);
+		ret = ethertype_print(et, p, length, caplen);
 		if (ret)
 			return (ret);
 		break;
@@ -435,8 +432,7 @@ snap_print(const u_char *p, u_int length, u_int caplen,
 			 * but used 0x000000 and an Ethernet
 			 * packet type for AARP packets.
 			 */
-			ret = ether_encap_print(et, p, length, caplen,
-			    extracted_ethertype);
+			ret = ethertype_print(et, p, length, caplen);
 			if (ret)
 				return (ret);
 		}
@@ -483,7 +479,7 @@ snap_print(const u_char *p, u_int length, u_int caplen,
 			/*
 			 * What remains is an Ethernet packet.
 			 */
-			ether_print(p, length, caplen);
+			ether_print(p, length, caplen, NULL, NULL);
 			return (1);
 
 		case PID_RFC2684_802_5_FCS:

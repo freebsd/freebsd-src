@@ -1629,7 +1629,7 @@ ppp_bsdos_if_print(const struct pcap_pkthdr *h _U_, register const u_char *p _U_
 		hdrlength += 1;
 	} else {
 		/* Un-compressed protocol field */
-		ptype = ntohs(*(u_int16_t *)p);
+		ptype = EXTRACT_16BITS(p);
 		if (eflag)
 			printf("%04x ", ptype);
 		p += 2;
@@ -1649,7 +1649,7 @@ ppp_bsdos_if_print(const struct pcap_pkthdr *h _U_, register const u_char *p _U_
 		 && ph->phdr_ctl == PPP_CONTROL) {
 			if (eflag)
 				printf("%02x %02x ", q[0], q[1]);
-			ptype = ntohs(ph->phdr_type);
+			ptype = EXTRACT_16BITS(&ph->phdr_type);
 			if (eflag && (ptype == PPP_VJC || ptype == PPP_VJNC)) {
 				printf("%s ", tok2str(ppptype2str,
 						"proto-#%d", ptype));

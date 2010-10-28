@@ -28,6 +28,21 @@ static const char rcsid[] _U_ =
 #include "config.h"
 #endif
 
+/*
+ * At least on HP-UX:
+ *
+ *	1) getrpcbynumber() is declared in <netdb.h>, not any of the RPC
+ *	   header files
+ *
+ * and
+ *
+ *	2) if _XOPEN_SOURCE_EXTENDED is defined, <netdb.h> doesn't declare
+ *	   it
+ *
+ * so we undefine it.
+ */
+#undef _XOPEN_SOURCE_EXTENDED
+
 #include <tcpdump-stdinc.h>
 
 #ifdef HAVE_GETRPCBYNUMBER
