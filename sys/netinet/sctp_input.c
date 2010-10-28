@@ -618,16 +618,16 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
 	 * timer is running, for the destination, stop the timer because a
 	 * PF-heartbeat was received.
 	 */
-	if (SCTP_BASE_SYSCTL(sctp_cmt_on_off) &&
-	    SCTP_BASE_SYSCTL(sctp_cmt_pf) &&
-	    (net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF) {
+	if ((stcb->asoc.sctp_cmt_on_off == 1) &&
+	    (stcb->asoc.sctp_cmt_pf > 0) &&
+	    ((net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF)) {
 		if (SCTP_OS_TIMER_PENDING(&net->rxt_timer.timer)) {
 			sctp_timer_stop(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep,
 			    stcb, net,
 			    SCTP_FROM_SCTP_INPUT + SCTP_LOC_5);
 		}
 		net->dest_state &= ~SCTP_ADDR_PF;
-		net->cwnd = net->mtu * SCTP_BASE_SYSCTL(sctp_cmt_pf);
+		net->cwnd = net->mtu * stcb->asoc.sctp_cmt_pf;
 		SCTPDBG(SCTP_DEBUG_INPUT1, "Destination %p moved from PF to reachable with cwnd %d.\n",
 		    net, net->cwnd);
 	}
@@ -2723,6 +2723,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			inp->sctp_mobility_features = (*inp_p)->sctp_mobility_features;
 			inp->sctp_socket = so;
 			inp->sctp_frag_point = (*inp_p)->sctp_frag_point;
+			inp->sctp_cmt_on_off = (*inp_p)->sctp_cmt_on_off;
 			inp->partial_delivery_point = (*inp_p)->partial_delivery_point;
 			inp->sctp_context = (*inp_p)->sctp_context;
 			inp->inp_starting_point_for_iterator = NULL;
@@ -3067,7 +3068,7 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
     struct sctp_nets *net, uint8_t flg)
 {
 	switch (desc->chunk_type) {
-	case SCTP_DATA:
+		case SCTP_DATA:
 		/* find the tsn to resend (possibly */
 		{
 			uint32_t tsn;
@@ -4586,8 +4587,6 @@ process_control_chunks:
 			return (NULL);
 			break;
 		case SCTP_SELECTIVE_ACK:
-			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_SACK\n");
-			SCTP_STAT_INCR(sctps_recvsacks);
 			{
 				struct sctp_sack_chunk *sack;
 				int abort_now = 0;
@@ -4597,6 +4596,8 @@ process_control_chunks:
 				int offset_seg, offset_dup;
 				int nonce_sum_flag;
 
+				SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_SACK\n");
+				SCTP_STAT_INCR(sctps_recvsacks);
 				if (stcb == NULL) {
 					SCTPDBG(SCTP_DEBUG_INDATA1, "No stcb when processing SACK chunk\n");
 					break;
@@ -4673,8 +4674,6 @@ process_control_chunks:
 			 * nr_sack chunk
 			 */
 		case SCTP_NR_SELECTIVE_ACK:
-			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_NR_SACK\n");
-			SCTP_STAT_INCR(sctps_recvsacks);
 			{
 				struct sctp_nr_sack_chunk *nr_sack;
 				int abort_now = 0;
@@ -4684,13 +4683,10 @@ process_control_chunks:
 				int offset_seg, offset_dup;
 				int nonce_sum_flag;
 
-				/*
-				 * EY nr_sacks have not been negotiated but
-				 * the peer end sent an nr_sack, silently
-				 * discard the chunk
-				 */
-				if (!(SCTP_BASE_SYSCTL(sctp_nr_sack_on_off) &&
-				    stcb->asoc.peer_supports_nr_sack)) {
+				SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_NR_SACK\n");
+				SCTP_STAT_INCR(sctps_recvsacks);
+				if ((stcb->asoc.sctp_nr_sack_on_off == 0) ||
+				    (stcb->asoc.peer_supports_nr_sack == 0)) {
 					goto unknown_chunk;
 				}
 				if (stcb == NULL) {
