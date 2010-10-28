@@ -12,7 +12,7 @@
  * no representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied
  * warranty.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
  * ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -41,13 +41,20 @@ __FBSDID("$FreeBSD$");
  * and I/O memory address space.
  */
 
+#ifdef __amd64__
+#define	DEV_APIC
+#else
+#include "opt_apic.h"
+#endif
 #include "opt_isa.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#ifdef __amd64__
 #include <sys/linker.h>
+#endif
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <machine/bus.h>
@@ -60,18 +67,34 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <machine/pmap.h>
 
+#ifdef __amd64__
 #include <machine/metadata.h>
+#include <machine/pc/bios.h>
+#endif
 #include <machine/nexusvar.h>
 #include <machine/resource.h>
-#include <machine/pc/bios.h>
 
+#ifdef DEV_APIC
 #include "pcib_if.h"
+#endif
 
 #ifdef DEV_ISA
 #include <isa/isavar.h>
+#ifdef PC98
+#include <pc98/cbus/cbus.h>
+#else
 #include <x86/isa/isa.h>
 #endif
+#endif
 #include <sys/rtprio.h>
+
+#ifdef __amd64__
+#define	RMAN_BUS_SPACE_IO	AMD64_BUS_SPACE_IO
+#define	RMAN_BUS_SPACE_MEM	AMD64_BUS_SPACE_MEM
+#else
+#define	RMAN_BUS_SPACE_IO	I386_BUS_SPACE_IO
+#define	RMAN_BUS_SPACE_MEM	I386_BUS_SPACE_MEM
+#endif
 
 static MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
 
@@ -102,19 +125,21 @@ static	int nexus_deactivate_resource(device_t, device_t, int, int,
 static	int nexus_release_resource(device_t, device_t, int, int,
 				   struct resource *);
 static	int nexus_setup_intr(device_t, device_t, struct resource *, int flags,
-			     driver_filter_t filter, void (*)(void *), void *, 
-			     void **);
+			     driver_filter_t filter, void (*)(void *), void *,
+			      void **);
 static	int nexus_teardown_intr(device_t, device_t, struct resource *,
 				void *);
 static struct resource_list *nexus_get_reslist(device_t dev, device_t child);
 static	int nexus_set_resource(device_t, device_t, int, int, u_long, u_long);
 static	int nexus_get_resource(device_t, device_t, int, int, u_long *, u_long *);
 static void nexus_delete_resource(device_t, device_t, int, int);
+#ifdef DEV_APIC
 static	int nexus_alloc_msi(device_t pcib, device_t dev, int count, int maxcount, int *irqs);
 static	int nexus_release_msi(device_t pcib, device_t dev, int count, int *irqs);
 static	int nexus_alloc_msix(device_t pcib, device_t dev, int *irq);
 static	int nexus_release_msix(device_t pcib, device_t dev, int irq);
 static	int nexus_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr, uint32_t *data);
+#endif
 
 static device_method_t nexus_methods[] = {
 	/* Device interface */
@@ -145,11 +170,13 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_delete_resource,	nexus_delete_resource),
 
 	/* pcib interface */
+#ifdef DEV_APIC
 	DEVMETHOD(pcib_alloc_msi,	nexus_alloc_msi),
 	DEVMETHOD(pcib_release_msi,	nexus_release_msi),
 	DEVMETHOD(pcib_alloc_msix,	nexus_alloc_msix),
 	DEVMETHOD(pcib_release_msix,	nexus_release_msix),
 	DEVMETHOD(pcib_map_msi,		nexus_map_msi),
+#endif
 
 	{ 0, 0 }
 };
@@ -166,13 +193,13 @@ nexus_probe(device_t dev)
 	device_quiet(dev);	/* suppress attach message for neatness */
 	return (BUS_PROBE_GENERIC);
 }
-  
+
 void
 nexus_init_resources(void)
 {
 	int irq;
 
-	/* 
+	/*
 	 * XXX working notes:
 	 *
 	 * - IRQ resource creation should be moved to the PIC/APIC driver.
@@ -212,7 +239,11 @@ nexus_init_resources(void)
 	 * multiple bridges.  (eg: laptops with docking stations)
 	 */
 	drq_rman.rm_start = 0;
+#ifdef PC98
+	drq_rman.rm_end = 3;
+#else
 	drq_rman.rm_end = 7;
+#endif
 	drq_rman.rm_type = RMAN_ARRAY;
 	drq_rman.rm_descr = "DMA request lines";
 	/* XXX drq 0 not available on some machines */
@@ -270,7 +301,7 @@ nexus_print_all_resources(device_t dev)
 
 	if (STAILQ_FIRST(rl))
 		retval += printf(" at");
-	
+
 	retval += resource_list_print_type(rl, "port", SYS_RES_IOPORT, "%#lx");
 	retval += resource_list_print_type(rl, "iomem", SYS_RES_MEMORY, "%#lx");
 	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
@@ -303,7 +334,7 @@ nexus_add_child(device_t bus, u_int order, const char *name, int unit)
 		return(0);
 	resource_list_init(&ndev->nx_resources);
 
-	child = device_add_child_ordered(bus, order, name, unit); 
+	child = device_add_child_ordered(bus, order, name, unit);
 
 	/* should we free this in nexus_child_detached? */
 	device_set_ivars(child, ndev);
@@ -314,6 +345,7 @@ nexus_add_child(device_t bus, u_int order, const char *name, int unit)
 /*
  * Allocate a resource on behalf of child.  NB: child is usually going to be a
  * child of one of our descendants, not a direct child of nexus0.
+ * (Exceptions include npx.)
  */
 static struct resource *
 nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
@@ -375,7 +407,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			return 0;
 		}
 	}
-	
+
 	return rv;
 }
 
@@ -383,20 +415,46 @@ static int
 nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 			struct resource *r)
 {
+#ifdef PC98
+	bus_space_handle_t bh;
+	int error;
+#endif
+	void *vaddr;
 
 	/*
 	 * If this is a memory resource, map it into the kernel.
 	 */
-	if (type == SYS_RES_MEMORY) {
-		void *vaddr;
-
+	switch (type) {
+	case SYS_RES_IOPORT:
+#ifdef PC98
+		error = i386_bus_space_handle_alloc(I386_BUS_SPACE_IO,
+		    rman_get_start(r), rman_get_size(r), &bh);
+		if (error)
+			return (error);
+		rman_set_bushandle(r, bh);
+#else
+		rman_set_bushandle(r, rman_get_start(r));
+#endif
+		rman_set_bustag(r, RMAN_BUS_SPACE_IO);
+		break;
+	case SYS_RES_MEMORY:
+#ifdef PC98
+		error = i386_bus_space_handle_alloc(I386_BUS_SPACE_MEM,
+		    rman_get_start(r), rman_get_size(r), &bh);
+		if (error)
+			return (error);
+#endif
 		vaddr = pmap_mapdev(rman_get_start(r), rman_get_size(r));
 		rman_set_virtual(r, vaddr);
-		rman_set_bustag(r, AMD64_BUS_SPACE_MEM);
+		rman_set_bustag(r, RMAN_BUS_SPACE_MEM);
+#ifdef PC98
+		/* PC-98: the type of bus_space_handle_t is the structure. */
+		bh->bsh_base = (bus_addr_t) vaddr;
+		rman_set_bushandle(r, bh);
+#else
+		/* IBM-PC: the type of bus_space_handle_t is u_int */
 		rman_set_bushandle(r, (bus_space_handle_t) vaddr);
-	} else if (type == SYS_RES_IOPORT) {
-		rman_set_bustag(r, AMD64_BUS_SPACE_IO);
-		rman_set_bushandle(r, rman_get_start(r));
+#endif
 	}
 	return (rman_activate_resource(r));
 }
@@ -405,6 +463,7 @@ static int
 nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 			  struct resource *r)
 {
+
 	/*
 	 * If this is a memory resource, unmap it.
 	 */
@@ -412,7 +471,14 @@ nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 		pmap_unmapdev((vm_offset_t)rman_get_virtual(r),
 		    rman_get_size(r));
 	}
-		
+#ifdef PC98
+	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
+		bus_space_handle_t bh;
+
+		bh = rman_get_bushandle(r);
+		i386_bus_space_handle_free(rman_get_bustag(r), bh, bh->bsh_sz);
+	}
+#endif
 	return (rman_deactivate_resource(r));
 }
 
@@ -436,7 +502,7 @@ nexus_release_resource(device_t bus, device_t child, int type, int rid,
  */
 static int
 nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
-		 int flags, driver_filter_t filter, void (*ihand)(void *), 
+		 int flags, driver_filter_t filter, void (*ihand)(void *),
 		 void *arg, void **cookiep)
 {
 	int		error;
@@ -545,6 +611,7 @@ nexus_add_irq(u_long irq)
 		panic("%s: failed", __func__);
 }
 
+#ifdef DEV_APIC
 static int
 nexus_alloc_msix(device_t pcib, device_t dev, int *irq)
 {
@@ -579,6 +646,7 @@ nexus_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr, uint32_t *da
 
 	return (msi_map(irq, addr, data));
 }
+#endif
 
 /* Placeholder for system RAM. */
 static void
@@ -600,6 +668,7 @@ ram_probe(device_t dev)
 	return (0);
 }
 
+#ifdef __amd64__
 static int
 ram_attach(device_t dev)
 {
@@ -612,7 +681,7 @@ ram_attach(device_t dev)
 	/* Retrieve the system memory map from the loader. */
 	kmdp = preload_search_by_type("elf kernel");
 	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");	
+		kmdp = preload_search_by_type("elf64 kernel");  
 	smapbase = (struct bios_smap *)preload_search_info(kmdp,
 	    MODINFO_METADATA | MODINFOMD_SMAP);
 	smapsize = *((u_int32_t *)smapbase - 1);
@@ -634,6 +703,47 @@ ram_attach(device_t dev)
 	}
 	return (0);
 }
+#else
+static int
+ram_attach(device_t dev)
+{
+	struct resource *res;
+	vm_paddr_t *p;
+	int error, i, rid;
+
+	/*
+	 * We use the dump_avail[] array rather than phys_avail[] for
+	 * the memory map as phys_avail[] contains holes for kernel
+	 * memory, page 0, the message buffer, and the dcons buffer.
+	 * We test the end address in the loop instead of the start
+	 * since the start address for the first segment is 0.
+	 *
+	 * XXX: It would be preferable to use the SMAP if it exists
+	 * instead since if the SMAP is very fragmented we may not
+	 * include some memory regions in dump_avail[] and phys_avail[].
+	 */
+	for (i = 0, p = dump_avail; p[1] != 0; i++, p += 2) {
+		rid = i;
+#ifdef PAE
+		/*
+		 * Resources use long's to track resources, so we can't
+		 * include memory regions above 4GB.
+		 */
+		if (p[0] >= ~0ul)
+			break;
+#endif
+		error = bus_set_resource(dev, SYS_RES_MEMORY, rid, p[0],
+		    p[1] - p[0]);
+		if (error)
+			panic("ram_attach: resource %d failed set with %d", i,
+			    error);
+		res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 0);
+		if (res == NULL)
+			panic("ram_attach: resource %d failed to attach", i);
+	}
+	return (0);
+}
+#endif
 
 static device_method_t ram_methods[] = {
 	/* Device interface */
@@ -655,7 +765,7 @@ DRIVER_MODULE(ram, nexus, ram_driver, ram_devclass, 0, 0);
 
 #ifdef DEV_ISA
 /*
- * Placeholder which claims PnP 'devices' which describe system 
+ * Placeholder which claims PnP 'devices' which describe system
  * resources.
  */
 static struct isa_pnp_id sysresource_ids[] = {
@@ -668,7 +778,7 @@ static int
 sysresource_probe(device_t dev)
 {
 	int	result;
-	
+
 	if ((result = ISA_PNP_PROBE(device_get_parent(dev), dev, sysresource_ids)) <= 0) {
 		device_quiet(dev);
 	}
