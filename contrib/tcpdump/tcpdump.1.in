@@ -1,4 +1,4 @@
-.\" @(#) $Header: /tcpdump/master/tcpdump/tcpdump.1,v 1.185.2.6 2008-05-30 01:38:21 guy Exp $ (LBL)
+.\" @(#) $Header: /tcpdump/master/tcpdump/tcpdump.1.in,v 1.2 2008-11-09 23:35:03 mcr Exp $ (LBL)
 .\"
 .\"	$NetBSD: tcpdump.8,v 1.9 2003/03/31 00:18:17 perry Exp $
 .\"
@@ -22,16 +22,14 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.\" $FreeBSD$
-.\"
-.TH TCPDUMP 1  "07 January 2008"
+.TH TCPDUMP 1  "05 March 2009"
 .SH NAME
 tcpdump \- dump traffic on a network
 .SH SYNOPSIS
 .na
 .B tcpdump
 [
-.B \-AdDefIKlLnNOpqRStuUvxX
+.B \-AbdDefIKlLnNOpqRStuUvxX
 ] [
 .B \-B
 .I buffer_size
@@ -108,11 +106,6 @@ tcpdump \- dump traffic on a network
 [
 .B \-Z
 .I user
-]
-.ti +8
-[
-.B \-y
-.I datalinktype
 ]
 .ti +8
 [
@@ -197,6 +190,10 @@ special privileges.
 .B \-A
 Print each packet (minus its link level header) in ASCII.  Handy for
 capturing web pages.
+.TP
+.B \-b
+Print the AS number in BGP packets in ASDOT notation rather than ASPLAIN
+notation.
 .TP
 .B \-B
 Set the operating system capture buffer size to \fIbuffer_size\fP.
@@ -351,11 +348,21 @@ any wireless networks with that adapter.  This could prevent accessing
 files on a network server, or resolving host names or network addresses,
 if you are capturing in monitor mode and are not connected to another
 network with another adapter.
+.IP
+This flag will affect the output of the
+.B \-L
+flag.  If
+.B \-I
+isn't specified, only those link-layer types available when not in
+monitor mode will be shown; if
+.B \-I
+is specified, only those link-layer types available when in monitor mode
+will be shown.
 .TP
 .B \-K
-Don't attempt to verify TCP checksums.  This is useful for interfaces
-that perform the TCP checksum calculation in hardware; otherwise,
-all outgoing TCP checksums will be flagged as bad.
+Don't attempt to verify IP, TCP, or UDP checksums.  This is useful for
+interfaces that perform some or all of those checksum calculation in
+hardware; otherwise, all outgoing TCP checksums will be flagged as bad.
 .TP
 .B \-l
 Make stdout line buffered.
@@ -367,7 +374,15 @@ E.g.,
 ``tcpdump\ \ \-l \ \ > dat\ \ &\ \ tail\ \ \-f\ \ dat''.
 .TP
 .B \-L
-List the known data link types for the interface and exit.
+List the known data link types for the interface, in the specified mode,
+and exit.  The list of known data link types may be dependent on the
+specified mode; for example, on some platforms, a Wi-Fi interface might
+support one set of data link types when not in monitor mode (for
+example, it might support only fake Ethernet headers, or might support
+802.11 headers but not support 802.11 headers with radio information)
+and another set of data link types when in monitor mode (for example, it
+might support 802.11 headers, or 802.11 headers with radio information,
+only in monitor mode).
 .TP
 .B \-m
 Load SMI MIB module definitions from file \fImodule\fR.
@@ -421,10 +436,7 @@ Print absolute, rather than relative, TCP sequence numbers.
 .TP
 .B \-s
 Snarf \fIsnaplen\fP bytes of data from each packet rather than the
-default of 68 (with SunOS's NIT, the minimum is actually 96).
-68 bytes is adequate for IP, ICMP, TCP
-and UDP but may truncate protocol information from name server and NFS
-packets (see below).
+default of 65535 bytes.
 Packets truncated because of a limited snapshot
 are indicated in the output with ``[|\fIproto\fP]'', where \fIproto\fP
 is the name of the protocol level at which the truncation has occurred.
@@ -436,7 +448,9 @@ lost.
 You should limit \fIsnaplen\fP to the smallest number that will
 capture the protocol information you're interested in.
 Setting
-\fIsnaplen\fP to 0 means use the required length to catch whole packets.
+\fIsnaplen\fP to 0 sets it to the default of 65535,
+for backwards compatibility with recent older versions of
+.IR tcpdump .
 .TP
 .B \-T
 Force packets selected by "\fIexpression\fP" to be interpreted the
@@ -520,6 +534,9 @@ Write the raw packets to \fIfile\fR rather than parsing and printing
 them out.
 They can later be printed with the \-r option.
 Standard output is used if \fIfile\fR is ``-''.
+See
+.BR pcap-savefile (@MAN_FILE_FORMATS@)
+for a description of the file format.
 .TP
 .B \-W
 Used in conjunction with the 
@@ -613,7 +630,7 @@ Otherwise,
 only packets for which \fIexpression\fP is `true' will be dumped.
 .LP
 For the \fIexpression\fP syntax, see
-.BR pcap-filter (4).
+.BR pcap-filter (@MAN_MISC_INFO@).
 .LP
 Expression arguments can be passed to \fItcpdump\fP as either a single
 argument or as multiple arguments, whichever is more convenient.
@@ -1130,6 +1147,18 @@ This points us to the \fItcpdump\fP filter expression
      tcpdump -i xl0 'tcp[13] & 2 == 2'
 .RE
 .PP
+Some offsets and field values may be expressed as names
+rather than as numeric values. For example tcp[13] may
+be replaced with tcp[tcpflags]. The following TCP flag
+field values are also available: tcp-fin, tcp-syn, tcp-rst,
+tcp-push, tcp-act, tcp-urg.
+.PP
+This can be demonstrated as:
+.RS
+.B 
+     tcpdump -i xl0 'tcp[tcpflags] & tcp-push != 0'
+.RE
+.PP
 Note that you should use single quotes or a backslash
 in the expression to hide the AND ('&') special character
 from the shell.
@@ -1237,14 +1266,6 @@ RA, \fInot\fP set) and `|' (truncated message, TC, set).
 If the
 `question' section doesn't contain exactly one entry, `[\fIn\fPq]'
 is printed.
-.LP
-Note that name server requests and responses tend to be large and the
-default \fIsnaplen\fP of 68 bytes may not capture enough of the packet
-to print.
-Use the \fB\-s\fP flag to increase the snaplen if you
-need to seriously investigate name server traffic.
-`\fB\-s 128\fP'
-has worked well for me.
 
 .HD
 SMB/CIFS decoding
@@ -1617,7 +1638,8 @@ is made to account for the time lag between when the
 Ethernet interface removed the packet from the wire and when the kernel
 serviced the `new packet' interrupt.
 .SH "SEE ALSO"
-stty(1), pcap(3PCAP), pcap-filter(4), bpf(4), nit(4P)
+stty(1), pcap(3PCAP), bpf(4), nit(4P), pcap-savefile(@MAN_FILE_FORMATS@),
+pcap-filter(@MAN_MISC_INFO@)
 .SH AUTHORS
 The original authors are:
 .LP
@@ -1652,13 +1674,6 @@ tcpdump-workers@lists.tcpdump.org
 .LP
 NIT doesn't let you watch your own outbound traffic, BPF will.
 We recommend that you use the latter.
-.LP
-When running
-.BR tcpdump
-with the
-.B \-v
-option on a network interface supporting checksum off-loading,
-IP packets sourced from this machine will have many false 'bad cksum 0' errors.
 .LP
 On Linux systems with 2.0[.x] kernels:
 .IP
