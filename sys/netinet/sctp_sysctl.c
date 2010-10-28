@@ -200,8 +200,6 @@ copy_out_local_addresses(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct s
 		ipv6_addr_legal = 0;
 	}
 
-	error = 0;
-
 	/* neither Mac OS X nor FreeBSD support mulitple routing functions */
 	if ((vrf = sctp_find_vrf(inp->def_vrf_id)) == NULL) {
 		SCTP_INP_RUNLOCK(inp);
