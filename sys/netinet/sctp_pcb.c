@@ -5988,7 +5988,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 				}
 				p4 = (struct sctp_ipv4addr_param *)phdr;
 				sin.sin_addr.s_addr = p4->addr;
-				if (IN_MULTICAST(sin.sin_addr.s_addr)) {
+				if (IN_MULTICAST(ntohl(sin.sin_addr.s_addr))) {
 					/* Skip multi-cast addresses */
 					goto next_param;
 				}
