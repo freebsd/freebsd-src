@@ -1233,12 +1233,12 @@ readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 				break;
 			case CENDVAR:	/* '}' */
 				if (level > 0 &&
-				    (state[level].category == TSTATE_VAR_OLD ||
+				    ((state[level].category == TSTATE_VAR_OLD &&
+				      state[level].syntax ==
+				      state[level - 1].syntax) ||
 				    (state[level].category == TSTATE_VAR_NEW &&
 				     state[level].syntax == BASESYNTAX))) {
-					if (state[level].category == TSTATE_VAR_OLD)
-						state[level - 1].syntax = state[level].syntax;
-					else
+					if (state[level].category == TSTATE_VAR_NEW)
 						newvarnest--;
 					level--;
 					USTPUTC(CTLENDVAR, out);
