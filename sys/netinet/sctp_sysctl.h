@@ -499,8 +499,8 @@ struct sctp_sysctl {
 #define SCTPCTL_BUFFER_SPLITTING_DEFAULT	SCTPCTL_BUFFER_SPLITTING_MIN
 
 /* Initial congestion window in MTU */
-#define SCTPCTL_INITIAL_CWND_DESC	"Initial congestion window in MTU"
-#define SCTPCTL_INITIAL_CWND_MIN	2
+#define SCTPCTL_INITIAL_CWND_DESC	"Initial congestion window in MTUs"
+#define SCTPCTL_INITIAL_CWND_MIN	1
 #define SCTPCTL_INITIAL_CWND_MAX	0xffffffff
 #define SCTPCTL_INITIAL_CWND_DEFAULT	3
 
