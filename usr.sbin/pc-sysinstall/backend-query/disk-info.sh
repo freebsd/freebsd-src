@@ -28,6 +28,7 @@
 # Query a disk for partitions and display them
 #############################################################################
 
+. ${PROGDIR}/backend/functions.sh
 . ${PROGDIR}/backend/functions-disk.sh
 
 DISK="${1}"
@@ -57,4 +58,3 @@ echo "heads=${HEADS}"
 echo "sectors=${SECS}"
 echo "size=${MB}"
 echo "type=${CTYPE}"
-
