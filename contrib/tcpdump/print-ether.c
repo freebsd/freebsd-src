@@ -22,7 +22,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ether.c,v 1.105.2.1 2008-02-06 10:49:22 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ether.c,v 1.106 2008-02-06 10:47:53 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -35,6 +35,7 @@ static const char rcsid[] _U_ =
 #include <pcap.h>
 
 #include "interface.h"
+#include "extract.h"
 #include "addrtoname.h"
 #include "ethertype.h"
 
@@ -58,6 +59,7 @@ const struct tok ethertype_values[] = {
     { ETHERTYPE_DN,             "DN" },
     { ETHERTYPE_LAT,            "LAT" },
     { ETHERTYPE_SCA,            "SCA" },
+    { ETHERTYPE_TEB,            "TEB" },
     { ETHERTYPE_LANBRIDGE,      "Lanbridge" },
     { ETHERTYPE_DECDNS,         "DEC DNS" },
     { ETHERTYPE_DECDTS,         "DEC DTS" },
@@ -87,51 +89,67 @@ static inline void
 ether_hdr_print(register const u_char *bp, u_int length)
 {
 	register const struct ether_header *ep;
+	u_int16_t ether_type;
+
 	ep = (const struct ether_header *)bp;
 
 	(void)printf("%s > %s",
 		     etheraddr_string(ESRC(ep)),
 		     etheraddr_string(EDST(ep)));
 
+	ether_type = EXTRACT_16BITS(&ep->ether_type);
 	if (!qflag) {
-	        if (ntohs(ep->ether_type) <= ETHERMTU)
+	        if (ether_type <= ETHERMTU)
 		          (void)printf(", 802.3");
                 else 
 		          (void)printf(", ethertype %s (0x%04x)",
-				       tok2str(ethertype_values,"Unknown", ntohs(ep->ether_type)),
-                                       ntohs(ep->ether_type));	      
+				       tok2str(ethertype_values,"Unknown", ether_type),
+                                       ether_type);
         } else {
-                if (ntohs(ep->ether_type) <= ETHERMTU)
+                if (ether_type <= ETHERMTU)
                           (void)printf(", 802.3");
                 else 
-                          (void)printf(", %s", tok2str(ethertype_values,"Unknown Ethertype (0x%04x)", ntohs(ep->ether_type)));  
+                          (void)printf(", %s", tok2str(ethertype_values,"Unknown Ethertype (0x%04x)", ether_type));
         }
 
 	(void)printf(", length %u: ", length);
 }
 
+/*
+ * Print an Ethernet frame.
+ * This might be encapsulated within another frame; we might be passed
+ * a pointer to a function that can print header information for that
+ * frame's protocol, and an argument to pass to that function.
+ */
 void
-ether_print(const u_char *p, u_int length, u_int caplen)
+ether_print(const u_char *p, u_int length, u_int caplen,
+    void (*print_encap_header)(const u_char *), const u_char *encap_header_arg)
 {
 	struct ether_header *ep;
+	u_int orig_length;
 	u_short ether_type;
 	u_short extracted_ether_type;
 
-	if (caplen < ETHER_HDRLEN) {
+	if (caplen < ETHER_HDRLEN || length < ETHER_HDRLEN) {
 		printf("[|ether]");
 		return;
 	}
 
-	if (eflag)
+	if (eflag) {
+		if (print_encap_header != NULL)
+			(*print_encap_header)(encap_header_arg);
 		ether_hdr_print(p, length);
+	}
+	orig_length = length;
 
 	length -= ETHER_HDRLEN;
 	caplen -= ETHER_HDRLEN;
 	ep = (struct ether_header *)p;
 	p += ETHER_HDRLEN;
 
-	ether_type = ntohs(ep->ether_type);
+	ether_type = EXTRACT_16BITS(&ep->ether_type);
 
+recurse:
 	/*
 	 * Is it (gag) an 802.3 encapsulation?
 	 */
@@ -140,21 +158,76 @@ ether_print(const u_char *p, u_int length, u_int caplen)
 		if (llc_print(p, length, caplen, ESRC(ep), EDST(ep),
 		    &extracted_ether_type) == 0) {
 			/* ether_type not known, print raw packet */
-			if (!eflag)
-				ether_hdr_print((u_char *)ep, length + ETHER_HDRLEN);
+			if (!eflag) {
+				if (print_encap_header != NULL)
+					(*print_encap_header)(encap_header_arg);
+				ether_hdr_print((u_char *)ep, orig_length);
+			}
 
 			if (!suppress_default_print)
 				default_print(p, caplen);
 		}
-	} else if (ether_encap_print(ether_type, p, length, caplen,
-	    &extracted_ether_type) == 0) {
-		/* ether_type not known, print raw packet */
-		if (!eflag)
-			ether_hdr_print((u_char *)ep, length + ETHER_HDRLEN);
+	} else if (ether_type == ETHERTYPE_8021Q) {
+		/*
+		 * Print VLAN information, and then go back and process
+		 * the enclosed type field.
+		 */
+		if (caplen < 4 || length < 4) {
+			printf("[|vlan]");
+			return;
+		}
+	        if (eflag) {
+	        	u_int16_t tag = EXTRACT_16BITS(p);
 
-		if (!suppress_default_print)
-			default_print(p, caplen);
-	} 
+			printf("vlan %u, p %u%s, ",
+			    tag & 0xfff,
+			    tag >> 13,
+			    (tag & 0x1000) ? ", CFI" : "");
+		}
+
+		ether_type = EXTRACT_16BITS(p + 2);
+		if (eflag && ether_type > ETHERMTU)
+			printf("ethertype %s, ", tok2str(ethertype_values,"0x%04x", ether_type));
+		p += 4;
+		length -= 4;
+		caplen -= 4;
+		goto recurse;
+	} else if (ether_type == ETHERTYPE_JUMBO) {
+		/*
+		 * Alteon jumbo frames.
+		 * See
+		 *
+		 *	http://tools.ietf.org/html/draft-ietf-isis-ext-eth-01
+		 *
+		 * which indicates that, following the type field,
+		 * there's an LLC header and payload.
+		 */
+		/* Try to print the LLC-layer header & higher layers */
+		if (llc_print(p, length, caplen, ESRC(ep), EDST(ep),
+		    &extracted_ether_type) == 0) {
+			/* ether_type not known, print raw packet */
+			if (!eflag) {
+				if (print_encap_header != NULL)
+					(*print_encap_header)(encap_header_arg);
+				ether_hdr_print((u_char *)ep, orig_length);
+			}
+
+			if (!suppress_default_print)
+				default_print(p, caplen);
+		}
+	} else {
+		if (ethertype_print(ether_type, p, length, caplen) == 0) {
+			/* ether_type not known, print raw packet */
+			if (!eflag) {
+				if (print_encap_header != NULL)
+					(*print_encap_header)(encap_header_arg);
+				ether_hdr_print((u_char *)ep, orig_length);
+			}
+
+			if (!suppress_default_print)
+				default_print(p, caplen);
+		}
+	}
 }
 
 /*
@@ -166,30 +239,21 @@ ether_print(const u_char *p, u_int length, u_int caplen)
 u_int
 ether_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
-	ether_print(p, h->len, h->caplen);
+	ether_print(p, h->len, h->caplen, NULL, NULL);
 
 	return (ETHER_HDRLEN);
 }
 
 /*
- * Prints the packet encapsulated in an Ethernet data segment
- * (or an equivalent encapsulation), given the Ethernet type code.
+ * Prints the packet payload, given an Ethernet type code for the payload's
+ * protocol.
  *
  * Returns non-zero if it can do so, zero if the ethertype is unknown.
- *
- * The Ethernet type code is passed through a pointer; if it was
- * ETHERTYPE_8021Q, it gets updated to be the Ethernet type of
- * the 802.1Q payload, for the benefit of lower layers that might
- * want to know what it is.
  */
 
 int
-ether_encap_print(u_short ether_type, const u_char *p,
-    u_int length, u_int caplen, u_short *extracted_ether_type)
+ethertype_print(u_short ether_type, const u_char *p, u_int length, u_int caplen)
 {
- recurse:
-	*extracted_ether_type = ether_type;
-
 	switch (ether_type) {
 
 	case ETHERTYPE_IP:
@@ -225,65 +289,6 @@ ether_encap_print(u_short ether_type, const u_char *p,
 		printf("(NOV-ETHII) ");
 		ipx_print(p, length);
 		return (1);
-
-	case ETHERTYPE_8021Q:
-	        if (eflag)
-		    printf("vlan %u, p %u%s, ",
-			   ntohs(*(u_int16_t *)p) & 0xfff,
-			   ntohs(*(u_int16_t *)p) >> 13,
-			   (ntohs(*(u_int16_t *)p) & 0x1000) ? ", CFI" : "");
-
-		ether_type = ntohs(*(u_int16_t *)(p + 2));
-		p += 4;
-		length -= 4;
-		caplen -= 4;
-
-		if (ether_type > ETHERMTU) {
-		        if (eflag)
-			        printf("ethertype %s, ",
-				       tok2str(ethertype_values,"0x%04x", ether_type));
-			goto recurse;
-		}
-
-		*extracted_ether_type = 0;
-
-		if (llc_print(p, length, caplen, p - 18, p - 12,
-		    extracted_ether_type) == 0) {
-                        ether_hdr_print(p - 18, length + 4);
-
-                        if (!suppress_default_print) {
-                                default_print(p - 18, caplen + 4);
-                        }
-		}
-
-
-		return (1);
-
-        case ETHERTYPE_JUMBO:
-                ether_type = ntohs(*(u_int16_t *)(p));
-                p += 2;
-                length -= 2;      
-                caplen -= 2;
-
-                if (ether_type > ETHERMTU) {
-                    if (eflag)
-                        printf("ethertype %s, ",
-                               tok2str(ethertype_values,"0x%04x", ether_type));
-                    goto recurse;
-                }
-
-                *extracted_ether_type = 0;
-
-                if (llc_print(p, length, caplen, p - 16, p - 10,
-                              extracted_ether_type) == 0) {
-                    ether_hdr_print(p - 16, length + 2);
-
-                    if (!suppress_default_print) {
-                            default_print(p - 16, caplen + 2);
-                    }
-                }
-
-                return (1);
 
         case ETHERTYPE_ISO:
                 isoclns_print(p+1, length-1, length-1);

@@ -900,7 +900,7 @@ static const err_code_struct dos_msgs[] = {
  };
 
 /* Server Error Messages */
-err_code_struct server_msgs[] = {
+static const err_code_struct server_msgs[] = {
     { "ERRerror", 1, "Non-specific error code." },
     { "ERRbadpw", 2, "Bad password - name/password pair in a Tree Connect or Session Setup are invalid." },
     { "ERRbadtype", 3, "reserved." },
@@ -937,7 +937,7 @@ err_code_struct server_msgs[] = {
 };
 
 /* Hard Error Messages */
-err_code_struct hard_msgs[] = {
+static const err_code_struct hard_msgs[] = {
     { "ERRnowrite", 19, "Attempt to write on write-protected diskette." },
     { "ERRbadunit", 20, "Unknown unit." },
     { "ERRnotready", 21, "Drive not ready." },
