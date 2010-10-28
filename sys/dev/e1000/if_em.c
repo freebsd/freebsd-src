@@ -93,7 +93,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "7.1.6";
+char em_driver_version[] = "7.1.7";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -1848,6 +1848,7 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 				*m_headp = NULL;
 				return (ENOBUFS);
 			}
+			ip = (struct ip *)(mtod(m_head, char *) + ip_off);
 			ip->ip_len = 0;
 			ip->ip_sum = 0;
 			/*
@@ -1856,6 +1857,7 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 			 * what hardware expect to see. This is adherence of
 			 * Microsoft's Large Send specification.
 			 */
+			tp = (struct tcphdr *)(mtod(m_head, char *) + poff);
 			tp->th_sum = in_pseudo(ip->ip_src.s_addr,
 			    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
 		} else if (m_head->m_pkthdr.csum_flags & CSUM_TCP) {
@@ -1865,12 +1867,15 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 				*m_headp = NULL;
 				return (ENOBUFS);
 			}
+			ip = (struct ip *)(mtod(m_head, char *) + ip_off);
+			tp = (struct tcphdr *)(mtod(m_head, char *) + poff);
 		} else if (m_head->m_pkthdr.csum_flags & CSUM_UDP) {
 			m_head = m_pullup(m_head, poff + sizeof(struct udphdr));
 			if (m_head == NULL) {
 				*m_headp = NULL;
 				return (ENOBUFS);
 			}
+			ip = (struct ip *)(mtod(m_head, char *) + ip_off);
 		}
 		*m_headp = m_head;
 	}
