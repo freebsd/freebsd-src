@@ -1234,7 +1234,8 @@ readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 			case CENDVAR:	/* '}' */
 				if (level > 0 &&
 				    (state[level].category == TSTATE_VAR_OLD ||
-				    state[level].category == TSTATE_VAR_NEW)) {
+				    (state[level].category == TSTATE_VAR_NEW &&
+				     state[level].syntax == BASESYNTAX))) {
 					if (state[level].category == TSTATE_VAR_OLD)
 						state[level - 1].syntax = state[level].syntax;
 					else
