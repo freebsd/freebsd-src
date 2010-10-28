@@ -2827,8 +2827,11 @@ xbb_detach(device_t dev)
 
 	DPRINTF("\n");
 
-	taskqueue_free(xbb->io_taskqueue);
-	devstat_remove_entry(xbb->xbb_stats);
+	if (xbb->io_taskqueue != NULL)
+		taskqueue_free(xbb->io_taskqueue);
+
+	if (xbb->xbb_stats != NULL)
+		devstat_remove_entry(xbb->xbb_stats);
 
 	xbb_close_backend(xbb);
 	xbb_free_communication_mem(xbb);
