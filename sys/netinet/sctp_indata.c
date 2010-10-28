@@ -708,9 +708,10 @@ protocol_error:
 					control->data = NULL;
 					asoc->size_on_all_streams -= control->length;
 					sctp_ucount_decr(asoc->cnt_on_all_streams);
-					if (control->whoFrom)
+					if (control->whoFrom) {
 						sctp_free_remote_addr(control->whoFrom);
-					control->whoFrom = NULL;
+						control->whoFrom = NULL;
+					}
 					sctp_free_a_readq(stcb, control);
 					return;
 				} else {
@@ -4845,7 +4846,7 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 			if (asoc->pr_sctp_cnt != 0)
 				asoc->pr_sctp_cnt--;
 		}
-		if ((TAILQ_FIRST(&asoc->sent_queue) == NULL) &&
+		if (TAILQ_EMPTY(&asoc->sent_queue) &&
 		    (asoc->total_flight > 0)) {
 #ifdef INVARIANTS
 			panic("Warning flight size is postive and should be 0");
@@ -5818,7 +5819,7 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 	 */
 	sctp_slide_mapping_arrays(stcb);
 
-	if (TAILQ_FIRST(&asoc->reasmqueue)) {
+	if (!TAILQ_EMPTY(&asoc->reasmqueue)) {
 		/* now lets kick out and check for more fragmented delivery */
 		/* sa_ignore NO_NULL_CHK */
 		sctp_deliver_reasm_check(stcb, &stcb->asoc);
