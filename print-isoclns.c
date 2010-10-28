@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-isoclns.c,v 1.163 2007-03-02 09:16:19 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-isoclns.c,v 1.165 2008-08-16 13:38:15 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -46,6 +46,7 @@ static const char rcsid[] _U_ =
 #include "extract.h"
 #include "gmpls.h"
 #include "oui.h"
+#include "signature.h"
 
 /*
  * IS-IS is defined in ISO 10589.  Look there for protocol definitions.
@@ -1764,7 +1765,7 @@ static int isis_print (const u_int8_t *p, u_int length)
 
     const struct isis_iih_lan_header *header_iih_lan;
     const struct isis_iih_ptp_header *header_iih_ptp;
-    const struct isis_lsp_header *header_lsp;
+    struct isis_lsp_header *header_lsp;
     const struct isis_csnp_header *header_csnp;
     const struct isis_psnp_header *header_psnp;
 
@@ -1778,16 +1779,18 @@ static int isis_print (const u_int8_t *p, u_int length)
     const u_int8_t *optr, *pptr, *tptr;
     u_short packet_len,pdu_len;
     u_int i,vendor_id;
+    int sigcheck;
 
     packet_len=length;
     optr = p; /* initialize the _o_riginal pointer to the packet start -
-                 need it for parsing the checksum TLV */
+                 need it for parsing the checksum TLV and authentication
+                 TLV verification */
     isis_header = (const struct isis_common_header *)p;
     TCHECK(*isis_header);
     pptr = p+(ISIS_COMMON_HEADER_SIZE);
     header_iih_lan = (const struct isis_iih_lan_header *)pptr;
     header_iih_ptp = (const struct isis_iih_ptp_header *)pptr;
-    header_lsp = (const struct isis_lsp_header *)pptr;
+    header_lsp = (struct isis_lsp_header *)pptr;
     header_csnp = (const struct isis_csnp_header *)pptr;
     header_psnp = (const struct isis_psnp_header *)pptr;
 
@@ -2013,6 +2016,15 @@ static int isis_print (const u_int8_t *p, u_int length)
         osi_print_cksum((u_int8_t *)header_lsp->lsp_id,
                         EXTRACT_16BITS(header_lsp->checksum), 12, length-12);
 
+        /*
+         * Clear checksum and lifetime prior to signature verification.
+         */
+        header_lsp->checksum[0] = 0;
+        header_lsp->checksum[1] = 0;
+        header_lsp->remaining_lifetime[0] = 0;
+        header_lsp->remaining_lifetime[1] = 0;
+        
+
 	printf(", PDU length: %u, Flags: [ %s",
                pdu_len,
                ISIS_MASK_LSP_OL_BIT(header_lsp->typeblock) ? "Overload bit set, " : "");
@@ -2188,13 +2200,12 @@ static int isis_print (const u_int8_t *p, u_int length)
 	    break;
 
         case ISIS_TLV_MT_IS_REACH:
+            mt_len = isis_print_mtid(tptr, "\n\t      ");
+            if (mt_len == 0) /* did something go wrong ? */
+                goto trunctlv;
+            tptr+=mt_len;
+            tmp-=mt_len;
             while (tmp >= 2+NODE_ID_LEN+3+1) {
-                mt_len = isis_print_mtid(tptr, "\n\t      ");
-                if (mt_len == 0) /* did something go wrong ? */
-                    goto trunctlv;
-                tptr+=mt_len;
-                tmp-=mt_len;
-
                 ext_is_len = isis_print_ext_is_reach(tptr,"\n\t      ",tlv_type);
                 if (ext_is_len == 0) /* did something go wrong ? */
                     goto trunctlv;
@@ -2355,6 +2366,15 @@ static int isis_print (const u_int8_t *p, u_int length)
 		}
 		if (tlv_len != ISIS_SUBTLV_AUTH_MD5_LEN+1)
                     printf(", (malformed subTLV) ");
+
+#ifdef HAVE_LIBCRYPTO
+                sigcheck = signature_verify(optr, length,
+                                            (unsigned char *)tptr + 1);
+#else
+                sigcheck = CANT_CHECK_SIGNATURE;
+#endif
+                printf(" (%s)", tok2str(signature_check_values, "Unknown", sigcheck));
+
 		break;
 	    case ISIS_SUBTLV_AUTH_PRIVATE:
 	    default:

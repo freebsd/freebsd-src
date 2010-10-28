@@ -256,11 +256,10 @@ fr_print(register const u_char *p, u_int length)
                 if (eflag)
                     fr_hdr_print(length, addr_len, dlci, flags, extracted_ethertype);
 
-                if (ether_encap_print(extracted_ethertype,
+                if (ethertype_print(extracted_ethertype,
                                       p+addr_len+ETHERTYPE_LEN,
                                       length-addr_len-ETHERTYPE_LEN,
-                                      length-addr_len-ETHERTYPE_LEN,
-                                      &extracted_ethertype) == 0)
+                                      length-addr_len-ETHERTYPE_LEN) == 0)
                     /* ether_type not known, probably it wasn't one */
                     printf("UI %02x! ", p[addr_len]);
                 else
@@ -297,7 +296,7 @@ fr_print(register const u_char *p, u_int length)
 		break;
 
 	case NLPID_SNAP:
-		if (snap_print(p, length, length, &extracted_ethertype, 0) == 0) {
+		if (snap_print(p, length, length, 0) == 0) {
 			/* ether_type not known, print raw packet */
                         if (!eflag)
                             fr_hdr_print(length + hdr_len, hdr_len,

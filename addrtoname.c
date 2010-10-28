@@ -86,12 +86,12 @@ struct hnamemem {
 	struct hnamemem *nxt;
 };
 
-struct hnamemem hnametable[HASHNAMESIZE];
-struct hnamemem tporttable[HASHNAMESIZE];
-struct hnamemem uporttable[HASHNAMESIZE];
-struct hnamemem eprototable[HASHNAMESIZE];
-struct hnamemem dnaddrtable[HASHNAMESIZE];
-struct hnamemem ipxsaptable[HASHNAMESIZE];
+static struct hnamemem hnametable[HASHNAMESIZE];
+static struct hnamemem tporttable[HASHNAMESIZE];
+static struct hnamemem uporttable[HASHNAMESIZE];
+static struct hnamemem eprototable[HASHNAMESIZE];
+static struct hnamemem dnaddrtable[HASHNAMESIZE];
+static struct hnamemem ipxsaptable[HASHNAMESIZE];
 
 #if defined(INET6) && defined(WIN32)
 /*
@@ -140,7 +140,7 @@ struct h6namemem {
 	struct h6namemem *nxt;
 };
 
-struct h6namemem h6nametable[HASHNAMESIZE];
+static struct h6namemem h6nametable[HASHNAMESIZE];
 #endif /* INET6 */
 
 struct enamemem {
@@ -153,9 +153,9 @@ struct enamemem {
 	struct enamemem *e_nxt;
 };
 
-struct enamemem enametable[HASHNAMESIZE];
-struct enamemem nsaptable[HASHNAMESIZE];
-struct enamemem bytestringtable[HASHNAMESIZE];
+static struct enamemem enametable[HASHNAMESIZE];
+static struct enamemem nsaptable[HASHNAMESIZE];
+static struct enamemem bytestringtable[HASHNAMESIZE];
 
 struct protoidmem {
 	u_int32_t p_oui;
@@ -164,7 +164,7 @@ struct protoidmem {
 	struct protoidmem *p_nxt;
 };
 
-struct protoidmem protoidtable[HASHNAMESIZE];
+static struct protoidmem protoidtable[HASHNAMESIZE];
 
 /*
  * A faster replacement for inet_ntoa().
@@ -311,7 +311,7 @@ getname6(const u_char *ap)
 }
 #endif /* INET6 */
 
-static char hex[] = "0123456789abcdef";
+static const char hex[] = "0123456789abcdef";
 
 
 /* Find the hash node that corresponds the ether address 'ep' */
@@ -514,13 +514,14 @@ linkaddr_string(const u_char *ep, const unsigned int type, const unsigned int le
 	register char *cp;
 	register struct enamemem *tp;
 
-	if (type == LINKADDR_ETHER && len == ETHER_ADDR_LEN) {
-            return etheraddr_string(ep);
-        }
+	if (len == 0)
+		return ("<empty>");
 
-        if (type == LINKADDR_FRELAY) {
-            return q922_string(ep);
-        }
+	if (type == LINKADDR_ETHER && len == ETHER_ADDR_LEN)
+		return (etheraddr_string(ep));
+
+	if (type == LINKADDR_FRELAY)
+		return (q922_string(ep));
 
 	tp = lookup_bytestring(ep, len);
 	if (tp->e_name)
@@ -747,7 +748,7 @@ init_eprotoarray(void)
 	}
 }
 
-static struct protoidlist {
+static const struct protoidlist {
 	const u_char protoid[5];
 	const char *name;
 } protoidlist[] = {
@@ -768,7 +769,7 @@ init_protoidarray(void)
 {
 	register int i;
 	register struct protoidmem *tp;
-	struct protoidlist *pl;
+	const struct protoidlist *pl;
 	u_char protoid[5];
 
 	protoid[0] = 0;
@@ -792,7 +793,7 @@ init_protoidarray(void)
 	}
 }
 
-static struct etherlist {
+static const struct etherlist {
 	const u_char addr[6];
 	const char *name;
 } etherlist[] = {
@@ -817,7 +818,7 @@ static struct etherlist {
 static void
 init_etherarray(void)
 {
-	register struct etherlist *el;
+	register const struct etherlist *el;
 	register struct enamemem *tp;
 #ifdef USE_ETHER_NTOHOST
 	char name[256];
@@ -861,7 +862,7 @@ init_etherarray(void)
 	}
 }
 
-static struct tok ipxsap_db[] = {
+static const struct tok ipxsap_db[] = {
 	{ 0x0000, "Unknown" },
 	{ 0x0001, "User" },
 	{ 0x0002, "User Group" },

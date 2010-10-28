@@ -29,7 +29,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *
- * @(#) $Header: /tcpdump/master/tcpdump/tcpdump-stdinc.h,v 1.17 2006-05-19 17:55:34 hannes Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/tcpdump-stdinc.h,v 1.18 2007-11-24 18:13:33 mcr Exp $ (LBL)
  */
 
 /*
@@ -54,6 +54,10 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <net/netdb.h>  /* in wpcap's Win32/include */
+
+#ifndef NBBY
+#define NBBY	8
+#endif
 
 #if !defined(__MINGW32__) && !defined(__WATCOMC__)
 #undef toascii
@@ -143,21 +147,21 @@ typedef char* caddr_t;
   #define FOPEN_WRITE_BIN  FOPEN_WRITE_TXT
 #endif
 
-#if defined(__GNUC__) && defined(__i386__) && !defined(__ntohl)
+#if defined(__GNUC__) && defined(__i386__) && !defined(__ntohl) 
   #undef ntohl
   #undef ntohs
   #undef htonl
   #undef htons
 
-  extern __inline__ unsigned long __ntohl (unsigned long x);
-  extern __inline__ unsigned short __ntohs (unsigned short x);
+  static __inline__ unsigned long __ntohl (unsigned long x);
+  static __inline__ unsigned short __ntohs (unsigned short x);
 
   #define ntohl(x)  __ntohl(x)
   #define ntohs(x)  __ntohs(x)
   #define htonl(x)  __ntohl(x)
   #define htons(x)  __ntohs(x)
 
-  extern __inline__ unsigned long __ntohl (unsigned long x)
+  static __inline__ unsigned long __ntohl (unsigned long x)
   {
     __asm__ ("xchgb %b0, %h0\n\t"   /* swap lower bytes  */
              "rorl  $16, %0\n\t"    /* swap words        */
@@ -166,7 +170,7 @@ typedef char* caddr_t;
     return (x);
   }
 
-  extern __inline__ unsigned short __ntohs (unsigned short x)
+  static __inline__ unsigned short __ntohs (unsigned short x)
   {
     __asm__ ("xchgb %b0, %h0"       /* swap bytes */
             : "=q" (x) : "0" (x));
