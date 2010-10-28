@@ -3741,6 +3741,9 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 #endif
 		SCTP_ATTACH_CHAIN(o_pak, m, packet_length);
 		if (port) {
+#if defined(SCTP_WITH_NO_CSUM)
+			SCTP_STAT_INCR(sctps_sendnocrc);
+#else
 			if (!(SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback) &&
 			    (stcb) &&
 			    (stcb->asoc.loopback_scope))) {
@@ -3749,17 +3752,16 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			} else {
 				SCTP_STAT_INCR(sctps_sendnocrc);
 			}
+#endif
 			SCTP_ENABLE_UDP_CSUM(o_pak);
 		} else {
-			if (!(SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback) &&
-			    (stcb) &&
-			    (stcb->asoc.loopback_scope))) {
-				m->m_pkthdr.csum_flags = CSUM_SCTP;
-				m->m_pkthdr.csum_data = 0;
-				SCTP_STAT_INCR(sctps_sendhwcrc);
-			} else {
-				SCTP_STAT_INCR(sctps_sendnocrc);
-			}
+#if defined(SCTP_WITH_NO_CSUM)
+			SCTP_STAT_INCR(sctps_sendnocrc);
+#else
+			m->m_pkthdr.csum_flags = CSUM_SCTP;
+			m->m_pkthdr.csum_data = 0;
+			SCTP_STAT_INCR(sctps_sendhwcrc);
+#endif
 		}
 		/* send it out.  table id is taken from stcb */
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
@@ -4051,6 +4053,9 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 #endif
 		SCTP_ATTACH_CHAIN(o_pak, m, packet_length);
 		if (port) {
+#if defined(SCTP_WITH_NO_CSUM)
+			SCTP_STAT_INCR(sctps_sendnocrc);
+#else
 			if (!(SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback) &&
 			    (stcb) &&
 			    (stcb->asoc.loopback_scope))) {
@@ -4059,10 +4064,14 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			} else {
 				SCTP_STAT_INCR(sctps_sendnocrc);
 			}
+#endif
 			if ((udp->uh_sum = in6_cksum(o_pak, IPPROTO_UDP, sizeof(struct ip6_hdr), packet_length - sizeof(struct ip6_hdr))) == 0) {
 				udp->uh_sum = 0xffff;
 			}
 		} else {
+#if defined(SCTP_WITH_NO_CSUM)
+			SCTP_STAT_INCR(sctps_sendnocrc);
+#else
 			if (!(SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback) &&
 			    (stcb) &&
 			    (stcb->asoc.loopback_scope))) {
@@ -4072,6 +4081,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			} else {
 				SCTP_STAT_INCR(sctps_sendnocrc);
 			}
+#endif
 		}
 		/* send it out. table id is taken from stcb */
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
@@ -10571,7 +10581,6 @@ sctp_send_shutdown_complete2(struct mbuf *m, int iphlen, struct sctphdr *sh,
 	if (iph_out != NULL) {
 		sctp_route_t ro;
 		int ret;
-		struct sctp_tcb *stcb = NULL;
 
 		mlen = SCTP_BUF_LEN(mout);
 		bzero(&ro, sizeof ro);
@@ -10582,17 +10591,25 @@ sctp_send_shutdown_complete2(struct mbuf *m, int iphlen, struct sctphdr *sh,
 			sctp_packet_log(mout, mlen);
 #endif
 		if (port) {
+#if defined(SCTP_WITH_NO_CSUM)
+			SCTP_STAT_INCR(sctps_sendnocrc);
+#else
 			comp_cp->sh.checksum = sctp_calculate_cksum(mout, offset_out);
 			SCTP_STAT_INCR(sctps_sendswcrc);
+#endif
 			SCTP_ENABLE_UDP_CSUM(mout);
 		} else {
+#if defined(SCTP_WITH_NO_CSUM)
+			SCTP_STAT_INCR(sctps_sendnocrc);
+#else
 			mout->m_pkthdr.csum_flags = CSUM_SCTP;
 			mout->m_pkthdr.csum_data = 0;
 			SCTP_STAT_INCR(sctps_sendhwcrc);
+#endif
 		}
 		SCTP_ATTACH_CHAIN(o_pak, mout, mlen);
 		/* out it goes */
-		SCTP_IP_OUTPUT(ret, o_pak, &ro, stcb, vrf_id);
+		SCTP_IP_OUTPUT(ret, o_pak, &ro, NULL, vrf_id);
 
 		/* Free the route if we got one back */
 		if (ro.ro_rt)
@@ -10602,7 +10619,6 @@ sctp_send_shutdown_complete2(struct mbuf *m, int iphlen, struct sctphdr *sh,
 	if (ip6_out != NULL) {
 		struct route_in6 ro;
 		int ret;
-		struct sctp_tcb *stcb = NULL;
 		struct ifnet *ifp = NULL;
 
 		bzero(&ro, sizeof(ro));
@@ -10613,29 +10629,25 @@ sctp_send_shutdown_complete2(struct mbuf *m, int iphlen, struct sctphdr *sh,
 #endif
 		SCTP_ATTACH_CHAIN(o_pak, mout, mlen);
 		if (port) {
-			if (!(SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback) &&
-			    (stcb) &&
-			    (stcb->asoc.loopback_scope))) {
-				comp_cp->sh.checksum = sctp_calculate_cksum(mout, sizeof(struct ip6_hdr) + sizeof(struct udphdr));
-				SCTP_STAT_INCR(sctps_sendswcrc);
-			} else {
-				SCTP_STAT_INCR(sctps_sendnocrc);
-			}
+#if defined(SCTP_WITH_NO_CSUM)
+			SCTP_STAT_INCR(sctps_sendnocrc);
+#else
+			comp_cp->sh.checksum = sctp_calculate_cksum(mout, sizeof(struct ip6_hdr) + sizeof(struct udphdr));
+			SCTP_STAT_INCR(sctps_sendswcrc);
+#endif
 			if ((udp->uh_sum = in6_cksum(o_pak, IPPROTO_UDP, sizeof(struct ip6_hdr), mlen - sizeof(struct ip6_hdr))) == 0) {
 				udp->uh_sum = 0xffff;
 			}
 		} else {
-			if (!(SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback) &&
-			    (stcb) &&
-			    (stcb->asoc.loopback_scope))) {
-				mout->m_pkthdr.csum_flags = CSUM_SCTP;
-				mout->m_pkthdr.csum_data = 0;
-				SCTP_STAT_INCR(sctps_sendhwcrc);
-			} else {
-				SCTP_STAT_INCR(sctps_sendnocrc);
-			}
+#if defined(SCTP_WITH_NO_CSUM)
+			SCTP_STAT_INCR(sctps_sendnocrc);
+#else
+			mout->m_pkthdr.csum_flags = CSUM_SCTP;
+			mout->m_pkthdr.csum_data = 0;
+			SCTP_STAT_INCR(sctps_sendhwcrc);
+#endif
 		}
-		SCTP_IP6_OUTPUT(ret, o_pak, &ro, &ifp, stcb, vrf_id);
+		SCTP_IP6_OUTPUT(ret, o_pak, &ro, &ifp, NULL, vrf_id);
 
 		/* Free the route if we got one back */
 		if (ro.ro_rt)
@@ -11632,7 +11644,6 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
 	}
 	if (iph_out != NULL) {
 		sctp_route_t ro;
-		struct sctp_tcb *stcb = NULL;
 		int ret;
 
 		/* zap the stack pointer to the route */
@@ -11652,15 +11663,23 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
 #endif
 		SCTP_ATTACH_CHAIN(o_pak, mout, len);
 		if (port) {
+#if defined(SCTP_WITH_NO_CSUM)
+			SCTP_STAT_INCR(sctps_sendnocrc);
+#else
 			abm->sh.checksum = sctp_calculate_cksum(mout, iphlen_out);
 			SCTP_STAT_INCR(sctps_sendswcrc);
+#endif
 			SCTP_ENABLE_UDP_CSUM(o_pak);
 		} else {
+#if defined(SCTP_WITH_NO_CSUM)
+			SCTP_STAT_INCR(sctps_sendnocrc);
+#else
 			mout->m_pkthdr.csum_flags = CSUM_SCTP;
 			mout->m_pkthdr.csum_data = 0;
 			SCTP_STAT_INCR(sctps_sendhwcrc);
+#endif
 		}
-		SCTP_IP_OUTPUT(ret, o_pak, &ro, stcb, vrf_id);
+		SCTP_IP_OUTPUT(ret, o_pak, &ro, NULL, vrf_id);
 
 		/* Free the route if we got one back */
 		if (ro.ro_rt)
@@ -11670,7 +11689,6 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
 	if (ip6_out != NULL) {
 		struct route_in6 ro;
 		int ret;
-		struct sctp_tcb *stcb = NULL;
 		struct ifnet *ifp = NULL;
 
 		/* zap the stack pointer to the route */
@@ -11687,29 +11705,25 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
 #endif
 		SCTP_ATTACH_CHAIN(o_pak, mout, len);
 		if (port) {
-			if (!(SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback) &&
-			    (stcb) &&
-			    (stcb->asoc.loopback_scope))) {
-				abm->sh.checksum = sctp_calculate_cksum(mout, sizeof(struct ip6_hdr) + sizeof(struct udphdr));
-				SCTP_STAT_INCR(sctps_sendswcrc);
-			} else {
-				SCTP_STAT_INCR(sctps_sendnocrc);
-			}
+#if defined(SCTP_WITH_NO_CSUM)
+			SCTP_STAT_INCR(sctps_sendnocrc);
+#else
+			abm->sh.checksum = sctp_calculate_cksum(mout, sizeof(struct ip6_hdr) + sizeof(struct udphdr));
+			SCTP_STAT_INCR(sctps_sendswcrc);
+#endif
 			if ((udp->uh_sum = in6_cksum(o_pak, IPPROTO_UDP, sizeof(struct ip6_hdr), len - sizeof(struct ip6_hdr))) == 0) {
 				udp->uh_sum = 0xffff;
 			}
 		} else {
-			if (!(SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback) &&
-			    (stcb) &&
-			    (stcb->asoc.loopback_scope))) {
-				mout->m_pkthdr.csum_flags = CSUM_SCTP;
-				mout->m_pkthdr.csum_data = 0;
-				SCTP_STAT_INCR(sctps_sendhwcrc);
-			} else {
-				SCTP_STAT_INCR(sctps_sendnocrc);
-			}
+#if defined(SCTP_WITH_NO_CSUM)
+			SCTP_STAT_INCR(sctps_sendnocrc);
+#else
+			mout->m_pkthdr.csum_flags = CSUM_SCTP;
+			mout->m_pkthdr.csum_data = 0;
+			SCTP_STAT_INCR(sctps_sendhwcrc);
+#endif
 		}
-		SCTP_IP6_OUTPUT(ret, o_pak, &ro, &ifp, stcb, vrf_id);
+		SCTP_IP6_OUTPUT(ret, o_pak, &ro, &ifp, NULL, vrf_id);
 
 		/* Free the route if we got one back */
 		if (ro.ro_rt)
@@ -11872,7 +11886,6 @@ sctp_send_operr_to(struct mbuf *m, int iphlen, struct mbuf *scm, uint32_t vtag,
 	}
 	if (iph_out != NULL) {
 		sctp_route_t ro;
-		struct sctp_tcb *stcb = NULL;
 		int ret;
 
 		/* zap the stack pointer to the route */
@@ -11890,15 +11903,23 @@ sctp_send_operr_to(struct mbuf *m, int iphlen, struct mbuf *scm, uint32_t vtag,
 #endif
 		SCTP_ATTACH_CHAIN(o_pak, mout, len);
 		if (port) {
+#if defined(SCTP_WITH_NO_CSUM)
+			SCTP_STAT_INCR(sctps_sendnocrc);
+#else
 			sh_out->checksum = sctp_calculate_cksum(mout, iphlen_out);
 			SCTP_STAT_INCR(sctps_sendswcrc);
+#endif
 			SCTP_ENABLE_UDP_CSUM(o_pak);
 		} else {
+#if defined(SCTP_WITH_NO_CSUM)
+			SCTP_STAT_INCR(sctps_sendnocrc);
+#else
 			mout->m_pkthdr.csum_flags = CSUM_SCTP;
 			mout->m_pkthdr.csum_data = 0;
 			SCTP_STAT_INCR(sctps_sendhwcrc);
+#endif
 		}
-		SCTP_IP_OUTPUT(ret, o_pak, &ro, stcb, vrf_id);
+		SCTP_IP_OUTPUT(ret, o_pak, &ro, NULL, vrf_id);
 
 		/* Free the route if we got one back */
 		if (ro.ro_rt)
@@ -11908,7 +11929,6 @@ sctp_send_operr_to(struct mbuf *m, int iphlen, struct mbuf *scm, uint32_t vtag,
 	if (ip6_out != NULL) {
 		struct route_in6 ro;
 		int ret;
-		struct sctp_tcb *stcb = NULL;
 		struct ifnet *ifp = NULL;
 
 		/* zap the stack pointer to the route */
@@ -11923,29 +11943,25 @@ sctp_send_operr_to(struct mbuf *m, int iphlen, struct mbuf *scm, uint32_t vtag,
 #endif
 		SCTP_ATTACH_CHAIN(o_pak, mout, len);
 		if (port) {
-			if (!(SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback) &&
-			    (stcb) &&
-			    (stcb->asoc.loopback_scope))) {
-				sh_out->checksum = sctp_calculate_cksum(mout, sizeof(struct ip6_hdr) + sizeof(struct udphdr));
-				SCTP_STAT_INCR(sctps_sendswcrc);
-			} else {
-				SCTP_STAT_INCR(sctps_sendnocrc);
-			}
+#if defined(SCTP_WITH_NO_CSUM)
+			SCTP_STAT_INCR(sctps_sendnocrc);
+#else
+			sh_out->checksum = sctp_calculate_cksum(mout, sizeof(struct ip6_hdr) + sizeof(struct udphdr));
+			SCTP_STAT_INCR(sctps_sendswcrc);
+#endif
 			if ((udp->uh_sum = in6_cksum(o_pak, IPPROTO_UDP, sizeof(struct ip6_hdr), len - sizeof(struct ip6_hdr))) == 0) {
 				udp->uh_sum = 0xffff;
 			}
 		} else {
-			if (!(SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback) &&
-			    (stcb) &&
-			    (stcb->asoc.loopback_scope))) {
-				mout->m_pkthdr.csum_flags = CSUM_SCTP;
-				mout->m_pkthdr.csum_data = 0;
-				SCTP_STAT_INCR(sctps_sendhwcrc);
-			} else {
-				SCTP_STAT_INCR(sctps_sendnocrc);
-			}
+#if defined(SCTP_WITH_NO_CSUM)
+			SCTP_STAT_INCR(sctps_sendnocrc);
+#else
+			mout->m_pkthdr.csum_flags = CSUM_SCTP;
+			mout->m_pkthdr.csum_data = 0;
+			SCTP_STAT_INCR(sctps_sendhwcrc);
+#endif
 		}
-		SCTP_IP6_OUTPUT(ret, o_pak, &ro, &ifp, stcb, vrf_id);
+		SCTP_IP6_OUTPUT(ret, o_pak, &ro, &ifp, NULL, vrf_id);
 
 		/* Free the route if we got one back */
 		if (ro.ro_rt)

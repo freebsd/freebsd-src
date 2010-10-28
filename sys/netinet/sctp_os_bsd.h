@@ -433,20 +433,21 @@ typedef struct rtentry sctp_rtentry_t;
  */
 #define SCTP_IP_OUTPUT(result, o_pak, ro, stcb, vrf_id) \
 { \
-	int o_flgs = 0; \
-	if (stcb && stcb->sctp_ep && stcb->sctp_ep->sctp_socket) { \
-		o_flgs = IP_RAWOUTPUT | (stcb->sctp_ep->sctp_socket->so_options & SO_DONTROUTE); \
-	} else { \
-		o_flgs = IP_RAWOUTPUT; \
-	} \
+	int o_flgs = IP_RAWOUTPUT; \
+	struct sctp_tcb *local_stcb = stcb; \
+	if (local_stcb && \
+	    local_stcb->sctp_ep && \
+	    local_stcb->sctp_ep->sctp_socket) \
+		o_flgs |= local_stcb->sctp_ep->sctp_socket->so_options & SO_DONTROUTE; \
 	result = ip_output(o_pak, NULL, ro, o_flgs, 0, NULL); \
 }
 
 #define SCTP_IP6_OUTPUT(result, o_pak, ro, ifp, stcb, vrf_id) \
 { \
- 	if (stcb && stcb->sctp_ep) \
+	struct sctp_tcb *local_stcb = stcb; \
+	if (local_stcb && local_stcb->sctp_ep) \
 		result = ip6_output(o_pak, \
-				    ((struct in6pcb *)(stcb->sctp_ep))->in6p_outputopts, \
+				    ((struct in6pcb *)(local_stcb->sctp_ep))->in6p_outputopts, \
 				    (ro), 0, 0, ifp, NULL); \
 	else \
 		result = ip6_output(o_pak, NULL, (ro), 0, 0, ifp, NULL); \

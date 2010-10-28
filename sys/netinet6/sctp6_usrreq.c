@@ -72,7 +72,6 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 	struct sctp_inpcb *in6p = NULL;
 	struct sctp_nets *net;
 	int refcount_up = 0;
-	uint32_t check, calc_check;
 	uint32_t vrf_id = 0;
 	struct inpcb *in6p_ip;
 	struct sctp_chunkhdr *ch;
@@ -80,6 +79,11 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 	uint8_t ecn_bits;
 	struct sctp_tcb *stcb = NULL;
 	int pkt_len = 0;
+
+#if !defined(SCTP_WITH_NO_CSUM)
+	uint32_t check, calc_check;
+
+#endif
 	int off = *offp;
 	uint16_t port = 0;
 
@@ -133,6 +137,9 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 	    m->m_pkthdr.len,
 	    if_name(m->m_pkthdr.rcvif),
 	    m->m_pkthdr.csum_flags);
+#if defined(SCTP_WITH_NO_CSUM)
+	SCTP_STAT_INCR(sctps_recvnocrc);
+#else
 	if (m->m_pkthdr.csum_flags & CSUM_SCTP_VALID) {
 		SCTP_STAT_INCR(sctps_recvhwcrc);
 		goto sctp_skip_csum;
@@ -171,6 +178,7 @@ sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 	sh->checksum = calc_check;
 
 sctp_skip_csum:
+#endif
 	net = NULL;
 	/*
 	 * Locate pcb and tcb for datagram sctp_findassociation_addr() wants
