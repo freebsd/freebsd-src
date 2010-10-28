@@ -120,7 +120,7 @@ struct pim {
 
 #include "ip.h"
 
-static void pimv2_print(register const u_char *bp, register u_int len);
+static void pimv2_print(register const u_char *bp, register u_int len, u_int cksum);
 
 static void
 pimv1_join_prune_print(register const u_char *bp, register u_int len)
@@ -415,7 +415,7 @@ trunc:
 }
 
 void
-pim_print(register const u_char *bp, register u_int len)
+pim_print(register const u_char *bp, register u_int len, u_int cksum)
 {
 	register const u_char *ep;
 	register struct pim *pim = (struct pim *)bp;
@@ -440,7 +440,7 @@ pim_print(register const u_char *bp, register u_int len)
                        PIM_VER(pim->pim_typever),
                        len,
                        tok2str(pimv2_type_values,"Unknown Type",PIM_TYPE(pim->pim_typever)));
-                pimv2_print(bp, len);
+                pimv2_print(bp, len, cksum);
             }
             break;
 	default:
@@ -620,7 +620,7 @@ trunc:
 }
 
 static void
-pimv2_print(register const u_char *bp, register u_int len)
+pimv2_print(register const u_char *bp, register u_int len, u_int cksum)
 {
 	register const u_char *ep;
 	register struct pim *pim = (struct pim *)bp;
@@ -640,9 +640,7 @@ pimv2_print(register const u_char *bp, register u_int len)
         if (EXTRACT_16BITS(&pim->pim_cksum) == 0) {
                 printf("(unverified)");
         } else {
-                printf("(%scorrect)",
-                       TTEST2(bp[0], len) &&
-                       in_cksum((const u_short*)bp, len, 0) ? "in" : "" );
+                printf("(%scorrect)", TTEST2(bp[0], len) && cksum ? "in" : "" );
         }
 
 	switch (PIM_TYPE(pim->pim_typever)) {
