@@ -213,7 +213,7 @@ aarp_print(register const u_char *bp, u_int length)
 
 		case 2:				/* response */
 			(void)printf("reply %s is-at %s",
-			    AT(pdaddr), etheraddr_string(ap->hdaddr));
+			    AT(psaddr), etheraddr_string(ap->hsaddr));
 			return;
 
 		case 3:				/* probe (oy!) */

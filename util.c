@@ -328,7 +328,7 @@ bittok2str_internal(register const struct tok *lp, register const char *fmt,
         register int rotbit; /* this is the bit we rotate through all bitpositions */
         register int tokval;
 
-	while (lp->s != NULL && lp != NULL) {
+	while (lp != NULL && lp->s != NULL) {
             tokval=lp->v;   /* load our first value */
             rotbit=1;
             while (rotbit != 0) {
@@ -415,7 +415,7 @@ tok2strary_internal(register const char **lp, int n, register const char *fmt,
  */
 
 int
-mask2plen (u_int32_t mask)
+mask2plen(u_int32_t mask)
 {
 	u_int32_t bitmasks[33] = {
 		0x00000000,
@@ -438,6 +438,35 @@ mask2plen (u_int32_t mask)
 	}
 	return (prefix_len);
 }
+
+#ifdef INET6
+int
+mask62plen(const u_char *mask)
+{
+	u_char bitmasks[9] = {
+		0x00,
+		0x80, 0xc0, 0xe0, 0xf0,
+		0xf8, 0xfc, 0xfe, 0xff
+	};
+	int byte;
+	int cidr_len = 0;
+
+	for (byte = 0; byte < 16; byte++) {
+		u_int bits;
+
+		for (bits = 0; bits < (sizeof (bitmasks) / sizeof (bitmasks[0])); bits++) {
+			if (mask[byte] == bitmasks[bits]) {
+				cidr_len += bits;
+				break;
+			}
+		}
+
+		if (mask[byte] != 0xff)
+			break;
+	}
+	return (cidr_len);
+}
+#endif /* INET6 */
 
 /* VARARGS */
 void
