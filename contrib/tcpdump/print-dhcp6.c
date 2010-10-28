@@ -40,7 +40,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-dhcp6.c,v 1.36.2.1 2008-02-06 10:26:27 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-dhcp6.c,v 1.37 2008-02-06 10:26:09 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -177,54 +177,19 @@ struct dhcp6opt {
 	/* type-dependent data follows */
 };
 
-struct dhcp6_ia {
-	u_int16_t dh6opt_ia_type;
-	u_int16_t dh6opt_ia_len;
-	u_int32_t dh6opt_ia_iaid;
-	u_int32_t dh6opt_ia_t1;
-	u_int32_t dh6opt_ia_t2;
-};
-
-struct dhcp6_ia_addr {
-	u_int16_t dh6opt_ia_addr_type;
-	u_int16_t dh6opt_ia_addr_len;
-	struct in6_addr dh6opt_ia_addr_addr;
-	u_int32_t dh6opt_ia_addr_pltime;
-	u_int32_t dh6opt_ia_addr_vltime;
-}  __attribute__ ((__packed__));
-
-struct dhcp6_ia_prefix {
-	u_int16_t dh6opt_ia_prefix_type;
-	u_int16_t dh6opt_ia_prefix_len;
-	u_int32_t dh6opt_ia_prefix_pltime;
-	u_int32_t dh6opt_ia_prefix_vltime;
-	u_int8_t dh6opt_ia_prefix_plen;
-	struct in6_addr dh6opt_ia_prefix_addr;
-}  __attribute__ ((__packed__));
-
-struct dhcp6_auth {
-	u_int16_t dh6opt_auth_type;
-	u_int16_t dh6opt_auth_len;
-	u_int8_t dh6opt_auth_proto;
-	u_int8_t dh6opt_auth_alg;
-	u_int8_t dh6opt_auth_rdm;
-	u_int8_t dh6opt_auth_rdinfo[8];
-	/* authentication information follows */
-} __attribute__ ((__packed__));
-
 static const char *
 dhcp6opt_name(int type)
 {
 	static char genstr[sizeof("opt_65535") + 1]; /* XXX thread unsafe */
 
 	if (type > 65535)
-		return "INVALID option";
+		return "INVALID-option";
 
 	switch(type) {
 	case DH6OPT_CLIENTID:
-		return "client ID";
+		return "client-ID";
 	case DH6OPT_SERVERID:
-		return "server ID";
+		return "server-ID";
 	case DH6OPT_IA_NA:
 		return "IA_NA";
 	case DH6OPT_IA_TA:
@@ -232,87 +197,87 @@ dhcp6opt_name(int type)
 	case DH6OPT_IA_ADDR:
 		return "IA_ADDR";
 	case DH6OPT_ORO:
-		return "option request";
+		return "option-request";
 	case DH6OPT_PREFERENCE:
 		return "preference";
 	case DH6OPT_ELAPSED_TIME:
-		return "elapsed time";
+		return "elapsed-time";
 	case DH6OPT_RELAY_MSG:
-		return "relay message";
+		return "relay-message";
 	case DH6OPT_AUTH:
 		return "authentication";
 	case DH6OPT_UNICAST:
-		return "server unicast";
+		return "server-unicast";
 	case DH6OPT_STATUS_CODE:
-		return "status code";
+		return "status-code";
 	case DH6OPT_RAPID_COMMIT:
-		return "rapid commit";
+		return "rapid-commit";
 	case DH6OPT_USER_CLASS:
-		return "user class";
+		return "user-class";
 	case DH6OPT_VENDOR_CLASS:
-		return "vendor class";
+		return "vendor-class";
 	case DH6OPT_VENDOR_OPTS:
-		return "vendor-specific info";
+		return "vendor-specific-info";
 	case DH6OPT_INTERFACE_ID:
-		return "interface ID";
+		return "interface-ID";
 	case DH6OPT_RECONF_MSG:
-		return "reconfigure message";
+		return "reconfigure-message";
 	case DH6OPT_RECONF_ACCEPT:
-		return "reconfigure accept";
+		return "reconfigure-accept";
 	case DH6OPT_SIP_SERVER_D:
-		return "SIP servers domain";
+		return "SIP-servers-domain";
 	case DH6OPT_SIP_SERVER_A:
-		return "SIP servers address";
+		return "SIP-servers-address";
 	case DH6OPT_DNS:
 		return "DNS";
 	case DH6OPT_DNSNAME:
-		return "DNS name";
+		return "DNS-name";
 	case DH6OPT_IA_PD:
 		return "IA_PD";
 	case DH6OPT_IA_PD_PREFIX:
-		return "IA_PD prefix";
+		return "IA_PD-prefix";
 	case DH6OPT_NTP_SERVERS:
-		return "NTP Server";
+		return "NTP-Server";
 	case DH6OPT_LIFETIME:
 		return "lifetime";
 	case DH6OPT_NIS_SERVERS:
-		return "NIS server";
+		return "NIS-server";
 	case DH6OPT_NISP_SERVERS:
-		return "NIS+ server";
+		return "NIS+-server";
 	case DH6OPT_NIS_NAME:
-		return "NIS domain name";
+		return "NIS-domain-name";
 	case DH6OPT_NISP_NAME:
-		return "NIS+ domain name";
+		return "NIS+-domain-name";
 	case DH6OPT_BCMCS_SERVER_D:
-		return "BCMCS domain name";
+		return "BCMCS-domain-name";
 	case DH6OPT_BCMCS_SERVER_A:
-		return "BCMCS server";
+		return "BCMCS-server";
 	case DH6OPT_GEOCONF_CIVIC:
-		return "Geoconf Civic";
+		return "Geoconf-Civic";
 	case DH6OPT_REMOTE_ID:
-		return "Remote ID";
+		return "Remote-ID";
 	case DH6OPT_SUBSCRIBER_ID:
-		return "Subscriber ID";
+		return "Subscriber-ID";
 	case DH6OPT_CLIENT_FQDN:
-		return "Client FQDN";
+		return "Client-FQDN";
 	case DH6OPT_PANA_AGENT:
-		return "PANA agent";
+		return "PANA-agent";
 	case DH6OPT_NEW_POSIX_TIMEZONE:
-		return "POSIX timezone";
+		return "POSIX-timezone";
 	case DH6OPT_NEW_TZDB_TIMEZONE:
-		return "POSIX tz database";
+		return "POSIX-tz-database";
 	case DH6OPT_ERO:
-		return "Echo request option";
+		return "Echo-request-option";
 	case DH6OPT_LQ_QUERY:
-		return "Lease query";
+		return "Lease-query";
 	case DH6OPT_CLIENT_DATA:
-		return "LQ client data";
+		return "LQ-client-data";
 	case DH6OPT_CLT_TIME:
-		return "Clt time";
+		return "Clt-time";
 	case DH6OPT_LQ_RELAY_DATA:
-		return "LQ relay data";
+		return "LQ-relay-data";
 	case DH6OPT_LQ_CLIENT_LINK:
-		return "LQ client link";
+		return "LQ-client-link";
 	default:
 		snprintf(genstr, sizeof(genstr), "opt_%d", type);
 		return(genstr);
@@ -364,12 +329,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 	size_t i;
 	u_int16_t opttype;
 	size_t optlen;
-	u_int16_t val16;
-	u_int32_t val32;
-	struct dhcp6_ia ia;
-	struct dhcp6_ia_prefix ia_prefix;
-	struct dhcp6_ia_addr ia_addr;
-	struct dhcp6_auth authopt;
+	u_int8_t auth_proto;
 	u_int authinfolen, authrealmlen;
 
 	if (cp == ep)
@@ -438,25 +398,19 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 			}
 			break;
 		case DH6OPT_IA_ADDR:
-			if (optlen < sizeof(ia_addr) - 4) {
+			if (optlen < 24) {
+				/*(*/
 				printf(" ?)");
 				break;
 			}
-			memcpy(&ia_addr, (u_char *)dh6o, sizeof(ia_addr));
-			printf(" %s",
-			    ip6addr_string(&ia_addr.dh6opt_ia_addr_addr));
-			ia_addr.dh6opt_ia_addr_pltime =
-			    ntohl(ia_addr.dh6opt_ia_addr_pltime);
-			ia_addr.dh6opt_ia_addr_vltime =
-			    ntohl(ia_addr.dh6opt_ia_addr_vltime);
-			printf(" pltime:%lu vltime:%lu",
-			    (unsigned long)ia_addr.dh6opt_ia_addr_pltime,
-			    (unsigned long)ia_addr.dh6opt_ia_addr_vltime);
-			if (optlen > sizeof(ia_addr) - 4) {
+			tp = (u_char *)(dh6o + 1);
+			printf(" %s", ip6addr_string(&tp[0]));
+			printf(" pltime:%u vltime:%u",
+			    EXTRACT_32BITS(&tp[16]),
+			    EXTRACT_32BITS(&tp[20]));
+			if (optlen > 24) {
 				/* there are sub-options */
-				dhcp6opt_print((u_char *)dh6o +
-				    sizeof(ia_addr),
-				    (u_char *)(dh6o + 1) + optlen);
+				dhcp6opt_print(tp + 24, tp + 24 + optlen);
 			}
 			printf(")");
 			break;
@@ -468,10 +422,8 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 			}
 			tp = (u_char *)(dh6o + 1);
 			for (i = 0; i < optlen; i += 2) {
-				u_int16_t opt;
-
-				memcpy(&opt, &tp[i], sizeof(opt));
-				printf(" %s", dhcp6opt_name(ntohs(opt)));
+				printf(" %s",
+				    dhcp6opt_name(EXTRACT_16BITS(&tp[i])));
 			}
 			printf(")");
 			break;
@@ -480,29 +432,31 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				printf(" ?)");
 				break;
 			}
-			printf(" %d)", *((u_char *)(dh6o + 1) + 1));
+			tp = (u_char *)(dh6o + 1);
+			printf(" %d)", *tp);
 			break;
 		case DH6OPT_ELAPSED_TIME:
 			if (optlen != 2) {
 				printf(" ?)");
 				break;
 			}
-			memcpy(&val16, dh6o + 1, sizeof(val16));
-			val16 = ntohs(val16);
-			printf(" %d)", (int)val16);
+			tp = (u_char *)(dh6o + 1);
+			printf(" %d)", EXTRACT_16BITS(tp));
 			break;
 		case DH6OPT_RELAY_MSG:
 			printf(" (");
-			dhcp6_print((const u_char *)(dh6o + 1), optlen);
+			tp = (u_char *)(dh6o + 1);
+			dhcp6_print(tp, optlen);
 			printf(")");
 			break;
 		case DH6OPT_AUTH:
-			if (optlen < sizeof(authopt) - sizeof(*dh6o)) {
+			if (optlen < 11) {
 				printf(" ?)");
 				break;
 			}
-			memcpy(&authopt, dh6o, sizeof(authopt));
-			switch (authopt.dh6opt_auth_proto) {
+			tp = (u_char *)(dh6o + 1);
+			auth_proto = *tp;
+			switch (auth_proto) {
 			case DH6OPT_AUTHPROTO_DELAYED:
 				printf(" proto: delayed");
 				break;
@@ -510,37 +464,36 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				printf(" proto: reconfigure");
 				break;
 			default:
-				printf(" proto: %d",
-				    authopt.dh6opt_auth_proto);
+				printf(" proto: %d", auth_proto);
 				break;
 			}
-			switch (authopt.dh6opt_auth_alg) {
+			tp++;
+			switch (*tp) {
 			case DH6OPT_AUTHALG_HMACMD5:
 				/* XXX: may depend on the protocol */
 				printf(", alg: HMAC-MD5");
 				break;
 			default:
-				printf(", alg: %d", authopt.dh6opt_auth_alg);
+				printf(", alg: %d", *tp);
 				break;
 			}
-			switch (authopt.dh6opt_auth_rdm) {
+			tp++;
+			switch (*tp) {
 			case DH6OPT_AUTHRDM_MONOCOUNTER:
 				printf(", RDM: mono");
 				break;
 			default:
-				printf(", RDM: %d", authopt.dh6opt_auth_rdm);
+				printf(", RDM: %d", *tp);
 				break;
 			}
-			tp = (u_char *)&authopt.dh6opt_auth_rdinfo;
+			tp++;
 			printf(", RD:");
-			for (i = 0; i < 4; i++, tp += sizeof(val16))
+			for (i = 0; i < 4; i++, tp += 2)
 				printf(" %04x", EXTRACT_16BITS(tp));
 
 			/* protocol dependent part */
-			tp = (u_char *)dh6o + sizeof(authopt);
-			authinfolen =
-			    optlen + sizeof(*dh6o) - sizeof(authopt); 
-			switch (authopt.dh6opt_auth_proto) {
+			authinfolen = optlen - 11;
+			switch (auth_proto) {
 			case DH6OPT_AUTHPROTO_DELAYED:
 				if (authinfolen == 0)
 					break;
@@ -596,9 +549,10 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 			 * Since we cannot predict the encoding, print hex dump
 			 * at most 10 characters.
 			 */
+			tp = (u_char *)(dh6o + 1);
 			printf(" ");
 			for (i = 0; i < optlen && i < 10; i++)
-				printf("%02x", ((u_char *)(dh6o + 1))[i]);
+				printf("%02x", tp[i]);
 			printf("...)");
 			break;
 		case DH6OPT_RECONF_MSG:
@@ -640,28 +594,23 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				printf(" ?)");
 				break;
 			}
-			memcpy(&val16, (u_char *)(dh6o + 1), sizeof(val16));
-			val16 = ntohs(val16);
-			printf(" %s)", dhcp6stcode(val16));
+			tp = (u_char *)(dh6o + 1);
+			printf(" %s)", dhcp6stcode(EXTRACT_16BITS(&tp[0])));
 			break;
 		case DH6OPT_IA_NA:
 		case DH6OPT_IA_PD:
-			if (optlen < sizeof(ia) - 4) {
+			if (optlen < 12) {
 				printf(" ?)");
 				break;
 			}
-			memcpy(&ia, (u_char *)dh6o, sizeof(ia));
-			ia.dh6opt_ia_iaid = ntohl(ia.dh6opt_ia_iaid);
-			ia.dh6opt_ia_t1 = ntohl(ia.dh6opt_ia_t1);
-			ia.dh6opt_ia_t2 = ntohl(ia.dh6opt_ia_t2);
-			printf(" IAID:%lu T1:%lu T2:%lu",
-			    (unsigned long)ia.dh6opt_ia_iaid,
-			    (unsigned long)ia.dh6opt_ia_t1,
-			    (unsigned long)ia.dh6opt_ia_t2);
-			if (optlen > sizeof(ia) - 4) {
+			tp = (u_char *)(dh6o + 1);
+			printf(" IAID:%u T1:%u T2:%u",
+			    EXTRACT_32BITS(&tp[0]),
+			    EXTRACT_32BITS(&tp[4]),
+			    EXTRACT_32BITS(&tp[8]));
+			if (optlen > 12) {
 				/* there are sub-options */
-				dhcp6opt_print((u_char *)dh6o + sizeof(ia),
-				    (u_char *)(dh6o + 1) + optlen);
+				dhcp6opt_print(tp + 12, tp + 12 + optlen);
 			}
 			printf(")");
 			break;
@@ -670,37 +619,27 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				printf(" ?)");
 				break;
 			}
-			memcpy(&val32, dh6o + 1, sizeof(val32));
-			val32 = ntohl(val32);
-			printf(" IAID:%lu", (unsigned long)val32);
+			tp = (u_char *)(dh6o + 1);
+			printf(" IAID:%u", EXTRACT_32BITS(tp));
 			if (optlen > 4) {
 				/* there are sub-options */
-				dhcp6opt_print((u_char *)(dh6o + 1) + 4,
-				    (u_char *)(dh6o + 1) + optlen);
+				dhcp6opt_print(tp + 4, tp + 4 + optlen);
 			}
 			printf(")");
 			break;
 		case DH6OPT_IA_PD_PREFIX:
-			if (optlen < sizeof(ia_prefix) - 4) {
+			if (optlen < 25) {
 				printf(" ?)");
 				break;
 			}
-			memcpy(&ia_prefix, (u_char *)dh6o, sizeof(ia_prefix));
-			printf(" %s/%d",
-			    ip6addr_string(&ia_prefix.dh6opt_ia_prefix_addr),
-			    ia_prefix.dh6opt_ia_prefix_plen);
-			ia_prefix.dh6opt_ia_prefix_pltime =
-			    ntohl(ia_prefix.dh6opt_ia_prefix_pltime);
-			ia_prefix.dh6opt_ia_prefix_vltime =
-			    ntohl(ia_prefix.dh6opt_ia_prefix_vltime);
-			printf(" pltime:%lu vltime:%lu",
-			    (unsigned long)ia_prefix.dh6opt_ia_prefix_pltime,
-			    (unsigned long)ia_prefix.dh6opt_ia_prefix_vltime);
-			if (optlen > sizeof(ia_prefix) - 4) {
+			tp = (u_char *)(dh6o + 1);
+			printf(" %s/%d", ip6addr_string(&tp[9]), tp[8]);
+			printf(" pltime:%u vltime:%u",
+			    EXTRACT_32BITS(&tp[0]),
+			    EXTRACT_32BITS(&tp[4]));
+			if (optlen > 25) {
 				/* there are sub-options */
-				dhcp6opt_print((u_char *)dh6o +
-				    sizeof(ia_prefix),
-				    (u_char *)(dh6o + 1) + optlen);
+				dhcp6opt_print(tp + 25, tp + 25 + optlen);
 			}
 			printf(")");
 			break;
@@ -710,9 +649,8 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				printf(" ?)");
 				break;
 			}
-			memcpy(&val32, dh6o + 1, sizeof(val32));
-			val32 = ntohl(val32);
-			printf(" %d)", (int)val32);
+			tp = (u_char *)(dh6o + 1);
+			printf(" %d)", EXTRACT_32BITS(tp));
 			break;
 		case DH6OPT_REMOTE_ID:
 			if (optlen < 4) {
@@ -720,9 +658,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				break;
 			}
 			tp = (u_char *)(dh6o + 1);
-			memcpy(&val32, &tp[0], sizeof(val32));
-			val32 = ntohl(val32);
-			printf(" %d ", (int)val32);
+			printf(" %d ", EXTRACT_32BITS(tp));
 			/*
 			 * Print hex dump first 10 characters.
 			 */
@@ -755,10 +691,10 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 			printf(")");
 			break;
 		case DH6OPT_CLIENT_DATA:
+			tp = (u_char *)(dh6o + 1);
 			if (optlen > 0) {
 				/* there are encapsulated options */
-				dhcp6opt_print((u_char *)(dh6o + 1),
-				    (u_char *)(dh6o + 1) + optlen);
+				dhcp6opt_print(tp, tp + optlen);
 			}
 			printf(")");
 			break;
