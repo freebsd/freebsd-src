@@ -2281,7 +2281,6 @@ sctp_is_ifa_addr_acceptable(struct sctp_ifa *ifa,
 {
 	uint8_t dest_is_global = 0;
 
-
 	/*
 	 * Here we determine if its a acceptable address. A acceptable
 	 * address means it is the same scope or higher scope but we can
@@ -9813,7 +9812,8 @@ sctp_fill_in_rest:
 			 * peer ack point
 			 */
 			advance_peer_ack_point = last->rec.data.TSN_seq;
-			space_needed -= (cnt_of_skipped * sizeof(struct sctp_strseq));
+			space_needed = sizeof(struct sctp_forward_tsn_chunk) +
+			    cnt_of_skipped * sizeof(struct sctp_strseq);
 		}
 		chk->send_size = space_needed;
 		/* Setup the chunk */
@@ -9822,8 +9822,6 @@ sctp_fill_in_rest:
 		fwdtsn->ch.chunk_flags = 0;
 		fwdtsn->ch.chunk_type = SCTP_FORWARD_CUM_TSN;
 		fwdtsn->new_cumulative_tsn = htonl(advance_peer_ack_point);
-		chk->send_size = (sizeof(struct sctp_forward_tsn_chunk) +
-		    (cnt_of_skipped * sizeof(struct sctp_strseq)));
 		SCTP_BUF_LEN(chk->data) = chk->send_size;
 		fwdtsn++;
 		/*-
