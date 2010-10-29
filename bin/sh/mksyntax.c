@@ -285,6 +285,7 @@ init(void)
 	syntax[base + CTLARI] = "CCTL";
 	syntax[base + CTLENDARI] = "CCTL";
 	syntax[base + CTLQUOTEMARK] = "CCTL";
+	syntax[base + CTLQUOTEEND] = "CCTL";
 }
 
 

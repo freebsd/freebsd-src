@@ -216,7 +216,12 @@ argstr(char *p, int flag)
 	char c;
 	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);	/* do CTLESC */
 	int firsteq = 1;
+	int split_lit;
+	int lit_quoted;
 
+	split_lit = flag & EXP_SPLIT_LIT;
+	lit_quoted = flag & EXP_LIT_QUOTED;
+	flag &= ~(EXP_SPLIT_LIT | EXP_LIT_QUOTED);
 	if (*p == '~' && (flag & (EXP_TILDE | EXP_VARTILDE)))
 		p = exptilde(p, flag);
 	for (;;) {
@@ -225,17 +230,25 @@ argstr(char *p, int flag)
 		case CTLENDVAR:
 			goto breakloop;
 		case CTLQUOTEMARK:
+			lit_quoted = 1;
 			/* "$@" syntax adherence hack */
 			if (p[0] == CTLVAR && p[2] == '@' && p[3] == '=')
 				break;
 			if ((flag & EXP_FULL) != 0)
 				STPUTC(c, expdest);
 			break;
+		case CTLQUOTEEND:
+			lit_quoted = 0;
+			break;
 		case CTLESC:
 			if (quotes)
 				STPUTC(c, expdest);
 			c = *p++;
 			STPUTC(c, expdest);
+			if (split_lit && !lit_quoted)
+				recordregion(expdest - stackblock() -
+				    (quotes ? 2 : 1),
+				    expdest - stackblock(), 0);
 			break;
 		case CTLVAR:
 			p = evalvar(p, flag);
@@ -255,18 +268,21 @@ argstr(char *p, int flag)
 			 * assignments (after the first '=' and after ':'s).
 			 */
 			STPUTC(c, expdest);
-			if (flag & EXP_VARTILDE && *p == '~') {
-				if (c == '=') {
-					if (firsteq)
-						firsteq = 0;
-					else
-						break;
-				}
+			if (split_lit && !lit_quoted)
+				recordregion(expdest - stackblock() - 1,
+				    expdest - stackblock(), 0);
+			if (flag & EXP_VARTILDE && *p == '~' &&
+			    (c != '=' || firsteq)) {
+				if (c == '=')
+					firsteq = 0;
 				p = exptilde(p, flag);
 			}
 			break;
 		default:
 			STPUTC(c, expdest);
+			if (split_lit && !lit_quoted)
+				recordregion(expdest - stackblock() - 1,
+				    expdest - stackblock(), 0);
 		}
 	}
 breakloop:;
@@ -742,7 +758,8 @@ record:
 	case VSPLUS:
 	case VSMINUS:
 		if (!set) {
-			argstr(p, flag);
+			argstr(p, flag | (flag & EXP_FULL ? EXP_SPLIT_LIT : 0) |
+			    (varflags & VSQUOTE ? EXP_LIT_QUOTED : 0));
 			break;
 		}
 		if (easy)
@@ -1495,13 +1512,13 @@ rmescapes(char *str)
 	char *p, *q;
 
 	p = str;
-	while (*p != CTLESC && *p != CTLQUOTEMARK) {
+	while (*p != CTLESC && *p != CTLQUOTEMARK && *p != CTLQUOTEEND) {
 		if (*p++ == '\0')
 			return;
 	}
 	q = p;
 	while (*p) {
-		if (*p == CTLQUOTEMARK) {
+		if (*p == CTLQUOTEMARK || *p == CTLQUOTEEND) {
 			p++;
 			continue;
 		}
