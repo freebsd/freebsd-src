@@ -89,6 +89,7 @@ device		pci
 
 # Infiniband Bus and drivers
 device		infiniband
+device		ipoib
 device		mlx4
 device		mthca
 
