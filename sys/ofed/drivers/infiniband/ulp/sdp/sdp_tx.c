@@ -378,7 +378,7 @@ static void sdp_poll_tx_timeout(unsigned long data)
 		goto out;
 	}
 
-	if (unlikely(sk->sk_state == TCP_CLOSE)) {
+	if (unlikely(sk->sk_state == TCPS_CLOSED)) {
 		sdp_warn(sk, "Socket is closed\n");
 		goto out;
 	}

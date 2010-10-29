@@ -237,8 +237,8 @@ static void sdp_keepalive_timer(unsigned long data)
 		goto out;
 	}
 
-	if (!sock_flag(sk, SOCK_KEEPOPEN) || sk->sk_state == TCP_LISTEN ||
-	    sk->sk_state == TCP_CLOSE)
+	if (!sock_flag(sk, SOCK_KEEPOPEN) || sk->sk_state == TCPS_LISTEN ||
+	    sk->sk_state == TCPS_CLOSED)
 		goto out;
 
 	if (ssk->keepalive_tx_head == ring_head(ssk->tx_ring) &&
@@ -457,7 +457,7 @@ void sdp_reset(struct socket *sk)
 
 	sdp_dbg(sk, "%s state=%d\n", __func__, sk->sk_state);
 
-	if (sk->sk_state != TCP_ESTABLISHED)
+	if (sk->sk_state != TCPS_ESTABLISHED)
 		return;
 
 	/* We want the right error as BSD sees it (and indeed as we do). */
@@ -560,16 +560,16 @@ static void sdp_send_disconnect(struct socket *sk)
 
 /*
  *	State processing on a close.
- *	TCP_ESTABLISHED -> TCP_FIN_WAIT1 -> TCP_CLOSE
+ *	TCPS_ESTABLISHED -> TCPS_FIN_WAIT_1 -> TCPS_CLOSED
  */
 static int sdp_close_state(struct socket *sk)
 {
 	switch (sk->sk_state) {
-	case TCP_ESTABLISHED:
-		sdp_exch_state(sk, TCPF_ESTABLISHED, TCP_FIN_WAIT1);
+	case TCPS_ESTABLISHED:
+		sdp_exch_state(sk, TCPF_ESTABLISHED, TCPS_FIN_WAIT_1);
 		break;
-	case TCP_CLOSE_WAIT:
-		sdp_exch_state(sk, TCPF_CLOSE_WAIT, TCP_LAST_ACK);
+	case TCPS_CLOSED_WAIT:
+		sdp_exch_state(sk, TCPF_CLOSE_WAIT, TCPS_LAST_ACK);
 		break;
 	default:
 		return 0;
@@ -616,8 +616,8 @@ static void sdp_close(struct socket *sk, long timeout)
 		goto out;
 	}
 
-	if (sk->sk_state == TCP_LISTEN || sk->sk_state == TCP_SYN_SENT) {
-		sdp_exch_state(sk, TCPF_LISTEN | TCPF_SYN_SENT, TCP_CLOSE);
+	if (sk->sk_state == TCPS_LISTEN || sk->sk_state == TCPS_SYN_SENT) {
+		sdp_exch_state(sk, TCPF_LISTEN | TCPF_SYN_SENT, TCPS_CLOSED);
 		disable_cma_handler(sk);
 
 		/* Special case: stop listening.
@@ -658,7 +658,7 @@ static void sdp_close(struct socket *sk, long timeout)
 		/* Unread data was tossed, zap the connection. */
 		NET_INC_STATS_USER(sock_net(sk), LINUX_MIB_TCPABORTONCLOSE);
 		sdp_exch_state(sk, TCPF_CLOSE_WAIT | TCPF_ESTABLISHED,
-			       TCP_TIME_WAIT);
+			       TCPS_TIME_WAIT);
 
 		/* Go into abortive close */
 		sk->sk_prot->disconnect(sk, 0);
@@ -674,7 +674,7 @@ static void sdp_close(struct socket *sk, long timeout)
 	   Since it currently doesn't, do it here to avoid blocking below. */
 	if (!sdp_sk(sk)->id)
 		sdp_exch_state(sk, TCPF_FIN_WAIT1 | TCPF_LAST_ACK |
-			       TCPF_CLOSE_WAIT, TCP_CLOSE);
+			       TCPF_CLOSE_WAIT, TCPS_CLOSED);
 
 	sk_stream_wait_close(sk, timeout);
 
@@ -701,7 +701,7 @@ adjudge_to_death:
 	 *	consume significant resources. Let's do it with special
 	 *	linger2	option.					--ANK
 	 */
-	if (sk->sk_state == TCP_FIN_WAIT1) {
+	if (sk->sk_state == TCPS_FIN_WAIT_1) {
 		/* TODO: liger2 unimplemented.
 		   We should wait 3.5 * rto. How do I know rto? */
 		/* TODO: tcp_fin_time to get timeout */
@@ -761,7 +761,7 @@ static int sdp_connect(struct socket *sk, struct socketaddr *uaddr, int addr_len
 		return rc;
 	}
 
-	sdp_exch_state(sk, TCPF_CLOSE, TCP_SYN_SENT);
+	sdp_exch_state(sk, TCPF_CLOSE, TCPS_SYN_SENT);
 	return 0;
 }
 
@@ -774,7 +774,7 @@ static int sdp_disconnect(struct socket *sk, int flags)
 
 	sdp_dbg(sk, "%s\n", __func__);
 
-	if (sk->sk_state != TCP_LISTEN) {
+	if (sk->sk_state != TCPS_LISTEN) {
 		if (ssk->id) {
 			sdp_sk(sk)->qp_active = 0;
 			rc = rdma_disconnect(ssk->id);
@@ -783,7 +783,7 @@ static int sdp_disconnect(struct socket *sk, int flags)
 		return rc;
 	}
 
-	sdp_exch_state(sk, TCPF_LISTEN, TCP_CLOSE);
+	sdp_exch_state(sk, TCPF_LISTEN, TCPS_CLOSED);
 	id = ssk->id;
 	ssk->id = NULL;
 	release_sock(sk); /* release socket since locking semantics is parent
@@ -837,7 +837,7 @@ static int sdp_wait_for_connect(struct socket *sk, long timeo)
 		if (!list_empty(&ssk->accept_queue))
 			break;
 		err = -EINVAL;
-		if (sk->sk_state != TCP_LISTEN)
+		if (sk->sk_state != TCPS_LISTEN)
 			break;
 		err = sock_intr_errno(timeo);
 		if (signal_pending(current))
@@ -860,7 +860,7 @@ static struct socket *sdp_accept(struct socket *sk, int flags, int *err)
 	int error;
 
 	sdp_dbg(sk, "%s state %d expected %d *err %d\n", __func__,
-		sk->sk_state, TCP_LISTEN, *err);
+		sk->sk_state, TCPS_LISTEN, *err);
 
 	ssk = sdp_sk(sk);
 	lock_sock(sk);
@@ -869,7 +869,7 @@ static struct socket *sdp_accept(struct socket *sk, int flags, int *err)
 	 * and that it has something pending.
 	 */
 	error = -EINVAL;
-	if (sk->sk_state != TCP_LISTEN)
+	if (sk->sk_state != TCPS_LISTEN)
 		goto out_err;
 
 	/* Find already established connection */
@@ -922,7 +922,7 @@ static int sdp_ioctl(struct socket *sk, int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case SIOCINQ:
-		if (sk->sk_state == TCP_LISTEN)
+		if (sk->sk_state == TCPS_LISTEN)
 			return -EINVAL;
 
 		lock_sock(sk);
@@ -947,7 +947,7 @@ static int sdp_ioctl(struct socket *sk, int cmd, unsigned long arg)
 		answ = ssk->urg_data && ssk->urg_seq == ssk->copied_seq;
 		break;
 	case SIOCOUTQ:
-		if (sk->sk_state == TCP_LISTEN)
+		if (sk->sk_state == TCPS_LISTEN)
 			return -EINVAL;
 
 		if ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV))
@@ -1000,13 +1000,13 @@ static void sdp_destroy_work(struct work_struct *work)
 
 	cancel_delayed_work(&ssk->srcavail_cancel_work);
 
-	if (sk->sk_state == TCP_TIME_WAIT)
+	if (sk->sk_state == TCPS_TIME_WAIT)
 		sock_put(sk, SOCK_REF_CMA);
 
-	/* In normal close current state is TCP_TIME_WAIT or TCP_CLOSE
+	/* In normal close current state is TCPS_TIME_WAIT or TCPS_CLOSED
 	   but if a CM connection is dropped below our legs state could
 	   be any state */
-	sdp_exch_state(sk, ~0, TCP_CLOSE);
+	sdp_exch_state(sk, ~0, TCPS_CLOSED);
 	sock_put(sk, SOCK_REF_RESET);
 }
 
@@ -1032,10 +1032,10 @@ static void sdp_dreq_wait_timeout_work(struct work_struct *work)
 
 	sdp_sk(sk)->dreq_wait_timeout = 0;
 
-	if (sk->sk_state == TCP_FIN_WAIT1)
+	if (sk->sk_state == TCPS_FIN_WAIT_1)
 		percpu_counter_dec(ssk->isk.sk.sk_prot->orphan_count);
 
-	sdp_exch_state(sk, TCPF_LAST_ACK | TCPF_FIN_WAIT1, TCP_TIME_WAIT);
+	sdp_exch_state(sk, TCPF_LAST_ACK | TCPF_FIN_WAIT1, TCPS_TIME_WAIT);
 
 	release_sock(sk);
 
@@ -1339,7 +1339,7 @@ static int sdp_recv_urg(struct socket *sk, long timeo,
 	    ssk->urg_data == TCP_URG_READ)
 		return -EINVAL;	/* Yes this is right ! */
 
-	if (sk->sk_state == TCP_CLOSE && !sock_flag(sk, SOCK_DONE))
+	if (sk->sk_state == TCPS_CLOSED && !sock_flag(sk, SOCK_DONE))
 		return -ENOTCONN;
 
 	if (ssk->urg_data & TCP_URG_VALID) {
@@ -1362,7 +1362,7 @@ static int sdp_recv_urg(struct socket *sk, long timeo,
 		return err ? -EFAULT : len;
 	}
 
-	if (sk->sk_state == TCP_CLOSE || (sk->sk_shutdown & RCV_SHUTDOWN))
+	if (sk->sk_state == TCPS_CLOSED || (sk->sk_shutdown & RCV_SHUTDOWN))
 		return 0;
 
 	/* Fixed the recv(..., MSG_OOB) behaviour.  BSD docs and
@@ -2095,7 +2095,7 @@ static int sdp_recvmsg(struct kiocb *iocb, struct socket *sk, struct msghdr *msg
 	sdp_prf(sk, mb, "Read from user");
 
 	err = -ENOTCONN;
-	if (sk->sk_state == TCP_LISTEN)
+	if (sk->sk_state == TCPS_LISTEN)
 		goto out;
 
 	timeo = sock_rcvtimeo(sk, noblock);
@@ -2222,7 +2222,7 @@ sdp_mid_data:
 
 		if (copied) {
 			if (sk->sk_err ||
-			    sk->sk_state == TCP_CLOSE ||
+			    sk->sk_state == TCPS_CLOSED ||
 			    (sk->sk_shutdown & RCV_SHUTDOWN) ||
 			    !timeo ||
 			    signal_pending(current) ||
@@ -2240,7 +2240,7 @@ sdp_mid_data:
 			if (sk->sk_shutdown & RCV_SHUTDOWN)
 				break;
 
-			if (sk->sk_state == TCP_CLOSE) {
+			if (sk->sk_state == TCPS_CLOSED) {
 				if (!sock_flag(sk, SOCK_DONE)) {
 					/* This occurs when user tries to read
 					 * from never connected socket.
@@ -2434,7 +2434,7 @@ static int sdp_listen(struct socket *sk, int backlog)
 		sdp_warn(sk, "rdma_listen failed: %d\n", rc);
 		sdp_set_error(sk, rc);
 	} else
-		sdp_exch_state(sk, TCPF_CLOSE, TCP_LISTEN);
+		sdp_exch_state(sk, TCPF_CLOSE, TCPS_LISTEN);
 	return rc;
 }
 
@@ -2460,7 +2460,7 @@ static int sdp_inet_listen(struct socketet *sock, int backlog)
 	/* Really, if the socket is already in listen state
 	 * we can only allow the backlog to be adjusted.
 	 */
-	if (old_state != TCP_LISTEN) {
+	if (old_state != TCPS_LISTEN) {
 		err = sdp_listen(sk, backlog);
 		if (err)
 			goto out;
@@ -2504,7 +2504,7 @@ static unsigned int sdp_poll(struct file *file, struct socketet *socket,
 	/* TODO: Slightly ugly: it would be nicer if there was function
 	 * like datagram_poll that didn't include poll_wait,
 	 * then we could reverse the order. */
-       if (sk->sk_state == TCP_LISTEN)
+       if (sk->sk_state == TCPS_LISTEN)
                return sdp_listen_poll(sk);
 
        if (ssk->urg_data & TCP_URG_VALID)

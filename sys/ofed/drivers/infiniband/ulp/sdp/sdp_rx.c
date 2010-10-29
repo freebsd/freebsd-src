@@ -89,20 +89,20 @@ void sdp_handle_disconn(struct socket *sk)
 	sock_set_flag(sk, SOCK_DONE);
 
 	switch (sk->sk_state) {
-	case TCP_SYN_RECV:
-	case TCP_ESTABLISHED:
+	case TCPS_SYN_RECEIVED:
+	case TCPS_ESTABLISHED:
 		sdp_exch_state(sk, TCPF_SYN_RECV | TCPF_ESTABLISHED,
-				TCP_CLOSE_WAIT);
+				TCPS_CLOSED_WAIT);
 		break;
 
-	case TCP_FIN_WAIT1:
+	case TCPS_FIN_WAIT_1:
 		/* Received a reply FIN - start Infiniband tear down */
 		sdp_dbg(sk, "%s: Starting Infiniband tear down sending DREQ\n",
 				__func__);
 
 		sdp_cancel_dreq_wait_timeout(sdp_sk(sk));
 
-		sdp_exch_state(sk, TCPF_FIN_WAIT1, TCP_TIME_WAIT);
+		sdp_exch_state(sk, TCPF_FIN_WAIT1, TCPS_TIME_WAIT);
 
 		if (sdp_sk(sk)->id) {
 			sdp_sk(sk)->qp_active = 0;
@@ -112,11 +112,11 @@ void sdp_handle_disconn(struct socket *sk)
 			return;
 		}
 		break;
-	case TCP_TIME_WAIT:
+	case TCPS_TIME_WAIT:
 		/* This is a mutual close situation and we've got the DREQ from
 		   the peer before the SDP_MID_DISCONNECT */
 		break;
-	case TCP_CLOSE:
+	case TCPS_CLOSED:
 		/* FIN arrived after IB teardown started - do nothing */
 		sdp_dbg(sk, "%s: fin in state %s\n",
 				__func__, sdp_state_str(sk->sk_state));
@@ -135,7 +135,7 @@ void sdp_handle_disconn(struct socket *sk)
 
 		/* Do not send POLL_HUP for half duplex close. */
 		if (sk->sk_shutdown == SHUTDOWN_MASK ||
-		    sk->sk_state == TCP_CLOSE)
+		    sk->sk_state == TCPS_CLOSED)
 			sk_wake_async(sk, 1, POLL_HUP);
 		else
 			sk_wake_async(sk, 1, POLL_IN);
@@ -436,11 +436,11 @@ static int sdp_process_rx_ctl_mb(struct sdp_sock *ssk, struct mbuf *mb)
 		sdp_dbg(sk, "DATA after socket rcv was shutdown\n");
 
 		/* got data in RCV_SHUTDOWN */
-		if (sk->sk_state == TCP_FIN_WAIT1) {
+		if (sk->sk_state == TCPS_FIN_WAIT_1) {
 			sdp_dbg(sk, "RX data when state = FIN_WAIT1\n");
 			/* go into abortive close */
 			sdp_exch_state(sk, TCPF_FIN_WAIT1,
-					TCP_TIME_WAIT);
+					TCPS_TIME_WAIT);
 
 			sk->sk_prot->disconnect(sk, 0);
 		}
@@ -746,7 +746,7 @@ void sdp_do_posts(struct sdp_sock *ssk)
 	while ((mb = mb_dequeue(&ssk->rx_ctl_q)))
 		sdp_process_rx_ctl_mb(ssk, mb);
 
-	if (sk->sk_state == TCP_TIME_WAIT)
+	if (sk->sk_state == TCPS_TIME_WAIT)
 		return;
 
 	if (!ssk->rx_ring.cq || !ssk->tx_ring.cq)

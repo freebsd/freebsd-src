@@ -203,7 +203,7 @@ static int sdp_connect_handler(struct socket *sk, struct rdma_cm_id *id,
 			&sdp_sk(sk)->backlog_queue);
 	sdp_sk(child)->parent = sk;
 
-	sdp_exch_state(child, TCPF_LISTEN | TCPF_CLOSE, TCP_SYN_RECV);
+	sdp_exch_state(child, TCPF_LISTEN | TCPF_CLOSE, TCPS_SYN_RECEIVED);
 
 	/* child->sk_write_space(child); */
 	/* child->sk_data_ready(child, 0); */
@@ -219,7 +219,7 @@ static int sdp_response_handler(struct socket *sk, struct rdma_cm_id *id,
 	struct socketaddr_in *dst_addr;
 	sdp_dbg(sk, "%s\n", __func__);
 
-	sdp_exch_state(sk, TCPF_SYN_SENT, TCP_ESTABLISHED);
+	sdp_exch_state(sk, TCPF_SYN_SENT, TCPS_ESTABLISHED);
 	sdp_set_default_moderation(sdp_sk(sk));
 
 	if (sock_flag(sk, SOCK_KEEPOPEN))
@@ -259,7 +259,7 @@ static int sdp_connected_handler(struct socket *sk, struct rdma_cm_event *event)
 	parent = sdp_sk(sk)->parent;
 	BUG_ON(!parent);
 
-	sdp_exch_state(sk, TCPF_SYN_RECV, TCP_ESTABLISHED);
+	sdp_exch_state(sk, TCPF_SYN_RECV, TCPS_ESTABLISHED);
 
 	sdp_set_default_moderation(sdp_sk(sk));
 
@@ -298,7 +298,7 @@ static int sdp_disconnected_handler(struct socket *sk)
 	if (ssk->tx_ring.cq)
 		sdp_xmit_poll(ssk, 1);
 
-	if (sk->sk_state == TCP_SYN_RECV) {
+	if (sk->sk_state == TCPS_SYN_RECEIVED) {
 		sdp_connected_handler(sk, NULL);
 
 		if (rcv_nxt(ssk))
@@ -457,10 +457,10 @@ int sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	case RDMA_CM_EVENT_DISCONNECTED: /* This means DREQ/DREP received */
 		sdp_dbg(sk, "RDMA_CM_EVENT_DISCONNECTED\n");
 
-		if (sk->sk_state == TCP_LAST_ACK) {
+		if (sk->sk_state == TCPS_LAST_ACK) {
 			sdp_cancel_dreq_wait_timeout(sdp_sk(sk));
 
-			sdp_exch_state(sk, TCPF_LAST_ACK, TCP_TIME_WAIT);
+			sdp_exch_state(sk, TCPF_LAST_ACK, TCPS_TIME_WAIT);
 
 			sdp_dbg(sk, "%s: waiting for Infiniband tear down\n",
 				__func__);
@@ -469,10 +469,10 @@ int sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		sdp_sk(sk)->qp_active = 0;
 		rdma_disconnect(id);
 
-		if (sk->sk_state != TCP_TIME_WAIT) {
-			if (sk->sk_state == TCP_CLOSE_WAIT) {
+		if (sk->sk_state != TCPS_TIME_WAIT) {
+			if (sk->sk_state == TCPS_CLOSED_WAIT) {
 				sdp_dbg(sk, "IB teardown while in "
-					"TCP_CLOSE_WAIT taking reference to "
+					"TCPS_CLOSED_WAIT taking reference to "
 					"let close() finish the work\n");
 				sock_hold(sk, SOCK_REF_CMA);
 			}

@@ -158,7 +158,7 @@ void sdp_nagle_timeout(unsigned long data)
 		goto out;
 	}
 
-	if (sk->sk_state == TCP_CLOSE) {
+	if (sk->sk_state == TCPS_CLOSED) {
 		bh_unlock_sock(sk);
 		return;
 	}

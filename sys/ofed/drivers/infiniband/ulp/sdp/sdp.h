@@ -492,9 +492,9 @@ static inline void sdp_set_error(struct socket *sk, int err)
 		sk->sk_socket->state = SS_DISCONNECTING;
 
 	if ((1 << sk->sk_state) & ib_teardown_states)
-		sdp_exch_state(sk, ib_teardown_states, TCP_TIME_WAIT);
+		sdp_exch_state(sk, ib_teardown_states, TCPS_TIME_WAIT);
 	else
-		sdp_exch_state(sk, ~0, TCP_CLOSE);
+		sdp_exch_state(sk, ~0, TCPS_CLOSED);
 
 	sk->sk_error_report(sk);
 }
