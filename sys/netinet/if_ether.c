@@ -381,7 +381,7 @@ retry:
 		int canceled;
 
 		LLE_ADDREF(la);
-		la->la_expire = time_second + V_arpt_down;
+		la->la_expire = time_second;
 		canceled = callout_reset(&la->la_timer, hz * V_arpt_down,
 		    arptimer, la);
 		if (canceled)
