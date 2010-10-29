@@ -17,7 +17,7 @@ SRCS =	addrtoname.c af.c checksum.c cpack.c gmpls.c oui.c gmt2local.c \
 	print-egp.c print-eap.c print-eigrp.c \
 	print-esp.c print-ether.c print-fddi.c print-forces.c print-fr.c \
 	print-gre.c print-hsrp.c print-icmp.c print-igmp.c \
-	print-igrp.c print-ip.c print-ipcomp.c print-ipfc.c \
+	print-igrp.c print-ip.c print-ipcomp.c print-ipfc.c print-ipnet.c \
 	print-ipx.c print-isakmp.c print-isoclns.c print-juniper.c print-krb.c \
 	print-l2tp.c print-lane.c print-ldp.c print-lldp.c print-llc.c \
         print-lmp.c print-lspping.c \
