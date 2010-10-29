@@ -93,6 +93,8 @@ struct ipw_param {
 
 /* end of ipw2100.c and ipw2200.c code */
 
+static int wpa_driver_ipw_set_auth_alg(void *priv, int auth_alg);
+
 static int ipw_ioctl(struct wpa_driver_ipw_data *drv,
 		     struct ipw_param *param, int len, int show_err)
 {
@@ -213,10 +215,11 @@ static int wpa_driver_ipw_set_wpa(void *priv, int enabled)
 }
 
 
-static int wpa_driver_ipw_set_key(void *priv, wpa_alg alg,
-				      const u8 *addr, int key_idx, int set_tx,
-				      const u8 *seq, size_t seq_len,
-				      const u8 *key, size_t key_len)
+static int wpa_driver_ipw_set_key(const char *ifname, void *priv,
+				  enum wpa_alg alg, const u8 *addr,
+				  int key_idx, int set_tx,
+				  const u8 *seq, size_t seq_len,
+				  const u8 *key, size_t key_len)
 {
 	struct wpa_driver_ipw_data *drv = priv;
 	struct ipw_param *param;
@@ -318,6 +321,11 @@ wpa_driver_ipw_associate(void *priv, struct wpa_driver_associate_params *params)
 	int ret = 0;
 	int unencrypted_eapol;
 
+	if (wpa_driver_ipw_set_auth_alg(drv, params->auth_alg) < 0)
+		ret = -1;
+	if (wpa_driver_ipw_set_drop_unencrypted(drv, params->drop_unencrypted)
+	    < 0)
+		ret = -1;
 	if (ipw_set_wpa_ie(drv, params->wpa_ie, params->wpa_ie_len) < 0)
 		ret = -1;
 	if (wpa_driver_wext_set_ssid(drv->wext, params->ssid,
@@ -347,11 +355,11 @@ static int wpa_driver_ipw_set_auth_alg(void *priv, int auth_alg)
 	struct wpa_driver_ipw_data *drv = priv;
 	int algs = 0;
 
-	if (auth_alg & AUTH_ALG_OPEN_SYSTEM)
+	if (auth_alg & WPA_AUTH_ALG_OPEN)
 		algs |= 1;
-	if (auth_alg & AUTH_ALG_SHARED_KEY)
+	if (auth_alg & WPA_AUTH_ALG_SHARED)
 		algs |= 2;
-	if (auth_alg & AUTH_ALG_LEAP)
+	if (auth_alg & WPA_AUTH_ALG_LEAP)
 		algs |= 4;
 	if (algs == 0)
 		algs = 1; /* at least one algorithm should be set */
@@ -375,10 +383,11 @@ static int wpa_driver_ipw_get_ssid(void *priv, u8 *ssid)
 }
 
 
-static int wpa_driver_ipw_scan(void *priv, const u8 *ssid, size_t ssid_len)
+static int wpa_driver_ipw_scan(void *priv,
+			       struct wpa_driver_scan_params *params)
 {
 	struct wpa_driver_ipw_data *drv = priv;
-	return wpa_driver_wext_scan(drv->wext, ssid, ssid_len);
+	return wpa_driver_wext_scan(drv->wext, params);
 }
 
 
@@ -428,6 +437,8 @@ static void * wpa_driver_ipw_init(void *ctx, const char *ifname)
 		return NULL;
 	}
 
+	wpa_driver_ipw_set_wpa(drv, 1);
+
 	return drv;
 }
 
@@ -435,6 +446,7 @@ static void * wpa_driver_ipw_init(void *ctx, const char *ifname)
 static void wpa_driver_ipw_deinit(void *priv)
 {
 	struct wpa_driver_ipw_data *drv = priv;
+	wpa_driver_ipw_set_wpa(drv, 0);
 	wpa_driver_wext_deinit(drv->wext);
 	close(drv->sock);
 	os_free(drv);
@@ -447,16 +459,13 @@ const struct wpa_driver_ops wpa_driver_ipw_ops = {
 	"or newer)",
 	.get_bssid = wpa_driver_ipw_get_bssid,
 	.get_ssid = wpa_driver_ipw_get_ssid,
-	.set_wpa = wpa_driver_ipw_set_wpa,
 	.set_key = wpa_driver_ipw_set_key,
 	.set_countermeasures = wpa_driver_ipw_set_countermeasures,
-	.set_drop_unencrypted = wpa_driver_ipw_set_drop_unencrypted,
-	.scan = wpa_driver_ipw_scan,
+	.scan2 = wpa_driver_ipw_scan,
 	.get_scan_results2 = wpa_driver_ipw_get_scan_results,
 	.deauthenticate = wpa_driver_ipw_deauthenticate,
 	.disassociate = wpa_driver_ipw_disassociate,
 	.associate = wpa_driver_ipw_associate,
-	.set_auth_alg = wpa_driver_ipw_set_auth_alg,
 	.init = wpa_driver_ipw_init,
 	.deinit = wpa_driver_ipw_deinit,
 	.set_operstate = wpa_driver_ipw_set_operstate,

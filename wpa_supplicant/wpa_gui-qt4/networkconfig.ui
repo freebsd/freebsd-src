@@ -57,7 +57,17 @@
        <widget class="QComboBox" name="authSelect" >
         <item>
          <property name="text" >
-          <string>Plaintext or static WEP</string>
+          <string>Plaintext (open / no authentication)</string>
+         </property>
+        </item>
+        <item>
+         <property name="text" >
+          <string>Static WEP (no authentication)</string>
+         </property>
+        </item>
+        <item>
+         <property name="text" >
+          <string>Static WEP (Shared Key authentication)</string>
          </property>
         </item>
         <item>

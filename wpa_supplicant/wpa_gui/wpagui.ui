@@ -414,7 +414,7 @@
     <include location="local" impldecl="in declaration">wpamsg.h</include>
     <include location="local" impldecl="in declaration">eventhistory.h</include>
     <include location="local" impldecl="in declaration">scanresults.h</include>
-    <include location="local" impldecl="in implementation">wpa_ctrl.h</include>
+    <include location="local" impldecl="in implementation">common/wpa_ctrl.h</include>
     <include location="global" impldecl="in implementation">dirent.h</include>
     <include location="global" impldecl="in implementation">qmessagebox.h</include>
     <include location="global" impldecl="in implementation">qapplication.h</include>

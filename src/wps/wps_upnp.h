@@ -25,29 +25,12 @@ enum upnp_wps_wlanevent_type {
 };
 
 struct upnp_wps_device_ctx {
-	struct wpabuf * (*rx_req_get_device_info)(
-		void *priv, struct upnp_wps_peer *peer);
-	struct wpabuf * (*rx_req_put_message)(
-		void *priv, struct upnp_wps_peer *peer,
-		const struct wpabuf *msg);
-	struct wpabuf * (*rx_req_get_ap_settings)(void *priv,
-						  const struct wpabuf *msg);
-	int (*rx_req_set_ap_settings)(void *priv, const struct wpabuf *msg);
-	int (*rx_req_del_ap_settings)(void *priv, const struct wpabuf *msg);
-	struct wpabuf * (*rx_req_get_sta_settings)(void *priv,
-						   const struct wpabuf *msg);
-	int (*rx_req_set_sta_settings)(void *priv, const struct wpabuf *msg);
-	int (*rx_req_del_sta_settings)(void *priv, const struct wpabuf *msg);
 	int (*rx_req_put_wlan_response)(
 		void *priv, enum upnp_wps_wlanevent_type ev_type,
 		const u8 *mac_addr, const struct wpabuf *msg,
 		enum wps_msg_type msg_type);
-	int (*rx_req_set_selected_registrar)(void *priv,
-					     const struct wpabuf *msg);
-	int (*rx_req_reboot_ap)(void *priv, const struct wpabuf *msg);
-	int (*rx_req_reset_ap)(void *priv, const struct wpabuf *msg);
-	int (*rx_req_reboot_sta)(void *priv, const struct wpabuf *msg);
-	int (*rx_req_reset_sta)(void *priv, const struct wpabuf *msg);
+
+	char *ap_pin;
 };
 
 struct upnp_wps_device_sm *
@@ -63,5 +46,6 @@ int upnp_wps_device_send_wlan_event(struct upnp_wps_device_sm *sm,
 				    enum upnp_wps_wlanevent_type ev_type,
 				    const struct wpabuf *msg);
 int upnp_wps_subscribers(struct upnp_wps_device_sm *sm);
+int upnp_wps_set_ap_pin(struct upnp_wps_device_sm *sm, const char *ap_pin);
 
 #endif /* WPS_UPNP_H */

@@ -16,6 +16,12 @@
 
 #include "common.h"
 
+#ifdef CONFIG_DEBUG_SYSLOG
+#include <syslog.h>
+
+static int wpa_debug_syslog = 0;
+#endif /* CONFIG_DEBUG_SYSLOG */
+
 
 #ifdef CONFIG_DEBUG_FILE
 static FILE *out_file = NULL;
@@ -45,6 +51,39 @@ void wpa_debug_print_timestamp(void)
 }
 
 
+#ifdef CONFIG_DEBUG_SYSLOG
+void wpa_debug_open_syslog(void)
+{
+	openlog("wpa_supplicant", LOG_PID | LOG_NDELAY, LOG_DAEMON);
+	wpa_debug_syslog++;
+}
+
+
+void wpa_debug_close_syslog(void)
+{
+	if (wpa_debug_syslog)
+		closelog();
+}
+
+
+static int syslog_priority(int level)
+{
+	switch (level) {
+	case MSG_MSGDUMP:
+	case MSG_DEBUG:
+		return LOG_DEBUG;
+	case MSG_INFO:
+		return LOG_NOTICE;
+	case MSG_WARNING:
+		return LOG_WARNING;
+	case MSG_ERROR:
+		return LOG_ERR;
+	}
+	return LOG_INFO;
+}
+#endif /* CONFIG_DEBUG_SYSLOG */
+
+
 /**
  * wpa_printf - conditional printf
  * @level: priority level (MSG_*) of the message
@@ -62,6 +101,11 @@ void wpa_printf(int level, const char *fmt, ...)
 
 	va_start(ap, fmt);
 	if (level >= wpa_debug_level) {
+#ifdef CONFIG_DEBUG_SYSLOG
+		if (wpa_debug_syslog) {
+			vsyslog(syslog_priority(level), fmt, ap);
+		} else {
+#endif /* CONFIG_DEBUG_SYSLOG */
 		wpa_debug_print_timestamp();
 #ifdef CONFIG_DEBUG_FILE
 		if (out_file) {
@@ -74,6 +118,9 @@ void wpa_printf(int level, const char *fmt, ...)
 #ifdef CONFIG_DEBUG_FILE
 		}
 #endif /* CONFIG_DEBUG_FILE */
+#ifdef CONFIG_DEBUG_SYSLOG
+		}
+#endif /* CONFIG_DEBUG_SYSLOG */
 	}
 	va_end(ap);
 }
@@ -343,6 +390,9 @@ void hostapd_logger(void *ctx, const u8 *addr, unsigned int module, int level,
 	va_end(ap);
 	if (hostapd_logger_cb)
 		hostapd_logger_cb(ctx, addr, module, level, buf, len);
+	else if (addr)
+		wpa_printf(MSG_DEBUG, "hostapd_logger: STA " MACSTR " - %s",
+			   MAC2STR(addr), buf);
 	else
 		wpa_printf(MSG_DEBUG, "hostapd_logger: %s", buf);
 	os_free(buf);

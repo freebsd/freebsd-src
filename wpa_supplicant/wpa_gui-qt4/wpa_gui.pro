@@ -1,5 +1,6 @@
 TEMPLATE	= app
 LANGUAGE	= C++
+TRANSLATIONS	= lang/wpa_gui_de.ts
 
 CONFIG	+= qt warn_on release
 
@@ -27,7 +28,7 @@ win32 {
   SOURCES += ../../src/utils/os_unix.c
 }
 
-INCLUDEPATH	+= . .. ../../src/utils ../../src/common
+INCLUDEPATH	+= . .. ../../src ../../src/utils
 
 HEADERS	+= wpamsg.h \
 	wpagui.h \
@@ -35,7 +36,9 @@ HEADERS	+= wpamsg.h \
 	scanresults.h \
 	userdatarequest.h \
 	networkconfig.h \
-	addinterface.h
+	addinterface.h \
+	peers.h \
+	stringquery.h
 
 SOURCES	+= main.cpp \
 	wpagui.cpp \
@@ -44,6 +47,8 @@ SOURCES	+= main.cpp \
 	userdatarequest.cpp \
 	networkconfig.cpp \
 	addinterface.cpp \
+	peers.cpp \
+	stringquery.cpp \
 	../../src/common/wpa_ctrl.c
 
 RESOURCES += icons.qrc
@@ -52,7 +57,8 @@ FORMS	= wpagui.ui \
 	eventhistory.ui \
 	scanresults.ui \
 	userdatarequest.ui \
-	networkconfig.ui
+	networkconfig.ui \
+	peers.ui
 
 
 unix {

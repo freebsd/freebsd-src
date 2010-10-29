@@ -18,8 +18,9 @@
 #include "crypto.h"
 
 
-void md4_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
+int md4_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
 {
+	return 0;
 }
 
 

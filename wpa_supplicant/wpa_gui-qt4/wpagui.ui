@@ -392,6 +392,7 @@
     <addaction name="fileEventHistoryAction" />
     <addaction name="fileSaveConfigAction" />
     <addaction name="actionWPS" />
+    <addaction name="actionPeers" />
     <addaction name="separator" />
     <addaction name="fileExitAction" />
    </widget>
@@ -500,6 +501,11 @@
     <string>&amp;Wi-Fi Protected Setup</string>
    </property>
   </action>
+  <action name="actionPeers" >
+   <property name="text" >
+    <string>&amp;Peers</string>
+   </property>
+  </action>
  </widget>
  <layoutdefault spacing="6" margin="11" />
  <pixmapfunction></pixmapfunction>
@@ -509,6 +515,7 @@
   <include location="local" >wpamsg.h</include>
   <include location="local" >eventhistory.h</include>
   <include location="local" >scanresults.h</include>
+  <include location="local" >peers.h</include>
  </includes>
  <resources>
   <include location="icons.qrc" />

@@ -14,7 +14,7 @@
 
 #include "userdatarequest.h"
 #include "wpagui.h"
-#include "wpa_ctrl.h"
+#include "common/wpa_ctrl.h"
 
 
 UserDataRequest::UserDataRequest(QWidget *parent, const char *, bool,
@@ -64,15 +64,15 @@ int UserDataRequest::setParams(WpaGui *_wpagui, const char *reqMsg)
 	networkid = atoi(pos);
 	queryInfo->setText(pos2);
 	if (strcmp(tmp, "PASSWORD") == 0) {
-		queryField->setText("Password: ");
+		queryField->setText(tr("Password: "));
 		queryEdit->setEchoMode(QLineEdit::Password);
 	} else if (strcmp(tmp, "NEW_PASSWORD") == 0) {
-		queryField->setText("New password: ");
+		queryField->setText(tr("New password: "));
 		queryEdit->setEchoMode(QLineEdit::Password);
 	} else if (strcmp(tmp, "IDENTITY") == 0)
-		queryField->setText("Identity: ");
+		queryField->setText(tr("Identity: "));
 	else if (strcmp(tmp, "PASSPHRASE") == 0) {
-		queryField->setText("Private key passphrase: ");
+		queryField->setText(tr("Private key passphrase: "));
 		queryEdit->setEchoMode(QLineEdit::Password);
 	} else
 		queryField->setText(field + ":");

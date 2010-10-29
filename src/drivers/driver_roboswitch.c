@@ -23,10 +23,6 @@
 #include "driver.h"
 #include "l2_packet/l2_packet.h"
 
-#ifndef ETH_P_EAPOL
-#define ETH_P_EAPOL		0x888e
-#endif
-
 #define ROBO_PHY_ADDR		0x1e	/* RoboSwitch PHY address */
 
 /* MII access registers */
@@ -183,10 +179,8 @@ static void wpa_driver_roboswitch_receive(void *priv, const u8 *src_addr,
 	struct wpa_driver_roboswitch_data *drv = priv;
 
 	if (len > 14 && WPA_GET_BE16(buf + 12) == ETH_P_EAPOL &&
-	    os_memcmp(buf, drv->own_addr, ETH_ALEN) == 0) {
-		wpa_supplicant_rx_eapol(drv->ctx, src_addr, buf + 14,
-					len - 14);
-	}
+	    os_memcmp(buf, drv->own_addr, ETH_ALEN) == 0)
+		drv_event_eapol_rx(drv->ctx, src_addr, buf + 14, len - 14);
 }
 
 
@@ -201,6 +195,15 @@ static int wpa_driver_roboswitch_get_bssid(void *priv, u8 *bssid)
 {
 	/* Report PAE group address as the "BSSID" for wired connection. */
 	os_memcpy(bssid, pae_group_addr, ETH_ALEN);
+	return 0;
+}
+
+
+static int wpa_driver_roboswitch_get_capa(void *priv,
+					  struct wpa_driver_capa *capa)
+{
+	os_memset(capa, 0, sizeof(*capa));
+	capa->flags = WPA_DRIVER_FLAGS_WIRED;
 	return 0;
 }
 
@@ -469,6 +472,7 @@ const struct wpa_driver_ops wpa_driver_roboswitch_ops = {
 	.desc = "wpa_supplicant roboswitch driver",
 	.get_ssid = wpa_driver_roboswitch_get_ssid,
 	.get_bssid = wpa_driver_roboswitch_get_bssid,
+	.get_capa = wpa_driver_roboswitch_get_capa,
 	.init = wpa_driver_roboswitch_init,
 	.deinit = wpa_driver_roboswitch_deinit,
 	.set_param = wpa_driver_roboswitch_set_param,

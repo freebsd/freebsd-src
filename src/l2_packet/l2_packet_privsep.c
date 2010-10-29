@@ -18,7 +18,7 @@
 #include "common.h"
 #include "eloop.h"
 #include "l2_packet.h"
-#include "privsep_commands.h"
+#include "common/privsep_commands.h"
 
 
 struct l2_packet_data {

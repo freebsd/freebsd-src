@@ -65,25 +65,19 @@ typedef void (*eloop_timeout_handler)(void *eloop_data, void *user_ctx);
 /**
  * eloop_signal_handler - eloop signal event callback type
  * @sig: Signal number
- * @eloop_ctx: Registered callback context data (global user_data from
- * eloop_init() call)
  * @signal_ctx: Registered callback context data (user_data from
  * eloop_register_signal(), eloop_register_signal_terminate(), or
  * eloop_register_signal_reconfig() call)
  */
-typedef void (*eloop_signal_handler)(int sig, void *eloop_ctx,
-				     void *signal_ctx);
+typedef void (*eloop_signal_handler)(int sig, void *signal_ctx);
 
 /**
  * eloop_init() - Initialize global event loop data
- * @user_data: Pointer to global data passed as eloop_ctx to signal handlers
  * Returns: 0 on success, -1 on failure
  *
- * This function must be called before any other eloop_* function. user_data
- * can be used to configure a global (to the process) pointer that will be
- * passed as eloop_ctx parameter to signal handlers.
+ * This function must be called before any other eloop_* function.
  */
-int eloop_init(void *user_data);
+int eloop_init(void);
 
 /**
  * eloop_register_read_sock - Register handler for read events
@@ -231,10 +225,6 @@ int eloop_is_timeout_registered(eloop_timeout_handler handler,
  * handler has returned. This means that the normal limits for sighandlers
  * (i.e., only "safe functions" allowed) do not apply for the registered
  * callback.
- *
- * Signals are 'global' events and there is no local eloop_data pointer like
- * with other handlers. The global user_data pointer registered with
- * eloop_init() will be used as eloop_ctx for signal handlers.
  */
 int eloop_register_signal(int sig, eloop_signal_handler handler,
 			  void *user_data);
@@ -250,10 +240,6 @@ int eloop_register_signal(int sig, eloop_signal_handler handler,
  * system signal handler has returned. This means that the normal limits for
  * sighandlers (i.e., only "safe functions" allowed) do not apply for the
  * registered callback.
- *
- * Signals are 'global' events and there is no local eloop_data pointer like
- * with other handlers. The global user_data pointer registered with
- * eloop_init() will be used as eloop_ctx for signal handlers.
  *
  * This function is a more portable version of eloop_register_signal() since
  * the knowledge of exact details of the signals is hidden in eloop
@@ -274,10 +260,6 @@ int eloop_register_signal_terminate(eloop_signal_handler handler,
  * after the system signal handler has returned. This means that the normal
  * limits for sighandlers (i.e., only "safe functions" allowed) do not apply
  * for the registered callback.
- *
- * Signals are 'global' events and there is no local eloop_data pointer like
- * with other handlers. The global user_data pointer registered with
- * eloop_init() will be used as eloop_ctx for signal handlers.
  *
  * This function is a more portable version of eloop_register_signal() since
  * the knowledge of exact details of the signals is hidden in eloop
@@ -330,11 +312,5 @@ int eloop_terminated(void);
  * Do a blocking wait for a single read socket.
  */
 void eloop_wait_for_read_sock(int sock);
-
-/**
- * eloop_get_user_data - Get global user data
- * Returns: user_data pointer that was registered with eloop_init()
- */
-void * eloop_get_user_data(void);
 
 #endif /* ELOOP_H */

@@ -20,7 +20,7 @@
 #include "common.h"
 #include "driver.h"
 #include "eloop.h"
-#include "ieee802_11_defs.h"
+#include "common/ieee802_11_defs.h"
 
 #include "MobileApple80211.h"
 

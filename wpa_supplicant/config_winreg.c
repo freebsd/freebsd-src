@@ -249,11 +249,18 @@ static int wpa_config_read_global(struct wpa_config *config, HKEY hk)
 		hk, TEXT("serial_number"));
 	config->device_type = wpa_config_read_reg_string(
 		hk, TEXT("device_type"));
+	config->config_methods = wpa_config_read_reg_string(
+		hk, TEXT("config_methods"));
 	if (wpa_config_read_global_os_version(config, hk))
 		errors++;
 	wpa_config_read_reg_dword(hk, TEXT("wps_cred_processing"),
 				  &config->wps_cred_processing);
 #endif /* CONFIG_WPS */
+
+	wpa_config_read_reg_dword(hk, TEXT("bss_max_count"),
+				  (int *) &config->bss_max_count);
+	wpa_config_read_reg_dword(hk, TEXT("filter_ssids"),
+				  &config->filter_ssids);
 
 	return errors ? -1 : 0;
 }
@@ -569,6 +576,8 @@ static int wpa_config_write_global(struct wpa_config *config, HKEY hk)
 	wpa_config_write_reg_string(hk, "serial_number",
 				    config->serial_number);
 	wpa_config_write_reg_string(hk, "device_type", config->device_type);
+	wpa_config_write_reg_string(hk, "config_methods",
+				    config->config_methods);
 	if (WPA_GET_BE32(config->os_version)) {
 		char vbuf[10];
 		os_snprintf(vbuf, sizeof(vbuf), "%08x",
@@ -578,6 +587,12 @@ static int wpa_config_write_global(struct wpa_config *config, HKEY hk)
 	wpa_config_write_reg_dword(hk, TEXT("wps_cred_processing"),
 				   config->wps_cred_processing, 0);
 #endif /* CONFIG_WPS */
+
+	wpa_config_write_reg_dword(hk, TEXT("bss_max_count"),
+				   config->bss_max_count,
+				   DEFAULT_BSS_MAX_COUNT);
+	wpa_config_write_reg_dword(hk, TEXT("filter_ssids"),
+				   config->filter_ssids, 0);
 
 	return 0;
 }

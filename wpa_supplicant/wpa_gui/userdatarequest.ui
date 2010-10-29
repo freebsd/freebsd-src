@@ -140,7 +140,7 @@
     </connection>
 </connections>
 <includes>
-    <include location="local" impldecl="in implementation">wpa_ctrl.h</include>
+    <include location="local" impldecl="in implementation">common/wpa_ctrl.h</include>
     <include location="local" impldecl="in implementation">wpagui.h</include>
     <include location="local" impldecl="in implementation">userdatarequest.ui.h</include>
 </includes>
