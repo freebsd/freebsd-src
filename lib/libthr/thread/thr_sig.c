@@ -317,14 +317,11 @@ check_deferred_signal(struct pthread *curthread)
 	ucontext_t uc;
 	struct sigaction act;
 	siginfo_t info;
-	volatile int first;
 
 	if (__predict_true(curthread->deferred_siginfo.si_signo == 0))
 		return;
-	first = 1;
 	getcontext(&uc);
-	if (first) {
-		first = 0;
+	if (curthread->deferred_siginfo.si_signo == 0) {
 		act = curthread->deferred_sigact;
 		uc.uc_sigmask = curthread->deferred_sigmask;
 		memcpy(&info, &curthread->deferred_siginfo, sizeof(siginfo_t));
