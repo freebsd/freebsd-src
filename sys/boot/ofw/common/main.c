@@ -47,13 +47,17 @@ static char bootargs[128];
 
 #define	HEAP_SIZE	0x80000
 
+#define OF_puts(fd, text) OF_write(fd, text, strlen(text))
+
 void
 init_heap(void)
 {
 	void	*base;
+	ihandle_t stdout;
 
 	if ((base = ofw_alloc_heap(HEAP_SIZE)) == (void *)0xffffffff) {
-		printf("Heap memory claim failed!\n");
+		OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
+		OF_puts(stdout, "Heap memory claim failed!\n");
 		OF_enter();
 	}
 
