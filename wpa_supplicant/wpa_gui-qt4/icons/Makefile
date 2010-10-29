@@ -1,27 +1,23 @@
 #!/usr/bin/make -f
 
-NAME  := wpa_gui
-SVG   := $(NAME).svg
+NAMES := wpa_gui ap laptop
 SIZES := 16x16 22x22 32x32 48x48 64x64 128x128
-ICONS := $(addsuffix .png,$(SIZES))
-ICONS += $(addsuffix .xpm,$(NAME) $(NAME)-16)
+ICONS := $(addsuffix .png, $(foreach name, $(NAMES), $(foreach size, $(SIZES), $(size)/$(name))))
+ICONS += $(addsuffix .xpm, $(NAMES))
 
 all: $(ICONS)
 
 %.png:
-	mkdir -p hicolor/$(@:.png=)/apps/
-	inkscape $(SVG) --without-gui \
-		--export-width=$(word 1,$(subst x, ,$(@:.png=)))  \
-	        --export-height=$(word 2,$(subst x, ,$(@:.png=))) \
-		--export-png=hicolor/$(@:.png=)/apps/$(NAME).png
+	mkdir -p hicolor/$(word 1, $(subst /, ,$(@)))/apps/
+	inkscape $(subst .png,.svg, $(word 2, $(subst /, , $(@)))) --without-gui \
+		--export-width=$(word 1, $(subst x, , $(@)))  \
+	        --export-height=$(word 2, $(subst x, , $(subst /, , $(@)))) \
+		--export-png=hicolor/$(word 1, $(subst /, ,$(@)))/apps/$(word 2, $(subst /, , $@))
 
-$(NAME).xpm:
+%.xpm:
 	mkdir -p pixmaps/
-	convert hicolor/32x32/apps/$(NAME).png pixmaps/$@
-
-$(NAME)-16.xpm:
-	mkdir -p pixmaps/
-	convert hicolor/16x16/apps/$(NAME).png pixmaps/$@
+	convert hicolor/16x16/apps/$(@:.xpm=.png) pixmaps/$(@:.xpm=-16.xpm)
+	convert hicolor/32x32/apps/$(@:.xpm=.png) pixmaps/$@
 
 clean:
 	$(RM) -r pixmaps hicolor

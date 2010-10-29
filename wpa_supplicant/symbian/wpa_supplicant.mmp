@@ -5,7 +5,7 @@ TARGETTYPE	exe
 
 SYSTEMINCLUDE \epoc32\include \epoc32\include\variant \epoc32\include\ecom \epoc32\include\libc
 
-USERINCLUDE	.. ..\..\src ..\..\src\utils ..\..\src\common ..\..\src\crypto ..\..\src\rsn_supp
+USERINCLUDE	.. ..\..\src ..\..\src\utils
 
 SOURCEPATH	..
 SOURCE		main_symbian.cpp
@@ -21,7 +21,7 @@ SOURCE		wpa_common.c
 SOURCEPATH	..\..\src\utils
 SOURCE		os_none.c common.c wpa_debug.c eloop_none.c base64.c
 SOURCEPATH	..\..\src\crypto
-SOURCE		sha1.c md5.c rc4.c md4.c des.c aes_wrap.c aes.c ms_funcs.c
+SOURCE		sha1.c md5.c rc4.c des.c aes-cbc.c aes-ctr.c aes-eax.c aes-encblock.c aes-omac1.c aes-unwrap.c aes-wrap.c aes.c ms_funcs.c
 SOURCE		tls_internal.c crypto_internal.c
 SOURCEPATH	..\..\src\tls
 SOURCE		asn1.c bignum.c rsa.c x509v3.c tlsv1_client.c tlsv1_common.c

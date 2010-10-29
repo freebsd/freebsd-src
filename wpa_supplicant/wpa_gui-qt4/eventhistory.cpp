@@ -59,9 +59,9 @@ QVariant EventListModel::headerData(int section, Qt::Orientation orientation,
 	if (orientation == Qt::Horizontal) {
 		switch (section) {
 		case 0:
-			return QString("Timestamp");
+			return QString(tr("Timestamp"));
 		case 1:
-			return QString("Message");
+			return QString(tr("Message"));
 		default:
 			return QVariant();
 		}

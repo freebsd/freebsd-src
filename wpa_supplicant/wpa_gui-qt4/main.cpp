@@ -16,6 +16,8 @@
 #include <winsock.h>
 #endif /* CONFIG_NATIVE_WINDOWS */
 #include <QApplication>
+#include <QtCore/QLibraryInfo>
+#include <QtCore/QTranslator>
 #include "wpagui.h"
 
 
@@ -47,8 +49,18 @@ void WpaGuiApp::saveState(QSessionManager &manager)
 int main(int argc, char *argv[])
 {
 	WpaGuiApp app(argc, argv);
-	WpaGui w(&app);
+	QTranslator translator;
+	QString locale;
+	QString resourceDir;
 	int ret;
+
+	locale = QLocale::system().name();
+	resourceDir = QLibraryInfo::location(QLibraryInfo::TranslationsPath);
+	if (!translator.load("wpa_gui_" + locale, resourceDir))
+		translator.load("wpa_gui_" + locale, "lang");
+	app.installTranslator(&translator);
+
+	WpaGui w(&app);
 
 #ifdef CONFIG_NATIVE_WINDOWS
 	WSADATA wsaData;

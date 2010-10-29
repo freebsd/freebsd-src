@@ -54,6 +54,7 @@
 #define RT_OID_WPA_SUPPLICANT_SUPPORT               0x0621  // for trigger driver enable/disable wpa_supplicant support 
 #define RT_OID_WE_VERSION_COMPILED                  0x0622
 #define RT_OID_NEW_DRIVER                           0x0623
+#define RT_OID_WPS_PROBE_REQ_IE						0x0625
 
 #define PACKED  __attribute__ ((packed))
 
@@ -65,7 +66,7 @@
 #define	RT_ASSOCINFO_EVENT_FLAG                     0x0105
 #define RT_PMKIDCAND_FLAG                           0x0106
 #define RT_INTERFACE_DOWN                           0x0107
-#define RT_REPORT_AP_INFO                           0x0108
+#define RT_INTERFACE_UP                           	0x0108
 
 //
 // IEEE 802.11 Structures and definitions

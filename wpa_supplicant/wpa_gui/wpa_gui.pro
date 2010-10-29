@@ -19,7 +19,7 @@ win32 {
   SOURCES += ../../src/utils/os_unix.c
 }
 
-INCLUDEPATH	+= . .. ../../src/utils ../../src/common
+INCLUDEPATH	+= . .. ../../src ../../src/utils
 
 HEADERS	+= wpamsg.h
 

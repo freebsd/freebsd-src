@@ -17,7 +17,7 @@
 
 #include "os.h"
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__GLIBC__)
 #include <endian.h>
 #include <byteswap.h>
 #endif /* __linux__ */
@@ -314,6 +314,24 @@ static inline unsigned int wpa_swap_32(unsigned int v)
 #ifndef ETH_ALEN
 #define ETH_ALEN 6
 #endif
+#ifndef IFNAMSIZ
+#define IFNAMSIZ 16
+#endif
+#ifndef ETH_P_ALL
+#define ETH_P_ALL 0x0003
+#endif
+#ifndef ETH_P_PAE
+#define ETH_P_PAE 0x888E /* Port Access Entity (IEEE 802.1X) */
+#endif /* ETH_P_PAE */
+#ifndef ETH_P_EAPOL
+#define ETH_P_EAPOL ETH_P_PAE
+#endif /* ETH_P_EAPOL */
+#ifndef ETH_P_RSN_PREAUTH
+#define ETH_P_RSN_PREAUTH 0x88c7
+#endif /* ETH_P_RSN_PREAUTH */
+#ifndef ETH_P_RRB
+#define ETH_P_RRB 0x890D
+#endif /* ETH_P_RRB */
 
 
 #ifdef __GNUC__
@@ -418,6 +436,7 @@ typedef u64 __bitwise le64;
 #endif /* __must_check */
 
 int hwaddr_aton(const char *txt, u8 *addr);
+int hwaddr_aton2(const char *txt, u8 *addr);
 int hexstr2bin(const char *hex, u8 *buf, size_t len);
 void inc_byte_array(u8 *counter, size_t len);
 void wpa_get_ntp_timestamp(u8 *buf);

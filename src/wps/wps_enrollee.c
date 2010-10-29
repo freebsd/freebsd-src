@@ -15,7 +15,8 @@
 #include "includes.h"
 
 #include "common.h"
-#include "sha256.h"
+#include "crypto/crypto.h"
+#include "crypto/sha256.h"
 #include "wps_i.h"
 #include "wps_dev_attr.h"
 
@@ -118,7 +119,6 @@ static int wps_build_e_snonce2(struct wps_data *wps, struct wpabuf *msg)
 static struct wpabuf * wps_build_m1(struct wps_data *wps)
 {
 	struct wpabuf *msg;
-	u16 methods;
 
 	if (os_get_random(wps->nonce_e, WPS_NONCE_LEN) < 0)
 		return NULL;
@@ -130,10 +130,6 @@ static struct wpabuf * wps_build_m1(struct wps_data *wps)
 	if (msg == NULL)
 		return NULL;
 
-	methods = WPS_CONFIG_LABEL | WPS_CONFIG_DISPLAY | WPS_CONFIG_KEYPAD;
-	if (wps->pbc)
-		methods |= WPS_CONFIG_PUSHBUTTON;
-
 	if (wps_build_version(msg) ||
 	    wps_build_msg_type(msg, WPS_M1) ||
 	    wps_build_uuid_e(msg, wps->uuid_e) ||
@@ -143,7 +139,7 @@ static struct wpabuf * wps_build_m1(struct wps_data *wps)
 	    wps_build_auth_type_flags(wps, msg) ||
 	    wps_build_encr_type_flags(wps, msg) ||
 	    wps_build_conn_type_flags(wps, msg) ||
-	    wps_build_config_methods(msg, methods) ||
+	    wps_build_config_methods(msg, wps->wps->config_methods) ||
 	    wps_build_wps_state(wps, msg) ||
 	    wps_build_device_attrs(&wps->wps->dev, msg) ||
 	    wps_build_rf_bands(&wps->wps->dev, msg) ||
@@ -320,6 +316,16 @@ static struct wpabuf * wps_build_m7(struct wps_data *wps)
 		return NULL;
 	}
 	wpabuf_free(plain);
+
+	if (wps->wps->ap && wps->wps->registrar) {
+		/*
+		 * If the Registrar is only learning our current configuration,
+		 * it may not continue protocol run to successful completion.
+		 * Store information here to make sure it remains available.
+		 */
+		wps_device_store(wps->wps->registrar, &wps->peer_dev,
+				 wps->uuid_r);
+	}
 
 	wps->state = RECV_M8;
 	return msg;
@@ -512,6 +518,23 @@ static int wps_process_pubkey(struct wps_data *wps, const u8 *pk,
 		wpa_printf(MSG_DEBUG, "WPS: No Public Key received");
 		return -1;
 	}
+
+#ifdef CONFIG_WPS_OOB
+	if (wps->dev_pw_id != DEV_PW_DEFAULT &&
+	    wps->wps->oob_conf.pubkey_hash) {
+		const u8 *addr[1];
+		u8 hash[WPS_HASH_LEN];
+
+		addr[0] = pk;
+		sha256_vector(1, addr, &pk_len, hash);
+		if (os_memcmp(hash,
+			      wpabuf_head(wps->wps->oob_conf.pubkey_hash),
+			      WPS_OOB_PUBKEY_HASH_LEN) != 0) {
+			wpa_printf(MSG_ERROR, "WPS: Public Key hash error");
+			return -1;
+		}
+	}
+#endif /* CONFIG_WPS_OOB */
 
 	wpabuf_free(wps->dh_pubkey_r);
 	wps->dh_pubkey_r = wpabuf_alloc_copy(pk, pk_len);
@@ -751,17 +774,23 @@ static enum wps_process_res wps_process_m2(struct wps_data *wps,
 
 	if (wps_process_registrar_nonce(wps, attr->registrar_nonce) ||
 	    wps_process_enrollee_nonce(wps, attr->enrollee_nonce) ||
-	    wps_process_uuid_r(wps, attr->uuid_r) ||
-	    wps_process_pubkey(wps, attr->public_key, attr->public_key_len) ||
-	    wps_process_authenticator(wps, attr->authenticator, msg)) {
+	    wps_process_uuid_r(wps, attr->uuid_r)) {
 		wps->state = SEND_WSC_NACK;
 		return WPS_CONTINUE;
 	}
 
-	if (wps->wps->ap && wps->wps->ap_setup_locked) {
+	if (wps->wps->ap &&
+	    (wps->wps->ap_setup_locked || wps->dev_password == NULL)) {
 		wpa_printf(MSG_DEBUG, "WPS: AP Setup is locked - refuse "
 			   "registration of a new Registrar");
 		wps->config_error = WPS_CFG_SETUP_LOCKED;
+		wps->state = SEND_WSC_NACK;
+		return WPS_CONTINUE;
+	}
+
+	if (wps_process_pubkey(wps, attr->public_key, attr->public_key_len) ||
+	    wps_process_authenticator(wps, attr->authenticator, msg) ||
+	    wps_process_device_attrs(&wps->peer_dev, attr)) {
 		wps->state = SEND_WSC_NACK;
 		return WPS_CONTINUE;
 	}

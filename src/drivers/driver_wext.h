@@ -19,7 +19,7 @@
 
 struct wpa_driver_wext_data {
 	void *ctx;
-	int event_sock;
+	struct netlink_data *netlink;
 	int ioctl_sock;
 	int mlme_sock;
 	char ifname[IFNAMSIZ + 1];
@@ -43,21 +43,21 @@ struct wpa_driver_wext_data {
 	char mlmedev[IFNAMSIZ + 1];
 
 	int scan_complete_events;
+
+	int cfg80211; /* whether driver is using cfg80211 */
 };
 
-int wpa_driver_wext_get_ifflags(struct wpa_driver_wext_data *drv, int *flags);
-int wpa_driver_wext_set_ifflags(struct wpa_driver_wext_data *drv, int flags);
 int wpa_driver_wext_get_bssid(void *priv, u8 *bssid);
 int wpa_driver_wext_set_bssid(void *priv, const u8 *bssid);
 int wpa_driver_wext_get_ssid(void *priv, u8 *ssid);
 int wpa_driver_wext_set_ssid(void *priv, const u8 *ssid, size_t ssid_len);
 int wpa_driver_wext_set_freq(void *priv, int freq);
 int wpa_driver_wext_set_mode(void *priv, int mode);
-int wpa_driver_wext_set_key(void *priv, wpa_alg alg,
+int wpa_driver_wext_set_key(const char *ifname, void *priv, enum wpa_alg alg,
 			    const u8 *addr, int key_idx,
 			    int set_tx, const u8 *seq, size_t seq_len,
 			    const u8 *key, size_t key_len);
-int wpa_driver_wext_scan(void *priv, const u8 *ssid, size_t ssid_len);
+int wpa_driver_wext_scan(void *priv, struct wpa_driver_scan_params *params);
 struct wpa_scan_results * wpa_driver_wext_get_scan_results(void *priv);
 
 void wpa_driver_wext_scan_timeout(void *eloop_ctx, void *timeout_ctx);

@@ -20,6 +20,7 @@
 #include "common.h"
 #include "driver.h"
 #include "eloop.h"
+#include "common/ieee802_11_defs.h"
 
 #include "Apple80211.h"
 
@@ -111,10 +112,12 @@ static void wpa_driver_osx_scan_timeout(void *eloop_ctx, void *timeout_ctx)
 }
 
 
-static int wpa_driver_osx_scan(void *priv, const u8 *ssid, size_t ssid_len)
+static int wpa_driver_osx_scan(void *priv, struct wpa_driver_scan_params *params)
 {
 	struct wpa_driver_osx_data *drv = priv;
 	WirelessError err;
+	const u8 *ssid = params->ssids[0].ssid;
+	size_t ssid_len = params->ssids[0].ssid_len;
 
 	if (drv->scan_results) {
 		CFRelease(drv->scan_results);
@@ -156,43 +159,66 @@ static int wpa_driver_osx_scan(void *priv, const u8 *ssid, size_t ssid_len)
 }
 
 
-static int wpa_driver_osx_get_scan_results(void *priv,
-					   struct wpa_scan_result *results,
-					   size_t max_size)
+static void wpa_driver_osx_add_scan_entry(struct wpa_scan_results *res,
+					  WirelessNetworkInfo *info)
+{
+	struct wpa_scan_res *result, **tmp;
+	size_t extra_len;
+	u8 *pos;
+
+	extra_len = 2 + info->ssid_len;
+
+	result = os_zalloc(sizeof(*result) + extra_len);
+	if (result == NULL)
+		return;
+	os_memcpy(result->bssid, info->bssid, ETH_ALEN);
+	result->freq = 2407 + info->channel * 5;
+	//result->beacon_int =;
+	result->caps = info->capability;
+	//result->qual = info->signal;
+	result->noise = info->noise;
+
+	pos = (u8 *)(result + 1);
+
+	*pos++ = WLAN_EID_SSID;
+	*pos++ = info->ssid_len;
+	os_memcpy(pos, info->ssid, info->ssid_len);
+	pos += info->ssid_len;
+
+	result->ie_len = pos - (u8 *)(result + 1);
+
+	tmp = os_realloc(res->res,
+			 (res->num + 1) * sizeof(struct wpa_scan_res *));
+	if (tmp == NULL) {
+		os_free(result);
+		return;
+	}
+	tmp[res->num++] = result;
+	res->res = tmp;
+}
+
+
+static struct wpa_scan_results * wpa_driver_osx_get_scan_results(void *priv)
 {
 	struct wpa_driver_osx_data *drv = priv;
+	struct wpa_scan_results *res;
 	size_t i, num;
 
 	if (drv->scan_results == NULL)
 		return 0;
 
 	num = CFArrayGetCount(drv->scan_results);
-	if (num > max_size)
-		num = max_size;
-	os_memset(results, 0, num * sizeof(struct wpa_scan_result));
 
-	for (i = 0; i < num; i++) {
-		struct wpa_scan_result *res = &results[i];
-		WirelessNetworkInfo *info;
-		info = (WirelessNetworkInfo *)
+	res = os_zalloc(sizeof(*res));
+	if (res == NULL)
+		return NULL;
+
+	for (i = 0; i < num; i++)
+		wpa_driver_osx_add_scan_entry(res, (WirelessNetworkInfo *)
 			CFDataGetBytePtr(CFArrayGetValueAtIndex(
-						 drv->scan_results, i));
+				drv->scan_results, i)));
 
-		os_memcpy(res->bssid, info->bssid, ETH_ALEN);
-		if (info->ssid_len > 32) {
-			wpa_printf(MSG_DEBUG, "OSX: Invalid SSID length %d in "
-				   "scan results", (int) info->ssid_len);
-			continue;
-		}
-		os_memcpy(res->ssid, info->ssid, info->ssid_len);
-		res->ssid_len = info->ssid_len;
-		res->caps = info->capability;
-		res->freq = 2407 + info->channel * 5;
-		res->level = info->signal;
-		res->noise = info->noise;
-	}
-
-	return num;
+	return res;
 }
 
 
@@ -277,7 +303,8 @@ static int wpa_driver_osx_associate(void *priv,
 }
 
 
-static int wpa_driver_osx_set_key(void *priv, wpa_alg alg, const u8 *addr,
+static int wpa_driver_osx_set_key(const char *ifname, void *priv,
+				  enum wpa_alg alg, const u8 *addr,
 				  int key_idx, int set_tx, const u8 *seq,
 				  size_t seq_len, const u8 *key,
 				  size_t key_len)
@@ -424,8 +451,8 @@ const struct wpa_driver_ops wpa_driver_osx_ops = {
 	.get_bssid = wpa_driver_osx_get_bssid,
 	.init = wpa_driver_osx_init,
 	.deinit = wpa_driver_osx_deinit,
-	.scan = wpa_driver_osx_scan,
-	.get_scan_results = wpa_driver_osx_get_scan_results,
+	.scan2 = wpa_driver_osx_scan,
+	.get_scan_results2 = wpa_driver_osx_get_scan_results,
 	.associate = wpa_driver_osx_associate,
 	.set_key = wpa_driver_osx_set_key,
 	.get_capa = wpa_driver_osx_get_capa,

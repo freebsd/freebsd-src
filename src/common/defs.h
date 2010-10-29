@@ -77,18 +77,44 @@ static inline int wpa_key_mgmt_sha256(int akm)
 #define WPA_AUTH_ALG_OPEN BIT(0)
 #define WPA_AUTH_ALG_SHARED BIT(1)
 #define WPA_AUTH_ALG_LEAP BIT(2)
+#define WPA_AUTH_ALG_FT BIT(3)
 
 
-typedef enum { WPA_ALG_NONE, WPA_ALG_WEP, WPA_ALG_TKIP, WPA_ALG_CCMP,
-	       WPA_ALG_IGTK, WPA_ALG_PMK } wpa_alg;
-typedef enum { CIPHER_NONE, CIPHER_WEP40, CIPHER_TKIP, CIPHER_CCMP,
-	       CIPHER_WEP104 } wpa_cipher;
-typedef enum { KEY_MGMT_802_1X, KEY_MGMT_PSK, KEY_MGMT_NONE,
-	       KEY_MGMT_802_1X_NO_WPA, KEY_MGMT_WPA_NONE,
-	       KEY_MGMT_FT_802_1X, KEY_MGMT_FT_PSK,
-	       KEY_MGMT_802_1X_SHA256, KEY_MGMT_PSK_SHA256,
-	       KEY_MGMT_WPS
-} wpa_key_mgmt;
+enum wpa_alg {
+	WPA_ALG_NONE,
+	WPA_ALG_WEP,
+	WPA_ALG_TKIP,
+	WPA_ALG_CCMP,
+	WPA_ALG_IGTK,
+	WPA_ALG_PMK
+};
+
+/**
+ * enum wpa_cipher - Cipher suites
+ */
+enum wpa_cipher {
+	CIPHER_NONE,
+	CIPHER_WEP40,
+	CIPHER_TKIP,
+	CIPHER_CCMP,
+	CIPHER_WEP104
+};
+
+/**
+ * enum wpa_key_mgmt - Key management suites
+ */
+enum wpa_key_mgmt {
+	KEY_MGMT_802_1X,
+	KEY_MGMT_PSK,
+	KEY_MGMT_NONE,
+	KEY_MGMT_802_1X_NO_WPA,
+	KEY_MGMT_WPA_NONE,
+	KEY_MGMT_FT_802_1X,
+	KEY_MGMT_FT_PSK,
+	KEY_MGMT_802_1X_SHA256,
+	KEY_MGMT_PSK_SHA256,
+	KEY_MGMT_WPS
+};
 
 /**
  * enum wpa_states - wpa_supplicant state
@@ -100,7 +126,7 @@ typedef enum { KEY_MGMT_802_1X, KEY_MGMT_PSK, KEY_MGMT_NONE,
  * wrapper functions wpa_sm_get_state() and wpa_sm_set_state() should be used
  * to access the state variable.
  */
-typedef enum {
+enum wpa_states {
 	/**
 	 * WPA_DISCONNECTED - Disconnected state
 	 *
@@ -127,6 +153,16 @@ typedef enum {
 	 * network.
 	 */
 	WPA_SCANNING,
+
+	/**
+	 * WPA_AUTHENTICATING - Trying to authenticate with a BSS/SSID
+	 *
+	 * This state is entered when wpa_supplicant has found a suitable BSS
+	 * to authenticate with and the driver is configured to try to
+	 * authenticate with this BSS. This state is used only with drivers
+	 * that use wpa_supplicant as the SME.
+	 */
+	WPA_AUTHENTICATING,
 
 	/**
 	 * WPA_ASSOCIATING - Trying to associate with a BSS/SSID
@@ -186,7 +222,7 @@ typedef enum {
 	 * fully configured.
 	 */
 	WPA_COMPLETED
-} wpa_states;
+};
 
 #define MLME_SETPROTECTION_PROTECT_TYPE_NONE 0
 #define MLME_SETPROTECTION_PROTECT_TYPE_RX 1
@@ -195,5 +231,25 @@ typedef enum {
 
 #define MLME_SETPROTECTION_KEY_TYPE_GROUP 0
 #define MLME_SETPROTECTION_KEY_TYPE_PAIRWISE 1
+
+
+/**
+ * enum mfp_options - Management frame protection (IEEE 802.11w) options
+ */
+enum mfp_options {
+	NO_MGMT_FRAME_PROTECTION = 0,
+	MGMT_FRAME_PROTECTION_OPTIONAL = 1,
+	MGMT_FRAME_PROTECTION_REQUIRED = 2
+};
+
+/**
+ * enum hostapd_hw_mode - Hardware mode
+ */
+enum hostapd_hw_mode {
+	HOSTAPD_MODE_IEEE80211B,
+	HOSTAPD_MODE_IEEE80211G,
+	HOSTAPD_MODE_IEEE80211A,
+	NUM_HOSTAPD_MODES
+};
 
 #endif /* DEFS_H */

@@ -40,7 +40,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\..\..\src\utils;..\..\..\src\common"
+				AdditionalIncludeDirectories="..\..\..\src;..\..\..\src\utils"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;CONFIG_WIN32_DEFAULTS"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
@@ -118,7 +118,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="..\..\..\src\utils;..\..\..\src\common"
+				AdditionalIncludeDirectories="..\..\..\src;..\..\..\src\utils"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE;CONFIG_WIN32_DEFAULTS"
 				RuntimeLibrary="2"
 				UsePrecompiledHeader="0"
