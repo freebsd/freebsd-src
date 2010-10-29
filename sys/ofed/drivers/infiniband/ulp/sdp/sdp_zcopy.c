@@ -46,10 +46,10 @@
 #include <linux/delay.h>
 #include "sdp.h"
 
-static int sdp_post_srcavail(struct sock *sk, struct tx_srcavail_state *tx_sa)
+static int sdp_post_srcavail(struct socket *sk, struct tx_srcavail_state *tx_sa)
 {
 	struct sdp_sock *ssk = sdp_sk(sk);
-	struct sk_buff *skb;
+	struct mbuf *mb;
 	int payload_len;
 	struct page *payload_pg;
 	int off, len;
@@ -70,14 +70,14 @@ static int sdp_post_srcavail(struct sock *sk, struct tx_srcavail_state *tx_sa)
 
 	tx_sa->bytes_sent = tx_sa->bytes_acked = 0;
 
-	skb = sdp_alloc_skb_srcavail(sk, len, tx_sa->fmr->fmr->lkey, off, 0);
-	if (!skb) {
+	mb = sdp_alloc_mb_srcavail(sk, len, tx_sa->fmr->fmr->lkey, off, 0);
+	if (!mb) {
 		return -ENOMEM;
 	}
 	sdp_dbg_data(sk, "sending SrcAvail\n");
 		
-	TX_SRCAVAIL_STATE(skb) = tx_sa; /* tx_sa is hanged on the skb 
-					 * but continue to live after skb is freed */
+	TX_SRCAVAIL_STATE(mb) = tx_sa; /* tx_sa is hanged on the mb 
+					 * but continue to live after mb is freed */
 	ssk->tx_sa = tx_sa;
 
 	/* must have payload inlined in SrcAvail packet in combined mode */
@@ -89,37 +89,37 @@ static int sdp_post_srcavail(struct sock *sk, struct tx_srcavail_state *tx_sa)
 	sdp_dbg_data(sk, "payload: off: 0x%x, pg: %p, len: 0x%x\n",
 		off, payload_pg, payload_len);
 
-	skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
+	mb_fill_page_desc(mb, mb_shinfo(mb)->nr_frags,
 			payload_pg, off, payload_len);
 
-	skb->len             += payload_len;
-	skb->data_len         = payload_len;
-	skb->truesize        += payload_len;
+	mb->len             += payload_len;
+	mb->data_len         = payload_len;
+	mb->truesize        += payload_len;
 //	sk->sk_wmem_queued   += payload_len;
 //	sk->sk_forward_alloc -= payload_len;
 
-	skb_entail(sk, ssk, skb);
+	mb_entail(sk, ssk, mb);
 	
 	ssk->write_seq += payload_len;
-	SDP_SKB_CB(skb)->end_seq += payload_len;
+	SDP_SKB_CB(mb)->end_seq += payload_len;
 
 	tx_sa->bytes_sent = tx_sa->umem->length;
 	tx_sa->bytes_acked = payload_len;
 
-	/* TODO: pushing the skb into the tx_queue should be enough */
+	/* TODO: pushing the mb into the tx_queue should be enough */
 
 	return 0;
 }
 
-static int sdp_post_srcavail_cancel(struct sock *sk)
+static int sdp_post_srcavail_cancel(struct socket *sk)
 {
 	struct sdp_sock *ssk = sdp_sk(sk);
-	struct sk_buff *skb;
+	struct mbuf *mb;
 
 	sdp_dbg_data(&ssk->isk.sk, "Posting srcavail cancel\n");
 
-	skb = sdp_alloc_skb_srcavail_cancel(sk, 0);
-	skb_entail(sk, ssk, skb);
+	mb = sdp_alloc_mb_srcavail_cancel(sk, 0);
+	mb_entail(sk, ssk, mb);
 
 	sdp_post_sends(ssk, 0);
 
@@ -133,7 +133,7 @@ void srcavail_cancel_timeout(struct work_struct *work)
 {
 	struct sdp_sock *ssk =
 		container_of(work, struct sdp_sock, srcavail_cancel_work.work);
-	struct sock *sk = &ssk->isk.sk;
+	struct socket *sk = &ssk->isk.sk;
 
 	lock_sock(sk);
 
@@ -148,7 +148,7 @@ void srcavail_cancel_timeout(struct work_struct *work)
 static int sdp_wait_rdmardcompl(struct sdp_sock *ssk, long *timeo_p,
 		int ignore_signals)
 {
-	struct sock *sk = &ssk->isk.sk;
+	struct socket *sk = &ssk->isk.sk;
 	int err = 0;
 	long vm_wait = 0;
 	long current_timeo = *timeo_p;
@@ -238,7 +238,7 @@ static int sdp_wait_rdmardcompl(struct sdp_sock *ssk, long *timeo_p,
 
 static void sdp_wait_rdma_wr_finished(struct sdp_sock *ssk)
 {
-	struct sock *sk = &ssk->isk.sk;
+	struct socket *sk = &ssk->isk.sk;
 	long timeo = HZ * 5; /* Timeout for for RDMA read */
 	DEFINE_WAIT(wait);
 
@@ -281,32 +281,32 @@ static void sdp_wait_rdma_wr_finished(struct sdp_sock *ssk)
 int sdp_post_rdma_rd_compl(struct sdp_sock *ssk,
 		struct rx_srcavail_state *rx_sa)
 {
-	struct sk_buff *skb;
+	struct mbuf *mb;
 	int copied = rx_sa->used - rx_sa->reported;
 
 	if (rx_sa->used <= rx_sa->reported)
 		return 0;
 
-	skb = sdp_alloc_skb_rdmardcompl(&ssk->isk.sk, copied, 0);
+	mb = sdp_alloc_mb_rdmardcompl(&ssk->isk.sk, copied, 0);
 
 	rx_sa->reported += copied;
 
 	/* TODO: What if no tx_credits available? */
-	sdp_post_send(ssk, skb);
+	sdp_post_send(ssk, mb);
 
 	return 0;
 }
 
-int sdp_post_sendsm(struct sock *sk)
+int sdp_post_sendsm(struct socket *sk)
 {
-	struct sk_buff *skb = sdp_alloc_skb_sendsm(sk, 0);
+	struct mbuf *mb = sdp_alloc_mb_sendsm(sk, 0);
 
-	sdp_post_send(sdp_sk(sk), skb);
+	sdp_post_send(sdp_sk(sk), mb);
 
 	return 0;
 }
 
-static int sdp_update_iov_used(struct sock *sk, struct iovec *iov, int len)
+static int sdp_update_iov_used(struct socket *sk, struct iovec *iov, int len)
 {
 	sdp_dbg_data(sk, "updating consumed 0x%x bytes from iov\n", len);
 	while (len > 0) {
@@ -336,7 +336,7 @@ static inline int sge_bytes(struct ib_sge *sge, int sge_cnt)
 }
 void sdp_handle_sendsm(struct sdp_sock *ssk, u32 mseq_ack)
 {
-	struct sock *sk = &ssk->isk.sk;
+	struct socket *sk = &ssk->isk.sk;
 	unsigned long flags;
 
 	spin_lock_irqsave(&ssk->tx_sa_lock, flags);
@@ -368,7 +368,7 @@ out:
 void sdp_handle_rdma_read_compl(struct sdp_sock *ssk, u32 mseq_ack,
 		u32 bytes_completed)
 {
-	struct sock *sk = &ssk->isk.sk;
+	struct socket *sk = &ssk->isk.sk;
 	unsigned long flags;
 
 	sdp_prf1(sk, NULL, "RdmaRdCompl ssk=%p tx_sa=%p", ssk, ssk->tx_sa);
@@ -414,7 +414,7 @@ static unsigned long sdp_get_max_memlockable_bytes(unsigned long offset)
 	return avail - offset;
 }
 
-static int sdp_alloc_fmr(struct sock *sk, void *uaddr, size_t len,
+static int sdp_alloc_fmr(struct socket *sk, void *uaddr, size_t len,
 	struct ib_pool_fmr **_fmr, struct ib_umem **_umem)
 {
 	struct ib_pool_fmr *fmr;
@@ -503,7 +503,7 @@ err_umem_get:
 	return rc;
 }
 
-void sdp_free_fmr(struct sock *sk, struct ib_pool_fmr **_fmr, struct ib_umem **_umem)
+void sdp_free_fmr(struct socket *sk, struct ib_pool_fmr **_fmr, struct ib_umem **_umem)
 {
 	if (!sdp_sk(sk)->qp_active)
 		return;
@@ -515,7 +515,7 @@ void sdp_free_fmr(struct sock *sk, struct ib_pool_fmr **_fmr, struct ib_umem **_
 	*_umem = NULL;
 }
 
-static int sdp_post_rdma_read(struct sock *sk, struct rx_srcavail_state *rx_sa)
+static int sdp_post_rdma_read(struct socket *sk, struct rx_srcavail_state *rx_sa)
 {
 	struct sdp_sock *ssk = sdp_sk(sk);
 	struct ib_send_wr *bad_wr;
@@ -544,11 +544,11 @@ static int sdp_post_rdma_read(struct sock *sk, struct rx_srcavail_state *rx_sa)
 	return ib_post_send(ssk->qp, &wr, &bad_wr);
 }
 
-int sdp_rdma_to_iovec(struct sock *sk, struct iovec *iov, struct sk_buff *skb,
+int sdp_rdma_to_iovec(struct socket *sk, struct iovec *iov, struct mbuf *mb,
 		unsigned long *used)
 {
 	struct sdp_sock *ssk = sdp_sk(sk);
-	struct rx_srcavail_state *rx_sa = RX_SRCAVAIL_STATE(skb);
+	struct rx_srcavail_state *rx_sa = RX_SRCAVAIL_STATE(mb);
 	int got_srcavail_cancel;
 	int rc = 0;
 	int len = *used;
@@ -579,7 +579,7 @@ int sdp_rdma_to_iovec(struct sock *sk, struct iovec *iov, struct sk_buff *skb,
 		goto err_post_send;
 	}
 
-	sdp_prf(sk, skb, "Finished posting(rc=%d), now to wait", rc);
+	sdp_prf(sk, mb, "Finished posting(rc=%d), now to wait", rc);
 
 	got_srcavail_cancel = ssk->srcavail_cancel_mseq > rx_sa->mseq;
 
@@ -587,7 +587,7 @@ int sdp_rdma_to_iovec(struct sock *sk, struct iovec *iov, struct sk_buff *skb,
 
 	sdp_wait_rdma_wr_finished(ssk);
 
-	sdp_prf(sk, skb, "Finished waiting(rc=%d)", rc);
+	sdp_prf(sk, mb, "Finished waiting(rc=%d)", rc);
 	if (!ssk->qp_active) {
 		sdp_dbg_data(sk, "QP destroyed during RDMA read\n");
 		rc = -EPIPE;
@@ -617,7 +617,7 @@ err_alloc_fmr:
 	return rc;
 }
 
-static inline int wait_for_sndbuf(struct sock *sk, long *timeo_p)
+static inline int wait_for_sndbuf(struct socket *sk, long *timeo_p)
 {
 	struct sdp_sock *ssk = sdp_sk(sk);
 	int ret = 0;
@@ -638,7 +638,7 @@ static inline int wait_for_sndbuf(struct sock *sk, long *timeo_p)
 	return ret;
 }
 
-static int do_sdp_sendmsg_zcopy(struct sock *sk, struct tx_srcavail_state *tx_sa,
+static int do_sdp_sendmsg_zcopy(struct socket *sk, struct tx_srcavail_state *tx_sa,
 		struct iovec *iov, long *timeo)
 {
 	struct sdp_sock *ssk = sdp_sk(sk);
@@ -708,7 +708,7 @@ err_alloc_fmr:
 	return rc;	
 }
 
-int sdp_sendmsg_zcopy(struct kiocb *iocb, struct sock *sk, struct iovec *iov)
+int sdp_sendmsg_zcopy(struct kiocb *iocb, struct socket *sk, struct iovec *iov)
 {
 	struct sdp_sock *ssk = sdp_sk(sk);
 	int rc = 0;
@@ -769,7 +769,7 @@ err_alloc_tx_sa:
 	return copied;
 }
 
-void sdp_abort_srcavail(struct sock *sk)
+void sdp_abort_srcavail(struct socket *sk)
 {
 	struct sdp_sock *ssk = sdp_sk(sk);
 	struct tx_srcavail_state *tx_sa = ssk->tx_sa;
@@ -790,7 +790,7 @@ void sdp_abort_srcavail(struct sock *sk)
 	spin_unlock_irqrestore(&ssk->tx_sa_lock, flags);
 }
 
-void sdp_abort_rdma_read(struct sock *sk)
+void sdp_abort_rdma_read(struct socket *sk)
 {
 	struct sdp_sock *ssk = sdp_sk(sk);
 	struct rx_srcavail_state *rx_sa = ssk->rx_sa;

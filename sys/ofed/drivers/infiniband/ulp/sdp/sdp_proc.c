@@ -82,7 +82,7 @@ static void *sdp_seq_start(struct seq_file *seq, loff_t *pos)
 	spin_lock_irq(&sock_list_lock);
 	start = sdp_get_idx(seq, *pos - 1);
 	if (start)
-		sock_hold((struct sock *)start, SOCK_REF_SEQ);
+		sock_hold((struct socket *)start, SOCK_REF_SEQ);
 	spin_unlock_irq(&sock_list_lock);
 
 	return start;
@@ -99,7 +99,7 @@ static void *sdp_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	else
 		next = sdp_get_idx(seq, *pos);
 	if (next)
-		sock_hold((struct sock *)next, SOCK_REF_SEQ);
+		sock_hold((struct socket *)next, SOCK_REF_SEQ);
 	spin_unlock_irq(&sock_list_lock);
 
 	*pos += 1;
@@ -117,7 +117,7 @@ static void sdp_seq_stop(struct seq_file *seq, void *v)
 static int sdp_seq_show(struct seq_file *seq, void *v)
 {
 	struct sdp_iter_state *st;
-	struct sock *sk = v;
+	struct socket *sk = v;
 	char tmpbuf[TMPSZ + 1];
 	unsigned int dest;
 	unsigned int src;
@@ -367,10 +367,10 @@ static int sdpprf_show(struct seq_file *m, void *v)
 	nsec_rem = do_div(t, 1000000000);
 
 	seq_printf(m, "%-6d: [%5lu.%06lu] %-50s - [%d{%d} %d:%d] "
-			"skb: %p %s:%d\n",
+			"mb: %p %s:%d\n",
 			l->idx, (unsigned long)t, nsec_rem/1000,
 			l->msg, l->pid, l->cpu, l->sk_num, l->sk_dport,
-			l->skb, l->func, l->line);
+			l->mb, l->func, l->line);
 out:
 	return 0;
 }

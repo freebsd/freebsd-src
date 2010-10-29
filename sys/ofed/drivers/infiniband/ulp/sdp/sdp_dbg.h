@@ -33,14 +33,14 @@
 	MODULE_PARM_DESC(var, msg " [" #def_val "]"); \
 
 #ifdef SDP_PROFILING
-struct sk_buff;
+struct mbuf;
 struct sdpprf_log {
 	int 		idx;
 	int 		pid;
 	int 		cpu;
 	int 		sk_num;
 	int 		sk_dport;
-	struct sk_buff 	*skb;
+	struct mbuf 	*mb;
 	char		msg[256];
 
 	unsigned long long time;
@@ -74,7 +74,7 @@ static inline unsigned long long current_nsec(void)
 	l->sk_num = (sk) ? inet_sk(sk)->num : -1;                 \
 	l->sk_dport = (sk) ? ntohs(inet_sk(sk)->dport) : -1; \
 	l->cpu = smp_processor_id(); \
-	l->skb = s; \
+	l->mb = s; \
 	snprintf(l->msg, sizeof(l->msg) - 1, format, ## arg); \
 	l->time = current_nsec(); \
 	l->func = __func__; \
@@ -132,14 +132,14 @@ extern int sdp_data_debug_level;
 		if (sdp_data_debug_level & 0x2)                		\
 			sdp_printk(KERN_WARNING, sk, format , ## arg); 	\
 	} while (0)
-#define SDP_DUMP_PACKET(sk, str, skb, h)                     		\
+#define SDP_DUMP_PACKET(sk, str, mb, h)                     		\
 	do {                                                 		\
 		if (sdp_data_debug_level & 0x1)                		\
-			dump_packet(sk, str, skb, h); 			\
+			dump_packet(sk, str, mb, h); 			\
 	} while (0)
 #else
 #define sdp_dbg_data(priv, format, arg...)
-#define SDP_DUMP_PACKET(sk, str, skb, h)
+#define SDP_DUMP_PACKET(sk, str, mb, h)
 #endif
 
 #define SOCK_REF_RESET "RESET"
@@ -181,10 +181,10 @@ static inline char *sdp_state_str(int state)
 
 struct sdp_bsdh;
 #ifdef CONFIG_INFINIBAND_SDP_DEBUG_DATA
-void _dump_packet(const char *func, int line, struct sock *sk, char *str,
-		struct sk_buff *skb, const struct sdp_bsdh *h);
-#define dump_packet(sk, str, skb, h) \
-	_dump_packet(__func__, __LINE__, sk, str, skb, h)
+void _dump_packet(const char *func, int line, struct socket *sk, char *str,
+		struct mbuf *mb, const struct sdp_bsdh *h);
+#define dump_packet(sk, str, mb, h) \
+	_dump_packet(__func__, __LINE__, sk, str, mb, h)
 #endif
 
 #endif

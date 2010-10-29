@@ -34,8 +34,8 @@
 #include "sdp.h"
 
 #ifdef CONFIG_INFINIBAND_SDP_DEBUG_DATA
-void _dump_packet(const char *func, int line, struct sock *sk, char *str,
-		struct sk_buff *skb, const struct sdp_bsdh *h)
+void _dump_packet(const char *func, int line, struct socket *sk, char *str,
+		struct mbuf *mb, const struct sdp_bsdh *h)
 {
 	struct sdp_hh *hh;
 	struct sdp_hah *hah;
@@ -44,9 +44,9 @@ void _dump_packet(const char *func, int line, struct sock *sk, char *str,
 	struct sdp_srcah *srcah;
 	int len = 0;
 	char buf[256];
-	len += snprintf(buf, 255-len, "%s skb: %p mid: %2x:%-20s flags: 0x%x "
+	len += snprintf(buf, 255-len, "%s mb: %p mid: %2x:%-20s flags: 0x%x "
 			"bufs: 0x%x len: 0x%x mseq: 0x%x mseq_ack: 0x%x | ",
-			str, skb, h->mid, mid2str(h->mid), h->flags,
+			str, mb, h->mid, mid2str(h->mid), h->flags,
 			ntohs(h->bufs), ntohl(h->len), ntohl(h->mseq),
 			ntohl(h->mseq_ack));
 
@@ -99,11 +99,11 @@ void _dump_packet(const char *func, int line, struct sock *sk, char *str,
 }
 #endif
 
-static inline void update_send_head(struct sock *sk, struct sk_buff *skb)
+static inline void update_send_head(struct socket *sk, struct mbuf *mb)
 {
 	struct page *page;
-	sk->sk_send_head = skb->next;
-	if (sk->sk_send_head == (struct sk_buff *)&sk->sk_write_queue) {
+	sk->sk_send_head = mb->next;
+	if (sk->sk_send_head == (struct mbuf *)&sk->sk_write_queue) {
 		sk->sk_send_head = NULL;
 		page = sk->sk_sndmsg_page;
 		if (page) {
@@ -113,17 +113,17 @@ static inline void update_send_head(struct sock *sk, struct sk_buff *skb)
 	}
 }
 
-static inline int sdp_nagle_off(struct sdp_sock *ssk, struct sk_buff *skb)
+static inline int sdp_nagle_off(struct sdp_sock *ssk, struct mbuf *mb)
 {
-	struct sdp_bsdh *h = (struct sdp_bsdh *)skb_transport_header(skb);
+	struct sdp_bsdh *h = (struct sdp_bsdh *)mb_transport_header(mb);
 	int send_now =
-		BZCOPY_STATE(skb) ||
+		BZCOPY_STATE(mb) ||
 		unlikely(h->mid != SDP_MID_DATA) ||
 		(ssk->nonagle & TCP_NAGLE_OFF) ||
 		!ssk->nagle_last_unacked ||
-		skb->next != (struct sk_buff *)&ssk->isk.sk.sk_write_queue ||
-		skb->len + sizeof(struct sdp_bsdh) >= ssk->xmit_size_goal ||
-		(SDP_SKB_CB(skb)->flags & TCPCB_FLAG_PSH);
+		mb->next != (struct mbuf *)&ssk->isk.sk.sk_write_queue ||
+		mb->len + sizeof(struct sdp_bsdh) >= ssk->xmit_size_goal ||
+		(SDP_SKB_CB(mb)->flags & TCPCB_FLAG_PSH);
 
 	if (send_now) {
 		unsigned long mseq = ring_head(ssk->tx_ring);
@@ -144,7 +144,7 @@ static inline int sdp_nagle_off(struct sdp_sock *ssk, struct sk_buff *skb)
 void sdp_nagle_timeout(unsigned long data)
 {
 	struct sdp_sock *ssk = (struct sdp_sock *)data;
-	struct sock *sk = &ssk->isk.sk;
+	struct socket *sk = &ssk->isk.sk;
 
 	sdp_dbg_data(sk, "last_unacked = %ld\n", ssk->nagle_last_unacked);
 
@@ -178,9 +178,9 @@ out2:
 void sdp_post_sends(struct sdp_sock *ssk, gfp_t gfp)
 {
 	/* TODO: nonagle? */
-	struct sk_buff *skb;
+	struct mbuf *mb;
 	int post_count = 0;
-	struct sock *sk = &ssk->isk.sk;
+	struct socket *sk = &ssk->isk.sk;
 
 	if (unlikely(!ssk->id)) {
 		if (ssk->isk.sk.sk_send_head) {
@@ -201,10 +201,10 @@ void sdp_post_sends(struct sdp_sock *ssk, gfp_t gfp)
 	    sdp_tx_ring_slots_left(ssk)) {
 		ssk->recv_request = 0;
 
-		skb = sdp_alloc_skb_chrcvbuf_ack(sk, 
+		mb = sdp_alloc_mb_chrcvbuf_ack(sk, 
 				ssk->recv_frags * PAGE_SIZE, gfp);
 
-		sdp_post_send(ssk, skb);
+		sdp_post_send(ssk, mb);
 		post_count++;
 	}
 
@@ -217,12 +217,12 @@ void sdp_post_sends(struct sdp_sock *ssk, gfp_t gfp)
 
 	while (tx_credits(ssk) > SDP_MIN_TX_CREDITS &&
 	       sdp_tx_ring_slots_left(ssk) &&
-	       (skb = ssk->isk.sk.sk_send_head) &&
-		sdp_nagle_off(ssk, skb)) {
-		update_send_head(&ssk->isk.sk, skb);
-		__skb_dequeue(&ssk->isk.sk.sk_write_queue);
+	       (mb = ssk->isk.sk.sk_send_head) &&
+		sdp_nagle_off(ssk, mb)) {
+		update_send_head(&ssk->isk.sk, mb);
+		__mb_dequeue(&ssk->isk.sk.sk_write_queue);
 
-		sdp_post_send(ssk, skb);
+		sdp_post_send(ssk, mb);
 
 		post_count++;
 	}
@@ -231,8 +231,8 @@ void sdp_post_sends(struct sdp_sock *ssk, gfp_t gfp)
 	    likely((1 << ssk->isk.sk.sk_state) &
 		    (TCPF_ESTABLISHED | TCPF_FIN_WAIT1))) {
 
-		skb = sdp_alloc_skb_data(&ssk->isk.sk, gfp);
-		sdp_post_send(ssk, skb);
+		mb = sdp_alloc_mb_data(&ssk->isk.sk, gfp);
+		sdp_post_send(ssk, mb);
 
 		SDPSTATS_COUNTER_INC(post_send_credits);
 		post_count++;
@@ -248,8 +248,8 @@ void sdp_post_sends(struct sdp_sock *ssk, gfp_t gfp)
 			tx_credits(ssk) > 1) {
 		ssk->sdp_disconnect = 0;
 
-		skb = sdp_alloc_skb_disconnect(sk, gfp);
-		sdp_post_send(ssk, skb);
+		mb = sdp_alloc_mb_disconnect(sk, gfp);
+		sdp_post_send(ssk, mb);
 
 		post_count++;
 	}

@@ -76,7 +76,7 @@ out:
 	return max_sges;
 }
 
-static int sdp_init_qp(struct sock *sk, struct rdma_cm_id *id)
+static int sdp_init_qp(struct socket *sk, struct rdma_cm_id *id)
 {
 	struct ib_qp_init_attr qp_init_attr = {
 		.event_handler = sdp_qp_event_handler,
@@ -148,11 +148,11 @@ static int sdp_get_max_send_frags(u32 buf_size)
 		SDP_MAX_SEND_SGES - 1);
 }
 
-static int sdp_connect_handler(struct sock *sk, struct rdma_cm_id *id,
+static int sdp_connect_handler(struct socket *sk, struct rdma_cm_id *id,
 		       	struct rdma_cm_event *event)
 {
-	struct sockaddr_in *dst_addr;
-	struct sock *child;
+	struct socketaddr_in *dst_addr;
+	struct socket *child;
 	const struct sdp_hh *h;
 	int rc;
 
@@ -170,7 +170,7 @@ static int sdp_connect_handler(struct sock *sk, struct rdma_cm_id *id,
 
 	sdp_init_sock(child);
 
-	dst_addr = (struct sockaddr_in *)&id->route.addr.dst_addr;
+	dst_addr = (struct socketaddr_in *)&id->route.addr.dst_addr;
 	inet_sk(child)->dport = dst_addr->sin_port;
 	inet_sk(child)->daddr = dst_addr->sin_addr.s_addr;
 
@@ -212,11 +212,11 @@ static int sdp_connect_handler(struct sock *sk, struct rdma_cm_id *id,
 	return 0;
 }
 
-static int sdp_response_handler(struct sock *sk, struct rdma_cm_id *id,
+static int sdp_response_handler(struct socket *sk, struct rdma_cm_id *id,
 				struct rdma_cm_event *event)
 {
 	const struct sdp_hah *h;
-	struct sockaddr_in *dst_addr;
+	struct socketaddr_in *dst_addr;
 	sdp_dbg(sk, "%s\n", __func__);
 
 	sdp_exch_state(sk, TCPF_SYN_SENT, TCP_ESTABLISHED);
@@ -244,16 +244,16 @@ static int sdp_response_handler(struct sock *sk, struct rdma_cm_id *id,
 	sk->sk_state_change(sk);
 	sk_wake_async(sk, 0, POLL_OUT);
 
-	dst_addr = (struct sockaddr_in *)&id->route.addr.dst_addr;
+	dst_addr = (struct socketaddr_in *)&id->route.addr.dst_addr;
 	inet_sk(sk)->dport = dst_addr->sin_port;
 	inet_sk(sk)->daddr = dst_addr->sin_addr.s_addr;
 
 	return 0;
 }
 
-static int sdp_connected_handler(struct sock *sk, struct rdma_cm_event *event)
+static int sdp_connected_handler(struct socket *sk, struct rdma_cm_event *event)
 {
-	struct sock *parent;
+	struct socket *parent;
 	sdp_dbg(sk, "%s\n", __func__);
 
 	parent = sdp_sk(sk)->parent;
@@ -289,7 +289,7 @@ done:
 	return 0;
 }
 
-static int sdp_disconnected_handler(struct sock *sk)
+static int sdp_disconnected_handler(struct socket *sk)
 {
 	struct sdp_sock *ssk = sdp_sk(sk);
 
@@ -311,9 +311,9 @@ static int sdp_disconnected_handler(struct sock *sk)
 int sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 {
 	struct rdma_conn_param conn_param;
-	struct sock *parent = NULL;
-	struct sock *child = NULL;
-	struct sock *sk;
+	struct socket *parent = NULL;
+	struct socket *child = NULL;
+	struct socket *sk;
 	struct sdp_hah hah;
 	struct sdp_hh hh;
 
@@ -378,7 +378,7 @@ int sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 				PAGE_SIZE + sizeof(struct sdp_bsdh));
 		hh.max_adverts = 0x1;
 		inet_sk(sk)->saddr = inet_sk(sk)->rcv_saddr =
-			((struct sockaddr_in *)&id->route.addr.src_addr)->sin_addr.s_addr;
+			((struct socketaddr_in *)&id->route.addr.src_addr)->sin_addr.s_addr;
 		memset(&conn_param, 0, sizeof conn_param);
 		conn_param.private_data_len = sizeof hh;
 		conn_param.private_data = &hh;
@@ -451,7 +451,7 @@ int sdp_cma_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	case RDMA_CM_EVENT_ESTABLISHED:
 		sdp_dbg(sk, "RDMA_CM_EVENT_ESTABLISHED\n");
 		inet_sk(sk)->saddr = inet_sk(sk)->rcv_saddr =
-			((struct sockaddr_in *)&id->route.addr.src_addr)->sin_addr.s_addr;
+			((struct socketaddr_in *)&id->route.addr.src_addr)->sin_addr.s_addr;
 		rc = sdp_connected_handler(sk, event);
 		break;
 	case RDMA_CM_EVENT_DISCONNECTED: /* This means DREQ/DREP received */
