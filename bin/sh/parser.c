@@ -1161,7 +1161,7 @@ readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 	loop: {	/* for each line, until end of word */
 		CHECKEND();	/* set c to PEOF if at end of here document */
 		for (;;) {	/* until end of line or end of word */
-			CHECKSTRSPACE(3, out);	/* permit 3 calls to USTPUTC */
+			CHECKSTRSPACE(4, out);	/* permit 4 calls to USTPUTC */
 
 			synentry = state[level].syntax[c];
 
@@ -1203,12 +1203,18 @@ readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 						newvarnest == 0)) &&
 					    (c != '}' || state[level].category != TSTATE_VAR_OLD))
 						USTPUTC('\\', out);
+					if ((eofmark == NULL ||
+					    newvarnest > 0) &&
+					    state[level].syntax == BASESYNTAX)
+						USTPUTC(CTLQUOTEMARK, out);
 					if (SQSYNTAX[c] == CCTL)
 						USTPUTC(CTLESC, out);
-					else if (eofmark == NULL ||
-					    newvarnest > 0)
-						USTPUTC(CTLQUOTEMARK, out);
 					USTPUTC(c, out);
+					if ((eofmark == NULL ||
+					    newvarnest > 0) &&
+					    state[level].syntax == BASESYNTAX &&
+					    state[level].category == TSTATE_VAR_OLD)
+						USTPUTC(CTLQUOTEEND, out);
 					quotef++;
 				}
 				break;
@@ -1224,6 +1230,8 @@ readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 				if (eofmark != NULL && newvarnest == 0)
 					USTPUTC(c, out);
 				else {
+					if (state[level].category == TSTATE_VAR_OLD)
+						USTPUTC(CTLQUOTEEND, out);
 					state[level].syntax = BASESYNTAX;
 					quotef++;
 				}
