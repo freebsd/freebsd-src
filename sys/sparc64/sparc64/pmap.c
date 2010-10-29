@@ -1065,7 +1065,7 @@ pmap_pinit0(pmap_t pm)
 
 	PMAP_LOCK_INIT(pm);
 	for (i = 0; i < MAXCPU; i++)
-		pm->pm_context[i] = 0;
+		pm->pm_context[i] = TLB_CTX_KERNEL;
 	pm->pm_active = 0;
 	pm->pm_tsb = NULL;
 	pm->pm_tsb_obj = NULL;
@@ -1103,6 +1103,12 @@ pmap_pinit(pmap_t pm)
 	if (pm->pm_tsb_obj == NULL)
 		pm->pm_tsb_obj = vm_object_allocate(OBJT_PHYS, TSB_PAGES);
 
+	mtx_lock_spin(&sched_lock);
+	for (i = 0; i < MAXCPU; i++)
+		pm->pm_context[i] = -1;
+	pm->pm_active = 0;
+	mtx_unlock_spin(&sched_lock);
+
 	VM_OBJECT_LOCK(pm->pm_tsb_obj);
 	for (i = 0; i < TSB_PAGES; i++) {
 		m = vm_page_grab(pm->pm_tsb_obj, i, VM_ALLOC_NOBUSY |
@@ -1114,9 +1120,6 @@ pmap_pinit(pmap_t pm)
 	VM_OBJECT_UNLOCK(pm->pm_tsb_obj);
 	pmap_qenter((vm_offset_t)pm->pm_tsb, ma, TSB_PAGES);
 
-	for (i = 0; i < MAXCPU; i++)
-		pm->pm_context[i] = -1;
-	pm->pm_active = 0;
 	bzero(&pm->pm_stats, sizeof(pm->pm_stats));
 	return (1);
 }
