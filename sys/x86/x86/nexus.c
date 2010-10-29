@@ -52,9 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#ifdef __amd64__
 #include <sys/linker.h>
-#endif
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <machine/bus.h>
@@ -67,12 +65,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <machine/pmap.h>
 
-#ifdef __amd64__
 #include <machine/metadata.h>
-#include <machine/pc/bios.h>
-#endif
 #include <machine/nexusvar.h>
 #include <machine/resource.h>
+#include <machine/pc/bios.h>
 
 #ifdef DEV_APIC
 #include "pcib_if.h"
@@ -89,12 +85,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/rtprio.h>
 
 #ifdef __amd64__
-#define	RMAN_BUS_SPACE_IO	AMD64_BUS_SPACE_IO
-#define	RMAN_BUS_SPACE_MEM	AMD64_BUS_SPACE_MEM
+#define	BUS_SPACE_IO	AMD64_BUS_SPACE_IO
+#define	BUS_SPACE_MEM	AMD64_BUS_SPACE_MEM
 #else
-#define	RMAN_BUS_SPACE_IO	I386_BUS_SPACE_IO
-#define	RMAN_BUS_SPACE_MEM	I386_BUS_SPACE_MEM
+#define	BUS_SPACE_IO	I386_BUS_SPACE_IO
+#define	BUS_SPACE_MEM	I386_BUS_SPACE_MEM
 #endif
+
+#define	ELF_KERN_STR	("elf"__XSTRING(__ELF_WORD_SIZE)" kernel")
 
 static MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
 
@@ -435,7 +433,7 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 #else
 		rman_set_bushandle(r, rman_get_start(r));
 #endif
-		rman_set_bustag(r, RMAN_BUS_SPACE_IO);
+		rman_set_bustag(r, BUS_SPACE_IO);
 		break;
 	case SYS_RES_MEMORY:
 #ifdef PC98
@@ -446,7 +444,7 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 #endif
 		vaddr = pmap_mapdev(rman_get_start(r), rman_get_size(r));
 		rman_set_virtual(r, vaddr);
-		rman_set_bustag(r, RMAN_BUS_SPACE_MEM);
+		rman_set_bustag(r, BUS_SPACE_MEM);
 #ifdef PC98
 		/* PC-98: the type of bus_space_handle_t is the structure. */
 		bh->bsh_base = (bus_addr_t) vaddr;
@@ -668,48 +666,48 @@ ram_probe(device_t dev)
 	return (0);
 }
 
-#ifdef __amd64__
 static int
 ram_attach(device_t dev)
 {
 	struct bios_smap *smapbase, *smap, *smapend;
 	struct resource *res;
+	vm_paddr_t *p;
 	caddr_t kmdp;
 	uint32_t smapsize;
-	int error, rid;
+	int error, i, rid;
 
 	/* Retrieve the system memory map from the loader. */
 	kmdp = preload_search_by_type("elf kernel");
 	if (kmdp == NULL)
-		kmdp = preload_search_by_type("elf64 kernel");  
-	smapbase = (struct bios_smap *)preload_search_info(kmdp,
-	    MODINFO_METADATA | MODINFOMD_SMAP);
-	smapsize = *((u_int32_t *)smapbase - 1);
-	smapend = (struct bios_smap *)((uintptr_t)smapbase + smapsize);
+		kmdp = preload_search_by_type(ELF_KERN_STR);  
+	if (kmdp != NULL)
+		smapbase = (struct bios_smap *)preload_search_info(kmdp,
+		    MODINFO_METADATA | MODINFOMD_SMAP);
+	else
+		smapbase = NULL;
+	if (smapbase != NULL) {
+		smapsize = *((u_int32_t *)smapbase - 1);
+		smapend = (struct bios_smap *)((uintptr_t)smapbase + smapsize);
 
-	rid = 0;
-	for (smap = smapbase; smap < smapend; smap++) {
-		if (smap->type != SMAP_TYPE_MEMORY || smap->length == 0)
-			continue;
-		error = bus_set_resource(dev, SYS_RES_MEMORY, rid, smap->base,
-		    smap->length);
-		if (error)
-			panic("ram_attach: resource %d failed set with %d", rid,
-			    error);
-		res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 0);
-		if (res == NULL)
-			panic("ram_attach: resource %d failed to attach", rid);
-		rid++;
+		rid = 0;
+		for (smap = smapbase; smap < smapend; smap++) {
+			if (smap->type != SMAP_TYPE_MEMORY ||
+			    smap->length == 0)
+				continue;
+			error = bus_set_resource(dev, SYS_RES_MEMORY, rid,
+			    smap->base, smap->length);
+			if (error)
+			panic("ram_attach: resource %d failed set with %d",
+				    rid, error);
+			res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+			    0);
+			if (res == NULL)
+			panic("ram_attach: resource %d failed to attach",
+				    rid);
+			rid++;
+		}
+		return (0);
 	}
-	return (0);
-}
-#else
-static int
-ram_attach(device_t dev)
-{
-	struct resource *res;
-	vm_paddr_t *p;
-	int error, i, rid;
 
 	/*
 	 * We use the dump_avail[] array rather than phys_avail[] for
@@ -743,7 +741,6 @@ ram_attach(device_t dev)
 	}
 	return (0);
 }
-#endif
 
 static device_method_t ram_methods[] = {
 	/* Device interface */
