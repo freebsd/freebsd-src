@@ -220,7 +220,7 @@ parsecmd(int interact)
 	if (t == TNL)
 		return NULL;
 	tokpushback++;
-	return list(1, 0);
+	return list(1, 1);
 }
 
 
@@ -231,7 +231,7 @@ list(int nlflag, int erflag)
 	int tok;
 
 	checkkwd = 2;
-	if (nlflag == 0 && tokendlist[peektoken()])
+	if (!nlflag && !erflag && tokendlist[peektoken()])
 		return NULL;
 	n1 = NULL;
 	for (;;) {
@@ -277,7 +277,7 @@ list(int nlflag, int erflag)
 				tokpushback++;
 			}
 			checkkwd = 2;
-			if (tokendlist[peektoken()])
+			if (!nlflag && !erflag && tokendlist[peektoken()])
 				return n1;
 			break;
 		case TEOF:
