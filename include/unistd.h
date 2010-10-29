@@ -288,6 +288,7 @@ typedef	__useconds_t	useconds_t;
 #if __BSD_VISIBLE
 #define	_SC_NPROCESSORS_CONF	57
 #define	_SC_NPROCESSORS_ONLN	58
+#define	_SC_CPUSET_SIZE		122
 #endif
 
 /* Extensions found in Solaris and Linux. */

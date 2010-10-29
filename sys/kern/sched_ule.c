@@ -2712,6 +2712,8 @@ sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS)
 	sbuf_delete(topo);
 	return (err);
 }
+
+static size_t _kern_cpuset_size = sizeof(cpuset_t);
 #endif
 
 SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RW, 0, "Scheduler");
@@ -2748,6 +2750,15 @@ SYSCTL_INT(_kern_sched, OID_AUTO, steal_thresh, CTLFLAG_RW, &steal_thresh, 0,
 SYSCTL_PROC(_kern_sched, OID_AUTO, topology_spec, CTLTYPE_STRING |
     CTLFLAG_RD, NULL, 0, sysctl_kern_sched_topology_spec, "A", 
     "XML dump of detected CPU topology");
+
+/* 
+ * Return the size of cpuset_t at the kernel level
+ *
+ * XXX (gcooper): replace ULONG with SIZE once CTLTYPE_SIZE is implemented.
+ */
+SYSCTL_ULONG(_kern_sched, OID_AUTO, cpusetsize, CTLFLAG_RD,
+    &_kern_cpuset_size, 0, "Kernel-level cpuset_t struct size");
+
 #endif
 
 /* ps compat.  All cpu percentages from ULE are weighted. */
