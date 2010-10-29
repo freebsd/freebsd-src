@@ -1130,7 +1130,7 @@ commandcmd(int argc, char **argv)
 		return typecmd_impl(2, argv - 1, cmd, path);
 	}
 	if (argc != 0)
-		error("commandcmd() called while it should not be");
+		error("commandcmd bad call");
 
 	/*
 	 * Do nothing successfully if no command was specified;
