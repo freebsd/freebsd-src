@@ -644,9 +644,13 @@ simplecmd(union node **rpp, union node *redir)
 			/*
 			 * - Require plain text.
 			 * - Functions with '/' cannot be called.
+			 * - Reject name=().
+			 * - Reject ksh extended glob patterns.
 			 */
 			if (!noexpand(n->narg.text) || quoteflag ||
-			    strchr(n->narg.text, '/'))
+			    strchr(n->narg.text, '/') ||
+			    strchr("!%*+-=?@}~",
+				n->narg.text[strlen(n->narg.text) - 1]))
 				synerror("Bad function name");
 			rmescapes(n->narg.text);
 			if (find_builtin(n->narg.text, &special) >= 0 &&
