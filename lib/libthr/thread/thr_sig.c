@@ -547,7 +547,10 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 
 	if (oldact.sa_handler != SIG_DFL &&
 	    oldact.sa_handler != SIG_IGN) {
-		oldact = _thr_sigact[sig-1].sigact;
+		if (act != NULL)
+			oldact = oldact2;
+		else if (oact != NULL)
+			oldact = _thr_sigact[sig-1].sigact;
 	}
 
 	_thr_rwl_unlock(&_thr_sigact[sig-1].lock);
