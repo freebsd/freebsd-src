@@ -98,7 +98,7 @@ static struct arglist exparg;		/* holds expanded arg list */
 static void argstr(char *, int);
 static char *exptilde(char *, int);
 static void expbackq(union node *, int, int);
-static int subevalvar(char *, char *, int, int, int, int);
+static int subevalvar(char *, char *, int, int, int, int, int);
 static char *evalvar(char *, int);
 static int varisset(char *, int);
 static void varvalue(char *, int, int, int);
@@ -526,7 +526,7 @@ expbackq(union node *cmd, int quoted, int flag)
 
 static int
 subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
-  int varflags)
+  int varflags, int quotes)
 {
 	char *startp;
 	char *loc = NULL;
@@ -571,12 +571,12 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
 		for (loc = startp; loc < str; loc++) {
 			c = *loc;
 			*loc = '\0';
-			if (patmatch(str, startp, varflags & VSQUOTE)) {
+			if (patmatch(str, startp, quotes)) {
 				*loc = c;
 				goto recordleft;
 			}
 			*loc = c;
-			if ((varflags & VSQUOTE) && *loc == CTLESC)
+			if (quotes && *loc == CTLESC)
 				loc++;
 		}
 		return 0;
@@ -585,14 +585,13 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
 		for (loc = str - 1; loc >= startp;) {
 			c = *loc;
 			*loc = '\0';
-			if (patmatch(str, startp, varflags & VSQUOTE)) {
+			if (patmatch(str, startp, quotes)) {
 				*loc = c;
 				goto recordleft;
 			}
 			*loc = c;
 			loc--;
-			if ((varflags & VSQUOTE) && loc > startp &&
-			    *(loc - 1) == CTLESC) {
+			if (quotes && loc > startp && *(loc - 1) == CTLESC) {
 				for (q = startp; q < loc; q++)
 					if (*q == CTLESC)
 						q++;
@@ -604,14 +603,13 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
 
 	case VSTRIMRIGHT:
 		for (loc = str - 1; loc >= startp;) {
-			if (patmatch(str, loc, varflags & VSQUOTE)) {
+			if (patmatch(str, loc, quotes)) {
 				amount = loc - expdest;
 				STADJUST(amount, expdest);
 				return 1;
 			}
 			loc--;
-			if ((varflags & VSQUOTE) && loc > startp &&
-			    *(loc - 1) == CTLESC) {
+			if (quotes && loc > startp && *(loc - 1) == CTLESC) {
 				for (q = startp; q < loc; q++)
 					if (*q == CTLESC)
 						q++;
@@ -623,12 +621,12 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
 
 	case VSTRIMRIGHTMAX:
 		for (loc = startp; loc < str - 1; loc++) {
-			if (patmatch(str, loc, varflags & VSQUOTE)) {
+			if (patmatch(str, loc, quotes)) {
 				amount = loc - expdest;
 				STADJUST(amount, expdest);
 				return 1;
 			}
-			if ((varflags & VSQUOTE) && *loc == CTLESC)
+			if (quotes && *loc == CTLESC)
 				loc++;
 		}
 		return 0;
@@ -779,7 +777,7 @@ record:
 		STPUTC('\0', expdest);
 		patloc = expdest - stackblock();
 		if (subevalvar(p, NULL, patloc, subtype,
-			       startloc, varflags) == 0) {
+		    startloc, varflags, quotes) == 0) {
 			int amount = (expdest - stackblock() - patloc) + 1;
 			STADJUST(-amount, expdest);
 		}
@@ -790,7 +788,8 @@ record:
 	case VSASSIGN:
 	case VSQUESTION:
 		if (!set) {
-			if (subevalvar(p, var, 0, subtype, startloc, varflags)) {
+			if (subevalvar(p, var, 0, subtype, startloc, varflags,
+			    quotes)) {
 				varflags &= ~VSNUL;
 				/*
 				 * Remove any recorded regions beyond
