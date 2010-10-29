@@ -1738,7 +1738,7 @@ getprompt(void *unused __unused)
 	char *fmt;
 	const char *pwd;
 	int i, trim;
-	static char internal_error[] = "<internal prompt error>";
+	static char internal_error[] = "??";
 
 	/*
 	 * Select prompt format.

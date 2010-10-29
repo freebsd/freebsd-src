@@ -826,7 +826,7 @@ setvarcmd(int argc, char **argv)
 	else if (argc == 3)
 		setvar(argv[1], argv[2], 0);
 	else
-		error("List assignment not implemented");
+		error("too many arguments");
 	return 0;
 }
 
