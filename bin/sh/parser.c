@@ -106,7 +106,7 @@ static struct parser_temp *parser_temp;
 static int noaliases = 0;
 
 
-static union node *list(int);
+static union node *list(int, int);
 static union node *andor(void);
 static union node *pipeline(void);
 static union node *command(void);
@@ -220,12 +220,12 @@ parsecmd(int interact)
 	if (t == TNL)
 		return NULL;
 	tokpushback++;
-	return list(1);
+	return list(1, 0);
 }
 
 
 static union node *
-list(int nlflag)
+list(int nlflag, int erflag)
 {
 	union node *n1, *n2, *n3;
 	int tok;
@@ -287,7 +287,7 @@ list(int nlflag)
 				pungetc();		/* push back EOF on input */
 			return n1;
 		default:
-			if (nlflag)
+			if (nlflag || erflag)
 				synexpect(-1);
 			tokpushback++;
 			return n1;
@@ -398,24 +398,24 @@ command(void)
 	case TIF:
 		n1 = (union node *)stalloc(sizeof (struct nif));
 		n1->type = NIF;
-		if ((n1->nif.test = list(0)) == NULL)
+		if ((n1->nif.test = list(0, 0)) == NULL)
 			synexpect(-1);
 		if (readtoken() != TTHEN)
 			synexpect(TTHEN);
-		n1->nif.ifpart = list(0);
+		n1->nif.ifpart = list(0, 0);
 		n2 = n1;
 		while (readtoken() == TELIF) {
 			n2->nif.elsepart = (union node *)stalloc(sizeof (struct nif));
 			n2 = n2->nif.elsepart;
 			n2->type = NIF;
-			if ((n2->nif.test = list(0)) == NULL)
+			if ((n2->nif.test = list(0, 0)) == NULL)
 				synexpect(-1);
 			if (readtoken() != TTHEN)
 				synexpect(TTHEN);
-			n2->nif.ifpart = list(0);
+			n2->nif.ifpart = list(0, 0);
 		}
 		if (lasttoken == TELSE)
-			n2->nif.elsepart = list(0);
+			n2->nif.elsepart = list(0, 0);
 		else {
 			n2->nif.elsepart = NULL;
 			tokpushback++;
@@ -429,13 +429,13 @@ command(void)
 		int got;
 		n1 = (union node *)stalloc(sizeof (struct nbinary));
 		n1->type = (lasttoken == TWHILE)? NWHILE : NUNTIL;
-		if ((n1->nbinary.ch1 = list(0)) == NULL)
+		if ((n1->nbinary.ch1 = list(0, 0)) == NULL)
 			synexpect(-1);
 		if ((got=readtoken()) != TDO) {
 TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 			synexpect(TDO);
 		}
-		n1->nbinary.ch2 = list(0);
+		n1->nbinary.ch2 = list(0, 0);
 		if (readtoken() != TDONE)
 			synexpect(TDONE);
 		checkkwd = 1;
@@ -487,7 +487,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 			t = TEND;
 		else
 			synexpect(-1);
-		n1->nfor.body = list(0);
+		n1->nfor.body = list(0, 0);
 		if (readtoken() != t)
 			synexpect(t);
 		checkkwd = 1;
@@ -527,7 +527,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 			ap->narg.next = NULL;
 			if (lasttoken != TRP)
 				noaliases = 0, synexpect(TRP);
-			cp->nclist.body = list(0);
+			cp->nclist.body = list(0, 0);
 
 			checkkwd = 2;
 			if ((t = readtoken()) != TESAC) {
@@ -545,14 +545,14 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 	case TLP:
 		n1 = (union node *)stalloc(sizeof (struct nredir));
 		n1->type = NSUBSHELL;
-		n1->nredir.n = list(0);
+		n1->nredir.n = list(0, 0);
 		n1->nredir.redirect = NULL;
 		if (readtoken() != TRP)
 			synexpect(TRP);
 		checkkwd = 1;
 		break;
 	case TBEGIN:
-		n1 = list(0);
+		n1 = list(0, 0);
 		if (readtoken() != TEND)
 			synexpect(TEND);
 		checkkwd = 1;
@@ -1066,7 +1066,7 @@ done:
 		doprompt = 0;
 	}
 
-	n = list(0);
+	n = list(0, oldstyle);
 
 	if (oldstyle)
 		doprompt = saveprompt;
