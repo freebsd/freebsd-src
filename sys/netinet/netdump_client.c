@@ -888,10 +888,7 @@ nd_handle_arp(struct mbuf **mb)
 	}
 	ah = mtod(m, struct arphdr *);
 
-	if (ntohs(ah->ar_hrd) != ARPHRD_ETHER &&
-	    ntohs(ah->ar_hrd) != ARPHRD_IEEE802 &&
-	    ntohs(ah->ar_hrd) != ARPHRD_ARCNET &&
-	    ntohs(ah->ar_hrd) != ARPHRD_IEEE1394) {
+	if (ntohs(ah->ar_hrd) != ARPHRD_ETHER) {
 		NETDDEBUG("nd_handle_arp: unknown hardware address fmt "
 		    "0x%2D)\n", (unsigned char *)&ah->ar_hrd, "");
 		return;
