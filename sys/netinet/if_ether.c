@@ -291,8 +291,6 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 			return (0);
 		}
 	}
-	/* XXXXX
-	 */
 retry:
 	IF_AFDATA_RLOCK(ifp);	
 	la = lla_lookup(LLTABLE(ifp), flags, dst);
