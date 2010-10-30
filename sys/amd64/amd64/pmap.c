@@ -4968,6 +4968,11 @@ pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, boolean_t invalidate)
 	vm_offset_t va;
 	boolean_t changed;
 
+	if (len == 0)
+		return;
+	KASSERT(powerof2(len), ("pmap_demote_DMAP: len is not a power of 2"));
+	KASSERT((base & (len - 1)) == 0,
+	    ("pmap_demote_DMAP: base is not a multiple of len"));
 	if (len < NBPDP) {
 		va = PHYS_TO_DMAP(base);
 		changed = FALSE;
