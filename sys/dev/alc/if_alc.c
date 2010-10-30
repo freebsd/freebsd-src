@@ -331,8 +331,8 @@ alc_miibus_statchg(device_t dev)
 		reg = CSR_READ_4(sc, ALC_MAC_CFG);
 		reg |= MAC_CFG_TX_ENB | MAC_CFG_RX_ENB;
 		CSR_WRITE_4(sc, ALC_MAC_CFG, reg);
+		alc_aspm(sc, IFM_SUBTYPE(mii->mii_media_active));
 	}
-	alc_aspm(sc, IFM_SUBTYPE(mii->mii_media_active));
 }
 
 static void
