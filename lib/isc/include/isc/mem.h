@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1997-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mem.h,v 1.78.120.3 2009/02/11 03:07:01 jinmei Exp $ */
+/* $Id: mem.h,v 1.78.120.3.24.2 2010/08/12 23:46:25 tbox Exp $ */
 
 #ifndef ISC_MEM_H
 #define ISC_MEM_H 1
@@ -332,6 +332,14 @@ isc_mem_inuse(isc_mem_t *mctx);
  * Get an estimate of the number of memory in use in 'mctx', in bytes.
  * This includes quantization overhead, but does not include memory
  * allocated from the system but not yet used.
+ */
+
+isc_boolean_t
+isc_mem_isovermem(isc_mem_t *mctx);
+/*%<
+ * Return true iff the memory context is in "over memory" state, i.e.,
+ * a hiwater mark has been set and the used amount of memory has exceeds
+ * the mark.
  */
 
 void
