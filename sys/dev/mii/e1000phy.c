@@ -206,7 +206,7 @@ e1000phy_reset(struct mii_softc *sc)
 			reg &= ~E1000_SCR_MODE_MASK;
 			reg |= E1000_SCR_MODE_1000BX;
 			PHY_WRITE(sc, E1000_SCR, reg);
-			if ((sc->mii_flags & MIIF_MACPRIV0) != 0) {
+			if ((sc->mii_flags & MIIF_PHYPRIV0) != 0) {
 				/* Set SIGDET polarity low for SFP module. */
 				PHY_WRITE(sc, E1000_EADR, 1);
 				reg = PHY_READ(sc, E1000_SCR);
