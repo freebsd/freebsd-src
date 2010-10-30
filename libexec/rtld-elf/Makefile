@@ -29,7 +29,7 @@ SYMLINKS=	${BINDIR}/${PROG} /usr/libexec/${PROG}
 MLINKS=		rtld.1 ld-elf.so.1.1 \
 		rtld.1 ld.so.1
 
-CFLAGS+=	-fpic -DPIC
+CFLAGS+=	-fPIC -DPIC
 LDFLAGS+=	-shared -Wl,-Bsymbolic
 DPADD=		${LIBC_PIC}
 LDADD=		-lc_pic -lssp_nonshared
