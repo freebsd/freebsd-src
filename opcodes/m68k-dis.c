@@ -280,6 +280,11 @@ fetch_arg (unsigned char *buffer,
       val = (buffer[1] >> 6);
       break;
 
+    case 'E':
+      FETCH_DATA (info, buffer + 3);
+      val = (buffer[2] >> 1);
+      break;
+
     case 'm':
       val = (buffer[1] & 0x40 ? 0x8 : 0)
 	| ((buffer[0] >> 1) & 0x7)
@@ -310,29 +315,8 @@ fetch_arg (unsigned char *buffer,
       abort ();
     }
 
-  switch (bits)
-    {
-    case 1:
-      return val & 1;
-    case 2:
-      return val & 3;
-    case 3:
-      return val & 7;
-    case 4:
-      return val & 017;
-    case 5:
-      return val & 037;
-    case 6:
-      return val & 077;
-    case 7:
-      return val & 0177;
-    case 8:
-      return val & 0377;
-    case 12:
-      return val & 07777;
-    default:
-      abort ();
-    }
+  /* bits is never too big.  */
+  return val & ((1 << bits) - 1);
 }
 
 /* Check if an EA is valid for a particular code.  This is required
@@ -645,12 +629,17 @@ print_insn_arg (const char *d,
              {"%dtt0",0x006}, {"%dtt1",0x007}, {"%buscr",0x008},
 	     {"%usp", 0x800}, {"%vbr", 0x801}, {"%caar", 0x802},
 	     {"%msp", 0x803}, {"%isp", 0x804},
-	     {"%flashbar", 0xc04}, {"%rambar", 0xc05}, /* mcf528x added these.  */
+	     /* reg c04 is sometimes called flashbar or rambar.
+		rec c05 is also sometimes called rambar.  */
+	     {"%rambar0", 0xc04}, {"%rambar1", 0xc05},
 
 	     /* Should we be calling this psr like we do in case 'Y'?  */
 	     {"%mmusr",0x805},
 
-             {"%urp", 0x806}, {"%srp", 0x807}, {"%pcr", 0x808}};
+             {"%urp", 0x806}, {"%srp", 0x807}, {"%pcr", 0x808},
+
+	     /* Fido added these.  */
+             {"%cac", 0xffe}, {"%mbb", 0xfff}};
 
 	val = fetch_arg (buffer, place, 12, info);
 	for (regno = sizeof names / sizeof names[0] - 1; regno >= 0; regno--)
@@ -677,6 +666,16 @@ print_insn_arg (const char *d,
       /* 0 means -1.  */
       if (val == 0)
 	val = -1;
+      (*info->fprintf_func) (info->stream, "#%d", val);
+      break;
+
+    case 'j':
+      val = fetch_arg (buffer, place, 3, info);
+      (*info->fprintf_func) (info->stream, "#%d", val+1);
+      break;
+
+    case 'K':
+      val = fetch_arg (buffer, place, 9, info);
       (*info->fprintf_func) (info->stream, "#%d", val);
       break;
 
@@ -1209,6 +1208,7 @@ match_insn_m68k (bfd_vma memaddr,
   unsigned char *save_p;
   unsigned char *p;
   const char *d;
+  const char *args = best->args;
 
   struct private *priv = (struct private *) info->private_data;
   bfd_byte *buffer = priv->the_buffer;
@@ -1216,6 +1216,9 @@ match_insn_m68k (bfd_vma memaddr,
   void (* save_print_address) (bfd_vma, struct disassemble_info *)
     = info->print_address_func;
 
+  if (*args == '.')
+    args++;
+  
   /* Point at first word of argument data,
      and at descriptor for first argument.  */
   p = buffer + 2;
@@ -1224,7 +1227,7 @@ match_insn_m68k (bfd_vma memaddr,
      The only place this is stored in the opcode table is
      in the arguments--look for arguments which specify fields in the 2nd
      or 3rd words of the instruction.  */
-  for (d = best->args; *d; d += 2)
+  for (d = args; *d; d += 2)
     {
       /* I don't think it is necessary to be checking d[0] here;
 	 I suspect all this could be moved to the case statement below.  */
@@ -1271,8 +1274,8 @@ match_insn_m68k (bfd_vma memaddr,
      three words long.  */
   if (p - buffer < 6
       && (best->match & 0xffff) == 0xffff
-      && best->args[0] == '#'
-      && best->args[1] == 'w')
+      && args[0] == '#'
+      && args[1] == 'w')
     {
       /* Copy the one word argument into the usual location for a one
 	 word argument, to simplify printing it.  We can get away with
@@ -1286,15 +1289,13 @@ match_insn_m68k (bfd_vma memaddr,
 
   FETCH_DATA (info, p);
 
-  d = best->args;
-
   save_p = p;
   info->print_address_func = dummy_print_address;
   info->fprintf_func = (fprintf_ftype) dummy_printer;
 
   /* We scan the operands twice.  The first time we don't print anything,
      but look for errors.  */
-  for (; *d; d += 2)
+  for (d = args; *d; d += 2)
     {
       int eaten = print_insn_arg (d, buffer, p, memaddr + (p - buffer), info);
 
@@ -1308,12 +1309,14 @@ match_insn_m68k (bfd_vma memaddr,
 	}
       else
 	{
+	  /* We must restore the print functions before trying to print the
+	     error message.  */
+	  info->fprintf_func = save_printer;
+	  info->print_address_func = save_print_address;
 	  info->fprintf_func (info->stream,
 			      /* xgettext:c-format */
 			      _("<internal error in opcode table: %s %s>\n"),
 			      best->name,  best->args);
-	  info->fprintf_func = save_printer;
-	  info->print_address_func = save_print_address;
 	  return 2;
 	}
     }
@@ -1322,7 +1325,7 @@ match_insn_m68k (bfd_vma memaddr,
   info->fprintf_func = save_printer;
   info->print_address_func = save_print_address;
 
-  d = best->args;
+  d = args;
 
   info->fprintf_func (info->stream, "%s", best->name);
 
@@ -1394,6 +1397,10 @@ m68k_scan_mask (bfd_vma memaddr, disassemble_info *info,
       const struct m68k_opcode *opc = opcodes[major_opcode][i];
       unsigned long opcode = opc->opcode;
       unsigned long match = opc->match;
+      const char *args = opc->args;
+
+      if (*args == '.')
+	args++;
 
       if (((0xff & buffer[0] & (match >> 24)) == (0xff & (opcode >> 24)))
 	  && ((0xff & buffer[1] & (match >> 16)) == (0xff & (opcode >> 16)))
@@ -1409,7 +1416,7 @@ m68k_scan_mask (bfd_vma memaddr, disassemble_info *info,
 	  /* Don't use for printout the variants of divul and divsl
 	     that have the same register number in two places.
 	     The more general variants will match instead.  */
-	  for (d = opc->args; *d; d += 2)
+	  for (d = args; *d; d += 2)
 	    if (d[1] == 'D')
 	      break;
 
@@ -1417,7 +1424,7 @@ m68k_scan_mask (bfd_vma memaddr, disassemble_info *info,
 	     point coprocessor instructions which use the same
 	     register number in two places, as above.  */
 	  if (*d == '\0')
-	    for (d = opc->args; *d; d += 2)
+	    for (d = args; *d; d += 2)
 	      if (d[1] == 't')
 		break;
 
@@ -1425,7 +1432,7 @@ m68k_scan_mask (bfd_vma memaddr, disassemble_info *info,
 	     wait for fmoveml.  */
 	  if (*d == '\0')
 	    {
-	      for (d = opc->args; *d; d += 2)
+	      for (d = args; *d; d += 2)
 		{
 		  if (d[0] == 's' && d[1] == '8')
 		    {
@@ -1439,7 +1446,7 @@ m68k_scan_mask (bfd_vma memaddr, disassemble_info *info,
 	  /* Don't match FPU insns with non-default coprocessor ID.  */
 	  if (*d == '\0')
 	    {
-	      for (d = opc->args; *d; d += 2)
+	      for (d = args; *d; d += 2)
 		{
 		  if (d[0] == 'I')
 		    {
@@ -1470,6 +1477,12 @@ print_insn_m68k (bfd_vma memaddr, disassemble_info *info)
 
   bfd_byte *buffer = priv.the_buffer;
 
+  /* Save these printing functions in case we need to restore them
+     later.  */
+  fprintf_ftype save_printer = info->fprintf_func;
+  void (* save_print_address) (bfd_vma, struct disassemble_info *)
+    = info->print_address_func;
+
   info->private_data = (PTR) &priv;
   /* Tell objdump to use two bytes per chunk
      and six bytes per line for displaying raw data.  */
@@ -1480,8 +1493,26 @@ print_insn_m68k (bfd_vma memaddr, disassemble_info *info)
   priv.insn_start = memaddr;
 
   if (setjmp (priv.bailout) != 0)
-    /* Error return.  */
-    return -1;
+    {
+      /* longjmp may be called while these printing functions are
+	 temporarily replaced with dummy functions.  Restore them
+	 before we leave.
+
+	 Admittedly, this save-and-restore operation is somewhat ugly
+	 in that we are exposing the fact that match_insn_m68k
+	 temporarily replaces insn->fprintf_func and
+	 insn->print_address_func.  Perhaps, a real fix is to report a
+	 FETCH_DATA failure with a return value of some sort, without
+	 using setjmp/longjmp.  A better fix may be to teach the m68k
+	 disassembler do its job without temporarily replacing
+	 insn->fprintf_func and insn->print_address_func, but that's a
+	 task for another day.  */
+      info->fprintf_func = save_printer;
+      info->print_address_func = save_print_address;
+
+      /* Error return.  */
+      return -1;
+    }
 
   arch_mask = bfd_m68k_mach_to_features (info->mach);
   if (!arch_mask)

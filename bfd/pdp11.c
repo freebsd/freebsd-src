@@ -1,5 +1,5 @@
 /* BFD back-end for PDP-11 a.out binaries.
-   Copyright 2001, 2002, 2003, 2004, 2005, 2006
+   Copyright 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -70,6 +70,7 @@
 		  && ((x).a_info != A_MAGIC5) \
 		  && ((x).a_info != A_MAGIC6))
 
+#include "sysdep.h"
 #include "bfd.h"
 
 #define external_exec pdp11_external_exec
@@ -123,7 +124,6 @@ struct pdp11_external_nlist
 
 #define WRITE_HEADERS(abfd, execp) pdp11_aout_write_headers (abfd, execp)
 
-#include "sysdep.h"
 #include "libbfd.h"
 #include "libaout.h"
 
@@ -275,6 +275,22 @@ NAME (aout, reloc_type_lookup) (bfd * abfd ATTRIBUTE_UNUSED,
     default:
       return NULL;
     }
+}
+
+reloc_howto_type *
+NAME (aout, reloc_name_lookup) (bfd *abfd ATTRIBUTE_UNUSED,
+				      const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (howto_table_pdp11) / sizeof (howto_table_pdp11[0]);
+       i++)
+    if (howto_table_pdp11[i].name != NULL
+	&& strcasecmp (howto_table_pdp11[i].name, r_name) == 0)
+      return &howto_table_pdp11[i];
+
+  return NULL;
 }
 
 static int
@@ -1111,32 +1127,27 @@ NAME (aout, new_section_hook) (bfd *abfd, asection *newsect)
   if (bfd_get_format (abfd) == bfd_object)
     {
       if (obj_textsec (abfd) == NULL
-	  && ! strcmp (newsect->name, ".text"))
+	  && !strcmp (newsect->name, ".text"))
 	{
 	  obj_textsec(abfd)= newsect;
 	  newsect->target_index = N_TEXT;
-	  return TRUE;
 	}
-
-    if (obj_datasec (abfd) == NULL
-	&& ! strcmp (newsect->name, ".data"))
-      {
-	obj_datasec (abfd) = newsect;
-	newsect->target_index = N_DATA;
-	return TRUE;
-      }
-
-    if (obj_bsssec (abfd) == NULL
-	&& !strcmp (newsect->name, ".bss"))
-      {
-	obj_bsssec (abfd) = newsect;
-	newsect->target_index = N_BSS;
-	return TRUE;
-      }
-  }
+      else if (obj_datasec (abfd) == NULL
+	       && !strcmp (newsect->name, ".data"))
+	{
+	  obj_datasec (abfd) = newsect;
+	  newsect->target_index = N_DATA;
+	}
+      else if (obj_bsssec (abfd) == NULL
+	       && !strcmp (newsect->name, ".bss"))
+	{
+	  obj_bsssec (abfd) = newsect;
+	  newsect->target_index = N_BSS;
+	}
+    }
 
   /* We allow more than three sections internally.  */
-  return TRUE;
+  return _bfd_generic_new_section_hook (abfd, newsect);
 }
 
 bfd_boolean
@@ -2376,7 +2387,8 @@ NAME (aout, find_nearest_line) (bfd *abfd,
 }
 
 int
-NAME (aout, sizeof_headers) (bfd *abfd, bfd_boolean execable ATTRIBUTE_UNUSED)
+NAME (aout, sizeof_headers) (bfd *abfd,
+			     struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
   return adata (abfd).exec_bytes_size;
 }

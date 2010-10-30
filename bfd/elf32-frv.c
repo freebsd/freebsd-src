@@ -1,5 +1,6 @@
 /* FRV-specific support for 32-bit ELF.
-   Copyright 2002, 2003, 2004, 2005, 2006  Free Software Foundation, Inc.
+   Copyright 2002, 2003, 2004, 2005, 2006, 2007
+   Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -17,8 +18,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
 #include "elf/frv.h"
@@ -57,12 +58,6 @@ static bfd_boolean elf32_frv_add_symbol_hook
 static bfd_reloc_status_type frv_final_link_relocate
   PARAMS ((reloc_howto_type *, bfd *, asection *, bfd_byte *,
 	   Elf_Internal_Rela *, bfd_vma));
-static bfd_boolean elf32_frv_gc_sweep_hook
-  PARAMS ((bfd *, struct bfd_link_info *, asection *, const
-	   Elf_Internal_Rela *));
-static asection * elf32_frv_gc_mark_hook
-  PARAMS ((asection *, struct bfd_link_info *, Elf_Internal_Rela *,
-	   struct elf_link_hash_entry *, Elf_Internal_Sym *));
 static bfd_boolean elf32_frv_check_relocs
   PARAMS ((bfd *, struct bfd_link_info *, asection *,
 	   const Elf_Internal_Rela *));
@@ -2595,6 +2590,26 @@ frv_reloc_type_lookup (abfd, code)
   return NULL;
 }
 
+static reloc_howto_type *
+frv_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED, const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (elf32_frv_howto_table) / sizeof (elf32_frv_howto_table[0]);
+       i++)
+    if (elf32_frv_howto_table[i].name != NULL
+	&& strcasecmp (elf32_frv_howto_table[i].name, r_name) == 0)
+      return &elf32_frv_howto_table[i];
+
+  if (strcasecmp (elf32_frv_vtinherit_howto.name, r_name) == 0)
+    return &elf32_frv_vtinherit_howto;
+  if (strcasecmp (elf32_frv_vtentry_howto.name, r_name) == 0)
+    return &elf32_frv_vtentry_howto;
+
+  return NULL;
+}
+
 /* Set the howto pointer for an FRV ELF reloc.  */
 
 static void
@@ -2728,9 +2743,6 @@ elf32_frv_relocate_section (output_bfd, info, input_bfd, input_section,
   int silence_segment_error = !(info->shared || info->pie);
   unsigned long insn;
 
-  if (info->relocatable)
-    return TRUE;
-
   symtab_hdr = & elf_tdata (input_bfd)->symtab_hdr;
   sym_hashes = elf_sym_hashes (input_bfd);
   relend     = relocs + input_section->reloc_count;
@@ -2782,7 +2794,6 @@ elf32_frv_relocate_section (output_bfd, info, input_bfd, input_section,
 	  || r_type == R_FRV_GNU_VTENTRY)
 	continue;
 
-      /* This is a final link.  */
       r_symndx = ELF32_R_SYM (rel->r_info);
       howto  = elf32_frv_howto_table + ELF32_R_TYPE (rel->r_info);
       h      = NULL;
@@ -2801,50 +2812,38 @@ elf32_frv_relocate_section (output_bfd, info, input_bfd, input_section,
 	}
       else
 	{
-	  h = sym_hashes [r_symndx - symtab_hdr->sh_info];
+	  bfd_boolean warned;
+	  bfd_boolean unresolved_reloc;
 
-	  while (h->root.type == bfd_link_hash_indirect
-		 || h->root.type == bfd_link_hash_warning)
-	    h = (struct elf_link_hash_entry *) h->root.u.i.link;
-
-	  name = h->root.root.string;
-
-	  if ((h->root.type == bfd_link_hash_defined
-	       || h->root.type == bfd_link_hash_defweak))
-	    {
-	      if (/* TLSMOFF forces local binding.  */
-		  r_type != R_FRV_TLSMOFF
-		  && ! FRVFDPIC_SYM_LOCAL (info, h))
-		{
-		  sec = NULL;
-		  relocation = 0;
-		}
-	      else
-		{
-		  sec = h->root.u.def.section;
-		  relocation = (h->root.u.def.value
-				+ sec->output_section->vma
-				+ sec->output_offset);
-		}
-	    }
-	  else if (h->root.type == bfd_link_hash_undefweak)
-	    {
-	      relocation = 0;
-	    }
-	  else if (info->unresolved_syms_in_objects == RM_IGNORE
-		   && ELF_ST_VISIBILITY (h->other) == STV_DEFAULT)
-	    relocation = 0;
-	  else
-	    {
-	      if (! ((*info->callbacks->undefined_symbol)
-		     (info, h->root.root.string, input_bfd,
-		      input_section, rel->r_offset,
-		      (info->unresolved_syms_in_objects == RM_GENERATE_ERROR
-		       || ELF_ST_VISIBILITY (h->other)))))
-		return FALSE;
-	      relocation = 0;
-	    }
+	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
+				   r_symndx, symtab_hdr, sym_hashes,
+				   h, sec, relocation,
+				   unresolved_reloc, warned);
 	  osec = sec;
+	}
+
+      if (sec != NULL && elf_discarded_section (sec))
+	{
+	  /* For relocs against symbols from removed linkonce sections,
+	     or sections discarded by a linker script, we just want the
+	     section contents zeroed.  Avoid any special processing.  */
+	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
+	  rel->r_info = 0;
+	  rel->r_addend = 0;
+	  continue;
+	}
+
+      if (info->relocatable)
+	continue;
+
+      if (r_type != R_FRV_TLSMOFF
+	  && h != NULL
+	  && (h->root.type == bfd_link_hash_defined
+	      || h->root.type == bfd_link_hash_defweak)
+	  && !FRVFDPIC_SYM_LOCAL (info, h))
+	{
+	  osec = sec = NULL;
+	  relocation = 0;
 	}
 
       switch (r_type)
@@ -3645,6 +3644,8 @@ elf32_frv_relocate_section (output_bfd, info, input_bfd, input_section,
 						input_section->output_section)
 			 & (SEC_ALLOC | SEC_LOAD)) == (SEC_ALLOC | SEC_LOAD))
 		      {
+			bfd_vma offset;
+
 			if (_frvfdpic_osec_readonly_p (output_bfd,
 						       input_section
 						       ->output_section))
@@ -3655,22 +3656,27 @@ elf32_frv_relocate_section (output_bfd, info, input_bfd, input_section,
 			       name, input_bfd, input_section, rel->r_offset);
 			    return FALSE;
 			  }
-			_frvfdpic_add_rofixup (output_bfd,
-					       frvfdpic_gotfixup_section
-					       (info),
-					       _bfd_elf_section_offset
-					       (output_bfd, info,
-						input_section, rel->r_offset)
-					       + input_section
-					       ->output_section->vma
-					       + input_section->output_offset,
-					       picrel);
+
+			offset = _bfd_elf_section_offset
+			  (output_bfd, info,
+			   input_section, rel->r_offset);
+
+			if (offset != (bfd_vma)-1)
+			  _frvfdpic_add_rofixup (output_bfd,
+						 frvfdpic_gotfixup_section
+						 (info),
+						 offset + input_section
+						 ->output_section->vma
+						 + input_section->output_offset,
+						 picrel);
 		      }
 		  }
 		else if ((bfd_get_section_flags (output_bfd,
 						 input_section->output_section)
 			  & (SEC_ALLOC | SEC_LOAD)) == (SEC_ALLOC | SEC_LOAD))
 		  {
+		    bfd_vma offset;
+
 		    if (_frvfdpic_osec_readonly_p (output_bfd,
 						   input_section
 						   ->output_section))
@@ -3681,15 +3687,18 @@ elf32_frv_relocate_section (output_bfd, info, input_bfd, input_section,
 			   name, input_bfd, input_section, rel->r_offset);
 			return FALSE;
 		      }
-		    _frvfdpic_add_dyn_reloc (output_bfd,
-					     frvfdpic_gotrel_section (info),
-					     _bfd_elf_section_offset
-					     (output_bfd, info,
-					      input_section, rel->r_offset)
-					     + input_section
-					     ->output_section->vma
-					     + input_section->output_offset,
-					     r_type, dynindx, addend, picrel);
+
+		    offset = _bfd_elf_section_offset
+		      (output_bfd, info,
+		       input_section, rel->r_offset);
+
+		    if (offset != (bfd_vma)-1)
+		      _frvfdpic_add_dyn_reloc (output_bfd,
+					       frvfdpic_gotrel_section (info),
+					       offset + input_section
+					       ->output_section->vma
+					       + input_section->output_offset,
+					       r_type, dynindx, addend, picrel);
 		  }
 		else
 		  addend += frvfdpic_got_section (info)->output_section->vma;
@@ -3770,25 +3779,27 @@ elf32_frv_relocate_section (output_bfd, info, input_bfd, input_section,
 		      }
 		    if (!h || h->root.type != bfd_link_hash_undefweak)
 		      {
-			_frvfdpic_add_rofixup (output_bfd,
-					       frvfdpic_gotfixup_section
-					       (info),
-					       _bfd_elf_section_offset
-					       (output_bfd, info,
-						input_section, rel->r_offset)
-					       + input_section
-					       ->output_section->vma
-					       + input_section->output_offset,
-					       picrel);
-			if (r_type == R_FRV_FUNCDESC_VALUE)
-			  _frvfdpic_add_rofixup
-			    (output_bfd,
-			     frvfdpic_gotfixup_section (info),
-			     _bfd_elf_section_offset
-			     (output_bfd, info,
-			      input_section, rel->r_offset)
-			     + input_section->output_section->vma
-			     + input_section->output_offset + 4, picrel);
+			bfd_vma offset = _bfd_elf_section_offset
+			  (output_bfd, info,
+			   input_section, rel->r_offset);
+
+			if (offset != (bfd_vma)-1)
+			  {
+			    _frvfdpic_add_rofixup (output_bfd,
+						   frvfdpic_gotfixup_section
+						   (info),
+						   offset + input_section
+						   ->output_section->vma
+						   + input_section->output_offset,
+						   picrel);
+			    if (r_type == R_FRV_FUNCDESC_VALUE)
+			      _frvfdpic_add_rofixup
+				(output_bfd,
+				 frvfdpic_gotfixup_section (info),
+				 offset
+				 + input_section->output_section->vma
+				 + input_section->output_offset + 4, picrel);
+			  }
 		      }
 		  }
 	      }
@@ -3798,6 +3809,8 @@ elf32_frv_relocate_section (output_bfd, info, input_bfd, input_section,
 					    input_section->output_section)
 		     & (SEC_ALLOC | SEC_LOAD)) == (SEC_ALLOC | SEC_LOAD))
 		  {
+		    bfd_vma offset;
+
 		    if (_frvfdpic_osec_readonly_p (output_bfd,
 						   input_section
 						   ->output_section))
@@ -3808,15 +3821,18 @@ elf32_frv_relocate_section (output_bfd, info, input_bfd, input_section,
 			   name, input_bfd, input_section, rel->r_offset);
 			return FALSE;
 		      }
-		    _frvfdpic_add_dyn_reloc (output_bfd,
-					     frvfdpic_gotrel_section (info),
-					     _bfd_elf_section_offset
-					     (output_bfd, info,
-					      input_section, rel->r_offset)
-					     + input_section
-					     ->output_section->vma
-					     + input_section->output_offset,
-					     r_type, dynindx, addend, picrel);
+
+		    offset = _bfd_elf_section_offset
+		      (output_bfd, info,
+		       input_section, rel->r_offset);
+
+		    if (offset != (bfd_vma)-1)
+		      _frvfdpic_add_dyn_reloc (output_bfd,
+					       frvfdpic_gotrel_section (info),
+					       offset + input_section
+					       ->output_section->vma
+					       + input_section->output_offset,
+					       r_type, dynindx, addend, picrel);
 		  }
 		else if (osec)
 		  addend += osec->output_section->vma;
@@ -4145,54 +4161,22 @@ elf32_frv_relocate_section (output_bfd, info, input_bfd, input_section,
    relocation.  */
 
 static asection *
-elf32_frv_gc_mark_hook (sec, info, rel, h, sym)
-     asection *sec;
-     struct bfd_link_info *info ATTRIBUTE_UNUSED;
-     Elf_Internal_Rela *rel;
-     struct elf_link_hash_entry *h;
-     Elf_Internal_Sym *sym;
+elf32_frv_gc_mark_hook (asection *sec,
+			struct bfd_link_info *info,
+			Elf_Internal_Rela *rel,
+			struct elf_link_hash_entry *h,
+			Elf_Internal_Sym *sym)
 {
   if (h != NULL)
-    {
-      switch (ELF32_R_TYPE (rel->r_info))
-	{
-	case R_FRV_GNU_VTINHERIT:
-	case R_FRV_GNU_VTENTRY:
-	  break;
+    switch (ELF32_R_TYPE (rel->r_info))
+      {
+      case R_FRV_GNU_VTINHERIT:
+      case R_FRV_GNU_VTENTRY:
+	return NULL;
+      }
 
-	default:
-	  switch (h->root.type)
-	    {
-	    default:
-	      break;
-
-	    case bfd_link_hash_defined:
-	    case bfd_link_hash_defweak:
-	      return h->root.u.def.section;
-
-	    case bfd_link_hash_common:
-	      return h->root.u.c.p->section;
-	    }
-	}
-    }
-  else
-    return bfd_section_from_elf_index (sec->owner, sym->st_shndx);
-
-  return NULL;
+  return _bfd_elf_gc_mark_hook (sec, info, rel, h, sym);
 }
-
-/* Update the got entry reference counts for the section being removed.  */
-
-static bfd_boolean
-elf32_frv_gc_sweep_hook (abfd, info, sec, relocs)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     struct bfd_link_info *info ATTRIBUTE_UNUSED;
-     asection *sec ATTRIBUTE_UNUSED;
-     const Elf_Internal_Rela *relocs ATTRIBUTE_UNUSED;
-{
-  return TRUE;
-}
-
 
 /* Hook called by the linker routine which adds symbols from an object
    file.  We use it to put .comm items in .scomm, and not .comm.  */
@@ -5603,7 +5587,6 @@ elf32_frvfdpic_always_size_sections (bfd *output_bfd,
   if (!info->relocatable)
     {
       struct elf_link_hash_entry *h;
-      asection *sec;
 
       /* Force a PT_GNU_STACK segment to be created.  */
       if (! elf_tdata (output_bfd)->stack_flags)
@@ -5630,12 +5613,121 @@ elf32_frvfdpic_always_size_sections (bfd *output_bfd,
 	  h->type = STT_OBJECT;
 	  /* This one must NOT be hidden.  */
 	}
+    }
 
-      /* Create a stack section, and set its alignment.  */
-      sec = bfd_make_section (output_bfd, ".stack");
+  return TRUE;
+}
 
-      if (sec == NULL
-	  || ! bfd_set_section_alignment (output_bfd, sec, 3))
+/* Check whether any of the relocations was optimized away, and
+   subtract it from the relocation or fixup count.  */
+static bfd_boolean
+_frvfdpic_check_discarded_relocs (bfd *abfd, asection *sec,
+				  struct bfd_link_info *info,
+				  
+				  bfd_boolean *changed)
+{
+  Elf_Internal_Shdr *symtab_hdr;
+  struct elf_link_hash_entry **sym_hashes, **sym_hashes_end;
+  Elf_Internal_Rela *rel, *erel;
+
+  if ((sec->flags & SEC_RELOC) == 0
+      || sec->reloc_count == 0)
+    return TRUE;
+
+  symtab_hdr = &elf_tdata (abfd)->symtab_hdr;
+  sym_hashes = elf_sym_hashes (abfd);
+  sym_hashes_end = sym_hashes + symtab_hdr->sh_size/sizeof(Elf32_External_Sym);
+  if (!elf_bad_symtab (abfd))
+    sym_hashes_end -= symtab_hdr->sh_info;
+
+  rel = elf_section_data (sec)->relocs;
+
+  /* Now examine each relocation.  */
+  for (erel = rel + sec->reloc_count; rel < erel; rel++)
+    {
+      struct elf_link_hash_entry *h;
+      unsigned long r_symndx;
+      struct frvfdpic_relocs_info *picrel;
+      struct _frvfdpic_dynamic_got_info *dinfo;
+
+      if (ELF32_R_TYPE (rel->r_info) != R_FRV_32
+	  && ELF32_R_TYPE (rel->r_info) != R_FRV_FUNCDESC)
+	continue;
+
+      if (_bfd_elf_section_offset (sec->output_section->owner,
+				   info, sec, rel->r_offset)
+	  != (bfd_vma)-1)
+	continue;
+
+      r_symndx = ELF32_R_SYM (rel->r_info);
+      if (r_symndx < symtab_hdr->sh_info)
+	h = NULL;
+      else
+	{
+	  h = sym_hashes[r_symndx - symtab_hdr->sh_info];
+	  while (h->root.type == bfd_link_hash_indirect
+		 || h->root.type == bfd_link_hash_warning)
+	    h = (struct elf_link_hash_entry *)h->root.u.i.link;
+	}
+
+      if (h != NULL)
+	picrel = frvfdpic_relocs_info_for_global (frvfdpic_relocs_info (info),
+						  abfd, h,
+						  rel->r_addend, NO_INSERT);
+      else
+	picrel = frvfdpic_relocs_info_for_local (frvfdpic_relocs_info (info),
+						 abfd, r_symndx,
+						 rel->r_addend, NO_INSERT);
+
+      if (! picrel)
+	return FALSE;
+
+      *changed = TRUE;
+      dinfo = frvfdpic_dynamic_got_plt_info (info);
+
+      _frvfdpic_count_relocs_fixups (picrel, dinfo, TRUE);
+      if (ELF32_R_TYPE (rel->r_info) == R_FRV_32)
+	picrel->relocs32--;
+      else /* we know (ELF32_R_TYPE (rel->r_info) == R_FRV_FUNCDESC) */
+	picrel->relocsfd--;
+      _frvfdpic_count_relocs_fixups (picrel, dinfo, FALSE);
+    }
+
+  return TRUE;
+}
+
+static bfd_boolean
+frvfdpic_elf_discard_info (bfd *ibfd,
+			   struct elf_reloc_cookie *cookie ATTRIBUTE_UNUSED,
+			   struct bfd_link_info *info)
+{
+  bfd_boolean changed = FALSE;
+  asection *s;
+  bfd *obfd = NULL;
+
+  /* Account for relaxation of .eh_frame section.  */
+  for (s = ibfd->sections; s; s = s->next)
+    if (s->sec_info_type == ELF_INFO_TYPE_EH_FRAME)
+      {
+	if (!_frvfdpic_check_discarded_relocs (ibfd, s, info, &changed))
+	  return FALSE;
+	obfd = s->output_section->owner;
+      }
+
+  if (changed)
+    {
+      struct _frvfdpic_dynamic_got_plt_info gpinfo;
+
+      memset (&gpinfo, 0, sizeof (gpinfo));
+      memcpy (&gpinfo.g, frvfdpic_dynamic_got_plt_info (info),
+	      sizeof (gpinfo.g));
+
+      /* Clear GOT and PLT assignments.  */
+      htab_traverse (frvfdpic_relocs_info (info),
+		     _frvfdpic_reset_got_plt_entries,
+		     NULL);
+
+      if (!_frvfdpic_size_got_plt (obfd, &gpinfo))
 	return FALSE;
     }
 
@@ -5718,48 +5810,45 @@ elf32_frvfdpic_relax_section (bfd *abfd ATTRIBUTE_UNUSED, asection *sec,
 }
 
 static bfd_boolean
-elf32_frvfdpic_modify_segment_map (bfd *output_bfd,
-				   struct bfd_link_info *info)
+elf32_frvfdpic_modify_program_headers (bfd *output_bfd,
+				       struct bfd_link_info *info)
 {
+  struct elf_obj_tdata *tdata = elf_tdata (output_bfd);
   struct elf_segment_map *m;
+  Elf_Internal_Phdr *p;
 
   /* objcopy and strip preserve what's already there using
      elf32_frvfdpic_copy_private_bfd_data ().  */
   if (! info)
     return TRUE;
 
-  for (m = elf_tdata (output_bfd)->segment_map; m != NULL; m = m->next)
+  for (p = tdata->phdr, m = tdata->segment_map; m != NULL; m = m->next, p++)
     if (m->p_type == PT_GNU_STACK)
       break;
 
   if (m)
     {
-      asection *sec = bfd_get_section_by_name (output_bfd, ".stack");
       struct elf_link_hash_entry *h;
 
-      if (sec)
+      /* Obtain the pointer to the __stacksize symbol.  */
+      h = elf_link_hash_lookup (elf_hash_table (info), "__stacksize",
+				FALSE, FALSE, FALSE);
+      if (h)
 	{
-	  /* Obtain the pointer to the __stacksize symbol.  */
-	  h = elf_link_hash_lookup (elf_hash_table (info), "__stacksize",
-				    FALSE, FALSE, FALSE);
 	  while (h->root.type == bfd_link_hash_indirect
 		 || h->root.type == bfd_link_hash_warning)
-	    h = (struct elf_link_hash_entry *)h->root.u.i.link;
+	    h = (struct elf_link_hash_entry *) h->root.u.i.link;
 	  BFD_ASSERT (h->root.type == bfd_link_hash_defined);
-
-	  /* Set the section size from the symbol value.  We
-	     intentionally ignore the symbol section.  */
-	  if (h->root.type == bfd_link_hash_defined)
-	    sec->size = h->root.u.def.value;
-	  else
-	    sec->size = DEFAULT_STACK_SIZE;
-
-	  /* Add the stack section to the PT_GNU_STACK segment,
-	     such that its size and alignment requirements make it
-	     to the segment.  */
-	  m->sections[m->count] = sec;
-	  m->count++;
 	}
+
+      /* Set the header p_memsz from the symbol value.  We
+	 intentionally ignore the symbol section.  */
+      if (h && h->root.type == bfd_link_hash_defined)
+	p->p_memsz = h->root.u.def.value;
+      else
+	p->p_memsz = DEFAULT_STACK_SIZE;
+
+      p->p_align = 8;
     }
 
   return TRUE;
@@ -6401,6 +6490,10 @@ frv_elf_copy_private_bfd_data (ibfd, obfd)
 
   elf_elfheader (obfd)->e_flags = elf_elfheader (ibfd)->e_flags;
   elf_flags_init (obfd) = TRUE;
+
+  /* Copy object attributes.  */
+  _bfd_elf_copy_obj_attributes (ibfd, obfd);
+
   return TRUE;
 }
 
@@ -6922,7 +7015,6 @@ elf32_frv_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 #define elf_info_to_howto			frv_info_to_howto_rela
 #define elf_backend_relocate_section		elf32_frv_relocate_section
 #define elf_backend_gc_mark_hook		elf32_frv_gc_mark_hook
-#define elf_backend_gc_sweep_hook		elf32_frv_gc_sweep_hook
 #define elf_backend_check_relocs                elf32_frv_check_relocs
 #define elf_backend_object_p			elf32_frv_object_p
 #define elf_backend_add_symbol_hook             elf32_frv_add_symbol_hook
@@ -6931,6 +7023,7 @@ elf32_frv_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 #define elf_backend_rela_normal			1
 
 #define bfd_elf32_bfd_reloc_type_lookup		frv_reloc_type_lookup
+#define bfd_elf32_bfd_reloc_name_lookup	frv_reloc_name_lookup
 #define bfd_elf32_bfd_set_private_flags		frv_elf_set_private_flags
 #define bfd_elf32_bfd_copy_private_bfd_data	frv_elf_copy_private_bfd_data
 #define bfd_elf32_bfd_merge_private_bfd_data	frv_elf_merge_private_bfd_data
@@ -6970,9 +7063,9 @@ elf32_frv_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 #undef elf_backend_always_size_sections
 #define elf_backend_always_size_sections \
 		elf32_frvfdpic_always_size_sections
-#undef elf_backend_modify_segment_map
-#define elf_backend_modify_segment_map \
-		elf32_frvfdpic_modify_segment_map
+#undef elf_backend_modify_program_headers
+#define elf_backend_modify_program_headers \
+		elf32_frvfdpic_modify_program_headers
 #undef bfd_elf32_bfd_copy_private_bfd_data
 #define bfd_elf32_bfd_copy_private_bfd_data \
 		elf32_frvfdpic_copy_private_bfd_data
@@ -6996,6 +7089,9 @@ elf32_frv_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 #define elf_backend_finish_dynamic_sections \
 		elf32_frvfdpic_finish_dynamic_sections
 
+#undef elf_backend_discard_info
+#define elf_backend_discard_info \
+		frvfdpic_elf_discard_info
 #undef elf_backend_can_make_relative_eh_frame
 #define elf_backend_can_make_relative_eh_frame \
 		frvfdpic_elf_use_relative_eh_frame

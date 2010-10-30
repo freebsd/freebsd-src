@@ -1,6 +1,6 @@
 /* BFD back-end for ALPHA Extended-Coff files.
    Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004, 2005 Free Software Foundation, Inc.
+   2003, 2004, 2005, 2007 Free Software Foundation, Inc.
    Modified from coff-mips.c by Steve Chamberlain <sac@cygnus.com> and
    Ian Lance Taylor <ian@cygnus.com>.
 
@@ -20,8 +20,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "bfdlink.h"
 #include "libbfd.h"
 #include "coff/internal.h"
@@ -1244,6 +1244,22 @@ alpha_bfd_reloc_type_lookup (abfd, code)
 
   return &alpha_howto_table[alpha_type];
 }
+
+static reloc_howto_type *
+alpha_bfd_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			     const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (alpha_howto_table) / sizeof (alpha_howto_table[0]);
+       i++)
+    if (alpha_howto_table[i].name != NULL
+	&& strcasecmp (alpha_howto_table[i].name, r_name) == 0)
+      return &alpha_howto_table[i];
+
+  return NULL;
+}
 
 /* A helper routine for alpha_relocate_section which converts an
    external reloc when generating relocatable output.  Returns the
@@ -2361,6 +2377,8 @@ static const struct ecoff_backend_data alpha_ecoff_backend_data =
 
 /* Looking up a reloc type is Alpha specific.  */
 #define _bfd_ecoff_bfd_reloc_type_lookup alpha_bfd_reloc_type_lookup
+#define _bfd_ecoff_bfd_reloc_name_lookup \
+  alpha_bfd_reloc_name_lookup
 
 /* So is getting relocated section contents.  */
 #define _bfd_ecoff_bfd_get_relocated_section_contents \

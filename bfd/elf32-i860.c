@@ -1,5 +1,5 @@
 /* Intel i860 specific support for 32-bit ELF.
-   Copyright 1993, 1995, 1999, 2000, 2001, 2002, 2003, 2004, 2005
+   Copyright 1993, 1995, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007
    Free Software Foundation, Inc.
 
    Full i860 support contributed by Jason Eckhardt <jle@cygnus.com>.
@@ -20,8 +20,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
 #include "elf/i860.h"
@@ -886,6 +886,23 @@ elf32_i860_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
   return lookup_howto (rtype);
 }
 
+static reloc_howto_type *
+elf32_i860_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			      const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < (sizeof (elf32_i860_howto_table)
+	    / sizeof (elf32_i860_howto_table[0]));
+       i++)
+    if (elf32_i860_howto_table[i].name != NULL
+	&& strcasecmp (elf32_i860_howto_table[i].name, r_name) == 0)
+      return &elf32_i860_howto_table[i];
+
+  return NULL;
+}
+
 /* Given a ELF reloc, return the matching HOWTO structure.  */
 static void
 elf32_i860_info_to_howto_rela (bfd *abfd ATTRIBUTE_UNUSED,
@@ -1066,9 +1083,6 @@ elf32_i860_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
   Elf_Internal_Rela *rel;
   Elf_Internal_Rela *relend;
 
-  if (info->relocatable)
-    return TRUE;
-
   symtab_hdr = & elf_tdata (input_bfd)->symtab_hdr;
   sym_hashes = elf_sym_hashes (input_bfd);
   relend     = relocs + input_section->reloc_count;
@@ -1112,6 +1126,20 @@ elf32_i860_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 				   h, sec, relocation,
 				   unresolved_reloc, warned);
 	}
+
+      if (sec != NULL && elf_discarded_section (sec))
+	{
+	  /* For relocs against symbols from removed linkonce sections,
+	     or sections discarded by a linker script, we just want the
+	     section contents zeroed.  Avoid any special processing.  */
+	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
+	  rel->r_info = 0;
+	  rel->r_addend = 0;
+	  continue;
+	}
+
+      if (info->relocatable)
+	continue;
 
       switch (r_type)
 	{
@@ -1241,6 +1269,7 @@ elf32_i860_is_local_label_name (bfd *abfd, const char *name)
 #define elf_info_to_howto			elf32_i860_info_to_howto_rela
 #define elf_backend_relocate_section		elf32_i860_relocate_section
 #define bfd_elf32_bfd_reloc_type_lookup		elf32_i860_reloc_type_lookup
+#define bfd_elf32_bfd_reloc_name_lookup	elf32_i860_reloc_name_lookup
 #define bfd_elf32_bfd_is_local_label_name	elf32_i860_is_local_label_name
 
 #include "elf32-target.h"

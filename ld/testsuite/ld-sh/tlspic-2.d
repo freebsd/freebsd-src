@@ -68,9 +68,6 @@ Relocation section '\.rela\.plt' at offset 0x[0-9a-f]+ contains 1 entries:
 Symbol table '\.dynsym' contains [0-9]+ entries:
  +Num: +Value +Size Type +Bind +Vis +Ndx Name
 .* NOTYPE +LOCAL +DEFAULT  UND *
-.* SECTION LOCAL  DEFAULT +7 *
-.* SECTION LOCAL  DEFAULT +8 *
-.* SECTION LOCAL  DEFAULT +9 *
 .* NOTYPE  GLOBAL DEFAULT  UND __tls_get_addr
 .* TLS +GLOBAL DEFAULT +8 sg1
 #...

@@ -8,7 +8,7 @@ fi
 cat >e${EMULATION_NAME}.c <<EOF
 /* This file is part of GLD, the Gnu Linker.
    Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-   2005 Free Software Foundation, Inc.
+   2005, 2006, 2007 Free Software Foundation, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -31,8 +31,8 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
    only determine if the subsystem is console or windows in order to select
    the correct entry point by default. */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "bfdlink.h"
 #include "getopt.h"
 #include "libiberty.h"
@@ -452,16 +452,15 @@ sort_by_section_name (const void *a, const void *b)
   const lang_statement_union_type *const *rb = b;
   int i;
   i = strcmp ((*ra)->input_section.section->name,
-		 (*rb)->input_section.section->name);
-/* this is a hack to make .stab and .stabstr last, so we don't have
-   to fix strip/objcopy for .reloc sections.
-   FIXME stripping images with a .rsrc section still needs to be fixed */
-  if ( i != 0)
+	      (*rb)->input_section.section->name);
+  /* This is a hack to make .stab and .stabstr last, so we don't have
+     to fix strip/objcopy for .reloc sections.
+     FIXME stripping images with a .rsrc section still needs to be fixed.  */
+  if (i != 0)
     {
-      if ((strncmp ((*ra)->input_section.section->name, ".stab", 5) == 0)
-           && (strncmp ((*rb)->input_section.section->name, ".stab", 5) != 0))
+      if ((CONST_STRNEQ ((*ra)->input_section.section->name, ".stab"))
+           && (! CONST_STRNEQ ((*rb)->input_section.section->name, ".stab")))
          return 1;
-      return i;
     }
   return i;
 }
@@ -534,7 +533,7 @@ sort_sections (lang_statement_union_type *s)
 	    {
 	      /* Is this the .idata section?  */
 	      if (sec->spec.name != NULL
-		  && strncmp (sec->spec.name, ".idata", 6) == 0)
+		  && CONST_STRNEQ (sec->spec.name, ".idata"))
 		{
 		  /* Sort the children.  We want to sort any objects in
 		     the same archive.  In order to handle the case of

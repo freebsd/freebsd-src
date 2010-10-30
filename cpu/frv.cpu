@@ -2808,12 +2808,21 @@
    (dbmr20  2084) (dbmr21  2085) (dbmr22  2086) (dbmr23  2087)
    (dbmr30  2088) (dbmr31  2089) (dbmr32  2090) (dbmr33  2091)
 
-   (cpcfr   2092) (cpcr    2093) (cpsr    2094)
+   (cpcfr   2304) (cpcr    2305) (cpsr    2306) (cptr    2307)
+   (cphsr0  2308) (cphsr1  2309) (cpesr0  2320) (cpesr1  2321)
+   (cpemr0  2322) (cpemr1  2323) 
 
-   (cpesr0  2096) (cpesr1  2097)
-   (cpemr0  2098) (cpemr1  2099)
+   (iperr0  2324) (iperr1  2325) (ipjsr   2326) (ipjrr   2327)
+   (ipcsr0  2336) (ipcsr1  2337) (ipcwer0 2338) (ipcwer1 2339)
+   (ipcwr   2340)
 
-   (ihsr8   3848)
+   (mbhsr   2352) (mbssr   2353) (mbrsr   2354) (mbsdr   2355)
+   (mbrdr   2356) (mbsmr   2357) (mbstr0  2359) (mbstr1  2360)
+
+   (slpr    2368) (sldr    2369) (slhsr   2370) (sltr    2371)
+   (slwr    2372)
+
+   (ihsr8   3848) (ihsr9   3849) (ihsr10  3850)
   )
 )
 

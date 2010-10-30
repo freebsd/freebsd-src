@@ -1,5 +1,5 @@
 /* Print National Semiconductor 32000 instructions.
-   Copyright 1986, 1988, 1991, 1992, 1994, 1998, 2001, 2002, 2005
+   Copyright 1986, 1988, 1991, 1992, 1994, 1998, 2001, 2002, 2005, 2007
    Free Software Foundation, Inc.
 
    This file is part of opcodes library.
@@ -20,8 +20,8 @@
    MA 02110-1301, USA.  */
 
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "dis-asm.h"
 #if !defined(const) && !defined(__STDC__)
 #define const

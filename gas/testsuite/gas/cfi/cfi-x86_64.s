@@ -35,9 +35,9 @@ func_prologue:
 	#; each instruction.
 	pushq	%rbp
 	.cfi_def_cfa_offset	16
-	.cfi_offset		rbp,-16
+	.cfi_offset		%rbp, -16
 	movq	%rsp, %rbp
-	.cfi_def_cfa_register	rbp
+	.cfi_def_cfa_register	%rbp
 
 	#; function body
 	call	func_locvars
@@ -46,7 +46,7 @@ func_prologue:
 	#; epilogue with valid CFI
 	#; (we're better than gcc :-)
 	leaveq
-	.cfi_def_cfa		rsp,8
+	.cfi_def_cfa		%rsp, 8
 	ret
 	.cfi_endproc
 
@@ -59,21 +59,21 @@ func_prologue:
 func_otherreg:
 	.cfi_startproc
 
-	#; save frame pointer to r12
-	movq	%rsp,%r12
-	.cfi_def_cfa_register	r12
+	#; save frame pointer to r8
+	movq	%rsp,%r8
+	.cfi_def_cfa_register	r8
 
 	#; alocate space for local vars
 	#;  (no .cfi_{def,adjust}_cfa_offset here,
-	#;   because CFA is computed from r12!)
+	#;   because CFA is computed from r8!)
 	sub	$100,%rsp
 
 	#; function body
 	call	func_prologue
 	addl	$2, %eax
 	
-	#; restore frame pointer from r12
-	movq	%r12,%rsp
+	#; restore frame pointer from r8
+	movq	%r8,%rsp
 	.cfi_def_cfa_register	rsp
 	ret
 	.cfi_endproc
@@ -104,4 +104,35 @@ _start:
 	movq	$0x3c,%rax
 	syscall
 	hlt
+	.cfi_endproc
+
+#; func_alldirectives
+#; - test for all .cfi directives. 
+#;   This function is never called and the CFI info doesn't make sense.
+
+	.type	func_alldirectives,@function
+func_alldirectives:
+	.cfi_startproc simple
+	.cfi_def_cfa	rsp,8
+	nop
+	.cfi_def_cfa_offset	16
+	nop
+	.cfi_def_cfa_register	r8
+	nop
+	.cfi_adjust_cfa_offset	0x1234
+	nop
+	.cfi_offset	%rsi, 0x10
+	nop
+	.cfi_register	%r8, %r9
+	nop
+	.cfi_remember_state
+	nop
+	.cfi_restore %rbp
+	nop
+	.cfi_undefined %rip
+	nop
+	.cfi_same_value rbx
+	nop
+	.cfi_restore_state
+	ret
 	.cfi_endproc

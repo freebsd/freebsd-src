@@ -1,0 +1,9 @@
+# MEP assembler testsuite. -*- Tcl -*-
+
+if [istarget mep*-*-*] {
+    foreach test {allinsn dj1 dj2} {
+	run_dump_test $test
+	run_dump_test $test.le
+    }
+    run_dump_test branch1
+}

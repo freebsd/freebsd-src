@@ -1,217 +1,237 @@
-# Makefile for directory with message catalog handling in GNU NLS Utilities.
-# Copyright (C) 1995, 1996, 1997, 1998, 2006 Free Software Foundation, Inc.
+# Makefile for directory with message catalog handling library of GNU gettext
+# Copyright (C) 1995-1998, 2000-2003 Free Software Foundation, Inc.
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2, or (at your option)
+# This program is free software; you can redistribute it and/or modify it
+# under the terms of the GNU Library General Public License as published
+# by the Free Software Foundation; either version 2, or (at your option)
 # any later version.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Library General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+# You should have received a copy of the GNU Library General Public
+# License along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301,
+# USA.
 
-PACKAGE = @PACKAGE@
-VERSION = @VERSION@
+# This Makefile has been modified from the original shipped with
+# gettext 0.12.1 to remove the ability to install libintl (which
+# we do not need nor want), the ability to build a shared library
+# (likewise), and a large number of heinous kludges.
 
-SHELL = /bin/sh
+SHELL = @SHELL@
 
 srcdir = @srcdir@
-top_srcdir = @top_srcdir@
-top_builddir = ..
-VPATH = @srcdir@
+VPATH = $(srcdir)
 
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 transform = @program_transform_name@
-libdir = $(exec_prefix)/lib
-includedir = $(prefix)/include
-datadir = $(prefix)/@DATADIRNAME@
+libdir = @libdir@
+includedir = @includedir@
+datadir = @datadir@
 localedir = $(datadir)/locale
-gnulocaledir = $(datadir)/locale
-gettextsrcdir = @datadir@/gettext/intl
-aliaspath = $(localedir):.
-subdir = intl
-
-INSTALL = @INSTALL@
-INSTALL_DATA = @INSTALL_DATA@
-MKINSTALLDIRS = @MKINSTALLDIRS@
-
-l = @l@
+aliaspath = $(localedir)
 
 AR = ar
+ACLOCAL = @ACLOCAL@
+AUTOCONF = @AUTOCONF@
+AUTOHEADER = @AUTOHEADER@
 CC = @CC@
-LIBTOOL = @LIBTOOL@
 RANLIB = @RANLIB@
-
-DEFS = -DLOCALEDIR=\"$(localedir)\" -DGNULOCALEDIR=\"$(gnulocaledir)\" \
--DLOCALE_ALIAS_PATH=\"$(aliaspath)\" @DEFS@
+YACC = @INTLBISON@ -y -d
+YFLAGS = --name-prefix=__gettext
 CPPFLAGS = @CPPFLAGS@
 CFLAGS = @CFLAGS@
 LDFLAGS = @LDFLAGS@
+LIBS = @LIBS@
+DEFS = -DHAVE_CONFIG_H
 
-COMPILE = $(CC) -c $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS) $(XCFLAGS)
+COMPILE = $(CC) -c $(CPPFLAGS) $(CFLAGS) $(DEFS) $(DEFS-$@) $(INCLUDES)
 
-HEADERS = $(COMHDRS) libgettext.h loadinfo.h
-COMHDRS = gettext.h gettextP.h hash-string.h
-SOURCES = $(COMSRCS) intl-compat.c cat-compat.c
-COMSRCS = bindtextdom.c dcgettext.c dgettext.c gettext.c \
-finddomain.c loadmsgcat.c localealias.c textdomain.c l10nflist.c \
-explodename.c
-OBJECTS = @INTLOBJS@ bindtextdom.$lo dcgettext.$lo dgettext.$lo gettext.$lo \
-finddomain.$lo loadmsgcat.$lo localealias.$lo textdomain.$lo l10nflist.$lo \
-explodename.$lo
-CATOBJS = cat-compat.$lo ../po/cat-id-tbl.$lo
-GETTOBJS = intl-compat.$lo
-DISTFILES.common = ChangeLog Makefile.in linux-msg.sed po2tbl.sed.in \
-xopen-msg.sed $(HEADERS) $(SOURCES)
-DISTFILES.normal = VERSION
-DISTFILES.gettext = libintl.glibc intlh.inst.in
+HEADERS = \
+  gmo.h \
+  gettextP.h \
+  hash-string.h \
+  loadinfo.h \
+  plural-exp.h \
+  eval-plural.h \
+  localcharset.h \
+  relocatable.h \
+  libgnuintl.h
+SOURCES = \
+  bindtextdom.c \
+  dcgettext.c \
+  dgettext.c \
+  gettext.c \
+  finddomain.c \
+  loadmsgcat.c \
+  localealias.c \
+  textdomain.c \
+  l10nflist.c \
+  explodename.c \
+  dcigettext.c \
+  dcngettext.c \
+  dngettext.c \
+  ngettext.c \
+  plural.y \
+  plural-exp.c \
+  localcharset.c \
+  relocatable.c \
+  localename.c \
+  log.c \
+  osdep.c \
+  intl-compat.c
+OBJECTS = \
+  bindtextdom.o \
+  dcgettext.o \
+  dgettext.o \
+  gettext.o \
+  finddomain.o \
+  loadmsgcat.o \
+  localealias.o \
+  textdomain.o \
+  l10nflist.o \
+  explodename.o \
+  dcigettext.o \
+  dcngettext.o \
+  dngettext.o \
+  ngettext.o \
+  plural.o \
+  plural-exp.o \
+  localcharset.o \
+  relocatable.o \
+  localename.o \
+  log.o \
+  osdep.o \
+  intl-compat.o
 
-.SUFFIXES:
-.SUFFIXES: .c .o .lo
-.c.o:
-	$(COMPILE) $<
-.c.lo:
-	$(LIBTOOL) --mode=compile $(COMPILE) $<
-
-INCLUDES = -I. -I$(srcdir)
+DEFS-dcigettext.o = -DLOCALEDIR="\"$(localedir)\""
+DEFS-localealias.o = -DLOCALE_ALIAS_PATH="\"$(aliaspath)\""
+DEFS-localcharset.o = -DLIBDIR="\"$(libdir)\""
+DEFS-relocatable.o = -DINSTALLDIR="\"$(libdir)\""
 
 all: all-@USE_INCLUDED_LIBINTL@
-
-all-yes: libintl.$la intlh.inst
-all-no:
-install-info:
+all-yes: libintl.a libintl.h config.intl
+all-no: # nothing
 
 libintl.a: $(OBJECTS)
 	rm -f $@
 	$(AR) cru $@ $(OBJECTS)
 	$(RANLIB) $@
 
-libintl.la: $(OBJECTS)
-	$(LIBTOOL) --mode=link $(CC) $(LDFLAGS) -o $@ $(OBJECTS) \
-		   -version-info 1:0 -rpath $(libdir)
+libintl.h: $(srcdir)/libgnuintl.h
+	cp $(srcdir)/libgnuintl.h $@
 
-../po/cat-id-tbl.$lo: ../po/cat-id-tbl.c $(top_srcdir)/po/$(PACKAGE).pot
-	cd ../po && $(MAKE) cat-id-tbl.$lo
+.SUFFIXES:
+.SUFFIXES: .c .y .o
+
+.c.o:
+	$(COMPILE) $<
+
+.y.c:
+	$(YACC) $(YFLAGS) --output $@ $<
+	rm -f $*.h
+
+INCLUDES = -I. -I$(srcdir)
 
 check: all
 
-# This installation goal is only used in GNU gettext.  Packages which
-# only use the library should use install instead.
-
-# We must not install the libintl.h/libintl.a files if we are on a
-# system which has the gettext() function in its C library or in a
-# separate library or use the catgets interface.  A special case is
-# where configure found a previously installed GNU gettext library.
-# If you want to use the one which comes with this version of the
-# package, you have to use `configure --with-included-gettext'.
+# The installation targets have been disabled.
 install: install-exec install-data
 install-exec: all
-	if test "$(PACKAGE)" = "gettext" \
-	   && test '@INTLOBJS@' = '$(GETTOBJS)'; then \
-	  if test -r $(MKINSTALLDIRS); then \
-	    $(MKINSTALLDIRS) $(libdir) $(includedir); \
-	  else \
-	    $(top_srcdir)/mkinstalldirs $(libdir) $(includedir); \
-	  fi; \
-	  $(INSTALL_DATA) intlh.inst $(includedir)/libintl.h; \
-	  $(INSTALL_DATA) libintl.a $(libdir)/libintl.a; \
-	else \
-	  : ; \
-	fi
 install-data: all
-	if test "$(PACKAGE)" = "gettext"; then \
-	  if test -r $(MKINSTALLDIRS); then \
-	    $(MKINSTALLDIRS) $(gettextsrcdir); \
-	  else \
-	    $(top_srcdir)/mkinstalldirs $(gettextsrcdir); \
-	  fi; \
-	  $(INSTALL_DATA) VERSION $(gettextsrcdir)/VERSION; \
-	  dists="$(DISTFILES.common)"; \
-	  for file in $$dists; do \
-	    $(INSTALL_DATA) $(srcdir)/$$file $(gettextsrcdir)/$$file; \
-	  done; \
-	else \
-	  : ; \
-	fi
-
-# Define this as empty until I found a useful application.
+install-strip: install
+installdirs:
 installcheck:
-
 uninstall:
-	dists="$(DISTFILES.common)"; \
-	for file in $$dists; do \
-	  rm -f $(gettextsrcdir)/$$file; \
-	done
 
-.PHONY: html info dvi
-html info dvi:
+.PHONY: info dvi ps pdf html
+.PHONY: install-info install-dvi install-ps install-pdf install-html
 
-.PHONY: install-html
-install-html:
+info dvi ps pdf html:
+install-info install-dvi install-ps install-pdf install-html:
 
-$(OBJECTS): config.h libgettext.h
-bindtextdom.$lo finddomain.$lo loadmsgcat.$lo: gettextP.h gettext.h loadinfo.h
-dcgettext.$lo: gettextP.h gettext.h hash-string.h loadinfo.h
+$(OBJECTS): config.h libintl.h
+bindtextdom.o dcgettext.o dcigettext.o dcngettext.o dgettext.o \
+dngettext.o finddomain.o gettext.o intl-compat.o loadmsgcat.o \
+localealias.o ngettext.o textdomain.o: gettextP.h gmo.h loadinfo.h
+dcigettext.o loadmsgcat.o: hash-string.h
+explodename.o l10nflist.o: loadinfo.h
+dcigettext.o loadmsgcat.o plural.o plural-exp.o: plural-exp.h
+dcigettext.o: eval-plural.h
+localcharset.o: localcharset.h
+localealias.o localcharset.o relocatable.o: relocatable.h
 
 tags: TAGS
-
 TAGS: $(HEADERS) $(SOURCES)
-	here=`pwd`; cd $(srcdir) && etags -o $$here/TAGS $(HEADERS) $(SOURCES)
+	here=`pwd`; cd $(srcdir) && \
+		etags -o $$here/TAGS $(HEADERS) $(SOURCES)
+
+ctags: CTAGS
+CTAGS: $(HEADERS) $(SOURCES)
+	here=`pwd`; cd $(srcdir) && \
+		ctags -o $$here/CTAGS $(HEADERS) $(SOURCES)
 
 id: ID
-
 ID: $(HEADERS) $(SOURCES)
-	here=`pwd`; cd $(srcdir) && mkid -f$$here/ID $(HEADERS) $(SOURCES)
-
+	here=`pwd`; cd $(srcdir) && \
+		mkid -f$$here/ID $(HEADERS) $(SOURCES)
 
 mostlyclean:
-	rm -f *.a *.o *.lo core core.*
+	rm -f *.a *.la *.o *.obj *.lo core core.* libintl.h
 
 clean: mostlyclean
 
 distclean: clean
-	rm -f Makefile ID TAGS po2msg.sed po2tbl.sed libintl.h config.log
+	rm -f config.status config.cache config.log config.intl config.h
+	rm -f Makefile ID TAGS
 
 maintainer-clean: distclean
-	@echo "This command is intended for maintainers to use;"
-	@echo "it deletes files that may require special tools to rebuild."
 
+# The 'make dist' targets have been disabled; the GNU toolchain handles this
+# with a script maintained separately from the Makefile.
+dist:
+distdir:
 
-# GNU gettext needs not contain the file `VERSION' but contains some
-# other files which should not be distributed in other packages.
-distdir = ../$(PACKAGE)-$(VERSION)/$(subdir)
-dist distdir: Makefile $(DISTFILES)
-	if test "$(PACKAGE)" = gettext; then \
-	  additional="$(DISTFILES.gettext)"; \
-	else \
-	  additional="$(DISTFILES.normal)"; \
-	fi; \
-	for file in $(DISTFILES.common) $$additional; do \
-	  ln $(srcdir)/$$file $(distdir) 2> /dev/null \
-	    || cp -p $(srcdir)/$$file $(distdir); \
-	done
+# Rules to rebuild the configuration
 
-dist-libc:
-	tar zcvf intl-glibc.tar.gz $(COMSRCS) $(COMHDRS) libintl.h.glibc
+Makefile: $(srcdir)/Makefile.in config.status
+	$(SHELL) ./config.status Makefile
 
-Makefile: Makefile.in config.status
-	CONFIG_FILES=$@ CONFIG_HEADERS= $(SHELL) ./config.status
+config.intl: $(srcdir)/config.intl.in config.status
+	$(SHELL) ./config.status config.intl
 
-# The dependency for intlh.inst is different in gettext and all other
-# packages.  Because we cannot you GNU make features we have to solve
-# the problem while rewriting Makefile.in.
-@GT_YES@intlh.inst: intlh.inst.in ../config.status
-@GT_YES@	cd .. \
-@GT_YES@	&& CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= \
-@GT_YES@	  $(SHELL) ./config.status
-@GT_NO@.PHONY: intlh.inst
-@GT_NO@intlh.inst:
+config.status: $(srcdir)/configure
+	$(SHELL) ./config.status --recheck
+
+$(srcdir)/configure: @MAINT@ $(srcdir)/aclocal.m4 $(srcdir)/configure.ac
+	cd $(srcdir) && $(AUTOCONF)
+
+$(srcdir)/aclocal.m4: @MAINT@ $(srcdir)/configure.ac \
+	$(srcdir)/../config/codeset.m4 $(srcdir)/../config/gettext.m4 \
+	$(srcdir)/../config/glibc21.m4 $(srcdir)/../config/iconv.m4 \
+	$(srcdir)/../config/intdiv0.m4 $(srcdir)/../config/inttypes-pri.m4 \
+	$(srcdir)/../config/inttypes.m4 $(srcdir)/../config/inttypes_h.m4 \
+	$(srcdir)/../config/lcmessage.m4 $(srcdir)/../config/lib-ld.m4 \
+	$(srcdir)/../config/lib-link.m4 $(srcdir)/../config/lib-prefix.m4 \
+	$(srcdir)/../config/nls.m4 $(srcdir)/../config/po.m4 \
+	$(srcdir)/../config/progtest.m4 $(srcdir)/../config/stdint_h.m4 \
+	$(srcdir)/../config/uintmax_t.m4 $(srcdir)/../config/ulonglong.m4
+	cd $(srcdir) && $(ACLOCAL) -I ../config
+
+config.h: stamp-h1
+	test -f config.h || (rm -f stamp-h1 && $(MAKE) stamp-h1)
+
+stamp-h1: $(srcdir)/config.h.in config.status
+	-rm -f stamp-h1
+	$(SHELL) ./config.status config.h
+
+$(srcdir)/config.h.in: @MAINT@ $(srcdir)/aclocal.m4 $(srcdir)/configure.ac
+	cd $(srcdir) && $(AUTOHEADER)
+	-rm -f stamp-h1
 
 # Tell versions [3.59,3.63) of GNU make not to export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

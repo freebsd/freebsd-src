@@ -1,5 +1,5 @@
 /* Motorola 68HC11/68HC12-specific support for 32-bit ELF
-   Copyright 2003, 2004 Free Software Foundation, Inc.
+   Copyright 2003, 2004, 2005, 2006 Free Software Foundation, Inc.
    Contributed by Stephane Carrez (stcarrez@nerim.fr)
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -159,14 +159,6 @@ bfd_reloc_status_type m68hc11_elf_special_reloc
     asymbol *symbol, void *data, asection *input_section,
     bfd *output_bfd, char **error_message);
 
-/* GC mark and sweep.  */
-asection *elf32_m68hc11_gc_mark_hook
-  (asection *sec, struct bfd_link_info *info,
-   Elf_Internal_Rela *rel, struct elf_link_hash_entry *h,
-   Elf_Internal_Sym *sym);
-bfd_boolean elf32_m68hc11_gc_sweep_hook
-  (bfd *abfd, struct bfd_link_info *info,
-   asection *sec, const Elf_Internal_Rela *relocs);
 bfd_boolean elf32_m68hc11_check_relocs
   (bfd * abfd, struct bfd_link_info * info,
    asection * sec, const Elf_Internal_Rela * relocs);

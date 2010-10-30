@@ -35,6 +35,9 @@ static int target1_is_rel = 0${TARGET1_IS_REL};
 static char *target2_type = "${TARGET2_TYPE}";
 static int fix_v4bx = 0;
 static int use_blx = 0;
+static bfd_arm_vfp11_fix vfp11_denorm_fix = BFD_ARM_VFP11_FIX_DEFAULT;
+static int no_enum_size_warning = 0;
+static int pic_veneer = 0;
 
 static void
 gld${EMULATION_NAME}_before_parse (void)
@@ -103,9 +106,6 @@ arm_elf_before_allocation (void)
 {
   bfd *tem;
 
-  /* Call the standard elf routine.  */
-  gld${EMULATION_NAME}_before_allocation ();
-
   if (link_info.input_bfds != NULL)
     {
       /* The interworking bfd must be the last one in the link.  */
@@ -124,24 +124,52 @@ arm_elf_before_allocation (void)
       if (bfd_for_interwork != NULL)
 	bfd_elf32_arm_get_bfd_for_interworking (bfd_for_interwork, &link_info);
     }
-  /* We should be able to set the size of the interworking stub section.  */
 
-  /* Here we rummage through the found bfds to collect glue information.  */
-  /* FIXME: should this be based on a command line option? krk@cygnus.com  */
-  {
-    LANG_FOR_EACH_INPUT_STATEMENT (is)
-      {
-	if (!bfd_elf32_arm_process_before_allocation (is->the_bfd, & link_info,
-						      byteswap_code))
-	  {
+  bfd_elf32_arm_set_byteswap_code (&link_info, byteswap_code);
+
+  /* Choose type of VFP11 erratum fix, or warn if specified fix is unnecessary
+     due to architecture version.  */
+  bfd_elf32_arm_set_vfp11_fix (output_bfd, &link_info);
+
+  /* We should be able to set the size of the interworking stub section.  We
+     can't do it until later if we have dynamic sections, though.  */
+  if (! elf_hash_table (&link_info)->dynamic_sections_created)
+    {
+      /* Here we rummage through the found bfds to collect glue information.  */
+      LANG_FOR_EACH_INPUT_STATEMENT (is)
+	{
+          /* Initialise mapping tables for code/data.  */
+          bfd_elf32_arm_init_maps (is->the_bfd);
+
+	  if (!bfd_elf32_arm_process_before_allocation (is->the_bfd,
+							&link_info)
+	      || !bfd_elf32_arm_vfp11_erratum_scan (is->the_bfd, &link_info))
 	    /* xgettext:c-format */
 	    einfo (_("Errors encountered processing file %s"), is->filename);
-	  }
-      }
-  }
+	}
+    }
+
+  /* Call the standard elf routine.  */
+  gld${EMULATION_NAME}_before_allocation ();
 
   /* We have seen it all. Allocate it, and carry on.  */
   bfd_elf32_arm_allocate_interworking_sections (& link_info);
+}
+
+static void
+arm_elf_after_allocation (void)
+{
+  /* Call the standard elf routine.  */
+  after_allocation_default ();
+
+  {
+    LANG_FOR_EACH_INPUT_STATEMENT (is)
+      {
+        /* Figure out where VFP11 erratum veneers (and the labels returning
+           from same) have been placed.  */
+        bfd_elf32_arm_vfp11_fix_veneer_locations (is->the_bfd, &link_info);
+      }
+  }
 }
 
 static void
@@ -207,13 +235,15 @@ arm_elf_finish (void)
 	   thumb_entry_symbol);
 }
 
-/* This is a convenitent point to tell BFD about target specific flags.
+/* This is a convenient point to tell BFD about target specific flags.
    After the output has been created, but before inputs are read.  */
 static void
 arm_elf_create_output_section_statements (void)
 {
-  bfd_elf32_arm_set_target_relocs (&link_info, target1_is_rel, target2_type,
-                                   fix_v4bx, use_blx);
+  bfd_elf32_arm_set_target_relocs (output_bfd, &link_info, target1_is_rel,
+				   target2_type, fix_v4bx, use_blx,
+				   vfp11_denorm_fix, no_enum_size_warning,
+				   pic_veneer);
 }
 
 EOF
@@ -229,6 +259,9 @@ PARSE_AND_LIST_PROLOGUE='
 #define OPTION_TARGET2			305
 #define OPTION_FIX_V4BX			306
 #define OPTION_USE_BLX			307
+#define OPTION_VFP11_DENORM_FIX		308
+#define OPTION_NO_ENUM_SIZE_WARNING	309
+#define OPTION_PIC_VENEER		310
 '
 
 PARSE_AND_LIST_SHORTOPTS=p
@@ -242,6 +275,9 @@ PARSE_AND_LIST_LONGOPTS='
   { "target2", required_argument, NULL, OPTION_TARGET2},
   { "fix-v4bx", no_argument, NULL, OPTION_FIX_V4BX},
   { "use-blx", no_argument, NULL, OPTION_USE_BLX},
+  { "vfp11-denorm-fix", required_argument, NULL, OPTION_VFP11_DENORM_FIX},
+  { "no-enum-size-warning", no_argument, NULL, OPTION_NO_ENUM_SIZE_WARNING},
+  { "pic-veneer", no_argument, NULL, OPTION_PIC_VENEER},
 '
 
 PARSE_AND_LIST_OPTIONS='
@@ -252,6 +288,9 @@ PARSE_AND_LIST_OPTIONS='
   fprintf (file, _("     --target2=<type>         Specify definition of R_ARM_TARGET2\n"));
   fprintf (file, _("     --fix-v4bx               Rewrite BX rn as MOV pc, rn for ARMv4\n"));
   fprintf (file, _("     --use-blx                Enable use of BLX instructions\n"));
+  fprintf (file, _("     --vfp11-denorm-fix       Specify how to fix VFP11 denorm erratum\n"));
+  fprintf (file, _("     --no-enum-size-warning   Don'\''t warn about objects with incompatible enum sizes\n"));
+  fprintf (file, _("     --pic-veneer             Always generate PIC interworking veneers\n"));
 '
 
 PARSE_AND_LIST_ARGS_CASES='
@@ -286,12 +325,32 @@ PARSE_AND_LIST_ARGS_CASES='
     case OPTION_USE_BLX:
       use_blx = 1;
       break;
+    
+    case OPTION_VFP11_DENORM_FIX:
+      if (strcmp (optarg, "none") == 0)
+        vfp11_denorm_fix = BFD_ARM_VFP11_FIX_NONE;
+      else if (strcmp (optarg, "scalar") == 0)
+        vfp11_denorm_fix = BFD_ARM_VFP11_FIX_SCALAR;
+      else if (strcmp (optarg, "vector") == 0)
+        vfp11_denorm_fix = BFD_ARM_VFP11_FIX_VECTOR;
+      else
+        einfo (_("Unrecognized VFP11 fix type '\''%s'\''.\n"), optarg);
+      break;
+
+    case OPTION_NO_ENUM_SIZE_WARNING:
+      no_enum_size_warning = 1;
+      break;
+
+    case OPTION_PIC_VENEER:
+      pic_veneer = 1;
+      break;
 '
 
 # We have our own after_open and before_allocation functions, but they call
 # the standard routines, so give them a different name.
 LDEMUL_AFTER_OPEN=arm_elf_after_open
 LDEMUL_BEFORE_ALLOCATION=arm_elf_before_allocation
+LDEMUL_AFTER_ALLOCATION=arm_elf_after_allocation
 LDEMUL_CREATE_OUTPUT_SECTION_STATEMENTS=arm_elf_create_output_section_statements
 
 # Replace the elf before_parse function with our own.

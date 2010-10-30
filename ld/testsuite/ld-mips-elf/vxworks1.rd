@@ -1,7 +1,7 @@
 
 Relocation section '\.rela\.dyn' at offset .* contains 1 entries:
  Offset     Info    Type            Sym.Value  Sym. Name \+ Addend
-00081800  .*7e R_MIPS_COPY       00081800   dglobal \+ 0
+00081c00  .*7e R_MIPS_COPY       00081c00   dglobal \+ 0
 
 Relocation section '\.rela\.plt' at offset .* contains 2 entries:
  Offset     Info    Type            Sym\.Value  Sym\. Name \+ Addend
@@ -16,9 +16,9 @@ Relocation section '\.rela\.text' at offset .* contains 3 entries:
 
 Relocation section '\.rela\.data' at offset .* contains 3 entries:
  Offset     Info    Type            Sym.Value  Sym. Name \+ Addend
-00081c00  .*02 R_MIPS_32         00081c00   .data \+ 0
-00081c04  .*02 R_MIPS_32         00081800   .bss \+ 0
-00081c08  .*02 R_MIPS_32         00081c04   dexternal \+ 0
+00081800  .*02 R_MIPS_32         00081800   .data \+ 0
+00081804  .*02 R_MIPS_32         00081c00   .bss \+ 0
+00081808  .*02 R_MIPS_32         00081804   dexternal \+ 0
 
 Relocation section '\.rela\.plt\.unloaded' at offset .* contains 8 entries:
  Offset     Info    Type            Sym\.Value  Sym\. Name \+ Addend

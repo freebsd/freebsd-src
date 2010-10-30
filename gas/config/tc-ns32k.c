@@ -1,6 +1,6 @@
 /* ns32k.c  -- Assemble on the National Semiconductor 32k series
    Copyright 1987, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2005
+   2001, 2002, 2003, 2005, 2006
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -21,8 +21,6 @@
    02110-1301, USA.  */
 
 /*#define SHOW_NUM 1*//* Uncomment for debugging.  */
-
-#include <stdio.h>
 
 #include "as.h"
 #include "opcode/ns32k.h"
@@ -1863,7 +1861,7 @@ convert_iif (void)
 			      size = 4;
 			    else
 			      {
-				as_bad (_("Displacement to large for :d"));
+				as_bad (_("Displacement too large for :d"));
 				size = 4;
 			      }
 			  }

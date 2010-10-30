@@ -1,9 +1,14 @@
 \input texinfo @c -*-texinfo-*-
 @setfilename gprof.info
-@c Copyright 1988, 1992, 1993, 1998, 1999, 2000, 2001, 2002, 2003, 2004
+@c Copyright 1988, 1992, 1993, 1998, 1999, 2000, 2001, 2002, 2003,
+@c 2004, 2007
 @c Free Software Foundation, Inc.
 @settitle GNU gprof
 @setchapternewpage odd
+
+@c man begin INCLUDE
+@include bfdver.texi
+@c man end
 
 @ifinfo
 @c This is a dir.info fragment to support semi-automated addition of
@@ -15,29 +20,21 @@ END-INFO-DIR-ENTRY
 @end format
 @end ifinfo
 
-@ifinfo
+@copying
 This file documents the gprof profiler of the GNU system.
 
 @c man begin COPYRIGHT
-Copyright (C) 1988, 92, 97, 98, 99, 2000, 2001, 2003 Free Software Foundation, Inc.
+Copyright @copyright{} 1988, 92, 97, 98, 99, 2000, 2001, 2003, 2007 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.1
 or any later version published by the Free Software Foundation;
 with no Invariant Sections, with no Front-Cover Texts, and with no
 Back-Cover Texts.  A copy of the license is included in the
-section entitled "GNU Free Documentation License".
+section entitled ``GNU Free Documentation License''.
 
 @c man end
-
-@ignore
-Permission is granted to process this file through Tex and print the
-results, provided the printed document carries copying permission
-notice identical to this one except for the removal of this paragraph
-(this paragraph not being relevant to the printed manual).
-
-@end ignore
-@end ifinfo
+@end copying
 
 @finalout
 @smallbook
@@ -45,6 +42,10 @@ notice identical to this one except for the removal of this paragraph
 @titlepage
 @title GNU gprof
 @subtitle The @sc{gnu} Profiler 
+@ifset VERSION_PACKAGE
+@subtitle @value{VERSION_PACKAGE}
+@end ifset
+@subtitle Version @value{VERSION}
 @author Jay Fenlason and Richard Stallman
 
 @page
@@ -63,9 +64,10 @@ Copyright @copyright{} 1988, 92, 97, 98, 99, 2000, 2003 Free Software Foundation
       or any later version published by the Free Software Foundation;
       with no Invariant Sections, with no Front-Cover Texts, and with no
       Back-Cover Texts.  A copy of the license is included in the
-      section entitled "GNU Free Documentation License".
+      section entitled ``GNU Free Documentation License''.
 
 @end titlepage
+@contents
 
 @ifnottex
 @node Top
@@ -76,9 +78,15 @@ can use it to determine which parts of a program are taking most of the
 execution time.  We assume that you know how to write, compile, and
 execute programs.  @sc{gnu} @code{gprof} was written by Jay Fenlason.
 
+This manual is for @code{gprof}
+@ifset VERSION_PACKAGE
+@value{VERSION_PACKAGE}
+@end ifset
+version @value{VERSION}.
+
 This document is distributed under the terms of the GNU Free
 Documentation License.  A copy of the license is included in the
-section entitled "GNU Free Documentation License".
+section entitled ``GNU Free Documentation License''.
 
 @menu
 * Introduction::        What profiling means, and why it is useful.
@@ -87,7 +95,7 @@ section entitled "GNU Free Documentation License".
 * Executing::           Executing your program to generate profile data
 * Invoking::            How to run @code{gprof}, and its options
 
-* Output::		Interpreting @code{gprof}'s output
+* Output::              Interpreting @code{gprof}'s output
 
 * Inaccuracy::          Potential problems you should be aware of
 * How do I?::           Answers to common questions
@@ -113,7 +121,7 @@ gprof [ -[abcDhilLrsTvwxyz] ] [ -[ACeEfFJnNOpPqQZ][@var{name}] ]
  [ --[no-]flat-profile[=@var{name}] ] [ --[no-]graph[=@var{name}] ]
  [ --[no-]time=@var{name}] [ --all-lines ] [ --brief ] 
  [ --debug[=@var{level}] ] [ --function-ordering ] 
- [ --file-ordering ] [ --directory-path=@var{dirs} ]
+ [ --file-ordering @var{map_file} ] [ --directory-path=@var{dirs} ]
  [ --display-unused-functions ] [ --file-format=@var{name} ]
  [ --file-info ] [ --help ] [ --line ] [ --min-count=@var{n} ]
  [ --no-static ] [ --print-path ] [ --separate-files ]
@@ -216,15 +224,15 @@ Profiling has several steps:
 @itemize @bullet
 @item
 You must compile and link your program with profiling enabled.
-@xref{Compiling}.
+@xref{Compiling, ,Compiling a Program for Profiling}.
 
 @item
 You must execute your program to generate a profile data file.
-@xref{Executing}.
+@xref{Executing, ,Executing the Program}.
 
 @item
 You must run @code{gprof} to analyze the profile data.
-@xref{Invoking}.
+@xref{Invoking, ,@code{gprof} Command Summary}.
 @end itemize
 
 The next three chapters explain these steps in greater detail.
@@ -236,22 +244,23 @@ Several forms of output are available from the analysis.
 The @dfn{flat profile} shows how much time your program spent in each function,
 and how many times that function was called.  If you simply want to know
 which functions burn most of the cycles, it is stated concisely here.
-@xref{Flat Profile}.
+@xref{Flat Profile, ,The Flat Profile}.
 
 The @dfn{call graph} shows, for each function, which functions called it, which
 other functions it called, and how many times.  There is also an estimate
 of how much time was spent in the subroutines of each function.  This can
 suggest places where you might try to eliminate function calls that use a
-lot of time.  @xref{Call Graph}.
+lot of time.  @xref{Call Graph, ,The Call Graph}.
 
 The @dfn{annotated source} listing is a copy of the program's
 source code, labeled with the number of times each line of the
-program was executed.  @xref{Annotated Source}.
+program was executed.  @xref{Annotated Source, ,The Annotated Source
+Listing}.
 @c man end
 
 To better understand how profiling works, you may wish to read
 a description of its implementation.
-@xref{Implementation}.
+@xref{Implementation, ,Implementation of Profiling}.
 
 @node Compiling
 @chapter Compiling a Program for Profiling
@@ -300,8 +309,6 @@ Each sample counts as 0.01 seconds.
  44.12      0.07     0.07                             zazLoop
  35.29      0.14     0.06                             main
  20.59      0.17     0.04                             bazMillion
-
- %         the percentage of the total running time of the
 @end example
 
 If you run the linker @code{ld} directly instead of through a compiler
@@ -327,30 +334,17 @@ will not affect the flat profile (except that the @code{calls} field for
 the functions will be blank), but will greatly reduce the usefulness of the
 call graph.
 
-If you wish to perform line-by-line profiling,
-you will also need to specify the @samp{-g} option,
-instructing the compiler to insert debugging symbols into the program
-that match program addresses to source code lines.
-@xref{Line-by-line}.
+If you wish to perform line-by-line profiling you should use the
+@code{gcov} tool instead of @code{gprof}.  See that tool's manual or
+info pages for more details of how to do this.
 
-In addition to the @samp{-pg} and @samp{-g} options, older versions of
-GCC required you to specify the @samp{-a} option when compiling in
-order to instrument it to perform basic-block counting.  Newer
-versions do not require this option and will not accept it;
-basic-block counting is always enabled when @samp{-pg} is on.
+Note, older versions of @code{gcc} produce line-by-line profiling
+information that works with @code{gprof} rather than @code{gcov} so
+there is still support for displaying this kind of information in
+@code{gprof}. @xref{Line-by-line, ,Line-by-line Profiling}.
 
-When basic-block counting is enabled, as the program runs
-it will count how many times it executed each branch of each @samp{if}
-statement, each iteration of each @samp{do} loop, etc.  This will
-enable @code{gprof} to construct an annotated source code
-listing showing how many times each line of code was executed.
-
-It also worth noting that GCC supports a different profiling method
-which is enabled by the @samp{-fprofile-arcs}, @samp{-ftest-coverage}
-and @samp{-fprofile-values} switches. These switches do not produce
-data which is useful to @code{gprof} however, so they are not
-discussed further here.  There is also the
-@samp{-finstrument-functions} switch which will cause GCC to insert
+It also worth noting that @code{gcc} implements a
+@samp{-finstrument-functions} command line option which will insert
 calls to special user supplied instrumentation routines at the entry
 and exit of every function in their program.  This can be used to
 implement an alternative profiling scheme.
@@ -362,7 +356,7 @@ Once the program is compiled for profiling, you must run it in order to
 generate the information that @code{gprof} needs.  Simply run the program
 as usual, using the normal arguments, file names, etc.  The program should
 run normally, producing the same output as usual.  It will, however, run
-somewhat slower than normal because of the time spent collecting and the
+somewhat slower than normal because of the time spent collecting and
 writing the profile data.
 
 The way you run the program---the arguments and input that you give
@@ -442,14 +436,14 @@ The order of these options does not matter.
 
 @menu
 * Output Options::      Controlling @code{gprof}'s output style
-* Analysis Options::    Controlling how @code{gprof} analyses its data
+* Analysis Options::    Controlling how @code{gprof} analyzes its data
 * Miscellaneous Options::
 * Deprecated Options::  Options you no longer need to use, but which
                             have been retained for compatibility
 * Symspecs::            Specifying functions to include or exclude
 @end menu
 
-@node Output Options,Analysis Options,,Invoking
+@node Output Options
 @section Output Options
 
 @c man begin OPTIONS
@@ -459,7 +453,7 @@ These options specify which of several output formats
 Many of these options take an optional @dfn{symspec} to specify
 functions to be included or excluded.  These options can be
 specified multiple times, with different symspecs, to include
-or exclude sets of symbols.  @xref{Symspecs}.
+or exclude sets of symbols.  @xref{Symspecs, ,Symspecs}.
 
 Specifying any of these options overrides the default (@samp{-p -q}),
 which prints a flat profile and call graph analysis
@@ -471,7 +465,7 @@ for all functions.
 @itemx --annotated-source[=@var{symspec}]
 The @samp{-A} option causes @code{gprof} to print annotated source code.
 If @var{symspec} is specified, print output only for matching symbols.
-@xref{Annotated Source}.
+@xref{Annotated Source, ,The Annotated Source Listing}.
 
 @item -b
 @itemx --brief
@@ -524,7 +518,7 @@ was invoked.
 @itemx --flat-profile[=@var{symspec}]
 The @samp{-p} option causes @code{gprof} to print a flat profile.
 If @var{symspec} is specified, print flat profile only for matching symbols.
-@xref{Flat Profile}.
+@xref{Flat Profile, ,The Flat Profile}.
 
 @item -P[@var{symspec}]
 @itemx --no-flat-profile[=@var{symspec}]
@@ -537,7 +531,7 @@ but excludes matching symbols.
 The @samp{-q} option causes @code{gprof} to print the call graph analysis.
 If @var{symspec} is specified, print call graph only for matching symbols
 and their children.
-@xref{Call Graph}.
+@xref{Call Graph, ,The Call Graph}.
 
 @item -Q[@var{symspec}]
 @itemx --no-graph[=@var{symspec}]
@@ -559,7 +553,7 @@ Normally, @code{gprof} prints annotated source files
 to standard-output.  If this option is specified,
 annotated source for a file named @file{path/@var{filename}}
 is generated in the file @file{@var{filename}-ann}.  If the underlying
-filesystem would truncate @file{@var{filename}-ann} so that it
+file system would truncate @file{@var{filename}-ann} so that it
 overwrites the original @file{@var{filename}}, @code{gprof} generates
 annotated source in the file @file{@var{filename}.ann} instead (if the
 original file name has an extension, that extension is @emph{replaced}
@@ -643,7 +637,7 @@ argument can be used to choose an appropriate demangling style for your
 compiler.
 @end table
 
-@node Analysis Options,Miscellaneous Options,Output Options,Invoking
+@node Analysis Options
 @section Analysis Options
 
 @table @code
@@ -654,7 +648,7 @@ The @samp{-a} option causes @code{gprof} to suppress the printing of
 statically declared (private) functions.  (These are functions whose
 names are not listed as global, and which are not visible outside the
 file/function/block where they were defined.)  Time spent in these
-functions, calls to/from them, etc, will all be attributed to the
+functions, calls to/from them, etc., will all be attributed to the
 function that was loaded directly before it in the executable file.
 @c This is compatible with Unix @code{gprof}, but a bad idea.  
 This option affects both the flat profile and the call graph.
@@ -689,7 +683,10 @@ symbols matching symspec @var{from} to those matching symspec @var{to}.
 @itemx --line
 The @samp{-l} option enables line-by-line profiling, which causes
 histogram hits to be charged to individual source code lines,
-instead of functions.
+instead of functions.  This feature only works with programs compiled
+by older versions of the @code{gcc} compiler.  Newer versions of
+@code{gcc} are designed to work with the @code{gcov} tool instead.
+
 If the program was compiled with basic-block counting enabled,
 this option will also identify how many times each line of
 code was executed.
@@ -697,20 +694,20 @@ While line-by-line profiling can help isolate where in a large function
 a program is spending its time, it also significantly increases
 the running time of @code{gprof}, and magnifies statistical
 inaccuracies.
-@xref{Sampling Error}.
+@xref{Sampling Error, ,Statistical Sampling Error}.
 
 @item -m @var{num}
 @itemx --min-count=@var{num}
 This option affects execution count output only.
 Symbols that are executed less than @var{num} times are suppressed.
 
-@item -n[@var{symspec}]
-@itemx --time[=@var{symspec}]
+@item -n@var{symspec}
+@itemx --time=@var{symspec}
 The @samp{-n} option causes @code{gprof}, in its call graph analysis,
 to only propagate times for symbols matching @var{symspec}.
 
-@item -N[@var{symspec}]
-@itemx --no-time[=@var{symspec}]
+@item -N@var{symspec}
+@itemx --no-time=@var{symspec}
 The @samp{-n} option causes @code{gprof}, in its call graph analysis,
 not to propagate times for symbols matching @var{symspec}.
 
@@ -723,7 +720,7 @@ that had no time spent in them.  This is useful in conjunction with the
 
 @end table
 
-@node Miscellaneous Options,Deprecated Options,Analysis Options,Invoking
+@node Miscellaneous Options
 @section Miscellaneous Options
 
 @table @code
@@ -732,7 +729,7 @@ that had no time spent in them.  This is useful in conjunction with the
 @itemx --debug[=@var{num}]
 The @samp{-d @var{num}} option specifies debugging options.
 If @var{num} is not specified, enable all debugging.
-@xref{Debugging}.
+@xref{Debugging, ,Debugging @code{gprof}}.
 
 @item -h
 @itemx --help
@@ -763,7 +760,7 @@ number, and then exit.
 
 @end table
 
-@node Deprecated Options,Symspecs,Miscellaneous Options,Invoking
+@node Deprecated Options
 @section Deprecated Options
 
 @table @code
@@ -817,7 +814,7 @@ gprof -e boring -f foo -f bar myprogram > gprof.output
 lists in the call graph all functions that were reached from either
 @code{foo} or @code{bar} and were not reachable from @code{boring}.
 
-@node Symspecs,,Deprecated Options,Invoking
+@node Symspecs
 @section Symspecs
 
 Many of the output options allow functions to be included or excluded
@@ -878,7 +875,7 @@ most important of which are described below.  The simplest output
 styles (file information, execution count, and function and file ordering)
 are not described here, but are documented with the respective options
 that trigger them.
-@xref{Output Options}.
+@xref{Output Options, ,Output Options}.
 
 @menu
 * Flat Profile::        The flat profile shows how much time was spent
@@ -892,7 +889,7 @@ that trigger them.
 @end menu
 
 
-@node Flat Profile,Call Graph,,Output
+@node Flat Profile
 @section The Flat Profile
 @cindex flat profile
 
@@ -932,7 +929,7 @@ Each sample counts as 0.01 seconds.
 @end smallexample
 
 @noindent
-The functions are sorted by first by decreasing run-time spent in them,
+The functions are sorted first by decreasing run-time spent in them,
 then by decreasing number of calls, then alphabetically by name.  The
 functions @samp{mcount} and @samp{profil} are part of the profiling
 apparatus and appear in every flat profile; their time gives a measure of
@@ -957,7 +954,8 @@ be regarded as particularly reliable.
 In another run,
 the @samp{self seconds} field for
 @samp{mcount} might well be @samp{0.00} or @samp{0.02}.
-@xref{Sampling Error}, for a complete discussion.
+@xref{Sampling Error, ,Statistical Sampling Error},
+for a complete discussion.
 
 The remaining functions in the listing (those whose
 @samp{self seconds} field is @samp{0.00}) didn't appear
@@ -1007,7 +1005,7 @@ field alphabetically after the @dfn{self seconds} and @dfn{calls}
 fields are sorted.
 @end table
 
-@node Call Graph,Line-by-line,Flat Profile,Output
+@node Call Graph
 @section The Call Graph
 @cindex call graph
 
@@ -1018,7 +1016,7 @@ functions that did use unusual amounts of time.
 
 Here is a sample call from a small program.  This call came from the
 same @code{gprof} run as the flat profile example in the previous
-chapter.
+section.
 
 @smallexample
 @group
@@ -1046,7 +1044,7 @@ index % time    self  children    called     name
                 0.00    0.00       8/8           chewtime [24]
                 0.00    0.00       8/16          skipspace [44]
 -----------------------------------------------
-[4]     59.8    0.01        0.02       8+472     <cycle 2 as a whole>	[4]
+[4]     59.8    0.01        0.02       8+472     <cycle 2 as a whole> [4]
                 0.01        0.02     244+260         offtime <cycle 2> [7]
                 0.00        0.00     236+1           tzset <cycle 2> [26]
 -----------------------------------------------
@@ -1064,8 +1062,8 @@ function and the following lines describe its subroutines (also called
 
 The entries are sorted by time spent in the function and its subroutines.
 
-The internal profiling function @code{mcount} (@pxref{Flat Profile})
-is never mentioned in the call graph.
+The internal profiling function @code{mcount} (@pxref{Flat Profile, ,The 
+Flat Profile}) is never mentioned in the call graph.
 
 @menu
 * Primary::       Details of the primary line's contents.
@@ -1141,7 +1139,8 @@ repeated after it.
 
 If the function is part of a cycle of recursion, the cycle number is
 printed between the function's name and the index number
-(@pxref{Cycles}).  For example, if function @code{gnurr} is part of
+(@pxref{Cycles, ,How Mutually Recursive Functions Are Described}).
+For example, if function @code{gnurr} is part of
 cycle number one, and has index number twelve, its primary line would
 be end like this:
 
@@ -1150,7 +1149,7 @@ gnurr <cycle 1> [12]
 @end example
 @end table
 
-@node Callers, Subroutines, Primary, Call Graph
+@node Callers
 @subsection Lines for a Function's Callers
 
 A function's entry has a line for each function it was called by.
@@ -1208,7 +1207,7 @@ signal handlers.
 @c What if some calls have determinable callers' names but not all?
 @c FIXME - still relevant?
 
-@node Subroutines, Cycles, Callers, Call Graph
+@node Subroutines
 @subsection Lines for a Function's Subroutines
 
 A function's entry has a line for each of its subroutines---in other
@@ -1247,7 +1246,7 @@ Two numbers, the number of calls to @code{report} from @code{main}
 followed by the total number of non-recursive calls to @code{report}.
 This ratio is used to determine how much of @code{report}'s @code{self}
 and @code{children} time gets credited to @code{main}.
-@xref{Assumptions}.
+@xref{Assumptions, ,Estimating @code{children} Times}.
 
 @item name
 The name of the subroutine of @code{main} to which this line applies,
@@ -1257,7 +1256,7 @@ If the caller is part of a recursion cycle, the cycle number is
 printed between the name and the index number.
 @end table
 
-@node Cycles,, Subroutines, Call Graph
+@node Cycles
 @subsection How Mutually Recursive Functions Are Described
 @cindex cycle
 @cindex recursion cycle
@@ -1373,17 +1372,17 @@ The @code{children} field of a caller-line in the cycle's entry estimates
 the amount of time spent @emph{in the whole cycle}, and its other
 subroutines, on the times when that caller called a function in the cycle.
 
-The @code{calls} field in the primary line for the cycle has two numbers:
+The @code{called} field in the primary line for the cycle has two numbers:
 first, the number of times functions in the cycle were called by functions
 outside the cycle; second, the number of times they were called by
 functions in the cycle (including times when a function in the cycle calls
 itself).  This is a generalization of the usual split into non-recursive and
 recursive calls.
 
-The @code{calls} field of a subroutine-line for a cycle member in the
+The @code{called} field of a subroutine-line for a cycle member in the
 cycle's entry says how many time that function was called from functions in
 the cycle.  The total of all these is the second number in the primary line's
-@code{calls} field.
+@code{called} field.
 
 In the individual entry for a function in a cycle, the other functions in
 the same cycle can appear as subroutines and as callers.  These lines show
@@ -1392,15 +1391,22 @@ function in the cycle.  The @code{self} and @code{children} fields in these
 lines are blank because of the difficulty of defining meanings for them
 when recursion is going on.
 
-@node Line-by-line,Annotated Source,Call Graph,Output
+@node Line-by-line
 @section Line-by-line Profiling
 
 @code{gprof}'s @samp{-l} option causes the program to perform
 @dfn{line-by-line} profiling.  In this mode, histogram
 samples are assigned not to functions, but to individual
-lines of source code.  The program usually must be compiled
-with a @samp{-g} option, in addition to @samp{-pg}, in order
+lines of source code.  This only works with programs compiled with
+older versions of the @code{gcc} compiler.  Newer versions of @code{gcc}
+use a different program - @code{gcov} - to display line-by-line
+profiling information.
+
+With the older versions of @code{gcc} the program usually has to be
+compiled with a @samp{-g} option, in addition to @samp{-pg}, in order
 to generate debugging symbols for tracking source code lines.
+Note, in much older versions of @code{gcc} the program had to be
+compiled with the @samp{-a} command line option as well.
 
 The flat profile is the most useful output table
 in line-by-line mode.
@@ -1440,7 +1446,7 @@ index % time    self  children    called     name
 
 Now let's look at some of @code{gprof}'s output from the same program run,
 this time with line-by-line profiling enabled.  Note that @code{ct_init}'s
-four histogram hits are broken down into four lines of source code - one hit
+four histogram hits are broken down into four lines of source code---one hit
 occurred on each of lines 349, 351, 382 and 385.  In the call graph,
 note how
 @code{ct_init}'s 13327 calls to @code{init_block} are broken down
@@ -1483,7 +1489,7 @@ granularity: each sample hit covers 4 byte(s) for 7.69% of 0.13 seconds
 @end smallexample
 
 
-@node Annotated Source,,Line-by-line,Output
+@node Annotated Source
 @section The Annotated Source Listing
 
 @code{gprof}'s @samp{-A} option triggers an annotated source listing,
@@ -1491,10 +1497,13 @@ which lists the program's source code, each function labeled with the
 number of times it was called.  You may also need to specify the
 @samp{-I} option, if @code{gprof} can't find the source code files.
 
-Compiling with @samp{gcc @dots{} -g -pg -a} augments your program
-with basic-block counting code, in addition to function counting code.
-This enables @code{gprof} to determine how many times each line
-of code was executed.
+With older versions of @code{gcc} compiling with @samp{gcc @dots{} -g
+-pg -a} augments your program with basic-block counting code, in
+addition to function counting code.  This enables @code{gprof} to
+determine how many times each line of code was executed.  With newer
+versions of @code{gcc} support for displaying basic-block counts is
+provided by the @code{gcov} program.
+
 For example, consider the following function, taken from gzip,
 with line numbers added:
 
@@ -1530,8 +1539,9 @@ the fifth basic-block.  The compiler may also generate additional
 basic-blocks to handle various special cases.
 
 A program augmented for basic-block counting can be analyzed with
-@samp{gprof -l -A}.  I also suggest use of the @samp{-x} option,
-which ensures that each line of code is labeled at least once.
+@samp{gprof -l -A}.
+The @samp{-x} option is also helpful,
+to ensure that each line of code is labeled at least once.
 Here is @code{updcrc}'s
 annotated source listing for a sample @code{gzip} run:
 
@@ -1545,9 +1555,9 @@ annotated source listing for a sample @code{gzip} run:
                     static ulg crc = (ulg)0xffffffffL;
                 
             2 ->    if (s == NULL) @{
-            1 ->	c = 0xffffffffL;
+            1 ->        c = 0xffffffffL;
             1 ->    @} else @{
-            1 ->	c = crc;
+            1 ->        c = crc;
             1 ->        if (n) do @{
         26312 ->            c = crc_32_tab[...];
 26312,1,26311 ->        @} while (--n);
@@ -1572,7 +1582,7 @@ it exited, while it branched back to the beginning of the loop 26311 times.
 * Assumptions::         Estimating children times
 @end menu
 
-@node Sampling Error,Assumptions,,Inaccuracy
+@node Sampling Error
 @section Statistical Sampling Error
 
 The run-time figures that @code{gprof} gives you are based on a sampling
@@ -1643,7 +1653,7 @@ gprof @var{executable-file} gmon.sum > @var{output-file}
 @end example
 @end enumerate
 
-@node Assumptions,,Sampling Error,Inaccuracy
+@node Assumptions
 @section Estimating @code{children} Times
 
 Some of the figures in the call graph are estimates---for example, the
@@ -1672,7 +1682,7 @@ incorrectly charge 2 seconds of time in @code{foo} to the children of
 @c FIXME - has this been fixed?
 We hope some day to put more complete data into @file{gmon.out}, so that
 this assumption is no longer needed, if we can figure out how.  For the
-nonce, the estimated figures are usually more useful than misleading.
+novice, the estimated figures are usually more useful than misleading.
 
 @node How do I?
 @chapter Answers to Common Questions
@@ -1685,21 +1695,13 @@ Because @code{gprof} can only report call times and counts by function,
 the best way to get finer-grained information on where the program
 is spending its time is to re-factor large functions into sequences
 of calls to smaller ones.  Beware however that this can introduce
-artifical hot spots since compiling with @samp{-pg} adds a significant
+artificial hot spots since compiling with @samp{-pg} adds a significant
 overhead to function calls.  An alternative solution is to use a
 non-intrusive profiler, e.g.@: oprofile.
 
 @item How do I find which lines in my program were executed the most times?
 
-Compile your program with basic-block counting enabled, run it, then
-use the following pipeline:
-
-@example
-gprof -l -C @var{objfile} | sort -k 3 -n -r
-@end example
-
-This listing will show you the lines in your code executed most often,
-but not necessarily those that consumed the most time.
+Use the @code{gcov} program.
 
 @item How do I find which lines in my program called a particular function?
 
@@ -1722,7 +1724,7 @@ gprof fastprog gmon.sum
 @end example
 
 If your program is completely deterministic, all the call counts
-will be simple multiples of 100 (i.e. a function called once in
+will be simple multiples of 100 (i.e., a function called once in
 each run will appear with a call count of 100).
 
 @end table
@@ -1740,7 +1742,7 @@ there are a few differences.
 for basic-block execution counts and non-realtime histograms.  A magic
 cookie and version number allows @code{gprof} to easily identify
 new style files.  Old BSD-style files can still be read.
-@xref{File Format}.
+@xref{File Format, ,Profiling Data File Format}.
 
 @item
 For a recursive function, Unix @code{gprof} lists the function as a
@@ -1784,7 +1786,7 @@ tables without skipping the blurbs.
 * Debugging::           Using @code{gprof}'s @samp{-d} option
 @end menu
 
-@node Implementation,File Format,,Details
+@node Implementation
 @section Implementation of Profiling
 
 Profiling works by changing how every function in your program is compiled
@@ -1805,7 +1807,7 @@ Since this is a very machine-dependent operation, @code{mcount}
 itself is typically a short assembly-language stub routine
 that extracts the required
 information, and then calls @code{__mcount_internal}
-(a normal C function) with two arguments - @code{frompc} and @code{selfpc}.
+(a normal C function) with two arguments---@code{frompc} and @code{selfpc}.
 @code{__mcount_internal} is responsible for maintaining
 the in-memory call graph, which records @code{frompc}, @code{selfpc},
 and the number of times each of these call arcs was traversed.
@@ -1872,7 +1874,7 @@ If the compiler's @samp{-a} option was used, basic-block counting
 is also enabled.  Each object file is then compiled with a static array
 of counts, initially zero.
 In the executable code, every time a new basic-block begins
-(i.e. when an @code{if} statement appears), an extra instruction
+(i.e., when an @code{if} statement appears), an extra instruction
 is inserted to increment the corresponding count in the array.
 At compile time, a paired array was constructed that recorded
 the starting address of each basic-block.  Taken together,
@@ -1896,7 +1898,7 @@ slowly due to thrashing, but @code{gprof} will say it uses little time.  On
 the other hand, sampling by run time has the advantage that the amount of
 load due to other users won't directly affect the output you get.
 
-@node File Format,Internals,Implementation,Details
+@node File Format
 @section Profiling Data File Format
 
 The old BSD-derived file format used for profile data does not contain a
@@ -1936,13 +1938,13 @@ represent after being scaled by the profiling clock rate.  The
 physical dimension is specified in two parts: a long name of up to 15
 characters and a single character abbreviation.  For example, a
 histogram representing real-time would specify the long name as
-"seconds" and the abbreviation as "s".  This feature is useful for
+``seconds'' and the abbreviation as ``s''.  This feature is useful for
 architectures that support performance monitor hardware (which,
 fortunately, is becoming increasingly common).  For example, under DEC
-OSF/1, the "uprofile" command can be used to produce a histogram of,
+OSF/1, the ``uprofile'' command can be used to produce a histogram of,
 say, instruction cache misses.  In this case, the dimension in the
-histogram header could be set to "i-cache misses" and the abbreviation
-could be set to "1" (because it is simply a count, not a physical
+histogram header could be set to ``i-cache misses'' and the abbreviation
+could be set to ``1'' (because it is simply a count, not a physical
 dimension).  Also, the profiling rate would have to be set to 1 in
 this case.
 
@@ -1976,16 +1978,16 @@ identifies a basic-block and the count specifies the number of times
 that basic-block was executed.  Any address within the basic-address can
 be used.
 
-@node Internals,Debugging,File Format,Details
+@node Internals
 @section @code{gprof}'s Internal Operation
 
 Like most programs, @code{gprof} begins by processing its options.
 During this stage, it may building its symspec list
-(@code{sym_ids.c:sym_id_add}), if
+(@code{sym_ids.c:@-sym_id_add}), if
 options are specified which use symspecs.
 @code{gprof} maintains a single linked list of symspecs,
 which will eventually get turned into 12 symbol tables,
-organized into six include/exclude pairs - one
+organized into six include/exclude pairs---one
 pair each for the flat profile (INCL_FLAT/EXCL_FLAT),
 the call graph arcs (INCL_ARCS/EXCL_ARCS),
 printing in the call graph (INCL_GRAPH/EXCL_GRAPH),
@@ -2002,7 +2004,7 @@ These default excludes are not added to EXCL_ANNO, EXCL_ARCS, and EXCL_EXEC.
 
 Next, the BFD library is called to open the object file,
 verify that it is an object file,
-and read its symbol table (@code{core.c:core_init}),
+and read its symbol table (@code{core.c:@-core_init}),
 using @code{bfd_canonicalize_symtab} after mallocing
 an appropriately sized array of symbols.  At this point,
 function mappings are read (if the @samp{--file-ordering} option
@@ -2019,18 +2021,18 @@ For line-by-line profiling, every
 text space address is examined, and a new symbol table entry
 gets created every time the line number changes.
 In either case, two passes are made through the symbol
-table - one to count the size of the symbol table required,
+table---one to count the size of the symbol table required,
 and the other to actually read the symbols.  In between the
 two passes, a single array of type @code{Sym} is created of
 the appropriate length.
-Finally, @code{symtab.c:symtab_finalize}
+Finally, @code{symtab.c:@-symtab_finalize}
 is called to sort the symbol table and remove duplicate entries
 (entries with the same memory address).
 
 The symbol table must be a contiguous array for two reasons.
 First, the @code{qsort} library function (which sorts an array)
 will be used to sort the symbol table.
-Also, the symbol lookup routine (@code{symtab.c:sym_lookup}),
+Also, the symbol lookup routine (@code{symtab.c:@-sym_lookup}),
 which finds symbols
 based on memory address, uses a binary search algorithm
 which requires the symbol table to be a sorted array.
@@ -2040,7 +2042,7 @@ Additionally, a symbol can have an @code{is_static} flag
 to indicate that it is a local symbol.
 
 With the symbol table read, the symspecs can now be translated
-into Syms (@code{sym_ids.c:sym_id_parse}).  Remember that a single
+into Syms (@code{sym_ids.c:@-sym_id_parse}).  Remember that a single
 symspec can match multiple symbols.
 An array of symbol tables
 (@code{syms}) is created, each entry of which is a symbol table
@@ -2056,32 +2058,33 @@ standard symbol lookup routine on the appropriate table
 in the @code{syms} array.
 
 Now the profile data file(s) themselves are read
-(@code{gmon_io.c:gmon_out_read}),
+(@code{gmon_io.c:@-gmon_out_read}),
 first by checking for a new-style @samp{gmon.out} header,
 then assuming this is an old-style BSD @samp{gmon.out}
 if the magic number test failed.
 
-New-style histogram records are read by @code{hist.c:hist_read_rec}.
+New-style histogram records are read by @code{hist.c:@-hist_read_rec}.
 For the first histogram record, allocate a memory array to hold
 all the bins, and read them in.
 When multiple profile data files (or files with multiple histogram
-records) are read, the starting address, ending address, number
-of bins and sampling rate must match between the various histograms,
-or a fatal error will result.
-If everything matches, just sum the additional histograms into
-the existing in-memory array.
+records) are read, the memory ranges of each pair of histogram records
+must be either equal, or non-overlapping.  For each pair of histogram
+records, the resolution (memory region size divided by the number of
+bins) must be the same.  The time unit must be the same for all 
+histogram records. If the above containts are met, all histograms
+for the same memory range are merged.
 
-As each call graph record is read (@code{call_graph.c:cg_read_rec}),
+As each call graph record is read (@code{call_graph.c:@-cg_read_rec}),
 the parent and child addresses
 are matched to symbol table entries, and a call graph arc is
-created by @code{cg_arcs.c:arc_add}, unless the arc fails a symspec
+created by @code{cg_arcs.c:@-arc_add}, unless the arc fails a symspec
 check against INCL_ARCS/EXCL_ARCS.  As each arc is added,
 a linked list is maintained of the parent's child arcs, and of the child's
 parent arcs.
 Both the child's call count and the arc's call count are
 incremented by the record's call count.
 
-Basic-block records are read (@code{basic_blocks.c:bb_read_rec}),
+Basic-block records are read (@code{basic_blocks.c:@-bb_read_rec}),
 but only if line-by-line profiling has been selected.
 Each basic-block address is matched to a corresponding line
 symbol in the symbol table, and an entry made in the symbol's
@@ -2089,10 +2092,10 @@ bb_addr and bb_calls arrays.  Again, if multiple basic-block
 records are present for the same address, the call counts
 are cumulative.
 
-A gmon.sum file is dumped, if requested (@code{gmon_io.c:gmon_out_write}).
+A gmon.sum file is dumped, if requested (@code{gmon_io.c:@-gmon_out_write}).
 
 If histograms were present in the data files, assign them to symbols
-(@code{hist.c:hist_assign_samples}) by iterating over all the sample
+(@code{hist.c:@-hist_assign_samples}) by iterating over all the sample
 bins and assigning them to symbols.  Since the symbol table
 is sorted in order of ascending memory addresses, we can
 simple follow along in the symbol table as we make our pass
@@ -2107,13 +2110,13 @@ are more common during line-by-line profiling, and can
 cause each of two adjacent lines to be credited with half
 a hit, for example.
 
-If call graph data is present, @code{cg_arcs.c:cg_assemble} is called.
+If call graph data is present, @code{cg_arcs.c:@-cg_assemble} is called.
 First, if @samp{-c} was specified, a machine-dependent
 routine (@code{find_call}) scans through each symbol's machine code,
 looking for subroutine call instructions, and adding them
 to the call graph with a zero call count.
 A topological sort is performed by depth-first numbering
-all the symbols (@code{cg_dfn.c:cg_dfn}), so that
+all the symbols (@code{cg_dfn.c:@-cg_dfn}), so that
 children are always numbered less than their parents,
 then making a array of pointers into the symbol table and sorting it into
 numerical order, which is reverse topological
@@ -2136,10 +2139,10 @@ structures, the topological sort array is now discarded, and a
 new array of pointers is assembled, this time sorted by propagated time.
 
 Finally, print the various outputs the user requested, which is now fairly
-straightforward.  The call graph (@code{cg_print.c:cg_print}) and
-flat profile (@code{hist.c:hist_print}) are regurgitations of values
+straightforward.  The call graph (@code{cg_print.c:@-cg_print}) and
+flat profile (@code{hist.c:@-hist_print}) are regurgitations of values
 already computed.  The annotated source listing
-(@code{basic_blocks.c:print_annotated_source}) uses basic-block
+(@code{basic_blocks.c:@-print_annotated_source}) uses basic-block
 information, if present, to label each line of code with call counts,
 otherwise only the function call counts are presented.
 
@@ -2150,8 +2153,8 @@ placed first, followed by other functions with the most use,
 followed by lower use functions, followed by unused functions
 at the end.
 
-@node Debugging,,Internals,Details
-@subsection Debugging @code{gprof}
+@node Debugging
+@section Debugging @code{gprof}
 
 If @code{gprof} was compiled with debugging enabled,
 the @samp{-d} option triggers debugging output
@@ -2192,30 +2195,30 @@ Tracks operation of @samp{-A} option
 @end table
 
 @node GNU Free Documentation License
-@chapter GNU Free Documentation License
+@appendix GNU Free Documentation License
+@center Version 1.1, March 2000
 
-                GNU Free Documentation License
-                
-                   Version 1.1, March 2000
+@display
+Copyright (C) 2000, 2003 Free Software Foundation, Inc.
+51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
- Copyright (C) 2000  Free Software Foundation, Inc.
-  51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
-     
- Everyone is permitted to copy and distribute verbatim copies
- of this license document, but changing it is not allowed.
-
-
-0. PREAMBLE
+Everyone is permitted to copy and distribute verbatim copies
+of this license document, but changing it is not allowed.
+@end display
+@sp 1
+@enumerate 0
+@item
+PREAMBLE
 
 The purpose of this License is to make a manual, textbook, or other
-written document "free" in the sense of freedom: to assure everyone
+written document ``free'' in the sense of freedom: to assure everyone
 the effective freedom to copy and redistribute it, with or without
 modifying it, either commercially or noncommercially.  Secondarily,
 this License preserves for the author and publisher a way to get
 credit for their work, while not being considered responsible for
 modifications made by others.
 
-This License is a kind of "copyleft", which means that derivative
+This License is a kind of ``copyleft'', which means that derivative
 works of the document must themselves be free in the same sense.  It
 complements the GNU General Public License, which is a copyleft
 license designed for free software.
@@ -2228,20 +2231,21 @@ it can be used for any textual work, regardless of subject matter or
 whether it is published as a printed book.  We recommend this License
 principally for works whose purpose is instruction or reference.
 
-
-1. APPLICABILITY AND DEFINITIONS
+@sp 1
+@item
+APPLICABILITY AND DEFINITIONS
 
 This License applies to any manual or other work that contains a
 notice placed by the copyright holder saying it can be distributed
-under the terms of this License.  The "Document", below, refers to any
+under the terms of this License.  The ``Document'', below, refers to any
 such manual or work.  Any member of the public is a licensee, and is
-addressed as "you".
+addressed as ``you.''
 
-A "Modified Version" of the Document means any work containing the
+A ``Modified Version'' of the Document means any work containing the
 Document or a portion of it, either copied verbatim, or with
 modifications and/or translated into another language.
 
-A "Secondary Section" is a named appendix or a front-matter section of
+A ``Secondary Section'' is a named appendix or a front-matter section of
 the Document that deals exclusively with the relationship of the
 publishers or authors of the Document to the Document's overall subject
 (or to related matters) and contains nothing that could fall directly
@@ -2252,15 +2256,15 @@ connection with the subject or with related matters, or of legal,
 commercial, philosophical, ethical or political position regarding
 them.
 
-The "Invariant Sections" are certain Secondary Sections whose titles
+The ``Invariant Sections'' are certain Secondary Sections whose titles
 are designated, as being those of Invariant Sections, in the notice
 that says that the Document is released under this License.
 
-The "Cover Texts" are certain short passages of text that are listed,
+The ``Cover Texts'' are certain short passages of text that are listed,
 as Front-Cover Texts or Back-Cover Texts, in the notice that says that
 the Document is released under this License.
 
-A "Transparent" copy of the Document means a machine-readable copy,
+A ``Transparent'' copy of the Document means a machine-readable copy,
 represented in a format whose specification is available to the
 general public, whose contents can be viewed and edited directly and
 straightforwardly with generic text editors or (for images composed of
@@ -2270,7 +2274,7 @@ for automatic translation to a variety of formats suitable for input
 to text formatters.  A copy made in an otherwise Transparent file
 format whose markup has been designed to thwart or discourage
 subsequent modification by readers is not Transparent.  A copy that is
-not "Transparent" is called "Opaque".
+not ``Transparent'' is called ``Opaque.''
 
 Examples of suitable formats for Transparent copies include plain
 ASCII without markup, Texinfo input format, LaTeX input format, SGML
@@ -2282,15 +2286,15 @@ processing tools are not generally available, and the
 machine-generated HTML produced by some word processors for output
 purposes only.
 
-The "Title Page" means, for a printed book, the title page itself,
+The ``Title Page'' means, for a printed book, the title page itself,
 plus such following pages as are needed to hold, legibly, the material
 this License requires to appear in the title page.  For works in
-formats which do not have any title page as such, "Title Page" means
+formats which do not have any title page as such, ``Title Page'' means
 the text near the most prominent appearance of the work's title,
 preceding the beginning of the body of the text.
-
-
-2. VERBATIM COPYING
+@sp 1
+@item
+VERBATIM COPYING
 
 You may copy and distribute the Document in any medium, either
 commercially or noncommercially, provided that this License, the
@@ -2304,9 +2308,9 @@ number of copies you must also follow the conditions in section 3.
 
 You may also lend copies, under the same conditions stated above, and
 you may publicly display copies.
-
-
-3. COPYING IN QUANTITY
+@sp 1
+@item
+COPYING IN QUANTITY
 
 If you publish printed copies of the Document numbering more than 100,
 and the Document's license notice requires Cover Texts, you must enclose
@@ -2342,9 +2346,9 @@ the public.
 It is requested, but not required, that you contact the authors of the
 Document well before redistributing any large number of copies, to give
 them a chance to provide you with an updated version of the Document.
-
-
-4. MODIFICATIONS
+@sp 1
+@item
+MODIFICATIONS
 
 You may copy and distribute a Modified Version of the Document under
 the conditions of sections 2 and 3 above, provided that you release
@@ -2357,48 +2361,48 @@ A. Use in the Title Page (and on the covers, if any) a title distinct
    from that of the Document, and from those of previous versions
    (which should, if there were any, be listed in the History section
    of the Document).  You may use the same title as a previous version
-   if the original publisher of that version gives permission.
+   if the original publisher of that version gives permission.@*
 B. List on the Title Page, as authors, one or more persons or entities
    responsible for authorship of the modifications in the Modified
    Version, together with at least five of the principal authors of the
-   Document (all of its principal authors, if it has less than five).
+   Document (all of its principal authors, if it has less than five).@*
 C. State on the Title page the name of the publisher of the
-   Modified Version, as the publisher.
-D. Preserve all the copyright notices of the Document.
+   Modified Version, as the publisher.@*
+D. Preserve all the copyright notices of the Document.@*
 E. Add an appropriate copyright notice for your modifications
-   adjacent to the other copyright notices.
+   adjacent to the other copyright notices.@*
 F. Include, immediately after the copyright notices, a license notice
    giving the public permission to use the Modified Version under the
-   terms of this License, in the form shown in the Addendum below.
+   terms of this License, in the form shown in the Addendum below.@*
 G. Preserve in that license notice the full lists of Invariant Sections
-   and required Cover Texts given in the Document's license notice.
-H. Include an unaltered copy of this License.
-I. Preserve the section entitled "History", and its title, and add to
+   and required Cover Texts given in the Document's license notice.@*
+H. Include an unaltered copy of this License.@*
+I. Preserve the section entitled ``History'', and its title, and add to
    it an item stating at least the title, year, new authors, and
    publisher of the Modified Version as given on the Title Page.  If
-   there is no section entitled "History" in the Document, create one
+   there is no section entitled ``History'' in the Document, create one
    stating the title, year, authors, and publisher of the Document as
    given on its Title Page, then add an item describing the Modified
-   Version as stated in the previous sentence.
+   Version as stated in the previous sentence.@*
 J. Preserve the network location, if any, given in the Document for
    public access to a Transparent copy of the Document, and likewise
    the network locations given in the Document for previous versions
-   it was based on.  These may be placed in the "History" section.
+   it was based on.  These may be placed in the ``History'' section.
    You may omit a network location for a work that was published at
    least four years before the Document itself, or if the original
-   publisher of the version it refers to gives permission.
-K. In any section entitled "Acknowledgements" or "Dedications",
+   publisher of the version it refers to gives permission.@*
+K. In any section entitled ``Acknowledgements'' or ``Dedications'',
    preserve the section's title, and preserve in the section all the
    substance and tone of each of the contributor acknowledgements
-   and/or dedications given therein.
+   and/or dedications given therein.@*
 L. Preserve all the Invariant Sections of the Document,
    unaltered in their text and in their titles.  Section numbers
-   or the equivalent are not considered part of the section titles.
-M. Delete any section entitled "Endorsements".  Such a section
-   may not be included in the Modified Version.
-N. Do not retitle any existing section as "Endorsements"
-   or to conflict in title with any Invariant Section.
-
+   or the equivalent are not considered part of the section titles.@*
+M. Delete any section entitled ``Endorsements.''  Such a section
+   may not be included in the Modified Version.@*
+N. Do not retitle any existing section as ``Endorsements''
+   or to conflict in title with any Invariant Section.@*
+@sp 1
 If the Modified Version includes new front-matter sections or
 appendices that qualify as Secondary Sections and contain no material
 copied from the Document, you may at your option designate some or all
@@ -2406,7 +2410,7 @@ of these sections as invariant.  To do this, add their titles to the
 list of Invariant Sections in the Modified Version's license notice.
 These titles must be distinct from any other section titles.
 
-You may add a section entitled "Endorsements", provided it contains
+You may add a section entitled ``Endorsements'', provided it contains
 nothing but endorsements of your Modified Version by various
 parties--for example, statements of peer review or that the text has
 been approved by an organization as the authoritative definition of a
@@ -2425,9 +2429,9 @@ permission from the previous publisher that added the old one.
 The author(s) and publisher(s) of the Document do not by this License
 give permission to use their names for publicity for or to assert or
 imply endorsement of any Modified Version.
-
-
-5. COMBINING DOCUMENTS
+@sp 1
+@item
+COMBINING DOCUMENTS
 
 You may combine the Document with other documents released under this
 License, under the terms defined in section 4 above for modified
@@ -2445,14 +2449,14 @@ author or publisher of that section if known, or else a unique number.
 Make the same adjustment to the section titles in the list of
 Invariant Sections in the license notice of the combined work.
 
-In the combination, you must combine any sections entitled "History"
+In the combination, you must combine any sections entitled ``History''
 in the various original documents, forming one section entitled
-"History"; likewise combine any sections entitled "Acknowledgements",
-and any sections entitled "Dedications".  You must delete all sections
-entitled "Endorsements."
-
-
-6. COLLECTIONS OF DOCUMENTS
+``History''; likewise combine any sections entitled ``Acknowledgements'',
+and any sections entitled ``Dedications.''  You must delete all sections
+entitled ``Endorsements.''
+@sp 1
+@item
+COLLECTIONS OF DOCUMENTS
 
 You may make a collection consisting of the Document and other documents
 released under this License, and replace the individual copies of this
@@ -2464,15 +2468,15 @@ You may extract a single document from such a collection, and distribute
 it individually under this License, provided you insert a copy of this
 License into the extracted document, and follow this License in all
 other respects regarding verbatim copying of that document.
-
-
-7. AGGREGATION WITH INDEPENDENT WORKS
+@sp 1
+@item
+AGGREGATION WITH INDEPENDENT WORKS
 
 A compilation of the Document or its derivatives with other separate
 and independent documents or works, in or on a volume of a storage or
 distribution medium, does not as a whole count as a Modified Version
 of the Document, provided no compilation copyright is claimed for the
-compilation.  Such a compilation is called an "aggregate", and this
+compilation.  Such a compilation is called an ``aggregate'', and this
 License does not apply to the other self-contained works thus compiled
 with the Document, on account of their being thus compiled, if they
 are not themselves derivative works of the Document.
@@ -2482,9 +2486,9 @@ copies of the Document, then if the Document is less than one quarter
 of the entire aggregate, the Document's Cover Texts may be placed on
 covers that surround only the Document within the aggregate.
 Otherwise they must appear on covers around the whole aggregate.
-
-
-8. TRANSLATION
+@sp 1
+@item
+TRANSLATION
 
 Translation is considered a kind of modification, so you may
 distribute translations of the Document under the terms of section 4.
@@ -2496,9 +2500,9 @@ translation of this License provided that you also include the
 original English version of this License.  In case of a disagreement
 between the translation and the original English version of this
 License, the original English version will prevail.
-
-
-9. TERMINATION
+@sp 1
+@item
+TERMINATION
 
 You may not copy, modify, sublicense, or distribute the Document except
 as expressly provided for under this License.  Any other attempt to
@@ -2507,9 +2511,9 @@ automatically terminate your rights under this License.  However,
 parties who have received copies, or rights, from you under this
 License will not have their licenses terminated so long as such
 parties remain in full compliance.
-
-
-10. FUTURE REVISIONS OF THIS LICENSE
+@sp 1
+@item
+FUTURE REVISIONS OF THIS LICENSE
 
 The Free Software Foundation may publish new, revised versions
 of the GNU Free Documentation License from time to time.  Such new
@@ -2519,42 +2523,44 @@ http://www.gnu.org/copyleft/.
 
 Each version of the License is given a distinguishing version number.
 If the Document specifies that a particular numbered version of this
-License "or any later version" applies to it, you have the option of
+License ``or any later version'' applies to it, you have the option of
 following the terms and conditions either of that specified version or
 of any later version that has been published (not as a draft) by the
 Free Software Foundation.  If the Document does not specify a version
 number of this License, you may choose any version ever published (not
 as a draft) by the Free Software Foundation.
 
+@end enumerate
 
-ADDENDUM: How to use this License for your documents
+@unnumberedsec ADDENDUM: How to use this License for your documents
 
 To use this License in a document you have written, include a copy of
 the License in the document and put the following copyright and
 license notices just after the title page:
 
 @smallexample
-    Copyright (c)  YEAR  YOUR NAME.
-    Permission is granted to copy, distribute and/or modify this document
-    under the terms of the GNU Free Documentation License, Version 1.1
-    or any later version published by the Free Software Foundation;
-    with the Invariant Sections being LIST THEIR TITLES, with the
-    Front-Cover Texts being LIST, and with the Back-Cover Texts being LIST.
-    A copy of the license is included in the section entitled "GNU
-    Free Documentation License".
+@group
+Copyright (C)  @var{year}  @var{your name}.
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1
+or any later version published by the Free Software Foundation;
+with the Invariant Sections being @var{list their titles}, with the
+Front-Cover Texts being @var{list}, and with the Back-Cover Texts being @var{list}.
+A copy of the license is included in the section entitled "GNU
+Free Documentation License."
+@end group
 @end smallexample
 
-If you have no Invariant Sections, write "with no Invariant Sections"
+If you have no Invariant Sections, write ``with no Invariant Sections''
 instead of saying which ones are invariant.  If you have no
-Front-Cover Texts, write "no Front-Cover Texts" instead of
-"Front-Cover Texts being LIST"; likewise for Back-Cover Texts.
+Front-Cover Texts, write ``no Front-Cover Texts'' instead of
+``Front-Cover Texts being @var{list}''; likewise for Back-Cover Texts.
 
 If your document contains nontrivial examples of program code, we
 recommend releasing these examples in parallel under your choice of
 free software license, such as the GNU General Public License,
 to permit their use in free software.
 
-@contents
 @bye
 
 NEEDS AN INDEX

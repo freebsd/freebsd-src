@@ -14,5 +14,7 @@ SECTIONS
   } =0
   . = 0x9000;
   .got            : { *(.got) *(.got.plt)}
+  . = 0x12340000;
+  .far : { *(.far) }
   .ARM.attribues 0 : { *(.ARM.atttributes) }
 }

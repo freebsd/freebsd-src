@@ -283,7 +283,7 @@
 
 2004-11-13  Paul Brook  <paul@codesourcery.com>
 
-	* bfd/elf32-arm.c (elf32_arm_final_link_relocate): Resolve
+	* elf32-arm.c (elf32_arm_final_link_relocate): Resolve
 	R_ARM_PREL31 relocations to PLT entries.
 	(elf32_arm_relocate_section, elf32_arm_gc_sweep_hook): Ditto.
 	(elf32_arm_check_relocs): Ditto.
@@ -1248,7 +1248,7 @@
 	* bfd-in.h (bfd_elf32_arm_set_target_relocs): Add prototype.
 	(bfd_elf32_arm_process_before_allocation): Update prototype.
 	* bfd-in2.h: Regenerate.
-	* bfd/elf32-arm.h (elf32_arm_link_hash_table): Add target2_reloc.
+	* elf32-arm.h (elf32_arm_link_hash_table): Add target2_reloc.
 	(elf32_arm_link_hash_table_create): Set it.
 	(bfd_elf32_arm_process_before_allocation): Remove target1_is_rel.
 	(bfd_elf32_arm_set_target_relocs): New function.
@@ -3017,7 +3017,7 @@
 2004-06-07  Daniel Jacobowitz  <dan@debian.org>
 
 	From:  Albert Chin-A-Young  <china@thewrittenword.com>
-	* bfd/elf-bfd.h (struct eh_cie_fde): Convert unsigned char bitfields
+	* elf-bfd.h (struct eh_cie_fde): Convert unsigned char bitfields
 	to unsigned int.
 
 2004-05-29  H.J. Lu  <hongjiu.lu@intel.com>

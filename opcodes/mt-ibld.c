@@ -3,7 +3,7 @@
    THIS FILE IS MACHINE GENERATED WITH CGEN: Cpu tools GENerator.
    - the resultant file is machine generated, cgen-ibld.in isn't
 
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2005
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2005, 2006
    Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils and GDB, the GNU debugger.
@@ -168,13 +168,21 @@ insert_normal (CGEN_CPU_DESC cd,
   else if (! CGEN_BOOL_ATTR (attrs, CGEN_IFLD_SIGNED))
     {
       unsigned long maxval = mask;
-      
-      if ((unsigned long) value > maxval)
+      unsigned long val = (unsigned long) value;
+
+      /* For hosts with a word size > 32 check to see if value has been sign
+	 extended beyond 32 bits.  If so then ignore these higher sign bits
+	 as the user is attempting to store a 32-bit signed value into an
+	 unsigned 32-bit field which is allowed.  */
+      if (sizeof (unsigned long) > 4 && ((value >> 32) == -1))
+	val &= 0xFFFFFFFF;
+
+      if (val > maxval)
 	{
 	  /* xgettext:c-format */
 	  sprintf (errbuf,
-		   _("operand out of range (%lu not between 0 and %lu)"),
-		   value, maxval);
+		   _("operand out of range (0x%lx not between 0 and 0x%lx)"),
+		   val, maxval);
 	  return errbuf;
 	}
     }
@@ -440,9 +448,8 @@ extract_normal (CGEN_CPU_DESC cd,
      word_length may be too big.  */
   if (cd->min_insn_bitsize < cd->base_insn_bitsize)
     {
-      if (word_offset == 0
-	  && word_length > total_length)
-	word_length = total_length;
+      if (word_offset + word_length > total_length)
+	word_length = total_length - word_offset;
     }
 
   /* Does the value reside in INSN_VALUE, and at the right alignment?  */

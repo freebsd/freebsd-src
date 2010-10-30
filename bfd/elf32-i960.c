@@ -1,5 +1,6 @@
 /* Intel 960 specific support for 32-bit ELF
-   Copyright 1999, 2000, 2001, 2002, 2003, 2005 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001, 2002, 2003, 2005, 2007
+   Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -18,8 +19,8 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
 #include "elf/i960.h"
@@ -27,6 +28,8 @@
 #define USE_REL 1
 
 #define bfd_elf32_bfd_reloc_type_lookup	elf32_i960_reloc_type_lookup
+#define bfd_elf32_bfd_reloc_name_lookup \
+  elf32_i960_reloc_name_lookup
 #define elf_info_to_howto		elf32_i960_info_to_howto
 #define elf_info_to_howto_rel		elf32_i960_info_to_howto_rel
 
@@ -140,6 +143,20 @@ elf32_i960_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
 			      bfd_reloc_code_real_type code)
 {
   return elf_howto_table + elf32_i960_bfd_to_reloc_type (code);
+}
+
+static reloc_howto_type *
+elf32_i960_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			      const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0; i < sizeof (elf_howto_table) / sizeof (elf_howto_table[0]); i++)
+    if (elf_howto_table[i].name != NULL
+	&& strcasecmp (elf_howto_table[i].name, r_name) == 0)
+      return &elf_howto_table[i];
+
+  return NULL;
 }
 
 #define TARGET_LITTLE_SYM	bfd_elf32_i960_vec

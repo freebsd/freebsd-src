@@ -1,6 +1,6 @@
 /* This file defines the interface between the d10v simulator and gdb.
 
-   Copyright 1999, 2002 Free Software Foundation, Inc.
+   Copyright 1999, 2002, 2007 Free Software Foundation, Inc.
 
 This file is part of GDB.
 

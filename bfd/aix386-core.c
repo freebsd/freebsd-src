@@ -2,7 +2,7 @@
    This was based on trad-core.c, which was written by John Gilmore of
         Cygnus Support.
    Copyright 1988, 1989, 1991, 1992, 1993, 1994, 1996, 1998, 1999, 2000,
-   2001, 2002, 2004
+   2001, 2002, 2004, 2006, 2007
    Free Software Foundation, Inc.
    Written by Minh Tran-Le <TRANLE@INTELLICORP.COM>.
    Converted to back end form by Ian Lance Taylor <ian@cygnus.com>.
@@ -23,8 +23,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "coff/i386.h"
 #include "coff/internal.h"
@@ -80,6 +80,7 @@ aix386_core_file_p (abfd)
     struct trad_core_struct coredata;
     struct corehdr internal_core;
   } *mergem;
+  flagword flags;
 
   amt = sizeof (longbuf);
   if (bfd_bread ((PTR) longbuf, amt, abfd) != amt)
@@ -117,11 +118,12 @@ aix386_core_file_p (abfd)
   core_hdr (abfd) = core;
 
   /* Create the sections.  */
-  core_regsec (abfd) = bfd_make_section_anyway (abfd, ".reg");
+  flags = SEC_HAS_CONTENTS;
+  core_regsec (abfd) = bfd_make_section_anyway_with_flags (abfd, ".reg",
+							   flags);
   if (core_regsec (abfd) == NULL)
     goto loser;
 
-  core_regsec (abfd)->flags = SEC_HAS_CONTENTS;
   core_regsec (abfd)->size = sizeof (core->cd_regs);
   core_regsec (abfd)->vma = (bfd_vma) -1;
 
@@ -129,12 +131,13 @@ aix386_core_file_p (abfd)
   core_regsec (abfd)->filepos =
     (file_ptr) offsetof (struct corehdr, cd_regs[0]);
 
-  core_reg2sec (abfd) = bfd_make_section_anyway (abfd, ".reg2");
+  flags = SEC_HAS_CONTENTS;
+  core_reg2sec (abfd) = bfd_make_section_anyway_with_flags (abfd, ".reg2",
+							    flags);
   if (core_reg2sec (abfd) == NULL)
     /* bfd_release frees everything allocated after it's arg.  */
     goto loser;
 
-  core_reg2sec (abfd)->flags = SEC_HAS_CONTENTS;
   core_reg2sec (abfd)->size = sizeof (core->cd_fpregs);
   core_reg2sec (abfd)->vma = (bfd_vma) -1;
   core_reg2sec (abfd)->filepos =
@@ -175,11 +178,12 @@ aix386_core_file_p (abfd)
 	  flags = SEC_ALLOC + SEC_HAS_CONTENTS;
 	  break;
 	}
-      core_section (abfd, n) = bfd_make_section_anyway (abfd, sname);
+      core_section (abfd, n) = bfd_make_section_anyway_with_flags (abfd,
+								   sname,
+								   flags);
       if (core_section (abfd, n) == NULL)
 	goto loser;
 
-      core_section (abfd, n)->flags = flags;
       core_section (abfd, n)->size = core->cd_segs[i].cs_len;
       core_section (abfd, n)->vma       = core->cd_segs[i].cs_address;
       core_section (abfd, n)->filepos   = core->cd_segs[i].cs_offset;

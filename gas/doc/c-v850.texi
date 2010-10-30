@@ -267,7 +267,7 @@ the immediate operand field of the given instruction.  For example:
 
 computes the difference between the address of labels 'here' and
 'there', takes the upper 16 bits of this difference, shifts it down 16
-bits and then mutliplies it by the lower 16 bits in register 5, putting
+bits and then multiplies it by the lower 16 bits in register 5, putting
 the result into register 6. 
 
 @cindex @code{lo} pseudo-op, V850

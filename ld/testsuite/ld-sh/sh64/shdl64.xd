@@ -27,9 +27,6 @@ SYMBOL TABLE:
 0+1204 l    d  \.rodata	0+ (|\.rodata)
 0+13c8 l    d  \.data	0+ (|\.data)
 0+80000 l    d  \.stack	0+ (|\.stack)
-0+ l    d  \*ABS\*	0+ (|\.shstrtab)
-0+ l    d  \*ABS\*	0+ (|\.symtab)
-0+ l    d  \*ABS\*	0+ (|\.strtab)
 0+1150 l       \.text	0+ 0x04 part2
 0+13f8 g       \.data	0+ dfoo_otherboth2
 0+1178 g       \.text	0+ 0x04 bar_otherwithout
@@ -76,7 +73,7 @@ SYMBOL TABLE:
 0+14e0 g       \.data	0+ dbar_mixboth2
 0+14ec g       \.data	0+ dbaz
 0+1524 g       \.data	0+ dbaz_mix
-0+13c8 g       \*ABS\*	0+ ___dtors
+0+13c8 g       .*	0+ ___dtors
 0+141c g       \.data	0+ dfoo_mixboth2
 0+119c g       \.text	0+ 0x04 bazboth
 0+13f0 g       \.data	0+ dfoo_other
@@ -92,13 +89,13 @@ SYMBOL TABLE:
 0+14f4 g       \.data	0+ dbazboth
 0+1038 g       \.text	0+ 0x04 foo_otherwithout
 0+1190 g       \.text	0+ 0x04 bar_mixwithout2
-0+13c8 g       \*ABS\*	0+ ___ctors_end
+0+13c8 g       .*	0+ ___ctors_end
 0+1064 g       \.text	0+ 0x04 foo_mixwithout
 0+116c g       \.text	0+ 0x04 bar_other
 0+13d0 g       \.data	0+ dfooboth
 0+1034 g       \.text	0+ 0x04 foo_otherboth2
 0+1400 g       \.data	0+ dfoo_mix
-0+13c8 g       \*ABS\*	0+ ___ctors
+0+13c8 g       .*	0+ ___ctors
 0+14d4 g       \.data	0+ dbar_mix
 0+100c g       \.text	0+ 0x04 fooboth
 0+1170 g       \.text	0+ 0x04 bar_otherboth
@@ -121,6 +118,6 @@ SYMBOL TABLE:
 0+1160 g       \.text	0+ 0x04 barboth
 0+14b8 g       \.data	0+ dbarboth
 0+1188 g       \.text	0+ 0x04 bar_mixboth2
-0+13c8 g       \*ABS\*	0+ ___dtors_end
+0+13c8 g       .*	0+ ___dtors_end
 0+151c g       \.data	0+ dbaz_otherboth2
 0+1500 g       \.data	0+ dbazboth2

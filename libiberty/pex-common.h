@@ -59,6 +59,8 @@ struct pex_obj
   char *next_input_name;
   /* Whether next_input_name was allocated using malloc.  */
   int next_input_name_allocated;
+  /* If not -1, stderr pipe from the last process.  */
+  int stderr_pipe;
   /* Number of child processes.  */
   int count;
   /* PIDs of child processes; array allocated using malloc.  */
@@ -73,6 +75,8 @@ struct pex_obj
   FILE *input_file;
   /* FILE created by pex_read_output.  */
   FILE *read_output;
+  /* FILE created by pex_read_err.  */
+  FILE *read_err;
   /* Number of temporary files to remove.  */
   int remove_count;
   /* List of temporary files to remove; array allocated using malloc
@@ -96,16 +100,20 @@ struct pex_funcs
   int (*open_write) (struct pex_obj *, const char */* name */,
                      int /* binary */);
   /* Execute a child process.  FLAGS, EXECUTABLE, ARGV, ERR are from
-     pex_run.  IN, OUT, ERRDES are each a descriptor, from open_read,
-     open_write, or pipe, or they are one of STDIN_FILE_NO,
-     STDOUT_FILE_NO or STDERR_FILE_NO; if not STD*_FILE_NO, they
-     should be closed.  The function should handle the
+     pex_run.  IN, OUT, ERRDES, TOCLOSE are all descriptors, from
+     open_read, open_write, or pipe, or they are one of STDIN_FILE_NO,
+     STDOUT_FILE_NO or STDERR_FILE_NO; if IN, OUT, and ERRDES are not
+     STD*_FILE_NO, they should be closed.  If the descriptor TOCLOSE
+     is not -1, and the system supports pipes, TOCLOSE should be
+     closed in the child process.  The function should handle the
      PEX_STDERR_TO_STDOUT flag.  Return >= 0 on success, or -1 on
      error and set *ERRMSG and *ERR.  */
   long (*exec_child) (struct pex_obj *, int /* flags */,
                       const char */* executable */, char * const * /* argv */,
+                      char * const * /* env */,
                       int /* in */, int /* out */, int /* errdes */,
-		      const char **/* errmsg */, int */* err */);
+		      int /* toclose */, const char **/* errmsg */,
+		      int */* err */);
   /* Close a descriptor.  Return 0 on success, -1 on error.  */
   int (*close) (struct pex_obj *, int);
   /* Wait for a child to complete, returning exit status in *STATUS

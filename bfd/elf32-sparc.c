@@ -1,6 +1,6 @@
 /* SPARC-specific support for 32-bit ELF
    Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004, 2005 Free Software Foundation, Inc.
+   2003, 2004, 2005, 2007 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -18,8 +18,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "bfdlink.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
@@ -172,6 +172,7 @@ elf32_sparc_reloc_type_class (const Elf_Internal_Rela *rela)
 #define ELF_MACHINE_CODE EM_SPARC
 #define ELF_MACHINE_ALT1 EM_SPARC32PLUS
 #define ELF_MAXPAGESIZE 0x10000
+#define ELF_COMMONPAGESIZE 0x2000
 
 #define bfd_elf32_bfd_merge_private_bfd_data \
 					elf32_sparc_merge_private_bfd_data
@@ -182,6 +183,8 @@ elf32_sparc_reloc_type_class (const Elf_Internal_Rela *rela)
 
 #define elf_info_to_howto		_bfd_sparc_elf_info_to_howto
 #define bfd_elf32_bfd_reloc_type_lookup	_bfd_sparc_elf_reloc_type_lookup
+#define bfd_elf32_bfd_reloc_name_lookup \
+  _bfd_sparc_elf_reloc_name_lookup
 #define bfd_elf32_bfd_link_hash_table_create \
 					_bfd_sparc_elf_link_hash_table_create
 #define bfd_elf32_bfd_relax_section	_bfd_sparc_elf_relax_section
@@ -206,6 +209,7 @@ elf32_sparc_reloc_type_class (const Elf_Internal_Rela *rela)
 #define elf_backend_gc_mark_hook	_bfd_sparc_elf_gc_mark_hook
 #define elf_backend_gc_sweep_hook       _bfd_sparc_elf_gc_sweep_hook
 #define elf_backend_plt_sym_val		_bfd_sparc_elf_plt_sym_val
+#define elf_backend_init_index_section	_bfd_elf_init_1_index_section
 
 #define elf_backend_can_gc_sections 1
 #define elf_backend_can_refcount 1

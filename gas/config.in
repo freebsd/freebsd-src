@@ -29,7 +29,11 @@
 /* Supported emulations. */
 #undef EMULATIONS
 
-/* Define to 1 if NLS is requested */
+/* Define if you want run-time sanity checks. */
+#undef ENABLE_CHECKING
+
+/* Define to 1 if translation of program messages to the user's native
+   language is requested. */
 #undef ENABLE_NLS
 
 /* Define to 1 if you have `alloca', as a function or macro. */
@@ -39,12 +43,6 @@
    */
 #undef HAVE_ALLOCA_H
 
-/* Define to 1 if you have the <argz.h> header file. */
-#undef HAVE_ARGZ_H
-
-/* Define to 1 if you have the `dcgettext' function. */
-#undef HAVE_DCGETTEXT
-
 /* Is the prototype for getopt in <unistd.h> in the expected format? */
 #undef HAVE_DECL_GETOPT
 
@@ -52,59 +50,23 @@
    don't. */
 #undef HAVE_DECL_VSNPRINTF
 
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#undef HAVE_DLFCN_H
+
 /* Define to 1 if you have the <errno.h> header file. */
 #undef HAVE_ERRNO_H
-
-/* Define to 1 if you have the `getcwd' function. */
-#undef HAVE_GETCWD
-
-/* Define to 1 if you have the `getpagesize' function. */
-#undef HAVE_GETPAGESIZE
-
-/* Define as 1 if you have gettext and don't want to use GNU gettext. */
-#undef HAVE_GETTEXT
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
-/* Define if your locale.h file contains LC_MESSAGES. */
-#undef HAVE_LC_MESSAGES
-
-/* Define to 1 if you have the <limits.h> header file. */
-#undef HAVE_LIMITS_H
-
-/* Define to 1 if you have the <locale.h> header file. */
-#undef HAVE_LOCALE_H
-
-/* Define to 1 if you have the <malloc.h> header file. */
-#undef HAVE_MALLOC_H
-
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
-
-/* Define to 1 if you have a working `mmap' system call. */
-#undef HAVE_MMAP
-
-/* Define to 1 if you have the `munmap' function. */
-#undef HAVE_MUNMAP
-
-/* Define to 1 if you have the <nl_types.h> header file. */
-#undef HAVE_NL_TYPES_H
-
-/* Define to 1 if you have the `putenv' function. */
-#undef HAVE_PUTENV
 
 /* Define to 1 if you have the `remove' function. */
 #undef HAVE_REMOVE
 
 /* Define to 1 if you have the `sbrk' function. */
 #undef HAVE_SBRK
-
-/* Define to 1 if you have the `setenv' function. */
-#undef HAVE_SETENV
-
-/* Define to 1 if you have the `setlocale' function. */
-#undef HAVE_SETLOCALE
 
 /* Define to 1 if you have the <stdarg.h> header file. */
 #undef HAVE_STDARG_H
@@ -115,23 +77,11 @@
 /* Define to 1 if you have the <stdlib.h> header file. */
 #undef HAVE_STDLIB_H
 
-/* Define if you have the stpcpy function */
-#undef HAVE_STPCPY
-
-/* Define to 1 if you have the `strcasecmp' function. */
-#undef HAVE_STRCASECMP
-
-/* Define to 1 if you have the `strchr' function. */
-#undef HAVE_STRCHR
-
 /* Define to 1 if you have the <strings.h> header file. */
 #undef HAVE_STRINGS_H
 
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
-
-/* Define to 1 if you have the <sys/param.h> header file. */
-#undef HAVE_SYS_PARAM_H
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
@@ -145,23 +95,15 @@
 /* Define to 1 if you have the `unlink' function. */
 #undef HAVE_UNLINK
 
-/* Define to 1 if you have the <values.h> header file. */
-#undef HAVE_VALUES_H
-
 /* Define to 1 if you have the <varargs.h> header file. */
 #undef HAVE_VARARGS_H
 
-/* Define to 1 if you have the `__argz_count' function. */
-#undef HAVE___ARGZ_COUNT
-
-/* Define to 1 if you have the `__argz_next' function. */
-#undef HAVE___ARGZ_NEXT
-
-/* Define to 1 if you have the `__argz_stringify' function. */
-#undef HAVE___ARGZ_STRINGIFY
-
 /* Using i386 COFF? */
 #undef I386COFF
+
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
+#undef LT_OBJDIR
 
 /* Using m68k COFF? */
 #undef M68KCOFF
@@ -216,9 +158,6 @@
 
 /* generic support? */
 #undef OBJ_MAYBE_GENERIC
-
-/* IEEE support? */
-#undef OBJ_MAYBE_IEEE
 
 /* SOM support? */
 #undef OBJ_MAYBE_SOM
@@ -282,6 +221,9 @@
 /* Target vendor. */
 #undef TARGET_VENDOR
 
+/* Use b modifier when opening binary files? */
+#undef USE_BINARY_FOPEN
+
 /* Use emulation support? */
 #undef USE_EMULATIONS
 
@@ -302,17 +244,8 @@
    `char[]'. */
 #undef YYTEXT_POINTER
 
-/* Define to empty if `const' does not conform to ANSI C. */
-#undef const
-
 /* Define to `__inline__' or `__inline' if that's what the C compiler
    calls it, or to nothing if 'inline' is not supported under any name.  */
 #ifndef __cplusplus
 #undef inline
 #endif
-
-/* Define to `long' if <sys/types.h> does not define. */
-#undef off_t
-
-/* Define to `unsigned' if <sys/types.h> does not define. */
-#undef size_t

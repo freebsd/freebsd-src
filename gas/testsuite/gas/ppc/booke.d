@@ -142,11 +142,15 @@ Disassembly of section \.text:
  1c0:	7c 00 06 ac 	mbar    
  1c4:	7c 00 06 ac 	mbar    
  1c8:	7c 20 06 ac 	mbar    1
- 1cc:	7c 12 42 a6 	mfsprg  r0,2
- 1d0:	7c 12 42 a6 	mfsprg  r0,2
- 1d4:	7c 12 43 a6 	mtsprg  2,r0
- 1d8:	7c 12 43 a6 	mtsprg  2,r0
- 1dc:	7c 07 42 a6 	mfsprg  r0,7
- 1e0:	7c 07 42 a6 	mfsprg  r0,7
- 1e4:	7c 17 43 a6 	mtsprg  7,r0
- 1e8:	7c 17 43 a6 	mtsprg  7,r0
+ 1cc:	7d 8d 77 24 	tlbsx   r12,r13,r14
+ 1d0:	7d 8d 77 25 	tlbsx\.  r12,r13,r14
+ 1d4:	7d 8d 77 26 	tlbsxe  r12,r13,r14
+ 1d8:	7d 8d 77 27 	tlbsxe\. r12,r13,r14
+ 1dc:	7c 12 42 a6 	mfsprg  r0,2
+ 1e0:	7c 12 42 a6 	mfsprg  r0,2
+ 1e4:	7c 12 43 a6 	mtsprg  2,r0
+ 1e8:	7c 12 43 a6 	mtsprg  2,r0
+ 1ec:	7c 07 42 a6 	mfsprg  r0,7
+ 1f0:	7c 07 42 a6 	mfsprg  r0,7
+ 1f4:	7c 17 43 a6 	mtsprg  7,r0
+ 1f8:	7c 17 43 a6 	mtsprg  7,r0

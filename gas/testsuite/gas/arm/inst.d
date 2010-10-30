@@ -11,11 +11,11 @@
 Disassembly of section .text:
 0+000 <[^>]*> e3a00000 ?	mov	r0, #0	; 0x0
 0+004 <[^>]*> e1a01002 ?	mov	r1, r2
-0+008 <[^>]*> e1a03184 ?	mov	r3, r4, lsl #3
-0+00c <[^>]*> e1a05736 ?	mov	r5, r6, lsr r7
-0+010 <[^>]*> e1a08a59 ?	mov	r8, r9, asr sl
-0+014 <[^>]*> e1a0bd1c ?	mov	fp, ip, lsl sp
-0+018 <[^>]*> e1a0e06f ?	mov	lr, pc, rrx
+0+008 <[^>]*> e1a03184 ?	lsl	r3, r4, #3
+0+00c <[^>]*> e1a05736 ?	lsr	r5, r6, r7
+0+010 <[^>]*> e1a08a59 ?	asr	r8, r9, sl
+0+014 <[^>]*> e1a0bd1c ?	lsl	fp, ip, sp
+0+018 <[^>]*> e1a0e06f ?	rrx	lr, pc
 0+01c <[^>]*> e1a01002 ?	mov	r1, r2
 0+020 <[^>]*> 01a02003 ?	moveq	r2, r3
 0+024 <[^>]*> 11a04005 ?	movne	r4, r5
@@ -28,13 +28,13 @@ Disassembly of section .text:
 0+040 <[^>]*> 41a03006 ?	movmi	r3, r6
 0+044 <[^>]*> 51a07009 ?	movpl	r7, r9
 0+048 <[^>]*> 61a01008 ?	movvs	r1, r8
-0+04c <[^>]*> 71a09fa1 ?	movvc	r9, r1, lsr #31
+0+04c <[^>]*> 71a09fa1 ?	lsrvc	r9, r1, #31
 0+050 <[^>]*> 81a0800f ?	movhi	r8, pc
 0+054 <[^>]*> 91a0f00e ?	movls	pc, lr
 0+058 <[^>]*> 21a09008 ?	movcs	r9, r8
 0+05c <[^>]*> 31a01003 ?	movcc	r1, r3
 0+060 <[^>]*> e1b00008 ?	movs	r0, r8
-0+064 <[^>]*> 31b00007 ?	movccs	r0, r7
+0+064 <[^>]*> 31b00007 ?	movscc	r0, r7
 0+068 <[^>]*> e281000a ?	add	r0, r1, #10	; 0xa
 0+06c <[^>]*> e0832004 ?	add	r2, r3, r4
 0+070 <[^>]*> e0865287 ?	add	r5, r6, r7, lsl #5
@@ -114,11 +114,11 @@ Disassembly of section .text:
 0+198 <[^>]*> e0000291 ?	mul	r0, r1, r2
 0+19c <[^>]*> e0110392 ?	muls	r1, r2, r3
 0+1a0 <[^>]*> 10000091 ?	mulne	r0, r1, r0
-0+1a4 <[^>]*> 90190798 ?	mullss	r9, r8, r7
+0+1a4 <[^>]*> 90190798 ?	mulsls	r9, r8, r7
 0+1a8 <[^>]*> e021ba99 ?	mla	r1, r9, sl, fp
 0+1ac <[^>]*> e033c994 ?	mlas	r3, r4, r9, ip
 0+1b0 <[^>]*> b029d798 ?	mlalt	r9, r8, r7, sp
-0+1b4 <[^>]*> a034e391 ?	mlages	r4, r1, r3, lr
+0+1b4 <[^>]*> a034e391 ?	mlasge	r4, r1, r3, lr
 0+1b8 <[^>]*> e5910000 ?	ldr	r0, \[r1\]
 0+1bc <[^>]*> e7911002 ?	ldr	r1, \[r1, r2\]
 0+1c0 <[^>]*> e7b32004 ?	ldr	r2, \[r3, r4\]!
@@ -130,7 +130,7 @@ Disassembly of section .text:
 0+1d8 <[^>]*> e6942425 ?	ldr	r2, \[r4\], r5, lsr #8
 0+1dc <[^>]*> e51f0008 ?	ldr	r0, \[pc, #-8\]	; 0+1dc <[^>]*>
 0+1e0 <[^>]*> e5d43000 ?	ldrb	r3, \[r4\]
-0+1e4 <[^>]*> 14f85000 ?	ldrnebt	r5, \[r8\]
+0+1e4 <[^>]*> 14f85000 ?	ldrbtne	r5, \[r8\]
 0+1e8 <[^>]*> e5810000 ?	str	r0, \[r1\]
 0+1ec <[^>]*> e7811002 ?	str	r1, \[r1, r2\]
 0+1f0 <[^>]*> e7a43003 ?	str	r3, \[r4, r3\]!
@@ -143,21 +143,21 @@ Disassembly of section .text:
 0+20c <[^>]*> e50f1004 ?	str	r1, \[pc, #-4\]	; 0+210 <[^>]*>
 0+210 <[^>]*> e5c71000 ?	strb	r1, \[r7\]
 0+214 <[^>]*> e4e02000 ?	strbt	r2, \[r0\]
-0+218 <[^>]*> e8900002 ?	ldmia	r0, {r1}
-0+21c <[^>]*> 09920038 ?	ldmeqib	r2, {r3, r4, r5}
+0+218 <[^>]*> e8900002 ?	ldm	r0, {r1}
+0+21c <[^>]*> 09920038 ?	ldmibeq	r2, {r3, r4, r5}
 0+220 <[^>]*> e853ffff ?	ldmda	r3, {r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, sl, fp, ip, sp, lr, pc}\^
 0+224 <[^>]*> e93b05ff ?	ldmdb	fp!, {r0, r1, r2, r3, r4, r5, r6, r7, r8, sl}
 0+228 <[^>]*> e99100f7 ?	ldmib	r1, {r0, r1, r2, r4, r5, r6, r7}
-0+22c <[^>]*> e89201f8 ?	ldmia	r2, {r3, r4, r5, r6, r7, r8}
+0+22c <[^>]*> e89201f8 ?	ldm	r2, {r3, r4, r5, r6, r7, r8}
 0+230 <[^>]*> e9130003 ?	ldmdb	r3, {r0, r1}
 0+234 <[^>]*> e8540300 ?	ldmda	r4, {r8, r9}\^
-0+238 <[^>]*> e8800002 ?	stmia	r0, {r1}
-0+23c <[^>]*> 09820038 ?	stmeqib	r2, {r3, r4, r5}
+0+238 <[^>]*> e8800002 ?	stm	r0, {r1}
+0+23c <[^>]*> 09820038 ?	stmibeq	r2, {r3, r4, r5}
 0+240 <[^>]*> e843ffff ?	stmda	r3, {r0, r1, r2, r3, r4, r5, r6, r7, r8, r9, sl, fp, ip, sp, lr, pc}\^
 0+244 <[^>]*> e92b05ff ?	stmdb	fp!, {r0, r1, r2, r3, r4, r5, r6, r7, r8, sl}
 0+248 <[^>]*> e8010007 ?	stmda	r1, {r0, r1, r2}
 0+24c <[^>]*> e9020018 ?	stmdb	r2, {r3, r4}
-0+250 <[^>]*> e8830003 ?	stmia	r3, {r0, r1}
+0+250 <[^>]*> e8830003 ?	stm	r3, {r0, r1}
 0+254 <[^>]*> e9c40300 ?	stmib	r4, {r8, r9}\^
 0+258 <[^>]*> ef123456 ?	(swi|svc)	0x00123456
 0+25c <[^>]*> 2f000033 ?	(swi|svc)cs	0x00000033
@@ -169,35 +169,35 @@ Disassembly of section .text:
 [		]*268:.*_wibble.*
 0+26c <[^>]*> da...... ?	ble	0[0123456789abcdef]+ <[^>]*>
 [		]*26c:.*testerfunc.*
-0+270 <[^>]*> e1a01102 ?	mov	r1, r2, lsl #2
+0+270 <[^>]*> e1a01102 ?	lsl	r1, r2, #2
 0+274 <[^>]*> e1a01002 ?	mov	r1, r2
-0+278 <[^>]*> e1a01f82 ?	mov	r1, r2, lsl #31
-0+27c <[^>]*> e1a01312 ?	mov	r1, r2, lsl r3
-0+280 <[^>]*> e1a01122 ?	mov	r1, r2, lsr #2
-0+284 <[^>]*> e1a01fa2 ?	mov	r1, r2, lsr #31
-0+288 <[^>]*> e1a01022 ?	mov	r1, r2, lsr #32
-0+28c <[^>]*> e1a01332 ?	mov	r1, r2, lsr r3
-0+290 <[^>]*> e1a01142 ?	mov	r1, r2, asr #2
-0+294 <[^>]*> e1a01fc2 ?	mov	r1, r2, asr #31
-0+298 <[^>]*> e1a01042 ?	mov	r1, r2, asr #32
-0+29c <[^>]*> e1a01352 ?	mov	r1, r2, asr r3
-0+2a0 <[^>]*> e1a01162 ?	mov	r1, r2, ror #2
-0+2a4 <[^>]*> e1a01fe2 ?	mov	r1, r2, ror #31
-0+2a8 <[^>]*> e1a01372 ?	mov	r1, r2, ror r3
-0+2ac <[^>]*> e1a01062 ?	mov	r1, r2, rrx
-0+2b0 <[^>]*> e1a01102 ?	mov	r1, r2, lsl #2
+0+278 <[^>]*> e1a01f82 ?	lsl	r1, r2, #31
+0+27c <[^>]*> e1a01312 ?	lsl	r1, r2, r3
+0+280 <[^>]*> e1a01122 ?	lsr	r1, r2, #2
+0+284 <[^>]*> e1a01fa2 ?	lsr	r1, r2, #31
+0+288 <[^>]*> e1a01022 ?	lsr	r1, r2, #32
+0+28c <[^>]*> e1a01332 ?	lsr	r1, r2, r3
+0+290 <[^>]*> e1a01142 ?	asr	r1, r2, #2
+0+294 <[^>]*> e1a01fc2 ?	asr	r1, r2, #31
+0+298 <[^>]*> e1a01042 ?	asr	r1, r2, #32
+0+29c <[^>]*> e1a01352 ?	asr	r1, r2, r3
+0+2a0 <[^>]*> e1a01162 ?	ror	r1, r2, #2
+0+2a4 <[^>]*> e1a01fe2 ?	ror	r1, r2, #31
+0+2a8 <[^>]*> e1a01372 ?	ror	r1, r2, r3
+0+2ac <[^>]*> e1a01062 ?	rrx	r1, r2
+0+2b0 <[^>]*> e1a01102 ?	lsl	r1, r2, #2
 0+2b4 <[^>]*> e1a01002 ?	mov	r1, r2
-0+2b8 <[^>]*> e1a01f82 ?	mov	r1, r2, lsl #31
-0+2bc <[^>]*> e1a01312 ?	mov	r1, r2, lsl r3
-0+2c0 <[^>]*> e1a01122 ?	mov	r1, r2, lsr #2
-0+2c4 <[^>]*> e1a01fa2 ?	mov	r1, r2, lsr #31
-0+2c8 <[^>]*> e1a01022 ?	mov	r1, r2, lsr #32
-0+2cc <[^>]*> e1a01332 ?	mov	r1, r2, lsr r3
-0+2d0 <[^>]*> e1a01142 ?	mov	r1, r2, asr #2
-0+2d4 <[^>]*> e1a01fc2 ?	mov	r1, r2, asr #31
-0+2d8 <[^>]*> e1a01042 ?	mov	r1, r2, asr #32
-0+2dc <[^>]*> e1a01352 ?	mov	r1, r2, asr r3
-0+2e0 <[^>]*> e1a01162 ?	mov	r1, r2, ror #2
-0+2e4 <[^>]*> e1a01fe2 ?	mov	r1, r2, ror #31
-0+2e8 <[^>]*> e1a01372 ?	mov	r1, r2, ror r3
-0+2ec <[^>]*> e1a01062 ?	mov	r1, r2, rrx
+0+2b8 <[^>]*> e1a01f82 ?	lsl	r1, r2, #31
+0+2bc <[^>]*> e1a01312 ?	lsl	r1, r2, r3
+0+2c0 <[^>]*> e1a01122 ?	lsr	r1, r2, #2
+0+2c4 <[^>]*> e1a01fa2 ?	lsr	r1, r2, #31
+0+2c8 <[^>]*> e1a01022 ?	lsr	r1, r2, #32
+0+2cc <[^>]*> e1a01332 ?	lsr	r1, r2, r3
+0+2d0 <[^>]*> e1a01142 ?	asr	r1, r2, #2
+0+2d4 <[^>]*> e1a01fc2 ?	asr	r1, r2, #31
+0+2d8 <[^>]*> e1a01042 ?	asr	r1, r2, #32
+0+2dc <[^>]*> e1a01352 ?	asr	r1, r2, r3
+0+2e0 <[^>]*> e1a01162 ?	ror	r1, r2, #2
+0+2e4 <[^>]*> e1a01fe2 ?	ror	r1, r2, #31
+0+2e8 <[^>]*> e1a01372 ?	ror	r1, r2, r3
+0+2ec <[^>]*> e1a01062 ?	rrx	r1, r2

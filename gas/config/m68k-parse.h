@@ -113,9 +113,12 @@ enum m68k_register
   BUSCR,			/* 68060 added these.  */
   PCR,
   ROMBAR,			/* mcf5200 added these.  */
+  RAMBAR_ALT,			/* Some CF chips have RAMBAR using
+				   RAMBAR0's number */
   RAMBAR0,
   RAMBAR1,
   MMUBAR,			/* mcfv4e added these.  */
+  ROMBAR0,			/* mcfv4e added these.  */
   ROMBAR1,			/* mcfv4e added these.  */
   MPCR, EDRAMBAR, SECMBAR,	/* mcfv4e added these.  */
   PCR1U0, PCR1L0, PCR1U1, PCR1L1,/* mcfv4e added these.  */
@@ -126,7 +129,10 @@ enum m68k_register
   FLASHBAR, RAMBAR,  		/* mcf528x added these.  */
   MBAR2,  		        /* mcf5249 added this.  */
   MBAR,
-#define last_movec_reg MBAR
+  ASID,				/* m5475.  */
+  CAC,  		        /* fido added this.  */
+  MBB,
+#define last_movec_reg MBB
   /* End of movec ordering constraints.  */
 
   FPI,

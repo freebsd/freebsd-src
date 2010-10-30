@@ -1,6 +1,6 @@
 /* read.c - read a source file -
    Copyright 1986, 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997,
-   1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005
+   1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
 
 This file is part of GAS, the GNU Assembler.
@@ -38,7 +38,6 @@ Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
 #include "sb.h"
 #include "macro.h"
 #include "obstack.h"
-#include "listing.h"
 #include "ecoff.h"
 #include "dw2gencfi.h"
 
@@ -214,6 +213,10 @@ static void do_align (int, char *, int, int);
 static void s_align (int, int);
 static void s_altmacro (int);
 static void s_bad_end (int);
+#ifdef OBJ_ELF
+static void s_gnu_attribute (int);
+#endif
+static void s_reloc (int);
 static int hex_float (int, char *);
 static segT get_known_segmented_expression (expressionS * expP);
 static void pobegin (void);
@@ -330,7 +333,7 @@ static const pseudo_typeS potable[] = {
 /* extend  */
   {"extern", s_ignore, 0},	/* We treat all undef as ext.  */
   {"appfile", s_app_file, 1},
-  {"appline", s_app_line, 0},
+  {"appline", s_app_line, 1},
   {"fail", s_fail, 0},
   {"file", s_app_file, 0},
   {"fill", s_fill, 0},
@@ -339,6 +342,9 @@ static const pseudo_typeS potable[] = {
   {"func", s_func, 0},
   {"global", s_globl, 0},
   {"globl", s_globl, 0},
+#ifdef OBJ_ELF
+  {"gnu_attribute", s_gnu_attribute, 0},
+#endif
   {"hword", cons, 2},
   {"if", s_if, (int) O_ne},
   {"ifb", s_ifb, 1},
@@ -365,6 +371,7 @@ static const pseudo_typeS potable[] = {
   {"irepc", s_irp, 1},
   {"lcomm", s_lcomm, 0},
   {"lflags", listing_flags, 0},	/* Listing flags.  */
+  {"linefile", s_app_line, 0},
   {"linkonce", s_linkonce, 0},
   {"list", listing_list, 1},	/* Turn listing on.  */
   {"llen", listing_psize, 1},
@@ -391,6 +398,7 @@ static const pseudo_typeS potable[] = {
   {"psize", listing_psize, 0},	/* Set paper size.  */
   {"purgem", s_purgem, 0},
   {"quad", cons, 8},
+  {"reloc", s_reloc, 0},
   {"rep", s_rept, 0},
   {"rept", s_rept, 0},
   {"rva", s_rva, 4},
@@ -605,8 +613,6 @@ read_a_source_file (char *name)
 
       last_eol = NULL;
 #endif
-      know (buffer_limit[-1] == '\n');	/* Must have a sentinel.  */
-
       while (input_line_pointer < buffer_limit)
 	{
 	  /* We have more of this buffer to parse.  */
@@ -695,19 +701,11 @@ read_a_source_file (char *name)
 
 	     Depending on what compiler is used, the order of these tests
 	     may vary to catch most common case 1st.
-	     Each test is independent of all other tests at the (top) level.
-	     PLEASE make a compiler that doesn't use this assembler.
-	     It is crufty to waste a compiler's time encoding things for this
-	     assembler, which then wastes more time decoding it.
-	     (And communicating via (linear) files is silly!
-	     If you must pass stuff, please pass a tree!)  */
-	  if ((c = *input_line_pointer++) == '\t'
-	      || c == ' '
-	      || c == '\f'
-	      || c == 0)
+	     Each test is independent of all other tests at the (top)
+	     level.  */
+	  do
 	    c = *input_line_pointer++;
-
-	  know (c != ' ');	/* No further leading whitespace.  */
+	  while (c == '\t' || c == ' ' || c == '\f');
 
 #ifndef NO_LISTING
 	  /* If listing is on, and we are expanding a macro, then give
@@ -1008,10 +1006,14 @@ read_a_source_file (char *name)
 	      unsigned int new_length;
 	      char *tmp_buf = 0;
 
-	      bump_line_counters ();
 	      s = input_line_pointer;
 	      if (strncmp (s, "APP\n", 4))
-		continue;	/* We ignore it */
+		{
+		  /* We ignore it.  */
+		  ignore_rest_of_line ();
+		  continue;
+		}
+	      bump_line_counters ();
 	      s += 4;
 
 	      sb_new (&sbuf);
@@ -1110,7 +1112,7 @@ read_a_source_file (char *name)
 	    continue;
 #endif
 	  input_line_pointer--;
-	  /* Report unknown char as ignored.  */
+	  /* Report unknown char as error.  */
 	  demand_empty_rest_of_line ();
 	}
 
@@ -1279,7 +1281,7 @@ s_align (int arg, int bytes_p)
   unsigned int align_limit = ALIGN_LIMIT;
   unsigned int align;
   char *stop = NULL;
-  char stopc;
+  char stopc = 0;
   offsetT fill = 0;
   int max;
   int fill_p;
@@ -1423,7 +1425,7 @@ s_comm_internal (int param,
   offsetT temp, size;
   symbolS *symbolP = NULL;
   char *stop = NULL;
-  char stopc;
+  char stopc = 0;
   expressionS exp;
 
   if (flag_mri)
@@ -1478,10 +1480,7 @@ s_comm_internal (int param,
 	  ignore_rest_of_line ();
 	  goto out;
 	}
-      /* This could be avoided when the symbol wasn't used so far, but
-	 the comment in struc-symbol.h says this flag isn't reliable.  */
-      if (1 || !symbol_used_p (symbolP))
-	symbolP = symbol_clone (symbolP, 1);
+      symbolP = symbol_clone (symbolP, 1);
       S_SET_SEGMENT (symbolP, undefined_section);
       S_SET_VALUE (symbolP, 0);
       symbol_set_frag (symbolP, &zero_address_frag);
@@ -1538,7 +1537,7 @@ s_mri_common (int small ATTRIBUTE_UNUSED)
   symbolS *sym;
   offsetT align;
   char *stop = NULL;
-  char stopc;
+  char stopc = 0;
 
   if (!flag_mri)
     {
@@ -1681,11 +1680,8 @@ s_app_file (int appfile)
   /* Some assemblers tolerate immediately following '"'.  */
   if ((s = demand_copy_string (&length)) != 0)
     {
-      /* If this is a fake .appfile, a fake newline was inserted into
-	 the buffer.  Passing -2 to new_logical_line tells it to
-	 account for it.  */
       int may_omit
-	= (!new_logical_line (s, appfile ? -2 : -1) && appfile);
+	= (!new_logical_line_flags (s, -1, 1) && appfile);
 
       /* In MRI mode, the preprocessor may have inserted an extraneous
 	 backquote.  */
@@ -1700,18 +1696,40 @@ s_app_file (int appfile)
     }
 }
 
+static int
+get_linefile_number (int *flag)
+{
+  SKIP_WHITESPACE ();
+
+  if (*input_line_pointer < '0' || *input_line_pointer > '9')
+    return 0;
+
+  *flag = get_absolute_expression ();
+
+  return 1;
+}
+
 /* Handle the .appline pseudo-op.  This is automatically generated by
    do_scrub_chars when a preprocessor # line comment is seen.  This
    default definition may be overridden by the object or CPU specific
    pseudo-ops.  */
 
 void
-s_app_line (int ignore ATTRIBUTE_UNUSED)
+s_app_line (int appline)
 {
+  char *file = NULL;
   int l;
 
   /* The given number is that of the next line.  */
-  l = get_absolute_expression () - 1;
+  if (appline)
+    l = get_absolute_expression ();
+  else if (!get_linefile_number (&l))
+    {
+      ignore_rest_of_line ();
+      return;
+    }
+
+  l--;
 
   if (l < -1)
     /* Some of the back ends can't deal with non-positive line numbers.
@@ -1727,13 +1745,74 @@ s_app_line (int ignore ATTRIBUTE_UNUSED)
 	     l + 1);
   else
     {
-      new_logical_line ((char *) NULL, l);
+      int flags = 0;
+      int length = 0;
+
+      if (!appline)
+	{
+	  SKIP_WHITESPACE ();
+
+	  if (*input_line_pointer == '"')
+	    file = demand_copy_string (&length);
+
+	  if (file)
+	    {
+	      int this_flag;
+
+	      while (get_linefile_number (&this_flag))
+		switch (this_flag)
+		  {
+		    /* From GCC's cpp documentation:
+		       1: start of a new file.
+		       2: returning to a file after having included
+		          another file.
+		       3: following text comes from a system header file.
+		       4: following text should be treated as extern "C".
+
+		       4 is nonsensical for the assembler; 3, we don't
+		       care about, so we ignore it just in case a
+		       system header file is included while
+		       preprocessing assembly.  So 1 and 2 are all we
+		       care about, and they are mutually incompatible.
+		       new_logical_line_flags() demands this.  */
+		  case 1:
+		  case 2:
+		    if (flags && flags != (1 << this_flag))
+		      as_warn (_("incompatible flag %i in line directive"),
+			       this_flag);
+		    else
+		      flags |= 1 << this_flag;
+		    break;
+
+		  case 3:
+		  case 4:
+		    /* We ignore these.  */
+		    break;
+
+		  default:
+		    as_warn (_("unsupported flag %i in line directive"),
+			     this_flag);
+		    break;
+		  }
+
+	      if (!is_end_of_line[(unsigned char)*input_line_pointer])
+		file = 0;
+	    }
+	}
+
+      if (appline || file)
+	{
+	  new_logical_line_flags (file, l, flags);
 #ifdef LISTING
-      if (listing)
-	listing_source_line (l);
+	  if (listing)
+	    listing_source_line (l);
 #endif
+	}
     }
-  demand_empty_rest_of_line ();
+  if (appline || file)
+    demand_empty_rest_of_line ();
+  else
+    ignore_rest_of_line ();
 }
 
 /* Handle the .end pseudo-op.  Actually, the real work is done in
@@ -1807,7 +1886,7 @@ s_fail (int ignore ATTRIBUTE_UNUSED)
 {
   offsetT temp;
   char *stop = NULL;
-  char stopc;
+  char stopc = 0;
 
   if (flag_mri)
     stop = mri_comment_field (&stopc);
@@ -1929,7 +2008,7 @@ s_globl (int ignore ATTRIBUTE_UNUSED)
   int c;
   symbolS *symbolP;
   char *stop = NULL;
-  char stopc;
+  char stopc = 0;
 
   if (flag_mri)
     stop = mri_comment_field (&stopc);
@@ -1959,6 +2038,120 @@ s_globl (int ignore ATTRIBUTE_UNUSED)
   if (flag_mri)
     mri_comment_end (stop, stopc);
 }
+
+#ifdef OBJ_ELF
+#define skip_whitespace(str)  do { if (*(str) == ' ') ++(str); } while (0)
+
+static inline int
+skip_past_char (char ** str, char c)
+{
+  if (**str == c)
+    {
+      (*str)++;
+      return 0;
+    }
+  else
+    return -1;
+}
+#define skip_past_comma(str) skip_past_char (str, ',')
+
+/* Parse an attribute directive for VENDOR.  */
+void
+s_vendor_attribute (int vendor)
+{
+  expressionS exp;
+  int type;
+  int tag;
+  unsigned int i = 0;
+  char *s = NULL;
+  char saved_char;
+
+  expression (& exp);
+  if (exp.X_op != O_constant)
+    goto bad;
+
+  tag = exp.X_add_number;
+  type = _bfd_elf_obj_attrs_arg_type (stdoutput, vendor, tag);
+
+  if (skip_past_comma (&input_line_pointer) == -1)
+    goto bad;
+  if (type & 1)
+    {
+      expression (& exp);
+      if (exp.X_op != O_constant)
+	{
+	  as_bad (_("expected numeric constant"));
+	  ignore_rest_of_line ();
+	  return;
+	}
+      i = exp.X_add_number;
+    }
+  if (type == 3
+      && skip_past_comma (&input_line_pointer) == -1)
+    {
+      as_bad (_("expected comma"));
+      ignore_rest_of_line ();
+      return;
+    }
+  if (type & 2)
+    {
+      skip_whitespace(input_line_pointer);
+      if (*input_line_pointer != '"')
+	goto bad_string;
+      input_line_pointer++;
+      s = input_line_pointer;
+      while (*input_line_pointer && *input_line_pointer != '"')
+	input_line_pointer++;
+      if (*input_line_pointer != '"')
+	goto bad_string;
+      saved_char = *input_line_pointer;
+      *input_line_pointer = 0;
+    }
+  else
+    {
+      s = NULL;
+      saved_char = 0;
+    }
+
+  switch (type)
+    {
+    case 3:
+      bfd_elf_add_obj_attr_compat (stdoutput, vendor, i, s);
+      break;
+    case 2:
+      bfd_elf_add_obj_attr_string (stdoutput, vendor, tag, s);
+      break;
+    case 1:
+      bfd_elf_add_obj_attr_int (stdoutput, vendor, tag, i);
+      break;
+    default:
+      abort ();
+    }
+
+  if (s)
+    {
+      *input_line_pointer = saved_char;
+      input_line_pointer++;
+    }
+  demand_empty_rest_of_line ();
+  return;
+bad_string:
+  as_bad (_("bad string constant"));
+  ignore_rest_of_line ();
+  return;
+bad:
+  as_bad (_("expected <tag> , <value>"));
+  ignore_rest_of_line ();
+}
+
+/* Parse a .gnu_attribute directive.  */
+
+static void
+s_gnu_attribute (int ignored ATTRIBUTE_UNUSED)
+{
+  s_vendor_attribute (OBJ_ATTR_GNU);
+}
+#endif /* OBJ_ELF */
 
 /* Handle the MRI IRP and IRPC pseudo-ops.  */
 
@@ -2812,10 +3005,7 @@ assign_symbol (char *name, int mode)
       /* If the symbol is volatile, copy the symbol and replace the
 	 original with the copy, so that previous uses of the symbol will
 	 retain the value of the symbol at the point of use.  */
-      else if (S_IS_VOLATILE (symbolP)
-	  /* This could be avoided when the symbol wasn't used so far, but
-	     the comment in struc-symbol.h says this flag isn't reliable.  */
-	  && (1 || symbol_used_p (symbolP)))
+      else if (S_IS_VOLATILE (symbolP))
 	symbolP = symbol_clone (symbolP, 1);
     }
 
@@ -2881,7 +3071,7 @@ s_space (int mult)
   expressionS val;
   char *p = 0;
   char *stop = NULL;
-  char stopc;
+  char stopc = 0;
   int bytes;
 
 #ifdef md_flush_pending_output
@@ -3057,7 +3247,7 @@ s_float_space (int float_type)
   int flen;
   char temp[MAXIMUM_NUMBER_OF_CHARS_FOR_FLOAT];
   char *stop = NULL;
-  char stopc;
+  char stopc = 0;
 
   if (flag_mri)
     stop = mri_comment_field (&stopc);
@@ -3134,11 +3324,17 @@ void
 s_struct (int ignore ATTRIBUTE_UNUSED)
 {
   char *stop = NULL;
-  char stopc;
+  char stopc = 0;
 
   if (flag_mri)
     stop = mri_comment_field (&stopc);
   abs_section_offset = get_absolute_expression ();
+#if defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)
+  /* The ELF backend needs to know that we are changing sections, so
+     that .previous works correctly. */
+  if (IS_ELF)
+    obj_elf_section_change_hook ();
+#endif
   subseg_set (absolute_section, 0);
   demand_empty_rest_of_line ();
   if (flag_mri)
@@ -3186,17 +3382,14 @@ s_weakref (int ignore ATTRIBUTE_UNUSED)
 
   if (S_IS_DEFINED (symbolP) || symbol_equated_p (symbolP))
     {
-      if(!S_IS_VOLATILE (symbolP))
+      if (!S_IS_VOLATILE (symbolP))
 	{
 	  as_bad (_("symbol `%s' is already defined"), name);
 	  *end_name = delim;
 	  ignore_rest_of_line ();
 	  return;
 	}
-      /* This could be avoided when the symbol wasn't used so far, but
-	 the comment in struc-symbol.h says this flag isn't reliable.  */
-      if (1 || !symbol_used_p (symbolP))
-	symbolP = symbol_clone (symbolP, 1);
+      symbolP = symbol_clone (symbolP, 1);
       S_CLEAR_VOLATILE (symbolP);
     }
 
@@ -3408,6 +3601,7 @@ pseudo_set (symbolS *symbolP)
       S_SET_SEGMENT (symbolP, reg_section);
       S_SET_VALUE (symbolP, (valueT) exp.X_add_number);
       set_zero_frag (symbolP);
+      symbol_get_value_expression (symbolP)->X_op = O_register;
       break;
 
     case O_symbol:
@@ -3514,7 +3708,7 @@ cons_worker (register int nbytes,	/* 1=.byte, 2=.word, 4=.long.  */
   int c;
   expressionS exp;
   char *stop = NULL;
-  char stopc;
+  char stopc = 0;
 
 #ifdef md_flush_pending_output
   md_flush_pending_output ();
@@ -3586,6 +3780,113 @@ void
 s_rva (int size)
 {
   cons_worker (size, 1);
+}
+
+/* .reloc offset, reloc_name, symbol+addend.  */
+
+void
+s_reloc (int ignore ATTRIBUTE_UNUSED)
+{
+  char *stop = NULL;
+  char stopc = 0;
+  expressionS exp;
+  char *r_name;
+  int c;
+  struct reloc_list *reloc;
+
+  reloc = xmalloc (sizeof (*reloc));
+
+  if (flag_mri)
+    stop = mri_comment_field (&stopc);
+
+  expression (&exp);
+  switch (exp.X_op)
+    {
+    case O_illegal:
+    case O_absent:
+    case O_big:
+    case O_register:
+      as_bad (_("missing or bad offset expression"));
+      goto err_out;
+    case O_constant:
+      exp.X_add_symbol = section_symbol (now_seg);
+      exp.X_op = O_symbol;
+      /* Fall thru */
+    case O_symbol:
+      if (exp.X_add_number == 0)
+	{
+	  reloc->u.a.offset_sym = exp.X_add_symbol;
+	  break;
+	}
+      /* Fall thru */
+    default:
+      reloc->u.a.offset_sym = make_expr_symbol (&exp);
+      break;
+    }
+
+  SKIP_WHITESPACE ();
+  if (*input_line_pointer != ',')
+    {
+      as_bad (_("missing reloc type"));
+      goto err_out;
+    }
+
+  ++input_line_pointer;
+  SKIP_WHITESPACE ();
+  r_name = input_line_pointer;
+  c = get_symbol_end ();
+  reloc->u.a.howto = bfd_reloc_name_lookup (stdoutput, r_name);
+  *input_line_pointer = c;
+  if (reloc->u.a.howto == NULL)
+    {
+      as_bad (_("unrecognized reloc type"));
+      goto err_out;
+    }
+
+  exp.X_op = O_absent;
+  SKIP_WHITESPACE ();
+  if (*input_line_pointer == ',')
+    {
+      ++input_line_pointer;
+      expression_and_evaluate (&exp);
+    }
+  switch (exp.X_op)
+    {
+    case O_illegal:
+    case O_big:
+    case O_register:
+      as_bad (_("bad reloc expression"));
+    err_out:
+      ignore_rest_of_line ();
+      free (reloc);
+      if (flag_mri)
+	mri_comment_end (stop, stopc);
+      return;
+    case O_absent:
+      reloc->u.a.sym = NULL;
+      reloc->u.a.addend = 0;
+      break;
+    case O_constant:
+      reloc->u.a.sym = NULL;
+      reloc->u.a.addend = exp.X_add_number;
+      break;
+    case O_symbol:
+      reloc->u.a.sym = exp.X_add_symbol;
+      reloc->u.a.addend = exp.X_add_number;
+      break;
+    default:
+      reloc->u.a.sym = make_expr_symbol (&exp);
+      reloc->u.a.addend = 0;
+      break;
+    }
+
+  as_where (&reloc->file, &reloc->line);
+  reloc->next = reloc_list;
+  reloc_list = reloc;
+
+  demand_empty_rest_of_line ();
+  if (flag_mri)
+    mri_comment_end (stop, stopc);
 }
 
 /* Put the contents of expression EXP into the object file using
@@ -5010,7 +5311,7 @@ void
 equals (char *sym_name, int reassign)
 {
   char *stop = NULL;
-  char stopc;
+  char stopc = 0;
 
   input_line_pointer++;
   if (*input_line_pointer == '=')

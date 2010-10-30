@@ -769,3 +769,51 @@ xta:
 	ldmeq	r0, {r8, r9}
 	stmeq	r0, {r8, r9}
 	nop
+
+srs:
+	srsia sp, #16
+	srsdb sp, #16
+	srsia sp!, #21
+	srsia sp!, #10
+
+	movs pc, lr
+	subs pc, lr, #0
+	subs pc, lr, #4
+	subs pc, lr, #255
+
+	ldrd r2, r4, [r9, #48]!
+	ldrd r2, r4, [r9, #-48]!
+	strd r2, r4, [r9, #48]!
+	strd r2, r4, [r9, #-48]!
+	ldrd r2, r4, [r9], #48
+	ldrd r2, r4, [r9], #-48
+	strd r2, r4, [r9], #48
+	strd r2, r4, [r9], #-48
+
+	.macro ldaddr op
+	ldr\op	r1, [r5, #0x301]
+	ldr\op	r1, [r5, #0x30]!
+	ldr\op	r1, [r5, #-0x30]!
+	ldr\op	r1, [r5], #0x30
+	ldr\op	r1, [r5], #-0x30
+	ldr\op	r1, [r5, r9]
+	.endm
+	ldaddr
+	ldaddr b
+	ldaddr sb
+	ldaddr h
+	ldaddr sh
+	.macro movshift op s="s"
+	movs r1, r4, \op #2
+	movs r3, r9, \op #2
+	movs r1, r2, \op r3
+	movs r1, r1, \op r3
+	movs r1, r1, \op r9
+	mov r1, r2, \op r3
+	mov r1, r1, \op r3
+	.endm
+	movshift lsl
+	movshift lsr
+	movshift asr
+	movshift ror
+	nop

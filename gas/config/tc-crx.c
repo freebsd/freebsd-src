@@ -1271,7 +1271,7 @@ print_constant (int nbits, int shift, argument *arg)
       /* When instruction size is 3 and 'shift' is 16, a 16-bit constant is 
 	 always filling the upper part of output_opcode[1]. If we mistakenly 
 	 write it to output_opcode[0], the constant prefix (that is, 'match')
-	 will be overriden.
+	 will be overridden.
 		 0	   1	     2	       3
 	    +---------+---------+---------+---------+
 	    | 'match' |         | X X X X |	    |

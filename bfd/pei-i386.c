@@ -1,5 +1,6 @@
 /* BFD back-end for Intel 386 PE IMAGE COFF files.
-   Copyright 1995, 1996, 1999, 2002, 2004 Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1999, 2002, 2004, 2007
+   Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -17,8 +18,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 
 #define TARGET_SYM 		i386pei_vec
 #define TARGET_NAME 		"pei-i386"
@@ -35,9 +36,15 @@
   COFF_ALIGNMENT_FIELD_EMPTY, COFF_ALIGNMENT_FIELD_EMPTY, 4 }, \
 { COFF_SECTION_NAME_EXACT_MATCH (".data"), \
   COFF_ALIGNMENT_FIELD_EMPTY, COFF_ALIGNMENT_FIELD_EMPTY, 4 }, \
+{ COFF_SECTION_NAME_PARTIAL_MATCH (".data$"), \
+  COFF_ALIGNMENT_FIELD_EMPTY, COFF_ALIGNMENT_FIELD_EMPTY, 4 }, \
 { COFF_SECTION_NAME_EXACT_MATCH (".rdata"), \
   COFF_ALIGNMENT_FIELD_EMPTY, COFF_ALIGNMENT_FIELD_EMPTY, 4 }, \
+{ COFF_SECTION_NAME_PARTIAL_MATCH (".rdata$"), \
+  COFF_ALIGNMENT_FIELD_EMPTY, COFF_ALIGNMENT_FIELD_EMPTY, 4 }, \
 { COFF_SECTION_NAME_EXACT_MATCH (".text"), \
+  COFF_ALIGNMENT_FIELD_EMPTY, COFF_ALIGNMENT_FIELD_EMPTY, 4 }, \
+{ COFF_SECTION_NAME_PARTIAL_MATCH (".text$"), \
   COFF_ALIGNMENT_FIELD_EMPTY, COFF_ALIGNMENT_FIELD_EMPTY, 4 }, \
 { COFF_SECTION_NAME_PARTIAL_MATCH (".idata"), \
   COFF_ALIGNMENT_FIELD_EMPTY, COFF_ALIGNMENT_FIELD_EMPTY, 2 }, \

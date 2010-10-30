@@ -65,7 +65,7 @@ static int read_insn
   do								\
     {								\
       if (CGEN_BOOL_ATTR ((attrs), CGEN_OPERAND_HASH_PREFIX))	\
-        (*info->fprintf_func) (info->stream, "#");		\
+	(*info->fprintf_func) (info->stream, "#");		\
     }								\
   while (0)
 
@@ -102,7 +102,7 @@ my_print_insn (CGEN_CPU_DESC cd,
   /* Read the base part of the insn.  */
 
   status = (*info->read_memory_func) (pc - ((!big_p && (pc & 3) != 0) ? 2 : 0),
-                                      buf, buflen, info);
+				      buf, buflen, info);
   if (status != 0)
     {
       (*info->memory_error_func) (status, pc, info);

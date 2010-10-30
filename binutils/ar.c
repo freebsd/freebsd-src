@@ -1,6 +1,6 @@
 /* ar.c - Archive modify and extract.
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005
+   2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
@@ -26,12 +26,13 @@
    when name truncated. No way to specify pos_end. Error messages should be
    more consistent.  */
 
+#include "sysdep.h"
 #include "bfd.h"
 #include "libiberty.h"
 #include "progress.h"
-#include "bucomm.h"
 #include "aout/ar.h"
 #include "libbfd.h"
+#include "bucomm.h"
 #include "arsup.h"
 #include "filenames.h"
 #include "binemul.h"
@@ -68,8 +69,8 @@ static void replace_members
   (bfd *, char **files_to_replace, bfd_boolean quick);
 static void print_descr (bfd * abfd);
 static void write_archive (bfd *);
-static void ranlib_only (const char *archname);
-static void ranlib_touch (const char *archname);
+static int  ranlib_only (const char *archname);
+static int  ranlib_touch (const char *archname);
 static void usage (int);
 
 /** Globals and flags */
@@ -153,7 +154,7 @@ map_over_members (bfd *arch, void (*function)(bfd *), char **files, int count)
 
   if (count == 0)
     {
-      for (head = arch->next; head; head = head->next)
+      for (head = arch->archive_next; head; head = head->archive_next)
 	{
 	  PROGRESS (1);
 	  function (head);
@@ -172,7 +173,7 @@ map_over_members (bfd *arch, void (*function)(bfd *), char **files, int count)
       bfd_boolean found = FALSE;
 
       match_count = 0;
-      for (head = arch->next; head; head = head->next)
+      for (head = arch->archive_next; head; head = head->archive_next)
 	{
 	  PROGRESS (1);
 	  if (head->filename == NULL)
@@ -257,9 +258,9 @@ usage (int help)
   -V --version                 Print version information\n"));
     }
 
-  list_supported_targets (program_name, stderr);
+  list_supported_targets (program_name, s);
 
-  if (help)
+  if (REPORT_BUGS_TO[0] && help)
     fprintf (s, _("Report bugs to %s\n"), REPORT_BUGS_TO);
 
   xexit (help ? 0 : 1);
@@ -420,6 +421,7 @@ main (int argc, char **argv)
 
   if (is_ranlib)
     {
+      int status = 0;
       bfd_boolean touch = FALSE;
 
       if (argc < 2
@@ -429,7 +431,7 @@ main (int argc, char **argv)
 	usage (0);
       if (strcmp (argv[1], "-V") == 0
 	  || strcmp (argv[1], "-v") == 0
-	  || strncmp (argv[1], "--v", 3) == 0)
+	  || CONST_STRNEQ (argv[1], "--v"))
 	print_version ("ranlib");
       arg_index = 1;
       if (strcmp (argv[1], "-t") == 0)
@@ -440,12 +442,12 @@ main (int argc, char **argv)
       while (arg_index < argc)
 	{
 	  if (! touch)
-	    ranlib_only (argv[arg_index]);
+	    status |= ranlib_only (argv[arg_index]);
 	  else
-	    ranlib_touch (argv[arg_index]);
+	    status |= ranlib_touch (argv[arg_index]);
 	  ++arg_index;
 	}
-      xexit (0);
+      xexit (status);
     }
 
   if (argc == 2 && strcmp (argv[1], "-M") == 0)
@@ -597,10 +599,7 @@ main (int argc, char **argv)
 
       if ((operation == none || operation == print_table)
 	  && write_armap == 1)
-	{
-	  ranlib_only (argv[arg_index]);
-	  xexit (0);
-	}
+	xexit (ranlib_only (argv[arg_index]));
 
       if (operation == none)
 	fatal (_("no operation specified"));
@@ -760,7 +759,7 @@ open_inarch (const char *archive_filename, const char *file)
       xexit (1);
     }
 
-  last_one = &(arch->next);
+  last_one = &(arch->archive_next);
   /* Read all the contents right away, regardless.  */
   for (next_one = bfd_openr_next_archived_file (arch, NULL);
        next_one;
@@ -768,7 +767,7 @@ open_inarch (const char *archive_filename, const char *file)
     {
       PROGRESS (1);
       *last_one = next_one;
-      last_one = &next_one->next;
+      last_one = &next_one->archive_next;
     }
   *last_one = (bfd *) NULL;
   if (bfd_get_error () != bfd_error_no_more_archived_files)
@@ -779,10 +778,10 @@ open_inarch (const char *archive_filename, const char *file)
 static void
 print_contents (bfd *abfd)
 {
-  int ncopied = 0;
+  size_t ncopied = 0;
   char *cbuf = xmalloc (BUFSIZE);
   struct stat buf;
-  long size;
+  size_t size;
   if (bfd_stat_arch_elt (abfd, &buf) != 0)
     /* xgettext:c-format */
     fatal (_("internal stat error on %s"), bfd_get_filename (abfd));
@@ -797,8 +796,8 @@ print_contents (bfd *abfd)
   while (ncopied < size)
     {
 
-      int nread;
-      int tocopy = size - ncopied;
+      size_t nread;
+      size_t tocopy = size - ncopied;
       if (tocopy > BUFSIZE)
 	tocopy = BUFSIZE;
 
@@ -807,7 +806,12 @@ print_contents (bfd *abfd)
 	/* xgettext:c-format */
 	fatal (_("%s is not a valid archive"),
 	       bfd_get_filename (bfd_my_archive (abfd)));
-      fwrite (cbuf, 1, nread, stdout);
+
+      /* fwrite in mingw32 may return int instead of size_t. Cast the
+	 return value to size_t to avoid comparison between signed and
+	 unsigned values.  */
+      if ((size_t) fwrite (cbuf, 1, nread, stdout) != nread)
+	fatal ("stdout: %s", strerror (errno));
       ncopied += tocopy;
     }
   free (cbuf);
@@ -828,19 +832,15 @@ extract_file (bfd *abfd)
 {
   FILE *ostream;
   char *cbuf = xmalloc (BUFSIZE);
-  int nread, tocopy;
-  long ncopied = 0;
-  long size;
+  size_t nread, tocopy;
+  size_t ncopied = 0;
+  size_t size;
   struct stat buf;
 
   if (bfd_stat_arch_elt (abfd, &buf) != 0)
     /* xgettext:c-format */
     fatal (_("internal stat error on %s"), bfd_get_filename (abfd));
   size = buf.st_size;
-
-  if (size < 0)
-    /* xgettext:c-format */
-    fatal (_("stat returns negative size for %s"), bfd_get_filename (abfd));
 
   if (verbose)
     printf ("x - %s\n", bfd_get_filename (abfd));
@@ -890,7 +890,12 @@ extract_file (bfd *abfd)
 
 	    output_file = ostream;
 	  }
-	fwrite (cbuf, 1, nread, ostream);
+
+	/* fwrite in mingw32 may return int instead of size_t. Cast
+	   the return value to size_t to avoid comparison between
+	   signed and unsigned values.  */
+	if ((size_t) fwrite (cbuf, 1, nread, ostream) != nread)
+	  fatal ("%s: %s", output_filename, strerror (errno));
 	ncopied += tocopy;
       }
 
@@ -918,12 +923,15 @@ write_archive (bfd *iarch)
 {
   bfd *obfd;
   char *old_name, *new_name;
-  bfd *contents_head = iarch->next;
+  bfd *contents_head = iarch->archive_next;
 
   old_name = xmalloc (strlen (bfd_get_filename (iarch)) + 1);
   strcpy (old_name, bfd_get_filename (iarch));
   new_name = make_tempname (old_name);
 
+  if (new_name == NULL)
+    bfd_fatal ("could not create temporary file whilst writing archive");
+  
   output_filename = new_name;
 
   obfd = bfd_openw (new_name, bfd_get_target (iarch));
@@ -987,15 +995,15 @@ get_pos_bfd (bfd **contents, enum pos default_pos, const char *default_posname)
   if (realpos == pos_end)
     {
       while (*after_bfd)
-	after_bfd = &((*after_bfd)->next);
+	after_bfd = &((*after_bfd)->archive_next);
     }
   else
     {
-      for (; *after_bfd; after_bfd = &(*after_bfd)->next)
+      for (; *after_bfd; after_bfd = &(*after_bfd)->archive_next)
 	if (FILENAME_CMP ((*after_bfd)->filename, realposname) == 0)
 	  {
 	    if (realpos == pos_after)
-	      after_bfd = &(*after_bfd)->next;
+	      after_bfd = &(*after_bfd)->archive_next;
 	    break;
 	  }
     }
@@ -1027,7 +1035,7 @@ delete_members (bfd *arch, char **files_to_delete)
 
       found = FALSE;
       match_count = 0;
-      current_ptr_ptr = &(arch->next);
+      current_ptr_ptr = &(arch->archive_next);
       while (*current_ptr_ptr)
 	{
 	  if (FILENAME_CMP (normalize (*files_to_delete, arch),
@@ -1047,12 +1055,12 @@ delete_members (bfd *arch, char **files_to_delete)
 		  if (verbose)
 		    printf ("d - %s\n",
 			    *files_to_delete);
-		  *current_ptr_ptr = ((*current_ptr_ptr)->next);
+		  *current_ptr_ptr = ((*current_ptr_ptr)->archive_next);
 		  goto next_file;
 		}
 	    }
 
-	  current_ptr_ptr = &((*current_ptr_ptr)->next);
+	  current_ptr_ptr = &((*current_ptr_ptr)->archive_next);
 	}
 
       if (verbose && !found)
@@ -1081,7 +1089,7 @@ move_members (bfd *arch, char **files_to_move)
 
   for (; *files_to_move; ++files_to_move)
     {
-      current_ptr_ptr = &(arch->next);
+      current_ptr_ptr = &(arch->archive_next);
       while (*current_ptr_ptr)
 	{
 	  bfd *current_ptr = *current_ptr_ptr;
@@ -1091,13 +1099,13 @@ move_members (bfd *arch, char **files_to_move)
 	      /* Move this file to the end of the list - first cut from
 		 where it is.  */
 	      bfd *link;
-	      *current_ptr_ptr = current_ptr->next;
+	      *current_ptr_ptr = current_ptr->archive_next;
 
 	      /* Now glue to end */
-	      after_bfd = get_pos_bfd (&arch->next, pos_end, NULL);
+	      after_bfd = get_pos_bfd (&arch->archive_next, pos_end, NULL);
 	      link = *after_bfd;
 	      *after_bfd = current_ptr;
-	      current_ptr->next = link;
+	      current_ptr->archive_next = link;
 
 	      if (verbose)
 		printf ("m - %s\n", *files_to_move);
@@ -1105,7 +1113,7 @@ move_members (bfd *arch, char **files_to_move)
 	      goto next_file;
 	    }
 
-	  current_ptr_ptr = &((*current_ptr_ptr)->next);
+	  current_ptr_ptr = &((*current_ptr_ptr)->archive_next);
 	}
       /* xgettext:c-format */
       fatal (_("no entry %s in archive %s!"), *files_to_move, arch->filename);
@@ -1130,7 +1138,7 @@ replace_members (bfd *arch, char **files_to_move, bfd_boolean quick)
     {
       if (! quick)
 	{
-	  current_ptr = &arch->next;
+	  current_ptr = &arch->archive_next;
 	  while (*current_ptr)
 	    {
 	      current = *current_ptr;
@@ -1160,24 +1168,24 @@ replace_members (bfd *arch, char **files_to_move, bfd_boolean quick)
 			goto next_file;
 		    }
 
-		  after_bfd = get_pos_bfd (&arch->next, pos_after,
+		  after_bfd = get_pos_bfd (&arch->archive_next, pos_after,
 					   current->filename);
 		  if (ar_emul_replace (after_bfd, *files_to_move,
 				       verbose))
 		    {
 		      /* Snip out this entry from the chain.  */
-		      *current_ptr = (*current_ptr)->next;
+		      *current_ptr = (*current_ptr)->archive_next;
 		      changed = TRUE;
 		    }
 
 		  goto next_file;
 		}
-	      current_ptr = &(current->next);
+	      current_ptr = &(current->archive_next);
 	    }
 	}
 
       /* Add to the end of the archive.  */
-      after_bfd = get_pos_bfd (&arch->next, pos_end, NULL);
+      after_bfd = get_pos_bfd (&arch->archive_next, pos_end, NULL);
 
       if (ar_emul_append (after_bfd, *files_to_move, verbose))
 	changed = TRUE;
@@ -1193,23 +1201,24 @@ replace_members (bfd *arch, char **files_to_move, bfd_boolean quick)
     output_filename = NULL;
 }
 
-static void
+static int
 ranlib_only (const char *archname)
 {
   bfd *arch;
 
   if (get_file_size (archname) < 1)
-    return;
+    return 1;
   write_armap = 1;
   arch = open_inarch (archname, (char *) NULL);
   if (arch == NULL)
     xexit (1);
   write_archive (arch);
+  return 0;
 }
 
 /* Update the timestamp of the symbol map of an archive.  */
 
-static void
+static int
 ranlib_touch (const char *archname)
 {
 #ifdef __GO32__
@@ -1221,7 +1230,7 @@ ranlib_touch (const char *archname)
   char **matching;
 
   if (get_file_size (archname) < 1)
-    return;
+    return 1;
   f = open (archname, O_RDWR | O_BINARY, 0);
   if (f < 0)
     {
@@ -1252,6 +1261,7 @@ ranlib_touch (const char *archname)
   if (! bfd_close (arch))
     bfd_fatal (archname);
 #endif
+  return 0;
 }
 
 /* Things which are interesting to map over all or some of the files: */

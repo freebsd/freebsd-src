@@ -1,6 +1,6 @@
 /* bfd back-end for HP PA-RISC SOM objects.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005
+   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
 
    Contributed by the Center for Software Science at the
@@ -24,8 +24,8 @@
    02110-1301, USA.  */
 
 #include "alloca-conf.h"
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 
 #if defined (HOST_HPPAHPUX) || defined (HOST_HPPABSD) || defined (HOST_HPPAOSF) || defined(HOST_HPPAMPEIX)
 
@@ -1622,6 +1622,22 @@ som_bfd_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
       BFD_ASSERT ((int) som_hppa_howto_table[(int) code].type == (int) code);
       return &som_hppa_howto_table[(int) code];
     }
+
+  return NULL;
+}
+
+static reloc_howto_type *
+som_bfd_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			   const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (som_hppa_howto_table) / sizeof (som_hppa_howto_table[0]);
+       i++)
+    if (som_hppa_howto_table[i].name != NULL
+	&& strcasecmp (som_hppa_howto_table[i].name, r_name) == 0)
+      return &som_hppa_howto_table[i];
 
   return NULL;
 }
@@ -4374,12 +4390,12 @@ som_slurp_symbol_table (bfd *abfd)
 	  && sym->symbol.name[strlen (sym->symbol.name) - 1] == '$'
 	  && !strcmp (sym->symbol.name, sym->symbol.section->name))
 	sym->symbol.flags |= BSF_SECTION_SYM;
-      else if (!strncmp (sym->symbol.name, "L$0\002", 4))
+      else if (CONST_STRNEQ (sym->symbol.name, "L$0\002"))
 	{
 	  sym->symbol.flags |= BSF_SECTION_SYM;
 	  sym->symbol.name = sym->symbol.section->name;
 	}
-      else if (!strncmp (sym->symbol.name, "L$0\001", 4))
+      else if (CONST_STRNEQ (sym->symbol.name, "L$0\001"))
 	sym->symbol.flags |= BSF_DEBUGGING;
 
       /* Note increment at bottom of loop, since we skip some symbols
@@ -4959,15 +4975,18 @@ extern const bfd_target som_vec;
 static bfd_boolean
 som_new_section_hook (bfd *abfd, asection *newsect)
 {
-  bfd_size_type amt = sizeof (struct som_section_data_struct);
-
-  newsect->used_by_bfd = bfd_zalloc (abfd, amt);
   if (!newsect->used_by_bfd)
-    return FALSE;
+    {
+      bfd_size_type amt = sizeof (struct som_section_data_struct);
+
+      newsect->used_by_bfd = bfd_zalloc (abfd, amt);
+      if (!newsect->used_by_bfd)
+	return FALSE;
+    }
   newsect->alignment_power = 3;
 
   /* We allow more than three sections internally.  */
-  return TRUE;
+  return _bfd_generic_new_section_hook (abfd, newsect);
 }
 
 /* Copy any private info we understand from the input symbol
@@ -5325,7 +5344,7 @@ som_find_nearest_line (bfd *abfd ATTRIBUTE_UNUSED,
 
 static int
 som_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
-		    bfd_boolean reloc ATTRIBUTE_UNUSED)
+		    struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
   (*_bfd_error_handler) (_("som_sizeof_headers unimplemented"));
   fflush (stderr);
@@ -5650,7 +5669,7 @@ som_slurp_armap (bfd *abfd)
     return FALSE;
 
   /* For archives without .o files there is no symbol table.  */
-  if (strncmp (nextname, "/               ", 16))
+  if (! CONST_STRNEQ (nextname, "/               "))
     {
       bfd_has_map (abfd) = FALSE;
       return TRUE;
@@ -5749,7 +5768,7 @@ som_bfd_prep_for_ar_write (bfd *abfd,
       if (curr_bfd->format != bfd_object
 	  || curr_bfd->xvec->flavour != bfd_target_som_flavour)
 	{
-	  curr_bfd = curr_bfd->next;
+	  curr_bfd = curr_bfd->archive_next;
 	  continue;
 	}
 
@@ -5794,7 +5813,7 @@ som_bfd_prep_for_ar_write (bfd *abfd,
 	    (*stringsize)++;
 	}
 
-      curr_bfd = curr_bfd->next;
+      curr_bfd = curr_bfd->archive_next;
     }
   return TRUE;
 }
@@ -5903,7 +5922,7 @@ som_bfd_ar_write_symbol_stuff (bfd *abfd,
       if (curr_bfd->format != bfd_object
 	  || curr_bfd->xvec->flavour != bfd_target_som_flavour)
 	{
-	  curr_bfd = curr_bfd->next;
+	  curr_bfd = curr_bfd->archive_next;
 	  continue;
 	}
 
@@ -6019,7 +6038,7 @@ som_bfd_ar_write_symbol_stuff (bfd *abfd,
 	 linker requires objects begin on an even boundary.  So round
 	 up the current offset as necessary.  */
       curr_som_offset = (curr_som_offset + 0x1) &~ (unsigned) 1;
-      curr_bfd = curr_bfd->next;
+      curr_bfd = curr_bfd->archive_next;
       som_index++;
     }
 
@@ -6125,7 +6144,7 @@ som_write_armap (bfd *abfd,
       if (curr_bfd->format == bfd_object
 	  && curr_bfd->xvec->flavour == bfd_target_som_flavour)
 	lst.module_count++;
-      curr_bfd = curr_bfd->next;
+      curr_bfd = curr_bfd->archive_next;
     }
   lst.module_limit = lst.module_count;
   lst.dir_loc = lst_size;

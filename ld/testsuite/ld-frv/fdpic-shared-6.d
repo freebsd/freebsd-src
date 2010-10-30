@@ -49,18 +49,18 @@ Disassembly of section \.dat[0-9a-f ]+:
 Disassembly of section \.got:
 
 [0-9a-f ]+<_GLOBAL_OFFSET_TABLE_-0x20>:
-[0-9a-f ]+:	00 00 03 98 	sdiv\.p gr0,gr24,gr0
+[0-9a-f ]+:	00 00 03 60 .*
 [0-9a-f	 ]+: R_FRV_FUNCDESC_VALUE	WF9
-[0-9a-f ]+:	00 00 00 00 	add\.p gr0,gr0,gr0
-[0-9a-f ]+:	00 00 03 90 	sdiv\.p gr0,gr16,gr0
+[0-9a-f ]+:	00 00 00 00 .*
+[0-9a-f ]+:	00 00 03 58 .*
 [0-9a-f	 ]+: R_FRV_FUNCDESC_VALUE	WF8
-[0-9a-f ]+:	00 00 00 00 	add\.p gr0,gr0,gr0
-[0-9a-f ]+:	00 00 03 88 	sdiv\.p gr0,gr8,gr0
+[0-9a-f ]+:	00 00 00 00 .*
+[0-9a-f ]+:	00 00 03 50 .*
 [0-9a-f	 ]+: R_FRV_FUNCDESC_VALUE	WF0
-[0-9a-f ]+:	00 00 00 00 	add\.p gr0,gr0,gr0
-[0-9a-f ]+:	00 00 03 80 	sdiv\.p gr0,gr0,gr0
+[0-9a-f ]+:	00 00 00 00 .*
+[0-9a-f ]+:	00 00 03 48 .*
 [0-9a-f	 ]+: R_FRV_FUNCDESC_VALUE	WF7
-[0-9a-f ]+:	00 00 00 00 	add\.p gr0,gr0,gr0
+[0-9a-f ]+:	00 00 00 00 .*
 
 [0-9a-f ]+<_GLOBAL_OFFSET_TABLE_>:
 	\.\.\.

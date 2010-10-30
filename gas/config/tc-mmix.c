@@ -1,5 +1,6 @@
 /* tc-mmix.c -- Assembler for Don Knuth's MMIX.
-   Copyright (C) 2001, 2002, 2003, 2004, 2005 Free Software Foundation.
+   Copyright (C) 2001, 2002, 2003, 2004, 2005, 2006
+   Free Software Foundation.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -26,11 +27,9 @@
    compatible syntax, but the main purpose is to serve GCC.  */
 
 
-#include <stdio.h>
 #include <limits.h>
 #include "as.h"
 #include "subsegs.h"
-#include "bfd.h"
 #include "elf/mmix.h"
 #include "opcode/mmix.h"
 #include "safe-ctype.h"

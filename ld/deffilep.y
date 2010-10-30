@@ -1,6 +1,6 @@
 %{ /* deffilep.y - parser for .def files */
 
-/*   Copyright 1995, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005
+/*   Copyright 1995, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2007
      Free Software Foundation, Inc.
 
      This file is part of GNU Binutils.
@@ -19,11 +19,10 @@
      along with this program; if not, write to the Free Software
      Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include <stdio.h>
+#include "sysdep.h"
 #include "libiberty.h"
 #include "safe-ctype.h"
 #include "bfd.h"
-#include "sysdep.h"
 #include "ld.h"
 #include "ldmisc.h"
 #include "deffile.h"

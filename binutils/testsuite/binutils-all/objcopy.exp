@@ -1,5 +1,5 @@
 #   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-#   2004
+#   2004, 2006, 2007
 #   Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
@@ -112,6 +112,40 @@ proc objcopy_test {testname srcfile} {
 }
 
 objcopy_test "simple copy" bintest.s
+
+# Test reversing bytes in a section.
+
+set reversed ${tempfile}-reversed
+set got [binutils_run $OBJCOPY "$OBJCOPYFLAGS -j .data --reverse-bytes=4 $tempfile $reversed"]
+
+if ![string match "" $got] then {
+    fail "objcopy --reverse-bytes"
+} else {
+    if [is_remote host] {
+        remote_upload host ${reversed} tmpdir/copy-reversed.o
+        set reversed tmpdir/copy-reversed.o
+    }
+
+    set origdata [binutils_run $OBJDUMP "$OBJDUMPFLAGS -s -j .data $tempfile"]
+    set revdata [binutils_run $OBJDUMP "$OBJDUMPFLAGS -s -j .data $reversed"]
+
+    set want "^ \[0-9\]+ (\[0-9\]+)"
+    set found_orig [regexp -lineanchor $want $origdata -> origdata]
+    set found_rev [regexp -lineanchor $want $revdata -> revdata]
+
+    if {$found_orig == 0 || $found_rev == 0} then {
+        fail "objcopy --reverse-bytes"
+    } else {
+        scan $origdata "%2x%2x%2x%2x" b1 b2 b3 b4
+        scan $revdata "%2x%2x%2x%2x" c4 c3 c2 c1
+
+        if {$b1 == $c1 && $b2 == $c2 && $b3 == $c3 && $b4 == $c4} then {
+            pass "objcopy --reverse-bytes"
+        } else {
+            fail "objcopy --reverse-bytes"
+        }
+    }
+}
 
 # Test generating S records.
 
@@ -359,6 +393,12 @@ proc strip_test { } {
 	return
     }
 
+    set exec_output [binutils_run $STRIP "-g $archive"]
+    if ![string match "" $exec_output] {
+	fail $test
+	return
+    }
+
     set exec_output [binutils_run $STRIP "$STRIPFLAGS $archive"]
     if ![string match "" $exec_output] {
 	fail $test
@@ -437,7 +477,7 @@ strip_test_with_saving_a_symbol
 
 # Build a final executable.
 
-if { [istarget *-*-cygwin] || [istarget *-*-mingw32] } {
+if { [istarget *-*-cygwin] || [istarget *-*-mingw*] } {
     set test_prog "testprog.exe"
 } else {
     set test_prog "testprog"
@@ -451,6 +491,10 @@ proc copy_setup { } {
     
     set res [build_wrapper testglue.o]
     set flags { debug }
+    
+    if { [istarget *-*-uclinux*] } {
+	return 1
+    }
     
     if { $res != "" } {
 	lappend flags "additional_flags=[lindex $res 1]"
@@ -472,7 +516,7 @@ proc copy_setup { } {
     set status [lindex $result 0]
 
     if { $status != "pass"  } {
-	perror "unresolved setup, status = $status"
+	send_log "cannot run executable, status = ${status}\n"
 	return 3
     }
 
@@ -497,6 +541,9 @@ proc copy_executable { prog flags test1 test2 } {
 
     if ![string match "" $exec_output] {
 	fail $test1
+	if [string match "" $test2] {
+	    return
+	}
 	fail $test2
 	return
     }
@@ -536,6 +583,10 @@ proc copy_executable { prog flags test1 test2 } {
 	setup_xfail "thumb*-*-pe"
     
 	fail $test1
+    }
+
+    if [string match "" $test2] {
+	return
     }
 
     set output [remote_load target tmpdir/copyprog]
@@ -649,10 +700,10 @@ switch [copy_setup] {
 	untested $test4
     }
     "3" {
-	unresolved $test1
-	unresolved $test2
-	unresolved $test3
-	unresolved $test4
+	copy_executable "$OBJCOPY" "$OBJCOPYFLAGS" "$test1" ""
+	unsupported $test2
+	unsupported $test3
+	unsupported $test4
     }
     "0" {
 	copy_executable "$OBJCOPY" "$OBJCOPYFLAGS" "$test1" "$test2"
@@ -677,7 +728,7 @@ proc objcopy_test_readelf {testname srcfile} {
     catch "exec $OBJCOPY $OBJCOPYFLAGS tmpdir/bintest.o tmpdir/copy.o" exec_output
     if ![string match "" $exec_output] then {
 	fail "objcopy ($testname)"
-	return;
+	return
     }
 
     verbose -log "$READELF -a tmpdir/bintest.o > tmpdir/bintest.o.out"
@@ -717,4 +768,36 @@ if { ([istarget "ia64-*-elf*"]
 if [is_elf_format] {
     objcopy_test "ELF unknown section type" unknown.s
     objcopy_test_readelf "ELF group" group.s
+    run_dump_test "copy-1"
 }
+
+run_dump_test "copy-2"
+run_dump_test "copy-3"
+
+if [is_elf_format] {
+    run_dump_test "strip-1"
+    run_dump_test "strip-2"
+    run_dump_test "strip-3"
+
+    if { [istarget "i*86-*"] || [istarget "x86_64-*-*"] } {
+	# Check to make sure we don't strip a symbol named in relocations.
+	set test "objcopy keeps symbols needed by relocs"
+
+	set srcfile $srcdir/$subdir/needed-by-reloc.s
+
+	if {![binutils_assemble $srcfile tmpdir/bintest.o]} then {
+	    unresolved $test
+	} else {
+	    set got [binutils_run $OBJCOPY "$OBJCOPYFLAGS --strip-symbol=foo tmpdir/bintest.o ${copyfile}.o"]
+
+	    if [regexp "not stripping symbol `foo' because it is named in a relocation" $got] {
+		pass $test
+	    } else {
+		fail $test
+	    }
+	}
+    }
+
+    run_dump_test "localize-hidden-1"
+}
+run_dump_test "localize-hidden-2"

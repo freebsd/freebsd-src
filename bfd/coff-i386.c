@@ -1,6 +1,6 @@
 /* BFD back-end for Intel 386 COFF files.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004
+   2000, 2001, 2002, 2003, 2004, 2007
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 
 #include "coff/i386.h"
@@ -546,6 +546,7 @@ coff_i386_rtype_to_howto (abfd, sec, rel, h, sym, addendp)
 }
 
 #define coff_bfd_reloc_type_lookup coff_i386_reloc_type_lookup
+#define coff_bfd_reloc_name_lookup coff_i386_reloc_name_lookup
 
 static reloc_howto_type *
 coff_i386_reloc_type_lookup (abfd, code)
@@ -576,6 +577,20 @@ coff_i386_reloc_type_lookup (abfd, code)
       BFD_FAIL ();
       return 0;
     }
+}
+
+static reloc_howto_type *
+coff_i386_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			     const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0; i < sizeof (howto_table) / sizeof (howto_table[0]); i++)
+    if (howto_table[i].name != NULL
+	&& strcasecmp (howto_table[i].name, r_name) == 0)
+      return &howto_table[i];
+
+  return NULL;
 }
 
 #define coff_rtype_to_howto coff_i386_rtype_to_howto

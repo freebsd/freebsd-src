@@ -12,7 +12,7 @@ Disassembly of section .text:
 0+008 <[^>]*> ed939500 	cfldr32	mvfx9, \[r3\]
 0+00c <[^>]*> edd1e108 	ldfp	f6, \[r1, #32\]
 0+010 <[^>]*> 4db200ff 	ldcmi	0, cr0, \[r2, #1020\]!
-0+014 <[^>]*> 5cf31710 	ldcpll	7, cr1, \[r3\], #64
+0+014 <[^>]*> 5cf31710 	ldclpl	7, cr1, \[r3\], #64
 0+018 <[^>]*> ed1f8001 	ldc	0, cr8, \[pc, #-4\]
 0+01c <[^>]*> ed830500 	cfstr32	mvfx0, \[r3\]
 0+020 <[^>]*> edc0f302 	stcl	3, cr15, \[r0, #8\]
@@ -31,7 +31,7 @@ Disassembly of section .text:
 0+054 <[^>]*> ecc52805 	stcl	8, cr2, \[r5\], \{5\}
 0+058 <[^>]*> fcd61906 	ldc2l	9, cr1, \[r6\], \{6\}
 0+05c <[^>]*> fcc70a07 	stc2l	10, cr0, \[r7\], \{7\}
-0+060 <[^>]*> ecd88bff 	ldcl	11, cr8, \[r8\], \{255\}
+0+060 <[^>]*> ecd88cff 	ldcl	12, cr8, \[r8\], \{255\}
 0+064 <[^>]*> ecc99cfe 	stcl	12, cr9, \[r9\], \{254\}
 0+068 <[^>]*> ec507d04 	mrrc	13, 0, r7, r0, cr4
 0+06c <[^>]*> ec407e05 	mcrr	14, 0, r7, r0, cr5

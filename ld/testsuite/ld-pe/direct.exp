@@ -1,0 +1,143 @@
+# Expect script for direct linking from dll tests
+#   Copyright 2006
+#   Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# Written by Pedro Alves <pedro_alves@portugalmail.pt>
+#
+ 
+# Note:
+# 
+# This test checks the "direct linking to a dll" functionality.
+# 
+# The test has 7 stages:
+# 
+# 1. compile and link a test dll with ".dll" extension.
+#
+# 2. compile and link a test dll with ".sl" (i.e. != ".dll") extension.
+#
+# 3. compile and link a client application linking directly to the ".dll" dll built in 1.
+#    This should produce no errors.
+#
+# 4. compile and link a client application linking directly to the ".sl" dll built in 2.
+#    This should produce no errors.
+#
+# 5. compile and link a client application linking directly to a symlink into 
+#    the ".dll" dll built in 1.
+#    This should produce no errors.
+#
+# 6. compile and link a client application linking directly to a symlink into 
+#    the ".sl" dll built in 1.
+#    This should produce no errors.
+#
+# 7. run the produced executables
+
+# This test can only be run on PE/COFF platforms.
+if {    ![istarget *-*-cygwin*]
+     && ![istarget *-*-mingw*]
+     && ![istarget *-*-pe] } {
+    return
+}
+
+# No compiler, no test.
+if { [which $CC] == 0 } {
+    untested "Direct linking to dll test"
+    return
+}
+
+set tmpdir tmpdir
+
+proc test_direct_link_dll {} {
+    global CC
+    global CFLAGS
+    global srcdir
+    global subdir
+    global tmpdir
+    
+    # Compile the dll.
+    if ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/direct_dll.c $tmpdir/direct_dll.o ] {
+	fail "compiling shared lib"
+    } elseif ![ld_simple_link "$CC -shared" $tmpdir/direct_dll.dll "$tmpdir/direct_dll.o" ] {
+	fail "linking shared lib (.dll)"
+    } elseif ![ld_simple_link "$CC -shared" $tmpdir/direct_dll.sl "$tmpdir/direct_dll.o" ] {
+	fail "linking shared lib (.sl)"
+    } else {
+	# Compile and link the client program.
+	if ![ld_compile "$CC $CFLAGS" $srcdir/$subdir/direct_client.c $tmpdir/direct_client.o ] {
+	    fail "compiling client"
+	} else {
+	    # Check linking directly to direct_dll.dll.
+	    set msg "linking client (.dll)"
+	    if [ld_simple_link $CC $tmpdir/direct_client_dll.exe "$tmpdir/direct_client.o $tmpdir/direct_dll.dll" ] {
+		pass $msg
+	    } else {
+		fail $msg 
+	    }
+
+	    # Check linking directly to direct_dll.sl.
+	    set msg "linking client (.sl)"
+	    if [ld_simple_link $CC $tmpdir/direct_client_sl.exe "$tmpdir/direct_client.o $tmpdir/direct_dll.sl" ] {
+		pass $msg
+	    } else {
+		fail $msg 
+	    }
+
+	    # Check dll direct linking through symlink to .dll.
+	    # Create symbolic link.
+	    catch "exec ln -fs direct_dll.dll $tmpdir/libdirect_dll.dll.a" ln_catch
+	    set msg "linking client (symlink -> .dll)"
+	    if [ld_simple_link $CC $tmpdir/direct_client_symlink_dll.exe "$tmpdir/direct_client.o $tmpdir/libdirect_dll.dll.a" ] {
+	        pass $msg
+	    } else {
+		fail $msg
+	    }
+		
+	    # Check dll direct linking through symlink to .sl.
+	    # Create symbolic link.
+	    catch "exec ln -fs direct_dll.sl $tmpdir/libdirect_sl.dll.a" ln_catch
+	    set msg "linking client (symlink -> .sl)"
+	    if [ld_simple_link $CC $tmpdir/direct_client_symlink_sl.exe "$tmpdir/direct_client.o $tmpdir/libdirect_sl.dll.a" ] {
+		pass $msg
+	    } else {
+		fail $msg 
+	    }
+	}
+    }
+}
+
+proc directdll_execute {exe msg} {
+    set expected ""
+    catch "exec $exe" prog_output
+    if [string match $expected $prog_output] then {
+        pass $msg
+    } else {
+        verbose $prog_output
+        fail $msg
+    }
+}
+
+test_direct_link_dll
+
+# This is as far as we can go with a cross-compiler
+if ![isnative] then {
+    verbose "Not running natively, so cannot execute binaries"
+    return
+}
+
+directdll_execute "$tmpdir/direct_client_dll.exe" "running direct linked dll (.dll)"
+directdll_execute "$tmpdir/direct_client_sl.exe" "running direct linked dll (.sl)"
+directdll_execute "$tmpdir/direct_client_symlink_sl.exe" "running direct linked dll (symlink -> .sl)"
+directdll_execute "$tmpdir/direct_client_symlink_dll.exe" "running direct linked dll (symlink -> .dll)"

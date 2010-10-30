@@ -1,5 +1,5 @@
 /* BFD back-end for Zilog Z80 COFF binaries.
-   Copyright 2005 Free Software Foundation, Inc.
+   Copyright 2005, 2007 Free Software Foundation, Inc.
    Contributed by Arnold Metselaar <arnold_m@operamail.com>
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -19,8 +19,8 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "bfdlink.h"
 #include "coff/z80.h"
@@ -121,6 +121,26 @@ coff_z80_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
     default:			BFD_FAIL ();
       return NULL;
     }
+}
+
+static reloc_howto_type *
+coff_z80_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			    const char *r_name)
+{
+  if (strcasecmp (r_imm8.name, r_name) == 0)
+    return &r_imm8;
+  if (strcasecmp (r_imm16.name, r_name) == 0)
+    return &r_imm16;
+  if (strcasecmp (r_imm24.name, r_name) == 0)
+    return &r_imm24;
+  if (strcasecmp (r_imm32.name, r_name) == 0)
+    return &r_imm32;
+  if (strcasecmp (r_jr.name, r_name) == 0)
+    return &r_jr;
+  if (strcasecmp (r_off8.name, r_name) == 0)
+    return &r_off8;
+
+  return NULL;
 }
 
 /* Perform any necessary magic to the addend in a reloc entry.  */
@@ -248,6 +268,7 @@ extra_case (bfd *in_abfd,
 
 #define coff_reloc16_extra_cases    extra_case
 #define coff_bfd_reloc_type_lookup  coff_z80_reloc_type_lookup
+#define coff_bfd_reloc_name_lookup coff_z80_reloc_name_lookup
 
 #include "coffcode.h"
 

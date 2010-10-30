@@ -1,18 +1,5 @@
 # Run some tests of gas macros.
 
-proc run_list_test { name opts } {
-    global srcdir subdir
-    set testname "macros $name"
-    set file $srcdir/$subdir/$name
-    gas_run ${name}.s $opts ">&dump.out"
-    if { [regexp_diff "dump.out" "${file}.l"] } then {
-	fail $testname
-	verbose "output is [file_contents "dump.out"]" 2
-	return
-    }
-    pass $testname
-}
-
 if { ![istarget hppa*-*-*] || [istarget *-*-linux*] } {
     run_dump_test test1
 }
@@ -69,6 +56,7 @@ run_dump_test app3
 run_dump_test app4
 
 run_list_test badarg ""
+
 case $target_triplet in {
     { *c54x*-*-* } { }
     { *c4x*-*-* } { }

@@ -1,5 +1,5 @@
 /* Mach-O support for BFD.
-   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005
+   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -18,9 +18,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
+#include "sysdep.h"
 #include "mach-o.h"
 #include "bfd.h"
-#include "sysdep.h"
 #include "libbfd.h"
 #include "libiberty.h"
 #include <ctype.h>
@@ -52,9 +52,6 @@
 #define bfd_mach_o_bfd_make_debug_symbol              _bfd_nosymbols_bfd_make_debug_symbol
 #define bfd_mach_o_read_minisymbols                   _bfd_generic_read_minisymbols
 #define bfd_mach_o_minisymbol_to_symbol               _bfd_generic_minisymbol_to_symbol
-#define bfd_mach_o_get_reloc_upper_bound              _bfd_norelocs_get_reloc_upper_bound
-#define bfd_mach_o_canonicalize_reloc                 _bfd_norelocs_canonicalize_reloc
-#define bfd_mach_o_bfd_reloc_type_lookup              _bfd_norelocs_bfd_reloc_type_lookup
 #define bfd_mach_o_bfd_get_relocated_section_contents bfd_generic_get_relocated_section_contents
 #define bfd_mach_o_bfd_relax_section                  bfd_generic_relax_section
 #define bfd_mach_o_bfd_link_hash_table_create         _bfd_generic_link_hash_table_create
@@ -568,7 +565,7 @@ bfd_mach_o_write_contents (bfd *abfd)
 
 static int
 bfd_mach_o_sizeof_headers (bfd *a ATTRIBUTE_UNUSED,
-			   bfd_boolean b ATTRIBUTE_UNUSED)
+			   struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
   return 0;
 }
@@ -634,6 +631,7 @@ bfd_mach_o_make_bfd_section (bfd *abfd, bfd_mach_o_section *section)
   char *sname;
   const char *prefix = "LC_SEGMENT";
   unsigned int snamelen;
+  flagword flags;
 
   snamelen = strlen (prefix) + 1
     + strlen (section->segname) + 1
@@ -644,7 +642,10 @@ bfd_mach_o_make_bfd_section (bfd *abfd, bfd_mach_o_section *section)
     return NULL;
   sprintf (sname, "%s.%s.%s", prefix, section->segname, section->sectname);
 
-  bfdsec = bfd_make_section_anyway (abfd, sname);
+  flags = SEC_ALLOC;
+  if (!(section->flags & BFD_MACH_O_S_ZEROFILL))
+    flags = SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC | SEC_CODE;
+  bfdsec = bfd_make_section_anyway_with_flags (abfd, sname, flags);
   if (bfdsec == NULL)
     return NULL;
 
@@ -653,11 +654,6 @@ bfd_mach_o_make_bfd_section (bfd *abfd, bfd_mach_o_section *section)
   bfdsec->size = section->size;
   bfdsec->filepos = section->offset;
   bfdsec->alignment_power = section->align;
-
-  if (section->flags & BFD_MACH_O_S_ZEROFILL)
-    bfdsec->flags = SEC_ALLOC;
-  else
-    bfdsec->flags = SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC | SEC_CODE;
 
   return bfdsec;
 }
@@ -966,7 +962,7 @@ bfd_mach_o_scan_read_dylinker (bfd *abfd,
     return -1;
   strcpy (sname, prefix);
 
-  bfdsec = bfd_make_section_anyway (abfd, sname);
+  bfdsec = bfd_make_section_anyway_with_flags (abfd, sname, SEC_HAS_CONTENTS);
   if (bfdsec == NULL)
     return -1;
 
@@ -975,7 +971,6 @@ bfd_mach_o_scan_read_dylinker (bfd *abfd,
   bfdsec->size = command->len - 8;
   bfdsec->filepos = command->offset + 8;
   bfdsec->alignment_power = 0;
-  bfdsec->flags = SEC_HAS_CONTENTS;
 
   cmd->section = bfdsec;
 
@@ -1022,7 +1017,7 @@ bfd_mach_o_scan_read_dylib (bfd *abfd, bfd_mach_o_load_command *command)
     return -1;
   strcpy (sname, prefix);
 
-  bfdsec = bfd_make_section_anyway (abfd, sname);
+  bfdsec = bfd_make_section_anyway_with_flags (abfd, sname, SEC_HAS_CONTENTS);
   if (bfdsec == NULL)
     return -1;
 
@@ -1031,7 +1026,6 @@ bfd_mach_o_scan_read_dylib (bfd *abfd, bfd_mach_o_load_command *command)
   bfdsec->size = command->len - 8;
   bfdsec->filepos = command->offset + 8;
   bfdsec->alignment_power = 0;
-  bfdsec->flags = SEC_HAS_CONTENTS;
 
   cmd->section = bfdsec;
 
@@ -1142,14 +1136,13 @@ bfd_mach_o_scan_read_thread (bfd *abfd, bfd_mach_o_load_command *command)
 	  j++;
 	}
 
-      bfdsec = bfd_make_section (abfd, sname);
+      bfdsec = bfd_make_section_with_flags (abfd, sname, SEC_HAS_CONTENTS);
 
       bfdsec->vma = 0;
       bfdsec->lma = 0;
       bfdsec->size = cmd->flavours[i].size;
       bfdsec->filepos = cmd->flavours[i].offset;
       bfdsec->alignment_power = 0x0;
-      bfdsec->flags = SEC_HAS_CONTENTS;
 
       cmd->section = bfdsec;
     }
@@ -1218,7 +1211,7 @@ bfd_mach_o_scan_read_symtab (bfd *abfd, bfd_mach_o_load_command *command)
     return -1;
   strcpy (sname, prefix);
 
-  bfdsec = bfd_make_section_anyway (abfd, sname);
+  bfdsec = bfd_make_section_anyway_with_flags (abfd, sname, SEC_HAS_CONTENTS);
   if (bfdsec == NULL)
     return -1;
 
@@ -1227,7 +1220,6 @@ bfd_mach_o_scan_read_symtab (bfd *abfd, bfd_mach_o_load_command *command)
   bfdsec->size = seg->nsyms * 12;
   bfdsec->filepos = seg->symoff;
   bfdsec->alignment_power = 0;
-  bfdsec->flags = SEC_HAS_CONTENTS;
 
   seg->stabs_segment = bfdsec;
 
@@ -1237,7 +1229,7 @@ bfd_mach_o_scan_read_symtab (bfd *abfd, bfd_mach_o_load_command *command)
     return -1;
   strcpy (sname, prefix);
 
-  bfdsec = bfd_make_section_anyway (abfd, sname);
+  bfdsec = bfd_make_section_anyway_with_flags (abfd, sname, SEC_HAS_CONTENTS);
   if (bfdsec == NULL)
     return -1;
 
@@ -1246,7 +1238,6 @@ bfd_mach_o_scan_read_symtab (bfd *abfd, bfd_mach_o_load_command *command)
   bfdsec->size = seg->strsize;
   bfdsec->filepos = seg->stroff;
   bfdsec->alignment_power = 0;
-  bfdsec->flags = SEC_HAS_CONTENTS;
 
   seg->stabstr_segment = bfdsec;
 
@@ -1263,6 +1254,7 @@ bfd_mach_o_scan_read_segment (bfd *abfd, bfd_mach_o_load_command *command)
   char *sname;
   const char *prefix = "LC_SEGMENT";
   unsigned int snamelen;
+  flagword flags;
 
   BFD_ASSERT (command->type == BFD_MACH_O_LC_SEGMENT);
 
@@ -1286,7 +1278,8 @@ bfd_mach_o_scan_read_segment (bfd *abfd, bfd_mach_o_load_command *command)
     return -1;
   sprintf (sname, "%s.%s", prefix, seg->segname);
 
-  bfdsec = bfd_make_section_anyway (abfd, sname);
+  flags = SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC | SEC_CODE;
+  bfdsec = bfd_make_section_anyway_with_flags (abfd, sname, flags);
   if (bfdsec == NULL)
     return -1;
 
@@ -1295,7 +1288,6 @@ bfd_mach_o_scan_read_segment (bfd *abfd, bfd_mach_o_load_command *command)
   bfdsec->size = seg->filesize;
   bfdsec->filepos = seg->fileoff;
   bfdsec->alignment_power = 0x0;
-  bfdsec->flags = SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC | SEC_CODE;
 
   seg->segment = bfdsec;
 

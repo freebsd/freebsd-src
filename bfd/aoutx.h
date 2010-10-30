@@ -1,6 +1,6 @@
 /* BFD semi-generic back-end for a.out binaries.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006
+   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -118,8 +118,8 @@ DESCRIPTION
 
 #define KEEPIT udata.i
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "safe-ctype.h"
 #include "bfdlink.h"
 
@@ -128,8 +128,6 @@ DESCRIPTION
 #include "aout/aout64.h"
 #include "aout/stab_gnu.h"
 #include "aout/ar.h"
-
-reloc_howto_type * NAME (aout, reloc_type_lookup)  (bfd *, bfd_reloc_code_real_type);
 
 /*
 SUBSECTION
@@ -317,6 +315,31 @@ NAME (aout, reloc_type_lookup) (bfd *abfd, bfd_reloc_code_real_type code)
       default:
 	return NULL;
       }
+}
+
+reloc_howto_type *
+NAME (aout, reloc_name_lookup) (bfd *abfd, const char *r_name)
+{
+  unsigned int i, size;
+  reloc_howto_type *howto_table;
+
+  if (obj_reloc_entry_size (abfd) == RELOC_EXT_SIZE)
+    {
+      howto_table = howto_table_ext;
+      size = sizeof (howto_table_ext) / sizeof (howto_table_ext[0]);
+    }
+  else
+    {
+      howto_table = howto_table_std;
+      size = sizeof (howto_table_std) / sizeof (howto_table_std[0]);
+    }
+
+  for (i = 0; i < size; i++)
+    if (howto_table[i].name != NULL
+	&& strcasecmp (howto_table[i].name, r_name) == 0)
+      return &howto_table[i];
+
+  return NULL;
 }
 
 /*
@@ -1193,26 +1216,21 @@ NAME (aout, new_section_hook) (bfd *abfd, asection *newsect)
 	{
 	  obj_textsec (abfd)= newsect;
 	  newsect->target_index = N_TEXT;
-	  return TRUE;
 	}
-
-      if (obj_datasec (abfd) == NULL && !strcmp (newsect->name, ".data"))
+      else if (obj_datasec (abfd) == NULL && !strcmp (newsect->name, ".data"))
 	{
 	  obj_datasec (abfd) = newsect;
 	  newsect->target_index = N_DATA;
-	  return TRUE;
 	}
-
-      if (obj_bsssec (abfd) == NULL && !strcmp (newsect->name, ".bss"))
+      else if (obj_bsssec (abfd) == NULL && !strcmp (newsect->name, ".bss"))
 	{
 	  obj_bsssec (abfd) = newsect;
 	  newsect->target_index = N_BSS;
-	  return TRUE;
 	}
     }
 
   /* We allow more than three sections internally.  */
-  return TRUE;
+  return _bfd_generic_new_section_hook (abfd, newsect);
 }
 
 bfd_boolean
@@ -1934,7 +1952,10 @@ NAME (aout, swap_std_reloc_out) (bfd *abfd,
 
   if (bfd_is_com_section (output_section)
       || bfd_is_abs_section (output_section)
-      || bfd_is_und_section (output_section))
+      || bfd_is_und_section (output_section)
+      /* PR gas/3041  a.out relocs against weak symbols
+	 must be treated as if they were against externs.  */
+      || (sym->flags & BSF_WEAK))
     {
       if (bfd_abs_section_ptr->symbol == sym)
 	{
@@ -2785,7 +2806,8 @@ NAME (aout, find_nearest_line) (bfd *abfd,
 }
 
 int
-NAME (aout, sizeof_headers) (bfd *abfd, bfd_boolean execable ATTRIBUTE_UNUSED)
+NAME (aout, sizeof_headers) (bfd *abfd,
+			     struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
   return adata (abfd).exec_bytes_size;
 }

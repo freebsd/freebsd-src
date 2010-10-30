@@ -24,10 +24,12 @@ AC_PROG_INSTALL
 
 AC_CHECK_FUNCS(setmode)
 
-ALL_LINGUAS="fr tr sv es id da pt_BR de vi rw ga"
-CY_GNU_GETTEXT
+ALL_LINGUAS="fr tr sv es id da pt_BR de vi rw ga ms"
+ZW_GNU_GETTEXT_SISTER_DIR
+AM_PO_SUBDIRS
 
 AM_MAINTAINER_MODE
+AM_CONDITIONAL(GENINSRC_NEVER, false)
 AC_EXEEXT
 
 AC_CHECK_HEADERS(sys/gmon_out.h)
@@ -50,5 +52,4 @@ AC_SUBST(docdir)
 AC_SUBST(htmldir)
 
 AC_CONFIG_FILES([Makefile po/Makefile.in:po/Make-in])
-AC_CONFIG_COMMANDS([default],[[sed -e '/POTFILES =/r po/POTFILES' po/Makefile.in > po/Makefile]],[[]])
 AC_OUTPUT

@@ -1,0 +1,70 @@
+# Expect script for .tls_common tests
+#   Copyright 2006 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# Written by Jakub Jelinek (jakub@redhat.com)
+#
+
+# Make sure that binutils can correctly handle ld output in ELF.
+
+# Run on Linux only.
+if { ![istarget *-*-linux*] } {
+    return
+}
+
+if { [istarget *-*-linux*aout*]
+     || [istarget *-*-linux*oldld*] } {
+    return
+}
+
+global as
+global ld
+global READELF
+global srcdir
+global subdir
+global link_output
+
+if { ![ld_assemble $as $srcdir/$subdir/tls_common.s tmpdir/tls_common.o ] } {
+    unresolved "tls_common"
+    return
+}
+
+if { ![ld_simple_link $ld tmpdir/tls_common1.o "-r tmpdir/tls_common.o"] } {
+    fail "tls_common"
+    return
+}
+
+if { ![ld_simple_link $ld tmpdir/tls_common "tmpdir/tls_common1.o"] } {
+    if { [string match "*not supported*" $link_output]
+	 || [string match "*unrecognized option*" $link_output] } {
+	unsupported "$ld_options is not supported by this target"
+    } elseif { [string match "*Warning*alignment*of common symbol*" $link_output] } {
+	fail "tls_common"
+    } else {
+	unresolved "tls_common"
+    }
+    return
+} 
+
+send_log "$READELF -l --wide tmpdir/tls_common\n"
+catch "exec $READELF -l --wide tmpdir/tls_common" readelf_output
+if ![regexp ".*TLS.*0x0+ 0x0+4 R .*" $readelf_output] then {
+    send_log "$readelf_output\n"
+    fail "tls_common"
+    return
+}
+
+pass "tls_common"

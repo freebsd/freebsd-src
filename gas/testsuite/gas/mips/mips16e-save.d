@@ -39,5 +39,5 @@ Disassembly of section .text:
   60:[ 	]+6470[ 	]+restore[ 	]+128,ra,s0-s1
   62:[ 	]+f010 6441[ 	]+restore[ 	]+136,ra
   66:[ 	]+f100 6408[ 	]+restore[ 	]+64,s2
-  6a:[ 	]+f71b 6470[ 	]+restore[ 	]+128,ra,s0-s8,a0-a3
+  6a:[ 	]+f71a 6470[ 	]+restore[ 	]+a0-a1,128,ra,s0-s8,a2-a3
   6e:[ 	]+6500[ 	]+nop

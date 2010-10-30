@@ -354,6 +354,21 @@ F:
 	fmsreq	s3, r9
 	fmxreq	fpsid, r8
 
-	@ 2 nops to pad to 16-byte boundary
+	@ Implementation specific system registers
+	fmrx	r0, fpinst
+	fmrx	r0, fpinst2
+	fmrx	r0, mvfr0
+	fmrx	r0, mvfr1
+	fmrx	r0, c12
+	fmxr	fpinst, r0
+	fmxr	fpinst2, r0
+	fmxr	mvfr0, r0
+	fmxr	mvfr1, r0
+	fmxr	c12, r0
+
+	nop
+	nop
+	nop
+	nop
 	nop
 	nop

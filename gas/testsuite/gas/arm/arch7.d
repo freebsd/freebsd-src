@@ -1,6 +1,5 @@
 #name: ARM V7 instructions
 #as: -march=armv7r
-#skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd *-*-riscix*
 #objdump: -dr --prefix-addresses --show-raw-insn
 
 .*: +file format .*arm.*
@@ -29,8 +28,8 @@ Disassembly of section .text:
 0+050 <[^>]*> f995 f000 	pli	\[r5\]
 0+054 <[^>]*> f995 ffff 	pli	\[r5, #4095\]
 0+058 <[^>]*> f915 fcff 	pli	\[r5, #-255\]
-0+05c <[^>]*> f99f ffff 	pli	\[pc, #4095\]	; 0000105f <[^>]*>
-0+060 <[^>]*> f91f ffff 	pli	\[pc, #-4095\]	; fffff065 <[^>]*>
+0+05c <[^>]*> f99f ffff 	pli	\[pc, #4095\]	; 0+0105f <[^>]*>
+0+060 <[^>]*> f91f ffff 	pli	\[pc, #-4095\]	; f+ff065 <[^>]*>
 0+064 <[^>]*> f3af 80f0 	dbg	#0
 0+068 <[^>]*> f3af 80ff 	dbg	#15
 0+06c <[^>]*> f3bf 8f5f 	dmb	sy

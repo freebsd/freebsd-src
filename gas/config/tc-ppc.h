@@ -1,6 +1,6 @@
 /* tc-ppc.h -- Header file for tc-ppc.c.
    Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-   2004, 2005 Free Software Foundation, Inc.
+   2004, 2005, 2006, 2007 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
    This file is part of GAS, the GNU Assembler.
@@ -42,15 +42,15 @@ struct fix;
 /* The target BFD architecture.  */
 #define TARGET_ARCH (ppc_arch ())
 #define TARGET_MACH (ppc_mach ())
-extern enum bfd_architecture ppc_arch PARAMS ((void));
-extern unsigned long ppc_mach PARAMS ((void));
+extern enum bfd_architecture ppc_arch (void);
+extern unsigned long ppc_mach (void);
 
 /* Whether or not the target is big endian */
 extern int target_big_endian;
 
 /* The target BFD format.  */
 #define TARGET_FORMAT (ppc_target_format ())
-extern char *ppc_target_format PARAMS ((void));
+extern char *ppc_target_format (void);
 
 /* Permit temporary numeric labels.  */
 #define LOCAL_LABELS_FB 1
@@ -78,31 +78,12 @@ extern char *ppc_target_format PARAMS ((void));
 
 #define MAX_MEM_FOR_RS_ALIGN_CODE 4
 #define HANDLE_ALIGN(FRAGP)						\
-  if ((FRAGP)->fr_type == rs_align_code) 				\
-    {									\
-      valueT count = ((FRAGP)->fr_next->fr_address			\
-		      - ((FRAGP)->fr_address + (FRAGP)->fr_fix));	\
-      if (count != 0 && (count & 3) == 0)				\
-	{								\
-	  char *dest = (FRAGP)->fr_literal + (FRAGP)->fr_fix;		\
-									\
-	  (FRAGP)->fr_var = 4;						\
-	  if (target_big_endian)					\
-	    {								\
-	      *dest++ = 0x60;						\
-	      *dest++ = 0;						\
-	      *dest++ = 0;						\
-	      *dest++ = 0;						\
-	    }								\
-	  else								\
-	    {								\
-	      *dest++ = 0;						\
-	      *dest++ = 0;						\
-	      *dest++ = 0;						\
-	      *dest++ = 0x60;						\
-	    }								\
-	}								\
-    }
+  if ((FRAGP)->fr_type == rs_align_code)				\
+    ppc_handle_align (FRAGP);
+
+extern void ppc_handle_align (struct frag *);
+
+#define SUB_SEGMENT_ALIGN(SEG, FRCHAIN) 0
 
 #define md_frag_check(FRAGP) \
   if ((FRAGP)->has_code							\
@@ -117,7 +98,7 @@ extern char *ppc_target_format PARAMS ((void));
 
 /* Don't adjust TOC relocs.  */
 #define tc_fix_adjustable(FIX) ppc_pe_fix_adjustable (FIX)
-extern int ppc_pe_fix_adjustable PARAMS ((struct fix *));
+extern int ppc_pe_fix_adjustable (struct fix *);
 
 #endif
 
@@ -165,31 +146,31 @@ struct ppc_tc_sy
 
 /* Canonicalize the symbol name.  */
 #define tc_canonicalize_symbol_name(name) ppc_canonicalize_symbol_name (name)
-extern char *ppc_canonicalize_symbol_name PARAMS ((char *));
+extern char *ppc_canonicalize_symbol_name (char *);
 
 /* Get the symbol class from the name.  */
 #define tc_symbol_new_hook(sym) ppc_symbol_new_hook (sym)
-extern void ppc_symbol_new_hook PARAMS ((symbolS *));
+extern void ppc_symbol_new_hook (symbolS *);
 
 /* Set the symbol class of a label based on the csect.  */
 #define tc_frob_label(sym) ppc_frob_label (sym)
-extern void ppc_frob_label PARAMS ((symbolS *));
+extern void ppc_frob_label (symbolS *);
 
 /* TOC relocs requires special handling.  */
 #define tc_fix_adjustable(FIX) ppc_fix_adjustable (FIX)
-extern int ppc_fix_adjustable PARAMS ((struct fix *));
+extern int ppc_fix_adjustable (struct fix *);
 
 /* We need to set the section VMA.  */
 #define tc_frob_section(sec) ppc_frob_section (sec)
-extern void ppc_frob_section PARAMS ((asection *));
+extern void ppc_frob_section (asection *);
 
 /* Finish up the symbol.  */
 #define tc_frob_symbol(sym, punt) punt = ppc_frob_symbol (sym)
-extern int ppc_frob_symbol PARAMS ((symbolS *));
+extern int ppc_frob_symbol (symbolS *);
 
 /* Finish up the entire symtab.  */
 #define tc_adjust_symtab() ppc_adjust_symtab ()
-extern void ppc_adjust_symtab PARAMS ((void));
+extern void ppc_adjust_symtab (void);
 
 /* We also need to copy, in particular, the class of the symbol,
    over what obj-coff would otherwise have copied.  */
@@ -211,10 +192,10 @@ extern const char       ppc_symbol_chars[];
 #ifdef OBJ_ELF
 
 /* Support for SHF_EXCLUDE and SHT_ORDERED */
-extern int ppc_section_letter PARAMS ((int, char **));
-extern int ppc_section_type PARAMS ((char *, size_t));
-extern int ppc_section_word PARAMS ((char *, size_t));
-extern int ppc_section_flags PARAMS ((int, int, int));
+extern int ppc_section_letter (int, char **);
+extern int ppc_section_type (char *, size_t);
+extern int ppc_section_word (char *, size_t);
+extern int ppc_section_flags (int, int, int);
 
 #define md_elf_section_letter(LETTER, PTR_MSG)	ppc_section_letter (LETTER, PTR_MSG)
 #define md_elf_section_type(STR, LEN)		ppc_section_type (STR, LEN)
@@ -226,40 +207,40 @@ extern const char *ppc_comment_chars;
 
 /* Keep relocations relative to the GOT, or non-PC relative.  */
 #define tc_fix_adjustable(FIX) ppc_fix_adjustable (FIX)
-extern int ppc_fix_adjustable PARAMS ((struct fix *));
+extern int ppc_fix_adjustable (struct fix *);
 
 /* Values passed to md_apply_fix don't include symbol values.  */
 #define MD_APPLY_SYM_VALUE(FIX) 0
 
 #define tc_frob_file_before_adjust ppc_frob_file_before_adjust
-extern void ppc_frob_file_before_adjust PARAMS ((void));
+extern void ppc_frob_file_before_adjust (void);
 
 #endif /* OBJ_ELF */
 
 #if defined (OBJ_ELF) || defined (OBJ_XCOFF)
 #define TC_FORCE_RELOCATION(FIX) ppc_force_relocation (FIX)
-extern int ppc_force_relocation PARAMS ((struct fix *));
+extern int ppc_force_relocation (struct fix *);
 #endif
 
 /* call md_pcrel_from_section, not md_pcrel_from */
 #define MD_PCREL_FROM_SECTION(FIX, SEC) md_pcrel_from_section(FIX, SEC)
-extern long md_pcrel_from_section PARAMS ((struct fix *, segT));
+extern long md_pcrel_from_section (struct fix *, segT);
 
 #define md_parse_name(name, exp, mode, c) ppc_parse_name (name, exp)
-extern int ppc_parse_name PARAMS ((const char *, struct expressionS *));
+extern int ppc_parse_name (const char *, struct expressionS *);
 
 #define md_operand(x)
 
 #define md_cleanup() ppc_cleanup ()
- extern void ppc_cleanup PARAMS ((void));
+extern void ppc_cleanup (void);
 
 #define TARGET_USE_CFIPOP 1
 
 #define tc_cfi_frame_initial_instructions ppc_cfi_frame_initial_instructions
-extern void ppc_cfi_frame_initial_instructions PARAMS ((void));
+extern void ppc_cfi_frame_initial_instructions (void);
 
 #define tc_regname_to_dw2regnum tc_ppc_regname_to_dw2regnum
-extern int tc_ppc_regname_to_dw2regnum PARAMS ((const char *regname));
+extern int tc_ppc_regname_to_dw2regnum (char *);
 
 extern int ppc_cie_data_alignment;
 

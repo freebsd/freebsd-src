@@ -1,6 +1,6 @@
 /* BFD back-end for PPCbug boot records.
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004
-   Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2006,
+   2007 Free Software Foundation, Inc.
    Written by Michael Meissner, Cygnus Support, <meissner@cygnus.com>
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -32,9 +32,9 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
    the file.  objcopy cooperates by specially setting the start
    address to zero by default.  */
 
+#include "sysdep.h"
 #include "safe-ctype.h"
 #include "bfd.h"
-#include "sysdep.h"
 #include "libbfd.h"
 
 /* PPCbug location structure */
@@ -99,7 +99,6 @@ static long ppcboot_canonicalize_symtab PARAMS ((bfd *, asymbol **));
 static void ppcboot_get_symbol_info PARAMS ((bfd *, asymbol *, symbol_info *));
 static bfd_boolean ppcboot_set_section_contents
   PARAMS ((bfd *, asection *, const PTR, file_ptr, bfd_size_type));
-static int ppcboot_sizeof_headers PARAMS ((bfd *, bfd_boolean));
 static bfd_boolean ppcboot_bfd_print_private_bfd_data PARAMS ((bfd *, PTR));
 
 #define ppcboot_set_tdata(abfd, ptr) ((abfd)->tdata.any = (PTR) (ptr))
@@ -151,6 +150,7 @@ ppcboot_object_p (abfd)
   ppcboot_hdr_t hdr;
   size_t i;
   ppcboot_data_t *tdata;
+  flagword flags;
 
   BFD_ASSERT (sizeof (ppcboot_hdr_t) == 1024);
 
@@ -205,10 +205,10 @@ ppcboot_object_p (abfd)
   abfd->symcount = PPCBOOT_SYMS;
 
   /* One data section.  */
-  sec = bfd_make_section (abfd, ".data");
+  flags = SEC_ALLOC | SEC_LOAD | SEC_DATA | SEC_CODE | SEC_HAS_CONTENTS;
+  sec = bfd_make_section_with_flags (abfd, ".data", flags);
   if (sec == NULL)
     return NULL;
-  sec->flags = SEC_ALLOC | SEC_LOAD | SEC_DATA | SEC_CODE | SEC_HAS_CONTENTS;
   sec->vma = 0;
   sec->size = statbuf.st_size - sizeof (ppcboot_hdr_t);
   sec->filepos = sizeof (ppcboot_hdr_t);
@@ -354,12 +354,6 @@ ppcboot_get_symbol_info (ignore_abfd, symbol, ret)
 #define ppcboot_bfd_make_debug_symbol _bfd_nosymbols_bfd_make_debug_symbol
 #define ppcboot_read_minisymbols _bfd_generic_read_minisymbols
 #define ppcboot_minisymbol_to_symbol _bfd_generic_minisymbol_to_symbol
-
-#define ppcboot_get_reloc_upper_bound \
-  ((long (*) PARAMS ((bfd *, asection *))) bfd_0l)
-#define ppcboot_canonicalize_reloc \
-  ((long (*) PARAMS ((bfd *, asection *, arelent **, asymbol **))) bfd_0l)
-#define ppcboot_bfd_reloc_type_lookup _bfd_norelocs_bfd_reloc_type_lookup
 
 /* Write section contents of a ppcboot file.  */
 
@@ -395,9 +389,8 @@ ppcboot_set_section_contents (abfd, sec, data, offset, size)
 
 
 static int
-ppcboot_sizeof_headers (abfd, exec)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     bfd_boolean exec ATTRIBUTE_UNUSED;
+ppcboot_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
+			struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
   return sizeof (ppcboot_hdr_t);
 }
@@ -535,7 +528,7 @@ const bfd_target ppcboot_vec =
   BFD_JUMP_TABLE_CORE (_bfd_nocore),
   BFD_JUMP_TABLE_ARCHIVE (_bfd_noarchive),
   BFD_JUMP_TABLE_SYMBOLS (ppcboot),
-  BFD_JUMP_TABLE_RELOCS (ppcboot),
+  BFD_JUMP_TABLE_RELOCS (_bfd_norelocs),
   BFD_JUMP_TABLE_WRITE (ppcboot),
   BFD_JUMP_TABLE_LINK (ppcboot),
   BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),

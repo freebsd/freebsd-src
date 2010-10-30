@@ -24,5 +24,5 @@ Relocation section '\.rela\.dyn' at offset 0x[0-9a-f]+ contains 1 entries:
 #...
 Symbol table '\.dynsym' contains 6 entries:
 #...
-Symbol table '\.symtab' contains 19 entries:
+Symbol table '\.symtab' contains 16 entries:
 #pass

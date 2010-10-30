@@ -85,7 +85,7 @@ Disassembly of section .text:
  104:	e00107f0 	prefi	r0,32
 
 0000000000000108 <.*>:
- 108:	90 01       	mov.w	10e <.*>,r0	! 0x8101
+ 108:	90 01       	mov.w	10e <.*>,r0	! 8101
  10a:	85 01       	mov.w	@\(2,r0\),r0
  10c:	c5 01       	mov.w	@\(2,gbr\),r0
  10e:	81 01       	mov.w	r0,@\(2,r0\)
@@ -94,7 +94,7 @@ Disassembly of section .text:
  114:	89 01       	bt	11a <.*>
  116:	a0 01       	bra	11c <.*>
  118:	b0 01       	bsr	11e <.*>
- 11a:	d0 00       	mov.l	11c <.*>,r0	! 0x5001c601
+ 11a:	d0 00       	mov.l	11c <.*>,r0	! 5001c601
  11c:	50 01       	mov.l	@\(4,r0\),r0
  11e:	c6 01       	mov.l	@\(4,gbr\),r0
  120:	c7 01       	mova	128 <.*>,r0

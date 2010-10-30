@@ -1,5 +1,5 @@
 /* sb.h - header file for string buffer manipulation routines
-   Copyright 1994, 1995, 2000, 2003 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 2000, 2003, 2006 Free Software Foundation, Inc.
 
    Written by Steve and Judy Chamberlain of Cygnus Support,
       sac@cygnus.com
@@ -24,9 +24,6 @@
 #ifndef SB_H
 
 #define SB_H
-
-#include <stdio.h>
-#include "ansidecl.h"
 
 /* String blocks
 
@@ -69,14 +66,6 @@ typedef struct le
   char data[1];
 }
 sb_element;
-
-/* The free list.  */
-
-typedef struct
-{
-  sb_element *size[sb_max_power_two];
-}
-sb_list_vector;
 
 extern void sb_new (sb *);
 extern void sb_kill (sb *);

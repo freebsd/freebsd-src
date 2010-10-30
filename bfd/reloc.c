@@ -1,6 +1,6 @@
 /* BFD support for handling relocation entries.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006
+   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -47,8 +47,8 @@ SECTION
 /* DO compile in the reloc_code name table from libbfd.h.  */
 #define _BFD_MAKE_TABLE_bfd_reloc_code_real
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "bfdlink.h"
 #include "libbfd.h"
 /*
@@ -1522,7 +1522,6 @@ _bfd_relocate_contents (reloc_howto_type *howto,
   switch (size)
     {
     default:
-    case 0:
       abort ();
     case 1:
       bfd_put_8 (input_bfd, x, location);
@@ -1543,6 +1542,72 @@ _bfd_relocate_contents (reloc_howto_type *howto,
     }
 
   return flag;
+}
+
+/* Clear a given location using a given howto, by applying a relocation value
+   of zero and discarding any in-place addend.  This is used for fixed-up
+   relocations against discarded symbols, to make ignorable debug or unwind
+   information more obvious.  */
+
+void
+_bfd_clear_contents (reloc_howto_type *howto,
+		     bfd *input_bfd,
+		     bfd_byte *location)
+{
+  int size;
+  bfd_vma x = 0;
+
+  /* Get the value we are going to relocate.  */
+  size = bfd_get_reloc_size (howto);
+  switch (size)
+    {
+    default:
+    case 0:
+      abort ();
+    case 1:
+      x = bfd_get_8 (input_bfd, location);
+      break;
+    case 2:
+      x = bfd_get_16 (input_bfd, location);
+      break;
+    case 4:
+      x = bfd_get_32 (input_bfd, location);
+      break;
+    case 8:
+#ifdef BFD64
+      x = bfd_get_64 (input_bfd, location);
+#else
+      abort ();
+#endif
+      break;
+    }
+
+  /* Zero out the unwanted bits of X.  */
+  x &= ~howto->dst_mask;
+
+  /* Put the relocated value back in the object file.  */
+  switch (size)
+    {
+    default:
+    case 0:
+      abort ();
+    case 1:
+      bfd_put_8 (input_bfd, x, location);
+      break;
+    case 2:
+      bfd_put_16 (input_bfd, x, location);
+      break;
+    case 4:
+      bfd_put_32 (input_bfd, x, location);
+      break;
+    case 8:
+#ifdef BFD64
+      bfd_put_64 (input_bfd, x, location);
+#else
+      abort ();
+#endif
+      break;
+    }
 }
 
 /*
@@ -1882,6 +1947,37 @@ ENUMX
   BFD_RELOC_SPARC_TLS_TPOFF64
 ENUMDOC
   SPARC TLS relocations
+
+ENUM
+  BFD_RELOC_SPU_IMM7
+ENUMX
+  BFD_RELOC_SPU_IMM8
+ENUMX
+  BFD_RELOC_SPU_IMM10
+ENUMX
+  BFD_RELOC_SPU_IMM10W
+ENUMX
+  BFD_RELOC_SPU_IMM16
+ENUMX
+  BFD_RELOC_SPU_IMM16W
+ENUMX
+  BFD_RELOC_SPU_IMM18
+ENUMX
+  BFD_RELOC_SPU_PCREL9a
+ENUMX
+  BFD_RELOC_SPU_PCREL9b
+ENUMX
+  BFD_RELOC_SPU_PCREL16
+ENUMX
+  BFD_RELOC_SPU_LO16
+ENUMX
+  BFD_RELOC_SPU_HI16
+ENUMX
+  BFD_RELOC_SPU_PPU32
+ENUMX
+  BFD_RELOC_SPU_PPU64
+ENUMDOC
+  SPU Relocations.
 
 ENUM
   BFD_RELOC_ALPHA_GPDISP_HI16
@@ -2701,6 +2797,24 @@ ENUM
   BFD_RELOC_ARM_PREL31
 ENUMDOC
   31-bit PC relative address.
+ENUM
+  BFD_RELOC_ARM_MOVW
+ENUMX
+  BFD_RELOC_ARM_MOVT
+ENUMX
+  BFD_RELOC_ARM_MOVW_PCREL
+ENUMX
+  BFD_RELOC_ARM_MOVT_PCREL
+ENUMX
+  BFD_RELOC_ARM_THUMB_MOVW
+ENUMX
+  BFD_RELOC_ARM_THUMB_MOVT
+ENUMX
+  BFD_RELOC_ARM_THUMB_MOVW_PCREL
+ENUMX
+  BFD_RELOC_ARM_THUMB_MOVT_PCREL
+ENUMDOC
+  Low and High halfword relocations for MOVW and MOVT instructions.
 
 ENUM
   BFD_RELOC_ARM_JUMP_SLOT
@@ -2739,11 +2853,72 @@ ENUMDOC
   ARM thread-local storage relocations.
 
 ENUM
+  BFD_RELOC_ARM_ALU_PC_G0_NC
+ENUMX
+  BFD_RELOC_ARM_ALU_PC_G0
+ENUMX
+  BFD_RELOC_ARM_ALU_PC_G1_NC
+ENUMX
+  BFD_RELOC_ARM_ALU_PC_G1
+ENUMX
+  BFD_RELOC_ARM_ALU_PC_G2
+ENUMX
+  BFD_RELOC_ARM_LDR_PC_G0
+ENUMX
+  BFD_RELOC_ARM_LDR_PC_G1
+ENUMX
+  BFD_RELOC_ARM_LDR_PC_G2
+ENUMX
+  BFD_RELOC_ARM_LDRS_PC_G0
+ENUMX
+  BFD_RELOC_ARM_LDRS_PC_G1
+ENUMX
+  BFD_RELOC_ARM_LDRS_PC_G2
+ENUMX
+  BFD_RELOC_ARM_LDC_PC_G0
+ENUMX
+  BFD_RELOC_ARM_LDC_PC_G1
+ENUMX
+  BFD_RELOC_ARM_LDC_PC_G2
+ENUMX
+  BFD_RELOC_ARM_ALU_SB_G0_NC
+ENUMX
+  BFD_RELOC_ARM_ALU_SB_G0
+ENUMX
+  BFD_RELOC_ARM_ALU_SB_G1_NC
+ENUMX
+  BFD_RELOC_ARM_ALU_SB_G1
+ENUMX
+  BFD_RELOC_ARM_ALU_SB_G2
+ENUMX
+  BFD_RELOC_ARM_LDR_SB_G0
+ENUMX
+  BFD_RELOC_ARM_LDR_SB_G1
+ENUMX
+  BFD_RELOC_ARM_LDR_SB_G2
+ENUMX
+  BFD_RELOC_ARM_LDRS_SB_G0
+ENUMX
+  BFD_RELOC_ARM_LDRS_SB_G1
+ENUMX
+  BFD_RELOC_ARM_LDRS_SB_G2
+ENUMX
+  BFD_RELOC_ARM_LDC_SB_G0
+ENUMX
+  BFD_RELOC_ARM_LDC_SB_G1
+ENUMX
+  BFD_RELOC_ARM_LDC_SB_G2
+ENUMDOC
+  ARM group relocations.
+
+ENUM
   BFD_RELOC_ARM_IMMEDIATE
 ENUMX
   BFD_RELOC_ARM_ADRL_IMMEDIATE
 ENUMX
   BFD_RELOC_ARM_T32_IMMEDIATE
+ENUMX
+  BFD_RELOC_ARM_T32_ADD_IMM
 ENUMX
   BFD_RELOC_ARM_T32_IMM12
 ENUMX
@@ -3530,6 +3705,50 @@ ENUMDOC
   Motorola Mcore relocations.
 
 ENUM
+  BFD_RELOC_MEP_8
+ENUMX
+  BFD_RELOC_MEP_16
+ENUMX
+  BFD_RELOC_MEP_32
+ENUMX
+  BFD_RELOC_MEP_PCREL8A2
+ENUMX
+  BFD_RELOC_MEP_PCREL12A2
+ENUMX
+  BFD_RELOC_MEP_PCREL17A2
+ENUMX
+  BFD_RELOC_MEP_PCREL24A2
+ENUMX
+  BFD_RELOC_MEP_PCABS24A2
+ENUMX
+  BFD_RELOC_MEP_LOW16
+ENUMX
+  BFD_RELOC_MEP_HI16U
+ENUMX
+  BFD_RELOC_MEP_HI16S
+ENUMX
+  BFD_RELOC_MEP_GPREL
+ENUMX
+  BFD_RELOC_MEP_TPREL
+ENUMX
+  BFD_RELOC_MEP_TPREL7
+ENUMX
+  BFD_RELOC_MEP_TPREL7A2
+ENUMX
+  BFD_RELOC_MEP_TPREL7A4
+ENUMX
+  BFD_RELOC_MEP_UIMM24
+ENUMX
+  BFD_RELOC_MEP_ADDR24A4
+ENUMX
+  BFD_RELOC_MEP_GNU_VTINHERIT
+ENUMX
+  BFD_RELOC_MEP_GNU_VTENTRY
+ENUMDOC
+  Toshiba Media Processor Relocations.
+COMMENT
+
+ENUM
   BFD_RELOC_MMIX_GETA
 ENUMX
   BFD_RELOC_MMIX_GETA_1
@@ -3666,10 +3885,24 @@ ENUMDOC
   This is a 16 bit reloc for the AVR that stores 8 bit value (usually
   command address) into 8 bit immediate value of LDI insn.
 ENUM
+  BFD_RELOC_AVR_LO8_LDI_GS
+ENUMDOC
+  This is a 16 bit reloc for the AVR that stores 8 bit value 
+  (command address) into 8 bit immediate value of LDI insn. If the address
+  is beyond the 128k boundary, the linker inserts a jump stub for this reloc
+  in the lower 128k.
+ENUM
   BFD_RELOC_AVR_HI8_LDI_PM
 ENUMDOC
   This is a 16 bit reloc for the AVR that stores 8 bit value (high 8 bit
   of command address) into 8 bit immediate value of LDI insn.
+ENUM
+  BFD_RELOC_AVR_HI8_LDI_GS
+ENUMDOC
+  This is a 16 bit reloc for the AVR that stores 8 bit value (high 8 bit
+  of command address) into 8 bit immediate value of LDI insn.  If the address
+  is beyond the 128k boundary, the linker inserts a jump stub for this reloc
+  below 128k.
 ENUM
   BFD_RELOC_AVR_HH8_LDI_PM
 ENUMDOC
@@ -3872,6 +4105,43 @@ ENUMX
 ENUMDOC
   Long displacement extension.
 
+ENUM
+  BFD_RELOC_SCORE_DUMMY1
+ENUMDOC
+  Score relocations
+ENUM
+  BFD_RELOC_SCORE_GPREL15
+ENUMDOC
+  Low 16 bit for load/store  
+ENUM
+  BFD_RELOC_SCORE_DUMMY2
+ENUMX
+  BFD_RELOC_SCORE_JMP
+ENUMDOC
+  This is a 24-bit reloc with the right 1 bit assumed to be 0
+ENUM
+  BFD_RELOC_SCORE_BRANCH
+ENUMDOC
+  This is a 19-bit reloc with the right 1 bit assumed to be 0
+ENUM
+  BFD_RELOC_SCORE16_JMP
+ENUMDOC
+  This is a 11-bit reloc with the right 1 bit assumed to be 0
+ENUM
+  BFD_RELOC_SCORE16_BRANCH
+ENUMDOC
+  This is a 8-bit reloc with the right 1 bit assumed to be 0
+ENUM
+  BFD_RELOC_SCORE_GOT15
+ENUMX
+  BFD_RELOC_SCORE_GOT_LO16
+ENUMX
+  BFD_RELOC_SCORE_CALL15
+ENUMX
+  BFD_RELOC_SCORE_DUMMY_HI16
+ENUMDOC
+  Undocumented Score relocs
+  
 ENUM
   BFD_RELOC_IP2K_FR9
 ENUMDOC
@@ -4246,6 +4516,63 @@ ENUMDOC
   NS CR16C Relocations.
 
 ENUM
+  BFD_RELOC_CR16_NUM8
+ENUMX
+  BFD_RELOC_CR16_NUM16
+ENUMX
+  BFD_RELOC_CR16_NUM32
+ENUMX
+  BFD_RELOC_CR16_NUM32a
+ENUMX
+  BFD_RELOC_CR16_REGREL0
+ENUMX
+  BFD_RELOC_CR16_REGREL4
+ENUMX
+  BFD_RELOC_CR16_REGREL4a
+ENUMX
+  BFD_RELOC_CR16_REGREL14
+ENUMX
+  BFD_RELOC_CR16_REGREL14a
+ENUMX
+  BFD_RELOC_CR16_REGREL16
+ENUMX
+  BFD_RELOC_CR16_REGREL20
+ENUMX
+  BFD_RELOC_CR16_REGREL20a
+ENUMX
+  BFD_RELOC_CR16_ABS20
+ENUMX
+  BFD_RELOC_CR16_ABS24
+ENUMX
+  BFD_RELOC_CR16_IMM4
+ENUMX
+  BFD_RELOC_CR16_IMM8
+ENUMX
+  BFD_RELOC_CR16_IMM16
+ENUMX
+  BFD_RELOC_CR16_IMM20
+ENUMX
+  BFD_RELOC_CR16_IMM24
+ENUMX
+  BFD_RELOC_CR16_IMM32
+ENUMX
+  BFD_RELOC_CR16_IMM32a
+ENUMX
+  BFD_RELOC_CR16_DISP4
+ENUMX
+  BFD_RELOC_CR16_DISP8
+ENUMX
+  BFD_RELOC_CR16_DISP16
+ENUMX
+  BFD_RELOC_CR16_DISP20
+ENUMX
+  BFD_RELOC_CR16_DISP24
+ENUMX
+  BFD_RELOC_CR16_DISP24a
+ENUMDOC
+  NS CR16 Relocations.
+
+ENUM
   BFD_RELOC_CRX_REL4
 ENUMX
   BFD_RELOC_CRX_REL8
@@ -4447,6 +4774,12 @@ ENUMX
   BFD_RELOC_XSTORMY16_FPTR16
 ENUMDOC
   Sony Xstormy16 Relocations.
+
+ENUM
+  BFD_RELOC_RELC
+ENUMDOC
+  Self-describing complex relocations.
+COMMENT
 
 ENUM
   BFD_RELOC_XC16X_PAG
@@ -4670,10 +5003,13 @@ CODE_FRAGMENT
 /*
 FUNCTION
 	bfd_reloc_type_lookup
+	bfd_reloc_name_lookup
 
 SYNOPSIS
 	reloc_howto_type *bfd_reloc_type_lookup
 	  (bfd *abfd, bfd_reloc_code_real_type code);
+	reloc_howto_type *bfd_reloc_name_lookup
+	  (bfd *abfd, const char *reloc_name);
 
 DESCRIPTION
 	Return a pointer to a howto structure which, when
@@ -4686,6 +5022,12 @@ reloc_howto_type *
 bfd_reloc_type_lookup (bfd *abfd, bfd_reloc_code_real_type code)
 {
   return BFD_SEND (abfd, reloc_type_lookup, (abfd, code));
+}
+
+reloc_howto_type *
+bfd_reloc_name_lookup (bfd *abfd, const char *reloc_name)
+{
+  return BFD_SEND (abfd, reloc_name_lookup, (abfd, reloc_name));
 }
 
 static reloc_howto_type bfd_howto_32 =
@@ -4876,13 +5218,31 @@ bfd_generic_get_relocated_section_contents (bfd *abfd,
       for (parent = reloc_vector; *parent != NULL; parent++)
 	{
 	  char *error_message = NULL;
-	  bfd_reloc_status_type r =
-	    bfd_perform_relocation (input_bfd,
-				    *parent,
-				    data,
-				    input_section,
-				    relocatable ? abfd : NULL,
-				    &error_message);
+	  asymbol *symbol;
+	  bfd_reloc_status_type r;
+
+	  symbol = *(*parent)->sym_ptr_ptr;
+	  if (symbol->section && elf_discarded_section (symbol->section))
+	    {
+	      bfd_byte *p;
+	      static reloc_howto_type none_howto
+		= HOWTO (0, 0, 0, 0, FALSE, 0, complain_overflow_dont, NULL,
+			 "unused", FALSE, 0, 0, FALSE);
+
+	      p = data + (*parent)->address * bfd_octets_per_byte (input_bfd);
+	      _bfd_clear_contents ((*parent)->howto, input_bfd, p);
+	      (*parent)->sym_ptr_ptr = bfd_abs_section.symbol_ptr_ptr;
+	      (*parent)->addend = 0;
+	      (*parent)->howto = &none_howto;
+	      r = bfd_reloc_ok;
+	    }
+	  else
+	    r = bfd_perform_relocation (input_bfd,
+					*parent,
+					data,
+					input_section,
+					relocatable ? abfd : NULL,
+					&error_message);
 
 	  if (relocatable)
 	    {

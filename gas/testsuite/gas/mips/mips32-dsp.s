@@ -1,6 +1,7 @@
 # source file to test assembly of MIPS DSP ASE for MIPS32 instructions
 
 	.set noreorder
+	.set nomacro
 	.set noat
 
 	.text
@@ -36,45 +37,29 @@ text_label:
 	preceu.ph.qbr	$27,$28
 	preceu.ph.qbla	$28,$29
 	preceu.ph.qbra	$29,$30
-	shll.qb		$30,$31,-1
 	shll.qb		$30,$31,0
 	shll.qb		$30,$31,7
-	shll.qb		$30,$31,8
 	shllv.qb	$31,$0,$1
-	shll.ph		$0,$1,-1
 	shll.ph		$0,$1,0
 	shll.ph		$0,$1,15
-	shll.ph		$0,$1,16
 	shllv.ph	$1,$2,$3
-	shll_s.ph	$2,$3,-1
 	shll_s.ph	$2,$3,0
 	shll_s.ph	$2,$3,15
-	shll_s.ph	$2,$3,16
 	shllv_s.ph	$3,$4,$5
-	shll_s.w	$4,$5,-1
 	shll_s.w	$4,$5,0
 	shll_s.w	$4,$5,31
-	shll_s.w	$4,$5,32
 	shllv_s.w	$5,$6,$7
-	shrl.qb		$6,$7,-1
 	shrl.qb		$6,$7,0
 	shrl.qb		$6,$7,7
-	shrl.qb		$6,$7,8
 	shrlv.qb	$7,$8,$9
-	shra.ph		$8,$9,-1
 	shra.ph		$8,$9,0
 	shra.ph		$8,$9,15
-	shra.ph		$8,$9,16
 	shrav.ph	$9,$10,$11
-	shra_r.ph	$10,$11,-1
 	shra_r.ph	$10,$11,0
 	shra_r.ph	$10,$11,15
-	shra_r.ph	$10,$11,16
 	shrav_r.ph	$11,$12,$13
-	shra_r.w	$12,$13,-1
 	shra_r.w	$12,$13,0
 	shra_r.w	$12,$13,31
-	shra_r.w	$12,$13,32
 	shrav_r.w	$13,$14,$15
 	muleu_s.ph.qbl	$14,$15,$16
 	muleu_s.ph.qbr	$15,$16,$17
@@ -96,15 +81,11 @@ text_label:
 	maq_sa.w.phr	$ac0,$31,$0
 	bitrev		$0,$1
 	insv		$1,$2
-	repl.qb		$2,-1
 	repl.qb		$2,0
 	repl.qb		$2,255
-	repl.qb		$2,256
 	replv.qb	$3,$4
-	repl.ph		$4,-513
 	repl.ph		$4,-512
 	repl.ph		$4,511
-	repl.ph		$4,512
 	replv.ph	$5,$6
 	cmpu.eq.qb	$6,$7
 	cmpu.lt.qb	$7,$8
@@ -118,55 +99,37 @@ text_label:
 	pick.qb		$15,$16,$17
 	pick.ph		$16,$17,$18
 	packrl.ph	$17,$18,$19
-	extr.w		$18,$ac1,-1
 	extr.w		$18,$ac1,0
 	extr.w		$18,$ac1,31
-	extr.w		$18,$ac1,32
-	extr_r.w	$19,$ac2,-1
 	extr_r.w	$19,$ac2,0
 	extr_r.w	$19,$ac2,31
-	extr_r.w	$19,$ac2,32
-	extr_rs.w	$20,$ac3,-1
 	extr_rs.w	$20,$ac3,0
 	extr_rs.w	$20,$ac3,31
-	extr_rs.w	$20,$ac3,32
-	extr_s.h	$21,$ac0,-1
 	extr_s.h	$21,$ac0,0
 	extr_s.h	$21,$ac0,31
-	extr_s.h	$21,$ac0,32
 	extrv_s.h	$22,$ac1,$23
 	extrv.w		$23,$ac2,$24
 	extrv_r.w	$24,$ac3,$25
 	extrv_rs.w	$25,$ac0,$26
-	extp		$26,$ac1,-1
 	extp		$26,$ac1,0
 	extp		$26,$ac1,31
-	extp		$26,$ac1,32
 	extpv		$27,$ac2,$28
-	extpdp		$28,$ac3,-1
 	extpdp		$28,$ac3,0
 	extpdp		$28,$ac3,31
-	extpdp		$28,$ac3,32
 	extpdpv		$29,$ac0,$30
-	shilo		$ac1,-33
 	shilo		$ac1,-32
 	shilo		$ac1,31
-	shilo		$ac1,32
 	shilov		$ac2,$30
 	mthlip		$31,$ac3
 	mfhi		$0,$ac0
 	mflo		$1,$ac1
 	mthi		$2,$ac2
 	mtlo		$3,$ac3
-	wrdsp		$4,-1
 	wrdsp		$4,0
 	wrdsp		$4,63
-	wrdsp		$4,64
 	wrdsp		$5
-	rddsp		$6,-1
 	rddsp		$6,0
 	rddsp		$6,63
-	rddsp		$6,64
 	rddsp		$7
 	lbux		$8,$9($10)
 	lhx		$9,$10($11)

@@ -1,19 +1,6 @@
 #
 # i386 tests
 #
-proc run_list_test { name opts } {
-    global srcdir subdir
-    set testname "i386 $name"
-    set file $srcdir/$subdir/$name
-    gas_run ${name}.s $opts ">&dump.out"
-    if { [regexp_diff "dump.out" "${file}.l"] } then {
-	fail $testname
-	verbose "output is [file_contents "dump.out"]" 2
-	return
-    }
-    pass $testname
-}
-
 proc gas_64_check { } {
     global NM
     global NMFLAGS
@@ -46,6 +33,8 @@ if [expr ([istarget "i*86-*-*"] ||  [istarget "x86_64-*-*"]) && [gas_32_check]] 
     run_list_test "modrm" "-al --listing-lhs-width=2"
     run_dump_test "naked"
     run_dump_test "opcode"
+    run_dump_test "opcode-intel"
+    run_dump_test "opcode-suffix"
     run_dump_test "intel"
     run_dump_test "intel16"
     run_list_test "intelbad" ""
@@ -68,9 +57,29 @@ if [expr ([istarget "i*86-*-*"] ||  [istarget "x86_64-*-*"]) && [gas_32_check]] 
     run_dump_test "crx"
     run_list_test "cr-err" ""
     run_dump_test "svme"
+    run_dump_test "amdfam10"
     run_dump_test "merom"
     run_dump_test "rep"
     run_dump_test "rep-suffix"
+    run_dump_test "fp"
+    run_dump_test "nops"
+    run_dump_test "nops-1"
+    run_dump_test "nops-1-i386"
+    run_dump_test "nops-1-i686"
+    run_dump_test "nops-1-merom"
+    run_dump_test "nops-2"
+    run_dump_test "nops-2-i386"
+    run_dump_test "nops-2-merom"
+    run_dump_test "nops-3"
+    run_dump_test "addr16"
+    run_dump_test "addr32"
+    run_dump_test "sse4_1"
+    run_dump_test "sse4_2"
+    run_dump_test "crc32"
+    run_dump_test "crc32-intel"
+    run_list_test "inval-crc32" "-al"
+    run_dump_test "simd"
+    run_dump_test "simd-intel"
 
     # These tests require support for 8 and 16 bit relocs,
     # so we only run them for ELF and COFF targets.
@@ -121,9 +130,11 @@ if [expr ([istarget "i*86-*-*"] || [istarget "x86_64-*-*"]) && [gas_64_check]] t
 
     run_dump_test "x86_64"
     run_dump_test "x86-64-addr32"
+    run_dump_test "x86-64-addr32-intel"
     run_dump_test "x86-64-opcode"
     run_dump_test "x86-64-pcrel"
     run_dump_test "x86-64-rip"
+    run_dump_test "x86-64-rip-intel"
     run_dump_test "x86-64-stack"
     run_dump_test "x86-64-stack-intel"
     run_dump_test "x86-64-stack-suffix"
@@ -132,6 +143,7 @@ if [expr ([istarget "i*86-*-*"] || [istarget "x86_64-*-*"]) && [gas_64_check]] t
     run_list_test "x86-64-inval-seg" "-al"
     run_dump_test "x86-64-branch"
     run_dump_test "svme64"
+    run_dump_test "x86-64-amdfam10"
     run_dump_test "x86-64-vmx"
     run_dump_test "immed64"
     run_dump_test "x86-64-prescott"
@@ -142,6 +154,26 @@ if [expr ([istarget "i*86-*-*"] || [istarget "x86_64-*-*"]) && [gas_64_check]] t
     run_dump_test "x86-64-merom"
     run_dump_test "x86-64-rep"
     run_dump_test "x86-64-rep-suffix"
+    run_dump_test "x86-64-cbw"
+    run_dump_test "x86-64-cbw-intel"
+    run_dump_test "x86-64-io"
+    run_dump_test "x86-64-io-intel"
+    run_dump_test "x86-64-io-suffix"
+    run_dump_test "x86-64-gidt"
+    run_dump_test "x86-64-nops"
+    if ![istarget "x86_64-*-mingw*"] then {
+	run_dump_test "x86-64-nops-1"
+    }
+    run_dump_test "x86-64-nops-1-k8"
+    run_dump_test "x86-64-nops-1-nocona"
+    run_dump_test "x86-64-nops-1-merom"
+    run_dump_test "x86-64-sse4_1"
+    run_dump_test "x86-64-sse4_2"
+    run_dump_test "x86-64-crc32"
+    run_dump_test "x86-64-crc32-intel"
+    run_list_test "x86-64-inval-crc32" "-al"
+    run_dump_test "x86-64-simd"
+    run_dump_test "x86-64-simd-intel"
 
     if { ![istarget "*-*-aix*"]
       && ![istarget "*-*-beos*"]

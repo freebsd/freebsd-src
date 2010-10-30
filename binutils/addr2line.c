@@ -1,5 +1,5 @@
 /* addr2line.c -- convert addresses to line number and function name
-   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2006
+   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2006, 2007
    Free Software Foundation, Inc.
    Contributed by Ulrich Lauther <Ulrich.Lauther@mchp.siemens.de>
 
@@ -29,15 +29,12 @@
    both forms write results to stdout, the second form reads addresses
    to be converted from stdin.  */
 
-#include "config.h"
-#include <string.h>
-
+#include "sysdep.h"
 #include "bfd.h"
 #include "getopt.h"
 #include "libiberty.h"
 #include "demangle.h"
 #include "bucomm.h"
-#include "budemang.h"
 
 static bfd_boolean unwind_inlines;	/* -i, unwind inlined functions. */
 static bfd_boolean with_functions;	/* -f, show function names.  */
@@ -68,7 +65,6 @@ static void slurp_symtab (bfd *);
 static void find_address_in_section (bfd *, asection *, void *);
 static void find_offset_in_section (bfd *, asection *);
 static void translate_addresses (bfd *, asection *);
-static void process_file (const char *, const char *, const char *);
 
 /* Print a usage message to STREAM and exit with STATUS.  */
 
@@ -92,7 +88,7 @@ usage (FILE *stream, int status)
 \n"));
 
   list_supported_targets (program_name, stream);
-  if (status == 0)
+  if (REPORT_BUGS_TO[0] && status == 0)
     fprintf (stream, _("Report bugs to %s\n"), REPORT_BUGS_TO);
   exit (status);
 }
@@ -225,8 +221,9 @@ translate_addresses (bfd *abfd, asection *section)
 		  name = "??";
 		else if (do_demangle)
 		  {
-		    alloc = demangle (abfd, name);
-		    name = alloc;
+		    alloc = bfd_demangle (abfd, name, DMGL_ANSI | DMGL_PARAMS);
+		    if (alloc != NULL)
+		      name = alloc;
 		  }
 
 		printf ("%s\n", name);
@@ -261,9 +258,9 @@ translate_addresses (bfd *abfd, asection *section)
     }
 }
 
-/* Process a file.  */
+/* Process a file.  Returns an exit value for main().  */
 
-static void
+static int
 process_file (const char *file_name, const char *section_name,
 	      const char *target)
 {
@@ -272,7 +269,7 @@ process_file (const char *file_name, const char *section_name,
   char **matching;
 
   if (get_file_size (file_name) < 1)
-    return;
+    return 1;
 
   abfd = bfd_openr (file_name, target);
   if (abfd == NULL)
@@ -312,6 +309,8 @@ process_file (const char *file_name, const char *section_name,
     }
 
   bfd_close (abfd);
+
+  return 0;
 }
 
 int
@@ -401,7 +400,5 @@ main (int argc, char **argv)
   addr = argv + optind;
   naddr = argc - optind;
 
-  process_file (file_name, section_name, target);
-
-  return 0;
+  return process_file (file_name, section_name, target);
 }

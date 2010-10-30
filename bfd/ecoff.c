@@ -1,6 +1,6 @@
 /* Generic ECOFF (Extended-COFF) routines.
    Copyright 1990, 1991, 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004, 2005, 2006 Free Software Foundation, Inc.
+   2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
    Original version by Per Bothner.
    Full support added by Ian Lance Taylor, ian@cygnus.com.
 
@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "bfdlink.h"
 #include "libbfd.h"
 #include "aout/ar.h"
@@ -140,8 +140,7 @@ _bfd_ecoff_mkobject_hook (bfd *abfd, void * filehdr, void * aouthdr)
 /* Initialize a new section.  */
 
 bfd_boolean
-_bfd_ecoff_new_section_hook (bfd *abfd ATTRIBUTE_UNUSED,
-			     asection *section)
+_bfd_ecoff_new_section_hook (bfd *abfd, asection *section)
 {
   unsigned int i;
   static struct
@@ -181,7 +180,7 @@ _bfd_ecoff_new_section_hook (bfd *abfd ATTRIBUTE_UNUSED,
      uncertain about .init on some systems and I don't know how shared
      libraries work.  */
 
-  return TRUE;
+  return _bfd_generic_new_section_hook (abfd, section);
 }
 
 /* Determine the machine architecture and type.  This is called from
@@ -1863,7 +1862,8 @@ _bfd_ecoff_set_arch_mach (bfd *abfd,
 /* Get the size of the section headers.  */
 
 int
-_bfd_ecoff_sizeof_headers (bfd *abfd, bfd_boolean reloc ATTRIBUTE_UNUSED)
+_bfd_ecoff_sizeof_headers (bfd *abfd,
+			   struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
   asection *current;
   int c;
@@ -1937,7 +1937,7 @@ ecoff_compute_section_file_positions (bfd *abfd)
   const bfd_vma round = ecoff_backend (abfd)->round;
   bfd_size_type amt;
 
-  sofar = _bfd_ecoff_sizeof_headers (abfd, FALSE);
+  sofar = _bfd_ecoff_sizeof_headers (abfd, NULL);
   file_sofar = sofar;
 
   /* Sort the sections by VMA.  */
@@ -2358,7 +2358,7 @@ _bfd_ecoff_write_object_contents (bfd *abfd)
     }
 
   if ((abfd->flags & D_PAGED) != 0)
-    text_size = _bfd_ecoff_sizeof_headers (abfd, FALSE);
+    text_size = _bfd_ecoff_sizeof_headers (abfd, NULL);
   else
     text_size = 0;
   text_start = 0;
@@ -2861,7 +2861,7 @@ _bfd_ecoff_slurp_armap (bfd *abfd)
      bfd_slurp_armap, but that seems inappropriate since no other
      target uses this format.  Instead, we check directly for a COFF
      armap.  */
-  if (strneq (nextname, "/               ", 16))
+  if (CONST_STRNEQ (nextname, "/               "))
     return bfd_slurp_armap (abfd);
 
   /* See if the first element is an armap.  */
@@ -3087,7 +3087,7 @@ _bfd_ecoff_write_armap (bfd *abfd,
   last_elt = current;
   for (i = 0; i < orl_count; i++)
     {
-      unsigned int hash, rehash;
+      unsigned int hash, rehash = 0;
 
       /* Advance firstreal to the file position of this archive
 	 element.  */
@@ -3097,7 +3097,7 @@ _bfd_ecoff_write_armap (bfd *abfd,
 	    {
 	      firstreal += arelt_size (current) + sizeof (struct ar_hdr);
 	      firstreal += firstreal % 2;
-	      current = current->next;
+	      current = current->archive_next;
 	    }
 	  while (current != map[i].u.abfd);
 	}
@@ -3757,7 +3757,7 @@ ecoff_link_add_archive_symbols (bfd *abfd, struct bfd_link_info *info)
   while (*pundef != NULL)
     {
       struct bfd_link_hash_entry *h;
-      unsigned int hash, rehash;
+      unsigned int hash, rehash = 0;
       unsigned int file_offset;
       const char *name;
       bfd *element;

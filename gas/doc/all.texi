@@ -29,7 +29,9 @@
 @set ALPHA
 @set ARC
 @set ARM
+@set AVR
 @set BFIN
+@set CR16
 @set CRIS
 @set D10V
 @set D30V
@@ -63,7 +65,7 @@
 @set Z80
 @set Z8000
 
-@c Does this version of the assembler use the difference-table kluge?
+@c Does this version of the assembler use the difference-table kludge?
 @set DIFF-TBL-KLUGE
 
 @c Do all machines described use IEEE floating point?

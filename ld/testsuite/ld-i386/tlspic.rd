@@ -81,12 +81,9 @@ Relocation section '.rel.plt' at offset 0x[0-9a-f]+ contains 1 entries:
  Offset +Info +Type +Sym.Value +Sym. Name
 [0-9a-f ]+R_386_JUMP_SLOT   0+   ___tls_get_addr
 
-Symbol table '.dynsym' contains 17 entries:
+Symbol table '.dynsym' contains [0-9]+ entries:
  +Num: +Value  Size Type +Bind +Vis +Ndx Name
  +[0-9]+: 0+ +0 NOTYPE  LOCAL  DEFAULT  UND *
- +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +7 *
- +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +8 *
- +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +9 *
  +[0-9]+: 0+1c +0 TLS +GLOBAL DEFAULT +8 sg8
  +[0-9]+: 0+8 +0 TLS +GLOBAL DEFAULT +8 sg3
  +[0-9]+: 0+c +0 TLS +GLOBAL DEFAULT +8 sg4
@@ -101,7 +98,7 @@ Symbol table '.dynsym' contains 17 entries:
  +[0-9]+: [0-9a-f]+ +0 NOTYPE  GLOBAL DEFAULT  ABS _end
  +[0-9]+: 0+ +0 NOTYPE  GLOBAL DEFAULT  UND ___tls_get_addr
 
-Symbol table '.symtab' contains 55 entries:
+Symbol table '.symtab' contains 52 entries:
  +Num: +Value  Size Type +Bind +Vis +Ndx Name
  +[0-9]+: 0+ +0 NOTYPE  LOCAL  DEFAULT  UND *
  +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +1 *
@@ -116,9 +113,6 @@ Symbol table '.symtab' contains 55 entries:
  +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +10 *
  +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +11 *
  +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +12 *
- +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +13 *
- +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +14 *
- +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +15 *
  +[0-9]+: 0+20 +0 TLS +LOCAL  DEFAULT +8 sl1
  +[0-9]+: 0+24 +0 TLS +LOCAL  DEFAULT +8 sl2
  +[0-9]+: 0+28 +0 TLS +LOCAL  DEFAULT +8 sl3

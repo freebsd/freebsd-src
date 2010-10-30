@@ -1,5 +1,5 @@
 # Test that the linker can handle fastcall symbols correctly.
-# Copyright 2002 Free Software Foundation, Inc.
+# Copyright 2002, 2006 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,13 +17,14 @@
 
 set testname "ld (fastcall symbols)"
 
-if {![istarget "i*86-*-*"]} {
+if {![istarget "i*86-*-*"] && ![istarget "x86_64-*-mingw*"] } {
     return
 }
 
 if {  !([istarget "i*86-*-*pe*"] && ![istarget "i*86-*-opensd*"]) \
     && ![istarget "i*86-*-cygwin*"] \
-    && ![istarget "i*86-*-mingw32*"] } {
+    && ![istarget "x86_64-*-mingw*"] \
+    && ![istarget "i*86-*-mingw*"] } {
     return
 }
 

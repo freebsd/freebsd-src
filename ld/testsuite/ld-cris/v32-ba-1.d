@@ -10,7 +10,7 @@
 
 Disassembly of section \.text:
 
-0+ <a>:
+0+ <(a|__Stext)>:
    0:	bf0e 0800 0000      	ba 8 <b>
    6:	5e82                	moveq 30,r8
 

@@ -6,9 +6,6 @@
 
 SYMBOL TABLE:
 0+ l    d  \.text	0+ (|\.text)
-0+ l    d  \*ABS\*	0+ (|\.shstrtab)
-0+ l    d  \*ABS\*	0+ (|\.symtab)
-0+ l    d  \*ABS\*	0+ (|\.strtab)
 0+4 g       \.text	0+ _start
 2000000000000000 g       \*ABS\*	0+ __bss_start
 2000000000000000 g       \*ABS\*	0+ _edata

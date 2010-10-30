@@ -16,7 +16,10 @@ gas_test "p2425.s" ""   "" "pcrel values in assignment"
 # The ".space" directive is taken care of in the C54x-specific tests, so fail
 #  here 
 #
-if { [istarget hppa*-*-*] || [istarget *c54x*-*-*] } then {
+# The test also doesn't work on mep targets, since they use RELC, and it
+# will avoid simplifying the expression since it conservatively assumes
+# ugly expressions can be saved until link-time.
+if { [istarget hppa*-*-*] || [istarget *c54x*-*-*] || [istarget mep*-*-*]} then {
     setup_xfail *-*-*
     fail "simplifiable double subtraction"
 } else {
@@ -80,13 +83,18 @@ case $target_triplet in {
     default {
 	setup_xfail "*c30*-*-*" "*c4x*-*-*" "pdp11-*-*"
 	run_dump_test redef
+	# The next two tests can fail if the target does not convert fixups
+	# against ordinary symbols into relocations against section symbols.
+	# This is usually revealed by the error message:
+	#  symbol `sym' required but not present
 	setup_xfail "*c30*-*-*" "*c4x*-*-*" "*arm*-*-*aout*" "*arm*-*-*coff" \
 	    "*arm*-*-pe" "crx*-*-*" "h8300*-*-*" "m68hc*-*-*" "maxq-*-*" \
-	    "pdp11-*-*" "vax*-*-*" "z8k-*-*"
+	    "mn10300-*-*" "pdp11-*-*" "vax*-*-*" "z8k-*-*" "cr16-*-*"
 	run_dump_test redef2
 	setup_xfail "*-*-aix*" "*-*-coff" "*-*-cygwin" "*-*-mingw*" "*-*-pe*" \
 	    "bfin-*-*" "*c4x*-*-*" "crx*-*-*" "h8300*-*-*" "hppa*-*-hpux*" \
-	    "m68hc*-*-*" "maxq-*-*" "or32-*-*" "pdp11-*-*" "vax*-*-*" "z8k-*-*"
+	    "m68hc*-*-*" "maxq-*-*" "mn10300-*-*" "or32-*-*" "pdp11-*-*" \
+	    "vax*-*-*" "z8k-*-*" "cr16-*-*"
 	run_dump_test redef3
 	setup_xfail "*c4x*-*-*"
 	gas_test_error "redef4.s" "" ".set for symbol already used as label"
@@ -207,6 +215,7 @@ if {   ([istarget *-*-coff*] && ![istarget *arm*-*-coff] && ![istarget thumb*-*-
      || [istarget i*86-*-isc*] \
      || [istarget i*86-*-go32*] \
      || [istarget i*86-*-cygwin*] \
+     || [istarget x86_64-*-mingw*] \
      || [istarget i*86-*-*nt] \
      || [istarget i*86-*-interix*] \
      || ([istarget i960-*-vxworks5.*] && ![istarget i960-*-vxworks5.0*]) } {
@@ -255,6 +264,11 @@ if {  ([istarget "i*86-*-*pe*"] && ![istarget "i*86-*-openbsd*"]) \
 
 run_dump_test assign
 run_dump_test sleb128
+
+# .byte is 32 bits on tic4x, and .p2align isn't supported on tic54x
+if { ![istarget "tic4x*-*-*"] && ![istarget "tic54x*-*-*"] } {
+    run_dump_test relax
+}
 
 # .quad is 16 bytes on i960.
 if { ![istarget "i960-*-*"] } {

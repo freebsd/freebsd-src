@@ -1,5 +1,5 @@
 /* tc-tic4x.c -- Assemble for the Texas Instruments TMS320C[34]x.
-   Copyright (C) 1997,1998, 2002, 2003, 2005 Free Software Foundation.
+   Copyright (C) 1997,1998, 2002, 2003, 2005, 2006 Free Software Foundation.
 
    Contributed by Michael P. Hayes (m.hayes@elec.canterbury.ac.nz)
 
@@ -45,14 +45,11 @@
   o Support 'abc' constants (that is 0x616263)
 */
 
-#include <stdio.h>
 #include "safe-ctype.h"
 #include "as.h"
 #include "opcode/tic4x.h"
 #include "subsegs.h"
 #include "obstack.h"
-#include "symbols.h"
-#include "listing.h"
 
 /* OK, we accept a syntax similar to the other well known C30
    assembly tools.  With TIC4X_ALT_SYNTAX defined we are more
@@ -2640,7 +2637,7 @@ md_assemble (str)
 
       if ((i = tic4x_operands_parse (s, insn->operands, 0)) < 0)
 	{
-	  insn->inst = NULL;	/* Flag that error occured.  */
+	  insn->inst = NULL;	/* Flag that error occurred.  */
 	  insn->parallel = 0;
 	  insn->in_use = 0;
 	  return;

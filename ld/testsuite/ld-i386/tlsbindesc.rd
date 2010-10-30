@@ -64,7 +64,7 @@ Relocation section '.rel.dyn' at offset 0x[0-9a-f]+ contains 9 entries:
 0+804a0fc  00000825 R_386_TLS_TPOFF32 0+ +sG1
 0+804a100  00000b0e R_386_TLS_TPOFF +0+ +sG8
 
-Symbol table '.dynsym' contains 12 entries:
+Symbol table '.dynsym' contains [0-9]+ entries:
  +Num: +Value  Size Type +Bind +Vis +Ndx Name
  +[0-9]+: 0+ +0 NOTYPE  LOCAL  DEFAULT  UND *
  +[0-9]+: 0+ +0 TLS +GLOBAL DEFAULT  UND sG3
@@ -79,7 +79,7 @@ Symbol table '.dynsym' contains 12 entries:
  +[0-9]+: [0-9a-f]+ +0 NOTYPE  GLOBAL DEFAULT  ABS _end
  +[0-9]+: 0+ +0 TLS +GLOBAL DEFAULT  UND sG8
 
-Symbol table '.symtab' contains 71 entries:
+Symbol table '.symtab' contains 68 entries:
  +Num: +Value  Size Type +Bind +Vis +Ndx Name
  +[0-9]+: 0+ +0 NOTYPE  LOCAL  DEFAULT  UND *
  +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +1 *
@@ -93,9 +93,6 @@ Symbol table '.symtab' contains 71 entries:
  +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +9 *
  +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +10 *
  +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +11 *
- +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +12 *
- +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +13 *
- +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +14 *
  +[0-9]+: 00000020 +0 TLS +LOCAL  DEFAULT +7 sl1
  +[0-9]+: 00000024 +0 TLS +LOCAL  DEFAULT +7 sl2
  +[0-9]+: 00000028 +0 TLS +LOCAL  DEFAULT +7 sl3

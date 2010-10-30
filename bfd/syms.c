@@ -1,6 +1,6 @@
 /* Generic symbol-table support for the BFD library.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004
+   2000, 2001, 2002, 2003, 2004, 2007
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -288,6 +288,14 @@ CODE_FRAGMENT
 .  {* This symbol is thread local.  Used in ELF.  *}
 .#define BSF_THREAD_LOCAL  0x40000
 .
+.  {* This symbol represents a complex relocation expression,
+.     with the expression tree serialized in the symbol name.  *}
+.#define BSF_RELC 0x80000
+.
+.  {* This symbol represents a signed complex relocation expression,
+.     with the expression tree serialized in the symbol name.  *}
+.#define BSF_SRELC 0x100000
+.
 .  flagword flags;
 .
 .  {* A pointer to the section to which this symbol is
@@ -307,8 +315,8 @@ CODE_FRAGMENT
 .
 */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "safe-ctype.h"
 #include "bfdlink.h"

@@ -124,7 +124,7 @@ Disassembly of section \.text:
 [0-9a-f ]+:	80 88 00 00 	nop
 Disassembly of section \.got:
 
-[0-9a-f ]+<_GLOBAL_OFFSET_TABLE_>:
+[0-9a-f ]+<(__data_start|_GLOBAL_OFFSET_TABLE_)>:
 	\.\.\.
 [0-9a-f ]+:	00 00 00 03 	add\.p gr0,gr3,gr0
 [0-9a-f	 ]+: R_FRV_TLSOFF	x

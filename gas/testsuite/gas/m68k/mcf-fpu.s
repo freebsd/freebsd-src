@@ -2,167 +2,815 @@
 	.text
 
 	fsqrtd	%fp0,%fp0
+	fsqrtl	%d5,%fp0
+	fsqrtl	%a4@,%fp0
+	fsqrtl	%a3@+,%fp0
+	fsqrtl	%a2@-,%fp0
 	fsqrtl	%fp@(8),%fp0
+	fsqrtl	%pc@(.+0x1238),%fp0
+	fsqrts	%d5,%fp0
+	fsqrts	%a4@,%fp0
+	fsqrts	%a3@+,%fp0
+	fsqrts	%a2@-,%fp0
 	fsqrts	%fp@(8),%fp0
+	fsqrts	%pc@(.+0x1238),%fp0
+	fsqrtw	%d5,%fp0
+	fsqrtw	%a4@,%fp0
+	fsqrtw	%a3@+,%fp0
+	fsqrtw	%a2@-,%fp0
 	fsqrtw	%fp@(8),%fp0
+	fsqrtw	%pc@(.+0x1238),%fp0
+	fsqrtd	%a4@,%fp0
+	fsqrtd	%a3@+,%fp0
+	fsqrtd	%a2@-,%fp0
 	fsqrtd	%fp@(8),%fp0
+	fsqrtd	%pc@(.+0x1238),%fp0
+	fsqrtb	%d5,%fp0
+	fsqrtb	%a4@,%fp0
+	fsqrtb	%a3@+,%fp0
+	fsqrtb	%a2@-,%fp0
 	fsqrtb	%fp@(8),%fp0
+	fsqrtb	%pc@(.+0x1238),%fp0
 	fssqrtd	%fp0,%fp0
+	fssqrtl	%d5,%fp0
+	fssqrtl	%a4@,%fp0
+	fssqrtl	%a3@+,%fp0
+	fssqrtl	%a2@-,%fp0
 	fssqrtl	%fp@(8),%fp0
+	fssqrtl	%pc@(.+0x1238),%fp0
+	fssqrts	%d5,%fp0
+	fssqrts	%a4@,%fp0
+	fssqrts	%a3@+,%fp0
+	fssqrts	%a2@-,%fp0
 	fssqrts	%fp@(8),%fp0
+	fssqrts	%pc@(.+0x1238),%fp0
+	fssqrtw	%d5,%fp0
+	fssqrtw	%a4@,%fp0
+	fssqrtw	%a3@+,%fp0
+	fssqrtw	%a2@-,%fp0
 	fssqrtw	%fp@(8),%fp0
+	fssqrtw	%pc@(.+0x1238),%fp0
+	fssqrtd	%a4@,%fp0
+	fssqrtd	%a3@+,%fp0
+	fssqrtd	%a2@-,%fp0
 	fssqrtd	%fp@(8),%fp0
+	fssqrtd	%pc@(.+0x1238),%fp0
+	fssqrtb	%d5,%fp0
+	fssqrtb	%a4@,%fp0
+	fssqrtb	%a3@+,%fp0
+	fssqrtb	%a2@-,%fp0
 	fssqrtb	%fp@(8),%fp0
+	fssqrtb	%pc@(.+0x1238),%fp0
 	fdsqrtd	%fp0,%fp0
+	fdsqrtl	%d5,%fp0
+	fdsqrtl	%a4@,%fp0
+	fdsqrtl	%a3@+,%fp0
+	fdsqrtl	%a2@-,%fp0
 	fdsqrtl	%fp@(8),%fp0
+	fdsqrtl	%pc@(.+0x1238),%fp0
+	fdsqrts	%d5,%fp0
+	fdsqrts	%a4@,%fp0
+	fdsqrts	%a3@+,%fp0
+	fdsqrts	%a2@-,%fp0
 	fdsqrts	%fp@(8),%fp0
+	fdsqrts	%pc@(.+0x1238),%fp0
+	fdsqrtw	%d5,%fp0
+	fdsqrtw	%a4@,%fp0
+	fdsqrtw	%a3@+,%fp0
+	fdsqrtw	%a2@-,%fp0
 	fdsqrtw	%fp@(8),%fp0
+	fdsqrtw	%pc@(.+0x1238),%fp0
+	fdsqrtd	%a4@,%fp0
+	fdsqrtd	%a3@+,%fp0
+	fdsqrtd	%a2@-,%fp0
 	fdsqrtd	%fp@(8),%fp0
+	fdsqrtd	%pc@(.+0x1238),%fp0
+	fdsqrtb	%d5,%fp0
+	fdsqrtb	%a4@,%fp0
+	fdsqrtb	%a3@+,%fp0
+	fdsqrtb	%a2@-,%fp0
 	fdsqrtb	%fp@(8),%fp0
+	fdsqrtb	%pc@(.+0x1238),%fp0
 	fabsd	%fp0,%fp0
+	fabsl	%d5,%fp0
+	fabsl	%a4@,%fp0
+	fabsl	%a3@+,%fp0
+	fabsl	%a2@-,%fp0
 	fabsl	%fp@(8),%fp0
+	fabsl	%pc@(.+0x1238),%fp0
+	fabss	%d5,%fp0
+	fabss	%a4@,%fp0
+	fabss	%a3@+,%fp0
+	fabss	%a2@-,%fp0
 	fabss	%fp@(8),%fp0
+	fabss	%pc@(.+0x1238),%fp0
+	fabsw	%d5,%fp0
+	fabsw	%a4@,%fp0
+	fabsw	%a3@+,%fp0
+	fabsw	%a2@-,%fp0
 	fabsw	%fp@(8),%fp0
+	fabsw	%pc@(.+0x1238),%fp0
+	fabsd	%a4@,%fp0
+	fabsd	%a3@+,%fp0
+	fabsd	%a2@-,%fp0
 	fabsd	%fp@(8),%fp0
+	fabsd	%pc@(.+0x1238),%fp0
+	fabsb	%d5,%fp0
+	fabsb	%a4@,%fp0
+	fabsb	%a3@+,%fp0
+	fabsb	%a2@-,%fp0
 	fabsb	%fp@(8),%fp0
+	fabsb	%pc@(.+0x1238),%fp0
 	fsabsd	%fp0,%fp0
+	fsabsl	%d5,%fp0
+	fsabsl	%a4@,%fp0
+	fsabsl	%a3@+,%fp0
+	fsabsl	%a2@-,%fp0
 	fsabsl	%fp@(8),%fp0
+	fsabsl	%pc@(.+0x1238),%fp0
+	fsabss	%d5,%fp0
+	fsabss	%a4@,%fp0
+	fsabss	%a3@+,%fp0
+	fsabss	%a2@-,%fp0
 	fsabss	%fp@(8),%fp0
+	fsabss	%pc@(.+0x1238),%fp0
+	fsabsw	%d5,%fp0
+	fsabsw	%a4@,%fp0
+	fsabsw	%a3@+,%fp0
+	fsabsw	%a2@-,%fp0
 	fsabsw	%fp@(8),%fp0
+	fsabsw	%pc@(.+0x1238),%fp0
+	fsabsd	%a4@,%fp0
+	fsabsd	%a3@+,%fp0
+	fsabsd	%a2@-,%fp0
 	fsabsd	%fp@(8),%fp0
+	fsabsd	%pc@(.+0x1238),%fp0
+	fsabsb	%d5,%fp0
+	fsabsb	%a4@,%fp0
+	fsabsb	%a3@+,%fp0
+	fsabsb	%a2@-,%fp0
 	fsabsb	%fp@(8),%fp0
+	fsabsb	%pc@(.+0x1238),%fp0
 	fdabsd	%fp0,%fp0
+	fdabsl	%d5,%fp0
+	fdabsl	%a4@,%fp0
+	fdabsl	%a3@+,%fp0
+	fdabsl	%a2@-,%fp0
 	fdabsl	%fp@(8),%fp0
+	fdabsl	%pc@(.+0x1238),%fp0
+	fdabss	%d5,%fp0
+	fdabss	%a4@,%fp0
+	fdabss	%a3@+,%fp0
+	fdabss	%a2@-,%fp0
 	fdabss	%fp@(8),%fp0
+	fdabss	%pc@(.+0x1238),%fp0
+	fdabsw	%d5,%fp0
+	fdabsw	%a4@,%fp0
+	fdabsw	%a3@+,%fp0
+	fdabsw	%a2@-,%fp0
 	fdabsw	%fp@(8),%fp0
+	fdabsw	%pc@(.+0x1238),%fp0
+	fdabsd	%a4@,%fp0
+	fdabsd	%a3@+,%fp0
+	fdabsd	%a2@-,%fp0
 	fdabsd	%fp@(8),%fp0
+	fdabsd	%pc@(.+0x1238),%fp0
+	fdabsb	%d5,%fp0
+	fdabsb	%a4@,%fp0
+	fdabsb	%a3@+,%fp0
+	fdabsb	%a2@-,%fp0
 	fdabsb	%fp@(8),%fp0
+	fdabsb	%pc@(.+0x1238),%fp0
 	fnegd	%fp0,%fp0
+	fnegl	%d5,%fp0
+	fnegl	%a4@,%fp0
+	fnegl	%a3@+,%fp0
+	fnegl	%a2@-,%fp0
 	fnegl	%fp@(8),%fp0
+	fnegl	%pc@(.+0x1238),%fp0
+	fnegs	%d5,%fp0
+	fnegs	%a4@,%fp0
+	fnegs	%a3@+,%fp0
+	fnegs	%a2@-,%fp0
 	fnegs	%fp@(8),%fp0
+	fnegs	%pc@(.+0x1238),%fp0
+	fnegw	%d5,%fp0
+	fnegw	%a4@,%fp0
+	fnegw	%a3@+,%fp0
+	fnegw	%a2@-,%fp0
 	fnegw	%fp@(8),%fp0
+	fnegw	%pc@(.+0x1238),%fp0
+	fnegd	%a4@,%fp0
+	fnegd	%a3@+,%fp0
+	fnegd	%a2@-,%fp0
 	fnegd	%fp@(8),%fp0
+	fnegd	%pc@(.+0x1238),%fp0
+	fnegb	%d5,%fp0
+	fnegb	%a4@,%fp0
+	fnegb	%a3@+,%fp0
+	fnegb	%a2@-,%fp0
 	fnegb	%fp@(8),%fp0
+	fnegb	%pc@(.+0x1238),%fp0
 	fsnegd	%fp0,%fp0
+	fsnegl	%d5,%fp0
+	fsnegl	%a4@,%fp0
+	fsnegl	%a3@+,%fp0
+	fsnegl	%a2@-,%fp0
 	fsnegl	%fp@(8),%fp0
+	fsnegl	%pc@(.+0x1238),%fp0
+	fsnegs	%d5,%fp0
+	fsnegs	%a4@,%fp0
+	fsnegs	%a3@+,%fp0
+	fsnegs	%a2@-,%fp0
 	fsnegs	%fp@(8),%fp0
+	fsnegs	%pc@(.+0x1238),%fp0
+	fsnegw	%d5,%fp0
+	fsnegw	%a4@,%fp0
+	fsnegw	%a3@+,%fp0
+	fsnegw	%a2@-,%fp0
 	fsnegw	%fp@(8),%fp0
+	fsnegw	%pc@(.+0x1238),%fp0
+	fsnegd	%a4@,%fp0
+	fsnegd	%a3@+,%fp0
+	fsnegd	%a2@-,%fp0
 	fsnegd	%fp@(8),%fp0
+	fsnegd	%pc@(.+0x1238),%fp0
+	fsnegb	%d5,%fp0
+	fsnegb	%a4@,%fp0
+	fsnegb	%a3@+,%fp0
+	fsnegb	%a2@-,%fp0
 	fsnegb	%fp@(8),%fp0
+	fsnegb	%pc@(.+0x1238),%fp0
 	fdnegd	%fp0,%fp0
+	fdnegl	%d5,%fp0
+	fdnegl	%a4@,%fp0
+	fdnegl	%a3@+,%fp0
+	fdnegl	%a2@-,%fp0
 	fdnegl	%fp@(8),%fp0
+	fdnegl	%pc@(.+0x1238),%fp0
+	fdnegs	%d5,%fp0
+	fdnegs	%a4@,%fp0
+	fdnegs	%a3@+,%fp0
+	fdnegs	%a2@-,%fp0
 	fdnegs	%fp@(8),%fp0
+	fdnegs	%pc@(.+0x1238),%fp0
+	fdnegw	%d5,%fp0
+	fdnegw	%a4@,%fp0
+	fdnegw	%a3@+,%fp0
+	fdnegw	%a2@-,%fp0
 	fdnegw	%fp@(8),%fp0
+	fdnegw	%pc@(.+0x1238),%fp0
+	fdnegd	%a4@,%fp0
+	fdnegd	%a3@+,%fp0
+	fdnegd	%a2@-,%fp0
 	fdnegd	%fp@(8),%fp0
+	fdnegd	%pc@(.+0x1238),%fp0
+	fdnegb	%d5,%fp0
+	fdnegb	%a4@,%fp0
+	fdnegb	%a3@+,%fp0
+	fdnegb	%a2@-,%fp0
 	fdnegb	%fp@(8),%fp0
+	fdnegb	%pc@(.+0x1238),%fp0
 	fdivd	%fp0,%fp0
+	fdivl	%d5,%fp0
+	fdivl	%a4@,%fp0
+	fdivl	%a3@+,%fp0
+	fdivl	%a2@-,%fp0
 	fdivl	%fp@(8),%fp0
+	fdivl	%pc@(.+0x1238),%fp0
+	fdivs	%d5,%fp0
+	fdivs	%a4@,%fp0
+	fdivs	%a3@+,%fp0
+	fdivs	%a2@-,%fp0
 	fdivs	%fp@(8),%fp0
+	fdivs	%pc@(.+0x1238),%fp0
+	fdivw	%d5,%fp0
+	fdivw	%a4@,%fp0
+	fdivw	%a3@+,%fp0
+	fdivw	%a2@-,%fp0
 	fdivw	%fp@(8),%fp0
+	fdivw	%pc@(.+0x1238),%fp0
+	fdivd	%a4@,%fp0
+	fdivd	%a3@+,%fp0
+	fdivd	%a2@-,%fp0
 	fdivd	%fp@(8),%fp0
+	fdivd	%pc@(.+0x1238),%fp0
+	fdivb	%d5,%fp0
+	fdivb	%a4@,%fp0
+	fdivb	%a3@+,%fp0
+	fdivb	%a2@-,%fp0
 	fdivb	%fp@(8),%fp0
+	fdivb	%pc@(.+0x1238),%fp0
 	fsdivd	%fp0,%fp0
+	fsdivl	%d5,%fp0
+	fsdivl	%a4@,%fp0
+	fsdivl	%a3@+,%fp0
+	fsdivl	%a2@-,%fp0
 	fsdivl	%fp@(8),%fp0
+	fsdivl	%pc@(.+0x1238),%fp0
+	fsdivs	%d5,%fp0
+	fsdivs	%a4@,%fp0
+	fsdivs	%a3@+,%fp0
+	fsdivs	%a2@-,%fp0
 	fsdivs	%fp@(8),%fp0
+	fsdivs	%pc@(.+0x1238),%fp0
+	fsdivw	%d5,%fp0
+	fsdivw	%a4@,%fp0
+	fsdivw	%a3@+,%fp0
+	fsdivw	%a2@-,%fp0
 	fsdivw	%fp@(8),%fp0
+	fsdivw	%pc@(.+0x1238),%fp0
+	fsdivd	%a4@,%fp0
+	fsdivd	%a3@+,%fp0
+	fsdivd	%a2@-,%fp0
 	fsdivd	%fp@(8),%fp0
+	fsdivd	%pc@(.+0x1238),%fp0
+	fsdivb	%d5,%fp0
+	fsdivb	%a4@,%fp0
+	fsdivb	%a3@+,%fp0
+	fsdivb	%a2@-,%fp0
 	fsdivb	%fp@(8),%fp0
+	fsdivb	%pc@(.+0x1238),%fp0
 	fddivd	%fp0,%fp0
+	fddivl	%d5,%fp0
+	fddivl	%a4@,%fp0
+	fddivl	%a3@+,%fp0
+	fddivl	%a2@-,%fp0
 	fddivl	%fp@(8),%fp0
+	fddivl	%pc@(.+0x1238),%fp0
+	fddivs	%d5,%fp0
+	fddivs	%a4@,%fp0
+	fddivs	%a3@+,%fp0
+	fddivs	%a2@-,%fp0
 	fddivs	%fp@(8),%fp0
+	fddivs	%pc@(.+0x1238),%fp0
+	fddivw	%d5,%fp0
+	fddivw	%a4@,%fp0
+	fddivw	%a3@+,%fp0
+	fddivw	%a2@-,%fp0
 	fddivw	%fp@(8),%fp0
+	fddivw	%pc@(.+0x1238),%fp0
+	fddivd	%a4@,%fp0
+	fddivd	%a3@+,%fp0
+	fddivd	%a2@-,%fp0
 	fddivd	%fp@(8),%fp0
+	fddivd	%pc@(.+0x1238),%fp0
+	fddivb	%d5,%fp0
+	fddivb	%a4@,%fp0
+	fddivb	%a3@+,%fp0
+	fddivb	%a2@-,%fp0
 	fddivb	%fp@(8),%fp0
+	fddivb	%pc@(.+0x1238),%fp0
 	faddd	%fp0,%fp0
+	faddl	%d5,%fp0
+	faddl	%a4@,%fp0
+	faddl	%a3@+,%fp0
+	faddl	%a2@-,%fp0
 	faddl	%fp@(8),%fp0
+	faddl	%pc@(.+0x1238),%fp0
+	fadds	%d5,%fp0
+	fadds	%a4@,%fp0
+	fadds	%a3@+,%fp0
+	fadds	%a2@-,%fp0
 	fadds	%fp@(8),%fp0
+	fadds	%pc@(.+0x1238),%fp0
+	faddw	%d5,%fp0
+	faddw	%a4@,%fp0
+	faddw	%a3@+,%fp0
+	faddw	%a2@-,%fp0
 	faddw	%fp@(8),%fp0
+	faddw	%pc@(.+0x1238),%fp0
+	faddd	%a4@,%fp0
+	faddd	%a3@+,%fp0
+	faddd	%a2@-,%fp0
 	faddd	%fp@(8),%fp0
+	faddd	%pc@(.+0x1238),%fp0
+	faddb	%d5,%fp0
+	faddb	%a4@,%fp0
+	faddb	%a3@+,%fp0
+	faddb	%a2@-,%fp0
 	faddb	%fp@(8),%fp0
+	faddb	%pc@(.+0x1238),%fp0
 	fsaddd	%fp0,%fp0
+	fsaddl	%d5,%fp0
+	fsaddl	%a4@,%fp0
+	fsaddl	%a3@+,%fp0
+	fsaddl	%a2@-,%fp0
 	fsaddl	%fp@(8),%fp0
+	fsaddl	%pc@(.+0x1238),%fp0
+	fsadds	%d5,%fp0
+	fsadds	%a4@,%fp0
+	fsadds	%a3@+,%fp0
+	fsadds	%a2@-,%fp0
 	fsadds	%fp@(8),%fp0
+	fsadds	%pc@(.+0x1238),%fp0
+	fsaddw	%d5,%fp0
+	fsaddw	%a4@,%fp0
+	fsaddw	%a3@+,%fp0
+	fsaddw	%a2@-,%fp0
 	fsaddw	%fp@(8),%fp0
+	fsaddw	%pc@(.+0x1238),%fp0
+	fsaddd	%a4@,%fp0
+	fsaddd	%a3@+,%fp0
+	fsaddd	%a2@-,%fp0
 	fsaddd	%fp@(8),%fp0
+	fsaddd	%pc@(.+0x1238),%fp0
+	fsaddb	%d5,%fp0
+	fsaddb	%a4@,%fp0
+	fsaddb	%a3@+,%fp0
+	fsaddb	%a2@-,%fp0
 	fsaddb	%fp@(8),%fp0
+	fsaddb	%pc@(.+0x1238),%fp0
 	fdaddd	%fp0,%fp0
+	fdaddl	%d5,%fp0
+	fdaddl	%a4@,%fp0
+	fdaddl	%a3@+,%fp0
+	fdaddl	%a2@-,%fp0
 	fdaddl	%fp@(8),%fp0
+	fdaddl	%pc@(.+0x1238),%fp0
+	fdadds	%d5,%fp0
+	fdadds	%a4@,%fp0
+	fdadds	%a3@+,%fp0
+	fdadds	%a2@-,%fp0
 	fdadds	%fp@(8),%fp0
+	fdadds	%pc@(.+0x1238),%fp0
+	fdaddw	%d5,%fp0
+	fdaddw	%a4@,%fp0
+	fdaddw	%a3@+,%fp0
+	fdaddw	%a2@-,%fp0
 	fdaddw	%fp@(8),%fp0
+	fdaddw	%pc@(.+0x1238),%fp0
+	fdaddd	%a4@,%fp0
+	fdaddd	%a3@+,%fp0
+	fdaddd	%a2@-,%fp0
 	fdaddd	%fp@(8),%fp0
+	fdaddd	%pc@(.+0x1238),%fp0
+	fdaddb	%d5,%fp0
+	fdaddb	%a4@,%fp0
+	fdaddb	%a3@+,%fp0
+	fdaddb	%a2@-,%fp0
 	fdaddb	%fp@(8),%fp0
+	fdaddb	%pc@(.+0x1238),%fp0
 	fmuld	%fp0,%fp0
+	fmull	%d5,%fp0
+	fmull	%a4@,%fp0
+	fmull	%a3@+,%fp0
+	fmull	%a2@-,%fp0
 	fmull	%fp@(8),%fp0
+	fmull	%pc@(.+0x1238),%fp0
+	fmuls	%d5,%fp0
+	fmuls	%a4@,%fp0
+	fmuls	%a3@+,%fp0
+	fmuls	%a2@-,%fp0
 	fmuls	%fp@(8),%fp0
+	fmuls	%pc@(.+0x1238),%fp0
+	fmulw	%d5,%fp0
+	fmulw	%a4@,%fp0
+	fmulw	%a3@+,%fp0
+	fmulw	%a2@-,%fp0
 	fmulw	%fp@(8),%fp0
+	fmulw	%pc@(.+0x1238),%fp0
+	fmuld	%a4@,%fp0
+	fmuld	%a3@+,%fp0
+	fmuld	%a2@-,%fp0
 	fmuld	%fp@(8),%fp0
+	fmuld	%pc@(.+0x1238),%fp0
+	fmulb	%d5,%fp0
+	fmulb	%a4@,%fp0
+	fmulb	%a3@+,%fp0
+	fmulb	%a2@-,%fp0
 	fmulb	%fp@(8),%fp0
+	fmulb	%pc@(.+0x1238),%fp0
 	fsmuld	%fp0,%fp0
+	fsmull	%d5,%fp0
+	fsmull	%a4@,%fp0
+	fsmull	%a3@+,%fp0
+	fsmull	%a2@-,%fp0
 	fsmull	%fp@(8),%fp0
+	fsmull	%pc@(.+0x1238),%fp0
+	fsmuls	%d5,%fp0
+	fsmuls	%a4@,%fp0
+	fsmuls	%a3@+,%fp0
+	fsmuls	%a2@-,%fp0
 	fsmuls	%fp@(8),%fp0
+	fsmuls	%pc@(.+0x1238),%fp0
+	fsmulw	%d5,%fp0
+	fsmulw	%a4@,%fp0
+	fsmulw	%a3@+,%fp0
+	fsmulw	%a2@-,%fp0
 	fsmulw	%fp@(8),%fp0
+	fsmulw	%pc@(.+0x1238),%fp0
+	fsmuld	%a4@,%fp0
+	fsmuld	%a3@+,%fp0
+	fsmuld	%a2@-,%fp0
 	fsmuld	%fp@(8),%fp0
+	fsmuld	%pc@(.+0x1238),%fp0
+	fsmulb	%d5,%fp0
+	fsmulb	%a4@,%fp0
+	fsmulb	%a3@+,%fp0
+	fsmulb	%a2@-,%fp0
 	fsmulb	%fp@(8),%fp0
+	fsmulb	%pc@(.+0x1238),%fp0
 	fdmuld	%fp0,%fp0
+	fdmull	%d5,%fp0
+	fdmull	%a4@,%fp0
+	fdmull	%a3@+,%fp0
+	fdmull	%a2@-,%fp0
 	fdmull	%fp@(8),%fp0
+	fdmull	%pc@(.+0x1238),%fp0
+	fdmuls	%d5,%fp0
+	fdmuls	%a4@,%fp0
+	fdmuls	%a3@+,%fp0
+	fdmuls	%a2@-,%fp0
 	fdmuls	%fp@(8),%fp0
+	fdmuls	%pc@(.+0x1238),%fp0
+	fdmulw	%d5,%fp0
+	fdmulw	%a4@,%fp0
+	fdmulw	%a3@+,%fp0
+	fdmulw	%a2@-,%fp0
 	fdmulw	%fp@(8),%fp0
+	fdmulw	%pc@(.+0x1238),%fp0
+	fdmuld	%a4@,%fp0
+	fdmuld	%a3@+,%fp0
+	fdmuld	%a2@-,%fp0
 	fdmuld	%fp@(8),%fp0
+	fdmuld	%pc@(.+0x1238),%fp0
+	fdmulb	%d5,%fp0
+	fdmulb	%a4@,%fp0
+	fdmulb	%a3@+,%fp0
+	fdmulb	%a2@-,%fp0
 	fdmulb	%fp@(8),%fp0
+	fdmulb	%pc@(.+0x1238),%fp0
 	fsubd	%fp0,%fp0
+	fsubl	%d5,%fp0
+	fsubl	%a4@,%fp0
+	fsubl	%a3@+,%fp0
+	fsubl	%a2@-,%fp0
 	fsubl	%fp@(8),%fp0
+	fsubl	%pc@(.+0x1238),%fp0
+	fsubs	%d5,%fp0
+	fsubs	%a4@,%fp0
+	fsubs	%a3@+,%fp0
+	fsubs	%a2@-,%fp0
 	fsubs	%fp@(8),%fp0
+	fsubs	%pc@(.+0x1238),%fp0
+	fsubw	%d5,%fp0
+	fsubw	%a4@,%fp0
+	fsubw	%a3@+,%fp0
+	fsubw	%a2@-,%fp0
 	fsubw	%fp@(8),%fp0
+	fsubw	%pc@(.+0x1238),%fp0
+	fsubd	%a4@,%fp0
+	fsubd	%a3@+,%fp0
+	fsubd	%a2@-,%fp0
 	fsubd	%fp@(8),%fp0
+	fsubd	%pc@(.+0x1238),%fp0
+	fsubb	%d5,%fp0
+	fsubb	%a4@,%fp0
+	fsubb	%a3@+,%fp0
+	fsubb	%a2@-,%fp0
 	fsubb	%fp@(8),%fp0
+	fsubb	%pc@(.+0x1238),%fp0
 	fssubd	%fp0,%fp0
+	fssubl	%d5,%fp0
+	fssubl	%a4@,%fp0
+	fssubl	%a3@+,%fp0
+	fssubl	%a2@-,%fp0
 	fssubl	%fp@(8),%fp0
+	fssubl	%pc@(.+0x1238),%fp0
+	fssubs	%d5,%fp0
+	fssubs	%a4@,%fp0
+	fssubs	%a3@+,%fp0
+	fssubs	%a2@-,%fp0
 	fssubs	%fp@(8),%fp0
+	fssubs	%pc@(.+0x1238),%fp0
+	fssubw	%d5,%fp0
+	fssubw	%a4@,%fp0
+	fssubw	%a3@+,%fp0
+	fssubw	%a2@-,%fp0
 	fssubw	%fp@(8),%fp0
+	fssubw	%pc@(.+0x1238),%fp0
+	fssubd	%a4@,%fp0
+	fssubd	%a3@+,%fp0
+	fssubd	%a2@-,%fp0
 	fssubd	%fp@(8),%fp0
+	fssubd	%pc@(.+0x1238),%fp0
+	fssubb	%d5,%fp0
+	fssubb	%a4@,%fp0
+	fssubb	%a3@+,%fp0
+	fssubb	%a2@-,%fp0
 	fssubb	%fp@(8),%fp0
+	fssubb	%pc@(.+0x1238),%fp0
 	fdsubd	%fp0,%fp0
+	fdsubl	%d5,%fp0
+	fdsubl	%a4@,%fp0
+	fdsubl	%a3@+,%fp0
+	fdsubl	%a2@-,%fp0
 	fdsubl	%fp@(8),%fp0
+	fdsubl	%pc@(.+0x1238),%fp0
+	fdsubs	%d5,%fp0
+	fdsubs	%a4@,%fp0
+	fdsubs	%a3@+,%fp0
+	fdsubs	%a2@-,%fp0
 	fdsubs	%fp@(8),%fp0
+	fdsubs	%pc@(.+0x1238),%fp0
+	fdsubw	%d5,%fp0
+	fdsubw	%a4@,%fp0
+	fdsubw	%a3@+,%fp0
+	fdsubw	%a2@-,%fp0
 	fdsubw	%fp@(8),%fp0
+	fdsubw	%pc@(.+0x1238),%fp0
+	fdsubd	%a4@,%fp0
+	fdsubd	%a3@+,%fp0
+	fdsubd	%a2@-,%fp0
 	fdsubd	%fp@(8),%fp0
+	fdsubd	%pc@(.+0x1238),%fp0
+	fdsubb	%d5,%fp0
+	fdsubb	%a4@,%fp0
+	fdsubb	%a3@+,%fp0
+	fdsubb	%a2@-,%fp0
 	fdsubb	%fp@(8),%fp0
+	fdsubb	%pc@(.+0x1238),%fp0
 	fmoved	%fp0,%fp0
+	fmovel	%d5,%fp0
+	fmovel	%a4@,%fp0
+	fmovel	%a3@+,%fp0
+	fmovel	%a2@-,%fp0
 	fmovel	%fp@(8),%fp0
+	fmovel	%pc@(.+0x1238),%fp0
+	fmoves	%d5,%fp0
+	fmoves	%a4@,%fp0
+	fmoves	%a3@+,%fp0
+	fmoves	%a2@-,%fp0
 	fmoves	%fp@(8),%fp0
+	fmoves	%pc@(.+0x1238),%fp0
+	fmovew	%d5,%fp0
+	fmovew	%a4@,%fp0
+	fmovew	%a3@+,%fp0
+	fmovew	%a2@-,%fp0
 	fmovew	%fp@(8),%fp0
+	fmovew	%pc@(.+0x1238),%fp0
+	fmoved	%a4@,%fp0
+	fmoved	%a3@+,%fp0
+	fmoved	%a2@-,%fp0
 	fmoved	%fp@(8),%fp0
+	fmoved	%pc@(.+0x1238),%fp0
+	fmoveb	%d5,%fp0
+	fmoveb	%a4@,%fp0
+	fmoveb	%a3@+,%fp0
+	fmoveb	%a2@-,%fp0
 	fmoveb	%fp@(8),%fp0
+	fmoveb	%pc@(.+0x1238),%fp0
 	fsmoved	%fp0,%fp0
+	fsmovel	%d5,%fp0
+	fsmovel	%a4@,%fp0
+	fsmovel	%a3@+,%fp0
+	fsmovel	%a2@-,%fp0
 	fsmovel	%fp@(8),%fp0
+	fsmovel	%pc@(.+0x1238),%fp0
+	fsmoves	%d5,%fp0
+	fsmoves	%a4@,%fp0
+	fsmoves	%a3@+,%fp0
+	fsmoves	%a2@-,%fp0
 	fsmoves	%fp@(8),%fp0
+	fsmoves	%pc@(.+0x1238),%fp0
+	fsmovew	%d5,%fp0
+	fsmovew	%a4@,%fp0
+	fsmovew	%a3@+,%fp0
+	fsmovew	%a2@-,%fp0
 	fsmovew	%fp@(8),%fp0
+	fsmovew	%pc@(.+0x1238),%fp0
+	fsmoved	%a4@,%fp0
+	fsmoved	%a3@+,%fp0
+	fsmoved	%a2@-,%fp0
 	fsmoved	%fp@(8),%fp0
+	fsmoved	%pc@(.+0x1238),%fp0
+	fsmoveb	%d5,%fp0
+	fsmoveb	%a4@,%fp0
+	fsmoveb	%a3@+,%fp0
+	fsmoveb	%a2@-,%fp0
 	fsmoveb	%fp@(8),%fp0
+	fsmoveb	%pc@(.+0x1238),%fp0
 	fdmoved	%fp0,%fp0
+	fdmovel	%d5,%fp0
+	fdmovel	%a4@,%fp0
+	fdmovel	%a3@+,%fp0
+	fdmovel	%a2@-,%fp0
 	fdmovel	%fp@(8),%fp0
+	fdmovel	%pc@(.+0x1238),%fp0
+	fdmoves	%d5,%fp0
+	fdmoves	%a4@,%fp0
+	fdmoves	%a3@+,%fp0
+	fdmoves	%a2@-,%fp0
 	fdmoves	%fp@(8),%fp0
+	fdmoves	%pc@(.+0x1238),%fp0
+	fdmovew	%d5,%fp0
+	fdmovew	%a4@,%fp0
+	fdmovew	%a3@+,%fp0
+	fdmovew	%a2@-,%fp0
 	fdmovew	%fp@(8),%fp0
+	fdmovew	%pc@(.+0x1238),%fp0
+	fdmoved	%a4@,%fp0
+	fdmoved	%a3@+,%fp0
+	fdmoved	%a2@-,%fp0
 	fdmoved	%fp@(8),%fp0
+	fdmoved	%pc@(.+0x1238),%fp0
+	fdmoveb	%d5,%fp0
+	fdmoveb	%a4@,%fp0
+	fdmoveb	%a3@+,%fp0
+	fdmoveb	%a2@-,%fp0
 	fdmoveb	%fp@(8),%fp0
+	fdmoveb	%pc@(.+0x1238),%fp0
 	fintd	%fp0,%fp0
+	fintl	%d5,%fp0
+	fintl	%a4@,%fp0
+	fintl	%a3@+,%fp0
+	fintl	%a2@-,%fp0
 	fintl	%fp@(8),%fp0
+	fintl	%pc@(.+0x1238),%fp0
+	fints	%d5,%fp0
+	fints	%a4@,%fp0
+	fints	%a3@+,%fp0
+	fints	%a2@-,%fp0
 	fints	%fp@(8),%fp0
+	fints	%pc@(.+0x1238),%fp0
+	fintw	%d5,%fp0
+	fintw	%a4@,%fp0
+	fintw	%a3@+,%fp0
+	fintw	%a2@-,%fp0
 	fintw	%fp@(8),%fp0
+	fintw	%pc@(.+0x1238),%fp0
+	fintd	%a4@,%fp0
+	fintd	%a3@+,%fp0
+	fintd	%a2@-,%fp0
 	fintd	%fp@(8),%fp0
+	fintd	%pc@(.+0x1238),%fp0
+	fintb	%d5,%fp0
+	fintb	%a4@,%fp0
+	fintb	%a3@+,%fp0
+	fintb	%a2@-,%fp0
 	fintb	%fp@(8),%fp0
+	fintb	%pc@(.+0x1238),%fp0
 	fintrzd	%fp0,%fp0
+	fintrzl	%d5,%fp0
+	fintrzl	%a4@,%fp0
+	fintrzl	%a3@+,%fp0
+	fintrzl	%a2@-,%fp0
 	fintrzl	%fp@(8),%fp0
+	fintrzl	%pc@(.+0x1238),%fp0
+	fintrzs	%d5,%fp0
+	fintrzs	%a4@,%fp0
+	fintrzs	%a3@+,%fp0
+	fintrzs	%a2@-,%fp0
 	fintrzs	%fp@(8),%fp0
+	fintrzs	%pc@(.+0x1238),%fp0
+	fintrzw	%d5,%fp0
+	fintrzw	%a4@,%fp0
+	fintrzw	%a3@+,%fp0
+	fintrzw	%a2@-,%fp0
 	fintrzw	%fp@(8),%fp0
+	fintrzw	%pc@(.+0x1238),%fp0
+	fintrzd	%a4@,%fp0
+	fintrzd	%a3@+,%fp0
+	fintrzd	%a2@-,%fp0
 	fintrzd	%fp@(8),%fp0
+	fintrzd	%pc@(.+0x1238),%fp0
+	fintrzb	%d5,%fp0
+	fintrzb	%a4@,%fp0
+	fintrzb	%a3@+,%fp0
+	fintrzb	%a2@-,%fp0
 	fintrzb	%fp@(8),%fp0
+	fintrzb	%pc@(.+0x1238),%fp0
 	fcmpd	%fp0,%fp0
+	fcmpl	%d5,%fp0
+	fcmpl	%a4@,%fp0
+	fcmpl	%a3@+,%fp0
+	fcmpl	%a2@-,%fp0
 	fcmpl	%fp@(8),%fp0
+	fcmpl	%pc@(.+0x1238),%fp0
+	fcmps	%d5,%fp0
+	fcmps	%a4@,%fp0
+	fcmps	%a3@+,%fp0
+	fcmps	%a2@-,%fp0
 	fcmps	%fp@(8),%fp0
+	fcmps	%pc@(.+0x1238),%fp0
+	fcmpw	%d5,%fp0
+	fcmpw	%a4@,%fp0
+	fcmpw	%a3@+,%fp0
+	fcmpw	%a2@-,%fp0
 	fcmpw	%fp@(8),%fp0
+	fcmpw	%pc@(.+0x1238),%fp0
+	fcmpd	%a4@,%fp0
+	fcmpd	%a3@+,%fp0
+	fcmpd	%a2@-,%fp0
 	fcmpd	%fp@(8),%fp0
+	fcmpd	%pc@(.+0x1238),%fp0
+	fcmpb	%d5,%fp0
+	fcmpb	%a4@,%fp0
+	fcmpb	%a3@+,%fp0
+	fcmpb	%a2@-,%fp0
 	fcmpb	%fp@(8),%fp0
+	fcmpb	%pc@(.+0x1238),%fp0
 	fmovemd	%fp0-%fp3/%fp6,%fp@(8)
 	fmovemd	%fp@(8),%fp5/%fp4/%fp2
 	fmovemd	#0x27,%fp@(8)

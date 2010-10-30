@@ -48,15 +48,17 @@ SECTIONS
     /* Cater to linking from ELF.  */
     ${CONSTRUCTING+ PROVIDE(___ctors = .);}
     ${CONSTRUCTING+ ___elf_ctors_dtors_begin = .;}
-    ${CONSTRUCTING+ KEEP (*crtbegin*.o(.ctors))}
-    ${CONSTRUCTING+ KEEP (*(EXCLUDE_FILE (*crtend*.o) .ctors))}
+    ${CONSTRUCTING+ KEEP (*crtbegin.o(.ctors))}
+    ${CONSTRUCTING+ KEEP (*crtbegin?.o(.ctors))}
+    ${CONSTRUCTING+ KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o) .ctors))}
     ${CONSTRUCTING+ KEEP (*(SORT(.ctors.*)))}
     ${CONSTRUCTING+ KEEP (*(.ctors))}
     ${CONSTRUCTING+ PROVIDE(___ctors_end = .);}
 
     ${CONSTRUCTING+ PROVIDE(___dtors = .);}
-    ${CONSTRUCTING+ KEEP (*crtbegin*.o(.dtors))}
-    ${CONSTRUCTING+ KEEP (*(EXCLUDE_FILE (*crtend*.o) .dtors))}
+    ${CONSTRUCTING+ KEEP (*crtbegin.o(.dtors))}
+    ${CONSTRUCTING+ KEEP (*crtbegin?.o(.dtors))}
+    ${CONSTRUCTING+ KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o) .dtors))}
     ${CONSTRUCTING+ KEEP (*(SORT(.dtors.*)))}
     ${CONSTRUCTING+ KEEP (*(.dtors))}
     ${CONSTRUCTING+ PROVIDE(___dtors_end = .);}

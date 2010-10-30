@@ -1,12 +1,12 @@
 #as:
 #objdump: -d
-#name: jmp cc
+#name: control register names
 
 .*: +file format coff-z8k
 
 Disassembly of section \.text:
 
-00000000 <\.text>:
+0*00000000 <\.text>:
    0:	7d02           	ldctl	r0,fcw
    2:	7d0a           	ldctl	fcw,r0
    4:	7d03           	ldctl	r0,refresh

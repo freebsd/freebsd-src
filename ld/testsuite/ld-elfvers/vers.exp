@@ -460,44 +460,33 @@ proc objdump_versionstuff { objdump object expectfile } {
 
 	# It's OK if there are extra lines in the actual output; they
 	# may come from version information in libc.  We require that
-	# every line in EXPECTFILE appear in the output in order.
+	# every line in EXPECTFILE appear in the output in any order.
 
-	set f1 [open $tmpdir/objdump.out r]
 	set f2 [open $expectfile r]
 	while { [gets $f2 l2] != -1 } {
 	    if { ![regexp "^#.*$" $l2] } then {
-		break
-	    }
-	} 
-	while { [gets $f1 l1] != -1 } {
-	    if { [string match $l2 $l1] } then {
-		if { [gets $f2 l2] == -1 } then {
+		set f1 [open $tmpdir/objdump.out r]
+		while { [gets $f1 l1] != -1 } {
+		    if { [string match $l2 $l1] } then {
+			break
+		    }
+		}
+		close $f1
+
+		if { ![string match $l2 $l1] } then {
+		    verbose -log "Did not find \"$l2\""
+		    set f1 [open $tmpdir/objdump.out r]
+		    while { [gets $f1 l1] != -1 } {
+			verbose -log $l1
+		    }
 		    close $f1
 		    close $f2
-		    return 1
+		    return 0
 		}
 	    }
 	}
-
-	# We reached the end of the output without seeing the line we
-	# expected.  This is a test failure.
-
-	close $f1
 	close $f2
-
-	# Support empty expected file.
-	if [string match "" $l2] then {
-	    return 1
-	}
-
-	verbose -log "Did not find \"$l2\""
-	set f1 [open $tmpdir/objdump.out r]
-	while { [gets $f1 l1] != -1 } {
-	    verbose -log $l1
-	}
-
-	verbose -log "$exec_output"
-	return 0
+	return 1
     } else {
 	verbose -log "$exec_output"
 	return 0

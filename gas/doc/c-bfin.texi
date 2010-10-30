@@ -97,9 +97,9 @@ The set of 32-bit registers (R0, R1, R2, R3, R4, R5, R6 and R7) that
 normally contain data for manipulation.  These are abbreviated as 
 D-register or Dreg.  Data registers can be accessed as 32-bit registers
 or as two independent 16-bit registers.  The least significant 16 bits
-of each register is called the "low" half and is desginated with ".L"
+of each register is called the "low" half and is designated with ".L"
 following the register name.  The most significant 16 bits are called
-the "high" half and is designated with ".H". following the name.
+the "high" half and is designated with ".H" following the name.
 
 @smallexample
    R7.L, r2.h, r4.L, R0.H

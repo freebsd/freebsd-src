@@ -1,0 +1,73 @@
+
+.*:     file format .*
+
+Disassembly of section \.plt:
+
+00080800 <_PROCEDURE_LINKAGE_TABLE_>:
+   80800:	d1 01       	mov\.l	80808 <_PROCEDURE_LINKAGE_TABLE_\+0x8>,r1	! 81408
+   80802:	61 12       	mov\.l	@r1,r1
+   80804:	41 2b       	jmp	@r1
+   80806:	00 09       	nop	
+   80808:	00 08 .*
+			80808: R_SH_DIR32	_GLOBAL_OFFSET_TABLE_\+0x8
+   8080a:	14 08 .*
+
+0008080c <_sglobal@plt>:
+   8080c:	d0 01       	mov\.l	80814 <_sglobal@plt\+0x8>,r0	! 8140c
+   8080e:	60 02       	mov\.l	@r0,r0
+   80810:	40 2b       	jmp	@r0
+   80812:	00 09       	nop	
+   80814:	00 08 .*
+			80814: R_SH_DIR32	_GLOBAL_OFFSET_TABLE_\+0xc
+   80816:	14 0c .*
+   80818:	d0 01       	mov\.l	80820 <_sglobal@plt\+0x14>,r0	! 0
+   8081a:	af f1       	bra	80800 <_PROCEDURE_LINKAGE_TABLE_>
+   8081c:	00 09       	nop	
+   8081e:	00 09       	nop	
+   80820:	00 00 .*
+	\.\.\.
+
+00080824 <_foo@plt>:
+   80824:	d0 01       	mov\.l	8082c <_foo@plt\+0x8>,r0	! 81410
+   80826:	60 02       	mov\.l	@r0,r0
+   80828:	40 2b       	jmp	@r0
+   8082a:	00 09       	nop	
+   8082c:	00 08 .*
+			8082c: R_SH_DIR32	_GLOBAL_OFFSET_TABLE_\+0x10
+   8082e:	14 10 .*
+   80830:	d0 01       	mov\.l	80838 <_foo@plt\+0x14>,r0	! c
+   80832:	af e5       	bra	80800 <_PROCEDURE_LINKAGE_TABLE_>
+   80834:	00 09       	nop	
+   80836:	00 09       	nop	
+   80838:	00 00 .*
+   8083a:	00 0c .*
+Disassembly of section \.text:
+
+00080c00 <__start>:
+   80c00:	4f 22       	sts\.l	pr,@-r15
+   80c02:	d0 06       	mov\.l	80c1c <__start\+0x1c>,r0	! 80824 <_foo@plt>
+   80c04:	40 0b       	jsr	@r0
+   80c06:	00 09       	nop	
+   80c08:	d0 05       	mov\.l	80c20 <__start\+0x20>,r0	! 8080c <_sglobal@plt>
+   80c0a:	40 0b       	jsr	@r0
+   80c0c:	00 09       	nop	
+   80c0e:	d0 05       	mov\.l	80c24 <__start\+0x24>,r0	! 80c28 <_sexternal>
+   80c10:	40 0b       	jsr	@r0
+   80c12:	00 09       	nop	
+   80c14:	4f 26       	lds\.l	@r15\+,pr
+   80c16:	00 0b       	rts	
+   80c18:	00 09       	nop	
+   80c1a:	00 09       	nop	
+   80c1c:	00 08 .*
+			80c1c: R_SH_DIR32	\.plt\+0x24
+   80c1e:	08 24 .*
+   80c20:	00 08 .*
+			80c20: R_SH_DIR32	\.plt\+0xc
+   80c22:	08 0c .*
+   80c24:	00 08 .*
+			80c24: R_SH_DIR32	_sexternal
+   80c26:	0c 28 .*
+
+00080c28 <_sexternal>:
+   80c28:	00 0b       	rts	
+   80c2a:	00 09       	nop	

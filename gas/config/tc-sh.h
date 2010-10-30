@@ -1,6 +1,6 @@
 /* This file is tc-sh.h
    Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004, 2005 Free Software Foundation, Inc.
+   2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -44,6 +44,14 @@ extern int sh_small;
 #define md_cons_align(nbytes) sh_cons_align (nbytes)
 extern void sh_cons_align (int);
 
+/* We need to optimize expr with taking account of rs_align_test
+   frags.  */
+
+#ifdef OBJ_ELF
+#define md_optimize_expr(l,o,r) sh_optimize_expr (l, o, r)
+extern int sh_optimize_expr (expressionS *, operatorT, expressionS *);
+#endif
+
 /* When relaxing, we need to generate relocations for alignment
    directives.  */
 #define HANDLE_ALIGN(frag) sh_handle_align (frag)
@@ -80,6 +88,11 @@ extern int sh_force_relocation (struct fix *);
 
 #define MD_PCREL_FROM_SECTION(FIX, SEC) md_pcrel_from_section (FIX, SEC)
 extern long md_pcrel_from_section (struct fix *, segT);
+
+/* SH_COUNT relocs are allowed outside of frag.
+   The target is also buggy and sets fix size too large for other relocs.  */
+#define TC_FX_SIZE_SLACK(FIX) \
+  ((FIX)->fx_r_type == BFD_RELOC_SH_COUNT ? -1 : 2)
 
 #define IGNORE_NONSTANDARD_ESCAPES
 
@@ -149,6 +162,8 @@ extern int target_big_endian;
 #define TARGET_FORMAT (!target_big_endian ? "elf32-shl-nbsd" : "elf32-sh-nbsd")
 #elif defined TARGET_SYMBIAN
 #define TARGET_FORMAT (!target_big_endian ? "elf32-shl-symbian" : "elf32-sh-symbian")
+#elif defined (TE_VXWORKS)
+#define TARGET_FORMAT (!target_big_endian ? "elf32-shl-vxworks" : "elf32-sh-vxworks")
 #else
 #define TARGET_FORMAT (!target_big_endian ? "elf32-shl" : "elf32-sh")
 #endif
@@ -187,7 +202,6 @@ extern bfd_boolean sh_fix_adjustable (struct fix *);
 
 #define TC_FORCE_RELOCATION_LOCAL(FIX)			\
   (!(FIX)->fx_pcrel					\
-   || (FIX)->fx_plt					\
    || (FIX)->fx_r_type == BFD_RELOC_32_PLT_PCREL	\
    || (FIX)->fx_r_type == BFD_RELOC_32_GOT_PCREL	\
    || (FIX)->fx_r_type == BFD_RELOC_SH_GOTPC		\
@@ -225,11 +239,11 @@ void sh_cons_fix_new (fragS *, int, int, expressionS *);
 extern void sh_cfi_frame_initial_instructions (void);
 
 #define tc_regname_to_dw2regnum sh_regname_to_dw2regnum
-extern int sh_regname_to_dw2regnum (const char *regname);
+extern int sh_regname_to_dw2regnum (char *regname);
 
 /* All SH instructions are multiples of 16 bits.  */
 #define DWARF2_LINE_MIN_INSN_LENGTH 2
 #define DWARF2_DEFAULT_RETURN_COLUMN 17
-#define DWARF2_CIE_DATA_ALIGNMENT -4
+#define DWARF2_CIE_DATA_ALIGNMENT (-4)
 
 #endif /* OBJ_ELF */

@@ -1,6 +1,6 @@
 /* ELF support for BFD.
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006
+   2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
@@ -118,6 +118,7 @@
 #define EM_PPC		 20	/* PowerPC */
 #define EM_PPC64	 21	/* 64-bit PowerPC */
 #define EM_S390		 22	/* IBM S/390 */
+#define EM_SPU		 23	/* Sony/Toshiba/IBM SPU */
 
 #define EM_V800		 36	/* NEC V800 series */
 #define EM_FR20		 37	/* Fujitsu FR20 */
@@ -185,6 +186,8 @@
 #define EM_BLACKFIN	106	/* ADI Blackfin */
 #define EM_ALTERA_NIOS2	113	/* Altera Nios II soft-core processor */
 #define EM_CRX		114	/* National Semiconductor CRX */
+#define EM_CR16		115	/* National Semiconductor CompactRISC - CR16 */
+#define EM_SCORE        135     /* Sunplus Score */ 
 
 /* If it is necessary to assign new unofficial EM_* values, please pick large
    random numbers (0x8523, 0xa7f2, etc.) to minimize the chances of collision
@@ -278,6 +281,8 @@
 /* NIOS magic number - no EABI available.  */
 #define EM_NIOS32		0xFEBB
 
+#define EM_CYGNUS_MEP		0xF00D  /* Toshiba MeP */
+
 /* See the above comment before you add a new EM_* value here.  */
 
 /* Values for e_version.  */
@@ -338,6 +343,8 @@
 #define SHT_LOOS	0x60000000	/* First of OS specific semantics */
 #define SHT_HIOS	0x6fffffff	/* Last of OS specific semantics */
 
+#define SHT_GNU_ATTRIBUTES 0x6ffffff5	/* Object attributes */
+#define SHT_GNU_HASH	0x6ffffff6	/* GNU style symbol hash table */
 #define SHT_GNU_LIBLIST	0x6ffffff7	/* List of prelink dependencies */
 
 /* The next three section types are defined by Solaris, and are named
@@ -445,7 +452,7 @@
 #define ELF64_ST_INFO  ELF_ST_INFO
 
 /* This macro disassembles and assembles a symbol's visibility into
-   the st_other field.  The STV_ defines specificy the actual visibility.  */
+   the st_other field.  The STV_ defines specify the actual visibility.  */
 
 #define ELF_ST_VISIBILITY(v)		((v) & 0x3)
 /* The remaining bits in the st_other field are not currently used.
@@ -472,6 +479,8 @@
 #define STT_FILE	4		/* Symbol gives a file name */
 #define STT_COMMON	5		/* An uninitialised common block */
 #define STT_TLS		6		/* Thread local data object */
+#define STT_RELC        8               /* Complex relocation expression */
+#define STT_SRELC       9               /* Signed Complex relocation expression */
 #define STT_LOOS	10		/* OS-specific semantics */
 #define STT_HIOS	12		/* OS-specific semantics */
 #define STT_LOPROC	13		/* Application-specific semantics */
@@ -543,7 +552,7 @@
 #define DT_FINI_ARRAYSZ 28
 #define DT_RUNPATH	29
 #define DT_FLAGS	30
-#define DT_ENCODING	31
+#define DT_ENCODING	32
 #define DT_PREINIT_ARRAY   32
 #define DT_PREINIT_ARRAYSZ 33
 
@@ -577,6 +586,7 @@
 #define DT_VALRNGHI	0x6ffffdff
 
 #define DT_ADDRRNGLO	0x6ffffe00
+#define DT_GNU_HASH	0x6ffffef5
 #define DT_TLSDESC_PLT	0x6ffffef6
 #define DT_TLSDESC_GOT	0x6ffffef7
 #define DT_GNU_CONFLICT	0x6ffffef8

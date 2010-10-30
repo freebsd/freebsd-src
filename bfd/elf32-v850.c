@@ -1,6 +1,6 @@
 /* V850-specific support for 32-bit ELF
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005
-   Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
+   2006, 2007 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -22,8 +22,8 @@
 /* XXX FIXME: This code is littered with 32bit int, 16bit short, 8bit char
    dependencies.  As is the gas & simulator code for the v850.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "bfdlink.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
@@ -32,6 +32,8 @@
 
 /* Sign-extend a 24-bit number.  */
 #define SEXT24(x)	((((x) & 0xffffff) ^ 0x800000) - 0x800000)
+
+static reloc_howto_type v850_elf_howto_table[];
 
 /* Look through the relocs for a section during the first phase, and
    allocate space in the global offset table or procedure linkage
@@ -1337,6 +1339,22 @@ v850_elf_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
 
   return NULL;
 }
+
+static reloc_howto_type *
+v850_elf_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			    const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (v850_elf_howto_table) / sizeof (v850_elf_howto_table[0]);
+       i++)
+    if (v850_elf_howto_table[i].name != NULL
+	&& strcasecmp (v850_elf_howto_table[i].name, r_name) == 0)
+      return &v850_elf_howto_table[i];
+
+  return NULL;
+}
 
 /* Set the howto pointer for an V850 ELF reloc.  */
 
@@ -1565,9 +1583,6 @@ v850_elf_relocate_section (bfd *output_bfd,
   Elf_Internal_Rela *rel;
   Elf_Internal_Rela *relend;
 
-  if (info->relocatable)
-    return TRUE;
-
   symtab_hdr = & elf_tdata (input_bfd)->symtab_hdr;
   sym_hashes = elf_sym_hashes (input_bfd);
 
@@ -1596,7 +1611,6 @@ v850_elf_relocate_section (bfd *output_bfd,
           || r_type == R_V850_GNU_VTINHERIT)
         continue;
 
-      /* This is a final link.  */
       howto = v850_elf_howto_table + r_type;
       h = NULL;
       sym = NULL;
@@ -1628,6 +1642,20 @@ v850_elf_relocate_section (bfd *output_bfd,
 				   h, sec, relocation,
 				   unresolved_reloc, warned);
 	}
+
+      if (sec != NULL && elf_discarded_section (sec))
+	{
+	  /* For relocs against symbols from removed linkonce sections,
+	     or sections discarded by a linker script, we just want the
+	     section contents zeroed.  Avoid any special processing.  */
+	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
+	  rel->r_info = 0;
+	  rel->r_addend = 0;
+	  continue;
+	}
+
+      if (info->relocatable)
+	continue;
 
       /* FIXME: We should use the addend, but the COFF relocations don't.  */
       r = v850_elf_final_link_relocate (howto, input_bfd, output_bfd,
@@ -1709,50 +1737,22 @@ v850_elf_relocate_section (bfd *output_bfd,
   return TRUE;
 }
 
-static bfd_boolean
-v850_elf_gc_sweep_hook (bfd *abfd ATTRIBUTE_UNUSED,
-			struct bfd_link_info *info ATTRIBUTE_UNUSED,
-			asection *sec ATTRIBUTE_UNUSED,
-			const Elf_Internal_Rela *relocs ATTRIBUTE_UNUSED)
-{
-  /* No got and plt entries for v850-elf.  */
-  return TRUE;
-}
-
 static asection *
 v850_elf_gc_mark_hook (asection *sec,
-		       struct bfd_link_info *info ATTRIBUTE_UNUSED,
+		       struct bfd_link_info *info,
 		       Elf_Internal_Rela *rel,
 		       struct elf_link_hash_entry *h,
 		       Elf_Internal_Sym *sym)
 {
   if (h != NULL)
-    {
-      switch (ELF32_R_TYPE (rel->r_info))
+    switch (ELF32_R_TYPE (rel->r_info))
       {
       case R_V850_GNU_VTINHERIT:
       case R_V850_GNU_VTENTRY:
-        break;
+	return NULL;
+      }
 
-      default:
-        switch (h->root.type)
-          {
-          case bfd_link_hash_defined:
-          case bfd_link_hash_defweak:
-            return h->root.u.def.section;
-
-          case bfd_link_hash_common:
-            return h->root.u.c.p->section;
-
-	  default:
-	    break;
-          }
-       }
-     }
-   else
-     return bfd_section_from_elf_index (sec->owner, sym->st_shndx);
-
-  return NULL;
+  return _bfd_elf_gc_mark_hook (sec, info, rel, h, sym);
 }
 
 /* Set the right machine number.  */
@@ -2114,6 +2114,12 @@ v850_elf_link_output_symbol_hook (struct bfd_link_info *info ATTRIBUTE_UNUSED,
       else if (strcmp (input_sec->name, ".zcommon") == 0)
 	sym->st_shndx = SHN_V850_ZCOMMON;
     }
+
+  /* The price we pay for using h->other unused bits as flags in the
+     linker is cleaning up after ourselves.  */
+
+  sym->st_other &= ~(V850_OTHER_SDA | V850_OTHER_ZDA | V850_OTHER_TDA
+		     | V850_OTHER_ERROR);
 
   return TRUE;
 }
@@ -3026,33 +3032,32 @@ v850_elf_relax_section (bfd *abfd,
 
 static const struct bfd_elf_special_section v850_elf_special_sections[] =
 {
-  { ".call_table_data", 16,  0, SHT_PROGBITS,     (SHF_ALLOC
-                                                   + SHF_WRITE) },
-  { ".call_table_text", 16,  0, SHT_PROGBITS,     (SHF_ALLOC + SHF_WRITE
-                                                   + SHF_EXECINSTR) },
-  { ".rosdata",          8, -2, SHT_PROGBITS,     (SHF_ALLOC
-                                                   + SHF_V850_GPREL) },
-  { ".rozdata",          8, -2, SHT_PROGBITS,     (SHF_ALLOC
-                                                   + SHF_V850_R0REL) },
-  { ".sbss",             5, -2, SHT_NOBITS,       (SHF_ALLOC + SHF_WRITE
-                                                   + SHF_V850_GPREL) },
-  { ".scommon",          8, -2, SHT_V850_SCOMMON, (SHF_ALLOC + SHF_WRITE
-                                                   + SHF_V850_GPREL) },
-  { ".sdata",            6, -2, SHT_PROGBITS,     (SHF_ALLOC + SHF_WRITE
-                                                   + SHF_V850_GPREL) },
-  { ".tbss",             5, -2, SHT_NOBITS,       (SHF_ALLOC + SHF_WRITE
-                                                   + SHF_V850_EPREL) },
-  { ".tcommon",          8, -2, SHT_V850_TCOMMON, (SHF_ALLOC + SHF_WRITE
-                                                   + SHF_V850_R0REL) },
-  { ".tdata",            6, -2, SHT_PROGBITS,     (SHF_ALLOC + SHF_WRITE
-                                                   + SHF_V850_EPREL) },
-  { ".zbss",             5, -2, SHT_NOBITS,       (SHF_ALLOC + SHF_WRITE
-                                                   + SHF_V850_R0REL) },
-  { ".zcommon",          8, -2, SHT_V850_ZCOMMON, (SHF_ALLOC + SHF_WRITE
-                                                   + SHF_V850_R0REL) },
-  { ".zdata",            6, -2, SHT_PROGBITS,     (SHF_ALLOC + SHF_WRITE
-                                                   + SHF_V850_R0REL) },
-  { NULL,        0, 0, 0,            0 }
+  { STRING_COMMA_LEN (".call_table_data"), 0, SHT_PROGBITS,     (SHF_ALLOC + SHF_WRITE) },
+  { STRING_COMMA_LEN (".call_table_text"), 0, SHT_PROGBITS,     (SHF_ALLOC + SHF_WRITE
+								 + SHF_EXECINSTR) },
+  { STRING_COMMA_LEN (".rosdata"),        -2, SHT_PROGBITS,     (SHF_ALLOC
+								 + SHF_V850_GPREL) },
+  { STRING_COMMA_LEN (".rozdata"),        -2, SHT_PROGBITS,     (SHF_ALLOC
+								 + SHF_V850_R0REL) },
+  { STRING_COMMA_LEN (".sbss"),           -2, SHT_NOBITS,       (SHF_ALLOC + SHF_WRITE
+								 + SHF_V850_GPREL) },
+  { STRING_COMMA_LEN (".scommon"),        -2, SHT_V850_SCOMMON, (SHF_ALLOC + SHF_WRITE
+								 + SHF_V850_GPREL) },
+  { STRING_COMMA_LEN (".sdata"),          -2, SHT_PROGBITS,     (SHF_ALLOC + SHF_WRITE
+								 + SHF_V850_GPREL) },
+  { STRING_COMMA_LEN (".tbss"),           -2, SHT_NOBITS,       (SHF_ALLOC + SHF_WRITE
+								 + SHF_V850_EPREL) },
+  { STRING_COMMA_LEN (".tcommon"),        -2, SHT_V850_TCOMMON, (SHF_ALLOC + SHF_WRITE
+								 + SHF_V850_R0REL) },
+  { STRING_COMMA_LEN (".tdata"),          -2, SHT_PROGBITS,     (SHF_ALLOC + SHF_WRITE
+								 + SHF_V850_EPREL) },
+  { STRING_COMMA_LEN (".zbss"),           -2, SHT_NOBITS,       (SHF_ALLOC + SHF_WRITE
+								 + SHF_V850_R0REL) },
+  { STRING_COMMA_LEN (".zcommon"),        -2, SHT_V850_ZCOMMON, (SHF_ALLOC + SHF_WRITE
+								 + SHF_V850_R0REL) },
+  { STRING_COMMA_LEN (".zdata"),          -2, SHT_PROGBITS,     (SHF_ALLOC + SHF_WRITE
+								 + SHF_V850_R0REL) },
+  { NULL,                     0,           0, 0,                0 }
 };
 
 #define TARGET_LITTLE_SYM			bfd_elf32_v850_vec
@@ -3077,7 +3082,6 @@ static const struct bfd_elf_special_section v850_elf_special_sections[] =
 #define elf_backend_section_from_shdr		v850_elf_section_from_shdr
 #define elf_backend_fake_sections		v850_elf_fake_sections
 #define elf_backend_gc_mark_hook                v850_elf_gc_mark_hook
-#define elf_backend_gc_sweep_hook               v850_elf_gc_sweep_hook
 #define elf_backend_special_sections		v850_elf_special_sections
 
 #define elf_backend_can_gc_sections 1
@@ -3085,6 +3089,7 @@ static const struct bfd_elf_special_section v850_elf_special_sections[] =
 
 #define bfd_elf32_bfd_is_local_label_name	v850_elf_is_local_label_name
 #define bfd_elf32_bfd_reloc_type_lookup		v850_elf_reloc_type_lookup
+#define bfd_elf32_bfd_reloc_name_lookup	v850_elf_reloc_name_lookup
 #define bfd_elf32_bfd_merge_private_bfd_data 	v850_elf_merge_private_bfd_data
 #define bfd_elf32_bfd_set_private_flags		v850_elf_set_private_flags
 #define bfd_elf32_bfd_print_private_bfd_data	v850_elf_print_private_bfd_data

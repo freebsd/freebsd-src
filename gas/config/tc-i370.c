@@ -27,7 +27,6 @@
    similarities between HLASM and the MRI assemblers, such as section
    names, lack of leading . in pseudo-ops, DC and DS, etc.  */
 
-#include <stdio.h>
 #include "as.h"
 #include "safe-ctype.h"
 #include "subsegs.h"

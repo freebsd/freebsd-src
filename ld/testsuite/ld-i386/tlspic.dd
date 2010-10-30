@@ -22,7 +22,7 @@ Disassembly of section .text:
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
 #  GD
- [0-9a-f]+:	8d 04 1d d4 ff ff ff[ 	]+lea    0xffffffd4\(,%ebx,1\),%eax
+ [0-9a-f]+:	8d 04 1d d4 ff ff ff[ 	]+lea    -0x2c\(,%ebx,1\),%eax
 #				->R_386_TLS_DTPMOD32	sg1
  [0-9a-f]+:	e8 cf ff ff ff[ 	]+call   [0-9a-f]+ <___tls_get_addr@plt>
 #				->R_386_JUMP_SLOT	___tls_get_addr
@@ -32,7 +32,7 @@ Disassembly of section .text:
  [0-9a-f]+:	90[ 	]+nop *
 #  GD -> IE because variable is referenced through @gottpoff too
  [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
- [0-9a-f]+:	2b 83 f0 ff ff ff[ 	]+sub    0xfffffff0\(%ebx\),%eax
+ [0-9a-f]+:	2b 83 f0 ff ff ff[ 	]+sub    -0x10\(%ebx\),%eax
 #				->R_386_TLS_TPOFF32	sg2
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -40,7 +40,7 @@ Disassembly of section .text:
  [0-9a-f]+:	90[ 	]+nop *
 #  GD -> IE because variable is referenced through @gotntpoff too
  [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
- [0-9a-f]+:	03 83 b4 ff ff ff[ 	]+add    0xffffffb4\(%ebx\),%eax
+ [0-9a-f]+:	03 83 b4 ff ff ff[ 	]+add    -0x4c\(%ebx\),%eax
 #				->R_386_TLS_TPOFF	sg3
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -48,14 +48,14 @@ Disassembly of section .text:
  [0-9a-f]+:	90[ 	]+nop *
 #  GD -> IE because variable is referenced through @gottpoff and
  [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
- [0-9a-f]+:	2b 83 c0 ff ff ff[ 	]+sub    0xffffffc0\(%ebx\),%eax
+ [0-9a-f]+:	2b 83 c0 ff ff ff[ 	]+sub    -0x40\(%ebx\),%eax
 #				->R_386_TLS_TPOFF32	sg4
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
 #  GD against local variable
- [0-9a-f]+:	8d 04 1d 88 ff ff ff[ 	]+lea    0xffffff88\(,%ebx,1\),%eax
+ [0-9a-f]+:	8d 04 1d 88 ff ff ff[ 	]+lea    -0x78\(,%ebx,1\),%eax
 #				->R_386_TLS_DTPMOD32	[0x00000000 0x20000000]
  [0-9a-f]+:	e8 8f ff ff ff[ 	]+call   [0-9a-f]+ <___tls_get_addr@plt>
 #				->R_386_JUMP_SLOT	___tls_get_addr
@@ -65,7 +65,7 @@ Disassembly of section .text:
  [0-9a-f]+:	90[ 	]+nop *
 #  GD -> IE against local variable referenced through @gottpoff too
  [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
- [0-9a-f]+:	2b 83 90 ff ff ff[ 	]+sub    0xffffff90\(%ebx\),%eax
+ [0-9a-f]+:	2b 83 90 ff ff ff[ 	]+sub    -0x70\(%ebx\),%eax
 #				->R_386_TLS_TPOFF32	[0xdcffffff]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -73,7 +73,7 @@ Disassembly of section .text:
  [0-9a-f]+:	90[ 	]+nop *
 #  GD -> IE against local variable referenced through @gotntpoff
  [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
- [0-9a-f]+:	03 83 94 ff ff ff[ 	]+add    0xffffff94\(%ebx\),%eax
+ [0-9a-f]+:	03 83 94 ff ff ff[ 	]+add    -0x6c\(%ebx\),%eax
 #				->R_386_TLS_TPOFF	[0x28000000]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -81,14 +81,14 @@ Disassembly of section .text:
  [0-9a-f]+:	90[ 	]+nop *
 #  GD -> IE against local variable referenced through @gottpoff and
  [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
- [0-9a-f]+:	2b 83 98 ff ff ff[ 	]+sub    0xffffff98\(%ebx\),%eax
+ [0-9a-f]+:	2b 83 98 ff ff ff[ 	]+sub    -0x68\(%ebx\),%eax
 #				->R_386_TLS_TPOFF32	[0xd4ffffff]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
 #  GD against hidden and local variable
- [0-9a-f]+:	8d 04 1d f4 ff ff ff[ 	]+lea    0xfffffff4\(,%ebx,1\),%eax
+ [0-9a-f]+:	8d 04 1d f4 ff ff ff[ 	]+lea    -0xc\(,%ebx,1\),%eax
 #				->R_386_TLS_DTPMOD32	[0x00000000 0x40000000]
  [0-9a-f]+:	e8 4f ff ff ff[ 	]+call   [0-9a-f]+ <___tls_get_addr@plt>
 #				->R_386_JUMP_SLOT	___tls_get_addr
@@ -98,7 +98,7 @@ Disassembly of section .text:
  [0-9a-f]+:	90[ 	]+nop *
 #  GD -> IE against hidden and local variable referenced through @gottpoff too
  [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
- [0-9a-f]+:	2b 83 fc ff ff ff[ 	]+sub    0xfffffffc\(%ebx\),%eax
+ [0-9a-f]+:	2b 83 fc ff ff ff[ 	]+sub    -0x4\(%ebx\),%eax
 #				->R_386_TLS_TPOFF32	[0xbcffffff]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -106,7 +106,7 @@ Disassembly of section .text:
  [0-9a-f]+:	90[ 	]+nop *
 #  GD -> IE against hidden and local variable referenced through @gotntpoff too
  [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
- [0-9a-f]+:	03 83 b8 ff ff ff[ 	]+add    0xffffffb8\(%ebx\),%eax
+ [0-9a-f]+:	03 83 b8 ff ff ff[ 	]+add    -0x48\(%ebx\),%eax
 #				->R_386_TLS_TPOFF	[0x48000000]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -114,14 +114,14 @@ Disassembly of section .text:
  [0-9a-f]+:	90[ 	]+nop *
 #  GD -> IE against hidden and local variable referenced through @gottpoff and @gotntpoff too
  [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
- [0-9a-f]+:	2b 83 dc ff ff ff[ 	]+sub    0xffffffdc\(%ebx\),%eax
+ [0-9a-f]+:	2b 83 dc ff ff ff[ 	]+sub    -0x24\(%ebx\),%eax
 #				->R_386_TLS_TPOFF32	[0xb4ffffff]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
 #  GD against hidden but not local variable
- [0-9a-f]+:	8d 04 1d ac ff ff ff[ 	]+lea    0xffffffac\(,%ebx,1\),%eax
+ [0-9a-f]+:	8d 04 1d ac ff ff ff[ 	]+lea    -0x54\(,%ebx,1\),%eax
 #				->R_386_TLS_DTPMOD32	[0x00000000 0x60000000]
  [0-9a-f]+:	e8 0f ff ff ff[ 	]+call   [0-9a-f]+ <___tls_get_addr@plt>
 #				->R_386_JUMP_SLOT	___tls_get_addr
@@ -131,7 +131,7 @@ Disassembly of section .text:
  [0-9a-f]+:	90[ 	]+nop *
 #  GD -> IE against hidden but not local variable referenced through
  [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
- [0-9a-f]+:	2b 83 bc ff ff ff[ 	]+sub    0xffffffbc\(%ebx\),%eax
+ [0-9a-f]+:	2b 83 bc ff ff ff[ 	]+sub    -0x44\(%ebx\),%eax
 #				->R_386_TLS_TPOFF32	[0x9cffffff]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -139,7 +139,7 @@ Disassembly of section .text:
  [0-9a-f]+:	90[ 	]+nop *
 #  GD -> IE against hidden but not local variable referenced through
  [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
- [0-9a-f]+:	03 83 e4 ff ff ff[ 	]+add    0xffffffe4\(%ebx\),%eax
+ [0-9a-f]+:	03 83 e4 ff ff ff[ 	]+add    -0x1c\(%ebx\),%eax
 #				->R_386_TLS_TPOFF	[0x68000000]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -147,14 +147,14 @@ Disassembly of section .text:
  [0-9a-f]+:	90[ 	]+nop *
 #  GD -> IE against hidden but not local variable referenced through
  [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
- [0-9a-f]+:	2b 83 cc ff ff ff[ 	]+sub    0xffffffcc\(%ebx\),%eax
+ [0-9a-f]+:	2b 83 cc ff ff ff[ 	]+sub    -0x34\(%ebx\),%eax
 #				->R_386_TLS_TPOFF32	[0x94ffffff]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
 #  LD
- [0-9a-f]+:	8d 83 a4 ff ff ff[ 	]+lea    0xffffffa4\(%ebx\),%eax
+ [0-9a-f]+:	8d 83 a4 ff ff ff[ 	]+lea    -0x5c\(%ebx\),%eax
 #				->R_386_TLS_DTPMOD32	[0x00000000 0x00000000]
  [0-9a-f]+:	e8 d0 fe ff ff[ 	]+call   [0-9a-f]+ <___tls_get_addr@plt>
 #				->R_386_JUMP_SLOT	___tls_get_addr
@@ -171,7 +171,7 @@ Disassembly of section .text:
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
 #  LD against hidden and local variables
- [0-9a-f]+:	8d 83 a4 ff ff ff[ 	]+lea    0xffffffa4\(%ebx\),%eax
+ [0-9a-f]+:	8d 83 a4 ff ff ff[ 	]+lea    -0x5c\(%ebx\),%eax
 #				->R_386_TLS_DTPMOD32	[0x00000000 0x00000000]
  [0-9a-f]+:	e8 b1 fe ff ff[ 	]+call   [0-9a-f]+ <___tls_get_addr@plt>
 #				->R_386_JUMP_SLOT	___tls_get_addr
@@ -188,7 +188,7 @@ Disassembly of section .text:
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
 #  LD against hidden but not local variables
- [0-9a-f]+:	8d 83 a4 ff ff ff[ 	]+lea    0xffffffa4\(%ebx\),%eax
+ [0-9a-f]+:	8d 83 a4 ff ff ff[ 	]+lea    -0x5c\(%ebx\),%eax
 #				->R_386_TLS_DTPMOD32	[0x00000000 0x00000000]
  [0-9a-f]+:	e8 92 fe ff ff[ 	]+call   [0-9a-f]+ <___tls_get_addr@plt>
 #				->R_386_JUMP_SLOT	___tls_get_addr
@@ -206,7 +206,7 @@ Disassembly of section .text:
  [0-9a-f]+:	65 8b 0d 00 00 00 00[ 	]+mov    %gs:0x0,%ecx
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
- [0-9a-f]+:	2b 8b f0 ff ff ff[ 	]+sub    0xfffffff0\(%ebx\),%ecx
+ [0-9a-f]+:	2b 8b f0 ff ff ff[ 	]+sub    -0x10\(%ebx\),%ecx
 #				->R_386_TLS_TPOFF32	sg2
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -216,7 +216,7 @@ Disassembly of section .text:
  [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
- [0-9a-f]+:	2b 83 c0 ff ff ff[ 	]+sub    0xffffffc0\(%ebx\),%eax
+ [0-9a-f]+:	2b 83 c0 ff ff ff[ 	]+sub    -0x40\(%ebx\),%eax
 #				->R_386_TLS_TPOFF32	sg4
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -226,7 +226,7 @@ Disassembly of section .text:
  [0-9a-f]+:	65 8b 0d 00 00 00 00[ 	]+mov    %gs:0x0,%ecx
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
- [0-9a-f]+:	03 8b b4 ff ff ff[ 	]+add    0xffffffb4\(%ebx\),%ecx
+ [0-9a-f]+:	03 8b b4 ff ff ff[ 	]+add    -0x4c\(%ebx\),%ecx
 #				->R_386_TLS_TPOFF	sg3
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -236,7 +236,7 @@ Disassembly of section .text:
  [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
- [0-9a-f]+:	03 83 c4 ff ff ff[ 	]+add    0xffffffc4\(%ebx\),%eax
+ [0-9a-f]+:	03 83 c4 ff ff ff[ 	]+add    -0x3c\(%ebx\),%eax
 #				->R_386_TLS_TPOFF	sg4
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -246,7 +246,7 @@ Disassembly of section .text:
  [0-9a-f]+:	65 8b 0d 00 00 00 00[ 	]+mov    %gs:0x0,%ecx
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
- [0-9a-f]+:	2b 8b 90 ff ff ff[ 	]+sub    0xffffff90\(%ebx\),%ecx
+ [0-9a-f]+:	2b 8b 90 ff ff ff[ 	]+sub    -0x70\(%ebx\),%ecx
 #				->R_386_TLS_TPOFF32	[0xdcffffff]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -256,7 +256,7 @@ Disassembly of section .text:
  [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
- [0-9a-f]+:	2b 83 98 ff ff ff[ 	]+sub    0xffffff98\(%ebx\),%eax
+ [0-9a-f]+:	2b 83 98 ff ff ff[ 	]+sub    -0x68\(%ebx\),%eax
 #				->R_386_TLS_TPOFF32	[0xd4ffffff]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -266,7 +266,7 @@ Disassembly of section .text:
  [0-9a-f]+:	65 8b 0d 00 00 00 00[ 	]+mov    %gs:0x0,%ecx
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
- [0-9a-f]+:	03 8b 94 ff ff ff[ 	]+add    0xffffff94\(%ebx\),%ecx
+ [0-9a-f]+:	03 8b 94 ff ff ff[ 	]+add    -0x6c\(%ebx\),%ecx
 #				->R_386_TLS_TPOFF	[0x28000000]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -276,7 +276,7 @@ Disassembly of section .text:
  [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
- [0-9a-f]+:	03 83 9c ff ff ff[ 	]+add    0xffffff9c\(%ebx\),%eax
+ [0-9a-f]+:	03 83 9c ff ff ff[ 	]+add    -0x64\(%ebx\),%eax
 #				->R_386_TLS_TPOFF	[0x2c000000]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -286,7 +286,7 @@ Disassembly of section .text:
  [0-9a-f]+:	65 8b 0d 00 00 00 00[ 	]+mov    %gs:0x0,%ecx
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
- [0-9a-f]+:	2b 8b fc ff ff ff[ 	]+sub    0xfffffffc\(%ebx\),%ecx
+ [0-9a-f]+:	2b 8b fc ff ff ff[ 	]+sub    -0x4\(%ebx\),%ecx
 #				->R_386_TLS_TPOFF32	[0xbcffffff]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -296,7 +296,7 @@ Disassembly of section .text:
  [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
- [0-9a-f]+:	2b 83 dc ff ff ff[ 	]+sub    0xffffffdc\(%ebx\),%eax
+ [0-9a-f]+:	2b 83 dc ff ff ff[ 	]+sub    -0x24\(%ebx\),%eax
 #				->R_386_TLS_TPOFF32	[0xb4ffffff]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -306,7 +306,7 @@ Disassembly of section .text:
  [0-9a-f]+:	65 8b 0d 00 00 00 00[ 	]+mov    %gs:0x0,%ecx
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
- [0-9a-f]+:	03 8b b8 ff ff ff[ 	]+add    0xffffffb8\(%ebx\),%ecx
+ [0-9a-f]+:	03 8b b8 ff ff ff[ 	]+add    -0x48\(%ebx\),%ecx
 #				->R_386_TLS_TPOFF	[0x48000000]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -316,7 +316,7 @@ Disassembly of section .text:
  [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
- [0-9a-f]+:	03 83 e0 ff ff ff[ 	]+add    0xffffffe0\(%ebx\),%eax
+ [0-9a-f]+:	03 83 e0 ff ff ff[ 	]+add    -0x20\(%ebx\),%eax
 #				->R_386_TLS_TPOFF	[0x4c000000]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -326,7 +326,7 @@ Disassembly of section .text:
  [0-9a-f]+:	65 8b 0d 00 00 00 00[ 	]+mov    %gs:0x0,%ecx
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
- [0-9a-f]+:	2b 8b bc ff ff ff[ 	]+sub    0xffffffbc\(%ebx\),%ecx
+ [0-9a-f]+:	2b 8b bc ff ff ff[ 	]+sub    -0x44\(%ebx\),%ecx
 #				->R_386_TLS_TPOFF32	[0x9cffffff]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -336,7 +336,7 @@ Disassembly of section .text:
  [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
- [0-9a-f]+:	2b 83 cc ff ff ff[ 	]+sub    0xffffffcc\(%ebx\),%eax
+ [0-9a-f]+:	2b 83 cc ff ff ff[ 	]+sub    -0x34\(%ebx\),%eax
 #				->R_386_TLS_TPOFF32	[0x94ffffff]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -346,7 +346,7 @@ Disassembly of section .text:
  [0-9a-f]+:	65 8b 0d 00 00 00 00[ 	]+mov    %gs:0x0,%ecx
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
- [0-9a-f]+:	03 8b e4 ff ff ff[ 	]+add    0xffffffe4\(%ebx\),%ecx
+ [0-9a-f]+:	03 8b e4 ff ff ff[ 	]+add    -0x1c\(%ebx\),%ecx
 #				->R_386_TLS_TPOFF	[0x68000000]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -356,7 +356,7 @@ Disassembly of section .text:
  [0-9a-f]+:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
- [0-9a-f]+:	03 83 d0 ff ff ff[ 	]+add    0xffffffd0\(%ebx\),%eax
+ [0-9a-f]+:	03 83 d0 ff ff ff[ 	]+add    -0x30\(%ebx\),%eax
 #				->R_386_TLS_TPOFF	[0x6c000000]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -364,7 +364,7 @@ Disassembly of section .text:
  [0-9a-f]+:	90[ 	]+nop *
 #  Direct access through %gs
 #  @gotntpoff IE against global var
- [0-9a-f]+:	8b 8b c8 ff ff ff[ 	]+mov    0xffffffc8\(%ebx\),%ecx
+ [0-9a-f]+:	8b 8b c8 ff ff ff[ 	]+mov    -0x38\(%ebx\),%ecx
 #				->R_386_TLS_TPOFF	sg5
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -374,7 +374,7 @@ Disassembly of section .text:
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
 #  @gotntpoff IE against local var
- [0-9a-f]+:	8b 83 a0 ff ff ff[ 	]+mov    0xffffffa0\(%ebx\),%eax
+ [0-9a-f]+:	8b 83 a0 ff ff ff[ 	]+mov    -0x60\(%ebx\),%eax
 #				->R_386_TLS_TPOFF	[0x30000000]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -384,7 +384,7 @@ Disassembly of section .text:
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
 #  @gotntpoff IE against hidden and local var
- [0-9a-f]+:	8b 93 e8 ff ff ff[ 	]+mov    0xffffffe8\(%ebx\),%edx
+ [0-9a-f]+:	8b 93 e8 ff ff ff[ 	]+mov    -0x18\(%ebx\),%edx
 #				->R_386_TLS_TPOFF	[0x50000000]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -394,7 +394,7 @@ Disassembly of section .text:
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
 #  @gotntpoff IE against hidden but not local var
- [0-9a-f]+:	8b 8b ec ff ff ff[ 	]+mov    0xffffffec\(%ebx\),%ecx
+ [0-9a-f]+:	8b 8b ec ff ff ff[ 	]+mov    -0x14\(%ebx\),%ecx
 #				->R_386_TLS_TPOFF	[0x70000000]
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
@@ -403,7 +403,7 @@ Disassembly of section .text:
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
  [0-9a-f]+:	90[ 	]+nop *
- [0-9a-f]+:	8b 5d fc[ 	]+mov    0xfffffffc\(%ebp\),%ebx
+ [0-9a-f]+:	8b 5d fc[ 	]+mov    -0x4\(%ebp\),%ebx
  [0-9a-f]+:	c9[ 	]+leave *
  [0-9a-f]+:	c3[ 	]+ret *
  [0-9a-f]+:	90[ 	]+nop *

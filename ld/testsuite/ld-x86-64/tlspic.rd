@@ -17,11 +17,11 @@ Section Headers:
   \[ 5\] .rela.plt +.*
   \[ 6\] .plt +.*
   \[ 7\] .text +PROGBITS +0+1000 0+1000 0+1ac 00 +AX +0 +0 4096
-  \[ 8\] .tdata +PROGBITS +0+1011ac 0+11ac 0+60 00 WAT +0 +0 +1
-  \[ 9\] .tbss +NOBITS +0+10120c 0+120c 0+20 00 WAT +0 +0 +1
-  \[10\] .dynamic +DYNAMIC +0+101210 0+1210 0+130 10 +WA +3 +0 +8
-  \[11\] .got +PROGBITS +0+101340 0+1340 0+90 08 +WA +0 +0 +8
-  \[12\] .got.plt +PROGBITS +0+1013d0 0+13d0 0+20 08 +WA +0 +0 +8
+  \[ 8\] .tdata +PROGBITS +0+2011ac 0+11ac 0+60 00 WAT +0 +0 +1
+  \[ 9\] .tbss +NOBITS +0+20120c 0+120c 0+20 00 WAT +0 +0 +1
+  \[10\] .dynamic +DYNAMIC +0+201210 0+1210 0+130 10 +WA +3 +0 +8
+  \[11\] .got +PROGBITS +0+201340 0+1340 0+90 08 +WA +0 +0 +8
+  \[12\] .got.plt +PROGBITS +0+2013d0 0+13d0 0+20 08 +WA +0 +0 +8
   \[13\] .shstrtab +.*
   \[14\] .symtab +.*
   \[15\] .strtab +.*
@@ -36,10 +36,10 @@ There are 4 program headers, starting at offset [0-9]+
 
 Program Headers:
   Type +Offset +VirtAddr +PhysAddr +FileSiz +MemSiz +Flg Align
-  LOAD +0x0+ 0x0+ 0x0+ 0x[0-9a-f]+ 0x[0-9a-f]+ R E 0x100000
-  LOAD +0x0+11ac 0x0+1011ac 0x0+1011ac 0x0+244 0x0+244 RW +0x100000
-  DYNAMIC +0x0+1210 0x0+101210 0x0+101210 0x0+130 0x0+130 RW +0x8
-  TLS +0x0+11ac 0x0+1011ac 0x0+1011ac 0x0+60 0x0+80 R +0x1
+  LOAD +0x0+ 0x0+ 0x0+ 0x[0-9a-f]+ 0x[0-9a-f]+ R E 0x200000
+  LOAD +0x0+11ac 0x0+2011ac 0x0+2011ac 0x0+244 0x0+244 RW +0x200000
+  DYNAMIC +0x0+1210 0x0+201210 0x0+201210 0x0+130 0x0+130 RW +0x8
+  TLS +0x0+11ac 0x0+2011ac 0x0+2011ac 0x0+60 0x0+80 R +0x1
 
  Section to Segment mapping:
   Segment Sections...
@@ -74,7 +74,6 @@ Symbol table '.dynsym' contains [0-9]+ entries:
 .* NOTYPE  LOCAL  DEFAULT  UND *
 .* SECTION LOCAL  DEFAULT +7 *
 .* SECTION LOCAL  DEFAULT +8 *
-.* SECTION LOCAL  DEFAULT +9 *
 .* TLS +GLOBAL DEFAULT +8 sg8
 .* TLS +GLOBAL DEFAULT +8 sg3
 .* TLS +GLOBAL DEFAULT +8 sg4
@@ -89,7 +88,7 @@ Symbol table '.dynsym' contains [0-9]+ entries:
 .* NOTYPE  GLOBAL DEFAULT  ABS _edata
 .* NOTYPE  GLOBAL DEFAULT  ABS _end
 
-Symbol table '.symtab' contains 55 entries:
+Symbol table '.symtab' contains 52 entries:
  +Num: +Value +Size Type +Bind +Vis +Ndx Name
 .* NOTYPE  LOCAL  DEFAULT  UND *
 .* SECTION LOCAL  DEFAULT +1 *
@@ -104,9 +103,6 @@ Symbol table '.symtab' contains 55 entries:
 .* SECTION LOCAL  DEFAULT +10 *
 .* SECTION LOCAL  DEFAULT +11 *
 .* SECTION LOCAL  DEFAULT +12 *
-.* SECTION LOCAL  DEFAULT +13 *
-.* SECTION LOCAL  DEFAULT +14 *
-.* SECTION LOCAL  DEFAULT +15 *
 .* TLS +LOCAL  DEFAULT +8 sl1
 .* TLS +LOCAL  DEFAULT +8 sl2
 .* TLS +LOCAL  DEFAULT +8 sl3

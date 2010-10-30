@@ -1,7 +1,6 @@
 /* BFD back-end for Motorola 88000 COFF "Binary Compatibility Standard" files.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003
-   Free Software Foundation, Inc.
+   2001, 2002, 2003, 2007  Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -21,8 +20,8 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #define M88 1		/* Customize various include files */
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "coff/m88k.h"
 #include "coff/internal.h"

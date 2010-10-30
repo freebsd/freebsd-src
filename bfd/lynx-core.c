@@ -1,5 +1,5 @@
 /* BFD back end for Lynx core files
-   Copyright 1993, 1994, 1995, 2001, 2002, 2004
+   Copyright 1993, 1994, 1995, 2001, 2002, 2004, 2006, 2007
    Free Software Foundation, Inc.
    Written by Stu Grossman of Cygnus Support.
 
@@ -19,8 +19,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 
 #ifdef LYNX_CORE
@@ -73,11 +73,10 @@ make_bfd_asection (abfd, name, flags, size, vma, filepos)
 
   strcpy (newname, name);
 
-  asect = bfd_make_section (abfd, newname);
+  asect = bfd_make_section_with_flags (abfd, newname, flags);
   if (!asect)
     return NULL;
 
-  asect->flags = flags;
   asect->size = size;
   asect->vma = vma;
   asect->filepos = filepos;

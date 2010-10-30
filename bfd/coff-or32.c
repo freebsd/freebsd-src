@@ -1,5 +1,5 @@
 /* BFD back-end for OpenRISC 1000 COFF binaries.
-   Copyright 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+   Copyright 2002, 2003, 2004, 2005, 2007 Free Software Foundation, Inc.
    Contributed by Ivan Guzvinec  <ivang@opencores.org>
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -20,8 +20,8 @@
 
 #define OR32 1
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "coff/or32.h"
 #include "coff/internal.h"
@@ -317,11 +317,7 @@ reloc_processing (relent,reloc, symbols, abfd, section)
     }
   else
     {
-      asymbol *ptr;
       relent->sym_ptr_ptr = symbols + obj_convert (abfd)[reloc->r_symndx];
-
-      ptr = *(relent->sym_ptr_ptr);
-
       relent->addend = 0;
       relent->address-= section->vma;
 

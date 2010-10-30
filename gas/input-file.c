@@ -1,6 +1,6 @@
 /* input_file.c - Deal with Input Files -
    Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1999, 2000, 2001,
-   2002, 2003, 2005
+   2002, 2003, 2005, 2006
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -25,9 +25,6 @@
    What we lose in "efficiency" we gain in modularity.
    Note we don't need to #include the "as.h" file. No common coupling!  */
 
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
 #include "as.h"
 #include "input-file.h"
 #include "safe-ctype.h"
@@ -143,8 +140,8 @@ input_file_open (char *filename, /* "" means use stdin. Must not be 0.  */
 
   if (f_in == NULL)
     {
-      bfd_set_error (bfd_error_system_call);
-      as_perror (_("Can't open %s for reading"), file_name);
+      as_bad (_("can't open %s for reading: %s"),
+	      file_name, xstrerror (errno));
       return;
     }
 
@@ -152,8 +149,8 @@ input_file_open (char *filename, /* "" means use stdin. Must not be 0.  */
 
   if (ferror (f_in))
     {
-      bfd_set_error (bfd_error_system_call);
-      as_perror (_("Can't open %s for reading"), file_name);
+      as_bad (_("can't read from %s: %s"),
+	      file_name, xstrerror (errno));
 
       fclose (f_in);
       f_in = NULL;
@@ -166,8 +163,8 @@ input_file_open (char *filename, /* "" means use stdin. Must not be 0.  */
       c = getc (f_in);
       if (c == 'N')
 	{
-	  fgets (buf, 80, f_in);
-	  if (!strncmp (buf, "O_APP", 5) && ISSPACE (buf[5]))
+	  if (fgets (buf, sizeof (buf), f_in)
+	      && !strncmp (buf, "O_APP", 5) && ISSPACE (buf[5]))
 	    preprocess = 0;
 	  if (!strchr (buf, '\n'))
 	    ungetc ('#', f_in);	/* It was longer.  */
@@ -176,8 +173,8 @@ input_file_open (char *filename, /* "" means use stdin. Must not be 0.  */
 	}
       else if (c == 'A')
 	{
-	  fgets (buf, 80, f_in);
-	  if (!strncmp (buf, "PP", 2) && ISSPACE (buf[2]))
+	  if (fgets (buf, sizeof (buf), f_in)
+	      && !strncmp (buf, "PP", 2) && ISSPACE (buf[2]))
 	    preprocess = 1;
 	  if (!strchr (buf, '\n'))
 	    ungetc ('#', f_in);
@@ -215,8 +212,7 @@ input_file_get (char *buf, int buflen)
   size = fread (buf, sizeof (char), buflen, f_in);
   if (size < 0)
     {
-      bfd_set_error (bfd_error_system_call);
-      as_perror (_("Can't read from %s"), file_name);
+      as_bad (_("can't read from %s: %s"), file_name, xstrerror (errno));
       size = 0;
     }
   return size;
@@ -242,8 +238,7 @@ input_file_give_next_buffer (char *where /* Where to place 1st character of new 
     size = fread (where, sizeof (char), BUFFER_SIZE, f_in);
   if (size < 0)
     {
-      bfd_set_error (bfd_error_system_call);
-      as_perror (_("Can't read from %s"), file_name);
+      as_bad (_("can't read from %s: %s"), file_name, xstrerror (errno));
       size = 0;
     }
   if (size)
@@ -251,10 +246,8 @@ input_file_give_next_buffer (char *where /* Where to place 1st character of new 
   else
     {
       if (fclose (f_in))
-	{
-	  bfd_set_error (bfd_error_system_call);
-	  as_perror (_("Can't close %s"), file_name);
-	}
+	as_warn (_("can't close %s: %s"), file_name, xstrerror (errno));
+
       f_in = (FILE *) 0;
       return_value = 0;
     }

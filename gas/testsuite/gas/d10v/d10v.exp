@@ -1,19 +1,6 @@
 #
 # Driver for D10V assembler testsuite
 #
-proc run_list_test { name opts } {
-  global srcdir subdir
-  set testname "D10V $name"
-  set file $srcdir/$subdir/$name
-  gas_run ${name}.s $opts ">&dump.out"
-  if {[regexp_diff "dump.out" "${file}.l"] } {
-    fail $testname
-    verbose "output is [file_contents "dump.out"]" 2
-    return
-  }
-  pass $testname
-}
-
 if {[istarget d10v-*-*]} {
     run_dump_test "inst"
     run_dump_test "address-001"

@@ -220,9 +220,8 @@ hppaelf_layout_sections_again (void)
   /* If we have changed sizes of the stub sections, then we need
      to recalculate all the section offsets.  This may mean we need to
      add even more stubs.  */
-  need_laying_out = 0;
-
-  gld${EMULATION_NAME}_layout_sections_again ();
+  gld${EMULATION_NAME}_map_segments (TRUE);
+  need_laying_out = -1;
 }
 
 
@@ -248,7 +247,7 @@ build_section_lists (lang_statement_union_type *statement)
    to build linker stubs.  */
 
 static void
-hppaelf_finish (void)
+gld${EMULATION_NAME}_finish (void)
 {
   /* bfd_elf_discard_info just plays with debugging sections,
      ie. doesn't affect any code, so we can delay resizing the
@@ -288,8 +287,8 @@ hppaelf_finish (void)
 	}
     }
 
-  if (need_laying_out)
-    hppaelf_layout_sections_again ();
+  if (need_laying_out != -1)
+    gld${EMULATION_NAME}_map_segments (need_laying_out);
 
   if (! link_info.relocatable)
     {
@@ -381,5 +380,5 @@ PARSE_AND_LIST_ARGS_CASES='
 # Put these extra hppaelf routines in ld_${EMULATION_NAME}_emulation
 #
 LDEMUL_AFTER_PARSE=hppaelf_after_parse
-LDEMUL_FINISH=hppaelf_finish
+LDEMUL_FINISH=gld${EMULATION_NAME}_finish
 LDEMUL_CREATE_OUTPUT_SECTION_STATEMENTS=hppaelf_create_output_section_statements

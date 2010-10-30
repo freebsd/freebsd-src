@@ -37,14 +37,22 @@ build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
 subdir = doc
-DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
-	$(binutils_TEXINFOS)
+DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/acinclude.m4 \
-	$(top_srcdir)/../bfd/acinclude.m4 \
-	$(top_srcdir)/../config/acx.m4 $(top_srcdir)/../bfd/bfd.m4 \
-	$(top_srcdir)/../bfd/warning.m4 $(top_srcdir)/../libtool.m4 \
-	$(top_srcdir)/../gettext.m4 $(top_srcdir)/configure.in
+am__aclocal_m4_deps = $(top_srcdir)/../bfd/acinclude.m4 \
+	$(top_srcdir)/../bfd/warning.m4 \
+	$(top_srcdir)/../config/depstand.m4 \
+	$(top_srcdir)/../config/gettext-sister.m4 \
+	$(top_srcdir)/../config/iconv.m4 \
+	$(top_srcdir)/../config/lead-dot.m4 \
+	$(top_srcdir)/../config/lib-ld.m4 \
+	$(top_srcdir)/../config/lib-link.m4 \
+	$(top_srcdir)/../config/lib-prefix.m4 \
+	$(top_srcdir)/../config/nls.m4 $(top_srcdir)/../config/po.m4 \
+	$(top_srcdir)/../config/progtest.m4 \
+	$(top_srcdir)/../libtool.m4 $(top_srcdir)/../ltoptions.m4 \
+	$(top_srcdir)/../ltsugar.m4 $(top_srcdir)/../ltversion.m4 \
+	$(top_srcdir)/configure.in
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(SHELL) $(top_srcdir)/../mkinstalldirs
@@ -53,7 +61,7 @@ CONFIG_CLEAN_FILES =
 depcomp =
 am__depfiles_maybe =
 SOURCES =
-INFO_DEPS = $(srcdir)/binutils.info
+INFO_DEPS = binutils.info
 TEXINFO_TEX = $(top_srcdir)/../texinfo/texinfo.tex
 am__TEXINFO_TEX_DIR = $(top_srcdir)/../texinfo
 DVIS = binutils.dvi
@@ -81,9 +89,11 @@ AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
 BUILD_DLLTOOL = @BUILD_DLLTOOL@
 BUILD_DLLWRAP = @BUILD_DLLWRAP@
+BUILD_INSTALL_MISC = @BUILD_INSTALL_MISC@
 BUILD_MISC = @BUILD_MISC@
 BUILD_NLMCONV = @BUILD_NLMCONV@
 BUILD_SRCONV = @BUILD_SRCONV@
+BUILD_WINDMC = @BUILD_WINDMC@
 BUILD_WINDRES = @BUILD_WINDRES@
 CATALOGS = @CATALOGS@
 CATOBJEXT = @CATOBJEXT@
@@ -99,6 +109,7 @@ DEFS = @DEFS@
 DEMANGLER_NAME = @DEMANGLER_NAME@
 DEPDIR = @DEPDIR@
 DLLTOOL_DEFS = @DLLTOOL_DEFS@
+DUMPBIN = @DUMPBIN@
 ECHO_C = @ECHO_C@
 ECHO_N = @ECHO_N@
 ECHO_T = @ECHO_T@
@@ -107,28 +118,32 @@ EMULATION = @EMULATION@
 EMULATION_VECTOR = @EMULATION_VECTOR@
 EXEEXT = @EXEEXT@
 EXEEXT_FOR_BUILD = @EXEEXT_FOR_BUILD@
-GMOFILES = @GMOFILES@
+FGREP = @FGREP@
+GENCAT = @GENCAT@
+GENINSRC_NEVER_FALSE = @GENINSRC_NEVER_FALSE@
+GENINSRC_NEVER_TRUE = @GENINSRC_NEVER_TRUE@
 GMSGFMT = @GMSGFMT@
-GT_NO = @GT_NO@
-GT_YES = @GT_YES@
+GREP = @GREP@
 HDEFINES = @HDEFINES@
-INCLUDE_LOCALE_H = @INCLUDE_LOCALE_H@
+INCINTL = @INCINTL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 INSTOBJEXT = @INSTOBJEXT@
-INTLDEPS = @INTLDEPS@
-INTLLIBS = @INTLLIBS@
-INTLOBJS = @INTLOBJS@
+LD = @LD@
 LDFLAGS = @LDFLAGS@
 LEX = @LEX@
 LEXLIB = @LEXLIB@
 LEX_OUTPUT_ROOT = @LEX_OUTPUT_ROOT@
+LIBICONV = @LIBICONV@
+LIBINTL = @LIBINTL@
+LIBINTL_DEP = @LIBINTL_DEP@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
 LN_S = @LN_S@
+LTLIBICONV = @LTLIBICONV@
 LTLIBOBJS = @LTLIBOBJS@
 MAINT = @MAINT@
 MAINTAINER_MODE_FALSE = @MAINTAINER_MODE_FALSE@
@@ -136,7 +151,9 @@ MAINTAINER_MODE_TRUE = @MAINTAINER_MODE_TRUE@
 MAKEINFO = @MAKEINFO@
 MKINSTALLDIRS = @MKINSTALLDIRS@
 MSGFMT = @MSGFMT@
+MSGMERGE = @MSGMERGE@
 NLMCONV_DEFS = @NLMCONV_DEFS@
+NM = @NM@
 NO_WERROR = @NO_WERROR@
 OBJDUMP_DEFS = @OBJDUMP_DEFS@
 OBJEXT = @OBJEXT@
@@ -147,19 +164,20 @@ PACKAGE_STRING = @PACKAGE_STRING@
 PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
-POFILES = @POFILES@
 POSUB = @POSUB@
 RANLIB = @RANLIB@
+SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
-USE_INCLUDED_LIBINTL = @USE_INCLUDED_LIBINTL@
 USE_NLS = @USE_NLS@
 VERSION = @VERSION@
 WARN_CFLAGS = @WARN_CFLAGS@
 XGETTEXT = @XGETTEXT@
 YACC = @YACC@
+ac_ct_AR = @ac_ct_AR@
 ac_ct_CC = @ac_ct_CC@
+ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
 ac_ct_RANLIB = @ac_ct_RANLIB@
 ac_ct_STRIP = @ac_ct_STRIP@
 am__fastdepCC_FALSE = @am__fastdepCC_FALSE@
@@ -188,10 +206,10 @@ htmldir = @htmldir@
 includedir = @includedir@
 infodir = @infodir@
 install_sh = @install_sh@
-l = @l@
 libdir = @libdir@
 libexecdir = @libexecdir@
 localstatedir = @localstatedir@
+lt_ECHO = @lt_ECHO@
 mandir = @mandir@
 mkdir_p = @mkdir_p@
 oldincludedir = @oldincludedir@
@@ -232,20 +250,29 @@ man_MANS = \
 	strings.1 \
 	strip.1 \
 	windres.1 \
+	windmc.1 \
 	$(DEMANGLER_NAME).1
 
 info_TEXINFOS = binutils.texi
-binutils_TEXINFOS = config.texi
 binutils_TEXI = $(srcdir)/binutils.texi
-AM_MAKEINFOFLAGS = -I "$(srcdir)" -I "$(top_srcdir)/../libiberty"
-TEXI2DVI = texi2dvi -I "$(srcdir)" -I "$(top_srcdir)/../libiberty"
-MAINTAINERCLEANFILES = config.texi
+AM_MAKEINFOFLAGS = -I "$(srcdir)" -I "$(top_srcdir)/../libiberty" \
+		   -I ../../bfd/doc
+
+TEXI2DVI = texi2dvi -I "$(srcdir)" -I "$(top_srcdir)/../libiberty" \
+		    -I ../../bfd/doc
+
 MOSTLYCLEANFILES = $(DEMANGLER_NAME).1
 html__strip_dir = `echo $$p | sed -e 's|^.*/||'`;
+MAINTAINERCLEANFILES = binutils.info
+
+# Automake 1.9 will only build info files in the objdir if they are
+# mentioned in DISTCLEANFILES.  It doesn't have to be unconditional,
+# though, so we use a bogus condition.
+@GENINSRC_NEVER_TRUE@DISTCLEANFILES = binutils.info
 all: all-am
 
 .SUFFIXES:
-.SUFFIXES: .dvi .html .info .pdf .ps .texi
+.SUFFIXES: .dvi .ps
 $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
@@ -255,9 +282,9 @@ $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__confi
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign  doc/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --cygnus  doc/Makefile'; \
 	cd $(top_srcdir) && \
-	  $(AUTOMAKE) --foreign  doc/Makefile
+	  $(AUTOMAKE) --cygnus  doc/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
@@ -285,42 +312,38 @@ clean-libtool:
 distclean-libtool:
 	-rm -f libtool
 
-.texi.info:
+binutils.info: binutils.texi 
 	restore=: && backupdir="$(am__leading_dot)am$$$$" && \
-	am__cwd=`pwd` && cd $(srcdir) && \
 	rm -rf $$backupdir && mkdir $$backupdir && \
 	if ($(MAKEINFO) --version) >/dev/null 2>&1; then \
 	  for f in $@ $@-[0-9] $@-[0-9][0-9] $(@:.info=).i[0-9] $(@:.info=).i[0-9][0-9]; do \
 	    if test -f $$f; then mv $$f $$backupdir; restore=mv; else :; fi; \
 	  done; \
 	else :; fi && \
-	cd "$$am__cwd"; \
 	if $(MAKEINFO) $(AM_MAKEINFOFLAGS) $(MAKEINFOFLAGS) -I $(srcdir) \
-	 -o $@ $<; \
+	 -o $@ `test -f 'binutils.texi' || echo '$(srcdir)/'`binutils.texi; \
 	then \
 	  rc=0; \
-	  cd $(srcdir); \
 	else \
 	  rc=$$?; \
-	  cd $(srcdir) && \
 	  $$restore $$backupdir/* `echo "./$@" | sed 's|[^/]*$$||'`; \
 	fi; \
 	rm -rf $$backupdir; exit $$rc
 
-.texi.dvi:
+binutils.dvi: binutils.texi  
 	TEXINPUTS="$(am__TEXINFO_TEX_DIR)$(PATH_SEPARATOR)$$TEXINPUTS" \
 	MAKEINFO='$(MAKEINFO) $(AM_MAKEINFOFLAGS) $(MAKEINFOFLAGS) -I $(srcdir)' \
-	$(TEXI2DVI) $<
+	$(TEXI2DVI) -o $@ `test -f 'binutils.texi' || echo '$(srcdir)/'`binutils.texi
 
-.texi.pdf:
+binutils.pdf: binutils.texi  
 	TEXINPUTS="$(am__TEXINFO_TEX_DIR)$(PATH_SEPARATOR)$$TEXINPUTS" \
 	MAKEINFO='$(MAKEINFO) $(AM_MAKEINFOFLAGS) $(MAKEINFOFLAGS) -I $(srcdir)' \
-	$(TEXI2PDF) $<
+	$(TEXI2PDF) -o $@ `test -f 'binutils.texi' || echo '$(srcdir)/'`binutils.texi
 
-.texi.html:
+binutils.html: binutils.texi  
 	rm -rf $(@:.html=.htp)
 	if $(MAKEINFOHTML) $(AM_MAKEINFOHTMLFLAGS) $(MAKEINFOFLAGS) -I $(srcdir) \
-	 -o $(@:.html=.htp) $<; \
+	 -o $(@:.html=.htp) `test -f 'binutils.texi' || echo '$(srcdir)/'`binutils.texi; \
 	then \
 	  rm -rf $@; \
 	  if test ! -d $(@:.html=.htp) && test -d $(@:.html=); then \
@@ -330,10 +353,6 @@ distclean-libtool:
 	    rm -rf $(@:.html=); else rm -Rf $(@:.html=.htp) $@; fi; \
 	  exit 1; \
 	fi
-$(srcdir)/binutils.info: binutils.texi $(binutils_TEXINFOS)
-binutils.dvi: binutils.texi $(binutils_TEXINFOS)
-binutils.pdf: binutils.texi $(binutils_TEXINFOS)
-binutils.html: binutils.texi $(binutils_TEXINFOS)
 .dvi.ps:
 	TEXINPUTS="$(am__TEXINFO_TEX_DIR)$(PATH_SEPARATOR)$$TEXINPUTS" \
 	$(DVIPS) -o $@ $<
@@ -469,6 +488,7 @@ clean-generic:
 
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
+	-test -z "$(DISTCLEANFILES)" || rm -f $(DISTCLEANFILES)
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
@@ -569,12 +589,6 @@ uninstall-man: uninstall-man1
 	uninstall-man uninstall-man1
 
 
-config.texi: $(srcdir)/../../bfd/configure $(binutils_TEXI)
-	rm -f config.texi
-	eval `grep '^ *VERSION=' $(srcdir)/../../bfd/configure`; \
-	  echo "@set VERSION $$VERSION" > $@
-	echo "@set UPDATED `date "+%B %Y"`" >> config.texi
-
 # Man page generation from texinfo
 addr2line.1:	$(binutils_TEXI) $(binutils_TEXINFOS)
 	touch $@
@@ -666,6 +680,13 @@ windres.1:	$(binutils_TEXI) $(binutils_TEXINFOS)
 	-($(POD2MAN) windres.pod | sed -e '/^.if n .na/d' > $@.T$$$$ && \
 		mv -f $@.T$$$$ $@) || (rm -f $@.T$$$$ && exit 1)
 	rm -f windres.pod
+
+windmc.1:	$(binutils_TEXI) $(binutils_TEXINFOS)
+	touch $@
+	-$(TEXI2POD) $(MANCONF) -Dwindmc < $(binutils_TEXI) > windmc.pod
+	-($(POD2MAN) windmc.pod | sed -e '/^.if n .na/d' > $@.T$$$$ && \
+		mv -f $@.T$$$$ $@) || (rm -f $@.T$$$$ && exit 1)
+	rm -f windmc.pod
 
 cxxfilt.man:	$(binutils_TEXI) $(binutils_TEXINFOS)
 	touch $@

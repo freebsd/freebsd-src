@@ -2,7 +2,7 @@
 #name: x86-64 stack-related opcodes (with suffixes)
 #source: x86-64-stack.s
 
-.*: +file format elf64-x86-64
+.*: +file format .*
 
 Disassembly of section .text:
 

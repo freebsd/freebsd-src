@@ -1,19 +1,6 @@
 #
 # MAXQ20 tests
 #
-proc run_list_test { name opts } {
-    global srcdir subdir
-    set testname "maxq20 $name"
-    set file $srcdir/$subdir/$name
-    gas_run ${name}.s $opts ">&dump.out"
-    if { [regexp_diff "dump.out" "${file}.l"] } then {
-	fail $testname
-	verbose "output is [file_contents "dump.out"]" 2
-	return
-    }
-    pass $testname
-}
-
 proc gas_64_check { } {
     global NM
     global NMFLAGS

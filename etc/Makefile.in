@@ -28,6 +28,7 @@ man9dir = $(mandir)/man9
 datarootdir = @datarootdir@
 docdir = @docdir@
 infodir = @infodir@
+pdfdir = @docdir@
 htmldir = @htmldir@
 
 SHELL = /bin/sh
@@ -42,6 +43,9 @@ MAKEINFO = `if [ -f ../texinfo/makeinfo/makeinfo ]; \
 TEXI2DVI = `if [ -f ../texinfo/util/texi2dvi ]; \
 	then echo ../texinfo/util/texi2dvi; \
 	else echo texi2dvi; fi`
+TEXI2PDF = `if [ -f ../texinfo/util/texi2dvi ]; \
+	then echo "../texinfo/util/texi2dvi --pdf"; \
+	else echo "texi2dvi --pdf"; fi`
 TEXI2HTML = `if [ -f ../texinfo/makeinfo/makeinfo ]; \
 	then echo "../texinfo/makeinfo/makeinfo --html"; \
 	else echo "makeinfo --html"; fi`
@@ -56,6 +60,7 @@ TEXIDIR = $(srcdir)/../texinfo
 
 INFOFILES = standards.info configure.info
 DVIFILES = standards.dvi configure.dvi
+PDFFILES = standards.pdf configure.pdf
 HTMLFILES = standards.html configure.html
 
 all: info
@@ -126,6 +131,32 @@ dvi:
 	  fi; \
 	done
 
+pdf:
+	for f in $(PDFFILES); do \
+	  if test -f $(srcdir)/`echo $$f | sed -e 's/.pdf$$/.texi/'`; then \
+	    if $(MAKE) "TEXI2PDF=$(TEXI2PDF)" $$f; then \
+	      true; \
+	    else \
+	      exit 1; \
+	    fi; \
+	  fi; \
+	done
+
+install-pdf: pdf
+	$(SHELL) $(srcdir)/../mkinstalldirs $(DESTDIR)$(pdfdir)/etc
+	if test ! -f standards.pdf; then cd $(srcdir); fi; \
+	if test -f standards.pdf; then \
+	  for i in standards.pdf*; do \
+	    $(INSTALL_DATA) $$i $(DESTDIR)$(pdfdir)/etc/$$i; \
+	  done; \
+	fi
+	if test ! -f configure.pdf; then cd $(srcdir); fi; \
+	if test -f configure.pdf; then \
+	  for i in configure.pdf*; do \
+	    $(INSTALL_DATA) $$i $(DESTDIR)$(pdfdir)/etc/$$i; \
+	  done; \
+	fi
+
 standards.info: $(srcdir)/standards.texi $(srcdir)/make-stds.texi
 	$(MAKEINFO) --no-split -I$(srcdir) -o standards.info $(srcdir)/standards.texi
 
@@ -137,6 +168,9 @@ standards.dvi: $(srcdir)/standards.texi
 
 standards.ps: standards.dvi
 	$(DVIPS) standards.dvi -o standards.ps
+
+standards.pdf: $(srcdir)/standards.texi
+	TEXINPUTS=$(TEXIDIR):$$TEXINPUTS $(TEXI2PDF) $(srcdir)/standards.texi
 
 # makeinfo requires images to be in the current directory.
 configure.info: $(srcdir)/configure.texi $(srcdir)/configdev.tin $(srcdir)/configbuild.tin
@@ -165,6 +199,13 @@ configure.ps: configure.dvi $(srcdir)/configdev.ein $(srcdir)/configbuild.ein
 	cp $(srcdir)/configbuild.ein configbuild.eps
 	$(DVIPS) configure.dvi -o configure.ps
 	rm -f configdev.eps configbuild.eps
+
+configure.pdf: $(srcdir)/configure.texi $(srcdir)/configdev.tin $(srcdir)/configbuild.tin $(srcdir)/configdev.ein $(srcdir)/configbuild.ein
+	rm -f configdev.pdf configbuild.pdf
+	epstopdf $(srcdir)/configdev.ein -outfile=configdev.pdf
+	epstopdf $(srcdir)/configbuild.ein -outfile=configbuild.pdf
+	TEXINPUTS=$(TEXIDIR):$$TEXINPUTS $(TEXI2PDF) $(srcdir)/configure.texi
+	rm -f configdev.pdf configbuild.pdf
 
 configure.html: $(srcdir)/configure.texi
 	cp $(srcdir)/configdev.jin configdev.jpg

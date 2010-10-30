@@ -22,20 +22,18 @@ Disassembly of section .text:
   [0-9a-f]+:	55[ 	]+push   %rbp
   [0-9a-f]+:	48 89 e5[ 	]+mov    %rsp,%rbp
 #  GD -> IE because variable is not defined in executable
-  [0-9a-f]+:	48 8b 05 65 03 10 00[ 	]+mov    1049445\(%rip\),%rax +# 501370 <.*>
+  [0-9a-f]+:	48 8b 05 65 03 20 00[ 	]+mov    0x200365\(%rip\),%rax +# 601370 <.*>
 #				-> R_X86_64_TPOFF64	sG1
-  [0-9a-f]+:	90[ 	]+nop *
-  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	66 90[ 	]+xchg   %ax,%ax
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
 #  GD -> IE because variable is not defined in executable where
 #  the variable is referenced through IE too
-  [0-9a-f]+:	48 8b 05 48 03 10 00[ 	]+mov    1049416\(%rip\),%rax +# 501360 <.*>
+  [0-9a-f]+:	48 8b 05 48 03 20 00[ 	]+mov    0x200348\(%rip\),%rax +# 601360 <.*>
 #				-> R_X86_64_TPOFF64	sG2
-  [0-9a-f]+:	90[ 	]+nop *
-  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	66 90[ 	]+xchg   %ax,%ax
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
@@ -43,8 +41,7 @@ Disassembly of section .text:
 #  GD -> LE with global variable defined in executable
   [0-9a-f]+:	48 c7 c0 60 ff ff ff[ 	]+mov    \$0xf+60,%rax
 #							sg1
-  [0-9a-f]+:	90[ 	]+nop *
-  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	66 90[ 	]+xchg   %ax,%ax
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
@@ -52,8 +49,7 @@ Disassembly of section .text:
 #  GD -> LE with local variable defined in executable
   [0-9a-f]+:	48 c7 c0 80 ff ff ff[ 	]+mov    \$0xf+80,%rax
 #							sl1
-  [0-9a-f]+:	90[ 	]+nop *
-  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	66 90[ 	]+xchg   %ax,%ax
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
@@ -61,34 +57,32 @@ Disassembly of section .text:
 #  GD -> LE with hidden variable defined in executable
   [0-9a-f]+:	48 c7 c0 a0 ff ff ff[ 	]+mov    \$0xf+a0,%rax
 #							sh1
-  [0-9a-f]+:	90[ 	]+nop *
-  [0-9a-f]+:	90[ 	]+nop *
+  [0-9a-f]+:	66 90[ 	]+xchg   %ax,%ax
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
 #  LD -> LE
   [0-9a-f]+:	48 c7 c0 60 ff ff ff[ 	]+mov    \$0xf+60,%rax
+  [0-9a-f]+:	66 90[ 	]+xchg   %ax,%ax
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
-  [0-9a-f]+:	90[ 	]+nop *
-  [0-9a-f]+:	90[ 	]+nop *
-  [0-9a-f]+:	48 8d 90 81 ff ff ff[ 	]+lea    0xf+81\(%rax\),%rdx
+  [0-9a-f]+:	48 8d 90 81 ff ff ff[ 	]+lea    -0x7f\(%rax\),%rdx
 #							sl1+1
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
-  [0-9a-f]+:	4c 8d 88 86 ff ff ff[ 	]+lea    0xf+86\(%rax\),%r9
+  [0-9a-f]+:	4c 8d 88 86 ff ff ff[ 	]+lea    -0x7a\(%rax\),%r9
 #							sl2+2
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
 #  LD -> LE against hidden variables
-  [0-9a-f]+:	48 8d 90 a0 ff ff ff[ 	]+lea    0xf+a0\(%rax\),%rdx
+  [0-9a-f]+:	48 8d 90 a0 ff ff ff[ 	]+lea    -0x60\(%rax\),%rdx
 #							sh1
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
-  [0-9a-f]+:	48 8d 88 a7 ff ff ff[ 	]+lea    0xf+a7\(%rax\),%rcx
+  [0-9a-f]+:	48 8d 88 a7 ff ff ff[ 	]+lea    -0x59\(%rax\),%rcx
 #							sh2+3
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
@@ -99,7 +93,7 @@ Disassembly of section .text:
   [0-9a-f]+:	00 00 *
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
-  [0-9a-f]+:	4c 03 0d d6 02 10 00[ 	]+add    1049302\(%rip\),%r9 +# 501360 <.*>
+  [0-9a-f]+:	4c 03 0d d6 02 20 00[ 	]+add    0x2002d6\(%rip\),%r9 +# 601360 <.*>
 #				-> R_X86_64_TPOFF64	sG2
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
@@ -110,7 +104,7 @@ Disassembly of section .text:
   [0-9a-f]+:	00 00 *
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
-  [0-9a-f]+:	4d 8d 92 60 ff ff ff[ 	]+lea    0xf+60\(%r10\),%r10
+  [0-9a-f]+:	4d 8d 92 60 ff ff ff[ 	]+lea    -0xa0\(%r10\),%r10
 #							sg1
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
@@ -121,7 +115,7 @@ Disassembly of section .text:
   [0-9a-f]+:	00 00 *
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
-  [0-9a-f]+:	48 8d 80 80 ff ff ff[ 	]+lea    0xf+80\(%rax\),%rax
+  [0-9a-f]+:	48 8d 80 80 ff ff ff[ 	]+lea    -0x80\(%rax\),%rax
 #							sl1
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
@@ -132,7 +126,7 @@ Disassembly of section .text:
   [0-9a-f]+:	00 00 *
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
-  [0-9a-f]+:	48 8d 89 a0 ff ff ff[ 	]+lea    0xf+a0\(%rcx\),%rcx
+  [0-9a-f]+:	48 8d 89 a0 ff ff ff[ 	]+lea    -0x60\(%rcx\),%rcx
 #							sh1
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
@@ -140,7 +134,7 @@ Disassembly of section .text:
   [0-9a-f]+:	90[ 	]+nop *
 #  Direct access through %fs
 #  IE against global var
-  [0-9a-f]+:	48 8b 0d 81 02 10 00[ 	]+mov    1049217\(%rip\),%rcx +# 501358 <.*>
+  [0-9a-f]+:	48 8b 0d 81 02 20 00[ 	]+mov    0x200281\(%rip\),%rcx +# 601358 <.*>
 #				-> R_X86_64_TPOFF64	sG5
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
@@ -183,7 +177,7 @@ Disassembly of section .text:
   [0-9a-f]+:	00 00 *
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
-  [0-9a-f]+:	4c 03 1d 4a 02 10 00[ 	]+add    1049162\(%rip\),%r11 +# 501368 <.*>
+  [0-9a-f]+:	4c 03 1d 4a 02 20 00[ 	]+add    0x20024a\(%rip\),%r11 +# 601368 <.*>
 #				-> R_X86_64_TPOFF64	sG6
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
@@ -194,7 +188,7 @@ Disassembly of section .text:
   [0-9a-f]+:	00 00 *
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
-  [0-9a-f]+:	48 8d 92 d4 ff ff ff[ 	]+lea    0xf+d4\(%rdx\),%rdx
+  [0-9a-f]+:	48 8d 92 d4 ff ff ff[ 	]+lea    -0x2c\(%rdx\),%rdx
 #							bg6
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
@@ -226,7 +220,7 @@ Disassembly of section .text:
   [0-9a-f]+:	00 00 *
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
-  [0-9a-f]+:	48 8d 92 b4 ff ff ff[ 	]+lea    0xf+b4\(%rdx\),%rdx
+  [0-9a-f]+:	48 8d 92 b4 ff ff ff[ 	]+lea    -0x4c\(%rdx\),%rdx
 #							sh6
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
@@ -247,7 +241,7 @@ Disassembly of section .text:
   [0-9a-f]+:	00 00 *
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *
-  [0-9a-f]+:	48 8d 90 64 ff ff ff[ 	]+lea    0xf+64\(%rax\),%rdx
+  [0-9a-f]+:	48 8d 90 64 ff ff ff[ 	]+lea    -0x9c\(%rax\),%rdx
 #							sg2
   [0-9a-f]+:	90[ 	]+nop *
   [0-9a-f]+:	90[ 	]+nop *

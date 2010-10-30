@@ -4,7 +4,7 @@ OUTPUT_FORMAT="elf32-powerpc"
 ARCH=powerpc
 MACHINE=
 EMBEDDED=yes
-MAXPAGESIZE=0x10000
+MAXPAGESIZE="CONSTANT (MAXPAGESIZE)"
 
 # The data below is taken from the windiss.dld linker script that comes with
 # the Diab linker.

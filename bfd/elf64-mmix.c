@@ -1,5 +1,6 @@
 /* MMIX-specific support for 64-bit ELF.
-   Copyright 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+   Copyright 2001, 2002, 2003, 2004, 2005, 2006, 2007
+   Free Software Foundation, Inc.
    Contributed by Hans-Peter Nilsson <hp@bitrange.com>
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -26,8 +27,8 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
    - GETA stub relaxation (call a stub for out of range new
      R_MMIX_GETA_STUBBABLE).  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
 #include "elf/mmix.h"
@@ -185,14 +186,6 @@ static bfd_boolean mmix_elf_check_common_relocs
 static bfd_boolean mmix_elf_relocate_section
   PARAMS ((bfd *, struct bfd_link_info *, bfd *, asection *, bfd_byte *,
 	   Elf_Internal_Rela *, Elf_Internal_Sym *, asection **));
-
-static asection * mmix_elf_gc_mark_hook
-  PARAMS ((asection *, struct bfd_link_info *, Elf_Internal_Rela *,
-	   struct elf_link_hash_entry *, Elf_Internal_Sym *));
-
-static bfd_boolean mmix_elf_gc_sweep_hook
-  PARAMS ((bfd *, struct bfd_link_info *, asection *,
-	   const Elf_Internal_Rela *));
 
 static bfd_reloc_status_type mmix_final_link_relocate
   PARAMS ((reloc_howto_type *, asection *, bfd_byte *,
@@ -855,18 +848,37 @@ bfd_elf64_bfd_reloc_type_lookup (abfd, code)
   return NULL;
 }
 
+static reloc_howto_type *
+bfd_elf64_bfd_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+				 const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (elf_mmix_howto_table) / sizeof (elf_mmix_howto_table[0]);
+       i++)
+    if (elf_mmix_howto_table[i].name != NULL
+	&& strcasecmp (elf_mmix_howto_table[i].name, r_name) == 0)
+      return &elf_mmix_howto_table[i];
+
+  return NULL;
+}
+
 static bfd_boolean
 mmix_elf_new_section_hook (abfd, sec)
      bfd *abfd;
      asection *sec;
 {
-  struct _mmix_elf_section_data *sdata;
-  bfd_size_type amt = sizeof (*sdata);
+  if (!sec->used_by_bfd)
+    {
+      struct _mmix_elf_section_data *sdata;
+      bfd_size_type amt = sizeof (*sdata);
 
-  sdata = (struct _mmix_elf_section_data *) bfd_zalloc (abfd, amt);
-  if (sdata == NULL)
-    return FALSE;
-  sec->used_by_bfd = (PTR) sdata;
+      sdata = bfd_zalloc (abfd, amt);
+      if (sdata == NULL)
+	return FALSE;
+      sec->used_by_bfd = sdata;
+    }
 
   return _bfd_elf_new_section_hook (abfd, sec);
 }
@@ -1369,22 +1381,53 @@ mmix_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 
       r_symndx = ELF64_R_SYM (rel->r_info);
 
+      howto = elf_mmix_howto_table + ELF64_R_TYPE (rel->r_info);
+      h = NULL;
+      sym = NULL;
+      sec = NULL;
+
+      if (r_symndx < symtab_hdr->sh_info)
+	{
+	  sym = local_syms + r_symndx;
+	  sec = local_sections [r_symndx];
+	  relocation = _bfd_elf_rela_local_sym (output_bfd, sym, &sec, rel);
+
+	  name = bfd_elf_string_from_elf_section (input_bfd,
+						  symtab_hdr->sh_link,
+						  sym->st_name);
+	  if (name == NULL)
+	    name = bfd_section_name (input_bfd, sec);
+	}
+      else
+	{
+	  bfd_boolean unresolved_reloc;
+
+	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
+				   r_symndx, symtab_hdr, sym_hashes,
+				   h, sec, relocation,
+				   unresolved_reloc, undefined_signalled);
+	  name = h->root.root.string;
+	}
+
+      if (sec != NULL && elf_discarded_section (sec))
+	{
+	  /* For relocs against symbols from removed linkonce sections,
+	     or sections discarded by a linker script, we just want the
+	     section contents zeroed.  Avoid any special processing.  */
+	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
+	  rel->r_info = 0;
+	  rel->r_addend = 0;
+	  continue;
+	}
+
       if (info->relocatable)
 	{
 	  /* This is a relocatable link.  For most relocs we don't have to
 	     change anything, unless the reloc is against a section
 	     symbol, in which case we have to adjust according to where
 	     the section symbol winds up in the output section.  */
-	  if (r_symndx < symtab_hdr->sh_info)
-	    {
-	      sym = local_syms + r_symndx;
-
-	      if (ELF_ST_TYPE (sym->st_info) == STT_SECTION)
-		{
-		  sec = local_sections [r_symndx];
-		  rel->r_addend += sec->output_offset + sym->st_value;
-		}
-	    }
+	  if (sym != NULL && ELF_ST_TYPE (sym->st_info) == STT_SECTION)
+	    rel->r_addend += sec->output_offset;
 
 	  /* For PUSHJ stub relocs however, we may need to change the
 	     reloc and the section contents, if the reloc doesn't reach
@@ -1456,35 +1499,6 @@ mmix_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 	      pjsno++;
 	    }
 	  continue;
-	}
-
-      /* This is a final link.  */
-      howto = elf_mmix_howto_table + ELF64_R_TYPE (rel->r_info);
-      h = NULL;
-      sym = NULL;
-      sec = NULL;
-
-      if (r_symndx < symtab_hdr->sh_info)
-	{
-	  sym = local_syms + r_symndx;
-	  sec = local_sections [r_symndx];
-	  relocation = _bfd_elf_rela_local_sym (output_bfd, sym, &sec, rel);
-
-	  name = bfd_elf_string_from_elf_section (input_bfd,
-						  symtab_hdr->sh_link,
-						  sym->st_name);
-	  if (name == NULL)
-	    name = bfd_section_name (input_bfd, sec);
-	}
-      else
-	{
-	  bfd_boolean unresolved_reloc;
-
-	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
-				   r_symndx, symtab_hdr, sym_hashes,
-				   h, sec, relocation,
-				   unresolved_reloc, undefined_signalled);
-	  name = h->root.root.string;
 	}
 
       r = mmix_final_link_relocate (howto, input_section,
@@ -1740,40 +1754,21 @@ mmix_final_link_relocate (howto, input_section, contents,
    relocation.  */
 
 static asection *
-mmix_elf_gc_mark_hook (sec, info, rel, h, sym)
-     asection *sec;
-     struct bfd_link_info *info ATTRIBUTE_UNUSED;
-     Elf_Internal_Rela *rel;
-     struct elf_link_hash_entry *h;
-     Elf_Internal_Sym *sym;
+mmix_elf_gc_mark_hook (asection *sec,
+		       struct bfd_link_info *info,
+		       Elf_Internal_Rela *rel,
+		       struct elf_link_hash_entry *h,
+		       Elf_Internal_Sym *sym)
 {
   if (h != NULL)
-    {
-      switch (ELF64_R_TYPE (rel->r_info))
-	{
-	case R_MMIX_GNU_VTINHERIT:
-	case R_MMIX_GNU_VTENTRY:
-	  break;
+    switch (ELF64_R_TYPE (rel->r_info))
+      {
+      case R_MMIX_GNU_VTINHERIT:
+      case R_MMIX_GNU_VTENTRY:
+	return NULL;
+      }
 
-	default:
-	  switch (h->root.type)
-	    {
-	    case bfd_link_hash_defined:
-	    case bfd_link_hash_defweak:
-	      return h->root.u.def.section;
-
-	    case bfd_link_hash_common:
-	      return h->root.u.c.p->section;
-
-	    default:
-	      break;
-	    }
-	}
-    }
-  else
-    return bfd_section_from_elf_index (sec->owner, sym->st_shndx);
-
-  return NULL;
+  return _bfd_elf_gc_mark_hook (sec, info, rel, h, sym);
 }
 
 /* Update relocation info for a GC-excluded section.  We could supposedly
@@ -1782,11 +1777,10 @@ mmix_elf_gc_mark_hook (sec, info, rel, h, sym)
    present.  Better to waste some memory and (perhaps) a little time.  */
 
 static bfd_boolean
-mmix_elf_gc_sweep_hook (abfd, info, sec, relocs)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     struct bfd_link_info *info ATTRIBUTE_UNUSED;
-     asection *sec ATTRIBUTE_UNUSED;
-     const Elf_Internal_Rela *relocs ATTRIBUTE_UNUSED;
+mmix_elf_gc_sweep_hook (bfd *abfd ATTRIBUTE_UNUSED,
+			struct bfd_link_info *info ATTRIBUTE_UNUSED,
+			asection *sec,
+			const Elf_Internal_Rela *relocs ATTRIBUTE_UNUSED)
 {
   struct bpo_reloc_section_info *bpodata
     = mmix_elf_section_data (sec)->bpo.reloc;
@@ -2189,8 +2183,7 @@ mmix_elf_add_symbol_hook (abfd, info, sym, namep, flagsp, secp, valp)
       (*secp)->flags |= SEC_LINKER_CREATED;
     }
   else if ((*namep)[0] == '_' && (*namep)[1] == '_' && (*namep)[2] == '.'
-	   && strncmp (*namep, MMIX_LOC_SECTION_START_SYMBOL_PREFIX,
-		       strlen (MMIX_LOC_SECTION_START_SYMBOL_PREFIX)) == 0)
+	   && CONST_STRNEQ (*namep, MMIX_LOC_SECTION_START_SYMBOL_PREFIX))
     {
       /* See if we have another one.  */
       struct bfd_link_hash_entry *h = bfd_link_hash_lookup (info->hash,
@@ -2941,6 +2934,8 @@ mmix_elf_relax_section (abfd, sec, link_info, again)
 
 #define elf_backend_check_relocs	mmix_elf_check_relocs
 #define elf_backend_symbol_processing	mmix_elf_symbol_processing
+#define elf_backend_omit_section_dynsym \
+  ((bfd_boolean (*) (bfd *, struct bfd_link_info *, asection *)) bfd_true)
 
 #define bfd_elf64_bfd_is_local_label_name \
 	mmix_elf_is_local_label_name

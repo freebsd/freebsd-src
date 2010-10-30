@@ -1,5 +1,5 @@
 /* bfin-parse.y  ADI Blackfin parser
-   Copyright 2005
+   Copyright 2005, 2006
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -20,8 +20,7 @@
    02110-1301, USA.  */
 %{
 
-#include <stdio.h>
-#include <stdarg.h>
+#include "as.h"
 #include <obstack.h>
 
 #include "bfin-aux.h"  // opcode generating auxiliaries
@@ -298,9 +297,10 @@ check_macfuncs (Macfunc *aa, Opt_mode *opa,
 	return yyerror ("Vector AxMACs can't be same");
     }
 
-  /*  If both ops are != 3, we have multiply_halfregs in both
+  /*  If both ops are one of 0, 1, or 2, we have multiply_halfregs in both
   assignment_or_macfuncs.  */
-  if (aa->op == ab->op && aa->op != 3)
+  if (aa->op < 3 && aa->op >=0
+      && ab->op < 3 && ab->op >= 0)
     {
       if (check_multiply_halfregs (aa, ab) < 0)
 	return -1;
@@ -1730,7 +1730,7 @@ asm_1:
 	      $$ = DSP32MULT (0, 0, $4.mod, 0, 0,
 			      0, 0, IS_H ($3.s0), IS_H ($3.s1), 
 			      &$1, 0, &$3.s0, &$3.s1, 1);
-		}	
+	    }
 	}
 
 	| REG ASSIGN multiply_halfregs opt_mode 
@@ -1738,6 +1738,9 @@ asm_1:
 	  /* Odd registers can use (M).  */
 	  if (!IS_DREG ($1))
 	    return yyerror ("Dreg expected");
+
+	  if (IS_EVEN ($1) && $4.MM)
+	    return yyerror ("(M) not allowed with MAC0");
 
 	  if (!IS_EVEN ($1))
 	    {
@@ -1747,15 +1750,13 @@ asm_1:
 			      IS_H ($3.s0), IS_H ($3.s1), 0, 0,
 			      &$1, 0, &$3.s0, &$3.s1, 0);
 	    }
-	  else if ($4.MM == 0)
+	  else
 	    {
 	      notethat ("dsp32mult: dregs = multiply_halfregs opt_mode\n");
 	      $$ = DSP32MULT (0, 0, $4.mod, 0, 1,
 			      0, 0, IS_H ($3.s0), IS_H ($3.s1), 
 			      &$1,  0, &$3.s0, &$3.s1, 1);
 	    }
-	  else
-	    return yyerror ("Register or mode mismatch");
 	}
 
 	| HALF_REG ASSIGN multiply_halfregs opt_mode COMMA
@@ -1764,57 +1765,56 @@ asm_1:
 	  if (!IS_DREG ($1) || !IS_DREG ($6)) 
 	    return yyerror ("Dregs expected");
 
+	  if (!IS_HCOMPL($1, $6))
+	    return yyerror ("Dest registers mismatch");
+
 	  if (check_multiply_halfregs (&$3, &$8) < 0)
 	    return -1;
 
-	  if (IS_H ($1) && !IS_H ($6))
-	    {
-	      notethat ("dsp32mult: dregs_hi = multiply_halfregs mxd_mod, "
-		       "dregs_lo = multiply_halfregs opt_mode\n");
-	      $$ = DSP32MULT (0, $4.MM, $9.mod, 1, 0,
-			      IS_H ($3.s0), IS_H ($3.s1), IS_H ($8.s0), IS_H ($8.s1),
-			      &$1, 0, &$3.s0, &$3.s1, 1);
-	    }
-	  else if (!IS_H ($1) && IS_H ($6) && $4.MM == 0)
-	    {
-	      $$ = DSP32MULT (0, $9.MM, $9.mod, 1, 0,
-			      IS_H ($8.s0), IS_H ($8.s1), IS_H ($3.s0), IS_H ($3.s1),
-			      &$1, 0, &$3.s0, &$3.s1, 1);
-	    }
+	  if ((!IS_H ($1) && $4.MM)
+	      || (!IS_H ($6) && $9.MM))
+	    return yyerror ("(M) not allowed with MAC0");
+
+	  notethat ("dsp32mult: dregs_hi = multiply_halfregs mxd_mod, "
+		    "dregs_lo = multiply_halfregs opt_mode\n");
+
+	  if (IS_H ($1))
+	    $$ = DSP32MULT (0, $4.MM, $9.mod, 1, 0,
+			    IS_H ($3.s0), IS_H ($3.s1), IS_H ($8.s0), IS_H ($8.s1),
+			    &$1, 0, &$3.s0, &$3.s1, 1);
 	  else
-	    return yyerror ("Multfunc Register or mode mismatch");
+	    $$ = DSP32MULT (0, $9.MM, $9.mod, 1, 0,
+			    IS_H ($8.s0), IS_H ($8.s1), IS_H ($3.s0), IS_H ($3.s1),
+			    &$1, 0, &$3.s0, &$3.s1, 1);
 	}
 
-	| REG ASSIGN multiply_halfregs opt_mode COMMA REG ASSIGN multiply_halfregs opt_mode 
+	| REG ASSIGN multiply_halfregs opt_mode COMMA REG ASSIGN multiply_halfregs opt_mode
 	{
 	  if (!IS_DREG ($1) || !IS_DREG ($6)) 
 	    return yyerror ("Dregs expected");
 
+	  if ((IS_EVEN ($1) && $6.regno - $1.regno != 1)
+	      || (IS_EVEN ($6) && $1.regno - $6.regno != 1))
+	    return yyerror ("Dest registers mismatch");
+
 	  if (check_multiply_halfregs (&$3, &$8) < 0)
 	    return -1;
 
+	  if ((IS_EVEN ($1) && $4.MM)
+	      || (IS_EVEN ($6) && $9.MM))
+	    return yyerror ("(M) not allowed with MAC0");
+
 	  notethat ("dsp32mult: dregs = multiply_halfregs mxd_mod, "
 		   "dregs = multiply_halfregs opt_mode\n");
-	  if (IS_EVEN ($1))
-	    {
-	      if ($6.regno - $1.regno != 1 || $4.MM != 0)
-		return yyerror ("Dest registers or mode mismatch");
 
-	      /*   op1       MM      mmod  */
-	      $$ = DSP32MULT (0, 0, $9.mod, 1, 1,
-			      IS_H ($8.s0), IS_H ($8.s1), IS_H ($3.s0), IS_H ($3.s1),
-			      &$1, 0, &$3.s0, &$3.s1, 1);
-	      
-	    }
+	  if (IS_EVEN ($1))
+	    $$ = DSP32MULT (0, $9.MM, $9.mod, 1, 1,
+			    IS_H ($8.s0), IS_H ($8.s1), IS_H ($3.s0), IS_H ($3.s1),
+			    &$1, 0, &$3.s0, &$3.s1, 1);
 	  else
-	    {
-	      if ($1.regno - $6.regno != 1)
-		return yyerror ("Dest registers mismatch");
-	      
-	      $$ = DSP32MULT (0, $9.MM, $9.mod, 1, 1,
-			      IS_H ($3.s0), IS_H ($3.s1), IS_H ($8.s0), IS_H ($8.s1),
-			      &$1, 0, &$3.s0, &$3.s1, 1);
-	    }
+	    $$ = DSP32MULT (0, $4.MM, $9.mod, 1, 1,
+			    IS_H ($3.s0), IS_H ($3.s1), IS_H ($8.s0), IS_H ($8.s1),
+			    &$1, 0, &$3.s0, &$3.s1, 1);
 	}
 
 
@@ -3223,16 +3223,6 @@ asm_1:
 	}
 
 
-
-/* Expression Assignment.  */
-
-	| expr ASSIGN expr
-	{
-	  bfin_equals ($1);
-	  $$ = 0;
-	}
-
-
 /*  PushPopMultiple.  */
 	| reg_with_predec ASSIGN LPAREN REG COLON expr COMMA REG COLON expr RPAREN
 	{
@@ -4280,6 +4270,8 @@ value_match (Expr_Node *expr, int sz, int sign, int mul, int issigned)
 static Expr_Node *
 binary (Expr_Op_Type op, Expr_Node *x, Expr_Node *y)
 {
+  Expr_Node_Value val;
+
   if (x->type == Expr_Node_Constant && y->type == Expr_Node_Constant)
     {
       switch (op)
@@ -4329,13 +4321,32 @@ binary (Expr_Op_Type op, Expr_Node *x, Expr_Node *y)
 	}
       return x;
     }
-  else
+  /* Canonicalize order to EXPR OP CONSTANT.  */
+  if (x->type == Expr_Node_Constant)
     {
-    /* Create a new expression structure.  */
-    Expr_Node_Value val;
-    val.op_value = op;
-    return Expr_Node_Create (Expr_Node_Binop, val, x, y);
-  }
+      Expr_Node *t = x;
+      x = y;
+      y = t;
+    }
+  /* Canonicalize subtraction of const to addition of negated const.  */
+  if (op == Expr_Op_Type_Sub && y->type == Expr_Node_Constant)
+    {
+      op = Expr_Op_Type_Add;
+      y->value.i_value = -y->value.i_value;
+    }
+  if (y->type == Expr_Node_Constant && x->type == Expr_Node_Binop
+      && x->Right_Child->type == Expr_Node_Constant)
+    {
+      if (op == x->value.op_value && x->value.op_value == Expr_Op_Type_Add)
+	{
+	  x->Right_Child->value.i_value += y->value.i_value;
+	  return x;
+	}
+    }
+
+  /* Create a new expression structure.  */
+  val.op_value = op;
+  return Expr_Node_Create (Expr_Node_Binop, val, x, y);
 }
 
 static Expr_Node *

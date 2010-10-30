@@ -1,0 +1,34 @@
+
+.*:     file format .*
+
+Disassembly of section \.plt:
+
+#...
+.*:	01 d0       	mov\.l	.*,r0	! 0
+.*:	f1 af       	bra	.* <_PROCEDURE_LINKAGE_TABLE_>
+.*:	09 00       	nop	
+#...
+.*:	01 d0       	mov\.l	.*,r0	! 7ec
+.*:	05 a8       	bra	.* <_PROCEDURE_LINKAGE_TABLE_>
+.*:	09 00       	nop	
+#...
+.*:	01 d0       	mov\.l	.*,r0	! 7f8
+.*:	f2 af       	bra	.*
+.*:	09 00       	nop	
+#...
+.*:	01 d0       	mov\.l	.*,r0	! fe4
+.*:	06 a8       	bra	.*
+.*:	09 00       	nop	
+#...
+.*:	01 d0       	mov\.l	.*,r0	! ff0
+.*:	f2 af       	bra	.*
+.*:	09 00       	nop	
+#...
+.*:	01 d0       	mov\.l	.*,r0	! 17dc
+.*:	06 a8       	bra	.*
+.*:	09 00       	nop	
+#...
+.*:	01 d0       	mov\.l	.*,r0	! 17e8
+.*:	f2 af       	bra	.*
+.*:	09 00       	nop	
+#pass

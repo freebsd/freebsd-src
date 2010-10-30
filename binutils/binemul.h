@@ -1,5 +1,5 @@
 /* Binutils emulation layer.
-   Copyright 2002, 2003 Free Software Foundation, Inc.
+   Copyright 2002, 2003, 2007 Free Software Foundation, Inc.
    Written by Tom Rix, Red Hat Inc.
 
    This file is part of GNU Binutils.
@@ -21,6 +21,7 @@
 #ifndef BINEMUL_H
 #define BINEMUL_H
 
+#include "sysdep.h"
 #include "bfd.h"
 #include "bucomm.h"
 

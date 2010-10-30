@@ -57,3 +57,4 @@ Disassembly of section \.text:
 [ 	]*[0-9a-fA-F]+:[ 	]+e5 04[ 	]+inl? +\$0x4,%eax
 [ 	]*[0-9a-fA-F]+:[ 	]+e5 08[ 	]+inl? +\$0x8,%eax
 [ 	]*[0-9a-fA-F]+:[ 	]+e5 00[ 	]+inl? +\$0x0,%eax
+#pass

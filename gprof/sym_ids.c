@@ -27,6 +27,7 @@
 #include "symtab.h"
 #include "cg_arcs.h"
 #include "sym_ids.h"
+#include "corefile.h"
 
 static struct sym_id
   {
@@ -218,12 +219,19 @@ parse_id (struct sym_id *id)
 static bfd_boolean
 match (Sym *pattern, Sym *sym)
 {
-  return (pattern->file ? pattern->file == sym->file : TRUE)
-    && (pattern->line_num ? pattern->line_num == sym->line_num : TRUE)
-    && (pattern->name
-	? strcmp (pattern->name,
-		  sym->name+(discard_underscores && sym->name[0] == '_')) == 0
-	: TRUE);
+  if (pattern->file && pattern->file != sym->file)
+    return FALSE;
+  if (pattern->line_num && pattern->line_num != sym->line_num)
+    return FALSE;
+  if (pattern->name)
+    {
+      const char *sym_name = sym->name;
+      if (*sym_name && bfd_get_symbol_leading_char (core_bfd) == *sym_name)
+	sym_name++;
+      if (strcmp (pattern->name, sym_name) != 0)
+	return FALSE;
+    }
+  return TRUE;
 }
 
 

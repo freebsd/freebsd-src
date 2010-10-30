@@ -1,5 +1,5 @@
 /* BFD i370 CPU definition
-   Copyright 1994, 1995, 1996, 1998, 1999, 2000, 2002, 2005
+   Copyright 1994, 1995, 1996, 1998, 1999, 2000, 2002, 2005, 2007
    Free Software Foundation, Inc.
    Contributed by Ian Lance Taylor, Cygnus Support.
    Hacked by Linas Vepstas <linas@linas.org> in 1998, 1999
@@ -21,8 +21,8 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 
 static const bfd_arch_info_type arch_info_struct[] =

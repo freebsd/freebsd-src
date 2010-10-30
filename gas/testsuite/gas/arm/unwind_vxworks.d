@@ -24,6 +24,8 @@ OFFSET   TYPE              VALUE
 0000001c R_ARM_PREL31      .ARM.extab.*\+0x0000001c
 00000020 R_ARM_PREL31      .text.*\+0x00000010
 00000028 R_ARM_PREL31      .text.*\+0x00000012
+00000030 R_ARM_PREL31      .text.*\+0x00000014
+00000034 R_ARM_PREL31      .ARM.extab.*\+0x0000002c
 
 
 Contents of section .text:
@@ -31,11 +33,13 @@ Contents of section .text:
  0010 (04200520|20052004)                             .*
 Contents of section .ARM.extab:
  0000 (449b0181 b0b08086|81019b44 8680b0b0) 00000000 00000000  .*
- 0010 (8402b101 b0b0b005 2a000000 00c60181|01b10284 05b0b0b0 0000002a 8101c600)  .*
- 0020 (b0b0c1c1|c1c1b0b0) 00000000                    .*
+ 0010 (8402b101 b0b0b005 2a000000 00c60281|01b10284 05b0b0b0 0000002a 8102c600)  .*
+ 0020 (d0c6c1c1 b0b0c0c6|c1c1c6d0 c6c0b0b0) 00000000 (429b0181|81019b42)  .*
+ 0030 (b0008086|868000b0) 00000000                    .*
 Contents of section .ARM.exidx:
  0000 00000000 (b0b0a880|80a8b0b0) 00000000 00000000  .*
  0010 00000000 00000000 00000000 00000000  .*
  0020 00000000 (08849780|80978408) 00000000 (b00fb180|80b10fb0)  .*
+ 0030 00000000 00000000                    .*
 # Ignore .ARM.attributes section
 #...

@@ -1,5 +1,5 @@
 /* BFD support for the Infineon XC16X Microcontroller.
-   Copyright 2006 Free Software Foundation, Inc.
+   Copyright 2006, 2007 Free Software Foundation, Inc.
    Contributed by KPIT Cummins Infosystems 
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -20,8 +20,8 @@
    Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
    02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 
 const bfd_arch_info_type xc16xs_info_struct =

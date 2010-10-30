@@ -373,6 +373,9 @@
 	# SLDT
 #        SLDT (%eax)	              #  --  67	 -- --	 0F 00 00	                 ; A32 override: (Addr64) = ZEXT(Addr32 )
         SLDT %eax	              #  --  --	 -- --	 0F 00 C0
+        SLDT %rax	              #  --  --	 -- 48	 0F 00 C0
+        SLDT %ax	              #  66  --	 -- --	 0F 00 C0
+        SLDT (%rax)	              #  --  --	 -- --	 0F 00 00
 
 	# SWAPGS
 
@@ -386,5 +389,33 @@
 	OUT %eax,$0		      #	 --  --	 -- --	 E7 00
 
 	# IN
+
+
+
+	xchg %ax,%ax		      # 66  --	 -- --	 90
+	xchg %eax,%eax		      # --  --	 -- --	 87 C0
+	xchg %rax,%rax		      # --  --	 -- --	 90
+	rex64 xchg %rax,%rax	      # --  --	 -- 48	 90
+	xchg %rax,%r8		      # --  --	 -- 49	 90
+	xchg %eax,%r8d		      # --  --	 -- 41	 90
+	xchg %r8d,%eax		      # --  --	 -- 41	 90
+	xchg %eax,%r9d		      # --  --	 -- 41	 91
+	xchg %r9d,%eax		      # --  --	 -- 41	 91
+	xchg %ebx,%eax		      # --  --	 -- 93
+	xchg %eax,%ebx		      # --  --	 -- 93
+	xchg %ax,%r8w		      # --  --	 -- 66 41 90
+	xchg %r8w,%ax		      # --  --	 -- 66 41 90
+	xchg %ax,%r9w		      # --  --	 -- 66 41 91
+	xchg %r9w,%ax		      # --  --	 -- 66 41 91
+
+        smsw %rax	              #  --  --	 -- 48	 0F 01 e0
+        smsw %eax	              #  --  --	 -- --	 0F 01 e0
+        smsw %ax	              #  66  --	 -- --	 0F 01 e0
+        smsw (%rax)	              #  --  --	 -- --	 0F 01 20
+
+        str %rax	              #  --  --	 -- 48	 0F 00 c8
+        str %eax	              #  --  --	 -- --	 0F 00 c8
+        str %ax		              #  66  --	 -- --	 0F 00 c8
+        str (%rax)	              #  --  --	 -- --	 0F 00 08
 
  .p2align 4,0

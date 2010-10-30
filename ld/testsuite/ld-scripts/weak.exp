@@ -1,6 +1,6 @@
 # Test weak symbols.
 # By Ian Lance Taylor, Cygnus Solutions.
-#   Copyright 1999, 2000, 2002, 2004
+#   Copyright 1999, 2000, 2002, 2004, 2006
 #   Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
@@ -29,6 +29,7 @@ if {! [is_elf_format] && ! [is_pecoff_format]} {
 # Weak symbols are broken for non-i386 PE targets.
 if {! [istarget i?86-*-*]} {
     setup_xfail *-*-pe*
+    setup_xfail x86_64-*-mingw*
 }
 
 # hppa64 and or32 are incredibly broken
@@ -39,6 +40,12 @@ if {! [ld_assemble $as $srcdir/$subdir/weak1.s tmpdir/weak1.o]
     # It's OK if .weak doesn't work on this target.
     unresolved $testname
     return
+}
+
+global LDFLAGS
+set saved_LDFLAGS "$LDFLAGS"
+if [istarget "x86_64-*-mingw*"] then {
+  set LDFLAGS "$LDFLAGS --image-base 0"
 }
 
 set weak_regexp_big \
@@ -52,6 +59,7 @@ if {! [ld_simple_link $ld tmpdir/weak "$flags -T $srcdir/$subdir/weak.t tmpdir/w
 } else {
     if {[which $objdump] == 0} then {
 	unresolved $testname
+	set LDFLAGS "$saved_LDFLAGS"
 	return
     }
 
@@ -67,3 +75,5 @@ if {! [ld_simple_link $ld tmpdir/weak "$flags -T $srcdir/$subdir/weak.t tmpdir/w
 	fail $testname
     }
 }
+
+set LDFLAGS "$saved_LDFLAGS"

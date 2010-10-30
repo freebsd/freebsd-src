@@ -1,5 +1,5 @@
 /* xSYM symbol-file support for BFD.
-   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005
+   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -18,9 +18,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
+#include "sysdep.h"
 #include "xsym.h"
 #include "bfd.h"
-#include "sysdep.h"
 #include "libbfd.h"
 
 #define bfd_sym_close_and_cleanup                   _bfd_generic_close_and_cleanup
@@ -34,9 +34,6 @@
 #define bfd_sym_bfd_make_debug_symbol               _bfd_nosymbols_bfd_make_debug_symbol
 #define bfd_sym_read_minisymbols                    _bfd_generic_read_minisymbols
 #define bfd_sym_minisymbol_to_symbol                _bfd_generic_minisymbol_to_symbol
-#define bfd_sym_get_reloc_upper_bound               _bfd_norelocs_get_reloc_upper_bound
-#define bfd_sym_canonicalize_reloc                  _bfd_norelocs_canonicalize_reloc
-#define bfd_sym_bfd_reloc_type_lookup               _bfd_norelocs_bfd_reloc_type_lookup
 #define bfd_sym_set_arch_mach                       _bfd_generic_set_arch_mach
 #define bfd_sym_get_section_contents                _bfd_generic_get_section_contents
 #define bfd_sym_set_section_contents                _bfd_generic_set_section_contents
@@ -2228,7 +2225,7 @@ bfd_sym_scan (bfd *abfd, bfd_sym_version version, bfd_sym_data_struct *mdata)
   if (mdata->name_table == NULL)
     return -1;
 
-  bfdsec = bfd_make_section_anyway (abfd, name);
+  bfdsec = bfd_make_section_anyway_with_flags (abfd, name, SEC_HAS_CONTENTS);
   if (bfdsec == NULL)
     return -1;
 
@@ -2237,8 +2234,6 @@ bfd_sym_scan (bfd *abfd, bfd_sym_version version, bfd_sym_data_struct *mdata)
   bfdsec->size = 0;
   bfdsec->filepos = 0;
   bfdsec->alignment_power = 0;
-
-  bfdsec->flags = SEC_HAS_CONTENTS;
 
   abfd->tdata.sym_data = mdata;
 
@@ -2277,11 +2272,7 @@ bfd_sym_object_p (bfd *abfd)
   return NULL;
 }
 
-asymbol *
-bfd_sym_make_empty_symbol (bfd *abfd)
-{
-  return bfd_alloc (abfd, sizeof (asymbol));
-}
+#define bfd_sym_make_empty_symbol _bfd_generic_make_empty_symbol
 
 void
 bfd_sym_get_symbol_info (bfd *abfd ATTRIBUTE_UNUSED, asymbol *symbol, symbol_info *ret)
@@ -2302,7 +2293,8 @@ bfd_sym_canonicalize_symtab (bfd *abfd ATTRIBUTE_UNUSED, asymbol **sym ATTRIBUTE
 }
 
 int
-bfd_sym_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED, bfd_boolean exec ATTRIBUTE_UNUSED)
+bfd_sym_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
+			struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
   return 0;
 }
@@ -2351,7 +2343,7 @@ const bfd_target sym_vec =
   BFD_JUMP_TABLE_CORE (_bfd_nocore),
   BFD_JUMP_TABLE_ARCHIVE (_bfd_noarchive),
   BFD_JUMP_TABLE_SYMBOLS (bfd_sym),
-  BFD_JUMP_TABLE_RELOCS (bfd_sym),
+  BFD_JUMP_TABLE_RELOCS (_bfd_norelocs),
   BFD_JUMP_TABLE_WRITE (bfd_sym),
   BFD_JUMP_TABLE_LINK (bfd_sym),
   BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),

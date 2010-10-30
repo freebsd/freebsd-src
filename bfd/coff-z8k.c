@@ -1,6 +1,6 @@
 /* BFD back-end for Zilog Z800n COFF binaries.
    Copyright 1992, 1993, 1994, 1995, 1997, 1999, 2000, 2001, 2002, 2003,
-   2004, 2005 Free Software Foundation, Inc.
+   2004, 2005, 2007 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    Written by Steve Chamberlain, <sac@cygnus.com>.
 
@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "bfdlink.h"
 #include "coff/z8k.h"
@@ -133,6 +133,30 @@ coff_z8k_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
     default:			BFD_FAIL ();
       return 0;
     }
+}
+
+static reloc_howto_type *
+coff_z8k_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			    const char *r_name)
+{
+  if (strcasecmp (r_imm8.name, r_name) == 0)
+    return &r_imm8;
+  if (strcasecmp (r_da.name, r_name) == 0)
+    return &r_da;
+  if (strcasecmp (r_imm32.name, r_name) == 0)
+    return &r_imm32;
+  if (strcasecmp (r_jr.name, r_name) == 0)
+    return &r_jr;
+  if (strcasecmp (r_rel16.name, r_name) == 0)
+    return &r_rel16;
+  if (strcasecmp (r_disp7.name, r_name) == 0)
+    return &r_disp7;
+  if (strcasecmp (r_callr.name, r_name) == 0)
+    return &r_callr;
+  if (strcasecmp (r_imm4l.name, r_name) == 0)
+    return &r_imm4l;
+
+  return NULL;
 }
 
 /* Perform any necessary magic to the addend in a reloc entry.  */
@@ -345,6 +369,7 @@ extra_case (bfd *in_abfd,
 
 #define coff_reloc16_extra_cases    extra_case
 #define coff_bfd_reloc_type_lookup  coff_z8k_reloc_type_lookup
+#define coff_bfd_reloc_name_lookup coff_z8k_reloc_name_lookup
 
 #include "coffcode.h"
 

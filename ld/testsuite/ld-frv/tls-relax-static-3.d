@@ -22,5 +22,5 @@ Disassembly of section \.text:
    100c0:	92 fc 00 00 	setlos lo\(0x0\),gr9
 Disassembly of section \.got:
 
-000140c8 <_GLOBAL_OFFSET_TABLE_>:
+000140c8 <(__data_start|_GLOBAL_OFFSET_TABLE_)>:
 	\.\.\.

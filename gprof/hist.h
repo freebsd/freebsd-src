@@ -21,20 +21,37 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
 #ifndef hist_h
 #define hist_h
 
-extern bfd_vma s_lowpc;		/* Lowpc from the profile file.  */
-extern bfd_vma s_highpc;	/* Highpc from the profile file.  */
-extern bfd_vma lowpc, highpc;	/* Range profiled, in UNIT's.  */
-extern unsigned int hist_num_bins; /* Number of histogram bins.  */
-extern int *hist_sample;	/* Code histogram.  */
+typedef struct histogram
+{
+  bfd_vma lowpc;
+  bfd_vma highpc;
+  unsigned int num_bins;
+  int *sample;           /* Histogram samples (shorts in the file!).  */
+} histogram;
+
+histogram *histograms;
+unsigned num_histograms;
 
 /* Scale factor converting samples to pc values:
    each sample covers HIST_SCALE bytes.  */
 extern double hist_scale;
 
-
 extern void hist_read_rec        (FILE *, const char *);
 extern void hist_write_hist      (FILE *, const char *);
 extern void hist_assign_samples  (void);
 extern void hist_print           (void);
+
+/* Checks if ADDRESS is within the range of addresses for which
+   we have histogram data.  Returns 1 if so and 0 otherwise.  */
+extern int hist_check_address (unsigned address);
+
+/* Given a range of addresses for a symbol, find a histogram record 
+   that intersects with this range, and clips the range to that
+   histogram record, modifying *P_LOWPC and *P_HIGHPC.
+   
+   If no intersection is found, *P_LOWPC and *P_HIGHPC will be set to
+   one unspecified value.  If more that one intersection is found,
+   an error is emitted.  */
+extern void hist_clip_symbol_address (bfd_vma *p_lowpc, bfd_vma *p_highpc);
 
 #endif /* hist_h */

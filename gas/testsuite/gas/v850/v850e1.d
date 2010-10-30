@@ -11,7 +11,7 @@ Disassembly of section .text:
 0x0+04 e0 1f 40 23 [ 	]*bsw	sp, gp
 0x0+08 05 02  [ 	]*callt	5
 0x0+0a e8 3f e4 00 [ 	]*clr1	r7, r8
-0x0+0e f6 17 14 1b [ 	]*cmov	nz, 22, r2, sp
+0x0+0e f6 17 14 1b [ 	]*cmov	nz, -10, r2, sp
 0x0+12 e1 17 34 1b [ 	]*cmov	nz, r1, r2, sp
 0x0+16 e0 07 44 01 [ 	]*ctret	
 0x0+1a e0 07 46 01 [ 	]*dbret	

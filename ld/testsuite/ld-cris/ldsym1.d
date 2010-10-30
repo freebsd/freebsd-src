@@ -13,7 +13,7 @@
 
 Disassembly of section \.text:
 
-0+ <__start>:
+0+ <(___init__start|__start|__Stext)>:
    0:	0f05                	nop 
 
 0+2 <expfn>:

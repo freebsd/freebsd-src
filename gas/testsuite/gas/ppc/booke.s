@@ -135,6 +135,11 @@ branch_target_8:
 	mbar	0
 	mbar	1
 
+	tlbsx	12, 13, 14
+	tlbsx.	12, 13, 14
+	tlbsxe	12, 13, 14
+	tlbsxe.	12, 13, 14
+
 	mfsprg 0, 2
 	mfsprg2 0
 	mtsprg 2, 0

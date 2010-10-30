@@ -221,3 +221,6 @@ extern void mmix_md_do_align (int, char *, int, int);
    sequences sprinkled in, we can get unaligned DWARF2 offsets, so let's
    explicitly say one byte.  */
 #define DWARF2_LINE_MIN_INSN_LENGTH 1
+
+/* This target is buggy, and sets fix size too large.  */
+#define TC_FX_SIZE_SLACK(FIX) 6

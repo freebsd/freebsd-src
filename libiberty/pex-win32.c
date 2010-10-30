@@ -1,6 +1,6 @@
 /* Utilities to execute a program in a subprocess (possibly linked by pipes
    with other subprocesses), and wait for it.  Generic Win32 specialization.
-   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2003, 2004, 2005
+   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2003, 2004, 2005, 2006
    Free Software Foundation, Inc.
 
 This file is part of the libiberty library.
@@ -36,12 +36,14 @@ Boston, MA 02110-1301, USA.  */
 #include <sys/wait.h>
 #endif
 
+#include <assert.h>
 #include <process.h>
 #include <io.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <ctype.h>
 
 /* mingw32 headers may not define the following.  */
 
@@ -58,6 +60,8 @@ Boston, MA 02110-1301, USA.  */
 
 #define MINGW_NAME "Minimalist GNU for Windows"
 #define MINGW_NAME_LEN (sizeof(MINGW_NAME) - 1)
+
+extern char *stpcpy (char *dst, const char *src);
 
 /* Ensure that the executable pathname uses Win32 backslashes. This
    is not necessary on NT, but on W9x, forward slashes causes
@@ -76,7 +80,8 @@ backslashify (char *s)
 static int pex_win32_open_read (struct pex_obj *, const char *, int);
 static int pex_win32_open_write (struct pex_obj *, const char *, int);
 static long pex_win32_exec_child (struct pex_obj *, int, const char *,
-				  char * const *, int, int, int,
+				  char * const *, char * const *,
+                                  int, int, int, int,
 				  const char **, int *);
 static int pex_win32_close (struct pex_obj *, int);
 static int pex_win32_wait (struct pex_obj *, long, int *,
@@ -353,7 +358,7 @@ argv_to_cmdline (char *const *argv)
       cmdline_len += j;
       cmdline_len += 3;  /* for leading and trailing quotes and space */
     }
-  cmdline = xmalloc (cmdline_len);
+  cmdline = XNEWVEC (char, cmdline_len);
   p = cmdline;
   for (i = 0; argv[i]; i++)
     {
@@ -377,16 +382,18 @@ argv_to_cmdline (char *const *argv)
   return cmdline;
 }
 
+/* We'll try the passed filename with all the known standard
+   extensions, and then without extension.  We try no extension
+   last so that we don't try to run some random extension-less
+   file that might be hanging around.  We try both extension
+   and no extension so that we don't need any fancy logic
+   to determine if a file has extension.  */
 static const char *const
 std_suffixes[] = {
   ".com",
   ".exe",
   ".bat",
   ".cmd",
-  0
-};
-static const char *const
-no_suffixes[] = {
   "",
   0
 };
@@ -404,7 +411,6 @@ find_executable (const char *program, BOOL search)
   const char *const *ext;
   const char *p, *q;
   size_t proglen = strlen (program);
-  int has_extension = !!strchr (program, '.');
   int has_slash = (strchr (program, '/') || strchr (program, '\\'));
   HANDLE h;
 
@@ -427,8 +433,8 @@ find_executable (const char *program, BOOL search)
       if (*q == ';')
 	q++;
     }
-  fe_len = fe_len + 1 + proglen + (has_extension ? 1 : 5);
-  full_executable = xmalloc (fe_len);
+  fe_len = fe_len + 1 + proglen + 5 /* space for extension */;
+  full_executable = XNEWVEC (char, fe_len);
 
   p = path;
   do
@@ -453,7 +459,7 @@ find_executable (const char *program, BOOL search)
 
       /* At this point, e points to the terminating NUL character for
          full_executable.  */
-      for (ext = has_extension ? no_suffixes : std_suffixes; *ext; ext++)
+      for (ext = std_suffixes; *ext; ext++)
 	{
 	  /* Remove any current extension.  */
 	  *e = '\0';
@@ -478,21 +484,95 @@ find_executable (const char *program, BOOL search)
   return full_executable;
 }
 
-/* Low-level process creation function.  */
+/* Low-level process creation function and helper.  */
+
+static int
+env_compare (const void *a_ptr, const void *b_ptr)
+{
+  const char *a;
+  const char *b;
+  unsigned char c1;
+  unsigned char c2;
+
+  a = *(const char **) a_ptr;
+  b = *(const char **) b_ptr;
+
+  /* a and b will be of the form: VAR=VALUE
+     We compare only the variable name part here using a case-insensitive
+     comparison algorithm.  It might appear that in fact strcasecmp () can
+     take the place of this whole function, and indeed it could, save for
+     the fact that it would fail in cases such as comparing A1=foo and
+     A=bar (because 1 is less than = in the ASCII character set).
+     (Environment variables containing no numbers would work in such a
+     scenario.)  */
+
+  do
+    {
+      c1 = (unsigned char) tolower (*a++);
+      c2 = (unsigned char) tolower (*b++);
+
+      if (c1 == '=')
+        c1 = '\0';
+
+      if (c2 == '=')
+        c2 = '\0';
+    }
+  while (c1 == c2 && c1 != '\0');
+
+  return c1 - c2;
+}
 
 static long
 win32_spawn (const char *executable,
 	     BOOL search,
 	     char *const *argv,
+             char *const *env, /* array of strings of the form: VAR=VALUE */
 	     DWORD dwCreationFlags,
 	     LPSTARTUPINFO si,
 	     LPPROCESS_INFORMATION pi)
 {
   char *full_executable;
   char *cmdline;
+  char **env_copy;
+  char *env_block = NULL;
 
   full_executable = NULL;
   cmdline = NULL;
+
+  if (env)
+    {
+      int env_size;
+
+      /* Count the number of environment bindings supplied.  */
+      for (env_size = 0; env[env_size]; env_size++)
+        continue;
+    
+      /* Assemble an environment block, if required.  This consists of
+         VAR=VALUE strings juxtaposed (with one null character between each
+         pair) and an additional null at the end.  */
+      if (env_size > 0)
+        {
+          int var;
+          int total_size = 1; /* 1 is for the final null.  */
+          char *bufptr;
+    
+          /* Windows needs the members of the block to be sorted by variable
+             name.  */
+          env_copy = (char **) alloca (sizeof (char *) * env_size);
+          memcpy (env_copy, env, sizeof (char *) * env_size);
+          qsort (env_copy, env_size, sizeof (char *), env_compare);
+    
+          for (var = 0; var < env_size; var++)
+            total_size += strlen (env[var]) + 1;
+    
+          env_block = XNEWVEC (char, total_size);
+          bufptr = env_block;
+          for (var = 0; var < env_size; var++)
+            bufptr = stpcpy (bufptr, env_copy[var]) + 1;
+    
+          *bufptr = '\0';
+        }
+    }
 
   full_executable = find_executable (executable, search);
   if (!full_executable)
@@ -507,31 +587,41 @@ win32_spawn (const char *executable,
 		      /*lpThreadAttributes=*/NULL,
 		      /*bInheritHandles=*/TRUE,
 		      dwCreationFlags,
-		      /*lpEnvironment=*/NULL,
+		      (LPVOID) env_block,
 		      /*lpCurrentDirectory=*/NULL,
 		      si,
 		      pi))
     {
+      if (env_block)
+        free (env_block);
+
       free (full_executable);
+
       return -1;
     }
 
   /* Clean up.  */
   CloseHandle (pi->hThread);
   free (full_executable);
+  if (env_block)
+    free (env_block);
 
   return (long) pi->hProcess;
 
  error:
+  if (env_block)
+    free (env_block);
   if (cmdline)
     free (cmdline);
   if (full_executable)
     free (full_executable);
+
   return -1;
 }
 
 static long
 spawn_script (const char *executable, char *const *argv,
+              char* const *env,
 	      DWORD dwCreationFlags,
 	      LPSTARTUPINFO si,
 	      LPPROCESS_INFORMATION pi)
@@ -566,20 +656,20 @@ spawn_script (const char *executable, char *const *argv,
 	      executable = strrchr (executable1, '\\') + 1;
 	      if (!executable)
 		executable = executable1;
-	      pid = win32_spawn (executable, TRUE, argv, 
+	      pid = win32_spawn (executable, TRUE, argv, env,
 				 dwCreationFlags, si, pi);
 #else
 	      if (strchr (executable1, '\\') == NULL)
-		pid = win32_spawn (executable1, TRUE, argv, 
+		pid = win32_spawn (executable1, TRUE, argv, env,
 				   dwCreationFlags, si, pi);
 	      else if (executable1[0] != '\\')
-		pid = win32_spawn (executable1, FALSE, argv, 
+		pid = win32_spawn (executable1, FALSE, argv, env,
 				   dwCreationFlags, si, pi);
 	      else
 		{
 		  const char *newex = mingw_rootify (executable1);
 		  *avhere = newex;
-		  pid = win32_spawn (newex, FALSE, argv, 
+		  pid = win32_spawn (newex, FALSE, argv, env,
 				     dwCreationFlags, si, pi);
 		  if (executable1 != newex)
 		    free ((char *) newex);
@@ -589,7 +679,7 @@ spawn_script (const char *executable, char *const *argv,
 		      if (newex != executable1)
 			{
 			  *avhere = newex;
-			  pid = win32_spawn (newex, FALSE, argv, 
+			  pid = win32_spawn (newex, FALSE, argv, env,
 					     dwCreationFlags, si, pi);
 			  free ((char *) newex);
 			}
@@ -609,7 +699,10 @@ spawn_script (const char *executable, char *const *argv,
 static long
 pex_win32_exec_child (struct pex_obj *obj ATTRIBUTE_UNUSED, int flags,
 		      const char *executable, char * const * argv,
-		      int in, int out, int errdes, const char **errmsg,
+                      char* const* env,
+		      int in, int out, int errdes,
+		      int toclose ATTRIBUTE_UNUSED,
+		      const char **errmsg,
 		      int *err)
 {
   long pid;
@@ -686,9 +779,10 @@ pex_win32_exec_child (struct pex_obj *obj ATTRIBUTE_UNUSED, int flags,
 
   /* Create the child process.  */  
   pid = win32_spawn (executable, (flags & PEX_SEARCH) != 0,
-		     argv, dwCreationFlags, &si, &pi);
+		     argv, env, dwCreationFlags, &si, &pi);
   if (pid == -1)
-    pid = spawn_script (executable, argv, dwCreationFlags, &si, &pi);
+    pid = spawn_script (executable, argv, env, dwCreationFlags,
+                        &si, &pi);
   if (pid == -1)
     {
       *err = ENOENT;
@@ -789,7 +883,7 @@ main (int argc ATTRIBUTE_UNUSED, char **argv)
   char const *errmsg;
   int err;
   argv++;
-  printf ("%ld\n", pex_win32_exec_child (NULL, PEX_SEARCH, argv[0], argv, 0, 1, 2, &errmsg, &err));
+  printf ("%ld\n", pex_win32_exec_child (NULL, PEX_SEARCH, argv[0], argv, NULL, 0, 0, 1, 2, &errmsg, &err));
   exit (0);
 }
 #endif

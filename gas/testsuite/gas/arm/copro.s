@@ -33,7 +33,8 @@ bar:
         stcl    p8,  c2, [r5], {5}
         ldc2l   9,   c1, [r6], {6}
         stc2l   p10, c0, [r7], {7}
-        ldcl    11,  c8, [r8], {255}
+        @ using '11' below results in an (invalid) Neon vldmia instruction.
+        ldcl    12,  c8, [r8], {255}
         stcl    p12, c9, [r9], {254}
         mrrc    13,   0, r7, r0, cr4
         mcrr    p14,  0, r7, r0, cr5

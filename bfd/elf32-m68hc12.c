@@ -1,5 +1,6 @@
 /* Motorola 68HC12-specific support for 32-bit ELF
-   Copyright 1999, 2000, 2002, 2003, 2004 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2002, 2003, 2004, 2005, 2006, 2007
+   Free Software Foundation, Inc.
    Contributed by Stephane Carrez (stcarrez@nerim.fr)
    (Heavily copied from the D10V port by Martin Hunt (hunt@cygnus.com))
 
@@ -19,8 +20,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "bfdlink.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
@@ -406,6 +407,23 @@ bfd_elf32_bfd_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
   return NULL;
 }
 
+static reloc_howto_type *
+bfd_elf32_bfd_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+				 const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < (sizeof (elf_m68hc11_howto_table)
+	    / sizeof (elf_m68hc11_howto_table[0]));
+       i++)
+    if (elf_m68hc11_howto_table[i].name != NULL
+	&& strcasecmp (elf_m68hc11_howto_table[i].name, r_name) == 0)
+      return &elf_m68hc11_howto_table[i];
+
+  return NULL;
+}
+
 /* Set the howto pointer for an M68HC11 ELF reloc.  */
 
 static void
@@ -537,11 +555,11 @@ m68hc12_elf_set_mach_from_flags (bfd *abfd)
      vectors.  */
 static const struct bfd_elf_special_section elf32_m68hc12_special_sections[] =
 {
-  { ".eeprom",   7, 0, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE },
-  { ".page0",    6, 0, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE },
-  { ".softregs", 9, 0, SHT_NOBITS,   SHF_ALLOC + SHF_WRITE },
-  { ".vectors",  8, 0, SHT_PROGBITS, SHF_ALLOC },
-  { NULL,        0, 0, 0,            0 }
+  { STRING_COMMA_LEN (".eeprom"),   0, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE },
+  { STRING_COMMA_LEN (".page0"),    0, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE },
+  { STRING_COMMA_LEN (".softregs"), 0, SHT_NOBITS,   SHF_ALLOC + SHF_WRITE },
+  { STRING_COMMA_LEN (".vectors"),  0, SHT_PROGBITS, SHF_ALLOC },
+  { NULL,                       0,  0, 0,            0 }
 };
 
 #define ELF_ARCH		bfd_arch_m68hc12
@@ -553,8 +571,6 @@ static const struct bfd_elf_special_section elf32_m68hc12_special_sections[] =
 
 #define elf_info_to_howto	0
 #define elf_info_to_howto_rel	m68hc11_info_to_howto_rel
-#define elf_backend_gc_mark_hook     elf32_m68hc11_gc_mark_hook
-#define elf_backend_gc_sweep_hook    elf32_m68hc11_gc_sweep_hook
 #define elf_backend_check_relocs     elf32_m68hc11_check_relocs
 #define elf_backend_relocate_section elf32_m68hc11_relocate_section
 #define elf_backend_object_p		m68hc12_elf_set_mach_from_flags

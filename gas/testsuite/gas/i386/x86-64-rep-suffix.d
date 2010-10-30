@@ -8,8 +8,8 @@ Disassembly of section .text:
 0+000 <_start>:
    0:	f3 ac[ 	]+rep lodsb %ds:\(%rsi\),%al
    2:	f3 aa[ 	]+rep stosb %al,%es:\(%rdi\)
-   4:	f3 66 ad[ 	]+rep lodsw %ds:\(%rsi\),%ax
-   7:	f3 66 ab[ 	]+rep stosw %ax,%es:\(%rdi\)
+   4:	66 f3 ad[ 	]+rep lodsw %ds:\(%rsi\),%ax
+   7:	66 f3 ab[ 	]+rep stosw %ax,%es:\(%rdi\)
    a:	f3 ad[ 	]+rep lodsl %ds:\(%rsi\),%eax
    c:	f3 ab[ 	]+rep stosl %eax,%es:\(%rdi\)
    e:	f3 48 ad[ 	]+rep lodsq %ds:\(%rsi\),%rax

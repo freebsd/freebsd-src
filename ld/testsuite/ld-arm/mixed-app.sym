@@ -9,7 +9,6 @@ Symbol table for image:
    ..  ..: 0*[^0]*.*   20    FUNC GLOBAL DEFAULT UND lib_func1
    ..  ..: ........     0  NOTYPE GLOBAL DEFAULT ABS __exidx_start
    ..  ..: ........     0  NOTYPE GLOBAL DEFAULT  11 __data_start
-   ..  ..: ........     0  NOTYPE GLOBAL DEFAULT ABS _stack
    ..  ..: ........     0  NOTYPE GLOBAL DEFAULT ABS __end__
    ..  ..: ........     0  NOTYPE GLOBAL DEFAULT ABS __bss_start
    ..  ..: .......0     0    FUNC GLOBAL DEFAULT   8 app_func2

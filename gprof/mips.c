@@ -56,24 +56,13 @@ mips_find_call (Sym *parent, bfd_vma p_lowpc, bfd_vma p_highpc)
       indirect_child.cg.cyc.head = &indirect_child;
     }
 
-  if (!core_text_space)
-    {
-      return;
-    }
-  if (p_lowpc < s_lowpc)
-    {
-      p_lowpc = s_lowpc;
-    }
-  if (p_highpc > s_highpc)
-    {
-      p_highpc = s_highpc;
-    }
   DBG (CALLDEBUG, printf (_("[find_call] %s: 0x%lx to 0x%lx\n"),
 			  parent->name, (unsigned long) p_lowpc,
 			  (unsigned long) p_highpc));
   for (pc = p_lowpc; pc < p_highpc; pc += 4)
     {
-      op = bfd_get_32 (core_bfd, &((char *)core_text_space)[pc - s_lowpc]);
+      op = bfd_get_32 (core_bfd, ((unsigned char *)core_text_space
+                                 + pc - core_text_sect->vma));
       if ((op & 0xfc000000) == 0x0c000000)
 	{
 	  /* This is a "jal" instruction.  Check that the destination
@@ -82,7 +71,7 @@ mips_find_call (Sym *parent, bfd_vma p_lowpc, bfd_vma p_highpc)
 	       printf (_("[find_call] 0x%lx: jal"), (unsigned long) pc));
           offset = (op & 0x03ffffff) << 2;
 	  dest_pc = (pc & ~(bfd_vma) 0xfffffff) | offset;
-	  if (dest_pc >= s_lowpc && dest_pc <= s_highpc)
+	  if (hist_check_address (dest_pc))
 	    {
 	      child = sym_lookup (&symtab, dest_pc);
 	      DBG (CALLDEBUG,

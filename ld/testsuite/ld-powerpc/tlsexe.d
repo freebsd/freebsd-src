@@ -56,21 +56,22 @@ Disassembly of section \.text:
 .*	e9 4d 90 2a 	lwa     r10,-28632\(r13\)
 .*	3d 2d 00 00 	addis   r9,r13,0
 .*	a9 49 90 30 	lha     r10,-28624\(r9\)
-.*	7d 89 02 a6 	mfctr   r12
-.*	78 0b 1f 24 	rldicr  r11,r0,3,60
-.*	34 40 80 00 	addic\.  r2,r0,-32768
-.*	7d 8b 60 50 	subf    r12,r11,r12
-.*	7c 42 fe 76 	sradi   r2,r2,63
-.*	78 0b 17 64 	rldicr  r11,r0,2,61
-.*	7c 42 58 38 	and     r2,r2,r11
-.*	7d 8b 60 50 	subf    r12,r11,r12
-.*	7d 8c 12 14 	add     r12,r12,r2
-.*	3d 8c 00 01 	addis   r12,r12,1
-.*	e9 6c 01 c4 	ld      r11,452\(r12\)
-.*	39 8c 01 c4 	addi    r12,r12,452
+.*	60 00 00 00 	nop
+.*	00 00 00 00 .*
+.*	00 01 01 f0 .*
+.*	7d 88 02 a6 	mflr    r12
+.*	42 9f 00 05 	bcl-    20,4\*cr7\+so,.*
+.*	7d 68 02 a6 	mflr    r11
+.*	e8 4b ff f0 	ld      r2,-16\(r11\)
+.*	7d 88 03 a6 	mtlr    r12
+.*	7d 82 5a 14 	add     r12,r2,r11
+.*	e9 6c 00 00 	ld      r11,0\(r12\)
 .*	e8 4c 00 08 	ld      r2,8\(r12\)
 .*	7d 69 03 a6 	mtctr   r11
 .*	e9 6c 00 10 	ld      r11,16\(r12\)
 .*	4e 80 04 20 	bctr
+.*	60 00 00 00 	nop
+.*	60 00 00 00 	nop
+.*	60 00 00 00 	nop
 .*	38 00 00 00 	li      r0,0
-.*	4b ff ff bc 	b       .*
+.*	4b ff ff c4 	b       .*

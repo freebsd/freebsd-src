@@ -1,8 +1,187 @@
-2006-05-26  Richard Sandiford  <richard@codesourcery.com>
+2006-06-29  M R Swami Reddy  <MR.Swami.Reddy@nsc.com>
+
+	* cr16.h: New file for CR16 target.
+
+2007-05-02  Alan Modra  <amodra@bigpond.net.au>
+
+	* ppc.h (PPC_OPERAND_PLUS1): Update comment.
+
+2007-04-23  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* m68k.h (mcfisa_c): New.
+	(mcfusp, mcf_mask): Adjust.
+
+2007-04-20  Alan Modra  <amodra@bigpond.net.au>
+
+	* ppc.h (struct powerpc_operand): Replace "bits" with "bitm".
+	(num_powerpc_operands): Declare.
+	(PPC_OPERAND_SIGNED et al): Redefine as hex.
+	(PPC_OPERAND_PLUS1): Define.
+
+2007-03-21  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386.h (REX_MODE64): Renamed to ...
+	(REX_W): This.
+	(REX_EXTX): Renamed to ...
+	(REX_R): This.
+	(REX_EXTY): Renamed to ...
+	(REX_X): This.
+	(REX_EXTZ): Renamed to ...
+	(REX_B): This.
+
+2007-03-15  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386.h: Add entries from config/tc-i386.h and move tables
+	to opcodes/i386-opc.h.
+
+2007-03-13  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386.h (FloatDR): Removed.
+	(i386_optab): Use FloatD and FloatD|FloatR instead of FloatDR.
+
+2007-03-01  Alan Modra  <amodra@bigpond.net.au>
+
+	* spu-insns.h: Add soma double-float insns.
+
+2007-02-20  Thiemo Seufer  <ths@mips.com>
+	    Chao-Ying Fu  <fu@mips.com>
+
+	* mips.h (OP_SH_BP, OP_MASK_BP): Add support for balign instruction.
+	(INSN_DSPR2): Add flag for DSP R2 instructions.
+	(M_BALIGN): New macro.
+
+2007-02-14  Alan Modra  <amodra@bigpond.net.au>
+
+	* i386.h (i386_optab): Replace all occurrences of Seg2ShortForm
+	and Seg3ShortFrom with Shortform.
+
+2007-02-11  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR gas/4027
+	* i386.h (i386_optab): Put the real "test" before the pseudo
+	one.
+
+2007-01-08  Kazu Hirata  <kazu@codesourcery.com>
+
+	* m68k.h (m68010up): OR fido_a.
+
+2006-12-25  Kazu Hirata  <kazu@codesourcery.com>
+
+	* m68k.h (fido_a): New.
+
+2006-12-24  Kazu Hirata  <kazu@codesourcery.com>
+
+	* m68k.h (mcfmac, mcfemac, cfloat, mcfhwdiv, mcfisa_a,
+	mcfisa_aa, mcfisa_b, mcfusp, mcf_mask): Double the defined
+	values.
+
+2006-11-08  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386.h (i386_optab): Replace CpuPNI with CpuSSE3.
+
+2006-10-31  Mei Ligang  <ligang@sunnorth.com.cn>
+
+	* score-inst.h (enum score_insn_type): Add Insn_internal.
+
+2006-10-25  Trevor Smigiel  <Trevor_Smigiel@playstation.sony.com>
+	    Yukishige Shibata  <shibata@rd.scei.sony.co.jp>
+	    Nobuhisa Fujinami  <fnami@rd.scei.sony.co.jp>
+	    Takeaki Fukuoka  <fukuoka@rd.scei.sony.co.jp>
+	    Alan Modra  <amodra@bigpond.net.au>
+
+	* spu-insns.h: New file.
+	* spu.h: New file.
+
+2006-10-24  Andrew Pinski  <andrew_pinski@playstation.sony.com>
+
+	* ppc.h (PPC_OPCODE_CELL): Define.
+ 
+2006-10-23  Dwarakanath Rajagopal  <dwarak.rajagopal@amd.com>
+
+	* i386.h :  Modify opcode to support for the change in POPCNT opcode 
+	in amdfam10 architecture.
+
+2006-09-28  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386.h: Replace CpuMNI with CpuSSSE3.
+
+2006-09-26  Mark Shinwell  <shinwell@codesourcery.com>
+            Joseph Myers  <joseph@codesourcery.com>
+            Ian Lance Taylor  <ian@wasabisystems.com>
+            Ben Elliston  <bje@wasabisystems.com>
+
+	* arm.h (ARM_CEXT_IWMMXT2, ARM_ARCH_IWMMXT2): Define.
+
+2006-09-17  Mei Ligang  <ligang@sunnorth.com.cn>
+
+	* score-datadep.h: New file.
+	* score-inst.h: New file.
+
+2006-07-14  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386.h (i386_optab): Remove InvMem from maskmovq, movhlps,
+	movlhps, movmskps, pextrw, pmovmskb, movmskpd, maskmovdqu,
+	movdq2q and movq2dq.
+
+2006-07-10 Dwarakanath Rajagopal	<dwarak.rajagopal@amd.com>
+	   Michael Meissner		<michael.meissner@amd.com>
+
+	* i386.h: Add amdfam10 new instructions (SSE4a and ABM instructions).
+
+2006-06-12  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386.h (i386_optab): Add "nop" with memory reference.
+
+2006-06-12  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* i386.h (i386_optab): Update comment for 64bit NOP.
+
+2006-06-06  Ben Elliston  <bje@au.ibm.com>
+	    Anton Blanchard  <anton@samba.org>
+
+	* ppc.h (PPC_OPCODE_POWER6): Define.
+	Adjust whitespace.
+
+2006-06-05  Thiemo Seufer  <ths@mips.com>
+
+	* mips.h: Improve description of MT flags.	
+
+2006-05-25  Richard Sandiford  <richard@codesourcery.com>
 
 	* m68k.h (mcf_mask): Define.
 
-2006-04-07  Joerg Wunsch <j.gnu@uriah.heep.sax.de>
+2006-05-05  Thiemo Seufer  <ths@mips.com>
+            David Ung  <davidu@mips.com>
+
+	* mips.h (enum): Add macro M_CACHE_AB.
+
+2006-05-04  Thiemo Seufer  <ths@mips.com>
+            Nigel Stephens  <nigel@mips.com>
+	    David Ung  <davidu@mips.com>
+
+	* mips.h: Add INSN_SMARTMIPS define.
+
+2006-04-30  Thiemo Seufer  <ths@mips.com>
+            David Ung  <davidu@mips.com>
+
+	* mips.h: Defines udi bits and masks.  Add description of
+	characters which may appear in the args field of udi
+	instructions.
+
+2006-04-26  Thiemo Seufer  <ths@networkno.de>
+
+	* mips.h: Improve comments describing the bitfield instruction
+	fields.
+
+2006-04-26  Julian Brown  <julian@codesourcery.com>
+
+	* arm.h (FPU_VFP_EXT_V3): Define constant.
+	(FPU_NEON_EXT_V1): Likewise.
+	(FPU_VFP_HARD): Update.
+	(FPU_VFP_V3): Define macro.
+	(FPU_ARCH_VFP_V3, FPU_ARCH_VFP_V3_PLUS_NEON_V1): Define macros.
+
+2006-04-07  Joerg Wunsch  <j.gnu@uriah.heep.sax.de>
 
 	* avr.h (AVR_ISA_PWMx): New.
 

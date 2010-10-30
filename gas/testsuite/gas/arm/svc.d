@@ -1,6 +1,5 @@
 # name: SWI/SVC instructions
 # objdump: -dr --prefix-addresses --show-raw-insn
-# skip: *-*-*coff *-*-pe *-*-wince *-*-*aout* *-*-netbsd *-*-riscix*
 
 .*: +file format .*arm.*
 

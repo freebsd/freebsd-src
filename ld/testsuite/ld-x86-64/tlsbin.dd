@@ -24,7 +24,7 @@ Disassembly of section .text:
 #  GD -> IE because variable is not defined in executable
   401004:	64 48 8b 04 25 00 00[ 	]+mov    %fs:0x0,%rax
   40100b:	00 00 *
-  40100d:	48 03 05 d4 03 10 00[ 	]+add    1049556\(%rip\),%rax +# 5013e8 <.*>
+  40100d:	48 03 05 d4 03 20 00[ 	]+add    0x2003d4\(%rip\),%rax +# 6013e8 <.*>
 #				-> R_X86_64_TPOFF64	sG1
   401014:	90[ 	]+nop *
   401015:	90[ 	]+nop *
@@ -34,7 +34,7 @@ Disassembly of section .text:
 #  the variable is referenced through IE too
   401018:	64 48 8b 04 25 00 00[ 	]+mov    %fs:0x0,%rax
   40101f:	00 00 *
-  401021:	48 03 05 b0 03 10 00[ 	]+add    1049520\(%rip\),%rax +# 5013d8 <.*>
+  401021:	48 03 05 b0 03 20 00[ 	]+add    0x2003b0\(%rip\),%rax +# 6013d8 <.*>
 #				-> R_X86_64_TPOFF64	sG2
   401028:	90[ 	]+nop *
   401029:	90[ 	]+nop *
@@ -43,7 +43,7 @@ Disassembly of section .text:
 #  GD -> LE with global variable defined in executable
   40102c:	64 48 8b 04 25 00 00[ 	]+mov    %fs:0x0,%rax
   401033:	00 00 *
-  401035:	48 8d 80 60 ff ff ff[ 	]+lea    0xf+60\(%rax\),%rax
+  401035:	48 8d 80 60 ff ff ff[ 	]+lea    -0xa0\(%rax\),%rax
 #							sg1
   40103c:	90[ 	]+nop *
   40103d:	90[ 	]+nop *
@@ -52,7 +52,7 @@ Disassembly of section .text:
 #  GD -> LE with local variable defined in executable
   401040:	64 48 8b 04 25 00 00[ 	]+mov    %fs:0x0,%rax
   401047:	00 00 *
-  401049:	48 8d 80 80 ff ff ff[ 	]+lea    0xf+80\(%rax\),%rax
+  401049:	48 8d 80 80 ff ff ff[ 	]+lea    -0x80\(%rax\),%rax
 #							sl1
   401050:	90[ 	]+nop *
   401051:	90[ 	]+nop *
@@ -61,7 +61,7 @@ Disassembly of section .text:
 #  GD -> LE with hidden variable defined in executable
   401054:	64 48 8b 04 25 00 00[ 	]+mov    %fs:0x0,%rax
   40105b:	00 00 *
-  40105d:	48 8d 80 a0 ff ff ff[ 	]+lea    0xf+a0\(%rax\),%rax
+  40105d:	48 8d 80 a0 ff ff ff[ 	]+lea    -0x60\(%rax\),%rax
 #							sh1
   401064:	90[ 	]+nop *
   401065:	90[ 	]+nop *
@@ -72,11 +72,11 @@ Disassembly of section .text:
   40106f:	25 00 00 00 00 *
   401074:	90[ 	]+nop *
   401075:	90[ 	]+nop *
-  401076:	48 8d 90 81 ff ff ff[ 	]+lea    0xf+81\(%rax\),%rdx
+  401076:	48 8d 90 81 ff ff ff[ 	]+lea    -0x7f\(%rax\),%rdx
 #							sl1+1
   40107d:	90[ 	]+nop *
   40107e:	90[ 	]+nop *
-  40107f:	4c 8d 88 86 ff ff ff[ 	]+lea    0xf+86\(%rax\),%r9
+  40107f:	4c 8d 88 86 ff ff ff[ 	]+lea    -0x7a\(%rax\),%r9
 #							sl2+2
   401086:	90[ 	]+nop *
   401087:	90[ 	]+nop *
@@ -87,11 +87,11 @@ Disassembly of section .text:
   401091:	25 00 00 00 00 *
   401096:	90[ 	]+nop *
   401097:	90[ 	]+nop *
-  401098:	48 8d 90 a0 ff ff ff[ 	]+lea    0xf+a0\(%rax\),%rdx
+  401098:	48 8d 90 a0 ff ff ff[ 	]+lea    -0x60\(%rax\),%rdx
 #							sh1
   40109f:	90[ 	]+nop *
   4010a0:	90[ 	]+nop *
-  4010a1:	48 8d 88 a7 ff ff ff[ 	]+lea    0xf+a7\(%rax\),%rcx
+  4010a1:	48 8d 88 a7 ff ff ff[ 	]+lea    -0x59\(%rax\),%rcx
 #							sh2+3
   4010a8:	90[ 	]+nop *
   4010a9:	90[ 	]+nop *
@@ -102,7 +102,7 @@ Disassembly of section .text:
   4010b3:	00 00 *
   4010b5:	90[ 	]+nop *
   4010b6:	90[ 	]+nop *
-  4010b7:	4c 03 0d 1a 03 10 00[ 	]+add    1049370\(%rip\),%r9 +# 5013d8 <.*>
+  4010b7:	4c 03 0d 1a 03 20 00[ 	]+add    0x20031a\(%rip\),%r9 +# 6013d8 <.*>
 #				-> R_X86_64_TPOFF64	sG2
   4010be:	90[ 	]+nop *
   4010bf:	90[ 	]+nop *
@@ -113,7 +113,7 @@ Disassembly of section .text:
   4010c9:	00 00 *
   4010cb:	90[ 	]+nop *
   4010cc:	90[ 	]+nop *
-  4010cd:	4d 8d 92 60 ff ff ff[ 	]+lea    0xf+60\(%r10\),%r10
+  4010cd:	4d 8d 92 60 ff ff ff[ 	]+lea    -0xa0\(%r10\),%r10
 #							sg1
   4010d4:	90[ 	]+nop *
   4010d5:	90[ 	]+nop *
@@ -124,7 +124,7 @@ Disassembly of section .text:
   4010df:	00 00 *
   4010e1:	90[ 	]+nop *
   4010e2:	90[ 	]+nop *
-  4010e3:	48 8d 80 80 ff ff ff[ 	]+lea    0xf+80\(%rax\),%rax
+  4010e3:	48 8d 80 80 ff ff ff[ 	]+lea    -0x80\(%rax\),%rax
 #							sl1
   4010ea:	90[ 	]+nop *
   4010eb:	90[ 	]+nop *
@@ -135,7 +135,7 @@ Disassembly of section .text:
   4010f5:	00 00 *
   4010f7:	90[ 	]+nop *
   4010f8:	90[ 	]+nop *
-  4010f9:	48 8d 89 a0 ff ff ff[ 	]+lea    0xf+a0\(%rcx\),%rcx
+  4010f9:	48 8d 89 a0 ff ff ff[ 	]+lea    -0x60\(%rcx\),%rcx
 #							sh1
   401100:	90[ 	]+nop *
   401101:	90[ 	]+nop *
@@ -143,7 +143,7 @@ Disassembly of section .text:
   401103:	90[ 	]+nop *
 #  Direct access through %fs
 #  IE against global var
-  401104:	48 8b 0d c5 02 10 00[ 	]+mov    1049285\(%rip\),%rcx +# 5013d0 <.*>
+  401104:	48 8b 0d c5 02 20 00[ 	]+mov    0x2002c5\(%rip\),%rcx +# 6013d0 <.*>
 #				-> R_X86_64_TPOFF64	sG5
   40110b:	90[ 	]+nop *
   40110c:	90[ 	]+nop *
@@ -186,7 +186,7 @@ Disassembly of section .text:
   401147:	00 00 *
   401149:	90[ 	]+nop *
   40114a:	90[ 	]+nop *
-  40114b:	4c 03 1d 8e 02 10 00[ 	]+add    1049230\(%rip\),%r11 +# 5013e0 <.*>
+  40114b:	4c 03 1d 8e 02 20 00[ 	]+add    0x20028e\(%rip\),%r11 +# 6013e0 <.*>
 #				-> R_X86_64_TPOFF64	sG6
   401152:	90[ 	]+nop *
   401153:	90[ 	]+nop *
@@ -197,7 +197,7 @@ Disassembly of section .text:
   40115d:	00 00 *
   40115f:	90[ 	]+nop *
   401160:	90[ 	]+nop *
-  401161:	48 8d 92 d4 ff ff ff[ 	]+lea    0xf+d4\(%rdx\),%rdx
+  401161:	48 8d 92 d4 ff ff ff[ 	]+lea    -0x2c\(%rdx\),%rdx
 #							bg6
   401168:	90[ 	]+nop *
   401169:	90[ 	]+nop *
@@ -229,7 +229,7 @@ Disassembly of section .text:
   40119a:	00 00 *
   40119c:	90[ 	]+nop *
   40119d:	90[ 	]+nop *
-  40119e:	48 8d 92 b4 ff ff ff[ 	]+lea    0xf+b4\(%rdx\),%rdx
+  40119e:	48 8d 92 b4 ff ff ff[ 	]+lea    -0x4c\(%rdx\),%rdx
 #							sh6
   4011a5:	90[ 	]+nop *
   4011a6:	90[ 	]+nop *
@@ -250,7 +250,7 @@ Disassembly of section .text:
   4011c1:	00 00 *
   4011c3:	90[ 	]+nop *
   4011c4:	90[ 	]+nop *
-  4011c5:	48 8d 90 64 ff ff ff[ 	]+lea    0xf+64\(%rax\),%rdx
+  4011c5:	48 8d 90 64 ff ff ff[ 	]+lea    -0x9c\(%rax\),%rdx
 #							sg2
   4011cc:	90[ 	]+nop *
   4011cd:	90[ 	]+nop *

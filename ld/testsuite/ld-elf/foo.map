@@ -1,0 +1,4 @@
+FOO {
+  global: foo;
+  local: *;
+};

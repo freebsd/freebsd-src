@@ -24,20 +24,17 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .*: 00001004     0 SECTION LOCAL  DEFAULT    2 
 .*: 00080000     0 SECTION LOCAL  DEFAULT    3 
 .*: 00000000     0 SECTION LOCAL  DEFAULT    4 
-.*: 00000000     0 SECTION LOCAL  DEFAULT    5 
-.*: 00000000     0 SECTION LOCAL  DEFAULT    6 
-.*: 00000000     0 SECTION LOCAL  DEFAULT    7 
-.*: 00001004     0 NOTYPE  LOCAL  DEFAULT    2 start2
-.*: 000010a0     0 NOTYPE  GLOBAL DEFAULT  ABS ___dtors
+.*: 00001004     0 NOTYPE  LOCAL  DEFAULT \[<other>: 4\]     2 start2
+.*: 000010a0     0 NOTYPE  GLOBAL DEFAULT    .* ___dtors
 .*: 000010a0     0 NOTYPE  GLOBAL DEFAULT  ABS __bss_start
-.*: 000010a0     0 NOTYPE  GLOBAL DEFAULT  ABS ___ctors_end
+.*: 000010a0     0 NOTYPE  GLOBAL DEFAULT    .* ___ctors_end
 .*: 00001004     0 NOTYPE  GLOBAL DEFAULT    2 diversion2
-.*: 000010a0     0 NOTYPE  GLOBAL DEFAULT  ABS ___ctors
+.*: 000010a0     0 NOTYPE  GLOBAL DEFAULT    .* ___ctors
 .*: 000010a0     0 NOTYPE  GLOBAL DEFAULT  ABS _edata
 .*: 000010a0     0 NOTYPE  GLOBAL DEFAULT  ABS _end
-.*: 00001000     0 NOTYPE  GLOBAL DEFAULT    1 start
+.*: 00001000     0 NOTYPE  GLOBAL DEFAULT \[<other>: 4\]     1 start
 .*: 00080000     0 NOTYPE  GLOBAL DEFAULT    3 _stack
-.*: 000010a0     0 NOTYPE  GLOBAL DEFAULT  ABS ___dtors_end
+.*: 000010a0     0 NOTYPE  GLOBAL DEFAULT    .* ___dtors_end
 
 Hex dump of section '\.init':
   0x00001000 6ff0fff0                            .*

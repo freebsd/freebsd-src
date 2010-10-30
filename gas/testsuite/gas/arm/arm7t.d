@@ -49,20 +49,20 @@ Disassembly of section .text:
 0+9c <[^>]*> e1df03fc ?	ldrsh	r0, \[pc, #60\]	; 0+e0 <[^>]*>
 0+a0 <[^>]*> e1df03f4 ?	ldrsh	r0, \[pc, #52\]	; 0+dc <[^>]*>
 0+a4 <[^>]*> e19100b2 ?	ldrh	r0, \[r1, r2\]
-0+a8 <[^>]*> 119100b2 ?	ldrneh	r0, \[r1, r2\]
-0+ac <[^>]*> 819100b2 ?	ldrhih	r0, \[r1, r2\]
-0+b0 <[^>]*> b19100b2 ?	ldrlth	r0, \[r1, r2\]
+0+a8 <[^>]*> 119100b2 ?	ldrhne	r0, \[r1, r2\]
+0+ac <[^>]*> 819100b2 ?	ldrhhi	r0, \[r1, r2\]
+0+b0 <[^>]*> b19100b2 ?	ldrhlt	r0, \[r1, r2\]
 0+b4 <[^>]*> e19100f2 ?	ldrsh	r0, \[r1, r2\]
-0+b8 <[^>]*> 119100f2 ?	ldrnesh	r0, \[r1, r2\]
-0+bc <[^>]*> 819100f2 ?	ldrhish	r0, \[r1, r2\]
-0+c0 <[^>]*> b19100f2 ?	ldrltsh	r0, \[r1, r2\]
+0+b8 <[^>]*> 119100f2 ?	ldrshne	r0, \[r1, r2\]
+0+bc <[^>]*> 819100f2 ?	ldrshhi	r0, \[r1, r2\]
+0+c0 <[^>]*> b19100f2 ?	ldrshlt	r0, \[r1, r2\]
 0+c4 <[^>]*> e19100d2 ?	ldrsb	r0, \[r1, r2\]
-0+c8 <[^>]*> 119100d2 ?	ldrnesb	r0, \[r1, r2\]
-0+cc <[^>]*> 819100d2 ?	ldrhisb	r0, \[r1, r2\]
-0+d0 <[^>]*> b19100d2 ?	ldrltsb	r0, \[r1, r2\]
+0+c8 <[^>]*> 119100d2 ?	ldrsbne	r0, \[r1, r2\]
+0+cc <[^>]*> 819100d2 ?	ldrsbhi	r0, \[r1, r2\]
+0+d0 <[^>]*> b19100d2 ?	ldrsblt	r0, \[r1, r2\]
 0+d4 <[^>]*> e1df00f4 ?	ldrsh	r0, \[pc, #4\]	; 0+e0 <[^>]*>
 0+d8 <[^>]*> e1df00f4 ?	ldrsh	r0, \[pc, #4\]	; 0+e4 <[^>]*>
-0+dc <[^>]*> 00000000 ?	andeq	r0, r0, r0
+0+dc <[^>]*> 00000000 ?	.*
 [		]*dc:.*fred
 0+e0 <[^>]*> 0000c0de ?	.*
 0+e4 <[^>]*> 0000dead ?	.*

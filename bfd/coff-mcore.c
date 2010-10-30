@@ -1,5 +1,5 @@
 /* BFD back-end for Motorola MCore COFF/PE
-   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005
+   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -19,8 +19,8 @@ along with this program; if not, write to the Free Software
 Foundation, 51 Franklin Street - Fifth Floor,
 Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "coff/mcore.h"
 #include "coff/internal.h"
@@ -283,8 +283,24 @@ mcore_coff_reloc_type_lookup (abfd, code)
     }
   /*NOTREACHED*/
 }
-
 #undef HOW2MAP
+
+static reloc_howto_type *
+mcore_coff_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			      const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < (sizeof (mcore_coff_howto_table)
+	    / sizeof (mcore_coff_howto_table[0]));
+       i++)
+    if (mcore_coff_howto_table[i].name != NULL
+	&& strcasecmp (mcore_coff_howto_table[i].name, r_name) == 0)
+      return &mcore_coff_howto_table[i];
+
+  return NULL;
+}
 
 #define RTYPE2HOWTO(cache_ptr, dst) \
   (cache_ptr)->howto = mcore_coff_howto_table + (dst)->r_type;
@@ -538,6 +554,7 @@ coff_mcore_relocate_section (output_bfd, info, input_bfd, input_section,
 /* We use the special COFF backend linker, with our own special touch.  */
 
 #define coff_bfd_reloc_type_lookup   mcore_coff_reloc_type_lookup
+#define coff_bfd_reloc_name_lookup mcore_coff_reloc_name_lookup
 #define coff_relocate_section        coff_mcore_relocate_section
 #define coff_rtype_to_howto          coff_mcore_rtype_to_howto
 

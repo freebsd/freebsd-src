@@ -1,6 +1,6 @@
 /* BFD back-end for Intel i860 COFF files.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1999, 2000, 2001, 2002,
-   2003, 2004, 2005 Free Software Foundation, Inc.
+   2003, 2004, 2005, 2007 Free Software Foundation, Inc.
    Created mostly by substituting "860" for "386" in coff-i386.c
    Harry Dolan <dolan@ssd.intel.com>, October 1995
 
@@ -20,8 +20,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 
 #include "coff/i860.h"
@@ -555,6 +555,20 @@ coff_i860_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
     }
 }
 
+static reloc_howto_type *
+coff_i860_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			     const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0; i < sizeof (howto_table) / sizeof (howto_table[0]); i++)
+    if (howto_table[i].name != NULL
+	&& strcasecmp (howto_table[i].name, r_name) == 0)
+      return &howto_table[i];
+
+  return NULL;
+}
+
 /* This is called from coff_slurp_reloc_table for each relocation
    entry.  This special handling is due to the `PAIR' relocation
    which has a different meaning for the `r_symndx' field.  */
@@ -620,6 +634,7 @@ i860_reloc_processing (arelent *cache_ptr, struct internal_reloc *dst,
 
 #define coff_rtype_to_howto		coff_i860_rtype_to_howto
 #define coff_bfd_reloc_type_lookup	coff_i860_reloc_type_lookup
+#define coff_bfd_reloc_name_lookup coff_i860_reloc_name_lookup
 
 #define RELOC_PROCESSING(relent, reloc, symbols, abfd, section) \
   i860_reloc_processing (relent, reloc, symbols, abfd, section)

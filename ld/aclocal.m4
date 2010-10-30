@@ -480,27 +480,6 @@ AC_DEFUN([AM_PROG_INSTALL_SH],
 install_sh=${install_sh-"$am_aux_dir/install-sh"}
 AC_SUBST(install_sh)])
 
-# Copyright (C) 2003, 2005  Free Software Foundation, Inc.
-#
-# This file is free software; the Free Software Foundation
-# gives unlimited permission to copy and/or distribute it,
-# with or without modifications, as long as this notice is preserved.
-
-# serial 2
-
-# Check whether the underlying file-system supports filenames
-# with a leading dot.  For instance MS-DOS doesn't.
-AC_DEFUN([AM_SET_LEADING_DOT],
-[rm -rf .tst 2>/dev/null
-mkdir .tst 2>/dev/null
-if test -d .tst; then
-  am__leading_dot=.
-else
-  am__leading_dot=_
-fi
-rmdir .tst 2>/dev/null
-AC_SUBST([am__leading_dot])])
-
 # Copyright (C) 1998, 1999, 2000, 2001, 2002, 2003, 2005
 # Free Software Foundation, Inc.
 #
@@ -910,4 +889,15 @@ AC_SUBST([am__tar])
 AC_SUBST([am__untar])
 ]) # _AM_PROG_TAR
 
-m4_include([acinclude.m4])
+m4_include([../bfd/acinclude.m4])
+m4_include([../bfd/warning.m4])
+m4_include([../config/depstand.m4])
+m4_include([../config/gettext-sister.m4])
+m4_include([../config/lead-dot.m4])
+m4_include([../config/nls.m4])
+m4_include([../config/po.m4])
+m4_include([../config/progtest.m4])
+m4_include([../libtool.m4])
+m4_include([../ltoptions.m4])
+m4_include([../ltsugar.m4])
+m4_include([../ltversion.m4])

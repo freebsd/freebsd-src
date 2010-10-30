@@ -1,6 +1,6 @@
 /* Motorola MCore specific support for 32-bit ELF
-   Copyright 1994, 1995, 1999, 2000, 2001, 2002, 2003, 2004, 2005
-   Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
+   2007 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -22,8 +22,8 @@
 /* This file is based on a preliminary RCE ELF ABI.  The
    information may not match the final RCE ELF ABI.   */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "bfdlink.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
@@ -317,6 +317,22 @@ mcore_elf_reloc_type_lookup (bfd * abfd ATTRIBUTE_UNUSED,
   return mcore_elf_howto_table [(int) mcore_reloc];
 };
 
+static reloc_howto_type *
+mcore_elf_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			     const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (mcore_elf_howto_raw) / sizeof (mcore_elf_howto_raw[0]);
+       i++)
+    if (mcore_elf_howto_raw[i].name != NULL
+	&& strcasecmp (mcore_elf_howto_raw[i].name, r_name) == 0)
+      return &mcore_elf_howto_raw[i];
+
+  return NULL;
+}
+
 /* Set the howto pointer for a RCE ELF reloc.  */
 
 static void
@@ -387,9 +403,6 @@ mcore_elf_relocate_section (bfd * output_bfd,
      (info->relocatable) ? " (relocatable)" : "");
 #endif
 
-  if (info->relocatable)
-    return TRUE;
-
   if (! mcore_elf_howto_table [R_MCORE_PCRELIMM8BY4])	/* Initialize howto table if needed */
     mcore_elf_howto_init ();
 
@@ -451,6 +464,20 @@ mcore_elf_relocate_section (bfd * output_bfd,
 				   h, sec, relocation,
 				   unresolved_reloc, warned);
 	}
+
+      if (sec != NULL && elf_discarded_section (sec))
+	{
+	  /* For relocs against symbols from removed linkonce sections,
+	     or sections discarded by a linker script, we just want the
+	     section contents zeroed.  Avoid any special processing.  */
+	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
+	  rel->r_info = 0;
+	  rel->r_addend = 0;
+	  continue;
+	}
+
+      if (info->relocatable)
+	continue;
 
       switch (r_type)
 	{
@@ -526,37 +553,21 @@ mcore_elf_relocate_section (bfd * output_bfd,
    relocation.  */
 
 static asection *
-mcore_elf_gc_mark_hook (asection *                   sec,
-			struct bfd_link_info *       info ATTRIBUTE_UNUSED,
-			Elf_Internal_Rela *          rel,
-			struct elf_link_hash_entry * h,
-			Elf_Internal_Sym *           sym)
+mcore_elf_gc_mark_hook (asection *sec,
+			struct bfd_link_info *info,
+			Elf_Internal_Rela *rel,
+			struct elf_link_hash_entry *h,
+			Elf_Internal_Sym *sym)
 {
-  if (h == NULL)
-    return bfd_section_from_elf_index (sec->owner, sym->st_shndx);
+  if (h != NULL)
+    switch (ELF32_R_TYPE (rel->r_info))
+      {
+      case R_MCORE_GNU_VTINHERIT:
+      case R_MCORE_GNU_VTENTRY:
+	return NULL;
+      }
 
-  switch (ELF32_R_TYPE (rel->r_info))
-    {
-    case R_MCORE_GNU_VTINHERIT:
-    case R_MCORE_GNU_VTENTRY:
-      break;
-
-    default:
-      switch (h->root.type)
-	{
-	case bfd_link_hash_defined:
-	case bfd_link_hash_defweak:
-	  return h->root.u.def.section;
-
-	case bfd_link_hash_common:
-	  return h->root.u.c.p->section;
-
-	default:
-	  break;
-	}
-    }
-
-  return NULL;
+  return _bfd_elf_gc_mark_hook (sec, info, rel, h, sym);
 }
 
 /* Update the got entry reference counts for the section being removed.  */
@@ -637,9 +648,9 @@ mcore_elf_check_relocs (bfd * abfd,
 
 static const struct bfd_elf_special_section mcore_elf_special_sections[]=
 {
-  { ".ctors",   6, -2, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE },
-  { ".dtors",   6, -2, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE },
-  { NULL,       0,  0, 0,            0 }
+  { STRING_COMMA_LEN (".ctors"), -2, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE },
+  { STRING_COMMA_LEN (".dtors"), -2, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE },
+  { NULL,                     0,  0, 0,            0 }
 };
 
 #define TARGET_BIG_SYM		bfd_elf32_mcore_big_vec
@@ -656,6 +667,7 @@ static const struct bfd_elf_special_section mcore_elf_special_sections[]=
 #define bfd_elf32_bfd_merge_private_bfd_data	mcore_elf_merge_private_bfd_data
 #define bfd_elf32_bfd_set_private_flags		mcore_elf_set_private_flags
 #define bfd_elf32_bfd_reloc_type_lookup		mcore_elf_reloc_type_lookup
+#define bfd_elf32_bfd_reloc_name_lookup	mcore_elf_reloc_name_lookup
 #define elf_backend_relocate_section		mcore_elf_relocate_section
 #define elf_backend_gc_mark_hook		mcore_elf_gc_mark_hook
 #define elf_backend_gc_sweep_hook		mcore_elf_gc_sweep_hook

@@ -4,23 +4,23 @@
 .*: +file format pe-i386
 
 RELOCATION RECORDS FOR \[\.data\]:
-OFFSET   TYPE              VALUE 
-00000024 secrel32          \.text
-00000029 secrel32          \.text
-0000002e secrel32          \.text
-00000033 secrel32          \.text
-00000044 secrel32          \.data
-00000049 secrel32          \.data
-0000004e secrel32          \.data
-00000053 secrel32          \.data
-00000064 secrel32          \.rdata
-00000069 secrel32          \.rdata
-0000006e secrel32          \.rdata
-00000073 secrel32          \.rdata
-00000084 secrel32          ext24
-00000089 secrel32          ext2d
-0000008e secrel32          ext36
-00000093 secrel32          ext3f
+OFFSET[ 	]+TYPE[ 	]+VALUE 
+0+24 secrel32          \.text
+0+29 secrel32          \.text
+0+2e secrel32          \.text
+0+33 secrel32          \.text
+0+44 secrel32          \.data
+0+49 secrel32          \.data
+0+4e secrel32          \.data
+0+53 secrel32          \.data
+0+64 secrel32          \.rdata
+0+69 secrel32          \.rdata
+0+6e secrel32          \.rdata
+0+73 secrel32          \.rdata
+0+84 secrel32          ext24
+0+89 secrel32          ext2d
+0+8e secrel32          ext36
+0+93 secrel32          ext3f
 
 
 Contents of section \.text:

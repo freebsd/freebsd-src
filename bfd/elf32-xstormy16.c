@@ -1,5 +1,6 @@
 /* Xstormy16-specific support for 32-bit ELF.
-   Copyright 2000, 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+   Copyright 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
+   Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -18,8 +19,8 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301,
    USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
 #include "elf/xstormy16.h"
@@ -344,6 +345,31 @@ xstormy16_reloc_type_lookup (bfd * abfd ATTRIBUTE_UNUSED,
 	return entry->table + (entry->xstormy16_reloc_val
 			       - entry->table[0].type);
     }
+
+  return NULL;
+}
+
+static reloc_howto_type *
+xstormy16_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			     const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < (sizeof (xstormy16_elf_howto_table)
+	    / sizeof (xstormy16_elf_howto_table[0]));
+       i++)
+    if (xstormy16_elf_howto_table[i].name != NULL
+	&& strcasecmp (xstormy16_elf_howto_table[i].name, r_name) == 0)
+      return &xstormy16_elf_howto_table[i];
+
+  for (i = 0;
+       i < (sizeof (xstormy16_elf_howto_table2)
+	    / sizeof (xstormy16_elf_howto_table2[0]));
+       i++)
+    if (xstormy16_elf_howto_table2[i].name != NULL
+	&& strcasecmp (xstormy16_elf_howto_table2[i].name, r_name) == 0)
+      return &xstormy16_elf_howto_table2[i];
 
   return NULL;
 }
@@ -754,9 +780,6 @@ xstormy16_elf_relocate_section (bfd *                   output_bfd ATTRIBUTE_UNU
   bfd *dynobj;
   asection *splt;
 
-  if (info->relocatable)
-    return TRUE;
-
   symtab_hdr = & elf_tdata (input_bfd)->symtab_hdr;
   sym_hashes = elf_sym_hashes (input_bfd);
   relend     = relocs + input_section->reloc_count;
@@ -805,6 +828,20 @@ xstormy16_elf_relocate_section (bfd *                   output_bfd ATTRIBUTE_UNU
 				   h, sec, relocation,
 				   unresolved_reloc, warned);
 	}
+
+      if (sec != NULL && elf_discarded_section (sec))
+	{
+	  /* For relocs against symbols from removed linkonce sections,
+	     or sections discarded by a linker script, we just want the
+	     section contents zeroed.  Avoid any special processing.  */
+	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
+	  rel->r_info = 0;
+	  rel->r_addend = 0;
+	  continue;
+	}
+
+      if (info->relocatable)
+	continue;
 
       if (h != NULL)
 	name = h->root.root.string;
@@ -967,50 +1004,21 @@ xstormy16_elf_finish_dynamic_sections (bfd *abfd ATTRIBUTE_UNUSED,
    relocation.  */
 
 static asection *
-xstormy16_elf_gc_mark_hook (asection *                   sec,
-			    struct bfd_link_info *       info ATTRIBUTE_UNUSED,
-			    Elf_Internal_Rela *          rel,
-			    struct elf_link_hash_entry * h,
-			    Elf_Internal_Sym *           sym)
+xstormy16_elf_gc_mark_hook (asection *sec,
+			    struct bfd_link_info *info,
+			    Elf_Internal_Rela *rel,
+			    struct elf_link_hash_entry *h,
+			    Elf_Internal_Sym *sym)
 {
   if (h != NULL)
-    {
-      switch (ELF32_R_TYPE (rel->r_info))
-	{
-	case R_XSTORMY16_GNU_VTINHERIT:
-	case R_XSTORMY16_GNU_VTENTRY:
-	  break;
+    switch (ELF32_R_TYPE (rel->r_info))
+      {
+      case R_XSTORMY16_GNU_VTINHERIT:
+      case R_XSTORMY16_GNU_VTENTRY:
+	return NULL;
+      }
 
-	default:
-	  switch (h->root.type)
-	    {
-	    case bfd_link_hash_defined:
-	    case bfd_link_hash_defweak:
-	      return h->root.u.def.section;
-
-	    case bfd_link_hash_common:
-	      return h->root.u.c.p->section;
-
-	    default:
-	      break;
-	    }
-	}
-    }
-  else
-    return bfd_section_from_elf_index (sec->owner, sym->st_shndx);
-
-  return NULL;
-}
-
-/* Update the got entry reference counts for the section being removed.  */
-
-static bfd_boolean
-xstormy16_elf_gc_sweep_hook (bfd *                     abfd ATTRIBUTE_UNUSED,
-			     struct bfd_link_info *    info ATTRIBUTE_UNUSED,
-			     asection *                sec ATTRIBUTE_UNUSED,
-			     const Elf_Internal_Rela * relocs ATTRIBUTE_UNUSED)
-{
-  return TRUE;
+  return _bfd_elf_gc_mark_hook (sec, info, rel, h, sym);
 }
 
 #define ELF_ARCH		bfd_arch_xstormy16
@@ -1024,10 +1032,11 @@ xstormy16_elf_gc_sweep_hook (bfd *                     abfd ATTRIBUTE_UNUSED,
 #define elf_info_to_howto			xstormy16_info_to_howto_rela
 #define elf_backend_relocate_section		xstormy16_elf_relocate_section
 #define elf_backend_gc_mark_hook		xstormy16_elf_gc_mark_hook
-#define elf_backend_gc_sweep_hook		xstormy16_elf_gc_sweep_hook
 #define elf_backend_check_relocs                xstormy16_elf_check_relocs
 #define elf_backend_always_size_sections \
   xstormy16_elf_always_size_sections
+#define elf_backend_omit_section_dynsym \
+  ((bfd_boolean (*) (bfd *, struct bfd_link_info *, asection *)) bfd_true)
 #define elf_backend_finish_dynamic_sections \
   xstormy16_elf_finish_dynamic_sections
 
@@ -1035,6 +1044,8 @@ xstormy16_elf_gc_sweep_hook (bfd *                     abfd ATTRIBUTE_UNUSED,
 #define elf_backend_rela_normal			1
 
 #define bfd_elf32_bfd_reloc_type_lookup		xstormy16_reloc_type_lookup
+#define bfd_elf32_bfd_reloc_name_lookup \
+  xstormy16_reloc_name_lookup
 #define bfd_elf32_bfd_relax_section		xstormy16_elf_relax_section
 
 #include "elf32-target.h"
