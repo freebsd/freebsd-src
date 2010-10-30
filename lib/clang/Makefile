@@ -1,5 +1,6 @@
 # $FreeBSD$
 
+.if !make(install)
 SUBDIR=	libclanganalysis \
 	libclangast \
 	libclangbasic \
@@ -48,8 +49,9 @@ SUBDIR=	libclanganalysis \
 	libllvmx86asmprinter \
 	libllvmx86codegen \
 	libllvmx86disassembler \
-	libllvmx86info \
-	\
-	include
+	libllvmx86info
+.endif
+
+SUBDIR+= include
 
 .include <bsd.subdir.mk>
