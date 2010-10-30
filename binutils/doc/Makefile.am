@@ -28,20 +28,16 @@ man_MANS = \
 	strings.1 \
 	strip.1 \
 	windres.1 \
+	windmc.1 \
 	$(DEMANGLER_NAME).1
 
 info_TEXINFOS = binutils.texi
-binutils_TEXINFOS = config.texi
 binutils_TEXI = $(srcdir)/binutils.texi
 
-AM_MAKEINFOFLAGS = -I "$(srcdir)" -I "$(top_srcdir)/../libiberty"
-TEXI2DVI = texi2dvi -I "$(srcdir)" -I "$(top_srcdir)/../libiberty"
-
-config.texi: $(srcdir)/../../bfd/configure $(binutils_TEXI)
-	rm -f config.texi
-	eval `grep '^ *VERSION=' $(srcdir)/../../bfd/configure`; \
-	  echo "@set VERSION $$VERSION" > $@
-	echo "@set UPDATED `date "+%B %Y"`" >> config.texi
+AM_MAKEINFOFLAGS = -I "$(srcdir)" -I "$(top_srcdir)/../libiberty" \
+		   -I ../../bfd/doc
+TEXI2DVI = texi2dvi -I "$(srcdir)" -I "$(top_srcdir)/../libiberty" \
+		    -I ../../bfd/doc
 
 # Man page generation from texinfo
 addr2line.1:	$(binutils_TEXI) $(binutils_TEXINFOS)
@@ -135,6 +131,13 @@ windres.1:	$(binutils_TEXI) $(binutils_TEXINFOS)
 		mv -f $@.T$$$$ $@) || (rm -f $@.T$$$$ && exit 1)
 	rm -f windres.pod
 
+windmc.1:	$(binutils_TEXI) $(binutils_TEXINFOS)
+	touch $@
+	-$(TEXI2POD) $(MANCONF) -Dwindmc < $(binutils_TEXI) > windmc.pod
+	-($(POD2MAN) windmc.pod | sed -e '/^.if n .na/d' > $@.T$$$$ && \
+		mv -f $@.T$$$$ $@) || (rm -f $@.T$$$$ && exit 1)
+	rm -f windmc.pod
+
 cxxfilt.man:	$(binutils_TEXI) $(binutils_TEXINFOS)
 	touch $@
 	-$(TEXI2POD) $(MANCONF) -Dcxxfilt < $(binutils_TEXI) > $(DEMANGLER_NAME).pod
@@ -142,7 +145,6 @@ cxxfilt.man:	$(binutils_TEXI) $(binutils_TEXINFOS)
 		mv -f $@.T$$$$ $@) || (rm -f $@.T$$$$ && exit 1)
 	rm -f $(DEMANGLER_NAME).pod
 
-MAINTAINERCLEANFILES = config.texi
 MOSTLYCLEANFILES     = $(DEMANGLER_NAME).1
 
 $(DEMANGLER_NAME).1: cxxfilt.man Makefile
@@ -179,6 +181,15 @@ install-html-am: $(HTMLS)
 	    $(INSTALL_DATA) "$$d$$p" "$(DESTDIR)$(htmldir)/$$f"; \
 	  fi; \
 	done
+
+MAINTAINERCLEANFILES = binutils.info
+
+# Automake 1.9 will only build info files in the objdir if they are
+# mentioned in DISTCLEANFILES.  It doesn't have to be unconditional,
+# though, so we use a bogus condition.
+if GENINSRC_NEVER
+DISTCLEANFILES = binutils.info
+endif
 
 # Maintenance
 

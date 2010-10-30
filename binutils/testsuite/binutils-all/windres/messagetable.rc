@@ -1,0 +1,6 @@
+//#xfail x86_64-*-mingw*
+#include "windows.h"
+
+LANGUAGE LANG_GERMAN, SUBLANG_GERMAN
+
+888 MESSAGETABLE MSG00001.bin

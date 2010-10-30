@@ -2,7 +2,7 @@
 # It does some substitutions.
 cat >e${EMULATION_NAME}.c <<EOF
 /* Copyright 1991, 1993, 1994, 1996, 1999, 2000, 2001, 2002, 2003, 2004,
-   2005 Free Software Foundation, Inc.
+   2005, 2007 Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
 
@@ -26,8 +26,8 @@ Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
  */
 
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libiberty.h"
 #include "safe-ctype.h"
 #include "bfdlink.h"

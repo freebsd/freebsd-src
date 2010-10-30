@@ -37,8 +37,8 @@ special options:
 @kindex --text-section-literals
 @kindex --no-text-section-literals
 Control the treatment of literal pools.  The default is
-@samp{--no-@-text-@-section-@-literals}, which places literals in a
-separate section in the output file.  This allows the literal pool to be
+@samp{--no-@-text-@-section-@-literals}, which places literals in
+separate sections in the output file.  This allows the literal pool to be
 placed in a data RAM/ROM.  With @samp{--text-@-section-@-literals}, the
 literals are interspersed in the text section in order to keep them as
 close as possible to their references.  This may be necessary for large
@@ -46,6 +46,7 @@ assembly files, where the literals would otherwise be out of range of the
 @code{L32R} instructions in the text section.  These options only affect
 literals referenced via PC-relative @code{L32R} instructions; literals
 for absolute mode @code{L32R} instructions are handled separately.
+@xref{Literal Directive, ,literal}.
 
 @item --absolute-literals | --no-absolute-literals
 @kindex --absolute-literals
@@ -115,13 +116,17 @@ instruction, are specified by enclosing the bundled opcodes inside
 braces:
 
 @smallexample
+@group
 @{
 [@var{format}]
 @var{opcode0} [@var{operands}]
+@end group
 @var{opcode1} [@var{operands}]
+@group
 @var{opcode2} [@var{operands}]
 @dots{}
 @}
+@end group
 @end smallexample
 
 The opcodes in a FLIX instruction are listed in the same order as the
@@ -236,10 +241,8 @@ density option, the same assembly code will then work without modification.
 @node Xtensa Automatic Alignment
 @subsection Automatic Instruction Alignment
 @cindex alignment of @code{LOOP} instructions
-@cindex alignment of @code{ENTRY} instructions
 @cindex alignment of branch targets
 @cindex @code{LOOP} instructions, alignment
-@cindex @code{ENTRY} instructions, alignment
 @cindex branch target alignment
 
 The Xtensa assembler will automatically align certain instructions, both
@@ -282,11 +285,9 @@ different fetch widths, the assembler conservatively assumes a 32-bit
 fetch width when aligning @code{LOOP} instructions (except if the first
 instruction in the loop is a 64-bit instruction).
 
-Similarly, the @code{ENTRY} instruction must be aligned on a 0 mod 4
-byte boundary.  The assembler satisfies this requirement by inserting
-zero bytes when required.  In addition, labels immediately preceding the
-@code{ENTRY} instruction will be moved to the newly aligned instruction
-location.
+Previous versions of the assembler automatically aligned @code{ENTRY}
+instructions to 4-byte boundaries, but that alignment is now the
+programmer's responsibility.
 
 @node Xtensa Relaxation
 @section Xtensa Relaxation
@@ -325,9 +326,11 @@ replace the branch with a branch around a jump.  For example,
 may result in:
 
 @smallexample
+@group
     bnez.n  a2, M
     j L
 M:
+@end group
 @end smallexample
 
 (The @code{BNEZ.N} instruction would be used in this example only if the
@@ -369,9 +372,11 @@ and then using a @code{CALLX} instruction.  So, for example:
 might be relaxed to:
 
 @smallexample
+@group
     .literal .L1, func
     l32r    a8, .L1
     callx8  a8
+@end group
 @end smallexample
 
 Because the addresses of targets of function calls are not generally
@@ -412,8 +417,10 @@ materialized with @code{L32R} instructions.  Thus:
 is assembled into the following machine code:
 
 @smallexample
+@group
     .literal .L1, 100000
     l32r a0, .L1
+@end group
 @end smallexample
 
 @cindex @code{L8UI} instructions, relaxation
@@ -428,7 +435,7 @@ The @code{L8UI} machine instruction can only be used with immediate
 offsets in the range from 0 to 255. The @code{L16SI} and @code{L16UI}
 machine instructions can only be used with offsets from 0 to 510.  The
 @code{L32I} machine instruction can only be used with offsets from 0 to
-1020.  A load offset outside these ranges can be materalized with
+1020.  A load offset outside these ranges can be materialized with
 an @code{L32R} instruction if the destination register of the load
 is different than the source address register.  For example:
 
@@ -439,10 +446,14 @@ is different than the source address register.  For example:
 is translated to:
 
 @smallexample
+@group
     .literal .L1, 2040
     l32r a1, .L1
+@end group
+@group
     addi a1, a0, a1
     l32i a1, a1, 0
+@end group
 @end smallexample
 
 @noindent
@@ -466,22 +477,30 @@ with a literal allocated from the literal pool.
 For example:
 
 @smallexample
+@group
     addi    a5, a6, 0
     addi    a5, a6, 512
+@end group
+@group
     addi    a5, a6, 513
     addi    a5, a6, 50000
+@end group
 @end smallexample
 
 is assembled into the following:
 
 @smallexample
+@group
     .literal .L1, 50000
     mov.n   a5, a6
+@end group
     addmi   a5, a6, 0x200
     addmi   a5, a6, 0x200
     addi    a5, a5, 1
+@group
     l32r    a5, .L1
     add     a5, a6, a5
+@end group
 @end smallexample
 
 @node Xtensa Directives
@@ -489,12 +508,14 @@ is assembled into the following:
 @cindex Xtensa directives
 @cindex directives, Xtensa
 
-The Xtensa assember supports a region-based directive syntax:
+The Xtensa assembler supports a region-based directive syntax:
 
 @smallexample
+@group
     .begin @var{directive} [@var{options}]
     @dots{}
     .end @var{directive}
+@end group
 @end smallexample
 
 All the Xtensa-specific directives that apply to a region of code use
@@ -508,13 +529,17 @@ change the state of the directive without having to be aware of its
 outer state.  For example, consider:
 
 @smallexample
+@group
     .begin no-transform
 L:  add a0, a1, a2
+@end group
     .begin transform
 M:  add a0, a1, a2
     .end transform
+@group
 N:  add a0, a1, a2
     .end no-transform
+@end group
 @end smallexample
 
 The @code{ADD} opcodes at @code{L} and @code{N} in the outer
@@ -545,8 +570,10 @@ The @code{schedule} directive is recognized only for compatibility with
 Tensilica's assembler.
 
 @smallexample
+@group
     .begin [no-]schedule
     .end [no-]schedule
+@end group
 @end smallexample
 
 This directive is ignored and has no effect on @command{@value{AS}}.
@@ -560,8 +587,10 @@ The @code{longcalls} directive enables or disables function call
 relaxation.  @xref{Xtensa Call Relaxation, ,Function Call Relaxation}.
 
 @smallexample
+@group
     .begin [no-]longcalls
     .end [no-]longcalls
+@end group
 @end smallexample
 
 Call relaxation is disabled by default unless the @samp{--longcalls}
@@ -578,8 +607,10 @@ including relaxation (@pxref{Xtensa Relaxation, ,Xtensa Relaxation}) and
 optimization (@pxref{Xtensa Optimizations, ,Xtensa Optimizations}).
 
 @smallexample
+@group
     .begin [no-]transform
     .end [no-]transform
+@end group
 @end smallexample
 
 Transformations are enabled by default unless the @samp{--no-transform}
@@ -607,9 +638,11 @@ the literal data in the most appropriate place and possibly to combine
 identical literals.  For example, the code:
 
 @smallexample
+@group
     entry sp, 40
     .literal .L1, sym
     l32r    a4, .L1
+@end group
 @end smallexample
 
 can be used to load a pointer to the symbol @code{sym} into register
@@ -617,19 +650,60 @@ can be used to load a pointer to the symbol @code{sym} into register
 @code{ENTRY} and @code{L32R} instructions; instead, the assembler puts
 the data in a literal pool.
 
-Literal pools for absolute mode @code{L32R} instructions
-(@pxref{Absolute Literals Directive}) are placed in a separate
-@code{.lit4} section.  By default literal pools for PC-relative mode
-@code{L32R} instructions are placed in a separate @code{.literal}
-section; however, when using the @samp{--text-@-section-@-literals}
+Literal pools are placed by default in separate literal sections;
+however, when using the @samp{--text-@-section-@-literals}
 option (@pxref{Xtensa Options, ,Command Line Options}), the literal
-pools are placed in the current section.  These text section literal
+pools for PC-relative mode @code{L32R} instructions
+are placed in the current section.@footnote{Literals for the
+@code{.init} and @code{.fini} sections are always placed in separate
+sections, even when @samp{--text-@-section-@-literals} is enabled.}
+These text section literal
 pools are created automatically before @code{ENTRY} instructions and
 manually after @samp{.literal_position} directives (@pxref{Literal
 Position Directive, ,literal_position}).  If there are no preceding
 @code{ENTRY} instructions, explicit @code{.literal_position} directives
 must be used to place the text section literal pools; otherwise,
 @command{@value{AS}} will report an error.
+
+When literals are placed in separate sections, the literal section names
+are derived from the names of the sections where the literals are
+defined.  The base literal section names are @code{.literal} for
+PC-relative mode @code{L32R} instructions and @code{.lit4} for absolute
+mode @code{L32R} instructions (@pxref{Absolute Literals Directive,
+,absolute-literals}).  These base names are used for literals defined in
+the default @code{.text} section.  For literals defined in other
+sections or within the scope of a @code{literal_prefix} directive
+(@pxref{Literal Prefix Directive, ,literal_prefix}), the following rules
+determine the literal section name:
+
+@enumerate
+@item
+If the current section is a member of a section group, the literal
+section name includes the group name as a suffix to the base
+@code{.literal} or @code{.lit4} name, with a period to separate the base
+name and group name.  The literal section is also made a member of the
+group.
+
+@item
+If the current section name (or @code{literal_prefix} value) begins with
+``@code{.gnu.linkonce.@var{kind}.}'', the literal section name is formed
+by replacing ``@code{.@var{kind}}'' with the base @code{.literal} or
+@code{.lit4} name.  For example, for literals defined in a section named
+@code{.gnu.linkonce.t.func}, the literal section will be
+@code{.gnu.linkonce.literal.func} or @code{.gnu.linkonce.lit4.func}.
+
+@item
+If the current section name (or @code{literal_prefix} value) ends with
+@code{.text}, the literal section name is formed by replacing that
+suffix with the base @code{.literal} or @code{.lit4} name.  For example,
+for literals defined in a section named @code{.iram0.text}, the literal
+section will be @code{.iram0.literal} or @code{.iram0.lit4}.
+
+@item
+If none of the preceding conditions apply, the literal section name is
+formed by adding the base @code{.literal} or @code{.lit4} name as a
+suffix to the current section name (or @code{literal_prefix} value).
+@end enumerate
 
 @node Literal Position Directive
 @subsection literal_position
@@ -666,57 +740,42 @@ for @samp{M} will automatically be aligned correctly and is placed after
 the unconditional jump.
 
 @smallexample
+@group
     .global M
 code_start:
+@end group
     j continue
     .literal_position
     .align 4
+@group
 continue:
     movi    a4, M
+@end group
 @end smallexample
 
 @node Literal Prefix Directive
 @subsection literal_prefix
 @cindex @code{literal_prefix} directive
 
-The @code{literal_prefix} directive allows you to specify different
-sections to hold literals from different portions of an assembly file.
-With this directive, a single assembly file can be used to generate code
-into multiple sections, including literals generated by the assembler.
+The @code{literal_prefix} directive allows you to override the default
+literal section names, which are derived from the names of the sections
+where the literals are defined.
 
 @smallexample
+@group
     .begin literal_prefix [@var{name}]
     .end literal_prefix
+@end group
 @end smallexample
 
-By default the assembler places literal pools in sections separate from
-the instructions, using the default literal section names of
-@code{.literal} for PC-relative mode @code{L32R} instructions and
-@code{.lit4} for absolute mode @code{L32R} instructions (@pxref{Absolute
-Literals Directive}).  The @code{literal_prefix} directive causes
-different literal sections to be used for the code inside the delimited
-region.  The new literal sections are determined by including @var{name}
-as a prefix to the default literal section names.  If the @var{name}
+For literals defined within the delimited region, the literal section
+names are derived from the @var{name} argument instead of the name of
+the current section.  The rules used to derive the literal section names
+do not change.  @xref{Literal Directive, ,literal}.  If the @var{name}
 argument is omitted, the literal sections revert to the defaults.  This
 directive has no effect when using the
 @samp{--text-@-section-@-literals} option (@pxref{Xtensa Options,
 ,Command Line Options}).
-
-Except for two special cases, the assembler determines the new literal
-sections by simply prepending @var{name} to the default section names,
-resulting in @code{@var{name}.literal} and @code{@var{name}.lit4}
-sections.  The @code{literal_prefix} directive is often used with the
-name of the current text section as the prefix argument.  To facilitate
-this usage, the assembler uses special case rules when it recognizes
-@var{name} as a text section name.  First, if @var{name} ends with
-@code{.text}, that suffix is not included in the literal section name.
-For example, if @var{name} is @code{.iram0.text}, then the literal
-sections will be @code{.iram0.literal} and @code{.iram0.lit4}.  Second,
-if @var{name} begins with @code{.gnu.linkonce.t.}, then the literal
-section names are formed by replacing the @code{.t} substring with
-@code{.literal} and @code{.lit4}.  For example, if @var{name} is
-@code{.gnu.linkonce.t.func}, the literal sections will be
-@code{.gnu.linkonce.literal.func} and @code{.gnu.linkonce.lit4.func}.
 
 @node Absolute Literals Directive
 @subsection absolute-literals
@@ -729,8 +788,10 @@ instructions.  These are relevant only for Xtensa configurations that
 include the absolute addressing option for @code{L32R} instructions.
 
 @smallexample
+@group
     .begin [no-]absolute-literals
     .end [no-]absolute-literals
+@end group
 @end smallexample
 
 These directives do not change the @code{L32R} mode---they only cause

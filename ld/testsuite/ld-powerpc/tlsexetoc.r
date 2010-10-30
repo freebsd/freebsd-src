@@ -16,11 +16,11 @@ Section Headers:
  +\[ 4\] \.dynstr +.*
  +\[ 5\] \.rela\.dyn +.*
  +\[ 6\] \.rela\.plt +.*
- +\[ 7\] \.text +PROGBITS .* 0+bc 0+ +AX +0 +0 +4
- +\[ 8\] \.rodata +PROGBITS .* 0+ 0+ +A +0 +0 +8
- +\[ 9\] \.tdata +PROGBITS .* 0+38 0+ WAT +0 +0 +8
- +\[10\] \.tbss +NOBITS .* 0+38 0+ WAT +0 +0 +8
- +\[11\] \.dynamic +DYNAMIC .* 0+150 10 +WA +4 +0 +8
+ +\[ 7\] \.text +PROGBITS .* 0+c0 0+ +AX +0 +0 +8
+ +\[ 8\] \.tdata +PROGBITS .* 0+38 0+ WAT +0 +0 +8
+ +\[ 9\] \.tbss +NOBITS .* 0+38 0+ WAT +0 +0 +8
+ +\[10\] \.dynamic +DYNAMIC .* 0+150 10 +WA +4 +0 +8
+ +\[11\] \.branch_lt +PROGBITS .* 0+ 0+ +WA +0 +0 +8
  +\[12\] \.got +PROGBITS .* 0+58 08 +WA +0 +0 +8
  +\[13\] \.plt +.*
  +\[14\] \.shstrtab +.*
@@ -71,7 +71,7 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 .* NOTYPE +GLOBAL DEFAULT +ABS _edata
 .* NOTYPE +GLOBAL DEFAULT +ABS _end
 
-Symbol table '\.symtab' contains 41 entries:
+Symbol table '\.symtab' contains .* entries:
  +Num: +Value +Size Type +Bind +Vis +Ndx Name
 .* NOTYPE +LOCAL +DEFAULT +UND 
 .* SECTION LOCAL +DEFAULT +1 
@@ -87,30 +87,27 @@ Symbol table '\.symtab' contains 41 entries:
 .* SECTION LOCAL +DEFAULT +11 
 .* SECTION LOCAL +DEFAULT +12 
 .* SECTION LOCAL +DEFAULT +13 
-.* SECTION LOCAL +DEFAULT +14 
-.* SECTION LOCAL +DEFAULT +15 
-.* SECTION LOCAL +DEFAULT +16 
-.* TLS +LOCAL +DEFAULT +9 gd4
-.* TLS +LOCAL +DEFAULT +9 ld4
-.* TLS +LOCAL +DEFAULT +9 ld5
-.* TLS +LOCAL +DEFAULT +9 ld6
-.* TLS +LOCAL +DEFAULT +9 ie4
-.* TLS +LOCAL +DEFAULT +9 le4
-.* TLS +LOCAL +DEFAULT +9 le5
+.* TLS +LOCAL +DEFAULT +8 gd4
+.* TLS +LOCAL +DEFAULT +8 ld4
+.* TLS +LOCAL +DEFAULT +8 ld5
+.* TLS +LOCAL +DEFAULT +8 ld6
+.* TLS +LOCAL +DEFAULT +8 ie4
+.* TLS +LOCAL +DEFAULT +8 le4
+.* TLS +LOCAL +DEFAULT +8 le5
 .* NOTYPE +LOCAL +DEFAULT +12 \.Lie0
-.* OBJECT +LOCAL +HIDDEN +11 _DYNAMIC
+.* OBJECT +LOCAL +HIDDEN +10 _DYNAMIC
 .* FUNC +LOCAL +DEFAULT +UND \.__tls_get_addr
 .* TLS +GLOBAL DEFAULT +UND gd
-.* TLS +GLOBAL DEFAULT +10 le0
+.* TLS +GLOBAL DEFAULT +9 le0
 .* FUNC +GLOBAL DEFAULT +UND __tls_get_addr
-.* TLS +GLOBAL DEFAULT +10 ld0
-.* TLS +GLOBAL DEFAULT +10 le1
+.* TLS +GLOBAL DEFAULT +9 ld0
+.* TLS +GLOBAL DEFAULT +9 le1
 .* TLS +GLOBAL DEFAULT +UND ld
 .* NOTYPE +GLOBAL DEFAULT +7 _start
-.* TLS +GLOBAL DEFAULT +10 ld2
-.* TLS +GLOBAL DEFAULT +10 ld1
+.* TLS +GLOBAL DEFAULT +9 ld2
+.* TLS +GLOBAL DEFAULT +9 ld1
 .* NOTYPE +GLOBAL DEFAULT +ABS __bss_start
 .* NOTYPE +GLOBAL DEFAULT +ABS _edata
 .* NOTYPE +GLOBAL DEFAULT +ABS _end
-.* TLS +GLOBAL DEFAULT +10 gd0
-.* TLS +GLOBAL DEFAULT +10 ie0
+.* TLS +GLOBAL DEFAULT +9 gd0
+.* TLS +GLOBAL DEFAULT +9 ie0

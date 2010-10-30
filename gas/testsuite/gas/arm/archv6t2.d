@@ -24,10 +24,10 @@ Disassembly of section .text:
 0+40 <[^>]+> e7a00059 	sbfx	r0, r9, #0, #1
 0+44 <[^>]+> e7a008d0 	sbfx	r0, r0, #17, #1
 0+48 <[^>]+> e7b10050 	sbfx	r0, r0, #0, #18
-0+4c <[^>]+> e3ff0f30 	rbit	r0, r0
-0+50 <[^>]+> 13ff0f30 	rbitne	r0, r0
-0+54 <[^>]+> e3ff9f30 	rbit	r9, r0
-0+58 <[^>]+> e3ff0f39 	rbit	r0, r9
+0+4c <[^>]+> e6ff0f30 	rbit	r0, r0
+0+50 <[^>]+> 16ff0f30 	rbitne	r0, r0
+0+54 <[^>]+> e6ff9f30 	rbit	r9, r0
+0+58 <[^>]+> e6ff0f39 	rbit	r0, r9
 0+5c <[^>]+> e0600090 	mls	r0, r0, r0, r0
 0+60 <[^>]+> 10600090 	mlsne	r0, r0, r0, r0
 0+64 <[^>]+> e0690090 	mls	r9, r0, r0, r0
@@ -44,7 +44,7 @@ Disassembly of section .text:
 0+90 <[^>]+> e0f900f0 	ldrsht	r0, \[r9\]
 0+94 <[^>]+> e0f900d0 	ldrsbt	r0, \[r9\]
 0+98 <[^>]+> e0e900b0 	strht	r0, \[r9\]
-0+9c <[^>]+> 10f900b0 	ldrneht	r0, \[r9\]
+0+9c <[^>]+> 10f900b0 	ldrhtne	r0, \[r9\]
 0+a0 <[^>]+> e0b090b9 	ldrht	r9, \[r0\], r9
 0+a4 <[^>]+> e03090b9 	ldrht	r9, \[r0\], -r9
 0+a8 <[^>]+> e0f099b9 	ldrht	r9, \[r0\], #153

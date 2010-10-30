@@ -49,6 +49,7 @@
 #define ARM_CEXT_XSCALE   0x00000001	/* Allow MIA etc.          */
 #define ARM_CEXT_MAVERICK 0x00000002	/* Use Cirrus/DSP coprocessor.  */
 #define ARM_CEXT_IWMMXT   0x00000004    /* Intel Wireless MMX technology coprocessor.   */
+#define ARM_CEXT_IWMMXT2  0x00000008    /* Intel Wireless MMX technology coprocessor version 2.   */
 
 #define FPU_ENDIAN_PURE	 0x80000000	/* Pure-endian doubles.	      */
 #define FPU_ENDIAN_BIG	 0		/* Double words-big-endian.   */
@@ -58,6 +59,8 @@
 #define FPU_VFP_EXT_V1xD 0x08000000	/* Base VFP instruction set.  */
 #define FPU_VFP_EXT_V1	 0x04000000	/* Double-precision insns.    */
 #define FPU_VFP_EXT_V2	 0x02000000	/* ARM10E VFPr1.	      */
+#define FPU_VFP_EXT_V3	 0x01000000	/* VFPv3 insns.	              */
+#define FPU_NEON_EXT_V1	 0x00800000	/* Neon (SIMD) insns.	      */
 
 /* Architectures are the sum of the base and extensions.  The ARM ARM (rev E)
    defines the following: ARMv3, ARMv3M, ARMv4xM, ARMv4, ARMv4TxM, ARMv4T,
@@ -101,11 +104,15 @@
 #define ARM_ARCH_XSCALE	ARM_FEATURE (ARM_AEXT_V5TE, ARM_CEXT_XSCALE)
 #define ARM_ARCH_IWMMXT	\
  ARM_FEATURE (ARM_AEXT_V5TE, ARM_CEXT_XSCALE | ARM_CEXT_IWMMXT)
+#define ARM_ARCH_IWMMXT2	\
+ ARM_FEATURE (ARM_AEXT_V5TE, ARM_CEXT_XSCALE | ARM_CEXT_IWMMXT | ARM_CEXT_IWMMXT2)
 
 #define FPU_VFP_V1xD	(FPU_VFP_EXT_V1xD | FPU_ENDIAN_PURE)
 #define FPU_VFP_V1	(FPU_VFP_V1xD | FPU_VFP_EXT_V1)
 #define FPU_VFP_V2	(FPU_VFP_V1 | FPU_VFP_EXT_V2)
-#define FPU_VFP_HARD	(FPU_VFP_EXT_V1xD | FPU_VFP_EXT_V1 | FPU_VFP_EXT_V2)
+#define FPU_VFP_V3	(FPU_VFP_V2 | FPU_VFP_EXT_V3)
+#define FPU_VFP_HARD	(FPU_VFP_EXT_V1xD | FPU_VFP_EXT_V1 | FPU_VFP_EXT_V2 \
+                         | FPU_VFP_EXT_V3 | FPU_NEON_EXT_V1)
 #define FPU_FPA		(FPU_FPA_EXT_V1 | FPU_FPA_EXT_V2)
 
 /* Deprecated */
@@ -117,6 +124,10 @@
 #define FPU_ARCH_VFP_V1xD ARM_FEATURE (0, FPU_VFP_V1xD)
 #define FPU_ARCH_VFP_V1	  ARM_FEATURE (0, FPU_VFP_V1)
 #define FPU_ARCH_VFP_V2	  ARM_FEATURE (0, FPU_VFP_V2)
+#define FPU_ARCH_VFP_V3	  ARM_FEATURE (0, FPU_VFP_V3)
+#define FPU_ARCH_NEON_V1  ARM_FEATURE (0, FPU_NEON_EXT_V1)
+#define FPU_ARCH_VFP_V3_PLUS_NEON_V1 \
+  ARM_FEATURE (0, FPU_VFP_V3 | FPU_NEON_EXT_V1)
 #define FPU_ARCH_VFP_HARD ARM_FEATURE (0, FPU_VFP_HARD)
 
 #define FPU_ARCH_ENDIAN_PURE ARM_FEATURE (0, FPU_ENDIAN_PURE)

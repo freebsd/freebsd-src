@@ -1,7 +1,7 @@
 #objdump: -d -mmips:8000
 #as: -mabi=o64 -march=8000 -EB
 #name: MIPS -mgp64 -mfp64
-#stderr: mips-gp64-fp32.l
+#stderr: mips-gp64-fp64.l
 
 .*: +file format.*
 

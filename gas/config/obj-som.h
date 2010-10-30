@@ -1,5 +1,5 @@
 /* SOM object file format.
-   Copyright 1993, 1994, 1995, 1998, 2000, 2004, 2005
+   Copyright 1993, 1994, 1995, 1998, 2000, 2004, 2005, 2006
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -27,7 +27,6 @@
 
 #define OBJ_SOM 1
 
-#include "bfd.h"
 #include "bfd/som.h"
 #include "targ-cpu.h"
 

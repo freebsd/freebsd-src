@@ -1,5 +1,5 @@
 /* BFD back-end for TMS320C4X coff binaries.
-   Copyright 1996, 1997, 1998, 1999, 2000, 2002, 2003, 2005
+   Copyright 1996, 1997, 1998, 1999, 2000, 2002, 2003, 2005, 2007
    Free Software Foundation, Inc.
 
    Contributed by Michael Hayes (m.hayes@elec.canterbury.ac.nz)
@@ -21,8 +21,8 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
    02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "bfdlink.h"
 #include "coff/tic4x.h"
@@ -117,6 +117,8 @@ reloc_howto_type tic4x_howto_table[] =
 
 #undef coff_bfd_reloc_type_lookup
 #define coff_bfd_reloc_type_lookup tic4x_coff_reloc_type_lookup
+#undef coff_bfd_reloc_name_lookup
+#define coff_bfd_reloc_name_lookup tic4x_coff_reloc_name_lookup
 
 /* For the case statement use the code values used tc_gen_reloc (defined in
    bfd/reloc.c) to map to the howto table entries.  */
@@ -150,6 +152,21 @@ tic4x_coff_reloc_type_lookup (abfd, code)
   return NULL;
 }
 
+static reloc_howto_type *
+tic4x_coff_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			      const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (tic4x_howto_table) / sizeof (tic4x_howto_table[0]);
+       i++)
+    if (tic4x_howto_table[i].name != NULL
+	&& strcasecmp (tic4x_howto_table[i].name, r_name) == 0)
+      return &tic4x_howto_table[i];
+
+  return NULL;
+}
 
 /* Code to turn a r_type into a howto ptr, uses the above howto table.
    Called after some initial checking by the tic4x_rtype_to_howto fn

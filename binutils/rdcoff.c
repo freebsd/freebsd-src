@@ -1,5 +1,6 @@
 /* stabs.c -- Parse COFF debugging information
-   Copyright 1996, 1999, 2000, 2002, 2003 Free Software Foundation, Inc.
+   Copyright 1996, 1999, 2000, 2002, 2003, 2007
+   Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
    This file is part of GNU Binutils.
@@ -21,10 +22,11 @@
 
 /* This file contains code which parses COFF debugging information.  */
 
+#include "sysdep.h"
 #include "bfd.h"
 #include "coff/internal.h"
-#include "bucomm.h"
 #include "libiberty.h"
+#include "bucomm.h"
 #include "debug.h"
 #include "budbg.h"
 

@@ -624,6 +624,18 @@
 		     (and USI (sll UHI value 16) #xff0000))) ; extract
 )
 
+(df f-dsp-40-u20 "20 bit unsigned" (all-isas) 40 20 UINT
+     ((value pc) (or USI
+		     (or USI
+			 (and (srl value 16) #x0000ff)
+			 (and value          #x00ff00))
+		     (and (sll value 16) #x0f0000))) ; insert
+     ((value pc) (or USI
+		     (or USI
+			 (and USI (srl UHI value 16) #x0000ff)
+			 (and USI value              #x00ff00))
+		     (and USI (sll UHI value 16) #x0f0000))) ; extract
+)
 (df f-dsp-40-u24 "24 bit unsigned" (all-isas) 40 24 UINT
      ((value pc) (or USI
 		     (or USI
@@ -649,6 +661,17 @@
 		)
 )
 
+(dnmf f-dsp-48-u20 "20 bit unsigned" (all-isas) UINT
+      (f-dsp-48-u16 f-dsp-64-u8)
+      (sequence () ; insert
+		(set (ifield f-dsp-64-u8) (and (srl (ifield f-dsp-48-u20) 16) #x0f))
+		(set (ifield f-dsp-48-u16) (and (ifield f-dsp-48-u20) #xffff)) 
+		)
+      (sequence () ; extract
+		(set (ifield f-dsp-48-u20) (or (and (ifield f-dsp-48-u16) #xffff)
+					       (and (sll (ifield f-dsp-64-u8) 16) #x0f0000)))
+		)
+)
 (dnmf f-dsp-48-u24 "24 bit unsigned" (all-isas) UINT
       (f-dsp-48-u16 f-dsp-64-u8)
       (sequence () ; insert
@@ -1877,6 +1900,10 @@
   h-sint DFLT f-dsp-40-s16
   ((parse "signed16")) () ()
 )
+(define-full-operand Dsp-40-u20 "unsigned 20 bit displacement at offset 40 bits" (all-isas)
+  h-uint DFLT f-dsp-40-u20
+  ((parse "unsigned20")) () ()
+)
 (define-full-operand Dsp-40-u24 "unsigned 24 bit displacement at offset 40 bits" (all-isas)
   h-uint DFLT f-dsp-40-u24
   ((parse "unsigned24")) () ()
@@ -1897,6 +1924,10 @@
   h-sint DFLT f-dsp-48-s16
   ((parse "signed16")) () ()
 )
+(define-full-operand Dsp-48-u20 "unsigned 24 bit displacement at offset 40 bits" (all-isas)
+  h-uint DFLT f-dsp-48-u20
+  ((parse "unsigned24")) () ()
+)
 (define-full-operand Dsp-48-u24 "unsigned 24 bit displacement at offset 48 bits" (all-isas)
   h-uint DFLT f-dsp-48-u24
   ((parse "unsigned24")) () ()
@@ -1908,7 +1939,7 @@
 )
 (define-full-operand Imm-8-s4n "negated 4 bit immediate at offset 8 bits" (all-isas)
   h-sint DFLT f-imm-8-s4
-  ((parse "signed4n")) () ()
+  ((parse "signed4n") (print "signed4n")) () ()
 )
 (define-full-operand Imm-sh-8-s4 "signed 4 bit shift immediate at offset 8 bits" (all-isas)
   h-shimm DFLT f-imm-8-s4
@@ -2115,9 +2146,9 @@
 (dnop Lab-8-16    "16 bit label" (all-isas RELAX) h-iaddr f-lab-8-16)
 (dnop Lab-8-24    "24 bit label" (all-isas RELAX) h-iaddr f-lab-8-24)
 (dnop Lab-16-8    "8 bit label"  (all-isas RELAX) h-iaddr f-lab-16-8)
-(dnop Lab-24-8    "8 bit label"  (all-isas) h-iaddr f-lab-24-8)
-(dnop Lab-32-8    "8 bit label"  (all-isas) h-iaddr f-lab-32-8)
-(dnop Lab-40-8    "8 bit label"  (all-isas) h-iaddr f-lab-40-8)
+(dnop Lab-24-8    "8 bit label"  (all-isas RELAX) h-iaddr f-lab-24-8)
+(dnop Lab-32-8    "8 bit label"  (all-isas RELAX) h-iaddr f-lab-32-8)
+(dnop Lab-40-8    "8 bit label"  (all-isas RELAX) h-iaddr f-lab-40-8)
 
 ;-------------------------------------------------------------
 ; Condition code bits
@@ -2208,6 +2239,9 @@
 ; or m32c.
 (define-pmacro (mem16 mode address)
   (mem mode (and #xffff address)))
+
+(define-pmacro (mem20 mode address)
+  (mem mode (and #xfffff address)))
 
 (define-pmacro (mem32 mode address)
   (mem mode (and #xffffff address)))
@@ -2440,6 +2474,19 @@
       (ifield-assertion (andif (eq f-8-2 3) (eq f-10-1 0)))
       (getter (mem16 xmode (add Dsp-16-u16 Src16An)))
       (setter (set (mem16 xmode (add Dsp-16-u16 Src16An)) newval))
+    )
+    (define-derived-operand
+      (name (.sym src16-16-20-An-relative- xmode))
+      (comment (.str "m16c dsp:20[An] relative destination " xmode))
+      (attrs (machine 16))
+      (mode xmode)
+      (args (Src16An Dsp-16-u20))
+      (syntax "${Dsp-16-u20}[$Src16An]")
+      (base-ifield f-8-4)
+      (encoding (+ (f-8-2 3) (f-10-1 0) Dsp-16-u20 Src16An))
+      (ifield-assertion (andif (eq f-8-2 3) (eq f-10-1 0)))
+      (getter (mem20 xmode (add Dsp-16-u20 Src16An)))
+      (setter (set (mem20 xmode (add Dsp-16-u20 Src16An)) newval))
     )
   )
 )
@@ -3156,6 +3203,19 @@
       (ifield-assertion (andif (eq f-12-2 3) (eq f-14-1 0)))
       (getter (mem16 xmode (add (.sym Dsp- offset -u16) Dst16An)))
       (setter (set (mem16 xmode (add (.sym Dsp- offset -u16) Dst16An)) newval))
+    )
+    (define-derived-operand
+      (name (.sym dst16- offset -20-An-relative- xmode))
+      (comment (.str "m16c dsp:20[An] relative destination " xmode))
+      (attrs (machine 16))
+      (mode xmode)
+      (args (Dst16An (.sym Dsp- offset -u20)))
+      (syntax (.str "${Dsp-" offset "-u20}[$Dst16An]"))
+      (base-ifield f-12-4)
+      (encoding (+ (f-12-2 3) (f-14-1 0) (.sym Dsp- offset -u20) Dst16An))
+      (ifield-assertion (andif (eq f-12-2 3) (eq f-14-1 0)))
+      (getter (mem16 xmode (add (.sym Dsp- offset -u20) Dst16An)))
+      (setter (set (mem16 xmode (add (.sym Dsp- offset -u20) Dst16An)) newval))
     )
   )
 )
@@ -4727,6 +4787,25 @@
        (.sym dst16-16-16-absolute- xmode)
       )
     )
+    (define-anyof-operand
+      (name (.sym dst16-16-16sa- xmode))
+      (comment (.str "m16c destination operand of size " xmode " with additional fields at offset 16"))
+      (attrs (machine 16))
+      (mode xmode)
+      (choices
+       (.sym dst16-16-16-SB-relative- xmode)
+       (.sym dst16-16-16-absolute- xmode)
+      )
+    )
+    (define-anyof-operand
+      (name (.sym dst16-16-20ar- xmode))
+      (comment (.str "m16c destination operand of size " xmode " with additional fields at offset 16"))
+      (attrs (machine 16))
+      (mode xmode)
+      (choices
+       (.sym dst16-16-20-An-relative- xmode)
+      )
+    )
   )
 )
 
@@ -5090,6 +5169,17 @@
       (mode xmode)
       (choices
        (.sym dst32-16-16-An-relative-Unprefixed- xmode)
+       (.sym dst32-16-16-SB-relative-Unprefixed- xmode)
+       (.sym dst32-16-16-FB-relative-Unprefixed- xmode)
+       (.sym dst32-16-16-absolute-Unprefixed- xmode)
+      )
+    )
+    (define-anyof-operand
+      (name (.sym dst32-16-16sa-Unprefixed- xmode))
+      (comment (.str "m32c destination operand of size " xmode " with additional fields at offset 16"))
+      (attrs (machine 32))
+      (mode xmode)
+      (choices
        (.sym dst32-16-16-SB-relative-Unprefixed- xmode)
        (.sym dst32-16-16-FB-relative-Unprefixed- xmode)
        (.sym dst32-16-16-absolute-Unprefixed- xmode)
@@ -6591,7 +6681,7 @@
 (define-pmacro (arith-jnz-imm4-dst-defn mach src dstgroup label mode wstr op encoding sem)
   (dni (.sym op mach wstr - imm4 - dstgroup)
        (.str op wstr " " mach "-imm4-" dstgroup "-" label "-" mode)
-       ((machine mach))
+       (RL_JUMP RELAXABLE (machine mach))
        (.str op wstr " #${" src "},${dst" mach "-" dstgroup "-" mode "},${" label "}")
        encoding
        (sem mode src (.sym dst mach - dstgroup - mode) label)
@@ -6605,10 +6695,10 @@
 			     (+ opc1 opc2 (f-7-1 wbit) (.sym Imm-8- i4n) (.sym dst16-basic- mode) Lab-16-8)
 			     sem)
     (arith-jnz-imm4-dst-defn 16 (.sym Imm-8- i4n) 16-16 Lab-32-8 mode wstr op
-			     (+ opc1 opc2 (f-7-1 wbit) (.sym Imm-8- i4n) (.sym dst16-16-16- mode) Lab-16-8)
+			     (+ opc1 opc2 (f-7-1 wbit) (.sym Imm-8- i4n) (.sym dst16-16-16- mode) Lab-32-8)
 			     sem)
     (arith-jnz-imm4-dst-defn 16 (.sym Imm-8- i4n) 16-8 Lab-24-8 mode wstr op
-			     (+ opc1 opc2 (f-7-1 wbit) (.sym Imm-8- i4n) (.sym dst16-16-8- mode) Lab-16-8)
+			     (+ opc1 opc2 (f-7-1 wbit) (.sym Imm-8- i4n) (.sym dst16-16-8- mode) Lab-24-8)
 			     sem)
   )
 )
@@ -8246,28 +8336,27 @@
     )
   )
 ; jsri.w dst (m16 #1 m32 #1))
+(jsri-defn w dst16-16-20ar-HI (f-0-4 #x7) (f-4-4 #xD) (f-8-4 #x3) jsr16-sem 
+	      dst32-16-24-Unprefixed-HI (f-0-4 #xC) (f-7-1 1) (f-10-2 #x1) (f-12-4 #xF) jsr32-sem 4)
+(jsri-defn w dst16-16-16sa-HI (f-0-4 #x7) (f-4-4 #xD) (f-8-4 #x3) jsr16-sem 
+	      dst32-16-16sa-Unprefixed-HI (f-0-4 #xC) (f-7-1 1) (f-10-2 #x1) (f-12-4 #xF) jsr32-sem 4)
 (jsri-defn w dst16-16-8-HI (f-0-4 #x7) (f-4-4 #xD) (f-8-4 #x3) jsr16-sem 
 	      dst32-16-8-Unprefixed-HI (f-0-4 #xC) (f-7-1 1) (f-10-2 #x1) (f-12-4 #xF) jsr32-sem 3)
-(jsri-defn w dst16-16-16-HI (f-0-4 #x7) (f-4-4 #xD) (f-8-4 #x3) jsr16-sem 
-	      dst32-16-16-Unprefixed-HI (f-0-4 #xC) (f-7-1 1) (f-10-2 #x1) (f-12-4 #xF) jsr32-sem 4)
 (jsri-defn w dst16-basic-HI (f-0-4 #x7) (f-4-4 #xD) (f-8-4 #x3) jsr16-sem 
 	      dst32-basic-Unprefixed-HI (f-0-4 #xC) (f-7-1 1) (f-10-2 #x1) (f-12-4 #xF) jsr32-sem 2)
-(dni jsri32.w "jsr.w dst32-16-24-Unprefixed-HI" (RL_1ADDR (machine 32))
-     ("jsri.w ${dst32-16-24-Unprefixed-HI}")
-     (+ (f-0-4 #xC) (f-7-1 1) dst32-16-24-Unprefixed-HI (f-10-2 #x1) (f-12-4 #xF))
-     (jsr32-sem 6 dst32-16-24-Unprefixed-HI)
-     ())
 
 ; jsri.a (m16 #2 m32 #2)
+(jsri-defn a dst16-16-20ar-SI (f-0-4 #x7) (f-4-4 #xD) (f-8-4 #x1) jsr16-sem 
+	      dst32-16-24-Unprefixed-SI (f-0-4 #x9) (f-7-1 0) (f-10-2 #x0) (f-12-4 #x1) jsr32-sem 4)
 (jsri-defn a dst16-16-8-SI (f-0-4 #x7) (f-4-4 #xD) (f-8-4 #x1) jsr16-sem 
 	      dst32-16-8-Unprefixed-SI (f-0-4 #x9) (f-7-1 0) (f-10-2 #x0) (f-12-4 #x1) jsr32-sem 3)
-(jsri-defn a dst16-16-16-SI (f-0-4 #x7) (f-4-4 #xD) (f-8-4 #x1) jsr16-sem 
-	      dst32-16-16-Unprefixed-SI (f-0-4 #x9) (f-7-1 0) (f-10-2 #x0) (f-12-4 #x1) jsr32-sem 4)
+(jsri-defn a dst16-16-16sa-SI (f-0-4 #x7) (f-4-4 #xD) (f-8-4 #x1) jsr16-sem 
+	      dst32-16-16sa-Unprefixed-SI (f-0-4 #x9) (f-7-1 0) (f-10-2 #x0) (f-12-4 #x1) jsr32-sem 4)
 (jsri-defn a dst16-basic-SI (f-0-4 #x7) (f-4-4 #xD) (f-8-4 #x1) jsr16-sem 
 	      dst32-basic-Unprefixed-SI (f-0-4 #x9) (f-7-1 0) (f-10-2 #x0) (f-12-4 #x1) jsr32-sem 2)
 
 (dni jsri32.a "jsr.w dst32-16-24-Unprefixed-HI" (RL_1ADDR (machine 32))
-     ("jsri.w ${dst32-16-24-Unprefixed-SI}")
+     ("jsri.a ${dst32-16-24-Unprefixed-SI}")
      (+ (f-0-4 #x9) (f-7-1 0) dst32-16-24-Unprefixed-SI (f-10-2 #x0) (f-12-4 #x1))
      (jsr32-sem 6 dst32-16-24-Unprefixed-SI)
      ())
@@ -10233,7 +10322,7 @@
      ())
 (dni stzx16-imm8-imm8-abs16 "stzx #Imm8,#Imm8,abs16" ((machine 16))
      ("stzx #${Imm-8-QI},#${Imm-32-QI},${Dsp-16-u16}")
-     (+ (f-0-4 #xD) (f-4-4 #xE) Imm-8-QI Dsp-16-u16 Imm-32-QI)
+     (+ (f-0-4 #xD) (f-4-4 #xF) Imm-8-QI Dsp-16-u16 Imm-32-QI)
      (stzx-sem QI Imm-8-QI Imm-32-QI (mem16 QI Dsp-16-u16))
      ())
 ; stzx.BW #imm,dst (m32)

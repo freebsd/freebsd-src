@@ -1,5 +1,5 @@
 /* tc-iq2000.c -- Assembler for the Sitera IQ2000.
-   Copyright (C) 2003, 2004, 2005 Free Software Foundation.
+   Copyright (C) 2003, 2004, 2005, 2006 Free Software Foundation.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -18,7 +18,6 @@
    the Free Software Foundation, 51 Franklin Street - Fifth Floor,
    Boston, MA 02110-1301, USA.  */
 
-#include <stdio.h>
 #include "as.h"
 #include "safe-ctype.h"
 #include "subsegs.h"
@@ -29,7 +28,7 @@
 #include "elf/common.h"
 #include "elf/iq2000.h"
 #include "libbfd.h"
-#include "hash.h"
+#include "sb.h"
 #include "macro.h"
 
 /* Structure to hold all of the different components describing

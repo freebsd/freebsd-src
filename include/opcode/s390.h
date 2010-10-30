@@ -36,7 +36,8 @@ enum s390_opcode_cpu_val
     S390_OPCODE_G6,
     S390_OPCODE_Z900,
     S390_OPCODE_Z990,
-    S390_OPCODE_Z9_109
+    S390_OPCODE_Z9_109,
+    S390_OPCODE_Z9_EC
   };
 
 /* The opcode table is an array of struct s390_opcode.  */

@@ -1,5 +1,6 @@
 /* picoJava specific support for 32-bit ELF
-   Copyright 1999, 2000, 2001, 2002, 2005 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2001, 2002, 2005, 2007
+   Free Software Foundation, Inc.
    Contributed by Steve Chamberlan of Transmeta (sac@pobox.com).
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -18,8 +19,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "bfdlink.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
@@ -291,6 +292,22 @@ pj_elf_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
   return NULL;
 }
 
+static reloc_howto_type *
+pj_elf_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			  const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (pj_elf_howto_table) / sizeof (pj_elf_howto_table[0]);
+       i++)
+    if (pj_elf_howto_table[i].name != NULL
+	&& strcasecmp (pj_elf_howto_table[i].name, r_name) == 0)
+      return &pj_elf_howto_table[i];
+
+  return NULL;
+}
+
 /* Given an ELF reloc, fill in the howto field of a relent.  */
 
 static void
@@ -326,8 +343,10 @@ pj_elf_final_write_processing (bfd *abfd,
 #define ELF_MACHINE_CODE	EM_PJ
 #define ELF_MACHINE_ALT1	EM_PJ_OLD
 #define ELF_MAXPAGESIZE		0x1000
-#define bfd_elf32_bfd_get_relocated_section_contents bfd_generic_get_relocated_section_contents
-#define bfd_elf32_bfd_reloc_type_lookup	             pj_elf_reloc_type_lookup
-#define elf_backend_final_write_processing           pj_elf_final_write_processing
-#define elf_info_to_howto		             pj_elf_info_to_howto
+#define bfd_elf32_bfd_get_relocated_section_contents \
+  bfd_generic_get_relocated_section_contents
+#define bfd_elf32_bfd_reloc_type_lookup	        pj_elf_reloc_type_lookup
+#define bfd_elf32_bfd_reloc_name_lookup   pj_elf_reloc_name_lookup
+#define elf_backend_final_write_processing      pj_elf_final_write_processing
+#define elf_info_to_howto		        pj_elf_info_to_howto
 #include "elf32-target.h"

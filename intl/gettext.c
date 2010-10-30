@@ -1,19 +1,20 @@
 /* Implementation of gettext(3) function.
-   Copyright (C) 1995, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1997, 2000, 2001, 2002 Free Software Foundation, Inc.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
+   This program is free software; you can redistribute it and/or modify it
+   under the terms of the GNU Library General Public License as published
+   by the Free Software Foundation; either version 2, or (at your option)
    any later version.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Library General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
+   You should have received a copy of the GNU Library General Public
+   License along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301,
+   USA.  */
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>
@@ -23,21 +24,14 @@
 # define __need_NULL
 # include <stddef.h>
 #else
-# ifdef STDC_HEADERS
-#  include <stdlib.h>		/* Just for NULL.  */
-# else
-#  ifdef HAVE_STRING_H
-#   include <string.h>
-#  else
-#   define NULL ((void *) 0)
-#  endif
-# endif
+# include <stdlib.h>		/* Just for NULL.  */
 #endif
 
+#include "gettextP.h"
 #ifdef _LIBC
 # include <libintl.h>
 #else
-# include "libgettext.h"
+# include "libgnuintl.h"
 #endif
 
 /* @@ end of prolog @@ */
@@ -48,10 +42,10 @@
    prefix.  So we have to make a difference here.  */
 #ifdef _LIBC
 # define GETTEXT __gettext
-# define DGETTEXT __dgettext
+# define DCGETTEXT INTUSE(__dcgettext)
 #else
-# define GETTEXT gettext__
-# define DGETTEXT dgettext__
+# define GETTEXT libintl_gettext
+# define DCGETTEXT libintl_dcgettext
 #endif
 
 /* Look up MSGID in the current default message catalog for the current
@@ -61,7 +55,7 @@ char *
 GETTEXT (msgid)
      const char *msgid;
 {
-  return DGETTEXT (NULL, msgid);
+  return DCGETTEXT (NULL, msgid, LC_MESSAGES);
 }
 
 #ifdef _LIBC

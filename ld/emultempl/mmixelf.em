@@ -24,7 +24,6 @@
 . ${srcdir}/emultempl/mmix-elfnmmo.em
 
 cat >>e${EMULATION_NAME}.c <<EOF
-#line 29 "${srcdir}/emultempl/elfmmix.em"
 
 static void
 elfmmix_before_parse (void)

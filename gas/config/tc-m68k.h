@@ -174,7 +174,7 @@ extern struct relax_type md_relax_table[];
 #define DWARF2_CIE_DATA_ALIGNMENT (-4)
 
 #define tc_regname_to_dw2regnum tc_m68k_regname_to_dw2regnum
-extern int tc_m68k_regname_to_dw2regnum (const char *regname);
+extern int tc_m68k_regname_to_dw2regnum (char *regname);
 
 #define tc_cfi_frame_initial_instructions tc_m68k_frame_initial_instructions
 extern void tc_m68k_frame_initial_instructions (void);

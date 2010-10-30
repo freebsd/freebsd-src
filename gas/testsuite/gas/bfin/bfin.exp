@@ -1,17 +1,5 @@
 # Blackfin assembler testsuite
 
-proc run_list_test { name opts } {
-    global srcdir subdir
-    set testname "bfin $name"
-    set file $srcdir/$subdir/$name
-    gas_run ${name}.s $opts ">&dump.out"
-    if { [regexp_diff "dump.out" "${file}.l"] } then {
-	fail $testname
-	verbose "output is [file_contents "dump.out"]" 2
-	return
-    }
-    pass $testname
-}
 if [istarget bfin*-*-*] {
 	run_dump_test "arithmetic"
 	run_dump_test "bit"

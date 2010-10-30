@@ -54,3 +54,12 @@ run_dump_test "merge-error-1e"
 run_dump_test "merge-ok-1a"
 run_dump_test "merge-ok-1b"
 run_dump_test "merge-ok-1c"
+
+foreach { id sources } { a { plt1.s } b { plt1-empty.s plt1.s } } {
+    foreach arch { 68020 cpu32 isab isac } {
+	run_ld_link_tests [list \
+	    [list "PLT 1$id ($arch)" "-shared -T plt1.ld" "-m$arch" \
+		 $sources [list [list objdump -dr plt1-$arch.d]] \
+		 plt1-${id}-${arch}.so]]
+    }
+}

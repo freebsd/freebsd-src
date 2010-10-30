@@ -1,5 +1,5 @@
 /* Table of relaxations for Xtensa assembly.
-   Copyright 2003, 2004, 2005 Free Software Foundation, Inc.
+   Copyright 2003, 2004, 2005, 2007 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -49,8 +49,8 @@
    The replacement language
    INSN_REPL      ::= INSN_LABEL_LIT ( ';' INSN_LABEL_LIT )*
    INSN_LABEL_LIT ::= INSN_TEMPL
-                      | 'LABEL' num
-                      | 'LITERAL' num ' ' VARIABLE
+                      | 'LABEL'
+                      | 'LITERAL' VARIABLE
 
    The operands in a PRECOND must be constants or variables bound by
    the INSN_PATTERN.
@@ -72,12 +72,12 @@
    movi.n instruction to the wide movi instruction.
 
    A more complex example of a branch around:
-   {"beqz %as,%label", "bnez %as,%LABEL0;j %label;LABEL0"}
+   {"beqz %as,%label", "bnez %as,%LABEL;j %label;LABEL"}
    would convert a branch to a negated branch to the following instruction
    with a jump to the original label.
 
    An Xtensa-specific example that generates a literal:
-   {"movi %at,%imm", "LITERAL0 %imm; l32r %at,%LITERAL0"}
+   {"movi %at,%imm", "LITERAL %imm; l32r %at,%LITERAL"}
    will convert a movi instruction to an l32r of a literal
    literal defined in the literal pool.
 
@@ -87,7 +87,7 @@
    when the first and second operands are not the same as specified
    by the "| %at!=%as" precondition clause.
    {"l32i %at,%as,%imm | %at!=%as",
-   "LITERAL0 %imm; l32r %at,%LITERAL0; add %at,%at,%as; l32i %at,%at,0"}
+   "LITERAL %imm; l32r %at,%LITERAL; add %at,%at,%as; l32i %at,%at,0"}
 
    There is special case for loop instructions here, but because we do
    not currently have the ability to represent the difference of two
@@ -247,7 +247,10 @@ struct string_pattern_pair_struct
      addi.n a4, 0x1010
      => addi a4, 0x1010
      => addmi a4, 0x1010
-     => addmi a4, 0x1000, addi a4, 0x10.  */
+     => addmi a4, 0x1000, addi a4, 0x10.  
+
+   See the comments in xg_assembly_relax for some important details
+   regarding how these chains must be built.  */
 
 static string_pattern_pair widen_spec_list[] =
 {
@@ -268,7 +271,7 @@ static string_pattern_pair widen_spec_list[] =
 
   /* Widening with literals or const16.  */
   {"movi %at,%imm ? IsaUseL32R ",
-   "LITERAL0 %imm; l32r %at,%LITERAL0"},
+   "LITERAL %imm; l32r %at,%LITERAL"},
   {"movi %at,%imm ? IsaUseConst16",
    "const16 %at,HI16U(%imm); const16 %at,LOW16U(%imm)"},
 
@@ -279,19 +282,19 @@ static string_pattern_pair widen_spec_list[] =
 
   /* In the end convert to either an l32r or const16.  */
   {"addmi %ar,%as,%imm | %ar!=%as ? IsaUseL32R",
-   "LITERAL0 %imm; l32r %ar,%LITERAL0; add %ar,%as,%ar"},
+   "LITERAL %imm; l32r %ar,%LITERAL; add %ar,%as,%ar"},
   {"addmi %ar,%as,%imm | %ar!=%as ? IsaUseConst16",
    "const16 %ar,HI16U(%imm); const16 %ar,LOW16U(%imm); add %ar,%as,%ar"},
 
   /* Widening the load instructions with too-large immediates */
   {"l8ui %at,%as,%imm | %at!=%as ? IsaUseL32R",
-   "LITERAL0 %imm; l32r %at,%LITERAL0; add %at,%at,%as; l8ui %at,%at,0"},
+   "LITERAL %imm; l32r %at,%LITERAL; add %at,%at,%as; l8ui %at,%at,0"},
   {"l16si %at,%as,%imm | %at!=%as ? IsaUseL32R",
-   "LITERAL0 %imm; l32r %at,%LITERAL0; add %at,%at,%as; l16si %at,%at,0"},
+   "LITERAL %imm; l32r %at,%LITERAL; add %at,%at,%as; l16si %at,%at,0"},
   {"l16ui %at,%as,%imm | %at!=%as ? IsaUseL32R",
-   "LITERAL0 %imm; l32r %at,%LITERAL0; add %at,%at,%as; l16ui %at,%at,0"},
+   "LITERAL %imm; l32r %at,%LITERAL; add %at,%at,%as; l16ui %at,%at,0"},
   {"l32i %at,%as,%imm | %at!=%as ? IsaUseL32R",
-   "LITERAL0 %imm; l32r %at,%LITERAL0; add %at,%at,%as; l32i %at,%at,0"},
+   "LITERAL %imm; l32r %at,%LITERAL; add %at,%at,%as; l32i %at,%at,0"},
 
   /* Widening load instructions with const16s.  */
   {"l8ui %at,%as,%imm | %at!=%as ? IsaUseConst16",
@@ -307,7 +310,7 @@ static string_pattern_pair widen_spec_list[] =
      hardcoded into its use is a modification of the final operand in
      the instruction in bytes 9 and 12.  */
   {"loop %as,%label | %as!=1 ? IsaUseLoops",
-   "loop %as,%LABEL0;"
+   "loop %as,%LABEL;"
    "rsr.lend    %as;"		/* LEND */
    "wsr.lbeg    %as;"		/* LBEG */
    "addi    %as, %as, 0;"	/* lo8(%label-%LABEL1) */
@@ -316,11 +319,11 @@ static string_pattern_pair widen_spec_list[] =
    "isync;"
    "rsr.lcount    %as;"		/* LCOUNT */
    "addi    %as, %as, 1;"	/* density -> addi.n %as, %as, 1 */
-   "LABEL0"},
+   "LABEL"},
   {"loopgtz %as,%label | %as!=1 ? IsaUseLoops",
    "beqz    %as,%label;"
    "bltz    %as,%label;"
-   "loopgtz %as,%LABEL0;"
+   "loopgtz %as,%LABEL;"
    "rsr.lend    %as;"		/* LEND */
    "wsr.lbeg    %as;"		/* LBEG */
    "addi    %as, %as, 0;"	/* lo8(%label-%LABEL1) */
@@ -329,10 +332,10 @@ static string_pattern_pair widen_spec_list[] =
    "isync;"
    "rsr.lcount    %as;"		/* LCOUNT */
    "addi    %as, %as, 1;"	/* density -> addi.n %as, %as, 1 */
-   "LABEL0"},
+   "LABEL"},
   {"loopnez %as,%label | %as!=1 ? IsaUseLoops",
    "beqz     %as,%label;"
-   "loopnez %as,%LABEL0;"
+   "loopnez %as,%LABEL;"
    "rsr.lend    %as;"		/* LEND */
    "wsr.lbeg    %as;"		/* LBEG */
    "addi    %as, %as, 0;"	/* lo8(%label-%LABEL1) */
@@ -341,7 +344,7 @@ static string_pattern_pair widen_spec_list[] =
    "isync;"
    "rsr.lcount    %as;"		/* LCOUNT */
    "addi    %as, %as, 1;"	/* density -> addi.n %as, %as, 1 */
-   "LABEL0"},
+   "LABEL"},
 
   /* Relaxing to wide branches.  Order is important here.  With wide
      branches, there is more than one correct relaxation for an
@@ -376,54 +379,81 @@ static string_pattern_pair widen_spec_list[] =
   
   /* Widening branch comparisons eq/ne to zero.  Prefer relaxing to narrow
      branches if the density option is available.  */
-  {"beqz %as,%label ? IsaUseDensityInstruction", "bnez.n %as,%LABEL0;j %label;LABEL0"},
-  {"bnez %as,%label ? IsaUseDensityInstruction", "beqz.n %as,%LABEL0;j %label;LABEL0"},
-  {"beqz %as,%label", "bnez %as,%LABEL0;j %label;LABEL0"},
-  {"bnez %as,%label", "beqz %as,%LABEL0;j %label;LABEL0"},
+  {"beqz %as,%label ? IsaUseDensityInstruction", "bnez.n %as,%LABEL;j %label;LABEL"},
+  {"bnez %as,%label ? IsaUseDensityInstruction", "beqz.n %as,%LABEL;j %label;LABEL"},
+  {"beqz %as,%label", "bnez %as,%LABEL;j %label;LABEL"},
+  {"bnez %as,%label", "beqz %as,%LABEL;j %label;LABEL"},
+  {"WIDE.beqz %as,%label ? IsaUseDensityInstruction", "bnez.n %as,%LABEL;j %label;LABEL"},
+  {"WIDE.bnez %as,%label ? IsaUseDensityInstruction", "beqz.n %as,%LABEL;j %label;LABEL"},
+  {"WIDE.beqz %as,%label", "bnez %as,%LABEL;j %label;LABEL"},
+  {"WIDE.bnez %as,%label", "beqz %as,%LABEL;j %label;LABEL"},
 
   /* Widening expect-taken branches.  */
-  {"beqzt %as,%label ? IsaUsePredictedBranches", "bnez %as,%LABEL0;j %label;LABEL0"},
-  {"bnezt %as,%label ? IsaUsePredictedBranches", "beqz %as,%LABEL0;j %label;LABEL0"},
-  {"beqt %as,%at,%label ? IsaUsePredictedBranches", "bne %as,%at,%LABEL0;j %label;LABEL0"},
-  {"bnet %as,%at,%label ? IsaUsePredictedBranches", "beq %as,%at,%LABEL0;j %label;LABEL0"},
+  {"beqzt %as,%label ? IsaUsePredictedBranches", "bnez %as,%LABEL;j %label;LABEL"},
+  {"bnezt %as,%label ? IsaUsePredictedBranches", "beqz %as,%LABEL;j %label;LABEL"},
+  {"beqt %as,%at,%label ? IsaUsePredictedBranches", "bne %as,%at,%LABEL;j %label;LABEL"},
+  {"bnet %as,%at,%label ? IsaUsePredictedBranches", "beq %as,%at,%LABEL;j %label;LABEL"},
 
   /* Widening branches from the Xtensa boolean option.  */
-  {"bt %bs,%label ? IsaUseBooleans", "bf %bs,%LABEL0;j %label;LABEL0"},
-  {"bf %bs,%label ? IsaUseBooleans", "bt %bs,%LABEL0;j %label;LABEL0"},
+  {"bt %bs,%label ? IsaUseBooleans", "bf %bs,%LABEL;j %label;LABEL"},
+  {"bf %bs,%label ? IsaUseBooleans", "bt %bs,%LABEL;j %label;LABEL"},
 
   /* Other branch-around-jump widenings.  */
-  {"bgez %as,%label", "bltz %as,%LABEL0;j %label;LABEL0"},
-  {"bltz %as,%label", "bgez %as,%LABEL0;j %label;LABEL0"},
-  {"beqi %as,%imm,%label", "bnei %as,%imm,%LABEL0;j %label;LABEL0"},
-  {"bnei %as,%imm,%label", "beqi %as,%imm,%LABEL0;j %label;LABEL0"},
-  {"bgei %as,%imm,%label", "blti %as,%imm,%LABEL0;j %label;LABEL0"},
-  {"blti %as,%imm,%label", "bgei %as,%imm,%LABEL0;j %label;LABEL0"},
-  {"bgeui %as,%imm,%label", "bltui %as,%imm,%LABEL0;j %label;LABEL0"},
-  {"bltui %as,%imm,%label", "bgeui %as,%imm,%LABEL0;j %label;LABEL0"},
-  {"bbci %as,%imm,%label", "bbsi %as,%imm,%LABEL0;j %label;LABEL0"},
-  {"bbsi %as,%imm,%label", "bbci %as,%imm,%LABEL0;j %label;LABEL0"},
-  {"beq %as,%at,%label", "bne %as,%at,%LABEL0;j %label;LABEL0"},
-  {"bne %as,%at,%label", "beq %as,%at,%LABEL0;j %label;LABEL0"},
-  {"bge %as,%at,%label", "blt %as,%at,%LABEL0;j %label;LABEL0"},
-  {"blt %as,%at,%label", "bge %as,%at,%LABEL0;j %label;LABEL0"},
-  {"bgeu %as,%at,%label", "bltu %as,%at,%LABEL0;j %label;LABEL0"},
-  {"bltu %as,%at,%label", "bgeu %as,%at,%LABEL0;j %label;LABEL0"},
-  {"bany %as,%at,%label", "bnone %as,%at,%LABEL0;j %label;LABEL0"},
-  {"bnone %as,%at,%label", "bany %as,%at,%LABEL0;j %label;LABEL0"},
-  {"ball %as,%at,%label", "bnall %as,%at,%LABEL0;j %label;LABEL0"},
-  {"bnall %as,%at,%label", "ball %as,%at,%LABEL0;j %label;LABEL0"},
-  {"bbc %as,%at,%label", "bbs %as,%at,%LABEL0;j %label;LABEL0"},
-  {"bbs %as,%at,%label", "bbc %as,%at,%LABEL0;j %label;LABEL0"},
+  {"bgez %as,%label", "bltz %as,%LABEL;j %label;LABEL"},
+  {"bltz %as,%label", "bgez %as,%LABEL;j %label;LABEL"},
+  {"beqi %as,%imm,%label", "bnei %as,%imm,%LABEL;j %label;LABEL"},
+  {"bnei %as,%imm,%label", "beqi %as,%imm,%LABEL;j %label;LABEL"},
+  {"bgei %as,%imm,%label", "blti %as,%imm,%LABEL;j %label;LABEL"},
+  {"blti %as,%imm,%label", "bgei %as,%imm,%LABEL;j %label;LABEL"},
+  {"bgeui %as,%imm,%label", "bltui %as,%imm,%LABEL;j %label;LABEL"},
+  {"bltui %as,%imm,%label", "bgeui %as,%imm,%LABEL;j %label;LABEL"},
+  {"bbci %as,%imm,%label", "bbsi %as,%imm,%LABEL;j %label;LABEL"},
+  {"bbsi %as,%imm,%label", "bbci %as,%imm,%LABEL;j %label;LABEL"},
+  {"beq %as,%at,%label", "bne %as,%at,%LABEL;j %label;LABEL"},
+  {"bne %as,%at,%label", "beq %as,%at,%LABEL;j %label;LABEL"},
+  {"bge %as,%at,%label", "blt %as,%at,%LABEL;j %label;LABEL"},
+  {"blt %as,%at,%label", "bge %as,%at,%LABEL;j %label;LABEL"},
+  {"bgeu %as,%at,%label", "bltu %as,%at,%LABEL;j %label;LABEL"},
+  {"bltu %as,%at,%label", "bgeu %as,%at,%LABEL;j %label;LABEL"},
+  {"bany %as,%at,%label", "bnone %as,%at,%LABEL;j %label;LABEL"},
+  {"bnone %as,%at,%label", "bany %as,%at,%LABEL;j %label;LABEL"},
+  {"ball %as,%at,%label", "bnall %as,%at,%LABEL;j %label;LABEL"},
+  {"bnall %as,%at,%label", "ball %as,%at,%LABEL;j %label;LABEL"},
+  {"bbc %as,%at,%label", "bbs %as,%at,%LABEL;j %label;LABEL"},
+  {"bbs %as,%at,%label", "bbc %as,%at,%LABEL;j %label;LABEL"},
+
+  {"WIDE.bgez %as,%label", "bltz %as,%LABEL;j %label;LABEL"},
+  {"WIDE.bltz %as,%label", "bgez %as,%LABEL;j %label;LABEL"},
+  {"WIDE.beqi %as,%imm,%label", "bnei %as,%imm,%LABEL;j %label;LABEL"},
+  {"WIDE.bnei %as,%imm,%label", "beqi %as,%imm,%LABEL;j %label;LABEL"},
+  {"WIDE.bgei %as,%imm,%label", "blti %as,%imm,%LABEL;j %label;LABEL"},
+  {"WIDE.blti %as,%imm,%label", "bgei %as,%imm,%LABEL;j %label;LABEL"},
+  {"WIDE.bgeui %as,%imm,%label", "bltui %as,%imm,%LABEL;j %label;LABEL"},
+  {"WIDE.bltui %as,%imm,%label", "bgeui %as,%imm,%LABEL;j %label;LABEL"},
+  {"WIDE.bbci %as,%imm,%label", "bbsi %as,%imm,%LABEL;j %label;LABEL"},
+  {"WIDE.bbsi %as,%imm,%label", "bbci %as,%imm,%LABEL;j %label;LABEL"},
+  {"WIDE.beq %as,%at,%label", "bne %as,%at,%LABEL;j %label;LABEL"},
+  {"WIDE.bne %as,%at,%label", "beq %as,%at,%LABEL;j %label;LABEL"},
+  {"WIDE.bge %as,%at,%label", "blt %as,%at,%LABEL;j %label;LABEL"},
+  {"WIDE.blt %as,%at,%label", "bge %as,%at,%LABEL;j %label;LABEL"},
+  {"WIDE.bgeu %as,%at,%label", "bltu %as,%at,%LABEL;j %label;LABEL"},
+  {"WIDE.bltu %as,%at,%label", "bgeu %as,%at,%LABEL;j %label;LABEL"},
+  {"WIDE.bany %as,%at,%label", "bnone %as,%at,%LABEL;j %label;LABEL"},
+  {"WIDE.bnone %as,%at,%label", "bany %as,%at,%LABEL;j %label;LABEL"},
+  {"WIDE.ball %as,%at,%label", "bnall %as,%at,%LABEL;j %label;LABEL"},
+  {"WIDE.bnall %as,%at,%label", "ball %as,%at,%LABEL;j %label;LABEL"},
+  {"WIDE.bbc %as,%at,%label", "bbs %as,%at,%LABEL;j %label;LABEL"},
+  {"WIDE.bbs %as,%at,%label", "bbc %as,%at,%LABEL;j %label;LABEL"},
 
   /* Expanding calls with literals.  */
   {"call0 %label,%ar0 ? IsaUseL32R",
-   "LITERAL0 %label; l32r a0,%LITERAL0; callx0 a0,%ar0"},
+   "LITERAL %label; l32r a0,%LITERAL; callx0 a0,%ar0"},
   {"call4 %label,%ar4 ? IsaUseL32R",
-   "LITERAL0 %label; l32r a4,%LITERAL0; callx4 a4,%ar4"},
+   "LITERAL %label; l32r a4,%LITERAL; callx4 a4,%ar4"},
   {"call8 %label,%ar8 ? IsaUseL32R",
-   "LITERAL0 %label; l32r a8,%LITERAL0; callx8 a8,%ar8"},
+   "LITERAL %label; l32r a8,%LITERAL; callx8 a8,%ar8"},
   {"call12 %label,%ar12 ? IsaUseL32R",
-   "LITERAL0 %label; l32r a12,%LITERAL0; callx12 a12,%ar12"},
+   "LITERAL %label; l32r a12,%LITERAL; callx12 a12,%ar12"},
 
   /* Expanding calls with const16.  */
   {"call0 %label,%ar0 ? IsaUseConst16",
@@ -615,26 +645,26 @@ append_op (BuildInstr *bi, BuildOp *b_op)
 
 
 static void
-append_literal_op (BuildInstr *bi, unsigned op1, unsigned litnum)
+append_literal_op (BuildInstr *bi, unsigned op1)
 {
   BuildOp *b_op = (BuildOp *) xmalloc (sizeof (BuildOp));
 
   b_op->op_num = op1;
   b_op->typ = OP_LITERAL;
-  b_op->op_data = litnum;
+  b_op->op_data = 0;
   b_op->next = NULL;
   append_op (bi, b_op);
 }
 
 
 static void
-append_label_op (BuildInstr *bi, unsigned op1, unsigned labnum)
+append_label_op (BuildInstr *bi, unsigned op1)
 {
   BuildOp *b_op = (BuildOp *) xmalloc (sizeof (BuildOp));
 
   b_op->op_num = op1;
   b_op->typ = OP_LABEL;
-  b_op->op_data = labnum;
+  b_op->op_data = 0;
   b_op->next = NULL;
   append_op (bi, b_op);
 }
@@ -979,30 +1009,6 @@ parse_constant (const char *in, unsigned *val_p)
     }
   *val_p = val;
   return TRUE;
-}
-
-
-/* Match a pattern like "foo1" with
-   parse_id_constant("foo1", "foo", &num).
-   This may also be used to just match a number.  */
-
-static bfd_boolean
-parse_id_constant (const char *in, const char *name, unsigned *val_p)
-{
-  unsigned namelen = 0;
-  const char *p;
-
-  if (in == NULL)
-    return FALSE;
-
-  if (name != NULL)
-    namelen = strlen (name);
-
-  if (name != NULL && strncmp (in, name, namelen) != 0)
-    return FALSE;
-
-  p = &in[namelen];
-  return parse_constant (p, val_p);
 }
 
 
@@ -1594,12 +1600,11 @@ build_transition (insn_pattern *initial_insn,
 
   precond_e *precond;
   insn_repl_e *r;
-  unsigned label_count = 0;
-  unsigned max_label_count = 0;
-  bfd_boolean has_label = FALSE;
-  unsigned literal_count = 0;
 
-  opcode = xtensa_opcode_lookup (isa, initial_insn->t.opcode_name);
+  if (!wide_branch_opcode (initial_insn->t.opcode_name, ".w18", &opcode) 
+      && !wide_branch_opcode (initial_insn->t.opcode_name, ".w15", &opcode))
+    opcode = xtensa_opcode_lookup (isa, initial_insn->t.opcode_name);
+
   if (opcode == XTENSA_UNDEFINED)
     {
       /* It is OK to not be able to translate some of these opcodes.  */
@@ -1661,35 +1666,26 @@ build_transition (insn_pattern *initial_insn,
 	{
 	  op1 = get_opmatch (&initial_insn->t.operand_map, precond->opname1);
 	  if (op1 == NULL)
-	    {
-	      as_fatal (_("opcode '%s': no bound opname '%s' "
-			  "for precondition in '%s'"),
-			xtensa_opcode_name (isa, opcode),
-			precond->opname1, from_string);
-	      return NULL;
-	    }
+	    as_fatal (_("opcode '%s': no bound opname '%s' "
+			"for precondition in '%s'"),
+		      xtensa_opcode_name (isa, opcode),
+		      precond->opname1, from_string);
 	}
 
       if (precond->opname2)
 	{
 	  op2 = get_opmatch (&initial_insn->t.operand_map, precond->opname2);
 	  if (op2 == NULL)
-	    {
-	      as_fatal (_("opcode '%s': no bound opname '%s' "
-			  "for precondition in %s"),
-		       xtensa_opcode_name (isa, opcode),
-		       precond->opname2, from_string);
-	      return NULL;
-	    }
+	    as_fatal (_("opcode '%s': no bound opname '%s' "
+			"for precondition in %s"),
+		      xtensa_opcode_name (isa, opcode),
+		      precond->opname2, from_string);
 	}
 
       if (op1 == NULL && op2 == NULL)
-	{
-	  as_fatal (_("opcode '%s': precondition only contains "
-		      "constants in '%s'"),
-		    xtensa_opcode_name (isa, opcode), from_string);
-	  return NULL;
-	}
+	as_fatal (_("opcode '%s': precondition only contains "
+		    "constants in '%s'"),
+		  xtensa_opcode_name (isa, opcode), from_string);
       else if (op1 != NULL && op2 != NULL)
 	append_value_condition (tr, precond->cmpop,
 				op1->operand_num, op2->operand_num);
@@ -1704,12 +1700,11 @@ build_transition (insn_pattern *initial_insn,
   tr->options = clone_req_option_list (initial_insn->options);
 
   /* Generate the replacement instructions.  Some of these
-     "instructions" are actually labels and literals.  The literals
-     must be defined in order 0..n and a literal must be defined
-     (e.g., "LITERAL0 %imm") before use (e.g., "%LITERAL0").  The
-     labels must be defined in order, but they can be used before they
-     are defined.  Also there are a number of special operands (e.g.,
-     HI24S).  */
+     "instructions" are actually labels and literals.  There can be at
+     most one literal and at most one label.  A literal must be defined
+     (e.g., "LITERAL %imm") before use (e.g., "%LITERAL").  The labels
+     can be used before they are defined.  Also there are a number of
+     special operands (e.g., HI24S).  */
 
   for (r = replace_insns->head; r != NULL; r = r->next)
     {
@@ -1717,14 +1712,12 @@ build_transition (insn_pattern *initial_insn,
       const char *opcode_name;
       int operand_count;
       opname_map_e *op;
-      unsigned idnum = 0;
       const char *fn_name;
       const char *operand_arg_name;
 
       bi = (BuildInstr *) xmalloc (sizeof (BuildInstr));
       append_build_insn (tr, bi);
 
-      bi->id = 0;
       bi->opcode = XTENSA_UNDEFINED;
       bi->ops = NULL;
       bi->next = NULL;
@@ -1732,24 +1725,15 @@ build_transition (insn_pattern *initial_insn,
       opcode_name = r->t.opcode_name;
       operand_count = insn_templ_operand_count (&r->t);
 
-      if (parse_id_constant (opcode_name, "LITERAL", &idnum))
+      if (strcmp (opcode_name, "LITERAL") == 0)
 	{
 	  bi->typ = INSTR_LITERAL_DEF;
-	  bi->id = idnum;
-	  if (idnum != literal_count)
-	    as_fatal (_("generated literals must be numbered consecutively"));
-	  ++literal_count;
 	  if (operand_count != 1)
 	    as_fatal (_("expected one operand for generated literal"));
-
 	}
-      else if (parse_id_constant (opcode_name, "LABEL", &idnum))
+      else if (strcmp (opcode_name, "LABEL") == 0)
 	{
 	  bi->typ = INSTR_LABEL_DEF;
-	  bi->id = idnum;
-	  if (idnum != label_count)
-	    as_fatal (_("generated labels must be numbered consecutively"));
-	  ++label_count;
 	  if (operand_count != 0)
 	    as_fatal (_("expected 0 operands for generated label"));
 	}
@@ -1783,22 +1767,12 @@ build_transition (insn_pattern *initial_insn,
 
 	  if (op_is_constant (op))
 	    append_constant_op (bi, op->operand_num, op_get_constant (op));
-	  else if (parse_id_constant (op->operand_name, "%LITERAL", &idnum))
-	    {
-	      if (idnum >= literal_count)
-		as_fatal (_("opcode %s: replacement "
-			    "literal %d >= literal_count(%d)"),
-			  opcode_name, idnum, literal_count);
-	      append_literal_op (bi, op->operand_num, idnum);
-	    }
-	  else if (parse_id_constant (op->operand_name, "%LABEL", &idnum))
-	    {
-	      has_label = TRUE;
-	      if (idnum > max_label_count)
-		max_label_count = idnum;
-	      append_label_op (bi, op->operand_num, idnum);
-	    }
-	  else if (parse_id_constant (op->operand_name, "a", &idnum))
+	  else if (strcmp (op->operand_name, "%LITERAL") == 0)
+	    append_literal_op (bi, op->operand_num);
+	  else if (strcmp (op->operand_name, "%LABEL") == 0)
+	    append_label_op (bi, op->operand_num);
+	  else if (op->operand_name[0] == 'a'
+		   && parse_constant (op->operand_name + 1, &idnum))
 	    append_constant_op (bi, op->operand_num, idnum);
 	  else if (op->operand_name[0] == '%')
 	    {
@@ -1806,14 +1780,9 @@ build_transition (insn_pattern *initial_insn,
 	      orig_op = get_opmatch (&initial_insn->t.operand_map,
 				     op->operand_name);
 	      if (orig_op == NULL)
-		{
-		  as_fatal (_("opcode %s: unidentified operand '%s' in '%s'"),
-			    opcode_name, op->operand_name, to_string);
-
-		  append_constant_op (bi, op->operand_num, 0);
-		}
-	      else
-		append_field_op (bi, op->operand_num, orig_op->operand_num);
+		as_fatal (_("opcode %s: unidentified operand '%s' in '%s'"),
+			  opcode_name, op->operand_name, to_string);
+	      append_field_op (bi, op->operand_num, orig_op->operand_num);
 	    }
 	  else if (parse_special_fn (op->operand_name,
 				     &fn_name, &operand_arg_name))
@@ -1837,29 +1806,15 @@ build_transition (insn_pattern *initial_insn,
 	      orig_op = get_opmatch (&initial_insn->t.operand_map,
 				     operand_arg_name);
 	      if (orig_op == NULL)
-		{
-		  as_fatal (_("opcode %s: unidentified operand '%s' in '%s'"),
-			    opcode_name, op->operand_name, to_string);
-		  append_constant_op (bi, op->operand_num, 0);
-		}
-	      else
-		append_user_fn_field_op (bi, op->operand_num,
-					 typ, orig_op->operand_num);
+		as_fatal (_("opcode %s: unidentified operand '%s' in '%s'"),
+			  opcode_name, op->operand_name, to_string);
+	      append_user_fn_field_op (bi, op->operand_num,
+				       typ, orig_op->operand_num);
 	    }
 	  else
-	    {
-	      as_fatal (_("opcode %s: could not parse operand '%s' in '%s'"),
-			opcode_name, op->operand_name, to_string);
-	      append_constant_op (bi, op->operand_num, 0);
-	    }
+	    as_fatal (_("opcode %s: could not parse operand '%s' in '%s'"),
+		      opcode_name, op->operand_name, to_string);
 	}
-    }
-  if (has_label && max_label_count >= label_count)
-    {
-      as_fatal (_("opcode %s: replacement label %d >= label_count(%d)"),
-		xtensa_opcode_name (isa, opcode),
-		max_label_count, label_count);
-      return NULL;
     }
 
   return tr;
@@ -1898,20 +1853,11 @@ build_transition_table (const string_pattern_pair *transitions,
 
       init_insn_pattern (&initial_insn);
       if (!parse_insn_pattern (from_string, &initial_insn))
-	{
-	  as_fatal (_("could not parse INSN_PATTERN '%s'"), from_string);
-	  clear_insn_pattern (&initial_insn);
-	  continue;
-	}
+	as_fatal (_("could not parse INSN_PATTERN '%s'"), from_string);
 
       init_insn_repl (&replace_insns);
       if (!parse_insn_repl (to_string, &replace_insns))
-	{
-	  as_fatal (_("could not parse INSN_REPL '%s'"), to_string);
-	  clear_insn_pattern (&initial_insn);
-	  clear_insn_repl (&replace_insns);
-	  continue;
-	}
+	as_fatal (_("could not parse INSN_REPL '%s'"), to_string);
 
       if (transition_applies (&initial_insn, from_string, to_string))
 	{

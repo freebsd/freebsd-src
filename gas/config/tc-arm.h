@@ -1,6 +1,6 @@
 /* This file is tc-arm.h
    Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-   2004 Free Software Foundation, Inc.
+   2004, 2005, 2006, 2007 Free Software Foundation, Inc.
    Contributed by Richard Earnshaw (rwe@pegasus.esprit.ec.org)
 	Modified by David Taylor (dtaylor@armltd.co.uk)
 
@@ -66,6 +66,8 @@ struct fix;
 # if defined TE_PE
 #  if defined TE_EPOC
 #   define TARGET_FORMAT (target_big_endian ? "epoc-pe-arm-big" : "epoc-pe-arm-little")
+#  elif defined TE_WINCE
+#   define TARGET_FORMAT (target_big_endian ? "pe-arm-wince-big" : "pe-arm-wince-little")
 #  else
 #   define TARGET_FORMAT (target_big_endian ? "pe-arm-big" : "pe-arm-little")
 #  endif
@@ -98,6 +100,7 @@ extern int arm_optimize_expr (expressionS *, operatorT, expressionS *);
 #ifdef OBJ_ELF
 #define md_end arm_md_end
 extern void arm_md_end (void);
+bfd_boolean arm_is_eabi (void);
 #endif
 
 /* NOTE: The fake label creation in stabs.c:s_stab_generic() has
@@ -120,11 +123,29 @@ extern void arm_md_end (void);
 
 #define ARM_IS_THUMB(s)		(ARM_GET_FLAG (s) & ARM_FLAG_THUMB)
 #define ARM_IS_INTERWORK(s)	(ARM_GET_FLAG (s) & ARM_FLAG_INTERWORK)
+#ifdef OBJ_ELF
+
+/* For ELF objects THUMB_IS_FUNC is inferred from
+   ARM_IS_TUMB and the function type.  */
+#define THUMB_IS_FUNC(s) \
+  ((arm_is_eabi () \
+    && (ARM_IS_THUMB (s)) \
+    && (symbol_get_bfdsym (s)->flags & BSF_FUNCTION)) \
+   || (ARM_GET_FLAG (s) & THUMB_FLAG_FUNC))
+
+#else
 #define THUMB_IS_FUNC(s)	(ARM_GET_FLAG (s) & THUMB_FLAG_FUNC)
+#endif
 
 #define ARM_SET_THUMB(s,t)      ((t) ? ARM_SET_FLAG (s, ARM_FLAG_THUMB)     : ARM_RESET_FLAG (s, ARM_FLAG_THUMB))
 #define ARM_SET_INTERWORK(s,t)  ((t) ? ARM_SET_FLAG (s, ARM_FLAG_INTERWORK) : ARM_RESET_FLAG (s, ARM_FLAG_INTERWORK))
 #define THUMB_SET_FUNC(s,t)     ((t) ? ARM_SET_FLAG (s, THUMB_FLAG_FUNC)    : ARM_RESET_FLAG (s, THUMB_FLAG_FUNC))
+
+void arm_copy_symbol_attributes (symbolS *, symbolS *);
+#ifndef TC_COPY_SYMBOL_ATTRIBUTES
+#define TC_COPY_SYMBOL_ATTRIBUTES(DEST, SRC) \
+  (arm_copy_symbol_attributes (DEST, SRC))
+#endif
 
 #define TC_START_LABEL(C,STR)            (c == ':' || (c == '/' && arm_data_in_code ()))
 #define tc_canonicalize_symbol_name(str) arm_canonicalize_symbol_name (str);
@@ -146,7 +167,6 @@ extern void arm_md_end (void);
 
 #define TC_FORCE_RELOCATION_LOCAL(FIX)			\
   (!(FIX)->fx_pcrel					\
-   || (FIX)->fx_plt					\
    || (FIX)->fx_r_type == BFD_RELOC_ARM_GOT32		\
    || (FIX)->fx_r_type == BFD_RELOC_32			\
    || TC_FORCE_RELOCATION (FIX))
@@ -175,13 +195,26 @@ extern void arm_md_end (void);
       goto LABEL;								\
     }
 
+#define DWARF2_LINE_MIN_INSN_LENGTH 	2
+
+/* The lr register is r14.  */
+#define DWARF2_DEFAULT_RETURN_COLUMN  14
+
+/* Registers are generally saved at negative offsets to the CFA.  */
+#define DWARF2_CIE_DATA_ALIGNMENT     (-4)
+
 #ifdef OBJ_ELF
-# define DWARF2_LINE_MIN_INSN_LENGTH 	2
 # define obj_frob_symbol(sym, punt)	armelf_frob_symbol ((sym), & (punt))
 # define md_elf_section_change_hook()	arm_elf_change_section ()
 # define md_elf_section_type(str, len)	arm_elf_section_type (str, len)
 # define GLOBAL_OFFSET_TABLE_NAME	"_GLOBAL_OFFSET_TABLE_"
 # define TC_SEGMENT_INFO_TYPE 		struct arm_segment_info_type
+
+/* This is not really an alignment operation, but it's something we
+   need to do at the same time: whenever we are figuring out the
+   alignment for data, we should check whether a $d symbol is
+   necessary.  */
+# define md_cons_align(nbytes)		mapping_state (MAP_DATA)
 
 enum mstate
 {
@@ -191,6 +224,8 @@ enum mstate
   MAP_THUMB
 };
 
+void mapping_state (enum mstate);
+
 struct arm_segment_info_type
 {
   enum mstate mapstate;
@@ -199,12 +234,6 @@ struct arm_segment_info_type
 
 /* We want .cfi_* pseudo-ops for generating unwind info.  */
 #define TARGET_USE_CFIPOP              1
-
-/* The lr register is r14.  */
-#define DWARF2_DEFAULT_RETURN_COLUMN  14
-
-/* Registers are generally saved at negative offsets to the CFA.  */
-#define DWARF2_CIE_DATA_ALIGNMENT     -4
 
 /* CFI hooks.  */
 #define tc_regname_to_dw2regnum            tc_arm_regname_to_dw2regnum
@@ -244,5 +273,14 @@ extern void arm_init_frag (struct frag *);
 extern void arm_handle_align (struct frag *);
 extern bfd_boolean arm_fix_adjustable (struct fix *);
 extern int arm_elf_section_type (const char *, size_t);
-extern int tc_arm_regname_to_dw2regnum (const char *regname);
+extern int tc_arm_regname_to_dw2regnum (char *regname);
 extern void tc_arm_frame_initial_instructions (void);
+
+#ifdef TE_PE
+
+#define O_secrel O_md1
+
+#define TC_DWARF2_EMIT_OFFSET  tc_pe_dwarf2_emit_offset
+void tc_pe_dwarf2_emit_offset (symbolS *, unsigned int);
+
+#endif /* TE_PE */

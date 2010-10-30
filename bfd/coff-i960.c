@@ -1,6 +1,6 @@
 /* BFD back-end for Intel 960 COFF files.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1997, 1999, 2000, 2001,
-   2002, 2003, 2004 Free Software Foundation, Inc.
+   2002, 2003, 2004, 2007 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -22,8 +22,8 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
 #define I960 1
 #define BADMAG(x) I960BADMAG(x)
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "coff/i960.h"
 #include "coff/internal.h"
@@ -294,6 +294,20 @@ coff_i960_reloc_type_lookup (abfd, code)
     case BFD_RELOC_24_PCREL:
       return &howto_iprmed;
     }
+}
+
+static reloc_howto_type *
+coff_i960_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			     const char *r_name)
+{
+  if (strcasecmp (howto_optcall.name, r_name) == 0)
+    return &howto_optcall;
+  if (strcasecmp (howto_rellong.name, r_name) == 0)
+    return &howto_rellong;
+  if (strcasecmp (howto_iprmed.name, r_name) == 0)
+    return &howto_iprmed;
+
+  return NULL;
 }
 
 /* The real code is in coffcode.h */
@@ -613,6 +627,7 @@ coff_i960_adjust_symndx (obfd, info, ibfd, sec, irel, adjustedp)
 #define coff_adjust_symndx coff_i960_adjust_symndx
 
 #define coff_bfd_reloc_type_lookup coff_i960_reloc_type_lookup
+#define coff_bfd_reloc_name_lookup coff_i960_reloc_name_lookup
 
 #include "coffcode.h"
 

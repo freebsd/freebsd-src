@@ -1,5 +1,5 @@
 /* dwwrf.h - DWARF support header file
-   Copyright 2005
+   Copyright 2005, 2007
    Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
@@ -17,9 +17,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
-
-#include "bfd.h"
-#include "elf/dwarf2.h"
 
 #if __STDC_VERSION__ >= 199901L || (defined(__GNUC__) && __GNUC__ >= 2)
 /* We can't use any bfd types here since readelf may define BFD64 and

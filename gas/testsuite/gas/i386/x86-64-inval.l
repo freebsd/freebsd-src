@@ -48,6 +48,8 @@
 .*:49: Error: .*
 .*:50: Error: .*
 .*:51: Error: .*
+.*:52: Error: .*
+.*:54: Error: .*
 GAS LISTING .*
 
 
@@ -102,3 +104,6 @@ GAS LISTING .*
   49 [ 	]*pushfl		# can't have 32-bit stack operands
   50 [ 	]*popfl		# can't have 32-bit stack operands
   51 [ 	]*retl		# can't have 32-bit stack operands
+  52 [ 	]*insertq \$4,\$2,%xmm2,%ebx # The last operand must be XMM register.
+  53 [ 	]*.intel_syntax noprefix
+  54 [ 	]*cmpxchg16b dword ptr \[rax\] # Must be oword

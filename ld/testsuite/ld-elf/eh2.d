@@ -22,11 +22,11 @@ The section .eh_frame contains:
   DW_CFA_nop
   DW_CFA_nop
 
-00000018 0000001c 0000001c FDE cie=00000000 pc=004000b0..004000b0
-  DW_CFA_advance_loc: 0 to 004000b0
+00000018 0000001c 0000001c FDE cie=00000000 pc=00400078..00400078
+  DW_CFA_advance_loc: 0 to 00400078
   DW_CFA_def_cfa_offset: 16
   DW_CFA_offset: r6 at cfa-16
-  DW_CFA_advance_loc: 0 to 004000b0
+  DW_CFA_advance_loc: 0 to 00400078
   DW_CFA_def_cfa_reg: r6
 
 00000038 ZERO terminator

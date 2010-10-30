@@ -1,5 +1,5 @@
 %{/* nlmheader.y - parse NLM header specification keywords.
-     Copyright 1993, 1994, 1995, 1997, 1998, 2001, 2002, 2003
+     Copyright 1993, 1994, 1995, 1997, 1998, 2001, 2002, 2003, 2007
      Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
@@ -27,13 +27,12 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
    This implementation is based on the description in the NetWare Tool
    Maker Specification manual, edition 1.0.  */
 
-#include "ansidecl.h"
-#include <stdio.h>
+#include "sysdep.h"
 #include "safe-ctype.h"
 #include "bfd.h"
-#include "bucomm.h"
 #include "nlm/common.h"
 #include "nlm/internal.h"
+#include "bucomm.h"
 #include "nlmconv.h"
 
 /* Information is stored in the structures pointed to by these

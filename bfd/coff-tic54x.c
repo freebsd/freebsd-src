@@ -1,5 +1,5 @@
 /* BFD back-end for TMS320C54X coff binaries.
-   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005
+   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007
    Free Software Foundation, Inc.
    Contributed by Timothy Wall (twall@cygnus.com)
 
@@ -20,8 +20,8 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
    02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "bfdlink.h"
 #include "coff/tic54x.h"
@@ -229,6 +229,7 @@ reloc_howto_type tic54x_howto_table[] =
   };
 
 #define coff_bfd_reloc_type_lookup tic54x_coff_reloc_type_lookup
+#define coff_bfd_reloc_name_lookup tic54x_coff_reloc_name_lookup
 
 /* For the case statement use the code values used tc_gen_reloc (defined in
    bfd/reloc.c) to map to the howto table entries.  */
@@ -257,6 +258,22 @@ tic54x_coff_reloc_type_lookup (abfd, code)
     default:
       return (reloc_howto_type *) NULL;
     }
+}
+
+static reloc_howto_type *
+tic54x_coff_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			       const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (tic54x_howto_table) / sizeof (tic54x_howto_table[0]);
+       i++)
+    if (tic54x_howto_table[i].name != NULL
+	&& strcasecmp (tic54x_howto_table[i].name, r_name) == 0)
+      return &tic54x_howto_table[i];
+
+  return NULL;
 }
 
 /* Code to turn a r_type into a howto ptr, uses the above howto table.

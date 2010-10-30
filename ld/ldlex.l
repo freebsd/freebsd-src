@@ -1,7 +1,8 @@
 %{
 
 /* Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005  Free Software Foundation, Inc.
+   2000, 2001, 2002, 2003, 2004, 2005, 2007
+   Free Software Foundation, Inc.
 
    This file is part of GLD, the Gnu Linker.
 
@@ -25,11 +26,8 @@ This was written by steve chamberlain
                     sac@cygnus.com
 */
 
-
-#include <stdio.h>
-
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "safe-ctype.h"
 #include "bfdlink.h"
 #include "ld.h"
@@ -132,6 +130,7 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 	case input_script: return INPUT_SCRIPT; break;
 	case input_mri_script: return INPUT_MRI_SCRIPT; break;
 	case input_version_script: return INPUT_VERSION_SCRIPT; break;
+	case input_dynamic_list: return INPUT_DYNAMIC_LIST; break;
 	case input_defsym: return INPUT_DEFSYM; break;
 	default: abort ();
 	}
@@ -255,9 +254,10 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 <EXPRESSION,BOTH,SCRIPT>"DATA_SEGMENT_END"	{ RTOKEN(DATA_SEGMENT_END);}
 <EXPRESSION,BOTH,SCRIPT>"ADDR"		{ RTOKEN(ADDR);}
 <EXPRESSION,BOTH,SCRIPT>"LOADADDR"	{ RTOKEN(LOADADDR);}
+<EXPRESSION,BOTH,SCRIPT>"ALIGNOF"	{ RTOKEN(ALIGNOF); }
 <EXPRESSION,BOTH>"MAX"			{ RTOKEN(MAX_K); }
 <EXPRESSION,BOTH>"MIN"			{ RTOKEN(MIN_K); }
-<EXPRESSION,BOTH>"ASSERT"		{ RTOKEN(ASSERT_K); }
+<EXPRESSION,BOTH,SCRIPT>"ASSERT"	{ RTOKEN(ASSERT_K); }
 <BOTH,SCRIPT>"ENTRY"			{ RTOKEN(ENTRY);}
 <BOTH,SCRIPT,MRI>"EXTERN"		{ RTOKEN(EXTERN);}
 <EXPRESSION,BOTH,SCRIPT>"NEXT"		{ RTOKEN(NEXT);}
@@ -316,6 +316,7 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 <EXPRESSION,BOTH,SCRIPT>"PROVIDE_HIDDEN" { RTOKEN(PROVIDE_HIDDEN); }
 <EXPRESSION,BOTH,SCRIPT>"KEEP"		{ RTOKEN(KEEP); }
 <EXPRESSION,BOTH,SCRIPT>"EXCLUDE_FILE"  { RTOKEN(EXCLUDE_FILE); }
+<EXPRESSION,BOTH,SCRIPT>"CONSTANT"	{ RTOKEN(CONSTANT);}
 <MRI>"#".*\n?			{ ++ lineno; }
 <MRI>"\n"	                { ++ lineno;  RTOKEN(NEWLINE); }
 <MRI>"*".*			{ /* Mri comment line */ }
@@ -363,11 +364,19 @@ V_IDENTIFIER [*?.$_a-zA-Z\[\]\-\!\^\\]([*?.$_a-zA-Z0-9\[\]\-\!\^\\]|::)*
 				}
 
 
-<BOTH,EXPRESSION>{FILENAMECHAR1}{FILENAMECHAR}*	{
+<BOTH>{FILENAMECHAR1}{FILENAMECHAR}*	{
 				 yylval.name = xstrdup (yytext);
 				  return NAME;
 				}
-<BOTH,EXPRESSION>"-l"{FILENAMECHAR}+ {
+<BOTH>"-l"{FILENAMECHAR}+ {
+				  yylval.name = xstrdup (yytext + 2);
+				  return LNAME;
+				}
+<EXPRESSION>{FILENAMECHAR1}{NOCFILENAMECHAR}*	{
+				 yylval.name = xstrdup (yytext);
+				  return NAME;
+				}
+<EXPRESSION>"-l"{NOCFILENAMECHAR}+ {
 				  yylval.name = xstrdup (yytext + 2);
 				  return LNAME;
 				}

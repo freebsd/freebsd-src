@@ -1,5 +1,6 @@
 /* BFD support for the Intel 860 architecture.
-   Copyright 1992, 1995, 2000, 2002 Free Software Foundation, Inc.
+   Copyright 1992, 1995, 2000, 2002, 2007
+   Free Software Foundation, Inc.
    Created mostly by substituting "860" for "386" in cpu-i386.c
    Harry Dolan <dolan@ssd.intel.com>, October 1995
 
@@ -19,8 +20,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 
 const bfd_arch_info_type bfd_i860_arch =

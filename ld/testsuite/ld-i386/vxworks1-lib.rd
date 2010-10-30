@@ -6,7 +6,7 @@ Relocation section '\.rel\.plt' at offset .* contains 2 entries:
 
 Relocation section '\.rel\.dyn' at offset .* contains 4 entries:
  Offset     Info    Type            Sym\.Value  Sym\. Name
-00081c00  00000008 R_386_RELATIVE *
+00081800  00000008 R_386_RELATIVE *
 00080c03  .*01 R_386_32          00000000   __GOTT_BASE__
 00080c09  .*01 R_386_32          00000000   __GOTT_INDEX__
-00081414  .*06 R_386_GLOB_DAT    00081800   x
+00081414  .*06 R_386_GLOB_DAT    00081c00   x

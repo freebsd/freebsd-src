@@ -16,11 +16,11 @@ Section Headers:
   \[ 4\] .dynstr +.*
   \[ 5\] .rela.dyn +.*
   \[ 6\] .text +PROGBITS +0+401000 0+1000 0+1f6 00 +AX +0 +0 +4096
-  \[ 7\] .tdata +PROGBITS +0+5011f6 0+11f6 0+60 00 WAT +0 +0 +1
-  \[ 8\] .tbss +NOBITS +0+501256 0+1256 0+40 00 WAT +0 +0 +1
-  \[ 9\] .dynamic +DYNAMIC +0+501258 0+1258 0+100 10 +WA +4 +0 +8
-  \[10\] .got +PROGBITS +0+501358 0+1358 0+20 08 +WA +0 +0 +8
-  \[11\] .got.plt +PROGBITS +0+501378 0+1378 0+18 08 +WA +0 +0 +8
+  \[ 7\] .tdata +PROGBITS +0+6011f6 0+11f6 0+60 00 WAT +0 +0 +1
+  \[ 8\] .tbss +NOBITS +0+601256 0+1256 0+40 00 WAT +0 +0 +1
+  \[ 9\] .dynamic +DYNAMIC +0+601258 0+1258 0+100 10 +WA +4 +0 +8
+  \[10\] .got +PROGBITS +0+601358 0+1358 0+20 08 +WA +0 +0 +8
+  \[11\] .got.plt +PROGBITS +0+601378 0+1378 0+18 08 +WA +0 +0 +8
   \[12\] .shstrtab +.*
   \[13\] .symtab +.*
   \[14\] .strtab +.*
@@ -38,10 +38,10 @@ Program Headers:
   PHDR.*
   INTERP.*
 .*Requesting program interpreter.*
-  LOAD +0x0+ 0x0+400000 0x0+400000 0x0+11f6 0x0+11f6 R E 0x100000
-  LOAD +0x0+11f6 0x0+5011f6 0x0+5011f6 0x0+19a 0x0+19a RW  0x100000
-  DYNAMIC +0x0+1258 0x0+501258 0x0+501258 0x0+100 0x0+100 RW  0x8
-  TLS +0x0+11f6 0x0+5011f6 0x0+5011f6 0x0+60 0x0+a0 R +0x1
+  LOAD +0x0+ 0x0+400000 0x0+400000 0x0+11f6 0x0+11f6 R E 0x200000
+  LOAD +0x0+11f6 0x0+6011f6 0x0+6011f6 0x0+19a 0x0+19a RW  0x200000
+  DYNAMIC +0x0+1258 0x0+601258 0x0+601258 0x0+100 0x0+100 RW  0x8
+  TLS +0x0+11f6 0x0+6011f6 0x0+6011f6 0x0+60 0x0+a0 R +0x1
 
  Section to Segment mapping:
   Segment Sections...
@@ -54,10 +54,10 @@ Program Headers:
 
 Relocation section '.rela.dyn' at offset 0x[0-9a-f]+ contains 4 entries:
  +Offset +Info +Type +Symbol's Value  Symbol's Name \+ Addend
-0+501358  0+100000012 R_X86_64_TPOFF64 +0+ sG5 \+ 0
-0+501360  0+200000012 R_X86_64_TPOFF64 +0+ sG2 \+ 0
-0+501368  0+400000012 R_X86_64_TPOFF64 +0+ sG6 \+ 0
-0+501370  0+500000012 R_X86_64_TPOFF64 +0+ sG1 \+ 0
+0+601358  0+100000012 R_X86_64_TPOFF64 +0+ sG5 \+ 0
+0+601360  0+200000012 R_X86_64_TPOFF64 +0+ sG2 \+ 0
+0+601368  0+400000012 R_X86_64_TPOFF64 +0+ sG6 \+ 0
+0+601370  0+500000012 R_X86_64_TPOFF64 +0+ sG1 \+ 0
 
 Symbol table '.dynsym' contains 8 entries:
  +Num: +Value +Size Type +Bind +Vis +Ndx Name
@@ -70,7 +70,7 @@ Symbol table '.dynsym' contains 8 entries:
  +[0-9]+: 0+[0-9a-f]+ +0 NOTYPE  GLOBAL DEFAULT  ABS _edata
  +[0-9]+: 0+[0-9a-f]+ +0 NOTYPE  GLOBAL DEFAULT  ABS _end
 
-Symbol table '.symtab' contains 67 entries:
+Symbol table '.symtab' contains 64 entries:
  +Num: +Value +Size Type +Bind +Vis +Ndx Name
  +[0-9]+: 0+ +0 NOTYPE  LOCAL  DEFAULT  UND *
  +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +1 *
@@ -84,9 +84,6 @@ Symbol table '.symtab' contains 67 entries:
  +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +9 *
  +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +10 *
  +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +11 *
- +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +12 *
- +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +13 *
- +[0-9]+: [0-9a-f]+ +0 SECTION LOCAL  DEFAULT +14 *
  +[0-9]+: 0+20 +0 TLS +LOCAL  DEFAULT +7 sl1
  +[0-9]+: 0+24 +0 TLS +LOCAL  DEFAULT +7 sl2
  +[0-9]+: 0+28 +0 TLS +LOCAL  DEFAULT +7 sl3
@@ -104,8 +101,8 @@ Symbol table '.symtab' contains 67 entries:
  +[0-9]+: 0+98 +0 TLS +LOCAL  DEFAULT +8 bl7
  +[0-9]+: 0+9c +0 TLS +LOCAL  DEFAULT +8 bl8
  +[0-9]+: 0+0 +0 TLS +LOCAL  HIDDEN +7 _TLS_MODULE_BASE_
- +[0-9]+: 0+501258 +0 OBJECT  LOCAL  HIDDEN    9 _DYNAMIC
- +[0-9]+: 0+501378 +0 OBJECT  LOCAL  HIDDEN   11 _GLOBAL_OFFSET_TABLE_
+ +[0-9]+: 0+601258 +0 OBJECT  LOCAL  HIDDEN    9 _DYNAMIC
+ +[0-9]+: 0+601378 +0 OBJECT  LOCAL  HIDDEN   11 _GLOBAL_OFFSET_TABLE_
  +[0-9]+: 0+1c +0 TLS +GLOBAL DEFAULT +7 sg8
  +[0-9]+: 0+7c +0 TLS +GLOBAL DEFAULT +8 bg8
  +[0-9]+: 0+74 +0 TLS +GLOBAL DEFAULT +8 bg6

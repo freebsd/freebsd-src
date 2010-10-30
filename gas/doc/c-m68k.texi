@@ -45,7 +45,8 @@ architectures are recognized:
 @code{cpu32},
 @code{isaa},
 @code{isaaplus},
-@code{isab} and
+@code{isab},
+@code{isac} and
 @code{cfv4e}.
 
 
@@ -284,7 +285,7 @@ The following addressing modes are understood:
 
 @item Address Register
 @samp{%a0} through @samp{%a7}@*
-@samp{%a7} is also known as @samp{%sp}, i.e. the Stack Pointer.  @code{%a6}
+@samp{%a7} is also known as @samp{%sp}, i.e., the Stack Pointer.  @code{%a6}
 is also known as @samp{%fp}, the Frame Pointer.
 
 @item Address Register Indirect
@@ -346,7 +347,7 @@ The following additional addressing modes are understood:
 @table @dfn
 @item Address Register Indirect
 @samp{(%a0)} through @samp{(%a7)}@* 
-@samp{%a7} is also known as @samp{%sp}, i.e. the Stack Pointer.  @code{%a6}
+@samp{%a7} is also known as @samp{%sp}, i.e., the Stack Pointer.  @code{%a6}
 is also known as @samp{%fp}, the Frame Pointer.
 
 @item Address Register Postincrement
@@ -445,11 +446,11 @@ This directive is identical to a @code{.space} directive.
 
 @cindex @code{arch} directive, M680x0
 @item .arch @var{name}
-Select the target architecture and extension features.  Valid valuse
+Select the target architecture and extension features.  Valid values
 for @var{name} are the same as for the @option{-march} command line
 option.  This directive cannot be specified after
 any instructions have been assembled.  If it is given multiple times,
-or in conjuction with the @option{-march} option, all uses must be for
+or in conjunction with the @option{-march} option, all uses must be for
 the same architecture and extension set.
 
 @cindex @code{cpu} directive, M680x0
@@ -458,7 +459,7 @@ Select the target cpu.  Valid valuse
 for @var{name} are the same as for the @option{-mcpu} command line
 option.  This directive cannot be specified after
 any instructions have been assembled.  If it is given multiple times,
-or in conjuction with the @option{-mopt} option, all uses must be for
+or in conjunction with the @option{-mopt} option, all uses must be for
 the same cpu.
 
 @end table

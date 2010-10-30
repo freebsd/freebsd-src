@@ -315,8 +315,8 @@ proc visibility_run {visibility} {
 
 	# Now compile the code using -fpic.
 
-	if { ![ld_compile "$CC -g $CFLAGS $SHCFLAG $VSBCFLAG $picflag" $srcdir/$subdir/sh1.c $tmpdir/sh1p.o] 
-	    || ![ld_compile "$CC -g $CFLAGS $SHCFLAG $VSBCFLAG $picflag" $srcdir/$subdir/sh2.c $tmpdir/sh2p.o] } {
+	if { ![ld_compile "$CC -g $CFLAGS $SHCFLAG $VSBCFLAG -DSHARED $picflag" $srcdir/$subdir/sh1.c $tmpdir/sh1p.o] 
+	    || ![ld_compile "$CC -g $CFLAGS $SHCFLAG $VSBCFLAG -DSHARED $picflag" $srcdir/$subdir/sh2.c $tmpdir/sh2p.o] } {
 	    unresolved "visibility ($visibility)"
 	} else {
 	    if { [ string match $visibility "protected" ]
@@ -337,7 +337,7 @@ proc visibility_run {visibility} {
     }
 
     # Now do the same tests again, but this time compile main.c PIC.
-    if ![ld_compile "$CC -g $CFLAGS $SHCFLAG $VSBCFLAG $picflag" $srcdir/$subdir/main.c $tmpdir/mainp.o] {
+    if ![ld_compile "$CC -g $CFLAGS $SHCFLAG $VSBCFLAG -DSHARED $picflag" $srcdir/$subdir/main.c $tmpdir/mainp.o] {
 	unresolved "visibility ($visibility) (PIC main, non PIC so)"
 	unresolved "visibility ($visibility) (PIC main)"
     } else {
@@ -446,7 +446,7 @@ if { ![ld_compile "$CC -g $CFLAGS" $srcdir/$subdir/common.c tmpdir/common.o] } {
 if { ![ld_compile "$CC -g $CFLAGS" $srcdir/$subdir/test.c tmpdir/test.o] } {
     unresolved "weak hidden symbol"
 } else {
-   if { ![ld_compile "$CC -g $CFLAGS $picflag" $srcdir/$subdir/sh3.c tmpdir/sh3.o] } {
+   if { ![ld_compile "$CC -g $CFLAGS -DSHARED $picflag" $srcdir/$subdir/sh3.c tmpdir/sh3.o] } {
 	unresolved "weak hidden symbol"
     } else {
 	if ![ld_simple_link $ld tmpdir/sh3.so "-shared tmpdir/sh3.o"] {

@@ -27,6 +27,8 @@ foo2:	@ Custom personality routine
 	.fnend
 foo3:	@ Saving iwmmxt registers
 	.fnstart
+	.save {wr12}
+	.save {wr13}
 	.save {wr11}
 	.save {wr10}
 	.save {wr10, wr11}
@@ -48,4 +50,18 @@ foo5:	@ Save r0-r3 only.
 	.fnstart
 	.save {r0, r1, r2, r3}
 	mov r0, #5
+	.fnend
+	.code 32
+foo6:	@ Nested function with frame pointer
+	.fnstart
+	.pad #4
+	@push {ip}
+	.movsp ip, #4
+	@mov ip, sp
+	.pad #4
+	.save {fp, ip, lr}
+	@stmfd sp!, {fp, ip, lr, pc}
+	.setfp fp, ip, #-8
+	@sub fp, ip, #8
+	mov r0, #6
 	.fnend

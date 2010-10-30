@@ -1,6 +1,6 @@
 \input texinfo
 @c  Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-@c  2001, 2002, 2003, 2004, 2005
+@c  2001, 2002, 2003, 2004, 2005, 2006
 @c  Free Software Foundation, Inc.
 @setfilename internals.info
 @node Top
@@ -838,7 +838,7 @@ GAS will call @code{md_parse_option} whenever @code{getopt} returns an
 unrecognized code, presumably indicating a special code value which appears in
 @code{md_longopts}.  This function should return non-zero if it handled the
 option and zero otherwise.  There is no need to print a message about an option
-not being recognised.  This will be handled by the generic code.
+not being recognized.  This will be handled by the generic code.
 
 GAS will call @code{md_show_usage} when a usage message is printed; it should
 print a description of the machine specific options. @code{md_after_pase_args},
@@ -891,7 +891,7 @@ If this macro is defined, GAS will use it instead of @code{comment_chars}.
 @cindex tc_symbol_chars
 If this macro is defined, it is a pointer to a null terminated list of
 characters which may appear in an operand.  GAS already assumes that all
-alphanumberic characters, and @samp{$}, @samp{.}, and @samp{_} may appear in an
+alphanumeric characters, and @samp{$}, @samp{.}, and @samp{_} may appear in an
 operand (see @samp{symbol_chars} in @file{app.c}).  This macro may be defined
 to treat additional characters as appearing in an operand.  This affects the
 way in which GAS removes whitespace before passing the string to
@@ -1279,7 +1279,7 @@ absolute symbol.  If undefined, @code{TC_FORCE_RELOCATION} will be used.
 @cindex TC_FORCE_RELOCATION_LOCAL
 Like @code{TC_FORCE_RELOCATION}, but used only for fixup expressions against a
 symbol in the current section.  If undefined, fixups that are not
-@code{fx_pcrel} or @code{fx_plt} or for which @code{TC_FORCE_RELOCATION}
+@code{fx_pcrel} or for which @code{TC_FORCE_RELOCATION}
 returns non-zero, will emit relocs.
 
 @item TC_FORCE_RELOCATION_SUB_SAME (@var{fix}, @var{seg})
@@ -1609,7 +1609,7 @@ symbol's flags.
 
 @item obj_clear_weak_hook
 @cindex obj_clear_weak_hook
-If you define this macro, @code{S_CLEAR_WEAKREFD} will call it after clearning
+If you define this macro, @code{S_CLEAR_WEAKREFD} will call it after cleaning
 the @code{weakrefd} flag, but before modifying any other flags.
 
 @item obj_frob_file
@@ -1842,10 +1842,6 @@ This section describes basic internal functions used by GAS.
 @deftypefunx @{@} int had_errors (void)
 Returns non-zero if any warnings or errors, respectively, have been printed
 during this invocation.
-@end deftypefun
-
-@deftypefun @{@} void as_perror (const char *@var{gripe}, const char *@var{filename})
-Displays a BFD or system error, then clears the error status.
 @end deftypefun
 
 @deftypefun  @{@} void as_tsktsk (const char *@var{format}, ...)

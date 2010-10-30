@@ -17,8 +17,8 @@ Section Headers:
  +\[ 6\] \.text .*
  +\[ 7\] \.tdata +PROGBITS .* 0+38 0+ WAT +0 +0 +8
  +\[ 8\] \.tbss +NOBITS .* 0+38 0+ WAT +0 +0 +8
- +\[ 9\] \.data\.rel\.ro .*
- +\[10\] \.dynamic .*
+ +\[ 9\] \.dynamic .*
+ +\[10\] \.branch_lt .*
  +\[11\] \.got .*
  +\[12\] \.plt .*
  +\[13\] \.shstrtab .*
@@ -49,9 +49,9 @@ Relocation section '\.rela\.dyn' at offset .* contains 16 entries:
 [0-9a-f ]+R_PPC64_TPREL16 +0+60 le0 \+ 0
 [0-9a-f ]+R_PPC64_TPREL16_HA +0+68 le1 \+ 0
 [0-9a-f ]+R_PPC64_TPREL16_LO +0+68 le1 \+ 0
-[0-9a-f ]+R_PPC64_TPREL16_DS +0+10668 \.tdata \+ 28
-[0-9a-f ]+R_PPC64_TPREL16_HA +0+10668 \.tdata \+ 30
-[0-9a-f ]+R_PPC64_TPREL16_LO +0+10668 \.tdata \+ 30
+[0-9a-f ]+R_PPC64_TPREL16_DS +0+105f8 \.tdata \+ 28
+[0-9a-f ]+R_PPC64_TPREL16_HA +0+105f8 \.tdata \+ 30
+[0-9a-f ]+R_PPC64_TPREL16_LO +0+105f8 \.tdata \+ 30
 [0-9a-f ]+R_PPC64_DTPMOD64 +0+
 [0-9a-f ]+R_PPC64_DTPMOD64 +0+
 [0-9a-f ]+R_PPC64_DTPREL64 +0+
@@ -72,8 +72,6 @@ Symbol table '\.dynsym' contains .* entries:
 .* NOTYPE +LOCAL +DEFAULT +UND 
 .* SECTION LOCAL +DEFAULT +6 
 .* SECTION LOCAL +DEFAULT +7 
-.* SECTION LOCAL +DEFAULT +8 
-.* SECTION LOCAL +DEFAULT +9 
 .* TLS +GLOBAL DEFAULT +UND gd
 .* TLS +GLOBAL DEFAULT +8 le0
 .* NOTYPE +GLOBAL DEFAULT +UND __tls_get_addr
@@ -89,7 +87,7 @@ Symbol table '\.dynsym' contains .* entries:
 .* TLS +GLOBAL DEFAULT +8 gd0
 .* TLS +GLOBAL DEFAULT +8 ie0
 
-Symbol table '\.symtab' contains 39 entries:
+Symbol table '\.symtab' contains .* entries:
  +Num: +Value +Size Type +Bind +Vis +Ndx Name
 .* NOTYPE +LOCAL +DEFAULT +UND 
 .* SECTION LOCAL +DEFAULT +1 
@@ -104,9 +102,6 @@ Symbol table '\.symtab' contains 39 entries:
 .* SECTION LOCAL +DEFAULT +10 
 .* SECTION LOCAL +DEFAULT +11 
 .* SECTION LOCAL +DEFAULT +12 
-.* SECTION LOCAL +DEFAULT +13 
-.* SECTION LOCAL +DEFAULT +14 
-.* SECTION LOCAL +DEFAULT +15 
 .* TLS +LOCAL +DEFAULT +7 gd4
 .* TLS +LOCAL +DEFAULT +7 ld4
 .* TLS +LOCAL +DEFAULT +7 ld5

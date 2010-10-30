@@ -1,0 +1,6 @@
+{
+  extern "C++"
+  {
+    typeinfo*;
+  };
+};

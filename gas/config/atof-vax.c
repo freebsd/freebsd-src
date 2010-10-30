@@ -1,5 +1,5 @@
 /* atof_vax.c - turn a Flonum into a VAX floating point number
-   Copyright 1987, 1992, 1993, 1995, 1997, 1999, 2000, 2005
+   Copyright 1987, 1992, 1993, 1995, 1997, 1999, 2000, 2005, 2007
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -35,7 +35,7 @@ int flonum_gen2vax (int, FLONUM_TYPE *, LITTLENUM_TYPE *);
 
 /* Number of chars in flonum type 'letter'.  */
 
-static int
+static unsigned int
 atof_vax_sizeof (int letter)
 {
   int return_value;
@@ -395,7 +395,7 @@ md_atof (int what_statement_type,
 {
   LITTLENUM_TYPE words[MAXIMUM_NUMBER_OF_LITTLENUMS];
   char kind_of_float;
-  int number_of_chars;
+  unsigned int number_of_chars;
   LITTLENUM_TYPE *littlenumP;
 
   switch (what_statement_type)

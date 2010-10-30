@@ -23,7 +23,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef CGEN_TYPES_H
 #define CGEN_TYPES_H
 
-#include <stdint.h>
+#include "../bfd/bfd_stdint.h"
 
 typedef  int8_t   QI;
 typedef uint8_t  UQI;

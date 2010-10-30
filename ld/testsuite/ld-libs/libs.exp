@@ -1,0 +1,9 @@
+file mkdir tmpdir/libtmp
+
+# Check that -l: works.  The first "test" just creates an object file
+# for the second one.
+run_ld_link_tests {
+    {"-l: test (preparation)" "-r" "" {lib-1.s} {} "libtmp/anobject"}
+    {"-l: test" "-r -Ltmpdir/libtmp -l:anobject" "" {lib-2.s}
+     {{nm -C lib-2.d}} "lib-2"}
+}

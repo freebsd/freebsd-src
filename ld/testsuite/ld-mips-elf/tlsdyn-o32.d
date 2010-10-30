@@ -5,7 +5,7 @@ Disassembly of section .text:
 
 .* <__start>:
   .*:	3c1c0fc0 	lui	gp,0xfc0
-  .*:	279c7bb0 	addiu	gp,gp,31664
+  .*:	279c7ba0 	addiu	gp,gp,31648
   .*:	0399e021 	addu	gp,gp,t9
   .*:	27bdfff0 	addiu	sp,sp,-16
   .*:	afbe0008 	sw	s8,8\(sp\)

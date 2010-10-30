@@ -13,7 +13,12 @@ ALIGNMENT=32
 TEXT_START_ADDR=0
 
 # Put crt0 for flash/eprom etc. in this section.
-INITIAL_READONLY_SECTIONS='.startup : { KEEP(*(.startup)) }'
+INITIAL_READONLY_SECTIONS=
+if test -z "${CREATE_SHLIB}"; then
+  INITIAL_READONLY_SECTIONS=".interp       ${RELOCATING-0} : { *(.interp) }"
+fi
+INITIAL_READONLY_SECTIONS="${INITIAL_READONLY_SECTIONS}
+  .startup : { KEEP(*(.startup)) }"
 
 # Setting __Stext to . in TEXT_START_SYMBOLS doesn't get what we want
 # most of the time, which is the start of all read-only sections;

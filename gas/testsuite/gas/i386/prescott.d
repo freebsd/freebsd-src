@@ -10,9 +10,9 @@ Disassembly of section .text:
    4:	66 0f d0 ca [ 	]*addsubpd %xmm2,%xmm1
    8:	f2 0f d0 13 [ 	]*addsubps \(%ebx\),%xmm2
    c:	f2 0f d0 dc [ 	]*addsubps %xmm4,%xmm3
-  10:	df 88 90 90 90 90 [ 	]*fisttp 0x90909090\(%eax\)
-  16:	db 88 90 90 90 90 [ 	]*fisttpl 0x90909090\(%eax\)
-  1c:	dd 88 90 90 90 90 [ 	]*fisttpll 0x90909090\(%eax\)
+  10:	df 88 90 90 90 90 [ 	]*fisttp -0x6f6f6f70\(%eax\)
+  16:	db 88 90 90 90 90 [ 	]*fisttpl -0x6f6f6f70\(%eax\)
+  1c:	dd 88 90 90 90 90 [ 	]*fisttpll -0x6f6f6f70\(%eax\)
   22:	66 0f 7c 65 00 [ 	]*haddpd 0x0\(%ebp\),%xmm4
   27:	66 0f 7c ee [ 	]*haddpd %xmm6,%xmm5
   2b:	f2 0f 7c 37 [ 	]*haddps \(%edi\),%xmm6

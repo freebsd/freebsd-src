@@ -1,0 +1,91 @@
+# Expect script for ld-spu tests
+#   Copyright (C) 2006 Free Software Foundation
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software Foundation,
+# 51 Franklin Street - Fifth Floor, Boston, MA 02111-1307, USA.
+#
+
+if { ![istarget "spu-*-*"] } {
+    return
+}
+
+proc embed_test { } {
+    global subdir srcdir
+    global AS ASFLAGS LD LDFLAGS READELF READELFFLAGS
+
+    set cmd "$AS $ASFLAGS -o tmpdir/ear.o $srcdir/$subdir/ear.s"
+    send_log "$cmd\n"
+    set cmdret [catch "exec $cmd" comp_output]
+    set comp_output [prune_warnings $comp_output]
+    if { $cmdret != 0 || $comp_output != ""} then {
+	send_log "$comp_output\n"
+	verbose "$comp_output" 3
+	fail "ear assembly"
+	return
+    }
+
+    set cmd "$LD $LDFLAGS -o tmpdir/ear tmpdir/ear.o"
+    send_log "$cmd\n"
+    set cmdret [catch "exec $cmd" comp_output]
+    set comp_output [prune_warnings $comp_output]
+    if { $cmdret != 0 || $comp_output != ""} then {
+	send_log "$comp_output\n"
+	verbose "$comp_output" 3
+	fail "ear link"
+	return
+    }
+
+    set cmd "sh $srcdir/../../binutils/embedspu.sh -m32 ear tmpdir/ear tmpdir/embed.o"
+    send_log "$cmd\n"
+    set cmdret [catch "exec $cmd" comp_output]
+    set comp_output [prune_warnings $comp_output]
+    if { $cmdret != 0 || $comp_output != ""} then {
+	send_log "$comp_output\n"
+	verbose "$comp_output" 3
+	if { [regexp "unknown pseudo-op: `.reloc'" $comp_output] } {
+	    untested "ear embedspu"
+	    return
+	}
+	fail "ear embedspu"
+	return
+    }
+
+    set cmd "$READELF $READELFFLAGS -r --wide tmpdir/embed.o > tmpdir/embed.out"
+    send_log "$cmd\n"
+    set cmdret [catch "exec $cmd" comp_output]
+    set comp_output [prune_warnings $comp_output]
+    if { $cmdret != 0 || $comp_output != ""} then {
+	send_log "$comp_output\n"
+	verbose "$comp_output" 3
+	fail "ear embed readelf"
+	return
+    }
+
+    if { [regexp_diff "tmpdir/embed.out" $srcdir/$subdir/embed.rd] } then {
+	fail "ear embed output"
+	return
+    }
+
+    pass "ear embed"
+}
+
+set rd_test_list [lsort [glob -nocomplain $srcdir/$subdir/*.d]]
+foreach sputest $rd_test_list {
+    verbose [file rootname $sputest]
+    run_dump_test [file rootname $sputest]
+}
+
+if { [isbuild "powerpc*-*-linux*"] } {
+    embed_test
+}

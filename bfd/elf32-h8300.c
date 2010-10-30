@@ -1,6 +1,6 @@
 /* BFD back-end for Renesas H8/300 ELF binaries.
-   Copyright 1993, 1995, 1998, 1999, 2001, 2002, 2003, 2004
-   Free Software Foundation, Inc.
+   Copyright 1993, 1995, 1998, 1999, 2001, 2002, 2003, 2004, 2005, 2006,
+   2007 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -18,8 +18,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
 #include "elf/h8.h"
@@ -42,11 +42,6 @@ static bfd_boolean elf32_h8_symbol_address_p (bfd *, asection *, bfd_vma);
 static bfd_byte *elf32_h8_get_relocated_section_contents
   (bfd *, struct bfd_link_info *, struct bfd_link_order *,
    bfd_byte *, bfd_boolean, asymbol **);
-static asection *elf32_h8_gc_mark_hook
-  (asection *, struct bfd_link_info *, Elf_Internal_Rela *,
-   struct elf_link_hash_entry *, Elf_Internal_Sym *);
-static bfd_boolean elf32_h8_gc_sweep_hook
-  (bfd *, struct bfd_link_info *, asection *, const Elf_Internal_Rela *);
 static bfd_reloc_status_type elf32_h8_final_link_relocate
   (unsigned long, bfd *, bfd *, asection *,
    bfd_byte *, bfd_vma, bfd_vma, bfd_vma,
@@ -256,6 +251,22 @@ elf32_h8_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
   return NULL;
 }
 
+static reloc_howto_type *
+elf32_h8_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			    const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (h8_elf_howto_table) / sizeof (h8_elf_howto_table[0]);
+       i++)
+    if (h8_elf_howto_table[i].name != NULL
+	&& strcasecmp (h8_elf_howto_table[i].name, r_name) == 0)
+      return &h8_elf_howto_table[i];
+
+  return NULL;
+}
+
 static void
 elf32_h8_info_to_howto (bfd *abfd ATTRIBUTE_UNUSED, arelent *bfd_reloc,
 			Elf_Internal_Rela *elf_reloc)
@@ -407,9 +418,6 @@ elf32_h8_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
   struct elf_link_hash_entry **sym_hashes;
   Elf_Internal_Rela *rel, *relend;
 
-  if (info->relocatable)
-    return TRUE;
-
   symtab_hdr = &elf_tdata (input_bfd)->symtab_hdr;
   sym_hashes = elf_sym_hashes (input_bfd);
 
@@ -424,8 +432,12 @@ elf32_h8_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
       struct elf_link_hash_entry *h;
       bfd_vma relocation;
       bfd_reloc_status_type r;
+      arelent bfd_reloc;
+      reloc_howto_type *howto;
 
-      /* This is a final link.  */
+      elf32_h8_info_to_howto (input_bfd, &bfd_reloc, rel);
+      howto = bfd_reloc.howto;
+
       r_symndx = ELF32_R_SYM (rel->r_info);
       r_type = ELF32_R_TYPE (rel->r_info);
       h = NULL;
@@ -447,6 +459,20 @@ elf32_h8_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 				   unresolved_reloc, warned);
 	}
 
+      if (sec != NULL && elf_discarded_section (sec))
+	{
+	  /* For relocs against symbols from removed linkonce sections,
+	     or sections discarded by a linker script, we just want the
+	     section contents zeroed.  Avoid any special processing.  */
+	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
+	  rel->r_info = 0;
+	  rel->r_addend = 0;
+	  continue;
+	}
+
+      if (info->relocatable)
+	continue;
+
       r = elf32_h8_final_link_relocate (r_type, input_bfd, output_bfd,
 					input_section,
 					contents, rel->r_offset,
@@ -457,11 +483,6 @@ elf32_h8_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 	{
 	  const char *name;
 	  const char *msg = (const char *) 0;
-	  arelent bfd_reloc;
-	  reloc_howto_type *howto;
-
-	  elf32_h8_info_to_howto (input_bfd, &bfd_reloc, rel);
-	  howto = bfd_reloc.howto;
 
 	  if (h != NULL)
 	    name = h->root.root.string;
@@ -1490,42 +1511,6 @@ elf32_h8_get_relocated_section_contents (bfd *output_bfd,
   return NULL;
 }
 
-static asection *
-elf32_h8_gc_mark_hook (asection *sec,
-		       struct bfd_link_info *info ATTRIBUTE_UNUSED,
-		       Elf_Internal_Rela *rel ATTRIBUTE_UNUSED,
-		       struct elf_link_hash_entry *h,
-		       Elf_Internal_Sym *sym)
-{
-  if (h != NULL)
-    {
-      switch (h->root.type)
-        {
-	case bfd_link_hash_defined:
-	case bfd_link_hash_defweak:
-          return h->root.u.def.section;
-
-	case bfd_link_hash_common:
-          return h->root.u.c.p->section;
-
-	default:
-          break;
-        }
-    }
-  else
-    return bfd_section_from_elf_index (sec->owner, sym->st_shndx);
-  return NULL;
-}
-
-static bfd_boolean
-elf32_h8_gc_sweep_hook (bfd *abfd ATTRIBUTE_UNUSED,
-			struct bfd_link_info *info ATTRIBUTE_UNUSED,
-			asection *sec ATTRIBUTE_UNUSED,
-			const Elf_Internal_Rela *relocs ATTRIBUTE_UNUSED)
-{
-  return TRUE;
-}
-
 
 #define TARGET_BIG_SYM			bfd_elf32_h8300_vec
 #define TARGET_BIG_NAME			"elf32-h8300"
@@ -1533,6 +1518,7 @@ elf32_h8_gc_sweep_hook (bfd *abfd ATTRIBUTE_UNUSED,
 #define ELF_MACHINE_CODE		EM_H8_300
 #define ELF_MAXPAGESIZE			0x1
 #define bfd_elf32_bfd_reloc_type_lookup elf32_h8_reloc_type_lookup
+#define bfd_elf32_bfd_reloc_name_lookup elf32_h8_reloc_name_lookup
 #define elf_info_to_howto		elf32_h8_info_to_howto
 #define elf_info_to_howto_rel		elf32_h8_info_to_howto_rel
 
@@ -1544,8 +1530,6 @@ elf32_h8_gc_sweep_hook (bfd *abfd ATTRIBUTE_UNUSED,
   elf32_h8_object_p
 #define bfd_elf32_bfd_merge_private_bfd_data \
   elf32_h8_merge_private_bfd_data
-#define elf_backend_gc_mark_hook        elf32_h8_gc_mark_hook
-#define elf_backend_gc_sweep_hook       elf32_h8_gc_sweep_hook
 
 /* ??? when elf_backend_relocate_section is not defined, elf32-target.h
    defaults to using _bfd_generic_link_hash_table_create, but

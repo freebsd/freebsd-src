@@ -71,11 +71,31 @@ SECTIONS
   .rel.plt     ${RELOCATING-0} : { *(.rel.plt)		}
   .rela.plt    ${RELOCATING-0} : { *(.rela.plt)		}
 
-  /* Internal text space or external memory */
+  /* Internal text space or external memory.  */
   .text :
   {
     *(.vectors)
     KEEP(*(.vectors))
+
+    /* For data that needs to reside in the lower 64k of progmem.  */
+    *(.progmem.gcc*)
+    *(.progmem*)
+    ${RELOCATING+. = ALIGN(2);}
+
+    ${CONSTRUCTING+ __trampolines_start = . ; }
+    /* The jump trampolines for the 16-bit limited relocs will reside here.  */
+    *(.trampolines)
+    *(.trampolines*)
+    ${CONSTRUCTING+ __trampolines_end = . ; }
+
+    /* For future tablejump instruction arrays for 3 byte pc devices.
+       We don't relax jump/call instructions within these sections.  */
+    *(.jumptables) 
+    *(.jumptables*) 
+
+    /* For code that needs to reside in the lower 128k progmem.  */
+    *(.lowtext)
+    *(.lowtext*)
 
     ${CONSTRUCTING+ __ctors_start = . ; }
     ${CONSTRUCTING+ *(.ctors) }
@@ -86,18 +106,8 @@ SECTIONS
     KEEP(SORT(*)(.ctors))
     KEEP(SORT(*)(.dtors))
 
-    /* For data that needs to reside in the lower 64k of progmem */
-    *(.progmem.gcc*)
-    *(.progmem*)
-    ${RELOCATING+. = ALIGN(2);}
-    
-    /* for future tablejump instruction arrays for 3 byte pc devices */
-    *(.jumptables) 
-    *(.jumptables*) 
-    /* for code that needs to reside in the lower 128k progmem */
-    *(.lowtext)
-    *(.lowtext*)  
-
+    /* From this point on, we don't bother about wether the insns are
+       below or above the 16 bits boundary.  */
     *(.init0)  /* Start here after reset.  */
     KEEP (*(.init0))
     *(.init1)

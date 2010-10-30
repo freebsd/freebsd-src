@@ -1,6 +1,6 @@
 /* BFD back-end for oasys objects.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 1999, 2001,
-   2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+   2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support, <sac@cygnus.com>.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -20,8 +20,8 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #define UNDERSCORE_HACK 1
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "safe-ctype.h"
 #include "libbfd.h"
 #include "oasys.h"
@@ -685,9 +685,13 @@ oasys_print_symbol (bfd *abfd, void * afile, asymbol *symbol, bfd_print_symbol_t
 static bfd_boolean
 oasys_new_section_hook (bfd *abfd, asection *newsect)
 {
-  newsect->used_by_bfd = bfd_alloc (abfd, (bfd_size_type) sizeof (oasys_per_section_type));
   if (!newsect->used_by_bfd)
-    return FALSE;
+    {
+      newsect->used_by_bfd
+	= bfd_alloc (abfd, (bfd_size_type) sizeof (oasys_per_section_type));
+      if (!newsect->used_by_bfd)
+	return FALSE;
+    }
   oasys_per_section (newsect)->data = NULL;
   oasys_per_section (newsect)->section = newsect;
   oasys_per_section (newsect)->offset = 0;
@@ -697,7 +701,7 @@ oasys_new_section_hook (bfd *abfd, asection *newsect)
   /* Turn the section string into an index.  */
   sscanf (newsect->name, "%u", &newsect->target_index);
 
-  return TRUE;
+  return _bfd_generic_new_section_hook (abfd, newsect);
 }
 
 
@@ -1160,7 +1164,8 @@ oasys_generic_stat_arch_elt (bfd *abfd, struct stat *buf)
 }
 
 static int
-oasys_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED, bfd_boolean exec ATTRIBUTE_UNUSED)
+oasys_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
+		      struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
   return 0;
 }
@@ -1182,6 +1187,7 @@ oasys_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED, bfd_boolean exec ATTRIBUTE_UNU
 #define oasys_read_minisymbols                     _bfd_generic_read_minisymbols
 #define oasys_minisymbol_to_symbol                 _bfd_generic_minisymbol_to_symbol
 #define oasys_bfd_reloc_type_lookup                _bfd_norelocs_bfd_reloc_type_lookup
+#define oasys_bfd_reloc_name_lookup          _bfd_norelocs_bfd_reloc_name_lookup
 #define oasys_set_arch_mach                        bfd_default_set_arch_mach
 #define oasys_get_section_contents_in_window       _bfd_generic_get_section_contents_in_window
 #define oasys_bfd_get_relocated_section_contents   bfd_generic_get_relocated_section_contents

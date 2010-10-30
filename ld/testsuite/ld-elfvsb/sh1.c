@@ -13,7 +13,15 @@ extern int mainvar;
 /* This variable is defined in the shared library, and overridden by
    the main program.  */
 #ifndef XCOFF_TEST
+#ifdef SHARED
+/* SHARED is defined if we are compiling with -fpic/-fPIC.  */
 int overriddenvar = -1;
+#else
+/* Without -fpic, newer versions of gcc assume that we are not
+   compiling for a shared library, and thus that overriddenvar is
+   local.  */
+extern int overriddenvar;
+#endif
 #endif
 
 /* This variable is defined in the shared library.  */
@@ -76,11 +84,13 @@ shlib_shlibcall2 ()
   return shlib_overriddencall2 ();
 }
 
+#ifdef SHARED
 int
 shlib_overriddencall2 ()
 {
   return 7;
 }
+#endif
 #endif
 
 /* This function calls a function defined by the main program.  */
@@ -385,7 +395,11 @@ shlib_visibility_checkweak ()
 #endif
 
 #ifdef PROTECTED_TEST
+#ifdef SHARED
 int shared_data = 100;
+#else
+extern int shared_data;
+#endif
  
 int *
 shared_data_p ()

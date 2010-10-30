@@ -6,7 +6,7 @@
 
 Disassembly of section \.text:
 
-00000000 <\.text>:
+0*00000000 <\.text>:
    0:	3b14 4444      	in	r1,#0x4444
    4:	3a34 0123      	inb	rh3,#0x123
    8:	3d08           	in	r8,@r0

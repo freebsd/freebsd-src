@@ -4,7 +4,7 @@ SECTIONS
 {
   .text : { *(.text) }
   .nocrossrefs : { *(.nocrossrefs) }
-  .data : { *(.data) }
+  .data : { *(.data) *(.opd) }
   .bss : { *(.bss) *(COMMON) }
   /DISCARD/ : { *(*) }
 }

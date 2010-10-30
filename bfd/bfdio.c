@@ -1,7 +1,7 @@
 /* Low-level I/O routines for BFDs.
 
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005
+   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
 
    Written by Cygnus Support.
@@ -23,11 +23,9 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "sysdep.h"
-
+#include <limits.h>
 #include "bfd.h"
 #include "libbfd.h"
-
-#include <limits.h>
 
 #ifndef S_IXUSR
 #define S_IXUSR 0100    /* Execute by owner.  */
@@ -115,6 +113,15 @@ bfd_size_type
 bfd_bread (void *ptr, bfd_size_type size, bfd *abfd)
 {
   size_t nread;
+
+  /* If this is an archive element, don't read past the end of
+     this element.  */
+  if (abfd->arelt_data != NULL)
+    {
+      size_t maxbytes = ((struct areltdata *) abfd->arelt_data)->parsed_size;
+      if (size > maxbytes)
+	size = maxbytes;
+    }
 
   if ((abfd->flags & BFD_IN_MEMORY) != 0)
     {
@@ -401,7 +408,7 @@ FUNCTION
 	bfd_get_size
 
 SYNOPSIS
-	long bfd_get_size (bfd *abfd);
+	file_ptr bfd_get_size (bfd *abfd);
 
 DESCRIPTION
 	Return the file size (as read from file system) for the file
@@ -429,7 +436,7 @@ DESCRIPTION
 	size reasonable?".
 */
 
-long
+file_ptr
 bfd_get_size (bfd *abfd)
 {
   struct stat buf;

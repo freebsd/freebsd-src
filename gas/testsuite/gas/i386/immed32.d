@@ -9,9 +9,9 @@ Disassembly of section \.text:
 [ 	]*[0-9a-fA-F]+:[ 	]+ff 50 04[ 	]+calll? +\*0x4\(%eax\)
 [ 	]*[0-9a-fA-F]+:[ 	]+ff 90 08 00 00 00[ 	]+calll? +\*0x8\(%eax\)
 [ 	]*[0-9a-fA-F]+:[ 	]+ff 90 00 00 00 00[ 	]+calll? +\*0x0\(%eax\)
-[ 	]*[0-9a-fA-F]+:[ 	]+67 ff 57 04[ 	]+(addr16 )?calll? +\*4\(%bx\)
-[ 	]*[0-9a-fA-F]+:[ 	]+67 ff 97 08 00[ 	]+(addr16 )?calll? +\*8\(%bx\)
-[ 	]*[0-9a-fA-F]+:[ 	]+67 ff 97 00 00[ 	]+(addr16 )?calll? +\*0\(%bx\)
+[ 	]*[0-9a-fA-F]+:[ 	]+67 ff 57 04[ 	]+(addr16 )?calll? +\*0x4\(%bx\)
+[ 	]*[0-9a-fA-F]+:[ 	]+67 ff 97 08 00[ 	]+(addr16 )?calll? +\*0x8\(%bx\)
+[ 	]*[0-9a-fA-F]+:[ 	]+67 ff 97 00 00[ 	]+(addr16 )?calll? +\*0x0\(%bx\)
 [ 	]*[0-9a-fA-F]+:[ 	]+b0 04[ 	]+movb? +\$0x4,%al
 [ 	]*[0-9a-fA-F]+:[ 	]+b0 08[ 	]+movb? +\$0x8,%al
 [ 	]*[0-9a-fA-F]+:[ 	]+b0 00[ 	]+movb? +\$0x0,%al

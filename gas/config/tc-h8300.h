@@ -86,3 +86,6 @@ extern int Nmode;
 extern int SXmode;
 
 #define md_operand(x)
+
+/* This target is buggy, and sets fix size too large.  */
+#define TC_FX_SIZE_SLACK(FIX) 1

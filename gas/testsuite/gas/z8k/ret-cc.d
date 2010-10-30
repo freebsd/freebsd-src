@@ -1,12 +1,12 @@
 #as:
 #objdump: -d
-#name: jmp cc
+#name: return on condition code
 
 .*: +file format coff-z8k
 
 Disassembly of section \.text:
 
-00000000 <\.text>:
+0*00000000 <\.text>:
    0:	9e00           	ret	f
    2:	9e01           	ret	lt
    4:	9e02           	ret	le
@@ -37,7 +37,7 @@ Disassembly of section \.text:
   36:	9e08           	ret	t
   38:	9e08           	ret	t
 
-0000003a <dd>:
+0*0000003a <dd>:
   3a:	e8ff           	jr	t,0x3a
   3c:	e8fe           	jr	t,0x3a
   3e:	8d07           	nop	

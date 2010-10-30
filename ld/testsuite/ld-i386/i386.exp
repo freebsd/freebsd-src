@@ -24,7 +24,7 @@ if {[istarget "i?86-*-vxworks"]} {
 	{"VxWorks shared library test 1" "-shared -Tvxworks1.ld"
 	 "" {vxworks1-lib.s}
 	 {{readelf --relocs vxworks1-lib.rd} {objdump -dr vxworks1-lib.dd}
-	  {readelf --symbols vxworks1-lib.nd}}
+	  {readelf --symbols vxworks1-lib.nd} {readelf -d vxworks1-lib.td}}
 	 "libvxworks1.so"}
 	{"VxWorks executable test 1 (dynamic)" \
 	 "tmpdir/libvxworks1.so -Tvxworks1.ld -q --force-dynamic"
@@ -113,3 +113,6 @@ run_ld_link_tests $i386tests
 run_dump_test "abs"
 run_dump_test "pcrel8"
 run_dump_test "pcrel16"
+run_dump_test "pcrel16abs"
+run_dump_test "alloc"
+run_dump_test "warn1"

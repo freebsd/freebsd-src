@@ -4,7 +4,7 @@ LIB_PATH="=/usr/lib/pa20_64:=/opt/langtools/lib/pa20_64"
 TEXT_START_ADDR=0x4000000000001000
 DATA_ADDR=0x8000000000001000
 TARGET_PAGE_SIZE=4096
-MAXPAGESIZE=4096
+MAXPAGESIZE="CONSTANT (MAXPAGESIZE)"
 
 # The HP dynamic linker actually requires you set the start of text and
 # data to some reasonable value.  Of course nobody knows what reasoanble

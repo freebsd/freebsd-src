@@ -1,6 +1,6 @@
 /* ldmisc.c
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006
+   2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support.
 
@@ -21,9 +21,9 @@
    Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
    02110-1301, USA.  */
 
+#include "sysdep.h"
 #include "bfd.h"
 #include "bfdlink.h"
-#include "sysdep.h"
 #include "libiberty.h"
 #include "demangle.h"
 #include <stdarg.h>
@@ -144,17 +144,24 @@ vfinfo (FILE *fp, const char *fmt, va_list arg, bfd_boolean is_warning)
 		const char *name = va_arg (arg, const char *);
 
 		if (name == NULL || *name == 0)
-		  fprintf (fp, _("no symbol"));
-		else if (! demangling)
-		  fprintf (fp, "%s", name);
-		else
+		  {
+		    fprintf (fp, _("no symbol"));
+		    break;
+		  }
+		else if (demangling)
 		  {
 		    char *demangled;
 
-		    demangled = demangle (name);
-		    fprintf (fp, "%s", demangled);
-		    free (demangled);
+		    demangled = bfd_demangle (output_bfd, name,
+					      DMGL_ANSI | DMGL_PARAMS);
+		    if (demangled != NULL)
+		      {
+			fprintf (fp, "%s", demangled);
+			free (demangled);
+			break;
+		      }
 		  }
+		fprintf (fp, "%s", name);
 	      }
 	      break;
 
@@ -432,48 +439,6 @@ vfinfo (FILE *fp, const char *fmt, va_list arg, bfd_boolean is_warning)
     xexit (1);
 }
 
-/* Wrapper around cplus_demangle.  Strips leading underscores and
-   other such chars that would otherwise confuse the demangler.  */
-
-char *
-demangle (const char *name)
-{
-  char *res;
-  const char *p;
-
-  if (output_bfd != NULL
-      && bfd_get_symbol_leading_char (output_bfd) == name[0])
-    ++name;
-
-  /* This is a hack for better error reporting on XCOFF, PowerPC64-ELF
-     or the MS PE format.  These formats have a number of leading '.'s
-     on at least some symbols, so we remove all dots to avoid
-     confusing the demangler.  */
-  p = name;
-  while (*p == '.')
-    ++p;
-
-  res = cplus_demangle (p, DMGL_ANSI | DMGL_PARAMS);
-  if (res)
-    {
-      size_t dots = p - name;
-
-      /* Now put back any stripped dots.  */
-      if (dots != 0)
-	{
-	  size_t len = strlen (res) + 1;
-	  char *add_dots = xmalloc (len + dots);
-
-	  memcpy (add_dots, name, dots);
-	  memcpy (add_dots + dots, res, len);
-	  free (res);
-	  res = add_dots;
-	}
-      return res;
-    }
-  return xstrdup (name);
-}
-
 /* Format info message and print on stdout.  */
 
 /* (You would think this should be called just "info", but then you
@@ -512,11 +477,14 @@ info_assert (const char *file, unsigned int line)
 void
 minfo (const char *fmt, ...)
 {
-  va_list arg;
+  if (config.map_file != NULL)
+    {
+      va_list arg;
 
-  va_start (arg, fmt);
-  vfinfo (config.map_file, fmt, arg, FALSE);
-  va_end (arg);
+      va_start (arg, fmt);
+      vfinfo (config.map_file, fmt, arg, FALSE);
+      va_end (arg);
+    }
 }
 
 void

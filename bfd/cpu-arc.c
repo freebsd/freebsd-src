@@ -1,5 +1,6 @@
 /* BFD support for the ARC processor
-   Copyright 1994, 1995, 1997, 2001, 2002 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1997, 2001, 2002, 2007
+   Free Software Foundation, Inc.
    Contributed by Doug Evans (dje@cygnus.com).
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -18,8 +19,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 
 #define ARC(mach, print_name, default_p, next) \

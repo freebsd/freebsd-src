@@ -21,7 +21,7 @@ if {[istarget "arm-*-vxworks"]} {
 	{"VxWorks shared library test 1" "-shared -Tvxworks1.ld"
 	 "" {vxworks1-lib.s}
 	 {{readelf --relocs vxworks1-lib.rd} {objdump -dr vxworks1-lib.dd}
-	  {readelf --symbols vxworks1-lib.nd}}
+	  {readelf --symbols vxworks1-lib.nd} {readelf -d vxworks1-lib.td}}
 	 "libvxworks1.so"}
 	{"VxWorks executable test 1 (dynamic)" \
 	 "tmpdir/libvxworks1.so -Tvxworks1.ld -q --force-dynamic"
@@ -41,6 +41,7 @@ if {[istarget "arm-*-vxworks"]} {
     }
     run_ld_link_tests $armvxworkstests
     run_dump_test "vxworks1-static"
+    run_dump_test "emit-relocs1-vxworks"
 }
 
 # Exclude non-ARM-ELF targets.
@@ -59,6 +60,12 @@ if { ![is_elf_format] || ![istarget "arm*-*-*"] } {
 # readelf: Apply readelf options on result.  Compare with regex (last arg).
 
 set armelftests {
+    {"Group relocations" "-Ttext 0x8000 --section-start zero=0x0 --section-start alpha=0xeef0 --section-start beta=0xffeef0" "" {group-relocs.s}
+     {{objdump -Dr group-relocs.d}}
+     "group-relocs"}
+    {"Thumb-1 BL" "-Ttext 0x1000 --section-start .foo=0x401000" "" {thumb1-bl.s}
+     {{objdump -dr thumb1-bl.d}}
+     "thumb1-bl"}
     {"Simple non-PIC shared library" "-shared" "" {arm-lib.s}
      {{objdump -fdw arm-lib.d} {objdump -Rw arm-lib.r}}
      "arm-lib.so"}
@@ -74,7 +81,11 @@ set armelftests {
     {"Non-pcrel function reference" "tmpdir/arm-lib.so" "" {arm-app-abs32.s}
      {{objdump -fdw arm-app-abs32.d} {objdump -Rw arm-app-abs32.r}}
      "arm-app-abs32"}
-    {"Mixed ARM/Thumb shared library" "-shared -T arm-lib.ld" ""
+    {"Thumb shared library with ARM entry points" "-shared -T arm-lib.ld" "-mthumb-interwork"
+     {mixed-lib.s}
+     {{objdump -fdw armthumb-lib.d} {readelf -Ds armthumb-lib.sym}}
+     "armthumb-lib.so"}
+    {"Mixed ARM/Thumb shared library" "-shared -T arm-lib.ld -use-blx" ""
      {mixed-lib.s}
      {{objdump -fdw mixed-lib.d} {objdump -Rw mixed-lib.r}
       {readelf -Ds mixed-lib.sym}}
@@ -122,6 +133,67 @@ set armelftests {
     {"thumb-rel32" "-static -T arm.ld" "" {thumb-rel32.s}
      {{objdump -s thumb-rel32.d}}
      "thumb-rel32"}
+    {"MOVW/MOVT" "-static -T arm.ld" "" {arm-movwt.s}
+     {{objdump -dw arm-movwt.d}}
+     "arm-movwt"}
+    {"BE8 Mapping Symbols" "-static -T arm.ld -EB --be8" "-EB" {arm-be8.s}
+     {{objdump -s arm-be8.d}}
+     "arm-be8"}
+    {"Using Thumb lib by another lib" "-shared tmpdir/mixed-lib.so" "" {use-thumb-lib.s}
+     {{readelf -Ds use-thumb-lib.sym}}
+     "use-thumb-lib.so"}
+    {"VFP11 denorm erratum fix, scalar operation"
+     "-EL --vfp11-denorm-fix=scalar -Ttext=0x8000" "-EL -mfpu=vfpxd" {vfp11-fix-scalar.s}
+     {{objdump -dr vfp11-fix-scalar.d}}
+     "vfp11-fix-scalar"}
+    {"VFP11 denorm erratum fix, vector operation"
+     "-EB --vfp11-denorm-fix=vector -Ttext=0x8000" "-EB -mfpu=vfpxd" {vfp11-fix-vector.s}
+     {{objdump -dr vfp11-fix-vector.d}}
+     "vfp11-fix-vector"}
+    {"VFP11 denorm erratum fix, embedded code-like data"
+     "-EL --vfp11-denorm-fix=scalar -Ttext=0x8000" "-EL -mfpu=vfpxd" {vfp11-fix-none.s}
+     {{objdump -dr vfp11-fix-none.d}}
+     "vfp11-fix-none"}
+    {"Unwinding and -gc-sections" "-gc-sections" "" {gc-unwind.s}
+     {{objdump -sj.data gc-unwind.d}}
+     "gc-unwind"}
+    {"arm-pic-veneer" "-static -T arm.ld --pic-veneer" "" {arm-pic-veneer.s}
+     {{objdump -d arm-pic-veneer.d}}
+     "arm-pic-veneer"}
+    {"Preempt Thumb symbol" "tmpdir/mixed-lib.so -T arm-dyn.ld --use-blx" ""
+     {preempt-app.s}
+     {{readelf -Ds preempt-app.sym}}
+     "preempt-app"}
+     {"jump19" "-static -T arm.ld" "" {jump19.s}
+      {{objdump -dr jump19.d}}
+      "jump19"}
+     {"EABI attribute merging" "-r" "" {attr-merge.s attr-merge.s}
+      {{readelf -A attr-merge.attr}}
+      "attr-merge"}
+     {"callweak" "-static -T arm.ld" "" {callweak.s}
+      {{objdump -dr callweak.d}}
+      "callweak"}
 }
 
 run_ld_link_tests $armelftests
+run_dump_test "group-relocs-alu-bad"
+run_dump_test "group-relocs-ldr-bad"
+run_dump_test "group-relocs-ldrs-bad"
+run_dump_test "group-relocs-ldc-bad"
+run_dump_test "thumb2-bl-as-thumb1-bad"
+run_dump_test "thumb2-bl-bad"
+run_dump_test "emit-relocs1"
+
+# Exclude non-ARM-EABI targets.
+
+if { ![istarget "arm*-*-*eabi"] } {
+    return
+}
+
+set armeabitests {
+    {"Thumb-2 BL" "-Ttext 0x1000 --section-start .foo=0x1001000" "" {thumb2-bl.s}
+     {{objdump -dr thumb2-bl.d}}
+     "thumb2-bl"}
+}
+
+run_ld_link_tests $armeabitests

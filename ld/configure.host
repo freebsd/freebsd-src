@@ -147,6 +147,12 @@ i[3-7]86-*-cygwin*)
   HOSTING_LIBS="$HOSTING_LIBS"' -lcygwin -L/usr/lib/w32api -luser32 -lkernel32 -ladvapi32 -lshell32 `if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else ${CC} -print-libgcc-file-name; fi`'
   ;;
 
+i[3-7]86-*-mingw*)
+  #We only support msvcrt.dll, crtid == 2.
+  HOSTING_CRT0='/mingw/lib/crt2.o'
+  HOSTING_LIBS='-L/mingw/lib -lmingw32 -lmoldname -lmingwex -lmsvcrt -luser32 -lkernel32 -ladvapi32 -lshell32 -lmingw32 -lmoldname -lmingwex -lmsvcrt `if [ -f ../gcc/libgcc.a ] ; then echo ../gcc/libgcc.a ; else ${CC} -print-libgcc-file-name; fi`'
+  ;; 
+
 ia64-*-linux-*)
   HOSTING_CRT0=`echo "$HOSTING_CRT0" | sed -e "s,ld\[^ \]*\*,ld-linux-ia64,g"`
   ;;

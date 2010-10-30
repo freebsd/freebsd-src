@@ -1,5 +1,5 @@
 /* BFD support for the NEC V850 processor
-   Copyright 1996, 1997, 1998, 2000, 2001, 2002, 2003
+   Copyright 1996, 1997, 1998, 2000, 2001, 2002, 2003, 2007
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -18,8 +18,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "safe-ctype.h"
 

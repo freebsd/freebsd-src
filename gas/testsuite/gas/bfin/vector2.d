@@ -469,3 +469,6 @@ Disassembly of section .text:
  734:	00 9e 32 9c 
  738:	8b c8 9a 2f 	R6 = \(a0 \+= R3.H \* R2.H\) \(FU\) \|\| I2-=M0 \|\| NOP;
  73c:	72 9e 00 00 
+ 740:	14 c2 1a a0 	R0.H = R3.H \* R2.L \(M\), R0 = R3.L \* R2.L;
+ 744:	1c c2 b8 60 	R3 = R7.L \* R0.H \(M\), R2 = R7.L \* R0.L;
+ 748:	1c c0 b8 60 	R3 = \(a1 = R7.L \* R0.H\) \(M\), R2 = \(a0 = R7.L \* R0.L\);

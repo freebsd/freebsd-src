@@ -666,3 +666,8 @@ Ireg. */
 r6=(a0+=r3.h*r2.h)(fu) || i2-=m0 ;
 /* which the assembler expands into:
 r6=(a0+=r3.h*r2.h)(fu) || i2-=m0 || nop ; */
+
+/* Test for ensure (m) is not thown away.  */
+r0.l=r3.l*r2.l, r0.h=r3.h*r2.l (m) ;
+R2 = R7.L * R0.L, R3 = R7.L * R0.H (m);
+R2 = (A0 = R7.L * R0.L), R3 = ( A1 = R7.L * R0.H) (m);

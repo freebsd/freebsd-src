@@ -1,6 +1,6 @@
 /* Object file "section" support for the BFD library.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006
+   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -133,8 +133,8 @@ SUBSECTION
 
 */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "bfdlink.h"
 
@@ -294,7 +294,9 @@ CODE_FRAGMENT
 .     else up the line will take care of it later.  *}
 .#define SEC_LINKER_CREATED 0x200000
 .
-.  {* This section should not be subject to garbage collection.  *}
+.  {* This section should not be subject to garbage collection.
+.     Also set to inform the linker that this section should not be
+.     listed in the link map as discarded.  *}
 .#define SEC_KEEP 0x400000
 .
 .  {* This section contains "short" data, and should be placed
@@ -540,11 +542,6 @@ CODE_FRAGMENT
 .  || ((SEC) == bfd_com_section_ptr)		\
 .  || ((SEC) == bfd_ind_section_ptr))
 .
-.extern const struct bfd_symbol * const bfd_abs_symbol;
-.extern const struct bfd_symbol * const bfd_com_symbol;
-.extern const struct bfd_symbol * const bfd_und_symbol;
-.extern const struct bfd_symbol * const bfd_ind_symbol;
-.
 .{* Macros to handle insertion and deletion of a bfd's sections.  These
 .   only handle the list pointers, ie. do not adjust section_count,
 .   target_index etc.  *}
@@ -635,7 +632,7 @@ CODE_FRAGMENT
 .#define bfd_section_removed_from_list(ABFD, S) \
 .  ((S)->next == NULL ? (ABFD)->section_last != (S) : (S)->next->prev != (S))
 .
-.#define BFD_FAKE_SECTION(SEC, FLAGS, SYM, SYM_PTR, NAME, IDX)		\
+.#define BFD_FAKE_SECTION(SEC, FLAGS, SYM, NAME, IDX)			\
 .  {* name, id,  index, next, prev, flags, user_set_vma,            *}	\
 .  { NAME,  IDX, 0,     NULL, NULL, FLAGS, 0,				\
 .									\
@@ -666,11 +663,8 @@ CODE_FRAGMENT
 .  {* target_index, used_by_bfd, constructor_chain, owner,          *}	\
 .     0,            NULL,        NULL,              NULL,		\
 .									\
-.  {* symbol,                                                       *}	\
-.     (struct bfd_symbol *) SYM,					\
-.									\
-.  {* symbol_ptr_ptr,                                               *}	\
-.     (struct bfd_symbol **) SYM_PTR,					\
+.  {* symbol,                    symbol_ptr_ptr,                    *}	\
+.     (struct bfd_symbol *) SYM, &SEC.symbol,				\
 .									\
 .  {* map_head, map_tail                                            *}	\
 .     { NULL }, { NULL }						\
@@ -701,16 +695,14 @@ static const asymbol global_syms[] =
   GLOBAL_SYM_INIT (BFD_IND_SECTION_NAME, &bfd_ind_section)
 };
 
-#define STD_SECTION(SEC, FLAGS, SYM, NAME, IDX)				\
-  const asymbol * const SYM = (asymbol *) &global_syms[IDX]; 		\
-  asection SEC = BFD_FAKE_SECTION(SEC, FLAGS, &global_syms[IDX], &SYM,	\
+#define STD_SECTION(SEC, FLAGS, NAME, IDX)				\
+  asection SEC = BFD_FAKE_SECTION(SEC, FLAGS, &global_syms[IDX],	\
 				  NAME, IDX)
 
-STD_SECTION (bfd_com_section, SEC_IS_COMMON, bfd_com_symbol,
-	     BFD_COM_SECTION_NAME, 0);
-STD_SECTION (bfd_und_section, 0, bfd_und_symbol, BFD_UND_SECTION_NAME, 1);
-STD_SECTION (bfd_abs_section, 0, bfd_abs_symbol, BFD_ABS_SECTION_NAME, 2);
-STD_SECTION (bfd_ind_section, 0, bfd_ind_symbol, BFD_IND_SECTION_NAME, 3);
+STD_SECTION (bfd_com_section, SEC_IS_COMMON, BFD_COM_SECTION_NAME, 0);
+STD_SECTION (bfd_und_section, 0, BFD_UND_SECTION_NAME, 1);
+STD_SECTION (bfd_abs_section, 0, BFD_ABS_SECTION_NAME, 2);
+STD_SECTION (bfd_ind_section, 0, BFD_IND_SECTION_NAME, 3);
 #undef STD_SECTION
 
 /* Initialize an entry in the section hash table.  */
@@ -743,6 +735,26 @@ bfd_section_hash_newfunc (struct bfd_hash_entry *entry,
   ((struct section_hash_entry *) \
    bfd_hash_lookup ((table), (string), (create), (copy)))
 
+/* Create a symbol whose only job is to point to this section.  This
+   is useful for things like relocs which are relative to the base
+   of a section.  */
+
+bfd_boolean
+_bfd_generic_new_section_hook (bfd *abfd, asection *newsect)
+{
+  newsect->symbol = bfd_make_empty_symbol (abfd);
+  if (newsect->symbol == NULL)
+    return FALSE;
+
+  newsect->symbol->name = newsect->name;
+  newsect->symbol->value = 0;
+  newsect->symbol->section = newsect;
+  newsect->symbol->flags = BSF_SECTION_SYM;
+
+  newsect->symbol_ptr_ptr = &newsect->symbol;
+  return TRUE;
+}
+
 /* Initializes a new section.  NEWSECT->NAME is already set.  */
 
 static asection *
@@ -753,20 +765,6 @@ bfd_section_init (bfd *abfd, asection *newsect)
   newsect->id = section_id;
   newsect->index = abfd->section_count;
   newsect->owner = abfd;
-
-  /* Create a symbol whose only job is to point to this section.  This
-     is useful for things like relocs which are relative to the base
-     of a section.  */
-  newsect->symbol = bfd_make_empty_symbol (abfd);
-  if (newsect->symbol == NULL)
-    return NULL;
-
-  newsect->symbol->name = newsect->name;
-  newsect->symbol->value = 0;
-  newsect->symbol->section = newsect;
-  newsect->symbol->flags = BSF_SECTION_SYM;
-
-  newsect->symbol_ptr_ptr = &newsect->symbol;
 
   if (! BFD_SEND (abfd, _new_section_hook, (abfd, newsect)))
     return NULL;
@@ -964,7 +962,6 @@ DESCRIPTION
 asection *
 bfd_make_section_old_way (bfd *abfd, const char *name)
 {
-  struct section_hash_entry *sh;
   asection *newsect;
 
   if (abfd->output_has_begun)
@@ -974,30 +971,38 @@ bfd_make_section_old_way (bfd *abfd, const char *name)
     }
 
   if (strcmp (name, BFD_ABS_SECTION_NAME) == 0)
-    return bfd_abs_section_ptr;
-
-  if (strcmp (name, BFD_COM_SECTION_NAME) == 0)
-    return bfd_com_section_ptr;
-
-  if (strcmp (name, BFD_UND_SECTION_NAME) == 0)
-    return bfd_und_section_ptr;
-
-  if (strcmp (name, BFD_IND_SECTION_NAME) == 0)
-    return bfd_ind_section_ptr;
-
-  sh = section_hash_lookup (&abfd->section_htab, name, TRUE, FALSE);
-  if (sh == NULL)
-    return NULL;
-
-  newsect = &sh->section;
-  if (newsect->name != NULL)
+    newsect = bfd_abs_section_ptr;
+  else if (strcmp (name, BFD_COM_SECTION_NAME) == 0)
+    newsect = bfd_com_section_ptr;
+  else if (strcmp (name, BFD_UND_SECTION_NAME) == 0)
+    newsect = bfd_und_section_ptr;
+  else if (strcmp (name, BFD_IND_SECTION_NAME) == 0)
+    newsect = bfd_ind_section_ptr;
+  else
     {
-      /* Section already exists.  */
-      return newsect;
+      struct section_hash_entry *sh;
+
+      sh = section_hash_lookup (&abfd->section_htab, name, TRUE, FALSE);
+      if (sh == NULL)
+	return NULL;
+
+      newsect = &sh->section;
+      if (newsect->name != NULL)
+	{
+	  /* Section already exists.  */
+	  return newsect;
+	}
+
+      newsect->name = name;
+      return bfd_section_init (abfd, newsect);
     }
 
-  newsect->name = name;
-  return bfd_section_init (abfd, newsect);
+  /* Call new_section_hook when "creating" the standard abs, com, und
+     and ind sections to tack on format specific section data.
+     Also, create a proper section symbol.  */
+  if (! BFD_SEND (abfd, _new_section_hook, (abfd, newsect)))
+    return NULL;
+  return newsect;
 }
 
 /*

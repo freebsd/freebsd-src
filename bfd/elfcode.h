@@ -1,6 +1,7 @@
 /* ELF executable support for BFD.
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+   2001, 2002, 2003, 2004, 2005, 2006, 2007
+   Free Software Foundation, Inc.
 
    Written by Fred Fish @ Cygnus Support, from information published
    in "UNIX System V Release 4, Programmers Guide: ANSI C and
@@ -64,8 +65,8 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
 	it's cast in stone.
  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libiberty.h"
 #include "bfdlink.h"
 #include "libbfd.h"
@@ -139,10 +140,11 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
 #define LOG_FILE_ALIGN	2
 #endif
 
-#ifdef DEBUG
+#if DEBUG & 2
 static void elf_debug_section (int, Elf_Internal_Shdr *);
+#endif
+#if DEBUG & 1
 static void elf_debug_file (Elf_Internal_Ehdr *);
-static char *elf_symbol_flags (flagword);
 #endif
 
 /* Structure swapping routines */
@@ -165,7 +167,7 @@ static char *elf_symbol_flags (flagword);
 /* Translate an ELF symbol in external format into an ELF symbol in internal
    format.  */
 
-void
+bfd_boolean
 elf_swap_symbol_in (bfd *abfd,
 		    const void *psrc,
 		    const void *pshn,
@@ -187,9 +189,10 @@ elf_swap_symbol_in (bfd *abfd,
   if (dst->st_shndx == SHN_XINDEX)
     {
       if (shndx == NULL)
-	abort ();
+	return FALSE;
       dst->st_shndx = H_GET_32 (abfd, shndx->est_shndx);
     }
+  return TRUE;
 }
 
 /* Translate an ELF symbol in internal format into an ELF symbol in external
@@ -498,6 +501,8 @@ elf_object_p (bfd *abfd)
   struct bfd_preserve preserve;
   asection *s;
   bfd_size_type amt;
+  const bfd_target *target;
+  const bfd_target * const *target_ptr;
 
   preserve.marker = NULL;
 
@@ -541,10 +546,12 @@ elf_object_p (bfd *abfd)
   if (!bfd_preserve_save (abfd, &preserve))
     goto got_no_match;
 
+  target = abfd->xvec;
+
   /* Allocate an instance of the elf_obj_tdata structure and hook it up to
      the tdata pointer in the bfd.  */
 
-  if (! (*abfd->xvec->_bfd_set_format[bfd_object]) (abfd))
+  if (! (*target->_bfd_set_format[bfd_object]) (abfd))
     goto got_no_match;
   preserve.marker = elf_tdata (abfd);
 
@@ -584,8 +591,6 @@ elf_object_p (bfd *abfd)
       && (ebd->elf_machine_alt2 == 0
 	  || i_ehdrp->e_machine != ebd->elf_machine_alt2))
     {
-      const bfd_target * const *target_ptr;
-
       if (ebd->elf_machine_code != EM_NONE)
 	goto got_wrong_format_error;
 
@@ -624,6 +629,45 @@ elf_object_p (bfd *abfd)
       /* It's OK if this fails for the generic target.  */
       if (ebd->elf_machine_code != EM_NONE)
 	goto got_no_match;
+    }
+
+  if (ebd->elf_machine_code != EM_NONE
+      && i_ehdrp->e_ident[EI_OSABI] != ebd->elf_osabi)
+    {
+      if (ebd->elf_osabi != ELFOSABI_NONE)
+	goto got_wrong_format_error;
+
+      /* This is an ELFOSABI_NONE ELF target.  Let it match any ELF
+	 target of the compatible machine for which we do not have a
+	 backend with matching ELFOSABI.  */
+      for (target_ptr = bfd_target_vector;
+	   *target_ptr != NULL;
+	   target_ptr++)
+	{
+	  const struct elf_backend_data *back;
+
+	  /* Skip this target and targets with incompatible byte
+	     order.  */
+	  if (*target_ptr == target
+	      || (*target_ptr)->flavour != bfd_target_elf_flavour
+	      || (*target_ptr)->byteorder != target->byteorder
+	      || ((*target_ptr)->header_byteorder
+		  != target->header_byteorder))
+	    continue;
+
+	  back = (const struct elf_backend_data *) (*target_ptr)->backend_data;
+	  if (back->elf_osabi == i_ehdrp->e_ident[EI_OSABI]
+	      && (back->elf_machine_code == i_ehdrp->e_machine
+		  || (back->elf_machine_alt1 != 0
+		      && back->elf_machine_alt1 == i_ehdrp->e_machine)
+		  || (back->elf_machine_alt2 != 0
+		      && back->elf_machine_alt2 == i_ehdrp->e_machine)))
+	    {
+	      /* target_ptr is an ELF backend which matches this
+		 object file, so reject the ELFOSABI_NONE ELF target.  */
+	      goto got_wrong_format_error;
+	    }
+	}
     }
 
   if (i_ehdrp->e_shoff != 0)
@@ -846,7 +890,7 @@ elf_object_p (bfd *abfd)
     }
 
   bfd_preserve_finish (abfd, &preserve);
-  return abfd->xvec;
+  return target;
 
  got_wrong_format_error:
   /* There is way too much undoing of half-known state here.  The caller,
@@ -1235,6 +1279,12 @@ elf_slurp_symbol_table (bfd *abfd, asymbol **symptrs, bfd_boolean dynamic)
 	    case STT_TLS:
 	      sym->symbol.flags |= BSF_THREAD_LOCAL;
 	      break;
+	    case STT_RELC:
+	      sym->symbol.flags |= BSF_RELC;
+	      break;
+	    case STT_SRELC:
+	      sym->symbol.flags |= BSF_SRELC;
+	      break;
 	    }
 
 	  if (dynamic)
@@ -1462,7 +1512,7 @@ elf_slurp_reloc_table (bfd *abfd,
   return TRUE;
 }
 
-#ifdef DEBUG
+#if DEBUG & 2
 static void
 elf_debug_section (int num, Elf_Internal_Shdr *hdr)
 {
@@ -1488,7 +1538,9 @@ elf_debug_section (int num, Elf_Internal_Shdr *hdr)
 	   (long) hdr->sh_entsize);
   fflush (stderr);
 }
+#endif
 
+#if DEBUG & 1
 static void
 elf_debug_file (Elf_Internal_Ehdr *ehdrp)
 {
@@ -1499,77 +1551,6 @@ elf_debug_file (Elf_Internal_Ehdr *ehdrp)
   fprintf (stderr, "e_shoff      = %ld\n", (long) ehdrp->e_shoff);
   fprintf (stderr, "e_shnum      = %ld\n", (long) ehdrp->e_shnum);
   fprintf (stderr, "e_shentsize  = %ld\n", (long) ehdrp->e_shentsize);
-}
-
-static char *
-elf_symbol_flags (flagword flags)
-{
-  static char buffer[1024];
-
-  buffer[0] = '\0';
-  if (flags & BSF_LOCAL)
-    strcat (buffer, " local");
-
-  if (flags & BSF_GLOBAL)
-    strcat (buffer, " global");
-
-  if (flags & BSF_DEBUGGING)
-    strcat (buffer, " debug");
-
-  if (flags & BSF_FUNCTION)
-    strcat (buffer, " function");
-
-  if (flags & BSF_KEEP)
-    strcat (buffer, " keep");
-
-  if (flags & BSF_KEEP_G)
-    strcat (buffer, " keep_g");
-
-  if (flags & BSF_WEAK)
-    strcat (buffer, " weak");
-
-  if (flags & BSF_SECTION_SYM)
-    strcat (buffer, " section-sym");
-
-  if (flags & BSF_OLD_COMMON)
-    strcat (buffer, " old-common");
-
-  if (flags & BSF_NOT_AT_END)
-    strcat (buffer, " not-at-end");
-
-  if (flags & BSF_CONSTRUCTOR)
-    strcat (buffer, " constructor");
-
-  if (flags & BSF_WARNING)
-    strcat (buffer, " warning");
-
-  if (flags & BSF_INDIRECT)
-    strcat (buffer, " indirect");
-
-  if (flags & BSF_FILE)
-    strcat (buffer, " file");
-
-  if (flags & DYNAMIC)
-    strcat (buffer, " dynamic");
-
-  if (flags & ~(BSF_LOCAL
-		| BSF_GLOBAL
-		| BSF_DEBUGGING
-		| BSF_FUNCTION
-		| BSF_KEEP
-		| BSF_KEEP_G
-		| BSF_WEAK
-		| BSF_SECTION_SYM
-		| BSF_OLD_COMMON
-		| BSF_NOT_AT_END
-		| BSF_CONSTRUCTOR
-		| BSF_WARNING
-		| BSF_INDIRECT
-		| BSF_FILE
-		| BSF_DYNAMIC))
-    strcat (buffer, " unknown-bits");
-
-  return buffer;
 }
 #endif
 

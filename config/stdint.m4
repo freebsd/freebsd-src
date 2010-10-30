@@ -61,14 +61,17 @@ for i in stdint.h $inttype_headers; do
   break
 done
 if test "$acx_cv_header_stdint" = stddef.h; then
-  acx_cv_header_stdint_kind="(lacks uintptr_t)"
+  acx_cv_header_stdint_kind="(lacks uintmax_t)"
   for i in stdint.h $inttype_headers; do
+    unset ac_cv_type_uintptr_t
     unset ac_cv_type_uint32_t
     unset ac_cv_type_uint64_t
     _AS_ECHO_N([looking for an incomplete stdint.h in $i, ])
     AC_CHECK_TYPE(uint32_t,[acx_cv_header_stdint=$i],continue,[#include <sys/types.h>
 #include <$i>])
-    AC_CHECK_TYPE(uint64_t,,[acx_cv_header_stdint_kind="(lacks uintptr_t and uint64_t)"], [#include <sys/types.h>
+    AC_CHECK_TYPE(uint64_t,,,[#include <sys/types.h>
+#include <$i>])
+    AC_CHECK_TYPE(uintptr_t,,,[#include <sys/types.h>
 #include <$i>])
     break
   done
@@ -81,7 +84,7 @@ if test "$acx_cv_header_stdint" = stddef.h; then
     _AS_ECHO_N([looking for u_intXX_t types in $i, ])
     AC_CHECK_TYPE(u_int32_t,[acx_cv_header_stdint=$i],continue,[#include <sys/types.h>
 #include <$i>])
-    AC_CHECK_TYPE(u_int64_t,,[acx_cv_header_stdint_kind="(u_intXX_t style, lacks u_int64_t)"], [#include <sys/types.h>
+    AC_CHECK_TYPE(u_int64_t,,,[#include <sys/types.h>
 #include <$i>])
     break
   done
@@ -215,32 +218,50 @@ if test "$acx_cv_header_stdint" = stddef.h; then
 
     #ifndef _UINT8_T
     #define _UINT8_T
+    #ifndef __uint8_t_defined
+    #define __uint8_t_defined
     typedef unsigned $acx_cv_type_int8_t uint8_t;
+    #endif
     #endif
 
     #ifndef _UINT16_T
     #define _UINT16_T
+    #ifndef __uint16_t_defined
+    #define __uint16_t_defined
     typedef unsigned $acx_cv_type_int16_t uint16_t;
+    #endif
     #endif
 
     #ifndef _UINT32_T
     #define _UINT32_T
+    #ifndef __uint32_t_defined
+    #define __uint32_t_defined
     typedef unsigned $acx_cv_type_int32_t uint32_t;
+    #endif
     #endif
 
     #ifndef _INT8_T
     #define _INT8_T
+    #ifndef __int8_t_defined
+    #define __int8_t_defined
     typedef $acx_cv_type_int8_t int8_t;
+    #endif
     #endif
 
     #ifndef _INT16_T
     #define _INT16_T
+    #ifndef __int16_t_defined
+    #define __int16_t_defined
     typedef $acx_cv_type_int16_t int16_t;
+    #endif
     #endif
 
     #ifndef _INT32_T
     #define _INT32_T
+    #ifndef __int32_t_defined
+    #define __int32_t_defined
     typedef $acx_cv_type_int32_t int32_t;
+    #endif
     #endif
 EOF
 elif test "$ac_cv_type_u_int32_t" = yes; then
@@ -259,17 +280,26 @@ elif test "$ac_cv_type_u_int32_t" = yes; then
 
     #ifndef _UINT8_T
     #define _UINT8_T
+    #ifndef __uint8_t_defined
+    #define __uint8_t_defined
     typedef u_int8_t uint8_t;
+    #endif
     #endif
 
     #ifndef _UINT16_T
     #define _UINT16_T
+    #ifndef __uint16_t_defined
+    #define __uint16_t_defined
     typedef u_int16_t uint16_t;
+    #endif
     #endif
 
     #ifndef _UINT32_T
     #define _UINT32_T
+    #ifndef __uint32_t_defined
+    #define __uint32_t_defined
     typedef u_int32_t uint32_t;
+    #endif
     #endif
 EOF
 else
@@ -318,7 +348,10 @@ elif test "$ac_cv_type_u_int64_t" = yes; then
     #endif
     #ifndef _UINT64_T
     #define _UINT64_T
+    #ifndef __uint64_t_defined
+    #define __uint64_t_defined
     typedef u_int64_t uint64_t;
+    #endif
     #endif
 EOF
 elif test -n "$acx_cv_type_int64_t"; then
@@ -331,7 +364,10 @@ elif test -n "$acx_cv_type_int64_t"; then
     #endif
     #ifndef _UINT64_T
     #define _UINT64_T
+    #ifndef __uint64_t_defined
+    #define __uint64_t_defined
     typedef unsigned $acx_cv_type_int64_t uint64_t;
+    #endif
     #endif
 EOF
 else
@@ -341,7 +377,9 @@ else
     #if defined __STDC_VERSION__ && (__STDC_VERSION__-0) >= 199901L
     #ifndef _INT64_T
     #define _INT64_T
+    #ifndef __int64_t_defined
     typedef long long int64_t;
+    #endif
     #endif
     #ifndef _UINT64_T
     #define _UINT64_T
@@ -387,8 +425,12 @@ if test "$ac_cv_type_uintptr_t" != yes; then
   sed 's/^ *//' >> tmp-stdint.h <<EOF
 
     /* Define intptr_t based on sizeof(void*) = $ac_cv_sizeof_void_p */
+    #ifndef __uintptr_t_defined
     typedef u$acx_cv_type_intptr_t uintptr_t;
+    #endif
+    #ifndef __intptr_t_defined
     typedef $acx_cv_type_intptr_t  intptr_t;
+    #endif
 EOF
 fi
 

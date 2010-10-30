@@ -42,5 +42,5 @@ Disassembly of section \.got:
 .* <\.got>:
 	\.\.\.
 .*:	4e 80 00 21 	blrl
-.*:	00 01 04 38 	.*
+.*:	00 01 03 ec 	.*
 	\.\.\.

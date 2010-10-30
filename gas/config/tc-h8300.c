@@ -1,6 +1,6 @@
 /* tc-h8300.c -- Assemble code for the Renesas H8/300
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000,
-   2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+   2001, 2002, 2003, 2004, 2005, 2006 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -21,10 +21,8 @@
 
 /* Written By Steve Chamberlain <sac@cygnus.com>.  */
 
-#include <stdio.h>
 #include "as.h"
 #include "subsegs.h"
-#include "bfd.h"
 #include "dwarf2dbg.h"
 
 #define DEFINE_TABLE
@@ -1391,7 +1389,7 @@ build_bytes (const struct h8_instruction *this_try, struct h8_op *operand)
 {
   int i;
   char *output = frag_more (this_try->length);
-  op_type *nibble_ptr = this_try->opcode->data.nib;
+  const op_type *nibble_ptr = this_try->opcode->data.nib;
   op_type c;
   unsigned int nibble_count = 0;
   int op_at[3];

@@ -24,7 +24,7 @@ if {[istarget "sparc-*-vxworks"]} {
 	{"VxWorks shared library test 1" "-shared -Tvxworks1.ld"
 	 "-KPIC" {vxworks1-lib.s}
 	 {{readelf --relocs vxworks1-lib.rd} {objdump -dr vxworks1-lib.dd}
-	  {readelf --symbols vxworks1-lib.nd}}
+	  {readelf --symbols vxworks1-lib.nd} {readelf -d vxworks1-lib.td}}
 	 "libvxworks1.so"}
 	{"VxWorks executable test 1 (dynamic)" \
 	 "tmpdir/libvxworks1.so -Tvxworks1.ld -q --force-dynamic"

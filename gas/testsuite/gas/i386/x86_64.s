@@ -188,5 +188,10 @@ movw %ax,0xffffffffff332211
 movl %eax,0xffffffffff332211
 movq %rax,0xffffffffff332211
 
+cmpxchg16b (%rax)
+
+.intel_syntax noprefix
+cmpxchg16b oword ptr [rax]
+
 # Get a good alignment.
  .p2align	4,0

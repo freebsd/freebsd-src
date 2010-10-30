@@ -6,14 +6,14 @@
 
 Disassembly of section \.text:
 
-00000000 <label1>:
+0*00000000 <label1>:
    0:	8d07           	nop	
 	\.\.\.
   fa:	f0fe           	djnz	r0,0x0
   fc:	f87f           	dbjnz	rl0,0x0
   fe:	8d07           	nop	
 
-00000100 <label2>:
+0*00000100 <label2>:
  100:	8d07           	nop	
 	\.\.\.
  1fa:	f87e           	dbjnz	rl0,0x100

@@ -1,5 +1,5 @@
 /* Declarations for stacks of tokenized Xtensa instructions.
-   Copyright (C) 2003, 2004 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004, 2007 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -48,8 +48,6 @@ typedef struct tinsn_struct
   expressionS tok[MAX_INSN_ARGS];
   unsigned linenum;
 
-  struct fixP *fixup;
-
   /* Filled out by relaxation_requirements:  */
   enum xtensa_relax_statesE subtype;
   int literal_space;
@@ -79,7 +77,6 @@ void istack_pop (IStack *);
 
 /* TInsn utilities.  */
 void tinsn_init (TInsn *);
-expressionS *tinsn_get_tok (TInsn *, int);
 
 
 /* vliw_insn: bundles of TInsns.  */

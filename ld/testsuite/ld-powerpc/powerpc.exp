@@ -1,5 +1,5 @@
 # Expect script for ld-powerpc tests
-#   Copyright 2002, 2003, 2005 Free Software Foundation
+#   Copyright 2002, 2003, 2005, 2006 Free Software Foundation
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ if {[istarget "*-*-vxworks"]} {
 	{"VxWorks shared library test 1" "-shared -Tvxworks1.ld"
 	 "-mregnames" {vxworks1-lib.s}
 	 {{readelf --relocs vxworks1-lib.rd} {objdump -dr vxworks1-lib.dd}
-	  {readelf --symbols vxworks1-lib.nd}}
+	  {readelf --symbols vxworks1-lib.nd} {readelf -d vxworks1-lib.td}}
 	 "libvxworks1.so"}
 	{"VxWorks executable test 1 (dynamic)" \
 	 "tmpdir/libvxworks1.so -Tvxworks1.ld -q --force-dynamic"
@@ -143,4 +143,19 @@ run_ld_link_tests $ppcelftests
 
 if [ supports_ppc64 ] then {
     run_ld_link_tests $ppc64elftests
+    run_dump_test "relbrlt"
 }
+
+run_dump_test "plt1"
+
+run_dump_test "attr-gnu-4-00"
+run_dump_test "attr-gnu-4-01"
+run_dump_test "attr-gnu-4-02"
+run_dump_test "attr-gnu-4-10"
+run_dump_test "attr-gnu-4-11"
+run_dump_test "attr-gnu-4-12"
+run_dump_test "attr-gnu-4-13"
+run_dump_test "attr-gnu-4-20"
+run_dump_test "attr-gnu-4-21"
+run_dump_test "attr-gnu-4-22"
+run_dump_test "attr-gnu-4-31"

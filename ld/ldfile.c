@@ -1,6 +1,6 @@
 /* Linker file opening and searching.
    Copyright 1991, 1992, 1993, 1994, 1995, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004, 2005 Free Software Foundation, Inc.
+   2003, 2004, 2005, 2007 Free Software Foundation, Inc.
 
    This file is part of GLD, the Gnu Linker.
 
@@ -21,8 +21,8 @@
 
 /* ldfile.c:  look after all the file stuff.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "bfdlink.h"
 #include "safe-ctype.h"
 #include "ld.h"
@@ -252,8 +252,10 @@ ldfile_try_open_bfd (const char *attempt,
 		  yyin = NULL;
 		  if (skip)
 		    {
-		      einfo (_("%P: skipping incompatible %s when searching for %s\n"),
-			     attempt, entry->local_sym_name);
+		      if (command_line.warn_search_mismatch)
+			einfo (_("%P: skipping incompatible %s "
+				 "when searching for %s\n"),
+			       attempt, entry->local_sym_name);
 		      bfd_close (entry->the_bfd);
 		      entry->the_bfd = NULL;
 		      return FALSE;
@@ -279,8 +281,10 @@ ldfile_try_open_bfd (const char *attempt,
 		    && bfd_get_flavour (output_bfd) == bfd_target_xcoff_flavour
 		    && bfd_check_format (entry->the_bfd, bfd_archive)))
 	    {
-	      einfo (_("%P: skipping incompatible %s when searching for %s\n"),
-		     attempt, entry->local_sym_name);
+	      if (command_line.warn_search_mismatch)
+		einfo (_("%P: skipping incompatible %s "
+			 "when searching for %s\n"),
+		       attempt, entry->local_sym_name);
 	      bfd_close (entry->the_bfd);
 	      entry->the_bfd = NULL;
 	      return FALSE;

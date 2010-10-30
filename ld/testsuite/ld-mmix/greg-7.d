@@ -41,9 +41,6 @@
 SYMBOL TABLE:
 0+ l    d  \.text	0+ (|\.text)
 0+100 l    d  \.MMIX\.reg_contents	0+ (|\.MMIX\.reg_contents)
-0+ l    d  \*ABS\*	0+ (|\.shstrtab)
-0+ l    d  \*ABS\*	0+ (|\.symtab)
-0+ l    d  \*ABS\*	0+ (|\.strtab)
 0+21 l       \*REG\*	0+ P
 0+22 l       \*REG\*	0+ O
 0+23 l       \*REG\*	0+ N

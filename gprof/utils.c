@@ -33,6 +33,7 @@
 #include "symtab.h"
 #include "cg_arcs.h"
 #include "utils.h"
+#include "corefile.h"
 
 
 /*
@@ -49,20 +50,11 @@ print_name_only (Sym *self)
 
   if (name)
     {
-      if (!bsd_style_output)
+      if (!bsd_style_output && demangle)
 	{
-	  if (name[0] == '_' && name[1] && discard_underscores)
-	    {
-	      name++;
-	    }
-	  if (demangle)
-	    {
-	      demangled = cplus_demangle (name, DMGL_ANSI | DMGL_PARAMS);
-	      if (demangled)
-		{
-		  name = demangled;
-		}
-	    }
+	  demangled = bfd_demangle (core_bfd, name, DMGL_ANSI | DMGL_PARAMS);
+	  if (demangled)
+	    name = demangled;
 	}
       printf ("%s", name);
       size = strlen (name);

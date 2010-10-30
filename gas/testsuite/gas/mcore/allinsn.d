@@ -40,7 +40,7 @@ Disassembly of section \.text:
   14:	300f      	bclri	r15, 0
 
 0+016 <bf>:
-  16:	eff4      	bf	0x0
+  16:	eff4      	bf	0x.*0
 
 0+018 <bgeni>:
   18:	3270      	bgeni	r0, 7
@@ -64,7 +64,7 @@ Disassembly of section \.text:
   24:	2df3      	bmaski	r3, 31
 
 0+026 <br>:
-  26:	f7ff      	br	0x26
+  26:	f7ff      	br	0x.*26
 
 0+028 <brev>:
   28:	00f4      	brev	r4
@@ -73,10 +73,10 @@ Disassembly of section \.text:
   2a:	35e5      	bseti	r5, 30
 
 0+02c <bsr>:
-  2c:	ffe9      	bsr	0x0
+  2c:	ffe9      	bsr	0x.*0.*
 
 0+02e <bt>:
-  2e:	e7e8      	bt	0x0
+  2e:	e7e8      	bt	0x.*0
 
 0+030 <btsti>:
   30:	37b6      	btsti	r6, 27
@@ -148,7 +148,7 @@ Disassembly of section \.text:
   5c:	150f      	ixw	r15, r0
 
 0+05e <jbf>:
-  5e:	efd0      	bf	0x0
+  5e:	efd0      	bf	0x.*0
 
 0+060 <jbr>:
   60:	f00e      	br	0x7e
@@ -202,10 +202,10 @@ Disassembly of section \.text:
   80:	048e      	loopt	r8, 0x64
 
 0+082 <LRW>:
-  82:	7903      	lrw	r9, (0x86|0x0	// from address pool at 0x90)
+  82:	7901      	lrw	r9, 0x3C0C1BBA
 
 0+084 <lrw>:
-  84:	7904      	lrw	r9, 0x4321
+  84:	7903      	lrw	r9, 0x4321
 
 0+086 <foolit>:
   86:	1234      	mov	r4, r3
@@ -218,184 +218,181 @@ Disassembly of section \.text:
   8c:	0000      	bkpt
 			8c: ADDR32	\.text
   8e:	0000      	bkpt
-  90:	(0000      	bkpt|0086      	dect	r6)
-			90: ADDR32	\.text(\+0x86)?
+  90:	4321      	\.short 0x4321
   92:	0000      	bkpt
-  94:	4321      	\.short 0x4321
-  96:	0000      	bkpt
 
-0+098 <lsli>:
-  98:	3dfd      	lsli	r13, 31
+0+094 <lsli>:
+  94:	3dfd      	lsli	r13, 31
 
-0+09a <lsr>:
-  9a:	0bfe      	lsr	r14, r15
+0+096 <lsr>:
+  96:	0bfe      	lsr	r14, r15
 
-0+09c <lsrc>:
-  9c:	3e00      	lsrc	r0
+0+098 <lsrc>:
+  98:	3e00      	lsrc	r0
 
-0+09e <lsri>:
-  9e:	3e11      	lsri	r1, 1
+0+09a <lsri>:
+  9a:	3e11      	lsri	r1, 1
 
-0+0a0 <mclri>:
-  a0:	3064      	bclri	r4, 6
+0+09c <mclri>:
+  9c:	3064      	bclri	r4, 6
 
-0+0a2 <mfcr>:
-  a2:	1002      	mfcr	r2, psr
+0+09e <mfcr>:
+  9e:	1002      	mfcr	r2, psr
 
-0+0a4 <mov>:
-  a4:	1243      	mov	r3, r4
+0+0a0 <mov>:
+  a0:	1243      	mov	r3, r4
 
-0+0a6 <movf>:
-  a6:	0a65      	movf	r5, r6
+0+0a2 <movf>:
+  a2:	0a65      	movf	r5, r6
 
-0+0a8 <movi>:
-  a8:	67f7      	movi	r7, 127
+0+0a4 <movi>:
+  a4:	67f7      	movi	r7, 127
 
-0+0aa <movt>:
-  aa:	0298      	movt	r8, r9
+0+0a6 <movt>:
+  a6:	0298      	movt	r8, r9
 
-0+0ac <mtcr>:
-  ac:	180a      	mtcr	r10, psr
+0+0a8 <mtcr>:
+  a8:	180a      	mtcr	r10, psr
 
-0+0ae <mult>:
-  ae:	03cb      	mult	r11, r12
+0+0aa <mult>:
+  aa:	03cb      	mult	r11, r12
 
-0+0b0 <mvc>:
-  b0:	002d      	mvc	r13
+0+0ac <mvc>:
+  ac:	002d      	mvc	r13
 
-0+0b2 <mvcv>:
-  b2:	003e      	mvcv	r14
+0+0ae <mvcv>:
+  ae:	003e      	mvcv	r14
 
-0+0b4 <neg>:
-  b4:	2802      	rsubi	r2, 0
+0+0b0 <neg>:
+  b0:	2802      	rsubi	r2, 0
 
-0+0b6 <not>:
-  b6:	01ff      	not	r15
+0+0b2 <not>:
+  b2:	01ff      	not	r15
 
-0+0b8 <or>:
-  b8:	1e10      	or	r0, r1
+0+0b4 <or>:
+  b4:	1e10      	or	r0, r1
 
-0+0ba <rfi>:
-  ba:	0003      	rfi
+0+0b6 <rfi>:
+  b6:	0003      	rfi
 
-0+0bc <rolc>:
+0+0b8 <rolc>:
+  b8:	0666      	addc	r6, r6
+
+0+0ba <rori>:
+  ba:	39a9      	rotli	r9, 26
+
+0+0bc <rotlc>:
   bc:	0666      	addc	r6, r6
 
-0+0be <rori>:
-  be:	39a9      	rotli	r9, 26
+0+0be <rotli>:
+  be:	38a2      	rotli	r2, 10
 
-0+0c0 <rotlc>:
-  c0:	0666      	addc	r6, r6
+0+0c0 <rotri>:
+  c0:	39a9      	rotli	r9, 26
 
-0+0c2 <rotli>:
-  c2:	38a2      	rotli	r2, 10
+0+0c2 <rsub>:
+  c2:	1443      	rsub	r3, r4
 
-0+0c4 <rotri>:
-  c4:	39a9      	rotli	r9, 26
+0+0c4 <rsubi>:
+  c4:	2805      	rsubi	r5, 0
 
-0+0c6 <rsub>:
-  c6:	1443      	rsub	r3, r4
+0+0c6 <rte>:
+  c6:	0002      	rte
 
-0+0c8 <rsubi>:
-  c8:	2805      	rsubi	r5, 0
+0+0c8 <rts>:
+  c8:	00cf      	jmp	r15
 
-0+0ca <rte>:
-  ca:	0002      	rte
+0+0ca <setc>:
+  ca:	0c00      	cmphs	r0, r0
 
-0+0cc <rts>:
-  cc:	00cf      	jmp	r15
+0+0cc <sextb>:
+  cc:	0156      	sextb	r6
 
-0+0ce <setc>:
-  ce:	0c00      	cmphs	r0, r0
+0+0ce <sexth>:
+  ce:	0177      	sexth	r7
 
-0+0d0 <sextb>:
-  d0:	0156      	sextb	r6
+0+0d0 <st\.b>:
+  d0:	b809      	stb	r8, \(r9, 0\)
 
-0+0d2 <sexth>:
-  d2:	0177      	sexth	r7
+0+0d2 <st\.h>:
+  d2:	da1b      	sth	r10, \(r11, 2\)
 
-0+0d4 <st\.b>:
-  d4:	b809      	stb	r8, \(r9, 0\)
+0+0d4 <st\.w>:
+  d4:	9c1d      	st	r12, \(r13, 4\)
 
-0+0d6 <st\.h>:
-  d6:	da1b      	sth	r10, \(r11, 2\)
+0+0d6 <stb>:
+  d6:	beff      	stb	r14, \(r15, 15\)
 
-0+0d8 <st\.w>:
-  d8:	9c1d      	st	r12, \(r13, 4\)
+0+0d8 <sth>:
+  d8:	d0f1      	sth	r0, \(r1, 30\)
 
-0+0da <stb>:
-  da:	beff      	stb	r14, \(r15, 15\)
+0+0da <stw>:
+  da:	92f3      	st	r2, \(r3, 60\)
 
-0+0dc <sth>:
-  dc:	d0f1      	sth	r0, \(r1, 30\)
+0+0dc <st>:
+  dc:	9405      	st	r4, \(r5, 0\)
 
-0+0de <stw>:
-  de:	92f3      	st	r2, \(r3, 60\)
+0+0de <stm>:
+  de:	007e      	stm	r14-r15, \(r0\)
 
-0+0e0 <st>:
-  e0:	9405      	st	r4, \(r5, 0\)
+0+0e0 <stop>:
+  e0:	0004      	stop
 
-0+0e2 <stm>:
-  e2:	007e      	stm	r14-r15, \(r0\)
+0+0e2 <stq>:
+  e2:	0051      	stq	r4-r7, \(r1\)
 
-0+0e4 <stop>:
-  e4:	0004      	stop
+0+0e4 <subc>:
+  e4:	07d7      	subc	r7, r13
 
-0+0e6 <stq>:
-  e6:	0051      	stq	r4-r7, \(r1\)
+0+0e6 <subi>:
+  e6:	25fe      	subi	r14, 32
 
-0+0e8 <subc>:
-  e8:	07d7      	subc	r7, r13
+0+0e8 <subu>:
+  e8:	0539      	subu	r9, r3
 
-0+0ea <subi>:
-  ea:	25fe      	subi	r14, 32
+0+0ea <sync>:
+  ea:	0001      	sync
 
-0+0ec <subu>:
-  ec:	0539      	subu	r9, r3
+0+0ec <tstlt>:
+  ec:	37f5      	btsti	r5, 31
 
-0+0ee <sync>:
-  ee:	0001      	sync
+0+0ee <tstne>:
+  ee:	2a07      	cmpnei	r7, 0
 
-0+0f0 <tstlt>:
-  f0:	37f5      	btsti	r5, 31
+0+0f0 <trap>:
+  f0:	000a      	trap	2
 
-0+0f2 <tstne>:
-  f2:	2a07      	cmpnei	r7, 0
+0+0f2 <tst>:
+  f2:	0eee      	tst	r14, r14
 
-0+0f4 <trap>:
-  f4:	000a      	trap	2
+0+0f4 <tstnbz>:
+  f4:	0192      	tstnbz	r2
 
-0+0f6 <tst>:
-  f6:	0eee      	tst	r14, r14
+0+0f6 <wait>:
+  f6:	0005      	wait
 
-0+0f8 <tstnbz>:
-  f8:	0192      	tstnbz	r2
+0+0f8 <xor>:
+  f8:	170f      	xor	r15, r0
 
-0+0fa <wait>:
-  fa:	0005      	wait
+0+0fa <xsr>:
+  fa:	380b      	xsr	r11
 
-0+0fc <xor>:
-  fc:	170f      	xor	r15, r0
+0+0fc <xtrb0>:
+  fc:	0131      	xtrb0	r1, r1
 
-0+0fe <xsr>:
-  fe:	380b      	xsr	r11
+0+0fe <xtrb1>:
+  fe:	0122      	xtrb1	r1, r2
 
-0+0100 <xtrb0>:
- 100:	0131      	xtrb0	r1, r1
+0+0100 <xtrb2>:
+ 100:	0110      	xtrb2	r1, r0
 
-0+0102 <xtrb1>:
- 102:	0122      	xtrb1	r1, r2
+0+0102 <xtrb3>:
+ 102:	010d      	xtrb3	r1, r13
 
-0+0104 <xtrb2>:
- 104:	0110      	xtrb2	r1, r0
+0+0104 <zextb>:
+ 104:	0148      	zextb	r8
 
-0+0106 <xtrb3>:
- 106:	010d      	xtrb3	r1, r13
-
-0+0108 <zextb>:
- 108:	0148      	zextb	r8
-
-0+010a <zexth>:
- 10a:	0164      	zexth	r4
- 10c:	0f00      	cmpne	r0, r0
- 10e:	0f00      	cmpne	r0, r0
+0+0106 <zexth>:
+ 106:	0164      	zexth	r4
+ 108:	0f00      	cmpne	r0, r0
+ 10a:	0f00      	cmpne	r0, r0

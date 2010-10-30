@@ -76,9 +76,11 @@ proc test_arch { file1 file2 arch resultfile } {
     set name2 [file tail $file2]
     set rootname2 [file rootname $name2]
 
+    set flags [big_or_little_endian]
+    
     # This must use -r to prevent LD trying to relocate the (unrealistic) file
-    send_log "$LD -r -o ${rootname1}_${rootname2}.o $file1 $file2\n"
-    catch "exec $LD -r -o ${rootname1}_${rootname2}.o $file1 $file2" ld_output
+    send_log "$LD $flags -r -o ${rootname1}_${rootname2}.o $file1 $file2\n"
+    catch "exec $LD $flags -r -o ${rootname1}_${rootname2}.o $file1 $file2" ld_output
     send_log $ld_output
 
     if {[string equal $ld_output ""] == 1} then {

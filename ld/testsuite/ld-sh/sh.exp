@@ -62,8 +62,10 @@ if ![ld_assemble $as "-relax $srcdir/$subdir/sh1.s" tmpdir/sh1.o] {
 
 set testsrec "SH relaxing to S-records"
 
-if [istarget sh*-linux-*] {
-    # This target needs the explicit entry address.
+if { [istarget sh*-linux-*] || [istarget sh-*-vxworks] } {
+    # On these "non-embedded" targets, the default ELF and srec start
+    # addresses will be SIZEOF_HEADERS bytes apart.  Ensure consistency
+    # by feeding the ELF start address to the srec link line.
     catch "exec $objdump -x tmpdir/sh1 | grep start\\ address | sed s/start\\ address//" entry_addr
     set srec_relax_arg "-Ttext $entry_addr -relax --oformat srec tmpdir/sh1.o"
 } else {

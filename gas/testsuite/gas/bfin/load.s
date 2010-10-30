@@ -36,6 +36,10 @@ load_immediate:
 	L0 = foo1;
 	r7 = load_data2;
 
+	/* Test constant folding.  */
+	r0.l = (a + 5) - 2; 
+	r1.l = (a + 5) + 10;
+
 	.text
 	.global load_pointer_register
 load_pointer_register:

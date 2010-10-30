@@ -1,7 +1,7 @@
 #objdump: -drw
 #name: x86-64 pcrel
 
-.*: +file format elf64-x86-64
+.*: +file format .*
 
 Disassembly of section .text:
 

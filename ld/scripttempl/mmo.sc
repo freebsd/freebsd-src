@@ -29,8 +29,9 @@ SECTIONS
     ${RELOCATING+ PROVIDE (__ctors_start = .);}
     ${RELOCATING+ PROVIDE (_ctors = .);}
     ${RELOCATING+ PROVIDE (__ctors = .);}
-    ${RELOCATING+ KEEP (*crtbegin*.o(.ctors))}
-    ${RELOCATING+ KEEP (*(EXCLUDE_FILE (*crtend*.o) .ctors))}
+    ${RELOCATING+ KEEP (*crtbegin.o(.ctors))}
+    ${RELOCATING+ KEEP (*crtbegin?.o(.ctors))}
+    ${RELOCATING+ KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o) .ctors))}
     ${RELOCATING+ KEEP (*(SORT(.ctors.*)))}
     ${RELOCATING+ KEEP (*(.ctors))}
     ${RELOCATING+ PROVIDE (_ctors_end = .);}
@@ -40,8 +41,9 @@ SECTIONS
     ${RELOCATING+ PROVIDE (__dtors_start = .);}
     ${RELOCATING+ PROVIDE (_dtors = .);}
     ${RELOCATING+ PROVIDE (__dtors = .);}
-    ${RELOCATING+ KEEP (*crtbegin*.o(.dtors))}
-    ${RELOCATING+ KEEP (*(EXCLUDE_FILE (*crtend*.o) .dtors))}
+    ${RELOCATING+ KEEP (*crtbegin.o(.dtors))}
+    ${RELOCATING+ KEEP (*crtbegin?.o(.dtors))}
+    ${RELOCATING+ KEEP (*(EXCLUDE_FILE (*crtend.o *crtend?.o) .dtors))}
     ${RELOCATING+ KEEP (*(SORT(.dtors.*)))}
     ${RELOCATING+ KEEP (*(.dtors))}
     ${RELOCATING+ PROVIDE (_dtors_end = .);}

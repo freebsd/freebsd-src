@@ -1,5 +1,5 @@
 /* rddbg.c -- Read debugging information into a generic form.
-   Copyright 1995, 1996, 1997, 2000, 2002, 2003, 2005
+   Copyright 1995, 1996, 1997, 2000, 2002, 2003, 2005, 2007
    Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
@@ -24,9 +24,10 @@
    file knows how to dig the debugging information out of an object
    file.  */
 
+#include "sysdep.h"
 #include "bfd.h"
-#include "bucomm.h"
 #include "libiberty.h"
+#include "bucomm.h"
 #include "debug.h"
 #include "budbg.h"
 

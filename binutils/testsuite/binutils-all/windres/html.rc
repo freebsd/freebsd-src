@@ -1,0 +1,7 @@
+//#xfail x86_64-*-mingw*
+#include "windows.h"
+
+LANGUAGE LANG_GERMAN, SUBLANG_GERMAN
+
+129             HTML "html1.hm"
+130 		HTML "html2.hm"

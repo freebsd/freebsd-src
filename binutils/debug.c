@@ -1,5 +1,5 @@
 /* debug.c -- Handle generic debugging information.
-   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2002, 2003
+   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2002, 2003, 2007
    Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
@@ -26,11 +26,9 @@
    this was writing a converter from stabs to HP IEEE-695 debugging
    format.  */
 
-#include <stdio.h>
+#include "sysdep.h"
 #include <assert.h>
-
 #include "bfd.h"
-#include "bucomm.h"
 #include "libiberty.h"
 #include "debug.h"
 

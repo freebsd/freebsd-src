@@ -17,8 +17,8 @@ Section Headers:
   \[ 3\] \.shstrtab         STRTAB           0+  0+80
        0+33  0+           0     0     1
   \[ 4\] \.symtab           SYMTAB           0+  0+238
-       0+120  0+18           5     6     8
-  \[ 5\] \.strtab           STRTAB           0+  0+358
+       0+d8  0+18           5     3     8
+  \[ 5\] \.strtab           STRTAB           0+  0+310
        0+2d  0+           0     0     1
 Key to Flags:
   W \(write\), A \(alloc\), X \(execute\), M \(merge\), S \(strings\)
@@ -27,16 +27,13 @@ Key to Flags:
 
 There are no relocations in this file\.
 
-Symbol table '\.symtab' contains 12 entries:
+Symbol table '\.symtab' contains 9 entries:
    Num:    Value          Size Type    Bind   Vis      Ndx Name
      0: 0+     0 NOTYPE  LOCAL  DEFAULT  UND 
      1: 0+     0 SECTION LOCAL  DEFAULT    1 
      2: 0+     0 SECTION LOCAL  DEFAULT    2 
-     3: 0+     0 SECTION LOCAL  DEFAULT    3 
-     4: 0+     0 SECTION LOCAL  DEFAULT    4 
-     5: 0+     0 SECTION LOCAL  DEFAULT    5 
-     6: 0+     0 FUNC    GLOBAL DEFAULT    1 Main
-     7: 0+     0 NOTYPE  GLOBAL DEFAULT    1 _start
+     3: 0+     0 FUNC    GLOBAL DEFAULT    1 Main
+     4: 0+     0 NOTYPE  GLOBAL DEFAULT    1 _start
 #...
 
 Hex dump of section '\.text':

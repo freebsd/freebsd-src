@@ -530,7 +530,7 @@ Operand syntax is a bit stricter with @code{@value{AS}} than
 must write @code{addu $1,$2,3}.
 
 You can't LOC to a lower address than those already visited
-(i.e. ``backwards'').
+(i.e., ``backwards'').
 
 A LOC directive must come before any emitted code.
 

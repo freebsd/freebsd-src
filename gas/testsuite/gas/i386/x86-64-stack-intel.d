@@ -2,7 +2,7 @@
 #name: x86-64 stack-related opcodes (Intel mode)
 #source: x86-64-stack.s
 
-.*: +file format elf64-x86-64
+.*: +file format .*
 
 Disassembly of section .text:
 

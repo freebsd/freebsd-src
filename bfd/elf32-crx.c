@@ -1,5 +1,5 @@
 /* BFD back-end for National Semiconductor's CRX ELF
-   Copyright 2004 Free Software Foundation, Inc.
+   Copyright 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
    Written by Tomer Levi, NSC, Israel.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -18,8 +18,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "bfdlink.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
@@ -38,12 +38,6 @@ static bfd_reloc_status_type crx_elf_final_link_relocate
 static bfd_boolean elf32_crx_relocate_section
   (bfd *, struct bfd_link_info *, bfd *, asection *, bfd_byte *,
    Elf_Internal_Rela *, Elf_Internal_Sym *, asection **);
-static asection * elf32_crx_gc_mark_hook
-  (asection *, struct bfd_link_info *, Elf_Internal_Rela *,
-   struct elf_link_hash_entry *, Elf_Internal_Sym *);
-static bfd_boolean elf32_crx_gc_sweep_hook
-  (bfd *, struct bfd_link_info *, asection *,
-   const Elf_Internal_Rela *);
 static bfd_boolean elf32_crx_relax_section
   (bfd *, asection *, struct bfd_link_info *, bfd_boolean *);
 static bfd_byte * elf32_crx_get_relocated_section_contents
@@ -403,6 +397,22 @@ elf_crx_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
 
   printf ("This relocation Type is not supported -0x%x\n", code);
   return 0;
+}
+
+static reloc_howto_type *
+elf_crx_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			   const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (crx_elf_howto_table) / sizeof (crx_elf_howto_table[0]);
+       i++)
+    if (crx_elf_howto_table[i].name != NULL
+	&& strcasecmp (crx_elf_howto_table[i].name, r_name) == 0)
+      return &crx_elf_howto_table[i];
+
+  return NULL;
 }
 
 /* Retrieve a howto ptr using an internal relocation entry.  */
@@ -827,9 +837,6 @@ elf32_crx_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
   struct elf_link_hash_entry **sym_hashes;
   Elf_Internal_Rela *rel, *relend;
 
-  if (info->relocatable)
-    return TRUE;
-
   symtab_hdr = &elf_tdata (input_bfd)->symtab_hdr;
   sym_hashes = elf_sym_hashes (input_bfd);
 
@@ -868,6 +875,20 @@ elf32_crx_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 				   h, sec, relocation,
 				   unresolved_reloc, warned);
 	}
+
+      if (sec != NULL && elf_discarded_section (sec))
+	{
+	  /* For relocs against symbols from removed linkonce sections,
+	     or sections discarded by a linker script, we just want the
+	     section contents zeroed.  Avoid any special processing.  */
+	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
+	  rel->r_info = 0;
+	  rel->r_addend = 0;
+	  continue;
+	}
+
+      if (info->relocatable)
+	continue;
 
       r = crx_elf_final_link_relocate (howto, input_bfd, output_bfd,
 					input_section,
@@ -1297,42 +1318,6 @@ elf32_crx_relax_section (bfd *abfd, asection *sec,
   return FALSE;
 }
 
-static asection *
-elf32_crx_gc_mark_hook (asection *sec,
-			struct bfd_link_info *info ATTRIBUTE_UNUSED,
-			Elf_Internal_Rela *rel ATTRIBUTE_UNUSED,
-			struct elf_link_hash_entry *h,
-			Elf_Internal_Sym *sym)
-{
-  if (h == NULL)
-    return bfd_section_from_elf_index (sec->owner, sym->st_shndx);
-
-  switch (h->root.type)
-    {
-    case bfd_link_hash_defined:
-    case bfd_link_hash_defweak:
-      return h->root.u.def.section;
-
-    case bfd_link_hash_common:
-      return h->root.u.c.p->section;
-
-    default:
-      return NULL;
-    }
-}
-
-/* Update the got entry reference counts for the section being removed.  */
-
-static bfd_boolean
-elf32_crx_gc_sweep_hook (bfd *abfd ATTRIBUTE_UNUSED,
-			 struct bfd_link_info *info ATTRIBUTE_UNUSED,
-			 asection *sec ATTRIBUTE_UNUSED,
-			 const Elf_Internal_Rela *relocs ATTRIBUTE_UNUSED)
-{
-  /* We don't support garbage collection of GOT and PLT relocs yet.  */
-  return TRUE;
-}
-
 /* Definitions for setting CRX target vector.  */
 #define TARGET_LITTLE_SYM		bfd_elf32_crx_vec
 #define TARGET_LITTLE_NAME		"elf32-crx"
@@ -1342,14 +1327,14 @@ elf32_crx_gc_sweep_hook (bfd *abfd ATTRIBUTE_UNUSED,
 #define elf_symbol_leading_char		'_'
 
 #define bfd_elf32_bfd_reloc_type_lookup	elf_crx_reloc_type_lookup
+#define bfd_elf32_bfd_reloc_name_lookup \
+					elf_crx_reloc_name_lookup
 #define elf_info_to_howto		elf_crx_info_to_howto
 #define elf_info_to_howto_rel		0
 #define elf_backend_relocate_section	elf32_crx_relocate_section
 #define bfd_elf32_bfd_relax_section	elf32_crx_relax_section
 #define bfd_elf32_bfd_get_relocated_section_contents \
 				elf32_crx_get_relocated_section_contents
-#define elf_backend_gc_mark_hook        elf32_crx_gc_mark_hook
-#define elf_backend_gc_sweep_hook       elf32_crx_gc_sweep_hook
 #define elf_backend_can_gc_sections     1
 #define elf_backend_rela_normal		1
 

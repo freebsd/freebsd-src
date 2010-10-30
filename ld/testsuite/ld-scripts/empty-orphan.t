@@ -17,6 +17,6 @@ SECTIONS
    .text : { *(.text) } > text_mem : text_phdr
    .data : { *(.data) } > data_mem : data_phdr
    .bss : { *(.bss) } > data_mem : data_phdr
-   /DISCARD/ : { *(.reginfo) }
+   /DISCARD/ : { *(.reginfo) *(.glue*) }
    /* .orphan_data is an orphan */
 }

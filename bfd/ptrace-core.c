@@ -1,6 +1,6 @@
 /* BFD backend for core files which use the ptrace_user structure
-   Copyright 1993, 1994, 1995, 1996, 1998, 1999, 2001, 2002, 2003, 2004
-   Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1995, 1996, 1998, 1999, 2001, 2002, 2003, 2004,
+   2006, 2007  Free Software Foundation, Inc.
    The structure of this file is based on trad-core.c written by John Gilmore
    of Cygnus Support.
    Modified to work with the ptrace_user structure by Kevin A. Buettner.
@@ -24,8 +24,8 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
 
 #ifdef PTRACE_CORE
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 
 #include <sys/param.h>
@@ -63,6 +63,7 @@ ptrace_unix_core_file_p (abfd)
   struct ptrace_user u;
   struct trad_core_struct *rawptr;
   bfd_size_type amt;
+  flagword flags;
 
   val = bfd_bread ((void *)&u, (bfd_size_type) sizeof u, abfd);
   if (val != sizeof u || u.pt_magic != _BCS_PTRACE_MAGIC
@@ -89,23 +90,23 @@ ptrace_unix_core_file_p (abfd)
 
   /* Create the sections.  */
 
-  core_stacksec (abfd) = bfd_make_section_anyway (abfd, ".stack");
+  flags = SEC_ALLOC + SEC_LOAD + SEC_HAS_CONTENTS;
+  core_stacksec (abfd) = bfd_make_section_anyway_with_flags (abfd, ".stack",
+							     flags);
   if (core_stacksec (abfd) == NULL)
     goto fail;
-  core_datasec (abfd) = bfd_make_section_anyway (abfd, ".data");
+  core_datasec (abfd) = bfd_make_section_anyway_with_flags (abfd, ".data",
+							    flags);
   if (core_datasec (abfd) == NULL)
     goto fail;
-  core_regsec (abfd) = bfd_make_section_anyway (abfd, ".reg");
+  core_regsec (abfd) = bfd_make_section_anyway_with_flags (abfd, ".reg",
+							   SEC_HAS_CONTENTS);
   if (core_regsec (abfd) == NULL)
     goto fail;
 
   /* FIXME:  Need to worry about shared memory, library data, and library
      text.  I don't think that any of these things are supported on the
      system on which I am developing this for though.  */
-
-  core_stacksec (abfd)->flags = SEC_ALLOC + SEC_LOAD + SEC_HAS_CONTENTS;
-  core_datasec (abfd)->flags = SEC_ALLOC + SEC_LOAD + SEC_HAS_CONTENTS;
-  core_regsec (abfd)->flags = SEC_HAS_CONTENTS;
 
   core_datasec (abfd)->size =  u.pt_dsize;
   core_stacksec (abfd)->size = u.pt_ssize;

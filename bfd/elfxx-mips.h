@@ -1,5 +1,6 @@
 /* MIPS ELF specific backend routines.
-   Copyright 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+   Copyright 2002, 2003, 2004, 2005, 2006
+   Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -68,7 +69,7 @@ extern bfd_boolean _bfd_mips_elf_finish_dynamic_sections
 extern void _bfd_mips_elf_final_write_processing
   (bfd *, bfd_boolean);
 extern int _bfd_mips_elf_additional_program_headers
-  (bfd *);
+  (bfd *, struct bfd_link_info *);
 extern bfd_boolean _bfd_mips_elf_modify_segment_map
   (bfd *, struct bfd_link_info *);
 extern asection * _bfd_mips_elf_gc_mark_hook
@@ -108,7 +109,7 @@ extern bfd_boolean _bfd_mips_elf_print_private_bfd_data
 extern bfd_boolean _bfd_mips_elf_discard_info
   (bfd *, struct elf_reloc_cookie *, struct bfd_link_info *);
 extern bfd_boolean _bfd_mips_elf_write_section
-  (bfd *, asection *, bfd_byte *);
+  (bfd *, struct bfd_link_info *, asection *, bfd_byte *);
 
 extern bfd_boolean _bfd_mips_elf_read_ecoff_info
   (bfd *, asection *, struct ecoff_debug_info *);
@@ -141,6 +142,9 @@ extern bfd_boolean _bfd_mips_elf_ignore_undef_symbol
 
 extern const struct bfd_elf_special_section _bfd_mips_elf_special_sections [];
 
+extern bfd_boolean _bfd_mips_elf_common_definition (Elf_Internal_Sym *);
+
+#define elf_backend_common_definition   _bfd_mips_elf_common_definition
 #define elf_backend_name_local_section_symbols \
   _bfd_mips_elf_name_local_section_symbols
 #define elf_backend_special_sections _bfd_mips_elf_special_sections

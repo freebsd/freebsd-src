@@ -6,7 +6,7 @@
 
 Disassembly of section \.text:
 
-00000000 <\.text>:
+0*00000000 <\.text>:
    0:	e01f           	jr	f,0x40
    2:	e11e           	jr	lt,0x40
    4:	e21d           	jr	le,0x40
@@ -37,7 +37,7 @@ Disassembly of section \.text:
   3c:	e801           	jr	t,0x40
   3e:	e800           	jr	t,0x40
 
-00000040 <dd>:
+0*00000040 <dd>:
   40:	e8ff           	jr	t,0x40
   42:	e8fe           	jr	t,0x40
   44:	8d07           	nop	

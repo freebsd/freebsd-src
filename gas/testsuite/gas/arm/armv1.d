@@ -1,6 +1,7 @@
 #objdump: -dr --prefix-addresses --show-raw-insn
 #name: ARM v1 instructions
 #as: -mcpu=arm7t
+#error-output: armv1.l
 
 # Test the ARM v1 instructions
 
@@ -52,19 +53,19 @@ Disassembly of section .text:
 0+a8 <[^>]*> e5c00000 ?	strb	r0, \[r0\]
 0+ac <[^>]*> e4a10000 ?	strt	r0, \[r1\]
 0+b0 <[^>]*> e4e10000 ?	strbt	r0, \[r1\]
-0+b4 <[^>]*> e8800001 ?	stmia	r0, {r0}
+0+b4 <[^>]*> e8800001 ?	stm	r0, {r0}
 0+b8 <[^>]*> e9800001 ?	stmib	r0, {r0}
 0+bc <[^>]*> e8000001 ?	stmda	r0, {r0}
 0+c0 <[^>]*> e9000001 ?	stmdb	r0, {r0}
 0+c4 <[^>]*> e9000001 ?	stmdb	r0, {r0}
 0+c8 <[^>]*> e9800001 ?	stmib	r0, {r0}
-0+cc <[^>]*> e8800001 ?	stmia	r0, {r0}
+0+cc <[^>]*> e8800001 ?	stm	r0, {r0}
 0+d0 <[^>]*> e8000001 ?	stmda	r0, {r0}
-0+d4 <[^>]*> e8900001 ?	ldmia	r0, {r0}
+0+d4 <[^>]*> e8900001 ?	ldm	r0, {r0}
 0+d8 <[^>]*> e9900001 ?	ldmib	r0, {r0}
 0+dc <[^>]*> e8100001 ?	ldmda	r0, {r0}
 0+e0 <[^>]*> e9100001 ?	ldmdb	r0, {r0}
-0+e4 <[^>]*> e8900001 ?	ldmia	r0, {r0}
+0+e4 <[^>]*> e8900001 ?	ldm	r0, {r0}
 0+e8 <[^>]*> e8100001 ?	ldmda	r0, {r0}
 0+ec <[^>]*> e9100001 ?	ldmdb	r0, {r0}
 0+f0 <[^>]*> e9900001 ?	ldmib	r0, {r0}

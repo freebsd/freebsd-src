@@ -13,7 +13,7 @@ cat >e${EMULATION_NAME}.c <<EOF
 
 /* ${ELFSIZE} bit ELF emulation code for ${EMULATION_NAME}
    Copyright 1991, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004, 2005, 2006 Free Software Foundation, Inc.
+   2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
    Written by Steve Chamberlain <sac@cygnus.com>
    ELF support by Ian Lance Taylor <ian@cygnus.com>
 
@@ -35,9 +35,8 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
 
 #define TARGET_IS_${EMULATION_NAME}
 
-#include "config.h"
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libiberty.h"
 #include "safe-ctype.h"
 #include "getopt.h"
@@ -60,8 +59,7 @@ static void gld${EMULATION_NAME}_before_parse (void);
 static void gld${EMULATION_NAME}_after_open (void);
 static void gld${EMULATION_NAME}_before_allocation (void);
 static bfd_boolean gld${EMULATION_NAME}_place_orphan (asection *s);
-static void gld${EMULATION_NAME}_layout_sections_again (void);
-static void gld${EMULATION_NAME}_finish (void) ATTRIBUTE_UNUSED;
+static void gld${EMULATION_NAME}_finish (void);
 
 EOF
 
@@ -79,6 +77,7 @@ fi
 
 # Import any needed special functions and/or overrides.
 #
+. ${srcdir}/emultempl/elf-generic.em
 if test -n "$EXTRA_EM_FILE" ; then
 . ${srcdir}/emultempl/${EXTRA_EM_FILE}.em
 fi
@@ -365,7 +364,7 @@ case ${target} in
 	    struct bfd_link_needed_list *l;
 
 	    for (l = needed; l != NULL; l = l->next)
-	      if (strncmp (l->name, "libc.so", 7) == 0)
+	      if (CONST_STRNEQ (l->name, "libc.so"))
 		break;
 	    if (l == NULL)
 	      {
@@ -459,7 +458,7 @@ gld${EMULATION_NAME}_search_needed (const char *path,
     {
       char *filename, *sset;
 
-      s = strchr (path, ':');
+      s = strchr (path, config.rpath_separator);
       if (s == NULL)
 	s = path + strlen (path);
 
@@ -492,7 +491,8 @@ EOF
 if [ "x${USE_LIBPATH}" = xyes ] ; then
   cat >>e${EMULATION_NAME}.c <<EOF
 
-/* Add the sysroot to every entry in a colon-separated path.  */
+/* Add the sysroot to every entry in a path separated by
+   config.rpath_separator.  */
 
 static char *
 gld${EMULATION_NAME}_add_sysroot (const char *path)
@@ -504,7 +504,7 @@ gld${EMULATION_NAME}_add_sysroot (const char *path)
   colons = 0;
   i = 0;
   while (path[i])
-    if (path[i++] == ':')
+    if (path[i++] == config.rpath_separator)
       colons++;
 
   if (path[i])
@@ -516,7 +516,7 @@ gld${EMULATION_NAME}_add_sysroot (const char *path)
   p = ret + strlen (ret);
   i = 0;
   while (path[i])
-    if (path[i] == ':')
+    if (path[i] == config.rpath_separator)
       {
 	*p++ = path[i++];
 	strcpy (p, ld_sysroot);
@@ -698,7 +698,7 @@ gld${EMULATION_NAME}_parse_ld_so_conf
       if (p[0] == '\0')
 	continue;
 
-      if (!strncmp (p, "include", 7) && (p[7] == ' ' || p[7] == '\t'))
+      if (CONST_STRNEQ (p, "include") && (p[7] == ' ' || p[7] == '\t'))
 	{
 	  char *dir, c;
 	  p += 8;
@@ -745,7 +745,7 @@ gld${EMULATION_NAME}_parse_ld_so_conf
 		  info->alloc += p - dir + 256;
 		  info->path = xrealloc (info->path, info->alloc);
 		}
-	      info->path[info->len++] = ':';
+	      info->path[info->len++] = config.rpath_separator;
 	    }
 	  memcpy (info->path + info->len, dir, p - dir);
 	  info->len += p - dir;
@@ -864,6 +864,42 @@ static void
 gld${EMULATION_NAME}_after_open (void)
 {
   struct bfd_link_needed_list *needed, *l;
+
+  if (link_info.eh_frame_hdr
+      && ! link_info.traditional_format
+      && ! link_info.relocatable)
+    {
+      struct elf_link_hash_table *htab;
+
+      htab = elf_hash_table (&link_info);
+      if (is_elf_hash_table (htab))
+	{
+	  bfd *abfd;
+	  asection *s;
+
+	  for (abfd = link_info.input_bfds; abfd; abfd = abfd->link_next)
+	    {
+	      s = bfd_get_section_by_name (abfd, ".eh_frame");
+	      if (s && s->size > 8 && !bfd_is_abs_section (s->output_section))
+		 break;
+	    }
+	  if (abfd)
+	    {
+	      const struct elf_backend_data *bed;
+
+	      bed = get_elf_backend_data (abfd);
+	      s = bfd_make_section_with_flags (abfd, ".eh_frame_hdr",
+					       bed->dynamic_sec_flags
+					       | SEC_READONLY);
+	      if (s != NULL
+		 && bfd_set_section_alignment (abfd, s, 2))
+		htab->eh_info.hdr_sec = s;
+	      else
+		einfo ("%P: warning: Cannot create .eh_frame_hdr section,"
+		       " --eh-frame-hdr ignored.\n");
+	    }
+	}
+    }
 
   /* We only need to worry about this when doing a final link.  */
   if (link_info.relocatable || !link_info.executable)
@@ -1180,10 +1216,8 @@ ${ELF_INTERPRETER_SET_DEFAULT}
       {
 	asection *s;
 	bfd_size_type sz;
-	bfd_size_type prefix_len;
 	char *msg;
 	bfd_boolean ret;
-	const char * gnu_warning_prefix = _("warning: ");
 
 	if (is->just_syms_flag)
 	  continue;
@@ -1193,14 +1227,12 @@ ${ELF_INTERPRETER_SET_DEFAULT}
 	  continue;
 
 	sz = s->size;
-	prefix_len = strlen (gnu_warning_prefix);
-	msg = xmalloc ((size_t) (prefix_len + sz + 1));
-	strcpy (msg, gnu_warning_prefix);
-	if (! bfd_get_section_contents (is->the_bfd, s,	msg + prefix_len,
+	msg = xmalloc ((size_t) (sz + 1));
+	if (! bfd_get_section_contents (is->the_bfd, s,	msg,
 					(file_ptr) 0, sz))
 	  einfo ("%F%B: Can't read contents of section .gnu.warning: %E\n",
 		 is->the_bfd);
-	msg[prefix_len + sz] = '\0';
+	msg[sz] = '\0';
 	ret = link_info.callbacks->warning (&link_info, msg,
 					    (const char *) NULL,
 					    is->the_bfd, (asection *) NULL,
@@ -1208,13 +1240,20 @@ ${ELF_INTERPRETER_SET_DEFAULT}
 	ASSERT (ret);
 	free (msg);
 
-	/* Clobber the section size, so that we don't waste copying the
-	   warning into the output file.  */
+	/* Clobber the section size, so that we don't waste space
+	   copying the warning into the output file.  If we've already
+	   sized the output section, adjust its size.  The adjustment
+	   is on rawsize because targets that size sections early will
+	   have called lang_reset_memory_regions after sizing.  */
+	if (s->output_section != NULL
+	    && s->output_section->rawsize >= s->size)
+	  s->output_section->rawsize -= s->size;
+
 	s->size = 0;
 
-	/* Also set SEC_EXCLUDE, so that symbols defined in the warning
-	   section don't get copied to the output.  */
-	s->flags |= SEC_EXCLUDE;
+	/* Also set SEC_EXCLUDE, so that local symbols defined in the
+	   warning section don't get copied to the output.  */
+	s->flags |= SEC_EXCLUDE | SEC_KEEP;
       }
   }
 
@@ -1326,7 +1365,7 @@ output_rel_find (asection *sec, int isdyn)
        lookup = lookup->next)
     {
       if (lookup->constraint != -1
-	  && strncmp (".rel", lookup->name, 4) == 0)
+	  && CONST_STRNEQ (lookup->name, ".rel"))
 	{
 	  int lookrela = lookup->name[4] == 'a';
 
@@ -1435,7 +1474,7 @@ gld${EMULATION_NAME}_place_orphan (asection *s)
 	  default:
 	    break;
 	  }
-      else if (strncmp (secname, ".rel", 4) == 0)
+      else if (CONST_STRNEQ (secname, ".rel"))
 	{
 	  secname = secname[4] == 'a' ? ".rela.dyn" : ".rel.dyn";
 	  isdyn = 1;
@@ -1483,7 +1522,7 @@ gld${EMULATION_NAME}_place_orphan (asection *s)
      sections into the .text section to get them out of the way.  */
   if (link_info.executable
       && ! link_info.relocatable
-      && strncmp (secname, ".gnu.warning.", sizeof ".gnu.warning." - 1) == 0
+      && CONST_STRNEQ (secname, ".gnu.warning.")
       && hold[orphan_text].os != NULL)
     {
       lang_add_section (&hold[orphan_text].os->children, s,
@@ -1502,7 +1541,7 @@ gld${EMULATION_NAME}_place_orphan (asection *s)
     ;
   else if ((s->flags & SEC_LOAD) != 0
 	   && ((iself && sh_type == SHT_NOTE)
-	       || (!iself && strncmp (secname, ".note", 5) == 0)))
+	       || (!iself && CONST_STRNEQ (secname, ".note"))))
     place = &hold[orphan_interp];
   else if ((s->flags & (SEC_LOAD | SEC_HAS_CONTENTS)) == 0)
     place = &hold[orphan_bss];
@@ -1511,7 +1550,7 @@ gld${EMULATION_NAME}_place_orphan (asection *s)
   else if ((s->flags & SEC_READONLY) == 0)
     place = &hold[orphan_data];
   else if (((iself && (sh_type == SHT_RELA || sh_type == SHT_REL))
-	    || (!iself && strncmp (secname, ".rel", 4) == 0))
+	    || (!iself && CONST_STRNEQ (secname, ".rel")))
 	   && (s->flags & SEC_LOAD) != 0)
     place = &hold[orphan_rel];
   else if ((s->flags & SEC_CODE) == 0)
@@ -1560,26 +1599,11 @@ if test x"$LDEMUL_FINISH" != xgld"$EMULATION_NAME"_finish; then
 cat >>e${EMULATION_NAME}.c <<EOF
 
 static void
-gld${EMULATION_NAME}_layout_sections_again (void)
-{
-  lang_reset_memory_regions ();
-
-  /* Resize the sections.  */
-  lang_size_sections (NULL, TRUE);
-
-  /* Redo special stuff.  */
-  ldemul_after_allocation ();
-
-  /* Do the assignments again.  */
-  lang_do_assignments ();
-}
-
-static void
 gld${EMULATION_NAME}_finish (void)
 {
-  if (bfd_elf_discard_info (output_bfd, &link_info))
-    gld${EMULATION_NAME}_layout_sections_again ();
+  bfd_boolean need_layout = bfd_elf_discard_info (output_bfd, &link_info);
 
+  gld${EMULATION_NAME}_map_segments (need_layout);
   finish_default ();
 }
 EOF
@@ -1734,6 +1758,7 @@ cat >>e${EMULATION_NAME}.c <<EOF
 #define OPTION_GROUP			(OPTION_ENABLE_NEW_DTAGS + 1)
 #define OPTION_EH_FRAME_HDR		(OPTION_GROUP + 1)
 #define OPTION_EXCLUDE_LIBS		(OPTION_EH_FRAME_HDR + 1)
+#define OPTION_HASH_STYLE		(OPTION_EXCLUDE_LIBS + 1)
 
 static void
 gld${EMULATION_NAME}_add_options
@@ -1750,6 +1775,7 @@ cat >>e${EMULATION_NAME}.c <<EOF
     {"enable-new-dtags", no_argument, NULL, OPTION_ENABLE_NEW_DTAGS},
     {"eh-frame-hdr", no_argument, NULL, OPTION_EH_FRAME_HDR},
     {"exclude-libs", required_argument, NULL, OPTION_EXCLUDE_LIBS},
+    {"hash-style", required_argument, NULL, OPTION_HASH_STYLE},
     {"Bgroup", no_argument, NULL, OPTION_GROUP},
 EOF
 fi
@@ -1806,6 +1832,22 @@ cat >>e${EMULATION_NAME}.c <<EOF
       add_excluded_libs (optarg);
       break;
 
+    case OPTION_HASH_STYLE:
+      link_info.emit_hash = FALSE;
+      link_info.emit_gnu_hash = FALSE;
+      if (strcmp (optarg, "sysv") == 0)
+	link_info.emit_hash = TRUE;
+      else if (strcmp (optarg, "gnu") == 0)
+	link_info.emit_gnu_hash = TRUE;
+      else if (strcmp (optarg, "both") == 0)
+	{
+	  link_info.emit_hash = TRUE;
+	  link_info.emit_gnu_hash = TRUE;
+	}
+      else
+	einfo (_("%P%F: invalid hash style \`%s'\n"), optarg);
+      break;
+
     case 'z':
       if (strcmp (optarg, "initfirst") == 0)
 	link_info.flags_1 |= (bfd_vma) DF_1_INITFIRST;
@@ -1825,6 +1867,11 @@ cat >>e${EMULATION_NAME}.c <<EOF
 	{
 	  link_info.flags |= (bfd_vma) DF_BIND_NOW;
 	  link_info.flags_1 |= (bfd_vma) DF_1_NOW;
+	}
+      else if (strcmp (optarg, "lazy") == 0)
+	{
+	  link_info.flags &= ~(bfd_vma) DF_BIND_NOW;
+	  link_info.flags_1 &= ~(bfd_vma) DF_1_NOW;
 	}
       else if (strcmp (optarg, "origin") == 0)
 	{
@@ -1851,10 +1898,41 @@ cat >>e${EMULATION_NAME}.c <<EOF
 	  link_info.noexecstack = TRUE;
 	  link_info.execstack = FALSE;
 	}
+EOF
+
+  if test -n "$COMMONPAGESIZE"; then
+cat >>e${EMULATION_NAME}.c <<EOF
       else if (strcmp (optarg, "relro") == 0)
 	link_info.relro = TRUE;
       else if (strcmp (optarg, "norelro") == 0)
 	link_info.relro = FALSE;
+EOF
+  fi
+
+cat >>e${EMULATION_NAME}.c <<EOF
+      else if (CONST_STRNEQ (optarg, "max-page-size="))
+	{
+	  char *end;
+
+	  config.maxpagesize = strtoul (optarg + 14, &end, 0);
+	  if (*end || (config.maxpagesize & (config.maxpagesize - 1)) != 0)
+	    einfo (_("%P%F: invalid maxium page size \`%s'\n"),
+		   optarg + 14);
+	  ASSERT (default_target != NULL);
+	  bfd_emul_set_maxpagesize (default_target, config.maxpagesize);
+	}
+      else if (CONST_STRNEQ (optarg, "common-page-size="))
+	{
+	  char *end;
+	  config.commonpagesize = strtoul (optarg + 17, &end, 0);
+	  if (*end
+	      || (config.commonpagesize & (config.commonpagesize - 1)) != 0)
+	    einfo (_("%P%F: invalid common page size \`%s'\n"),
+		   optarg + 17);
+	  ASSERT (default_target != NULL);
+	  bfd_emul_set_commonpagesize (default_target,
+				       config.commonpagesize);
+	}
       /* What about the other Solaris -z options? FIXME.  */
       break;
 EOF
@@ -1888,11 +1966,13 @@ cat >>e${EMULATION_NAME}.c <<EOF
   fprintf (file, _("  --disable-new-dtags\tDisable new dynamic tags\n"));
   fprintf (file, _("  --enable-new-dtags\tEnable new dynamic tags\n"));
   fprintf (file, _("  --eh-frame-hdr\tCreate .eh_frame_hdr section\n"));
+  fprintf (file, _("  --hash-style=STYLE\tSet hash style to sysv, gnu or both\n"));
   fprintf (file, _("  -z combreloc\t\tMerge dynamic relocs into one section and sort\n"));
   fprintf (file, _("  -z defs\t\tReport unresolved symbols in object files.\n"));
   fprintf (file, _("  -z execstack\t\tMark executable as requiring executable stack\n"));
   fprintf (file, _("  -z initfirst\t\tMark DSO to be initialized first at runtime\n"));
   fprintf (file, _("  -z interpose\t\tMark object to interpose all DSOs but executable\n"));
+  fprintf (file, _("  -z lazy\t\tMark object lazy runtime binding (default)\n"));
   fprintf (file, _("  -z loadfltr\t\tMark object requiring immediate process\n"));
   fprintf (file, _("  -z muldefs\t\tAllow multiple definitions\n"));
   fprintf (file, _("  -z nocombreloc\tDon't merge dynamic relocs into one section\n"));
@@ -1902,10 +1982,28 @@ cat >>e${EMULATION_NAME}.c <<EOF
   fprintf (file, _("  -z nodlopen\t\tMark DSO not available to dlopen\n"));
   fprintf (file, _("  -z nodump\t\tMark DSO not available to dldump\n"));
   fprintf (file, _("  -z noexecstack\tMark executable as not requiring executable stack\n"));
+EOF
+
+  if test -n "$COMMONPAGESIZE"; then
+cat >>e${EMULATION_NAME}.c <<EOF
   fprintf (file, _("  -z norelro\t\tDon't create RELRO program header\n"));
+EOF
+  fi
+
+cat >>e${EMULATION_NAME}.c <<EOF
   fprintf (file, _("  -z now\t\tMark object non-lazy runtime binding\n"));
   fprintf (file, _("  -z origin\t\tMark object requiring immediate \$ORIGIN processing\n\t\t\t  at runtime\n"));
+EOF
+
+  if test -n "$COMMONPAGESIZE"; then
+cat >>e${EMULATION_NAME}.c <<EOF
   fprintf (file, _("  -z relro\t\tCreate RELRO program header\n"));
+EOF
+  fi
+
+cat >>e${EMULATION_NAME}.c <<EOF
+  fprintf (file, _("  -z max-page-size=SIZE\tSet maximum page size to SIZE\n"));
+  fprintf (file, _("  -z common-page-size=SIZE\n\t\t\tSet common page size to SIZE\n"));
   fprintf (file, _("  -z KEYWORD\t\tIgnored for Solaris compatibility\n"));
 EOF
 fi

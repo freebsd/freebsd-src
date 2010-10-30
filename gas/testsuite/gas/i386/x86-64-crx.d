@@ -2,7 +2,7 @@
 #name: x86-64 control register related opcodes
 #source: x86-64-crx.s
 
-.*: +file format elf64-x86-64
+.*: +file format .*
 
 Disassembly of section .text:
 

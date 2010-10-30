@@ -1,6 +1,6 @@
 # Make sure orphan sections do not lead to huge output files.
 # By David Heine, Tensilica, Inc.
-#   Copyright 2005
+#   Copyright 2005, 2006
 #   Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
@@ -20,6 +20,10 @@
 # PHDRS is only meaningful for ELF.
 if ![is_elf_format] {
     return
+}
+
+if { [istarget spu*-*-*] } {
+    set LDFLAGS "--local-store 0:0"
 }
 
 set testname "empty-orphan"

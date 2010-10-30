@@ -1,6 +1,6 @@
 /* as.h - global header file
    Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005
+   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -37,7 +37,6 @@
    If TEST is #defined, then we are testing a module: #define COMMON as "".  */
 
 #include "config.h"
-#include "bin-bugs.h"
 
 /* This is the code recommended in the autoconf documentation, almost
    verbatim.  If it doesn't work for you, let me know, and notify
@@ -210,7 +209,7 @@ extern int vsnprintf(char *, size_t, const char *, va_list);
 #endif /* __FILE__ */
 
 #ifndef FOPEN_WB
-#if defined GO32 || defined __MINGW32__
+#ifdef USE_BINARY_FOPEN
 #include "fopen-bin.h"
 #else
 #include "fopen-same.h"
@@ -259,7 +258,11 @@ typedef addressT valueT;
 #endif
 /* COMMON now defined */
 
-#ifdef DEBUG
+#ifndef ENABLE_CHECKING
+#define ENABLE_CHECKING 0
+#endif
+
+#if ENABLE_CHECKING || defined (DEBUG)
 #ifndef know
 #define know(p) assert(p)	/* Verify our assumptions!  */
 #endif /* not yet defined */
@@ -544,7 +547,6 @@ void   cond_finish_check (int);
 void   cond_exit_macro (int);
 int    seen_at_least_1_file (void);
 void   app_pop (char *);
-void   as_perror (const char *, const char *);
 void   as_where (char **, unsigned int *);
 void   bump_line_counters (void);
 void   do_scrub_begin (int);
@@ -552,6 +554,7 @@ void   input_scrub_begin (void);
 void   input_scrub_close (void);
 void   input_scrub_end (void);
 int    new_logical_line (char *, int);
+int    new_logical_line_flags (char *, int, int);
 void   subsegs_begin (void);
 void   subseg_change (segT, int);
 segT   subseg_new (const char *, subsegT);
@@ -567,7 +570,6 @@ segT   subseg_get (const char *, int);
 struct expressionS;
 struct fix;
 typedef struct symbol symbolS;
-struct relax_type;
 typedef struct frag fragS;
 
 /* literal.c */

@@ -1,5 +1,5 @@
 /* D30V-specific support for 32-bit ELF
-   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005
+   Copyright 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007
    Free Software Foundation, Inc.
    Contributed by Martin Hunt (hunt@cygnus.com).
 
@@ -20,8 +20,8 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
 #include "elf/d30v.h"
@@ -487,6 +487,22 @@ bfd_elf32_bfd_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
       if (d30v_reloc_map[i].bfd_reloc_val == code)
 	return &elf_d30v_howto_table[d30v_reloc_map[i].elf_reloc_val];
     }
+
+  return NULL;
+}
+
+static reloc_howto_type *
+bfd_elf32_bfd_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+				 const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (elf_d30v_howto_table) / sizeof (elf_d30v_howto_table[0]);
+       i++)
+    if (elf_d30v_howto_table[i].name != NULL
+	&& strcasecmp (elf_d30v_howto_table[i].name, r_name) == 0)
+      return &elf_d30v_howto_table[i];
 
   return NULL;
 }

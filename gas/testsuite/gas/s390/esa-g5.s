@@ -98,9 +98,9 @@ foo:
 	cefr	%r6,%f9
 	cer	%f6,%f9
 	cfc	4095(%r5)
-	cfdbr	%r6,5,%r9
-	cfebr	%r6,5,%r9
-	cfxbr	%r6,5,%r9
+	cfdbr	%r6,5,%f9
+	cfebr	%r6,5,%f9
+	cfxbr	%r6,5,%f9
 	ch	%r6,4095(%r5,%r10)
 	chi	%r6,-32767
 	cksm	%r6,%r9
@@ -335,7 +335,7 @@ foo:
 	pc	4095(%r5)
 	pgin	%r6,%r9
 	pgout	%r6,%r9
-	pka	4095(256,%r5),4095(%r10)
+	pka	4095(%r5),4095(32,%r10)
 	pku	4095(256,%r5),4095(%r10)
 	plo	%r6,4095(%r5),%r9,4095(%r10)
 	pr

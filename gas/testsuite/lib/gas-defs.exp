@@ -1,5 +1,5 @@
 # Copyright (C) 1993, 1994, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-# 2004, 2005 Free Software Foundation, Inc.
+# 2004, 2005, 2007 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -53,12 +53,21 @@ proc all_ones { args } {
     return 1
 }
 
+# ${tool}_finish (gas_finish) will be called by runtest.exp.  But
+# gas_finish should only be used with gas_start.  We use gas_started
+# to tell gas_finish if gas_start has been called so that runtest.exp
+# can call gas_finish without closing the wrong fd.
+set gas_started 0
+
 proc gas_start { prog as_opts } {
     global AS
     global ASFLAGS
     global srcdir
     global subdir
     global spawn_id
+    global gas_started
+
+    set gas_started 1
 
     verbose -log "Starting $AS $ASFLAGS $as_opts $prog" 2
     catch {
@@ -71,9 +80,13 @@ proc gas_start { prog as_opts } {
 
 proc gas_finish { } {
     global spawn_id
+    global gas_started
 
-    catch "close"
-    catch "wait"
+    if { $gas_started == 1 } {
+	catch "close"
+	catch "wait"
+	set gas_started 0
+    }
 }
 
 proc want_no_output { testname } {
@@ -874,4 +887,26 @@ if ![string length [info proc prune_warnings]] {
 	# Just delete *exactly* what we're ask to, and that's it.
 	return $text
     }
+}
+
+# run_list_test NAME OPTS (optional): TESTNAME
+#
+# Assemble the file "NAME.d" with command line options OPTS and
+# compare the assembler standard error output against thee regular
+# expressions given in the file "NAME.l".  If TESTNAME is provided,
+# it will be used as the name of the test.
+
+proc run_list_test { name opts {testname {}} } {
+    global srcdir subdir
+    if { [string length $testname] == 0 } then {
+	set testname "[file tail $subdir] $name"
+    }
+    set file $srcdir/$subdir/$name
+    gas_run ${name}.s $opts ">&dump.out"
+    if { [regexp_diff "dump.out" "${file}.l"] } then {
+	fail $testname
+	verbose "output is [file_contents "dump.out"]" 2
+	return
+    }
+    pass $testname
 }

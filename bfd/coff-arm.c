@@ -1,6 +1,6 @@
 /* BFD back-end for ARM COFF files.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006
+   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "coff/arm.h"
 #include "coff/internal.h"
@@ -163,6 +163,19 @@ coff_arm_reloc (bfd *abfd,
 
 /* These most certainly belong somewhere else. Just had to get rid of
    the manifest constants in the code.  */
+
+#ifdef ARM_WINCE
+
+#define ARM_26D      0
+#define ARM_32       1
+#define ARM_RVA32    2
+#define ARM_26	     3
+#define ARM_THUMB12  4
+#define ARM_SECTION  14
+#define ARM_SECREL   15
+
+#else
+
 #define ARM_8        0
 #define ARM_16       1
 #define ARM_32       2
@@ -179,20 +192,6 @@ coff_arm_reloc (bfd *abfd,
 #define ARM_THUMB12 13
 #define ARM_THUMB23 14
 
-#ifdef ARM_WINCE
-#undef  ARM_32
-#undef  ARM_RVA32
-#undef  ARM_26
-#undef  ARM_THUMB12
-#undef  ARM_26D
-
-#define ARM_26D      0
-#define ARM_32       1
-#define ARM_RVA32    2
-#define ARM_26	     3
-#define ARM_THUMB12  4
-#define ARM_SECTION  14
-#define ARM_SECREL   15
 #endif
 
 static bfd_reloc_status_type aoutarm_fix_pcrel_26_done
@@ -220,7 +219,7 @@ static reloc_howto_type aoutarm_std_reloc_howto[] =
 	   complain_overflow_dont,
 	   aoutarm_fix_pcrel_26_done,
 	   "ARM_26D",
-	   FALSE,
+	   TRUE, 	/* partial_inplace.  */
 	   0x00ffffff,
 	   0x0,
 	   PCRELOFFSET),
@@ -233,7 +232,7 @@ static reloc_howto_type aoutarm_std_reloc_howto[] =
 	   complain_overflow_bitfield,
 	   coff_arm_reloc,
 	   "ARM_32",
-	   FALSE,
+	   TRUE, 	/* partial_inplace.  */
 	   0xffffffff,
 	   0xffffffff,
 	   PCRELOFFSET),
@@ -246,7 +245,7 @@ static reloc_howto_type aoutarm_std_reloc_howto[] =
 	   complain_overflow_bitfield,
 	   coff_arm_reloc,
 	   "ARM_RVA32",
-	   FALSE,
+	   TRUE, 	/* partial_inplace.  */
 	   0xffffffff,
 	   0xffffffff,
 	   PCRELOFFSET),
@@ -294,7 +293,7 @@ static reloc_howto_type aoutarm_std_reloc_howto[] =
 	   complain_overflow_bitfield,
 	   coff_arm_reloc,
 	   "ARM_SECTION",
-	   FALSE,
+	   TRUE, 	/* partial_inplace.  */
 	   0x0000ffff,
 	   0x0000ffff,
 	   PCRELOFFSET),
@@ -307,7 +306,7 @@ static reloc_howto_type aoutarm_std_reloc_howto[] =
 	   complain_overflow_bitfield,
 	   coff_arm_reloc,
 	   "ARM_SECREL",
-	   FALSE,
+	   TRUE, 	/* partial_inplace.  */
 	   0xffffffff,
 	   0xffffffff,
 	   PCRELOFFSET),
@@ -538,6 +537,32 @@ coff_arm_rtype_to_howto (bfd *abfd ATTRIBUTE_UNUSED,
 
   if (rel->r_type == ARM_RVA32)
     *addendp -= pe_data (sec->output_section->owner)->pe_opthdr.ImageBase;
+
+#if defined COFF_WITH_PE && defined ARM_WINCE
+  if (rel->r_type == ARM_SECREL)
+    {
+      bfd_vma osect_vma;
+
+      if (h && (h->type == bfd_link_hash_defined
+		|| h->type == bfd_link_hash_defweak))
+	osect_vma = h->root.u.def.section->output_section->vma;
+      else
+	{
+	  asection *sec;
+	  int i;
+
+	  /* Sigh, the only way to get the section to offset against
+	     is to find it the hard way.  */
+
+	  for (sec = abfd->sections, i = 1; i < sym->n_scnum; i++)
+	    sec = sec->next;
+
+	  osect_vma = sec->output_section->vma;
+	}
+
+      *addendp -= osect_vma;
+    }
+#endif
 
   return howto;
 }
@@ -808,6 +833,7 @@ coff_arm_reloc_type_lookup (bfd * abfd, bfd_reloc_code_real_type code)
       ASTD (BFD_RELOC_RVA,                  ARM_RVA32);
       ASTD (BFD_RELOC_ARM_PCREL_BRANCH,     ARM_26);
       ASTD (BFD_RELOC_THUMB_PCREL_BRANCH12, ARM_THUMB12);
+      ASTD (BFD_RELOC_32_SECREL,            ARM_SECREL);
 #else
       ASTD (BFD_RELOC_8,                    ARM_8);
       ASTD (BFD_RELOC_16,                   ARM_16);
@@ -825,6 +851,23 @@ coff_arm_reloc_type_lookup (bfd * abfd, bfd_reloc_code_real_type code)
 #endif
     default: return NULL;
     }
+}
+
+static reloc_howto_type *
+coff_arm_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			    const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < (sizeof (aoutarm_std_reloc_howto)
+	    / sizeof (aoutarm_std_reloc_howto[0]));
+       i++)
+    if (aoutarm_std_reloc_howto[i].name != NULL
+	&& strcasecmp (aoutarm_std_reloc_howto[i].name, r_name) == 0)
+      return &aoutarm_std_reloc_howto[i];
+
+  return NULL;
 }
 
 #define COFF_DEFAULT_SECTION_ALIGNMENT_POWER  2
@@ -1209,12 +1252,14 @@ coff_arm_relocate_section (bfd *output_bfd,
                     generation of bl's instruction offset.  */
           addend -= 8;
 #endif
-          howto = &fake_arm26_reloc;
+          howto = & fake_arm26_reloc;
         }
 
 #ifdef ARM_WINCE
       /* MS ARM-CE makes the reloc relative to the opcode's pc, not
 	 the next opcode's pc, so is off by one.  */
+      if (howto->pc_relative && !info->relocatable)
+	addend -= 8;
 #endif
 
       /* If we are doing a relocatable link, then we can just ignore
@@ -1938,12 +1983,11 @@ bfd_arm_get_bfd_for_interworking (bfd * 		 abfd,
 
   if (sec == NULL)
     {
-      flags = SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS | SEC_IN_MEMORY | SEC_CODE | SEC_READONLY;
-
-      sec = bfd_make_section (abfd, ARM2THUMB_GLUE_SECTION_NAME);
-
+      flags = (SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS | SEC_IN_MEMORY
+	       | SEC_CODE | SEC_READONLY);
+      sec = bfd_make_section_with_flags (abfd, ARM2THUMB_GLUE_SECTION_NAME,
+					 flags);
       if (sec == NULL
-	  || ! bfd_set_section_flags (abfd, sec, flags)
 	  || ! bfd_set_section_alignment (abfd, sec, 2))
 	return FALSE;
     }
@@ -1952,12 +1996,12 @@ bfd_arm_get_bfd_for_interworking (bfd * 		 abfd,
 
   if (sec == NULL)
     {
-      flags = SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS | SEC_IN_MEMORY | SEC_CODE | SEC_READONLY;
-
-      sec = bfd_make_section (abfd, THUMB2ARM_GLUE_SECTION_NAME);
+      flags = (SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS | SEC_IN_MEMORY
+	       | SEC_CODE | SEC_READONLY);
+      sec = bfd_make_section_with_flags (abfd, THUMB2ARM_GLUE_SECTION_NAME,
+					 flags);
 
       if (sec == NULL
-	  || ! bfd_set_section_flags (abfd, sec, flags)
 	  || ! bfd_set_section_alignment (abfd, sec, 2))
 	return FALSE;
     }
@@ -2085,6 +2129,7 @@ bfd_arm_process_before_allocation (bfd *                   abfd,
 #endif /* ! defined (COFF_IMAGE_WITH_PE) */
 
 #define coff_bfd_reloc_type_lookup 		coff_arm_reloc_type_lookup
+#define coff_bfd_reloc_name_lookup	coff_arm_reloc_name_lookup
 #define coff_relocate_section 			coff_arm_relocate_section
 #define coff_bfd_is_local_label_name 		coff_arm_is_local_label_name
 #define coff_adjust_symndx			coff_arm_adjust_symndx
@@ -2397,7 +2442,9 @@ Warning: Clearing the interworking flag of %B because non-interworking code in %
 
 /* Note:  the definitions here of LOCAL_LABEL_PREFIX and USER_LABEL_PREIFX
    *must* match the definitions in gcc/config/arm/{coff|semi|aout}.h.  */
+#ifndef LOCAL_LABEL_PREFIX
 #define LOCAL_LABEL_PREFIX ""
+#endif
 #ifndef USER_LABEL_PREFIX
 #define USER_LABEL_PREFIX "_"
 #endif

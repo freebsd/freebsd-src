@@ -1,5 +1,5 @@
 /* tc-bfin.c -- Assembler for the ADI Blackfin.
-   Copyright 2005
+   Copyright 2005, 2006
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -21,7 +21,6 @@
 
 #include "as.h"
 #include "struc-symbol.h"
-#include "obj-elf.h"
 #include "bfin-defs.h"
 #include "obstack.h"
 #include "safe-ctype.h"
@@ -834,9 +833,14 @@ bfin_start_line_hook ()
   char *c1, *label_name;
   symbolS *line_label;
   char *c = input_line_pointer;
+  int cr_num = 0;
 
   while (ISSPACE (*c))
-    c++;
+    {
+      if (*c == '\n')
+	cr_num++;
+      c++;
+    }
 
   /* Look for Loop_Begin or Loop_End statements.  */
 
@@ -902,6 +906,12 @@ bfin_start_line_hook ()
   c1 = c;
   while (ISALPHA (*c) || ISDIGIT (*c) || *c == '_') c++;
 
+  if (input_line_pointer[-1] == '\n')
+    bump_line_counters ();
+
+  while (cr_num--)
+    bump_line_counters ();
+
   input_line_pointer = c;
   if (maybe_end)
     {
@@ -929,11 +939,7 @@ bfin_start_line_hook ()
 
 /* Special extra functions that help bfin-parse.y perform its job.  */
 
-#include <stdio.h>
 #include <assert.h>
-#include <obstack.h>
-#include <bfd.h>
-#include "bfin-defs.h"
 
 struct obstack mempool;
 
@@ -1054,7 +1060,7 @@ Expr_Node_Gen_Reloc (Expr_Node * head, int parent_reloc)
 	}
       switch (parent_reloc)
 	{
-	  /*  Some reloctions will need to allocate extra words.  */
+	  /*  Some relocations will need to allocate extra words.  */
 	case BFD_RELOC_BFIN_16_IMM:
 	case BFD_RELOC_BFIN_16_LOW:
 	case BFD_RELOC_BFIN_16_HIGH:
@@ -1966,42 +1972,6 @@ bfin_eol_in_insn (char *line)
     return TRUE;
 
   return FALSE;
-}
-
-bfd_boolean
-bfin_name_is_register (char *name)
-{
-  int i;
-
-  if (*name == '[' || *name == '(')
-    return TRUE;
-
-  if ((name[0] == 'W' || name[0] == 'w') && name[1] == '[')
-    return TRUE;
-
-  if ((name[0] == 'B' || name[0] == 'b') && name[1] == '[')
-    return TRUE;
-
-  for (i=0; bfin_reg_info[i].name != 0; i++)
-   {
-     if (!strcasecmp (bfin_reg_info[i].name, name))
-       return TRUE;
-   }
-  return FALSE;
-}
-
-void
-bfin_equals (Expr_Node *sym)
-{
-  char *c;
-
-  c = input_line_pointer;
-  while (*c != '=')
-   c--;
-
-  input_line_pointer = c;
-
-  equals ((char *) sym->value.s_value, 1);
 }
 
 bfd_boolean

@@ -1,17 +1,3 @@
-# ??? This probably shouldn't be replicated here...
-proc run_list_test { name opts } {
-    global srcdir subdir
-    set testname "lns $name"
-    set file $srcdir/$subdir/$name
-    gas_run ${name}.s $opts ">&dump.out"
-    if { [regexp_diff "dump.out" "${file}.l"] } then {
-        fail $testname
-        verbose "output is [file_contents "dump.out"]" 2
-        return
-    }
-    pass $testname
-}
-
 if ![is_elf_format] then {
     return
 }
@@ -21,7 +7,21 @@ run_list_test "lns-diag-1" ""
 # ??? Won't work on targets that don't have a bare "nop" insn.
 # Perhaps we could arrange for an include file or something that
 # defined a macro...
-if { ![istarget ia64*-*-*] && ![istarget i370-*-*] && ![istarget i960-*-*]
-     && ![istarget or32-*-*] && ![istarget s390*-*-*] } {
-  run_dump_test "lns-common-1"
+# Nor does it work on targets that do not generate line number
+# information (d10v).
+if {
+        ![istarget d10v-*-*]
+     && ![istarget ia64*-*-*]
+     && ![istarget i370-*-*]
+     && ![istarget i960-*-*]
+     && ![istarget mcore-*-*]
+     && ![istarget or32-*-*]
+     && ![istarget s390*-*-*]
+} {
+    # Use alternate file for targets using DW_LNS_fixed_advance_pc opcodes.
+    if { [istarget xtensa-*-*] } {
+      run_dump_test "lns-common-1-alt"
+    } else {
+      run_dump_test "lns-common-1"
+    }
 }

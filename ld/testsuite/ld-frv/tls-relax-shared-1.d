@@ -62,7 +62,7 @@ Disassembly of section \.text:
 [0-9a-f ]+:	92 c8 f0 18 	ldi @\(gr15,24\),gr9
 Disassembly of section \.got:
 
-[0-9a-f ]+<_GLOBAL_OFFSET_TABLE_>:
+[0-9a-f ]+<(__data_start|_GLOBAL_OFFSET_TABLE_)>:
 	\.\.\.
 [0-9a-f ]+:	00 00 00 10 	add\.p gr0,gr16,gr0
 [0-9a-f	 ]+: R_FRV_TLSOFF	\.tbss

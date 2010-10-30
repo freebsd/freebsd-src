@@ -82,9 +82,9 @@ mode addressing. When it is used with the direct page mode,
 This option prevents @code{@value{AS}} from doing this, and the wrong
 usage of the direct page mode will raise an error.
 
-@cindex @samp{--short-branchs}
-@item --short-branchs
-The @samp{--short-branchs} option turns off the translation of
+@cindex @samp{--short-branches}
+@item --short-branches
+The @samp{--short-branches} option turns off the translation of
 relative branches into absolute branches when the branch offset is
 out of range. By default @code{@value{AS}} transforms the relative
 branch (@samp{bsr}, @samp{bgt}, @samp{bge}, @samp{beq}, @samp{bne},
@@ -93,15 +93,15 @@ branch (@samp{bsr}, @samp{bgt}, @samp{bge}, @samp{beq}, @samp{bne},
 an absolute branch when the offset is out of the -128 .. 127 range.
 In that case, the @samp{bsr} instruction is translated into a
 @samp{jsr}, the @samp{bra} instruction is translated into a
-@samp{jmp} and the conditional branchs instructions are inverted and
+@samp{jmp} and the conditional branches instructions are inverted and
 followed by a @samp{jmp}. This option disables these translations
 and @code{@value{AS}} will generate an error if a relative branch
 is out of range. This option does not affect the optimization
 associated to the @samp{jbra}, @samp{jbsr} and @samp{jbXX} pseudo opcodes.
 
-@cindex @samp{--force-long-branchs}
-@item --force-long-branchs
-The @samp{--force-long-branchs} option forces the translation of
+@cindex @samp{--force-long-branches}
+@item --force-long-branches
+The @samp{--force-long-branches} option forces the translation of
 relative branches into absolute branches. This option does not affect
 the optimization associated to the @samp{jbra}, @samp{jbsr} and
 @samp{jbXX} pseudo opcodes. 
@@ -382,7 +382,7 @@ Certain pseudo opcodes are permitted for branch instructions.
 They expand to the shortest branch instruction that reach the
 target. Generally these mnemonics are made by prepending @samp{j} to
 the start of Motorola mnemonic. These pseudo opcodes are not affected
-by the @samp{--short-branchs} or @samp{--force-long-branchs} options.
+by the @samp{--short-branches} or @samp{--force-long-branches} options.
 
 The following table summarizes the pseudo-operations.
 
@@ -390,7 +390,7 @@ The following table summarizes the pseudo-operations.
                         Displacement Width
      +-------------------------------------------------------------+
      |                     Options                                 |
-     |    --short-branchs            --force-long-branchs          |
+     |    --short-branches           --force-long-branches         |
      +--------------------------+----------------------------------+
   Op |BYTE             WORD     | BYTE          WORD               |
      +--------------------------+----------------------------------+

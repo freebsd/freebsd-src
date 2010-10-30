@@ -1,5 +1,5 @@
 /* tc-m68hc11.c -- Assembler code for the Motorola 68HC11 & 68HC12.
-   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005
+   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Written by Stephane Carrez (stcarrez@nerim.fr)
 
@@ -210,7 +210,7 @@ static void s_m68hc11_mark_symbol (int);
             jmp L
 
   Setting the flag forbidds this.  */
-static short flag_fixed_branchs = 0;
+static short flag_fixed_branches = 0;
 
 /* Force to use long jumps (absolute) instead of relative branches.  */
 static short flag_force_long_jumps = 0;
@@ -290,10 +290,12 @@ const char *md_shortopts = "Sm:";
 
 struct option md_longopts[] = {
 #define OPTION_FORCE_LONG_BRANCH (OPTION_MD_BASE)
-  {"force-long-branchs", no_argument, NULL, OPTION_FORCE_LONG_BRANCH},
+  {"force-long-branches", no_argument, NULL, OPTION_FORCE_LONG_BRANCH},
+  {"force-long-branchs", no_argument, NULL, OPTION_FORCE_LONG_BRANCH}, /* Misspelt version kept for backwards compatibility.  */
 
-#define OPTION_SHORT_BRANCHS     (OPTION_MD_BASE + 1)
-  {"short-branchs", no_argument, NULL, OPTION_SHORT_BRANCHS},
+#define OPTION_SHORT_BRANCHES     (OPTION_MD_BASE + 1)
+  {"short-branches", no_argument, NULL, OPTION_SHORT_BRANCHES},
+  {"short-branchs", no_argument, NULL, OPTION_SHORT_BRANCHES}, /* Misspelt version kept for backwards compatibility.  */
 
 #define OPTION_STRICT_DIRECT_MODE  (OPTION_MD_BASE + 2)
   {"strict-direct-mode", no_argument, NULL, OPTION_STRICT_DIRECT_MODE},
@@ -374,8 +376,8 @@ Motorola 68HC11/68HC12/68HCS12 options:\n\
   -mlong                  use 32-bit int ABI\n\
   -mshort-double          use 32-bit double ABI\n\
   -mlong-double           use 64-bit double ABI (default)\n\
-  --force-long-branchs    always turn relative branchs into absolute ones\n\
-  -S,--short-branchs      do not turn relative branchs into absolute ones\n\
+  --force-long-branches   always turn relative branches into absolute ones\n\
+  -S,--short-branches     do not turn relative branches into absolute ones\n\
                           when the offset is out of range\n\
   --strict-direct-mode    do not turn the direct mode into extended mode\n\
                           when the instruction does not support direct mode\n\
@@ -447,9 +449,9 @@ md_parse_option (int c, char *arg)
   switch (c)
     {
       /* -S means keep external to 2 bit offset rather than 16 bit one.  */
-    case OPTION_SHORT_BRANCHS:
+    case OPTION_SHORT_BRANCHES:
     case 'S':
-      flag_fixed_branchs = 1;
+      flag_fixed_branches = 1;
       break;
 
     case OPTION_FORCE_LONG_BRANCH:
@@ -1516,7 +1518,7 @@ fixup24 (expressionS *oper, int mode, int opmode ATTRIBUTE_UNUSED)
       fixS *fixp;
 
       /* Now create a 24-bit fixup.  */
-      fixp = fix_new_exp (frag_now, f - frag_now->fr_literal, 2,
+      fixp = fix_new_exp (frag_now, f - frag_now->fr_literal, 3,
 			  oper, FALSE, BFD_RELOC_M68HC11_24);
       number_to_chars_bigendian (f, 0, 3);
     }
@@ -1587,12 +1589,12 @@ build_jump_insn (struct m68hc11_opcode *opcode, operand operands[],
   if ((jmp_mode == 0 && flag_force_long_jumps)
       || (operands[0].exp.X_op == O_constant
 	  && (!check_range (n, opcode->format) &&
-	      (jmp_mode == 1 || flag_fixed_branchs == 0))))
+	      (jmp_mode == 1 || flag_fixed_branches == 0))))
     {
       frag = frag_now;
       where = frag_now_fix ();
 
-      fix_new (frag_now, frag_now_fix (), 1,
+      fix_new (frag_now, frag_now_fix (), 0,
                &abs_symbol, 0, 1, BFD_RELOC_M68HC11_RL_JUMP);
 
       if (code == M6811_BSR || code == M6811_BRA || code == M6812_BSR)
@@ -1652,7 +1654,7 @@ build_jump_insn (struct m68hc11_opcode *opcode, operand operands[],
       frag = frag_now;
       where = frag_now_fix ();
 
-      fix_new (frag_now, frag_now_fix (), 1,
+      fix_new (frag_now, frag_now_fix (), 0,
                &abs_symbol, 0, 1, BFD_RELOC_M68HC11_RL_JUMP);
 
       f = m68hc11_new_insn (2);
@@ -1667,11 +1669,11 @@ build_jump_insn (struct m68hc11_opcode *opcode, operand operands[],
       frag = frag_now;
       where = frag_now_fix ();
       
-      fix_new (frag_now, frag_now_fix (), 1,
+      fix_new (frag_now, frag_now_fix (), 0,
                &abs_symbol, 0, 1, BFD_RELOC_M68HC11_RL_JUMP);
 
       /* Branch offset must fit in 8-bits, don't do some relax.  */
-      if (jmp_mode == 0 && flag_fixed_branchs)
+      if (jmp_mode == 0 && flag_fixed_branches)
 	{
 	  opcode = m68hc11_new_insn (1);
 	  number_to_chars_bigendian (opcode, code, 1);
@@ -1753,7 +1755,7 @@ build_dbranch_insn (struct m68hc11_opcode *opcode, operand operands[],
   if ((jmp_mode == 0 && flag_force_long_jumps)
       || (operands[1].exp.X_op == O_constant
 	  && (!check_range (n, M6812_OP_IBCC_MARKER) &&
-	      (jmp_mode == 1 || flag_fixed_branchs == 0))))
+	      (jmp_mode == 1 || flag_fixed_branches == 0))))
     {
       f = frag_more (2);
       code ^= 0x20;
@@ -1784,7 +1786,7 @@ build_dbranch_insn (struct m68hc11_opcode *opcode, operand operands[],
   else
     {
       /* Branch offset must fit in 8-bits, don't do some relax.  */
-      if (jmp_mode == 0 && flag_fixed_branchs)
+      if (jmp_mode == 0 && flag_fixed_branches)
 	{
 	  fixup8 (&operands[0].exp, M6811_OP_JUMP_REL, M6811_OP_JUMP_REL);
 	}
@@ -2100,7 +2102,7 @@ build_insn (struct m68hc11_opcode *opcode, operand operands[],
   format = opcode->format;
 
   if (format & M6811_OP_BRANCH)
-    fix_new (frag_now, frag_now_fix (), 1,
+    fix_new (frag_now, frag_now_fix (), 0,
              &abs_symbol, 0, 1, BFD_RELOC_M68HC11_RL_JUMP);
 
   if (format & OP_EXTENDED)
@@ -2455,7 +2457,7 @@ md_assemble (char *str)
   char name[20];
   int nlen = 0;
   operand operands[M6811_MAX_OPERANDS];
-  int nb_operands;
+  int nb_operands = 0;
   int branch_optimize = 0;
   int alias_id = -1;
 
@@ -2484,8 +2486,8 @@ md_assemble (char *str)
   opc = (struct m68hc11_opcode_def *) hash_find (m68hc11_hash, name);
 
   /* If it's not recognized, look for 'jbsr' and 'jbxx'.  These are
-     pseudo insns for relative branch.  For these branchs, we always
-     optimize them (turned into absolute branchs) even if --short-branchs
+     pseudo insns for relative branch.  For these branches, we always
+     optimize them (turned into absolute branches) even if --short-branches
      is given.  */
   if (opc == NULL && name[0] == 'j' && name[1] == 'b')
     {
@@ -2702,7 +2704,7 @@ s_m68hc11_relax (int ignore ATTRIBUTE_UNUSED)
       return;
     }
 
-  fix_new_exp (frag_now, frag_now_fix (), 2, &ex, 1,
+  fix_new_exp (frag_now, frag_now_fix (), 0, &ex, 1,
                BFD_RELOC_M68HC11_RL_GROUP);
 
   demand_empty_rest_of_line ();
@@ -3018,7 +3020,7 @@ md_estimate_size_before_relax (fragS *fragP, asection *segment)
 		      || IS_OPCODE (fragP->fr_opcode[0], M6811_BRA)
 		      || IS_OPCODE (fragP->fr_opcode[0], M6812_BSR));
 
-	      if (flag_fixed_branchs)
+	      if (flag_fixed_branches)
 		as_bad_where (fragP->fr_file, fragP->fr_line,
 			      _("bra or bsr with undefined symbol."));
 

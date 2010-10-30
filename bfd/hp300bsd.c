@@ -1,5 +1,6 @@
 /* BFD back-end for HP 9000/300 (68000-based) machines running BSD Unix.
-   Copyright 1992, 1994, 1995, 2001, 2003 Free Software Foundation, Inc.
+   Copyright 1992, 1994, 1995, 2001, 2003, 2007
+   Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -32,8 +33,8 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
 #define MY(OP) CONCAT2 (hp300bsd_,OP)
 #define TARGETNAME "a.out-hp300bsd"
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "libaout.h"
 

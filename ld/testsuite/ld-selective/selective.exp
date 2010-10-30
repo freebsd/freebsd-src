@@ -41,8 +41,8 @@ if {[istarget "alpha*-*-*"] || [istarget "ia64-*-*"]} {
 # FIXME: Instead of table, read settings from each source-file.
 set seltests {
   {selective1 C   1.c  {}       {}    {dropme1 dropme2} {}}
-  {selective2 C   2.c  {}       {}    {foo} {mips*-*}}
-  {selective3 C   2.c  {-u foo} {foo} {{foo 0}} {mips*-*}}
+  {selective2 C   2.c  {}       {}    {foo} {}}
+  {selective3 C   2.c  {-u foo} {foo} {{foo 0}} {}}
   {selective4 C++ 3.cc {}       {start a A::foo() B::foo()} {A::bar()} {mips*-*}}
   {selective5 C++ 4.cc {}       {start a A::bar()} {A::foo() B::foo()} {mips*-*}}
   {selective6 C++ 5.cc {}       {start a A::bar()}
@@ -52,6 +52,13 @@ set seltests {
 set cflags "-w -O -ffunction-sections -fdata-sections"
 set cxxflags "-fvtable-gc -fno-exceptions -fno-rtti"
 set ldflags "--gc-sections -Bstatic"
+
+if [istarget mips*-*] {
+    # MIPS16 doesn't support PIC code.
+    set cflags "-mno-abicalls $cflags"
+    # MIPS ELF uses __start by default, we override it.
+    set ldflags "-e _start $ldflags"
+}
 
 if [istarget sh64*-*-elf] {
     # This is what gcc passes to ld by default, plus switch to the

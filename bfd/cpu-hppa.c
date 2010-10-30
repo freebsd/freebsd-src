@@ -1,5 +1,5 @@
 /* BFD support for the HP Precision Architecture architecture.
-   Copyright 1992, 1995, 1998, 1999, 2000, 2002, 2003
+   Copyright 1992, 1995, 1998, 1999, 2000, 2002, 2003, 2007
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -18,8 +18,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 
 static const bfd_arch_info_type bfd_hppa10_arch =

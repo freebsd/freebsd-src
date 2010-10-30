@@ -1,6 +1,6 @@
 /* Generic target-file-type support for the BFD library.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005
+   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "fnmatch.h"
 
@@ -402,7 +402,8 @@ BFD_JUMP_TABLE macros.
 .#define BFD_JUMP_TABLE_RELOCS(NAME) \
 .  NAME##_get_reloc_upper_bound, \
 .  NAME##_canonicalize_reloc, \
-.  NAME##_bfd_reloc_type_lookup
+.  NAME##_bfd_reloc_type_lookup, \
+.  NAME##_bfd_reloc_name_lookup
 .
 .  long        (*_get_reloc_upper_bound) (bfd *, sec_ptr);
 .  long        (*_bfd_canonicalize_reloc)
@@ -410,6 +411,9 @@ BFD_JUMP_TABLE macros.
 .  {* See documentation on reloc types.  *}
 .  reloc_howto_type *
 .              (*reloc_type_lookup) (bfd *, bfd_reloc_code_real_type);
+.  reloc_howto_type *
+.              (*reloc_name_lookup) (bfd *, const char *);
+.
 .
 .  {* Routines used when writing an object file.  *}
 .#define BFD_JUMP_TABLE_WRITE(NAME) \
@@ -438,7 +442,7 @@ BFD_JUMP_TABLE macros.
 .  NAME##_bfd_discard_group, \
 .  NAME##_section_already_linked \
 .
-.  int         (*_bfd_sizeof_headers) (bfd *, bfd_boolean);
+.  int         (*_bfd_sizeof_headers) (bfd *, struct bfd_link_info *);
 .  bfd_byte *  (*_bfd_get_relocated_section_contents)
 .    (bfd *, struct bfd_link_info *, struct bfd_link_order *,
 .     bfd_byte *, bfd_boolean, struct bfd_symbol **);
@@ -481,7 +485,8 @@ BFD_JUMP_TABLE macros.
 .
 .  {* Check if SEC has been already linked during a reloceatable or
 .     final link.  *}
-.  void (*_section_already_linked) (bfd *, struct bfd_section *);
+.  void (*_section_already_linked) (bfd *, struct bfd_section *,
+.				    struct bfd_link_info *);
 .
 .  {* Routines to handle dynamic symbols and relocs.  *}
 .#define BFD_JUMP_TABLE_DYNAMIC(NAME) \
@@ -541,6 +546,10 @@ extern const bfd_target arm_epoc_pe_big_vec;
 extern const bfd_target arm_epoc_pe_little_vec;
 extern const bfd_target arm_epoc_pei_big_vec;
 extern const bfd_target arm_epoc_pei_little_vec;
+extern const bfd_target arm_wince_pe_big_vec;
+extern const bfd_target arm_wince_pe_little_vec;
+extern const bfd_target arm_wince_pei_big_vec;
+extern const bfd_target arm_wince_pei_little_vec;
 extern const bfd_target armcoff_big_vec;
 extern const bfd_target armcoff_little_vec;
 extern const bfd_target armnetbsd_vec;
@@ -551,6 +560,7 @@ extern const bfd_target armpei_little_vec;
 extern const bfd_target b_out_vec_big_host;
 extern const bfd_target b_out_vec_little_host;
 extern const bfd_target bfd_efi_app_ia32_vec;
+extern const bfd_target bfd_efi_app_x86_64_vec;
 extern const bfd_target bfd_efi_app_ia64_vec;
 extern const bfd_target bfd_elf32_avr_vec;
 extern const bfd_target bfd_elf32_bfin_vec;
@@ -562,6 +572,7 @@ extern const bfd_target bfd_elf32_bigarm_symbian_vec;
 extern const bfd_target bfd_elf32_bigarm_vxworks_vec;
 extern const bfd_target bfd_elf32_bigmips_vec;
 extern const bfd_target bfd_elf32_bigmips_vxworks_vec;
+extern const bfd_target bfd_elf32_cr16_vec;
 extern const bfd_target bfd_elf32_cr16c_vec;
 extern const bfd_target bfd_elf32_cris_vec;
 extern const bfd_target bfd_elf32_crx_vec;
@@ -604,6 +615,8 @@ extern const bfd_target bfd_elf32_m68k_vec;
 extern const bfd_target bfd_elf32_m88k_vec;
 extern const bfd_target bfd_elf32_mcore_big_vec;
 extern const bfd_target bfd_elf32_mcore_little_vec;
+extern const bfd_target bfd_elf32_mep_vec;
+extern const bfd_target bfd_elf32_mep_little_vec;
 extern const bfd_target bfd_elf32_mn10200_vec;
 extern const bfd_target bfd_elf32_mn10300_vec;
 extern const bfd_target bfd_elf32_mt_vec;
@@ -620,6 +633,8 @@ extern const bfd_target bfd_elf32_powerpc_vec;
 extern const bfd_target bfd_elf32_powerpcle_vec;
 extern const bfd_target bfd_elf32_powerpc_vxworks_vec;
 extern const bfd_target bfd_elf32_s390_vec;
+extern const bfd_target bfd_elf32_bigscore_vec;
+extern const bfd_target bfd_elf32_littlescore_vec;
 extern const bfd_target bfd_elf32_sh64_vec;
 extern const bfd_target bfd_elf32_sh64l_vec;
 extern const bfd_target bfd_elf32_sh64lin_vec;
@@ -632,9 +647,12 @@ extern const bfd_target bfd_elf32_shl_vec;
 extern const bfd_target bfd_elf32_shl_symbian_vec;
 extern const bfd_target bfd_elf32_shlin_vec;
 extern const bfd_target bfd_elf32_shlnbsd_vec;
+extern const bfd_target bfd_elf32_shlvxworks_vec;
 extern const bfd_target bfd_elf32_shnbsd_vec;
+extern const bfd_target bfd_elf32_shvxworks_vec;
 extern const bfd_target bfd_elf32_sparc_vec;
 extern const bfd_target bfd_elf32_sparc_vxworks_vec;
+extern const bfd_target bfd_elf32_spu_vec;
 extern const bfd_target bfd_elf32_tradbigmips_vec;
 extern const bfd_target bfd_elf32_tradlittlemips_vec;
 extern const bfd_target bfd_elf32_us_cris_vec;
@@ -666,8 +684,10 @@ extern const bfd_target bfd_elf64_sh64blin_vec;
 extern const bfd_target bfd_elf64_sh64lnbsd_vec;
 extern const bfd_target bfd_elf64_sh64nbsd_vec;
 extern const bfd_target bfd_elf64_sparc_vec;
+extern const bfd_target bfd_elf64_sparc_freebsd_vec;
 extern const bfd_target bfd_elf64_tradbigmips_vec;
 extern const bfd_target bfd_elf64_tradlittlemips_vec;
+extern const bfd_target bfd_elf64_x86_64_freebsd_vec;
 extern const bfd_target bfd_elf64_x86_64_vec;
 extern const bfd_target bfd_mmo_vec;
 extern const bfd_target bfd_powerpc_pe_vec;
@@ -780,6 +800,9 @@ extern const bfd_target vms_alpha_vec;
 extern const bfd_target vms_vax_vec;
 extern const bfd_target w65_vec;
 extern const bfd_target we32kcoff_vec;
+extern const bfd_target x86_64pe_vec;
+extern const bfd_target x86_64pei_vec;
+extern const bfd_target x86_64coff_vec;
 extern const bfd_target z80coff_vec;
 extern const bfd_target z8kcoff_vec;
 
@@ -804,8 +827,8 @@ extern const bfd_target sco5_core_vec;
 extern const bfd_target trad_core_vec;
 
 extern const bfd_target bfd_elf32_am33lin_vec;
-static const bfd_target * const _bfd_target_vector[] = {
-
+static const bfd_target * const _bfd_target_vector[] =
+{
 #ifdef SELECT_VECS
 
 	SELECT_VECS,
@@ -841,6 +864,10 @@ static const bfd_target * const _bfd_target_vector[] = {
 	&arm_epoc_pe_little_vec,
 	&arm_epoc_pei_big_vec,
 	&arm_epoc_pei_little_vec,
+	&arm_wince_pe_big_vec,
+	&arm_wince_pe_little_vec,
+	&arm_wince_pei_big_vec,
+	&arm_wince_pei_little_vec,
 	&armcoff_big_vec,
 	&armcoff_little_vec,
 	&armnetbsd_vec,
@@ -852,6 +879,7 @@ static const bfd_target * const _bfd_target_vector[] = {
 	&b_out_vec_little_host,
 	&bfd_efi_app_ia32_vec,
 #ifdef BFD64
+	&bfd_efi_app_x86_64_vec,
 	&bfd_efi_app_ia64_vec,
 #endif
 	&bfd_elf32_avr_vec,
@@ -869,6 +897,7 @@ static const bfd_target * const _bfd_target_vector[] = {
 	&bfd_elf32_bigarm_vxworks_vec,
 	&bfd_elf32_bigmips_vec,
 	&bfd_elf32_bigmips_vxworks_vec,
+	&bfd_elf32_cr16_vec,
 	&bfd_elf32_cr16c_vec,
 	&bfd_elf32_cris_vec,
 	&bfd_elf32_crx_vec,
@@ -915,6 +944,7 @@ static const bfd_target * const _bfd_target_vector[] = {
 	&bfd_elf32_m88k_vec,
 	&bfd_elf32_mcore_big_vec,
 	&bfd_elf32_mcore_little_vec,
+	&bfd_elf32_mep_vec,
 	&bfd_elf32_mn10200_vec,
 	&bfd_elf32_mn10300_vec,
 	&bfd_elf32_mt_vec,
@@ -933,13 +963,17 @@ static const bfd_target * const _bfd_target_vector[] = {
 	&bfd_elf32_powerpc_vxworks_vec,
 	&bfd_elf32_powerpcle_vec,
 	&bfd_elf32_s390_vec,
+	&bfd_elf32_bigscore_vec,
+	&bfd_elf32_littlescore_vec, 
         &bfd_elf32_sh_vec,
         &bfd_elf32_shblin_vec,
         &bfd_elf32_shl_vec,
         &bfd_elf32_shl_symbian_vec,
         &bfd_elf32_shlin_vec,
 	&bfd_elf32_shlnbsd_vec,
+	&bfd_elf32_shlvxworks_vec,
 	&bfd_elf32_shnbsd_vec,
+	&bfd_elf32_shvxworks_vec,
 #ifdef BFD64
 	&bfd_elf32_sh64_vec,
 	&bfd_elf32_sh64l_vec,
@@ -950,6 +984,7 @@ static const bfd_target * const _bfd_target_vector[] = {
 #endif
 	&bfd_elf32_sparc_vec,
 	&bfd_elf32_sparc_vxworks_vec,
+	&bfd_elf32_spu_vec,
 	&bfd_elf32_tradbigmips_vec,
 	&bfd_elf32_tradlittlemips_vec,
 	&bfd_elf32_us_cris_vec,
@@ -982,8 +1017,10 @@ static const bfd_target * const _bfd_target_vector[] = {
 	&bfd_elf64_sh64lin_vec,
 	&bfd_elf64_sh64blin_vec,
 	&bfd_elf64_sparc_vec,
+	&bfd_elf64_sparc_freebsd_vec,
 	&bfd_elf64_tradbigmips_vec,
 	&bfd_elf64_tradlittlemips_vec,
+	&bfd_elf64_x86_64_freebsd_vec,
 	&bfd_elf64_x86_64_vec,
 	&bfd_mmo_vec,
 #endif
@@ -1036,6 +1073,11 @@ static const bfd_target * const _bfd_target_vector[] = {
 	&i386os9k_vec,
 	&i386pe_vec,
 	&i386pei_vec,
+#ifdef BFD64
+	&x86_64coff_vec,
+	&x86_64pe_vec,
+	&x86_64pei_vec,
+#endif
 	&i860coff_vec,
 	&icoff_big_vec,
 	&icoff_little_vec,
@@ -1260,7 +1302,6 @@ find_target (const char *name)
 	  while (match->vector == NULL)
 	    ++match;
 	  return match->vector;
-	  break;
 	}
     }
 
@@ -1307,14 +1348,15 @@ SYNOPSIS
 
 DESCRIPTION
 	Return a pointer to the transfer vector for the object target
-	named @var{target_name}.  If @var{target_name} is <<NULL>>, choose the
-	one in the environment variable <<GNUTARGET>>; if that is null or not
-	defined, then choose the first entry in the target list.
-	Passing in the string "default" or setting the environment
-	variable to "default" will cause the first entry in the target
-	list to be returned, and "target_defaulted" will be set in the
-	BFD.  This causes <<bfd_check_format>> to loop over all the
-	targets to find the one that matches the file being read.
+	named @var{target_name}.  If @var{target_name} is <<NULL>>,
+	choose the one in the environment variable <<GNUTARGET>>; if
+	that is null or not defined, then choose the first entry in the
+	target list.  Passing in the string "default" or setting the
+	environment variable to "default" will cause the first entry in
+	the target list to be returned, and "target_defaulted" will be
+	set in the BFD if @var{abfd} isn't <<NULL>>.  This causes
+	<<bfd_check_format>> to loop over all the targets to find the
+	one that matches the file being read.
 */
 
 const bfd_target *
@@ -1331,21 +1373,27 @@ bfd_find_target (const char *target_name, bfd *abfd)
   /* This is safe; the vector cannot be null.  */
   if (targname == NULL || strcmp (targname, "default") == 0)
     {
-      abfd->target_defaulted = TRUE;
       if (bfd_default_vector[0] != NULL)
-	abfd->xvec = bfd_default_vector[0];
+	target = bfd_default_vector[0];
       else
-	abfd->xvec = bfd_target_vector[0];
-      return abfd->xvec;
+	target = bfd_target_vector[0];
+      if (abfd)
+	{
+	  abfd->xvec = target;
+	  abfd->target_defaulted = TRUE;
+	}
+      return target;
     }
 
-  abfd->target_defaulted = FALSE;
+  if (abfd)
+    abfd->target_defaulted = FALSE;
 
   target = find_target (targname);
   if (target == NULL)
     return NULL;
 
-  abfd->xvec = target;
+  if (abfd)
+    abfd->xvec = target;
   return target;
 }
 

@@ -1,6 +1,6 @@
 /* BFD back end for NetBSD style core files
    Copyright 1988, 1989, 1991, 1992, 1993, 1996, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004, 2005
+   2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Written by Paul Kranenburg, EUR
 
@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "libaout.h"           /* BFD a.out internal data structures.  */
 
@@ -126,11 +126,10 @@ netbsd_core_file_p (bfd *abfd)
 	  flags = SEC_ALLOC + SEC_HAS_CONTENTS;
 	  break;
 	}
-      asect = bfd_make_section_anyway (abfd, sname);
+      asect = bfd_make_section_anyway_with_flags (abfd, sname, flags);
       if (asect == NULL)
 	goto punt;
 
-      asect->flags = flags;
       asect->size = coreseg.c_size;
       asect->vma = coreseg.c_addr;
       asect->filepos = offset;
@@ -159,11 +158,12 @@ netbsd_core_file_p (bfd *abfd)
 	      asect->size = wcookie_offset;
 
 	      /* And create the .wcookie section.  */
-	      asect = bfd_make_section_anyway (abfd, ".wcookie");
+	      flags = SEC_ALLOC + SEC_HAS_CONTENTS;
+	      asect = bfd_make_section_anyway_with_flags (abfd, ".wcookie",
+							  flags);
 	      if (asect == NULL)
 		goto punt;
 
-	      asect->flags = SEC_ALLOC + SEC_HAS_CONTENTS;
 	      asect->size = coreseg.c_size - wcookie_offset;
 	      asect->vma = 0;
 	      asect->filepos = offset + wcookie_offset;

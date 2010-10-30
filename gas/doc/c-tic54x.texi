@@ -32,7 +32,7 @@
 
 @cindex options, TIC54X
 @cindex TIC54X options
-The TMS320C54x version of @code{@value{AS}} has a few machine-dependent options.
+The TMS320C54X version of @code{@value{AS}} has a few machine-dependent options.
 
 @cindex @samp{-mfar-mode} option, far-mode
 @cindex @samp{-mf} option, far-mode
@@ -450,7 +450,7 @@ points to the word that contains the specified field.
 @itemx .def @var{symbol} [,...,@var{symbol_n}]
 @itemx .ref @var{symbol} [,...,@var{symbol_n}]
 @code{.def} nominally identifies a symbol defined in the current file
-and availalbe to other files.  @code{.ref} identifies a symbol used in
+and available to other files.  @code{.ref} identifies a symbol used in
 the current file but defined elsewhere.  Both map to the standard
 @code{.global} directive.
 
@@ -685,7 +685,7 @@ values are accepted, the op is ignored.
 
 @cindex TIC54X-specific macros
 @cindex macros, TIC54X
-Macros do not require explicit dereferencing of arguments (i.e. \ARG).  
+Macros do not require explicit dereferencing of arguments (i.e., \ARG).  
 
 During macro expansion, the macro parameters are converted to subsyms.
 If the number of arguments passed the macro invocation exceeds the

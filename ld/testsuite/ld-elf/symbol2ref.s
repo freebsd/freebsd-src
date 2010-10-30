@@ -1,0 +1,3 @@
+	.text
+	.dc.a Foo
+

@@ -2,7 +2,7 @@
 #objdump: -drw
 #name: x86-64 indirect branch
 
-.*: +file format elf64-x86-64
+.*: +file format .*
 
 Disassembly of section .text:
 
@@ -11,3 +11,4 @@ Disassembly of section .text:
 [	 ]*2:[	 ]+ff d0[	 ]+callq[	 ]+\*%rax
 [	 ]*4:[	 ]+ff e0[	 ]+jmpq[	 ]+\*%rax
 [	 ]*6:[	 ]+ff e0[	 ]+jmpq[	 ]+\*%rax
+#pass

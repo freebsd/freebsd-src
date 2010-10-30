@@ -1,7 +1,7 @@
 #objdump: -dw
 #name: x86-64 debug register related opcodes
 
-.*: +file format elf64-x86-64
+.*: +file format .*
 
 Disassembly of section .text:
 

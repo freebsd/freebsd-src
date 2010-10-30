@@ -1114,6 +1114,9 @@ m32c_cgen_parse_operand (CGEN_CPU_DESC cd,
     case M32C_OPERAND_DSP_40_U16 :
       errmsg = parse_unsigned16 (cd, strp, M32C_OPERAND_DSP_40_U16, (unsigned long *) (& fields->f_dsp_40_u16));
       break;
+    case M32C_OPERAND_DSP_40_U20 :
+      errmsg = parse_unsigned20 (cd, strp, M32C_OPERAND_DSP_40_U20, (unsigned long *) (& fields->f_dsp_40_u20));
+      break;
     case M32C_OPERAND_DSP_40_U24 :
       errmsg = parse_unsigned24 (cd, strp, M32C_OPERAND_DSP_40_U24, (unsigned long *) (& fields->f_dsp_40_u24));
       break;
@@ -1128,6 +1131,9 @@ m32c_cgen_parse_operand (CGEN_CPU_DESC cd,
       break;
     case M32C_OPERAND_DSP_48_U16 :
       errmsg = parse_unsigned16 (cd, strp, M32C_OPERAND_DSP_48_U16, (unsigned long *) (& fields->f_dsp_48_u16));
+      break;
+    case M32C_OPERAND_DSP_48_U20 :
+      errmsg = parse_unsigned24 (cd, strp, M32C_OPERAND_DSP_48_U20, (unsigned long *) (& fields->f_dsp_48_u20));
       break;
     case M32C_OPERAND_DSP_48_U24 :
       errmsg = parse_unsigned24 (cd, strp, M32C_OPERAND_DSP_48_U24, (unsigned long *) (& fields->f_dsp_48_u24));
@@ -1598,6 +1604,9 @@ m32c_cgen_init_asm (CGEN_CPU_DESC cd)
   m32c_cgen_init_ibld_table (cd);
   cd->parse_handlers = & m32c_cgen_parse_handlers[0];
   cd->parse_operand = m32c_cgen_parse_operand;
+#ifdef CGEN_ASM_INIT_HOOK
+CGEN_ASM_INIT_HOOK
+#endif
 }
 
 

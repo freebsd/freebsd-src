@@ -1,4 +1,4 @@
-# Copyright (C) 1996, 2000, 2002, 2004 Free Software Foundation, Inc.
+# Copyright (C) 1996, 2000, 2002, 2004, 2007 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -1767,20 +1767,6 @@ proc do_am33_8 {} {
     # Did we find what we were looking for?  If not, flunk it.
     if [expr $x==67] then { pass $testname } else { fail $testname }
 }
-
-proc run_list_test { name opts } {
-    global srcdir subdir
-    set testname "mn10300 $name"
-    set file $srcdir/$subdir/$name
-    gas_run ${name}.s $opts ">&dump.out"
-    if { [regexp_diff "dump.out" "${file}.l"] } then {
-	fail $testname
-	verbose "output is [file_contents "dump.out"]" 2
-	return
-    }
-    pass $testname
-}
-
 
 if [istarget mn10300*-*-*] then {
     # Test the basic instruction parser.

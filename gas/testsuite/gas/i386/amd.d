@@ -17,7 +17,7 @@ Disassembly of section .text:
   27:	0f 0f ae 90 90 00 00 90 [ 	]*pfcmpge 0x9090\(%esi\),%mm5
   2f:	0f 0f 74 75 00 a0 [ 	]*pfcmpgt 0x0\(%ebp,%esi,2\),%mm6
   35:	0f 0f 7c 75 02 a4 [ 	]*pfmax  0x2\(%ebp,%esi,2\),%mm7
-  3b:	0f 0f 84 75 90 90 90 90 94 [ 	]*pfmin  0x90909090\(%ebp,%esi,2\),%mm0
+  3b:	0f 0f 84 75 90 90 90 90 94 [ 	]*pfmin  -0x6f6f6f70\(%ebp,%esi,2\),%mm0
   44:	0f 0f 0d 04 00 00 00 b4 [ 	]*pfmul  0x4,%mm1
   4c:	2e 0f 0f 54 c3 07 96 [ 	]*pfrcp  %cs:0x7\(%ebx,%eax,8\),%mm2
   53:	0f 0f d8 a6 [ 	]*pfrcpit1 %mm0,%mm3
@@ -27,7 +27,7 @@ Disassembly of section .text:
   63:	0f 0f fc 9a [ 	]*pfsub  %mm4,%mm7
   67:	0f 0f c5 aa [ 	]*pfsubr %mm5,%mm0
   6b:	0f 0f ce 0d [ 	]*pi2fd  %mm6,%mm1
-  6f:	0f 0f d7 b7 [ 	]*pfmulhrw %mm7,%mm2
+  6f:	0f 0f d7 b7 [ 	]*pmulhrw %mm7,%mm2
   73:	2e 0f [ 	]*\(bad\)  
   75:	0f 54 c3 [ 	]*andps  %xmm3,%xmm0
   78:	07 [ 	]*pop    %es

@@ -1,0 +1,20 @@
+# test relax
+
+if [istarget score-*-*] then {
+    run_dump_test "ldi"
+    run_dump_test "nop"
+    run_dump_test "tcond"
+    run_dump_test "ls32ls16"
+    run_dump_test "ls32ls16p"
+    run_dump_test "postlw"
+    run_dump_test "presw"
+    run_dump_test "rD_rA_rB"
+    run_dump_test "bittst"
+    run_dump_test "addi"
+    run_dump_test "br"
+    run_dump_test "b"
+    run_dump_test "move"
+    run_dump_test "rD_rA_BN"
+    run_dump_test "rD_rA"
+}
+

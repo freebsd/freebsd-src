@@ -4,35 +4,35 @@
 Disassembly of section \.plt:
 
 00080800 <_PROCEDURE_LINKAGE_TABLE_>:
-   80800:	e59fc000 	ldr	ip, \[pc, #0\]	; 80808 <_PROCEDURE_LINKAGE_TABLE_\+0x8>
+   80800:	e59fc000 	ldr	ip, \[pc, #0\]	; 80808 <.*>
    80804:	e79cf009 	ldr	pc, \[ip, r9\]
-   80808:	0000000c 	andeq	r0, r0, ip
-   8080c:	e59fc000 	ldr	ip, \[pc, #0\]	; 80814 <_PROCEDURE_LINKAGE_TABLE_\+0x14>
+   80808:	0000000c 	.word	0x0000000c
+   8080c:	e59fc000 	ldr	ip, \[pc, #0\]	; 80814 <.*>
    80810:	e599f008 	ldr	pc, \[r9, #8\]
-   80814:	00000000 	andeq	r0, r0, r0
-   80818:	e59fc000 	ldr	ip, \[pc, #0\]	; 80820 <_PROCEDURE_LINKAGE_TABLE_\+0x20>
+   80814:	00000000 	.word	0x00000000
+   80818:	e59fc000 	ldr	ip, \[pc, #0\]	; 80820 <.*>
    8081c:	e79cf009 	ldr	pc, \[ip, r9\]
-   80820:	00000010 	andeq	r0, r0, r0, lsl r0
-   80824:	e59fc000 	ldr	ip, \[pc, #0\]	; 8082c <_PROCEDURE_LINKAGE_TABLE_\+0x2c>
+   80820:	00000010 	.word	0x00000010
+   80824:	e59fc000 	ldr	ip, \[pc, #0\]	; 8082c <.*>
    80828:	e599f008 	ldr	pc, \[r9, #8\]
-   8082c:	0000000c 	andeq	r0, r0, ip
+   8082c:	0000000c 	.word	0x0000000c
 Disassembly of section \.text:
 
 00080c00 <foo>:
-   80c00:	e92dc200 	stmdb	sp!, {r9, lr, pc}
-   80c04:	e59f9024 	ldr	r9, \[pc, #36\]	; 80c30 <\.text\+0x30>
+   80c00:	e92dc200 	push	{r9, lr, pc}
+   80c04:	e59f9024 	ldr	r9, \[pc, #36\]	; 80c30 <.*>
    80c08:	e5999000 	ldr	r9, \[r9\]
    80c0c:	e5999000 	ldr	r9, \[r9\]
-   80c10:	e59f001c 	ldr	r0, \[pc, #28\]	; 80c34 <\.text\+0x34>
+   80c10:	e59f001c 	ldr	r0, \[pc, #28\]	; 80c34 <.*>
    80c14:	e7991000 	ldr	r1, \[r9, r0\]
    80c18:	e2811001 	add	r1, r1, #1	; 0x1
    80c1c:	e7891000 	str	r1, \[r9, r0\]
    80c20:	eb000004 	bl	80c38 <slocal>
-   80c24:	ebfffefb 	bl	80818 <_PROCEDURE_LINKAGE_TABLE_\+0x18>
-   80c28:	ebfffef4 	bl	80800 <_PROCEDURE_LINKAGE_TABLE_>
-   80c2c:	e8bd8200 	ldmia	sp!, {r9, pc}
-   80c30:	00000000 	andeq	r0, r0, r0
-   80c34:	00000014 	andeq	r0, r0, r4, lsl r0
+   80c24:	ebfffefb 	bl	80818 <.*>
+   80c28:	ebfffef4 	bl	80800 <.*>
+   80c2c:	e8bd8200 	pop	{r9, pc}
+   80c30:	00000000 	.word	0x00000000
+   80c34:	00000014 	.word	0x00000014
 
 00080c38 <slocal>:
    80c38:	e1a0f00e 	mov	pc, lr

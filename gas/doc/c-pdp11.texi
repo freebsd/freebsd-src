@@ -311,7 +311,7 @@ an immediate constants, while in BSD syntax the character for this
 purpose is @code{$}.
 
 @cindex PDP-11 general-purpose register syntax
-eneral-purpose registers are named @code{r0} through @code{r7}.
+general-purpose registers are named @code{r0} through @code{r7}.
 Mnemonic alternatives for @code{r6} and @code{r7} are @code{sp} and
 @code{pc}, respectively.
 

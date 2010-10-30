@@ -48,18 +48,6 @@ sparc_find_call (Sym *parent, bfd_vma p_lowpc, bfd_vma p_highpc)
   unsigned int insn;
   Sym *child;
 
-  if (core_text_space == 0)
-    {
-      return;
-    }
-  if (p_lowpc < s_lowpc)
-    {
-      p_lowpc = s_lowpc;
-    }
-  if (p_highpc > s_highpc)
-    {
-      p_highpc = s_highpc;
-    }
   DBG (CALLDEBUG, printf ("[find_call] %s: 0x%lx to 0x%lx\n",
 			  parent->name, (unsigned long) p_lowpc,
 			  (unsigned long) p_highpc));
@@ -77,7 +65,7 @@ sparc_find_call (Sym *parent, bfd_vma p_lowpc, bfd_vma p_highpc)
 	   */
 	  dest_pc = pc + (((bfd_signed_vma) (insn & 0x3fffffff)
 			   ^ 0x20000000) - 0x20000000);
-	  if (dest_pc >= s_lowpc && dest_pc <= s_highpc)
+	  if (hist_check_address (dest_pc))
 	    {
 	      child = sym_lookup (&symtab, dest_pc);
 	      DBG (CALLDEBUG,

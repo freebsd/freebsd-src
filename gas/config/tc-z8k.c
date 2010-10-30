@@ -1,6 +1,6 @@
 /* tc-z8k.c -- Assemble code for the Zilog Z800n
    Copyright 1992, 1993, 1994, 1995, 1996, 1998, 2000, 2001, 2002, 2003,
-   2005 Free Software Foundation, Inc.
+   2005, 2006 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -21,10 +21,7 @@
 
 /* Written By Steve Chamberlain <sac@cygnus.com>.  */
 
-#include <stdio.h>
-
 #include "as.h"
-#include "bfd.h"
 #include "safe-ctype.h"
 #define DEFINE_TABLE
 #include "opcodes/z8k-opc.h"
@@ -199,19 +196,34 @@ static int the_ctrl;
 static int the_flags;
 static int the_interrupt;
 
+/* Determine register number.  src points to the ascii number
+   (after "rl", "rh", "r", "rr", or "rq").  If a character
+   outside the set of {0,',',')','('} follows the number,
+   return NULL to indicate that it's not a valid register
+   number.  */
+
 static char *
 whatreg (unsigned int *reg, char *src)
 {
+  unsigned int new_reg;
+
+  /* src[0] is already known to be a digit.  */
   if (ISDIGIT (src[1]))
     {
-      *reg = (src[0] - '0') * 10 + src[1] - '0';
-      return src + 2;
+      new_reg = (src[0] - '0') * 10 + src[1] - '0';
+      src += 2;
     }
   else
     {
-      *reg = (src[0] - '0');
-      return src + 1;
+      new_reg = (src[0] - '0');
+      src += 1;
     }
+
+  if (src[0] != 0 && src[0] != ',' && src[0] != '(' && src[0] != ')')
+    return NULL;
+
+  *reg = new_reg;
+  return src;
 }
 
 /* Parse operands
@@ -234,7 +246,7 @@ whatreg (unsigned int *reg, char *src)
 static char *
 parse_reg (char *src, int *mode, unsigned int *reg)
 {
-  char *res = 0;
+  char *res = NULL;
   char regno;
 
   /* Check for stack pointer "sp" alias.  */
@@ -260,9 +272,11 @@ parse_reg (char *src, int *mode, unsigned int *reg)
       if (src[1] == 'r' || src[1] == 'R')
 	{
 	  if (src[2] < '0' || src[2] > '9')
-	    return res;	 /* Assume no register name but a label starting with 'rr'.  */
+	    return NULL;	/* Assume no register name but a label starting with 'rr'.  */
 	  *mode = CLASS_REG_LONG;
 	  res = whatreg (reg, src + 2);
+	  if (res == NULL)
+	    return NULL;	/* Not a valid register name.  */
 	  regno = *reg;
 	  if (regno > 14)
 	    as_bad (_("register rr%d out of range"), regno);
@@ -272,9 +286,11 @@ parse_reg (char *src, int *mode, unsigned int *reg)
       else if (src[1] == 'h' || src[1] == 'H')
 	{
 	  if (src[2] < '0' || src[2] > '9')
-	    return res;	 /* Assume no register name but a label starting with 'rh'.  */
+	    return NULL;	/* Assume no register name but a label starting with 'rh'.  */
 	  *mode = CLASS_REG_BYTE;
 	  res = whatreg (reg, src + 2);
+	  if (res == NULL)
+	    return NULL;	/* Not a valid register name.  */
 	  regno = *reg;
 	  if (regno > 7)
 	    as_bad (_("register rh%d out of range"), regno);
@@ -282,9 +298,11 @@ parse_reg (char *src, int *mode, unsigned int *reg)
       else if (src[1] == 'l' || src[1] == 'L')
 	{
 	  if (src[2] < '0' || src[2] > '9')
-	    return res;	 /* Assume no register name but a label starting with 'rl'.  */
+	    return NULL;	/* Assume no register name but a label starting with 'rl'.  */
 	  *mode = CLASS_REG_BYTE;
 	  res = whatreg (reg, src + 2);
+	  if (res == NULL)
+	    return NULL;	/* Not a valid register name.  */
 	  regno = *reg;
 	  if (regno > 7)
 	    as_bad (_("register rl%d out of range"), regno);
@@ -293,9 +311,11 @@ parse_reg (char *src, int *mode, unsigned int *reg)
       else if (src[1] == 'q' || src[1] == 'Q')
 	{
 	  if (src[2] < '0' || src[2] > '9')
-	    return res;	 /* Assume no register name but a label starting with 'rq'.  */
+	    return NULL;	/* Assume no register name but a label starting with 'rq'.  */
 	  *mode = CLASS_REG_QUAD;
 	  res = whatreg (reg, src + 2);
+	  if (res == NULL)
+	    return NULL;	/* Not a valid register name.  */
 	  regno = *reg;
 	  if (regno > 12)
 	    as_bad (_("register rq%d out of range"), regno);
@@ -305,9 +325,11 @@ parse_reg (char *src, int *mode, unsigned int *reg)
       else
 	{
 	  if (src[1] < '0' || src[1] > '9')
-	    return res;	 /* Assume no register name but a label starting with 'r'.  */
+	    return NULL;	/* Assume no register name but a label starting with 'r'.  */
 	  *mode = CLASS_REG_WORD;
 	  res = whatreg (reg, src + 1);
+	  if (res == NULL)
+	    return NULL;	/* Not a valid register name.  */
 	  regno = *reg;
 	  if (regno > 15)
 	    as_bad (_("register r%d out of range"), regno);

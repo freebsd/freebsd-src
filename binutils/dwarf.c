@@ -1,5 +1,5 @@
 /* dwarf.c -- display DWARF contents of a BFD binary file
-   Copyright 2005, 2006
+   Copyright 2005, 2006, 2007
    Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
@@ -19,12 +19,12 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
    02110-1301, USA.  */
 
-#include <stdio.h>
-
-#include "dwarf.h"
-
-#include "bucomm.h"
+#include "sysdep.h"
 #include "libiberty.h"
+#include "bfd.h"
+#include "bucomm.h"
+#include "elf/dwarf2.h"
+#include "dwarf.h"
 
 static int have_frame_base;
 static int need_base_address;
@@ -895,6 +895,9 @@ decode_location_expression (unsigned char * data,
 	case DW_OP_call_ref:
 	  printf ("DW_OP_call_ref");
 	  break;
+	case DW_OP_form_tls_address:
+	  printf ("DW_OP_form_tls_address");
+	  break;
 
 	  /* GNU extensions.  */
 	case DW_OP_GNU_push_tls_address:
@@ -1213,26 +1216,37 @@ read_and_display_attr_value (unsigned long attribute,
     case DW_AT_language:
       switch (uvalue)
 	{
-	case DW_LANG_C:			printf ("(non-ANSI C)"); break;
+	  /* Ordered by the numeric value of these constants.  */
 	case DW_LANG_C89:		printf ("(ANSI C)"); break;
-	case DW_LANG_C_plus_plus:	printf ("(C++)"); break;
-	case DW_LANG_Fortran77:		printf ("(FORTRAN 77)"); break;
-	case DW_LANG_Fortran90:		printf ("(Fortran 90)"); break;
-	case DW_LANG_Modula2:		printf ("(Modula 2)"); break;
-	case DW_LANG_Pascal83:		printf ("(ANSI Pascal)"); break;
+	case DW_LANG_C:			printf ("(non-ANSI C)"); break;
 	case DW_LANG_Ada83:		printf ("(Ada)"); break;
+	case DW_LANG_C_plus_plus:	printf ("(C++)"); break;
 	case DW_LANG_Cobol74:		printf ("(Cobol 74)"); break;
 	case DW_LANG_Cobol85:		printf ("(Cobol 85)"); break;
+	case DW_LANG_Fortran77:		printf ("(FORTRAN 77)"); break;
+	case DW_LANG_Fortran90:		printf ("(Fortran 90)"); break;
+	case DW_LANG_Pascal83:		printf ("(ANSI Pascal)"); break;
+	case DW_LANG_Modula2:		printf ("(Modula 2)"); break;
 	  /* DWARF 2.1 values.	*/
+	case DW_LANG_Java:		printf ("(Java)"); break;
 	case DW_LANG_C99:		printf ("(ANSI C99)"); break;
 	case DW_LANG_Ada95:		printf ("(ADA 95)"); break;
 	case DW_LANG_Fortran95:		printf ("(Fortran 95)"); break;
+	  /* DWARF 3 values.  */
+	case DW_LANG_PLI:		printf ("(PLI)"); break;
+	case DW_LANG_ObjC:		printf ("(Objective C)"); break;
+	case DW_LANG_ObjC_plus_plus:	printf ("(Objective C++)"); break;
+	case DW_LANG_UPC:		printf ("(Unified Parallel C)"); break;
+	case DW_LANG_D:			printf ("(D)"); break;
 	  /* MIPS extension.  */
 	case DW_LANG_Mips_Assembler:	printf ("(MIPS assembler)"); break;
 	  /* UPC extension.  */
 	case DW_LANG_Upc:		printf ("(Unified Parallel C)"); break;
 	default:
-	  printf ("(Unknown: %lx)", uvalue);
+	  if (uvalue >= DW_LANG_lo_user && uvalue <= DW_LANG_hi_user)
+	    printf ("(implementation defined: %lx)", uvalue);
+	  else
+	    printf ("(Unknown: %lx)", uvalue);
 	  break;
 	}
       break;
@@ -1604,7 +1618,6 @@ process_debug_info (struct dwarf_section *section, void *file,
       hdrptr += 2;
 
       cu_offset = start - section_begin;
-      start += compunit.cu_length + initial_length_size;
 
       cu_abbrev_offset_ptr = hdrptr;
       compunit.cu_abbrev_offset = byte_get (hdrptr, offset_size);
@@ -1628,8 +1641,6 @@ process_debug_info (struct dwarf_section *section, void *file,
 	  debug_information [unit].num_range_lists = 0;
 	}
 
-      tags = hdrptr;
-
       if (!do_loc)
 	{
 	  printf (_("  Compilation Unit @ offset 0x%lx:\n"), cu_offset);
@@ -1638,6 +1649,16 @@ process_debug_info (struct dwarf_section *section, void *file,
 	  printf (_("   Abbrev Offset: %ld\n"), compunit.cu_abbrev_offset);
 	  printf (_("   Pointer Size:  %d\n"), compunit.cu_pointer_size);
 	}
+
+      if (cu_offset + compunit.cu_length + initial_length_size
+	  > section->size)
+	{
+	  warn (_("Debug info is corrupted, length is invalid (section is %lu bytes)\n"),
+		(unsigned long)section->size);
+	  break;
+	}
+      tags = hdrptr;
+      start += compunit.cu_length + initial_length_size;
 
       if (compunit.cu_version != 2 && compunit.cu_version != 3)
 	{
@@ -1649,11 +1670,15 @@ process_debug_info (struct dwarf_section *section, void *file,
 
       /* Process the abbrevs used by this compilation unit. DWARF
 	 sections under Mach-O have non-zero addresses.  */
-      process_abbrev_section
-	((unsigned char *) debug_displays [abbrev].section.start
-	 + compunit.cu_abbrev_offset - debug_displays [abbrev].section.address,
-	 (unsigned char *) debug_displays [abbrev].section.start
-	 + debug_displays [abbrev].section.size);
+      if (compunit.cu_abbrev_offset >= debug_displays [abbrev].section.size)
+	warn (_("Debug info is corrupted, abbrev offset is invalid (section is %lu bytes)\n"),
+	      (unsigned long)debug_displays [abbrev].section.size);
+      else
+	process_abbrev_section
+	  ((unsigned char *) debug_displays [abbrev].section.start
+	   + compunit.cu_abbrev_offset - debug_displays [abbrev].section.address,
+	   (unsigned char *) debug_displays [abbrev].section.start
+	   + debug_displays [abbrev].section.size);
 
       level = 0;
       while (tags < start)
@@ -1673,6 +1698,13 @@ process_debug_info (struct dwarf_section *section, void *file,
 	      continue;
 	    }
 
+	  if (!do_loc)
+	    printf (_(" <%d><%lx>: Abbrev Number: %lu"),
+		    level,
+		    (unsigned long) (tags - section_begin
+				     - bytes_read),
+		    abbrev_number);
+ 
 	  /* Scan through the abbreviation list until we reach the
 	     correct entry.  */
 	  for (entry = first_abbrev;
@@ -1682,18 +1714,18 @@ process_debug_info (struct dwarf_section *section, void *file,
 
 	  if (entry == NULL)
 	    {
+	      if (!do_loc)
+		{
+		  printf ("\n");
+		  fflush (stdout);
+		}
 	      warn (_("Unable to locate entry %lu in the abbreviation table\n"),
 		    abbrev_number);
 	      return 0;
 	    }
 
 	  if (!do_loc)
-	    printf (_(" <%d><%lx>: Abbrev Number: %lu (%s)\n"),
-		    level,
-		    (unsigned long) (tags - section_begin
-				     - bytes_read),
-		    abbrev_number,
-		    get_TAG_name (entry->tag));
+	    printf (_(" (%s)\n"), get_TAG_name (entry->tag));
  
 	  switch (entry->tag)
 	    {
@@ -1704,7 +1736,6 @@ process_debug_info (struct dwarf_section *section, void *file,
 	      need_base_address = 1;
 	      break;
 	    case DW_TAG_entry_point:
-	    case DW_TAG_inlined_subroutine:
 	    case DW_TAG_subprogram:
 	      need_base_address = 0;
 	      /* Assuming that there is no DW_AT_frame_base.  */
@@ -1713,14 +1744,20 @@ process_debug_info (struct dwarf_section *section, void *file,
 	    }
 
 	  for (attr = entry->first_attr; attr; attr = attr->next)
-	    tags = read_and_display_attr (attr->attribute,
-					  attr->form,
-					  tags, cu_offset,
-					  compunit.cu_pointer_size,
-					  offset_size,
-					  compunit.cu_version,
-					  &debug_information [unit],
-					  do_loc);
+	    {
+	      if (! do_loc)
+		/* Show the offset from where the tag was extracted.  */
+		printf ("  <%2lx>", (unsigned long)(tags - section_begin));
+
+	      tags = read_and_display_attr (attr->attribute,
+					    attr->form,
+					    tags, cu_offset,
+					    compunit.cu_pointer_size,
+					    offset_size,
+					    compunit.cu_version,
+					    &debug_information [unit],
+					    do_loc);
+	    }
  
  	  if (entry->children)
  	    ++level;
@@ -2315,7 +2352,8 @@ display_debug_loc (struct dwarf_section *section, void *file)
     error (_("No location lists in .debug_info section!\n"));
 
   /* DWARF sections under Mach-O have non-zero addresses.  */
-  if (debug_information [first].loc_offsets [0] != section->address)
+  if (debug_information [first].num_loc_offsets > 0
+      && debug_information [first].loc_offsets [0] != section->address)
     warn (_("Location lists in %s section start at 0x%lx\n"),
 	  section->name, debug_information [first].loc_offsets [0]);
 
@@ -2495,7 +2533,6 @@ display_debug_str (struct dwarf_section *section,
   return 1;
 }
 
-
 static int
 display_debug_info (struct dwarf_section *section, void *file)
 {
@@ -2519,6 +2556,7 @@ display_debug_aranges (struct dwarf_section *section,
       unsigned char *ranges;
       unsigned long length;
       unsigned long address;
+      unsigned char address_size;
       int excess;
       int offset_size;
       int initial_length_size;
@@ -2565,28 +2603,45 @@ display_debug_aranges (struct dwarf_section *section,
       printf (_("  Pointer Size:             %d\n"), arange.ar_pointer_size);
       printf (_("  Segment Size:             %d\n"), arange.ar_segment_size);
 
-      printf (_("\n    Address  Length\n"));
+      address_size = arange.ar_pointer_size + arange.ar_segment_size;
+
+      /* The DWARF spec does not require that the address size be a power
+	 of two, but we do.  This will have to change if we ever encounter
+	 an uneven architecture.  */
+      if ((address_size & (address_size - 1)) != 0)
+	{
+	  warn (_("Pointer size + Segment size is not a power of two.\n"));
+	  break;
+	}
+      
+      if (address_size > 4)
+	printf (_("\n    Address            Length\n"));
+      else
+	printf (_("\n    Address    Length\n"));
 
       ranges = hdrptr;
 
-      /* Must pad to an alignment boundary that is twice the pointer size.  */
-      excess = (hdrptr - start) % (2 * arange.ar_pointer_size);
+      /* Must pad to an alignment boundary that is twice the address size.  */
+      excess = (hdrptr - start) % (2 * address_size);
       if (excess)
-	ranges += (2 * arange.ar_pointer_size) - excess;
+	ranges += (2 * address_size) - excess;
 
       start += arange.ar_length + initial_length_size;
 
-      while (ranges + 2 * arange.ar_pointer_size <= start)
+      while (ranges + 2 * address_size <= start)
 	{
-	  address = byte_get (ranges, arange.ar_pointer_size);
+	  address = byte_get (ranges, address_size);
 
-	  ranges += arange.ar_pointer_size;
+	  ranges += address_size;
 
-	  length  = byte_get (ranges, arange.ar_pointer_size);
+	  length  = byte_get (ranges, address_size);
 
-	  ranges += arange.ar_pointer_size;
+	  ranges += address_size;
 
-	  printf ("    %8.8lx %lu\n", address, length);
+	  if (address_size > 4)
+	    printf ("    0x%16.16lx 0x%lx\n", address, length);
+	  else
+	    printf ("    0x%8.8lx 0x%lx\n", address, length);	    
 	}
     }
 
@@ -2668,7 +2723,8 @@ display_debug_ranges (struct dwarf_section *section,
     error (_("No range lists in .debug_info section!\n"));
 
   /* DWARF sections under Mach-O have non-zero addresses.  */
-  if (debug_information [first].range_lists [0] != section->address)
+  if (debug_information [first].num_range_lists > 0
+      && debug_information [first].range_lists [0] != section->address)
     warn (_("Range lists in %s section start at 0x%lx\n"),
 	  section->name, debug_information [first].range_lists [0]);
 
@@ -2879,6 +2935,7 @@ static dwarf_vma
 get_encoded_value (unsigned char *data, int encoding)
 {
   int size = size_of_encoded_value (encoding);
+
   if (encoding & DW_EH_PE_signed)
     return byte_get_signed (data, size);
   else
@@ -2927,7 +2984,7 @@ display_debug_frames (struct dwarf_section *section,
 	{
 	  printf ("\n%08lx ZERO terminator\n\n",
 		    (unsigned long)(saved_start - section_start));
-	  return 1;
+	  continue;
 	}
 
       if (length == 0xffffffff)
@@ -2944,6 +3001,12 @@ display_debug_frames (struct dwarf_section *section,
 	}
 
       block_end = saved_start + length + initial_length_size;
+      if (block_end > end)
+	{
+	  warn ("Invalid length %#08lx in FDE at %#08lx\n",
+		length, (unsigned long)(saved_start - section_start));
+	  block_end = end;
+	}
       cie_id = byte_get (start, offset_size); start += offset_size;
 
       if (is_eh ? (cie_id == 0) : (cie_id == DW_CIE_ID))
@@ -3078,9 +3141,8 @@ display_debug_frames (struct dwarf_section *section,
 
 	  if (!cie)
 	    {
-	      warn ("Invalid CIE pointer %08lx in FDE at %08lx\n",
+	      warn ("Invalid CIE pointer %#08lx in FDE at %#08lx\n",
 		    cie_id, (unsigned long)(saved_start - section_start));
-	      start = block_end;
 	      fc->ncols = 0;
 	      fc->col_type = xmalloc (sizeof (short int));
 	      fc->col_offset = xmalloc (sizeof (int));
@@ -3584,7 +3646,10 @@ display_debug_frames (struct dwarf_section *section,
 	      break;
 
 	    default:
-	      warn (_("unsupported or unknown DW_CFA_%d\n"), op);
+	      if (op >= DW_CFA_lo_user && op <= DW_CFA_hi_user)
+		printf (_("  DW_CFA_??? (User defined call frame op: %#x)\n"), op);
+	      else
+		warn (_("unsupported or unknown Dwarf Call Frame Instruction number: %#x\n"), op);		
 	      start = block_end;
 	    }
 	}

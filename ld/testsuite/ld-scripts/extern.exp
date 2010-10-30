@@ -1,0 +1,68 @@
+# Test EXTERN in a linker script.
+# By Nathan Sidwell, CodeSourcery LLC
+#   Copyright 2007
+#   Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+
+set testname "EXTERN"
+
+if ![ld_assemble $as $srcdir/$subdir/extern.s tmpdir/extern.o] {
+    unresolved $testname
+    return
+}
+
+if ![ld_simple_link $ld tmpdir/extern "-T $srcdir/$subdir/extern.t tmpdir/extern.o"] {
+    fail $testname
+}
+
+if ![ld_nm $nm "" tmpdir/extern] {
+    unresolved $testname
+    return
+}
+
+if {![info exists nm_output(sym1)] || $nm_output(sym1) != 1} {
+    send_log "sym1 wrong\n"
+    verbose "sym1 wrong"
+    fail $testname
+    return
+}
+    
+if {![info exists nm_output(sym2)] || $nm_output(sym2) != 2} {
+    send_log "sym1 wrong\n"
+    verbose "sym1 wrong"
+    fail $testname
+    return
+}
+if {![info exists nm_output(sym3)] || $nm_output(sym3) != 3} {
+    send_log "sym1 wrong\n"
+    verbose "sym1 wrong"
+    fail $testname
+    return
+}
+if {![info exists nm_output(sym4)] || $nm_output(sym4) != 4} {
+    send_log "sym1 wrong\n"
+    verbose "sym1 wrong"
+    fail $testname
+    return
+}
+if {![info exists nm_output(sym5)] || $nm_output(sym5) != 5} {
+    send_log "sym1 wrong\n"
+    verbose "sym1 wrong"
+    fail $testname
+    return
+}
+
+pass $testname

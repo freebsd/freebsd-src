@@ -4,7 +4,7 @@ AC_DEFUN([AM_BINUTILS_WARNINGS],[
 GCC_WARN_CFLAGS="-W -Wall -Wstrict-prototypes -Wmissing-prototypes"
 
 AC_ARG_ENABLE(werror,
-  [  --enable-werror    treat compile warnings as errors],
+  [  --enable-werror         treat compile warnings as errors],
   [case "${enableval}" in
      yes | y) ERROR_ON_WARNING="yes" ;;
      no | n)  ERROR_ON_WARNING="no" ;;
@@ -27,7 +27,7 @@ if test "${GCC}" = yes ; then
 fi
 
 AC_ARG_ENABLE(build-warnings,
-[  --enable-build-warnings Enable build-time compiler warnings],
+[  --enable-build-warnings enable build-time compiler warnings],
 [case "${enableval}" in
   yes)	WARN_CFLAGS="${GCC_WARN_CFLAGS}";;
   no)	if test "${GCC}" = yes ; then

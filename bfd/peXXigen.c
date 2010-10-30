@@ -1,6 +1,6 @@
 /* Support for the generic parts of PE/PEI; the common executable parts.
    Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-   2005, 2006 Free Software Foundation, Inc.
+   2005, 2006, 2007 Free Software Foundation, Inc.
    Written by Cygnus Solutions.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -52,12 +52,12 @@
    on this code has a chance of getting something accomplished without
    wasting too much time.  */
 
-/* This expands into COFF_WITH_pe or COFF_WITH_pep depending on whether
-   we're compiling for straight PE or PE+.  */
+/* This expands into COFF_WITH_pe, COFF_WITH_pep, or COFF_WITH_pex64
+   depending on whether we're compiling for straight PE or PE+.  */
 #define COFF_WITH_XX
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "coff/internal.h"
 
@@ -67,7 +67,9 @@
    within PE/PEI, so we get them from there.  FIXME: The lack of
    variance is an assumption which may prove to be incorrect if new
    PE/PEI targets are created.  */
-#ifdef COFF_WITH_pep
+#if defined COFF_WITH_pex64
+# include "coff/x86_64.h"
+#elif defined COFF_WITH_pep
 # include "coff/ia64.h"
 #else
 # include "coff/i386.h"
@@ -77,7 +79,7 @@
 #include "libcoff.h"
 #include "libpei.h"
 
-#ifdef COFF_WITH_pep
+#if defined COFF_WITH_pep || defined COFF_WITH_pex64
 # undef AOUTSZ
 # define AOUTSZ		PEPAOUTSZ
 # define PEAOUTHDR	PEPAOUTHDR
@@ -147,6 +149,7 @@ _bfd_XXi_swap_sym_in (bfd * abfd, void * ext1, void * in1)
 	  int unused_section_number = 0;
 	  asection *sec;
 	  char *name;
+	  flagword flags;
 
 	  for (sec = abfd->sections; sec; sec = sec->next)
 	    if (unused_section_number <= sec->target_index)
@@ -156,7 +159,8 @@ _bfd_XXi_swap_sym_in (bfd * abfd, void * ext1, void * in1)
 	  if (name == NULL)
 	    return;
 	  strcpy (name, in->n_name);
-	  sec = bfd_make_section_anyway (abfd, name);
+	  flags = SEC_HAS_CONTENTS | SEC_ALLOC | SEC_DATA | SEC_LOAD;
+	  sec = bfd_make_section_anyway_with_flags (abfd, name, flags);
 
 	  sec->vma = 0;
 	  sec->lma = 0;
@@ -169,7 +173,6 @@ _bfd_XXi_swap_sym_in (bfd * abfd, void * ext1, void * in1)
 	  sec->userdata = NULL;
 	  sec->next = NULL;
 	  sec->alignment_power = 2;
-	  sec->flags = SEC_HAS_CONTENTS | SEC_ALLOC | SEC_DATA | SEC_LOAD;
 
 	  sec->target_index = unused_section_number;
 
@@ -385,10 +388,11 @@ _bfd_XXi_swap_aouthdr_in (bfd * abfd,
 			  void * aouthdr_ext1,
 			  void * aouthdr_int1)
 {
-  struct internal_extra_pe_aouthdr *a;
-  PEAOUTHDR * src = (PEAOUTHDR *) (aouthdr_ext1);
+  PEAOUTHDR * src = (PEAOUTHDR *) aouthdr_ext1;
   AOUTHDR * aouthdr_ext = (AOUTHDR *) aouthdr_ext1;
-  struct internal_aouthdr *aouthdr_int = (struct internal_aouthdr *)aouthdr_int1;
+  struct internal_aouthdr *aouthdr_int
+    = (struct internal_aouthdr *) aouthdr_int1;
+  struct internal_extra_pe_aouthdr *a = &aouthdr_int->pe;
 
   aouthdr_int->magic = H_GET_16 (abfd, aouthdr_ext->magic);
   aouthdr_int->vstamp = H_GET_16 (abfd, aouthdr_ext->vstamp);
@@ -398,13 +402,21 @@ _bfd_XXi_swap_aouthdr_in (bfd * abfd,
   aouthdr_int->entry = GET_AOUTHDR_ENTRY (abfd, aouthdr_ext->entry);
   aouthdr_int->text_start =
     GET_AOUTHDR_TEXT_START (abfd, aouthdr_ext->text_start);
-#ifndef COFF_WITH_pep
+#if !defined(COFF_WITH_pep) && !defined(COFF_WITH_pex64)
   /* PE32+ does not have data_start member!  */
   aouthdr_int->data_start =
     GET_AOUTHDR_DATA_START (abfd, aouthdr_ext->data_start);
+  a->BaseOfData = aouthdr_int->data_start;
 #endif
 
-  a = &aouthdr_int->pe;
+  a->Magic = aouthdr_int->magic;
+  a->MajorLinkerVersion = H_GET_8 (abfd, aouthdr_ext->vstamp);
+  a->MinorLinkerVersion = H_GET_8 (abfd, aouthdr_ext->vstamp + 1);
+  a->SizeOfCode = aouthdr_int->tsize ;
+  a->SizeOfInitializedData = aouthdr_int->dsize ;
+  a->SizeOfUninitializedData = aouthdr_int->bsize ;
+  a->AddressOfEntryPoint = aouthdr_int->entry;
+  a->BaseOfCode = aouthdr_int->text_start;
   a->ImageBase = GET_OPTHDR_IMAGE_BASE (abfd, src->ImageBase);
   a->SectionAlignment = H_GET_32 (abfd, src->SectionAlignment);
   a->FileAlignment = H_GET_32 (abfd, src->FileAlignment);
@@ -441,6 +453,7 @@ _bfd_XXi_swap_aouthdr_in (bfd * abfd,
         /* If data directory is empty, rva also should be 0.  */
 	int size =
 	  H_GET_32 (abfd, src->DataDirectory[idx][1]);
+
 	a->DataDirectory[idx].Size = size;
 
 	if (size)
@@ -454,7 +467,7 @@ _bfd_XXi_swap_aouthdr_in (bfd * abfd,
   if (aouthdr_int->entry)
     {
       aouthdr_int->entry += a->ImageBase;
-#ifndef COFF_WITH_pep
+#if !defined(COFF_WITH_pep) && !defined(COFF_WITH_pex64)
       aouthdr_int->entry &= 0xffffffff;
 #endif
     }
@@ -462,12 +475,12 @@ _bfd_XXi_swap_aouthdr_in (bfd * abfd,
   if (aouthdr_int->tsize)
     {
       aouthdr_int->text_start += a->ImageBase;
-#ifndef COFF_WITH_pep
+#if !defined(COFF_WITH_pep) && !defined(COFF_WITH_pex64)
       aouthdr_int->text_start &= 0xffffffff;
 #endif
     }
 
-#ifndef COFF_WITH_pep
+#if !defined(COFF_WITH_pep) && !defined(COFF_WITH_pex64)
   /* PE32+ does not have data_start member!  */
   if (aouthdr_int->dsize)
     {
@@ -480,9 +493,9 @@ _bfd_XXi_swap_aouthdr_in (bfd * abfd,
   /* These three fields are normally set up by ppc_relocate_section.
      In the case of reading a file in, we can pick them up from the
      DataDirectory.  */
-  first_thunk_address = a->DataDirectory[12].VirtualAddress;
-  thunk_size = a->DataDirectory[12].Size;
-  import_table_size = a->DataDirectory[1].Size;
+  first_thunk_address = a->DataDirectory[PE_IMPORT_ADDRESS_TABLE].VirtualAddress;
+  thunk_size = a->DataDirectory[PE_IMPORT_ADDRESS_TABLE].Size;
+  import_table_size = a->DataDirectory[PE_IMPORT_TABLE].Size;
 #endif
 }
 
@@ -540,14 +553,14 @@ _bfd_XXi_swap_aouthdr_out (bfd * abfd, void * in, void * out)
   fa = extra->FileAlignment;
   ib = extra->ImageBase;
 
-  idata2 = pe->pe_opthdr.DataDirectory[1];
-  idata5 = pe->pe_opthdr.DataDirectory[12];
-  tls = pe->pe_opthdr.DataDirectory[9];
+  idata2 = pe->pe_opthdr.DataDirectory[PE_IMPORT_TABLE];
+  idata5 = pe->pe_opthdr.DataDirectory[PE_IMPORT_ADDRESS_TABLE];
+  tls = pe->pe_opthdr.DataDirectory[PE_TLS_TABLE];
   
   if (aouthdr_in->tsize)
     {
       aouthdr_in->text_start -= ib;
-#ifndef COFF_WITH_pep
+#if !defined(COFF_WITH_pep) && !defined(COFF_WITH_pex64)
       aouthdr_in->text_start &= 0xffffffff;
 #endif
     }
@@ -555,7 +568,7 @@ _bfd_XXi_swap_aouthdr_out (bfd * abfd, void * in, void * out)
   if (aouthdr_in->dsize)
     {
       aouthdr_in->data_start -= ib;
-#ifndef COFF_WITH_pep
+#if !defined(COFF_WITH_pep) && !defined(COFF_WITH_pex64)
       aouthdr_in->data_start &= 0xffffffff;
 #endif
     }
@@ -563,7 +576,7 @@ _bfd_XXi_swap_aouthdr_out (bfd * abfd, void * in, void * out)
   if (aouthdr_in->entry)
     {
       aouthdr_in->entry -= ib;
-#ifndef COFF_WITH_pep
+#if !defined(COFF_WITH_pep) && !defined(COFF_WITH_pex64)
       aouthdr_in->entry &= 0xffffffff;
 #endif
     }
@@ -592,11 +605,11 @@ _bfd_XXi_swap_aouthdr_out (bfd * abfd, void * in, void * out)
 
      So - we copy the input values into the output values, and then, if
      a final link is going to be performed, it can overwrite them.  */
-  extra->DataDirectory[1]  = idata2;
-  extra->DataDirectory[12] = idata5;
-  extra->DataDirectory[9] = tls;
+  extra->DataDirectory[PE_IMPORT_TABLE]  = idata2;
+  extra->DataDirectory[PE_IMPORT_ADDRESS_TABLE] = idata5;
+  extra->DataDirectory[PE_TLS_TABLE] = tls;
 
-  if (extra->DataDirectory[1].VirtualAddress == 0)
+  if (extra->DataDirectory[PE_IMPORT_TABLE].VirtualAddress == 0)
     /* Until other .idata fixes are made (pending patch), the entry for
        .idata is needed for backwards compatibility.  FIXME.  */
     add_data_entry (abfd, extra, 1, ".idata", ib);
@@ -632,16 +645,22 @@ _bfd_XXi_swap_aouthdr_out (bfd * abfd, void * in, void * out)
 	   in the virt_size field).  Files have been seen (from MSVC
 	   5.0 link.exe) where the file size of the .data segment is
 	   quite small compared to the virtual size.  Without this
-	   fix, strip munges the file.  */
+	   fix, strip munges the file.
+
+	   FIXME: We need to handle holes between sections, which may
+	   happpen when we covert from another format.  We just use
+	   the virtual address and virtual size of the last section
+	   for the image size.  */
 	if (coff_section_data (abfd, sec) != NULL
 	    && pei_section_data (abfd, sec) != NULL)
-	  isize += SA (FA (pei_section_data (abfd, sec)->virt_size));
+	  isize = (sec->vma - extra->ImageBase
+		   + SA (FA (pei_section_data (abfd, sec)->virt_size)));
       }
 
     aouthdr_in->dsize = dsize;
     aouthdr_in->tsize = tsize;
     extra->SizeOfHeaders = hsize;
-    extra->SizeOfImage = SA (hsize) + isize;
+    extra->SizeOfImage = isize;
   }
 
   H_PUT_16 (abfd, aouthdr_in->magic, aouthdr_out->standard.magic);
@@ -660,7 +679,7 @@ _bfd_XXi_swap_aouthdr_out (bfd * abfd, void * in, void * out)
   PUT_AOUTHDR_TEXT_START (abfd, aouthdr_in->text_start,
 			  aouthdr_out->standard.text_start);
 
-#ifndef COFF_WITH_pep
+#if !defined(COFF_WITH_pep) && !defined(COFF_WITH_pex64)
   /* PE32+ does not have data_start member!  */
   PUT_AOUTHDR_DATA_START (abfd, aouthdr_in->data_start,
 			  aouthdr_out->standard.data_start);
@@ -1017,7 +1036,7 @@ static char * dir_names[IMAGE_NUMBEROF_DIRECTORY_ENTRIES] =
   N_("Bound Import Directory"),
   N_("Import Address Table Directory"),
   N_("Delay Import Directory"),
-  N_("Reserved"),
+  N_("CLR Runtime Header"),
   N_("Reserved")
 };
 
@@ -1051,9 +1070,9 @@ pe_print_idata (bfd * abfd, void * vfile)
 
   bfd_vma addr;
 
-  addr = extra->DataDirectory[1].VirtualAddress;
+  addr = extra->DataDirectory[PE_IMPORT_TABLE].VirtualAddress;
 
-  if (addr == 0 && extra->DataDirectory[1].Size == 0)
+  if (addr == 0 && extra->DataDirectory[PE_IMPORT_TABLE].Size == 0)
     {
       /* Maybe the extra header isn't there.  Look for the section.  */
       section = bfd_get_section_by_name (abfd, ".idata");
@@ -1171,7 +1190,7 @@ pe_print_idata (bfd * abfd, void * vfile)
       bfd_size_type j;
       char *dll;
 
-      /* Print (i + extra->DataDirectory[1].VirtualAddress).  */
+      /* Print (i + extra->DataDirectory[PE_IMPORT_TABLE].VirtualAddress).  */
       fprintf (file, " %08lx\t", (unsigned long) (i + adj + dataoff));
       hint_addr = bfd_get_32 (abfd, data + i + dataoff);
       time_stamp = bfd_get_32 (abfd, data + i + 4 + dataoff);
@@ -1212,8 +1231,8 @@ pe_print_idata (bfd * abfd, void * vfile)
 	  ft_data = data;
 	  ft_idx = first_thunk - adj;
 	  ft_allocated = 0; 
-      
-	  if (first_thunk != hint_addr) 
+
+	  if (first_thunk != hint_addr)
 	    {
 	      /* Find the section which contains the first thunk.  */
 	      for (ft_section = abfd->sections;
@@ -1261,6 +1280,38 @@ pe_print_idata (bfd * abfd, void * vfile)
 	    }
 
 	  /* Print HintName vector entries.  */
+#ifdef COFF_WITH_pex64
+	  for (j = 0; j < datasize; j += 8)
+	    {
+	      unsigned long member = bfd_get_32 (abfd, data + idx + j);
+	      unsigned long member_high = bfd_get_32 (abfd, data + idx + j + 4);
+
+	      if (!member && !member_high)
+		break;
+
+	      if (member_high & 0x80000000)
+		fprintf (file, "\t%lx%08lx\t %4lx%08lx  <none>",
+			 member_high,member, member_high & 0x7fffffff, member);
+	      else
+		{
+		  int ordinal;
+		  char *member_name;
+
+		  ordinal = bfd_get_16 (abfd, data + member - adj);
+		  member_name = (char *) data + member - adj + 2;
+		  fprintf (file, "\t%04lx\t %4d  %s",member, ordinal, member_name);
+		}
+
+	      /* If the time stamp is not zero, the import address
+		 table holds actual addresses.  */
+	      if (time_stamp != 0
+		  && first_thunk != 0
+		  && first_thunk != hint_addr)
+		fprintf (file, "\t%04lx",
+			 (long) bfd_get_32 (abfd, ft_data + ft_idx + j));
+	      fprintf (file, "\n");
+	    }
+#else
 	  for (j = 0; j < datasize; j += 4)
 	    {
 	      unsigned long member = bfd_get_32 (abfd, data + idx + j);
@@ -1293,7 +1344,7 @@ pe_print_idata (bfd * abfd, void * vfile)
 
 	      fprintf (file, "\n");
 	    }
-
+#endif
 	  if (ft_allocated)
 	    free (ft_data);
 	}
@@ -1336,9 +1387,9 @@ pe_print_edata (bfd * abfd, void * vfile)
 
   bfd_vma addr;
 
-  addr = extra->DataDirectory[0].VirtualAddress;
+  addr = extra->DataDirectory[PE_EXPORT_TABLE].VirtualAddress;
 
-  if (addr == 0 && extra->DataDirectory[0].Size == 0)
+  if (addr == 0 && extra->DataDirectory[PE_EXPORT_TABLE].Size == 0)
     {
       /* Maybe the extra header isn't there.  Look for the section.  */
       section = bfd_get_section_by_name (abfd, ".edata");
@@ -1367,7 +1418,7 @@ pe_print_edata (bfd * abfd, void * vfile)
 	}
 
       dataoff = addr - section->vma;
-      datasize = extra->DataDirectory[0].Size;
+      datasize = extra->DataDirectory[PE_EXPORT_TABLE].Size;
       if (datasize > section->size - dataoff)
 	{
 	  fprintf (file,
@@ -1533,10 +1584,10 @@ pe_print_edata (bfd * abfd, void * vfile)
 static bfd_boolean
 pe_print_pdata (bfd * abfd, void * vfile)
 {
-#ifdef COFF_WITH_pep
-# define PDATA_ROW_SIZE	(3*8)
+#if defined(COFF_WITH_pep) && !defined(COFF_WITH_pex64)
+# define PDATA_ROW_SIZE	(3 * 8)
 #else
-# define PDATA_ROW_SIZE	(5*4)
+# define PDATA_ROW_SIZE	(5 * 4)
 #endif
   FILE *file = (FILE *) vfile;
   bfd_byte *data = 0;
@@ -1559,7 +1610,7 @@ pe_print_pdata (bfd * abfd, void * vfile)
 
   fprintf (file,
 	   _("\nThe Function Table (interpreted .pdata section contents)\n"));
-#ifdef COFF_WITH_pep
+#if defined(COFF_WITH_pep) && !defined(COFF_WITH_pex64)
   fprintf (file,
 	   _(" vma:\t\t\tBegin Address    End Address      Unwind Info\n"));
 #else
@@ -1613,7 +1664,7 @@ pe_print_pdata (bfd * abfd, void * vfile)
       fprintf_vma (file, begin_addr); fputc (' ', file);
       fprintf_vma (file, end_addr); fputc (' ', file);
       fprintf_vma (file, eh_handler);
-#ifndef COFF_WITH_pep
+#if !defined(COFF_WITH_pep) || defined(COFF_WITH_pex64)
       fputc (' ', file);
       fprintf_vma (file, eh_data); fputc (' ', file);
       fprintf_vma (file, prolog_end_addr);
@@ -1766,6 +1817,7 @@ _bfd_XX_print_private_bfd_data_common (bfd * abfd, void * vfile)
   pe_data_type *pe = pe_data (abfd);
   struct internal_extra_pe_aouthdr *i = &pe->pe_opthdr;
   const char *subsystem_name = NULL;
+  const char *name;
 
   /* The MS dumpbin program reportedly ands with 0xff0f before
      printing the characteristics field.  Not sure why.  No reason to
@@ -1791,6 +1843,52 @@ _bfd_XX_print_private_bfd_data_common (bfd * abfd, void * vfile)
     time_t t = pe->coff.timestamp;
     fprintf (file, "\nTime/Date\t\t%s", ctime (&t));
   }
+
+#ifndef IMAGE_NT_OPTIONAL_HDR_MAGIC
+# define IMAGE_NT_OPTIONAL_HDR_MAGIC 0x10b
+#endif
+#ifndef IMAGE_NT_OPTIONAL_HDR64_MAGIC
+# define IMAGE_NT_OPTIONAL_HDR64_MAGIC 0x20b
+#endif
+#ifndef IMAGE_NT_OPTIONAL_HDRROM_MAGIC
+# define IMAGE_NT_OPTIONAL_HDRROM_MAGIC 0x107
+#endif
+
+  switch (i->Magic)
+    {
+    case IMAGE_NT_OPTIONAL_HDR_MAGIC:
+      name = "PE32";
+      break;
+    case IMAGE_NT_OPTIONAL_HDR64_MAGIC:
+      name = "PE32+";
+      break;
+    case IMAGE_NT_OPTIONAL_HDRROM_MAGIC:
+      name = "ROM";
+      break;
+    default:
+      name = NULL;
+      break;
+    }
+  fprintf (file, "Magic\t\t\t%04x", i->Magic);
+  if (name)
+    fprintf (file, "\t(%s)",name);
+  fprintf (file, "\nMajorLinkerVersion\t%d\n", i->MajorLinkerVersion);
+  fprintf (file, "MinorLinkerVersion\t%d\n", i->MinorLinkerVersion);
+  fprintf (file, "SizeOfCode\t\t%08lx\n", i->SizeOfCode);
+  fprintf (file, "SizeOfInitializedData\t%08lx\n",
+	   i->SizeOfInitializedData);
+  fprintf (file, "SizeOfUninitializedData\t%08lx\n",
+	   i->SizeOfUninitializedData);
+  fprintf (file, "AddressOfEntryPoint\t");
+  fprintf_vma (file, i->AddressOfEntryPoint);
+  fprintf (file, "\nBaseOfCode\t\t");
+  fprintf_vma (file, i->BaseOfCode);
+#if !defined(COFF_WITH_pep) && !defined(COFF_WITH_pex64)
+  /* PE32+ does not have BaseOfData member!  */
+  fprintf (file, "\nBaseOfData\t\t");
+  fprintf_vma (file, i->BaseOfData);
+#endif
+
   fprintf (file, "\nImageBase\t\t");
   fprintf_vma (file, i->ImageBase);
   fprintf (file, "\nSectionAlignment\t");
@@ -1837,6 +1935,16 @@ _bfd_XX_print_private_bfd_data_common (bfd * abfd, void * vfile)
     case IMAGE_SUBSYSTEM_EFI_RUNTIME_DRIVER:
       subsystem_name = "EFI runtime driver";
       break;
+    // These are from revision 8.0 of the MS PE/COFF spec
+    case IMAGE_SUBSYSTEM_EFI_ROM:
+      subsystem_name = "EFI ROM";
+      break;
+    case IMAGE_SUBSYSTEM_XBOX:
+      subsystem_name = "XBOX";
+      break;
+    // Added default case for clarity - subsystem_name is NULL anyway.
+    default:
+      subsystem_name = NULL;
     }
 
   fprintf (file, "Subsystem\t\t%08x", i->Subsystem);
@@ -1889,8 +1997,8 @@ _bfd_XX_bfd_copy_private_bfd_data_common (bfd * ibfd, bfd * obfd)
      if we don't remove this entry as well.  */
   if (! pe_data (obfd)->has_reloc_section)
     {
-      pe_data (obfd)->pe_opthdr.DataDirectory[5].VirtualAddress = 0;
-      pe_data (obfd)->pe_opthdr.DataDirectory[5].Size = 0;
+      pe_data (obfd)->pe_opthdr.DataDirectory[PE_BASE_RELOCATION_TABLE].VirtualAddress = 0;
+      pe_data (obfd)->pe_opthdr.DataDirectory[PE_BASE_RELOCATION_TABLE].Size = 0;
     }
   return TRUE;
 }
@@ -1949,6 +2057,7 @@ _bfd_XXi_final_link_postscript (bfd * abfd, struct coff_final_link_info *pfinfo)
 {
   struct coff_link_hash_entry *h1;
   struct bfd_link_info *info = pfinfo->info;
+  bfd_boolean result = TRUE;
 
   /* There are a few fields that need to be filled in now while we
      have symbol table access.
@@ -1962,49 +2071,103 @@ _bfd_XXi_final_link_postscript (bfd * abfd, struct coff_final_link_info *pfinfo)
 			      ".idata$2", FALSE, FALSE, TRUE);
   if (h1 != NULL)
     {
-      pe_data (abfd)->pe_opthdr.DataDirectory[1].VirtualAddress =
-	(h1->root.u.def.value
-	 + h1->root.u.def.section->output_section->vma
-	 + h1->root.u.def.section->output_offset);
+      /* PR ld/2729: We cannot rely upon all the output sections having been 
+	 created properly, so check before referencing them.  Issue a warning
+	 message for any sections tht could not be found.  */
+      if (h1->root.u.def.section != NULL
+	  && h1->root.u.def.section->output_section != NULL)
+	pe_data (abfd)->pe_opthdr.DataDirectory[PE_IMPORT_TABLE].VirtualAddress =
+	  (h1->root.u.def.value
+	   + h1->root.u.def.section->output_section->vma
+	   + h1->root.u.def.section->output_offset);
+      else
+	{
+	  _bfd_error_handler
+	    (_("%B: unable to fill in DataDictionary[1] because .idata$2 is missing"), 
+	     abfd);
+	  result = FALSE;
+	}
+
       h1 = coff_link_hash_lookup (coff_hash_table (info),
 				  ".idata$4", FALSE, FALSE, TRUE);
-      pe_data (abfd)->pe_opthdr.DataDirectory[1].Size =
-	((h1->root.u.def.value
-	  + h1->root.u.def.section->output_section->vma
-	  + h1->root.u.def.section->output_offset)
-	 - pe_data (abfd)->pe_opthdr.DataDirectory[1].VirtualAddress);
+      if (h1 != NULL
+	  && h1->root.u.def.section != NULL
+	  && h1->root.u.def.section->output_section != NULL)
+	pe_data (abfd)->pe_opthdr.DataDirectory[PE_IMPORT_TABLE].Size =
+	  ((h1->root.u.def.value
+	    + h1->root.u.def.section->output_section->vma
+	    + h1->root.u.def.section->output_offset)
+	   - pe_data (abfd)->pe_opthdr.DataDirectory[PE_IMPORT_TABLE].VirtualAddress);
+      else
+	{
+	  _bfd_error_handler
+	    (_("%B: unable to fill in DataDictionary[1] because .idata$4 is missing"), 
+	     abfd);
+	  result = FALSE;
+	}
 
       /* The import address table.  This is the size/address of
          .idata$5.  */
       h1 = coff_link_hash_lookup (coff_hash_table (info),
 				  ".idata$5", FALSE, FALSE, TRUE);
-      pe_data (abfd)->pe_opthdr.DataDirectory[12].VirtualAddress =
-	(h1->root.u.def.value
-	 + h1->root.u.def.section->output_section->vma
-	 + h1->root.u.def.section->output_offset);
+      if (h1 != NULL
+	  && h1->root.u.def.section != NULL
+	  && h1->root.u.def.section->output_section != NULL)
+	pe_data (abfd)->pe_opthdr.DataDirectory[PE_IMPORT_ADDRESS_TABLE].VirtualAddress =
+	  (h1->root.u.def.value
+	   + h1->root.u.def.section->output_section->vma
+	   + h1->root.u.def.section->output_offset);
+      else
+	{
+	  _bfd_error_handler
+	    (_("%B: unable to fill in DataDictionary[12] because .idata$5 is missing"), 
+	     abfd);
+	  result = FALSE;
+	}
+
       h1 = coff_link_hash_lookup (coff_hash_table (info),
 				  ".idata$6", FALSE, FALSE, TRUE);
-      pe_data (abfd)->pe_opthdr.DataDirectory[12].Size =
-	((h1->root.u.def.value
-	  + h1->root.u.def.section->output_section->vma
-	  + h1->root.u.def.section->output_offset)
-	 - pe_data (abfd)->pe_opthdr.DataDirectory[12].VirtualAddress);      
+      if (h1 != NULL
+	  && h1->root.u.def.section != NULL
+	  && h1->root.u.def.section->output_section != NULL)
+	pe_data (abfd)->pe_opthdr.DataDirectory[PE_IMPORT_ADDRESS_TABLE].Size =
+	  ((h1->root.u.def.value
+	    + h1->root.u.def.section->output_section->vma
+	    + h1->root.u.def.section->output_offset)
+	   - pe_data (abfd)->pe_opthdr.DataDirectory[PE_IMPORT_ADDRESS_TABLE].VirtualAddress);      
+      else
+	{
+	  _bfd_error_handler
+	    (_("%B: unable to fill in DataDictionary[PE_IMPORT_ADDRESS_TABLE (12)] because .idata$6 is missing"), 
+	     abfd);
+	  result = FALSE;
+	}
     }
 
   h1 = coff_link_hash_lookup (coff_hash_table (info),
 			      "__tls_used", FALSE, FALSE, TRUE);
   if (h1 != NULL)
     {
-      pe_data (abfd)->pe_opthdr.DataDirectory[9].VirtualAddress =
-	(h1->root.u.def.value
-	 + h1->root.u.def.section->output_section->vma
-	 + h1->root.u.def.section->output_offset
-	 - pe_data (abfd)->pe_opthdr.ImageBase);
-      pe_data (abfd)->pe_opthdr.DataDirectory[9].Size = 0x18;
+      if (h1->root.u.def.section != NULL
+	  && h1->root.u.def.section->output_section != NULL)
+	pe_data (abfd)->pe_opthdr.DataDirectory[PE_TLS_TABLE].VirtualAddress =
+	  (h1->root.u.def.value
+	   + h1->root.u.def.section->output_section->vma
+	   + h1->root.u.def.section->output_offset
+	   - pe_data (abfd)->pe_opthdr.ImageBase);
+      else
+	{
+	  _bfd_error_handler
+	    (_("%B: unable to fill in DataDictionary[9] because __tls_used is missing"), 
+	     abfd);
+	  result = FALSE;
+	}
+
+      pe_data (abfd)->pe_opthdr.DataDirectory[PE_TLS_TABLE].Size = 0x18;
     }
 
   /* If we couldn't find idata$2, we either have an excessively
      trivial program or are in DEEP trouble; we have to assume trivial
      program....  */
-  return TRUE;
+  return result;
 }

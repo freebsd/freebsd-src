@@ -1,5 +1,6 @@
 /* IQ2000-specific support for 32-bit ELF.
-   Copyright (C) 2003, 2004, 2005 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004, 2005, 2006, 2007
+   Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -17,8 +18,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
 #include "elf/iq2000.h"
@@ -349,6 +350,26 @@ iq2000_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
   return NULL;
 }
 
+static reloc_howto_type *
+iq2000_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED, const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < (sizeof (iq2000_elf_howto_table)
+	    / sizeof (iq2000_elf_howto_table[0]));
+       i++)
+    if (iq2000_elf_howto_table[i].name != NULL
+	&& strcasecmp (iq2000_elf_howto_table[i].name, r_name) == 0)
+      return &iq2000_elf_howto_table[i];
+
+  if (strcasecmp (iq2000_elf_vtinherit_howto.name, r_name) == 0)
+    return &iq2000_elf_vtinherit_howto;
+  if (strcasecmp (iq2000_elf_vtentry_howto.name, r_name) == 0)
+    return &iq2000_elf_vtentry_howto;
+
+  return NULL;
+}
 
 /* Perform a single relocation.	 By default we use the standard BFD
    routines.  */
@@ -452,9 +473,9 @@ iq2000_elf_check_relocs (bfd *abfd,
 
 	case R_IQ2000_32:
 	  /* For debug section, change to special harvard-aware relocations.  */
-	  if (memcmp (sec->name, ".debug", 6) == 0
-	      || memcmp (sec->name, ".stab", 5) == 0
-	      || memcmp (sec->name, ".eh_frame", 9) == 0)
+	  if (CONST_STRNEQ (sec->name, ".debug")
+	      || CONST_STRNEQ (sec->name, ".stab")
+	      || CONST_STRNEQ (sec->name, ".eh_frame"))
 	    {
 	      ((Elf_Internal_Rela *) rel)->r_info
 		= ELF32_R_INFO (ELF32_R_SYM (rel->r_info), R_IQ2000_32_DEBUG);
@@ -521,9 +542,6 @@ iq2000_elf_relocate_section (bfd *		     output_bfd ATTRIBUTE_UNUSED,
   Elf_Internal_Rela *		rel;
   Elf_Internal_Rela *		relend;
 
-  if (info->relocatable)
-    return TRUE;
-
   symtab_hdr = & elf_tdata (input_bfd)->symtab_hdr;
   sym_hashes = elf_sym_hashes (input_bfd);
   relend     = relocs + input_section->reloc_count;
@@ -548,7 +566,6 @@ iq2000_elf_relocate_section (bfd *		     output_bfd ATTRIBUTE_UNUSED,
       
       r_symndx = ELF32_R_SYM (rel->r_info);
 
-      /* This is a final link.	*/
       howto  = iq2000_elf_howto_table + ELF32_R_TYPE (rel->r_info);
       h	     = NULL;
       sym    = NULL;
@@ -578,6 +595,20 @@ iq2000_elf_relocate_section (bfd *		     output_bfd ATTRIBUTE_UNUSED,
 
 	  name = h->root.root.string;
 	}
+
+      if (sec != NULL && elf_discarded_section (sec))
+	{
+	  /* For relocs against symbols from removed linkonce sections,
+	     or sections discarded by a linker script, we just want the
+	     section contents zeroed.  Avoid any special processing.  */
+	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
+	  rel->r_info = 0;
+	  rel->r_addend = 0;
+	  continue;
+	}
+
+      if (info->relocatable)
+	continue;
 
       switch (r_type)
 	{
@@ -642,53 +673,25 @@ iq2000_elf_relocate_section (bfd *		     output_bfd ATTRIBUTE_UNUSED,
 }
 
 
-/* Update the got entry reference counts for the section being
-   removed.  */
-
-static bfd_boolean
-iq2000_elf_gc_sweep_hook (bfd *		            abfd ATTRIBUTE_UNUSED,
-			  struct bfd_link_info *    info ATTRIBUTE_UNUSED,
-			  asection *		    sec ATTRIBUTE_UNUSED,
-			  const Elf_Internal_Rela * relocs ATTRIBUTE_UNUSED)
-{
-  return TRUE;
-}
-
 /* Return the section that should be marked against GC for a given
    relocation.	*/
 
 static asection *
-iq2000_elf_gc_mark_hook (asection *		      sec,
-			 struct bfd_link_info *	      info ATTRIBUTE_UNUSED,
-			 Elf_Internal_Rela *	      rel,
-			 struct elf_link_hash_entry * h,
-			 Elf_Internal_Sym *	      sym)
+iq2000_elf_gc_mark_hook (asection *sec,
+			 struct bfd_link_info *info,
+			 Elf_Internal_Rela *rel,
+			 struct elf_link_hash_entry *h,
+			 Elf_Internal_Sym *sym)
 {
-  if (h == NULL)
-    return bfd_section_from_elf_index (sec->owner, sym->st_shndx);
+  if (h != NULL)
+    switch (ELF32_R_TYPE (rel->r_info))
+      {
+      case R_IQ2000_GNU_VTINHERIT:
+      case R_IQ2000_GNU_VTENTRY:
+	return NULL;
+      }
 
-  switch (ELF32_R_TYPE (rel->r_info))
-    {
-    case R_IQ2000_GNU_VTINHERIT:
-    case R_IQ2000_GNU_VTENTRY:
-      break;
-	  
-    default:
-      switch (h->root.type)
-	{
-	case bfd_link_hash_defined:
-	case bfd_link_hash_defweak:
-	  return h->root.u.def.section;
-	      
-	case bfd_link_hash_common:
-	  return h->root.u.c.p->section;
-	      
-	default:
-	  break;
-	}
-    }
-
-  return NULL;
+  return _bfd_elf_gc_mark_hook (sec, info, rel, h, sym);
 }
 
 
@@ -733,6 +736,10 @@ iq2000_elf_copy_private_bfd_data (bfd *ibfd, bfd *obfd)
 
   elf_elfheader (obfd)->e_flags = elf_elfheader (ibfd)->e_flags;
   elf_flags_init (obfd) = TRUE;
+
+  /* Copy object attributes.  */
+  _bfd_elf_copy_obj_attributes (ibfd, obfd);
+
   return TRUE;
 }
 
@@ -874,7 +881,6 @@ iq2000_elf_object_p (bfd *abfd)
 #define elf_info_to_howto			iq2000_info_to_howto_rela
 #define elf_backend_relocate_section		iq2000_elf_relocate_section
 #define elf_backend_gc_mark_hook		iq2000_elf_gc_mark_hook
-#define elf_backend_gc_sweep_hook		iq2000_elf_gc_sweep_hook
 #define elf_backend_check_relocs		iq2000_elf_check_relocs
 #define elf_backend_object_p			iq2000_elf_object_p
 #define elf_backend_rela_normal			1
@@ -882,6 +888,7 @@ iq2000_elf_object_p (bfd *abfd)
 #define elf_backend_can_gc_sections		1
 
 #define bfd_elf32_bfd_reloc_type_lookup		iq2000_reloc_type_lookup
+#define bfd_elf32_bfd_reloc_name_lookup	iq2000_reloc_name_lookup
 #define bfd_elf32_bfd_set_private_flags		iq2000_elf_set_private_flags
 #define bfd_elf32_bfd_copy_private_bfd_data	iq2000_elf_copy_private_bfd_data
 #define bfd_elf32_bfd_merge_private_bfd_data	iq2000_elf_merge_private_bfd_data

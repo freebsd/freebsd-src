@@ -1,6 +1,6 @@
 /* A.out "format 1" file handling code for BFD.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000,
-   2001, 2002, 2003, 2004, 2005, 2006
+   2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 
 #include "aout/sun4.h"
@@ -566,6 +566,7 @@ sunos4_core_file_p (bfd *abfd)
       struct internal_sunos_core internal_sunos_core;
       char external_core[1];
     } *mergem;
+  flagword flags;
 
   if (bfd_bread ((void *) longbuf, (bfd_size_type) sizeof (longbuf), abfd)
       != sizeof (longbuf))
@@ -627,27 +628,30 @@ sunos4_core_file_p (bfd *abfd)
   abfd->tdata.sun_core_data->hdr = core;
 
   /* Create the sections.  */
-  core_stacksec (abfd) = bfd_make_section_anyway (abfd, ".stack");
+  flags = SEC_ALLOC + SEC_LOAD + SEC_HAS_CONTENTS;
+  core_stacksec (abfd) = bfd_make_section_anyway_with_flags (abfd, ".stack",
+							     flags);
   if (core_stacksec (abfd) == NULL)
     /* bfd_release frees everything allocated after it's arg.  */
     goto loser;
 
-  core_datasec (abfd) = bfd_make_section_anyway (abfd, ".data");
+  flags = SEC_ALLOC + SEC_LOAD + SEC_HAS_CONTENTS;
+  core_datasec (abfd) = bfd_make_section_anyway_with_flags (abfd, ".data",
+							    flags);
   if (core_datasec (abfd) == NULL)
     goto loser;
 
-  core_regsec (abfd) = bfd_make_section_anyway (abfd, ".reg");
+  flags = SEC_HAS_CONTENTS;
+  core_regsec (abfd) = bfd_make_section_anyway_with_flags (abfd, ".reg",
+							   flags);
   if (core_regsec (abfd) == NULL)
     goto loser;
 
-  core_reg2sec (abfd) = bfd_make_section_anyway (abfd, ".reg2");
+  flags = SEC_HAS_CONTENTS;
+  core_reg2sec (abfd) = bfd_make_section_anyway_with_flags (abfd, ".reg2",
+							    flags);
   if (core_reg2sec (abfd) == NULL)
     goto loser;
-
-  core_stacksec (abfd)->flags = SEC_ALLOC + SEC_LOAD + SEC_HAS_CONTENTS;
-  core_datasec (abfd)->flags = SEC_ALLOC + SEC_LOAD + SEC_HAS_CONTENTS;
-  core_regsec (abfd)->flags = SEC_HAS_CONTENTS;
-  core_reg2sec (abfd)->flags = SEC_HAS_CONTENTS;
 
   core_stacksec (abfd)->size = core->c_ssize;
   core_datasec (abfd)->size = core->c_dsize;

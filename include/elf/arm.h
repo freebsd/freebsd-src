@@ -84,6 +84,19 @@
 #define PF_ARM_PI          0x20000000   /* Segment is position-independent.  */
 #define PF_ARM_ABS         0x40000000   /* Segment must be loaded at its base address.  */
 
+/* Values for the Tag_CPU_arch EABI attribute.  */
+#define TAG_CPU_ARCH_PRE_V4    0
+#define TAG_CPU_ARCH_V4                1
+#define TAG_CPU_ARCH_V4T       2
+#define TAG_CPU_ARCH_V5T       3
+#define TAG_CPU_ARCH_V5TE      4
+#define TAG_CPU_ARCH_V5TEJ     5
+#define TAG_CPU_ARCH_V6                6
+#define TAG_CPU_ARCH_V6KZ      7
+#define TAG_CPU_ARCH_V6T2      8
+#define TAG_CPU_ARCH_V6K       9
+#define TAG_CPU_ARCH_V7                10
+
 /* Relocation types.  */
 
 START_RELOC_NUMBERS (elf_arm_reloc_type)
@@ -169,9 +182,9 @@ START_RELOC_NUMBERS (elf_arm_reloc_type)
   RELOC_NUMBER (R_ARM_LDRS_SB_G0,        78)
   RELOC_NUMBER (R_ARM_LDRS_SB_G1,        79)
   RELOC_NUMBER (R_ARM_LDRS_SB_G2,        80)
-  RELOC_NUMBER (R_ARM_LDC_G0,            81)
-  RELOC_NUMBER (R_ARM_LDC_G1,            82)
-  RELOC_NUMBER (R_ARM_LDC_G2,            83)
+  RELOC_NUMBER (R_ARM_LDC_SB_G0,         81)
+  RELOC_NUMBER (R_ARM_LDC_SB_G1,         82)
+  RELOC_NUMBER (R_ARM_LDC_SB_G2,         83)
   RELOC_NUMBER (R_ARM_MOVW_BREL_NC,    	 84)
   RELOC_NUMBER (R_ARM_MOVT_BREL,       	 85)
   RELOC_NUMBER (R_ARM_MOVW_BREL,       	 86)
@@ -221,26 +234,15 @@ START_RELOC_NUMBERS (elf_arm_reloc_type)
   FAKE_RELOC (R_ARM_GOT32,              R_ARM_GOT_BREL)   /* 32 bit GOT entry.  */
   FAKE_RELOC (R_ARM_ROSEGREL32,         R_ARM_SBREL31)    /* ??? */
   FAKE_RELOC (R_ARM_AMP_VCALL9,         R_ARM_BREL_ADJ)   /* Thumb-something.  Not used.  */
-  FAKE_RELOC (R_ARM_PC13,               R_ARM_LDR_PC_G0)  /* Unclear whether meaning is different.  */
 END_RELOC_NUMBERS (R_ARM_max)
 
 #ifdef BFD_ARCH_SIZE
-/* Routines for manipulating EABI object attributes.  */
-void elf32_arm_add_eabi_attr_int (bfd *, int, unsigned int);
-void elf32_arm_add_eabi_attr_string (bfd *, int, const char *);
-void elf32_arm_add_eabi_attr_compat (bfd *, unsigned int, const char *);
-int elf32_arm_get_eabi_attr_int (bfd *, int);
-
-void elf32_arm_set_eabi_attr_contents (bfd *, bfd_byte *, bfd_vma);
-bfd_vma elf32_arm_eabi_attr_size (bfd *);
+/* EABI object attributes.  */
 
 enum
 {
-  Tag_NULL,
-  Tag_File,
-  Tag_Section,
-  Tag_Symbol,
-  Tag_CPU_raw_name,
+  /* 0-3 are generic.  */
+  Tag_CPU_raw_name = 4,
   Tag_CPU_name,
   Tag_CPU_arch,
   Tag_CPU_arch_profile,
@@ -268,7 +270,7 @@ enum
   Tag_ABI_WMMX_args,
   Tag_ABI_optimization_goals,
   Tag_ABI_FP_optimization_goals,
-  Tag_compatibility,
+  /* 32 is generic.  */
 };
 
 #endif

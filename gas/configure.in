@@ -23,13 +23,14 @@ AM_INIT_AUTOMAKE(gas, ${BFD_VERSION})
 AM_PROG_LIBTOOL
 
 AC_ARG_ENABLE(targets,
-[   --enable-targets       alternative target configurations besides the primary],
+[  --enable-targets        alternative target configurations besides the primary],
 [case "${enableval}" in
   yes | "") AC_ERROR(enable-targets option must specify target names or 'all')
 	    ;;
   no)	    enable_targets= ;;
   *)	    enable_targets=$enableval ;;
 esac])dnl
+
 AC_ARG_ENABLE(commonbfdlib,
 [  --enable-commonbfdlib   build shared BFD/opcodes/libiberty library],
 [case "${enableval}" in
@@ -37,6 +38,20 @@ AC_ARG_ENABLE(commonbfdlib,
   no)  commonbfdlib=false ;;
   *)   AC_MSG_ERROR([bad value ${enableval} for BFD commonbfdlib option]) ;;
 esac])dnl
+
+ac_checking=yes
+if grep '^RELEASE=y' ${srcdir}/../bfd/Makefile.am >/dev/null 2>/dev/null ; then
+  ac_checking=
+fi
+AC_ARG_ENABLE(checking,
+[  --enable-checking       enable run-time checks],
+[case "${enableval}" in
+  no|none)  ac_checking= ;;
+  *)	    ac_checking=yes ;;
+esac])dnl
+if test x$ac_checking != x ; then
+  AC_DEFINE(ENABLE_CHECKING, 1, [Define if you want run-time sanity checks.])
+fi
 
 using_cgen=no
 
@@ -258,7 +273,7 @@ changequote([,])dnl
 
     # Do we need the opcodes library?
     case ${cpu_type} in
-      vax | i386 | tic30)
+      vax | tic30)
 	;;
 
       *)
@@ -304,18 +319,22 @@ changequote([,])dnl
 	esac
 	;;
 
+      mep)
+	using_cgen=yes
+	;;
+
       mips)
-	echo ${extra_objects} | grep -s "itbl-parse.o" 
+	echo ${extra_objects} | grep -s "itbl-parse.o"
 	if test $? -ne 0 ; then
 	  extra_objects="$extra_objects itbl-parse.o"
 	fi
 
-	echo ${extra_objects} | grep -s "itbl-lex.o" 
+	echo ${extra_objects} | grep -s "itbl-lex.o"
 	if test $? -ne 0 ; then
 	  extra_objects="$extra_objects itbl-lex.o"
 	fi
 
-	echo ${extra_objects} | grep -s "itbl-ops.o" 
+	echo ${extra_objects} | grep -s "itbl-ops.o"
 	if test $? -ne 0 ; then
 	  extra_objects="$extra_objects itbl-ops.o"
 	fi
@@ -417,6 +436,19 @@ if test ${all_targets} = "yes"; then
       ;;
     esac
   ;;
+  x86_64)
+    case ${obj_format} in
+    aout)
+      emulations="$emulations i386coff i386elf"
+      ;;
+    coff)
+      emulations="$emulations i386aout i386elf"
+    ;;
+    elf)
+      emulations="$emulations i386aout i386coff"
+      ;;
+    esac
+  ;;
   esac
 fi
 
@@ -424,8 +456,7 @@ fi
 # IEEE FP.  On those that don't support FP at all, usually IEEE
 # is emulated.
 case ${target_cpu} in
-  vax | tahoe )	atof=${target_cpu} ;;
-  pdp11)	atof=vax ;;
+  vax | pdp11 )	atof=vax ;;
   *)		atof=ieee ;;
 esac
 
@@ -462,6 +493,7 @@ case ${obj_format} in
       i386) AC_DEFINE(I386COFF, 1, [Using i386 COFF?]) ;;
       m68k) AC_DEFINE(M68KCOFF, 1, [Using m68k COFF?]) ;;
       m88k) AC_DEFINE(M88KCOFF, 1, [Using m88k COFF?]) ;;
+      x86_64) AC_DEFINE(I386COFF, 1, [Using i386 COFF?]) ;;
     esac
     ;;
 esac
@@ -511,7 +543,6 @@ if test `set . $formats ; shift ; echo $#` -gt 1 ; then
       ecoff)	AC_DEFINE(OBJ_MAYBE_ECOFF, 1,   [ECOFF support?])   ;;
       elf)	AC_DEFINE(OBJ_MAYBE_ELF, 1,     [ELF support?])     ;;
       generic)	AC_DEFINE(OBJ_MAYBE_GENERIC, 1, [generic support?]) ;;
-      ieee)	AC_DEFINE(OBJ_MAYBE_IEEE, 1,    [IEEE support?])    ;;
       som)	AC_DEFINE(OBJ_MAYBE_SOM, 1,     [SOM support?])     ;;
     esac
     extra_objects="$extra_objects obj-$fmt.o"
@@ -556,15 +587,7 @@ yes)
   ;;
 esac
 
-BFDLIB=../bfd/libbfd.la
-BFDVER_H=../bfd/bfdver.h
-ALL_OBJ_DEPS="$ALL_OBJ_DEPS"' ../bfd/bfd.h $(INCDIR)/symcat.h'
-
-AC_SUBST(BFDLIB)
 AC_SUBST(OPCODES_LIB)
-
-AC_SUBST(BFDVER_H)
-AC_SUBST(ALL_OBJ_DEPS)
 
 AC_DEFINE_UNQUOTED(TARGET_ALIAS,	"${target_alias}", [Target alias.])
 AC_DEFINE_UNQUOTED(TARGET_CANONICAL,	"${target}",       [Canonical target.])
@@ -578,9 +601,11 @@ AC_PROG_YACC
 AM_PROG_LEX
 
 ALL_LINGUAS="fr tr es rw"
-CY_GNU_GETTEXT
+ZW_GNU_GETTEXT_SISTER_DIR
+AM_PO_SUBDIRS
 
 AM_MAINTAINER_MODE
+AM_CONDITIONAL(GENINSRC_NEVER, false)
 AC_EXEEXT
 
 AC_CHECK_HEADERS(string.h stdlib.h memory.h strings.h unistd.h stdarg.h varargs.h errno.h sys/types.h)
@@ -609,7 +634,7 @@ AC_CHECK_FUNCS(sbrk)
 
 # do we need the math library?
 case "${need_libm}" in
-yes) 
+yes)
   AC_CHECK_LIBM
   AC_SUBST(LIBM)
   ;;
@@ -669,6 +694,8 @@ GAS_CHECK_DECL_NEEDED(strstr, f, char *(*f)(), $gas_test_headers)
 
 AC_CHECK_DECLS([vsnprintf])
 
+BFD_BINARY_FOPEN
+
 dnl Required for html and install-html targets.
 AC_SUBST(datarootdir)
 AC_SUBST(docdir)
@@ -691,9 +718,7 @@ AC_CONFIG_COMMANDS([default],
  echo '#include "itbl-'"${target_cpu_type}"'.h"' > itbl-cpu.h
  if test "x$cgen_cpu_prefix" != x ; then
    echo '#include "opcodes/'"${cgen_cpu_prefix}"'-desc.h"' > cgen-desc.h
- fi
-
- sed -e '/POTFILES =/r po/POTFILES' po/Makefile.in > po/Makefile],
+ fi],
 [target_cpu_type=${target_cpu_type}
  cgen_cpu_prefix=${cgen_cpu_prefix}
  obj_format=${obj_format}

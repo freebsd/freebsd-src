@@ -1,0 +1,63 @@
+# Test ALIGNOF in a linker script.
+# By Nathan Sidwell <nathan@codesourcery.com>
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+
+# Only ELF targets record section alignment.
+
+if ![is_elf_format] {
+    return
+}
+
+set testname "ALIGNOF"
+
+if ![ld_assemble $as $srcdir/$subdir/alignof.s tmpdir/alignof.o] {
+    unresolved $testname
+    return
+}
+
+if ![ld_simple_link $ld tmpdir/alignof "-T $srcdir/$subdir/alignof.t tmpdir/alignof.o"] {
+    fail $testname
+    return
+}
+
+if ![ld_nm $nm "" tmpdir/alignof] {
+    unresolved $testname
+    return
+}
+
+if {![info exists nm_output(alignof_text)] \
+     || ![info exists nm_output(alignof_data)]} {
+    send_log "bad output from nm\n"
+    verbose "bad output from nm"
+    fail $testname
+    return
+}
+
+if {$nm_output(alignof_text) != 64} {
+    send_log "alignof_text != 64\n"
+    verbose "alignof_text != 64"
+    fail $testname
+    return
+}
+
+if {$nm_output(alignof_data) != 16} {
+    send_log "alignof_data != 16\n"
+    verbose "alignof_data != 16"
+    fail $testname
+    return
+}
+
+pass $testname

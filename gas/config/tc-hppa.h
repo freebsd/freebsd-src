@@ -1,6 +1,6 @@
 /* tc-hppa.h -- Header file for the PA
    Copyright 1989, 1993, 1994, 1995, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004, 2005 Free Software Foundation, Inc.
+   2003, 2004, 2005, 2006 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -90,15 +90,14 @@
 #define ASEC_NULL (asection *)0
 
 /* pa_define_label gets used outside of tc-hppa.c via tc_frob_label.  */
-extern void pa_define_label PARAMS ((symbolS *));
-
-extern void parse_cons_expression_hppa PARAMS ((expressionS *));
-extern void cons_fix_new_hppa PARAMS ((fragS *, int, int, expressionS *));
-extern int hppa_force_relocation PARAMS ((struct fix *));
+extern void pa_define_label (symbolS *);
+extern void parse_cons_expression_hppa (expressionS *);
+extern void cons_fix_new_hppa (fragS *, int, int, expressionS *);
+extern int hppa_force_relocation (struct fix *);
 
 /* This gets called before writing the object file to make sure
    things like entry/exit and proc/procend pairs match.  */
-extern void pa_check_eof PARAMS ((void));
+extern void pa_check_eof (void);
 #define tc_frob_file pa_check_eof
 
 #define tc_frob_label(sym) pa_define_label (sym)
@@ -120,7 +119,7 @@ extern const char	hppa_symbol_chars[];
    When used in an instruction it will always follow a comma.  */
 #define TC_EOL_IN_INSN(PTR)	(*(PTR) == '!' && (PTR)[-1] == ',')
 
-int hppa_fix_adjustable PARAMS((struct fix *));
+int hppa_fix_adjustable (struct fix *);
 #define tc_fix_adjustable hppa_fix_adjustable
 
 #define EXTERN_FORCE_RELOC 1
@@ -170,17 +169,23 @@ int hppa_fix_adjustable PARAMS((struct fix *));
 
 #define tc_frob_symbol(sym,punt) \
   { \
-    if ((S_GET_SEGMENT (sym) == &bfd_und_section && ! symbol_used_p (sym) && \
-  	 ELF_ST_VISIBILITY (S_GET_OTHER (sym)) == STV_DEFAULT) \
+    if ((S_GET_SEGMENT (sym) == &bfd_und_section \
+         && ! symbol_used_p (sym) \
+         && ELF_ST_VISIBILITY (S_GET_OTHER (sym)) == STV_DEFAULT) \
 	|| (S_GET_SEGMENT (sym) == &bfd_abs_section \
 	    && ! S_IS_EXTERNAL (sym)) \
 	|| strcmp (S_GET_NAME (sym), "$global$") == 0 \
-	|| strcmp (S_GET_NAME (sym), "$PIC_pcrel$0") == 0) \
+	|| strcmp (S_GET_NAME (sym), "$PIC_pcrel$0") == 0 \
+	|| strcmp (S_GET_NAME (sym), "$tls_gdidx$") == 0 \
+	|| strcmp (S_GET_NAME (sym), "$tls_ldidx$") == 0 \
+	|| strcmp (S_GET_NAME (sym), "$tls_dtpoff$") == 0 \
+	|| strcmp (S_GET_NAME (sym), "$tls_ieoff$") == 0 \
+	|| strcmp (S_GET_NAME (sym), "$tls_leoff$") == 0) \
       punt = 1; \
   }
 
 #define elf_tc_final_processing	elf_hppa_final_processing
-void elf_hppa_final_processing PARAMS ((void));
+void elf_hppa_final_processing (void);
 
 #define DWARF2_LINE_MIN_INSN_LENGTH 4
 #endif /* OBJ_ELF */
@@ -191,10 +196,27 @@ void elf_hppa_final_processing PARAMS ((void));
    A silly fudge required for backwards compatibility.  */
 #define md_optimize_expr hppa_force_reg_syms_absolute
 
-int hppa_force_reg_syms_absolute
-  PARAMS ((expressionS *, operatorT, expressionS *));
+int hppa_force_reg_syms_absolute (expressionS *, operatorT, expressionS *);
 
 #define TC_FIX_TYPE PTR
 #define TC_INIT_FIX_DATA(FIX) ((FIX)->tc_fix_data = NULL)
+
+#ifdef OBJ_ELF
+#define TARGET_USE_CFIPOP 1
+
+#define tc_cfi_frame_initial_instructions hppa_cfi_frame_initial_instructions
+extern void hppa_cfi_frame_initial_instructions (void);
+
+#define tc_regname_to_dw2regnum hppa_regname_to_dw2regnum
+extern int hppa_regname_to_dw2regnum (char *regname);
+
+#define DWARF2_LINE_MIN_INSN_LENGTH 4
+#define DWARF2_DEFAULT_RETURN_COLUMN 2
+#if TARGET_ARCH_SIZE == 64
+#define DWARF2_CIE_DATA_ALIGNMENT -8
+#else
+#define DWARF2_CIE_DATA_ALIGNMENT -4
+#endif
+#endif
 
 #endif /* _TC_HPPA_H */

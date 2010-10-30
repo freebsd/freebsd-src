@@ -1,245 +1,3129 @@
-/* XC16X opcode support.  -*- C -*-
+; Infineon XC16X CPU description.  -*- Scheme -*-
+;
+; Copyright 2006 Free Software Foundation, Inc.
+;
+; Contributed by KPIT Cummins Infosystems Ltd.; developed under contract 
+; from Infineon Systems, GMBH , Germany.
+;
+; This file is part of the GNU Binutils.
+;
+; This program is free software; you can redistribute it and/or modify
+; it under the terms of the GNU General Public License as published by
+; the Free Software Foundation; either version 2 of the License, or
+; (at your option) any later version.
+;
+; This program is distributed in the hope that it will be useful,
+; but WITHOUT ANY WARRANTY; without even the implied warranty of
+; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+; GNU General Public License for more details.
+;
+; You should have received a copy of the GNU General Public License
+; along with this program; if not, write to the Free Software
+; Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
+; 02110-1301, USA.
 
-   Copyright 2006 Free Software Foundation, Inc.
+(include "simplify.inc")
 
-   Contributed by KPIT Cummins Infosystems Ltd.; developed under contract 
-   from Infineon Systems, GMBH , Germany.
+; define-arch appears first
 
-   This file is part of the GNU Binutils.
+(define-arch
+  (name xc16x) ; name of cpu family
+  (comment "Infineon XC16X")
+  (default-alignment aligned)
+  (insn-lsb0? #t)		
+  (machs xc16x)
+  (isas xc16x)
+)
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
+; Attributes.   
+; An attribute to describe which pipeline an insn runs in generally OS.
+(define-attr
+  (for insn)
+  (type enum)
+  (name PIPE)
+  (comment "parallel execution pipeline selection")
+  (values NONE OS)
+)
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+; Instruction set parameters.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
-   02110-1301, USA.  */
+(define-isa
+  (name xc16x)
+  (default-insn-bitsize 32)
+  (base-insn-bitsize 32)
+  (default-insn-word-bitsize 16)
+  (decode-assist (15 14 13 12))
+  ; The XC16X fetches 1 insn at a time.
+  (liw-insns 1)
+  (parallel-insns 1)
+)
+
+; Cpu family definitions.
+
+(define-cpu
+  ; cpu names must be distinct from the architecture name and machine names.
+  ; The "b" suffix stands for "base" and is the convention.
+  ; The "f" suffix stands for "family" and is the convention.
+  (name xc16xbf)
+  (comment "Infineon XC16X base family")
+  (endian little)
+  (insn-chunk-bitsize 32)
+  (word-bitsize 16)
+  (parallel-insns 1)
+)
+
+(define-mach
+  (name xc16x)
+  (comment "Infineon XC16X cpu")
+  (cpu xc16xbf)
+)
+
+; Model descriptions.
+
+(define-model
+  (name xc16x) (comment "XC16X") (attrs)
+  (mach xc16x)
+  
+  (pipeline p-mem "" () ((prefetch) (fetch) (decode) (address) (memory) (execute) (writeback)))
+  
+    ; `state' is a list of variables for recording model state
+    (state
+     ; bit mask of h-gr registers, =1 means value being loaded from memory
+     (h-gr UINT)
+    )
+  
+  (unit u-exec "Execution Unit" ()
+  	1 1 ; issue done
+  	() ; state
+  	((dr INT -1) (sr INT -1)) ; inputs
+  	((dr INT -1)) ; outputs
+  	() ; profile action (default)
+	)
+  (unit u-cmp "Compare Unit" ()
+  	1 1 ; issue done
+  	() ; state
+  	((src1 INT -1) (src2 INT -1)) ; inputs
+  	() ; outputs
+  	() ; profile action (default)
+	)
+  (unit u-cti "Jump & Call Unit" ()
+  	1 1 ; issue done
+  	() ; state
+  	((condbit) (sr INT -1)) ; inputs
+  	((pc)) ; outputs
+  	() ; profile action (default)
+	)
+  (unit u-mov "Data Movement Unit" ()
+  	1 1 ; issue done
+  	() ;state
+  	((dr INT -1) (sr INT -1)) ; inputs
+  	((dr INT -1)) ; output
+  	() ; profile action (default)
+  	)
+ ) 
+ 
+; Instruction fields.
+;
+; Attributes:
+; PCREL-ADDR: pc relative value (for reloc and disassembly purposes)
+; ABS-ADDR: absolute address (for reloc and disassembly purposes)
+; RELOC: there is a relocation associated with this field (experiment)
+
+(define-attr
+  (for ifield operand)
+  (type boolean)
+  (name RELOC)
+  (comment "there is a reloc associated with this field (experiment)")
+)
+
+(dnf f-op1       "op1"                 () 7  4)
+(dnf f-op2       "op2"                 () 3  4)
+(dnf f-condcode  "condcode"            () 7  4)  ;condition code required in other jmps and calls
+(dnf f-icondcode "indrct condcode"     () 15 4)  ;condition code required in other jmpi and calli
+(dnf f-rcond     "relative-cond"       () 7  4)  ;condition code required in JMPR 
+(dnf f-qcond     "qbit"                () 7  4)  ;used in enum of bset/bclear macro
+(dnf f-extccode  "extended condcode"   () 15 5)  ;condition code required in other jmpa and calla
+(dnf f-r0	 "r0"		       () 9  2)  ;required where 2 bit register used(only R0-R3)
+(dnf f-r1        "r1"                  () 15 4)
+(dnf f-r2        "r2"                  () 11 4)
+(dnf f-r3        "r3"                  () 12 4)
+(dnf f-r4        "r4"                  () 11 4)
+(dnf f-uimm2     "uimm2"               () 13 2)  ;used for immediate data,eg in ADD,MOV insns
+(dnf f-uimm3     "uimm3"               () 10 3)  ;used for immediate data,eg in ADD,SUB insns
+(dnf f-uimm4     "uimm4"               () 15 4)  ;used for immediate data,eg in MOV insns
+(dnf f-uimm7     "uimm7"               (PCREL-ADDR RELOC) 15 7)	;used in TRAP
+(dnf f-uimm8     "uimm8"               () 23 8)  ;used in immediate byte data,eg in ADDB,MOVB insns
+(dnf f-uimm16    "uimm16"              () 31 16) ;used for immediate word data
+(dnf f-memory    "memory"              () 31 16) ; used for memory operands 
+(dnf f-memgr8    "memory" 	       () 31 16) ; memory location of gr
+(dnf f-rel8      "rel8"                (PCREL-ADDR RELOC) 15 8)	;used in JMPR,CALLR
+(dnf f-relhi8    "relhi8"              (PCREL-ADDR RELOC) 23 8)	;used in JB,JBC,JNB,JNBS
+(dnf f-reg8      "reg8"                () 15 8)	;required where 8bit gp register used
+(dnf f-regmem8   "regmem8"             () 15 8) ;required where 8bit register used
+(dnf f-regoff8   "regoff8"             () 15 8)	;required for offset calc
+(dnf f-reghi8    "reghi8"              () 23 8)	;required where 8bit register number used
+(dnf f-regb8     "regb8"               () 15 8)	;required for byte registers RL0,RH0, till RL8,RH8
+(dnf f-seg8      "seg8"                () 15 8) ;used as segment number in JMPS,CALLS
+(dnf f-segnum8   "segnum8"             () 23 8) ;used in EXTS,EXTSR        
+(dnf f-mask8     "mask8"               () 23 8) ;used as mask in BFLDH,BFLDL insns
+(dnf f-pagenum   "page num"            () 25 10);used in EXTP,EXTPR
+(dnf f-datahi8   "datahi8"             () 31 8) ;used for filling with const data
+(dnf f-data8     "data8"               () 23 8) ;used for filling with const data
+(dnf f-offset16  "address offset16"    (ABS-ADDR RELOC) 31 16) ;used in JMPS,JMPA,CALLA,CALLS
+(dnf f-op-bit1   "gap of 1 bit"        () 11 1)	;used for filling with const data
+(dnf f-op-bit2   "gap of 2 bits"       () 11 2)	;used for filling with const data
+(dnf f-op-bit4   "gap of 4 bits"       () 11 4) ;used for filling with const data
+(dnf f-op-bit3   "gap of 3 bits"       () 10 3) ;used in CALLA, JMPA
+(dnf f-op-2bit   "gap of 2 bits"       () 10 2) ;used in CALLA
+(dnf f-op-bitone "gap of 1 bit "       () 10 1) ;used in JMPA
+(dnf f-op-onebit "gap of 1 bit "       () 9  1) ;used in JMPA
+(dnf f-op-1bit   "gap of 1 bit "       () 8  1) ;used in JMPA, CALLA
+(dnf f-op-lbit4  "gap of 4 bits"       () 15 4) ;used for filling with const data
+(dnf f-op-lbit2  "gap of 2 bits"       () 15 2) ;used for filling with const data
+(dnf f-op-bit8	 "gap of 8 bits"       () 31 8) ;used for filling with const data
+(dnf f-op-bit16	 "gap of 16 bits"      () 31 16) ;used for filling with const data
+(dnf f-qbit      "qbit"                () 7  4) ;used in bit field of bset/bclear
+(dnf f-qlobit    "qlobit"              () 31 4) ;used for filling with const data
+(dnf f-qhibit    "qhibit"              () 27 4) ;used for filling with const data
+(dnf f-qlobit2   "qlobit2"             () 27 2) ;used for filling with const data
+(dnf f-pof    "upof16"                 () 31 16) ; used for memory operands 
+
+; Enums.
+; insn-op1: bits 0-3
+(define-normal-insn-enum insn-op1 "insn format enums" () OP1_ f-op1
+  ("0" "1" "2" "3" "4" "5" "6" "7"
+   "8" "9" "10" "11" "12" "13" "14" "15")
+)
+
+; insn-op2: bits 4-7
+(define-normal-insn-enum insn-op2 "op2 enums" () OP2_ f-op2
+  ("0" "1" "2" "3" "4" "5" "6" "7"
+   "8" "9" "10" "11" "12" "13" "14" "15")
+)
+
+;/*for bclr/bset*/
+; insn-rcond: bits 0-3
+(define-normal-insn-enum insn-qcond "bit set/clear enums" () QBIT_ f-qcond
+  (("0" 0) ("1" 1) ("2" 2) ("3" 3) ("4" 4) ("5" 5) ("6" 6) ("7" 7) ("8" 8) ("9" 9) ("10" 10) 
+   ("11" 11) ("12" 12) ("13" 13) ("14" 14) ("15" 15))
+)
+;/************/
+; insn-rcond: bits 0-3
+(define-normal-insn-enum insn-rcond "relative jump condition code op2 enums" () COND_ f-rcond
+  (("UC" 0) ("NET" 1) ("Z" 2) ("NE_NZ" 3) ("V" 4)  ("NV" 5) ("N" 6) ("NN" 7)
+   ("C" 8) ("NC" 9) ("SGT" 10) ("SLE" 11) ("SLT" 12) ("SGE" 13) ("UGT" 14) ("ULE" 15)
+   ("EQ" 2) ("NE" 3) ("ULT" 8) ("UGE" 9))
+)
 
 
-/* This file is an addendum to xc16x.cpu.  Heavy use of C code isn't
-   appropriate in .cpu files, so it resides here.  This especially applies
-   to assembly/disassembly where parsing/printing can be quite involved.
-   Such things aren't really part of the specification of the cpu, per se,
-   so .cpu files provide the general framework and .opc files handle the
-   nitty-gritty details as necessary.
 
-   Each section is delimited with start and end markers.
+; Hardware pieces.
+; These entries list the elements of the raw hardware.
+; They're also used to provide tables and other elements of the assembly
+; language.
 
-   <arch>-opc.h additions use: "-- opc.h"
-   <arch>-opc.c additions use: "-- opc.c"
-   <arch>-asm.c additions use: "-- asm.c"
-   <arch>-dis.c additions use: "-- dis.c"
-   <arch>-ibd.h additions use: "-- ibd.h"  */
-
-/* -- opc.h */
+(dnh h-pc "program counter" (PC) (pc) () () ())
 
-#define CGEN_DIS_HASH_SIZE 8
-#define CGEN_DIS_HASH(buf,value) (((* (unsigned char*) (buf)) >> 3) % CGEN_DIS_HASH_SIZE)
+(define-keyword
+  (name gr-names)
+  (print-name h-gr)
+  (prefix "")
+  (values (r0 0) (r1 1) (r2 2) (r3 3) (r4 4) (r5 5) (r6 6) (r7 7)
+	  (r8 8) (r9 9) (r10 10) (r11 11) (r12 12) (r13 13) (r14 14) (r15 15))
 
-/* -- */
-
-/* -- opc.c */
-                                                                                
-/* -- */
-
-/* -- asm.c */
-/* Handle '#' prefixes (i.e. skip over them).  */
+)
+(define-hardware
+  (name h-gr)
+  (comment "general registers")
+  (attrs PROFILE CACHE-ADDR)
+  (type register HI (16))
+  (indices extern-keyword gr-names)
+)
 
-static const char *
-parse_hash (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
-	    const char **strp,
-	    int opindex ATTRIBUTE_UNUSED,
-	    long *valuep ATTRIBUTE_UNUSED)
-{
-  if (**strp == '#')
-    {
-      ++*strp;
-      return NULL;
-    }
-  return _("Missing '#' prefix");
-}
+(define-keyword
+  (name ext-names)
+  (print-name h-ext)
+  (prefix "")
+  (values (0x1 0) (0x2 1) (0x3 2) (0x4 3)
+          ("1" 0) ("2" 1) ("3" 2) ("4" 3))
 
-/* Handle '.' prefixes (i.e. skip over them).  */
+)
 
-static const char *
-parse_dot (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
-	   const char **strp,
-	   int opindex ATTRIBUTE_UNUSED,
-	   long *valuep ATTRIBUTE_UNUSED)
-{
-  if (**strp == '.')
-    {
-      ++*strp;
-      return NULL;
-    }
-  return _("Missing '.' prefix");
-}
+(define-hardware
+  (name h-ext)
+  (comment "ext values")
+  (attrs PROFILE CACHE-ADDR)
+  (type register HI (8))
+  (indices extern-keyword ext-names)
+)
 
-/* Handle 'pof:' prefixes (i.e. skip over them).  */
+(define-keyword
+  (name psw-names)
+  (print-name h-psw)
+  (prefix "")
+  (values ("IEN" 136) ("r0.11" 240) ("r1.11" 241) ("r2.11" 242) ("r3.11" 243) ("r4.11" 244)
+                      ("r5.11" 245) ("r6.11" 246) ("r7.11" 247) ("r8.11" 248)
+                      ("r9.11" 249) ("r10.11" 250) ("r11.11" 251) ("r12.11" 252)
+                      ("r13.11" 253) ("r14.11" 254) ("r15.11" 255))
+)
 
-static const char *
-parse_pof (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
-	   const char **strp,
-	   int opindex ATTRIBUTE_UNUSED,
-	   long *valuep ATTRIBUTE_UNUSED)
-{
-  if (strncasecmp (*strp, "pof:", 4) == 0)
-    {
-      *strp += 4;
-      return NULL;
-    }
-  return _("Missing 'pof:' prefix");  
-}
+(define-hardware
+  (name h-psw)
+  (comment "ext values")
+  (attrs PROFILE CACHE-ADDR)
+  (type register HI (1))
+  (indices extern-keyword psw-names)
+)
 
-/* Handle 'pag:' prefixes (i.e. skip over them).  */
+(define-keyword
+  (name grb-names)
+  (print-name h-grb)
+  (prefix "")
+  (values (rl0 0) (rh0 1) (rl1 2) (rh1 3) (rl2 4) (rh2 5) (rl3 6) (rh3 7) 
+          (rl4 8) (rh4 9) (rl5 10) (rh5 11) (rl6 12) (rh6 13) (rl7 14) (rh7 15))
+)
 
-static const char *
-parse_pag (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
-	   const char **strp,
-	   int opindex ATTRIBUTE_UNUSED,
-	   long *valuep ATTRIBUTE_UNUSED)
-{
-  if (strncasecmp (*strp, "pag:", 4) == 0)
-    {
-      *strp += 4;
-      return NULL;
-    }
-  return _("Missing 'pag:' prefix");
-}
+(define-hardware
+  (name h-grb)
+  (comment "general registers")
+  (attrs PROFILE CACHE-ADDR)
+  (type register QI (16))
+  (indices extern-keyword grb-names)
+)
 
-/* Handle 'sof' prefixes (i.e. skip over them).  */
+(define-keyword
+  (name conditioncode-names)
+  (print-name h-cc)
+  (prefix "")
+  (values (cc_UC 0) (cc_NET 1) (cc_Z 2) (cc_EQ 2) (cc_NZ 3) (cc_NE 3) (cc_V 4) (cc_NV 5) (cc_N 6)  (cc_NN 7) (cc_ULT 8)  (cc_UGE 9) 
+	  (cc_C 8) (cc_NC 9) (cc_SGT 10) (cc_SLE 11) (cc_SLT 12) (cc_SGE 13) (cc_UGT 14) 
+          (cc_ULE 15))
+)
+(define-hardware
+  (name h-cc)
+  (comment "condition codes")
+  (attrs PROFILE CACHE-ADDR)
+  (type register QI (16))
+  (indices extern-keyword conditioncode-names)
+)
 
-static const char *
-parse_sof (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
-	   const char **strp,
-	   int opindex ATTRIBUTE_UNUSED,
-	   long *valuep ATTRIBUTE_UNUSED)
-{
-  if (strncasecmp (*strp, "sof:", 4) == 0)
-    {
-      *strp += 4;
-      return NULL;
-    }
-  return _("Missing 'sof:' prefix");
-}
+(define-keyword
+  (name extconditioncode-names)
+  (print-name h-ecc)
+  (prefix "")
+  (values(cc_UC 0) (cc_NET 2) (cc_Z 4) (cc_EQ 4) (cc_NZ 6) (cc_NE 6) (cc_V 8) (cc_NV 10) (cc_N 12)  (cc_NN 14) (cc_ULT 16)  (cc_UGE 18) (cc_C 16) (cc_NC 18) (cc_SGT 20) 
+         (cc_SLE 22) (cc_SLT 24) (cc_SGE 26) (cc_UGT 28) (cc_ULE 30) (cc_nusr0 1) 
+         (cc_nusr1 3) (cc_usr0 5) (cc_usr1 7))
+)
+(define-hardware
+  (name h-ecc)
+  (comment "extended condition codes")
+  (attrs PROFILE CACHE-ADDR)
+  (type register QI (4))
+  (indices extern-keyword extconditioncode-names)
+)
 
-/* Handle 'seg' prefixes (i.e. skip over them).  */
+(define-keyword
+  (name grb8-names)
+  (print-name h-grb8)
+  (prefix "")
+  (values (dpp0 0)  (dpp1 1)  (dpp2 2)  (dpp3 3)
+	  (psw 136)   (cp 8)    (mdl 7)   (mdh  6)
+	  (mdc 135)   (sp 9)    (csp 4)  (vecseg 137)
+          (stkov 10)  (stkun 11) (cpucon1 12) (cpucon2 13)
+	  (zeros 142)  (ones 143) (spseg 134) (tfr 214)
+	  (rl0 240) (rh0 241) (rl1 242) (rh1 243) (rl2 244) (rh2 245) (rl3 246) (rh3 247)
+	  (rl4 248) (rh4 249) (rl5 250) (rh5 251) (rl6 252) (rh6 253) (rl7 254) (rh7 255))
+)
 
-static const char *
-parse_seg (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
-	   const char **strp,
-	   int opindex ATTRIBUTE_UNUSED,
-	   long *valuep ATTRIBUTE_UNUSED)
-{
-  if (strncasecmp (*strp, "seg:", 4) == 0)
-    {
-      *strp += 4;
-      return NULL;
-    }
-  return _("Missing 'seg:' prefix");
-}
-/* -- */
-
-/* -- dis.c */
+(define-hardware
+  (name h-grb8)
+  (comment "general byte registers")
+  (attrs PROFILE CACHE-ADDR)
+  (type register QI (36))
+  (indices extern-keyword grb8-names)
+)
 
-#define CGEN_PRINT_NORMAL(cd, info, value, attrs, pc, length)	\
-  do								\
-    {								\
-      if (CGEN_BOOL_ATTR ((attrs), CGEN_OPERAND_DOT_PREFIX))	\
-        info->fprintf_func (info->stream, ".");			\
-      if (CGEN_BOOL_ATTR ((attrs), CGEN_OPERAND_POF_PREFIX))	\
-        info->fprintf_func (info->stream, "#pof:");		\
-      if (CGEN_BOOL_ATTR ((attrs), CGEN_OPERAND_PAG_PREFIX))	\
-        info->fprintf_func (info->stream, "#pag:");		\
-    }								\
-  while (0)
+(define-keyword
+  (name r8-names)
+  (print-name h-r8)
+  (prefix "")
+  (values (dpp0 0)  (dpp1 1)  (dpp2 2)  (dpp3 3)
+	  (psw 136)   (cp 8)    (mdl 7)   (mdh  6)
+	  (mdc 135)   (sp 9)    (csp 4)  (vecseg 137)
+          (stkov 10)  (stkun 11) (cpucon1 12) (cpucon2 13)
+	  (zeros 142)  (ones 143) (spseg 134) (tfr 214)
+	  (r0 240) (r1 241) (r2 242) (r3 243) (r4 244) (r5 245) (r6 246) (r7 247)
+	  (r8 248) (r9 249) (r10 250) (r11 251) (r12 252) (r13 253) (r14 254) (r15 255))
+)
 
-/* Print a 'pof:' prefix to an operand.  */
+(define-hardware
+  (name h-r8)
+  (comment "registers")
+  (attrs PROFILE CACHE-ADDR)
+  (type register HI (36))
+  (indices extern-keyword r8-names)
+)
 
-static void
-print_pof (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
-	   void * dis_info ATTRIBUTE_UNUSED,
-	   long value ATTRIBUTE_UNUSED,
-	   unsigned int attrs ATTRIBUTE_UNUSED,
-	   bfd_vma pc ATTRIBUTE_UNUSED,
-	   int length ATTRIBUTE_UNUSED)
-{
-}
+(define-keyword
+  (name regmem8-names)
+  (print-name h-regmem8)
+  (prefix "")
+  (values (dpp0 0)  (dpp1 1)  (dpp2 2)  (dpp3 3)
+	  (psw 136)   (cp 8)    (mdl 7)   (mdh  6)
+	  (mdc 135)   (sp 9)    (csp 4)  (vecseg 137)
+          (stkov 10)  (stkun 11) (cpucon1 12) (cpucon2 13)
+	  (zeros 142)  (ones 143) (spseg 134) (tfr 214)
+	  (r0 240) (r1 241) (r2 242) (r3 243) (r4 244) (r5 245) (r6 246) (r7 247)
+	  (r8 248) (r9 249) (r10 250) (r11 251) (r12 252) (r13 253) (r14 254) (r15 255))
+)
 
-/* Print a 'pag:' prefix to an operand.  */
+(define-hardware
+  (name h-regmem8)
+  (comment "registers")
+  (attrs )
+  (type register HI (16))
+  (indices extern-keyword regmem8-names)
+)
 
-static void
-print_pag (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
-	   void * dis_info ATTRIBUTE_UNUSED,
-	   long value ATTRIBUTE_UNUSED,
-	   unsigned int attrs ATTRIBUTE_UNUSED,
-	   bfd_vma pc ATTRIBUTE_UNUSED,
-	   int length ATTRIBUTE_UNUSED)
-{
-}
+(define-keyword
+  (name regdiv8-names)
+  (print-name h-regdiv8)
+  (prefix "")
+  (values (r0 0) (r1 17) (r2 34) (r3 51) (r4 68) (r5 85) (r6 102) (r7 119)
+	  (r8 136) (r9 153) (r10 170) (r11 187) (r12 204) (r13 221) (r14 238) (r15 255))
+)
 
-/* Print a 'sof:' prefix to an operand.  */
+(define-hardware
+  (name h-regdiv8)
+  (comment "division insn registers")
+  (attrs PROFILE CACHE-ADDR)
+  (type register HI (16))
+  (indices extern-keyword regdiv8-names)
+)
 
-static void
-print_sof (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
-	   void * dis_info,
-	   long value ATTRIBUTE_UNUSED,
-	   unsigned int attrs ATTRIBUTE_UNUSED,
-	   bfd_vma pc ATTRIBUTE_UNUSED,
-	   int length ATTRIBUTE_UNUSED)
-{
-  disassemble_info *info = (disassemble_info *) dis_info;
+(define-keyword
+  (name reg0-name)
+  (print-name h-reg0)
+  (prefix "")
+  (values (0x1 1) (0x2 2) (0x3 3) (0x4 4) (0x5 5) (0x6 6) (0x7 7) (0x8 8) (0x9 9) (0xa 10) (0xb 11) 
+          (0xc 12) (0xd 13) (0xe 14) (0xf 15)
+          ("1" 1) ("2" 2) ("3" 3) ("4" 4) ("5" 5) ("6" 6) ("7" 7) ("8" 8) ("9" 9) ("10" 10) ("11" 11) 
+          ("12" 12) ("13" 13) ("14" 14) ("15" 15))
+)
 
-  info->fprintf_func (info->stream, "sof:");
-}
+(define-hardware
+  (name h-r0)
+  (comment "for 4-bit data excuding 0")
+  (attrs PROFILE CACHE-ADDR)
+  (type register HI (30))
+  (indices extern-keyword reg0-name)
+)
 
-/* Print a 'seg:' prefix to an operand.  */
+(define-keyword
+  (name reg0-name1)
+  (print-name h-reg01)
+  (prefix "")
+  (values (0x1 1) (0x2 2) (0x3 3) (0x4 4) (0x5 5) (0x6 6) (0x7 7)
+          ("1" 1) ("2" 2) ("3" 3) ("4" 4) ("5" 5) ("6" 6) ("7" 7))
+)
 
-static void
-print_seg (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
-	   void * dis_info,
-	   long value ATTRIBUTE_UNUSED,
-	   unsigned int attrs ATTRIBUTE_UNUSED,
-	   bfd_vma pc ATTRIBUTE_UNUSED,
-	   int length ATTRIBUTE_UNUSED)
-{
-  disassemble_info *info = (disassemble_info *) dis_info;
+(define-hardware
+  (name h-r01)
+  (comment "for 4-bit data excuding 0")
+  (attrs PROFILE CACHE-ADDR)
+  (type register HI (14))
+  (indices extern-keyword reg0-name1)
+)
 
-  info->fprintf_func (info->stream, "seg:");
-}
+(define-keyword
+  (name regbmem8-names)
+  (print-name h-regbmem8)
+  (prefix "")
+  (values (dpp0 0)  (dpp1 1)  (dpp2 2)  (dpp3 3)
+	  (psw 136)   (cp 8)    (mdl 7)   (mdh  6)
+	  (mdc 135)   (sp 9)    (csp 4)  (vecseg 137)
+          (stkov 10)  (stkun 11) (cpucon1 12) (cpucon2 13)
+	  (zeros 142)  (ones 143) (spseg 134) (tfr 214)
+	  (rl0 240) (rh0 241) (rl1 242) (rh1 243) (rl2 244) (rh2 245) (rl3 246) (rh3 247)
+	  (rl4 248) (rh4 249) (rl5 250) (rh5 251) (rl6 252) (rh6 253) (rl7 254) (rh7 255))
+)
 
-/* Print a '#' prefix to an operand.  */
+(define-hardware
+  (name h-regbmem8)
+  (comment "registers")
+  (attrs PROFILE CACHE-ADDR)
+  (type register HI (36))
+  (indices extern-keyword regbmem8-names)
+)
 
-static void
-print_hash (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
-	    void * dis_info,
-	    long value ATTRIBUTE_UNUSED,
-	    unsigned int attrs ATTRIBUTE_UNUSED,
-	    bfd_vma pc ATTRIBUTE_UNUSED,
-	    int length ATTRIBUTE_UNUSED)
-{
-  disassemble_info *info = (disassemble_info *) dis_info;
+(define-keyword
+  (name memgr8-names)
+  (print-name h-memgr8)
+  (prefix "")
+  (values (dpp0 65024)  (dpp1 65026)  (dpp2 65028)  (dpp3 65030)
+	  (psw 65296)   (cp 65040)    (mdl 65038)   (mdh  65036)
+	  (mdc 65294)   (sp 65042)    (csp 65032)  (vecseg 65298)
+          (stkov 65044)  (stkun 65046) (cpucon1 65048) (cpucon2 65050)
+	  (zeros 65308)  (ones 65310) (spseg 65292) (tfr 65452) )
+)
 
-  info->fprintf_func (info->stream, "#");
-}
+(define-hardware
+  (name h-memgr8)
+  (comment "memory location of registers")
+  (attrs )
+  (type register HI (20))
+  (indices extern-keyword memgr8-names)
+)
 
-/* Print a '.' prefix to an operand.  */
+(dsh h-cond "condition bit" () (register BI))   ;any bit from PSW while comparison
+; This bit is part of the PSW register 
+(dsh h-cbit  "carry bit"		() (register BI))
 
-static void
-print_dot (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
-	   void * dis_info ATTRIBUTE_UNUSED,
-	   long value ATTRIBUTE_UNUSED,
-	   unsigned int attrs ATTRIBUTE_UNUSED,
-	   bfd_vma pc ATTRIBUTE_UNUSED,
-	   int length ATTRIBUTE_UNUSED)
-{
-}
+(dsh h-sgtdis "segmentation enable bit" () (register BI)) ;0 means segmentation enabled
 
-/* -- */
+;Instruction operands 
+; -- layer between the assembler and the raw hardware description 
+; -- the main means of manipulating instruction fields in the semantic code 
+
+; XC16X specific operand attributes:
+
+(define-attr
+  (for operand)
+  (type boolean)
+  (name HASH-PREFIX)
+  (comment "immediates have an optional '#' prefix")
+)
+
+(define-attr
+  (for operand)
+  (type boolean)
+  (name DOT-PREFIX)
+  (comment "bit addr have an optional '.' prefix")
+)
+
+(define-attr
+  (for operand)
+  (type boolean)
+  (name POF-PREFIX)
+  (comment "page offset ")
+)
+
+(define-attr
+  (for operand)
+  (type boolean)
+  (name PAG-PREFIX)
+  (comment "page ")
+)
+
+(define-attr
+  (for operand)
+  (type boolean)
+  (name SOF-PREFIX)
+  (comment "segment offset selection")
+)
+
+(define-attr
+  (for operand)
+  (type boolean)
+  (name SEG-PREFIX)
+  (comment "segment")
+)
+
+(dnop sr      "source register"              () h-gr    f-r2)
+(dnop dr      "destination register"         () h-gr    f-r1)
+(dnop dri     "destination register"         () h-gr    f-r4)
+(dnop srb     "source register"              () h-grb   f-r2)
+(dnop drb     "destination register"         () h-grb   f-r1)
+(dnop sr2     "2 bit source register"	     () h-gr    f-r0)
+(dnop src1    "source register 1"            () h-gr   f-r1)
+(dnop src2    "source register 2"            () h-gr   f-r2)
+(dnop srdiv   "source register 2"            () h-regdiv8   f-reg8)
+(dnop RegNam  "PSW bits"                     () h-psw f-reg8) 
+(dnop uimm2   "2 bit unsigned number"        (HASH-PREFIX) h-ext f-uimm2) 
+(dnop uimm3   "3 bit unsigned number"        (HASH-PREFIX) h-r01 f-uimm3)
+(dnop uimm4   "4 bit unsigned number"        (HASH-PREFIX) h-uint f-uimm4)
+(dnop uimm7   "7 bit trap number"            (HASH-PREFIX) h-uint f-uimm7)
+(dnop uimm8   "8 bit unsigned immediate"     (HASH-PREFIX) h-uint f-uimm8)
+(dnop uimm16  "16 bit unsigned immediate"    (HASH-PREFIX) h-uint f-uimm16)
+(dnop upof16  "16 bit unsigned immediate"    (POF-PREFIX) h-addr f-memory)
+(dnop reg8    "8 bit word register number"   () h-r8 f-reg8)
+(dnop regmem8 "8 bit word register number"   () h-regmem8 f-regmem8)
+(dnop regbmem8 "8 bit byte register number"  () h-regbmem8 f-regmem8)
+(dnop regoff8 "8 bit word register number"   () h-r8 f-regoff8)
+(dnop reghi8  "8 bit word register number"   () h-r8 f-reghi8)
+(dnop regb8   "8 bit byte register number"   () h-grb8 f-regb8)
+(dnop genreg  "8 bit word register number"   () h-r8 f-regb8)
+(dnop seg     "8 bit segment number"         () h-uint f-seg8)
+(dnop seghi8  "8 bit hi segment number"      () h-uint f-segnum8)
+(dnop caddr   "16 bit address offset"        () h-addr f-offset16)
+(dnop rel     "8 bit signed relative offset" () h-sint f-rel8)
+(dnop relhi   "hi 8 bit signed relative offset" () h-sint f-relhi8)	
+(dnop condbit "condition bit"                (SEM-ONLY) h-cond f-nil)
+(dnop bit1    "gap of 1 bit"    	     () h-uint f-op-bit1)
+(dnop bit2    "gap of 2 bits"	             () h-uint f-op-bit2)
+(dnop bit4    "gap of 4 bits"                () h-uint f-op-bit4)
+(dnop lbit4   "gap of 4 bits"                () h-uint f-op-lbit4)
+(dnop lbit2   "gap of 2 bits"                () h-uint f-op-lbit2)
+(dnop bit8    "gap of 8 bits"	             () h-uint f-op-bit8)
+(dnop u4      "gap of 4 bits"	             () h-r0   f-uimm4)
+(dnop bitone  "field of 1 bit"	             () h-uint f-op-onebit)
+(dnop bit01   "field of 1 bit"	             () h-uint f-op-1bit)
+(dnop cond    "condition code" 	             () h-cc   f-condcode)
+(dnop icond   "indirect condition code"      () h-cc   f-icondcode)
+(dnop extcond "extended condition code"      () h-ecc  f-extccode)
+(dnop memory  "16 bit memory" 		     () h-addr f-memory)
+(dnop memgr8  "16 bit memory"		     () h-memgr8 f-memgr8)
+(dnop cbit    "carry bit"                    (SEM-ONLY) h-cbit  f-nil)
+(dnop qbit    "bit addr"               	     (DOT-PREFIX) h-uint  f-qbit)
+(dnop qlobit  "bit addr"                     (DOT-PREFIX) h-uint  f-qlobit)
+(dnop qhibit  "bit addr"                     (DOT-PREFIX) h-uint  f-qhibit)
+(dnop mask8   "8 bit mask"     		     (HASH-PREFIX) h-uint f-mask8)
+(dnop masklo8 "8 bit mask"     		     (HASH-PREFIX) h-uint f-datahi8)
+(dnop pagenum "10 bit page number"     	     (HASH-PREFIX) h-uint f-pagenum)
+(dnop data8   "8 bit data"     		     (HASH-PREFIX) h-uint f-data8)
+(dnop datahi8 "8 bit data"     	             (HASH-PREFIX) h-uint f-datahi8)
+(dnop sgtdisbit "segmentation enable bit"    (SEM-ONLY) h-sgtdis f-nil)
+(dnop upag16  "16 bit unsigned immediate"    (PAG-PREFIX) h-uint f-uimm16)
+(dnop useg8   "8 bit segment "    	     (SEG-PREFIX) h-uint f-seg8)
+(dnop useg16  "16 bit address offset"        (SEG-PREFIX) h-uint f-offset16)
+(dnop usof16  "16 bit address offset"        (SOF-PREFIX) h-uint f-offset16)
+
+; define hash operator
+(define-operand (name hash) (comment "# prefix") (attrs)
+  (type h-sint)  
+  (index f-nil)
+  (handlers (parse "hash") (print "hash"))
+)
+
+; define dot operator
+(define-operand (name dot) (comment ". prefix") (attrs)
+  (type h-sint)  
+  (index f-nil)
+  (handlers (parse "dot") (print "dot"))
+)
+
+; define pof operator
+(define-operand (name pof) (comment "pof: prefix") (attrs)
+  (type h-sint)  
+  (index f-nil)
+  (handlers (parse "pof") (print "pof"))
+)
+
+; define pag operator
+(define-operand (name pag) (comment "pag: prefix") (attrs)
+  (type h-sint)
+  (index f-nil)
+  (handlers (parse "pag") (print "pag"))
+)
+
+; define sof operator
+(define-operand (name sof) (comment "sof: prefix") (attrs)
+  (type h-sint)  
+  (index f-nil)
+  (handlers (parse "sof") (print "sof"))
+)
+
+; define seg operator
+(define-operand (name segm) (comment "seg: prefix") (attrs)
+  (type h-sint)
+  (index f-nil)
+  (handlers (parse "seg") (print "seg"))
+)
+
+; IDOC attribute for instruction documentation.
+(define-attr
+  (for insn)
+  (type enum)
+  (name IDOC)
+  (comment "insn kind for documentation")
+  (attrs META)
+  (values
+   (MOVE - () "Data Movement")
+   (ALU  - () "Arithmatic & logical")
+   (CMP  - () "Compare")
+   (JMP  - () "Jump & Call")
+   (MISC - () "Miscellaneous")
+   (SYSC - () "System control")
+  )
+)
+
+; Include the instruction set descriptions from their respective
+; source files.
+
+;Arithmatic insns
+;******************************************************************
+
+;add/sub register and immediate
+(define-pmacro (arithmetic16 name insn insn1 opc1 opc2 op1 op2 mode dir)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$"dir"$"op2)
+       (+ opc1 opc2 op1 op2)
+       (set mode op1 (insn1 mode op1 (mem HI op2)))
+       ()
+  )
+)
+(arithmetic16 addrpof add add OP1_0 OP2_2 reg8 upof16 HI "pof")
+(arithmetic16 subrpof sub sub OP1_2 OP2_2 reg8 upof16 HI "pof")
+(arithmetic16 addbrpof addb add OP1_0 OP2_3 regb8 upof16 QI "pof")
+(arithmetic16 subbrpof subb sub OP1_2 OP2_3 regb8 upof16 QI "pof")
+(arithmetic16 addrpag add add OP1_0 OP2_2 reg8 upag16 HI "pag")
+(arithmetic16 subrpag sub sub OP1_2 OP2_2 reg8 upag16 HI "pag")
+(arithmetic16 addbrpag addb add OP1_0 OP2_3 regb8 upag16 QI "pag")
+(arithmetic16 subbrpag subb sub OP1_2 OP2_3 regb8 upag16 QI "pag")
+
+;add/sub register and immediate
+(define-pmacro (arithmetic17 name insn insn1 opc1 opc2 op1 op2 mode dir)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$"dir"$"op2)
+       (+ opc1 opc2 op1 op2)
+       (set mode op1 (insn1 mode op1 (mem HI op2) cbit))
+       ()
+  )
+)
+(arithmetic17 addcrpof addc addc OP1_1 OP2_2 reg8 upof16 HI "pof")
+(arithmetic17 subcrpof subc subc OP1_3 OP2_2 reg8 upof16 HI "pof")
+(arithmetic17 addcbrpof addcb addc OP1_1 OP2_3 regb8 upof16 QI "pof")
+(arithmetic17 subcbrpof subcb subc OP1_3 OP2_3 regb8 upof16 QI "pof")
+(arithmetic17 addcrpag addc addc OP1_1 OP2_2 reg8 upag16 HI "pag")
+(arithmetic17 subcrpag subc subc OP1_3 OP2_2 reg8 upag16 HI "pag")
+(arithmetic17 addcbrpag addcb addc OP1_1 OP2_3 regb8 upag16 QI "pag")
+(arithmetic17 subcbrpag subcb subc OP1_3 OP2_3 regb8 upag16 QI "pag")
+
+;add/sub register and immediate
+(define-pmacro (arithmetic18 name insn insn1 opc1 opc2 op1 op2 mode dir)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"dir"$"op1 ",$"op2)
+       (+ opc1 opc2 op2 op1)
+       (set (mem HI op1) (insn1 (mem HI op1) op2 ))
+       ()
+  )
+)
+(arithmetic18 addrpofr add add OP1_0 OP2_4 upof16 reg8 HI "pof")
+(arithmetic18 subrpofr sub sub OP1_2 OP2_4 upof16 reg8 HI "pof")
+(arithmetic18 addbrpofr addb add OP1_0 OP2_5 upof16 regb8 QI "pof")
+(arithmetic18 subbrpofr subb sub OP1_2 OP2_5 upof16 regb8 QI "pof")
+
+;add/sub register and immediate
+(define-pmacro (arithmetic19 name insn insn1 opc1 opc2 op1 op2 mode dir)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"dir"$"op1 ",$"op2)
+       (+ opc1 opc2 op2 op1)
+       (set (mem HI op1) (insn1 mode (mem HI op1) op2 cbit))
+       ()
+  )
+)
+(arithmetic19 addcrpofr addc addc OP1_1 OP2_4 upof16 reg8 HI "pof")
+(arithmetic19 subcrpofr subc subc OP1_3 OP2_4 upof16 reg8 HI "pof")
+(arithmetic19 addcbrpofr addcb addc OP1_1 OP2_5 upof16 regb8 QI "pof")
+(arithmetic19 subcbrpofr subcb subc OP1_3 OP2_5 upof16 regb8 QI "pof")
+
+;add/sub register and immediate
+(define-pmacro (arithmetic20 name insn insn1 opc1 opc2 op1 op2 mode dir)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$hash$"dir"$"op2)
+       (+ opc1 opc2 op1 op2)
+       (set mode op1 (insn1 mode op1 op2))
+       ()
+  )
+)
+(arithmetic20 addrhpof add add OP1_0 OP2_6 reg8 uimm16 HI "pof")
+(arithmetic20 subrhpof sub sub OP1_2 OP2_6 reg8 uimm16 HI "pof")
+(arithmetic20 addbrhpof add add OP1_0 OP2_6 reg8 uimm16 HI "pag")
+(arithmetic20 subbrhpof sub sub OP1_2 OP2_6 reg8 uimm16 HI "pag")
+
+;add/sub register and immediate
+(define-pmacro (arithmetic21 name insn insn1 opc1 opc2 op1 op2 mode dir)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$hash$"dir"$"op2)
+       (+ opc1 opc2 op1 (f-op-bit1 0) op2)
+       (set mode op1 (insn1 mode op1 op2))
+       ()
+  )
+)
+(arithmetic21 addrhpof3 add add OP1_0 OP2_8 dr uimm3 HI "pof")
+(arithmetic21 subrhpof3 sub sub OP1_2 OP2_8 dr uimm3 HI "pof")
+(arithmetic21 addbrhpag3 addb add OP1_0 OP2_9 drb uimm3 QI "pag")
+(arithmetic21 subbrhpag3 subb sub OP1_2 OP2_9 drb uimm3 QI "pag")
+(arithmetic21 addrhpag3 add add OP1_0 OP2_8 dr uimm3 HI "pag")
+(arithmetic21 subrhpag3 sub sub OP1_2 OP2_8 dr uimm3 HI "pag")
+(arithmetic21 addbrhpof3 addb add OP1_0 OP2_9 drb uimm3 QI "pof")
+(arithmetic21 subbrhpof3 subb sub OP1_2 OP2_9 drb uimm3 QI "pof")
+
+;add/sub register and immediate
+(define-pmacro (arithmetic22 name insn insn1 opc1 opc2 op1 op2 mode dir)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$hash$"dir"$"op2)
+       (+ opc1 opc2 op1 op2 (f-op-bit8 0))
+       (set mode op1 (insn1 mode op1 op2))
+       ()
+  )
+)
+(arithmetic22 addrbhpof addb add OP1_0 OP2_7 regb8 uimm8 QI "pof")
+(arithmetic22 subrbhpof subb sub OP1_2 OP2_7 regb8 uimm8 QI "pof")
+(arithmetic22 addbrhpag addb add OP1_0 OP2_7 regb8 uimm8 QI "pag")
+(arithmetic22 subbrhpag subb sub OP1_2 OP2_7 regb8 uimm8 QI "pag")
+
+;add/sub register and immediate
+(define-pmacro (arithmetic23 name insn insn1 opc1 opc2 op1 op2 mode dir)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$hash$"dir"$"op2)
+       (+ opc1 opc2 op1 op2)
+       (set mode op1 (insn1 mode op1 op2 cbit))
+       ()
+  )
+)
+(arithmetic23 addcrhpof addc addc OP1_1 OP2_6 reg8 uimm16 HI "pof")
+(arithmetic23 subcrhpof subc subc OP1_3 OP2_6 reg8 uimm16 HI "pof")
+(arithmetic23 addcbrhpof addc addc OP1_1 OP2_6 reg8 uimm16 HI "pag")
+(arithmetic23 subcbrhpof subc subc OP1_3 OP2_6 reg8 uimm16 HI "pag")
+
+;add/sub register and immediate
+(define-pmacro (arithmetic24 name insn insn1 opc1 opc2 op1 op2 mode dir)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$hash$"dir"$"op2)
+       (+ opc1 opc2 op1 (f-op-bit1 0) op2)
+       (set mode op1 (insn1 mode op1 op2 cbit))
+       ()
+  )
+)
+(arithmetic24 addcrhpof3 addc addc OP1_1 OP2_8 dr uimm3 HI "pof")
+(arithmetic24 subcrhpof3 subc subc OP1_3 OP2_8 dr uimm3 HI "pof")
+(arithmetic24 addcbrhpag3 addcb addc OP1_1 OP2_9 drb uimm3 QI "pag")
+(arithmetic24 subcbrhpag3 subcb subc OP1_3 OP2_9 drb uimm3 QI "pag")
+(arithmetic24 addcrhpag3 addc addc OP1_1 OP2_8 dr uimm3 HI "pag")
+(arithmetic24 subcrhpag3 subc subc OP1_3 OP2_8 dr uimm3 HI "pag")
+(arithmetic24 addcbrhpof3 addcb addc OP1_1 OP2_9 drb uimm3 QI "pof")
+(arithmetic24 subcbrhpof3 subcb subc OP1_3 OP2_9 drb uimm3 QI "pof")
+
+;add/sub register and immediate
+(define-pmacro (arithmetic25 name insn insn1 opc1 opc2 op1 op2 mode dir)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$hash$"dir"$"op2)
+       (+ opc1 opc2 op1 op2 (f-op-bit8 0))
+       (set mode op1 (insn1 mode op1 op2 cbit))
+       ()
+  )
+)
+(arithmetic25 addcrbhpof addcb addc OP1_1 OP2_7 regb8 uimm8 QI "pof")
+(arithmetic25 subcrbhpof subcb subc OP1_3 OP2_7 regb8 uimm8 QI "pof")
+(arithmetic25 addcbrhpag addcb addc OP1_1 OP2_7 regb8 uimm8 QI "pag")
+(arithmetic25 subcbrhpag subcb subc OP1_3 OP2_7 regb8 uimm8 QI "pag")
+
+;add/sub register and immediate
+(define-pmacro (arithmetic10 name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$hash$"op2)
+       (+ opc1 opc2 op1 (f-op-bit1 0) op2)
+       (set mode op1 (insn1 mode op1 op2))
+       ()
+  )
+)
+(arithmetic10 addri add add OP1_0 OP2_8 dr uimm3 HI)
+(arithmetic10 subri sub sub OP1_2 OP2_8 dr uimm3 HI)
+(arithmetic10 addbri addb add OP1_0 OP2_9 drb uimm3 QI)
+(arithmetic10 subbri subb sub OP1_2 OP2_9 drb uimm3 QI)
+
+;add/sub register and immediate
+(define-pmacro (arithmetic11 name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$hash$"op2)
+       (+ opc1 opc2 op1 op2)
+       (set mode op1 (insn1 mode op1 op2))
+       ()
+  )
+)
+(arithmetic11 addrim add add OP1_0 OP2_6 reg8 uimm16 HI)
+(arithmetic11 subrim sub sub OP1_2 OP2_6 reg8 uimm16 HI)
+
+;add/sub register and immediate
+(define-pmacro (arithmetic12 name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$hash$"op2)
+       (+ opc1 opc2 op1 op2 (f-op-bit8 0))
+       (set mode op1 (insn1 mode op1 op2))
+       ()
+  )
+)
+(arithmetic12 addbrim addb add OP1_0 OP2_7 regb8 uimm8 QI)
+(arithmetic12 subbrim subb sub OP1_2 OP2_7 regb8 uimm8 QI)
+
+;add/sub register and immediate with carry
+(define-pmacro (arithmetic13 name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$hash$"op2)
+       (+ opc1 opc2 op1 (f-op-bit1 0) op2)
+       (set mode op1 (insn1 mode op1 op2 cbit))
+       ()
+  )
+)
+(arithmetic13 addcri addc addc OP1_1 OP2_8 dr uimm3 HI)
+(arithmetic13 subcri subc subc OP1_3 OP2_8 dr uimm3 HI)
+(arithmetic13 addcbri addcb addc OP1_1 OP2_9 drb uimm3 QI)
+(arithmetic13 subcbri subcb subc OP1_3 OP2_9 drb uimm3 QI)
+
+;add/sub register and immediate with carry
+(define-pmacro (arithmetic14 name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$hash$"op2)
+       (+ opc1 opc2 op1 op2)
+       (set mode op1 (insn1 mode op1 op2 cbit))
+       ()
+  )
+)
+(arithmetic14 addcrim addc addc OP1_1 OP2_6 reg8 uimm16 HI)
+(arithmetic14 subcrim subc subc OP1_3 OP2_6 reg8 uimm16 HI)
+
+;add/sub register and immediate with carry
+(define-pmacro (arithmetic15 name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$hash$"op2)
+       (+ opc1 opc2 op1 op2 (f-op-bit8 0))
+       (set mode op1 (insn1 mode op1 op2 cbit))
+       ()
+  )
+)
+(arithmetic15 addcbrim addcb addc OP1_1 OP2_7 regb8 uimm8 QI)
+(arithmetic15 subcbrim subcb subc OP1_3 OP2_7 regb8 uimm8 QI)
+
+
+;add/sub registers
+(define-pmacro (arithmetic name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$"op2)
+       (+ opc1 opc2 op1 op2)
+       (set mode op1 (insn1 mode op1 op2))
+       ()
+  )
+)
+(arithmetic addr add add OP1_0 OP2_0 dr sr HI)
+(arithmetic subr sub sub OP1_2 OP2_0 dr sr HI)
+(arithmetic addbr addb add OP1_0 OP2_1 drb srb QI)
+(arithmetic subbr subb sub OP1_2 OP2_1 drb srb QI)
+
+;add/sub register and indirect memory
+(define-pmacro (arithmetic1 name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",[$"op2"]")
+       (+ opc1 opc2 op1 (f-op-bit2 2) op2)
+       (set mode op1 (insn1 mode op1 (mem HI op2)))
+       ()
+  )
+)
+(arithmetic1 add2 add add OP1_0 OP2_8 dr sr2 HI)
+(arithmetic1 sub2 sub sub OP1_2 OP2_8 dr sr2 HI)
+(arithmetic1 addb2 addb add OP1_0 OP2_9 drb sr2 QI)
+(arithmetic1 subb2 subb sub OP1_2 OP2_9 drb sr2 QI)
+
+;add/sub register and indirect memory post increment
+(define-pmacro (arithmetic2 name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",[$"op2"+]")
+       (+ opc1 opc2 op1 (f-op-bit2 3) op2)
+       (sequence ()
+	   (set mode op1 (insn1 mode op1 (mem HI op2)))
+	   (set HI op2 (add HI op2 (const 2)))
+       )
+       ()
+  )
+)
+(arithmetic2 add2i add add OP1_0 OP2_8 dr sr2 HI)
+(arithmetic2 sub2i sub sub OP1_2 OP2_8 dr sr2 HI)
+(arithmetic2 addb2i addb add OP1_0 OP2_9 drb sr2 QI)
+(arithmetic2 subb2i subb sub OP1_2 OP2_9 drb sr2 QI)
+
+;add/sub registers with carry
+(define-pmacro (arithmetic3 name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$"op2)
+       (+ opc1 opc2 op1 op2)
+       (set mode op1 (insn1 mode op1 op2 cbit))
+       ()
+  )
+)
+(arithmetic3 addcr addc addc OP1_1 OP2_0 dr sr HI)
+(arithmetic3 subcr subc subc OP1_3 OP2_0 dr sr HI)
+(arithmetic3 addbcr addcb addc OP1_1 OP2_1 drb srb QI) 
+(arithmetic3 subbcr subcb subc OP1_3 OP2_1 drb srb QI)
+
+
+;add/sub register and indirect memory
+(define-pmacro (arithmetic4 name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",[$"op2"]")
+       (+ opc1 opc2 op1 (f-op-bit2 2) op2)
+       (set mode op1 (insn1 mode op1 (mem HI op2) cbit))
+       ()
+  )
+)
+(arithmetic4 addcr2 addc addc OP1_1 OP2_8 dr sr2 HI)
+(arithmetic4 subcr2 subc subc OP1_3 OP2_8 dr sr2 HI)
+(arithmetic4 addbcr2 addcb addc OP1_1 OP2_9 drb sr2 QI)
+(arithmetic4 subbcr2 subcb subc OP1_3 OP2_9 drb sr2 QI)
+
+;add/sub register and indirect memory post increment
+(define-pmacro (arithmetic5 name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",[$"op2"+]")
+       (+ opc1 opc2 op1 (f-op-bit2 3) op2)
+       (sequence ()
+           (set mode op1 (insn1 mode op1 (mem HI op2) cbit))
+           (set HI op2 (add HI op2 (const 2)))
+       )
+       ()
+  )
+)
+(arithmetic5 addcr2i addc addc OP1_1 OP2_8 dr sr2 HI)
+(arithmetic5 subcr2i subc subc OP1_3 OP2_8 dr sr2 HI)
+(arithmetic5 addbcr2i addcb addc OP1_1 OP2_9 drb sr2 QI)
+(arithmetic5 subbcr2i subcb subc OP1_3 OP2_9 drb sr2 QI)
+
+;add/sub register and direct memory
+(define-pmacro (arithmetic6 name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$"op2)
+       (+ opc1 opc2 op1 op2)
+       (set mode op1 (insn1 mode op1 op2))
+       ()
+  )
+)
+
+;add/sub register and direct memory
+(define-pmacro (arithmetic7 name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$"op2)
+       (+ opc1 opc2 op2 op1)
+       (set (mem HI op1) (insn1 (mem HI op1) op2))
+       ()
+  )
+)
+(arithmetic6 addrm2 add add OP1_0 OP2_2 regmem8 memgr8 HI)
+(arithmetic7 addrm3 add add OP1_0 OP2_4 memgr8 regmem8 HI)
+(arithmetic6 addrm add add OP1_0 OP2_2 reg8 memory HI)
+(arithmetic7 addrm1 add add OP1_0 OP2_4 memory reg8 HI)
+(arithmetic6 subrm3 sub sub OP1_2 OP2_2 regmem8 memgr8 HI)
+(arithmetic7 subrm2 sub sub OP1_2 OP2_4 memgr8 regmem8 HI)
+(arithmetic6 subrm1 sub sub OP1_2 OP2_2 reg8 memory HI)
+(arithmetic7 subrm sub sub OP1_2 OP2_4 memory reg8 HI)
+(arithmetic6 addbrm2 addb add OP1_0 OP2_3 regbmem8 memgr8 QI)
+(arithmetic7 addbrm3 addb add OP1_0 OP2_5 memgr8 regbmem8 QI)
+(arithmetic6 addbrm addb add OP1_0 OP2_3 regb8 memory QI)
+(arithmetic7 addbrm1 addb add OP1_0 OP2_5 memory regb8 QI)
+(arithmetic6 subbrm3 subb sub OP1_2 OP2_3 regbmem8 memgr8 QI)
+(arithmetic7 subbrm2 subb sub OP1_2 OP2_5 memgr8 regbmem8 QI)
+(arithmetic6 subbrm1 subb sub OP1_2 OP2_3 regb8 memory QI)
+(arithmetic7 subbrm subb sub OP1_2 OP2_5 memory regb8 QI)
+
+;add/sub registers with carry
+(define-pmacro (arithmetic8 name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$"op2)
+       (+ opc1 opc2 op1 op2)
+       (set mode op1 (insn1 mode op1 op2 cbit))
+       ()
+  )
+)
+
+;add/sub registers with carry
+(define-pmacro (arithmetic9 name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$"op2)
+       (+ opc1 opc2 op2 op1)
+       (set (mem HI op1) (insn1 (mem HI op1) op2 cbit))
+       ()
+  )
+)
+(arithmetic8 addcrm2 addc addc OP1_1 OP2_2 regmem8 memgr8 HI)
+(arithmetic9 addcrm3 addc addc OP1_1 OP2_4  memgr8 regmem8 HI)
+(arithmetic8 addcrm addc addc OP1_1 OP2_2 reg8 memory HI)
+(arithmetic9 addcrm1 addc addc OP1_1 OP2_4  memory reg8 HI)
+(arithmetic8 subcrm3 subc subc OP1_3 OP2_2  regmem8 memgr8 HI)
+(arithmetic9 subcrm2 subc subc OP1_3 OP2_4 memgr8 regmem8 HI)
+(arithmetic8 subcrm1 subc subc OP1_3 OP2_2  reg8 memory HI)
+(arithmetic9 subcrm subc subc OP1_3 OP2_4 memory reg8 HI)
+(arithmetic8 addcbrm2 addcb addc OP1_1 OP2_3 regbmem8 memgr8 QI)
+(arithmetic9 addcbrm3 addcb addc OP1_1 OP2_5  memgr8 regbmem8 QI)
+(arithmetic8 addcbrm addcb addc OP1_1 OP2_3 regb8 memory QI)
+(arithmetic9 addcbrm1 addcb addc OP1_1 OP2_5  memory regb8 QI)
+(arithmetic8 subcbrm3 subcb subc OP1_3 OP2_3  regbmem8 memgr8 QI)
+(arithmetic9 subcbrm2 subcb subc OP1_3 OP2_5 memgr8 regbmem8 QI)
+(arithmetic8 subcbrm1 subcb subc OP1_3 OP2_3  regb8 memory QI)
+(arithmetic9 subcbrm subcb subc OP1_3 OP2_5 memory regb8 QI)
+
+; MUL Rwn,Rwm
+(dni muls "signed multiplication"
+     ((PIPE OS) (IDOC ALU))
+     "mul $src1,$src2"
+     (+ OP1_0 OP2_11 src1 src2)
+     (reg SI h-md 0)
+     ()
+)
+; MULU Rwn,Rwm
+(dni mulu "unsigned multiplication"
+     ((PIPE OS) (IDOC ALU))
+     "mulu $src1,$src2"
+     (+ OP1_1 OP2_11 src1 src2)
+     (reg SI h-md 0)
+     ()
+)
+; DIV Rwn
+(dni div "16-by-16 signed division"
+     ((PIPE OS) (IDOC ALU))
+     "div $srdiv"
+     (+ OP1_4 OP2_11 srdiv )
+     (sequence ()
+         (set HI (reg HI h-cr 6) (div HI (reg HI h-cr 6) srdiv))
+         (set HI (reg HI h-cr 7) (mod HI (reg HI h-cr 6) srdiv))
+     )
+     ()
+) 
+; DIVL Rwn
+(dni divl "32-by16 signed division"
+     ((PIPE OS) (IDOC ALU))
+     "divl $srdiv"
+     (+ OP1_6 OP2_11 srdiv )
+     (sequence ()
+         (set HI (reg HI h-cr 6) (div SI (reg SI h-md 0) srdiv))
+	 (set HI (reg HI h-cr 7) (mod SI (reg SI h-md 0) srdiv))
+     )
+     ()
+)
+; DIVLU Rwn 
+(dni divlu "32-by16 unsigned division"
+     ((PIPE OS) (IDOC ALU))
+     "divlu $srdiv"
+     (+ OP1_7 OP2_11 srdiv )
+     (sequence ()
+         (set HI (reg HI h-cr 6) (udiv SI (reg SI h-md 0) srdiv))
+	 (set HI (reg HI h-cr 7) (umod SI (reg SI h-md 0) srdiv))
+     )
+     ()
+)
+; DIVU Rwn
+(dni divu "16-by-16 unsigned division"
+     ((PIPE OS) (IDOC ALU))
+     "divu $srdiv"
+     (+ OP1_5 OP2_11 srdiv )
+     (sequence ()
+         (set HI (reg HI h-cr 6) (udiv HI (reg HI h-cr 6) srdiv))
+         (set HI (reg HI h-cr 7) (umod HI (reg HI h-cr 6) srdiv))
+     )
+     ()
+)
+
+;Integer one's complement
+; CPL Rwn
+(dni cpl "Integer Ones complement"
+     ((PIPE OS) (IDOC MISC))
+     "cpl $dr"
+     (+ OP1_9 OP2_1 dr (f-op-bit4 0))
+     (set dr (inv HI dr))
+     ()
+)
+
+;Bytes one's complement
+; CPLB Rbn
+(dni cplb "Byte Ones complement"
+     ((PIPE OS) (IDOC MISC))
+     "cplb $drb"
+     (+ OP1_11 OP2_1 drb (f-op-bit4 0))
+     (set drb (inv QI drb))
+     ()
+)
+;Integer two's complement
+; NEG Rwn
+(dni neg "Integer two's complement"
+     ((PIPE OS) (IDOC MISC))
+     "neg $dr"
+     (+ OP1_8 OP2_1 dr (f-op-bit4 0))
+     (set dr (neg HI dr))
+     ()
+)
+;Bytes two's complement
+; NEGB Rbn
+(dni negb "byte twos complement"
+     ((PIPE OS) (IDOC MISC))
+     "negb $drb"
+     (+ OP1_10 OP2_1 drb (f-op-bit4 0))
+     (set drb (neg QI drb))
+     ()
+)
+
+;****************************************************************
+;logical insn
+;****************************************************************
+;and/or/xor registers
+(define-pmacro (logical name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "logical" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$"op2)
+       (+ opc1 opc2 op1 op2)
+       (set mode op1 (insn1 mode op1 op2))
+       ()
+  )
+)
+
+(logical andr and and OP1_6 OP2_0 dr sr HI)
+(logical orr or or OP1_7 OP2_0 dr sr HI)
+(logical xorr xor xor OP1_5 OP2_0 dr sr HI)
+(logical andbr andb and OP1_6 OP2_1 drb srb QI)
+(logical orbr orb or OP1_7 OP2_1 drb srb QI)
+(logical xorbr xorb xor OP1_5 OP2_1 drb srb QI)
+
+;and/or/xor register and immediate
+(define-pmacro (logical1 name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "logical" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$hash$"op2)
+       (+ opc1 opc2 op1 (f-op-bit1 0) op2)
+       (set mode op1 (insn1 mode op1 op2))
+       ()
+  )
+)
+(logical1 andri and and OP1_6 OP2_8 dr uimm3 HI)
+(logical1 orri or or OP1_7 OP2_8 dr uimm3 HI)
+(logical1 xorri xor xor OP1_5 OP2_8 dr uimm3 HI)
+(logical1 andbri andb and OP1_6 OP2_9 drb uimm3 QI)
+(logical1 orbri orb or OP1_7 OP2_9 drb uimm3 QI)
+(logical1 xorbri xorb xor OP1_5 OP2_9 drb uimm3 QI)
+
+;and/or/xor register and immediate
+(define-pmacro (logical2 name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "logical" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$hash$"op2)
+       (+ opc1 opc2 op1 op2)
+       (set mode op1 (insn1 mode op1 op2))
+       ()
+  )
+)
+(logical2 andrim and and OP1_6 OP2_6 reg8 uimm16 HI)
+(logical2 orrim or or OP1_7 OP2_6 reg8 uimm16 HI)
+(logical2 xorrim xor xor OP1_5 OP2_6 reg8 uimm16 HI)
+
+;and/or/xor register and immediate
+(define-pmacro (logical3 name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "logical" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$hash$"op2)
+       (+ opc1 opc2 op1 op2 (f-op-bit8 0))
+       (set mode op1 (insn1 mode op1 op2))
+       ()
+  )
+)
+(logical3 andbrim andb and OP1_6 OP2_7 regb8 uimm8 QI)
+(logical3 orbrim orb or OP1_7 OP2_7 regb8 uimm8 QI)
+(logical3 xorbrim xorb xor OP1_5 OP2_7 regb8 uimm8 QI)
+
+;and/or/xor register and indirect memory
+(define-pmacro (logical4 name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name
+       (.str name "logical" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",[$"op2"]")
+       (+ opc1 opc2 op1 (f-op-bit2 2) op2)
+       (set mode op1 (insn1 mode op1 (mem HI op2)))
+       ()
+  )
+)
+(logical4 and2 and and OP1_6 OP2_8 dr sr2 HI)
+(logical4 or2 or or OP1_7 OP2_8 dr sr2 HI)
+(logical4 xor2 xor xor OP1_5 OP2_8 dr sr2 HI)
+(logical4 andb2 andb and OP1_6 OP2_9 drb sr2 QI)
+(logical4 orb2 orb or OP1_7 OP2_9 drb sr2 QI)
+(logical4 xorb2 xorb xor OP1_5 OP2_9 drb sr2 QI)
+
+;and/or/xor register and indirect memory post increment
+(define-pmacro (logical5 name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name
+       (.str name "logical" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",[$"op2"+]")
+       (+ opc1 opc2 op1 (f-op-bit2 3) op2)
+       (sequence ()
+	   (set mode op1 (insn1 mode op1 (mem HI op2)))
+	   (set HI op2 (add HI op2 (const 2)))
+       )
+       ()
+  )
+)
+(logical5 and2i and and OP1_6 OP2_8 dr sr2 HI)
+(logical5 or2i or or OP1_7 OP2_8 dr sr2 HI)
+(logical5 xor2i xor xor OP1_5 OP2_8 dr sr2 HI)
+(logical5 andb2i andb and OP1_6 OP2_9 drb sr2 QI)
+(logical5 orb2i orb or OP1_7 OP2_9 drb sr2 QI)
+(logical5 xorb2i xorb xor OP1_5 OP2_9 drb sr2 QI)
+
+;add/sub register and immediate
+(define-pmacro (logical7 name insn insn1 opc1 opc2 op1 op2 mode dir)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"dir"$"op1 ",$"op2)
+       (+ opc1 opc2 op1 op2)
+       (set (mem HI op1) (insn1 (mem HI op1) op2 ))
+       ()
+  )
+)
+(logical7 andpofr and and OP1_6 OP2_2 reg8 upof16 HI "pof")
+(logical7 orpofr or or OP1_7 OP2_2 reg8 upof16 HI "pof")
+(logical7 xorpofr xor xor OP1_5 OP2_2 reg8 upof16 HI "pof")
+(logical7 andbpofr andb and OP1_6 OP2_3 regb8 upof16 QI "pof")
+(logical7 orbpofr orb or OP1_7 OP2_3 regb8 upof16 QI "pof")
+(logical7 xorbpofr xorb xor OP1_5 OP2_3 regb8 upof16 QI "pof")
+
+;add/sub register and immediate
+(define-pmacro (logical8 name insn insn1 opc1 opc2 op1 op2 mode dir)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"dir"$"op1 ",$"op2)
+       (+ opc1 opc2 op1 op2)
+       (set (mem HI op1) (insn1 (mem HI op1) op2 ))
+       ()
+  )
+)
+(logical8 andrpofr and and OP1_6 OP2_4 upof16 reg8 HI "pof")
+(logical8 orrpofr or or OP1_7 OP2_4 upof16 reg8 HI "pof")
+(logical8 xorrpofr xor xor OP1_5 OP2_4 upof16 reg8 HI "pof")
+(logical8 andbrpofr andb and OP1_6 OP2_5 upof16 regb8 QI "pof")
+(logical8 orbrpofr orb or OP1_7 OP2_5 upof16 regb8 QI "pof")
+(logical8 xorbrpofr xorb xor OP1_5 OP2_5 upof16 regb8 QI "pof")
+
+;and/or/xor register and direct memory
+(define-pmacro (logical6 name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$"op2)
+       (+ opc1 opc2 op1 op2)
+       (set mode op1 (insn1 mode op1 op2))
+       ()
+  )
+)
+
+;and/or/xor register and direct memory
+(define-pmacro (logical7 name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "arithmetic" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$"op2)
+       (+ opc1 opc2 op2 op1)
+       (set (mem HI op1) (insn1 (mem HI op1) op2))
+       ()
+  )
+)
+(logical6 andrm2 and and OP1_6 OP2_2 regmem8 memgr8 HI)
+(logical7 andrm3 and and OP1_6 OP2_4 memgr8 regmem8 HI)
+(logical6 andrm and and OP1_6 OP2_2 reg8 memory HI)
+(logical7 andrm1 and and OP1_6 OP2_4 memory reg8 HI)
+(logical6 orrm3 or or OP1_7 OP2_2 regmem8 memgr8 HI)
+(logical7 orrm2 or or OP1_7 OP2_4 memgr8 regmem8 HI)
+(logical6 orrm1 or or OP1_7 OP2_2 reg8 memory HI)
+(logical7 orrm or or OP1_7 OP2_4 memory reg8 HI)
+(logical6 xorrm3 xor xor OP1_5 OP2_2 regmem8 memgr8 HI)
+(logical7 xorrm2 xor xor OP1_5 OP2_4 memgr8 regmem8 HI)
+(logical6 xorrm1 xor xor OP1_5 OP2_2 reg8 memory HI)
+(logical7 xorrm xor xor OP1_5 OP2_4 memory reg8 HI)
+(logical6 andbrm2 andb and OP1_6 OP2_3 regbmem8 memgr8 QI)
+(logical7 andbrm3 andb and OP1_6 OP2_5 memgr8 regbmem8 QI)
+(logical6 andbrm andb and OP1_6 OP2_3 regb8 memory QI)
+(logical7 andbrm1 andb and OP1_6 OP2_5 memory regb8 QI)
+(logical6 orbrm3 orb or OP1_7 OP2_3 regbmem8 memgr8 QI)
+(logical7 orbrm2 orb or OP1_7 OP2_5 memgr8 regbmem8 QI)
+(logical6 orbrm1 orb or OP1_7 OP2_3 regb8 memory QI)
+(logical7 orbrm orb or OP1_7 OP2_5 memory regb8 QI)
+(logical6 xorbrm3 xorb xor OP1_5 OP2_3 regbmem8 memgr8 QI)
+(logical7 xorbrm2 xorb xor OP1_5 OP2_5 memgr8 regbmem8 QI)
+(logical6 xorbrm1 xorb xor OP1_5 OP2_3 regb8 memory QI)
+(logical7 xorbrm xorb xor OP1_5 OP2_5 memory regb8 QI)
+
+;****************************************************************
+;logical insn
+;****************************************************************
+;mov registers
+(define-pmacro (move name insn opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "mov registers" )
+       ((PIPE OS) (IDOC MOVE))
+       (.str insn " $"op1 ",$"op2)
+       (+ opc1 opc2 op1 op2)
+       (set mode op1 op2)
+       ()
+  )
+)
+(move movr mov OP1_15 OP2_0 dr sr HI)
+(move movrb movb OP1_15 OP2_1 drb srb HI)
+
+;mov register and immediate
+(define-pmacro (move1 name insn opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "move" )
+       ((PIPE OS) (IDOC MOVE))
+       (.str insn " $"op1 ",$hash$"op2)
+       (+ opc1 opc2 op2 op1)
+       (set mode op1 op2)
+       ()
+  )
+)
+(move1 movri mov  OP1_14 OP2_0 dri u4 HI)
+(move1 movbri movb  OP1_14 OP2_1 srb u4 QI)
+
+; MOV Rwn,#data16
+(dni movi "move immediate to register"
+     ((PIPE OS) (IDOC MOVE))
+     "mov $reg8,$hash$uimm16"
+     (+ OP1_14 OP2_6 reg8 uimm16)
+     (set HI reg8 uimm16)
+     ()
+)
+
+; MOVB reg,#data8
+(dni movbi "move immediate to register"
+     ((PIPE OS) (IDOC MOVE))
+     "movb $regb8,$hash$uimm8"
+     (+ OP1_14 OP2_7 regb8 uimm8 (f-op-bit8 0))
+     (set QI regb8 uimm8)
+     ()
+)
+
+;move and indirect memory
+(define-pmacro (mov2 name insn opc1 opc2 op1 op2 mode)
+  (dni name
+       (.str name "move" )
+       ((PIPE OS) (IDOC MOVE))
+       (.str insn " $"op1 ",[$"op2"]")
+       (+ opc1 opc2 op1 op2)
+       (set mode op1 (mem HI op2))
+       ()
+  )
+)
+(mov2 movr2 mov OP1_10 OP2_8 dr sr HI)
+(mov2 movbr2 movb OP1_10 OP2_9 drb sr QI)
+
+;move and indirect memory
+(define-pmacro (mov3 name insn opc1 opc2 op1 op2 mode)
+  (dni name
+       (.str name "move" )
+       ((PIPE OS) (IDOC MOVE))
+       (.str insn " [$"op2 "],$"op1)
+       (+ opc1 opc2 op1 op2)
+       (set mode op1 (mem HI op2))
+       ()
+  )
+)
+(mov3 movri2 mov OP1_11 OP2_8 dr sr HI)
+(mov3 movbri2 movb OP1_11 OP2_9 drb sr QI)
+
+;move and indirect memory
+(define-pmacro (mov4 name insn opc1 opc2 op1 op2 mode)
+  (dni name
+       (.str name "move" )
+       ((PIPE OS) (IDOC MOVE))
+       (.str insn " [-$"op2 "],$"op1)
+       (+ opc1 opc2 op1 op2)
+       (sequence HI ()
+	  (set op1 (sub op2 (const HI 2)))
+	  (set HI (mem HI op2) op1)
+       )
+       ()
+  )
+)
+(mov4 movri3 mov OP1_8 OP2_8 dr sr HI)
+(mov4 movbri3 movb OP1_8 OP2_9 drb sr QI)
+
+;mov register and indirect memory post increment
+(define-pmacro (mov5 name insn opc1 opc2 op1 op2 mode)
+  (dni name
+       (.str name "move" )
+       ((PIPE OS) (IDOC MOVE))
+       (.str insn " $"op1 ",[$"op2"+]")
+       (+ opc1 opc2 op1 op2)
+       (sequence ()
+	   (set mode op1 (mem HI op2))
+	   (set HI op2 (add HI op2 (const 2)))
+       )
+       ()
+  )
+)
+(mov5 mov2i mov OP1_9 OP2_8 dr sr HI)
+(mov5 movb2i movb OP1_9 OP2_9 drb sr HI)
+
+;mov indirect memory
+(define-pmacro (mov6 name insn opc1 opc2 op1 op2 mode)
+  (dni name
+       (.str name "move" )
+       ((PIPE OS) (IDOC MOVE))
+       (.str insn " [$"op1 "],[$"op2"]")
+       (+ opc1 opc2 op1 op2)
+       (set HI (mem HI op1) (mem HI op2))
+       ()
+  )
+)
+(mov6 mov6i mov OP1_12 OP2_8 dr sr HI)
+(mov6 movb6i movb OP1_12 OP2_9 dr sr HI)
+
+;mov indirect memory
+(define-pmacro (mov7 name insn opc1 opc2 op1 op2 mode)
+  (dni name
+       (.str name "move" )
+       ((PIPE OS) (IDOC MOVE))
+       (.str insn " [$"op1 "+],[$"op2"]")
+       (+ opc1 opc2 op1 op2)
+       (sequence ()
+          (set mode (mem mode op1) (mem mode op2))
+          (set mode op1 (add mode op1 (const mode 2)))
+       )
+       ()
+  )
+)
+(mov7 mov7i mov OP1_13 OP2_8 dr sr HI)
+(mov7 movb7i movb OP1_13 OP2_9 dr sr HI)
+
+;mov indirect memory
+(define-pmacro (mov8 name insn opc1 opc2 op1 op2 mode)
+  (dni name
+       (.str name "move" )
+       ((PIPE OS) (IDOC MOVE))
+       (.str insn " [$"op1 "],[$"op2"+]")
+       (+ opc1 opc2 op1 op2)
+       (sequence ()
+          (set mode (mem mode op1) (mem mode op2))
+          (set mode op2 (add mode op2 (const mode 2)))
+       )
+       ()
+  )
+)
+(mov8 mov8i mov OP1_14 OP2_8 dr sr HI)
+(mov8 movb8i movb OP1_14 OP2_9 dr sr HI)
+
+;mov indirect memory
+(define-pmacro (mov9 name insn opc1 opc2 op1 op2 mode)
+  (dni name
+       (.str name "move" )
+       ((PIPE OS) (IDOC MOVE))
+       (.str insn " $"op1 ",[$"op2"+$hash$"uimm16"]")
+       (+ opc1 opc2 op1 op2 uimm16)
+       (sequence mode ((mode tmp1))
+	   (set mode tmp1 (add HI op2 uimm16))
+	   (set mode op1 (mem HI tmp1))
+       )
+       ()
+  )
+)
+(mov9 mov9i mov OP1_13 OP2_4 dr sr HI)
+(mov9 movb9i movb OP1_15 OP2_4 drb sr QI)
+
+;mov indirect memory
+(define-pmacro (mov10 name insn opc1 opc2 op1 op2 mode)
+  (dni name
+       (.str name "move" )
+       ((PIPE OS) (IDOC MOVE))
+       (.str insn " [$"op2"+$hash$"uimm16 "],$"op1)
+       (+ opc1 opc2 op1 op2 uimm16)
+       (sequence mode ((mode tmp1))
+	   (set mode tmp1 (add HI op1 uimm16))
+	   (set mode (mem HI tmp1) op1)
+       )
+       ()
+  )
+)
+(mov10 mov10i mov OP1_12 OP2_4 dr sr HI)
+(mov10 movb10i movb OP1_14 OP2_4 drb sr QI)
+
+;move and indirect memory
+(define-pmacro (mov11 name insn opc1 opc2 op1 op2 mode)
+  (dni name
+       (.str name "move" )
+       ((PIPE OS) (IDOC MOVE))
+       (.str insn " [$"op1 "],$"op2)
+       (+ opc1 opc2 (f-op-lbit4 0) op1 op2)
+       (set (mem mode op1) (mem HI op2))
+       ()
+  )
+)
+(mov11 movri11 mov OP1_8 OP2_4 src2 memory HI)
+(mov11 movbri11 movb OP1_10 OP2_4 src2 memory HI)
+
+;move and indirect memory
+(define-pmacro (mov12 name insn opc1 opc2 op1 op2 mode)
+  (dni name
+       (.str name "move" )
+       ((PIPE OS) (IDOC MOVE))
+       (.str insn " $"op2 ",[$"op1"]")
+       (+ opc1 opc2 (f-op-lbit4 0) op1 op2)
+       (set (mem HI op2) (mem mode op1))
+       ()
+  )
+)
+(mov12 movri12 mov OP1_9 OP2_4 src2 memory HI)
+(mov12 movbri12 movb OP1_11 OP2_4 src2 memory HI)
+
+(define-pmacro (movemem3 name insn opc1 opc2 op1 op2  dir)
+  (dni name 
+       (.str name "move" )
+       ((PIPE OS) (IDOC MOVE))
+       (.str insn " $"op1 ",$hash$"dir"$"op2)
+       (+ opc1 opc2 op1 op2)
+       (set HI op1 op2)
+       ()
+  )
+)
+(movemem3 movehm5 mov OP1_14 OP2_6 regoff8 upof16 "pof")
+(movemem3 movehm6 mov OP1_14 OP2_6 regoff8 upag16 "pag")
+(movemem3 movehm7 mov OP1_14 OP2_6 regoff8 useg16 "segm")
+(movemem3 movehm8 mov OP1_14 OP2_6 regoff8 usof16 "sof")
+
+(define-pmacro (movemem4 name insn opc1 opc2 op1 op2 dir)
+  (dni name 
+       (.str name "move" )
+       ((PIPE OS) (IDOC MOVE))
+       (.str insn " $"op1 ",$hash$"dir"$"op2)
+       (+ opc1 opc2 op1 op2 (f-op-bit8 0))
+       (set QI op1 op2)
+       ()
+  )
+)
+(movemem4 movehm9 movb OP1_14 OP2_7 regb8 uimm8 "pof")
+(movemem4 movehm10 movb OP1_14 OP2_7 regoff8 uimm8 "pag")
+
+(define-pmacro (movemem name insn opc1 opc2 op1 op2 mode dir)
+  (dni name 
+       (.str name "move" )
+       ((PIPE OS) (IDOC MOVE))
+       (.str insn " $"op1 ",$"dir"$"op2)
+       (+ opc1 opc2 op1 op2)
+       (set mode op1 (mem HI op2))
+       ()
+  )
+)
+(movemem movrmp mov OP1_15 OP2_2 regoff8 upof16 HI "pof")
+(movemem movrmp1 movb OP1_15 OP2_3 regb8 upof16 QI "pof")
+(movemem movrmp2 mov OP1_15 OP2_2 regoff8 upag16 HI "pag")
+(movemem movrmp3 movb OP1_15 OP2_3 regb8 upag16 QI "pag")
+
+(define-pmacro (movemem1 name insn opc1 opc2 op1 op2 dir)
+  (dni name 
+       (.str name "move" )
+       ((PIPE OS) (IDOC MOVE))
+       (.str insn " $"dir"$"op1 ",$"op2)
+       (+ opc1 opc2 op2 op1)
+       (set (mem HI op1) op2 )
+       ()
+  )
+)
+(movemem1 movrmp4 mov OP1_15 OP2_6  upof16 regoff8 "pof")
+(movemem1 movrmp5 movb OP1_15 OP2_7 upof16 regb8 "pof")
+
+(define-pmacro (movemem2 name insn opc1 opc2 op1 op2 mode dir)
+  (dni name 
+       (.str name "move" )
+       ((PIPE OS) (IDOC MOVE))
+       (.str insn " $"op1 ",$hash$"dir"$"op2)
+       (+ opc1 opc2 op2 op1)
+       (set mode op1 op2)
+       ()
+  )
+)
+(movemem2 movehm1 mov OP1_14 OP2_0 dri u4 HI "pof")
+(movemem2 movehm2 movb OP1_14 OP2_1 srb u4 QI "pof")
+(movemem2 movehm3 mov OP1_14 OP2_0 dri u4 HI "pag")
+(movemem2 movehm4 movb OP1_14 OP2_1 srb u4 QI "pag")
+
+;move register and direct memory
+(define-pmacro (move12 name insn opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "move" )
+       ((PIPE OS) (IDOC MOVE))
+       (.str insn " $"op1 ",$"op2)
+       (+ opc1 opc2 op1 op2)
+       (set mode op1 (mem HI op2))
+       ()
+  )
+)
+
+;move register and direct memory
+(define-pmacro (move13 name insn opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "move" )
+       ((PIPE OS) (IDOC MOVE))
+       (.str insn " $"op1 ",$"op2)
+       (+ opc1 opc2 op2 op1)
+       (set (mem HI op1) op2)
+       ()
+  )
+)
+(move12 mve12 mov OP1_15 OP2_2 regmem8 memgr8 HI)
+(move13 mve13 mov OP1_15 OP2_6 memgr8 regmem8 HI)
+(move12 mover12 mov OP1_15 OP2_2 reg8 memory HI)
+(move13 mvr13 mov OP1_15 OP2_6 memory reg8 HI)
+(move12 mver12 movb OP1_15 OP2_3 regbmem8 memgr8 QI)
+(move13 mver13 movb OP1_15 OP2_7 memgr8 regbmem8 QI)
+(move12 movr12 movb OP1_15 OP2_3 regb8 memory QI)
+(move13 movr13 movb OP1_15 OP2_7 memory regb8 QI)
+
+; MOVBS Rw,Rb
+(dni movbsrr "mov byte register with sign extension to word register"
+     ((PIPE OS) (IDOC MOVE))
+     "movbs $sr,$drb"
+     (+ OP1_13 OP2_0 drb sr)
+     (sequence ()
+         (if QI (and QI drb (const 128))
+                (set HI sr (or HI (const HI 65280) drb)))
+         (set HI sr (and HI (const HI 255) drb)) 
+     )
+     ()
+)
+
+; MOVBZ Rw,Rb
+(dni movbzrr "mov byte register with zero extension to word register"
+     ((PIPE OS) (IDOC MOVE))
+     "movbz $sr,$drb"
+     (+ OP1_12 OP2_0 drb sr)
+     (set HI sr (and HI (const HI 255) drb))
+     ()
+)
+
+; MOVBS reg,POF mem
+(dni movbsrpofm "mov memory to byte register"
+     ((PIPE OS) (IDOC MOVE))
+     "movbs $regmem8,$pof$upof16"
+     (+ OP1_13 OP2_2 regmem8 upof16)
+     (set QI regmem8 (mem HI upof16))
+     ()
+)
+
+; MOVBS pof,reg
+(dni movbspofmr "mov memory to byte register"
+     ((PIPE OS) (IDOC MOVE))
+     "movbs $pof$upof16,$regbmem8"
+     (+ OP1_13 OP2_5 upof16 regbmem8 )
+     (set QI  (mem HI upof16) regbmem8)
+     ()
+)
+
+; MOVBZ reg,POF mem
+(dni movbzrpofm "mov memory to byte register"
+     ((PIPE OS) (IDOC MOVE))
+     "movbz $reg8,$pof$upof16"
+     (+ OP1_12 OP2_2 reg8 upof16)
+     (set QI reg8 (mem HI upof16))
+     ()
+)
+
+; MOVBZ pof,reg
+(dni movbzpofmr "mov memory to byte register"
+     ((PIPE OS) (IDOC MOVE))
+     "movbz $pof$upof16,$regb8"
+     (+ OP1_12 OP2_5 upof16 regb8 )
+     (set QI  (mem HI upof16) regb8)
+     ()
+)
+
+;move register and direct memory
+(define-pmacro (move14 name insn opc1 opc2 op1 op2 )
+  (dni name 
+       (.str name "move" )
+       ((PIPE OS) (IDOC MOVE))
+       (.str insn " $"op1 ",$"op2)
+       (+ opc1 opc2 op1 op2)
+       (set HI op1 (and HI (const HI 255) (mem QI op2)))
+       ()
+  )
+)
+
+;move register and direct memory
+(define-pmacro (move15 name insn opc1 opc2 op1 op2 )
+  (dni name 
+       (.str name "move" )
+       ((PIPE OS) (IDOC MOVE))
+       (.str insn " $"op1 ",$"op2)
+       (+ opc1 opc2 op2 op1)
+       (set HI (mem HI op1) (and HI (const HI 255) op2))
+       ()
+  )
+)
+(move14 movebs14 movbs OP1_13 OP2_2 regmem8 memgr8 )
+(move15 movebs15 movbs OP1_13 OP2_5 memgr8 regbmem8 )
+(move14 moverbs14 movbs OP1_13 OP2_2 reg8 memory )
+(move15 movrbs15 movbs OP1_13 OP2_5 memory regb8 )
+(move14 movebz14 movbz OP1_12 OP2_2 regmem8 memgr8 )
+(move15 movebz15 movbz OP1_12 OP2_5 memgr8 regbmem8 )
+(move14 moverbz14 movbz OP1_12 OP2_2 reg8 memory )
+(move15 movrbz15 movbz OP1_12 OP2_5 memory regb8 )
+
+
+;mov registers
+(define-pmacro (moveb1 name insn opc1 opc2 op1 op2)
+  (dni name 
+       (.str name "move" )
+       ((PIPE OS) (IDOC MOVE))
+       (.str insn " $"op2 ",$"op1)
+       (+ opc1 opc2 op1 op2)
+       (sequence ()
+           (if QI (and QI op1 (const 128))
+                  (set HI op2 (or HI (const HI 65280) op1)))
+           (set HI op2 (and HI (const HI 255) op1)) 
+       )
+       ()
+  )
+)
+(moveb1 movrbs movbs OP1_13 OP2_0 drb sr )
+(moveb1 movrbz movbz OP1_12 OP2_0 drb sr )
+
+
+
+;jump and call insns
+;******************************************************************
+;Absolute conditional jump
+(define-pmacro (jmpabs name insn)
+  (dni name
+     (.str name "Absolute conditional jump" )
+     ((PIPE OS) (IDOC JMP))
+     (.str insn " $extcond,$caddr")
+     (+ OP1_14 OP2_10 extcond (f-op-bitone 0) bitone bit01 caddr)
+     (sequence ((HI tmp1) (HI tmp2))
+        (set tmp1 (mem HI caddr))
+        (set tmp2 (sub HI pc (mem HI caddr)))
+        (if (gt tmp2 (const 0)) (lt tmp2 (const 32)) (eq tmp2 (const 32))
+            (set bitone (const 1)))
+	(if (lt tmp2 (const 0)) (eq tmp2 (const 0)) (gt tmp2 (const 32))
+            (set bitone (const 0)))
+        (if (eq extcond (const 1) (ne extcond cc_Z))
+             (set bit01 (const 0))    
+             (set HI pc (mem HI caddr)))
+	(if (ne extcond (const 1) (eq extcond cc_Z))
+             (set bit01 (const 1))
+             (set HI pc (add HI pc (const 2))))
+     )
+     ()
+  )
+)
+
+(jmpabs jmpa0 jmpa+)
+(jmpabs jmpa1 jmpa)
+
+; JMPA- cc,caddr
+(dni jmpa- "Absolute conditional jump"
+     (COND-CTI (PIPE OS) (IDOC JMP))
+     "jmpa- $extcond,$caddr"
+     (+ OP1_14 OP2_10 extcond (f-op-bitone 0) bitone (f-op-1bit 1) caddr)
+     (sequence ((HI tmp1) (HI tmp2))
+        (set tmp1 (mem HI caddr))
+        (set tmp2 (sub HI pc (mem HI caddr)))
+        (if (gt tmp2 (const 0)) (lt tmp2 (const 32)) (eq tmp2 (const 32))
+            (set bitone (const 1)))
+	(if (lt tmp2 (const 0)) (eq tmp2 (const 0)) (gt tmp2 (const 32))
+            (set bitone (const 0)))
+        (set HI pc (add HI pc (const 2)))
+     )
+     ()
+)
+
+; JMPI cc,[Rwn]
+(dni jmpi "Indirect conditional jump"
+     (COND-CTI (PIPE OS) (IDOC JMP))
+     "jmpi $icond,[$sr]"
+     (+ OP1_9 OP2_12 icond sr)
+     (sequence ()
+        (if (eq icond (const 1))
+             (set HI pc (mem HI sr)))
+             (set HI pc (add HI pc (const 2)))
+     )
+     ()
+)
+
+(define-pmacro (jmprel name insn opc1)
+  (dni name
+       (.str name "conditional" )
+       (COND-CTI (PIPE OS) (IDOC JMP))
+       (.str insn " $cond,$rel")
+       (+ opc1 OP2_13 rel)
+       (sequence ()
+           (if (eq cond (const 1))
+               (sequence ()
+		    (if QI (lt QI rel (const 0))
+                           (sequence ()
+                                (neg QI rel)
+                                (add QI rel (const 1))
+                                (mul QI rel (const 2))
+                                (set HI pc (sub HI pc rel))
+                           ))
+                    (set HI pc (add HI pc (mul QI rel (const 2))))
+               )
+            )
+            (set HI pc pc)
+       )
+       ()
+  )
+)
+
+(jmprel jmpr_nenz jmpr  COND_NE_NZ )
+(jmprel jmpr_sgt jmpr  COND_SGT )
+(jmprel jmpr_z jmpr  COND_Z )
+(jmprel jmpr_v jmpr  COND_V )
+(jmprel jmpr_nv jmpr  COND_NV )
+(jmprel jmpr_n jmpr  COND_N )
+(jmprel jmpr_nn jmpr  COND_NN )
+(jmprel jmpr_c jmpr  COND_C )
+(jmprel jmpr_nc jmpr  COND_NC )
+(jmprel jmpr_eq jmpr  COND_EQ )
+(jmprel jmpr_ne jmpr  COND_NE )
+(jmprel jmpr_ult jmpr  COND_ULT )
+(jmprel jmpr_ule jmpr  COND_ULE )
+(jmprel jmpr_uge jmpr  COND_UGE )
+(jmprel jmpr_ugt jmpr  COND_UGT )
+(jmprel jmpr_sle jmpr  COND_SLE )
+(jmprel jmpr_sge jmpr  COND_SGE )
+(jmprel jmpr_net jmpr  COND_NET )
+(jmprel jmpr_uc jmpr  COND_UC )
+(jmprel jmpr_slt jmpr  COND_SLT )
+
+
+
+
+; JMPS seg,caddr
+(dni jmpseg "absolute inter-segment jump"
+     (UNCOND-CTI(PIPE OS) (IDOC JMP))
+     "jmps $hash$segm$useg8,$hash$sof$usof16"
+     (+ OP1_15 OP2_10 seg usof16)
+     (sequence ()
+          (if QI (eq BI sgtdisbit (const BI 0))
+                 (set QI (reg h-cr 10) useg8))
+                 (nop)
+          (set HI pc usof16)
+     )
+     ()
+)
+
+; JMPS seg,caddr
+(dni jmps "absolute inter-segment jump"
+     (UNCOND-CTI(PIPE OS) (IDOC JMP))
+     "jmps $seg,$caddr"
+     (+ OP1_15 OP2_10 seg caddr)
+     (sequence ()
+          (if QI (eq BI sgtdisbit (const BI 0))
+                 (set QI (reg h-cr 10) seg))
+                 (nop)
+          (set HI pc caddr)
+     )
+     ()
+)
+
+
+;relative jump if bit set
+;JB bitaddrQ.q,rel
+(dni jb "relative jump if bit set"
+     ((PIPE OS) (IDOC JMP))
+     "jb $genreg$dot$qlobit,$relhi"
+     (+ OP1_8 OP2_10 genreg relhi qlobit (f-qhibit 0))
+     (sequence ((HI tmp1) (HI tmp2))
+          (set HI tmp1 genreg)
+          (set HI tmp2 (const 1))
+          (sll HI tmp2 qlobit)
+          (set HI tmp2 (and tmp1 tmp2))
+          (if (eq tmp2 (const 1))
+             (sequence ()
+                (if QI (lt QI relhi (const 0))
+                       (set HI pc (add HI pc (mul QI relhi (const 2)))))
+             ))
+         (set HI pc (add HI pc (const 4))) 
+     )
+     ()
+)
+
+;relative jump if bit set and clear bit
+;JBC bitaddrQ.q,rel
+(dni jbc "relative jump if bit set and clear bit"
+     ((PIPE OS) (IDOC JMP))
+     "jbc $genreg$dot$qlobit,$relhi"
+     (+ OP1_10 OP2_10 genreg relhi qlobit (f-qhibit 0))
+     (sequence ((HI tmp1) (HI tmp2))
+          (set HI tmp1 genreg)
+          (set HI tmp2 (const 1))
+          (sll HI tmp2 qlobit)
+          (set HI tmp2 (and tmp1 tmp2))
+          (if (eq tmp2 (const 1))
+             (sequence ()
+                (if QI (lt QI relhi (const 0))
+                       (set tmp2 (const 1))
+                       (set tmp1 genreg)
+                       (sll tmp2 qlobit)
+                       (inv tmp2)
+                       (set HI tmp1(and tmp1 tmp2))
+                       (set HI genreg tmp1)
+                       (set HI pc (add HI pc (mul QI relhi (const 2)))))
+             ))
+          (set HI pc (add HI pc (const 4)))
+     )
+     ()
+)
+
+;relative jump if bit set
+;JNB bitaddrQ.q,rel
+(dni jnb "relative jump if bit not set"
+     ((PIPE OS) (IDOC JMP))
+     "jnb $genreg$dot$qlobit,$relhi"
+     (+ OP1_9 OP2_10 genreg relhi qlobit (f-qhibit 0))
+     (sequence ((HI tmp1) (HI tmp2))
+          (set HI tmp1 genreg)
+          (set HI tmp2 (const 1))
+          (sll HI tmp2 qlobit)
+          (set HI tmp2 (and tmp1 tmp2))
+          (if (eq tmp2 (const 0))
+             (sequence ()
+                (if QI (lt QI relhi (const 0))
+                       (set HI pc (add HI pc (mul QI relhi (const 2)))))
+             ))
+          (set HI pc (add HI pc (const 4)))
+     )
+     ()
+)
+
+;relative jump if bit not set and set bit
+;JNBS bitaddrQ.q,rel
+(dni jnbs "relative jump if bit not set and set bit"
+     ((PIPE OS) (IDOC JMP))
+     "jnbs $genreg$dot$qlobit,$relhi"
+     (+ OP1_11 OP2_10 genreg relhi qlobit (f-qhibit 0))
+     (sequence ((HI tmp1) (HI tmp2))
+          (set HI tmp1 genreg)
+          (set HI tmp2 (const 1))
+          (sll HI tmp2 qlobit)
+          (set HI tmp2 (and tmp1 tmp2))
+          (if (eq tmp2 (const 0))
+             (sequence ()
+                (if QI (lt QI relhi (const 0))
+                       (set tmp2 (const 1))
+                       (set tmp1 reg8)
+                       (sll tmp2 qbit)
+                       (set BI tmp1(or tmp1 tmp2))
+                       (set HI reg8 tmp1)
+                       (set HI pc (add HI pc (mul QI relhi (const 2)))))
+             ))
+          (set HI pc (add HI pc (const 4)))
+     )
+     ()
+)
+
+
+;Absolute conditional call
+(define-pmacro (callabs name insn)
+  (dni name
+     (.str name "Absolute conditional call" )
+     ((PIPE OS) (IDOC JMP))
+     (.str insn " $extcond,$caddr")
+     (+ OP1_12 OP2_10 extcond (f-op-2bit 0) bit01 caddr)
+     (sequence ()
+        (if (eq extcond (const 1))
+          (set bit01 (const 0))
+          (set (reg h-cr 9) (sub HI (reg h-cr 9) (const 2)))
+	  (set HI (mem HI (reg h-cr 9)) pc)
+	  (set HI pc (mem HI caddr)))
+        (if (ne extcond (const 1))
+          (set bit01 (const 1))
+          (set HI pc (add HI pc (const 2))))
+     )
+     ()
+  )
+)
+
+(callabs calla0 calla+)
+(callabs calla1 calla)
+
+; CALLA- cc,caddr
+(dni calla- "Absolute conditional call"
+     (COND-CTI (PIPE OS) (IDOC JMP))
+     "calla- $extcond,$caddr"
+     (+ OP1_12 OP2_10 extcond (f-op-bit3 1) caddr)
+     (sequence ()
+        (if (eq extcond (const 1))
+          (set (reg h-cr 9) (sub HI (reg h-cr 9) (const 2)))
+	  (set HI (mem HI (reg h-cr 9)) pc)
+	  (set HI pc (mem HI caddr)))
+        (set HI pc (add HI pc (const 2)))
+     )
+     ()
+)
+
+; CALLI cc,[Rwn]
+(dni calli "indirect subroutine call"
+     (COND-CTI (PIPE OS) (IDOC JMP))
+     "calli $icond,[$sr]"
+     (+ OP1_10 OP2_11 icond sr)
+     (sequence ()
+         (if (eq icond (const 1))
+             (sequence ()
+	             (set (reg h-cr 9) (sub HI (reg h-cr 9) (const 2)))
+        	     (set HI (mem HI (reg h-cr 9)) pc)
+        	     (set HI pc (mem HI sr))
+             )
+         )
+         (set HI pc (add HI pc (const 2)))
+     )
+     ()
+)
+
+; CALLR rel
+(dni callr "Call subroutine with PC relative signed 8 bit offset"
+     ( COND-CTI (PIPE OS) (IDOC JMP))
+     "callr $rel"
+     (+ OP1_11 OP2_11 rel)
+     (sequence ()
+          (set (reg h-cr 9) (sub HI (reg h-cr 9) (const 2)))
+	  (set HI (mem HI (reg h-cr 9)) pc)
+          (sequence ()
+                (if QI (lt QI rel (const 0))
+                       (sequence ()
+                           (neg QI rel)
+                           (add QI rel (const 1))
+                           (mul QI rel (const 2))
+                           (set HI pc (sub HI pc rel))
+                       ))
+                (set HI pc (add HI pc (mul QI rel (const 2))))
+          )
+      )
+      ()
+)
+
+
+; CALLS seg,caddr
+(dni callseg "call inter-segment subroutine"
+     (UNCOND-CTI (PIPE OS) (IDOC JMP))
+     "calls $hash$segm$useg8,$hash$sof$usof16"
+     (+ OP1_13 OP2_10 useg8 usof16)
+     (sequence ()
+          (set (reg h-cr 9) (sub HI (reg h-cr 9) (const 2)))
+          (set HI (mem HI (reg h-cr 9)) (reg h-cr 10))
+          (set (reg h-cr 9) (sub HI (reg h-cr 9) (const 2)))
+          (set HI (mem HI (reg h-cr 9)) pc)
+          (if QI (eq BI sgtdisbit (const BI 0))
+                 (set QI (reg h-cr 10) useg8))
+                 (nop)
+          (set HI pc usof16)
+     )
+     ()
+)
+
+; CALLS seg,caddr
+(dni calls "call inter-segment subroutine"
+     (UNCOND-CTI (PIPE OS) (IDOC JMP))
+     "calls $seg,$caddr"
+     (+ OP1_13 OP2_10 seg caddr)
+     (sequence ()
+          (set (reg h-cr 9) (sub HI (reg h-cr 9) (const 2)))
+          (set HI (mem HI (reg h-cr 9)) (reg h-cr 10))
+          (set (reg h-cr 9) (sub HI (reg h-cr 9) (const 2)))
+          (set HI (mem HI (reg h-cr 9)) pc)
+          (if QI (eq BI sgtdisbit (const BI 0))
+                 (set QI (reg h-cr 10) seg))
+                 (nop)
+          (set HI pc caddr)
+     )
+     ()
+)
+
+; PCALL reg,caddr
+(dni pcall "push word and call absolute subroutine"
+       (UNCOND-CTI (PIPE OS) (IDOC JMP))
+       "pcall $reg8,$caddr"
+       (+ OP1_14 OP2_2 reg8 caddr)
+       (sequence ((HI tmp1))
+            (set HI tmp1 reg8)
+ 	    (set (reg h-cr 9) (sub HI (reg h-cr 9) (const 2)))
+	    (set HI (mem HI (reg h-cr 9)) tmp1)
+ 	    (set (reg h-cr 9) (sub HI (reg h-cr 9) (const 2)))
+	    (set HI (mem HI (reg h-cr 9)) pc)
+            (set HI pc caddr)
+       )
+       ()
+)
+
+; TRAP #uimm7
+(dni trap "software trap"
+       (UNCOND-CTI (PIPE OS) (IDOC JMP))
+       "trap $hash$uimm7"
+       (+ OP1_9 OP2_11 uimm7 (f-op-1bit 0))
+       (sequence ()
+	    (set (reg h-cr 9) (sub HI (reg h-cr 9) (const 2)))
+            (set HI (mem HI (reg h-cr 9)) (reg h-cr 4))
+              (if QI (eq BI sgtdisbit (const BI 0))
+                     (set (reg h-cr 9) (sub HI (reg h-cr 9) (const 2)))
+                     (set HI (mem HI (reg h-cr 9)) (reg h-cr 10) )
+              )
+              (nop)
+            (set HI (reg h-cr 10) (reg h-cr 11))
+            (set (reg h-cr 9) (sub HI (reg h-cr 9) (const 2)))
+            (set HI (mem HI (reg h-cr 9)) pc)
+            (set HI pc (mul QI uimm7 (const 4)))
+       )
+       ()
+)
+
+;Return insns
+; RET
+(dni ret "return from subroutine"
+       (UNCOND-CTI (PIPE OS) (IDOC JMP))
+       "ret"
+       (+ OP1_12 OP2_11 (f-op-bit8 0))
+       (sequence ()
+           (set HI pc (mem HI (reg h-cr 9)))
+           (set (reg h-cr 9) (add HI (reg h-cr 9) (const 2)))
+       )
+       ()
+)
+
+; RETS 
+(dni rets "return from inter-segment sunroutine"
+       (UNCOND-CTI (PIPE OS) (IDOC JMP))
+       "rets"
+       (+ OP1_13 OP2_11 (f-op-bit8 0))
+       (sequence ()
+           (set HI pc (mem HI (reg h-cr 9)))
+           (set (reg h-cr 9) (add HI (reg h-cr 9) (const 2)))
+              (if QI (eq BI sgtdisbit (const BI 0))
+                     (set HI (reg h-cr 10) (mem HI (reg h-cr 9)))
+              )
+              (nop)
+     	   (set (reg h-cr 9) (add HI (reg h-cr 9) (const 2)))
+       )
+       ()
+)
+
+; RETP reg
+(dni retp "return from subroutine and pop word register"
+       (UNCOND-CTI (PIPE OS) (IDOC JMP))
+       "retp $reg8"
+       (+ OP1_14 OP2_11 reg8)
+       (sequence ((HI tmp1))
+            (set HI pc (mem HI (reg h-cr 9)))
+            (set (reg h-cr 9) (add HI (reg h-cr 9) (const 2)))
+	    (set HI tmp1 (mem HI (reg h-cr 9)))
+            (set (reg h-cr 9) (add HI (reg h-cr 9) (const 2)))
+            (set HI reg8 tmp1)
+       )
+       ()
+)
+
+; RETI
+(dni reti "return from ISR"
+       (UNCOND-CTI (PIPE OS) (IDOC JMP))
+       "reti"
+       (+ OP1_15 OP2_11 (f-op-lbit4 8) (f-op-bit4 8))
+       (sequence ()
+           (set HI pc (mem HI (reg h-cr 9)))
+           (set (reg h-cr 9) (add HI (reg h-cr 9) (const 2)))
+              (if QI (eq BI sgtdisbit (const BI 0))
+                  (sequence ()
+                       (set HI (reg h-cr 10) (mem HI (reg h-cr 9)))
+                       (set (reg h-cr 9) (add HI (reg h-cr 9) (const 2)))
+                  )
+              )
+              (nop)
+           (set HI (reg h-cr 4) (mem HI (reg h-cr 9)))
+     	   (set (reg h-cr 9) (add HI (reg h-cr 9) (const 2)))
+       )
+       ()
+)
+
+;stack operation insn
+;******************************************************************
+; POP reg
+(dni pop "restore register from system stack"
+     ((PIPE OS) (IDOC MISC))
+     "pop $reg8"
+     (+ OP1_15 OP2_12 reg8)
+     (sequence ((HI tmp1))
+	   (set HI tmp1 (mem HI (reg h-cr 9)))
+	   (set (reg h-cr 9) (add HI (reg h-cr 9) (const 2)))         
+           (set HI reg8 tmp1)
+     )
+     ()
+)
+
+; PUSH reg
+(dni push "save register on system stack"
+     ((PIPE OS) (IDOC MISC))
+     "push $reg8"
+     (+ OP1_14 OP2_12 reg8)
+     (sequence ((HI tmp1))
+	   (set HI tmp1 reg8)
+	   (set (reg h-cr 9) (sub HI (reg h-cr 9) (const 2)))         
+           (set HI (mem HI (reg h-cr 9)) tmp1)
+     )
+     ()
+)
+
+;context switching insns
+; SCXT reg,#data16
+(dni scxti "Push word register on stack and update same with immediate data"
+     ((PIPE OS) (IDOC MISC))
+     "scxt $reg8,$hash$uimm16"
+     (+ OP1_12 OP2_6 reg8 uimm16)
+     (sequence ((HI tmp1) (HI tmp2))
+         (set HI tmp1 reg8)
+         (set HI tmp2 uimm16)
+         (sub HI (reg HI h-cr 9) (const 2))
+         (set HI (reg HI h-cr 9) tmp1)
+         (set HI reg8 tmp2)
+     )
+     ()
+)
+
+; SCXT reg,POF mem
+(dni scxtrpofm "mov memory to byte register"
+     ((PIPE OS) (IDOC MOVE))
+     "scxt $reg8,$pof$upof16"
+     (+ OP1_13 OP2_6 reg8 upof16)
+     (set QI reg8 (mem HI upof16))
+     ()
+)
+
+; SCXT regmem8,memgr8
+(dni scxtmg "Push word register on stack and update same with direct memory"
+     ((PIPE OS) (IDOC MISC))
+     "scxt $regmem8,$memgr8"
+     (+ OP1_13 OP2_6 regmem8 memgr8)
+     (sequence ((HI tmp1) (HI tmp2))
+         (set HI tmp1 regmem8)
+         (set HI tmp2 memgr8)
+         (sub HI (reg HI h-cr 9) (const 2))
+         (set HI (reg HI h-cr 9) tmp1)
+         (set HI regmem8 tmp2)
+     )
+     ()
+)
+
+; SCXT reg,mem
+(dni scxtm "Push word register on stack and update same with direct memory"
+     ((PIPE OS) (IDOC MISC))
+     "scxt $reg8,$memory"
+     (+ OP1_13 OP2_6 reg8 memory)
+     (sequence ((HI tmp1) (HI tmp2))
+         (set HI tmp1 reg8)
+         (set HI tmp2 memory)
+         (sub HI (reg HI h-cr 9) (const 2))
+         (set HI (reg HI h-cr 9) tmp1)
+         (set HI reg8 tmp2)
+     )
+     ()
+)
+
+;No operation
+; NOP 
+(dni nop "nop"
+     ((PIPE OS) (IDOC MISC))
+     "nop"
+     (+ OP1_12 OP2_12 (f-op-bit8 0))
+     ()
+     ()
+)
+
+;*********system control instructions *********************/
+
+(define-pmacro (sysctrl name insn opc1 opc2 op1 op2 op3)
+  (dni name 
+       (.str name "miscellaneous" )
+       ((PIPE OS) (IDOC MISC))
+       (.str insn )
+       (+ opc1 opc2 (f-op-lbit4 op1) (f-op-bit4 op2) (f-data8 op3) (f-op-bit8 op3))
+       ()
+       ()
+  )
+)
+(sysctrl srstm srst  OP1_11 OP2_7 4 8 183 )
+(sysctrl idlem idle  OP1_8 OP2_7 7 8 135)
+(sysctrl pwrdnm pwrdn  OP1_9 OP2_7 6 8 151)
+(sysctrl diswdtm diswdt  OP1_10 OP2_5 5 10 165)
+(sysctrl enwdtm enwdt  OP1_8 OP2_5 7 10 133)
+(sysctrl einitm einit  OP1_11 OP2_5 4 10 181)
+(sysctrl srvwdtm srvwdt  OP1_10 OP2_7 5 8 167 )
+
+;s/w brk
+; SBRK 
+(dni sbrk "sbrk"
+     ((PIPE OS) (IDOC MISC))
+     "sbrk"
+     (+ OP1_8 OP2_12 (f-op-bit8 0))
+     ()
+     ()
+)
+
+; atomic sequence
+; ATOMIC #irang2
+(dni atomic "begin atomic sequence"
+     ((PIPE OS) (IDOC SYSC))
+     "atomic $hash$uimm2"
+     (+ OP1_13 OP2_1 (f-op-lbit2 0) uimm2 (f-op-bit4 0))
+     (sequence ((HI count))
+	  (set HI count uimm2)
+          (cond HI
+  	    ((ne HI count (const 0))
+	    (sequence ()
+	       (set HI pc (add HI pc (const 2)))
+               (set HI count (sub HI count (const 1)))
+            ))
+          )
+          (set HI count (const 0))
+      )
+      ()
+)
+
+;extended register sequence
+; EXTR #irang2
+(dni extr "begin extended register sequence"
+     ((PIPE OS) (IDOC SYSC))
+     "extr $hash$uimm2"
+     (+ OP1_13 OP2_1 (f-op-lbit2 2) uimm2 (f-op-bit4 0))
+     (sequence ((HI count))
+	  (set HI count uimm2)
+          (cond HI
+  	    ((ne HI count (const 0))
+	    (sequence ()
+	       (set HI pc (add HI pc (const 2)))
+               (set HI count (sub HI count (const 1)))
+            ))
+          )
+          (set HI count (const 0))
+      )
+      ()
+)
+
+;extended page sequence
+; EXTP Rw,#irang2
+(dni extp "begin extended page sequence"
+     ((PIPE OS) (IDOC SYSC))
+     "extp $sr,$hash$uimm2"
+     (+ OP1_13 OP2_12 (f-op-lbit2 1) uimm2 sr)
+     (sequence ((HI count))
+	  (set HI count uimm2)
+          (cond HI
+  	    ((ne HI count (const 0))
+	    (sequence ()
+	       (set HI pc (add HI pc (const 2)))
+               (set HI count (sub HI count (const 1)))
+            ))
+          )
+          (set HI count (const 0))
+      )
+      ()
+)
+
+;extended page sequence
+; EXTP #pag10,#irang2
+(dni extp1 "begin extended page sequence"
+     ((PIPE OS) (IDOC SYSC))
+     "extp $hash$pagenum,$hash$uimm2"
+     (+ OP1_13 OP2_7 (f-op-lbit2 1) uimm2 (f-op-bit4 0) pagenum (f-qlobit 0) (f-qlobit2 0))
+     (sequence ((HI count))
+	  (set HI count uimm2)
+          (cond HI
+  	    ((ne HI count (const 0))
+	    (sequence ()
+	       (set HI pc (add HI pc (const 2)))
+               (set HI count (sub HI count (const 1)))
+            ))
+          )
+          (set HI count (const 0))
+      )
+      ()
+)
+
+; EXTP #pag10,#irang2
+(dni extpg1 "begin extended page sequence"
+     ((PIPE OS) (IDOC SYSC))
+     "extp $hash$pag$upag16,$hash$uimm2"
+     (+ OP1_13 OP2_7 (f-op-lbit2 1) uimm2 (f-op-bit4 0) upag16 )
+     (sequence ((HI count))
+	  (set HI count uimm2)
+          (cond HI
+  	    ((ne HI count (const 0))
+	    (sequence ()
+	       (set HI pc (add HI pc (const 2)))
+               (set HI count (sub HI count (const 1)))
+            ))
+          )
+          (set HI count (const 0))
+      )
+      ()
+)
+
+;extended page and register sequence
+; EXTPR Rw,#irang2
+(dni extpr "begin extended page and register sequence"
+     ((PIPE OS) (IDOC SYSC))
+     "extpr $sr,$hash$uimm2"
+     (+ OP1_13 OP2_12 (f-op-lbit2 3) uimm2 sr)
+     (sequence ((HI count))
+	  (set HI count uimm2)
+          (cond HI
+  	    ((ne HI count (const 0))
+	    (sequence ()
+	       (set HI pc (add HI pc (const 2)))
+               (set HI count (sub HI count (const 1)))
+            ))
+          )
+          (set HI count (const 0))
+      )
+      ()
+)
+
+;extended page and register sequence
+; EXTPR #pag10,#irang2
+(dni extpr1 "begin extended page sequence"
+     ((PIPE OS) (IDOC SYSC))
+     "extpr $hash$pagenum,$hash$uimm2"
+     (+ OP1_13 OP2_7 (f-op-lbit2 3) uimm2 (f-op-bit4 0) pagenum (f-qlobit 0) (f-qlobit2 0))
+     (sequence ((HI count))
+	  (set HI count uimm2)
+          (cond HI
+  	    ((ne HI count (const 0))
+	    (sequence ()
+	       (set HI pc (add HI pc (const 2)))
+               (set HI count (sub HI count (const 1)))
+            ))
+          )
+          (set HI count (const 0))
+      )
+      ()
+)
+
+;extended segment sequence
+; EXTS Rw,#irang2
+(dni exts "begin extended segment sequence"
+     ((PIPE OS) (IDOC SYSC))
+     "exts $sr,$hash$uimm2"
+     (+ OP1_13 OP2_12 (f-op-lbit2 0) uimm2 sr)
+     (sequence ((HI count))
+	  (set HI count uimm2)
+          (cond HI
+  	    ((ne HI count (const 0))
+	    (sequence ()
+	       (set HI pc (add HI pc (const 2)))
+               (set HI count (sub HI count (const 1)))
+            ))
+          )
+          (set HI count (const 0))
+      )
+      ()
+)
+
+;extended segment sequence
+; EXTS #seg8,#irang2
+(dni exts1 "begin extended segment sequence"
+     ((PIPE OS) (IDOC SYSC))
+     "exts $hash$seghi8,$hash$uimm2"
+     (+ OP1_13 OP2_7 (f-op-lbit2 0) uimm2 (f-op-bit4 0) seghi8 (f-op-bit8 0))
+     (sequence ((HI count))
+	  (set HI count uimm2)
+          (cond HI
+  	    ((ne HI count (const 0))
+	    (sequence ()
+	       (set HI pc (add HI pc (const 2)))
+               (set HI count (sub HI count (const 1)))
+            ))
+          )
+          (set HI count (const 0))
+      )
+      ()
+)
+
+;extended segment register sequence
+; EXTSR Rwm,#irang2
+(dni extsr "begin extended segment and register sequence"
+     ((PIPE OS) (IDOC SYSC))
+     "extsr $sr,$hash$uimm2"
+     (+ OP1_13 OP2_12 (f-op-lbit2 2) uimm2 sr)
+     (sequence ((HI count))
+	  (set HI count uimm2)
+          (cond HI
+  	    ((ne HI count (const 0))
+	    (sequence ()
+	       (set HI pc (add HI pc (const 2)))
+               (set HI count (sub HI count (const 1)))
+            ))
+          )
+          (set HI count (const 0))
+      )
+      ()
+)
+
+;extended segment register sequence
+; EXTSR #pag10,#irang2
+(dni extsr1 "begin extended segment and register sequence"
+     ((PIPE OS) (IDOC SYSC))
+     "extsr $hash$seghi8,$hash$uimm2"
+     (+ OP1_13 OP2_7 (f-op-lbit2 2) uimm2 (f-op-bit4 0) seghi8 (f-op-bit8 0))
+     (sequence ((HI count))
+	  (set HI count uimm2)
+          (cond HI
+  	    ((ne HI count (const 0))
+	    (sequence ()
+	       (set HI pc (add HI pc (const 2)))
+               (set HI count (sub HI count (const 1)))
+            ))
+          )
+          (set HI count (const 0))
+      )
+      ()
+)
+
+;prioritize register
+;PRIOR Rwn,Rwm
+(dni prior "add registers"
+     ((PIPE OS) (IDOC ALU))
+     "prior $dr,$sr"
+     (+ OP1_2 OP2_11 dr sr)
+     (sequence ((HI count) (HI tmp1) (HI tmp2))
+	  (set HI count (const 0))
+	  (set HI tmp1 sr)
+	  (set HI tmp2 (and tmp1 (const 32768)))
+          (cond HI
+  	    ((ne HI tmp2 (const 1)) (ne HI sr (const 0))
+	       (sll HI tmp1 (const 1))
+               (set HI tmp2 (and tmp1 (const 32768)))
+               (set HI count (add HI count (const 1)))
+            )
+           )        
+           (set HI dr count)
+      )
+      ()
+)
+
+
+;bit instructions
+;******************************************************************
+;bit clear
+(define-pmacro (bclear name insn opc1)
+  (dni name
+     (.str name "bit clear" )
+     ((PIPE OS) (IDOC ALU))
+     (.str insn " $reg8$dot$qbit")
+     (+ opc1 OP2_14 reg8)
+     (sequence ((HI tmp1) (HI tmp2))
+     (set tmp2 (const 1))
+     (set tmp1 reg8)
+     (sll tmp2 qbit)
+     (inv tmp2)
+     (set BI tmp1(and tmp1 tmp2))
+     (set HI reg8 tmp1))
+     ()
+  )
+)
+
+;clear direct bit
+(dni bclr18 "bit logical MOVN"
+     ((PIPE OS) (IDOC ALU))
+     "bclr $RegNam"
+     (+ OP1_11 OP2_14 RegNam)
+     (sequence ((HI tmp1) (HI tmp2))
+     (set tmp2 (const 1))
+     (set tmp1 reg8)
+     (sll tmp2 qbit)
+     (inv tmp2)
+     (set BI tmp1(and tmp1 tmp2))
+     (set HI reg8 tmp1))
+     ()
+)
+
+
+(bclear bclr0 bclr  QBIT_0 )
+(bclear bclr1 bclr  QBIT_1 )
+(bclear bclr2 bclr  QBIT_2 )
+(bclear bclr3 bclr  QBIT_3 )
+(bclear bclr4 bclr  QBIT_4 )
+(bclear bclr5 bclr  QBIT_5 )
+(bclear bclr6 bclr  QBIT_6 )
+(bclear bclr7 bclr  QBIT_7 )
+(bclear bclr8 bclr  QBIT_8 )
+(bclear bclr9 bclr  QBIT_9 )
+(bclear bclr10 bclr  QBIT_10 )
+(bclear bclr11 bclr  QBIT_11 )
+(bclear bclr12 bclr  QBIT_12 )
+(bclear bclr13 bclr  QBIT_13 )
+(bclear bclr14 bclr  QBIT_14 )
+(bclear bclr15 bclr  QBIT_15 )
+
+;set direct bit
+(dni bset19 "bit logical MOVN"
+     ((PIPE OS) (IDOC ALU))
+     "bset $RegNam"
+     (+ OP1_11 OP2_15 RegNam)
+     (sequence ((HI tmp1) (HI tmp2))
+     (set tmp2 (const 1))
+     (set tmp1 reg8)
+     (sll tmp2 qbit)
+     (set BI tmp1(or tmp1 tmp2))
+     (set HI reg8 tmp1))
+     ()
+)
+
+;bit set
+(define-pmacro (bitset name insn opc1)
+  (dni name
+     (.str name "bit set" )
+     ((PIPE OS) (IDOC ALU))
+     (.str insn " $reg8$dot$qbit")
+     (+ opc1 OP2_15 reg8)
+     (sequence ((HI tmp1) (HI tmp2))
+     (set tmp2 (const 1))
+     (set tmp1 reg8)
+     (sll tmp2 qbit)
+     (set BI tmp1(or tmp1 tmp2))
+     (set HI reg8 tmp1))
+     ()
+  )
+)
+
+
+(bitset bset0 bset  QBIT_0 )
+(bitset bset1 bset  QBIT_1 )
+(bitset bset2 bset  QBIT_2 )
+(bitset bset3 bset  QBIT_3 )
+(bitset bset4 bset  QBIT_4 )
+(bitset bset5 bset  QBIT_5 )
+(bitset bset6 bset  QBIT_6 )
+(bitset bset7 bset  QBIT_7 )
+(bitset bset8 bset  QBIT_8 )
+(bitset bset9 bset  QBIT_9 )
+(bitset bset10 bset  QBIT_10 )
+(bitset bset11 bset  QBIT_11 )
+(bitset bset12 bset  QBIT_12 )
+(bitset bset13 bset  QBIT_13 )
+(bitset bset14 bset  QBIT_14 )
+(bitset bset15 bset  QBIT_15 )
+
+;mov direct bit
+;BMOV bitaddrZ.z,bitaddrQ.q
+(dni bmov "bit logical MOV"
+     ((PIPE OS) (IDOC ALU))
+     "bmov $reghi8$dot$qhibit,$reg8$dot$qlobit"
+     (+ OP1_4 OP2_10 reg8 reghi8 qhibit qlobit)
+     (sequence ((HI tmp1) (HI tmp2) (HI tmp3) (HI tmp4))
+     (set HI tmp1 reghi8)
+     (set HI tmp2 reg8)
+     (set tmp3 (const 1))
+     (set tmp4 (const 1))
+     (sll tmp3 qlobit)
+     (sll tmp4 qhibit)
+     (and tmp1 tmp3)
+     (and tmp2 tmp4)
+     (set BI tmp1 tmp2)
+     (set HI reghi8 tmp1)
+     (set HI reg8 tmp2))
+     ()
+)
+
+;movn direct bit
+;BMOVN bitaddrZ.z,bitaddrQ.q
+(dni bmovn "bit logical MOVN"
+     ((PIPE OS) (IDOC ALU))
+     "bmovn $reghi8$dot$qhibit,$reg8$dot$qlobit"
+     (+ OP1_3 OP2_10 reg8 reghi8 qhibit qlobit)
+     (sequence ((HI tmp1) (HI tmp2) (HI tmp3) (HI tmp4))
+     (set HI tmp1 reghi8)
+     (set HI tmp2 reg8)
+     (set tmp3 (const 1))
+     (set tmp4 (const 1))
+     (sll tmp3 qlobit)
+     (sll tmp4 qhibit)
+     (and tmp1 tmp3)
+     (and tmp2 tmp4)
+     (inv HI tmp2)
+     (set BI tmp1 tmp2)
+     (set HI reghi8 tmp1)
+     (set HI reg8 tmp2))
+     ()
+)
+
+;and direct bit
+;BAND bitaddrZ.z,bitaddrQ.q
+(dni band "bit logical AND"
+     ((PIPE OS) (IDOC ALU))
+     "band $reghi8$dot$qhibit,$reg8$dot$qlobit"
+     (+ OP1_6 OP2_10 reg8 reghi8 qhibit qlobit)
+     (sequence ((HI tmp1) (HI tmp2) (HI tmp3) (HI tmp4))
+     (set HI tmp1 reghi8)
+     (set HI tmp2 reg8)
+     (set tmp3 (const 1))
+     (set tmp4 (const 1))
+     (sll tmp3 qlobit)
+     (sll tmp4 qhibit)
+     (and tmp1 tmp3)
+     (and tmp2 tmp4)
+     (set BI tmp1(and tmp1 tmp2))
+     (set HI reghi8 tmp1)
+     (set HI reg8 tmp2))
+     ()
+)
+
+;or direct bit
+;BOR bitaddrZ.z,bitaddrQ.q
+(dni bor "bit logical OR"
+     ((PIPE OS) (IDOC ALU))
+     "bor $reghi8$dot$qhibit,$reg8$dot$qlobit"
+     (+ OP1_5 OP2_10 reg8 reghi8 qhibit qlobit)
+     (sequence ((HI tmp1) (HI tmp2) (HI tmp3) (HI tmp4))
+     (set HI tmp1 reghi8)
+     (set HI tmp2 reg8)
+     (set tmp3 (const 1))
+     (set tmp4 (const 1))
+     (sll tmp3 qlobit)
+     (sll tmp4 qhibit)
+     (and tmp1 tmp3)
+     (and tmp2 tmp4)
+     (set BI tmp1(or tmp1 tmp2))
+     (set HI reghi8 tmp1)
+     (set HI reg8 tmp2))
+     ()
+)
+
+;xor direct bit
+;BXOR bitaddrZ.z,bitaddrQ.q
+(dni bxor "bit logical XOR"
+     ((PIPE OS) (IDOC ALU))
+     "bxor $reghi8$dot$qhibit,$reg8$dot$qlobit"
+     (+ OP1_7 OP2_10 reg8 reghi8 qhibit qlobit)
+     (sequence ((HI tmp1) (HI tmp2) (HI tmp3) (HI tmp4))
+     (set HI tmp1 reghi8)
+     (set HI tmp2 reg8)
+     (set tmp3 (const 1))
+     (set tmp4 (const 1))
+     (sll tmp3 qlobit)
+     (sll tmp4 qhibit)
+     (and tmp1 tmp3)
+     (and tmp2 tmp4)
+     (set BI tmp1(xor tmp1 tmp2))
+     (set HI reghi8 tmp1)
+     (set HI reg8 tmp2))
+     ()
+)
+
+;cmp direct bit to bit
+;BCMP bitaddrZ.z,bitaddrQ.q
+(dni bcmp "bit to bit compare"
+     ((PIPE OS) (IDOC ALU))
+     "bcmp $reghi8$dot$qhibit,$reg8$dot$qlobit"
+     (+ OP1_2 OP2_10 reg8 reghi8 qhibit qlobit)
+     (sequence ((HI tmp1) (HI tmp2) (HI tmp3) (HI tmp4))
+     (set HI tmp1 reghi8)
+     (set HI tmp2 reg8)
+     (set tmp3 (const 1))
+     (set tmp4 (const 1))
+     (sll tmp3 qlobit)
+     (sll tmp4 qhibit)
+     (and tmp1 tmp3)
+     (and tmp2 tmp4)
+     (set BI tmp1(xor tmp1 tmp2))
+     (set HI reghi8 tmp1)
+     (set HI reg8 tmp2))
+     ()
+)
+
+;bit field low byte
+;BFLDL op1,op2,op3
+(dni bfldl "bit field low byte"
+     ((PIPE OS) (IDOC MOVE))
+     "bfldl $reg8,$hash$mask8,$hash$datahi8"
+     (+ OP1_0 OP2_10 reg8 mask8 datahi8)
+     (sequence ((HI tmp1) (QI tmp2) (QI tmp3))
+     (set HI tmp1 reg8)
+     (set QI tmp2 mask8)
+     (set QI tmp3 datahi8)
+     (inv QI tmp2)
+     (set HI tmp1 (and tmp1 tmp2))
+     (set HI tmp1 (or tmp1 tmp3))
+     (set HI reg8 tmp1)
+     )
+     ()
+)
+
+;bit field high byte
+;BFLDH op1,op2,op3
+(dni bfldh "bit field high byte"
+     ((PIPE OS) (IDOC MOVE))
+     "bfldh $reg8,$hash$masklo8,$hash$data8"
+     (+ OP1_1 OP2_10 reg8 masklo8 data8)
+     (sequence ((HI tmp1) (HI tmp2) (HI tmp3))
+     	     (set HI tmp1 reg8)
+	     (set QI tmp2 masklo8)
+	     (set HI tmp3 data8)
+	     (sll tmp2 (const 8))
+	     (inv HI tmp2)
+	     (sll tmp3 (const 8))
+	     (set HI tmp1 (and tmp1 tmp2))
+	     (set HI tmp1 (or tmp1 tmp3))
+	     (set HI reg8 tmp1)
+     )
+     ()
+)
+
+;/**********compare instructions******************
+
+;Compare register
+;CMP Rwn,Rwm
+(dni cmpr "compare two registers"
+     ((PIPE OS) (IDOC CMP))
+     "cmp $src1,$src2"
+     (+ OP1_4 OP2_0 src1 src2)
+     (set condbit (lt HI src1 src2))
+     ()
+)
+
+;Compare byte register
+;CMPB Rbn,Rbm
+(dni cmpbr "compare two byte registers"
+     ((PIPE OS) (IDOC CMP))
+     "cmpb $drb,$srb"
+     (+ OP1_4 OP2_1 drb srb)
+     (set condbit (lt QI drb srb))
+     ()
+)
+
+(define-pmacro (cmp1 name insn opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "compare" )
+       ((PIPE OS) (IDOC CMP))
+       (.str insn " $"op1 ",$hash$"op2)
+       (+ opc1 opc2 op1 (f-op-bit1 0) op2)
+       (set condbit (lt mode op1 op2))
+       ()
+  )
+)
+(cmp1 cmpri cmp OP1_4 OP2_8 src1 uimm3 HI)
+(cmp1 cmpbri cmpb OP1_4 OP2_9 drb uimm3 QI)
+
+; CMP Rwn,#data16
+(dni cmpi "compare"
+     ((PIPE OS) (IDOC CMP))
+     "cmp $reg8,$hash$uimm16"
+     (+ OP1_4 OP2_6 reg8 uimm16)
+     (set condbit (lt HI reg8 uimm16))
+     ()
+)
+
+; CMPB reg,#data8
+(dni cmpbi "compare"
+     ((PIPE OS) (IDOC CMP))
+     "cmpb $regb8,$hash$uimm8"
+     (+ OP1_4 OP2_7 regb8 uimm8 (f-op-bit8 0))
+     (set condbit (lt QI regb8 uimm8))
+     ()
+)
+
+;compare reg and indirect memory
+(define-pmacro (cmp2 name insn opc1 opc2 op1 op2 mode)
+  (dni name
+       (.str name "compare" )
+       ((PIPE OS) (IDOC CMP))
+       (.str insn " $"op1 ",[$"op2"]")
+       (+ opc1 opc2 op1 (f-op-bit2 2) op2)
+       (set condbit (lt mode op1 op2))
+       ()
+  )
+)
+(cmp2 cmpr2 cmp OP1_4 OP2_8 dr sr2 HI)
+(cmp2 cmpbr2 cmpb OP1_4 OP2_9 drb sr2 QI)
+
+;compare register and indirect memory post increment
+(define-pmacro (cmp3 name insn opc1 opc2 op1 op2 mode)
+  (dni name
+       (.str name "compare" )
+       ((PIPE OS) (IDOC CMP))
+       (.str insn " $"op1 ",[$"op2"+]")
+       (+ opc1 opc2 op1 (f-op-bit2 3) op2)
+       (sequence ()
+          (set condbit (lt mode op1 op2))
+   	  (set HI op2 (add HI op2 (const 2)))
+       )
+       ()
+  )
+)
+(cmp3 cmp2i cmp OP1_4 OP2_8 dr sr2 HI)
+(cmp3 cmpb2i cmpb OP1_4 OP2_9 drb sr2 QI)
+
+;compare register and direct memory
+(define-pmacro (cmp4 name insn opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "compare" )
+       ((PIPE OS) (IDOC CMP))
+       (.str insn " $"op1 ",$pof$"op2)
+       (+ opc1 opc2 op1 op2)
+       (set condbit (lt HI op1 (mem HI op2)))
+       ()
+  )
+)
+(cmp4 cmp04 cmp OP1_4 OP2_2 reg8 upof16 HI)
+(cmp4 cmpb4 cmpb OP1_4 OP2_3 regb8 upof16 QI)
+
+;compare register and direct memory
+(define-pmacro (cmp4 name insn opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "compare" )
+       ((PIPE OS) (IDOC CMP))
+       (.str insn " $"op1 ",$"op2)
+       (+ opc1 opc2 op1 op2)
+       (set condbit (lt HI op1 (mem HI op2)))
+       ()
+  )
+)
+(cmp4 cmp004 cmp OP1_4 OP2_2 regmem8 memgr8 HI)
+(cmp4 cmp0004 cmp OP1_4 OP2_2 reg8 memory HI)
+(cmp4 cmpb04 cmpb OP1_4 OP2_3 regbmem8 memgr8 QI)
+(cmp4 cmpb004 cmpb OP1_4 OP2_3 regb8 memory QI)
+
+;compare register and immediate
+(define-pmacro (cmp5 name insn opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "compare" )
+       ((PIPE OS) (IDOC CMP))
+       (.str insn " $"op1 ",$hash$"op2)
+       (+ opc1 opc2 op2 op1)
+       (sequence ()
+            (set condbit (lt HI op1 op2))
+	    (set mode op1 (sub HI op1 (const 1)))
+       )     
+       ()
+  )
+)
+(cmp5 cmpd1ri cmpd1  OP1_10 OP2_0 sr uimm4 HI)
+(cmp5 cmpd2ri cmpd2  OP1_11 OP2_0 sr uimm4 HI)
+(cmp5 cmpi1ri cmpi1  OP1_8 OP2_0 sr uimm4 HI)
+(cmp5 cmpi2ri cmpi2  OP1_9 OP2_0 sr uimm4 HI)
+(cmp5 cmpd1rim cmpd1  OP1_10 OP2_6 reg8 uimm16 HI)
+(cmp5 cmpd2rim cmpd2  OP1_11 OP2_6 reg8 uimm16 HI)
+(cmp5 cmpi1rim cmpi1  OP1_8 OP2_6 reg8 uimm16 HI)
+(cmp5 cmpi2rim cmpi2  OP1_9 OP2_6 reg8 uimm16 HI)
+
+;compare register and direct memory
+(define-pmacro (cmp6 name insn opc1 opc2 op1 op2 mode )
+  (dni name 
+       (.str name "compare" )
+       ((PIPE OS) (IDOC CMP))
+       (.str insn " $"op1 ",$pof$"op2)
+       (+ opc1 opc2 op1 op2)
+       (sequence ()
+            (set condbit (lt HI op1 (mem HI op2)))
+	    (set mode op1 (sub HI op1 (const 1)))
+       )    
+       ()
+  )
+)
+(cmp6 cmpd1rp cmpd1  OP1_10 OP2_2 reg8 upof16 HI )
+(cmp6 cmpd2rp cmpd2  OP1_11 OP2_2 reg8 upof16 HI )
+(cmp6 cmpi1rp cmpi1  OP1_8 OP2_2 reg8 upof16 HI )
+(cmp6 cmpi2rp cmpi2  OP1_9 OP2_2 reg8 upof16 HI )
+
+;compare register and direct memory
+(define-pmacro (cmp7 name insn opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "compare" )
+       ((PIPE OS) (IDOC CMP))
+       (.str insn " $"op1 ",$"op2)
+       (+ opc1 opc2 op1 op2)
+       (sequence ()
+            (set condbit (lt HI op1 (mem HI op2)))
+	    (set mode op1 (sub HI op1 (const 1)))
+       )    
+       ()
+  )
+)
+(cmp7 cmpd1rm cmpd1  OP1_10 OP2_2 regmem8 memgr8 HI)
+(cmp7 cmpd2rm cmpd2  OP1_11 OP2_2 regmem8 memgr8 HI)
+(cmp7 cmpi1rm cmpi1  OP1_8 OP2_2 regmem8 memgr8 HI)
+(cmp7 cmpi2rm cmpi2  OP1_9 OP2_2 regmem8 memgr8 HI)
+(cmp7 cmpd1rmi cmpd1  OP1_10 OP2_2 reg8 memory HI)
+(cmp7 cmpd2rmi cmpd2  OP1_11 OP2_2 reg8 memory HI)
+(cmp7 cmpi1rmi cmpi1  OP1_8 OP2_2 reg8 memory HI)
+(cmp7 cmpi2rmi cmpi2  OP1_9 OP2_2 reg8 memory HI)
+
+
+;Shift and rotate insns
+;****************************************************************
+(define-pmacro (shift name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "shift" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$"op2)
+       (+ opc1 opc2 op1 op2)
+       (set mode op1 (insn1 mode op1 op2))
+       ()
+  )
+)
+(shift shlr shl sll OP1_4 OP2_12 dr sr HI)
+(shift shrr shr srl OP1_6 OP2_12 dr sr HI)
+(shift rolr rol rol OP1_0 OP2_12 dr sr HI)
+(shift rorr ror ror OP1_2 OP2_12 dr sr HI)
+(shift ashrr ashr sra OP1_10 OP2_12 dr sr HI)
+
+(define-pmacro (shift1 name insn insn1 opc1 opc2 op1 op2 mode)
+  (dni name 
+       (.str name "shift" )
+       ((PIPE OS) (IDOC ALU))
+       (.str insn " $"op1 ",$hash$"op2)
+       (+ opc1 opc2 op2 op1)
+       (set mode op1 (insn1 mode op1 op2))
+       ()
+  )
+)
+(shift1 shlri shl sll OP1_5 OP2_12 sr uimm4 HI)
+(shift1 shrri shr srl OP1_7 OP2_12 sr uimm4 HI)
+(shift1 rolri rol rol OP1_1 OP2_12 sr uimm4 HI)
+(shift1 rorri ror ror OP1_3 OP2_12 sr uimm4 HI)
+(shift1 ashrri ashr sra OP1_11 OP2_12 sr uimm4 HI)

@@ -239,3 +239,15 @@ Disassembly of section .text:
 0+394 <[^>]*> 0ef09a10 	fmrxeq	r9, fpsid
 0+398 <[^>]*> 0e019a90 	fmsreq	s3, r9
 0+39c <[^>]*> 0ee08a10 	fmxreq	fpsid, r8
+0+3a0 <[^>]*> eef90a10 	fmrx	r0, fpinst	@ Impl def
+0+3a4 <[^>]*> eefa0a10 	fmrx	r0, fpinst2	@ Impl def
+0+3a8 <[^>]*> eef70a10 	fmrx	r0, mvfr0
+0+3ac <[^>]*> eef60a10 	fmrx	r0, mvfr1
+0+3b0 <[^>]*> eefc0a10 	fmrx	r0, <impl def 0xc>
+0+3b4 <[^>]*> eee90a10 	fmxr	fpinst, r0	@ Impl def
+0+3b8 <[^>]*> eeea0a10 	fmxr	fpinst2, r0	@ Impl def
+0+3bc <[^>]*> eee70a10 	fmxr	mvfr0, r0
+0+3c0 <[^>]*> eee60a10 	fmxr	mvfr1, r0
+0+3c4 <[^>]*> eeec0a10 	fmxr	<impl def 0xc>, r0
+0+3c8 <[^>]*> e1a00000 	nop			\(mov r0,r0\)
+0+3cc <[^>]*> e1a00000 	nop			\(mov r0,r0\)

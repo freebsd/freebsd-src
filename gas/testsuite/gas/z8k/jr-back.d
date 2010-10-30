@@ -6,7 +6,7 @@
 
 Disassembly of section \.text:
 
-00000000 <start>:
+0*00000000 <start>:
    0:	8d07           	nop	
 	\.\.\.
   fa:	e882           	jr	t,0x0

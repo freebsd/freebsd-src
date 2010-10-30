@@ -566,5 +566,24 @@ foo:
  movsbw 0x90909090(%eax),%dx
  xadd   %dx,0x90909090(%eax)
 
+ xchg   %ax,%ax
+
+ sldt	%eax
+ sldt	%ax
+ sldt	(%eax)
+ smsw	%eax
+ smsw	%ax
+ smsw	(%eax)
+ str	%eax
+ str	%ax
+ str	(%eax)
+
+ shrd   %cl,%edx,%eax
+ shld   %cl,%edx,%eax
+
+ test   %eax,%ebx
+ test   %ebx,%eax
+ test   (%eax),%ebx
+
 # Force a good alignment.
  .p2align 4,0

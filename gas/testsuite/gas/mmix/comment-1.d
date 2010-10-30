@@ -31,6 +31,7 @@ Symbol table '\.symtab' contains 12 entries:
     11: 0+     0 NOTYPE  GLOBAL DEFAULT  UND target3
 
 Hex dump of section '\.text':
+ NOTE: This section has relocations against it, but these have NOT been applied to this dump.
   0x0+ 0000007b 00010017 00010203 01030201 .*
   0x0+10 09050006 09070208 0509000a 050b030c .*
   0x0+20 230f1011 23121300 23141516 34170018 .*

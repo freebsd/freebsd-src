@@ -610,6 +610,9 @@ mt_cgen_init_asm (CGEN_CPU_DESC cd)
   mt_cgen_init_ibld_table (cd);
   cd->parse_handlers = & mt_cgen_parse_handlers[0];
   cd->parse_operand = mt_cgen_parse_operand;
+#ifdef CGEN_ASM_INIT_HOOK
+CGEN_ASM_INIT_HOOK
+#endif
 }
 
 

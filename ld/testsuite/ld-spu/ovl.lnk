@@ -1,0 +1,14 @@
+SECTIONS
+{
+  . = SIZEOF_HEADERS;
+  .text : { *(.text) *(.stub) }
+
+  OVERLAY 0x400 :
+  {
+    .ov_a1 { *(.ov_a1) }
+    .ov_a2 { *(.ov_a2) }
+  }
+
+  .data : { *(.data) *(.ovtab) }
+  .bss : { *(.bss) }
+}

@@ -1,6 +1,6 @@
 /* BFD back-end for linux flavored i386 a.out binaries.
    Copyright 1992, 1993, 1994, 1995, 1996, 1997, 1999, 2001, 2002, 2003,
-   2004, 2006 Free Software Foundation, Inc.
+   2004, 2006, 2007 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -26,8 +26,8 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
 
 #define MACHTYPE_OK(mtype) ((mtype) == M_386 || (mtype) == M_UNKNOWN)
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "aout/aout64.h"
 #include "aout/stab_gnu.h"
@@ -93,8 +93,7 @@ i386linux_write_object_contents (abfd)
 #define	GOT_REF_PREFIX	"__GOT_"
 #endif
 
-#define IS_GOT_SYM(name) \
-  (strncmp (name, GOT_REF_PREFIX, sizeof GOT_REF_PREFIX - 1) == 0)
+#define IS_GOT_SYM(name)   (CONST_STRNEQ (name, GOT_REF_PREFIX))
 
 /* See if a symbol name is a reference to the procedure linkage table.  */
 
@@ -102,8 +101,7 @@ i386linux_write_object_contents (abfd)
 #define	PLT_REF_PREFIX	"__PLT_"
 #endif
 
-#define IS_PLT_SYM(name) \
-  (strncmp (name, PLT_REF_PREFIX, sizeof PLT_REF_PREFIX - 1) == 0)
+#define IS_PLT_SYM(name)  (CONST_STRNEQ (name, PLT_REF_PREFIX))
 
 /* This string is used to generate specialized error messages.  */
 
@@ -312,9 +310,8 @@ linux_link_create_dynamic_sections (abfd, info)
 
   /* We choose to use the name ".linux-dynamic" for the fixup table.
      Why not? */
-  s = bfd_make_section (abfd, ".linux-dynamic");
+  s = bfd_make_section_with_flags (abfd, ".linux-dynamic", flags);
   if (s == NULL
-      || ! bfd_set_section_flags (abfd, s, flags)
       || ! bfd_set_section_alignment (abfd, s, 2))
     return FALSE;
   s->size = 0;
@@ -442,8 +439,7 @@ linux_tally_symbols (h, data)
     h = (struct linux_link_hash_entry *) h->root.root.u.i.link;
 
   if (h->root.root.type == bfd_link_hash_undefined
-      && strncmp (h->root.root.root.string, NEEDS_SHRLIB,
-		  sizeof NEEDS_SHRLIB - 1) == 0)
+      && CONST_STRNEQ (h->root.root.root.string, NEEDS_SHRLIB))
     {
       const char *name;
       char *p;

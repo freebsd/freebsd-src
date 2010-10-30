@@ -1,6 +1,6 @@
 /* mri.c -- handle MRI style linker scripts
    Copyright 1991, 1992, 1993, 1994, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+   2002, 2003, 2004, 2005, 2007 Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
 
@@ -24,8 +24,8 @@ Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
 
    Contributed by Steve Chamberlain <sac@cygnus.com>.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "ld.h"
 #include "ldexp.h"
 #include "ldlang.h"

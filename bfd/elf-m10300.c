@@ -1,25 +1,25 @@
 /* Matsushita 10300 specific support for 32-bit ELF
    Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
-   2006 Free Software Foundation, Inc.
+   2006, 2007 Free Software Foundation, Inc.
 
-This file is part of BFD, the Binary File Descriptor library.
+   This file is part of BFD, the Binary File Descriptor library.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
 #include "elf/mn10300.h"
@@ -85,6 +85,9 @@ struct elf32_mn10300_link_hash_entry {
    prologue deleted.  */
 #define MN10300_DELETED_PROLOGUE_BYTES 0x2
   unsigned char flags;
+
+  /* Calculated value.  */
+  bfd_vma value;
 };
 
 /* We derive a hash table from the main elf linker hash table so
@@ -131,9 +134,6 @@ static void mn10300_info_to_howto
 static bfd_boolean mn10300_elf_check_relocs
   PARAMS ((bfd *, struct bfd_link_info *, asection *,
 	   const Elf_Internal_Rela *));
-static asection *mn10300_elf_gc_mark_hook
-  PARAMS ((asection *, struct bfd_link_info *info, Elf_Internal_Rela *,
-	   struct elf_link_hash_entry *, Elf_Internal_Sym *));
 static bfd_boolean mn10300_elf_relax_delete_bytes
   PARAMS ((bfd *, asection *, bfd_vma, int));
 static bfd_boolean mn10300_elf_symbol_address_p
@@ -637,6 +637,23 @@ bfd_elf32_bfd_reloc_type_lookup (abfd, code)
   return NULL;
 }
 
+static reloc_howto_type *
+bfd_elf32_bfd_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+				 const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < (sizeof (elf_mn10300_howto_table)
+	    / sizeof (elf_mn10300_howto_table[0]));
+       i++)
+    if (elf_mn10300_howto_table[i].name != NULL
+	&& strcasecmp (elf_mn10300_howto_table[i].name, r_name) == 0)
+      return &elf_mn10300_howto_table[i];
+
+  return NULL;
+}
+
 /* Set the howto pointer for an MN10300 ELF reloc.  */
 
 static void
@@ -883,7 +900,7 @@ mn10300_elf_check_relocs (abfd, info, sec, relocs)
 		  if (name == NULL)
 		    return FALSE;
 
-		  BFD_ASSERT (strncmp (name, ".rela", 5) == 0
+		  BFD_ASSERT (CONST_STRNEQ (name, ".rela")
 			      && strcmp (bfd_get_section_name (abfd, sec),
 					 name + 5) == 0);
 
@@ -919,40 +936,21 @@ mn10300_elf_check_relocs (abfd, info, sec, relocs)
    relocation.  */
 
 static asection *
-mn10300_elf_gc_mark_hook (sec, info, rel, h, sym)
-     asection *sec;
-     struct bfd_link_info *info ATTRIBUTE_UNUSED;
-     Elf_Internal_Rela *rel;
-     struct elf_link_hash_entry *h;
-     Elf_Internal_Sym *sym;
+mn10300_elf_gc_mark_hook (asection *sec,
+			  struct bfd_link_info *info,
+			  Elf_Internal_Rela *rel,
+			  struct elf_link_hash_entry *h,
+			  Elf_Internal_Sym *sym)
 {
   if (h != NULL)
-    {
-      switch (ELF32_R_TYPE (rel->r_info))
-	{
-	case R_MN10300_GNU_VTINHERIT:
-	case R_MN10300_GNU_VTENTRY:
-	  break;
+    switch (ELF32_R_TYPE (rel->r_info))
+      {
+      case R_MN10300_GNU_VTINHERIT:
+      case R_MN10300_GNU_VTENTRY:
+	return NULL;
+      }
 
-	default:
-	  switch (h->root.type)
-	    {
-	    case bfd_link_hash_defined:
-	    case bfd_link_hash_defweak:
-	      return h->root.u.def.section;
-
-	    case bfd_link_hash_common:
-	      return h->root.u.c.p->section;
-
-	    default:
-	      break;
-	    }
-	}
-    }
-  else
-    return bfd_section_from_elf_index (sec->owner, sym->st_shndx);
-
-  return NULL;
+  return _bfd_elf_gc_mark_hook (sec, info, rel, h, sym);
 }
 
 /* Perform a relocation as part of a final link.  */
@@ -1033,7 +1031,7 @@ mn10300_elf_final_link_relocate (howto, input_bfd, output_bfd,
 	      if (name == NULL)
 		return FALSE;
 
-	      BFD_ASSERT (strncmp (name, ".rela", 5) == 0
+	      BFD_ASSERT (CONST_STRNEQ (name, ".rela")
 			  && strcmp (bfd_get_section_name (input_bfd,
 							   input_section),
 				     name + 5) == 0);
@@ -1381,9 +1379,6 @@ mn10300_elf_relocate_section (output_bfd, info, input_bfd, input_section,
   struct elf_link_hash_entry **sym_hashes;
   Elf_Internal_Rela *rel, *relend;
 
-  if (info->relocatable)
-    return TRUE;
-
   symtab_hdr = &elf_tdata (input_bfd)->symtab_hdr;
   sym_hashes = elf_sym_hashes (input_bfd);
 
@@ -1459,7 +1454,7 @@ mn10300_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 	       obscure cases sec->output_section will be NULL.  */
 	    relocation = 0;
 
-	  else if (unresolved_reloc)
+	  else if (!info->relocatable && unresolved_reloc)
 	    (*_bfd_error_handler)
 	      (_("%B(%A+0x%lx): unresolvable %s relocation against symbol `%s'"),
 	       input_bfd,
@@ -1468,6 +1463,20 @@ mn10300_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 	       howto->name,
 	       h->root.root.root.string);
 	}
+
+      if (sec != NULL && elf_discarded_section (sec))
+	{
+	  /* For relocs against symbols from removed linkonce sections,
+	     or sections discarded by a linker script, we just want the
+	     section contents zeroed.  Avoid any special processing.  */
+	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
+	  rel->r_info = 0;
+	  rel->r_addend = 0;
+	  continue;
+	}
+
+      if (info->relocatable)
+	continue;
 
       r = mn10300_elf_final_link_relocate (howto, input_bfd, output_bfd,
 					   input_section,
@@ -1518,7 +1527,12 @@ mn10300_elf_relocate_section (output_bfd, info, input_bfd, input_section,
 	      goto common_error;
 
 	    case bfd_reloc_dangerous:
-	      msg = _("internal error: dangerous error");
+	      if (r_type == R_MN10300_PCREL32)
+		msg = _("error: inappropriate relocation type for shared"
+			" library (did you forget -fpic?)");
+	      else
+		msg = _("internal error: suspicious relocation type used"
+			" in shared library");
 	      goto common_error;
 
 	    default:
@@ -1601,6 +1615,42 @@ elf32_mn10300_finish_hash_table_entry (gen_entry, in_args)
   /* This routine never fails.  */
   return TRUE;
 }
+
+/* Used to count hash table entries.  */
+static bfd_boolean
+elf32_mn10300_count_hash_table_entries (struct bfd_hash_entry *gen_entry ATTRIBUTE_UNUSED,
+					PTR in_args)
+{
+  int *count = (int *)in_args;
+
+  (*count) ++;
+  return TRUE;
+}
+
+/* Used to enumerate hash table entries into a linear array.  */
+static bfd_boolean
+elf32_mn10300_list_hash_table_entries (struct bfd_hash_entry *gen_entry,
+				       PTR in_args)
+{
+  struct bfd_hash_entry ***ptr = (struct bfd_hash_entry ***) in_args;
+
+  **ptr = gen_entry;
+  (*ptr) ++;
+  return TRUE;
+}
+
+/* Used to sort the array created by the above.  */
+static int
+sort_by_value (const void *va, const void *vb)
+{
+  struct elf32_mn10300_link_hash_entry *a
+    = *(struct elf32_mn10300_link_hash_entry **)va;
+  struct elf32_mn10300_link_hash_entry *b
+    = *(struct elf32_mn10300_link_hash_entry **)vb;
+
+  return a->value - b->value;
+}
+
 
 /* This function handles relaxing for the mn10300.
 
@@ -1697,9 +1747,10 @@ mn10300_elf_relax_section (abfd, sec, link_info, again)
 	      char *new_name;
 
 	      /* If there's nothing to do in this section, skip it.  */
-	      if (! (((section->flags & SEC_RELOC) != 0
-		      && section->reloc_count != 0)
-		     || (section->flags & SEC_CODE) != 0))
+	      if (! ((section->flags & SEC_RELOC) != 0
+		     && section->reloc_count != 0))
+		continue;
+	      if ((section->flags & SEC_ALLOC) == 0)
 		continue;
 
 	      /* Get cached copy of section contents if it exists.  */
@@ -1802,13 +1853,17 @@ mn10300_elf_relax_section (abfd, sec, link_info, again)
 				   elf_sym_hashes (input_bfd)[r_index];
 			}
 
-		      /* If this is not a "call" instruction, then we
-			 should convert "call" instructions to "calls"
-			 instructions.  */
-		      code = bfd_get_8 (input_bfd,
-					contents + irel->r_offset - 1);
-		      if (code != 0xdd && code != 0xcd)
-			hash->flags |= MN10300_CONVERT_CALL_TO_CALLS;
+		      sym_name = hash->root.root.root.string;
+		      if ((section->flags & SEC_CODE) != 0)
+			{
+			  /* If this is not a "call" instruction, then we
+			     should convert "call" instructions to "calls"
+			     instructions.  */
+			  code = bfd_get_8 (input_bfd,
+					    contents + irel->r_offset - 1);
+			  if (code != 0xdd && code != 0xcd)
+			    hash->flags |= MN10300_CONVERT_CALL_TO_CALLS;
+			}
 
 		      /* If this is a jump/call, then bump the
 			 direct_calls counter.  Else force "call" to
@@ -1901,6 +1956,7 @@ mn10300_elf_relax_section (abfd, sec, link_info, again)
 			  free (new_name);
 			  compute_function_info (input_bfd, hash,
 						 isym->st_value, contents);
+			  hash->value = isym->st_value;
 			}
 		    }
 
@@ -1961,6 +2017,44 @@ mn10300_elf_relax_section (abfd, sec, link_info, again)
       elf32_mn10300_link_hash_traverse (hash_table->static_hash_table,
 					elf32_mn10300_finish_hash_table_entry,
 					link_info);
+
+      {
+	/* This section of code collects all our local symbols, sorts
+	   them by value, and looks for multiple symbols referring to
+	   the same address.  For those symbols, the flags are merged.
+	   At this point, the only flag that can be set is
+	   MN10300_CONVERT_CALL_TO_CALLS, so we simply OR the flags
+	   together.  */
+	int static_count = 0, i;
+	struct elf32_mn10300_link_hash_entry **entries;
+	struct elf32_mn10300_link_hash_entry **ptr;
+
+	elf32_mn10300_link_hash_traverse (hash_table->static_hash_table,
+					  elf32_mn10300_count_hash_table_entries,
+					  &static_count);
+
+	entries = (struct elf32_mn10300_link_hash_entry **)
+	  bfd_malloc (static_count * sizeof (struct elf32_mn10300_link_hash_entry *));
+
+	ptr = entries;
+	elf32_mn10300_link_hash_traverse (hash_table->static_hash_table,
+					  elf32_mn10300_list_hash_table_entries,
+					  &ptr);
+
+	qsort (entries, static_count, sizeof(entries[0]), sort_by_value);
+
+	for (i=0; i<static_count-1; i++)
+	  if (entries[i]->value && entries[i]->value == entries[i+1]->value)
+	    {
+	      int v = entries[i]->flags;
+	      int j;
+	      for (j=i+1; j<static_count && entries[j]->value == entries[i]->value; j++)
+		v |= entries[j]->flags;
+	      for (j=i; j<static_count && entries[j]->value == entries[i]->value; j++)
+		entries[j]->flags = v;
+	      i = j-1;
+	    }
+      }
 
       /* All entries in the hash table are fully initialized.  */
       hash_table->flags |= MN10300_HASH_ENTRIES_INITIALIZED;
@@ -2795,8 +2889,7 @@ mn10300_elf_relax_section (abfd, sec, link_info, again)
 	 into a 16bit immediate, displacement or absolute address.  */
       if (ELF32_R_TYPE (irel->r_info) == (int) R_MN10300_32
 	  || ELF32_R_TYPE (irel->r_info) == (int) R_MN10300_GOT32
-	  || ELF32_R_TYPE (irel->r_info) == (int) R_MN10300_GOTOFF32
-	  || ELF32_R_TYPE (irel->r_info) == (int) R_MN10300_GOTPC32)
+	  || ELF32_R_TYPE (irel->r_info) == (int) R_MN10300_GOTOFF32)
 	{
 	  bfd_vma value = symval;
 
@@ -3677,6 +3770,7 @@ elf32_mn10300_link_hash_newfunc (entry, table, string)
       ret->movm_args = 0;
       ret->movm_stack_size = 0;
       ret->flags = 0;
+      ret->value = 0;
     }
 
   return (struct bfd_hash_entry *) ret;
@@ -4002,7 +4096,6 @@ _bfd_mn10300_elf_adjust_dynamic_symbol (info, h)
 {
   bfd * dynobj;
   asection * s;
-  unsigned int power_of_two;
 
   dynobj = elf_hash_table (info)->dynobj;
 
@@ -4142,28 +4235,7 @@ _bfd_mn10300_elf_adjust_dynamic_symbol (info, h)
       h->needs_copy = 1;
     }
 
-  /* We need to figure out the alignment required for this symbol.  I
-     have no idea how ELF linkers handle this.  */
-  power_of_two = bfd_log2 (h->size);
-  if (power_of_two > 3)
-    power_of_two = 3;
-
-  /* Apply the required alignment.  */
-  s->size = BFD_ALIGN (s->size, (bfd_size_type) (1 << power_of_two));
-  if (power_of_two > bfd_get_section_alignment (dynobj, s))
-    {
-      if (! bfd_set_section_alignment (dynobj, s, power_of_two))
-	return FALSE;
-    }
-
-  /* Define the symbol as being at this point in the section.  */
-  h->root.u.def.section = s;
-  h->root.u.def.value = s->size;
-
-  /* Increment the section size to make room for the symbol.  */
-  s->size += h->size;
-
-  return TRUE;
+  return _bfd_elf_adjust_dynamic_copy (h, s);
 }
 
 /* Set the sizes of the dynamic sections.  */
@@ -4227,7 +4299,7 @@ _bfd_mn10300_elf_size_dynamic_sections (output_bfd, info)
 	  /* Remember whether there is a PLT.  */
 	  plt = s->size != 0;
 	}
-      else if (strncmp (name, ".rela", 5) == 0)
+      else if (CONST_STRNEQ (name, ".rela"))
 	{
 	  if (s->size != 0)
 	    {
@@ -4260,7 +4332,7 @@ _bfd_mn10300_elf_size_dynamic_sections (output_bfd, info)
 	      s->reloc_count = 0;
 	    }
 	}
-      else if (strncmp (name, ".got", 4) != 0
+      else if (! CONST_STRNEQ (name, ".got")
 	       && strcmp (name, ".dynbss") != 0)
 	/* It's not one of our sections, so don't allocate space.  */
 	continue;
@@ -4695,6 +4767,8 @@ _bfd_mn10300_elf_reloc_type_class (const Elf_Internal_Rela *rela)
   _bfd_mn10300_elf_adjust_dynamic_symbol
 #define elf_backend_size_dynamic_sections \
   _bfd_mn10300_elf_size_dynamic_sections
+#define elf_backend_omit_section_dynsym \
+  ((bfd_boolean (*) (bfd *, struct bfd_link_info *, asection *)) bfd_true)
 #define elf_backend_finish_dynamic_symbol \
   _bfd_mn10300_elf_finish_dynamic_symbol
 #define elf_backend_finish_dynamic_sections \

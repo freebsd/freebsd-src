@@ -1,5 +1,5 @@
 /* ADI Blackfin BFD support for 32-bit ELF.
-   Copyright 2005, 2006 Free Software Foundation, Inc.
+   Copyright 2005, 2006, 2007 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -18,8 +18,8 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301,
    USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
 #include "elf/bfin.h"
@@ -1057,8 +1057,8 @@ bfin_info_to_howto (bfd *abfd ATTRIBUTE_UNUSED,
 
   else
     cache_ptr->howto = (reloc_howto_type *) NULL;
-
 }
+
 /* Given a BFD reloc type, return the howto.  */
 static reloc_howto_type *
 bfin_bfd_reloc_type_lookup (bfd * abfd ATTRIBUTE_UNUSED,
@@ -1078,8 +1078,33 @@ bfin_bfd_reloc_type_lookup (bfd * abfd ATTRIBUTE_UNUSED,
    return &bfin_gnuext_howto_table [r_type - BFIN_GNUEXT_RELOC_MIN];
 
   return (reloc_howto_type *) NULL;
-
 }
+
+static reloc_howto_type *
+bfin_bfd_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			    const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < (sizeof (bfin_howto_table)
+	    / sizeof (bfin_howto_table[0]));
+       i++)
+    if (bfin_howto_table[i].name != NULL
+	&& strcasecmp (bfin_howto_table[i].name, r_name) == 0)
+      return &bfin_howto_table[i];
+
+  for (i = 0;
+       i < (sizeof (bfin_gnuext_howto_table)
+	    / sizeof (bfin_gnuext_howto_table[0]));
+       i++)
+    if (bfin_gnuext_howto_table[i].name != NULL
+	&& strcasecmp (bfin_gnuext_howto_table[i].name, r_name) == 0)
+      return &bfin_gnuext_howto_table[i];
+
+  return NULL;
+}
+
 /* Given a bfin relocation type, return the howto.  */
 static reloc_howto_type *
 bfin_reloc_type_lookup (bfd * abfd ATTRIBUTE_UNUSED,
@@ -1092,7 +1117,6 @@ bfin_reloc_type_lookup (bfd * abfd ATTRIBUTE_UNUSED,
    return &bfin_gnuext_howto_table [r_type - BFIN_GNUEXT_RELOC_MIN];
 
   return (reloc_howto_type *) NULL;
-
 }
 
 /* Return TRUE if the name is a local label.
@@ -1961,7 +1985,7 @@ bfin_check_relocs (bfd * abfd,
 
 	case R_got:
 	  if (h != NULL
-	      && strcmp (h->root.root.string, "_GLOBAL_OFFSET_TABLE_") == 0)
+	      && strcmp (h->root.root.string, "__GLOBAL_OFFSET_TABLE_") == 0)
 	    break;
 	  /* Fall through.  */
 
@@ -1984,15 +2008,12 @@ bfin_check_relocs (bfd * abfd,
 	      srelgot = bfd_get_section_by_name (dynobj, ".rela.got");
 	      if (srelgot == NULL)
 		{
-		  srelgot = bfd_make_section (dynobj, ".rela.got");
+		  flagword flags = (SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS
+				    | SEC_IN_MEMORY | SEC_LINKER_CREATED
+				    | SEC_READONLY);
+		  srelgot = bfd_make_section_with_flags (dynobj, ".rela.got",
+							 flags);
 		  if (srelgot == NULL
-		      || !bfd_set_section_flags (dynobj, srelgot,
-						 (SEC_ALLOC
-						  | SEC_LOAD
-						  | SEC_HAS_CONTENTS
-						  | SEC_IN_MEMORY
-						  | SEC_LINKER_CREATED
-						  | SEC_READONLY))
 		      || !bfd_set_section_alignment (dynobj, srelgot, 2))
 		    return FALSE;
 		}
@@ -2112,9 +2133,6 @@ bfinfdpic_relocate_section (bfd * output_bfd,
     check_segment[2];
   int silence_segment_error = !(info->shared || info->pie);
 
-  if (info->relocatable)
-    return TRUE;
-
   symtab_hdr = & elf_tdata (input_bfd)->symtab_hdr;
   sym_hashes = elf_sym_hashes (input_bfd);
   relend     = relocs + input_section->reloc_count;
@@ -2155,7 +2173,6 @@ bfinfdpic_relocate_section (bfd * output_bfd,
 	  || r_type == R_BFIN_GNU_VTENTRY)
 	continue;
 
-      /* This is a final link.  */
       r_symndx = ELF32_R_SYM (rel->r_info);
       howto = bfin_reloc_type_lookup (input_bfd, r_type);
       if (howto == NULL)
@@ -2180,48 +2197,37 @@ bfinfdpic_relocate_section (bfd * output_bfd,
 	}
       else
 	{
-	  h = sym_hashes [r_symndx - symtab_hdr->sh_info];
+	  bfd_boolean warned;
+	  bfd_boolean unresolved_reloc;
 
-	  while (h->root.type == bfd_link_hash_indirect
-		 || h->root.type == bfd_link_hash_warning)
-	    h = (struct elf_link_hash_entry *) h->root.u.i.link;
-
-	  name = h->root.root.string;
-
-	  if ((h->root.type == bfd_link_hash_defined
-	       || h->root.type == bfd_link_hash_defweak)
-	      && ! BFINFDPIC_SYM_LOCAL (info, h))
-	    {
-	      sec = NULL;
-	      relocation = 0;
-	    }
-	  else
-	    if (h->root.type == bfd_link_hash_defined
-		|| h->root.type == bfd_link_hash_defweak)
-	      {
-		sec = h->root.u.def.section;
-		relocation = (h->root.u.def.value
-			      + sec->output_section->vma
-			      + sec->output_offset);
-	      }
-	    else if (h->root.type == bfd_link_hash_undefweak)
-	      {
-		relocation = 0;
-	      }
-	    else if (info->unresolved_syms_in_objects == RM_IGNORE
-		     && ELF_ST_VISIBILITY (h->other) == STV_DEFAULT)
-	      relocation = 0;
-	    else
-	      {
-		if (! ((*info->callbacks->undefined_symbol)
-		       (info, h->root.root.string, input_bfd,
-			input_section, rel->r_offset,
-			(info->unresolved_syms_in_objects == RM_GENERATE_ERROR
-			 || ELF_ST_VISIBILITY (h->other)))))
-		  return FALSE;
-		relocation = 0;
-	      }
+	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
+				   r_symndx, symtab_hdr, sym_hashes,
+				   h, sec, relocation,
+				   unresolved_reloc, warned);
 	  osec = sec;
+	}
+
+      if (sec != NULL && elf_discarded_section (sec))
+	{
+	  /* For relocs against symbols from removed linkonce sections,
+	     or sections discarded by a linker script, we just want the
+	     section contents zeroed.  Avoid any special processing.  */
+	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
+	  rel->r_info = 0;
+	  rel->r_addend = 0;
+	  continue;
+	}
+
+      if (info->relocatable)
+	continue;
+
+      if (h != NULL
+	  && (h->root.type == bfd_link_hash_defined
+	      || h->root.type == bfd_link_hash_defweak)
+	  && !BFINFDPIC_SYM_LOCAL (info, h))
+	{
+	  osec = sec = NULL;
+	  relocation = 0;
 	}
 
       switch (r_type)
@@ -2435,6 +2441,8 @@ bfinfdpic_relocate_section (bfd * output_bfd,
 						 input_section->output_section)
 			  & (SEC_ALLOC | SEC_LOAD)) == (SEC_ALLOC | SEC_LOAD))
 		  {
+		    bfd_vma offset;
+
 		    if (_bfinfdpic_osec_readonly_p (output_bfd,
 						   input_section
 						   ->output_section))
@@ -2445,15 +2453,23 @@ bfinfdpic_relocate_section (bfd * output_bfd,
 			   name, input_bfd, input_section, rel->r_offset);
 			return FALSE;
 		      }
-		    _bfinfdpic_add_dyn_reloc (output_bfd,
-					      bfinfdpic_gotrel_section (info),
-					      _bfd_elf_section_offset
-					      (output_bfd, info,
-					       input_section, rel->r_offset)
-					      + input_section
-					      ->output_section->vma
-					      + input_section->output_offset,
-					      r_type, dynindx, addend, picrel);
+		    offset = _bfd_elf_section_offset (output_bfd, info,
+						      input_section, rel->r_offset);
+		    /* Only output a reloc for a not deleted entry.  */
+		    if (offset >= (bfd_vma) -2)
+		      _bfinfdpic_add_dyn_reloc (output_bfd,
+						bfinfdpic_gotrel_section (info),
+						0,
+						R_unused0,
+						dynindx, addend, picrel);
+		    else
+		      _bfinfdpic_add_dyn_reloc (output_bfd,
+						bfinfdpic_gotrel_section (info),
+						offset + input_section
+						->output_section->vma
+						+ input_section->output_offset,
+						r_type,
+						dynindx, addend, picrel);
 		  }
 		else
 		  addend += bfinfdpic_got_section (info)->output_section->vma;
@@ -2824,9 +2840,6 @@ bfin_relocate_section (bfd * output_bfd,
   Elf_Internal_Rela *relend;
   int i = 0;
 
-  if (info->relocatable)
-    return TRUE;
-
   dynobj = elf_hash_table (info)->dynobj;
   symtab_hdr = &elf_tdata (input_bfd)->symtab_hdr;
   sym_hashes = elf_sym_hashes (input_bfd);
@@ -2883,12 +2896,26 @@ bfin_relocate_section (bfd * output_bfd,
       else
 	{
 	  bfd_boolean warned;
-	  h = NULL;
+
 	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
 				   r_symndx, symtab_hdr, sym_hashes,
 				   h, sec, relocation,
 				   unresolved_reloc, warned);
 	}
+
+      if (sec != NULL && elf_discarded_section (sec))
+	{
+	  /* For relocs against symbols from removed linkonce sections,
+	     or sections discarded by a linker script, we just want the
+	     section contents zeroed.  Avoid any special processing.  */
+	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
+	  rel->r_info = 0;
+	  rel->r_addend = 0;
+	  continue;
+	}
+
+      if (info->relocatable)
+	continue;
 
       address = rel->r_offset;
 
@@ -2903,7 +2930,7 @@ bfin_relocate_section (bfd * output_bfd,
 	  /* Relocation is to the address of the entry for this symbol
 	     in the global offset table.  */
 	  if (h != NULL
-	      && strcmp (h->root.root.string, "_GLOBAL_OFFSET_TABLE_") == 0)
+	      && strcmp (h->root.root.string, "__GLOBAL_OFFSET_TABLE_") == 0)
 	    goto do_default;
 	  /* Fall through.  */
 	  /* Relocation is the offset of the entry for this symbol in
@@ -3099,51 +3126,20 @@ bfin_relocate_section (bfd * output_bfd,
 
 static asection *
 bfin_gc_mark_hook (asection * sec,
-		   struct bfd_link_info *info ATTRIBUTE_UNUSED,
+		   struct bfd_link_info *info,
 		   Elf_Internal_Rela * rel,
 		   struct elf_link_hash_entry *h,
                    Elf_Internal_Sym * sym)
 {
   if (h != NULL)
-    {
-      switch (ELF32_R_TYPE (rel->r_info))
-	{
+    switch (ELF32_R_TYPE (rel->r_info))
+      {
+      case R_BFIN_GNU_VTINHERIT:
+      case R_BFIN_GNU_VTENTRY:
+	return NULL;
+      }
 
-	case R_BFIN_GNU_VTINHERIT:
-	case R_BFIN_GNU_VTENTRY:
-	  break;
-
-	default:
-	  switch (h->root.type)
-	    {
-	    default:
-	      break;
-
-	    case bfd_link_hash_defined:
-	    case bfd_link_hash_defweak:
-	      return h->root.u.def.section;
-
-	    case bfd_link_hash_common:
-	      return h->root.u.c.p->section;
-	    }
-	}
-    }
-  else
-    return bfd_section_from_elf_index (sec->owner, sym->st_shndx);
-
-  return NULL;
-}
-
-
-/* Update the got entry reference counts for the section being removed.  */
-
-static bfd_boolean
-bfinfdpic_gc_sweep_hook (bfd *abfd ATTRIBUTE_UNUSED,
-			 struct bfd_link_info *info ATTRIBUTE_UNUSED,
-			 asection *sec ATTRIBUTE_UNUSED,
-			 const Elf_Internal_Rela *relocs ATTRIBUTE_UNUSED)
-{
-  return TRUE;
+  return _bfd_elf_gc_mark_hook (sec, info, rel, h, sym);
 }
 
 /* Update the got entry reference counts for the section being removed.  */
@@ -3291,7 +3287,7 @@ _bfin_create_got_section (bfd *abfd, struct bfd_link_info *info)
 	 (or .got.plt) section.  We don't do this in the linker script
 	 because we don't want to define the symbol if we are not creating
 	 a global offset table.  */
-      h = _bfd_elf_define_linkage_sym (abfd, info, s, "_GLOBAL_OFFSET_TABLE_");
+      h = _bfd_elf_define_linkage_sym (abfd, info, s, "__GLOBAL_OFFSET_TABLE_");
       elf_hash_table (info)->hgot = h;
       if (h == NULL)
 	return FALSE;
@@ -3370,9 +3366,8 @@ elf32_bfinfdpic_create_dynamic_sections (bfd *abfd, struct bfd_link_info *info)
   if (bed->plt_readonly)
     pltflags |= SEC_READONLY;
 
-  s = bfd_make_section (abfd, ".plt");
+  s = bfd_make_section_with_flags (abfd, ".plt", pltflags);
   if (s == NULL
-      || ! bfd_set_section_flags (abfd, s, pltflags)
       || ! bfd_set_section_alignment (abfd, s, bed->plt_alignment))
     return FALSE;
   /* Blackfin-specific: remember it.  */
@@ -3386,7 +3381,7 @@ elf32_bfinfdpic_create_dynamic_sections (bfd *abfd, struct bfd_link_info *info)
       struct bfd_link_hash_entry *bh = NULL;
 
       if (! (_bfd_generic_link_add_one_symbol
-	     (info, abfd, "_PROCEDURE_LINKAGE_TABLE_", BSF_GLOBAL, s, 0, NULL,
+	     (info, abfd, "__PROCEDURE_LINKAGE_TABLE_", BSF_GLOBAL, s, 0, NULL,
 	      FALSE, get_elf_backend_data (abfd)->collect, &bh)))
 	return FALSE;
       h = (struct elf_link_hash_entry *) bh;
@@ -3399,9 +3394,8 @@ elf32_bfinfdpic_create_dynamic_sections (bfd *abfd, struct bfd_link_info *info)
     }
 
   /* Blackfin-specific: we want rel relocations for the plt.  */
-  s = bfd_make_section (abfd, ".rel.plt");
+  s = bfd_make_section_with_flags (abfd, ".rel.plt", flags | SEC_READONLY);
   if (s == NULL
-      || ! bfd_set_section_flags (abfd, s, flags | SEC_READONLY)
       || ! bfd_set_section_alignment (abfd, s, bed->s->log_file_align))
     return FALSE;
   /* Blackfin-specific: remember it.  */
@@ -3425,9 +3419,9 @@ elf32_bfinfdpic_create_dynamic_sections (bfd *abfd, struct bfd_link_info *info)
 	 image and use a R_*_COPY reloc to tell the dynamic linker to
 	 initialize them at run time.  The linker script puts the .dynbss
 	 section into the .bss section of the final image.  */
-      s = bfd_make_section (abfd, ".dynbss");
-      if (s == NULL
-	  || ! bfd_set_section_flags (abfd, s, SEC_ALLOC | SEC_LINKER_CREATED))
+      s = bfd_make_section_with_flags (abfd, ".dynbss",
+				       SEC_ALLOC | SEC_LINKER_CREATED);
+      if (s == NULL)
 	return FALSE;
 
       /* The .rel[a].bss section holds copy relocs.  This section is not
@@ -3443,11 +3437,11 @@ elf32_bfinfdpic_create_dynamic_sections (bfd *abfd, struct bfd_link_info *info)
      copy relocs.  */
       if (! info->shared)
 	{
-	  s = bfd_make_section (abfd,
-				(bed->default_use_rela_p
-				 ? ".rela.bss" : ".rel.bss"));
+	  s = bfd_make_section_with_flags (abfd,
+					   (bed->default_use_rela_p
+					    ? ".rela.bss" : ".rel.bss"),
+					   flags | SEC_READONLY);
 	  if (s == NULL
-	      || ! bfd_set_section_flags (abfd, s, flags | SEC_READONLY)
 	      || ! bfd_set_section_alignment (abfd, s, bed->s->log_file_align))
 	    return FALSE;
 	}
@@ -4151,7 +4145,6 @@ elf32_bfinfdpic_always_size_sections (bfd *output_bfd,
   if (!info->relocatable)
     {
       struct elf_link_hash_entry *h;
-      asection *sec;
 
       /* Force a PT_GNU_STACK segment to be created.  */
       if (! elf_tdata (output_bfd)->stack_flags)
@@ -4177,61 +4170,51 @@ elf32_bfinfdpic_always_size_sections (bfd *output_bfd,
 	  h->def_regular = 1;
 	  h->type = STT_OBJECT;
 	}
-
-      /* Create a stack section, and set its alignment.  */
-      sec = bfd_make_section (output_bfd, ".stack");
-
-      if (sec == NULL
-	  || ! bfd_set_section_alignment (output_bfd, sec, 3))
-	return FALSE;
     }
 
   return TRUE;
 }
 
 static bfd_boolean
-elf32_bfinfdpic_modify_segment_map (bfd *output_bfd,
-				   struct bfd_link_info *info)
+elf32_bfinfdpic_modify_program_headers (bfd *output_bfd,
+					struct bfd_link_info *info)
 {
+  struct elf_obj_tdata *tdata = elf_tdata (output_bfd);
   struct elf_segment_map *m;
+  Elf_Internal_Phdr *p;
 
   /* objcopy and strip preserve what's already there using
      elf32_bfinfdpic_copy_private_bfd_data ().  */
   if (! info)
     return TRUE;
 
-  for (m = elf_tdata (output_bfd)->segment_map; m != NULL; m = m->next)
+  for (p = tdata->phdr, m = tdata->segment_map; m != NULL; m = m->next, p++)
     if (m->p_type == PT_GNU_STACK)
       break;
 
   if (m)
     {
-      asection *sec = bfd_get_section_by_name (output_bfd, ".stack");
       struct elf_link_hash_entry *h;
 
-      if (sec)
+      /* Obtain the pointer to the __stacksize symbol.  */
+      h = elf_link_hash_lookup (elf_hash_table (info), "__stacksize",
+				FALSE, FALSE, FALSE);
+      if (h)
 	{
-	  /* Obtain the pointer to the __stacksize symbol.  */
-	  h = elf_link_hash_lookup (elf_hash_table (info), "__stacksize",
-				    FALSE, FALSE, FALSE);
 	  while (h->root.type == bfd_link_hash_indirect
 		 || h->root.type == bfd_link_hash_warning)
-	    h = (struct elf_link_hash_entry *)h->root.u.i.link;
+	    h = (struct elf_link_hash_entry *) h->root.u.i.link;
 	  BFD_ASSERT (h->root.type == bfd_link_hash_defined);
-
-	  /* Set the section size from the symbol value.  We
-	     intentionally ignore the symbol section.  */
-	  if (h->root.type == bfd_link_hash_defined)
-	    sec->size = h->root.u.def.value;
-	  else
-	    sec->size = DEFAULT_STACK_SIZE;
-
-	  /* Add the stack section to the PT_GNU_STACK segment,
-	     such that its size and alignment requirements make it
-	     to the segment.  */
-	  m->sections[m->count] = sec;
-	  m->count++;
 	}
+
+      /* Set the header p_memsz from the symbol value.  We
+	 intentionally ignore the symbol section.  */
+      if (h && h->root.type == bfd_link_hash_defined)
+	p->p_memsz = h->root.u.def.value;
+      else
+	p->p_memsz = DEFAULT_STACK_SIZE;
+
+      p->p_align = 8;
     }
 
   return TRUE;
@@ -4742,6 +4725,10 @@ bfin_elf_copy_private_bfd_data (bfd *ibfd, bfd *obfd)
 
   elf_elfheader (obfd)->e_flags = elf_elfheader (ibfd)->e_flags;
   elf_flags_init (obfd) = TRUE;
+
+  /* Copy object attributes.  */
+  _bfd_elf_copy_obj_attributes (ibfd, obfd);
+
   return TRUE;
 }
 
@@ -5035,7 +5022,7 @@ bfin_finish_dynamic_symbol (bfd * output_bfd,
 	  && (info->symbolic
 	      || h->dynindx == -1 || h->forced_local) && h->def_regular)
 	{
-fprintf(stderr, "*** check this relocation %s\n", __FUNCTION__);
+	  fprintf(stderr, "*** check this relocation %s\n", __FUNCTION__);
 	  rela.r_info = ELF32_R_INFO (0, R_pcrel24);
 	  rela.r_addend = bfd_get_signed_32 (output_bfd,
 					     (sgot->contents
@@ -5061,7 +5048,7 @@ fprintf(stderr, "*** check this relocation %s\n", __FUNCTION__);
       BFD_ASSERT (0);
     }
   /* Mark _DYNAMIC and _GLOBAL_OFFSET_TABLE_ as absolute.  */
-  if (strcmp (h->root.root.string, "_DYNAMIC") == 0
+  if (strcmp (h->root.root.string, "__DYNAMIC") == 0
       || h == elf_hash_table (info)->hgot)
     sym->st_shndx = SHN_ABS;
 
@@ -5298,7 +5285,7 @@ bfin_size_dynamic_sections (bfd * output_bfd ATTRIBUTE_UNUSED,
 
       strip = FALSE;
 
-       if (strncmp (name, ".rela", 5) == 0)
+       if (CONST_STRNEQ (name, ".rela"))
 	{
 	  if (s->size == 0)
 	    {
@@ -5322,7 +5309,7 @@ bfin_size_dynamic_sections (bfd * output_bfd ATTRIBUTE_UNUSED,
 	      s->reloc_count = 0;
 	    }
 	}
-      else if (strncmp (name, ".got", 4) != 0)
+      else if (! CONST_STRNEQ (name, ".got"))
 	{
 	  /* It's not one of our sections, so don't allocate space.  */
 	  continue;
@@ -5516,6 +5503,8 @@ error_return:
 #define elf_symbol_leading_char		'_'
 
 #define bfd_elf32_bfd_reloc_type_lookup	bfin_bfd_reloc_type_lookup
+#define bfd_elf32_bfd_reloc_name_lookup \
+					bfin_bfd_reloc_name_lookup
 #define elf_info_to_howto		bfin_info_to_howto
 #define elf_info_to_howto_rel		0
 #define elf_backend_object_p		elf32_bfin_object_p
@@ -5570,7 +5559,6 @@ error_return:
 #define	elf32_bed		elf32_bfinfdpic_bed
 
 #undef elf_backend_gc_sweep_hook
-#define elf_backend_gc_sweep_hook       bfinfdpic_gc_sweep_hook
 
 #undef elf_backend_got_header_size
 #define elf_backend_got_header_size     0
@@ -5586,9 +5574,9 @@ error_return:
 #undef elf_backend_always_size_sections
 #define elf_backend_always_size_sections \
 		elf32_bfinfdpic_always_size_sections
-#undef elf_backend_modify_segment_map
-#define elf_backend_modify_segment_map \
-		elf32_bfinfdpic_modify_segment_map
+#undef elf_backend_modify_program_headers
+#define elf_backend_modify_program_headers \
+		elf32_bfinfdpic_modify_program_headers
 #undef bfd_elf32_bfd_copy_private_bfd_data
 #define bfd_elf32_bfd_copy_private_bfd_data \
 		elf32_bfinfdpic_copy_private_bfd_data

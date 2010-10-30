@@ -1,6 +1,6 @@
 /* tc-maxq.c -- assembler code for a MAXQ chip.
 
-   Copyright 2004, 2005 Free Software Foundation, Inc.
+   Copyright 2004, 2005, 2006 Free Software Foundation, Inc.
 
    Contributed by HCL Technologies Pvt. Ltd.
 
@@ -32,10 +32,6 @@
 
 #ifndef MAXQ10S
 #define MAXQ10S 1
-#endif
-
-#ifndef _STRING_H
-#include "string.h"
 #endif
 
 #ifndef DEFAULT_ARCH
@@ -451,7 +447,7 @@ maxq20_cons_fix_new (fragS * frag, unsigned int off, unsigned int len,
 }
 
 /* GAS will call this for every rs_machine_dependent fragment. The
-   instruction is compleated using the data from the relaxation pass. It may
+   instruction is completed using the data from the relaxation pass. It may
    also create any necessary relocations.  */
 void
 md_convert_frag (bfd *   headers ATTRIBUTE_UNUSED,
@@ -687,7 +683,7 @@ const pseudo_typeS md_pseudo_table[] =
 #define SET_PFX_ARG(x) (PFX_INSN[1] = x)
 
 
-/* This function sets the PFX value coresponding to the specs. Source
+/* This function sets the PFX value corresponding to the specs. Source
    Destination Index Selection ---------------------------------- Write To|
    SourceRegRange | Dest Addr Range
    ------------------------------------------------------ PFX[0] | 0h-Fh |
@@ -1150,7 +1146,7 @@ maxq20_immediate (char *imm_start)
       return 1;
     }
 
-  /* Check For Sign Charcater.  */
+  /* Check For Sign Character.  */
   sign_val = 0;
 
   do
@@ -1600,7 +1596,7 @@ maxq20_operand (char *operand_string)
 	  return 1;
 	}
 
-      /* Get the origanal string.  */
+      /* Get the original string.  */
       memcpy (op_string, operand_string, strlen (operand_string) + 1);
       ii = strlen (operand_string) + 1;
 
@@ -3101,7 +3097,7 @@ md_assemble (char *line)
   if (!match_filters ())
     return;
 
-  /* Check for the approprate PFX register.  */
+  /* Check for the appropriate PFX register.  */
   set_prefix ();
   pfx_for_imm_val (0);
 

@@ -7,8 +7,8 @@ SCRIPT_NAME=elf
 OUTPUT_FORMAT="elf64-powerpc"
 TEXT_START_ADDR=0x10000000
 #SEGMENT_SIZE=0x10000000
-MAXPAGESIZE=0x10000
-COMMONPAGESIZE=0x1000
+MAXPAGESIZE="CONSTANT (MAXPAGESIZE)"
+COMMONPAGESIZE="CONSTANT (COMMONPAGESIZE)"
 ARCH=powerpc:common64
 MACHINE=
 NOP=0x60000000
@@ -31,7 +31,8 @@ OTHER_GOT_RELOC_SECTIONS="
   .rela.toc	${RELOCATING-0} : { *(.rela.toc) }"
 OTHER_READWRITE_SECTIONS="
   .toc1		${RELOCATING-0} :${RELOCATING+ ALIGN(8)} { *(.toc1) }
-  .opd		${RELOCATING-0} :${RELOCATING+ ALIGN(8)} { KEEP (*(.opd)) }"
+  .opd		${RELOCATING-0} :${RELOCATING+ ALIGN(8)} { KEEP (*(.opd)) }
+  .branch_lt	${RELOCATING-0} :${RELOCATING+ ALIGN(8)} { *(.branch_lt) }"
 
 # Treat a host that matches the target with the possible exception of "64"
 # in the name as if it were native.

@@ -45,7 +45,8 @@ extern int errno;
 static int pex_djgpp_open_read (struct pex_obj *, const char *, int);
 static int pex_djgpp_open_write (struct pex_obj *, const char *, int);
 static long pex_djgpp_exec_child (struct pex_obj *, int, const char *,
-				  char * const *, int, int, int,
+				  char * const *, char * const *,
+				  int, int, int, int,
 				  const char **, int *);
 static int pex_djgpp_close (struct pex_obj *, int);
 static int pex_djgpp_wait (struct pex_obj *, long, int *, struct pex_time *,
@@ -111,8 +112,10 @@ pex_djgpp_close (struct pex_obj *obj ATTRIBUTE_UNUSED, int fd)
 
 static long
 pex_djgpp_exec_child (struct pex_obj *obj, int flags, const char *executable,
-		      char * const * argv, int in, int out, int errdes,
-		      const char **errmsg, int *err)
+		      char * const * argv, char * const * env,
+                      int in, int out, int errdes,
+		      int toclose ATTRIBUTE_UNUSED, const char **errmsg,
+		      int *err)
 {
   int org_in, org_out, org_errdes;
   int status;
@@ -196,8 +199,12 @@ pex_djgpp_exec_child (struct pex_obj *obj, int flags, const char *executable,
 	}
     }
 
-  status = (((flags & PEX_SEARCH) != 0 ? spawnvp : spawnv)
-	    (P_WAIT, executable, (char * const *) argv));
+  if (env)
+    status = (((flags & PEX_SEARCH) != 0 ? spawnvpe : spawnve)
+	      (P_WAIT, executable, argv, env));
+  else
+    status = (((flags & PEX_SEARCH) != 0 ? spawnvp : spawnv)
+  	      (P_WAIT, executable, argv));
 
   if (status == -1)
     {

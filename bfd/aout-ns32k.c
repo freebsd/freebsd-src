@@ -1,6 +1,6 @@
 /* BFD back-end for ns32k a.out-ish binaries.
    Copyright 1990, 1991, 1992, 1994, 1995, 1996, 1998, 1999, 2000, 2001,
-   2002, 2003, 2005 Free Software Foundation, Inc.
+   2002, 2003, 2005, 2007 Free Software Foundation, Inc.
    Contributed by Ian Dall (idall@eleceng.adelaide.edu.au).
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -28,8 +28,9 @@
    the tokens.  */
 #define MYNS(OP) CONCAT2 (ns32kaout_,OP)
 
-reloc_howto_type * MYNS (bfd_reloc_type_lookup) (bfd * abfd, bfd_reloc_code_real_type);
-bfd_boolean        MYNS (write_object_contents) (bfd *abfd);
+reloc_howto_type * MYNS (bfd_reloc_type_lookup) (bfd *, bfd_reloc_code_real_type);
+reloc_howto_type * MYNS (bfd_reloc_name_lookup) (bfd *, const char *);
+bfd_boolean        MYNS (write_object_contents) (bfd *);
 
 /* Avoid multiple definitions from aoutx if supporting
    standard a.out format(s) as well as this one.  */
@@ -246,6 +247,22 @@ MY (bfd_reloc_type_lookup) (bfd *abfd, bfd_reloc_code_real_type code)
 #undef ENTRY
 }
 
+reloc_howto_type *
+MY (bfd_reloc_name_lookup) (bfd *abfd ATTRIBUTE_UNUSED,
+			    const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (MY (howto_table)) / sizeof (MY (howto_table)[0]);
+       i++)
+    if (MY (howto_table)[i].name != NULL
+	&& strcasecmp (MY (howto_table)[i].name, r_name) == 0)
+      return &MY (howto_table)[i];
+
+  return NULL;
+}
+
 static void
 MY_swap_std_reloc_in (bfd *abfd,
 		      struct reloc_std_external *bytes,
@@ -274,10 +291,7 @@ MY_swap_std_reloc_out (bfd *abfd,
   int r_index;
   asymbol *sym = *(g->sym_ptr_ptr);
   int r_extern;
-  unsigned int r_addend;
   asection *output_section = sym->section->output_section;
-
-  r_addend = g->addend + (*(g->sym_ptr_ptr))->section->output_section->vma;
 
   /* Name was clobbered by aout_write_syms to be symbol index.  */
 
@@ -341,7 +355,6 @@ _bfd_ns32k_relocate_contents (reloc_howto_type *howto,
     case 2:
       return _bfd_relocate_contents (howto, input_bfd, relocation,
 				    location);
-      break;
     default:
       return bfd_reloc_notsupported;
     }

@@ -9,18 +9,12 @@
 
 Disassembly of section .plt:
 
-0000000000000470 <.*@plt-0x10>:
- 470:	ff 35 e2 0e 10 00    	pushq  1052386\(%rip\)        # 101358 <_GLOBAL_OFFSET_TABLE_\+0x8>
- 476:	ff 25 e4 0e 10 00    	jmpq   \*1052388\(%rip\)        # 101360 <_GLOBAL_OFFSET_TABLE_\+0x10>
- 47c:	90                   	nop *
- 47d:	90                   	nop *
- 47e:	90                   	nop *
- 47f:	90                   	nop *
-0000000000000480 <.*@plt>:
- 480:	ff 35 d2 0e 10 00    	pushq  1052370\(%rip\)        # 101358 <_GLOBAL_OFFSET_TABLE_\+0x8>
- 486:	ff 25 bc 0e 10 00    	jmpq   \*1052348\(%rip\)        # 101348 <_DYNAMIC\+0x190>
- 48c:	90                   	nop *
- 48d:	90                   	nop *
- 48e:	90                   	nop *
- 48f:	90                   	nop *
+[0-9a-f]+ <.*@plt-0x10>:
+ [0-9a-f]+:	ff 35 .. .. 20 00    	pushq  .*\(%rip\)        # 201358 <_GLOBAL_OFFSET_TABLE_\+0x8>
+ [0-9a-f]+:	ff 25 .. .. 20 00    	jmpq   \*.*\(%rip\)        # 201360 <_GLOBAL_OFFSET_TABLE_\+0x10>
+ [0-9a-f]+:	0f 1f 40 00          	nopl   0x0\(%rax\)
+[0-9a-f]+ <.*@plt>:
+ [0-9a-f]+:	ff 35 .. .. 20 00    	pushq  .*\(%rip\)        # 201358 <_GLOBAL_OFFSET_TABLE_\+0x8>
+ [0-9a-f]+:	ff 25 .. .. 20 00    	jmpq   \*.*\(%rip\)        # 201348 <_DYNAMIC\+0x190>
+ [0-9a-f]+:	0f 1f 40 00          	nopl   0x0\(%rax\)
 

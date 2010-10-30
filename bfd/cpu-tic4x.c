@@ -1,5 +1,5 @@
 /* bfd back-end for TMS320C[34]x support
-   Copyright 1996, 1997, 2002, 2003 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 2002, 2003, 2007 Free Software Foundation, Inc.
 
    Contributed by Michael Hayes (m.hayes@elec.canterbury.ac.nz)
 
@@ -19,8 +19,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 
 static bfd_boolean tic4x_scan

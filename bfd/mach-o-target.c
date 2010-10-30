@@ -1,5 +1,5 @@
 /* Mach-O support for BFD.
-   Copyright 1999, 2000, 2001, 2002
+   Copyright 1999, 2000, 2001, 2002, 2007
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -105,7 +105,7 @@ const bfd_target TARGET_NAME =
   BFD_JUMP_TABLE_CORE (bfd_mach_o),
   BFD_JUMP_TABLE_ARCHIVE (bfd_mach_o),
   BFD_JUMP_TABLE_SYMBOLS (bfd_mach_o),
-  BFD_JUMP_TABLE_RELOCS (bfd_mach_o),
+  BFD_JUMP_TABLE_RELOCS (_bfd_norelocs),
   BFD_JUMP_TABLE_WRITE (bfd_mach_o),
   BFD_JUMP_TABLE_LINK (bfd_mach_o),
   BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),

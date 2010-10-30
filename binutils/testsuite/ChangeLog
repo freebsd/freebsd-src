@@ -1,3 +1,195 @@
+2007-06-23  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* binutils-all/strip-3.d: Also strip .xtensa.info section.
+
+2007-05-24  Kai Tietz  <Kai.Tietz@onevision.com>
+
+	* binutils-all/windres/version_cat.rc: New.
+	* binutils-all/windres/version_cat.rsd: New.
+
+2007-05-23  Kai Tietz  <Kai.Tietz@onevision.com>
+
+	* binutils-all/windres/html.rc: New.
+	* binutils-all/windres/html.rsd: New.
+	* binutils-all/windres/html1.hm: New.
+	* binutils-all/windres/html2.hm: New.
+	* binutils-all/windres/messagetable.rc: New.
+	* binutils-all/windres/messagetable.rsd: New.
+	* binutils-all/windres/MSG00001.bin: New.
+	* binutils-all/windres/strtab2.rc: New.
+	* binutils-all/windres/strtab2.rsd: New.
+	* binutils-all/windres/version.rc: New.
+	* binutils-all/windres/version.rsd: New.
+	* binutils-all/windres/dialog.rsd: Fix expected results.
+
+2007-05-17  Joseph Myers  <joseph@codesourcery.com>
+
+	* binutils-all/strip-3.d: Strip .pdr section.
+
+2007-05-15  Alan Modra  <amodra@bigpond.net.au>
+
+	* binutils-all/objcopy.exp: Only run needed-by-reloc test for ELF.
+
+2007-05-11  Alan Modra  <amodra@bigpond.net.au>
+
+	* binutils-all/needed-by-reloc.s: Use .long rather than .4byte.
+
+2007-05-08  Mark Shinwell  <shinwell@codesourcery.com>
+
+	* binutils-all/strip-3.d: Strip .ARM.attributes and .reginfo
+	sections.
+
+2007-05-02  Alan Modra  <amodra@bigpond.net.au>
+
+	* binutils-all/objcopy.exp (copy_setup): Don't perror, use send_log.
+	(copy_executable): Return early if test2 is blank.
+	Return unsupported rather than unresolved if we can't run
+	executables.  Do test1 if we can compile.
+
+2007-04-24  Nathan Froyd  <froydnj@codesourcery.com>
+	    Phil Edwards  <phil@codesourcery.com>
+
+	* binutils-all/objcopy.exp: Add test for stripping a symbol
+	used in a relocation.
+	* binutils-all/needed-by-reloc.s: New file.
+
+2007-04-20  Nathan Froyd  <froydnj@codesourcery.com>
+	    Phil Edwards  <phil@codesourcery.com>
+	    Thomas de Lellis <tdel@windriver.com>
+
+	* binutils-all/objcopy.exp: Add test for --reverse-bytes.
+
+2007-04-21  Richard Earnshaw  <rearnsha@arm.com>
+
+	* binutils-all/readelf.exp (regexp_diff): Delete.
+
+2007-04-20  Richard Earnshaw  <rearnsha@arm.com>
+
+	* binutils-all/arm/thumb2-cond.s: Allow for tab expansion by the pty.
+	Rename the second test.
+
+2007-04-12  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR binutils/4348
+	* binutils-all/empty.s: New file.
+	* binutils-all/strip-3.d: Likewise.
+
+	* binutils-all/objcopy.exp: Run strip-3 for ELF target.
+
+2007-02-27  Nathan Sidwell  <nathan@codesourcery.com>
+
+	* binutils-all/objcopy.exp: Skip for uclinux targets.
+
+2007-02-14  Nick Clifton  <nickc@redhat.com>
+
+	* binutils-all/readelf.exp (readelf_wi_test): Fix unexpected
+	output failure message.
+
+2007-01-08  Kai Tietz	<kai.tietz@onevision.com>
+
+	* copy-3.d: Renamed target x86_64-*-mingw64 to x86_64-*-mingw*
+	* dlltool.exp: Dito
+	* lang.rc: Dito
+	* strtab1.rc: Dito
+	* windres.exp: Dito
+
+2006-09-20  Kai Tietz  <Kai.Tietz@onevision.com>
+
+	* binutils-all/copy-3.d: Add support for target x86_64-pc-mingw64.
+	* binutils-all/dlltool.exp: Likewise.
+	* binutils-all/objcopy.exp: Likewise.
+	* binutils-all/windres/windres.exp: Likewise.
+	* binutils-all/windres/lang.rc: xfail it as long as there is no windows.h.
+	* binutils-all/windres/strtab1.rc: Likewise.
+	* lib/utils-lib.exp: Adjust executable prefix detection (as .exe).
+
+2006-09-14  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR binutils/3181
+	* binutils-all/objcopy.exp: Run strip-1 and strip-2 for ELF
+	targets.
+
+	* binutils-all/strip-1.d: New file.
+	* binutils-all/strip-2.d: Likewise.
+
+	* lib/utils-lib.exp (run_dump_test): Support strip.
+
+2006-08-15  Thiemo Seufer  <ths@mips.com>
+            Nigel Stephens  <nigel@mips.com>
+            David Ung  <davidu@mips.com>
+
+	* binutils-all/readelf.exp (readelf_test): Handle mips*-sde-elf*.
+
+2006-06-24  Richard Sandiford  <richard@codesourcery.com>
+
+	* binutils-all/localize-hidden-1.d: Use objdump --syms instead
+	of readelf.
+
+2006-06-23  Richard Sandiford  <richard@codesourcery.com>
+
+	* binutils-all/localize-hidden-1.s,
+	* binutils-all/localize-hidden-1.d,
+	* binutils-all/localize-hidden-2.s,
+	* binutils-all/localize-hidden-2.d: New tests.
+	* binutils-all/objcopy.exp: Run them.
+
+2006-06-06  Paul Brook  <paul@codesourcery.com>
+
+	* binutils-all/arm/objdump.exp: New file.
+	* binutils-all/arm/thumb2-cond.s: New test.
+
+2006-05-03  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* binutils-all/copy-3.d: Fix a typo.
+
+2006-05-03  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* binutils-all/copy-3.d: New.
+
+	* objcopy.exp: Run copy-3.
+
+2006-05-02  Dave Korn  <dave.korn@artimi.com>
+
+	* binutils-all/copy-1.d (name):  Correct spelling of 'setting'.
+	* binutils-all/copy-1.d (name):  Likewise.
+
+2006-05-02  Nick Clifton  <nickc@redhat.com>
+
+	* binutils-all/copy-2.d: Change the name of the section whose
+	flags are changed to "foo" so that the test will work with PE
+	based targets.  Skip this test for AOUT based targeted.
+	* binutils-all/copytest.s: New file.
+
+2006-05-01  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* binutils-all/objcopy.exp: Run "copy-1" for ELF only.
+
+2006-05-01  Ben Elliston  <bje@au.ibm.com>
+
+	* binutils-all/objcopy.exp (objcopy_test_readelf): Remove stray ;
+
+2006-04-26  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR binutils/2593
+	* binutils-all/copy-1.d: New file.
+	* binutils-all/copy-1.s: Likewise.
+	* binutils-all/copy-2.d: Likewise.
+
+	* binutils-all/objcopy.exp: Add run_dump_test "copy-1" and
+	run_dump_test "copy-2".
+
+	* lib/utils-lib.exp (run_dump_test): New.
+	(slurp_options): Likewise.
+	(regexp_diff): Likewise.
+	(file_contents): Likewise.
+	(verbose_eval): Likewise.
+
+2006-04-25  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR binutils/2467
+	* binutils-all/objcopy.exp (strip_test): Also test "strip -g"
+	on archive.
+
 2006-04-10  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* lib/utils-lib.exp (default_binutils_run): Check exit status.

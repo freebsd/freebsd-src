@@ -1,5 +1,5 @@
 /* BFD back-end for Mach3/532 a.out-ish binaries.
-   Copyright 1990, 1991, 1992, 1994, 1995, 2000, 2001, 2002
+   Copyright 1990, 1991, 1992, 1994, 1995, 2000, 2001, 2002, 2007
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -60,8 +60,8 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
 
 #define TARGETNAME "a.out-pc532-mach"
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libaout.h"
 #include "libbfd.h"
 #include "aout/aout64.h"
