@@ -42,11 +42,7 @@
 #define	SR_VSID_MASK	0x00ffffff	/* Virtual Segment ID mask */
 
 /* Kernel segment register usage */
-#ifdef __powerpc64__
-#define	USER_SR		63
-#else
 #define	USER_SR		12
-#endif
 #define	KERNEL_SR	13
 #define	KERNEL2_SR	14
 #define	KERNEL3_SR	15

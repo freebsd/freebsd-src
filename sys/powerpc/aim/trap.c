@@ -249,8 +249,16 @@ trap(struct trapframe *frame)
  				return;
 			break;
 #ifdef __powerpc64__
-		case EXC_ISE:
 		case EXC_DSE:
+			if ((frame->cpu.aim.dar & SEGMENT_MASK) == USER_ADDR) {
+				__asm __volatile ("slbmte %0, %1" ::
+				     "r"(td->td_pcb->pcb_cpu.aim.usr_vsid),
+				     "r"(USER_SLB_SLBE));
+				return;
+			}
+
+			/* FALLTHROUGH */
+		case EXC_ISE:
 			if (handle_slb_spill(kernel_pmap,
 			    (type == EXC_ISE) ? frame->srr0 :
 			    frame->cpu.aim.dar) != 0)

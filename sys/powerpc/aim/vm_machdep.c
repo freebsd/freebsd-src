@@ -197,7 +197,6 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	pcb->pcb_lr = (register_t)fork_trampoline;
 	#endif
 	pcb->pcb_cpu.aim.usr_vsid = 0;
-	pcb->pcb_cpu.aim.usr_esid = 0;
 
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
