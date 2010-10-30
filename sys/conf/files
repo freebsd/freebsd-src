@@ -2500,6 +2500,7 @@ netinet/if_atm.c		optional atm
 netinet/if_ether.c		optional inet ether
 netinet/igmp.c			optional inet
 netinet/in.c			optional inet
+netinet/in_debug.c		optional inet ddb
 netinet/ip_carp.c		optional inet carp | inet6 carp
 netinet/in_gif.c		optional gif inet
 netinet/ip_gre.c		optional gre inet
