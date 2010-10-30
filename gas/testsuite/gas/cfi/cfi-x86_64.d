@@ -35,7 +35,7 @@ The section .eh_frame contains:
 
 00000050 00000014 00000054 FDE cie=00000000 pc=00000022..00000035
   DW_CFA_advance_loc: 3 to 00000025
-  DW_CFA_def_cfa_reg: r12
+  DW_CFA_def_cfa_reg: r8
   DW_CFA_advance_loc: 15 to 00000034
   DW_CFA_def_cfa_reg: r7
   DW_CFA_nop
@@ -46,6 +46,43 @@ The section .eh_frame contains:
   DW_CFA_nop
 
 0000007c 00000010 00000080 FDE cie=00000000 pc=0000003b..0000004d
+  DW_CFA_nop
+  DW_CFA_nop
+  DW_CFA_nop
+
+00000090 00000010 00000000 CIE
+  Version:               1
+  Augmentation:          "zR"
+  Code alignment factor: 1
+  Data alignment factor: -8
+  Return address column: 16
+  Augmentation data:     1b
+
+  DW_CFA_def_cfa: r7 ofs 8
+
+000000a4 00000030 00000018 FDE cie=00000090 pc=0000004d..00000058
+  DW_CFA_advance_loc: 1 to 0000004e
+  DW_CFA_def_cfa_offset: 16
+  DW_CFA_advance_loc: 1 to 0000004f
+  DW_CFA_def_cfa_reg: r8
+  DW_CFA_advance_loc: 1 to 00000050
+  DW_CFA_def_cfa_offset: 4676
+  DW_CFA_advance_loc: 1 to 00000051
+  DW_CFA_offset_extended_sf: r4 at cfa\+16
+  DW_CFA_advance_loc: 1 to 00000052
+  DW_CFA_register: r8 in r9
+  DW_CFA_advance_loc: 1 to 00000053
+  DW_CFA_remember_state
+  DW_CFA_advance_loc: 1 to 00000054
+  DW_CFA_restore: r6
+  DW_CFA_advance_loc: 1 to 00000055
+  DW_CFA_undefined: r16
+  DW_CFA_advance_loc: 1 to 00000056
+  DW_CFA_same_value: r3
+  DW_CFA_advance_loc: 1 to 00000057
+  DW_CFA_restore_state
+  DW_CFA_nop
+  DW_CFA_nop
   DW_CFA_nop
   DW_CFA_nop
   DW_CFA_nop

@@ -1,6 +1,7 @@
 /* ELF object file format
    Copyright 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+   2001, 2002, 2003, 2004, 2005, 2006, 2007
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -55,6 +56,10 @@
 
 #ifdef TC_I386
 #include "elf/x86-64.h"
+#endif
+
+#ifdef TC_MEP
+#include "elf/mep.h"
 #endif
 
 static void obj_elf_line (int);
@@ -632,6 +637,11 @@ obj_elf_change_section (const char *name,
 	  else if (attr == SHF_EXECINSTR
 		   && strcmp (name, ".note.GNU-stack") == 0)
 	    override = TRUE;
+#ifdef TC_ALPHA
+	  /* A section on Alpha may have SHF_ALPHA_GPREL.  */
+	  else if ((attr & ~ssect->attr) == SHF_ALPHA_GPREL)
+	    override = TRUE;
+#endif
 	  else
 	    {
 	      if (group_name == NULL)
@@ -1414,11 +1424,12 @@ obj_elf_version (int ignore ATTRIBUTE_UNUSED)
   Elf_Internal_Note i_note;
   Elf_External_Note e_note;
   asection *note_secp = NULL;
-  int len;
 
   SKIP_WHITESPACE ();
   if (*input_line_pointer == '\"')
     {
+      unsigned int len;
+
       ++input_line_pointer;	/* -> 1st char of string.  */
       name = input_line_pointer;
 
@@ -1429,19 +1440,19 @@ obj_elf_version (int ignore ATTRIBUTE_UNUSED)
       *(input_line_pointer - 1) = '\0';
       *input_line_pointer = c;
 
-      /* create the .note section */
-
+      /* Create the .note section.  */
       note_secp = subseg_new (".note", 0);
       bfd_set_section_flags (stdoutput,
 			     note_secp,
 			     SEC_HAS_CONTENTS | SEC_READONLY);
 
-      /* process the version string */
+      /* Process the version string.  */
+      len = strlen (name) + 1;
 
-      len = strlen (name);
-
-      i_note.namesz = ((len + 1) + 3) & ~3; /* round this to word boundary */
-      i_note.descsz = 0;	/* no description */
+      /* PR 3456: Although the name field is padded out to an 4-byte
+	 boundary, the namesz field should not be adjusted.  */
+      i_note.namesz = len;
+      i_note.descsz = 0;	/* No description.  */
       i_note.type = NT_VERSION;
       p = frag_more (sizeof (e_note.namesz));
       md_number_to_chars (p, i_note.namesz, sizeof (e_note.namesz));
@@ -1449,17 +1460,16 @@ obj_elf_version (int ignore ATTRIBUTE_UNUSED)
       md_number_to_chars (p, i_note.descsz, sizeof (e_note.descsz));
       p = frag_more (sizeof (e_note.type));
       md_number_to_chars (p, i_note.type, sizeof (e_note.type));
-      p = frag_more (len + 1);
-      strcpy (p, name);
+      p = frag_more (len);
+      memcpy (p, name, len);
 
       frag_align (2, 0, 0);
 
       subseg_set (seg, subseg);
     }
   else
-    {
-      as_bad (_("expected quoted string"));
-    }
+    as_bad (_("expected quoted string"));
+
   demand_empty_rest_of_line ();
 }
 
@@ -1684,6 +1694,9 @@ adjust_stab_sections (bfd *abfd, asection *sec, void *xxx ATTRIBUTE_UNUSED)
    this at the moment, so we do it ourselves.  We save the information
    in the symbol.  */
 
+#ifdef OBJ_MAYBE_ELF
+static
+#endif
 void
 elf_ecoff_set_ext (symbolS *sym, struct ecoff_extr *ext)
 {
@@ -1978,6 +1991,7 @@ elf_frob_file (void)
       bfd_set_section_size (stdoutput, s, size);
       s->contents = (unsigned char *) frag_more (size);
       frag_now->fr_fix = frag_now_fix_octets ();
+      frag_wane (frag_now);
     }
 
 #ifdef elf_tc_final_processing

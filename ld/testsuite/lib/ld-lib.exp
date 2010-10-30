@@ -1,6 +1,6 @@
 # Support routines for LD testsuite.
 #   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
-#    2004, 2005, 2006 Free Software Foundation, Inc.
+#    2004, 2005, 2006, 2007 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -39,11 +39,14 @@ proc default_ld_version { ld } {
 proc default_ld_relocate { ld target objects } {
     global HOSTING_EMU
     global host_triplet
+    global exec_output
 
     if { [which $ld] == 0 } then {
 	perror "$ld does not exist"
 	return 0
     }
+
+    catch "exec rm -f $target" exec_output
 
     verbose -log "$ld $HOSTING_EMU -o $target -r $objects"
 
@@ -90,11 +93,11 @@ proc big_or_little_endian {} {
 
 	foreach x $tmp_flags {
 	    case $x in {
-		{*big*endian eb EB -eb -EB -mb} {
+		{*big*endian eb EB -eb -EB -mb -meb} {
 		    set flags " -EB"
 		    return $flags
 		}
-		{*little*endian el EL -el -EL -ml} {
+		{*little*endian el EL -el -EL -ml -mel} {
 		    set flags " -EL"
 		    return $flags
 		}
@@ -115,6 +118,7 @@ proc default_ld_link { ld target objects } {
     global LIBS
     global host_triplet
     global link_output
+    global exec_output
 
     set objs "$HOSTING_CRT0 $objects"
     set libs "$LIBS $HOSTING_LIBS"
@@ -129,14 +133,17 @@ proc default_ld_link { ld target objects } {
     } else {
 	set flags ""
     }
+
+    catch "exec rm -f $target" exec_output
+
     verbose -log "$ld $HOSTING_EMU $flags -o $target $objs $libs"
 
     catch "exec $ld $HOSTING_EMU $flags -o $target $objs $libs" link_output
     set exec_output [prune_warnings $link_output]
-    if [string match "" $link_output] then {
+    if [string match "" $exec_output] then {
 	return 1
     } else {
-	verbose -log "$link_output"
+	verbose -log "$exec_output"
 	return 0
     }
 }
@@ -147,6 +154,7 @@ proc default_ld_simple_link { ld target objects } {
     global host_triplet
     global link_output
     global gcc_ld_flag
+    global exec_output
 
     if { [which $ld] == 0 } then {
 	perror "$ld does not exist"
@@ -171,6 +179,8 @@ proc default_ld_simple_link { ld target objects } {
     if {[string match "*gcc*" $ldexe] || [string match "*++*" $ldexe]} then {
 	set flags "$gcc_ld_flag $flags"
     }
+
+    catch "exec rm -f $target" exec_output
 
     verbose -log "$ld $flags -o $target $objects"
 
@@ -434,7 +444,7 @@ proc is_aout_format {} {
 # True if the object format is known to be PE COFF.
 #
 proc is_pecoff_format {} {
-    if { ![istarget *-*-mingw32*] \
+    if { ![istarget *-*-mingw*] \
 	 && ![istarget *-*-cygwin*] \
 	 && ![istarget *-*-pe*] } {
 	return 0
@@ -783,6 +793,7 @@ proc run_dump_test { name } {
 	set sourcefile [lindex $sourcefiles $i]
 
 	set objfile "tmpdir/dump$i.o"
+	catch "exec rm -f $objfile" exec_output
 	lappend objfiles $objfile
 	set cmd "$AS $ASFLAGS $opts(as) $asflags($sourcefile) -o $objfile $sourcefile"
 
@@ -814,6 +825,7 @@ proc run_dump_test { name } {
     # Perhaps link the file(s).
     if { $run_ld } {
 	set objfile "tmpdir/dump"
+	catch "exec rm -f $objfile" exec_output
 
 	# Add -L$srcdir/$subdir so that the linker command can use
 	# linker scripts in the source directory.
@@ -840,6 +852,7 @@ proc run_dump_test { name } {
 	if { $cmdret == 0 && $run_objcopy } {
 	    set infile $objfile
 	    set objfile "tmpdir/dump1"
+	    catch "exec rm -f $objfile" exec_output
 
 	    # Note that we don't use OBJCOPYFLAGS here; any flags must be
 	    # explicitly specified.
@@ -1246,14 +1259,16 @@ if ![string length [info proc prune_warnings]] {
 
 # targets_to_xfail is a list of target triplets to be xfailed.
 # ldtests contains test-items with 3 items followed by 1 lists, 2 items
-# and one optional item:
+# and 3 optional items:
 #   0:name
 #   1:ld options
 #   2:assembler options
-#   3:filenames of assembler files
+#   3:filenames of source files
 #   4:name of output file
 #   5:expected output
 #   6:compiler flags (optional)
+#   7:language (optional)
+#   8:linker warning (optional)
 
 proc run_ld_link_exec_tests { targets_to_xfail ldtests } {
     global ld
@@ -1262,8 +1277,10 @@ proc run_ld_link_exec_tests { targets_to_xfail ldtests } {
     global subdir
     global env
     global CC
+    global CXX
     global CFLAGS
     global errcnt
+    global exec_output
 
     foreach testitem $ldtests {
 	foreach target $targets_to_xfail {
@@ -1276,6 +1293,8 @@ proc run_ld_link_exec_tests { targets_to_xfail ldtests } {
 	set binfile tmpdir/[lindex $testitem 4]
 	set expfile [lindex $testitem 5]
 	set cflags [lindex $testitem 6]
+	set lang [lindex $testitem 7]
+	set warning [lindex $testitem 8]
 	set objfiles {}
 	set failed 0
 
@@ -1297,7 +1316,13 @@ proc run_ld_link_exec_tests { targets_to_xfail ldtests } {
 	    ld_compile "$CC -c $CFLAGS $cflags" $srcdir/$subdir/$src_file $objfile
 
 	    # We have to use $CC to build PIE and shared library.
-	    if { [ string match "-shared" $ld_options ] \
+	    if { [ string match "c" $lang ] } {
+		set link_proc ld_simple_link
+		set link_cmd $CC
+	    } elseif { [ string match "c++" $lang ] } {
+		set link_proc ld_simple_link
+		set link_cmd $CXX
+	    } elseif { [ string match "-shared" $ld_options ] \
 		 || [ string match "-pie" $ld_options ] } {
 		set link_proc ld_simple_link
 		set link_cmd $CC
@@ -1310,6 +1335,19 @@ proc run_ld_link_exec_tests { targets_to_xfail ldtests } {
 		set failed 1
 	    } else {
 		set failed 0
+	    }
+
+	    # Check if exec_output is expected.
+	    if { $warning != "" } then {
+		verbose -log "returned with: <$exec_output>, expected: <$warning>"
+		if { [regexp $warning $exec_output] } then {
+		    set failed 0
+		} else {
+		    set failed 1
+		}
+	    }
+
+	    if { $failed == 0 } {
 		send_log "Running: $binfile > $binfile.out\n"
 		verbose "Running: $binfile > $binfile.out"
 		catch "exec $binfile > $binfile.out" exec_output
@@ -1338,6 +1376,139 @@ proc run_ld_link_exec_tests { targets_to_xfail ldtests } {
 		set errcnt 0
 		pass $testname
 	    }
+	}
+    }
+}
+
+# List contains test-items with 3 items followed by 2 lists, one item and
+# one optional item:
+#  0:name
+#  1:link options
+#  2:compile options
+#  3:filenames of source files
+#  4:action and options.
+#  5:name of output file
+#  6:language (optional)
+#
+# Actions:
+# objdump: Apply objdump options on result.  Compare with regex (last arg).
+# nm: Apply nm options on result.  Compare with regex (last arg).
+# readelf: Apply readelf options on result.  Compare with regex (last arg).
+#
+proc run_cc_link_tests { ldtests } {
+    global nm
+    global objdump
+    global READELF
+    global srcdir
+    global subdir
+    global env
+    global CC
+    global CXX
+    global CFLAGS
+
+    foreach testitem $ldtests {
+	set testname [lindex $testitem 0]
+	set ldflags [lindex $testitem 1]
+	set cflags [lindex $testitem 2]
+	set src_files  [lindex $testitem 3]
+	set actions [lindex $testitem 4]
+	set binfile tmpdir/[lindex $testitem 5]
+	set lang [lindex $testitem 6]
+	set objfiles {}
+	set is_unresolved 0
+	set failed 0
+
+	# Compile each file in the test.
+	foreach src_file $src_files {
+	    set objfile "tmpdir/[file rootname $src_file].o"
+	    lappend objfiles $objfile
+
+	    # We ignore warnings since some compilers may generate
+	    # incorrect section attributes and the assembler will warn
+	    # them.
+	    ld_compile "$CC -c $CFLAGS $cflags" $srcdir/$subdir/$src_file $objfile
+	}
+
+	# Clear error and warning counts.
+	reset_vars
+
+	if { [ string match "c++" $lang ] } {
+	    set cc_cmd $CXX
+	} else {
+	    set cc_cmd $CC
+	}
+
+	if ![ld_simple_link $cc_cmd $binfile "-L$srcdir/$subdir $ldflags $objfiles"] {
+	    fail $testname
+	} else {
+	    set failed 0
+	    foreach actionlist $actions {
+		set action [lindex $actionlist 0]
+		set progopts [lindex $actionlist 1]
+
+		# There are actions where we run regexp_diff on the
+		# output, and there are other actions (presumably).
+		# Handling of the former look the same.
+		set dump_prog ""
+		switch -- $action {
+		    objdump
+		        { set dump_prog $objdump }
+		    nm
+		        { set dump_prog $nm }
+		    readelf
+		        { set dump_prog $READELF }
+		    default
+			{
+			    perror "Unrecognized action $action"
+			    set is_unresolved 1
+			    break
+			}
+		    }
+
+		if { $dump_prog != "" } {
+		    set dumpfile [lindex $actionlist 2]
+		    set binary $dump_prog
+
+		    # Ensure consistent sorting of symbols
+		    if {[info exists env(LC_ALL)]} {
+			set old_lc_all $env(LC_ALL)
+		    }
+		    set env(LC_ALL) "C"
+		    set cmd "$binary $progopts $binfile > dump.out"
+		    send_log "$cmd\n"
+		    catch "exec $cmd" comp_output
+		    if {[info exists old_lc_all]} {
+			set env(LC_ALL) $old_lc_all
+		    } else {
+			unset env(LC_ALL)
+		    }
+		    set comp_output [prune_warnings $comp_output]
+
+		    if ![string match "" $comp_output] then {
+			send_log "$comp_output\n"
+			set failed 1
+			break
+		    }
+
+		    if { [regexp_diff "dump.out" "$srcdir/$subdir/$dumpfile"] } then {
+			verbose "output is [file_contents "dump.out"]" 2
+			set failed 1
+			break
+		    }
+		}
+	    }
+
+	    if { $failed != 0 } {
+		fail $testname
+	    } else { if { $is_unresolved == 0 } {
+		pass $testname
+	    } }
+	}
+
+	# Catch action errors.
+	if { $is_unresolved != 0 } {
+	    unresolved $testname
+	    continue
 	}
     }
 }

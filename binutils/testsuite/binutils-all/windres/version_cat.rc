@@ -1,0 +1,33 @@
+//#xfail x86_64-*-mingw*
+#include "windows.h"
+
+LANGUAGE LANG_GERMAN, SUBLANG_GERMAN
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,0,1
+ PRODUCTVERSION 1,0,0,1
+ FILEFLAGSMASK 0x3fL
+ FILEFLAGS 0x0L
+ FILEOS 0x4L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040704e4"
+        BEGIN
+            VALUE L"Company" "Name", L"binutil\x0073"
+            VALUE "File" "Description", L"RC " L"compiler."
+            VALUE "File" "Version", "1.0.0.1"
+            VALUE "Internal" "Name", "windres" L".exe"
+            VALUE "Legal" "Copyright", "(c) FSF." " All rights are reserved."
+            VALUE "Original" "Filename", L"windres" ".exe"
+            VALUE "Product" "Name", "windows resource " "compiler"
+            VALUE "Product" "Version", "1.0.0.1"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x407, 1252
+    END
+END

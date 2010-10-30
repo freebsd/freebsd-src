@@ -1,5 +1,5 @@
 /* bfin-defs.h ADI Blackfin gas header file
-   Copyright 2005
+   Copyright 2005, 2006
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -21,9 +21,6 @@
 
 #ifndef BFIN_PARSE_H
 #define BFIN_PARSE_H  
-
-#include <bfd.h>
-#include "as.h"
 
 #define PCREL	1
 #define CODE_FRAG_SIZE 4096  /* 1 page.  */  
@@ -374,7 +371,6 @@ void semantic_error_2 (char *syntax);
 
 EXPR_T mkexpr (int, SYMBOL_T);
 
-extern void bfin_equals (Expr_Node *sym);
 /* Defined in bfin-lex.l.  */
 void set_start_state (void);
 

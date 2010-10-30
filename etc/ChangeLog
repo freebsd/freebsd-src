@@ -1,3 +1,26 @@
+2007-04-04  Eric Christopher  <echristo@apple.com>
+
+	Move from gcc:
+	2007-04-04  Zack Weinberg  <zack@mrtock.ucsd.edu>
+
+	        * texi2pod.pl: Correct handling of @itemize with no argument.
+
+	2007-02-16  Matthias Klose  <doko@debian.org>
+
+	        * texi2pod.pl: Handle @subsubsection, ignore @anchor.
+
+	2007-02-06  Richard Sandiford  <richard@codesourcery.com>
+
+	        * texi2pod.pl: Handle @multitable.
+
+2007-03-27  Brooks Moses  <brooks.moses@codesourcery.com>
+
+	* Makefile.in: Add support for "pdf" and "install-pdf" targets.
+
+2006-12-19  Paolo Bonzini  <bonzini@gnu.org>
+
+	* configure.texi: Fix botched commit.
+
 2006-05-31  Daniel Jacobowitz  <dan@codesourcery.com>
 
 	* texi2pod.pl: Correct handling of absolute @include.
@@ -16,15 +39,15 @@
 
 2006-02-27  Carlos O'Donell  <carlos@codesourcery.com>
 
-	* Makefile.in: TEXI2HTML uses makeinfo. Define 
+	* Makefile.in: TEXI2HTML uses makeinfo. Define
 	HTMLFILES. Add html targets.
-	* configure.texi: Use ifnottex. Add alternative 
+	* configure.texi: Use ifnottex. Add alternative
 	image format specifier as jpg.
 	* standards.texi: Use ifnottex.
 
 2005-10-21  Mark Mitchell  <mark@codesourcery.com>
 
-	* texi2pod.pl: Substitue for @value even when part of @include. 
+	* texi2pod.pl: Substitue for @value even when part of @include.
 
 2005-10-21  Bob Wilson  <bob.wilson@acm.org>
 
@@ -594,4 +617,3 @@ Mon Nov 16 16:50:43 1992  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
 Sun Oct 11 16:05:48 1992  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
 
 	* intro.texi: added INFO-DIR-ENTRY
-

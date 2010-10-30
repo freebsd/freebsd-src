@@ -73,7 +73,6 @@ Symbol table '.dynsym' contains [0-9]+ entries:
 .* NOTYPE  LOCAL  DEFAULT  UND 
 .* SECTION LOCAL  DEFAULT +7 
 .* SECTION LOCAL  DEFAULT +8 
-.* SECTION LOCAL  DEFAULT +9 
 .* TLS +GLOBAL DEFAULT +8 sg8
 .* TLS +GLOBAL DEFAULT +8 sg3
 .* TLS +GLOBAL DEFAULT +8 sg4
@@ -88,7 +87,7 @@ Symbol table '.dynsym' contains [0-9]+ entries:
 .* NOTYPE  GLOBAL DEFAULT  ABS _edata
 .* NOTYPE  GLOBAL DEFAULT  ABS _end
 
-Symbol table '.symtab' contains 54 entries:
+Symbol table '.symtab' contains 51 entries:
  +Num: +Value  Size Type +Bind +Vis +Ndx Name
 .* NOTYPE  LOCAL  DEFAULT  UND 
 .* SECTION LOCAL  DEFAULT +1 
@@ -102,9 +101,6 @@ Symbol table '.symtab' contains 54 entries:
 .* SECTION LOCAL  DEFAULT +9 
 .* SECTION LOCAL  DEFAULT +10 
 .* SECTION LOCAL  DEFAULT +11 
-.* SECTION LOCAL  DEFAULT +12 
-.* SECTION LOCAL  DEFAULT +13 
-.* SECTION LOCAL  DEFAULT +14 
 .* TLS +LOCAL  DEFAULT +8 sl1
 .* TLS +LOCAL  DEFAULT +8 sl2
 .* TLS +LOCAL  DEFAULT +8 sl3

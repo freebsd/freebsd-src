@@ -1,6 +1,6 @@
 /* tc-sh.c -- Assemble code for the Renesas / SuperH SH
    Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004, 2005  Free Software Foundation, Inc.
+   2003, 2004, 2005, 2006  Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -21,9 +21,7 @@
 
 /* Written By Steve Chamberlain <sac@cygnus.com>  */
 
-#include <stdio.h>
 #include "as.h"
-#include "bfd.h"
 #include "subsegs.h"
 #define DEFINE_TABLE
 #include "opcodes/sh-opc.h"
@@ -827,8 +825,97 @@ sh_elf_cons (register int nbytes)
   else
     demand_empty_rest_of_line ();
 }
-#endif /* OBJ_ELF */
 
+/* The regular frag_offset_fixed_p doesn't work for rs_align_test
+   frags.  */
+
+static bfd_boolean
+align_test_frag_offset_fixed_p (const fragS *frag1, const fragS *frag2,
+				bfd_vma *offset)
+{
+  const fragS *frag;
+  bfd_vma off;
+
+  /* Start with offset initialised to difference between the two frags.
+     Prior to assigning frag addresses this will be zero.  */
+  off = frag1->fr_address - frag2->fr_address;
+  if (frag1 == frag2)
+    {
+      *offset = off;
+      return TRUE;
+    }
+
+  /* Maybe frag2 is after frag1.  */
+  frag = frag1;
+  while (frag->fr_type == rs_fill
+	 || frag->fr_type == rs_align_test)
+    {
+      if (frag->fr_type == rs_fill)
+	off += frag->fr_fix + frag->fr_offset * frag->fr_var;
+      else
+	off += frag->fr_fix;
+      frag = frag->fr_next;
+      if (frag == NULL)
+	break;
+      if (frag == frag2)
+	{
+	  *offset = off;
+	  return TRUE;
+	}
+    }
+
+  /* Maybe frag1 is after frag2.  */
+  off = frag1->fr_address - frag2->fr_address;
+  frag = frag2;
+  while (frag->fr_type == rs_fill
+	 || frag->fr_type == rs_align_test)
+    {
+      if (frag->fr_type == rs_fill)
+	off -= frag->fr_fix + frag->fr_offset * frag->fr_var;
+      else
+	off -= frag->fr_fix;
+      frag = frag->fr_next;
+      if (frag == NULL)
+	break;
+      if (frag == frag1)
+	{
+	  *offset = off;
+	  return TRUE;
+	}
+    }
+
+  return FALSE;
+}
+
+/* Optimize a difference of symbols which have rs_align_test frag if
+   possible.  */
+
+int
+sh_optimize_expr (expressionS *l, operatorT op, expressionS *r)
+{
+  bfd_vma frag_off;
+
+  if (op == O_subtract
+      && l->X_op == O_symbol
+      && r->X_op == O_symbol
+      && S_GET_SEGMENT (l->X_add_symbol) == S_GET_SEGMENT (r->X_add_symbol)
+      && (SEG_NORMAL (S_GET_SEGMENT (l->X_add_symbol))
+	  || r->X_add_symbol == l->X_add_symbol)
+      && align_test_frag_offset_fixed_p (symbol_get_frag (l->X_add_symbol),
+					 symbol_get_frag (r->X_add_symbol),
+					 &frag_off))
+    {
+      l->X_add_number -= r->X_add_number;
+      l->X_add_number -= frag_off / OCTETS_PER_BYTE;
+      l->X_add_number += (S_GET_VALUE (l->X_add_symbol)
+			  - S_GET_VALUE (r->X_add_symbol));
+      l->X_op = O_constant;
+      l->X_add_symbol = 0;
+      return 1;
+    }
+  return 0;
+}
+#endif /* OBJ_ELF */
 
 /* This function is called once, at assembler startup time.  This should
    set up all the tables, etc that the MD part of the assembler needs.  */
@@ -2798,7 +2885,7 @@ md_assemble (char *str)
   if (opcode == NULL)
     {
       /* The opcode is not in the hash table.
-	 This means we definately have an assembly failure,
+	 This means we definitely have an assembly failure,
 	 but the instruction may be valid in another CPU variant.
 	 In this case emit something better than 'unknown opcode'.
 	 Search the full table in sh-opc.h to check. */
@@ -2867,6 +2954,9 @@ md_assemble (char *str)
 	    as_bad (_("Delayed branches not available on SH1"));
 	  parse_exp (op_end + 1, &operand[0]);
 	  build_relax (opcode, &operand[0]);
+
+	  /* All branches are currently 16 bit.  */
+	  size = 2;
 	}
       else
 	{
@@ -3065,6 +3155,10 @@ struct option md_longopts[] =
   {"relax", no_argument, NULL, OPTION_RELAX},
   {"big", no_argument, NULL, OPTION_BIG},
   {"little", no_argument, NULL, OPTION_LITTLE},
+  /* The next two switches are here because the
+     generic parts of the linker testsuite uses them.  */
+  {"EB", no_argument, NULL, OPTION_BIG},
+  {"EL", no_argument, NULL, OPTION_LITTLE},
   {"small", no_argument, NULL, OPTION_SMALL},
   {"dsp", no_argument, NULL, OPTION_DSP},
   {"isa", required_argument, NULL, OPTION_ISA},
@@ -3312,6 +3406,21 @@ sh_frob_section (bfd *abfd ATTRIBUTE_UNUSED, segT sec,
   seginfo = seg_info (sec);
   if (seginfo == NULL)
     return;
+
+  for (fix = seginfo->fix_root; fix != NULL; fix = fix->fx_next)
+    {
+      symbolS *sym;
+
+      sym = fix->fx_addsy;
+      /* Check for a local_symbol.  */
+      if (sym && sym->bsym == NULL)
+	{
+	  struct local_symbol *ls = (struct local_symbol *)sym;
+	  /* See if it's been converted.  If so, canonicalize.  */
+	  if (local_symbol_converted_p (ls))
+	    fix->fx_addsy = local_symbol_get_real_symbol (ls);
+	}
+    }
 
   for (fix = seginfo->fix_root; fix != NULL; fix = fix->fx_next)
     {
@@ -3666,7 +3775,7 @@ sh_handle_align (fragS *frag)
   else if (frag->fr_type == rs_align_test)
     {
       if (bytes != 0)
-	as_warn_where (frag->fr_file, frag->fr_line, _("misaligned data"));
+	as_bad_where (frag->fr_file, frag->fr_line, _("misaligned data"));
     }
 
   if (sh_relax
@@ -3779,6 +3888,28 @@ sh_elf_final_processing (void)
   elf_elfheader (stdoutput)->e_flags |= val;
 }
 #endif
+
+/* Apply fixup FIXP to SIZE-byte field BUF given that VAL is its
+   assembly-time value.  If we're generating a reloc for FIXP,
+   see whether the addend should be stored in-place or whether
+   it should be in an ELF r_addend field.  */
+
+static void
+apply_full_field_fix (fixS *fixP, char *buf, bfd_vma val, int size)
+{
+  reloc_howto_type *howto;
+
+  if (fixP->fx_addsy != NULL || fixP->fx_pcrel)
+    {
+      howto = bfd_reloc_type_lookup (stdoutput, fixP->fx_r_type);
+      if (howto && !howto->partial_inplace)
+	{
+	  fixP->fx_addnumber = val;
+	  return;
+	}
+    }
+  md_number_to_chars (buf, val, size);
+}
 
 /* Apply a fixup to the object file.  */
 
@@ -3980,11 +4111,11 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 
     case BFD_RELOC_32:
     case BFD_RELOC_32_PCREL:
-      md_number_to_chars (buf, val, 4);
+      apply_full_field_fix (fixP, buf, val, 4);
       break;
 
     case BFD_RELOC_16:
-      md_number_to_chars (buf, val, 2);
+      apply_full_field_fix (fixP, buf, val, 2);
       break;
 
     case BFD_RELOC_SH_USES:
@@ -4016,8 +4147,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
       val = fixP->fx_offset;
       if (fixP->fx_subsy)
 	val -= S_GET_VALUE (fixP->fx_subsy);
-      fixP->fx_addnumber = val;
-      md_number_to_chars (buf, val, 4);
+      apply_full_field_fix (fixP, buf, val, 4);
       break;
 
     case BFD_RELOC_SH_GOTPC:
@@ -4038,7 +4168,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
          was used to store the correction, but since the expression is
          not pcrel, I felt it would be confusing to do it this way.  */
       * valP -= 1;
-      md_number_to_chars (buf, val, 4);
+      apply_full_field_fix (fixP, buf, val, 4);
       break;
 
     case BFD_RELOC_SH_TLS_GD_32:
@@ -4049,7 +4179,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_32_GOT_PCREL:
     case BFD_RELOC_SH_GOTPLT32:
       * valP = 0; /* Fully resolved at runtime.  No addend.  */
-      md_number_to_chars (buf, 0, 4);
+      apply_full_field_fix (fixP, buf, 0, 4);
       break;
 
     case BFD_RELOC_SH_TLS_LDO_32:
@@ -4057,7 +4187,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
       S_SET_THREAD_LOCAL (fixP->fx_addsy);
       /* Fallthrough */
     case BFD_RELOC_32_GOTOFF:
-      md_number_to_chars (buf, val, 4);
+      apply_full_field_fix (fixP, buf, val, 4);
       break;
 #endif
 
@@ -4082,6 +4212,11 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     }
   if (max != 0 && (val < min || val > max))
     as_bad_where (fixP->fx_file, fixP->fx_line, _("offset out of range"));
+  else if (max != 0)
+    /* Stop the generic code from trying to overlow check the value as well.
+       It may not have the correct value anyway, as we do not store val back
+       into *valP.  */
+    fixP->fx_no_overflow = 1;
 
   if (fixP->fx_addsy == NULL && fixP->fx_pcrel == 0)
     fixP->fx_done = 1;
@@ -4255,12 +4390,8 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
   else if (shmedia_init_reloc (rel, fixp))
     ;
 #endif
-  else if (fixp->fx_pcrel)
-    rel->addend = fixp->fx_addnumber;
-  else if (r_type == BFD_RELOC_32 || r_type == BFD_RELOC_32_GOTOFF)
-    rel->addend = fixp->fx_addnumber;
   else
-    rel->addend = 0;
+    rel->addend = fixp->fx_addnumber;
 
   rel->howto = bfd_reloc_type_lookup (stdoutput, r_type);
 
@@ -4382,7 +4513,7 @@ sh_cfi_frame_initial_instructions (void)
 }
 
 int
-sh_regname_to_dw2regnum (const char *regname)
+sh_regname_to_dw2regnum (char *regname)
 {
   unsigned int regnum = -1;
   unsigned int i;

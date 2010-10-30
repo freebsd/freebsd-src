@@ -7,7 +7,7 @@ start address 0x.*
 Disassembly of section .plt:
 
 .* <.plt>:
- .*:	e52de004 	str	lr, \[sp, #-4\]!
+ .*:	e52de004 	push	{lr}		; \(str lr, \[sp, #-4\]!\)
  .*:	e59fe004 	ldr	lr, \[pc, #4\]	; .* <lib_func1-0x10>
  .*:	e08fe00e 	add	lr, pc, lr
  .*:	e5bef008 	ldr	pc, \[lr, #8\]!
@@ -19,9 +19,9 @@ Disassembly of section .text:
 
 .* <lib_func1>:
  .*:	e1a0c00d 	mov	ip, sp
- .*:	e92dd800 	stmdb	sp!, {fp, ip, lr, pc}
+ .*:	e92dd800 	push	{fp, ip, lr, pc}
  .*:	ebfffff9 	bl	.* <lib_func1-0xc>
- .*:	e89d6800 	ldmia	sp, {fp, sp, lr}
+ .*:	e89d6800 	ldm	sp, {fp, sp, lr}
  .*:	e12fff1e 	bx	lr
 
 .* <lib_func2>:

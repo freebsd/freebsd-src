@@ -63,3 +63,6 @@ extern void xstormy16_cons_fix_new (fragS *f, int, int, expressionS *);
 
 /* Minimum instruction is two bytes.  */
 #define DWARF2_LINE_MIN_INSN_LENGTH 2
+
+/* This target is buggy, and sets fix size too large.  */
+#define TC_FX_SIZE_SLACK(FIX) 2

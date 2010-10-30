@@ -80,9 +80,6 @@ Symbol table '.symtab' contains [0-9]+ entries:
 [0-9 ]+: [0-9a-f]+ +0 SECTION LOCAL +DEFAULT +11 
 [0-9 ]+: [0-9a-f]+ +0 SECTION LOCAL +DEFAULT +12 
 [0-9 ]+: [0-9a-f]+ +0 SECTION LOCAL +DEFAULT +13 
-[0-9 ]+: [0-9a-f]+ +0 SECTION LOCAL +DEFAULT +14 
-[0-9 ]+: [0-9a-f]+ +0 SECTION LOCAL +DEFAULT +15 
-[0-9 ]+: [0-9a-f]+ +0 SECTION LOCAL +DEFAULT +16 
 [0-9 ]+: [0-9a-f]+ +0 TLS +LOCAL +DEFAULT +9 sl1
 [0-9 ]+: [0-9a-f]+ +0 TLS +LOCAL +DEFAULT +9 sl2
 [0-9 ]+: [0-9a-f]+ +0 TLS +LOCAL +DEFAULT +9 sl3
@@ -121,7 +118,7 @@ Symbol table '.symtab' contains [0-9]+ entries:
 [0-9 ]+: [0-9a-f]+ +0 TLS +GLOBAL DEFAULT +10 bg7
 [0-9 ]+: [0-9a-f]+ +0 TLS +GLOBAL HIDDEN +9 sh5
 [0-9 ]+: [0-9a-f]+ +0 NOTYPE +GLOBAL DEFAULT +ABS __bss_start
-[0-9 ]+: [0-9a-f]+ +136 FUNC +GLOBAL DEFAULT +7 fn2
+[0-9 ]+: [0-9a-f]+ +136 FUNC +GLOBAL DEFAULT +\[<other>: 88\] +7 fn2
 [0-9 ]+: [0-9a-f]+ +0 TLS +GLOBAL DEFAULT +9 sg2
 [0-9 ]+: [0-9a-f]+ +0 TLS +GLOBAL DEFAULT +UND sG1
 [0-9 ]+: [0-9a-f]+ +0 TLS +GLOBAL HIDDEN +9 sh1

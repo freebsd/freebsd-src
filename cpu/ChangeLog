@@ -1,3 +1,39 @@
+2007-04-30  Mark Salter  <msalter@sadr.localdomain>
+
+	* frv.cpu (spr-names): Support new coprocessor SPR registers.
+
+2007-04-20  Nick Clifton  <nickc@redhat.com>
+
+	* xc16x.cpu: Restore after accidentally overwriting this file with
+	xc16x.opc.
+
+2007-03-29  DJ Delorie  <dj@redhat.com>
+
+	* m32c.cpu (Imm-8-s4n): Fix print hook.
+	(Lab-24-8, Lab-32-8, Lab-40-8): Fix.
+	(arith-jnz-imm4-dst-defn): Make relaxable.
+	(arith-jnz16-imm4-dst-defn): Fix encodings.
+
+2007-03-20  DJ Delorie  <dj@redhat.com>
+
+	* m32c.cpu (f-dsp-40-u20, f-dsp-48-u20, Dsp-40-u20, Dsp-40-u20,
+	mem20): New.
+	(src16-16-20-An-relative-*): New.
+	(dst16-*-20-An-relative-*): New.
+	(dst16-16-16sa-*): New
+	(dst16-16-16ar-*): New
+	(dst32-16-16sa-Unprefixed-*): New
+	(jsri): Fix operands.
+	(setzx): Fix encoding.
+	
+2007-03-08  Alan Modra  <amodra@bigpond.net.au>
+
+	* m32r.opc: Formatting.
+
+2006-05-22  Nick Clifton  <nickc@redhat.com>
+
+	* iq2000.cpu: Fix include paths for iq2000m.cpu and iq10.cpu.
+
 2006-04-10  DJ Delorie  <dj@redhat.com>
 
 	* m32c.opc (parse_unsigned_bitbase): Take a new parameter which

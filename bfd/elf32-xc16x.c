@@ -1,5 +1,5 @@
 /* Infineon XC16X-specific support for 16-bit ELF.
-   Copyright 2006  Free Software Foundation, Inc.
+   Copyright 2006, 2007  Free Software Foundation, Inc.
    Contributed by KPIT Cummins Infosystems 
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -18,8 +18,8 @@
    along with this program; if not, write to the Free Software
    Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
 #include "elf/xc16x.h"
@@ -205,6 +205,22 @@ xc16x_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
   return NULL;
 }
 
+static reloc_howto_type *
+xc16x_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			 const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (xc16x_elf_howto_table) / sizeof (xc16x_elf_howto_table[0]);
+       i++)
+    if (xc16x_elf_howto_table[i].name != NULL
+	&& strcasecmp (xc16x_elf_howto_table[i].name, r_name) == 0)
+      return &xc16x_elf_howto_table[i];
+
+  return NULL;
+}
+
 /* For a particular operand this function is
    called to finalise the type of relocation.  */
 
@@ -328,9 +344,6 @@ elf32_xc16x_relocate_section (bfd *output_bfd,
   struct elf_link_hash_entry **sym_hashes;
   Elf_Internal_Rela *rel, *relend;
 
-  if (info->relocatable)
-    return TRUE;
-
   symtab_hdr = &elf_tdata (input_bfd)->symtab_hdr;
   sym_hashes = elf_sym_hashes (input_bfd);
 
@@ -368,11 +381,27 @@ elf32_xc16x_relocate_section (bfd *output_bfd,
 				   unresolved_reloc, warned);
 	}
 
+      if (sec != NULL && elf_discarded_section (sec))
+	{
+	  /* For relocs against symbols from removed linkonce sections,
+	     or sections discarded by a linker script, we just want the
+	     section contents zeroed.  Avoid any special processing.  */
+	  reloc_howto_type *howto;
+	  howto = xc16x_reloc_type_lookup (input_bfd, r_type);
+	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
+	  rel->r_info = 0;
+	  rel->r_addend = 0;
+	  continue;
+	}
+
+      if (info->relocatable)
+	continue;
+
       r = elf32_xc16x_final_link_relocate (r_type, input_bfd, output_bfd,
-					input_section,
-					contents, rel->r_offset,
-					relocation, rel->r_addend,
-					info, sec, h == NULL);
+					   input_section,
+					   contents, rel->r_offset,
+					   relocation, rel->r_addend,
+					   info, sec, h == NULL);
     }
 
   return TRUE;
@@ -441,6 +470,7 @@ elf32_xc16x_object_p (bfd *abfd)
 #define elf_backend_object_p   		elf32_xc16x_object_p
 #define elf_backend_can_gc_sections	1
 #define bfd_elf32_bfd_reloc_type_lookup	xc16x_reloc_type_lookup
+#define bfd_elf32_bfd_reloc_name_lookup xc16x_reloc_name_lookup
 #define elf_info_to_howto		elf32_xc16x_info_to_howto
 #define elf_info_to_howto_rel		elf32_xc16x_info_to_howto
 #define elf_backend_relocate_section  	elf32_xc16x_relocate_section

@@ -1,5 +1,5 @@
 /* IBM RS/6000 "XCOFF" back-end for BFD.
-   Copyright 2001, 2002, 2003, 2004, 2005
+   Copyright 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Written by Tom Rix
    Contributed by Red Hat Inc.
@@ -21,6 +21,7 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
+#include "sysdep.h"
 #include "bfd.h"
 
 const bfd_target *xcoff64_core_p (bfd *);
@@ -30,7 +31,6 @@ int xcoff64_core_file_failing_signal (bfd *);
 
 #ifdef AIX_5_CORE
 
-#include "sysdep.h"
 #include "libbfd.h"
 
 /* Aix 5.1 system include file.  */
@@ -56,6 +56,7 @@ xcoff64_core_p (bfd *abfd)
   bfd_size_type i;
   struct vm_infox vminfo;
   const bfd_target *return_value = NULL;
+  flagword flags;
 
   /* Get the header.  */
   if (bfd_seek (abfd, 0, SEEK_SET) != 0)
@@ -117,21 +118,21 @@ xcoff64_core_p (bfd *abfd)
   abfd->tdata.any = new_core_hdr;
 
   /* .stack section.  */
-  sec = bfd_make_section_anyway (abfd, ".stack");
+  flags = SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS;
+  sec = bfd_make_section_anyway_with_flags (abfd, ".stack", flags);
   if (NULL == sec)
     return return_value;
 
-  sec->flags = SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS;
   sec->size = core.c_size;
   sec->vma = core.c_stackorg;
   sec->filepos = core.c_stack;
 
   /* .reg section for all registers.  */
-  sec = bfd_make_section_anyway (abfd, ".reg");
+  flags = SEC_HAS_CONTENTS | SEC_IN_MEMORY;
+  sec = bfd_make_section_anyway_with_flags (abfd, ".reg", flags);
   if (NULL == sec)
     return return_value;
 
-  sec->flags = SEC_HAS_CONTENTS | SEC_IN_MEMORY;
   sec->size = sizeof (struct __context64);
   sec->vma = 0;
   sec->filepos = 0;
@@ -141,11 +142,11 @@ xcoff64_core_p (bfd *abfd)
      To actually find out how long this section is in this particular
      core dump would require going down the whole list of struct
      ld_info's.   See if we can just fake it.  */
-  sec = bfd_make_section_anyway (abfd, ".ldinfo");
+  flags = SEC_HAS_CONTENTS;
+  sec = bfd_make_section_anyway_with_flags (abfd, ".ldinfo", flags);
   if (NULL == sec)
     return return_value;
 
-  sec->flags = SEC_HAS_CONTENTS;
   sec->size = core.c_lsize;
   sec->vma = 0;
   sec->filepos = core.c_loader;
@@ -155,11 +156,11 @@ xcoff64_core_p (bfd *abfd)
      regions.  */
 
   /* .data section from executable.  */
-  sec = bfd_make_section_anyway (abfd, ".data");
+  flags = SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS;
+  sec = bfd_make_section_anyway_with_flags (abfd, ".data", flags);
   if (NULL == sec)
     return return_value;
 
-  sec->flags = SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS;
   sec->size = core.c_datasize;
   sec->vma = core.c_dataorg;
   sec->filepos = core.c_data;
@@ -178,11 +179,11 @@ xcoff64_core_p (bfd *abfd)
 
       if (ldinfo.ldinfo_core)
 	{
-	  sec = bfd_make_section_anyway (abfd, ".data");
+	  flags = SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS;
+	  sec = bfd_make_section_anyway_with_flags (abfd, ".data", flags);
 	  if (NULL == sec)
 	    return return_value;
 
-	  sec->flags = SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS;
 	  sec->size = ldinfo.ldinfo_datasize;
 	  sec->vma = ldinfo.ldinfo_dataorg;
 	  sec->filepos = ldinfo.ldinfo_core;
@@ -206,11 +207,11 @@ xcoff64_core_p (bfd *abfd)
 
       if (vminfo.vminfo_offset)
 	{
-	  sec = bfd_make_section_anyway (abfd, ".vmdata");
+	  flags = SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS;
+	  sec = bfd_make_section_anyway_with_flags (abfd, ".vmdata", flags);
 	  if (NULL == sec)
 	    return return_value;
 
-	  sec->flags = SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS;
 	  sec->size = vminfo.vminfo_size;
 	  sec->vma = vminfo.vminfo_addr;
 	  sec->filepos = vminfo.vminfo_offset;

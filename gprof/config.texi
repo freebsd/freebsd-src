@@ -1,1 +1,0 @@
-@set top_srcdir .././gprof

@@ -45,4 +45,8 @@ if [istarget z8k-*-*] then {
 # ctrl names test
 
      run_dump_test "ctrl-names"
+
+# labels starting with register names test
+
+     run_dump_test "reglabel"
 }

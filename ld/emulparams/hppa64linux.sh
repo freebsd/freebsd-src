@@ -7,7 +7,7 @@ ELFSIZE=64
 OUTPUT_FORMAT="elf64-hppa-linux"
 TEXT_START_ADDR=0x10000
 TARGET_PAGE_SIZE=0x10000
-MAXPAGESIZE=0x10000
+MAXPAGESIZE="CONSTANT (MAXPAGESIZE)"
 ARCH=hppa
 MACHINE=hppa2.0w
 ENTRY="main"
@@ -28,7 +28,7 @@ OTHER_READWRITE_SECTIONS="
   .dlt          ${RELOCATING-0} : { *(.dlt) }"
 
 # The PA64 ELF port has an additional huge bss section.
-LARGE_SECTIONS=".hbss         ${RELOCATING-0} : { *(.hbss) }"
+OTHER_BSS_SECTIONS=".hbss         ${RELOCATING-0} : { *(.hbss) }"
 
 #OTHER_SYMBOLS='PROVIDE (__TLS_SIZE = SIZEOF (.tbss));'
 OTHER_SYMBOLS='

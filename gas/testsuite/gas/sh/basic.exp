@@ -167,6 +167,8 @@ if [istarget sh*-*-*] then {
 
 	# Test --allow-reg-prefix.
 	run_dump_test "reg-prefix"
+
+	run_dump_test "too_large"
     }
 }
 

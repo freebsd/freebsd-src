@@ -1000,6 +1000,13 @@ m32c_cgen_insert_operand (CGEN_CPU_DESC cd,
         errmsg = insert_normal (cd, value, 0, 32, 8, 16, 32, total_length, buffer);
       }
       break;
+    case M32C_OPERAND_DSP_40_U20 :
+      {
+        long value = fields->f_dsp_40_u20;
+        value = ((((((((unsigned int) (value) >> (16))) & (255))) | (((value) & (65280))))) | (((((value) << (16))) & (983040))));
+        errmsg = insert_normal (cd, value, 0, 32, 8, 20, 32, total_length, buffer);
+      }
+      break;
     case M32C_OPERAND_DSP_40_U24 :
       {
         long value = fields->f_dsp_40_u24;
@@ -1025,6 +1032,24 @@ m32c_cgen_insert_operand (CGEN_CPU_DESC cd,
         long value = fields->f_dsp_48_u16;
         value = ((((((unsigned int) (value) >> (8))) & (255))) | (((((value) << (8))) & (65280))));
         errmsg = insert_normal (cd, value, 0, 32, 16, 16, 32, total_length, buffer);
+      }
+      break;
+    case M32C_OPERAND_DSP_48_U20 :
+      {
+{
+  FLD (f_dsp_64_u8) = ((((unsigned int) (FLD (f_dsp_48_u20)) >> (16))) & (15));
+  FLD (f_dsp_48_u16) = ((FLD (f_dsp_48_u20)) & (65535));
+}
+        {
+        long value = fields->f_dsp_48_u16;
+        value = ((((((unsigned int) (value) >> (8))) & (255))) | (((((value) << (8))) & (65280))));
+        errmsg = insert_normal (cd, value, 0, 32, 16, 16, 32, total_length, buffer);
+      }
+        if (errmsg)
+          break;
+        errmsg = insert_normal (cd, fields->f_dsp_64_u8, 0, 64, 0, 8, 32, total_length, buffer);
+        if (errmsg)
+          break;
       }
       break;
     case M32C_OPERAND_DSP_48_U24 :
@@ -2131,6 +2156,14 @@ m32c_cgen_extract_operand (CGEN_CPU_DESC cd,
         fields->f_dsp_40_u16 = value;
       }
       break;
+    case M32C_OPERAND_DSP_40_U20 :
+      {
+        long value;
+        length = extract_normal (cd, ex_info, insn_value, 0, 32, 8, 20, 32, total_length, pc, & value);
+        value = ((((((((unsigned int) (value) >> (16))) & (255))) | (((value) & (65280))))) | (((((value) << (16))) & (983040))));
+        fields->f_dsp_40_u20 = value;
+      }
+      break;
     case M32C_OPERAND_DSP_40_U24 :
       {
         long value;
@@ -2159,6 +2192,22 @@ m32c_cgen_extract_operand (CGEN_CPU_DESC cd,
         length = extract_normal (cd, ex_info, insn_value, 0, 32, 16, 16, 32, total_length, pc, & value);
         value = ((((((unsigned int) (value) >> (8))) & (255))) | (((((value) << (8))) & (65280))));
         fields->f_dsp_48_u16 = value;
+      }
+      break;
+    case M32C_OPERAND_DSP_48_U20 :
+      {
+        {
+        long value;
+        length = extract_normal (cd, ex_info, insn_value, 0, 32, 16, 16, 32, total_length, pc, & value);
+        value = ((((((unsigned int) (value) >> (8))) & (255))) | (((((value) << (8))) & (65280))));
+        fields->f_dsp_48_u16 = value;
+      }
+        if (length <= 0) break;
+        length = extract_normal (cd, ex_info, insn_value, 0, 64, 0, 8, 32, total_length, pc, & fields->f_dsp_64_u8);
+        if (length <= 0) break;
+{
+  FLD (f_dsp_48_u20) = ((((FLD (f_dsp_48_u16)) & (65535))) | (((((FLD (f_dsp_64_u8)) << (16))) & (983040))));
+}
       }
       break;
     case M32C_OPERAND_DSP_48_U24 :
@@ -3018,6 +3067,9 @@ m32c_cgen_get_int_operand (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
     case M32C_OPERAND_DSP_40_U16 :
       value = fields->f_dsp_40_u16;
       break;
+    case M32C_OPERAND_DSP_40_U20 :
+      value = fields->f_dsp_40_u20;
+      break;
     case M32C_OPERAND_DSP_40_U24 :
       value = fields->f_dsp_40_u24;
       break;
@@ -3032,6 +3084,9 @@ m32c_cgen_get_int_operand (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
       break;
     case M32C_OPERAND_DSP_48_U16 :
       value = fields->f_dsp_48_u16;
+      break;
+    case M32C_OPERAND_DSP_48_U20 :
+      value = fields->f_dsp_48_u20;
       break;
     case M32C_OPERAND_DSP_48_U24 :
       value = fields->f_dsp_48_u24;
@@ -3611,6 +3666,9 @@ m32c_cgen_get_vma_operand (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
     case M32C_OPERAND_DSP_40_U16 :
       value = fields->f_dsp_40_u16;
       break;
+    case M32C_OPERAND_DSP_40_U20 :
+      value = fields->f_dsp_40_u20;
+      break;
     case M32C_OPERAND_DSP_40_U24 :
       value = fields->f_dsp_40_u24;
       break;
@@ -3625,6 +3683,9 @@ m32c_cgen_get_vma_operand (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
       break;
     case M32C_OPERAND_DSP_48_U16 :
       value = fields->f_dsp_48_u16;
+      break;
+    case M32C_OPERAND_DSP_48_U20 :
+      value = fields->f_dsp_48_u20;
       break;
     case M32C_OPERAND_DSP_48_U24 :
       value = fields->f_dsp_48_u24;
@@ -4209,6 +4270,9 @@ m32c_cgen_set_int_operand (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
     case M32C_OPERAND_DSP_40_U16 :
       fields->f_dsp_40_u16 = value;
       break;
+    case M32C_OPERAND_DSP_40_U20 :
+      fields->f_dsp_40_u20 = value;
+      break;
     case M32C_OPERAND_DSP_40_U24 :
       fields->f_dsp_40_u24 = value;
       break;
@@ -4223,6 +4287,9 @@ m32c_cgen_set_int_operand (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
       break;
     case M32C_OPERAND_DSP_48_U16 :
       fields->f_dsp_48_u16 = value;
+      break;
+    case M32C_OPERAND_DSP_48_U20 :
+      fields->f_dsp_48_u20 = value;
       break;
     case M32C_OPERAND_DSP_48_U24 :
       fields->f_dsp_48_u24 = value;
@@ -4780,6 +4847,9 @@ m32c_cgen_set_vma_operand (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
     case M32C_OPERAND_DSP_40_U16 :
       fields->f_dsp_40_u16 = value;
       break;
+    case M32C_OPERAND_DSP_40_U20 :
+      fields->f_dsp_40_u20 = value;
+      break;
     case M32C_OPERAND_DSP_40_U24 :
       fields->f_dsp_40_u24 = value;
       break;
@@ -4794,6 +4864,9 @@ m32c_cgen_set_vma_operand (CGEN_CPU_DESC cd ATTRIBUTE_UNUSED,
       break;
     case M32C_OPERAND_DSP_48_U16 :
       fields->f_dsp_48_u16 = value;
+      break;
+    case M32C_OPERAND_DSP_48_U20 :
+      fields->f_dsp_48_u20 = value;
       break;
     case M32C_OPERAND_DSP_48_U24 :
       fields->f_dsp_48_u24 = value;

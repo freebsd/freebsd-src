@@ -1,6 +1,6 @@
 /* BFD backend for Extended Tektronix Hex Format  objects.
    Copyright 1992, 1993, 1994, 1995, 1996, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004 Free Software Foundation, Inc.
+   2003, 2004, 2007 Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support <sac@cygnus.com>.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -65,8 +65,8 @@
   The data can come out of order, and may be discontigous. This is a
   serial protocol, so big files are unlikely, so we keep a list of 8k chunks.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "libiberty.h"
 
@@ -436,6 +436,7 @@ first_phase (bfd *abfd, int type, char *src)
 		if (!getvalue (&src, &val))
 		  return FALSE;
 		new->symbol.value = val - section->vma;
+		break;
 	      }
 	    default:
 	      return FALSE;
@@ -457,11 +458,10 @@ pass_over (bfd *abfd, bfd_boolean (*func) (bfd *, int, char *))
 
   /* To the front of the file.  */
   if (bfd_seek (abfd, (file_ptr) 0, SEEK_SET) != 0)
-    abort ();
+    return FALSE;
   while (! eof)
     {
-      char buffer[MAXCHUNK];
-      char *src = buffer;
+      char src[MAXCHUNK];
       char type;
 
       /* Find first '%'.  */
@@ -471,22 +471,24 @@ pass_over (bfd *abfd, bfd_boolean (*func) (bfd *, int, char *))
 
       if (eof)
 	break;
-      src++;
 
       /* Fetch the type and the length and the checksum.  */
       if (bfd_bread (src, (bfd_size_type) 5, abfd) != 5)
-	abort (); /* FIXME.  */
+	return FALSE;
 
       type = src[2];
 
       if (!ISHEX (src[0]) || !ISHEX (src[1]))
 	break;
 
-      /* Already read five char.  */
+      /* Already read five chars.  */
       chars_on_line = HEX (src) - 5;
 
+      if (chars_on_line >= MAXCHUNK)
+	return FALSE;
+
       if (bfd_bread (src, (bfd_size_type) chars_on_line, abfd) != chars_on_line)
-	abort (); /* FIXME.  */
+	return FALSE;
 
       /* Put a null at the end.  */
       src[chars_on_line] = 0;
@@ -751,15 +753,12 @@ out (bfd *abfd, int type, char *start, char *end)
 static bfd_boolean
 tekhex_write_object_contents (bfd *abfd)
 {
-  int bytes_written;
   char buffer[100];
   asymbol **p;
   asection *s;
   struct data_struct *d;
 
   tekhex_init ();
-
-  bytes_written = 0;
 
   /* And the raw data.  */
   for (d = abfd->tdata.tekhex_data->data;
@@ -868,7 +867,7 @@ tekhex_write_object_contents (bfd *abfd)
 
 static int
 tekhex_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
-		       bfd_boolean exec ATTRIBUTE_UNUSED)
+		       struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
   return 0;
 }

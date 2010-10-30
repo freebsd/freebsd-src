@@ -1,5 +1,5 @@
 /* Binutils emulation layer.
-   Copyright 2002, 2003 Free Software Foundation, Inc.
+   Copyright 2002, 2003, 2006 Free Software Foundation, Inc.
    Written by Tom Rix, Red Hat Inc.
 
    This file is part of GNU Binutils.
@@ -126,25 +126,25 @@ ar_emul_aix5_replace (bfd **after_bfd, char *file_name, bfd_boolean verbose)
 static bfd_boolean
 ar_emul_aix_parse_arg (char *arg)
 {
-  if (strncmp (arg, "-X32_64", 6) == 0)
+  if (CONST_STRNEQ (arg, "-X32_64"))
     {
       big_archive = TRUE;
       X32 = TRUE;
       X64 = TRUE;
     }
-  else if (strncmp (arg, "-X32", 3) == 0)
+  else if (CONST_STRNEQ (arg, "-X32"))
     {
       big_archive = TRUE;
       X32 = TRUE;
       X64 = FALSE;
     }
-  else if (strncmp (arg, "-X64", 3) == 0)
+  else if (CONST_STRNEQ (arg, "-X64"))
     {
       big_archive = TRUE;
       X32 = FALSE;
       X64 = TRUE;
     }
-  else if (strncmp (arg, "-g", 2) == 0)
+  else if (CONST_STRNEQ (arg, "-g"))
     {
       big_archive = FALSE;
       X32 = TRUE;

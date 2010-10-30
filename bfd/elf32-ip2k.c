@@ -1,5 +1,5 @@
 /* Ubicom IP2xxx specific support for 32-bit ELF
-   Copyright 2000, 2001, 2002, 2003, 2004, 2005
+   Copyright 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -19,8 +19,8 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
 #include "elf/ip2k.h"
@@ -220,6 +220,21 @@ ip2k_reloc_type_lookup (bfd * abfd ATTRIBUTE_UNUSED,
       /* Pacify gcc -Wall.  */
       return NULL;
     }
+  return NULL;
+}
+
+static reloc_howto_type *
+ip2k_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED, const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (ip2k_elf_howto_table) / sizeof (ip2k_elf_howto_table[0]);
+       i++)
+    if (ip2k_elf_howto_table[i].name != NULL
+	&& strcasecmp (ip2k_elf_howto_table[i].name, r_name) == 0)
+      return &ip2k_elf_howto_table[i];
+
   return NULL;
 }
 
@@ -1399,9 +1414,6 @@ ip2k_elf_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
   Elf_Internal_Rela *rel;
   Elf_Internal_Rela *relend;
 
-  if (info->relocatable)
-    return TRUE;
-
   symtab_hdr = & elf_tdata (input_bfd)->symtab_hdr;
   sym_hashes = elf_sym_hashes (input_bfd);
   relend     = relocs + input_section->reloc_count;
@@ -1418,7 +1430,6 @@ ip2k_elf_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
       const char *                 name = NULL;
       int                          r_type;
 
-      /* This is a final link.  */
       r_type = ELF32_R_TYPE (rel->r_info);
       r_symndx = ELF32_R_SYM (rel->r_info);
       howto  = ip2k_elf_howto_table + ELF32_R_TYPE (rel->r_info);
@@ -1448,6 +1459,20 @@ ip2k_elf_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
 
 	  name = h->root.root.string;
 	}
+
+      if (sec != NULL && elf_discarded_section (sec))
+	{
+	  /* For relocs against symbols from removed linkonce sections,
+	     or sections discarded by a linker script, we just want the
+	     section contents zeroed.  Avoid any special processing.  */
+	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
+	  rel->r_info = 0;
+	  rel->r_addend = 0;
+	  continue;
+	}
+
+      if (info->relocatable)
+	continue;
 
       /* Finally, the sole IP2K-specific part.  */
       r = ip2k_final_link_relocate (howto, input_bfd, input_section,
@@ -1502,53 +1527,6 @@ ip2k_elf_relocate_section (bfd *output_bfd ATTRIBUTE_UNUSED,
   return TRUE;
 }
 
-static asection *
-ip2k_elf_gc_mark_hook (asection *sec,
-		       struct bfd_link_info *info ATTRIBUTE_UNUSED,
-		       Elf_Internal_Rela *rel,
-		       struct elf_link_hash_entry *h,
-		       Elf_Internal_Sym *sym)
-{
-  if (h != NULL)
-    {
-      switch (ELF32_R_TYPE (rel->r_info))
-      {
-      default:
-        switch (h->root.type)
-          {
-          case bfd_link_hash_defined:
-          case bfd_link_hash_defweak:
-            return h->root.u.def.section;
-
-          case bfd_link_hash_common:
-            return h->root.u.c.p->section;
-
-          default:
-            break;
-          }
-       }
-     }
-   else
-     {
-       if (!(elf_bad_symtab (sec->owner)
-	     && ELF_ST_BIND (sym->st_info) != STB_LOCAL)
-	   && ! ((sym->st_shndx <= 0 || sym->st_shndx >= SHN_LORESERVE)
-		 && sym->st_shndx != SHN_COMMON))
-	 return bfd_section_from_elf_index (sec->owner, sym->st_shndx);
-      }
-  return NULL;
-}
-
-static bfd_boolean
-ip2k_elf_gc_sweep_hook (bfd *abfd ATTRIBUTE_UNUSED,
-			struct bfd_link_info *info ATTRIBUTE_UNUSED,
-			asection *sec ATTRIBUTE_UNUSED,
-			const Elf_Internal_Rela *relocs ATTRIBUTE_UNUSED)
-{
-  /* We don't use got and plt entries for ip2k.  */
-  return TRUE;
-}
-
 #define TARGET_BIG_SYM	 bfd_elf32_ip2k_vec
 #define TARGET_BIG_NAME  "elf32-ip2k"
 
@@ -1562,12 +1540,11 @@ ip2k_elf_gc_sweep_hook (bfd *abfd ATTRIBUTE_UNUSED,
 
 #define elf_backend_can_gc_sections     	1
 #define elf_backend_rela_normal			1
-#define elf_backend_gc_mark_hook                ip2k_elf_gc_mark_hook
-#define elf_backend_gc_sweep_hook               ip2k_elf_gc_sweep_hook
 #define elf_backend_relocate_section		ip2k_elf_relocate_section
 
 #define elf_symbol_leading_char			'_'
 #define bfd_elf32_bfd_reloc_type_lookup		ip2k_reloc_type_lookup
+#define bfd_elf32_bfd_reloc_name_lookup	ip2k_reloc_name_lookup
 #define bfd_elf32_bfd_relax_section		ip2k_elf_relax_section
 
 #include "elf32-target.h"

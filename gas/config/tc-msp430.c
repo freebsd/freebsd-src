@@ -1,6 +1,7 @@
 /* tc-msp430.c -- Assembler code for the Texas Instruments MSP430
 
-  Copyright (C) 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+  Copyright (C) 2002, 2003, 2004, 2005, 2006, 2007
+  Free Software Foundation, Inc.
   Contributed by Dmitry Diky <diwil@mail.ru>
 
   This file is part of GAS, the GNU Assembler.
@@ -20,9 +21,6 @@
   the Free Software Foundation, 51 Franklin Street - Fifth Floor,
   Boston, MA 02110-1301, USA.  */
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <limits.h>
 
 #define PUSH_1X_WORKAROUND
@@ -34,7 +32,7 @@
 
 /*
    We will disable polymorphs by default because it is dangerous.
-   The potencial problem here is the following: assume we got the
+   The potential problem here is the following: assume we got the
    following code:
 
 	jump .l1
@@ -168,7 +166,7 @@ static struct hcodes_s msp430_hcodes[] =
 
 const char comment_chars[] = ";";
 const char line_comment_chars[] = "#";
-const char line_separator_chars[] = "";
+const char line_separator_chars[] = "{";
 const char EXP_CHARS[] = "eE";
 const char FLT_CHARS[] = "dD";
 
@@ -487,7 +485,7 @@ skip_space (char * s)
   return s;
 }
 
-/* Extract one word from FROM and copy it to TO. Delimeters are ",;\n"  */
+/* Extract one word from FROM and copy it to TO. Delimiters are ",;\n"  */
 
 static char *
 extract_operand (char * from, char * to, int limit)
@@ -1918,7 +1916,6 @@ msp430_force_relocation_local(fixS *fixp)
     return 1;
   else
     return (!fixp->fx_pcrel
-	    || fixp->fx_plt
 	    || generic_force_reloc(fixp));
 }
 

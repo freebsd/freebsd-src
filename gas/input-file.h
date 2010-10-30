@@ -1,5 +1,6 @@
 /* input_file.h header for input-file.c
-   Copyright 1987, 1992, 1993, 2000, 2003 Free Software Foundation, Inc.
+   Copyright 1987, 1992, 1993, 2000, 2003, 2005, 2006
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -51,8 +52,8 @@
  *
  * input_file_close ()			Closes opened file.
  *
- * All errors are reported (using as_perror) so caller doesn't have to think
- * about I/O errors. No I/O errors are fatal: an end-of-file may be faked.
+ * All errors are reported so caller doesn't have to think
+ * about I/O errors.
  */
 
 char *input_file_give_next_buffer (char *where);

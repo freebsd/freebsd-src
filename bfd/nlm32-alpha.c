@@ -1,5 +1,5 @@
 /* Support for 32-bit Alpha NLM (NetWare Loadable Module)
-   Copyright 1993, 1994, 2000, 2001, 2002, 2003, 2004, 2005
+   Copyright 1993, 1994, 2000, 2001, 2002, 2003, 2004, 2005, 2007
    Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
@@ -23,8 +23,8 @@
    that an Alpha chip would use a 64 bit format, but, for some reason,
    it doesn't.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 
 #define ARCH_SIZE 32

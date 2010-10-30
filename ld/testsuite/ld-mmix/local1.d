@@ -24,26 +24,23 @@ Section Headers:
   \[ 3\] \.shstrtab         STRTAB           0+  0+90
        0+34  0+           0     0     1
   \[ 4\] \.symtab           SYMTAB           0+  0+248
-       0+150  0+18           5     8     8
-  \[ 5\] \.strtab           STRTAB           0+  0+398
+       0+108  0+18           5     5     8
+  \[ 5\] \.strtab           STRTAB           0+  0+350
        0+32  0+           0     0     1
 Key to Flags:
   W \(write\), A \(alloc\), X \(execute\), M \(merge\), S \(strings\)
   I \(info\), L \(link order\), G \(group\), x \(unknown\)
   O \(extra OS processing required\) o \(OS specific\), p \(processor specific\)
 
-Symbol table '\.symtab' contains 14 entries:
+Symbol table '\.symtab' contains 11 entries:
    Num:    Value          Size Type    Bind   Vis      Ndx Name
      0: 0+     0 NOTYPE  LOCAL  DEFAULT  UND 
      1: 0+     0 SECTION LOCAL  DEFAULT    1 
      2: 0+7e8     0 SECTION LOCAL  DEFAULT    2 
-     3: 0+     0 SECTION LOCAL  DEFAULT    3 
-     4: 0+     0 SECTION LOCAL  DEFAULT    4 
-     5: 0+     0 SECTION LOCAL  DEFAULT    5 
-     6: 0+fd     0 NOTYPE  LOCAL  DEFAULT PRC\[0xff00\] lsym
-     7: 0+fe     0 NOTYPE  LOCAL  DEFAULT PRC\[0xff00\] lsym
-     8: 0+fc     0 NOTYPE  GLOBAL DEFAULT PRC\[0xff00\] ext1
-     9: 0+4     0 NOTYPE  GLOBAL DEFAULT    1 _start
+     3: 0+fd     0 NOTYPE  LOCAL  DEFAULT PRC\[0xff00\] lsym
+     4: 0+fe     0 NOTYPE  LOCAL  DEFAULT PRC\[0xff00\] lsym
+     5: 0+fc     0 NOTYPE  GLOBAL DEFAULT PRC\[0xff00\] ext1
+     6: 0+4     0 NOTYPE  GLOBAL DEFAULT    1 _start
 #...
 
 Hex dump of section '\.text':

@@ -36,8 +36,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 /* Special check to ensure that instruction exists for given machine.  */
 
 int
-mt_cgen_insn_supported (CGEN_CPU_DESC cd,
-			const CGEN_INSN *insn)
+mt_cgen_insn_supported (CGEN_CPU_DESC cd, const CGEN_INSN *insn)
 {
   int machs = CGEN_INSN_ATTR_VALUE (insn, CGEN_INSN_MACH);
 

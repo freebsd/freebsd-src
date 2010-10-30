@@ -185,74 +185,87 @@ Disassembly of section .text:
 0+2bc <[^>]*> eef5 ea40 	fcmpzs	s29
 0+2c0 <[^>]*> eeb5 fa40 	fcmpzs	s30
 0+2c4 <[^>]*> eef5 fa40 	fcmpzs	s31
-# The "(eq|)" should be replaces by "eq" once the disassembler is fixed.
 0+2c8 <[^>]*> bf01      	itttt	eq
-0+2ca <[^>]*> eef1 fa10 	fmstat(eq|)
-0+2ce <[^>]*> eef4 1ae3 	fcmpes(eq|)	s3, s7
-0+2d2 <[^>]*> eef5 2ac0 	fcmpezs(eq|)	s5
-0+2d6 <[^>]*> eef4 0a41 	fcmps(eq|)	s1, s2
+0+2ca <[^>]*> eef1 fa10 	fmstateq
+0+2ce <[^>]*> eef4 1ae3 	fcmpeseq	s3, s7
+0+2d2 <[^>]*> eef5 2ac0 	fcmpezseq	s5
+0+2d6 <[^>]*> eef4 0a41 	fcmpseq	s1, s2
 0+2da <[^>]*> bf01      	itttt	eq
-0+2dc <[^>]*> eef5 0a40 	fcmpzs(eq|)	s1
-0+2e0 <[^>]*> eef0 0ae1 	fabss(eq|)	s1, s3
-0+2e4 <[^>]*> eef0 fa69 	fcpys(eq|)	s31, s19
-0+2e8 <[^>]*> eeb1 aa44 	fnegs(eq|)	s20, s8
+0+2dc <[^>]*> eef5 0a40 	fcmpzseq	s1
+0+2e0 <[^>]*> eef0 0ae1 	fabsseq	s1, s3
+0+2e4 <[^>]*> eef0 fa69 	fcpyseq	s31, s19
+0+2e8 <[^>]*> eeb1 aa44 	fnegseq	s20, s8
 0+2ec <[^>]*> bf01      	itttt	eq
-0+2ee <[^>]*> eef1 2ae3 	fsqrts(eq|)	s5, s7
-0+2f2 <[^>]*> ee32 3a82 	fadds(eq|)	s6, s5, s4
-0+2f6 <[^>]*> eec1 1a20 	fdivs(eq|)	s3, s2, s1
-0+2fa <[^>]*> ee4f fa2e 	fmacs(eq|)	s31, s30, s29
+0+2ee <[^>]*> eef1 2ae3 	fsqrtseq	s5, s7
+0+2f2 <[^>]*> ee32 3a82 	faddseq	s6, s5, s4
+0+2f6 <[^>]*> eec1 1a20 	fdivseq	s3, s2, s1
+0+2fa <[^>]*> ee4f fa2e 	fmacseq	s31, s30, s29
 0+2fe <[^>]*> bf01      	itttt	eq
-0+300 <[^>]*> ee1d ea8d 	fmscs(eq|)	s28, s27, s26
-0+304 <[^>]*> ee6c ca2b 	fmuls(eq|)	s25, s24, s23
-0+308 <[^>]*> ee0a baca 	fnmacs(eq|)	s22, s21, s20
-0+30c <[^>]*> ee59 9a68 	fnmscs(eq|)	s19, s18, s17
+0+300 <[^>]*> ee1d ea8d 	fmscseq	s28, s27, s26
+0+304 <[^>]*> ee6c ca2b 	fmulseq	s25, s24, s23
+0+308 <[^>]*> ee0a baca 	fnmacseq	s22, s21, s20
+0+30c <[^>]*> ee59 9a68 	fnmscseq	s19, s18, s17
 0+310 <[^>]*> bf01      	itttt	eq
-0+312 <[^>]*> ee27 8ac7 	fnmuls(eq|)	s16, s15, s14
-0+316 <[^>]*> ee76 6a65 	fsubs(eq|)	s13, s12, s11
-0+31a <[^>]*> ed98 5a00 	flds(eq|)	s10, \[r8\]
-0+31e <[^>]*> edc7 4a00 	fsts(eq|)	s9, \[r7\]
+0+312 <[^>]*> ee27 8ac7 	fnmulseq	s16, s15, s14
+0+316 <[^>]*> ee76 6a65 	fsubseq	s13, s12, s11
+0+31a <[^>]*> ed98 5a00 	fldseq	s10, \[r8\]
+0+31e <[^>]*> edc7 4a00 	fstseq	s9, \[r7\]
 0+322 <[^>]*> bf01      	itttt	eq
-0+324 <[^>]*> ec91 4a01 	fldmias(eq|)	r1, {s8}
-0+328 <[^>]*> ecd2 3a01 	fldmias(eq|)	r2, {s7}
-0+32c <[^>]*> ecb3 3a01 	fldmias(eq|)	r3!, {s6}
-0+330 <[^>]*> ecf4 2a01 	fldmias(eq|)	r4!, {s5}
+0+324 <[^>]*> ec91 4a01 	fldmiaseq	r1, {s8}
+0+328 <[^>]*> ecd2 3a01 	fldmiaseq	r2, {s7}
+0+32c <[^>]*> ecb3 3a01 	fldmiaseq	r3!, {s6}
+0+330 <[^>]*> ecf4 2a01 	fldmiaseq	r4!, {s5}
 0+334 <[^>]*> bf01      	itttt	eq
-0+336 <[^>]*> ed35 2a01 	fldmdbs(eq|)	r5!, {s4}
-0+33a <[^>]*> ed76 1a01 	fldmdbs(eq|)	r6!, {s3}
-0+33e <[^>]*> ec97 1b03 	fldmiax(eq|)	r7, {d1}
-0+342 <[^>]*> ec98 2b03 	fldmiax(eq|)	r8, {d2}
+0+336 <[^>]*> ed35 2a01 	fldmdbseq	r5!, {s4}
+0+33a <[^>]*> ed76 1a01 	fldmdbseq	r6!, {s3}
+0+33e <[^>]*> ec97 1b03 	fldmiaxeq	r7, {d1}
+0+342 <[^>]*> ec98 2b03 	fldmiaxeq	r8, {d2}
 0+346 <[^>]*> bf01      	itttt	eq
-0+348 <[^>]*> ecb9 3b03 	fldmiax(eq|)	r9!, {d3}
-0+34c <[^>]*> ecba 4b03 	fldmiax(eq|)	sl!, {d4}
-0+350 <[^>]*> ed3b 5b03 	fldmdbx(eq|)	fp!, {d5}
-0+354 <[^>]*> ed3c 6b03 	fldmdbx(eq|)	ip!, {d6}
+0+348 <[^>]*> ecb9 3b03 	fldmiaxeq	r9!, {d3}
+0+34c <[^>]*> ecba 4b03 	fldmiaxeq	sl!, {d4}
+0+350 <[^>]*> ed3b 5b03 	fldmdbxeq	fp!, {d5}
+0+354 <[^>]*> ed3c 6b03 	fldmdbxeq	ip!, {d6}
 0+358 <[^>]*> bf01      	itttt	eq
-0+35a <[^>]*> ec8d 1a01 	fstmias(eq|)	sp, {s2}
-0+35e <[^>]*> ecce 0a01 	fstmias(eq|)	lr, {s1}
-0+362 <[^>]*> ece1 fa01 	fstmias(eq|)	r1!, {s31}
-0+366 <[^>]*> eca2 fa01 	fstmias(eq|)	r2!, {s30}
+0+35a <[^>]*> ec8d 1a01 	fstmiaseq	sp, {s2}
+0+35e <[^>]*> ecce 0a01 	fstmiaseq	lr, {s1}
+0+362 <[^>]*> ece1 fa01 	fstmiaseq	r1!, {s31}
+0+366 <[^>]*> eca2 fa01 	fstmiaseq	r2!, {s30}
 0+36a <[^>]*> bf01      	itttt	eq
-0+36c <[^>]*> ed63 ea01 	fstmdbs(eq|)	r3!, {s29}
-0+370 <[^>]*> ed24 ea01 	fstmdbs(eq|)	r4!, {s28}
-0+374 <[^>]*> ec85 7b03 	fstmiax(eq|)	r5, {d7}
-0+378 <[^>]*> ec86 8b03 	fstmiax(eq|)	r6, {d8}
+0+36c <[^>]*> ed63 ea01 	fstmdbseq	r3!, {s29}
+0+370 <[^>]*> ed24 ea01 	fstmdbseq	r4!, {s28}
+0+374 <[^>]*> ec85 7b03 	fstmiaxeq	r5, {d7}
+0+378 <[^>]*> ec86 8b03 	fstmiaxeq	r6, {d8}
 0+37c <[^>]*> bf01      	itttt	eq
-0+37e <[^>]*> eca7 9b03 	fstmiax(eq|)	r7!, {d9}
-0+382 <[^>]*> eca8 ab03 	fstmiax(eq|)	r8!, {d10}
-0+386 <[^>]*> ed29 bb03 	fstmdbx(eq|)	r9!, {d11}
-0+38a <[^>]*> ed2a cb03 	fstmdbx(eq|)	sl!, {d12}
+0+37e <[^>]*> eca7 9b03 	fstmiaxeq	r7!, {d9}
+0+382 <[^>]*> eca8 ab03 	fstmiaxeq	r8!, {d10}
+0+386 <[^>]*> ed29 bb03 	fstmdbxeq	r9!, {d11}
+0+38a <[^>]*> ed2a cb03 	fstmdbxeq	sl!, {d12}
 0+38e <[^>]*> bf01      	itttt	eq
-0+390 <[^>]*> eef8 dac3 	fsitos(eq|)	s27, s6
-0+394 <[^>]*> eefd ca62 	ftosis(eq|)	s25, s5
-0+398 <[^>]*> eefd bac2 	ftosizs(eq|)	s23, s4
-0+39c <[^>]*> eefc aa61 	ftouis(eq|)	s21, s3
+0+390 <[^>]*> eef8 dac3 	fsitoseq	s27, s6
+0+394 <[^>]*> eefd ca62 	ftosiseq	s25, s5
+0+398 <[^>]*> eefd bac2 	ftosizseq	s23, s4
+0+39c <[^>]*> eefc aa61 	ftouiseq	s21, s3
 0+3a0 <[^>]*> bf01      	itttt	eq
-0+3a2 <[^>]*> eefc 9ac1 	ftouizs(eq|)	s19, s2
-0+3a6 <[^>]*> eef8 8a60 	fuitos(eq|)	s17, s1
-0+3aa <[^>]*> ee11 ba90 	fmrs(eq|)	fp, s3
-0+3ae <[^>]*> eef0 9a10 	fmrx(eq|)	r9, fpsid
+0+3a2 <[^>]*> eefc 9ac1 	ftouizseq	s19, s2
+0+3a6 <[^>]*> eef8 8a60 	fuitoseq	s17, s1
+0+3aa <[^>]*> ee11 ba90 	fmrseq	fp, s3
+0+3ae <[^>]*> eef0 9a10 	fmrxeq	r9, fpsid
 0+3b2 <[^>]*> bf04      	itt	eq
-0+3b4 <[^>]*> ee01 9a90 	fmsr(eq|)	s3, r9
-0+3b8 <[^>]*> eee0 8a10 	fmxr(eq|)	fpsid, r8
-0+3bc <[^>]*> bf00      	nop
-0+3be <[^>]*> bf00      	nop
+0+3b4 <[^>]*> ee01 9a90 	fmsreq	s3, r9
+0+3b8 <[^>]*> eee0 8a10 	fmxreq	fpsid, r8
+0+3bc <[^>]*> eef9 0a10 	fmrx	r0, fpinst	@ Impl def
+0+3c0 <[^>]*> eefa 0a10 	fmrx	r0, fpinst2	@ Impl def
+0+3c4 <[^>]*> eef7 0a10 	fmrx	r0, mvfr0
+0+3c8 <[^>]*> eef6 0a10 	fmrx	r0, mvfr1
+0+3cc <[^>]*> eefc 0a10 	fmrx	r0, <impl def 0xc>
+0+3d0 <[^>]*> eee9 0a10 	fmxr	fpinst, r0	@ Impl def
+0+3d4 <[^>]*> eeea 0a10 	fmxr	fpinst2, r0	@ Impl def
+0+3d8 <[^>]*> eee7 0a10 	fmxr	mvfr0, r0
+0+3dc <[^>]*> eee6 0a10 	fmxr	mvfr1, r0
+0+3e0 <[^>]*> eeec 0a10 	fmxr	<impl def 0xc>, r0
+0+3e4 <[^>]*> bf00      	nop
+0+3e6 <[^>]*> bf00      	nop
+0+3e8 <[^>]*> bf00      	nop
+0+3ea <[^>]*> bf00      	nop
+0+3ec <[^>]*> bf00      	nop
+0+3ee <[^>]*> bf00      	nop

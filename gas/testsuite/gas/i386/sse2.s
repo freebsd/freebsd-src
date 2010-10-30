@@ -132,9 +132,9 @@ foo:
 	cvttps2dq	%xmm0, %xmm1
 	maskmovdqu	%xmm0, %xmm1
 	movdqa		%xmm0, %xmm1
-	movdqa		%xmm0, %xmm1
+	movdqa		%xmm0, (%esi)
 	movdqu		%xmm0, %xmm1
-	movdqu		%xmm0, %xmm1
+	movdqu		%xmm0, (%esi)
 	movdq2q		%xmm0, %mm1
 	movq2dq		%mm0, %xmm1
 	pmuludq		%xmm0, %xmm1

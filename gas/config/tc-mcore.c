@@ -1,5 +1,5 @@
 /* tc-mcore.c -- Assemble code for M*Core
-   Copyright 1999, 2000, 2001, 2002, 2003, 2005
+   Copyright 1999, 2000, 2001, 2002, 2003, 2005, 2006, 2007
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -19,14 +19,11 @@
    Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
    02110-1301, USA.  */
 
-#include <stdio.h>
 #include "as.h"
-#include "bfd.h"
 #include "subsegs.h"
 #define DEFINE_TABLE
 #include "../opcodes/mcore-opc.h"
 #include "safe-ctype.h"
-#include <string.h>
 
 #ifdef OBJ_ELF
 #include "elf/mcore.h"
@@ -2173,24 +2170,10 @@ md_estimate_size_before_relax (fragS * fragP, segT segment_type)
 void
 md_number_to_chars (char * ptr, valueT use, int nbytes)
 {
-  if (! target_big_endian)
-    switch (nbytes)
-      {
-      case 4: ptr[3] = (use >> 24) & 0xff; /* Fall through.  */
-      case 3: ptr[2] = (use >> 16) & 0xff; /* Fall through.  */
-      case 2: ptr[1] = (use >>  8) & 0xff; /* Fall through.  */
-      case 1: ptr[0] = (use >>  0) & 0xff;    break;
-      default: abort ();
-      }
+  if (target_big_endian)
+    number_to_chars_bigendian (ptr, use, nbytes);
   else
-    switch (nbytes)
-      {
-      case 4: *ptr++ = (use >> 24) & 0xff; /* Fall through.  */
-      case 3: *ptr++ = (use >> 16) & 0xff; /* Fall through.  */
-      case 2: *ptr++ = (use >>  8) & 0xff; /* Fall through.  */
-      case 1: *ptr++ = (use >>  0) & 0xff;    break;
-      default: abort ();
-      }
+    number_to_chars_littleendian (ptr, use, nbytes);
 }
 
 /* Round up a section size to the appropriate boundary.  */

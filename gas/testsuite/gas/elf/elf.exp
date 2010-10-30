@@ -2,7 +2,7 @@
 # elf tests
 #
 
-proc run_list_test { name suffix opts readelf_opts readelf_pipe } {
+proc run_elf_list_test { name suffix opts readelf_opts readelf_pipe } {
     global READELF
     global srcdir subdir
     set testname "elf $name list"
@@ -50,11 +50,21 @@ if { ([istarget "*-*-*elf*"]
     if {[istarget m32r*-*-*]} then {
 	set target_machine -m32r
     }
+    if {[istarget "score-*-*"]} then {
+	set target_machine -score
+    }
+    if {[istarget "xtensa-*-*"]} then {
+	set target_machine -xtensa
+    }
     if { ([istarget "*arm*-*-*"]
-	  || [istarget "xscale*-*-*"])
-	&& ([istarget "*-*-*eabi"]
-	    || [istarget "*-*-symbianelf"])} then {
-	set target_machine -armeabi
+	  || [istarget "xscale*-*-*"]) } {
+	
+	if { ([istarget "*-*-*eabi"]
+	      || [istarget "*-*-symbianelf"])} then {
+	    set target_machine -armeabi
+	} else {
+	    set target_machine -armelf
+	}
     }
     run_dump_test "ehopt0"
     run_dump_test "group0a" 
@@ -68,16 +78,22 @@ if { ([istarget "*-*-*elf*"]
 	{ mips*-*-* } { }
 	{ *c54x*-*-* } { }
 	default {
+	    # The next test can fail if the target does not convert fixups
+	    # against ordinary symbols into relocations against section symbols.
+	    # This is usually revealed by the error message:
+	    #  symbol `sym' required but not present
+	    setup_xfail "h8300-*-*" "mn10300-*-*"
 	    run_dump_test redef
+	    run_dump_test equ-reloc
 	}
     }
     run_dump_test "section0" 
     run_dump_test "section1" 
-    run_list_test "section2" "$target_machine" "-al" "-s" ""
+    run_elf_list_test "section2" "$target_machine" "-al" "-s" ""
     run_dump_test "section3" 
     run_dump_test "section4"
-    run_list_test "section5" "" "-al" "-SW" "| grep \" \\\\.test\\\[0-9\\\]\""
+    run_elf_list_test "section5" "" "-al" "-SW" "| grep \" \\\\.test\\\[0-9\\\]\""
     run_dump_test "struct" 
     run_dump_test "symver" 
-    run_list_test "type" "" "" "-s" "| grep \"1 \\\[FONT\\\]\""
+    run_elf_list_test "type" "" "" "-s" "| grep \"1 \\\[FONT\\\]\""
 }

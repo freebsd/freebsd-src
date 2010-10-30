@@ -13,11 +13,11 @@ footext:
 	test addc  "r1,r2"	// A double forward slash starts a line comment
 	test addi  "r3, 1"	# So does a hash
 	test addu  "r4, r5"	// White space between operands should be ignored
-	test and   "r6,r7"   ;	test andi  "r8,#2" // A semicolon seperates statements
+	test and   "r6,r7"   ;	test andi  "r8,2" // A semicolon seperates statements
 	test andn  "r9, r10"
 	test asr   "r11, R12"	// Uppercase R is allowed as a register prefix
 	test asrc  "r13"
-	test asri  "r14,#0x1f"
+	test asri  "r14,0x1f"
 	test bclri "r15,0"
 	test bf    footext
 	test bgeni "sp, 7"	// r0 can also be refered to as 'sp'
@@ -25,7 +25,7 @@ footext:
 	test BGENi "r0, 31"	// mnemonics should not be allowed, but we relax this...
 	test bgenr "r1, r2"
 	test bkpt
-	test bmaski "r3,#8"
+	test bmaski "r3,8"
 	test BMASKI "r3,0x1f"
 	test br     .  // Dot means the current address
 	test brev   r4
@@ -64,9 +64,9 @@ footext:
 	test jsr    r2
 	test jsri   footext
 	test ld.b   "r3,(r4,0)"
-	test ld.h   "r5 , ( r6, #2)"
+	test ld.h   "r5 , ( r6, 2)"
 	test ld.w   "r7, (r8, 0x4)"
-	test ldb    "r9,(r10,#0xf)"
+	test ldb    "r9,(r10,0xf)"
 	test ldh    "r11, (r12, 30)"
 	test ld     "r13, (r14, 20)"
 	test ldw    "r13, (r14, 60)"
@@ -104,7 +104,7 @@ foolit:
 	test rolc   "r6, 1"
 	test rori   "r9, 6"
 	test rotlc  "r6, 1"
-	test rotli  "r2, #10"
+	test rotli  "r2, 10"
 	test rotri  "r9, 6"
 	test rsub   "r3, r4"
 	test rsubi  "r5, 0x0"

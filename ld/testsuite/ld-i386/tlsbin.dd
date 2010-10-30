@@ -32,7 +32,7 @@ Disassembly of section .text:
  8049014:	90[ 	]+nop *
 #  GD -> IE because variable is not defined in executable
  8049015:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
- 804901b:	2b 83 f8 ff ff ff[ 	]+sub    0xfffffff8\(%ebx\),%eax
+ 804901b:	2b 83 f8 ff ff ff[ 	]+sub    -0x8\(%ebx\),%eax
 #				->R_386_TLS_TPOFF32	sG1
  8049021:	90[ 	]+nop *
  8049022:	90[ 	]+nop *
@@ -41,7 +41,7 @@ Disassembly of section .text:
 #  GD -> IE because variable is not defined in executable where
 #  the variable is referenced through @gottpoff too
  8049025:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
- 804902b:	2b 83 e8 ff ff ff[ 	]+sub    0xffffffe8\(%ebx\),%eax
+ 804902b:	2b 83 e8 ff ff ff[ 	]+sub    -0x18\(%ebx\),%eax
 #				->R_386_TLS_TPOFF32	sG2
  8049031:	90[ 	]+nop *
  8049032:	90[ 	]+nop *
@@ -50,7 +50,7 @@ Disassembly of section .text:
 #  GD -> IE because variable is not defined in executable where
 #  the variable is referenced through @gotntpoff too
  8049035:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
- 804903b:	2b 83 dc ff ff ff[ 	]+sub    0xffffffdc\(%ebx\),%eax
+ 804903b:	03 83 dc ff ff ff[ 	]+add    -0x24\(%ebx\),%eax
 #				->R_386_TLS_TPOFF	sG3
  8049041:	90[ 	]+nop *
  8049042:	90[ 	]+nop *
@@ -59,7 +59,7 @@ Disassembly of section .text:
 #  GD -> IE because variable is not defined in executable where
 #  the variable is referenced through @gottpoff and @gotntpoff too
  8049045:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
- 804904b:	2b 83 ec ff ff ff[ 	]+sub    0xffffffec\(%ebx\),%eax
+ 804904b:	2b 83 ec ff ff ff[ 	]+sub    -0x14\(%ebx\),%eax
 #				->R_386_TLS_TPOFF32	sG4
  8049051:	90[ 	]+nop *
  8049052:	90[ 	]+nop *
@@ -95,11 +95,11 @@ Disassembly of section .text:
  804908c:	8d 74 26 00[ 	]+lea    0x0\(%esi\),%esi
  8049090:	90[ 	]+nop *
  8049091:	90[ 	]+nop *
- 8049092:	8d 90 20 f0 ff ff[ 	]+lea    0xfffff020\(%eax\),%edx
+ 8049092:	8d 90 20 f0 ff ff[ 	]+lea    -0xfe0\(%eax\),%edx
 #							sl1
  8049098:	90[ 	]+nop *
  8049099:	90[ 	]+nop *
- 804909a:	8d 88 24 f0 ff ff[ 	]+lea    0xfffff024\(%eax\),%ecx
+ 804909a:	8d 88 24 f0 ff ff[ 	]+lea    -0xfdc\(%eax\),%ecx
 #							sl2
  80490a0:	90[ 	]+nop *
  80490a1:	90[ 	]+nop *
@@ -111,11 +111,11 @@ Disassembly of section .text:
  80490ab:	8d 74 26 00[ 	]+lea    0x0\(%esi\),%esi
  80490af:	90[ 	]+nop *
  80490b0:	90[ 	]+nop *
- 80490b1:	8d 90 40 f0 ff ff[ 	]+lea    0xfffff040\(%eax\),%edx
+ 80490b1:	8d 90 40 f0 ff ff[ 	]+lea    -0xfc0\(%eax\),%edx
 #							sh1
  80490b7:	90[ 	]+nop *
  80490b8:	90[ 	]+nop *
- 80490b9:	8d 88 44 f0 ff ff[ 	]+lea    0xfffff044\(%eax\),%ecx
+ 80490b9:	8d 88 44 f0 ff ff[ 	]+lea    -0xfbc\(%eax\),%ecx
 #							sh2
  80490bf:	90[ 	]+nop *
  80490c0:	90[ 	]+nop *
@@ -125,7 +125,7 @@ Disassembly of section .text:
  80490c3:	65 8b 0d 00 00 00 00[ 	]+mov    %gs:0x0,%ecx
  80490ca:	90[ 	]+nop *
  80490cb:	90[ 	]+nop *
- 80490cc:	2b 8b e8 ff ff ff[ 	]+sub    0xffffffe8\(%ebx\),%ecx
+ 80490cc:	2b 8b e8 ff ff ff[ 	]+sub    -0x18\(%ebx\),%ecx
 #				->R_386_TLS_TPOFF32	sG2
  80490d2:	90[ 	]+nop *
  80490d3:	90[ 	]+nop *
@@ -135,7 +135,7 @@ Disassembly of section .text:
  80490d6:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
  80490dc:	90[ 	]+nop *
  80490dd:	90[ 	]+nop *
- 80490de:	2b 83 ec ff ff ff[ 	]+sub    0xffffffec\(%ebx\),%eax
+ 80490de:	2b 83 ec ff ff ff[ 	]+sub    -0x14\(%ebx\),%eax
 #				->R_386_TLS_TPOFF32	sG4
  80490e4:	90[ 	]+nop *
  80490e5:	90[ 	]+nop *
@@ -145,7 +145,7 @@ Disassembly of section .text:
  80490e8:	65 8b 0d 00 00 00 00[ 	]+mov    %gs:0x0,%ecx
  80490ef:	90[ 	]+nop *
  80490f0:	90[ 	]+nop *
- 80490f1:	03 8b dc ff ff ff[ 	]+add    0xffffffdc\(%ebx\),%ecx
+ 80490f1:	03 8b dc ff ff ff[ 	]+add    -0x24\(%ebx\),%ecx
 #				->R_386_TLS_TPOFF	sG3
  80490f7:	90[ 	]+nop *
  80490f8:	90[ 	]+nop *
@@ -155,7 +155,7 @@ Disassembly of section .text:
  80490fb:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
  8049101:	90[ 	]+nop *
  8049102:	90[ 	]+nop *
- 8049103:	03 83 f0 ff ff ff[ 	]+add    0xfffffff0\(%ebx\),%eax
+ 8049103:	03 83 f0 ff ff ff[ 	]+add    -0x10\(%ebx\),%eax
 #				->R_386_TLS_TPOFF	sG4
  8049109:	90[ 	]+nop *
  804910a:	90[ 	]+nop *
@@ -193,7 +193,7 @@ Disassembly of section .text:
  8049145:	90[ 	]+nop *
 #  Direct access through %gs
 #  @gotntpoff IE against global var
- 8049146:	8b 8b e0 ff ff ff[ 	]+mov    0xffffffe0\(%ebx\),%ecx
+ 8049146:	8b 8b e0 ff ff ff[ 	]+mov    -0x20\(%ebx\),%ecx
 #				->R_386_TLS_TPOFF	sG5
  804914c:	90[ 	]+nop *
  804914d:	90[ 	]+nop *
@@ -222,7 +222,7 @@ Disassembly of section .text:
  8049170:	90[ 	]+nop *
  8049171:	90[ 	]+nop *
  8049172:	90[ 	]+nop *
- 8049173:	8b 5d fc[ 	]+mov    0xfffffffc\(%ebp\),%ebx
+ 8049173:	8b 5d fc[ 	]+mov    -0x4\(%ebp\),%ebx
  8049176:	c9[ 	]+leave *
  8049177:	c3[ 	]+ret *
 
@@ -240,7 +240,7 @@ Disassembly of section .text:
  804918b:	65 8b 15 00 00 00 00[ 	]+mov    %gs:0x0,%edx
  8049192:	90[ 	]+nop *
  8049193:	90[ 	]+nop *
- 8049194:	2b 91 f4 ff ff ff[ 	]+sub    0xfffffff4\(%ecx\),%edx
+ 8049194:	2b 91 f4 ff ff ff[ 	]+sub    -0xc\(%ecx\),%edx
 #				->R_386_TLS_TPOFF32	sG6
  804919a:	90[ 	]+nop *
  804919b:	90[ 	]+nop *
@@ -401,7 +401,7 @@ Disassembly of section .text:
  804929c:	65 a1 00 00 00 00[ 	]+mov    %gs:0x0,%eax
  80492a2:	90[ 	]+nop *
  80492a3:	90[ 	]+nop *
- 80492a4:	8d 90 04 f0 ff ff[ 	]+lea    0xfffff004\(%eax\),%edx
+ 80492a4:	8d 90 04 f0 ff ff[ 	]+lea    -0xffc\(%eax\),%edx
 #							sg2
  80492aa:	90[ 	]+nop *
  80492ab:	90[ 	]+nop *
@@ -451,6 +451,6 @@ Disassembly of section .text:
  80492f4:	90[ 	]+nop *
  80492f5:	90[ 	]+nop *
  80492f6:	90[ 	]+nop *
- 80492f7:	8b 5d fc[ 	]+mov    0xfffffffc\(%ebp\),%ebx
+ 80492f7:	8b 5d fc[ 	]+mov    -0x4\(%ebp\),%ebx
  80492fa:	c9[ 	]+leave *
  80492fb:	c3[ 	]+ret *

@@ -1,5 +1,6 @@
 #objdump: -sr -j .text
 #name: MIPS ELF reloc 2 (32-bit)
+#as: -mabi=32
 #source: elf-rel2.s
 
 # Test the GPREL and LITERAL generation.

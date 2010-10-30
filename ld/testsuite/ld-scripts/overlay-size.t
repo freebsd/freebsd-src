@@ -54,4 +54,5 @@ SECTIONS
     } > DATAMEM AT > LOADMEM
 
   . = 0x8000;
+  /DISCARD/ : { *(.reginfo) }
 }

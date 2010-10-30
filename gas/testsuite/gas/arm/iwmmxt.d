@@ -166,6 +166,6 @@ Disassembly of section .text:
 0+278 <[^>]*> 0e9540ea[ 	]+wunpckilweq[ 	]+wr4, wr5, wr10
 0+27c <[^>]*> 1e143005[ 	]+wxorne[ 	]+wr3, wr4, wr5
 0+280 <[^>]*> ae377007[ 	]+wandnge[ 	]+wr7, wr7, wr7
-0+284 <[^>]*> e1a00000[ 	]+nop[ 	]+\(mov r0,r0\)
-0+288 <[^>]*> e1a00000[ 	]+nop[ 	]+\(mov r0,r0\)
+0+284 <[^>]*> ee080110[ 	]+tmcr[ 	]+wcgr0, r0
+0+288 <[^>]*> ee1a1110[ 	]+tmrc[ 	]+r1, wcgr2
 0+28c <[^>]*> e1a00000[ 	]+nop[ 	]+\(mov r0,r0\)

@@ -65,7 +65,7 @@ configured.
 
 @item -EL
 @cindex @code{-EL} option, M32R
-This is a synonum for @emph{-little}.
+This is a synonym for @emph{-little}.
 
 @item -big
 @cindex @code{-big} option, M32R
@@ -110,7 +110,7 @@ implies @emph{-parallel}.
 Instructs @code{@value{AS}} to produce warning messages when
 questionable parallel instructions are encountered.  This option is
 enabled by default, but @code{@value{GCC}} disables it when it invokes
-@code{@value{AS}} directly.  Questionable instructions are those whoes
+@code{@value{AS}} directly.  Questionable instructions are those whose
 behaviour would be different if they were executed sequentially.  For
 example the code fragment @samp{mv r1, r2 || mv r3, r1} produces a
 different result from @samp{mv r1, r2 \n mv r3, r1} since the former
@@ -135,7 +135,7 @@ option.
 @item -ignore-parallel-conflicts
 @cindex @samp{-ignore-parallel-conflicts} option, M32RX
 This option tells the assembler's to stop checking parallel
-instructions for contraint violations.  This ability is provided for
+instructions for constraint violations.  This ability is provided for
 hardware vendors testing chip designs and should not be used under
 normal circumstances.
 
@@ -157,8 +157,8 @@ option.
 @item -warn-unmatched-high
 @cindex @samp{-warn-unmatched-high} option, M32R
 This option tells the assembler to produce a warning message if a
-@code{.high} pseudo op is encountered without a mathcing @code{.low}
-pseudo op.  The presence of such an unmatches pseudo op usually
+@code{.high} pseudo op is encountered without a matching @code{.low}
+pseudo op.  The presence of such an unmatched pseudo op usually
 indicates a programming error.
 
 @item -no-warn-unmatched-high
@@ -280,14 +280,14 @@ instructions in the M32R2 ISA as well as the ordinary M32R ISA.
 The directive performs a similar thing as the @emph{-little} command
 line option.  It tells the assembler to start producing little-endian
 code and data.  This option should be used with care as producing
-mixed-endian binary files is frought with danger.
+mixed-endian binary files is fraught with danger.
 
 @cindex @code{.big} directive, M32RX
 @item .big
 The directive performs a similar thing as the @emph{-big} command
 line option.  It tells the assembler to start producing big-endian
 code and data.  This option should be used with care as producing
-mixed-endian binary files is frought with danger.
+mixed-endian binary files is fraught with danger.
 
 @end table
 
@@ -328,7 +328,7 @@ instructions.
 
 @item unknown instruction @samp{...}
 This message is produced when the assembler encounters an instruction
-which it does not recognise.
+which it does not recognize.
 
 @item only the NOP instruction can be issued in parallel on the m32r
 This message is produced when the assembler encounters a parallel

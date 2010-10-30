@@ -7,9 +7,6 @@
 
 SYMBOL TABLE:
 0+1004 l    d  \.text	0+ (|\.text)
-0+ l    d  \*ABS\*	0+ (|\.shstrtab)
-0+ l    d  \*ABS\*	0+ (|\.symtab)
-0+ l    d  \*ABS\*	0+ (|\.strtab)
 0+1004 l       \.text	0+ t
 0+100c g       \.text	0+ _start
 0+1004 g       \*ABS\*	0+ __\.MMIX\.start\.\.text

@@ -39,3 +39,4 @@ irix_after_open (void)
 EOF
 
 LDEMUL_AFTER_OPEN=irix_after_open
+. "${srcdir}/emultempl/mipself.em"

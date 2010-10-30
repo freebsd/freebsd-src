@@ -1,5 +1,6 @@
 /* This file is tc-sh64.h
-   Copyright 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+   Copyright 2000, 2001, 2002, 2003, 2007
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -79,7 +80,6 @@ extern int sh64_target_mach (void);
 #undef TC_FORCE_RELOCATION_LOCAL
 #define TC_FORCE_RELOCATION_LOCAL(FIX)			\
   (!(FIX)->fx_pcrel					\
-   || (FIX)->fx_plt					\
    || (FIX)->fx_r_type == BFD_RELOC_32_PLT_PCREL	\
    || (FIX)->fx_r_type == BFD_RELOC_SH_PLT_LOW16	\
    || (FIX)->fx_r_type == BFD_RELOC_SH_PLT_MEDLOW16	\

@@ -171,4 +171,15 @@ END_RELOC_NUMBERS (R_PPC_max)
 						   builds when those objects \
 						   are not to be furhter \
 						   relocated.  */
+
+/* Object attribute tags.  */
+enum
+{
+  /* 0-3 are generic.  */
+  Tag_GNU_Power_ABI_FP = 4, /* Value 1 for hard-float, 2 for
+			       soft-float; 0 for not tagged or not
+			       using any ABIs affected by the
+			       differences.  */
+};
+
 #endif /* _ELF_PPC_H */

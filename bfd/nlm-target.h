@@ -1,6 +1,6 @@
 /* Target definitions for 32/64-bit NLM (NetWare Loadable Module)
    Copyright 1993, 1994, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-   2005 Free Software Foundation, Inc.
+   2005, 2007 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -37,6 +37,7 @@
 #define nlm_get_reloc_upper_bound               nlmNAME (get_reloc_upper_bound)
 #define nlm_canonicalize_reloc                  nlmNAME (canonicalize_reloc)
 #define nlm_bfd_reloc_type_lookup               bfd_default_reloc_type_lookup
+#define nlm_bfd_reloc_name_lookup         _bfd_norelocs_bfd_reloc_name_lookup
 #define nlm_set_section_contents                nlmNAME (set_section_contents)
 
 #define nlm_sizeof_headers                      _bfd_nolink_sizeof_headers

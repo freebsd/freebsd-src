@@ -46,3 +46,5 @@ foo:	jaw	foo
 	fstb	%st(0)
 	fcompll	28(%ebp)
 	fldlw	(%eax)
+	movl	$%ebx,%eax
+	insertq	$4,$2,%xmm2,%ebx

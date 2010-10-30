@@ -1,5 +1,5 @@
 # Expect script for export table in executables tests
-#   Copyright 2004
+#   Copyright 2004, 2006
 #   Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
@@ -17,9 +17,12 @@
 # Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
 #
  
-# This test can only be run on i386 PE/COFF platforms.
-if { ![istarget i*86-*-cygwin*] && ![istarget i*86-*-pe]
-     && ![istarget i*86-*-mingw*] } {
+# This test can only be run on PE/COFF platforms that support .secrel32.
+if {    ![istarget i*86-*-cygwin*]
+     && ![istarget i*86-*-pe]
+     && ![istarget i*86-*-mingw*]
+     && ![istarget x86_64-*-mingw*]
+     && ![istarget arm-wince-pe] } {
     return
 }
 
@@ -29,3 +32,5 @@ set pe_tests {
 }
 
 run_ld_link_tests $pe_tests
+
+run_dump_test "image_size"

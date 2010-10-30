@@ -195,3 +195,6 @@ bad	.byte	xtrn@gottpoff
 bad	.byte	xtrn@tlsld
 bad	.byte	xtrn@dtpoff
 bad	.byte	xtrn@tpoff
+
+	.text
+	mov	xtrn@tpoff (%rbx), %eax

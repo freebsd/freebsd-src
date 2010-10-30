@@ -10,6 +10,6 @@ Disassembly of section .text:
  .*:	e1a00000 	nop			\(mov r0,r0\)
  .*:	e1a00000 	nop			\(mov r0,r0\)
  .*:	e1a0f00e 	mov	pc, lr
- .*:	00008098 	muleq	r0, r8, r0
- .*:	0000808c 	andeq	r8, r0, ip, lsl #1
- .*:	00000004 	andeq	r0, r0, r4
+ .*:	00008098 	.word	0x00008098
+ .*:	0000808c 	.word	0x0000808c
+ .*:	00000004 	.word	0x00000004

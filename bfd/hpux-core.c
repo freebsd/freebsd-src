@@ -1,6 +1,6 @@
 /* BFD back-end for HP/UX core files.
-   Copyright 1993, 1994, 1996, 1998, 1999, 2001, 2002, 2003, 2004
-   Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1996, 1998, 1999, 2001, 2002, 2003, 2004, 2006,
+   2007 Free Software Foundation, Inc.
    Written by Stu Grossman, Cygnus Support.
    Converted to back-end form by Ian Lance Taylor, Cygnus SUpport
 
@@ -23,8 +23,8 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
 /* This file can only be compiled on systems which use HP/UX style
    core files.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 
 #if defined (HOST_HPPAHPUX) || defined (HOST_HP300HPUX) || defined (HOST_HPPAMPEIX)
@@ -124,11 +124,10 @@ make_bfd_asection (bfd *abfd, const char *name, flagword flags,
 
   strcpy (newname, name);
 
-  asect = bfd_make_section_anyway (abfd, newname);
+  asect = bfd_make_section_anyway_with_flags (abfd, newname, flags);
   if (!asect)
     return NULL;
 
-  asect->flags = flags;
   asect->size = size;
   asect->vma = vma;
   asect->filepos = bfd_tell (abfd);
@@ -145,7 +144,7 @@ thread_section_p (bfd *abfd ATTRIBUTE_UNUSED,
                   asection *sect,
                   void *obj ATTRIBUTE_UNUSED)
 {
-  return (strncmp (sect->name, ".reg/", 5) == 0);
+  return CONST_STRNEQ (sect->name, ".reg/");
 }
 
 /* this function builds a bfd target if the file is a corefile.

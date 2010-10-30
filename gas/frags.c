@@ -389,9 +389,9 @@ frag_append_1_char (int datum)
    not already accounted for in the frag FR_ADDRESS.  */
 
 bfd_boolean
-frag_offset_fixed_p (fragS *frag1, fragS *frag2, bfd_vma *offset)
+frag_offset_fixed_p (const fragS *frag1, const fragS *frag2, bfd_vma *offset)
 {
-  fragS *frag;
+  const fragS *frag;
   bfd_vma off;
 
   /* Start with offset initialised to difference between the two frags.

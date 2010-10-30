@@ -13,13 +13,13 @@ Disassembly of section .text:
 0+014 <[^>]*> fc4570c3 ?	mcrr2	0, 12, r7, r5, cr3
 0+018 <[^>]*> fc5570c3 ?	mrrc2	0, 12, r7, r5, cr3
 0+01c <[^>]*> e6852018 ?	pkhbt	r2, r5, r8
-0+020 <[^>]*> e6852198 ?	pkhbt	r2, r5, r8, LSL #3
-0+024 <[^>]*> e6852198 ?	pkhbt	r2, r5, r8, LSL #3
-0+028 <[^>]*> 06852198 ?	pkhbteq	r2, r5, r8, LSL #3
+0+020 <[^>]*> e6852198 ?	pkhbt	r2, r5, r8, lsl #3
+0+024 <[^>]*> e6852198 ?	pkhbt	r2, r5, r8, lsl #3
+0+028 <[^>]*> 06852198 ?	pkhbteq	r2, r5, r8, lsl #3
 0+02c <[^>]*> e6882015 ?	pkhbt	r2, r8, r5
-0+030 <[^>]*> e68521d8 ?	pkhtb	r2, r5, r8, ASR #3
-0+034 <[^>]*> e68521d8 ?	pkhtb	r2, r5, r8, ASR #3
-0+038 <[^>]*> 068521d8 ?	pkhtbeq	r2, r5, r8, ASR #3
+0+030 <[^>]*> e68521d8 ?	pkhtb	r2, r5, r8, asr #3
+0+034 <[^>]*> e68521d8 ?	pkhtb	r2, r5, r8, asr #3
+0+038 <[^>]*> 068521d8 ?	pkhtbeq	r2, r5, r8, asr #3
 0+03c <[^>]*> e6242f17 ?	qadd16	r2, r4, r7
 0+040 <[^>]*> 16242f17 ?	qadd16ne	r2, r4, r7
 0+044 <[^>]*> e6242f97 ?	qadd8	r2, r4, r7
@@ -49,19 +49,19 @@ Disassembly of section .text:
 0+0a4 <[^>]*> e6142f17 ?	sadd16	r2, r4, r7
 0+0a8 <[^>]*> 16142f17 ?	sadd16ne	r2, r4, r7
 0+0ac <[^>]*> e6b42075 ?	sxtah	r2, r4, r5
-0+0b0 <[^>]*> e6b42475 ?	sxtah	r2, r4, r5, ROR #8
+0+0b0 <[^>]*> e6b42475 ?	sxtah	r2, r4, r5, ror #8
 0+0b4 <[^>]*> 16b42075 ?	sxtahne	r2, r4, r5
-0+0b8 <[^>]*> 16b42475 ?	sxtahne	r2, r4, r5, ROR #8
+0+0b8 <[^>]*> 16b42475 ?	sxtahne	r2, r4, r5, ror #8
 0+0bc <[^>]*> e6142f97 ?	sadd8	r2, r4, r7
 0+0c0 <[^>]*> 16142f97 ?	sadd8ne	r2, r4, r7
 0+0c4 <[^>]*> e6842075 ?	sxtab16	r2, r4, r5
-0+0c8 <[^>]*> e6842475 ?	sxtab16	r2, r4, r5, ROR #8
+0+0c8 <[^>]*> e6842475 ?	sxtab16	r2, r4, r5, ror #8
 0+0cc <[^>]*> 16842075 ?	sxtab16ne	r2, r4, r5
-0+0d0 <[^>]*> 16842475 ?	sxtab16ne	r2, r4, r5, ROR #8
+0+0d0 <[^>]*> 16842475 ?	sxtab16ne	r2, r4, r5, ror #8
 0+0d4 <[^>]*> e6a42075 ?	sxtab	r2, r4, r5
-0+0d8 <[^>]*> e6a42475 ?	sxtab	r2, r4, r5, ROR #8
+0+0d8 <[^>]*> e6a42475 ?	sxtab	r2, r4, r5, ror #8
 0+0dc <[^>]*> 16a42075 ?	sxtabne	r2, r4, r5
-0+0e0 <[^>]*> 16a42475 ?	sxtabne	r2, r4, r5, ROR #8
+0+0e0 <[^>]*> 16a42475 ?	sxtabne	r2, r4, r5, ror #8
 0+0e4 <[^>]*> e6142f37 ?	saddaddx	r2, r4, r7
 0+0e8 <[^>]*> 16142f37 ?	saddaddxne	r2, r4, r7
 0+0ec <[^>]*> e6821fb3 ?	sel	r1, r2, r3
@@ -116,11 +116,11 @@ Disassembly of section .text:
 0+1b0 <[^>]*> d701f352 ?	smusdle	r1, r2, r3
 0+1b4 <[^>]*> e701f372 ?	smusdx	r1, r2, r3
 0+1b8 <[^>]*> d701f372 ?	smusdxle	r1, r2, r3
-0+1bc <[^>]*> f8cd0510 ?	srsia	#16
-0+1c0 <[^>]*> f9ed0510 ?	srsib	#16!
+0+1bc <[^>]*> f8cd0510 ?	srsia	sp, #16
+0+1c0 <[^>]*> f9ed0510 ?	srsib	sp!, #16
 0+1c4 <[^>]*> e6a01012 ?	ssat	r1, #1, r2
-0+1c8 <[^>]*> e6a01152 ?	ssat	r1, #1, r2, ASR #2
-0+1cc <[^>]*> e6a01112 ?	ssat	r1, #1, r2, LSL #2
+0+1c8 <[^>]*> e6a01152 ?	ssat	r1, #1, r2, asr #2
+0+1cc <[^>]*> e6a01112 ?	ssat	r1, #1, r2, lsl #2
 0+1d0 <[^>]*> e6a01f31 ?	ssat16	r1, #1, r1
 0+1d4 <[^>]*> d6a01f31 ?	ssat16le	r1, #1, r1
 0+1d8 <[^>]*> e6142f77 ?	ssub16	r2, r4, r7
@@ -131,34 +131,34 @@ Disassembly of section .text:
 0+1ec <[^>]*> 16142f57 ?	ssubaddxne	r2, r4, r7
 0+1f0 <[^>]*> e1831f92 ?	strex	r1, r2, \[r3\]
 0+1f4 <[^>]*> 11831f92 ?	strexne	r1, r2, \[r3\]
-0+1f8 <[^>]*> e6bf2075 ?	sxth r2,r5
-0+1fc <[^>]*> e6bf2475 ?	sxth r2,r5, ROR #8
-0+200 <[^>]*> 16bf2075 ?	sxthne r2,r5
-0+204 <[^>]*> 16bf2475 ?	sxthne r2,r5, ROR #8
-0+208 <[^>]*> e68f2075 ?	sxtb16 r2,r5
-0+20c <[^>]*> e68f2475 ?	sxtb16 r2,r5, ROR #8
-0+210 <[^>]*> 168f2075 ?	sxtb16ne r2,r5
-0+214 <[^>]*> 168f2475 ?	sxtb16ne r2,r5, ROR #8
-0+218 <[^>]*> e6af2075 ?	sxtb r2,r5
-0+21c <[^>]*> e6af2475 ?	sxtb r2,r5, ROR #8
-0+220 <[^>]*> 16af2075 ?	sxtbne r2,r5
-0+224 <[^>]*> 16af2475 ?	sxtbne r2,r5, ROR #8
+0+1f8 <[^>]*> e6bf2075 ?	sxth	r2, r5
+0+1fc <[^>]*> e6bf2475 ?	sxth	r2, r5, ror #8
+0+200 <[^>]*> 16bf2075 ?	sxthne	r2, r5
+0+204 <[^>]*> 16bf2475 ?	sxthne	r2, r5, ror #8
+0+208 <[^>]*> e68f2075 ?	sxtb16	r2, r5
+0+20c <[^>]*> e68f2475 ?	sxtb16	r2, r5, ror #8
+0+210 <[^>]*> 168f2075 ?	sxtb16ne	r2, r5
+0+214 <[^>]*> 168f2475 ?	sxtb16ne	r2, r5, ror #8
+0+218 <[^>]*> e6af2075 ?	sxtb	r2, r5
+0+21c <[^>]*> e6af2475 ?	sxtb	r2, r5, ror #8
+0+220 <[^>]*> 16af2075 ?	sxtbne	r2, r5
+0+224 <[^>]*> 16af2475 ?	sxtbne	r2, r5, ror #8
 0+228 <[^>]*> e6542f17 ?	uadd16	r2, r4, r7
 0+22c <[^>]*> 16542f17 ?	uadd16ne	r2, r4, r7
 0+230 <[^>]*> e6f32075 ?	uxtah	r2, r3, r5
-0+234 <[^>]*> e6f32475 ?	uxtah	r2, r3, r5, ROR #8
+0+234 <[^>]*> e6f32475 ?	uxtah	r2, r3, r5, ror #8
 0+238 <[^>]*> 16f32075 ?	uxtahne	r2, r3, r5
-0+23c <[^>]*> 16f32475 ?	uxtahne	r2, r3, r5, ROR #8
+0+23c <[^>]*> 16f32475 ?	uxtahne	r2, r3, r5, ror #8
 0+240 <[^>]*> e6542f97 ?	uadd8	r2, r4, r7
 0+244 <[^>]*> 16542f97 ?	uadd8ne	r2, r4, r7
 0+248 <[^>]*> e6c32075 ?	uxtab16	r2, r3, r5
-0+24c <[^>]*> e6c32475 ?	uxtab16	r2, r3, r5, ROR #8
+0+24c <[^>]*> e6c32475 ?	uxtab16	r2, r3, r5, ror #8
 0+250 <[^>]*> 16c32075 ?	uxtab16ne	r2, r3, r5
-0+254 <[^>]*> 16c32475 ?	uxtab16ne	r2, r3, r5, ROR #8
+0+254 <[^>]*> 16c32475 ?	uxtab16ne	r2, r3, r5, ror #8
 0+258 <[^>]*> e6e32075 ?	uxtab	r2, r3, r5
-0+25c <[^>]*> e6e32475 ?	uxtab	r2, r3, r5, ROR #8
+0+25c <[^>]*> e6e32475 ?	uxtab	r2, r3, r5, ror #8
 0+260 <[^>]*> 16e32075 ?	uxtabne	r2, r3, r5
-0+264 <[^>]*> 16e32475 ?	uxtabne	r2, r3, r5, ROR #8
+0+264 <[^>]*> 16e32475 ?	uxtabne	r2, r3, r5, ror #8
 0+268 <[^>]*> e6542f37 ?	uaddsubx	r2, r4, r7
 0+26c <[^>]*> 16542f37 ?	uaddsubxne	r2, r4, r7
 0+270 <[^>]*> e6742f17 ?	uhadd16	r2, r4, r7
@@ -192,28 +192,32 @@ Disassembly of section .text:
 0+2e0 <[^>]*> e7814312 ?	usada8	r1, r2, r3, r4
 0+2e4 <[^>]*> 17814312 ?	usada8ne	r1, r2, r3, r4
 0+2e8 <[^>]*> e6ef1012 ?	usat	r1, #15, r2
-0+2ec <[^>]*> e6ef1252 ?	usat	r1, #15, r2, ASR #4
-0+2f0 <[^>]*> e6ef1212 ?	usat	r1, #15, r2, LSL #4
+0+2ec <[^>]*> e6ef1252 ?	usat	r1, #15, r2, asr #4
+0+2f0 <[^>]*> e6ef1212 ?	usat	r1, #15, r2, lsl #4
 0+2f4 <[^>]*> e6ef1f32 ?	usat16	r1, #15, r2
 0+2f8 <[^>]*> d6ef1f32 ?	usat16le	r1, #15, r2
 0+2fc <[^>]*> d6ef1012 ?	usatle	r1, #15, r2
-0+300 <[^>]*> d6ef1252 ?	usatle	r1, #15, r2, ASR #4
-0+304 <[^>]*> d6ef1212 ?	usatle	r1, #15, r2, LSL #4
+0+300 <[^>]*> d6ef1252 ?	usatle	r1, #15, r2, asr #4
+0+304 <[^>]*> d6ef1212 ?	usatle	r1, #15, r2, lsl #4
 0+308 <[^>]*> e6542f77 ?	usub16	r2, r4, r7
 0+30c <[^>]*> 16542f77 ?	usub16ne	r2, r4, r7
 0+310 <[^>]*> e6542ff7 ?	usub8	r2, r4, r7
 0+314 <[^>]*> 16542ff7 ?	usub8ne	r2, r4, r7
 0+318 <[^>]*> e6542f57 ?	usubaddx	r2, r4, r7
 0+31c <[^>]*> 16542f57 ?	usubaddxne	r2, r4, r7
-0+320 <[^>]*> e6ff2075 ?	uxth r2,r5
-0+324 <[^>]*> e6ff2475 ?	uxth r2,r5, ROR #8
-0+328 <[^>]*> 16ff2075 ?	uxthne r2,r5
-0+32c <[^>]*> 16ff2475 ?	uxthne r2,r5, ROR #8
-0+330 <[^>]*> e6cf2075 ?	uxtb16 r2,r5
-0+334 <[^>]*> e6cf2475 ?	uxtb16 r2,r5, ROR #8
-0+338 <[^>]*> 16cf2075 ?	uxtb16ne r2,r5
-0+33c <[^>]*> 16cf2475 ?	uxtb16ne r2,r5, ROR #8
-0+340 <[^>]*> e6ef2075 ?	uxtb r2,r5
-0+344 <[^>]*> e6ef2475 ?	uxtb r2,r5, ROR #8
-0+348 <[^>]*> 16ef2075 ?	uxtbne r2,r5
-0+34c <[^>]*> 16ef2475 ?	uxtbne r2,r5, ROR #8
+0+320 <[^>]*> e6ff2075 ?	uxth	r2, r5
+0+324 <[^>]*> e6ff2475 ?	uxth	r2, r5, ror #8
+0+328 <[^>]*> 16ff2075 ?	uxthne	r2, r5
+0+32c <[^>]*> 16ff2475 ?	uxthne	r2, r5, ror #8
+0+330 <[^>]*> e6cf2075 ?	uxtb16	r2, r5
+0+334 <[^>]*> e6cf2475 ?	uxtb16	r2, r5, ror #8
+0+338 <[^>]*> 16cf2075 ?	uxtb16ne	r2, r5
+0+33c <[^>]*> 16cf2475 ?	uxtb16ne	r2, r5, ror #8
+0+340 <[^>]*> e6ef2075 ?	uxtb	r2, r5
+0+344 <[^>]*> e6ef2475 ?	uxtb	r2, r5, ror #8
+0+348 <[^>]*> 16ef2075 ?	uxtbne	r2, r5
+0+34c <[^>]*> 16ef2475 ?	uxtbne	r2, r5, ror #8
+0+350 <[^>]*> f10a00ca ?	cpsie	if,#10
+0+354 <[^>]*> f10a00d5 ?	cpsie	if,#21
+0+358 <[^>]*> f8cd0510 ?	srsia	sp, #16
+0+35c <[^>]*> f9ed0510 ?	srsib	sp!, #16

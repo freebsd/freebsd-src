@@ -2035,8 +2035,6 @@ main (void)
    We declare arrays non-local in case some of our tiny-minded machines
    default to small stacks. Also, helps with some debuggers.  */
 
-#include <stdio.h>
-
 char answer[100];		/* Human types into here.  */
 char *p;			/*  */
 char *myerr;
@@ -3266,4 +3264,144 @@ md_begin (void)
       fP->low = &big_operand_bits[i][0];
       fP->high = &big_operand_bits[i][SIZE_OF_LARGE_NUMBER - 1];
     }
+}
+
+static char *vax_cons_special_reloc;
+
+void
+vax_cons (expressionS *exp, int size)
+{
+  char *save;
+
+  SKIP_WHITESPACE ();
+  vax_cons_special_reloc = NULL;
+  save = input_line_pointer;
+  if (input_line_pointer[0] == '%')
+    {
+      if (strncmp (input_line_pointer + 1, "pcrel", 5) == 0)
+	{
+	  input_line_pointer += 6;
+	  vax_cons_special_reloc = "pcrel";
+	}
+      if (vax_cons_special_reloc)
+	{
+	  int bad = 0;
+
+	  switch (size)
+	    {
+	    case 1:
+	      if (*input_line_pointer != '8')
+		bad = 1;
+	      input_line_pointer--;
+	      break;
+	    case 2:
+	      if (input_line_pointer[0] != '1' || input_line_pointer[1] != '6')
+		bad = 1;
+	      break;
+	    case 4:
+	      if (input_line_pointer[0] != '3' || input_line_pointer[1] != '2')
+		bad = 1;
+	      break;
+	    default:
+	      bad = 1;
+	      break;
+	    }
+
+	  if (bad)
+	    {
+	      as_bad (_("Illegal operands: Only %%r_%s%d allowed in %d-byte data fields"),
+		      vax_cons_special_reloc, size * 8, size);
+	    }
+	  else
+	    {
+	      input_line_pointer += 2;
+	      if (*input_line_pointer != '(')
+		{
+		  as_bad (_("Illegal operands: %%r_%s%d requires arguments in ()"),
+			  vax_cons_special_reloc, size * 8);
+		  bad = 1;
+		}
+	    }
+
+	  if (bad)
+	    {
+	      input_line_pointer = save;
+	      vax_cons_special_reloc = NULL;
+	    }
+	  else
+	    {
+	      int c;
+	      char *end = ++input_line_pointer;
+	      int npar = 0;
+
+	      while (! is_end_of_line[(c = *end)])
+		{
+		  if (c == '(')
+	  	    npar++;
+		  else if (c == ')')
+	  	    {
+		      if (!npar)
+	      		break;
+		      npar--;
+		    }
+	    	  end++;
+		}
+
+	      if (c != ')')
+		as_bad (_("Illegal operands: %%r_%s%d requires arguments in ()"),
+			vax_cons_special_reloc, size * 8);
+	      else
+		{
+		  *end = '\0';
+		  expression (exp);
+		  *end = c;
+		  if (input_line_pointer != end)
+		    {
+		      as_bad (_("Illegal operands: %%r_%s%d requires arguments in ()"),
+			      vax_cons_special_reloc, size * 8);
+		    }
+		  else
+		    {
+		      input_line_pointer++;
+		      SKIP_WHITESPACE ();
+		      c = *input_line_pointer;
+		      if (! is_end_of_line[c] && c != ',')
+			as_bad (_("Illegal operands: garbage after %%r_%s%d()"),
+			        vax_cons_special_reloc, size * 8);
+		    }
+		}
+	    }
+	}
+    }
+  if (vax_cons_special_reloc == NULL)
+    expression (exp);
+}
+
+/* This is called by emit_expr via TC_CONS_FIX_NEW when creating a
+   reloc for a cons.  */
+
+void
+vax_cons_fix_new (fragS *frag, int where, unsigned int nbytes, expressionS *exp)
+{
+  bfd_reloc_code_real_type r;
+
+  r = (nbytes == 1 ? BFD_RELOC_8 :
+       (nbytes == 2 ? BFD_RELOC_16 : BFD_RELOC_32));
+
+  if (vax_cons_special_reloc)
+    {
+      if (*vax_cons_special_reloc == 'p')
+	{
+	  switch (nbytes)
+	    {
+	    case 1: r = BFD_RELOC_8_PCREL; break;
+	    case 2: r = BFD_RELOC_16_PCREL; break;
+	    case 4: r = BFD_RELOC_32_PCREL; break;
+	    default: abort ();
+	    }
+	}
+    }
+
+  fix_new_exp (frag, where, (int) nbytes, exp, 0, r);
+  vax_cons_special_reloc = NULL;
 }

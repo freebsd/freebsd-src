@@ -57,6 +57,10 @@ extern bfd_boolean m32c_fix_adjustable PARAMS ((struct fix *));
 #define TC_FORCE_RELOCATION(fix) m32c_force_relocation (fix)
 extern int m32c_force_relocation PARAMS ((struct fix *));
 
+#define TC_CONS_FIX_NEW(FRAG, WHERE, NBYTES, EXP) \
+  m32c_cons_fix_new (FRAG, WHERE, NBYTES, EXP)
+extern void m32c_cons_fix_new (fragS *, int, int, expressionS *);
+
 extern const struct relax_type md_relax_table[];
 #define TC_GENERIC_RELAX_TABLE md_relax_table
 

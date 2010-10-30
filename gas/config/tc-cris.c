@@ -1,5 +1,6 @@
 /* tc-cris.c -- Assembler code for the CRIS CPU core.
-   Copyright 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+   Copyright 2000, 2001, 2002, 2003, 2004, 2006
+   Free Software Foundation, Inc.
 
    Contributed by Axis Communications AB, Lund, Sweden.
    Originally written for GAS 1.38.1 by Mikael Asker.
@@ -22,7 +23,6 @@
    Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include <stdio.h>
 #include "as.h"
 #include "safe-ctype.h"
 #include "subsegs.h"
@@ -991,7 +991,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED, segT sec ATTRIBUTE_UNUSED,
       break;
 
     case ENCODE_RELAX (STATE_MUL, STATE_BYTE):
-      /* This is the only time we check position and aligmnent of the
+      /* This is the only time we check position and alignment of the
 	 placement-tracking frag.  */
       if (sec->alignment_power < 2)
 	as_bad_where (fragP->fr_file, fragP->fr_line,

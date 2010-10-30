@@ -35,6 +35,9 @@ extern int symbol_table_frozen;
    default.  */
 extern int symbols_case_sensitive;
 
+char * symbol_relc_make_expr  (expressionS *);
+char * symbol_relc_make_sym   (symbolS *);
+char * symbol_relc_make_value (offsetT);
 char *decode_local_label_name (char *s);
 symbolS *symbol_find (const char *name);
 symbolS *symbol_find_noref (const char *name, int noref);
@@ -192,6 +195,7 @@ extern int symbol_section_p (symbolS *);
 extern int symbol_equated_p (symbolS *);
 extern int symbol_equated_reloc_p (symbolS *);
 extern int symbol_constant_p (symbolS *);
+extern int symbol_shadow_p (symbolS *);
 extern asymbol *symbol_get_bfdsym (symbolS *);
 extern void symbol_set_bfdsym (symbolS *, asymbol *);
 

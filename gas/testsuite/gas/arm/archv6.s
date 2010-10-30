@@ -214,3 +214,7 @@ label:
 	uxtb r2, r5, ROR #8
 	uxtbne r2, r5
 	uxtbne r2, r5, ROR #8
+	cpsie if, #10
+	cpsie if, #21
+	srsia sp, #16
+	srsib sp!, #16

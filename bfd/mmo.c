@@ -1,5 +1,5 @@
 /* BFD back-end for mmo objects (MMIX-specific object-format).
-   Copyright 2001, 2002, 2003, 2004, 2005
+   Copyright 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Written by Hans-Peter Nilsson (hp@bitrange.com).
    Infrastructure and other bits originally copied from srec.c and
@@ -195,8 +195,8 @@ EXAMPLE
 | 0x81000000
 | 0x980c0005 - lop_end; symbol table contained five 32-bit words.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "libiberty.h"
 #include "elf/mmix.h"
@@ -387,8 +387,7 @@ static void mmo_print_symbol (bfd *, void *, asymbol *,
 			      bfd_print_symbol_type);
 static bfd_boolean mmo_set_section_contents (bfd *, sec_ptr, const void *,
 					     file_ptr, bfd_size_type);
-static int mmo_sizeof_headers (bfd *, bfd_boolean);
-static long mmo_get_reloc_upper_bound (bfd *, asection *);
+static int mmo_sizeof_headers (bfd *, struct bfd_link_info *);
 static bfd_boolean mmo_internal_write_header (bfd *);
 static bfd_boolean mmo_internal_write_post (bfd *, int, asection *);
 static bfd_boolean mmo_internal_add_3_sym (bfd *, struct mmo_symbol_trie *,
@@ -415,7 +414,6 @@ static void mmo_write_byte (bfd *, bfd_byte);
 static bfd_boolean mmo_new_section_hook (bfd *, asection *);
 static int mmo_sort_mmo_symbols (const void *, const void *);
 static bfd_boolean mmo_write_object_contents (bfd *);
-static long mmo_canonicalize_reloc (bfd *, sec_ptr, arelent **, asymbol **);
 static bfd_boolean mmo_write_section_description (bfd *, asection *);
 static bfd_boolean mmo_has_leading_or_trailing_zero_tetra_p (bfd *,
 							     asection *);
@@ -1917,7 +1915,7 @@ mmo_scan (bfd *abfd)
 		/* This must be the last 32-bit word in an mmo file.
 		   Let's find out.  */
 		struct stat statbuf;
-		long curpos = bfd_tell (abfd);
+		file_ptr curpos = bfd_tell (abfd);
 
 		if (bfd_stat (abfd, &statbuf) < 0)
 		  goto error_return;
@@ -2007,19 +2005,21 @@ mmo_scan (bfd *abfd)
    we point out the shape of allocated section contents.  */
 
 static bfd_boolean
-mmo_new_section_hook (bfd *abfd ATTRIBUTE_UNUSED, asection *newsect)
+mmo_new_section_hook (bfd *abfd, asection *newsect)
 {
-  /* We zero-fill all fields and assume NULL is represented by an all
-     zero-bit pattern.  */
-  newsect->used_by_bfd =
-    bfd_zalloc (abfd, sizeof (struct mmo_section_data_struct));
-
   if (!newsect->used_by_bfd)
-    return FALSE;
+    {
+      /* We zero-fill all fields and assume NULL is represented by an all
+	 zero-bit pattern.  */
+      newsect->used_by_bfd
+	= bfd_zalloc (abfd, sizeof (struct mmo_section_data_struct));
+      if (!newsect->used_by_bfd)
+	return FALSE;
+    }
 
   /* Always align to at least 32-bit words.  */
   newsect->alignment_power = 2;
-  return TRUE;
+  return _bfd_generic_new_section_hook (abfd, newsect);
 }
 
 /* We already have section contents loaded for sections that have
@@ -2229,7 +2229,7 @@ mmo_print_symbol (bfd *abfd, void *afile, asymbol *symbol,
 
 static int
 mmo_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
-		    bfd_boolean exec ATTRIBUTE_UNUSED)
+		    struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
   return 0;
 }
@@ -2419,10 +2419,10 @@ mmo_internal_write_section (bfd *abfd, asection *sec)
       bfd_set_error (bfd_error_bad_value);
       return FALSE;
     }
-  else if (strncmp (sec->name, MMIX_OTHER_SPEC_SECTION_PREFIX,
-		    strlen (MMIX_OTHER_SPEC_SECTION_PREFIX)) == 0)
+  else if (CONST_STRNEQ (sec->name, MMIX_OTHER_SPEC_SECTION_PREFIX))
     {
       int n = atoi (sec->name + strlen (MMIX_OTHER_SPEC_SECTION_PREFIX));
+
       mmo_write_tetra_raw (abfd, (LOP << 24) | (LOP_SPEC << 16) | n);
       return (! abfd->tdata.mmo_data->have_error
 	      && mmo_write_chunk_list (abfd, mmo_section_data (sec)->head));
@@ -3159,28 +3159,6 @@ mmo_write_object_contents (bfd *abfd)
   return mmo_write_symbols_and_terminator (abfd);
 }
 
-/* Return the size of a NULL pointer, so we support linking in an mmo
-   object.  */
-
-static long
-mmo_get_reloc_upper_bound (bfd *abfd ATTRIBUTE_UNUSED,
-			   asection *sec ATTRIBUTE_UNUSED)
-{
-  return sizeof (void *);
-}
-
-/* Similarly canonicalize relocs to empty, filling in the terminating NULL
-   pointer.  */
-
-long
-mmo_canonicalize_reloc (bfd *abfd ATTRIBUTE_UNUSED,
-			sec_ptr section ATTRIBUTE_UNUSED, arelent **relptr,
-			asymbol **symbols ATTRIBUTE_UNUSED)
-{
-  *relptr = NULL;
-  return 0;
-}
-
 /* If there's anything in particular in a mmo bfd that we want to free,
    make this a real function.  Only do this if you see major memory
    thrashing; zealous free:ing will cause unwanted behavior, especially if
@@ -3231,18 +3209,6 @@ mmo_canonicalize_reloc (bfd *abfd ATTRIBUTE_UNUSED,
 #define mmo_bfd_discard_group bfd_generic_discard_group
 #define mmo_section_already_linked \
   _bfd_generic_section_already_linked
-
-/* objcopy will be upset if we return -1 from bfd_get_reloc_upper_bound by
-   using BFD_JUMP_TABLE_RELOCS (_bfd_norelocs) rather than 0.  FIXME: Most
-   likely a bug in the _bfd_norelocs definition.
-
-   On the other hand, we smuggle in an mmo object (because setting up ELF
-   is too cumbersome) when linking (from other formats, presumably ELF) to
-   represent the g255 entry.  We need to link that object, so need to say
-   it has no relocs.  Upper bound for the size of the relocation table is
-   the size of a NULL pointer, and we support "canonicalization" for that
-   pointer.  */
-#define mmo_bfd_reloc_type_lookup _bfd_norelocs_bfd_reloc_type_lookup
 
 /* We want to copy time of creation, otherwise we'd use
    BFD_JUMP_TABLE_COPY (_bfd_generic).  */
@@ -3303,9 +3269,7 @@ const bfd_target bfd_mmo_vec =
   BFD_JUMP_TABLE_CORE (_bfd_nocore),
   BFD_JUMP_TABLE_ARCHIVE (_bfd_noarchive),
   BFD_JUMP_TABLE_SYMBOLS (mmo),
-  /* We have to provide a valid method for getting relocs, returning zero,
-     so we can't say BFD_JUMP_TABLE_RELOCS (_bfd_norelocs).  */
-  BFD_JUMP_TABLE_RELOCS (mmo),
+  BFD_JUMP_TABLE_RELOCS (_bfd_norelocs),
   BFD_JUMP_TABLE_WRITE (mmo),
   BFD_JUMP_TABLE_LINK (mmo),
   BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),

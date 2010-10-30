@@ -20,7 +20,6 @@
    02110-1301, USA.  */
 
 
-#include <stdio.h>
 #include "as.h"
 #include "safe-ctype.h"
 #include "subsegs.h"
@@ -28,7 +27,6 @@
 #include "opcodes/xc16x-desc.h"
 #include "opcodes/xc16x-opc.h"
 #include "cgen.h"
-#include "bfd.h"
 #include "dwarf2dbg.h"
 
 

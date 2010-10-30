@@ -1,5 +1,5 @@
 /* tc-mn10300.h -- Header file for tc-mn10300.c.
-   Copyright 1996, 1997, 2000, 2001, 2002, 2003, 2004, 2005
+   Copyright 1996, 1997, 2000, 2001, 2002, 2003, 2004, 2005, 2007
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -26,15 +26,15 @@
 #define DIFF_EXPR_OK
 #define GLOBAL_OFFSET_TABLE_NAME "_GLOBAL_OFFSET_TABLE_"
 
-#define TC_RELOC_RTSYM_LOC_FIXUP(FIX)				\
-  ((FIX)->fx_r_type != BFD_RELOC_32_PLT_PCREL			\
-   && (FIX)->fx_r_type != BFD_RELOC_MN10300_GOT32		\
-   && (FIX)->fx_r_type != BFD_RELOC_32_GOT_PCREL		\
-   && ((FIX)->fx_addsy == NULL					\
-       || (! S_IS_EXTERNAL ((FIX)->fx_addsy)			\
-	   && ! S_IS_WEAK ((FIX)->fx_addsy)			\
-	   && S_IS_DEFINED ((FIX)->fx_addsy)			\
-	   && ! S_IS_COMMON ((FIX)->fx_addsy))))
+#define TC_FORCE_RELOCATION(FIX)			\
+  (generic_force_reloc (FIX))
+
+#define TC_FORCE_RELOCATION_LOCAL(FIX)			\
+  (!(FIX)->fx_pcrel					\
+   || (FIX)->fx_r_type == BFD_RELOC_32_PLT_PCREL	\
+   || (FIX)->fx_r_type == BFD_RELOC_MN10300_GOT32	\
+   || (FIX)->fx_r_type == BFD_RELOC_32_GOT_PCREL	\
+   || TC_FORCE_RELOCATION (FIX))
 
 #define md_parse_name(name, exprP, mode, nextcharP) \
     mn10300_parse_name ((name), (exprP), (mode), (nextcharP))

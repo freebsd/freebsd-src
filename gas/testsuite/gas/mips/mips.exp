@@ -292,27 +292,6 @@ proc run_dump_test_arches { name arch_list } {
     }
 }
 
-# run_list_test NAME OPTS (optional): TESTNAME
-#
-# Assemble the file "NAME.d" and compare the assembler standard error
-# output against the regular expressions given in the file "NAME.l".
-# The assembler is passed the flags given in OPTS.  If TESTNAME is
-# provided, it will be used as the name of the test.
-proc run_list_test { name opts {testname {}} } {
-    global srcdir subdir
-    if { [string length $testname] == 0 } then {
-	    set testname "MIPS $name"
-    }
-    set file $srcdir/$subdir/$name
-    gas_run ${name}.s $opts ">&dump.out"
-    if { [regexp_diff "dump.out" "${file}.l"] } then {
-	fail $testname
-	verbose "output is [file_contents "dump.out"]" 2
-	return
-    }
-    pass $testname
-}
-
 # run_list_test_arch NAME OPTS ARCH
 #
 # Invoke "run_list_test" for test NAME with options OPTS, with extra
@@ -390,6 +369,8 @@ mips_arch_create sb1 	64	mips64	{ mips3d } \
 if { [istarget mips*-*-vxworks*] } {
     run_dump_test "vxworks1"
     run_dump_test "vxworks1-xgot"
+    run_dump_test "vxworks1-el"
+    run_dump_test "vxworks1-xgot-el"
 } elseif { [istarget mips*-*-*] } {
     set no_mips16 0
     set elf [expr [istarget *-*-elf*] || [istarget *-*-irix5*] || [istarget *-*-irix6* ] || [istarget *-*-linux*] || [istarget *-*-netbsd*] ]
@@ -400,7 +381,7 @@ if { [istarget mips*-*-vxworks*] } {
     set addr32 [expr [istarget mipstx39*-*-*] || [istarget mips-*-linux*] || [istarget mipsel-*-linux*]]
     set has_newabi [expr [istarget *-*-irix6*] || [istarget mips64*-*-linux*]]
 
-    if { [istarget "mips*-*-*linux*"] } then {
+    if { [istarget "mips*-*-*linux*"] || [istarget "mips*-sde-elf*"] } then {
 	set tmips "t"
     } else {
 	set tmips ""
@@ -531,6 +512,8 @@ if { [istarget mips*-*-vxworks*] } {
     if { $elf && !$no_mips16 } {
 	run_dump_test "mips16"
 	run_dump_test "mips16-64"
+	# Check MIPS16e extensions
+	run_dump_test_arches "mips16e" 	[mips_arch_list_matching mips32]
 	# Check jalx handling
 	run_dump_test "mips16-jalx"
 	run_dump_test "mips-jalx"
@@ -558,6 +541,8 @@ if { [istarget mips*-*-vxworks*] } {
     run_dump_test "sync"
 
     run_dump_test_arches "mips32"	[mips_arch_list_matching mips32]
+
+    run_dump_test_arches "mips32-sf32"	[mips_arch_list_matching mips32]
 
     run_dump_test_arches "mips32r2"	[mips_arch_list_matching mips32r2]
     run_list_test_arches "mips32r2-ill" "-32" \
@@ -633,20 +618,17 @@ if { [istarget mips*-*-vxworks*] } {
   	run_dump_test "mips-abi32-pic2"
 
 	run_dump_test "elf${el}-rel"
-	if {[istarget mips64*-*-*] || [istarget mipsisa32*-*-*]
-	    || [istarget mipsisa64*-*-*]} { 
-	    run_dump_test "elf${el}-rel2"
-	} else {
-	    run_dump_test "e32${el}-rel2"
-	}
+	run_dump_test_arches "elf${el}-rel2" [mips_arch_list_matching gpr64]
+	run_dump_test "e32${el}-rel2"
 	run_dump_test "elf${el}-rel3"
-	if {[istarget mips64*-*-*]} {
-	    run_dump_test "elf-rel4"
-	} else {
-	    run_dump_test "e32-rel4"
-	}
+	run_dump_test_arches "elf-rel4" [mips_arch_list_matching gpr64]
+	run_dump_test "e32-rel4"
 	run_dump_test "elf-rel5"
 	run_dump_test "elf-rel6"
+	if $has_newabi {
+	    run_dump_test "elf-rel6-n32"
+	    run_dump_test "elf-rel6-n64"
+	}
 	run_dump_test "elf-rel7"
 	run_dump_test "elf-rel8"
 	run_dump_test "elf-rel9"
@@ -684,6 +666,7 @@ if { [istarget mips*-*-vxworks*] } {
 
 	run_dump_test "elf-rel25"
 	run_dump_test "elf-rel25a"
+	run_dump_test "elf-rel26"
 
 	if { !$no_mips16 } {
 	    run_dump_test "${tmips}mips${el}16-e"
@@ -766,7 +749,10 @@ if { [istarget mips*-*-vxworks*] } {
     run_list_test "noat-6" ""
     run_list_test "noat-7" ""
 
-    run_dump_test_arches "mips32-dsp"	[mips_arch_list_matching mips32 !sb1]
+    run_dump_test_arches "smartmips"	[mips_arch_list_matching mips32 !gpr64]
+    run_dump_test_arches "mips32-dsp"	[mips_arch_list_matching mips32r2]
+    run_dump_test_arches "mips32-dspr2"	[mips_arch_list_matching mips32r2]
+    run_dump_test_arches "mips64-dsp"	[mips_arch_list_matching mips64r2]
     run_dump_test_arches "mips32-mt"	[mips_arch_list_matching mips32r2 !gpr64]
 
     if { $elf && !$no_mips16 } {
@@ -778,7 +764,14 @@ if { [istarget mips*-*-vxworks*] } {
     if { !$no_mips16 } { 
         run_dump_test "mips16e-jrc"
         run_dump_test "mips16e-save"
+        run_dump_test "mips16e-64"
+        run_list_test "mips16e-64" "-march=mips32 -32"
+        run_dump_test "mips16-intermix"
     }
     run_dump_test "vxworks1"
     run_dump_test "vxworks1-xgot"
+    run_dump_test "vxworks1-el"
+    run_dump_test "vxworks1-xgot-el"
+
+    run_dump_test "noreorder"
 }

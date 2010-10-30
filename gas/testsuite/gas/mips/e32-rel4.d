@@ -1,5 +1,6 @@
 #objdump: --prefix-addresses -dr
-#name: MIPS ELF reloc 4
+#name: MIPS ELF reloc 4 (32-bit)
+#as: -mabi=32
 #source: elf-rel4.s
 
 .*: +file format.*

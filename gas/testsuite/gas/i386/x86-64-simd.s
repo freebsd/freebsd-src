@@ -1,0 +1,29 @@
+	.text
+_start:
+	addsubps 0x12345678(%rip),%xmm1
+	comisd 0x12345678(%rip),%xmm1
+	comiss 0x12345678(%rip),%xmm1
+	cvtdq2pd 0x12345678(%rip),%xmm1
+	cvtpd2dq 0x12345678(%rip),%xmm1
+	cvtps2pd 0x12345678(%rip),%xmm1
+	cvttps2dq 0x12345678(%rip),%xmm1
+	haddps 0x12345678(%rip),%xmm1
+	movdqu %xmm1,0x12345678(%rip)
+	movdqu 0x12345678(%rip),%xmm1
+	movhpd %xmm1,0x12345678(%rip)
+	movhpd 0x12345678(%rip),%xmm1
+	movhps %xmm1,0x12345678(%rip)
+	movhps 0x12345678(%rip),%xmm1
+	movlpd %xmm1,0x12345678(%rip)
+	movlpd 0x12345678(%rip),%xmm1
+	movlps %xmm1,0x12345678(%rip)
+	movlps 0x12345678(%rip),%xmm1
+	movshdup 0x12345678(%rip),%xmm1
+	movsldup 0x12345678(%rip),%xmm1
+	pshufhw $0x90,0x12345678(%rip),%xmm1
+	pshuflw $0x90,0x12345678(%rip),%xmm1
+	punpcklbw 0x12345678(%rip),%mm1
+	punpckldq 0x12345678(%rip),%mm1
+	punpcklwd 0x12345678(%rip),%mm1
+	ucomisd 0x12345678(%rip),%xmm1
+	ucomiss 0x12345678(%rip),%xmm1

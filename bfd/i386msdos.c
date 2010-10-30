@@ -1,6 +1,6 @@
 /* BFD back-end for MS-DOS executables.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 1999, 2001, 2002,
-   2003, 2004, 2005 Free Software Foundation, Inc.
+   2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
    Written by Bryan Ford of the University of Utah.
 
    Contributed by the Center for Software Science at the
@@ -23,8 +23,8 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "libaout.h"
 
@@ -33,24 +33,15 @@
 #define EXE_LOAD_LOW	0xffff
 #define EXE_PAGE_SIZE	512
 
-static int msdos_sizeof_headers
-  PARAMS ((bfd *, bfd_boolean));
-static bfd_boolean msdos_write_object_contents
-  PARAMS ((bfd *));
-static bfd_boolean msdos_set_section_contents
-  PARAMS ((bfd *, sec_ptr, const PTR, file_ptr, bfd_size_type));
-
 static int
-msdos_sizeof_headers (abfd, exec)
-     bfd *abfd ATTRIBUTE_UNUSED;
-     bfd_boolean exec ATTRIBUTE_UNUSED;
+msdos_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
+		      struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
   return 0;
 }
 
 static bfd_boolean
-msdos_write_object_contents (abfd)
-     bfd *abfd;
+msdos_write_object_contents (bfd *abfd)
 {
   static char hdr[EXE_PAGE_SIZE];
   file_ptr outfile_size = sizeof(hdr);
@@ -112,12 +103,11 @@ msdos_write_object_contents (abfd)
 }
 
 static bfd_boolean
-msdos_set_section_contents (abfd, section, location, offset, count)
-     bfd *abfd;
-     sec_ptr section;
-     const PTR location;
-     file_ptr offset;
-     bfd_size_type count;
+msdos_set_section_contents (bfd *abfd,
+			    sec_ptr section,
+			    const void *location,
+			    file_ptr offset,
+			    bfd_size_type count)
 {
 
   if (count == 0)
@@ -140,6 +130,7 @@ msdos_set_section_contents (abfd, section, location, offset, count)
 #define msdos_mkobject aout_32_mkobject
 #define msdos_make_empty_symbol aout_32_make_empty_symbol
 #define msdos_bfd_reloc_type_lookup aout_32_reloc_type_lookup
+#define msdos_bfd_reloc_name_lookup aout_32_reloc_name_lookup
 
 #define	msdos_close_and_cleanup _bfd_generic_close_and_cleanup
 #define msdos_bfd_free_cached_info _bfd_generic_bfd_free_cached_info

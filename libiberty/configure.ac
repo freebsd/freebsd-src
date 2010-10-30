@@ -109,30 +109,32 @@ dnl to call AC_CHECK_PROG.
 AC_CHECK_TOOL(AR, ar)
 AC_CHECK_TOOL(RANLIB, ranlib, :)
 
+dnl When switching to automake, replace the following with AM_ENABLE_MULTILIB.
+# Add --enable-multilib to configure.
+# Default to --enable-multilib
+AC_ARG_ENABLE(multilib,
+[  --enable-multilib       build many library versions (default)],
+[case "$enableval" in
+  yes) multilib=yes ;;
+  no)  multilib=no ;;
+  *)   AC_MSG_ERROR([bad value $enableval for multilib option]) ;;
+ esac],
+	      [multilib=yes])
+
+# Even if the default multilib is not a cross compilation,
+# it may be that some of the other multilibs are.
+if test $cross_compiling = no && test $multilib = yes \
+   && test "x${with_multisubdir}" != x ; then
+   cross_compiling=maybe
+fi
+
 GCC_NO_EXECUTABLES
 AC_PROG_CC
 AC_PROG_CPP_WERROR
 
-# Warn C++ incompatibilities if supported.
-AC_CACHE_CHECK(
-  [whether ${CC} accepts -Wc++-compat],
-  [ac_cv_prog_cc_w_cxx_compat],
-  [save_CFLAGS="$CFLAGS"
-  CFLAGS="-Wc++-compat"
-  AC_COMPILE_IFELSE([AC_LANG_SOURCE([[]])],
-                    [ac_cv_prog_cc_w_cxx_compat=yes],
-                    [ac_cv_prog_cc_w_cxx_compat=no])
-  CFLAGS="$save_CFLAGS"
-  ])
-
-
-if test x$GCC = xyes; then
-  ac_libiberty_warn_cflags='-W -Wall -pedantic -Wwrite-strings -Wstrict-prototypes'
-fi
-if test $ac_cv_prog_cc_w_cxx_compat = yes ; then
-  ac_libiberty_warn_cflags="${ac_libiberty_warn_cflags} -Wc++-compat"
-fi
-AC_SUBST(ac_libiberty_warn_cflags)
+ACX_PROG_CC_WARNING_OPTS([-W -Wall -Wwrite-strings -Wc++-compat \
+			  -Wstrict-prototypes], [ac_libiberty_warn_cflags])
+ACX_PROG_CC_WARNING_ALMOST_PEDANTIC([], [ac_libiberty_warn_cflags])
 
 AC_PROG_CC_C_O
 # autoconf is lame and doesn't give us any substitution variable for this.
@@ -419,6 +421,55 @@ if test -n "${with_target_subdir}"; then
 
   fi
 
+  # If we are being configured for Mingw, we know which functions
+  # Mingw provides and which ones we will be expected to provide.
+
+  case "${host}" in
+  *-*-mingw*)
+    AC_LIBOBJ([asprintf])
+    AC_LIBOBJ([basename])
+    AC_LIBOBJ([bcmp])
+    AC_LIBOBJ([bcopy])
+    AC_LIBOBJ([bzero])
+    AC_LIBOBJ([clock])
+    AC_LIBOBJ([ffs])
+    AC_LIBOBJ([getpagesize])
+    AC_LIBOBJ([index])
+    AC_LIBOBJ([insque])
+    AC_LIBOBJ([mempcpy])
+    AC_LIBOBJ([mkstemps])
+    AC_LIBOBJ([random])
+    AC_LIBOBJ([rindex])
+    AC_LIBOBJ([sigsetmask])
+    AC_LIBOBJ([stpcpy])
+    AC_LIBOBJ([stpncpy])
+    AC_LIBOBJ([strndup])
+    AC_LIBOBJ([strverscmp])
+    AC_LIBOBJ([vasprintf])
+    AC_LIBOBJ([waitpid])
+
+    for f in $funcs; do
+      case "$f" in
+	asprintf | basename | bcmp | bcopy | bzero | clock | ffs | getpagesize | index | insque | mempcpy | mkstemps | random | rindex | sigsetmask | stpcpy | stpncpy | strdup | strndup | strverscmp | vasprintf | waitpid)
+	  ;;
+	*)
+	  n=HAVE_`echo $f | tr 'abcdefghijklmnopqrstuvwxyz' 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'`
+	  AC_DEFINE_UNQUOTED($n)
+	  ;;
+      esac
+    done
+
+    # Mingw doesnt provide any of the variables in $vars, so we
+    # dont have to check them here.
+
+    # Of the functions in $checkfuncs, Mingw only has strerror.
+    AC_DEFINE(HAVE_STRERROR)
+
+    setobjs=yes
+    ;;
+
+  esac
+
   # We may wish to install the target headers somewhere.
   AC_ARG_ENABLE(install-libiberty,
   [  --enable-install-libiberty       Install headers for end users],
@@ -492,6 +543,23 @@ if test -z "${setobjs}"; then
 
     # Of the functions in $checkfuncs, VxWorks only has strerror.
     AC_DEFINE(HAVE_STRERROR)
+
+    setobjs=yes
+    ;;
+
+  *-*-msdosdjgpp)
+    for f in atexit basename bcmp bcopy bsearch bzero calloc clock ffs \
+             getcwd getpagesize getrusage gettimeofday gettimeofday \
+             index insque memchr memcmp memcpy memmove memset psignal \
+             putenv random rename rindex sbrk setenv stpcpy strcasecmp \
+             strchr strdup strerror strncasecmp strrchr strstr strtod \
+             strtol strtoul sysconf times tmpnam vfprintf vprintf \
+             vsprintf waitpid
+    do
+      n=HAVE_`echo $f | tr 'abcdefghijklmnopqrstuvwxyz' 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'`
+      AC_DEFINE_UNQUOTED($n)
+    done
+
 
     setobjs=yes
     ;;

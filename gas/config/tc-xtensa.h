@@ -1,5 +1,5 @@
 /* tc-xtensa.h -- Header file for tc-xtensa.c.
-   Copyright (C) 2003, 2004, 2005 Free Software Foundation, Inc.
+   Copyright (C) 2003, 2004, 2005, 2007 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -131,18 +131,20 @@ enum xtensa_relax_statesE
 
   RELAX_IMMED,
   /* The last instruction in this fragment (at->fr_opcode) contains
-     the value defined by fr_symbol (fr_offset = 0).  If the value
-     does not fit, use the specified expansion.  This is similar to
-     "NARROW", except that these may not be expanded in order to align
-     code.  */
+     an immediate or symbol.  If the value does not fit, relax the
+     opcode using expansions from the relax table.  */
 
   RELAX_IMMED_STEP1,
   /* The last instruction in this fragment (at->fr_opcode) contains a
-     literal.  It has already been expanded at least 1 step.  */
+     literal.  It has already been expanded 1 step.  */
 
   RELAX_IMMED_STEP2,
   /* The last instruction in this fragment (at->fr_opcode) contains a
-     literal.  It has already been expanded at least 2 steps.  */
+     literal.  It has already been expanded 2 steps.  */
+
+  RELAX_IMMED_STEP3,
+  /* The last instruction in this fragment (at->fr_opcode) contains a
+     literal.  It has already been expanded 3 steps.  */
 
   RELAX_SLOTS,
   /* There are instructions within the last VLIW instruction that need
@@ -167,12 +169,19 @@ enum xtensa_relax_statesE
      branch is relaxed, then this frag will be converted to a
      RELAX_UNREACHABLE frag.  */
 
+  RELAX_ORG,
+  /* This marks the location as having previously been an rs_org frag.  
+     rs_org frags are converted to fill-zero frags immediately after
+     relaxation.  However, we need to remember where they were so we can
+     prevent the linker from changing the size of any frag between the
+     section start and the org frag.  */
+
   RELAX_NONE
 };
 
 /* This is used as a stopper to bound the number of steps that
    can be taken.  */
-#define RELAX_IMMED_MAXSTEPS (RELAX_IMMED_STEP2 - RELAX_IMMED)
+#define RELAX_IMMED_MAXSTEPS (RELAX_IMMED_STEP3 - RELAX_IMMED)
 
 struct xtensa_frag_type
 {
@@ -221,7 +230,9 @@ struct xtensa_frag_type
      variable points to the frag where the literal will be stored.  For
      literal frags, this variable points to the nearest literal pool
      location frag.  This literal frag will be moved to after this
-     location.  */
+     location.  For RELAX_LITERAL_POOL_BEGIN frags, this field points
+     to the frag immediately before the corresponding RELAX_LITERAL_POOL_END
+     frag, to make moving frags for this literal pool efficient.  */
   fragS *literal_frag;
 
   /* The destination segment for literal frags.  (Note that this is only
@@ -370,6 +381,9 @@ extern char *xtensa_section_rename (char *);
 #define TC_LINKRELAX_FIXUP(SEG) 0
 #define MD_APPLY_SYM_VALUE(FIX) 0
 #define SUB_SEGMENT_ALIGN(SEG, FRCHAIN) 0
+
+/* Use line number format that is amenable to linker relaxation.  */
+#define DWARF2_USE_FIXED_ADVANCE_PC (linkrelax != 0)
 
 
 /* Resource reservation info functions.  */

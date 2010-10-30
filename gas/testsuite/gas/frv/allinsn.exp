@@ -1,31 +1,19 @@
 # FRV assembler testsuite.
 
-proc run_list_test { name opts } {
-    global srcdir subdir
-    set testname "$name error test ($opts)"
-    gas_run $name.s $opts >&dump.out
-    if {[regexp_diff dump.out $srcdir/$subdir/$name.l]} {
-	fail $testname
-	verbose "output is [file_contents dump.out]" 2
-	return
-    }
-    pass $testname
-}
-
 if [istarget frv*-*-*] {
     run_dump_test "allinsn"
 
     run_dump_test "fdpic"
     run_dump_test "reloc1"
     run_dump_test "fr405-insn"
-    run_list_test "fr405-insn" "-mcpu=fr400"
-    run_list_test "fr405-insn" "-mcpu=fr500"
+    run_list_test "fr405-insn" "-mcpu=fr400" "fr405-insn -mcpu=fr400"
+    run_list_test "fr405-insn" "-mcpu=fr500" "fr405-insn -mcpu=fr500"
 
     run_dump_test "fr450-spr"
     run_dump_test "fr450-insn"
-    run_list_test "fr450-insn" "-mcpu=fr405"
-    run_list_test "fr450-insn" "-mcpu=fr400"
-    run_list_test "fr450-insn" "-mcpu=fr500"
+    run_list_test "fr450-insn" "-mcpu=fr405" "fr450-insn -mcpu=fr405"
+    run_list_test "fr450-insn" "-mcpu=fr400" "fr450-insn -mcpu=fr400"
+    run_list_test "fr450-insn" "-mcpu=fr500" "fr450-insn -mcpu=fr500"
     run_list_test "fr450-media-issue" "-mcpu=fr450"
 
     run_dump_test "fr550-pack1"

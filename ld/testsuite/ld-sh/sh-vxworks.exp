@@ -1,0 +1,42 @@
+if { ![istarget "sh-*-vxworks"] } {
+    return
+}
+
+set endians { "--big" "-EB" "" "--little" "-EL" "-le" }
+
+foreach { gas_option ld_option suffix } $endians {
+    set vxworkstests {
+	{"VxWorks shared library test 1" "-shared -Tvxworks1.ld $ld_option"
+	 "$gas_option" {vxworks1-lib.s}
+	 {{readelf --relocs vxworks1-lib.rd}
+	  {objdump -dr vxworks1-lib$suffix.dd}
+	  {readelf --symbols vxworks1-lib.nd} {readelf -d vxworks1-lib.td}}
+	 "libvxworks1.so"}
+	{"VxWorks executable test 1 (dynamic)" \
+	 "tmpdir/libvxworks1.so -Tvxworks1.ld -q --force-dynamic $ld_option"
+	 "$gas_option" {vxworks1.s}
+	 {{readelf --relocs vxworks1.rd} {objdump -dr vxworks1$suffix.dd}}
+	 "vxworks1"}
+	{"VxWorks executable test 2 (dynamic)" \
+	 "-Tvxworks1.ld -q --force-dynamic $ld_option"
+	 "$gas_option" {vxworks2.s}
+	 {{readelf --segments vxworks2.sd}}
+	 "vxworks2"}
+	{"VxWorks executable test 2 (static)"
+	 "-Tvxworks1.ld $ld_option"
+	 "$gas_option" {vxworks2.s}
+	 {{readelf --segments vxworks2-static.sd}}
+	 "vxworks2"}
+	{"VxWorks shared library test 3" "-shared -Tvxworks1.ld $ld_option"
+	 "$gas_option" {vxworks3-lib.s}
+	    {{objdump -dr vxworks3-lib$suffix.dd}}
+	 "libvxworks3.so"}
+	{"VxWorks executable test 3 (dynamic)" \
+	 "tmpdir/libvxworks3.so -Tvxworks1.ld -q --force-dynamic $ld_option"
+	 "$gas_option" {vxworks3.s}
+	 {{objdump -d vxworks3$suffix.dd}}
+	 "vxworks3"}
+    }
+    run_ld_link_tests [subst $vxworkstests]
+}
+run_dump_test "vxworks1-static"

@@ -1,5 +1,6 @@
 /*  MSP430-specific support for 32-bit ELF
-    Copyright (C) 2002, 2003, 2004 Free Software Foundation, Inc.
+    Copyright (C) 2002, 2003, 2004, 2005, 2006, 2007
+    Free Software Foundation, Inc.
     Contributed by Dmitry Diky <diwil@mail.ru>
 
     This file is part of BFD, the Binary File Descriptor library.
@@ -18,8 +19,8 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libiberty.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
@@ -199,6 +200,23 @@ bfd_elf32_bfd_reloc_type_lookup (bfd * abfd ATTRIBUTE_UNUSED,
   return NULL;
 }
 
+static reloc_howto_type *
+bfd_elf32_bfd_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+				 const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < (sizeof (elf_msp430_howto_table)
+	    / sizeof (elf_msp430_howto_table[0]));
+       i++)
+    if (elf_msp430_howto_table[i].name != NULL
+	&& strcasecmp (elf_msp430_howto_table[i].name, r_name) == 0)
+      return &elf_msp430_howto_table[i];
+
+  return NULL;
+}
+
 /* Set the howto pointer for an MSP430 ELF reloc.  */
 
 static void
@@ -211,48 +229,6 @@ msp430_info_to_howto_rela (bfd * abfd ATTRIBUTE_UNUSED,
   r_type = ELF32_R_TYPE (dst->r_info);
   BFD_ASSERT (r_type < (unsigned int) R_MSP430_max);
   cache_ptr->howto = &elf_msp430_howto_table[r_type];
-}
-
-static asection *
-elf32_msp430_gc_mark_hook (asection * sec,
-			   struct bfd_link_info * info ATTRIBUTE_UNUSED,
-			   Elf_Internal_Rela * rel,
-			   struct elf_link_hash_entry * h,
-			   Elf_Internal_Sym * sym)
-{
-  if (h != NULL)
-    {
-      switch (ELF32_R_TYPE (rel->r_info))
-	{
-	default:
-	  switch (h->root.type)
-	    {
-	    case bfd_link_hash_defined:
-	    case bfd_link_hash_defweak:
-	      return h->root.u.def.section;
-
-	    case bfd_link_hash_common:
-	      return h->root.u.c.p->section;
-
-	    default:
-	      break;
-	    }
-	}
-    }
-  else
-    return bfd_section_from_elf_index (sec->owner, sym->st_shndx);
-
-  return NULL;
-}
-
-static bfd_boolean
-elf32_msp430_gc_sweep_hook (bfd * abfd ATTRIBUTE_UNUSED,
-			    struct bfd_link_info * info ATTRIBUTE_UNUSED,
-			    asection * sec ATTRIBUTE_UNUSED,
-			    const Elf_Internal_Rela * relocs ATTRIBUTE_UNUSED)
-{
-  /* We don't use got and plt entries for msp430.  */
-  return TRUE;
 }
 
 /* Look through the relocs for a section during the first phase.
@@ -454,8 +430,6 @@ elf32_msp430_relocate_section (bfd * output_bfd ATTRIBUTE_UNUSED,
       const char *name = NULL;
       int r_type;
 
-      /* This is a final link.  */
-
       r_type = ELF32_R_TYPE (rel->r_info);
       r_symndx = ELF32_R_SYM (rel->r_info);
       howto = elf_msp430_howto_table + ELF32_R_TYPE (rel->r_info);
@@ -482,6 +456,20 @@ elf32_msp430_relocate_section (bfd * output_bfd ATTRIBUTE_UNUSED,
 				   h, sec, relocation,
 				   unresolved_reloc, warned);
 	}
+
+      if (sec != NULL && elf_discarded_section (sec))
+	{
+	  /* For relocs against symbols from removed linkonce sections,
+	     or sections discarded by a linker script, we just want the
+	     section contents zeroed.  Avoid any special processing.  */
+	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
+	  rel->r_info = 0;
+	  rel->r_addend = 0;
+	  continue;
+	}
+
+      if (info->relocatable)
+	continue;
 
       r = msp430_final_link_relocate (howto, input_bfd, input_section,
 				      contents, rel, relocation);
@@ -683,21 +671,6 @@ elf32_msp430_object_p (bfd * abfd)
     }
 
   return bfd_default_set_arch_mach (abfd, bfd_arch_msp430, e_set);
-}
-
-static void
-elf32_msp430_post_process_headers (bfd * abfd,
-				   struct bfd_link_info * link_info ATTRIBUTE_UNUSED)
-{
-  Elf_Internal_Ehdr * i_ehdrp;	/* ELF file header, internal form.  */
-
-  i_ehdrp = elf_elfheader (abfd);
-
-#ifndef ELFOSABI_STANDALONE
-#define ELFOSABI_STANDALONE	255
-#endif
-
-  i_ehdrp->e_ident[EI_OSABI] = ELFOSABI_STANDALONE;
 }
 
 /* These functions handle relaxing for the msp430.
@@ -1203,6 +1176,7 @@ error_return:
 #define ELF_MACHINE_CODE	EM_MSP430
 #define ELF_MACHINE_ALT1	EM_MSP430_OLD
 #define ELF_MAXPAGESIZE		1
+#define	ELF_OSABI		ELFOSABI_STANDALONE
 
 #define TARGET_LITTLE_SYM       bfd_elf32_msp430_vec
 #define TARGET_LITTLE_NAME	"elf32-msp430"
@@ -1210,13 +1184,11 @@ error_return:
 #define elf_info_to_howto	             msp430_info_to_howto_rela
 #define elf_info_to_howto_rel	             NULL
 #define elf_backend_relocate_section         elf32_msp430_relocate_section
-#define elf_backend_gc_mark_hook             elf32_msp430_gc_mark_hook
-#define elf_backend_gc_sweep_hook            elf32_msp430_gc_sweep_hook
 #define elf_backend_check_relocs             elf32_msp430_check_relocs
 #define elf_backend_can_gc_sections          1
 #define elf_backend_final_write_processing   bfd_elf_msp430_final_write_processing
 #define elf_backend_object_p		     elf32_msp430_object_p
-#define elf_backend_post_process_headers     elf32_msp430_post_process_headers
+#define elf_backend_post_process_headers     _bfd_elf_set_osabi
 #define bfd_elf32_bfd_relax_section	     msp430_elf_relax_section
 
 #include "elf32-target.h"

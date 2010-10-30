@@ -1,0 +1,76 @@
+
+.*:     file format .*
+
+Disassembly of section \.plt:
+
+00080800 <_PROCEDURE_LINKAGE_TABLE_>:
+   80800:	d0 01       	mov\.l	80808 <_PROCEDURE_LINKAGE_TABLE_\+0x8>,r0	! c
+   80802:	00 ce       	mov\.l	@\(r0,r12\),r0
+   80804:	40 2b       	jmp	@r0
+   80806:	00 09       	nop	
+   80808:	00 00 .*
+   8080a:	00 0c .*
+   8080c:	d0 01       	mov\.l	80814 <_PROCEDURE_LINKAGE_TABLE_\+0x14>,r0	! 0
+   8080e:	51 c2       	mov\.l	@\(8,r12\),r1
+   80810:	41 2b       	jmp	@r1
+   80812:	00 09       	nop	
+   80814:	00 00 .*
+	\.\.\.
+
+00080818 <_sexternal@plt>:
+   80818:	d0 01       	mov\.l	80820 <_sexternal@plt\+0x8>,r0	! 10
+   8081a:	00 ce       	mov\.l	@\(r0,r12\),r0
+   8081c:	40 2b       	jmp	@r0
+   8081e:	00 09       	nop	
+   80820:	00 00 .*
+   80822:	00 10 .*
+   80824:	d0 01       	mov\.l	8082c <_sexternal@plt\+0x14>,r0	! c
+   80826:	51 c2       	mov\.l	@\(8,r12\),r1
+   80828:	41 2b       	jmp	@r1
+   8082a:	00 09       	nop	
+   8082c:	00 00 .*
+   8082e:	00 0c .*
+Disassembly of section \.text:
+
+00080c00 <_foo>:
+   80c00:	2f c6       	mov\.l	r12,@-r15
+   80c02:	4f 22       	sts\.l	pr,@-r15
+   80c04:	dc 0a       	mov\.l	80c30 <_foo\+0x30>,r12	! 0
+   80c06:	6c c2       	mov\.l	@r12,r12
+   80c08:	d0 0a       	mov\.l	80c34 <_foo\+0x34>,r0	! 0
+   80c0a:	0c ce       	mov\.l	@\(r0,r12\),r12
+   80c0c:	d0 0a       	mov\.l	80c38 <_foo\+0x38>,r0	! 14
+   80c0e:	01 ce       	mov\.l	@\(r0,r12\),r1
+   80c10:	62 12       	mov\.l	@r1,r2
+   80c12:	72 01       	add	#1,r2
+   80c14:	21 22       	mov\.l	r2,@r1
+   80c16:	d0 09       	mov\.l	80c3c <_foo\+0x3c>,r0	! 2c
+   80c18:	00 03       	bsrf	r0
+   80c1a:	00 09       	nop	
+   80c1c:	d0 08       	mov\.l	80c40 <_foo\+0x40>,r0	! fffffbde
+   80c1e:	00 03       	bsrf	r0
+   80c20:	00 09       	nop	
+   80c22:	d0 08       	mov\.l	80c44 <_foo\+0x44>,r0	! fffffbf0
+   80c24:	00 03       	bsrf	r0
+   80c26:	00 09       	nop	
+   80c28:	4f 26       	lds\.l	@r15\+,pr
+   80c2a:	00 0b       	rts	
+   80c2c:	6c f6       	mov\.l	@r15\+,r12
+   80c2e:	00 09       	nop	
+	...
+   80c38:	00 00 .*
+   80c3a:	00 14 .*
+   80c3c:	00 00 .*
+   80c3e:	00 2c .*
+   80c40:	ff ff .*
+   80c42:	fb de .*
+   80c44:	ff ff .*
+   80c46:	fb f0 .*
+
+00080c48 <_slocal>:
+   80c48:	00 0b       	rts	
+   80c4a:	00 09       	nop	
+
+00080c4c <_sglobal>:
+   80c4c:	00 0b       	rts	
+   80c4e:	00 09       	nop	

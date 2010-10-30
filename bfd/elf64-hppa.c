@@ -1,5 +1,5 @@
 /* Support for HPPA 64-bit ELF
-   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
+   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -19,8 +19,8 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include "alloca-conf.h"
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
 #include "elf/hppa.h"
@@ -203,12 +203,6 @@ static bfd_boolean elf64_hppa_link_output_symbol_hook
 static bfd_boolean elf64_hppa_finish_dynamic_symbol
   PARAMS ((bfd *, struct bfd_link_info *,
 	   struct elf_link_hash_entry *, Elf_Internal_Sym *));
-
-static int elf64_hppa_additional_program_headers
-  PARAMS ((bfd *));
-
-static bfd_boolean elf64_hppa_modify_segment_map
-  PARAMS ((bfd *, struct bfd_link_info *));
 
 static enum elf_reloc_type_class elf64_hppa_reloc_type_class
   PARAMS ((const Elf_Internal_Rela *));
@@ -523,12 +517,12 @@ get_reloc_section (abfd, hppa_info, sec)
   if (srel_name == NULL)
     return FALSE;
 
-  BFD_ASSERT ((strncmp (srel_name, ".rela", 5) == 0
+  BFD_ASSERT ((CONST_STRNEQ (srel_name, ".rela")
 	       && strcmp (bfd_get_section_name (abfd, sec),
-			  srel_name+5) == 0)
-	      || (strncmp (srel_name, ".rel", 4) == 0
+			  srel_name + 5) == 0)
+	      || (CONST_STRNEQ (srel_name, ".rel")
 		  && strcmp (bfd_get_section_name (abfd, sec),
-			     srel_name+4) == 0));
+			     srel_name + 4) == 0));
 
   dynobj = hppa_info->root.dynobj;
   if (!dynobj)
@@ -1204,16 +1198,9 @@ elf64_hppa_post_process_headers (abfd, link_info)
   Elf_Internal_Ehdr * i_ehdrp;
 
   i_ehdrp = elf_elfheader (abfd);
-
-  if (strcmp (bfd_get_target (abfd), "elf64-hppa-linux") == 0)
-    {
-      i_ehdrp->e_ident[EI_OSABI] = ELFOSABI_LINUX;
-    }
-  else
-    {
-      i_ehdrp->e_ident[EI_OSABI] = ELFOSABI_HPUX;
-      i_ehdrp->e_ident[EI_ABIVERSION] = 1;
-    }
+  
+  i_ehdrp->e_ident[EI_OSABI] = get_elf_backend_data (abfd)->elf_osabi;
+  i_ehdrp->e_ident[EI_ABIVERSION] = 1;
 }
 
 /* Create function descriptor section (.opd).  This section is called .opd
@@ -1719,13 +1706,13 @@ elf64_hppa_size_dynamic_sections (output_bfd, info)
 	  plt = s->size != 0;
 	}
       else if (strcmp (name, ".opd") == 0
-	       || strncmp (name, ".dlt", 4) == 0
+	       || CONST_STRNEQ (name, ".dlt")
 	       || strcmp (name, ".stub") == 0
 	       || strcmp (name, ".got") == 0)
 	{
 	  /* Strip this section if we don't need it; see the comment below.  */
 	}
-      else if (strncmp (name, ".rela", 5) == 0)
+      else if (CONST_STRNEQ (name, ".rela"))
 	{
 	  if (s->size != 0)
 	    {
@@ -2617,8 +2604,8 @@ elf64_hppa_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
    existence of a .interp section.  */
 
 static int
-elf64_hppa_additional_program_headers (abfd)
-     bfd *abfd;
+elf64_hppa_additional_program_headers (bfd *abfd,
+				       struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
   asection *s;
 
@@ -2644,9 +2631,8 @@ elf64_hppa_additional_program_headers (abfd)
    existence of a .interp section.  */
 
 static bfd_boolean
-elf64_hppa_modify_segment_map (abfd, info)
-     bfd *abfd;
-     struct bfd_link_info *info ATTRIBUTE_UNUSED;
+elf64_hppa_modify_segment_map (bfd *abfd,
+			       struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
   struct elf_segment_map *m;
   asection *s;
@@ -2759,14 +2745,14 @@ elf64_hppa_section_from_phdr (bfd *abfd, Elf_Internal_Phdr *hdr, int index,
 
 static const struct bfd_elf_special_section elf64_hppa_special_sections[] =
 {
-  { ".fini",   5, 0, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE },
-  { ".init",   5, 0, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE },
-  { ".plt",    4, 0, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE + SHF_PARISC_SHORT },
-  { ".dlt",    4, 0, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE + SHF_PARISC_SHORT },
-  { ".sdata",  6, 0, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE + SHF_PARISC_SHORT },
-  { ".sbss",   5, 0, SHT_NOBITS, SHF_ALLOC + SHF_WRITE + SHF_PARISC_SHORT },
-  { ".tbss",   5, 0, SHT_NOBITS, SHF_ALLOC + SHF_WRITE + SHF_HP_TLS },
-  { NULL,      0, 0, 0,            0 }
+  { STRING_COMMA_LEN (".fini"),  0, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE },
+  { STRING_COMMA_LEN (".init"),  0, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE },
+  { STRING_COMMA_LEN (".plt"),   0, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE + SHF_PARISC_SHORT },
+  { STRING_COMMA_LEN (".dlt"),   0, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE + SHF_PARISC_SHORT },
+  { STRING_COMMA_LEN (".sdata"), 0, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE + SHF_PARISC_SHORT },
+  { STRING_COMMA_LEN (".sbss"),  0, SHT_NOBITS, SHF_ALLOC + SHF_WRITE + SHF_PARISC_SHORT },
+  { STRING_COMMA_LEN (".tbss"),  0, SHT_NOBITS, SHF_ALLOC + SHF_WRITE + SHF_HP_TLS },
+  { NULL,                    0,  0, 0,            0 }
 };
 
 /* The hash bucket size is the standard one, namely 4.  */
@@ -2807,7 +2793,10 @@ const struct elf_size_info hppa64_elf_size_info =
 /* This is not strictly correct.  The maximum page size for PA2.0 is
    64M.  But everything still uses 4k.  */
 #define ELF_MAXPAGESIZE			0x1000
+#define ELF_OSABI			ELFOSABI_HPUX
+
 #define bfd_elf64_bfd_reloc_type_lookup elf_hppa_reloc_type_lookup
+#define bfd_elf64_bfd_reloc_name_lookup elf_hppa_reloc_name_lookup
 #define bfd_elf64_bfd_is_local_label_name       elf_hppa_is_local_label_name
 #define elf_info_to_howto		elf_hppa_info_to_howto
 #define elf_info_to_howto_rel		elf_hppa_info_to_howto_rel
@@ -2827,6 +2816,8 @@ const struct elf_size_info hppa64_elf_size_info =
 					elf64_hppa_create_dynamic_sections
 #define elf_backend_post_process_headers	elf64_hppa_post_process_headers
 
+#define elf_backend_omit_section_dynsym \
+  ((bfd_boolean (*) (bfd *, struct bfd_link_info *, asection *)) bfd_true)
 #define elf_backend_adjust_dynamic_symbol \
 					elf64_hppa_adjust_dynamic_symbol
 
@@ -2871,12 +2862,19 @@ const struct elf_size_info hppa64_elf_size_info =
 #define elf_backend_action_discarded	elf_hppa_action_discarded
 #define elf_backend_section_from_phdr   elf64_hppa_section_from_phdr
 
+#define elf64_bed			elf64_hppa_hpux_bed
+
 #include "elf64-target.h"
 
 #undef TARGET_BIG_SYM
 #define TARGET_BIG_SYM			bfd_elf64_hppa_linux_vec
 #undef TARGET_BIG_NAME
 #define TARGET_BIG_NAME			"elf64-hppa-linux"
+#undef ELF_OSABI
+#define ELF_OSABI			ELFOSABI_LINUX
+#undef elf_backend_post_process_headers
+#define elf_backend_post_process_headers _bfd_elf_set_osabi
+#undef elf64_bed
+#define elf64_bed			elf64_hppa_linux_bed
 
-#define INCLUDED_TARGET_FILE 1
 #include "elf64-target.h"

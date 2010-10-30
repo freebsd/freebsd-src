@@ -14,24 +14,21 @@ Section Headers:
   \[ 2\] \.shstrtab         STRTAB           0+  0+7c
        0+21  0+           0     0     1
   \[ 3\] \.symtab           SYMTAB           0+  0+1e0
-       0+108  0+18           4     5     8
-  \[ 4\] \.strtab           STRTAB           0+  0+2e8
+       0+c0  0+18           4     2     8
+  \[ 4\] \.strtab           STRTAB           0+  0+2a0
        0+2f  0+           0     0     1
 Key to Flags:
   W \(write\), A \(alloc\), X \(execute\), M \(merge\), S \(strings\)
   I \(info\), L \(link order\), G \(group\), x \(unknown\)
   O \(extra OS processing required\) o \(OS specific\), p \(processor specific\)
 
-Symbol table '\.symtab' contains 11 entries:
+Symbol table '\.symtab' contains 8 entries:
    Num:    Value          Size Type    Bind   Vis      Ndx Name
      0: 0+     0 NOTYPE  LOCAL  DEFAULT  UND 
      1: 0+     0 SECTION LOCAL  DEFAULT    1 
-     2: 0+     0 SECTION LOCAL  DEFAULT    2 
-     3: 0+     0 SECTION LOCAL  DEFAULT    3 
-     4: 0+     0 SECTION LOCAL  DEFAULT    4 
-     5: 0+     0 NOTYPE  GLOBAL DEFAULT  UND undefd
-     6: 0+     0 NOTYPE  GLOBAL DEFAULT    1 _start
-     7: 2000000000000000     0 NOTYPE  GLOBAL DEFAULT  ABS __bss_start
-     8: 2000000000000000     0 NOTYPE  GLOBAL DEFAULT  ABS _edata
-     9: 2000000000000000     0 NOTYPE  GLOBAL DEFAULT  ABS _end
-    10: 0+     0 NOTYPE  GLOBAL DEFAULT    1 _start\.
+     2: 0+     0 NOTYPE  GLOBAL DEFAULT  UND undefd
+     3: 0+     0 NOTYPE  GLOBAL DEFAULT    1 _start
+     4: 2000000000000000     0 NOTYPE  GLOBAL DEFAULT  ABS __bss_start
+     5: 2000000000000000     0 NOTYPE  GLOBAL DEFAULT  ABS _edata
+     6: 2000000000000000     0 NOTYPE  GLOBAL DEFAULT  ABS _end
+     7: 0+     0 NOTYPE  GLOBAL DEFAULT    1 _start\.

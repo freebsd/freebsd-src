@@ -1,5 +1,5 @@
 /* Motorola 88k-specific support for 32-bit ELF
-   Copyright 1993, 1995, 1999 Free Software Foundation, Inc.
+   Copyright 1993, 1995, 1999, 2007 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -17,8 +17,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
 
@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
 #define ELF_MACHINE_CODE	EM_88K
 #define ELF_MAXPAGESIZE  	1 /* FIXME: This number is wrong,  It should be the page size in bytes.  */
 #define bfd_elf32_bfd_reloc_type_lookup bfd_default_reloc_type_lookup
+#define bfd_elf32_bfd_reloc_name_lookup _bfd_norelocs_bfd_reloc_name_lookup
 #define elf_info_to_howto		_bfd_elf_no_info_to_howto
 
 #include "elf32-target.h"

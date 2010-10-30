@@ -1,5 +1,5 @@
 /* tc-d10v.c -- Assembler code for the Mitsubishi D10V
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005, 2006, 2007
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -19,7 +19,6 @@
    the Free Software Foundation, 51 Franklin Street - Fifth Floor,
    Boston, MA 02110-1301, USA.  */
 
-#include <stdio.h>
 #include "as.h"
 #include "safe-ctype.h"
 #include "subsegs.h"
@@ -1441,7 +1440,6 @@ do_assemble (char *str, struct d10v_opcode **opcode)
   char name[20];
   int nlen = 0;
   expressionS myops[6];
-  unsigned long insn;
 
   /* Drop leading whitespace.  */
   while (*str == ' ')
@@ -1463,7 +1461,7 @@ do_assemble (char *str, struct d10v_opcode **opcode)
   /* Find the first opcode with the proper name.  */
   *opcode = (struct d10v_opcode *) hash_find (d10v_hash, name);
   if (*opcode == NULL)
-    as_fatal (_("unknown opcode: %s"), name);
+    return -1;
 
   save = input_line_pointer;
   input_line_pointer = (char *) op_end;
@@ -1472,8 +1470,7 @@ do_assemble (char *str, struct d10v_opcode **opcode)
     return -1;
   input_line_pointer = save;
 
-  insn = build_insn ((*opcode), myops, 0);
-  return insn;
+  return build_insn ((*opcode), myops, 0);
 }
 
 /* If while processing a fixup, a reloc really needs to be created.
@@ -1779,7 +1776,7 @@ md_assemble (char *str)
 	  prev_seg = now_seg;
 	  prev_subseg = now_subseg;
 	  if (prev_insn == (unsigned long) -1)
-	    as_fatal (_("can't find opcode "));
+	    as_fatal (_("can't find previous opcode "));
 	  fixups = fixups->next;
 	  str = str2 + 2;
 	}
@@ -1789,11 +1786,10 @@ md_assemble (char *str)
   if (insn == (unsigned long) -1)
     {
       if (extype != PACK_UNSPEC)
-	{
-	  etype = extype;
-	  return;
-	}
-      as_fatal (_("can't find opcode "));
+	etype = extype;
+      else
+	as_bad (_("could not assemble: %s"), str);
+      return;
     }
 
   if (etype != PACK_UNSPEC)

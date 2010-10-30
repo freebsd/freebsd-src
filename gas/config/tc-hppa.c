@@ -1,6 +1,6 @@
 /* tc-hppa.c -- Assemble for the PA
    Copyright 1989, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+   2002, 2003, 2004, 2005, 2006 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -22,11 +22,10 @@
 /* HP PA-RISC support was contributed by the Center for Software Science
    at the University of Utah.  */
 
-#include <stdio.h>
-
 #include "as.h"
 #include "safe-ctype.h"
 #include "subsegs.h"
+#include "dw2gencfi.h"
 
 #include "bfd/libhppa.h"
 
@@ -490,112 +489,42 @@ struct selector_entry
 /* Prototypes for functions local to tc-hppa.c.  */
 
 #ifdef OBJ_SOM
-static void pa_check_current_space_and_subspace PARAMS ((void));
+static void pa_check_current_space_and_subspace (void);
 #endif
 
 #if !(defined (OBJ_ELF) && (defined (TE_LINUX) || defined (TE_NetBSD)))
-static void pa_text PARAMS ((int));
-static void pa_data PARAMS ((int));
-static void pa_comm PARAMS ((int));
+static void pa_text (int);
+static void pa_data (int);
+static void pa_comm (int);
 #endif
-static fp_operand_format pa_parse_fp_format PARAMS ((char **s));
-static void pa_cons PARAMS ((int));
-static void pa_float_cons PARAMS ((int));
-static void pa_fill PARAMS ((int));
-static void pa_lcomm PARAMS ((int));
-static void pa_lsym PARAMS ((int));
-static void pa_stringer PARAMS ((int));
-static void pa_version PARAMS ((int));
-static int pa_parse_fp_cmp_cond PARAMS ((char **));
-static int get_expression PARAMS ((char *));
-static int pa_get_absolute_expression PARAMS ((struct pa_it *, char **));
-static int evaluate_absolute PARAMS ((struct pa_it *));
-static unsigned int pa_build_arg_reloc PARAMS ((char *));
-static unsigned int pa_align_arg_reloc PARAMS ((unsigned int, unsigned int));
-static int pa_parse_nullif PARAMS ((char **));
-static int pa_parse_nonneg_cmpsub_cmpltr PARAMS ((char **));
-static int pa_parse_neg_cmpsub_cmpltr PARAMS ((char **));
-static int pa_parse_neg_add_cmpltr PARAMS ((char **));
-static int pa_parse_nonneg_add_cmpltr PARAMS ((char **));
-static int pa_parse_cmpb_64_cmpltr PARAMS ((char **));
-static int pa_parse_cmpib_64_cmpltr PARAMS ((char **));
-static int pa_parse_addb_64_cmpltr PARAMS ((char **));
-static void pa_block PARAMS ((int));
-static void pa_brtab PARAMS ((int));
-static void pa_try PARAMS ((int));
-static void pa_call PARAMS ((int));
-static void pa_call_args PARAMS ((struct call_desc *));
-static void pa_callinfo PARAMS ((int));
-static void pa_copyright PARAMS ((int));
-static void pa_end PARAMS ((int));
-static void pa_enter PARAMS ((int));
-static void pa_entry PARAMS ((int));
-static void pa_equ PARAMS ((int));
-static void pa_exit PARAMS ((int));
-static void pa_export PARAMS ((int));
-static void pa_type_args PARAMS ((symbolS *, int));
-static void pa_import PARAMS ((int));
-static void pa_label PARAMS ((int));
-static void pa_leave PARAMS ((int));
-static void pa_level PARAMS ((int));
-static void pa_origin PARAMS ((int));
-static void pa_proc PARAMS ((int));
-static void pa_procend PARAMS ((int));
-static void pa_param PARAMS ((int));
-static void pa_undefine_label PARAMS ((void));
-static int need_pa11_opcode PARAMS ((void));
-static int pa_parse_number PARAMS ((char **, int));
-static label_symbol_struct *pa_get_label PARAMS ((void));
 #ifdef OBJ_SOM
-static int exact_log2 PARAMS ((int));
-static void pa_compiler PARAMS ((int));
-static void pa_align PARAMS ((int));
-static void pa_space PARAMS ((int));
-static void pa_spnum PARAMS ((int));
-static void pa_subspace PARAMS ((int));
-static sd_chain_struct *create_new_space PARAMS ((char *, int, int,
+static int exact_log2 (int);
+static void pa_compiler (int);
+static void pa_align (int);
+static void pa_space (int);
+static void pa_spnum (int);
+static void pa_subspace (int);
+static sd_chain_struct *create_new_space (char *, int, int,
 						  int, int, int,
-						  asection *, int));
-static ssd_chain_struct *create_new_subspace PARAMS ((sd_chain_struct *,
+						  asection *, int);
+static ssd_chain_struct *create_new_subspace (sd_chain_struct *,
 						      char *, int, int,
 						      int, int, int, int,
 						      int, int, int, int,
-						      int, asection *));
-static ssd_chain_struct *update_subspace PARAMS ((sd_chain_struct *,
+						      int, asection *);
+static ssd_chain_struct *update_subspace (sd_chain_struct *,
 						  char *, int, int, int,
 						  int, int, int, int,
 						  int, int, int, int,
-						  asection *));
-static sd_chain_struct *is_defined_space PARAMS ((char *));
-static ssd_chain_struct *is_defined_subspace PARAMS ((char *));
-static sd_chain_struct *pa_segment_to_space PARAMS ((asection *));
-static ssd_chain_struct *pa_subsegment_to_subspace PARAMS ((asection *,
-							    subsegT));
-static sd_chain_struct *pa_find_space_by_number PARAMS ((int));
-static unsigned int pa_subspace_start PARAMS ((sd_chain_struct *, int));
-static sd_chain_struct *pa_parse_space_stmt PARAMS ((char *, int));
-static void pa_spaces_begin PARAMS ((void));
-#endif
-static void pa_ip PARAMS ((char *));
-static void fix_new_hppa PARAMS ((fragS *, int, int, symbolS *,
-				  offsetT, expressionS *, int,
-				  bfd_reloc_code_real_type,
-				  enum hppa_reloc_field_selector_type_alt,
-				  int, unsigned int, int));
-static int is_end_of_statement PARAMS ((void));
-static int reg_name_search PARAMS ((char *));
-static int pa_chk_field_selector PARAMS ((char **));
-static int is_same_frag PARAMS ((fragS *, fragS *));
-static void process_exit PARAMS ((void));
-static unsigned int pa_stringer_aux PARAMS ((char *));
-static fp_operand_format pa_parse_fp_cnv_format PARAMS ((char **s));
-static int pa_parse_ftest_gfx_completer PARAMS ((char **));
-
-#ifdef OBJ_ELF
-static void hppa_elf_mark_end_of_function PARAMS ((void));
-static void pa_build_unwind_subspace PARAMS ((struct call_info *));
-static void pa_vtable_entry PARAMS ((int));
-static void pa_vtable_inherit  PARAMS ((int));
+						  asection *);
+static sd_chain_struct *is_defined_space (char *);
+static ssd_chain_struct *is_defined_subspace (char *);
+static sd_chain_struct *pa_segment_to_space (asection *);
+static ssd_chain_struct *pa_subsegment_to_subspace (asection *,
+							    subsegT);
+static sd_chain_struct *pa_find_space_by_number (int);
+static unsigned int pa_subspace_start (sd_chain_struct *, int);
+static sd_chain_struct *pa_parse_space_stmt (char *, int);
 #endif
 
 /* File and globally scoped variable declarations.  */
@@ -628,96 +557,6 @@ static struct hash_control *op_hash = NULL;
    followed by meaningful whitespace.  We don't include `,' and `!'
    as they never appear followed by meaningful whitespace.  */
 const char hppa_symbol_chars[] = "*?=<>";
-
-/* Table of pseudo ops for the PA.  FIXME -- how many of these
-   are now redundant with the overall GAS and the object file
-   dependent tables?  */
-const pseudo_typeS md_pseudo_table[] =
-{
-  /* align pseudo-ops on the PA specify the actual alignment requested,
-     not the log2 of the requested alignment.  */
-#ifdef OBJ_SOM
-  {"align", pa_align, 8},
-#endif
-#ifdef OBJ_ELF
-  {"align", s_align_bytes, 8},
-#endif
-  {"begin_brtab", pa_brtab, 1},
-  {"begin_try", pa_try, 1},
-  {"block", pa_block, 1},
-  {"blockz", pa_block, 0},
-  {"byte", pa_cons, 1},
-  {"call", pa_call, 0},
-  {"callinfo", pa_callinfo, 0},
-#if defined (OBJ_ELF) && (defined (TE_LINUX) || defined (TE_NetBSD))
-  {"code", obj_elf_text, 0},
-#else
-  {"code", pa_text, 0},
-  {"comm", pa_comm, 0},
-#endif
-#ifdef OBJ_SOM
-  {"compiler", pa_compiler, 0},
-#endif
-  {"copyright", pa_copyright, 0},
-#if !(defined (OBJ_ELF) && (defined (TE_LINUX) || defined (TE_NetBSD)))
-  {"data", pa_data, 0},
-#endif
-  {"double", pa_float_cons, 'd'},
-  {"dword", pa_cons, 8},
-  {"end", pa_end, 0},
-  {"end_brtab", pa_brtab, 0},
-#if !(defined (OBJ_ELF) && (defined (TE_LINUX) || defined (TE_NetBSD)))
-  {"end_try", pa_try, 0},
-#endif
-  {"enter", pa_enter, 0},
-  {"entry", pa_entry, 0},
-  {"equ", pa_equ, 0},
-  {"exit", pa_exit, 0},
-  {"export", pa_export, 0},
-  {"fill", pa_fill, 0},
-  {"float", pa_float_cons, 'f'},
-  {"half", pa_cons, 2},
-  {"import", pa_import, 0},
-  {"int", pa_cons, 4},
-  {"label", pa_label, 0},
-  {"lcomm", pa_lcomm, 0},
-  {"leave", pa_leave, 0},
-  {"level", pa_level, 0},
-  {"long", pa_cons, 4},
-  {"lsym", pa_lsym, 0},
-#ifdef OBJ_SOM
-  {"nsubspa", pa_subspace, 1},
-#endif
-  {"octa", pa_cons, 16},
-  {"org", pa_origin, 0},
-  {"origin", pa_origin, 0},
-  {"param", pa_param, 0},
-  {"proc", pa_proc, 0},
-  {"procend", pa_procend, 0},
-  {"quad", pa_cons, 8},
-  {"reg", pa_equ, 1},
-  {"short", pa_cons, 2},
-  {"single", pa_float_cons, 'f'},
-#ifdef OBJ_SOM
-  {"space", pa_space, 0},
-  {"spnum", pa_spnum, 0},
-#endif
-  {"string", pa_stringer, 0},
-  {"stringz", pa_stringer, 1},
-#ifdef OBJ_SOM
-  {"subspa", pa_subspace, 0},
-#endif
-#if !(defined (OBJ_ELF) && (defined (TE_LINUX) || defined (TE_NetBSD)))
-  {"text", pa_text, 0},
-#endif
-  {"version", pa_version, 0},
-#ifdef OBJ_ELF
-  {"vtable_entry", pa_vtable_entry, 0},
-  {"vtable_inherit", pa_vtable_inherit, 0},
-#endif
-  {"word", pa_cons, 4},
-  {NULL, 0, 0}
-};
 
 /* This array holds the chars that only start a comment at the beginning of
    a line.  If the line seems to have the form '# 123 filename'
@@ -1215,6 +1054,26 @@ static struct default_space_dict pa_def_spaces[] =
   ((exp).X_op == O_subtract			\
    && strcmp (S_GET_NAME ((exp).X_op_symbol), "$PIC_pcrel$0") == 0)
 
+#define is_tls_gdidx(exp)			\
+  ((exp).X_op == O_subtract			\
+   && strcmp (S_GET_NAME ((exp).X_op_symbol), "$tls_gdidx$") == 0)
+
+#define is_tls_ldidx(exp)			\
+  ((exp).X_op == O_subtract			\
+   && strcmp (S_GET_NAME ((exp).X_op_symbol), "$tls_ldidx$") == 0)
+
+#define is_tls_dtpoff(exp)			\
+  ((exp).X_op == O_subtract			\
+   && strcmp (S_GET_NAME ((exp).X_op_symbol), "$tls_dtpoff$") == 0)
+
+#define is_tls_ieoff(exp)			\
+  ((exp).X_op == O_subtract			\
+   && strcmp (S_GET_NAME ((exp).X_op_symbol), "$tls_ieoff$") == 0)
+
+#define is_tls_leoff(exp)			\
+  ((exp).X_op == O_subtract			\
+   && strcmp (S_GET_NAME ((exp).X_op_symbol), "$tls_leoff$") == 0)
+
 /* We need some complex handling for stabs (sym1 - sym2).  Luckily, we'll
    always be able to reduce the expression to a constant, so we don't
    need real complex handling yet.  */
@@ -1227,7 +1086,7 @@ static struct default_space_dict pa_def_spaces[] =
    proc/procend pairs match.  */
 
 void
-pa_check_eof ()
+pa_check_eof (void)
 {
   if (within_entry_exit)
     as_fatal (_("Missing .exit\n"));
@@ -1240,7 +1099,7 @@ pa_check_eof ()
    or NULL if no label_symbol_struct exists for the current space.  */
 
 static label_symbol_struct *
-pa_get_label ()
+pa_get_label (void)
 {
   label_symbol_struct *label_chain;
 
@@ -1265,8 +1124,7 @@ pa_get_label ()
    this function will replace it with the new label.  */
 
 void
-pa_define_label (symbol)
-     symbolS *symbol;
+pa_define_label (symbolS *symbol)
 {
   label_symbol_struct *label_chain = pa_get_label ();
 
@@ -1275,8 +1133,7 @@ pa_define_label (symbol)
   else
     {
       /* Create a new label entry and add it to the head of the chain.  */
-      label_chain
-	= (label_symbol_struct *) xmalloc (sizeof (label_symbol_struct));
+      label_chain = xmalloc (sizeof (label_symbol_struct));
       label_chain->lss_label = symbol;
 #ifdef OBJ_SOM
       label_chain->lss_space = current_space;
@@ -1301,7 +1158,7 @@ pa_define_label (symbol)
    If there is no label_symbol_struct entry, then no action is taken.  */
 
 static void
-pa_undefine_label ()
+pa_undefine_label (void)
 {
   label_symbol_struct *label_chain;
   label_symbol_struct *prev_label_chain = NULL;
@@ -1340,25 +1197,21 @@ pa_undefine_label ()
    tc_fix_data field.  */
 
 static void
-fix_new_hppa (frag, where, size, add_symbol, offset, exp, pcrel,
-	      r_type, r_field, r_format, arg_reloc, unwind_bits)
-     fragS *frag;
-     int where;
-     int size;
-     symbolS *add_symbol;
-     offsetT offset;
-     expressionS *exp;
-     int pcrel;
-     bfd_reloc_code_real_type r_type;
-     enum hppa_reloc_field_selector_type_alt r_field;
-     int r_format;
-     unsigned int arg_reloc;
-     int unwind_bits ATTRIBUTE_UNUSED;
+fix_new_hppa (fragS *frag,
+	      int where,
+	      int size,
+	      symbolS *add_symbol,
+	      offsetT offset,
+	      expressionS *exp,
+	      int pcrel,
+	      bfd_reloc_code_real_type r_type,
+	      enum hppa_reloc_field_selector_type_alt r_field,
+	      int r_format,
+	      unsigned int arg_reloc,
+	      int unwind_bits ATTRIBUTE_UNUSED)
 {
   fixS *new_fix;
-
-  struct hppa_fix_struct *hppa_fix = (struct hppa_fix_struct *)
-  obstack_alloc (&notes, sizeof (struct hppa_fix_struct));
+  struct hppa_fix_struct *hppa_fix = obstack_alloc (&notes, sizeof (struct hppa_fix_struct));
 
   if (exp != NULL)
     new_fix = fix_new_exp (frag, where, size, exp, pcrel, r_type);
@@ -1380,30 +1233,20 @@ fix_new_hppa (frag, where, size, add_symbol, offset, exp, pcrel,
      it now so as not to confuse write.c.  Ditto for $PIC_pcrel$0.  */
   if (new_fix->fx_subsy
       && (strcmp (S_GET_NAME (new_fix->fx_subsy), "$global$") == 0
-	  || strcmp (S_GET_NAME (new_fix->fx_subsy), "$PIC_pcrel$0") == 0))
+	  || strcmp (S_GET_NAME (new_fix->fx_subsy), "$PIC_pcrel$0") == 0
+	  || strcmp (S_GET_NAME (new_fix->fx_subsy), "$tls_gdidx$") == 0
+	  || strcmp (S_GET_NAME (new_fix->fx_subsy), "$tls_ldidx$") == 0
+	  || strcmp (S_GET_NAME (new_fix->fx_subsy), "$tls_dtpoff$") == 0
+	  || strcmp (S_GET_NAME (new_fix->fx_subsy), "$tls_ieoff$") == 0
+	  || strcmp (S_GET_NAME (new_fix->fx_subsy), "$tls_leoff$") == 0))
     new_fix->fx_subsy = NULL;
-}
-
-/* Parse a .byte, .word, .long expression for the HPPA.  Called by
-   cons via the TC_PARSE_CONS_EXPRESSION macro.  */
-
-void
-parse_cons_expression_hppa (exp)
-     expressionS *exp;
-{
-  hppa_field_selector = pa_chk_field_selector (&input_line_pointer);
-  expression (exp);
 }
 
 /* This fix_new is called by cons via TC_CONS_FIX_NEW.
    hppa_field_selector is set by the parse_cons_expression_hppa.  */
 
 void
-cons_fix_new_hppa (frag, where, size, exp)
-     fragS *frag;
-     int where;
-     int size;
-     expressionS *exp;
+cons_fix_new_hppa (fragS *frag, int where, int size, expressionS *exp)
 {
   unsigned int rel_type;
 
@@ -1412,6 +1255,18 @@ cons_fix_new_hppa (frag, where, size, exp)
     rel_type = R_HPPA_GOTOFF;
   else if (is_PC_relative (*exp))
     rel_type = R_HPPA_PCREL_CALL;
+#ifdef OBJ_ELF
+  else if (is_tls_gdidx (*exp))
+    rel_type = R_PARISC_TLS_GD21L;
+  else if (is_tls_ldidx (*exp))
+    rel_type = R_PARISC_TLS_LDM21L;
+  else if (is_tls_dtpoff (*exp))
+    rel_type = R_PARISC_TLS_LDO21L;
+  else if (is_tls_ieoff (*exp))
+    rel_type = R_PARISC_TLS_IE21L;
+  else if (is_tls_leoff (*exp))
+    rel_type = R_PARISC_TLS_LE21L;
+#endif
   else if (is_complex (*exp))
     rel_type = R_HPPA_COMPLEX;
   else
@@ -1431,155 +1286,1936 @@ cons_fix_new_hppa (frag, where, size, exp)
   hppa_field_selector = 0;
 }
 
-/* This function is called once, at assembler startup time.  It should
-   set up all the tables, etc. that the MD part of the assembler will need.  */
+/* Mark (via expr_end) the end of an expression (I think).  FIXME.  */
 
-void
-md_begin ()
+static void
+get_expression (char *str)
 {
-  const char *retval = NULL;
-  int lose = 0;
-  unsigned int i = 0;
+  char *save_in;
+  asection *seg;
 
-  last_call_info = NULL;
-  call_info_root = NULL;
-
-  /* Set the default machine type.  */
-  if (!bfd_set_arch_mach (stdoutput, bfd_arch_hppa, DEFAULT_LEVEL))
-    as_warn (_("could not set architecture and machine"));
-
-  /* Folding of text and data segments fails miserably on the PA.
-     Warn user and disable "-R" option.  */
-  if (flag_readonly_data_in_text)
+  save_in = input_line_pointer;
+  input_line_pointer = str;
+  seg = expression (&the_insn.exp);
+  if (!(seg == absolute_section
+	|| seg == undefined_section
+	|| SEG_NORMAL (seg)))
     {
-      as_warn (_("-R option not supported on this target."));
-      flag_readonly_data_in_text = 0;
+      as_warn (_("Bad segment in expression."));
+      expr_end = input_line_pointer;
+      input_line_pointer = save_in;
+      return;
     }
-
-#ifdef OBJ_SOM
-  pa_spaces_begin ();
-#endif
-
-  op_hash = hash_new ();
-
-  while (i < NUMOPCODES)
-    {
-      const char *name = pa_opcodes[i].name;
-      retval = hash_insert (op_hash, name, (struct pa_opcode *) &pa_opcodes[i]);
-      if (retval != NULL && *retval != '\0')
-	{
-	  as_fatal (_("Internal error: can't hash `%s': %s\n"), name, retval);
-	  lose = 1;
-	}
-      do
-	{
-	  if ((pa_opcodes[i].match & pa_opcodes[i].mask)
-	      != pa_opcodes[i].match)
-	    {
-	      fprintf (stderr, _("internal error: losing opcode: `%s' \"%s\"\n"),
-		       pa_opcodes[i].name, pa_opcodes[i].args);
-	      lose = 1;
-	    }
-	  ++i;
-	}
-      while (i < NUMOPCODES && !strcmp (pa_opcodes[i].name, name));
-    }
-
-  if (lose)
-    as_fatal (_("Broken assembler.  No assembly attempted."));
-
-#ifdef OBJ_SOM
-  /* SOM will change text_section.  To make sure we never put
-     anything into the old one switch to the new one now.  */
-  subseg_set (text_section, 0);
-#endif
-
-#ifdef OBJ_SOM
-  dummy_symbol = symbol_find_or_make ("L$dummy");
-  S_SET_SEGMENT (dummy_symbol, text_section);
-  /* Force the symbol to be converted to a real symbol.  */
-  (void) symbol_get_bfdsym (dummy_symbol);
-#endif
+  expr_end = input_line_pointer;
+  input_line_pointer = save_in;
 }
 
-/* Assemble a single instruction storing it into a frag.  */
-void
-md_assemble (str)
-     char *str;
+/* Parse a PA nullification completer (,n).  Return nonzero if the
+   completer was found; return zero if no completer was found.  */
+
+static int
+pa_parse_nullif (char **s)
 {
-  char *to;
+  int nullif;
 
-  /* The had better be something to assemble.  */
-  assert (str);
-
-  /* If we are within a procedure definition, make sure we've
-     defined a label for the procedure; handle case where the
-     label was defined after the .PROC directive.
-
-     Note there's not need to diddle with the segment or fragment
-     for the label symbol in this case.  We have already switched
-     into the new $CODE$ subspace at this point.  */
-  if (within_procedure && last_call_info->start_symbol == NULL)
+  nullif = 0;
+  if (**s == ',')
     {
-      label_symbol_struct *label_symbol = pa_get_label ();
-
-      if (label_symbol)
-	{
-	  if (label_symbol->lss_label)
-	    {
-	      last_call_info->start_symbol = label_symbol->lss_label;
-	      symbol_get_bfdsym (label_symbol->lss_label)->flags
-		|= BSF_FUNCTION;
-#ifdef OBJ_SOM
-	      /* Also handle allocation of a fixup to hold the unwind
-		 information when the label appears after the proc/procend.  */
-	      if (within_entry_exit)
-		{
-		  char *where;
-		  unsigned int u;
-
-		  where = frag_more (0);
-		  u = UNWIND_LOW32 (&last_call_info->ci_unwind.descriptor);
-		  fix_new_hppa (frag_now, where - frag_now->fr_literal, 0,
-				NULL, (offsetT) 0, NULL,
-				0, R_HPPA_ENTRY, e_fsel, 0, 0, u);
-		}
-#endif
-	    }
-	  else
-	    as_bad (_("Missing function name for .PROC (corrupted label chain)"));
-	}
+      *s = *s + 1;
+      if (strncasecmp (*s, "n", 1) == 0)
+	nullif = 1;
       else
-	as_bad (_("Missing function name for .PROC"));
+	{
+	  as_bad (_("Invalid Nullification: (%c)"), **s);
+	  nullif = 0;
+	}
+      *s = *s + 1;
     }
 
-  /* Assemble the instruction.  Results are saved into "the_insn".  */
-  pa_ip (str);
+  return nullif;
+}
 
-  /* Get somewhere to put the assembled instruction.  */
-  to = frag_more (4);
+/* Turn a string in input_line_pointer into a floating point constant of type
+   type, and store the appropriate bytes in *litP.  The number of LITTLENUMS
+   emitted is stored in *sizeP .  An error message or NULL is returned.  */
 
-  /* Output the opcode.  */
-  md_number_to_chars (to, the_insn.opcode, 4);
+#define MAX_LITTLENUMS 6
 
-  /* If necessary output more stuff.  */
-  if (the_insn.reloc != R_HPPA_NONE)
-    fix_new_hppa (frag_now, (to - frag_now->fr_literal), 4, NULL,
-		  (offsetT) 0, &the_insn.exp, the_insn.pcrel,
-		  the_insn.reloc, the_insn.field_selector,
-		  the_insn.format, the_insn.arg_reloc, 0);
+char *
+md_atof (int type, char *litP, int *sizeP)
+{
+  int prec;
+  LITTLENUM_TYPE words[MAX_LITTLENUMS];
+  LITTLENUM_TYPE *wordP;
+  char *t;
+
+  switch (type)
+    {
+
+    case 'f':
+    case 'F':
+    case 's':
+    case 'S':
+      prec = 2;
+      break;
+
+    case 'd':
+    case 'D':
+    case 'r':
+    case 'R':
+      prec = 4;
+      break;
+
+    case 'x':
+    case 'X':
+      prec = 6;
+      break;
+
+    case 'p':
+    case 'P':
+      prec = 6;
+      break;
+
+    default:
+      *sizeP = 0;
+      return _("Bad call to MD_ATOF()");
+    }
+  t = atof_ieee (input_line_pointer, type, words);
+  if (t)
+    input_line_pointer = t;
+  *sizeP = prec * sizeof (LITTLENUM_TYPE);
+  for (wordP = words; prec--;)
+    {
+      md_number_to_chars (litP, (valueT) (*wordP++), sizeof (LITTLENUM_TYPE));
+      litP += sizeof (LITTLENUM_TYPE);
+    }
+  return NULL;
+}
+
+/* Write out big-endian.  */
+
+void
+md_number_to_chars (char *buf, valueT val, int n)
+{
+  number_to_chars_bigendian (buf, val, n);
+}
+
+/* Translate internal representation of relocation info to BFD target
+   format.  */
+
+arelent **
+tc_gen_reloc (asection *section, fixS *fixp)
+{
+  arelent *reloc;
+  struct hppa_fix_struct *hppa_fixp;
+  static arelent *no_relocs = NULL;
+  arelent **relocs;
+  reloc_type **codes;
+  reloc_type code;
+  int n_relocs;
+  int i;
+
+  hppa_fixp = (struct hppa_fix_struct *) fixp->tc_fix_data;
+  if (fixp->fx_addsy == 0)
+    return &no_relocs;
+
+  assert (hppa_fixp != 0);
+  assert (section != 0);
+
+  reloc = xmalloc (sizeof (arelent));
+
+  reloc->sym_ptr_ptr = xmalloc (sizeof (asymbol *));
+  *reloc->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
+  codes = hppa_gen_reloc_type (stdoutput,
+			       fixp->fx_r_type,
+			       hppa_fixp->fx_r_format,
+			       hppa_fixp->fx_r_field,
+			       fixp->fx_subsy != NULL,
+			       symbol_get_bfdsym (fixp->fx_addsy));
+
+  if (codes == NULL)
+    {
+      as_bad_where (fixp->fx_file, fixp->fx_line, _("Cannot handle fixup"));
+      abort ();
+    }
+
+  for (n_relocs = 0; codes[n_relocs]; n_relocs++)
+    ;
+
+  relocs = xmalloc (sizeof (arelent *) * n_relocs + 1);
+  reloc = xmalloc (sizeof (arelent) * n_relocs);
+  for (i = 0; i < n_relocs; i++)
+    relocs[i] = &reloc[i];
+
+  relocs[n_relocs] = NULL;
 
 #ifdef OBJ_ELF
-  dwarf2_emit_insn (4);
+  switch (fixp->fx_r_type)
+    {
+    default:
+      assert (n_relocs == 1);
+
+      code = *codes[0];
+
+      /* Now, do any processing that is dependent on the relocation type.  */
+      switch (code)
+	{
+	case R_PARISC_DLTREL21L:
+	case R_PARISC_DLTREL14R:
+	case R_PARISC_DLTREL14F:
+	case R_PARISC_PLABEL32:
+	case R_PARISC_PLABEL21L:
+	case R_PARISC_PLABEL14R:
+	  /* For plabel relocations, the addend of the
+	     relocation should be either 0 (no static link) or 2
+	     (static link required).  This adjustment is done in
+	     bfd/elf32-hppa.c:elf32_hppa_relocate_section.
+
+	     We also slam a zero addend into the DLT relative relocs;
+	     it doesn't make a lot of sense to use any addend since
+	     it gets you a different (eg unknown) DLT entry.  */
+	  reloc->addend = 0;
+	  break;
+
+#ifdef ELF_ARG_RELOC
+	case R_PARISC_PCREL17R:
+	case R_PARISC_PCREL17F:
+	case R_PARISC_PCREL17C:
+	case R_PARISC_DIR17R:
+	case R_PARISC_DIR17F:
+	case R_PARISC_PCREL21L:
+	case R_PARISC_DIR21L:
+	  reloc->addend = HPPA_R_ADDEND (hppa_fixp->fx_arg_reloc,
+					 fixp->fx_offset);
+	  break;
 #endif
+
+	case R_PARISC_DIR32:
+	  /* Facilitate hand-crafted unwind info.  */
+	  if (strcmp (section->name, UNWIND_SECTION_NAME) == 0)
+	    code = R_PARISC_SEGREL32;
+	  /* Fall thru */
+
+	default:
+	  reloc->addend = fixp->fx_offset;
+	  break;
+	}
+
+      reloc->sym_ptr_ptr = xmalloc (sizeof (asymbol *));
+      *reloc->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
+      reloc->howto = bfd_reloc_type_lookup (stdoutput,
+					    (bfd_reloc_code_real_type) code);
+      reloc->address = fixp->fx_frag->fr_address + fixp->fx_where;
+
+      assert (reloc->howto && (unsigned int) code == reloc->howto->type);
+      break;
+    }
+#else /* OBJ_SOM */
+
+  /* Walk over reach relocation returned by the BFD backend.  */
+  for (i = 0; i < n_relocs; i++)
+    {
+      code = *codes[i];
+
+      relocs[i]->sym_ptr_ptr = xmalloc (sizeof (asymbol *));
+      *relocs[i]->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
+      relocs[i]->howto =
+	bfd_reloc_type_lookup (stdoutput,
+			       (bfd_reloc_code_real_type) code);
+      relocs[i]->address = fixp->fx_frag->fr_address + fixp->fx_where;
+
+      switch (code)
+	{
+	case R_COMP2:
+	  /* The only time we ever use a R_COMP2 fixup is for the difference
+	     of two symbols.  With that in mind we fill in all four
+	     relocs now and break out of the loop.  */
+	  assert (i == 1);
+	  relocs[0]->sym_ptr_ptr
+	    = (asymbol **) bfd_abs_section_ptr->symbol_ptr_ptr;
+	  relocs[0]->howto
+	    = bfd_reloc_type_lookup (stdoutput,
+				     (bfd_reloc_code_real_type) *codes[0]);
+	  relocs[0]->address = fixp->fx_frag->fr_address + fixp->fx_where;
+	  relocs[0]->addend = 0;
+	  relocs[1]->sym_ptr_ptr = xmalloc (sizeof (asymbol *));
+	  *relocs[1]->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
+	  relocs[1]->howto
+	    = bfd_reloc_type_lookup (stdoutput,
+				     (bfd_reloc_code_real_type) *codes[1]);
+	  relocs[1]->address = fixp->fx_frag->fr_address + fixp->fx_where;
+	  relocs[1]->addend = 0;
+	  relocs[2]->sym_ptr_ptr = xmalloc (sizeof (asymbol *));
+	  *relocs[2]->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_subsy);
+	  relocs[2]->howto
+	    = bfd_reloc_type_lookup (stdoutput,
+				     (bfd_reloc_code_real_type) *codes[2]);
+	  relocs[2]->address = fixp->fx_frag->fr_address + fixp->fx_where;
+	  relocs[2]->addend = 0;
+	  relocs[3]->sym_ptr_ptr
+	    = (asymbol **) bfd_abs_section_ptr->symbol_ptr_ptr;
+	  relocs[3]->howto
+	    = bfd_reloc_type_lookup (stdoutput,
+				     (bfd_reloc_code_real_type) *codes[3]);
+	  relocs[3]->address = fixp->fx_frag->fr_address + fixp->fx_where;
+	  relocs[3]->addend = 0;
+	  relocs[4]->sym_ptr_ptr
+	    = (asymbol **) bfd_abs_section_ptr->symbol_ptr_ptr;
+	  relocs[4]->howto
+	    = bfd_reloc_type_lookup (stdoutput,
+				     (bfd_reloc_code_real_type) *codes[4]);
+	  relocs[4]->address = fixp->fx_frag->fr_address + fixp->fx_where;
+	  relocs[4]->addend = 0;
+	  goto done;
+	case R_PCREL_CALL:
+	case R_ABS_CALL:
+	  relocs[i]->addend = HPPA_R_ADDEND (hppa_fixp->fx_arg_reloc, 0);
+	  break;
+
+	case R_DLT_REL:
+	case R_DATA_PLABEL:
+	case R_CODE_PLABEL:
+	  /* For plabel relocations, the addend of the
+	     relocation should be either 0 (no static link) or 2
+	     (static link required).
+
+	     FIXME: We always assume no static link!
+
+	     We also slam a zero addend into the DLT relative relocs;
+	     it doesn't make a lot of sense to use any addend since
+	     it gets you a different (eg unknown) DLT entry.  */
+	  relocs[i]->addend = 0;
+	  break;
+
+	case R_N_MODE:
+	case R_S_MODE:
+	case R_D_MODE:
+	case R_R_MODE:
+	case R_FSEL:
+	case R_LSEL:
+	case R_RSEL:
+	case R_BEGIN_BRTAB:
+	case R_END_BRTAB:
+	case R_BEGIN_TRY:
+	case R_N0SEL:
+	case R_N1SEL:
+	  /* There is no symbol or addend associated with these fixups.  */
+	  relocs[i]->sym_ptr_ptr = xmalloc (sizeof (asymbol *));
+	  *relocs[i]->sym_ptr_ptr = symbol_get_bfdsym (dummy_symbol);
+	  relocs[i]->addend = 0;
+	  break;
+
+	case R_END_TRY:
+	case R_ENTRY:
+	case R_EXIT:
+	  /* There is no symbol associated with these fixups.  */
+	  relocs[i]->sym_ptr_ptr = xmalloc (sizeof (asymbol *));
+	  *relocs[i]->sym_ptr_ptr = symbol_get_bfdsym (dummy_symbol);
+	  relocs[i]->addend = fixp->fx_offset;
+	  break;
+
+	default:
+	  relocs[i]->addend = fixp->fx_offset;
+	}
+    }
+
+ done:
+#endif
+
+  return relocs;
+}
+
+/* Process any machine dependent frag types.  */
+
+void
+md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
+		 asection *sec ATTRIBUTE_UNUSED,
+		 fragS *fragP)
+{
+  unsigned int address;
+
+  if (fragP->fr_type == rs_machine_dependent)
+    {
+      switch ((int) fragP->fr_subtype)
+	{
+	case 0:
+	  fragP->fr_type = rs_fill;
+	  know (fragP->fr_var == 1);
+	  know (fragP->fr_next);
+	  address = fragP->fr_address + fragP->fr_fix;
+	  if (address % fragP->fr_offset)
+	    {
+	      fragP->fr_offset =
+		fragP->fr_next->fr_address
+		- fragP->fr_address
+		- fragP->fr_fix;
+	    }
+	  else
+	    fragP->fr_offset = 0;
+	  break;
+	}
+    }
+}
+
+/* Round up a section size to the appropriate boundary.  */
+
+valueT
+md_section_align (asection *segment, valueT size)
+{
+  int align = bfd_get_section_alignment (stdoutput, segment);
+  int align2 = (1 << align) - 1;
+
+  return (size + align2) & ~align2;
+}
+
+/* Return the approximate size of a frag before relaxation has occurred.  */
+
+int
+md_estimate_size_before_relax (fragS *fragP, asection *segment ATTRIBUTE_UNUSED)
+{
+  int size;
+
+  size = 0;
+
+  while ((fragP->fr_fix + size) % fragP->fr_offset)
+    size++;
+
+  return size;
+}
+
+#ifdef OBJ_ELF
+# ifdef WARN_COMMENTS
+const char *md_shortopts = "Vc";
+# else
+const char *md_shortopts = "V";
+# endif
+#else
+# ifdef WARN_COMMENTS
+const char *md_shortopts = "c";
+# else
+const char *md_shortopts = "";
+# endif
+#endif
+
+struct option md_longopts[] =
+{
+#ifdef WARN_COMMENTS
+  {"warn-comment", no_argument, NULL, 'c'},
+#endif
+  {NULL, no_argument, NULL, 0}
+};
+size_t md_longopts_size = sizeof (md_longopts);
+
+int
+md_parse_option (int c, char *arg ATTRIBUTE_UNUSED)
+{
+  switch (c)
+    {
+    default:
+      return 0;
+
+#ifdef OBJ_ELF
+    case 'V':
+      print_version_id ();
+      break;
+#endif
+#ifdef WARN_COMMENTS
+    case 'c':
+      warn_comment = 1;
+      break;
+#endif
+    }
+
+  return 1;
+}
+
+void
+md_show_usage (FILE *stream ATTRIBUTE_UNUSED)
+{
+#ifdef OBJ_ELF
+  fprintf (stream, _("\
+  -Q                      ignored\n"));
+#endif
+#ifdef WARN_COMMENTS
+  fprintf (stream, _("\
+  -c                      print a warning if a comment is found\n"));
+#endif
+}
+
+/* We have no need to default values of symbols.  */
+
+symbolS *
+md_undefined_symbol (char *name ATTRIBUTE_UNUSED)
+{
+  return NULL;
+}
+
+#if defined (OBJ_SOM) || defined (ELF_ARG_RELOC)
+#define nonzero_dibits(x) \
+  ((x) | (((x) & 0x55555555) << 1) | (((x) & 0xAAAAAAAA) >> 1))
+#define arg_reloc_stub_needed(CALLER, CALLEE) \
+  (((CALLER) ^ (CALLEE)) & nonzero_dibits (CALLER) & nonzero_dibits (CALLEE))
+#else
+#define arg_reloc_stub_needed(CALLER, CALLEE) 0
+#endif
+
+/* Apply a fixup to an instruction.  */
+
+void
+md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
+{
+  char *fixpos;
+  struct hppa_fix_struct *hppa_fixP;
+  offsetT new_val;
+  int insn, val, fmt;
+
+  /* SOM uses R_HPPA_ENTRY and R_HPPA_EXIT relocations which can
+     never be "applied" (they are just markers).  Likewise for
+     R_HPPA_BEGIN_BRTAB and R_HPPA_END_BRTAB.  */
+#ifdef OBJ_SOM
+  if (fixP->fx_r_type == R_HPPA_ENTRY
+      || fixP->fx_r_type == R_HPPA_EXIT
+      || fixP->fx_r_type == R_HPPA_BEGIN_BRTAB
+      || fixP->fx_r_type == R_HPPA_END_BRTAB
+      || fixP->fx_r_type == R_HPPA_BEGIN_TRY)
+    return;
+
+  /* Disgusting.  We must set fx_offset ourselves -- R_HPPA_END_TRY
+     fixups are considered not adjustable, which in turn causes
+     adjust_reloc_syms to not set fx_offset.  Ugh.  */
+  if (fixP->fx_r_type == R_HPPA_END_TRY)
+    {
+      fixP->fx_offset = * valP;
+      return;
+    }
+#endif
+#ifdef OBJ_ELF
+  if (fixP->fx_r_type == (int) R_PARISC_GNU_VTENTRY
+      || fixP->fx_r_type == (int) R_PARISC_GNU_VTINHERIT)
+    return;
+#endif
+
+  if (fixP->fx_addsy == NULL && fixP->fx_pcrel == 0)
+    fixP->fx_done = 1;
+
+  /* There should be a HPPA specific fixup associated with the GAS fixup.  */
+  hppa_fixP = (struct hppa_fix_struct *) fixP->tc_fix_data;
+  if (hppa_fixP == NULL)
+    {
+      as_bad_where (fixP->fx_file, fixP->fx_line,
+		    _("no hppa_fixup entry for fixup type 0x%x"),
+		    fixP->fx_r_type);
+      return;
+    }
+
+  fixpos = fixP->fx_frag->fr_literal + fixP->fx_where;
+
+  if (fixP->fx_size != 4 || hppa_fixP->fx_r_format == 32)
+    {
+      /* Handle constant output. */
+      number_to_chars_bigendian (fixpos, *valP, fixP->fx_size);
+      return;
+    }
+
+  insn = bfd_get_32 (stdoutput, fixpos);
+  fmt = bfd_hppa_insn2fmt (stdoutput, insn);
+
+  /* If there is a symbol associated with this fixup, then it's something
+     which will need a SOM relocation (except for some PC-relative relocs).
+     In such cases we should treat the "val" or "addend" as zero since it
+     will be added in as needed from fx_offset in tc_gen_reloc.  */
+  if ((fixP->fx_addsy != NULL
+       || fixP->fx_r_type == (int) R_HPPA_NONE)
+#ifdef OBJ_SOM
+      && fmt != 32
+#endif
+      )
+    new_val = ((fmt == 12 || fmt == 17 || fmt == 22) ? 8 : 0);
+#ifdef OBJ_SOM
+  /* These field selectors imply that we do not want an addend.  */
+  else if (hppa_fixP->fx_r_field == e_psel
+	   || hppa_fixP->fx_r_field == e_rpsel
+	   || hppa_fixP->fx_r_field == e_lpsel
+	   || hppa_fixP->fx_r_field == e_tsel
+	   || hppa_fixP->fx_r_field == e_rtsel
+	   || hppa_fixP->fx_r_field == e_ltsel)
+    new_val = ((fmt == 12 || fmt == 17 || fmt == 22) ? 8 : 0);
+#endif
+  else
+    new_val = hppa_field_adjust (* valP, 0, hppa_fixP->fx_r_field);
+
+  /* Handle pc-relative exceptions from above.  */
+  if ((fmt == 12 || fmt == 17 || fmt == 22)
+      && fixP->fx_addsy
+      && fixP->fx_pcrel
+      && !arg_reloc_stub_needed (symbol_arg_reloc_info (fixP->fx_addsy),
+				 hppa_fixP->fx_arg_reloc)
+#ifdef OBJ_ELF
+      && (* valP - 8 + 8192 < 16384
+	  || (fmt == 17 && * valP - 8 + 262144 < 524288)
+	  || (fmt == 22 && * valP - 8 + 8388608 < 16777216))
+#endif
+#ifdef OBJ_SOM
+      && (* valP - 8 + 262144 < 524288
+	  || (fmt == 22 && * valP - 8 + 8388608 < 16777216))
+#endif
+      && !S_IS_EXTERNAL (fixP->fx_addsy)
+      && !S_IS_WEAK (fixP->fx_addsy)
+      && S_GET_SEGMENT (fixP->fx_addsy) == hppa_fixP->segment
+      && !(fixP->fx_subsy
+	   && S_GET_SEGMENT (fixP->fx_subsy) != hppa_fixP->segment))
+    {
+      new_val = hppa_field_adjust (* valP, 0, hppa_fixP->fx_r_field);
+    }
+
+  switch (fmt)
+    {
+    case 10:
+      CHECK_FIELD_WHERE (new_val, 8191, -8192,
+			 fixP->fx_file, fixP->fx_line);
+      val = new_val;
+
+      insn = (insn & ~ 0x3ff1) | (((val & 0x1ff8) << 1)
+				  | ((val & 0x2000) >> 13));
+      break;
+    case -11:
+      CHECK_FIELD_WHERE (new_val, 8191, -8192,
+			 fixP->fx_file, fixP->fx_line);
+      val = new_val;
+
+      insn = (insn & ~ 0x3ff9) | (((val & 0x1ffc) << 1)
+				  | ((val & 0x2000) >> 13));
+      break;
+      /* Handle all opcodes with the 'j' operand type.  */
+    case 14:
+      CHECK_FIELD_WHERE (new_val, 8191, -8192,
+			 fixP->fx_file, fixP->fx_line);
+      val = new_val;
+
+      insn = ((insn & ~ 0x3fff) | low_sign_unext (val, 14));
+      break;
+
+      /* Handle all opcodes with the 'k' operand type.  */
+    case 21:
+      CHECK_FIELD_WHERE (new_val, 1048575, -1048576,
+			 fixP->fx_file, fixP->fx_line);
+      val = new_val;
+
+      insn = (insn & ~ 0x1fffff) | re_assemble_21 (val);
+      break;
+
+      /* Handle all the opcodes with the 'i' operand type.  */
+    case 11:
+      CHECK_FIELD_WHERE (new_val, 1023, -1024,
+			 fixP->fx_file, fixP->fx_line);
+      val = new_val;
+
+      insn = (insn & ~ 0x7ff) | low_sign_unext (val, 11);
+      break;
+
+      /* Handle all the opcodes with the 'w' operand type.  */
+    case 12:
+      CHECK_FIELD_WHERE (new_val - 8, 8191, -8192,
+			 fixP->fx_file, fixP->fx_line);
+      val = new_val - 8;
+
+      insn = (insn & ~ 0x1ffd) | re_assemble_12 (val >> 2);
+      break;
+
+      /* Handle some of the opcodes with the 'W' operand type.  */
+    case 17:
+      {
+	offsetT distance = * valP;
+
+	/* If this is an absolute branch (ie no link) with an out of
+	   range target, then we want to complain.  */
+	if (fixP->fx_r_type == (int) R_HPPA_PCREL_CALL
+	    && (insn & 0xffe00000) == 0xe8000000)
+	  CHECK_FIELD_WHERE (distance - 8, 262143, -262144,
+			     fixP->fx_file, fixP->fx_line);
+
+	CHECK_FIELD_WHERE (new_val - 8, 262143, -262144,
+			   fixP->fx_file, fixP->fx_line);
+	val = new_val - 8;
+
+	insn = (insn & ~ 0x1f1ffd) | re_assemble_17 (val >> 2);
+	break;
+      }
+
+    case 22:
+      {
+	offsetT distance = * valP;
+
+	/* If this is an absolute branch (ie no link) with an out of
+	   range target, then we want to complain.  */
+	if (fixP->fx_r_type == (int) R_HPPA_PCREL_CALL
+	    && (insn & 0xffe00000) == 0xe8000000)
+	  CHECK_FIELD_WHERE (distance - 8, 8388607, -8388608,
+			     fixP->fx_file, fixP->fx_line);
+
+	CHECK_FIELD_WHERE (new_val - 8, 8388607, -8388608,
+			   fixP->fx_file, fixP->fx_line);
+	val = new_val - 8;
+
+	insn = (insn & ~ 0x3ff1ffd) | re_assemble_22 (val >> 2);
+	break;
+      }
+
+    case -10:
+      val = new_val;
+      insn = (insn & ~ 0xfff1) | re_assemble_16 (val & -8);
+      break;
+
+    case -16:
+      val = new_val;
+      insn = (insn & ~ 0xfff9) | re_assemble_16 (val & -4);
+      break;
+
+    case 16:
+      val = new_val;
+      insn = (insn & ~ 0xffff) | re_assemble_16 (val);
+      break;
+
+    case 32:
+      insn = new_val;
+      break;
+
+    default:
+      as_bad_where (fixP->fx_file, fixP->fx_line,
+		    _("Unknown relocation encountered in md_apply_fix."));
+      return;
+    }
+
+#ifdef OBJ_ELF
+  switch (fixP->fx_r_type)
+    {
+      case R_PARISC_TLS_GD21L:
+      case R_PARISC_TLS_GD14R:
+      case R_PARISC_TLS_LDM21L:
+      case R_PARISC_TLS_LDM14R:
+      case R_PARISC_TLS_LE21L:
+      case R_PARISC_TLS_LE14R:
+      case R_PARISC_TLS_IE21L:
+      case R_PARISC_TLS_IE14R:
+        if (fixP->fx_addsy)
+	  S_SET_THREAD_LOCAL (fixP->fx_addsy);
+	break;
+      default:
+	break;
+    }
+#endif
+
+  /* Insert the relocation.  */
+  bfd_put_32 (stdoutput, insn, fixpos);
+}
+
+/* Exactly what point is a PC-relative offset relative TO?
+   On the PA, they're relative to the address of the offset.  */
+
+long
+md_pcrel_from (fixS *fixP)
+{
+  return fixP->fx_where + fixP->fx_frag->fr_address;
+}
+
+/* Return nonzero if the input line pointer is at the end of
+   a statement.  */
+
+static int
+is_end_of_statement (void)
+{
+  return ((*input_line_pointer == '\n')
+	  || (*input_line_pointer == ';')
+	  || (*input_line_pointer == '!'));
+}
+
+#define REG_NAME_CNT	(sizeof (pre_defined_registers) / sizeof (struct pd_reg))
+
+/* Given NAME, find the register number associated with that name, return
+   the integer value associated with the given name or -1 on failure.  */
+
+static int
+reg_name_search (char *name)
+{
+  int middle, low, high;
+  int cmp;
+
+  low = 0;
+  high = REG_NAME_CNT - 1;
+
+  do
+    {
+      middle = (low + high) / 2;
+      cmp = strcasecmp (name, pre_defined_registers[middle].name);
+      if (cmp < 0)
+	high = middle - 1;
+      else if (cmp > 0)
+	low = middle + 1;
+      else
+	return pre_defined_registers[middle].value;
+    }
+  while (low <= high);
+
+  return -1;
+}
+
+/* Read a number from S.  The number might come in one of many forms,
+   the most common will be a hex or decimal constant, but it could be
+   a pre-defined register (Yuk!), or an absolute symbol.
+
+   Return 1 on success or 0 on failure.  If STRICT, then a missing
+   register prefix will cause a failure.  The number itself is
+   returned in `pa_number'.
+
+   IS_FLOAT indicates that a PA-89 FP register number should be
+   parsed;  A `l' or `r' suffix is checked for if but 2 of IS_FLOAT is
+   not set.
+
+   pa_parse_number can not handle negative constants and will fail
+   horribly if it is passed such a constant.  */
+
+static int
+pa_parse_number (char **s, int is_float)
+{
+  int num;
+  char *name;
+  char c;
+  symbolS *sym;
+  int status;
+  char *p = *s;
+  bfd_boolean have_prefix;
+
+  /* Skip whitespace before the number.  */
+  while (*p == ' ' || *p == '\t')
+    p = p + 1;
+
+  pa_number = -1;
+  have_prefix = 0;
+  num = 0;
+  if (!strict && ISDIGIT (*p))
+    {
+      /* Looks like a number.  */
+
+      if (*p == '0' && (*(p + 1) == 'x' || *(p + 1) == 'X'))
+	{
+	  /* The number is specified in hex.  */
+	  p += 2;
+	  while (ISDIGIT (*p) || ((*p >= 'a') && (*p <= 'f'))
+		 || ((*p >= 'A') && (*p <= 'F')))
+	    {
+	      if (ISDIGIT (*p))
+		num = num * 16 + *p - '0';
+	      else if (*p >= 'a' && *p <= 'f')
+		num = num * 16 + *p - 'a' + 10;
+	      else
+		num = num * 16 + *p - 'A' + 10;
+	      ++p;
+	    }
+	}
+      else
+	{
+	  /* The number is specified in decimal.  */
+	  while (ISDIGIT (*p))
+	    {
+	      num = num * 10 + *p - '0';
+	      ++p;
+	    }
+	}
+
+      pa_number = num;
+
+      /* Check for a `l' or `r' suffix.  */
+      if (is_float)
+	{
+	  pa_number += FP_REG_BASE;
+	  if (! (is_float & 2))
+	    {
+	      if (IS_R_SELECT (p))
+		{
+		  pa_number += FP_REG_RSEL;
+		  ++p;
+		}
+	      else if (IS_L_SELECT (p))
+		{
+		  ++p;
+		}
+	    }
+	}
+    }
+  else if (*p == '%')
+    {
+      /* The number might be a predefined register.  */
+      have_prefix = 1;
+      name = p;
+      p++;
+      c = *p;
+      /* Tege hack: Special case for general registers as the general
+         code makes a binary search with case translation, and is VERY
+         slow.  */
+      if (c == 'r')
+	{
+	  p++;
+	  if (*p == 'e' && *(p + 1) == 't'
+	      && (*(p + 2) == '0' || *(p + 2) == '1'))
+	    {
+	      p += 2;
+	      num = *p - '0' + 28;
+	      p++;
+	    }
+	  else if (*p == 'p')
+	    {
+	      num = 2;
+	      p++;
+	    }
+	  else if (!ISDIGIT (*p))
+	    {
+	      if (print_errors)
+		as_bad (_("Undefined register: '%s'."), name);
+	      num = -1;
+	    }
+	  else
+	    {
+	      do
+		num = num * 10 + *p++ - '0';
+	      while (ISDIGIT (*p));
+	    }
+	}
+      else
+	{
+	  /* Do a normal register search.  */
+	  while (is_part_of_name (c))
+	    {
+	      p = p + 1;
+	      c = *p;
+	    }
+	  *p = 0;
+	  status = reg_name_search (name);
+	  if (status >= 0)
+	    num = status;
+	  else
+	    {
+	      if (print_errors)
+		as_bad (_("Undefined register: '%s'."), name);
+	      num = -1;
+	    }
+	  *p = c;
+	}
+
+      pa_number = num;
+    }
+  else
+    {
+      /* And finally, it could be a symbol in the absolute section which
+         is effectively a constant, or a register alias symbol.  */
+      name = p;
+      c = *p;
+      while (is_part_of_name (c))
+	{
+	  p = p + 1;
+	  c = *p;
+	}
+      *p = 0;
+      if ((sym = symbol_find (name)) != NULL)
+	{
+	  if (S_GET_SEGMENT (sym) == reg_section)
+	    {
+	      num = S_GET_VALUE (sym);
+	      /* Well, we don't really have one, but we do have a
+		 register, so...  */
+	      have_prefix = TRUE;
+	    }
+	  else if (S_GET_SEGMENT (sym) == &bfd_abs_section)
+	    num = S_GET_VALUE (sym);
+	  else if (!strict)
+	    {
+	      if (print_errors)
+		as_bad (_("Non-absolute symbol: '%s'."), name);
+	      num = -1;
+	    }
+	}
+      else if (!strict)
+	{
+	  /* There is where we'd come for an undefined symbol
+	     or for an empty string.  For an empty string we
+	     will return zero.  That's a concession made for
+	     compatibility with the braindamaged HP assemblers.  */
+	  if (*name == 0)
+	    num = 0;
+	  else
+	    {
+	      if (print_errors)
+		as_bad (_("Undefined absolute constant: '%s'."), name);
+	      num = -1;
+	    }
+	}
+      *p = c;
+
+      pa_number = num;
+    }
+
+  if (!strict || have_prefix)
+    {
+      *s = p;
+      return 1;
+    }
+  return 0;
+}
+
+/* Return nonzero if the given INSN and L/R information will require
+   a new PA-1.1 opcode.  */
+
+static int
+need_pa11_opcode (void)
+{
+  if ((pa_number & FP_REG_RSEL) != 0
+      && !(the_insn.fpof1 == DBL && the_insn.fpof2 == DBL))
+    {
+      /* If this instruction is specific to a particular architecture,
+	 then set a new architecture.  */
+      if (bfd_get_mach (stdoutput) < pa11)
+	{
+	  if (!bfd_set_arch_mach (stdoutput, bfd_arch_hppa, pa11))
+	    as_warn (_("could not update architecture and machine"));
+	}
+      return TRUE;
+    }
+  else
+    return FALSE;
+}
+
+/* Parse a condition for a fcmp instruction.  Return the numerical
+   code associated with the condition.  */
+
+static int
+pa_parse_fp_cmp_cond (char **s)
+{
+  int cond, i;
+
+  cond = 0;
+
+  for (i = 0; i < 32; i++)
+    {
+      if (strncasecmp (*s, fp_cond_map[i].string,
+		       strlen (fp_cond_map[i].string)) == 0)
+	{
+	  cond = fp_cond_map[i].cond;
+	  *s += strlen (fp_cond_map[i].string);
+	  /* If not a complete match, back up the input string and
+	     report an error.  */
+	  if (**s != ' ' && **s != '\t')
+	    {
+	      *s -= strlen (fp_cond_map[i].string);
+	      break;
+	    }
+	  while (**s == ' ' || **s == '\t')
+	    *s = *s + 1;
+	  return cond;
+	}
+    }
+
+  as_bad (_("Invalid FP Compare Condition: %s"), *s);
+
+  /* Advance over the bogus completer.  */
+  while (**s != ',' && **s != ' ' && **s != '\t')
+    *s += 1;
+
+  return 0;
+}
+
+/* Parse a graphics test complete for ftest.  */
+
+static int
+pa_parse_ftest_gfx_completer (char **s)
+{
+  int value;
+
+  value = 0;
+  if (strncasecmp (*s, "acc8", 4) == 0)
+    {
+      value = 5;
+      *s += 4;
+    }
+  else if (strncasecmp (*s, "acc6", 4) == 0)
+    {
+      value = 9;
+      *s += 4;
+    }
+  else if (strncasecmp (*s, "acc4", 4) == 0)
+    {
+      value = 13;
+      *s += 4;
+    }
+  else if (strncasecmp (*s, "acc2", 4) == 0)
+    {
+      value = 17;
+      *s += 4;
+    }
+  else if (strncasecmp (*s, "acc", 3) == 0)
+    {
+      value = 1;
+      *s += 3;
+    }
+  else if (strncasecmp (*s, "rej8", 4) == 0)
+    {
+      value = 6;
+      *s += 4;
+    }
+  else if (strncasecmp (*s, "rej", 3) == 0)
+    {
+      value = 2;
+      *s += 3;
+    }
+  else
+    {
+      value = 0;
+      as_bad (_("Invalid FTEST completer: %s"), *s);
+    }
+
+  return value;
+}
+
+/* Parse an FP operand format completer returning the completer
+   type.  */
+
+static fp_operand_format
+pa_parse_fp_cnv_format (char **s)
+{
+  int format;
+
+  format = SGL;
+  if (**s == ',')
+    {
+      *s += 1;
+      if (strncasecmp (*s, "sgl", 3) == 0)
+	{
+	  format = SGL;
+	  *s += 4;
+	}
+      else if (strncasecmp (*s, "dbl", 3) == 0)
+	{
+	  format = DBL;
+	  *s += 4;
+	}
+      else if (strncasecmp (*s, "quad", 4) == 0)
+	{
+	  format = QUAD;
+	  *s += 5;
+	}
+      else if (strncasecmp (*s, "w", 1) == 0)
+	{
+	  format = W;
+	  *s += 2;
+	}
+      else if (strncasecmp (*s, "uw", 2) == 0)
+	{
+	  format = UW;
+	  *s += 3;
+	}
+      else if (strncasecmp (*s, "dw", 2) == 0)
+	{
+	  format = DW;
+	  *s += 3;
+	}
+      else if (strncasecmp (*s, "udw", 3) == 0)
+	{
+	  format = UDW;
+	  *s += 4;
+	}
+      else if (strncasecmp (*s, "qw", 2) == 0)
+	{
+	  format = QW;
+	  *s += 3;
+	}
+      else if (strncasecmp (*s, "uqw", 3) == 0)
+	{
+	  format = UQW;
+	  *s += 4;
+	}
+      else
+	{
+	  format = ILLEGAL_FMT;
+	  as_bad (_("Invalid FP Operand Format: %3s"), *s);
+	}
+    }
+
+  return format;
+}
+
+/* Parse an FP operand format completer returning the completer
+   type.  */
+
+static fp_operand_format
+pa_parse_fp_format (char **s)
+{
+  int format;
+
+  format = SGL;
+  if (**s == ',')
+    {
+      *s += 1;
+      if (strncasecmp (*s, "sgl", 3) == 0)
+	{
+	  format = SGL;
+	  *s += 4;
+	}
+      else if (strncasecmp (*s, "dbl", 3) == 0)
+	{
+	  format = DBL;
+	  *s += 4;
+	}
+      else if (strncasecmp (*s, "quad", 4) == 0)
+	{
+	  format = QUAD;
+	  *s += 5;
+	}
+      else
+	{
+	  format = ILLEGAL_FMT;
+	  as_bad (_("Invalid FP Operand Format: %3s"), *s);
+	}
+    }
+
+  return format;
+}
+
+/* Convert from a selector string into a selector type.  */
+
+static int
+pa_chk_field_selector (char **str)
+{
+  int middle, low, high;
+  int cmp;
+  char name[4];
+
+  /* Read past any whitespace.  */
+  /* FIXME: should we read past newlines and formfeeds??? */
+  while (**str == ' ' || **str == '\t' || **str == '\n' || **str == '\f')
+    *str = *str + 1;
+
+  if ((*str)[1] == '\'' || (*str)[1] == '%')
+    name[0] = TOLOWER ((*str)[0]),
+    name[1] = 0;
+  else if ((*str)[2] == '\'' || (*str)[2] == '%')
+    name[0] = TOLOWER ((*str)[0]),
+    name[1] = TOLOWER ((*str)[1]),
+    name[2] = 0;
+  else if ((*str)[3] == '\'' || (*str)[3] == '%')
+    name[0] = TOLOWER ((*str)[0]),
+    name[1] = TOLOWER ((*str)[1]),
+    name[2] = TOLOWER ((*str)[2]),
+    name[3] = 0;
+  else
+    return e_fsel;
+
+  low = 0;
+  high = sizeof (selector_table) / sizeof (struct selector_entry) - 1;
+
+  do
+    {
+      middle = (low + high) / 2;
+      cmp = strcmp (name, selector_table[middle].prefix);
+      if (cmp < 0)
+	high = middle - 1;
+      else if (cmp > 0)
+	low = middle + 1;
+      else
+	{
+	  *str += strlen (name) + 1;
+#ifndef OBJ_SOM
+	  if (selector_table[middle].field_selector == e_nsel)
+	    return e_fsel;
+#endif
+	  return selector_table[middle].field_selector;
+	}
+    }
+  while (low <= high);
+
+  return e_fsel;
+}
+
+/* Parse a .byte, .word, .long expression for the HPPA.  Called by
+   cons via the TC_PARSE_CONS_EXPRESSION macro.  */
+
+void
+parse_cons_expression_hppa (expressionS *exp)
+{
+  hppa_field_selector = pa_chk_field_selector (&input_line_pointer);
+  expression (exp);
+}
+
+/* Evaluate an absolute expression EXP which may be modified by
+   the selector FIELD_SELECTOR.  Return the value of the expression.  */
+static int
+evaluate_absolute (struct pa_it *insn)
+{
+  offsetT value;
+  expressionS exp;
+  int field_selector = insn->field_selector;
+
+  exp = insn->exp;
+  value = exp.X_add_number;
+
+  return hppa_field_adjust (0, value, field_selector);
+}
+
+/* Mark (via expr_end) the end of an absolute expression.  FIXME.  */
+
+static int
+pa_get_absolute_expression (struct pa_it *insn, char **strp)
+{
+  char *save_in;
+
+  insn->field_selector = pa_chk_field_selector (strp);
+  save_in = input_line_pointer;
+  input_line_pointer = *strp;
+  expression (&insn->exp);
+  /* This is not perfect, but is a huge improvement over doing nothing.
+
+     The PA assembly syntax is ambiguous in a variety of ways.  Consider
+     this string "4 %r5"  Is that the number 4 followed by the register
+     r5, or is that 4 MOD r5?
+
+     If we get a modulo expression when looking for an absolute, we try
+     again cutting off the input string at the first whitespace character.  */
+  if (insn->exp.X_op == O_modulus)
+    {
+      char *s, c;
+      int retval;
+
+      input_line_pointer = *strp;
+      s = *strp;
+      while (*s != ',' && *s != ' ' && *s != '\t')
+	s++;
+
+      c = *s;
+      *s = 0;
+
+      retval = pa_get_absolute_expression (insn, strp);
+
+      input_line_pointer = save_in;
+      *s = c;
+      return evaluate_absolute (insn);
+    }
+  /* When in strict mode we have a non-match, fix up the pointers
+     and return to our caller.  */
+  if (insn->exp.X_op != O_constant && strict)
+    {
+      expr_end = input_line_pointer;
+      input_line_pointer = save_in;
+      return 0;
+    }
+  if (insn->exp.X_op != O_constant)
+    {
+      as_bad (_("Bad segment (should be absolute)."));
+      expr_end = input_line_pointer;
+      input_line_pointer = save_in;
+      return 0;
+    }
+  expr_end = input_line_pointer;
+  input_line_pointer = save_in;
+  return evaluate_absolute (insn);
+}
+
+/* Given an argument location specification return the associated
+   argument location number.  */
+
+static unsigned int
+pa_build_arg_reloc (char *type_name)
+{
+
+  if (strncasecmp (type_name, "no", 2) == 0)
+    return 0;
+  if (strncasecmp (type_name, "gr", 2) == 0)
+    return 1;
+  else if (strncasecmp (type_name, "fr", 2) == 0)
+    return 2;
+  else if (strncasecmp (type_name, "fu", 2) == 0)
+    return 3;
+  else
+    as_bad (_("Invalid argument location: %s\n"), type_name);
+
+  return 0;
+}
+
+/* Encode and return an argument relocation specification for
+   the given register in the location specified by arg_reloc.  */
+
+static unsigned int
+pa_align_arg_reloc (unsigned int reg, unsigned int arg_reloc)
+{
+  unsigned int new_reloc;
+
+  new_reloc = arg_reloc;
+  switch (reg)
+    {
+    case 0:
+      new_reloc <<= 8;
+      break;
+    case 1:
+      new_reloc <<= 6;
+      break;
+    case 2:
+      new_reloc <<= 4;
+      break;
+    case 3:
+      new_reloc <<= 2;
+      break;
+    default:
+      as_bad (_("Invalid argument description: %d"), reg);
+    }
+
+  return new_reloc;
+}
+
+/* Parse a non-negated compare/subtract completer returning the
+   number (for encoding in instructions) of the given completer.  */
+
+static int
+pa_parse_nonneg_cmpsub_cmpltr (char **s)
+{
+  int cmpltr;
+  char *name = *s + 1;
+  char c;
+  char *save_s = *s;
+  int nullify = 0;
+
+  cmpltr = 0;
+  if (**s == ',')
+    {
+      *s += 1;
+      while (**s != ',' && **s != ' ' && **s != '\t')
+	*s += 1;
+      c = **s;
+      **s = 0x00;
+
+      if (strcmp (name, "=") == 0)
+	{
+	  cmpltr = 1;
+	}
+      else if (strcmp (name, "<") == 0)
+	{
+	  cmpltr = 2;
+	}
+      else if (strcmp (name, "<=") == 0)
+	{
+	  cmpltr = 3;
+	}
+      else if (strcmp (name, "<<") == 0)
+	{
+	  cmpltr = 4;
+	}
+      else if (strcmp (name, "<<=") == 0)
+	{
+	  cmpltr = 5;
+	}
+      else if (strcasecmp (name, "sv") == 0)
+	{
+	  cmpltr = 6;
+	}
+      else if (strcasecmp (name, "od") == 0)
+	{
+	  cmpltr = 7;
+	}
+      /* If we have something like addb,n then there is no condition
+         completer.  */
+      else if (strcasecmp (name, "n") == 0)
+	{
+	  cmpltr = 0;
+	  nullify = 1;
+	}
+      else
+	{
+	  cmpltr = -1;
+	}
+      **s = c;
+    }
+
+  /* Reset pointers if this was really a ,n for a branch instruction.  */
+  if (nullify)
+    *s = save_s;
+
+  return cmpltr;
+}
+
+/* Parse a negated compare/subtract completer returning the
+   number (for encoding in instructions) of the given completer.  */
+
+static int
+pa_parse_neg_cmpsub_cmpltr (char **s)
+{
+  int cmpltr;
+  char *name = *s + 1;
+  char c;
+  char *save_s = *s;
+  int nullify = 0;
+
+  cmpltr = 0;
+  if (**s == ',')
+    {
+      *s += 1;
+      while (**s != ',' && **s != ' ' && **s != '\t')
+	*s += 1;
+      c = **s;
+      **s = 0x00;
+
+      if (strcasecmp (name, "tr") == 0)
+	{
+	  cmpltr = 0;
+	}
+      else if (strcmp (name, "<>") == 0)
+	{
+	  cmpltr = 1;
+	}
+      else if (strcmp (name, ">=") == 0)
+	{
+	  cmpltr = 2;
+	}
+      else if (strcmp (name, ">") == 0)
+	{
+	  cmpltr = 3;
+	}
+      else if (strcmp (name, ">>=") == 0)
+	{
+	  cmpltr = 4;
+	}
+      else if (strcmp (name, ">>") == 0)
+	{
+	  cmpltr = 5;
+	}
+      else if (strcasecmp (name, "nsv") == 0)
+	{
+	  cmpltr = 6;
+	}
+      else if (strcasecmp (name, "ev") == 0)
+	{
+	  cmpltr = 7;
+	}
+      /* If we have something like addb,n then there is no condition
+         completer.  */
+      else if (strcasecmp (name, "n") == 0)
+	{
+	  cmpltr = 0;
+	  nullify = 1;
+	}
+      else
+	{
+	  cmpltr = -1;
+	}
+      **s = c;
+    }
+
+  /* Reset pointers if this was really a ,n for a branch instruction.  */
+  if (nullify)
+    *s = save_s;
+
+  return cmpltr;
+}
+
+/* Parse a 64 bit compare and branch completer returning the number (for
+   encoding in instructions) of the given completer.
+
+   Nonnegated comparisons are returned as 0-7, negated comparisons are
+   returned as 8-15.  */
+
+static int
+pa_parse_cmpb_64_cmpltr (char **s)
+{
+  int cmpltr;
+  char *name = *s + 1;
+  char c;
+
+  cmpltr = -1;
+  if (**s == ',')
+    {
+      *s += 1;
+      while (**s != ',' && **s != ' ' && **s != '\t')
+	*s += 1;
+      c = **s;
+      **s = 0x00;
+
+      if (strcmp (name, "*") == 0)
+	{
+	  cmpltr = 0;
+	}
+      else if (strcmp (name, "*=") == 0)
+	{
+	  cmpltr = 1;
+	}
+      else if (strcmp (name, "*<") == 0)
+	{
+	  cmpltr = 2;
+	}
+      else if (strcmp (name, "*<=") == 0)
+	{
+	  cmpltr = 3;
+	}
+      else if (strcmp (name, "*<<") == 0)
+	{
+	  cmpltr = 4;
+	}
+      else if (strcmp (name, "*<<=") == 0)
+	{
+	  cmpltr = 5;
+	}
+      else if (strcasecmp (name, "*sv") == 0)
+	{
+	  cmpltr = 6;
+	}
+      else if (strcasecmp (name, "*od") == 0)
+	{
+	  cmpltr = 7;
+	}
+      else if (strcasecmp (name, "*tr") == 0)
+	{
+	  cmpltr = 8;
+	}
+      else if (strcmp (name, "*<>") == 0)
+	{
+	  cmpltr = 9;
+	}
+      else if (strcmp (name, "*>=") == 0)
+	{
+	  cmpltr = 10;
+	}
+      else if (strcmp (name, "*>") == 0)
+	{
+	  cmpltr = 11;
+	}
+      else if (strcmp (name, "*>>=") == 0)
+	{
+	  cmpltr = 12;
+	}
+      else if (strcmp (name, "*>>") == 0)
+	{
+	  cmpltr = 13;
+	}
+      else if (strcasecmp (name, "*nsv") == 0)
+	{
+	  cmpltr = 14;
+	}
+      else if (strcasecmp (name, "*ev") == 0)
+	{
+	  cmpltr = 15;
+	}
+      else
+	{
+	  cmpltr = -1;
+	}
+      **s = c;
+    }
+
+  return cmpltr;
+}
+
+/* Parse a 64 bit compare immediate and branch completer returning the number
+   (for encoding in instructions) of the given completer.  */
+
+static int
+pa_parse_cmpib_64_cmpltr (char **s)
+{
+  int cmpltr;
+  char *name = *s + 1;
+  char c;
+
+  cmpltr = -1;
+  if (**s == ',')
+    {
+      *s += 1;
+      while (**s != ',' && **s != ' ' && **s != '\t')
+	*s += 1;
+      c = **s;
+      **s = 0x00;
+
+      if (strcmp (name, "*<<") == 0)
+	{
+	  cmpltr = 0;
+	}
+      else if (strcmp (name, "*=") == 0)
+	{
+	  cmpltr = 1;
+	}
+      else if (strcmp (name, "*<") == 0)
+	{
+	  cmpltr = 2;
+	}
+      else if (strcmp (name, "*<=") == 0)
+	{
+	  cmpltr = 3;
+	}
+      else if (strcmp (name, "*>>=") == 0)
+	{
+	  cmpltr = 4;
+	}
+      else if (strcmp (name, "*<>") == 0)
+	{
+	  cmpltr = 5;
+	}
+      else if (strcasecmp (name, "*>=") == 0)
+	{
+	  cmpltr = 6;
+	}
+      else if (strcasecmp (name, "*>") == 0)
+	{
+	  cmpltr = 7;
+	}
+      else
+	{
+	  cmpltr = -1;
+	}
+      **s = c;
+    }
+
+  return cmpltr;
+}
+
+/* Parse a non-negated addition completer returning the number
+   (for encoding in instructions) of the given completer.  */
+
+static int
+pa_parse_nonneg_add_cmpltr (char **s)
+{
+  int cmpltr;
+  char *name = *s + 1;
+  char c;
+  char *save_s = *s;
+  int nullify = 0;
+
+  cmpltr = 0;
+  if (**s == ',')
+    {
+      *s += 1;
+      while (**s != ',' && **s != ' ' && **s != '\t')
+	*s += 1;
+      c = **s;
+      **s = 0x00;
+      if (strcmp (name, "=") == 0)
+	{
+	  cmpltr = 1;
+	}
+      else if (strcmp (name, "<") == 0)
+	{
+	  cmpltr = 2;
+	}
+      else if (strcmp (name, "<=") == 0)
+	{
+	  cmpltr = 3;
+	}
+      else if (strcasecmp (name, "nuv") == 0)
+	{
+	  cmpltr = 4;
+	}
+      else if (strcasecmp (name, "znv") == 0)
+	{
+	  cmpltr = 5;
+	}
+      else if (strcasecmp (name, "sv") == 0)
+	{
+	  cmpltr = 6;
+	}
+      else if (strcasecmp (name, "od") == 0)
+	{
+	  cmpltr = 7;
+	}
+      /* If we have something like addb,n then there is no condition
+         completer.  */
+      else if (strcasecmp (name, "n") == 0)
+	{
+	  cmpltr = 0;
+	  nullify = 1;
+	}
+      else
+	{
+	  cmpltr = -1;
+	}
+      **s = c;
+    }
+
+  /* Reset pointers if this was really a ,n for a branch instruction.  */
+  if (nullify)
+    *s = save_s;
+
+  return cmpltr;
+}
+
+/* Parse a negated addition completer returning the number
+   (for encoding in instructions) of the given completer.  */
+
+static int
+pa_parse_neg_add_cmpltr (char **s)
+{
+  int cmpltr;
+  char *name = *s + 1;
+  char c;
+  char *save_s = *s;
+  int nullify = 0;
+
+  cmpltr = 0;
+  if (**s == ',')
+    {
+      *s += 1;
+      while (**s != ',' && **s != ' ' && **s != '\t')
+	*s += 1;
+      c = **s;
+      **s = 0x00;
+      if (strcasecmp (name, "tr") == 0)
+	{
+	  cmpltr = 0;
+	}
+      else if (strcmp (name, "<>") == 0)
+	{
+	  cmpltr = 1;
+	}
+      else if (strcmp (name, ">=") == 0)
+	{
+	  cmpltr = 2;
+	}
+      else if (strcmp (name, ">") == 0)
+	{
+	  cmpltr = 3;
+	}
+      else if (strcasecmp (name, "uv") == 0)
+	{
+	  cmpltr = 4;
+	}
+      else if (strcasecmp (name, "vnz") == 0)
+	{
+	  cmpltr = 5;
+	}
+      else if (strcasecmp (name, "nsv") == 0)
+	{
+	  cmpltr = 6;
+	}
+      else if (strcasecmp (name, "ev") == 0)
+	{
+	  cmpltr = 7;
+	}
+      /* If we have something like addb,n then there is no condition
+         completer.  */
+      else if (strcasecmp (name, "n") == 0)
+	{
+	  cmpltr = 0;
+	  nullify = 1;
+	}
+      else
+	{
+	  cmpltr = -1;
+	}
+      **s = c;
+    }
+
+  /* Reset pointers if this was really a ,n for a branch instruction.  */
+  if (nullify)
+    *s = save_s;
+
+  return cmpltr;
+}
+
+/* Parse a 64 bit wide mode add and branch completer returning the number (for
+   encoding in instructions) of the given completer.  */
+
+static int
+pa_parse_addb_64_cmpltr (char **s)
+{
+  int cmpltr;
+  char *name = *s + 1;
+  char c;
+  char *save_s = *s;
+  int nullify = 0;
+
+  cmpltr = 0;
+  if (**s == ',')
+    {
+      *s += 1;
+      while (**s != ',' && **s != ' ' && **s != '\t')
+	*s += 1;
+      c = **s;
+      **s = 0x00;
+      if (strcmp (name, "=") == 0)
+	{
+	  cmpltr = 1;
+	}
+      else if (strcmp (name, "<") == 0)
+	{
+	  cmpltr = 2;
+	}
+      else if (strcmp (name, "<=") == 0)
+	{
+	  cmpltr = 3;
+	}
+      else if (strcasecmp (name, "nuv") == 0)
+	{
+	  cmpltr = 4;
+	}
+      else if (strcasecmp (name, "*=") == 0)
+	{
+	  cmpltr = 5;
+	}
+      else if (strcasecmp (name, "*<") == 0)
+	{
+	  cmpltr = 6;
+	}
+      else if (strcasecmp (name, "*<=") == 0)
+	{
+	  cmpltr = 7;
+	}
+      else if (strcmp (name, "tr") == 0)
+	{
+	  cmpltr = 8;
+	}
+      else if (strcmp (name, "<>") == 0)
+	{
+	  cmpltr = 9;
+	}
+      else if (strcmp (name, ">=") == 0)
+	{
+	  cmpltr = 10;
+	}
+      else if (strcmp (name, ">") == 0)
+	{
+	  cmpltr = 11;
+	}
+      else if (strcasecmp (name, "uv") == 0)
+	{
+	  cmpltr = 12;
+	}
+      else if (strcasecmp (name, "*<>") == 0)
+	{
+	  cmpltr = 13;
+	}
+      else if (strcasecmp (name, "*>=") == 0)
+	{
+	  cmpltr = 14;
+	}
+      else if (strcasecmp (name, "*>") == 0)
+	{
+	  cmpltr = 15;
+	}
+      /* If we have something like addb,n then there is no condition
+         completer.  */
+      else if (strcasecmp (name, "n") == 0)
+	{
+	  cmpltr = 0;
+	  nullify = 1;
+	}
+      else
+	{
+	  cmpltr = -1;
+	}
+      **s = c;
+    }
+
+  /* Reset pointers if this was really a ,n for a branch instruction.  */
+  if (nullify)
+    *s = save_s;
+
+  return cmpltr;
 }
 
 /* Do the real work for assembling a single instruction.  Store results
    into the global "the_insn" variable.  */
 
 static void
-pa_ip (str)
-     char *str;
+pa_ip (char *str)
 {
   char *error_message = "";
   char *s, c, *argstart, *name, *save_s;
@@ -1634,9 +3270,7 @@ pa_ip (str)
     }
 
   if (comma)
-    {
-      *--s = ',';
-    }
+    *--s = ',';
 
   /* Mark the location where arguments for the instruction start, then
      start processing them.  */
@@ -1664,7 +3298,6 @@ pa_ip (str)
 
 	  switch (*args)
 	    {
-
 	    /* End of arguments.  */
 	    case '\0':
 	      if (*s == '\0')
@@ -2974,6 +4607,18 @@ pa_ip (str)
 		    the_insn.reloc = R_HPPA_GOTOFF;
 		  else if (is_PC_relative (the_insn.exp))
 		    the_insn.reloc = R_HPPA_PCREL_CALL;
+#ifdef OBJ_ELF
+		  else if (is_tls_gdidx (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_GD21L;
+		  else if (is_tls_ldidx (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LDM21L;
+		  else if (is_tls_dtpoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LDO21L;
+		  else if (is_tls_ieoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_IE21L;
+		  else if (is_tls_leoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LE21L;
+#endif
 		  else
 		    the_insn.reloc = R_HPPA;
 		  the_insn.format = 11;
@@ -3093,6 +4738,18 @@ pa_ip (str)
 		    the_insn.reloc = R_HPPA_GOTOFF;
 		  else if (is_PC_relative (the_insn.exp))
 		    the_insn.reloc = R_HPPA_PCREL_CALL;
+#ifdef OBJ_ELF
+		  else if (is_tls_gdidx (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_GD21L;
+		  else if (is_tls_ldidx (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LDM21L;
+		  else if (is_tls_dtpoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LDO21L;
+		  else if (is_tls_ieoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_IE21L;
+		  else if (is_tls_leoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LE21L;
+#endif
 		  else
 		    the_insn.reloc = R_HPPA;
 		  the_insn.format = 14;
@@ -3123,6 +4780,18 @@ pa_ip (str)
 		    the_insn.reloc = R_HPPA_GOTOFF;
 		  else if (is_PC_relative (the_insn.exp))
 		    the_insn.reloc = R_HPPA_PCREL_CALL;
+#ifdef OBJ_ELF
+		  else if (is_tls_gdidx (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_GD21L;
+		  else if (is_tls_ldidx (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LDM21L;
+		  else if (is_tls_dtpoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LDO21L;
+		  else if (is_tls_ieoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_IE21L;
+		  else if (is_tls_leoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LE21L;
+#endif
 		  else
 		    the_insn.reloc = R_HPPA;
 		  the_insn.format = 14;
@@ -3147,6 +4816,18 @@ pa_ip (str)
 		    the_insn.reloc = R_HPPA_GOTOFF;
 		  else if (is_PC_relative (the_insn.exp))
 		    the_insn.reloc = R_HPPA_PCREL_CALL;
+#ifdef OBJ_ELF
+		  else if (is_tls_gdidx (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_GD21L;
+		  else if (is_tls_ldidx (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LDM21L;
+		  else if (is_tls_dtpoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LDO21L;
+		  else if (is_tls_ieoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_IE21L;
+		  else if (is_tls_leoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LE21L;
+#endif
 		  else
 		    the_insn.reloc = R_HPPA;
 		  the_insn.format = 14;
@@ -3171,6 +4852,18 @@ pa_ip (str)
 		    the_insn.reloc = R_HPPA_GOTOFF;
 		  else if (is_PC_relative (the_insn.exp))
 		    the_insn.reloc = R_HPPA_PCREL_CALL;
+#ifdef OBJ_ELF
+		  else if (is_tls_gdidx (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_GD21L;
+		  else if (is_tls_ldidx (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LDM21L;
+		  else if (is_tls_dtpoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LDO21L;
+		  else if (is_tls_ieoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_IE21L;
+		  else if (is_tls_leoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LE21L;
+#endif
 		  else
 		    the_insn.reloc = R_HPPA;
 		  the_insn.format = 21;
@@ -3196,6 +4889,18 @@ pa_ip (str)
 		    the_insn.reloc = R_HPPA_GOTOFF;
 		  else if (is_PC_relative (the_insn.exp))
 		    the_insn.reloc = R_HPPA_PCREL_CALL;
+#ifdef OBJ_ELF
+		  else if (is_tls_gdidx (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_GD21L;
+		  else if (is_tls_ldidx (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LDM21L;
+		  else if (is_tls_dtpoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LDO21L;
+		  else if (is_tls_ieoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_IE21L;
+		  else if (is_tls_leoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LE21L;
+#endif
 		  else
 		    the_insn.reloc = R_HPPA;
 		  the_insn.format = 14;
@@ -3222,6 +4927,18 @@ pa_ip (str)
 		    the_insn.reloc = R_HPPA_GOTOFF;
 		  else if (is_PC_relative (the_insn.exp))
 		    the_insn.reloc = R_HPPA_PCREL_CALL;
+#ifdef OBJ_ELF
+		  else if (is_tls_gdidx (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_GD21L;
+		  else if (is_tls_ldidx (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LDM21L;
+		  else if (is_tls_dtpoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LDO21L;
+		  else if (is_tls_ieoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_IE21L;
+		  else if (is_tls_leoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LE21L;
+#endif
 		  else
 		    the_insn.reloc = R_HPPA;
 		  the_insn.format = 14;
@@ -3248,6 +4965,18 @@ pa_ip (str)
 		    the_insn.reloc = R_HPPA_GOTOFF;
 		  else if (is_PC_relative (the_insn.exp))
 		    the_insn.reloc = R_HPPA_PCREL_CALL;
+#ifdef OBJ_ELF
+		  else if (is_tls_gdidx (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_GD21L;
+		  else if (is_tls_ldidx (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LDM21L;
+		  else if (is_tls_dtpoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LDO21L;
+		  else if (is_tls_ieoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_IE21L;
+		  else if (is_tls_leoff (the_insn.exp))
+		    the_insn.reloc = R_PARISC_TLS_LE21L;
+#endif
 		  else
 		    the_insn.reloc = R_HPPA;
 		  the_insn.format = 14;
@@ -3992,1947 +5721,83 @@ pa_ip (str)
   the_insn.opcode = opcode;
 }
 
-/* Turn a string in input_line_pointer into a floating point constant of type
-   type, and store the appropriate bytes in *litP.  The number of LITTLENUMS
-   emitted is stored in *sizeP .  An error message or NULL is returned.  */
-
-#define MAX_LITTLENUMS 6
-
-char *
-md_atof (type, litP, sizeP)
-     char type;
-     char *litP;
-     int *sizeP;
-{
-  int prec;
-  LITTLENUM_TYPE words[MAX_LITTLENUMS];
-  LITTLENUM_TYPE *wordP;
-  char *t;
-
-  switch (type)
-    {
-
-    case 'f':
-    case 'F':
-    case 's':
-    case 'S':
-      prec = 2;
-      break;
-
-    case 'd':
-    case 'D':
-    case 'r':
-    case 'R':
-      prec = 4;
-      break;
-
-    case 'x':
-    case 'X':
-      prec = 6;
-      break;
-
-    case 'p':
-    case 'P':
-      prec = 6;
-      break;
-
-    default:
-      *sizeP = 0;
-      return _("Bad call to MD_ATOF()");
-    }
-  t = atof_ieee (input_line_pointer, type, words);
-  if (t)
-    input_line_pointer = t;
-  *sizeP = prec * sizeof (LITTLENUM_TYPE);
-  for (wordP = words; prec--;)
-    {
-      md_number_to_chars (litP, (valueT) (*wordP++), sizeof (LITTLENUM_TYPE));
-      litP += sizeof (LITTLENUM_TYPE);
-    }
-  return NULL;
-}
-
-/* Write out big-endian.  */
+/* Assemble a single instruction storing it into a frag.  */
 
 void
-md_number_to_chars (buf, val, n)
-     char *buf;
-     valueT val;
-     int n;
+md_assemble (char *str)
 {
-  number_to_chars_bigendian (buf, val, n);
-}
+  char *to;
 
-/* Translate internal representation of relocation info to BFD target
-   format.  */
+  /* The had better be something to assemble.  */
+  assert (str);
 
-arelent **
-tc_gen_reloc (section, fixp)
-     asection *section;
-     fixS *fixp;
-{
-  arelent *reloc;
-  struct hppa_fix_struct *hppa_fixp;
-  static arelent *no_relocs = NULL;
-  arelent **relocs;
-  reloc_type **codes;
-  reloc_type code;
-  int n_relocs;
-  int i;
+  /* If we are within a procedure definition, make sure we've
+     defined a label for the procedure; handle case where the
+     label was defined after the .PROC directive.
 
-  hppa_fixp = (struct hppa_fix_struct *) fixp->tc_fix_data;
-  if (fixp->fx_addsy == 0)
-    return &no_relocs;
-
-  assert (hppa_fixp != 0);
-  assert (section != 0);
-
-  reloc = (arelent *) xmalloc (sizeof (arelent));
-
-  reloc->sym_ptr_ptr = (asymbol **) xmalloc (sizeof (asymbol *));
-  *reloc->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
-  codes = hppa_gen_reloc_type (stdoutput,
-			       fixp->fx_r_type,
-			       hppa_fixp->fx_r_format,
-			       hppa_fixp->fx_r_field,
-			       fixp->fx_subsy != NULL,
-			       symbol_get_bfdsym (fixp->fx_addsy));
-
-  if (codes == NULL)
+     Note there's not need to diddle with the segment or fragment
+     for the label symbol in this case.  We have already switched
+     into the new $CODE$ subspace at this point.  */
+  if (within_procedure && last_call_info->start_symbol == NULL)
     {
-      as_bad_where (fixp->fx_file, fixp->fx_line, _("Cannot handle fixup"));
-      abort ();
-    }
+      label_symbol_struct *label_symbol = pa_get_label ();
 
-  for (n_relocs = 0; codes[n_relocs]; n_relocs++)
-    ;
-
-  relocs = (arelent **) xmalloc (sizeof (arelent *) * n_relocs + 1);
-  reloc = (arelent *) xmalloc (sizeof (arelent) * n_relocs);
-  for (i = 0; i < n_relocs; i++)
-    relocs[i] = &reloc[i];
-
-  relocs[n_relocs] = NULL;
-
-#ifdef OBJ_ELF
-  switch (fixp->fx_r_type)
-    {
-    default:
-      assert (n_relocs == 1);
-
-      code = *codes[0];
-
-      /* Now, do any processing that is dependent on the relocation type.  */
-      switch (code)
+      if (label_symbol)
 	{
-	case R_PARISC_DLTREL21L:
-	case R_PARISC_DLTREL14R:
-	case R_PARISC_DLTREL14F:
-	case R_PARISC_PLABEL32:
-	case R_PARISC_PLABEL21L:
-	case R_PARISC_PLABEL14R:
-	  /* For plabel relocations, the addend of the
-	     relocation should be either 0 (no static link) or 2
-	     (static link required).  This adjustment is done in
-	     bfd/elf32-hppa.c:elf32_hppa_relocate_section.
-
-	     We also slam a zero addend into the DLT relative relocs;
-	     it doesn't make a lot of sense to use any addend since
-	     it gets you a different (eg unknown) DLT entry.  */
-	  reloc->addend = 0;
-	  break;
-
-#ifdef ELF_ARG_RELOC
-	case R_PARISC_PCREL17R:
-	case R_PARISC_PCREL17F:
-	case R_PARISC_PCREL17C:
-	case R_PARISC_DIR17R:
-	case R_PARISC_DIR17F:
-	case R_PARISC_PCREL21L:
-	case R_PARISC_DIR21L:
-	  reloc->addend = HPPA_R_ADDEND (hppa_fixp->fx_arg_reloc,
-					 fixp->fx_offset);
-	  break;
-#endif
-
-	case R_PARISC_DIR32:
-	  /* Facilitate hand-crafted unwind info.  */
-	  if (strcmp (section->name, UNWIND_SECTION_NAME) == 0)
-	    code = R_PARISC_SEGREL32;
-	  /* Fall thru */
-
-	default:
-	  reloc->addend = fixp->fx_offset;
-	  break;
-	}
-
-      reloc->sym_ptr_ptr = (asymbol **) xmalloc (sizeof (asymbol *));
-      *reloc->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
-      reloc->howto = bfd_reloc_type_lookup (stdoutput,
-					    (bfd_reloc_code_real_type) code);
-      reloc->address = fixp->fx_frag->fr_address + fixp->fx_where;
-
-      assert (reloc->howto && (unsigned int) code == reloc->howto->type);
-      break;
-    }
-#else /* OBJ_SOM */
-
-  /* Walk over reach relocation returned by the BFD backend.  */
-  for (i = 0; i < n_relocs; i++)
-    {
-      code = *codes[i];
-
-      relocs[i]->sym_ptr_ptr = (asymbol **) xmalloc (sizeof (asymbol *));
-      *relocs[i]->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
-      relocs[i]->howto =
-	bfd_reloc_type_lookup (stdoutput,
-			       (bfd_reloc_code_real_type) code);
-      relocs[i]->address = fixp->fx_frag->fr_address + fixp->fx_where;
-
-      switch (code)
-	{
-	case R_COMP2:
-	  /* The only time we ever use a R_COMP2 fixup is for the difference
-	     of two symbols.  With that in mind we fill in all four
-	     relocs now and break out of the loop.  */
-	  assert (i == 1);
-	  relocs[0]->sym_ptr_ptr = (asymbol **) &(bfd_abs_symbol);
-	  relocs[0]->howto =
-	    bfd_reloc_type_lookup (stdoutput,
-				   (bfd_reloc_code_real_type) *codes[0]);
-	  relocs[0]->address = fixp->fx_frag->fr_address + fixp->fx_where;
-	  relocs[0]->addend = 0;
-	  relocs[1]->sym_ptr_ptr = (asymbol **) xmalloc (sizeof (asymbol *));
-	  *relocs[1]->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_addsy);
-	  relocs[1]->howto =
-	    bfd_reloc_type_lookup (stdoutput,
-				   (bfd_reloc_code_real_type) *codes[1]);
-	  relocs[1]->address = fixp->fx_frag->fr_address + fixp->fx_where;
-	  relocs[1]->addend = 0;
-	  relocs[2]->sym_ptr_ptr = (asymbol **) xmalloc (sizeof (asymbol *));
-	  *relocs[2]->sym_ptr_ptr = symbol_get_bfdsym (fixp->fx_subsy);
-	  relocs[2]->howto =
-	    bfd_reloc_type_lookup (stdoutput,
-				   (bfd_reloc_code_real_type) *codes[2]);
-	  relocs[2]->address = fixp->fx_frag->fr_address + fixp->fx_where;
-	  relocs[2]->addend = 0;
-	  relocs[3]->sym_ptr_ptr = (asymbol **) &(bfd_abs_symbol);
-	  relocs[3]->howto =
-	    bfd_reloc_type_lookup (stdoutput,
-				   (bfd_reloc_code_real_type) *codes[3]);
-	  relocs[3]->address = fixp->fx_frag->fr_address + fixp->fx_where;
-	  relocs[3]->addend = 0;
-	  relocs[4]->sym_ptr_ptr = (asymbol **) &(bfd_abs_symbol);
-	  relocs[4]->howto =
-	    bfd_reloc_type_lookup (stdoutput,
-				   (bfd_reloc_code_real_type) *codes[4]);
-	  relocs[4]->address = fixp->fx_frag->fr_address + fixp->fx_where;
-	  relocs[4]->addend = 0;
-	  goto done;
-	case R_PCREL_CALL:
-	case R_ABS_CALL:
-	  relocs[i]->addend = HPPA_R_ADDEND (hppa_fixp->fx_arg_reloc, 0);
-	  break;
-
-	case R_DLT_REL:
-	case R_DATA_PLABEL:
-	case R_CODE_PLABEL:
-	  /* For plabel relocations, the addend of the
-	     relocation should be either 0 (no static link) or 2
-	     (static link required).
-
-	     FIXME: We always assume no static link!
-
-	     We also slam a zero addend into the DLT relative relocs;
-	     it doesn't make a lot of sense to use any addend since
-	     it gets you a different (eg unknown) DLT entry.  */
-	  relocs[i]->addend = 0;
-	  break;
-
-	case R_N_MODE:
-	case R_S_MODE:
-	case R_D_MODE:
-	case R_R_MODE:
-	case R_FSEL:
-	case R_LSEL:
-	case R_RSEL:
-	case R_BEGIN_BRTAB:
-	case R_END_BRTAB:
-	case R_BEGIN_TRY:
-	case R_N0SEL:
-	case R_N1SEL:
-	  /* There is no symbol or addend associated with these fixups.  */
-	  relocs[i]->sym_ptr_ptr = (asymbol **) xmalloc (sizeof (asymbol *));
-	  *relocs[i]->sym_ptr_ptr = symbol_get_bfdsym (dummy_symbol);
-	  relocs[i]->addend = 0;
-	  break;
-
-	case R_END_TRY:
-	case R_ENTRY:
-	case R_EXIT:
-	  /* There is no symbol associated with these fixups.  */
-	  relocs[i]->sym_ptr_ptr = (asymbol **) xmalloc (sizeof (asymbol *));
-	  *relocs[i]->sym_ptr_ptr = symbol_get_bfdsym (dummy_symbol);
-	  relocs[i]->addend = fixp->fx_offset;
-	  break;
-
-	default:
-	  relocs[i]->addend = fixp->fx_offset;
-	}
-    }
-
- done:
-#endif
-
-  return relocs;
-}
-
-/* Process any machine dependent frag types.  */
-
-void
-md_convert_frag (abfd, sec, fragP)
-     register bfd *abfd ATTRIBUTE_UNUSED;
-     register asection *sec ATTRIBUTE_UNUSED;
-     register fragS *fragP;
-{
-  unsigned int address;
-
-  if (fragP->fr_type == rs_machine_dependent)
-    {
-      switch ((int) fragP->fr_subtype)
-	{
-	case 0:
-	  fragP->fr_type = rs_fill;
-	  know (fragP->fr_var == 1);
-	  know (fragP->fr_next);
-	  address = fragP->fr_address + fragP->fr_fix;
-	  if (address % fragP->fr_offset)
+	  if (label_symbol->lss_label)
 	    {
-	      fragP->fr_offset =
-		fragP->fr_next->fr_address
-		- fragP->fr_address
-		- fragP->fr_fix;
-	    }
-	  else
-	    fragP->fr_offset = 0;
-	  break;
-	}
-    }
-}
-
-/* Round up a section size to the appropriate boundary.  */
-
-valueT
-md_section_align (segment, size)
-     asection *segment;
-     valueT size;
-{
-  int align = bfd_get_section_alignment (stdoutput, segment);
-  int align2 = (1 << align) - 1;
-
-  return (size + align2) & ~align2;
-}
-
-/* Return the approximate size of a frag before relaxation has occurred.  */
-int
-md_estimate_size_before_relax (fragP, segment)
-     register fragS *fragP;
-     asection *segment ATTRIBUTE_UNUSED;
-{
-  int size;
-
-  size = 0;
-
-  while ((fragP->fr_fix + size) % fragP->fr_offset)
-    size++;
-
-  return size;
-}
-
-#ifdef OBJ_ELF
-# ifdef WARN_COMMENTS
-const char *md_shortopts = "Vc";
-# else
-const char *md_shortopts = "V";
-# endif
-#else
-# ifdef WARN_COMMENTS
-const char *md_shortopts = "c";
-# else
-const char *md_shortopts = "";
-# endif
-#endif
-
-struct option md_longopts[] = {
-#ifdef WARN_COMMENTS
-  {"warn-comment", no_argument, NULL, 'c'},
-#endif
-  {NULL, no_argument, NULL, 0}
-};
-size_t md_longopts_size = sizeof (md_longopts);
-
-int
-md_parse_option (c, arg)
-     int c ATTRIBUTE_UNUSED;
-     char *arg ATTRIBUTE_UNUSED;
-{
-  switch (c)
-    {
-    default:
-      return 0;
-
-#ifdef OBJ_ELF
-    case 'V':
-      print_version_id ();
-      break;
-#endif
-#ifdef WARN_COMMENTS
-    case 'c':
-      warn_comment = 1;
-      break;
-#endif
-    }
-
-  return 1;
-}
-
-void
-md_show_usage (stream)
-     FILE *stream ATTRIBUTE_UNUSED;
-{
-#ifdef OBJ_ELF
-  fprintf (stream, _("\
-  -Q                      ignored\n"));
-#endif
-#ifdef WARN_COMMENTS
-  fprintf (stream, _("\
-  -c                      print a warning if a comment is found\n"));
-#endif
-}
-
-/* We have no need to default values of symbols.  */
-
-symbolS *
-md_undefined_symbol (name)
-     char *name ATTRIBUTE_UNUSED;
-{
-  return 0;
-}
-
-#if defined (OBJ_SOM) || defined (ELF_ARG_RELOC)
-#define nonzero_dibits(x) \
-  ((x) | (((x) & 0x55555555) << 1) | (((x) & 0xAAAAAAAA) >> 1))
-#define arg_reloc_stub_needed(CALLER, CALLEE) \
-  (((CALLER) ^ (CALLEE)) & nonzero_dibits (CALLER) & nonzero_dibits (CALLEE))
-#else
-#define arg_reloc_stub_needed(CALLER, CALLEE) 0
-#endif
-
-/* Apply a fixup to an instruction.  */
-
-void
-md_apply_fix (fixP, valP, seg)
-     fixS *fixP;
-     valueT *valP;
-     segT seg ATTRIBUTE_UNUSED;
-{
-  char *fixpos;
-  struct hppa_fix_struct *hppa_fixP;
-  offsetT new_val;
-  int insn, val, fmt;
-
-  /* SOM uses R_HPPA_ENTRY and R_HPPA_EXIT relocations which can
-     never be "applied" (they are just markers).  Likewise for
-     R_HPPA_BEGIN_BRTAB and R_HPPA_END_BRTAB.  */
+	      last_call_info->start_symbol = label_symbol->lss_label;
+	      symbol_get_bfdsym (label_symbol->lss_label)->flags
+		|= BSF_FUNCTION;
 #ifdef OBJ_SOM
-  if (fixP->fx_r_type == R_HPPA_ENTRY
-      || fixP->fx_r_type == R_HPPA_EXIT
-      || fixP->fx_r_type == R_HPPA_BEGIN_BRTAB
-      || fixP->fx_r_type == R_HPPA_END_BRTAB
-      || fixP->fx_r_type == R_HPPA_BEGIN_TRY)
-    return;
-
-  /* Disgusting.  We must set fx_offset ourselves -- R_HPPA_END_TRY
-     fixups are considered not adjustable, which in turn causes
-     adjust_reloc_syms to not set fx_offset.  Ugh.  */
-  if (fixP->fx_r_type == R_HPPA_END_TRY)
-    {
-      fixP->fx_offset = * valP;
-      return;
-    }
-#endif
-#ifdef OBJ_ELF
-  if (fixP->fx_r_type == (int) R_PARISC_GNU_VTENTRY
-      || fixP->fx_r_type == (int) R_PARISC_GNU_VTINHERIT)
-    return;
-#endif
-
-  if (fixP->fx_addsy == NULL && fixP->fx_pcrel == 0)
-    fixP->fx_done = 1;
-
-  /* There should be a HPPA specific fixup associated with the GAS fixup.  */
-  hppa_fixP = (struct hppa_fix_struct *) fixP->tc_fix_data;
-  if (hppa_fixP == NULL)
-    {
-      as_bad_where (fixP->fx_file, fixP->fx_line,
-		    _("no hppa_fixup entry for fixup type 0x%x"),
-		    fixP->fx_r_type);
-      return;
-    }
-
-  fixpos = fixP->fx_frag->fr_literal + fixP->fx_where;
-
-  if (fixP->fx_size != 4 || hppa_fixP->fx_r_format == 32)
-    {
-      /* Handle constant output. */
-      number_to_chars_bigendian (fixpos, *valP, fixP->fx_size);
-      return;
-    }
-
-  insn = bfd_get_32 (stdoutput, fixpos);
-  fmt = bfd_hppa_insn2fmt (stdoutput, insn);
-
-  /* If there is a symbol associated with this fixup, then it's something
-     which will need a SOM relocation (except for some PC-relative relocs).
-     In such cases we should treat the "val" or "addend" as zero since it
-     will be added in as needed from fx_offset in tc_gen_reloc.  */
-  if ((fixP->fx_addsy != NULL
-       || fixP->fx_r_type == (int) R_HPPA_NONE)
-#ifdef OBJ_SOM
-      && fmt != 32
-#endif
-      )
-    new_val = ((fmt == 12 || fmt == 17 || fmt == 22) ? 8 : 0);
-#ifdef OBJ_SOM
-  /* These field selectors imply that we do not want an addend.  */
-  else if (hppa_fixP->fx_r_field == e_psel
-	   || hppa_fixP->fx_r_field == e_rpsel
-	   || hppa_fixP->fx_r_field == e_lpsel
-	   || hppa_fixP->fx_r_field == e_tsel
-	   || hppa_fixP->fx_r_field == e_rtsel
-	   || hppa_fixP->fx_r_field == e_ltsel)
-    new_val = ((fmt == 12 || fmt == 17 || fmt == 22) ? 8 : 0);
-#endif
-  else
-    new_val = hppa_field_adjust (* valP, 0, hppa_fixP->fx_r_field);
-
-  /* Handle pc-relative exceptions from above.  */
-  if ((fmt == 12 || fmt == 17 || fmt == 22)
-      && fixP->fx_addsy
-      && fixP->fx_pcrel
-      && !arg_reloc_stub_needed (symbol_arg_reloc_info (fixP->fx_addsy),
-				 hppa_fixP->fx_arg_reloc)
-#ifdef OBJ_ELF
-      && (* valP - 8 + 8192 < 16384
-	  || (fmt == 17 && * valP - 8 + 262144 < 524288)
-	  || (fmt == 22 && * valP - 8 + 8388608 < 16777216))
-#endif
-#ifdef OBJ_SOM
-      && (* valP - 8 + 262144 < 524288
-	  || (fmt == 22 && * valP - 8 + 8388608 < 16777216))
-#endif
-      && !S_IS_EXTERNAL (fixP->fx_addsy)
-      && !S_IS_WEAK (fixP->fx_addsy)
-      && S_GET_SEGMENT (fixP->fx_addsy) == hppa_fixP->segment
-      && !(fixP->fx_subsy
-	   && S_GET_SEGMENT (fixP->fx_subsy) != hppa_fixP->segment))
-    {
-      new_val = hppa_field_adjust (* valP, 0, hppa_fixP->fx_r_field);
-    }
-
-  switch (fmt)
-    {
-    case 10:
-      CHECK_FIELD_WHERE (new_val, 8191, -8192,
-			 fixP->fx_file, fixP->fx_line);
-      val = new_val;
-
-      insn = (insn & ~ 0x3ff1) | (((val & 0x1ff8) << 1)
-				  | ((val & 0x2000) >> 13));
-      break;
-    case -11:
-      CHECK_FIELD_WHERE (new_val, 8191, -8192,
-			 fixP->fx_file, fixP->fx_line);
-      val = new_val;
-
-      insn = (insn & ~ 0x3ff9) | (((val & 0x1ffc) << 1)
-				  | ((val & 0x2000) >> 13));
-      break;
-      /* Handle all opcodes with the 'j' operand type.  */
-    case 14:
-      CHECK_FIELD_WHERE (new_val, 8191, -8192,
-			 fixP->fx_file, fixP->fx_line);
-      val = new_val;
-
-      insn = ((insn & ~ 0x3fff) | low_sign_unext (val, 14));
-      break;
-
-      /* Handle all opcodes with the 'k' operand type.  */
-    case 21:
-      CHECK_FIELD_WHERE (new_val, 1048575, -1048576,
-			 fixP->fx_file, fixP->fx_line);
-      val = new_val;
-
-      insn = (insn & ~ 0x1fffff) | re_assemble_21 (val);
-      break;
-
-      /* Handle all the opcodes with the 'i' operand type.  */
-    case 11:
-      CHECK_FIELD_WHERE (new_val, 1023, -1024,
-			 fixP->fx_file, fixP->fx_line);
-      val = new_val;
-
-      insn = (insn & ~ 0x7ff) | low_sign_unext (val, 11);
-      break;
-
-      /* Handle all the opcodes with the 'w' operand type.  */
-    case 12:
-      CHECK_FIELD_WHERE (new_val - 8, 8191, -8192,
-			 fixP->fx_file, fixP->fx_line);
-      val = new_val - 8;
-
-      insn = (insn & ~ 0x1ffd) | re_assemble_12 (val >> 2);
-      break;
-
-      /* Handle some of the opcodes with the 'W' operand type.  */
-    case 17:
-      {
-	offsetT distance = * valP;
-
-	/* If this is an absolute branch (ie no link) with an out of
-	   range target, then we want to complain.  */
-	if (fixP->fx_r_type == (int) R_HPPA_PCREL_CALL
-	    && (insn & 0xffe00000) == 0xe8000000)
-	  CHECK_FIELD_WHERE (distance - 8, 262143, -262144,
-			     fixP->fx_file, fixP->fx_line);
-
-	CHECK_FIELD_WHERE (new_val - 8, 262143, -262144,
-			   fixP->fx_file, fixP->fx_line);
-	val = new_val - 8;
-
-	insn = (insn & ~ 0x1f1ffd) | re_assemble_17 (val >> 2);
-	break;
-      }
-
-    case 22:
-      {
-	offsetT distance = * valP;
-
-	/* If this is an absolute branch (ie no link) with an out of
-	   range target, then we want to complain.  */
-	if (fixP->fx_r_type == (int) R_HPPA_PCREL_CALL
-	    && (insn & 0xffe00000) == 0xe8000000)
-	  CHECK_FIELD_WHERE (distance - 8, 8388607, -8388608,
-			     fixP->fx_file, fixP->fx_line);
-
-	CHECK_FIELD_WHERE (new_val - 8, 8388607, -8388608,
-			   fixP->fx_file, fixP->fx_line);
-	val = new_val - 8;
-
-	insn = (insn & ~ 0x3ff1ffd) | re_assemble_22 (val >> 2);
-	break;
-      }
-
-    case -10:
-      val = new_val;
-      insn = (insn & ~ 0xfff1) | re_assemble_16 (val & -8);
-      break;
-
-    case -16:
-      val = new_val;
-      insn = (insn & ~ 0xfff9) | re_assemble_16 (val & -4);
-      break;
-
-    case 16:
-      val = new_val;
-      insn = (insn & ~ 0xffff) | re_assemble_16 (val);
-      break;
-
-    case 32:
-      insn = new_val;
-      break;
-
-    default:
-      as_bad_where (fixP->fx_file, fixP->fx_line,
-		    _("Unknown relocation encountered in md_apply_fix."));
-      return;
-    }
-
-  /* Insert the relocation.  */
-  bfd_put_32 (stdoutput, insn, fixpos);
-}
-
-/* Exactly what point is a PC-relative offset relative TO?
-   On the PA, they're relative to the address of the offset.  */
-
-long
-md_pcrel_from (fixP)
-     fixS *fixP;
-{
-  return fixP->fx_where + fixP->fx_frag->fr_address;
-}
-
-/* Return nonzero if the input line pointer is at the end of
-   a statement.  */
-
-static int
-is_end_of_statement ()
-{
-  return ((*input_line_pointer == '\n')
-	  || (*input_line_pointer == ';')
-	  || (*input_line_pointer == '!'));
-}
-
-/* Read a number from S.  The number might come in one of many forms,
-   the most common will be a hex or decimal constant, but it could be
-   a pre-defined register (Yuk!), or an absolute symbol.
-
-   Return 1 on success or 0 on failure.  If STRICT, then a missing
-   register prefix will cause a failure.  The number itself is
-   returned in `pa_number'.
-
-   IS_FLOAT indicates that a PA-89 FP register number should be
-   parsed;  A `l' or `r' suffix is checked for if but 2 of IS_FLOAT is
-   not set.
-
-   pa_parse_number can not handle negative constants and will fail
-   horribly if it is passed such a constant.  */
-
-static int
-pa_parse_number (s, is_float)
-     char **s;
-     int is_float;
-{
-  int num;
-  char *name;
-  char c;
-  symbolS *sym;
-  int status;
-  char *p = *s;
-  bfd_boolean have_prefix;
-
-  /* Skip whitespace before the number.  */
-  while (*p == ' ' || *p == '\t')
-    p = p + 1;
-
-  pa_number = -1;
-  have_prefix = 0;
-  num = 0;
-  if (!strict && ISDIGIT (*p))
-    {
-      /* Looks like a number.  */
-
-      if (*p == '0' && (*(p + 1) == 'x' || *(p + 1) == 'X'))
-	{
-	  /* The number is specified in hex.  */
-	  p += 2;
-	  while (ISDIGIT (*p) || ((*p >= 'a') && (*p <= 'f'))
-		 || ((*p >= 'A') && (*p <= 'F')))
-	    {
-	      if (ISDIGIT (*p))
-		num = num * 16 + *p - '0';
-	      else if (*p >= 'a' && *p <= 'f')
-		num = num * 16 + *p - 'a' + 10;
-	      else
-		num = num * 16 + *p - 'A' + 10;
-	      ++p;
-	    }
-	}
-      else
-	{
-	  /* The number is specified in decimal.  */
-	  while (ISDIGIT (*p))
-	    {
-	      num = num * 10 + *p - '0';
-	      ++p;
-	    }
-	}
-
-      pa_number = num;
-
-      /* Check for a `l' or `r' suffix.  */
-      if (is_float)
-	{
-	  pa_number += FP_REG_BASE;
-	  if (! (is_float & 2))
-	    {
-	      if (IS_R_SELECT (p))
+	      /* Also handle allocation of a fixup to hold the unwind
+		 information when the label appears after the proc/procend.  */
+	      if (within_entry_exit)
 		{
-		  pa_number += FP_REG_RSEL;
-		  ++p;
+		  char *where;
+		  unsigned int u;
+
+		  where = frag_more (0);
+		  u = UNWIND_LOW32 (&last_call_info->ci_unwind.descriptor);
+		  fix_new_hppa (frag_now, where - frag_now->fr_literal, 0,
+				NULL, (offsetT) 0, NULL,
+				0, R_HPPA_ENTRY, e_fsel, 0, 0, u);
 		}
-	      else if (IS_L_SELECT (p))
-		{
-		  ++p;
-		}
-	    }
-	}
-    }
-  else if (*p == '%')
-    {
-      /* The number might be a predefined register.  */
-      have_prefix = 1;
-      name = p;
-      p++;
-      c = *p;
-      /* Tege hack: Special case for general registers as the general
-         code makes a binary search with case translation, and is VERY
-         slow.  */
-      if (c == 'r')
-	{
-	  p++;
-	  if (*p == 'e' && *(p + 1) == 't'
-	      && (*(p + 2) == '0' || *(p + 2) == '1'))
-	    {
-	      p += 2;
-	      num = *p - '0' + 28;
-	      p++;
-	    }
-	  else if (*p == 'p')
-	    {
-	      num = 2;
-	      p++;
-	    }
-	  else if (!ISDIGIT (*p))
-	    {
-	      if (print_errors)
-		as_bad (_("Undefined register: '%s'."), name);
-	      num = -1;
-	    }
-	  else
-	    {
-	      do
-		num = num * 10 + *p++ - '0';
-	      while (ISDIGIT (*p));
-	    }
-	}
-      else
-	{
-	  /* Do a normal register search.  */
-	  while (is_part_of_name (c))
-	    {
-	      p = p + 1;
-	      c = *p;
-	    }
-	  *p = 0;
-	  status = reg_name_search (name);
-	  if (status >= 0)
-	    num = status;
-	  else
-	    {
-	      if (print_errors)
-		as_bad (_("Undefined register: '%s'."), name);
-	      num = -1;
-	    }
-	  *p = c;
-	}
-
-      pa_number = num;
-    }
-  else
-    {
-      /* And finally, it could be a symbol in the absolute section which
-         is effectively a constant, or a register alias symbol.  */
-      name = p;
-      c = *p;
-      while (is_part_of_name (c))
-	{
-	  p = p + 1;
-	  c = *p;
-	}
-      *p = 0;
-      if ((sym = symbol_find (name)) != NULL)
-	{
-	  if (S_GET_SEGMENT (sym) == reg_section)
-	    {
-	      num = S_GET_VALUE (sym);
-	      /* Well, we don't really have one, but we do have a
-		 register, so...  */
-	      have_prefix = TRUE;
-	    }
-	  else if (S_GET_SEGMENT (sym) == &bfd_abs_section)
-	    num = S_GET_VALUE (sym);
-	  else if (!strict)
-	    {
-	      if (print_errors)
-		as_bad (_("Non-absolute symbol: '%s'."), name);
-	      num = -1;
-	    }
-	}
-      else if (!strict)
-	{
-	  /* There is where we'd come for an undefined symbol
-	     or for an empty string.  For an empty string we
-	     will return zero.  That's a concession made for
-	     compatibility with the braindamaged HP assemblers.  */
-	  if (*name == 0)
-	    num = 0;
-	  else
-	    {
-	      if (print_errors)
-		as_bad (_("Undefined absolute constant: '%s'."), name);
-	      num = -1;
-	    }
-	}
-      *p = c;
-
-      pa_number = num;
-    }
-
-  if (!strict || have_prefix)
-    {
-      *s = p;
-      return 1;
-    }
-  return 0;
-}
-
-#define REG_NAME_CNT	(sizeof (pre_defined_registers) / sizeof (struct pd_reg))
-
-/* Given NAME, find the register number associated with that name, return
-   the integer value associated with the given name or -1 on failure.  */
-
-static int
-reg_name_search (name)
-     char *name;
-{
-  int middle, low, high;
-  int cmp;
-
-  low = 0;
-  high = REG_NAME_CNT - 1;
-
-  do
-    {
-      middle = (low + high) / 2;
-      cmp = strcasecmp (name, pre_defined_registers[middle].name);
-      if (cmp < 0)
-	high = middle - 1;
-      else if (cmp > 0)
-	low = middle + 1;
-      else
-	return pre_defined_registers[middle].value;
-    }
-  while (low <= high);
-
-  return -1;
-}
-
-/* Return nonzero if the given INSN and L/R information will require
-   a new PA-1.1 opcode.  */
-
-static int
-need_pa11_opcode ()
-{
-  if ((pa_number & FP_REG_RSEL) != 0
-      && !(the_insn.fpof1 == DBL && the_insn.fpof2 == DBL))
-    {
-      /* If this instruction is specific to a particular architecture,
-	 then set a new architecture.  */
-      if (bfd_get_mach (stdoutput) < pa11)
-	{
-	  if (!bfd_set_arch_mach (stdoutput, bfd_arch_hppa, pa11))
-	    as_warn (_("could not update architecture and machine"));
-	}
-      return TRUE;
-    }
-  else
-    return FALSE;
-}
-
-/* Parse a condition for a fcmp instruction.  Return the numerical
-   code associated with the condition.  */
-
-static int
-pa_parse_fp_cmp_cond (s)
-     char **s;
-{
-  int cond, i;
-
-  cond = 0;
-
-  for (i = 0; i < 32; i++)
-    {
-      if (strncasecmp (*s, fp_cond_map[i].string,
-		       strlen (fp_cond_map[i].string)) == 0)
-	{
-	  cond = fp_cond_map[i].cond;
-	  *s += strlen (fp_cond_map[i].string);
-	  /* If not a complete match, back up the input string and
-	     report an error.  */
-	  if (**s != ' ' && **s != '\t')
-	    {
-	      *s -= strlen (fp_cond_map[i].string);
-	      break;
-	    }
-	  while (**s == ' ' || **s == '\t')
-	    *s = *s + 1;
-	  return cond;
-	}
-    }
-
-  as_bad (_("Invalid FP Compare Condition: %s"), *s);
-
-  /* Advance over the bogus completer.  */
-  while (**s != ',' && **s != ' ' && **s != '\t')
-    *s += 1;
-
-  return 0;
-}
-
-/* Parse a graphics test complete for ftest.  */
-
-static int
-pa_parse_ftest_gfx_completer (s)
-     char **s;
-{
-  int value;
-
-  value = 0;
-  if (strncasecmp (*s, "acc8", 4) == 0)
-    {
-      value = 5;
-      *s += 4;
-    }
-  else if (strncasecmp (*s, "acc6", 4) == 0)
-    {
-      value = 9;
-      *s += 4;
-    }
-  else if (strncasecmp (*s, "acc4", 4) == 0)
-    {
-      value = 13;
-      *s += 4;
-    }
-  else if (strncasecmp (*s, "acc2", 4) == 0)
-    {
-      value = 17;
-      *s += 4;
-    }
-  else if (strncasecmp (*s, "acc", 3) == 0)
-    {
-      value = 1;
-      *s += 3;
-    }
-  else if (strncasecmp (*s, "rej8", 4) == 0)
-    {
-      value = 6;
-      *s += 4;
-    }
-  else if (strncasecmp (*s, "rej", 3) == 0)
-    {
-      value = 2;
-      *s += 3;
-    }
-  else
-    {
-      value = 0;
-      as_bad (_("Invalid FTEST completer: %s"), *s);
-    }
-
-  return value;
-}
-
-/* Parse an FP operand format completer returning the completer
-   type.  */
-
-static fp_operand_format
-pa_parse_fp_cnv_format (s)
-     char **s;
-{
-  int format;
-
-  format = SGL;
-  if (**s == ',')
-    {
-      *s += 1;
-      if (strncasecmp (*s, "sgl", 3) == 0)
-	{
-	  format = SGL;
-	  *s += 4;
-	}
-      else if (strncasecmp (*s, "dbl", 3) == 0)
-	{
-	  format = DBL;
-	  *s += 4;
-	}
-      else if (strncasecmp (*s, "quad", 4) == 0)
-	{
-	  format = QUAD;
-	  *s += 5;
-	}
-      else if (strncasecmp (*s, "w", 1) == 0)
-	{
-	  format = W;
-	  *s += 2;
-	}
-      else if (strncasecmp (*s, "uw", 2) == 0)
-	{
-	  format = UW;
-	  *s += 3;
-	}
-      else if (strncasecmp (*s, "dw", 2) == 0)
-	{
-	  format = DW;
-	  *s += 3;
-	}
-      else if (strncasecmp (*s, "udw", 3) == 0)
-	{
-	  format = UDW;
-	  *s += 4;
-	}
-      else if (strncasecmp (*s, "qw", 2) == 0)
-	{
-	  format = QW;
-	  *s += 3;
-	}
-      else if (strncasecmp (*s, "uqw", 3) == 0)
-	{
-	  format = UQW;
-	  *s += 4;
-	}
-      else
-	{
-	  format = ILLEGAL_FMT;
-	  as_bad (_("Invalid FP Operand Format: %3s"), *s);
-	}
-    }
-
-  return format;
-}
-
-/* Parse an FP operand format completer returning the completer
-   type.  */
-
-static fp_operand_format
-pa_parse_fp_format (s)
-     char **s;
-{
-  int format;
-
-  format = SGL;
-  if (**s == ',')
-    {
-      *s += 1;
-      if (strncasecmp (*s, "sgl", 3) == 0)
-	{
-	  format = SGL;
-	  *s += 4;
-	}
-      else if (strncasecmp (*s, "dbl", 3) == 0)
-	{
-	  format = DBL;
-	  *s += 4;
-	}
-      else if (strncasecmp (*s, "quad", 4) == 0)
-	{
-	  format = QUAD;
-	  *s += 5;
-	}
-      else
-	{
-	  format = ILLEGAL_FMT;
-	  as_bad (_("Invalid FP Operand Format: %3s"), *s);
-	}
-    }
-
-  return format;
-}
-
-/* Convert from a selector string into a selector type.  */
-
-static int
-pa_chk_field_selector (str)
-     char **str;
-{
-  int middle, low, high;
-  int cmp;
-  char name[4];
-
-  /* Read past any whitespace.  */
-  /* FIXME: should we read past newlines and formfeeds??? */
-  while (**str == ' ' || **str == '\t' || **str == '\n' || **str == '\f')
-    *str = *str + 1;
-
-  if ((*str)[1] == '\'' || (*str)[1] == '%')
-    name[0] = TOLOWER ((*str)[0]),
-    name[1] = 0;
-  else if ((*str)[2] == '\'' || (*str)[2] == '%')
-    name[0] = TOLOWER ((*str)[0]),
-    name[1] = TOLOWER ((*str)[1]),
-    name[2] = 0;
-  else if ((*str)[3] == '\'' || (*str)[3] == '%')
-    name[0] = TOLOWER ((*str)[0]),
-    name[1] = TOLOWER ((*str)[1]),
-    name[2] = TOLOWER ((*str)[2]),
-    name[3] = 0;
-  else
-    return e_fsel;
-
-  low = 0;
-  high = sizeof (selector_table) / sizeof (struct selector_entry) - 1;
-
-  do
-    {
-      middle = (low + high) / 2;
-      cmp = strcmp (name, selector_table[middle].prefix);
-      if (cmp < 0)
-	high = middle - 1;
-      else if (cmp > 0)
-	low = middle + 1;
-      else
-	{
-	  *str += strlen (name) + 1;
-#ifndef OBJ_SOM
-	  if (selector_table[middle].field_selector == e_nsel)
-	    return e_fsel;
 #endif
-	  return selector_table[middle].field_selector;
-	}
-    }
-  while (low <= high);
-
-  return e_fsel;
-}
-
-/* Mark (via expr_end) the end of an expression (I think).  FIXME.  */
-
-static int
-get_expression (str)
-     char *str;
-{
-  char *save_in;
-  asection *seg;
-
-  save_in = input_line_pointer;
-  input_line_pointer = str;
-  seg = expression (&the_insn.exp);
-  if (!(seg == absolute_section
-	|| seg == undefined_section
-	|| SEG_NORMAL (seg)))
-    {
-      as_warn (_("Bad segment in expression."));
-      expr_end = input_line_pointer;
-      input_line_pointer = save_in;
-      return 1;
-    }
-  expr_end = input_line_pointer;
-  input_line_pointer = save_in;
-  return 0;
-}
-
-/* Mark (via expr_end) the end of an absolute expression.  FIXME.  */
-static int
-pa_get_absolute_expression (insn, strp)
-     struct pa_it *insn;
-     char **strp;
-{
-  char *save_in;
-
-  insn->field_selector = pa_chk_field_selector (strp);
-  save_in = input_line_pointer;
-  input_line_pointer = *strp;
-  expression (&insn->exp);
-  /* This is not perfect, but is a huge improvement over doing nothing.
-
-     The PA assembly syntax is ambiguous in a variety of ways.  Consider
-     this string "4 %r5"  Is that the number 4 followed by the register
-     r5, or is that 4 MOD r5?
-
-     If we get a modulo expression when looking for an absolute, we try
-     again cutting off the input string at the first whitespace character.  */
-  if (insn->exp.X_op == O_modulus)
-    {
-      char *s, c;
-      int retval;
-
-      input_line_pointer = *strp;
-      s = *strp;
-      while (*s != ',' && *s != ' ' && *s != '\t')
-	s++;
-
-      c = *s;
-      *s = 0;
-
-      retval = pa_get_absolute_expression (insn, strp);
-
-      input_line_pointer = save_in;
-      *s = c;
-      return evaluate_absolute (insn);
-    }
-  /* When in strict mode we have a non-match, fix up the pointers
-     and return to our caller.  */
-  if (insn->exp.X_op != O_constant && strict)
-    {
-      expr_end = input_line_pointer;
-      input_line_pointer = save_in;
-      return 0;
-    }
-  if (insn->exp.X_op != O_constant)
-    {
-      as_bad (_("Bad segment (should be absolute)."));
-      expr_end = input_line_pointer;
-      input_line_pointer = save_in;
-      return 0;
-    }
-  expr_end = input_line_pointer;
-  input_line_pointer = save_in;
-  return evaluate_absolute (insn);
-}
-
-/* Evaluate an absolute expression EXP which may be modified by
-   the selector FIELD_SELECTOR.  Return the value of the expression.  */
-static int
-evaluate_absolute (insn)
-     struct pa_it *insn;
-{
-  offsetT value;
-  expressionS exp;
-  int field_selector = insn->field_selector;
-
-  exp = insn->exp;
-  value = exp.X_add_number;
-
-  return hppa_field_adjust (0, value, field_selector);
-}
-
-/* Given an argument location specification return the associated
-   argument location number.  */
-
-static unsigned int
-pa_build_arg_reloc (type_name)
-     char *type_name;
-{
-
-  if (strncasecmp (type_name, "no", 2) == 0)
-    return 0;
-  if (strncasecmp (type_name, "gr", 2) == 0)
-    return 1;
-  else if (strncasecmp (type_name, "fr", 2) == 0)
-    return 2;
-  else if (strncasecmp (type_name, "fu", 2) == 0)
-    return 3;
-  else
-    as_bad (_("Invalid argument location: %s\n"), type_name);
-
-  return 0;
-}
-
-/* Encode and return an argument relocation specification for
-   the given register in the location specified by arg_reloc.  */
-
-static unsigned int
-pa_align_arg_reloc (reg, arg_reloc)
-     unsigned int reg;
-     unsigned int arg_reloc;
-{
-  unsigned int new_reloc;
-
-  new_reloc = arg_reloc;
-  switch (reg)
-    {
-    case 0:
-      new_reloc <<= 8;
-      break;
-    case 1:
-      new_reloc <<= 6;
-      break;
-    case 2:
-      new_reloc <<= 4;
-      break;
-    case 3:
-      new_reloc <<= 2;
-      break;
-    default:
-      as_bad (_("Invalid argument description: %d"), reg);
-    }
-
-  return new_reloc;
-}
-
-/* Parse a PA nullification completer (,n).  Return nonzero if the
-   completer was found; return zero if no completer was found.  */
-
-static int
-pa_parse_nullif (s)
-     char **s;
-{
-  int nullif;
-
-  nullif = 0;
-  if (**s == ',')
-    {
-      *s = *s + 1;
-      if (strncasecmp (*s, "n", 1) == 0)
-	nullif = 1;
-      else
-	{
-	  as_bad (_("Invalid Nullification: (%c)"), **s);
-	  nullif = 0;
-	}
-      *s = *s + 1;
-    }
-
-  return nullif;
-}
-
-/* Parse a non-negated compare/subtract completer returning the
-   number (for encoding in instructions) of the given completer.  */
-
-static int
-pa_parse_nonneg_cmpsub_cmpltr (s)
-     char **s;
-{
-  int cmpltr;
-  char *name = *s + 1;
-  char c;
-  char *save_s = *s;
-  int nullify = 0;
-
-  cmpltr = 0;
-  if (**s == ',')
-    {
-      *s += 1;
-      while (**s != ',' && **s != ' ' && **s != '\t')
-	*s += 1;
-      c = **s;
-      **s = 0x00;
-
-      if (strcmp (name, "=") == 0)
-	{
-	  cmpltr = 1;
-	}
-      else if (strcmp (name, "<") == 0)
-	{
-	  cmpltr = 2;
-	}
-      else if (strcmp (name, "<=") == 0)
-	{
-	  cmpltr = 3;
-	}
-      else if (strcmp (name, "<<") == 0)
-	{
-	  cmpltr = 4;
-	}
-      else if (strcmp (name, "<<=") == 0)
-	{
-	  cmpltr = 5;
-	}
-      else if (strcasecmp (name, "sv") == 0)
-	{
-	  cmpltr = 6;
-	}
-      else if (strcasecmp (name, "od") == 0)
-	{
-	  cmpltr = 7;
-	}
-      /* If we have something like addb,n then there is no condition
-         completer.  */
-      else if (strcasecmp (name, "n") == 0)
-	{
-	  cmpltr = 0;
-	  nullify = 1;
+	    }
+	  else
+	    as_bad (_("Missing function name for .PROC (corrupted label chain)"));
 	}
       else
-	{
-	  cmpltr = -1;
-	}
-      **s = c;
+	as_bad (_("Missing function name for .PROC"));
     }
 
-  /* Reset pointers if this was really a ,n for a branch instruction.  */
-  if (nullify)
-    *s = save_s;
+  /* Assemble the instruction.  Results are saved into "the_insn".  */
+  pa_ip (str);
 
-  return cmpltr;
-}
+  /* Get somewhere to put the assembled instruction.  */
+  to = frag_more (4);
 
-/* Parse a negated compare/subtract completer returning the
-   number (for encoding in instructions) of the given completer.  */
+  /* Output the opcode.  */
+  md_number_to_chars (to, the_insn.opcode, 4);
 
-static int
-pa_parse_neg_cmpsub_cmpltr (s)
-     char **s;
-{
-  int cmpltr;
-  char *name = *s + 1;
-  char c;
-  char *save_s = *s;
-  int nullify = 0;
+  /* If necessary output more stuff.  */
+  if (the_insn.reloc != R_HPPA_NONE)
+    fix_new_hppa (frag_now, (to - frag_now->fr_literal), 4, NULL,
+		  (offsetT) 0, &the_insn.exp, the_insn.pcrel,
+		  the_insn.reloc, the_insn.field_selector,
+		  the_insn.format, the_insn.arg_reloc, 0);
 
-  cmpltr = 0;
-  if (**s == ',')
-    {
-      *s += 1;
-      while (**s != ',' && **s != ' ' && **s != '\t')
-	*s += 1;
-      c = **s;
-      **s = 0x00;
-
-      if (strcasecmp (name, "tr") == 0)
-	{
-	  cmpltr = 0;
-	}
-      else if (strcmp (name, "<>") == 0)
-	{
-	  cmpltr = 1;
-	}
-      else if (strcmp (name, ">=") == 0)
-	{
-	  cmpltr = 2;
-	}
-      else if (strcmp (name, ">") == 0)
-	{
-	  cmpltr = 3;
-	}
-      else if (strcmp (name, ">>=") == 0)
-	{
-	  cmpltr = 4;
-	}
-      else if (strcmp (name, ">>") == 0)
-	{
-	  cmpltr = 5;
-	}
-      else if (strcasecmp (name, "nsv") == 0)
-	{
-	  cmpltr = 6;
-	}
-      else if (strcasecmp (name, "ev") == 0)
-	{
-	  cmpltr = 7;
-	}
-      /* If we have something like addb,n then there is no condition
-         completer.  */
-      else if (strcasecmp (name, "n") == 0)
-	{
-	  cmpltr = 0;
-	  nullify = 1;
-	}
-      else
-	{
-	  cmpltr = -1;
-	}
-      **s = c;
-    }
-
-  /* Reset pointers if this was really a ,n for a branch instruction.  */
-  if (nullify)
-    *s = save_s;
-
-  return cmpltr;
-}
-
-/* Parse a 64 bit compare and branch completer returning the number (for
-   encoding in instructions) of the given completer.
-
-   Nonnegated comparisons are returned as 0-7, negated comparisons are
-   returned as 8-15.  */
-
-static int
-pa_parse_cmpb_64_cmpltr (s)
-     char **s;
-{
-  int cmpltr;
-  char *name = *s + 1;
-  char c;
-
-  cmpltr = -1;
-  if (**s == ',')
-    {
-      *s += 1;
-      while (**s != ',' && **s != ' ' && **s != '\t')
-	*s += 1;
-      c = **s;
-      **s = 0x00;
-
-      if (strcmp (name, "*") == 0)
-	{
-	  cmpltr = 0;
-	}
-      else if (strcmp (name, "*=") == 0)
-	{
-	  cmpltr = 1;
-	}
-      else if (strcmp (name, "*<") == 0)
-	{
-	  cmpltr = 2;
-	}
-      else if (strcmp (name, "*<=") == 0)
-	{
-	  cmpltr = 3;
-	}
-      else if (strcmp (name, "*<<") == 0)
-	{
-	  cmpltr = 4;
-	}
-      else if (strcmp (name, "*<<=") == 0)
-	{
-	  cmpltr = 5;
-	}
-      else if (strcasecmp (name, "*sv") == 0)
-	{
-	  cmpltr = 6;
-	}
-      else if (strcasecmp (name, "*od") == 0)
-	{
-	  cmpltr = 7;
-	}
-      else if (strcasecmp (name, "*tr") == 0)
-	{
-	  cmpltr = 8;
-	}
-      else if (strcmp (name, "*<>") == 0)
-	{
-	  cmpltr = 9;
-	}
-      else if (strcmp (name, "*>=") == 0)
-	{
-	  cmpltr = 10;
-	}
-      else if (strcmp (name, "*>") == 0)
-	{
-	  cmpltr = 11;
-	}
-      else if (strcmp (name, "*>>=") == 0)
-	{
-	  cmpltr = 12;
-	}
-      else if (strcmp (name, "*>>") == 0)
-	{
-	  cmpltr = 13;
-	}
-      else if (strcasecmp (name, "*nsv") == 0)
-	{
-	  cmpltr = 14;
-	}
-      else if (strcasecmp (name, "*ev") == 0)
-	{
-	  cmpltr = 15;
-	}
-      else
-	{
-	  cmpltr = -1;
-	}
-      **s = c;
-    }
-
-  return cmpltr;
-}
-
-/* Parse a 64 bit compare immediate and branch completer returning the number
-   (for encoding in instructions) of the given completer.  */
-
-static int
-pa_parse_cmpib_64_cmpltr (s)
-     char **s;
-{
-  int cmpltr;
-  char *name = *s + 1;
-  char c;
-
-  cmpltr = -1;
-  if (**s == ',')
-    {
-      *s += 1;
-      while (**s != ',' && **s != ' ' && **s != '\t')
-	*s += 1;
-      c = **s;
-      **s = 0x00;
-
-      if (strcmp (name, "*<<") == 0)
-	{
-	  cmpltr = 0;
-	}
-      else if (strcmp (name, "*=") == 0)
-	{
-	  cmpltr = 1;
-	}
-      else if (strcmp (name, "*<") == 0)
-	{
-	  cmpltr = 2;
-	}
-      else if (strcmp (name, "*<=") == 0)
-	{
-	  cmpltr = 3;
-	}
-      else if (strcmp (name, "*>>=") == 0)
-	{
-	  cmpltr = 4;
-	}
-      else if (strcmp (name, "*<>") == 0)
-	{
-	  cmpltr = 5;
-	}
-      else if (strcasecmp (name, "*>=") == 0)
-	{
-	  cmpltr = 6;
-	}
-      else if (strcasecmp (name, "*>") == 0)
-	{
-	  cmpltr = 7;
-	}
-      else
-	{
-	  cmpltr = -1;
-	}
-      **s = c;
-    }
-
-  return cmpltr;
-}
-
-/* Parse a non-negated addition completer returning the number
-   (for encoding in instructions) of the given completer.  */
-
-static int
-pa_parse_nonneg_add_cmpltr (s)
-     char **s;
-{
-  int cmpltr;
-  char *name = *s + 1;
-  char c;
-  char *save_s = *s;
-  int nullify = 0;
-
-  cmpltr = 0;
-  if (**s == ',')
-    {
-      *s += 1;
-      while (**s != ',' && **s != ' ' && **s != '\t')
-	*s += 1;
-      c = **s;
-      **s = 0x00;
-      if (strcmp (name, "=") == 0)
-	{
-	  cmpltr = 1;
-	}
-      else if (strcmp (name, "<") == 0)
-	{
-	  cmpltr = 2;
-	}
-      else if (strcmp (name, "<=") == 0)
-	{
-	  cmpltr = 3;
-	}
-      else if (strcasecmp (name, "nuv") == 0)
-	{
-	  cmpltr = 4;
-	}
-      else if (strcasecmp (name, "znv") == 0)
-	{
-	  cmpltr = 5;
-	}
-      else if (strcasecmp (name, "sv") == 0)
-	{
-	  cmpltr = 6;
-	}
-      else if (strcasecmp (name, "od") == 0)
-	{
-	  cmpltr = 7;
-	}
-      /* If we have something like addb,n then there is no condition
-         completer.  */
-      else if (strcasecmp (name, "n") == 0)
-	{
-	  cmpltr = 0;
-	  nullify = 1;
-	}
-      else
-	{
-	  cmpltr = -1;
-	}
-      **s = c;
-    }
-
-  /* Reset pointers if this was really a ,n for a branch instruction.  */
-  if (nullify)
-    *s = save_s;
-
-  return cmpltr;
-}
-
-/* Parse a negated addition completer returning the number
-   (for encoding in instructions) of the given completer.  */
-
-static int
-pa_parse_neg_add_cmpltr (s)
-     char **s;
-{
-  int cmpltr;
-  char *name = *s + 1;
-  char c;
-  char *save_s = *s;
-  int nullify = 0;
-
-  cmpltr = 0;
-  if (**s == ',')
-    {
-      *s += 1;
-      while (**s != ',' && **s != ' ' && **s != '\t')
-	*s += 1;
-      c = **s;
-      **s = 0x00;
-      if (strcasecmp (name, "tr") == 0)
-	{
-	  cmpltr = 0;
-	}
-      else if (strcmp (name, "<>") == 0)
-	{
-	  cmpltr = 1;
-	}
-      else if (strcmp (name, ">=") == 0)
-	{
-	  cmpltr = 2;
-	}
-      else if (strcmp (name, ">") == 0)
-	{
-	  cmpltr = 3;
-	}
-      else if (strcasecmp (name, "uv") == 0)
-	{
-	  cmpltr = 4;
-	}
-      else if (strcasecmp (name, "vnz") == 0)
-	{
-	  cmpltr = 5;
-	}
-      else if (strcasecmp (name, "nsv") == 0)
-	{
-	  cmpltr = 6;
-	}
-      else if (strcasecmp (name, "ev") == 0)
-	{
-	  cmpltr = 7;
-	}
-      /* If we have something like addb,n then there is no condition
-         completer.  */
-      else if (strcasecmp (name, "n") == 0)
-	{
-	  cmpltr = 0;
-	  nullify = 1;
-	}
-      else
-	{
-	  cmpltr = -1;
-	}
-      **s = c;
-    }
-
-  /* Reset pointers if this was really a ,n for a branch instruction.  */
-  if (nullify)
-    *s = save_s;
-
-  return cmpltr;
-}
-
-/* Parse a 64 bit wide mode add and branch completer returning the number (for
-   encoding in instructions) of the given completer.  */
-
-static int
-pa_parse_addb_64_cmpltr (s)
-     char **s;
-{
-  int cmpltr;
-  char *name = *s + 1;
-  char c;
-  char *save_s = *s;
-  int nullify = 0;
-
-  cmpltr = 0;
-  if (**s == ',')
-    {
-      *s += 1;
-      while (**s != ',' && **s != ' ' && **s != '\t')
-	*s += 1;
-      c = **s;
-      **s = 0x00;
-      if (strcmp (name, "=") == 0)
-	{
-	  cmpltr = 1;
-	}
-      else if (strcmp (name, "<") == 0)
-	{
-	  cmpltr = 2;
-	}
-      else if (strcmp (name, "<=") == 0)
-	{
-	  cmpltr = 3;
-	}
-      else if (strcasecmp (name, "nuv") == 0)
-	{
-	  cmpltr = 4;
-	}
-      else if (strcasecmp (name, "*=") == 0)
-	{
-	  cmpltr = 5;
-	}
-      else if (strcasecmp (name, "*<") == 0)
-	{
-	  cmpltr = 6;
-	}
-      else if (strcasecmp (name, "*<=") == 0)
-	{
-	  cmpltr = 7;
-	}
-      else if (strcmp (name, "tr") == 0)
-	{
-	  cmpltr = 8;
-	}
-      else if (strcmp (name, "<>") == 0)
-	{
-	  cmpltr = 9;
-	}
-      else if (strcmp (name, ">=") == 0)
-	{
-	  cmpltr = 10;
-	}
-      else if (strcmp (name, ">") == 0)
-	{
-	  cmpltr = 11;
-	}
-      else if (strcasecmp (name, "uv") == 0)
-	{
-	  cmpltr = 12;
-	}
-      else if (strcasecmp (name, "*<>") == 0)
-	{
-	  cmpltr = 13;
-	}
-      else if (strcasecmp (name, "*>=") == 0)
-	{
-	  cmpltr = 14;
-	}
-      else if (strcasecmp (name, "*>") == 0)
-	{
-	  cmpltr = 15;
-	}
-      /* If we have something like addb,n then there is no condition
-         completer.  */
-      else if (strcasecmp (name, "n") == 0)
-	{
-	  cmpltr = 0;
-	  nullify = 1;
-	}
-      else
-	{
-	  cmpltr = -1;
-	}
-      **s = c;
-    }
-
-  /* Reset pointers if this was really a ,n for a branch instruction.  */
-  if (nullify)
-    *s = save_s;
-
-  return cmpltr;
+#ifdef OBJ_ELF
+  dwarf2_emit_insn (4);
+#endif
 }
 
 #ifdef OBJ_SOM
 /* Handle an alignment directive.  Special so that we can update the
    alignment of the subspace if necessary.  */
 static void
-pa_align (bytes)
-     int bytes;
+pa_align (int bytes)
 {
   /* We must have a valid space and subspace.  */
   pa_check_current_space_and_subspace ();
@@ -5950,8 +5815,7 @@ pa_align (bytes)
 /* Handle a .BLOCK type pseudo-op.  */
 
 static void
-pa_block (z)
-     int z ATTRIBUTE_UNUSED;
+pa_block (int z ATTRIBUTE_UNUSED)
 {
   unsigned int temp_size;
 
@@ -5981,8 +5845,7 @@ pa_block (z)
 /* Handle a .begin_brtab and .end_brtab pseudo-op.  */
 
 static void
-pa_brtab (begin)
-     int begin ATTRIBUTE_UNUSED;
+pa_brtab (int begin ATTRIBUTE_UNUSED)
 {
 
 #ifdef OBJ_SOM
@@ -6002,8 +5865,7 @@ pa_brtab (begin)
 /* Handle a .begin_try and .end_try pseudo-op.  */
 
 static void
-pa_try (begin)
-     int begin ATTRIBUTE_UNUSED;
+pa_try (int begin ATTRIBUTE_UNUSED)
 {
 #ifdef OBJ_SOM
   expressionS exp;
@@ -6024,29 +5886,11 @@ pa_try (begin)
   demand_empty_rest_of_line ();
 }
 
-/* Handle a .CALL pseudo-op.  This involves storing away information
-   about where arguments are to be found so the linker can detect
-   (and correct) argument location mismatches between caller and callee.  */
-
-static void
-pa_call (unused)
-     int unused ATTRIBUTE_UNUSED;
-{
-#ifdef OBJ_SOM
-  /* We must have a valid space and subspace.  */
-  pa_check_current_space_and_subspace ();
-#endif
-
-  pa_call_args (&last_call_desc);
-  demand_empty_rest_of_line ();
-}
-
 /* Do the dirty work of building a call descriptor which describes
    where the caller placed arguments to a function call.  */
 
 static void
-pa_call_args (call_desc)
-     struct call_desc *call_desc;
+pa_call_args (struct call_desc *call_desc)
 {
   char *name, c, *p;
   unsigned int temp, arg_reloc;
@@ -6089,24 +5933,38 @@ pa_call_args (call_desc)
     }
 }
 
+/* Handle a .CALL pseudo-op.  This involves storing away information
+   about where arguments are to be found so the linker can detect
+   (and correct) argument location mismatches between caller and callee.  */
+
+static void
+pa_call (int unused ATTRIBUTE_UNUSED)
+{
+#ifdef OBJ_SOM
+  /* We must have a valid space and subspace.  */
+  pa_check_current_space_and_subspace ();
+#endif
+
+  pa_call_args (&last_call_desc);
+  demand_empty_rest_of_line ();
+}
+
 /* Return TRUE if FRAG1 and FRAG2 are the same.  */
 
-static int
-is_same_frag (frag1, frag2)
-     fragS *frag1;
-     fragS *frag2;
+static bfd_boolean
+is_same_frag (fragS *frag1, fragS *frag2)
 {
 
   if (frag1 == NULL)
-    return (FALSE);
+    return FALSE;
   else if (frag2 == NULL)
-    return (FALSE);
+    return FALSE;
   else if (frag1 == frag2)
-    return (TRUE);
+    return TRUE;
   else if (frag2->fr_type == rs_fill && frag2->fr_fix == 0)
     return (is_same_frag (frag1, frag2->fr_next));
   else
-    return (FALSE);
+    return FALSE;
 }
 
 #ifdef OBJ_ELF
@@ -6116,8 +5974,7 @@ is_same_frag (frag1, frag2)
    of the unwind spaces.  */
 
 static void
-pa_build_unwind_subspace (call_info)
-     struct call_info *call_info;
+pa_build_unwind_subspace (struct call_info *call_info)
 {
   asection *seg, *save_seg;
   subsegT save_subseg;
@@ -6189,8 +6046,7 @@ pa_build_unwind_subspace (call_info)
    .ENTER and .LEAVE.  */
 
 static void
-pa_callinfo (unused)
-     int unused ATTRIBUTE_UNUSED;
+pa_callinfo (int unused ATTRIBUTE_UNUSED)
 {
   char *name, c, *p;
   int temp;
@@ -6332,9 +6188,9 @@ pa_callinfo (unused)
 #if !(defined (OBJ_ELF) && (defined (TE_LINUX) || defined (TE_NetBSD)))
 /* Switch to the text space.  Like s_text, but delete our
    label when finished.  */
+
 static void
-pa_text (unused)
-     int unused ATTRIBUTE_UNUSED;
+pa_text (int unused ATTRIBUTE_UNUSED)
 {
 #ifdef OBJ_SOM
   current_space = is_defined_space ("$TEXT$");
@@ -6347,9 +6203,9 @@ pa_text (unused)
 }
 
 /* Switch to the data space.  As usual delete our label.  */
+
 static void
-pa_data (unused)
-     int unused ATTRIBUTE_UNUSED;
+pa_data (int unused ATTRIBUTE_UNUSED)
 {
 #ifdef OBJ_SOM
   current_space = is_defined_space ("$PRIVATE$");
@@ -6381,8 +6237,7 @@ pa_data (unused)
    This also makes error detection all but impossible.  */
 
 static void
-pa_comm (unused)
-     int unused ATTRIBUTE_UNUSED;
+pa_comm (int unused ATTRIBUTE_UNUSED)
 {
   unsigned int size;
   symbolS *symbol;
@@ -6415,16 +6270,15 @@ pa_comm (unused)
 /* Process a .END pseudo-op.  */
 
 static void
-pa_end (unused)
-     int unused ATTRIBUTE_UNUSED;
+pa_end (int unused ATTRIBUTE_UNUSED)
 {
   demand_empty_rest_of_line ();
 }
 
 /* Process a .ENTER pseudo-op.  This is not supported.  */
+
 static void
-pa_enter (unused)
-     int unused ATTRIBUTE_UNUSED;
+pa_enter (int unused ATTRIBUTE_UNUSED)
 {
 #ifdef OBJ_SOM
   /* We must have a valid space and subspace.  */
@@ -6437,9 +6291,9 @@ pa_enter (unused)
 
 /* Process a .ENTRY pseudo-op.  .ENTRY marks the beginning of the
    procedure.  */
+
 static void
-pa_entry (unused)
-     int unused ATTRIBUTE_UNUSED;
+pa_entry (int unused ATTRIBUTE_UNUSED)
 {
 #ifdef OBJ_SOM
   /* We must have a valid space and subspace.  */
@@ -6486,10 +6340,9 @@ pa_entry (unused)
 static int fudge_reg_expressions;
 
 int
-hppa_force_reg_syms_absolute (resultP, op, rightP)
-     expressionS *resultP;
-     operatorT op ATTRIBUTE_UNUSED;
-     expressionS *rightP;
+hppa_force_reg_syms_absolute (expressionS *resultP,
+			      operatorT op ATTRIBUTE_UNUSED,
+			      expressionS *rightP)
 {
   if (fudge_reg_expressions
       && rightP->X_op == O_register
@@ -6504,8 +6357,7 @@ hppa_force_reg_syms_absolute (resultP, op, rightP)
 /* Handle a .EQU pseudo-op.  */
 
 static void
-pa_equ (reg)
-     int reg;
+pa_equ (int reg)
 {
   label_symbol_struct *label_symbol = pa_get_label ();
   symbolS *symbol;
@@ -6553,12 +6405,75 @@ pa_equ (reg)
   demand_empty_rest_of_line ();
 }
 
+#ifdef OBJ_ELF
+/* Mark the end of a function so that it's possible to compute
+   the size of the function in elf_hppa_final_processing.  */
+
+static void
+hppa_elf_mark_end_of_function (void)
+{
+  /* ELF does not have EXIT relocations.  All we do is create a
+     temporary symbol marking the end of the function.  */
+  char *name;
+
+  if (last_call_info == NULL || last_call_info->start_symbol == NULL)
+    {
+      /* We have already warned about a missing label,
+	 or other problems.  */
+      return;
+    }
+
+  name = xmalloc (strlen ("L$\001end_")
+		  + strlen (S_GET_NAME (last_call_info->start_symbol))
+		  + 1);
+  if (name)
+    {
+      symbolS *symbolP;
+
+      strcpy (name, "L$\001end_");
+      strcat (name, S_GET_NAME (last_call_info->start_symbol));
+
+      /* If we have a .exit followed by a .procend, then the
+	 symbol will have already been defined.  */
+      symbolP = symbol_find (name);
+      if (symbolP)
+	{
+	  /* The symbol has already been defined!  This can
+	     happen if we have a .exit followed by a .procend.
+
+	     This is *not* an error.  All we want to do is free
+	     the memory we just allocated for the name and continue.  */
+	  xfree (name);
+	}
+      else
+	{
+	  /* symbol value should be the offset of the
+	     last instruction of the function */
+	  symbolP = symbol_new (name, now_seg, (valueT) (frag_now_fix () - 4),
+				frag_now);
+
+	  assert (symbolP);
+	  S_CLEAR_EXTERNAL (symbolP);
+	  symbol_table_insert (symbolP);
+	}
+
+      if (symbolP)
+	last_call_info->end_symbol = symbolP;
+      else
+	as_bad (_("Symbol '%s' could not be created."), name);
+
+    }
+  else
+    as_bad (_("No memory for symbol name."));
+}
+#endif
+
 /* Helper function.  Does processing for the end of a function.  This
    usually involves creating some relocations or building special
    symbols to mark the end of the function.  */
 
 static void
-process_exit ()
+process_exit (void)
 {
   char *where;
 
@@ -6590,8 +6505,7 @@ process_exit ()
 /* Process a .EXIT pseudo-op.  */
 
 static void
-pa_exit (unused)
-     int unused ATTRIBUTE_UNUSED;
+pa_exit (int unused ATTRIBUTE_UNUSED)
 {
 #ifdef OBJ_SOM
   /* We must have a valid space and subspace.  */
@@ -6618,54 +6532,10 @@ pa_exit (unused)
   demand_empty_rest_of_line ();
 }
 
-/* Process a .EXPORT directive.  This makes functions external
-   and provides information such as argument relocation entries
-   to callers.  */
-
-static void
-pa_export (unused)
-     int unused ATTRIBUTE_UNUSED;
-{
-  char *name, c, *p;
-  symbolS *symbol;
-
-  name = input_line_pointer;
-  c = get_symbol_end ();
-  /* Make sure the given symbol exists.  */
-  if ((symbol = symbol_find_or_make (name)) == NULL)
-    {
-      as_bad (_("Cannot define export symbol: %s\n"), name);
-      p = input_line_pointer;
-      *p = c;
-      input_line_pointer++;
-    }
-  else
-    {
-      /* OK.  Set the external bits and process argument relocations.
-         For the HP, weak and global are not mutually exclusive.
-         S_SET_EXTERNAL will not set BSF_GLOBAL if WEAK is set.
-         Call S_SET_EXTERNAL to get the other processing.  Manually
-         set BSF_GLOBAL when we get back.  */
-      S_SET_EXTERNAL (symbol);
-      symbol_get_bfdsym (symbol)->flags |= BSF_GLOBAL;
-      p = input_line_pointer;
-      *p = c;
-      if (!is_end_of_statement ())
-	{
-	  input_line_pointer++;
-	  pa_type_args (symbol, 1);
-	}
-    }
-
-  demand_empty_rest_of_line ();
-}
-
 /* Helper function to process arguments to a .EXPORT pseudo-op.  */
 
 static void
-pa_type_args (symbolP, is_export)
-     symbolS *symbolP;
-     int is_export;
+pa_type_args (symbolS *symbolP, int is_export)
 {
   char *name, c, *p;
   unsigned int temp, arg_reloc;
@@ -6673,7 +6543,6 @@ pa_type_args (symbolP, is_export)
   asymbol *bfdsym = symbol_get_bfdsym (symbolP);
 
   if (strncasecmp (input_line_pointer, "absolute", 8) == 0)
-
     {
       input_line_pointer += 8;
       bfdsym->flags &= ~BSF_FUNCTION;
@@ -6818,13 +6687,53 @@ pa_type_args (symbolP, is_export)
     }
 }
 
+/* Process a .EXPORT directive.  This makes functions external
+   and provides information such as argument relocation entries
+   to callers.  */
+
+static void
+pa_export (int unused ATTRIBUTE_UNUSED)
+{
+  char *name, c, *p;
+  symbolS *symbol;
+
+  name = input_line_pointer;
+  c = get_symbol_end ();
+  /* Make sure the given symbol exists.  */
+  if ((symbol = symbol_find_or_make (name)) == NULL)
+    {
+      as_bad (_("Cannot define export symbol: %s\n"), name);
+      p = input_line_pointer;
+      *p = c;
+      input_line_pointer++;
+    }
+  else
+    {
+      /* OK.  Set the external bits and process argument relocations.
+         For the HP, weak and global are not mutually exclusive.
+         S_SET_EXTERNAL will not set BSF_GLOBAL if WEAK is set.
+         Call S_SET_EXTERNAL to get the other processing.  Manually
+         set BSF_GLOBAL when we get back.  */
+      S_SET_EXTERNAL (symbol);
+      symbol_get_bfdsym (symbol)->flags |= BSF_GLOBAL;
+      p = input_line_pointer;
+      *p = c;
+      if (!is_end_of_statement ())
+	{
+	  input_line_pointer++;
+	  pa_type_args (symbol, 1);
+	}
+    }
+
+  demand_empty_rest_of_line ();
+}
+
 /* Handle an .IMPORT pseudo-op.  Any symbol referenced in a given
    assembly file must either be defined in the assembly file, or
    explicitly IMPORTED from another.  */
 
 static void
-pa_import (unused)
-     int unused ATTRIBUTE_UNUSED;
+pa_import (int unused ATTRIBUTE_UNUSED)
 {
   char *name, c, *p;
   symbolS *symbol;
@@ -6875,8 +6784,7 @@ pa_import (unused)
 /* Handle a .LABEL pseudo-op.  */
 
 static void
-pa_label (unused)
-     int unused ATTRIBUTE_UNUSED;
+pa_label (int unused ATTRIBUTE_UNUSED)
 {
   char *name, c, *p;
 
@@ -6905,8 +6813,7 @@ pa_label (unused)
 /* Handle a .LEAVE pseudo-op.  This is not supported yet.  */
 
 static void
-pa_leave (unused)
-     int unused ATTRIBUTE_UNUSED;
+pa_leave (int unused ATTRIBUTE_UNUSED)
 {
 #ifdef OBJ_SOM
   /* We must have a valid space and subspace.  */
@@ -6920,8 +6827,7 @@ pa_leave (unused)
 /* Handle a .LEVEL pseudo-op.  */
 
 static void
-pa_level (unused)
-     int unused ATTRIBUTE_UNUSED;
+pa_level (int unused ATTRIBUTE_UNUSED)
 {
   char *level;
 
@@ -6961,8 +6867,7 @@ pa_level (unused)
 /* Handle a .ORIGIN pseudo-op.  */
 
 static void
-pa_origin (unused)
-     int unused ATTRIBUTE_UNUSED;
+pa_origin (int unused ATTRIBUTE_UNUSED)
 {
 #ifdef OBJ_SOM
   /* We must have a valid space and subspace.  */
@@ -6977,8 +6882,7 @@ pa_origin (unused)
    is for static functions.  FIXME.  Should share more code with .EXPORT.  */
 
 static void
-pa_param (unused)
-     int unused ATTRIBUTE_UNUSED;
+pa_param (int unused ATTRIBUTE_UNUSED)
 {
   char *name, c, *p;
   symbolS *symbol;
@@ -7012,8 +6916,7 @@ pa_param (unused)
    of a procedure from a syntactical point of view.  */
 
 static void
-pa_proc (unused)
-     int unused ATTRIBUTE_UNUSED;
+pa_proc (int unused ATTRIBUTE_UNUSED)
 {
   struct call_info *call_info;
 
@@ -7030,7 +6933,7 @@ pa_proc (unused)
   within_procedure = TRUE;
 
   /* Create another call_info structure.  */
-  call_info = (struct call_info *) xmalloc (sizeof (struct call_info));
+  call_info = xmalloc (sizeof (struct call_info));
 
   if (!call_info)
     as_fatal (_("Cannot allocate unwind descriptor\n"));
@@ -7082,10 +6985,8 @@ pa_proc (unused)
    appropriate pseudo-ops were found within the procedure.  */
 
 static void
-pa_procend (unused)
-     int unused ATTRIBUTE_UNUSED;
+pa_procend (int unused ATTRIBUTE_UNUSED)
 {
-
 #ifdef OBJ_SOM
   /* We must have a valid space and subspace.  */
   pa_check_current_space_and_subspace ();
@@ -7157,8 +7058,7 @@ pa_procend (unused)
    return log2 (VALUE).  Else return -1.  */
 
 static int
-exact_log2 (value)
-     int value;
+exact_log2 (int value)
 {
   int shift = 0;
 
@@ -7174,7 +7074,7 @@ exact_log2 (value)
 /* Check to make sure we have a valid space and subspace.  */
 
 static void
-pa_check_current_space_and_subspace ()
+pa_check_current_space_and_subspace (void)
 {
   if (current_space == NULL)
     as_fatal (_("Not in a space.\n"));
@@ -7188,9 +7088,7 @@ pa_check_current_space_and_subspace ()
    by the parameters to the .SPACE directive.  */
 
 static sd_chain_struct *
-pa_parse_space_stmt (space_name, create_flag)
-     char *space_name;
-     int create_flag;
+pa_parse_space_stmt (char *space_name, int create_flag)
 {
   char *name, *ptemp, c;
   char loadable, defined, private, sort;
@@ -7198,7 +7096,7 @@ pa_parse_space_stmt (space_name, create_flag)
   asection *seg = NULL;
   sd_chain_struct *space;
 
-  /* load default values */
+  /* Load default values.  */
   spnum = 0;
   sort = 0;
   loadable = TRUE;
@@ -7310,8 +7208,7 @@ pa_parse_space_stmt (space_name, create_flag)
    given space, creating the new space if necessary.  */
 
 static void
-pa_space (unused)
-     int unused ATTRIBUTE_UNUSED;
+pa_space (int unused ATTRIBUTE_UNUSED)
 {
   char *name, c, *space_name, *save_s;
   sd_chain_struct *sd_chain;
@@ -7430,8 +7327,7 @@ pa_space (unused)
 /* Switch to a new space.  (I think).  FIXME.  */
 
 static void
-pa_spnum (unused)
-     int unused ATTRIBUTE_UNUSED;
+pa_spnum (int unused ATTRIBUTE_UNUSED)
 {
   char *name;
   char c;
@@ -7460,8 +7356,7 @@ pa_spnum (unused)
    they're broken up into subroutines.  */
 
 static void
-pa_subspace (create_new)
-     int create_new;
+pa_subspace (int create_new)
 {
   char *name, *ss_name, c;
   char loadable, code_only, comdat, common, dup_common, zero, sort;
@@ -7699,7 +7594,7 @@ pa_subspace (create_new)
 /* Create default space and subspace dictionaries.  */
 
 static void
-pa_spaces_begin ()
+pa_spaces_begin (void)
 {
   int i;
 
@@ -7826,25 +7721,23 @@ pa_spaces_begin ()
    by the given parameters.  */
 
 static sd_chain_struct *
-create_new_space (name, spnum, loadable, defined, private,
-		  sort, seg, user_defined)
-     char *name;
-     int spnum;
-     int loadable ATTRIBUTE_UNUSED;
-     int defined;
-     int private;
-     int sort;
-     asection *seg;
-     int user_defined;
+create_new_space (char *name,
+		  int spnum,
+		  int loadable ATTRIBUTE_UNUSED,
+		  int defined,
+		  int private,
+		  int sort,
+		  asection *seg,
+		  int user_defined)
 {
   sd_chain_struct *chain_entry;
 
-  chain_entry = (sd_chain_struct *) xmalloc (sizeof (sd_chain_struct));
+  chain_entry = xmalloc (sizeof (sd_chain_struct));
   if (!chain_entry)
     as_fatal (_("Out of memory: could not allocate new space chain entry: %s\n"),
 	      name);
 
-  SPACE_NAME (chain_entry) = (char *) xmalloc (strlen (name) + 1);
+  SPACE_NAME (chain_entry) = xmalloc (strlen (name) + 1);
   strcpy (SPACE_NAME (chain_entry), name);
   SPACE_DEFINED (chain_entry) = defined;
   SPACE_USER_DEFINED (chain_entry) = user_defined;
@@ -7910,29 +7803,28 @@ create_new_space (name, spnum, loadable, defined, private,
    order as defined by the SORT entries.  */
 
 static ssd_chain_struct *
-create_new_subspace (space, name, loadable, code_only, comdat, common,
-		     dup_common, is_zero, sort, access, space_index,
-		     alignment, quadrant, seg)
-     sd_chain_struct *space;
-     char *name;
-     int loadable ATTRIBUTE_UNUSED;
-     int code_only ATTRIBUTE_UNUSED;
-     int comdat, common, dup_common;
-     int is_zero ATTRIBUTE_UNUSED;
-     int sort;
-     int access;
-     int space_index ATTRIBUTE_UNUSED;
-     int alignment ATTRIBUTE_UNUSED;
-     int quadrant;
-     asection *seg;
+create_new_subspace (sd_chain_struct *space,
+		     char *name,
+		     int loadable ATTRIBUTE_UNUSED,
+		     int code_only ATTRIBUTE_UNUSED,
+		     int comdat,
+		     int common,
+		     int dup_common,
+		     int is_zero ATTRIBUTE_UNUSED,
+		     int sort,
+		     int access,
+		     int space_index ATTRIBUTE_UNUSED,
+		     int alignment ATTRIBUTE_UNUSED,
+		     int quadrant,
+		     asection *seg)
 {
   ssd_chain_struct *chain_entry;
 
-  chain_entry = (ssd_chain_struct *) xmalloc (sizeof (ssd_chain_struct));
+  chain_entry = xmalloc (sizeof (ssd_chain_struct));
   if (!chain_entry)
     as_fatal (_("Out of memory: could not allocate new subspace chain entry: %s\n"), name);
 
-  SUBSPACE_NAME (chain_entry) = (char *) xmalloc (strlen (name) + 1);
+  SUBSPACE_NAME (chain_entry) = xmalloc (strlen (name) + 1);
   strcpy (SUBSPACE_NAME (chain_entry), name);
 
   /* Initialize subspace_defined.  When we hit a .subspace directive
@@ -7986,22 +7878,20 @@ create_new_subspace (space, name, loadable, code_only, comdat, common,
    various arguments.   Return the modified subspace chain entry.  */
 
 static ssd_chain_struct *
-update_subspace (space, name, loadable, code_only, comdat, common, dup_common,
-		 sort, zero, access, space_index, alignment, quadrant, section)
-     sd_chain_struct *space;
-     char *name;
-     int loadable ATTRIBUTE_UNUSED;
-     int code_only ATTRIBUTE_UNUSED;
-     int comdat;
-     int common;
-     int dup_common;
-     int zero ATTRIBUTE_UNUSED;
-     int sort;
-     int access;
-     int space_index ATTRIBUTE_UNUSED;
-     int alignment ATTRIBUTE_UNUSED;
-     int quadrant;
-     asection *section;
+update_subspace (sd_chain_struct *space,
+		 char *name,
+		 int loadable ATTRIBUTE_UNUSED,
+		 int code_only ATTRIBUTE_UNUSED,
+		 int comdat,
+		 int common,
+		 int dup_common,
+		 int sort,
+		 int zero ATTRIBUTE_UNUSED,
+		 int access,
+		 int space_index ATTRIBUTE_UNUSED,
+		 int alignment ATTRIBUTE_UNUSED,
+		 int quadrant,
+		 asection *section)
 {
   ssd_chain_struct *chain_entry;
 
@@ -8019,18 +7909,15 @@ update_subspace (space, name, loadable, code_only, comdat, common, dup_common,
    NULL if no such space exists.  */
 
 static sd_chain_struct *
-is_defined_space (name)
-     char *name;
+is_defined_space (char *name)
 {
   sd_chain_struct *chain_pointer;
 
   for (chain_pointer = space_dict_root;
        chain_pointer;
        chain_pointer = chain_pointer->sd_next)
-    {
-      if (strcmp (SPACE_NAME (chain_pointer), name) == 0)
-	return chain_pointer;
-    }
+    if (strcmp (SPACE_NAME (chain_pointer), name) == 0)
+      return chain_pointer;
 
   /* No mapping from segment to space was found.  Return NULL.  */
   return NULL;
@@ -8043,8 +7930,7 @@ is_defined_space (name)
    so a linear exhaustive search is OK here.  */
 
 static sd_chain_struct *
-pa_segment_to_space (seg)
-     asection *seg;
+pa_segment_to_space (asection *seg)
 {
   sd_chain_struct *space_chain;
 
@@ -8052,10 +7938,8 @@ pa_segment_to_space (seg)
   for (space_chain = space_dict_root;
        space_chain;
        space_chain = space_chain->sd_next)
-    {
-      if (space_chain->sd_seg == seg)
-	return space_chain;
-    }
+    if (space_chain->sd_seg == seg)
+      return space_chain;
 
   /* Mapping was not found.  Return NULL.  */
   return NULL;
@@ -8068,14 +7952,13 @@ pa_segment_to_space (seg)
    the first (i.e., default) subspace is preferable in most situations.
    For example, it wouldn't be desirable to merge COMDAT data with non
    COMDAT data.
-    
+
    Uses a linear search through all the spaces and subspaces, this may
    not be appropriate if we ever being placing each function in its
    own subspace.  */
 
 static ssd_chain_struct *
-is_defined_subspace (name)
-     char *name;
+is_defined_subspace (char *name)
 {
   sd_chain_struct *space_chain;
   ssd_chain_struct *subspace_chain;
@@ -8105,9 +7988,7 @@ is_defined_subspace (name)
    to become more efficient.  */
 
 static ssd_chain_struct *
-pa_subsegment_to_subspace (seg, subseg)
-     asection *seg;
-     subsegT subseg;
+pa_subsegment_to_subspace (asection *seg, subsegT subseg)
 {
   sd_chain_struct *space_chain;
   ssd_chain_struct *subspace_chain;
@@ -8139,8 +8020,7 @@ pa_subsegment_to_subspace (seg, subseg)
    that was found or NULL on failure.  */
 
 static sd_chain_struct *
-pa_find_space_by_number (number)
-     int number;
+pa_find_space_by_number (int number)
 {
   sd_chain_struct *space_chain;
 
@@ -8160,9 +8040,7 @@ pa_find_space_by_number (number)
    address is unknown then return zero.  */
 
 static unsigned int
-pa_subspace_start (space, quadrant)
-     sd_chain_struct *space;
-     int quadrant;
+pa_subspace_start (sd_chain_struct *space, int quadrant)
 {
   /* FIXME.  Assumes everyone puts read/write data at 0x4000000, this
      is not correct for the PA OSF1 port.  */
@@ -8180,8 +8058,7 @@ pa_subspace_start (space, quadrant)
    a string.  */
 
 static unsigned int
-pa_stringer_aux (s)
-     char *s;
+pa_stringer_aux (char *s)
 {
   unsigned int c = *s & CHAR_MASK;
 
@@ -8199,8 +8076,7 @@ pa_stringer_aux (s)
 /* Handle a .STRING type pseudo-op.  */
 
 static void
-pa_stringer (append_zero)
-     int append_zero;
+pa_stringer (int append_zero)
 {
   char *s, num_buf[4];
   unsigned int c;
@@ -8281,8 +8157,7 @@ pa_stringer (append_zero)
 /* Handle a .VERSION pseudo-op.  */
 
 static void
-pa_version (unused)
-     int unused ATTRIBUTE_UNUSED;
+pa_version (int unused ATTRIBUTE_UNUSED)
 {
   obj_version (0);
   pa_undefine_label ();
@@ -8293,8 +8168,7 @@ pa_version (unused)
 /* Handle a .COMPILER pseudo-op.  */
 
 static void
-pa_compiler (unused)
-     int unused ATTRIBUTE_UNUSED;
+pa_compiler (int unused ATTRIBUTE_UNUSED)
 {
   obj_som_compiler (0);
   pa_undefine_label ();
@@ -8305,8 +8179,7 @@ pa_compiler (unused)
 /* Handle a .COPYRIGHT pseudo-op.  */
 
 static void
-pa_copyright (unused)
-     int unused ATTRIBUTE_UNUSED;
+pa_copyright (int unused ATTRIBUTE_UNUSED)
 {
   obj_copyright (0);
   pa_undefine_label ();
@@ -8316,8 +8189,7 @@ pa_copyright (unused)
    the latest space label.  */
 
 static void
-pa_cons (nbytes)
-     int nbytes;
+pa_cons (int nbytes)
 {
   cons (nbytes);
   pa_undefine_label ();
@@ -8326,8 +8198,7 @@ pa_cons (nbytes)
 /* Like float_cons, but we need to undefine our label.  */
 
 static void
-pa_float_cons (float_type)
-     int float_type;
+pa_float_cons (int float_type)
 {
   float_cons (float_type);
   pa_undefine_label ();
@@ -8336,8 +8207,7 @@ pa_float_cons (float_type)
 /* Like s_fill, but delete our label when finished.  */
 
 static void
-pa_fill (unused)
-     int unused ATTRIBUTE_UNUSED;
+pa_fill (int unused ATTRIBUTE_UNUSED)
 {
 #ifdef OBJ_SOM
   /* We must have a valid space and subspace.  */
@@ -8351,8 +8221,7 @@ pa_fill (unused)
 /* Like lcomm, but delete our label when finished.  */
 
 static void
-pa_lcomm (needs_align)
-     int needs_align;
+pa_lcomm (int needs_align)
 {
 #ifdef OBJ_SOM
   /* We must have a valid space and subspace.  */
@@ -8366,8 +8235,7 @@ pa_lcomm (needs_align)
 /* Like lsym, but delete our label when finished.  */
 
 static void
-pa_lsym (unused)
-     int unused ATTRIBUTE_UNUSED;
+pa_lsym (int unused ATTRIBUTE_UNUSED)
 {
 #ifdef OBJ_SOM
   /* We must have a valid space and subspace.  */
@@ -8376,6 +8244,79 @@ pa_lsym (unused)
 
   s_lsym (0);
   pa_undefine_label ();
+}
+
+/* This function is called once, at assembler startup time.  It should
+   set up all the tables, etc. that the MD part of the assembler will need.  */
+
+void
+md_begin (void)
+{
+  const char *retval = NULL;
+  int lose = 0;
+  unsigned int i = 0;
+
+  last_call_info = NULL;
+  call_info_root = NULL;
+
+  /* Set the default machine type.  */
+  if (!bfd_set_arch_mach (stdoutput, bfd_arch_hppa, DEFAULT_LEVEL))
+    as_warn (_("could not set architecture and machine"));
+
+  /* Folding of text and data segments fails miserably on the PA.
+     Warn user and disable "-R" option.  */
+  if (flag_readonly_data_in_text)
+    {
+      as_warn (_("-R option not supported on this target."));
+      flag_readonly_data_in_text = 0;
+    }
+
+#ifdef OBJ_SOM
+  pa_spaces_begin ();
+#endif
+
+  op_hash = hash_new ();
+
+  while (i < NUMOPCODES)
+    {
+      const char *name = pa_opcodes[i].name;
+
+      retval = hash_insert (op_hash, name, (struct pa_opcode *) &pa_opcodes[i]);
+      if (retval != NULL && *retval != '\0')
+	{
+	  as_fatal (_("Internal error: can't hash `%s': %s\n"), name, retval);
+	  lose = 1;
+	}
+
+      do
+	{
+	  if ((pa_opcodes[i].match & pa_opcodes[i].mask)
+	      != pa_opcodes[i].match)
+	    {
+	      fprintf (stderr, _("internal error: losing opcode: `%s' \"%s\"\n"),
+		       pa_opcodes[i].name, pa_opcodes[i].args);
+	      lose = 1;
+	    }
+	  ++i;
+	}
+      while (i < NUMOPCODES && !strcmp (pa_opcodes[i].name, name));
+    }
+
+  if (lose)
+    as_fatal (_("Broken assembler.  No assembly attempted."));
+
+#ifdef OBJ_SOM
+  /* SOM will change text_section.  To make sure we never put
+     anything into the old one switch to the new one now.  */
+  subseg_set (text_section, 0);
+#endif
+
+#ifdef OBJ_SOM
+  dummy_symbol = symbol_find_or_make ("L$dummy");
+  S_SET_SEGMENT (dummy_symbol, text_section);
+  /* Force the symbol to be converted to a real symbol.  */
+  (void) symbol_get_bfdsym (dummy_symbol);
+#endif
 }
 
 /* On the PA relocations which involve function symbols must not be
@@ -8400,8 +8341,7 @@ pa_lsym (unused)
    reductions make life a living hell for object file editors.  */
 
 int
-hppa_fix_adjustable (fixp)
-     fixS *fixp;
+hppa_fix_adjustable (fixS *fixp)
 {
 #ifdef OBJ_ELF
   reloc_type code;
@@ -8522,8 +8462,7 @@ hppa_fix_adjustable (fixp)
    within GAS.  */
 
 int
-hppa_force_relocation (fixp)
-     struct fix *fixp;
+hppa_force_relocation (struct fix *fixp)
 {
   struct hppa_fix_struct *hppa_fixp;
 
@@ -8597,75 +8536,13 @@ hppa_force_relocation (fixp)
 
 /* Now for some ELF specific code.  FIXME.  */
 #ifdef OBJ_ELF
-/* Mark the end of a function so that it's possible to compute
-   the size of the function in elf_hppa_final_processing.  */
-
-static void
-hppa_elf_mark_end_of_function ()
-{
-  /* ELF does not have EXIT relocations.  All we do is create a
-     temporary symbol marking the end of the function.  */
-  char *name;
-
-  if (last_call_info == NULL || last_call_info->start_symbol == NULL)
-    {
-      /* We have already warned about a missing label,
-	 or other problems.  */
-      return;
-    }
-
-  name = (char *) xmalloc (strlen ("L$\001end_")
-			   + strlen (S_GET_NAME (last_call_info->start_symbol))
-			   + 1);
-  if (name)
-    {
-      symbolS *symbolP;
-
-      strcpy (name, "L$\001end_");
-      strcat (name, S_GET_NAME (last_call_info->start_symbol));
-
-      /* If we have a .exit followed by a .procend, then the
-	 symbol will have already been defined.  */
-      symbolP = symbol_find (name);
-      if (symbolP)
-	{
-	  /* The symbol has already been defined!  This can
-	     happen if we have a .exit followed by a .procend.
-
-	     This is *not* an error.  All we want to do is free
-	     the memory we just allocated for the name and continue.  */
-	  xfree (name);
-	}
-      else
-	{
-	  /* symbol value should be the offset of the
-	     last instruction of the function */
-	  symbolP = symbol_new (name, now_seg, (valueT) (frag_now_fix () - 4),
-				frag_now);
-
-	  assert (symbolP);
-	  S_CLEAR_EXTERNAL (symbolP);
-	  symbol_table_insert (symbolP);
-	}
-
-      if (symbolP)
-	last_call_info->end_symbol = symbolP;
-      else
-	as_bad (_("Symbol '%s' could not be created."), name);
-
-    }
-  else
-    as_bad (_("No memory for symbol name."));
-
-}
-
 /* For ELF, this function serves one purpose:  to setup the st_size
    field of STT_FUNC symbols.  To do this, we need to scan the
    call_info structure list, determining st_size in by taking the
    difference in the address of the beginning/end marker symbols.  */
 
 void
-elf_hppa_final_processing ()
+elf_hppa_final_processing (void)
 {
   struct call_info *call_info_pointer;
 
@@ -8683,8 +8560,7 @@ elf_hppa_final_processing ()
 }
 
 static void
-pa_vtable_entry (ignore)
-     int ignore ATTRIBUTE_UNUSED;
+pa_vtable_entry (int ignore ATTRIBUTE_UNUSED)
 {
   struct fix *new_fix;
 
@@ -8692,8 +8568,8 @@ pa_vtable_entry (ignore)
 
   if (new_fix)
     {
-      struct hppa_fix_struct *hppa_fix = (struct hppa_fix_struct *)
-	obstack_alloc (&notes, sizeof (struct hppa_fix_struct));
+      struct hppa_fix_struct * hppa_fix = obstack_alloc (&notes, sizeof (struct hppa_fix_struct));
+
       hppa_fix->fx_r_type = R_HPPA;
       hppa_fix->fx_r_field = e_fsel;
       hppa_fix->fx_r_format = 32;
@@ -8705,8 +8581,7 @@ pa_vtable_entry (ignore)
 }
 
 static void
-pa_vtable_inherit (ignore)
-     int ignore ATTRIBUTE_UNUSED;
+pa_vtable_inherit (int ignore ATTRIBUTE_UNUSED)
 {
   struct fix *new_fix;
 
@@ -8714,8 +8589,8 @@ pa_vtable_inherit (ignore)
 
   if (new_fix)
     {
-      struct hppa_fix_struct *hppa_fix = (struct hppa_fix_struct *)
-	obstack_alloc (&notes, sizeof (struct hppa_fix_struct));
+      struct hppa_fix_struct * hppa_fix = obstack_alloc (&notes, sizeof (struct hppa_fix_struct));
+
       hppa_fix->fx_r_type = R_HPPA;
       hppa_fix->fx_r_field = e_fsel;
       hppa_fix->fx_r_format = 32;
@@ -8724,5 +8599,137 @@ pa_vtable_inherit (ignore)
       new_fix->tc_fix_data = (void *) hppa_fix;
       new_fix->fx_r_type = (int) R_PARISC_GNU_VTINHERIT;
     }
+}
+#endif
+
+/* Table of pseudo ops for the PA.  FIXME -- how many of these
+   are now redundant with the overall GAS and the object file
+   dependent tables?  */
+const pseudo_typeS md_pseudo_table[] =
+{
+  /* align pseudo-ops on the PA specify the actual alignment requested,
+     not the log2 of the requested alignment.  */
+#ifdef OBJ_SOM
+  {"align", pa_align, 8},
+#endif
+#ifdef OBJ_ELF
+  {"align", s_align_bytes, 8},
+#endif
+  {"begin_brtab", pa_brtab, 1},
+  {"begin_try", pa_try, 1},
+  {"block", pa_block, 1},
+  {"blockz", pa_block, 0},
+  {"byte", pa_cons, 1},
+  {"call", pa_call, 0},
+  {"callinfo", pa_callinfo, 0},
+#if defined (OBJ_ELF) && (defined (TE_LINUX) || defined (TE_NetBSD))
+  {"code", obj_elf_text, 0},
+#else
+  {"code", pa_text, 0},
+  {"comm", pa_comm, 0},
+#endif
+#ifdef OBJ_SOM
+  {"compiler", pa_compiler, 0},
+#endif
+  {"copyright", pa_copyright, 0},
+#if !(defined (OBJ_ELF) && (defined (TE_LINUX) || defined (TE_NetBSD)))
+  {"data", pa_data, 0},
+#endif
+  {"double", pa_float_cons, 'd'},
+  {"dword", pa_cons, 8},
+  {"end", pa_end, 0},
+  {"end_brtab", pa_brtab, 0},
+#if !(defined (OBJ_ELF) && (defined (TE_LINUX) || defined (TE_NetBSD)))
+  {"end_try", pa_try, 0},
+#endif
+  {"enter", pa_enter, 0},
+  {"entry", pa_entry, 0},
+  {"equ", pa_equ, 0},
+  {"exit", pa_exit, 0},
+  {"export", pa_export, 0},
+  {"fill", pa_fill, 0},
+  {"float", pa_float_cons, 'f'},
+  {"half", pa_cons, 2},
+  {"import", pa_import, 0},
+  {"int", pa_cons, 4},
+  {"label", pa_label, 0},
+  {"lcomm", pa_lcomm, 0},
+  {"leave", pa_leave, 0},
+  {"level", pa_level, 0},
+  {"long", pa_cons, 4},
+  {"lsym", pa_lsym, 0},
+#ifdef OBJ_SOM
+  {"nsubspa", pa_subspace, 1},
+#endif
+  {"octa", pa_cons, 16},
+  {"org", pa_origin, 0},
+  {"origin", pa_origin, 0},
+  {"param", pa_param, 0},
+  {"proc", pa_proc, 0},
+  {"procend", pa_procend, 0},
+  {"quad", pa_cons, 8},
+  {"reg", pa_equ, 1},
+  {"short", pa_cons, 2},
+  {"single", pa_float_cons, 'f'},
+#ifdef OBJ_SOM
+  {"space", pa_space, 0},
+  {"spnum", pa_spnum, 0},
+#endif
+  {"string", pa_stringer, 0},
+  {"stringz", pa_stringer, 1},
+#ifdef OBJ_SOM
+  {"subspa", pa_subspace, 0},
+#endif
+#if !(defined (OBJ_ELF) && (defined (TE_LINUX) || defined (TE_NetBSD)))
+  {"text", pa_text, 0},
+#endif
+  {"version", pa_version, 0},
+#ifdef OBJ_ELF
+  {"vtable_entry", pa_vtable_entry, 0},
+  {"vtable_inherit", pa_vtable_inherit, 0},
+#endif
+  {"word", pa_cons, 4},
+  {NULL, 0, 0}
+};
+
+#ifdef OBJ_ELF
+void
+hppa_cfi_frame_initial_instructions (void)
+{
+  cfi_add_CFA_def_cfa (30, 0);
+}
+
+int
+hppa_regname_to_dw2regnum (char *regname)
+{
+  unsigned int regnum = -1;
+  unsigned int i;
+  const char *p;
+  char *q;
+  static struct { char *name; int dw2regnum; } regnames[] =
+    {
+      { "sp", 30 }, { "rp", 2 },
+    };
+
+  for (i = 0; i < ARRAY_SIZE (regnames); ++i)
+    if (strcmp (regnames[i].name, regname) == 0)
+      return regnames[i].dw2regnum;
+
+  if (regname[0] == 'r')
+    {
+      p = regname + 1;
+      regnum = strtoul (p, &q, 10);
+      if (p == q || *q || regnum >= 32)
+	return -1;
+    }
+  else if (regname[0] == 'f' && regname[1] == 'r')
+    {
+      p = regname + 2;
+      regnum = strtoul (p, &q, 10);
+      if (p == q || *q || regnum <= 4 || regnum >= 32)
+	return -1;
+      regnum += 32 - 4;
+    }
+  return regnum;
 }
 #endif

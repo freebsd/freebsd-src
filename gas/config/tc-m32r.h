@@ -1,6 +1,6 @@
 /* tc-m32r.h -- Header file for tc-m32r.c.
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005
-   Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
+   2007 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -87,13 +87,6 @@ extern bfd_boolean m32r_fix_adjustable (struct fix *);
 /* This arranges for gas/write.c to not apply a relocation if
    obj_fix_adjustable() says it is not adjustable.  */
 #define TC_FIX_ADJUSTABLE(fixP) obj_fix_adjustable (fixP)
-
-#define TC_RELOC_RTSYM_LOC_FIXUP(FIX)                           \
-   ((FIX)->fx_addsy == NULL                                     \
-    || (! S_IS_EXTERNAL ((FIX)->fx_addsy)                       \
-        && ! S_IS_WEAK ((FIX)->fx_addsy)                        \
-        && S_IS_DEFINED ((FIX)->fx_addsy)                       \
-        && ! S_IS_COMMON ((FIX)->fx_addsy)))
 
 #define tc_frob_file_before_fix() m32r_frob_file ()
 extern void m32r_frob_file (void);

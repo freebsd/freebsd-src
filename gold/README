@@ -1,0 +1,18 @@
+gold is an ELF linker.  It is intended to have complete support for
+ELF and to run as fast as possible on modern systems.
+
+It is written in C++.  It is (intended to be) a GNU program, and
+therefore follows the GNU formatting standards as modified for C++.
+Source documents in order of precedence:
+    http://www.gnu.org/prep/standards/
+    http://gcc.gnu.org/onlinedocs/libstdc++/17_intro/C++STYLE
+    http://www.zembu.com/eng/procs/c++style.html
+
+The linker is intended to have complete support for cross-compilation,
+which still supporting the normal case of native linking as fast as
+possible.  This makes the code more complex.
+
+Many functions are actually templates whose parameter is the ELF file
+class (e.g., 32 bits or 64 bits).  The code is the same, but we don't
+want to pay the execution time cost of always using 64-bit integers if
+the target is 32 bits.

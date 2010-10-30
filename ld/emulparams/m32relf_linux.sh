@@ -5,7 +5,7 @@ OUTPUT_FORMAT="elf32-m32r-linux"
 TEXT_START_ADDR=0x1000
 ARCH=m32r
 MACHINE=
-MAXPAGESIZE=0x1000
+MAXPAGESIZE="CONSTANT (MAXPAGESIZE)"
 
 # Hmmm, there's got to be a better way.  This sets the stack to the
 # top of simulator memory (32MB).

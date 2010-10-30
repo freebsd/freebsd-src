@@ -1,5 +1,5 @@
 /* BFD back-end for Irix core files.
-   Copyright 1993, 1994, 1996, 1999, 2001, 2002, 2004
+   Copyright 1993, 1994, 1996, 1999, 2001, 2002, 2004, 2006, 2007
    Free Software Foundation, Inc.
    Written by Stu Grossman, Cygnus Support.
    Converted to back-end form by Ian Lance Taylor, Cygnus Support
@@ -23,8 +23,8 @@
 /* This file can only be compiled on systems which use Irix style core
    files (namely, Irix 4 and Irix 5, so far).  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 
 #ifdef IRIX_CORE
@@ -152,11 +152,10 @@ make_bfd_asection (bfd *abfd,
 {
   asection *asect;
 
-  asect = bfd_make_section_anyway (abfd, name);
+  asect = bfd_make_section_anyway_with_flags (abfd, name, flags);
   if (!asect)
     return NULL;
 
-  asect->flags = flags;
   asect->size = size;
   asect->vma = vma;
   asect->filepos = filepos;

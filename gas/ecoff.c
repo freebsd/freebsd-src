@@ -1,6 +1,6 @@
 /* ECOFF debugging support.
    Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004, 2005
+   2003, 2004, 2005, 2006
    Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    This file was put together by Ian Lance Taylor <ian@cygnus.com>.  A
@@ -2778,7 +2778,7 @@ ecoff_directive_val (int ignore ATTRIBUTE_UNUSED)
   expression (&exp);
   if (exp.X_op != O_constant && exp.X_op != O_symbol)
     {
-      as_bad (_(".val expression is too copmlex"));
+      as_bad (_(".val expression is too complex"));
       demand_empty_rest_of_line ();
       return;
     }

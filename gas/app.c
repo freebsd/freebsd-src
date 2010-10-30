@@ -1,6 +1,6 @@
 /* This is the Assembler Pre-Processor
    Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003
+   1999, 2000, 2001, 2002, 2003, 2006, 2007
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -21,13 +21,12 @@
    02110-1301, USA.  */
 
 /* Modified by Allen Wirfs-Brock, Instantiations Inc 2/90.  */
-/* App, the assembler pre-processor.  This pre-processor strips out excess
-   spaces, turns single-quoted characters into a decimal constant, and turns
-   # <number> <filename> <garbage> into a .line <number>\n.file <filename>
-   pair.  This needs better error-handling.  */
+/* App, the assembler pre-processor.  This pre-processor strips out
+   excess spaces, turns single-quoted characters into a decimal
+   constant, and turns the # in # <number> <filename> <garbage> into a
+   .linefile.  This needs better error-handling.  */
 
-#include <stdio.h>
-#include "as.h"			/* For BAD_CASE() only.  */
+#include "as.h"
 
 #if (__STDC__ != 1)
 #ifndef const
@@ -352,11 +351,11 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	  1: After first whitespace on line (flush more white)
 	  2: After first non-white (opcode) on line (keep 1white)
 	  3: after second white on line (into operands) (flush white)
-	  4: after putting out a .line, put out digits
+	  4: after putting out a .linefile, put out digits
 	  5: parsing a string, then go to old-state
 	  6: putting out \ escape in a "d string.
-	  7: After putting out a .appfile, put out string.
-	  8: After putting out a .appfile string, flush until newline.
+	  7: no longer used
+	  8: no longer used
 	  9: After seeing symbol char in state 3 (keep 1white after symchar)
 	 10: After seeing whitespace in state 9 (keep white before symchar)
 	 11: After seeing a symbol character in state 0 (eg a label definition)
@@ -511,14 +510,10 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 		ch = GET ();
 	      if (ch == '"')
 		{
-		  UNGET (ch);
-		  if (scrub_m68k_mri)
-		    out_string = "\n\tappfile ";
-		  else
-		    out_string = "\n\t.appfile ";
-		  old_state = 7;
-		  state = -1;
-		  PUT (*out_string++);
+		  quotechar = ch;
+		  state = 5;
+		  old_state = 3;
+		  PUT (ch);
 		}
 	      else
 		{
@@ -555,6 +550,8 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 		memcpy (to, from, len);
 		to += len;
 		from += len;
+		if (to >= toend)
+		  goto tofull;
 	      }
 	  }
 
@@ -636,24 +633,6 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 #endif
 	      break;
 	    }
-	  PUT (ch);
-	  continue;
-
-	case 7:
-	  ch = GET ();
-	  quotechar = ch;
-	  state = 5;
-	  old_state = 8;
-	  PUT (ch);
-	  continue;
-
-	case 8:
-	  do
-	    ch = GET ();
-	  while (ch != '\n' && ch != EOF);
-	  if (ch == EOF)
-	    goto fromeof;
-	  state = 0;
 	  PUT (ch);
 	  continue;
 
@@ -888,9 +867,6 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 
 	  switch (state)
 	    {
-	    case 0:
-	      state++;
-	      goto recycle;	/* Punted leading sp */
 	    case 1:
 	      /* We can arrive here if we leave a leading whitespace
 		 character at the beginning of a line.  */
@@ -1200,9 +1176,9 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	      old_state = 4;
 	      state = -1;
 	      if (scrub_m68k_mri)
-		out_string = "\tappline ";
+		out_string = "\tlinefile ";
 	      else
-		out_string = "\t.appline ";
+		out_string = "\t.linefile ";
 	      PUT (*out_string++);
 	      break;
 	    }
@@ -1245,6 +1221,15 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 	  if ((symver_state != NULL) && (*symver_state == 0))
 	    goto de_fault;
 #endif
+
+#ifdef TC_ARM
+	  /* For the ARM, care is needed not to damage occurrences of \@
+	     by stripping the @ onwards.  Yuck.  */
+	  if (to > tostart && *(to - 1) == '\\')
+	    /* Do not treat the @ as a start-of-comment.  */
+	    goto de_fault;
+#endif
+
 #ifdef WARN_COMMENTS
 	  if (!found_comment)
 	    as_where (&found_comment_file, &found_comment);
@@ -1377,7 +1362,15 @@ do_scrub_chars (int (*get) (char *, int), char *tostart, int tolen)
 		     the space.  We don't have enough information to
 		     make the right choice, so here we are making the
 		     choice which is more likely to be correct.  */
-		  PUT (' ');
+		  if (to + 1 >= toend)
+		    {
+		      /* If we're near the end of the buffer, save the
+		         character for the next time round.  Otherwise
+		         we'll lose our state.  */
+		      UNGET (ch);
+		      goto tofull;
+		    }
+		  *to++ = ' ';
 		}
 
 	      state = 3;

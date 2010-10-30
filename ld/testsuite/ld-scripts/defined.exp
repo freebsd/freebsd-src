@@ -1,6 +1,6 @@
 # Test DEFINED in a linker script.
 # By Ian Lance Taylor, Cygnus Support.
-#   Copyright 2001, 2003
+#   Copyright 2001, 2003. 2006
 #   Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
@@ -25,7 +25,13 @@ if ![ld_assemble $as $srcdir/$subdir/defined.s tmpdir/def.o] {
     return
 }
 
-if ![ld_simple_link $ld tmpdir/def "-T $srcdir/$subdir/defined.t tmpdir/def.o"] {
+global LDFLAGS
+set saved_LDFLAGS "$LDFLAGS"
+if [istarget "x86_64-*-mingw*"] then {
+  set LDFLAGS "$LDFLAGS --image-base 0"
+}
+
+if ![ld_simple_link $ld tmpdir/def "$LDFLAGS -T $srcdir/$subdir/defined.t tmpdir/def.o"] {
     fail $testname
 } else {
     if ![ld_nm $nm "" tmpdir/def] {
@@ -57,3 +63,4 @@ if ![ld_simple_link $ld tmpdir/def "-T $srcdir/$subdir/defined.t tmpdir/def.o"] 
 set prms_id 0
 run_dump_test "defined2"
 run_dump_test "defined3"
+set LDFLAGS "$saved_LDFLAGS"

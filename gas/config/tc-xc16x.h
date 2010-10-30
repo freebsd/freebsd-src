@@ -25,11 +25,6 @@
 
 #define TARGET_ARCH bfd_arch_xc16x
 
-#ifdef BFD_ASSEMBLER
-/* Fixup debug sections since we will never relax them.  */
-#define TC_LINKRELAX_FIXUP(seg) (seg->flags & SEC_ALLOC)
-#endif
-
 #ifdef OBJ_ELF
 #define TARGET_FORMAT       "elf32-xc16x"
 #define LOCAL_LABEL_PREFIX  '.'

@@ -2,8 +2,8 @@
 # It does some substitutions.
 cat >e${EMULATION_NAME}.c <<EOF
 /* intel coff loader emulation specific stuff
-   Copyright 1991, 1992, 1994, 1995, 1996, 1999, 2000, 2001, 2002, 2003, 2005
-   Free Software Foundation, Inc.
+   Copyright 1991, 1992, 1994, 1995, 1996, 1999, 2000, 2001, 2002, 2003,
+   2005, 2007 Free Software Foundation, Inc.
    Written by Steve Chamberlain steve@cygnus.com
 
 This file is part of GLD, the Gnu Linker.
@@ -22,9 +22,9 @@ You should have received a copy of the GNU General Public License
 along with GLD; see the file COPYING.  If not, write to
 the Free Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
+#include "sysdep.h"
 #include "libiberty.h"
 #include "bfd.h"
-#include "sysdep.h"
 #include "bfdlink.h"
 
 /*#include "archures.h"*/

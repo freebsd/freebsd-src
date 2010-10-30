@@ -31,84 +31,86 @@ Disassembly of section .text:
   54:	36 e1 ff 7f 	M2=0x7fff \(X\);
   58:	81 60       	R1=0x10\(x\);
   5a:	3c e1 00 00 	L0=0x0 \(X\);
-  5e:	27 e1 eb 00 	R7=0xeb \(X\);
+  5e:	27 e1 f3 00 	R7=0xf3 \(X\);
+  62:	00 e1 03 00 	R0.L=0x3;
+  66:	01 e1 0f 00 	R1.L=0xf;
 
-00000062 <load_pointer_register>:
-  62:	7e 91       	SP=\[FP\];
-  64:	47 90       	FP=\[P0\+\+\];
-  66:	f1 90       	P1=\[SP--\];
-  68:	96 af       	SP=\[P2\+0x38\];
-  6a:	3b ac       	P3=\[FP\+0x0];
-  6c:	3c e5 ff 7f 	P4=\[FP\+0x1fffc\];
-  70:	3e e5 01 80 	SP=\[FP\+-131068\];
-  74:	26 ac       	SP=\[P4\+0x0\];
-  76:	0d b8       	P5=\[FP-128\];
+0000006a <load_pointer_register>:
+  6a:	7e 91       	SP=\[FP\];
+  6c:	47 90       	FP=\[P0\+\+\];
+  6e:	f1 90       	P1=\[SP--\];
+  70:	96 af       	SP=\[P2\+0x38\];
+  72:	3b ac       	P3=\[FP\+0x0\];
+  74:	3c e5 ff 7f 	P4=\[FP\+0x1fffc\];
+  78:	3e e5 01 80 	SP=\[FP\+-131068\];
+  7c:	26 ac       	SP=\[P4\+0x0\];
+  7e:	0d b8       	P5=\[FP-128\];
 
-00000078 <load_data_register>:
-  78:	07 91       	R7=\[P0\];
-  7a:	2e 90       	R6=\[P5\+\+\];
-  7c:	a5 90       	R5=\[P4--\];
-  7e:	bc a2       	R4=\[FP\+0x28\];
-  80:	33 e4 ff 7f 	R3=\[SP\+0x1fffc\];
-  84:	32 a0       	R2=\[SP\+0x0\];
-  86:	39 e4 01 80 	R1=\[FP\+-131068\];
-  8a:	06 80       	R0=\[SP\+\+P0\];
-  8c:	05 b8       	R5=\[FP-128\];
-  8e:	02 9d       	R2=\[I0\];
-  90:	09 9c       	R1=\[I1\+\+\];
-  92:	93 9c       	R3=\[I2--\];
-  94:	9c 9d       	R4=\[I3\+\+M0\];
+00000080 <load_data_register>:
+  80:	07 91       	R7=\[P0\];
+  82:	2e 90       	R6=\[P5\+\+\];
+  84:	a5 90       	R5=\[P4--\];
+  86:	bc a2       	R4=\[FP\+0x28\];
+  88:	33 e4 ff 7f 	R3=\[SP\+0x1fffc\];
+  8c:	32 a0       	R2=\[SP\+0x0\];
+  8e:	39 e4 01 80 	R1=\[FP\+-131068\];
+  92:	06 80       	R0=\[SP\+\+P0\];
+  94:	05 b8       	R5=\[FP-128\];
+  96:	02 9d       	R2=\[I0\];
+  98:	09 9c       	R1=\[I1\+\+\];
+  9a:	93 9c       	R3=\[I2--\];
+  9c:	9c 9d       	R4=\[I3\+\+M0\];
 
-00000096 <load_half_word_zero_extend>:
-  96:	37 95       	R7=W\[SP\] \(Z\);
-  98:	3e 94       	R6=W\[FP\+\+\] \(Z\);
-  9a:	85 94       	R5=W\[P0--\] \(Z\);
-  9c:	cc a7       	R4=W\[P1\+0x1e\] \(Z\);
-  9e:	73 e4 fe 7f 	R3=W\[SP\+0xfffc\] \(Z\);
-  a2:	7a e4 02 80 	R2=W\[FP\+-65532\] \(Z\);
-  a6:	28 86       	R0=W\[P0\+\+P5\] \(Z\);
+0000009e <load_half_word_zero_extend>:
+  9e:	37 95       	R7=W\[SP\] \(Z\);
+  a0:	3e 94       	R6=W\[FP\+\+\] \(Z\);
+  a2:	85 94       	R5=W\[P0--\] \(Z\);
+  a4:	cc a7       	R4=W\[P1\+0x1e\] \(Z\);
+  a6:	73 e4 fe 7f 	R3=W\[SP\+0xfffc\] \(Z\);
+  aa:	7a e4 02 80 	R2=W\[FP\+-65532\] \(Z\);
+  ae:	28 86       	R0=W\[P0\+\+P5\] \(Z\);
 
-000000a8 <load_half_word_sign_extend>:
-  a8:	77 95       	R7=W\[SP\]\(X\);
-  aa:	7e 94       	R6=W\[FP\+\+\]\(X\);
-  ac:	c5 94       	R5=W\[P0--\]\(X\);
-  ae:	0d ab       	R5=W\[P1\+0x18\]\(X\);
-  b0:	73 e5 fe 7f 	R3=W\[SP\+0xfffc\]\(X\);
-  b4:	7f e5 02 80 	R7=W\[FP\+-65532\]\(X\);
-  b8:	51 8e       	R1=W\[P1\+\+P2\]\(X\);
+000000b0 <load_half_word_sign_extend>:
+  b0:	77 95       	R7=W\[SP\]\(X\);
+  b2:	7e 94       	R6=W\[FP\+\+\]\(X\);
+  b4:	c5 94       	R5=W\[P0--\]\(X\);
+  b6:	0d ab       	R5=W\[P1\+0x18\]\(X\);
+  b8:	73 e5 fe 7f 	R3=W\[SP\+0xfffc\]\(X\);
+  bc:	7f e5 02 80 	R7=W\[FP\+-65532\]\(X\);
+  c0:	51 8e       	R1=W\[P1\+\+P2\]\(X\);
 
-000000ba <load_high_data_register_half>:
-  ba:	40 9d       	R0.H=W\[I0\];
-  bc:	49 9c       	R1.H=W\[I1\+\+\];
-  be:	d2 9c       	R2.H=W\[I2--\];
-  c0:	f6 84       	R3.H=W\[SP\];
-  c2:	07 85       	R4.H=W\[FP\+\+P0\];
+000000c2 <load_high_data_register_half>:
+  c2:	40 9d       	R0.H=W\[I0\];
+  c4:	49 9c       	R1.H=W\[I1\+\+\];
+  c6:	d2 9c       	R2.H=W\[I2--\];
+  c8:	f6 84       	R3.H=W\[SP\];
+  ca:	07 85       	R4.H=W\[FP\+\+P0\];
 
-000000c4 <load_low_data_register_half>:
-  c4:	3f 9d       	R7.L=W\[I3\];
-  c6:	36 9c       	R6.L=W\[I2\+\+\];
-  c8:	ad 9c       	R5.L=W\[I1--\];
-  ca:	00 83       	R4.L=W\[P0\];
-  cc:	da 82       	R3.L=W\[P2\+\+P3\];
+000000cc <load_low_data_register_half>:
+  cc:	3f 9d       	R7.L=W\[I3\];
+  ce:	36 9c       	R6.L=W\[I2\+\+\];
+  d0:	ad 9c       	R5.L=W\[I1--\];
+  d2:	00 83       	R4.L=W\[P0\];
+  d4:	da 82       	R3.L=W\[P2\+\+P3\];
 
-000000ce <load_byte_zero_extend>:
-  ce:	05 99       	R5=B\[P0\] \(Z\);
-  d0:	0c 98       	R4=B\[P1\+\+\] \(Z\);
-  d2:	90 98       	R0=B\[P2--\] \(Z\);
-  d4:	b3 e4 ff 7f 	R3=B\[SP\+0x7fff\] \(Z\);
-  d8:	b7 e4 01 80 	R7=B\[SP\+-32767\] \(Z\);
+000000d6 <load_byte_zero_extend>:
+  d6:	05 99       	R5=B\[P0\] \(Z\);
+  d8:	0c 98       	R4=B\[P1\+\+\] \(Z\);
+  da:	90 98       	R0=B\[P2--\] \(Z\);
+  dc:	b3 e4 ff 7f 	R3=B\[SP\+0x7fff\] \(Z\);
+  e0:	b7 e4 01 80 	R7=B\[SP\+-32767\] \(Z\);
 
-000000dc <load_byte_sign_extend>:
-  dc:	45 99       	R5=B\[P0\]\(X\);
-  de:	4a 98       	R2=B\[P1\+\+\]\(X\);
-  e0:	fb 98       	R3=B\[FP--\]\(X\);
-  e2:	b7 e5 00 00 	R7=B\[SP\+0x0\]\(X\);
-  e6:	be e5 01 80 	R6=B\[FP\+-32767\]\(X\);
+000000e4 <load_byte_sign_extend>:
+  e4:	45 99       	R5=B\[P0\]\(X\);
+  e6:	4a 98       	R2=B\[P1\+\+\]\(X\);
+  e8:	fb 98       	R3=B\[FP--\]\(X\);
+  ea:	b7 e5 00 00 	R7=B\[SP\+0x0\]\(X\);
+  ee:	be e5 01 80 	R6=B\[FP\+-32767\]\(X\);
 
-000000ea <load_data1>:
+000000f2 <load_data1>:
 	...
 
-000000eb <load_data2>:
-  eb:	10 00       	IF ! CC JUMP eb <load_data2>;
-  ed:	00 00       	NOP;
+000000f3 <load_data2>:
+  f3:	10 00       	IF ! CC JUMP f3 <load_data2>;
+  f5:	00 00       	NOP;
 	...

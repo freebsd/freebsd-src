@@ -1,5 +1,5 @@
 /* tc-m32c.c -- Assembler for the Renesas M32C.
-   Copyright (C) 2005 Free Software Foundation.
+   Copyright (C) 2005, 2006 Free Software Foundation.
    Contributed by RedHat.
 
    This file is part of GAS, the GNU Assembler.
@@ -19,7 +19,6 @@
    the Free Software Foundation, 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-#include <stdio.h>
 #include "as.h"
 #include "subsegs.h"     
 #include "symcat.h"
@@ -29,9 +28,7 @@
 #include "elf/common.h"
 #include "elf/m32c.h"
 #include "libbfd.h"
-#include "libiberty.h"
 #include "safe-ctype.h"
-#include "bfd.h"
 
 /* Structure to hold all of the different components
    describing an individual instruction.  */
@@ -55,8 +52,8 @@ typedef struct
 }
 m32c_insn;
 
-#define rl_for(insn) (CGEN_ATTR_CGEN_INSN_RL_TYPE_VALUE (&(insn.insn->base->attrs)))
-#define relaxable(insn) (CGEN_ATTR_CGEN_INSN_RELAXABLE_VALUE (&(insn.insn->base->attrs)))
+#define rl_for(_insn) (CGEN_ATTR_CGEN_INSN_RL_TYPE_VALUE (&((_insn).insn->base->attrs)))
+#define relaxable(_insn) (CGEN_ATTR_CGEN_INSN_RELAXABLE_VALUE (&((_insn).insn->base->attrs)))
 
 const char comment_chars[]        = ";";
 const char line_comment_chars[]   = "#";
@@ -154,6 +151,7 @@ s_bss (int ignore ATTRIBUTE_UNUSED)
 const pseudo_typeS md_pseudo_table[] =
 {
   { "bss",	s_bss, 		0},
+  { "3byte",	cons,		3 },
   { "word",	cons,		4 },
   { NULL, 	NULL, 		0 }
 };
@@ -450,7 +448,12 @@ const relax_typeS md_relax_table[] =
  /* 19 */ { 32767, -32768, 3, 20 }, /* jsr16.w */
  /* 20 */ {     0,      0, 4,  0 }, /* jsr16.a */
  /* 21 */ { 32767, -32768, 3, 11 }, /* jsr32.w */
- /* 22 */ {     0,      0, 4,  0 }  /* jsr32.a */
+ /* 22 */ {     0,      0, 4,  0 }, /* jsr32.a */
+
+ /* 23 */ {     0,      0, 3,  0 }, /* adjnz pc8 */
+ /* 24 */ {     0,      0, 4,  0 }, /* adjnz disp8 pc8 */
+ /* 25 */ {     0,      0, 5,  0 }, /* adjnz disp16 pc8 */
+ /* 26 */ {     0,      0, 6,  0 }  /* adjnz disp24 pc8 */
 };
 
 enum {
@@ -460,6 +463,11 @@ enum {
   M32C_MACRO_JCND16_A,
   M32C_MACRO_JCND32_W,
   M32C_MACRO_JCND32_A,
+  /* the digit is the array index of the pcrel byte */
+  M32C_MACRO_ADJNZ_2,
+  M32C_MACRO_ADJNZ_3,
+  M32C_MACRO_ADJNZ_4,
+  M32C_MACRO_ADJNZ_5,
 } M32C_Macros;
 
 static struct {
@@ -496,7 +504,12 @@ static struct {
  /* 19 */ {  M32C_INSN_JSR16_W,     3, M32C_INSN_JSR16_A,     2 },
  /* 20 */ {  M32C_INSN_JSR16_A,     4, M32C_INSN_JSR16_A,     0 },
  /* 21 */ {  M32C_INSN_JSR32_W,     3, M32C_INSN_JSR32_A,     2 },
- /* 22 */ {  M32C_INSN_JSR32_A,     4, M32C_INSN_JSR32_A,     0 }
+ /* 22 */ {  M32C_INSN_JSR32_A,     4, M32C_INSN_JSR32_A,     0 },
+
+ /* 23 */ { -M32C_MACRO_ADJNZ_2,    3, -M32C_MACRO_ADJNZ_2,    0 },
+ /* 24 */ { -M32C_MACRO_ADJNZ_3,    4, -M32C_MACRO_ADJNZ_3,    0 },
+ /* 25 */ { -M32C_MACRO_ADJNZ_4,    5, -M32C_MACRO_ADJNZ_4,    0 },
+ /* 26 */ { -M32C_MACRO_ADJNZ_5,    6, -M32C_MACRO_ADJNZ_5,    0 }
 };
 #define NUM_MAPPINGS (sizeof (subtype_mappings) / sizeof (subtype_mappings[0]))
 
@@ -511,11 +524,21 @@ m32c_prepare_relax_scan (fragS *fragP, offsetT *aim, relax_substateT this_state)
 }
 
 static int
-insn_to_subtype (int insn)
+insn_to_subtype (int inum, const CGEN_INSN *insn)
 {
   unsigned int i;
+
+  if (insn
+      && (strncmp (insn->base->mnemonic, "adjnz", 5) == 0
+	  || strncmp (insn->base->mnemonic, "sbjnz", 5) == 0))
+    {
+      i = 23 + insn->base->bitsize/8 - 3;
+      /*printf("mapping %d used for %s\n", i, insn->base->mnemonic);*/
+      return i;
+    }
+
   for (i=0; i<NUM_MAPPINGS; i++)
-    if (insn == subtype_mappings[i].insn)
+    if (inum == subtype_mappings[i].insn)
       {
 	/*printf("mapping %d used\n", i);*/
 	return i;
@@ -540,14 +563,14 @@ md_estimate_size_before_relax (fragS * fragP, segT segment ATTRIBUTE_UNUSED)
   int where = fragP->fr_opcode - fragP->fr_literal;
 
   if (fragP->fr_subtype == 1)
-    fragP->fr_subtype = insn_to_subtype (fragP->fr_cgen.insn->base->num);
+    fragP->fr_subtype = insn_to_subtype (fragP->fr_cgen.insn->base->num, fragP->fr_cgen.insn);
 
   if (S_GET_SEGMENT (fragP->fr_symbol) != segment)
     {
       int new_insn;
 
       new_insn = subtype_mappings[fragP->fr_subtype].insn_for_extern;
-      fragP->fr_subtype = insn_to_subtype (new_insn);
+      fragP->fr_subtype = insn_to_subtype (new_insn, 0);
     }
 
   if (fragP->fr_cgen.insn->base
@@ -835,6 +858,26 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
       rl_addend = 0x41;
       break;
 
+    case -M32C_MACRO_ADJNZ_2:
+      rl_addend = 0x31;
+      op[2] = addend;
+      operand = M32C_OPERAND_LAB_16_8;
+      break;
+    case -M32C_MACRO_ADJNZ_3:
+      rl_addend = 0x41;
+      op[3] = addend;
+      operand = M32C_OPERAND_LAB_24_8;
+      break;
+    case -M32C_MACRO_ADJNZ_4:
+      rl_addend = 0x51;
+      op[4] = addend;
+      operand = M32C_OPERAND_LAB_32_8;
+      break;
+    case -M32C_MACRO_ADJNZ_5:
+      rl_addend = 0x61;
+      op[5] = addend;
+      operand = M32C_OPERAND_LAB_40_8;
+      break;
 
 
     default:
@@ -860,15 +903,16 @@ md_convert_frag (bfd *   abfd ATTRIBUTE_UNUSED,
       || (m32c_relax && (operand != M32C_OPERAND_LAB_5_3
 			 && operand != M32C_OPERAND_LAB32_JMP_S)))
     {
+      fixS *fixP;
       assert (fragP->fr_cgen.insn != 0);
-      gas_cgen_record_fixup (fragP,
-			     where,
-			     fragP->fr_cgen.insn,
-			     (fragP->fr_fix - where) * 8,
-			     cgen_operand_lookup_by_num (gas_cgen_cpu_desc,
-							 operand),
-			     fragP->fr_cgen.opinfo,
-			     fragP->fr_symbol, fragP->fr_offset);
+      fixP = gas_cgen_record_fixup (fragP,
+				    where,
+				    fragP->fr_cgen.insn,
+				    (fragP->fr_fix - where) * 8,
+				    cgen_operand_lookup_by_num (gas_cgen_cpu_desc,
+								operand),
+				    fragP->fr_cgen.opinfo,
+				    fragP->fr_symbol, fragP->fr_offset);
     }
 }
 
@@ -1018,6 +1062,37 @@ md_cgen_lookup_reloc (const CGEN_INSN *    insn ATTRIBUTE_UNUSED,
      operand->name);
 
   return BFD_RELOC_NONE;
+}
+
+void
+m32c_cons_fix_new (fragS *	frag,
+		   int		where,
+		   int		size,
+		   expressionS *exp)
+{
+  bfd_reloc_code_real_type type;
+
+  switch (size)
+    {
+    case 1:
+      type = BFD_RELOC_8;
+      break;
+    case 2:
+      type = BFD_RELOC_16;
+      break;
+    case 3:
+      type = BFD_RELOC_24;
+      break;
+    case 4:
+    default:
+      type = BFD_RELOC_32;
+      break;
+    case 8:
+      type = BFD_RELOC_64;
+      break;
+    }
+
+  fix_new_exp (frag, where, (int) size, exp, 0, type);
 }
 
 void

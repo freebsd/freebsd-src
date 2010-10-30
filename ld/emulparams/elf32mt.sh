@@ -1,5 +1,7 @@
 MACHINE=
 SCRIPT_NAME=elf
+TEMPLATE_NAME=generic
+EXTRA_EM_FILE=genelf
 OUTPUT_FORMAT="elf32-mt"
 # See also `include/elf/mt.h'
 TEXT_START_ADDR=0x2000

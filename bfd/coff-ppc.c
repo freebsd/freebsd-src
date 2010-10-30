@@ -1,6 +1,6 @@
 /* BFD back-end for PowerPC Microsoft Portable Executable files.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006
+   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
 
    Original version pieced together by Kim Knuttila (krk@cygnus.com)
@@ -33,9 +33,8 @@
    - dlltool will not produce correct output in some .reloc cases, and will
      not produce the right glue code for dll function calls.  */
 
-#include "bfd.h"
 #include "sysdep.h"
-
+#include "bfd.h"
 #include "libbfd.h"
 
 #include "coff/powerpc.h"
@@ -1332,7 +1331,7 @@ coff_ppc_relocate_section (output_bfd, info, input_bfd, input_section,
 
 	    DUMP_RELOC2 (howto->name, rel);
 
-	    if (strncmp(".idata$2",input_section->name,8) == 0 && first_thunk_address == 0)
+	    if (CONST_STRNEQ (input_section->name, ".idata$2") && first_thunk_address == 0)
 	      {
 		/* Set magic values.  */
 		int idata5offset;
@@ -1961,8 +1960,23 @@ ppc_coff_reloc_type_lookup (abfd, code)
       return NULL;
     }
 }
-
 #undef HOW2MAP
+
+static reloc_howto_type *
+ppc_coff_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			    const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (ppc_coff_howto_table) / sizeof (ppc_coff_howto_table[0]);
+       i++)
+    if (ppc_coff_howto_table[i].name != NULL
+	&& strcasecmp (ppc_coff_howto_table[i].name, r_name) == 0)
+      return &ppc_coff_howto_table[i];
+
+  return NULL;
+}
 
 /* Tailor coffcode.h -- macro heaven.  */
 
@@ -1971,6 +1985,7 @@ ppc_coff_reloc_type_lookup (abfd, code)
 /* We use the special COFF backend linker, with our own special touch.  */
 
 #define coff_bfd_reloc_type_lookup   ppc_coff_reloc_type_lookup
+#define coff_bfd_reloc_name_lookup ppc_coff_reloc_name_lookup
 #define coff_rtype_to_howto          coff_ppc_rtype_to_howto
 #define coff_relocate_section        coff_ppc_relocate_section
 #define coff_bfd_final_link          ppc_bfd_coff_final_link

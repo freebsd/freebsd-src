@@ -14,16 +14,16 @@ Disassembly of section \.text:
  [0-9a-f]+:	e6 2f       	mov\.l	r14,@-r15
  [0-9a-f]+:	22 4f       	sts\.l	pr,@-r15
  [0-9a-f]+:	83 c7       	mova	[0-9a-f]+ <fn1\+0x214>,r0
- [0-9a-f]+:	82 dc       	mov\.l	[0-9a-f]+ <fn1\+0x214>,r12	! 0x[0-9a-f]+
+ [0-9a-f]+:	82 dc       	mov\.l	[0-9a-f]+ <fn1\+0x214>,r12	! [0-9a-f]+
  [0-9a-f]+:	0c 3c       	add	r0,r12
  [0-9a-f]+:	f3 6e       	mov	r15,r14
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
- [0-9a-f]+:	04 d4       	mov\.l	[0-9a-f]+ <fn1\+0x28>,r4	! 0x30
+ [0-9a-f]+:	04 d4       	mov\.l	[0-9a-f]+ <fn1\+0x28>,r4	! 30
  [0-9a-f]+:	04 c7       	mova	[0-9a-f]+ <fn1\+0x2c>,r0
- [0-9a-f]+:	04 d1       	mov\.l	[0-9a-f]+ <fn1\+0x2c>,r1	! 0x[0-9a-f]+
+ [0-9a-f]+:	04 d1       	mov\.l	[0-9a-f]+ <fn1\+0x2c>,r1	! [0-9a-f]+
  [0-9a-f]+:	0c 31       	add	r0,r1
  [0-9a-f]+:	0b 41       	jsr	@r1
  [0-9a-f]+:	cc 34       	add	r12,r4
@@ -38,7 +38,7 @@ Disassembly of section \.text:
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
- [0-9a-f]+:	03 d0       	mov\.l	[0-9a-f]+ <fn1\+0x48>,r0	! 0x38
+ [0-9a-f]+:	03 d0       	mov\.l	[0-9a-f]+ <fn1\+0x48>,r0	! 38
  [0-9a-f]+:	12 04       	stc	gbr,r4
  [0-9a-f]+:	ce 00       	mov\.l	@\(r0,r12\),r0
  [0-9a-f]+:	4c 30       	add	r4,r0
@@ -54,9 +54,9 @@ Disassembly of section \.text:
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
- [0-9a-f]+:	03 d4       	mov\.l	[0-9a-f]+ <fn1\+0x68>,r4	! 0x10 .*
+ [0-9a-f]+:	03 d4       	mov\.l	[0-9a-f]+ <fn1\+0x68>,r4	! 10 .*
  [0-9a-f]+:	04 c7       	mova	[0-9a-f]+ <fn1\+0x6c>,r0
- [0-9a-f]+:	03 d1       	mov\.l	[0-9a-f]+ <fn1\+0x6c>,r1	! 0x[0-9a-f]+
+ [0-9a-f]+:	03 d1       	mov\.l	[0-9a-f]+ <fn1\+0x6c>,r1	! [0-9a-f]+
  [0-9a-f]+:	0c 31       	add	r0,r1
  [0-9a-f]+:	0b 41       	jsr	@r1
  [0-9a-f]+:	cc 34       	add	r12,r4
@@ -70,7 +70,7 @@ Disassembly of section \.text:
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
- [0-9a-f]+:	03 d0       	mov\.l	[0-9a-f]+ <fn1\+0x88>,r0	! 0x18 .*
+ [0-9a-f]+:	03 d0       	mov\.l	[0-9a-f]+ <fn1\+0x88>,r0	! 18 .*
  [0-9a-f]+:	12 04       	stc	gbr,r4
  [0-9a-f]+:	ce 00       	mov\.l	@\(r0,r12\),r0
  [0-9a-f]+:	4c 30       	add	r4,r0
@@ -86,9 +86,9 @@ Disassembly of section \.text:
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
- [0-9a-f]+:	03 d4       	mov\.l	[0-9a-f]+ <fn1\+0xa8>,r4	! 0x3c
+ [0-9a-f]+:	03 d4       	mov\.l	[0-9a-f]+ <fn1\+0xa8>,r4	! 3c
  [0-9a-f]+:	04 c7       	mova	[0-9a-f]+ <fn1\+0xac>,r0
- [0-9a-f]+:	03 d1       	mov\.l	[0-9a-f]+ <fn1\+0xac>,r1	! 0x[0-9a-f]+
+ [0-9a-f]+:	03 d1       	mov\.l	[0-9a-f]+ <fn1\+0xac>,r1	! [0-9a-f]+
  [0-9a-f]+:	0c 31       	add	r0,r1
  [0-9a-f]+:	0b 41       	jsr	@r1
  [0-9a-f]+:	cc 34       	add	r12,r4
@@ -102,7 +102,7 @@ Disassembly of section \.text:
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
- [0-9a-f]+:	03 d0       	mov\.l	[0-9a-f]+ <fn1\+0xc8>,r0	! 0x44
+ [0-9a-f]+:	03 d0       	mov\.l	[0-9a-f]+ <fn1\+0xc8>,r0	! 44
  [0-9a-f]+:	12 04       	stc	gbr,r4
  [0-9a-f]+:	ce 00       	mov\.l	@\(r0,r12\),r0
  [0-9a-f]+:	4c 30       	add	r4,r0
@@ -118,9 +118,9 @@ Disassembly of section \.text:
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
- [0-9a-f]+:	03 d4       	mov\.l	[0-9a-f]+ <fn1\+0xe8>,r4	! 0x24
+ [0-9a-f]+:	03 d4       	mov\.l	[0-9a-f]+ <fn1\+0xe8>,r4	! 24
  [0-9a-f]+:	04 c7       	mova	[0-9a-f]+ <fn1\+0xec>,r0
- [0-9a-f]+:	03 d1       	mov\.l	[0-9a-f]+ <fn1\+0xec>,r1	! 0x[0-9a-f]+
+ [0-9a-f]+:	03 d1       	mov\.l	[0-9a-f]+ <fn1\+0xec>,r1	! [0-9a-f]+
  [0-9a-f]+:	0c 31       	add	r0,r1
  [0-9a-f]+:	0b 41       	jsr	@r1
  [0-9a-f]+:	cc 34       	add	r12,r4
@@ -134,7 +134,7 @@ Disassembly of section \.text:
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
- [0-9a-f]+:	03 d0       	mov\.l	[0-9a-f]+ <fn1\+0x108>,r0	! 0x2c
+ [0-9a-f]+:	03 d0       	mov\.l	[0-9a-f]+ <fn1\+0x108>,r0	! 2c
  [0-9a-f]+:	12 04       	stc	gbr,r4
  [0-9a-f]+:	ce 00       	mov\.l	@\(r0,r12\),r0
  [0-9a-f]+:	4c 30       	add	r4,r0
@@ -150,9 +150,9 @@ Disassembly of section \.text:
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
- [0-9a-f]+:	03 d4       	mov\.l	[0-9a-f]+ <fn1\+0x128>,r4	! 0x1c .*
+ [0-9a-f]+:	03 d4       	mov\.l	[0-9a-f]+ <fn1\+0x128>,r4	! 1c .*
  [0-9a-f]+:	04 c7       	mova	[0-9a-f]+ <fn1\+0x12c>,r0
- [0-9a-f]+:	03 d1       	mov\.l	[0-9a-f]+ <fn1\+0x12c>,r1	! 0x[0-9a-f]+
+ [0-9a-f]+:	03 d1       	mov\.l	[0-9a-f]+ <fn1\+0x12c>,r1	! [0-9a-f]+
  [0-9a-f]+:	0c 31       	add	r0,r1
  [0-9a-f]+:	0b 41       	jsr	@r1
  [0-9a-f]+:	cc 34       	add	r12,r4
@@ -164,11 +164,11 @@ Disassembly of section \.text:
  [0-9a-f]+:	[0-9a-f]+ [0-9a-f]+       	.*[ 	]*.*
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
- [0-9a-f]+:	38 d1       	mov\.l	[0-9a-f]+ <fn1\+0x218>,r1	! 0x8 .*
+ [0-9a-f]+:	38 d1       	mov\.l	[0-9a-f]+ <fn1\+0x218>,r1	! 8 .*
  [0-9a-f]+:	0c 31       	add	r0,r1
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
- [0-9a-f]+:	37 d2       	mov\.l	[0-9a-f]+ <fn1\+0x21c>,r2	! 0xc .*
+ [0-9a-f]+:	37 d2       	mov\.l	[0-9a-f]+ <fn1\+0x21c>,r2	! c .*
  [0-9a-f]+:	0c 32       	add	r0,r2
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
@@ -188,19 +188,19 @@ Disassembly of section \.text:
  [0-9a-f]+:	[0-9a-f]+ [0-9a-f]+       	.*[ 	]*.*
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
- [0-9a-f]+:	2e d1       	mov\.l	[0-9a-f]+ <fn1\+0x220>,r1	! 0x10 .*
+ [0-9a-f]+:	2e d1       	mov\.l	[0-9a-f]+ <fn1\+0x220>,r1	! 10 .*
  [0-9a-f]+:	0c 31       	add	r0,r1
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
- [0-9a-f]+:	2d d2       	mov\.l	[0-9a-f]+ <fn1\+0x224>,r2	! 0x14 .*
+ [0-9a-f]+:	2d d2       	mov\.l	[0-9a-f]+ <fn1\+0x224>,r2	! 14 .*
  [0-9a-f]+:	0c 32       	add	r0,r2
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
- [0-9a-f]+:	03 d4       	mov\.l	[0-9a-f]+ <fn1\+0x188>,r4	! 0x1c .*
+ [0-9a-f]+:	03 d4       	mov\.l	[0-9a-f]+ <fn1\+0x188>,r4	! 1c .*
  [0-9a-f]+:	04 c7       	mova	[0-9a-f]+ <fn1\+0x18c>,r0
- [0-9a-f]+:	03 d1       	mov\.l	[0-9a-f]+ <fn1\+0x18c>,r1	! 0x[0-9a-f]+
+ [0-9a-f]+:	03 d1       	mov\.l	[0-9a-f]+ <fn1\+0x18c>,r1	! [0-9a-f]+
  [0-9a-f]+:	0c 31       	add	r0,r1
  [0-9a-f]+:	0b 41       	jsr	@r1
  [0-9a-f]+:	cc 34       	add	r12,r4
@@ -212,17 +212,17 @@ Disassembly of section \.text:
  [0-9a-f]+:	[0-9a-f]+ [0-9a-f]+       	.*[ 	]*.*
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
- [0-9a-f]+:	24 d1       	mov\.l	[0-9a-f]+ <fn1\+0x228>,r1	! 0x18 .*
+ [0-9a-f]+:	24 d1       	mov\.l	[0-9a-f]+ <fn1\+0x228>,r1	! 18 .*
  [0-9a-f]+:	0c 31       	add	r0,r1
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
- [0-9a-f]+:	23 d2       	mov\.l	[0-9a-f]+ <fn1\+0x22c>,r2	! 0x1c .*
+ [0-9a-f]+:	23 d2       	mov\.l	[0-9a-f]+ <fn1\+0x22c>,r2	! 1c .*
  [0-9a-f]+:	0c 32       	add	r0,r2
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
- [0-9a-f]+:	02 d0       	mov\.l	[0-9a-f]+ <fn1\+0x1b4>,r0	! 0x38
+ [0-9a-f]+:	02 d0       	mov\.l	[0-9a-f]+ <fn1\+0x1b4>,r0	! 38
  [0-9a-f]+:	12 01       	stc	gbr,r1
  [0-9a-f]+:	ce 00       	mov\.l	@\(r0,r12\),r0
  [0-9a-f]+:	03 a0       	bra	[0-9a-f]+ <fn1\+0x1b8>
@@ -234,7 +234,7 @@ Disassembly of section \.text:
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
- [0-9a-f]+:	02 d0       	mov\.l	[0-9a-f]+ <fn1\+0x1cc>,r0	! 0x18 .*
+ [0-9a-f]+:	02 d0       	mov\.l	[0-9a-f]+ <fn1\+0x1cc>,r0	! 18 .*
  [0-9a-f]+:	12 01       	stc	gbr,r1
  [0-9a-f]+:	ce 00       	mov\.l	@\(r0,r12\),r0
  [0-9a-f]+:	03 a0       	bra	[0-9a-f]+ <fn1\+0x1d0>
@@ -246,7 +246,7 @@ Disassembly of section \.text:
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
- [0-9a-f]+:	02 d0       	mov\.l	[0-9a-f]+ <fn1\+0x1e4>,r0	! 0x44
+ [0-9a-f]+:	02 d0       	mov\.l	[0-9a-f]+ <fn1\+0x1e4>,r0	! 44
  [0-9a-f]+:	12 01       	stc	gbr,r1
  [0-9a-f]+:	ce 00       	mov\.l	@\(r0,r12\),r0
  [0-9a-f]+:	03 a0       	bra	[0-9a-f]+ <fn1\+0x1e8>
@@ -258,7 +258,7 @@ Disassembly of section \.text:
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
  [0-9a-f]+:	09 00       	nop	
- [0-9a-f]+:	02 d0       	mov\.l	[0-9a-f]+ <fn1\+0x1fc>,r0	! 0x2c
+ [0-9a-f]+:	02 d0       	mov\.l	[0-9a-f]+ <fn1\+0x1fc>,r0	! 2c
  [0-9a-f]+:	12 01       	stc	gbr,r1
  [0-9a-f]+:	ce 00       	mov\.l	@\(r0,r12\),r0
  [0-9a-f]+:	03 a0       	bra	[0-9a-f]+ <fn1\+0x200>

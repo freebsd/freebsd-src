@@ -69,7 +69,7 @@ Label:  @var{BR}
 @end smallexample
 
 The counter following a branch records the number of times that branch
-was @emph{not} taken; the differenc between the two counters is the
+was @emph{not} taken; the difference between the two counters is the
 number of times the branch @emph{was} taken.
 
 @cindex @code{gbr960}, i960 postprocessor

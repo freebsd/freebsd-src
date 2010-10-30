@@ -1,5 +1,5 @@
 /* BFD back-end for we32k COFF files.
-   Copyright 1992, 1993, 1994, 1999, 2000, 2002, 2003
+   Copyright 1992, 1993, 1994, 1999, 2000, 2002, 2003, 2007
    Free Software Foundation, Inc.
    Contributed by Brendan Kehoe (brendan@cs.widener.edu).
 
@@ -19,8 +19,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "coff/we32k.h"
 #include "coff/internal.h"

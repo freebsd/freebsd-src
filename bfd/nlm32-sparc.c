@@ -1,6 +1,6 @@
 /* Support for 32-bit SPARC NLM (NetWare Loadable Module)
-   Copyright 1993, 1994, 1999, 2000, 2001, 2002, 2003, 2004, 2005
-   Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006,
+   2007 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -18,8 +18,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 
 #define ARCH_SIZE 32
@@ -123,8 +123,9 @@ nlm_sparc_read_reloc (bfd *abfd,
       }
 
 #ifdef DEBUG
-  fprintf (stderr, "%s:  address = %08lx, addend = %08lx, type = %d, howto = %08lx\n",
-	   __FUNCTION__, rel->address, rel->addend, type, rel->howto);
+  fprintf (stderr, "%s:  address = %08lx, addend = %08lx, type = %u, howto = %p\n",
+	   __FUNCTION__, (unsigned long) rel->address,
+	   (unsigned long) rel->addend, type, rel->howto);
 #endif
   return TRUE;
 
@@ -176,8 +177,9 @@ nlm_sparc_write_reloc (bfd * abfd, asection * sec, arelent * rel)
   val = bfd_get_section_vma (abfd, sec) + rel->address;
 
 #ifdef DEBUG
-  fprintf (stderr, "%s:  val = %08lx, addend = %08lx, type = %d\n",
-	   __FUNCTION__, val, rel->addend, rel->howto->type);
+  fprintf (stderr, "%s:  val = %08lx, addend = %08lx, type = %u\n",
+	   __FUNCTION__, (unsigned long) val, (unsigned long) rel->addend,
+	   rel->howto->type);
 #endif
   bfd_put_32 (abfd, val, tmp_reloc.offset);
   bfd_put_32 (abfd, rel->addend, tmp_reloc.addend);
@@ -280,8 +282,8 @@ nlm_sparc_write_import (bfd * abfd, asection * sec, arelent * rel)
     base = 0;
 
 #ifdef DEBUG
-  fprintf (stderr, "%s:  <%x, 1>\n\t",
-	   __FUNCTION__, base + (*rel->sym_ptr_ptr)->value);
+  fprintf (stderr, "%s:  <%lx, 1>\n\t",
+	   __FUNCTION__, (unsigned long) (base + (*rel->sym_ptr_ptr)->value));
 #endif
   bfd_put_32 (abfd, base + (*rel->sym_ptr_ptr)->value, temp);
   if (bfd_bwrite (temp, (bfd_size_type) 4, abfd) != 4)
@@ -330,8 +332,8 @@ nlm_sparc_write_export (bfd * abfd, asymbol * sym, bfd_vma value)
   bfd_byte temp[4];
 
 #ifdef DEBUG
-  fprintf (stderr, "%s: <%x, %d, %s>\n",
-	   __FUNCTION__, value, strlen (sym->name), sym->name);
+  fprintf (stderr, "%s: <%lx, %u, %s>\n",
+	   __FUNCTION__, (unsigned long) value, strlen (sym->name), sym->name);
 #endif
   bfd_put_32 (abfd, value, temp);
   len = strlen (sym->name);

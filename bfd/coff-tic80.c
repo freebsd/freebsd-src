@@ -1,5 +1,5 @@
 /* BFD back-end for Texas Instruments TMS320C80 Multimedia Video Processor (MVP).
-   Copyright 1996, 1997, 1999, 2000, 2001, 2002, 2003, 2004, 2005
+   Copyright 1996, 1997, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007
    Free Software Foundation, Inc.
 
    Written by Fred Fish (fnf@cygnus.com)
@@ -24,9 +24,9 @@ along with this program; if not, write to the Free Software
 Foundation, 51 Franklin Street - Fifth Floor,
 Boston, MA 02110-1301, USA.  */
 
+#include "sysdep.h"
 #include "bfd.h"
 #include "bfdlink.h"
-#include "sysdep.h"
 #include "libbfd.h"
 #ifdef _CONST
 /* Newlib-based hosts define _CONST as a STDC-safe alias for const,

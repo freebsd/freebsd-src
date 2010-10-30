@@ -1,5 +1,5 @@
 /* Interface definition for configurable Xtensa ISA support.
-   Copyright 2003, 2004, 2005 Free Software Foundation, Inc.
+   Copyright 2003, 2004, 2005, 2006 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -23,9 +23,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* Use the statically-linked version for the GNU tools.  */
-#define STATIC_LIBISA 1
 
 /* Version number: This is intended to help support code that works with
    versions of this library from multiple Xtensa releases.  */
@@ -137,8 +134,8 @@ typedef int xtensa_funcUnit;
    retrieved with the "errno" function.  For any result other than
    xtensa_isa_ok, an error message containing additional information
    about the problem can be retrieved using the "error_msg" function.
-   The error messages are stored in an internal buffer, which should not
-   should be freed and may be overwritten by subsequent operations.  */
+   The error messages are stored in an internal buffer, which should
+   not be freed and may be overwritten by subsequent operations.  */
 
 typedef enum xtensa_isa_status_enum
 {

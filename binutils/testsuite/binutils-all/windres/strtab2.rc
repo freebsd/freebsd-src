@@ -1,0 +1,9 @@
+//#xfail x86_64-*-mingw*
+#include "windows.h"
+
+LANGUAGE 0, 0
+
+STRINGTABLE MOVEABLE PURE DISCARDABLE
+BEGIN
+  1 L"hello, world"
+END

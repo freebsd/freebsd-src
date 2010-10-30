@@ -11,7 +11,8 @@ text_label:
 	ldxc1	$f2,$4($5)
 	lwxc1	$f2,$4($5)
 	madd.d	$f0,$f2,$f4,$f6
-	madd.s	$f0,$f2,$f4,$f6
+	# This choice of arguments is so that it matches bc3f on pre-mips4.
+	madd.s	$f10,$f8,$f2,$f0
 	movf	$4,$5,$fcc4
 	movf.d	$f4,$f6,$fcc0
 	movf.s	$f4,$f6,$fcc0
@@ -30,14 +31,8 @@ text_label:
 	nmadd.s	$f0,$f2,$f4,$f6
 	nmsub.d	$f0,$f2,$f4,$f6
 	nmsub.s	$f0,$f2,$f4,$f6
-
-	# We don't test pref because currently the disassembler will
-	# disassemble it as lwc3.  lwc3 is correct for mips1 to mips3,
-	# while pref is correct for mips4.  Unfortunately, the
-	# disassembler does not know which architecture it is
-	# disassembling for.
-	# pref	4,0($4)
-
+	# It used to be disabled due to a clash with lwc3.
+	pref	4,0($4)
 	prefx	4,$4($5)
 	recip.d	$f4,$f6
 	recip.s	$f4,$f6

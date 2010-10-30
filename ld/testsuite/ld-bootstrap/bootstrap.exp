@@ -1,5 +1,5 @@
 # Expect script for LD Bootstrap Tests
-#   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 2000, 2001, 2002, 2004
+#   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 2000, 2001, 2002, 2004, 2006
 #   Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
@@ -140,7 +140,7 @@ foreach flags {"" "strip" "--static" "--traditional-format"
 	|| [istarget "*-*-wince"]
 	|| [istarget "*-*-cygwin*"]
 	|| [istarget "*-*-winnt*"]
-	|| [istarget "*-*-mingw32*"]
+	|| [istarget "*-*-mingw*"]
 	|| [istarget "*-*-interix*"]
 	|| [istarget "*-*-beospe*"]
 	|| [istarget "*-*-netbsdpe*"]} {

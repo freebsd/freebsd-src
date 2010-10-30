@@ -19,7 +19,4 @@ OTHER_READONLY_SECTIONS="
   ${RELOCATING+ __exidx_end = .; }
   ${RELOCATING+ .ARM.exidx\$\$Limit = . ; }"
 
-# This value should match ELF_MAXPAGESIZE in BFD.  Otherwise, elf.c
-# will not place read-write sections in a separate ELF segment from
-# the read-only sections.
-MAXPAGESIZE=0x8000
+MAXPAGESIZE="CONSTANT (MAXPAGESIZE)"

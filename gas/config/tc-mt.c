@@ -1,5 +1,5 @@
 /* tc-mt.c -- Assembler for the Morpho Technologies mt .
-   Copyright (C) 2005 Free Software Foundation.
+   Copyright (C) 2005, 2006 Free Software Foundation.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -18,7 +18,6 @@
    the Free Software Foundation, 59 Temple Place - Suite 330,
    Boston, MA 02111-1307, USA.  */
 
-#include <stdio.h>
 #include "as.h"
 #include "dwarf2dbg.h"
 #include "subsegs.h"     

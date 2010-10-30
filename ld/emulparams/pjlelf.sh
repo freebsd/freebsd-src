@@ -1,5 +1,2 @@
-SCRIPT_NAME=elf
+. ${srcdir}/emulparams/pjelf.sh
 OUTPUT_FORMAT="elf32-pjl"
-TEXT_START_ADDR=0x1000000
-MAXPAGESIZE=0x1000
-ARCH=pj

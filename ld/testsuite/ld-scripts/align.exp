@@ -1,6 +1,6 @@
 # Test ALIGN in a linker script.
 # By Nathan Sidwell, CodeSourcery LLC
-#   Copyright 2004, 2005
+#   Copyright 2004, 2005, 2006
 #   Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
@@ -29,13 +29,20 @@ if ![ld_assemble $as $srcdir/$subdir/align.s tmpdir/align.o] {
     return
 }
 
-# Doesn't work on PECOFF, appears to be a genuine bug
-if [is_pecoff_format] {
+# Doesn't work on PECOFF, appears to be a genuine bug.
+# mingw on x86_64 targets need to set the image base to 0 to avoid auto image-basing.
+global LDFLAGS
+set saved_LDFLAGS "$LDFLAGS"
+if [istarget "x86_64-*-mingw*"] then {
+  set LDFLAGS "$LDFLAGS --image-base 0"
+} else {
+  if [is_pecoff_format] {
   global target_triplet
   setup_xfail $target_triplet
+  }
 }
 
-if ![ld_simple_link $ld tmpdir/align "-T $srcdir/$subdir/align.t tmpdir/align.o"] {
+if ![ld_simple_link $ld tmpdir/align "$LDFLAGS -T $srcdir/$subdir/align.t tmpdir/align.o"] {
     fail $testname
 } else {
     pass $testname
@@ -50,3 +57,4 @@ if ![is_aout_format] {
     run_dump_test align2b
 }
 run_dump_test align2c
+set LDFLAGS "$saved_LDFLAGS"

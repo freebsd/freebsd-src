@@ -21,11 +21,9 @@
    the Free Software Foundation, 51 Franklin Street - Fifth Floor,
    Boston, MA 02110-1301, USA.  */
 
-#include <stdio.h>
 #include "as.h"
 #include "safe-ctype.h"
 #include "subsegs.h"
-#include "libiberty.h"
 
 struct avr_opcodes_s
 {
@@ -63,89 +61,104 @@ struct mcu_type_s
 
 static struct mcu_type_s mcu_types[] =
 {
-  {"avr1",      AVR_ISA_TINY1,    bfd_mach_avr1},
-  {"avr2",      AVR_ISA_TINY2,    bfd_mach_avr2},
-  {"avr3",      AVR_ISA_M103,     bfd_mach_avr3},
-  {"avr4",      AVR_ISA_M8,       bfd_mach_avr4},
-  {"avr5",      AVR_ISA_ALL,      bfd_mach_avr5},
-  {"at90s1200", AVR_ISA_1200,     bfd_mach_avr1},
-  {"attiny10",  AVR_ISA_TINY1,    bfd_mach_avr1}, /* XXX -> tn11 */
-  {"attiny11",  AVR_ISA_TINY1,    bfd_mach_avr1},
-  {"attiny12",  AVR_ISA_TINY1,    bfd_mach_avr1},
-  {"attiny15",  AVR_ISA_TINY1,    bfd_mach_avr1},
-  {"attiny28",  AVR_ISA_TINY1,    bfd_mach_avr1},
-  {"at90s2313", AVR_ISA_2xxx,     bfd_mach_avr2},
-  {"at90s2323", AVR_ISA_2xxx,     bfd_mach_avr2},
-  {"at90s2333", AVR_ISA_2xxx,     bfd_mach_avr2}, /* XXX -> 4433 */
-  {"at90s2343", AVR_ISA_2xxx,     bfd_mach_avr2},
-  {"attiny22",  AVR_ISA_2xxx,     bfd_mach_avr2}, /* XXX -> 2343 */
-  {"attiny26",  AVR_ISA_2xxx,     bfd_mach_avr2},
-  {"at90s4433", AVR_ISA_2xxx,     bfd_mach_avr2},
-  {"at90s4414", AVR_ISA_2xxx,     bfd_mach_avr2}, /* XXX -> 8515 */
-  {"at90s4434", AVR_ISA_2xxx,     bfd_mach_avr2}, /* XXX -> 8535 */
-  {"at90s8515", AVR_ISA_2xxx,     bfd_mach_avr2},
-  {"at90s8535", AVR_ISA_2xxx,     bfd_mach_avr2},
-  {"at90c8534", AVR_ISA_2xxx,     bfd_mach_avr2},
-  {"at86rf401", AVR_ISA_2xxx,     bfd_mach_avr2},
-  {"attiny13",  AVR_ISA_TINY2,    bfd_mach_avr2},
-  {"attiny2313",AVR_ISA_TINY2,    bfd_mach_avr2},
-  {"attiny261", AVR_ISA_TINY2,    bfd_mach_avr2},
-  {"attiny461", AVR_ISA_TINY2,    bfd_mach_avr2},
-  {"attiny861", AVR_ISA_TINY2,    bfd_mach_avr2},
-  {"attiny24",  AVR_ISA_TINY2,    bfd_mach_avr2},
-  {"attiny44",  AVR_ISA_TINY2,    bfd_mach_avr2},
-  {"attiny84",  AVR_ISA_TINY2,    bfd_mach_avr2},
-  {"attiny25",  AVR_ISA_TINY2,    bfd_mach_avr2},
-  {"attiny45",  AVR_ISA_TINY2,    bfd_mach_avr2},
-  {"attiny85",  AVR_ISA_TINY2,    bfd_mach_avr2},
-  {"atmega603", AVR_ISA_M603,     bfd_mach_avr3}, /* XXX -> m103 */
-  {"atmega103", AVR_ISA_M103,     bfd_mach_avr3},
-  {"at43usb320",AVR_ISA_M103,     bfd_mach_avr3},
-  {"at43usb355",AVR_ISA_M603,     bfd_mach_avr3},
-  {"at76c711",  AVR_ISA_M603,     bfd_mach_avr3},
-  {"atmega48",  AVR_ISA_PWMx,     bfd_mach_avr4},
-  {"atmega8",   AVR_ISA_M8,       bfd_mach_avr4},
-  {"atmega83",  AVR_ISA_M8,       bfd_mach_avr4}, /* XXX -> m8535 */
-  {"atmega85",  AVR_ISA_M8,       bfd_mach_avr4}, /* XXX -> m8 */
-  {"atmega88",  AVR_ISA_PWMx,     bfd_mach_avr4},
-  {"atmega8515",AVR_ISA_M8,       bfd_mach_avr4},
-  {"atmega8535",AVR_ISA_M8,       bfd_mach_avr4},
-  {"at90pwm2",  AVR_ISA_PWMx,     bfd_mach_avr4},
-  {"at90pwm3",  AVR_ISA_PWMx,     bfd_mach_avr4},
-  {"atmega16",  AVR_ISA_M323,     bfd_mach_avr5},
-  {"atmega161", AVR_ISA_M161,     bfd_mach_avr5},
-  {"atmega162", AVR_ISA_M323,     bfd_mach_avr5},
-  {"atmega163", AVR_ISA_M161,     bfd_mach_avr5},
-  {"atmega164", AVR_ISA_M323,     bfd_mach_avr5},
-  {"atmega165", AVR_ISA_M323,     bfd_mach_avr5},
-  {"atmega168", AVR_ISA_M323,     bfd_mach_avr5},
-  {"atmega169", AVR_ISA_M323,     bfd_mach_avr5},
-  {"atmega32",  AVR_ISA_M323,     bfd_mach_avr5},
-  {"atmega323", AVR_ISA_M323,     bfd_mach_avr5},
-  {"atmega324", AVR_ISA_M323,     bfd_mach_avr5},
-  {"atmega325", AVR_ISA_M323,     bfd_mach_avr5},
-  {"atmega329", AVR_ISA_M323,     bfd_mach_avr5},
-  {"atmega3250",AVR_ISA_M323,     bfd_mach_avr5},
-  {"atmega3290",AVR_ISA_M323,     bfd_mach_avr5},
-  {"atmega406", AVR_ISA_M323,     bfd_mach_avr5},
-  {"atmega64",  AVR_ISA_M323,     bfd_mach_avr5},
-  {"atmega640", AVR_ISA_M323,     bfd_mach_avr5},
-  {"atmega644", AVR_ISA_M323,     bfd_mach_avr5},
-  {"atmega128", AVR_ISA_M128,     bfd_mach_avr5},
-  {"atmega1280",AVR_ISA_M128,     bfd_mach_avr5},
-  {"atmega1281",AVR_ISA_M128,     bfd_mach_avr5},
-  {"atmega645", AVR_ISA_M323,     bfd_mach_avr5},
-  {"atmega649", AVR_ISA_M323,     bfd_mach_avr5},
-  {"atmega6450",AVR_ISA_M323,     bfd_mach_avr5},
-  {"atmega6490",AVR_ISA_M323,     bfd_mach_avr5},
-  {"at90can32" ,AVR_ISA_M323,     bfd_mach_avr5},
-  {"at90can64" ,AVR_ISA_M323,     bfd_mach_avr5},
-  {"at90can128",AVR_ISA_M128,     bfd_mach_avr5},
+  {"avr1",       AVR_ISA_TINY1,   bfd_mach_avr1},
+  {"avr2",       AVR_ISA_TINY2,   bfd_mach_avr2},
+  {"avr3",       AVR_ISA_M103,    bfd_mach_avr3},
+  {"avr4",       AVR_ISA_M8,      bfd_mach_avr4},
+  {"avr5",       AVR_ISA_ALL,     bfd_mach_avr5},
+  {"avr6",       AVR_ISA_ALL,     bfd_mach_avr6},
+  {"at90s1200",  AVR_ISA_1200,    bfd_mach_avr1},
+  {"attiny10",   AVR_ISA_TINY1,   bfd_mach_avr1}, /* XXX -> tn11 */
+  {"attiny11",   AVR_ISA_TINY1,   bfd_mach_avr1},
+  {"attiny12",   AVR_ISA_TINY1,   bfd_mach_avr1},
+  {"attiny15",   AVR_ISA_TINY1,   bfd_mach_avr1},
+  {"attiny28",   AVR_ISA_TINY1,   bfd_mach_avr1},
+  {"at90s2313",  AVR_ISA_2xxx,    bfd_mach_avr2},
+  {"at90s2323",  AVR_ISA_2xxx,    bfd_mach_avr2},
+  {"at90s2333",  AVR_ISA_2xxx,    bfd_mach_avr2}, /* XXX -> 4433 */
+  {"at90s2343",  AVR_ISA_2xxx,    bfd_mach_avr2},
+  {"attiny22",   AVR_ISA_2xxx,    bfd_mach_avr2}, /* XXX -> 2343 */
+  {"attiny26",   AVR_ISA_2xxx,    bfd_mach_avr2},
+  {"at90s4433",  AVR_ISA_2xxx,    bfd_mach_avr2},
+  {"at90s4414",  AVR_ISA_2xxx,    bfd_mach_avr2}, /* XXX -> 8515 */
+  {"at90s4434",  AVR_ISA_2xxx,    bfd_mach_avr2}, /* XXX -> 8535 */
+  {"at90s8515",  AVR_ISA_2xxx,    bfd_mach_avr2},
+  {"at90s8535",  AVR_ISA_2xxx,    bfd_mach_avr2},
+  {"at90c8534",  AVR_ISA_2xxx,    bfd_mach_avr2},
+  {"at86rf401",  AVR_ISA_2xxx,    bfd_mach_avr2},
+  {"attiny13",   AVR_ISA_TINY2,   bfd_mach_avr2},
+  {"attiny2313", AVR_ISA_TINY2,   bfd_mach_avr2},
+  {"attiny261",  AVR_ISA_TINY2,   bfd_mach_avr2},
+  {"attiny461",  AVR_ISA_TINY2,   bfd_mach_avr2},
+  {"attiny861",  AVR_ISA_TINY2,   bfd_mach_avr2},
+  {"attiny24",   AVR_ISA_TINY2,   bfd_mach_avr2},
+  {"attiny44",   AVR_ISA_TINY2,   bfd_mach_avr2},
+  {"attiny84",   AVR_ISA_TINY2,   bfd_mach_avr2},
+  {"attiny25",   AVR_ISA_TINY2,   bfd_mach_avr2},
+  {"attiny45",   AVR_ISA_TINY2,   bfd_mach_avr2},
+  {"attiny85",   AVR_ISA_TINY2,   bfd_mach_avr2},
+  {"atmega603",  AVR_ISA_M603,    bfd_mach_avr3}, /* XXX -> m103 */
+  {"atmega103",  AVR_ISA_M103,    bfd_mach_avr3},
+  {"at43usb320", AVR_ISA_M103,    bfd_mach_avr3},
+  {"at43usb355", AVR_ISA_M603,    bfd_mach_avr3},
+  {"at76c711",   AVR_ISA_M603,    bfd_mach_avr3},
+  {"atmega48",   AVR_ISA_PWMx,    bfd_mach_avr4},
+  {"atmega8",    AVR_ISA_M8,      bfd_mach_avr4},
+  {"atmega83",   AVR_ISA_M8,      bfd_mach_avr4}, /* XXX -> m8535 */
+  {"atmega85",   AVR_ISA_M8,      bfd_mach_avr4}, /* XXX -> m8 */
+  {"atmega88",   AVR_ISA_PWMx,    bfd_mach_avr4},
+  {"atmega8515", AVR_ISA_M8,      bfd_mach_avr4},
+  {"atmega8535", AVR_ISA_M8,      bfd_mach_avr4},
+  {"atmega8hva", AVR_ISA_PWMx,    bfd_mach_avr4},
+  {"at90pwm1",   AVR_ISA_PWMx,    bfd_mach_avr4},
+  {"at90pwm2",   AVR_ISA_PWMx,    bfd_mach_avr4},
+  {"at90pwm3",   AVR_ISA_PWMx,    bfd_mach_avr4},
+  {"atmega16",   AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega161",  AVR_ISA_M161,    bfd_mach_avr5},
+  {"atmega162",  AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega163",  AVR_ISA_M161,    bfd_mach_avr5},
+  {"atmega164p", AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega165",  AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega165p", AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega168",  AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega169",  AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega169p", AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega32",   AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega323",  AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega324p", AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega325",  AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega325p", AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega329",  AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega329p", AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega3250", AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega3250p",AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega3290", AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega3290p",AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega406",  AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega64",   AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega640",  AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega644",  AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega644p", AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega128",  AVR_ISA_M128,    bfd_mach_avr5},
+  {"atmega1280", AVR_ISA_M128,    bfd_mach_avr5},
+  {"atmega1281", AVR_ISA_M128,    bfd_mach_avr5},
+  {"atmega645",  AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega649",  AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega6450", AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega6490", AVR_ISA_M323,    bfd_mach_avr5},
+  {"atmega16hva",AVR_ISA_M323,    bfd_mach_avr5},
+  {"at90can32" , AVR_ISA_M323,    bfd_mach_avr5},
+  {"at90can64" , AVR_ISA_M323,    bfd_mach_avr5},
+  {"at90can128", AVR_ISA_M128,    bfd_mach_avr5},
+  {"at90usb82",  AVR_ISA_M323,    bfd_mach_avr5},
+  {"at90usb162", AVR_ISA_M323,    bfd_mach_avr5},
   {"at90usb646", AVR_ISA_M323,    bfd_mach_avr5},
   {"at90usb647", AVR_ISA_M323,    bfd_mach_avr5},
   {"at90usb1286",AVR_ISA_M128,    bfd_mach_avr5},
   {"at90usb1287",AVR_ISA_M128,    bfd_mach_avr5},
-  {"at94k",     AVR_ISA_94K,      bfd_mach_avr5},
+  {"at94k",      AVR_ISA_94K,     bfd_mach_avr5},
+  {"atmega2560", AVR_ISA_ALL,     bfd_mach_avr6},
+  {"atmega2561", AVR_ISA_ALL,     bfd_mach_avr6},
   {NULL, 0, 0}
 };
 
@@ -512,7 +525,7 @@ avr_offset_expression (expressionS *exp)
   if (exp->X_op == O_constant)
     {
       int x = exp->X_add_number;
-      
+
       if (x < -255 || x > 255)
 	as_warn (_("constant out of 8-bit range: %d"), x);
     }
@@ -544,6 +557,8 @@ avr_ldi_expression (expressionS *exp)
   char *tmp;
   char op[8];
   int mod;
+  int linker_stubs_should_be_generated = 0;
+
   tmp = str;
 
   str = extract_word (str, op, sizeof (op));
@@ -551,7 +566,7 @@ avr_ldi_expression (expressionS *exp)
   if (op[0])
     {
       mod_index m;
-      
+
       m.ptr = hash_find (avr_mod_hash, op);
       mod = m.index;
 
@@ -564,11 +579,14 @@ avr_ldi_expression (expressionS *exp)
 
 	  if (*str == '(')
 	    {
+	      bfd_reloc_code_real_type  reloc_to_return;
 	      int neg_p = 0;
 
 	      ++str;
 
 	      if (strncmp ("pm(", str, 3) == 0
+                  || strncmp ("gs(",str,3) == 0
+                  || strncmp ("-(gs(",str,5) == 0
 		  || strncmp ("-(pm(", str, 5) == 0)
 		{
 		  if (HAVE_PM_P (mod))
@@ -578,6 +596,9 @@ avr_ldi_expression (expressionS *exp)
 		    }
 		  else
 		    as_bad (_("illegal expression"));
+
+                  if (str[0] == 'g' || str[2] == 'g')
+                    linker_stubs_should_be_generated = 1;
 
 		  if (*str == '-')
 		    {
@@ -610,7 +631,24 @@ avr_ldi_expression (expressionS *exp)
 		}
 	      while (closes--);
 
-	      return neg_p ? EXP_MOD_NEG_RELOC (mod) : EXP_MOD_RELOC (mod);
+	      reloc_to_return =
+		neg_p ? EXP_MOD_NEG_RELOC (mod) : EXP_MOD_RELOC (mod);
+	      if (linker_stubs_should_be_generated)
+		{
+		  switch (reloc_to_return)
+		    {
+		    case BFD_RELOC_AVR_LO8_LDI_PM:
+		      reloc_to_return = BFD_RELOC_AVR_LO8_LDI_GS;
+		      break;
+		    case BFD_RELOC_AVR_HI8_LDI_PM:
+		      reloc_to_return = BFD_RELOC_AVR_HI8_LDI_GS;
+		      break;
+
+		    default:
+		      as_warn (_("expression dangerous with linker stubs"));
+		    }
+		}
+	      return reloc_to_return;
 	    }
 	}
     }
@@ -1227,7 +1265,7 @@ tc_gen_reloc (asection *seg ATTRIBUTE_UNUSED,
           return NULL;
         }
 
-      /* We are dealing with two symbols defined in the same section. 
+      /* We are dealing with two symbols defined in the same section.
          Let us fix-up them here.  */
       value += S_GET_VALUE (fixp->fx_addsy);
       value -= S_GET_VALUE (fixp->fx_subsy);
@@ -1310,7 +1348,8 @@ md_assemble (char *str)
 static int exp_mod_pm = 0;
 
 /* Parse special CONS expression: pm (expression)
-   which is used for addressing to a program memory.
+   or alternatively: gs (expression).
+   These are used for addressing program memory.
    Relocation: BFD_RELOC_AVR_16_PM.  */
 
 void
@@ -1324,10 +1363,13 @@ avr_parse_cons_expression (expressionS *exp, int nbytes)
 
   if (nbytes == 2)
     {
-      char *pm_name = "pm";
-      int len = strlen (pm_name);
+      char *pm_name1 = "pm";
+      char *pm_name2 = "gs";
+      int len = strlen (pm_name1);
+      /* len must be the same for both pm identifiers.  */
 
-      if (strncasecmp (input_line_pointer, pm_name, len) == 0)
+      if (strncasecmp (input_line_pointer, pm_name1, len) == 0
+          || strncasecmp (input_line_pointer, pm_name2, len) == 0)
 	{
 	  input_line_pointer = skip_space (input_line_pointer + len);
 

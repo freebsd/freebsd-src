@@ -1,5 +1,5 @@
 /* ieee.c -- Read and write IEEE-695 debugging information.
-   Copyright 1996, 1998, 1999, 2000, 2001, 2002, 2003, 2006
+   Copyright 1996, 1998, 1999, 2000, 2001, 2002, 2003, 2006, 2007
    Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>.
 
@@ -22,12 +22,10 @@
 
 /* This file reads and writes IEEE-695 debugging information.  */
 
-#include <stdio.h>
+#include "sysdep.h"
 #include <assert.h>
-
 #include "bfd.h"
 #include "ieee.h"
-#include "bucomm.h"
 #include "libiberty.h"
 #include "debug.h"
 #include "budbg.h"

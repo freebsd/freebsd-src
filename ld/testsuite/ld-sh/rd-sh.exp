@@ -48,7 +48,11 @@ set rd_test_list [lsort [glob -nocomplain $srcdir/$subdir/*.d]]
 foreach shtest $rd_test_list {
     # We need to strip the ".d", but can leave the dirname.
     verbose [file rootname $shtest]
-    run_dump_test [file rootname $shtest]
+    # vxworks-static.d relies on files created by sh-vxworks.exp.
+    # We run it there instead of here.
+    if { [file tail $shtest] != "vxworks1-static.d" } {
+	run_dump_test [file rootname $shtest]
+    }
     if [string match $srcdir/$subdir/*-dso.d $shtest] {
 	# Copy the output of the DSO-createing test to .so file.
 	# Notice that a DSO-creating test must preceed the tests

@@ -1,0 +1,12 @@
+
+.*:     file format .*
+
+Disassembly of section \.text:
+
+.* <foo0>:
+.*:	0b 00       	rts	
+.*:	09 00       	nop	
+#...
+.* <foo510>:
+.*:	0b 00       	rts	
+.*:	09 00       	nop	

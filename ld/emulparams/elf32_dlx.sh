@@ -1,5 +1,6 @@
 SCRIPT_NAME=dlx
 TEMPLATE_NAME=generic
+EXTRA_EM_FILE=genelf
 OUTPUT_FORMAT="elf32-dlx"
 ARCH=dlx
 MACHINE=

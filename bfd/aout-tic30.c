@@ -1,5 +1,5 @@
 /* BFD back-end for TMS320C30 a.out binaries.
-   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005
+   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007
    Free Software Foundation, Inc.
    Contributed by Steven Haworth (steve@pm.cse.rmit.edu.au)
 
@@ -35,8 +35,8 @@
 #define TARGETNAME "a.out-tic30"
 #define NAME(x,y) CONCAT3 (tic30_aout,_32_,y)
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libaout.h"
 #include "aout/aout64.h"
 #include "aout/stab_gnu.h"
@@ -268,6 +268,23 @@ tic30_aout_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
     default:
       return NULL;
     }
+}
+
+static reloc_howto_type *
+tic30_aout_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			      const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < (sizeof (tic30_aout_howto_table)
+	    / sizeof (tic30_aout_howto_table[0]));
+       i++)
+    if (tic30_aout_howto_table[i].name != NULL
+	&& strcasecmp (tic30_aout_howto_table[i].name, r_name) == 0)
+      return &tic30_aout_howto_table[i];
+
+  return NULL;
 }
 
 static reloc_howto_type *
@@ -935,6 +952,9 @@ tic30_aout_set_arch_mach (bfd *abfd,
 #endif
 #ifndef MY_bfd_reloc_type_lookup
 #define MY_bfd_reloc_type_lookup tic30_aout_reloc_type_lookup
+#endif
+#ifndef MY_bfd_reloc_name_lookup
+#define MY_bfd_reloc_name_lookup tic30_aout_reloc_name_lookup
 #endif
 #ifndef MY_bfd_make_debug_symbol
 #define MY_bfd_make_debug_symbol 0

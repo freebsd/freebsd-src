@@ -41,17 +41,20 @@ AC_ARG_WITH(sysroot,
  TARGET_SYSTEM_ROOT_DEFINE='-DTARGET_SYSTEM_ROOT=\"$(TARGET_SYSTEM_ROOT)\"'
  use_sysroot=yes
 
- if test "x$exec_prefix" = xNONE; then
-  if test "x$prefix" = xNONE; then
-   test_prefix=/usr/local
-  else
-   test_prefix=$prefix
-  fi
+ if test "x$prefix" = xNONE; then
+  test_prefix=/usr/local
  else
-  test_prefix=$exec_prefix
+  test_prefix=$prefix
+ fi
+ if test "x$exec_prefix" = xNONE; then
+  test_exec_prefix=$test_prefix
+ else
+  test_exec_prefix=$exec_prefix
  fi
  case ${TARGET_SYSTEM_ROOT} in
  "${test_prefix}"|"${test_prefix}/"*|\
+ "${test_exec_prefix}"|"${test_exec_prefix}/"*|\
+ '${prefix}'|'${prefix}/'*|\
  '${exec_prefix}'|'${exec_prefix}/'*)
    t="$TARGET_SYSTEM_ROOT_DEFINE -DTARGET_SYSTEM_ROOT_RELOCATABLE"
    TARGET_SYSTEM_ROOT_DEFINE="$t"
@@ -82,8 +85,9 @@ fi
 AC_PROG_CC
 AC_PROG_INSTALL
 
-ALL_LINGUAS="fr sv tr es da vi zh_CN"
-CY_GNU_GETTEXT
+ALL_LINGUAS="fr sv tr es da vi zh_CN zh_TW ga"
+ZW_GNU_GETTEXT_SISTER_DIR
+AM_PO_SUBDIRS
 
 AC_EXEEXT
 
@@ -91,6 +95,7 @@ AC_PROG_YACC
 AM_PROG_LEX
 
 AM_MAINTAINER_MODE
+AM_CONDITIONAL(GENINSRC_NEVER, false)
 
 . ${srcdir}/configure.host
 
@@ -99,8 +104,8 @@ AC_SUBST(HOSTING_CRT0)
 AC_SUBST(HOSTING_LIBS)
 AC_SUBST(NATIVE_LIB_DIRS)
 
-AC_CHECK_HEADERS(string.h strings.h stdlib.h unistd.h elf-hints.h)
-AC_CHECK_FUNCS(sbrk realpath glob)
+AC_CHECK_HEADERS(string.h strings.h stdlib.h unistd.h elf-hints.h limits.h sys/param.h)
+AC_CHECK_FUNCS(glob mkstemp realpath sbrk waitpid)
 AC_HEADER_DIRENT
 
 AC_MSG_CHECKING(for a known getopt prototype in unistd.h)
@@ -169,6 +174,15 @@ do
       EMUL=$targ_emul
     fi
 
+    if test x${want64} = xfalse; then
+      . ${srcdir}/../bfd/config.bfd
+    fi
+
+    if test x${want64} = xtrue; then
+      targ_extra_emuls="$targ_extra_emuls $targ64_extra_emuls"
+      targ_extra_libpath="$targ_extra_libpath $targ64_extra_libpath"
+    fi
+
     for i in $targ_emul $targ_extra_emuls $targ_extra_libpath; do
 	case " $all_emuls " in
 	*" e${i}.o "*) ;;
@@ -210,10 +224,13 @@ AC_SUBST(EMUL)
 TDIRS=tdirs
 AC_SUBST_FILE(TDIRS)
 
-dnl FIXME: We will build a 64 bit BFD for a 64 bit host or a 64 bit
-dnl target, and in those cases we should also build the 64 bit
-dnl emulations.
 if test x${all_targets} = xtrue; then
+  if test x${want64} = xfalse; then
+    AC_CHECK_SIZEOF(long)
+    if test "x${ac_cv_sizeof_long}" = "x8"; then
+      want64=true
+    fi
+  fi
   if test x${want64} = xtrue; then
     EMULATION_OFILES='$(ALL_EMULATIONS) $(ALL_64_EMULATIONS)'
   else
@@ -258,5 +275,4 @@ AC_SUBST(datarootdir)
 AC_SUBST(docdir)
 AC_SUBST(htmldir)
 
-AC_OUTPUT(Makefile po/Makefile.in:po/Make-in,
-[sed -e '/POTFILES =/r po/POTFILES' po/Makefile.in > po/Makefile])
+AC_OUTPUT(Makefile po/Makefile.in:po/Make-in)

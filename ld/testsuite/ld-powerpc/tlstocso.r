@@ -17,8 +17,8 @@ Section Headers:
  +\[ 6\] \.text .*
  +\[ 7\] \.tdata +PROGBITS .* 0+38 0+ WAT +0 +0 +8
  +\[ 8\] \.tbss +NOBITS .* 0+38 0+ WAT +0 +0 +8
- +\[ 9\] \.data\.rel\.ro .*
- +\[10\] \.dynamic .*
+ +\[ 9\] \.dynamic .*
+ +\[10\] \.branch_lt .*
  +\[11\] \.got .*
  +\[12\] \.plt .*
  +\[13\] \.shstrtab .*
@@ -67,8 +67,6 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 .* NOTYPE +LOCAL +DEFAULT +UND 
 .* SECTION LOCAL +DEFAULT +6 
 .* SECTION LOCAL +DEFAULT +7 
-.* SECTION LOCAL +DEFAULT +8 
-.* SECTION LOCAL +DEFAULT +9 
 .* TLS +GLOBAL DEFAULT +UND gd
 .* TLS +GLOBAL DEFAULT +8 le0
 .* NOTYPE +GLOBAL DEFAULT +UND __tls_get_addr
@@ -84,7 +82,7 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 .* TLS +GLOBAL DEFAULT +8 gd0
 .* TLS +GLOBAL DEFAULT +8 ie0
 
-Symbol table '\.symtab' contains 40 entries:
+Symbol table '\.symtab' contains .* entries:
  +Num: +Value +Size Type +Bind +Vis +Ndx Name
 .* NOTYPE +LOCAL +DEFAULT +UND 
 .* SECTION LOCAL +DEFAULT +1 
@@ -99,9 +97,6 @@ Symbol table '\.symtab' contains 40 entries:
 .* SECTION LOCAL +DEFAULT +10 
 .* SECTION LOCAL +DEFAULT +11 
 .* SECTION LOCAL +DEFAULT +12 
-.* SECTION LOCAL +DEFAULT +13 
-.* SECTION LOCAL +DEFAULT +14 
-.* SECTION LOCAL +DEFAULT +15 
 .* TLS +LOCAL +DEFAULT +7 gd4
 .* TLS +LOCAL +DEFAULT +7 ld4
 .* TLS +LOCAL +DEFAULT +7 ld5

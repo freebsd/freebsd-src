@@ -10,7 +10,7 @@ TINY_READONLY_SECTION=".tinyrodata :
 TINY_DATA_SECTION=".tinydata	0xff8000 :
   {
 	*(.tinydata)
-	_tinydata = .;
+	${RELOCATING+ _tinydata = .; }
   }"
 TINY_BSS_SECTION=".tinybss	: AT (_tinydata)
   {

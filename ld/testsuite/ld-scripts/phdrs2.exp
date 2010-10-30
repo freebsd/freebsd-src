@@ -36,6 +36,11 @@ if { [istarget *-*-linux*aout*] \
 
 set testname "PHDRS2"
 
+set ldopt ""
+if { [istarget spu*-*-*] } {
+    set ldopt "--local-store 0:0"
+}
+
 if ![ld_assemble $as $srcdir/$subdir/phdrs2.s tmpdir/phdrs2.o] {
     unresolved $testname
     return
@@ -44,7 +49,8 @@ if ![ld_assemble $as $srcdir/$subdir/phdrs2.s tmpdir/phdrs2.o] {
 set phdrs_regexp \
     ".*Program Header:.*LOAD *off *0x00\[0-9a-f\]* *vaddr *0x00*800000 *paddr *0x00*800000.*filesz *0x0\[0-9a-f\]* *memsz *0x0\[0-9a-f\]*.*LOAD *off *0x00\[0-9a-f\]* *vaddr *0x00*800004 *paddr *0x00*800004.*filesz *0x00*\[0-9a-f\]* *memsz *0x0\[0-9a-f\]* *flags rw.*"
 
-if ![ld_simple_link $ld tmpdir/phdrs2 "-T $srcdir/$subdir/phdrs2.t tmpdir/phdrs2.o"] {
+set ldopt "$ldopt -T $srcdir/$subdir/phdrs2.t tmpdir/phdrs2.o"
+if ![ld_simple_link $ld tmpdir/phdrs2 $ldopt] {
     fail $testname
 } else {
     if {[which $objdump] == 0} {

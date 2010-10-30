@@ -46,12 +46,12 @@ PWD = $${PWDCMD-pwd}
 # Files in devo used in any net release.
 # ChangeLog omitted because it may refer to files which are not in this
 # distribution (perhaps it would be better to include it anyway).
-DEVO_SUPPORT= README Makefile.in configure configure.in \
+DEVO_SUPPORT= README Makefile.in configure configure.ac \
 	config.guess config.sub config move-if-change \
 	COPYING COPYING.LIB install-sh config-ml.in symlink-tree \
-	mkinstalldirs ltconfig ltmain.sh missing ylwrap \
-	libtool.m4 gettext.m4 ltcf-c.sh ltcf-cxx.sh ltcf-gcj.sh \
-	Makefile.def Makefile.tpl src-release
+	mkinstalldirs ltmain.sh missing ylwrap \
+	libtool.m4 ltsugar.m4 ltversion.m4 ltoptions.m4 \
+	Makefile.def Makefile.tpl src-release config.rpath
 
 # Files in devo/etc used in any net release.
 # ChangeLog omitted because it may refer to files which are not in this
@@ -144,7 +144,7 @@ do-proto-toplev: $(DEVO_SUPPORT) $(SUPPORT_FILES) texinfo/texinfo.tex
 	    CC_FOR_TARGET="$(CC)" CXX_FOR_TARGET="$(CXX)"
 	# Make links, and run "make diststuff" or "make info" when needed.
 	rm -rf proto-toplev ; mkdir proto-toplev
-	set -e ; dirs="$(TOOL) $(DEVO_SUPPORT) $(SUPPORT_FILES)" ; \
+	set -e ; dirs="$(DEVO_SUPPORT) $(SUPPORT_FILES) $(TOOL)" ; \
 	for d in $$dirs ; do \
 	  if [ -d $$d ]; then \
 	    if [ ! -f $$d/Makefile ] ; then true ; \
@@ -184,9 +184,9 @@ do-proto-toplev: $(DEVO_SUPPORT) $(SUPPORT_FILES) texinfo/texinfo.tex
 	 done)
 	#
 	# Take out texinfo from configurable dirs
-	rm proto-toplev/configure.in
+	rm proto-toplev/configure.ac
 	sed -e '/^host_tools=/s/texinfo //' \
-	    <configure.in >proto-toplev/configure.in
+	    <configure.ac >proto-toplev/configure.ac
 	#
 	mkdir proto-toplev/texinfo
 	ln -s ../../texinfo/texinfo.tex		proto-toplev/texinfo/
@@ -270,7 +270,7 @@ gnats.tar.bz2: $(DIST_SUPPORT) $(GNATS_SUPPORT_DIRS) gnats
 		SUPPORT_FILES="$(GNATS_SUPPORT_DIRS)"
 
 .PHONY: gdb.tar.bz2
-GDB_SUPPORT_DIRS= bfd include libiberty opcodes readline sim
+GDB_SUPPORT_DIRS= bfd include libiberty opcodes readline sim intl
 gdb.tar.bz2: $(DIST_SUPPORT) $(GDB_SUPPORT_DIRS) gdb
 	$(MAKE) -f $(SELF) gdb-taz TOOL=gdb \
 		MD5PROG="$(MD5PROG)" \

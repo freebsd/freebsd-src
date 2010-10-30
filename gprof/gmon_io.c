@@ -388,10 +388,10 @@ gmon_out_read (const char *filename)
       int samp_bytes, header_size = 0;
       unsigned long count;
       bfd_vma from_pc, self_pc;
-      static struct hdr h;
       UNIT raw_bin_count;
       struct hdr tmp;
       unsigned int version;
+      unsigned int hist_num_bins;
 
       /* Information from a gmon.out file is in two parts: an array of
 	 sampling hits within pc ranges, and the arcs.  */
@@ -430,7 +430,7 @@ gmon_out_read (const char *filename)
           if (gmon_io_read_32 (ifp, &profrate))
 	    goto bad_gmon_file;
 
-	  if (!s_highpc)
+	  if (!histograms)
 	    hz = profrate;
 	  else if (hz != (int) profrate)
 	    {
@@ -480,35 +480,37 @@ gmon_out_read (const char *filename)
 	  done (1);
 	}
 
-      if (s_highpc && (tmp.low_pc != h.low_pc
-		       || tmp.high_pc != h.high_pc || tmp.ncnt != h.ncnt))
+      samp_bytes = tmp.ncnt - header_size;
+      hist_num_bins = samp_bytes / sizeof (UNIT);
+      if (histograms && (tmp.low_pc != histograms->lowpc
+			 || tmp.high_pc != histograms->highpc
+			 || (hist_num_bins != histograms->num_bins)))
 	{
 	  fprintf (stderr, _("%s: incompatible with first gmon file\n"),
 		   filename);
 	  done (1);
 	}
 
-      h = tmp;
-      s_lowpc = (bfd_vma) h.low_pc;
-      s_highpc = (bfd_vma) h.high_pc;
-      lowpc = (bfd_vma) h.low_pc / sizeof (UNIT);
-      highpc = (bfd_vma) h.high_pc / sizeof (UNIT);
-      samp_bytes = h.ncnt - header_size;
-      hist_num_bins = samp_bytes / sizeof (UNIT);
+      if (!histograms)
+	{
+	  histograms = xmalloc (sizeof (struct histogram));
+	  histograms->lowpc = tmp.low_pc;
+	  histograms->highpc = tmp.high_pc;
+	  histograms->num_bins = hist_num_bins;
+	  histograms->sample = xmalloc (hist_num_bins * sizeof (int));
+	  memset (histograms->sample, 0, 
+		  hist_num_bins * sizeof (int));
+	}
 
       DBG (SAMPLEDEBUG,
 	   printf ("[gmon_out_read] lowpc 0x%lx highpc 0x%lx ncnt %d\n",
-		   (unsigned long) h.low_pc, (unsigned long) h.high_pc,
-		   h.ncnt);
-	   printf ("[gmon_out_read]   s_lowpc 0x%lx   s_highpc 0x%lx\n",
-		   (unsigned long) s_lowpc, (unsigned long) s_highpc);
-	   printf ("[gmon_out_read]     lowpc 0x%lx     highpc 0x%lx\n",
-		   (unsigned long) lowpc, (unsigned long) highpc);
+		   (unsigned long) tmp.low_pc, (unsigned long) tmp.high_pc,
+		   tmp.ncnt);
 	   printf ("[gmon_out_read] samp_bytes %d hist_num_bins %d\n",
 		   samp_bytes, hist_num_bins));
 
       /* Make sure that we have sensible values.  */
-      if (samp_bytes < 0 || lowpc > highpc)
+      if (samp_bytes < 0 || histograms->lowpc > histograms->highpc)
 	{
 	  fprintf (stderr,
 	    _("%s: file '%s' does not appear to be in gmon.out format\n"),
@@ -518,14 +520,6 @@ gmon_out_read (const char *filename)
 
       if (hist_num_bins)
 	++nhist;
-
-      if (!hist_sample)
-	{
-	  hist_sample =
-	    (int *) xmalloc (hist_num_bins * sizeof (hist_sample[0]));
-
-	  memset (hist_sample, 0, hist_num_bins * sizeof (hist_sample[0]));
-	}
 
       for (i = 0; i < hist_num_bins; ++i)
 	{
@@ -537,7 +531,8 @@ gmon_out_read (const char *filename)
 	      done (1);
 	    }
 
-	  hist_sample[i] += bfd_get_16 (core_bfd, (bfd_byte *) raw_bin_count);
+	  histograms->sample[i] 
+	    += bfd_get_16 (core_bfd, (bfd_byte *) raw_bin_count);
 	}
 
       /* The rest of the file consists of a bunch of
@@ -684,9 +679,10 @@ gmon_out_write (const char *filename)
 
       /* Write the parts of the headers that are common to both the
 	 old BSD and 4.4BSD formats.  */
-      if (gmon_io_write_vma (ofp, s_lowpc)
-          || gmon_io_write_vma (ofp, s_highpc)
-          || gmon_io_write_32 (ofp, hist_num_bins * sizeof (UNIT) + hdrsize))
+      if (gmon_io_write_vma (ofp, histograms->lowpc)
+          || gmon_io_write_vma (ofp, histograms->highpc)
+          || gmon_io_write_32 (ofp, histograms->num_bins 
+			       * sizeof (UNIT) + hdrsize))
 	{
 	  perror (filename);
 	  done (1);
@@ -714,9 +710,9 @@ gmon_out_write (const char *filename)
 	}
 
       /* Dump the samples.  */
-      for (i = 0; i < hist_num_bins; ++i)
+      for (i = 0; i < histograms->num_bins; ++i)
 	{
-	  bfd_put_16 (core_bfd, (bfd_vma) hist_sample[i],
+	  bfd_put_16 (core_bfd, (bfd_vma) histograms->sample[i],
 		      (bfd_byte *) &raw_bin_count[0]);
 	  if (fwrite (&raw_bin_count[0], sizeof (raw_bin_count), 1, ofp) != 1)
 	    {

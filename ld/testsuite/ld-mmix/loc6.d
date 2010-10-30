@@ -10,9 +10,6 @@
 SYMBOL TABLE:
 0+ l    d  \.text	0+ (|\.text)
 2000000000000200 l    d  \.data	0+ (|\.data)
-0+ l    d  \*ABS\*	0+ (|\.shstrtab)
-0+ l    d  \*ABS\*	0+ (|\.symtab)
-0+ l    d  \*ABS\*	0+ (|\.strtab)
 2000000000000200 g       \.data	0+ dloc1
 2000000000000200 g       \*ABS\*	0+ __\.MMIX\.start\.\.data
 0+ g       \.text	0+ _start

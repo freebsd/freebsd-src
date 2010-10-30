@@ -88,7 +88,7 @@ parse_hi16 (CGEN_CPU_DESC cd,
 	return MISSING_CLOSING_PARENTHESIS;
       ++*strp;
       if (errmsg == NULL
-  	  && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
+	  && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
 	{
 	  value >>= 16;
 	  value &= 0xffff;
@@ -100,17 +100,17 @@ parse_hi16 (CGEN_CPU_DESC cd,
     {
       *strp += 6;
       errmsg = cgen_parse_address (cd, strp, opindex, BFD_RELOC_M32R_HI16_SLO,
- 				   & result_type, & value);
+				   & result_type, & value);
       if (**strp != ')')
 	return MISSING_CLOSING_PARENTHESIS;
       ++*strp;
       if (errmsg == NULL
 	  && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
-        {
-          value += 0x8000;
-          value >>= 16;
+	{
+	  value += 0x8000;
+	  value >>= 16;
 	  value &= 0xffff;
-        }
+	}
       *valuep = value;
       return errmsg;
     }
@@ -145,7 +145,7 @@ parse_slo16 (CGEN_CPU_DESC cd,
       ++*strp;
       if (errmsg == NULL
 	  && result_type == CGEN_PARSE_OPERAND_RESULT_NUMBER)
-	value = ((value & 0xffff) ^ 0x8000) - 0x8000;    
+	value = ((value & 0xffff) ^ 0x8000) - 0x8000;
       *valuep = value;
       return errmsg;
     }
@@ -343,6 +343,9 @@ m32r_cgen_init_asm (CGEN_CPU_DESC cd)
   m32r_cgen_init_ibld_table (cd);
   cd->parse_handlers = & m32r_cgen_parse_handlers[0];
   cd->parse_operand = m32r_cgen_parse_operand;
+#ifdef CGEN_ASM_INIT_HOOK
+CGEN_ASM_INIT_HOOK
+#endif
 }
 
 

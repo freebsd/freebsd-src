@@ -8,3 +8,5 @@
 [^:]*:7: Error: iWMMXt data register expected -- `wstrh wcgr0,\[r1\]'
 [^:]*:8: Error: iWMMXt data register expected -- `wstrd wcgr0,\[r1\]'
 [^:]*:9: Error: iWMMXt control register expected -- `tmcr wibble,r1'
+[^:]*:10: Error: iWMMXt data or control register expected -- `wldrw wibble,\[r1\]'
+[^:]*:11: Error: iWMMXt data or control register expected -- `wstrw wibble,\[r1\]'

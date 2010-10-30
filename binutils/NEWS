@@ -1,5 +1,20 @@
 -*- text -*-
 
+* A new tool "windmc" has been added for some targets.  This is a message
+  compiler which attempts to be compatible with the MS version.
+
+* Add codepage support to the windres tool.  It now supports many new
+  resource types (e.g. MANIFEST, TOOLBAR, etc).  The output generation
+  for binary files is done now via bfd itself.  The endianess problems
+  for different hosts are solved.  Dumps of .res files can now be
+  re-compiled by windres without lossing resources or compilation errors.
+  Some problems on dialog resource translations are corrected.
+
+* Add --extract-symbol command line option to objcopy, which will
+  strip everything out of an ordinary object file or executable except
+  for its symbol table.  Files containing just symbols can be useful
+  to some OSes.
+
 * Add "-x NAME" to readelf in addition to "-x NUMBER".
 
 * Add -i and -t switches to cxxfilt.  -i disables the display of implementation
@@ -30,6 +45,9 @@
 
 * Add "--globalize-symbol <name>" and "--globalize-symbols <filename>" switches
   to objcopy to convert local symbols into global symbols.
+  
+* gprof now allows input files to have histogram records for
+  several memory ranges, provided those ranges are disjoint.  
 
 Changes in 2.16:
 

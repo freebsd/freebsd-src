@@ -1,5 +1,6 @@
 /* BFD back-end for TMS320C30 coff binaries.
-   Copyright 1998, 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000, 2001, 2002, 2007
+   Free Software Foundation, Inc.
    Contributed by Steven Haworth (steve@pm.cse.rmit.edu.au)
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -19,8 +20,8 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
    02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "bfdlink.h"
 #include "coff/tic30.h"
@@ -52,6 +53,7 @@ reloc_howto_type tic30_coff_howto_table[] =
 
 #ifndef coff_bfd_reloc_type_lookup
 #define coff_bfd_reloc_type_lookup tic30_coff_reloc_type_lookup
+#define coff_bfd_reloc_name_lookup tic30_coff_reloc_name_lookup
 
 /* For the case statement use the code values used in tc_gen_reloc to
    map to the howto table entries that match those in both the aout
@@ -78,6 +80,23 @@ tic30_coff_reloc_type_lookup (abfd, code)
     default:
       return (reloc_howto_type *) NULL;
     }
+}
+
+static reloc_howto_type *
+tic30_coff_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			      const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < (sizeof (tic30_coff_howto_table)
+	    / sizeof (tic30_coff_howto_table[0]));
+       i++)
+    if (tic30_coff_howto_table[i].name != NULL
+	&& strcasecmp (tic30_coff_howto_table[i].name, r_name) == 0)
+      return &tic30_coff_howto_table[i];
+
+  return NULL;
 }
 
 #endif

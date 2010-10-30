@@ -59,7 +59,7 @@ Treat undocumented z80-instructions that do not work on R800 as errors.
 @item -r800
 Produce code for the R800 processor. The assembler does not support
 undocumented instructions for the R800.
-In line with common practice, @code{@value{AS}} uses Z80 instriction names
+In line with common practice, @code{@value{AS}} uses Z80 instruction names
 for the R800 processor, as far as they exist.
 @end table
 
@@ -105,7 +105,7 @@ A backslash @samp{\} is an ordinary character for the Z80 assembler.
 @cindex single quote, Z80
 @cindex Z80 '
 The single quote @samp{'} must be followed by a closing quote. If there
-is one character inbetween, it is a character constant, otherwise it is
+is one character in between, it is a character constant, otherwise it is
 a string constant.
 
 @node Z80-Regs
@@ -114,7 +114,7 @@ a string constant.
 @cindex register names, Z80
 
 The registers are referred to with the letters assigned to them by
-Zilog. In addition @command{@value{AS}} recognises @samp{ixl} and 
+Zilog. In addition @command{@value{AS}} recognizes @samp{ixl} and 
 @samp{ixh} as the least and most significant octet in @samp{ix}, and
 similarly @samp{iyl} and  @samp{iyh} as parts of @samp{iy}. 
 
@@ -171,7 +171,7 @@ overflow.
 @item ds @var{count}[, @var{value}]
 @itemx defs @var{count}[, @var{value}]
 @c Synonyms for @code{ds.b}, 
-@c which should have been described elsewhre
+@c which should have been described elsewhere
 Fill @var{count} bytes in the object file with @var{value}, if
 @var{value} is omitted it defaults to zero.
 
@@ -188,7 +188,7 @@ This is a normal instruction on Z80, and not an assembler directive.
 A synonym for @xref{Section}, no second argument should be given. 
 @ignore
 
-The following attributes will possibly be recognised in the future
+The following attributes will possibly be recognized in the future
 @table @code
 @item abs
 The section is to be absolute. @code{@value{AS}} will issue an error
@@ -212,7 +212,7 @@ The section is marked as read only.
 
 @node Z80 Opcodes
 @section Opcodes
-In line with commmon practice Z80 mnonics are used for both the Z80 and
+In line with common practice, Z80 mnemonics are used for both the Z80 and
 the R800. 
 
 In many instructions it is possible to use one of the half index

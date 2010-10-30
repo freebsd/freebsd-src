@@ -484,8 +484,8 @@ foo:
  xchg   bp, ax
  xchg   si, ax
  xchg   di, ax
- cbtw
- cwtd
+ cbw
+ cwd
  callw  0x9090,0x9090
  pushfw
  popfw
@@ -624,5 +624,8 @@ rot5:
 	mov	%al, 0x11
 	mov	%bl, ((( 0x4711  ) >> 8) & 0xff) 
 	mov	%bl, 0x47
-	
+
+ shrd   eax, edx, cl
+ shld   eax, edx, cl
+
  .p2align 4,0

@@ -1,6 +1,6 @@
 /* BFD back-end for Sparc COFF files.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1999, 2000, 2001,
-   2002, 2003, 2005 Free Software Foundation, Inc.
+   2002, 2003, 2005, 2007 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -19,8 +19,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "coff/sparc.h"
 #include "coff/internal.h"
@@ -157,6 +157,24 @@ coff_sparc_reloc_type_lookup (abfd, code)
   return 0;
 }
 #define coff_bfd_reloc_type_lookup	coff_sparc_reloc_type_lookup
+
+static reloc_howto_type *
+coff_sparc_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			      const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < (sizeof (coff_sparc_howto_table)
+	    / sizeof (coff_sparc_howto_table[0]));
+       i++)
+    if (coff_sparc_howto_table[i].name != NULL
+	&& strcasecmp (coff_sparc_howto_table[i].name, r_name) == 0)
+      return &coff_sparc_howto_table[i];
+
+  return NULL;
+}
+#define coff_bfd_reloc_name_lookup coff_sparc_reloc_name_lookup
 
 static void
 rtype2howto (cache_ptr, dst)

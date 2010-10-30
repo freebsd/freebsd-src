@@ -7,3 +7,5 @@
 	wstrh	wcgr0,[r1]
 	wstrd	wcgr0,[r1]
 	tmcr	wibble,r1
+	wldrw	wibble,[r1]
+	wstrw	wibble,[r1]

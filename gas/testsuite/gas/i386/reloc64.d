@@ -47,6 +47,7 @@ Disassembly of section \.text:
 .*[ 	]+R_X86_64_TPOFF64[ 	]+xtrn
 .*[ 	]+R_X86_64_TPOFF32[ 	]+xtrn
 .*[ 	]+R_X86_64_TPOFF32[ 	]+xtrn
+.*[ 	]+R_X86_64_TPOFF32[ 	]+xtrn
 Disassembly of section \.data:
 #...
 .*[ 	]+R_X86_64_64[ 	]+xtrn

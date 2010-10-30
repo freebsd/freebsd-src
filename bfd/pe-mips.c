@@ -1,6 +1,6 @@
 /* BFD back-end for MIPS PE COFF files.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+   2000, 2001, 2002, 2003, 2004, 2005, 2007 Free Software Foundation, Inc.
    Modified from coff-i386.c by DJ Delorie, dj@cygnus.com
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -23,8 +23,8 @@
 #define COFF_LONG_SECTION_NAMES
 #define PCRELOFFSET TRUE
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "coff/mipspe.h"
 #include "coff/internal.h"
@@ -453,6 +453,7 @@ coff_mips_rtype_to_howto (bfd *abfd ATTRIBUTE_UNUSED,
 
 #define coff_rtype_to_howto         coff_mips_rtype_to_howto
 #define coff_bfd_reloc_type_lookup  coff_mips_reloc_type_lookup
+#define coff_bfd_reloc_name_lookup coff_mips_reloc_name_lookup
 
 /* Get the howto structure for a generic reloc type.  */
 
@@ -494,6 +495,22 @@ coff_mips_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
     }
 
   return & howto_table [mips_type];
+}
+
+static reloc_howto_type *
+coff_mips_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			     const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (howto_table) / sizeof (howto_table[0]);
+       i++)
+    if (howto_table[i].name != NULL
+	&& strcasecmp (howto_table[i].name, r_name) == 0)
+      return &howto_table[i];
+
+  return NULL;
 }
 
 static void

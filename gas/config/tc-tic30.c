@@ -1,5 +1,5 @@
 /* tc-c30.c -- Assembly code for the Texas Instruments TMS320C30
-   Copyright 1998, 1999, 2000, 2001, 2002, 2003
+   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2006
    Free Software Foundation, Inc.
    Contributed by Steven Haworth (steve@pm.cse.rmit.edu.au)
 
@@ -28,7 +28,6 @@
 #include "as.h"
 #include "safe-ctype.h"
 #include "opcode/tic30.h"
-#include <stdarg.h>
 
 /* Put here all non-digit non-letter characters that may occur in an
    operand.  */
@@ -273,15 +272,17 @@ struct tic30_insn
 struct tic30_insn insn;
 static int found_parallel_insn;
 
-static char output_invalid_buf[8];
+static char output_invalid_buf[sizeof (unsigned char) * 2 + 6];
 
 static char *
 output_invalid (char c)
 {
   if (ISPRINT (c))
-    sprintf (output_invalid_buf, "'%c'", c);
+    snprintf (output_invalid_buf, sizeof (output_invalid_buf),
+	      "'%c'", c);
   else
-    sprintf (output_invalid_buf, "(0x%x)", (unsigned) c);
+    snprintf (output_invalid_buf, sizeof (output_invalid_buf), 
+	      "(0x%x)", (unsigned char) c);
   return output_invalid_buf;
 }
 

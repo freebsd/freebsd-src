@@ -21,7 +21,7 @@ if {[istarget "mips*-*-vxworks"]} {
 	{"VxWorks shared library test 1" "-shared -Tvxworks1.ld"
 	 "-mips2" {vxworks1-lib.s}
 	 {{readelf --relocs vxworks1-lib.rd} {objdump -dr vxworks1-lib.dd}
-	  {readelf --symbols vxworks1-lib.nd}}
+	  {readelf --symbols vxworks1-lib.nd} {readelf -d vxworks1-lib.td}}
 	 "libvxworks1.so"}
 	{"VxWorks executable test 1 (dynamic)" \
 	 "tmpdir/libvxworks1.so -Tvxworks1.ld -q --force-dynamic"
@@ -107,6 +107,10 @@ if $has_newabi {
 }
 run_dump_test "reloc-2"
 run_dump_test "reloc-merge-lo16"
+run_dump_test "reloc-3"
+if {$has_newabi} {
+    run_dump_test "reloc-3-n32"
+}
 if {$has_newabi && $linux_gnu} {
     run_dump_test "eh-frame1-n32"
     run_dump_test "eh-frame1-n64"
@@ -137,16 +141,19 @@ if $has_newabi {
     run_dump_test "emit-relocs-1"
 }
 
+run_dump_test "hash1a"
+run_dump_test "hash1b"
+run_dump_test "hash1c"
+
 if {[istarget mips*-*-linux*]} {
      # The number of symbols that are always included in the symbol table
-     # for these tests.  The 5 are:
+     # for these tests.  The 4 are:
      #
      #     the null symbol entry
      #     the .MIPS.stubs section symbol
-     #     the .text section symbol
      #     _gp
      #     _GLOBAL_OFFSET_TABLE_
-     set base_syms 5
+     set base_syms 4
      foreach dynsym { 7fff 8000 fff0 10000 2fe80 } {
 	 run_ld_link_tests \
 	     [list [list \
@@ -243,3 +250,43 @@ if {[istarget mips*-*-linux*]} {
     run_ld_link_tests $mips_tls_tests
 }
 
+set mips16_call_global_test {
+    {"Global calls from mips16"
+     ""
+     "-mips32r2" {mips16-call-global-1.s mips16-call-global-2.s mips16-call-global-3.s}
+     {{objdump -dr mips16-call-global.d}}
+     "mips16-call-global"}
+}
+
+run_ld_link_tests $mips16_call_global_test
+
+set mips16_intermix_test {
+    {"Intermixing mips32 and mips16 functions"
+     ""
+     "-mips32r2" {mips16-intermix-1.s mips16-intermix-2.s}
+     {{objdump -t mips16-intermix.d}}
+     "mips16-intermix"}
+}
+
+run_ld_link_tests $mips16_intermix_test
+
+run_dump_test "mips16-local-stubs-1"
+
+run_dump_test "attr-gnu-4-00"
+run_dump_test "attr-gnu-4-01"
+run_dump_test "attr-gnu-4-02"
+run_dump_test "attr-gnu-4-03"
+run_dump_test "attr-gnu-4-10"
+run_dump_test "attr-gnu-4-11"
+run_dump_test "attr-gnu-4-12"
+run_dump_test "attr-gnu-4-13"
+run_dump_test "attr-gnu-4-14"
+run_dump_test "attr-gnu-4-20"
+run_dump_test "attr-gnu-4-21"
+run_dump_test "attr-gnu-4-22"
+run_dump_test "attr-gnu-4-23"
+run_dump_test "attr-gnu-4-30"
+run_dump_test "attr-gnu-4-31"
+run_dump_test "attr-gnu-4-32"
+run_dump_test "attr-gnu-4-33"
+run_dump_test "attr-gnu-4-41"

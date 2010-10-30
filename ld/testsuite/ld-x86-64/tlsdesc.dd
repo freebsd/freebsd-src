@@ -17,7 +17,7 @@ Disassembly of section .text:
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
 #  GD
- +[0-9a-f]+:	48 8d 05 89 03 10 00[ 	]+lea    1049481\(%rip\),%rax +# 101398 <.*>
+ +[0-9a-f]+:	48 8d 05 89 03 20 00[ 	]+lea    0x200389\(%rip\),%rax +# 201398 <.*>
 #				-> R_X86_64_TLSDESC	sg1
  +[0-9a-f]+:	ff 10[ 	]+callq  \*\(%rax\)
  +[0-9a-f]+:	90[ 	]+nop *
@@ -25,16 +25,15 @@ Disassembly of section .text:
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
 #  GD -> IE because variable is referenced through IE too
- +[0-9a-f]+:	48 8b 05 1c 03 10 00[ 	]+mov    1049372\(%rip\),%rax +# 101338 <.*>
+ +[0-9a-f]+:	48 8b 05 1c 03 20 00[ 	]+mov    0x20031c\(%rip\),%rax +# 201338 <.*>
 #				-> R_X86_64_TPOFF64	sg2
- +[0-9a-f]+:	90[ 	]+nop *
- +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	66 90[ 	]+xchg   %ax,%ax
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
 #  GD against local variable
- +[0-9a-f]+:	48 8d 05 3f 03 10 00[ 	]+lea    1049407\(%rip\),%rax +# 101368 <.*>
+ +[0-9a-f]+:	48 8d 05 3f 03 20 00[ 	]+lea    0x20033f\(%rip\),%rax +# 201368 <.*>
 #				-> R_X86_64_TLSDESC	[0 0x2000000000000000]
  +[0-9a-f]+:	ff 10[ 	]+callq  \*\(%rax\)
  +[0-9a-f]+:	90[ 	]+nop *
@@ -42,16 +41,15 @@ Disassembly of section .text:
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
 #  GD -> IE against local variable referenced through IE too
- +[0-9a-f]+:	48 8b 05 d2 02 10 00[ 	]+mov    1049298\(%rip\),%rax +# 101308 <.*>
+ +[0-9a-f]+:	48 8b 05 d2 02 20 00[ 	]+mov    0x2002d2\(%rip\),%rax +# 201308 <.*>
 #				-> R_X86_64_TPOFF64	*ABS*+0x24
- +[0-9a-f]+:	90[ 	]+nop *
- +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	66 90[ 	]+xchg   %ax,%ax
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
 #  GD against hidden and local variable
- +[0-9a-f]+:	48 8d 05 65 03 10 00[ 	]+lea    1049445\(%rip\),%rax +# 1013a8 <.*>
+ +[0-9a-f]+:	48 8d 05 65 03 20 00[ 	]+lea    0x200365\(%rip\),%rax +# 2013a8 <.*>
 #				-> R_X86_64_TLSDESC	[0 0x4000000000000000]
  +[0-9a-f]+:	ff 10[ 	]+callq  \*\(%rax\)
  +[0-9a-f]+:	90[ 	]+nop *
@@ -59,16 +57,15 @@ Disassembly of section .text:
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
 #  GD -> IE against hidden and local variable referenced through IE too
- +[0-9a-f]+:	48 8b 05 f0 02 10 00[ 	]+mov    1049328\(%rip\),%rax +# 101340 <.*>
+ +[0-9a-f]+:	48 8b 05 f0 02 20 00[ 	]+mov    0x2002f0\(%rip\),%rax +# 201340 <.*>
 #				-> R_X86_64_TPOFF64	*ABS*+0x44
- +[0-9a-f]+:	90[ 	]+nop *
- +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	66 90[ 	]+xchg   %ax,%ax
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
 #  GD against hidden but not local variable
- +[0-9a-f]+:	48 8d 05 1b 03 10 00[ 	]+lea    1049371\(%rip\),%rax +# 101378 <.*>
+ +[0-9a-f]+:	48 8d 05 1b 03 20 00[ 	]+lea    0x20031b\(%rip\),%rax +# 201378 <.*>
 #				-> R_X86_64_TLSDESC	[0 0x6000000000000000]
  +[0-9a-f]+:	ff 10[ 	]+callq  \*\(%rax\)
  +[0-9a-f]+:	90[ 	]+nop *
@@ -76,16 +73,15 @@ Disassembly of section .text:
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
 #  GD -> IE against hidden but not local variable referenced through IE too
- +[0-9a-f]+:	48 8b 05 ae 02 10 00[ 	]+mov    1049262\(%rip\),%rax +# 101318 <.*>
+ +[0-9a-f]+:	48 8b 05 ae 02 20 00[ 	]+mov    0x2002ae\(%rip\),%rax +# 201318 <.*>
 #				-> R_X86_64_TPOFF64	*ABS*+0x64
- +[0-9a-f]+:	90[ 	]+nop *
- +[0-9a-f]+:	90[ 	]+nop *
+ +[0-9a-f]+:	66 90[ 	]+xchg   %ax,%ax
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
 #  LD
- +[0-9a-f]+:	48 8d 05 11 03 10 00[ 	]+lea    1049361\(%rip\),%rax +# 101388 <.*>
+ +[0-9a-f]+:	48 8d 05 11 03 20 00[ 	]+lea    0x200311\(%rip\),%rax +# 201388 <.*>
 #				-> R_X86_64_TLSDESC	[0 0x000000000000000]
  +[0-9a-f]+:	ff 10[ 	]+callq  \*\(%rax\)
  +[0-9a-f]+:	90[ 	]+nop *
@@ -119,7 +115,7 @@ Disassembly of section .text:
  +[0-9a-f]+:	00 00 *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
- +[0-9a-f]+:	48 03 0d 71 02 10 00[ 	]+add    1049201\(%rip\),%rcx +# 101338 <.*>
+ +[0-9a-f]+:	48 03 0d 71 02 20 00[ 	]+add    0x200271\(%rip\),%rcx +# 201338 <.*>
 #				-> R_X86_64_TPOFF64	sg2
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
@@ -130,7 +126,7 @@ Disassembly of section .text:
  +[0-9a-f]+:	00 00 *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
- +[0-9a-f]+:	4c 03 35 2b 02 10 00[ 	]+add    1049131\(%rip\),%r14 +# 101308 <.*>
+ +[0-9a-f]+:	4c 03 35 2b 02 20 00[ 	]+add    0x20022b\(%rip\),%r14 +# 201308 <.*>
 #				-> R_X86_64_TPOFF64	*ABS*+0x24
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
@@ -141,7 +137,7 @@ Disassembly of section .text:
  +[0-9a-f]+:	00 00 *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
- +[0-9a-f]+:	48 03 0d 4d 02 10 00[ 	]+add    1049165\(%rip\),%rcx +# 101340 <.*>
+ +[0-9a-f]+:	48 03 0d 4d 02 20 00[ 	]+add    0x20024d\(%rip\),%rcx +# 201340 <.*>
 #				-> R_X86_64_TPOFF64	*ABS*+0x44
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
@@ -152,7 +148,7 @@ Disassembly of section .text:
  +[0-9a-f]+:	00 00 *
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
- +[0-9a-f]+:	48 03 0d 0f 02 10 00[ 	]+add    1049103\(%rip\),%rcx +# 101318 <.*>
+ +[0-9a-f]+:	48 03 0d 0f 02 20 00[ 	]+add    0x20020f\(%rip\),%rcx +# 201318 <.*>
 #				-> R_X86_64_TPOFF64	*ABS*+0x64
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
@@ -160,7 +156,7 @@ Disassembly of section .text:
  +[0-9a-f]+:	90[ 	]+nop *
 #  Direct access through %fs
 #  IE against global var
- +[0-9a-f]+:	48 8b 0d 0c 02 10 00[ 	]+mov    1049100\(%rip\),%rcx +# 101320 <.*>
+ +[0-9a-f]+:	48 8b 0d 0c 02 20 00[ 	]+mov    0x20020c\(%rip\),%rcx +# 201320 <.*>
 #				-> R_X86_64_TPOFF64	sg5
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
@@ -170,7 +166,7 @@ Disassembly of section .text:
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
 #  IE against local var
- +[0-9a-f]+:	4c 8b 15 eb 01 10 00[ 	]+mov    1049067\(%rip\),%r10 +# 101310 <.*>
+ +[0-9a-f]+:	4c 8b 15 eb 01 20 00[ 	]+mov    0x2001eb\(%rip\),%r10 +# 201310 <.*>
 #				-> R_X86_64_TPOFF64	*ABS*+0x30
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
@@ -180,7 +176,7 @@ Disassembly of section .text:
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
 #  IE against hidden and local var
- +[0-9a-f]+:	48 8b 15 f2 01 10 00[ 	]+mov    1049074\(%rip\),%rdx +# 101328 <.*>
+ +[0-9a-f]+:	48 8b 15 f2 01 20 00[ 	]+mov    0x2001f2\(%rip\),%rdx +# 201328 <.*>
 #				-> R_X86_64_TPOFF64	*ABS*+0x50
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
@@ -190,7 +186,7 @@ Disassembly of section .text:
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *
 #  IE against hidden but not local var
- +[0-9a-f]+:	48 8b 0d e9 01 10 00[ 	]+mov    1049065\(%rip\),%rcx +# 101330 <.*>
+ +[0-9a-f]+:	48 8b 0d e9 01 20 00[ 	]+mov    0x2001e9\(%rip\),%rcx +# 201330 <.*>
 #				-> R_X86_64_TPOFF64	*ABS*+0x70
  +[0-9a-f]+:	90[ 	]+nop *
  +[0-9a-f]+:	90[ 	]+nop *

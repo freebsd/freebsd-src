@@ -1,5 +1,5 @@
 # Expect script for tests for >64k sections
-#   Copyright 2002, 2003 Free Software Foundation, Inc.
+#   Copyright 2002, 2003, 2006 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -50,12 +50,16 @@ for { set i 0 } { $i < $max_sec / $secs_per_file } { incr i } {
     }
 
     if { $i == 0 } {
+	puts $ofd " .global start"
+	puts $ofd "start:"
 	puts $ofd " .global _start"
-	puts $ofd " .global __start"
 	puts $ofd "_start:"
+	puts $ofd " .global __start"
 	puts $ofd "__start:"
+	puts $ofd " .global main"
+	puts $ofd "main:"
 	puts $ofd " .global foo_0"
-	puts $ofd "foo_0: .long 0"
+	puts $ofd "foo_0: .dc.a 0"
     }
 
     # Make sure the used section is not covered by common linker scripts.
@@ -65,9 +69,9 @@ for { set i 0 } { $i < $max_sec / $secs_per_file } { incr i } {
     puts $ofd "  .section .foo.\\secn,\"ax\""
     puts $ofd "  .global foo_\\secn"
     puts $ofd "foo_\\secn:"
-    puts $ofd "  .long foo_\\secp"
+    puts $ofd "  .dc.a foo_\\secp"
     puts $ofd "bar_\\secn:"
-    puts $ofd "  .long bar_\\secn"
+    puts $ofd "  .dc.a bar_\\secn"
     puts $ofd " .endm"
     puts $ofd " secn = [expr $i * $secs_per_file]"
     puts $ofd " .rept $secs_per_file"
@@ -87,35 +91,41 @@ if [catch { set ofd [open "tmpdir/$test1.d" w] } x] {
 
 # The ld-r linked file will contain relocation-sections too, so make it
 # half the size in order to try and keep the test-time down.
-foreach sfile [lrange $sfiles 0 [expr [llength $sfiles] / 2]] {
-    puts $ofd "#source: $sfile"
+
+# The m32r target generates both REL and RELA relocs (for historical
+# reasons) so the expected number of sections will be much more than
+# 68000, which throws this particular test right off.
+if {![istarget "m32r-*-*"]} then {
+    foreach sfile [lrange $sfiles 0 [expr [llength $sfiles] / 2]] {
+	puts $ofd "#source: $sfile"
+    }
+    puts $ofd "#ld: -r"
+    puts $ofd "#readelf: -W -Ss"
+    puts $ofd "There are 680.. section headers.*:"
+    puts $ofd "#..."
+    puts $ofd "  \\\[ 0\\\] .* 682\[0-9\]\[0-9\]\[ \]+0\[ \]+0"
+    puts $ofd "#..."
+    puts $ofd "  \\\[ \[0-9\]\\\] \.foo\.1\[ \]+PROGBITS\[ \]+.*"
+    puts $ofd "#..."
+    puts $ofd "  \\\[65279\\\] (.rel\[a\]?)?\\.foo\\.\[0-9\]+ .*"
+    puts $ofd "  \\\[65536\\\] (.rel\[a\]?)?\\.foo\\.\[0-9\]+ .*"
+    puts $ofd "#..."
+    puts $ofd " 340..: 0+\[ \]+0\[ \]+SECTION\[ \]+LOCAL\[ \]+DEFAULT\[ \]+68... "
+    puts $ofd "#..."
+    puts $ofd " 340..: 0+(2|4|8)\[ \]+0\[ \]+NOTYPE\[ \]+LOCAL\[ \]+DEFAULT\[ \]+\[23\] bar_1$"
+    puts $ofd "#..."
+    puts $ofd ".* bar_34000$"
+    puts $ofd "#..."
+    # Global symbols are not in "alphanumeric" order, so we just check
+    # that the first and the last are present in any order (assuming no
+    # duplicates).
+    puts $ofd ".* (\[0-9\] foo_1|68... foo_34000)$"
+    puts $ofd "#..."
+    puts $ofd ".* (\[0-9\] foo_1|68... foo_34000)$"
+    puts $ofd "#pass"
+    close $ofd
+    run_dump_test "tmpdir/$test1"
 }
-puts $ofd "#ld: -r"
-puts $ofd "#readelf: -W -Ss"
-puts $ofd "There are 680.. section headers.*:"
-puts $ofd "#..."
-puts $ofd "  \\\[ 0\\\] .* 682\[0-9\]\[0-9\]\[ \]+0\[ \]+0"
-puts $ofd "#..."
-puts $ofd "  \\\[ \[0-9\]\\\] \.foo\.1\[ \]+PROGBITS\[ \]+.*"
-puts $ofd "#..."
-puts $ofd "  \\\[65279\\\] (.rel\[a\]?)?\\.foo\\.\[0-9\]+ .*"
-puts $ofd "  \\\[65536\\\] (.rel\[a\]?)?\\.foo\\.\[0-9\]+ .*"
-puts $ofd "#..."
-puts $ofd " 680..: 0+\[ \]+0\[ \]+SECTION\[ \]+LOCAL\[ \]+DEFAULT\[ \]+68... "
-puts $ofd "#..."
-puts $ofd " 680..: 0+4\[ \]+0\[ \]+NOTYPE\[ \]+LOCAL\[ \]+DEFAULT\[ \]+\[23\] bar_1"
-puts $ofd "#..."
-puts $ofd ".* bar_34000"
-puts $ofd "#..."
-# Global symbols are not in "alphanumeric" order, so we just check
-# that the first and the last are present in any order (assuming no
-# duplicates).
-puts $ofd ".* (\[0-9\] foo_1|68... foo_34000)"
-puts $ofd "#..."
-puts $ofd ".* (\[0-9\] foo_1|68... foo_34000)"
-puts $ofd "#pass"
-close $ofd
-run_dump_test "tmpdir/$test1"
 
 if [catch { set ofd [open "tmpdir/$test2.d" w] } x] {
     perror "$x"
@@ -123,7 +133,11 @@ if [catch { set ofd [open "tmpdir/$test2.d" w] } x] {
     return
 }
 foreach sfile $sfiles { puts $ofd "#source: $sfile" }
-puts $ofd "#ld:"
+if { [istarget spu*-*-*] } {
+    puts $ofd "#ld: --local-store 0:0"
+} else {
+    puts $ofd "#ld:"
+}
 puts $ofd "#readelf: -W -Ss"
 puts $ofd "There are 660.. section headers.*:"
 puts $ofd "#..."
@@ -132,18 +146,18 @@ puts $ofd "#..."
 puts $ofd "  \\\[65279\\\] \\.foo\\.\[0-9\]+ .*"
 puts $ofd "  \\\[65536\\\] \\.foo\\.\[0-9\]+ .*"
 puts $ofd "#..."
-puts $ofd " 660..: 0+\[ \]+0\[ \]+SECTION\[ \]+LOCAL\[ \]+DEFAULT\[ \]+662.. "
+puts $ofd " 660..: \[0-9a-f\]+\[ \]+0\[ \]+SECTION\[ \]+LOCAL\[ \]+DEFAULT\[ \]+662.. "
 puts $ofd "#..."
-puts $ofd " 660..: \[0-9a-f\]+\[ \]+0\[ \]+NOTYPE\[ \]+LOCAL\[ \]+DEFAULT\[ \]+\[0-9\] bar_1"
+puts $ofd " 660..: \[0-9a-f\]+\[ \]+0\[ \]+NOTYPE\[ \]+LOCAL\[ \]+DEFAULT\[ \]+\[0-9\] bar_1$"
 puts $ofd "#..."
-puts $ofd ".* bar_66000"
+puts $ofd ".* bar_66000$"
 puts $ofd "#..."
 # Global symbols are not in "alphanumeric" order, so we just check
 # that the first and the last are present in any order (assuming no
 # duplicates).
-puts $ofd ".* (\[0-9\] foo_1|66... foo_66000)"
+puts $ofd ".* (\[0-9\] foo_1|66... foo_66000)$"
 puts $ofd "#..."
-puts $ofd ".* (\[0-9\] foo_1|66... foo_66000)"
+puts $ofd ".* (\[0-9\] foo_1|66... foo_66000)$"
 puts $ofd "#pass"
 close $ofd
 run_dump_test "tmpdir/$test2"

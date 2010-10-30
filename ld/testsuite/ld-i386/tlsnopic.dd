@@ -153,7 +153,7 @@ Disassembly of section .text:
     10e9:	90[ 	]+nop *
     10ea:	90[ 	]+nop *
     10eb:	90[ 	]+nop *
-    10ec:	8b 5d fc[ 	]+mov    0xfffffffc\(%ebp\),%ebx
+    10ec:	8b 5d fc[ 	]+mov    -0x4\(%ebp\),%ebx
     10ef:	c9[ 	]+leave *
     10f0:	c3[ 	]+ret *
     10f1:	90[ 	]+nop *

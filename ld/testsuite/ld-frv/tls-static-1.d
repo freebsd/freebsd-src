@@ -62,7 +62,7 @@ Disassembly of section \.text:
 [0-9a-f ]+:	92 fc 00 00 	setlos lo\(0x0\),gr9
 Disassembly of section \.got:
 
-[0-9a-f ]+<_GLOBAL_OFFSET_TABLE_>:
+[0-9a-f ]+<(__data_start|_GLOBAL_OFFSET_TABLE_)>:
 	\.\.\.
 [0-9a-f ]+:	ff ff f8 30 	cop2 -32,cpr63,cpr48,cpr63
 [0-9a-f ]+:	ff ff f8 10 	cop2 -32,cpr63,cpr16,cpr63

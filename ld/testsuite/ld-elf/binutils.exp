@@ -1,0 +1,124 @@
+# Expect script for binutils tests
+#   Copyright 2006 Free Software Foundation, Inc.
+#
+# This file is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# Written by H.J. Lu (hongjiu.lu@intel.com)
+#
+
+# Make sure that binutils can correctly handle ld output in ELF.
+
+# Run on Linux only.
+if { ![istarget *-*-linux*] } {
+    return
+}
+
+if { [istarget *-*-linux*aout*]
+     || [istarget *-*-linux*oldld*] } {
+    return
+}
+
+proc binutils_test { prog_name ld_options test } {
+    global as
+    global ld
+    global READELF
+    global objcopy
+    global strip
+    global srcdir
+    global subdir
+    global link_output
+
+    eval set prog \$$prog_name
+    set test_name "$prog_name $ld_options ($test)"
+
+    if { ![ld_assemble $as $srcdir/$subdir/$test.s tmpdir/$test.o ] } {
+	unresolved "$test_name"
+	return
+    }
+
+    if { ![ld_simple_link $ld tmpdir/$test "$ld_options tmpdir/$test.o"] } {
+	if { [string match "*not supported*" $link_output]
+	     || [string match "*unrecognized option*" $link_output] } {
+	    unsupported "$ld_options is not supported by this target"
+	} else {
+	    unresolved "$test_name"
+	}
+	return
+    }
+
+    send_log "$READELF -l --wide tmpdir/$test > tmpdir/$test.exp\n"
+    catch "exec $READELF -l --wide tmpdir/$test > tmpdir/$test.exp" got
+    if ![string match "" $got] then {
+	send_log "$got\n"
+	unresolved "$test_name"
+	return
+    }
+
+    send_log "$prog tmpdir/$test\n"
+    catch "exec $prog tmpdir/$test" got
+    if ![string match "" $got] then {
+	send_log "$got\n"
+	fail "$test_name"
+	return
+    }
+
+    send_log "$READELF -l --wide tmpdir/$test > tmpdir/$test.out\n"
+    catch "exec $READELF -l --wide tmpdir/$test > tmpdir/$test.out" got
+    if ![string match "" $got] then {
+	send_log "$got\n"
+	unresolved "$test_name"
+	return
+    }
+
+    if { [catch {exec cmp tmpdir/$test.exp tmpdir/$test.out}] } then {
+	send_log "tmpdir/$test.exp tmpdir/$test.out differ.\n"
+	fail "$test_name"
+	return
+    }
+
+    pass "$test_name"
+}
+
+binutils_test strip "-z max-page-size=0x200000" maxpage1
+binutils_test strip "-z max-page-size=0x200000 -z common-page-size=0x100000" maxpage1
+binutils_test strip "-z max-page-size=0x100000" maxpage1
+binutils_test strip "-z max-page-size=0x100000 -z common-page-size=0x1000" maxpage1
+
+binutils_test strip "" maxpage1
+binutils_test strip "-shared" maxpage1
+binutils_test objcopy "" maxpage1
+binutils_test objcopy "-shared" maxpage1
+
+binutils_test strip "-z relro" maxpage1
+binutils_test strip "-z relro -shared" maxpage1
+binutils_test objcopy "-z relro" maxpage1
+binutils_test objcopy "-z relro -shared" maxpage1
+
+binutils_test objcopy "" tbss1
+binutils_test objcopy "-shared" tbss1
+binutils_test objcopy "-z max-page-size=0x100000" tbss1
+binutils_test objcopy "-z max-page-size=0x100000 -z common-page-size=0x1000" tbss1
+binutils_test objcopy "" tdata1
+binutils_test objcopy "-shared" tdata1
+binutils_test objcopy "-z max-page-size=0x100000" tdata1
+binutils_test objcopy "-z max-page-size=0x100000 -z common-page-size=0x1000" tdata1
+binutils_test objcopy "" tbss2
+binutils_test objcopy "-shared" tbss2
+binutils_test objcopy "-z max-page-size=0x100000" tbss2
+binutils_test objcopy "-z max-page-size=0x100000 -z common-page-size=0x1000" tbss2
+binutils_test objcopy "-z max-page-size=0x100000" tdata2
+binutils_test objcopy "" tdata2
+binutils_test objcopy "-shared" tdata2
+binutils_test objcopy "-z max-page-size=0x100000 -z common-page-size=0x1000" tdata2

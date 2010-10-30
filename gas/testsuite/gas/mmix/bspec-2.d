@@ -23,4 +23,5 @@ Hex dump of section '\.text':
   0x0+ fd010203                            .*
 
 Hex dump of section '\.MMIX\.spec_data\.2':
+ NOTE: This section has relocations against it, but these have NOT been applied to this dump.
   0x0+ 00000000 0000002a 00000000 00000000 .*

@@ -151,7 +151,7 @@ Disassembly of section \.text:
 [0-9a-f ]+:	82 30 80 00 	calll @\(gr8,gr0\)
 Disassembly of section \.got:
 
-[0-9a-f ]+<_GLOBAL_OFFSET_TABLE_-0x60>:
+[0-9a-f ]+<(__data_start|_GLOBAL_OFFSET_TABLE_-0x60)>:
 [0-9a-f ]+:	00 00 00 00 	add\.p gr0,gr0,gr0
 [0-9a-f	 ]+: R_FRV_TLSDESC_VALUE	\.tbss
 [0-9a-f ]+:	00 00 17 f3 	\*unknown\*

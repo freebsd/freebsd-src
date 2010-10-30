@@ -10,7 +10,7 @@ cat >e${EMULATION_NAME}.c <<EOF
 
 /* AIX emulation code for ${EMULATION_NAME}
    Copyright 1991, 1993, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004, 2005
+   2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Written by Steve Chamberlain <sac@cygnus.com>
    AIX support by Ian Lance Taylor <ian@cygnus.com>
@@ -34,8 +34,8 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
 
 #define TARGET_IS_${EMULATION_NAME}
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libiberty.h"
 #include "safe-ctype.h"
 #include "getopt.h"
@@ -268,7 +268,7 @@ gld${EMULATION_NAME}_parse_args (int argc, char **argv)
   if (indx == 0)
     indx = 1;
 
-  if (indx < argc && strncmp (argv[indx], "-b", 2) == 0)
+  if (indx < argc && CONST_STRNEQ (argv[indx], "-b"))
     {
       char *s;
 
@@ -651,18 +651,52 @@ gld${EMULATION_NAME}_before_allocation (void)
       size_t len;
       search_dirs_type *search;
 
-      len = strlen (search_head->name);
-      libpath = xmalloc (len + 1);
-      strcpy (libpath, search_head->name);
-      for (search = search_head->next; search != NULL; search = search->next)
+      /* PR ld/4023: Strip sysroot prefix from any paths
+	 being inserted into the output binary's DT_RPATH.  */
+      if (ld_sysroot != NULL
+	  && * ld_sysroot != 0)
 	{
-	  size_t nlen;
+	  const char * name = search_head->name;
+	  size_t ld_sysroot_len = strlen (ld_sysroot);
 
-	  nlen = strlen (search->name);
-	  libpath = xrealloc (libpath, len + nlen + 2);
-	  libpath[len] = ':';
-	  strcpy (libpath + len + 1, search->name);
-	  len += nlen + 1;
+	  if (strncmp (name, ld_sysroot, ld_sysroot_len) == 0)
+	    name += ld_sysroot_len;
+
+	  len = strlen (name);
+	  libpath = xmalloc (len + 1);
+	  strcpy (libpath, name);
+
+	  for (search = search_head->next; search != NULL; search = search->next)
+	    {
+	      size_t nlen;
+
+	      name = search->name;
+	      if (strncmp (name, ld_sysroot, ld_sysroot_len) == 0)
+		name += ld_sysroot_len;
+
+	      nlen = strlen (name);
+	      libpath = xrealloc (libpath, len + nlen + 2);
+	      libpath[len] = ':';
+	      strcpy (libpath + len + 1, name);
+	      len += nlen + 1;
+	    }
+	}
+      else
+	{
+	  len = strlen (search_head->name);
+	  libpath = xmalloc (len + 1);
+	  strcpy (libpath, search_head->name);
+
+	  for (search = search_head->next; search != NULL; search = search->next)
+	    {
+	      size_t nlen;
+
+	      nlen = strlen (search->name);
+	      libpath = xrealloc (libpath, len + nlen + 2);
+	      libpath[len] = ':';
+	      strcpy (libpath + len + 1, search->name);
+	      len += nlen + 1;
+	    }
 	}
     }
 

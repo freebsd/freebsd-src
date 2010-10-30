@@ -119,6 +119,7 @@ set ml "undefined.c:9: undefined reference to `*this_function_is_not_defined'"
 # hence the xfails below.
 
 setup_xfail mcore-*-elf
+setup_xfail mep-*-*
 setup_xfail mips-sgi-irix6*
 setup_xfail "sh64-*-*"
 

@@ -1,6 +1,6 @@
 /* POWER/PowerPC XCOFF linker support.
    Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-   2005, 2006 Free Software Foundation, Inc.
+   2005, 2006, 2007 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>, Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -19,8 +19,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "bfdlink.h"
 #include "libbfd.h"
 #include "coff/internal.h"
@@ -794,27 +794,27 @@ xcoff_link_create_extra_sections (bfd * abfd, struct bfd_link_info *info)
       if (xcoff_hash_table (info)->loader_section == NULL)
 	{
 	  asection *lsec;
+	  flagword flags = SEC_HAS_CONTENTS | SEC_IN_MEMORY;
 
-	  lsec = bfd_make_section_anyway (abfd, ".loader");
+	  lsec = bfd_make_section_anyway_with_flags (abfd, ".loader", flags);
 	  if (lsec == NULL)
 	    goto end_return;
 
 	  xcoff_hash_table (info)->loader_section = lsec;
-	  lsec->flags |= SEC_HAS_CONTENTS | SEC_IN_MEMORY;
 	}
 
       /* Likewise for the linkage section.  */
       if (xcoff_hash_table (info)->linkage_section == NULL)
 	{
 	  asection *lsec;
+	  flagword flags = (SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS
+			    | SEC_IN_MEMORY);
 
-	  lsec = bfd_make_section_anyway (abfd, ".gl");
+	  lsec = bfd_make_section_anyway_with_flags (abfd, ".gl", flags);
 	  if (lsec == NULL)
 	    goto end_return;
 
 	  xcoff_hash_table (info)->linkage_section = lsec;
-	  lsec->flags |= (SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS
-			  | SEC_IN_MEMORY);
 	  lsec->alignment_power = 2;
 	}
 
@@ -822,14 +822,14 @@ xcoff_link_create_extra_sections (bfd * abfd, struct bfd_link_info *info)
       if (xcoff_hash_table (info)->toc_section == NULL)
 	{
 	  asection *tsec;
+	  flagword flags = (SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS
+			    | SEC_IN_MEMORY);
 
-	  tsec = bfd_make_section_anyway (abfd, ".tc");
+	  tsec = bfd_make_section_anyway_with_flags (abfd, ".tc", flags);
 	  if (tsec == NULL)
 	    goto end_return;
 
 	  xcoff_hash_table (info)->toc_section = tsec;
-	  tsec->flags |= (SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS
-			  | SEC_IN_MEMORY);
 	  tsec->alignment_power = 2;
 	}
 
@@ -837,14 +837,14 @@ xcoff_link_create_extra_sections (bfd * abfd, struct bfd_link_info *info)
       if (xcoff_hash_table (info)->descriptor_section == NULL)
 	{
 	  asection *dsec;
+	  flagword flags = (SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS
+			    | SEC_IN_MEMORY);
 
-	  dsec = bfd_make_section_anyway (abfd, ".ds");
+	  dsec = bfd_make_section_anyway_with_flags (abfd, ".ds", flags);
 	  if (dsec == NULL)
 	    goto end_return;
 
 	  xcoff_hash_table (info)->descriptor_section = dsec;
-	  dsec->flags |= (SEC_ALLOC | SEC_LOAD | SEC_HAS_CONTENTS
-			  | SEC_IN_MEMORY);
 	  dsec->alignment_power = 2;
 	}
 
@@ -853,13 +853,13 @@ xcoff_link_create_extra_sections (bfd * abfd, struct bfd_link_info *info)
 	  && info->strip != strip_all)
 	{
 	  asection *dsec;
+	  flagword flags = SEC_HAS_CONTENTS | SEC_IN_MEMORY;
 
-	  dsec = bfd_make_section_anyway (abfd, ".debug");
+	  dsec = bfd_make_section_anyway_with_flags (abfd, ".debug", flags);
 	  if (dsec == NULL)
 	    goto end_return;
 
 	  xcoff_hash_table (info)->debug_section = dsec;
-	  dsec->flags |= SEC_HAS_CONTENTS | SEC_IN_MEMORY;
 	}
     }
 
@@ -1552,16 +1552,17 @@ xcoff_link_add_symbols (bfd *abfd, struct bfd_link_info *info)
 	    {
 	      /* The linker script puts the .td section in the data
 		 section after the .tc section.  */
-	      csect = bfd_make_section_anyway (abfd, ".td");
+	      csect = bfd_make_section_anyway_with_flags (abfd, ".td",
+							  SEC_ALLOC);
 	    }
 	  else
-	    csect = bfd_make_section_anyway (abfd, ".bss");
+	    csect = bfd_make_section_anyway_with_flags (abfd, ".bss",
+							SEC_ALLOC);
 
 	  if (csect == NULL)
 	    goto error_return;
 	  csect->vma = sym.n_value;
 	  csect->size = aux.x_csect.x_scnlen.l;
-	  csect->flags |= SEC_ALLOC;
 	  csect->alignment_power = SMTYP_ALIGN (aux.x_csect.x_smtyp);
 	  /* There are a number of other fields and section flags
 	     which we do not bother to set.  */
@@ -5460,8 +5461,8 @@ _bfd_xcoff_bfd_final_link (bfd *abfd, struct bfd_link_info *info)
 			 that needs padding.  This requires unlinking and
 			 relinking the bfd's section list.  */
 
-		      n = bfd_make_section_anyway (abfd, ".pad");
-		      n->flags = SEC_HAS_CONTENTS;
+		      n = bfd_make_section_anyway_with_flags (abfd, ".pad",
+							      SEC_HAS_CONTENTS);
 		      n->alignment_power = 0;
 
 		      bfd_section_list_remove (abfd, n);

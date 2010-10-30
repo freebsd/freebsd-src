@@ -1,3 +1,3 @@
 	.text
-	.long symbol1
+	.dc.a symbol1
 

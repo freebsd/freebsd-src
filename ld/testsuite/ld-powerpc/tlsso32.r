@@ -52,9 +52,9 @@ Relocation section '\.rela\.dyn' at offset 0x[0-9a-f]+ contains 18 entries:
 [0-9a-f ]+R_PPC_TPREL16 +0+30 +le0 \+ 0
 [0-9a-f ]+R_PPC_TPREL16_HA +0+34 +le1 \+ 0
 [0-9a-f ]+R_PPC_TPREL16_LO +0+34 +le1 \+ 0
-[0-9a-f ]+R_PPC_TPREL16 +0+1041c +\.tdata \+ 10430
-[0-9a-f ]+R_PPC_TPREL16_HA +0+1041c +\.tdata \+ 10434
-[0-9a-f ]+R_PPC_TPREL16_LO +0+1041c +\.tdata \+ 10434
+[0-9a-f ]+R_PPC_TPREL16 +0+103d0 +\.tdata \+ 103e4
+[0-9a-f ]+R_PPC_TPREL16_HA +0+103d0 +\.tdata \+ 103e8
+[0-9a-f ]+R_PPC_TPREL16_LO +0+103d0 +\.tdata \+ 103e8
 [0-9a-f ]+R_PPC_DTPMOD32 +0+
 [0-9a-f ]+R_PPC_DTPREL32 +0+
 [0-9a-f ]+R_PPC_DTPMOD32 +0+
@@ -73,7 +73,6 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 .* NOTYPE +LOCAL +DEFAULT +UND 
 .* SECTION LOCAL +DEFAULT +6 
 .* SECTION LOCAL +DEFAULT +7 
-.* SECTION LOCAL +DEFAULT +8 
 .* TLS +GLOBAL DEFAULT +UND gd
 .* TLS +GLOBAL DEFAULT +8 le0
 .* NOTYPE +GLOBAL DEFAULT +UND __tls_get_addr
@@ -90,7 +89,7 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 .* TLS +GLOBAL DEFAULT +8 gd0
 .* TLS +GLOBAL DEFAULT +8 ie0
 
-Symbol table '\.symtab' contains 39 entries:
+Symbol table '\.symtab' contains 36 entries:
  +Num: +Value +Size Type +Bind +Vis +Ndx Name
 .* NOTYPE +LOCAL +DEFAULT +UND 
 .* SECTION LOCAL +DEFAULT +1 
@@ -104,9 +103,6 @@ Symbol table '\.symtab' contains 39 entries:
 .* SECTION LOCAL +DEFAULT +9 
 .* SECTION LOCAL +DEFAULT +10 
 .* SECTION LOCAL +DEFAULT +11 
-.* SECTION LOCAL +DEFAULT +12 
-.* SECTION LOCAL +DEFAULT +13 
-.* SECTION LOCAL +DEFAULT +14 
 .* TLS +LOCAL +DEFAULT +7 gd4
 .* TLS +LOCAL +DEFAULT +7 ld4
 .* TLS +LOCAL +DEFAULT +7 ld5
