@@ -193,7 +193,7 @@ sysctl_vm_reserv_partpopq(SYSCTL_HANDLER_ARGS)
 			unused_pages += VM_LEVEL_0_NPAGES - rv->popcnt;
 		}
 		mtx_unlock(&vm_page_queue_free_mtx);
-		sbuf_printf(&sbuf, "%5.5d: %6.6dK, %6.6d\n", level,
+		sbuf_printf(&sbuf, "%5d: %6dK, %6d\n", level,
 		    unused_pages * (PAGE_SIZE / 1024), counter);
 	}
 	error = sbuf_finish(&sbuf);
