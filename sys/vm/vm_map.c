@@ -1166,6 +1166,9 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	}
 
 charged:
+	/* Expand the kernel pmap, if necessary. */
+	if (map == kernel_map && end > kernel_vm_end)
+		pmap_growkernel(end);
 	if (object != NULL) {
 		/*
 		 * OBJ_ONEMAPPING must be cleared unless this mapping
@@ -1302,7 +1305,7 @@ vm_map_findspace(vm_map_t map, vm_offset_t start, vm_size_t length,
     vm_offset_t *addr)	/* OUT */
 {
 	vm_map_entry_t entry;
-	vm_offset_t end, st;
+	vm_offset_t st;
 
 	/*
 	 * Request must fit within min/max VM address and must avoid
@@ -1316,7 +1319,7 @@ vm_map_findspace(vm_map_t map, vm_offset_t start, vm_size_t length,
 	/* Empty tree means wide open address space. */
 	if (map->root == NULL) {
 		*addr = start;
-		goto found;
+		return (0);
 	}
 
 	/*
@@ -1326,7 +1329,7 @@ vm_map_findspace(vm_map_t map, vm_offset_t start, vm_size_t length,
 	map->root = vm_map_entry_splay(start, map->root);
 	if (start + length <= map->root->start) {
 		*addr = start;
-		goto found;
+		return (0);
 	}
 
 	/*
@@ -1337,7 +1340,7 @@ vm_map_findspace(vm_map_t map, vm_offset_t start, vm_size_t length,
 	st = (start > map->root->end) ? start : map->root->end;
 	if (length <= map->root->end + map->root->adj_free - st) {
 		*addr = st;
-		goto found;
+		return (0);
 	}
 
 	/* With max_free, can immediately tell if no solution. */
@@ -1355,22 +1358,13 @@ vm_map_findspace(vm_map_t map, vm_offset_t start, vm_size_t length,
 			entry = entry->left;
 		else if (entry->adj_free >= length) {
 			*addr = entry->end;
-			goto found;
+			return (0);
 		} else
 			entry = entry->right;
 	}
 
 	/* Can't get here, so panic if we do. */
 	panic("vm_map_findspace: max_free corrupt");
-
-found:
-	/* Expand the kernel pmap, if necessary. */
-	if (map == kernel_map) {
-		end = round_page(*addr + length);
-		if (end > kernel_vm_end)
-			pmap_growkernel(end);
-	}
-	return (0);
 }
 
 int
