@@ -117,9 +117,9 @@ set_user_sr(pmap_t pm, const void *addr)
 	if (curthread->td_pcb->pcb_cpu.aim.usr_vsid == vsid)
 		return;
 
-	__asm __volatile ("sync; mtsr %0,%1; sync; isync" :: "n"(USER_SR),
-	    "r"(vsid));
+	__asm __volatile("isync");
 	curthread->td_pcb->pcb_cpu.aim.usr_vsid = vsid;
+	__asm __volatile("mtsr %0,%1; isync" :: "n"(USER_SR), "r"(vsid));
 }
 #endif
 
