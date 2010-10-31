@@ -113,7 +113,6 @@ ENTRY(cpu_switch)
 	li	%r15,0			/* Save user segment for copyin/out */
 	li	%r16,USER_SLB_SLOT
 	slbmfev %r15, %r16
-	isync
 	std	%r15,PCB_AIM_USR_VSID(%r6)
 
 	mr	%r14,%r3		/* Copy the old thread ptr... */
@@ -222,6 +221,7 @@ blocked_loop:
 	ori	%r5,%r5,USER_ADDR@highera
 	sldi	%r5,%r5,32
 	oris	%r5,%r5,USER_ADDR@ha
+	isync
 	slbie	%r5
 	lis	%r6,USER_SLB_SLBE@highesta
 	ori	%r6,%r6,USER_SLB_SLBE@highera
@@ -230,8 +230,8 @@ blocked_loop:
 	ori	%r6,%r6,USER_SLB_SLBE@l
 	ld	%r5,PCB_AIM_USR_VSID(%r3)
 	slbmte	%r5,%r6
-
 	isync
+
 	/*
 	 * Perform a dummy stdcx. to clear any reservations we may have
 	 * inherited from the previous thread. It doesn't matter if the
