@@ -234,12 +234,12 @@ command appeared in
 .Sh BUGS
 The
 .Fl P
-option assumes that the underlying storage overwrites file block
+option assumes that the underlying storage overwrites file blocks
 when data is written to an existing offset.
 Several factors including the file system and its backing store could defeat
 this assumption.
 This includes, but is not limited to file systems that use a
 Copy-On-Write strategy (e.g. ZFS or UFS when snapshots are being used), Flash
-media that is using a wear leveling algorithm, or when the backing datastore
+media that are using a wear leveling algorithm, or when the backing datastore
 does journaling, etc.
 In addition, only regular files are overwritten, other types of files are not.
