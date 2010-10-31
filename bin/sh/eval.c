@@ -196,6 +196,7 @@ void
 evaltree(union node *n, int flags)
 {
 	int do_etest;
+	union node *next;
 
 	do_etest = 0;
 	if (n == NULL) {
@@ -203,6 +204,8 @@ evaltree(union node *n, int flags)
 		exitstatus = 0;
 		goto out;
 	}
+	do {
+	next = NULL;
 #ifndef NO_HISTORY
 	displayhist = 1;	/* show history substitutions done with fc */
 #endif
@@ -212,20 +215,20 @@ evaltree(union node *n, int flags)
 		evaltree(n->nbinary.ch1, flags & ~EV_EXIT);
 		if (evalskip)
 			goto out;
-		evaltree(n->nbinary.ch2, flags);
+		next = n->nbinary.ch2;
 		break;
 	case NAND:
 		evaltree(n->nbinary.ch1, EV_TESTED);
 		if (evalskip || exitstatus != 0) {
 			goto out;
 		}
-		evaltree(n->nbinary.ch2, flags);
+		next = n->nbinary.ch2;
 		break;
 	case NOR:
 		evaltree(n->nbinary.ch1, EV_TESTED);
 		if (evalskip || exitstatus == 0)
 			goto out;
-		evaltree(n->nbinary.ch2, flags);
+		next = n->nbinary.ch2;
 		break;
 	case NREDIR:
 		evalredir(n, flags);
@@ -242,9 +245,9 @@ evaltree(union node *n, int flags)
 		if (evalskip)
 			goto out;
 		if (exitstatus == 0)
-			evaltree(n->nif.ifpart, flags);
+			next = n->nif.ifpart;
 		else if (n->nif.elsepart)
-			evaltree(n->nif.elsepart, flags);
+			next = n->nif.elsepart;
 		else
 			exitstatus = 0;
 		break;
@@ -281,6 +284,8 @@ evaltree(union node *n, int flags)
 		flushout(&output);
 		break;
 	}
+	n = next;
+	} while (n != NULL);
 out:
 	if (pendingsigs)
 		dotrap();
