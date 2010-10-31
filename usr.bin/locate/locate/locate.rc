@@ -15,8 +15,11 @@
 # directories to be put in the database
 #SEARCHPATHS="/"
 
-# directories unwanted in output
+# paths unwanted in output
 #PRUNEPATHS="/tmp /usr/tmp /var/tmp /var/db/portsnap"
+
+# directories unwanted in output
+#PRUNEDIRS=".zfs"
 
 # filesystems allowed. Beware: a non-listed filesystem will be pruned
 # and if the SEARCHPATHS starts in such a filesystem locate will build
