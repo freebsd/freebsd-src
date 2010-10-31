@@ -227,13 +227,13 @@ parsecmd(int interact)
 static union node *
 list(int nlflag, int erflag)
 {
-	union node *n1, *n2, *n3;
+	union node *ntop, *n1, *n2, *n3;
 	int tok;
 
 	checkkwd = 2;
 	if (!nlflag && !erflag && tokendlist[peektoken()])
 		return NULL;
-	n1 = NULL;
+	ntop = n1 = NULL;
 	for (;;) {
 		n2 = andor();
 		tok = readtoken();
@@ -250,14 +250,21 @@ list(int nlflag, int erflag)
 				n2 = n3;
 			}
 		}
-		if (n1 == NULL) {
-			n1 = n2;
+		if (ntop == NULL)
+			ntop = n2;
+		else if (n1 == NULL) {
+			n1 = (union node *)stalloc(sizeof (struct nbinary));
+			n1->type = NSEMI;
+			n1->nbinary.ch1 = ntop;
+			n1->nbinary.ch2 = n2;
+			ntop = n1;
 		}
 		else {
 			n3 = (union node *)stalloc(sizeof (struct nbinary));
 			n3->type = NSEMI;
-			n3->nbinary.ch1 = n1;
+			n3->nbinary.ch1 = n1->nbinary.ch2;
 			n3->nbinary.ch2 = n2;
+			n1->nbinary.ch2 = n3;
 			n1 = n3;
 		}
 		switch (tok) {
@@ -269,28 +276,28 @@ list(int nlflag, int erflag)
 			if (tok == TNL) {
 				parseheredoc();
 				if (nlflag)
-					return n1;
+					return ntop;
 			} else if (tok == TEOF && nlflag) {
 				parseheredoc();
-				return n1;
+				return ntop;
 			} else {
 				tokpushback++;
 			}
 			checkkwd = 2;
 			if (!nlflag && !erflag && tokendlist[peektoken()])
-				return n1;
+				return ntop;
 			break;
 		case TEOF:
 			if (heredoclist)
 				parseheredoc();
 			else
 				pungetc();		/* push back EOF on input */
-			return n1;
+			return ntop;
 		default:
 			if (nlflag || erflag)
 				synexpect(-1);
 			tokpushback++;
-			return n1;
+			return ntop;
 		}
 	}
 }
