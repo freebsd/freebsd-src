@@ -1,9 +1,48 @@
-	--- 9.6.2-P2 released ---
+	--- 9.6-ESV-R2 released ---
+
+2939.	[func]		Check that named successfully skips NSEC3 records
+			that fail to match the NSEC3PARAM record currently
+			in use. [RT# 21868]
+
+2937.	[bug]		Worked around an apparent race condition in over
+			memory conditions.  Without this fix a DNS cache DB or
+			ADB could incorrectly stay in an over memory state,
+			effectively refusing further caching, which
+			subsequently made a BIND 9 caching server unworkable.
+			This fix prevents this problem from happening by
+			polling the state of the memory context, rather than
+			making a copy of the state, which appeared to cause
+			a race.  This is a "workaround" in that it doesn't
+			solve the possible race per se, but several experiments
+			proved this change solves the symptom.  Also, the
+			polling overhead hasn't been reported to be an issue.
+			This bug should only affect a caching server that
+			specifies a finite max-cache-size.  It's also quite
+			likely that the bug happens only when enabling threads,
+			but it's not confirmed yet. [RT #21818]
+
+2925.	[bug]		Named failed to accept uncachable negative responses
+			from insecure zones. [RT# 21555]
+
+2921.	[bug]		The resolver could attempt to destroy a fetch context
+			too soon.  [RT #19878]
+
+2900.	[bug]		The placeholder negative caching element was not
+			properly constructed triggering a INSIST in 
+			dns_ncache_towire(). [RT #21346]
+			
+2890.	[bug]		Handle the introduction of new trusted-keys and
+			DS, DLV RRsets better. [RT #21097]
+
+2869.	[bug]		Fix arguments to dns_keytable_findnextkeynode() call.
+			[RT #20877]
+
+	--- 9.6-ESV-R1 released ---
 
 2876.	[bug]		Named could return SERVFAIL for negative responses
 			from unsigned zones. [RT #21131]
 
-	--- 9.6.2-P1 released ---
+	--- 9.6-ESV released ---
 
 2852.	[bug]		Handle broken DNSSEC trust chains better. [RT #15619]
 
