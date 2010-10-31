@@ -295,8 +295,7 @@ callout_tickstofirst(int limit)
 		sc = &cc->cc_callwheel[ (curticks+skip) & callwheelmask ];
 		/* search scanning ticks */
 		TAILQ_FOREACH( c, sc, c_links.tqe ){
-			if (c && (c->c_time <= curticks + ncallout)
-			    && (c->c_time > 0))
+			if (c->c_time - curticks <= ncallout)
 				goto out;
 		}
 		skip++;
