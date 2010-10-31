@@ -213,6 +213,8 @@ static void
 cpu_startup(dummy)
 	void *dummy;
 {
+	uintmax_t memsize;
+
 	/*
 	 * Good {morning,afternoon,evening,night}.
 	 */
@@ -222,9 +224,14 @@ cpu_startup(dummy)
 #ifdef PERFMON
 	perfmon_init();
 #endif
-	printf("real memory  = %ju (%ju MB)\n", ptoa((uintmax_t)Maxmem),
-	    ptoa((uintmax_t)Maxmem) / 1048576);
 	realmem = Maxmem;
+
+	/*
+	 * Display physical memory.
+	 */
+	memsize = ptoa((uintmax_t)Maxmem);
+	printf("real memory  = %ju (%ju MB)\n", memsize, memsize >> 20);
+
 	/*
 	 * Display any holes after the first chunk of extended memory.
 	 */
@@ -255,7 +262,6 @@ cpu_startup(dummy)
 	 */
 	bufinit();
 	vm_pager_bufferinit();
-
 	cpu_setregs();
 }
 
@@ -1024,8 +1030,8 @@ sigreturn(td, uap)
 	else
 		td->td_sigstk.ss_flags &= ~SS_ONSTACK;
 #endif
-	kern_sigprocmask(td, SIG_SETMASK, &ucp->uc_sigmask, NULL, 0);
 
+	kern_sigprocmask(td, SIG_SETMASK, &ucp->uc_sigmask, NULL, 0);
 	return (EJUSTRETURN);
 }
 
@@ -1296,10 +1302,11 @@ SYSCTL_ULONG(_machdep, OID_AUTO, guessed_bootdev,
  */
 
 int _default_ldt;
+
 union descriptor gdt[NGDT * MAXCPU];	/* global descriptor table */
+union descriptor ldt[NLDT];		/* local descriptor table */
 static struct gate_descriptor idt0[NIDT];
 struct gate_descriptor *idt = &idt0[0];	/* interrupt descriptor table */
-union descriptor ldt[NLDT];		/* local descriptor table */
 struct region_descriptor r_gdt, r_idt;	/* table descriptors */
 struct mtx dt_lock;			/* lock for GDT and LDT */
 
@@ -1655,7 +1662,8 @@ getmemsize(int first)
 	int i, off, physmap_idx, pa_indx, da_indx;
 	int pg_n;
 	u_long physmem_tunable;
-	u_int extmem, under16;
+	u_int extmem;
+	u_int under16;
 	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
 	pt_entry_t *pte;
 	quad_t dcons_addr, dcons_size;
@@ -1680,7 +1688,7 @@ getmemsize(int first)
 	/*
 	 * Perform "base memory" related probes & setup
 	 */
-        under16 = pc98_getmemsize(&basemem, &extmem);
+	under16 = pc98_getmemsize(&basemem, &extmem);
 	if (basemem > 640) {
 		printf("Preposterous BIOS basemem of %uK, truncating to 640K\n",
 			basemem);
@@ -1912,7 +1920,7 @@ do_next:
 	}
 	*pte = 0;
 	invltlb();
-
+	
 	/*
 	 * XXX
 	 * The last chunk must contain at least one page plus the message
@@ -1942,9 +1950,8 @@ init386(first)
 	int first;
 {
 	struct gate_descriptor *gdp;
-	int gsel_tss, metadata_missing, x;
+	int gsel_tss, metadata_missing, x, pa;
 	struct pcpu *pc;
-	int pa;
 
 	thread0.td_kstack = proc0kstack;
 	thread0.td_pcb = (struct pcb *)
@@ -2005,7 +2012,6 @@ init386(first)
 		pmap_kenter(pa + KERNBASE, pa);
 	dpcpu_init((void *)(first + KERNBASE), 0);
 	first += DPCPU_SIZE;
-
 	PCPU_SET(prvspace, pc);
 	PCPU_SET(curthread, &thread0);
 	PCPU_SET(curpcb, thread0.td_pcb);
