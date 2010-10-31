@@ -84,6 +84,7 @@ device		cpufreq
 
 # Standard busses
 device		pci
+device		agp
 
 # ATA and ATAPI devices
 device		ata
