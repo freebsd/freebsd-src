@@ -131,7 +131,7 @@ mii_phy_setmedia(struct mii_softc *sc)
 			break;
 
 		default:
-			panic("mii_phy_setmedia: MASTER on wrong media");
+			printf("mii_phy_setmedia: MASTER on wrong media\n");
 		}
 	}
 
