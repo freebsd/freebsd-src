@@ -95,6 +95,9 @@ set_user_sr(pmap_t pm, const void *addr)
 		slbv = slb->slbv;
 	}
 
+	/* Mark segment no-execute */
+	slbv |= SLBV_N;
+
 	/* If we have already set this VSID, we can just return */
 	if (curthread->td_pcb->pcb_cpu.aim.usr_vsid == slbv) 
 		return;
@@ -116,6 +119,9 @@ set_user_sr(pmap_t pm, const void *addr)
 	/* If we have already set this VSID, we can just return */
 	if (curthread->td_pcb->pcb_cpu.aim.usr_vsid == vsid)
 		return;
+
+	/* Mark segment no-execute */
+	vsid |= SR_N;
 
 	__asm __volatile("isync");
 	curthread->td_pcb->pcb_cpu.aim.usr_vsid = vsid;
