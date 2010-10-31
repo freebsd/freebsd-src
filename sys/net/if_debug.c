@@ -62,7 +62,7 @@ if_show_ifnet(struct ifnet *ifp)
 	IF_DB_PRINTF("%s", if_description);
 	IF_DB_PRINTF("%u", if_index);
 	IF_DB_PRINTF("%u", if_refcount);
-	IF_DB_PRINTF("%d", if_index_reserved);
+	IF_DB_PRINTF("%u", if_timer);
 	IF_DB_PRINTF("%p", if_softc);
 	IF_DB_PRINTF("%p", if_l2com);
 	IF_DB_PRINTF("%p", if_vnet);
