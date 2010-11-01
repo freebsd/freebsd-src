@@ -200,9 +200,6 @@ extern	struct vop_vector	nfs_fifoops;
 extern	struct vop_vector	nfs_vnodeops;
 extern struct buf_ops buf_ops_nfs;
 
-extern vop_advlock_t *nfs_advlock_p;
-extern vop_reclaim_t *nfs_reclaim_p;
-
 /*
  * Prototypes for NFS vnode operations
  */
