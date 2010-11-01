@@ -1,5 +1,5 @@
 /* tc-s390.c -- Assemble for the S390
-   Copyright 2000, 2001, 2002, 2003, 2004, 2005
+   Copyright 2000, 2001, 2002, 2003, 2004, 2005, 2006
    Free Software Foundation, Inc.
    Contributed by Martin Schwidefsky (schwidefsky@de.ibm.com).
 
@@ -20,7 +20,6 @@
    Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
    02110-1301, USA.  */
 
-#include <stdio.h>
 #include "as.h"
 #include "safe-ctype.h"
 #include "subsegs.h"
@@ -412,6 +411,8 @@ md_parse_option (c, arg)
 	    current_cpu = S390_OPCODE_Z990;
 	  else if (strcmp (arg + 5, "z9-109") == 0)
 	    current_cpu = S390_OPCODE_Z9_109;
+	  else if (strcmp (arg + 5, "z9-ec") == 0)
+	    current_cpu = S390_OPCODE_Z9_EC;
 	  else
 	    {
 	      as_bad (_("invalid switch -m%s"), arg);
@@ -2322,7 +2323,7 @@ s390_cfi_frame_initial_instructions ()
 }
 
 int
-tc_s390_regname_to_dw2regnum (const char *regname)
+tc_s390_regname_to_dw2regnum (char *regname)
 {
   int regnum = -1;
 

@@ -28,7 +28,6 @@
 	      [epilogue_begin] [is_stmt VALUE] [isa VALUE]
 */
 
-#include "ansidecl.h"
 #include "as.h"
 #include "safe-ctype.h"
 
@@ -45,6 +44,29 @@
 
 #include "dwarf2dbg.h"
 #include <filenames.h>
+
+#ifdef HAVE_DOS_BASED_FILE_SYSTEM
+/* We need to decide which character to use as a directory separator.
+   Just because HAVE_DOS_BASED_FILE_SYSTEM is defined, it does not
+   necessarily mean that the backslash character is the one to use.
+   Some environments, eg Cygwin, can support both naming conventions.
+   So we use the heuristic that we only need to use the backslash if
+   the path is an absolute path starting with a DOS style drive
+   selector.  eg C: or D:  */
+# define INSERT_DIR_SEPARATOR(string, offset) \
+  do \
+    { \
+      if (offset > 1 \
+          && string[0] != 0 \
+          && string[1] == ':') \
+       string [offset] = '\\'; \
+      else \
+       string [offset] = '/'; \
+    } \
+  while (0)
+#else
+# define INSERT_DIR_SEPARATOR(string, offset) string[offset] = '/'
+#endif
 
 #ifndef DWARF2_FORMAT
 # define DWARF2_FORMAT() dwarf2_format_32bit
@@ -65,6 +87,13 @@
 #define DL_PROLOG	0
 #define DL_FILES	1
 #define DL_BODY		2
+
+/* If linker relaxation might change offsets in the code, the DWARF special
+   opcodes and variable-length operands cannot be used.  If this macro is
+   nonzero, use the DW_LNS_fixed_advance_pc opcode instead.  */
+#ifndef DWARF2_USE_FIXED_ADVANCE_PC
+# define DWARF2_USE_FIXED_ADVANCE_PC	0
+#endif
 
 /* First special line opcde - leave room for the standard opcodes.
    Note: If you want to change this, you'll have to update the
@@ -169,22 +198,22 @@ static void out_two (int);
 static void out_four (int);
 static void out_abbrev (int, int);
 static void out_uleb128 (addressT);
-static offsetT get_frag_fix (fragS *);
+static void out_sleb128 (addressT);
+static offsetT get_frag_fix (fragS *, segT);
 static void out_set_addr (symbolS *);
 static int size_inc_line_addr (int, addressT);
 static void emit_inc_line_addr (int, addressT, char *, int);
 static void out_inc_line_addr (int, addressT);
+static void out_fixed_inc_line_addr (int, symbolS *, symbolS *);
 static void relax_inc_line_addr (int, symbolS *, symbolS *);
 static void process_entries (segT, struct line_entry *);
 static void out_file_list (void);
 static void out_debug_line (segT);
 static void out_debug_aranges (segT, segT);
 static void out_debug_abbrev (segT);
-static void out_debug_info (segT, segT, segT);
 
 #ifndef TC_DWARF2_EMIT_OFFSET
-# define TC_DWARF2_EMIT_OFFSET  generic_dwarf2_emit_offset
-static void generic_dwarf2_emit_offset (symbolS *, unsigned int);
+#define TC_DWARF2_EMIT_OFFSET  generic_dwarf2_emit_offset
 
 /* Create an offset to .dwarf2_*.  */
 
@@ -569,7 +598,7 @@ dwarf2_directive_loc (int dummy ATTRIBUTE_UNUSED)
 	  char *cp = (char *) alloca (dir_len + 1 + file_len + 1);
 
 	  memcpy (cp, dirs[files[filenum].dir], dir_len);
-	  cp[dir_len] = '/';
+	  INSERT_DIR_SEPARATOR (cp, dir_len);
 	  memcpy (cp + dir_len + 1, files[filenum].filename, file_len);
 	  cp[dir_len + file_len + 1] = '\0';
 	  listing_source_file (cp);
@@ -670,27 +699,18 @@ dwarf2_directive_loc_mark_labels (int dummy ATTRIBUTE_UNUSED)
 static struct frag *
 first_frag_for_seg (segT seg)
 {
-  frchainS *f, *first = NULL;
-
-  for (f = frchain_root; f; f = f->frch_next)
-    if (f->frch_seg == seg
-	&& (! first || first->frch_subseg > f->frch_subseg))
-      first = f;
-
-  return first ? first->frch_root : NULL;
+  return seg_info (seg)->frchainP->frch_root;
 }
 
 static struct frag *
 last_frag_for_seg (segT seg)
 {
-  frchainS *f, *last = NULL;
+  frchainS *f = seg_info (seg)->frchainP;
 
-  for (f = frchain_root; f; f = f->frch_next)
-    if (f->frch_seg == seg
-	&& (! last || last->frch_subseg < f->frch_subseg))
-      last= f;
+  while (f->frch_next != NULL)
+    f = f->frch_next;
 
-  return last ? last->frch_last : NULL;
+  return f->frch_last;
 }
 
 /* Emit a single byte into the current segment.  */
@@ -733,6 +753,14 @@ out_uleb128 (addressT value)
   output_leb128 (frag_more (sizeof_leb128 (value, 0)), value, 0);
 }
 
+/* Emit a signed "little-endian base 128" number.  */
+
+static void
+out_sleb128 (addressT value)
+{
+  output_leb128 (frag_more (sizeof_leb128 (value, 1)), value, 1);
+}
+
 /* Emit a tuple for .debug_abbrev.  */
 
 static inline void
@@ -745,7 +773,7 @@ out_abbrev (int name, int form)
 /* Get the size of a fragment.  */
 
 static offsetT
-get_frag_fix (fragS *frag)
+get_frag_fix (fragS *frag, segT seg)
 {
   frchainS *fr;
 
@@ -755,7 +783,7 @@ get_frag_fix (fragS *frag)
   /* If a fragment is the last in the chain, special measures must be
      taken to find its size before relaxation, since it may be pending
      on some subsegment chain.  */
-  for (fr = frchain_root; fr; fr = fr->frch_next)
+  for (fr = seg_info (seg)->frchainP; fr; fr = fr->frch_next)
     if (fr->frch_last == frag)
       return (char *) obstack_next_free (&fr->frch_obstack) - frag->fr_literal;
 
@@ -966,6 +994,45 @@ out_inc_line_addr (int line_delta, addressT addr_delta)
   emit_inc_line_addr (line_delta, addr_delta, frag_more (len), len);
 }
 
+/* Write out an alternative form of line and address skips using
+   DW_LNS_fixed_advance_pc opcodes.  This uses more space than the default
+   line and address information, but it helps support linker relaxation that
+   changes the code offsets.  */
+
+static void
+out_fixed_inc_line_addr (int line_delta, symbolS *to_sym, symbolS *from_sym)
+{
+  expressionS expr;
+
+  /* INT_MAX is a signal that this is actually a DW_LNE_end_sequence.  */
+  if (line_delta == INT_MAX)
+    {
+      out_opcode (DW_LNS_fixed_advance_pc);
+      expr.X_op = O_subtract;
+      expr.X_add_symbol = to_sym;
+      expr.X_op_symbol = from_sym;
+      expr.X_add_number = 0;
+      emit_expr (&expr, 2);
+
+      out_opcode (DW_LNS_extended_op);
+      out_byte (1);
+      out_opcode (DW_LNE_end_sequence);
+      return;
+    }
+
+  out_opcode (DW_LNS_advance_line);
+  out_sleb128 (line_delta);
+
+  out_opcode (DW_LNS_fixed_advance_pc);
+  expr.X_op = O_subtract;
+  expr.X_add_symbol = to_sym;
+  expr.X_op_symbol = from_sym;
+  expr.X_add_number = 0;
+  emit_expr (&expr, 2);
+
+  out_opcode (DW_LNS_copy);
+}
+
 /* Generate a variant frag that we can use to relax address/line
    increments between fragments of the target segment.  */
 
@@ -1116,6 +1183,8 @@ process_entries (segT seg, struct line_entry *e)
 	  out_set_addr (lab);
 	  out_inc_line_addr (line_delta, 0);
 	}
+      else if (DWARF2_USE_FIXED_ADVANCE_PC)
+	out_fixed_inc_line_addr (line_delta, lab, last_lab);
       else if (frag == last_frag)
 	out_inc_line_addr (line_delta, frag_ofs - last_frag_ofs);
       else
@@ -1134,8 +1203,13 @@ process_entries (segT seg, struct line_entry *e)
 
   /* Emit a DW_LNE_end_sequence for the end of the section.  */
   frag = last_frag_for_seg (seg);
-  frag_ofs = get_frag_fix (frag);
-  if (frag == last_frag)
+  frag_ofs = get_frag_fix (frag, seg);
+  if (DWARF2_USE_FIXED_ADVANCE_PC)
+    {
+      lab = symbol_temp_new (seg, frag_ofs, frag);
+      out_fixed_inc_line_addr (INT_MAX, lab, last_lab);
+    }
+  else if (frag == last_frag)
     out_inc_line_addr (INT_MAX, frag_ofs - last_frag_ofs);
   else
     {
@@ -1277,6 +1351,54 @@ out_debug_line (segT line_seg)
   symbol_set_value_now (line_end);
 }
 
+static void
+out_debug_ranges (segT ranges_seg)
+{
+  unsigned int addr_size = sizeof_address;
+  struct line_seg *s;
+  expressionS expr;
+  unsigned int i;
+
+  subseg_set (ranges_seg, 0);
+
+  /* Base Address Entry.  */
+  for (i = 0; i < addr_size; i++) 
+    out_byte (0xff);
+  for (i = 0; i < addr_size; i++) 
+    out_byte (0);
+
+  /* Range List Entry.  */
+  for (s = all_segs; s; s = s->next)
+    {
+      fragS *frag;
+      symbolS *beg, *end;
+
+      frag = first_frag_for_seg (s->seg);
+      beg = symbol_temp_new (s->seg, 0, frag);
+      s->text_start = beg;
+
+      frag = last_frag_for_seg (s->seg);
+      end = symbol_temp_new (s->seg, get_frag_fix (frag, s->seg), frag);
+      s->text_end = end;
+
+      expr.X_op = O_symbol;
+      expr.X_add_symbol = beg;
+      expr.X_add_number = 0;
+      emit_expr (&expr, addr_size);
+
+      expr.X_op = O_symbol;
+      expr.X_add_symbol = end;
+      expr.X_add_number = 0;
+      emit_expr (&expr, addr_size);
+    }
+
+  /* End of Range Entry.   */
+  for (i = 0; i < addr_size; i++) 
+    out_byte (0);
+  for (i = 0; i < addr_size; i++) 
+    out_byte (0);
+}
+
 /* Emit data for .debug_aranges.  */
 
 static void
@@ -1332,7 +1454,7 @@ out_debug_aranges (segT aranges_seg, segT info_seg)
       s->text_start = beg;
 
       frag = last_frag_for_seg (s->seg);
-      end = symbol_temp_new (s->seg, get_frag_fix (frag), frag);
+      end = symbol_temp_new (s->seg, get_frag_fix (frag, s->seg), frag);
       s->text_end = end;
 
       expr.X_op = O_symbol;
@@ -1369,6 +1491,13 @@ out_debug_abbrev (segT abbrev_seg)
       out_abbrev (DW_AT_low_pc, DW_FORM_addr);
       out_abbrev (DW_AT_high_pc, DW_FORM_addr);
     }
+  else
+    {
+      if (DWARF2_FORMAT () == dwarf2_format_32bit)
+	out_abbrev (DW_AT_ranges, DW_FORM_data4);
+      else
+	out_abbrev (DW_AT_ranges, DW_FORM_data8);
+    }
   out_abbrev (DW_AT_name, DW_FORM_string);
   out_abbrev (DW_AT_comp_dir, DW_FORM_string);
   out_abbrev (DW_AT_producer, DW_FORM_string);
@@ -1382,7 +1511,7 @@ out_debug_abbrev (segT abbrev_seg)
 /* Emit a description of this compilation unit for .debug_info.  */
 
 static void
-out_debug_info (segT info_seg, segT abbrev_seg, segT line_seg)
+out_debug_info (segT info_seg, segT abbrev_seg, segT line_seg, segT ranges_seg)
 {
   char producer[128];
   char *comp_dir;
@@ -1445,8 +1574,7 @@ out_debug_info (segT info_seg, segT abbrev_seg, segT line_seg)
   /* ??? sizeof_offset */
   TC_DWARF2_EMIT_OFFSET (section_symbol (line_seg), 4);
 
-  /* These two attributes may only be emitted if all of the code is
-     contiguous.  Multiple sections are not that.  */
+  /* These two attributes are emitted if all of the code is contiguous.  */
   if (all_segs->next == NULL)
     {
       /* DW_AT_low_pc */
@@ -1461,6 +1589,12 @@ out_debug_info (segT info_seg, segT abbrev_seg, segT line_seg)
       expr.X_add_number = 0;
       emit_expr (&expr, sizeof_address);
     }
+  else
+    {
+      /* This attribute is emitted if the code is disjoint.  */
+      /* DW_AT_ranges.  */
+      TC_DWARF2_EMIT_OFFSET (section_symbol (ranges_seg), sizeof_offset);
+    }
 
   /* DW_AT_name.  We don't have the actual file name that was present
      on the command line, so assume files[1] is the main input file.
@@ -1473,7 +1607,7 @@ out_debug_info (segT info_seg, segT abbrev_seg, segT line_seg)
       len = strlen (dirs[files[1].dir]);
       p = frag_more (len + 1);
       memcpy (p, dirs[files[1].dir], len);
-      p[len] = '/';
+      INSERT_DIR_SEPARATOR (p, len);
     }
   len = strlen (files[1].filename) + 1;
   p = frag_more (len);
@@ -1551,6 +1685,7 @@ dwarf2_finish (void)
     {
       segT abbrev_seg;
       segT aranges_seg;
+      segT ranges_seg;
 
       assert (all_segs);
       
@@ -1567,8 +1702,19 @@ dwarf2_finish (void)
 
       record_alignment (aranges_seg, ffs (2 * sizeof_address) - 1);
 
+      if (all_segs->next == NULL)
+	ranges_seg = NULL;
+      else
+	{
+	  ranges_seg = subseg_new (".debug_ranges", 0);
+	  bfd_set_section_flags (stdoutput, ranges_seg, 
+				 SEC_READONLY | SEC_DEBUGGING);
+	  record_alignment (ranges_seg, ffs (2 * sizeof_address) - 1);
+	  out_debug_ranges (ranges_seg);
+	}
+
       out_debug_aranges (aranges_seg, info_seg);
       out_debug_abbrev (abbrev_seg);
-      out_debug_info (info_seg, abbrev_seg, line_seg);
+      out_debug_info (info_seg, abbrev_seg, line_seg, ranges_seg);
     }
 }

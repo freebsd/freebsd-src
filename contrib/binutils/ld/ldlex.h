@@ -30,6 +30,7 @@ typedef enum input_enum {
   input_script,
   input_mri_script,
   input_version_script,
+  input_dynamic_list,
   input_defsym
 } input_type;
 

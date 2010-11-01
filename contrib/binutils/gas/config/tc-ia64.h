@@ -1,5 +1,5 @@
 /* tc-ia64.h -- Header file for tc-ia64.c.
-   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005
+   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007
    Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
@@ -315,5 +315,5 @@ typedef struct unwind_record
 #define TC_FORCE_RELOCATION_LOCAL(FIX)			\
   ((FIX)->fx_r_type != BFD_RELOC_UNUSED			\
    && (!(FIX)->fx_pcrel					\
-       || (FIX)->fx_plt					\
+       || (FIX)->fx_r_type == BFD_RELOC_IA64_PLTOFF22	\
        || TC_FORCE_RELOCATION (FIX)))

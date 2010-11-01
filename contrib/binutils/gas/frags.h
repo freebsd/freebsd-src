@@ -148,6 +148,6 @@ char *frag_var (relax_stateT type,
 		offsetT offset,
 		char *opcode);
 
-bfd_boolean frag_offset_fixed_p (fragS *, fragS *, bfd_vma *);
+bfd_boolean frag_offset_fixed_p (const fragS *, const fragS *, bfd_vma *);
 
 #endif /* FRAGS_H */

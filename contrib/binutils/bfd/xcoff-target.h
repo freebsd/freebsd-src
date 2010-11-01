@@ -1,5 +1,5 @@
 /* Common definitions for backends based on IBM RS/6000 "XCOFF64" files.
-   Copyright 2000, 2001, 2002, 2004, 2005
+   Copyright 2000, 2001, 2002, 2004, 2005, 2006
    Free Software Foundation, Inc.
    Contributed by Cygnus Support.
 
@@ -125,7 +125,7 @@ extern bfd *              _bfd_xcoff_openr_next_archived_file (bfd *, bfd *);
 extern int                _bfd_xcoff_generic_stat_arch_elt (bfd *, struct stat *);
 extern bfd_boolean        _bfd_xcoff_write_armap  (bfd *, unsigned int, struct orl *, unsigned int, int);
 extern bfd_boolean        _bfd_xcoff_write_archive_contents (bfd *);
-extern int                _bfd_xcoff_sizeof_headers (bfd *, bfd_boolean);
+extern int                _bfd_xcoff_sizeof_headers (bfd *, struct bfd_link_info *);
 extern void               _bfd_xcoff_swap_sym_in (bfd *, void *, void *);
 extern unsigned int       _bfd_xcoff_swap_sym_out (bfd *, void *, void *);
 extern void               _bfd_xcoff_swap_aux_in (bfd *, void *, int, int, int, int, void *);

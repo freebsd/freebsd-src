@@ -1,5 +1,5 @@
 /* VxWorks support for ELF
-   Copyright 2005 Free Software Foundation, Inc.
+   Copyright 2005, 2007 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -20,15 +20,34 @@
 
 /* This file provides routines used by all VxWorks targets.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
 #include "elf-vxworks.h"
 
+/* Return true if symbol NAME, as defined by ABFD, is one of the special
+   __GOTT_BASE__ or __GOTT_INDEX__ symbols.  */
+
+static bfd_boolean
+elf_vxworks_gott_symbol_p (bfd *abfd, const char *name)
+{
+  char leading;
+
+  leading = bfd_get_symbol_leading_char (abfd);
+  if (leading)
+    {
+      if (*name != leading)
+	return FALSE;
+      name++;
+    }
+  return (strcmp (name, "__GOTT_BASE__") == 0
+	  || strcmp (name, "__GOTT_INDEX__") == 0);
+}
+
 /* Tweak magic VxWorks symbols as they are loaded.  */
 bfd_boolean
-elf_vxworks_add_symbol_hook (bfd *abfd ATTRIBUTE_UNUSED,
+elf_vxworks_add_symbol_hook (bfd *abfd,
 			     struct bfd_link_info *info,
 			     Elf_Internal_Sym *sym,
 			     const char **namep,
@@ -45,8 +64,7 @@ elf_vxworks_add_symbol_hook (bfd *abfd ATTRIBUTE_UNUSED,
      This transformation will be undone in
      elf_i386_vxworks_link_output_symbol_hook. */
   if ((info->shared || abfd->flags & DYNAMIC)
-      && (strcmp (*namep, "__GOTT_INDEX__") == 0
-	  || strcmp (*namep, "__GOTT_BASE__") == 0))
+      && elf_vxworks_gott_symbol_p (abfd, *namep))
     {
       sym->st_info = ELF_ST_INFO (STB_WEAK, ELF_ST_TYPE (sym->st_info));
       *flagsp |= BSF_WEAK;
@@ -114,16 +132,12 @@ elf_vxworks_link_output_symbol_hook (struct bfd_link_info *info
 				     const char *name,
 				     Elf_Internal_Sym *sym,
 				     asection *input_sec ATTRIBUTE_UNUSED,
-				     struct elf_link_hash_entry *h
-				       ATTRIBUTE_UNUSED)
+				     struct elf_link_hash_entry *h)
 {
-  /* Ignore the first dummy symbol.  */
-  if (!name)
-    return TRUE;
-
   /* Reverse the effects of the hack in elf_vxworks_add_symbol_hook.  */
-  if (strcmp (name, "__GOTT_INDEX__") == 0
-      || strcmp (name, "__GOTT_BASE__") == 0)
+  if (h
+      && h->root.type == bfd_link_hash_undefweak
+      && elf_vxworks_gott_symbol_p (h->root.u.undef.abfd, name))
     sym->st_info = ELF_ST_INFO (STB_GLOBAL, ELF_ST_TYPE (sym->st_info));
 
   return TRUE;
@@ -156,7 +170,8 @@ elf_vxworks_emit_relocs (bfd *output_bfd,
 	  && *rel_hash
 	  && (*rel_hash)->def_dynamic
 	  && !(*rel_hash)->def_regular
-	  && (*rel_hash)->root.type == bfd_link_hash_defined
+	  && ((*rel_hash)->root.type == bfd_link_hash_defined
+	      || (*rel_hash)->root.type == bfd_link_hash_defweak)
 	  && (*rel_hash)->root.u.def.section->output_section != NULL)
 	{
 	  /* This is a relocation from an executable or shared library
@@ -171,8 +186,7 @@ elf_vxworks_emit_relocs (bfd *output_bfd,
 	  for (j = 0; j < bed->s->int_rels_per_ext_rel; j++)
 	    {
 	      asection *sec = (*rel_hash)->root.u.def.section;
-	      int this_idx =
-		elf_section_data (sec->output_section)->this_idx;
+	      int this_idx = sec->output_section->target_index;
 
 	      irela[j].r_info = ELF32_R_INFO (this_idx,
 		  ELF32_R_TYPE (irela[j].r_info));

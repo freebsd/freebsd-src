@@ -88,7 +88,7 @@ extern void s390_md_end PARAMS ((void));
 extern void s390_cfi_frame_initial_instructions PARAMS ((void));
 
 #define tc_regname_to_dw2regnum tc_s390_regname_to_dw2regnum
-extern int tc_s390_regname_to_dw2regnum PARAMS ((const char *regname));
+extern int tc_s390_regname_to_dw2regnum PARAMS ((char *regname));
 
 extern int s390_cie_data_alignment;
 

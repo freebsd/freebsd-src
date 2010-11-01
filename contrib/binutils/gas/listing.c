@@ -1,6 +1,6 @@
 /* listing.c - maintain assembly listings
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2005
+   2001, 2002, 2003, 2005, 2006
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -946,15 +946,6 @@ listing_listing (char *name ATTRIBUTE_UNUSED)
   buffer = xmalloc (listing_rhs_width);
   data_buffer = xmalloc (MAX_BYTES);
   eject = 1;
-  list = head;
-
-  while (list != (list_info_type *) NULL && 0)
-    {
-      if (list->next)
-	list->frag = list->next->frag;
-      list = list->next;
-    }
-
   list = head->next;
 
   while (list)
@@ -1085,8 +1076,7 @@ listing_print (char *name)
 	using_stdout = 0;
       else
 	{
-	  bfd_set_error (bfd_error_system_call);
-	  as_perror (_("can't open list file: %s"), name);
+	  as_warn (_("can't open %s: %s"), name, xstrerror (errno));
 	  list_file = stdout;
 	  using_stdout = 1;
 	}
@@ -1104,10 +1094,7 @@ listing_print (char *name)
   if (! using_stdout)
     {
       if (fclose (list_file) == EOF)
-	{
-	  bfd_set_error (bfd_error_system_call);
-	  as_perror (_("error closing list file: %s"), name);
-	}
+	as_warn (_("can't close %s: %s"), name, xstrerror (errno));
     }
 
   if (last_open_file)

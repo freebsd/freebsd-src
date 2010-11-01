@@ -1,6 +1,6 @@
 /* BFD back end for traditional Unix core files (U-area and raw sections)
    Copyright 1988, 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005
+   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Written by John Gilmore of Cygnus Support.
 
@@ -20,8 +20,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "libaout.h"           /* BFD a.out internal data structures */
 
@@ -79,6 +79,7 @@ trad_unix_core_file_p (abfd)
   struct user u;
   struct trad_core_struct *rawptr;
   bfd_size_type amt;
+  flagword flags;
 
 #ifdef TRAD_CORE_USER_OFFSET
   /* If defined, this macro is the file position of the user struct.  */
@@ -113,24 +114,24 @@ trad_unix_core_file_p (abfd)
     if (bfd_stat (abfd, &statbuf) < 0)
       return 0;
 
-    if ((unsigned long) (NBPG * (UPAGES + u.u_dsize
+    if ((ufile_ptr) NBPG * (UPAGES + u.u_dsize
 #ifdef TRAD_CORE_DSIZE_INCLUDES_TSIZE
-				 - u.u_tsize
+			    - u.u_tsize
 #endif
-				 + u.u_ssize))
-	> (unsigned long) statbuf.st_size)
+			    + u.u_ssize)
+	> (ufile_ptr) statbuf.st_size)
       {
 	bfd_set_error (bfd_error_wrong_format);
 	return 0;
       }
 #ifndef TRAD_CORE_ALLOW_ANY_EXTRA_SIZE
-    if ((unsigned long) (NBPG * (UPAGES + u.u_dsize + u.u_ssize)
+    if (((ufile_ptr) NBPG * (UPAGES + u.u_dsize + u.u_ssize)
 #ifdef TRAD_CORE_EXTRA_SIZE_ALLOWED
 	/* Some systems write the file too big.  */
-			 + TRAD_CORE_EXTRA_SIZE_ALLOWED
+	 + TRAD_CORE_EXTRA_SIZE_ALLOWED
 #endif
-			 )
-	< (unsigned long) statbuf.st_size)
+	 )
+	< (ufile_ptr) statbuf.st_size)
       {
 	/* The file is too big.  Maybe it's not a core file
 	   or we otherwise have bad values for u_dsize and u_ssize).  */
@@ -155,19 +156,19 @@ trad_unix_core_file_p (abfd)
 
   /* Create the sections.  */
 
-  core_stacksec(abfd) = bfd_make_section_anyway (abfd, ".stack");
+  flags = SEC_ALLOC + SEC_LOAD + SEC_HAS_CONTENTS;
+  core_stacksec(abfd) = bfd_make_section_anyway_with_flags (abfd, ".stack",
+							    flags);
   if (core_stacksec (abfd) == NULL)
     goto fail;
-  core_datasec (abfd) = bfd_make_section_anyway (abfd, ".data");
+  core_datasec (abfd) = bfd_make_section_anyway_with_flags (abfd, ".data",
+							    flags);
   if (core_datasec (abfd) == NULL)
     goto fail;
-  core_regsec (abfd) = bfd_make_section_anyway (abfd, ".reg");
+  core_regsec (abfd) = bfd_make_section_anyway_with_flags (abfd, ".reg",
+							   SEC_HAS_CONTENTS);
   if (core_regsec (abfd) == NULL)
     goto fail;
-
-  core_stacksec (abfd)->flags = SEC_ALLOC + SEC_LOAD + SEC_HAS_CONTENTS;
-  core_datasec (abfd)->flags = SEC_ALLOC + SEC_LOAD + SEC_HAS_CONTENTS;
-  core_regsec (abfd)->flags = SEC_HAS_CONTENTS;
 
   core_datasec (abfd)->size =  NBPG * u.u_dsize
 #ifdef TRAD_CORE_DSIZE_INCLUDES_TSIZE

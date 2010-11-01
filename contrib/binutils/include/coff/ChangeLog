@@ -1,3 +1,41 @@
+2007-04-27  Alan Modra  <amodra@bigpond.net.au>
+
+	* rs6000.h: Write Mimi's name in ASCII.
+
+2007-03-19  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* internal.h (internal_extra_pe_aouthdr): Add Magic,
+	MajorLinkerVersion, MinorLinkerVersion, SizeOfCode,
+	SizeOfInitializedData, SizeOfUninitializedData,
+	AddressOfEntryPoint, BaseOfCode and BaseOfData.
+
+2006-12-05  Michael Tautschnig  <tautschn@model.in.tum.de>
+	    Nick Clifton  <nickc@redhat.com>
+
+	* external.h (struct external_aouthdr): Add ATTRIBUTE_PACKED.
+	(struct external_syment): Likewise.
+	(union external_auxent): Likewise.
+
+2006-11-14  Phil Lello  <phil.lello@homecall.co.uk>
+
+	* pe.h: Added defines for IMAGE_SUBSYSTEM_EFI_ROM and
+	IMAGE_SUBSYSTEM_XBOX.
+	* internal.h: Added defines for PE directory entry types.
+	NB: in internal.h because IMAGE_NUMBEROF_DIRECTORY_ENTRYIES is in
+	pe.h
+
+2006-09-20  Kai Tietz  <Kai.Tietz@onevision.com>
+
+	* external.h: Add proper external_aouthdr64 structure (without
+	data_start member).
+	(AOUTHDRSZ64): Set according structure size.
+	(AOUTHDR64): As typedef of external_aouthdr64 structure.
+	* internal.h: Add relocation identifiers for coff.
+	* pe.h:	Add define IMAGE_FILE_MACHINE_AMD64 the coff signature.
+	(PEPAOUTHDR): Adjust structure to have proper size (using AOUTHDR64).
+	(PEPAOUTSZ): Calculated size of 240.
+	* x86_64.h: Coff information for x86_64 (AMD64).
+
 2006-02-05  Arnold Metselaar  <arnold.metselaar@planet.nl>
 
 	* internal.h: Add relocation number R_IMM24 for Z80.

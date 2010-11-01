@@ -1,5 +1,5 @@
 /* coffgrok.c
-   Copyright 1994, 1995, 1997, 1998, 2000, 2001, 2002, 2003, 2004
+   Copyright 1994, 1995, 1997, 1998, 2000, 2001, 2002, 2003, 2004, 2007
    Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
@@ -26,13 +26,15 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
 
 */
 
+#include "sysdep.h"
 #include "bfd.h"
 #include "libiberty.h"
-#include "bucomm.h"
 
 #include "coff/internal.h"
 #include "../bfd/libcoff.h"
+#include "bucomm.h"
 #include "coffgrok.h"
+
 static int lofile = 1;
 static struct coff_scope *top_scope;
 static struct coff_scope *file_scope;

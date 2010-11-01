@@ -1,6 +1,6 @@
 /* bfdlink.h -- header file for BFD link routines
    Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004, 2005 Free Software Foundation, Inc.
+   2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
    Written by Steve Chamberlain and Ian Lance Taylor, Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -221,6 +221,8 @@ enum report_method
   RM_GENERATE_ERROR
 };
 
+struct bfd_elf_dynamic_list;
+
 /* This structure holds all the information needed to communicate
    between BFD and the linker when doing a link.  */
 
@@ -324,6 +326,27 @@ struct bfd_link_info
   /* TRUE if unreferenced sections should be removed.  */
   unsigned int gc_sections: 1;
 
+  /* TRUE if user shoudl be informed of removed unreferenced sections.  */
+  unsigned int print_gc_sections: 1;
+
+  /* TRUE if .hash section should be created.  */
+  unsigned int emit_hash: 1;
+
+  /* TRUE if .gnu.hash section should be created.  */
+  unsigned int emit_gnu_hash: 1;
+
+  /* If TRUE reduce memory overheads, at the expense of speed. This will
+     cause map file generation to use an O(N^2) algorithm and disable
+     caching ELF symbol buffer.  */
+  unsigned int reduce_memory_overheads: 1;
+
+  /* TRUE if all data symbols should be dynamic.  */
+   unsigned int dynamic_data: 1;
+
+  /* TRUE if some symbols have to be dynamic, controlled by
+     --dynamic-list command line options.  */
+  unsigned int dynamic: 1;
+
   /* What to do with unresolved symbols in an object file.
      When producing executables the default is GENERATE_ERROR.
      When producing shared libraries the default is IGNORE.  The
@@ -372,6 +395,7 @@ struct bfd_link_info
   /* The list of input BFD's involved in the link.  These are chained
      together via the link_next field.  */
   bfd *input_bfds;
+  bfd **input_bfds_tail;
 
   /* If a symbol should be created for each input BFD, this is section
      where those symbols should be placed.  It must be a section in
@@ -401,6 +425,11 @@ struct bfd_link_info
      current pass, starting from 0.  */
   int relax_pass;
 
+  /* Number of relaxation trips.  This number is incremented every
+     time the relaxation pass is restarted due to a previous
+     relaxation returning true in *AGAIN.  */
+  int relax_trip;
+
   /* Non-zero if auto-import thunks for DATA items in pei386 DLLs
      should be generated/linked against.  Set to 1 if this feature
      is explicitly requested by the user, -1 if enabled by default.  */
@@ -422,10 +451,13 @@ struct bfd_link_info
 
   /* Start and end of RELRO region.  */
   bfd_vma relro_start, relro_end;
+
+  /* List of symbols should be dynamic.  */
+  struct bfd_elf_dynamic_list *dynamic_list;
 };
 
-/* This structures holds a set of callback functions.  These are
-   called by the BFD linker routines.  Except for einfo, the first
+/* This structures holds a set of callback functions.  These are called
+   by the BFD linker routines.  Except for the info functions, the first
    argument to each callback function is the bfd_link_info structure
    being used and each function returns a boolean value.  If the
    function returns FALSE, then the BFD function which called it should
@@ -537,9 +569,22 @@ struct bfd_link_callbacks
   bfd_boolean (*notice)
     (struct bfd_link_info *, const char *name,
      bfd *abfd, asection *section, bfd_vma address);
-  /* General link info message.  */
+  /* Error or warning link info message.  */
   void (*einfo)
     (const char *fmt, ...);
+  /* General link info message.  */
+  void (*info)
+    (const char *fmt, ...);
+  /* Message to be printed in linker map file.  */
+  void (*minfo)
+    (const char *fmt, ...);
+  /* This callback provides a chance for users of the BFD library to
+     override its decision about whether to place two adjacent sections
+     into the same segment.  */
+  bfd_boolean (*override_segment_assignment)
+    (struct bfd_link_info *, bfd * abfd,
+     asection * current_section, asection * previous_section,
+     bfd_boolean new_segment);
 };
 
 /* The linker builds link_order structures which tell the code how to
@@ -710,6 +755,14 @@ struct bfd_elf_version_tree
   /* Whether this version tree was used.  This is used within BFD.  */
   int used;
   /* Matching hook.  */
+  struct bfd_elf_version_expr *(*match)
+    (struct bfd_elf_version_expr_head *head,
+     struct bfd_elf_version_expr *prev, const char *sym);
+};
+
+struct bfd_elf_dynamic_list
+{
+  struct bfd_elf_version_expr_head head;
   struct bfd_elf_version_expr *(*match)
     (struct bfd_elf_version_expr_head *head,
      struct bfd_elf_version_expr *prev, const char *sym);

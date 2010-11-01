@@ -1,6 +1,6 @@
 /* srconv.c -- Sysroff conversion program
    Copyright 1994, 1995, 1996, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-   2005 Free Software Foundation, Inc.
+   2005, 2007 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -26,6 +26,7 @@
 
    All debugging information is preserved */
 
+#include "sysdep.h"
 #include "bfd.h"
 #include "bucomm.h"
 #include "sysroff.h"
@@ -704,6 +705,7 @@ walk_tree_type_1 (struct coff_sfile *sfile, struct coff_symbol *symbol,
       {
 	struct IT_dpt dpt;
 
+	dpt.dunno = 0;
 	walk_tree_type_1 (sfile, symbol, type->u.pointer.points_to, nest + 1);
 	dpt.neg = 0x1001;
 	sysroff_swap_dpt_out (file, &dpt);
@@ -1728,7 +1730,7 @@ show_usage (FILE *file, int status)
   -h --help        Display this information\n\
   -v --version     Print the program's version number\n"));
 
-  if (status == 0)
+  if (REPORT_BUGS_TO[0] && status == 0)
     fprintf (file, _("Report bugs to %s\n"), REPORT_BUGS_TO);
   exit (status);
 }

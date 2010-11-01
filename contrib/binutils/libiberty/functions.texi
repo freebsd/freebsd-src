@@ -153,7 +153,7 @@ find one.  The current directory is chosen if all else fails so the
 program is exited if a temporary directory can't be found (@code{mktemp}
 fails).  The buffer for the result is obtained with @code{xmalloc}.
 
-This function is provided for backwards compatability only.  Its use is
+This function is provided for backwards compatibility only.  Its use is
 not recommended.
 
 @end deftypefn
@@ -265,6 +265,22 @@ unchanged.
 Find the first (least significant) bit set in @var{valu}.  Bits are
 numbered from right to left, starting with bit 1 (corresponding to the
 value 1).  If @var{valu} is zero, zero is returned.
+
+@end deftypefn
+
+@c filename_cmp.c:28
+@deftypefn Extension int filename_cmp (const char *@var{s1}, const char *@var{s2})
+
+Return zero if the two paths @var{s1} and @var{s2} are equivalent.
+If not equivalent, the returned value is similar to what strcmp would
+return.  In other words, it returns a negative value if @var{s1} is less
+than @var{s2}, or a positive value if @var{s2} is greater than @var{s2}.
+
+This function does not normalize path names. As a result, this function
+will treat filenames that are spelled differently as different even in
+the case when the two filenames point to the same underlying file.
+However, it does handle the fact that on DOS-like file systems, forward
+and backward slashes are equal.
 
 @end deftypefn
 
@@ -420,7 +436,7 @@ or zero if it is not.  Note that the value you pass will be cast to
 @deftypefn Extension {unsigned int} hex_value (int @var{c})
 
 Returns the numeric equivalent of the given character when interpreted
-as a hexidecimal digit.  The result is undefined if you pass an
+as a hexadecimal digit.  The result is undefined if you pass an
 invalid hex digit.  Note that the value you pass will be cast to
 @code{unsigned char} within the macro.
 
@@ -650,7 +666,7 @@ Sets the first @var{count} bytes of @var{s} to the constant byte
 
 @end deftypefn
 
-@c mkstemps.c:54
+@c mkstemps.c:58
 @deftypefn Replacement int mkstemps (char *@var{pattern}, int @var{suffix_len})
 
 Generate a unique temporary file name from @var{pattern}.
@@ -668,14 +684,14 @@ reading and writing.
 
 @end deftypefn
 
-@c pexecute.txh:231
+@c pexecute.txh:266
 @deftypefn Extension void pex_free (struct pex_obj @var{obj})
 
 Clean up and free all data associated with @var{obj}.
 
 @end deftypefn
 
-@c pexecute.txh:206
+@c pexecute.txh:241
 @deftypefn Extension int pex_get_status (struct pex_obj *@var{obj}, int @var{count}, int *@var{vector})
 
 Returns the exit status of all programs run using @var{obj}.
@@ -685,7 +701,7 @@ to @code{pex_run}.  Returns 0 on error, 1 on success.
 
 @end deftypefn
 
-@c pexecute.txh:215
+@c pexecute.txh:250
 @deftypefn Extension int pex_get_times (struct pex_obj *@var{obj}, int @var{count}, struct pex_time *@var{vector})
 
 Returns the process execution times of all programs run using
@@ -734,7 +750,7 @@ temporary files; it may be @code{NULL} to use a randomly chosen name.
 
 @end deftypefn
 
-@c pexecute.txh:133
+@c pexecute.txh:155
 @deftypefn Extension {FILE *} pex_input_file (struct pex_obj *@var{obj}, int @var{flags}, const char *@var{in_name})
 
 Return a stream for a temporary file to pass to the first program in
@@ -752,7 +768,7 @@ binary mode; otherwise, open it in the default mode.  Including
 @code{PEX_BINARY_OUTPUT} in @var{flags} has no effect on Unix.
 @end deftypefn
 
-@c pexecute.txh:150
+@c pexecute.txh:172
 @deftypefn Extension {FILE *} pex_input_pipe (struct pex_obj *@var{obj}, int @var{binary})
 
 Return a stream @var{fp} for a pipe connected to the standard input of
@@ -797,7 +813,7 @@ the output pipe is you, but you are blocked on the input pipe.
 
 @end deftypefn
 
-@c pexecute.txh:237
+@c pexecute.txh:272
 @deftypefn Extension {const char *} pex_one (int @var{flags}, const char *@var{executable}, char * const *@var{argv}, const char *@var{pname}, const char *@var{outname}, const char *@var{errname}, int *@var{status}, int *@var{err})
 
 An interface to permit the easy execution of a
@@ -810,7 +826,20 @@ be set to the exit status of the program.
 
 @end deftypefn
 
-@c pexecute.txh:194
+@c pexecute.txh:228
+@deftypefn Extension {FILE *} pex_read_err (struct pex_obj *@var{obj}, int @var{binary})
+
+Returns a @code{FILE} pointer which may be used to read the standard
+error of the last program in the pipeline.  When this is used,
+@code{PEX_LAST} should not be used in a call to @code{pex_run}.  After
+this is called, @code{pex_run} may no longer be called with the same
+@var{obj}.  @var{binary} should be non-zero if the file should be
+opened in binary mode.  Don't call @code{fclose} on the returned file;
+it will be closed by @code{pex_free}.
+
+@end deftypefn
+
+@c pexecute.txh:216
 @deftypefn Extension {FILE *} pex_read_output (struct pex_obj *@var{obj}, int @var{binary})
 
 Returns a @code{FILE} pointer which may be used to read the standard
@@ -861,14 +890,23 @@ Send the program's standard error to standard output, if possible.
 
 @vindex PEX_BINARY_INPUT
 @vindex PEX_BINARY_OUTPUT
+@vindex PEX_BINARY_ERROR
 @item PEX_BINARY_INPUT
 @itemx PEX_BINARY_OUTPUT
-The standard input (output) of the program should be read (written) in
+@itemx PEX_BINARY_ERROR
+The standard input (output or error) of the program should be read (written) in
 binary mode rather than text mode.  These flags are ignored on systems
 which do not distinguish binary mode and text mode, such as Unix.  For
 proper behavior these flags should match appropriately---a call to
 @code{pex_run} using @code{PEX_BINARY_OUTPUT} should be followed by a
 call using @code{PEX_BINARY_INPUT}.
+
+@vindex PEX_STDERR_TO_PIPE
+@item PEX_STDERR_TO_PIPE
+Send the program's standard error to a pipe, if possible.  This flag
+cannot be specified together with @code{PEX_STDERR_TO_STDOUT}.  This
+flag can be specified only on the last program in pipeline.
+
 @end table
 
 @var{executable} is the program to execute.  @var{argv} is the set of
@@ -924,8 +962,22 @@ value, or to 0 if there is no relevant @code{errno}.
 
 @end deftypefn
 
-@c pexecute.txh:249
-@deftypefn Extension int pexecute (const char *@var{program}, char * const *@var{argv}, const char *@var{this_pname}, const char *@var{temp_base}, char **@var{errmsg_fmt}, char **@var{errmsg_arg}, int flags)
+@c pexecute.txh:142
+@deftypefn Extension {const char *} pex_run_in_environment (struct pex_obj *@var{obj}, int @var{flags}, const char *@var{executable}, char * const *@var{argv}, char * const *@var{env}, int @var{env_size}, const char *@var{outname}, const char *@var{errname}, int *@var{err})
+
+Execute one program in a pipeline, permitting the environment for the
+program to be specified.  Behaviour and parameters not listed below are
+as for @code{pex_run}.
+
+@var{env} is the environment for the child process, specified as an array of
+character pointers.  Each element of the array should point to a string of the
+form @code{VAR=VALUE}, with the exception of the last element that must be
+@code{NULL}.
+
+@end deftypefn
+
+@c pexecute.txh:284
+@deftypefn Extension int pexecute (const char *@var{program}, char * const *@var{argv}, const char *@var{this_pname}, const char *@var{temp_base}, char **@var{errmsg_fmt}, char **@var{errmsg_arg}, int @var{flags})
 
 This is the old interface to execute one or more programs.  It is
 still supported for compatibility purposes, but is no longer
@@ -934,7 +986,7 @@ documented.
 @end deftypefn
 
 @c strsignal.c:539
-@deftypefn Supplemental void psignal (unsigned @var{signo}, char *@var{message})
+@deftypefn Supplemental void psignal (int @var{signo}, char *@var{message})
 
 Print @var{message} to the standard error, followed by a colon,
 followed by the description of the signal specified by @var{signo},
@@ -952,7 +1004,7 @@ name is unset/removed.
 
 @end deftypefn
 
-@c pexecute.txh:257
+@c pexecute.txh:292
 @deftypefn Extension int pwait (int @var{pid}, int *@var{status}, int @var{flags})
 
 Another part of the old execution interface.

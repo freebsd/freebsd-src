@@ -352,7 +352,7 @@ extern bfd_boolean coff_find_nearest_line
 extern bfd_boolean coff_find_inliner_info
   (bfd *, const char **, const char **, unsigned int *);
 extern int coff_sizeof_headers
-  (bfd *, bfd_boolean);
+  (bfd *, struct bfd_link_info *);
 extern bfd_boolean bfd_coff_reloc16_relax_section
   (bfd *, asection *, struct bfd_link_info *, bfd_boolean *);
 extern bfd_byte *bfd_coff_reloc16_get_relocated_section_contents

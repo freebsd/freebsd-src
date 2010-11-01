@@ -1,5 +1,5 @@
 /* SEC_MERGE support.
-   Copyright 2001, 2002, 2003, 2004, 2005, 2006
+   Copyright 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Written by Jakub Jelinek <jakub@redhat.com>.
 
@@ -22,8 +22,8 @@
 /* This file contains support for merging duplicate entities within sections,
    as used in ELF SHF_MERGE.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "hashtab.h"
 #include "libiberty.h"
@@ -766,7 +766,7 @@ _bfd_merge_sections (bfd *abfd ATTRIBUTE_UNUSED,
 	   the hash table at all.  */
 	for (secinfo = sinfo->chain; secinfo; secinfo = secinfo->next)
 	  if (secinfo->first_str == NULL)
-	    secinfo->sec->flags |= SEC_EXCLUDE;
+	    secinfo->sec->flags |= SEC_EXCLUDE | SEC_KEEP;
     }
 
   return TRUE;

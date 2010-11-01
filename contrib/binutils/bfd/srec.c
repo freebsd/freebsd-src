@@ -1,6 +1,6 @@
 /* BFD back-end for s-record objects.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005
+   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support <sac@cygnus.com>.
 
@@ -101,8 +101,8 @@
 	We allow symbols to be anywhere in the data stream - the module names
 	are always ignored.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "libiberty.h"
 #include "safe-ctype.h"
@@ -526,15 +526,16 @@ srec_scan (bfd *abfd)
 		    char secbuf[20];
 		    char *secname;
 		    bfd_size_type amt;
+		    flagword flags;
 
 		    sprintf (secbuf, ".sec%d", bfd_count_sections (abfd) + 1);
 		    amt = strlen (secbuf) + 1;
 		    secname = bfd_alloc (abfd, amt);
 		    strcpy (secname, secbuf);
-		    sec = bfd_make_section (abfd, secname);
+		    flags = SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC;
+		    sec = bfd_make_section_with_flags (abfd, secname, flags);
 		    if (sec == NULL)
 		      goto error_return;
-		    sec->flags = SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC;
 		    sec->vma = address;
 		    sec->lma = address;
 		    sec->size = bytes;
@@ -1099,7 +1100,7 @@ symbolsrec_write_object_contents (bfd *abfd)
 
 static int
 srec_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
-		     bfd_boolean exec ATTRIBUTE_UNUSED)
+		     struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
   return 0;
 }
@@ -1193,9 +1194,6 @@ srec_print_symbol (bfd *abfd,
 #define srec_bfd_make_debug_symbol                _bfd_nosymbols_bfd_make_debug_symbol
 #define srec_read_minisymbols                     _bfd_generic_read_minisymbols
 #define srec_minisymbol_to_symbol                 _bfd_generic_minisymbol_to_symbol
-#define srec_get_reloc_upper_bound                ((long (*) (bfd *, asection *)) bfd_0l)
-#define srec_canonicalize_reloc                   ((long (*) (bfd *, asection *, arelent **, asymbol **)) bfd_0l)
-#define srec_bfd_reloc_type_lookup                _bfd_norelocs_bfd_reloc_type_lookup
 #define srec_get_section_contents_in_window       _bfd_generic_get_section_contents_in_window
 #define srec_bfd_get_relocated_section_contents   bfd_generic_get_relocated_section_contents
 #define srec_bfd_relax_section                    bfd_generic_relax_section
@@ -1256,7 +1254,7 @@ const bfd_target srec_vec =
   BFD_JUMP_TABLE_CORE (_bfd_nocore),
   BFD_JUMP_TABLE_ARCHIVE (_bfd_noarchive),
   BFD_JUMP_TABLE_SYMBOLS (srec),
-  BFD_JUMP_TABLE_RELOCS (srec),
+  BFD_JUMP_TABLE_RELOCS (_bfd_norelocs),
   BFD_JUMP_TABLE_WRITE (srec),
   BFD_JUMP_TABLE_LINK (srec),
   BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),
@@ -1311,7 +1309,7 @@ const bfd_target symbolsrec_vec =
   BFD_JUMP_TABLE_CORE (_bfd_nocore),
   BFD_JUMP_TABLE_ARCHIVE (_bfd_noarchive),
   BFD_JUMP_TABLE_SYMBOLS (srec),
-  BFD_JUMP_TABLE_RELOCS (srec),
+  BFD_JUMP_TABLE_RELOCS (_bfd_norelocs),
   BFD_JUMP_TABLE_WRITE (srec),
   BFD_JUMP_TABLE_LINK (srec),
   BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),

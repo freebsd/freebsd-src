@@ -1,5 +1,5 @@
 /* sb.c - string buffer manipulation routines
-   Copyright 1994, 1995, 2000, 2003 Free Software Foundation, Inc.
+   Copyright 1994, 1995, 2000, 2003, 2006 Free Software Foundation, Inc.
 
    Written by Steve and Judy Chamberlain of Cygnus Support,
       sac@cygnus.com
@@ -21,19 +21,8 @@
    Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
    02110-1301, USA.  */
 
-#include "config.h"
-#include <stdio.h>
-#ifdef HAVE_STDLIB_H
-#include <stdlib.h>
-#endif
-#ifdef HAVE_STRING_H
-#include <string.h>
-#else
-#include <strings.h>
-#endif
-#include "libiberty.h"
-#include "sb.h"
 #include "as.h"
+#include "sb.h"
 
 /* These routines are about manipulating strings.
 
@@ -56,7 +45,10 @@ static void sb_check (sb *, int);
 static int string_count[sb_max_power_two];
 
 /* Free list of sb structures.  */
-static sb_list_vector free_list;
+static struct
+{
+  sb_element *size[sb_max_power_two];
+} free_list;
 
 /* Initializes an sb.  */
 
@@ -66,8 +58,7 @@ sb_build (sb *ptr, int size)
   /* See if we can find one to allocate.  */
   sb_element *e;
 
-  if (size > sb_max_power_two)
-    abort ();
+  assert (size < sb_max_power_two);
 
   e = free_list.size[size];
   if (!e)

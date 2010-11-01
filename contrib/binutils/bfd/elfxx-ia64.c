@@ -1,5 +1,5 @@
 /* IA-64 support for 64-bit ELF
-   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
+   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
@@ -19,8 +19,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
 #include "opcode/ia64.h"
@@ -215,10 +215,6 @@ static bfd_boolean elfNN_ia64_add_symbol_hook
   PARAMS ((bfd *abfd, struct bfd_link_info *info, Elf_Internal_Sym *sym,
 	   const char **namep, flagword *flagsp, asection **secp,
 	   bfd_vma *valp));
-static int elfNN_ia64_additional_program_headers
-  PARAMS ((bfd *abfd));
-static bfd_boolean elfNN_ia64_modify_segment_map
-  PARAMS ((bfd *, struct bfd_link_info *));
 static bfd_boolean elfNN_ia64_is_local_label_name
   PARAMS ((bfd *abfd, const char *name));
 static bfd_boolean elfNN_ia64_dynamic_symbol_p
@@ -615,6 +611,22 @@ elfNN_ia64_reloc_type_lookup (abfd, bfd_code)
     default: return 0;
     }
   return lookup_howto (rtype);
+}
+
+static reloc_howto_type *
+elfNN_ia64_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+			      const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (ia64_howto_table) / sizeof (ia64_howto_table[0]);
+       i++)
+    if (ia64_howto_table[i].name != NULL
+	&& strcasecmp (ia64_howto_table[i].name, r_name) == 0)
+      return &ia64_howto_table[i];
+
+  return NULL;
 }
 
 /* Given a ELF reloc, return the matching HOWTO structure.  */
@@ -1428,22 +1440,15 @@ elfNN_ia64_relax_ldxmov (contents, off)
 /* Return TRUE if NAME is an unwind table section name.  */
 
 static inline bfd_boolean
-is_unwind_section_name (abfd, name)
-	bfd *abfd;
-	const char *name;
+is_unwind_section_name (bfd *abfd, const char *name)
 {
-  size_t len1, len2, len3;
-
   if (elfNN_ia64_hpux_vec (abfd->xvec)
       && !strcmp (name, ELF_STRING_ia64_unwind_hdr))
     return FALSE;
 
-  len1 = sizeof (ELF_STRING_ia64_unwind) - 1;
-  len2 = sizeof (ELF_STRING_ia64_unwind_info) - 1;
-  len3 = sizeof (ELF_STRING_ia64_unwind_once) - 1;
-  return ((strncmp (name, ELF_STRING_ia64_unwind, len1) == 0
-	   && strncmp (name, ELF_STRING_ia64_unwind_info, len2) != 0)
-	  || strncmp (name, ELF_STRING_ia64_unwind_once, len3) == 0);
+  return ((CONST_STRNEQ (name, ELF_STRING_ia64_unwind)
+	   && ! CONST_STRNEQ (name, ELF_STRING_ia64_unwind_info))
+	  || CONST_STRNEQ (name, ELF_STRING_ia64_unwind_once));
 }
 
 /* Handle an IA-64 specific section when reading an object file.  This
@@ -1637,8 +1642,8 @@ elfNN_ia64_add_symbol_hook (abfd, info, sym, namep, flagsp, secp, valp)
 /* Return the number of additional phdrs we will need.  */
 
 static int
-elfNN_ia64_additional_program_headers (abfd)
-     bfd *abfd;
+elfNN_ia64_additional_program_headers (bfd *abfd,
+				       struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
   asection *s;
   int ret = 0;
@@ -1657,9 +1662,8 @@ elfNN_ia64_additional_program_headers (abfd)
 }
 
 static bfd_boolean
-elfNN_ia64_modify_segment_map (abfd, info)
-     bfd *abfd;
-     struct bfd_link_info *info ATTRIBUTE_UNUSED;
+elfNN_ia64_modify_segment_map (bfd *abfd,
+			       struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
   struct elf_segment_map *m, **pm;
   Elf_Internal_Shdr *hdr;
@@ -1742,17 +1746,30 @@ elfNN_ia64_modify_segment_map (abfd, info)
 	}
     }
 
-  /* Turn on PF_IA_64_NORECOV if needed.  This involves traversing all of
-     the input sections for each output section in the segment and testing
-     for SHF_IA_64_NORECOV on each.  */
-  for (m = elf_tdata (abfd)->segment_map; m != NULL; m = m->next)
+  return TRUE;
+}
+
+/* Turn on PF_IA_64_NORECOV if needed.  This involves traversing all of
+   the input sections for each output section in the segment and testing
+   for SHF_IA_64_NORECOV on each.  */
+
+static bfd_boolean
+elfNN_ia64_modify_program_headers (bfd *abfd,
+				   struct bfd_link_info *info ATTRIBUTE_UNUSED)
+{
+  struct elf_obj_tdata *tdata = elf_tdata (abfd);
+  struct elf_segment_map *m;
+  Elf_Internal_Phdr *p;
+
+  for (p = tdata->phdr, m = tdata->segment_map; m != NULL; m = m->next, p++)
     if (m->p_type == PT_LOAD)
       {
 	int i;
 	for (i = m->count - 1; i >= 0; --i)
 	  {
 	    struct bfd_link_order *order = m->sections[i]->map_head.link_order;
-	    while (order)
+
+	    while (order != NULL)
 	      {
 		if (order->type == bfd_indirect_link_order)
 		  {
@@ -1760,7 +1777,7 @@ elfNN_ia64_modify_segment_map (abfd, info)
 		    bfd_vma flags = elf_section_data(is)->this_hdr.sh_flags;
 		    if (flags & SHF_IA_64_NORECOV)
 		      {
-			m->p_flags |= PF_IA_64_NORECOV;
+			p->p_flags |= PF_IA_64_NORECOV;
 			goto found;
 		      }
 		  }
@@ -2208,7 +2225,7 @@ addend_compare (const void *xp, const void *yp)
   const struct elfNN_ia64_dyn_sym_info *y
     = (const struct elfNN_ia64_dyn_sym_info *) yp;
 
-  return x->addend - y->addend;
+  return x->addend < y->addend ? -1 : x->addend > y->addend ? 1 : 0;
 }
 
 /* Sort elfNN_ia64_dyn_sym_info array and remove duplicates.  */
@@ -2217,37 +2234,62 @@ static unsigned int
 sort_dyn_sym_info (struct elfNN_ia64_dyn_sym_info *info,
 		   unsigned int count)
 {
-  bfd_vma curr, prev;
-  unsigned int i, dup, diff, dest, src, len;
+  bfd_vma curr, prev, got_offset;
+  unsigned int i, kept, dup, diff, dest, src, len;
 
   qsort (info, count, sizeof (*info), addend_compare);
 
   /* Find the first duplicate.  */
   prev = info [0].addend;
+  got_offset = info [0].got_offset;
   for (i = 1; i < count; i++)
     {
       curr = info [i].addend;
       if (curr == prev)
-	break;
+	{
+	  /* For duplicates, make sure that GOT_OFFSET is valid.  */
+	  if (got_offset == (bfd_vma) -1)
+	    got_offset = info [i].got_offset;
+	  break;
+	}
+      got_offset = info [i].got_offset;
       prev = curr;
     }
+
+  /* We may move a block of elements to here.  */
+  dest = i++;
 
   /* Remove duplicates.  */
   if (i < count)
     {
-      /* We need to move a block of elements to here.  */
-      dest = i++;
       while (i < count)
 	{
+	  /* For duplicates, make sure that the kept one has a valid
+	     got_offset.  */
+	  kept = dest - 1;
+	  if (got_offset != (bfd_vma) -1)
+	    info [kept].got_offset = got_offset;
+
 	  curr = info [i].addend;
+	  got_offset = info [i].got_offset;
 
 	  /* Move a block of elements whose first one is different from
 	     the previous.  */
 	  if (curr == prev)
 	    {
 	      for (src = i + 1; src < count; src++)
-		if (info [src].addend != curr)
-		  break;
+		{
+		  if (info [src].addend != curr)
+		    break;
+		  /* For duplicates, make sure that GOT_OFFSET is
+		     valid.  */
+		  if (got_offset == (bfd_vma) -1)
+		    got_offset = info [src].got_offset;
+		}
+
+	      /* Make sure that the kept one has a valid got_offset.  */
+	      if (got_offset != (bfd_vma) -1)
+		info [kept].got_offset = got_offset;
 	    }
 	  else
 	    src = i;
@@ -2255,13 +2297,25 @@ sort_dyn_sym_info (struct elfNN_ia64_dyn_sym_info *info,
 	  if (src >= count)
 	    break;
 
-	  /* Find the next duplicate.  */
+	  /* Find the next duplicate.  SRC will be kept.  */
 	  prev = info [src].addend;
+	  got_offset = info [src].got_offset;
 	  for (dup = src + 1; dup < count; dup++)
 	    {
 	      curr = info [dup].addend;
 	      if (curr == prev)
-		break;
+		{
+		  /* Make sure that got_offset is valid.  */
+		  if (got_offset == (bfd_vma) -1)
+		    got_offset = info [dup].got_offset;
+
+		  /* For duplicates, make sure that the kept one has
+		     a valid got_offset.  */
+		  if (got_offset != (bfd_vma) -1)
+		    info [dup - 1].got_offset = got_offset;
+		  break;
+		}
+	      got_offset = info [dup].got_offset;
 	      prev = curr;
 	    }
 
@@ -2272,20 +2326,41 @@ sort_dyn_sym_info (struct elfNN_ia64_dyn_sym_info *info,
 	  if (len == 1 && dup < count)
 	    {
 	      /* If we only move 1 element, we combine it with the next
-		 one.  Find the next different one.  */
+		 one.  There must be at least a duplicate.  Find the
+		 next different one.  */
 	      for (diff = dup + 1, src++; diff < count; diff++, src++)
-		if (info [diff].addend != curr)
-		  break;
+		{
+		  if (info [diff].addend != curr)
+		    break;
+		  /* Make sure that got_offset is valid.  */
+		  if (got_offset == (bfd_vma) -1)
+		    got_offset = info [diff].got_offset;
+		}
+
+	      /* Makre sure that the last duplicated one has an valid
+		 offset.  */
+	      BFD_ASSERT (curr == prev);
+	      if (got_offset != (bfd_vma) -1)
+		info [diff - 1].got_offset = got_offset;
 
 	      if (diff < count)
 		{
-		  /* Find the next duplicate.  */
+		  /* Find the next duplicate.  Track the current valid
+		     offset.  */
 		  prev = info [diff].addend;
+		  got_offset = info [diff].got_offset;
 		  for (dup = diff + 1; dup < count; dup++)
 		    {
 		      curr = info [dup].addend;
 		      if (curr == prev)
-			break;
+			{
+			  /* For duplicates, make sure that GOT_OFFSET
+			     is valid.  */
+			  if (got_offset == (bfd_vma) -1)
+			    got_offset = info [dup].got_offset;
+			  break;
+			}
+		      got_offset = info [dup].got_offset;
 		      prev = curr;
 		      diff++;
 		    }
@@ -2301,6 +2376,19 @@ sort_dyn_sym_info (struct elfNN_ia64_dyn_sym_info *info,
 	}
 
       count = dest;
+    }
+  else
+    {
+      /* When we get here, either there is no duplicate at all or
+	 the only duplicate is the last element.  */
+      if (dest < count)
+	{
+	  /* If the last element is a duplicate, make sure that the
+	     kept one has a valid got_offset.  We also update count.  */
+	  if (got_offset != (bfd_vma) -1)
+	    info [dest - 1].got_offset = got_offset;
+	  count = dest;
+	}
     }
 
   return count;
@@ -2424,6 +2512,7 @@ has_space:
       /* Append the new one to the array.  */
       dyn_i = info + count;
       memset (dyn_i, 0, sizeof (*dyn_i));
+      dyn_i->got_offset = (bfd_vma) -1;
       dyn_i->addend = addend;
       
       /* We increment count only since the new ones are unsorted and
@@ -2613,10 +2702,10 @@ get_reloc_section (abfd, ia64_info, sec, create)
   if (srel_name == NULL)
     return NULL;
 
-  BFD_ASSERT ((strncmp (srel_name, ".rela", 5) == 0
+  BFD_ASSERT ((CONST_STRNEQ (srel_name, ".rela")
 	       && strcmp (bfd_get_section_name (abfd, sec),
 			  srel_name+5) == 0)
-	      || (strncmp (srel_name, ".rel", 4) == 0
+	      || (CONST_STRNEQ (srel_name, ".rel")
 		  && strcmp (bfd_get_section_name (abfd, sec),
 			     srel_name+4) == 0));
 
@@ -2733,7 +2822,7 @@ elfNN_ia64_check_relocs (abfd, info, sec, relocs)
 	 have yet been processed.  Do something with what we know, as
 	 this may help reduce memory usage and processing time later.  */
       maybe_dynamic = (h && ((!info->executable
-			      && (!info->symbolic
+			      && (!SYMBOLIC_BIND (info, h)
 				  || info->unresolved_syms_in_shared_libs == RM_IGNORE))
 			     || !h->def_regular
 			     || h->root.type == bfd_link_hash_defweak));
@@ -2905,7 +2994,7 @@ elfNN_ia64_check_relocs (abfd, info, sec, relocs)
 	 have yet been processed.  Do something with what we know, as
 	 this may help reduce memory usage and processing time later.  */
       maybe_dynamic = (h && ((!info->executable
-			      && (!info->symbolic
+			      && (!SYMBOLIC_BIND (info, h)
 				  || info->unresolved_syms_in_shared_libs == RM_IGNORE))
 			     || !h->def_regular
 			     || h->root.type == bfd_link_hash_defweak));
@@ -3694,7 +3783,7 @@ elfNN_ia64_size_dynamic_sections (output_bfd, info)
 
 	  if (strcmp (name, ".got.plt") == 0)
 	    strip = FALSE;
-	  else if (strncmp (name, ".rel", 4) == 0)
+	  else if (CONST_STRNEQ (name, ".rel"))
 	    {
 	      if (!strip)
 		{
@@ -4358,7 +4447,7 @@ elfNN_ia64_choose_gp (abfd, info)
 	continue;
 
       lo = os->vma;
-      hi = os->vma + os->size;
+      hi = os->vma + (os->rawsize ? os->rawsize : os->size);
       if (hi < lo)
 	hi = (bfd_vma) -1;
 
@@ -4556,7 +4645,6 @@ elfNN_ia64_relocate_section (output_bfd, info, input_bfd, input_section,
 
       elf_section_data(input_section->output_section)
 	->this_hdr.sh_flags |= flags;
-      return TRUE;
     }
 
   gp_val = _bfd_get_gp_value (output_bfd);
@@ -4605,7 +4693,8 @@ elfNN_ia64_relocate_section (output_bfd, info, input_bfd, input_section,
 	  sym_sec = local_sections[r_symndx];
 	  msec = sym_sec;
 	  value = _bfd_elf_rela_local_sym (output_bfd, sym, &msec, rel);
-	  if ((sym_sec->flags & SEC_MERGE)
+	  if (!info->relocatable
+	      && (sym_sec->flags & SEC_MERGE) != 0
 	      && ELF_ST_TYPE (sym->st_info) == STT_SECTION
 	      && sym_sec->sec_info_type == ELF_INFO_TYPE_MERGE)
  	    {
@@ -4634,9 +4723,15 @@ elfNN_ia64_relocate_section (output_bfd, info, input_bfd, input_section,
 					- sym_sec->output_section->vma
 					- sym_sec->output_offset;
 		    }
-		  
-		  qsort (loc_h->info, loc_h->count,
-			 sizeof (*loc_h->info), addend_compare);
+
+		  /* We may have introduced duplicated entries. We need
+		     to remove them properly.  */
+		  count = sort_dyn_sym_info (loc_h->info, loc_h->count);
+		  if (count != loc_h->count)
+		    {
+		      loc_h->count = count;
+		      loc_h->sorted_count = count;
+		    }
 
 		  loc_h->sec_merge_done = 1;
 		}
@@ -4658,6 +4753,20 @@ elfNN_ia64_relocate_section (output_bfd, info, input_bfd, input_section,
 	  else if (warned)
 	    continue;
 	}
+
+      /* For relocs against symbols from removed linkonce sections,
+	 or sections discarded by a linker script, we just want the
+	 section contents zeroed.  Avoid any special processing.  */
+      if (sym_sec != NULL && elf_discarded_section (sym_sec))
+	{
+	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
+	  rel->r_info = 0;
+	  rel->r_addend = 0;
+	  continue;
+	}
+
+      if (info->relocatable)
+	continue;
 
       hit_addr = contents + rel->r_offset;
       value += rel->r_addend;
@@ -4990,13 +5099,6 @@ elfNN_ia64_relocate_section (output_bfd, info, input_bfd, input_section,
 	case R_IA64_SEGREL32LSB:
 	case R_IA64_SEGREL64MSB:
 	case R_IA64_SEGREL64LSB:
-	  if (r_symndx == 0)
-	    {
-	      /* If the input section was discarded from the output, then
-		 do nothing.  */
-	      r = bfd_reloc_ok;
-	    }
-	  else
 	    {
 	      struct elf_segment_map *m;
 	      Elf_Internal_Phdr *p;
@@ -5561,9 +5663,9 @@ elfNN_ia64_reloc_type_class (rela)
 
 static const struct bfd_elf_special_section elfNN_ia64_special_sections[] =
 {
-  { ".sbss",  5, -1, SHT_NOBITS,   SHF_ALLOC + SHF_WRITE + SHF_IA_64_SHORT },
-  { ".sdata", 6, -1, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE + SHF_IA_64_SHORT },
-  { NULL,        0, 0, 0,            0 }
+  { STRING_COMMA_LEN (".sbss"),  -1, SHT_NOBITS,   SHF_ALLOC + SHF_WRITE + SHF_IA_64_SHORT },
+  { STRING_COMMA_LEN (".sdata"), -1, SHT_PROGBITS, SHF_ALLOC + SHF_WRITE + SHF_IA_64_SHORT },
+  { NULL,                    0,   0, 0,            0 }
 };
 
 static bfd_boolean
@@ -5590,7 +5692,7 @@ elfNN_ia64_object_p (bfd *abfd)
       if (elf_sec_group (sec) == NULL
 	  && ((sec->flags & (SEC_LINK_ONCE | SEC_CODE | SEC_GROUP))
 	      == (SEC_LINK_ONCE | SEC_CODE))
-	  && strncmp (sec->name, ".gnu.linkonce.t.", 16) == 0)
+	  && CONST_STRNEQ (sec->name, ".gnu.linkonce.t."))
 	{
 	  name = sec->name + 16;
 
@@ -5673,7 +5775,7 @@ elfNN_hpux_post_process_headers (abfd, info)
 {
   Elf_Internal_Ehdr *i_ehdrp = elf_elfheader (abfd);
 
-  i_ehdrp->e_ident[EI_OSABI] = ELFOSABI_HPUX;
+  i_ehdrp->e_ident[EI_OSABI] = get_elf_backend_data (abfd)->elf_osabi;
   i_ehdrp->e_ident[EI_ABIVERSION] = 1;
 }
 
@@ -5717,6 +5819,7 @@ elfNN_hpux_backend_symbol_processing (bfd *abfd ATTRIBUTE_UNUSED,
 #define ELF_MACHINE_ALT1		1999	/* EAS2.3 */
 #define ELF_MACHINE_ALT2		1998	/* EAS2.2 */
 #define ELF_MAXPAGESIZE			0x10000	/* 64KB */
+#define ELF_COMMONPAGESIZE		0x4000	/* 16KB */
 
 #define elf_backend_section_from_shdr \
 	elfNN_ia64_section_from_shdr
@@ -5732,11 +5835,15 @@ elfNN_hpux_backend_symbol_processing (bfd *abfd ATTRIBUTE_UNUSED,
 	elfNN_ia64_additional_program_headers
 #define elf_backend_modify_segment_map \
 	elfNN_ia64_modify_segment_map
+#define elf_backend_modify_program_headers \
+	elfNN_ia64_modify_program_headers
 #define elf_info_to_howto \
 	elfNN_ia64_info_to_howto
 
 #define bfd_elfNN_bfd_reloc_type_lookup \
 	elfNN_ia64_reloc_type_lookup
+#define bfd_elfNN_bfd_reloc_name_lookup \
+	elfNN_ia64_reloc_name_lookup
 #define bfd_elfNN_bfd_is_local_label_name \
 	elfNN_ia64_is_local_label_name
 #define bfd_elfNN_bfd_relax_section \
@@ -5758,6 +5865,8 @@ elfNN_hpux_backend_symbol_processing (bfd *abfd ATTRIBUTE_UNUSED,
 	elfNN_ia64_adjust_dynamic_symbol
 #define elf_backend_size_dynamic_sections \
 	elfNN_ia64_size_dynamic_sections
+#define elf_backend_omit_section_dynsym \
+  ((bfd_boolean (*) (bfd *, struct bfd_link_info *, asection *)) bfd_true)
 #define elf_backend_relocate_section \
 	elfNN_ia64_relocate_section
 #define elf_backend_finish_dynamic_symbol \
@@ -5789,6 +5898,7 @@ elfNN_hpux_backend_symbol_processing (bfd *abfd ATTRIBUTE_UNUSED,
 #define elf_backend_reloc_type_class	elfNN_ia64_reloc_type_class
 #define elf_backend_rela_normal		1
 #define elf_backend_special_sections	elfNN_ia64_special_sections
+#define elf_backend_default_execstack	0
 
 /* FIXME: PR 290: The Intel C compiler generates SHT_IA_64_UNWIND with
    SHF_LINK_ORDER. But it doesn't set the sh_link or sh_info fields.
@@ -5823,7 +5933,10 @@ elfNN_hpux_backend_symbol_processing (bfd *abfd ATTRIBUTE_UNUSED,
 #define elf_backend_want_p_paddr_set_to_zero 1
 
 #undef  ELF_MAXPAGESIZE
-#define ELF_MAXPAGESIZE                 0x1000  /* 1K */
+#define ELF_MAXPAGESIZE                 0x1000  /* 4K */
+#undef ELF_COMMONPAGESIZE
+#undef ELF_OSABI
+#define ELF_OSABI			ELFOSABI_HPUX
 
 #undef  elfNN_bed
 #define elfNN_bed elfNN_ia64_hpux_bed

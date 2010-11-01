@@ -1,6 +1,6 @@
 /* BFD back-end for Intel Hex objects.
-   Copyright 1995, 1996, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005
-   Free Software Foundation, Inc.
+   Copyright 1995, 1996, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
+   2006, 2007 Free Software Foundation, Inc.
    Written by Ian Lance Taylor of Cygnus Support <ian@cygnus.com>.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -118,8 +118,8 @@ The MRI compiler uses this, which is a repeat of type 5:
    18..19	Checksum in hex notation
    20..21	Carriage return, line feed.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "libiberty.h"
 #include "safe-ctype.h"
@@ -355,6 +355,7 @@ ihex_scan (bfd *abfd)
 		  char secbuf[20];
 		  char *secname;
 		  bfd_size_type amt;
+		  flagword flags;
 
 		  sprintf (secbuf, ".sec%d", bfd_count_sections (abfd) + 1);
 		  amt = strlen (secbuf) + 1;
@@ -362,10 +363,10 @@ ihex_scan (bfd *abfd)
 		  if (secname == NULL)
 		    goto error_return;
 		  strcpy (secname, secbuf);
-		  sec = bfd_make_section (abfd, secname);
+		  flags = SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC;
+		  sec = bfd_make_section_with_flags (abfd, secname, flags);
 		  if (sec == NULL)
 		    goto error_return;
-		  sec->flags = SEC_HAS_CONTENTS | SEC_LOAD | SEC_ALLOC;
 		  sec->vma = extbase + segbase + addr;
 		  sec->lma = extbase + segbase + addr;
 		  sec->size = len;
@@ -553,7 +554,6 @@ ihex_read_section (bfd *abfd, asection *section, bfd_byte *contents)
     {
       char hdr[8];
       unsigned int len;
-      bfd_vma addr;
       unsigned int type;
       unsigned int i;
 
@@ -568,7 +568,6 @@ ihex_read_section (bfd *abfd, asection *section, bfd_byte *contents)
 	goto error_return;
 
       len = HEX2 (hdr);
-      addr = HEX4 (hdr + 2);
       type = HEX2 (hdr + 6);
 
       /* We should only see type 0 records here.  */
@@ -900,7 +899,8 @@ ihex_set_arch_mach (bfd *abfd,
 /* Get the size of the headers, for the linker.  */
 
 static int
-ihex_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED, bfd_boolean exec ATTRIBUTE_UNUSED)
+ihex_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
+		     struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
   return 0;
 }
@@ -924,9 +924,6 @@ ihex_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED, bfd_boolean exec ATTRIBUTE_UNUS
 #define ihex_bfd_make_debug_symbol                _bfd_nosymbols_bfd_make_debug_symbol
 #define ihex_read_minisymbols                     _bfd_nosymbols_read_minisymbols
 #define ihex_minisymbol_to_symbol                 _bfd_nosymbols_minisymbol_to_symbol
-#define ihex_get_reloc_upper_bound                ((long (*) (bfd *, asection *)) bfd_0l)
-#define ihex_canonicalize_reloc                   ((long (*) (bfd *, asection *, arelent **, asymbol **)) bfd_0l)
-#define ihex_bfd_reloc_type_lookup                _bfd_norelocs_bfd_reloc_type_lookup
 #define ihex_bfd_get_relocated_section_contents   bfd_generic_get_relocated_section_contents
 #define ihex_bfd_relax_section                    bfd_generic_relax_section
 #define ihex_bfd_gc_sections                      bfd_generic_gc_sections
@@ -985,7 +982,7 @@ const bfd_target ihex_vec =
   BFD_JUMP_TABLE_CORE (_bfd_nocore),
   BFD_JUMP_TABLE_ARCHIVE (_bfd_noarchive),
   BFD_JUMP_TABLE_SYMBOLS (ihex),
-  BFD_JUMP_TABLE_RELOCS (ihex),
+  BFD_JUMP_TABLE_RELOCS (_bfd_norelocs),
   BFD_JUMP_TABLE_WRITE (ihex),
   BFD_JUMP_TABLE_LINK (ihex),
   BFD_JUMP_TABLE_DYNAMIC (_bfd_nodynamic),

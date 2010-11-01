@@ -1,5 +1,5 @@
 /* Generate parameters for an a.out system.
-   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 2001, 2002
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 2001, 2002, 2007
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -99,8 +99,8 @@ main (argc, argv)
   printf("\n#define MY(OP) CONCAT2 (%s_,OP)\n\n", target);
   printf("#define TARGETNAME \"a.out-%s\"\n\n", target);
 
-  printf("#include \"bfd.h\"\n");
   printf("#include \"sysdep.h\"\n");
+  printf("#include \"bfd.h\"\n");
   printf("#include \"libbfd.h\"\n");
   printf("#include \"libaout.h\"\n");
   printf("\n#include \"aout-target.h\"\n");

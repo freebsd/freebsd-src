@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2005-10-01 07:23+0930\n"
+"POT-Creation-Date: 2007-05-15 16:49+0930\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -20,22 +20,22 @@ msgstr ""
 msgid "<indirect child>"
 msgstr ""
 
-#: alpha.c:119 mips.c:71
+#: alpha.c:107 mips.c:59
 #, c-format
 msgid "[find_call] %s: 0x%lx to 0x%lx\n"
 msgstr ""
 
-#: alpha.c:141
+#: alpha.c:129
 #, c-format
 msgid "[find_call] 0x%lx: jsr%s <indirect_child>\n"
 msgstr ""
 
-#: alpha.c:151
+#: alpha.c:139
 #, c-format
 msgid "[find_call] 0x%lx: bsr"
 msgstr ""
 
-#: basic_blocks.c:128 call_graph.c:89 hist.c:97
+#: basic_blocks.c:128 call_graph.c:89 hist.c:105
 #, c-format
 msgid "%s: %s: unexpected end of file\n"
 msgstr ""
@@ -120,7 +120,7 @@ msgid ""
 "\n"
 msgstr ""
 
-#: cg_print.c:78 hist.c:359
+#: cg_print.c:78 hist.c:466
 #, c-format
 msgid ""
 "\n"
@@ -170,7 +170,7 @@ msgstr ""
 msgid "descendants"
 msgstr ""
 
-#: cg_print.c:98 hist.c:385
+#: cg_print.c:98 hist.c:492
 msgid "name"
 msgstr ""
 
@@ -210,47 +210,47 @@ msgstr ""
 msgid "<cycle %d>"
 msgstr ""
 
-#: corefile.c:64
-#, c-format
-msgid "%s: could not open %s.\n"
-msgstr ""
-
-#: corefile.c:78 corefile.c:112
+#: corefile.c:59
 #, c-format
 msgid "%s: unable to parse mapping file %s.\n"
 msgstr ""
 
-#: corefile.c:158
+#: corefile.c:72
 #, c-format
-msgid "%s: %s: not in a.out format\n"
+msgid "%s: could not open %s.\n"
 msgstr ""
 
-#: corefile.c:169
+#: corefile.c:166
+#, c-format
+msgid "%s: %s: not in executable format\n"
+msgstr ""
+
+#: corefile.c:177
 #, c-format
 msgid "%s: can't find .text section in %s\n"
 msgstr ""
 
-#: corefile.c:244
+#: corefile.c:252
 #, c-format
 msgid "%s: ran out room for %lu bytes of text space\n"
 msgstr ""
 
-#: corefile.c:258
+#: corefile.c:266
 #, c-format
 msgid "%s: can't do -c\n"
 msgstr ""
 
-#: corefile.c:292
+#: corefile.c:305
 #, c-format
 msgid "%s: -c not supported on architecture %s\n"
 msgstr ""
 
-#: corefile.c:457
+#: corefile.c:470
 #, c-format
 msgid "%s: file `%s' has no symbols\n"
 msgstr ""
 
-#: corefile.c:771
+#: corefile.c:772
 #, c-format
 msgid "%s: somebody miscounted: ltab.len=%d instead of %ld\n"
 msgstr ""
@@ -285,62 +285,62 @@ msgstr ""
 msgid "%s: profiling rate incompatible with first gmon file\n"
 msgstr ""
 
-#: gmon_io.c:486
+#: gmon_io.c:489
 #, c-format
 msgid "%s: incompatible with first gmon file\n"
 msgstr ""
 
-#: gmon_io.c:514
+#: gmon_io.c:516
 #, c-format
 msgid "%s: file '%s' does not appear to be in gmon.out format\n"
 msgstr ""
 
-#: gmon_io.c:535
+#: gmon_io.c:529
 #, c-format
 msgid "%s: unexpected EOF after reading %d/%d bins\n"
 msgstr ""
 
-#: gmon_io.c:568
+#: gmon_io.c:563
 #, c-format
 msgid "time is in ticks, not seconds\n"
 msgstr ""
 
-#: gmon_io.c:574 gmon_io.c:750
+#: gmon_io.c:569 gmon_io.c:746
 #, c-format
 msgid "%s: don't know how to deal with file format %d\n"
 msgstr ""
 
-#: gmon_io.c:581
+#: gmon_io.c:576
 #, c-format
 msgid "File `%s' (version %d) contains:\n"
 msgstr ""
 
-#: gmon_io.c:584
+#: gmon_io.c:579
 #, c-format
 msgid "\t%d histogram record\n"
 msgstr ""
 
-#: gmon_io.c:585
+#: gmon_io.c:580
 #, c-format
 msgid "\t%d histogram records\n"
 msgstr ""
 
-#: gmon_io.c:587
+#: gmon_io.c:582
 #, c-format
 msgid "\t%d call-graph record\n"
 msgstr ""
 
-#: gmon_io.c:588
+#: gmon_io.c:583
 #, c-format
 msgid "\t%d call-graph records\n"
 msgstr ""
 
-#: gmon_io.c:590
+#: gmon_io.c:585
 #, c-format
 msgid "\t%d basic-block count record\n"
 msgstr ""
 
-#: gmon_io.c:591
+#: gmon_io.c:586
 #, c-format
 msgid "\t%d basic-block count records\n"
 msgstr ""
@@ -359,7 +359,7 @@ msgid ""
 "\t[--no-static] [--print-path] [--separate-files]\n"
 "\t[--static-call-graph] [--sum] [--table-length=len] [--traditional]\n"
 "\t[--version] [--width=n] [--ignore-non-functions]\n"
-"\t[--demangle[=STYLE]] [--no-demangle]\n"
+"\t[--demangle[=STYLE]] [--no-demangle] [@FILE]\n"
 "\t[image-file] [profile-file...]\n"
 msgstr ""
 
@@ -412,73 +412,94 @@ msgstr ""
 msgid "%s: sorry, file format `prof' is not yet supported\n"
 msgstr ""
 
-#: gprof.c:576
+#: gprof.c:581
 #, c-format
 msgid "%s: gmon.out file is missing histogram\n"
 msgstr ""
 
-#: gprof.c:583
+#: gprof.c:588
 #, c-format
 msgid "%s: gmon.out file is missing call-graph data\n"
 msgstr ""
 
-#: hist.c:126
+#: hist.c:133
 #, c-format
-msgid "%s: `%s' is incompatible with first gmon file\n"
+msgid ""
+"%s: dimension unit changed between histogram records\n"
+"%s: from '%s'\n"
+"%s: to '%s'\n"
 msgstr ""
 
-#: hist.c:142
+#: hist.c:143
+#, c-format
+msgid ""
+"%s: dimension abbreviation changed between histogram records\n"
+"%s: from '%c'\n"
+"%s: to '%c'\n"
+msgstr ""
+
+#: hist.c:157
+#, c-format
+msgid "%s: different scales in histogram records"
+msgstr ""
+
+#: hist.c:194
+#, c-format
+msgid "%s: overlapping histogram records\n"
+msgstr ""
+
+#: hist.c:228
 #, c-format
 msgid "%s: %s: unexpected EOF after reading %u of %u samples\n"
 msgstr ""
 
-#: hist.c:355
+#: hist.c:462
 #, c-format
 msgid "%c%c/call"
 msgstr ""
 
-#: hist.c:363
+#: hist.c:470
 #, c-format
 msgid ""
 " for %.2f%% of %.2f %s\n"
 "\n"
 msgstr ""
 
-#: hist.c:369
+#: hist.c:476
 #, c-format
 msgid ""
 "\n"
 "Each sample counts as %g %s.\n"
 msgstr ""
 
-#: hist.c:374
+#: hist.c:481
 #, c-format
 msgid ""
 " no time accumulated\n"
 "\n"
 msgstr ""
 
-#: hist.c:381
+#: hist.c:488
 msgid "cumulative"
 msgstr ""
 
-#: hist.c:381
+#: hist.c:488
 msgid "self  "
 msgstr ""
 
-#: hist.c:381
+#: hist.c:488
 msgid "total "
 msgstr ""
 
-#: hist.c:384
+#: hist.c:491
 msgid "time"
 msgstr ""
 
-#: hist.c:384
+#: hist.c:491
 msgid "calls"
 msgstr ""
 
-#: hist.c:473
+#: hist.c:580
 #, c-format
 msgid ""
 "\n"
@@ -487,17 +508,22 @@ msgid ""
 "flat profile:\n"
 msgstr ""
 
-#: hist.c:479
+#: hist.c:586
 #, c-format
 msgid "Flat profile:\n"
 msgstr ""
 
-#: mips.c:82
+#: hist.c:705
+#, c-format
+msgid "%s: found a symbol that covers several histogram records"
+msgstr ""
+
+#: mips.c:71
 #, c-format
 msgid "[find_call] 0x%lx: jal"
 msgstr ""
 
-#: mips.c:107
+#: mips.c:96
 #, c-format
 msgid "[find_call] 0x%lx: jalr\n"
 msgstr ""
@@ -512,7 +538,7 @@ msgstr ""
 msgid "*** File %s:\n"
 msgstr ""
 
-#: utils.c:107
+#: utils.c:99
 #, c-format
 msgid " <cycle %d>"
 msgstr ""

@@ -1,5 +1,6 @@
 /* dllwrap.c -- wrapper for DLLTOOL and GCC to generate PE style DLLs
-   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
+   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007
+   Free Software Foundation, Inc.
    Contributed by Mumit Khan (khan@xraylith.wisc.edu).
 
    This file is part of GNU Binutils.
@@ -26,19 +27,15 @@
 #endif
 #endif
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
+#include "sysdep.h"
 #include "bfd.h"
 #include "libiberty.h"
-#include "bucomm.h"
 #include "getopt.h"
 #include "dyn-string.h"
+#include "bucomm.h"
 
 #include <time.h>
 #include <sys/stat.h>
-#include <stdarg.h>
 
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
@@ -509,6 +506,8 @@ usage (FILE *file, int status)
   fprintf (file, _("   --nodelete             Keep temp files.\n"));
   fprintf (file, _("  Rest are passed unmodified to the language driver\n"));
   fprintf (file, "\n\n");
+  if (REPORT_BUGS_TO[0] && status == 0)
+    fprintf (file, _("Report bugs to %s\n"), REPORT_BUGS_TO);
   exit (status);
 }
 
