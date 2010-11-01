@@ -27,8 +27,8 @@
  * $FreeBSD$
  */
 
-#ifndef __MACHINE_MCA_H__
-#define	__MACHINE_MCA_H__
+#ifndef __X86_MCA_H__
+#define	__X86_MCA_H__
 
 struct mca_record {
 	uint64_t	mr_status;
@@ -53,4 +53,4 @@ void	mca_resume(void);
 
 #endif
 
-#endif /* !__MACHINE_MCA_H__ */
+#endif /* !__X86_MCA_H__ */

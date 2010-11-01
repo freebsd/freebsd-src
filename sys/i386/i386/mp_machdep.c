@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/apicreg.h>
 #include <machine/clock.h>
 #include <machine/cputypes.h>
-#include <machine/mca.h>
+#include <x86/mca.h>
 #include <machine/md_var.h>
 #include <machine/mp_watchdog.h>
 #include <machine/pcb.h>
