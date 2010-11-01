@@ -54,13 +54,13 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/apicreg.h>
+#include <x86/apicreg.h>
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/apicvar.h>
-#include <machine/mca.h>
+#include <x86/mca.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>
 #include <machine/specialreg.h>

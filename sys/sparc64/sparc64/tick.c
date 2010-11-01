@@ -78,28 +78,69 @@ u_int tick_et_use_stick = 0;
 SYSCTL_INT(_machdep_tick, OID_AUTO, tick_et_use_stick, CTLFLAG_RD,
     &tick_et_use_stick, 0, "tick event timer uses STICK instead of TICK");
 
-static struct timecounter stick_tc;
-static struct timecounter tick_tc;
-static struct eventtimer tick_et;
+typedef uint64_t rd_tick_t(void);
+static rd_tick_t *rd_tick;
+typedef void wr_tick_cmpr_t(uint64_t);
+static wr_tick_cmpr_t *wr_tick_cmpr;
 
-static uint64_t tick_cputicks(void);
-static timecounter_get_t stick_get_timecount_up;
+static struct timecounter stick_tc;
+static struct eventtimer tick_et;
+static struct timecounter tick_tc;
+
 #ifdef SMP
 static timecounter_get_t stick_get_timecount_mp;
 #endif
-static timecounter_get_t tick_get_timecount_up;
+static timecounter_get_t stick_get_timecount_up;
+static rd_tick_t stick_rd;
+static wr_tick_cmpr_t stick_wr_cmpr;
+static int tick_et_start(struct eventtimer *et, struct bintime *first,
+    struct bintime *period);
+static int tick_et_stop(struct eventtimer *et);
 #ifdef SMP
 static timecounter_get_t tick_get_timecount_mp;
 #endif
-static int tick_et_start(struct eventtimer *et,
-    struct bintime *first, struct bintime *period);
-static int tick_et_stop(struct eventtimer *et);
+static timecounter_get_t tick_get_timecount_up;
 static void tick_intr(struct trapframe *tf);
-static void tick_intr_bbwar(struct trapframe *tf);
 static inline void tick_process(struct trapframe *tf);
-static inline void tick_process_periodic(struct trapframe *tf, u_long tick,
-    u_long tick_increment, u_long adj);
-static void stick_intr(struct trapframe *tf);
+static rd_tick_t tick_rd;
+static wr_tick_cmpr_t tick_wr_cmpr;
+static wr_tick_cmpr_t tick_wr_cmpr_bbwar;
+static uint64_t tick_cputicks(void);
+
+static uint64_t
+stick_rd(void)
+{
+
+	return (rdstick());
+}
+
+static void
+stick_wr_cmpr(uint64_t tick)
+{
+
+	wrstickcmpr(tick, 0);
+}
+
+static uint64_t
+tick_rd(void)
+{
+
+	return (rd(tick));
+}
+
+static void
+tick_wr_cmpr(uint64_t tick_cmpr)
+{
+
+	wr(tick_cmpr, tick_cmpr, 0);
+}
+
+static void
+tick_wr_cmpr_bbwar(uint64_t tick_cmpr)
+{
+
+	wrtickcmpr(tick_cmpr, 0);
+}
 
 static uint64_t
 tick_cputicks(void)
@@ -128,17 +169,22 @@ cpu_initclocks(void)
 	 * frequencies they shouldn't be used except when really necessary.
 	 */
 	if (tick_et_use_stick != 0) {
-		intr_setup(PIL_TICK, stick_intr, -1, NULL, NULL);
+		rd_tick = stick_rd;
+		wr_tick_cmpr = stick_wr_cmpr;
 		/*
 		 * We don't provide a CPU ticker as long as the frequency
 		 * supplied isn't actually used per-CPU.
 		 */
 	} else {
-		intr_setup(PIL_TICK, PCPU_GET(impl) >= CPU_IMPL_ULTRASPARCI &&
-		    PCPU_GET(impl) < CPU_IMPL_ULTRASPARCIII ?
-		    tick_intr_bbwar : tick_intr, -1, NULL, NULL);
+		rd_tick = tick_rd;
+		if (PCPU_GET(impl) >= CPU_IMPL_ULTRASPARCI &&
+		    PCPU_GET(impl) < CPU_IMPL_ULTRASPARCIII)
+			wr_tick_cmpr = tick_wr_cmpr_bbwar;
+		else
+			wr_tick_cmpr = tick_wr_cmpr;
 		set_cputicker(tick_cputicks, clock, 0);
 	}
+	intr_setup(PIL_TICK, tick_intr, -1, NULL, NULL);
 
 	/*
 	 * Initialize the (S)TICK-based timecounter(s).
@@ -214,106 +260,56 @@ tick_process(struct trapframe *tf)
 	critical_exit();
 }
 
-/*
- * NB: the sequence of reading the (S)TICK register, calculating the value
- * of the next tick and writing it to the (S)TICK_COMPARE register must not
- * be interrupted, not even by an IPI, otherwise a value that is in the past
- * could be written in the worst case, causing the periodic timer to stop.
- */
-
 static void
 tick_intr(struct trapframe *tf)
 {
-	u_long adj, tick, tick_increment;
-	register_t s;
-
-	s = intr_disable();
-	tick_increment = PCPU_GET(tickincrement);
-	if (tick_increment != 0) {
-		adj = PCPU_GET(tickadj);
-		tick = rd(tick);
-		wr(tick_cmpr, tick + tick_increment - adj, 0);
-		intr_restore(s);
-		tick_process_periodic(tf, tick, tick_increment, adj);
-	} else {
-		intr_restore(s);
-		tick_process(tf);
-	}
-}
-
-static void
-tick_intr_bbwar(struct trapframe *tf)
-{
-	u_long adj, tick, tick_increment;
-	register_t s;
-
-	s = intr_disable();
-	tick_increment = PCPU_GET(tickincrement);
-	if (tick_increment != 0) {
-		adj = PCPU_GET(tickadj);
-		tick = rd(tick);
-		wrtickcmpr(tick + tick_increment - adj, 0);
-		intr_restore(s);
-		tick_process_periodic(tf, tick, tick_increment, adj);
-	} else {
-		intr_restore(s);
-		tick_process(tf);
-	}
-}
-
-static void
-stick_intr(struct trapframe *tf)
-{
-	u_long adj, stick, tick_increment;
-	register_t s;
-
-	s = intr_disable();
-	tick_increment = PCPU_GET(tickincrement);
-	if (tick_increment != 0) {
-		adj = PCPU_GET(tickadj);
-		stick = rdstick();
-		wrstickcmpr(stick + tick_increment - adj, 0);
-		intr_restore(s);
-		tick_process_periodic(tf, stick, tick_increment, adj);
-	} else {
-		intr_restore(s);
-		tick_process(tf);
-	}
-}
-
-static inline void
-tick_process_periodic(struct trapframe *tf, u_long tick,
-    u_long tick_increment, u_long adj)
-{
-	u_long ref;
+	u_long adj, ref, tick, tick_increment;
 	long delta;
+	register_t s;
 	int count;
 
-	ref = PCPU_GET(tickref);
-	delta = tick - ref;
-	count = 0;
-	while (delta >= tick_increment) {
-		tick_process(tf);
-		delta -= tick_increment;
-		ref += tick_increment;
-		if (adj != 0)
-			adjust_ticks++;
-		count++;
-	}
-	if (count > 0) {
-		adjust_missed += count - 1;
-		if (delta > (tick_increment >> 3)) {
-			if (adj == 0)
-				adjust_edges++;
-			adj = tick_increment >> 4;
-		} else
+	tick_increment = PCPU_GET(tickincrement);
+	if (tick_increment != 0) {
+		/*
+		 * NB: the sequence of reading the (S)TICK register,
+		 * calculating the value of the next tick and writing it to
+		 * the (S)TICK_COMPARE register must not be interrupted, not
+		 * even by an IPI, otherwise a value that is in the past could
+		 * be written in the worst case and thus causing the periodic
+		 * timer to stop.
+		 */
+		s = intr_disable();
+		adj = PCPU_GET(tickadj);
+		tick = rd_tick();
+		wr_tick_cmpr(tick + tick_increment - adj);
+		intr_restore(s);
+		ref = PCPU_GET(tickref);
+		delta = tick - ref;
+		count = 0;
+		while (delta >= tick_increment) {
+			tick_process(tf);
+			delta -= tick_increment;
+			ref += tick_increment;
+			if (adj != 0)
+				adjust_ticks++;
+			count++;
+		}
+		if (count > 0) {
+			adjust_missed += count - 1;
+			if (delta > (tick_increment >> 3)) {
+				if (adj == 0)
+					adjust_edges++;
+				adj = tick_increment >> 4;
+			} else
+				adj = 0;
+		} else {
 			adj = 0;
-	} else {
-		adj = 0;
-		adjust_excess++;
-	}
-	PCPU_SET(tickref, ref);
-	PCPU_SET(tickadj, adj);
+			adjust_excess++;
+		}
+		PCPU_SET(tickref, ref);
+		PCPU_SET(tickadj, adj);
+	} else
+		tick_process(tf);
 }
 
 static u_int
@@ -387,19 +383,13 @@ tick_et_start(struct eventtimer *et, struct bintime *first,
 	 * out one tick to make sure that it is not missed.
 	 */
 	s = intr_disable();
-	if (tick_et_use_stick != 0)
-		base = rdstick();
-	else
-		base = rd(tick);
+	base = rd_tick();
 	if (div != 0) {
 		PCPU_SET(tickadj, 0);
 		base = roundup(base, div);
 	}
 	PCPU_SET(tickref, base);
-	if (tick_et_use_stick != 0)
-		wrstickcmpr(base + fdiv, 0);
-	else
-		wrtickcmpr(base + fdiv, 0);
+	wr_tick_cmpr(base + fdiv);
 	intr_restore(s);
 	return (0);
 }

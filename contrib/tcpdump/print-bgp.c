@@ -36,7 +36,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-     "@(#) $Header: /tcpdump/master/tcpdump/print-bgp.c,v 1.117.2.1 2007-12-08 10:08:07 hannes Exp $";
+     "@(#) $Header: /tcpdump/master/tcpdump/print-bgp.c,v 1.118 2007-12-07 15:54:52 hannes Exp $";
 #endif
 
 #include <tcpdump-stdinc.h>
@@ -346,7 +346,8 @@ static struct tok bgp_pmsi_flag_values[] = {
 #define SAFNUM_MULTICAST_VPN            5
 #define SAFNUM_TUNNEL                   64 /* XXX */
 #define SAFNUM_VPLS                     65 /* XXX */
-#define SAFNUM_MDT                      66 /* XXX */
+/* draft-nalawade-idr-mdt-safi-03 */
+#define SAFNUM_MDT                      66
 /* Section 4.3.4 of draft-rosen-rfc2547bis-03.txt  */
 #define SAFNUM_VPNUNICAST               128
 #define SAFNUM_VPNMULTICAST             129
@@ -463,6 +464,29 @@ static struct tok bgp_extd_comm_ospf_rtype_values[] = {
   { BGP_OSPF_RTYPE_SHAM,"MPLS-VPN Sham" },  
   { 0, NULL },
 };
+
+#define TOKBUFSIZE 128
+static char astostr[20];
+
+/*
+ * as_printf
+ *
+ * Convert an AS number into a string and return string pointer.
+ *
+ * Bepending on bflag is set or not, AS number is converted into ASDOT notation
+ * or plain number notation.
+ *
+ */
+static char *
+as_printf (char *str, int size, u_int asnum)
+{
+	if (!bflag || asnum <= 0xFFFF) {
+		snprintf(str, size, "%u", asnum);
+	} else {
+		snprintf(str, size, "%u.%u", asnum >> 16, asnum & 0xFFFF);
+	}
+	return str;
+}
 
 int
 decode_prefix4(const u_char *pptr, char *buf, u_int buflen)
@@ -656,9 +680,10 @@ bgp_vpn_rd_print (const u_char *pptr) {
 
         /* 4-byte-AS:number fmt*/
     case 2:
-        snprintf(pos, sizeof(rd) - (pos - rd), "%u:%u (%u.%u.%u.%u:%u)",
-            EXTRACT_32BITS(pptr+2), EXTRACT_16BITS(pptr+6),
-            *(pptr+2), *(pptr+3), *(pptr+4), *(pptr+5), EXTRACT_16BITS(pptr+6));
+	snprintf(pos, sizeof(rd) - (pos - rd), "%s:%u (%u.%u.%u.%u:%u)",
+	    as_printf(astostr, sizeof(astostr), EXTRACT_32BITS(pptr+2)),
+	    EXTRACT_16BITS(pptr+6), *(pptr+2), *(pptr+3), *(pptr+4),
+	    *(pptr+5), EXTRACT_16BITS(pptr+6));
         break;
     default:
         snprintf(pos, sizeof(rd) - (pos - rd), "unknown RD format");
@@ -696,9 +721,9 @@ decode_rt_routing_info(const u_char *pptr, char *buf, u_int buflen)
 		((u_char *)&route_target)[(plen + 7) / 8 - 1] &=
 			((0xff00 >> (plen % 8)) & 0xff);
 	}
-	snprintf(buf, buflen, "origin AS: %u, route target %s",
-                 EXTRACT_32BITS(pptr+1),
-                 bgp_vpn_rd_print((u_char *)&route_target));
+	snprintf(buf, buflen, "origin AS: %s, route target %s",
+	    as_printf(astostr, sizeof(astostr), EXTRACT_32BITS(pptr+1)),
+	    bgp_vpn_rd_print((u_char *)&route_target));
 
 	return 5 + (plen + 7) / 8;
 
@@ -742,6 +767,55 @@ decode_labeled_vpn_prefix4(const u_char *pptr, char *buf, u_int buflen)
 
 trunc:
 	return -2;
+}
+
+/*
+ * +-------------------------------+
+ * |                               |
+ * |  RD:IPv4-address (12 octets)  |
+ * |                               |
+ * +-------------------------------+
+ * |  MDT Group-address (4 octets) |
+ * +-------------------------------+
+ */
+
+#define MDT_VPN_NLRI_LEN 16
+
+static int
+decode_mdt_vpn_nlri(const u_char *pptr, char *buf, u_int buflen)
+{
+
+    const u_char *rd;
+    const u_char *vpn_ip;
+    
+    TCHECK(pptr[0]);
+
+    /* if the NLRI is not predefined length, quit.*/
+    if (*pptr != MDT_VPN_NLRI_LEN * NBBY)
+	return -1;
+    pptr++;
+
+    /* RD */
+    TCHECK2(pptr[0], 8);
+    rd = pptr;
+    pptr+=8;
+
+    /* IPv4 address */
+    TCHECK2(pptr[0], sizeof(struct in_addr));
+    vpn_ip = pptr;
+    pptr+=sizeof(struct in_addr);
+
+    /* MDT Group Address */
+    TCHECK2(pptr[0], sizeof(struct in_addr));
+
+    snprintf(buf, buflen, "RD: %s, VPN IP Address: %s, MC Group Address: %s",
+	     bgp_vpn_rd_print(rd), ipaddr_string(vpn_ip), ipaddr_string(pptr));
+       
+    return MDT_VPN_NLRI_LEN + 1;
+
+ trunc:
+
+return -2;
 }
 
 #define BGP_MULTICAST_VPN_ROUTE_TYPE_INTRA_AS_I_PMSI   1
@@ -789,9 +863,10 @@ decode_multicast_vpn(const u_char *pptr, char *buf, u_int buflen)
         case BGP_MULTICAST_VPN_ROUTE_TYPE_INTER_AS_I_PMSI:
             TCHECK2(pptr[0], BGP_VPN_RD_LEN + 4);
             offset = strlen(buf);
-            snprintf(buf + offset, buflen - offset, ", RD: %s, Source-AS %u",
-                     bgp_vpn_rd_print(pptr),
-                     EXTRACT_32BITS(pptr + BGP_VPN_RD_LEN));
+	    snprintf(buf + offset, buflen - offset, ", RD: %s, Source-AS %s",
+		bgp_vpn_rd_print(pptr),
+		as_printf(astostr, sizeof(astostr),
+		EXTRACT_32BITS(pptr + BGP_VPN_RD_LEN)));
             break;
 
         case BGP_MULTICAST_VPN_ROUTE_TYPE_S_PMSI:
@@ -824,9 +899,10 @@ decode_multicast_vpn(const u_char *pptr, char *buf, u_int buflen)
         case BGP_MULTICAST_VPN_ROUTE_TYPE_SOURCE_TREE_JOIN:
             TCHECK2(pptr[0], BGP_VPN_RD_LEN);
             offset = strlen(buf);
-            snprintf(buf + offset, buflen - offset, ", RD: %s, Source-AS %u",
-                     bgp_vpn_rd_print(pptr),
-                     EXTRACT_32BITS(pptr + BGP_VPN_RD_LEN));
+	    snprintf(buf + offset, buflen - offset, ", RD: %s, Source-AS %s",
+		bgp_vpn_rd_print(pptr),
+		as_printf(astostr, sizeof(astostr),
+		EXTRACT_32BITS(pptr + BGP_VPN_RD_LEN)));
             pptr += BGP_VPN_RD_LEN;
 
             bgp_vpn_sg_print(pptr, buf, buflen);
@@ -1222,9 +1298,11 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *pptr, int len)
 						tokbuf, sizeof(tokbuf)));
                         for (i = 0; i < tptr[1] * as_size; i += as_size) {
                             TCHECK2(tptr[2 + i], as_size);
-                            printf("%u ",
-                                   as_size == 2 ?  EXTRACT_16BITS(&tptr[2 + i]) :
-                                                   EXTRACT_32BITS(&tptr[2 + i]));
+			    printf("%s ",
+				as_printf(astostr, sizeof(astostr),
+				as_size == 2 ? 
+				EXTRACT_16BITS(&tptr[2 + i]) :
+				EXTRACT_32BITS(&tptr[2 + i])));
                         }
 			TCHECK(tptr[0]);
                         printf("%s", tok2strbuf(bgp_as_path_segment_close_values,
@@ -1255,23 +1333,36 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *pptr, int len)
 		if (len != 0)
 			printf("invalid len");
 		break;
-	case BGPTYPE_AGGREGATOR:
-		if (len != 6) {
-			printf("invalid len");
-			break;
-		}
-		TCHECK2(tptr[0], 6);
-		printf(" AS #%u, origin %s", EXTRACT_16BITS(tptr),
+        case BGPTYPE_AGGREGATOR:
+
+                /*
+                 * Depending on the AS encoded is of 2 bytes or of 4 bytes,
+                 * the length of this PA can be either 6 bytes or 8 bytes.
+                 */
+                if (len != 6 && len != 8) {
+                    printf("invalid len");
+                    break;
+                }
+                TCHECK2(tptr[0], len);
+                if (len == 6) {
+		    printf(" AS #%s, origin %s",
+			as_printf(astostr, sizeof(astostr), EXTRACT_16BITS(tptr)),
 			getname(tptr + 2));
-		break;
+                } else {
+		    printf(" AS #%s, origin %s",
+			as_printf(astostr, sizeof(astostr),
+			EXTRACT_32BITS(tptr)), getname(tptr + 4));
+                }
+                break;
 	case BGPTYPE_AGGREGATOR4:
 		if (len != 8) {
 			printf("invalid len");
 			break;
 		}
 		TCHECK2(tptr[0], 8);
-		printf(" AS #%u, origin %s", EXTRACT_32BITS(tptr),
-			getname(tptr + 4));
+		printf(" AS #%s, origin %s",
+	   	    as_printf(astostr, sizeof(astostr), EXTRACT_32BITS(tptr)),
+		    getname(tptr + 4));
 		break;
 	case BGPTYPE_COMMUNITIES:
 		if (len % 4) {
@@ -1349,6 +1440,7 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *pptr, int len)
                 case (AFNUM_INET<<8 | SAFNUM_VPNMULTICAST):
                 case (AFNUM_INET<<8 | SAFNUM_VPNUNIMULTICAST):
                 case (AFNUM_INET<<8 | SAFNUM_MULTICAST_VPN):
+		case (AFNUM_INET<<8 | SAFNUM_MDT): 
 #ifdef INET6
                 case (AFNUM_INET6<<8 | SAFNUM_UNICAST):
                 case (AFNUM_INET6<<8 | SAFNUM_MULTICAST):
@@ -1395,7 +1487,8 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *pptr, int len)
                         case (AFNUM_INET<<8 | SAFNUM_LABUNICAST):
                         case (AFNUM_INET<<8 | SAFNUM_RT_ROUTING_INFO):
                         case (AFNUM_INET<<8 | SAFNUM_MULTICAST_VPN):
-                            if (tlen < (int)sizeof(struct in_addr)) {
+                        case (AFNUM_INET<<8 | SAFNUM_MDT):  
+			    if (tlen < (int)sizeof(struct in_addr)) {
                                 printf("invalid len");
                                 tlen = 0;
                             } else {
@@ -1579,6 +1672,16 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *pptr, int len)
                         else
                             printf("\n\t      %s", buf);
                         break;
+
+		    case (AFNUM_INET<<8 | SAFNUM_MDT):
+		      advance = decode_mdt_vpn_nlri(tptr, buf, sizeof(buf));
+		      if (advance == -1)
+                            printf("\n\t    (illegal prefix length)");
+                        else if (advance == -2)
+                            goto trunc;
+                        else
+                            printf("\n\t      %s", buf);
+		       break;
 #ifdef INET6
                     case (AFNUM_INET6<<8 | SAFNUM_UNICAST):
                     case (AFNUM_INET6<<8 | SAFNUM_MULTICAST):
@@ -1781,6 +1884,15 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *pptr, int len)
                         else
                             printf("\n\t      %s", buf);
                         break;                                   
+		    case (AFNUM_INET<<8 | SAFNUM_MDT):
+		      advance = decode_mdt_vpn_nlri(tptr, buf, sizeof(buf));
+		      if (advance == -1)
+                            printf("\n\t    (illegal prefix length)");
+                        else if (advance == -2)
+                            goto trunc;
+                        else
+                            printf("\n\t      %s", buf);
+		       break;
                     case (AFNUM_INET<<8 | SAFNUM_MULTICAST_VPN): /* fall through */
                     case (AFNUM_INET6<<8 | SAFNUM_MULTICAST_VPN):
                         advance = decode_multicast_vpn(tptr, buf, sizeof(buf));
@@ -1841,10 +1953,10 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *pptr, int len)
                         break;
                     case BGP_EXT_COM_RT_2:
                     case BGP_EXT_COM_RO_2:
-                        printf(": %u:%u",
-                               EXTRACT_32BITS(tptr+2),
-                               EXTRACT_16BITS(tptr+6));
-                        break;
+			printf(": %s:%u",
+			    as_printf(astostr, sizeof(astostr),
+			    EXTRACT_32BITS(tptr+2)), EXTRACT_16BITS(tptr+6));
+			break;
                     case BGP_EXT_COM_LINKBAND:
 		        bw.i = EXTRACT_32BITS(tptr+2);
                         printf(": bandwidth: %.3f Mbps",
@@ -1951,8 +2063,9 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *pptr, int len)
         }
         case BGPTYPE_ATTR_SET:
                 TCHECK2(tptr[0], 4);
-                printf("\n\t    Origin AS: %u", EXTRACT_32BITS(tptr));
-                tptr+=4;
+		printf("\n\t    Origin AS: %s",
+		    as_printf(astostr, sizeof(astostr), EXTRACT_32BITS(tptr)));
+		tptr+=4;
                 len -=4;
 
                 while (len >= 2 ) {
@@ -2022,7 +2135,8 @@ bgp_open_print(const u_char *dat, int length)
 	memcpy(&bgpo, dat, BGP_OPEN_SIZE);
 
 	printf("\n\t  Version %d, ", bgpo.bgpo_version);
-	printf("my AS %u, ", ntohs(bgpo.bgpo_myas));
+	printf("my AS %s, ",
+	    as_printf(astostr, sizeof(astostr), ntohs(bgpo.bgpo_myas)));
 	printf("Holdtime %us, ", ntohs(bgpo.bgpo_holdtime));
 	printf("ID %s", getname((u_char *)&bgpo.bgpo_id));
 	printf("\n\t  Optional parameters, length: %u", bgpo.bgpo_optlen);
@@ -2097,6 +2211,18 @@ bgp_open_print(const u_char *dat, int length)
                         break;
                     case BGP_CAPCODE_RR:
                     case BGP_CAPCODE_RR_CISCO:
+                        break;
+                    case BGP_CAPCODE_AS_NEW:
+
+                        /*
+                         * Extract the 4 byte AS number encoded.
+                         */
+                        TCHECK2(opt[i + BGP_OPT_SIZE + 2], cap_len);
+                        if (cap_len == 4) {
+			    printf("\n\t\t 4 Byte AS %s",
+				as_printf(astostr, sizeof(astostr),
+				EXTRACT_32BITS(opt + i + BGP_OPT_SIZE + 2)));
+                        }
                         break;
                     default:
                         TCHECK2(opt[i+BGP_OPT_SIZE+2],cap_len);

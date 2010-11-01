@@ -188,6 +188,10 @@
 #define EM_EEPROM_APME			0x400;
 #define EM_82544_APME			0x0004;
 
+#define EM_QUEUE_IDLE			0
+#define EM_QUEUE_WORKING		1
+#define EM_QUEUE_HUNG			2
+
 /*
  * TDBA/RDBA should be aligned on 16 byte boundary. But TDLEN/RDLEN should be
  * multiple of 128 bytes. So we align TDBA/RDBA on 128 byte boundary. This will
@@ -272,7 +276,7 @@ struct tx_ring {
         u32                     me;
         u32                     msix;
 	u32			ims;
-        bool                    watchdog_check;
+        int			queue_status;
         int                     watchdog_time;
 	struct em_dma_alloc	txdma;
 	struct e1000_tx_desc	*tx_base;
@@ -391,6 +395,7 @@ struct adapter {
         struct rx_ring  *rx_rings;
         int             num_rx_desc;
         u32             rx_process_limit;
+	u32		rx_mbuf_sz;
 
 	/* Management and WOL features */
 	u32		wol;
@@ -400,11 +405,21 @@ struct adapter {
 	/* Multicast array memory */
 	u8		*mta;
 
-	/* Info about the board itself */
-	uint8_t		link_active;
-	uint16_t	link_speed;
-	uint16_t	link_duplex;
-	uint32_t	smartspeed;
+	/*
+	** Shadow VFTA table, this is needed because
+	** the real vlan filter table gets cleared during
+	** a soft reset and the driver needs to be able
+	** to repopulate it.
+	*/
+	u32		shadow_vfta[EM_VFTA_SIZE];
+
+	/* Info about the interface */
+	u8		link_active;
+	u16		link_speed;
+	u16		link_duplex;
+	u32		smartspeed;
+	u32		fc_setting;
+
 	struct em_int_delay_info tx_int_delay;
 	struct em_int_delay_info tx_abs_int_delay;
 	struct em_int_delay_info rx_int_delay;

@@ -86,6 +86,11 @@ static struct cdevsw acpi_cdevsw = {
 	.d_name =	"acpi",
 };
 
+struct acpi_interface {
+	ACPI_STRING	*data;
+	int		num;
+};
+
 /* Global mutex for locking access to the ACPI subsystem. */
 struct mtx	acpi_mutex;
 
@@ -163,6 +168,7 @@ static void	acpi_enable_pcie(void);
 #endif
 static void	acpi_hint_device_unit(device_t acdev, device_t child,
 		    const char *name, int *unitp);
+static void	acpi_reset_interfaces(device_t dev);
 
 static device_method_t acpi_methods[] = {
     /* Device interface */
@@ -230,6 +236,16 @@ SYSCTL_NODE(_debug, OID_AUTO, acpi, CTLFLAG_RD, NULL, "ACPI debugging");
 static char acpi_ca_version[12];
 SYSCTL_STRING(_debug_acpi, OID_AUTO, acpi_ca_version, CTLFLAG_RD,
 	      acpi_ca_version, 0, "Version of Intel ACPI-CA");
+
+/*
+ * Allow overriding _OSI methods.
+ */
+static char acpi_install_interface[256];
+TUNABLE_STR("hw.acpi.install_interface", acpi_install_interface,
+    sizeof(acpi_install_interface));
+static char acpi_remove_interface[256];
+TUNABLE_STR("hw.acpi.remove_interface", acpi_remove_interface,
+    sizeof(acpi_remove_interface));
 
 /*
  * Allow override of whether methods execute in parallel or not.
@@ -466,6 +482,9 @@ acpi_attach(device_t dev)
 		      AcpiFormatException(status));
 	goto out;
     }
+
+    /* Override OS interfaces if the user requested. */
+    acpi_reset_interfaces(dev);
 
     /* Load ACPI name space. */
     status = AcpiLoadTables();
@@ -3470,6 +3489,93 @@ acpi_debug_objects_sysctl(SYSCTL_HANDLER_ARGS)
 	ACPI_SERIAL_END(acpi);
 
 	return (0);
+}
+
+static int
+acpi_parse_interfaces(char *str, struct acpi_interface *iface)
+{
+	char *p;
+	size_t len;
+	int i, j;
+
+	p = str;
+	while (isspace(*p) || *p == ',')
+		p++;
+	len = strlen(p);
+	if (len == 0)
+		return (0);
+	p = strdup(p, M_TEMP);
+	for (i = 0; i < len; i++)
+		if (p[i] == ',')
+			p[i] = '\0';
+	i = j = 0;
+	while (i < len)
+		if (isspace(p[i]) || p[i] == '\0')
+			i++;
+		else {
+			i += strlen(p + i) + 1;
+			j++;
+		}
+	if (j == 0) {
+		free(p, M_TEMP);
+		return (0);
+	}
+	iface->data = malloc(sizeof(*iface->data) * j, M_TEMP, M_WAITOK);
+	iface->num = j;
+	i = j = 0;
+	while (i < len)
+		if (isspace(p[i]) || p[i] == '\0')
+			i++;
+		else {
+			iface->data[j] = p + i;
+			i += strlen(p + i) + 1;
+			j++;
+		}
+
+	return (j);
+}
+
+static void
+acpi_free_interfaces(struct acpi_interface *iface)
+{
+
+	free(iface->data[0], M_TEMP);
+	free(iface->data, M_TEMP);
+}
+
+static void
+acpi_reset_interfaces(device_t dev)
+{
+	struct acpi_interface list;
+	ACPI_STATUS status;
+	int i;
+
+	if (acpi_parse_interfaces(acpi_install_interface, &list) > 0) {
+		for (i = 0; i < list.num; i++) {
+			status = AcpiInstallInterface(list.data[i]);
+			if (ACPI_FAILURE(status))
+				device_printf(dev,
+				    "failed to install _OSI(\"%s\"): %s\n",
+				    list.data[i], AcpiFormatException(status));
+			else if (bootverbose)
+				device_printf(dev, "installed _OSI(\"%s\")\n",
+				    list.data[i]);
+		}
+		acpi_free_interfaces(&list);
+	}
+	if (acpi_parse_interfaces(acpi_remove_interface, &list) > 0) {
+		for (i = 0; i < list.num; i++) {
+			status = AcpiRemoveInterface(list.data[i]);
+			if (ACPI_FAILURE(status))
+				device_printf(dev,
+				    "failed to remove _OSI(\"%s\"): %s\n",
+				    list.data[i], AcpiFormatException(status));
+			else if (bootverbose)
+				device_printf(dev, "removed _OSI(\"%s\")\n",
+				    list.data[i]);
+		}
+		acpi_free_interfaces(&list);
+	}
 }
 
 static int

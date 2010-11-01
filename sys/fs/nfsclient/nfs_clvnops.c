@@ -494,24 +494,46 @@ nfs_open(struct vop_open_args *ap)
 	 * Now, if this Open will be doing reading, re-validate/flush the
 	 * cache, so that Close/Open coherency is maintained.
 	 */
-	if ((fmode & FREAD) != 0 &&
-	    (!NFS_ISV4(vp) || nfscl_mustflush(vp) != 0)) {
+	mtx_lock(&np->n_mtx);
+	if (np->n_flag & NMODIFIED) {
+		mtx_unlock(&np->n_mtx);
+		error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
+		if (error == EINTR || error == EIO) {
+			if (NFS_ISV4(vp))
+				(void) nfsrpc_close(vp, 0, ap->a_td);
+			return (error);
+		}
 		mtx_lock(&np->n_mtx);
-		if (np->n_flag & NMODIFIED) {
-			mtx_unlock(&np->n_mtx);			
-			error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
-			if (error == EINTR || error == EIO) {
-				if (NFS_ISV4(vp))
-					(void) nfsrpc_close(vp, 0, ap->a_td);
-				return (error);
-			}
-			mtx_lock(&np->n_mtx);
-			np->n_attrstamp = 0;
+		np->n_attrstamp = 0;
+		if (vp->v_type == VDIR)
+			np->n_direofoffset = 0;
+		mtx_unlock(&np->n_mtx);
+		error = VOP_GETATTR(vp, &vattr, ap->a_cred);
+		if (error) {
+			if (NFS_ISV4(vp))
+				(void) nfsrpc_close(vp, 0, ap->a_td);
+			return (error);
+		}
+		mtx_lock(&np->n_mtx);
+		np->n_mtime = vattr.va_mtime;
+		if (NFS_ISV4(vp))
+			np->n_change = vattr.va_filerev;
+	} else {
+		mtx_unlock(&np->n_mtx);
+		error = VOP_GETATTR(vp, &vattr, ap->a_cred);
+		if (error) {
+			if (NFS_ISV4(vp))
+				(void) nfsrpc_close(vp, 0, ap->a_td);
+			return (error);
+		}
+		mtx_lock(&np->n_mtx);
+		if ((NFS_ISV4(vp) && np->n_change != vattr.va_filerev) ||
+		    NFS_TIMESPEC_COMPARE(&np->n_mtime, &vattr.va_mtime)) {
 			if (vp->v_type == VDIR)
 				np->n_direofoffset = 0;
 			mtx_unlock(&np->n_mtx);
-			error = VOP_GETATTR(vp, &vattr, ap->a_cred);
-			if (error) {
+			error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
+			if (error == EINTR || error == EIO) {
 				if (NFS_ISV4(vp))
 					(void) nfsrpc_close(vp, 0, ap->a_td);
 				return (error);
@@ -520,42 +542,16 @@ nfs_open(struct vop_open_args *ap)
 			np->n_mtime = vattr.va_mtime;
 			if (NFS_ISV4(vp))
 				np->n_change = vattr.va_filerev;
-			mtx_unlock(&np->n_mtx);
-		} else {
-			mtx_unlock(&np->n_mtx);						
-			error = VOP_GETATTR(vp, &vattr, ap->a_cred);
-			if (error) {
-				if (NFS_ISV4(vp))
-					(void) nfsrpc_close(vp, 0, ap->a_td);
-				return (error);
-			}
-			mtx_lock(&np->n_mtx);
-			if ((NFS_ISV4(vp) && np->n_change != vattr.va_filerev) ||
-			    NFS_TIMESPEC_COMPARE(&np->n_mtime, &vattr.va_mtime)) {
-				if (vp->v_type == VDIR)
-					np->n_direofoffset = 0;
-				mtx_unlock(&np->n_mtx);
-				error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
-				if (error == EINTR || error == EIO) {
-					if (NFS_ISV4(vp))
-						(void) nfsrpc_close(vp, 0,
-						    ap->a_td);
-					return (error);
-				}
-				mtx_lock(&np->n_mtx);
-				np->n_mtime = vattr.va_mtime;
-				if (NFS_ISV4(vp))
-					np->n_change = vattr.va_filerev;
-			}
-			mtx_unlock(&np->n_mtx);
 		}
 	}
 
 	/*
 	 * If the object has >= 1 O_DIRECT active opens, we disable caching.
 	 */
-	if (newnfs_directio_enable && (fmode & O_DIRECT) && (vp->v_type == VREG)) {
+	if (newnfs_directio_enable && (fmode & O_DIRECT) &&
+	    (vp->v_type == VREG)) {
 		if (np->n_directio_opens == 0) {
+			mtx_unlock(&np->n_mtx);
 			error = ncl_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 			if (error) {
 				if (NFS_ISV4(vp))
@@ -564,12 +560,10 @@ nfs_open(struct vop_open_args *ap)
 			}
 			mtx_lock(&np->n_mtx);
 			np->n_flag |= NNONCACHE;
-		} else {
-			mtx_lock(&np->n_mtx);
 		}
 		np->n_directio_opens++;
-		mtx_unlock(&np->n_mtx);
 	}
+	mtx_unlock(&np->n_mtx);
 	vnode_create_vobject(vp, vattr.va_size, ap->a_td);
 	return (0);
 }

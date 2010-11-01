@@ -779,10 +779,10 @@ static const char *nfs_opts[] = { "from", "nfs_args",
     "noatime", "noexec", "suiddir", "nosuid", "nosymfollow", "union",
     "noclusterr", "noclusterw", "multilabel", "acls", "force", "update",
     "async", "dumbtimer", "noconn", "nolockd", "intr", "rdirplus", "resvport",
-    "readdirsize", "soft", "hard", "mntudp", "tcp", "udp", "wsize", "rsize",
-    "retrans", "acregmin", "acregmax", "acdirmin", "acdirmax", 
-    "deadthresh", "hostname", "timeout", "addr", "fh", "nfsv3", "sec",
-    "maxgroups", "principal", "negnametimeo",
+    "readahead", "readdirsize", "soft", "hard", "mntudp", "tcp", "udp",
+    "wsize", "rsize", "retrans", "acregmin", "acregmax", "acdirmin",
+    "acdirmax", "deadthresh", "hostname", "timeout", "addr", "fh", "nfsv3",
+    "sec", "maxgroups", "principal", "negnametimeo",
     NULL };
 
 /*

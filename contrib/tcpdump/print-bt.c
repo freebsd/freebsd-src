@@ -19,7 +19,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-bt.c,v 1.1.2.1 2008-09-25 21:50:04 guy Exp $";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-bt.c,v 1.2 2008-09-25 21:45:50 guy Exp $";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -33,6 +33,7 @@ static const char rcsid[] _U_ =
 #include <string.h>
 
 #include "interface.h"
+#include "extract.h"
 #include "addrtoname.h"
 
 #if defined(DLT_BLUETOOTH_HCI_H4_WITH_PHDR) && defined(HAVE_PCAP_BLUETOOTH_H)
@@ -60,7 +61,7 @@ bt_if_print(const struct pcap_pkthdr *h, const u_char *p)
 	length -= BT_HDRLEN;
 	p += BT_HDRLEN;
 	if (eflag)
-		(void)printf("hci length %d, direction %s, ", length, (ntohl(hdr->direction)&0x1)?"in":"out");
+		(void)printf("hci length %d, direction %s, ", length, (EXTRACT_32BITS(&hdr->direction)&0x1)?"in":"out");
 
 	if (!suppress_default_print)
 		default_print(p, caplen);

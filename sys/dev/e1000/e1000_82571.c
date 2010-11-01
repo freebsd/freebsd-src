@@ -666,10 +666,15 @@ static void e1000_put_hw_semaphore_82573(struct e1000_hw *hw)
  **/
 static s32 e1000_get_hw_semaphore_82574(struct e1000_hw *hw)
 {
+	s32 ret_val;
+
 	DEBUGFUNC("e1000_get_hw_semaphore_82574");
 
 	E1000_MUTEX_LOCK(&hw->dev_spec._82571.swflag_mutex);
-	return e1000_get_hw_semaphore_82573(hw);
+	ret_val = e1000_get_hw_semaphore_82573(hw);
+	if (ret_val)
+		E1000_MUTEX_UNLOCK(&hw->dev_spec._82571.swflag_mutex);
+	return ret_val;
 }
 
 /**

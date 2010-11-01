@@ -126,6 +126,11 @@ VNET_DEFINE(int, ip4_esp_randpad) = -1;
  */
 VNET_DEFINE(int, crypto_support) = CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE;
 
+FEATURE(ipsec, "Internet Protocol Security (IPsec)");
+#ifdef IPSEC_NAT_T
+FEATURE(ipsec_natt, "UDP Encapsulation of IPsec ESP Packets ('NAT-T')");
+#endif
+
 SYSCTL_DECL(_net_inet_ipsec);
 
 /* net.inet.ipsec */

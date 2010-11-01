@@ -3362,8 +3362,7 @@ ztest_verify_blocks(char *pool)
 	int isalen;
 	FILE *fp;
 
-	if (realpath(progname, zdb) == NULL)
-		assert(!"realpath() failed");
+	strlcpy(zdb, "/usr/bin/ztest", sizeof(zdb));
 
 	/* zdb lives in /usr/sbin, while ztest lives in /usr/bin */
 	bin = strstr(zdb, "/usr/bin/");

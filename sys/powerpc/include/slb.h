@@ -62,6 +62,13 @@
 #define	SLBE_ESID_MASK	0xfffffffff0000000UL /* Effective segment ID mask */
 #define	SLBE_ESID_SHIFT	28
 
+/*
+ * User segment for copyin/out
+ */
+#define USER_SLB_SLOT 63
+#define USER_SLB_SLBE (((USER_ADDR >> ADDR_SR_SHFT) << SLBE_ESID_SHIFT) | \
+			SLBE_VALID | USER_SLB_SLOT)
+
 struct slb {
 	uint64_t	slbv;
 	uint64_t	slbe;
