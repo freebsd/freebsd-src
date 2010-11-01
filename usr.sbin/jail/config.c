@@ -380,45 +380,6 @@ add_param(struct cfjail *j, const struct cfparam *p, enum intparam ipnum,
 }
 
 /*
- * Check syntax of internal parameters.
- */
-int
-check_intparams(struct cfjail *j)
-{
-	struct cfparam *p;
-	const char *val;
-	char *ep;
-	int error;
-
-	error = 0;
-	TAILQ_FOREACH(p, &j->params, tq) {
-		if (!STAILQ_EMPTY(&p->val) &&
-		    (p->flags & (PF_BOOL | PF_INT))) {
-			val = STAILQ_LAST(&p->val, cfstring, tq)->s;
-			if (p->flags & PF_BOOL) {
-				if (strcasecmp(val, "false") &&
-				    strcasecmp(val, "true") &&
-				    ((void)strtol(val, &ep, 10), *ep)) {
-					jail_warnx(j,
-					    "%s: unknown boolean value \"%s\"",
-					    p->name, val);
-					error = -1;
-				}
-			} else {
-				(void)strtol(val, &ep, 10);
-				if (ep == val || *ep) {
-					jail_warnx(j,
-					    "%s: non-integer value \"%s\"",
-					    p->name, val);
-					error = -1;
-				}
-			}
-		}
-	}
-	return error;
-}
-
-/*
  * Return if a boolean parameter exists and is true.
  */
 int
@@ -458,18 +419,21 @@ string_param(const struct cfparam *p)
 }
 
 /*
- * Look up extra IP addresses from the hostname and save interface and netmask.
+ * Check syntax and values of internal parameters.  Set some internal
+ * parameters based on the values of others.
  */
 int
-ip_params(struct cfjail *j)
+check_intparams(struct cfjail *j)
 {
 	struct in_addr addr4;
-	struct addrinfo hints, *ai0, *ai;
+	struct addrinfo hints;
+	struct addrinfo *ai0, *ai;
+	struct cfparam *p;
 	struct cfstring *s, *ns;
+	const char *hostname, *val;
 	char *cs, *ep;
-	const char *hostname;
 	size_t size;
-	int error, ip4ok, defif, prefix;
+	int error, gicode, ip4ok, defif, prefix;
 	int mib[4];
 	char avalue4[INET_ADDRSTRLEN];
 #ifdef INET6
@@ -479,11 +443,39 @@ ip_params(struct cfjail *j)
 #endif
 
 	error = 0;
+	/* Check format of boolan and integer values. */
+	TAILQ_FOREACH(p, &j->params, tq) {
+		if (!STAILQ_EMPTY(&p->val) &&
+		    (p->flags & (PF_BOOL | PF_INT))) {
+			val = STAILQ_LAST(&p->val, cfstring, tq)->s;
+			if (p->flags & PF_BOOL) {
+				if (strcasecmp(val, "false") &&
+				    strcasecmp(val, "true") &&
+				    ((void)strtol(val, &ep, 10), *ep)) {
+					jail_warnx(j,
+					    "%s: unknown boolean value \"%s\"",
+					    p->name, val);
+					error = -1;
+				}
+			} else {
+				(void)strtol(val, &ep, 10);
+				if (ep == val || *ep) {
+					jail_warnx(j,
+					    "%s: non-integer value \"%s\"",
+					    p->name, val);
+					error = -1;
+				}
+			}
+		}
+	}
+
 	/*
 	 * The ip_hostname parameter looks up the hostname, and adds parameters
 	 * for any IP addresses it finds.
 	 */
-	if (bool_param(j->intparams[IP_IP_HOSTNAME]) &&
+	if (((j->flags & JF_OP_MASK) != JF_STOP ||
+	    j->intparams[IP_INTERFACE] != NULL) &&
+	    bool_param(j->intparams[IP_IP_HOSTNAME]) &&
 	    (hostname = string_param(j->intparams[KP_HOST_HOSTNAME]))) {
 		j->intparams[IP_IP_HOSTNAME] = NULL;
 		/*
@@ -511,10 +503,10 @@ ip_params(struct cfjail *j)
 			    ip6ok ? (ip4ok ? PF_UNSPEC : PF_INET6) :
 #endif
 			    PF_INET;
-			error = getaddrinfo(hostname, NULL, &hints, &ai0);
-			if (error != 0) {
+			gicode = getaddrinfo(hostname, NULL, &hints, &ai0);
+			if (gicode != 0) {
 				jail_warnx(j, "host.hostname %s: %s", hostname,
-				    gai_strerror(error));
+				    gai_strerror(gicode));
 				error = -1;
 			} else {
 				/*
@@ -555,6 +547,7 @@ ip_params(struct cfjail *j)
 			}
 		}
 	}
+
 	/*
 	 * IP addresses may include an interface to set that address on,
 	 * and a netmask/suffix for that address.
