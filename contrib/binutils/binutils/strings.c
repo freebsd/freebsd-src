@@ -1,6 +1,6 @@
 /* strings -- print the strings of printable characters in files
    Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+   2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,6 +46,7 @@
 		littleendian 32-bit.
 
    --target=BFDNAME
+   -T {bfdname}
 		Specify a non-default object file format.
 
    --help
@@ -57,17 +58,13 @@
    Written by Richard Stallman <rms@gnu.ai.mit.edu>
    and David MacKenzie <djm@gnu.ai.mit.edu>.  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include "sysdep.h"
 #include "bfd.h"
-#include <stdio.h>
 #include "getopt.h"
-#include <errno.h>
-#include "bucomm.h"
 #include "libiberty.h"
 #include "safe-ctype.h"
 #include <sys/stat.h>
+#include "bucomm.h"
 
 /* Some platforms need to put stdin into binary mode, to read
     binary files.  */
@@ -195,7 +192,7 @@ main (int argc, char **argv)
   target = NULL;
   encoding = 's';
 
-  while ((optc = getopt_long (argc, argv, "afhHn:ot:e:Vv0123456789",
+  while ((optc = getopt_long (argc, argv, "afhHn:ot:e:T:Vv0123456789",
 			      long_options, (int *) 0)) != EOF)
     {
       switch (optc)
@@ -721,7 +718,7 @@ usage (FILE *stream, int status)
   -h --help                 Display this information\n\
   -v --version              Print the program's version number\n"));
   list_supported_targets (program_name, stream);
-  if (status == 0)
+  if (REPORT_BUGS_TO[0] && status == 0)
     fprintf (stream, _("Report bugs to %s\n"), REPORT_BUGS_TO);
   exit (status);
 }

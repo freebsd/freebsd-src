@@ -1,6 +1,6 @@
 /* BFD library support routines for architectures.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006
+   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Hacked by John Gilmore and Steve Chamberlain of Cygnus Support.
 
@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "safe-ctype.h"
 
@@ -80,22 +80,26 @@ DESCRIPTION
 .#define bfd_mach_m68040 6
 .#define bfd_mach_m68060 7
 .#define bfd_mach_cpu32  8
-.#define bfd_mach_mcf_isa_a_nodiv 9
-.#define bfd_mach_mcf_isa_a 10
-.#define bfd_mach_mcf_isa_a_mac 11
-.#define bfd_mach_mcf_isa_a_emac 12
-.#define bfd_mach_mcf_isa_aplus 13
-.#define bfd_mach_mcf_isa_aplus_mac 14
-.#define bfd_mach_mcf_isa_aplus_emac 15
-.#define bfd_mach_mcf_isa_b_nousp 16
-.#define bfd_mach_mcf_isa_b_nousp_mac 17
-.#define bfd_mach_mcf_isa_b_nousp_emac 18
-.#define bfd_mach_mcf_isa_b 19
-.#define bfd_mach_mcf_isa_b_mac 20
-.#define bfd_mach_mcf_isa_b_emac 21
-.#define bfd_mach_mcf_isa_b_float 22
-.#define bfd_mach_mcf_isa_b_float_mac 23
-.#define bfd_mach_mcf_isa_b_float_emac 24
+.#define bfd_mach_fido   9
+.#define bfd_mach_mcf_isa_a_nodiv 10
+.#define bfd_mach_mcf_isa_a 11
+.#define bfd_mach_mcf_isa_a_mac 12
+.#define bfd_mach_mcf_isa_a_emac 13
+.#define bfd_mach_mcf_isa_aplus 14
+.#define bfd_mach_mcf_isa_aplus_mac 15
+.#define bfd_mach_mcf_isa_aplus_emac 16
+.#define bfd_mach_mcf_isa_b_nousp 17
+.#define bfd_mach_mcf_isa_b_nousp_mac 18
+.#define bfd_mach_mcf_isa_b_nousp_emac 19
+.#define bfd_mach_mcf_isa_b 20
+.#define bfd_mach_mcf_isa_b_mac 21
+.#define bfd_mach_mcf_isa_b_emac 22
+.#define bfd_mach_mcf_isa_b_float 23
+.#define bfd_mach_mcf_isa_b_float_mac 24
+.#define bfd_mach_mcf_isa_b_float_emac 25
+.#define bfd_mach_mcf_isa_c 26
+.#define bfd_mach_mcf_isa_c_mac 27
+.#define bfd_mach_mcf_isa_c_emac 28
 .  bfd_arch_vax,       {* DEC Vax *}
 .  bfd_arch_i960,      {* Intel 960 *}
 .    {* The order of the following is important.
@@ -136,6 +140,8 @@ DESCRIPTION
 .{* Nonzero if MACH is a 64 bit sparc architecture.  *}
 .#define bfd_mach_sparc_64bit_p(mach) \
 .  ((mach) >= bfd_mach_sparc_v9 && (mach) != bfd_mach_sparc_v8plusb)
+.  bfd_arch_spu,       {* PowerPC SPU *}
+.#define bfd_mach_spu		256 
 .  bfd_arch_mips,      {* MIPS Rxxxx *}
 .#define bfd_mach_mips3000		3000
 .#define bfd_mach_mips3900		3900
@@ -274,6 +280,7 @@ DESCRIPTION
 .#define bfd_mach_arm_XScale	10
 .#define bfd_mach_arm_ep9312	11
 .#define bfd_mach_arm_iWMMXt	12
+.#define bfd_mach_arm_iWMMXt2	13
 .  bfd_arch_ns32k,     {* National Semiconductors ns32000 *}
 .  bfd_arch_w65,       {* WDC 65816 *}
 .  bfd_arch_tic30,     {* Texas Instruments TMS320C30 *}
@@ -315,6 +322,9 @@ DESCRIPTION
 .#define bfd_mach_fr500		500
 .#define bfd_mach_fr550		550
 .  bfd_arch_mcore,
+.  bfd_arch_mep,
+.#define bfd_mach_mep		1
+.#define bfd_mach_mep_h1	0x6831
 .  bfd_arch_ia64,      {* HP/Intel ia64 *}
 .#define bfd_mach_ia64_elf64	64
 .#define bfd_mach_ia64_elf32	32
@@ -335,8 +345,11 @@ DESCRIPTION
 .#define bfd_mach_avr3		3
 .#define bfd_mach_avr4		4
 .#define bfd_mach_avr5		5
+.#define bfd_mach_avr6		6
 .  bfd_arch_bfin,        {* ADI Blackfin *}
 .#define bfd_mach_bfin          1
+.  bfd_arch_cr16,       {* National Semiconductor CompactRISC (ie CR16). *}
+.#define bfd_mach_cr16		1
 .  bfd_arch_cr16c,       {* National Semiconductor CompactRISC. *}
 .#define bfd_mach_cr16c		1
 .  bfd_arch_crx,       {*  National Semiconductor CRX.  *}
@@ -348,6 +361,7 @@ DESCRIPTION
 .  bfd_arch_s390,      {* IBM s390 *}
 .#define bfd_mach_s390_31       31
 .#define bfd_mach_s390_64       64
+.  bfd_arch_score,     {* Sunplus score *} 
 .  bfd_arch_openrisc,  {* OpenRISC *}
 .  bfd_arch_mmix,      {* Donald Knuth's educational processor.  *}
 .  bfd_arch_xstormy16,
@@ -425,6 +439,7 @@ extern const bfd_arch_info_type bfd_arc_arch;
 extern const bfd_arch_info_type bfd_arm_arch;
 extern const bfd_arch_info_type bfd_avr_arch;
 extern const bfd_arch_info_type bfd_bfin_arch;
+extern const bfd_arch_info_type bfd_cr16_arch;
 extern const bfd_arch_info_type bfd_cr16c_arch;
 extern const bfd_arch_info_type bfd_cris_arch;
 extern const bfd_arch_info_type bfd_crx_arch;
@@ -451,6 +466,7 @@ extern const bfd_arch_info_type bfd_m68k_arch;
 extern const bfd_arch_info_type bfd_m88k_arch;
 extern const bfd_arch_info_type bfd_maxq_arch;
 extern const bfd_arch_info_type bfd_mcore_arch;
+extern const bfd_arch_info_type bfd_mep_arch;
 extern const bfd_arch_info_type bfd_mips_arch;
 extern const bfd_arch_info_type bfd_mmix_arch;
 extern const bfd_arch_info_type bfd_mn10200_arch;
@@ -466,8 +482,10 @@ extern const bfd_arch_info_type bfd_powerpc_archs[];
 #define bfd_powerpc_arch bfd_powerpc_archs[0]
 extern const bfd_arch_info_type bfd_rs6000_arch;
 extern const bfd_arch_info_type bfd_s390_arch;
+extern const bfd_arch_info_type bfd_score_arch;
 extern const bfd_arch_info_type bfd_sh_arch;
 extern const bfd_arch_info_type bfd_sparc_arch;
+extern const bfd_arch_info_type bfd_spu_arch;
 extern const bfd_arch_info_type bfd_tic30_arch;
 extern const bfd_arch_info_type bfd_tic4x_arch;
 extern const bfd_arch_info_type bfd_tic54x_arch;
@@ -492,6 +510,7 @@ static const bfd_arch_info_type * const bfd_archures_list[] =
     &bfd_arm_arch,
     &bfd_avr_arch,
     &bfd_bfin_arch,
+    &bfd_cr16_arch,
     &bfd_cr16c_arch,
     &bfd_cris_arch,
     &bfd_crx_arch,
@@ -518,6 +537,7 @@ static const bfd_arch_info_type * const bfd_archures_list[] =
     &bfd_m88k_arch,
     &bfd_maxq_arch,
     &bfd_mcore_arch,
+    &bfd_mep_arch,
     &bfd_mips_arch,
     &bfd_mmix_arch,
     &bfd_mn10200_arch,
@@ -531,8 +551,10 @@ static const bfd_arch_info_type * const bfd_archures_list[] =
     &bfd_powerpc_arch,
     &bfd_rs6000_arch,
     &bfd_s390_arch,
+    &bfd_score_arch,
     &bfd_sh_arch,
     &bfd_sparc_arch,
+    &bfd_spu_arch,
     &bfd_tic30_arch,
     &bfd_tic4x_arch,
     &bfd_tic54x_arch,

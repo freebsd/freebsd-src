@@ -1,6 +1,6 @@
 /* tc-sparc.c -- Assemble for the SPARC
    Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005
+   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    This file is part of GAS, the GNU Assembler.
 
@@ -18,8 +18,6 @@
    License along with GAS; see the file COPYING.  If not, write
    to the Free Software Foundation, 51 Franklin Street - Fifth Floor,
    Boston, MA 02110-1301, USA.  */
-
-#include <stdio.h>
 
 #include "as.h"
 #include "safe-ctype.h"
@@ -339,7 +337,7 @@ sparc_target_format ()
 #endif
 
 #ifdef OBJ_ELF
-  return sparc_arch_size == 64 ? "elf64-sparc" : "elf32-sparc";
+  return sparc_arch_size == 64 ? ELF64_TARGET_FORMAT : ELF_TARGET_FORMAT;
 #endif
 
   abort ();
@@ -547,12 +545,12 @@ md_parse_option (c, arg)
 	  {
 	    if (sparc_arch_size == 32)
 	      {
-		if (strcmp (*l, "elf32-sparc") == 0)
+		if (CONST_STRNEQ (*l, "elf32-sparc"))
 		  break;
 	      }
 	    else
 	      {
-		if (strcmp (*l, "elf64-sparc") == 0)
+		if (CONST_STRNEQ (*l, "elf64-sparc"))
 		  break;
 	      }
 	  }
@@ -1862,7 +1860,8 @@ sparc_ip (str, pinsn)
 	    case '\0':		/* End of args.  */
 	      if (s[0] == ',' && s[1] == '%')
 		{
-		  static const struct tls_ops {
+		  static const struct tls_ops
+		  {
 		    /* The name as it appears in assembler.  */
 		    char *name;
 		    /* strlen (name), precomputed for speed */
@@ -1871,7 +1870,9 @@ sparc_ip (str, pinsn)
 		    int reloc;
 		    /* 1 if call.  */
 		    int call;
-		  } tls_ops[] = {
+		  }
+		  tls_ops[] =
+		  {
 		    { "tgd_add", 7, BFD_RELOC_SPARC_TLS_GD_ADD, 0 },
 		    { "tgd_call", 8, BFD_RELOC_SPARC_TLS_GD_CALL, 1 },
 		    { "tldm_add", 8, BFD_RELOC_SPARC_TLS_LDM_ADD, 0 },
@@ -1879,7 +1880,8 @@ sparc_ip (str, pinsn)
 		    { "tldo_add", 8, BFD_RELOC_SPARC_TLS_LDO_ADD, 0 },
 		    { "tie_ldx", 7, BFD_RELOC_SPARC_TLS_IE_LDX, 0 },
 		    { "tie_ld", 6, BFD_RELOC_SPARC_TLS_IE_LD, 0 },
-		    { "tie_add", 7, BFD_RELOC_SPARC_TLS_IE_ADD, 0 }
+		    { "tie_add", 7, BFD_RELOC_SPARC_TLS_IE_ADD, 0 },
+		    { NULL, 0, 0, 0 }
 		  };
 		  const struct tls_ops *o;
 		  char *s1;
@@ -3311,9 +3313,9 @@ md_apply_fix (fixP, valP, segment)
 	  break;
 
 	case BFD_RELOC_SPARC_WDISP16:
-	  /* FIXME: simplify.  */
-	  if (((val > 0) && (val & ~0x3fffc))
-	      || ((val < 0) && (~(val - 1) & ~0x3fffc)))
+	  if ((val & 3)
+	      || val >= 0x1fffc
+	      || val <= -(offsetT) 0x20008)
 	    as_bad_where (fixP->fx_file, fixP->fx_line,
 			  _("relocation overflow"));
 	  /* FIXME: The +1 deserves a comment.  */
@@ -3322,9 +3324,9 @@ md_apply_fix (fixP, valP, segment)
 	  break;
 
 	case BFD_RELOC_SPARC_WDISP19:
-	  /* FIXME: simplify.  */
-	  if (((val > 0) && (val & ~0x1ffffc))
-	      || ((val < 0) && (~(val - 1) & ~0x1ffffc)))
+	  if ((val & 3)
+	      || val >= 0xffffc
+	      || val <= -(offsetT) 0x100008)
 	    as_bad_where (fixP->fx_file, fixP->fx_line,
 			  _("relocation overflow"));
 	  /* FIXME: The +1 deserves a comment.  */
@@ -3439,7 +3441,7 @@ md_apply_fix (fixP, valP, segment)
 
 arelent **
 tc_gen_reloc (section, fixp)
-     asection *section ATTRIBUTE_UNUSED;
+     asection *section;
      fixS *fixp;
 {
   static arelent *relocs[3];
@@ -3581,6 +3583,16 @@ tc_gen_reloc (section, fixp)
 	}
     }
 #endif /* defined (OBJ_ELF) || defined (OBJ_AOUT)  */
+
+  /* Nothing is aligned in DWARF debugging sections.  */
+  if (bfd_get_section_flags (stdoutput, section) & SEC_DEBUGGING)
+    switch (code)
+      {
+      case BFD_RELOC_16: code = BFD_RELOC_SPARC_UA16; break;
+      case BFD_RELOC_32: code = BFD_RELOC_SPARC_UA32; break;
+      case BFD_RELOC_64: code = BFD_RELOC_SPARC_UA64; break;
+      default: break;
+      }
 
   if (code == BFD_RELOC_SPARC_OLO10)
     reloc->howto = bfd_reloc_type_lookup (stdoutput, BFD_RELOC_LO10);
@@ -4602,7 +4614,7 @@ sparc_cfi_frame_initial_instructions ()
 }
 
 int
-sparc_regname_to_dw2regnum (const char *regname)
+sparc_regname_to_dw2regnum (char *regname)
 {
   char *p, *q;
 

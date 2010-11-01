@@ -1,5 +1,5 @@
 /* SPARC-specific support for ELF
-   Copyright 2005, 2006 Free Software Foundation, Inc.
+   Copyright 2005, 2006, 2007 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -19,8 +19,8 @@
 
 /* This file handles functionality common to the different SPARC ABI's.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "bfdlink.h"
 #include "libbfd.h"
 #include "libiberty.h"
@@ -385,6 +385,30 @@ _bfd_sparc_elf_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
 }
 
 reloc_howto_type *
+_bfd_sparc_elf_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+				  const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < (sizeof (_bfd_sparc_elf_howto_table)
+	    / sizeof (_bfd_sparc_elf_howto_table[0]));
+       i++)
+    if (_bfd_sparc_elf_howto_table[i].name != NULL
+	&& strcasecmp (_bfd_sparc_elf_howto_table[i].name, r_name) == 0)
+      return &_bfd_sparc_elf_howto_table[i];
+
+  if (strcasecmp (sparc_vtinherit_howto.name, r_name) == 0)
+    return &sparc_vtinherit_howto;
+  if (strcasecmp (sparc_vtentry_howto.name, r_name) == 0)
+    return &sparc_vtentry_howto;
+  if (strcasecmp (sparc_rev32_howto.name, r_name) == 0)
+    return &sparc_rev32_howto;
+
+  return NULL;
+}
+
+reloc_howto_type *
 _bfd_sparc_elf_info_to_howto_ptr (unsigned int r_type)
 {
   switch (r_type)
@@ -487,11 +511,14 @@ struct _bfd_sparc_elf_obj_tdata
 bfd_boolean
 _bfd_sparc_elf_mkobject (bfd *abfd)
 {
-  bfd_size_type amt = sizeof (struct _bfd_sparc_elf_obj_tdata);
-  abfd->tdata.any = bfd_zalloc (abfd, amt);
   if (abfd->tdata.any == NULL)
-    return FALSE;
-  return TRUE;
+    {
+      bfd_size_type amt = sizeof (struct _bfd_sparc_elf_obj_tdata);
+      abfd->tdata.any = bfd_zalloc (abfd, amt);
+      if (abfd->tdata.any == NULL)
+	return FALSE;
+    }
+  return bfd_elf_mkobject (abfd);
 }
 
 static void
@@ -507,27 +534,14 @@ sparc_put_word_64 (bfd *bfd, bfd_vma val, void *ptr)
 }
 
 static void
-sparc_elf_append_rela_64 (bfd *abfd ATTRIBUTE_UNUSED,
-			  asection *s ATTRIBUTE_UNUSED,
-			  Elf_Internal_Rela *rel ATTRIBUTE_UNUSED)
+sparc_elf_append_rela (bfd *abfd, asection *s, Elf_Internal_Rela *rel)
 {
-#ifdef BFD64
-  Elf64_External_Rela *loc64;
+  const struct elf_backend_data *bed;
+  bfd_byte *loc;
 
-  loc64 = (Elf64_External_Rela *) s->contents;
-  loc64 += s->reloc_count++;
-  bfd_elf64_swap_reloca_out (abfd, rel, (bfd_byte *) loc64);
-#endif
-}
-
-static void
-sparc_elf_append_rela_32 (bfd *abfd, asection *s, Elf_Internal_Rela *rel)
-{
-  Elf32_External_Rela *loc32;
-
-  loc32 = (Elf32_External_Rela *) s->contents;
-  loc32 += s->reloc_count++;
-  bfd_elf32_swap_reloca_out (abfd, rel, (bfd_byte *) loc32);
+  bed = get_elf_backend_data (abfd);
+  loc = s->contents + (s->reloc_count++ * bed->s->sizeof_rela);
+  bed->s->swap_reloca_out (abfd, rel, loc);
 }
 
 static bfd_vma
@@ -746,9 +760,6 @@ static const bfd_vma sparc_vxworks_shared_plt_entry[] =
 #define SPARC_ELF_PUT_WORD(htab, bfd, val, ptr)	\
 	htab->put_word(bfd, val, ptr)
 
-#define SPARC_ELF_APPEND_RELA(htab, bfd, sec, rela)	\
-	htab->append_rela(bfd, sec, rela)
-
 #define SPARC_ELF_R_INFO(htab, in_rel, index, type)	\
 	htab->r_info(in_rel, index, type)
 
@@ -824,7 +835,6 @@ _bfd_sparc_elf_link_hash_table_create (bfd *abfd)
   if (ABI_64_P (abfd))
     {
       ret->put_word = sparc_put_word_64;
-      ret->append_rela = sparc_elf_append_rela_64;
       ret->r_info = sparc_elf_r_info_64;
       ret->r_symndx = sparc_elf_r_symndx_64;
       ret->dtpoff_reloc = R_SPARC_TLS_DTPOFF64;
@@ -840,7 +850,6 @@ _bfd_sparc_elf_link_hash_table_create (bfd *abfd)
   else
     {
       ret->put_word = sparc_put_word_32;
-      ret->append_rela = sparc_elf_append_rela_32;
       ret->r_info = sparc_elf_r_info_32;
       ret->r_symndx = sparc_elf_r_symndx_32;
       ret->dtpoff_reloc = R_SPARC_TLS_DTPOFF32;
@@ -1427,7 +1436,7 @@ _bfd_sparc_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 		  if (name == NULL)
 		    return FALSE;
 
-		  BFD_ASSERT (strncmp (name, ".rela", 5) == 0
+		  BFD_ASSERT (CONST_STRNEQ (name, ".rela")
 			      && strcmp (bfd_get_section_name (abfd, sec),
 					 name + 5) == 0);
 
@@ -1529,35 +1538,14 @@ _bfd_sparc_elf_gc_mark_hook (asection *sec,
 			     Elf_Internal_Sym *sym)
 {
   if (h != NULL)
-    {
-      struct _bfd_sparc_elf_link_hash_table *htab;
-
-      htab = _bfd_sparc_elf_hash_table (info);
-      switch (SPARC_ELF_R_TYPE (rel->r_info))
+    switch (SPARC_ELF_R_TYPE (rel->r_info))
       {
       case R_SPARC_GNU_VTINHERIT:
       case R_SPARC_GNU_VTENTRY:
-	break;
-
-      default:
-	switch (h->root.type)
-	  {
-	  case bfd_link_hash_defined:
-	  case bfd_link_hash_defweak:
-	    return h->root.u.def.section;
-
-	  case bfd_link_hash_common:
-	    return h->root.u.c.p->section;
-
-	  default:
-	    break;
-	  }
+	return NULL;
       }
-    }
-  else
-    return bfd_section_from_elf_index (sec->owner, sym->st_shndx);
 
-  return NULL;
+  return _bfd_elf_gc_mark_hook (sec, info, rel, h, sym);
 }
 
 /* Update the got entry reference counts for the section being removed.  */
@@ -1713,7 +1701,6 @@ _bfd_sparc_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
   struct _bfd_sparc_elf_link_hash_entry * eh;
   struct _bfd_sparc_elf_dyn_relocs *p;
   asection *s;
-  unsigned int power_of_two;
 
   htab = _bfd_sparc_elf_hash_table (info);
 
@@ -1830,29 +1817,9 @@ _bfd_sparc_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
       h->needs_copy = 1;
     }
 
-  /* We need to figure out the alignment required for this symbol.  I
-     have no idea how ELF linkers handle this.  */
-  power_of_two = bfd_log2 (h->size);
-  if (power_of_two > htab->align_power_max)
-    power_of_two = htab->align_power_max;
-
-  /* Apply the required alignment.  */
   s = htab->sdynbss;
-  s->size = BFD_ALIGN (s->size, (bfd_size_type) (1 << power_of_two));
-  if (power_of_two > bfd_get_section_alignment (dynobj, s))
-    {
-      if (! bfd_set_section_alignment (dynobj, s, power_of_two))
-	return FALSE;
-    }
 
-  /* Define the symbol as being at this point in the section.  */
-  h->root.u.def.section = s;
-  h->root.u.def.value = s->size;
-
-  /* Increment the section size to make room for the symbol.  */
-  s->size += h->size;
-
-  return TRUE;
+  return _bfd_elf_adjust_dynamic_copy (h, s);
 }
 
 /* Allocate space in .plt, .got and associated reloc sections for
@@ -2287,7 +2254,7 @@ _bfd_sparc_elf_size_dynamic_sections (bfd *output_bfd,
 	  /* Strip this section if we don't need it; see the
 	     comment below.  */
 	}
-      else if (strncmp (s->name, ".rela", 5) == 0)
+      else if (CONST_STRNEQ (s->name, ".rela"))
 	{
 	  if (s->size != 0)
 	    {
@@ -2434,13 +2401,16 @@ _bfd_sparc_elf_size_dynamic_sections (bfd *output_bfd,
 bfd_boolean
 _bfd_sparc_elf_new_section_hook (bfd *abfd, asection *sec)
 {
-  struct _bfd_sparc_elf_section_data *sdata;
-  bfd_size_type amt = sizeof (*sdata);
+  if (!sec->used_by_bfd)
+    {
+      struct _bfd_sparc_elf_section_data *sdata;
+      bfd_size_type amt = sizeof (*sdata);
 
-  sdata = (struct _bfd_sparc_elf_section_data *) bfd_zalloc (abfd, amt);
-  if (sdata == NULL)
-    return FALSE;
-  sec->used_by_bfd = (PTR) sdata;
+      sdata = bfd_zalloc (abfd, amt);
+      if (sdata == NULL)
+	return FALSE;
+      sec->used_by_bfd = sdata;
+    }
 
   return _bfd_elf_new_section_hook (abfd, sec);
 }
@@ -2486,10 +2456,14 @@ tpoff (struct bfd_link_info *info, bfd_vma address)
 /* Relocate a SPARC ELF section.  */
 
 bfd_boolean
-_bfd_sparc_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
-				 bfd *input_bfd, asection *input_section,
-				 bfd_byte *contents, Elf_Internal_Rela *relocs,
-				 Elf_Internal_Sym *local_syms, asection **local_sections)
+_bfd_sparc_elf_relocate_section (bfd *output_bfd,
+				 struct bfd_link_info *info,
+				 bfd *input_bfd,
+				 asection *input_section,
+				 bfd_byte *contents,
+				 Elf_Internal_Rela *relocs,
+				 Elf_Internal_Sym *local_syms,
+				 asection **local_sections)
 {
   struct _bfd_sparc_elf_link_hash_table *htab;
   Elf_Internal_Shdr *symtab_hdr;
@@ -2500,9 +2474,6 @@ _bfd_sparc_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
   Elf_Internal_Rela *rel;
   Elf_Internal_Rela *relend;
   int num_relocs;
-
-  if (info->relocatable)
-    return TRUE;
 
   htab = _bfd_sparc_elf_hash_table (info);
   symtab_hdr = &elf_tdata (input_bfd)->symtab_hdr;
@@ -2547,7 +2518,6 @@ _bfd_sparc_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 	}
       howto = _bfd_sparc_elf_howto_table + r_type;
 
-      /* This is a final link.  */
       r_symndx = SPARC_ELF_R_SYMNDX (htab, rel->r_info);
       h = NULL;
       sym = NULL;
@@ -2578,6 +2548,21 @@ _bfd_sparc_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 		relocation = 0;
 	    }
 	}
+
+      if (sec != NULL && elf_discarded_section (sec))
+	{
+	  /* For relocs against symbols from removed linkonce
+	     sections, or sections discarded by a linker script, we
+	     just want the section contents zeroed.  Avoid any
+	     special processing.  */
+	  _bfd_clear_contents (howto, input_bfd, contents + rel->r_offset);
+	  rel->r_info = 0;
+	  rel->r_addend = 0;
+	  continue;
+	}
+
+      if (info->relocatable)
+	continue;
 
       switch (r_type)
 	{
@@ -2660,7 +2645,7 @@ _bfd_sparc_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 							0, R_SPARC_RELATIVE);
 		      outrel.r_addend = relocation;
 		      relocation = 0;
-		      SPARC_ELF_APPEND_RELA (htab, output_bfd, s, &outrel);
+		      sparc_elf_append_rela (output_bfd, s, &outrel);
 		    }
 
 		  SPARC_ELF_PUT_WORD (htab, output_bfd, relocation,
@@ -2767,11 +2752,7 @@ _bfd_sparc_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 	case R_SPARC_L44:
 	case R_SPARC_UA64:
 	r_sparc_plt32:
-	  /* r_symndx will be zero only for relocs against symbols
-	     from removed linkonce sections, or sections discarded by
-	     a linker script.  */
-	  if (r_symndx == 0
-	      || (input_section->flags & SEC_ALLOC) == 0)
+	  if ((input_section->flags & SEC_ALLOC) == 0)
 	    break;
 
 	  if ((info->shared
@@ -2879,6 +2860,8 @@ _bfd_sparc_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 		    {
 		      long indx;
 
+		      outrel.r_addend = relocation + rel->r_addend;
+
 		      if (is_plt)
 			sec = htab->splt;
 
@@ -2893,8 +2876,19 @@ _bfd_sparc_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 			{
 			  asection *osec;
 
+			  /* We are turning this relocation into one
+			     against a section symbol.  It would be
+			     proper to subtract the symbol's value,
+			     osec->vma, from the emitted reloc addend,
+			     but ld.so expects buggy relocs.  */
 			  osec = sec->output_section;
 			  indx = elf_section_data (osec)->dynindx;
+
+			  if (indx == 0)
+			    {
+			      osec = htab->elf.text_index_section;
+			      indx = elf_section_data (osec)->dynindx;
+			    }
 
 			  /* FIXME: we really should be able to link non-pic
 			     shared libraries.  */
@@ -2909,12 +2903,12 @@ _bfd_sparc_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 			    }
 			}
 
-		      outrel.r_info = SPARC_ELF_R_INFO (htab, rel, indx, r_type);
-		      outrel.r_addend = relocation + rel->r_addend;
+		      outrel.r_info = SPARC_ELF_R_INFO (htab, rel, indx,
+							r_type);
 		    }
 		}
 
-	      SPARC_ELF_APPEND_RELA (htab, output_bfd, sreloc, &outrel);
+	      sparc_elf_append_rela (output_bfd, sreloc, &outrel);
 
 	      /* This reloc will be computed at runtime, so there's no
 		 need to do anything now.  */
@@ -3022,7 +3016,7 @@ _bfd_sparc_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 	      else
 		outrel.r_addend = 0;
 	      outrel.r_info = SPARC_ELF_R_INFO (htab, NULL, indx, dr_type);
-	      SPARC_ELF_APPEND_RELA (htab, output_bfd, htab->srelgot, &outrel);
+	      sparc_elf_append_rela (output_bfd, htab->srelgot, &outrel);
 
 	      if (r_type == R_SPARC_TLS_GD_HI22
 		  || r_type == R_SPARC_TLS_GD_LO10)
@@ -3043,7 +3037,8 @@ _bfd_sparc_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 		      outrel.r_info = SPARC_ELF_R_INFO (htab, NULL, indx,
 							SPARC_ELF_DTPOFF_RELOC (htab));
 		      outrel.r_offset += SPARC_ELF_WORD_BYTES (htab);
-		      SPARC_ELF_APPEND_RELA (htab, output_bfd, htab->srelgot, &outrel);
+		      sparc_elf_append_rela (output_bfd, htab->srelgot,
+					     &outrel);
 		    }
 		}
 	      else if (dr_type == SPARC_ELF_DTPMOD_RELOC (htab))
@@ -3112,7 +3107,7 @@ _bfd_sparc_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 				    + rel->r_addend;
 		}
 
-	      SPARC_ELF_APPEND_RELA (htab, output_bfd, sreloc, &outrel);
+	      sparc_elf_append_rela (output_bfd, sreloc, &outrel);
 	      continue;
 	    }
 	  relocation = tpoff (info, relocation);
@@ -3633,9 +3628,11 @@ _bfd_sparc_elf_finish_dynamic_symbol (bfd *output_bfd,
 {
   bfd *dynobj;
   struct _bfd_sparc_elf_link_hash_table *htab;
+  const struct elf_backend_data *bed;
 
   htab = _bfd_sparc_elf_hash_table (info);
   dynobj = htab->elf.dynobj;
+  bed = get_elf_backend_data (output_bfd);
 
   if (h->plt.offset != (bfd_vma) -1)
     {
@@ -3705,18 +3702,8 @@ _bfd_sparc_elf_finish_dynamic_symbol (bfd *output_bfd,
 	 thus .plt[4] has corresponding .rela.plt[0] and so on.  */
 
       loc = srela->contents;
-#ifdef BFD64
-      if (ABI_64_P (output_bfd))
-	{
-	  loc += rela_index * sizeof (Elf64_External_Rela);
-	  bfd_elf64_swap_reloca_out (output_bfd, &rela, loc);
-	}
-      else
-#endif
-	{
-	  loc += rela_index * sizeof (Elf32_External_Rela);
-	  bfd_elf32_swap_reloca_out (output_bfd, &rela, loc);
-	}
+      loc += rela_index * bed->s->sizeof_rela;
+      bed->s->swap_reloca_out (output_bfd, &rela, loc);
 
       if (!h->def_regular)
 	{
@@ -3773,7 +3760,7 @@ _bfd_sparc_elf_finish_dynamic_symbol (bfd *output_bfd,
 
       SPARC_ELF_PUT_WORD (htab, output_bfd, 0,
 			  sgot->contents + (h->got.offset & ~(bfd_vma) 1));
-      SPARC_ELF_APPEND_RELA (htab, output_bfd, srela, &rela);
+      sparc_elf_append_rela (output_bfd, srela, &rela);
     }
 
   if (h->needs_copy)
@@ -3793,7 +3780,7 @@ _bfd_sparc_elf_finish_dynamic_symbol (bfd *output_bfd,
 		       + h->root.u.def.section->output_offset);
       rela.r_info = SPARC_ELF_R_INFO (htab, NULL, h->dynindx, R_SPARC_COPY);
       rela.r_addend = 0;
-      SPARC_ELF_APPEND_RELA (htab, output_bfd, s, &rela);
+      sparc_elf_append_rela (output_bfd, s, &rela);
     }
 
   /* Mark some specially defined symbols as absolute.  On VxWorks,
@@ -3809,83 +3796,30 @@ _bfd_sparc_elf_finish_dynamic_symbol (bfd *output_bfd,
 
 /* Finish up the dynamic sections.  */
 
-#ifdef BFD64
 static bfd_boolean
-sparc64_finish_dyn (bfd *output_bfd, struct bfd_link_info *info,
-		    bfd *dynobj, asection *sdyn,
-		    asection *splt ATTRIBUTE_UNUSED)
+sparc_finish_dyn (bfd *output_bfd, struct bfd_link_info *info,
+		  bfd *dynobj, asection *sdyn,
+		  asection *splt ATTRIBUTE_UNUSED)
 {
-  Elf64_External_Dyn *dyncon, *dynconend;
-  int stt_regidx = -1;
-
-  dyncon = (Elf64_External_Dyn *) sdyn->contents;
-  dynconend = (Elf64_External_Dyn *) (sdyn->contents + sdyn->size);
-  for (; dyncon < dynconend; dyncon++)
-    {
-      Elf_Internal_Dyn dyn;
-      const char *name;
-      bfd_boolean size;
-
-      bfd_elf64_swap_dyn_in (dynobj, dyncon, &dyn);
-
-      switch (dyn.d_tag)
-	{
-	case DT_PLTGOT:   name = ".plt"; size = FALSE; break;
-	case DT_PLTRELSZ: name = ".rela.plt"; size = TRUE; break;
-	case DT_JMPREL:   name = ".rela.plt"; size = FALSE; break;
-	case DT_SPARC_REGISTER:
-	  if (stt_regidx == -1)
-	    {
-	      stt_regidx =
-		_bfd_elf_link_lookup_local_dynindx (info, output_bfd, -1);
-	      if (stt_regidx == -1)
-		return FALSE;
-	    }
-	  dyn.d_un.d_val = stt_regidx++;
-	  bfd_elf64_swap_dyn_out (output_bfd, &dyn, dyncon);
-	  /* fallthrough */
-	default:	  name = NULL; size = FALSE; break;
-	}
-
-      if (name != NULL)
-	{
-	  asection *s;
-
-	  s = bfd_get_section_by_name (output_bfd, name);
-	  if (s == NULL)
-	    dyn.d_un.d_val = 0;
-	  else
-	    {
-	      if (! size)
-		dyn.d_un.d_ptr = s->vma;
-	      else
-		dyn.d_un.d_val = s->size;
-	    }
-	  bfd_elf64_swap_dyn_out (output_bfd, &dyn, dyncon);
-	}
-    }
-  return TRUE;
-}
-#endif
-
-static bfd_boolean
-sparc32_finish_dyn (bfd *output_bfd, struct bfd_link_info *info,
-		    bfd *dynobj, asection *sdyn,
-		    asection *splt ATTRIBUTE_UNUSED)
-{
-  Elf32_External_Dyn *dyncon, *dynconend;
   struct _bfd_sparc_elf_link_hash_table *htab;
+  const struct elf_backend_data *bed;
+  bfd_byte *dyncon, *dynconend;
+  size_t dynsize;
+  int stt_regidx = -1;
+  bfd_boolean abi_64_p;
 
   htab = _bfd_sparc_elf_hash_table (info);
-  dyncon = (Elf32_External_Dyn *) sdyn->contents;
-  dynconend = (Elf32_External_Dyn *) (sdyn->contents + sdyn->size);
-  for (; dyncon < dynconend; dyncon++)
+  bed = get_elf_backend_data (output_bfd);
+  dynsize = bed->s->sizeof_dyn;
+  dynconend = sdyn->contents + sdyn->size;
+  abi_64_p = ABI_64_P (output_bfd);
+  for (dyncon = sdyn->contents; dyncon < dynconend; dyncon += dynsize)
     {
       Elf_Internal_Dyn dyn;
       const char *name;
       bfd_boolean size;
 
-      bfd_elf32_swap_dyn_in (dynobj, dyncon, &dyn);
+      bed->s->swap_dyn_in (dynobj, dyncon, &dyn);
 
       if (htab->is_vxworks && dyn.d_tag == DT_RELASZ)
 	{
@@ -3894,7 +3828,7 @@ sparc32_finish_dyn (bfd *output_bfd, struct bfd_link_info *info,
 	  if (htab->srelplt)
 	    {
 	      dyn.d_un.d_val -= htab->srelplt->size;
-	      bfd_elf32_swap_dyn_out (output_bfd, &dyn, dyncon);
+	      bed->s->swap_dyn_out (output_bfd, &dyn, dyncon);
 	    }
 	}
       else if (htab->is_vxworks && dyn.d_tag == DT_PLTGOT)
@@ -3905,8 +3839,20 @@ sparc32_finish_dyn (bfd *output_bfd, struct bfd_link_info *info,
 	    {
 	      dyn.d_un.d_val = (htab->sgotplt->output_section->vma
 				+ htab->sgotplt->output_offset);
-	      bfd_elf32_swap_dyn_out (output_bfd, &dyn, dyncon);
+	      bed->s->swap_dyn_out (output_bfd, &dyn, dyncon);
 	    }
+	}
+      else if (abi_64_p && dyn.d_tag == DT_SPARC_REGISTER)
+	{
+	  if (stt_regidx == -1)
+	    {
+	      stt_regidx =
+		_bfd_elf_link_lookup_local_dynindx (info, output_bfd, -1);
+	      if (stt_regidx == -1)
+		return FALSE;
+	    }
+	  dyn.d_un.d_val = stt_regidx++;
+	  bed->s->swap_dyn_out (output_bfd, &dyn, dyncon);
 	}
       else
 	{
@@ -3915,7 +3861,7 @@ sparc32_finish_dyn (bfd *output_bfd, struct bfd_link_info *info,
 	    case DT_PLTGOT:   name = ".plt"; size = FALSE; break;
 	    case DT_PLTRELSZ: name = ".rela.plt"; size = TRUE; break;
 	    case DT_JMPREL:   name = ".rela.plt"; size = FALSE; break;
-	    default:	  name = NULL; size = FALSE; break;
+	    default:	      name = NULL; size = FALSE; break;
 	    }
 
 	  if (name != NULL)
@@ -3932,7 +3878,7 @@ sparc32_finish_dyn (bfd *output_bfd, struct bfd_link_info *info,
 		  else
 		    dyn.d_un.d_val = s->size;
 		}
-	      bfd_elf32_swap_dyn_out (output_bfd, &dyn, dyncon);
+	      bed->s->swap_dyn_out (output_bfd, &dyn, dyncon);
 	    }
 	}
     }
@@ -4046,20 +3992,12 @@ _bfd_sparc_elf_finish_dynamic_sections (bfd *output_bfd, struct bfd_link_info *i
   if (elf_hash_table (info)->dynamic_sections_created)
     {
       asection *splt;
-      bfd_boolean ret;
 
       splt = bfd_get_section_by_name (dynobj, ".plt");
       BFD_ASSERT (splt != NULL && sdyn != NULL);
 
-#ifdef BFD64
-      if (ABI_64_P (output_bfd))
-	ret = sparc64_finish_dyn (output_bfd, info, dynobj, sdyn, splt);
-      else
-#endif
-	ret = sparc32_finish_dyn (output_bfd, info, dynobj, sdyn, splt);
-
-      if (ret != TRUE)
-	return ret;
+      if (!sparc_finish_dyn (output_bfd, info, dynobj, sdyn, splt))
+	return FALSE;
 
       /* Initialize the contents of the .plt section.  */
       if (splt->size > 0)
@@ -4081,7 +4019,8 @@ _bfd_sparc_elf_finish_dynamic_sections (bfd *output_bfd, struct bfd_link_info *i
 	}
 
       elf_section_data (splt->output_section)->this_hdr.sh_entsize
-	= htab->plt_entry_size;
+	= (htab->is_vxworks || !ABI_64_P (output_bfd))
+	  ? 0 : htab->plt_entry_size;
     }
 
   /* Set the first entry in the global offset table to the address of

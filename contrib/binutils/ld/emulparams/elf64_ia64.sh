@@ -6,12 +6,12 @@ EXTRA_EM_FILE=ia64elf
 OUTPUT_FORMAT="elf64-ia64-little"
 ARCH=ia64
 MACHINE=
-MAXPAGESIZE=0x10000
+MAXPAGESIZE="CONSTANT (MAXPAGESIZE)"
 # FIXME: It interferes with linker relaxation. Disable it until it is
 # fixed.
 if test "0" = "1" -a -n "$CREATE_SHLIB"; then
   # Optimize shared libraries for 16K page size
-  COMMONPAGESIZE=0x4000
+  COMMONPAGESIZE="CONSTANT (COMMONPAGESIZE)"
 fi
 TEXT_START_ADDR="0x4000000000000000"
 DATA_ADDR="0x6000000000000000 + (. & (${MAXPAGESIZE} - 1))"

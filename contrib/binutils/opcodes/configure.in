@@ -61,7 +61,8 @@ AC_EXEEXT
 AC_PROG_CC
 
 ALL_LINGUAS="fr sv tr es da de id pt_BR ro nl fi vi ga zh_CN"
-CY_GNU_GETTEXT
+ZW_GNU_GETTEXT_SISTER_DIR
+AM_PO_SUBDIRS
 
 . ${srcdir}/../bfd/configure.host
 
@@ -158,6 +159,7 @@ if test x${all_targets} = xfalse ; then
 	bfd_arm_arch)		ta="$ta arm-dis.lo" ;;
 	bfd_avr_arch)		ta="$ta avr-dis.lo" ;;
 	bfd_bfin_arch)		ta="$ta bfin-dis.lo" ;;
+	bfd_cr16_arch)    	ta="$ta cr16-dis.lo cr16-opc.lo" ;;
 	bfd_cris_arch)		ta="$ta cris-dis.lo cris-opc.lo cgen-bitset.lo" ;;
 	bfd_crx_arch)    	ta="$ta crx-dis.lo crx-opc.lo" ;;
 	bfd_d10v_arch)		ta="$ta d10v-dis.lo d10v-opc.lo" ;;
@@ -169,7 +171,7 @@ if test x${all_targets} = xfalse ; then
 	bfd_h8500_arch)		ta="$ta h8500-dis.lo" ;;
 	bfd_hppa_arch)		ta="$ta hppa-dis.lo" ;;
 	bfd_i370_arch)		ta="$ta i370-dis.lo i370-opc.lo" ;;
-	bfd_i386_arch)		ta="$ta i386-dis.lo" ;;
+	bfd_i386_arch)		ta="$ta i386-dis.lo i386-opc.lo" ;;
 	bfd_i860_arch)		ta="$ta i860-dis.lo" ;;
 	bfd_i960_arch)		ta="$ta i960-dis.lo" ;;
 	bfd_ia64_arch)		ta="$ta ia64-dis.lo ia64-opc.lo" ;;
@@ -183,6 +185,7 @@ if test x${all_targets} = xfalse ; then
 	bfd_m88k_arch)		ta="$ta m88k-dis.lo" ;;
 	bfd_maxq_arch)		ta="$ta maxq-dis.lo" ;;
 	bfd_mcore_arch)		ta="$ta mcore-dis.lo" ;;
+	bfd_mep_arch)		ta="$ta mep-asm.lo mep-desc.lo mep-dis.lo mep-ibld.lo mep-opc.lo" using_cgen=yes ;;
 	bfd_mips_arch)		ta="$ta mips-dis.lo mips-opc.lo mips16-opc.lo" ;;
 	bfd_mmix_arch)		ta="$ta mmix-dis.lo mmix-opc.lo" ;;
 	bfd_mn10200_arch)	ta="$ta m10200-dis.lo m10200-opc.lo" ;;
@@ -200,6 +203,7 @@ if test x${all_targets} = xfalse ; then
 	bfd_romp_arch)		;;
 	bfd_rs6000_arch)	ta="$ta ppc-dis.lo ppc-opc.lo" ;;
 	bfd_s390_arch)		ta="$ta s390-dis.lo s390-opc.lo" ;;
+	bfd_score_arch)         ta="$ta score-dis.lo" ;;
 	bfd_sh_arch)
 	  # We can't decide what we want just from the CPU family.
 	  # We want SH5 support unless a specific version of sh is
@@ -214,8 +218,9 @@ if test x${all_targets} = xfalse ; then
 				break;;
 	    esac;
 	  done
-				ta="$ta sh-dis.lo" ;;
+				ta="$ta sh-dis.lo cgen-bitset.lo" ;;
 	bfd_sparc_arch)		ta="$ta sparc-dis.lo sparc-opc.lo" ;;
+	bfd_spu_arch)		ta="$ta spu-dis.lo spu-opc.lo" ;;
 	bfd_tahoe_arch)		;;
 	bfd_tic30_arch)		ta="$ta tic30-dis.lo" ;;
         bfd_tic4x_arch)         ta="$ta tic4x-dis.lo" ;;
@@ -273,5 +278,4 @@ AC_SUBST(archdefs)
 AC_SUBST(BFD_MACHINES)
 
 AC_CONFIG_FILES([Makefile po/Makefile.in:po/Make-in])
-AC_CONFIG_COMMANDS([default],[[sed -e '/POTFILES =/r po/POTFILES' po/Makefile.in > po/Makefile]],[[]])
 AC_OUTPUT

@@ -1,6 +1,6 @@
 /* Support for the generic parts of most COFF variants, for BFD.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005
+   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -427,7 +427,7 @@ sec_to_styp_flags (const char *sec_name, flagword sec_flags)
       styp_flags = STYP_LIT;
 #endif /* _LIT */
     }
-  else if (!strncmp (sec_name, DOT_DEBUG, sizeof (DOT_DEBUG) - 1))
+  else if (CONST_STRNEQ (sec_name, DOT_DEBUG))
     {
       /* Handle the XCOFF debug section and DWARF2 debug sections.  */
       if (!sec_name[6])
@@ -435,12 +435,12 @@ sec_to_styp_flags (const char *sec_name, flagword sec_flags)
       else
         styp_flags = STYP_DEBUG_INFO;
     }
-  else if (!strncmp (sec_name, ".stab", 5))
+  else if (CONST_STRNEQ (sec_name, ".stab"))
     {
       styp_flags = STYP_DEBUG_INFO;
     }
 #ifdef COFF_LONG_SECTION_NAMES
-  else if (!strncmp (sec_name, GNU_LINKONCE_WI, sizeof (GNU_LINKONCE_WI) - 1))
+  else if (CONST_STRNEQ (sec_name, GNU_LINKONCE_WI))
     {
       styp_flags = STYP_DEBUG_INFO;
     }
@@ -529,8 +529,8 @@ sec_to_styp_flags (const char *sec_name, flagword sec_flags)
      but there are more IMAGE_SCN_* flags.  */
 
   /* FIXME: There is no gas syntax to specify the debug section flag.  */
-  if (strncmp (sec_name, DOT_DEBUG, sizeof (DOT_DEBUG) - 1) == 0
-      || strncmp (sec_name, GNU_LINKONCE_WI, sizeof (GNU_LINKONCE_WI) - 1) == 0)
+  if (CONST_STRNEQ (sec_name, DOT_DEBUG)
+      || CONST_STRNEQ (sec_name, GNU_LINKONCE_WI))
     sec_flags = SEC_DEBUGGING;
 
   /* skip LOAD */
@@ -674,14 +674,14 @@ styp_to_sec_flags (bfd *abfd ATTRIBUTE_UNUSED,
 #endif
 	sec_flags |= SEC_ALLOC;
     }
-  else if (strncmp (name, DOT_DEBUG, sizeof (DOT_DEBUG) - 1) == 0
+  else if (CONST_STRNEQ (name, DOT_DEBUG)
 #ifdef _COMMENT
 	   || strcmp (name, _COMMENT) == 0
 #endif
 #ifdef COFF_LONG_SECTION_NAMES
-	   || strncmp (name, GNU_LINKONCE_WI, sizeof (GNU_LINKONCE_WI) - 1) == 0
+	   || CONST_STRNEQ (name, GNU_LINKONCE_WI)
 #endif
-	   || strncmp (name, ".stab", 5) == 0)
+	   || CONST_STRNEQ (name, ".stab"))
     {
 #ifdef COFF_PAGE_SIZE
       sec_flags |= SEC_DEBUGGING;
@@ -715,7 +715,7 @@ styp_to_sec_flags (bfd *abfd ATTRIBUTE_UNUSED,
      The symbols will be defined as weak, so that multiple definitions
      are permitted.  The GNU linker extension is to actually discard
      all but one of the sections.  */
-  if (strncmp (name, ".gnu.linkonce", sizeof ".gnu.linkonce" - 1) == 0)
+  if (CONST_STRNEQ (name, ".gnu.linkonce"))
     sec_flags |= SEC_LINK_ONCE | SEC_LINK_DUPLICATES_DISCARD;
 #endif
 
@@ -1071,7 +1071,7 @@ styp_to_sec_flags (bfd *abfd,
 	  /* The MS PE spec sets the DISCARDABLE flag on .reloc sections
 	     but we do not want them to be labelled as debug section, since
 	     then strip would remove them.  */
-	  if (strncmp (name, ".reloc", sizeof ".reloc" - 1) != 0)
+	  if (! CONST_STRNEQ (name, ".reloc"))
 	    sec_flags |= SEC_DEBUGGING;
 	  break;
 	case IMAGE_SCN_MEM_SHARED:
@@ -1126,7 +1126,7 @@ styp_to_sec_flags (bfd *abfd,
      The symbols will be defined as weak, so that multiple definitions
      are permitted.  The GNU linker extension is to actually discard
      all but one of the sections.  */
-  if (strncmp (name, ".gnu.linkonce", sizeof ".gnu.linkonce" - 1) == 0)
+  if (CONST_STRNEQ (name, ".gnu.linkonce"))
     sec_flags |= SEC_LINK_ONCE | SEC_LINK_DUPLICATES_DISCARD;
 #endif
 
@@ -1546,6 +1546,9 @@ static const unsigned int coff_section_alignment_table_size =
 static bfd_boolean
 coff_new_section_hook (bfd * abfd, asection * section)
 {
+  combined_entry_type *native;
+  bfd_size_type amt;
+
   section->alignment_power = COFF_DEFAULT_SECTION_ALIGNMENT_POWER;
 
 #ifdef RS6000COFF_C
@@ -1557,34 +1560,31 @@ coff_new_section_hook (bfd * abfd, asection * section)
     section->alignment_power = bfd_xcoff_data_align_power (abfd);
 #endif
 
-  /* PR binutils/2724: Only real sections have a symbol that
-     has the coff_symbol_type structure allocated for it.  */
-  if (! bfd_is_const_section (section))
-    {
-      combined_entry_type *native;
-      bfd_size_type amt;
+  /* Set up the section symbol.  */
+  if (!_bfd_generic_new_section_hook (abfd, section))
+    return FALSE;
 
-      /* Allocate aux records for section symbols, to store size and
-	 related info.
+  /* Allocate aux records for section symbols, to store size and
+     related info.
 
-	 @@ The 10 is a guess at a plausible maximum number of aux entries
-	 (but shouldn't be a constant).  */
-      amt = sizeof (combined_entry_type) * 10;
-      native = bfd_zalloc (abfd, amt);
-      if (native == NULL)
-	return FALSE;
+     @@ The 10 is a guess at a plausible maximum number of aux entries
+     (but shouldn't be a constant).  */
+  amt = sizeof (combined_entry_type) * 10;
+  native = bfd_zalloc (abfd, amt);
+  if (native == NULL)
+    return FALSE;
 
-      /* We don't need to set up n_name, n_value, or n_scnum in the native
-	 symbol information, since they'll be overridden by the BFD symbol
-	 anyhow.  However, we do need to set the type and storage class,
-	 in case this symbol winds up getting written out.  The value 0
-	 for n_numaux is already correct.  */
-      native->u.syment.n_type = T_NULL;
-      native->u.syment.n_sclass = C_STAT;
+  /* We don't need to set up n_name, n_value, or n_scnum in the native
+     symbol information, since they'll be overridden by the BFD symbol
+     anyhow.  However, we do need to set the type and storage class,
+     in case this symbol winds up getting written out.  The value 0
+     for n_numaux is already correct.  */
 
-      coffsymbol (section->symbol)->native = native;
-    }
-  
+  native->u.syment.n_type = T_NULL;
+  native->u.syment.n_sclass = C_STAT;
+
+  coffsymbol (section->symbol)->native = native;
+
   coff_set_custom_section_alignment (abfd, section,
 				     coff_section_alignment_table,
 				     coff_section_alignment_table_size);
@@ -1882,9 +1882,15 @@ coff_set_arch_mach_hook (bfd *abfd, void * filehdr)
 #ifdef I386MAGIC
     case I386MAGIC:
     case I386PTXMAGIC:
-    case I386AIXMAGIC:		/* Danbury PS/2 AIX C Compiler */
-    case LYNXCOFFMAGIC:	/* shadows the m68k Lynx number below, sigh */
+    case I386AIXMAGIC:		/* Danbury PS/2 AIX C Compiler.  */
+    case LYNXCOFFMAGIC:		/* Shadows the m68k Lynx number below, sigh.  */
       arch = bfd_arch_i386;
+      break;
+#endif
+#ifdef AMD64MAGIC
+    case AMD64MAGIC:
+      arch = bfd_arch_i386;
+      machine = bfd_mach_x86_64;
       break;
 #endif
 #ifdef IA64MAGIC
@@ -2532,11 +2538,15 @@ coff_write_relocs (bfd * abfd, int first_undef)
 		else
 		  {
 		    n.r_symndx = get_index ((*(q->sym_ptr_ptr)));
-		    /* Take notice if the symbol reloc points to a symbol
-		       we don't have in our symbol table.  What should we
-		       do for this??  */
+		    /* Check to see if the symbol reloc points to a symbol
+		       we don't have in our symbol table.  */
 		    if (n.r_symndx > obj_conv_table_size (abfd))
-		      abort ();
+		      {
+			bfd_set_error (bfd_error_bad_value);
+			_bfd_error_handler (_("%B: reloc against a non-existant symbol index: %ld"),
+					    abfd, n.r_symndx);
+			return FALSE;
+		      }
 		  }
 	      }
 
@@ -2717,12 +2727,17 @@ coff_set_flags (bfd * abfd,
       return TRUE;
 #endif
 
-#ifdef I386MAGIC
+#if defined(I386MAGIC) || defined(AMD64MAGIC)
     case bfd_arch_i386:
+#if defined(I386MAGIC)
       *magicp = I386MAGIC;
-#ifdef LYNXOS
+#endif
+#if defined LYNXOS
       /* Just overwrite the usual value if we're doing Lynx.  */
       *magicp = LYNXCOFFMAGIC;
+#endif
+#if defined AMD64MAGIC
+      *magicp = AMD64MAGIC;
 #endif
       return TRUE;
 #endif
@@ -3755,6 +3770,7 @@ coff_write_object_contents (bfd * abfd)
     internal_f.f_flags |= IMAGE_FILE_LARGE_ADDRESS_AWARE;
 #endif
 
+#ifndef COFF_WITH_pex64
 #ifdef COFF_WITH_PE
   internal_f.f_flags |= IMAGE_FILE_32BIT_MACHINE;
 #else
@@ -3762,6 +3778,7 @@ coff_write_object_contents (bfd * abfd)
     internal_f.f_flags |= F_AR32WR;
   else
     internal_f.f_flags |= F_AR32W;
+#endif
 #endif
 
 #ifdef TI_TARGET_ID
@@ -3856,16 +3873,18 @@ coff_write_object_contents (bfd * abfd)
 
 #if defined(I386)
 #define __A_MAGIC_SET__
-#if defined(LYNXOS)
+#if defined LYNXOS
     internal_a.magic = LYNXCOFFMAGIC;
-#else  /* LYNXOS */
+#elif defined AMD64
+    internal_a.magic = IMAGE_NT_OPTIONAL_HDR64_MAGIC;
+#else
     internal_a.magic = ZMAGIC;
-#endif /* LYNXOS */
+#endif
 #endif /* I386 */
 
 #if defined(IA64)
 #define __A_MAGIC_SET__
-    internal_a.magic = ZMAGIC;
+    internal_a.magic = PE32PMAGIC;
 #endif /* IA64 */
 
 #if defined(SPARC)
@@ -4851,6 +4870,7 @@ coff_slurp_reloc_table (bfd * abfd, sec_ptr asect, asymbol ** symbols)
       cache_ptr = reloc_cache + idx;
       src = native_relocs + idx;
 
+      dst.r_offset = 0;
       coff_swap_reloc_in (abfd, src, &dst);
 
 #ifdef RELOC_PROCESSING
@@ -4931,6 +4951,7 @@ coff_rtype_to_howto (bfd *abfd ATTRIBUTE_UNUSED,
 {
   arelent genrel;
 
+  genrel.howto = NULL;
   RTYPE2HOWTO (&genrel, rel);
   return genrel.howto;
 }
@@ -5313,6 +5334,9 @@ static const bfd_coff_backend_data ticoff1_swap_table =
    backend.  */
 #ifndef coff_bfd_reloc_type_lookup
 #define coff_bfd_reloc_type_lookup	    _bfd_norelocs_bfd_reloc_type_lookup
+#endif
+#ifndef coff_bfd_reloc_name_lookup
+#define coff_bfd_reloc_name_lookup    _bfd_norelocs_bfd_reloc_name_lookup
 #endif
 
 #ifndef coff_bfd_get_relocated_section_contents

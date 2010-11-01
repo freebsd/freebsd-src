@@ -1,5 +1,5 @@
 /* BFD back end for SCO5 core files (U-area and raw sections)
-   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005
+   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Written by Jouke Numan <jnuman@hiscom.nl>
 
@@ -19,8 +19,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "libaout.h"		/* BFD a.out internal data structures */
 
@@ -63,10 +63,9 @@ make_bfd_asection (abfd, name, flags, size, vma, filepos)
 {
   asection *asect;
 
-  asect = bfd_make_section_anyway (abfd, name);
+  asect = bfd_make_section_anyway_with_flags (abfd, name, flags);
   if (!asect)
     return NULL;
-  asect->flags = flags;
   asect->size = size;
   asect->vma = vma;
   asect->filepos = filepos;

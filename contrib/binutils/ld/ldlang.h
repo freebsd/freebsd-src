@@ -1,6 +1,6 @@
 /* ldlang.h - linker command language support
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005
+   2001, 2002, 2003, 2004, 2005, 2006
    Free Software Foundation, Inc.
 
    This file is part of GLD, the Gnu Linker.
@@ -54,7 +54,7 @@ typedef struct memory_region_struct
   bfd_vma origin;
   bfd_size_type length;
   bfd_vma current;
-  bfd_size_type old_length;
+  union lang_statement_union *last_os;
   flagword flags;
   flagword not_flags;
   bfd_boolean had_full_message;
@@ -108,11 +108,9 @@ typedef struct lang_output_statement_struct
 enum section_type
 {
   normal_section,
-  dsect_section,
-  copy_section,
+  overlay_section,
   noload_section,
-  info_section,
-  overlay_section
+  noalloc_section
 };
 
 /* This structure holds a list of program headers describing
@@ -153,7 +151,8 @@ typedef struct lang_output_section_statement_struct
   int constraint;
   flagword flags;
   enum section_type sectype;
-  unsigned int processed : 1;
+  unsigned int processed_vma : 1;
+  unsigned int processed_lma : 1;
   unsigned int all_input_readonly : 1;
   /* If this section should be ignored.  */
   unsigned int ignored : 1; 
@@ -311,6 +310,15 @@ typedef void (*walk_wild_section_handler_t) (lang_wild_statement_type *,
 typedef bfd_boolean (*lang_match_sec_type_func) (bfd *, const asection *,
 						 bfd *, const asection *);
 
+/* Binary search tree structure to efficiently sort sections by
+   name.  */
+typedef struct lang_section_bst
+{
+  asection *section;
+  struct lang_section_bst *left;
+  struct lang_section_bst *right;
+} lang_section_bst_type;
+
 struct lang_wild_statement_struct
 {
   lang_statement_header_type header;
@@ -322,6 +330,7 @@ struct lang_wild_statement_struct
 
   walk_wild_section_handler_t walk_wild_section_handler;
   struct wildcard_list *handler_data[4];
+  lang_section_bst_type *tree;
 };
 
 typedef struct lang_address_statement_struct
@@ -387,6 +396,8 @@ struct lang_phdr
   etree_type *flags;
 };
 
+extern struct lang_phdr *lang_phdr_list;
+
 /* This structure is used to hold a list of sections which may not
    cross reference each other.  */
 
@@ -446,6 +457,7 @@ extern struct bfd_sym_chain entry_symbol;
 extern const char *entry_section;
 extern bfd_boolean entry_from_cmdline;
 extern lang_statement_list_type file_chain;
+extern lang_statement_list_type input_file_chain;
 
 extern int lang_statement_iteration;
 
@@ -595,6 +607,9 @@ extern struct bfd_elf_version_deps *lang_add_vers_depend
   (struct bfd_elf_version_deps *, const char *);
 extern void lang_register_vers_node
   (const char *, struct bfd_elf_version_tree *, struct bfd_elf_version_deps *);
+extern void lang_append_dynamic_list (struct bfd_elf_version_expr *);
+extern void lang_append_dynamic_list_cpp_typeinfo (void);
+extern void lang_append_dynamic_list_cpp_new (void);
 bfd_boolean unique_section_p
   (const asection *);
 extern void lang_add_unique
@@ -607,5 +622,11 @@ extern void lang_update_definedness
   (const char *, struct bfd_link_hash_entry *);
 
 extern void add_excluded_libs (const char *);
+extern bfd_boolean load_symbols
+  (lang_input_statement_type *, lang_statement_list_type *);
+
+extern bfd_boolean
+ldlang_override_segment_assignment
+  (struct bfd_link_info *, bfd *, asection *, asection *, bfd_boolean);
 
 #endif

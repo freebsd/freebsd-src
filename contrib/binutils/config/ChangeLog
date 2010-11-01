@@ -1,7 +1,169 @@
-2006-02-14  Paolo Bonzini  <bonzini@gnu.org>
-            Andreas Schwab  <schwab@suse.de>
+2007-06-27  Mike Stump  <mrs@apple.com>
 
-        * acx.m4 (NCN_STRICT_CHECK_TARGET_TOOLS): Use correct program name.
+	* acx.m4 (ACX_CHECK_INSTALLED_TARGET_TOOL): Fixup logic for cross
+	builds.
+	
+2007-06-20  Mike Stump  <mrs@apple.com>
+
+	* acx.m4 (NCN_STRICT_CHECK_TARGET_TOOLS): Fix incremental builds.
+	(ACX_HAVE_GCC_FOR_TARGET): Likewise.
+
+2007-06-14  Paolo Bonzini  <bonzini@gnu.org>
+
+	* acx.m4 (ACX_CHECK_PROG_VER): Remove duplicate lines.
+
+2007-06-04  Olivier Hainque  <hainque@adacore.com>
+
+	* mh-ppc-aix: Add default ADAFLAGS to BOOT_ADAFLAGS.
+
+2007-05-27  Paolo Bonzini  <bonzini@gnu.org>
+
+	* confsubdir.m4: Move here from newlib.
+
+2007-05-23  Paolo Bonzini  <bonzini@gnu.org>
+
+	PR bootstrap/32009
+	* mh-ppc-darwin: Temporarily disable.
+
+2007-04-11  Kai Tietz  <kai.tietz@onevision.com>
+
+	* stdint.m4: Make template compatible with older cygwin 
+	types.h, wrapping each type in a __XXX_t_defined #ifdef.
+
+2007-03-26  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* acx.m4 (ACX_BUGURL): Set BUGURL first. Quote $BUGURL first
+	when setting REPORT_BUGS_TEXI.
+
+2007-03-23  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* acx.m4 (ACX_BUGURL): Replace "@" with "@@" for
+	REPORT_BUGS_TEXI.
+
+2007-03-23  Joseph Myers  <joseph@codesourcery.com>
+
+	* acx.m4 (ACX_PKGVERSION, ACX_BUGURL): Define.
+
+2007-03-07  Andreas Schwab  <schwab@suse.de>
+
+	* acx.m4 (GCC_TARGET_TOOL): Expand backquotes outside
+	AC_MSG_RESULT.
+
+2007-02-27  Alan Modra  <amodra@bigpond.net.au>
+
+	* mt-spu (all-ld): Depend on all-binutils.
+
+2007-02-18  Alexandre Oliva  <aoliva@redhat.com>
+
+	* acx.m4 (NCN_STRICT_CHECK_TOOLS): Mark environment variable as
+	precious.  Prefer it over a cached value.  Use cached value
+	verbosely.
+	(NCN_STRICT_CHECK_TARGET_TOOLS): Likewise.  Don't override
+	environment variable with build-time tools.
+
+2006-12-11  Alan Modra  <amodra@bigpond.net.au>
+
+	* mt-spu: New file.
+
+2007-02-09  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* acx.m4 (ACX_CHECK_INSTALLED_TARGET_TOOL): Avoid AC_PATH_PROG
+	with an empty path.
+
+2007-02-07  Bruno Haible  <bruno@clisp.org>
+
+	PR libgomp/28468
+	* config/tls.m4 (GCC_CHECK_TLS): Also check whether the libc supports
+	TLS via __thread.
+
+2007-01-31  Daniel Franke <franke.daniel@gmail.com>
+
+	PR libgomp/30546
+	* acx.m4 (ACX_PROG_CHECK_VER): Locate a program and check that its
+	version is acceptable.
+
+2007-01-27  Paolo Bonzini  <bonzini@gnu.org>
+
+	* depstand.m4 (ZW_CREATE_DEPDIR): Use mkinstalldirs to make
+	directory.
+
+2007-01-23  Richard Guenther  <rguenther@suse.de>
+
+	PR bootstrap/30541
+	* config/acx.m4 (ACX_PROG_GNAT): Check for gnatmake.
+
+2007-01-14  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* ld-symbolic.m4: New.
+
+2007-01-11  Paolo Bonzini  <bonzini@gnu.org>
+
+	* warnings.m4: Use m4_expand_once to clear the AC_SUBST'ed variable.
+	(ACX_PROG_CC_WARNINGS_ARE_ERRORS): Fix typo.  Add optional 2nd argument.
+
+2007-01-11  Paolo Bonzini  <bonzini@gnu.org>
+
+	* warnings.m4: Add second parameter with name of variable.
+	Always append to the variable if it exists.
+
+2007-01-01  Mike Stump  <mrs@apple.com>
+
+	* mh-ppc-darwin: Remove support for building with Apple's gcc-3.1.
+
+2006-12-04  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	* tls.m4 (GCC_CHECK_TLS): Do not test TLS with static linking
+	if static linking doesn't even work.
+
+2006-11-13  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* tls.m4 (GCC_CHECK_TLS): Fall back to a link test.
+
+2006-10-14  Geoffrey Keating  <geoffk@apple.com>
+
+	* multi.m4: New file, from automake version 2 branch.
+
+2006-09-18  Tom Tromey  <tromey@redhat.com>
+
+	* tls.m4 (GCC_CHECK_TLS): Pass empty argument as "help arg" to
+	GCC_ENABLE.
+
+2006-07-25  Paolo Bonzini  <bonzini@gnu.org>
+
+	PR build/26188
+	* stdint.m4: Test for uintptr_t even on systems with uint64_t or uint32_t.
+
+2006-07-21  Steve Ellcey  <sje@cup.hp.com>
+
+	PR target/26792
+	* unwind_ipinfo.m4: New.
+
+2006-07-21  David Daney  <ddaney@avtrex.com>
+
+	PR libgcj/28426
+	* gxx-include-dir.m4: Use target_alias in path for cross build.
+
+2006-07-18  Paolo Bonzini  <bonzini@gnu.org>
+
+	* acx.m4: Support --with-build-libsubdir and AC_SUBST
+	build_libsubdir.
+
+2006-06-13  Richard Earnshaw  <rearnsha@arm.com>
+	    Alexandre Oliva <aoliva@redhat.com>
+
+	* gettext-sister.m4 (ZW_GNU_GETTEXT_SISTER_DIR): Add optional
+	argument for where to search for NLS config file.
+
+2006-05-31  Daniel Jacobowitz  <dan@codesourcery.com>
+
+	* gettext-sister.m4 (ZW_GNU_GETTEXT_SISTER_DIR): Provide some
+	defines otherwise gotten from AM_GNU_GETTEXT.  Remove the
+	po/ prefix from CATALOGS.
+
+2006-02-14  Paolo Bonzini  <bonzini@gnu.org>
+	    Andreas Schwab  <schwab@suse.de>
+
+	* acx.m4 (NCN_STRICT_CHECK_TARGET_TOOLS): Use correct program name.
 	(ACX_CHECK_INSTALLED_TARGET_TOOL): Likewise, and always set $1.
 
 2006-01-26  Paolo Bonzini  <bonzini@gnu.org>
@@ -15,19 +177,19 @@
 
 2006-01-02  Paolo Bonzini  <bonzini@gnu.org>
 
-        PR target/25259
-        * stdint.m4: New.
+	PR target/25259
+	* stdint.m4: New.
 
 2005-12-20  Paolo Bonzini  <bonzini@gnu.org>
 
-        Revert Ada-related part of the previous change.
+	Revert Ada-related part of the previous change.
 
-        * mt-ppc-aix: Delete.
+	* mt-ppc-aix: Delete.
 
 2005-12-19  Paolo Bonzini  <bonzini@gnu.org>
-        
-        * mt-ppc-aix, mh-ppc-aix: New.
-        
+
+	* mt-ppc-aix, mh-ppc-aix: New.
+
 2005-12-05  Paolo Bonzini  <bonzini@gnu.org>
 
 	* acx.m4 (GCC_TARGET_TOOL): New.

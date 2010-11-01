@@ -1,5 +1,5 @@
 /* SPARC ELF specific backend routines.
-   Copyright 2005 Free Software Foundation, Inc.
+   Copyright 2005, 2007 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -71,7 +71,6 @@ struct _bfd_sparc_elf_link_hash_table
   asection *sgotplt;
 
   void (*put_word) (bfd *, bfd_vma, void *);
-  void (*append_rela) (bfd *, asection *, Elf_Internal_Rela *);
   bfd_vma (*r_info) (Elf_Internal_Rela *, bfd_vma, bfd_vma);
   bfd_vma (*r_symndx) (bfd_vma);
   int (*build_plt_entry) (bfd *, asection *, bfd_vma, bfd_vma, bfd_vma *);
@@ -97,6 +96,8 @@ struct _bfd_sparc_elf_link_hash_table
 
 extern reloc_howto_type *_bfd_sparc_elf_reloc_type_lookup
   (bfd *, bfd_reloc_code_real_type);
+extern reloc_howto_type *_bfd_sparc_elf_reloc_name_lookup
+  (bfd *, const char *);
 extern void _bfd_sparc_elf_info_to_howto
   (bfd *, arelent *, Elf_Internal_Rela *);
 extern reloc_howto_type *_bfd_sparc_elf_info_to_howto_ptr

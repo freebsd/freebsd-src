@@ -1,5 +1,5 @@
 /* tc-ia64.c -- Assembler for the HP/Intel IA-64 architecture.
-   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
+   Copyright 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
@@ -5634,7 +5634,7 @@ declare_register_set (prefix, num_regs, base_regnum)
 
   for (i = 0; i < num_regs; ++i)
     {
-      sprintf (name, "%s%u", prefix, i);
+      snprintf (name, sizeof (name), "%s%u", prefix, i);
       declare_register (name, base_regnum + i);
     }
 }
@@ -6691,7 +6691,7 @@ emit_one_bundle ()
   int addr_mod;
 
   first = (md.curr_slot + NUM_SLOTS - md.num_slots_in_use) % NUM_SLOTS;
-  know (first >= 0 & first < NUM_SLOTS);
+  know (first >= 0 && first < NUM_SLOTS);
   n = MIN (3, md.num_slots_in_use);
 
   /* Determine template: user user_template if specified, best match
@@ -6971,7 +6971,8 @@ emit_one_bundle ()
 	  else
 	    as_fatal ("emit_one_bundle: unexpected dynamic op");
 
-	  sprintf (mnemonic, "%s.%c", idesc->name, "?imbfxx"[insn_unit]);
+	  snprintf (mnemonic, sizeof (mnemonic), "%s.%c",
+		    idesc->name, "?imbfxx"[insn_unit]);
 	  opnd1 = idesc->operands[0];
 	  opnd2 = idesc->operands[1];
 	  ia64_free_opcode (idesc);
@@ -7066,7 +7067,6 @@ emit_one_bundle ()
 	  fix = fix_new_exp (frag_now, frag_now_fix () - 16 + i, 8,
 			     &ifix->expr, ifix->is_pcrel, ifix->code);
 	  fix->tc_fix_data.opnd = ifix->opnd;
-	  fix->fx_plt = (fix->fx_r_type == BFD_RELOC_IA64_PLTOFF22);
 	  fix->fx_file = md.slot[curr].src_file;
 	  fix->fx_line = md.slot[curr].src_line;
 	}
@@ -10544,12 +10544,15 @@ check_dependencies (idesc)
 	      int certain = (matchtype == 1 && CURR_SLOT.qp_regno == 0);
 
 	      if (path != 0)
-		sprintf (pathmsg, " when entry is at label '%s'",
+		snprintf (pathmsg, sizeof (pathmsg),
+			  " when entry is at label '%s'",
 			 md.entry_labels[path - 1]);
 	      if (matchtype == 1 && rs->index >= 0)
-		sprintf (indexmsg, ", specific resource number is %d",
+		snprintf (indexmsg, sizeof (indexmsg),
+			  ", specific resource number is %d",
 			 rs->index);
-	      sprintf (msg, "Use of '%s' %s %s dependency '%s' (%s)%s%s",
+	      snprintf (msg, sizeof (msg),
+			"Use of '%s' %s %s dependency '%s' (%s)%s%s",
 		       idesc->name,
 		       (certain ? "violates" : "may violate"),
 		       dv_mode[dep->mode], dep->name,
@@ -11862,7 +11865,7 @@ struct alias
 {
   char *file;		/* The file where the directive is seen.  */
   unsigned int line;	/* The line number the directive is at.  */
-  const char *name;	/* The orignale name of the symbol.  */
+  const char *name;	/* The original name of the symbol.  */
 };
 
 /* Called for .alias and .secalias directives. If SECTION is 1, it is

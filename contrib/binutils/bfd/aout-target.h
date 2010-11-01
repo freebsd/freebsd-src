@@ -1,6 +1,6 @@
 /* Define a target vector and some small routines for a variant of a.out.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005
+   2000, 2001, 2002, 2003, 2004, 2005, 2007
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -29,6 +29,7 @@
 #endif
 
 extern reloc_howto_type * NAME (aout, reloc_type_lookup) (bfd *, bfd_reloc_code_real_type);
+extern reloc_howto_type * NAME (aout, reloc_name_lookup) (bfd *, const char *);
 
 /* Set parameters about this a.out file that are machine-dependent.
    This routine is called from some_aout_object_p just before it returns.  */
@@ -493,6 +494,9 @@ MY_bfd_final_link (bfd *abfd, struct bfd_link_info *info)
 #endif
 #ifndef MY_bfd_reloc_type_lookup
 #define MY_bfd_reloc_type_lookup NAME (aout, reloc_type_lookup)
+#endif
+#ifndef MY_bfd_reloc_name_lookup
+#define MY_bfd_reloc_name_lookup NAME (aout, reloc_name_lookup)
 #endif
 #ifndef MY_bfd_make_debug_symbol
 #define MY_bfd_make_debug_symbol 0

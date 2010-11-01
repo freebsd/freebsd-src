@@ -467,7 +467,7 @@ fetch_insn_class (const char *full_name, int create)
   int ind;
   int is_class = 0;
 
-  if (strncmp (full_name, "IC:", 3) == 0)
+  if (CONST_STRNEQ (full_name, "IC:"))
     {
       name = xstrdup (full_name + 3);
       is_class = 1;
@@ -749,7 +749,7 @@ parse_resource_users (ref, usersp, nusersp, notesp)
          are read.  Only create new classes if it's *not* an insn class,
          or if it's a composite class (which wouldn't necessarily be in the IC
          table).  */
-      if (strncmp (name, "IC:", 3) != 0 || xsect != NULL)
+      if (! CONST_STRNEQ (name, "IC:") || xsect != NULL)
         create = 1;
       
       iclass = fetch_insn_class (name, create);
@@ -1034,7 +1034,7 @@ in_iclass (struct ia64_opcode *idesc, struct iclass *ic,
 
   if (ic->comment)
     {
-      if (!strncmp (ic->comment, "Format", 6))
+      if (CONST_STRNEQ (ic->comment, "Format"))
         {
           /* Assume that the first format seen is the most restrictive, and
              only keep a later one if it looks like it's more restrictive.  */
@@ -1050,7 +1050,7 @@ in_iclass (struct ia64_opcode *idesc, struct iclass *ic,
           else
             format = ic->comment;
         }
-      else if (!strncmp (ic->comment, "Field", 5))
+      else if (CONST_STRNEQ (ic->comment, "Field"))
         {
           if (field)
             warn (_("overlapping field %s->%s\n"),
@@ -1064,7 +1064,7 @@ in_iclass (struct ia64_opcode *idesc, struct iclass *ic,
      instructions.  */
   if (ic->nsubs == 0 && ic->nxsubs == 0)
     {
-      int is_mov = strncmp (idesc->name, "mov", 3) == 0;
+      int is_mov = CONST_STRNEQ (idesc->name, "mov");
       int plain_mov = strcmp (idesc->name, "mov") == 0;
       int len = strlen(ic->name);
 
@@ -1123,32 +1123,32 @@ in_iclass (struct ia64_opcode *idesc, struct iclass *ic,
 
       if (resolved && format)
         {
-          if (strncmp (idesc->name, "dep", 3) == 0
+          if (CONST_STRNEQ (idesc->name, "dep")
                    && strstr (format, "I13") != NULL)
             resolved = idesc->operands[1] == IA64_OPND_IMM8;
-          else if (strncmp (idesc->name, "chk", 3) == 0
+          else if (CONST_STRNEQ (idesc->name, "chk")
                    && strstr (format, "M21") != NULL)
             resolved = idesc->operands[0] == IA64_OPND_F2;
-          else if (strncmp (idesc->name, "lfetch", 6) == 0)
+          else if (CONST_STRNEQ (idesc->name, "lfetch"))
             resolved = (strstr (format, "M14 M15") != NULL
                         && (idesc->operands[1] == IA64_OPND_R2
                             || idesc->operands[1] == IA64_OPND_IMM9b));
-          else if (strncmp (idesc->name, "br.call", 7) == 0
+          else if (CONST_STRNEQ (idesc->name, "br.call")
                    && strstr (format, "B5") != NULL)
             resolved = idesc->operands[1] == IA64_OPND_B2;
-          else if (strncmp (idesc->name, "br.call", 7) == 0
+          else if (CONST_STRNEQ (idesc->name, "br.call")
                    && strstr (format, "B3") != NULL)
             resolved = idesc->operands[1] == IA64_OPND_TGT25c;
-          else if (strncmp (idesc->name, "brp", 3) == 0
+          else if (CONST_STRNEQ (idesc->name, "brp")
                    && strstr (format, "B7") != NULL)
             resolved = idesc->operands[0] == IA64_OPND_B2;
           else if (strcmp (ic->name, "invala") == 0)
             resolved = strcmp (idesc->name, ic->name) == 0;
-	  else if (strncmp (idesc->name, "st", 2) == 0
+	  else if (CONST_STRNEQ (idesc->name, "st")
 		   && (strstr (format, "M5") != NULL
 		       || strstr (format, "M10") != NULL))
 	    resolved = idesc->flags & IA64_OPCODE_POSTINC;
-	  else if (strncmp (idesc->name, "ld", 2) == 0
+	  else if (CONST_STRNEQ (idesc->name, "ld")
 		   && (strstr (format, "M2 M3") != NULL
 		       || strstr (format, "M12") != NULL
 		       || strstr (format, "M7 M8") != NULL))
@@ -1161,7 +1161,7 @@ in_iclass (struct ia64_opcode *idesc, struct iclass *ic,
          plain brl matches brl.cond.  */
       if (!resolved
           && (strcmp (idesc->name, "brl") == 0
-              || strncmp (idesc->name, "brl.", 4) == 0)
+              || CONST_STRNEQ (idesc->name, "brl."))
           && strcmp (ic->name, "brl.cond") == 0)
         {
           resolved = 1;
@@ -1170,7 +1170,7 @@ in_iclass (struct ia64_opcode *idesc, struct iclass *ic,
       /* Misc br variations ('.cond' is optional).  */
       if (!resolved 
           && (strcmp (idesc->name, "br") == 0
-              || strncmp (idesc->name, "br.", 3) == 0)
+              || CONST_STRNEQ (idesc->name, "br."))
           && strcmp (ic->name, "br.cond") == 0)
         {
           if (format)
@@ -1183,7 +1183,7 @@ in_iclass (struct ia64_opcode *idesc, struct iclass *ic,
         }
 
       /* probe variations.  */
-      if (!resolved && strncmp (idesc->name, "probe", 5) == 0)
+      if (!resolved && CONST_STRNEQ (idesc->name, "probe"))
         {
           resolved = strcmp (ic->name, "probe") == 0 
             && !((strstr (idesc->name, "fault") != NULL) 
@@ -1217,7 +1217,7 @@ in_iclass (struct ia64_opcode *idesc, struct iclass *ic,
             }
 
           /* Some variants of mov and mov.[im].  */
-          if (!resolved && strncmp (ic->name, "mov_", 4) == 0)
+          if (!resolved && CONST_STRNEQ (ic->name, "mov_"))
 	    resolved = in_iclass_mov_x (idesc, ic, format, field);
         }
 
@@ -1476,13 +1476,13 @@ lookup_specifier (const char *name)
       warn (_("Don't know how to specify # dependency %s\n"),
 	    name);
     }
-  else if (strncmp (name, "AR[FPSR]", 8) == 0)
+  else if (CONST_STRNEQ (name, "AR[FPSR]"))
     return IA64_RS_AR_FPSR;
-  else if (strncmp (name, "AR[", 3) == 0)
+  else if (CONST_STRNEQ (name, "AR["))
     return IA64_RS_ARX;
-  else if (strncmp (name, "CR[", 3) == 0)
+  else if (CONST_STRNEQ (name, "CR["))
     return IA64_RS_CRX;
-  else if (strncmp (name, "PSR.", 4) == 0)
+  else if (CONST_STRNEQ (name, "PSR."))
     return IA64_RS_PSR;
   else if (strcmp (name, "InService*") == 0)
     return IA64_RS_INSERVICE;
@@ -2448,7 +2448,7 @@ insert_opcode_dependencies (opc, cmp)
       int j;
 
       if (strcmp (opc->name, "cmp.eq.and") == 0
-          && strncmp (rs->name, "PR%", 3) == 0
+          && CONST_STRNEQ (rs->name, "PR%")
           && rs->mode == 1)
         no_class_found = 99;
 
@@ -2459,7 +2459,7 @@ insert_opcode_dependencies (opc, cmp)
           if (in_iclass (opc, ics[rs->regs[j]], NULL, NULL, &ic_note))
             {
               /* We can ignore ic_note 11 for non PR resources.  */
-              if (ic_note == 11 && strncmp (rs->name, "PR", 2) != 0)
+              if (ic_note == 11 && ! CONST_STRNEQ (rs->name, "PR"))
                 ic_note = 0;
 
               if (ic_note != 0 && rs->regnotes[j] != 0
@@ -2487,7 +2487,7 @@ insert_opcode_dependencies (opc, cmp)
           if (in_iclass (opc, ics[rs->chks[j]], NULL, NULL, &ic_note))
             {
               /* We can ignore ic_note 11 for non PR resources.  */
-              if (ic_note == 11 && strncmp (rs->name, "PR", 2) != 0)
+              if (ic_note == 11 && ! CONST_STRNEQ (rs->name, "PR"))
                 ic_note = 0;
 
               if (ic_note != 0 && rs->chknotes[j] != 0

@@ -1,7 +1,7 @@
 %{
 /* arparse.y - Stange script language parser */
 
-/*   Copyright 1992, 1993, 1995, 1997, 1999, 2002, 2003
+/*   Copyright 1992, 1993, 1995, 1997, 1999, 2002, 2003, 2007
      Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
@@ -26,8 +26,8 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
 
 */
 #define DONTDECLARE_MALLOC
+#include "sysdep.h"
 #include "bfd.h"
-#include "bucomm.h"
 #include "arsup.h"
 extern int verbose;
 extern int yylex (void);

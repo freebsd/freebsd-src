@@ -230,7 +230,7 @@ Determines the kinds of suffixes to be allowed.  Valid values are
 @code{SUFFIX_FLAG} which indicates the absence or presence of
 conditional suffixes and flag setting by the extension instruction.
 It is also possible to specify that an instruction sets the flags and
-is conditional by using @code{SUFFIX_CODE} | @code{SUFFIX_FLAG}.
+is condtional by using @code{SUFFIX_CODE} | @code{SUFFIX_FLAG}.
 
 @item @var{syntaxclass}
 Determines the syntax class for the instruction.  It can have the
@@ -251,7 +251,7 @@ Syntax Class Modifiers are:
 
 @item @code{OP1_MUST_BE_IMM}:
 Modifies syntax class SYNTAX_3OP,  specifying that the first operand
-of a three-operand instruction must be an immediate (i.e. the result
+of a three-operand instruction must be an immediate (i.e., the result
 is discarded).  OP1_MUST_BE_IMM is used by bitwise ORing it with
 SYNTAX_3OP as given in the example below.  This could usually be used
 to set the flags using specific instructions and not retain results. 

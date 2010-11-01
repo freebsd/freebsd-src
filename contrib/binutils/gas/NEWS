@@ -1,4 +1,12 @@
 -*- text -*-
+* Support for the National Semiconductor CR16 target has been added.
+
+* Added gas .reloc pseudo.  This is a low-level interface for creating
+  relocations.
+
+* Add support for x86_64 PE+ target.
+
+* Add support for Score target.
 
 * Support for the Infineon XC16X has been added by KPIT Cummins Infosystems.
 

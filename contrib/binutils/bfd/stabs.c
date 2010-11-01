@@ -1,6 +1,6 @@
 /* Stabs in sections linking support.
    Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
-   2006 Free Software Foundation, Inc.
+   2006, 2007 Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -22,8 +22,8 @@
 /* This file contains support for linking stabs in sections, as used
    on COFF and ELF.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "aout/stab_gnu.h"
 #include "safe-ctype.h"
@@ -175,10 +175,8 @@ _bfd_link_section_stabs (bfd *abfd,
        prepared to handle them.  */
     return TRUE;
 
-  if ((stabsec->output_section != NULL
-       && bfd_is_abs_section (stabsec->output_section))
-      || (stabstrsec->output_section != NULL
-	  && bfd_is_abs_section (stabstrsec->output_section)))
+  if (bfd_is_abs_section (stabsec->output_section)
+      || bfd_is_abs_section (stabstrsec->output_section))
     /* At least one of the sections is being discarded from the
        link, so we should just ignore them.  */
     return TRUE;
@@ -187,6 +185,8 @@ _bfd_link_section_stabs (bfd *abfd,
 
   if (sinfo->stabstr == NULL)
     {
+      flagword flags;
+
       /* Initialize the stabs information we need to keep track of.  */
       first = TRUE;
       sinfo->strings = _bfd_stringtab_init ();
@@ -198,11 +198,12 @@ _bfd_link_section_stabs (bfd *abfd,
 				 stab_link_includes_newfunc,
 				 sizeof (struct stab_link_includes_entry)))
 	goto error_return;
-      sinfo->stabstr = bfd_make_section_anyway (abfd, ".stabstr");
+      flags = (SEC_HAS_CONTENTS | SEC_READONLY | SEC_DEBUGGING
+	       | SEC_LINKER_CREATED);
+      sinfo->stabstr = bfd_make_section_anyway_with_flags (abfd, ".stabstr",
+							   flags);
       if (sinfo->stabstr == NULL)
 	goto error_return;
-      sinfo->stabstr->flags |= (SEC_HAS_CONTENTS | SEC_READONLY
-				| SEC_DEBUGGING | SEC_LINKER_CREATED);
     }
 
   /* Initialize the information we are going to store for this .stab
@@ -430,7 +431,7 @@ _bfd_link_section_stabs (bfd *abfd,
 		    ++nest;
 		  else if (incl_type == (int) N_EXCL)
 		    /* Keep existing exclusion marks.  */
-		    continue;   
+		    continue;
 		  else if (nest == 0)
 		    {
 		      *incl_pstridx = (bfd_size_type) -1;
@@ -455,8 +456,8 @@ _bfd_link_section_stabs (bfd *abfd,
      for that section.  */
   stabsec->size = (count - skip) * STABSIZE;
   if (stabsec->size == 0)
-    stabsec->flags |= SEC_EXCLUDE;
-  stabstrsec->flags |= SEC_EXCLUDE;
+    stabsec->flags |= SEC_EXCLUDE | SEC_KEEP;
+  stabstrsec->flags |= SEC_EXCLUDE | SEC_KEEP;
   sinfo->stabstr->size = _bfd_stringtab_size (sinfo->strings);
 
   /* Calculate the `cumulative_skips' array now that stabs have been
@@ -608,7 +609,7 @@ _bfd_discard_section_stabs (bfd *abfd,
   /* Shrink the stabsec as needed.  */
   stabsec->size -= skip * STABSIZE;
   if (stabsec->size == 0)
-    stabsec->flags |= SEC_EXCLUDE;
+    stabsec->flags |= SEC_EXCLUDE | SEC_KEEP;
 
   /* Recalculate the `cumulative_skips' array now that stabs have been
      deleted for this section.  */

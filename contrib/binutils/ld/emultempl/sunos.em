@@ -10,7 +10,7 @@ cat >e${EMULATION_NAME}.c <<EOF
 
 /* SunOS emulation code for ${EMULATION_NAME}
    Copyright 1991, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+   2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
    Written by Steve Chamberlain <sac@cygnus.com>
    SunOS shared library support by Ian Lance Taylor <ian@cygnus.com>
 
@@ -32,8 +32,8 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
 
 #define TARGET_IS_${EMULATION_NAME}
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "bfdlink.h"
 #include "libiberty.h"
 #include "safe-ctype.h"
@@ -160,7 +160,7 @@ gld${EMULATION_NAME}_find_so (lang_input_statement_type *inp)
       || ! inp->dynamic)
     return;
 
-  ASSERT (strncmp (inp->local_sym_name, "-l", 2) == 0);
+  ASSERT (CONST_STRNEQ (inp->local_sym_name, "-l"));
 
   for (search = search_head; search != NULL; search = search->next)
     {
@@ -273,7 +273,7 @@ gld${EMULATION_NAME}_search_dir
       const char *s;
       int found_maj, found_min;
 
-      if (strncmp (entry->d_name, "lib", 3) != 0
+      if (! CONST_STRNEQ (entry->d_name, "lib")
 	  || strncmp (entry->d_name + 3, filename, len) != 0)
 	continue;
 
@@ -288,7 +288,7 @@ gld${EMULATION_NAME}_search_dir
 	 native linker does not.  This is more convenient for packages
 	 which just generate .so files for shared libraries, as on ELF
 	 systems.  */
-      if (strncmp (entry->d_name + 3 + len, ".so", 3) != 0)
+      if (! CONST_STRNEQ (entry->d_name + 3 + len, ".so"))
 	continue;
       if (entry->d_name[6 + len] == '\0')
 	;
@@ -400,7 +400,7 @@ gld${EMULATION_NAME}_after_open (void)
       if (global_found)
 	continue;
 
-      if (strncmp (lname, "-l", 2) != 0)
+      if (! CONST_STRNEQ (lname, "-l"))
 	{
 	  bfd *abfd;
 
@@ -586,7 +586,7 @@ gld${EMULATION_NAME}_check_needed (lang_input_statement_type *s)
 {
   if (s->filename == NULL)
     return;
-  if (strncmp (global_needed->name, "-l", 2) != 0)
+  if (! CONST_STRNEQ (global_needed->name, "-l"))
     {
       if (strcmp (s->filename, global_needed->name) == 0)
 	global_found = TRUE;
@@ -605,7 +605,7 @@ gld${EMULATION_NAME}_check_needed (lang_input_statement_type *s)
       else
 	++sname;
 
-      if (strncmp (sname, "lib", 3) != 0)
+      if (! CONST_STRNEQ (sname, "lib"))
 	return;
       sname += 3;
 

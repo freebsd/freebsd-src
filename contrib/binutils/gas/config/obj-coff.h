@@ -1,6 +1,6 @@
 /* coff object file format
    Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005
+   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
    Free Software Foundation, Inc.
 
    This file is part of GAS.
@@ -26,8 +26,6 @@
 #define OBJ_COFF 1
 
 #include "targ-cpu.h"
-
-#include "bfd.h"
 
 /* This internal_lineno crap is to stop namespace pollution from the
    bfd internal coff headerfile.  */
@@ -57,14 +55,28 @@
 #endif
 
 #ifdef TC_I386
+#ifndef TE_PEP
+#include "coff/x86_64.h"
+#else
 #include "coff/i386.h"
+#endif
 
 #ifdef TE_PE
+#ifdef TE_PEP
+extern const char *   x86_64_target_format (void);
+#define TARGET_FORMAT x86_64_target_format ()
+#define COFF_TARGET_FORMAT "pe-x86-64"
+#else
 #define TARGET_FORMAT "pe-i386"
+#endif
 #endif
 
 #ifndef TARGET_FORMAT
+#ifdef TE_PEP
+#define TARGET_FORMAT "coff-x86-64"
+#else
 #define TARGET_FORMAT "coff-i386"
+#endif
 #endif
 #endif
 

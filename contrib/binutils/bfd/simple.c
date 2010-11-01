@@ -1,5 +1,5 @@
 /* simple.c -- BFD simple client routines
-   Copyright 2002, 2003, 2004, 2005
+   Copyright 2002, 2003, 2004, 2005, 2007
    Free Software Foundation, Inc.
    Contributed by MontaVista Software, Inc.
 
@@ -19,8 +19,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "bfdlink.h"
 
@@ -183,6 +183,7 @@ bfd_simple_get_relocated_section_contents (bfd *abfd,
   /* Fill in the bare minimum number of fields for our purposes.  */
   memset (&link_info, 0, sizeof (link_info));
   link_info.input_bfds = abfd;
+  link_info.input_bfds_tail = &abfd->link_next;
 
   link_info.hash = _bfd_generic_link_hash_table_create (abfd);
   link_info.callbacks = &callbacks;

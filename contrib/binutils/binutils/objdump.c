@@ -1,6 +1,6 @@
 /* objdump.c -- dump information about an object file.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006
+   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
@@ -48,12 +48,11 @@
    disassembling is done by the libopcodes library, via a function pointer
    supplied by the disassembler() function.  */
 
+#include "sysdep.h"
 #include "bfd.h"
-#include "bfdver.h"
 #include "progress.h"
 #include "bucomm.h"
 #include "dwarf.h"
-#include "budemang.h"
 #include "getopt.h"
 #include "safe-ctype.h"
 #include "dis-asm.h"
@@ -61,6 +60,12 @@
 #include "demangle.h"
 #include "debug.h"
 #include "budbg.h"
+
+#ifdef HAVE_MMAP
+#include <sys/mman.h>
+#endif
+
+#include <sys/stat.h>
 
 /* Internal headers for the ELF .stab-dump code - sorry.  */
 #define	BYTES_IN_WORD	32
@@ -225,7 +230,7 @@ usage (FILE *stream, int status)
 
       disassembler_usage (stream);
     }
-  if (status == 0)
+  if (REPORT_BUGS_TO[0] && status == 0)
     fprintf (stream, _("Report bugs to %s.\n"), REPORT_BUGS_TO);
   exit (status);
 }
@@ -650,8 +655,9 @@ objdump_print_symname (bfd *abfd, struct disassemble_info *info,
   if (do_demangle && name[0] != '\0')
     {
       /* Demangle the name.  */
-      alloc = demangle (abfd, name);
-      name = alloc;
+      alloc = bfd_demangle (abfd, name, DMGL_ANSI | DMGL_PARAMS);
+      if (alloc != NULL)
+	name = alloc;
     }
 
   if (info != NULL)
@@ -687,6 +693,7 @@ find_symbol_for_address (bfd_vma vma,
   bfd *abfd;
   asection *sec;
   unsigned int opb;
+  bfd_boolean want_section;
 
   if (sorted_symcount < 1)
     return NULL;
@@ -732,15 +739,19 @@ find_symbol_for_address (bfd_vma vma,
      Note that this may be wrong for some symbol references if the
      sections have overlapping memory ranges, but in that case there's
      no way to tell what's desired without looking at the relocation
-     table.  */
-  if (sorted_syms[thisplace]->section != sec
-      && (aux->require_sec
-	  || ((abfd->flags & HAS_RELOC) != 0
-	      && vma >= bfd_get_section_vma (abfd, sec)
-	      && vma < (bfd_get_section_vma (abfd, sec)
-			+ bfd_section_size (abfd, sec) / opb))))
+     table.
+     
+     Also give the target a chance to reject symbols.  */
+  want_section = (aux->require_sec
+		  || ((abfd->flags & HAS_RELOC) != 0
+		      && vma >= bfd_get_section_vma (abfd, sec)
+		      && vma < (bfd_get_section_vma (abfd, sec)
+				+ bfd_section_size (abfd, sec) / opb)));
+  if ((sorted_syms[thisplace]->section != sec && want_section)
+      || !info->symbol_is_valid (sorted_syms[thisplace], info))
     {
       long i;
+      long newplace;
 
       for (i = thisplace + 1; i < sorted_symcount; i++)
 	{
@@ -750,27 +761,36 @@ find_symbol_for_address (bfd_vma vma,
 	}
 
       --i;
+      newplace = sorted_symcount;
 
       for (; i >= 0; i--)
 	{
-	  if (sorted_syms[i]->section == sec
-	      && (i == 0
-		  || sorted_syms[i - 1]->section != sec
-		  || (bfd_asymbol_value (sorted_syms[i])
-		      != bfd_asymbol_value (sorted_syms[i - 1]))))
+	  if ((sorted_syms[i]->section == sec || !want_section)
+	      && info->symbol_is_valid (sorted_syms[i], info))
 	    {
-	      thisplace = i;
-	      break;
+	      if (newplace == sorted_symcount)
+		newplace = i;
+
+	      if (bfd_asymbol_value (sorted_syms[i])
+		  != bfd_asymbol_value (sorted_syms[newplace]))
+		break;
+
+	      /* Remember this symbol and keep searching until we reach
+		 an earlier address.  */
+	      newplace = i;
 	    }
 	}
 
-      if (sorted_syms[thisplace]->section != sec)
+      if (newplace != sorted_symcount)
+	thisplace = newplace;
+      else
 	{
 	  /* We didn't find a good symbol with a smaller value.
 	     Look for one with a larger value.  */
 	  for (i = thisplace + 1; i < sorted_symcount; i++)
 	    {
-	      if (sorted_syms[i]->section == sec)
+	      if ((sorted_syms[i]->section == sec || !want_section)
+		  && info->symbol_is_valid (sorted_syms[i], info))
 		{
 		  thisplace = i;
 		  break;
@@ -778,22 +798,9 @@ find_symbol_for_address (bfd_vma vma,
 	    }
 	}
 
-      if (sorted_syms[thisplace]->section != sec
-	  && (aux->require_sec
-	      || ((abfd->flags & HAS_RELOC) != 0
-		  && vma >= bfd_get_section_vma (abfd, sec)
-		  && vma < (bfd_get_section_vma (abfd, sec)
-			    + bfd_section_size (abfd, sec)))))
+      if ((sorted_syms[thisplace]->section != sec && want_section)
+	  || !info->symbol_is_valid (sorted_syms[thisplace], info))
 	/* There is no suitable symbol.  */
-	return NULL;
-    }
-
-  /* Give the target a chance to reject the symbol.  */
-  while (! info->symbol_is_valid (sorted_syms [thisplace], info))
-    {
-      ++ thisplace;
-      if (thisplace >= sorted_symcount
-	  || bfd_asymbol_value (sorted_syms [thisplace]) > vma)
 	return NULL;
     }
 
@@ -926,8 +933,12 @@ struct print_file_list
   struct print_file_list *next;
   const char *filename;
   const char *modname;
-  unsigned int line;
-  FILE *f;
+  const char *map; 
+  size_t mapsize;
+  const char **linemap; 
+  unsigned maxline;
+  unsigned last_line;
+  int first;
 };
 
 static struct print_file_list *print_files;
@@ -937,6 +948,99 @@ static struct print_file_list *print_files;
 
 #define SHOW_PRECEDING_CONTEXT_LINES (5)
 
+/* Read a complete file into memory. */
+
+static const char *
+slurp_file (const char *fn, size_t *size)
+{
+#ifdef HAVE_MMAP
+  int ps = getpagesize ();
+  size_t msize;
+#endif
+  const char *map;
+  struct stat st;
+  int fd = open (fn, O_RDONLY);
+
+  if (fd < 0)
+    return NULL;
+  if (fstat (fd, &st) < 0)
+    return NULL;
+  *size = st.st_size;
+#ifdef HAVE_MMAP
+  msize = (*size + ps - 1) & ~(ps - 1);
+  map = mmap (NULL, msize, PROT_READ, MAP_SHARED, fd, 0);
+  if (map != (char *)-1L)
+    {
+      close(fd);
+      return map; 
+    }
+#endif
+  map = malloc (*size);
+  if (!map || (size_t) read (fd, (char *)map, *size) != *size) 
+    { 
+      free ((void *)map);
+      map = NULL;
+    }
+  close (fd);
+  return map; 
+}
+
+#define line_map_decrease 5
+
+/* Precompute array of lines for a mapped file. */
+
+static const char ** 
+index_file (const char *map, size_t size, unsigned int *maxline) 
+{
+  const char *p, *lstart, *end;
+  int chars_per_line = 45; /* First iteration will use 40.  */
+  unsigned int lineno;
+  const char **linemap = NULL; 
+  unsigned long line_map_size = 0;
+ 
+  lineno = 0;
+  lstart = map;
+  end = map + size;
+
+  for (p = map; p < end; p++) 
+    { 
+      if (*p == '\n') 
+	{ 
+	  if (p + 1 < end && p[1] == '\r') 
+	    p++;  
+	} 
+      else if (*p == '\r') 
+	{ 
+	  if (p + 1 < end && p[1] == '\n')
+	    p++;
+	}
+      else
+	continue;
+      
+      /* End of line found.  */
+
+      if (linemap == NULL || line_map_size < lineno + 1) 
+	{ 
+	  unsigned long newsize;
+
+	  chars_per_line -= line_map_decrease;
+	  if (chars_per_line <= 1)
+	    chars_per_line = 1;
+	  line_map_size = size / chars_per_line + 1;
+	  if (line_map_size < lineno + 1)
+	    line_map_size = lineno + 1;
+	  newsize = line_map_size * sizeof (char *);
+	  linemap = xrealloc (linemap, newsize);
+	}
+
+      linemap[lineno++] = lstart; 
+      lstart = p + 1; 
+    }
+  
+  *maxline = lineno; 
+  return linemap;
+}
+
 /* Tries to open MODNAME, and if successful adds a node to print_files
    linked list and returns that node.  Returns NULL on failure.  */
 
@@ -944,24 +1048,22 @@ static struct print_file_list *
 try_print_file_open (const char *origname, const char *modname)
 {
   struct print_file_list *p;
-  FILE *f;
-
-  f = fopen (modname, "r");
-  if (f == NULL)
-    return NULL;
-
-  if (print_files != NULL && print_files->f != NULL)
-    {
-      fclose (print_files->f);
-      print_files->f = NULL;
-    }
 
   p = xmalloc (sizeof (struct print_file_list));
+
+  p->map = slurp_file (modname, &p->mapsize);
+  if (p->map == NULL)
+    {
+      free (p);
+      return NULL;
+    }
+  
+  p->linemap = index_file (p->map, p->mapsize, &p->maxline);
+  p->last_line = 0;
   p->filename = origname;
   p->modname = modname;
-  p->line = 0;
-  p->f = f;
   p->next = print_files;
+  p->first = 1;
   print_files = p;
   return p;
 }
@@ -1020,29 +1122,32 @@ update_source_path (const char *filename)
   return NULL;
 }
 
-/* Skip ahead to a given line in a file, optionally printing each
-   line.  */
+/* Print a source file line.  */
+
+static void 
+print_line (struct print_file_list *p, unsigned int line)
+{
+  const char *l;
+ 
+  --line; 
+  if (line >= p->maxline)
+    return;
+  l = p->linemap [line];
+  fwrite (l, 1, strcspn (l, "\n\r"), stdout);
+  putchar ('\n');
+} 
+
+/* Print a range of source code lines. */
 
 static void
-skip_to_line (struct print_file_list *p, unsigned int line,
-	      bfd_boolean show)
+dump_lines (struct print_file_list *p, unsigned int start, unsigned int end)
 {
-  while (p->line < line)
+  if (p->map == NULL)
+    return;
+  while (start <= end) 
     {
-      char buf[100];
-
-      if (fgets (buf, sizeof buf, p->f) == NULL)
-	{
-	  fclose (p->f);
-	  p->f = NULL;
-	  break;
-	}
-
-      if (show)
-	printf ("%s", buf);
-
-      if (strchr (buf, '\n') != NULL)
-	++p->line;
+      print_line (p, start);
+      start++;
     }
 }
 
@@ -1083,79 +1188,31 @@ show_line (bfd *abfd, asection *section, bfd_vma addr_offset)
       && line > 0)
     {
       struct print_file_list **pp, *p;
+      unsigned l;
 
       for (pp = &print_files; *pp != NULL; pp = &(*pp)->next)
 	if (strcmp ((*pp)->filename, filename) == 0)
 	  break;
       p = *pp;
 
-      if (p != NULL)
-	{
-	  if (p != print_files)
-	    {
-	      int l;
-
-	      /* We have reencountered a file name which we saw
-		 earlier.  This implies that either we are dumping out
-		 code from an included file, or the same file was
-		 linked in more than once.  There are two common cases
-		 of an included file: inline functions in a header
-		 file, and a bison or flex skeleton file.  In the
-		 former case we want to just start printing (but we
-		 back up a few lines to give context); in the latter
-		 case we want to continue from where we left off.  I
-		 can't think of a good way to distinguish the cases,
-		 so I used a heuristic based on the file name.  */
-	      if (strcmp (p->filename + strlen (p->filename) - 2, ".h") != 0)
-		l = p->line;
-	      else
-		{
-		  l = line - SHOW_PRECEDING_CONTEXT_LINES;
-		  if (l < 0)
-		    l = 0;
-		}
-
-	      if (p->f == NULL)
-		{
-		  p->f = fopen (p->modname, "r");
-		  p->line = 0;
-		}
-	      if (p->f != NULL)
-		skip_to_line (p, l, FALSE);
-
-	      if (print_files->f != NULL)
-		{
-		  fclose (print_files->f);
-		  print_files->f = NULL;
-		}
-	    }
-
-	  if (p->f != NULL)
-	    {
-	      skip_to_line (p, line, TRUE);
-	      *pp = p->next;
-	      p->next = print_files;
-	      print_files = p;
-	    }
-	}
-      else
-	{
+      if (p == NULL)
 	  p = update_source_path (filename);
 
-	  if (p != NULL)
+      if (p != NULL && line != p->last_line)
+	{
+	  if (file_start_context && p->first) 
+	    l = 1;
+	  else 
 	    {
-	      int l;
-
-	      if (file_start_context)
-		l = 0;
-	      else
-		l = line - SHOW_PRECEDING_CONTEXT_LINES;
-	      if (l < 0)
-		l = 0;
-	      skip_to_line (p, l, FALSE);
-	      if (p->f != NULL)
-		skip_to_line (p, line, TRUE);
+	      l = line - SHOW_PRECEDING_CONTEXT_LINES;
+	      if (l >= line) 
+		l = 1;
+	      if (p->last_line >= l && p->last_line <= line)
+		l = p->last_line + 1;
 	    }
+	  dump_lines (p, l, line);
+	  p->last_line = line;
+	  p->first = 0;
 	}
     }
 
@@ -1377,6 +1434,8 @@ disassemble_bytes (struct disassemble_info * info,
 	      info->flags = 0;
 
 	      if (info->disassembler_needs_relocs
+		  && (bfd_get_file_flags (aux->abfd) & EXEC_P) == 0
+		  && (bfd_get_file_flags (aux->abfd) & DYNAMIC) == 0
 		  && *relppp < relppend)
 		{
 		  bfd_signed_vma distance_to_rel;
@@ -1748,11 +1807,13 @@ disassemble_section (bfd *abfd, asection *section, void *info)
 
 	  pinfo->symbols = sorted_syms + place;
 	  pinfo->num_symbols = x - place;
+	  pinfo->symtab_pos = place;
 	}
       else
 	{
 	  pinfo->symbols = NULL;
 	  pinfo->num_symbols = 0;
+	  pinfo->symtab_pos = -1;
 	}
 
       if (! prefix_addresses)
@@ -1945,6 +2006,8 @@ disassemble_data (bfd *abfd)
 		 compare_relocs);
 	}
     }
+  disasm_info.symtab = sorted_syms;
+  disasm_info.symtab_size = sorted_symcount;
 
   bfd_map_over_sections (abfd, disassemble_section, & disasm_info);
 
@@ -1970,7 +2033,19 @@ load_debug_section (enum dwarf_section_display_enum debug, void *file)
   if (sec == NULL)
     return 0;
 
-  section->address = bfd_get_section_vma (abfd, sec);
+  /* Compute a bias to be added to offsets found within the DWARF debug
+     information.  These offsets are meant to be relative to the start of
+     the dwarf section, and hence the bias should be 0.  For MACH-O however
+     a dwarf section is really just a region of a much larger section and so
+     the bias is the address of the start of that area within the larger
+     section.  This test is important for PE and COFF based targets which
+     use DWARF debug information, since unlike ELF, they do not allow the
+     dwarf sections to be placed at address 0.  */
+  if (bfd_get_flavour (abfd) == bfd_target_mach_o_flavour)
+    section->address = bfd_get_section_vma (abfd, sec);
+  else
+    section->address = 0;
+    
   section->size = bfd_get_section_size (sec);
   section->start = xmalloc (section->size);
 
@@ -2015,7 +2090,7 @@ dump_dwarf_section (bfd *abfd, asection *section,
   const char *match;
   enum dwarf_section_display_enum i;
 
-  if (strncmp (name, ".gnu.linkonce.wi.", 17) == 0)
+  if (CONST_STRNEQ (name, ".gnu.linkonce.wi."))
     match = ".debug_info";
   else
     match = name;
@@ -2511,12 +2586,16 @@ dump_symbols (bfd *abfd ATTRIBUTE_UNUSED, bfd_boolean dynamic)
 	      /* If we want to demangle the name, we demangle it
 		 here, and temporarily clobber it while calling
 		 bfd_print_symbol.  FIXME: This is a gross hack.  */
-	      alloc = demangle (cur_bfd, name);
-	      (*current)->name = alloc;
+	      alloc = bfd_demangle (cur_bfd, name, DMGL_ANSI | DMGL_PARAMS);
+	      if (alloc != NULL)
+		(*current)->name = alloc;
 	      bfd_print_symbol (cur_bfd, stdout, *current,
 				bfd_print_symbol_all);
-	      (*current)->name = name;
-	      free (alloc);
+	      if (alloc != NULL)
+		{
+		  (*current)->name = name;
+		  free (alloc);
+		}
 	    }
 	  else
 	    bfd_print_symbol (cur_bfd, stdout, *current,
@@ -2822,8 +2901,9 @@ dump_bfd (bfd *abfd)
       dhandle = read_debugging_info (abfd, syms, symcount);
       if (dhandle != NULL)
 	{
-	  if (! print_debugging_info (stdout, dhandle, abfd, syms, demangle,
-	      dump_debugging_tags ? TRUE : FALSE))
+	  if (!print_debugging_info (stdout, dhandle, abfd, syms,
+				     bfd_demangle,
+				     dump_debugging_tags ? TRUE : FALSE))
 	    {
 	      non_fatal (_("%s: printing debugging information failed"),
 			 bfd_get_filename (abfd));
@@ -2902,7 +2982,10 @@ display_file (char *filename, char *target)
   bfd *arfile = NULL;
 
   if (get_file_size (filename) < 1)
-    return;
+    {
+      exit_status = 1;
+      return;
+    }
 
   file = bfd_openr (filename, target);
   if (file == NULL)

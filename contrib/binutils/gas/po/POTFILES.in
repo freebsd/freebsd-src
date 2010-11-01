@@ -24,8 +24,6 @@ config/obj-elf.c
 config/obj-elf.h
 config/obj-evax.c
 config/obj-evax.h
-config/obj-ieee.c
-config/obj-ieee.h
 config/obj-som.c
 config/obj-som.h
 config/tc-alpha.c
@@ -38,6 +36,8 @@ config/tc-avr.c
 config/tc-avr.h
 config/tc-bfin.c
 config/tc-bfin.h
+config/tc-cr16.c
+config/tc-cr16.h
 config/tc-cris.c
 config/tc-cris.h
 config/tc-crx.c
@@ -78,6 +78,8 @@ config/tc-m68k.c
 config/tc-m68k.h
 config/tc-mcore.c
 config/tc-mcore.h
+config/tc-mep.c
+config/tc-mep.h
 config/tc-mips.c
 config/tc-mips.h
 config/tc-mmix.c
@@ -102,12 +104,16 @@ config/tc-ppc.c
 config/tc-ppc.h
 config/tc-s390.c
 config/tc-s390.h
+config/tc-score.c
+config/tc-score.h
 config/tc-sh64.c
 config/tc-sh64.h
 config/tc-sh.c
 config/tc-sh.h
 config/tc-sparc.c
 config/tc-sparc.h
+config/tc-spu.c
+config/tc-spu.h
 config/tc-tic30.c
 config/tc-tic30.h
 config/tc-tic54x.c
