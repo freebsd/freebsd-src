@@ -367,28 +367,6 @@ acl_nfs4_trivial_from_mode(struct acl *aclp, mode_t mode)
 	group_deny = everyone_allow & ~group_allow;
 	user_allow_first = group_deny & ~user_deny;
 
-#if 1
-	/*
-	 * This is a workaround for what looks like a bug in ZFS - trivial
-	 * ACL for mode 0077 should look like this:
-	 *
-	 *    owner@:rwxp----------:------:deny
-	 *    owner@:------aARWcCos:------:allow
-	 *    group@:rwxp--a-R-c--s:------:allow
-	 * everyone@:rwxp--a-R-c--s:------:allow
-	 *
-	 * Instead, ZFS makes it like this:
-	 *
-	 *    owner@:rwx-----------:------:deny
-	 *    owner@:------aARWcCos:------:allow
-	 *    group@:rwxp--a-R-c--s:------:allow
-	 * everyone@:rwxp--a-R-c--s:------:allow
-	 */
-	user_allow_first &= ~ACL_APPEND_DATA;
-	user_deny &= ~ACL_APPEND_DATA;
-	group_deny &= ~ACL_APPEND_DATA;
-#endif
-
 	if (user_allow_first != 0)
 		_acl_append(aclp, ACL_USER_OBJ, user_allow_first, ACL_ENTRY_TYPE_ALLOW);
 	if (user_deny != 0)
