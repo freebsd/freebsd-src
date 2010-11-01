@@ -1377,7 +1377,7 @@ iwi_checkforqos(struct iwi_softc *sc, const struct ieee80211_frame *wh, int len)
 
 	ni = sc->sc_ic.ic_bss;
 	ni->ni_capinfo = capinfo;
-	ni->ni_associd = associd;
+	ni->ni_associd = associd & 0x3fff;
 	if (wme != NULL)
 		ni->ni_flags |= IEEE80211_NODE_QOS;
 	else
@@ -1480,7 +1480,7 @@ iwi_notification_intr(struct iwi_softc *sc, struct iwi_notif *notif)
 			IWI_STATE_END(sc, IWI_FW_ASSOCIATING);
 			iwi_checkforqos(sc,
 			    (const struct ieee80211_frame *)(assoc+1),
-			    le16toh(notif->len) - sizeof(*assoc));
+			    le16toh(notif->len) - sizeof(*assoc) - 1);
 			ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
 			break;
 
