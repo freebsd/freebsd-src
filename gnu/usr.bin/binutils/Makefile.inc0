@@ -4,7 +4,7 @@
 # use the normal "Makefile.inc" mechanism, because we need some of these
 # definitions before the sub-Makefile is processed.
 
-VERSION=	"2.17 [FreeBSD] 2007-08-07"
+VERSION=	"2.17.50 [FreeBSD] 2007-07-03"
 
 TARGET_ARCH?=	${MACHINE_ARCH}
 TARGET_VENDOR?=	unknown
