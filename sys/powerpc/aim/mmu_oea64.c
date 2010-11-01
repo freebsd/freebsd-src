@@ -400,6 +400,7 @@ vm_paddr_t moea64_extract(mmu_t, pmap_t, vm_offset_t);
 vm_page_t moea64_extract_and_hold(mmu_t, pmap_t, vm_offset_t, vm_prot_t);
 void moea64_init(mmu_t);
 boolean_t moea64_is_modified(mmu_t, vm_page_t);
+boolean_t moea64_is_prefaultable(mmu_t, pmap_t, vm_offset_t);
 boolean_t moea64_is_referenced(mmu_t, vm_page_t);
 boolean_t moea64_ts_referenced(mmu_t, vm_page_t);
 vm_offset_t moea64_map(mmu_t, vm_offset_t *, vm_offset_t, vm_offset_t, int);
@@ -441,6 +442,7 @@ static mmu_method_t moea64_methods[] = {
 	MMUMETHOD(mmu_extract_and_hold,	moea64_extract_and_hold),
 	MMUMETHOD(mmu_init,		moea64_init),
 	MMUMETHOD(mmu_is_modified,	moea64_is_modified),
+	MMUMETHOD(mmu_is_prefaultable,	moea64_is_prefaultable),
 	MMUMETHOD(mmu_is_referenced,	moea64_is_referenced),
 	MMUMETHOD(mmu_ts_referenced,	moea64_ts_referenced),
 	MMUMETHOD(mmu_map,     		moea64_map),
@@ -1784,6 +1786,19 @@ moea64_is_modified(mmu_t mmu, vm_page_t m)
 	    (m->flags & PG_WRITEABLE) == 0)
 		return (FALSE);
 	return (moea64_query_bit(m, LPTE_CHG));
+}
+
+boolean_t
+moea64_is_prefaultable(mmu_t mmu, pmap_t pmap, vm_offset_t va)
+{
+	struct pvo_entry *pvo;
+	boolean_t rv;
+
+	PMAP_LOCK(pmap);
+	pvo = moea64_pvo_find_va(pmap, va & ~ADDR_POFF);
+	rv = pvo == NULL || (pvo->pvo_pte.lpte.pte_hi & LPTE_VALID) == 0;
+	PMAP_UNLOCK(pmap);
+	return (rv);
 }
 
 void
