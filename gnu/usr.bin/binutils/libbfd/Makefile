@@ -19,6 +19,7 @@ SRCS+=	archive.c \
 	corefile.c \
 	dwarf1.c \
 	dwarf2.c \
+	elf-attrs.c \
 	elf-eh-frame.c \
 	elf-strtab.c \
 	elf-vxworks.c \
@@ -78,12 +79,14 @@ SELVEC+= ,&${_v}
 .endfor
 CFLAGS+= -DSELECT_VECS="${SELVEC}"
 CFLAGS+= -DDEFAULT_VECTOR=${DEFAULT_VECTOR}
+CFLAGS+= -DDEBUGDIR="NULL"
 
 # XXX:DEO should grab BFD_VERSION_DATE from ${VERSION}...
 bfdver.h: Makefile
-	echo '#define BFD_VERSION	217000000'	> ${.TARGET}
-	echo '#define BFD_VERSION_DATE	20070807'	>> ${.TARGET}
+	echo '#define BFD_VERSION	217500000'	> ${.TARGET}
+	echo '#define BFD_VERSION_DATE	20070703'	>> ${.TARGET}
 	echo '#define BFD_VERSION_STRING ${VERSION}'	>> ${.TARGET}
+	echo '#define REPORT_BUGS_TO "<http://www.freebsd.org/send-pr.html>"' >> ${.TARGET}
 
 targmatch.h: targmatch.sed config.bfd
 	sed -f ${.ALLSRC:M*.sed} ${.ALLSRC:M*.bfd} > ${.TARGET}
