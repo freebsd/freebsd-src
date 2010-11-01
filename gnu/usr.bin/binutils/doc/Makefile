@@ -14,9 +14,9 @@ MAKEINFOFLAGS+= --no-validate
 MAKEINFOFLAGS+= -I ${SRCDIR}/libiberty
 MAKEINFOFLAGS+= -I ${SRCDIR}/bfd/doc
 
-CLEANFILES=	configdoc.texi config.texi gasver.texi ldver.texi
+CLEANFILES=	bfdver.texi configdoc.texi config.texi gasver.texi ldver.texi
 
-as.info:	as.texinfo asconfig.texi c-i386.texi gasver.texi
+as.info:	as.texinfo asconfig.texi bfdver.texi c-i386.texi gasver.texi
 ld.info:	ld.texinfo bfdsumm.texi ldver.texi configdoc.texi
 
 configdoc.texi: gen-doc.texi
@@ -25,7 +25,7 @@ configdoc.texi: gen-doc.texi
 .PATH: ${SRCDIR}/binutils/doc
 binutils.info: binutils.texi config.texi
 
-config.texi gasver.texi ldver.texi:
+bfdver.texi config.texi gasver.texi ldver.texi:
 	echo "@set VERSION ${VERSION}" > ${.TARGET}
 
 .include <bsd.info.mk>

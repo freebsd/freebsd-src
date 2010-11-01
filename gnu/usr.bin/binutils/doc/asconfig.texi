@@ -63,11 +63,11 @@
 @clear Z80
 @clear Z8000
 
-@c Does this version of the assembler use the difference-table kluge?
+@c Does this version of the assembler use the difference-table kludge?
 @clear DIFF-TBL-KLUGE
 
 @c Do all machines described use IEEE floating point?
-@set IEEEFLOAT
+@clear IEEEFLOAT
 
 @c Is a word 32 bits, or 16?
 @set W32
@@ -84,6 +84,6 @@
 @c Name of linker:
 @set LD ld
 @c Text for target machine (best not used in generic case; but just in case...)
-@set TARGET i386
-@c Name of object format (NOT SET in generic version)
+@set TARGET machine specific
+@c Name of object format NOT SET in generic version
 @set OBJ-NAME ELF
