@@ -84,7 +84,6 @@ __FBSDID("$FreeBSD$");
 
 extern struct nfsstats newnfsstats;
 MALLOC_DECLARE(M_NEWNFSREQ);
-vop_advlock_t	*ncl_advlock_p = NULL;
 
 /*
  * Ifdef for FreeBSD-current merged buffer cache. It is unfortunate that these
@@ -2937,8 +2936,8 @@ nfs_advlock(struct vop_advlock_args *ap)
 			VOP_UNLOCK(vp, 0);
 			error = lf_advlock(ap, &(vp->v_lockf), size);
 		} else {
-			if (ncl_advlock_p)
-				error = ncl_advlock_p(ap);
+			if (nfs_advlock_p != NULL)
+				error = nfs_advlock_p(ap);
 			else {
 				VOP_UNLOCK(vp, 0);
 				error = ENOLCK;
