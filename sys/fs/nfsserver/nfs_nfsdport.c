@@ -3087,6 +3087,21 @@ nfsvno_testexp(struct nfsrv_descript *nd, struct nfsexstuff *exp)
 	return (1);
 }
 
+/*
+ * Calculate a hash value for the fid in a file handle.
+ */
+int
+nfsrv_hashfh(fhandle_t *fhp)
+{
+	int hashval = 0, i;
+	uint8_t *cp;
+
+	cp = (uint8_t *)&fhp->fh_fid;
+	for (i = 0; i < sizeof(struct fid); i++)
+		hashval += *cp++;
+	return (hashval);
+}
+
 extern int (*nfsd_call_nfsd)(struct thread *, struct nfssvc_args *);
 
 /*
