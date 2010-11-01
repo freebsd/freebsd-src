@@ -35,6 +35,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
+
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
@@ -527,9 +531,9 @@ static int
 amd64_mrset(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
 {
 	struct mem_range_desc *targ;
-	int error = 0;
+	int error, i;
 
-	switch(*arg) {
+	switch (*arg) {
 	case MEMRANGE_SET_UPDATE:
 		/*
 		 * Make sure that what's being asked for is even
@@ -566,6 +570,21 @@ amd64_mrset(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
 
 	default:
 		return (EOPNOTSUPP);
+	}
+
+	/*
+	 * Ensure that the direct map region does not contain any mappings
+	 * that span MTRRs of different types.  However, the fixed MTRRs can
+	 * be ignored, because a large page mapping the first 1 MB of physical
+	 * memory is a special case that the processor handles.  The entire
+	 * TLB will be invalidated by amd64_mrstore(), so pmap_demote_DMAP()
+	 * needn't do it.
+	 */
+	i = (sc->mr_cap & MR686_FIXMTRR) ? MTRR_N64K + MTRR_N16K + MTRR_N4K : 0;
+	mrd = sc->mr_desc + i;
+	for (; i < sc->mr_ndesc; i++, mrd++) {
+		if (mrd->mr_flags & MDF_ACTIVE)
+			pmap_demote_DMAP(mrd->mr_base, mrd->mr_len, FALSE);
 	}
 
 	/* Update the hardware. */
@@ -656,6 +675,21 @@ amd64_mrinit(struct mem_range_softc *sc)
 	for (i = 0; i < sc->mr_ndesc; i++, mrd++) {
 		if (mrd->mr_flags & MDF_ACTIVE)
 			mrd->mr_flags |= MDF_FIRMWARE;
+	}
+
+	/*
+	 * Ensure that the direct map region does not contain any mappings
+	 * that span MTRRs of different types.  However, the fixed MTRRs can
+	 * be ignored, because a large page mapping the first 1 MB of physical
+	 * memory is a special case that the processor handles.  Invalidate
+	 * any old TLB entries that might hold inconsistent memory type
+	 * information. 
+	 */
+	i = (sc->mr_cap & MR686_FIXMTRR) ? MTRR_N64K + MTRR_N16K + MTRR_N4K : 0;
+	mrd = sc->mr_desc + i;
+	for (; i < sc->mr_ndesc; i++, mrd++) {
+		if (mrd->mr_flags & MDF_ACTIVE)
+			pmap_demote_DMAP(mrd->mr_base, mrd->mr_len, TRUE);
 	}
 }
 

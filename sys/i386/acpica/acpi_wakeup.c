@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpufunc.h>
 #include <machine/intr_machdep.h>
-#include <machine/mca.h>
+#include <x86/mca.h>
 #include <machine/segments.h>
 
 #include <contrib/dev/acpica/include/acpi.h>

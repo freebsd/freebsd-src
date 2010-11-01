@@ -17,8 +17,8 @@
  * Original code by Hannes Gredler (hannes@juniper.net)
  */
 
-extern struct tok af_values[];
-extern struct tok bsd_af_values[];
+extern const struct tok af_values[];
+extern const struct tok bsd_af_values[];
 
 /* RFC1700 address family numbers */
 #define AFNUM_INET	1

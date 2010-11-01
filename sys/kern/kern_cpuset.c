@@ -107,6 +107,10 @@ static struct setlist cpuset_ids;
 static struct unrhdr *cpuset_unr;
 static struct cpuset *cpuset_zero;
 
+/* Return the size of cpuset_t at the kernel level */
+SYSCTL_INT(_kern_sched, OID_AUTO, cpusetsize, CTLFLAG_RD,
+	0, sizeof(cpuset_t), "sizeof(cpuset_t)");
+
 cpuset_t *cpuset_root;
 
 /*

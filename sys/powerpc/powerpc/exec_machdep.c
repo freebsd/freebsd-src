@@ -986,7 +986,6 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	pcb2->pcb_lr = (register_t)fork_trampoline;
 	#endif
 	pcb2->pcb_cpu.aim.usr_vsid = 0;
-	pcb2->pcb_cpu.aim.usr_esid = 0;
 
 	/* Setup to release spin count in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;

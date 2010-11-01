@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/nfs.h,v 1.8.2.1 2007-11-18 03:24:55 guy Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/nfs.h,v 1.9 2007-11-18 03:24:38 guy Exp $ (LBL) */
 /*	NetBSD: nfs.h,v 1.1 1996/05/23 22:49:53 fvdl Exp 	*/
 
 /*
@@ -216,6 +216,7 @@
 #define NFSV3ACCESS_EXTEND		0x08
 #define NFSV3ACCESS_DELETE		0x10
 #define NFSV3ACCESS_EXECUTE		0x20
+#define NFSV3ACCESS_FULL		0x3f
 
 #define NFSV3WRITE_UNSTABLE		0
 #define NFSV3WRITE_DATASYNC		1

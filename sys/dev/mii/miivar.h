@@ -148,7 +148,7 @@ typedef struct mii_softc mii_softc_t;
 /*
  * Special `locators' passed to mii_attach().  If one of these is not
  * an `any' value, we look for *that* PHY and configure it.  If both
- * are not `any', that is an error, and mii_attach() will panic.
+ * are not `any', that is an error, and mii_attach() will fail.
  */
 #define	MII_OFFSET_ANY		-1
 #define	MII_PHY_ANY		-1

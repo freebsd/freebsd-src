@@ -88,6 +88,20 @@ struct ip6_hdr {
 	struct in6_addr ip6_dst;	/* destination address */
 };
 
+/*
+ * Pseudo header, used for higher layer checksumming.
+ */
+union ip6_pseudo_hdr {
+    struct {
+	struct in6_addr ph_src;
+	struct in6_addr ph_dst;
+	u_int32_t	ph_len;
+	u_int8_t	ph_zero[3];
+	u_int8_t	ph_nxt;
+    } ph;
+    u_int16_t pa[20];
+};
+
 #define ip6_vfc		ip6_ctlun.ip6_un2_vfc
 #define ip6_flow	ip6_ctlun.ip6_un1.ip6_un1_flow
 #define ip6_plen	ip6_ctlun.ip6_un1.ip6_un1_plen

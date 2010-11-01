@@ -196,6 +196,7 @@ void
 evaltree(union node *n, int flags)
 {
 	int do_etest;
+	union node *next;
 
 	do_etest = 0;
 	if (n == NULL) {
@@ -203,84 +204,88 @@ evaltree(union node *n, int flags)
 		exitstatus = 0;
 		goto out;
 	}
+	do {
+		next = NULL;
 #ifndef NO_HISTORY
-	displayhist = 1;	/* show history substitutions done with fc */
+		displayhist = 1;	/* show history substitutions done with fc */
 #endif
-	TRACE(("evaltree(%p: %d) called\n", (void *)n, n->type));
-	switch (n->type) {
-	case NSEMI:
-		evaltree(n->nbinary.ch1, flags & ~EV_EXIT);
-		if (evalskip)
-			goto out;
-		evaltree(n->nbinary.ch2, flags);
-		break;
-	case NAND:
-		evaltree(n->nbinary.ch1, EV_TESTED);
-		if (evalskip || exitstatus != 0) {
-			goto out;
+		TRACE(("evaltree(%p: %d) called\n", (void *)n, n->type));
+		switch (n->type) {
+		case NSEMI:
+			evaltree(n->nbinary.ch1, flags & ~EV_EXIT);
+			if (evalskip)
+				goto out;
+			next = n->nbinary.ch2;
+			break;
+		case NAND:
+			evaltree(n->nbinary.ch1, EV_TESTED);
+			if (evalskip || exitstatus != 0) {
+				goto out;
+			}
+			next = n->nbinary.ch2;
+			break;
+		case NOR:
+			evaltree(n->nbinary.ch1, EV_TESTED);
+			if (evalskip || exitstatus == 0)
+				goto out;
+			next = n->nbinary.ch2;
+			break;
+		case NREDIR:
+			evalredir(n, flags);
+			break;
+		case NSUBSHELL:
+			evalsubshell(n, flags);
+			do_etest = !(flags & EV_TESTED);
+			break;
+		case NBACKGND:
+			evalsubshell(n, flags);
+			break;
+		case NIF: {
+			evaltree(n->nif.test, EV_TESTED);
+			if (evalskip)
+				goto out;
+			if (exitstatus == 0)
+				next = n->nif.ifpart;
+			else if (n->nif.elsepart)
+				next = n->nif.elsepart;
+			else
+				exitstatus = 0;
+			break;
 		}
-		evaltree(n->nbinary.ch2, flags);
-		break;
-	case NOR:
-		evaltree(n->nbinary.ch1, EV_TESTED);
-		if (evalskip || exitstatus == 0)
-			goto out;
-		evaltree(n->nbinary.ch2, flags);
-		break;
-	case NREDIR:
-		evalredir(n, flags);
-		break;
-	case NSUBSHELL:
-		evalsubshell(n, flags);
-		do_etest = !(flags & EV_TESTED);
-		break;
-	case NBACKGND:
-		evalsubshell(n, flags);
-		break;
-	case NIF: {
-		evaltree(n->nif.test, EV_TESTED);
-		if (evalskip)
-			goto out;
-		if (exitstatus == 0)
-			evaltree(n->nif.ifpart, flags);
-		else if (n->nif.elsepart)
-			evaltree(n->nif.elsepart, flags);
-		else
+		case NWHILE:
+		case NUNTIL:
+			evalloop(n, flags & ~EV_EXIT);
+			break;
+		case NFOR:
+			evalfor(n, flags & ~EV_EXIT);
+			break;
+		case NCASE:
+			evalcase(n, flags);
+			break;
+		case NDEFUN:
+			defun(n->narg.text, n->narg.next);
 			exitstatus = 0;
-		break;
-	}
-	case NWHILE:
-	case NUNTIL:
-		evalloop(n, flags & ~EV_EXIT);
-		break;
-	case NFOR:
-		evalfor(n, flags & ~EV_EXIT);
-		break;
-	case NCASE:
-		evalcase(n, flags);
-		break;
-	case NDEFUN:
-		defun(n->narg.text, n->narg.next);
-		exitstatus = 0;
-		break;
-	case NNOT:
-		evaltree(n->nnot.com, EV_TESTED);
-		exitstatus = !exitstatus;
-		break;
+			break;
+		case NNOT:
+			evaltree(n->nnot.com, EV_TESTED);
+			exitstatus = !exitstatus;
+			break;
 
-	case NPIPE:
-		evalpipe(n);
-		do_etest = !(flags & EV_TESTED);
-		break;
-	case NCMD:
-		evalcommand(n, flags, (struct backcmd *)NULL);
-		do_etest = !(flags & EV_TESTED);
-		break;
-	default:
-		out1fmt("Node type = %d\n", n->type);
-		flushout(&output);
-		break;
-	}
+		case NPIPE:
+			evalpipe(n);
+			do_etest = !(flags & EV_TESTED);
+			break;
+		case NCMD:
+			evalcommand(n, flags, (struct backcmd *)NULL);
+			do_etest = !(flags & EV_TESTED);
+			break;
+		default:
+			out1fmt("Node type = %d\n", n->type);
+			flushout(&output);
+			break;
+		}
+		n = next;
+	} while (n != NULL);
 out:
 	if (pendingsigs)
 		dotrap();
@@ -1130,7 +1135,7 @@ commandcmd(int argc, char **argv)
 		return typecmd_impl(2, argv - 1, cmd, path);
 	}
 	if (argc != 0)
-		error("commandcmd() called while it should not be");
+		error("commandcmd bad call");
 
 	/*
 	 * Do nothing successfully if no command was specified;

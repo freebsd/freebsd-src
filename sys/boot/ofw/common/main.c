@@ -41,19 +41,23 @@ extern char bootprog_rev[];
 extern char bootprog_date[];
 extern char bootprog_maker[];
 
-u_int32_t	acells;
+u_int32_t	acells, scells;
 
 static char bootargs[128];
 
 #define	HEAP_SIZE	0x80000
 
+#define OF_puts(fd, text) OF_write(fd, text, strlen(text))
+
 void
 init_heap(void)
 {
 	void	*base;
+	ihandle_t stdout;
 
 	if ((base = ofw_alloc_heap(HEAP_SIZE)) == (void *)0xffffffff) {
-		printf("Heap memory claim failed!\n");
+		OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
+		OF_puts(stdout, "Heap memory claim failed!\n");
 		OF_enter();
 	}
 
@@ -64,25 +68,20 @@ uint64_t
 memsize(void)
 {
 	phandle_t	memoryp;
-	struct ofw_reg	reg[4];
-	struct ofw_reg2	reg2[8];
-	int		i;
-	u_int64_t	sz, memsz;
+	cell_t		reg[24];
+	int		i, sz;
+	u_int64_t	memsz;
 
+	memsz = 0;
 	memoryp = OF_instance_to_package(memory);
 
-	if (acells == 1) {
-		sz = OF_getprop(memoryp, "reg", &reg, sizeof(reg));
-		sz /= sizeof(struct ofw_reg);
+	sz = OF_getprop(memoryp, "reg", &reg, sizeof(reg));
+	sz /= sizeof(reg[0]);
 
-		for (i = 0, memsz = 0; i < sz; i++)
-			memsz += reg[i].size;
-	} else if (acells == 2) {
-		sz = OF_getprop(memoryp, "reg", &reg2, sizeof(reg2));
-		sz /= sizeof(struct ofw_reg2);
-
-		for (i = 0, memsz = 0; i < sz; i++)
-			memsz += reg2[i].size;
+	for (i = 0; i < sz; i += (acells + scells)) {
+		if (scells > 1)
+			memsz += (uint64_t)reg[i + acells] << 32;
+		memsz += reg[i + acells + scells - 1];
 	}
 
 	return (memsz);
@@ -105,13 +104,9 @@ main(int (*openfirm)(void *))
 
 	root = OF_finddevice("/");
 
-	acells = 1;
+	scells = acells = 1;
 	OF_getprop(root, "#address-cells", &acells, sizeof(acells));
-
-	/*
-         * Set up console.
-         */
-	cons_probe();
+	OF_getprop(root, "#size-cells", &scells, sizeof(scells));
 
 	/*
 	 * Initialise the heap as early as possible.  Once this is done,
@@ -119,6 +114,11 @@ main(int (*openfirm)(void *))
 	 * safe.
 	 */
 	init_heap();
+
+	/*
+         * Set up console.
+         */
+	cons_probe();
 
 	/*
 	 * March through the device switch probing for things.
