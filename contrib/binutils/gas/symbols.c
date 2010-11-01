@@ -1,6 +1,6 @@
 /* symbols.c -symbol table-
    Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005
+   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -144,8 +144,7 @@ symbol_create (const char *name, /* It is copied, the caller can destroy/modify.
 
   symbolP->bsym = bfd_make_empty_symbol (stdoutput);
   if (symbolP->bsym == NULL)
-    as_perror ("%s", "bfd_make_empty_symbol");
-  symbolP->bsym->udata.p = (PTR) symbolP;
+    as_fatal ("bfd_make_empty_symbol: %s", bfd_errmsg (bfd_get_error ()));
   S_SET_NAME (symbolP, preserved_copy_of_name);
 
   S_SET_SEGMENT (symbolP, segment);
@@ -336,10 +335,7 @@ colon (/* Just seen "x:" - rattle symbols & frags.  */
 	       || S_IS_COMMON (symbolP)
 	       || S_IS_VOLATILE (symbolP))
 	{
-	  if (S_IS_VOLATILE (symbolP)
-	      /* This could be avoided when the symbol wasn't used so far, but
-		 the comment in struc-symbol.h says this flag isn't reliable.  */
-	      && (1 || !symbol_used_p (symbolP)))
+	  if (S_IS_VOLATILE (symbolP))
 	    {
 	      symbolP = symbol_clone (symbolP, 1);
 	      S_SET_VALUE (symbolP, 0);
@@ -567,18 +563,15 @@ symbol_clone (symbolS *orgsymP, int replace)
     orgsymP = local_symbol_convert ((struct local_symbol *) orgsymP);
   bsymorg = orgsymP->bsym;
 
-  know (S_IS_DEFINED (orgsymP));
-
   newsymP = obstack_alloc (&notes, sizeof (*newsymP));
   *newsymP = *orgsymP;
   bsymnew = bfd_make_empty_symbol (bfd_asymbol_bfd (bsymorg));
   if (bsymnew == NULL)
-    as_perror ("%s", "bfd_make_empty_symbol");
+    as_fatal ("bfd_make_empty_symbol: %s", bfd_errmsg (bfd_get_error ()));
   newsymP->bsym = bsymnew;
   bsymnew->name = bsymorg->name;
   bsymnew->flags =  bsymorg->flags;
   bsymnew->section =  bsymorg->section;
-  bsymnew->udata.p = (PTR) newsymP;
   bfd_copy_private_symbol_data (bfd_asymbol_bfd (bsymorg), bsymorg,
 				bfd_asymbol_bfd (bsymnew), bsymnew);
 
@@ -603,11 +596,13 @@ symbol_clone (symbolS *orgsymP, int replace)
 	symbol_lastP = newsymP;
       else if (orgsymP->sy_next)
 	orgsymP->sy_next->sy_previous = newsymP;
-      orgsymP->sy_next = NULL;
+      orgsymP->sy_previous = orgsymP->sy_next = orgsymP;
       debug_verify_symchain (symbol_rootP, symbol_lastP);
 
       symbol_table_insert (newsymP);
     }
+  else
+    newsymP->sy_previous = newsymP->sy_next = newsymP;
 
   return newsymP;
 }
@@ -884,6 +879,69 @@ verify_symbol_chain (symbolS *rootP, symbolS *lastP)
   assert (lastP == symbolP);
 }
 
+#ifdef OBJ_COMPLEX_RELC
+
+static int
+use_complex_relocs_for (symbolS * symp)
+{
+  switch (symp->sy_value.X_op)
+    {
+    case O_constant:
+      return 0;
+
+    case O_symbol:
+    case O_symbol_rva:
+    case O_uminus:
+    case O_bit_not:
+    case O_logical_not:
+      if (  (S_IS_COMMON (symp->sy_value.X_add_symbol)
+	   || S_IS_LOCAL (symp->sy_value.X_add_symbol))
+	  &&
+	      (S_IS_DEFINED (symp->sy_value.X_add_symbol)
+	   && S_GET_SEGMENT (symp->sy_value.X_add_symbol) != expr_section))
+	return 0;
+      break;
+
+    case O_multiply:
+    case O_divide:
+    case O_modulus:
+    case O_left_shift:
+    case O_right_shift:
+    case O_bit_inclusive_or:
+    case O_bit_or_not:
+    case O_bit_exclusive_or:
+    case O_bit_and:
+    case O_add:
+    case O_subtract:
+    case O_eq:
+    case O_ne:
+    case O_lt:
+    case O_le:
+    case O_ge:
+    case O_gt:
+    case O_logical_and:
+    case O_logical_or:
+
+      if (  (S_IS_COMMON (symp->sy_value.X_add_symbol)
+	   || S_IS_LOCAL (symp->sy_value.X_add_symbol))
+	  && 
+	    (S_IS_COMMON (symp->sy_value.X_op_symbol)
+	   || S_IS_LOCAL (symp->sy_value.X_op_symbol))
+
+	  && S_IS_DEFINED (symp->sy_value.X_add_symbol)
+	  && S_IS_DEFINED (symp->sy_value.X_op_symbol)
+	  && S_GET_SEGMENT (symp->sy_value.X_add_symbol) != expr_section
+	  && S_GET_SEGMENT (symp->sy_value.X_op_symbol) != expr_section)
+	return 0;
+      break;
+      
+    default:
+      break;
+    }
+  return 1;
+}
+#endif
+
 static void
 report_op_error (symbolS *symp, symbolS *left, symbolS *right)
 {
@@ -986,6 +1044,53 @@ resolve_symbol_value (symbolS *symp)
       final_val = 0;
       resolved = 1;
     }
+#ifdef OBJ_COMPLEX_RELC
+  else if (final_seg == expr_section
+	   && use_complex_relocs_for (symp))
+    {
+      symbolS * relc_symbol = NULL;
+      char * relc_symbol_name = NULL;
+
+      relc_symbol_name = symbol_relc_make_expr (& symp->sy_value);
+
+      /* For debugging, print out conversion input & output.  */
+#ifdef DEBUG_SYMS
+      print_expr (& symp->sy_value);
+      if (relc_symbol_name)
+	fprintf (stderr, "-> relc symbol: %s\n", relc_symbol_name);
+#endif
+
+      if (relc_symbol_name != NULL)
+	relc_symbol = symbol_new (relc_symbol_name, undefined_section,
+				  0, & zero_address_frag);
+
+      if (relc_symbol == NULL)
+	{
+	  as_bad (_("cannot convert expression symbol %s to complex relocation"),
+		  S_GET_NAME (symp));
+	  resolved = 0;
+	}
+      else
+	{
+	  symbol_table_insert (relc_symbol);
+
+ 	  /* S_CLEAR_EXTERNAL (relc_symbol); */
+	  if (symp->bsym->flags & BSF_SRELC)
+	    relc_symbol->bsym->flags |= BSF_SRELC;
+	  else
+	    relc_symbol->bsym->flags |= BSF_RELC;	  
+	  /* symp->bsym->flags |= BSF_RELC; */
+	  copy_symbol_attributes (symp, relc_symbol);
+	  symp->sy_value.X_op = O_symbol;
+	  symp->sy_value.X_add_symbol = relc_symbol;
+	  symp->sy_value.X_add_number = 0;
+	  resolved = 1;
+	}
+
+      final_seg = undefined_section;
+      goto exit_dont_set_value;
+    }
+#endif
   else
     {
       symbolS *add_symbol, *op_symbol;
@@ -1016,6 +1121,9 @@ resolve_symbol_value (symbolS *symp)
 	  final_val += symp->sy_frag->fr_address / OCTETS_PER_BYTE;
 	  if (final_seg == expr_section)
 	    final_seg = absolute_section;
+	  /* Fall through.  */
+
+	case O_register:
 	  resolved = 1;
 	  break;
 
@@ -1083,8 +1191,9 @@ resolve_symbol_value (symbolS *symp)
 	      symp->sy_resolving = 0;
 	      goto exit_dont_set_value;
 	    }
-	  else if (finalize_syms && final_seg == expr_section
-		   && seg_left != expr_section)
+	  else if (finalize_syms
+		   && ((final_seg == expr_section && seg_left != expr_section)
+		       || symbol_shadow_p (symp)))
 	    {
 	      /* If the symbol is an expression symbol, do similarly
 		 as for undefined and common syms above.  Handles
@@ -1292,7 +1401,6 @@ resolve_symbol_value (symbolS *symp)
 		      && symbol_resolved_p (op_symbol));
 	  break;
 
-	case O_register:
 	case O_big:
 	case O_illegal:
 	  /* Give an error (below) if not in expr_section.  We don't
@@ -1838,6 +1946,10 @@ copy_symbol_attributes (symbolS *dest, symbolS *src)
 
 #ifdef OBJ_COPY_SYMBOL_ATTRIBUTES
   OBJ_COPY_SYMBOL_ATTRIBUTES (dest, src);
+#endif
+
+#ifdef TC_COPY_SYMBOL_ATTRIBUTES
+  TC_COPY_SYMBOL_ATTRIBUTES (dest, src);
 #endif
 }
 
@@ -2497,6 +2609,17 @@ symbol_constant_p (symbolS *s)
   return s->sy_value.X_op == O_constant;
 }
 
+/* Return whether a symbol was cloned and thus removed from the global
+   symbol list.  */
+
+int
+symbol_shadow_p (symbolS *s)
+{
+  if (LOCAL_SYMBOL_CHECK (s))
+    return 0;
+  return s->sy_next == s;
+}
+
 /* Return the BFD symbol for a symbol.  */
 
 asymbol *
@@ -2818,3 +2941,219 @@ symbol_print_statistics (FILE *file)
   fprintf (file, "%lu mini local symbols created, %lu converted\n",
 	   local_symbol_count, local_symbol_conversion_count);
 }
+
+#ifdef OBJ_COMPLEX_RELC
+
+/* Convert given symbol to a new complex-relocation symbol name.  This
+   may be a recursive function, since it might be called for non-leaf
+   nodes (plain symbols) in the expression tree.  The caller owns the
+   returning string, so should free it eventually.  Errors are
+   indicated via as_bad and a NULL return value.  The given symbol
+   is marked with sy_used_in_reloc.  */
+
+char *
+symbol_relc_make_sym (symbolS * sym)
+{
+  char * terminal = NULL;
+  const char * sname;
+  char typetag;
+  int sname_len;
+
+  assert (sym != NULL);
+
+  /* Recurse to symbol_relc_make_expr if this symbol
+     is defined as an expression or a plain value.  */
+  if (   S_GET_SEGMENT (sym) == expr_section
+      || S_GET_SEGMENT (sym) == absolute_section)
+    return symbol_relc_make_expr (& sym->sy_value);
+
+  /* This may be a "fake symbol" L0\001, referring to ".".
+     Write out a special null symbol to refer to this position.  */
+  if (! strcmp (S_GET_NAME (sym), FAKE_LABEL_NAME))
+    return xstrdup (".");
+
+  /* We hope this is a plain leaf symbol.  Construct the encoding
+     as {S,s}II...:CCCCCCC....
+     where 'S'/'s' means section symbol / plain symbol
+     III is decimal for the symbol name length
+     CCC is the symbol name itself.  */
+  symbol_mark_used_in_reloc (sym);
+
+  sname = S_GET_NAME (sym);
+  sname_len = strlen (sname);
+  typetag = symbol_section_p (sym) ? 'S' : 's';
+
+  terminal = xmalloc (1 /* S or s */
+		      + 8 /* sname_len in decimal */
+		      + 1 /* _ spacer */
+		      + sname_len /* name itself */
+		      + 1 /* \0 */ );
+
+  sprintf (terminal, "%c%d:%s", typetag, sname_len, sname);
+  return terminal;
+}
+
+/* Convert given value to a new complex-relocation symbol name.  This
+   is a non-recursive function, since it is be called for leaf nodes
+   (plain values) in the expression tree.  The caller owns the
+   returning string, so should free() it eventually.  No errors.  */
+
+char *
+symbol_relc_make_value (offsetT val)
+{
+  char * terminal = xmalloc (28);  /* Enough for long long.  */
+
+  terminal[0] = '#';
+  sprintf_vma (& terminal[1], val);
+  return terminal;
+}
+
+/* Convert given expression to a new complex-relocation symbol name.
+   This is a recursive function, since it traverses the entire given
+   expression tree.  The caller owns the returning string, so should
+   free() it eventually.  Errors are indicated via as_bad() and a NULL
+   return value.  */
+
+char *
+symbol_relc_make_expr (expressionS * exp)
+{
+  char * opstr = NULL; /* Operator prefix string.  */
+  int    arity = 0;    /* Arity of this operator.  */
+  char * operands[3];  /* Up to three operands.  */
+  char * concat_string = NULL;
+
+  operands[0] = operands[1] = operands[2] = NULL;
+
+  assert (exp != NULL);
+
+  /* Match known operators -> fill in opstr, arity, operands[] and fall
+     through to construct subexpression fragments; may instead return 
+     string directly for leaf nodes.  */
+
+  /* See expr.h for the meaning of all these enums.  Many operators 
+     have an unnatural arity (X_add_number implicitly added).  The
+     conversion logic expands them to explicit "+" subexpressions.   */
+
+  switch (exp->X_op)
+    {
+    default:
+      as_bad ("Unknown expression operator (enum %d)", exp->X_op);
+      break;
+
+      /* Leaf nodes.  */
+    case O_constant:
+      return symbol_relc_make_value (exp->X_add_number);
+
+    case O_symbol:
+      if (exp->X_add_number) 
+	{ 
+	  arity = 2; 
+	  opstr = "+"; 
+	  operands[0] = symbol_relc_make_sym (exp->X_add_symbol);
+	  operands[1] = symbol_relc_make_value (exp->X_add_number);
+	  break;
+	}
+      else
+	return symbol_relc_make_sym (exp->X_add_symbol);
+
+      /* Helper macros for nesting nodes.  */
+
+#define HANDLE_XADD_OPT1(str_) 						\
+      if (exp->X_add_number)						\
+        {								\
+          arity = 2;							\
+          opstr = "+:" str_;						\
+          operands[0] = symbol_relc_make_sym (exp->X_add_symbol);	\
+          operands[1] = symbol_relc_make_value (exp->X_add_number);	\
+          break;							\
+        }								\
+      else								\
+        {								\
+          arity = 1;							\
+          opstr = str_;							\
+          operands[0] = symbol_relc_make_sym (exp->X_add_symbol);	\
+        }								\
+      break
+      
+#define HANDLE_XADD_OPT2(str_) 						\
+      if (exp->X_add_number)						\
+        {								\
+          arity = 3;							\
+          opstr = "+:" str_;						\
+          operands[0] = symbol_relc_make_sym (exp->X_add_symbol);	\
+          operands[1] = symbol_relc_make_sym (exp->X_op_symbol);	\
+          operands[2] = symbol_relc_make_value (exp->X_add_number);	\
+        }								\
+      else								\
+        {								\
+          arity = 2;							\
+          opstr = str_;							\
+          operands[0] = symbol_relc_make_sym (exp->X_add_symbol);	\
+          operands[1] = symbol_relc_make_sym (exp->X_op_symbol);	\
+        } 								\
+      break
+
+      /* Nesting nodes.  */
+
+    case O_uminus:       	HANDLE_XADD_OPT1 ("0-");
+    case O_bit_not:      	HANDLE_XADD_OPT1 ("~");
+    case O_logical_not:  	HANDLE_XADD_OPT1 ("!");
+    case O_multiply:     	HANDLE_XADD_OPT2 ("*");
+    case O_divide:       	HANDLE_XADD_OPT2 ("/");
+    case O_modulus:      	HANDLE_XADD_OPT2 ("%");
+    case O_left_shift:   	HANDLE_XADD_OPT2 ("<<");
+    case O_right_shift:  	HANDLE_XADD_OPT2 (">>");
+    case O_bit_inclusive_or:	HANDLE_XADD_OPT2 ("|");
+    case O_bit_exclusive_or:	HANDLE_XADD_OPT2 ("^");
+    case O_bit_and:      	HANDLE_XADD_OPT2 ("&");
+    case O_add:          	HANDLE_XADD_OPT2 ("+");
+    case O_subtract:     	HANDLE_XADD_OPT2 ("-");
+    case O_eq:           	HANDLE_XADD_OPT2 ("==");
+    case O_ne:           	HANDLE_XADD_OPT2 ("!=");
+    case O_lt:           	HANDLE_XADD_OPT2 ("<");
+    case O_le:           	HANDLE_XADD_OPT2 ("<=");
+    case O_ge:           	HANDLE_XADD_OPT2 (">=");
+    case O_gt:           	HANDLE_XADD_OPT2 (">");
+    case O_logical_and:  	HANDLE_XADD_OPT2 ("&&");
+    case O_logical_or:   	HANDLE_XADD_OPT2 ("||");
+    }
+
+  /* Validate & reject early.  */
+  if (arity >= 1 && ((operands[0] == NULL) || (strlen (operands[0]) == 0)))
+    opstr = NULL;
+  if (arity >= 2 && ((operands[1] == NULL) || (strlen (operands[1]) == 0)))
+    opstr = NULL;
+  if (arity >= 3 && ((operands[2] == NULL) || (strlen (operands[2]) == 0)))
+    opstr = NULL;
+
+  if (opstr == NULL)
+    concat_string = NULL;
+  else
+    {
+      /* Allocate new string; include inter-operand padding gaps etc.  */
+      concat_string = xmalloc (strlen (opstr) 
+			       + 1
+			       + (arity >= 1 ? (strlen (operands[0]) + 1 ) : 0)
+			       + (arity >= 2 ? (strlen (operands[1]) + 1 ) : 0)
+			       + (arity >= 3 ? (strlen (operands[2]) + 0 ) : 0)
+			       + 1);
+      assert (concat_string != NULL);
+      
+      /* Format the thing.  */
+      sprintf (concat_string, 
+	       (arity == 0 ? "%s" :
+		arity == 1 ? "%s:%s" :
+		arity == 2 ? "%s:%s:%s" :
+		/* arity == 3 */ "%s:%s:%s:%s"),
+	       opstr, operands[0], operands[1], operands[2]);
+    }
+
+  /* Free operand strings (not opstr).  */
+  if (arity >= 1) xfree (operands[0]);
+  if (arity >= 2) xfree (operands[1]);
+  if (arity >= 3) xfree (operands[2]);
+
+  return concat_string;
+}
+
+#endif

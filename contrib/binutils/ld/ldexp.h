@@ -32,6 +32,7 @@ typedef struct {
 
 typedef struct {
   int node_code;
+  unsigned int lineno;
   enum {
     etree_binary,
     etree_trinary,

@@ -11,7 +11,9 @@ BFD_VERSION=`sed -n -e 's/^.._INIT_AUTOMAKE.*,[ 	]*\([^ 	]*\)[ 	]*).*/\1/p' < ${
 changequote([,])dnl
 AM_INIT_AUTOMAKE(binutils, ${BFD_VERSION})
 
-AM_PROG_LIBTOOL
+AC_PROG_CC
+AC_GNU_SOURCE
+AC_PROG_LIBTOOL
 
 AC_ARG_ENABLE(targets,
 [  --enable-targets        alternative target configurations],
@@ -40,16 +42,15 @@ if test -z "$host" ; then
     AC_MSG_ERROR(Unrecognized host system type; please check config.sub.)
 fi
 
-AC_PROG_CC
-AC_GNU_SOURCE
-
 AC_PROG_YACC
 AM_PROG_LEX
 
 ALL_LINGUAS="fr tr ja es sv da zh_CN ru ro rw zh_TW fi vi"
-CY_GNU_GETTEXT
+ZW_GNU_GETTEXT_SISTER_DIR
+AM_PO_SUBDIRS
 
 AM_MAINTAINER_MODE
+AM_CONDITIONAL(GENINSRC_NEVER, false)
 AC_EXEEXT
 if test -n "$EXEEXT"; then
   AC_DEFINE(HAVE_EXECUTABLE_SUFFIX, 1,
@@ -79,10 +80,16 @@ case "${host}" in
 esac
 AC_SUBST(DEMANGLER_NAME)
 
-AC_CHECK_HEADERS(string.h strings.h stdlib.h unistd.h fcntl.h sys/file.h)
+AC_CHECK_HEADERS(string.h strings.h stdlib.h unistd.h fcntl.h sys/file.h limits.h sys/param.h)
 AC_HEADER_SYS_WAIT
 AC_FUNC_ALLOCA
 AC_CHECK_FUNCS(sbrk utimes setmode getc_unlocked strcoll)
+AC_CHECK_FUNC([mkstemp],
+	      AC_DEFINE([HAVE_MKSTEMP], 1,
+	      [Define to 1 if you have the `mkstemp' function.]))
+AC_CHECK_FUNC([mkdtemp],
+              AC_DEFINE([HAVE_MKDTEMP], 1,
+              [Define to 1 if you have the `mkdtemp' function.]))
 
 # Check whether fopen64 is available and whether _LARGEFILE64_SOURCE
 # needs to be defined for it
@@ -193,15 +200,21 @@ if test -n "$enable_targets"; then
     done
 fi
 
+AC_CHECK_HEADER(iconv.h)
+AM_ICONV
+
 all_targets=false
 BUILD_NLMCONV=
 NLMCONV_DEFS=
 BUILD_SRCONV=
 BUILD_DLLTOOL=
 DLLTOOL_DEFS=
+DLLTOOL_DEFAULT=
 BUILD_WINDRES=
+BUILD_WINDMC=
 BUILD_DLLWRAP=
 BUILD_MISC=
+BUILD_INSTALL_MISC=
 OBJDUMP_DEFS=
 
 for targ in $target $canon_targets
@@ -211,6 +224,7 @@ do
 	BUILD_NLMCONV='$(NLMCONV_PROG)$(EXEEXT)'
 	BUILD_SRCONV='$(SRCONV_PROG)'
 	NLMCONV_DEFS="-DNLMCONV_I386 -DNLMCONV_ALPHA -DNLMCONV_POWERPC -DNLMCONV_SPARC"
+	BUILD_MISC="${BUILD_MISC} "'bin2c$(EXEEXT_FOR_BUILD)'
     else
 	case $targ in
 changequote(,)dnl
@@ -238,31 +252,69 @@ changequote([,])dnl
 	case $targ in
 	arm-epoc-pe*)
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
+	  if test -z "$DLLTOOL_DEFAULT"; then
+	    DLLTOOL_DEFAULT="-DDLLTOOL_DEFAULT_ARM_EPOC"
+	  fi
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_ARM_EPOC -DDLLTOOL_ARM"
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
+	  BUILD_WINDMC='$(WINDMC_PROG)$(EXEEXT)'
 	  ;;
-	arm-*-pe* | arm-*-wince)
+	arm-wince-pe* | arm-*-wince)
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
+	  if test -z "$DLLTOOL_DEFAULT"; then
+	    DLLTOOL_DEFAULT="-DDLLTOOL_DEFAULT_ARM_WINCE"
+	  fi
+	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_ARM_WINCE -DDLLTOOL_ARM"
+	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
+	  BUILD_WINDMC='$(WINDMC_PROG)$(EXEEXT)'
+	  ;;
+	arm-*-pe*)
+  	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
+	  if test -z "$DLLTOOL_DEFAULT"; then
+	    DLLTOOL_DEFAULT="-DDLLTOOL_DEFAULT_ARM"
+	  fi
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_ARM"
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
+	  BUILD_WINDMC='$(WINDMC_PROG)$(EXEEXT)'
 	  ;;
 	thumb-*-pe*)
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
+	  if test -z "$DLLTOOL_DEFAULT"; then
+	    DLLTOOL_DEFAULT="-DDLLTOOL_DEFAULT_ARM"
+	  fi
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_ARM"
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
+	  BUILD_WINDMC='$(WINDMC_PROG)$(EXEEXT)'
+	  ;;
+	x86_64-*-mingw*)
+  	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
+	  if test -z "$DLLTOOL_DEFAULT"; then
+	    DLLTOOL_DEFAULT="-DDLLTOOL_DEFAULT_MX86_64"
+	  fi
+	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_MX86_64"
+	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
+	  BUILD_WINDMC='$(WINDMC_PROG)$(EXEEXT)'
+	  BUILD_DLLWRAP='$(DLLWRAP_PROG)$(EXEEXT)'
 	  ;;
 changequote(,)dnl
 	i[3-7]86-*-pe* | i[3-7]86-*-cygwin* | i[3-7]86-*-mingw32** | i[3-7]86-*-netbsdpe*)
 changequote([,])dnl
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
+	  if test -z "$DLLTOOL_DEFAULT"; then
+	    DLLTOOL_DEFAULT="-DDLLTOOL_DEFAULT_I386"
+	  fi
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_I386"
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
+	  BUILD_WINDMC='$(WINDMC_PROG)$(EXEEXT)'
 	  BUILD_DLLWRAP='$(DLLWRAP_PROG)$(EXEEXT)'
 	  ;;
 changequote(,)dnl
 	i[3-7]86-*-interix)
 changequote([,])dnl
 	  BUILD_DLLTOOL='$(DLLTOOL_PROG)'
+	  if test -z "$DLLTOOL_DEFAULT"; then
+	    DLLTOOL_DEFAULT="-DDLLTOOL_DEFAULT_I386"
+	  fi
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_I386"
 	  ;;
 changequote(,)dnl
@@ -274,34 +326,68 @@ changequote([,])dnl
 	  ;;
 	powerpc*-*-pe* | powerpc*-*-cygwin*)
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
+	  if test -z "$DLLTOOL_DEFAULT"; then
+	    DLLTOOL_DEFAULT="-DDLLTOOL_DEFAULT_PPC"
+	  fi
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_PPC"
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
+	  BUILD_WINDMC='$(WINDMC_PROG)$(EXEEXT)'
+	  ;;
+	powerpc*-*-linux* | powerpc*-*-elf*)
+	  BUILD_INSTALL_MISC="${BUILD_INSTALL_MISC} embedspu"
 	  ;;
 	sh*-*-pe)
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
+	  if test -z "$DLLTOOL_DEFAULT"; then
+	    DLLTOOL_DEFAULT="-DDLLTOOL_DEFAULT_SH"
+	  fi
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_SH"
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
+	  BUILD_WINDMC='$(WINDMC_PROG)$(EXEEXT)'
+	  ;;
+	spu-*-*)
+	  BUILD_MISC="${BUILD_MISC} "'bin2c$(EXEEXT_FOR_BUILD)'
 	  ;;
 	mips*-*-pe)
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
+	  if test -z "$DLLTOOL_DEFAULT"; then
+	    DLLTOOL_DEFAULT="-DDLLTOOL_DEFAULT_MIPS"
+	  fi
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_MIPS"
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
+	  BUILD_WINDMC='$(WINDMC_PROG)$(EXEEXT)'
 	  ;;
 	mcore-*-pe)
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
+	  if test -z "$DLLTOOL_DEFAULT"; then
+	    DLLTOOL_DEFAULT="-DDLLTOOL_DEFAULT_MCORE"
+	  fi
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_MCORE"
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
+	  BUILD_WINDMC='$(WINDMC_PROG)$(EXEEXT)'
 	  ;;
 	mcore-*-elf)
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
+	  if test -z "$DLLTOOL_DEFAULT"; then
+	    DLLTOOL_DEFAULT="-DDLLTOOL_DEFAULT_MCORE_ELF"
+	  fi
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_MCORE_ELF"
+	  ;;
+  	mep-*)
+	  OBJDUMP_DEFS="-DSKIP_ZEROES=256 -DSKIP_ZEROES_AT_END=0"
 	  ;;
 	esac
     fi
 done
 
+DLLTOOL_DEFS="$DLLTOOL_DEFS $DLLTOOL_DEFAULT"
+
 if test "${with_windres+set}" = set; then
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
+fi
+
+if test "${with_windmc+set}" = set; then
+	  BUILD_WINDMC='$(WINDMC_PROG)$(EXEEXT)'
 fi
 
 AC_SUBST(NLMCONV_DEFS)
@@ -310,8 +396,10 @@ AC_SUBST(BUILD_SRCONV)
 AC_SUBST(BUILD_DLLTOOL)
 AC_SUBST(DLLTOOL_DEFS)
 AC_SUBST(BUILD_WINDRES)
+AC_SUBST(BUILD_WINDMC)
 AC_SUBST(BUILD_DLLWRAP)
 AC_SUBST(BUILD_MISC)
+AC_SUBST(BUILD_INSTALL_MISC)
 AC_SUBST(OBJDUMP_DEFS)
 
 AC_DEFINE_UNQUOTED(TARGET, "${target}", [Configured target name.])
@@ -351,9 +439,4 @@ AC_SUBST(datarootdir)
 AC_SUBST(docdir)
 AC_SUBST(htmldir)
 
-AC_OUTPUT(Makefile doc/Makefile po/Makefile.in:po/Make-in,
-[
-case "x$CONFIG_FILES" in
-*) sed -e '/POTFILES =/r po/POTFILES' po/Makefile.in > po/Makefile ;;
-esac
-])
+AC_OUTPUT(Makefile doc/Makefile po/Makefile.in:po/Make-in)

@@ -1,5 +1,5 @@
 /* BFD back-end definitions used by all FreeBSD targets.
-   Copyright 1990, 1991, 1992, 1996, 1997, 2000, 2001, 2002, 2005
+   Copyright 1990, 1991, 1992, 1996, 1997, 2000, 2001, 2002, 2005, 2007
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -60,8 +60,8 @@
 	((exec).a_info = \
 	 ((exec).a_info & 0x03ffffff) | ((flags & 0x03f) << 26))
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "libaout.h"
 

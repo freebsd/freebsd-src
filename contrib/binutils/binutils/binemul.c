@@ -58,7 +58,7 @@ ar_emul_default_append (bfd **after_bfd, char *file_name,
   AR_EMUL_ELEMENT_CHECK (*after_bfd, file_name);
   AR_EMUL_APPEND_PRINT_VERBOSE (verbose, file_name);
 
-  (*after_bfd)->next = temp;
+  (*after_bfd)->archive_next = temp;
 
   return TRUE;
 }
@@ -84,7 +84,7 @@ ar_emul_default_replace (bfd **after_bfd, char *file_name,
   AR_EMUL_ELEMENT_CHECK (*after_bfd, file_name);
   AR_EMUL_REPLACE_PRINT_VERBOSE (verbose, file_name);
 
-  (*after_bfd)->next = temp;
+  (*after_bfd)->archive_next = temp;
 
   return TRUE;
 }

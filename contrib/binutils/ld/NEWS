@@ -1,4 +1,40 @@
 -*- text -*-
+* Added support for National Semicondutor CompactRISC (ie CR16) target.
+
+* -l:foo now searches the library path for a filename called foo,
+  without converting it to libfoo.a or libfoo.so.
+
+* Add a new command line option '--default-script=FILE' or '-dT FILE'
+  which specifies a replacement for the built in, default linker
+  script.
+
+* ELF: Add -Bsymbolic-functions, --dynamic-list-cpp-new, which puts C++
+  operator new and delete on the dynamic list, and --dynamic-list-data,
+  builtin list for --dynamic-list, which puts global data symbols on the
+  dynamic list.
+
+* Add support for x86_64 PE+ target.
+
+* Add support for Score target.
+
+* ELF: Add --dynamic-list option to specify a list of global symbols
+  whose references shouldn't be bound to the definition within the
+  shared library, or a list of symbols which should be added to the
+  symbol table in the executable.
+
+* The default output section LMA has changed for allocatable sections from
+  being equal to VMA, to keeping the difference between LMA and VMA the same as
+  the previous output section in the same region.  This is a more useful
+  default when using overlays and other cases where you specify an LMA
+  differing from the VMA for some sections.
+
+* New switch: --print-gc-sections to list any sections removed by garabge
+  collection.
+
+* ARM: Added --vfp11-denorm-fix option to work around an erratum in current
+VFP11 coprocessors.
+
+Changes in 2.17:
 
 * Support for the Infineon XC16X has been added by KPIT Cummins Infosystems.
 

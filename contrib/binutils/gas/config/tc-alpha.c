@@ -1,6 +1,6 @@
 /* tc-alpha.c - Processor-specific code for the DEC Alpha AXP CPU.
    Copyright 1989, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+   2001, 2002, 2003, 2004, 2005, 2007 Free Software Foundation, Inc.
    Contributed by Carnegie Mellon University, 1993.
    Written by Alessandro Forin, based on earlier gas-1.38 target CPU files.
    Modified by Ken Raeburn for gas-2.x and ECOFF support.
@@ -2383,15 +2383,15 @@ emit_ustX (const expressionS *tok,
   newtok[2] = newtok[0];
   assemble_tokens ("or", newtok, 3, 1);
 
-  /* Emit "stq_u $t9, 0($at)".  */
-  set_tok_reg (newtok[0], AXP_REG_T9);
-  set_tok_const (newtok[1], 0);
-  set_tok_preg (newtok[2], AXP_REG_AT);
-  assemble_tokens ("stq_u", newtok, 3, 1);
-
   /* Emit "stq_u $t10, size-1($at)".  */
   set_tok_reg (newtok[0], AXP_REG_T10);
   set_tok_const (newtok[1], (1 << lgsize) - 1);
+  set_tok_preg (newtok[2], AXP_REG_AT);
+  assemble_tokens ("stq_u", newtok, 3, 1);
+
+  /* Emit "stq_u $t9, 0($at)".  */
+  set_tok_reg (newtok[0], AXP_REG_T9);
+  set_tok_const (newtok[1], 0);
   assemble_tokens ("stq_u", newtok, 3, 1);
 }
 

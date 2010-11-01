@@ -189,6 +189,14 @@ if [ "x${use_sysroot}" != "xyes" ] ; then
   ::) LIB_PATH=${tool_lib} ;;
   *) LIB_PATH=${tool_lib}:${LIB_PATH} ;;
   esac
+  # For multilib targets, search both $tool_lib dirs
+  if [ "x${LIBPATH_SUFFIX}" != "x" ] ; then
+    case :${LIB_PATH}: in
+      ::: | *:${tool_lib}${LIBPATH_SUFFIX}:*) ;;
+      ::) LIB_PATH=${tool_lib}${LIBPATH_SUFFIX} ;;
+      *) LIB_PATH=${tool_lib}${LIBPATH_SUFFIX}:${LIB_PATH} ;;
+    esac
+  fi
 fi
 
 LIB_SEARCH_DIRS=`echo ${LIB_PATH} | sed -e 's/:/ /g' -e 's/\([^ ][^ ]*\)/SEARCH_DIR(\\"\1\\");/g'`

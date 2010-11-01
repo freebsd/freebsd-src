@@ -1,6 +1,6 @@
 /* Support for the generic parts of COFF, for BFD.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005
+   2000, 2001, 2002, 2003, 2004, 2005, 2007
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -37,8 +37,8 @@
    Those functions may not use any COFF specific information, such as
    coff_data (abfd).  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "coff/internal.h"
 #include "libcoff.h"
@@ -1901,7 +1901,16 @@ coff_print_symbol (bfd *abfd,
 		   combined->u.syment.n_type,
 		   combined->u.syment.n_sclass,
 		   combined->u.syment.n_numaux);
-	  fprintf_vma (file, val);
+#ifdef BFD64
+	  /* fprintf_vma() on a 64-bit enabled host will always print a 64-bit
+	     value, but really we want to display the address in the target's
+	     address size.  Since we do not have a field in the bfd structure
+	     to tell us this, we take a guess, based on the target's name.  */
+	  if (strstr (bfd_get_target (abfd), "64") == NULL)
+	    fprintf (file, "%08lx", (unsigned long) (val & 0xffffffff));
+	  else
+#endif
+	    fprintf_vma (file, val);
 	  fprintf (file, " %s", symbol->name);
 
 	  for (aux = 0; aux < combined->u.syment.n_numaux; aux++)
@@ -2238,11 +2247,11 @@ coff_find_inliner_info (bfd *abfd,
 }
 
 int
-coff_sizeof_headers (bfd *abfd, bfd_boolean reloc)
+coff_sizeof_headers (bfd *abfd, struct bfd_link_info *info)
 {
   size_t size;
 
-  if (! reloc)
+  if (!info->relocatable)
     size = bfd_coff_filhsz (abfd) + bfd_coff_aoutsz (abfd);
   else
     size = bfd_coff_filhsz (abfd);

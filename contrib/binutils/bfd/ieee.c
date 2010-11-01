@@ -1,6 +1,6 @@
 /* BFD back-end for ieee-695 objects.
    Copyright 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006
+   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
 
    Written by Steve Chamberlain of Cygnus Support.
@@ -27,8 +27,8 @@
    token (which is one byte in this lexicon) lookahead recursive decent
    parser.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "ieee.h"
 #include "libieee.h"
@@ -370,7 +370,7 @@ parse_int (common_header_type *ieee, bfd_vma *value_ptr)
 static int
 parse_i (common_header_type *ieee, bfd_boolean *ok)
 {
-  bfd_vma x;
+  bfd_vma x = 0;
   *ok = parse_int (ieee, &x);
   return x;
 }
@@ -378,7 +378,7 @@ parse_i (common_header_type *ieee, bfd_boolean *ok)
 static bfd_vma
 must_parse_int (common_header_type *ieee)
 {
-  bfd_vma result;
+  bfd_vma result = 0;
   BFD_ASSERT (parse_int (ieee, &result));
   return result;
 }
@@ -767,7 +767,7 @@ ieee_slurp_external_symbols (bfd *abfd)
 	    unsigned int symbol_name_index;
 	    unsigned int symbol_type_index;
 	    unsigned int symbol_attribute_def;
-	    bfd_vma value;
+	    bfd_vma value = 0;
 
 	    switch (read_2bytes (&ieee->h))
 	      {
@@ -1080,7 +1080,6 @@ get_section_entry (bfd *abfd, ieee_data_type *ieee, unsigned int index)
       sprintf (tmp, " fsec%4d", index);
       section = bfd_make_section (abfd, tmp);
       ieee->section_table[index] = section;
-      section->flags = SEC_NO_FLAGS;
       section->target_index = index;
       ieee->section_table[index] = section;
     }
@@ -1268,14 +1267,15 @@ ieee_slurp_debug (bfd *abfd)
   ieee_data_type *ieee = IEEE_DATA (abfd);
   asection *sec;
   file_ptr debug_end;
+  flagword flags;
 
   if (ieee->w.r.debug_information_part == 0)
     return TRUE;
 
-  sec = bfd_make_section (abfd, ".debug");
+  flags = SEC_DEBUGGING | SEC_HAS_CONTENTS;
+  sec = bfd_make_section_with_flags (abfd, ".debug", flags);
   if (sec == NULL)
     return FALSE;
-  sec->flags |= SEC_DEBUGGING | SEC_HAS_CONTENTS;
   sec->filepos = ieee->w.r.debug_information_part;
 
   debug_end = ieee_part_after (ieee, ieee->w.r.debug_information_part);
@@ -1875,8 +1875,8 @@ ieee_object_p (bfd *abfd)
 	    family[9] = '\0';
 	  }
       }
-    else if ((strncmp (processor, "cpu32", 5) == 0) /* CPU32 and CPU32+ */
-	     || (strncmp (processor, "CPU32", 5) == 0))
+    else if ((CONST_STRNEQ (processor, "cpu32")) /* CPU32 and CPU32+  */
+	     || (CONST_STRNEQ (processor, "CPU32")))
       strcpy (family, "68332");
     else
       {
@@ -2014,12 +2014,15 @@ ieee_print_symbol (bfd *abfd,
 static bfd_boolean
 ieee_new_section_hook (bfd *abfd, asection *newsect)
 {
-  newsect->used_by_bfd = bfd_alloc (abfd, (bfd_size_type) sizeof (ieee_per_section_type));
   if (!newsect->used_by_bfd)
-    return FALSE;
+    {
+      newsect->used_by_bfd = bfd_alloc (abfd, sizeof (ieee_per_section_type));
+      if (!newsect->used_by_bfd)
+	return FALSE;
+    }
   ieee_per_section (newsect)->data = NULL;
   ieee_per_section (newsect)->section = newsect;
-  return TRUE;
+  return _bfd_generic_new_section_hook (abfd, newsect);
 }
 
 static long
@@ -3712,7 +3715,7 @@ ieee_generic_stat_arch_elt (bfd *abfd, struct stat *buf)
 
 static int
 ieee_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
-		     bfd_boolean x ATTRIBUTE_UNUSED)
+		     struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
   return 0;
 }
@@ -3744,6 +3747,7 @@ ieee_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
 #define ieee_minisymbol_to_symbol _bfd_generic_minisymbol_to_symbol
 
 #define ieee_bfd_reloc_type_lookup _bfd_norelocs_bfd_reloc_type_lookup
+#define ieee_bfd_reloc_name_lookup _bfd_norelocs_bfd_reloc_name_lookup
 
 #define ieee_set_arch_mach _bfd_generic_set_arch_mach
 

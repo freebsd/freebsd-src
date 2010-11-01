@@ -1,7 +1,7 @@
 /* BFD library -- caching of file descriptors.
 
    Copyright 1990, 1991, 1992, 1993, 1994, 1996, 2000, 2001, 2002,
-   2003, 2004, 2005 Free Software Foundation, Inc.
+   2003, 2004, 2005, 2007 Free Software Foundation, Inc.
 
    Hacked by Steve Chamberlain of Cygnus Support (steve@cygnus.com).
 
@@ -40,8 +40,8 @@ SUBSECTION
 	Caching functions
 */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "libiberty.h"
 

@@ -1,21 +1,30 @@
 /* Defs for interface to demanglers.
    Copyright 1992, 1993, 1994, 1995, 1996, 1997, 1998, 2000, 2001, 2002,
-   2003, 2004 Free Software Foundation, Inc.
+   2003, 2004, 2005, 2007 Free Software Foundation, Inc.
    
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
-   any later version.
+   This program is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Library General Public License
+   as published by the Free Software Foundation; either version 2, or
+   (at your option) any later version.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   In addition to the permissions in the GNU Library General Public
+   License, the Free Software Foundation gives you unlimited
+   permission to link the compiled version of this file into
+   combinations with other programs, and to distribute those
+   combinations without any restriction coming from the use of this
+   file.  (The Library Public License restrictions do apply in other
+   respects; for example, they cover modification of the file, and
+   distribution when not linked into a combined executable.)
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street - Fifth Floor,
-   Boston, MA 02110-1301, USA.  */
+   This program is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Library General Public License for more details.
+
+   You should have received a copy of the GNU Library General Public
+   License along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA
+   02110-1301, USA.  */
 
 
 #if !defined (DEMANGLE_H)
@@ -131,13 +140,25 @@ cplus_demangle_set_style (enum demangling_styles style);
 extern enum demangling_styles 
 cplus_demangle_name_to_style (const char *name);
 
-/* V3 ABI demangling entry points, defined in cp-demangle.c.  */
-extern char*
-cplus_demangle_v3 (const char* mangled, int options);
+/* Callback typedef for allocation-less demangler interfaces. */
+typedef void (*demangle_callbackref) (const char *, size_t, void *);
+
+/* V3 ABI demangling entry points, defined in cp-demangle.c.  Callback
+   variants return non-zero on success, zero on error.  char* variants
+   return a string allocated by malloc on success, NULL on error.  */
+extern int
+cplus_demangle_v3_callback (const char *mangled, int options,
+                            demangle_callbackref callback, void *opaque);
 
 extern char*
-java_demangle_v3 (const char* mangled);
+cplus_demangle_v3 (const char *mangled, int options);
 
+extern int
+java_demangle_v3_callback (const char *mangled,
+                           demangle_callbackref callback, void *opaque);
+
+extern char*
+java_demangle_v3 (const char *mangled);
 
 enum gnu_v3_ctor_kinds {
   gnu_v3_complete_object_ctor = 1,
@@ -528,6 +549,25 @@ cplus_demangle_print (int options,
                       const struct demangle_component *tree,
                       int estimated_length,
                       size_t *p_allocated_size);
+
+/* This function takes a struct demangle_component tree and passes back
+   a demangled string in one or more calls to a callback function.
+   The first argument is DMGL_* options.  The second is the tree to
+   demangle.  The third is a pointer to a callback function; on each call
+   this receives an element of the demangled string, its length, and an
+   opaque value.  The fourth is the opaque value passed to the callback.
+   The callback is called once or more to return the full demangled
+   string.  The demangled element string is always nul-terminated, though
+   its length is also provided for convenience.  In contrast to
+   cplus_demangle_print(), this function does not allocate heap memory
+   to grow output strings (except perhaps where alloca() is implemented
+   by malloc()), and so is normally safe for use where the heap has been
+   corrupted.  On success, this function returns 1; on failure, 0.  */
+
+extern int
+cplus_demangle_print_callback (int options,
+                               const struct demangle_component *tree,
+                               demangle_callbackref callback, void *opaque);
 
 #ifdef __cplusplus
 }

@@ -1026,7 +1026,7 @@ weak_name2altname (const char * name)
 }
 
 /* Return the name of the weak symbol corresponding to an
-   alterate symbol.  */
+   alternate symbol.  */
 
 static const char *
 weak_altname2name (const char * name)
@@ -1579,7 +1579,7 @@ obj_coff_section (int ignore ATTRIBUTE_UNUSED)
 		  if (! load_removed)
 		    flags |= SEC_LOAD;
 		  /* Note - the READONLY flag is set here, even for the 'x'
-		     attrbiute in order to be compatible with the MSVC
+		     attribute in order to be compatible with the MSVC
 		     linker.  */
 		  if (! readonly_removed)
 		    flags |= SEC_READONLY;

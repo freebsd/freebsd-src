@@ -1,6 +1,6 @@
 /* dlltool.c -- tool to generate stuff for PE style DLLs
    Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-   2005, 2006 Free Software Foundation, Inc.
+   2005, 2006, 2007 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -243,12 +243,13 @@
 
 #define PAGE_SIZE 4096
 #define PAGE_MASK (-PAGE_SIZE)
+#include "sysdep.h"
 #include "bfd.h"
 #include "libiberty.h"
-#include "bucomm.h"
 #include "getopt.h"
 #include "demangle.h"
 #include "dyn-string.h"
+#include "bucomm.h"
 #include "dlltool.h"
 #include "safe-ctype.h"
 
@@ -260,6 +261,9 @@
 #ifdef DLLTOOL_ARM
 #include "coff/arm.h"
 #include "coff/internal.h"
+#endif
+#ifdef DLLTOOL_MX86_64
+#include "coff/x86_64.h"
 #endif
 
 /* Forward references.  */
@@ -384,35 +388,43 @@ static int verbose;
 static FILE *output_def;
 static FILE *base_file;
 
-#ifdef DLLTOOL_ARM
-#ifdef DLLTOOL_ARM_EPOC
-static const char *mname = "arm-epoc";
-#else
+#ifdef DLLTOOL_DEFAULT_ARM
 static const char *mname = "arm";
 #endif
+
+#ifdef DLLTOOL_DEFAULT_ARM_EPOC
+static const char *mname = "arm-epoc";
 #endif
 
-#ifdef DLLTOOL_I386
+#ifdef DLLTOOL_DEFAULT_ARM_WINCE
+static const char *mname = "arm-wince";
+#endif
+
+#ifdef DLLTOOL_DEFAULT_I386
 static const char *mname = "i386";
 #endif
 
-#ifdef DLLTOOL_PPC
+#ifdef DLLTOOL_DEFAULT_MX86_64
+static const char *mname = "i386:x86-64";
+#endif
+
+#ifdef DLLTOOL_DEFAULT_PPC
 static const char *mname = "ppc";
 #endif
 
-#ifdef DLLTOOL_SH
+#ifdef DLLTOOL_DEFAULT_SH
 static const char *mname = "sh";
 #endif
 
-#ifdef DLLTOOL_MIPS
+#ifdef DLLTOOL_DEFAULT_MIPS
 static const char *mname = "mips";
 #endif
 
-#ifdef DLLTOOL_MCORE
+#ifdef DLLTOOL_DEFAULT_MCORE
 static const char * mname = "mcore-le";
 #endif
 
-#ifdef DLLTOOL_MCORE_ELF
+#ifdef DLLTOOL_DEFAULT_MCORE_ELF
 static const char * mname = "mcore-elf";
 static char * mcore_elf_out_file = NULL;
 static char * mcore_elf_linker   = NULL;
@@ -629,6 +641,23 @@ mtable[] =
     arm_jtab, sizeof (arm_jtab), 8
   }
   ,
+  {
+#define MARM_WINCE 10
+    "arm-wince", ".byte", ".short", ".long", ".asciz", "@",
+    "ldr\tip,[pc]\n\tldr\tpc,[ip]\n\t.long",
+    ".global", ".space", ".align\t2",".align\t4", "-mapcs-32",
+    "pe-arm-wince-little", bfd_arch_arm,
+    arm_jtab, sizeof (arm_jtab), 8
+  }
+  ,
+  {
+#define MX86 11
+    "i386:x86-64", ".byte", ".short", ".long", ".asciz", "#",
+    "jmp *", ".global", ".space", ".align\t2",".align\t4", "",
+    "pe-x86-64",bfd_arch_i386,
+    i386_jtab, sizeof (i386_jtab), 2
+  }
+  ,
   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 };
 
@@ -752,6 +781,7 @@ rvaafter (int machine)
     {
     case MARM:
     case M386:
+    case MX86:
     case MPPC:
     case MTHUMB:
     case MARM_INTERWORK:
@@ -760,6 +790,7 @@ rvaafter (int machine)
     case MMCORE_ELF:
     case MMCORE_ELF_LE:
     case MARM_EPOC:
+    case MARM_WINCE:
       break;
     default:
       /* xgettext:c-format */
@@ -776,6 +807,7 @@ rvabefore (int machine)
     {
     case MARM:
     case M386:
+    case MX86:
     case MPPC:
     case MTHUMB:
     case MARM_INTERWORK:
@@ -784,6 +816,7 @@ rvabefore (int machine)
     case MMCORE_ELF:
     case MMCORE_ELF_LE:
     case MARM_EPOC:
+    case MARM_WINCE:
       return ".rva\t";
     default:
       /* xgettext:c-format */
@@ -807,8 +840,10 @@ asm_prefix (int machine, const char *name)
     case MMCORE_ELF:
     case MMCORE_ELF_LE:
     case MARM_EPOC:
+    case MARM_WINCE:
       break;
     case M386:
+    case MX86:
       /* Symbol names starting with ? do not have a leading underscore. */
       if (name && *name == '?')
         break;
@@ -1234,7 +1269,7 @@ scan_drectve_symbols (bfd *abfd)
   while (p < e)
     {
       if (p[0] == '-'
-	  && strncmp (p, "-export:", 8) == 0)
+	  && CONST_STRNEQ (p, "-export:"))
 	{
 	  char * name;
 	  char * c;
@@ -1252,7 +1287,7 @@ scan_drectve_symbols (bfd *abfd)
 	      char *tag_start = ++p;
 	      while (p < e && *p != ' ' && *p != '-')
 		p++;
-	      if (strncmp (tag_start, "data", 4) == 0)
+	      if (CONST_STRNEQ (tag_start, "data"))
 		flags &= ~BSF_FUNCTION;
 	    }
 
@@ -1686,10 +1721,19 @@ generate_idata_ofile (FILE *filvar)
   for (headptr = import_list; headptr != NULL; headptr = headptr->next)
     {
       fprintf (filvar, "listone%d:\n", headindex);
-      for ( funcindex = 0; funcindex < headptr->nfuncs; funcindex++ )
+      for (funcindex = 0; funcindex < headptr->nfuncs; funcindex++)
+#ifdef DLLTOOL_MX86_64
+	fprintf (filvar, "\t%sfuncptr%d_%d%s\n%s\t0\n",
+		 ASM_RVA_BEFORE, headindex, funcindex, ASM_RVA_AFTER,ASM_LONG);
+#else
 	fprintf (filvar, "\t%sfuncptr%d_%d%s\n",
 		 ASM_RVA_BEFORE, headindex, funcindex, ASM_RVA_AFTER);
-      fprintf (filvar,"\t%s\t0\n", ASM_LONG); /* NULL terminating list */
+#endif
+#ifdef DLLTOOL_MX86_64
+      fprintf (filvar, "\t%s\t0\n\t%s\t0\n", ASM_LONG, ASM_LONG); /* NULL terminating list.  */
+#else
+      fprintf (filvar, "\t%s\t0\n", ASM_LONG); /* NULL terminating list.  */
+#endif
       headindex++;
     }
 
@@ -1698,10 +1742,19 @@ generate_idata_ofile (FILE *filvar)
   for (headptr = import_list; headptr != NULL; headptr = headptr->next)
     {
       fprintf (filvar, "listtwo%d:\n", headindex);
-      for ( funcindex = 0; funcindex < headptr->nfuncs; funcindex++ )
+      for (funcindex = 0; funcindex < headptr->nfuncs; funcindex++)
+#ifdef DLLTOOL_MX86_64
+	fprintf (filvar, "\t%sfuncptr%d_%d%s\n%s\t0\n",
+		 ASM_RVA_BEFORE, headindex, funcindex, ASM_RVA_AFTER,ASM_LONG);
+#else
 	fprintf (filvar, "\t%sfuncptr%d_%d%s\n",
 		 ASM_RVA_BEFORE, headindex, funcindex, ASM_RVA_AFTER);
-      fprintf (filvar, "\t%s\t0\n", ASM_LONG); /* NULL terminating list */
+#endif
+#ifdef DLLTOOL_MX86_64
+      fprintf (filvar, "\t%s\t0\n\t%s\t0\n", ASM_LONG, ASM_LONG); /* NULL terminating list.  */
+#else
+      fprintf (filvar, "\t%s\t0\n", ASM_LONG); /* NULL terminating list.  */
+#endif
       headindex++;
     }
 
@@ -2344,7 +2397,7 @@ make_one_lib_file (export_type *exp, int i)
 	      si->data = xmalloc (HOW_JTAB_SIZE);
 	      memcpy (si->data, HOW_JTAB, HOW_JTAB_SIZE);
 
-	      /* add the reloc into idata$5 */
+	      /* Add the reloc into idata$5.  */
 	      rel = xmalloc (sizeof (arelent));
 
 	      rpp = xmalloc (sizeof (arelent *) * 2);
@@ -2358,6 +2411,12 @@ make_one_lib_file (export_type *exp, int i)
 		{
 		  rel->howto = bfd_reloc_type_lookup (abfd,
 						      BFD_RELOC_16_GOTOFF);
+		  rel->sym_ptr_ptr = iname_pp;
+		}
+	      else if (machine == MX86)
+		{
+		  rel->howto = bfd_reloc_type_lookup (abfd,
+						      BFD_RELOC_32_PCREL);
 		  rel->sym_ptr_ptr = iname_pp;
 		}
 	      else
@@ -2374,6 +2433,36 @@ make_one_lib_file (export_type *exp, int i)
 	  /* An idata$4 or idata$5 is one word long, and has an
 	     rva to idata$6.  */
 
+#ifdef DLLTOOL_MX86_64
+	  si->data = xmalloc (8);
+	  si->size = 8;
+
+	  if (exp->noname)
+	    {
+	      si->data[0] = exp->ordinal ;
+	      si->data[1] = exp->ordinal >> 8;
+	      si->data[2] = exp->ordinal >> 16;
+	      si->data[3] = exp->ordinal >> 24;
+	      si->data[4] = 0;
+	      si->data[5] = 0;
+	      si->data[6] = 0;
+	      si->data[7] = 0x80;
+	    }
+	  else
+	    {
+	      sec->reloc_count = 1;
+	      memset (si->data, 0, si->size);
+	      rel = xmalloc (sizeof (arelent));
+	      rpp = xmalloc (sizeof (arelent *) * 2);
+	      rpp[0] = rel;
+	      rpp[1] = 0;
+	      rel->address = 0;
+	      rel->addend = 0;
+	      rel->howto = bfd_reloc_type_lookup (abfd, BFD_RELOC_RVA);
+	      rel->sym_ptr_ptr = secdata[IDATA6].sympp;
+	      sec->orelocation = rpp;
+	    }
+#else
 	  si->data = xmalloc (4);
 	  si->size = 4;
 
@@ -2398,7 +2487,7 @@ make_one_lib_file (export_type *exp, int i)
 	      rel->sym_ptr_ptr = secdata[IDATA6].sympp;
 	      sec->orelocation = rpp;
 	    }
-
+#endif
 	  break;
 
 	case IDATA6:
@@ -2612,14 +2701,17 @@ make_head (void)
   if (!no_idata5)
     {
       fprintf (f, "\t.section\t.idata$5\n");
-      fprintf (f, "\t%s\t0\n", ASM_LONG);
+#ifdef DLLTOOL_MX86_64
+      fprintf (f,"\t%s\t0\n\t%s\t0\n", ASM_LONG, ASM_LONG); /* NULL terminating list.  */
+#else
+      fprintf (f,"\t%s\t0\n", ASM_LONG); /* NULL terminating list.  */
+#endif
       fprintf (f, "fthunk:\n");
     }
 
   if (!no_idata4)
     {
       fprintf (f, "\t.section\t.idata$4\n");
-
       fprintf (f, "\t%s\t0\n", ASM_LONG);
       fprintf (f, "\t.section	.idata$4\n");
       fprintf (f, "hname:\n");
@@ -2646,13 +2738,21 @@ make_tail (void)
   if (!no_idata4)
     {
       fprintf (f, "\t.section	.idata$4\n");
-      fprintf (f, "\t%s\t0\n", ASM_LONG);
+#ifdef DLLTOOL_MX86_64
+      fprintf (f,"\t%s\t0\n\t%s\t0\n", ASM_LONG, ASM_LONG); /* NULL terminating list.  */
+#else
+      fprintf (f,"\t%s\t0\n", ASM_LONG); /* NULL terminating list.  */
+#endif
     }
 
   if (!no_idata5)
     {
       fprintf (f, "\t.section	.idata$5\n");
-      fprintf (f, "\t%s\t0\n", ASM_LONG);
+#ifdef DLLTOOL_MX86_64
+      fprintf (f,"\t%s\t0\n\t%s\t0\n", ASM_LONG, ASM_LONG); /* NULL terminating list.  */
+#else
+      fprintf (f,"\t%s\t0\n", ASM_LONG); /* NULL terminating list.  */
+#endif
     }
 
 #ifdef DLLTOOL_PPC
@@ -2728,7 +2828,7 @@ gen_lib_file (void)
       if (exp->private)
 	continue;
       n = make_one_lib_file (exp, i);
-      n->next = head;
+      n->archive_next = head;
       head = n;
       if (ext_prefix_alias)
 	{
@@ -2747,14 +2847,14 @@ gen_lib_file (void)
 	  alias_exp.forward = exp->forward;
 	  alias_exp.next = exp->next;
 	  n = make_one_lib_file (&alias_exp, i + PREFIX_ALIAS_BASE);
-	  n->next = head;
+	  n->archive_next = head;
 	  head = n;
 	}
     }
 
   /* Now stick them all into the archive.  */
-  ar_head->next = head;
-  ar_tail->next = ar_head;
+  ar_head->archive_next = head;
+  ar_tail->archive_next = ar_head;
   head = ar_tail;
 
   if (! bfd_set_archive_head (outarch, head))
@@ -2765,7 +2865,7 @@ gen_lib_file (void)
 
   while (head != NULL)
     {
-      bfd *n = head->next;
+      bfd *n = head->archive_next;
       bfd_close (head);
       head = n;
     }
@@ -3068,6 +3168,8 @@ usage (FILE *file, int status)
   fprintf (file, _("   -L --linker <name>        Use <name> as the linker.\n"));
   fprintf (file, _("   -F --linker-flags <flags> Pass <flags> to the linker.\n"));
 #endif
+  if (REPORT_BUGS_TO[0] && status == 0)
+    fprintf (file, _("Report bugs to %s\n"), REPORT_BUGS_TO);
   exit (status);
 }
 

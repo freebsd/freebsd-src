@@ -245,11 +245,7 @@ typedef struct {
 
 typedef struct {
   unsigned char		vs_vers[2];
-}
-#ifdef __GNUC__
-  __attribute__ ((packed))
-#endif
-  Elf_External_Versym;
+} ATTRIBUTE_PACKED  Elf_External_Versym;
 
 /* Structure for syminfo section.  */
 typedef struct

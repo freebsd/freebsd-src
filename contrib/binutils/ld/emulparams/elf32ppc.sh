@@ -1,5 +1,6 @@
 # If you change this file, please also look at files which source this one:
-# elf32lppc.sh elf32ppclinux.sh elf32ppcsim.sh
+# elf32lppcnto.sh elf32lppc.sh elf32ppclinux.sh elf32ppcnto.sh 
+# elf32ppcsim.sh
 
 . ${srcdir}/emulparams/elf32ppccommon.sh
 # Yes, we want duplicate .got and .plt sections.  The linker chooses the

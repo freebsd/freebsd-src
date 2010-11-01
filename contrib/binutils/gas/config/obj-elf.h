@@ -1,6 +1,6 @@
 /* ELF object file format.
    Copyright 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001,
-   2002, 2003, 2004 Free Software Foundation, Inc.
+   2002, 2003, 2004, 2006, 2007 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -33,8 +33,6 @@
 #ifndef OUTPUT_FLAVOR
 #define OUTPUT_FLAVOR bfd_target_elf_flavour
 #endif
-
-#include "bfd.h"
 
 #define BYTES_IN_WORD 4		/* for now */
 #include "bfd/elf-bfd.h"
@@ -83,14 +81,12 @@ struct elf_obj_sy
 #define OBJ_SYMFIELD_TYPE struct elf_obj_sy
 
 /* Symbol fields used by the ELF back end.  */
-#define ELF_TARGET_SYMBOL_FIELDS int local:1;
+#define ELF_TARGET_SYMBOL_FIELDS unsigned int local:1;
 
 /* Don't change this; change ELF_TARGET_SYMBOL_FIELDS instead.  */
 #ifndef TARGET_SYMBOL_FIELDS
 #define TARGET_SYMBOL_FIELDS ELF_TARGET_SYMBOL_FIELDS
 #endif
-
-/* #include "targ-cpu.h" */
 
 #ifndef FALSE
 #define FALSE 0
@@ -133,13 +129,6 @@ int elf_s_get_other (symbolS *);
 #endif
 
 extern asection *gdb_section;
-
-#ifndef obj_sec_set_private_data
-#define obj_sec_set_private_data(B, S) \
-  if (! BFD_SEND ((B), _new_section_hook, ((B), (S)))) \
-    as_fatal (_("can't allocate ELF private section data: %s"),	\
-	      bfd_errmsg (bfd_get_error ()))
-#endif
 
 #ifndef obj_frob_file
 #define obj_frob_file  elf_frob_file
@@ -247,6 +236,7 @@ extern void elf_pop_insert (void);
 #endif
 
 #ifndef OBJ_MAYBE_ELF
+/* If OBJ_MAYBE_ELF then obj-multi.h will define obj_ecoff_set_ext.  */
 #define obj_ecoff_set_ext elf_ecoff_set_ext
 struct ecoff_extr;
 extern void elf_ecoff_set_ext (symbolS *, struct ecoff_extr *);

@@ -1,6 +1,6 @@
 /* BFD back-end for raw ARM a.out binaries.
-   Copyright 1994, 1995, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005
-   Free Software Foundation, Inc.
+   Copyright 1994, 1995, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2005,
+   2007 Free Software Foundation, Inc.
    Contributed by Richard Earnshaw (rwe@pegasus.esprit.ec.org)
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -19,8 +19,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 
 /* Avoid multiple definitions from aoutx if supporting standard a.out
    as well as our own.  */
@@ -50,6 +50,7 @@
 #define N_MAGIC(x) ((x).a_info & ~07200)
 
 #define MY_bfd_reloc_type_lookup aoutarm_bfd_reloc_type_lookup
+#define MY_bfd_reloc_name_lookup aoutarm_bfd_reloc_name_lookup
 
 #include "libaout.h"
 #include "aout/aout64.h"
@@ -315,6 +316,22 @@ MY (bfd_reloc_type_lookup) (bfd *abfd,
     default:
       return NULL;
     }
+}
+
+static reloc_howto_type *
+MY (bfd_reloc_name_lookup) (bfd *abfd ATTRIBUTE_UNUSED,
+			    const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (MY (howto_table)) / sizeof (MY (howto_table)[0]);
+       i++)
+    if (MY (howto_table)[i].name != NULL
+	&& strcasecmp (MY (howto_table)[i].name, r_name) == 0)
+      return &MY (howto_table)[i];
+
+  return NULL;
 }
 
 #define MY_swap_std_reloc_in     MY (swap_std_reloc_in)

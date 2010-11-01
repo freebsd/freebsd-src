@@ -1,5 +1,5 @@
 /* BFD back-end for Apple M68K COFF A/UX 3.x files.
-   Copyright 1996, 1997, 2000, 2002 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 2000, 2002, 2007 Free Software Foundation, Inc.
    Written by Richard Henderson <rth@tamu.edu>.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -37,8 +37,8 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
 
 #define COFF_COMMON_ADDEND
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 
 static bfd_boolean coff_m68k_aux_link_add_one_symbol
   PARAMS ((struct bfd_link_info *, bfd *, const char *, flagword,

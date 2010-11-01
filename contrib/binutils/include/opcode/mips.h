@@ -171,6 +171,8 @@ Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, US
 #define OP_MASK_WRDSP		0x3f
 #define OP_SH_RDDSP		16
 #define OP_MASK_RDDSP		0x3f
+#define OP_SH_BP		11
+#define OP_MASK_BP		0x3
 
 /* MIPS MT ASE */
 #define OP_SH_MT_U		5
@@ -204,6 +206,16 @@ Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, US
 #define MDMX_FMTSEL_IMM_OB	0x1e
 #define MDMX_FMTSEL_VEC_QH	0x15
 #define MDMX_FMTSEL_VEC_OB	0x16
+
+/* UDI */
+#define OP_SH_UDI1		6
+#define OP_MASK_UDI1		0x1f
+#define OP_SH_UDI2		6
+#define OP_MASK_UDI2		0x3ff
+#define OP_SH_UDI3		6
+#define OP_MASK_UDI3		0x7fff
+#define OP_SH_UDI4		6
+#define OP_MASK_UDI4		0xfffff
 
 /* This structure holds information for a particular instruction.  */
 
@@ -273,19 +285,20 @@ struct mips_opcode
    "y" 10 bit signed const (OP_*_CODE2)
    "z" must be zero register
    "K" 5 bit Hardware Register (rdhwr instruction) (OP_*_RD)
-   "+A" 5 bit ins/ext position, which becomes LSB (OP_*_SHAMT).
+   "+A" 5 bit ins/ext/dins/dext/dinsm/dextm position, which becomes
+        LSB (OP_*_SHAMT).
 	Enforces: 0 <= pos < 32.
-   "+B" 5 bit ins size, which becomes MSB (OP_*_INSMSB).
+   "+B" 5 bit ins/dins size, which becomes MSB (OP_*_INSMSB).
 	Requires that "+A" or "+E" occur first to set position.
 	Enforces: 0 < (pos+size) <= 32.
-   "+C" 5 bit ext size, which becomes MSBD (OP_*_EXTMSBD).
+   "+C" 5 bit ext/dext size, which becomes MSBD (OP_*_EXTMSBD).
 	Requires that "+A" or "+E" occur first to set position.
 	Enforces: 0 < (pos+size) <= 32.
 	(Also used by "dext" w/ different limits, but limits for
 	that are checked by the M_DEXT macro.)
-   "+E" 5 bit dins/dext position, which becomes LSB-32 (OP_*_SHAMT).
+   "+E" 5 bit dinsu/dextu position, which becomes LSB-32 (OP_*_SHAMT).
 	Enforces: 32 <= pos < 64.
-   "+F" 5 bit "dinsm" size, which becomes MSB-32 (OP_*_INSMSB).
+   "+F" 5 bit "dinsm/dinsu" size, which becomes MSB-32 (OP_*_INSMSB).
 	Requires that "+A" or "+E" occur first to set position.
 	Enforces: 32 < (pos+size) <= 64.
    "+G" 5 bit "dextm" size, which becomes MSBD-32 (OP_*_EXTMSBD).
@@ -334,6 +347,7 @@ struct mips_opcode
    "Z"	MDMX source register (OP_*_FT)
 
    DSP ASE usage:
+   "2" 2 bit unsigned immediate for byte align (OP_*_BP)
    "3" 3 bit unsigned immediate (OP_*_SA3)
    "4" 4 bit unsigned immediate (OP_*_SA4)
    "5" 8 bit unsigned immediate (OP_*_IMM8)
@@ -347,13 +361,19 @@ struct mips_opcode
    "@" 10 bit signed immediate (OP_*_IMM10)
 
    MT ASE usage:
-   "!" 1 bit immediate at bit 5
-   "$" 1 bit immediate at bit 4
+   "!" 1 bit usermode flag (OP_*_MT_U)
+   "$" 1 bit load high flag (OP_*_MT_H)
    "*" 2 bit dsp/smartmips accumulator register (OP_*_MTACC_T)
    "&" 2 bit dsp/smartmips accumulator register (OP_*_MTACC_D)
    "g" 5 bit coprocessor 1 and 2 destination register (OP_*_RD)
    "+t" 5 bit coprocessor 0 destination register (OP_*_RT)
    "+T" 5 bit coprocessor 0 destination register (OP_*_RT) - disassembly only
+
+   UDI immediates:
+   "+1" UDI immediate bits 6-10
+   "+2" UDI immediate bits 6-15
+   "+3" UDI immediate bits 6-20
+   "+4" UDI immediate bits 6-25
 
    Other:
    "()" parens surrounding optional value
@@ -362,13 +382,14 @@ struct mips_opcode
    "+"  Start of extension sequence.
 
    Characters used so far, for quick reference when adding more:
-   "34567890"
+   "234567890"
    "%[]<>(),+:'@!$*&^~"
    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
    "abcdefghijklopqrstuvwxyz"
 
    Extension character sequences used so far ("+" followed by the
    following), for quick reference when adding more:
+   "1234"
    "ABCDEFGHIT"
    "t"
 */
@@ -472,16 +493,15 @@ struct mips_opcode
 #define INSN_ISA64R2              0x00000100
 
 /* Masks used for MIPS-defined ASEs.  */
-#define INSN_ASE_MASK		  0x0400f000
+#define INSN_ASE_MASK		  0x3c00f000
 
 /* DSP ASE */ 
 #define INSN_DSP                  0x00001000
+#define INSN_DSP64                0x00002000
 /* MIPS 16 ASE */
-#define INSN_MIPS16               0x00002000
+#define INSN_MIPS16               0x00004000
 /* MIPS-3D ASE */
-#define INSN_MIPS3D               0x00004000
-/* MDMX ASE */ 
-#define INSN_MDMX                 0x00008000
+#define INSN_MIPS3D               0x00008000
 
 /* Chip specific instructions.  These are bitmasks.  */
 
@@ -505,8 +525,15 @@ struct mips_opcode
 #define INSN_5400		  0x01000000
 /* NEC VR5500 instruction.  */
 #define INSN_5500		  0x02000000
+
+/* MDMX ASE */ 
+#define INSN_MDMX                 0x04000000
 /* MT ASE */
-#define INSN_MT                   0x04000000
+#define INSN_MT                   0x08000000
+/* SmartMIPS ASE  */
+#define INSN_SMARTMIPS            0x10000000
+/* DSP R2 ASE  */
+#define INSN_DSPR2                0x20000000
 /* Cavium Networks Octeon instruction. */
 #define INSN_OCTEON		  0x08000000
 
@@ -595,6 +622,7 @@ enum
   M_ADD_I,
   M_ADDU_I,
   M_AND_I,
+  M_BALIGN,
   M_BEQ,
   M_BEQ_I,
   M_BEQL_I,
@@ -633,6 +661,7 @@ enum
   M_BNE,
   M_BNE_I,
   M_BNEL_I,
+  M_CACHE_AB,
   M_DABS,
   M_DADD_I,
   M_DADDU_I,

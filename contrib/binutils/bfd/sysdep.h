@@ -1,5 +1,5 @@
 /* sysdep.h -- handle host dependencies for the BFD library
-   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001
+   Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2007
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
@@ -22,9 +22,9 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
 #ifndef BFD_SYSDEP_H
 #define BFD_SYSDEP_H
 
-#include "ansidecl.h"
-
 #include "config.h"
+
+#include "ansidecl.h"
 
 #ifdef HAVE_STDDEF_H
 #include <stddef.h>

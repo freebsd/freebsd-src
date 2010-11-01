@@ -12,6 +12,8 @@ cgen-dis.c
 cgen-opc.c
 cgen-ops.h
 cgen-types.h
+cr16-dis.c
+cr16-opc.c
 cris-dis.c
 cris-opc.c
 crx-dis.c
@@ -45,6 +47,10 @@ hppa-dis.c
 i370-dis.c
 i370-opc.c
 i386-dis.c
+i386-gen.c
+i386-opc.c
+i386-opc.h
+i386-tbl.h
 i860-dis.c
 i960-dis.c
 ia64-asmtab.c
@@ -100,6 +106,13 @@ m88k-dis.c
 maxq-dis.c
 mcore-dis.c
 mcore-opc.h
+mep-asm.c
+mep-desc.c
+mep-desc.h
+mep-dis.c
+mep-ibld.c
+mep-opc.c
+mep-opc.h
 mips16-opc.c
 mips-dis.c
 mips-opc.c
@@ -131,6 +144,8 @@ ppc-opc.c
 s390-dis.c
 s390-mkopc.c
 s390-opc.c
+score-dis.c
+score-opc.h
 sh64-dis.c
 sh64-opc.c
 sh64-opc.h
@@ -138,6 +153,8 @@ sh-dis.c
 sh-opc.h
 sparc-dis.c
 sparc-opc.c
+spu-dis.c
+spu-opc.c
 sysdep.h
 tic30-dis.c
 tic4x-dis.c

@@ -1,6 +1,6 @@
 /* tc-mips.h -- header file for tc-mips.c.
-   Copyright 1993, 1994, 1995, 1996, 1997, 2000, 2001, 2002, 2003, 2004
-   Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1995, 1996, 1997, 2000, 2001, 2002, 2003, 2004,
+   2005, 2006 Free Software Foundation, Inc.
    Contributed by the OSF and Ralph Campbell.
    Written by Keith Knowles and Ralph Campbell, working independently.
    Modified for ECOFF support by Ian Lance Taylor of Cygnus Support.
@@ -57,6 +57,12 @@ extern void mips_handle_align (struct frag *);
 #define HANDLE_ALIGN(fragp)  mips_handle_align (fragp)
 
 #define MAX_MEM_FOR_RS_ALIGN_CODE  (1 + 2)
+
+struct insn_label_list;
+#define TC_SEGMENT_INFO_TYPE struct insn_label_list *
+
+/* This field is nonzero if the symbol is the target of a MIPS16 jump.  */
+#define TC_SYMFIELD_TYPE int
 
 /* Tell assembler that we have an itbl_mips.h header file to include.  */
 #define HAVE_ITBL_CPU
@@ -149,6 +155,7 @@ extern void mips_emit_delays (void);
 extern void mips_enable_auto_align (void);
 #define md_elf_section_change_hook()	mips_enable_auto_align()
 
+enum dwarf2_format;
 extern enum dwarf2_format mips_dwarf2_format (void);
 #define DWARF2_FORMAT() mips_dwarf2_format ()
 
@@ -160,7 +167,10 @@ extern int mips_dwarf2_addr_size (void);
 #define tc_cfi_frame_initial_instructions mips_cfi_frame_initial_instructions
 extern void mips_cfi_frame_initial_instructions (void);
 
+#define tc_regname_to_dw2regnum tc_mips_regname_to_dw2regnum
+extern int tc_mips_regname_to_dw2regnum (char *regname);
+
 #define DWARF2_DEFAULT_RETURN_COLUMN 31
-#define DWARF2_CIE_DATA_ALIGNMENT -4
+#define DWARF2_CIE_DATA_ALIGNMENT (-4)
 
 #endif /* TC_MIPS */

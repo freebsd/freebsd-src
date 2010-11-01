@@ -1,6 +1,6 @@
 /* ldcref.c -- output a cross reference table
-   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2006
-   Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2006,
+   2007 Free Software Foundation, Inc.
    Written by Ian Lance Taylor <ian@cygnus.com>
 
 This file is part of GLD, the Gnu Linker.
@@ -23,10 +23,11 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
    The table is used to generate cross reference reports.  It is also
    used to implement the NOCROSSREFS command in the linker script.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "bfdlink.h"
 #include "libiberty.h"
+#include "demangle.h"
 #include "objalloc.h"
 
 #include "ld.h"
@@ -56,7 +57,7 @@ struct cref_ref {
 struct cref_hash_entry {
   struct bfd_hash_entry root;
   /* The demangled name.  */
-  char *demangled;
+  const char *demangled;
   /* References to and definitions of this symbol.  */
   struct cref_ref *refs;
 };
@@ -106,6 +107,7 @@ static size_t cref_symcount;
    add syms from an as-needed library.  */
 static struct bfd_hash_entry **old_table;
 static unsigned int old_size;
+static unsigned int old_count;
 static void *old_tab;
 static void *alloc_mark;
 static size_t tabsize, entsize, refsize;
@@ -238,6 +240,7 @@ handle_asneeded_cref (bfd *abfd ATTRIBUTE_UNUSED,
       old_ref = (char *) old_ent + entsize;
       old_table = cref_table.root.table;
       old_size = cref_table.root.size;
+      old_count = cref_table.root.count;
       old_symcount = cref_symcount;
 
       for (i = 0; i < cref_table.root.size; i++)
@@ -278,6 +281,7 @@ handle_asneeded_cref (bfd *abfd ATTRIBUTE_UNUSED,
       old_ref = (char *) old_ent + entsize;
       cref_table.root.table = old_table;
       cref_table.root.size = old_size;
+      cref_table.root.count = old_count;
       memcpy (cref_table.root.table, old_tab, tabsize);
       cref_symcount = old_symcount;
 
@@ -321,7 +325,10 @@ cref_fill_array (struct cref_hash_entry *h, void *data)
   struct cref_hash_entry ***pph = data;
 
   ASSERT (h->demangled == NULL);
-  h->demangled = demangle (h->root.string);
+  h->demangled = bfd_demangle (output_bfd, h->root.string,
+			       DMGL_ANSI | DMGL_PARAMS);
+  if (h->demangled == NULL)
+    h->demangled = h->root.string;
 
   **pph = h;
 
@@ -707,11 +714,11 @@ check_reloc_refs (bfd *abfd, asection *sec, void *iarg)
 						   | BSF_WEAK)) != 0))
 	      || (!global
 		  && ((*q->sym_ptr_ptr)->flags & (BSF_LOCAL
-						  | BSF_SECTION_SYM)) != 0))
+						  | BSF_SECTION_SYM)) != 0
+		  && bfd_get_section (*q->sym_ptr_ptr) == info->defsec))
 	  && (symname != NULL
 	      ? strcmp (bfd_asymbol_name (*q->sym_ptr_ptr), symname) == 0
-	      : (((*q->sym_ptr_ptr)->flags & BSF_SECTION_SYM) != 0
-		 && bfd_get_section (*q->sym_ptr_ptr) == info->defsec)))
+	      : ((*q->sym_ptr_ptr)->flags & BSF_SECTION_SYM) != 0))
 	{
 	  /* We found a reloc for the symbol.  The symbol is defined
 	     in OUTSECNAME.  This reloc is from a section which is

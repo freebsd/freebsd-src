@@ -1,6 +1,6 @@
 /* BFD backend for MIPS BSD (a.out) binaries.
-   Copyright 1993, 1994, 1995, 1997, 1998, 1999, 2000, 2001, 2002, 2003
-   Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1995, 1997, 1998, 1999, 2000, 2001, 2002, 2003,
+   2007 Free Software Foundation, Inc.
    Written by Ralph Campbell.
 
 This file is part of BFD, the Binary File Descriptor library.
@@ -40,8 +40,8 @@ Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA. 
    the tokens.  */
 #define MY(OP) CONCAT2 (mipsbsd_,OP)
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "libaout.h"
 
@@ -56,7 +56,8 @@ static bfd_boolean MY(write_object_contents) PARAMS ((bfd *abfd));
 
 /* We can't use MY(x) here because it leads to a recursive call to CONCAT2
    when expanded inside JUMP_TABLE.  */
-#define MY_bfd_reloc_type_lookup mipsbsd_reloc_howto_type_lookup
+#define MY_bfd_reloc_type_lookup mipsbsd_reloc_type_lookup
+#define MY_bfd_reloc_name_lookup mipsbsd_reloc_name_lookup
 #define MY_canonicalize_reloc mipsbsd_canonicalize_reloc
 
 #define MY_bfd_link_hash_table_create _bfd_generic_link_hash_table_create
@@ -72,8 +73,6 @@ static bfd_boolean MY(write_object_contents) PARAMS ((bfd *abfd));
 static bfd_reloc_status_type mips_fix_jmp_addr
   PARAMS ((bfd *, arelent *, struct bfd_symbol *, PTR, asection *,
 	   bfd *, char **));
-static reloc_howto_type *MY(reloc_howto_type_lookup)
-  PARAMS ((bfd *, bfd_reloc_code_real_type));
 
 long MY(canonicalize_reloc) PARAMS ((bfd *, sec_ptr, arelent **, asymbol **));
 
@@ -302,9 +301,7 @@ static reloc_howto_type mips_howto_table_ext[] = {
 };
 
 static reloc_howto_type *
-MY(reloc_howto_type_lookup) (abfd, code)
-     bfd *abfd;
-     bfd_reloc_code_real_type code;
+MY(reloc_type_lookup) (bfd *abfd, bfd_reloc_code_real_type code)
 {
 
   if (bfd_get_arch (abfd) != bfd_arch_mips)
@@ -328,6 +325,22 @@ MY(reloc_howto_type_lookup) (abfd, code)
     default:
       return 0;
     }
+}
+
+static reloc_howto_type *
+MY(reloc_name_lookup) (bfd *abfd ATTRIBUTE_UNUSED,
+			     const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (mips_howto_table_ext) / sizeof (mips_howto_table_ext[0]);
+       i++)
+    if (mips_howto_table_ext[i].name != NULL
+	&& strcasecmp (mips_howto_table_ext[i].name, r_name) == 0)
+      return &mips_howto_table_ext[i];
+
+  return NULL;
 }
 
 /* This is just like the standard aoutx.h version but we need to do our

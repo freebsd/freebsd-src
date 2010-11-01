@@ -60,6 +60,18 @@ little-endian output at run time (unlike the other @sc{gnu} development
 tools, which must be configured for one or the other).  Use @samp{-EB}
 to select big-endian output, and @samp{-EL} for little-endian.
 
+@item -KPIC
+@cindex PIC selection, MIPS
+@cindex @option{-KPIC} option, MIPS
+Generate SVR4-style PIC.  This option tells the assembler to generate
+SVR4-style position-independent macro expansions.  It also tells the
+assembler to mark the output file as PIC.
+
+@item -mvxworks-pic
+@cindex @option{-mvxworks-pic} option, MIPS
+Generate VxWorks PIC.  This option tells the assembler to generate
+VxWorks-style position-independent macro expansions.
+
 @cindex MIPS architecture options
 @item -mips1
 @itemx -mips2
@@ -91,20 +103,37 @@ flags force a certain group of registers to be treated as 32 bits wide at
 all times.  @samp{-mgp32} controls the size of general-purpose registers
 and @samp{-mfp32} controls the size of floating-point registers.
 
+The @code{.set gp=32} and @code{.set fp=32} directives allow the size
+of registers to be changed for parts of an object. The default value is
+restored by @code{.set gp=default} and @code{.set fp=default}.
+
 On some MIPS variants there is a 32-bit mode flag; when this flag is
 set, 64-bit instructions generate a trap.  Also, some 32-bit OSes only
 save the 32-bit registers on a context switch, so it is essential never
 to use the 64-bit registers.
 
 @item -mgp64
-Assume that 64-bit general purpose registers are available.  This is
-provided in the interests of symmetry with -gp32.
+@itemx -mfp64
+Assume that 64-bit registers are available.  This is provided in the
+interests of symmetry with @samp{-mgp32} and @samp{-mfp32}.
+
+The @code{.set gp=64} and @code{.set fp=64} directives allow the size
+of registers to be changed for parts of an object. The default value is
+restored by @code{.set gp=default} and @code{.set fp=default}.
 
 @item -mips16
 @itemx -no-mips16
 Generate code for the MIPS 16 processor.  This is equivalent to putting
-@samp{.set mips16} at the start of the assembly file.  @samp{-no-mips16}
+@code{.set mips16} at the start of the assembly file.  @samp{-no-mips16}
 turns off this option.
+
+@item -msmartmips
+@itemx -mno-smartmips
+Enables the SmartMIPS extensions to the MIPS32 instruction set, which
+provides a number of new instructions which target smartcard and
+cryptographic applications.  This is equivalent to putting
+@code{.set smartmips} at the start of the assembly file.
+@samp{-mno-smartmips} turns off this option.
 
 @item -mips3d
 @itemx -no-mips3d
@@ -120,9 +149,16 @@ This tells the assembler to accept MDMX instructions.
 
 @item -mdsp
 @itemx -mno-dsp
-Generate code for the DSP Application Specific Extension.
-This tells the assembler to accept DSP instructions.
+Generate code for the DSP Release 1 Application Specific Extension.
+This tells the assembler to accept DSP Release 1 instructions.
 @samp{-mno-dsp} turns off this option.
+
+@item -mdspr2
+@itemx -mno-dspr2
+Generate code for the DSP Release 2 Application Specific Extension.
+This option implies -mdsp.
+This tells the assembler to accept DSP Release 2 instructions.
+@samp{-mno-dspr2} turns off this option.
 
 @item -mmt
 @itemx -mno-mt
@@ -202,8 +238,34 @@ rm7000,
 rm9000,
 10000,
 12000,
-mips32-4k,
-sb1
+4kc,
+4km,
+4kp,
+4ksc,
+4kec,
+4kem,
+4kep,
+4ksd,
+m4k,
+m4kp,
+24kc,
+24kf,
+24kx,
+24kec,
+24kef,
+24kex,
+34kc,
+34kf,
+34kx,
+74kc,
+74kf,
+74kx,
+5kc,
+5kf,
+20kc,
+25kf,
+sb1,
+sb1a
 @end quotation
 
 @item -mtune=@var{cpu}
@@ -391,13 +453,21 @@ assembly.  @code{.set mips@var{n}} affects not only which instructions
 are permitted, but also how certain macros are expanded.  @code{.set
 mips0} restores the @sc{isa} level to its original level: either the
 level you selected with command line options, or the default for your
-configuration.  You can use this feature to permit specific @sc{r4000}
+configuration.  You can use this feature to permit specific @sc{mips3}
 instructions while assembling in 32 bit mode.  Use this directive with
 care!
 
-The directive @samp{.set mips16} puts the assembler into MIPS 16 mode,
+@cindex MIPS CPU override
+@kindex @code{.set arch=@var{cpu}}
+The @code{.set arch=@var{cpu}} directive provides even finer control.
+It changes the effective CPU target and allows the assembler to use
+instructions specific to a particular CPU.  All CPUs supported by the
+@samp{-march} command line option are also selectable by this directive.
+The original value is restored by @code{.set arch=default}.
+
+The directive @code{.set mips16} puts the assembler into MIPS 16 mode,
 in which it will assemble instructions for the MIPS 16 processor.  Use
-@samp{.set nomips16} to return to normal 32 bit mode.
+@code{.set nomips16} to return to normal 32 bit mode.
 
 Traditional @sc{mips} assemblers do not support this directive.
 
@@ -407,10 +477,10 @@ Traditional @sc{mips} assemblers do not support this directive.
 @kindex @code{.set autoextend}
 @kindex @code{.set noautoextend}
 By default, MIPS 16 instructions are automatically extended to 32 bits
-when necessary.  The directive @samp{.set noautoextend} will turn this
-off.  When @samp{.set noautoextend} is in effect, any 32 bit instruction
-must be explicitly extended with the @samp{.e} modifier (e.g.,
-@samp{li.e $4,1000}).  The directive @samp{.set autoextend} may be used
+when necessary.  The directive @code{.set noautoextend} will turn this
+off.  When @code{.set noautoextend} is in effect, any 32 bit instruction
+must be explicitly extended with the @code{.e} modifier (e.g.,
+@code{li.e $4,1000}).  The directive @code{.set autoextend} may be used
 to once again automatically extend instructions when necessary.
 
 This directive is only meaningful when in MIPS 16 mode.  Traditional
@@ -455,6 +525,15 @@ from the MIPS-3D Application Specific Extension from that point on
 in the assembly.  The @code{.set nomips3d} directive prevents MIPS-3D
 instructions from being accepted.
 
+@cindex SmartMIPS instruction generation override
+@kindex @code{.set smartmips}
+@kindex @code{.set nosmartmips}
+The directive @code{.set smartmips} makes the assembler accept
+instructions from the SmartMIPS Application Specific Extension to the
+MIPS32 @sc{isa} from that point on in the assembly.  The
+@code{.set nosmartmips} directive prevents SmartMIPS instructions from
+being accepted.
+
 @cindex MIPS MDMX instruction generation override
 @kindex @code{.set mdmx}
 @kindex @code{.set nomdmx}
@@ -463,13 +542,22 @@ from the MDMX Application Specific Extension from that point on
 in the assembly.  The @code{.set nomdmx} directive prevents MDMX
 instructions from being accepted.
 
-@cindex MIPS DSP instruction generation override
+@cindex MIPS DSP Release 1 instruction generation override
 @kindex @code{.set dsp}
 @kindex @code{.set nodsp}
 The directive @code{.set dsp} makes the assembler accept instructions
-from the DSP Application Specific Extension from that point on
-in the assembly.  The @code{.set nodsp} directive prevents DSP
-instructions from being accepted.
+from the DSP Release 1 Application Specific Extension from that point
+on in the assembly.  The @code{.set nodsp} directive prevents DSP
+Release 1 instructions from being accepted.
+
+@cindex MIPS DSP Release 2 instruction generation override
+@kindex @code{.set dspr2}
+@kindex @code{.set nodspr2}
+The directive @code{.set dspr2} makes the assembler accept instructions
+from the DSP Release 2 Application Specific Extension from that point
+on in the assembly.  This dirctive implies @code{.set dsp}.  The
+@code{.set nodspr2} directive prevents DSP Release 2 instructions from
+being accepted.
 
 @cindex MIPS MT instruction generation override
 @kindex @code{.set mt}

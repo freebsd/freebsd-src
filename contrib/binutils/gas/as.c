@@ -1,6 +1,6 @@
 /* as.c - GAS main program.
    Copyright 1987, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005
+   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -31,8 +31,6 @@
   	Since no-one else says they will support them in future: I
    don't support them now.  */
 
-#include "ansidecl.h"
-
 #define COMMON
 
 #include "as.h"
@@ -42,7 +40,6 @@
 #include "macro.h"
 #include "dwarf2dbg.h"
 #include "dw2gencfi.h"
-#include "hash.h"
 #include "bfdver.h"
 
 #ifdef HAVE_ITBL_CPU
@@ -352,7 +349,9 @@ Options:\n\
   md_show_usage (stream);
 
   fputc ('\n', stream);
-  fprintf (stream, _("Report bugs to %s\n"), REPORT_BUGS_TO);
+
+  if (REPORT_BUGS_TO[0] && stream == stdout)
+    fprintf (stream, _("Report bugs to %s\n"), REPORT_BUGS_TO);
 }
 
 /* Since it is easy to do here we interpret the special arg "-"
@@ -591,7 +590,7 @@ parse_args (int * pargc, char *** pargv)
 	case OPTION_VERSION:
 	  /* This output is intended to follow the GNU standards document.  */
 	  printf (_("GNU assembler %s\n"), BFD_VERSION_STRING);
-	  printf (_("Copyright 2005 Free Software Foundation, Inc.\n"));
+	  printf (_("Copyright 2007 Free Software Foundation, Inc.\n"));
 	  printf (_("\
 This program is free software; you may redistribute it under the terms of\n\
 the GNU General Public License.  This program has absolutely no warranty.\n"));
@@ -1032,6 +1031,33 @@ perform_an_assembly_pass (int argc, char ** argv)
     read_a_source_file ("");
 }
 
+#ifdef OBJ_ELF
+static void
+create_obj_attrs_section (void)
+{
+  segT s;
+  char *p;
+  addressT addr;
+  offsetT size;
+  const char *name;
+
+  size = bfd_elf_obj_attr_size (stdoutput);
+  if (size)
+    {
+      name = get_elf_backend_data (stdoutput)->obj_attrs_section;
+      if (!name)
+	name = ".gnu.attributes";
+      s = subseg_new (name, 0);
+      elf_section_type (s)
+	= get_elf_backend_data (stdoutput)->obj_attrs_section_type;
+      bfd_set_section_flags (stdoutput, s, SEC_READONLY | SEC_DATA);
+      addr = frag_now_fix ();
+      p = frag_more (size);
+      bfd_elf_set_obj_attr_contents (stdoutput, (bfd_byte *)p, size);
+    }
+}
+#endif
+
 
 int
 main (int argc, char ** argv)
@@ -1125,6 +1151,11 @@ main (int argc, char ** argv)
 
       sym = symbol_new (defsyms->name, absolute_section, defsyms->value,
 			&zero_address_frag);
+      /* Make symbols defined on the command line volatile, so that they
+	 can be redefined inside a source file.  This makes this assembler's
+	 behaviour compatible with earlier versions, but it may not be
+	 completely intuitive.  */
+      S_SET_VOLATILE (sym);
       symbol_table_insert (sym);
       next = defsyms->next;
       free (defsyms);
@@ -1140,6 +1171,11 @@ main (int argc, char ** argv)
 
 #ifdef md_end
   md_end ();
+#endif
+
+#ifdef OBJ_ELF
+  if (IS_ELF)
+    create_obj_attrs_section ();
 #endif
 
 #if defined OBJ_ELF || defined OBJ_MAYBE_ELF

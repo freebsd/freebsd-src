@@ -20,8 +20,6 @@
    Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA
    02110-1301, USA.  */
 
-#include <stdio.h>
-#include "libiberty.h"
 #include "as.h"
 #include "struc-symbol.h"
 #include "safe-ctype.h"

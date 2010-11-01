@@ -225,7 +225,7 @@ ppc_add_stub_section (const char *stub_sec_name, asection *input_section)
     goto err_ret;
 
   flags = (SEC_ALLOC | SEC_LOAD | SEC_READONLY | SEC_CODE
-	   | SEC_HAS_CONTENTS | SEC_RELOC | SEC_IN_MEMORY | SEC_KEEP);
+	   | SEC_HAS_CONTENTS | SEC_IN_MEMORY | SEC_KEEP);
   if (!bfd_set_section_flags (stub_file->the_bfd, stub_sec, flags))
     goto err_ret;
 
@@ -258,9 +258,8 @@ ppc_layout_sections_again (void)
   /* If we have changed sizes of the stub sections, then we need
      to recalculate all the section offsets.  This may mean we need to
      add even more stubs.  */
-  need_laying_out = 0;
-
-  gld${EMULATION_NAME}_layout_sections_again ();
+  gld${EMULATION_NAME}_map_segments (TRUE);
+  need_laying_out = -1;
 }
 
 
@@ -311,7 +310,7 @@ build_section_lists (lang_statement_union_type *statement)
 /* Final emulation specific call.  */
 
 static void
-ppc_finish (void)
+gld${EMULATION_NAME}_finish (void)
 {
   /* e_entry on PowerPC64 points to the function descriptor for
      _start.  If _start is missing, default to the first function
@@ -353,8 +352,8 @@ ppc_finish (void)
 	}
     }
 
-  if (need_laying_out)
-    ppc_layout_sections_again ();
+  if (need_laying_out != -1)
+    gld${EMULATION_NAME}_map_segments (need_laying_out);
 
   if (link_info.relocatable)
     {
@@ -415,17 +414,22 @@ gld${EMULATION_NAME}_new_vers_pattern (struct bfd_elf_version_expr *entry)
   unsigned int len;
   char *dot_pat;
 
-  if (!dotsyms || entry->pattern[0] == '*' || entry->pattern[0] == '.')
+  if (!dotsyms
+      || (entry->pattern != NULL
+	  && (entry->pattern[0] == '*' || entry->pattern[0] == '.')))
     return entry;
 
   dot_entry = xmalloc (sizeof *dot_entry);
   *dot_entry = *entry;
   dot_entry->next = entry;
-  len = strlen (entry->pattern) + 2;
-  dot_pat = xmalloc (len);
-  dot_pat[0] = '.';
-  memcpy (dot_pat + 1, entry->pattern, len - 1);
-  dot_entry->pattern = dot_pat;
+  if (entry->pattern != NULL)
+    {
+      len = strlen (entry->pattern) + 2;
+      dot_pat = xmalloc (len);
+      dot_pat[0] = '.';
+      memcpy (dot_pat + 1, entry->pattern, len - 1);
+      dot_entry->pattern = dot_pat;
+    }
   if (entry->symbol != NULL)
     {
       len = strlen (entry->symbol) + 2;
@@ -459,6 +463,24 @@ ppc_lang_for_each_input_file (void (*func) (lang_input_statement_type *))
 #define lang_for_each_input_file ppc_lang_for_each_input_file
 
 EOF
+
+if grep -q 'ld_elf32_spu_emulation' ldemul-list.h; then
+  cat >>e${EMULATION_NAME}.c <<EOF
+/* Special handling for embedded SPU executables.  */
+extern bfd_boolean embedded_spu_file (lang_input_statement_type *, const char *);
+static bfd_boolean gld${EMULATION_NAME}_load_symbols (lang_input_statement_type *);
+
+static bfd_boolean
+ppc64_recognized_file (lang_input_statement_type *entry)
+{
+  if (embedded_spu_file (entry, "-m64"))
+    return TRUE;
+
+  return gld${EMULATION_NAME}_load_symbols (entry);
+}
+EOF
+LDEMUL_RECOGNIZED_FILE=ppc64_recognized_file
+fi
 
 # Define some shell vars to insert bits of code into the standard elf
 # parse_args and list_options functions.
@@ -574,6 +596,6 @@ PARSE_AND_LIST_ARGS_CASES='
 #
 LDEMUL_BEFORE_ALLOCATION=ppc_before_allocation
 LDEMUL_AFTER_ALLOCATION=gld${EMULATION_NAME}_after_allocation
-LDEMUL_FINISH=ppc_finish
+LDEMUL_FINISH=gld${EMULATION_NAME}_finish
 LDEMUL_CREATE_OUTPUT_SECTION_STATEMENTS=ppc_create_output_section_statements
 LDEMUL_NEW_VERS_PATTERN=gld${EMULATION_NAME}_new_vers_pattern

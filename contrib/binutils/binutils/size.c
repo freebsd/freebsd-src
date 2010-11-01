@@ -1,6 +1,6 @@
 /* size.c -- report size of various sections of an executable file.
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+   2001, 2002, 2003, 2004, 2005, 2006, 2007 Free Software Foundation, Inc.
 
    This file is part of GNU Binutils.
 
@@ -28,10 +28,11 @@
    If you write shell scripts which manipulate this info then you may be
    out of luck; there's no --compatibility or --pedantic option.  */
 
+#include "sysdep.h"
 #include "bfd.h"
-#include "bucomm.h"
 #include "libiberty.h"
 #include "getopt.h"
+#include "bucomm.h"
 
 #ifndef BSD_DEFAULT
 #define BSD_DEFAULT 1
@@ -98,7 +99,7 @@ usage (FILE *stream, int status)
 #endif
 );
   list_supported_targets (program_name, stream);
-  if (status == 0)
+  if (REPORT_BUGS_TO[0] && status == 0)
     fprintf (stream, _("Report bugs to %s\n"), REPORT_BUGS_TO);
   exit (status);
 }
@@ -346,7 +347,10 @@ display_file (char *filename)
   bfd *file;
 
   if (get_file_size (filename) < 1)
-    return;
+    {
+      return_code = 1;
+      return;
+    }
 
   file = bfd_openr (filename, target);
   if (file == NULL)

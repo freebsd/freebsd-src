@@ -1,5 +1,5 @@
 /* ARC-specific support for 32-bit ELF
-   Copyright 1994, 1995, 1997, 1999, 2001, 2002, 2005
+   Copyright 1994, 1995, 1997, 1999, 2001, 2002, 2005, 2007
    Free Software Foundation, Inc.
    Contributed by Doug Evans (dje@cygnus.com).
 
@@ -20,8 +20,8 @@
    Foundation, Inc., 51 Franklin Street - Fifth Floor, Boston,
    MA 02110-1301, USA.  */
 
-#include "bfd.h"
 #include "sysdep.h"
+#include "bfd.h"
 #include "libbfd.h"
 #include "elf-bfd.h"
 #include "elf/arc.h"
@@ -143,6 +143,22 @@ bfd_elf32_bfd_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
   for (i = ARRAY_SIZE (arc_reloc_map); i--;)
     if (arc_reloc_map[i].bfd_reloc_val == code)
       return elf_arc_howto_table + arc_reloc_map[i].elf_reloc_val;
+
+  return NULL;
+}
+
+static reloc_howto_type *
+bfd_elf32_bfd_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
+				 const char *r_name)
+{
+  unsigned int i;
+
+  for (i = 0;
+       i < sizeof (elf_arc_howto_table) / sizeof (elf_arc_howto_table[0]);
+       i++)
+    if (elf_arc_howto_table[i].name != NULL
+	&& strcasecmp (elf_arc_howto_table[i].name, r_name) == 0)
+      return &elf_arc_howto_table[i];
 
   return NULL;
 }

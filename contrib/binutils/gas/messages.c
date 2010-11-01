@@ -1,6 +1,6 @@
 /* messages.c - error reporter -
    Copyright 1987, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 2000, 2001,
-   2003, 2004, 2005
+   2003, 2004, 2005, 2006, 2007
    Free Software Foundation, Inc.
    This file is part of GAS, the GNU Assembler.
 
@@ -114,24 +114,6 @@ as_show_where (void)
   identify (file);
   if (file)
     fprintf (stderr, "%s:%u: ", file, line);
-}
-
-/* Like perror(3), but with more info.  */
-
-void
-as_perror (const char *gripe,		/* Unpunctuated error theme.  */
-	   const char *filename)
-{
-  const char *errtxt;
-  int saved_errno = errno;
-
-  as_show_where ();
-  fprintf (stderr, gripe, filename);
-  errno = saved_errno;
-  errtxt = bfd_errmsg (bfd_get_error ());
-  fprintf (stderr, ": %s\n", errtxt);
-  errno = 0;
-  bfd_set_error (bfd_error_no_error);
 }
 
 /* Send to stderr a string as a warning, and locate warning
@@ -473,6 +455,24 @@ as_internal_value_out_of_range (char *    prefix,
 
   if (prefix == NULL)
     prefix = "";
+
+  if (val >= min && val <= max)
+    {
+      addressT right = max & -max;
+
+      if (max <= 1)
+	abort ();
+
+      /* xgettext:c-format  */
+      err = _("%s out of domain (%d is not a multiple of %d)");
+      if (bad)
+	as_bad_where (file, line, err,
+		      prefix, (int) val, (int) right);
+      else
+	as_warn_where (file, line, err,
+		       prefix, (int) val, (int) right);
+      return;
+    }
 
   if (   val < HEX_MAX_THRESHOLD
       && min < HEX_MAX_THRESHOLD

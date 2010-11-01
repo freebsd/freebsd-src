@@ -11,7 +11,7 @@ rm -f e${EMULATION_NAME}.c
 cat >>e${EMULATION_NAME}.c <<EOF
 /* This file is part of GLD, the Gnu Linker.
    Copyright 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-   2005 Free Software Foundation, Inc.
+   2005, 2006, 2007 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,17 +37,20 @@ cat >>e${EMULATION_NAME}.c <<EOF
 #define TARGET_IS_${EMULATION_NAME}
 
 /* Do this before including bfd.h, so we prototype the right functions.  */
-#ifdef TARGET_IS_arm_epoc_pe
-#define bfd_arm_pe_allocate_interworking_sections \
-	bfd_arm_epoc_pe_allocate_interworking_sections
-#define bfd_arm_pe_get_bfd_for_interworking \
-	bfd_arm_epoc_pe_get_bfd_for_interworking
-#define bfd_arm_pe_process_before_allocation \
-	bfd_arm_epoc_pe_process_before_allocation
-#endif
 
-#include "bfd.h"
+#if defined(TARGET_IS_armpe) \
+    || defined(TARGET_IS_arm_epoc_pe) \
+    || defined(TARGET_IS_arm_wince_pe)
+#define bfd_arm_allocate_interworking_sections \
+	bfd_${EMULATION_NAME}_allocate_interworking_sections
+#define bfd_arm_get_bfd_for_interworking \
+	bfd_${EMULATION_NAME}_get_bfd_for_interworking
+#define bfd_arm_process_before_allocation \
+	bfd_${EMULATION_NAME}_process_before_allocation
+#endif
+ 
 #include "sysdep.h"
+#include "bfd.h"
 #include "bfdlink.h"
 #include "getopt.h"
 #include "libiberty.h"
@@ -85,10 +88,12 @@ cat >>e${EMULATION_NAME}.c <<EOF
 #define PE_DEF_SECTION_ALIGNMENT ${OVERRIDE_SECTION_ALIGNMENT}
 #endif
 
-#if defined(TARGET_IS_i386pe)
-#define DLL_SUPPORT
-#endif
-#if defined(TARGET_IS_shpe) || defined(TARGET_IS_mipspe) || defined(TARGET_IS_armpe)
+#if defined(TARGET_IS_i386pe) \
+    || defined(TARGET_IS_shpe) \
+    || defined(TARGET_IS_mipspe) \
+    || defined(TARGET_IS_armpe) \
+    || defined(TARGET_IS_arm_epoc_pe) \
+    || defined(TARGET_IS_arm_wince_pe)
 #define DLL_SUPPORT
 #endif
 
@@ -99,7 +104,8 @@ cat >>e${EMULATION_NAME}.c <<EOF
 #undef PE_DEF_SECTION_ALIGNMENT
 #undef PE_DEF_FILE_ALIGNMENT
 #define NT_EXE_IMAGE_BASE		0x00010000
-#ifdef TARGET_IS_armpe
+
+#if defined(TARGET_IS_armpe) || defined(TARGET_IS_arm_wince_pe)
 #define PE_DEF_SECTION_ALIGNMENT	0x00001000
 #define	PE_DEF_SUBSYSTEM		9
 #else
@@ -109,6 +115,7 @@ cat >>e${EMULATION_NAME}.c <<EOF
 #define PE_DEF_FILE_ALIGNMENT		0x00000200
 #endif
 
+#define U(S) ${INITIAL_SYMBOL_CHAR} S
 
 static struct internal_extra_pe_aouthdr pe;
 static int dll;
@@ -139,7 +146,7 @@ gld_${EMULATION_NAME}_before_parse (void)
   link_info.pei386_runtime_pseudo_reloc = -1;
 
 #if (PE_DEF_SUBSYSTEM == 9) || (PE_DEF_SUBSYSTEM == 2)
-#if defined TARGET_IS_mipspe || defined TARGET_IS_armpe
+#if defined TARGET_IS_mipspe || defined TARGET_IS_armpe || defined TARGET_IS_arm_wince_pe
   lang_default_entry ("WinMainCRTStartup");
 #else
   lang_default_entry ("_WinMainCRTStartup");
@@ -282,8 +289,8 @@ static definfo init[] =
   D(MinorOperatingSystemVersion,"__minor_os_version__", 0),
   D(MajorImageVersion,"__major_image_version__", 1),
   D(MinorImageVersion,"__minor_image_version__", 0),
-#ifdef TARGET_IS_armpe
-  D(MajorSubsystemVersion,"__major_subsystem_version__", 2),
+#if defined(TARGET_IS_armpe)  || defined(TARGET_IS_arm_wince_pe)
+  D(MajorSubsystemVersion,"__major_subsystem_version__", 3),
 #else
   D(MajorSubsystemVersion,"__major_subsystem_version__", 4),
 #endif
@@ -394,7 +401,7 @@ set_pe_subsystem (void)
       { "windows", 2, "WinMainCRTStartup" },
       { "console", 3, "mainCRTStartup" },
       { "posix",   7, "__PosixProcessStartup"},
-      { "wince",   9, "_WinMainCRTStartup" },
+      { "wince",   9, "WinMainCRTStartup" },
       { "xbox",   14, "mainCRTStartup" },
       { NULL, 0, NULL }
     };
@@ -919,15 +926,14 @@ pe_find_data_imports (void)
 
 	      for (i = 0; i < nsyms; i++)
 		{
-		  if (memcmp (symbols[i]->name, "__head_",
-			      sizeof ("__head_") - 1))
+		  if (! CONST_STRNEQ (symbols[i]->name, U ("_head_")))
 		    continue;
 
 		  if (pe_dll_extra_pe_debug)
 		    printf ("->%s\n", symbols[i]->name);
 
 		  pe_data_import_dll = (char*) (symbols[i]->name +
-						sizeof ("__head_") - 1);
+						sizeof (U ("_head_")) - 1);
 		  break;
 		}
 
@@ -983,7 +989,7 @@ gld_${EMULATION_NAME}_after_open (void)
      including an internal BFD header.  */
 
   if (coff_data (output_bfd) == NULL || coff_data (output_bfd)->pe == 0)
-    einfo (_("%F%P: PE operations on non PE file.\n"));
+    einfo (_("%F%P: cannot perform PE operations on non PE output file '%B'.\n"), output_bfd);
 
   pe_data (output_bfd)->pe_opthdr = pe;
   pe_data (output_bfd)->dll = init[DLLOFF].value;
@@ -997,22 +1003,21 @@ gld_${EMULATION_NAME}_after_open (void)
 
   pe_find_data_imports ();
 
-#if ! (defined (TARGET_IS_i386pe) || defined (TARGET_IS_armpe))
-  if (link_info.shared)
-#else
+#if defined (TARGET_IS_i386pe) \
+    || defined (TARGET_IS_armpe) \
+    || defined (TARGET_IS_arm_epoc_pe) \
+    || defined (TARGET_IS_arm_wince_pe)
   if (!link_info.relocatable)
-#endif
     pe_dll_build_sections (output_bfd, &link_info);
-
-#ifndef TARGET_IS_i386pe
-#ifndef TARGET_IS_armpe
   else
     pe_exe_build_sections (output_bfd, &link_info);
+#else
+  if (link_info.shared)
+    pe_dll_build_sections (output_bfd, &link_info);
 #endif
-#endif
-#endif
+#endif /* DLL_SUPPORT */
 
-#if defined(TARGET_IS_armpe) || defined(TARGET_IS_arm_epoc_pe)
+#if defined(TARGET_IS_armpe) || defined(TARGET_IS_arm_epoc_pe) || defined(TARGET_IS_arm_wince_pe)
   if (strstr (bfd_get_target (output_bfd), "arm") == NULL)
     {
       /* The arm backend needs special fields in the output hash structure.
@@ -1026,7 +1031,7 @@ gld_${EMULATION_NAME}_after_open (void)
     /* Find a BFD that can hold the interworking stubs.  */
     LANG_FOR_EACH_INPUT_STATEMENT (is)
       {
-	if (bfd_arm_pe_get_bfd_for_interworking (is->the_bfd, & link_info))
+	if (bfd_arm_get_bfd_for_interworking (is->the_bfd, & link_info))
 	  break;
       }
   }
@@ -1055,7 +1060,7 @@ gld_${EMULATION_NAME}_after_open (void)
 	      {
 		if (strcmp (sec->name, ".idata\$2") == 0)
 		  idata2 = 1;
-		if (strncmp (sec->name, ".idata\$", 7) == 0)
+		if (CONST_STRNEQ (sec->name, ".idata\$"))
 		  is_imp = 1;
 		reloc_count += sec->reloc_count;
 	      }
@@ -1245,6 +1250,74 @@ gld_${EMULATION_NAME}_after_open (void)
 	  }
       }
   }
+
+  {
+    /* The following chunk of code tries to identify jump stubs in
+       import libraries which are dead code and eliminates them
+       from the final link. For each exported symbol <sym>, there
+       is a object file in the import library with a .text section
+       and several .idata$* sections. The .text section contains the
+       symbol definition for <sym> which is a jump stub of the form
+       jmp *__imp_<sym>. The .idata$5 contains the symbol definition
+       for __imp_<sym> which is the address of the slot for <sym> in
+       the import address table. When a symbol is imported explicitly
+       using __declspec(dllimport) declaration, the compiler generates
+       a reference to __imp_<sym> which directly resolves to the
+       symbol in .idata$5, in which case the jump stub code is not
+       needed. The following code tries to identify jump stub sections
+       in import libraries which are not referred to by anyone and
+       marks them for exclusion from the final link.  */
+    LANG_FOR_EACH_INPUT_STATEMENT (is)
+      {
+	if (is->the_bfd->my_archive)
+	  {
+	    int is_imp = 0;
+	    asection *sec, *stub_sec = NULL;
+
+	    /* See if this is an import library thunk.  */
+	    for (sec = is->the_bfd->sections; sec; sec = sec->next)
+	      {
+		if (strncmp (sec->name, ".idata\$", 7) == 0)
+		  is_imp = 1;
+		/* The section containing the jmp stub has code
+		   and has a reloc.  */
+		if ((sec->flags & SEC_CODE) && sec->reloc_count)
+		  stub_sec = sec;
+	      }
+   
+	    if (is_imp && stub_sec)
+	      {
+		long symsize;
+		asymbol **symbols;
+		long src_count;
+		struct bfd_link_hash_entry * blhe;
+
+		symsize = bfd_get_symtab_upper_bound (is->the_bfd);
+		symbols = xmalloc (symsize);
+		symsize = bfd_canonicalize_symtab (is->the_bfd, symbols);
+
+		for (src_count = 0; src_count < symsize; src_count++)
+		  {
+		    if (symbols[src_count]->section->id == stub_sec->id)
+		      {
+			/* This symbol belongs to the section containing
+			   the stub.  */
+			blhe = bfd_link_hash_lookup (link_info.hash,
+						     symbols[src_count]->name,
+						     FALSE, FALSE, TRUE);
+			/* If the symbol in the stub section has no other
+			   undefined references, exclude the stub section
+			   from the final link.  */
+			if (blhe && (blhe->type == bfd_link_hash_defined)
+			    && (blhe->u.undef.next == NULL))
+			  stub_sec->flags |= SEC_EXCLUDE;
+		      }
+		  }
+		free (symbols);
+	      }
+	  }
+      }
+  }
 }
 
 static void
@@ -1267,7 +1340,7 @@ gld_${EMULATION_NAME}_before_allocation (void)
   ppc_allocate_toc_section (&link_info);
 #endif /* TARGET_IS_ppcpe */
 
-#if defined(TARGET_IS_armpe) || defined(TARGET_IS_arm_epoc_pe)
+#if defined(TARGET_IS_armpe) || defined(TARGET_IS_arm_epoc_pe) || defined(TARGET_IS_arm_wince_pe)
   /* FIXME: we should be able to set the size of the interworking stub
      section.
 
@@ -1277,7 +1350,7 @@ gld_${EMULATION_NAME}_before_allocation (void)
   {
     LANG_FOR_EACH_INPUT_STATEMENT (is)
       {
-	if (! bfd_arm_pe_process_before_allocation
+	if (! bfd_arm_process_before_allocation
 	    (is->the_bfd, & link_info, support_old_code))
 	  {
 	    /* xgettext:c-format */
@@ -1288,8 +1361,8 @@ gld_${EMULATION_NAME}_before_allocation (void)
   }
 
   /* We have seen it all. Allocate it, and carry on.  */
-  bfd_arm_pe_allocate_interworking_sections (& link_info);
-#endif /* TARGET_IS_armpe */
+  bfd_arm_allocate_interworking_sections (& link_info);
+#endif /* TARGET_IS_armpe || TARGET_IS_arm_epoc_pe || TARGET_IS_arm_wince_pe */
 
   before_allocation_default ();
 }
@@ -1338,7 +1411,7 @@ gld_${EMULATION_NAME}_unrecognized_file (lang_input_statement_type *entry ATTRIB
 	    {
 	      struct bfd_link_hash_entry *h;
 
-	      sprintf (buf, "_%s", pe_def_file->exports[i].internal_name);
+	      sprintf (buf, "%s%s", U (""), pe_def_file->exports[i].internal_name);
 
 	      h = bfd_link_hash_lookup (link_info.hash, buf, TRUE, TRUE, TRUE);
 	      if (h == (struct bfd_link_hash_entry *) NULL)
@@ -1404,19 +1477,14 @@ gld_${EMULATION_NAME}_recognized_file (lang_input_statement_type *entry ATTRIBUT
 #ifdef TARGET_IS_armpe
   pe_dll_id_target ("pei-arm-little");
 #endif
-  if (bfd_get_format (entry->the_bfd) == bfd_object)
-    {
-      char fbuf[LD_PATHMAX + 1];
-      const char *ext;
-
-      if (REALPATH (entry->filename, fbuf) == NULL)
-	strncpy (fbuf, entry->filename, sizeof (fbuf));
-
-      ext = fbuf + strlen (fbuf) - 4;
-
-      if (strcmp (ext, ".dll") == 0 || strcmp (ext, ".DLL") == 0)
-	return pe_implied_import_dll (fbuf);
-    }
+#ifdef TARGET_IS_arm_epoc_pe
+  pe_dll_id_target ("epoc-pei-arm-little");
+#endif
+#ifdef TARGET_IS_arm_wince_pe
+  pe_dll_id_target ("pei-arm-wince-little");
+#endif
+  if (pe_bfd_is_dll (entry->the_bfd))
+    return pe_implied_import_dll (entry->filename);
 #endif
   return FALSE;
 }
@@ -1424,7 +1492,7 @@ gld_${EMULATION_NAME}_recognized_file (lang_input_statement_type *entry ATTRIBUT
 static void
 gld_${EMULATION_NAME}_finish (void)
 {
-#if defined(TARGET_IS_armpe) || defined(TARGET_IS_arm_epoc_pe)
+#if defined(TARGET_IS_armpe) || defined(TARGET_IS_arm_epoc_pe) || defined(TARGET_IS_arm_wince_pe)
   struct bfd_link_hash_entry * h;
 
   if (thumb_entry_symbol != NULL)
@@ -1464,7 +1532,7 @@ gld_${EMULATION_NAME}_finish (void)
       else
 	einfo (_("%P: warning: connot find thumb start symbol %s\n"), thumb_entry_symbol);
     }
-#endif /* defined(TARGET_IS_armpe) || defined(TARGET_IS_arm_epoc_pe) */
+#endif /* defined(TARGET_IS_armpe) || defined(TARGET_IS_arm_epoc_pe) || defined(TARGET_IS_arm_wince_pe) */
 
   finish_default ();
 
@@ -1677,87 +1745,100 @@ gld_${EMULATION_NAME}_open_dynamic_archive
   (const char *arch ATTRIBUTE_UNUSED, search_dirs_type *search,
    lang_input_statement_type *entry)
 {
+  static const struct
+    {
+      const char * format;
+      bfd_boolean use_prefix;
+    }
+  libname_fmt [] =
+    {
+      /* Preferred explicit import library for dll's.  */
+      { "lib%s.dll.a", FALSE },
+      /* Alternate explicit import library for dll's.  */
+      { "%s.dll.a", FALSE },
+      /* "libfoo.a" could be either an import lib or a static lib.
+          For backwards compatibility, libfoo.a needs to precede
+          libfoo.dll and foo.dll in the search.  */
+      { "lib%s.a", FALSE },
+      /* The 'native' spelling of an import lib name is "foo.lib".  */  	
+      { "%s.lib", FALSE },
+#ifdef DLL_SUPPORT
+      /* Try "<prefix>foo.dll" (preferred dll name, if specified).  */
+      {	"%s%s.dll", TRUE },
+#endif
+      /* Try "libfoo.dll" (default preferred dll name).  */
+      {	"lib%s.dll", FALSE },
+      /* Finally try 'native' dll name "foo.dll".  */
+      {  "%s.dll", FALSE },
+      /* Note: If adding more formats to this table, make sure to check to
+	 see if their length is longer than libname_fmt[0].format, and if
+	 so, update the call to xmalloc() below.  */
+      { NULL, FALSE }
+    };
+  static unsigned int format_max_len = 0;
   const char * filename;
-  char * string;
+  char * full_string;
+  char * base_string;
+  unsigned int i;
+
 
   if (! entry->is_archive)
     return FALSE;
 
   filename = entry->filename;
 
-  string = (char *) xmalloc (strlen (search->name)
-			     + strlen (filename)
-			     + sizeof "/lib.a.dll"
+  if (format_max_len == 0)
+    /* We need to allow space in the memory that we are going to allocate
+       for the characters in the format string.  Since the format array is
+       static we only need to calculate this information once.  In theory
+       this value could also be computed statically, but this introduces
+       the possibility for a discrepancy and hence a possible memory
+       corruption.  The lengths we compute here will be too long because
+       they will include any formating characters (%s) in the strings, but
+       this will not matter.  */
+    for (i = 0; libname_fmt[i].format; i++)
+      if (format_max_len < strlen (libname_fmt[i].format))
+	format_max_len = strlen (libname_fmt[i].format);
+
+  full_string = xmalloc (strlen (search->name)
+			 + strlen (filename)
+			 + format_max_len
 #ifdef DLL_SUPPORT
-			     + (pe_dll_search_prefix ? strlen (pe_dll_search_prefix) : 0)
+			 + (pe_dll_search_prefix
+			    ? strlen (pe_dll_search_prefix) : 0)
 #endif
-			     + 1);
+			 /* Allow for the terminating NUL and for the path
+			    separator character that is inserted between
+			    search->name and the start of the format string.  */
+			 + 2);
 
-  /* Try "libfoo.dll.a" first (preferred explicit import library for dll's.  */
-  sprintf (string, "%s/lib%s.dll.a", search->name, filename);
+  sprintf (full_string, "%s/", search->name);
+  base_string = full_string + strlen (full_string);
 
-  if (! ldfile_try_open_bfd (string, entry))
+  for (i = 0; libname_fmt[i].format; i++)
     {
-      /* Try "foo.dll.a" next (alternate explicit import library for dll's.  */
-      sprintf (string, "%s/%s.dll.a", search->name, filename);
-      if (! ldfile_try_open_bfd (string, entry))
+#ifdef DLL_SUPPORT 
+      if (libname_fmt[i].use_prefix)
 	{
-	  /* Try libfoo.a next. Normally, this would be interpreted as a static
-	     library, but it *could* be an import library. For backwards compatibility,
-	     libfoo.a needs to ==precede== libfoo.dll and foo.dll in the search,
-	     or sometimes errors occur when building legacy packages.
-
-	     Putting libfoo.a here means that in a failure case (i.e. the library
-	     -lfoo is not found) we will search for libfoo.a twice before
-	     giving up -- once here, and once when searching for a "static" lib.
-	     for a "static" lib.  */
-	  /* Try "libfoo.a" (import lib, or static lib, but must
-	     take precedence over dll's).  */
-	  sprintf (string, "%s/lib%s.a", search->name, filename);
-	  if (! ldfile_try_open_bfd (string, entry))
-	    {
-#ifdef DLL_SUPPORT
-	      if (pe_dll_search_prefix)
-		{
-		  /* Try "<prefix>foo.dll" (preferred dll name, if specified).  */
-		  sprintf (string, "%s/%s%s.dll", search->name, pe_dll_search_prefix, filename);
-		  if (! ldfile_try_open_bfd (string, entry))
-		    {
-		      /* Try "libfoo.dll" (default preferred dll name).  */
-		      sprintf (string, "%s/lib%s.dll", search->name, filename);
-		      if (! ldfile_try_open_bfd (string, entry))
-			{
-			  /* Finally, try "foo.dll" (alternate dll name).  */
-			  sprintf (string, "%s/%s.dll", search->name, filename);
-			  if (! ldfile_try_open_bfd (string, entry))
-			    {
-			      free (string);
-			      return FALSE;
-			    }
-			}
-		    }
-		}
-	      else /* pe_dll_search_prefix not specified.  */
-#endif
-		{
-		  /* Try "libfoo.dll" (preferred dll name).  */
-		  sprintf (string, "%s/lib%s.dll", search->name, filename);
-		  if (! ldfile_try_open_bfd (string, entry))
-		    {
-		      /* Finally, try "foo.dll" (alternate dll name).  */
-		      sprintf (string, "%s/%s.dll", search->name, filename);
-		      if (! ldfile_try_open_bfd (string, entry))
-			{
-			  free (string);
-			  return FALSE;
-			}
-		    }
-		}
-	    }
+	  if (!pe_dll_search_prefix)
+	    continue;
+	  sprintf (base_string, libname_fmt[i].format, pe_dll_search_prefix, filename);
 	}
+      else
+#endif
+	sprintf (base_string, libname_fmt[i].format, filename);
+
+      if (ldfile_try_open_bfd (full_string, entry))
+	break;
     }
 
-  entry->filename = string;
+  if (!libname_fmt[i].format)
+    {
+      free (full_string);
+      return FALSE;
+    }
+
+  entry->filename = full_string;
 
   return TRUE;
 }

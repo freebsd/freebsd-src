@@ -87,7 +87,8 @@ START_RELOC_NUMBERS (elf_mips_reloc_type)
   RELOC_NUMBER (R_MIPS_TLS_TPREL64, 48)
   RELOC_NUMBER (R_MIPS_TLS_TPREL_HI16, 49)
   RELOC_NUMBER (R_MIPS_TLS_TPREL_LO16, 50)
-  FAKE_RELOC (R_MIPS_max, 51)
+  RELOC_NUMBER (R_MIPS_GLOB_DAT, 51)
+  FAKE_RELOC (R_MIPS_max, 52)
   /* These relocs are used for the mips16.  */
   FAKE_RELOC (R_MIPS16_min, 100)
   RELOC_NUMBER (R_MIPS16_26, 100)
@@ -1005,5 +1006,16 @@ extern void bfd_mips_elf64_swap_reginfo_out
 #define OHWA0_R4KEOP_CHECKED	0x00000001
 #define OHWA0_R4KEOP_CLEAN	0x00000002
 
+
+/* Object attribute tags.  */
+enum
+{
+  /* 0-3 are generic.  */
+  Tag_GNU_MIPS_ABI_FP = 4, /* Value 1 for hard-float -mdouble-float, 2
+			      for hard-float -msingle-float, 3 for
+			      soft-float; 0 for not tagged or not
+			      using any ABIs affected by the
+			      differences.  */
+};
 
 #endif /* _ELF_MIPS_H */
