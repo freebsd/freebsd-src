@@ -230,7 +230,10 @@ punt:
 static void
 ofwn_end(struct netif *nif)
 {
+#ifdef BROKEN
+	/* dma-free freezes at least some Apple ethernet controllers */
 	OF_call_method("dma-free", netinstance, 2, 0, dmabuf, MAXPHYS);
+#endif
 	OF_close(netinstance);
 }
 

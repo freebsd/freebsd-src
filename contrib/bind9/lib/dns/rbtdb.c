@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb.c,v 1.270.12.16.8.3 2010/02/26 00:24:39 marka Exp $ */
+/* $Id: rbtdb.c,v 1.270.12.16.10.3 2010/08/13 07:25:21 marka Exp $ */
 
 /*! \file */
 
@@ -411,7 +411,6 @@ typedef struct {
 	rbtdb_version_t *               current_version;
 	rbtdb_version_t *               future_version;
 	rbtdb_versionlist_t             open_versions;
-	isc_boolean_t                   overmem;
 	isc_task_t *                    task;
 	dns_dbnode_t                    *soanode;
 	dns_dbnode_t                    *nsnode;
@@ -3209,6 +3208,9 @@ matchparams(rdatasetheader_t *header, rbtdb_search_t *search)
 	return (ISC_FALSE);
 }
 
+/*
+ * Find node of the NSEC/NSEC3 record that is 'name'.
+ */
 static inline isc_result_t
 find_closest_nsec(rbtdb_search_t *search, dns_dbnode_t **nodep,
 		  dns_name_t *foundname, dns_rdataset_t *rdataset,
@@ -4928,7 +4930,7 @@ expirenode(dns_db_t *db, dns_dbnode_t *node, isc_stdtime_t now) {
 	if (now == 0)
 		isc_stdtime_get(&now);
 
-	if (rbtdb->overmem) {
+	if (isc_mem_isovermem(rbtdb->common.mctx)) {
 		isc_uint32_t val;
 
 		isc_random_get(&val);
@@ -4938,8 +4940,8 @@ expirenode(dns_db_t *db, dns_dbnode_t *node, isc_stdtime_t now) {
 		force_expire = ISC_TF(rbtnode->down == NULL && val % 4 == 0);
 
 		/*
-		 * Note that 'log' can be true IFF rbtdb->overmem is also true.
-		 * rbtdb->overmem can currently only be true for cache
+		 * Note that 'log' can be true IFF overmem is also true.
+		 * overmem can currently only be true for cache
 		 * databases -- hence all of the "overmem cache" log strings.
 		 */
 		log = ISC_TF(isc_log_wouldlog(dns_lctx, level));
@@ -4984,7 +4986,7 @@ expirenode(dns_db_t *db, dns_dbnode_t *node, isc_stdtime_t now) {
 					      "reprieve by RETAIN() %s",
 					      printname);
 			}
-		} else if (rbtdb->overmem && log)
+		} else if (isc_mem_isovermem(rbtdb->common.mctx) && log)
 			isc_log_write(dns_lctx, category, module, level,
 				      "overmem cache: saved %s", printname);
 
@@ -4996,10 +4998,12 @@ expirenode(dns_db_t *db, dns_dbnode_t *node, isc_stdtime_t now) {
 
 static void
 overmem(dns_db_t *db, isc_boolean_t overmem) {
-	dns_rbtdb_t *rbtdb = (dns_rbtdb_t *)db;
+	/* This is an empty callback.  See adb.c:water() */
 
-	if (IS_CACHE(rbtdb))
-		rbtdb->overmem = overmem;
+	UNUSED(db);
+	UNUSED(overmem);
+
+	return;
 }
 
 static void
@@ -5943,6 +5947,7 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	isc_result_t result;
 	isc_boolean_t delegating;
 	isc_boolean_t tree_locked = ISC_FALSE;
+	isc_boolean_t cache_is_overmem = ISC_FALSE;
 
 	REQUIRE(VALID_RBTDB(rbtdb));
 
@@ -6030,12 +6035,14 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	 * the lock does not necessarily have to be acquired but it will help
 	 * purge stale entries more effectively.
 	 */
-	if (delegating || (IS_CACHE(rbtdb) && rbtdb->overmem)) {
+	if (IS_CACHE(rbtdb) && isc_mem_isovermem(rbtdb->common.mctx))
+		cache_is_overmem = ISC_TRUE;
+	if (delegating || cache_is_overmem) {
 		tree_locked = ISC_TRUE;
 		RWLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
 	}
 
-	if (IS_CACHE(rbtdb) && rbtdb->overmem)
+	if (cache_is_overmem)
 		overmem_purge(rbtdb, rbtnode->locknum, now, tree_locked);
 
 	NODE_LOCK(&rbtdb->node_locks[rbtnode->locknum].lock,
@@ -7098,7 +7105,6 @@ dns_rbtdb_create
 		return (result);
 	}
 	rbtdb->attributes = 0;
-	rbtdb->overmem = ISC_FALSE;
 	rbtdb->task = NULL;
 
 	/*

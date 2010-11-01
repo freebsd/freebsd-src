@@ -423,6 +423,8 @@ cfm_print(register const u_char *pptr, register u_int length) {
         break;
 
     case CFM_OPCODE_LTM:
+        msg_ptr.cfm_ltm = (const struct cfm_ltm_t *)tptr;
+
         printf(", Flags [%s]",
                bittok2str(cfm_ltm_flag_values, "none",  cfm_common_header->flags));
 
@@ -437,6 +439,8 @@ cfm_print(register const u_char *pptr, register u_int length) {
         break;
 
     case CFM_OPCODE_LTR:
+        msg_ptr.cfm_ltr = (const struct cfm_ltr_t *)tptr;
+
         printf(", Flags [%s]",
                bittok2str(cfm_ltr_flag_values, "none",  cfm_common_header->flags));
 

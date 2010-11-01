@@ -749,8 +749,8 @@ eli_init(struct gctl_req *req)
 			return;
 		}
 		if (val > sysconf(_SC_PAGE_SIZE)) {
-			gctl_error(req, "warning: Using sectorsize bigger than "
-			    "the page size!");
+			fprintf(stderr,
+			    "warning: Using sectorsize bigger than the page size!\n");
 		}
 		md.md_sectorsize = val;
 	}

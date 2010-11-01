@@ -200,7 +200,7 @@ kernel_va_to_slbv(vm_offset_t va)
 	esid = (uintptr_t)va >> ADDR_SR_SHFT;
 
 	/* Set kernel VSID to deterministic value */
-	slbv = va_to_vsid(kernel_pmap, va) << SLBV_VSID_SHIFT;
+	slbv = (KERNEL_VSID((uintptr_t)va >> ADDR_SR_SHFT)) << SLBV_VSID_SHIFT;
 
 	/* Figure out if this is a large-page mapping */
 	if (hw_direct_map && va < VM_MIN_KERNEL_ADDRESS) {
@@ -421,19 +421,19 @@ slb_insert_kernel(uint64_t slbe, uint64_t slbv)
 
 	slbcache = PCPU_GET(slb);
 
-	/* Check for an unused slot, abusing the USER_SR slot as a full flag */
-	if (slbcache[USER_SR].slbe == 0) {
-		for (i = 0; i < USER_SR; i++) {
+	/* Check for an unused slot, abusing the user slot as a full flag */
+	if (slbcache[USER_SLB_SLOT].slbe == 0) {
+		for (i = 0; i < USER_SLB_SLOT; i++) {
 			if (!(slbcache[i].slbe & SLBE_VALID)) 
 				goto fillkernslb;
 		}
 
-		if (i == USER_SR)
-			slbcache[USER_SR].slbe = 1;
+		if (i == USER_SLB_SLOT)
+			slbcache[USER_SLB_SLOT].slbe = 1;
 	}
 
 	for (i = mftb() % 64, j = 0; j < 64; j++, i = (i+1) % 64) {
-		if (i == USER_SR)
+		if (i == USER_SLB_SLOT)
 			continue;
 
 		if (SLB_SPILLABLE(slbcache[i].slbe))

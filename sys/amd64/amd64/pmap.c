@@ -462,7 +462,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 	if (ndmpdp < 4)		/* Minimum 4GB of dirmap */
 		ndmpdp = 4;
 	DMPDPphys = allocpages(firstaddr, NDMPML4E);
-	if (TRUE || (amd_feature & AMDID_PAGE1GB) == 0)
+	if ((amd_feature & AMDID_PAGE1GB) == 0)
 		DMPDphys = allocpages(firstaddr, ndmpdp);
 	dmaplimit = (vm_paddr_t)ndmpdp << PDPSHIFT;
 
@@ -494,11 +494,16 @@ create_pagetables(vm_paddr_t *firstaddr)
 		((pdp_entry_t *)KPDPphys)[i + KPDPI] |= PG_RW | PG_V | PG_U;
 	}
 
-	/* Now set up the direct map space using either 2MB or 1GB pages */
-	/* Preset PG_M and PG_A because demotion expects it */
-	if (TRUE || (amd_feature & AMDID_PAGE1GB) == 0) {
+	/*
+	 * Now, set up the direct map region using either 2MB or 1GB pages.
+	 * Later, if pmap_mapdev{_attr}() uses the direct map for non-write-
+	 * back memory, pmap_change_attr() will demote any 2MB or 1GB page
+	 * mappings that are partially used.
+	 */
+	if ((amd_feature & AMDID_PAGE1GB) == 0) {
 		for (i = 0; i < NPDEPG * ndmpdp; i++) {
 			((pd_entry_t *)DMPDphys)[i] = (vm_paddr_t)i << PDRSHIFT;
+			/* Preset PG_M and PG_A because demotion expects it. */
 			((pd_entry_t *)DMPDphys)[i] |= PG_RW | PG_V | PG_PS |
 			    PG_G | PG_M | PG_A;
 		}
@@ -512,6 +517,7 @@ create_pagetables(vm_paddr_t *firstaddr)
 		for (i = 0; i < ndmpdp; i++) {
 			((pdp_entry_t *)DMPDPphys)[i] =
 			    (vm_paddr_t)i << PDPSHIFT;
+			/* Preset PG_M and PG_A because demotion expects it. */
 			((pdp_entry_t *)DMPDPphys)[i] |= PG_RW | PG_V | PG_PS |
 			    PG_G | PG_M | PG_A;
 		}
@@ -4945,6 +4951,54 @@ pmap_change_attr_locked(vm_offset_t va, vm_size_t size, int mode)
 		pmap_invalidate_cache_range(base, tmpva);
 	}
 	return (error);
+}
+
+/*
+ * Demotes any mapping within the direct map region that covers more than the
+ * specified range of physical addresses.  This range's size must be a power
+ * of two and its starting address must be a multiple of its size.  Since the
+ * demotion does not change any attributes of the mapping, a TLB invalidation
+ * is not mandatory.  The caller may, however, request a TLB invalidation.
+ */
+void
+pmap_demote_DMAP(vm_paddr_t base, vm_size_t len, boolean_t invalidate)
+{
+	pdp_entry_t *pdpe;
+	pd_entry_t *pde;
+	vm_offset_t va;
+	boolean_t changed;
+
+	if (len == 0)
+		return;
+	KASSERT(powerof2(len), ("pmap_demote_DMAP: len is not a power of 2"));
+	KASSERT((base & (len - 1)) == 0,
+	    ("pmap_demote_DMAP: base is not a multiple of len"));
+	if (len < NBPDP && base < dmaplimit) {
+		va = PHYS_TO_DMAP(base);
+		changed = FALSE;
+		PMAP_LOCK(kernel_pmap);
+		pdpe = pmap_pdpe(kernel_pmap, va);
+		if ((*pdpe & PG_V) == 0)
+			panic("pmap_demote_DMAP: invalid PDPE");
+		if ((*pdpe & PG_PS) != 0) {
+			if (!pmap_demote_pdpe(kernel_pmap, pdpe, va))
+				panic("pmap_demote_DMAP: PDPE failed");
+			changed = TRUE;
+		}
+		if (len < NBPDR) {
+			pde = pmap_pdpe_to_pde(pdpe, va);
+			if ((*pde & PG_V) == 0)
+				panic("pmap_demote_DMAP: invalid PDE");
+			if ((*pde & PG_PS) != 0) {
+				if (!pmap_demote_pde(kernel_pmap, pde, va))
+					panic("pmap_demote_DMAP: PDE failed");
+				changed = TRUE;
+			}
+		}
+		if (changed && invalidate)
+			pmap_invalidate_page(kernel_pmap, va);
+		PMAP_UNLOCK(kernel_pmap);
+	}
 }
 
 /*

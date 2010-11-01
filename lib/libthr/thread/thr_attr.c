@@ -141,19 +141,14 @@ _pthread_attr_get_np(pthread_t pthread, pthread_attr_t *dstattr)
 	struct pthread *curthread;
 	struct pthread_attr attr, *dst;
 	int	ret;
-	size_t	cpusetsize;
+	size_t	kern_size;
 
 	if (pthread == NULL || dstattr == NULL || (dst = *dstattr) == NULL)
 		return (EINVAL);
-	cpusetsize = _get_kern_cpuset_size();
-	if (dst->cpusetsize < cpusetsize) {
-		char *newset = realloc(dst->cpuset, cpusetsize);
-		if (newset == NULL)
-			return (errno);
-		memset(newset + dst->cpusetsize, 0, cpusetsize -
-			dst->cpusetsize);
-		dst->cpuset = (cpuset_t *)newset;
-		dst->cpusetsize = cpusetsize;
+	kern_size = _get_kern_cpuset_size();
+	if (dst->cpuset == NULL) {
+		dst->cpuset = calloc(1, kern_size);
+		dst->cpusetsize = kern_size;
 	}
 	curthread = _get_curthread();
 	if ((ret = _thr_find_thread(curthread, pthread, /*include dead*/0)) != 0)
@@ -574,13 +569,14 @@ _get_kern_cpuset_size(void)
 
 	if (kern_cpuset_size == 0) {
 		size_t len;
+		int maxcpus;
 
-		len = sizeof(kern_cpuset_size);
-		if (sysctlbyname("kern.smp.maxcpus", &kern_cpuset_size,
-		    &len, NULL, 0))
+		len = sizeof(maxcpus);
+		if (sysctlbyname("kern.smp.maxcpus", &maxcpus, &len, NULL, 0))
 			PANIC("failed to get sysctl kern.smp.maxcpus");
-
-		kern_cpuset_size = (kern_cpuset_size + 7) / 8;
+		int nbits_long = sizeof(long) * NBBY;
+		int num_long = (maxcpus + nbits_long - 1) / nbits_long;
+		kern_cpuset_size = num_long * sizeof(long);
 	}
 
 	return (kern_cpuset_size);
@@ -605,27 +601,25 @@ _pthread_attr_setaffinity_np(pthread_attr_t *pattr, size_t cpusetsize,
 			}
 			return (0);
 		}
-			
-		if (cpusetsize > attr->cpusetsize) {
-			size_t kern_size = _get_kern_cpuset_size();
-			if (cpusetsize > kern_size) {
-				size_t i;
-				for (i = kern_size; i < cpusetsize; ++i) {
-					if (((char *)cpusetp)[i])
-						return (EINVAL);
-				}
+		size_t kern_size = _get_kern_cpuset_size();
+		/* Kernel rejects small set, we check it here too. */ 
+		if (cpusetsize < kern_size)
+			return (ERANGE);
+		if (cpusetsize > kern_size) {
+			/* Kernel checks invalid bits, we check it here too. */
+			size_t i;
+			for (i = kern_size; i < cpusetsize; ++i) {
+				if (((char *)cpusetp)[i])
+					return (EINVAL);
 			}
-			void *newset = realloc(attr->cpuset, cpusetsize);
-       			if (newset == NULL)
-		            return (ENOMEM);
-			attr->cpuset = newset;
-			attr->cpusetsize = cpusetsize;
-		} else {
-			memset(((char *)attr->cpuset) + cpusetsize, 0,
-				attr->cpusetsize - cpusetsize);
-			attr->cpusetsize = cpusetsize;
 		}
-		memcpy(attr->cpuset, cpusetp, cpusetsize);
+		if (attr->cpuset == NULL) {
+			attr->cpuset = calloc(1, kern_size);
+			if (attr->cpuset == NULL)
+				return (errno);
+			attr->cpusetsize = kern_size;
+		}
+		memcpy(attr->cpuset, cpusetp, kern_size);
 		ret = 0;
 	}
 	return (ret);
@@ -641,16 +635,18 @@ _pthread_attr_getaffinity_np(const pthread_attr_t *pattr, size_t cpusetsize,
 
 	if (pattr == NULL || (attr = (*pattr)) == NULL)
 		ret = EINVAL;
-	else if (attr->cpuset != NULL) {
-		memcpy(cpusetp, attr->cpuset, MIN(cpusetsize, attr->cpusetsize));
-		if (cpusetsize > attr->cpusetsize)
-			memset(((char *)cpusetp) + attr->cpusetsize, 0, 
-				cpusetsize - attr->cpusetsize);
-	} else {
+	else {
+		/* Kernel rejects small set, we check it here too. */ 
 		size_t kern_size = _get_kern_cpuset_size();
-		memset(cpusetp, -1, MIN(cpusetsize, kern_size));
+		if (cpusetsize < kern_size)
+			return (ERANGE);
+		if (attr->cpuset != NULL)
+			memcpy(cpusetp, attr->cpuset, MIN(cpusetsize,
+			   attr->cpusetsize));
+		else
+			memset(cpusetp, -1, kern_size);
 		if (cpusetsize > kern_size)
-			memset(((char *)cpusetp) + kern_size, 0,
+			memset(((char *)cpusetp) + kern_size, 0, 
 				cpusetsize - kern_size);
 	}
 	return (ret);

@@ -631,6 +631,7 @@ _xe=		xe
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"
+_agp=		agp
 _an=		an
 _bm=		bm
 _cpufreq=	cpufreq
