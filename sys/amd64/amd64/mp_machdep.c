@@ -118,7 +118,6 @@ extern inthand_t IDTVEC(fast_syscall), IDTVEC(fast_syscall32);
  * Local data and functions.
  */
 
-static u_int logical_cpus;
 static volatile cpumask_t ipi_nmi_pending;
 
 /* used to hold the AP's until we are ready to release them */
@@ -144,8 +143,8 @@ int apic_cpuids[MAX_APIC_ID + 1];
 static volatile u_int cpu_ipi_pending[MAXCPU];
 
 static u_int boot_address;
-static int cpu_logical;
-static int cpu_cores;
+static int cpu_logical;			/* logical cpus per core */
+static int cpu_cores;			/* cores per package */
 
 static void	assign_cpu_ids(void);
 static void	set_interrupt_apic_ids(void);
@@ -154,7 +153,7 @@ static int	start_ap(int apic_id);
 static void	release_aps(void *dummy);
 
 static int	hlt_logical_cpus;
-static u_int	hyperthreading_cpus;
+static u_int	hyperthreading_cpus;	/* logical cpus sharing L1 cache */
 static cpumask_t	hyperthreading_cpus_mask;
 static int	hyperthreading_allowed = 1;
 static struct	sysctl_ctx_list logical_cpu_clist;
@@ -168,24 +167,105 @@ mem_range_AP_init(void)
 }
 
 static void
+topo_probe_amd(void)
+{
+
+	/* AMD processors do not support HTT. */
+	cpu_cores = (amd_feature2 & AMDID2_CMP) != 0 ?
+	    (cpu_procinfo2 & AMDID_CMP_CORES) + 1 : 1;
+	cpu_logical = 1;
+}
+
+/*
+ * Round up to the next power of two, if necessary, and then
+ * take log2.
+ * Returns -1 if argument is zero.
+ */
+static __inline int
+mask_width(u_int x)
+{
+
+	return (fls(x << (1 - powerof2(x))) - 1);
+}
+
+static void
+topo_probe_0x4(void)
+{
+	u_int p[4];
+	int pkg_id_bits;
+	int core_id_bits;
+	int max_cores;
+	int max_logical;
+	int id;
+
+	/* Both zero and one here mean one logical processor per package. */
+	max_logical = (cpu_feature & CPUID_HTT) != 0 ?
+	    (cpu_procinfo & CPUID_HTT_CORES) >> 16 : 1;
+	if (max_logical <= 1)
+		return;
+
+	/*
+	 * Because of uniformity assumption we examine only
+	 * those logical processors that belong to the same
+	 * package as BSP.  Further, we count number of
+	 * logical processors that belong to the same core
+	 * as BSP thus deducing number of threads per core.
+	 */
+	cpuid_count(0x04, 0, p);
+	max_cores = ((p[0] >> 26) & 0x3f) + 1;
+	core_id_bits = mask_width(max_logical/max_cores);
+	if (core_id_bits < 0)
+		return;
+	pkg_id_bits = core_id_bits + mask_width(max_cores);
+
+	for (id = 0; id <= MAX_APIC_ID; id++) {
+		/* Check logical CPU availability. */
+		if (!cpu_info[id].cpu_present || cpu_info[id].cpu_disabled)
+			continue;
+		/* Check if logical CPU has the same package ID. */
+		if ((id >> pkg_id_bits) != (boot_cpu_id >> pkg_id_bits))
+			continue;
+		cpu_cores++;
+		/* Check if logical CPU has the same package and core IDs. */
+		if ((id >> core_id_bits) == (boot_cpu_id >> core_id_bits))
+			cpu_logical++;
+	}
+
+	cpu_cores /= cpu_logical;
+	hyperthreading_cpus = cpu_logical;
+}
+
+static void
 topo_probe_0xb(void)
 {
-	int logical;
-	int p[4];
+	u_int p[4];
 	int bits;
-	int type;
 	int cnt;
 	int i;
+	int logical;
+	int type;
 	int x;
 
-	/* We only support two levels for now. */
+	/* We only support three levels for now. */
 	for (i = 0; i < 3; i++) {
-		cpuid_count(0x0B, i, p);
+		cpuid_count(0x0b, i, p);
+
+		/* Fall back if CPU leaf 11 doesn't really exist. */
+		if (i == 0 && p[1] == 0) {
+			topo_probe_0x4();
+			return;
+		}
+
 		bits = p[0] & 0x1f;
 		logical = p[1] &= 0xffff;
 		type = (p[2] >> 8) & 0xff;
 		if (type == 0 || logical == 0)
 			break;
+		/*
+		 * Because of uniformity assumption we examine only
+		 * those logical processors that belong to the same
+		 * package as BSP.
+		 */
 		for (cnt = 0, x = 0; x <= MAX_APIC_ID; x++) {
 			if (!cpu_info[x].cpu_present ||
 			    cpu_info[x].cpu_disabled)
@@ -203,76 +283,16 @@ topo_probe_0xb(void)
 	cpu_cores /= cpu_logical;
 }
 
-static void
-topo_probe_0x4(void)
-{
-	u_int threads_per_cache, p[4];
-	u_int htt, cmp;
-	int i;
-
-	htt = cmp = 1;
-	/*
-	 * If this CPU supports HTT or CMP then mention the
-	 * number of physical/logical cores it contains.
-	 */
-	if (cpu_feature & CPUID_HTT)
-		htt = (cpu_procinfo & CPUID_HTT_CORES) >> 16;
-	if (cpu_vendor_id == CPU_VENDOR_AMD && (amd_feature2 & AMDID2_CMP))
-		cmp = (cpu_procinfo2 & AMDID_CMP_CORES) + 1;
-	else if (cpu_vendor_id == CPU_VENDOR_INTEL && (cpu_high >= 4)) {
-		cpuid_count(4, 0, p);
-		if ((p[0] & 0x1f) != 0)
-			cmp = ((p[0] >> 26) & 0x3f) + 1;
-	}
-	cpu_cores = cmp;
-	cpu_logical = htt / cmp;
-
-	/* Setup the initial logical CPUs info. */
-	if (cpu_feature & CPUID_HTT)
-		logical_cpus = (cpu_procinfo & CPUID_HTT_CORES) >> 16;
-
-	/*
-	 * Work out if hyperthreading is *really* enabled.  This
-	 * is made really ugly by the fact that processors lie: Dual
-	 * core processors claim to be hyperthreaded even when they're
-	 * not, presumably because they want to be treated the same
-	 * way as HTT with respect to per-cpu software licensing.
-	 * At the time of writing (May 12, 2005) the only hyperthreaded
-	 * cpus are from Intel, and Intel's dual-core processors can be
-	 * identified via the "deterministic cache parameters" cpuid
-	 * calls.
-	 */
-	/*
-	 * First determine if this is an Intel processor which claims
-	 * to have hyperthreading support.
-	 */
-	if ((cpu_feature & CPUID_HTT) && cpu_vendor_id == CPU_VENDOR_INTEL) {
-		/*
-		 * If the "deterministic cache parameters" cpuid calls
-		 * are available, use them.
-		 */
-		if (cpu_high >= 4) {
-			/* Ask the processor about the L1 cache. */
-			for (i = 0; i < 1; i++) {
-				cpuid_count(4, i, p);
-				threads_per_cache = ((p[0] & 0x3ffc000) >> 14) + 1;
-				if (hyperthreading_cpus < threads_per_cache)
-					hyperthreading_cpus = threads_per_cache;
-				if ((p[0] & 0x1f) == 0)
-					break;
-			}
-		}
-
-		/*
-		 * If the deterministic cache parameters are not
-		 * available, or if no caches were reported to exist,
-		 * just accept what the HTT flag indicated.
-		 */
-		if (hyperthreading_cpus == 0)
-			hyperthreading_cpus = logical_cpus;
-	}
-}
-
+/*
+ * Both topology discovery code and code that consumes topology
+ * information assume top-down uniformity of the topology.
+ * That is, all physical packages must be identical and each
+ * core in a package must have the same number of threads.
+ * Topology information is queried only on BSP, on which this
+ * code runs and for which it can query CPUID information.
+ * Then topology is extrapolated on all packages using the
+ * uniformity assumption.
+ */
 static void
 topo_probe(void)
 {
@@ -281,13 +301,31 @@ topo_probe(void)
 	if (cpu_topo_probed)
 		return;
 
-	logical_cpus = logical_cpus_mask = 0;
-	if (cpu_high >= 0xb)
-		topo_probe_0xb();
-	else if (cpu_high)
-		topo_probe_0x4();
+	logical_cpus_mask = 0;
+	if (cpu_vendor_id == CPU_VENDOR_AMD)
+		topo_probe_amd();
+	else if (cpu_vendor_id == CPU_VENDOR_INTEL) {
+		/*
+		 * See Intel(R) 64 Architecture Processor
+		 * Topology Enumeration article for details.
+		 *
+		 * Note that 0x1 <= cpu_high < 4 case should be
+		 * compatible with topo_probe_0x4() logic when
+		 * CPUID.1:EBX[23:16] > 0 (cpu_cores will be 1)
+		 * or it should trigger the fallback otherwise.
+		 */
+		if (cpu_high >= 0xb)
+			topo_probe_0xb();
+		else if (cpu_high >= 0x1)
+			topo_probe_0x4();
+	}
+
+	/*
+	 * Fallback: assume each logical CPU is in separate
+	 * physical package.  That is, no multi-core, no SMT.
+	 */
 	if (cpu_cores == 0)
-		cpu_cores = mp_ncpus > 0 ? mp_ncpus : 1;
+		cpu_cores = 1;
 	if (cpu_logical == 0)
 		cpu_logical = 1;
 	cpu_topo_probed = 1;
@@ -667,7 +705,8 @@ init_secondary(void)
 	printf("SMP: AP CPU #%d Launched!\n", PCPU_GET(cpuid));
 
 	/* Determine if we are a logical CPU. */
-	if (logical_cpus > 1 && PCPU_GET(apic_id) % logical_cpus != 0)
+	/* XXX Calculation depends on cpu_logical being a power of 2, e.g. 2 */
+	if (cpu_logical > 1 && PCPU_GET(apic_id) % cpu_logical != 0)
 		logical_cpus_mask |= PCPU_GET(cpumask);
 	
 	/* Determine if we are a hyperthread. */
