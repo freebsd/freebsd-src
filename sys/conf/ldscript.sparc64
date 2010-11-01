@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
-OUTPUT_FORMAT("elf64-sparc", "elf64-sparc",
-	      "elf64-sparc")
+OUTPUT_FORMAT("elf64-sparc-freebsd", "elf64-sparc-freebsd",
+	      "elf64-sparc-freebsd")
 OUTPUT_ARCH(sparc:v9)
 ENTRY(_start)
 SEARCH_DIR(/usr/lib);
