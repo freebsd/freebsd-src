@@ -10,7 +10,6 @@ SRCS+=	arlex.l \
 	arsup.c \
 	binemul.c \
 	bucomm.c \
-	budemang.c \
 	debug.c \
 	dwarf.c \
 	emul_vanilla.c \
