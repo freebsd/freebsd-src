@@ -1766,19 +1766,6 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	ip_off = poff = 0;
 
 	/*
-	** When doing checksum offload, it is critical to
-	** make sure the first mbuf has more than header,
-	** because that routine expects data to be present.
-	*/
-	if ((m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD) &&
-	    (m_head->m_len < ETHER_HDR_LEN + sizeof(struct ip))) {
-		m_head = m_pullup(m_head, ETHER_HDR_LEN + sizeof(struct ip));
-		*m_headp = m_head;
-		if (m_head == NULL)
-			return (ENOBUFS);
-	}
-
-	/*
 	 * Intel recommends entire IP/TCP header length reside in a single
 	 * buffer. If multiple descriptors are used to describe the IP and
 	 * TCP header, each descriptor should describe one or more
