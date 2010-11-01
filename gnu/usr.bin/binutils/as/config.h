@@ -32,7 +32,11 @@
 /* Supported emulations. */
 /* #define EMULATIONS &i386elf, */
 
-/* Define to 1 if NLS is requested */
+/* Define if you want run-time sanity checks. */
+/* #undef ENABLE_CHECKING */
+
+/* Define to 1 if translation of program messages to the user's native
+   language is requested. */
 /* #undef ENABLE_NLS */
 
 /* Define to 1 if you have `alloca', as a function or macro. */
@@ -42,12 +46,6 @@
    */
 /* #undef HAVE_ALLOCA_H */
 
-/* Define to 1 if you have the <argz.h> header file. */
-/* #undef HAVE_ARGZ_H */
-
-/* Define to 1 if you have the `dcgettext' function. */
-/* #undef HAVE_DCGETTEXT */
-
 /* Is the prototype for getopt in <unistd.h> in the expected format? */
 #define HAVE_DECL_GETOPT 1
 
@@ -55,59 +53,23 @@
    don't. */
 #define HAVE_DECL_VSNPRINTF 1
 
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#define HAVE_DLFCN_H 1
+
 /* Define to 1 if you have the <errno.h> header file. */
 #define HAVE_ERRNO_H 1
-
-/* Define to 1 if you have the `getcwd' function. */
-#define HAVE_GETCWD 1
-
-/* Define to 1 if you have the `getpagesize' function. */
-#define HAVE_GETPAGESIZE 1
-
-/* Define as 1 if you have gettext and don't want to use GNU gettext. */
-/* #undef HAVE_GETTEXT */
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
 
-/* Define if your locale.h file contains LC_MESSAGES. */
-#define HAVE_LC_MESSAGES 1
-
-/* Define to 1 if you have the <limits.h> header file. */
-#define HAVE_LIMITS_H 1
-
-/* Define to 1 if you have the <locale.h> header file. */
-#define HAVE_LOCALE_H 1
-
-/* Define to 1 if you have the <malloc.h> header file. */
-/* #undef HAVE_MALLOC_H */
-
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
-
-/* Define to 1 if you have a working `mmap' system call. */
-#define HAVE_MMAP 1
-
-/* Define to 1 if you have the `munmap' function. */
-#define HAVE_MUNMAP 1
-
-/* Define to 1 if you have the <nl_types.h> header file. */
-#define HAVE_NL_TYPES_H 1
-
-/* Define to 1 if you have the `putenv' function. */
-#define HAVE_PUTENV 1
 
 /* Define to 1 if you have the `remove' function. */
 /* #undef HAVE_REMOVE */
 
 /* Define to 1 if you have the `sbrk' function. */
 #define HAVE_SBRK 1
-
-/* Define to 1 if you have the `setenv' function. */
-#define HAVE_SETENV 1
-
-/* Define to 1 if you have the `setlocale' function. */
-#define HAVE_SETLOCALE 1
 
 /* Define to 1 if you have the <stdarg.h> header file. */
 #define HAVE_STDARG_H 1
@@ -118,23 +80,11 @@
 /* Define to 1 if you have the <stdlib.h> header file. */
 #define HAVE_STDLIB_H 1
 
-/* Define if you have the stpcpy function */
-#define HAVE_STPCPY 1
-
-/* Define to 1 if you have the `strcasecmp' function. */
-#define HAVE_STRCASECMP 1
-
-/* Define to 1 if you have the `strchr' function. */
-#define HAVE_STRCHR 1
-
 /* Define to 1 if you have the <strings.h> header file. */
 #define HAVE_STRINGS_H 1
 
 /* Define to 1 if you have the <string.h> header file. */
 #define HAVE_STRING_H 1
-
-/* Define to 1 if you have the <sys/param.h> header file. */
-#define HAVE_SYS_PARAM_H 1
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #define HAVE_SYS_STAT_H 1
@@ -148,23 +98,15 @@
 /* Define to 1 if you have the `unlink' function. */
 #define HAVE_UNLINK 1
 
-/* Define to 1 if you have the <values.h> header file. */
-/* #undef HAVE_VALUES_H */
-
 /* Define to 1 if you have the <varargs.h> header file. */
 /* #undef HAVE_VARARGS_H */
 
-/* Define to 1 if you have the `__argz_count' function. */
-/* #undef HAVE___ARGZ_COUNT */
-
-/* Define to 1 if you have the `__argz_next' function. */
-/* #undef HAVE___ARGZ_NEXT */
-
-/* Define to 1 if you have the `__argz_stringify' function. */
-/* #undef HAVE___ARGZ_STRINGIFY */
-
 /* Using i386 COFF? */
 /* #undef I386COFF */
+
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
+#define LT_OBJDIR ".libs/"
 
 /* Using m68k COFF? */
 /* #undef M68KCOFF */
@@ -219,9 +161,6 @@
 
 /* generic support? */
 /* #undef OBJ_MAYBE_GENERIC */
-
-/* IEEE support? */
-/* #undef OBJ_MAYBE_IEEE */
 
 /* SOM support? */
 /* #undef OBJ_MAYBE_SOM */
@@ -285,6 +224,9 @@
 /* Target vendor. */
 /* #define TARGET_VENDOR "unknown" */
 
+/* Use b modifier when opening binary files? */
+/* #undef USE_BINARY_FOPEN */
+
 /* Use emulation support? */
 /* #undef USE_EMULATIONS */
 
@@ -295,7 +237,7 @@
 /* #undef USING_CGEN */
 
 /* Version number of package */
-/* #define VERSION "2.17" */
+/* #define VERSION "2.17.50" */
 
 /* Define to 1 if your processor stores words with the most significant byte
    first (like Motorola and SPARC, unlike Intel and VAX). */
@@ -305,17 +247,8 @@
    `char[]'. */
 #define YYTEXT_POINTER 1
 
-/* Define to empty if `const' does not conform to ANSI C. */
-/* #undef const */
-
 /* Define to `__inline__' or `__inline' if that's what the C compiler
    calls it, or to nothing if 'inline' is not supported under any name.  */
 #ifndef __cplusplus
 /* #undef inline */
 #endif
-
-/* Define to `long' if <sys/types.h> does not define. */
-/* #undef off_t */
-
-/* Define to `unsigned' if <sys/types.h> does not define. */
-/* #undef size_t */
