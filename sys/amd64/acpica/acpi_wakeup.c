@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/intr_machdep.h>
-#include <machine/mca.h>
+#include <x86/mca.h>
 #include <machine/pcb.h>
 #include <machine/pmap.h>
 #include <machine/specialreg.h>
