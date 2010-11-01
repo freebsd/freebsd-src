@@ -39,7 +39,7 @@
 #include "opt_smp.h"
 
 #include <machine/asmacros.h>
-#include <machine/apicreg.h>
+#include <x86/apicreg.h>
 
 #include "assym.s"
 

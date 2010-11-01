@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsdiskless.h>
 #ifdef DEV_APIC
-#include <machine/apicreg.h>
+#include <x86/apicreg.h>
 #endif
 #include <machine/cpu.h>
 #include <machine/pcb.h>
