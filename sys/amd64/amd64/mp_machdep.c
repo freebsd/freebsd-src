@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 
-#include <machine/apicreg.h>
+#include <x86/apicreg.h>
 #include <machine/clock.h>
 #include <machine/cputypes.h>
 #include <machine/cpufunc.h>

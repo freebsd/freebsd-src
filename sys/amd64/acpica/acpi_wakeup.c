@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 
 #ifdef SMP
-#include <machine/apicreg.h>
+#include <x86/apicreg.h>
 #include <machine/smp.h>
 #include <machine/vmparam.h>
 #endif
