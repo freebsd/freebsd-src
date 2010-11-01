@@ -311,23 +311,17 @@ main(int argc, char **argv)
 			dep_done(j, 0);
 			continue;
 		}
-		if (!(j->flags & JF_CHECKINT))
+		if (!(j->flags & JF_PARAMS))
 		{
-			j->flags |= JF_CHECKINT;
+			j->flags |= JF_PARAMS;
 			if (dflag)
 				add_param(j, NULL, IP_ALLOW_DYING, NULL);
 			if (check_intparams(j) < 0)
 				continue;
-		}
-		if (!(j->flags & JF_IPPARAMS) && (!JF_DO_STOP(j->flags) ||
-		    j->intparams[IP_INTERFACE] != NULL)) {
-			j->flags |= JF_IPPARAMS;
-			if (ip_params(j) < 0)
+			if ((j->flags & (JF_START | JF_SET)) &&
+			    import_params(j) < 0)
 				continue;
 		}
-		if (j->jp == NULL && (j->flags & (JF_START | JF_SET)) &&
-		    import_params(j) < 0)
-			continue;
 		if (!j->jid)
 			running_jid(j,
 			    (j->flags & (JF_SET | JF_DEPEND)) == JF_SET
