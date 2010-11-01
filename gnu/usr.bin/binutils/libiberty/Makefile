@@ -14,6 +14,7 @@ SRCS=	argv.c \
 	dyn-string.c \
 	getpwd.c \
 	getruntime.c \
+	filename_cmp.c \
 	floatformat.c \
 	hashtab.c \
 	hex.c \
