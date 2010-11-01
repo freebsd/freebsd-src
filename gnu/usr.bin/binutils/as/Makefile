@@ -8,7 +8,6 @@
 .PATH: ${SRCDIR}/gas ${SRCDIR}/gas/config
 
 PROG=	as
-MAN=	doc/as.1
 SRCS+=	app.c \
 	as.c \
 	atof-generic.c \
@@ -70,7 +69,7 @@ CFLAGS+= -DTARGET_CANONICAL=\"${TARGET_TUPLE}\"
 CFLAGS+= -DTARGET_ALIAS=\"${TARGET_TUPLE}\"
 CFLAGS+= -DVERSION=\"${VERSION}\"
 CFLAGS+= -D_GNU_SOURCE
-CFLAGS+= -I${SRCDIR}/gas -I${SRCDIR}/gas/config -I${SRCDIR}
+CFLAGS+= -I${SRCDIR}/gas -I${SRCDIR}/bfd -I${SRCDIR}/gas/config -I${SRCDIR}
 CFLAGS+= -I${.CURDIR} -I${.CURDIR}/${TARGET_ARCH}-freebsd
 
 NO_SHARED?=	yes
