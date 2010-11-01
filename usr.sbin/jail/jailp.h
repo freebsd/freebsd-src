@@ -57,15 +57,14 @@
 #define JF_DEPEND	0x0008	/* Operation required by dependency */
 #define JF_WILD		0x0010	/* Not specified on the command line */
 #define JF_FAILED	0x0020	/* Operation failed */
-#define JF_CHECKINT	0x0040	/* Checked internal parameters */
-#define JF_IPPARAMS	0x0080	/* Looked up jail hostname for IP_HOSTNAME */
-#define JF_RDTUN	0x0100	/* Create-only parameter check has been done */
-#define JF_IFUP		0x0200	/* IP addresses have been configured */
-#define JF_MOUNTED	0x0400	/* Filesystems have been mounted */
-#define JF_PERSIST	0x0800	/* Jail is temporarily persistent */
-#define JF_TIMEOUT	0x1000	/* A command (or process kill) timed out */
-#define JF_RUNQ		0x2000	/* Jail was in the run qeueue */
-#define JF_BACKGROUND	0x4000	/* Command was run in the background */
+#define JF_PARAMS	0x0040	/* Parameters checked and imported */
+#define JF_RDTUN	0x0080	/* Create-only parameter check has been done */
+#define JF_IFUP		0x0100	/* IP addresses have been configured */
+#define JF_MOUNTED	0x0200	/* Filesystems have been mounted */
+#define JF_PERSIST	0x0400	/* Jail is temporarily persistent */
+#define JF_TIMEOUT	0x0800	/* A command (or process kill) timed out */
+#define JF_RUNQ		0x1000	/* Jail was in the run qeueue */
+#define JF_BACKGROUND	0x2000	/* Command was run in the background */
 
 #define JF_OP_MASK		(JF_START | JF_SET | JF_STOP)
 #define JF_RESTART		(JF_START | JF_STOP)
@@ -197,11 +196,10 @@ extern void load_config(void);
 extern struct cfjail *add_jail(void);
 extern void add_param(struct cfjail *j, const struct cfparam *p,
     enum intparam ipnum, const char *value);
-extern int check_intparams(struct cfjail *j);
 extern int bool_param(const struct cfparam *p);
 extern int int_param(const struct cfparam *p, int *ip);
 extern const char *string_param(const struct cfparam *p);
-extern int ip_params(struct cfjail *j);
+extern int check_intparams(struct cfjail *j);
 extern int import_params(struct cfjail *j);
 extern int equalopts(const char *opt1, const char *opt2);
 extern int wild_jail_name(const char *wname);
