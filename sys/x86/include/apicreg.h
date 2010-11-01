@@ -25,8 +25,8 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_APICREG_H_
-#define _MACHINE_APICREG_H_
+#ifndef _X86_APICREG_H_
+#define _X86_APICREG_H_
 
 /*
  * Local && I/O APIC definitions.
@@ -442,4 +442,4 @@ typedef struct IOAPIC ioapic_t;
 
 #define IOART_INTVEC	0x000000ff	/* R/W: INTerrupt vector field */
 
-#endif /* _MACHINE_APICREG_H_ */
+#endif /* _X86_APICREG_H_ */
