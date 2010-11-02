@@ -882,10 +882,21 @@ bge_miibus_statchg(device_t dev)
 	else
 		BGE_SETBIT(sc, BGE_MAC_MODE, BGE_PORTMODE_MII);
 
-	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX)
+	if (IFM_OPTIONS(mii->mii_media_active & IFM_FDX) != 0) {
 		BGE_CLRBIT(sc, BGE_MAC_MODE, BGE_MACMODE_HALF_DUPLEX);
-	else
+		if (IFM_OPTIONS(mii->mii_media_active) & IFM_FLAG1)
+			BGE_SETBIT(sc, BGE_TX_MODE, BGE_TXMODE_FLOWCTL_ENABLE);
+		else
+			BGE_CLRBIT(sc, BGE_TX_MODE, BGE_TXMODE_FLOWCTL_ENABLE);
+		if (IFM_OPTIONS(mii->mii_media_active) & IFM_FLAG0)
+			BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_FLOWCTL_ENABLE);
+		else
+			BGE_CLRBIT(sc, BGE_RX_MODE, BGE_RXMODE_FLOWCTL_ENABLE);
+	} else {
 		BGE_SETBIT(sc, BGE_MAC_MODE, BGE_MACMODE_HALF_DUPLEX);
+		BGE_CLRBIT(sc, BGE_TX_MODE, BGE_TXMODE_FLOWCTL_ENABLE);
+		BGE_CLRBIT(sc, BGE_RX_MODE, BGE_RXMODE_FLOWCTL_ENABLE);
+	}
 }
 
 /*
@@ -2644,12 +2655,11 @@ bge_attach(device_t dev)
 		goto fail;
 	}
 
-	if (bootverbose)
-		device_printf(dev,
-		    "CHIP ID 0x%08x; ASIC REV 0x%02x; CHIP REV 0x%02x; %s\n",
-		    sc->bge_chipid, sc->bge_asicrev, sc->bge_chiprev,
-		    (sc->bge_flags & BGE_FLAG_PCIX) ? "PCI-X" :
-		    ((sc->bge_flags & BGE_FLAG_PCIE) ? "PCI-E" : "PCI"));
+	device_printf(dev,
+	    "CHIP ID 0x%08x; ASIC REV 0x%02x; CHIP REV 0x%02x; %s\n",
+	    sc->bge_chipid, sc->bge_asicrev, sc->bge_chiprev,
+	    (sc->bge_flags & BGE_FLAG_PCIX) ? "PCI-X" :
+	    ((sc->bge_flags & BGE_FLAG_PCIE) ? "PCI-E" : "PCI"));
 
 	BGE_LOCK_INIT(sc, device_get_nameunit(dev));
 
@@ -4218,6 +4228,14 @@ bge_init_locked(struct bge_softc *sc)
 
 	/* Turn on receiver. */
 	BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_ENABLE);
+
+	/*
+	 * Set the number of good frames to receive after RX MBUF
+	 * Low Watermark has been reached. After the RX MAC receives
+	 * this number of frames, it will drop subsequent incoming
+	 * frames until the MBUF High Watermark is reached.
+	 */
+	CSR_WRITE_4(sc, BGE_MAX_RX_FRAME_LOWAT, 2);
 
 	/* Tell firmware we're alive. */
 	BGE_SETBIT(sc, BGE_MODE_CTL, BGE_MODECTL_STACKUP);
