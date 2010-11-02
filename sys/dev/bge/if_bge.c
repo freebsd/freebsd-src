@@ -1858,6 +1858,19 @@ bge_blockinit(struct bge_softc *sc)
 		    sc->bge_asicrev == BGE_ASICREV_BCM57780)
 			val |= BGE_RDMAMODE_TSO6_ENABLE;
 	}
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5761 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5784 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5785 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM57780) {
+		/*
+		 * Enable fix for read DMA FIFO overruns.
+		 * The fix is to limit the number of RX BDs
+		 * the hardware would fetch at a fime.
+		 */
+		CSR_WRITE_4(sc, BGE_RDMA_RSRVCTRL,
+		    CSR_READ_4(sc, BGE_RDMA_RSRVCTRL) |
+		    BGE_RDMA_RSRVCTRL_FIFO_OFLW_FIX);
+	}
 	CSR_WRITE_4(sc, BGE_RDMA_MODE, val);
 	DELAY(40);
 
@@ -2497,7 +2510,7 @@ bge_attach(device_t dev)
 	    sc->bge_asicrev != BGE_ASICREV_BCM5906 &&
 	    sc->bge_chipid != BGE_CHIPID_BCM5705_A0 &&
 	    sc->bge_chipid != BGE_CHIPID_BCM5705_A1)
-		sc->bge_flags |= BGE_FLAG_WIRESPEED;
+		sc->bge_phy_flags |= BGE_PHY_WIRESPEED;
 
 	if (bge_has_eaddr(sc))
 		sc->bge_flags |= BGE_FLAG_EADDR;
@@ -2534,30 +2547,32 @@ bge_attach(device_t dev)
 		break;
 	}
 
-	/* Set various bug flags. */
+	/* Set various PHY bug flags. */
 	if (sc->bge_chipid == BGE_CHIPID_BCM5701_A0 ||
 	    sc->bge_chipid == BGE_CHIPID_BCM5701_B0)
-		sc->bge_flags |= BGE_FLAG_CRC_BUG;
+		sc->bge_phy_flags |= BGE_PHY_CRC_BUG;
 	if (sc->bge_chiprev == BGE_CHIPREV_5703_AX ||
 	    sc->bge_chiprev == BGE_CHIPREV_5704_AX)
-		sc->bge_flags |= BGE_FLAG_ADC_BUG;
+		sc->bge_phy_flags |= BGE_PHY_ADC_BUG;
 	if (sc->bge_chipid == BGE_CHIPID_BCM5704_A0)
-		sc->bge_flags |= BGE_FLAG_5704_A0_BUG;
+		sc->bge_phy_flags |= BGE_PHY_5704_A0_BUG;
 	if (pci_get_subvendor(dev) == DELL_VENDORID)
-		sc->bge_flags |= BGE_FLAG_NO_3LED;
-	if (pci_get_device(dev) == BCOM_DEVICEID_BCM5755M)
-		sc->bge_flags |= BGE_FLAG_ADJUST_TRIM;
-	if (BGE_IS_5705_PLUS(sc) &&
-	    !(sc->bge_flags & BGE_FLAG_ADJUST_TRIM)) {
+		sc->bge_phy_flags |= BGE_PHY_NO_3LED;
+	if ((BGE_IS_5705_PLUS(sc)) &&
+	    sc->bge_asicrev != BGE_ASICREV_BCM5906 &&
+	    sc->bge_asicrev != BGE_ASICREV_BCM5785 &&
+	    sc->bge_asicrev != BGE_ASICREV_BCM57780) {
 		if (sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM5761 ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM5784 ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM5787) {
 			if (pci_get_device(dev) != BCOM_DEVICEID_BCM5722 &&
 			    pci_get_device(dev) != BCOM_DEVICEID_BCM5756)
-				sc->bge_flags |= BGE_FLAG_JITTER_BUG;
-		} else if (sc->bge_asicrev != BGE_ASICREV_BCM5906)
-			sc->bge_flags |= BGE_FLAG_BER_BUG;
+				sc->bge_phy_flags |= BGE_PHY_JITTER_BUG;
+			if (pci_get_device(dev) == BCOM_DEVICEID_BCM5755M)
+				sc->bge_phy_flags |= BGE_PHY_ADJUST_TRIM;
+		} else
+			sc->bge_phy_flags |= BGE_PHY_BER_BUG;
 	}
 
 	/*
@@ -5338,7 +5353,7 @@ bge_sysctl_debug_info(SYSCTL_HANDLER_ARGS)
 			printf(" - PCI-X Bus\n");
 		if (sc->bge_flags & BGE_FLAG_PCIE)
 			printf(" - PCI Express Bus\n");
-		if (sc->bge_flags & BGE_FLAG_NO_3LED)
+		if (sc->bge_phy_flags & BGE_PHY_NO_3LED)
 			printf(" - No 3 LEDs\n");
 		if (sc->bge_flags & BGE_FLAG_RX_ALIGNBUG)
 			printf(" - RX Alignment Bug\n");
