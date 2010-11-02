@@ -11,7 +11,8 @@ SRCS+=	rgephy.c rlphy.c ruephy.c tdkphy.c tlphy.c truephy.c ukphy.c
 SRCS+=	ukphy_subr.c
 SRCS+=	xmphy.c
 
-EXPORT_SYMS=	mii_mediachg	\
+EXPORT_SYMS=	mii_attach	\
+		mii_mediachg	\
 		mii_phy_probe	\
 		mii_phy_reset	\
 		mii_pollstat	\
