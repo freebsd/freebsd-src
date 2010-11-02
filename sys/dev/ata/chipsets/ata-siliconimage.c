@@ -354,7 +354,7 @@ ata_sii_status(device_t dev)
     /* do we have any PHY events ? */
     if (ctlr->chip->max_dma >= ATA_SA150 &&
 	(ATA_INL(ctlr->r_res2, 0x10 + offset0) & 0x00000010))
-	ata_sata_phy_check_events(dev);
+	ata_sata_phy_check_events(dev, -1);
 
     if (ATA_INL(ctlr->r_res2, 0xa0 + offset1) & 0x00000800)
 	return ata_pci_status(dev);
@@ -510,7 +510,7 @@ ata_siiprb_status(device_t dev)
 	u_int32_t istatus = ATA_INL(ctlr->r_res2, 0x1008 + offset);
 
 	/* do we have any PHY events ? */
-	ata_sata_phy_check_events(dev);
+	ata_sata_phy_check_events(dev, -1);
 
 	/* clear interrupt(s) */
 	ATA_OUTL(ctlr->r_res2, 0x1008 + offset, istatus);
@@ -700,6 +700,25 @@ ata_siiprb_pm_read(device_t dev, int port, int reg, u_int32_t *result)
     struct ata_siiprb_command *prb = (struct ata_siiprb_command *)ch->dma.work;
     int offset = ch->unit * 0x2000;
 
+    if (port < 0) {
+	*result = ATA_IDX_INL(ch, reg);
+	return (0);
+    }
+    if (port < ATA_PM) {
+	switch (reg) {
+	case ATA_SSTATUS:
+	    reg = 0;
+	    break;
+	case ATA_SERROR:
+	    reg = 1;
+	    break;
+	case ATA_SCONTROL:
+	    reg = 2;
+	    break;
+	default:
+	    return (EINVAL);
+	}
+    }
     bzero(prb, sizeof(struct ata_siiprb_command));
     prb->fis[0] = 0x27;	/* host to device */
     prb->fis[1] = 0x8f;	/* command FIS to PM port */
@@ -724,6 +743,25 @@ ata_siiprb_pm_write(device_t dev, int port, int reg, u_int32_t value)
     struct ata_siiprb_command *prb = (struct ata_siiprb_command *)ch->dma.work;
     int offset = ch->unit * 0x2000;
 
+    if (port < 0) {
+	ATA_IDX_OUTL(ch, reg, value);
+	return (0);
+    }
+    if (port < ATA_PM) {
+	switch (reg) {
+	case ATA_SSTATUS:
+	    reg = 0;
+	    break;
+	case ATA_SERROR:
+	    reg = 1;
+	    break;
+	case ATA_SCONTROL:
+	    reg = 2;
+	    break;
+	default:
+	    return (EINVAL);
+	}
+    }
     bzero(prb, sizeof(struct ata_siiprb_command));
     prb->fis[0] = 0x27;	/* host to device */
     prb->fis[1] = 0x8f;	/* command FIS to PM port */
