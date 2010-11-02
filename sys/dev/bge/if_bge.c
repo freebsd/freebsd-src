@@ -1052,7 +1052,7 @@ bge_init_rx_ring_std(struct bge_softc *sc)
 		if ((error = bge_newbuf_std(sc, i)) != 0)
 			return (error);
 		BGE_INC(sc->bge_std, BGE_STD_RX_RING_CNT);
-	};
+	}
 
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_std_ring_tag,
 	    sc->bge_cdata.bge_rx_std_ring_map, BUS_DMASYNC_PREWRITE);
@@ -1095,7 +1095,7 @@ bge_init_rx_ring_jumbo(struct bge_softc *sc)
 		if ((error = bge_newbuf_jumbo(sc, i)) != 0)
 			return (error);
 		BGE_INC(sc->bge_jumbo, BGE_JUMBO_RX_RING_CNT);
-	};
+	}
 
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 	    sc->bge_cdata.bge_rx_jumbo_ring_map, BUS_DMASYNC_PREWRITE);
@@ -1833,6 +1833,10 @@ bge_blockinit(struct bge_softc *sc)
 	/* Enable host coalescing bug fix. */
 	if (BGE_IS_5755_PLUS(sc))
 		val |= BGE_WDMAMODE_STATUS_TAG_FIX;
+
+	/* Request larger DMA burst size to get better performance. */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5785)
+		val |= BGE_WDMAMODE_BURST_ALL_DATA;
 
 	/* Turn on write DMA state machine */
 	CSR_WRITE_4(sc, BGE_WDMA_MODE, val);
@@ -4628,14 +4632,18 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 		}
 #endif
-		if (mask & IFCAP_HWCSUM) {
-			ifp->if_capenable ^= IFCAP_HWCSUM;
-			if (IFCAP_HWCSUM & ifp->if_capenable &&
-			    IFCAP_HWCSUM & ifp->if_capabilities)
+		if ((mask & IFCAP_TXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_TXCSUM) != 0) {
+			ifp->if_capenable ^= IFCAP_TXCSUM;
+			if ((ifp->if_capenable & IFCAP_TXCSUM) != 0)
 				ifp->if_hwassist |= sc->bge_csum_features;
 			else
 				ifp->if_hwassist &= ~sc->bge_csum_features;
 		}
+
+		if ((mask & IFCAP_RXCSUM) != 0 &&
+		    (ifp->if_capabilities & IFCAP_RXCSUM) != 0)
+			ifp->if_capenable ^= IFCAP_RXCSUM;
 
 		if ((mask & IFCAP_TSO4) != 0 &&
 		    (ifp->if_capabilities & IFCAP_TSO4) != 0) {
