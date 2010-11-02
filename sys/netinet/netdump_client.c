@@ -131,7 +131,7 @@ static int nd_enable = 0;  /* if we should perform a network dump */
 static struct in_addr nd_server = {INADDR_ANY}; /* server address */
 static struct in_addr nd_client = {INADDR_ANY}; /* client (our) address */
 static struct in_addr nd_gw = {INADDR_ANY}; /* gw, if set */
-struct ifnet *nd_nic = NULL;
+struct ifnet *nd_ifp = NULL;
 static int nd_polls=10000; /* Times to poll the NIC (0.5ms each poll) before
 			    * assuming packetloss occurred: 5s by default */
 static int nd_retries=10; /* Times to retransmit lost packets */
@@ -148,15 +148,15 @@ static char nd_nic_tun[IFNAMSIZ];
  * Checks for netdump support on a network interface
  *
  * Parameters:
- *	ifn	The network interface that is being tested for support
+ *	ifp	The network interface that is being tested for support
  *
  * Returns:
  *	int	1 if the interface is supported, 0 if not
  */
 static __inline int
-netdump_supported_nic(struct ifnet *ifn)
+netdump_supported_nic(struct ifnet *ifp)
 {
-	return ifn->if_ndumpfuncs != NULL;
+	return ifp->if_ndumpfuncs != NULL;
 }
 
 /*-
@@ -221,7 +221,7 @@ sysctl_ip(SYSCTL_HANDLER_ARGS)
 static int
 sysctl_nic(SYSCTL_HANDLER_ARGS)
 {
-	struct ifnet *ifn;
+	struct ifnet *ifp;
 	char buf[arg2+1];
 	int error;
 	int len;
@@ -247,19 +247,19 @@ sysctl_nic(SYSCTL_HANDLER_ARGS)
 			return error;
 
 		if (!strcmp(buf, "none")) {
-			ifn = NULL;
+			ifp = NULL;
 		} else {
 			IFNET_RLOCK_NOSLEEP();
-			if ((ifn = TAILQ_FIRST(&V_ifnet)) != NULL) do {
-				if (!strcmp(ifn->if_xname, buf)) break;
-			} while ((ifn = TAILQ_NEXT(ifn, if_link)) != NULL);
+			if ((ifp = TAILQ_FIRST(&V_ifnet)) != NULL) do {
+				if (!strcmp(ifp->if_xname, buf)) break;
+			} while ((ifp = TAILQ_NEXT(ifp, if_link)) != NULL);
 			IFNET_RUNLOCK_NOSLEEP();
 
-			if (!ifn) return ENODEV;
-			if (!netdump_supported_nic(ifn)) return EINVAL;
+			if (!ifp) return ENODEV;
+			if (!netdump_supported_nic(ifp)) return EINVAL;
 		}
 
-		(*(struct ifnet **)arg1) = ifn;
+		(*(struct ifnet **)arg1) = ifp;
 	}
 
 	return error;
@@ -307,7 +307,7 @@ SYSCTL_PROC(_net_dump, OID_AUTO, client, CTLTYPE_STRING|CTLFLAG_RW, &nd_client,
 	0, sysctl_ip, "A", "dump client");
 SYSCTL_PROC(_net_dump, OID_AUTO, gateway, CTLTYPE_STRING|CTLFLAG_RW, &nd_gw,
 	0, sysctl_ip, "A", "dump default gateway");
-SYSCTL_PROC(_net_dump, OID_AUTO, nic, CTLTYPE_STRING|CTLFLAG_RW, &nd_nic,
+SYSCTL_PROC(_net_dump, OID_AUTO, nic, CTLTYPE_STRING|CTLFLAG_RW, &nd_ifp,
 	IFNAMSIZ, sysctl_nic, "A", "NIC to dump on");
 SYSCTL_INT(_net_dump, OID_AUTO, polls, CTLTYPE_INT|CTLFLAG_RW, &nd_polls, 0,
 	"times to poll NIC per retry");
@@ -412,7 +412,7 @@ netdump_ether_output(struct mbuf *m, struct ifnet *ifp, struct ether_addr dst,
  *
  * unreliable transmission of an mbuf chain to the netdump server
  * Note: can't handle fragmentation; fails if the packet is larger than
- *	 nd_nic->if_mtu after adding the UDP/IP headers
+ *	 nd_ifp->if_mtu after adding the UDP/IP headers
  *
  * Parameters:
  *	m	mbuf chain
@@ -456,15 +456,15 @@ netdump_udp_output(struct mbuf *m)
 	ip->ip_sum = 0;
 	ip->ip_sum = in_cksum(m, sizeof(struct ip));
 
-	if (m->m_pkthdr.len > nd_nic->if_mtu) {
+	if (m->m_pkthdr.len > nd_ifp->if_mtu) {
 		/* Whoops. The packet is too big. */
 		printf("netdump_udp_output: Packet is too big: "
-		       "%u > MTU %lu\n", m->m_pkthdr.len, nd_nic->if_mtu);
+		       "%u > MTU %lu\n", m->m_pkthdr.len, nd_ifp->if_mtu);
 		m_freem(m);
 		return ENOBUFS;
 	}
 
-	return netdump_ether_output(m, nd_nic, nd_gw_mac, ETHERTYPE_IP);
+	return netdump_ether_output(m, nd_ifp, nd_gw_mac, ETHERTYPE_IP);
 }
 
 /*
@@ -502,12 +502,12 @@ netdump_send_arp()
 	ah->ar_hln = ETHER_ADDR_LEN;
 	ah->ar_pln = sizeof(struct in_addr);
 	ah->ar_op = htons(ARPOP_REQUEST);
-	memcpy(ar_sha(ah), IF_LLADDR(nd_nic), ETHER_ADDR_LEN);
+	memcpy(ar_sha(ah), IF_LLADDR(nd_ifp), ETHER_ADDR_LEN);
 	((struct in_addr *)ar_spa(ah))->s_addr = nd_client.s_addr;
 	bzero(ar_tha(ah), ETHER_ADDR_LEN);
 	((struct in_addr *)ar_tpa(ah))->s_addr = nd_gw.s_addr;
 
-	return netdump_ether_output(m, nd_nic, bcast, ETHERTYPE_ARP);
+	return netdump_ether_output(m, nd_ifp, bcast, ETHERTYPE_ARP);
 }
 
 /*
@@ -586,7 +586,7 @@ retransmit:
 		/* First bound: the packet structure */
 		pktlen = min(pktlen, NETDUMP_DATASIZE);
 		/* Second bound: the interface MTU (assume no IP options) */
-		pktlen = min(pktlen, nd_nic->if_mtu -
+		pktlen = min(pktlen, nd_ifp->if_mtu -
 				sizeof(struct udpiphdr) -
 				sizeof(struct netdump_msg_hdr));
 
@@ -992,7 +992,7 @@ nd_handle_arp(struct mbuf **mb)
  * ether_demux().
  *
  * Parameters:
- *	ifp	the interface the packet came from (should be nd_nic)
+ *	ifp	the interface the packet came from (should be nd_ifp)
  *	m	an mbuf containing the packet received
  *
  * Return value:
@@ -1064,11 +1064,11 @@ netdump_network_poll()
 
 #if defined(KDB) && !defined(KDB_UNATTENDED)
 	if (panicstr != NULL)
-		nd_nic->if_ndumpfuncs->ne_poll_unlocked(nd_nic,
+		nd_ifp->if_ndumpfuncs->ne_poll_unlocked(nd_ifp,
 		    POLL_AND_CHECK_STATUS, 1000);
 	else
 #endif
-		nd_nic->if_ndumpfuncs->ne_poll_locked(nd_nic,
+		nd_ifp->if_ndumpfuncs->ne_poll_locked(nd_ifp,
 		    POLL_AND_CHECK_STATUS, 1000);
 }
 
@@ -1151,7 +1151,7 @@ netdump_trigger(void *arg, int howto)
 	    dumping)
 		return;
 
-	if (!nd_nic) {
+	if (!nd_ifp) {
 		printf("netdump_trigger: Can't netdump: no NIC given\n");
 		return;
 	}
@@ -1183,16 +1183,16 @@ netdump_trigger(void *arg, int howto)
 	 * first time it gets called.  Adjust it accordingly.
 	 */
 	nd_server_port = NETDUMP_PORT;
-	if ((nd_nic->if_capenable & IFCAP_POLLING) == 0) {
+	if ((nd_ifp->if_capenable & IFCAP_POLLING) == 0) {
 #if defined(KDB) && !defined(KDB_UNATTENDED)
 		if (panicstr == NULL)
 #endif
-			nd_nic->if_ndumpfuncs->ne_disable_intr(nd_nic);
+			nd_ifp->if_ndumpfuncs->ne_disable_intr(nd_ifp);
 	}
 
 	/* Make the card use *our* receive callback */
-	old_if_input = nd_nic->if_input;
-	nd_nic->if_input = netdump_pkt_in;
+	old_if_input = nd_ifp->if_input;
+	nd_ifp->if_input = netdump_pkt_in;
 
 	if (nd_gw.s_addr == INADDR_ANY) {
 		nd_gw.s_addr = nd_server.s_addr;
@@ -1237,12 +1237,12 @@ netdump_trigger(void *arg, int howto)
 	set_dumper(NULL);
 trig_abort:
 	if (old_if_input)
-		nd_nic->if_input = old_if_input;
-	if ((nd_nic->if_capenable & IFCAP_POLLING) == 0) {
+		nd_ifp->if_input = old_if_input;
+	if ((nd_ifp->if_capenable & IFCAP_POLLING) == 0) {
 #if defined(KDB) && !defined(KDB_UNATTENDED)
 		if (panicstr == NULL)
 #endif
-			nd_nic->if_ndumpfuncs->ne_enable_intr(nd_nic);
+			nd_ifp->if_ndumpfuncs->ne_enable_intr(nd_ifp);
 	}
 	dumping--;
 }
@@ -1267,10 +1267,10 @@ trig_abort:
 static void
 netdump_config_defaults()
 {
-	struct ifnet *ifn;
+	struct ifnet *ifp;
 	int found;
 
-	nd_nic = NULL;
+	nd_ifp = NULL;
 	nd_server.s_addr = INADDR_ANY;
 	nd_client.s_addr = INADDR_ANY;
 	nd_gw.s_addr = INADDR_ANY;
@@ -1284,15 +1284,15 @@ netdump_config_defaults()
 	if (nd_nic_tun[0] != '\0') {
 		found = 0;
 		IFNET_RLOCK_NOSLEEP();
-		TAILQ_FOREACH(ifn, &V_ifnet, if_link) {
-			if (!strcmp(ifn->if_xname, nd_nic_tun)) {
+		TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+			if (!strcmp(ifp->if_xname, nd_nic_tun)) {
 				found = 1;
 				break;
 			}
 		}
 		IFNET_RUNLOCK_NOSLEEP();
-		if (found != 0 && netdump_supported_nic(ifn))
-			nd_nic = ifn;
+		if (found != 0 && netdump_supported_nic(ifp))
+			nd_ifp = ifp;
 	}
 }
 
@@ -1309,14 +1309,14 @@ netdump_modevent(module_t mod, int type, void *unused)
 					       SHUTDOWN_PRI_FIRST);
 
 #ifdef NETDUMP_CLIENT_DEBUG
-		if (!nd_nic)
+		if (!nd_ifp)
 			printf("netdump: Warning: No default interface "
 			    "found. Manual configuration required.\n");
 		else {
 			char buf[INET_ADDRSTRLEN];
 			inet_ntoa_r(nd_client, buf);
 			printf("netdump: Using interface %s; client IP "
-			    "%s\n", nd_nic->if_xname, buf);
+			    "%s\n", nd_ifp->if_xname, buf);
 		}
 #endif
 
