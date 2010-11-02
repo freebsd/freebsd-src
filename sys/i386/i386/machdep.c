@@ -1970,7 +1970,7 @@ add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 		return (1);
 
 #ifndef PAE
-	if (smap->base >= 0xffffffff) {
+	if (smap->base > 0xffffffff) {
 		printf("%uK of memory above 4GB ignored\n",
 		    (u_int)(smap->length / 1024));
 		return (1);

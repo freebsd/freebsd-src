@@ -674,7 +674,7 @@ ram_attach(device_t dev)
 	vm_paddr_t *p;
 	caddr_t kmdp;
 	uint32_t smapsize;
-	int error, i, rid;
+	int error, rid;
 
 	/* Retrieve the system memory map from the loader. */
 	kmdp = preload_search_by_type("elf kernel");
@@ -699,8 +699,8 @@ ram_attach(device_t dev)
 			 * Resources use long's to track resources, so
 			 * we can't include memory regions above 4GB.
 			 */
-			if (smap->base >= ~0ul)
-				break;
+			if (smap->base > ~0ul)
+				continue;
 #endif
 			error = bus_set_resource(dev, SYS_RES_MEMORY, rid,
 			    smap->base, smap->length);
@@ -727,24 +727,23 @@ ram_attach(device_t dev)
 	 * instead of the start since the start address for the first
 	 * segment is 0.
 	 */
-	for (i = 0, p = dump_avail; p[1] != 0; i++, p += 2) {
-		rid = i;
-#ifdef __i386__
+	for (rid = 0, p = dump_avail; p[1] != 0; rid++, p += 2) {
+#if defined(__i386__) && defined(PAE)
 		/*
 		 * Resources use long's to track resources, so we can't
 		 * include memory regions above 4GB.
 		 */
-		if (p[0] >= ~0ul)
+		if (p[0] > ~0ul)
 			break;
 #endif
 		error = bus_set_resource(dev, SYS_RES_MEMORY, rid, p[0],
 		    p[1] - p[0]);
 		if (error)
-			panic("ram_attach: resource %d failed set with %d", i,
+			panic("ram_attach: resource %d failed set with %d", rid,
 			    error);
 		res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 0);
 		if (res == NULL)
-			panic("ram_attach: resource %d failed to attach", i);
+			panic("ram_attach: resource %d failed to attach", rid);
 	}
 	return (0);
 }
