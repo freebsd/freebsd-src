@@ -41,33 +41,6 @@
 
 #include <ebuf.h>
 
-#define	NV_TYPE_INT8		1
-#define	NV_TYPE_UINT8		2
-#define	NV_TYPE_INT16		3
-#define	NV_TYPE_UINT16		4
-#define	NV_TYPE_INT32		5
-#define	NV_TYPE_UINT32		6
-#define	NV_TYPE_INT64		7
-#define	NV_TYPE_UINT64		8
-#define	NV_TYPE_INT8_ARRAY	9
-#define	NV_TYPE_UINT8_ARRAY	10
-#define	NV_TYPE_INT16_ARRAY	11
-#define	NV_TYPE_UINT16_ARRAY	12
-#define	NV_TYPE_INT32_ARRAY	13
-#define	NV_TYPE_UINT32_ARRAY	14
-#define	NV_TYPE_INT64_ARRAY	15
-#define	NV_TYPE_UINT64_ARRAY	16
-#define	NV_TYPE_STRING		17
-
-#define	NV_TYPE_MASK		0x7f
-#define	NV_TYPE_FIRST		NV_TYPE_INT8
-#define	NV_TYPE_LAST		NV_TYPE_STRING
-
-#define	NV_ORDER_NETWORK	0x00
-#define	NV_ORDER_HOST		0x80
-
-#define	NV_ORDER_MASK		0x80
-
 struct nv;
 
 struct nv *nv_alloc(void);
@@ -153,6 +126,7 @@ const uint64_t *nv_get_uint64_array(struct nv *nv, size_t *sizep,
 const char *nv_get_string(struct nv *nv, const char *namefmt, ...)
     __printflike(2, 3);
 
+bool nv_exists(struct nv *nv, const char *namefmt, ...) __printflike(2, 3);
 void nv_dump(struct nv *nv);
 
 #endif	/* !_NV_H_ */
