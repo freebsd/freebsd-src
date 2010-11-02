@@ -1025,26 +1025,26 @@ brgphy_reset(struct mii_softc *sc)
 	/* Handle any bge (NetXtreme/NetLink) workarounds. */
 	if (bge_sc) {
 		/* Fix up various bugs */
-		if (bge_sc->bge_flags & BGE_FLAG_5704_A0_BUG)
+		if (bge_sc->bge_phy_flags & BGE_PHY_5704_A0_BUG)
 			brgphy_fixup_5704_a0_bug(sc);
-		if (bge_sc->bge_flags & BGE_FLAG_ADC_BUG)
+		if (bge_sc->bge_phy_flags & BGE_PHY_ADC_BUG)
 			brgphy_fixup_adc_bug(sc);
-		if (bge_sc->bge_flags & BGE_FLAG_ADJUST_TRIM)
+		if (bge_sc->bge_phy_flags & BGE_PHY_ADJUST_TRIM)
 			brgphy_fixup_adjust_trim(sc);
-		if (bge_sc->bge_flags & BGE_FLAG_BER_BUG)
+		if (bge_sc->bge_phy_flags & BGE_PHY_BER_BUG)
 			brgphy_fixup_ber_bug(sc);
-		if (bge_sc->bge_flags & BGE_FLAG_CRC_BUG)
+		if (bge_sc->bge_phy_flags & BGE_PHY_CRC_BUG)
 			brgphy_fixup_crc_bug(sc);
-		if (bge_sc->bge_flags & BGE_FLAG_JITTER_BUG)
+		if (bge_sc->bge_phy_flags & BGE_PHY_JITTER_BUG)
 			brgphy_fixup_jitter_bug(sc);
 
 		brgphy_jumbo_settings(sc, ifp->if_mtu);
 
-		if (bge_sc->bge_flags & BGE_FLAG_WIRESPEED)
+		if (bge_sc->bge_phy_flags & BGE_PHY_WIRESPEED)
 			brgphy_ethernet_wirespeed(sc);
 
 		/* Enable Link LED on Dell boxes */
-		if (bge_sc->bge_flags & BGE_FLAG_NO_3LED) {
+		if (bge_sc->bge_phy_flags & BGE_PHY_NO_3LED) {
 			PHY_WRITE(sc, BRGPHY_MII_PHY_EXTCTL,
 			    PHY_READ(sc, BRGPHY_MII_PHY_EXTCTL) &
 			    ~BRGPHY_PHY_EXTCTL_3_LED);
