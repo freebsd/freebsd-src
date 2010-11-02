@@ -180,14 +180,21 @@ static pthread_mutex_t metadata_lock;
 	if (_wakeup)							\
 		cv_signal(&hio_##name##_list_cond);			\
 } while (0)
-#define	QUEUE_TAKE1(hio, name, ncomp)	do {				\
+#define	QUEUE_TAKE1(hio, name, ncomp, timeout)	do {			\
+	bool _last;							\
+									\
 	mtx_lock(&hio_##name##_list_lock[(ncomp)]);			\
-	while (((hio) = TAILQ_FIRST(&hio_##name##_list[(ncomp)])) == NULL) { \
-		cv_wait(&hio_##name##_list_cond[(ncomp)],		\
-		    &hio_##name##_list_lock[(ncomp)]);			\
+	_last = false;							\
+	while (((hio) = TAILQ_FIRST(&hio_##name##_list[(ncomp)])) == NULL && !_last) { \
+		cv_timedwait(&hio_##name##_list_cond[(ncomp)],		\
+		    &hio_##name##_list_lock[(ncomp)], (timeout));	\
+		if ((timeout) != 0) 					\
+			_last = true;					\
 	}								\
-	TAILQ_REMOVE(&hio_##name##_list[(ncomp)], (hio),		\
-	    hio_next[(ncomp)]);						\
+	if (hio != NULL) {						\
+		TAILQ_REMOVE(&hio_##name##_list[(ncomp)], (hio),	\
+		    hio_next[(ncomp)]);					\
+	}								\
 	mtx_unlock(&hio_##name##_list_lock[(ncomp)]);			\
 } while (0)
 #define	QUEUE_TAKE2(hio, name)	do {					\
@@ -417,6 +424,24 @@ init_environment(struct hast_resource *res __unused)
 	}
 }
 
+static bool
+init_resuid(struct hast_resource *res)
+{
+
+	mtx_lock(&metadata_lock);
+	if (res->hr_resuid != 0) {
+		mtx_unlock(&metadata_lock);
+		return (false);
+	} else {
+		/* Initialize unique resource identifier. */
+		arc4random_buf(&res->hr_resuid, sizeof(res->hr_resuid));
+		mtx_unlock(&metadata_lock);
+		if (metadata_write(res) < 0)
+			exit(EX_NOINPUT);
+		return (true);
+	}
+}
+
 static void
 init_local(struct hast_resource *res)
 {
@@ -452,10 +477,12 @@ init_local(struct hast_resource *res)
 	if (res->hr_resuid != 0)
 		return;
 	/*
-	 * We're using provider for the first time, so we have to generate
-	 * resource unique identifier and initialize local and remote counts.
+	 * We're using provider for the first time. Initialize local and remote
+	 * counters. We don't initialize resuid here, as we want to do it just
+	 * in time. The reason for this is that we want to inform secondary
+	 * that there were no writes yet, so there is no need to synchronize
+	 * anything.
 	 */
-	arc4random_buf(&res->hr_resuid, sizeof(res->hr_resuid));
 	res->hr_primary_localcnt = 1;
 	res->hr_primary_remotecnt = 0;
 	if (metadata_write(res) < 0)
@@ -566,6 +593,19 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 	nv_add_string(nvout, res->hr_name, "resource");
 	nv_add_uint8_array(nvout, res->hr_token, sizeof(res->hr_token),
 	    "token");
+	if (res->hr_resuid == 0) {
+		/*
+		 * The resuid field was not yet initialized.
+		 * Because we do synchronization inside init_resuid(), it is
+		 * possible that someone already initialized it, the function
+		 * will return false then, but if we successfully initialized
+		 * it, we will get true. True means that there were no writes
+		 * to this resource yet and we want to inform secondary that
+		 * synchronization is not needed by sending "virgin" argument.
+		 */
+		if (init_resuid(res))
+			nv_add_int8(nvout, 1, "virgin");
+	}
 	nv_add_uint64(nvout, res->hr_resuid, "resuid");
 	nv_add_uint64(nvout, res->hr_primary_localcnt, "localcnt");
 	nv_add_uint64(nvout, res->hr_primary_remotecnt, "remotecnt");
@@ -646,6 +686,7 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 		 */
 		(void)hast_activemap_flush(res);
 	}
+	nv_free(nvin);
 	pjdlog_info("Connected to %s.", res->hr_remoteaddr);
 	if (inp != NULL && outp != NULL) {
 		*inp = in;
@@ -1005,6 +1046,10 @@ ggate_recv_thread(void *arg)
 			QUEUE_INSERT1(hio, send, ncomp);
 			break;
 		case BIO_WRITE:
+			if (res->hr_resuid == 0) {
+				/* This is first write, initialize resuid. */
+				(void)init_resuid(res);
+			}
 			for (;;) {
 				mtx_lock(&range_lock);
 				if (rangelock_islocked(range_sync,
@@ -1074,7 +1119,7 @@ local_send_thread(void *arg)
 
 	for (;;) {
 		pjdlog_debug(2, "local_send: Taking request.");
-		QUEUE_TAKE1(hio, send, ncomp);
+		QUEUE_TAKE1(hio, send, ncomp, 0);
 		pjdlog_debug(2, "local_send: (%p) Got request.", hio);
 		ggio = &hio->hio_ggio;
 		switch (ggio->gctl_cmd) {
@@ -1138,6 +1183,38 @@ local_send_thread(void *arg)
 	return (NULL);
 }
 
+static void
+keepalive_send(struct hast_resource *res, unsigned int ncomp)
+{
+	struct nv *nv;
+
+	if (!ISCONNECTED(res, ncomp))
+		return;
+	
+	assert(res->hr_remotein != NULL);
+	assert(res->hr_remoteout != NULL);
+
+	nv = nv_alloc();
+	nv_add_uint8(nv, HIO_KEEPALIVE, "cmd");
+	if (nv_error(nv) != 0) {
+		nv_free(nv);
+		pjdlog_debug(1,
+		    "keepalive_send: Unable to prepare header to send.");
+		return;
+	}
+	if (hast_proto_send(res, res->hr_remoteout, nv, NULL, 0) < 0) {
+		pjdlog_common(LOG_DEBUG, 1, errno,
+		    "keepalive_send: Unable to send request");
+		nv_free(nv);
+		rw_unlock(&hio_remote_lock[ncomp]);
+		remote_close(res, ncomp);
+		rw_rlock(&hio_remote_lock[ncomp]);
+		return;
+	}
+	nv_free(nv);
+	pjdlog_debug(2, "keepalive_send: Request sent.");
+}
+
 /*
  * Thread sends request to secondary node.
  */
@@ -1146,6 +1223,7 @@ remote_send_thread(void *arg)
 {
 	struct hast_resource *res = arg;
 	struct g_gate_ctl_io *ggio;
+	time_t lastcheck, now;
 	struct hio *hio;
 	struct nv *nv;
 	unsigned int ncomp;
@@ -1156,10 +1234,19 @@ remote_send_thread(void *arg)
 
 	/* Remote component is 1 for now. */
 	ncomp = 1;
+	lastcheck = time(NULL);	
 
 	for (;;) {
 		pjdlog_debug(2, "remote_send: Taking request.");
-		QUEUE_TAKE1(hio, send, ncomp);
+		QUEUE_TAKE1(hio, send, ncomp, RETRY_SLEEP);
+		if (hio == NULL) {
+			now = time(NULL);
+			if (lastcheck + RETRY_SLEEP <= now) {
+				keepalive_send(res, ncomp);
+				lastcheck = now;
+			}
+			continue;
+		}
 		pjdlog_debug(2, "remote_send: (%p) Got request.", hio);
 		ggio = &hio->hio_ggio;
 		switch (ggio->gctl_cmd) {
@@ -1845,32 +1932,6 @@ failed:
 }
 
 static void
-keepalive_send(struct hast_resource *res, unsigned int ncomp)
-{
-	struct nv *nv;
-
-	nv = nv_alloc();
-	nv_add_uint8(nv, HIO_KEEPALIVE, "cmd");
-	if (nv_error(nv) != 0) {
-		nv_free(nv);
-		pjdlog_debug(1,
-		    "keepalive_send: Unable to prepare header to send.");
-		return;
-	}
-	if (hast_proto_send(res, res->hr_remoteout, nv, NULL, 0) < 0) {
-		pjdlog_common(LOG_DEBUG, 1, errno,
-		    "keepalive_send: Unable to send request");
-		nv_free(nv);
-		rw_unlock(&hio_remote_lock[ncomp]);
-		remote_close(res, ncomp);
-		rw_rlock(&hio_remote_lock[ncomp]);
-		return;
-	}
-	nv_free(nv);
-	pjdlog_debug(2, "keepalive_send: Request sent.");
-}
-
-static void
 guard_one(struct hast_resource *res, unsigned int ncomp)
 {
 	struct proto_conn *in, *out;
@@ -1883,12 +1944,6 @@ guard_one(struct hast_resource *res, unsigned int ncomp)
 	if (!real_remote(res)) {
 		rw_unlock(&hio_remote_lock[ncomp]);
 		return;
-	}
-
-	if (ISCONNECTED(res, ncomp)) {
-		assert(res->hr_remotein != NULL);
-		assert(res->hr_remoteout != NULL);
-		keepalive_send(res, ncomp);
 	}
 
 	if (ISCONNECTED(res, ncomp)) {
