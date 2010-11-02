@@ -180,9 +180,9 @@ MLINKS+=syslog.3 closelog.3 syslog.3 openlog.3 syslog.3 setlogmask.3 \
 	syslog.3 vsyslog.3
 MLINKS+=tcsendbreak.3 tcdrain.3 tcsendbreak.3 tcflow.3 tcsendbreak.3 tcflush.3
 MLINKS+=tcsetattr.3 cfgetispeed.3 tcsetattr.3 cfgetospeed.3 \
-	tcsetattr.3 cfmakeraw.3 tcsetattr.3 cfsetispeed.3 \
-	tcsetattr.3 cfsetospeed.3 tcsetattr.3 cfsetspeed.3 \
-	tcsetattr.3 tcgetattr.3
+	tcsetattr.3 cfmakeraw.3 tcsetattr.3 cfmakesane.3 \
+	tcsetattr.3 cfsetispeed.3 tcsetattr.3 cfsetospeed.3 \
+	tcsetattr.3 cfsetspeed.3 tcsetattr.3 tcgetattr.3
 MLINKS+=ttyname.3 isatty.3 ttyname.3 ttyname_r.3
 MLINKS+=tzset.3 tzsetwall.3
 MLINKS+=unvis.3 strunvis.3 unvis.3 strunvisx.3
