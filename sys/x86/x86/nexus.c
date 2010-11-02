@@ -694,15 +694,24 @@ ram_attach(device_t dev)
 			if (smap->type != SMAP_TYPE_MEMORY ||
 			    smap->length == 0)
 				continue;
+#ifdef __i386__
+			/*
+			 * Resources use long's to track resources, so
+			 * we can't include memory regions above 4GB.
+			 */
+			if (smap->base >= ~0ul)
+				break;
+#endif
 			error = bus_set_resource(dev, SYS_RES_MEMORY, rid,
 			    smap->base, smap->length);
 			if (error)
-			panic("ram_attach: resource %d failed set with %d",
+				panic(
+				    "ram_attach: resource %d failed set with %d",
 				    rid, error);
 			res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 			    0);
 			if (res == NULL)
-			panic("ram_attach: resource %d failed to attach",
+				panic("ram_attach: resource %d failed to attach",
 				    rid);
 			rid++;
 		}
@@ -710,19 +719,17 @@ ram_attach(device_t dev)
 	}
 
 	/*
-	 * We use the dump_avail[] array rather than phys_avail[] for
-	 * the memory map as phys_avail[] contains holes for kernel
-	 * memory, page 0, the message buffer, and the dcons buffer.
-	 * We test the end address in the loop instead of the start
-	 * since the start address for the first segment is 0.
-	 *
-	 * XXX: It would be preferable to use the SMAP if it exists
-	 * instead since if the SMAP is very fragmented we may not
-	 * include some memory regions in dump_avail[] and phys_avail[].
+	 * If the system map is not available, fall back to using
+	 * dump_avail[].  We use the dump_avail[] array rather than
+	 * phys_avail[] for the memory map as phys_avail[] contains
+	 * holes for kernel memory, page 0, the message buffer, and
+	 * the dcons buffer.  We test the end address in the loop
+	 * instead of the start since the start address for the first
+	 * segment is 0.
 	 */
 	for (i = 0, p = dump_avail; p[1] != 0; i++, p += 2) {
 		rid = i;
-#ifdef PAE
+#ifdef __i386__
 		/*
 		 * Resources use long's to track resources, so we can't
 		 * include memory regions above 4GB.
