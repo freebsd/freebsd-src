@@ -728,7 +728,7 @@ ram_attach(device_t dev)
 	 * segment is 0.
 	 */
 	for (rid = 0, p = dump_avail; p[1] != 0; rid++, p += 2) {
-#if defined(__i386__) && defined(PAE)
+#ifdef PAE
 		/*
 		 * Resources use long's to track resources, so we can't
 		 * include memory regions above 4GB.
