@@ -69,6 +69,11 @@ __FBSDID("$FreeBSD$");
 #define	EOFMARKLEN	79
 #define	PROMPTLEN	128
 
+/* values of checkkwd variable */
+#define CHKALIAS	0x1
+#define CHKKWD		0x2
+#define CHKNL		0x4
+
 /* values returned by readtoken */
 #include "token.h"
 
@@ -101,9 +106,6 @@ static int quoteflag;		/* set if (part of) last token was quoted */
 static int startlinno;		/* line # where last token started */
 static int funclinno;		/* line # where the current function started */
 static struct parser_temp *parser_temp;
-
-/* XXX When 'noaliases' is set to one, no alias expansion takes place. */
-static int noaliases = 0;
 
 
 static union node *list(int, int);
@@ -230,7 +232,7 @@ list(int nlflag, int erflag)
 	union node *ntop, *n1, *n2, *n3;
 	int tok;
 
-	checkkwd = 2;
+	checkkwd = CHKNL | CHKKWD | CHKALIAS;
 	if (!nlflag && !erflag && tokendlist[peektoken()])
 		return NULL;
 	ntop = n1 = NULL;
@@ -283,7 +285,7 @@ list(int nlflag, int erflag)
 			} else {
 				tokpushback++;
 			}
-			checkkwd = 2;
+			checkkwd = CHKNL | CHKKWD | CHKALIAS;
 			if (!nlflag && !erflag && tokendlist[peektoken()])
 				return ntop;
 			break;
@@ -339,7 +341,7 @@ pipeline(void)
 	int negate, t;
 
 	negate = 0;
-	checkkwd = 2;
+	checkkwd = CHKNL | CHKKWD | CHKALIAS;
 	TRACE(("pipeline: entered\n"));
 	while (readtoken() == TNOT)
 		negate = !negate;
@@ -355,7 +357,7 @@ pipeline(void)
 		do {
 			prev = lp;
 			lp = (struct nodelist *)stalloc(sizeof (struct nodelist));
-			checkkwd = 2;
+			checkkwd = CHKNL | CHKKWD | CHKALIAS;
 			t = readtoken();
 			tokpushback++;
 			if (t == TNOT)
@@ -388,7 +390,7 @@ command(void)
 	union node *redir, **rpp;
 	int t;
 
-	checkkwd = 2;
+	checkkwd = CHKNL | CHKKWD | CHKALIAS;
 	redir = NULL;
 	n1 = NULL;
 	rpp = &redir;
@@ -429,7 +431,7 @@ command(void)
 		}
 		if (readtoken() != TFI)
 			synexpect(TFI);
-		checkkwd = 1;
+		checkkwd = CHKKWD | CHKALIAS;
 		break;
 	case TWHILE:
 	case TUNTIL: {
@@ -445,7 +447,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		n1->nbinary.ch2 = list(0, 0);
 		if (readtoken() != TDONE)
 			synexpect(TDONE);
-		checkkwd = 1;
+		checkkwd = CHKKWD | CHKALIAS;
 		break;
 	}
 	case TFOR:
@@ -487,7 +489,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 			if (lasttoken != TNL && lasttoken != TSEMI)
 				tokpushback++;
 		}
-		checkkwd = 2;
+		checkkwd = CHKNL | CHKKWD | CHKALIAS;
 		if ((t = readtoken()) == TDO)
 			t = TDONE;
 		else if (t == TBEGIN)
@@ -497,7 +499,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		n1->nfor.body = list(0, 0);
 		if (readtoken() != t)
 			synexpect(t);
-		checkkwd = 1;
+		checkkwd = CHKKWD | CHKALIAS;
 		break;
 	case TCASE:
 		n1 = (union node *)stalloc(sizeof (struct ncase));
@@ -513,8 +515,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		if (lasttoken != TWORD || ! equal(wordtext, "in"))
 			synerror("expecting \"in\"");
 		cpp = &n1->ncase.cases;
-		noaliases = 1;	/* turn off alias expansion */
-		checkkwd = 2, readtoken();
+		checkkwd = CHKNL | CHKKWD, readtoken();
 		while (lasttoken != TESAC) {
 			*cpp = cp = (union node *)stalloc(sizeof (struct nclist));
 			cp->type = NCLIST;
@@ -526,28 +527,28 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 				ap->type = NARG;
 				ap->narg.text = wordtext;
 				ap->narg.backquote = backquotelist;
-				if (checkkwd = 2, readtoken() != TPIPE)
+				checkkwd = CHKNL | CHKKWD;
+				if (readtoken() != TPIPE)
 					break;
 				app = &ap->narg.next;
 				readtoken();
 			}
 			ap->narg.next = NULL;
 			if (lasttoken != TRP)
-				noaliases = 0, synexpect(TRP);
+				synexpect(TRP);
 			cp->nclist.body = list(0, 0);
 
-			checkkwd = 2;
+			checkkwd = CHKNL | CHKKWD | CHKALIAS;
 			if ((t = readtoken()) != TESAC) {
 				if (t != TENDCASE)
-					noaliases = 0, synexpect(TENDCASE);
+					synexpect(TENDCASE);
 				else
-					checkkwd = 2, readtoken();
+					checkkwd = CHKNL | CHKKWD, readtoken();
 			}
 			cpp = &cp->nclist.next;
 		}
-		noaliases = 0;	/* reset alias expansion */
 		*cpp = NULL;
-		checkkwd = 1;
+		checkkwd = CHKKWD | CHKALIAS;
 		break;
 	case TLP:
 		n1 = (union node *)stalloc(sizeof (struct nredir));
@@ -556,13 +557,13 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		n1->nredir.redirect = NULL;
 		if (readtoken() != TRP)
 			synexpect(TRP);
-		checkkwd = 1;
+		checkkwd = CHKKWD | CHKALIAS;
 		break;
 	case TBEGIN:
 		n1 = list(0, 0);
 		if (readtoken() != TEND)
 			synexpect(TEND);
-		checkkwd = 1;
+		checkkwd = CHKKWD | CHKALIAS;
 		break;
 	/* Handle an empty command like other simple commands.  */
 	case TBACKGND:
@@ -796,7 +797,6 @@ static int
 readtoken(void)
 {
 	int t;
-	int savecheckkwd = checkkwd;
 	struct alias *ap;
 #ifdef DEBUG
 	int alreadyseen = tokpushback;
@@ -805,25 +805,24 @@ readtoken(void)
 	top:
 	t = xxreadtoken();
 
-	if (checkkwd) {
-		/*
-		 * eat newlines
-		 */
-		if (checkkwd == 2) {
-			checkkwd = 0;
-			while (t == TNL) {
-				parseheredoc();
-				t = xxreadtoken();
-			}
-		} else
-			checkkwd = 0;
-		/*
-		 * check for keywords and aliases
-		 */
-		if (t == TWORD && !quoteflag)
-		{
-			const char * const *pp;
+	/*
+	 * eat newlines
+	 */
+	if (checkkwd & CHKNL) {
+		while (t == TNL) {
+			parseheredoc();
+			t = xxreadtoken();
+		}
+	}
 
+	/*
+	 * check for keywords and aliases
+	 */
+	if (t == TWORD && !quoteflag)
+	{
+		const char * const *pp;
+
+		if (checkkwd & CHKKWD)
 			for (pp = parsekwd; *pp; pp++) {
 				if (**pp == *wordtext && equal(*pp, wordtext))
 				{
@@ -832,16 +831,16 @@ readtoken(void)
 					goto out;
 				}
 			}
-			if (noaliases == 0 &&
-			    (ap = lookupalias(wordtext, 1)) != NULL) {
-				pushstring(ap->val, strlen(ap->val), ap);
-				checkkwd = savecheckkwd;
-				goto top;
-			}
+		if (checkkwd & CHKALIAS &&
+		    (ap = lookupalias(wordtext, 1)) != NULL) {
+			pushstring(ap->val, strlen(ap->val), ap);
+			goto top;
 		}
-out:
-		checkkwd = (t == TNOT) ? savecheckkwd : 0;
 	}
+out:
+	if (t != TNOT)
+		checkkwd = 0;
+
 #ifdef DEBUG
 	if (!alreadyseen)
 	    TRACE(("token %s %s\n", tokname[t], t == TWORD ? wordtext : ""));
