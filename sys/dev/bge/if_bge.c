@@ -2665,14 +2665,12 @@ bge_attach(device_t dev)
 	if (BGE_IS_5755_PLUS(sc) == 0)
 		sc->bge_flags |= BGE_FLAG_4G_BNDRY_BUG;
 
-	/*
-	 * We could possibly check for BCOM_DEVICEID_BCM5788 in bge_probe()
-	 * but I do not know the DEVICEID for the 5788M.
-	 */
-	misccfg = CSR_READ_4(sc, BGE_MISC_CFG) & BGE_MISCCFG_BOARD_ID;
-	if (misccfg == BGE_MISCCFG_BOARD_ID_5788 ||
-	    misccfg == BGE_MISCCFG_BOARD_ID_5788M)
-		sc->bge_flags |= BGE_FLAG_5788;
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5705) {
+		misccfg = CSR_READ_4(sc, BGE_MISC_CFG) & BGE_MISCCFG_BOARD_ID;
+		if (misccfg == BGE_MISCCFG_BOARD_ID_5788 ||
+		    misccfg == BGE_MISCCFG_BOARD_ID_5788M)
+			sc->bge_flags |= BGE_FLAG_5788;
+	}
 
 	/*
 	 * Some controllers seem to require a special firmware to use
@@ -3634,8 +3632,11 @@ bge_intr_task(void *arg, int pending)
 	sc = (struct bge_softc *)arg;
 	ifp = sc->bge_ifp;
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+	BGE_LOCK(sc);
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+		BGE_UNLOCK(sc);
 		return;
+	}
 
 	/* Get updated status block. */
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
@@ -3650,26 +3651,27 @@ bge_intr_task(void *arg, int pending)
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
 	    sc->bge_cdata.bge_status_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+
+	if ((status & BGE_STATFLAG_LINKSTATE_CHANGED) != 0)
+		bge_link_upd(sc);
+
 	/* Let controller work. */
 	bge_writembx(sc, BGE_MBX_IRQ0_LO, 0);
 
-	if ((status & BGE_STATFLAG_LINKSTATE_CHANGED) != 0) {
-		BGE_LOCK(sc);
-		bge_link_upd(sc);
-		BGE_UNLOCK(sc);
-	}
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
+	    sc->bge_rx_saved_considx != rx_prod) {
 		/* Check RX return ring producer/consumer. */
+		BGE_UNLOCK(sc);
 		bge_rxeof(sc, rx_prod, 0);
+		BGE_LOCK(sc);
 	}
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		BGE_LOCK(sc);
 		/* Check TX ring producer/consumer. */
 		bge_txeof(sc, tx_cons);
 	    	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			bge_start_locked(ifp);
-		BGE_UNLOCK(sc);
 	}
+	BGE_UNLOCK(sc);
 }
 
 static void
@@ -4640,6 +4642,7 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	switch (command) {
 	case SIOCSIFMTU:
+		BGE_LOCK(sc);
 		if (ifr->ifr_mtu < ETHERMIN ||
 		    ((BGE_IS_JUMBO_CAPABLE(sc)) &&
 		    ifr->ifr_mtu > BGE_JUMBO_MTU) ||
@@ -4648,9 +4651,12 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			error = EINVAL;
 		else if (ifp->if_mtu != ifr->ifr_mtu) {
 			ifp->if_mtu = ifr->ifr_mtu;
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-			bge_init(sc);
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+				bge_init_locked(sc);
+			}
 		}
+		BGE_UNLOCK(sc);
 		break;
 	case SIOCSIFFLAGS:
 		BGE_LOCK(sc);
