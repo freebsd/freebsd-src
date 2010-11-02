@@ -225,14 +225,15 @@ sysctl_nic(SYSCTL_HANDLER_ARGS)
 	char buf[arg2+1];
 	int error;
 	int len;
+	int invalid;
 
+	invalid = 0;
 	if (*(struct ifnet **)arg1) {
 		error = SYSCTL_OUT(req,
 				(*(struct ifnet **)arg1)->if_xname,
 				strlen((*(struct ifnet **)arg1)->if_xname));
-	} else {
-		error = SYSCTL_OUT(req, "none", 5);
-	}
+	} else
+		invalid = 1;
 
 	if (error || !req->newptr)
 		return error;
@@ -241,14 +242,13 @@ sysctl_nic(SYSCTL_HANDLER_ARGS)
 	if (len >= arg2) {
 		error = EINVAL;
 	} else {
-		error = SYSCTL_IN(req, buf, len);
-		buf[len]='\0';
-		if (error)
-			return error;
-
-		if (!strcmp(buf, "none")) {
+		if (invalid != 0)
 			ifp = NULL;
-		} else {
+		else {
+			error = SYSCTL_IN(req, buf, len);
+			buf[len]='\0';
+			if (error)
+				return error;
 			IFNET_RLOCK_NOSLEEP();
 			if ((ifp = TAILQ_FIRST(&V_ifnet)) != NULL) do {
 				if (!strcmp(ifp->if_xname, buf)) break;
