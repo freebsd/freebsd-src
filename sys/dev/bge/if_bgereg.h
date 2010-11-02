@@ -637,7 +637,53 @@
 #define	BGE_SERDES_STS			0x0594
 #define	BGE_SGDIG_CFG			0x05B0
 #define	BGE_SGDIG_STS			0x05B4
-#define	BGE_MAC_STATS			0x0800
+#define	BGE_TX_MAC_STATS_OCTETS		0x0800
+#define	BGE_TX_MAC_STATS_RESERVE_0	0x0804
+#define	BGE_TX_MAC_STATS_COLLS		0x0808
+#define	BGE_TX_MAC_STATS_XON_SENT	0x080C
+#define	BGE_TX_MAC_STATS_XOFF_SENT	0x0810
+#define	BGE_TX_MAC_STATS_RESERVE_1	0x0814
+#define	BGE_TX_MAC_STATS_ERRORS		0x0818
+#define	BGE_TX_MAC_STATS_SINGLE_COLL	0x081C
+#define	BGE_TX_MAC_STATS_MULTI_COLL	0x0820
+#define	BGE_TX_MAC_STATS_DEFERRED	0x0824
+#define	BGE_TX_MAC_STATS_RESERVE_2	0x0828
+#define	BGE_TX_MAC_STATS_EXCESS_COLL	0x082C
+#define	BGE_TX_MAC_STATS_LATE_COLL	0x0830
+#define	BGE_TX_MAC_STATS_RESERVE_3	0x0834
+#define	BGE_TX_MAC_STATS_RESERVE_4	0x0838
+#define	BGE_TX_MAC_STATS_RESERVE_5	0x083C
+#define	BGE_TX_MAC_STATS_RESERVE_6	0x0840
+#define	BGE_TX_MAC_STATS_RESERVE_7	0x0844
+#define	BGE_TX_MAC_STATS_RESERVE_8	0x0848
+#define	BGE_TX_MAC_STATS_RESERVE_9	0x084C
+#define	BGE_TX_MAC_STATS_RESERVE_10	0x0850
+#define	BGE_TX_MAC_STATS_RESERVE_11	0x0854
+#define	BGE_TX_MAC_STATS_RESERVE_12	0x0858
+#define	BGE_TX_MAC_STATS_RESERVE_13	0x085C
+#define	BGE_TX_MAC_STATS_RESERVE_14	0x0860
+#define	BGE_TX_MAC_STATS_RESERVE_15	0x0864
+#define	BGE_TX_MAC_STATS_RESERVE_16	0x0868
+#define	BGE_TX_MAC_STATS_UCAST		0x086C
+#define	BGE_TX_MAC_STATS_MCAST		0x0870
+#define	BGE_TX_MAC_STATS_BCAST		0x0874
+#define	BGE_TX_MAC_STATS_RESERVE_17	0x0878
+#define	BGE_TX_MAC_STATS_RESERVE_18	0x087C
+#define	BGE_RX_MAC_STATS_OCTESTS	0x0880
+#define	BGE_RX_MAC_STATS_RESERVE_0	0x0884
+#define	BGE_RX_MAC_STATS_FRAGMENTS	0x0888
+#define	BGE_RX_MAC_STATS_UCAST		0x088C
+#define	BGE_RX_MAC_STATS_MCAST		0x0890
+#define	BGE_RX_MAC_STATS_BCAST		0x0894
+#define	BGE_RX_MAC_STATS_FCS_ERRORS	0x0898
+#define	BGE_RX_MAC_STATS_ALGIN_ERRORS	0x089C
+#define	BGE_RX_MAC_STATS_XON_RCVD	0x08A0
+#define	BGE_RX_MAC_STATS_XOFF_RCVD	0x08A4
+#define	BGE_RX_MAC_STATS_CTRL_RCVD	0x08A8
+#define	BGE_RX_MAC_STATS_XOFF_ENTERED	0x08AC
+#define	BGE_RX_MAC_STATS_FRAME_TOO_LONG	0x08B0
+#define	BGE_RX_MAC_STATS_JABBERS	0x08B4
+#define	BGE_RX_MAC_STATS_UNDERSIZE	0x08B8
 
 /* Ethernet MAC Mode register */
 #define	BGE_MACMODE_RESET		0x00000001
@@ -2349,40 +2395,50 @@ struct bge_tx_mac_stats {
 };
 
 /* Stats counters access through registers */
-struct bge_mac_stats_regs {
-	uint32_t		ifHCOutOctets;
-	uint32_t		Reserved0;
-	uint32_t		etherStatsCollisions;
-	uint32_t		outXonSent;
-	uint32_t		outXoffSent;
-	uint32_t		Reserved1;
-	uint32_t		dot3StatsInternalMacTransmitErrors;
-	uint32_t		dot3StatsSingleCollisionFrames;
-	uint32_t		dot3StatsMultipleCollisionFrames;
-	uint32_t		dot3StatsDeferredTransmissions;
-	uint32_t		Reserved2;
-	uint32_t		dot3StatsExcessiveCollisions;
-	uint32_t		dot3StatsLateCollisions;
-	uint32_t		Reserved3[14];
-	uint32_t		ifHCOutUcastPkts;
-	uint32_t		ifHCOutMulticastPkts;
-	uint32_t		ifHCOutBroadcastPkts;
-	uint32_t		Reserved4[2];
-	uint32_t		ifHCInOctets;
-	uint32_t		Reserved5;
-	uint32_t		etherStatsFragments;
-	uint32_t		ifHCInUcastPkts;
-	uint32_t		ifHCInMulticastPkts;
-	uint32_t		ifHCInBroadcastPkts;
-	uint32_t		dot3StatsFCSErrors;
-	uint32_t		dot3StatsAlignmentErrors;
-	uint32_t		xonPauseFramesReceived;
-	uint32_t		xoffPauseFramesReceived;
-	uint32_t		macControlFramesReceived;
-	uint32_t		xoffStateEntered;
-	uint32_t		dot3StatsFramesTooLong;
-	uint32_t		etherStatsJabbers;
-	uint32_t		etherStatsUndersizePkts;
+struct bge_mac_stats {
+	/* TX MAC statistics */
+	uint64_t		ifHCOutOctets;
+	uint64_t		Reserved0;
+	uint64_t		etherStatsCollisions;
+	uint64_t		outXonSent;
+	uint64_t		outXoffSent;
+	uint64_t		Reserved1;
+	uint64_t		dot3StatsInternalMacTransmitErrors;
+	uint64_t		dot3StatsSingleCollisionFrames;
+	uint64_t		dot3StatsMultipleCollisionFrames;
+	uint64_t		dot3StatsDeferredTransmissions;
+	uint64_t		Reserved2;
+	uint64_t		dot3StatsExcessiveCollisions;
+	uint64_t		dot3StatsLateCollisions;
+	uint64_t		Reserved3[14];
+	uint64_t		ifHCOutUcastPkts;
+	uint64_t		ifHCOutMulticastPkts;
+	uint64_t		ifHCOutBroadcastPkts;
+	uint64_t		Reserved4[2];
+	/* RX MAC statistics */
+	uint64_t		ifHCInOctets;
+	uint64_t		Reserved5;
+	uint64_t		etherStatsFragments;
+	uint64_t		ifHCInUcastPkts;
+	uint64_t		ifHCInMulticastPkts;
+	uint64_t		ifHCInBroadcastPkts;
+	uint64_t		dot3StatsFCSErrors;
+	uint64_t		dot3StatsAlignmentErrors;
+	uint64_t		xonPauseFramesReceived;
+	uint64_t		xoffPauseFramesReceived;
+	uint64_t		macControlFramesReceived;
+	uint64_t		xoffStateEntered;
+	uint64_t		dot3StatsFramesTooLong;
+	uint64_t		etherStatsJabbers;
+	uint64_t		etherStatsUndersizePkts;
+	/* Receive List Placement control */
+	uint64_t		FramesDroppedDueToFilters;
+	uint64_t		DmaWriteQueueFull;
+	uint64_t		DmaWriteHighPriQueueFull;
+	uint64_t		NoMoreRxBDs;
+	uint64_t		InputDiscards;
+	uint64_t		InputErrors;
+	uint64_t		RecvThresholdHit;
 };
 
 struct bge_stats {
@@ -2660,6 +2716,7 @@ struct bge_softc {
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif /* DEVICE_POLLING */
+	struct bge_mac_stats	bge_mac_stats;
 	struct task		bge_intr_task;
 	struct taskqueue	*bge_tq;
 };

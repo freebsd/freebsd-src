@@ -371,6 +371,7 @@ static void bge_rxeof(struct bge_softc *, uint16_t, int);
 
 static void bge_asf_driver_up (struct bge_softc *);
 static void bge_tick(void *);
+static void bge_stats_clear_regs(struct bge_softc *);
 static void bge_stats_update(struct bge_softc *);
 static void bge_stats_update_regs(struct bge_softc *);
 static struct mbuf *bge_setup_tso(struct bge_softc *, struct mbuf *,
@@ -453,6 +454,10 @@ static int bge_sysctl_reg_read(SYSCTL_HANDLER_ARGS);
 static int bge_sysctl_mem_read(SYSCTL_HANDLER_ARGS);
 #endif
 static void bge_add_sysctls(struct bge_softc *);
+static void bge_add_sysctl_stats_regs(struct bge_softc *,
+    struct sysctl_ctx_list *, struct sysctl_oid_list *);
+static void bge_add_sysctl_stats(struct bge_softc *, struct sysctl_ctx_list *,
+    struct sysctl_oid_list *);
 static int bge_sysctl_stats(SYSCTL_HANDLER_ARGS);
 
 static device_method_t bge_methods[] = {
@@ -3726,15 +3731,127 @@ static void
 bge_stats_update_regs(struct bge_softc *sc)
 {
 	struct ifnet *ifp;
+	struct bge_mac_stats *stats;
 
 	ifp = sc->bge_ifp;
+	stats = &sc->bge_mac_stats;
 
-	ifp->if_collisions += CSR_READ_4(sc, BGE_MAC_STATS +
-	    offsetof(struct bge_mac_stats_regs, etherStatsCollisions));
+	stats->ifHCOutOctets +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_OCTETS);
+	stats->etherStatsCollisions +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_COLLS);
+	stats->outXonSent +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_XON_SENT);
+	stats->outXoffSent +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_XOFF_SENT);
+	stats->dot3StatsInternalMacTransmitErrors +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_ERRORS);
+	stats->dot3StatsSingleCollisionFrames +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_SINGLE_COLL);
+	stats->dot3StatsMultipleCollisionFrames +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_MULTI_COLL);
+	stats->dot3StatsDeferredTransmissions +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_DEFERRED);
+	stats->dot3StatsExcessiveCollisions +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_EXCESS_COLL);
+	stats->dot3StatsLateCollisions +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_LATE_COLL);
+	stats->ifHCOutUcastPkts +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_UCAST);
+	stats->ifHCOutMulticastPkts +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_MCAST);
+	stats->ifHCOutBroadcastPkts +=
+	    CSR_READ_4(sc, BGE_TX_MAC_STATS_BCAST);
 
-	ifp->if_ierrors += CSR_READ_4(sc, BGE_RXLP_LOCSTAT_OUT_OF_BDS);
-	ifp->if_ierrors += CSR_READ_4(sc, BGE_RXLP_LOCSTAT_IFIN_DROPS);
-	ifp->if_ierrors += CSR_READ_4(sc, BGE_RXLP_LOCSTAT_IFIN_ERRORS);
+	stats->ifHCInOctets +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_OCTESTS);
+	stats->etherStatsFragments +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_FRAGMENTS);
+	stats->ifHCInUcastPkts +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_UCAST);
+	stats->ifHCInMulticastPkts +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_MCAST);
+	stats->ifHCInBroadcastPkts +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_BCAST);
+	stats->dot3StatsFCSErrors +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_FCS_ERRORS);
+	stats->dot3StatsAlignmentErrors +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_ALGIN_ERRORS);
+	stats->xonPauseFramesReceived +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_XON_RCVD);
+	stats->xoffPauseFramesReceived +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_XOFF_RCVD);
+	stats->macControlFramesReceived +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_CTRL_RCVD);
+	stats->xoffStateEntered +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_XOFF_ENTERED);
+	stats->dot3StatsFramesTooLong +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_FRAME_TOO_LONG);
+	stats->etherStatsJabbers +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_JABBERS);
+	stats->etherStatsUndersizePkts +=
+	    CSR_READ_4(sc, BGE_RX_MAC_STATS_UNDERSIZE);
+
+	stats->FramesDroppedDueToFilters +=
+	    CSR_READ_4(sc, BGE_RXLP_LOCSTAT_FILTDROP);
+	stats->DmaWriteQueueFull +=
+	    CSR_READ_4(sc, BGE_RXLP_LOCSTAT_DMA_WRQ_FULL);
+	stats->DmaWriteHighPriQueueFull +=
+	    CSR_READ_4(sc, BGE_RXLP_LOCSTAT_DMA_HPWRQ_FULL);
+	stats->NoMoreRxBDs +=
+	    CSR_READ_4(sc, BGE_RXLP_LOCSTAT_OUT_OF_BDS);
+	stats->InputDiscards +=
+	    CSR_READ_4(sc, BGE_RXLP_LOCSTAT_IFIN_DROPS);
+	stats->InputErrors +=
+	    CSR_READ_4(sc, BGE_RXLP_LOCSTAT_IFIN_ERRORS);
+	stats->RecvThresholdHit +=
+	    CSR_READ_4(sc, BGE_RXLP_LOCSTAT_RXTHRESH_HIT);
+
+	ifp->if_collisions = (u_long)stats->etherStatsCollisions;
+	ifp->if_ierrors = (u_long)(stats->NoMoreRxBDs + stats->InputDiscards +
+	    stats->InputErrors);
+}
+
+static void
+bge_stats_clear_regs(struct bge_softc *sc)
+{
+
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_OCTETS);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_COLLS);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_XON_SENT);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_XOFF_SENT);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_ERRORS);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_SINGLE_COLL);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_MULTI_COLL);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_DEFERRED);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_EXCESS_COLL);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_LATE_COLL);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_UCAST);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_MCAST);
+	CSR_READ_4(sc, BGE_TX_MAC_STATS_BCAST);
+
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_OCTESTS);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_FRAGMENTS);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_UCAST);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_MCAST);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_BCAST);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_FCS_ERRORS);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_ALGIN_ERRORS);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_XON_RCVD);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_XOFF_RCVD);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_CTRL_RCVD);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_XOFF_ENTERED);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_FRAME_TOO_LONG);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_JABBERS);
+	CSR_READ_4(sc, BGE_RX_MAC_STATS_UNDERSIZE);
+
+	CSR_READ_4(sc, BGE_RXLP_LOCSTAT_FILTDROP);
+	CSR_READ_4(sc, BGE_RXLP_LOCSTAT_DMA_WRQ_FULL);
+	CSR_READ_4(sc, BGE_RXLP_LOCSTAT_DMA_HPWRQ_FULL);
+	CSR_READ_4(sc, BGE_RXLP_LOCSTAT_OUT_OF_BDS);
+	CSR_READ_4(sc, BGE_RXLP_LOCSTAT_IFIN_DROPS);
+	CSR_READ_4(sc, BGE_RXLP_LOCSTAT_IFIN_ERRORS);
+	CSR_READ_4(sc, BGE_RXLP_LOCSTAT_RXTHRESH_HIT);
 }
 
 static void
@@ -4237,6 +4354,10 @@ bge_init_locked(struct bge_softc *sc)
 	 */
 	CSR_WRITE_4(sc, BGE_MAX_RX_FRAME_LOWAT, 2);
 
+	/* Clear MAC statistics. */
+	if (BGE_IS_5705_PLUS(sc))
+		bge_stats_clear_regs(sc);
+
 	/* Tell firmware we're alive. */
 	BGE_SETBIT(sc, BGE_MODE_CTL, BGE_MODECTL_STACKUP);
 
@@ -4638,6 +4759,9 @@ bge_stop(struct bge_softc *sc)
 		BGE_CLRBIT(sc, BGE_BMAN_MODE, BGE_BMANMODE_ENABLE);
 		BGE_CLRBIT(sc, BGE_MARB_MODE, BGE_MARBMODE_ENABLE);
 	}
+	/* Update MAC statistics. */
+	if (BGE_IS_5705_PLUS(sc))
+		bge_stats_update_regs(sc);
 
 	bge_reset(sc);
 	bge_sig_legacy(sc, BGE_RESET_STOP);
@@ -4836,17 +4960,11 @@ bge_link_upd(struct bge_softc *sc)
 	    BGE_MACSTAT_LINK_CHANGED);
 }
 
-#define BGE_SYSCTL_STAT(sc, ctx, desc, parent, node, oid) \
-	SYSCTL_ADD_PROC(ctx, parent, OID_AUTO, oid, CTLTYPE_UINT|CTLFLAG_RD, \
-	    sc, offsetof(struct bge_stats, node), bge_sysctl_stats, "IU", \
-	    desc)
-
 static void
 bge_add_sysctls(struct bge_softc *sc)
 {
 	struct sysctl_ctx_list *ctx;
-	struct sysctl_oid_list *children, *schildren;
-	struct sysctl_oid *tree;
+	struct sysctl_oid_list *children;
 	char tn[32];
 	int unit;
 
@@ -4908,9 +5026,24 @@ bge_add_sysctls(struct bge_softc *sc)
 	    "generate UDP checksum value 0");
 
 	if (BGE_IS_5705_PLUS(sc))
-		return;
+		bge_add_sysctl_stats_regs(sc, ctx, children);
+	else
+		bge_add_sysctl_stats(sc, ctx, children);
+}
 
-	tree = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats", CTLFLAG_RD,
+#define BGE_SYSCTL_STAT(sc, ctx, desc, parent, node, oid) \
+	SYSCTL_ADD_PROC(ctx, parent, OID_AUTO, oid, CTLTYPE_UINT|CTLFLAG_RD, \
+	    sc, offsetof(struct bge_stats, node), bge_sysctl_stats, "IU", \
+	    desc)
+
+static void
+bge_add_sysctl_stats(struct bge_softc *sc, struct sysctl_ctx_list *ctx,
+    struct sysctl_oid_list *parent)
+{
+	struct sysctl_oid *tree;
+	struct sysctl_oid_list *children, *schildren;
+
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "stats", CTLFLAG_RD,
 	    NULL, "BGE Statistics");
 	schildren = children = SYSCTL_CHILDREN(tree);
 	BGE_SYSCTL_STAT(sc, ctx, "Frames Dropped Due To Filters",
@@ -4949,11 +5082,11 @@ bge_add_sysctls(struct bge_softc *sc)
 	    NULL, "BGE RX Statistics");
 	children = SYSCTL_CHILDREN(tree);
 	BGE_SYSCTL_STAT(sc, ctx, "Inbound Octets",
-	    children, rxstats.ifHCInOctets, "Octets");
+	    children, rxstats.ifHCInOctets, "ifHCInOctets");
 	BGE_SYSCTL_STAT(sc, ctx, "Fragments",
 	    children, rxstats.etherStatsFragments, "Fragments");
 	BGE_SYSCTL_STAT(sc, ctx, "Inbound Unicast Packets",
-	    children, rxstats.ifHCInUcastPkts, "UcastPkts");
+	    children, rxstats.ifHCInUcastPkts, "UnicastPkts");
 	BGE_SYSCTL_STAT(sc, ctx, "Inbound Multicast Packets",
 	    children, rxstats.ifHCInMulticastPkts, "MulticastPkts");
 	BGE_SYSCTL_STAT(sc, ctx, "FCS Errors",
@@ -4985,7 +5118,7 @@ bge_add_sysctls(struct bge_softc *sc)
 	    NULL, "BGE TX Statistics");
 	children = SYSCTL_CHILDREN(tree);
 	BGE_SYSCTL_STAT(sc, ctx, "Outbound Octets",
-	    children, txstats.ifHCOutOctets, "Octets");
+	    children, txstats.ifHCOutOctets, "ifHCOutOctets");
 	BGE_SYSCTL_STAT(sc, ctx, "TX Collisions",
 	    children, txstats.etherStatsCollisions, "Collisions");
 	BGE_SYSCTL_STAT(sc, ctx, "XON Sent",
@@ -5013,7 +5146,7 @@ bge_add_sysctls(struct bge_softc *sc)
 	    children, txstats.dot3StatsLateCollisions,
 	    "LateCollisions");
 	BGE_SYSCTL_STAT(sc, ctx, "Outbound Unicast Packets",
-	    children, txstats.ifHCOutUcastPkts, "UcastPkts");
+	    children, txstats.ifHCOutUcastPkts, "UnicastPkts");
 	BGE_SYSCTL_STAT(sc, ctx, "Outbound Multicast Packets",
 	    children, txstats.ifHCOutMulticastPkts, "MulticastPkts");
 	BGE_SYSCTL_STAT(sc, ctx, "Outbound Broadcast Packets",
@@ -5026,6 +5159,106 @@ bge_add_sysctls(struct bge_softc *sc)
 	BGE_SYSCTL_STAT(sc, ctx, "Outbound Errors",
 	    children, txstats.ifOutErrors, "Errors");
 }
+
+#undef BGE_SYSCTL_STAT
+
+#define	BGE_SYSCTL_STAT_ADD64(c, h, n, p, d)	\
+	    SYSCTL_ADD_QUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
+
+static void
+bge_add_sysctl_stats_regs(struct bge_softc *sc, struct sysctl_ctx_list *ctx,
+    struct sysctl_oid_list *parent)
+{
+	struct sysctl_oid *tree;
+	struct sysctl_oid_list *child, *schild;
+	struct bge_mac_stats *stats;
+
+	stats = &sc->bge_mac_stats;
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "stats", CTLFLAG_RD,
+	    NULL, "BGE Statistics");
+	schild = child = SYSCTL_CHILDREN(tree);
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "FramesDroppedDueToFilters",
+	    &stats->FramesDroppedDueToFilters, "Frames Dropped Due to Filters");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "DmaWriteQueueFull",
+	    &stats->DmaWriteQueueFull, "NIC DMA Write Queue Full");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "DmaWriteHighPriQueueFull",
+	    &stats->DmaWriteHighPriQueueFull,
+	    "NIC DMA Write High Priority Queue Full");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "NoMoreRxBDs",
+	    &stats->NoMoreRxBDs, "NIC No More RX Buffer Descriptors");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "InputDiscards",
+	    &stats->InputDiscards, "Discarded Input Frames");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "InputErrors",
+	    &stats->InputErrors, "Input Errors");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "RecvThresholdHit",
+	    &stats->RecvThresholdHit, "NIC Recv Threshold Hit");
+
+	tree = SYSCTL_ADD_NODE(ctx, schild, OID_AUTO, "rx", CTLFLAG_RD,
+	    NULL, "BGE RX Statistics");
+	child = SYSCTL_CHILDREN(tree);
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "ifHCInOctets",
+	    &stats->ifHCInOctets, "Inbound Octets");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "Fragments",
+	    &stats->etherStatsFragments, "Fragments");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "UnicastPkts",
+	    &stats->ifHCInUcastPkts, "Inbound Unicast Packets");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "MulticastPkts",
+	    &stats->ifHCInMulticastPkts, "Inbound Multicast Packets");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "BroadcastPkts",
+	    &stats->ifHCInBroadcastPkts, "Inbound Broadcast Packets");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "FCSErrors",
+	    &stats->dot3StatsFCSErrors, "FCS Errors");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "AlignmentErrors",
+	    &stats->dot3StatsAlignmentErrors, "Alignment Errors");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "xonPauseFramesReceived",
+	    &stats->xonPauseFramesReceived, "XON Pause Frames Received");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "xoffPauseFramesReceived",
+	    &stats->xoffPauseFramesReceived, "XOFF Pause Frames Received");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "ControlFramesReceived",
+	    &stats->macControlFramesReceived, "MAC Control Frames Received");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "xoffStateEntered",
+	    &stats->xoffStateEntered, "XOFF State Entered");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "FramesTooLong",
+	    &stats->dot3StatsFramesTooLong, "Frames Too Long");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "Jabbers",
+	    &stats->etherStatsJabbers, "Jabbers");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "UndersizePkts",
+	    &stats->etherStatsUndersizePkts, "Undersized Packets");
+
+	tree = SYSCTL_ADD_NODE(ctx, schild, OID_AUTO, "tx", CTLFLAG_RD,
+	    NULL, "BGE TX Statistics");
+	child = SYSCTL_CHILDREN(tree);
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "ifHCOutOctets",
+	    &stats->ifHCOutOctets, "Outbound Octets");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "Collisions",
+	    &stats->etherStatsCollisions, "TX Collisions");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "XonSent",
+	    &stats->outXonSent, "XON Sent");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "XoffSent",
+	    &stats->outXoffSent, "XOFF Sent");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "InternalMacTransmitErrors",
+	    &stats->dot3StatsInternalMacTransmitErrors,
+	    "Internal MAC TX Errors");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "SingleCollisionFrames",
+	    &stats->dot3StatsSingleCollisionFrames, "Single Collision Frames");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "MultipleCollisionFrames",
+	    &stats->dot3StatsMultipleCollisionFrames,
+	    "Multiple Collision Frames");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "DeferredTransmissions",
+	    &stats->dot3StatsDeferredTransmissions, "Deferred Transmissions");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "ExcessiveCollisions",
+	    &stats->dot3StatsExcessiveCollisions, "Excessive Collisions");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "LateCollisions",
+	    &stats->dot3StatsLateCollisions, "Late Collisions");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "UnicastPkts",
+	    &stats->ifHCOutUcastPkts, "Outbound Unicast Packets");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "MulticastPkts",
+	    &stats->ifHCOutMulticastPkts, "Outbound Multicast Packets");
+	BGE_SYSCTL_STAT_ADD64(ctx, child, "BroadcastPkts",
+	    &stats->ifHCOutBroadcastPkts, "Outbound Broadcast Packets");
+}
+
+#undef	BGE_SYSCTL_STAT_ADD64
 
 static int
 bge_sysctl_stats(SYSCTL_HANDLER_ARGS)
