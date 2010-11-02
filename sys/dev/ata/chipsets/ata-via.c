@@ -56,6 +56,7 @@ static int ata_via_chipinit(device_t dev);
 static int ata_via_ch_attach(device_t dev);
 static int ata_via_ch_detach(device_t dev);
 static void ata_via_reset(device_t dev);
+static int ata_via_status(device_t dev);
 static int ata_via_old_setmode(device_t dev, int target, int mode);
 static void ata_via_southbridge_fixup(device_t dev);
 static int ata_via_new_setmode(device_t dev, int target, int mode);
@@ -249,11 +250,13 @@ ata_via_ch_attach(device_t dev)
     ch->r_io[ATA_SERROR].offset = 0x04 + (ch->unit << ctlr->chip->cfg1);
     ch->r_io[ATA_SCONTROL].res = ctlr->r_res2;
     ch->r_io[ATA_SCONTROL].offset = 0x08 + (ch->unit << ctlr->chip->cfg1);
+    ch->hw.status = ata_via_status;
     ch->flags |= ATA_NO_SLAVE;
     ch->flags |= ATA_SATA;
+    ch->flags |= ATA_PERIODIC_POLL;
 
-    /* XXX SOS PHY hotplug handling missing in VIA chip ?? */
-    /* XXX SOS unknown how to enable PHY state change interrupt */
+    ata_sata_scr_write(ch, -1, ATA_SERROR, 0xffffffff);
+
     return 0;
 }
 
@@ -296,6 +299,14 @@ ata_via_reset(device_t dev)
 	else
 	    ch->devices = 0;
     }
+}
+
+static int
+ata_via_status(device_t dev)
+{
+
+	ata_sata_phy_check_events(dev, -1);
+	return (ata_pci_status(dev));
 }
 
 static int
