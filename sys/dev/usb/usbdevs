@@ -3270,9 +3270,6 @@ product UMEDIA AR5523_2_NF	0x3206	AR5523 (no firmware)
 /* Universal Access products */
 product UNIACCESS PANACHE	0x0101	Panache Surf USB ISDN Adapter
 
-/* Unknown vendors */
-product UNKNOWN5 USB2IDEBRIDGE	0x00ff	USB 2.0 ATA/SATA Bridge
-
 /* USI products */
 product USI MC60		0x10c5	MC60 Serial
 
