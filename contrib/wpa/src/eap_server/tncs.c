@@ -1231,6 +1231,7 @@ void tncs_global_deinit(void)
 	}
 
 	os_free(tncs_global_data);
+	tncs_global_data = NULL;
 }
 
 

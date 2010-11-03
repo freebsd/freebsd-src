@@ -15,7 +15,7 @@
 #include "includes.h"
 
 #include "common.h"
-#include "ms_funcs.h"
+#include "crypto/ms_funcs.h"
 #include "mschapv2.h"
 
 const u8 * mschapv2_remove_domain(const u8 *username, size_t *len)
@@ -39,13 +39,13 @@ const u8 * mschapv2_remove_domain(const u8 *username, size_t *len)
 }
 
 
-void mschapv2_derive_response(const u8 *identity, size_t identity_len,
-			      const u8 *password, size_t password_len,
-			      int pwhash,
-			      const u8 *auth_challenge,
-			      const u8 *peer_challenge,
-			      u8 *nt_response, u8 *auth_response,
-			      u8 *master_key)
+int mschapv2_derive_response(const u8 *identity, size_t identity_len,
+			     const u8 *password, size_t password_len,
+			     int pwhash,
+			     const u8 *auth_challenge,
+			     const u8 *peer_challenge,
+			     u8 *nt_response, u8 *auth_response,
+			     u8 *master_key)
 {
 	const u8 *username;
 	size_t username_len;
@@ -93,14 +93,18 @@ void mschapv2_derive_response(const u8 *identity, size_t identity_len,
 
 	/* Generate master_key here since we have the needed data available. */
 	if (pwhash) {
-		hash_nt_password_hash(password, password_hash_hash);
+		if (hash_nt_password_hash(password, password_hash_hash))
+			return -1;
 	} else {
-		nt_password_hash(password, password_len, password_hash);
-		hash_nt_password_hash(password_hash, password_hash_hash);
+		if (nt_password_hash(password, password_len, password_hash) ||
+		    hash_nt_password_hash(password_hash, password_hash_hash))
+			return -1;
 	}
 	get_master_key(password_hash_hash, nt_response, master_key);
 	wpa_hexdump_key(MSG_DEBUG, "MSCHAPV2: Master Key",
 			master_key, MSCHAPV2_MASTER_KEY_LEN);
+
+	return 0;
 }
 
 
