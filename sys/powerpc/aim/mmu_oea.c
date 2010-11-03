@@ -2381,7 +2381,7 @@ moea_bat_mapped(int idx, vm_offset_t pa, vm_size_t size)
 	/*
 	 * Return immediately if not a valid mapping
 	 */
-	if (!battable[idx].batu & BAT_Vs)
+	if (!(battable[idx].batu & BAT_Vs))
 		return (EINVAL);
 
 	/*
