@@ -1,6 +1,6 @@
 /*
  * WPA Supplicant / wrapper functions for libcrypto
- * Copyright (c) 2004-2005, Jouni Malinen <j@w1.fi>
+ * Copyright (c) 2004-2009, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -14,15 +14,16 @@
 
 #include "includes.h"
 #include <openssl/opensslv.h>
-#include <openssl/md4.h>
-#include <openssl/md5.h>
-#include <openssl/sha.h>
+#include <openssl/err.h>
 #include <openssl/des.h>
 #include <openssl/aes.h>
 #include <openssl/bn.h>
 #include <openssl/evp.h>
+#include <openssl/dh.h>
 
 #include "common.h"
+#include "wpabuf.h"
+#include "dh_group5.h"
 #include "crypto.h"
 
 #if OPENSSL_VERSION_NUMBER < 0x00907000
@@ -33,16 +34,87 @@
 	des_ecb_encrypt((input), (output), *(ks), (enc))
 #endif /* openssl < 0.9.7 */
 
-
-void md4_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
+static BIGNUM * get_group5_prime(void)
 {
-	MD4_CTX ctx;
-	size_t i;
+#if OPENSSL_VERSION_NUMBER < 0x00908000
+	static const unsigned char RFC3526_PRIME_1536[] = {
+		0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xC9,0x0F,0xDA,0xA2,
+		0x21,0x68,0xC2,0x34,0xC4,0xC6,0x62,0x8B,0x80,0xDC,0x1C,0xD1,
+		0x29,0x02,0x4E,0x08,0x8A,0x67,0xCC,0x74,0x02,0x0B,0xBE,0xA6,
+		0x3B,0x13,0x9B,0x22,0x51,0x4A,0x08,0x79,0x8E,0x34,0x04,0xDD,
+		0xEF,0x95,0x19,0xB3,0xCD,0x3A,0x43,0x1B,0x30,0x2B,0x0A,0x6D,
+		0xF2,0x5F,0x14,0x37,0x4F,0xE1,0x35,0x6D,0x6D,0x51,0xC2,0x45,
+		0xE4,0x85,0xB5,0x76,0x62,0x5E,0x7E,0xC6,0xF4,0x4C,0x42,0xE9,
+		0xA6,0x37,0xED,0x6B,0x0B,0xFF,0x5C,0xB6,0xF4,0x06,0xB7,0xED,
+		0xEE,0x38,0x6B,0xFB,0x5A,0x89,0x9F,0xA5,0xAE,0x9F,0x24,0x11,
+		0x7C,0x4B,0x1F,0xE6,0x49,0x28,0x66,0x51,0xEC,0xE4,0x5B,0x3D,
+		0xC2,0x00,0x7C,0xB8,0xA1,0x63,0xBF,0x05,0x98,0xDA,0x48,0x36,
+		0x1C,0x55,0xD3,0x9A,0x69,0x16,0x3F,0xA8,0xFD,0x24,0xCF,0x5F,
+		0x83,0x65,0x5D,0x23,0xDC,0xA3,0xAD,0x96,0x1C,0x62,0xF3,0x56,
+		0x20,0x85,0x52,0xBB,0x9E,0xD5,0x29,0x07,0x70,0x96,0x96,0x6D,
+		0x67,0x0C,0x35,0x4E,0x4A,0xBC,0x98,0x04,0xF1,0x74,0x6C,0x08,
+		0xCA,0x23,0x73,0x27,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+	};
+        return BN_bin2bn(RFC3526_PRIME_1536, sizeof(RFC3526_PRIME_1536), NULL);
+#else /* openssl < 0.9.8 */
+	return get_rfc3526_prime_1536(NULL);
+#endif /* openssl < 0.9.8 */
+}
 
-	MD4_Init(&ctx);
-	for (i = 0; i < num_elem; i++)
-		MD4_Update(&ctx, addr[i], len[i]);
-	MD4_Final(mac, &ctx);
+#if OPENSSL_VERSION_NUMBER < 0x00908000
+#ifndef OPENSSL_NO_SHA256
+#ifndef OPENSSL_FIPS
+#define NO_SHA256_WRAPPER
+#endif
+#endif
+
+#endif /* openssl < 0.9.8 */
+
+#ifdef OPENSSL_NO_SHA256
+#define NO_SHA256_WRAPPER
+#endif
+
+static int openssl_digest_vector(const EVP_MD *type, int non_fips,
+				 size_t num_elem, const u8 *addr[],
+				 const size_t *len, u8 *mac)
+{
+	EVP_MD_CTX ctx;
+	size_t i;
+	unsigned int mac_len;
+
+	EVP_MD_CTX_init(&ctx);
+#ifdef CONFIG_FIPS
+#ifdef OPENSSL_FIPS
+	if (non_fips)
+		EVP_MD_CTX_set_flags(&ctx, EVP_MD_CTX_FLAG_NON_FIPS_ALLOW);
+#endif /* OPENSSL_FIPS */
+#endif /* CONFIG_FIPS */
+	if (!EVP_DigestInit_ex(&ctx, type, NULL)) {
+		wpa_printf(MSG_ERROR, "OpenSSL: EVP_DigestInit_ex failed: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
+		return -1;
+	}
+	for (i = 0; i < num_elem; i++) {
+		if (!EVP_DigestUpdate(&ctx, addr[i], len[i])) {
+			wpa_printf(MSG_ERROR, "OpenSSL: EVP_DigestUpdate "
+				   "failed: %s",
+				   ERR_error_string(ERR_get_error(), NULL));
+			return -1;
+		}
+	}
+	if (!EVP_DigestFinal(&ctx, mac, &mac_len)) {
+		wpa_printf(MSG_ERROR, "OpenSSL: EVP_DigestFinal failed: %s",
+			   ERR_error_string(ERR_get_error(), NULL));
+		return -1;
+	}
+
+	return 0;
+}
+
+
+int md4_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
+{
+	return openssl_digest_vector(EVP_md4(), 0, num_elem, addr, len, mac);
 }
 
 
@@ -67,94 +139,72 @@ void des_encrypt(const u8 *clear, const u8 *key, u8 *cypher)
 }
 
 
-void md5_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
+int rc4_skip(const u8 *key, size_t keylen, size_t skip,
+	     u8 *data, size_t data_len)
 {
-	MD5_CTX ctx;
-	size_t i;
+#ifdef OPENSSL_NO_RC4
+	return -1;
+#else /* OPENSSL_NO_RC4 */
+	EVP_CIPHER_CTX ctx;
+	int outl;
+	int res = -1;
+	unsigned char skip_buf[16];
 
-	MD5_Init(&ctx);
-	for (i = 0; i < num_elem; i++)
-		MD5_Update(&ctx, addr[i], len[i]);
-	MD5_Final(mac, &ctx);
-}
+	EVP_CIPHER_CTX_init(&ctx);
+	if (!EVP_CIPHER_CTX_set_padding(&ctx, 0) ||
+	    !EVP_CipherInit_ex(&ctx, EVP_rc4(), NULL, NULL, NULL, 1) ||
+	    !EVP_CIPHER_CTX_set_key_length(&ctx, keylen) ||
+	    !EVP_CipherInit_ex(&ctx, NULL, NULL, key, NULL, 1))
+		goto out;
 
-
-void sha1_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
-{
-	SHA_CTX ctx;
-	size_t i;
-
-	SHA1_Init(&ctx);
-	for (i = 0; i < num_elem; i++)
-		SHA1_Update(&ctx, addr[i], len[i]);
-	SHA1_Final(mac, &ctx);
-}
-
-
-#ifndef CONFIG_NO_FIPS186_2_PRF
-static void sha1_transform(u8 *state, const u8 data[64])
-{
-	SHA_CTX context;
-	os_memset(&context, 0, sizeof(context));
-	os_memcpy(&context.h0, state, 5 * 4);
-	SHA1_Transform(&context, data);
-	os_memcpy(state, &context.h0, 5 * 4);
-}
-
-
-int fips186_2_prf(const u8 *seed, size_t seed_len, u8 *x, size_t xlen)
-{
-	u8 xkey[64];
-	u32 t[5], _t[5];
-	int i, j, m, k;
-	u8 *xpos = x;
-	u32 carry;
-
-	if (seed_len > sizeof(xkey))
-		seed_len = sizeof(xkey);
-
-	/* FIPS 186-2 + change notice 1 */
-
-	os_memcpy(xkey, seed, seed_len);
-	os_memset(xkey + seed_len, 0, 64 - seed_len);
-	t[0] = 0x67452301;
-	t[1] = 0xEFCDAB89;
-	t[2] = 0x98BADCFE;
-	t[3] = 0x10325476;
-	t[4] = 0xC3D2E1F0;
-
-	m = xlen / 40;
-	for (j = 0; j < m; j++) {
-		/* XSEED_j = 0 */
-		for (i = 0; i < 2; i++) {
-			/* XVAL = (XKEY + XSEED_j) mod 2^b */
-
-			/* w_i = G(t, XVAL) */
-			os_memcpy(_t, t, 20);
-			sha1_transform((u8 *) _t, xkey);
-			_t[0] = host_to_be32(_t[0]);
-			_t[1] = host_to_be32(_t[1]);
-			_t[2] = host_to_be32(_t[2]);
-			_t[3] = host_to_be32(_t[3]);
-			_t[4] = host_to_be32(_t[4]);
-			os_memcpy(xpos, _t, 20);
-
-			/* XKEY = (1 + XKEY + w_i) mod 2^b */
-			carry = 1;
-			for (k = 19; k >= 0; k--) {
-				carry += xkey[k] + xpos[k];
-				xkey[k] = carry & 0xff;
-				carry >>= 8;
-			}
-
-			xpos += 20;
-		}
-		/* x_j = w_0|w_1 */
+	while (skip >= sizeof(skip_buf)) {
+		size_t len = skip;
+		if (len > sizeof(skip_buf))
+			len = sizeof(skip_buf);
+		if (!EVP_CipherUpdate(&ctx, skip_buf, &outl, skip_buf, len))
+			goto out;
+		skip -= len;
 	}
 
-	return 0;
+	if (EVP_CipherUpdate(&ctx, data, &outl, data, data_len))
+		res = 0;
+
+out:
+	EVP_CIPHER_CTX_cleanup(&ctx);
+	return res;
+#endif /* OPENSSL_NO_RC4 */
 }
-#endif /* CONFIG_NO_FIPS186_2_PRF */
+
+
+int md5_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
+{
+	return openssl_digest_vector(EVP_md5(), 0, num_elem, addr, len, mac);
+}
+
+
+#ifdef CONFIG_FIPS
+int md5_vector_non_fips_allow(size_t num_elem, const u8 *addr[],
+			      const size_t *len, u8 *mac)
+{
+	return openssl_digest_vector(EVP_md5(), 1, num_elem, addr, len, mac);
+}
+#endif /* CONFIG_FIPS */
+
+
+int sha1_vector(size_t num_elem, const u8 *addr[], const size_t *len, u8 *mac)
+{
+	return openssl_digest_vector(EVP_sha1(), 0, num_elem, addr, len, mac);
+}
+
+
+#ifndef NO_SHA256_WRAPPER
+int sha256_vector(size_t num_elem, const u8 *addr[], const size_t *len,
+		  u8 *mac)
+{
+	return openssl_digest_vector(EVP_sha256(), 0, num_elem, addr, len,
+				     mac);
+}
+#endif /* NO_SHA256_WRAPPER */
 
 
 void * aes_encrypt_init(const u8 *key, size_t len)
@@ -310,7 +360,7 @@ struct crypto_cipher * crypto_cipher_init(enum crypto_cipher_alg alg,
 	EVP_CIPHER_CTX_set_padding(&ctx->enc, 0);
 	if (!EVP_EncryptInit_ex(&ctx->enc, cipher, NULL, NULL, NULL) ||
 	    !EVP_CIPHER_CTX_set_key_length(&ctx->enc, key_len) ||
-	    !EVP_EncryptInit_ex(&ctx->enc, cipher, NULL, key, iv)) {
+	    !EVP_EncryptInit_ex(&ctx->enc, NULL, NULL, key, iv)) {
 		EVP_CIPHER_CTX_cleanup(&ctx->enc);
 		os_free(ctx);
 		return NULL;
@@ -320,7 +370,7 @@ struct crypto_cipher * crypto_cipher_init(enum crypto_cipher_alg alg,
 	EVP_CIPHER_CTX_set_padding(&ctx->dec, 0);
 	if (!EVP_DecryptInit_ex(&ctx->dec, cipher, NULL, NULL, NULL) ||
 	    !EVP_CIPHER_CTX_set_key_length(&ctx->dec, key_len) ||
-	    !EVP_DecryptInit_ex(&ctx->dec, cipher, NULL, key, iv)) {
+	    !EVP_DecryptInit_ex(&ctx->dec, NULL, NULL, key, iv)) {
 		EVP_CIPHER_CTX_cleanup(&ctx->enc);
 		EVP_CIPHER_CTX_cleanup(&ctx->dec);
 		os_free(ctx);
@@ -357,4 +407,99 @@ void crypto_cipher_deinit(struct crypto_cipher *ctx)
 	EVP_CIPHER_CTX_cleanup(&ctx->enc);
 	EVP_CIPHER_CTX_cleanup(&ctx->dec);
 	os_free(ctx);
+}
+
+
+void * dh5_init(struct wpabuf **priv, struct wpabuf **publ)
+{
+	DH *dh;
+	struct wpabuf *pubkey = NULL, *privkey = NULL;
+	size_t publen, privlen;
+
+	*priv = NULL;
+	*publ = NULL;
+
+	dh = DH_new();
+	if (dh == NULL)
+		return NULL;
+
+	dh->g = BN_new();
+	if (dh->g == NULL || BN_set_word(dh->g, 2) != 1)
+		goto err;
+
+	dh->p = get_group5_prime();
+	if (dh->p == NULL)
+		goto err;
+
+	if (DH_generate_key(dh) != 1)
+		goto err;
+
+	publen = BN_num_bytes(dh->pub_key);
+	pubkey = wpabuf_alloc(publen);
+	if (pubkey == NULL)
+		goto err;
+	privlen = BN_num_bytes(dh->priv_key);
+	privkey = wpabuf_alloc(privlen);
+	if (privkey == NULL)
+		goto err;
+
+	BN_bn2bin(dh->pub_key, wpabuf_put(pubkey, publen));
+	BN_bn2bin(dh->priv_key, wpabuf_put(privkey, privlen));
+
+	*priv = privkey;
+	*publ = pubkey;
+	return dh;
+
+err:
+	wpabuf_free(pubkey);
+	wpabuf_free(privkey);
+	DH_free(dh);
+	return NULL;
+}
+
+
+struct wpabuf * dh5_derive_shared(void *ctx, const struct wpabuf *peer_public,
+				  const struct wpabuf *own_private)
+{
+	BIGNUM *pub_key;
+	struct wpabuf *res = NULL;
+	size_t rlen;
+	DH *dh = ctx;
+	int keylen;
+
+	if (ctx == NULL)
+		return NULL;
+
+	pub_key = BN_bin2bn(wpabuf_head(peer_public), wpabuf_len(peer_public),
+			    NULL);
+	if (pub_key == NULL)
+		return NULL;
+
+	rlen = DH_size(dh);
+	res = wpabuf_alloc(rlen);
+	if (res == NULL)
+		goto err;
+
+	keylen = DH_compute_key(wpabuf_mhead(res), pub_key, dh);
+	if (keylen < 0)
+		goto err;
+	wpabuf_put(res, keylen);
+	BN_free(pub_key);
+
+	return res;
+
+err:
+	BN_free(pub_key);
+	wpabuf_free(res);
+	return NULL;
+}
+
+
+void dh5_free(void *ctx)
+{
+	DH *dh;
+	if (ctx == NULL)
+		return;
+	dh = ctx;
+	DH_free(dh);
 }
