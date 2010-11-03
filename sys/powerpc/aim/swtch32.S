@@ -88,8 +88,6 @@ ENTRY(cpu_switch)
 	stw	%r16,PCB_CR(%r6)
 	mflr	%r16			/* Save the link register */
 	stw	%r16,PCB_LR(%r6)
-	mfsr	%r16,USER_SR		/* Save USER_SR for copyin/out */
-	stw	%r16,PCB_AIM_USR_VSID(%r6)
 	stw	%r1,PCB_SP(%r6)		/* Save the stack pointer */
 	stw	%r2,PCB_TOC(%r6)	/* Save the TOC pointer */
 
