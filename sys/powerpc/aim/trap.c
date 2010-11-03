@@ -455,12 +455,14 @@ syscall(struct trapframe *frame)
 	td = PCPU_GET(curthread);
 	td->td_frame = frame;
 
+#ifdef __powerpc64__
 	/*
 	 * Speculatively restore last user SLB segment, which we know is
 	 * invalid already, since we are likely to do copyin()/copyout().
 	 */
 	__asm __volatile ("slbmte %0, %1; isync" ::
             "r"(td->td_pcb->pcb_cpu.aim.usr_vsid), "r"(USER_SLB_SLBE));
+#endif
 
 	error = syscallenter(td, &sa);
 	syscallret(td, error, &sa);
