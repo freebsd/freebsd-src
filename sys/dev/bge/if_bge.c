@@ -374,6 +374,7 @@ static void bge_tick(void *);
 static void bge_stats_clear_regs(struct bge_softc *);
 static void bge_stats_update(struct bge_softc *);
 static void bge_stats_update_regs(struct bge_softc *);
+static struct mbuf *bge_check_short_dma(struct mbuf *);
 static struct mbuf *bge_setup_tso(struct bge_softc *, struct mbuf *,
     uint16_t *);
 static int bge_encap(struct bge_softc *, struct mbuf **, uint32_t *);
@@ -1696,6 +1697,14 @@ bge_blockinit(struct bge_softc *sc)
 		bge_writembx(sc, BGE_MBX_RX_MINI_PROD_LO, 0);
 	}
 
+	/* Choose de-pipeline mode for BCM5906 A0, A1 and A2. */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5906) {
+		if (sc->bge_chipid == BGE_CHIPID_BCM5906_A0 ||
+		    sc->bge_chipid == BGE_CHIPID_BCM5906_A1 ||
+		    sc->bge_chipid == BGE_CHIPID_BCM5906_A2)
+			CSR_WRITE_4(sc, BGE_ISO_PKT_TX,
+			    (CSR_READ_4(sc, BGE_ISO_PKT_TX) & ~3) | 2);
+	}
 	/*
 	 * The BD ring replenish thresholds control how often the
 	 * hardware fetches new BD's from the producer rings in host
@@ -2632,12 +2641,14 @@ bge_attach(device_t dev)
 	case BGE_ASICREV_BCM5780:
 	case BGE_ASICREV_BCM5714:
 		sc->bge_flags |= BGE_FLAG_5714_FAMILY /* | BGE_FLAG_JUMBO */;
-		/* FALLTHRU */
+		/* FALLTHROUGH */
 	case BGE_ASICREV_BCM5750:
 	case BGE_ASICREV_BCM5752:
 	case BGE_ASICREV_BCM5906:
 		sc->bge_flags |= BGE_FLAG_575X_PLUS;
-		/* FALLTHRU */
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5906)
+			sc->bge_flags |= BGE_FLAG_SHORT_DMA_BUG;
+		/* FALLTHROUGH */
 	case BGE_ASICREV_BCM5705:
 		sc->bge_flags |= BGE_FLAG_5705_PLUS;
 		break;
@@ -4060,6 +4071,39 @@ bge_cksum_pad(struct mbuf *m)
 }
 
 static struct mbuf *
+bge_check_short_dma(struct mbuf *m)
+{
+	struct mbuf *n;
+	int found;
+
+	/*
+	 * If device receive two back-to-back send BDs with less than
+	 * or equal to 8 total bytes then the device may hang.  The two
+	 * back-to-back send BDs must in the same frame for this failure
+	 * to occur.  Scan mbuf chains and see whether two back-to-back
+	 * send BDs are there. If this is the case, allocate new mbuf
+	 * and copy the frame to workaround the silicon bug.
+	 */
+	for (n = m, found = 0; n != NULL; n = n->m_next) {
+		if (n->m_len < 8) {
+			found++;
+			if (found > 1)
+				break;
+			continue;
+		}
+		found = 0;
+	}
+
+	if (found > 1) {
+		n = m_defrag(m, M_DONTWAIT);
+		if (n == NULL)
+			m_freem(m);
+	} else
+		n = m;
+	return (n);
+}
+
+static struct mbuf *
 bge_setup_tso(struct bge_softc *sc, struct mbuf *m, uint16_t *mss)
 {
 	struct ip *ip;
@@ -4132,6 +4176,13 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 	csum_flags = 0;
 	mss = 0;
 	vlan_tag = 0;
+	if ((sc->bge_flags & BGE_FLAG_SHORT_DMA_BUG) != 0 &&
+	    m->m_next != NULL) {
+		*m_head = bge_check_short_dma(m);
+		if (*m_head == NULL)
+			return (ENOBUFS);
+		m = *m_head;
+	}
 	if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
 		*m_head = m = bge_setup_tso(sc, m, &mss);
 		if (*m_head == NULL)
