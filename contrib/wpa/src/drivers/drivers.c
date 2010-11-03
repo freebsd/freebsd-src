@@ -1,5 +1,5 @@
 /*
- * WPA Supplicant / driver interface list
+ * Driver interface list
  * Copyright (c) 2004-2005, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -24,9 +24,6 @@ extern struct wpa_driver_ops wpa_driver_nl80211_ops; /* driver_nl80211.c */
 #ifdef CONFIG_DRIVER_HOSTAP
 extern struct wpa_driver_ops wpa_driver_hostap_ops; /* driver_hostap.c */
 #endif /* CONFIG_DRIVER_HOSTAP */
-#ifdef CONFIG_DRIVER_PRISM54
-extern struct wpa_driver_ops wpa_driver_prism54_ops; /* driver_prism54.c */
-#endif /* CONFIG_DRIVER_PRISM54 */
 #ifdef CONFIG_DRIVER_HERMES
 extern struct wpa_driver_ops wpa_driver_hermes_ops; /* driver_hermes.c */
 #endif /* CONFIG_DRIVER_HERMES */
@@ -64,9 +61,6 @@ extern struct wpa_driver_ops wpa_driver_ralink_ops; /* driver_ralink.c */
 #ifdef CONFIG_DRIVER_OSX
 extern struct wpa_driver_ops wpa_driver_osx_ops; /* driver_osx.m */
 #endif /* CONFIG_DRIVER_OSX */
-#ifdef CONFIG_DRIVER_PS3
-extern struct wpa_driver_ops wpa_driver_ps3_ops; /* driver_ps3.c */
-#endif /* CONFIG_DRIVER_PS3 */
 #ifdef CONFIG_DRIVER_IPHONE
 extern struct wpa_driver_ops wpa_driver_iphone_ops; /* driver_iphone.m */
 #endif /* CONFIG_DRIVER_IPHONE */
@@ -74,9 +68,15 @@ extern struct wpa_driver_ops wpa_driver_iphone_ops; /* driver_iphone.m */
 /* driver_roboswitch.c */
 extern struct wpa_driver_ops wpa_driver_roboswitch_ops;
 #endif /* CONFIG_DRIVER_ROBOSWITCH */
+#ifdef CONFIG_DRIVER_ATHEROS
+extern struct wpa_driver_ops wpa_driver_atheros_ops; /* driver_atheros.c */
+#endif /* CONFIG_DRIVER_ATHEROS */
+#ifdef CONFIG_DRIVER_NONE
+extern struct wpa_driver_ops wpa_driver_none_ops; /* driver_none.c */
+#endif /* CONFIG_DRIVER_NONE */
 
 
-struct wpa_driver_ops *wpa_supplicant_drivers[] =
+struct wpa_driver_ops *wpa_drivers[] =
 {
 #ifdef CONFIG_DRIVER_WEXT
 	&wpa_driver_wext_ops,
@@ -87,9 +87,6 @@ struct wpa_driver_ops *wpa_supplicant_drivers[] =
 #ifdef CONFIG_DRIVER_HOSTAP
 	&wpa_driver_hostap_ops,
 #endif /* CONFIG_DRIVER_HOSTAP */
-#ifdef CONFIG_DRIVER_PRISM54
-	&wpa_driver_prism54_ops,
-#endif /* CONFIG_DRIVER_PRISM54 */
 #ifdef CONFIG_DRIVER_HERMES
 	&wpa_driver_hermes_ops,
 #endif /* CONFIG_DRIVER_HERMES */
@@ -126,14 +123,17 @@ struct wpa_driver_ops *wpa_supplicant_drivers[] =
 #ifdef CONFIG_DRIVER_OSX
 	&wpa_driver_osx_ops,
 #endif /* CONFIG_DRIVER_OSX */
-#ifdef CONFIG_DRIVER_PS3
-	&wpa_driver_ps3_ops,
-#endif /* CONFIG_DRIVER_PS3 */
 #ifdef CONFIG_DRIVER_IPHONE
 	&wpa_driver_iphone_ops,
 #endif /* CONFIG_DRIVER_IPHONE */
 #ifdef CONFIG_DRIVER_ROBOSWITCH
 	&wpa_driver_roboswitch_ops,
 #endif /* CONFIG_DRIVER_ROBOSWITCH */
+#ifdef CONFIG_DRIVER_ATHEROS
+	&wpa_driver_atheros_ops,
+#endif /* CONFIG_DRIVER_ATHEROS */
+#ifdef CONFIG_DRIVER_NONE
+	&wpa_driver_none_ops,
+#endif /* CONFIG_DRIVER_NONE */
 	NULL
 };

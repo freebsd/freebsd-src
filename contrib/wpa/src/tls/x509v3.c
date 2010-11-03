@@ -15,25 +15,32 @@
 #include "includes.h"
 
 #include "common.h"
-
-#ifdef CONFIG_INTERNAL_X509
-
+#include "crypto/crypto.h"
 #include "asn1.h"
-#include "crypto.h"
 #include "x509v3.h"
 
 
 static void x509_free_name(struct x509_name *name)
 {
-	os_free(name->cn);
-	os_free(name->c);
-	os_free(name->l);
-	os_free(name->st);
-	os_free(name->o);
-	os_free(name->ou);
+	size_t i;
+
+	for (i = 0; i < name->num_attr; i++) {
+		os_free(name->attr[i].value);
+		name->attr[i].value = NULL;
+		name->attr[i].type = X509_NAME_ATTR_NOT_USED;
+	}
+	name->num_attr = 0;
 	os_free(name->email);
-	name->cn = name->c = name->l = name->st = name->o = name->ou = NULL;
 	name->email = NULL;
+
+	os_free(name->alt_email);
+	os_free(name->dns);
+	os_free(name->uri);
+	os_free(name->ip);
+	name->alt_email = name->dns = name->uri = NULL;
+	name->ip = NULL;
+	name->ip_len = 0;
+	os_memset(&name->rid, 0, sizeof(name->rid));
 }
 
 
@@ -146,6 +153,7 @@ static int x509_str_compare(const char *a, const char *b)
 int x509_name_compare(struct x509_name *a, struct x509_name *b)
 {
 	int res;
+	size_t i;
 
 	if (!a && b)
 		return -1;
@@ -153,25 +161,20 @@ int x509_name_compare(struct x509_name *a, struct x509_name *b)
 		return 1;
 	if (!a && !b)
 		return 0;
+	if (a->num_attr < b->num_attr)
+		return -1;
+	if (a->num_attr > b->num_attr)
+		return 1;
 
-	res = x509_str_compare(a->cn, b->cn);
-	if (res)
-		return res;
-	res = x509_str_compare(a->c, b->c);
-	if (res)
-		return res;
-	res = x509_str_compare(a->l, b->l);
-	if (res)
-		return res;
-	res = x509_str_compare(a->st, b->st);
-	if (res)
-		return res;
-	res = x509_str_compare(a->o, b->o);
-	if (res)
-		return res;
-	res = x509_str_compare(a->ou, b->ou);
-	if (res)
-		return res;
+	for (i = 0; i < a->num_attr; i++) {
+		if (a->attr[i].type < b->attr[i].type)
+			return -1;
+		if (a->attr[i].type > b->attr[i].type)
+			return -1;
+		res = x509_str_compare(a->attr[i].value, b->attr[i].value);
+		if (res)
+			return res;
+	}
 	res = x509_str_compare(a->email, b->email);
 	if (res)
 		return res;
@@ -298,7 +301,7 @@ static int x509_parse_name(const u8 *buf, size_t len, struct x509_name *name,
 	struct asn1_hdr hdr;
 	const u8 *pos, *end, *set_pos, *set_end, *seq_pos, *seq_end;
 	struct asn1_oid oid;
-	char **fieldp;
+	char *val;
 
 	/*
 	 * Name ::= CHOICE { RDNSequence }
@@ -328,6 +331,8 @@ static int x509_parse_name(const u8 *buf, size_t len, struct x509_name *name,
 	end = *next = pos + hdr.length;
 
 	while (pos < end) {
+		enum x509_name_attr_type type;
+
 		if (asn1_get_next(pos, end - pos, &hdr) < 0 ||
 		    hdr.class != ASN1_CLASS_UNIVERSAL ||
 		    hdr.tag != ASN1_TAG_SET) {
@@ -375,34 +380,34 @@ static int x509_parse_name(const u8 *buf, size_t len, struct x509_name *name,
 		 * pseudonym, generation qualifier.
 		 * MUST: domainComponent (RFC 2247).
 		 */
-		fieldp = NULL;
+		type = X509_NAME_ATTR_NOT_USED;
 		if (oid.len == 4 &&
 		    oid.oid[0] == 2 && oid.oid[1] == 5 && oid.oid[2] == 4) {
 			/* id-at ::= 2.5.4 */
 			switch (oid.oid[3]) {
 			case 3:
 				/* commonName */
-				fieldp = &name->cn;
+				type = X509_NAME_ATTR_CN;
 				break;
 			case 6:
 				/*  countryName */
-				fieldp = &name->c;
+				type = X509_NAME_ATTR_C;
 				break;
 			case 7:
 				/* localityName */
-				fieldp = &name->l;
+				type = X509_NAME_ATTR_L;
 				break;
 			case 8:
 				/* stateOrProvinceName */
-				fieldp = &name->st;
+				type = X509_NAME_ATTR_ST;
 				break;
 			case 10:
 				/* organizationName */
-				fieldp = &name->o;
+				type = X509_NAME_ATTR_O;
 				break;
 			case 11:
 				/* organizationalUnitName */
-				fieldp = &name->ou;
+				type = X509_NAME_ATTR_OU;
 				break;
 			}
 		} else if (oid.len == 7 &&
@@ -411,10 +416,25 @@ static int x509_parse_name(const u8 *buf, size_t len, struct x509_name *name,
 			   oid.oid[4] == 1 && oid.oid[5] == 9 &&
 			   oid.oid[6] == 1) {
 			/* 1.2.840.113549.1.9.1 - e-mailAddress */
-			fieldp = &name->email;
+			os_free(name->email);
+			name->email = os_malloc(hdr.length + 1);
+			if (name->email == NULL) {
+				x509_free_name(name);
+				return -1;
+			}
+			os_memcpy(name->email, hdr.payload, hdr.length);
+			name->email[hdr.length] = '\0';
+			continue;
+		} else if (oid.len == 7 &&
+			   oid.oid[0] == 0 && oid.oid[1] == 9 &&
+			   oid.oid[2] == 2342 && oid.oid[3] == 19200300 &&
+			   oid.oid[4] == 100 && oid.oid[5] == 1 &&
+			   oid.oid[6] == 25) {
+			/* 0.9.2342.19200300.100.1.25 - domainComponent */
+			type = X509_NAME_ATTR_DC;
 		}
 
-		if (fieldp == NULL) {
+		if (type == X509_NAME_ATTR_NOT_USED) {
 			wpa_hexdump(MSG_DEBUG, "X509: Unrecognized OID",
 				    (u8 *) oid.oid,
 				    oid.len * sizeof(oid.oid[0]));
@@ -423,17 +443,57 @@ static int x509_parse_name(const u8 *buf, size_t len, struct x509_name *name,
 			continue;
 		}
 
-		os_free(*fieldp);
-		*fieldp = os_malloc(hdr.length + 1);
-		if (*fieldp == NULL) {
+		if (name->num_attr == X509_MAX_NAME_ATTRIBUTES) {
+			wpa_printf(MSG_INFO, "X509: Too many Name attributes");
 			x509_free_name(name);
 			return -1;
 		}
-		os_memcpy(*fieldp, hdr.payload, hdr.length);
-		(*fieldp)[hdr.length] = '\0';
+
+		val = os_malloc(hdr.length + 1);
+		if (val == NULL) {
+			x509_free_name(name);
+			return -1;
+		}
+		os_memcpy(val, hdr.payload, hdr.length);
+		val[hdr.length] = '\0';
+		if (os_strlen(val) != hdr.length) {
+			wpa_printf(MSG_INFO, "X509: Reject certificate with "
+				   "embedded NUL byte in a string (%s[NUL])",
+				   val);
+			x509_free_name(name);
+			return -1;
+		}
+
+		name->attr[name->num_attr].type = type;
+		name->attr[name->num_attr].value = val;
+		name->num_attr++;
 	}
 
 	return 0;
+}
+
+
+static char * x509_name_attr_str(enum x509_name_attr_type type)
+{
+	switch (type) {
+	case X509_NAME_ATTR_NOT_USED:
+		return "[N/A]";
+	case X509_NAME_ATTR_DC:
+		return "DC";
+	case X509_NAME_ATTR_CN:
+		return "CN";
+	case X509_NAME_ATTR_C:
+		return "C";
+	case X509_NAME_ATTR_L:
+		return "L";
+	case X509_NAME_ATTR_ST:
+		return "ST";
+	case X509_NAME_ATTR_O:
+		return "O";
+	case X509_NAME_ATTR_OU:
+		return "OU";
+	}
+	return "?";
 }
 
 
@@ -447,6 +507,7 @@ void x509_name_string(struct x509_name *name, char *buf, size_t len)
 {
 	char *pos, *end;
 	int ret;
+	size_t i;
 
 	if (len == 0)
 		return;
@@ -454,46 +515,20 @@ void x509_name_string(struct x509_name *name, char *buf, size_t len)
 	pos = buf;
 	end = buf + len;
 
-	if (name->c) {
-		ret = os_snprintf(pos, end - pos, "C=%s, ", name->c);
-		if (ret < 0 || ret >= end - pos)
-			goto done;
-		pos += ret;
-	}
-	if (name->st) {
-		ret = os_snprintf(pos, end - pos, "ST=%s, ", name->st);
-		if (ret < 0 || ret >= end - pos)
-			goto done;
-		pos += ret;
-	}
-	if (name->l) {
-		ret = os_snprintf(pos, end - pos, "L=%s, ", name->l);
-		if (ret < 0 || ret >= end - pos)
-			goto done;
-		pos += ret;
-	}
-	if (name->o) {
-		ret = os_snprintf(pos, end - pos, "O=%s, ", name->o);
-		if (ret < 0 || ret >= end - pos)
-			goto done;
-		pos += ret;
-	}
-	if (name->ou) {
-		ret = os_snprintf(pos, end - pos, "OU=%s, ", name->ou);
-		if (ret < 0 || ret >= end - pos)
-			goto done;
-		pos += ret;
-	}
-	if (name->cn) {
-		ret = os_snprintf(pos, end - pos, "CN=%s, ", name->cn);
+	for (i = 0; i < name->num_attr; i++) {
+		ret = os_snprintf(pos, end - pos, "%s=%s, ",
+				  x509_name_attr_str(name->attr[i].type),
+				  name->attr[i].value);
 		if (ret < 0 || ret >= end - pos)
 			goto done;
 		pos += ret;
 	}
 
 	if (pos > buf + 1 && pos[-1] == ' ' && pos[-2] == ',') {
-		*pos-- = '\0';
-		*pos-- = '\0';
+		pos--;
+		*pos = '\0';
+		pos--;
+		*pos = '\0';
 	}
 
 	if (name->email) {
@@ -815,6 +850,237 @@ static int x509_parse_ext_basic_constraints(struct x509_certificate *cert,
 }
 
 
+static int x509_parse_alt_name_rfc8222(struct x509_name *name,
+				       const u8 *pos, size_t len)
+{
+	/* rfc822Name IA5String */
+	wpa_hexdump_ascii(MSG_MSGDUMP, "X509: altName - rfc822Name", pos, len);
+	os_free(name->alt_email);
+	name->alt_email = os_zalloc(len + 1);
+	if (name->alt_email == NULL)
+		return -1;
+	os_memcpy(name->alt_email, pos, len);
+	if (os_strlen(name->alt_email) != len) {
+		wpa_printf(MSG_INFO, "X509: Reject certificate with "
+			   "embedded NUL byte in rfc822Name (%s[NUL])",
+			   name->alt_email);
+		os_free(name->alt_email);
+		name->alt_email = NULL;
+		return -1;
+	}
+	return 0;
+}
+
+
+static int x509_parse_alt_name_dns(struct x509_name *name,
+				   const u8 *pos, size_t len)
+{
+	/* dNSName IA5String */
+	wpa_hexdump_ascii(MSG_MSGDUMP, "X509: altName - dNSName", pos, len);
+	os_free(name->dns);
+	name->dns = os_zalloc(len + 1);
+	if (name->dns == NULL)
+		return -1;
+	os_memcpy(name->dns, pos, len);
+	if (os_strlen(name->dns) != len) {
+		wpa_printf(MSG_INFO, "X509: Reject certificate with "
+			   "embedded NUL byte in dNSName (%s[NUL])",
+			   name->dns);
+		os_free(name->dns);
+		name->dns = NULL;
+		return -1;
+	}
+	return 0;
+}
+
+
+static int x509_parse_alt_name_uri(struct x509_name *name,
+				   const u8 *pos, size_t len)
+{
+	/* uniformResourceIdentifier IA5String */
+	wpa_hexdump_ascii(MSG_MSGDUMP,
+			  "X509: altName - uniformResourceIdentifier",
+			  pos, len);
+	os_free(name->uri);
+	name->uri = os_zalloc(len + 1);
+	if (name->uri == NULL)
+		return -1;
+	os_memcpy(name->uri, pos, len);
+	if (os_strlen(name->uri) != len) {
+		wpa_printf(MSG_INFO, "X509: Reject certificate with "
+			   "embedded NUL byte in uniformResourceIdentifier "
+			   "(%s[NUL])", name->uri);
+		os_free(name->uri);
+		name->uri = NULL;
+		return -1;
+	}
+	return 0;
+}
+
+
+static int x509_parse_alt_name_ip(struct x509_name *name,
+				       const u8 *pos, size_t len)
+{
+	/* iPAddress OCTET STRING */
+	wpa_hexdump(MSG_MSGDUMP, "X509: altName - iPAddress", pos, len);
+	os_free(name->ip);
+	name->ip = os_malloc(len);
+	if (name->ip == NULL)
+		return -1;
+	os_memcpy(name->ip, pos, len);
+	name->ip_len = len;
+	return 0;
+}
+
+
+static int x509_parse_alt_name_rid(struct x509_name *name,
+				   const u8 *pos, size_t len)
+{
+	char buf[80];
+
+	/* registeredID OBJECT IDENTIFIER */
+	if (asn1_parse_oid(pos, len, &name->rid) < 0)
+		return -1;
+
+	asn1_oid_to_str(&name->rid, buf, sizeof(buf));
+	wpa_printf(MSG_MSGDUMP, "X509: altName - registeredID: %s", buf);
+
+	return 0;
+}
+
+
+static int x509_parse_ext_alt_name(struct x509_name *name,
+				   const u8 *pos, size_t len)
+{
+	struct asn1_hdr hdr;
+	const u8 *p, *end;
+
+	/*
+	 * GeneralNames ::= SEQUENCE SIZE (1..MAX) OF GeneralName
+	 *
+	 * GeneralName ::= CHOICE {
+	 *     otherName                       [0]     OtherName,
+	 *     rfc822Name                      [1]     IA5String,
+	 *     dNSName                         [2]     IA5String,
+	 *     x400Address                     [3]     ORAddress,
+	 *     directoryName                   [4]     Name,
+	 *     ediPartyName                    [5]     EDIPartyName,
+	 *     uniformResourceIdentifier       [6]     IA5String,
+	 *     iPAddress                       [7]     OCTET STRING,
+	 *     registeredID                    [8]     OBJECT IDENTIFIER }
+	 *
+	 * OtherName ::= SEQUENCE {
+	 *     type-id    OBJECT IDENTIFIER,
+	 *     value      [0] EXPLICIT ANY DEFINED BY type-id }
+	 *
+	 * EDIPartyName ::= SEQUENCE {
+	 *     nameAssigner            [0]     DirectoryString OPTIONAL,
+	 *     partyName               [1]     DirectoryString }
+	 */
+
+	for (p = pos, end = pos + len; p < end; p = hdr.payload + hdr.length) {
+		int res;
+
+		if (asn1_get_next(p, end - p, &hdr) < 0) {
+			wpa_printf(MSG_DEBUG, "X509: Failed to parse "
+				   "SubjectAltName item");
+			return -1;
+		}
+
+		if (hdr.class != ASN1_CLASS_CONTEXT_SPECIFIC)
+			continue;
+
+		switch (hdr.tag) {
+		case 1:
+			res = x509_parse_alt_name_rfc8222(name, hdr.payload,
+							  hdr.length);
+			break;
+		case 2:
+			res = x509_parse_alt_name_dns(name, hdr.payload,
+						      hdr.length);
+			break;
+		case 6:
+			res = x509_parse_alt_name_uri(name, hdr.payload,
+						      hdr.length);
+			break;
+		case 7:
+			res = x509_parse_alt_name_ip(name, hdr.payload,
+						     hdr.length);
+			break;
+		case 8:
+			res = x509_parse_alt_name_rid(name, hdr.payload,
+						      hdr.length);
+			break;
+		case 0: /* TODO: otherName */
+		case 3: /* TODO: x500Address */
+		case 4: /* TODO: directoryName */
+		case 5: /* TODO: ediPartyName */
+		default:
+			res = 0;
+			break;
+		}
+		if (res < 0)
+			return res;
+	}
+
+	return 0;
+}
+
+
+static int x509_parse_ext_subject_alt_name(struct x509_certificate *cert,
+					   const u8 *pos, size_t len)
+{
+	struct asn1_hdr hdr;
+
+	/* SubjectAltName ::= GeneralNames */
+
+	if (asn1_get_next(pos, len, &hdr) < 0 ||
+	    hdr.class != ASN1_CLASS_UNIVERSAL ||
+	    hdr.tag != ASN1_TAG_SEQUENCE) {
+		wpa_printf(MSG_DEBUG, "X509: Expected SEQUENCE in "
+			   "SubjectAltName; found %d tag 0x%x",
+			   hdr.class, hdr.tag);
+		return -1;
+	}
+
+	wpa_printf(MSG_DEBUG, "X509: SubjectAltName");
+	cert->extensions_present |= X509_EXT_SUBJECT_ALT_NAME;
+
+	if (hdr.length == 0)
+		return 0;
+
+	return x509_parse_ext_alt_name(&cert->subject, hdr.payload,
+				       hdr.length);
+}
+
+
+static int x509_parse_ext_issuer_alt_name(struct x509_certificate *cert,
+					  const u8 *pos, size_t len)
+{
+	struct asn1_hdr hdr;
+
+	/* IssuerAltName ::= GeneralNames */
+
+	if (asn1_get_next(pos, len, &hdr) < 0 ||
+	    hdr.class != ASN1_CLASS_UNIVERSAL ||
+	    hdr.tag != ASN1_TAG_SEQUENCE) {
+		wpa_printf(MSG_DEBUG, "X509: Expected SEQUENCE in "
+			   "IssuerAltName; found %d tag 0x%x",
+			   hdr.class, hdr.tag);
+		return -1;
+	}
+
+	wpa_printf(MSG_DEBUG, "X509: IssuerAltName");
+	cert->extensions_present |= X509_EXT_ISSUER_ALT_NAME;
+
+	if (hdr.length == 0)
+		return 0;
+
+	return x509_parse_ext_alt_name(&cert->issuer, hdr.payload,
+				       hdr.length);
+}
+
+
 static int x509_parse_extension_data(struct x509_certificate *cert,
 				     struct asn1_oid *oid,
 				     const u8 *pos, size_t len)
@@ -824,7 +1090,6 @@ static int x509_parse_extension_data(struct x509_certificate *cert,
 
 	/* TODO: add other extensions required by RFC 3280, Ch 4.2:
 	 * certificate policies (section 4.2.1.5)
-	 * the subject alternative name (section 4.2.1.7)
 	 * name constraints (section 4.2.1.11)
 	 * policy constraints (section 4.2.1.12)
 	 * extended key usage (section 4.2.1.13)
@@ -833,6 +1098,10 @@ static int x509_parse_extension_data(struct x509_certificate *cert,
 	switch (oid->oid[3]) {
 	case 15: /* id-ce-keyUsage */
 		return x509_parse_ext_key_usage(cert, pos, len);
+	case 17: /* id-ce-subjectAltName */
+		return x509_parse_ext_subject_alt_name(cert, pos, len);
+	case 18: /* id-ce-issuerAltName */
+		return x509_parse_ext_issuer_alt_name(cert, pos, len);
 	case 19: /* id-ce-basicConstraints */
 		return x509_parse_ext_basic_constraints(cert, pos, len);
 	default:
@@ -1495,18 +1764,12 @@ skip_digest_oid:
 			    hash, hash_len);
 		break;
 	case 11: /* sha256WithRSAEncryption */
-#ifdef NEED_SHA256
 		sha256_vector(1, &cert->tbs_cert_start, &cert->tbs_cert_len,
 			      hash);
 		hash_len = 32;
 		wpa_hexdump(MSG_MSGDUMP, "X509: Certificate hash (SHA256)",
 			    hash, hash_len);
 		break;
-#else /* NEED_SHA256 */
-		wpa_printf(MSG_INFO, "X509: SHA256 support disabled");
-		os_free(data);
-		return -1;
-#endif /* NEED_SHA256 */
 	case 2: /* md2WithRSAEncryption */
 	case 12: /* sha384WithRSAEncryption */
 	case 13: /* sha512WithRSAEncryption */
@@ -1720,5 +1983,3 @@ int x509_certificate_self_signed(struct x509_certificate *cert)
 {
 	return x509_name_compare(&cert->issuer, &cert->subject) == 0;
 }
-
-#endif /* CONFIG_INTERNAL_X509 */

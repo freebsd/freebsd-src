@@ -15,7 +15,7 @@
 #ifndef EAP_H
 #define EAP_H
 
-#include "defs.h"
+#include "common/defs.h"
 #include "eap_common/eap_defs.h"
 #include "eap_peer/eap_methods.h"
 

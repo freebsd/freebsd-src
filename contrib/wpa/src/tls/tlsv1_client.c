@@ -15,8 +15,8 @@
 #include "includes.h"
 
 #include "common.h"
-#include "sha1.h"
-#include "tls.h"
+#include "crypto/sha1.h"
+#include "crypto/tls.h"
 #include "tlsv1_common.h"
 #include "tlsv1_record.h"
 #include "tlsv1_client.h"
@@ -605,7 +605,6 @@ int tlsv1_client_get_keyblock_size(struct tlsv1_client *conn)
  */
 int tlsv1_client_set_cipher_list(struct tlsv1_client *conn, u8 *ciphers)
 {
-#ifdef EAP_FAST
 	size_t count;
 	u16 *suites;
 
@@ -635,9 +634,6 @@ int tlsv1_client_set_cipher_list(struct tlsv1_client *conn, u8 *ciphers)
 	}
 
 	return 0;
-#else /* EAP_FAST */
-	return -1;
-#endif /* EAP_FAST */
 }
 
 

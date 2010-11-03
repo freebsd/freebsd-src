@@ -20,10 +20,11 @@
 #include "eloop.h"
 #include "config_ssid.h"
 #include "wpa_supplicant_i.h"
-#include "wpa.h"
-#include "drivers/driver.h"
-#include "ieee802_11_defs.h"
-#include "ieee802_11_common.h"
+#include "notify.h"
+#include "driver_i.h"
+#include "rsn_supp/wpa.h"
+#include "common/ieee802_11_defs.h"
+#include "common/ieee802_11_common.h"
 #include "mlme.h"
 
 
@@ -94,14 +95,17 @@ static int ieee80211_sta_find_ibss(struct wpa_supplicant *wpa_s);
 static int ieee80211_sta_wep_configured(struct wpa_supplicant *wpa_s);
 static void ieee80211_sta_timer(void *eloop_ctx, void *timeout_ctx);
 static void ieee80211_sta_scan_timer(void *eloop_ctx, void *timeout_ctx);
+static void ieee80211_build_tspec(struct wpabuf *buf);
+static int ieee80211_sta_set_probe_req_ie(struct wpa_supplicant *wpa_s,
+					  const u8 *ies, size_t ies_len);
 
 
 static int ieee80211_sta_set_channel(struct wpa_supplicant *wpa_s,
-				     wpa_hw_mode phymode, int chan,
+				     enum hostapd_hw_mode phymode, int chan,
 				     int freq)
 {
 	size_t i;
-	struct wpa_hw_modes *mode;
+	struct hostapd_hw_modes *mode;
 
 	for (i = 0; i < wpa_s->mlme.num_modes; i++) {
 		mode = &wpa_s->mlme.modes[i];
@@ -116,8 +120,6 @@ static int ieee80211_sta_set_channel(struct wpa_supplicant *wpa_s,
 }
 
 
-
-#if 0 /* FIX */
 static int ecw2cw(int ecw)
 {
 	int cw = 1;
@@ -127,15 +129,15 @@ static int ecw2cw(int ecw)
 	}
 	return cw - 1;
 }
-#endif
 
 
 static void ieee80211_sta_wmm_params(struct wpa_supplicant *wpa_s,
-				     u8 *wmm_param, size_t wmm_param_len)
+				     const u8 *wmm_param, size_t wmm_param_len)
 {
 	size_t left;
 	int count;
-	u8 *pos;
+	const u8 *pos;
+	u8 wmm_acm;
 
 	if (wmm_param_len < 8 || wmm_param[5] /* version */ != 1)
 		return;
@@ -147,54 +149,42 @@ static void ieee80211_sta_wmm_params(struct wpa_supplicant *wpa_s,
 	pos = wmm_param + 8;
 	left = wmm_param_len - 8;
 
-#if 0 /* FIX */
 	wmm_acm = 0;
 	for (; left >= 4; left -= 4, pos += 4) {
 		int aci = (pos[0] >> 5) & 0x03;
 		int acm = (pos[0] >> 4) & 0x01;
-		int queue;
+		int aifs, cw_max, cw_min, burst_time;
 
 		switch (aci) {
-		case 1:
-			queue = IEEE80211_TX_QUEUE_DATA3;
+		case 1: /* AC_BK */
 			if (acm)
-				wmm_acm |= BIT(1) | BIT(2);
+				wmm_acm |= BIT(1) | BIT(2); /* BK/- */
 			break;
-		case 2:
-			queue = IEEE80211_TX_QUEUE_DATA1;
+		case 2: /* AC_VI */
 			if (acm)
-				wmm_acm |= BIT(4) | BIT(5);
+				wmm_acm |= BIT(4) | BIT(5); /* CL/VI */
 			break;
-		case 3:
-			queue = IEEE80211_TX_QUEUE_DATA0;
+		case 3: /* AC_VO */
 			if (acm)
-				wmm_acm |= BIT(6) | BIT(7);
+				wmm_acm |= BIT(6) | BIT(7); /* VO/NC */
 			break;
-		case 0:
+		case 0: /* AC_BE */
 		default:
-			queue = IEEE80211_TX_QUEUE_DATA2;
 			if (acm)
-				wpa_s->mlme.wmm_acm |= BIT(0) | BIT(3);
+				wmm_acm |= BIT(0) | BIT(3); /* BE/EE */
 			break;
 		}
 
-		params.aifs = pos[0] & 0x0f;
-		params.cw_max = ecw2cw((pos[1] & 0xf0) >> 4);
-		params.cw_min = ecw2cw(pos[1] & 0x0f);
+		aifs = pos[0] & 0x0f;
+		cw_max = ecw2cw((pos[1] & 0xf0) >> 4);
+		cw_min = ecw2cw(pos[1] & 0x0f);
 		/* TXOP is in units of 32 usec; burst_time in 0.1 ms */
-		params.burst_time = (pos[2] | (pos[3] << 8)) * 32 / 100;
-		wpa_printf(MSG_DEBUG, "MLME: WMM queue=%d aci=%d acm=%d "
-			   "aifs=%d cWmin=%d cWmax=%d burst=%d",
-			   queue, aci, acm, params.aifs, params.cw_min,
-			   params.cw_max, params.burst_time);
-		/* TODO: handle ACM (block TX, fallback to next lowest allowed
-		 * AC for now) */
-		if (local->hw->conf_tx(local->mdev, queue, &params)) {
-			wpa_printf(MSG_DEBUG, "MLME: failed to set TX queue "
-				   "parameters for queue %d", queue);
-		}
+		burst_time = (pos[2] | (pos[3] << 8)) * 32 / 100;
+		wpa_printf(MSG_DEBUG, "MLME: WMM aci=%d acm=%d aifs=%d "
+			   "cWmin=%d cWmax=%d burst=%d",
+			   aci, acm, aifs, cw_min, cw_max, burst_time);
+		/* TODO: driver configuration */
 	}
-#endif
 }
 
 
@@ -214,6 +204,7 @@ static void ieee80211_set_associated(struct wpa_supplicant *wpa_s, int assoc)
 		data.assoc_info.req_ies_len = wpa_s->mlme.assocreq_ies_len;
 		data.assoc_info.resp_ies = wpa_s->mlme.assocresp_ies;
 		data.assoc_info.resp_ies_len = wpa_s->mlme.assocresp_ies_len;
+		data.assoc_info.freq = wpa_s->mlme.freq;
 		wpa_supplicant_event(wpa_s, EVENT_ASSOC, &data);
 	} else {
 		wpa_supplicant_event(wpa_s, EVENT_DISASSOC, NULL);
@@ -230,8 +221,8 @@ static int ieee80211_sta_tx(struct wpa_supplicant *wpa_s, const u8 *buf,
 
 
 static void ieee80211_send_auth(struct wpa_supplicant *wpa_s,
-				int transaction, u8 *extra, size_t extra_len,
-				int encrypt)
+				int transaction, const u8 *extra,
+				size_t extra_len, int encrypt)
 {
 	u8 *buf;
 	size_t len;
@@ -352,7 +343,7 @@ static void ieee80211_send_assoc(struct wpa_supplicant *wpa_s)
 	blen = 0;
 
 	capab = wpa_s->mlme.capab;
-	if (wpa_s->mlme.phymode == WPA_MODE_IEEE80211G) {
+	if (wpa_s->mlme.phymode == HOSTAPD_MODE_IEEE80211G) {
 		capab |= WLAN_CAPABILITY_SHORT_SLOT_TIME |
 			WLAN_CAPABILITY_SHORT_PREAMBLE;
 	}
@@ -403,20 +394,16 @@ static void ieee80211_send_assoc(struct wpa_supplicant *wpa_s)
 	blen += len + 2;
 	*pos++ = WLAN_EID_SUPP_RATES;
 	*pos++ = len;
-	for (i = 0; i < len; i++) {
-		int rate = wpa_s->mlme.curr_rates[i].rate;
-		*pos++ = (u8) (rate / 5);
-	}
+	for (i = 0; i < len; i++)
+		*pos++ = (u8) (wpa_s->mlme.curr_rates[i] / 5);
 
 	if (wpa_s->mlme.num_curr_rates > len) {
 		pos = buf + blen;
 		blen += wpa_s->mlme.num_curr_rates - len + 2;
 		*pos++ = WLAN_EID_EXT_SUPP_RATES;
 		*pos++ = wpa_s->mlme.num_curr_rates - len;
-		for (i = len; i < wpa_s->mlme.num_curr_rates; i++) {
-			int rate = wpa_s->mlme.curr_rates[i].rate;
-			*pos++ = (u8) (rate / 5);
-		}
+		for (i = len; i < wpa_s->mlme.num_curr_rates; i++)
+			*pos++ = (u8) (wpa_s->mlme.curr_rates[i] / 5);
 	}
 
 	if (wpa_s->mlme.extra_ie && wpa_s->mlme.auth_alg != WLAN_AUTH_FT) {
@@ -683,7 +670,6 @@ static void ieee80211_send_probe_req(struct wpa_supplicant *wpa_s,
 	supp_rates[0] = WLAN_EID_SUPP_RATES;
 	supp_rates[1] = 0;
 	for (i = 0; i < wpa_s->mlme.num_curr_rates; i++) {
-		struct wpa_rate_data *rate = &wpa_s->mlme.curr_rates[i];
 		if (esupp_rates) {
 			pos = buf + len;
 			len++;
@@ -699,7 +685,7 @@ static void ieee80211_send_probe_req(struct wpa_supplicant *wpa_s,
 			len++;
 			supp_rates[1]++;
 		}
-		*pos++ = rate->rate / 5;
+		*pos++ = wpa_s->mlme.curr_rates[i] / 5;
 	}
 
 	if (wpa_s->mlme.extra_probe_ie) {
@@ -768,7 +754,7 @@ static void ieee80211_rx_mgmt_auth(struct wpa_supplicant *wpa_s,
 	u16 auth_alg, auth_transaction, status_code;
 	int adhoc;
 
-	adhoc = ssid && ssid->mode == 1;
+	adhoc = ssid && ssid->mode == WPAS_MODE_IBSS;
 
 	if (wpa_s->mlme.state != IEEE80211_AUTHENTICATE && !adhoc) {
 		wpa_printf(MSG_DEBUG, "MLME: authentication frame received "
@@ -841,12 +827,11 @@ static void ieee80211_rx_mgmt_auth(struct wpa_supplicant *wpa_s,
 			u8 algs[num_algs];
 			int i, pos;
 			algs[0] = algs[1] = algs[2] = 0xff;
-			if (wpa_s->mlme.auth_algs & IEEE80211_AUTH_ALG_OPEN)
+			if (wpa_s->mlme.auth_algs & WPA_AUTH_ALG_OPEN)
 				algs[0] = WLAN_AUTH_OPEN;
-			if (wpa_s->mlme.auth_algs &
-			    IEEE80211_AUTH_ALG_SHARED_KEY)
+			if (wpa_s->mlme.auth_algs & WPA_AUTH_ALG_SHARED)
 				algs[1] = WLAN_AUTH_SHARED_KEY;
-			if (wpa_s->mlme.auth_algs & IEEE80211_AUTH_ALG_LEAP)
+			if (wpa_s->mlme.auth_algs & WPA_AUTH_ALG_LEAP)
 				algs[2] = WLAN_AUTH_LEAP;
 			if (wpa_s->mlme.auth_alg == WLAN_AUTH_OPEN)
 				pos = 0;
@@ -890,12 +875,36 @@ static void ieee80211_rx_mgmt_auth(struct wpa_supplicant *wpa_s,
 	case WLAN_AUTH_FT:
 	{
 		union wpa_event_data data;
+		struct wpabuf *ric = NULL;
 		os_memset(&data, 0, sizeof(data));
 		data.ft_ies.ies = mgmt->u.auth.variable;
 		data.ft_ies.ies_len = len -
 			(mgmt->u.auth.variable - (u8 *) mgmt);
 		os_memcpy(data.ft_ies.target_ap, wpa_s->bssid, ETH_ALEN);
+		if (os_strcmp(wpa_s->driver->name, "test") == 0 &&
+		    wpa_s->mlme.wmm_enabled) {
+			ric = wpabuf_alloc(200);
+			if (ric) {
+				/* Build simple RIC-Request: RDIE | TSPEC */
+
+				/* RIC Data (RDIE) */
+				wpabuf_put_u8(ric, WLAN_EID_RIC_DATA);
+				wpabuf_put_u8(ric, 4);
+				wpabuf_put_u8(ric, 0); /* RDIE Identifier */
+				wpabuf_put_u8(ric, 1); /* Resource Descriptor
+							* Count */
+				wpabuf_put_le16(ric, 0); /* Status Code */
+
+				/* WMM TSPEC */
+				ieee80211_build_tspec(ric);
+
+				data.ft_ies.ric_ies = wpabuf_head(ric);
+				data.ft_ies.ric_ies_len = wpabuf_len(ric);
+			}
+		}
+
 		wpa_supplicant_event(wpa_s, EVENT_FT_RESPONSE, &data);
+		wpabuf_free(ric);
 		ieee80211_auth_completed(wpa_s);
 		break;
 	}
@@ -987,42 +996,63 @@ static void ieee80211_rx_mgmt_disassoc(struct wpa_supplicant *wpa_s,
 }
 
 
-static int ieee80211_ft_assoc_resp(struct wpa_supplicant *wpa_s,
-				   struct ieee802_11_elems *elems)
+static void ieee80211_build_tspec(struct wpabuf *buf)
 {
-#ifdef CONFIG_IEEE80211R
-	const u8 *mobility_domain = NULL;
-	const u8 *r0kh_id = NULL;
-	size_t r0kh_id_len = 0;
-	const u8 *r1kh_id = NULL;
-	struct rsn_ftie *hdr;
-	const u8 *pos, *end;
+	struct wmm_tspec_element *tspec;
+	int tid, up;
 
-	if (elems->mdie && elems->mdie_len >= MOBILITY_DOMAIN_ID_LEN)
-		mobility_domain = elems->mdie;
-	if (elems->ftie && elems->ftie_len >= sizeof(struct rsn_ftie)) {
-		end = elems->ftie + elems->ftie_len;
-		hdr = (struct rsn_ftie *) elems->ftie;
-		pos = (const u8 *) (hdr + 1);
-		while (pos + 1 < end) {
-			if (pos + 2 + pos[1] > end)
-				break;
-			if (pos[0] == FTIE_SUBELEM_R1KH_ID &&
-			    pos[1] == FT_R1KH_ID_LEN)
-				r1kh_id = pos + 2;
-			else if (pos[0] == FTIE_SUBELEM_R0KH_ID &&
-				 pos[1] >= 1 && pos[1] <= FT_R0KH_ID_MAX_LEN) {
-				r0kh_id = pos + 2;
-				r0kh_id_len = pos[1];
-			}
-			pos += 2 + pos[1];
-		}
-	}
-	return wpa_sm_set_ft_params(wpa_s->wpa, mobility_domain, r0kh_id,
-				    r0kh_id_len, r1kh_id);
-#else /* CONFIG_IEEE80211R */
-	return 0;
-#endif /* CONFIG_IEEE80211R */
+	tspec = wpabuf_put(buf, sizeof(*tspec));
+	tspec->eid = WLAN_EID_VENDOR_SPECIFIC;
+	tspec->length = sizeof(*tspec) - 2;
+	tspec->oui[0] = 0x00;
+	tspec->oui[1] = 0x50;
+	tspec->oui[2] = 0xf2;
+	tspec->oui_type = 2;
+	tspec->oui_subtype = 2;
+	tspec->version = 1;
+
+	tid = 1;
+	up = 6; /* Voice */
+	tspec->ts_info[0] = (tid << 1) |
+		(WMM_TSPEC_DIRECTION_BI_DIRECTIONAL << 5) |
+		BIT(7);
+	tspec->ts_info[1] = up << 3;
+	tspec->nominal_msdu_size = host_to_le16(1530);
+	tspec->mean_data_rate = host_to_le32(128000); /* bits per second */
+	tspec->minimum_phy_rate = host_to_le32(6000000);
+	tspec->surplus_bandwidth_allowance = host_to_le16(0x3000); /* 150% */
+}
+
+
+static void ieee80211_tx_addts(struct wpa_supplicant *wpa_s)
+{
+	struct wpabuf *buf;
+	struct ieee80211_mgmt *mgmt;
+	size_t alen;
+
+	wpa_printf(MSG_DEBUG, "MLME: Send ADDTS Request for Voice TSPEC");
+	mgmt = NULL;
+	alen = mgmt->u.action.u.wmm_action.variable - (u8 *) mgmt;
+
+	buf = wpabuf_alloc(alen + sizeof(struct wmm_tspec_element));
+	if (buf == NULL)
+		return;
+
+	mgmt = wpabuf_put(buf, alen);
+	os_memcpy(mgmt->da, wpa_s->bssid, ETH_ALEN);
+	os_memcpy(mgmt->sa, wpa_s->own_addr, ETH_ALEN);
+	os_memcpy(mgmt->bssid, wpa_s->bssid, ETH_ALEN);
+	mgmt->frame_control = IEEE80211_FC(WLAN_FC_TYPE_MGMT,
+					   WLAN_FC_STYPE_ACTION);
+	mgmt->u.action.category = WLAN_ACTION_WMM;
+	mgmt->u.action.u.wmm_action.action_code = WMM_ACTION_CODE_ADDTS_REQ;
+	mgmt->u.action.u.wmm_action.dialog_token = 1;
+	mgmt->u.action.u.wmm_action.status_code = 0;
+
+	ieee80211_build_tspec(buf);
+
+	ieee80211_sta_tx(wpa_s, wpabuf_head(buf), wpabuf_len(buf));
+	wpabuf_free(buf);
 }
 
 
@@ -1125,7 +1155,8 @@ static void ieee80211_rx_mgmt_assoc_resp(struct wpa_supplicant *wpa_s,
 				   "Resp failed");
 			return;
 		}
-	} else if (ieee80211_ft_assoc_resp(wpa_s, &elems) < 0)
+	} else if (wpa_sm_set_ft_params(wpa_s->wpa, pos,
+					len - (pos - (u8 *) mgmt)) < 0)
 		return;
 
 	wpa_printf(MSG_DEBUG, "MLME: associated");
@@ -1172,16 +1203,17 @@ static void ieee80211_rx_mgmt_assoc_resp(struct wpa_supplicant *wpa_s,
 			   "netstack");
 	}
 
-#if 0 /* FIX? */
-	sta->assoc_ap = 1;
-
-	if (elems.wmm && wpa_s->mlme.wmm_enabled) {
-		sta->flags |= WLAN_STA_WMM;
+	if (elems.wmm && wpa_s->mlme.wmm_enabled)
 		ieee80211_sta_wmm_params(wpa_s, elems.wmm, elems.wmm_len);
-	}
-#endif
 
 	ieee80211_associated(wpa_s);
+
+	if (wpa_s->mlme.auth_alg != WLAN_AUTH_FT &&
+	    os_strcmp(wpa_s->driver->name, "test") == 0 &&
+	    elems.wmm && wpa_s->mlme.wmm_enabled) {
+		/* Test WMM-AC - send ADDTS for WMM TSPEC */
+		ieee80211_tx_addts(wpa_s);
+	}
 }
 
 
@@ -1528,8 +1560,8 @@ static void ieee80211_bss_info(struct wpa_supplicant *wpa_s,
 	bss->channel = channel;
 	bss->freq = wpa_s->mlme.freq;
 	if (channel != wpa_s->mlme.channel &&
-	    (wpa_s->mlme.phymode == WPA_MODE_IEEE80211G ||
-	     wpa_s->mlme.phymode == WPA_MODE_IEEE80211B) &&
+	    (wpa_s->mlme.phymode == HOSTAPD_MODE_IEEE80211G ||
+	     wpa_s->mlme.phymode == HOSTAPD_MODE_IEEE80211B) &&
 	    channel >= 1 && channel <= 14) {
 		static const int freq_list[] = {
 			2412, 2417, 2422, 2427, 2432, 2437, 2442,
@@ -1614,7 +1646,7 @@ static void ieee80211_rx_mgmt_probe_req(struct wpa_supplicant *wpa_s,
 	u8 *pos, *end;
 	struct wpa_ssid *ssid = wpa_s->current_ssid;
 
-	adhoc = ssid && ssid->mode == 1;
+	adhoc = ssid && ssid->mode == WPAS_MODE_IBSS;
 
 	if (!adhoc || wpa_s->mlme.state != IEEE80211_IBSS_JOINED ||
 	    len < 24 + 2 || wpa_s->mlme.probe_resp == NULL)
@@ -1807,6 +1839,119 @@ static void ieee80211_rx_mgmt_sa_query_action(
 #endif /* CONFIG_IEEE80211W */
 
 
+static void dump_tspec(struct wmm_tspec_element *tspec)
+{
+	int up, psb, dir, tid;
+	u16 val;
+
+	up = (tspec->ts_info[1] >> 3) & 0x07;
+	psb = (tspec->ts_info[1] >> 2) & 0x01;
+	dir = (tspec->ts_info[0] >> 5) & 0x03;
+	tid = (tspec->ts_info[0] >> 1) & 0x0f;
+	wpa_printf(MSG_DEBUG, "WMM: TS Info: UP=%d PSB=%d Direction=%d TID=%d",
+		   up, psb, dir, tid);
+	val = le_to_host16(tspec->nominal_msdu_size);
+	wpa_printf(MSG_DEBUG, "WMM: Nominal MSDU Size: %d%s",
+		   val & 0x7fff, val & 0x8000 ? " (fixed)" : "");
+	wpa_printf(MSG_DEBUG, "WMM: Mean Data Rate: %u bps",
+		   le_to_host32(tspec->mean_data_rate));
+	wpa_printf(MSG_DEBUG, "WMM: Minimum PHY Rate: %u bps",
+		   le_to_host32(tspec->minimum_phy_rate));
+	val = le_to_host16(tspec->surplus_bandwidth_allowance);
+	wpa_printf(MSG_DEBUG, "WMM: Surplus Bandwidth Allowance: %u.%04u",
+		   val >> 13, 10000 * (val & 0x1fff) / 0x2000);
+	val = le_to_host16(tspec->medium_time);
+	wpa_printf(MSG_DEBUG, "WMM: Medium Time: %u (= %u usec/sec)",
+		   val, 32 * val);
+}
+
+
+static int is_wmm_tspec(const u8 *ie, size_t len)
+{
+	const struct wmm_tspec_element *tspec;
+
+	if (len < sizeof(*tspec))
+		return 0;
+
+	tspec = (const struct wmm_tspec_element *) ie;
+	if (tspec->eid != WLAN_EID_VENDOR_SPECIFIC ||
+	    tspec->length < sizeof(*tspec) - 2 ||
+	    tspec->oui[0] != 0x00 || tspec->oui[1] != 0x50 ||
+	    tspec->oui[2] != 0xf2 || tspec->oui_type != 2 ||
+	    tspec->oui_subtype != 2 || tspec->version != 1)
+		return 0;
+
+	return 1;
+}
+
+
+static void ieee80211_rx_addts_resp(
+	struct wpa_supplicant *wpa_s, struct ieee80211_mgmt *mgmt, size_t len,
+	size_t var_len)
+{
+	struct wmm_tspec_element *tspec;
+
+	wpa_printf(MSG_DEBUG, "WMM: Received ADDTS Response");
+	wpa_hexdump(MSG_MSGDUMP, "WMM: ADDTS Response IE(s)",
+		    mgmt->u.action.u.wmm_action.variable, var_len);
+	if (!is_wmm_tspec(mgmt->u.action.u.wmm_action.variable, var_len))
+		return;
+	tspec = (struct wmm_tspec_element *)
+		mgmt->u.action.u.wmm_action.variable;
+	dump_tspec(tspec);
+}
+
+
+static void ieee80211_rx_delts(
+	struct wpa_supplicant *wpa_s, struct ieee80211_mgmt *mgmt, size_t len,
+	size_t var_len)
+{
+	struct wmm_tspec_element *tspec;
+
+	wpa_printf(MSG_DEBUG, "WMM: Received DELTS");
+	wpa_hexdump(MSG_MSGDUMP, "WMM: DELTS IE(s)",
+		    mgmt->u.action.u.wmm_action.variable, var_len);
+	if (!is_wmm_tspec(mgmt->u.action.u.wmm_action.variable, var_len))
+		return;
+	tspec = (struct wmm_tspec_element *)
+		mgmt->u.action.u.wmm_action.variable;
+	dump_tspec(tspec);
+}
+
+
+static void ieee80211_rx_mgmt_wmm_action(
+	struct wpa_supplicant *wpa_s, struct ieee80211_mgmt *mgmt, size_t len,
+	struct ieee80211_rx_status *rx_status)
+{
+	size_t alen;
+
+	alen = mgmt->u.action.u.wmm_action.variable - (u8 *) mgmt;
+	if (len < alen) {
+		wpa_printf(MSG_DEBUG, "WMM: Received Action frame too short");
+		return;
+	}
+
+	wpa_printf(MSG_DEBUG, "WMM: Received Action frame: Action Code %d, "
+		   "Dialog Token %d, Status Code %d",
+		   mgmt->u.action.u.wmm_action.action_code,
+		   mgmt->u.action.u.wmm_action.dialog_token,
+		   mgmt->u.action.u.wmm_action.status_code);
+
+	switch (mgmt->u.action.u.wmm_action.action_code) {
+	case WMM_ACTION_CODE_ADDTS_RESP:
+		ieee80211_rx_addts_resp(wpa_s, mgmt, len, len - alen);
+		break;
+	case WMM_ACTION_CODE_DELTS:
+		ieee80211_rx_delts(wpa_s, mgmt, len, len - alen);
+		break;
+	default:
+		wpa_printf(MSG_DEBUG, "WMM: Unsupported Action Code %d",
+			   mgmt->u.action.u.wmm_action.action_code);
+		break;
+	}
+}
+
+
 static void ieee80211_rx_mgmt_action(struct wpa_supplicant *wpa_s,
 				     struct ieee80211_mgmt *mgmt,
 				     size_t len,
@@ -1828,6 +1973,17 @@ static void ieee80211_rx_mgmt_action(struct wpa_supplicant *wpa_s,
 		ieee80211_rx_mgmt_sa_query_action(wpa_s, mgmt, len, rx_status);
 		break;
 #endif /* CONFIG_IEEE80211W */
+	case WLAN_ACTION_WMM:
+		ieee80211_rx_mgmt_wmm_action(wpa_s, mgmt, len, rx_status);
+		break;
+	case WLAN_ACTION_PUBLIC:
+		if (wpa_s->mlme.public_action_cb) {
+			wpa_s->mlme.public_action_cb(
+				wpa_s->mlme.public_action_cb_ctx,
+				(u8 *) mgmt, len, rx_status->freq);
+			return;
+		}
+		break;
 	default:
 		wpa_printf(MSG_DEBUG, "MLME: unknown Action Category %d",
 			   mgmt->u.action.category);
@@ -1947,6 +2103,8 @@ static void ieee80211_sta_expire(struct wpa_supplicant *wpa_s)
 
 static void ieee80211_sta_merge_ibss(struct wpa_supplicant *wpa_s)
 {
+	struct wpa_driver_scan_params params;
+
 	ieee80211_reschedule_timer(wpa_s, IEEE80211_IBSS_MERGE_INTERVAL);
 
 	ieee80211_sta_expire(wpa_s);
@@ -1955,7 +2113,11 @@ static void ieee80211_sta_merge_ibss(struct wpa_supplicant *wpa_s)
 
 	wpa_printf(MSG_DEBUG, "MLME: No active IBSS STAs - trying to scan for "
 		   "other IBSS networks with same SSID (merge)");
-	ieee80211_sta_req_scan(wpa_s, wpa_s->mlme.ssid, wpa_s->mlme.ssid_len);
+	os_memset(&params, 0, sizeof(params));
+	params.ssids[0].ssid = wpa_s->mlme.ssid;
+	params.ssids[0].ssid_len = wpa_s->mlme.ssid_len;
+	params.num_ssids = wpa_s->mlme.ssid_len ? 1 : 0;
+	ieee80211_sta_req_scan(wpa_s, &params);
 }
 
 
@@ -2000,7 +2162,7 @@ static void ieee80211_sta_timer(void *eloop_ctx, void *timeout_ctx)
 static void ieee80211_sta_new_auth(struct wpa_supplicant *wpa_s)
 {
 	struct wpa_ssid *ssid = wpa_s->current_ssid;
-	if (ssid && ssid->mode != 0)
+	if (ssid && ssid->mode != WPAS_MODE_INFRA)
 		return;
 
 #if 0 /* FIX */
@@ -2013,11 +2175,11 @@ static void ieee80211_sta_new_auth(struct wpa_supplicant *wpa_s)
 	wpa_s->mlme.wmm_last_param_set = -1; /* allow any WMM update */
 
 
-	if (wpa_s->mlme.auth_algs & IEEE80211_AUTH_ALG_OPEN)
+	if (wpa_s->mlme.auth_algs & WPA_AUTH_ALG_OPEN)
 		wpa_s->mlme.auth_alg = WLAN_AUTH_OPEN;
-	else if (wpa_s->mlme.auth_algs & IEEE80211_AUTH_ALG_SHARED_KEY)
+	else if (wpa_s->mlme.auth_algs & WPA_AUTH_ALG_SHARED)
 		wpa_s->mlme.auth_alg = WLAN_AUTH_SHARED_KEY;
-	else if (wpa_s->mlme.auth_algs & IEEE80211_AUTH_ALG_LEAP)
+	else if (wpa_s->mlme.auth_algs & WPA_AUTH_ALG_LEAP)
 		wpa_s->mlme.auth_alg = WLAN_AUTH_LEAP;
 	else
 		wpa_s->mlme.auth_alg = WLAN_AUTH_OPEN;
@@ -2057,7 +2219,7 @@ static int ieee80211_ibss_allowed(struct wpa_supplicant *wpa_s)
 static int ieee80211_sta_join_ibss(struct wpa_supplicant *wpa_s,
 				   struct ieee80211_sta_bss *bss)
 {
-	int res = 0, rates, done = 0;
+	int res = 0, rates, done = 0, bssid_changed;
 	struct ieee80211_mgmt *mgmt;
 #if 0 /* FIX */
 	struct ieee80211_tx_control control;
@@ -2076,7 +2238,10 @@ static int ieee80211_sta_join_ibss(struct wpa_supplicant *wpa_s,
 		local->hw->reset_tsf(local->mdev);
 	}
 #endif
+	bssid_changed = os_memcmp(wpa_s->bssid, bss->bssid, ETH_ALEN);
 	os_memcpy(wpa_s->bssid, bss->bssid, ETH_ALEN);
+	if (bssid_changed)
+		wpas_notify_bssid_changed(wpa_s);
 
 #if 0 /* FIX */
 	local->conf.beacon_int = bss->beacon_int >= 10 ? bss->beacon_int : 10;
@@ -2207,7 +2372,7 @@ static int ieee80211_sta_join_ibss(struct wpa_supplicant *wpa_s,
 			if (local->conf.phymode == MODE_ATHEROS_TURBO)
 				rate *= 2;
 			for (j = 0; j < local->num_curr_rates; j++)
-				if (local->curr_rates[j].rate == rate)
+				if (local->curr_rates[j] == rate)
 					rates |= BIT(j);
 		}
 		wpa_s->mlme.supp_rates_bits = rates;
@@ -2276,7 +2441,7 @@ static int ieee80211_sta_create_ibss(struct wpa_supplicant *wpa_s)
 	pos = bss->supp_rates;
 #if 0 /* FIX */
 	for (i = 0; i < local->num_curr_rates; i++) {
-		int rate = local->curr_rates[i].rate;
+		int rate = local->curr_rates[i];
 		if (local->conf.phymode == MODE_ATHEROS_TURBO)
 			rate /= 2;
 		*pos++ = (u8) (rate / 5);
@@ -2392,11 +2557,17 @@ int ieee80211_sta_associate(struct wpa_supplicant *wpa_s,
 			    struct wpa_driver_associate_params *params)
 {
 	struct ieee80211_sta_bss *bss;
+	int bssid_changed;
 
 	wpa_s->mlme.bssid_set = 0;
 	wpa_s->mlme.freq = params->freq;
 	if (params->bssid) {
+		bssid_changed = os_memcmp(wpa_s->bssid, params->bssid,
+					  ETH_ALEN);
 		os_memcpy(wpa_s->bssid, params->bssid, ETH_ALEN);
+		if (bssid_changed)
+			wpas_notify_bssid_changed(wpa_s);
+
 		if (!is_zero_ether_addr(params->bssid))
 			wpa_s->mlme.bssid_set = 1;
 		bss = ieee80211_bss_get(wpa_s, wpa_s->bssid);
@@ -2463,7 +2634,7 @@ int ieee80211_sta_associate(struct wpa_supplicant *wpa_s,
 	ieee80211_sta_set_channel(wpa_s, wpa_s->mlme.phymode,
 				  wpa_s->mlme.channel, wpa_s->mlme.freq);
 
-	if (params->mode == 1 && !wpa_s->mlme.bssid_set) {
+	if (params->mode == WPAS_MODE_IBSS && !wpa_s->mlme.bssid_set) {
 		os_get_time(&wpa_s->mlme.ibss_join_req);
 		wpa_s->mlme.state = IEEE80211_IBSS_SEARCH;
 		return ieee80211_sta_find_ibss(wpa_s);
@@ -2503,14 +2674,14 @@ static int ieee80211_active_scan(struct wpa_supplicant *wpa_s)
 	int c;
 
 	for (m = 0; m < wpa_s->mlme.num_modes; m++) {
-		struct wpa_hw_modes *mode = &wpa_s->mlme.modes[m];
+		struct hostapd_hw_modes *mode = &wpa_s->mlme.modes[m];
 		if ((int) mode->mode != (int) wpa_s->mlme.phymode)
 			continue;
 		for (c = 0; c < mode->num_channels; c++) {
-			struct wpa_channel_data *chan = &mode->channels[c];
-			if (chan->flag & WPA_CHAN_W_SCAN &&
+			struct hostapd_channel_data *chan = &mode->channels[c];
+			if (!(chan->flag & HOSTAPD_CHAN_DISABLED) &&
 			    chan->chan == wpa_s->mlme.channel) {
-				if (chan->flag & WPA_CHAN_W_ACTIVE_SCAN)
+				if (!(chan->flag & HOSTAPD_CHAN_PASSIVE_SCAN))
 					return 1;
 				break;
 			}
@@ -2524,8 +2695,8 @@ static int ieee80211_active_scan(struct wpa_supplicant *wpa_s)
 static void ieee80211_sta_scan_timer(void *eloop_ctx, void *timeout_ctx)
 {
 	struct wpa_supplicant *wpa_s = eloop_ctx;
-	struct wpa_hw_modes *mode;
-	struct wpa_channel_data *chan;
+	struct hostapd_hw_modes *mode;
+	struct hostapd_channel_data *chan;
 	int skip = 0;
 	int timeout = 0;
 	struct wpa_ssid *ssid = wpa_s->current_ssid;
@@ -2564,12 +2735,23 @@ static void ieee80211_sta_scan_timer(void *eloop_ctx, void *timeout_ctx)
 		}
 		skip = !(wpa_s->mlme.hw_modes & (1 << mode->mode));
 		chan = &mode->channels[wpa_s->mlme.scan_channel_idx];
-		if (!(chan->flag & WPA_CHAN_W_SCAN) ||
-		    (adhoc && !(chan->flag & WPA_CHAN_W_IBSS)) ||
-		    (wpa_s->mlme.hw_modes & (1 << WPA_MODE_IEEE80211G) &&
-		     mode->mode == WPA_MODE_IEEE80211B &&
+		if ((chan->flag & HOSTAPD_CHAN_DISABLED) ||
+		    (adhoc && (chan->flag & HOSTAPD_CHAN_NO_IBSS)) ||
+		    (wpa_s->mlme.hw_modes & (1 << HOSTAPD_MODE_IEEE80211G) &&
+		     mode->mode == HOSTAPD_MODE_IEEE80211B &&
 		     wpa_s->mlme.scan_skip_11b))
 			skip = 1;
+		if (!skip && wpa_s->mlme.scan_freqs) {
+			int i, found = 0;
+			for (i = 0; wpa_s->mlme.scan_freqs[i]; i++) {
+				if (wpa_s->mlme.scan_freqs[i] == chan->freq) {
+					found = 1;
+					break;
+				}
+			}
+			if (!found)
+				skip = 1;
+		}
 
 		if (!skip) {
 			wpa_printf(MSG_MSGDUMP,
@@ -2623,9 +2805,12 @@ static void ieee80211_sta_scan_timer(void *eloop_ctx, void *timeout_ctx)
 }
 
 
-int ieee80211_sta_req_scan(struct wpa_supplicant *wpa_s, const u8 *ssid,
-			   size_t ssid_len)
+int ieee80211_sta_req_scan(struct wpa_supplicant *wpa_s,
+			   struct wpa_driver_scan_params *params)
 {
+	const u8 *ssid = params->ssids[0].ssid;
+	size_t ssid_len = params->ssids[0].ssid_len;
+
 	if (ssid_len > MAX_SSID_LEN)
 		return -1;
 
@@ -2653,6 +2838,21 @@ int ieee80211_sta_req_scan(struct wpa_supplicant *wpa_s, const u8 *ssid,
 		return -1;
 
 	wpa_printf(MSG_DEBUG, "MLME: starting scan");
+
+	ieee80211_sta_set_probe_req_ie(wpa_s, params->extra_ies,
+				       params->extra_ies_len);
+
+	os_free(wpa_s->mlme.scan_freqs);
+	if (params->freqs) {
+		int i;
+		for (i = 0; params->freqs[i]; i++)
+			;
+		wpa_s->mlme.scan_freqs = os_malloc((i + 1) * sizeof(int));
+		if (wpa_s->mlme.scan_freqs)
+			os_memcpy(wpa_s->mlme.scan_freqs, params->freqs,
+				  (i + 1) * sizeof(int));
+	} else
+		wpa_s->mlme.scan_freqs = NULL;
 
 	ieee80211_sta_save_oper_chan(wpa_s);
 
@@ -2830,7 +3030,7 @@ void ieee80211_sta_rx(struct wpa_supplicant *wpa_s, const u8 *buf, size_t len,
 }
 
 
-void ieee80211_sta_free_hw_features(struct wpa_hw_modes *hw_features,
+void ieee80211_sta_free_hw_features(struct hostapd_hw_modes *hw_features,
 				    size_t num_hw_features)
 {
 	size_t i;
@@ -2861,9 +3061,11 @@ int ieee80211_sta_init(struct wpa_supplicant *wpa_s)
 
 	wpa_s->mlme.num_modes = num_modes;
 
-	wpa_s->mlme.hw_modes = 1 << WPA_MODE_IEEE80211A;
-	wpa_s->mlme.hw_modes |= 1 << WPA_MODE_IEEE80211B;
-	wpa_s->mlme.hw_modes |= 1 << WPA_MODE_IEEE80211G;
+	wpa_s->mlme.hw_modes = 1 << HOSTAPD_MODE_IEEE80211A;
+	wpa_s->mlme.hw_modes |= 1 << HOSTAPD_MODE_IEEE80211B;
+	wpa_s->mlme.hw_modes |= 1 << HOSTAPD_MODE_IEEE80211G;
+
+	wpa_s->mlme.wmm_enabled = 1;
 
 	return 0;
 }
@@ -2889,6 +3091,9 @@ void ieee80211_sta_deinit(struct wpa_supplicant *wpa_s)
 	wpa_s->mlme.ft_ies = NULL;
 	wpa_s->mlme.ft_ies_len = 0;
 #endif /* CONFIG_IEEE80211R */
+
+	os_free(wpa_s->mlme.scan_freqs);
+	wpa_s->mlme.scan_freqs = NULL;
 }
 
 
@@ -2972,8 +3177,8 @@ int ieee80211_sta_send_ft_action(struct wpa_supplicant *wpa_s, u8 action,
 #endif /* CONFIG_IEEE80211R */
 
 
-int ieee80211_sta_set_probe_req_ie(struct wpa_supplicant *wpa_s, const u8 *ies,
-				   size_t ies_len)
+static int ieee80211_sta_set_probe_req_ie(struct wpa_supplicant *wpa_s,
+					  const u8 *ies, size_t ies_len)
 {
 	os_free(wpa_s->mlme.extra_probe_ie);
 	wpa_s->mlme.extra_probe_ie = NULL;

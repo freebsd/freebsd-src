@@ -20,7 +20,7 @@
 #include "eapol_supp/eapol_supp_sm.h"
 #include "wpa_supplicant_i.h"
 #include "ctrl_iface.h"
-#include "wpa_ctrl.h"
+#include "common/wpa_ctrl.h"
 
 
 #define COOKIE_LEN 8

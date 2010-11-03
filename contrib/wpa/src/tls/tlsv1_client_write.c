@@ -15,10 +15,10 @@
 #include "includes.h"
 
 #include "common.h"
-#include "md5.h"
-#include "sha1.h"
+#include "crypto/md5.h"
+#include "crypto/sha1.h"
+#include "crypto/tls.h"
 #include "x509v3.h"
-#include "tls.h"
 #include "tlsv1_common.h"
 #include "tlsv1_record.h"
 #include "tlsv1_client.h"
@@ -209,7 +209,6 @@ static int tls_write_client_certificate(struct tlsv1_client *conn,
 
 static int tlsv1_key_x_anon_dh(struct tlsv1_client *conn, u8 **pos, u8 *end)
 {
-#ifdef EAP_FAST
 	/* ClientDiffieHellmanPublic */
 	u8 *csecret, *csecret_start, *dh_yc, *shared;
 	size_t csecret_len, dh_yc_len, shared_len;
@@ -321,10 +320,6 @@ static int tlsv1_key_x_anon_dh(struct tlsv1_client *conn, u8 **pos, u8 *end)
 	os_free(shared);
 	tlsv1_client_free_dh(conn);
 	return 0;
-#else /* EAP_FAST */
-	tls_alert(conn, TLS_ALERT_LEVEL_FATAL, TLS_ALERT_INTERNAL_ERROR);
-	return -1;
-#endif /* EAP_FAST */
 }
 
 
