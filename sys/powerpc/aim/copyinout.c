@@ -102,11 +102,12 @@ set_user_sr(pmap_t pm, const void *addr)
 	if (curthread->td_pcb->pcb_cpu.aim.usr_vsid == slbv) 
 		return;
 
-	__asm __volatile ("isync; slbie %0; slbmte %1, %2; isync" ::
-	    "r"(USER_ADDR), "r"(slbv), "r"(USER_SLB_SLBE));
+	__asm __volatile("isync");
 	curthread->td_pcb->pcb_cpu.aim.usr_segm =
 	    (uintptr_t)addr >> ADDR_SR_SHFT;
 	curthread->td_pcb->pcb_cpu.aim.usr_vsid = slbv;
+	__asm __volatile ("slbie %0; slbmte %1, %2; isync" ::
+	    "r"(USER_ADDR), "r"(slbv), "r"(USER_SLB_SLBE));
 }
 #else
 static __inline void
@@ -124,6 +125,8 @@ set_user_sr(pmap_t pm, const void *addr)
 	vsid |= SR_N;
 
 	__asm __volatile("isync");
+	curthread->td_pcb->pcb_cpu.aim.usr_segm =
+	    (uintptr_t)addr >> ADDR_SR_SHFT;
 	curthread->td_pcb->pcb_cpu.aim.usr_vsid = vsid;
 	__asm __volatile("mtsr %0,%1; isync" :: "n"(USER_SR), "r"(vsid));
 }
