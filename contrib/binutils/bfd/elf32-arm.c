@@ -3280,6 +3280,9 @@ bfd_elf32_arm_init_maps (bfd *abfd)
   Elf_Internal_Shdr *hdr;
   unsigned int i, localsyms;
 
+  if (bfd_get_flavour (abfd) != bfd_target_elf_flavour || elf_tdata (abfd) == NULL)
+    return;
+
   if ((abfd->flags & DYNAMIC) != 0)
     return;
 
