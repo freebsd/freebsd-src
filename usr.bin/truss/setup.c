@@ -78,7 +78,6 @@ setup_and_wait(char *command[])
 	}
 	if (pid == 0) {	/* Child */
 		ptrace(PT_TRACE_ME, 0, 0, 0);
-		setpgid (0, 0); 
 		execvp(command[0], command);
 		err(1, "execvp %s", command[0]);
 	}
