@@ -345,7 +345,7 @@ uvscom_detach(device_t dev)
 	if (sc->sc_xfer[UVSCOM_INTR_DT_RD])
 		usbd_transfer_stop(sc->sc_xfer[UVSCOM_INTR_DT_RD]);
 
-	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UVSCOM_N_TRANSFER);
 	mtx_destroy(&sc->sc_mtx);
 

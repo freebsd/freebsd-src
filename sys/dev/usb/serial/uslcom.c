@@ -338,7 +338,7 @@ uslcom_detach(device_t dev)
 
 	DPRINTF("sc=%p\n", sc);
 
-	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom, 1);
+	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, USLCOM_N_TRANSFER);
 	mtx_destroy(&sc->sc_mtx);
 
