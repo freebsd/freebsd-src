@@ -871,6 +871,10 @@ exec_fail_dealloc:
 	free(imgp->freepath, M_TEMP);
 
 	if (error == 0) {
+		PROC_LOCK(p);
+		td->td_dbgflags |= TDB_EXEC;
+		PROC_UNLOCK(p);
+
 		/*
 		 * Stop the process here if its stop event mask has
 		 * the S_EXEC bit set.

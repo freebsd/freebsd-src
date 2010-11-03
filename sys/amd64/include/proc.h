@@ -79,6 +79,14 @@ int amd64_set_ldt_data(struct thread *td, int start, int num,
 extern struct mtx dt_lock;
 extern int max_ldt_segment;
 
+struct syscall_args {
+	u_int code;
+	struct sysent *callp;
+	register_t args[8];
+	int narg;
+};
+#define	HAVE_SYSCALL_ARGS_DEF 1
+
 #endif  /* _KERNEL */
 
 #endif /* !_MACHINE_PROC_H_ */
