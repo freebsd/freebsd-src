@@ -2,7 +2,7 @@ hostapd - user space IEEE 802.11 AP and IEEE 802.1X/WPA/WPA2/EAP
 	  Authenticator and RADIUS authentication server
 ================================================================
 
-Copyright (c) 2002-2009, Jouni Malinen <j@w1.fi> and contributors
+Copyright (c) 2002-2010, Jouni Malinen <j@w1.fi> and contributors
 All Rights Reserved.
 
 This program is dual-licensed under both the GPL version 2 and BSD
@@ -94,9 +94,6 @@ Current hardware/software requirements:
 	Please note that you will need to add the correct path for
 	madwifi driver root directory in .config (see defconfig file for
 	an example: CFLAGS += -I<path>)
-
-	Prism54 driver for Intersil/Conexant Prism GT/Duette/Indigo
-	(http://www.prism54.org/)
 
 	mac80211-based drivers that support AP mode (with driver=nl80211).
 	This includes drivers for Atheros (ath9k) and Broadcom (b43)
