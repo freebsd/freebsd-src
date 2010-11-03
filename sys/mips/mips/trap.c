@@ -296,7 +296,6 @@ SYSCTL_INT(_vm, OID_AUTO, allow_unaligned_acc, CTLFLAG_RW,
 
 static int emulate_unaligned_access(struct trapframe *frame);
 
-extern char *syscallnames[];
 
 /*
  * Handle an exception.

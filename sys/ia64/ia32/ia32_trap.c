@@ -48,86 +48,15 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 
-extern char *syscallnames[];
+#include <compat/ia32/ia32_util.h>
 
-static void
-ia32_syscall(struct trapframe *tf)
+void
+ia32_set_syscall_retval(struct thread *td, int error)
 {
-	uint64_t args64[8];
-	uint32_t args[8];
-	struct thread *td;
 	struct proc *p;
-	struct sysent *callp;
-	caddr_t params;
-	register_t eflags;
-	u_int code;
-	int error, i, narg;
-	ksiginfo_t ksi;
+	struct trapframe *tf;
 
-	PCPU_INC(cnt.v_syscall);
-
-	td = curthread;
-	params = (caddr_t)(tf->tf_special.sp & ((1L<<32)-1)) +
-	    sizeof(uint32_t);
-	code = tf->tf_scratch.gr8;		/* eax */
-	eflags = ia64_get_eflag();
-	p = td->td_proc;
-
-	if (p->p_sysent->sv_prepsyscall == NULL) {
-		if (code == SYS_syscall) {
-			/* Code is first argument, followed by actual args. */
-			code = fuword32(params);
-			params += sizeof(int);
-		} else if (code == SYS___syscall) {
-			/*
-			 * Like syscall, but code is a quad, so as to maintain
-			 * quad alignment for the rest of the arguments.  We
-			 * use a 32-bit fetch in case params is not aligned.
-			 */
-			code = fuword32(params);
-			params += sizeof(quad_t);
-		}
-	} else
-		(*p->p_sysent->sv_prepsyscall)(tf, args, &code, &params);
-
-	if (p->p_sysent->sv_mask)
-		code &= p->p_sysent->sv_mask;
-
-	if (code >= p->p_sysent->sv_size)
-		callp = &p->p_sysent->sv_table[0];
-	else
-		callp = &p->p_sysent->sv_table[code];
-
-	narg = callp->sy_narg;
-
-	/* copyin and the ktrsyscall()/ktrsysret() code is MP-aware */
-	if (params != NULL && narg != 0)
-		error = copyin(params, (caddr_t)args, narg * sizeof(int));
-	else
-		error = 0;
-
-	for (i = 0; i < narg; i++)
-		args64[i] = args[i];
-
-#ifdef KTRACE
-	if (KTRPOINT(td, KTR_SYSCALL))
-		ktrsyscall(code, narg, args64);
-#endif
-	CTR4(KTR_SYSC, "syscall enter thread %p pid %d proc %s code %d", td,
-	    td->td_proc->p_pid, td->td_proc->p_comm, code);
-
-	if (error == 0) {
-		td->td_retval[0] = 0;
-		td->td_retval[1] = tf->tf_scratch.gr10;	/* edx */
-
-		STOPEVENT(p, S_SCE, narg);
-
-		PTRACESTOP_SC(p, td, S_PT_SCE);
-
-		AUDIT_SYSCALL_ENTER(code, td);
-		error = (*callp->sy_call)(td, args64);
-		AUDIT_SYSCALL_EXIT(error, td);
-	}
+	tf = td->td_frame;
 
 	switch (error) {
 	case 0:
@@ -148,6 +77,7 @@ ia32_syscall(struct trapframe *tf)
 		break;
 
 	default:
+		p = td->td_proc;
 		if (p->p_sysent->sv_errsize) {
 			if (error >= p->p_sysent->sv_errsize)
 				error = -1;	/* XXX */
@@ -158,6 +88,75 @@ ia32_syscall(struct trapframe *tf)
 		ia64_set_eflag(ia64_get_eflag() | PSL_C);
 		break;
 	}
+}
+
+int
+ia32_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
+{
+	struct trapframe *tf;
+	struct proc *p;
+	uint32_t args[8];
+	caddr_t params;
+	int error, i;
+
+	tf = td->td_frame;
+	p = td->td_proc;
+
+	params = (caddr_t)(tf->tf_special.sp & ((1L<<32)-1)) +
+	    sizeof(uint32_t);
+	sa->code = tf->tf_scratch.gr8;		/* eax */
+
+	if (sa->code == SYS_syscall) {
+		/* Code is first argument, followed by actual args. */
+		sa->code = fuword32(params);
+		params += sizeof(int);
+	} else if (sa->code == SYS___syscall) {
+		/*
+		 * Like syscall, but code is a quad, so as to maintain
+		 * quad alignment for the rest of the arguments.  We
+		 * use a 32-bit fetch in case params is not aligned.
+		 */
+		sa->code = fuword32(params);
+		params += sizeof(quad_t);
+	}
+
+	if (p->p_sysent->sv_mask)
+		sa->code &= p->p_sysent->sv_mask;
+	if (sa->code >= p->p_sysent->sv_size)
+		sa->callp = &p->p_sysent->sv_table[0];
+	else
+		sa->callp = &p->p_sysent->sv_table[sa->code];
+	sa->narg = sa->callp->sy_narg;
+
+	if (params != NULL && sa->narg != 0)
+		error = copyin(params, (caddr_t)args, sa->narg * sizeof(int));
+	else
+		error = 0;
+	sa->args = &sa->args32[0];
+
+	if (error == 0) {
+		for (i = 0; i < sa->narg; i++)
+			sa->args32[i] = args[i];
+		td->td_retval[0] = 0;
+		td->td_retval[1] = tf->tf_scratch.gr10;	/* edx */
+	}
+
+	return (error);
+}
+
+static void
+ia32_syscall(struct trapframe *tf)
+{
+	struct thread *td;
+	struct syscall_args sa;
+	register_t eflags;
+	int error;
+	ksiginfo_t ksi;
+
+	td = curthread;
+	eflags = ia64_get_eflag();
+
+	error = syscallenter(td, &sa);
 
 	/*
 	 * Traced syscall.
@@ -171,37 +170,7 @@ ia32_syscall(struct trapframe *tf)
 		trapsignal(td, &ksi);
 	}
 
-	/*
-	 * Check for misbehavior.
-	 */
-	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
-	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???");
-	KASSERT(td->td_critnest == 0,
-	    ("System call %s returning in a critical section",
-	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???"));
-	KASSERT(td->td_locks == 0,
-	    ("System call %s returning with %d locks held",
-	    (code >= 0 && code < SYS_MAXSYSCALL) ? syscallnames[code] : "???",
-	    td->td_locks));
-
-	/*
-	 * End of syscall tracing.
-	 */
-	CTR4(KTR_SYSC, "syscall exit thread %p pid %d proc %s code %d", td,
-	    td->td_proc->p_pid, td->td_proc->p_comm, code);
-#ifdef KTRACE
-	if (KTRPOINT(td, KTR_SYSRET))
-		ktrsysret(code, error, td->td_retval[0]);
-#endif
-
-	/*
-	 * This works because errno is findable through the
-	 * register set.  If we ever support an emulation where this
-	 * is not the case, this code will need to be revisited.
-	 */
-	STOPEVENT(p, S_SCX, code);
- 
-	PTRACESTOP_SC(p, td, S_PT_SCX);
+	syscallret(td, error, &sa);
 }
 
 /*
