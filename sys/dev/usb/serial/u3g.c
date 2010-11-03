@@ -831,15 +831,15 @@ static int
 u3g_detach(device_t dev)
 {
 	struct u3g_softc *sc = device_get_softc(dev);
-	uint8_t m;
+	uint8_t subunit;
 
 	DPRINTF("sc=%p\n", sc);
 
 	/* NOTE: It is not dangerous to detach more ports than attached! */
-	ucom_detach(&sc->sc_super_ucom, sc->sc_ucom, U3G_MAXPORTS);
+	ucom_detach(&sc->sc_super_ucom, sc->sc_ucom);
 
-	for (m = 0; m != U3G_MAXPORTS; m++)
-		usbd_transfer_unsetup(sc->sc_xfer[m], U3G_N_TRANSFER);
+	for (subunit = 0; subunit != U3G_MAXPORTS; subunit++)
+		usbd_transfer_unsetup(sc->sc_xfer[subunit], U3G_N_TRANSFER);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -851,7 +851,7 @@ u3g_start_read(struct ucom_softc *ucom)
 	struct u3g_softc *sc = ucom->sc_parent;
 
 	/* start read endpoint */
-	usbd_transfer_start(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_RD]);
+	usbd_transfer_start(sc->sc_xfer[ucom->sc_subunit][U3G_BULK_RD]);
 	return;
 }
 
@@ -861,7 +861,7 @@ u3g_stop_read(struct ucom_softc *ucom)
 	struct u3g_softc *sc = ucom->sc_parent;
 
 	/* stop read endpoint */
-	usbd_transfer_stop(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_RD]);
+	usbd_transfer_stop(sc->sc_xfer[ucom->sc_subunit][U3G_BULK_RD]);
 	return;
 }
 
@@ -870,7 +870,7 @@ u3g_start_write(struct ucom_softc *ucom)
 {
 	struct u3g_softc *sc = ucom->sc_parent;
 
-	usbd_transfer_start(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_WR]);
+	usbd_transfer_start(sc->sc_xfer[ucom->sc_subunit][U3G_BULK_WR]);
 	return;
 }
 
@@ -879,7 +879,7 @@ u3g_stop_write(struct ucom_softc *ucom)
 {
 	struct u3g_softc *sc = ucom->sc_parent;
 
-	usbd_transfer_stop(sc->sc_xfer[ucom->sc_local_unit][U3G_BULK_WR]);
+	usbd_transfer_stop(sc->sc_xfer[ucom->sc_subunit][U3G_BULK_WR]);
 	return;
 }
 
