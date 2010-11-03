@@ -1275,8 +1275,11 @@ init_dag(Obj_Entry *root)
 {
     DoneList donelist;
 
+    if (root->dag_inited)
+	    return;
     donelist_init(&donelist);
     init_dag1(root, root, &donelist);
+    root->dag_inited = true;
 }
 
 static void
@@ -2045,8 +2048,16 @@ dlopen(const char *name, int mode)
 	    }
 	} else {
 
-	    /* Bump the reference counts for objects on this DAG. */
-	    ref_dag(obj);
+	    /*
+	     * Bump the reference counts for objects on this DAG.  If
+	     * this is the first dlopen() call for the object that was
+	     * already loaded as a dependency, initialize the dag
+	     * starting at it.
+	     */
+	    if (obj->dl_refcount == 1)
+		init_dag(obj);
+	    else
+		ref_dag(obj);
 
 	    if (ld_tracing)
 		goto trace;
