@@ -46,7 +46,7 @@
 #include <dev/mfi/mfi_ioctl.h>
 
 static const char *mfi_status_codes[] = {
-	"Command completed succesfully",
+	"Command completed successfully",
 	"Invalid command",
 	"Invalid DMCD opcode",
 	"Invalid parameter",
