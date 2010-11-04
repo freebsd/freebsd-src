@@ -4316,10 +4316,17 @@ atapm(struct cam_device *device, int argc, char **argv,
 		sc = 0;
 	else if (t <= (240 * 5))
 		sc = t / 5;
+	else if (t == (252 * 5))
+		/* special encoding for 21 minutes */
+		sc = 252;
+	else if (t < (30 * 60))
+		/* no encoding exists for 22-29 minutes, so set to 30 mins */
+		sc = 241;
 	else if (t <= (11 * 30 * 60))
-		sc = t / (30 * 60) + 241;
+		sc = t / (30 * 60) + 240;
 	else
 		sc = 253;
+
 	cam_fill_ataio(&ccb->ataio,
 		      retry_count,
 		      NULL,
