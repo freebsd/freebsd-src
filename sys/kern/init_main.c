@@ -178,6 +178,9 @@ mi_startup(void)
 	int verbose;
 #endif
 
+	if (boothowto & RB_VERBOSE)
+		bootverbose++;
+
 	if (sysinit == NULL) {
 		sysinit = SET_BEGIN(sysinit_set);
 		sysinit_end = SET_LIMIT(sysinit_set);
@@ -324,15 +327,6 @@ SYSINIT(diagwarn, SI_SUB_COPYRIGHT, SI_ORDER_THIRD + 2,
 SYSINIT(diagwarn2, SI_SUB_RUN_SCHEDULER, SI_ORDER_THIRD + 2,
     print_caddr_t, diag_warn);
 #endif
-
-static void
-set_boot_verbose(void *data __unused)
-{
-
-	if (boothowto & RB_VERBOSE)
-		bootverbose++;
-}
-SYSINIT(boot_verbose, SI_SUB_TUNABLES, SI_ORDER_ANY, set_boot_verbose, NULL);
 
 struct sysentvec null_sysvec = {
 	.sv_size	= 0,
