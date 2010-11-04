@@ -1,3 +1,32 @@
+	--- 9.4-ESV-R3 released ---
+
+2925.	[bug]		Named failed to accept uncachable negative responses
+			from insecure zones. [RT# 21555]
+
+2921.	[bug]		The resolver could attempt to destroy a fetch context
+			too soon.  [RT #19878]
+
+2904.   [bug]           When using DLV, sub-zones of the zones in the DLV,
+			could be incorrectly marked as insecure instead of
+			secure leading to negative proofs failing.  This was
+			a unintended outcome from change 2890. [RT# 21392]
+
+2900.	[bug]	 	The placeholder negative caching element was not
+			properly constructed triggering a INSIST in 
+			dns_ncache_towire(). [RT #21346]
+
+2890.	[bug]		Handle the introduction of new trusted-keys and
+			DS, DLV RRsets better. [RT #21097]
+
+2869.	[bug]		Fix arguments to dns_keytable_findnextkeynode() call.
+			[RT #20877]
+
+2678.	[func]		Treat DS queries as if "minimal-response yes;"
+			was set. [RT #20258]
+
+2427.	[func]		Treat DNSKEY queries as if "minimal-response yes;"
+			was set. [RT #18528]
+
 	--- 9.4-ESV-R2 released ---
 
 2876.	[bug]		Named could return SERVFAIL for negative responses
