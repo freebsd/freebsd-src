@@ -2518,7 +2518,7 @@ product PHILIPS RT2870		0x200f	RT2870
 product PHILIPSSEMI HUB1122	0x1122	HUB
 
 /* Megatec */
-product MEGATEC UPS		0x5161	Protocol based UPS
+product MEGATEC UPS		0x5161	Phoenixtec protocol based UPS
 
 /* P.I. Engineering products */
 product PIENGINEERING PS2USB	0x020b	PS2 to Mac USB Adapter
