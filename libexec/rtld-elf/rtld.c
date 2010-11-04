@@ -1276,7 +1276,7 @@ init_dag(Obj_Entry *root)
     DoneList donelist;
 
     if (root->dag_inited)
-	    return;
+	return;
     donelist_init(&donelist);
     init_dag1(root, root, &donelist);
     root->dag_inited = true;
