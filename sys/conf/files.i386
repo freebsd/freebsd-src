@@ -463,3 +463,7 @@ i386/xbox/xbox.c		optional	xbox
 i386/xbox/xboxfb.c		optional	xboxfb
 dev/fb/boot_font.c		optional	xboxfb
 i386/xbox/pic16l.s		optional	xbox
+#
+# x86 shared code between IA32, AMD64 and PC98 architectures
+#
+x86/pci/qpi.c			standard
