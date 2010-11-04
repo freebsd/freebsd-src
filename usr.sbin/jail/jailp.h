@@ -102,6 +102,7 @@ enum intparam {
 #ifdef INET6
 	IP__IP6_IFADDR,		/* Copy of ip6.addr with interface/prefixlen */
 #endif
+	IP__MOUNT_FROM_FSTAB,	/* Line from mount.fstab file */
 	KP_ALLOW_CHFLAGS,
 	KP_ALLOW_MOUNT,
 	KP_ALLOW_RAW_SOCKETS,
