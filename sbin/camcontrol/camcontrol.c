@@ -4312,18 +4312,16 @@ atapm(struct cam_device *device, int argc, char **argv,
 		cmd = ATA_SLEEP;
 		t = -1;
 	}
+
 	if (t < 0)
 		sc = 0;
 	else if (t <= (240 * 5))
-		sc = t / 5;
-	else if (t == (252 * 5))
+		sc = (t + 4) / 5;
+	else if (t <= (252 * 5))
 		/* special encoding for 21 minutes */
 		sc = 252;
-	else if (t < (30 * 60))
-		/* no encoding exists for 22-29 minutes, so set to 30 mins */
-		sc = 241;
 	else if (t <= (11 * 30 * 60))
-		sc = t / (30 * 60) + 240;
+		sc = (t - 1) / (30 * 60) + 241;
 	else
 		sc = 253;
 
