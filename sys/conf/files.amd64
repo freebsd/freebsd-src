@@ -277,3 +277,7 @@ i386/cpufreq/hwpstate.c		optional	cpufreq
 i386/cpufreq/p4tcc.c		optional	cpufreq
 #
 libkern/memset.c		standard
+#
+# x86 shared code between IA32, AMD64 and PC98 architectures
+#
+x86/pci/qpi.c			standard
