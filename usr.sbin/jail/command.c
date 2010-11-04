@@ -189,7 +189,7 @@ run_command(struct cfjail *j, int *plimit, enum intparam comparam)
 			jidstr ? jidstr : string_param(j->intparams[KP_NAME]);
 		argv[4] = NULL;
 		j->flags |= JF_IFUP;
-	} else if (comparam == IP_MOUNT) {
+	} else if (comparam == IP_MOUNT || comparam == IP__MOUNT_FROM_FSTAB) {
 		argv = alloca(8 * sizeof(char *));
 		comcs = alloca(comstring->len + 1);
 		strcpy(comcs, comstring->s);
@@ -198,8 +198,8 @@ run_command(struct cfjail *j, int *plimit, enum intparam comparam)
 		     cs = strtok(NULL, " \t\f\v\r\n"))
 			argv[argc++] = cs;
 		if (argc < 3) {
-			jail_warnx(j, "mount: %s: missing information",
-			    comstring->s);
+			jail_warnx(j, "%s: %s: missing information",
+			    j->intparams[comparam]->name, comstring->s);
 			failed(j);
 			return -1;
 		}
@@ -222,13 +222,6 @@ run_command(struct cfjail *j, int *plimit, enum intparam comparam)
 			*(const char **)&argv[0] = _PATH_MOUNT;
 		}
 		*(const char **)&argv[1] = "-t";
-		j->flags |= JF_MOUNTED;
-	} else if (comparam == IP_MOUNT_FSTAB) {
-		argv = alloca(4 * sizeof(char *));
-		*(const char **)&argv[0] = down ? "/sbin/umount" : _PATH_MOUNT;
-		*(const char **)&argv[1] = "-aF";
-		argv[2] = comstring->s;
-		argv[3] = NULL;
 		j->flags |= JF_MOUNTED;
 	} else if (comparam == IP_MOUNT_DEVFS) {
 		path = string_param(j->intparams[KP_PATH]);

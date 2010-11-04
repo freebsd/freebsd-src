@@ -294,7 +294,7 @@ main(int argc, char **argv)
 			clear_persist(j);
 			if (j->flags & JF_MOUNTED) {
 				(void)run_command(j, NULL, IP_MOUNT_DEVFS);
-				if (run_command(j, NULL, IP_MOUNT_FSTAB))
+				if (run_command(j, NULL, IP__MOUNT_FROM_FSTAB))
 					while (run_command(j, NULL, 0)) ;
 				if (run_command(j, NULL, IP_MOUNT))
 					while (run_command(j, NULL, 0)) ;
@@ -393,10 +393,11 @@ main(int argc, char **argv)
 					continue;
 				/* FALLTHROUGH */
 			case IP_MOUNT:
-				if (run_command(j, &plimit, IP_MOUNT_FSTAB))
+				if (run_command(j, &plimit,
+				    IP__MOUNT_FROM_FSTAB))
 					continue;
 				/* FALLTHROUGH */
-			case IP_MOUNT_FSTAB:
+			case IP__MOUNT_FROM_FSTAB:
 				if (run_command(j, &plimit, IP_MOUNT_DEVFS))
 					continue;
 				/* FALLTHROUGH */
@@ -509,10 +510,11 @@ main(int argc, char **argv)
 					continue;
 				/* FALLTHROUGH */
 			case IP_MOUNT_DEVFS:
-				if (run_command(j, &plimit, IP_MOUNT_FSTAB))
+				if (run_command(j, &plimit,
+				    IP__MOUNT_FROM_FSTAB))
 					continue;
 				/* FALLTHROUGH */
-			case IP_MOUNT_FSTAB:
+			case IP__MOUNT_FROM_FSTAB:
 				if (run_command(j, &plimit, IP_MOUNT))
 					continue;
 				/* FALLTHROUGH */

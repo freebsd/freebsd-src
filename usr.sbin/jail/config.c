@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <sys/errno.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
@@ -85,6 +86,7 @@ static const struct ipspec intparams[] = {
 #ifdef INET6
     [IP__IP6_IFADDR] =		{"ip6.addr",		PF_INTERNAL | PF_CONV},
 #endif
+    [IP__MOUNT_FROM_FSTAB] =	{"mount.fstab",		PF_INTERNAL | PF_CONV},
     [KP_ALLOW_CHFLAGS] =	{"allow.chflags",	0},
     [KP_ALLOW_MOUNT] =		{"allow.mount",		0},
     [KP_ALLOW_RAW_SOCKETS] =	{"allow.raw_sockets",	0},
@@ -430,9 +432,10 @@ check_intparams(struct cfjail *j)
 	struct addrinfo *ai0, *ai;
 	struct cfparam *p;
 	struct cfstring *s, *ns;
+	FILE *f;
 	const char *hostname, *val;
-	char *cs, *ep;
-	size_t size;
+	char *cs, *ep, *ln;
+	size_t size, lnlen;
 	int error, gicode, ip4ok, defif, prefix;
 	int mib[4];
 	char avalue4[INET_ADDRSTRLEN];
@@ -601,6 +604,40 @@ check_intparams(struct cfjail *j)
 #ifndef INET6
 	while (0);
 #endif
+
+	/*
+	 * Read mount.fstab file(s), and treat each line as its own mount
+	 * parameter.
+	 */
+	if (j->intparams[IP_MOUNT_FSTAB] != NULL) {
+		STAILQ_FOREACH(s, &j->intparams[IP_MOUNT_FSTAB]->val, tq) {
+			if (s->len == 0)
+				continue;
+			f = fopen(s->s, "r");
+			if (f == NULL) {
+				jail_warnx(j, "mount.fstab: %s: %s",
+				    s->s, strerror(errno));
+				error = -1;
+				continue;
+			}
+			while ((ln = fgetln(f, &lnlen))) {
+				if ((cs = memchr(ln, '#', lnlen - 1)))
+					lnlen = cs - ln + 1;
+				if (ln[lnlen - 1] == '\n' ||
+				    ln[lnlen - 1] == '#')
+					ln[lnlen - 1] = '\0';
+				else {
+					cs = alloca(lnlen + 1);
+					strlcpy(cs, ln, lnlen + 1);
+					ln = cs;
+				}
+				add_param(j, NULL, IP__MOUNT_FROM_FSTAB, ln);
+			}
+			fclose(f);
+		}
+	}
+	if (error)
+		failed(j);
 	return error;
 }
 
