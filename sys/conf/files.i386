@@ -388,3 +388,7 @@ i386/xbox/pic16l.s		optional xbox
 #
 compat/x86bios/x86bios.c	optional x86bios | atkbd | dpms | vesa
 contrib/x86emu/x86emu.c		optional x86bios | atkbd | dpms | vesa
+#
+# x86 shared code between IA32, AMD64 and PC98 architectures
+#
+x86/pci/qpi.c			standard
