@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/event.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/user.h>
@@ -69,7 +70,7 @@ static void add_proc(struct cfjail *j, pid_t pid);
 static void clear_procs(struct cfjail *j);
 static struct cfjail *find_proc(pid_t pid);
 static int check_path(struct cfjail *j, const char *pname, const char *path,
-    int isfile);
+    int isfile, const char *umount_type);
 
 static struct cfjails sleeping = TAILQ_HEAD_INITIALIZER(sleeping);
 static struct cfjails runnable = TAILQ_HEAD_INITIALIZER(runnable);
@@ -207,8 +208,11 @@ run_command(struct cfjail *j, int *plimit, enum intparam comparam)
 			failed(j);
 			return -1;
 		}
-		if (check_path(j, j->intparams[comparam]->name, argv[1], 0) < 0)
+		if (check_path(j, j->intparams[comparam]->name, argv[1], 0,
+		    down ? argv[2] : NULL) < 0) {
+			failed(j);
 			return -1;
+		}
 		if (down) {
 			argv[4] = NULL;
 			argv[3] = argv[1];
@@ -238,8 +242,11 @@ run_command(struct cfjail *j, int *plimit, enum intparam comparam)
 		}
 		devpath = alloca(strlen(path) + 5);
 		sprintf(devpath, "%s/dev", path);
-		if (check_path(j, "mount.devfs", devpath, 0) < 0)
+		if (check_path(j, "mount.devfs", devpath, 0,
+		    down ? "devfs" : NULL) < 0) {
+			failed(j);
 			return -1;
+		}
 		if (down) {
 			argv = alloca(3 * sizeof(char *));
 			*(const char **)&argv[0] = "/sbin/umount";
@@ -316,8 +323,10 @@ run_command(struct cfjail *j, int *plimit, enum intparam comparam)
 	consfd = 0;
 	if (injail &&
 	    (conslog = string_param(j->intparams[IP_EXEC_CONSOLELOG]))) {
-		if (check_path(j, "exec.consolelog", conslog, 1) < 0)
+		if (check_path(j, "exec.consolelog", conslog, 1, NULL) < 0) {
+			failed(j);
 			return -1;
+		}
 		consfd =
 		    open(conslog, O_WRONLY | O_CREAT | O_APPEND, DEFFILEMODE);
 		if (consfd < 0) {
@@ -683,9 +692,11 @@ get_user_info(struct cfjail *j, const char *username,
  * with no symlinks.
  */
 static int
-check_path(struct cfjail *j, const char *pname, const char *path, int isfile)
+check_path(struct cfjail *j, const char *pname, const char *path, int isfile,
+    const char *umount_type)
 {
-	struct stat st;
+	struct stat st, mpst;
+	struct statfs stfs;
 	char *tpath, *p;
 	const char *jailpath;
 	size_t jplen;
@@ -693,7 +704,6 @@ check_path(struct cfjail *j, const char *pname, const char *path, int isfile)
 	if (path[0] != '/') {
 		jail_warnx(j, "%s: %s: not an absolute pathname",
 		    pname, path);
-		failed(j);
 		return -1;
 	}
 	/*
@@ -704,30 +714,50 @@ check_path(struct cfjail *j, const char *pname, const char *path, int isfile)
 	if (jailpath == NULL)
 		jailpath = "";
 	jplen = strlen(jailpath);
-	if (strncmp(path, jailpath, jplen) || path[jplen] != '/')
-		return 0;
-	tpath = alloca(strlen(path) + 1);
-	strcpy(tpath, path);
-	for (p = tpath + jplen; p != NULL; ) {
-		p = strchr(p + 1, '/');
-		if (p)
-			*p = '\0';
-		if (lstat(tpath, &st) < 0) {
-			if (errno == ENOENT && isfile && !p)
-				break;
-			jail_warnx(j, "%s: %s: %s", pname, tpath,
+	if (!strncmp(path, jailpath, jplen) && path[jplen] == '/') {
+		tpath = alloca(strlen(path) + 1);
+		strcpy(tpath, path);
+		for (p = tpath + jplen; p != NULL; ) {
+			p = strchr(p + 1, '/');
+			if (p)
+				*p = '\0';
+			if (lstat(tpath, &st) < 0) {
+				if (errno == ENOENT && isfile && !p)
+					break;
+				jail_warnx(j, "%s: %s: %s", pname, tpath,
+				    strerror(errno));
+				return -1;
+			}
+			if (S_ISLNK(st.st_mode)) {
+				jail_warnx(j, "%s: %s is a symbolic link",
+				    pname, tpath);
+				return -1;
+			}
+			if (p)
+				*p = '/';
+		}
+	}
+	if (umount_type != NULL) {
+		if (stat(path, &st) < 0 || statfs(path, &stfs) < 0) {
+			jail_warnx(j, "%s: %s: %s", pname, path,
 			    strerror(errno));
-			failed(j);
 			return -1;
 		}
-		if (S_ISLNK(st.st_mode)) {
-			jail_warnx(j, "%s: %s is a symbolic link",
-			    pname, tpath);
-			failed(j);
+		if (stat(stfs.f_mntonname, &mpst) < 0) {
+			jail_warnx(j, "%s: %s: %s", pname, stfs.f_mntonname,
+			    strerror(errno));
 			return -1;
 		}
-		if (p)
-			*p = '/';
+		if (st.st_ino != mpst.st_ino) {
+			jail_warnx(j, "%s: %s: not a mount point",
+			    pname, path);
+			return -1;
+		}
+		if (strcmp(stfs.f_fstypename, umount_type)) {
+			jail_warnx(j, "%s: %s: not a %s mount",
+			    pname, path, umount_type);
+			return -1;
+		}
 	}
 	return 0;
 }
