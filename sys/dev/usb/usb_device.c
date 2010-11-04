@@ -2486,7 +2486,7 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 	    "mode=%s "
 	    "port=%u "
 #if USB_HAVE_UGEN
-	    "parent=%s\n"
+	    "parent=%s"
 #endif
 	    "",
 #if USB_HAVE_UGEN
@@ -2534,7 +2534,7 @@ usb_notify_addq(const char *type, struct usb_device *udev)
 		    "endpoints=%d "
 		    "intclass=0x%02x "
 		    "intsubclass=0x%02x "
-		    "intprotocol=0x%02x\n",
+		    "intprotocol=0x%02x",
 #if USB_HAVE_UGEN
 		    udev->ugen_name,
 #endif
