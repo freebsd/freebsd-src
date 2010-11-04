@@ -220,7 +220,6 @@ extern char tflag;
 extern char vflag;
 extern const char *symbol_prefix;
 
-extern char *myname;
 extern char *cptr;
 extern char *line;
 extern int lineno;
