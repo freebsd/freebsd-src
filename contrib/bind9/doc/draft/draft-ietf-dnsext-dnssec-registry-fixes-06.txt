@@ -1,0 +1,448 @@
+
+
+
+DNS Extensions Working Group                                     S. Rose
+Internet-Draft                                                      NIST
+Updates: 2536, 2539, 3110, 4034,                         August 11, 2010
+4398, 5155, 5702, 5933
+(if approved)
+Intended status: Standards Track
+Expires: February 12, 2011
+
+
+  Applicability Statement: DNS Security (DNSSEC) DNSKEY Algorithm IANA
+                                Registry
+               draft-ietf-dnsext-dnssec-registry-fixes-06
+
+Abstract
+
+   The DNS Security Extensions (DNSSEC) requires the use of
+   cryptographic algorithm suites for generating digital signatures over
+   DNS data.  There is currently an IANA registry for these algorithms
+   that is incomplete in that it lacks the implementation status of each
+   algorithm.  This document provides an applicability statement on
+   algorithm status for DNSSEC implementations.  This document replaces
+   that registry table with a new IANA registry table for Domain Name
+   System Security (DNSSEC) Algorithm Numbers which lists each
+   algorithm's status based on the current reference.  If that status is
+   not defined in the original specification, this document assigns a
+   status.
+
+Status of This Memo
+
+   This Internet-Draft is submitted to IETF in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF), its areas, and its working groups.  Note that
+   other groups may also distribute working documents as Internet-
+   Drafts.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   The list of current Internet-Drafts can be accessed at
+   http://www.ietf.org/ietf/1id-abstracts.txt.
+
+   The list of Internet-Draft Shadow Directories can be accessed at
+   http://www.ietf.org/shadow.html.
+
+
+
+
+Rose                    Expires February 12, 2011               [Page 1]
+
+Internet-Draft             IANA Registry Fixes               August 2010
+
+
+   This Internet-Draft will expire on February 12, 2011.
+
+Copyright Notice
+
+   Copyright (c) 2010 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents
+   (http://trustee.ietf.org/license-info) in effect on the date of
+   publication of this document.  Please review these documents
+   carefully, as they describe your rights and restrictions with respect
+   to this document.  Code Components extracted from this document must
+   include Simplified BSD License text as described in Section 4.e of
+   the Trust Legal Provisions and are provided without warranty as
+   described in the BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . . . 3
+     1.1.  Requirements Language . . . . . . . . . . . . . . . . . . . 3
+
+   2.  The DNS Security Algorithm Number Subregistry . . . . . . . . . 3
+     2.1.  Individual Changes  . . . . . . . . . . . . . . . . . . . . 3
+     2.2.  Domain Name System (DNS) Security Algorithm Number
+           Registry Table  . . . . . . . . . . . . . . . . . . . . . . 5
+     2.3.  Specifying New Algorithms and Updating Status of
+           Existing Entries  . . . . . . . . . . . . . . . . . . . . . 6
+
+   3.  IANA Considerations . . . . . . . . . . . . . . . . . . . . . . 6
+
+   4.  Security Considerations . . . . . . . . . . . . . . . . . . . . 6
+
+   5.  References  . . . . . . . . . . . . . . . . . . . . . . . . . . 6
+     5.1.  Normative References  . . . . . . . . . . . . . . . . . . . 6
+     5.2.  Informative References  . . . . . . . . . . . . . . . . . . 8
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Rose                    Expires February 12, 2011               [Page 2]
+
+Internet-Draft             IANA Registry Fixes               August 2010
+
+
+1.  Introduction
+
+   The Domain Name System (DNS) Security Extensions (DNSSEC) [RFC4033],
+   [RFC4034], and [RFC4035] uses digital signatures over DNS data to
+   provide source authentication and integrity protection.  DNSSEC uses
+   an IANA registry to allocate codes for digital signature algorithms
+   (consisting of a cryptographic algorithm and one-way hash function).
+
+   The original list of algorithm status is found in [RFC4034].  Other
+   DNSSEC documents have added new algorithms or changed the status of
+   algorithms in the registry.  However, currently implementors must
+   read through all the documents in order to discover the current
+   status of each algorithm in the registry.
+
+   This document replaces the current IANA registry for Domain Name
+   System Security (DNSSEC) Algorithm Numbers with a newly defined
+   registry table.  This new table (Section 2.2 below) contains a column
+   that will list the current status of each digital signature algorithm
+   in the registry at the time of writing and assigns status for some
+   algorithms used with DNSSEC that did not have an identified status in
+   their specification.  This document updates the following: [RFC2536],
+   [RFC2539], [RFC3110], [RFC4034], [RFC4398], [RFC5155], [RFC5702], and
+   [RFC5933].
+
+1.1.  Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in [RFC2119].
+
+2.  The DNS Security Algorithm Number Subregistry
+
+   The DNS Security Algorithm Number subregistry (part of the Domain
+   Name System (DNS) Security Number registry) will be replaced with the
+   table below.  This table contains a column that contains the current
+   implementation requirements of the given algorithm.
+
+   There are additional differences to entries that are described in
+   sub-section 2.1.  The overall new registry table is in sub-section
+   2.2.  The values for the status were obtained from [RFC4034] with
+   updates for algorithms specified after the original DNSSEC
+   specification.  If no status was listed in the original
+   specification, this document assigns one.
+
+2.1.  Individual Changes
+
+   This document changes three entries in the Domain Name System
+   Security (DNSSEC) Algorithm Registry.  They are:
+
+
+
+Rose                    Expires February 12, 2011               [Page 3]
+
+Internet-Draft             IANA Registry Fixes               August 2010
+
+
+   The description for assignment number 4 is changed to "Reserved until
+   2020".
+
+   The description for assignment number 9 is changed to "Reserved until
+   2020".
+
+   The description for assignment number 11 is changed to "Reserved
+   until 2020".
+
+   Registry entries 13-251 remains Unassigned.
+
+   The status of RSASHA1-NSEC3-SHA1 and DSA-NSEC3-SHA1 are set to
+   RECOMMENDED and OPTIONAL respectively.  The difference is due to the
+   fact that RSA/SHA-1 is REQUIRED and DSA/SHA-1 is only OPTIONAL.  The
+   status of RSA/SHA-256 and RSA/SHA-512 are set to RECOMMENDED as it is
+   believed that these algorithms will replace older algorithms (e.g.
+   RSA/SHA-1) that have a perceived weakness in their hash algorithm
+   (SHA-1).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Rose                    Expires February 12, 2011               [Page 4]
+
+Internet-Draft             IANA Registry Fixes               August 2010
+
+
+2.2.  Domain Name System (DNS) Security Algorithm Number Registry Table
+
+   The Domain Name System (DNS) Security Algorithm Number registry is
+   hereby specified as follows:
+
+                                  Zone  Transaction
+Number  Description    Mnemonic   Sign  Sign     Status       Reference
+------  -----------     ------    ----  -----  ------------   ---------
+  0      Reserved                                             [RFC4398]
+  1      RSA/MD5         RSAMD5     N     Y     MUST NOT      [RFC4034],
+                                                IMPLEMENT     [RFC3110]
+                                                             (this memo)
+  2      Diffie-Hellman   DH        N     Y                   [RFC2539]
+                                                             (this memo)
+  3      DSA/SHA-1       DSASHA1    Y     Y                   [RFC2536],
+                                                              [RFC4034],
+                                                             FIPS 186-3,
+                                                             FIPS 180-3
+                                                             (this memo)
+  4      Reserved until   ECC                                (this memo)
+         2020
+  5      RSA/SHA-1       RSASHA1    Y     Y     REQUIRED      [RFC4034]
+                                                             (this memo)
+  6      DSA-NSEC3-SHA1  DSA-NSEC3  Y     Y                   [RFC5155]
+                         -SHA1                               (this memo)
+  7      RSASHA1-NSEC3   RSASHA1-   Y     Y    RECOMMENDED    [RFC5155]
+         -SHA1           NSEC3-                              (this memo)
+                         SHA1
+  8      RSA/SHA-256     RSASHA256  Y     *    RECOMMENDED     [RFC5702]
+                                                             (this memo)
+  9      Reserved until                                      (this memo)
+         2020
+ 10      RSA/SHA-512     RSASHA512  Y     *    RECOMMENDED    [RFC5702]
+                                                             (this memo)
+ 11      Reserved until                                      (this memo)
+         2020
+ 12      GOST R          GOST-ECC   Y     *                   [RFC5933]
+         34.10-2001                                          (this memo)
+13-251   Unassigned
+ 252     Reserved for    INDIRECT   N     N                   [RFC4034]
+         Indirect keys                                       (this memo)
+ 253     private         PRIVATE    Y     Y                   [RFC4034]
+         algorithm                                           (this memo)
+ 254     private         PRIVATEOID Y     Y                   [RFC4034]
+         algorithm OID                                       (this memo)
+ 255     Reserved
+
+
+
+
+
+Rose                    Expires February 12, 2011               [Page 5]
+
+Internet-Draft             IANA Registry Fixes               August 2010
+
+
+2.3.  Specifying New Algorithms and Updating Status of Existing Entries
+
+   [I-D.ietf-dnsext-dnssec-alg-allocation] establishes a parallel
+   procedure for obtaining an algorithm number for new algorithms other
+   than a standards track document.  Algorithms entered into the
+   registry using that procedure do not have a listed status.
+   Specifications that follow this path do not need to obsolete or
+   update this document.
+
+   Adding a newly specified algorithm to the registry with a status
+   SHALL entail obsoleting this document and replacing the registry
+   table (with the new algorithm entry).  Altering the status column
+   value of any existing algorithm in the registry SHALL entail
+   obsoleting this document and replacing the registry table.
+
+   This document cannot be updated, only made obsolete and replaced by a
+   successor document.
+
+3.  IANA Considerations
+
+   This document replaces the Domain Name System (DNS) Security
+   Algorithm Numbers registry.  The new registry table is in Section
+   2.2.
+
+   The original Domain Name System (DNS) Security Algorithm Number
+   registry is available at http://www.iana.org/assignments/
+   dns-sec-alg-numbers/dns-sec-alg-numbers.xhtml.
+
+4.  Security Considerations
+
+   This document replaces the Domain Name System (DNS) Security
+   Algorithm Numbers registry.  It is not meant to be a discussion on
+   algorithm superiority.  No new security considerations are raised in
+   this document.
+
+5.  References
+
+5.1.  Normative References
+
+   [I-D.ietf-dnsext-dnssec-alg-allocation]  Hoffman, P., "Cryptographic
+                                            Algorithm Identifier
+                                            Allocation for DNSSEC", draf
+                                            t-ietf-dnsext-dnssec-alg-
+                                            allocation-03 (work in
+                                            progress), March 2010.
+
+   [RFC2119]                                Bradner, S., "Key words for
+                                            use in RFCs to Indicate
+
+
+
+Rose                    Expires February 12, 2011               [Page 6]
+
+Internet-Draft             IANA Registry Fixes               August 2010
+
+
+                                            Requirement Levels", BCP 14,
+                                            RFC 2119, March 1997.
+
+   [RFC2536]                                Eastlake, D., "DSA KEYs and
+                                            SIGs in the Domain Name
+                                            System (DNS)", RFC 2536,
+                                            March 1999.
+
+   [RFC2539]                                Eastlake, D., "Storage of
+                                            Diffie-Hellman Keys in the
+                                            Domain Name System (DNS)",
+                                            RFC 2539, March 1999.
+
+   [RFC3110]                                Eastlake, D., "RSA/SHA-1
+                                            SIGs and RSA KEYs in the
+                                            Domain Name System (DNS)",
+                                            RFC 3110, May 2001.
+
+   [RFC4033]                                Arends, R., Austein, R.,
+                                            Larson, M., Massey, D., and
+                                            S. Rose, "DNS Security
+                                            Introduction and
+                                            Requirements", RFC 4033,
+                                            March 2005.
+
+   [RFC4034]                                Arends, R., Austein, R.,
+                                            Larson, M., Massey, D., and
+                                            S. Rose, "Resource Records
+                                            for the DNS Security
+                                            Extensions", RFC 4034,
+                                            March 2005.
+
+   [RFC4035]                                Arends, R., Austein, R.,
+                                            Larson, M., Massey, D., and
+                                            S. Rose, "Protocol
+                                            Modifications for the DNS
+                                            Security Extensions",
+                                            RFC 4035, March 2005.
+
+   [RFC4398]                                Josefsson, S., "Storing
+                                            Certificates in the Domain
+                                            Name System (DNS)",
+                                            RFC 4398, March 2006.
+
+   [RFC5155]                                Laurie, B., Sisson, G.,
+                                            Arends, R., and D. Blacka,
+                                            "DNS Security (DNSSEC)
+                                            Hashed Authenticated Denial
+
+
+
+Rose                    Expires February 12, 2011               [Page 7]
+
+Internet-Draft             IANA Registry Fixes               August 2010
+
+
+                                            of Existence", RFC 5155,
+                                            March 2008.
+
+   [RFC5702]                                Jansen, J., "Use of SHA-2
+                                            Algorithms with RSA in
+                                            DNSKEY and RRSIG Resource
+                                            Records for DNSSEC",
+                                            RFC 5702, October 2009.
+
+   [RFC5933]                                Dolmatov, V., Chuprina, A.,
+                                            and I. Ustinov, "Use of GOST
+                                            Signature Algorithms in
+                                            DNSKEY and RRSIG Resource
+                                            Records for DNSSEC",
+                                            RFC 5933, July 2010.
+
+5.2.  Informative References
+
+   [FIPS.180-3.2008]                        National Institute of
+                                            Standards and Technology,
+                                            "Secure Hash Standard",
+                                            FIPS PUB 180-3,
+                                            October 2008, <http://
+                                            csrc.nist.gov/publications/
+                                            fips/fips180-3/
+                                            fips180-3.pdf>.
+
+   [FIPS.186-3.2009]                        National Institute of
+                                            Standards and Technology,
+                                            "Digital Signature
+                                            Standard", FIPS PUB 186-3,
+                                            June 2009, <http://
+                                            csrc.nist.gov/publications/
+                                            fips/fips186-3/
+                                            fips_186-3.pdf>.
+
+Author's Address
+
+   Scott Rose
+   NIST
+   100 Bureau Dr.
+   Gaithersburg, MD  20899
+   USA
+
+   Phone: +1-301-975-8439
+   EMail: scottr.nist@gmail.com
+
+
+
+
+
+Rose                    Expires February 12, 2011               [Page 8]
+

@@ -138,3 +138,6 @@
 5625:	DNS Proxy Implementation Guidelines
 5702:   Use of SHA-2 Algorithms with RSA in
          DNSKEY and RRSIG Resource Records for DNSSEC
+5933:	Use of GOST Signature Algorithms in DNSKEY
+         and RRSIG Resource Records for DNSSEC
+
