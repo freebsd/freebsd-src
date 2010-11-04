@@ -286,6 +286,9 @@ topo_probe_0x4(void)
 			cpu_logical++;
 	}
 
+	KASSERT(cpu_cores >= 1 && cpu_logical >= 1,
+	    ("topo_probe_0x4 couldn't find BSP"));
+
 	cpu_cores /= cpu_logical;
 	hyperthreading_cpus = cpu_logical;
 }
@@ -357,7 +360,9 @@ topo_probe(void)
 		return;
 
 	logical_cpus_mask = 0;
-	if (cpu_vendor_id == CPU_VENDOR_AMD)
+	if (mp_ncpus <= 1)
+		cpu_cores = cpu_logical = 1;
+	else if (cpu_vendor_id == CPU_VENDOR_AMD)
 		topo_probe_amd();
 	else if (cpu_vendor_id == CPU_VENDOR_INTEL) {
 		/*
@@ -379,10 +384,8 @@ topo_probe(void)
 	 * Fallback: assume each logical CPU is in separate
 	 * physical package.  That is, no multi-core, no SMT.
 	 */
-	if (cpu_cores == 0)
-		cpu_cores = 1;
-	if (cpu_logical == 0)
-		cpu_logical = 1;
+	if (cpu_cores == 0 || cpu_logical == 0)
+		cpu_cores = cpu_logical = 1;
 	cpu_topo_probed = 1;
 }
 
