@@ -2426,14 +2426,13 @@ usb_notify_addq_compat(const char *type, struct usb_device *udev)
 #if USB_HAVE_UGEN
 	    "%s "
 #endif
+	    "at port=%u "
 	    "vendor=0x%04x "
 	    "product=0x%04x "
 	    "devclass=0x%02x "
 	    "devsubclass=0x%02x "
 	    "sernum=\"%s\" "
 	    "release=0x%04x "
-	    "at "
-	    "port=%u "
 #if USB_HAVE_UGEN
 	    "on %s\n"
 #endif
@@ -2442,13 +2441,13 @@ usb_notify_addq_compat(const char *type, struct usb_device *udev)
 #if USB_HAVE_UGEN
 	    udev->ugen_name,
 #endif
+	    udev->port_no,
 	    UGETW(udev->ddesc.idVendor),
 	    UGETW(udev->ddesc.idProduct),
 	    udev->ddesc.bDeviceClass,
 	    udev->ddesc.bDeviceSubClass,
 	    usb_get_serial(udev),
-	    UGETW(udev->ddesc.bcdDevice),
-	    udev->port_no
+	    UGETW(udev->ddesc.bcdDevice)
 #if USB_HAVE_UGEN
 	    , udev->parent_hub != NULL ?
 		udev->parent_hub->ugen_name :
