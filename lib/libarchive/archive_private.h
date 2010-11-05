@@ -58,7 +58,7 @@
 
 struct archive_vtable {
 	int	(*archive_close)(struct archive *);
-	int	(*archive_finish)(struct archive *);
+	int	(*archive_free)(struct archive *);
 	int	(*archive_write_header)(struct archive *,
 	    struct archive_entry *);
 	int	(*archive_write_finish_entry)(struct archive *);

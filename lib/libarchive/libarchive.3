@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 17, 2010
+.Dd February 6, 2010
 .Dt LIBARCHIVE 3
 .Os
 .Sh NAME
@@ -61,13 +61,14 @@ GNU-format tar archives,
 .It
 most common cpio archive formats,
 .It
-ISO9660 CD images (with or without RockRidge extensions),
+ISO9660 CD images (including RockRidge and Joliet extensions),
 .It
 Zip archives.
 .El
 The library automatically detects archives compressed with
 .Xr gzip 1 ,
 .Xr bzip2 1 ,
+.Xr xz 1 ,
 or
 .Xr compress 1
 and decompresses them transparently.
@@ -86,6 +87,8 @@ POSIX
 archives,
 .It
 POSIX octet-oriented cpio archives,
+.It
+Zip archive,
 .It
 two different variants of shar archives.
 .El
@@ -168,12 +171,12 @@ You can use
 (which works much like the
 .Xr read 2
 system call)
-to read this data from the archive.
+to read this data from the archive, or
+.Fn archive_read_data_block
+which provides a slightly more efficient interface.
 You may prefer to use the higher-level
 .Fn archive_read_data_skip ,
 which reads and discards the data for this entry,
-.Fn archive_read_data_to_buffer ,
-which reads the data into an in-memory buffer,
 .Fn archive_read_data_to_file ,
 which copies the data to the provided file descriptor, or
 .Fn archive_read_extract ,
@@ -192,7 +195,7 @@ Once you have finished reading data from the archive, you
 should call
 .Fn archive_read_close
 to close the archive, then call
-.Fn archive_read_finish
+.Fn archive_read_free
 to release all resources, including all memory allocated by the library.
 .Pp
 The
@@ -230,12 +233,34 @@ You can then use
 to write the actual data.
 .Pp
 After all entries have been written, use the
-.Fn archive_write_finish
+.Fn archive_write_free
 function to release all resources.
 .Pp
 The
 .Xr archive_write 3
 manual page provides more detailed calling information for this API.
+.Sh WRITING ENTRIES TO DISK
+The
+.Xr archive_write_disk 3
+API allows you to write
+.Xr archive_entry 3
+objects to disk using the same API used by
+.Xr archive_write 3 .
+The
+.Xr archive_write_disk 3
+API is used internally by
+.Fn archive_read_extract ;
+using it directly can provide greater control over how entries
+get written to disk.
+This API also makes it possible to share code between
+archive-to-archive copy and archive-to-disk extraction
+operations.
+.Sh READING ENTRIES FROM DISK
+The
+.Xr archive_read_disk 3
+provides some support for populating
+.Xr archive_entry 3
+objects from information in the filesystem.
 .Sh DESCRIPTION
 Detailed descriptions of each function are provided by the
 corresponding manual pages.
@@ -259,7 +284,9 @@ In particular, pax interchange format can easily accommodate pathnames
 in arbitrary character sets that exceed
 .Va PATH_MAX .
 .Sh RETURN VALUES
-Most functions return zero on success, non-zero on error.
+Most functions return
+.Cm ARCHIVE_OK
+(zero) on success, non-zero on error.
 The return value indicates the general severity of the error, ranging
 from
 .Cm ARCHIVE_WARN ,
@@ -329,3 +356,14 @@ stored in a
 is supported by all formats.
 For example, cpio formats do not support nanosecond timestamps;
 old tar formats do not support large device numbers.
+.Pp
+The
+.Xr archive_read_disk 3
+API should support iterating over filesystems;
+that would make it possible to share code among
+disk-to-archive, archive-to-archive, archive-to-disk,
+and disk-to-disk operations.
+Currently, it only supports reading the
+information for a single file.
+(Which is still quite useful, as it hides a lot
+of system-specific details.)

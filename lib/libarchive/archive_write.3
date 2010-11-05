@@ -55,7 +55,7 @@
 .Nm archive_write_data ,
 .Nm archive_write_finish_entry ,
 .Nm archive_write_close ,
-.Nm archive_write_finish
+.Nm archive_write_free
 .Nd functions for creating archives
 .Sh SYNOPSIS
 .In archive.h
@@ -125,7 +125,7 @@
 .Ft int
 .Fn archive_write_close "struct archive *"
 .Ft int
-.Fn archive_write_finish "struct archive *"
+.Fn archive_write_free "struct archive *"
 .Sh DESCRIPTION
 These functions provide a complete API for creating streaming
 archive files.
@@ -363,16 +363,16 @@ and
 as needed.
 .It Fn archive_write_close
 Complete the archive and invoke the close callback.
-.It Fn archive_write_finish
+.It Fn archive_write_free
 Invokes
 .Fn archive_write_close
-if it was not invoked manually, then releases all resources.
-Note that this function was declared to return
-.Ft void
-in libarchive 1.x, which made it impossible to detect errors when
+if necessary, then releases all resources.
+If you need detailed information about
 .Fn archive_write_close
-was invoked implicitly from this function.
-This is corrected beginning with libarchive 2.0.
+failures, you should be careful to call it separately, as
+you cannot obtain error information after
+.Fn archive_write_free
+returns.
 .El
 More information about the
 .Va struct archive
@@ -529,7 +529,7 @@ write_archive(const char *outname, const char **filename)
     archive_entry_free(entry);
     filename++;
   }
-  archive_write_finish(a);
+  archive_write_free(a);
 }
 
 int main(int argc, const char **argv)
@@ -580,7 +580,7 @@ may include
 .Fn archive_write_data ,
 .Fn archive_write_close ,
 or
-.Fn archive_write_finish .
+.Fn archive_write_free .
 The client callback can call
 .Fn archive_set_error
 to provide values that can then be retrieved by
