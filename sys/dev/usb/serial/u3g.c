@@ -411,7 +411,6 @@ static const struct usb_device_id u3g_devs[] = {
 	U3G_DEV(QUALCOMMINC, E0078, 0),
 	U3G_DEV(QUALCOMMINC, E0082, 0),
 	U3G_DEV(QUALCOMMINC, E0086, 0),
-	U3G_DEV(QUALCOMMINC, E2000, U3GINIT_SCSIEJECT),
 	U3G_DEV(QUALCOMMINC, E2002, 0),
 	U3G_DEV(QUALCOMMINC, E2003, 0),
 	U3G_DEV(QUALCOMMINC, MF626, 0),
@@ -655,6 +654,12 @@ u3g_test_autoinst(void *arg, struct usb_device *udev,
 	if (usbd_lookup_id_by_uaa(u3g_devs, sizeof(u3g_devs), uaa))
 		return;		/* no device match */
 
+	if (bootverbose) {
+		printf("Ejecting 0x%04x:0x%04x using method %ld\n",
+		       uaa->info.idVendor, uaa->info.idProduct,
+		       USB_GET_DRIVER_INFO(uaa));
+	}
+
 	switch (USB_GET_DRIVER_INFO(uaa)) {
 		case U3GINIT_HUAWEI:
 			error = u3g_huawei_init(udev);
@@ -669,7 +674,8 @@ u3g_test_autoinst(void *arg, struct usb_device *udev,
 			error = usb_msc_eject(udev, 0, MSC_EJECT_REZERO);
 			break;
 		case U3GINIT_ZTESTOR:
-			error = usb_msc_eject(udev, 0, MSC_EJECT_ZTESTOR);
+			error = usb_msc_eject(udev, 0, MSC_EJECT_STOPUNIT);
+			error |= usb_msc_eject(udev, 0, MSC_EJECT_ZTESTOR);
 			break;
 		case U3GINIT_CMOTECH:
 			error = usb_msc_eject(udev, 0, MSC_EJECT_CMOTECH);
