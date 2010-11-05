@@ -18,8 +18,6 @@ SECTIONS
     *(.sdata2 .sdata2.* .gnu.linkonce.s2.*)
     *(.sbss2 .sbss2.* .gnu.linkonce.sb2.*)
     *(.opd)
-    *(.IA_64.unwind_info* .gnu.linkonce.ia64unwi.*)
-    *(.IA_64.unwind* .gnu.linkonce.ia64unw.*)
     __start_set_Xcommand_set = .;
     *(set_Xcommand_set)
     __stop_set_Xcommand_set = .;
@@ -30,6 +28,8 @@ SECTIONS
     *(.bss .bss.* .gnu.linkonce.b.*)
     *(COMMON)
   }
+  .IA_64.unwind_info   : { *(.IA_64.unwind_info* .gnu.linkonce.ia64unwi.*) }
+  .IA_64.unwind   : { *(.IA_64.unwind* .gnu.linkonce.ia64unw.*) }
   __gp = .;
   .sdata	: {
     *(.got.plt .got)
