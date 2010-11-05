@@ -902,6 +902,7 @@ uhso_probe_iface(struct uhso_softc *sc, int index,
 				device_printf(sc->sc_dev, "ucom_attach failed\n");
 				return (ENXIO);
 			}
+			ucom_set_pnpinfo_usb(&sc->sc_super_ucom, sc->sc_dev);
 
 			mtx_lock(&sc->sc_mtx);
 			usbd_transfer_start(sc->sc_xfer[UHSO_MUX_ENDPT_INTR]);
@@ -920,6 +921,7 @@ uhso_probe_iface(struct uhso_softc *sc, int index,
 			device_printf(sc->sc_dev, "ucom_attach failed\n");
 			return (ENXIO);
 		}
+		ucom_set_pnpinfo_usb(&sc->sc_super_ucom, sc->sc_dev);
 	}
 	else {
 		UHSO_DPRINTF(0, "Unknown type %x\n", type);
