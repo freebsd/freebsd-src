@@ -798,7 +798,7 @@ acpi_pci_link_srs_from_links(struct acpi_pci_link_softc *sc,
 
 		/* Add a new IRQ resource from each link. */
 		link = &sc->pl_links[i];
-		if (newres.Type == ACPI_RESOURCE_TYPE_IRQ) {
+		if (link->l_prs_template.Type == ACPI_RESOURCE_TYPE_IRQ) {
 
 			/* Build an IRQ resource. */
 			bcopy(&link->l_prs_template, &newres,
