@@ -296,6 +296,7 @@ ubser_attach(device_t dev)
 	if (error) {
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
 
 	mtx_lock(&sc->sc_mtx);
 	usbd_xfer_set_stall(sc->sc_xfer[UBSER_BULK_DT_WR]);
