@@ -2619,11 +2619,13 @@ backup_kernel () {
 	# "not ours", backup_kernel_finddir would have exited, so
 	# deleting the directory content is as safe as we can make it.
 	if [ -d $BACKUPKERNELDIR ]; then
-		rm -f $BACKUPKERNELDIR/*
+		rm -fr $BACKUPKERNELDIR
 	fi
 
-	# Create directory for backup if it doesn't exist.
+	# Create directories for backup.
 	mkdir -p $BACKUPKERNELDIR
+	mtree -cdn -p "${KERNELDIR}" | \
+	    mtree -Ue -p "${BACKUPKERNELDIR}" > /dev/null
 
 	# Mark the directory as having been created by freebsd-update.
 	touch $BACKUPKERNELDIR/.freebsd-update
@@ -2644,9 +2646,8 @@ backup_kernel () {
 	fi
 
 	# Backup all the kernel files using hardlinks.
-	find $KERNELDIR -type f $FINDFILTER | \
-		sed -Ee "s,($KERNELDIR)/?(.*),\1/\2 ${BACKUPKERNELDIR}/\2," | \
-		xargs -n 2 cp -pl
+	(cd $KERNELDIR && find . -type f $FINDFILTER -exec \
+	    cp -pl '{}' ${BACKUPKERNELDIR}/'{}' \;)
 
 	# Re-enable patchname expansion.
 	set +f
