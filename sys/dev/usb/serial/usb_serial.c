@@ -185,6 +185,8 @@ static uint8_t ucom_bitmap[(UCOM_UNIT_MAX + 7) / 8];
 static struct mtx ucom_bitmap_mtx;
 MTX_SYSINIT(ucom_bitmap_mtx, &ucom_bitmap_mtx, "ucom bitmap", MTX_DEF);
 
+#define UCOM_TTY_PREFIX		"U"
+
 /*
  * Mark a unit number (the X in cuaUX) as in use.
  *
@@ -320,11 +322,12 @@ ucom_attach_tty(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 		/* Use default TTY name */
 		if (ssc->sc_subunits > 1) {
 			/* multiple modems in one */
-			snprintf(buf, sizeof(buf), "U%u.%u",
+			snprintf(buf, sizeof(buf), UCOM_TTY_PREFIX "%u.%u",
 			    ssc->sc_unit, sc->sc_subunit);
 		} else {
 			/* single modem */
-			snprintf(buf, sizeof(buf), "U%u", ssc->sc_unit);
+			snprintf(buf, sizeof(buf), UCOM_TTY_PREFIX "%u",
+			    ssc->sc_unit);
 		}
 	}
 	tty_makedev(tp, NULL, "%s", buf);
@@ -407,6 +410,24 @@ ucom_detach_tty(struct ucom_softc *sc)
 		mtx_unlock(sc->sc_mtx);
 	}
 	cv_destroy(&sc->sc_cv);
+}
+
+void
+ucom_set_pnpinfo_usb(struct ucom_super_softc *ssc, device_t dev)
+{
+    char buf[64];
+    uint8_t iface_index;
+    struct usb_attach_arg *uaa;
+
+    snprintf(buf, sizeof(buf), "ttyname=%s%d ttyports=%d",
+	     UCOM_TTY_PREFIX, ssc->sc_unit, ssc->sc_subunits);
+
+    /* Store the PNP info in the first interface for the dev */
+    uaa = device_get_ivars(dev);
+    iface_index = uaa->info.bIfaceIndex;
+    
+    if (usbd_set_pnpinfo(uaa->device, iface_index, buf) != 0)
+	device_printf(dev, "Could not set PNP info\n");
 }
 
 static void
