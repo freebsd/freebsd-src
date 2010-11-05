@@ -255,7 +255,7 @@ ucom_attach(struct ucom_super_softc *ssc, struct ucom_softc *sc,
 	}
 	ssc->sc_subunits = subunits;
 
-	for (subunit = 0; subunit != ssc->sc_subunits; subunit++) {
+	for (subunit = 0; subunit < ssc->sc_subunits; subunit++) {
 		sc[subunit].sc_subunit = subunit;
 		sc[subunit].sc_super = ssc;
 		sc[subunit].sc_mtx = mtx;
@@ -270,8 +270,8 @@ ucom_attach(struct ucom_super_softc *ssc, struct ucom_softc *sc,
 		sc[subunit].sc_flag |= UCOM_FLAG_ATTACHED;
 	}
 
-	DPRINTF("tp = %p, unit = %d, subunits = %d, device name subunit 0 = %s\n",
-		sc->sc_tty, ssc->sc_unit, ssc->sc_subunits, sc[0].sc_devname);
+	DPRINTF("tp = %p, unit = %d, subunits = %d\n",
+		sc->sc_tty, ssc->sc_unit, ssc->sc_subunits);
 
 	return (0);
 }
@@ -287,7 +287,7 @@ ucom_detach(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 
 	usb_proc_drain(&ssc->sc_tq);
 
-	for (subunit = 0; subunit <= ssc->sc_subunits; subunit++) {
+	for (subunit = 0; subunit < ssc->sc_subunits; subunit++) {
 		if (sc[subunit].sc_flag & UCOM_FLAG_ATTACHED) {
 
 			ucom_detach_tty(&sc[subunit]);
@@ -304,7 +304,7 @@ static int
 ucom_attach_tty(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 {
 	struct tty *tp;
-	char buf[10];			/* temporary TTY device name buffer */
+	char buf[32];			/* temporary TTY device name buffer */
 
 	tp = tty_alloc_mutex(&ucom_class, sc, sc->sc_mtx);
 	if (tp == NULL)
