@@ -1461,7 +1461,7 @@ xl_attach(device_t dev)
 		 * control registers at all MII addresses.
 		 */
 		phy = MII_PHY_ANY;
-		if ((sc->xl_flags & XL_FLAG_PHYOK) != 0)
+		if ((sc->xl_flags & XL_FLAG_PHYOK) == 0)
 			phy = 24;
 		error = mii_attach(dev, &sc->xl_miibus, ifp, xl_ifmedia_upd,
 		    xl_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
