@@ -172,10 +172,7 @@ archive_read_extract_cleanup(struct archive_read *a)
 {
 	int ret = ARCHIVE_OK;
 
-#if ARCHIVE_API_VERSION > 1
-	ret =
-#endif
-	    archive_write_finish(a->extract->ad);
+	ret = archive_write_free(a->extract->ad);
 	free(a->extract);
 	a->extract = NULL;
 	return (ret);
