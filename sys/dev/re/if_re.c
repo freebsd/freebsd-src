@@ -2020,9 +2020,9 @@ re_rxeof(struct rl_softc *sc, int *rx_npktsp)
 	if (rx_npktsp != NULL)
 		*rx_npktsp = rx_npkts;
 	if (maxpkt)
-		return(EAGAIN);
+		return (EAGAIN);
 
-	return(0);
+	return (0);
 }
 
 static void
@@ -2839,7 +2839,7 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			if (ifr->ifr_reqcap & IFCAP_POLLING) {
 				error = ether_poll_register(re_poll, ifp);
 				if (error)
-					return(error);
+					return (error);
 				RL_LOCK(sc);
 				/* Disable interrupts */
 				CSR_WRITE_2(sc, RL_IMR, 0x0000);
