@@ -42,26 +42,35 @@ archive_read_close(struct archive *a)
 	return ((a->vtable->archive_close)(a));
 }
 
-#if ARCHIVE_API_VERSION > 1
+int
+archive_write_free(struct archive *a)
+{
+	return ((a->vtable->archive_free)(a));
+}
+
+#if ARCHIVE_VERSION_NUMBER < 4000000
+/* For backwards compatibility; will be removed with libarchive 4.0. */
 int
 archive_write_finish(struct archive *a)
 {
-	return ((a->vtable->archive_finish)(a));
-}
-#else
-/* Temporarily allow library to compile with either 1.x or 2.0 API. */
-void
-archive_write_finish(struct archive *a)
-{
-	(void)(a->vtable->archive_finish)(a);
+	return ((a->vtable->archive_free)(a));
 }
 #endif
 
 int
+archive_read_free(struct archive *a)
+{
+	return ((a->vtable->archive_free)(a));
+}
+
+#if ARCHIVE_VERSION_NUMBER < 4000000
+/* For backwards compatibility; will be removed with libarchive 4.0. */
+int
 archive_read_finish(struct archive *a)
 {
-	return ((a->vtable->archive_finish)(a));
+	return ((a->vtable->archive_free)(a));
 }
+#endif
 
 int
 archive_write_header(struct archive *a, struct archive_entry *entry)
@@ -76,12 +85,7 @@ archive_write_finish_entry(struct archive *a)
 	return ((a->vtable->archive_write_finish_entry)(a));
 }
 
-#if ARCHIVE_API_VERSION > 1
 ssize_t
-#else
-/* Temporarily allow library to compile with either 1.x or 2.0 API. */
-int
-#endif
 archive_write_data(struct archive *a, const void *buff, size_t s)
 {
 	return ((a->vtable->archive_write_data)(a, buff, s));
