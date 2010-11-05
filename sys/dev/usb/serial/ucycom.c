@@ -272,13 +272,15 @@ ucycom_attach(device_t dev)
 	}
 	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &ucycom_callback, &sc->sc_mtx);
-
 	if (error) {
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
+
 	if (urd_ptr) {
 		free(urd_ptr, M_USBDEV);
 	}
+
 	return (0);			/* success */
 
 detach:

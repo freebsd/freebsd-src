@@ -193,6 +193,7 @@ int	ucom_attach(struct ucom_super_softc *,
 	    struct ucom_softc *, uint32_t, void *,
 	    const struct ucom_callback *callback, struct mtx *);
 void	ucom_detach(struct ucom_super_softc *, struct ucom_softc *);
+void	ucom_set_pnpinfo_usb(struct ucom_super_softc *, device_t);
 void	ucom_status_change(struct ucom_softc *);
 uint8_t	ucom_get_data(struct ucom_softc *, struct usb_page_cache *,
 	    uint32_t, uint32_t, uint32_t *);

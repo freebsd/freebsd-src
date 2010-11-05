@@ -321,6 +321,8 @@ uvscom_attach(device_t dev)
 	if (error) {
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
+
 	/* start interrupt pipe */
 	mtx_lock(&sc->sc_mtx);
 	usbd_transfer_start(sc->sc_xfer[UVSCOM_INTR_DT_RD]);

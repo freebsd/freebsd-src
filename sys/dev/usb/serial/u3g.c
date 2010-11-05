@@ -818,8 +818,10 @@ u3g_attach(device_t dev)
 		DPRINTF("ucom_attach failed\n");
 		goto detach;
 	}
+	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
 	device_printf(dev, "Found %u port%s.\n", sc->sc_numports,
 	    sc->sc_numports > 1 ? "s":"");
+
 	return (0);
 
 detach:
