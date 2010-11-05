@@ -880,7 +880,7 @@ re_probe(device_t dev)
 	uint16_t		devid, vendor;
 	uint16_t		revid, sdevid;
 	int			i;
-	
+
 	vendor = pci_get_vendor(dev);
 	devid = pci_get_device(dev);
 	revid = pci_get_revid(dev);
@@ -1121,7 +1121,7 @@ re_attach(device_t dev)
 	/*
 	 * Prefer memory space register mapping over IO space.
 	 * Because RTL8169SC does not seem to work when memory mapping
-	 * is used always activate io mapping. 
+	 * is used always activate io mapping.
 	 */
 	if (devid == RT_DEVICEID_8169SC)
 		prefer_iomap = 1;
@@ -2111,7 +2111,7 @@ re_tick(void *xsc)
 	 * Reclaim transmitted frames here. Technically it is not
 	 * necessary to do here but it ensures periodic reclamation
 	 * regardless of Tx completion interrupt which seems to be
-	 * lost on PCIe based controllers under certain situations. 
+	 * lost on PCIe based controllers under certain situations.
 	 */
 	re_txeof(sc);
 	re_watchdog(sc);
