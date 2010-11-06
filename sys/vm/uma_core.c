@@ -2529,13 +2529,33 @@ uma_zone_get_max(uma_zone_t zone)
 
 	ZONE_LOCK(zone);
 	keg = zone->uz_keg;
-	if (keg->uk_maxpages)
-		nitems = keg->uk_maxpages * keg->uk_ipers;
-	else
-		nitems = 0;
+	nitems = keg->uk_maxpages * keg->uk_ipers;
 	ZONE_UNLOCK(zone);
 
 	return (nitems);
+}
+
+/* See uma.h */
+int
+uma_zone_get_cur(uma_zone_t zone)
+{
+	int64_t nitems;
+	u_int i;
+
+	ZONE_LOCK(zone);
+	nitems = zone->uz_allocs - zone->uz_frees;
+	CPU_FOREACH(i) {
+		/*
+		 * See the comment in sysctl_vm_zone_stats() regarding the
+		 * safety of accessing the per-cpu caches. With the zone lock
+		 * held, it is safe, but can potentially result in stale data.
+		 */
+		nitems += zone->uz_cpu[i].uc_allocs -
+		    zone->uz_cpu[i].uc_frees;
+	}
+	ZONE_UNLOCK(zone);
+
+	return (nitems < 0 ? 0 : nitems);
 }
 
 /* See uma.h */
