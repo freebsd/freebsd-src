@@ -694,13 +694,21 @@ char *text;
 	int width;
 
 	s = NULL;
-	width = display_width;
+	width = screen_width;
 	header_length = strlen(text);
 	if (header_length >= width) {
 		s = malloc((width + 1) * sizeof(char));
 		if (s == NULL)
 			return (NULL);
 		strncpy(s, text, width);
+		s[width] = '\0';
+	} else {
+		s = malloc((width + 1) * sizeof(char));
+		if (s == NULL)
+			return (NULL);
+		strncpy(s, text, width);
+		while (screen_width > header_length)
+			s[header_length++] = ' ';
 		s[width] = '\0';
 	}
 	return (s);
@@ -726,7 +734,7 @@ char *text;
     if (header_status == ON)
     {
 	putchar('\n');
-	fputs(text, stdout);
+	standout(text, stdout);
 	lastline++;
     }
     else if (header_status == ERASE)

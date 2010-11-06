@@ -585,7 +585,11 @@
 	</listitem>
 
 	<listitem>
-	  <para>&sun.fire; V215 (support first appeared in 7.3-RELEASE)</para>
+	  <para>&sun.fire; V215 (support first appeared in 7.3-RELEASE and 8.1-RELEASE)</para>
+	</listitem>
+
+	<listitem>
+	  <para>&sun.fire; V240</para>
 	</listitem>
 
 	<listitem>
@@ -594,12 +598,12 @@
 
 	<listitem>
 	  <para>&sun.fire; V440 (support for the on-board NICs first
-	    appeared in 8.0-RELEASE)</para>
+	    appeared in 7.3-RELEASE and 8.0-RELEASE)</para>
 	</listitem>
 
 	<listitem>
 	  <para>&sun.fire; V480 (501-6780 and 501-6790 centerplanes only, for
-	    which support first appeared in 7.3-RELEASE)</para>
+	    which support first appeared in 7.3-RELEASE and 8.1-RELEASE)</para>
 	</listitem>
 
 	<listitem>
@@ -607,7 +611,7 @@
 	</listitem>
 
 	<listitem>
-	  <para>&sun.fire; V890 (support first appeared in 8.1-RELEASE,
+	  <para>&sun.fire; V890 (support first appeared in 7.4-RELEASE and 8.1-RELEASE,
 	    non-mixed &ultrasparc; IV/IV+ CPU-configurations only)</para>
 	</listitem>
 
@@ -625,20 +629,16 @@
 	</listitem>
 
 	<listitem>
-	  <para>&sun.fire; V240</para>
+	  <para>&sun.fire; V245 (support first appeared in 7.3-RELEASE and 8.1-RELEASE)</para>
 	</listitem>
 
 	<listitem>
-	  <para>&sun.fire; V245 (support first appeared in 7.3-RELEASE)</para>
-	</listitem>
-
-	<listitem>
-	  <para>&sun.fire; V490 (support first appeared in 8.1-RELEASE,
+	  <para>&sun.fire; V490 (support first appeared in 7.4-RELEASE and 8.1-RELEASE,
 	    non-mixed &ultrasparc; IV/IV+ CPU-configurations only)</para>
 	</listitem>
       </itemizedlist>
 
-      <para>Starting with 8.1-RELEASE, &arch.sparc64; systems based on
+      <para>Starting with 7.4-RELEASE and 8.1-RELEASE, &arch.sparc64; systems based on
 	Fujitsu &sparc64; V are also supported by &os;, which
 	includes the following known working systems:</para>
 

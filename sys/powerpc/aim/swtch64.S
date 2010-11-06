@@ -110,11 +110,6 @@ ENTRY(cpu_switch)
 	std	%r1,PCB_SP(%r6)		/* Save the stack pointer */
 	std	%r2,PCB_TOC(%r6)	/* Save the TOC pointer */
 	
-	li	%r15,0			/* Save user segment for copyin/out */
-	li	%r16,USER_SLB_SLOT
-	slbmfev %r15, %r16
-	std	%r15,PCB_AIM_USR_VSID(%r6)
-
 	mr	%r14,%r3		/* Copy the old thread ptr... */
 	mr	%r15,%r4		/* and the new thread ptr in scratch */
 	mr	%r16,%r5		/* and the new lock */

@@ -62,7 +62,6 @@ includes WPS support and uses madwifi driver interface:
 
 CONFIG_DRIVER_MADWIFI=y
 CFLAGS += -I/usr/src/madwifi-0.9.3
-CONFIG_EAP=y
 CONFIG_WPS=y
 CONFIG_WPS_UPNP=y
 
@@ -194,6 +193,33 @@ hostapd_cli wps_pbc
 At this point, the client has two minutes to complete WPS negotiation
 which will generate a new WPA PSK in the same way as the PIN method
 described above.
+
+
+When an external Registrar is used, the AP can act as an Enrollee and
+use its AP PIN. A static AP PIN (e.g., one one a label in the AP
+device) can be configured in hostapd.conf (ap_pin parameter). A more
+secure option is to use hostapd_cli wps_ap_pin command to enable the
+AP PIN only based on user action (and even better security by using a
+random AP PIN for each session, i.e., by using "wps_ap_pin random"
+command with a timeout value). Following commands are available for
+managing the dynamic AP PIN operations:
+
+hostapd_cli wps_ap_pin disable
+- disable AP PIN (i.e., do not allow external Registrars to use it to
+  learn the current AP settings or to reconfigure the AP)
+
+hostapd_cli wps_ap_pin random [timeout]
+- generate a random AP PIN and enable it
+- if the optional timeout parameter is given, the AP PIN will be enabled
+  for the specified number of seconds
+
+hostapd_cli wps_ap_pin get
+- fetch the current AP PIN
+
+hostapd_cli wps_ap_pin set <PIN> [timeout]
+- set the AP PIN and enable it
+- if the optional timeout parameter is given, the AP PIN will be enabled
+  for the specified number of seconds
 
 
 Credential generation and configuration changes

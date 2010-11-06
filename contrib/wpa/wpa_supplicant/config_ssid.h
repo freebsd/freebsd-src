@@ -15,7 +15,7 @@
 #ifndef CONFIG_SSID_H
 #define CONFIG_SSID_H
 
-#include "defs.h"
+#include "common/defs.h"
 #include "eap_peer/eap_config.h"
 
 #define MAX_SSID_LEN 32
@@ -271,6 +271,8 @@ struct wpa_ssid {
 	 *
 	 * 1 = IBSS (ad-hoc, peer-to-peer)
 	 *
+	 * 2 = AP (access point)
+	 *
 	 * Note: IBSS can only be used with key_mgmt NONE (plaintext and
 	 * static WEP) and key_mgmt=WPA-NONE (fixed group key TKIP/CCMP). In
 	 * addition, ap_scan has to be set to 2 for IBSS. WPA-None requires
@@ -278,7 +280,11 @@ struct wpa_ssid {
 	 * pairwise=NONE, group=TKIP (or CCMP, but not both), and psk must also
 	 * be set (either directly or using ASCII passphrase).
 	 */
-	int mode;
+	enum wpas_mode {
+		WPAS_MODE_INFRA = 0,
+		WPAS_MODE_IBSS = 1,
+		WPAS_MODE_AP = 2,
+	} mode;
 
 	/**
 	 * disabled - Whether this network is currently disabled
@@ -316,11 +322,7 @@ struct wpa_ssid {
 	 * This value is used to configure policy for management frame
 	 * protection (IEEE 802.11w). 0 = disabled, 1 = optional, 2 = required.
 	 */
-	enum {
-		NO_IEEE80211W = 0,
-		IEEE80211W_OPTIONAL = 1,
-		IEEE80211W_REQUIRED = 2
-	} ieee80211w;
+	enum mfp_options ieee80211w;
 #endif /* CONFIG_IEEE80211W */
 
 	/**
@@ -342,6 +344,35 @@ struct wpa_ssid {
 	 * attacks against TKIP deficiencies.
 	 */
 	int wpa_ptk_rekey;
+
+	/**
+	 * scan_freq - Array of frequencies to scan or %NULL for all
+	 *
+	 * This is an optional zero-terminated array of frequencies in
+	 * megahertz (MHz) to include in scan requests when searching for this
+	 * network. This can be used to speed up scanning when the network is
+	 * known to not use all possible channels.
+	 */
+	int *scan_freq;
+
+	/**
+	 * bgscan - Background scan and roaming parameters or %NULL if none
+	 *
+	 * This is an optional set of parameters for background scanning and
+	 * roaming within a network (ESS) in following format:
+	 * <bgscan module name>:<module parameters>
+	 */
+	char *bgscan;
+
+	/**
+	 * freq_list - Array of allowed frequencies or %NULL for all
+	 *
+	 * This is an optional zero-terminated array of frequencies in
+	 * megahertz (MHz) to allow for selecting the BSS. If set, scan results
+	 * that do not match any of the specified frequencies are not
+	 * considered when selecting a BSS.
+	 */
+	int *freq_list;
 };
 
 #endif /* CONFIG_SSID_H */

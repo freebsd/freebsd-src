@@ -1023,7 +1023,7 @@ int eap_sim_db_add_reauth(void *priv, const u8 *identity,
 }
 
 
-#ifdef EAP_AKA_PRIME
+#ifdef EAP_SERVER_AKA_PRIME
 /**
  * eap_sim_db_add_reauth_prime - EAP-AKA' DB: Add new re-authentication entry
  * @priv: Private data pointer from eap_sim_db_init()
@@ -1062,7 +1062,7 @@ int eap_sim_db_add_reauth_prime(void *priv, const u8 *identity,
 
 	return 0;
 }
-#endif /* EAP_AKA_PRIME */
+#endif /* EAP_SERVER_AKA_PRIME */
 
 
 /**
