@@ -155,7 +155,7 @@ SUBDIR+=	fdwrite
 SUBDIR+=	freebsd-update
 .endif
 
-.if ${MK_GSSAPI} != no
+.if ${MK_GSSAPI} != "no"
 SUBDIR+=	gssd
 .endif
 

@@ -723,19 +723,16 @@ struct rl_desc {
  * Statistics counter structure (8139C+ and 8169 only)
  */
 struct rl_stats {
-	uint32_t		rl_tx_pkts_lo;
-	uint32_t		rl_tx_pkts_hi;
-	uint32_t		rl_tx_errs_lo;
-	uint32_t		rl_tx_errs_hi;
-	uint32_t		rl_tx_errs;
+	uint64_t		rl_tx_pkts;
+	uint64_t		rl_rx_pkts;
+	uint64_t		rl_tx_errs;
+	uint32_t		rl_rx_errs;
 	uint16_t		rl_missed_pkts;
 	uint16_t		rl_rx_framealign_errs;
 	uint32_t		rl_tx_onecoll;
 	uint32_t		rl_tx_multicolls;
-	uint32_t		rl_rx_ucasts_hi;
-	uint32_t		rl_rx_ucasts_lo;
-	uint32_t		rl_rx_bcasts_lo;
-	uint32_t		rl_rx_bcasts_hi;
+	uint64_t		rl_rx_ucasts;
+	uint64_t		rl_rx_bcasts;
 	uint32_t		rl_rx_mcasts;
 	uint16_t		rl_tx_aborts;
 	uint16_t		rl_rx_underruns;
@@ -769,6 +766,7 @@ struct rl_stats {
 #define	RL_NTXSEGS		32
 
 #define RL_RING_ALIGN		256
+#define RL_DUMP_ALIGN		64
 #define RL_IFQ_MAXLEN		512
 #define RL_TX_DESC_NXT(sc,x)	((x + 1) & ((sc)->rl_ldata.rl_tx_desc_cnt - 1))
 #define RL_TX_DESC_PRV(sc,x)	((x - 1) & ((sc)->rl_ldata.rl_tx_desc_cnt - 1))

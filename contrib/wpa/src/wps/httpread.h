@@ -1,4 +1,4 @@
-/**
+/*
  * httpread - Manage reading file(s) from HTTP/TCP socket
  * Author: Ted Merrill
  * Copyright 2008 Atheros Communications

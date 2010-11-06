@@ -741,7 +741,7 @@ done:
 /*------------------------------------------------------------------------*
  *	usbd_req_reset_port
  *
- * This function will instruct an USB HUB to perform a reset sequence
+ * This function will instruct a USB HUB to perform a reset sequence
  * on the specified port number.
  *
  * Returns:
@@ -793,10 +793,6 @@ usbd_req_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
 		if (err) {
 			goto done;
 		}
-		/* if the device disappeared, just give up */
-		if (!(UGETW(ps.wPortStatus) & UPS_CURRENT_CONNECT_STATUS)) {
-			goto done;
-		}
 		/* check if reset is complete */
 		if (UGETW(ps.wPortChange) & UPS_C_PORT_RESET) {
 			break;
@@ -829,6 +825,103 @@ usbd_req_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
 
 done:
 	DPRINTFN(2, "port %d reset returning error=%s\n",
+	    port, usbd_errstr(err));
+	return (err);
+}
+
+/*------------------------------------------------------------------------*
+ *	usbd_req_warm_reset_port
+ *
+ * This function will instruct an USB HUB to perform a warm reset
+ * sequence on the specified port number. This kind of reset is not
+ * mandatory for LOW-, FULL- and HIGH-speed USB HUBs and is targeted
+ * for SUPER-speed USB HUBs.
+ *
+ * Returns:
+ *    0: Success. The USB device should now be available again.
+ * Else: Failure. No USB device is present and the USB port should be
+ *       disabled.
+ *------------------------------------------------------------------------*/
+usb_error_t
+usbd_req_warm_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
+{
+	struct usb_port_status ps;
+	usb_error_t err;
+	uint16_t n;
+
+#ifdef USB_DEBUG
+	uint16_t pr_poll_delay;
+	uint16_t pr_recovery_delay;
+
+#endif
+	err = usbd_req_set_port_feature(udev, mtx, port, UHF_BH_PORT_RESET);
+	if (err) {
+		goto done;
+	}
+#ifdef USB_DEBUG
+	/* range check input parameters */
+	pr_poll_delay = usb_pr_poll_delay;
+	if (pr_poll_delay < 1) {
+		pr_poll_delay = 1;
+	} else if (pr_poll_delay > 1000) {
+		pr_poll_delay = 1000;
+	}
+	pr_recovery_delay = usb_pr_recovery_delay;
+	if (pr_recovery_delay > 1000) {
+		pr_recovery_delay = 1000;
+	}
+#endif
+	n = 0;
+	while (1) {
+#ifdef USB_DEBUG
+		/* wait for the device to recover from reset */
+		usb_pause_mtx(mtx, USB_MS_TO_TICKS(pr_poll_delay));
+		n += pr_poll_delay;
+#else
+		/* wait for the device to recover from reset */
+		usb_pause_mtx(mtx, USB_MS_TO_TICKS(USB_PORT_RESET_DELAY));
+		n += USB_PORT_RESET_DELAY;
+#endif
+		err = usbd_req_get_port_status(udev, mtx, &ps, port);
+		if (err) {
+			goto done;
+		}
+		/* if the device disappeared, just give up */
+		if (!(UGETW(ps.wPortStatus) & UPS_CURRENT_CONNECT_STATUS)) {
+			goto done;
+		}
+		/* check if reset is complete */
+		if (UGETW(ps.wPortChange) & UPS_C_BH_PORT_RESET) {
+			break;
+		}
+		/* check for timeout */
+		if (n > 1000) {
+			n = 0;
+			break;
+		}
+	}
+
+	/* clear port reset first */
+	err = usbd_req_clear_port_feature(
+	    udev, mtx, port, UHF_C_BH_PORT_RESET);
+	if (err) {
+		goto done;
+	}
+	/* check for timeout */
+	if (n == 0) {
+		err = USB_ERR_TIMEOUT;
+		goto done;
+	}
+#ifdef USB_DEBUG
+	/* wait for the device to recover from reset */
+	usb_pause_mtx(mtx, USB_MS_TO_TICKS(pr_recovery_delay));
+#else
+	/* wait for the device to recover from reset */
+	usb_pause_mtx(mtx, USB_MS_TO_TICKS(USB_PORT_RESET_RECOVERY));
+#endif
+
+done:
+	DPRINTFN(2, "port %d warm reset returning error=%s\n",
 	    port, usbd_errstr(err));
 	return (err);
 }

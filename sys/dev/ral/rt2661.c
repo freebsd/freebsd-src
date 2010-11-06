@@ -294,7 +294,6 @@ rt2661_attach(device_t dev, int id)
 		| IEEE80211_C_TXFRAG		/* handle tx frags */
 		| IEEE80211_C_WME		/* 802.11e */
 #endif
-		| IEEE80211_C_RATECTL		/* use ratectl */
 		;
 
 	bands = 0;

@@ -195,7 +195,7 @@ deadlkres(void)
 		panic("%s: possible deadlock detected on allproc_lock\n",
 				    __func__);
 			tryl++;
-			pause("allproc_lock deadlkres", sleepfreq * hz);
+			pause("allproc", sleepfreq * hz);
 			continue;
 		}
 		tryl = 0;
@@ -288,7 +288,7 @@ deadlkres(void)
 		sx_sunlock(&allproc_lock);
 
 		/* Sleep for sleepfreq seconds. */
-		pause("deadlkres", sleepfreq * hz);
+		pause("-", sleepfreq * hz);
 	}
 }
 

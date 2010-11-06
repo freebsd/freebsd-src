@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 static struct archive_vtable *archive_write_vtable(void);
 
 static int	_archive_write_close(struct archive *);
-static int	_archive_write_finish(struct archive *);
+static int	_archive_write_free(struct archive *);
 static int	_archive_write_header(struct archive *, struct archive_entry *);
 static int	_archive_write_finish_entry(struct archive *);
 static ssize_t	_archive_write_data(struct archive *, const void *, size_t);
@@ -73,7 +73,7 @@ archive_write_vtable(void)
 
 	if (!inited) {
 		av.archive_close = _archive_write_close;
-		av.archive_finish = _archive_write_finish;
+		av.archive_free = _archive_write_free;
 		av.archive_write_header = _archive_write_header;
 		av.archive_write_finish_entry = _archive_write_finish_entry;
 		av.archive_write_data = _archive_write_data;
@@ -383,13 +383,13 @@ _archive_write_close(struct archive *_a)
  * Destroy the archive structure.
  */
 static int
-_archive_write_finish(struct archive *_a)
+_archive_write_free(struct archive *_a)
 {
 	struct archive_write *a = (struct archive_write *)_a;
 	int r = ARCHIVE_OK;
 
 	__archive_check_magic(&a->archive, ARCHIVE_WRITE_MAGIC,
-	    ARCHIVE_STATE_ANY, "archive_write_finish");
+	    ARCHIVE_STATE_ANY, "archive_write_free");
 	if (a->archive.state != ARCHIVE_STATE_CLOSED)
 		r = archive_write_close(&a->archive);
 

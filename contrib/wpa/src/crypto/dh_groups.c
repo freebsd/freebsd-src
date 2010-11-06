@@ -619,11 +619,12 @@ struct wpabuf * dh_derive_shared(const struct wpabuf *peer_public,
 	if (crypto_mod_exp(wpabuf_head(peer_public), wpabuf_len(peer_public),
 			   wpabuf_head(own_private), wpabuf_len(own_private),
 			   dh->prime, dh->prime_len,
-			   wpabuf_put(shared, shared_len), &shared_len) < 0) {
+			   wpabuf_mhead(shared), &shared_len) < 0) {
 		wpabuf_free(shared);
 		wpa_printf(MSG_INFO, "DH: crypto_mod_exp failed");
 		return NULL;
 	}
+	wpabuf_put(shared, shared_len);
 	wpa_hexdump_buf_key(MSG_DEBUG, "DH: shared key", shared);
 
 	return shared;
