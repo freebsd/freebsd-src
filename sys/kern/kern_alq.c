@@ -220,7 +220,7 @@ ald_daemon(void)
 		ALD_LOCK();
 	}
 
-	kproc_exit(0);
+	kthread_exit(0);
 }
 
 static void
