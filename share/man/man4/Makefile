@@ -353,8 +353,9 @@ MAN=	aac.4 \
 	sf.4 \
 	sge.4 \
 	si.4 \
-	sio.4 \
+	siftr.4 \
 	siis.4 \
+	sio.4 \
 	sis.4 \
 	sk.4 \
 	smb.4 \
