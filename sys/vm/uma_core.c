@@ -2521,6 +2521,24 @@ uma_zone_set_max(uma_zone_t zone, int nitems)
 }
 
 /* See uma.h */
+int
+uma_zone_get_max(uma_zone_t zone)
+{
+	int nitems;
+	uma_keg_t keg;
+
+	ZONE_LOCK(zone);
+	keg = zone->uz_keg;
+	if (keg->uk_maxpages)
+		nitems = keg->uk_maxpages * keg->uk_ipers;
+	else
+		nitems = 0;
+	ZONE_UNLOCK(zone);
+
+	return (nitems);
+}
+
+/* See uma.h */
 void
 uma_zone_set_init(uma_zone_t zone, uma_init uminit)
 {
