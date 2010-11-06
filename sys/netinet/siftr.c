@@ -746,6 +746,67 @@ siftr_findinpcb(int ipver, struct ip *ip, struct mbuf *m, uint16_t sport,
 }
 
 
+static inline void
+siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
+    int ipver, int dir, int inp_locally_locked)
+{
+#ifdef SIFTR_IPV6
+	if (ipver == INP_IPV4) {
+		pn->ip_laddr[3] = inp->inp_laddr.s_addr;
+		pn->ip_faddr[3] = inp->inp_faddr.s_addr;
+#else
+		*((uint32_t *)pn->ip_laddr) = inp->inp_laddr.s_addr;
+		*((uint32_t *)pn->ip_faddr) = inp->inp_faddr.s_addr;
+#endif
+#ifdef SIFTR_IPV6
+	} else {
+		pn->ip_laddr[0] = inp->in6p_laddr.s6_addr32[0];
+		pn->ip_laddr[1] = inp->in6p_laddr.s6_addr32[1];
+		pn->ip_laddr[2] = inp->in6p_laddr.s6_addr32[2];
+		pn->ip_laddr[3] = inp->in6p_laddr.s6_addr32[3];
+		pn->ip_faddr[0] = inp->in6p_faddr.s6_addr32[0];
+		pn->ip_faddr[1] = inp->in6p_faddr.s6_addr32[1];
+		pn->ip_faddr[2] = inp->in6p_faddr.s6_addr32[2];
+		pn->ip_faddr[3] = inp->in6p_faddr.s6_addr32[3];
+	}
+#endif
+	pn->tcp_localport = inp->inp_lport;
+	pn->tcp_foreignport = inp->inp_fport;
+	pn->snd_cwnd = tp->snd_cwnd;
+	pn->snd_wnd = tp->snd_wnd;
+	pn->rcv_wnd = tp->rcv_wnd;
+	pn->snd_bwnd = tp->snd_bwnd;
+	pn->snd_ssthresh = tp->snd_ssthresh;
+	pn->snd_scale = tp->snd_scale;
+	pn->rcv_scale = tp->rcv_scale;
+	pn->conn_state = tp->t_state;
+	pn->max_seg_size = tp->t_maxseg;
+	pn->smoothed_rtt = tp->t_srtt;
+	pn->sack_enabled = (tp->t_flags & TF_SACK_PERMIT) != 0;
+	pn->flags = tp->t_flags;
+	pn->rxt_length = tp->t_rxtcur;
+	pn->snd_buf_hiwater = inp->inp_socket->so_snd.sb_hiwat;
+	pn->snd_buf_cc = inp->inp_socket->so_snd.sb_cc;
+	pn->rcv_buf_hiwater = inp->inp_socket->so_rcv.sb_hiwat;
+	pn->rcv_buf_cc = inp->inp_socket->so_rcv.sb_cc;
+	pn->sent_inflight_bytes = tp->snd_max - tp->snd_una;
+
+	/* We've finished accessing the tcb so release the lock. */
+	if (inp_locally_locked)
+		INP_RUNLOCK(inp);
+
+	pn->ipver = ipver;
+	pn->direction = dir;
+
+	/*
+	 * Significantly more accurate than using getmicrotime(), but slower!
+	 * Gives true microsecond resolution at the expense of a hit to
+	 * maximum pps throughput processing when SIFTR is loaded and enabled.
+	 */
+	microtime(&pn->tval);
+}
+
+
 /*
  * pfil hook that is called for each IPv4 packet making its way through the
  * stack in either direction.
@@ -758,13 +819,13 @@ static int
 siftr_chkpkt(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
     struct inpcb *inp)
 {
-	struct pkt_node *pkt_node;
+	struct pkt_node *pn;
 	struct ip *ip;
 	struct tcphdr *th;
 	struct tcpcb *tp;
 	struct siftr_stats *ss;
 	unsigned int ip_hl;
-	uint8_t inp_locally_locked;
+	int inp_locally_locked;
 
 	inp_locally_locked = 0;
 	ss = DPCPU_PTR(ss);
@@ -818,18 +879,6 @@ siftr_chkpkt(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 
 	INP_LOCK_ASSERT(inp);
 
-	pkt_node = malloc(sizeof(struct pkt_node), M_SIFTR_PKTNODE,
-	    M_NOWAIT | M_ZERO);
-
-	if (pkt_node == NULL) {
-		if (dir == PFIL_IN)
-			ss->nskip_in_malloc++;
-		else
-			ss->nskip_out_malloc++;
-
-		goto inp_unlock;
-	}
-
 	/* Find the TCP control block that corresponds with this packet */
 	tp = intotcpcb(inp);
 
@@ -844,53 +893,21 @@ siftr_chkpkt(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 		else
 			ss->nskip_out_tcpcb++;
 
-		free(pkt_node, M_SIFTR_PKTNODE);
 		goto inp_unlock;
 	}
 
-	/* Fill in pkt_node data */
-#ifdef SIFTR_IPV6
-	pkt_node->ip_laddr[3] = inp->inp_laddr.s_addr;
-	pkt_node->ip_faddr[3] = inp->inp_faddr.s_addr;
-#else
-	*((uint32_t *)pkt_node->ip_laddr) = inp->inp_laddr.s_addr;
-	*((uint32_t *)pkt_node->ip_faddr) = inp->inp_faddr.s_addr;
-#endif
-	pkt_node->tcp_localport = inp->inp_lport;
-	pkt_node->tcp_foreignport = inp->inp_fport;
-	pkt_node->snd_cwnd = tp->snd_cwnd;
-	pkt_node->snd_wnd = tp->snd_wnd;
-	pkt_node->rcv_wnd = tp->rcv_wnd;
-	pkt_node->snd_bwnd = tp->snd_bwnd;
-	pkt_node->snd_ssthresh = tp->snd_ssthresh;
-	pkt_node->snd_scale = tp->snd_scale;
-	pkt_node->rcv_scale = tp->rcv_scale;
-	pkt_node->conn_state = tp->t_state;
-	pkt_node->max_seg_size = tp->t_maxseg;
-	pkt_node->smoothed_rtt = tp->t_srtt;
-	pkt_node->sack_enabled = (tp->t_flags & TF_SACK_PERMIT) != 0;
-	pkt_node->flags = tp->t_flags;
-	pkt_node->rxt_length = tp->t_rxtcur;
-	pkt_node->snd_buf_hiwater = inp->inp_socket->so_snd.sb_hiwat;
-	pkt_node->snd_buf_cc = inp->inp_socket->so_snd.sb_cc;
-	pkt_node->rcv_buf_hiwater = inp->inp_socket->so_rcv.sb_hiwat;
-	pkt_node->rcv_buf_cc = inp->inp_socket->so_rcv.sb_cc;
-	pkt_node->sent_inflight_bytes = tp->snd_max - tp->snd_una;
+	pn = malloc(sizeof(struct pkt_node), M_SIFTR_PKTNODE, M_NOWAIT|M_ZERO);
 
-	/* We've finished accessing the tcb so release the lock. */
-	if (inp_locally_locked)
-		INP_RUNLOCK(inp);
+	if (pn == NULL) {
+		if (dir == PFIL_IN)
+			ss->nskip_in_malloc++;
+		else
+			ss->nskip_out_malloc++;
 
-	/* These are safe to access without the inp lock. */
-	pkt_node->ipver = INP_IPV4;
-	pkt_node->direction = dir;
+		goto inp_unlock;
+	}
 
-	/*
-	 * Significantly more accurate than using getmicrotime(), but slower!
-	 * Gives true microsecond resolution at the expense of a hit to
-	 * maximum pps throughput processing when SIFTR is loaded and enabled.
-	 */
-	microtime(&(pkt_node->tval));
+	siftr_siftdata(pn, inp, tp, INP_IPV4, dir, inp_locally_locked);
 
 	if (siftr_generate_hashes) {
 		if ((*m)->m_pkthdr.csum_flags & CSUM_TCP) {
@@ -950,11 +967,11 @@ siftr_chkpkt(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 		 * find a way to create the hash and checksum in the same pass
 		 * over the bytes.
 		 */
-		pkt_node->hash = hash_pkt(*m, ip_hl);
+		pn->hash = hash_pkt(*m, ip_hl);
 	}
 
 	mtx_lock(&siftr_pkt_queue_mtx);
-	STAILQ_INSERT_TAIL(&pkt_queue, pkt_node, nodes);
+	STAILQ_INSERT_TAIL(&pkt_queue, pn, nodes);
 	mtx_unlock(&siftr_pkt_queue_mtx);
 	goto ret;
 
@@ -973,13 +990,13 @@ static int
 siftr_chkpkt6(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
     struct inpcb *inp)
 {
-	struct pkt_node *pkt_node;
+	struct pkt_node *pn;
 	struct ip6_hdr *ip6;
 	struct tcphdr *th;
 	struct tcpcb *tp;
 	struct siftr_stats *ss;
 	unsigned int ip6_hl;
-	uint8_t inp_locally_locked;
+	int inp_locally_locked;
 
 	inp_locally_locked = 0;
 	ss = DPCPU_PTR(ss);
@@ -1037,18 +1054,6 @@ siftr_chkpkt6(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 			inp_locally_locked = 1;
 	}
 
-	pkt_node = malloc(sizeof(struct pkt_node), M_SIFTR_PKTNODE,
-	    M_NOWAIT | M_ZERO);
-
-	if (pkt_node == NULL) {
-		if (dir == PFIL_IN)
-			ss->nskip_in_malloc++;
-		else
-			ss->nskip_out_malloc++;
-
-		goto inp_unlock6;
-	}
-
 	/* Find the TCP control block that corresponds with this packet. */
 	tp = intotcpcb(inp);
 
@@ -1063,59 +1068,26 @@ siftr_chkpkt6(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 		else
 			ss->nskip_out_tcpcb++;
 
-		free(pkt_node, M_SIFTR_PKTNODE);
 		goto inp_unlock6;
 	}
 
-	/* Fill in pkt_node data. */
-	pkt_node->ip_laddr[0] = inp->in6p_laddr.s6_addr32[0];
-	pkt_node->ip_laddr[1] = inp->in6p_laddr.s6_addr32[1];
-	pkt_node->ip_laddr[2] = inp->in6p_laddr.s6_addr32[2];
-	pkt_node->ip_laddr[3] = inp->in6p_laddr.s6_addr32[3];
-	pkt_node->ip_faddr[0] = inp->in6p_faddr.s6_addr32[0];
-	pkt_node->ip_faddr[1] = inp->in6p_faddr.s6_addr32[1];
-	pkt_node->ip_faddr[2] = inp->in6p_faddr.s6_addr32[2];
-	pkt_node->ip_faddr[3] = inp->in6p_faddr.s6_addr32[3];
-	pkt_node->tcp_localport = inp->inp_lport;
-	pkt_node->tcp_foreignport = inp->inp_fport;
-	pkt_node->snd_cwnd = tp->snd_cwnd;
-	pkt_node->snd_wnd = tp->snd_wnd;
-	pkt_node->rcv_wnd = tp->rcv_wnd;
-	pkt_node->snd_bwnd = tp->snd_bwnd;
-	pkt_node->snd_ssthresh = tp->snd_ssthresh;
-	pkt_node->snd_scale = tp->snd_scale;
-	pkt_node->rcv_scale = tp->rcv_scale;
-	pkt_node->conn_state = tp->t_state;
-	pkt_node->max_seg_size = tp->t_maxseg;
-	pkt_node->smoothed_rtt = tp->t_srtt;
-	pkt_node->sack_enabled = (tp->t_flags & TF_SACK_PERMIT) != 0;
-	pkt_node->flags = tp->t_flags;
-	pkt_node->rxt_length = tp->t_rxtcur;
-	pkt_node->snd_buf_hiwater = inp->inp_socket->so_snd.sb_hiwat;
-	pkt_node->snd_buf_cc = inp->inp_socket->so_snd.sb_cc;
-	pkt_node->rcv_buf_hiwater = inp->inp_socket->so_rcv.sb_hiwat;
-	pkt_node->rcv_buf_cc = inp->inp_socket->so_rcv.sb_cc;
-	pkt_node->sent_inflight_bytes = tp->snd_max - tp->snd_una;
+	pn = malloc(sizeof(struct pkt_node), M_SIFTR_PKTNODE, M_NOWAIT|M_ZERO);
 
-	/* We've finished accessing the tcb so release the lock. */
-	if (inp_locally_locked)
-		INP_RUNLOCK(inp);
+	if (pn == NULL) {
+		if (dir == PFIL_IN)
+			ss->nskip_in_malloc++;
+		else
+			ss->nskip_out_malloc++;
 
-	/* These are safe to access without the inp lock. */
-	pkt_node->ipver = INP_IPV6;
-	pkt_node->direction = dir;
+		goto inp_unlock6;
+	}
 
-	/*
-	 * Significantly more accurate than using getmicrotime(), but slower!
-	 * Gives true microsecond resolution at the expense of a hit to
-	 * maximum pps throughput processing when SIFTR is loaded and enabled.
-	 */
-	microtime(&(pkt_node->tval));
+	siftr_siftdata(pn, inp, tp, INP_IPV6, dir, inp_locally_locked);
 
-	/* XXX: Figure out how to do hash calcs for IPv6 */
+	/* XXX: Figure out how to generate hashes for IPv6 packets. */
 
 	mtx_lock(&siftr_pkt_queue_mtx);
-	STAILQ_INSERT_TAIL(&pkt_queue, pkt_node, nodes);
+	STAILQ_INSERT_TAIL(&pkt_queue, pn, nodes);
 	mtx_unlock(&siftr_pkt_queue_mtx);
 	goto ret6;
 
