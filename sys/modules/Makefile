@@ -255,6 +255,7 @@ SUBDIR=	${_3dfx} \
 	sem \
 	sf \
 	sge \
+	siftr \
 	${_sio} \
 	sis \
 	sk \
