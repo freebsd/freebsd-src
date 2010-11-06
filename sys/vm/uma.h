@@ -431,6 +431,18 @@ int uma_zone_set_obj(uma_zone_t zone, struct vm_object *obj, int size);
 void uma_zone_set_max(uma_zone_t zone, int nitems);
 
 /*
+ * Obtains the effective limit on the number of items in a zone
+ *
+ * Arguments:
+ *	zone  The zone to obtain the effective limit from
+ *
+ * Return:
+ *	0  No limit
+ *	int  The effective limit of the zone
+ */
+int uma_zone_get_max(uma_zone_t zone);
+
+/*
  * The following two routines (uma_zone_set_init/fini)
  * are used to set the backend init/fini pair which acts on an
  * object as it becomes allocated and is placed in a slab within
