@@ -291,7 +291,6 @@ rt2560_attach(device_t dev, int id)
 #ifdef notyet
 		| IEEE80211_C_TXFRAG		/* handle tx frags */
 #endif
-		| IEEE80211_C_RATECTL		/* use ratectl */
 		;
 
 	bands = 0;
