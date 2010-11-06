@@ -493,11 +493,15 @@ void
 spinlock_enter(void)
 {
 	struct thread *td;
+	register_t cspr;
 
 	td = curthread;
-	if (td->td_md.md_spinlock_count == 0)
-		td->td_md.md_saved_cspr = disable_interrupts(I32_bit | F32_bit);
-	td->td_md.md_spinlock_count++;
+	if (td->td_md.md_spinlock_count == 0) {
+		cspr = disable_interrupts(I32_bit | F32_bit);
+		td->td_md.md_spinlock_count = 1;
+		td->td_md.md_saved_cspr = cspr;
+	} else
+		td->td_md.md_spinlock_count++;
 	critical_enter();
 }
 
@@ -505,12 +509,14 @@ void
 spinlock_exit(void)
 {
 	struct thread *td;
+	register_t cspr;
 
 	td = curthread;
 	critical_exit();
+	cspr = td->td_md.md_saved_cspr;
 	td->td_md.md_spinlock_count--;
 	if (td->td_md.md_spinlock_count == 0)
-		restore_interrupts(td->td_md.md_saved_cspr);
+		restore_interrupts(cspr);
 }
 
 /*

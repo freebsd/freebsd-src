@@ -1,6 +1,6 @@
 /*
- * hostapd / RADIUS authentication server
- * Copyright (c) 2005-2008, Jouni Malinen <j@w1.fi>
+ * RADIUS authentication server
+ * Copyright (c) 2005-2009, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -18,12 +18,22 @@
 #include "common.h"
 #include "radius.h"
 #include "eloop.h"
-#include "defs.h"
 #include "eap_server/eap.h"
 #include "radius_server.h"
 
+/**
+ * RADIUS_SESSION_TIMEOUT - Session timeout in seconds
+ */
 #define RADIUS_SESSION_TIMEOUT 60
+
+/**
+ * RADIUS_MAX_SESSION - Maximum number of active sessions
+ */
 #define RADIUS_MAX_SESSION 100
+
+/**
+ * RADIUS_MAX_MSG_LEN - Maximum message length for incoming RADIUS messages
+ */
 #define RADIUS_MAX_MSG_LEN 3000
 
 static struct eapol_callbacks radius_server_eapol_cb;
@@ -31,6 +41,9 @@ static struct eapol_callbacks radius_server_eapol_cb;
 struct radius_client;
 struct radius_server_data;
 
+/**
+ * struct radius_server_counters - RADIUS server statistics counters
+ */
 struct radius_server_counters {
 	u32 access_requests;
 	u32 invalid_requests;
@@ -44,6 +57,9 @@ struct radius_server_counters {
 	u32 unknown_types;
 };
 
+/**
+ * struct radius_session - Internal RADIUS server data for a session
+ */
 struct radius_session {
 	struct radius_session *next;
 	struct radius_client *client;
@@ -62,6 +78,9 @@ struct radius_session {
 	u8 last_authenticator[16];
 };
 
+/**
+ * struct radius_client - Internal RADIUS server data for a client
+ */
 struct radius_client {
 	struct radius_client *next;
 	struct in_addr addr;
@@ -76,31 +95,196 @@ struct radius_client {
 	struct radius_server_counters counters;
 };
 
+/**
+ * struct radius_server_data - Internal RADIUS server data
+ */
 struct radius_server_data {
+	/**
+	 * auth_sock - Socket for RADIUS authentication messages
+	 */
 	int auth_sock;
+
+	/**
+	 * clients - List of authorized RADIUS clients
+	 */
 	struct radius_client *clients;
+
+	/**
+	 * next_sess_id - Next session identifier
+	 */
 	unsigned int next_sess_id;
+
+	/**
+	 * conf_ctx - Context pointer for callbacks
+	 *
+	 * This is used as the ctx argument in get_eap_user() calls.
+	 */
 	void *conf_ctx;
+
+	/**
+	 * num_sess - Number of active sessions
+	 */
 	int num_sess;
+
+	/**
+	 * eap_sim_db_priv - EAP-SIM/AKA database context
+	 *
+	 * This is passed to the EAP-SIM/AKA server implementation as a
+	 * callback context.
+	 */
 	void *eap_sim_db_priv;
+
+	/**
+	 * ssl_ctx - TLS context
+	 *
+	 * This is passed to the EAP server implementation as a callback
+	 * context for TLS operations.
+	 */
 	void *ssl_ctx;
+
+	/**
+	 * pac_opaque_encr_key - PAC-Opaque encryption key for EAP-FAST
+	 *
+	 * This parameter is used to set a key for EAP-FAST to encrypt the
+	 * PAC-Opaque data. It can be set to %NULL if EAP-FAST is not used. If
+	 * set, must point to a 16-octet key.
+	 */
 	u8 *pac_opaque_encr_key;
+
+	/**
+	 * eap_fast_a_id - EAP-FAST authority identity (A-ID)
+	 *
+	 * If EAP-FAST is not used, this can be set to %NULL. In theory, this
+	 * is a variable length field, but due to some existing implementations
+	 * requiring A-ID to be 16 octets in length, it is recommended to use
+	 * that length for the field to provide interoperability with deployed
+	 * peer implementations.
+	 */
 	u8 *eap_fast_a_id;
+
+	/**
+	 * eap_fast_a_id_len - Length of eap_fast_a_id buffer in octets
+	 */
 	size_t eap_fast_a_id_len;
+
+	/**
+	 * eap_fast_a_id_info - EAP-FAST authority identifier information
+	 *
+	 * This A-ID-Info contains a user-friendly name for the A-ID. For
+	 * example, this could be the enterprise and server names in
+	 * human-readable format. This field is encoded as UTF-8. If EAP-FAST
+	 * is not used, this can be set to %NULL.
+	 */
 	char *eap_fast_a_id_info;
+
+	/**
+	 * eap_fast_prov - EAP-FAST provisioning modes
+	 *
+	 * 0 = provisioning disabled, 1 = only anonymous provisioning allowed,
+	 * 2 = only authenticated provisioning allowed, 3 = both provisioning
+	 * modes allowed.
+	 */
 	int eap_fast_prov;
+
+	/**
+	 * pac_key_lifetime - EAP-FAST PAC-Key lifetime in seconds
+	 *
+	 * This is the hard limit on how long a provisioned PAC-Key can be
+	 * used.
+	 */
 	int pac_key_lifetime;
+
+	/**
+	 * pac_key_refresh_time - EAP-FAST PAC-Key refresh time in seconds
+	 *
+	 * This is a soft limit on the PAC-Key. The server will automatically
+	 * generate a new PAC-Key when this number of seconds (or fewer) of the
+	 * lifetime remains.
+	 */
 	int pac_key_refresh_time;
+
+	/**
+	 * eap_sim_aka_result_ind - EAP-SIM/AKA protected success indication
+	 *
+	 * This controls whether the protected success/failure indication
+	 * (AT_RESULT_IND) is used with EAP-SIM and EAP-AKA.
+	 */
 	int eap_sim_aka_result_ind;
+
+	/**
+	 * tnc - Trusted Network Connect (TNC)
+	 *
+	 * This controls whether TNC is enabled and will be required before the
+	 * peer is allowed to connect. Note: This is only used with EAP-TTLS
+	 * and EAP-FAST. If any other EAP method is enabled, the peer will be
+	 * allowed to connect without TNC.
+	 */
 	int tnc;
+
+	/**
+	 * wps - Wi-Fi Protected Setup context
+	 *
+	 * If WPS is used with an external RADIUS server (which is quite
+	 * unlikely configuration), this is used to provide a pointer to WPS
+	 * context data. Normally, this can be set to %NULL.
+	 */
 	struct wps_context *wps;
+
+	/**
+	 * ipv6 - Whether to enable IPv6 support in the RADIUS server
+	 */
 	int ipv6;
+
+	/**
+	 * start_time - Timestamp of server start
+	 */
 	struct os_time start_time;
+
+	/**
+	 * counters - Statistics counters for server operations
+	 *
+	 * These counters are the sum over all clients.
+	 */
 	struct radius_server_counters counters;
+
+	/**
+	 * get_eap_user - Callback for fetching EAP user information
+	 * @ctx: Context data from conf_ctx
+	 * @identity: User identity
+	 * @identity_len: identity buffer length in octets
+	 * @phase2: Whether this is for Phase 2 identity
+	 * @user: Data structure for filling in the user information
+	 * Returns: 0 on success, -1 on failure
+	 *
+	 * This is used to fetch information from user database. The callback
+	 * will fill in information about allowed EAP methods and the user
+	 * password. The password field will be an allocated copy of the
+	 * password data and RADIUS server will free it after use.
+	 */
 	int (*get_eap_user)(void *ctx, const u8 *identity, size_t identity_len,
 			    int phase2, struct eap_user *user);
+
+	/**
+	 * eap_req_id_text - Optional data for EAP-Request/Identity
+	 *
+	 * This can be used to configure an optional, displayable message that
+	 * will be sent in EAP-Request/Identity. This string can contain an
+	 * ASCII-0 character (nul) to separate network infromation per RFC
+	 * 4284. The actual string length is explicit provided in
+	 * eap_req_id_text_len since nul character will not be used as a string
+	 * terminator.
+	 */
 	char *eap_req_id_text;
+
+	/**
+	 * eap_req_id_text_len - Length of eap_req_id_text buffer in octets
+	 */
 	size_t eap_req_id_text_len;
+
+	/*
+	 * msg_ctx - Context data for wpa_msg() calls
+	 */
+	void *msg_ctx;
 };
 
 
@@ -182,15 +366,9 @@ static void radius_server_session_free(struct radius_server_data *data,
 	eloop_cancel_timeout(radius_server_session_timeout, data, sess);
 	eloop_cancel_timeout(radius_server_session_remove_timeout, data, sess);
 	eap_server_sm_deinit(sess->eap);
-	if (sess->last_msg) {
-		radius_msg_free(sess->last_msg);
-		os_free(sess->last_msg);
-	}
+	radius_msg_free(sess->last_msg);
 	os_free(sess->last_from_addr);
-	if (sess->last_reply) {
-		radius_msg_free(sess->last_reply);
-		os_free(sess->last_reply);
-	}
+	radius_msg_free(sess->last_reply);
 	os_free(sess);
 	data->num_sess--;
 }
@@ -313,6 +491,7 @@ radius_server_get_new_session(struct radius_server_data *data,
 
 	os_memset(&eap_conf, 0, sizeof(eap_conf));
 	eap_conf.ssl_ctx = data->ssl_ctx;
+	eap_conf.msg_ctx = data->msg_ctx;
 	eap_conf.eap_sim_db_priv = data->eap_sim_db_priv;
 	eap_conf.backend_auth = TRUE;
 	eap_conf.eap_server = 1;
@@ -353,6 +532,7 @@ radius_server_encapsulate_eap(struct radius_server_data *data,
 	struct radius_msg *msg;
 	int code;
 	unsigned int sess_id;
+	struct radius_hdr *hdr = radius_msg_get_hdr(request);
 
 	if (sess->eap_if->eapFail) {
 		sess->eap_if->eapFail = FALSE;
@@ -365,7 +545,7 @@ radius_server_encapsulate_eap(struct radius_server_data *data,
 		code = RADIUS_CODE_ACCESS_CHALLENGE;
 	}
 
-	msg = radius_msg_new(code, request->hdr->identifier);
+	msg = radius_msg_new(code, hdr->identifier);
 	if (msg == NULL) {
 		RADIUS_DEBUG("Failed to allocate reply message");
 		return NULL;
@@ -391,7 +571,7 @@ radius_server_encapsulate_eap(struct radius_server_data *data,
 		} else {
 			len = sess->eap_if->eapKeyDataLen / 2;
 		}
-		if (!radius_msg_add_mppe_keys(msg, request->hdr->authenticator,
+		if (!radius_msg_add_mppe_keys(msg, hdr->authenticator,
 					      (u8 *) client->shared_secret,
 					      client->shared_secret_len,
 					      sess->eap_if->eapKeyData + len,
@@ -404,13 +584,12 @@ radius_server_encapsulate_eap(struct radius_server_data *data,
 	if (radius_msg_copy_attr(msg, request, RADIUS_ATTR_PROXY_STATE) < 0) {
 		RADIUS_DEBUG("Failed to copy Proxy-State attribute(s)");
 		radius_msg_free(msg);
-		os_free(msg);
 		return NULL;
 	}
 
 	if (radius_msg_finish_srv(msg, (u8 *) client->shared_secret,
 				  client->shared_secret_len,
-				  request->hdr->authenticator) < 0) {
+				  hdr->authenticator) < 0) {
 		RADIUS_DEBUG("Failed to add Message-Authenticator attribute");
 	}
 
@@ -427,12 +606,13 @@ static int radius_server_reject(struct radius_server_data *data,
 	struct radius_msg *msg;
 	int ret = 0;
 	struct eap_hdr eapfail;
+	struct wpabuf *buf;
+	struct radius_hdr *hdr = radius_msg_get_hdr(request);
 
 	RADIUS_DEBUG("Reject invalid request from %s:%d",
 		     from_addr, from_port);
 
-	msg = radius_msg_new(RADIUS_CODE_ACCESS_REJECT,
-			     request->hdr->identifier);
+	msg = radius_msg_new(RADIUS_CODE_ACCESS_REJECT, hdr->identifier);
 	if (msg == NULL) {
 		return -1;
 	}
@@ -449,13 +629,13 @@ static int radius_server_reject(struct radius_server_data *data,
 	if (radius_msg_copy_attr(msg, request, RADIUS_ATTR_PROXY_STATE) < 0) {
 		RADIUS_DEBUG("Failed to copy Proxy-State attribute(s)");
 		radius_msg_free(msg);
-		os_free(msg);
 		return -1;
 	}
 
 	if (radius_msg_finish_srv(msg, (u8 *) client->shared_secret,
 				  client->shared_secret_len,
-				  request->hdr->authenticator) < 0) {
+				  hdr->authenticator) <
+	    0) {
 		RADIUS_DEBUG("Failed to add Message-Authenticator attribute");
 	}
 
@@ -465,14 +645,14 @@ static int radius_server_reject(struct radius_server_data *data,
 
 	data->counters.access_rejects++;
 	client->counters.access_rejects++;
-	if (sendto(data->auth_sock, msg->buf, msg->buf_used, 0,
+	buf = radius_msg_get_buf(msg);
+	if (sendto(data->auth_sock, wpabuf_head(buf), wpabuf_len(buf), 0,
 		   (struct sockaddr *) from, sizeof(*from)) < 0) {
 		perror("sendto[RADIUS SRV]");
 		ret = -1;
 	}
 
 	radius_msg_free(msg);
-	os_free(msg);
 
 	return ret;
 }
@@ -526,16 +706,18 @@ static int radius_server_request(struct radius_server_data *data,
 	}
 
 	if (sess->last_from_port == from_port &&
-	    sess->last_identifier == msg->hdr->identifier &&
-	    os_memcmp(sess->last_authenticator, msg->hdr->authenticator, 16) ==
-	    0) {
+	    sess->last_identifier == radius_msg_get_hdr(msg)->identifier &&
+	    os_memcmp(sess->last_authenticator,
+		      radius_msg_get_hdr(msg)->authenticator, 16) == 0) {
 		RADIUS_DEBUG("Duplicate message from %s", from_addr);
 		data->counters.dup_access_requests++;
 		client->counters.dup_access_requests++;
 
 		if (sess->last_reply) {
-			res = sendto(data->auth_sock, sess->last_reply->buf,
-				     sess->last_reply->buf_used, 0,
+			struct wpabuf *buf;
+			buf = radius_msg_get_buf(sess->last_reply);
+			res = sendto(data->auth_sock, wpabuf_head(buf),
+				     wpabuf_len(buf), 0,
 				     (struct sockaddr *) from, fromlen);
 			if (res < 0) {
 				perror("sendto[RADIUS SRV]");
@@ -583,10 +765,7 @@ static int radius_server_request(struct radius_server_data *data,
 		RADIUS_DEBUG("No EAP data from the state machine, but eapFail "
 			     "set");
 	} else if (eap_sm_method_pending(sess->eap)) {
-		if (sess->last_msg) {
-			radius_msg_free(sess->last_msg);
-			os_free(sess->last_msg);
-		}
+		radius_msg_free(sess->last_msg);
 		sess->last_msg = msg;
 		sess->last_from_port = from_port;
 		os_free(sess->last_from_addr);
@@ -609,12 +788,15 @@ static int radius_server_request(struct radius_server_data *data,
 	reply = radius_server_encapsulate_eap(data, client, sess, msg);
 
 	if (reply) {
+		struct wpabuf *buf;
+		struct radius_hdr *hdr;
+
 		RADIUS_DEBUG("Reply to %s:%d", from_addr, from_port);
 		if (wpa_debug_level <= MSG_MSGDUMP) {
 			radius_msg_dump(reply);
 		}
 
-		switch (reply->hdr->code) {
+		switch (radius_msg_get_hdr(reply)->code) {
 		case RADIUS_CODE_ACCESS_ACCEPT:
 			data->counters.access_accepts++;
 			client->counters.access_accepts++;
@@ -628,20 +810,19 @@ static int radius_server_request(struct radius_server_data *data,
 			client->counters.access_challenges++;
 			break;
 		}
-		res = sendto(data->auth_sock, reply->buf, reply->buf_used, 0,
+		buf = radius_msg_get_buf(reply);
+		res = sendto(data->auth_sock, wpabuf_head(buf),
+			     wpabuf_len(buf), 0,
 			     (struct sockaddr *) from, fromlen);
 		if (res < 0) {
 			perror("sendto[RADIUS SRV]");
 		}
-		if (sess->last_reply) {
-			radius_msg_free(sess->last_reply);
-			os_free(sess->last_reply);
-		}
+		radius_msg_free(sess->last_reply);
 		sess->last_reply = reply;
 		sess->last_from_port = from_port;
-		sess->last_identifier = msg->hdr->identifier;
-		os_memcpy(sess->last_authenticator, msg->hdr->authenticator,
-			  16);
+		hdr = radius_msg_get_hdr(msg);
+		sess->last_identifier = hdr->identifier;
+		os_memcpy(sess->last_authenticator, hdr->authenticator, 16);
 	} else {
 		data->counters.packets_dropped++;
 		client->counters.packets_dropped++;
@@ -740,8 +921,9 @@ static void radius_server_receive_auth(int sock, void *eloop_ctx,
 		radius_msg_dump(msg);
 	}
 
-	if (msg->hdr->code != RADIUS_CODE_ACCESS_REQUEST) {
-		RADIUS_DEBUG("Unexpected RADIUS code %d", msg->hdr->code);
+	if (radius_msg_get_hdr(msg)->code != RADIUS_CODE_ACCESS_REQUEST) {
+		RADIUS_DEBUG("Unexpected RADIUS code %d",
+			     radius_msg_get_hdr(msg)->code);
 		data->counters.unknown_types++;
 		client->counters.unknown_types++;
 		goto fail;
@@ -764,10 +946,7 @@ static void radius_server_receive_auth(int sock, void *eloop_ctx,
 		return; /* msg was stored with the session */
 
 fail:
-	if (msg) {
-		radius_msg_free(msg);
-		os_free(msg);
-	}
+	radius_msg_free(msg);
 	os_free(buf);
 }
 
@@ -1026,6 +1205,15 @@ radius_server_read_clients(const char *client_file, int ipv6)
 }
 
 
+/**
+ * radius_server_init - Initialize RADIUS server
+ * @conf: Configuration for the RADIUS server
+ * Returns: Pointer to private RADIUS server context or %NULL on failure
+ *
+ * This initializes a RADIUS server instance and returns a context pointer that
+ * will be used in other calls to the RADIUS server module. The server can be
+ * deinitialize by calling radius_server_deinit().
+ */
 struct radius_server_data *
 radius_server_init(struct radius_server_conf *conf)
 {
@@ -1047,6 +1235,7 @@ radius_server_init(struct radius_server_conf *conf)
 	data->conf_ctx = conf->conf_ctx;
 	data->eap_sim_db_priv = conf->eap_sim_db_priv;
 	data->ssl_ctx = conf->ssl_ctx;
+	data->msg_ctx = conf->msg_ctx;
 	data->ipv6 = conf->ipv6;
 	if (conf->pac_opaque_encr_key) {
 		data->pac_opaque_encr_key = os_malloc(16);
@@ -1110,6 +1299,10 @@ radius_server_init(struct radius_server_conf *conf)
 }
 
 
+/**
+ * radius_server_deinit - Deinitialize RADIUS server
+ * @data: RADIUS server context from radius_server_init()
+ */
 void radius_server_deinit(struct radius_server_data *data)
 {
 	if (data == NULL)
@@ -1130,6 +1323,13 @@ void radius_server_deinit(struct radius_server_data *data)
 }
 
 
+/**
+ * radius_server_get_mib - Get RADIUS server MIB information
+ * @data: RADIUS server context from radius_server_init()
+ * @buf: Buffer for returning the MIB data in text format
+ * @buflen: buf length in octets
+ * Returns: Number of octets written into buf
+ */
 int radius_server_get_mib(struct radius_server_data *data, char *buf,
 			  size_t buflen)
 {
@@ -1269,6 +1469,14 @@ static struct eapol_callbacks radius_server_eapol_cb =
 };
 
 
+/**
+ * radius_server_eap_pending_cb - Pending EAP data notification
+ * @data: RADIUS server context from radius_server_init()
+ * @ctx: Pending EAP context pointer
+ *
+ * This function is used to notify EAP server module that a pending operation
+ * has been completed and processing of the EAP session can proceed.
+ */
 void radius_server_eap_pending_cb(struct radius_server_data *data, void *ctx)
 {
 	struct radius_client *cli;
@@ -1307,5 +1515,4 @@ void radius_server_eap_pending_cb(struct radius_server_data *data, void *ctx)
 		return; /* msg was stored with the session */
 
 	radius_msg_free(msg);
-	os_free(msg);
 }

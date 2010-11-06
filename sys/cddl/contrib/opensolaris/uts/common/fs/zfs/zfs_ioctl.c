@@ -3627,6 +3627,14 @@ zfsdev_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 	uint_t vec;
 	int error;
 
+	/*
+	 * Check if we have sufficient kernel memory allocated
+	 * for the zfs_cmd_t request.  Bail out if not so we
+	 * will not access undefined memory region.
+	 */
+	if (IOCPARM_LEN(cmd) < sizeof(zfs_cmd_t))
+		return (EINVAL);
+
 	vec = ZFS_IOC(cmd);
 
 	if (vec >= sizeof (zfs_ioc_vec) / sizeof (zfs_ioc_vec[0]))

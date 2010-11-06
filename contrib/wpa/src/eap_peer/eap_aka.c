@@ -15,16 +15,14 @@
 #include "includes.h"
 
 #include "common.h"
-#include "eap_peer/eap_i.h"
 #include "pcsc_funcs.h"
+#include "crypto/crypto.h"
+#include "crypto/sha1.h"
+#include "crypto/sha256.h"
+#include "crypto/milenage.h"
 #include "eap_common/eap_sim_common.h"
-#include "sha1.h"
-#include "sha256.h"
-#include "crypto.h"
-#include "eap_peer/eap_config.h"
-#ifdef CONFIG_USIM_SIMULATOR
-#include "hlr_auc_gw/milenage.h"
-#endif /* CONFIG_USIM_SIMULATOR */
+#include "eap_config.h"
+#include "eap_i.h"
 
 
 struct eap_aka_data {

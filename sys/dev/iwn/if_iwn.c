@@ -584,7 +584,6 @@ iwn_attach(device_t dev)
 		| IEEE80211_C_IBSS		/* ibss/adhoc mode */
 #endif
 		| IEEE80211_C_WME		/* WME */
-		| IEEE80211_C_RATECTL		/* use ratectl */
 		;
 #if 0	/* HT */
 	/* XXX disable until HT channel setup works */

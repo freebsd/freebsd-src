@@ -40,7 +40,7 @@ int close(int fd);
 #include "common.h"
 #include "driver.h"
 #include "eloop.h"
-#include "ieee802_11_defs.h"
+#include "common/ieee802_11_defs.h"
 #include "driver_ndis.h"
 
 int wpa_driver_register_event_cb(struct wpa_driver_ndis_data *drv);
@@ -353,6 +353,47 @@ typedef struct NDIS_802_11_PMKID_CANDIDATE_LIST {
 
 #endif /* OID_802_11_CAPABILITY */
 
+
+#ifndef OID_DOT11_CURRENT_OPERATION_MODE
+/* Native 802.11 OIDs */
+#define OID_DOT11_NDIS_START 0x0D010300
+#define OID_DOT11_CURRENT_OPERATION_MODE (OID_DOT11_NDIS_START + 8)
+#define OID_DOT11_SCAN_REQUEST (OID_DOT11_NDIS_START + 11)
+
+typedef enum _DOT11_BSS_TYPE {
+	dot11_BSS_type_infrastructure = 1,
+	dot11_BSS_type_independent = 2,
+	dot11_BSS_type_any = 3
+} DOT11_BSS_TYPE, * PDOT11_BSS_TYPE;
+
+typedef UCHAR DOT11_MAC_ADDRESS[6];
+typedef DOT11_MAC_ADDRESS * PDOT11_MAC_ADDRESS;
+
+typedef enum _DOT11_SCAN_TYPE {
+	dot11_scan_type_active = 1,
+	dot11_scan_type_passive = 2,
+	dot11_scan_type_auto = 3,
+	dot11_scan_type_forced = 0x80000000
+} DOT11_SCAN_TYPE, * PDOT11_SCAN_TYPE;
+
+typedef struct _DOT11_SCAN_REQUEST_V2 {
+	DOT11_BSS_TYPE dot11BSSType;
+	DOT11_MAC_ADDRESS dot11BSSID;
+	DOT11_SCAN_TYPE dot11ScanType;
+	BOOLEAN bRestrictedScan;
+	ULONG udot11SSIDsOffset;
+	ULONG uNumOfdot11SSIDs;
+	BOOLEAN bUseRequestIE;
+	ULONG uRequestIDsOffset;
+	ULONG uNumOfRequestIDs;
+	ULONG uPhyTypeInfosOffset;
+	ULONG uNumOfPhyTypeInfos;
+	ULONG uIEsOffset;
+	ULONG uIEsLength;
+	UCHAR ucBuffer[1];
+} DOT11_SCAN_REQUEST_V2, * PDOT11_SCAN_REQUEST_V2;
+
+#endif /* OID_DOT11_CURRENT_OPERATION_MODE */
 
 #ifdef CONFIG_USE_NDISUIO
 #ifndef _WIN32_WCE
@@ -699,13 +740,6 @@ static int wpa_driver_ndis_disassociate(void *priv, const u8 *addr,
 }
 
 
-static int wpa_driver_ndis_set_wpa(void *priv, int enabled)
-{
-	wpa_printf(MSG_DEBUG, "%s: enabled=%d", __func__, enabled);
-	return 0;
-}
-
-
 static void wpa_driver_ndis_scan_timeout(void *eloop_ctx, void *timeout_ctx)
 {
 	wpa_printf(MSG_DEBUG, "Scan timeout - try to get results");
@@ -713,10 +747,34 @@ static void wpa_driver_ndis_scan_timeout(void *eloop_ctx, void *timeout_ctx)
 }
 
 
-static int wpa_driver_ndis_scan(void *priv, const u8 *ssid, size_t ssid_len)
+static int wpa_driver_ndis_scan_native80211(
+	struct wpa_driver_ndis_data *drv,
+	struct wpa_driver_scan_params *params)
+{
+	DOT11_SCAN_REQUEST_V2 req;
+	int res;
+
+	os_memset(&req, 0, sizeof(req));
+	req.dot11BSSType = dot11_BSS_type_any;
+	os_memset(req.dot11BSSID, 0xff, ETH_ALEN);
+	req.dot11ScanType = dot11_scan_type_auto;
+	res = ndis_set_oid(drv, OID_DOT11_SCAN_REQUEST, (char *) &req,
+			   sizeof(req));
+	eloop_cancel_timeout(wpa_driver_ndis_scan_timeout, drv, drv->ctx);
+	eloop_register_timeout(7, 0, wpa_driver_ndis_scan_timeout, drv,
+			       drv->ctx);
+	return res;
+}
+
+
+static int wpa_driver_ndis_scan(void *priv,
+				struct wpa_driver_scan_params *params)
 {
 	struct wpa_driver_ndis_data *drv = priv;
 	int res;
+
+	if (drv->native80211)
+		return wpa_driver_ndis_scan_native80211(drv, params);
 
 	if (!drv->radio_enabled) {
 		wpa_printf(MSG_DEBUG, "NDIS: turning radio on before the first"
@@ -732,6 +790,25 @@ static int wpa_driver_ndis_scan(void *priv, const u8 *ssid, size_t ssid_len)
 	eloop_register_timeout(7, 0, wpa_driver_ndis_scan_timeout, drv,
 			       drv->ctx);
 	return res;
+}
+
+
+static const u8 * wpa_scan_get_ie(const struct wpa_scan_res *res, u8 ie)
+{
+	const u8 *end, *pos;
+
+	pos = (const u8 *) (res + 1);
+	end = pos + res->ie_len;
+
+	while (pos + 1 < end) {
+		if (pos + 2 + pos[1] > end)
+			break;
+		if (pos[0] == ie)
+			return pos;
+		pos += 2 + pos[1];
+	}
+
+	return NULL;
 }
 
 
@@ -913,7 +990,8 @@ static int wpa_driver_ndis_add_wep(struct wpa_driver_ndis_data *drv,
 }
 
 
-static int wpa_driver_ndis_set_key(void *priv, wpa_alg alg, const u8 *addr,
+static int wpa_driver_ndis_set_key(const char *ifname, void *priv,
+				   enum wpa_alg alg, const u8 *addr,
 				   int key_idx, int set_tx,
 				   const u8 *seq, size_t seq_len,
 				   const u8 *key, size_t key_len)
@@ -1021,7 +1099,8 @@ wpa_driver_ndis_associate(void *priv,
 				continue;
 			wpa_printf(MSG_DEBUG, "NDIS: Re-setting static WEP "
 				   "key %d", i);
-			wpa_driver_ndis_set_key(drv, WPA_ALG_WEP, bcast, i,
+			wpa_driver_ndis_set_key(drv->ifname, drv, WPA_ALG_WEP,
+						bcast, i,
 						i == params->wep_tx_keyidx,
 						NULL, 0, params->wep_key[i],
 						params->wep_key_len[i]);
@@ -1029,8 +1108,8 @@ wpa_driver_ndis_associate(void *priv,
 	}
 
 	if (params->wpa_ie == NULL || params->wpa_ie_len == 0) {
-		if (params->auth_alg & AUTH_ALG_SHARED_KEY) {
-			if (params->auth_alg & AUTH_ALG_OPEN_SYSTEM)
+		if (params->auth_alg & WPA_AUTH_ALG_SHARED) {
+			if (params->auth_alg & WPA_AUTH_ALG_OPEN)
 				auth_mode = Ndis802_11AuthModeAutoSwitch;
 			else
 				auth_mode = Ndis802_11AuthModeShared;
@@ -2802,16 +2881,31 @@ static void * wpa_driver_ndis_init(void *ctx, const char *ifname)
 	mode = Ndis802_11Infrastructure;
 	if (ndis_set_oid(drv, OID_802_11_INFRASTRUCTURE_MODE,
 			 (char *) &mode, sizeof(mode)) < 0) {
+		char buf[8];
+		int res;
 		wpa_printf(MSG_DEBUG, "NDIS: Failed to set "
 			   "OID_802_11_INFRASTRUCTURE_MODE (%d)",
 			   (int) mode);
 		/* Try to continue anyway */
 
-		if (!drv->has_capability && drv->capa.enc == 0) {
+		res = ndis_get_oid(drv, OID_DOT11_CURRENT_OPERATION_MODE, buf,
+				   sizeof(buf));
+		if (res > 0) {
+			wpa_printf(MSG_INFO, "NDIS: The driver seems to use "
+				   "Native 802.11 OIDs. These are not yet "
+				   "fully supported.");
+			drv->native80211 = 1;
+		} else if (!drv->has_capability || drv->capa.enc == 0) {
+			/*
+			 * Note: This will also happen with NDIS 6 drivers with
+			 * Vista.
+			 */
 			wpa_printf(MSG_DEBUG, "NDIS: Driver did not provide "
 				   "any wireless capabilities - assume it is "
 				   "a wired interface");
 			drv->wired = 1;
+			drv->capa.flags |= WPA_DRIVER_FLAGS_WIRED;
+			drv->has_capability = 1;
 			ndis_add_multicast(drv);
 		}
 	}
@@ -3097,19 +3191,14 @@ const struct wpa_driver_ops wpa_driver_ndis_ops = {
 	"Windows NDIS driver",
 	wpa_driver_ndis_get_bssid,
 	wpa_driver_ndis_get_ssid,
-	wpa_driver_ndis_set_wpa,
 	wpa_driver_ndis_set_key,
 	wpa_driver_ndis_init,
 	wpa_driver_ndis_deinit,
 	NULL /* set_param */,
 	NULL /* set_countermeasures */,
-	NULL /* set_drop_unencrypted */,
-	wpa_driver_ndis_scan,
-	NULL /* get_scan_results */,
 	wpa_driver_ndis_deauthenticate,
 	wpa_driver_ndis_disassociate,
 	wpa_driver_ndis_associate,
-	NULL /* set_auth_alg */,
 	wpa_driver_ndis_add_pmkid,
 	wpa_driver_ndis_remove_pmkid,
 	wpa_driver_ndis_flush_pmkid,
@@ -3130,11 +3219,61 @@ const struct wpa_driver_ops wpa_driver_ndis_ops = {
 	NULL /* update_ft_ies */,
 	NULL /* send_ft_action */,
 	wpa_driver_ndis_get_scan_results,
-	NULL /* set_probe_req_ie */,
-	NULL /* set_mode */,
 	NULL /* set_country */,
 	NULL /* global_init */,
 	NULL /* global_deinit */,
 	NULL /* init2 */,
-	wpa_driver_ndis_get_interfaces
+	wpa_driver_ndis_get_interfaces,
+	wpa_driver_ndis_scan,
+	NULL /* authenticate */,
+	NULL /* set_beacon */,
+	NULL /* hapd_init */,
+	NULL /* hapd_deinit */,
+	NULL /* set_ieee8021x */,
+	NULL /* set_privacy */,
+	NULL /* get_seqnum */,
+	NULL /* flush */,
+	NULL /* set_generic_elem */,
+	NULL /* read_sta_data */,
+	NULL /* hapd_send_eapol */,
+	NULL /* sta_deauth */,
+	NULL /* sta_disassoc */,
+	NULL /* sta_remove */,
+	NULL /* hapd_get_ssid */,
+	NULL /* hapd_set_ssid */,
+	NULL /* hapd_set_countermeasures */,
+	NULL /* sta_add */,
+	NULL /* get_inact_sec */,
+	NULL /* sta_clear_stats */,
+	NULL /* set_freq */,
+	NULL /* set_rts */,
+	NULL /* set_frag */,
+	NULL /* sta_set_flags */,
+	NULL /* set_rate_sets */,
+	NULL /* set_cts_protect */,
+	NULL /* set_preamble */,
+	NULL /* set_short_slot_time */,
+	NULL /* set_tx_queue_params */,
+	NULL /* valid_bss_mask */,
+	NULL /* if_add */,
+	NULL /* if_remove */,
+	NULL /* set_sta_vlan */,
+	NULL /* commit */,
+	NULL /* send_ether */,
+	NULL /* set_radius_acl_auth */,
+	NULL /* set_radius_acl_expire */,
+	NULL /* set_ht_params */,
+	NULL /* set_ap_wps_ie */,
+	NULL /* set_supp_port */,
+	NULL /* set_wds_sta */,
+	NULL /* send_action */,
+	NULL /* remain_on_channel */,
+	NULL /* cancel_remain_on_channel */,
+	NULL /* probe_req_report */,
+	NULL /* disable_11b_rates */,
+	NULL /* deinit_ap */,
+	NULL /* suspend */,
+	NULL /* resume */,
+	NULL /* signal_monitor */,
+	NULL /* send_frame */
 };

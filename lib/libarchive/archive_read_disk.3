@@ -39,7 +39,7 @@
 .Nm archive_read_disk_set_gname_lookup ,
 .Nm archive_read_disk_set_standard_lookup ,
 .Nm archive_read_close ,
-.Nm archive_read_finish
+.Nm archive_read_free
 .Nd functions for reading objects from disk
 .Sh SYNOPSIS
 .In archive.h
@@ -81,7 +81,7 @@
 .Ft int
 .Fn archive_read_close "struct archive *"
 .Ft int
-.Fn archive_read_finish "struct archive *"
+.Fn archive_read_free "struct archive *"
 .Sh DESCRIPTION
 These functions provide an API for reading information about
 objects on disk.
@@ -178,9 +178,9 @@ This affects the file ownership fields and ACL values in the
 object.
 .It Fn archive_read_close
 This currently does nothing.
-.It Fn archive_write_finish
+.It Fn archive_read_free
 Invokes
-.Fn archive_write_close
+.Fn archive_read_close
 if it was not invoked manually, then releases all resources.
 .El
 More information about the
@@ -213,7 +213,7 @@ file_to_archive(struct archive *a, const char *name)
   while ((bytes_read = read(fd, buff, sizeof(buff))) > 0)
     archive_write_data(a, buff, bytes_read);
   archive_write_finish_entry(a);
-  archive_read_finish(ard);
+  archive_read_free(ard);
   archive_entry_free(entry);
 }
 .Ed

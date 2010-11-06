@@ -214,8 +214,6 @@ kern_timeout_callwheel_init(void)
 /*
  * Start standard softclock thread.
  */
-void    *softclock_ih;
-
 static void
 start_softclock(void *dummy)
 {
@@ -226,9 +224,8 @@ start_softclock(void *dummy)
 
 	cc = CC_CPU(timeout_cpu);
 	if (swi_add(&clk_intr_event, "clock", softclock, cc, SWI_CLOCK,
-	    INTR_MPSAFE, &softclock_ih))
+	    INTR_MPSAFE, &cc->cc_cookie))
 		panic("died while creating standard software ithreads");
-	cc->cc_cookie = softclock_ih;
 #ifdef SMP
 	CPU_FOREACH(cpu) {
 		if (cpu == timeout_cpu)

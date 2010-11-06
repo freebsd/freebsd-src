@@ -3115,6 +3115,10 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 			if ((tp1) && (tp1->sent < SCTP_DATAGRAM_ACKED)) {
 				uint8_t *ddp;
 
+				if (((flg & SCTP_BADCRC) == 0) &&
+				    ((flg & SCTP_FROM_MIDDLE_BOX) == 0)) {
+					return (0);
+				}
 				if ((stcb->asoc.peers_rwnd == 0) &&
 				    ((flg & SCTP_FROM_MIDDLE_BOX) == 0)) {
 					SCTP_STAT_INCR(sctps_pdrpdiwnp);

@@ -1275,8 +1275,11 @@ init_dag(Obj_Entry *root)
 {
     DoneList donelist;
 
+    if (root->dag_inited)
+	return;
     donelist_init(&donelist);
     init_dag1(root, root, &donelist);
+    root->dag_inited = true;
 }
 
 static void
@@ -1287,7 +1290,6 @@ init_dag1(Obj_Entry *root, Obj_Entry *obj, DoneList *dlp)
     if (donelist_check(dlp, obj))
 	return;
 
-    obj->refcount++;
     objlist_push_tail(&obj->dldags, root);
     objlist_push_tail(&root->dagmembers, obj);
     for (needed = obj->needed;  needed != NULL;  needed = needed->next)
@@ -2028,6 +2030,7 @@ dlopen(const char *name, int mode)
 	    assert(*old_obj_tail == obj);
 	    result = load_needed_objects(obj, RTLD_LO_DLOPEN);
 	    init_dag(obj);
+	    ref_dag(obj);
 	    if (result != -1)
 		result = rtld_verify_versions(&obj->dagmembers);
 	    if (result != -1 && ld_tracing)
@@ -2045,7 +2048,13 @@ dlopen(const char *name, int mode)
 	    }
 	} else {
 
-	    /* Bump the reference counts for objects on this DAG. */
+	    /*
+	     * Bump the reference counts for objects on this DAG.  If
+	     * this is the first dlopen() call for the object that was
+	     * already loaded as a dependency, initialize the dag
+	     * starting at it.
+	     */
+	    init_dag(obj);
 	    ref_dag(obj);
 
 	    if (ld_tracing)
@@ -3074,6 +3083,7 @@ ref_dag(Obj_Entry *root)
 {
     Objlist_Entry *elm;
 
+    assert(root->dag_inited);
     STAILQ_FOREACH(elm, &root->dagmembers, link)
 	elm->obj->refcount++;
 }
@@ -3083,6 +3093,7 @@ unref_dag(Obj_Entry *root)
 {
     Objlist_Entry *elm;
 
+    assert(root->dag_inited);
     STAILQ_FOREACH(elm, &root->dagmembers, link)
 	elm->obj->refcount--;
 }
