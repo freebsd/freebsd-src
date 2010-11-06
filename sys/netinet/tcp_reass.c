@@ -83,7 +83,8 @@ SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, maxsegments, CTLFLAG_RDTUN,
     &VNET_NAME(tcp_reass_maxseg), 0,
     "Global maximum number of TCP Segments in Reassembly Queue");
 
-VNET_DEFINE(int, tcp_reass_qsize) = 0;
+static VNET_DEFINE(int, tcp_reass_qsize) = 0;
+#define	V_tcp_reass_qsize		VNET(tcp_reass_qsize)
 SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, cursegments, CTLFLAG_RD,
     &VNET_NAME(tcp_reass_qsize), 0,
     "Global number of TCP Segments currently in Reassembly Queue");
@@ -100,6 +101,9 @@ SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, overflows, CTLFLAG_RD,
     &VNET_NAME(tcp_reass_overflows), 0,
     "Global number of TCP Segment Reassembly Queue Overflows");
 
+static VNET_DEFINE(uma_zone_t, tcp_reass_zone);
+#define	V_tcp_reass_zone		VNET(tcp_reass_zone)
+
 /* Initialize TCP reassembly queue */
 static void
 tcp_reass_zone_change(void *tag)
@@ -108,8 +112,6 @@ tcp_reass_zone_change(void *tag)
 	V_tcp_reass_maxseg = nmbclusters / 16;
 	uma_zone_set_max(V_tcp_reass_zone, V_tcp_reass_maxseg);
 }
-
-VNET_DEFINE(uma_zone_t, tcp_reass_zone);
 
 void
 tcp_reass_init(void)
@@ -133,6 +135,26 @@ tcp_reass_destroy(void)
 	uma_zdestroy(V_tcp_reass_zone);
 }
 #endif
+
+void
+tcp_reass_flush(struct tcpcb *tp)
+{
+	struct tseg_qent *qe;
+
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+
+	while ((qe = LIST_FIRST(&tp->t_segq)) != NULL) {
+		LIST_REMOVE(qe, tqe_q);
+		m_freem(qe->tqe_m);
+		uma_zfree(V_tcp_reass_zone, qe);
+		tp->t_segqlen--;
+		V_tcp_reass_qsize--;
+	}
+
+	KASSERT((tp->t_segqlen == 0),
+	    ("TCP reass queue %p segment count is %d instead of 0 after flush.",
+	    tp, tp->t_segqlen));
+}
 
 int
 tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
