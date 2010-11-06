@@ -48,8 +48,6 @@ struct tseg_qent {
 	struct	mbuf	*tqe_m;		/* mbuf contains packet */
 };
 LIST_HEAD(tsegqe_head, tseg_qent);
-extern int	tcp_reass_qsize;
-extern struct uma_zone *tcp_reass_zone;
 
 struct sackblk {
 	tcp_seq start;		/* start seq no. of sack block */
@@ -543,6 +541,7 @@ char	*tcp_log_vain(struct in_conninfo *, struct tcphdr *, void *,
 	    const void *);
 int	 tcp_reass(struct tcpcb *, struct tcphdr *, int *, struct mbuf *);
 void	 tcp_reass_init(void);
+void	 tcp_reass_flush(struct tcpcb *);
 void	 tcp_input(struct mbuf *, int);
 u_long	 tcp_maxmtu(struct in_conninfo *, int *);
 u_long	 tcp_maxmtu6(struct in_conninfo *, int *);
