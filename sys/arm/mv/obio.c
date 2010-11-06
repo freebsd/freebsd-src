@@ -324,7 +324,7 @@ mbus_activate_resource(device_t dev, device_t child, int type, int rid,
 }
 
 static device_t
-mbus_add_child(device_t bus, int order, const char *name, int unit)
+mbus_add_child(device_t bus, u_int order, const char *name, int unit)
 {
 	struct obio_device *od;
 	device_t child;
