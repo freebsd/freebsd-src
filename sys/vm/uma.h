@@ -443,6 +443,17 @@ void uma_zone_set_max(uma_zone_t zone, int nitems);
 int uma_zone_get_max(uma_zone_t zone);
 
 /*
+ * Obtains the approximate current number of items allocated from a zone
+ *
+ * Arguments:
+ *	zone  The zone to obtain the current allocation count from
+ *
+ * Return:
+ *	int  The approximate current number of items allocated from the zone
+ */
+int uma_zone_get_cur(uma_zone_t zone);
+
+/*
  * The following two routines (uma_zone_set_init/fini)
  * are used to set the backend init/fini pair which acts on an
  * object as it becomes allocated and is placed in a slab within
