@@ -89,11 +89,6 @@ SYSCTL_PROC(_net_inet_tcp_reass, OID_AUTO, cursegments, CTLFLAG_RD,
     &tcp_reass_qsize, 0, &tcp_reass_sysctl_qsize, "I",
     "Global number of TCP Segments currently in Reassembly Queue");
 
-static int tcp_reass_maxqlen = 48;
-SYSCTL_INT(_net_inet_tcp_reass, OID_AUTO, maxqlen, CTLFLAG_RW,
-    &tcp_reass_maxqlen, 0,
-    "Maximum number of TCP Segments per individual Reassembly Queue");
-
 static int tcp_reass_overflows = 0;
 SYSCTL_INT(_net_inet_tcp_reass, OID_AUTO, overflows, CTLFLAG_RD,
     &tcp_reass_overflows, 0,
@@ -183,13 +178,23 @@ tcp_reass(struct tcpcb *tp, struct tcphdr *th, int *tlenp, struct mbuf *m)
 		goto present;
 
 	/*
-	 * Limit the number of segments in the reassembly queue to prevent
-	 * holding on to too many segments (and thus running out of mbufs).
-	 * Make sure to let the missing segment through which caused this
-	 * queue.
+	 * Limit the number of segments that can be queued to reduce the
+	 * potential for mbuf exhaustion. For best performance, we want to be
+	 * able to queue a full window's worth of segments. The size of the
+	 * socket receive buffer determines our advertised window and grows
+	 * automatically when socket buffer autotuning is enabled. Use it as the
+	 * basis for our queue limit.
+	 * Always let the missing segment through which caused this queue.
+	 * NB: Access to the socket buffer is left intentionally unlocked as we
+	 * can tolerate stale information here.
+	 *
+	 * XXXLAS: Using sbspace(so->so_rcv) instead of so->so_rcv.sb_hiwat
+	 * should work but causes packets to be dropped when they shouldn't.
+	 * Investigate why and re-evaluate the below limit after the behaviour
+	 * is understood.
 	 */
 	if (th->th_seq != tp->rcv_nxt &&
-	     tp->t_segqlen >= tcp_reass_maxqlen) {
+	     tp->t_segqlen >= (so->so_rcv.sb_hiwat / tp->t_maxseg) + 1) {
 		tcp_reass_overflows++;
 		tcpstat.tcps_rcvmemdrop++;
 		m_freem(m);
