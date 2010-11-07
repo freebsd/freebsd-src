@@ -200,9 +200,12 @@ ucom_unit_alloc(void)
 
 	mtx_lock(&ucom_bitmap_mtx);
 
-	for (unit = 0; unit < UCOM_UNIT_MAX; unit++)
-		if ((ucom_bitmap[unit / 8] & (1 << (unit % 8))) == 0)
+	for (unit = 0; unit < UCOM_UNIT_MAX; unit++) {
+		if ((ucom_bitmap[unit / 8] & (1 << (unit % 8))) == 0) {
+			ucom_bitmap[unit / 8] |= (1 << (unit % 8));
 			break;
+		}
+	}
 
 	mtx_unlock(&ucom_bitmap_mtx);
 
