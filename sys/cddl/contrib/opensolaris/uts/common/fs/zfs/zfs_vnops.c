@@ -4181,14 +4181,13 @@ zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int reqpage)
 	KASSERT(vp->v_object == object, ("mismatching object"));
 
 	VM_OBJECT_LOCK(object);
-
+	vm_page_lock_queues();
 	for (i = 0; i < pcount; i++) {
 		if (i != reqpage) {
-			vm_page_lock(m[i]);
 			vm_page_free(m[i]);
-			vm_page_unlock(m[i]);
 		}
 	}
+	vm_page_unlock_queues();
 
 	if (mreq->valid) {
 		if (mreq->valid != VM_PAGE_BITS_ALL)
