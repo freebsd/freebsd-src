@@ -221,7 +221,7 @@ unused_rules(void)
     int i;
     action *p;
 
-    rules_used = (short *) MALLOC(nrules*sizeof(short));
+    rules_used = malloc(nrules*sizeof(short));
     if (rules_used == 0) no_space();
 
     for (i = 0; i < nrules; ++i)
@@ -391,7 +391,7 @@ free_action_row(action *p)
   while (p)
     {
       q = p->next;
-      FREE(p);
+      free(p);
       p = q;
     }
 }
@@ -404,5 +404,5 @@ free_parser(void)
   for (i = 0; i < nstates; i++)
     free_action_row(parser[i]);
 
-  FREE(parser);
+  free(parser);
 }

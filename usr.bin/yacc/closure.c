@@ -149,7 +149,7 @@ set_first_derives(void)
     print_first_derives();
 #endif
 
-    FREE(EFF);
+    free(EFF);
 }
 
 
@@ -224,9 +224,9 @@ closure(short *nucleus, int n)
 void
 finalize_closure(void)
 {
-  FREE(itemset);
-  FREE(ruleset);
-  FREE(first_derives + ntokens * WORDSIZE(nrules));
+  free(itemset);
+  free(ruleset);
+  free(first_derives + ntokens * WORDSIZE(nrules));
 }
 
 

@@ -270,15 +270,15 @@ output_actions(void)
     width = NEW2(nvectors, short);
 
     token_actions();
-    FREE(lookaheads);
-    FREE(LA);
-    FREE(LAruleno);
-    FREE(accessing_symbol);
+    free(lookaheads);
+    free(LA);
+    free(LAruleno);
+    free(accessing_symbol);
 
     goto_actions();
-    FREE(goto_map + ntokens);
-    FREE(from_state);
-    FREE(to_state);
+    free(goto_map + ntokens);
+    free(from_state);
+    free(to_state);
 
     sort_actions();
     pack_table();
@@ -370,7 +370,7 @@ token_actions(void)
 	    }
 	}
     }
-    FREE(actionrow);
+    free(actionrow);
 }
 
 static void
@@ -403,7 +403,7 @@ goto_actions(void)
 
     if (!rflag) outline += 2;
     fprintf(output_file, "\n};\n");
-    FREE(state_count);
+    free(state_count);
 }
 
 static int
@@ -555,14 +555,14 @@ pack_table(void)
     for (i = 0; i < nvectors; i++)
     {
 	if (froms[i])
-	    FREE(froms[i]);
+	    free(froms[i]);
 	if (tos[i])
-	    FREE(tos[i]);
+	    free(tos[i]);
     }
 
-    FREE(froms);
-    FREE(tos);
-    FREE(pos);
+    free(froms);
+    free(tos);
+    free(pos);
 }
 
 
@@ -762,7 +762,7 @@ output_base(void)
 
     if (!rflag) outline += 2;
     fprintf(output_file, "\n};\n");
-    FREE(base);
+    free(base);
 }
 
 
@@ -795,7 +795,7 @@ output_table(void)
 
     if (!rflag) outline += 2;
     fprintf(output_file, "\n};\n");
-    FREE(table);
+    free(table);
 }
 
 
@@ -826,7 +826,7 @@ output_check(void)
 
     if (!rflag) outline += 2;
     fprintf(output_file, "\n};\n");
-    FREE(check);
+    free(check);
 }
 
 
@@ -972,7 +972,7 @@ output_debug(void)
     ++outline;
     fprintf(code_file, "#define YYMAXTOKEN %d\n", max);
 
-    symnam = (char **) MALLOC((max+1)*sizeof(char *));
+    symnam = malloc((max+1)*sizeof(char *));
     if (symnam == 0) no_space();
 
     /* Note that it is  not necessary to initialize the element		*/
@@ -1108,7 +1108,7 @@ output_debug(void)
     }
     if (!rflag) outline += 2;
     fprintf(output_file, "\n};\n");
-    FREE(symnam);
+    free(symnam);
 
     if (!rflag) ++outline;
     fprintf(output_file, "const char * const %srule[] = {\n", symbol_prefix);
@@ -1278,11 +1278,11 @@ free_itemsets(void)
 {
     core *cp, *next;
 
-    FREE(state_table);
+    free(state_table);
     for (cp = first_state; cp; cp = next)
     {
 	next = cp->next;
-	FREE(cp);
+	free(cp);
     }
 }
 
@@ -1292,11 +1292,11 @@ free_shifts(void)
 {
     shifts *sp, *next;
 
-    FREE(shift_table);
+    free(shift_table);
     for (sp = first_shift; sp; sp = next)
     {
 	next = sp->next;
-	FREE(sp);
+	free(sp);
     }
 }
 
@@ -1307,11 +1307,11 @@ free_reductions(void)
 {
     reductions *rp, *next;
 
-    FREE(reduction_table);
+    free(reduction_table);
     for (rp = first_reduction; rp; rp = next)
     {
 	next = rp->next;
-	FREE(rp);
+	free(rp);
     }
 }
 
@@ -1332,9 +1332,9 @@ increase_maxtable(int loc)
     newmax = maxtable;
 
     do { newmax += 200; } while (newmax <= loc);
-    table = (short *) REALLOC(table, newmax*sizeof(short));
+    table = realloc(table, newmax*sizeof(short));
 	if (table == 0) no_space();
-	check = (short *) REALLOC(check, newmax*sizeof(short));
+	check = realloc(check, newmax*sizeof(short));
 	if (check == 0) no_space();
 	for (l  = maxtable; l < newmax; ++l)
 	{
