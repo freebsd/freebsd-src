@@ -95,7 +95,7 @@ static const char line_format[] = "#line %d \"%s\"\n";
 
 
 void
-output()
+output(void)
 {
     free_itemsets();
     free_shifts();
@@ -119,7 +119,7 @@ output()
 
 
 static void
-output_prefix()
+output_prefix(void)
 {
     if (symbol_prefix == NULL)
 	symbol_prefix = "yy";
@@ -184,7 +184,7 @@ output_prefix()
 
 
 static void
-output_rule_data()
+output_rule_data(void)
 {
     int i;
     int j;
@@ -232,7 +232,7 @@ output_rule_data()
 
 
 static void
-output_yydefred()
+output_yydefred(void)
 {
     int i, j;
 
@@ -260,7 +260,7 @@ output_yydefred()
 
 
 static void
-output_actions()
+output_actions(void)
 {
     nvectors = 2*nstates + nvars;
 
@@ -289,7 +289,7 @@ output_actions()
 
 
 static void
-token_actions()
+token_actions(void)
 {
     int i, j;
     int shiftcount, reducecount;
@@ -374,7 +374,7 @@ token_actions()
 }
 
 static void
-goto_actions()
+goto_actions(void)
 {
     int i, j, k;
 
@@ -407,8 +407,7 @@ goto_actions()
 }
 
 static int
-default_goto(symbol)
-int symbol;
+default_goto(int symbol)
 {
     int i;
     int m;
@@ -444,9 +443,7 @@ int symbol;
 
 
 static void
-save_column(symbol, default_state)
-int symbol;
-int default_state;
+save_column(int symbol, int default_state)
 {
     int i;
     int m;
@@ -487,7 +484,7 @@ int default_state;
 }
 
 static void
-sort_actions()
+sort_actions(void)
 {
   int i;
   int j;
@@ -523,7 +520,7 @@ sort_actions()
 
 
 static void
-pack_table()
+pack_table(void)
 {
     int i;
     int place;
@@ -586,8 +583,7 @@ pack_table()
 /*  order.								*/
 
 static int
-matching_vector(vector)
-int vector;
+matching_vector(int vector)
 {
     int i;
     int j;
@@ -627,8 +623,7 @@ int vector;
 
 
 static int
-pack_vector(vector)
-int vector;
+pack_vector(int vector)
 {
     int i, j, k;
     int t;
@@ -705,7 +700,7 @@ int vector;
 
 
 static void
-output_base()
+output_base(void)
 {
     int i, j;
 
@@ -773,7 +768,7 @@ output_base()
 
 
 static void
-output_table()
+output_table(void)
 {
     int i;
     int j;
@@ -806,7 +801,7 @@ output_table()
 
 
 static void
-output_check()
+output_check(void)
 {
     int i;
     int j;
@@ -836,8 +831,7 @@ output_check()
 
 
 static int
-is_C_identifier(name)
-char *name;
+is_C_identifier(char *name)
 {
     char *s;
     int c;
@@ -869,7 +863,7 @@ char *name;
 
 
 static void
-output_defines()
+output_defines(void)
 {
     int c, i;
     char *s;
@@ -928,7 +922,7 @@ output_defines()
 
 
 static void
-output_stored_text()
+output_stored_text(void)
 {
     int c;
     FILE *in, *out;
@@ -956,7 +950,7 @@ output_stored_text()
 
 
 static void
-output_debug()
+output_debug(void)
 {
     int i, j, k, max;
     char **symnam, *s;
@@ -1173,7 +1167,7 @@ output_debug()
 
 
 static void
-output_stype()
+output_stype(void)
 {
     if (!unionized && ntags == 0)
     {
@@ -1184,7 +1178,7 @@ output_stype()
 
 
 static void
-output_trailing_text()
+output_trailing_text(void)
 {
     int c, last;
     FILE *in, *out;
@@ -1242,7 +1236,7 @@ output_trailing_text()
 
 
 static void
-output_semantic_actions()
+output_semantic_actions(void)
 {
     int c, last;
     FILE *out;
@@ -1280,7 +1274,7 @@ output_semantic_actions()
 
 
 static void
-free_itemsets()
+free_itemsets(void)
 {
     core *cp, *next;
 
@@ -1294,7 +1288,7 @@ free_itemsets()
 
 
 static void
-free_shifts()
+free_shifts(void)
 {
     shifts *sp, *next;
 
@@ -1309,7 +1303,7 @@ free_shifts()
 
 
 static void
-free_reductions()
+free_reductions(void)
 {
     reductions *rp, *next;
 
