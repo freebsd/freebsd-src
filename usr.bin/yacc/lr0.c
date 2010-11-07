@@ -176,13 +176,13 @@ append_states(void)
 static void
 free_storage(void)
 {
-    FREE(shift_symbol);
-    FREE(redset);
-    FREE(shiftset);
-    FREE(kernel_base);
-    FREE(kernel_end);
-    FREE(kernel_items);
-    FREE(state_set);
+    free(shift_symbol);
+    free(redset);
+    free(shiftset);
+    free(kernel_base);
+    free(kernel_end);
+    free(kernel_items);
+    free(state_set);
 }
 
 
@@ -290,7 +290,7 @@ initialize_states(void)
     for (i = 0; start_derives[i] >= 0; ++i)
 	continue;
 
-    p = (core *) MALLOC(sizeof(core) + i*sizeof(short));
+    p = malloc(sizeof(core) + i*sizeof(short));
     if (p == 0) no_space();
 
     p->next = 0;
@@ -579,8 +579,8 @@ set_derives(void)
 #if 0
 free_derives()
 {
-    FREE(derives[start_symbol]);
-    FREE(derives);
+    free(derives[start_symbol]);
+    free(derives);
 }
 #endif
 
@@ -615,7 +615,7 @@ set_nullable(void)
     int empty;
     int done1;
 
-    nullable = MALLOC(nsyms);
+    nullable = malloc(nsyms);
     if (nullable == 0) no_space();
 
     for (i = 0; i < nsyms; ++i)
@@ -661,7 +661,7 @@ set_nullable(void)
 #if 0
 free_nullable(void)
 {
-    FREE(nullable);
+    free(nullable);
 }
 #endif
 
