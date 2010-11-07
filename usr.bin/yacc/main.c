@@ -166,7 +166,7 @@ getargs(int argc, char *argv[])
 {
     int ch;
 
-    while ((ch = getopt(argc, argv, "b:dlo:p:rtv")) != -1)
+    while ((ch = getopt(argc, argv, "b:dlo:p:rtvy")) != -1)
     {
 	switch (ch)
 	{
@@ -200,6 +200,10 @@ getargs(int argc, char *argv[])
 
 	case 'v':
 	    vflag = 1;
+	    break;
+
+	case 'y':
+	    /* for bison compatibility -- byacc is already POSIX compatible */
 	    break;
 
 	default:

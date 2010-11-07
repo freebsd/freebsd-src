@@ -44,7 +44,7 @@
 .Nd an LALR(1) parser generator
 .Sh SYNOPSIS
 .Nm
-.Op Fl dlrtv
+.Op Fl dlrtvy
 .Op Fl b Ar file_prefix
 .Op Fl o Ar output_filename
 .Op Fl p Ar symbol_prefix
@@ -118,6 +118,10 @@ so that debugging statements will be incorporated in the compiled code.
 Cause a human-readable description of the generated parser to
 be written to the file
 .Pa y.output .
+.It Fl y
+NOOP for bison compatibility.
+.Nm
+is already designed to be POSIX yacc compatible.
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width ".Ev TMPDIR"
