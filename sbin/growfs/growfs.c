@@ -371,16 +371,16 @@ static void
 initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 {
 	DBG_FUNC("initcg")
-	static void *iobuf;
+	static caddr_t iobuf;
 	long blkno, start;
 	ufs2_daddr_t i, cbase, dmax;
 	struct ufs1_dinode *dp1;
 	struct csum *cs;
 	uint d, dupper, dlower;
 
-	if (iobuf == NULL && (iobuf = malloc(sblock.fs_bsize)) == NULL) {
+	if (iobuf == NULL && (iobuf = malloc(sblock.fs_bsize * 3)) == NULL)
 		errx(37, "panic: cannot allocate I/O buffer");
-	}
+
 	/*
 	 * Determine block bounds for cylinder group.
 	 * Allow space for super block summary information in first
@@ -400,7 +400,8 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 	acg.cg_magic = CG_MAGIC;
 	acg.cg_cgx = cylno;
 	acg.cg_niblk = sblock.fs_ipg;
-	acg.cg_initediblk = sblock.fs_ipg;
+	acg.cg_initediblk = sblock.fs_ipg < 2 * INOPB(&sblock) ?
+	    sblock.fs_ipg : 2 * INOPB(&sblock);
 	acg.cg_ndblk = dmax - cbase;
 	if (sblock.fs_contigsumsize > 0)
 		acg.cg_nclusterblks = acg.cg_ndblk / sblock.fs_frag;
@@ -533,11 +534,14 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 	sblock.fs_cstotal.cs_nbfree += acg.cg_cs.cs_nbfree;
 	sblock.fs_cstotal.cs_nifree += acg.cg_cs.cs_nifree;
 	*cs = acg.cg_cs;
+
+	memcpy(iobuf, &acg, sblock.fs_cgsize);
+	memset(iobuf + sblock.fs_cgsize, '\0',
+	    sblock.fs_bsize * 3 - sblock.fs_cgsize);
+
 	wtfs(fsbtodb(&sblock, cgtod(&sblock, cylno)),
-		sblock.fs_bsize, (char *)&acg, fso, Nflag);
-	DBG_DUMP_CG(&sblock,
-	    "new cg",
-	    &acg);
+	    sblock.fs_bsize * 3, iobuf, fso, Nflag);
+	DBG_DUMP_CG(&sblock, "new cg", &acg);
 
 	DBG_LEAVE;
 	return;
@@ -2209,6 +2213,7 @@ main(int argc, char **argv)
 		printf("Warning: %jd sector(s) cannot be allocated.\n",
 		    (intmax_t)fsbtodb(&sblock, sblock.fs_size % sblock.fs_fpg));
 		sblock.fs_size = sblock.fs_ncg * sblock.fs_fpg;
+		maxino -= sblock.fs_ipg;
 	}
 
 	/*
