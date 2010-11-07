@@ -293,7 +293,7 @@ set_goto_map(void)
 	}
     }
 
-  FREE(temp_map + ntokens);
+  free(temp_map + ntokens);
 }
 
 
@@ -396,11 +396,11 @@ initialize_F(void)
   for (i = 0; i < ngotos; i++)
     {
       if (reads[i])
-	FREE(reads[i]);
+	free(reads[i]);
     }
 
-  FREE(reads);
-  FREE(edge);
+  free(reads);
+  free(edge);
 }
 
 
@@ -487,14 +487,14 @@ build_relations(void)
 
   for (i = 0; i < ngotos; i++)
     if (includes[i])
-      FREE(includes[i]);
+      free(includes[i]);
 
-  FREE(includes);
+  free(includes);
 
   includes = new_includes;
 
-  FREE(edge);
-  FREE(states);
+  free(edge);
+  free(states);
 }
 
 
@@ -562,7 +562,7 @@ transpose(short **R, int n)
 	}
     }
 
-  FREE(nedges);
+  free(nedges);
 
   for (i = 0; i < n; i++)
     {
@@ -574,7 +574,7 @@ transpose(short **R, int n)
 	}
     }
 
-  FREE(temp_R);
+  free(temp_R);
 
   return (new_R);
 }
@@ -615,11 +615,11 @@ compute_lookaheads(void)
     for (sp = lookback[i]; sp; sp = next)
       {
         next = sp->next;
-        FREE(sp);
+        free(sp);
       }
 
-  FREE(lookback);
-  FREE(F);
+  free(lookback);
+  free(F);
 }
 
 
@@ -642,8 +642,8 @@ digraph(short **relation)
 	traverse(i, relation);
     }
 
-  FREE(INDEX);
-  FREE(VERTICES);
+  free(INDEX);
+  free(VERTICES);
 }
 
 

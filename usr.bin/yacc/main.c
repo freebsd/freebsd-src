@@ -216,15 +216,15 @@ getargs(int argc, char *argv[])
 }
 
 
-char *
-allocate(unsigned n)
+void *
+allocate(size_t n)
 {
-    char *p;
+    void *p;
 
     p = NULL;
     if (n)
     {
-	p = CALLOC(1, n);
+	p = calloc(1, n);
 	if (!p) no_space();
     }
     return (p);
@@ -245,11 +245,11 @@ create_file_names(void)
     if (len && tmpdir[len-1] != '/')
 	++i;
 
-    action_file_name = MALLOC(i);
+    action_file_name = malloc(i);
     if (action_file_name == 0) no_space();
-    text_file_name = MALLOC(i);
+    text_file_name = malloc(i);
     if (text_file_name == 0) no_space();
-    union_file_name = MALLOC(i);
+    union_file_name = malloc(i);
     if (union_file_name == 0) no_space();
 
     strcpy(action_file_name, tmpdir);
@@ -280,7 +280,7 @@ create_file_names(void)
     else
     {
 	len = strlen(file_prefix);
-	output_file_name = MALLOC(len + 7);
+	output_file_name = malloc(len + 7);
 	if (output_file_name == 0)
 	    no_space();
 	strcpy(output_file_name, file_prefix);
@@ -289,7 +289,7 @@ create_file_names(void)
 
     if (rflag)
     {
-	code_file_name = MALLOC(len + 8);
+	code_file_name = malloc(len + 8);
 	if (code_file_name == 0)
 	    no_space();
 	strcpy(code_file_name, file_prefix);
@@ -314,7 +314,7 @@ create_file_names(void)
 
     if (dflag)
     {
-	defines_file_name = MALLOC(len + 7);
+	defines_file_name = malloc(len + 7);
 	if (defines_file_name == 0)
 	    no_space();
 	strcpy(defines_file_name, file_prefix);
@@ -332,7 +332,7 @@ create_file_names(void)
 
     if (vflag)
     {
-	verbose_file_name = MALLOC(len + 8);
+	verbose_file_name = malloc(len + 8);
 	if (verbose_file_name == 0)
 	    no_space();
 	strcpy(verbose_file_name, file_prefix);
