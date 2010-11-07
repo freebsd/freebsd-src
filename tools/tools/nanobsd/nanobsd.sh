@@ -75,6 +75,9 @@ CONF_WORLD=' '
 # Kernel config file to use
 NANO_KERNEL=GENERIC
 
+# Kernel modules to build; default is none
+NANO_MODULES=
+
 # Customize commands.
 NANO_CUSTOMIZE=""
 
@@ -189,19 +192,26 @@ build_kernel ( ) (
 	pprint 2 "build kernel ($NANO_KERNEL)"
 	pprint 3 "log: ${MAKEOBJDIRPREFIX}/_.bk"
 
+	(
 	if [ -f ${NANO_KERNEL} ] ; then
-		cp ${NANO_KERNEL} ${NANO_SRC}/sys/${NANO_ARCH}/conf
+		kernconfdir=$(realpath $(dirname ${NANO_KERNEL}))
+		kernconf=$(basename ${NANO_KERNEL})
+	else
+		kernconf=${NANO_KERNEL}
 	fi
 
-	(cd ${NANO_SRC};
+	cd ${NANO_SRC};
 	# unset these just in case to avoid compiler complaints
 	# when cross-building
 	unset TARGET_CPUTYPE
 	unset TARGET_BIG_ENDIAN
+	# Note: We intentionally build all modules, not only the ones in
+	# NANO_MODULES so the built world can be reused by multiple images.
 	env TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} buildkernel \
-		__MAKE_CONF=${NANO_MAKE_CONF_BUILD} KERNCONF=`basename ${NANO_KERNEL}` \
-		> ${MAKEOBJDIRPREFIX}/_.bk 2>&1
-	)
+		__MAKE_CONF=${NANO_MAKE_CONF_BUILD} \
+		${kernconfdir:+"KERNCONFDIR="}${kernconfdir} \
+		KERNCONF=${kernconf}
+	) > ${MAKEOBJDIRPREFIX}/_.bk 2>&1
 )
 
 clean_world ( ) (
@@ -258,14 +268,25 @@ install_etc ( ) (
 )
 
 install_kernel ( ) (
-	pprint 2 "install kernel"
+	pprint 2 "install kernel ($NANO_KERNEL)"
 	pprint 3 "log: ${NANO_OBJ}/_.ik"
+
+	(
+	if [ -f ${NANO_KERNEL} ] ; then
+		kernconfdir=$(realpath $(dirname ${NANO_KERNEL}))
+		kernconf=$(basename ${NANO_KERNEL})
+	else
+		kernconf=${NANO_KERNEL}
+	fi
 
 	cd ${NANO_SRC}
 	env TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} installkernel \
 		DESTDIR=${NANO_WORLDDIR} \
-		__MAKE_CONF=${NANO_MAKE_CONF_INSTALL} KERNCONF=`basename ${NANO_KERNEL}` \
-		> ${NANO_OBJ}/_.ik 2>&1
+		__MAKE_CONF=${NANO_MAKE_CONF_INSTALL} \
+		${kernconfdir:+"KERNCONFDIR="}${kernconfdir} \
+		KERNCONF=${kernconf} \
+		MODULES_OVERRIDE="${NANO_MODULES}"
+	) > ${NANO_OBJ}/_.ik 2>&1
 )
 
 run_customize() (
@@ -276,7 +297,7 @@ run_customize() (
 		pprint 2 "customize \"$c\""
 		pprint 3 "log: ${NANO_OBJ}/_.cust.$c"
 		pprint 4 "`type $c`"
-		( $c ) > ${NANO_OBJ}/_.cust.$c 2>&1
+		( set -x ; $c ) > ${NANO_OBJ}/_.cust.$c 2>&1
 	done
 )
 
@@ -288,7 +309,7 @@ run_late_customize() (
 		pprint 2 "late customize \"$c\""
 		pprint 3 "log: ${NANO_OBJ}/_.late_cust.$c"
 		pprint 4 "`type $c`"
-		( $c ) > ${NANO_OBJ}/_.late_cust.$c 2>&1
+		( set -x ; $c ) > ${NANO_OBJ}/_.late_cust.$c 2>&1
 	done
 )
 
