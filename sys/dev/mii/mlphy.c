@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 
 struct mlphy_softc	{
 	struct mii_softc	ml_mii;
+	device_t		ml_dev;
 	int			ml_state;
 	int			ml_linked;
 };
@@ -96,6 +97,7 @@ static driver_t mlphy_driver = {
 
 DRIVER_MODULE(mlphy, miibus, mlphy_driver, mlphy_devclass, 0, 0);
 
+static struct mii_softc *mlphy_find_other(struct mlphy_softc *);
 static int	mlphy_service(struct mii_softc *, struct mii_data *, int);
 static void	mlphy_reset(struct mii_softc *);
 static void	mlphy_status(struct mii_softc *);
@@ -105,10 +107,8 @@ mlphy_probe(dev)
 	device_t		dev;
 {
 	struct mii_attach_args	*ma;
-	device_t		parent;
 
 	ma = device_get_ivars(dev);
-	parent = device_get_parent(device_get_parent(dev));
 
 	/*
 	 * Micro Linear PHY reports oui == 0 model == 0
@@ -122,7 +122,8 @@ mlphy_probe(dev)
 	 * encountered the 6692 on an Olicom card with a ThunderLAN
 	 * controller chip.
 	 */
-	if (strcmp(device_get_name(parent), "tl") != 0)
+	if (strcmp(device_get_name(device_get_parent(device_get_parent(dev))),
+	    "tl") != 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "Micro Linear 6692 media interface");
@@ -141,6 +142,7 @@ mlphy_attach(dev)
 
 	msc = device_get_softc(dev);
 	sc = &msc->ml_mii;
+	msc->ml_dev = dev;
 	ma = device_get_ivars(dev);
 	sc->mii_dev = device_get_parent(dev);
 	mii = ma->mii_data;
@@ -155,14 +157,15 @@ mlphy_attach(dev)
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
-	    BMCR_LOOP|BMCR_S100);
+	    MII_MEDIA_100_TX);
 
 	mii_phy_reset(sc);
 
 	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
+	/* Let the companion PHY (if any) only handle the media we don't. */
 	ma->mii_capmask = ~sc->mii_capabilities;
 	device_printf(dev, " ");
-	mii_add_media(sc);
+	mii_phy_add_media(sc);
 	printf("\n");
 #undef ADD
 	MIIBUS_MEDIAINIT(sc->mii_dev);
@@ -170,20 +173,21 @@ mlphy_attach(dev)
 }
 
 static struct mii_softc *
-mlphy_find_other(device_t mii)
+mlphy_find_other(struct mlphy_softc *msc)
 {
 	device_t		*devlist;
 	struct mii_softc *retval;
 	int i, devs;
 
 	retval = NULL;
-	if (device_get_children(mii, &devlist, &devs))
+	if (device_get_children(msc->ml_mii.mii_dev, &devlist, &devs) != 0)
 		return (NULL);
-	for (i = 0; i < devs; i++)
-		if (strcmp(device_get_name(devlist[i]), "mlphy")) {
+	for (i = 0; i < devs; i++) {
+		if (devlist[i] != msc->ml_dev) {
 			retval = device_get_softc(devlist[i]);
 			break;
 		}
+	}
 	free(devlist, M_TEMP);
 	return (retval);
 }
@@ -204,7 +208,7 @@ mlphy_service(xsc, mii, cmd)
 	 * See if there's another PHY on this bus with us.
 	 * If so, we may need it for 10Mbps modes.
 	 */
-	other = mlphy_find_other(msc->ml_mii.mii_dev);
+	other = mlphy_find_other(msc);
 
 	switch (cmd) {
 	case MII_POLLSTAT:
@@ -229,7 +233,7 @@ mlphy_service(xsc, mii, cmd)
 				mii_phy_reset(other);
 				PHY_WRITE(other, MII_BMCR, BMCR_ISO);
 			}
-			(void) mii_phy_auto(sc);
+			(void)mii_phy_auto(sc);
 			msc->ml_linked = 0;
 			return (0);
 		case IFM_10_T:
@@ -246,8 +250,7 @@ mlphy_service(xsc, mii, cmd)
 				mii_phy_reset(other);
 				PHY_WRITE(other, MII_BMCR, ife->ifm_data);
 			}
-			PHY_WRITE(sc, MII_ANAR, mii_anar(ife->ifm_media));
-			PHY_WRITE(sc, MII_BMCR, ife->ifm_data);
+			mii_phy_setmedia(sc);
 			msc->ml_state = 0;
 			break;
 		case IFM_100_TX:
@@ -262,17 +265,11 @@ mlphy_service(xsc, mii, cmd)
 				mii_phy_reset(other);
 				PHY_WRITE(other, MII_BMCR, BMCR_ISO);
 			}
-			PHY_WRITE(sc, MII_ANAR, mii_anar(ife->ifm_media));
-			PHY_WRITE(sc, MII_BMCR, ife->ifm_data);
+			mii_phy_setmedia(sc);
 			msc->ml_state = 0;
 			break;
-		case IFM_100_T4:
-			/*
-			 * XXX Not supported as a manual setting right now.
-			 */
-			return (EINVAL);
 		default:
-			break;
+			return (EINVAL);
 
 		}
 		break;
@@ -381,7 +378,7 @@ mlphy_status(sc)
 	struct mii_softc	*other = NULL;
 
 	/* See if there's another PHY on the bus with us. */
-	other = mlphy_find_other(msc->ml_mii.mii_dev);
+	other = mlphy_find_other(msc);
 	if (other == NULL)
 		return;
 
