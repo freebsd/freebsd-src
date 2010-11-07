@@ -124,7 +124,8 @@ sctp_append_to_readq(struct sctp_inpcb *inp,
 
 void sctp_iterator_worker(void);
 
-int find_next_best_mtu(int);
+uint32_t sctp_get_prev_mtu(uint32_t);
+uint32_t sctp_get_next_mtu(struct sctp_inpcb *, uint32_t);
 
 void
      sctp_timeout_handler(void *);
