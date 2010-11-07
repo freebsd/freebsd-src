@@ -73,7 +73,7 @@ static void unused_rules(void);
 
 
 void
-make_parser()
+make_parser(void)
 {
     int i;
 
@@ -90,8 +90,7 @@ make_parser()
 
 
 static action *
-parse_actions(stateno)
-int stateno;
+parse_actions(int stateno)
 {
     action *actions;
 
@@ -102,8 +101,7 @@ int stateno;
 
 
 static action *
-get_shifts(stateno)
-int stateno;
+get_shifts(int stateno)
 {
     action *actions, *temp;
     shifts *sp;
@@ -137,9 +135,7 @@ int stateno;
 }
 
 static action *
-add_reductions(stateno, actions)
-int stateno;
-action *actions;
+add_reductions(int stateno, action *actions)
 {
     int i, j, m, n;
     int ruleno, tokensetsize;
@@ -163,9 +159,7 @@ action *actions;
 
 
 static action *
-add_reduce(actions, ruleno, symbol)
-action *actions;
-int ruleno, symbol;
+add_reduce(action *actions, int ruleno, int symbol)
 {
     action *temp, *prev, *next;
 
@@ -204,7 +198,7 @@ int ruleno, symbol;
 
 
 static void
-find_final_state()
+find_final_state(void)
 {
     int goal, i;
     short *tostate;
@@ -222,7 +216,7 @@ find_final_state()
 
 
 static void
-unused_rules()
+unused_rules(void)
 {
     int i;
     action *p;
@@ -256,7 +250,7 @@ unused_rules()
 
 
 static void
-remove_conflicts()
+remove_conflicts(void)
 {
     int i;
     int symbol;
@@ -333,7 +327,7 @@ remove_conflicts()
 
 
 static void
-total_conflicts()
+total_conflicts(void)
 {
     /* Warn if s/r != expect or if any r/r */
     if ((SRtotal != SRexpect) || RRtotal)
@@ -352,8 +346,7 @@ total_conflicts()
 
 
 static int
-sole_reduction(stateno)
-int stateno;
+sole_reduction(int stateno)
 {
     int count, ruleno;
     action *p;
@@ -381,7 +374,7 @@ int stateno;
 
 
 static void
-defreds()
+defreds(void)
 {
     int i;
 
@@ -391,8 +384,7 @@ defreds()
 }
 
 static void
-free_action_row(p)
-action *p;
+free_action_row(action *p)
 {
   action *q;
 
@@ -405,7 +397,7 @@ action *p;
 }
 
 void
-free_parser()
+free_parser(void)
 {
   int i;
 

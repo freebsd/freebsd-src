@@ -115,8 +115,7 @@ static void usage(void);
 volatile sig_atomic_t sigdie;
 
 __dead2 void
-done(k)
-int k;
+done(int k)
 {
     if (action_file) { fclose(action_file); unlink(action_file_name); }
     if (text_file) { fclose(text_file); unlink(text_file_name); }
@@ -127,8 +126,7 @@ int k;
 
 
 static void
-onintr(signo)
-	int signo __unused;
+onintr(int signo __unused)
 {
     sigdie = 1;
     done(1);
@@ -136,7 +134,7 @@ onintr(signo)
 
 
 static void
-set_signals()
+set_signals(void)
 {
 #ifdef SIGINT
     if (signal(SIGINT, SIG_IGN) != SIG_IGN)
@@ -154,7 +152,7 @@ set_signals()
 
 
 static void
-usage()
+usage(void)
 {
     fprintf(stderr, "%s\n%s\n",
 		"usage: yacc [-dlrtv] [-b file_prefix] [-o output_filename]",
@@ -164,9 +162,7 @@ usage()
 
 
 static void
-getargs(argc, argv)
-int argc;
-char *argv[];
+getargs(int argc, char *argv[])
 {
     int ch;
 
@@ -221,8 +217,7 @@ char *argv[];
 
 
 char *
-allocate(n)
-unsigned n;
+allocate(unsigned n)
 {
     char *p;
 
@@ -237,7 +232,7 @@ unsigned n;
 
 
 static void
-create_file_names()
+create_file_names(void)
 {
     int i, len;
     const char *tmpdir;
@@ -357,7 +352,7 @@ create_file_names()
 
 
 static void
-open_files()
+open_files(void)
 {
     int fd;
 

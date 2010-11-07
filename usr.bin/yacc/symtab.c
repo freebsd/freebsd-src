@@ -60,8 +60,7 @@ bucket *last_symbol;
 
 
 static int
-hash(name)
-const char *name;
+hash(const char *name)
 {
     const char *s;
     int c, k;
@@ -77,8 +76,7 @@ const char *name;
 
 
 bucket *
-make_bucket(name)
-const char *name;
+make_bucket(const char *name)
 {
     bucket *bp;
 
@@ -104,8 +102,7 @@ const char *name;
 
 
 bucket *
-lookup(name)
-char *name;
+lookup(char *name)
 {
     bucket *bp, **bpp;
 
@@ -128,7 +125,7 @@ char *name;
 
 
 void
-create_symbol_table()
+create_symbol_table(void)
 {
     int i;
     bucket *bp;
@@ -149,7 +146,7 @@ create_symbol_table()
 
 
 void
-free_symbol_table()
+free_symbol_table(void)
 {
     FREE(symbol_table);
     symbol_table = 0;
@@ -157,7 +154,7 @@ free_symbol_table()
 
 
 void
-free_symbols()
+free_symbols(void)
 {
     bucket *p, *q;
 
