@@ -133,12 +133,8 @@
 
 /*  storage allocation macros  */
 
-#define CALLOC(k,n)	(calloc((unsigned)(k),(unsigned)(n)))
-#define	FREE(x)		(free((char*)(x)))
-#define MALLOC(n)	(malloc((unsigned)(n)))
 #define	NEW(t)		((t*)allocate(sizeof(t)))
-#define	NEW2(n,t)	((t*)allocate((unsigned)((n)*sizeof(t))))
-#define REALLOC(p,n)	(realloc((char*)(p),(unsigned)(n)))
+#define	NEW2(n,t)	((t*)allocate((n)*sizeof(t)))
 
 
 /*  the structure of a symbol table entry  */
@@ -304,7 +300,7 @@ extern short final_state;
 
 /* global functions */
 
-char *allocate(unsigned);
+void *allocate(size_t);
 void closure(short *, int);
 void create_symbol_table(void);
 void default_action_warning(void);
