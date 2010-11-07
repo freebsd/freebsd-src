@@ -627,10 +627,10 @@ sge_attach(device_t dev)
 	/*
 	 * Do MII setup.
 	 */
-	if (mii_phy_probe(dev, &sc->sge_miibus, sge_ifmedia_upd,
-	    sge_ifmedia_sts)) {
-		device_printf(dev, "no PHY found!\n");
-		error = ENXIO;
+	error = mii_attach(dev, &sc->sge_miibus, ifp, sge_ifmedia_upd,
+	    sge_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
