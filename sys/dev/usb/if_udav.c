@@ -298,6 +298,9 @@ udav_attach(device_t self)
 	struct mii_data *mii;
 #endif
 	u_char eaddr[ETHER_ADDR_LEN];
+#if defined(__FreeBSD__)
+	int error;
+#endif
 	int i;
 #if defined(__NetBSD__)
 	int s;
@@ -444,13 +447,16 @@ udav_attach(device_t self)
 	if_attach(ifp);
 	Ether_ifattach(ifp, eaddr);
 #elif defined(__FreeBSD__)
-	if (mii_phy_probe(self, &sc->sc_miibus,
-	    udav_ifmedia_change, udav_ifmedia_status)) {
-		printf("%s: MII without any PHY!\n", device_get_nameunit(sc->sc_dev));
+	/* one internal PHY only */
+	error = mii_attach(self, &sc->sc_miibus, ifp, udav_ifmedia_change,
+	    udav_ifmedia_status, BMSR_DEFCAPMASK, 0, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		printf("%s: attaching PHYs failed\\n",
+		    device_get_nameunit(sc->sc_dev));
 		if_free(ifp);
 		UDAV_UNLOCK(sc);
 		mtx_destroy(&sc->sc_mtx);
-		return ENXIO;
+		return error;
 	}
 
 	sc->sc_qdat.ifp = ifp;
@@ -1822,13 +1828,6 @@ udav_miibus_readreg(device_t dev, int phy, int reg)
 		return (0);
 	}
 
-	/* XXX: one PHY only for the internal PHY */
-	if (phy != 0) {
-		DPRINTFN(0xff, ("%s: %s: phy=%d is not supported\n",
-			 device_get_nameunit(sc->sc_dev), __func__, phy));
-		return (0);
-	}
-
 	udav_lock_mii(sc);
 
 	/* select internal PHY and set PHY register address */
@@ -1875,13 +1874,6 @@ udav_miibus_writereg(device_t dev, int phy, int reg, int data)
 		printf("%s: %s: dying\n", device_get_nameunit(sc->sc_dev),
 		       __func__);
 #endif
-		return (0);	/* XXX real error? */
-	}
-
-	/* XXX: one PHY only for the internal PHY */
-	if (phy != 0) {
-		DPRINTFN(0xff, ("%s: %s: phy=%d is not supported\n",
-			 device_get_nameunit(sc->sc_dev), __func__, phy));
 		return (0);	/* XXX real error? */
 	}
 

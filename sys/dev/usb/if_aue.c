@@ -649,7 +649,7 @@ aue_attach(device_t self)
 	usbd_status		err;
 	usb_interface_descriptor_t	*id;
 	usb_endpoint_descriptor_t	*ed;
-	int			i;
+	int			error, i;
 
 	sc->aue_dev = self;
 	sc->aue_udev = uaa->device;
@@ -741,15 +741,16 @@ aue_attach(device_t self)
 	 * end up getting the children deleted twice, which will crash
 	 * the system.
 	 */
-	if (mii_phy_probe(self, &sc->aue_miibus,
-	    aue_ifmedia_upd, aue_ifmedia_sts)) {
-		device_printf(self, "MII without any PHY!\n");
+	error = mii_attach(self, &sc->aue_miibus, ifp, aue_ifmedia_upd,
+	    aue_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(self, "attaching PHYs failed\n");
 		if_free(ifp);
 		AUE_SXUNLOCK(sc);
 		mtx_destroy(&sc->aue_mtx);
 		sx_destroy(&sc->aue_sx);
 		usb_ether_task_destroy(&sc->aue_taskqueue);
-		return ENXIO;
+		return error;
 	}
 
 	sc->aue_qdat.ifp = ifp;
