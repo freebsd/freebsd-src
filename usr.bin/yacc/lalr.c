@@ -96,7 +96,7 @@ static int top;
 
 
 void
-lalr()
+lalr(void)
 {
     tokensetsize = WORDSIZE(ntokens);
 
@@ -116,7 +116,7 @@ lalr()
 
 
 static void
-set_state_table()
+set_state_table(void)
 {
     core *sp;
 
@@ -128,7 +128,7 @@ set_state_table()
 
 
 static void
-set_accessing_symbol()
+set_accessing_symbol(void)
 {
     core *sp;
 
@@ -140,7 +140,7 @@ set_accessing_symbol()
 
 
 static void
-set_shift_table()
+set_shift_table(void)
 {
     shifts *sp;
 
@@ -152,7 +152,7 @@ set_shift_table()
 
 
 static void
-set_reduction_table()
+set_reduction_table(void)
 {
     reductions *rp;
 
@@ -164,7 +164,7 @@ set_reduction_table()
 
 
 static void
-set_maxrhs()
+set_maxrhs(void)
 {
   short *itemp;
   short *item_end;
@@ -193,7 +193,7 @@ set_maxrhs()
 
 
 static void
-initialize_LA()
+initialize_LA(void)
 {
   int i, j, k;
   reductions *rp;
@@ -231,7 +231,7 @@ initialize_LA()
 
 
 static void
-set_goto_map()
+set_goto_map(void)
 {
   shifts *sp;
   int i;
@@ -301,9 +301,7 @@ set_goto_map()
 /*  Map_goto maps a state/symbol pair into its numeric representation.	*/
 
 static int
-map_goto(state, symbol)
-int state;
-int symbol;
+map_goto(int state, int symbol)
 {
     int high;
     int low;
@@ -330,7 +328,7 @@ int symbol;
 
 
 static void
-initialize_F()
+initialize_F(void)
 {
   int i;
   int j;
@@ -408,7 +406,7 @@ initialize_F()
 
 
 static void
-build_relations()
+build_relations(void)
 {
   int i;
   int j;
@@ -501,8 +499,7 @@ build_relations()
 
 
 static void
-add_lookback_edge(stateno, ruleno, gotono)
-int stateno, ruleno, gotono;
+add_lookback_edge(int stateno, int ruleno, int gotono)
 {
     int i, k;
     int found;
@@ -529,9 +526,7 @@ int stateno, ruleno, gotono;
 
 
 static short **
-transpose(R, n)
-short **R;
-int n;
+transpose(short **R, int n)
 {
   short **new_R;
   short **temp_R;
@@ -587,14 +582,14 @@ int n;
 
 
 static void
-compute_FOLLOWS()
+compute_FOLLOWS(void)
 {
   digraph(includes);
 }
 
 
 static void
-compute_lookaheads()
+compute_lookaheads(void)
 {
   int i, n;
   unsigned *fp1, *fp2, *fp3;
@@ -629,8 +624,7 @@ compute_lookaheads()
 
 
 static void
-digraph(relation)
-short **relation;
+digraph(short **relation)
 {
   int i;
 
@@ -655,9 +649,7 @@ short **relation;
 
 
 static void
-traverse(i, R)
-int i;
-short **R;
+traverse(int i, short **R)
 {
   unsigned *fp1;
   unsigned *fp2;

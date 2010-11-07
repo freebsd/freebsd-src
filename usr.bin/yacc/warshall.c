@@ -48,9 +48,7 @@ __FBSDID("$FreeBSD$");
 static void transitive_closure(unsigned *, int);
 
 static void
-transitive_closure(R, n)
-unsigned *R;
-int n;
+transitive_closure(unsigned *R, int n)
 {
     int rowsize;
     unsigned i;
@@ -101,9 +99,7 @@ int n;
 }
 
 void
-reflexive_transitive_closure(R, n)
-unsigned *R;
-int n;
+reflexive_transitive_closure(unsigned *R, int n)
 {
     int rowsize;
     unsigned i;
