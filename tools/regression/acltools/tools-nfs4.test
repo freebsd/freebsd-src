@@ -527,7 +527,6 @@ $ setfacl -a0 owner@:r:allow,group@:w:deny,group@:wx:allow ddd
 $ ls -ld ddd | cut -d' ' -f1
 > dr----x---+
 
-# XXX: This one is fishy.  Shouldn't it be "dr---wx---+"?
 $ rmdir ddd
 $ mkdir ddd
 $ chmod 0 ddd
