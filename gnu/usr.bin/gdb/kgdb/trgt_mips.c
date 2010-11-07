@@ -46,13 +46,16 @@ __FBSDID("$FreeBSD$");
 #include <frame-unwind.h>
 #include <mips-tdep.h>
 
+#ifndef	CROSS_DEBUGGER
 #include <machine/pcb.h>
+#endif
 
 #include "kgdb.h"
 
 void
 kgdb_trgt_fetch_registers(int regno __unused)
 {
+#ifndef	CROSS_DEBUGGER
 	struct kthr *kt;
 	struct pcb pcb;
 
@@ -76,6 +79,7 @@ kgdb_trgt_fetch_registers(int regno __unused)
 	supply_register(MIPS_FP_REGNUM, (char *)&pcb.pcb_context[PCB_REG_GP]);
 	supply_register(MIPS_RA_REGNUM, (char *)&pcb.pcb_context[PCB_REG_RA]);
 	supply_register(MIPS_EMBED_PC_REGNUM, (char *)&pcb.pcb_context[PCB_REG_PC]);
+#endif
 }
 
 void
@@ -90,6 +94,7 @@ kgdb_trgt_new_objfile(struct objfile *objfile)
 {
 }
 
+#ifndef CROSS_DEBUGGER
 struct kgdb_frame_cache {
 	CORE_ADDR	pc;
 	CORE_ADDR	sp;
@@ -194,10 +199,12 @@ static const struct frame_unwind kgdb_trgt_trapframe_unwind = {
 	&kgdb_trgt_trapframe_this_id,
 	&kgdb_trgt_trapframe_prev_register
 };
+#endif
 
 const struct frame_unwind *
 kgdb_trgt_trapframe_sniffer(struct frame_info *next_frame)
 {
+#ifndef CROSS_DEBUGGER
 	char *pname;
 	CORE_ADDR pc;
 
@@ -211,5 +218,6 @@ kgdb_trgt_trapframe_sniffer(struct frame_info *next_frame)
 	    (strcmp(pname, "MipsUserIntr") == 0) ||
 	    (strcmp(pname, "MipsUserGenException") == 0))
 		return (&kgdb_trgt_trapframe_unwind);
+#endif
 	return (NULL);
 }
