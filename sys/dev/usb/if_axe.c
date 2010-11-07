@@ -544,7 +544,7 @@ axe_attach(device_t self)
 	struct ifnet		*ifp;
 	usb_interface_descriptor_t	*id;
 	usb_endpoint_descriptor_t	*ed;
-	int			i;
+	int			error, i;
 
 	sc->axe_udev = uaa->device;
 	sc->axe_dev = self;
@@ -657,15 +657,16 @@ device_printf(sc->axe_dev, "%s, bufsz %d, boundary %d\n",
 	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
 
-	if (mii_phy_probe(self, &sc->axe_miibus,
-	    axe_ifmedia_upd, axe_ifmedia_sts)) {
-		device_printf(sc->axe_dev, "MII without any PHY!\n");
+	error = mii_attach(self, &sc->axe_miibus, ifp, axe_ifmedia_upd,
+	    axe_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(sc->axe_dev, "attaching PHYs failed\n");
 		if_free(ifp);
 		AXE_UNLOCK(sc);
 		AXE_SLEEPUNLOCK(sc);
 		sx_destroy(&sc->axe_sleeplock);
 		mtx_destroy(&sc->axe_mtx);
-		return ENXIO;
+		return error;
 	}
 
 	/*

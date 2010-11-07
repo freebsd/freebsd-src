@@ -349,9 +349,6 @@ rue_miibus_readreg(device_t dev, int phy, int reg)
 	int			rval;
 	int			ruereg;
 
-	if (phy != 0)		/* RTL8150 supports PHY == 0, only */
-		return (0);
-
 	switch (reg) {
 	case MII_BMCR:
 		ruereg = RUE_BMCR;
@@ -391,9 +388,6 @@ rue_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct rue_softc	*sc = device_get_softc(dev);
 	int			ruereg;
-
-	if (phy != 0)		/* RTL8150 supports PHY == 0, only */
-		return (0);
 
 	switch (reg) {
 	case MII_BMCR:
@@ -584,13 +578,14 @@ rue_attach(device_t self)
 	usbd_status			err;
 	usb_interface_descriptor_t	*id;
 	usb_endpoint_descriptor_t	*ed;
-	int				i;
+	int				error, i;
 	struct rue_type			*t;
 
 	sc->rue_dev = self;
 	sc->rue_udev = uaa->device;
 
 	if (usbd_set_config_no(sc->rue_udev, RUE_CONFIG_NO, 0)) {
+		error = ENXIO;
 		device_printf(sc->rue_dev, "getting interface handle failed\n");
 		goto error;
 	}
@@ -599,6 +594,7 @@ rue_attach(device_t self)
 
 	err = usbd_device2interface_handle(uaa->device, RUE_IFACE_IDX, &iface);
 	if (err) {
+		error = ENXIO;
 		device_printf(sc->rue_dev, "getting interface handle failed\n");
 		goto error;
 	}
@@ -621,6 +617,7 @@ rue_attach(device_t self)
 	for (i = 0; i < id->bNumEndpoints; i++) {
 		ed = usbd_interface2endpoint_descriptor(iface, i);
 		if (ed == NULL) {
+			error = ENXIO;
 			device_printf(sc->rue_dev, "couldn't get ep %d\n", i);
 			goto error;
 		}
@@ -647,12 +644,14 @@ rue_attach(device_t self)
 	err = rue_read_mem(sc, RUE_EEPROM_IDR0,
 			   (caddr_t)&eaddr, ETHER_ADDR_LEN);
 	if (err) {
+		error = ENXIO;
 		device_printf(sc->rue_dev, "couldn't get station address\n");
 		goto error1;
 	}
 
 	ifp = sc->rue_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
+		error = ENXIO;
 		device_printf(sc->rue_dev, "can not if_alloc()\n");
 		goto error1;
 	}
@@ -667,10 +666,14 @@ rue_attach(device_t self)
 	ifp->if_init = rue_init;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
-	/* MII setup */
-	if (mii_phy_probe(self, &sc->rue_miibus,
-			  rue_ifmedia_upd, rue_ifmedia_sts)) {
-		device_printf(sc->rue_dev, "MII without any PHY!\n");
+	/*
+	 * MII setup
+	 * RTL8150 supports PHY == 0 only
+	 */
+	error = mii_attach(self, &sc->rue_miibus, ifp, rue_ifmedia_upd,
+	    rue_ifmedia_sts, BMSR_DEFCAPMASK, 0, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(sc->rue_dev, "attaching PHYs failed\n");
 		goto error2;
 	}
 
@@ -692,7 +695,7 @@ rue_attach(device_t self)
 	RUE_UNLOCK(sc);
 	mtx_destroy(&sc->rue_mtx);
     error:
-	return ENXIO;
+	return error;
 }
 
 static int

@@ -540,23 +540,27 @@ ed_pccard_attach(device_t dev)
 		goto bad;
  	if (sc->chip_type == ED_CHIP_TYPE_DL10019 ||
 	    sc->chip_type == ED_CHIP_TYPE_DL10022) {
-		/* Probe for an MII bus, but ignore errors. */
+		/* Try to attach an MII bus, but ignore errors. */
 		ed_pccard_dl100xx_mii_reset(sc);
-		(void)mii_phy_probe(dev, &sc->miibus, ed_ifmedia_upd,
-		    ed_ifmedia_sts);
+		(void)mii_attach(dev, &sc->miibus, sc->ifp, ed_ifmedia_upd,
+		    ed_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY,
+		    MII_OFFSET_ANY, 0);
 	} else if (sc->chip_type == ED_CHIP_TYPE_AX88190) {
 		ed_pccard_ax88x90_mii_reset(sc);
-		if ((error = mii_phy_probe(dev, &sc->miibus, ed_ifmedia_upd,
-		     ed_ifmedia_sts)) != 0) {
-			device_printf(dev, "Missing mii!\n");
+		error = mii_attach(dev, &sc->miibus, sc->ifp, ed_ifmedia_upd,
+		    ed_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY,
+		    MII_OFFSET_ANY, 0);
+		if (error != 0) {
+			device_printf(dev, "attaching PHYs failed\n");
 			goto bad;
 		}
-		    
 	} else if (sc->chip_type == ED_CHIP_TYPE_TC5299J) {
 		ed_pccard_tc5299j_mii_reset(sc);
-		if ((error = mii_phy_probe(dev, &sc->miibus, ed_ifmedia_upd,
-		     ed_ifmedia_sts)) != 0) {
-			device_printf(dev, "Missing mii!\n");
+		error = mii_attach(dev, &sc->miibus, sc->ifp, ed_ifmedia_upd,
+		    ed_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY,
+		    MII_OFFSET_ANY, 0);
+		if (error != 0) {
+			device_printf(dev, "attaching PHYs failed\n");
 			goto bad;
 		}
 		    

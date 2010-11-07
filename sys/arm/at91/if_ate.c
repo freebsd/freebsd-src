@@ -215,9 +215,10 @@ ate_attach(device_t dev)
 	ate_set_mac(sc, eaddr);
 
 	sc->ifp = ifp = if_alloc(IFT_ETHER);
-	if (mii_phy_probe(dev, &sc->miibus, ate_ifmedia_upd, ate_ifmedia_sts)) {
-		device_printf(dev, "Cannot find my PHY.\n");
-		err = ENXIO;
+	err = mii_attach(dev, &sc->miibus, ifp, ate_ifmedia_upd,
+	    ate_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	if (err != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto out;
 	}
 

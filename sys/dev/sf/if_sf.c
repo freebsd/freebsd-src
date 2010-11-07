@@ -866,10 +866,10 @@ sf_attach(device_t dev)
 	}
 
 	/* Do MII setup. */
-	if (mii_phy_probe(dev, &sc->sf_miibus, sf_ifmedia_upd,
-	    sf_ifmedia_sts)) {
-		device_printf(dev, "MII without any phy!\n");
-		error = ENXIO;
+	error = mii_attach(dev, &sc->sf_miibus, ifp, sf_ifmedia_upd,
+	    sf_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
