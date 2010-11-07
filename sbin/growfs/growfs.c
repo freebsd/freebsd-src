@@ -452,7 +452,7 @@ initcg(int cylno, time_t utime, int fso, unsigned int Nflag)
 		bzero(iobuf, sblock.fs_bsize);
 		for (i = 0; i < sblock.fs_ipg / INOPF(&sblock);
 		     i += sblock.fs_frag) {
-			dp1 = (struct ufs1_dinode *)iobuf;
+			dp1 = (struct ufs1_dinode *)(void *)iobuf;
 #ifdef FSIRAND
 			for (j = 0; j < INOPB(&sblock); j++) {
 				dp1->di_gen = random();
