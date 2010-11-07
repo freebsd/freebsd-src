@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 
 #include "makefs.h"
+#include "ffs.h"
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
@@ -60,6 +61,10 @@ __FBSDID("$FreeBSD$");
 #include "ffs/ufs_inode.h"
 #include "ffs/ffs_extern.h"
 #include "ffs/newfs_extern.h"
+
+#ifndef BBSIZE
+#define	BBSIZE	8192			/* size of boot area, with label */
+#endif
 
 static void initcg(int, time_t, const fsinfo_t *);
 static int ilog2(int);
@@ -102,6 +107,7 @@ static int     opt;		   /* optimization preference (space or time) */
 static int     density;	   /* number of bytes per inode */
 static int     maxcontig;	   /* max contiguous blocks to allocate */
 static int     maxbpg;	   /* maximum blocks per file in a cyl group */
+static int     bbsize;	   /* boot block size */
 static int     sbsize;	   /* superblock size */
 static int     avgfilesize;	   /* expected average file size */
 static int     avgfpdir;	   /* expected number of files per directory */
@@ -115,21 +121,23 @@ ffs_mkfs(const char *fsys, const fsinfo_t *fsopts)
 	void *space;
 	int size, blks;
 	int nprintcols, printcolwidth;
+	ffs_opt_t	*ffs_opts = fsopts->fs_specific;
 
-	Oflag =		fsopts->version;
+	Oflag =		ffs_opts->version;
 	fssize =        fsopts->size / fsopts->sectorsize;
 	sectorsize =    fsopts->sectorsize;
-	fsize =         fsopts->fsize;
-	bsize =         fsopts->bsize;
-	maxbsize =      fsopts->maxbsize;
-	maxblkspercg =  fsopts->maxblkspercg;
-	minfree =       fsopts->minfree;
-	opt =           fsopts->optimization;
-	density =       fsopts->density;
-	maxcontig =     fsopts->maxcontig;
-	maxbpg =        fsopts->maxbpg;
-	avgfilesize =   fsopts->avgfilesize;
-	avgfpdir =      fsopts->avgfpdir;
+	fsize =         ffs_opts->fsize;
+	bsize =         ffs_opts->bsize;
+	maxbsize =      ffs_opts->maxbsize;
+	maxblkspercg =  ffs_opts->maxblkspercg;
+	minfree =       ffs_opts->minfree;
+	opt =           ffs_opts->optimization;
+	density =       ffs_opts->density;
+	maxcontig =     ffs_opts->maxcontig;
+	maxbpg =        ffs_opts->maxbpg;
+	avgfilesize =   ffs_opts->avgfilesize;
+	avgfpdir =      ffs_opts->avgfpdir;
+	bbsize =        BBSIZE;
 	sbsize =        SBLOCKSIZE;
 	
 	if (Oflag == 0) {
