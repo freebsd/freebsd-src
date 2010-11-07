@@ -59,9 +59,6 @@ __FBSDID("$FreeBSD$");
 #include "miidevs.h"
 
 #include <dev/mii/e1000phyreg.h>
-/* XXX */
-#include <machine/bus.h>
-#include <dev/msk/if_mskreg.h>
 
 #include "miibus_if.h"
 
@@ -71,7 +68,6 @@ static int	e1000phy_attach(device_t);
 struct e1000phy_softc {
 	struct mii_softc mii_sc;
 	int mii_model;
-	struct msk_mii_data *mmd;
 };
 
 static device_method_t e1000phy_methods[] = {
@@ -144,6 +140,7 @@ e1000phy_attach(device_t dev)
 	mii = ma->mii_data;
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
+	sc->mii_flags = miibus_get_flags(dev);
 	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = e1000phy_service;
@@ -151,14 +148,9 @@ e1000phy_attach(device_t dev)
 
 	esc->mii_model = MII_MODEL(ma->mii_id2);
 	ifp = sc->mii_pdata->mii_ifp;
-	if (strcmp(ifp->if_dname, "msk") == 0) {
-		/* XXX */
-		esc->mmd = device_get_ivars(
-		    device_get_parent(device_get_parent(dev)));
-		if (esc->mmd != NULL &&
-		    (esc->mmd->mii_flags & MIIF_HAVEFIBER) != 0)
-			sc->mii_flags |= MIIF_HAVEFIBER;
-	}
+	if (strcmp(ifp->if_dname, "msk") == 0 &&
+	    (sc->mii_flags & MIIF_MACPRIV0) != 0)
+		sc->mii_flags |= MIIF_PHYPRIV0;
 
 	switch (esc->mii_model) {
 	case MII_MODEL_MARVELL_E1011:
@@ -214,7 +206,7 @@ e1000phy_reset(struct mii_softc *sc)
 			reg &= ~E1000_SCR_MODE_MASK;
 			reg |= E1000_SCR_MODE_1000BX;
 			PHY_WRITE(sc, E1000_SCR, reg);
-			if (esc->mmd != NULL && esc->mmd->pmd == 'P') {
+			if ((sc->mii_flags & MIIF_PHYPRIV0) != 0) {
 				/* Set SIGDET polarity low for SFP module. */
 				PHY_WRITE(sc, E1000_EADR, 1);
 				reg = PHY_READ(sc, E1000_SCR);

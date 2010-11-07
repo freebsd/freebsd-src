@@ -519,10 +519,6 @@ rl_miibus_readreg(device_t dev, int phy, int reg)
 	sc = device_get_softc(dev);
 
 	if (sc->rl_type == RL_8139) {
-		/* Pretend the internal PHY is only at address 0 */
-		if (phy) {
-			return (0);
-		}
 		switch (reg) {
 		case MII_BMCR:
 			rl8139_reg = RL_BMCR;
@@ -577,10 +573,6 @@ rl_miibus_writereg(device_t dev, int phy, int reg, int data)
 	sc = device_get_softc(dev);
 
 	if (sc->rl_type == RL_8139) {
-		/* Pretend the internal PHY is only at address 0 */
-		if (phy) {
-			return (0);
-		}
 		switch (reg) {
 		case MII_BMCR:
 			rl8139_reg = RL_BMCR;
@@ -784,7 +776,7 @@ rl_attach(device_t dev)
 	struct rl_type		*t;
 	struct sysctl_ctx_list	*ctx;
 	struct sysctl_oid_list	*children;
-	int			error = 0, hwrev, i, pmc, rid;
+	int			error = 0, hwrev, i, phy, pmc, rid;
 	int			prefer_iomap, unit;
 	uint16_t		rl_did = 0;
 	char			tn[32];
@@ -924,11 +916,16 @@ rl_attach(device_t dev)
 		goto fail;
 	}
 
+#define	RL_PHYAD_INTERNAL	0
+
 	/* Do MII setup */
-	if (mii_phy_probe(dev, &sc->rl_miibus,
-	    rl_ifmedia_upd, rl_ifmedia_sts)) {
-		device_printf(dev, "MII without any phy!\n");
-		error = ENXIO;
+	phy = MII_PHY_ANY;
+	if (sc->rl_type == RL_8139)
+		phy = RL_PHYAD_INTERNAL;
+	error = mii_attach(dev, &sc->rl_miibus, ifp, rl_ifmedia_upd,
+	    rl_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 

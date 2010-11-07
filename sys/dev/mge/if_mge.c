@@ -608,7 +608,7 @@ mge_attach(device_t dev)
 	struct mge_softc *sc;
 	struct ifnet *ifp;
 	uint8_t hwaddr[ETHER_ADDR_LEN];
-	int i, error ;
+	int i, error, phy;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -618,6 +618,13 @@ mge_attach(device_t dev)
 
 	/* Set chip version-dependent parameters */
 	mge_ver_params(sc);
+
+	/*
+	 * We assume static PHY address <=> device unit mapping:
+	 * PHY Address = MII_ADDR_BASE + devce unit.
+	 * This is true for most Marvell boards.
+	 */
+	phy = MII_ADDR_BASE + device_get_unit(dev);
 
 	/* Initialize mutexes */
 	mtx_init(&sc->transmit_lock, device_get_nameunit(dev), "mge TX lock", MTX_DEF);
@@ -680,10 +687,11 @@ mge_attach(device_t dev)
 	ether_ifattach(ifp, hwaddr);
 	callout_init(&sc->wd_callout, 0);
 
-	/* Probe PHY(s) */
-	error = mii_phy_probe(dev, &sc->miibus, mge_ifmedia_upd, mge_ifmedia_sts);
+	/* Attach PHY(s) */
+	error = mii_attach(dev, &sc->miibus, ifp, mge_ifmedia_upd,
+	    mge_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
 	if (error) {
-		device_printf(dev, "MII failed to find PHY\n");
+		device_printf(dev, "attaching PHYs failed\n");
 		if_free(ifp);
 		sc->ifp = NULL;
 		mge_detach(dev);
@@ -1259,19 +1267,6 @@ mge_miibus_readreg(device_t dev, int phy, int reg)
 {
 	uint32_t retries;
 
-	/*
-	 * We assume static PHY address <=> device unit mapping:
-	 * PHY Address = MII_ADDR_BASE + devce unit.
-	 * This is true for most Marvell boards.
-	 * 
-	 * Code below grants proper PHY detection on each device
-	 * unit.
-	 */
-
-	
-	if ((MII_ADDR_BASE + device_get_unit(dev)) != phy)
-		return (0);
-
 	MGE_WRITE(sc_mge0, MGE_REG_SMI, 0x1fffffff &
 	    (MGE_SMI_READ | (reg << 21) | (phy << 16)));
 
@@ -1289,9 +1284,6 @@ static int
 mge_miibus_writereg(device_t dev, int phy, int reg, int value)
 {
 	uint32_t retries;
-
-	if ((MII_ADDR_BASE + device_get_unit(dev)) != phy)
-		return (0);
 
 	MGE_WRITE(sc_mge0, MGE_REG_SMI, 0x1fffffff &
 	    (MGE_SMI_WRITE | (reg << 21) | (phy << 16) | (value & 0xffff)));
