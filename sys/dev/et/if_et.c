@@ -63,8 +63,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
+#include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
-#include <dev/mii/truephyreg.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -343,10 +343,10 @@ et_attach(device_t dev)
 
 	et_chip_attach(sc);
 
-	error = mii_phy_probe(dev, &sc->sc_miibus,
-			      et_ifmedia_upd, et_ifmedia_sts);
+	error = mii_attach(dev, &sc->sc_miibus, ifp, et_ifmedia_upd,
+	    et_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
 	if (error) {
-		device_printf(dev, "can't probe any PHY\n");
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 

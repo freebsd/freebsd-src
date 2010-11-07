@@ -1280,9 +1280,11 @@ tl_attach(dev)
 	 * Do MII setup. If no PHYs are found, then this is a
 	 * bitrate ThunderLAN chip that only supports 10baseT
 	 * and AUI/BNC.
+	 * XXX mii_attach() can fail for reason different than
+	 * no PHYs found!
 	 */
-	if (mii_phy_probe(dev, &sc->tl_miibus,
-	    tl_ifmedia_upd, tl_ifmedia_sts)) {
+	if (mii_attach(dev, &sc->tl_miibus, ifp, tl_ifmedia_upd,
+	    tl_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0)) {
 		struct ifmedia		*ifm;
 		sc->tl_bitrate = 1;
 		ifmedia_init(&sc->ifmedia, 0, tl_ifmedia_upd, tl_ifmedia_sts);

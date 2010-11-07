@@ -1134,12 +1134,13 @@ bce_attach(device_t dev)
 	/* Handle any special PHY initialization for SerDes PHYs. */
 	bce_init_media(sc);
 
-	/* MII child bus by probing the PHY. */
-	if (mii_phy_probe(dev, &sc->bce_miibus, bce_ifmedia_upd,
-		bce_ifmedia_sts)) {
-		BCE_PRINTF("%s(%d): No PHY found on child MII bus!\n",
-		    __FILE__, __LINE__);
-		rc = ENXIO;
+	/* MII child bus by attaching the PHY. */
+	rc = mii_attach(dev, &sc->bce_miibus, ifp, bce_ifmedia_upd,
+	    bce_ifmedia_sts, BMSR_DEFCAPMASK, sc->bce_phy_addr,
+	    MII_OFFSET_ANY, 0);
+	if (rc != 0) {
+		BCE_PRINTF("%s(%d): attaching PHYs failed\n", __FILE__,
+		    __LINE__);
 		goto bce_attach_fail;
 	}
 
