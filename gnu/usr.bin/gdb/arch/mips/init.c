@@ -131,6 +131,7 @@ initialize_all_files (void)
   _initialize_infptrace ();
   _initialize_inftarg ();
   _initialize_solib ();
+  _initialize_thread_db ();
   _initialize_svr4_solib ();
 #if 0
   _initialize_svr4_lm ();
