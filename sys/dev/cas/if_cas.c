@@ -344,13 +344,9 @@ cas_attach(struct cas_softc *sc)
 				    BUS_SPACE_BARRIER_READ |
 				    BUS_SPACE_BARRIER_WRITE);
 			}
-			switch (sc->sc_variant) {
-			default:
-				sc->sc_phyad = -1;
-				break;
-			}
-			error = mii_phy_probe(sc->sc_dev, &sc->sc_miibus,
-			    cas_mediachange, cas_mediastatus);
+			error = mii_attach(sc->sc_dev, &sc->sc_miibus, ifp,
+			    cas_mediachange, cas_mediastatus, BMSR_DEFCAPMASK,
+			    MII_PHY_ANY, MII_OFFSET_ANY, 0);
 		}
 		/*
 		 * Fall back on an internal PHY if no external PHY was found.
@@ -368,13 +364,9 @@ cas_attach(struct cas_softc *sc)
 				    BUS_SPACE_BARRIER_READ |
 				    BUS_SPACE_BARRIER_WRITE);
 			}
-			switch (sc->sc_variant) {
-			default:
-				sc->sc_phyad = -1;
-				break;
-			}
-			error = mii_phy_probe(sc->sc_dev, &sc->sc_miibus,
-			    cas_mediachange, cas_mediastatus);
+			error = mii_attach(sc->sc_dev, &sc->sc_miibus, ifp,
+			    cas_mediachange, cas_mediastatus, BMSR_DEFCAPMASK,
+			    MII_PHY_ANY, MII_OFFSET_ANY, 0);
 		}
 	} else {
 		/*
@@ -394,12 +386,12 @@ cas_attach(struct cas_softc *sc)
 		CAS_WRITE_4(sc, CAS_PCS_CONF, CAS_PCS_CONF_EN);
 		CAS_BARRIER(sc, CAS_PCS_CONF, 4,
 		    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
-		sc->sc_phyad = CAS_PHYAD_EXTERNAL;
-		error = mii_phy_probe(sc->sc_dev, &sc->sc_miibus,
-		    cas_mediachange, cas_mediastatus);
+		error = mii_attach(sc->sc_dev, &sc->sc_miibus, ifp,
+		    cas_mediachange, cas_mediastatus, BMSR_DEFCAPMASK,
+		    CAS_PHYAD_EXTERNAL, MII_OFFSET_ANY, 0);
 	}
 	if (error != 0) {
-		device_printf(sc->sc_dev, "PHY probe failed: %d\n", error);
+		device_printf(sc->sc_dev, "attaching PHYs failed\n");
 		goto fail_rxmap;
 	}
 	sc->sc_mii = device_get_softc(sc->sc_miibus);
@@ -2172,9 +2164,6 @@ cas_mii_readreg(device_t dev, int phy, int reg)
 #endif
 
 	sc = device_get_softc(dev);
-	if (sc->sc_phyad != -1 && phy != sc->sc_phyad)
-		return (0);
-
 	if ((sc->sc_flags & CAS_SERDES) != 0) {
 		switch (reg) {
 		case MII_BMCR:
@@ -2233,9 +2222,6 @@ cas_mii_writereg(device_t dev, int phy, int reg, int val)
 #endif
 
 	sc = device_get_softc(dev);
-	if (sc->sc_phyad != -1 && phy != sc->sc_phyad)
-		return (0);
-
 	if ((sc->sc_flags & CAS_SERDES) != 0) {
 		switch (reg) {
 		case MII_BMSR:
@@ -2318,8 +2304,7 @@ cas_mii_statchg(device_t dev)
 
 #ifdef CAS_DEBUG
 	if ((ifp->if_flags & IFF_DEBUG) != 0)
-		device_printf(sc->sc_dev, "%s: status change: PHY = %d\n",
-		    __func__, sc->sc_phyad);
+		device_printf(sc->sc_dev, "%s: status changen", __func__);
 #endif
 
 	if ((sc->sc_mii->mii_media_status & IFM_ACTIVE) != 0 &&

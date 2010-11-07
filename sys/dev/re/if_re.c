@@ -410,9 +410,6 @@ re_gmii_readreg(device_t dev, int phy, int reg)
 	u_int32_t		rval;
 	int			i;
 
-	if (phy != 1)
-		return (0);
-
 	sc = device_get_softc(dev);
 
 	/* Let the rgephy driver read the GMEDIASTAT register */
@@ -482,10 +479,6 @@ re_miibus_readreg(device_t dev, int phy, int reg)
 		return (rval);
 	}
 
-	/* Pretend the internal PHY is only at address 0 */
-	if (phy) {
-		return (0);
-	}
 	switch (reg) {
 	case MII_BMCR:
 		re8139_reg = RL_BMCR;
@@ -539,10 +532,6 @@ re_miibus_writereg(device_t dev, int phy, int reg, int data)
 		rval = re_gmii_writereg(dev, phy, reg, data);
 		return (rval);
 	}
-
-	/* Pretend the internal PHY is only at address 0 */
-	if (phy)
-		return (0);
 
 	switch (reg) {
 	case MII_BMCR:
@@ -1109,7 +1098,7 @@ re_attach(device_t dev)
 	struct rl_hwrev		*hw_rev;
 	int			hwrev;
 	u_int16_t		devid, re_did = 0;
-	int			error = 0, rid, i;
+	int			error = 0, i, phy, rid;
 	int			msic, reg;
 	uint8_t			cfg;
 
@@ -1408,11 +1397,16 @@ re_attach(device_t dev)
 		re_gmii_writereg(dev, 1, 0x0e, 0);
 	}
 
-	/* Do MII setup */
-	if (mii_phy_probe(dev, &sc->rl_miibus,
-	    re_ifmedia_upd, re_ifmedia_sts)) {
-		device_printf(dev, "MII without any phy!\n");
-		error = ENXIO;
+#define	RE_PHYAD_INTERNAL	 0
+
+	/* Do MII setup. */
+	phy = RE_PHYAD_INTERNAL;
+	if (sc->rl_type == RL_8169)
+		phy = 1;
+	error = mii_attach(dev, &sc->rl_miibus, ifp, re_ifmedia_upd,
+	    re_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 

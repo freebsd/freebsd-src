@@ -594,11 +594,19 @@ bm_attach(device_t dev)
 	/* reset the adapter  */
 	bm_chip_setup(sc);
 
-	/* setup MII */
-	error = mii_phy_probe(dev, &sc->sc_miibus, bm_ifmedia_upd,
-	    bm_ifmedia_sts);
-	if (error != 0)
-		device_printf(dev,"PHY probe failed: %d\n", error);
+	/*
+	 * Setup MII
+	 * On Apple BMAC controllers, we end up in a weird state of
+	 * partially-completed autonegotiation on boot.  So we force
+	 * autonegotation to try again.
+	 */
+	error = mii_attach(dev, &sc->sc_miibus, ifp, bm_ifmedia_upd,
+	    bm_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY,
+	    MIIF_FORCEANEG);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
+		return (error);
+	}
 
 	sc->sc_mii = device_get_softc(sc->sc_miibus);
 

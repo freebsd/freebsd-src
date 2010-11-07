@@ -782,10 +782,6 @@ bge_miibus_readreg(device_t dev, int phy, int reg)
 
 	sc = device_get_softc(dev);
 
-	/* Prevent the probe from finding incorrect devices. */
-	if (phy != sc->bge_phy_addr)
-		return (0);
-
 	/* Clear the autopoll bit if set, otherwise may trigger PCI errors. */
 	if ((sc->bge_mi_mode & BGE_MIMODE_AUTOPOLL) != 0) {
 		CSR_WRITE_4(sc, BGE_MI_MODE,
@@ -2572,7 +2568,7 @@ bge_attach(device_t dev)
 	struct bge_softc *sc;
 	uint32_t hwcfg = 0, misccfg;
 	u_char eaddr[ETHER_ADDR_LEN];
-	int error, msicount, reg, rid, trys;
+	int error, msicount, phy_addr, reg, rid, trys;
 
 	sc = device_get_softc(dev);
 	sc->bge_dev = dev;
@@ -2605,7 +2601,7 @@ bge_attach(device_t dev)
 	sc->bge_chiprev = BGE_CHIPREV(sc->bge_chipid);
 
 	/* Set default PHY address. */
-	sc->bge_phy_addr = 1;
+	phy_addr = 1;
 
 	/*
 	 * Don't enable Ethernet@WireSpeed for the 5700, 5906, or the
@@ -2972,17 +2968,17 @@ bge_attach(device_t dev)
 again:
 		bge_asf_driver_up(sc);
 
-		if (mii_phy_probe(dev, &sc->bge_miibus,
-		    bge_ifmedia_upd, bge_ifmedia_sts)) {
+		error = (mii_attach(dev, &sc->bge_miibus, ifp,
+		    bge_ifmedia_upd, bge_ifmedia_sts, BMSR_DEFCAPMASK,
+		    phy_addr, MII_OFFSET_ANY, 0));
+		if (error != 0) {
 			if (trys++ < 4) {
 				device_printf(sc->bge_dev, "Try again\n");
 				bge_miibus_writereg(sc->bge_dev, 1, MII_BMCR,
 				    BMCR_RESET);
 				goto again;
 			}
-
-			device_printf(sc->bge_dev, "MII without any PHY!\n");
-			error = ENXIO;
+			device_printf(sc->bge_dev, "attaching PHYs failed\n");
 			goto fail;
 		}
 
