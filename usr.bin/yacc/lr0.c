@@ -91,7 +91,7 @@ static short *kernel_items;
 
 
 static void
-allocate_itemsets()
+allocate_itemsets(void)
 {
     short *itemp;
     short *item_end;
@@ -134,7 +134,7 @@ allocate_itemsets()
 
 
 static void
-allocate_storage()
+allocate_storage(void)
 {
     allocate_itemsets();
     shiftset = NEW2(nsyms, short);
@@ -144,7 +144,7 @@ allocate_storage()
 
 
 static void
-append_states()
+append_states(void)
 {
     int i;
     int j;
@@ -174,7 +174,7 @@ append_states()
 
 
 static void
-free_storage()
+free_storage(void)
 {
     FREE(shift_symbol);
     FREE(redset);
@@ -188,7 +188,7 @@ free_storage()
 
 
 static void
-generate_states()
+generate_states(void)
 {
     allocate_storage();
     itemset = NEW2(nitems, short);
@@ -216,8 +216,7 @@ generate_states()
 
 
 static int
-get_state(symbol)
-int symbol;
+get_state(int symbol)
 {
     int key;
     short *isp1;
@@ -281,7 +280,7 @@ int symbol;
 
 
 static void
-initialize_states()
+initialize_states(void)
 {
     int i;
     short *start_derives;
@@ -309,7 +308,7 @@ initialize_states()
 
 
 static void
-new_itemsets()
+new_itemsets(void)
 {
     int i;
     int shiftcount;
@@ -346,8 +345,7 @@ new_itemsets()
 
 
 static core *
-new_state(symbol)
-int symbol;
+new_state(int symbol)
 {
     int n;
     core *p;
@@ -387,7 +385,7 @@ int symbol;
 #if 0
 /* show_cores is used for debugging */
 
-show_cores()
+show_cores(void)
 {
     core *p;
     int i, j, k, n;
@@ -422,7 +420,7 @@ show_cores()
 
 /* show_ritems is used for debugging */
 
-show_ritems()
+show_ritems(void)
 {
     int i;
 
@@ -432,7 +430,7 @@ show_ritems()
 
 
 /* show_rrhs is used for debugging */
-show_rrhs()
+show_rrhs(void)
 {
     int i;
 
@@ -443,7 +441,7 @@ show_rrhs()
 
 /* show_shifts is used for debugging */
 
-show_shifts()
+show_shifts(void)
 {
     shifts *p;
     int i, j, k;
@@ -463,7 +461,7 @@ show_shifts()
 
 
 static void
-save_shifts()
+save_shifts(void)
 {
     shifts *p;
     short *sp1;
@@ -498,7 +496,7 @@ save_shifts()
 
 
 static void
-save_reductions()
+save_reductions(void)
 {
     short *isp;
     short *rp1;
@@ -548,7 +546,7 @@ save_reductions()
 
 
 static void
-set_derives()
+set_derives(void)
 {
     int i, k;
     int lhs;
@@ -588,7 +586,7 @@ free_derives()
 
 #ifdef	DEBUG
 static void
-print_derives()
+print_derives(void)
 {
     int i;
     short *sp;
@@ -611,7 +609,7 @@ print_derives()
 
 
 static void
-set_nullable()
+set_nullable(void)
 {
     int i, j;
     int empty;
@@ -661,7 +659,7 @@ set_nullable()
 
 
 #if 0
-free_nullable()
+free_nullable(void)
 {
     FREE(nullable);
 }
@@ -669,7 +667,7 @@ free_nullable()
 
 
 void
-lr0()
+lr0(void)
 {
     set_derives();
     set_nullable();
