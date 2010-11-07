@@ -6,7 +6,6 @@ FILES=	100.chksetuid \
 	200.chkmounts \
 	300.chkuid0 \
 	400.passwdless \
-	460.chkportsum \
 	410.logincheck \
 	700.kernelmsg \
 	800.loginfail \
