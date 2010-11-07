@@ -583,7 +583,7 @@ amd64_mrset(struct mem_range_softc *sc, struct mem_range_desc *mrd, int *arg)
 	i = (sc->mr_cap & MR686_FIXMTRR) ? MTRR_N64K + MTRR_N16K + MTRR_N4K : 0;
 	mrd = sc->mr_desc + i;
 	for (; i < sc->mr_ndesc; i++, mrd++) {
-		if (mrd->mr_flags & MDF_ACTIVE)
+		if ((mrd->mr_flags & (MDF_ACTIVE | MDF_BOGUS)) == MDF_ACTIVE)
 			pmap_demote_DMAP(mrd->mr_base, mrd->mr_len, FALSE);
 	}
 
@@ -688,7 +688,7 @@ amd64_mrinit(struct mem_range_softc *sc)
 	i = (sc->mr_cap & MR686_FIXMTRR) ? MTRR_N64K + MTRR_N16K + MTRR_N4K : 0;
 	mrd = sc->mr_desc + i;
 	for (; i < sc->mr_ndesc; i++, mrd++) {
-		if (mrd->mr_flags & MDF_ACTIVE)
+		if ((mrd->mr_flags & (MDF_ACTIVE | MDF_BOGUS)) == MDF_ACTIVE)
 			pmap_demote_DMAP(mrd->mr_base, mrd->mr_len, TRUE);
 	}
 }
