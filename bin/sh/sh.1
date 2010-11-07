@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd October 16, 2010
+.Dd October 31, 2010
 .Dt SH 1
 .Os
 .Sh NAME
@@ -40,9 +40,24 @@
 .Nd command interpreter (shell)
 .Sh SYNOPSIS
 .Nm
-.Op Fl /+abCEefIimnPpsTuVvx
+.Op Fl /+abCEefIimnPpTuVvx
 .Op Fl /+o Ar longname
-.Op Fl c Ar string
+.Oo
+.Ar script
+.Op Ar arg ...
+.Oc
+.Nm
+.Op Fl /+abCEefIimnPpTuVvx
+.Op Fl /+o Ar longname
+.Fl c Ar string
+.Oo
+.Ar name
+.Op Ar arg ...
+.Oc
+.Nm
+.Op Fl /+abCEefIimnPpTuVvx
+.Op Fl /+o Ar longname
+.Fl s
 .Op Ar arg ...
 .Sh DESCRIPTION
 The
@@ -1105,7 +1120,12 @@ For a
 pipeline, the process ID is that of the last command in the
 pipeline.
 .It Li $0
-(zero) Expands to the name of the shell or shell script.
+(zero) Expands to the name of the shell script if passed on the command line,
+the
+.Ar name
+operand if given (with
+.Fl c )
+or otherwise argument 0 passed to the shell.
 .El
 .Ss Word Expansions
 This clause describes the various expansions that are
