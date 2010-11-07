@@ -805,10 +805,14 @@ fxp_attach(device_t dev)
 		ifmedia_add(&sc->sc_media, IFM_ETHER|IFM_MANUAL, 0, NULL);
 		ifmedia_set(&sc->sc_media, IFM_ETHER|IFM_MANUAL);
 	} else {
-		if (mii_phy_probe(dev, &sc->miibus, fxp_ifmedia_upd,
-		    fxp_ifmedia_sts)) {
-	                device_printf(dev, "MII without any PHY!\n");
-			error = ENXIO;
+		/*
+		 * i82557 wedge when isolating all of their PHYs.
+		 */
+		error = mii_attach(dev, &sc->miibus, ifp, fxp_ifmedia_upd,
+		    fxp_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY,
+		    MII_OFFSET_ANY, MIIF_NOISOLATE);
+		if (error != 0) {
+	                device_printf(dev, "attaching PHYs failed\n");
 			goto fail;
 		}
 	}

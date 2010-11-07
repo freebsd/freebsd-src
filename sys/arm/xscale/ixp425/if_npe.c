@@ -318,11 +318,13 @@ npe_attach(device_t dev)
 
 	npe_getmac(sc, eaddr);
 
-	/* NB: must be setup prior to invoking mii code */
 	sc->sc_ifp = ifp = if_alloc(IFT_ETHER);
-	if (mii_phy_probe(dev, &sc->sc_mii, npe_ifmedia_update, npe_ifmedia_status)) {
-		device_printf(dev, "Cannot find my PHY.\n");
-		error = ENXIO;
+	error = mii_attach(dev, &sc->sc_mii, ifp, npe_ifmedia_update,
+	    npe_ifmedia_status, BMSR_DEFCAPMASK, sc->sc_phy, MII_OFFSET_ANY,
+	    0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
+		return error;
 		goto out;
 	}
 
@@ -1596,8 +1598,6 @@ npe_miibus_readreg(device_t dev, int phy, int reg)
 	struct npe_softc *sc = device_get_softc(dev);
 	uint32_t v;
 
-	if (phy != sc->sc_phy)		/* XXX no auto-detect */
-		return 0xffff;
 	v = (phy << NPE_MII_ADDR_SHL) | (reg << NPE_MII_REG_SHL)
 	  | NPE_MII_GO;
 	npe_mii_mdio_write(sc, NPE_MAC_MDIO_CMD, v);
@@ -1615,8 +1615,6 @@ npe_miibus_writereg(device_t dev, int phy, int reg, int data)
 	struct npe_softc *sc = device_get_softc(dev);
 	uint32_t v;
 
-	if (phy != sc->sc_phy)		/* XXX */
-		return;
 	v = (phy << NPE_MII_ADDR_SHL) | (reg << NPE_MII_REG_SHL)
 	  | data | NPE_MII_WRITE
 	  | NPE_MII_GO;

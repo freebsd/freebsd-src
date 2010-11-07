@@ -57,9 +57,7 @@ __FBSDID("$FreeBSD$");
 #include "miibus_if.h"
 
 #include <machine/bus.h>
-/*
-#include <dev/vge/if_vgereg.h>
-*/
+
 static int ciphy_probe(device_t);
 static int ciphy_attach(device_t);
 
@@ -118,6 +116,7 @@ ciphy_attach(device_t dev)
 	mii = ma->mii_data;
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
+	sc->mii_flags = miibus_get_flags(dev);
 	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = ciphy_service;

@@ -130,7 +130,6 @@ nsphyter_attach(device_t dev)
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
 	struct mii_data *mii;
-	const char *nic;
 
 	sc = device_get_softc(dev);
 	ma = device_get_ivars(dev);
@@ -138,26 +137,24 @@ nsphyter_attach(device_t dev)
 	mii = ma->mii_data;
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
 
+	sc->mii_flags = miibus_get_flags(dev);
 	sc->mii_inst = mii->mii_instance++;
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = nsphyter_service;
 	sc->mii_pdata = mii;
 
+#if 1
+
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 
-	nic = device_get_name(device_get_parent(sc->mii_dev));
 	/*
-	 * In order for MII loopback to work Am79C971 and greater PCnet
-	 * chips additionally need to be placed into external loopback
-	 * mode which pcn(4) doesn't do so far.
+	 * XXX IFM_LOOP should be handled by mii_phy_add_media() based
+	 * on MIIF_NOLOOP.
 	 */
-	if (strcmp(nic, "pcn") != 0)
-#if 1
+	if ((sc->mii_flags & MIIF_NOLOOP) == 0)
 		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP,
 		    sc->mii_inst), MII_MEDIA_100_TX);
-#else
-	if (strcmp(nic, "pcn") == 0)
-		sc->mii_flags |= MIIF_NOLOOP;
+
 #endif
 
 	nsphyter_reset(sc);
@@ -166,8 +163,6 @@ nsphyter_attach(device_t dev)
 	device_printf(dev, " ");
 	mii_phy_add_media(sc);
 	printf("\n");
-
-#undef ADD
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
 	return (0);

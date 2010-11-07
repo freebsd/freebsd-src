@@ -545,9 +545,6 @@ sk_xmac_miibus_readreg(sc_if, phy, reg)
 {
 	int			i;
 
-	if (sc_if->sk_phytype == SK_PHYTYPE_XMAC && phy != 0)
-		return(0);
-
 	SK_XM_WRITE_2(sc_if, XM_PHY_ADDR, reg|(phy << 8));
 	SK_XM_READ_2(sc_if, XM_PHY_DATA);
 	if (sc_if->sk_phytype != SK_PHYTYPE_XMAC) {
@@ -628,9 +625,8 @@ sk_marv_miibus_readreg(sc_if, phy, reg)
 	u_int16_t		val;
 	int			i;
 
-	if (phy != 0 ||
-	    (sc_if->sk_phytype != SK_PHYTYPE_MARV_COPPER &&
-	     sc_if->sk_phytype != SK_PHYTYPE_MARV_FIBER)) {
+	if (sc_if->sk_phytype != SK_PHYTYPE_MARV_COPPER &&
+	    sc_if->sk_phytype != SK_PHYTYPE_MARV_FIBER) {
 		return(0);
 	}
 
@@ -1323,7 +1319,7 @@ sk_attach(dev)
 	struct sk_softc		*sc;
 	struct sk_if_softc	*sc_if;
 	struct ifnet		*ifp;
-	int			i, port, error;
+	int			error, i, phy, port;
 	u_char			eaddr[6];
 
 	if (dev == NULL)
@@ -1498,23 +1494,27 @@ sk_attach(dev)
 	/*
 	 * Do miibus setup.
 	 */
+	phy = MII_PHY_ANY;
 	switch (sc->sk_type) {
 	case SK_GENESIS:
 		sk_init_xmac(sc_if);
+		if (sc_if->sk_phytype == SK_PHYTYPE_XMAC)
+			phy = 0;
 		break;
 	case SK_YUKON:
 	case SK_YUKON_LITE:
 	case SK_YUKON_LP:
 		sk_init_yukon(sc_if);
+		phy = 0;
 		break;
 	}
 
 	SK_IF_UNLOCK(sc_if);
-	if (mii_phy_probe(dev, &sc_if->sk_miibus,
-	    sk_ifmedia_upd, sk_ifmedia_sts)) {
-		device_printf(sc_if->sk_if_dev, "no PHY found!\n");
+	error = mii_attach(dev, &sc_if->sk_miibus, ifp, sk_ifmedia_upd,
+	    sk_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
+	if (error != 0) {
+		device_printf(sc_if->sk_if_dev, "attaching PHYs failed\n");
 		ether_ifdetach(ifp);
-		error = ENXIO;
 		goto fail;
 	}
 
