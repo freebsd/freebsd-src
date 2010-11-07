@@ -144,12 +144,13 @@ tlphy_attach(device_t dev)
 	mii = device_get_softc(sc->sc_mii.mii_dev);
 	LIST_INSERT_HEAD(&mii->mii_phys, &sc->sc_mii, mii_list);
 
+	sc->sc_mii.mii_flags = miibus_get_flags(dev);
 	sc->sc_mii.mii_inst = mii->mii_instance;
 	sc->sc_mii.mii_phy = ma->mii_phyno;
 	sc->sc_mii.mii_service = tlphy_service;
 	sc->sc_mii.mii_pdata = mii;
 
-	capmask = 0xFFFFFFFF;
+	capmask = BMSR_DEFCAPMASK;
 	if (mii->mii_instance &&
 	    device_get_children(sc->sc_mii.mii_dev, &devlist, &devs) == 0) {
 		for (i = 0; i < devs; i++) {
@@ -174,7 +175,7 @@ tlphy_attach(device_t dev)
 	 * the TLPHY_MEDIA_NO_10_T bit.
 	 */
 	sc->sc_mii.mii_capabilities =
-	    PHY_READ(&sc->sc_mii, MII_BMSR) & capmask /*ma->mii_capmask*/;
+	    PHY_READ(&sc->sc_mii, MII_BMSR) & capmask;
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 

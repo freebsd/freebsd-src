@@ -399,9 +399,6 @@ msk_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct msk_if_softc *sc_if;
 
-	if (phy != PHY_ADDR_MARV)
-		return (0);
-
 	sc_if = device_get_softc(dev);
 
 	return (msk_phy_readreg(sc_if, phy, reg));
@@ -439,9 +436,6 @@ static int
 msk_miibus_writereg(device_t dev, int phy, int reg, int val)
 {
 	struct msk_if_softc *sc_if;
-
-	if (phy != PHY_ADDR_MARV)
-		return (0);
 
 	sc_if = device_get_softc(dev);
 
@@ -1571,10 +1565,11 @@ msk_attach(device_t dev)
 	 * Do miibus setup.
 	 */
 	MSK_IF_UNLOCK(sc_if);
-	error = mii_phy_probe(dev, &sc_if->msk_miibus, msk_mediachange,
-	    msk_mediastatus);
+	error = mii_attach(dev, &sc_if->msk_miibus, ifp, msk_mediachange,
+	    msk_mediastatus, BMSR_DEFCAPMASK, PHY_ADDR_MARV, MII_OFFSET_ANY,
+	    mmd->mii_flags);
 	if (error != 0) {
-		device_printf(sc_if->msk_if_dev, "no PHY found!\n");
+		device_printf(sc_if->msk_if_dev, "attaching PHYs failed\n");
 		ether_ifdetach(ifp);
 		error = ENXIO;
 		goto fail;
@@ -1815,8 +1810,10 @@ mskc_attach(device_t dev)
 	}
 	mmd->port = MSK_PORT_A;
 	mmd->pmd = sc->msk_pmd;
-	 if (sc->msk_pmd == 'L' || sc->msk_pmd == 'S' || sc->msk_pmd == 'P')
+	if (sc->msk_pmd == 'L' || sc->msk_pmd == 'S')
 		mmd->mii_flags |= MIIF_HAVEFIBER;
+	if (sc->msk_pmd == 'P')
+		mmd->mii_flags |= MIIF_HAVEFIBER | MIIF_MACPRIV0;
 	device_set_ivars(sc->msk_devs[MSK_PORT_A], mmd);
 
 	if (sc->msk_num_port > 1) {
@@ -1835,8 +1832,10 @@ mskc_attach(device_t dev)
 		}
 		mmd->port = MSK_PORT_B;
 		mmd->pmd = sc->msk_pmd;
-	 	if (sc->msk_pmd == 'L' || sc->msk_pmd == 'S' || sc->msk_pmd == 'P')
+	 	if (sc->msk_pmd == 'L' || sc->msk_pmd == 'S')
 			mmd->mii_flags |= MIIF_HAVEFIBER;
+	 	if (sc->msk_pmd == 'P')
+			mmd->mii_flags |= MIIF_HAVEFIBER | MIIF_MACPRIV0;
 		device_set_ivars(sc->msk_devs[MSK_PORT_B], mmd);
 	}
 

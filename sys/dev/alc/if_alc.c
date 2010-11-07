@@ -235,9 +235,6 @@ alc_miibus_readreg(device_t dev, int phy, int reg)
 
 	sc = device_get_softc(dev);
 
-	if (phy != sc->alc_phyaddr)
-		return (0);
-
 	/*
 	 * For AR8132 fast ethernet controller, do not report 1000baseT
 	 * capability to mii(4). Even though AR8132 uses the same
@@ -273,9 +270,6 @@ alc_miibus_writereg(device_t dev, int phy, int reg, int val)
 	int i;
 
 	sc = device_get_softc(dev);
-
-	if (phy != sc->alc_phyaddr)
-		return (0);
 
 	CSR_WRITE_4(sc, ALC_MDIO, MDIO_OP_EXECUTE | MDIO_OP_WRITE |
 	    (val & MDIO_DATA_MASK) << MDIO_DATA_SHIFT |
@@ -978,9 +972,11 @@ alc_attach(device_t dev)
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/* Set up MII bus. */
-	if ((error = mii_phy_probe(dev, &sc->alc_miibus, alc_mediachange,
-	    alc_mediastatus)) != 0) {
-		device_printf(dev, "no PHY found!\n");
+	error = mii_attach(dev, &sc->alc_miibus, ifp, alc_mediachange,
+	    alc_mediastatus, BMSR_DEFCAPMASK, sc->alc_phyaddr, MII_OFFSET_ANY,
+	    0);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}
 
