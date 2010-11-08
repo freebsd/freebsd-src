@@ -105,6 +105,8 @@ int cvmx_helper_get_number_of_interfaces(void)
 #if defined(OCTEON_VENDOR_LANNER)
 	case CVMX_BOARD_TYPE_CUST_LANNER_MR955:
 	    return 2;
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR730:
+	    return 1;
 #endif
 	default:
 	    break;
