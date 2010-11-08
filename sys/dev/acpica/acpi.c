@@ -1693,7 +1693,7 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	    /*
 	     * Since we scan from \, be sure to skip system scope objects.
 	     * \_SB_ and \_TZ_ are defined in ACPICA as devices to work around
-	     * BIOS bugs.  For example, \_SB_ is to allow \_SB._INI to be run
+	     * BIOS bugs.  For example, \_SB_ is to allow \_SB_._INI to be run
 	     * during the intialization and \_TZ_ is to support Notify() on it.
 	     */
 	    if (strcmp(handle_str, "\\_SB_") == 0 ||
