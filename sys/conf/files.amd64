@@ -92,7 +92,6 @@ acpi_wakedata.h			optional	acpi			\
 	clean		"acpi_wakedata.h"
 #
 amd64/acpica/acpi_wakeup.c	optional	acpi
-amd64/acpica/madt.c		optional	acpi
 amd64/amd64/amd64_mem.c		optional	mem
 #amd64/amd64/apic_vector.S	standard
 amd64/amd64/atomic.c		standard
@@ -301,6 +300,7 @@ contrib/x86emu/x86emu.c		optional x86bios | atkbd | dpms | vesa
 #
 # x86 shared code between IA32, AMD64 and PC98 architectures
 #
+x86/acpica/madt.c		optional	acpi
 x86/acpica/srat.c		optional	acpi
 x86/bios/smbios.c		optional	smbios
 x86/bios/vpd.c			optional	vpd
