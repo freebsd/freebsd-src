@@ -8,17 +8,17 @@ SYNOPSIS
                  [host | addrlist namelist] ...
 
 DESCRIPTION
-     ssh-keyscan is a utility for gathering the public ssh host keys of a num-
-     ber of hosts.  It was designed to aid in building and verifying
+     ssh-keyscan is a utility for gathering the public ssh host keys of a
+     number of hosts.  It was designed to aid in building and verifying
      ssh_known_hosts files.  ssh-keyscan provides a minimal interface suitable
      for use by shell and perl scripts.
 
-     ssh-keyscan uses non-blocking socket I/O to contact as many hosts as pos-
-     sible in parallel, so it is very efficient.  The keys from a domain of
+     ssh-keyscan uses non-blocking socket I/O to contact as many hosts as
+     possible in parallel, so it is very efficient.  The keys from a domain of
      1,000 hosts can be collected in tens of seconds, even when some of those
      hosts are down or do not run ssh.  For scanning, one does not need login
-     access to the machines that are being scanned, nor does the scanning pro-
-     cess involve any encryption.
+     access to the machines that are being scanned, nor does the scanning
+     process involve any encryption.
 
      The options are as follows:
 
@@ -32,8 +32,8 @@ DESCRIPTION
              read hosts or addrlist namelist pairs from the standard input.
 
      -H      Hash all hostnames and addresses in the output.  Hashed names may
-             be used normally by ssh and sshd, but they do not reveal identi-
-             fying information should the file's contents be disclosed.
+             be used normally by ssh and sshd, but they do not reveal
+             identifying information should the file's contents be disclosed.
 
      -p port
              Port to connect to on the remote host.
@@ -42,8 +42,8 @@ DESCRIPTION
              Set the timeout for connection attempts.  If timeout seconds have
              elapsed since a connection was initiated to a host or since the
              last time anything was read from that host, then the connection
-             is closed and the host in question considered unavailable.  De-
-             fault is 5 seconds.
+             is closed and the host in question considered unavailable.
+             Default is 5 seconds.
 
      -t type
              Specifies the type of the key to fetch from the scanned hosts.
@@ -56,11 +56,12 @@ DESCRIPTION
              about its progress.
 
 SECURITY
-     If an ssh_known_hosts file is constructed using ssh-keyscan without veri-
-     fying the keys, users will be vulnerable to man in the middle attacks.
-     On the other hand, if the security model allows such a risk, ssh-keyscan
-     can help in the detection of tampered keyfiles or man in the middle at-
-     tacks which have begun after the ssh_known_hosts file was created.
+     If an ssh_known_hosts file is constructed using ssh-keyscan without
+     verifying the keys, users will be vulnerable to man in the middle
+     attacks.  On the other hand, if the security model allows such a risk,
+     ssh-keyscan can help in the detection of tampered keyfiles or man in the
+     middle attacks which have begun after the ssh_known_hosts file was
+     created.
 
 FILES
      Input format:
@@ -104,4 +105,4 @@ BUGS
      This is because it opens a connection to the ssh port, reads the public
      key, and drops the connection as soon as it gets the key.
 
-OpenBSD 4.7                     January 9, 2010                              2
+OpenBSD 4.8                     January 9, 2010                    OpenBSD 4.8

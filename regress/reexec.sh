@@ -41,7 +41,7 @@ echo "InvalidXXX=no" >> $OBJ/sshd_config
 
 copy_tests
 
-$SUDO kill `cat $PIDFILE`
+$SUDO kill `$SUDO cat $PIDFILE`
 rm -f $PIDFILE
 
 cp $OBJ/sshd_config.orig $OBJ/sshd_config
@@ -53,7 +53,7 @@ rm -f $SSHD_COPY
 
 copy_tests
 
-$SUDO kill `cat $PIDFILE`
+$SUDO kill `$SUDO cat $PIDFILE`
 rm -f $PIDFILE
 
 verbose "test reexec fallback without privsep"
@@ -66,7 +66,7 @@ rm -f $SSHD_COPY
 
 copy_tests
 
-$SUDO kill `cat $PIDFILE`
+$SUDO kill `$SUDO cat $PIDFILE`
 rm -f $PIDFILE
 
 

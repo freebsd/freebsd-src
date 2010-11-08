@@ -56,7 +56,7 @@ union login_netinfo {
 /* string lengths - set very long */
 #define LINFO_PROGSIZE 64
 #define LINFO_LINESIZE 64
-#define LINFO_NAMESIZE 128
+#define LINFO_NAMESIZE 512
 #define LINFO_HOSTSIZE 256
 
 struct logininfo {

@@ -15,20 +15,20 @@ SYNOPSIS
 DESCRIPTION
      sftp is an interactive file transfer program, similar to ftp(1), which
      performs all operations over an encrypted ssh(1) transport.  It may also
-     use many features of ssh, such as public key authentication and compres-
-     sion.  sftp connects and logs into the specified host, then enters an in-
-     teractive command mode.
+     use many features of ssh, such as public key authentication and
+     compression.  sftp connects and logs into the specified host, then enters
+     an interactive command mode.
 
-     The second usage format will retrieve files automatically if a non-inter-
-     active authentication method is used; otherwise it will do so after suc-
-     cessful interactive authentication.
+     The second usage format will retrieve files automatically if a non-
+     interactive authentication method is used; otherwise it will do so after
+     successful interactive authentication.
 
      The third usage format allows sftp to start in a remote directory.
 
      The final usage format allows for automated sessions using the -b option.
-     In such cases, it is necessary to configure non-interactive authentica-
-     tion to obviate the need to enter a password at connection time (see
-     sshd(8) and ssh-keygen(1) for details).  The options are as follows:
+     In such cases, it is necessary to configure non-interactive
+     authentication to obviate the need to enter a password at connection time
+     (see sshd(8) and ssh-keygen(1) for details).  The options are as follows:
 
      -1      Specify the use of protocol version 1.
 
@@ -44,8 +44,8 @@ DESCRIPTION
              higher memory consumption.  The default is 32768 bytes.
 
      -b batchfile
-             Batch mode reads a series of commands from an input batchfile in-
-             stead of stdin.  Since it lacks user interaction it should be
+             Batch mode reads a series of commands from an input batchfile
+             instead of stdin.  Since it lacks user interaction it should be
              used in conjunction with non-interactive authentication.  A
              batchfile of `-' may be used to indicate standard input.  sftp
              will abort if any of the following commands fail: get, put,
@@ -144,9 +144,9 @@ DESCRIPTION
              Increasing this may slightly improve file transfer speed but will
              increase memory usage.  The default is 64 outstanding requests.
 
-     -r      Recursively copy entire directories when uploading and download-
-             ing.  Note that sftp does not follow symbolic links encountered
-             in the tree traversal.
+     -r      Recursively copy entire directories when uploading and
+             downloading.  Note that sftp does not follow symbolic links
+             encountered in the tree traversal.
 
      -S program
              Name of the program to use for the encrypted connection.  The
@@ -155,8 +155,8 @@ DESCRIPTION
      -s subsystem | sftp_server
              Specifies the SSH2 subsystem or the path for an sftp server on
              the remote host.  A path is useful for using sftp over protocol
-             version 1, or when the remote sshd(8) does not have an sftp sub-
-             system configured.
+             version 1, or when the remote sshd(8) does not have an sftp
+             subsystem configured.
 
      -v      Raise logging level.  This option is also passed to ssh.
 
@@ -173,16 +173,18 @@ INTERACTIVE COMMANDS
              Change remote directory to path.
 
      chgrp grp path
-             Change group of file path to grp.  path may contain glob(3) char-
-             acters and may match multiple files.  grp must be a numeric GID.
+             Change group of file path to grp.  path may contain glob(3)
+             characters and may match multiple files.  grp must be a numeric
+             GID.
 
      chmod mode path
              Change permissions of file path to mode.  path may contain
              glob(3) characters and may match multiple files.
 
      chown own path
-             Change owner of file path to own.  path may contain glob(3) char-
-             acters and may match multiple files.  own must be a numeric UID.
+             Change owner of file path to own.  path may contain glob(3)
+             characters and may match multiple files.  own must be a numeric
+             UID.
 
      df [-hi] [path]
              Display usage information for the filesystem holding the current
@@ -198,14 +200,15 @@ INTERACTIVE COMMANDS
              Retrieve the remote-path and store it on the local machine.  If
              the local path name is not specified, it is given the same name
              it has on the remote machine.  remote-path may contain glob(3)
-             characters and may match multiple files.  If it does and local-
-             path is specified, then local-path must specify a directory.
+             characters and may match multiple files.  If it does and
+             local-path is specified, then local-path must specify a
+             directory.
 
-             If either the -P or -p flag is specified, then full file permis-
-             sions and access times are copied too.
+             If either the -P or -p flag is specified, then full file
+             permissions and access times are copied too.
 
-             If the -r flag is specified then directories will be copied re-
-             cursively.  Note that sftp does not follow symbolic links when
+             If the -r flag is specified then directories will be copied
+             recursively.  Note that sftp does not follow symbolic links when
              performing recursive transfers.
 
      help    Display help text.
@@ -214,10 +217,10 @@ INTERACTIVE COMMANDS
              Change local directory to path.
 
      lls [ls-options [path]]
-             Display local directory listing of either path or current direc-
-             tory if path is not specified.  ls-options may contain any flags
-             supported by the local system's ls(1) command.  path may contain
-             glob(3) characters and may match multiple files.
+             Display local directory listing of either path or current
+             directory if path is not specified.  ls-options may contain any
+             flags supported by the local system's ls(1) command.  path may
+             contain glob(3) characters and may match multiple files.
 
      lmkdir path
              Create local directory specified by path.
@@ -239,8 +242,8 @@ INTERACTIVE COMMANDS
 
              -a      List files beginning with a dot (`.').
 
-             -f      Do not sort the listing.  The default sort order is lexi-
-                     cographical.
+             -f      Do not sort the listing.  The default sort order is
+                     lexicographical.
 
              -h      When used with a long format option, use unit suffixes:
                      Byte, Kilobyte, Megabyte, Gigabyte, Terabyte, Petabyte,
@@ -248,8 +251,8 @@ INTERACTIVE COMMANDS
                      four or fewer using powers of 2 for sizes (K=1024,
                      M=1048576, etc.).
 
-             -l      Display additional details including permissions and own-
-                     ership information.
+             -l      Display additional details including permissions and
+                     ownership information.
 
              -n      Produce a long listing with user and group information
                      presented numerically.
@@ -270,17 +273,18 @@ INTERACTIVE COMMANDS
              Toggle display of progress meter.
 
      put [-Ppr] local-path [remote-path]
-             Upload local-path and store it on the remote machine.  If the re-
-             mote path name is not specified, it is given the same name it has
-             on the local machine.  local-path may contain glob(3) characters
-             and may match multiple files.  If it does and remote-path is
-             specified, then remote-path must specify a directory.
+             Upload local-path and store it on the remote machine.  If the
+             remote path name is not specified, it is given the same name it
+             has on the local machine.  local-path may contain glob(3)
+             characters and may match multiple files.  If it does and
+             remote-path is specified, then remote-path must specify a
+             directory.
 
-             If ether the -P or -p flag is specified, then full file permis-
-             sions and access times are copied too.
+             If ether the -P or -p flag is specified, then full file
+             permissions and access times are copied too.
 
-             If the -r flag is specified then directories will be copied re-
-             cursively.  Note that sftp does not follow symbolic links when
+             If the -r flag is specified then directories will be copied
+             recursively.  Note that sftp does not follow symbolic links when
              performing recursive transfers.
 
      pwd     Display remote working directory.
@@ -313,7 +317,8 @@ SEE ALSO
      ftp(1), ls(1), scp(1), ssh(1), ssh-add(1), ssh-keygen(1), glob(3),
      ssh_config(5), sftp-server(8), sshd(8)
 
-     T. Ylonen and S. Lehtinen, SSH File Transfer Protocol, draft-ietf-secsh-
-     filexfer-00.txt, January 2001, work in progress material.
+     T. Ylonen, S. Lehtinen, SSH File Transfer Protocol,
+     draft-ietf-secsh-filexfer-00.txt, January 2001, work in progress
+     material.
 
-OpenBSD 4.7                    February 8, 2010                              5
+OpenBSD 4.8                    February 8, 2010                    OpenBSD 4.8

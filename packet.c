@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.c,v 1.166 2009/06/27 09:29:06 andreas Exp $ */
+/* $OpenBSD: packet.c,v 1.168 2010/07/13 23:13:16 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -1307,7 +1307,7 @@ packet_read_poll2(u_int32_t *seqnr_p)
 		macbuf = mac_compute(mac, active_state->p_read.seqnr,
 		    buffer_ptr(&active_state->incoming_packet),
 		    buffer_len(&active_state->incoming_packet));
-		if (memcmp(macbuf, buffer_ptr(&active_state->input),
+		if (timingsafe_bcmp(macbuf, buffer_ptr(&active_state->input),
 		    mac->mac_len) != 0) {
 			logit("Corrupted MAC on input.");
 			if (need > PACKET_MAX_SIZE)

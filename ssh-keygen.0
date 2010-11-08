@@ -7,8 +7,8 @@ SYNOPSIS
      ssh-keygen [-q] [-b bits] -t type [-N new_passphrase] [-C comment]
                 [-f output_keyfile]
      ssh-keygen -p [-P old_passphrase] [-N new_passphrase] [-f keyfile]
-     ssh-keygen -i [-f input_keyfile]
-     ssh-keygen -e [-f input_keyfile]
+     ssh-keygen -i [-m key_format] [-f input_keyfile]
+     ssh-keygen -e [-m key_format] [-f input_keyfile]
      ssh-keygen -y [-f input_keyfile]
      ssh-keygen -c [-P passphrase] [-C comment] [-f keyfile]
      ssh-keygen -l [-f input_keyfile]
@@ -22,7 +22,7 @@ SYNOPSIS
      ssh-keygen -T output_file -f input_file [-v] [-a num_trials]
                 [-W generator]
      ssh-keygen -s ca_key -I certificate_identity [-h] [-n principals]
-                [-O constraint] [-V validity_interval] file ...
+                [-O option] [-V validity_interval] [-z serial_number] file ...
      ssh-keygen -L [-f input_keyfile]
 
 DESCRIPTION
@@ -46,14 +46,14 @@ DESCRIPTION
      name but ``.pub'' appended.  The program also asks for a passphrase.  The
      passphrase may be empty to indicate no passphrase (host keys must have an
      empty passphrase), or it may be a string of arbitrary length.  A
-     passphrase is similar to a password, except it can be a phrase with a se-
-     ries of words, punctuation, numbers, whitespace, or any string of charac-
-     ters you want.  Good passphrases are 10-30 characters long, are not sim-
-     ple sentences or otherwise easily guessable (English prose has only 1-2
-     bits of entropy per character, and provides very bad passphrases), and
-     contain a mix of upper and lowercase letters, numbers, and non-alphanu-
-     meric characters.  The passphrase can be changed later by using the -p
-     option.
+     passphrase is similar to a password, except it can be a phrase with a
+     series of words, punctuation, numbers, whitespace, or any string of
+     characters you want.  Good passphrases are 10-30 characters long, are not
+     simple sentences or otherwise easily guessable (English prose has only 1-
+     2 bits of entropy per character, and provides very bad passphrases), and
+     contain a mix of upper and lowercase letters, numbers, and non-
+     alphanumeric characters.  The passphrase can be changed later by using
+     the -p option.
 
      There is no way to recover a lost passphrase.  If the passphrase is lost
      or forgotten, a new key must be generated and copied to the corresponding
@@ -61,9 +61,9 @@ DESCRIPTION
 
      For RSA1 keys, there is also a comment field in the key file that is only
      for convenience to the user to help identify the key.  The comment can
-     tell what the key is for, or whatever is useful.  The comment is initial-
-     ized to ``user@host'' when the key is created, but can be changed using
-     the -c option.
+     tell what the key is for, or whatever is useful.  The comment is
+     initialized to ``user@host'' when the key is created, but can be changed
+     using the -c option.
 
      After a key is generated, instructions below detail where the keys should
      be placed to be activated.
@@ -79,26 +79,29 @@ DESCRIPTION
 
      -b bits
              Specifies the number of bits in the key to create.  For RSA keys,
-             the minimum size is 768 bits and the default is 2048 bits.  Gen-
-             erally, 2048 bits is considered sufficient.  DSA keys must be ex-
-             actly 1024 bits as specified by FIPS 186-2.
+             the minimum size is 768 bits and the default is 2048 bits.
+             Generally, 2048 bits is considered sufficient.  DSA keys must be
+             exactly 1024 bits as specified by FIPS 186-2.
 
      -C comment
              Provides a new comment.
 
      -c      Requests changing the comment in the private and public key
-             files.  This operation is only supported for RSA1 keys.  The pro-
-             gram will prompt for the file containing the private keys, for
+             files.  This operation is only supported for RSA1 keys.  The
+             program will prompt for the file containing the private keys, for
              the passphrase if the key has one, and for the new comment.
 
      -D pkcs11
-             Download the RSA public keys provided by the PKCS#11 shared li-
-             brary pkcs11.
+             Download the RSA public keys provided by the PKCS#11 shared
+             library pkcs11.  When used in combination with -s, this option
+             indicates that a CA key resides in a PKCS#11 token (see the
+             CERTIFICATES section for details).
 
      -e      This option will read a private or public OpenSSH key file and
-             print the key in RFC 4716 SSH Public Key File Format to stdout.
-             This option allows exporting keys for use by several commercial
-             SSH implementations.
+             print to stdout the key in one of the formats specified by the -m
+             option.  The default export format is ``RFC4716''.  This option
+             allows exporting OpenSSH keys for use by other programs,
+             including several commercial SSH implementations.
 
      -F hostname
              Search for the specified hostname in a known_hosts file, listing
@@ -116,8 +119,8 @@ DESCRIPTION
      -g      Use generic DNS format when printing fingerprint resource records
              using the -r command.
 
-     -H      Hash a known_hosts file.  This replaces all hostnames and ad-
-             dresses with hashed representations within the specified file;
+     -H      Hash a known_hosts file.  This replaces all hostnames and
+             addresses with hashed representations within the specified file;
              the original content is moved to a file with a .old suffix.
              These hashes may be used normally by ssh and sshd, but they do
              not reveal identifying information should the file's contents be
@@ -133,41 +136,48 @@ DESCRIPTION
              the CERTIFICATES section for details.
 
      -i      This option will read an unencrypted private (or public) key file
-             in SSH2-compatible format and print an OpenSSH compatible private
-             (or public) key to stdout.  ssh-keygen also reads the RFC 4716
-             SSH Public Key File Format.  This option allows importing keys
-             from several commercial SSH implementations.
+             in the format specified by the -m option and print an OpenSSH
+             compatible private (or public) key to stdout.  This option allows
+             importing keys from other software, including several commercial
+             SSH implementations.  The default import format is ``RFC4716''.
 
      -L      Prints the contents of a certificate.
 
      -l      Show fingerprint of specified public key file.  Private RSA1 keys
              are also supported.  For RSA and DSA keys ssh-keygen tries to
              find the matching public key file and prints its fingerprint.  If
-             combined with -v, an ASCII art representation of the key is sup-
-             plied with the fingerprint.
+             combined with -v, an ASCII art representation of the key is
+             supplied with the fingerprint.
 
      -M memory
-             Specify the amount of memory to use (in megabytes) when generat-
-             ing candidate moduli for DH-GEX.
+             Specify the amount of memory to use (in megabytes) when
+             generating candidate moduli for DH-GEX.
+
+     -m key_format
+             Specify a key format for the -i (import) or -e (export)
+             conversion options.  The supported key formats are: ``RFC4716''
+             (RFC 4716/SSH2 public or private key), ``PKCS8'' (PEM PKCS8
+             public key) or ``PEM'' (PEM public key).  The default conversion
+             format is ``RFC4716''.
 
      -N new_passphrase
              Provides the new passphrase.
 
      -n principals
-             Specify one or more principals (user or host names) to be includ-
-             ed in a certificate when signing a key.  Multiple principals may
-             be specified, separated by commas.  Please see the CERTIFICATES
-             section for details.
+             Specify one or more principals (user or host names) to be
+             included in a certificate when signing a key.  Multiple
+             principals may be specified, separated by commas.  Please see the
+             CERTIFICATES section for details.
 
-     -O constraint
-             Specify a certificate constraint when signing a key.  This option
-             may be specified multiple times.  Please see the CERTIFICATES
-             section for details.  The constraints that are valid for user
-             certificates are:
+     -O option
+             Specify a certificate option when signing a key.  This option may
+             be specified multiple times.  Please see the CERTIFICATES section
+             for details.  The options that are valid for user certificates
+             are:
 
-             clear   Clear all enabled permissions.  This is useful for clear-
-                     ing the default set of permissions so permissions may be
-                     added individually.
+             clear   Clear all enabled permissions.  This is useful for
+                     clearing the default set of permissions so permissions
+                     may be added individually.
 
              force-command=command
                      Forces the execution of command instead of any shell or
@@ -206,11 +216,11 @@ DESCRIPTION
 
              source-address=address_list
                      Restrict the source addresses from which the certificate
-                     is considered valid.  The address_list is a comma-sepa-
-                     rated list of one or more address/netmask pairs in CIDR
-                     format.
+                     is considered valid.  The address_list is a comma-
+                     separated list of one or more address/netmask pairs in
+                     CIDR format.
 
-             At present, no constraints are valid for host keys.
+             At present, no options are valid for host keys.
 
      -P passphrase
              Provides the (old) passphrase.
@@ -245,21 +255,21 @@ DESCRIPTION
 
      -t type
              Specifies the type of key to create.  The possible values are
-             ``rsa1'' for protocol version 1 and ``rsa'' or ``dsa'' for proto-
-             col version 2.
+             ``rsa1'' for protocol version 1 and ``rsa'' or ``dsa'' for
+             protocol version 2.
 
      -V validity_interval
-             Specify a validity interval when signing a certificate.  A valid-
-             ity interval may consist of a single time, indicating that the
-             certificate is valid beginning now and expiring at that time, or
-             may consist of two times separated by a colon to indicate an ex-
-             plicit time interval.  The start time may be specified as a date
-             in YYYYMMDD format, a time in YYYYMMDDHHMMSS format or a relative
-             time (to the current time) consisting of a minus sign followed by
-             a relative time in the format described in the TIME FORMATS sec-
-             tion of sshd_config(5).  The end time may be specified as a
-             YYYYMMDD date, a YYYYMMDDHHMMSS time or a relative time starting
-             with a plus character.
+             Specify a validity interval when signing a certificate.  A
+             validity interval may consist of a single time, indicating that
+             the certificate is valid beginning now and expiring at that time,
+             or may consist of two times separated by a colon to indicate an
+             explicit time interval.  The start time may be specified as a
+             date in YYYYMMDD format, a time in YYYYMMDDHHMMSS format or a
+             relative time (to the current time) consisting of a minus sign
+             followed by a relative time in the format described in the TIME
+             FORMATS section of sshd_config(5).  The end time may be specified
+             as a YYYYMMDD date, a YYYYMMDDHHMMSS time or a relative time
+             starting with a plus character.
 
              For example: ``+52w1d'' (valid from now to 52 weeks and one day
              from now), ``-4w:+4w'' (valid from four weeks ago to four weeks
@@ -269,9 +279,9 @@ DESCRIPTION
              2011).
 
      -v      Verbose mode.  Causes ssh-keygen to print debugging messages
-             about its progress.  This is helpful for debugging moduli genera-
-             tion.  Multiple -v options increase the verbosity.  The maximum
-             is 3.
+             about its progress.  This is helpful for debugging moduli
+             generation.  Multiple -v options increase the verbosity.  The
+             maximum is 3.
 
      -W generator
              Specify desired generator when testing candidate moduli for DH-
@@ -280,12 +290,17 @@ DESCRIPTION
      -y      This option will read a private OpenSSH format file and print an
              OpenSSH public key to stdout.
 
+     -z serial_number
+             Specifies a serial number to be embedded in the certificate to
+             distinguish this certificate from others from the same CA.  The
+             default serial number is zero.
+
 MODULI GENERATION
      ssh-keygen may be used to generate groups for the Diffie-Hellman Group
-     Exchange (DH-GEX) protocol.  Generating these groups is a two-step pro-
-     cess: first, candidate primes are generated using a fast, but memory in-
-     tensive process.  These candidate primes are then tested for suitability
-     (a CPU-intensive process).
+     Exchange (DH-GEX) protocol.  Generating these groups is a two-step
+     process: first, candidate primes are generated using a fast, but memory
+     intensive process.  These candidate primes are then tested for
+     suitability (a CPU-intensive process).
 
      Generation of primes is performed using the -G option.  The desired
      length of the primes may be specified by the -b option.  For example:
@@ -293,8 +308,8 @@ MODULI GENERATION
            # ssh-keygen -G moduli-2048.candidates -b 2048
 
      By default, the search for primes begins at a random point in the desired
-     length range.  This may be overridden using the -S option, which speci-
-     fies a different start point (in hex).
+     length range.  This may be overridden using the -S option, which
+     specifies a different start point (in hex).
 
      Once a set of candidates have been generated, they must be tested for
      suitability.  This may be performed using the -T option.  In this mode
@@ -317,15 +332,15 @@ CERTIFICATES
      ssh-keygen supports signing of keys to produce certificates that may be
      used for user or host authentication.  Certificates consist of a public
      key, some identity information, zero or more principal (user or host)
-     names and an optional set of constraints that are signed by a Certifica-
-     tion Authority (CA) key.  Clients or servers may then trust only the CA
-     key and verify its signature on a certificate rather than trusting many
-     user/host keys.  Note that OpenSSH certificates are a different, and much
-     simpler, format to the X.509 certificates used in ssl(8).
+     names and a set of options that are signed by a Certification Authority
+     (CA) key.  Clients or servers may then trust only the CA key and verify
+     its signature on a certificate rather than trusting many user/host keys.
+     Note that OpenSSH certificates are a different, and much simpler, format
+     to the X.509 certificates used in ssl(8).
 
-     ssh-keygen supports two types of certificates: user and host.  User cer-
-     tificates authenticate users to servers, whereas host certificates au-
-     thenticate server hosts to users.  To generate a user certificate:
+     ssh-keygen supports two types of certificates: user and host.  User
+     certificates authenticate users to servers, whereas host certificates
+     authenticate server hosts to users.  To generate a user certificate:
 
            $ ssh-keygen -s /path/to/ca_key -I key_id /path/to/user_key.pub
 
@@ -334,83 +349,90 @@ CERTIFICATES
 
            $ ssh-keygen -s /path/to/ca_key -I key_id -h /path/to/host_key.pub
 
-     The host certificate will be output to /path/to/host_key-cert.pub.  In
-     both cases, key_id is a "key identifier" that is logged by the server
+     The host certificate will be output to /path/to/host_key-cert.pub.
+
+     It is possible to sign using a CA key stored in a PKCS#11 token by
+     providing the token library using -D and identifying the CA key by
+     providing its public half as an argument to -s:
+
+           $ ssh-keygen -s ca_key.pub -D libpkcs11.so -I key_id host_key.pub
+
+     In all cases, key_id is a "key identifier" that is logged by the server
      when the certificate is used for authentication.
 
-     Certificates may be limited to be valid for a set of principal (us-
-     er/host) names.  By default, generated certificates are valid for all
-     users or hosts.  To generate a certificate for a specified set of princi-
-     pals:
+     Certificates may be limited to be valid for a set of principal
+     (user/host) names.  By default, generated certificates are valid for all
+     users or hosts.  To generate a certificate for a specified set of
+     principals:
 
            $ ssh-keygen -s ca_key -I key_id -n user1,user2 user_key.pub
            $ ssh-keygen -s ca_key -I key_id -h -n host.domain user_key.pub
 
      Additional limitations on the validity and use of user certificates may
-     be specified through certificate constraints.  A constrained certificate
-     may disable features of the SSH session, may be valid only when presented
-     from particular source addresses or may force the use of a specific com-
-     mand.  For a list of valid certificate constraints, see the documentation
+     be specified through certificate options.  A certificate option may
+     disable features of the SSH session, may be valid only when presented
+     from particular source addresses or may force the use of a specific
+     command.  For a list of valid certificate options, see the documentation
      for the -O option above.
 
      Finally, certificates may be defined with a validity lifetime.  The -V
-     option allows specification of certificate start and end times.  A cer-
-     tificate that is presented at a time outside this range will not be con-
-     sidered valid.  By default, certificates have a maximum validity inter-
-     val.
+     option allows specification of certificate start and end times.  A
+     certificate that is presented at a time outside this range will not be
+     considered valid.  By default, certificates have a maximum validity
+     interval.
 
-     For certificates to be used for user or host authentication, the CA pub-
-     lic key must be trusted by sshd(8) or ssh(1).  Please refer to those man-
-     ual pages for details.
+     For certificates to be used for user or host authentication, the CA
+     public key must be trusted by sshd(8) or ssh(1).  Please refer to those
+     manual pages for details.
 
 FILES
      ~/.ssh/identity
              Contains the protocol version 1 RSA authentication identity of
-             the user.  This file should not be readable by anyone but the us-
-             er.  It is possible to specify a passphrase when generating the
+             the user.  This file should not be readable by anyone but the
+             user.  It is possible to specify a passphrase when generating the
              key; that passphrase will be used to encrypt the private part of
-             this file using 128-bit AES.  This file is not automatically ac-
-             cessed by ssh-keygen but it is offered as the default file for
+             this file using 128-bit AES.  This file is not automatically
+             accessed by ssh-keygen but it is offered as the default file for
              the private key.  ssh(1) will read this file when a login attempt
              is made.
 
      ~/.ssh/identity.pub
-             Contains the protocol version 1 RSA public key for authentica-
-             tion.  The contents of this file should be added to
+             Contains the protocol version 1 RSA public key for
+             authentication.  The contents of this file should be added to
              ~/.ssh/authorized_keys on all machines where the user wishes to
              log in using RSA authentication.  There is no need to keep the
              contents of this file secret.
 
      ~/.ssh/id_dsa
              Contains the protocol version 2 DSA authentication identity of
-             the user.  This file should not be readable by anyone but the us-
-             er.  It is possible to specify a passphrase when generating the
+             the user.  This file should not be readable by anyone but the
+             user.  It is possible to specify a passphrase when generating the
              key; that passphrase will be used to encrypt the private part of
-             this file using 128-bit AES.  This file is not automatically ac-
-             cessed by ssh-keygen but it is offered as the default file for
+             this file using 128-bit AES.  This file is not automatically
+             accessed by ssh-keygen but it is offered as the default file for
              the private key.  ssh(1) will read this file when a login attempt
              is made.
 
      ~/.ssh/id_dsa.pub
-             Contains the protocol version 2 DSA public key for authentica-
-             tion.  The contents of this file should be added to
+             Contains the protocol version 2 DSA public key for
+             authentication.  The contents of this file should be added to
              ~/.ssh/authorized_keys on all machines where the user wishes to
              log in using public key authentication.  There is no need to keep
              the contents of this file secret.
 
      ~/.ssh/id_rsa
              Contains the protocol version 2 RSA authentication identity of
-             the user.  This file should not be readable by anyone but the us-
-             er.  It is possible to specify a passphrase when generating the
+             the user.  This file should not be readable by anyone but the
+             user.  It is possible to specify a passphrase when generating the
              key; that passphrase will be used to encrypt the private part of
-             this file using 128-bit AES.  This file is not automatically ac-
-             cessed by ssh-keygen but it is offered as the default file for
+             this file using 128-bit AES.  This file is not automatically
+             accessed by ssh-keygen but it is offered as the default file for
              the private key.  ssh(1) will read this file when a login attempt
              is made.
 
      ~/.ssh/id_rsa.pub
-             Contains the protocol version 2 RSA public key for authentica-
-             tion.  The contents of this file should be added to
+             Contains the protocol version 2 RSA public key for
+             authentication.  The contents of this file should be added to
              ~/.ssh/authorized_keys on all machines where the user wishes to
              log in using public key authentication.  There is no need to keep
              the contents of this file secret.
@@ -431,4 +453,4 @@ AUTHORS
      created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.7                     March 13, 2010                               7
+OpenBSD 4.8                     August 4, 2010                     OpenBSD 4.8

@@ -25,19 +25,10 @@ ssh-copy-id \- install your public key in a remote machine's authorized_keys
 .br
 .SH DESCRIPTION
 .BR ssh-copy-id
-is a script that uses ssh to log into a remote machine (presumably
-using a login password, so password authentication should be enabled,
-unless you've done some clever use of multiple identities)
-.PP
-It also changes the permissions of the remote user's home,
-.BR ~/.ssh ,
-and
+is a script that uses ssh to log into a remote machine and
+append the indicated identity file to that machine's
 .B ~/.ssh/authorized_keys
-to remove group writability (which would otherwise prevent you from logging in, if the remote
-.B sshd
-has
-.B StrictModes
-set in its configuration).
+file.
 .PP
 If the
 .B -i
@@ -59,7 +50,24 @@ produced no output, then it uses the contents of the identity
 file.  Once it has one or more fingerprints (by whatever means) it
 uses ssh to append them to
 .B ~/.ssh/authorized_keys
-on the remote machine (creating the file, and directory, if necessary)
+on the remote machine (creating the file, and directory, if necessary.)
+
+.SH NOTES
+This program does not modify the permissions of any
+pre-existing files or directories. Therefore, if the remote
+.B sshd
+has
+.B StrictModes
+set in its
+configuration, then the user's home,
+.B ~/.ssh
+folder, and
+.B ~/.ssh/authorized_keys
+file may need to have group writability disabled manually, e.g. via
+
+.B "      chmod go-w ~ ~/.ssh ~/.ssh/authorized_keys"
+
+on the remote machine.
 
 .SH "SEE ALSO"
 .BR ssh (1),
