@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/syscall.h>
 #include <sys/sysproto.h>
+#include <sys/taskqueue.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
@@ -103,6 +104,7 @@ struct nfs_reqq	nfs_reqq;
 struct mtx nfs_reqq_mtx;
 struct nfs_bufq	nfs_bufq;
 static struct mtx nfs_xid_mtx;
+struct task	nfs_nfsiodnew_task;
 
 /*
  * and the reverse mapping from generic to Version 2 procedure numbers
@@ -422,7 +424,7 @@ nfs_init(struct vfsconf *vfsp)
 		nfs_ticks = 1;
 	/* Ensure async daemons disabled */
 	for (i = 0; i < NFS_MAXASYNCDAEMON; i++) {
-		nfs_iodwant[i] = NULL;
+		nfs_iodwant[i] = NFSIOD_NOT_AVAILABLE;
 		nfs_iodmount[i] = NULL;
 	}
 	nfs_nhinit();			/* Init the nfsnode table */
@@ -435,6 +437,7 @@ nfs_init(struct vfsconf *vfsp)
 	mtx_init(&nfs_reqq_mtx, "NFS reqq lock", NULL, MTX_DEF);
 	mtx_init(&nfs_iod_mtx, "NFS iod lock", NULL, MTX_DEF);
 	mtx_init(&nfs_xid_mtx, "NFS xid lock", NULL, MTX_DEF);
+	TASK_INIT(&nfs_nfsiodnew_task, 0, nfs_nfsiodnew_tq, NULL);
 
 	nfs_pbuf_freecnt = nswbuf / 2 + 1;
 
@@ -454,11 +457,15 @@ nfs_uninit(struct vfsconf *vfsp)
 	/*
 	 * Tell all nfsiod processes to exit. Clear nfs_iodmax, and wakeup
 	 * any sleeping nfsiods so they check nfs_iodmax and exit.
+	 * Drain nfsiodnew task before we wait for them to finish.
 	 */
 	mtx_lock(&nfs_iod_mtx);
 	nfs_iodmax = 0;
+	mtx_unlock(&nfs_iod_mtx);
+	taskqueue_drain(taskqueue_thread, &nfs_nfsiodnew_task);
+	mtx_lock(&nfs_iod_mtx);
 	for (i = 0; i < nfs_numasync; i++)
-		if (nfs_iodwant[i])
+		if (nfs_iodwant[i] == NFSIOD_AVAILABLE)
 			wakeup(&nfs_iodwant[i]);
 	/* The last nfsiod to exit will wake us up when nfs_numasync hits 0 */
 	while (nfs_numasync)
