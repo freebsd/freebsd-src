@@ -125,6 +125,7 @@
 /*
  * Registers specific to the 8169 gigE chip
  */
+#define RL_GTXSTART		0x0038	/* 8 bits */
 #define RL_TIMERINT_8169	0x0058	/* different offset than 8139 */
 #define RL_PHYAR		0x0060
 #define RL_TBICSR		0x0064
@@ -135,7 +136,7 @@
 #define RL_GPIO			0x006E	/* 8 bits, 8168C SPIN2 only */
 #define RL_PMCH			0x006F	/* 8 bits */
 #define RL_MAXRXPKTLEN		0x00DA	/* 16 bits, chip multiplies by 8 */
-#define RL_GTXSTART		0x0038	/* 8 bits */
+#define RL_INTRMOD		0x00E2	/* 16 bits */
 
 /*
  * TX config register bits
