@@ -86,8 +86,9 @@ SUBDIR= ${SUBDIR_ORDERED} \
 	libpam \
 	libpcap \
 	${_libpmc} \
-	libproc \
+	${_libproc} \
 	librt \
+	${_librtld_db} \
 	${_libsdp} \
 	${_libsm} \
 	${_libsmb} \
@@ -159,24 +160,18 @@ _libnetgraph=	libnetgraph
 _libypclnt=	libypclnt
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
 .if ${MK_NCP} != "no"
 _libncp=	libncp
 .endif
 _libsmb=	libsmb
 _libvgl=	libvgl
+_libproc=	libproc
+_librtld_db=	librtld_db
 .endif
 
 .if ${MACHINE_ARCH} == "ia64"
 _libsmb=	libsmb
-.endif
-
-.if ${MACHINE_ARCH} == "amd64"
-.if ${MK_NCP} != "no"
-_libncp=	libncp
-.endif
-_libsmb=	libsmb
-_libvgl=	libvgl
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc"
