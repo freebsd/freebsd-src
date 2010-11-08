@@ -401,7 +401,7 @@
  * Config 1 register
  */
 #define	RL_CFG1_PWRDWN		0x01
-#define	RL_CFG1_PME		0x01	
+#define	RL_CFG1_PME		0x01
 #define	RL_CFG1_SLEEP		0x02
 #define	RL_CFG1_VPDEN		0x02
 #define	RL_CFG1_IOMAP		0x04
@@ -468,7 +468,7 @@
 
 #define	RL_BUSFREQ_33MHZ	0x00
 #define	RL_BUSFREQ_66MHZ	0x01
-                                        
+
 #define	RL_BUSWIDTH_32BITS	0x00
 #define	RL_BUSWIDTH_64BITS	0x08
 
@@ -492,7 +492,7 @@
 
 /* C+ early transmit threshold */
 
-#define	RL_EARLYTXTHRESH_CNT	0x003F	/* byte count times 8 */ 
+#define	RL_EARLYTXTHRESH_CNT	0x003F	/* byte count times 8 */
 
 /*
  * Gigabit PHY access register (8169 only)
@@ -537,7 +537,7 @@
 #define	RL_RX_8139_BUF_ALIGN	8
 #define	RL_RX_8139_BUF_RESERVE	sizeof(int64_t)
 #define	RL_RX_8139_BUF_GUARD_SZ	\
-	(ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN + RL_RX_8139_BUF_RESERVE)	
+	(ETHER_MAX_LEN + ETHER_VLAN_ENCAP_LEN + RL_RX_8139_BUF_RESERVE)
 #define	RL_TXTHRESH(x)		((x) << 11)
 #define	RL_TX_THRESH_INIT	96
 #define	RL_RX_FIFOTHRESH	RL_RXFIFO_NOTHRESH
@@ -655,8 +655,8 @@ struct rl_desc {
 #define	RL_TDESC_VLANCTL_DATA	0x0000FFFF	/* TAG data */
 /* RTL8168C/RTL8168CP/RTL8111C/RTL8111CP */
 #define	RL_TDESC_CMD_UDPCSUMV2	0x80000000
-#define	RL_TDESC_CMD_TCPCSUMV2	0x40000000	
-#define	RL_TDESC_CMD_IPCSUMV2	0x20000000	
+#define	RL_TDESC_CMD_TCPCSUMV2	0x40000000
+#define	RL_TDESC_CMD_IPCSUMV2	0x20000000
 
 /*
  * Error bits are valid only on the last descriptor of a frame
@@ -747,7 +747,7 @@ struct rl_stats {
  *  Descriptor alignment : 256 bytes
  *  Tx buffer : At least 4 bytes in length.
  *  Rx buffer : At least 8 bytes in length and 8 bytes alignment required.
- *  
+ *
  * 8169
  *  Number of descriptors supported : up to 1024
  *  Descriptor alignment : 256 bytes
