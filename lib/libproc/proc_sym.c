@@ -109,7 +109,7 @@ proc_iter_objs(struct proc_handle *p, proc_map_f *func, void *cd)
 	size_t i;
 	rd_loadobj_t *rdl;
 	prmap_t map;
-	char path[MAXPATHLEN];
+	char *path;
 	char last[MAXPATHLEN];
 
 	if (p->nobjs == 0)
@@ -118,7 +118,7 @@ proc_iter_objs(struct proc_handle *p, proc_map_f *func, void *cd)
 	for (i = 0; i < p->nobjs; i++) {
 		rdl = &p->rdobjs[i];
 		proc_rdl2prmap(rdl, &map);
-		basename_r(rdl->rdl_path, path);
+		path = basename(rdl->rdl_path);
 		/*
 		 * We shouldn't call the callback twice with the same object.
 		 * To do that we are assuming the fact that if there are
@@ -331,7 +331,7 @@ proc_name2map(struct proc_handle *p, const char *name)
 	size_t i;
 	int cnt;
 	prmap_t *map;
-	char tmppath[MAXPATHLEN];
+	char *tmppath;
 	struct kinfo_vmentry *kves, *kve;
 	rd_loadobj_t *rdl;
 
@@ -346,7 +346,7 @@ proc_name2map(struct proc_handle *p, const char *name)
 			return (NULL);
 		for (i = 0; i < (size_t)cnt; i++) {
 			kve = kves + i;
-			basename_r(kve->kve_path, tmppath);
+			tmppath = basename(kve->kve_path);
 			if (strcmp(tmppath, name) == 0) {
 				map = proc_addr2map(p, kve->kve_start);
 				free(kves);
@@ -362,7 +362,7 @@ proc_name2map(struct proc_handle *p, const char *name)
 	}
 	for (i = 0; i < p->nobjs; i++) {
 		rdl = &p->rdobjs[i];
-		basename_r(rdl->rdl_path, tmppath);
+		tmppath = basename(rdl->rdl_path);
 		if (strcmp(tmppath, name) == 0) {
 			if ((map = malloc(sizeof(*map))) == NULL)
 				return (NULL);
