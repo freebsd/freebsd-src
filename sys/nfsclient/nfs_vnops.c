@@ -195,7 +195,7 @@ static int	nfs_renameit(struct vnode *sdvp, struct componentname *scnp,
  * Global variables
  */
 struct mtx 	nfs_iod_mtx;
-struct proc	*nfs_iodwant[NFS_MAXASYNCDAEMON];
+enum nfsiod_state nfs_iodwant[NFS_MAXASYNCDAEMON];
 struct nfsmount *nfs_iodmount[NFS_MAXASYNCDAEMON];
 int		 nfs_numasync = 0;
 vop_advlock_t	*nfs_advlock_p = nfs_dolock;
