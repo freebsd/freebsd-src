@@ -590,6 +590,10 @@ acpi_attach(device_t dev)
 	freeenv(env);
     }
 
+    /* Only enable reboot by default if the FADT says it is available. */
+    if (AcpiGbl_FADT.Flags & ACPI_FADT_RESET_REGISTER)
+	sc->acpi_handle_reboot = 1;
+
     /* Only enable S4BIOS by default if the FACS says it is available. */
     if (AcpiGbl_FACS->Flags & ACPI_FACS_S4_BIOS_PRESENT)
 	sc->acpi_s4bios = 1;
@@ -1828,19 +1832,15 @@ acpi_shutdown_final(void *arg, int howto)
 	    DELAY(1000000);
 	    device_printf(sc->acpi_dev, "power-off failed - timeout\n");
 	}
-    } else if ((howto & RB_HALT) == 0 &&
-	(AcpiGbl_FADT.Flags & ACPI_FADT_RESET_REGISTER) &&
-	sc->acpi_handle_reboot) {
+    } else if ((howto & RB_HALT) == 0 && sc->acpi_handle_reboot) {
 	/* Reboot using the reset register. */
-	status = AcpiWrite(
-	    AcpiGbl_FADT.ResetValue, &AcpiGbl_FADT.ResetRegister);
-	if (ACPI_FAILURE(status))
-	    device_printf(sc->acpi_dev, "reset failed - %s\n",
-		AcpiFormatException(status));
-	else {
+	status = AcpiReset();
+	if (ACPI_SUCCESS(status)) {
 	    DELAY(1000000);
 	    device_printf(sc->acpi_dev, "reset failed - timeout\n");
-	}
+	} else if (status != AE_NOT_EXIST)
+	    device_printf(sc->acpi_dev, "reset failed - %s\n",
+		AcpiFormatException(status));
     } else if (sc->acpi_do_disable && panicstr == NULL) {
 	/*
 	 * Only disable ACPI if the user requested.  On some systems, writing
