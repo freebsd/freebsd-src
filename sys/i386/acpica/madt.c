@@ -95,7 +95,6 @@ static struct apic_enumerator madt_enumerator = {
 	madt_setup_io
 };
 
-
 /*
  * Look for an ACPI Multiple APIC Description Table ("APIC")
  */
