@@ -3,7 +3,6 @@
 .include	"../../Makefile.inc"
 
 PROG=		ctfdump
-
 SRCS=		dump.c \
 		symbol.c \
 		utils.c
@@ -25,7 +24,5 @@ LDADD+=		-lelf -lz
 
 .PATH:		${OPENSOLARIS_USR_DISTDIR}/tools/ctf/common
 .PATH:		${OPENSOLARIS_USR_DISTDIR}/tools/ctf/dump
-
-NO_MAN=
 
 .include <bsd.prog.mk>

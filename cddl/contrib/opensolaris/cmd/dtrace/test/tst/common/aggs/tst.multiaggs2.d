@@ -20,18 +20,16 @@
  */
 
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
-#pragma	ident	"%Z%%M%	%I%	%E% SMI"
-
 /*
  * ASSERTION:
- *   Test multiple aggregations and the default output order
+ *     Test multiple aggregations and the default output order
  *
  * SECTION: Aggregations/Aggregations;
- *	Aggregations/Output
+ *     Aggregations/Output
  *
  */
 
@@ -51,6 +49,7 @@ tick-10ms
 	@d = max(i);
 	@e = quantize(i);
 	@f = lquantize(i, 0, 1000, 100);
+	@g = stddev(i);
 
 	i += 100;
 }

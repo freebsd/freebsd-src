@@ -79,4 +79,4 @@ if [ $? -ne 0 ]; then
 fi
 
 cd /
-/usr/bin/rm -rf $DIR
+/bin/rm -rf $DIR

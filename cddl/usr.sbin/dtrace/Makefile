@@ -24,14 +24,9 @@ CFLAGS+=	-I${.CURDIR}/../../../sys/cddl/compat/opensolaris \
 #CFLAGS+=	-DNEED_ERRLOC
 #YFLAGS+=	-d
 
-LDFLAGS+=	-pthread \
-		-L${.OBJDIR}/../../lib/libdtrace \
-		-L${.OBJDIR}/../../lib/libproc \
-		-L${.OBJDIR}/../../lib/libctf \
-		-L${.OBJDIR}/../../../lib/libelf
-
-LDADD+=		-ldtrace -ly -ll -lproc -lctf -lelf -lz
-
-DPADD+= ${LIBDTRACE} ${LIBCTF} ${LIBELF} ${LIBPTHREAD} ${LIBL} ${LIBY} ${LIBZ}
+DPADD=		${LIBPTHREAD} ${LIBDTRACE} ${LIBY} ${LIBL} ${LIBPROC} \
+		${LIBCTF} ${LIBELF} ${LIBZ} ${LIBUTIL} ${LIBRTLD_DB}
+LDADD=		-lpthread -ldtrace -ly -ll -lproc -lctf -lelf -lz -lutil \
+		-lrtld_db
 
 .include <bsd.prog.mk>

@@ -7,7 +7,6 @@
 WARNS=		1
 
 PROG=		ctfmerge
-
 SRCS=		alist.c \
 		barrier.c \
 		ctf.c \
@@ -41,7 +40,5 @@ LDADD+=		-lctf -ldwarf -lelf -lz -lthr
 
 .PATH:		${OPENSOLARIS_USR_DISTDIR}/tools/ctf/common
 .PATH:		${OPENSOLARIS_USR_DISTDIR}/tools/ctf/cvt
-
-MK_MAN=		no
 
 .include <bsd.prog.mk>

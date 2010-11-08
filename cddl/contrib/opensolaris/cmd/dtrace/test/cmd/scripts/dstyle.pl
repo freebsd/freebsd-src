@@ -21,12 +21,11 @@
 #
 
 #
-# Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+# Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
 # Use is subject to license terms.
 #
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
-require 5.6.1;
+require 5.8.4;
 
 $PNAME = $0;
 $PNAME =~ s:.*/::;

@@ -25,15 +25,11 @@ CFLAGS+=	-DNEED_ERRLOC -g
 
 #YFLAGS+=	-d
 
-LDFLAGS+=	-pthread \
-		-L${.OBJDIR}/../../lib/libdtrace \
-		-L${.OBJDIR}/../../lib/libproc \
-		-L${.OBJDIR}/../../lib/libctf \
-		-L${.OBJDIR}/../../../lib/libelf
-
-LDADD+=		-ldtrace -ly -ll -lproc -lctf -lelf -lz -lrt
-
-#DPADD+= ${LIBDTRACE} ${LIBPTHREAD} ${LIBL} ${LIBY} ${LIBZ}
+DPADD=		${LIBPTHREAD} ${LIBDTRACE} ${LIBY} ${LIBL} ${LIBPROC} \
+		${LIBCTF} ${LIBELF} ${LIBZ} ${LIBRT} ${LIBUTIL} \
+		${LIBRTLD_DB}
+LDADD=		-lpthread -ldtrace -ly -ll -lproc -lctf -lelf -lz -lrt -lutil \
+		-lrtld_db
 
 NO_MAN=
 

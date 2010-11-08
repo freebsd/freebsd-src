@@ -20,20 +20,19 @@
  */
 
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
-
-
 /*
  * ASSERTION:
- *      Positive stddev() test
+ *     Positive stddev() test
  *
  * SECTION: Aggregations/Aggregations
  *
  * NOTES: This is a simple verifiable positive test of the stddev() function.
+ *     printa() for one aggregation, default printing behavior for the other
+ *     so that we exercise both code paths.
  */
 
 #pragma D option quiet
@@ -60,5 +59,6 @@ BEGIN
 	@b = stddev(-5000000700);
 	@b = stddev(-5000000800);
 	@b = stddev(-5000000900);
+	printa("%@d\n", @a);
 	exit(0);
 }

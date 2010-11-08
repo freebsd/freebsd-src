@@ -43,7 +43,6 @@ script()
 {
 	$dtrace -CH -s /dev/stdin <<EOF
 
-#include <stdio.h>
 
 	BEGIN
 	{
