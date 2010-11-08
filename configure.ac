@@ -1,4 +1,4 @@
-# $Id: configure.ac,v 1.449 2010/04/10 12:58:01 dtucker Exp $
+# $Id: configure.ac,v 1.451 2010/08/16 03:15:23 dtucker Exp $
 #
 # Copyright (c) 1999-2004 Damien Miller
 #
@@ -15,7 +15,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 AC_INIT(OpenSSH, Portable, openssh-unix-dev@mindrot.org)
-AC_REVISION($Revision: 1.449 $)
+AC_REVISION($Revision: 1.451 $)
 AC_CONFIG_SRCDIR([ssh.c])
 
 AC_CONFIG_HEADER(config.h)
@@ -1427,6 +1427,7 @@ AC_CHECK_FUNCS( \
 	strlcpy \
 	strmode \
 	strnvis \
+	strptime \
 	strtonum \
 	strtoll \
 	strtoul \
@@ -1905,6 +1906,12 @@ AC_ARG_WITH(ssl-dir,
 					LDFLAGS="-L${withval}/lib -R${withval}/lib ${LDFLAGS}"
 				else
 					LDFLAGS="-L${withval}/lib ${LDFLAGS}"
+				fi
+			elif test -d "$withval/lib64"; then
+				if test -n "${need_dash_r}"; then
+					LDFLAGS="-L${withval}/lib64 -R${withval}/lib64 ${LDFLAGS}"
+				else
+					LDFLAGS="-L${withval}/lib64 ${LDFLAGS}"
 				fi
 			else
 				if test -n "${need_dash_r}"; then

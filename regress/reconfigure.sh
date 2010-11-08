@@ -15,7 +15,7 @@ esac
 
 start_sshd
 
-PID=`cat $PIDFILE`
+PID=`$SUDO cat $PIDFILE`
 rm -f $PIDFILE
 $SUDO kill -HUP $PID
 

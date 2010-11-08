@@ -1,4 +1,4 @@
-%define ver 5.5p1
+%define ver 5.6p1
 %define rel 1
 
 # OpenSSH privilege separation requires a user & group ID
@@ -74,7 +74,7 @@ Release: %{rel}
 %endif
 URL: http://www.openssh.com/portable.html
 Source0: ftp://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-%{version}.tar.gz
-%if ! %{skip_x11_askpass}
+%if ! %{no_x11_askpass}
 Source1: http://www.jmknoble.net/software/x11-ssh-askpass/x11-ssh-askpass-%{aversion}.tar.gz
 %endif
 License: BSD
@@ -407,6 +407,9 @@ fi
 %endif
 
 %changelog
+* Wed Jul 14 2010 Tim Rice <tim@multitalents.net>
+- test for skip_x11_askpass (line 77) should have been for no_x11_askpass
+
 * Mon Jun 2 2003 Damien Miller <djm@mindrot.org>
 - Remove noip6 option. This may be controlled at run-time in client config
   file using new AddressFamily directive

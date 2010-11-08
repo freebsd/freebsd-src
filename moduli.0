@@ -14,11 +14,12 @@ DESCRIPTION
      are prime and are safe for use in Diffie Hellman operations by sshd(8).
      This moduli format is used as the output from each pass.
 
-     The file consists of newline-separated records, one per modulus, contain-
-     ing seven space separated fields.  These fields are as follows:
+     The file consists of newline-separated records, one per modulus,
+     containing seven space separated fields.  These fields are as follows:
 
-           timestamp    The time that the modulus was last processed as YYYYM-
-                        MDDHHMMSS.
+
+           timestamp    The time that the modulus was last processed as
+                        YYYYMMDDHHMMSS.
 
            type         Decimal number specifying the internal structure of
                         the prime modulus.  Supported types are:
@@ -69,4 +70,4 @@ SEE ALSO
      Diffie-Hellman Group Exchange for the Secure Shell (SSH) Transport Layer
      Protocol, RFC 4419, 2006.
 
-OpenBSD 4.7                      June 26, 2008                               2
+OpenBSD 4.8                      June 26, 2008                     OpenBSD 4.8

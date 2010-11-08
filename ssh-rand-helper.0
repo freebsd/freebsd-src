@@ -27,8 +27,8 @@ DESCRIPTION
      random numbers from a EGD/PRNGd server via a unix domain or localhost tcp
      socket.
 
-     This program is not intended to be run by the end-user, so the few com-
-     mandline options are for debugging purposes only.
+     This program is not intended to be run by the end-user, so the few
+     commandline options are for debugging purposes only.
 
      -b bytes
              Specify the number of random bytes to include in the output.
@@ -48,4 +48,4 @@ AUTHORS
 SEE ALSO
      ssh(1), ssh-add(1), ssh-keygen(1), sshd(8)
 
-OpenBSD 4.7                     April 14, 2002                               1
+OpenBSD 4.8                     April 14, 2002                     OpenBSD 4.8

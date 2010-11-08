@@ -167,7 +167,7 @@ have_prog()
 cleanup ()
 {
 	if [ -f $PIDFILE ]; then
-		pid=`cat $PIDFILE`
+		pid=`$SUDO cat $PIDFILE`
 		if [ "X$pid" = "X" ]; then
 			echo no sshd running
 		else

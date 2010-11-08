@@ -11,31 +11,33 @@ SYNOPSIS
 DESCRIPTION
      ssh-add adds RSA or DSA identities to the authentication agent,
      ssh-agent(1).  When run without arguments, it adds the files
-     ~/.ssh/id_rsa, ~/.ssh/id_dsa and ~/.ssh/identity.  After loading a pri-
-     vate key, ssh-add will try to load corresponding certificate information
-     from the filename obtained by appending -cert.pub to the name of the pri-
-     vate key file.  Alternative file names can be given on the command line.
+     ~/.ssh/id_rsa, ~/.ssh/id_dsa and ~/.ssh/identity.  After loading a
+     private key, ssh-add will try to load corresponding certificate
+     information from the filename obtained by appending -cert.pub to the name
+     of the private key file.  Alternative file names can be given on the
+     command line.
 
      If any file requires a passphrase, ssh-add asks for the passphrase from
      the user.  The passphrase is read from the user's tty.  ssh-add retries
      the last passphrase if multiple identity files are given.
 
-     The authentication agent must be running and the SSH_AUTH_SOCK environ-
-     ment variable must contain the name of its socket for ssh-add to work.
+     The authentication agent must be running and the SSH_AUTH_SOCK
+     environment variable must contain the name of its socket for ssh-add to
+     work.
 
      The options are as follows:
 
      -c      Indicates that added identities should be subject to confirmation
              before being used for authentication.  Confirmation is performed
-             by the SSH_ASKPASS program mentioned below.  Successful confirma-
-             tion is signaled by a zero exit status from the SSH_ASKPASS pro-
-             gram, rather than text entered into the requester.
+             by the SSH_ASKPASS program mentioned below.  Successful
+             confirmation is signaled by a zero exit status from the
+             SSH_ASKPASS program, rather than text entered into the requester.
 
      -D      Deletes all identities from the agent.
 
      -d      Instead of adding identities, removes identities from the agent.
-             If ssh-add has been run without arguments, the keys for the de-
-             fault identities will be removed.  Otherwise, the argument list
+             If ssh-add has been run without arguments, the keys for the
+             default identities will be removed.  Otherwise, the argument list
              will be interpreted as a list of paths to public key files and
              matching keys will be removed from the agent.  If no public key
              is found at a given path, ssh-add will append .pub and retry.
@@ -43,8 +45,8 @@ DESCRIPTION
      -e pkcs11
              Remove keys provided by the PKCS#11 shared library pkcs11.
 
-     -L      Lists public key parameters of all identities currently repre-
-             sented by the agent.
+     -L      Lists public key parameters of all identities currently
+             represented by the agent.
 
      -l      Lists fingerprints of all identities currently represented by the
              agent.
@@ -54,8 +56,8 @@ DESCRIPTION
 
      -t life
              Set a maximum lifetime when adding identities to an agent.  The
-             lifetime may be specified in seconds or in a time format speci-
-             fied in sshd_config(5).
+             lifetime may be specified in seconds or in a time format
+             specified in sshd_config(5).
 
      -X      Unlock the agent.
 
@@ -102,8 +104,8 @@ SEE ALSO
 AUTHORS
      OpenSSH is a derivative of the original and free ssh 1.2.12 release by
      Tatu Ylonen.  Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos, Theo
-     de Raadt and Dug Song removed many bugs, re-added newer features and cre-
-     ated OpenSSH.  Markus Friedl contributed the support for SSH protocol
+     de Raadt and Dug Song removed many bugs, re-added newer features and
+     created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.
 
-OpenBSD 4.7                      March 5, 2010                               2
+OpenBSD 4.8                      March 5, 2010                     OpenBSD 4.8

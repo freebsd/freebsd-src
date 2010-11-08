@@ -8,21 +8,21 @@ SYNOPSIS
 
 DESCRIPTION
      sshd(8) reads configuration data from /etc/ssh/sshd_config (or the file
-     specified with -f on the command line).  The file contains keyword-argu-
-     ment pairs, one per line.  Lines starting with `#' and empty lines are
-     interpreted as comments.  Arguments may optionally be enclosed in double
-     quotes (") in order to represent arguments containing spaces.
+     specified with -f on the command line).  The file contains keyword-
+     argument pairs, one per line.  Lines starting with `#' and empty lines
+     are interpreted as comments.  Arguments may optionally be enclosed in
+     double quotes (") in order to represent arguments containing spaces.
 
-     The possible keywords and their meanings are as follows (note that key-
-     words are case-insensitive and arguments are case-sensitive):
+     The possible keywords and their meanings are as follows (note that
+     keywords are case-insensitive and arguments are case-sensitive):
 
      AcceptEnv
              Specifies what environment variables sent by the client will be
              copied into the session's environ(7).  See SendEnv in
-             ssh_config(5) for how to configure the client.  Note that envi-
-             ronment passing is only supported for protocol 2.  Variables are
-             specified by name, which may contain the wildcard characters `*'
-             and `?'.  Multiple environment variables may be separated by
+             ssh_config(5) for how to configure the client.  Note that
+             environment passing is only supported for protocol 2.  Variables
+             are specified by name, which may contain the wildcard characters
+             `*' and `?'.  Multiple environment variables may be separated by
              whitespace or spread across multiple AcceptEnv directives.  Be
              warned that some environment variables could be used to bypass
              restricted user environments.  For this reason, care should be
@@ -35,10 +35,10 @@ DESCRIPTION
              (use IPv6 only).  The default is ``any''.
 
      AllowAgentForwarding
-             Specifies whether ssh-agent(1) forwarding is permitted.  The de-
-             fault is ``yes''.  Note that disabling agent forwarding does not
-             improve security unless users are also denied shell access, as
-             they can always install their own forwarders.
+             Specifies whether ssh-agent(1) forwarding is permitted.  The
+             default is ``yes''.  Note that disabling agent forwarding does
+             not improve security unless users are also denied shell access,
+             as they can always install their own forwarders.
 
      AllowGroups
              This keyword can be followed by a list of group name patterns,
@@ -54,17 +54,17 @@ DESCRIPTION
 
      AllowTcpForwarding
              Specifies whether TCP forwarding is permitted.  The default is
-             ``yes''.  Note that disabling TCP forwarding does not improve se-
-             curity unless users are also denied shell access, as they can al-
-             ways install their own forwarders.
+             ``yes''.  Note that disabling TCP forwarding does not improve
+             security unless users are also denied shell access, as they can
+             always install their own forwarders.
 
      AllowUsers
              This keyword can be followed by a list of user name patterns,
-             separated by spaces.  If specified, login is allowed only for us-
-             er names that match one of the patterns.  Only user names are
+             separated by spaces.  If specified, login is allowed only for
+             user names that match one of the patterns.  Only user names are
              valid; a numerical user ID is not recognized.  By default, login
-             is allowed for all users.  If the pattern takes the form US-
-             ER@HOST then USER and HOST are separately checked, restricting
+             is allowed for all users.  If the pattern takes the form
+             USER@HOST then USER and HOST are separately checked, restricting
              logins to particular users from particular hosts.  The allow/deny
              directives are processed in the following order: DenyUsers,
              AllowUsers, DenyGroups, and finally AllowGroups.
@@ -73,14 +73,42 @@ DESCRIPTION
 
      AuthorizedKeysFile
              Specifies the file that contains the public keys that can be used
-             for user authentication.  AuthorizedKeysFile may contain tokens
-             of the form %T which are substituted during connection setup.
-             The following tokens are defined: %% is replaced by a literal
-             '%', %h is replaced by the home directory of the user being au-
-             thenticated, and %u is replaced by the username of that user.
-             After expansion, AuthorizedKeysFile is taken to be an absolute
-             path or one relative to the user's home directory.  The default
-             is ``.ssh/authorized_keys''.
+             for user authentication.  The format is described in the
+             AUTHORIZED_KEYS FILE FORMAT section of sshd(8).
+             AuthorizedKeysFile may contain tokens of the form %T which are
+             substituted during connection setup.  The following tokens are
+             defined: %% is replaced by a literal '%', %h is replaced by the
+             home directory of the user being authenticated, and %u is
+             replaced by the username of that user.  After expansion,
+             AuthorizedKeysFile is taken to be an absolute path or one
+             relative to the user's home directory.  The default is
+             ``.ssh/authorized_keys''.
+
+     AuthorizedPrincipalsFile
+             Specifies a file that lists principal names that are accepted for
+             certificate authentication.  When using certificates signed by a
+             key listed in TrustedUserCAKeys, this file lists names, one of
+             which must appear in the certificate for it to be accepted for
+             authentication.  Names are listed one per line preceded by key
+             options (as described in AUTHORIZED_KEYS FILE FORMAT in sshd(8)).
+             Empty lines and comments starting with `#' are ignored.
+
+             AuthorizedPrincipalsFile may contain tokens of the form %T which
+             are substituted during connection setup.  The following tokens
+             are defined: %% is replaced by a literal '%', %h is replaced by
+             the home directory of the user being authenticated, and %u is
+             replaced by the username of that user.  After expansion,
+             AuthorizedPrincipalsFile is taken to be an absolute path or one
+             relative to the user's home directory.
+
+             The default is not to use a principals file - in this case, the
+             username of the user must appear in a certificate's principals
+             list for it to be accepted.  Note that AuthorizedPrincipalsFile
+             is only used when authentication proceeds using a CA listed in
+             TrustedUserCAKeys and is not consulted for certification
+             authorities trusted via ~/.ssh/authorized_keys, though the
+             principals= key option offers a similar facility (see sshd(8) for
+             details).
 
      Banner  The contents of the specified file are sent to the remote user
              before authentication is allowed.  If the argument is ``none''
@@ -93,27 +121,27 @@ DESCRIPTION
              login.conf(5)) The default is ``yes''.
 
      ChrootDirectory
-             Specifies the pathname of a directory to chroot(2) to after au-
-             thentication.  All components of the pathname must be root-owned
-             directories that are not writable by any other user or group.
-             After the chroot, sshd(8) changes the working directory to the
-             user's home directory.
+             Specifies the pathname of a directory to chroot(2) to after
+             authentication.  All components of the pathname must be root-
+             owned directories that are not writable by any other user or
+             group.  After the chroot, sshd(8) changes the working directory
+             to the user's home directory.
 
              The pathname may contain the following tokens that are expanded
              at runtime once the connecting user has been authenticated: %% is
              replaced by a literal '%', %h is replaced by the home directory
-             of the user being authenticated, and %u is replaced by the user-
-             name of that user.
+             of the user being authenticated, and %u is replaced by the
+             username of that user.
 
-             The ChrootDirectory must contain the necessary files and directo-
-             ries to support the user's session.  For an interactive session
-             this requires at least a shell, typically sh(1), and basic /dev
-             nodes such as null(4), zero(4), stdin(4), stdout(4), stderr(4),
-             arandom(4) and tty(4) devices.  For file transfer sessions using
-             ``sftp'', no additional configuration of the environment is nec-
-             essary if the in-process sftp server is used, though sessions
-             which use logging do require /dev/log inside the chroot directory
-             (see sftp-server(8) for details).
+             The ChrootDirectory must contain the necessary files and
+             directories to support the user's session.  For an interactive
+             session this requires at least a shell, typically sh(1), and
+             basic /dev nodes such as null(4), zero(4), stdin(4), stdout(4),
+             stderr(4), arandom(4) and tty(4) devices.  For file transfer
+             sessions using ``sftp'', no additional configuration of the
+             environment is necessary if the in-process sftp server is used,
+             though sessions which use logging do require /dev/log inside the
+             chroot directory (see sftp-server(8) for details).
 
              The default is not to chroot(2).
 
@@ -132,28 +160,28 @@ DESCRIPTION
      ClientAliveCountMax
              Sets the number of client alive messages (see below) which may be
              sent without sshd(8) receiving any messages back from the client.
-             If this threshold is reached while client alive messages are be-
-             ing sent, sshd will disconnect the client, terminating the ses-
-             sion.  It is important to note that the use of client alive mes-
-             sages is very different from TCPKeepAlive (below).  The client
-             alive messages are sent through the encrypted channel and there-
-             fore will not be spoofable.  The TCP keepalive option enabled by
-             TCPKeepAlive is spoofable.  The client alive mechanism is valu-
-             able when the client or server depend on knowing when a connec-
-             tion has become inactive.
+             If this threshold is reached while client alive messages are
+             being sent, sshd will disconnect the client, terminating the
+             session.  It is important to note that the use of client alive
+             messages is very different from TCPKeepAlive (below).  The client
+             alive messages are sent through the encrypted channel and
+             therefore will not be spoofable.  The TCP keepalive option
+             enabled by TCPKeepAlive is spoofable.  The client alive mechanism
+             is valuable when the client or server depend on knowing when a
+             connection has become inactive.
 
              The default value is 3.  If ClientAliveInterval (see below) is
-             set to 15, and ClientAliveCountMax is left at the default, unre-
-             sponsive SSH clients will be disconnected after approximately 45
-             seconds.  This option applies to protocol version 2 only.
+             set to 15, and ClientAliveCountMax is left at the default,
+             unresponsive SSH clients will be disconnected after approximately
+             45 seconds.  This option applies to protocol version 2 only.
 
      ClientAliveInterval
              Sets a timeout interval in seconds after which if no data has
              been received from the client, sshd(8) will send a message
              through the encrypted channel to request a response from the
              client.  The default is 0, indicating that these messages will
-             not be sent to the client.  This option applies to protocol ver-
-             sion 2 only.
+             not be sent to the client.  This option applies to protocol
+             version 2 only.
 
      Compression
              Specifies whether compression is allowed, or delayed until the
@@ -164,9 +192,9 @@ DESCRIPTION
              This keyword can be followed by a list of group name patterns,
              separated by spaces.  Login is disallowed for users whose primary
              group or supplementary group list matches one of the patterns.
-             Only group names are valid; a numerical group ID is not recog-
-             nized.  By default, login is allowed for all groups.  The al-
-             low/deny directives are processed in the following order:
+             Only group names are valid; a numerical group ID is not
+             recognized.  By default, login is allowed for all groups.  The
+             allow/deny directives are processed in the following order:
              DenyUsers, AllowUsers, DenyGroups, and finally AllowGroups.
 
              See PATTERNS in ssh_config(5) for more information on patterns.
@@ -174,20 +202,20 @@ DESCRIPTION
      DenyUsers
              This keyword can be followed by a list of user name patterns,
              separated by spaces.  Login is disallowed for user names that
-             match one of the patterns.  Only user names are valid; a numeri-
-             cal user ID is not recognized.  By default, login is allowed for
-             all users.  If the pattern takes the form USER@HOST then USER and
-             HOST are separately checked, restricting logins to particular
-             users from particular hosts.  The allow/deny directives are pro-
-             cessed in the following order: DenyUsers, AllowUsers, DenyGroups,
-             and finally AllowGroups.
+             match one of the patterns.  Only user names are valid; a
+             numerical user ID is not recognized.  By default, login is
+             allowed for all users.  If the pattern takes the form USER@HOST
+             then USER and HOST are separately checked, restricting logins to
+             particular users from particular hosts.  The allow/deny
+             directives are processed in the following order: DenyUsers,
+             AllowUsers, DenyGroups, and finally AllowGroups.
 
              See PATTERNS in ssh_config(5) for more information on patterns.
 
      ForceCommand
              Forces the execution of the command specified by ForceCommand,
-             ignoring any command supplied by the client and ~/.ssh/rc if pre-
-             sent.  The command is invoked by using the user's login shell
+             ignoring any command supplied by the client and ~/.ssh/rc if
+             present.  The command is invoked by using the user's login shell
              with the -c option.  This applies to shell, command, or subsystem
              execution.  It is most useful inside a Match block.  The command
              originally supplied by the client is available in the
@@ -202,10 +230,10 @@ DESCRIPTION
              forwardings to the loopback address.  This prevents other remote
              hosts from connecting to forwarded ports.  GatewayPorts can be
              used to specify that sshd should allow remote port forwardings to
-             bind to non-loopback addresses, thus allowing other hosts to con-
-             nect.  The argument may be ``no'' to force remote port forward-
-             ings to be available to the local host only, ``yes'' to force re-
-             mote port forwardings to bind to the wildcard address, or
+             bind to non-loopback addresses, thus allowing other hosts to
+             connect.  The argument may be ``no'' to force remote port
+             forwardings to be available to the local host only, ``yes'' to
+             force remote port forwardings to bind to the wildcard address, or
              ``clientspecified'' to allow the client to select the address to
              which the forwarding is bound.  The default is ``no''.
 
@@ -220,15 +248,15 @@ DESCRIPTION
              applies to protocol version 2 only.
 
      HostbasedAuthentication
-             Specifies whether rhosts or /etc/hosts.equiv authentication to-
-             gether with successful public key client host authentication is
+             Specifies whether rhosts or /etc/hosts.equiv authentication
+             together with successful public key client host authentication is
              allowed (host-based authentication).  This option is similar to
              RhostsRSAAuthentication and applies to protocol version 2 only.
              The default is ``no''.
 
      HostbasedUsesNameFromPacketOnly
-             Specifies whether or not the server will attempt to perform a re-
-             verse name lookup when matching the name in the ~/.shosts,
+             Specifies whether or not the server will attempt to perform a
+             reverse name lookup when matching the name in the ~/.shosts,
              ~/.rhosts, and /etc/hosts.equiv files during
              HostbasedAuthentication.  A setting of ``yes'' means that sshd(8)
              uses the name supplied by the client rather than attempting to
@@ -236,17 +264,17 @@ DESCRIPTION
              ``no''.
 
      HostCertificate
-             Specifies a file containing a public host certificate.  The cer-
-             tificate's public key must match a private host key already spec-
-             ified by HostKey.  The default behaviour of sshd(8) is not to
+             Specifies a file containing a public host certificate.  The
+             certificate's public key must match a private host key already
+             specified by HostKey.  The default behaviour of sshd(8) is not to
              load any certificates.
 
      HostKey
              Specifies a file containing a private host key used by SSH.  The
              default is /etc/ssh/ssh_host_key for protocol version 1, and
-             /etc/ssh/ssh_host_rsa_key and /etc/ssh/ssh_host_dsa_key for pro-
-             tocol version 2.  Note that sshd(8) will refuse to use a file if
-             it is group/world-accessible.  It is possible to have multiple
+             /etc/ssh/ssh_host_rsa_key and /etc/ssh/ssh_host_dsa_key for
+             protocol version 2.  Note that sshd(8) will refuse to use a file
+             if it is group/world-accessible.  It is possible to have multiple
              host key files.  ``rsa1'' keys are used for version 1 and ``dsa''
              or ``rsa'' are used for version 2 of the SSH protocol.
 
@@ -254,8 +282,8 @@ DESCRIPTION
              Specifies that .rhosts and .shosts files will not be used in
              RhostsRSAAuthentication or HostbasedAuthentication.
 
-             /etc/hosts.equiv and /etc/shosts.equiv are still used.  The de-
-             fault is ``yes''.
+             /etc/hosts.equiv and /etc/shosts.equiv are still used.  The
+             default is ``yes''.
 
      IgnoreUserKnownHosts
              Specifies whether sshd(8) should ignore the user's
@@ -275,9 +303,9 @@ DESCRIPTION
              The default is ``no''.
 
      KerberosOrLocalPasswd
-             If password authentication through Kerberos fails then the pass-
-             word will be validated via any additional local mechanism such as
-             /etc/passwd.  The default is ``yes''.
+             If password authentication through Kerberos fails then the
+             password will be validated via any additional local mechanism
+             such as /etc/passwd.  The default is ``yes''.
 
      KerberosTicketCleanup
              Specifies whether to automatically destroy the user's ticket
@@ -286,17 +314,17 @@ DESCRIPTION
      KeyRegenerationInterval
              In protocol version 1, the ephemeral server key is automatically
              regenerated after this many seconds (if it has been used).  The
-             purpose of regeneration is to prevent decrypting captured ses-
-             sions by later breaking into the machine and stealing the keys.
-             The key is never stored anywhere.  If the value is 0, the key is
-             never regenerated.  The default is 3600 (seconds).
+             purpose of regeneration is to prevent decrypting captured
+             sessions by later breaking into the machine and stealing the
+             keys.  The key is never stored anywhere.  If the value is 0, the
+             key is never regenerated.  The default is 3600 (seconds).
 
      ListenAddress
-             Specifies the local addresses sshd(8) should listen on.  The fol-
-             lowing forms may be used:
+             Specifies the local addresses sshd(8) should listen on.  The
+             following forms may be used:
 
-                   ListenAddress host|IPv4_addr|IPv6_addr
-                   ListenAddress host|IPv4_addr:port
+                   ListenAddress host | IPv4_addr | IPv6_addr
+                   ListenAddress host | IPv4_addr:port
                    ListenAddress [host|IPv6_addr]:port
 
              If port is not specified, sshd will listen on the address and all
@@ -306,9 +334,9 @@ DESCRIPTION
              port qualified addresses.
 
      LoginGraceTime
-             The server disconnects after this time if the user has not suc-
-             cessfully logged in.  If the value is 0, there is no time limit.
-             The default is 120 seconds.
+             The server disconnects after this time if the user has not
+             successfully logged in.  If the value is 0, there is no time
+             limit.  The default is 120 seconds.
 
      LogLevel
              Gives the verbosity level that is used when logging messages from
@@ -318,18 +346,18 @@ DESCRIPTION
              higher levels of debugging output.  Logging with a DEBUG level
              violates the privacy of users and is not recommended.
 
-     MACs    Specifies the available MAC (message authentication code) algo-
-             rithms.  The MAC algorithm is used in protocol version 2 for data
-             integrity protection.  Multiple algorithms must be comma-separat-
-             ed.  The default is:
+     MACs    Specifies the available MAC (message authentication code)
+             algorithms.  The MAC algorithm is used in protocol version 2 for
+             data integrity protection.  Multiple algorithms must be comma-
+             separated.  The default is:
 
                    hmac-md5,hmac-sha1,umac-64@openssh.com,
                    hmac-ripemd160,hmac-sha1-96,hmac-md5-96
 
      Match   Introduces a conditional block.  If all of the criteria on the
              Match line are satisfied, the keywords on the following lines
-             override those set in the global section of the config file, un-
-             til either another Match line or the end of the file.
+             override those set in the global section of the config file,
+             until either another Match line or the end of the file.
 
              The arguments to Match are one or more criteria-pattern pairs.
              The available criteria are User, Group, Host, and Address.  The
@@ -337,8 +365,8 @@ DESCRIPTION
              lists and may use the wildcard and negation operators described
              in the PATTERNS section of ssh_config(5).
 
-             The patterns in an Address criteria may additionally contain ad-
-             dresses to match in CIDR address/masklen format, e.g.
+             The patterns in an Address criteria may additionally contain
+             addresses to match in CIDR address/masklen format, e.g.
              ``192.0.2.0/24'' or ``3ffe:ffff::/32''.  Note that the mask
              length provided must be consistent with the address - it is an
              error to specify a mask length that is too long for the address
@@ -347,13 +375,15 @@ DESCRIPTION
 
              Only a subset of keywords may be used on the lines following a
              Match keyword.  Available keywords are AllowAgentForwarding,
-             AllowTcpForwarding, Banner, ChrootDirectory, ForceCommand,
-             GatewayPorts, GSSAPIAuthentication, HostbasedAuthentication,
-             KbdInteractiveAuthentication, KerberosAuthentication,
-             MaxAuthTries, MaxSessions, PasswordAuthentication,
-             PermitEmptyPasswords, PermitOpen, PermitRootLogin,
-             PubkeyAuthentication, RhostsRSAAuthentication, RSAAuthentication,
-             X11DisplayOffset, X11Forwarding and X11UseLocalHost.
+             AllowTcpForwarding, AuthorizedKeysFile, AuthorizedPrincipalsFile,
+             Banner, ChrootDirectory, ForceCommand, GatewayPorts,
+             GSSAPIAuthentication, HostbasedAuthentication,
+             HostbasedUsesNameFromPacketOnly, KbdInteractiveAuthentication,
+             KerberosAuthentication, MaxAuthTries, MaxSessions,
+             PasswordAuthentication, PermitEmptyPasswords, PermitOpen,
+             PermitRootLogin, PermitTunnel, PubkeyAuthentication,
+             RhostsRSAAuthentication, RSAAuthentication, X11DisplayOffset,
+             X11Forwarding and X11UseLocalHost.
 
      MaxAuthTries
              Specifies the maximum number of authentication attempts permitted
@@ -361,26 +391,26 @@ DESCRIPTION
              value, additional failures are logged.  The default is 6.
 
      MaxSessions
-             Specifies the maximum number of open sessions permitted per net-
-             work connection.  The default is 10.
+             Specifies the maximum number of open sessions permitted per
+             network connection.  The default is 10.
 
      MaxStartups
-             Specifies the maximum number of concurrent unauthenticated con-
-             nections to the SSH daemon.  Additional connections will be
-             dropped until authentication succeeds or the LoginGraceTime ex-
-             pires for a connection.  The default is 10.
+             Specifies the maximum number of concurrent unauthenticated
+             connections to the SSH daemon.  Additional connections will be
+             dropped until authentication succeeds or the LoginGraceTime
+             expires for a connection.  The default is 10.
 
              Alternatively, random early drop can be enabled by specifying the
              three colon separated values ``start:rate:full'' (e.g.
              "10:30:60").  sshd(8) will refuse connection attempts with a
              probability of ``rate/100'' (30%) if there are currently
-             ``start'' (10) unauthenticated connections.  The probability in-
-             creases linearly and all connection attempts are refused if the
+             ``start'' (10) unauthenticated connections.  The probability
+             increases linearly and all connection attempts are refused if the
              number of unauthenticated connections reaches ``full'' (60).
 
      PasswordAuthentication
-             Specifies whether password authentication is allowed.  The de-
-             fault is ``yes''.
+             Specifies whether password authentication is allowed.  The
+             default is ``yes''.
 
      PermitEmptyPasswords
              When password authentication is allowed, it specifies whether the
@@ -388,17 +418,17 @@ DESCRIPTION
              default is ``no''.
 
      PermitOpen
-             Specifies the destinations to which TCP port forwarding is per-
-             mitted.  The forwarding specification must be one of the follow-
-             ing forms:
+             Specifies the destinations to which TCP port forwarding is
+             permitted.  The forwarding specification must be one of the
+             following forms:
 
                    PermitOpen host:port
                    PermitOpen IPv4_addr:port
-                   PermitOpen [IPv6_addr]:port
+                   PermitOpen [ IPv6_addr ]:port
 
              Multiple forwards may be specified by separating them with
-             whitespace.  An argument of ``any'' can be used to remove all re-
-             strictions and permit any forwarding requests.  By default all
+             whitespace.  An argument of ``any'' can be used to remove all
+             restrictions and permit any forwarding requests.  By default all
              port forwarding requests are permitted.
 
      PermitRootLogin
@@ -406,8 +436,8 @@ DESCRIPTION
              must be ``yes'', ``without-password'', ``forced-commands-only'',
              or ``no''.  The default is ``yes''.
 
-             If this option is set to ``without-password'', password authenti-
-             cation is disabled for root.
+             If this option is set to ``without-password'', password
+             authentication is disabled for root.
 
              If this option is set to ``forced-commands-only'', root login
              with public key authentication will be allowed, but only if the
@@ -418,21 +448,21 @@ DESCRIPTION
              If this option is set to ``no'', root is not allowed to log in.
 
      PermitTunnel
-             Specifies whether tun(4) device forwarding is allowed.  The argu-
-             ment must be ``yes'', ``point-to-point'' (layer 3), ``ethernet''
-             (layer 2), or ``no''.  Specifying ``yes'' permits both ``point-
-             to-point'' and ``ethernet''.  The default is ``no''.
+             Specifies whether tun(4) device forwarding is allowed.  The
+             argument must be ``yes'', ``point-to-point'' (layer 3),
+             ``ethernet'' (layer 2), or ``no''.  Specifying ``yes'' permits
+             both ``point-to-point'' and ``ethernet''.  The default is ``no''.
 
      PermitUserEnvironment
              Specifies whether ~/.ssh/environment and environment= options in
              ~/.ssh/authorized_keys are processed by sshd(8).  The default is
-             ``no''.  Enabling environment processing may enable users to by-
-             pass access restrictions in some configurations using mechanisms
-             such as LD_PRELOAD.
+             ``no''.  Enabling environment processing may enable users to
+             bypass access restrictions in some configurations using
+             mechanisms such as LD_PRELOAD.
 
      PidFile
-             Specifies the file that contains the process ID of the SSH dae-
-             mon.  The default is /var/run/sshd.pid.
+             Specifies the file that contains the process ID of the SSH
+             daemon.  The default is /var/run/sshd.pid.
 
      Port    Specifies the port number that sshd(8) listens on.  The default
              is 22.  Multiple options of this type are permitted.  See also
@@ -450,16 +480,16 @@ DESCRIPTION
 
      Protocol
              Specifies the protocol versions sshd(8) supports.  The possible
-             values are `1' and `2'.  Multiple versions must be comma-separat-
-             ed.  The default is `2'.  Note that the order of the protocol
-             list does not indicate preference, because the client selects
-             among multiple protocol versions offered by the server.  Specify-
-             ing ``2,1'' is identical to ``1,2''.
+             values are `1' and `2'.  Multiple versions must be comma-
+             separated.  The default is `2'.  Note that the order of the
+             protocol list does not indicate preference, because the client
+             selects among multiple protocol versions offered by the server.
+             Specifying ``2,1'' is identical to ``1,2''.
 
      PubkeyAuthentication
-             Specifies whether public key authentication is allowed.  The de-
-             fault is ``yes''.  Note that this option applies to protocol ver-
-             sion 2 only.
+             Specifies whether public key authentication is allowed.  The
+             default is ``yes''.  Note that this option applies to protocol
+             version 2 only.
 
      RevokedKeys
              Specifies a list of revoked public keys.  Keys listed in this
@@ -468,15 +498,15 @@ DESCRIPTION
              refused for all users.
 
      RhostsRSAAuthentication
-             Specifies whether rhosts or /etc/hosts.equiv authentication to-
-             gether with successful RSA host authentication is allowed.  The
-             default is ``no''.  This option applies to protocol version 1 on-
-             ly.
+             Specifies whether rhosts or /etc/hosts.equiv authentication
+             together with successful RSA host authentication is allowed.  The
+             default is ``no''.  This option applies to protocol version 1
+             only.
 
      RSAAuthentication
-             Specifies whether pure RSA authentication is allowed.  The de-
-             fault is ``yes''.  This option applies to protocol version 1 on-
-             ly.
+             Specifies whether pure RSA authentication is allowed.  The
+             default is ``yes''.  This option applies to protocol version 1
+             only.
 
      ServerKeyBits
              Defines the number of bits in the ephemeral protocol version 1
@@ -502,24 +532,24 @@ DESCRIPTION
              ``sftp'' server.  This may simplify configurations using
              ChrootDirectory to force a different filesystem root on clients.
 
-             By default no subsystems are defined.  Note that this option ap-
-             plies to protocol version 2 only.
+             By default no subsystems are defined.  Note that this option
+             applies to protocol version 2 only.
 
      SyslogFacility
              Gives the facility code that is used when logging messages from
              sshd(8).  The possible values are: DAEMON, USER, AUTH, LOCAL0,
-             LOCAL1, LOCAL2, LOCAL3, LOCAL4, LOCAL5, LOCAL6, LOCAL7.  The de-
-             fault is AUTH.
+             LOCAL1, LOCAL2, LOCAL3, LOCAL4, LOCAL5, LOCAL6, LOCAL7.  The
+             default is AUTH.
 
      TCPKeepAlive
              Specifies whether the system should send TCP keepalive messages
              to the other side.  If they are sent, death of the connection or
              crash of one of the machines will be properly noticed.  However,
-             this means that connections will die if the route is down tem-
-             porarily, and some people find it annoying.  On the other hand,
-             if TCP keepalives are not sent, sessions may hang indefinitely on
-             the server, leaving ``ghost'' users and consuming server re-
-             sources.
+             this means that connections will die if the route is down
+             temporarily, and some people find it annoying.  On the other
+             hand, if TCP keepalives are not sent, sessions may hang
+             indefinitely on the server, leaving ``ghost'' users and consuming
+             server resources.
 
              The default is ``yes'' (to send TCP keepalive messages), and the
              server will notice if the network goes down or the client host
@@ -529,34 +559,34 @@ DESCRIPTION
              ``no''.
 
      TrustedUserCAKeys
-             Specifies a file containing public keys of certificate authori-
-             ties that are trusted to sign user certificates for authentica-
-             tion.  Keys are listed one per line; empty lines and comments
-             starting with `#' are allowed.  If a certificate is presented for
-             authentication and has its signing CA key listed in this file,
-             then it may be used for authentication for any user listed in the
-             certificate's principals list.  Note that certificates that lack
-             a list of principals will not be permitted for authentication us-
-             ing TrustedUserCAKeys.  For more details on certificates, see the
-             CERTIFICATES section in ssh-keygen(1).
+             Specifies a file containing public keys of certificate
+             authorities that are trusted to sign user certificates for
+             authentication.  Keys are listed one per line; empty lines and
+             comments starting with `#' are allowed.  If a certificate is
+             presented for authentication and has its signing CA key listed in
+             this file, then it may be used for authentication for any user
+             listed in the certificate's principals list.  Note that
+             certificates that lack a list of principals will not be permitted
+             for authentication using TrustedUserCAKeys.  For more details on
+             certificates, see the CERTIFICATES section in ssh-keygen(1).
 
      UseDNS  Specifies whether sshd(8) should look up the remote host name and
              check that the resolved host name for the remote IP address maps
              back to the very same IP address.  The default is ``yes''.
 
      UseLogin
-             Specifies whether login(1) is used for interactive login ses-
-             sions.  The default is ``no''.  Note that login(1) is never used
-             for remote command execution.  Note also, that if this is en-
-             abled, X11Forwarding will be disabled because login(1) does not
+             Specifies whether login(1) is used for interactive login
+             sessions.  The default is ``no''.  Note that login(1) is never
+             used for remote command execution.  Note also, that if this is
+             enabled, X11Forwarding will be disabled because login(1) does not
              know how to handle xauth(1) cookies.  If UsePrivilegeSeparation
              is specified, it will be disabled after authentication.
 
      UsePAM  Enables the Pluggable Authentication Module interface.  If set to
              ``yes'' this will enable PAM authentication using
-             ChallengeResponseAuthentication and PasswordAuthentication in ad-
-             dition to PAM account and session module processing for all au-
-             thentication types.
+             ChallengeResponseAuthentication and PasswordAuthentication in
+             addition to PAM account and session module processing for all
+             authentication types.
 
              Because PAM challenge-response authentication usually serves an
              equivalent role to password authentication, you should disable
@@ -566,12 +596,12 @@ DESCRIPTION
              non-root user.  The default is ``no''.
 
      UsePrivilegeSeparation
-             Specifies whether sshd(8) separates privileges by creating an un-
-             privileged child process to deal with incoming network traffic.
+             Specifies whether sshd(8) separates privileges by creating an
+             unprivileged child process to deal with incoming network traffic.
              After successful authentication, another process will be created
              that has the privilege of the authenticated user.  The goal of
-             privilege separation is to prevent privilege escalation by con-
-             taining any corruption within the unprivileged processes.  The
+             privilege separation is to prevent privilege escalation by
+             containing any corruption within the unprivileged processes.  The
              default is ``yes''.
 
      X11DisplayOffset
@@ -586,15 +616,16 @@ DESCRIPTION
              When X11 forwarding is enabled, there may be additional exposure
              to the server and to client displays if the sshd(8) proxy display
              is configured to listen on the wildcard address (see
-             X11UseLocalhost below), though this is not the default.  Addi-
-             tionally, the authentication spoofing and authentication data
-             verification and substitution occur on the client side.  The se-
-             curity risk of using X11 forwarding is that the client's X11 dis-
-             play server may be exposed to attack when the SSH client requests
-             forwarding (see the warnings for ForwardX11 in ssh_config(5)).  A
-             system administrator may have a stance in which they want to pro-
-             tect clients that may expose themselves to attack by unwittingly
-             requesting X11 forwarding, which can warrant a ``no'' setting.
+             X11UseLocalhost below), though this is not the default.
+             Additionally, the authentication spoofing and authentication data
+             verification and substitution occur on the client side.  The
+             security risk of using X11 forwarding is that the client's X11
+             display server may be exposed to attack when the SSH client
+             requests forwarding (see the warnings for ForwardX11 in
+             ssh_config(5)).  A system administrator may have a stance in
+             which they want to protect clients that may expose themselves to
+             attack by unwittingly requesting X11 forwarding, which can
+             warrant a ``no'' setting.
 
              Note that disabling X11 forwarding does not prevent users from
              forwarding X11 traffic, as users can always install their own
@@ -609,19 +640,19 @@ DESCRIPTION
              ``localhost''.  This prevents remote hosts from connecting to the
              proxy display.  However, some older X11 clients may not function
              with this configuration.  X11UseLocalhost may be set to ``no'' to
-             specify that the forwarding server should be bound to the wild-
-             card address.  The argument must be ``yes'' or ``no''.  The de-
-             fault is ``yes''.
+             specify that the forwarding server should be bound to the
+             wildcard address.  The argument must be ``yes'' or ``no''.  The
+             default is ``yes''.
 
      XAuthLocation
              Specifies the full pathname of the xauth(1) program.  The default
              is /usr/X11R6/bin/xauth.
 
 TIME FORMATS
-     sshd(8) command-line arguments and configuration file options that speci-
-     fy time may be expressed using a sequence of the form: time[qualifier],
-     where time is a positive integer value and qualifier is one of the fol-
-     lowing:
+     sshd(8) command-line arguments and configuration file options that
+     specify time may be expressed using a sequence of the form: time
+     [qualifier], where time is a positive integer value and qualifier is one
+     of the following:
 
            <none>  seconds
            s | S   seconds
@@ -642,8 +673,8 @@ TIME FORMATS
 FILES
      /etc/ssh/sshd_config
              Contains configuration data for sshd(8).  This file should be
-             writable by root only, but it is recommended (though not neces-
-             sary) that it be world-readable.
+             writable by root only, but it is recommended (though not
+             necessary) that it be world-readable.
 
 SEE ALSO
      sshd(8)
@@ -651,9 +682,9 @@ SEE ALSO
 AUTHORS
      OpenSSH is a derivative of the original and free ssh 1.2.12 release by
      Tatu Ylonen.  Aaron Campbell, Bob Beck, Markus Friedl, Niels Provos, Theo
-     de Raadt and Dug Song removed many bugs, re-added newer features and cre-
-     ated OpenSSH.  Markus Friedl contributed the support for SSH protocol
+     de Raadt and Dug Song removed many bugs, re-added newer features and
+     created OpenSSH.  Markus Friedl contributed the support for SSH protocol
      versions 1.5 and 2.0.  Niels Provos and Markus Friedl contributed support
      for privilege separation.
 
-OpenBSD 4.7                      March 4, 2010                              10
+OpenBSD 4.8                      June 30, 2010                     OpenBSD 4.8

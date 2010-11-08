@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # buildbff.sh: Create AIX SMIT-installable OpenSSH packages
-# $Id: buildbff.sh,v 1.11 2009/03/06 23:22:10 dtucker Exp $
+# $Id: buildbff.sh,v 1.12 2010/04/18 03:35:00 dtucker Exp $
 #
 # Author: Darren Tucker (dtucker at zip dot com dot au)
 # This file is placed in the public domain and comes with absolutely
@@ -159,7 +159,7 @@ done
 # AIX 5.3 and newer have /dev/random and don't create ssh_prng_cmds
 if [ -f $FAKE_ROOT/$sysconfdir/ssh_prng_cmds ]
 then
-	mv FAKE_ROOT/$sysconfdir/ssh_prng_cmds \
+	mv $FAKE_ROOT/$sysconfdir/ssh_prng_cmds \
 		$FAKE_ROOT/$sysconfdir/ssh_prng_cmds.default
 fi
 

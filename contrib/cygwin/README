@@ -201,6 +201,7 @@ configure are used for the Cygwin binary distribution:
 	--mandir='${datadir}/man' \
 	--infodir='${datadir}/info'
 	--with-tcp-wrappers
+	--with-libedit
 
 If you want to create a Cygwin package, equivalent to the one
 in the Cygwin binary distribution, install like this:
@@ -217,11 +218,14 @@ You must have installed the following packages to be able to build OpenSSH:
 
 - zlib
 - openssl-devel
-- minires-devel
 
 If you want to build with --with-tcp-wrappers, you also need the package
 
 - tcp_wrappers
+
+If you want to build with --with-libedit, you also need the package
+
+- libedit-devel
 
 Please send requests, error reports etc. to cygwin@cygwin.com.
 

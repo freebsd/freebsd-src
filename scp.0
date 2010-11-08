@@ -6,7 +6,7 @@ NAME
 SYNOPSIS
      scp [-1246BCpqrv] [-c cipher] [-F ssh_config] [-i identity_file]
          [-l limit] [-o ssh_option] [-P port] [-S program]
-         [[user@]host1:]file1 ...  [[user@]host2:]file2
+         [[user@]host1:]file1 ... [[user@]host2:]file2
 
 DESCRIPTION
      scp copies files between hosts on a network.  It uses ssh(1) for data
@@ -15,8 +15,8 @@ DESCRIPTION
      they are needed for authentication.
 
      File names may contain a user and host specification to indicate that the
-     file is to be copied to/from that host.  Local file names can be made ex-
-     plicit using absolute or relative pathnames to avoid scp treating file
+     file is to be copied to/from that host.  Local file names can be made
+     explicit using absolute or relative pathnames to avoid scp treating file
      names containing `:' as host specifiers.  Copies between two remote hosts
      are also permitted.
 
@@ -30,11 +30,11 @@ DESCRIPTION
 
      -6      Forces scp to use IPv6 addresses only.
 
-     -B      Selects batch mode (prevents asking for passwords or passphras-
-             es).
+     -B      Selects batch mode (prevents asking for passwords or
+             passphrases).
 
-     -C      Compression enable.  Passes the -C flag to ssh(1) to enable com-
-             pression.
+     -C      Compression enable.  Passes the -C flag to ssh(1) to enable
+             compression.
 
      -c cipher
              Selects the cipher to use for encrypting the data transfer.  This
@@ -120,8 +120,8 @@ DESCRIPTION
      -q      Quiet mode: disables the progress meter as well as warning and
              diagnostic messages from ssh(1).
 
-     -r      Recursively copy entire directories.  Note that scp follows sym-
-             bolic links encountered in the tree traversal.
+     -r      Recursively copy entire directories.  Note that scp follows
+             symbolic links encountered in the tree traversal.
 
      -S program
              Name of program to use for the encrypted connection.  The program
@@ -145,4 +145,4 @@ AUTHORS
      Timo Rinne <tri@iki.fi>
      Tatu Ylonen <ylo@cs.hut.fi>
 
-OpenBSD 4.7                    February 8, 2010                              3
+OpenBSD 4.8                    February 8, 2010                    OpenBSD 4.8
