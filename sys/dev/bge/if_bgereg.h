@@ -2759,7 +2759,6 @@ struct bge_softc {
 	uint32_t		bge_tx_prodidx;
 	uint32_t		bge_rx_max_coal_bds;
 	uint32_t		bge_tx_max_coal_bds;
-	uint32_t		bge_tx_buf_ratio;
 	uint32_t		bge_mi_mode;
 	int			bge_if_flags;
 	int			bge_txcnt;
