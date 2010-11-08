@@ -7,7 +7,6 @@
 DEBUG_FLAGS=	-g
 
 PROG=		ctfconvert
-
 SRCS=		alist.c \
 		ctf.c \
 		ctfconvert.c \
@@ -45,7 +44,5 @@ LDADD+=		-lctf -ldwarf -lelf -lz -lthr
 .PATH:		${.CURDIR}
 .PATH:		${OPENSOLARIS_USR_DISTDIR}/tools/ctf/common
 .PATH:		${OPENSOLARIS_USR_DISTDIR}/tools/ctf/cvt
-
-MK_MAN=		no
 
 .include <bsd.prog.mk>

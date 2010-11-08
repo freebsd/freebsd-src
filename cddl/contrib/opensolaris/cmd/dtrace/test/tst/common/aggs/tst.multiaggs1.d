@@ -20,15 +20,13 @@
  */
 
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
 
-#pragma	ident	"%Z%%M%	%I%	%E% SMI"
-
 /*
  * ASSERTION:
- * 	Multiple aggregates can be used within the same D script.
+ *     Multiple aggregates can be used within the same D script.
  *
  * SECTION: Aggregations/Aggregations
  *
@@ -52,9 +50,11 @@ tick-10ms
 	@c[pid] = avg(new_time);
 	@d[pid] = sum(new_time);
 	@e[pid] = quantize(new_time);
-	@f[timestamp] = max(new_time);
-	@g[timestamp] = quantize(new_time);
-	@h[timestamp] = lquantize(new_time, 0, 10000, 1000);
+	@f[pid] = stddev(new_time);
+	@g[timestamp] = max(new_time);
+	@h[timestamp] = quantize(new_time);
+	@i[timestamp] = lquantize(new_time, 0, 10000, 1000);
+
 	time_1 = time_2;
 	i++;
 }

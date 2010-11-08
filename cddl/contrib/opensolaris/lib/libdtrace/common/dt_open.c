@@ -20,11 +20,8 @@
  */
 
 /*
- * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
 #if defined(sun)
@@ -116,8 +113,9 @@
 #define	DT_VERS_1_6	DT_VERSION_NUMBER(1, 6, 0)
 #define	DT_VERS_1_6_1	DT_VERSION_NUMBER(1, 6, 1)
 #define	DT_VERS_1_6_2	DT_VERSION_NUMBER(1, 6, 2)
-#define	DT_VERS_LATEST	DT_VERS_1_6_2
-#define	DT_VERS_STRING	"Sun D 1.6.2"
+#define	DT_VERS_1_6_3	DT_VERSION_NUMBER(1, 6, 3)
+#define	DT_VERS_LATEST	DT_VERS_1_6_3
+#define	DT_VERS_STRING	"Sun D 1.6.3"
 
 const dt_version_t _dtrace_versions[] = {
 	DT_VERS_1_0,	/* D API 1.0.0 (PSARC 2001/466) Solaris 10 FCS */
@@ -132,6 +130,7 @@ const dt_version_t _dtrace_versions[] = {
 	DT_VERS_1_6,	/* D API 1.6 */
 	DT_VERS_1_6_1,	/* D API 1.6.1 */
 	DT_VERS_1_6_2,	/* D API 1.6.2 */
+	DT_VERS_1_6_3,	/* D API 1.6.3 */
 	0
 };
 
@@ -284,10 +283,8 @@ static const dt_ident_t _dtrace_globals[] = {
 	DT_VERS_1_5, &dt_idops_func, "string(int, void *)" },
 { "ipl", DT_IDENT_SCALAR, 0, DIF_VAR_IPL, DT_ATTR_STABCMN, DT_VERS_1_0,
 	&dt_idops_type, "uint_t" },
-#if defined(sun)
 { "jstack", DT_IDENT_ACTFUNC, 0, DT_ACT_JSTACK, DT_ATTR_STABCMN, DT_VERS_1_0,
 	&dt_idops_func, "stack(...)" },
-#endif
 { "lltostr", DT_IDENT_FUNC, 0, DIF_SUBR_LLTOSTR, DT_ATTR_STABCMN, DT_VERS_1_0,
 	&dt_idops_func, "string(int64_t)" },
 { "lquantize", DT_IDENT_AGGFUNC, 0, DTRACEAGG_LQUANTIZE,
@@ -466,8 +463,10 @@ static const dt_ident_t _dtrace_globals[] = {
 #if defined(sun)
 { "uaddr", DT_IDENT_ACTFUNC, 0, DT_ACT_UADDR, DT_ATTR_STABCMN,
 	DT_VERS_1_2, &dt_idops_func, "_usymaddr(uintptr_t)" },
+#endif
 { "ucaller", DT_IDENT_SCALAR, 0, DIF_VAR_UCALLER, DT_ATTR_STABCMN,
 	DT_VERS_1_2, &dt_idops_type, "uint64_t" },
+#if defined(sun)
 { "ufunc", DT_IDENT_ACTFUNC, 0, DT_ACT_USYM, DT_ATTR_STABCMN,
 	DT_VERS_1_2, &dt_idops_func, "_usymaddr(uintptr_t)" },
 #endif
@@ -476,6 +475,7 @@ static const dt_ident_t _dtrace_globals[] = {
 #if defined(sun)
 { "umod", DT_IDENT_ACTFUNC, 0, DT_ACT_UMOD, DT_ATTR_STABCMN,
 	DT_VERS_1_2, &dt_idops_func, "_usymaddr(uintptr_t)" },
+#endif
 { "uregs", DT_IDENT_ARRAY, 0, DIF_VAR_UREGS, DT_ATTR_STABCMN, DT_VERS_1_0,
 	&dt_idops_regs, NULL },
 { "ustack", DT_IDENT_ACTFUNC, 0, DT_ACT_USTACK, DT_ATTR_STABCMN, DT_VERS_1_0,
@@ -483,6 +483,7 @@ static const dt_ident_t _dtrace_globals[] = {
 { "ustackdepth", DT_IDENT_SCALAR, 0, DIF_VAR_USTACKDEPTH,
 	DT_ATTR_STABCMN, DT_VERS_1_2,
 	&dt_idops_type, "uint32_t" },
+#if defined(sun)
 { "usym", DT_IDENT_ACTFUNC, 0, DT_ACT_USYM, DT_ATTR_STABCMN,
 	DT_VERS_1_2, &dt_idops_func, "_usymaddr(uintptr_t)" },
 #endif
@@ -761,9 +762,7 @@ int _dtrace_argmax = 32;	/* default maximum number of probe arguments */
 
 int _dtrace_debug = 0;		/* debug messages enabled (off) */
 const char *const _dtrace_version = DT_VERS_STRING; /* API version string */
-#if defined(sun)
 int _dtrace_rdvers = RD_VERSION; /* rtld_db feature version */
-#endif
 
 typedef struct dt_fdlist {
 	int *df_fds;		/* array of provider driver file descriptors */
@@ -781,12 +780,10 @@ _dtrace_init(void)
 {
 	_dtrace_debug = getenv("DTRACE_DEBUG") != NULL;
 
-#if defined(sun)
 	for (; _dtrace_rdvers > 0; _dtrace_rdvers--) {
 		if (rd_init(_dtrace_rdvers) == RD_OK)
 			break;
 	}
-#endif
 #if defined(__i386__)
 	/* make long doubles 64 bits -sson */
 	(void) fpsetprec(FP_PE);
@@ -1103,7 +1100,11 @@ alloc:
 
 	bzero(dtp, sizeof (dtrace_hdl_t));
 	dtp->dt_oflags = flags;
+#if defined(sun)
 	dtp->dt_prcmode = DT_PROC_STOP_PREINIT;
+#else
+	dtp->dt_prcmode = DT_PROC_STOP_MAIN;
+#endif
 	dtp->dt_linkmode = DT_LINK_KERNEL;
 	dtp->dt_linktype = DT_LTYP_ELF;
 	dtp->dt_xlatemode = DT_XL_STATIC;

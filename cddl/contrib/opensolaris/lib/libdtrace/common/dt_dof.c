@@ -20,11 +20,8 @@
  */
 
 /*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
 #if defined(sun)
@@ -838,7 +835,6 @@ dtrace_dof_create(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t flags)
 	 */
 	h.dofh_secnum = ddo->ddo_nsecs;
 	ssize = sizeof (h) + dt_buf_len(&ddo->ddo_secs);
-	assert(ssize == sizeof (h) + sizeof (dof_sec_t) * ddo->ddo_nsecs);
 
 	h.dofh_loadsz = ssize +
 	    dt_buf_len(&ddo->ddo_ldata) +
@@ -864,6 +860,7 @@ dtrace_dof_create(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t flags)
 
 	sp = dt_buf_ptr(&ddo->ddo_secs);
 	assert(sp[ddo->ddo_strsec].dofs_type == DOF_SECT_STRTAB);
+	assert(ssize == sizeof (h) + sizeof (dof_sec_t) * ddo->ddo_nsecs);
 
 	sp[ddo->ddo_strsec].dofs_offset = ssize + dt_buf_len(&ddo->ddo_ldata);
 	sp[ddo->ddo_strsec].dofs_size = dt_buf_len(&ddo->ddo_strs);

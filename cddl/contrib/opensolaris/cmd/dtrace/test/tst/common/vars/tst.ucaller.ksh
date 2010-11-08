@@ -38,7 +38,7 @@ fi
 
 dtrace=$1
 
-$dtrace -qs /dev/stdin -c "/usr/bin/echo" <<EOF
+$dtrace -qs /dev/stdin -c "/bin/echo" <<EOF
 pid\$target:ld.so.1:calloc:entry
 {
 	self->calloc = 1;

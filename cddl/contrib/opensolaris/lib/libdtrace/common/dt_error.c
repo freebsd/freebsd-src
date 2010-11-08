@@ -19,11 +19,9 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <string.h>
 #include <strings.h>
@@ -106,7 +104,8 @@ static const struct {
 	{ EDT_BADSETOPT, "Invalid setopt() library action" },
 	{ EDT_BADSTACKPC, "Invalid stack program counter size" },
 	{ EDT_BADAGGVAR, "Invalid aggregation variable identifier" },
-	{ EDT_OVERSION,	"Client requested deprecated version of library" }
+	{ EDT_OVERSION,	"Client requested deprecated version of library" },
+	{ EDT_ENABLING_ERR, "Failed to enable probe" }
 };
 
 static const int _dt_nerr = sizeof (_dt_errlist) / sizeof (_dt_errlist[0]);

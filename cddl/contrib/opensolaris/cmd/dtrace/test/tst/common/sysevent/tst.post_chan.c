@@ -19,11 +19,9 @@
  * CDDL HEADER END
  */
 /*
- * Copyright 2007 Sun Microsystems, Inc.  All rights reserved.
+ * Copyright 2009 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <libsysevent.h>
 #include <stdio.h>
@@ -42,7 +40,7 @@ main(int argc, char **argv)
 	for (;;) {
 		if (sysevent_evc_publish(ch, "class_dtest", "subclass_dtest",
 		    "vendor_dtest", "publisher_dtest", NULL, EVCH_SLEEP) != 0) {
-			sysevent_evc_unbind(ch);
+			(void) sysevent_evc_unbind(ch);
 			(void) fprintf(stderr, "failed to publisth sysevent\n");
 			return (1);
 		}
