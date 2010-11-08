@@ -1113,38 +1113,3 @@ struct rl_softc {
 /* US Robotics 997902 device ID */
 
 #define	USR_DEVICEID_997902	0x0116
-
-/*
- * PCI low memory base and low I/O base register, and
- * other PCI registers.
- */
-
-#define	RL_PCI_VENDOR_ID	0x00
-#define	RL_PCI_DEVICE_ID	0x02
-#define	RL_PCI_COMMAND		0x04
-#define	RL_PCI_STATUS		0x06
-#define	RL_PCI_CLASSCODE	0x09
-#define	RL_PCI_LATENCY_TIMER	0x0D
-#define	RL_PCI_HEADER_TYPE	0x0E
-#define	RL_PCI_LOIO		0x10
-#define	RL_PCI_LOMEM		0x14
-#define	RL_PCI_BIOSROM		0x30
-#define	RL_PCI_INTLINE		0x3C
-#define	RL_PCI_INTPIN		0x3D
-#define	RL_PCI_MINGNT		0x3E
-#define	RL_PCI_MINLAT		0x0F
-#define	RL_PCI_RESETOPT		0x48
-#define	RL_PCI_EEPROM_DATA	0x4C
-
-#define	RL_PCI_CAPID		0x50 /* 8 bits */
-#define	RL_PCI_NEXTPTR		0x51 /* 8 bits */
-#define	RL_PCI_PWRMGMTCAP	0x52 /* 16 bits */
-#define	RL_PCI_PWRMGMTCTRL	0x54 /* 16 bits */
-
-#define	RL_PSTATE_MASK		0x0003
-#define	RL_PSTATE_D0		0x0000
-#define	RL_PSTATE_D1		0x0002
-#define	RL_PSTATE_D2		0x0002
-#define	RL_PSTATE_D3		0x0003
-#define	RL_PME_EN		0x0010
-#define	RL_PME_STATUS		0x8000
