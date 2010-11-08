@@ -1285,7 +1285,7 @@ apic_init(void *dummy __unused)
 	if (resource_disabled("apic", 0))
 		return;
 
-	/* First, probe all the enumerators to find the best match. */
+	/* Probe all the enumerators to find the best match. */
 	best_enum = NULL;
 	best = 0;
 	SLIST_FOREACH(enumerator, &enumerators, apic_next) {
@@ -1321,13 +1321,12 @@ apic_init(void *dummy __unused)
 	}
 #endif
 
-	/* Second, probe the CPU's in the system. */
+	/* Probe the CPU's in the system. */
 	retval = best_enum->apic_probe_cpus();
 	if (retval != 0)
 		printf("%s: Failed to probe CPUs: returned %d\n",
 		    best_enum->apic_name, retval);
 
-#ifdef __amd64__
 }
 SYSINIT(apic_init, SI_SUB_TUNABLES - 1, SI_ORDER_SECOND, apic_init, NULL);
 
@@ -1342,19 +1341,14 @@ apic_setup_local(void *dummy __unused)
  
 	if (best_enum == NULL)
 		return;
-#endif
-	/* Third, initialize the local APIC. */
+
+	/* Initialize the local APIC. */
 	retval = best_enum->apic_setup_local();
 	if (retval != 0)
 		printf("%s: Failed to setup the local APIC: returned %d\n",
 		    best_enum->apic_name, retval);
 }
-#ifdef __amd64__
-SYSINIT(apic_setup_local, SI_SUB_CPU, SI_ORDER_SECOND, apic_setup_local,
-    NULL);
-#else
-SYSINIT(apic_init, SI_SUB_CPU, SI_ORDER_SECOND, apic_init, NULL);
-#endif
+SYSINIT(apic_setup_local, SI_SUB_CPU, SI_ORDER_SECOND, apic_setup_local, NULL);
 
 /*
  * Setup the I/O APICs.
