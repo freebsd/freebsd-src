@@ -275,6 +275,24 @@ task_is_running(struct taskqueue *queue, struct task *task)
 	return (0);
 }
 
+int
+taskqueue_cancel(struct taskqueue *queue, struct task *task, u_int *pendp)
+{
+	u_int pending;
+	int error;
+
+	TQ_LOCK(queue);
+	if ((pending = task->ta_pending) > 0)
+		STAILQ_REMOVE(&queue->tq_queue, task, task, ta_link);
+	task->ta_pending = 0;
+	error = task_is_running(queue, task) ? EBUSY : 0;
+	TQ_UNLOCK(queue);
+
+	if (pendp != NULL)
+		*pendp = pending;
+	return (error);
+}
+
 void
 taskqueue_drain(struct taskqueue *queue, struct task *task)
 {
