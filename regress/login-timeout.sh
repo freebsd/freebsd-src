@@ -15,7 +15,7 @@ if [ $? -ne 0 ]; then
 	fail "ssh connect after login grace timeout failed with privsep"
 fi
 
-$SUDO kill `cat $PIDFILE`
+$SUDO kill `$SUDO cat $PIDFILE`
 
 trace "test login grace without privsep"
 echo "UsePrivilegeSeparation no" >> $OBJ/sshd_config

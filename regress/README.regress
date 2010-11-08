@@ -29,7 +29,7 @@ TEST_SSH_x: path to "ssh" command under test, where x=SSH,SSHD,SSHAGENT,SSHADD
 OBJ: used by test scripts to access build dir.
 TEST_SHELL: shell used for running the test scripts.
 TEST_SSH_PORT: TCP port to be used for the listening tests.
-TEST_SSH_SSH_CONFOTPS: Configuration directives to be added to ssh_config
+TEST_SSH_SSH_CONFOPTS: Configuration directives to be added to ssh_config
 	before running each test.
 TEST_SSH_SSHD_CONFOTPS: Configuration directives to be added to sshd_config
 	before running each test.
@@ -105,4 +105,4 @@ Known Issues.
   test to fail.  The old behaviour can be restored by setting (and
   exporting) _POSIX2_VERSION=199209 before running the tests.
 
-$Id: README.regress,v 1.10 2005/10/03 10:14:18 dtucker Exp $
+$Id: README.regress,v 1.11 2010/08/16 21:04:29 djm Exp $

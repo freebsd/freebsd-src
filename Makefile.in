@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.309 2010/03/13 21:41:34 djm Exp $
+# $Id: Makefile.in,v 1.310 2010/05/12 06:51:39 dtucker Exp $
 
 # uncomment if you run a non bourne compatable shell. Ie. csh
 #SHELL = @SH@
@@ -160,7 +160,7 @@ ssh-keysign$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keysign.o roaming_dummy.o readco
 	$(LD) -o $@ ssh-keysign.o readconf.o roaming_dummy.o $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
 
 ssh-pkcs11-helper$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-pkcs11-helper.o ssh-pkcs11.o
-	$(LD) -o $@ ssh-pkcs11-helper.o ssh-pkcs11.o $(LDFLAGS) -lssh -lopenbsd-compat -lssh $(LIBS)
+	$(LD) -o $@ ssh-pkcs11-helper.o ssh-pkcs11.o $(LDFLAGS) -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS)
 
 ssh-keyscan$(EXEEXT): $(LIBCOMPAT) libssh.a ssh-keyscan.o roaming_dummy.o
 	$(LD) -o $@ ssh-keyscan.o roaming_dummy.o $(LDFLAGS) -lssh -lopenbsd-compat -lssh $(LIBS)

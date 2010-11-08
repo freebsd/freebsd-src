@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.52 2010/02/26 20:33:21 djm Exp $
+#	$OpenBSD: Makefile,v 1.54 2010/06/27 19:19:56 phessler Exp $
 
 REGRESS_TARGETS=	t1 t2 t3 t4 t5 t6 t7 t-exec
 tests:		$(REGRESS_TARGETS)
@@ -69,7 +69,8 @@ CLEANFILES=	t2.out t6.out1 t6.out2 t7.out t7.out.pub copy.1 copy.2 \
 		scp-ssh-wrapper.scp ssh_proxy_envpass remote_pid \
 		sshd_proxy_bak rsa_ssh2_cr.prv rsa_ssh2_crnl.prv \
 		known_hosts-cert host_ca_key* cert_host_key* \
-		putty.rsa2 sshd_proxy_orig
+		putty.rsa2 sshd_proxy_orig \
+		authorized_principals_${USER}
 
 # Enable all malloc(3) randomisations and checks
 TEST_ENV=      "MALLOC_OPTIONS=AFGJPRX"
@@ -112,13 +113,13 @@ t-exec:	${LTESTS:=.sh}
 	@if [ "x$?" = "x" ]; then exit 0; fi; \
 	for TEST in ""$?; do \
 		echo "run test $${TEST}" ... 1>&2; \
-		(env SUDO=${SUDO} TEST_ENV=${TEST_ENV} sh ${.CURDIR}/test-exec.sh ${.OBJDIR} ${.CURDIR}/$${TEST}) || exit $$?; \
+		(env SUDO="${SUDO}" TEST_ENV=${TEST_ENV} sh ${.CURDIR}/test-exec.sh ${.OBJDIR} ${.CURDIR}/$${TEST}) || exit $$?; \
 	done
 
 t-exec-interop:	${INTEROP_TESTS:=.sh}
 	@if [ "x$?" = "x" ]; then exit 0; fi; \
 	for TEST in ""$?; do \
 		echo "run test $${TEST}" ... 1>&2; \
-		(env SUDO=${SUDO} TEST_ENV=${TEST_ENV} sh ${.CURDIR}/test-exec.sh ${.OBJDIR} ${.CURDIR}/$${TEST}) || exit $$?; \
+		(env SUDO="${SUDO}" TEST_ENV=${TEST_ENV} sh ${.CURDIR}/test-exec.sh ${.OBJDIR} ${.CURDIR}/$${TEST}) || exit $$?; \
 	done
 

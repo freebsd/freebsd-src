@@ -8,9 +8,9 @@ SYNOPSIS
 
 DESCRIPTION
      sftp-server is a program that speaks the server side of SFTP protocol to
-     stdout and expects client requests from stdin.  sftp-server is not in-
-     tended to be called directly, but from sshd(8) using the Subsystem op-
-     tion.
+     stdout and expects client requests from stdin.  sftp-server is not
+     intended to be called directly, but from sshd(8) using the Subsystem
+     option.
 
      Command-line flags to sftp-server should be specified in the Subsystem
      declaration.  See sshd_config(5) for more information.
@@ -29,15 +29,15 @@ DESCRIPTION
      -h      Displays sftp-server usage information.
 
      -l log_level
-             Specifies which messages will be logged by sftp-server.  The pos-
-             sible values are: QUIET, FATAL, ERROR, INFO, VERBOSE, DEBUG, DE-
-             BUG1, DEBUG2, and DEBUG3.  INFO and VERBOSE log transactions that
-             sftp-server performs on behalf of the client.  DEBUG and DEBUG1
-             are equivalent.  DEBUG2 and DEBUG3 each specify higher levels of
-             debugging output.  The default is ERROR.
+             Specifies which messages will be logged by sftp-server.  The
+             possible values are: QUIET, FATAL, ERROR, INFO, VERBOSE, DEBUG,
+             DEBUG1, DEBUG2, and DEBUG3.  INFO and VERBOSE log transactions
+             that sftp-server performs on behalf of the client.  DEBUG and
+             DEBUG1 are equivalent.  DEBUG2 and DEBUG3 each specify higher
+             levels of debugging output.  The default is ERROR.
 
-     -R      Places this instance of sftp-server into a read-only mode.  At-
-             tempts to open files for writing, as well as other operations
+     -R      Places this instance of sftp-server into a read-only mode.
+             Attempts to open files for writing, as well as other operations
              that change the state of the filesystem, will be denied.
 
      -u umask
@@ -51,8 +51,9 @@ DESCRIPTION
 SEE ALSO
      sftp(1), ssh(1), sshd_config(5), sshd(8)
 
-     T. Ylonen and S. Lehtinen, SSH File Transfer Protocol, draft-ietf-secsh-
-     filexfer-00.txt, January 2001, work in progress material.
+     T. Ylonen, S. Lehtinen, SSH File Transfer Protocol,
+     draft-ietf-secsh-filexfer-00.txt, January 2001, work in progress
+     material.
 
 HISTORY
      sftp-server first appeared in OpenBSD 2.8.
@@ -60,4 +61,4 @@ HISTORY
 AUTHORS
      Markus Friedl <markus@openbsd.org>
 
-OpenBSD 4.7                     January 9, 2010                              1
+OpenBSD 4.8                     January 9, 2010                    OpenBSD 4.8
