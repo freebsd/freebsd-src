@@ -68,23 +68,21 @@ struct taskqueue {
 #define	TQ_FLAGS_BLOCKED	(1 << 1)
 #define	TQ_FLAGS_PENDING	(1 << 2)
 
-static __inline void
-TQ_LOCK(struct taskqueue *tq)
-{
-	if (tq->tq_spin)
-		mtx_lock_spin(&tq->tq_mutex);
-	else
-		mtx_lock(&tq->tq_mutex);
-}
+#define	TQ_LOCK(tq)							\
+	do {								\
+		if ((tq)->tq_spin)					\
+			mtx_lock_spin(&(tq)->tq_mutex);			\
+		else							\
+			mtx_lock(&(tq)->tq_mutex);			\
+	} while (0)
 
-static __inline void
-TQ_UNLOCK(struct taskqueue *tq)
-{
-	if (tq->tq_spin)
-		mtx_unlock_spin(&tq->tq_mutex);
-	else
-		mtx_unlock(&tq->tq_mutex);
-}
+#define	TQ_UNLOCK(tq)							\
+	do {								\
+		if ((tq)->tq_spin)					\
+			mtx_unlock_spin(&(tq)->tq_mutex);		\
+		else							\
+			mtx_unlock(&(tq)->tq_mutex);			\
+	} while (0)
 
 static __inline int
 TQ_SLEEP(struct taskqueue *tq, void *p, struct mtx *m, int pri, const char *wm,
