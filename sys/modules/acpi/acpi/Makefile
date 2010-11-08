@@ -22,7 +22,8 @@
 	${.CURDIR}/../../../pci \
 	${.CURDIR}/../../../dev/acpica \
 	${.CURDIR}/../../../dev/acpica/Osd \
-	${.CURDIR}/../../../${MACHINE_CPUARCH}/acpica
+	${.CURDIR}/../../../${MACHINE_CPUARCH}/acpica \
+	${.CURDIR}/../../../x86/acpica
 
 KMOD=	acpi
 
