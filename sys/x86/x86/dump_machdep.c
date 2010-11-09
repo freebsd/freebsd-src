@@ -39,6 +39,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 #include <machine/md_var.h>
 
+#ifdef __amd64__
+#define	KERNELDUMP_VERSION	KERNELDUMP_AMD64_VERSION
+#define	EM_VALUE		EM_X86_64
+#else
+#define	KERNELDUMP_VERSION	KERNELDUMP_I386_VERSION
+#define	EM_VALUE		EM_386
+#endif
+
 CTASSERT(sizeof(struct kerneldumpheader) == 512);
 
 int do_minidump = 1;
@@ -168,7 +176,8 @@ cb_dumpdata(struct md_pa *mdp, int seqnr, void *arg)
 	if (maxdumppgs == 0)	/* seatbelt */
 		maxdumppgs = 1;
 
-	printf("  chunk %d: %ldMB (%ld pages)", seqnr, PG2MB(pgs), pgs);
+	printf("  chunk %d: %juMB (%ju pages)", seqnr, (uintmax_t)PG2MB(pgs),
+	    (uintmax_t)pgs);
 
 	while (pgs) {
 		chunk = pgs;
@@ -177,7 +186,7 @@ cb_dumpdata(struct md_pa *mdp, int seqnr, void *arg)
 		sz = chunk << PAGE_SHIFT;
 		counter += sz;
 		if (counter >> 24) {
-			printf(" %ld", PG2MB(pgs));
+			printf(" %ju", (uintmax_t)PG2MB(pgs));
 			counter &= (1<<24) - 1;
 		}
 		for (i = 0; i < chunk; i++) {
@@ -279,7 +288,7 @@ dumpsys(struct dumperinfo *di)
 	ehdr.e_ident[EI_VERSION] = EV_CURRENT;
 	ehdr.e_ident[EI_OSABI] = ELFOSABI_STANDALONE;	/* XXX big picture? */
 	ehdr.e_type = ET_CORE;
-	ehdr.e_machine = EM_X86_64;
+	ehdr.e_machine = EM_VALUE;
 	ehdr.e_phoff = sizeof(ehdr);
 	ehdr.e_flags = 0;
 	ehdr.e_ehsize = sizeof(ehdr);
@@ -304,7 +313,8 @@ dumpsys(struct dumperinfo *di)
 	dumplo = di->mediaoffset + di->mediasize - dumpsize;
 	dumplo -= sizeof(kdh) * 2;
 
-	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_AMD64_VERSION, dumpsize, di->blocksize);
+	mkdumpheader(&kdh, KERNELDUMPMAGIC, KERNELDUMP_VERSION, dumpsize,
+	    di->blocksize);
 
 	printf("Dumping %llu MB (%d chunks)\n", (long long)dumpsize >> 20,
 	    ehdr.e_phnum);

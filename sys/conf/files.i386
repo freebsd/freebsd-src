@@ -260,7 +260,6 @@ i386/i386/busdma_machdep.c	standard
 i386/i386/db_disasm.c		optional ddb
 i386/i386/db_interface.c	optional ddb
 i386/i386/db_trace.c		optional ddb
-i386/i386/dump_machdep.c	standard
 i386/i386/elan-mmcr.c		optional cpu_elan | cpu_soekris
 i386/i386/elf_machdep.c		standard
 i386/i386/exception.s		optional native
@@ -393,4 +392,5 @@ x86/isa/isa.c			optional isa
 x86/isa/isa_dma.c		optional isa
 x86/isa/nmi.c			standard
 x86/pci/qpi.c			standard
+x86/x86/dump_machdep.c		standard
 x86/x86/mca.c			standard
