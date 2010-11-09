@@ -67,7 +67,6 @@ hptrr_lib.o			optional	hptrr			\
 	compile-with	"uudecode < $S/dev/hptrr/amd64-elf.hptrr_lib.o.uu" \
 	no-implicit-rule
 #
-amd64/acpica/OsdEnvironment.c	optional	acpi
 amd64/acpica/acpi_machdep.c	optional	acpi
 amd64/acpica/acpi_switch.S	optional	acpi
 acpi_wakecode.o			optional	acpi			\
@@ -300,6 +299,7 @@ contrib/x86emu/x86emu.c		optional x86bios | atkbd | dpms | vesa
 #
 # x86 shared code between IA32, AMD64 and PC98 architectures
 #
+x86/acpica/OsdEnvironment.c	optional	acpi
 x86/acpica/madt.c		optional	acpi
 x86/acpica/srat.c		optional	acpi
 x86/bios/smbios.c		optional	smbios
