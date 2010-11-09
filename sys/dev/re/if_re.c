@@ -2728,7 +2728,7 @@ re_init_locked(struct rl_softc *sc)
 			break;
 		default:
 			/* Magic from vendor. */
-			CSR_WRITE_2(sc, RL_INTRMOD, 0x5151);
+			CSR_WRITE_2(sc, RL_INTRMOD, 0x5100);
 			break;
 		}
 	}
