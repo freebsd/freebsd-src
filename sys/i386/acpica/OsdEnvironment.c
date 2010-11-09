@@ -28,9 +28,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-/*
- * 6.1 : Environmental support
- */
 #include <sys/types.h>
 #include <sys/bus.h>
 #include <sys/linker_set.h>
@@ -39,33 +36,56 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/actables.h>
 
-static u_long i386_acpi_root;
+static u_long acpi_root_phys;
 
-SYSCTL_ULONG(_machdep, OID_AUTO, acpi_root, CTLFLAG_RD, &i386_acpi_root, 0,
-	     "The physical address of the RSDP");
+SYSCTL_ULONG(_machdep, OID_AUTO, acpi_root, CTLFLAG_RD, &acpi_root_phys, 0,
+    "The physical address of the RSDP");
 
 ACPI_STATUS
 AcpiOsInitialize(void)
 {
-	return(0);
+
+	return (AE_OK);
 }
 
 ACPI_STATUS
 AcpiOsTerminate(void)
 {
-	return(0);
+
+	return (AE_OK);
+}
+
+static u_long
+acpi_get_root_from_loader(void)
+{
+	long acpi_root;
+
+	if (resource_long_value("acpi", 0, "rsdp", &acpi_root) == 0)
+		return (acpi_root);
+
+	return (0);
+}
+
+static u_long
+acpi_get_root_from_memory(void)
+{
+	ACPI_SIZE acpi_root;
+
+	if (ACPI_SUCCESS(AcpiFindRootPointer(&acpi_root)))
+		return (acpi_root);
+
+	return (0);
 }
 
 ACPI_PHYSICAL_ADDRESS
 AcpiOsGetRootPointer(void)
 {
-	u_long	ptr;
 
-	if (i386_acpi_root == 0 &&
-	    (resource_long_value("acpi", 0, "rsdp", (long *)&ptr) == 0 ||
-	    AcpiFindRootPointer((ACPI_SIZE *)&ptr) == AE_OK) &&
-	    ptr != 0)
-		i386_acpi_root = ptr;
+	if (acpi_root_phys == 0) {
+		acpi_root_phys = acpi_get_root_from_loader();
+		if (acpi_root_phys == 0)
+			acpi_root_phys = acpi_get_root_from_memory();
+	}
 
-	return (i386_acpi_root);
+	return (acpi_root_phys);
 }
