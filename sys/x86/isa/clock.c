@@ -39,12 +39,13 @@ __FBSDID("$FreeBSD$");
  * Routines to handle clock hardware.
  */
 
+#ifndef __amd64__
 #include "opt_apic.h"
+#endif
 #include "opt_clock.h"
 #include "opt_kdtrace.h"
 #include "opt_isa.h"
 #include "opt_mca.h"
-#include "opt_xbox.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -62,7 +63,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
-#include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/apicvar.h>
@@ -483,12 +483,15 @@ i8254_restore(void)
 	mtx_unlock_spin(&clock_lock);
 }
 
+#ifndef __amd64__
 /*
  * Restore all the timers non-atomically (XXX: should be atomically).
  *
  * This function is called from pmtimer_resume() to restore all the timers.
  * This should not be necessary, but there are broken laptops that do not
  * restore all the timers on resume.
+ * As long as pmtimer is not part of amd64 support, skip this for the amd64
+ * case.
  */
 void
 timer_restore(void)
@@ -497,6 +500,7 @@ timer_restore(void)
 	i8254_restore();		/* restore i8254_freq and hz */
 	atrtc_restore();		/* reenable RTC interrupts */
 }
+#endif
 
 /* This is separate from startrtclock() so that it can be called early. */
 void
@@ -525,7 +529,7 @@ startrtclock()
 void
 cpu_initclocks()
 {
-#ifdef DEV_APIC
+#if defined(__amd64__) || defined(DEV_APIC)
 	enum lapic_clock tlsca;
 #endif
 	int tasc;
@@ -539,7 +543,7 @@ cpu_initclocks()
 	 * otherwise use the LAPIC in order to cater hardclock only, otherwise
 	 * take in charge all the clock sources.
 	 */
-#ifdef DEV_APIC
+#if defined(__amd64__) || defined(DEV_APIC)
 	tlsca = (lapic_allclocks == 0 && tasc != 0) ? LAPIC_CLOCK_HARDCLOCK :
 	    LAPIC_CLOCK_ALL;
 	using_lapic_timer = lapic_setup_clock(tlsca);
@@ -640,11 +644,15 @@ i8254_simple_get_timecount(struct timecounter *tc)
 static unsigned
 i8254_get_timecount(struct timecounter *tc)
 {
+	register_t flags;
 	u_int count;
 	u_int high, low;
-	u_int eflags;
 
-	eflags = read_eflags();
+#ifdef __amd64__
+	flags = read_rflags();
+#else
+	flags = read_eflags();
+#endif
 	mtx_lock_spin(&clock_lock);
 
 	/* Select timer0 and latch counter value. */
@@ -655,7 +663,7 @@ i8254_get_timecount(struct timecounter *tc)
 	count = i8254_max_count - ((high << 8) | low);
 	if (count < i8254_lastcount ||
 	    (!i8254_ticked && (clkintr_pending ||
-	    ((count < 20 || (!(eflags & PSL_I) &&
+	    ((count < 20 || (!(flags & PSL_I) &&
 	    count < i8254_max_count / 2u)) &&
 	    i8254_pending != NULL && i8254_pending(i8254_intsrc))))) {
 		i8254_ticked = 1;
@@ -693,6 +701,14 @@ attimer_attach(device_t dev)
 	return(0);
 }
 
+static int
+attimer_resume(device_t dev)
+{
+
+	i8254_restore();
+	return (0);
+}
+
 static device_method_t attimer_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		attimer_probe),
@@ -700,7 +716,7 @@ static device_method_t attimer_methods[] = {
 	DEVMETHOD(device_detach,	bus_generic_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
+	DEVMETHOD(device_resume,	attimer_resume),
 	{ 0, 0 }
 };
 

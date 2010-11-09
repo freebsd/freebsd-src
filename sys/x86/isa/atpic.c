@@ -53,13 +53,26 @@ __FBSDID("$FreeBSD$");
 #include <machine/segments.h>
 
 #include <dev/ic/i8259.h>
+#ifdef __amd64__
+#include <amd64/isa/icu.h>
+#include <amd64/isa/isa.h>
+#else
 #include <i386/isa/icu.h>
 #ifdef PC98
 #include <pc98/cbus/cbus.h>
 #else
 #include <i386/isa/isa.h>
 #endif
+#endif
 #include <isa/isavar.h>
+
+#ifdef __amd64__
+#define	SDT_ATPIC	SDT_SYSIGT
+#define	GSEL_ATPIC	0
+#else
+#define	SDT_ATPIC	SDT_SYS386IGT
+#define	GSEL_ATPIC	GSEL(GCODE_SEL, SEL_KPL)
+#endif
 
 #define	MASTER	0
 #define	SLAVE	1
@@ -468,8 +481,7 @@ atpic_startup(void)
 		ai->at_intsrc.is_count = &ai->at_count;
 		ai->at_intsrc.is_straycount = &ai->at_straycount;
 		setidt(((struct atpic *)ai->at_intsrc.is_pic)->at_intbase +
-		    ai->at_irq, ai->at_intr, SDT_SYS386IGT, SEL_KPL,
-		    GSEL(GCODE_SEL, SEL_KPL));
+		    ai->at_irq, ai->at_intr, SDT_ATPIC, SEL_KPL, GSEL_ATPIC);
 	}
 
 #ifdef DEV_MCA
