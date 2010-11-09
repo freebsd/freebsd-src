@@ -289,7 +289,6 @@ i386/xen/mp_machdep.c		optional xen smp
 i386/i386/mp_watchdog.c		optional mp_watchdog smp
 i386/i386/mpboot.s		optional smp native
 i386/xen/mptable.c		optional apic xen
-i386/i386/msi.c			optional apic pci
 i386/i386/nexus.c		standard
 i386/i386/perfmon.c		optional perfmon
 i386/i386/pmap.c		optional native
@@ -394,3 +393,4 @@ x86/x86/dump_machdep.c		standard
 x86/x86/mca.c			standard
 x86/x86/mptable.c		optional apic native
 x86/x86/mptable_pci.c		optional apic pci
+x86/x86/msi.c			optional apic pci
