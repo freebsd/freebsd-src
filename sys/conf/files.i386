@@ -228,6 +228,9 @@ dev/syscons/scvesactl.c		optional sc vga vesa
 dev/syscons/scvgarndr.c		optional sc vga
 dev/syscons/scvtb.c		optional sc
 dev/syscons/teken/teken.c	optional sc
+dev/tpm/tpm.c			optional tpm
+dev/tpm/tpm_acpi.c		optional tpm acpi
+dev/tpm/tpm_isa.c		optional tpm isa
 dev/uart/uart_cpu_i386.c	optional uart
 dev/acpica/acpi_if.m		standard
 dev/acpi_support/acpi_wmi_if.m	standard

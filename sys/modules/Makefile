@@ -281,6 +281,7 @@ SUBDIR=	${_3dfx} \
 	ti \
 	tl \
 	${_tmpfs} \
+	tpm \
 	trm \
 	${_twa} \
 	twe \
