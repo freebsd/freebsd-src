@@ -79,7 +79,7 @@ show_adapter(int ac, char **av)
 	CONFIG_PAGE_IOC_2 *ioc2;
 	CONFIG_PAGE_IOC_6 *ioc6;
 	U16 IOCStatus;
-	int fd, comma;
+	int comma, error, fd;
 
 	if (ac != 1) {
 		warnx("show adapter: extra arguments");
@@ -88,17 +88,19 @@ show_adapter(int ac, char **av)
 
 	fd = mpt_open(mpt_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mpt_open");
-		return (errno);
+		return (error);
 	}
 
 	man0 = mpt_read_man_page(fd, 0, NULL);
 	if (man0 == NULL) {
+		error = errno;
 		warn("Failed to get controller info");
-		return (errno);
+		return (error);
 	}
 	if (man0->Header.PageLength < sizeof(*man0) / 4) {
-		warn("Invalid controller info");
+		warnx("Invalid controller info");
 		return (EINVAL);
 	}
 	printf("mpt%d Adapter:\n", mpt_unit);
@@ -283,7 +285,7 @@ show_config(int ac, char **av)
 	CONFIG_PAGE_RAID_VOL_1 *vnames;
 	CONFIG_PAGE_RAID_PHYS_DISK_0 *pinfo;
 	struct mpt_standalone_disk *sdisks;
-	int fd, i, j, nsdisks;
+	int error, fd, i, j, nsdisks;
 
 	if (ac != 1) {
 		warnx("show config: extra arguments");
@@ -292,20 +294,23 @@ show_config(int ac, char **av)
 
 	fd = mpt_open(mpt_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mpt_open");
-		return (errno);
+		return (error);
 	}
 
 	/* Get the config from the controller. */
 	ioc2 = mpt_read_ioc_page(fd, 2, NULL);
 	ioc5 = mpt_read_ioc_page(fd, 5, NULL);
 	if (ioc2 == NULL || ioc5 == NULL) {
+		error = errno;
 		warn("Failed to get config");
-		return (errno);
+		return (error);
 	}
 	if (mpt_fetch_disks(fd, &nsdisks, &sdisks) < 0) {
+		error = errno;
 		warn("Failed to get standalone drive list");
-		return (errno);
+		return (error);
 	}
 
 	/* Dump out the configuration. */
@@ -381,7 +386,7 @@ show_volumes(int ac, char **av)
 	CONFIG_PAGE_IOC_2_RAID_VOL *vol;
 	CONFIG_PAGE_RAID_VOL_0 **volumes;
 	CONFIG_PAGE_RAID_VOL_1 *vnames;
-	int fd, i, len, state_len;
+	int error, fd, i, len, state_len;
 
 	if (ac != 1) {
 		warnx("show volumes: extra arguments");
@@ -390,15 +395,17 @@ show_volumes(int ac, char **av)
 
 	fd = mpt_open(mpt_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mpt_open");
-		return (errno);
+		return (error);
 	}
 
 	/* Get the volume list from the controller. */
 	ioc2 = mpt_read_ioc_page(fd, 2, NULL);
 	if (ioc2 == NULL) {
+		error = errno;
 		warn("Failed to get volume list");
-		return (errno);
+		return (error);
 	}
 
 	/*
@@ -466,7 +473,7 @@ show_drives(int ac, char **av)
 {
 	struct mpt_drive_list *list;
 	struct mpt_standalone_disk *sdisks;
-	int fd, i, len, nsdisks, state_len;
+	int error, fd, i, len, nsdisks, state_len;
 
 	if (ac != 1) {
 		warnx("show drives: extra arguments");
@@ -475,15 +482,17 @@ show_drives(int ac, char **av)
 
 	fd = mpt_open(mpt_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mpt_open");
-		return (errno);
+		return (error);
 	}
 
 	/* Get the drive list. */
 	list = mpt_pd_list(fd);
 	if (list == NULL) {
+		error = errno;
 		warn("Failed to get drive list");
-		return (errno);
+		return (error);
 	}
 
 	/* Fetch the list of standalone disks for this controller. */
@@ -538,8 +547,9 @@ show_physdisks(int ac, char **av)
 
 	fd = mpt_open(mpt_unit);
 	if (fd < 0) {
+		error = errno;
 		warn("mpt_open");
-		return (errno);
+		return (error);
 	}
 
 	/* Try to find each possible phys disk page. */
