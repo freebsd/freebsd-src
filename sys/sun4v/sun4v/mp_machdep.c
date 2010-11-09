@@ -518,7 +518,6 @@ retry:
 	}
 }
 
-
 void
 ipi_selected(u_int icpus, u_int ipi)
 {
@@ -533,7 +532,6 @@ ipi_selected(u_int icpus, u_int ipi)
 	 * 4) handling 4-way threading vs 2-way threading should happen here
 	 *    and not in forward wakeup
 	 */
-	
 	cpulist = PCPU_GET(cpulist);
 	cpus = (icpus & ~PCPU_GET(cpumask));
 	
@@ -545,8 +543,32 @@ ipi_selected(u_int icpus, u_int ipi)
 		cpu_count++;
 	}
 
-	cpu_ipi_selected(cpu_count, cpulist, (u_long)tl_ipi_level, ipi, 0, &ackmask);
-	
+	cpu_ipi_selected(cpu_count, cpulist, (u_long)tl_ipi_level, ipi, 0,
+	    &ackmask);
+}
+
+void
+ipi_cpu(int cpu, u_int ipi)
+{
+	int cpu_count;
+	uint16_t *cpulist;
+	uint64_t ackmask;
+
+	/* 
+	 * 
+	 * 3) forward_wakeup appears to abuse ASTs
+	 * 4) handling 4-way threading vs 2-way threading should happen here
+	 *    and not in forward wakeup
+	 */
+	cpulist = PCPU_GET(cpulist);
+	if (PCPU_GET(cpumask) & (1 << cpu))
+		cpu_count = 0;
+	else {
+		cpulist[0] = (uint16_t)cpu;
+		cpu_count = 1;
+	}
+	cpu_ipi_selected(cpu_count, cpulist, (u_long)tl_ipi_level, ipi, 0,
+	    &ackmask);
 }
 
 void
