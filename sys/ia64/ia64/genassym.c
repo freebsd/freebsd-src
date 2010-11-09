@@ -49,7 +49,6 @@
 #include <sys/resourcevar.h>
 #include <sys/ucontext.h>
 #include <machine/frame.h>
-#include <machine/mutex.h>
 #include <machine/elf.h>
 #include <machine/pal.h>
 #include <machine/pcb.h>
