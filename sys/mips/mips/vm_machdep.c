@@ -121,8 +121,8 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	/* Copy p1's pcb, note that in this case
 	 * our pcb also includes the td_frame being copied
 	 * too. The older mips2 code did an additional copy
-	 * of the td_frame, for us thats not needed any
-	 * longer (this copy does them both 
+	 * of the td_frame, for us that's not needed any
+	 * longer (this copy does them both) 
 	 */
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
 
@@ -312,7 +312,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
  * Initialize machine state (pcb and trap frame) for a new thread about to
  * upcall. Put enough state in the new thread's PCB to get it to go back
  * userret(), where we can intercept it again to set the return (upcall)
- * Address and stack, along with those from upcals that are from other sources
+ * Address and stack, along with those from upcalls that are from other sources
  * such as those generated in thread_userret() itself.
  */
 void
@@ -334,7 +334,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * at this time (see the matching comment below for
 	 * more analysis) (need a good safe default).
 	 * In MIPS, the trapframe is the first element of the PCB
-	 * and gets copied when we copy the PCB. No seperate copy
+	 * and gets copied when we copy the PCB. No separate copy
 	 * is needed.
 	 */
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
