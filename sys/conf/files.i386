@@ -238,7 +238,6 @@ dev/uart/uart_cpu_i386.c	optional uart
 dev/acpica/acpi_if.m		standard
 dev/acpi_support/acpi_wmi_if.m	standard
 dev/wpi/if_wpi.c		optional wpi
-i386/acpica/OsdEnvironment.c	optional acpi
 i386/acpica/acpi_machdep.c	optional acpi
 i386/acpica/acpi_wakeup.c	optional acpi
 acpi_wakecode.h			optional acpi			\
@@ -373,6 +372,7 @@ compat/x86bios/x86bios.c	optional x86bios | atkbd | dpms | vesa
 #
 # x86 shared code between IA32, AMD64 and PC98 architectures
 #
+x86/acpica/OsdEnvironment.c	optional acpi
 x86/acpica/madt.c		optional acpi apic
 x86/acpica/srat.c		optional acpi
 x86/bios/smbios.c		optional smbios
