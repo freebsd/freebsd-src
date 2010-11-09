@@ -257,7 +257,7 @@ TUNABLE_INT("hw.ixgbe.enable_msix", &ixgbe_enable_msix);
 
 /*
  * Header split: this causes the hardware to DMA
- * the header into a seperate mbuf from the payload,
+ * the header into a separate mbuf from the payload,
  * it can be a performance win in some workloads, but
  * in others it actually hurts, its off by default. 
  */
@@ -3661,7 +3661,7 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 
 		rxbuf = &rxr->rx_buffers[j];
 		/*
-		** Dont allocate mbufs if not
+		** Don't allocate mbufs if not
 		** doing header split, its wasteful
 		*/ 
 		if (rxr->hdr_split == FALSE)
@@ -4129,7 +4129,7 @@ ixgbe_rxeof(struct ix_queue *que, int count)
 		** not be fragmented across sequential
 		** descriptors, rather the next descriptor
 		** is indicated in bits of the descriptor.
-		** This also means that we might proceses
+		** This also means that we might process
 		** more than one packet at a time, something
 		** that has never been true before, it
 		** required eliminating global chain pointers
@@ -4478,14 +4478,14 @@ ixgbe_enable_intr(struct adapter *adapter)
 	/* With RSS we use auto clear */
 	if (adapter->msix_mem) {
 		mask = IXGBE_EIMS_ENABLE_MASK;
-		/* Dont autoclear Link */
+		/* Don't autoclear Link */
 		mask &= ~IXGBE_EIMS_OTHER;
 		mask &= ~IXGBE_EIMS_LSC;
 		IXGBE_WRITE_REG(hw, IXGBE_EIAC, mask);
 	}
 
 	/*
-	** Now enable all queues, this is done seperately to
+	** Now enable all queues, this is done separately to
 	** allow for handling the extended (beyond 32) MSIX
 	** vectors that can be used by 82599
 	*/
