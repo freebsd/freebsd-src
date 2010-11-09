@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * XXX Placeholder.
- * This calculations should be dynamically scaled by number of seperate sc
+ * This calculations should be dynamically scaled by number of separate sc
  * devices.  A base value of 'extra_history_size' should be defined for
  * each syscons unit, and added and subtracted from the dynamic
  * 'extra_history_size' as units are added and removed.  This way, each time
@@ -86,7 +86,7 @@ int
 sc_alloc_history_buffer(scr_stat *scp, int lines, int prev_ysize, int wait)
 {
 	/*
-	 * syscons unconditionally allocates buffers upto 
+	 * syscons unconditionally allocates buffers up to 
 	 * SC_HISTORY_SIZE lines or scp->ysize lines, whichever 
 	 * is larger. A value greater than that is allowed, 
 	 * subject to extra_history_size.
@@ -116,7 +116,7 @@ sc_alloc_history_buffer(scr_stat *scp, int lines, int prev_ysize, int wait)
 			delta = cur_lines - min_lines;
 	}
 
-	/* lines upto min_lines are always allowed. */
+	/* lines up to min_lines are always allowed. */
 	min_lines = imax(SC_HISTORY_SIZE, scp->ysize);
 	if (lines > min_lines) {
 		if (lines - min_lines > extra_history_size + delta) {
