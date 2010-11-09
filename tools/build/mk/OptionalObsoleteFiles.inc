@@ -1790,6 +1790,7 @@ OLD_FILES+=usr/share/man/man8/tftp-proxy.8.gz
 
 .if ${MK_PKGTOOLS} == no
 OLD_FILES+=etc/periodic/daily/490.status-pkg-changes
+OLD_FILES+=etc/periodic/security/460.chkportsum
 OLD_FILES+=etc/periodic/weekly/400.status-pkg
 OLD_FILES+=usr/include/pkg.h
 OLD_FILES+=usr/lib/libpkg.a
