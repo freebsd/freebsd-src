@@ -61,6 +61,8 @@ __FBSDID("$FreeBSD$");
 #include <isa/isavar.h>
 #include <isa/isa_dmareg.h>
 
+#define	ISARAM_END	RAM_END
+
 static int isa_dmarangecheck(caddr_t va, u_int length, int chan);
 
 static caddr_t	dma_bouncebuf[8];
@@ -212,7 +214,7 @@ isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 		panic("isa_dmastart: channel out of range");
 
 	if ((chan < 4 && nbytes > (1<<16))
-	    || (chan >= 4 && (nbytes > (1<<17) || (u_int)addr & 1)))
+	    || (chan >= 4 && (nbytes > (1<<17) || (uintptr_t)addr & 1)))
 		panic("isa_dmastart: impossible request");
 
 	if ((dma_inuse & (1 << chan)) == 0)
@@ -370,7 +372,6 @@ isa_dmarangecheck(caddr_t va, u_int length, int chan)
 	endva = (vm_offset_t)round_page((vm_offset_t)va + length);
 	for (; va < (caddr_t) endva ; va += PAGE_SIZE) {
 		phys = trunc_page(pmap_extract(kernel_pmap, (vm_offset_t)va));
-#define ISARAM_END	RAM_END
 		if (phys == 0)
 			panic("isa_dmacheck: no physical page present");
 		if (phys >= ISARAM_END)

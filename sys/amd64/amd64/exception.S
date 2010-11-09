@@ -600,7 +600,7 @@ MCOUNT_LABEL(bintr)
 	.text
 	SUPERALIGN_TEXT
 
-#include <amd64/isa/atpic_vector.S>
+#include <amd64/amd64/atpic_vector.S>
 #endif
 
 	.text
