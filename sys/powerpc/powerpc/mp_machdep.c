@@ -336,6 +336,14 @@ ipi_selected(cpumask_t cpus, int ipi)
 	}
 }
 
+/* Send an IPI to a specific CPU. */
+void
+ipi_cpu(int cpu, u_int ipi)
+{
+
+	ipi_send(cpuid_to_pcpu[cpu], ipi);
+}
+
 /* Send an IPI to all CPUs EXCEPT myself. */
 void
 ipi_all_but_self(int ipi)

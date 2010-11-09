@@ -1154,7 +1154,7 @@ kick_other_cpu(int pri, int cpuid)
 	pcpu = pcpu_find(cpuid);
 	if (idle_cpus_mask & pcpu->pc_cpumask) {
 		forward_wakeups_delivered++;
-		ipi_selected(pcpu->pc_cpumask, IPI_AST);
+		ipi_cpu(cpuid, IPI_AST);
 		return;
 	}
 
@@ -1167,13 +1167,13 @@ kick_other_cpu(int pri, int cpuid)
 	if (pri <= PRI_MAX_ITHD)
 #endif /* ! FULL_PREEMPTION */
 	{
-		ipi_selected(pcpu->pc_cpumask, IPI_PREEMPT);
+		ipi_cpu(cpuid, IPI_PREEMPT);
 		return;
 	}
 #endif /* defined(IPI_PREEMPTION) && defined(PREEMPTION) */
 
 	pcpu->pc_curthread->td_flags |= TDF_NEEDRESCHED;
-	ipi_selected(pcpu->pc_cpumask, IPI_AST);
+	ipi_cpu(cpuid, IPI_AST);
 	return;
 }
 #endif /* SMP */
@@ -1670,7 +1670,7 @@ sched_affinity(struct thread *td)
 
 		td->td_flags |= TDF_NEEDRESCHED;
 		if (td != curthread)
-			ipi_selected(1 << cpu, IPI_AST);
+			ipi_cpu(cpu, IPI_AST);
 		break;
 	default:
 		break;

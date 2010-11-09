@@ -60,12 +60,13 @@ inthand_t
 void	cpu_add(u_int apic_id, char boot_cpu);
 void	cpustop_handler(void);
 void	init_secondary(void);
-int	ipi_nmi_handler(void);
-void	ipi_selected(cpumask_t cpus, u_int ipi);
 void	ipi_all_but_self(u_int ipi);
 #ifndef XEN
 void 	ipi_bitmap_handler(struct trapframe frame);
 #endif
+void	ipi_cpu(int cpu, u_int ipi);
+int	ipi_nmi_handler(void);
+void	ipi_selected(cpumask_t cpus, u_int ipi);
 u_int	mp_bootaddress(u_int);
 int	mp_grab_cpu_hlt(void);
 void	smp_cache_flush(void);

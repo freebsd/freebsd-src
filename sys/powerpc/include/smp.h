@@ -40,6 +40,7 @@
 #ifndef LOCORE
 
 void	ipi_all_but_self(int ipi);
+void	ipi_cpu(int cpu, u_int ipi);
 void	ipi_selected(cpumask_t cpus, int ipi);
 
 struct cpuref {

@@ -1124,23 +1124,57 @@ ipi_selected(cpumask_t cpus, u_int ipi)
 		cpu--;
 		cpus &= ~(1 << cpu);
 
-		KASSERT(cpu_apic_ids[cpu] != -1,
-		    ("IPI to non-existent CPU %d", cpu));
-
 		if (bitmap) {
 			do {
 				old_pending = cpu_ipi_pending[cpu];
 				new_pending = old_pending | bitmap;
-			} while  (!atomic_cmpset_int(&cpu_ipi_pending[cpu],old_pending, new_pending));	
-
+			} while  (!atomic_cmpset_int(&cpu_ipi_pending[cpu],
+			    old_pending, new_pending));	
 			if (!old_pending)
 				ipi_pcpu(cpu, RESCHEDULE_VECTOR);
-			continue;
-			
 		} else {
 			KASSERT(call_data != NULL, ("call_data not set"));
 			ipi_pcpu(cpu, CALL_FUNCTION_VECTOR);
 		}
+	}
+}
+
+/*
+ * send an IPI to a specific CPU.
+ */
+void
+ipi_cpu(int cpu, u_int ipi)
+{
+	u_int bitmap = 0;
+	u_int old_pending;
+	u_int new_pending;
+	
+	if (IPI_IS_BITMAPED(ipi)) { 
+		bitmap = 1 << ipi;
+		ipi = IPI_BITMAP_VECTOR;
+	} 
+
+	/*
+	 * IPI_STOP_HARD maps to a NMI and the trap handler needs a bit
+	 * of help in order to understand what is the source.
+	 * Set the mask of receiving CPUs for this purpose.
+	 */
+	if (ipi == IPI_STOP_HARD)
+		atomic_set_int(&ipi_nmi_pending, 1 << cpu);
+
+	CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__, cpu, ipi);
+
+	if (bitmap) {
+		do {
+			old_pending = cpu_ipi_pending[cpu];
+			new_pending = old_pending | bitmap;
+		} while  (!atomic_cmpset_int(&cpu_ipi_pending[cpu],
+		    old_pending, new_pending));	
+		if (!old_pending)
+			ipi_pcpu(cpu, RESCHEDULE_VECTOR);
+	} else {
+		KASSERT(call_data != NULL, ("call_data not set"));
+		ipi_pcpu(cpu, CALL_FUNCTION_VECTOR);
 	}
 }
 
