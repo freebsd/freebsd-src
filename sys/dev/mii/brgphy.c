@@ -132,6 +132,7 @@ static const struct mii_phydesc brgphys[] = {
 	MII_PHY_DESC(xxBROADCOM, BCM5754),
 	MII_PHY_DESC(xxBROADCOM, BCM5780),
 	MII_PHY_DESC(xxBROADCOM, BCM5708C),
+	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5482S),
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5755),
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5787),
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5708S),
@@ -141,6 +142,7 @@ static const struct mii_phydesc brgphys[] = {
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5709C),
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5761),
 	MII_PHY_DESC(xxBROADCOM_ALT1, BCM5709S),
+	MII_PHY_DESC(xxBROADCOM_ALT2, BCM5717C),
 	MII_PHY_DESC(BROADCOM2, BCM5906),
 	MII_PHY_END
 };
@@ -252,6 +254,9 @@ brgphy_attach(device_t dev)
 			sc->mii_flags |= MIIF_HAVEFIBER;
 			break;
 		}
+		break;
+	case MII_OUI_xxBROADCOM_ALT2:
+		/* No special handling yet. */
 		break;
 	default:
 		device_printf(dev, "Unrecognized OUI for PHY!\n");
@@ -1011,6 +1016,7 @@ brgphy_reset(struct mii_softc *sc)
 		}
 		break;
 	case MII_OUI_xxBROADCOM_ALT1:
+	case MII_OUI_xxBROADCOM_ALT2:
 		break;
 	}
 

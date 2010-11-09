@@ -40,7 +40,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_apic.h"
 #include "opt_atalk.h"
 #include "opt_compat.h"
 #include "opt_cpu.h"
@@ -115,7 +114,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/intr_machdep.h>
-#include <machine/mca.h>
+#include <x86/mca.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/pc/bios.h>
@@ -1970,7 +1969,7 @@ add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
 		return (1);
 
 #ifndef PAE
-	if (smap->base >= 0xffffffff) {
+	if (smap->base > 0xffffffff) {
 		printf("%uK of memory above 4GB ignored\n",
 		    (u_int)(smap->length / 1024));
 		return (1);
@@ -2997,11 +2996,15 @@ void
 spinlock_enter(void)
 {
 	struct thread *td;
+	register_t flags;
 
 	td = curthread;
-	if (td->td_md.md_spinlock_count == 0)
-		td->td_md.md_saved_flags = intr_disable();
-	td->td_md.md_spinlock_count++;
+	if (td->td_md.md_spinlock_count == 0) {
+		flags = intr_disable();
+		td->td_md.md_spinlock_count = 1;
+		td->td_md.md_saved_flags = flags;
+	} else
+		td->td_md.md_spinlock_count++;
 	critical_enter();
 }
 
@@ -3009,12 +3012,14 @@ void
 spinlock_exit(void)
 {
 	struct thread *td;
+	register_t flags;
 
 	td = curthread;
 	critical_exit();
+	flags = td->td_md.md_saved_flags;
 	td->td_md.md_spinlock_count--;
 	if (td->td_md.md_spinlock_count == 0)
-		intr_restore(td->td_md.md_saved_flags);
+		intr_restore(flags);
 }
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
@@ -3607,102 +3612,6 @@ user_dbreg_trap(void)
          */
         return 0;
 }
-
-#ifndef DEV_APIC
-#include <machine/apicvar.h>
-
-/*
- * Provide stub functions so that the MADT APIC enumerator in the acpi
- * kernel module will link against a kernel without 'device apic'.
- *
- * XXX - This is a gross hack.
- */
-void
-apic_register_enumerator(struct apic_enumerator *enumerator)
-{
-}
-
-void *
-ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
-{
-	return (NULL);
-}
-
-int
-ioapic_disable_pin(void *cookie, u_int pin)
-{
-	return (ENXIO);
-}
-
-int
-ioapic_get_vector(void *cookie, u_int pin)
-{
-	return (-1);
-}
-
-void
-ioapic_register(void *cookie)
-{
-}
-
-int
-ioapic_remap_vector(void *cookie, u_int pin, int vector)
-{
-	return (ENXIO);
-}
-
-int
-ioapic_set_extint(void *cookie, u_int pin)
-{
-	return (ENXIO);
-}
-
-int
-ioapic_set_nmi(void *cookie, u_int pin)
-{
-	return (ENXIO);
-}
-
-int
-ioapic_set_polarity(void *cookie, u_int pin, enum intr_polarity pol)
-{
-	return (ENXIO);
-}
-
-int
-ioapic_set_triggermode(void *cookie, u_int pin, enum intr_trigger trigger)
-{
-	return (ENXIO);
-}
-
-void
-lapic_create(u_int apic_id, int boot_cpu)
-{
-}
-
-void
-lapic_init(vm_paddr_t addr)
-{
-}
-
-int
-lapic_set_lvt_mode(u_int apic_id, u_int lvt, u_int32_t mode)
-{
-	return (ENXIO);
-}
-
-int
-lapic_set_lvt_polarity(u_int apic_id, u_int lvt, enum intr_polarity pol)
-{
-	return (ENXIO);
-}
-
-int
-lapic_set_lvt_triggermode(u_int apic_id, u_int lvt, enum intr_trigger trigger)
-{
-	return (ENXIO);
-}
-#endif
 
 #ifdef KDB
 

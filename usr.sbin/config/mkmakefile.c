@@ -382,8 +382,8 @@ next:
 		mandatory = 1;
 	} else if (!eq(wd, "optional")) {
 		fprintf(stderr,
-		    "%s: %s must be optional, mandatory or standard\n",
-		    fname, this);
+		    "%s: \"%s\" %s must be optional, mandatory or standard\n",
+		    fname, wd, this);
 		exit(1);
 	}
 nextparam:

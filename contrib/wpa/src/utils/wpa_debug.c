@@ -18,6 +18,8 @@
 
 #ifdef CONFIG_DEBUG_SYSLOG
 #include <syslog.h>
+
+static int wpa_debug_syslog = 0;
 #endif /* CONFIG_DEBUG_SYSLOG */
 
 
@@ -27,7 +29,6 @@ static FILE *out_file = NULL;
 int wpa_debug_level = MSG_INFO;
 int wpa_debug_show_keys = 0;
 int wpa_debug_timestamp = 0;
-int wpa_debug_syslog = 0;
 
 
 #ifndef CONFIG_NO_STDOUT_DEBUG
@@ -49,23 +50,22 @@ void wpa_debug_print_timestamp(void)
 	printf("%ld.%06u: ", (long) tv.sec, (unsigned int) tv.usec);
 }
 
+
+#ifdef CONFIG_DEBUG_SYSLOG
 void wpa_debug_open_syslog(void)
 {
-#ifdef CONFIG_DEBUG_SYSLOG
 	openlog("wpa_supplicant", LOG_PID | LOG_NDELAY, LOG_DAEMON);
 	wpa_debug_syslog++;
-#endif
 }
+
 
 void wpa_debug_close_syslog(void)
 {
-#ifdef CONFIG_DEBUG_SYSLOG
 	if (wpa_debug_syslog)
 		closelog();
-#endif
 }
 
-#ifdef CONFIG_DEBUG_SYSLOG
+
 static int syslog_priority(int level)
 {
 	switch (level) {
@@ -390,6 +390,9 @@ void hostapd_logger(void *ctx, const u8 *addr, unsigned int module, int level,
 	va_end(ap);
 	if (hostapd_logger_cb)
 		hostapd_logger_cb(ctx, addr, module, level, buf, len);
+	else if (addr)
+		wpa_printf(MSG_DEBUG, "hostapd_logger: STA " MACSTR " - %s",
+			   MAC2STR(addr), buf);
 	else
 		wpa_printf(MSG_DEBUG, "hostapd_logger: %s", buf);
 	os_free(buf);

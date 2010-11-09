@@ -80,8 +80,13 @@ OF_init(int (*openfirm)(void *))
 
 	if ((chosen = OF_finddevice("/chosen")) == -1)
 		OF_exit();
-	if (OF_getprop(chosen, "memory", &memory, sizeof(memory)) == -1)
-		OF_exit();
+	if (OF_getprop(chosen, "memory", &memory, sizeof(memory)) == -1) {
+		memory = OF_open("/memory");
+		if (memory == -1)
+			memory = OF_open("/memory@0");
+		if (memory == -1)
+			OF_exit();
+	}
 	if (OF_getprop(chosen, "mmu", &mmu, sizeof(mmu)) == -1)
 		OF_exit();
 }

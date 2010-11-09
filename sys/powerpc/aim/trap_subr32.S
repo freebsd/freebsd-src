@@ -54,7 +54,7 @@
 	lwz	sr,9*4(pmap);	mtsr	9,sr; \
 	lwz	sr,10*4(pmap);	mtsr	10,sr; \
 	lwz	sr,11*4(pmap);	mtsr	11,sr; \
-	lwz	sr,12*4(pmap);	mtsr	12,sr; \
+	/* Skip segment 12 (USER_SR), which is restored differently */ \
 	lwz	sr,13*4(pmap);	mtsr	13,sr; \
 	lwz	sr,14*4(pmap);	mtsr	14,sr; \
 	lwz	sr,15*4(pmap);	mtsr	15,sr; isync;
@@ -66,7 +66,9 @@
 	GET_CPUINFO(pmap); \
 	lwz	pmap,PC_CURPMAP(pmap); \
 	lwzu	sr,PM_SR(pmap); \
-	RESTORE_SRS(pmap,sr)
+	RESTORE_SRS(pmap,sr) \
+	/* Restore SR 12 */ \
+	lwz	sr,12*4(pmap);	mtsr	12,sr
 
 /*
  * Kernel SRs are loaded directly from kernel_pmap_
@@ -537,6 +539,11 @@ u_trap:
  */
 k_trap:
 	FRAME_SETUP(PC_TEMPSAVE)
+	/* Restore USER_SR */
+	GET_CPUINFO(%r30)
+	lwz	%r30,PC_CURPCB(%r30)
+	lwz	%r30,PCB_AIM_USR_VSID(%r30)
+	mtsr	USER_SR,%r30; sync; isync
 /* Call C interrupt dispatcher: */
 trapagain:
 	addi	%r3,%r1,8

@@ -162,7 +162,7 @@ vaccess_acl_nfs4(enum vtype type, uid_t file_uid, gid_t file_gid,
 	accmode_t priv_granted = 0;
 	int denied, explicitly_denied, access_mask, is_directory,
 	    must_be_owner = 0;
-	mode_t file_mode;
+	mode_t file_mode = 0;
 
 	KASSERT((accmode & ~(VEXEC | VWRITE | VREAD | VADMIN | VAPPEND |
 	    VEXPLICIT_DENY | VREAD_NAMED_ATTRS | VWRITE_NAMED_ATTRS |

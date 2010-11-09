@@ -69,6 +69,11 @@ __FBSDID("$FreeBSD$");
 #define	EOFMARKLEN	79
 #define	PROMPTLEN	128
 
+/* values of checkkwd variable */
+#define CHKALIAS	0x1
+#define CHKKWD		0x2
+#define CHKNL		0x4
+
 /* values returned by readtoken */
 #include "token.h"
 
@@ -102,11 +107,8 @@ static int startlinno;		/* line # where last token started */
 static int funclinno;		/* line # where the current function started */
 static struct parser_temp *parser_temp;
 
-/* XXX When 'noaliases' is set to one, no alias expansion takes place. */
-static int noaliases = 0;
 
-
-static union node *list(int);
+static union node *list(int, int);
 static union node *andor(void);
 static union node *pipeline(void);
 static union node *command(void);
@@ -220,20 +222,20 @@ parsecmd(int interact)
 	if (t == TNL)
 		return NULL;
 	tokpushback++;
-	return list(1);
+	return list(1, 1);
 }
 
 
 static union node *
-list(int nlflag)
+list(int nlflag, int erflag)
 {
-	union node *n1, *n2, *n3;
+	union node *ntop, *n1, *n2, *n3;
 	int tok;
 
-	checkkwd = 2;
-	if (nlflag == 0 && tokendlist[peektoken()])
+	checkkwd = CHKNL | CHKKWD | CHKALIAS;
+	if (!nlflag && !erflag && tokendlist[peektoken()])
 		return NULL;
-	n1 = NULL;
+	ntop = n1 = NULL;
 	for (;;) {
 		n2 = andor();
 		tok = readtoken();
@@ -250,14 +252,21 @@ list(int nlflag)
 				n2 = n3;
 			}
 		}
-		if (n1 == NULL) {
-			n1 = n2;
+		if (ntop == NULL)
+			ntop = n2;
+		else if (n1 == NULL) {
+			n1 = (union node *)stalloc(sizeof (struct nbinary));
+			n1->type = NSEMI;
+			n1->nbinary.ch1 = ntop;
+			n1->nbinary.ch2 = n2;
+			ntop = n1;
 		}
 		else {
 			n3 = (union node *)stalloc(sizeof (struct nbinary));
 			n3->type = NSEMI;
-			n3->nbinary.ch1 = n1;
+			n3->nbinary.ch1 = n1->nbinary.ch2;
 			n3->nbinary.ch2 = n2;
+			n1->nbinary.ch2 = n3;
 			n1 = n3;
 		}
 		switch (tok) {
@@ -269,28 +278,28 @@ list(int nlflag)
 			if (tok == TNL) {
 				parseheredoc();
 				if (nlflag)
-					return n1;
+					return ntop;
 			} else if (tok == TEOF && nlflag) {
 				parseheredoc();
-				return n1;
+				return ntop;
 			} else {
 				tokpushback++;
 			}
-			checkkwd = 2;
-			if (tokendlist[peektoken()])
-				return n1;
+			checkkwd = CHKNL | CHKKWD | CHKALIAS;
+			if (!nlflag && !erflag && tokendlist[peektoken()])
+				return ntop;
 			break;
 		case TEOF:
 			if (heredoclist)
 				parseheredoc();
 			else
 				pungetc();		/* push back EOF on input */
-			return n1;
+			return ntop;
 		default:
-			if (nlflag)
+			if (nlflag || erflag)
 				synexpect(-1);
 			tokpushback++;
-			return n1;
+			return ntop;
 		}
 	}
 }
@@ -332,7 +341,7 @@ pipeline(void)
 	int negate, t;
 
 	negate = 0;
-	checkkwd = 2;
+	checkkwd = CHKNL | CHKKWD | CHKALIAS;
 	TRACE(("pipeline: entered\n"));
 	while (readtoken() == TNOT)
 		negate = !negate;
@@ -348,7 +357,7 @@ pipeline(void)
 		do {
 			prev = lp;
 			lp = (struct nodelist *)stalloc(sizeof (struct nodelist));
-			checkkwd = 2;
+			checkkwd = CHKNL | CHKKWD | CHKALIAS;
 			t = readtoken();
 			tokpushback++;
 			if (t == TNOT)
@@ -381,7 +390,7 @@ command(void)
 	union node *redir, **rpp;
 	int t;
 
-	checkkwd = 2;
+	checkkwd = CHKNL | CHKKWD | CHKALIAS;
 	redir = NULL;
 	n1 = NULL;
 	rpp = &redir;
@@ -398,47 +407,47 @@ command(void)
 	case TIF:
 		n1 = (union node *)stalloc(sizeof (struct nif));
 		n1->type = NIF;
-		if ((n1->nif.test = list(0)) == NULL)
+		if ((n1->nif.test = list(0, 0)) == NULL)
 			synexpect(-1);
 		if (readtoken() != TTHEN)
 			synexpect(TTHEN);
-		n1->nif.ifpart = list(0);
+		n1->nif.ifpart = list(0, 0);
 		n2 = n1;
 		while (readtoken() == TELIF) {
 			n2->nif.elsepart = (union node *)stalloc(sizeof (struct nif));
 			n2 = n2->nif.elsepart;
 			n2->type = NIF;
-			if ((n2->nif.test = list(0)) == NULL)
+			if ((n2->nif.test = list(0, 0)) == NULL)
 				synexpect(-1);
 			if (readtoken() != TTHEN)
 				synexpect(TTHEN);
-			n2->nif.ifpart = list(0);
+			n2->nif.ifpart = list(0, 0);
 		}
 		if (lasttoken == TELSE)
-			n2->nif.elsepart = list(0);
+			n2->nif.elsepart = list(0, 0);
 		else {
 			n2->nif.elsepart = NULL;
 			tokpushback++;
 		}
 		if (readtoken() != TFI)
 			synexpect(TFI);
-		checkkwd = 1;
+		checkkwd = CHKKWD | CHKALIAS;
 		break;
 	case TWHILE:
 	case TUNTIL: {
 		int got;
 		n1 = (union node *)stalloc(sizeof (struct nbinary));
 		n1->type = (lasttoken == TWHILE)? NWHILE : NUNTIL;
-		if ((n1->nbinary.ch1 = list(0)) == NULL)
+		if ((n1->nbinary.ch1 = list(0, 0)) == NULL)
 			synexpect(-1);
 		if ((got=readtoken()) != TDO) {
 TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 			synexpect(TDO);
 		}
-		n1->nbinary.ch2 = list(0);
+		n1->nbinary.ch2 = list(0, 0);
 		if (readtoken() != TDONE)
 			synexpect(TDONE);
-		checkkwd = 1;
+		checkkwd = CHKKWD | CHKALIAS;
 		break;
 	}
 	case TFOR:
@@ -480,17 +489,17 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 			if (lasttoken != TNL && lasttoken != TSEMI)
 				tokpushback++;
 		}
-		checkkwd = 2;
+		checkkwd = CHKNL | CHKKWD | CHKALIAS;
 		if ((t = readtoken()) == TDO)
 			t = TDONE;
 		else if (t == TBEGIN)
 			t = TEND;
 		else
 			synexpect(-1);
-		n1->nfor.body = list(0);
+		n1->nfor.body = list(0, 0);
 		if (readtoken() != t)
 			synexpect(t);
-		checkkwd = 1;
+		checkkwd = CHKKWD | CHKALIAS;
 		break;
 	case TCASE:
 		n1 = (union node *)stalloc(sizeof (struct ncase));
@@ -506,8 +515,7 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 		if (lasttoken != TWORD || ! equal(wordtext, "in"))
 			synerror("expecting \"in\"");
 		cpp = &n1->ncase.cases;
-		noaliases = 1;	/* turn off alias expansion */
-		checkkwd = 2, readtoken();
+		checkkwd = CHKNL | CHKKWD, readtoken();
 		while (lasttoken != TESAC) {
 			*cpp = cp = (union node *)stalloc(sizeof (struct nclist));
 			cp->type = NCLIST;
@@ -519,43 +527,43 @@ TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 				ap->type = NARG;
 				ap->narg.text = wordtext;
 				ap->narg.backquote = backquotelist;
-				if (checkkwd = 2, readtoken() != TPIPE)
+				checkkwd = CHKNL | CHKKWD;
+				if (readtoken() != TPIPE)
 					break;
 				app = &ap->narg.next;
 				readtoken();
 			}
 			ap->narg.next = NULL;
 			if (lasttoken != TRP)
-				noaliases = 0, synexpect(TRP);
-			cp->nclist.body = list(0);
+				synexpect(TRP);
+			cp->nclist.body = list(0, 0);
 
-			checkkwd = 2;
+			checkkwd = CHKNL | CHKKWD | CHKALIAS;
 			if ((t = readtoken()) != TESAC) {
 				if (t != TENDCASE)
-					noaliases = 0, synexpect(TENDCASE);
+					synexpect(TENDCASE);
 				else
-					checkkwd = 2, readtoken();
+					checkkwd = CHKNL | CHKKWD, readtoken();
 			}
 			cpp = &cp->nclist.next;
 		}
-		noaliases = 0;	/* reset alias expansion */
 		*cpp = NULL;
-		checkkwd = 1;
+		checkkwd = CHKKWD | CHKALIAS;
 		break;
 	case TLP:
 		n1 = (union node *)stalloc(sizeof (struct nredir));
 		n1->type = NSUBSHELL;
-		n1->nredir.n = list(0);
+		n1->nredir.n = list(0, 0);
 		n1->nredir.redirect = NULL;
 		if (readtoken() != TRP)
 			synexpect(TRP);
-		checkkwd = 1;
+		checkkwd = CHKKWD | CHKALIAS;
 		break;
 	case TBEGIN:
-		n1 = list(0);
+		n1 = list(0, 0);
 		if (readtoken() != TEND)
 			synexpect(TEND);
-		checkkwd = 1;
+		checkkwd = CHKKWD | CHKALIAS;
 		break;
 	/* Handle an empty command like other simple commands.  */
 	case TBACKGND:
@@ -644,9 +652,13 @@ simplecmd(union node **rpp, union node *redir)
 			/*
 			 * - Require plain text.
 			 * - Functions with '/' cannot be called.
+			 * - Reject name=().
+			 * - Reject ksh extended glob patterns.
 			 */
 			if (!noexpand(n->narg.text) || quoteflag ||
-			    strchr(n->narg.text, '/'))
+			    strchr(n->narg.text, '/') ||
+			    strchr("!%*+-=?@}~",
+				n->narg.text[strlen(n->narg.text) - 1]))
 				synerror("Bad function name");
 			rmescapes(n->narg.text);
 			if (find_builtin(n->narg.text, &special) >= 0 &&
@@ -785,7 +797,6 @@ static int
 readtoken(void)
 {
 	int t;
-	int savecheckkwd = checkkwd;
 	struct alias *ap;
 #ifdef DEBUG
 	int alreadyseen = tokpushback;
@@ -794,25 +805,24 @@ readtoken(void)
 	top:
 	t = xxreadtoken();
 
-	if (checkkwd) {
-		/*
-		 * eat newlines
-		 */
-		if (checkkwd == 2) {
-			checkkwd = 0;
-			while (t == TNL) {
-				parseheredoc();
-				t = xxreadtoken();
-			}
-		} else
-			checkkwd = 0;
-		/*
-		 * check for keywords and aliases
-		 */
-		if (t == TWORD && !quoteflag)
-		{
-			const char * const *pp;
+	/*
+	 * eat newlines
+	 */
+	if (checkkwd & CHKNL) {
+		while (t == TNL) {
+			parseheredoc();
+			t = xxreadtoken();
+		}
+	}
 
+	/*
+	 * check for keywords and aliases
+	 */
+	if (t == TWORD && !quoteflag)
+	{
+		const char * const *pp;
+
+		if (checkkwd & CHKKWD)
 			for (pp = parsekwd; *pp; pp++) {
 				if (**pp == *wordtext && equal(*pp, wordtext))
 				{
@@ -821,16 +831,16 @@ readtoken(void)
 					goto out;
 				}
 			}
-			if (noaliases == 0 &&
-			    (ap = lookupalias(wordtext, 1)) != NULL) {
-				pushstring(ap->val, strlen(ap->val), ap);
-				checkkwd = savecheckkwd;
-				goto top;
-			}
+		if (checkkwd & CHKALIAS &&
+		    (ap = lookupalias(wordtext, 1)) != NULL) {
+			pushstring(ap->val, strlen(ap->val), ap);
+			goto top;
 		}
-out:
-		checkkwd = (t == TNOT) ? savecheckkwd : 0;
 	}
+out:
+	if (t != TNOT)
+		checkkwd = 0;
+
 #ifdef DEBUG
 	if (!alreadyseen)
 	    TRACE(("token %s %s\n", tokname[t], t == TWORD ? wordtext : ""));
@@ -1066,7 +1076,7 @@ done:
 		doprompt = 0;
 	}
 
-	n = list(0);
+	n = list(0, oldstyle);
 
 	if (oldstyle)
 		doprompt = saveprompt;
@@ -1161,7 +1171,7 @@ readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 	loop: {	/* for each line, until end of word */
 		CHECKEND();	/* set c to PEOF if at end of here document */
 		for (;;) {	/* until end of line or end of word */
-			CHECKSTRSPACE(3, out);	/* permit 3 calls to USTPUTC */
+			CHECKSTRSPACE(4, out);	/* permit 4 calls to USTPUTC */
 
 			synentry = state[level].syntax[c];
 
@@ -1203,12 +1213,18 @@ readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 						newvarnest == 0)) &&
 					    (c != '}' || state[level].category != TSTATE_VAR_OLD))
 						USTPUTC('\\', out);
+					if ((eofmark == NULL ||
+					    newvarnest > 0) &&
+					    state[level].syntax == BASESYNTAX)
+						USTPUTC(CTLQUOTEMARK, out);
 					if (SQSYNTAX[c] == CCTL)
 						USTPUTC(CTLESC, out);
-					else if (eofmark == NULL ||
-					    newvarnest > 0)
-						USTPUTC(CTLQUOTEMARK, out);
 					USTPUTC(c, out);
+					if ((eofmark == NULL ||
+					    newvarnest > 0) &&
+					    state[level].syntax == BASESYNTAX &&
+					    state[level].category == TSTATE_VAR_OLD)
+						USTPUTC(CTLQUOTEEND, out);
 					quotef++;
 				}
 				break;
@@ -1224,6 +1240,8 @@ readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 				if (eofmark != NULL && newvarnest == 0)
 					USTPUTC(c, out);
 				else {
+					if (state[level].category == TSTATE_VAR_OLD)
+						USTPUTC(CTLQUOTEEND, out);
 					state[level].syntax = BASESYNTAX;
 					quotef++;
 				}
@@ -1233,11 +1251,12 @@ readtoken1(int firstc, char const *initialsyntax, char *eofmark, int striptabs)
 				break;
 			case CENDVAR:	/* '}' */
 				if (level > 0 &&
-				    (state[level].category == TSTATE_VAR_OLD ||
-				    state[level].category == TSTATE_VAR_NEW)) {
-					if (state[level].category == TSTATE_VAR_OLD)
-						state[level - 1].syntax = state[level].syntax;
-					else
+				    ((state[level].category == TSTATE_VAR_OLD &&
+				      state[level].syntax ==
+				      state[level - 1].syntax) ||
+				    (state[level].category == TSTATE_VAR_NEW &&
+				     state[level].syntax == BASESYNTAX))) {
+					if (state[level].category == TSTATE_VAR_NEW)
 						newvarnest--;
 					level--;
 					USTPUTC(CTLENDVAR, out);
@@ -1725,7 +1744,7 @@ getprompt(void *unused __unused)
 	char *fmt;
 	const char *pwd;
 	int i, trim;
-	static char internal_error[] = "<internal prompt error>";
+	static char internal_error[] = "??";
 
 	/*
 	 * Select prompt format.

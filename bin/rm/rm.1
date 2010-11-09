@@ -32,7 +32,7 @@
 .\"	@(#)rm.1	8.5 (Berkeley) 12/5/94
 .\" $FreeBSD$
 .\"
-.Dd October 8, 2010
+.Dd October 31, 2010
 .Dt RM 1
 .Os
 .Sh NAME
@@ -100,6 +100,11 @@ Specifying this flag for a read only file will cause
 .Nm
 to generate an error message and exit.
 The file will not be removed or overwritten.
+.Pp
+N.B.: The
+.Fl P
+flag is not considered a security feature
+.Pq see Sx BUGS .
 .It Fl R
 Attempt to remove the file hierarchy rooted in each
 .Ar file
@@ -229,8 +234,12 @@ command appeared in
 .Sh BUGS
 The
 .Fl P
-option assumes that the underlying file system updates existing blocks
-in-place and does not store new data in a new location.
-This is true for UFS but not for ZFS, which is using a Copy-On-Write strategy.
-In addition, only regular files are overwritten, other types of files
-are not.
+option assumes that the underlying storage overwrites file blocks
+when data is written to an existing offset.
+Several factors including the file system and its backing store could defeat
+this assumption.
+This includes, but is not limited to file systems that use a
+Copy-On-Write strategy (e.g. ZFS or UFS when snapshots are being used), Flash
+media that are using a wear leveling algorithm, or when the backing datastore
+does journaling, etc.
+In addition, only regular files are overwritten, other types of files are not.

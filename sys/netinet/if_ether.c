@@ -178,16 +178,16 @@ arptimer(void *arg)
 			LLE_REMREF(lle);
 			(void) llentry_free(lle);
 			ARPSTAT_INC(timeouts);
-		} 
+		} else {
 #ifdef DIAGNOSTIC
-		else {
 			struct sockaddr *l3addr = L3_ADDR(lle);
 			log(LOG_INFO, 
 			    "arptimer issue: %p, IPv4 address: \"%s\"\n", lle,
 			    inet_ntoa(
 			        ((const struct sockaddr_in *)l3addr)->sin_addr));
-		}
 #endif
+			LLE_WUNLOCK(lle);
+		}
 	}
 	IF_AFDATA_UNLOCK(ifp);
 	CURVNET_RESTORE();
@@ -291,8 +291,6 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 			return (0);
 		}
 	}
-	/* XXXXX
-	 */
 retry:
 	IF_AFDATA_RLOCK(ifp);	
 	la = lla_lookup(LLTABLE(ifp), flags, dst);
@@ -381,7 +379,7 @@ retry:
 		int canceled;
 
 		LLE_ADDREF(la);
-		la->la_expire = time_second + V_arpt_down;
+		la->la_expire = time_second;
 		canceled = callout_reset(&la->la_timer, hz * V_arpt_down,
 		    arptimer, la);
 		if (canceled)

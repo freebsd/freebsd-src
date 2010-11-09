@@ -857,7 +857,7 @@ wb_attach(dev)
 	 */
 	error = mii_attach(dev, &sc->wb_miibus, ifp, wb_ifmedia_upd,
 	    wb_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
-		if (error != 0) {
+	if (error != 0) {
 		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
 	}

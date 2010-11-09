@@ -315,7 +315,6 @@ ata_intel_ch_attach(device_t dev)
 			map &= 0x03;
 			if (map == 0x00) {
 				ch->flags |= ATA_SATA;
-				smap[ch->unit] = (ch->unit == 0) ? 0x20 : 0x31;
 				smap[0] = (ch->unit == 0) ? 0 : 1;
 				smap[1] = (ch->unit == 0) ? 2 : 3;
 			} else if (map == 0x02 && ch->unit == 0) {

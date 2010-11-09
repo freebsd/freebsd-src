@@ -1,6 +1,6 @@
 /*
- * wpa_supplicant - Internal WPA state machine definitions
- * Copyright (c) 2004-2007, Jouni Malinen <j@w1.fi>
+ * Internal WPA/RSN supplicant state machine definitions
+ * Copyright (c) 2004-2010, Jouni Malinen <j@w1.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -15,7 +15,8 @@
 #ifndef WPA_I_H
 #define WPA_I_H
 
-struct rsn_pmksa_candidate;
+#include "utils/list.h"
+
 struct wpa_peerkey;
 struct wpa_eapol_key;
 
@@ -38,7 +39,7 @@ struct wpa_sm {
 
 	struct rsn_pmksa_cache *pmksa; /* PMKSA cache */
 	struct rsn_pmksa_cache_entry *cur_pmksa; /* current PMKSA entry */
-	struct rsn_pmksa_candidate *pmksa_candidates;
+	struct dl_list pmksa_candidates;
 
 	struct l2_packet_data *l2_preauth;
 	struct l2_packet_data *l2_preauth_br;
@@ -81,6 +82,7 @@ struct wpa_sm {
 	unsigned int mgmt_group_cipher;
 
 	int rsn_enabled; /* Whether RSN is enabled in configuration */
+	int mfp; /* 0 = disabled, 1 = optional, 2 = mandatory */
 
 	u8 *assoc_wpa_ie; /* Own WPA/RSN IE from (Re)AssocReq */
 	size_t assoc_wpa_ie_len;
@@ -105,17 +107,21 @@ struct wpa_sm {
 	int ft_completed;
 	int over_the_ds_in_progress;
 	u8 target_ap[ETH_ALEN]; /* over-the-DS target AP */
+	int set_ptk_after_assoc;
+	u8 mdie_ft_capab; /* FT Capability and Policy from target AP MDIE */
+	u8 *assoc_resp_ies; /* MDIE and FTIE from (Re)Association Response */
+	size_t assoc_resp_ies_len;
 #endif /* CONFIG_IEEE80211R */
 };
 
 
-static inline void wpa_sm_set_state(struct wpa_sm *sm, wpa_states state)
+static inline void wpa_sm_set_state(struct wpa_sm *sm, enum wpa_states state)
 {
 	WPA_ASSERT(sm->ctx->set_state);
 	sm->ctx->set_state(sm->ctx->ctx, state);
 }
 
-static inline wpa_states wpa_sm_get_state(struct wpa_sm *sm)
+static inline enum wpa_states wpa_sm_get_state(struct wpa_sm *sm)
 {
 	WPA_ASSERT(sm->ctx->get_state);
 	return sm->ctx->get_state(sm->ctx->ctx);
@@ -133,7 +139,7 @@ static inline void wpa_sm_disassociate(struct wpa_sm *sm, int reason_code)
 	sm->ctx->disassociate(sm->ctx->ctx, reason_code);
 }
 
-static inline int wpa_sm_set_key(struct wpa_sm *sm, wpa_alg alg,
+static inline int wpa_sm_set_key(struct wpa_sm *sm, enum wpa_alg alg,
 				 const u8 *addr, int key_idx, int set_tx,
 				 const u8 *seq, size_t seq_len,
 				 const u8 *key, size_t key_len)
@@ -220,6 +226,14 @@ static inline int wpa_sm_send_ft_action(struct wpa_sm *sm, u8 action,
 	if (sm->ctx->send_ft_action)
 		return sm->ctx->send_ft_action(sm->ctx->ctx, action, target_ap,
 					       ies, ies_len);
+	return -1;
+}
+
+static inline int wpa_sm_mark_authenticated(struct wpa_sm *sm,
+					    const u8 *target_ap)
+{
+	if (sm->ctx->mark_authenticated)
+		return sm->ctx->mark_authenticated(sm->ctx->ctx, target_ap);
 	return -1;
 }
 

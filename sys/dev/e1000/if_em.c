@@ -118,7 +118,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "7.1.6";
+char em_driver_version[] = "7.1.7";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -1846,19 +1846,6 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	ip_off = poff = 0;
 
 	/*
-	** When doing checksum offload, it is critical to
-	** make sure the first mbuf has more than header,
-	** because that routine expects data to be present.
-	*/
-	if ((m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD) &&
-	    (m_head->m_len < ETHER_HDR_LEN + sizeof(struct ip))) {
-		m_head = m_pullup(m_head, ETHER_HDR_LEN + sizeof(struct ip));
-		*m_headp = m_head;
-		if (m_head == NULL)
-			return (ENOBUFS);
-	}
-
-	/*
 	 * Intel recommends entire IP/TCP header length reside in a single
 	 * buffer. If multiple descriptors are used to describe the IP and
 	 * TCP header, each descriptor should describe one or more
@@ -1928,6 +1915,7 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 				*m_headp = NULL;
 				return (ENOBUFS);
 			}
+			ip = (struct ip *)(mtod(m_head, char *) + ip_off);
 			ip->ip_len = 0;
 			ip->ip_sum = 0;
 			/*
@@ -1936,6 +1924,7 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 			 * what hardware expect to see. This is adherence of
 			 * Microsoft's Large Send specification.
 			 */
+			tp = (struct tcphdr *)(mtod(m_head, char *) + poff);
 			tp->th_sum = in_pseudo(ip->ip_src.s_addr,
 			    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
 		} else if (m_head->m_pkthdr.csum_flags & CSUM_TCP) {
@@ -1945,12 +1934,15 @@ em_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 				*m_headp = NULL;
 				return (ENOBUFS);
 			}
+			ip = (struct ip *)(mtod(m_head, char *) + ip_off);
+			tp = (struct tcphdr *)(mtod(m_head, char *) + poff);
 		} else if (m_head->m_pkthdr.csum_flags & CSUM_UDP) {
 			m_head = m_pullup(m_head, poff + sizeof(struct udphdr));
 			if (m_head == NULL) {
 				*m_headp = NULL;
 				return (ENOBUFS);
 			}
+			ip = (struct ip *)(mtod(m_head, char *) + ip_off);
 		}
 		*m_headp = m_head;
 	}

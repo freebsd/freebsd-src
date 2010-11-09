@@ -63,6 +63,8 @@ struct task {
 .Fn taskqueue_enqueue "struct taskqueue *queue" "struct task *task"
 .Ft int
 .Fn taskqueue_enqueue_fast "struct taskqueue *queue" "struct task *task"
+.Ft int
+.Fn taskqueue_cancel "struct taskqueue *queue" "struct task *task" "u_int *pendp"
 .Ft void
 .Fn taskqueue_drain "struct taskqueue *queue" "struct task *task"
 .Ft int
@@ -160,6 +162,31 @@ returns,
 .Xr wakeup 9
 is called on the task pointer passed to
 .Fn taskqueue_enqueue .
+.Pp
+The
+.Fn taskqueue_cancel
+function is used to cancel a task.
+The
+.Va ta_pending
+count is cleared, and the old value returned in the reference
+parameter
+.Fa pendp ,
+if it is non- Dv NULL .
+If the task is currently running,
+.Dv EBUSY
+is returned, otherwise 0.
+To implement a blocking
+.Fn taskqueue_cancel
+that waits for a running task to finish, it could look like:
+.Bd -literal -offset indent
+while (taskqueue_cancel(tq, task, NULL) != 0)
+	taskqueue_drain(tq, task);
+.Ed
+.Pp
+Note that, as with
+.Fn taskqueue_drain ,
+the caller is responsible for ensuring that the task is not re-enqueued
+after being canceled.
 .Pp
 The
 .Fn taskqueue_drain

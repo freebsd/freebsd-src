@@ -60,18 +60,18 @@ static void print_shifts(action *);
 static void print_state(int);
 
 void
-verbose()
+verbose(void)
 {
     int i;
 
     if (!vflag) return;
 
-    null_rules = (short *) MALLOC(nrules*sizeof(short));
+    null_rules = malloc(nrules*sizeof(short));
     if (null_rules == 0) no_space();
     fprintf(verbose_file, "\f\n");
     for (i = 0; i < nstates; i++)
 	print_state(i);
-    FREE(null_rules);
+    free(null_rules);
 
     if (nunused)
 	log_unused();
@@ -85,7 +85,7 @@ verbose()
 
 
 static void
-log_unused()
+log_unused(void)
 {
     int i;
     short *p;
@@ -105,7 +105,7 @@ log_unused()
 
 
 static void
-log_conflicts()
+log_conflicts(void)
 {
     int i;
 
@@ -134,8 +134,7 @@ log_conflicts()
 
 
 static void
-print_state(state)
-int state;
+print_state(int state)
 {
     if (state)
 	fprintf(verbose_file, "\n\n");
@@ -149,8 +148,7 @@ int state;
 
 
 static void
-print_conflicts(state)
-int state;
+print_conflicts(int state)
 {
     int symbol, act = 0, number = 0;
     action *p;
@@ -198,8 +196,7 @@ int state;
 
 
 static void
-print_core(state)
-int state;
+print_core(int state)
 {
     int i;
     int k;
@@ -235,8 +232,7 @@ int state;
 
 
 static void
-print_nulls(state)
-int state;
+print_nulls(int state)
 {
     action *p;
     int i, j, k, nnulls;
@@ -280,8 +276,7 @@ int state;
 
 
 static void
-print_actions(stateno)
-int stateno;
+print_actions(int stateno)
 {
     action *p;
     shifts *sp;
@@ -308,8 +303,7 @@ int stateno;
 
 
 static void
-print_shifts(p)
-action *p;
+print_shifts(action *p)
 {
     int count;
     action *q;
@@ -334,9 +328,7 @@ action *p;
 
 
 static void
-print_reductions(p, defreduct)
-action *p;
-int defreduct;
+print_reductions(action *p, int defreduct)
 {
     int k, anyreds;
     action *q;
@@ -373,8 +365,7 @@ int defreduct;
 
 
 static void
-print_gotos(stateno)
-int stateno;
+print_gotos(int stateno)
 {
     int i, k;
     int as;

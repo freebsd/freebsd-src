@@ -297,7 +297,7 @@ histcmd(int argc, char **argv)
 		laststr = argv[1];
 		break;
 	default:
-		error("too many args");
+		error("too many arguments");
 	}
 	/*
 	 * Turn into event numbers.
@@ -329,7 +329,7 @@ histcmd(int argc, char **argv)
 		editfile = editfilestr;
 		if ((efp = fdopen(fd, "w")) == NULL) {
 			close(fd);
-			error("can't allocate stdio buffer for temp");
+			error("Out of space");
 		}
 	}
 

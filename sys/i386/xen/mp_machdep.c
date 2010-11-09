@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_page.h>
 
-#include <machine/apicreg.h>
+#include <x86/apicreg.h>
 #include <machine/md_var.h>
 #include <machine/mp_watchdog.h>
 #include <machine/pcb.h>

@@ -193,6 +193,9 @@ enum cvmx_board_types_enum {
     CVMX_BOARD_TYPE_CUST_GCT108      = 10012,
     CVMX_BOARD_TYPE_CUST_AGS109      = 10013,
     CVMX_BOARD_TYPE_CUST_GCT110      = 10014,
+#if defined(OCTEON_VENDOR_LANNER)
+    CVMX_BOARD_TYPE_CUST_LANNER_MR730= 10021,
+#endif
     CVMX_BOARD_TYPE_CUST_DEFINED_MAX = 20000,
 
     /* Set aside a range for customer private use.  The SDK won't
@@ -272,6 +275,9 @@ static inline const char *cvmx_board_type_to_string(enum cvmx_board_types_enum t
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_GCT108)
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_AGS109)
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_GCT110)
+#if defined(OCTEON_VENDOR_LANNER)
+	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_LANNER_MR730)
+#endif
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_DEFINED_MAX)
 
         /* Customer private range */

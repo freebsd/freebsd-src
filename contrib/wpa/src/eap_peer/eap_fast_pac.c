@@ -480,8 +480,10 @@ static void eap_fast_write(char **buf, char **pos, size_t *buf_len,
 {
 	size_t i, need;
 	int ret;
+	char *end;
 
-	if (data == NULL || *buf == NULL)
+	if (data == NULL || buf == NULL || *buf == NULL ||
+	    pos == NULL || *pos == NULL || *pos < *buf)
 		return;
 
 	need = os_strlen(field) + len * 2 + 30;
@@ -498,32 +500,31 @@ static void eap_fast_write(char **buf, char **pos, size_t *buf_len,
 		*buf = nbuf;
 		*buf_len += need;
 	}
+	end = *buf + *buf_len;
 
-	ret = os_snprintf(*pos, *buf + *buf_len - *pos, "%s=", field);
-	if (ret < 0 || ret >= *buf + *buf_len - *pos)
+	ret = os_snprintf(*pos, end - *pos, "%s=", field);
+	if (ret < 0 || ret >= end - *pos)
 		return;
 	*pos += ret;
-	*pos += wpa_snprintf_hex(*pos, *buf + *buf_len - *pos, data, len);
-	ret = os_snprintf(*pos, *buf + *buf_len - *pos, "\n");
-	if (ret < 0 || ret >= *buf + *buf_len - *pos)
+	*pos += wpa_snprintf_hex(*pos, end - *pos, data, len);
+	ret = os_snprintf(*pos, end - *pos, "\n");
+	if (ret < 0 || ret >= end - *pos)
 		return;
 	*pos += ret;
 
 	if (txt) {
-		ret = os_snprintf(*pos, *buf + *buf_len - *pos,
-				  "%s-txt=", field);
-		if (ret < 0 || ret >= *buf + *buf_len - *pos)
+		ret = os_snprintf(*pos, end - *pos, "%s-txt=", field);
+		if (ret < 0 || ret >= end - *pos)
 			return;
 		*pos += ret;
 		for (i = 0; i < len; i++) {
-			ret = os_snprintf(*pos, *buf + *buf_len - *pos,
-					  "%c", data[i]);
-			if (ret < 0 || ret >= *buf + *buf_len - *pos)
+			ret = os_snprintf(*pos, end - *pos, "%c", data[i]);
+			if (ret < 0 || ret >= end - *pos)
 				return;
 			*pos += ret;
 		}
-		ret = os_snprintf(*pos, *buf + *buf_len - *pos, "\n");
-		if (ret < 0 || ret >= *buf + *buf_len - *pos)
+		ret = os_snprintf(*pos, end - *pos, "\n");
+		if (ret < 0 || ret >= end - *pos)
 			return;
 		*pos += ret;
 	}

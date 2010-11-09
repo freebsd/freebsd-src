@@ -171,6 +171,7 @@ struct usb_interface {
 	struct usb_host_interface *cur_altsetting;
 	struct usb_device *linux_udev;
 	void   *bsd_priv_sc;		/* device specific information */
+	char   *pnpinfo;		/* additional PnP-info for this interface */
 	uint8_t	num_altsetting;		/* number of alternate settings */
 	uint8_t	bsd_iface_index;
 };
@@ -444,6 +445,8 @@ enum usb_hc_mode usbd_get_mode(struct usb_device *udev);
 enum usb_dev_speed usbd_get_speed(struct usb_device *udev);
 void	device_set_usb_desc(device_t dev);
 void	usb_pause_mtx(struct mtx *mtx, int _ticks);
+usb_error_t	usbd_set_pnpinfo(struct usb_device *udev,
+			uint8_t iface_index, const char *pnpinfo);
 
 const struct usb_device_id *usbd_lookup_id_by_info(
 	    const struct usb_device_id *id, usb_size_t sizeof_id,

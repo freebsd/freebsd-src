@@ -98,7 +98,7 @@ static struct arglist exparg;		/* holds expanded arg list */
 static void argstr(char *, int);
 static char *exptilde(char *, int);
 static void expbackq(union node *, int, int);
-static int subevalvar(char *, char *, int, int, int, int);
+static int subevalvar(char *, char *, int, int, int, int, int);
 static char *evalvar(char *, int);
 static int varisset(char *, int);
 static void varvalue(char *, int, int, int);
@@ -216,7 +216,12 @@ argstr(char *p, int flag)
 	char c;
 	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);	/* do CTLESC */
 	int firsteq = 1;
+	int split_lit;
+	int lit_quoted;
 
+	split_lit = flag & EXP_SPLIT_LIT;
+	lit_quoted = flag & EXP_LIT_QUOTED;
+	flag &= ~(EXP_SPLIT_LIT | EXP_LIT_QUOTED);
 	if (*p == '~' && (flag & (EXP_TILDE | EXP_VARTILDE)))
 		p = exptilde(p, flag);
 	for (;;) {
@@ -225,17 +230,25 @@ argstr(char *p, int flag)
 		case CTLENDVAR:
 			goto breakloop;
 		case CTLQUOTEMARK:
+			lit_quoted = 1;
 			/* "$@" syntax adherence hack */
 			if (p[0] == CTLVAR && p[2] == '@' && p[3] == '=')
 				break;
 			if ((flag & EXP_FULL) != 0)
 				STPUTC(c, expdest);
 			break;
+		case CTLQUOTEEND:
+			lit_quoted = 0;
+			break;
 		case CTLESC:
 			if (quotes)
 				STPUTC(c, expdest);
 			c = *p++;
 			STPUTC(c, expdest);
+			if (split_lit && !lit_quoted)
+				recordregion(expdest - stackblock() -
+				    (quotes ? 2 : 1),
+				    expdest - stackblock(), 0);
 			break;
 		case CTLVAR:
 			p = evalvar(p, flag);
@@ -255,18 +268,21 @@ argstr(char *p, int flag)
 			 * assignments (after the first '=' and after ':'s).
 			 */
 			STPUTC(c, expdest);
-			if (flag & EXP_VARTILDE && *p == '~') {
-				if (c == '=') {
-					if (firsteq)
-						firsteq = 0;
-					else
-						break;
-				}
+			if (split_lit && !lit_quoted)
+				recordregion(expdest - stackblock() - 1,
+				    expdest - stackblock(), 0);
+			if (flag & EXP_VARTILDE && *p == '~' &&
+			    (c != '=' || firsteq)) {
+				if (c == '=')
+					firsteq = 0;
 				p = exptilde(p, flag);
 			}
 			break;
 		default:
 			STPUTC(c, expdest);
+			if (split_lit && !lit_quoted)
+				recordregion(expdest - stackblock() - 1,
+				    expdest - stackblock(), 0);
 		}
 	}
 breakloop:;
@@ -510,7 +526,7 @@ expbackq(union node *cmd, int quoted, int flag)
 
 static int
 subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
-  int varflags)
+  int varflags, int quotes)
 {
 	char *startp;
 	char *loc = NULL;
@@ -555,12 +571,12 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
 		for (loc = startp; loc < str; loc++) {
 			c = *loc;
 			*loc = '\0';
-			if (patmatch(str, startp, varflags & VSQUOTE)) {
+			if (patmatch(str, startp, quotes)) {
 				*loc = c;
 				goto recordleft;
 			}
 			*loc = c;
-			if ((varflags & VSQUOTE) && *loc == CTLESC)
+			if (quotes && *loc == CTLESC)
 				loc++;
 		}
 		return 0;
@@ -569,14 +585,13 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
 		for (loc = str - 1; loc >= startp;) {
 			c = *loc;
 			*loc = '\0';
-			if (patmatch(str, startp, varflags & VSQUOTE)) {
+			if (patmatch(str, startp, quotes)) {
 				*loc = c;
 				goto recordleft;
 			}
 			*loc = c;
 			loc--;
-			if ((varflags & VSQUOTE) && loc > startp &&
-			    *(loc - 1) == CTLESC) {
+			if (quotes && loc > startp && *(loc - 1) == CTLESC) {
 				for (q = startp; q < loc; q++)
 					if (*q == CTLESC)
 						q++;
@@ -588,14 +603,13 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
 
 	case VSTRIMRIGHT:
 		for (loc = str - 1; loc >= startp;) {
-			if (patmatch(str, loc, varflags & VSQUOTE)) {
+			if (patmatch(str, loc, quotes)) {
 				amount = loc - expdest;
 				STADJUST(amount, expdest);
 				return 1;
 			}
 			loc--;
-			if ((varflags & VSQUOTE) && loc > startp &&
-			    *(loc - 1) == CTLESC) {
+			if (quotes && loc > startp && *(loc - 1) == CTLESC) {
 				for (q = startp; q < loc; q++)
 					if (*q == CTLESC)
 						q++;
@@ -607,12 +621,12 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
 
 	case VSTRIMRIGHTMAX:
 		for (loc = startp; loc < str - 1; loc++) {
-			if (patmatch(str, loc, varflags & VSQUOTE)) {
+			if (patmatch(str, loc, quotes)) {
 				amount = loc - expdest;
 				STADJUST(amount, expdest);
 				return 1;
 			}
-			if ((varflags & VSQUOTE) && *loc == CTLESC)
+			if (quotes && *loc == CTLESC)
 				loc++;
 		}
 		return 0;
@@ -742,7 +756,8 @@ record:
 	case VSPLUS:
 	case VSMINUS:
 		if (!set) {
-			argstr(p, flag);
+			argstr(p, flag | (flag & EXP_FULL ? EXP_SPLIT_LIT : 0) |
+			    (varflags & VSQUOTE ? EXP_LIT_QUOTED : 0));
 			break;
 		}
 		if (easy)
@@ -762,7 +777,7 @@ record:
 		STPUTC('\0', expdest);
 		patloc = expdest - stackblock();
 		if (subevalvar(p, NULL, patloc, subtype,
-			       startloc, varflags) == 0) {
+		    startloc, varflags, quotes) == 0) {
 			int amount = (expdest - stackblock() - patloc) + 1;
 			STADJUST(-amount, expdest);
 		}
@@ -773,7 +788,8 @@ record:
 	case VSASSIGN:
 	case VSQUESTION:
 		if (!set) {
-			if (subevalvar(p, var, 0, subtype, startloc, varflags)) {
+			if (subevalvar(p, var, 0, subtype, startloc, varflags,
+			    quotes)) {
 				varflags &= ~VSNUL;
 				/*
 				 * Remove any recorded regions beyond
@@ -1495,13 +1511,13 @@ rmescapes(char *str)
 	char *p, *q;
 
 	p = str;
-	while (*p != CTLESC && *p != CTLQUOTEMARK) {
+	while (*p != CTLESC && *p != CTLQUOTEMARK && *p != CTLQUOTEEND) {
 		if (*p++ == '\0')
 			return;
 	}
 	q = p;
 	while (*p) {
-		if (*p == CTLQUOTEMARK) {
+		if (*p == CTLQUOTEMARK || *p == CTLQUOTEEND) {
 			p++;
 			continue;
 		}

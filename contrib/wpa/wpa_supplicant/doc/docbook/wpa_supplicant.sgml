@@ -388,8 +388,8 @@
       <varlistentry>
 	<term>-D driver</term>
 	<listitem>
-	  <para>Driver to use. (Per interface, see the available options
-		  below.)</para>
+	  <para>Driver to use (can be multiple drivers: nl80211,wext).
+		  (Per interface, see the available options below.)</para>
 	</listitem>
       </varlistentry>
 
@@ -507,6 +507,15 @@ wpa_supplicant -B -c/etc/wpa_supplicant.conf -iwlan0
 
 <blockquote><programlisting>
 wpa_supplicant -c/etc/wpa_supplicant.conf -iwlan0 -d
+</programlisting></blockquote>
+
+    <para>If the specific driver wrapper is not known beforehand, it is
+    possible to specify multiple comma separated driver wrappers on the command
+    line. <command>wpa_supplicant</command> will use the first driver
+    wrapper that is able to initialize the interface.</para>
+
+<blockquote><programlisting>
+wpa_supplicant -Dnl80211,wext -c/etc/wpa_supplicant.conf -iwlan0
 </programlisting></blockquote>
 
     <para><command>wpa_supplicant</command> can control multiple

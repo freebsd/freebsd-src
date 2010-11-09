@@ -24,8 +24,8 @@
 .\" $FreeBSD$
 .\"
 .Dd February 11, 2010
-.Os
 .Dt PMC.MIPS 3
+.Os
 .Sh NAME
 .Nm pmc.mips
 .Nd measurement events for
@@ -123,7 +123,6 @@ Counts every time the instruction cache is accessed. All replays,
 wasted fetches etc. are counted.
 For example, following a branch, even though the prediction is taken,
 the fall through access is counted.
-
 .It Li IC_MISS
 .Pq Event 9, Counter 1
 Counts all instruction cache misses that result in a bus request.

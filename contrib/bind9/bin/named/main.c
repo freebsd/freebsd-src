@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: main.c,v 1.166.34.3 2009/04/03 20:18:59 marka Exp $ */
+/* $Id: main.c,v 1.166.34.3.24.3 2010/09/06 03:58:32 marka Exp $ */
 
 /*! \file */
 
@@ -446,13 +446,15 @@ parse_command_line(int argc, char *argv[]) {
 			/* XXXJAB should we make a copy? */
 			ns_g_chrootdir = isc_commandline_argument;
 			break;
-		case 'T':
+		case 'T':	/* NOT DOCUMENTED */
 			/*
 			 * clienttest: make clients single shot with their
 			 * 	       own memory context.
 			 */
 			if (strcmp(isc_commandline_argument, "clienttest") == 0)
 				ns_g_clienttest = ISC_TRUE;
+			else if (!strcmp(isc_commandline_argument, "nosoa"))
+				ns_g_nosoa = ISC_TRUE;
 			else
 				fprintf(stderr, "unknown -T flag '%s\n",
 					isc_commandline_argument);
