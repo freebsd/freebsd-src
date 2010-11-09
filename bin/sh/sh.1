@@ -311,7 +311,10 @@ sh -T -c "trap 'exit 1' 2 ; some-blocking-program"
 .Ed
 .It Fl u Li nounset
 Write a message to standard error when attempting
-to expand a variable that is not set, and if the
+to expand a variable, a positional parameter or
+the special parameter
+.Va \&!
+that is not set, and if the
 shell is not interactive, exit immediately.
 .It Fl V Li vi
 Enable the built-in
