@@ -101,41 +101,60 @@ hpet_disable(struct acpi_hpet_softc *sc)
 	bus_write_4(sc->mem_res, HPET_CONFIG, val);
 }
 
+static ACPI_STATUS
+acpi_hpet_find(ACPI_HANDLE handle, UINT32 level, void *context,
+    void **status)
+{
+	char 		**ids;
+	uint32_t	id = (uint32_t)(uintptr_t)context;
+	uint32_t	uid = 0;
+
+	for (ids = hpet_ids; *ids != NULL; ids++) {
+		if (acpi_MatchHid(handle, *ids))
+		        break;
+	}
+	if (*ids == NULL)
+		return (AE_OK);
+	if (ACPI_FAILURE(acpi_GetInteger(handle, "_UID", &uid)))
+		uid = 0;
+	if (id == uid)
+		*((int *)status) = 1;
+	return (AE_OK);
+}
+
 /* Discover the HPET via the ACPI table of the same name. */
 static void 
 acpi_hpet_identify(driver_t *driver, device_t parent)
 {
 	ACPI_TABLE_HPET *hpet;
-	ACPI_TABLE_HEADER *hdr;
 	ACPI_STATUS	status;
 	device_t	child;
+	int 		i, found;
 
 	/* Only one HPET device can be added. */
 	if (devclass_get_device(acpi_hpet_devclass, 0))
 		return;
-
-	/* Currently, ID and minimum clock tick info is unused. */
-
-	status = AcpiGetTable(ACPI_SIG_HPET, 1, (ACPI_TABLE_HEADER **)&hdr);
-	if (ACPI_FAILURE(status))
-		return;
-
-	/*
-	 * The unit number could be derived from hdr->Sequence but we only
-	 * support one HPET device.
-	 */
-	hpet = (ACPI_TABLE_HPET *)hdr;
-	if (hpet->Sequence != 0)
-		printf("ACPI HPET table warning: Sequence is non-zero (%d)\n",
-		    hpet->Sequence);
-	child = BUS_ADD_CHILD(parent, ACPI_DEV_BASE_ORDER, "acpi_hpet", 0);
-	if (child == NULL) {
-		printf("%s: can't add child\n", __func__);
-		return;
+	for (i = 1; ; i++) {
+		/* Search for HPET table. */
+		status = AcpiGetTable(ACPI_SIG_HPET, i, (ACPI_TABLE_HEADER **)&hpet);
+		if (ACPI_FAILURE(status))
+			return;
+		/* Search for HPET device with same ID. */
+		found = 0;
+		AcpiWalkNamespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
+		    100, acpi_hpet_find, NULL, (void *)(uintptr_t)hpet->Sequence, (void *)&found);
+		/* If found - let it be probed in normal way. */
+		if (found)
+			continue;
+		/* If not - create it from table info. */
+		child = BUS_ADD_CHILD(parent, ACPI_DEV_BASE_ORDER, "acpi_hpet", 0);
+		if (child == NULL) {
+			printf("%s: can't add child\n", __func__);
+			continue;
+		}
+		bus_set_resource(child, SYS_RES_MEMORY, 0, hpet->Address.Address,
+		    HPET_MEM_WIDTH);
 	}
-
-	bus_set_resource(child, SYS_RES_MEMORY, 0, hpet->Address.Address,
-	    HPET_MEM_WIDTH);
 }
 
 static int
@@ -146,8 +165,7 @@ acpi_hpet_probe(device_t dev)
 	if (acpi_disabled("hpet"))
 		return (ENXIO);
 	if (acpi_get_handle(dev) != NULL &&
-	    (ACPI_ID_PROBE(device_get_parent(dev), dev, hpet_ids) == NULL ||
-	    device_get_unit(dev) != 0))
+	    ACPI_ID_PROBE(device_get_parent(dev), dev, hpet_ids) == NULL)
 		return (ENXIO);
 
 	device_set_desc(dev, "High Precision Event Timer");
@@ -233,11 +251,12 @@ acpi_hpet_attach(device_t dev)
 		bus_free_resource(dev, SYS_RES_MEMORY, sc->mem_res);
 		return (ENXIO);
 	}
-
-	hpet_timecounter.tc_frequency = freq;
-	hpet_timecounter.tc_priv = sc;
-	tc_init(&hpet_timecounter);
-
+	/* Announce first HPET as timecounter. */
+	if (device_get_unit(dev) == 0) {
+		hpet_timecounter.tc_frequency = freq;
+		hpet_timecounter.tc_priv = sc;
+		tc_init(&hpet_timecounter);
+	}
 	return (0);
 }
 
