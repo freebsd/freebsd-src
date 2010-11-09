@@ -37,6 +37,7 @@
   <legalnotice id="trademarks" role="trademarks">
     &tm-attrib.freebsd;
     &tm-attrib.amd;
+    &tm-attrib.fujitsu;
     &tm-attrib.ibm;
     &tm-attrib.intel;
     &tm-attrib.sparc;
@@ -321,15 +322,15 @@
   <title>sparc64</title>
 
   <para>This section describes the systems currently known to be supported
-    by &os; on the &ultrasparc; platform.  For background information on the
+    by &os; on the Fujitsu &sparc64; and Sun &ultrasparc; platforms.  For background information on the
     various hardware designs see the <ulink url="http://sunsolve.sun.com/handbook_pub/">Sun System Handbook</ulink>.</para>
 
   <para>SMP is supported on all systems with more than 1 processor.</para>
 
   <para>When using the <filename>GENERIC</filename> kernel,
     &os;/&arch.sparc64; systems not equipped with a framebuffer
-    supported by the &man.creator.4; (&sun; Creator, &sun; Creator3D
-    and &sun; Elite3D) or &man.machfb.4; (&sun; PGX and &sun; PGX64
+    supported by the &man.creator.4; (Sun Creator, Sun Creator3D
+    and Sun Elite3D) or &man.machfb.4; (Sun PGX and Sun PGX64
     as well as the ATI Mach64 chips found onboard in for example
     &sun.blade; 100, &sun.blade; 150, &sun.ultra; 5 and &sun.ultra; 10)
     driver must use the serial console.</para>
@@ -343,13 +344,16 @@
 
       <itemizedlist>
         <listitem>
+          <para>Naturetech GENIALstation 777S</para>
+        </listitem>
+        <listitem>
           <para>&sun.blade; 100</para>
         </listitem>
         <listitem>
           <para>&sun.blade; 150</para>
         </listitem>
  	<listitem>
-	  <para>&sun.enterprise; 100</para>
+	  <para>&sun.enterprise; 150</para>
 	</listitem>
         <listitem>
           <para>&sun.enterprise; 220R</para>
@@ -364,46 +368,53 @@
 	  <para>&sun.enterprise; 450</para>
 	</listitem>
         <listitem>
+          <para>&sun.fire; B100s (support for the on-board NICs first
+            appeared in 7.2-RELEASE and 8.1-RELEASE)</para>
+        </listitem>
+        <listitem>
           <para>&sun.fire; V100</para>
         </listitem>
         <listitem>
           <para>&sun.fire; V120</para>
         </listitem>
         <listitem>
-          <para>&netra; t1 105</para> 
+          <para>Sun &netra; t1 100/105</para> 
         </listitem>
         <listitem>
-          <para>&netra; T1 AC200/DC200</para> 
+          <para>Sun &netra; T1 AC200/DC200</para> 
         </listitem>
         <listitem>
-          <para>&netra; t 1100</para>
+          <para>Sun &netra; t 1100</para>
         </listitem>
         <listitem>
-          <para>&netra; t 1120</para>
+          <para>Sun &netra; t 1120</para>
         </listitem>
         <listitem>
-          <para>&netra; t 1125</para>
+          <para>Sun &netra; t 1125</para>
         </listitem>
         <listitem>
-          <para>&netra; t 1400/1405</para>
+          <para>Sun &netra; t 1400/1405</para>
         </listitem>
         <listitem>
-          <para>&netra; 120</para>
+          <para>Sun &netra; 120</para>
         </listitem>
         <listitem>
-          <para>&netra; X1</para>
+          <para>Sun &netra; X1</para>
         </listitem>
  	<listitem>
-	  <para>&sparcengine; Ultra AX1105</para>
+	  <para>Sun &sparcengine; Ultra AX1105</para>
 	</listitem>
 	<listitem>
-	  <para>&sparcengine; Ultra AXe</para>
+	  <para>Sun &sparcengine; Ultra AXe</para>
 	</listitem>
         <listitem>
-          <para>&sparcengine; Ultra AXi</para>
+          <para>Sun &sparcengine; Ultra AXi</para>
         </listitem>
         <listitem>
-          <para>&sparcengine; Ultra AXmp</para>
+          <para>Sun &sparcengine; Ultra AXmp</para>
+        </listitem>
+        <listitem>
+          <para>Sun &sparcengine; CP1500</para>
         </listitem>
         <listitem>
           <para>&sun.ultra; 1</para>
@@ -437,8 +448,8 @@
   <para>The following systems are partially supported by &os;.  In
     particular the fibre channel controllers in SBus-based systems are not
     supported.  However, it is possible to use these with a SCSI controller
-    supported by the &man.esp.4 driver (&sun; ESP SCSI, &sun; FAS Fast-SCSI
-    and &sun; FAS366 Fast-Wide SCSI controllers).</para>
+    supported by the &man.esp.4 driver (Sun ESP SCSI, Sun FAS Fast-SCSI
+    and Sun FAS366 Fast-Wide SCSI controllers).</para>
 
       <itemizedlist>
         <listitem>
@@ -449,7 +460,7 @@
         </listitem>
       </itemizedlist>
 
-  <para>Starting with 7.2-RELEASE, &arch.sparc64; systems based on
+  <para>Starting with 7.2-RELEASE, &arch.sparc64; systems based on Sun
     &ultrasparc; III and beyond are also supported by &os;, which includes
     the following known working systems:</para>
 
@@ -473,8 +484,12 @@
 	  <para>&sun.fire; V210</para>
 	</listitem>
 	<listitem>
-	  <para>&sun.fire; V215 (support first appeared in 7.3-RELEASE)</para>
+	  <para>&sun.fire; V215 (support first appeared in 7.3-RELEASE and 8.1-RELEASE)</para>
 	</listitem>
+	<listitem>
+	  <para>&sun.fire; V240</para>
+	</listitem>
+
 	<listitem>
 	  <para>&sun.fire; V250</para>
 	</listitem>
@@ -484,17 +499,21 @@
 	</listitem>
 	<listitem>
 	  <para>&sun.fire; V480 (501-6780 and 501-6790 centerplanes only, for
-	    which support first appeared in 7.3-RELEASE)</para>
+	    which support first appeared in 7.3-RELEASE and 8.1-RELEASE)</para>
 	</listitem>
 	<listitem>
 	  <para>&sun.fire; V880</para>
+	</listitem>
+	<listitem>
+	  <para>&sun.fire; V890 (support first appeared in 7.4-RELEASE and 8.1-RELEASE,
+	    non-mixed &ultrasparc; IV/IV+ CPU-configurations only)</para>
 	</listitem>
 	<listitem>
 	  <para>&netra; 20/&netra; T4</para>
 	</listitem>
       </itemizedlist>
 
-  <para>The following &ultrasparc; IIIi systems are not tested but
+  <para>The following Sun &ultrasparc; systems are not tested but
     believed to be also supported by &os;:</para>
 
       <itemizedlist>
@@ -502,12 +521,39 @@
 	  <para>&sun.fire; V125</para>
 	</listitem>
 	<listitem>
-	  <para>&sun.fire; V240</para>
+	  <para>&sun.fire; V245 (support first appeared in 7.3-RELEASE and 8.1-RELEASE)</para>
  	</listitem>
 	<listitem>
-	  <para>&sun.fire; V245 (support first appeared in 7.3-RELEASE)</para>
+	  <para>&sun.fire; V490 (support first appeared in 7.4-RELEASE and 8.1-RELEASE,
+	    non-mixed &ultrasparc; IV/IV+ CPU-configurations only)</para>
 	</listitem>
        </itemizedlist>
+
+  <para>Starting with 7.4-RELEASE and 8.1-RELEASE, &arch.sparc64; systems based on
+    Fujitsu &sparc64; V are also supported by &os;, which
+    includes the following known working systems:</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>Fujitsu &primepower; 250</para>
+	</listitem>
+      </itemizedlist>
+
+  <para>The following Fujitsu &primepower; systems are not tested but
+    believed to be also supported by &os;:</para>
+
+      <itemizedlist>
+	<listitem>
+	  <para>Fujitsu &primepower; 450</para>
+	</listitem>
+	<listitem>
+	  <para>Fujitsu &primepower; 650</para>
+	</listitem>
+	<listitem>
+	  <para>Fujitsu &primepower; 850</para>
+	</listitem>
+      </itemizedlist>
+
 </sect2>
 
 </sect1>
