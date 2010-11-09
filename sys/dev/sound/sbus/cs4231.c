@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
  * for playback/capture.
  * Since I couldn't find any documentation for APCDMA programming
  * information, I guessed the usage of APCDMA from that of OpenBSD's
- * driver. The EBDMA infomation of PCIO can be obtained from
+ * driver. The EBDMA information of PCIO can be obtained from
  *  http://solutions.sun.com/embedded/databook/web/microprocessors/pcio.html
  * And CS4231A datasheet can also be obtained from
  *  ftp://ftp.alsa-project.org/pub/manuals/cirrus/4231a.pdf
@@ -1198,7 +1198,7 @@ cs4231_chan_fs(struct cs4231_softc *sc, int dir, u_int8_t fs)
 
 	/*
 	 * capture channel
-	 * cs4231 doesn't allow seperate fs setup for playback/capture.
+	 * cs4231 doesn't allow separate fs setup for playback/capture.
 	 * I believe this will break full-duplex operation.
 	 */
 	if (dir == PCMDIR_REC) {
