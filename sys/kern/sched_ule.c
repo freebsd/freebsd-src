@@ -165,7 +165,7 @@ static struct td_sched td_sched0;
  *		before throttling back.
  * SLP_RUN_FORK:	Maximum slp+run time to inherit at fork time.
  * INTERACT_MAX:	Maximum interactivity value.  Smaller is better.
- * INTERACT_THRESH:	Threshhold for placement on the current runq.
+ * INTERACT_THRESH:	Threshold for placement on the current runq.
  */
 #define	SCHED_SLP_RUN_MAX	((hz * 5) << SCHED_TICK_SHIFT)
 #define	SCHED_SLP_RUN_FORK	((hz / 2) << SCHED_TICK_SHIFT)
@@ -2179,7 +2179,7 @@ sched_tick(int cnt)
 	ts->ts_ltick = ticks;
 	ts->ts_incrtick = ticks;
 	/*
-	 * Update if we've exceeded our desired tick threshhold by over one
+	 * Update if we've exceeded our desired tick threshold by over one
 	 * second.
 	 */
 	if (ts->ts_ftick + SCHED_TICK_MAX < ts->ts_ltick)
