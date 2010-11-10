@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <machine/bus.h>
-#include <machine/intr.h>
 #include <machine/intr_machdep.h>
 #include <machine/openpicvar.h>
 #include <machine/ocpbus.h>
