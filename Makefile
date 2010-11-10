@@ -281,7 +281,7 @@ tinderbox:
 # existing system is.
 #
 .if make(universe) || make(universe_kernels) || make(tinderbox)
-TARGETS?=amd64 arm i386 ia64 mips pc98 powerpc sparc64 sun4v
+TARGETS?=amd64 i386 ia64 pc98 powerpc sparc64 sun4v
 
 .if defined(DOING_TINDERBOX)
 FAILFILE=tinderbox.failed
