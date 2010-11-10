@@ -281,7 +281,7 @@ SUBDIR=	${_3dfx} \
 	ti \
 	tl \
 	${_tmpfs} \
-	tpm \
+	${_tpm} \
 	trm \
 	${_twa} \
 	twe \
@@ -468,6 +468,7 @@ _nfe=		nfe
 _nve=		nve
 _nvram=		nvram
 _nxge=		nxge
+_tpm=		tpm
 _wpi=		wpi
 _wpifw=		wpifw
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
@@ -561,6 +562,7 @@ _speaker=	speaker
 _splash=	splash
 _sppp=		sppp
 _tmpfs=		tmpfs
+_tpm=		tpm
 _twa=		twa
 _vesa=		vesa
 _x86bios=	x86bios
@@ -605,6 +607,7 @@ _sound=		sound
 _splash=	splash
 _sppp=		sppp
 _streams=	streams
+_tpm=		tpm
 _twa=		twa
 _wi=		wi
 _xe=		xe
