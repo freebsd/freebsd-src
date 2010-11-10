@@ -397,7 +397,7 @@ int		acpi_device_pwr_for_sleep(device_t bus, device_t dev,
 		    int *dstate);
 
 /* APM emulation */
-struct apm_clone_data *acpi_apm_create_clone(struct cdev *, struct acpi_softc *);
+void		acpi_apm_init(struct acpi_softc *);
 
 /* Misc. */
 static __inline struct acpi_softc *
