@@ -61,10 +61,9 @@ acpi_machdep_init(device_t dev)
 {
 	struct acpi_softc *sc;
 
-	sc = devclass_get_softc(devclass_find("acpi"), 0);
+	sc = device_get_softc(dev);
 
-	/* Create a clone for /dev/acpi also. */
-	sc->acpi_clone = acpi_apm_create_clone(sc->acpi_dev_t, sc);
+	acpi_apm_init(sc);
 	acpi_install_wakeup_handler(sc);
 
 	if (intr_model == ACPI_INTR_PIC)

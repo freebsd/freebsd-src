@@ -29,10 +29,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bus.h>
-#include <sys/kernel.h>
 #include <sys/condvar.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/poll.h>
 #include <sys/uio.h>
@@ -477,14 +477,13 @@ apmreadfilt(struct knote *kn, long hint)
 	return (sleeping);
 }
 
-struct apm_clone_data *
-acpi_apm_create_clone(struct cdev *dev, struct acpi_softc *acpi_sc)
+void
+acpi_apm_init(struct acpi_softc *sc)
 {
-	struct apm_clone_data *clone;
 
-	STAILQ_INIT(&acpi_sc->apm_cdevs);
-	clone = apm_create_clone(dev, acpi_sc);
+	/* Create a clone for /dev/acpi also. */
+	STAILQ_INIT(&sc->apm_cdevs);
+	sc->acpi_clone = apm_create_clone(sc->acpi_dev_t, sc);
 	clone_setup(&apm_clones);
 	EVENTHANDLER_REGISTER(dev_clone, apm_clone, 0, 1000);
-	return (clone);
 }
