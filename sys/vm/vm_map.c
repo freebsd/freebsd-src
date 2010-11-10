@@ -2301,7 +2301,7 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	boolean_t fictitious, need_wakeup, result, user_wire;
 	vm_prot_t prot;
 
-	prot = VM_PROT_READ | VM_PROT_EXECUTE;
+	prot = 0;
 	if (flags & VM_MAP_WIRE_WRITE)
 		prot |= VM_PROT_WRITE;
 	user_wire = (flags & VM_MAP_WIRE_USER) ? TRUE : FALSE;
@@ -2371,7 +2371,8 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		 * above.)
 		 */
 		entry->eflags |= MAP_ENTRY_IN_TRANSITION;
-		if ((entry->protection & prot) != prot) {
+		if ((entry->protection & (VM_PROT_READ | VM_PROT_EXECUTE)) == 0
+		    || (entry->protection & prot) != prot) {
 			entry->eflags |= MAP_ENTRY_WIRE_SKIPPED;
 			if ((flags & VM_MAP_WIRE_HOLESOK) == 0) {
 				end = entry->end;
