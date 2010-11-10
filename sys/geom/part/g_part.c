@@ -748,7 +748,7 @@ g_part_ctl_create(struct gctl_req *req, struct g_part_parms *gpp)
 	g_topology_assert();
 
 	/* Check that there isn't already a g_part geom on the provider. */
-	error = g_part_parm_geom(req, "provider", &gp);
+	error = g_part_parm_geom(req, "arg0", &gp);
 	if (!error) {
 		null = gp->softc;
 		if (null->gpt_scheme != &g_part_null_scheme) {
