@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20101110:	p15	FreeBSD-SA-10:09.pseudofs
+	Don't unlock a mutex which wasn't locked.
+
 20100920:	p14	FreeBSD-SA-10:08.bzip2
 	Fix an integer overflow in RLE length parsing when decompressing
 	corrupt bzip2 data.
