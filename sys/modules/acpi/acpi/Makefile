@@ -96,7 +96,7 @@ opt_ddb.h: Makefile
 .endif
 
 # Machine-specific code such as sleep/wakeup
-SRCS+=	acpi_machdep.c acpi_wakecode.h acpi_wakeup.c
+SRCS+=	acpi_apm.c acpi_machdep.c acpi_wakecode.h acpi_wakeup.c
 SRCS+=	assym.s madt.c
 CLEANFILES+=	acpi_wakecode.bin acpi_wakecode.h acpi_wakecode.o
 
