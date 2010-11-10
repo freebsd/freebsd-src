@@ -182,6 +182,7 @@ make_conf_build ( ) (
 
 	echo "${CONF_WORLD}" > ${NANO_MAKE_CONF_BUILD}
 	echo "${CONF_BUILD}" >> ${NANO_MAKE_CONF_BUILD}
+	echo "_WITHOUT_SRCCONF=t" >> ${NANO_MAKE_CONF_BUILD}
 )
 
 build_world ( ) (
@@ -244,6 +245,7 @@ make_conf_install ( ) (
 
 	echo "${CONF_WORLD}" > ${NANO_MAKE_CONF_INSTALL}
 	echo "${CONF_INSTALL}" >> ${NANO_MAKE_CONF_INSTALL}
+	echo "_WITHOUT_SRCCONF=t" >> ${NANO_MAKE_CONF_INSTALL}
 )
 
 install_world ( ) (
