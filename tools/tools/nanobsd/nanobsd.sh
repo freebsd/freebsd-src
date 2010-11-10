@@ -153,6 +153,12 @@ NANO_LABEL=""
 
 NANO_ARCH=`uname -p`
 
+# Directory to populate /cfg from
+NANO_CFGDIR=""
+
+# Directory to populate /data from
+NANO_DATADIR=""
+
 #######################################################################
 #
 # The functions which do the real work.
