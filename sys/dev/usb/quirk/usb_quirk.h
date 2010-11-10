@@ -27,11 +27,14 @@
 #ifndef _USB_QUIRK_H_
 #define	_USB_QUIRK_H_
 
-/* NOTE: UQ_NONE is not a valid quirk */
-enum {	/* keep in sync with usb_quirk_str table */
-	UQ_NONE,
+enum {
+	/*
+	 * Keep in sync with theusb_quirk_str usb_quirk.c, and with the
+	 * share/man/man4/usb_quirk.4
+	 */
+	UQ_NONE,		/* not a valid quirk */
 
-	UQ_MATCH_VENDOR_ONLY,
+	UQ_MATCH_VENDOR_ONLY,	/* match quirk on vendor only */
 
 	/* Various quirks */
 
