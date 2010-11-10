@@ -20,7 +20,7 @@ SRCS+=	app.c as.c atof-generic.c atof-ieee.c bignum-copy.c \
 # DEO: why not used?
 #SRCS+=	itbl-ops.c
 
-.if ${TARGET_ARCH} == "mips"
+.if ${TARGET_CPUARCH} == "mips"
 SRCS+=	itbl-ops.c itbl-parse.y itbl-lex.l
 .endif
 
@@ -32,7 +32,7 @@ SRCS+=	tc-ppc.c
 # change back to tc-sparc.c when new binutils is imported
 SRCS+=	tc-sparc-fixed.c
 .else
-SRCS+=	tc-${TARGET_ARCH}.c
+SRCS+=	tc-${TARGET_CPUARCH}.c
 .endif
 
 .if ${TARGET_ARCH} == "sparc64"
@@ -49,7 +49,7 @@ CFLAGS+= -DTARGET_ALIAS=\"${TARGET_TUPLE}\"
 CFLAGS+= -DVERSION=\"${VERSION}\"
 CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${SRCDIR}/gas -I${SRCDIR}/gas/config -I${SRCDIR}
-CFLAGS+= -I${.CURDIR} -I${.CURDIR}/${TARGET_ARCH}-freebsd
+CFLAGS+= -I${.CURDIR} -I${.CURDIR}/${TARGET_CPUARCH}-freebsd
 
 NO_SHARED?=	yes
 
