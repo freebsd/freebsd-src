@@ -96,6 +96,7 @@ struct smu_softc {
 
 	struct resource	*sc_memr;
 	int		sc_memrid;
+	int		sc_u3;
 
 	bus_dma_tag_t	sc_dmatag;
 	bus_space_tag_t	sc_bt;
@@ -275,6 +276,10 @@ smu_attach(device_t dev)
 	sc->sc_cur_cmd = NULL;
 	sc->sc_doorbellirqid = -1;
 
+	sc->sc_u3 = 0;
+	if (OF_finddevice("/u3") != -1)
+		sc->sc_u3 = 1;
+
 	/*
 	 * Map the mailbox area. This should be determined from firmware,
 	 * but I have not found a simple way to do that.
@@ -417,7 +422,9 @@ smu_send_cmd(device_t dev, struct smu_cmd *cmd)
 
 	mtx_assert(&sc->sc_mtx, MA_OWNED);
 
-	powerpc_pow_enabled = 0;	/* SMU cannot work if we go to NAP */
+	if (sc->sc_u3)
+		powerpc_pow_enabled = 0; /* SMU cannot work if we go to NAP */
+
 	sc->sc_cur_cmd = cmd;
 
 	/* Copy the command to the mailbox */
@@ -464,7 +471,8 @@ smu_doorbell_intr(void *xdev)
 	    sizeof(sc->sc_cmd->data));
 	wakeup(sc->sc_cur_cmd);
 	sc->sc_cur_cmd = NULL;
-	powerpc_pow_enabled = 1;
+	if (sc->sc_u3)
+		powerpc_pow_enabled = 1;
 
     done:
 	/* Queue next command if one is pending */
