@@ -119,6 +119,8 @@ initialize_all_files (void)
   _initialize_mips_tdep ();
   _initialize_mipsfbsd_tdep ();
   _initialize_corelow ();
+  _initialize_solib ();
+  _initialize_svr4_solib ();
   _initialize_ser_hardwire ();
   _initialize_ser_pipe ();
   _initialize_ser_tcp ();
@@ -130,8 +132,7 @@ initialize_all_files (void)
   _initialize_kernel_u_addr ();
   _initialize_infptrace ();
   _initialize_inftarg ();
-  _initialize_solib ();
-  _initialize_svr4_solib ();
+  _initialize_thread_db ();
 #if 0
   _initialize_svr4_lm ();
 #endif

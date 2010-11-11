@@ -363,7 +363,7 @@ iicbus_transfer(device_t bus, struct iic_msg *msgs, uint32_t nmsgs)
 int
 iicbus_transfer_gen(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 {
-	int i, error, lenread, lenwrote, nkid;
+	int i, error, lenread, lenwrote, nkid, rpstart, addr;
 	device_t *children, bus;
 
 	if ((error = device_get_children(dev, &children, &nkid)) != 0)
@@ -373,14 +373,38 @@ iicbus_transfer_gen(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		return (EIO);
 	}
 	bus = children[0];
+	rpstart = 0;
 	free(children, M_TEMP);
 	for (i = 0, error = 0; i < nmsgs && error == 0; i++) {
+		addr = msgs[i].slave;
 		if (msgs[i].flags & IIC_M_RD)
-			error = iicbus_block_read(bus, msgs[i].slave,
-			    msgs[i].buf, msgs[i].len, &lenread);
+			addr |= LSB;
 		else
-			error = iicbus_block_write(bus, msgs[i].slave,
-			    msgs[i].buf, msgs[i].len, &lenwrote);
+			addr &= ~LSB;
+
+		if (!(msgs[i].flags & IIC_M_NOSTART)) {
+			if (rpstart)
+				error = iicbus_repeated_start(bus, addr, 0);
+			else
+				error = iicbus_start(bus, addr, 0);
+		}
+
+		if (error)
+			break;
+
+		if (msgs[i].flags & IIC_M_RD)
+			error = iicbus_read(bus, msgs[i].buf, msgs[i].len,
+			    &lenread, IIC_LAST_READ, 0);
+		else
+			error = iicbus_write(bus, msgs[i].buf, msgs[i].len,
+			    &lenwrote, 0);
+
+		if (!(msgs[i].flags & IIC_M_NOSTOP)) {
+			rpstart = 0;
+			iicbus_stop(bus);
+		} else {
+			rpstart = 1;	/* Next message gets repeated start */
+		}
 	}
 	return (error);
 }

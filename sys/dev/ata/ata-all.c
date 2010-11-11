@@ -1517,6 +1517,15 @@ ata_cam_end_transaction(device_t dev, struct ata_request *request)
 		res->sector_count = request->u.ata.count;
 		res->sector_count_exp = request->u.ata.count >> 8;
 	}
+	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
+		if (ccb->ccb_h.func_code == XPT_ATA_IO) {
+			ccb->ataio.resid =
+			    ccb->ataio.dxfer_len - request->donecount;
+		} else {
+			ccb->csio.resid =
+			    ccb->csio.dxfer_len - request->donecount;
+		}
+	}
 	ata_free_request(request);
 	xpt_done(ccb);
 	/* Do error recovery if needed. */

@@ -409,8 +409,7 @@ const char *trailer[] =
 
 
 void
-write_section(section)
-const char *section[];
+write_section(const char *section[])
 {
     int c;
     int i;

@@ -32,9 +32,13 @@ CFLAGS+=	-DLONG_TYPE_SIZE=${LONG_TYPE_SIZE}
 CFLAGS+=	-DCROSS_COMPILE
 .endif
 
-.if ${TARGET_ARCH} == "mips"
-# XXX This is backwards, MIPS should default to BE.
-.if !defined(TARGET_BIG_ENDIAN)
+.if ${TARGET_ARCH} == "armeb"
+CFLAGS += -DTARGET_ENDIAN_DEFAULT=MASK_BIG_END
+.endif
+
+
+.if ${TARGET_CPUARCH} == "mips"
+.if ${TARGET_ARCH} == "mipsel"
 CFLAGS += -DTARGET_ENDIAN_DEFAULT=0
 .endif
 

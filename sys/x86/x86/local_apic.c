@@ -324,16 +324,21 @@ lapic_create(u_int apic_id, int boot_cpu)
 void
 lapic_dump(const char* str)
 {
+	uint32_t maxlvt;
 
+	maxlvt = (lapic->version & APIC_VER_MAXLVT) >> MAXLVTSHIFT;
 	printf("cpu%d %s:\n", PCPU_GET(cpuid), str);
 	printf("     ID: 0x%08x   VER: 0x%08x LDR: 0x%08x DFR: 0x%08x\n",
 	    lapic->id, lapic->version, lapic->ldr, lapic->dfr);
 	printf("  lint0: 0x%08x lint1: 0x%08x TPR: 0x%08x SVR: 0x%08x\n",
 	    lapic->lvt_lint0, lapic->lvt_lint1, lapic->tpr, lapic->svr);
-	printf("  timer: 0x%08x therm: 0x%08x err: 0x%08x pmc: 0x%08x\n",
-	    lapic->lvt_timer, lapic->lvt_thermal, lapic->lvt_error,
-	    lapic->lvt_pcint);
-	printf("   cmci: 0x%08x\n", lapic->lvt_cmci);
+	printf("  timer: 0x%08x therm: 0x%08x err: 0x%08x",
+	    lapic->lvt_timer, lapic->lvt_thermal, lapic->lvt_error);
+	if (maxlvt >= LVT_PMC)
+		printf(" pmc: 0x%08x", lapic->lvt_pcint);
+	printf("\n");
+	if (maxlvt >= LVT_CMCI)
+		printf("   cmci: 0x%08x\n", lapic->lvt_cmci);
 }
 
 void
@@ -1280,7 +1285,7 @@ apic_init(void *dummy __unused)
 	if (resource_disabled("apic", 0))
 		return;
 
-	/* First, probe all the enumerators to find the best match. */
+	/* Probe all the enumerators to find the best match. */
 	best_enum = NULL;
 	best = 0;
 	SLIST_FOREACH(enumerator, &enumerators, apic_next) {
@@ -1316,13 +1321,12 @@ apic_init(void *dummy __unused)
 	}
 #endif
 
-	/* Second, probe the CPU's in the system. */
+	/* Probe the CPU's in the system. */
 	retval = best_enum->apic_probe_cpus();
 	if (retval != 0)
 		printf("%s: Failed to probe CPUs: returned %d\n",
 		    best_enum->apic_name, retval);
 
-#ifdef __amd64__
 }
 SYSINIT(apic_init, SI_SUB_TUNABLES - 1, SI_ORDER_SECOND, apic_init, NULL);
 
@@ -1337,19 +1341,14 @@ apic_setup_local(void *dummy __unused)
  
 	if (best_enum == NULL)
 		return;
-#endif
-	/* Third, initialize the local APIC. */
+
+	/* Initialize the local APIC. */
 	retval = best_enum->apic_setup_local();
 	if (retval != 0)
 		printf("%s: Failed to setup the local APIC: returned %d\n",
 		    best_enum->apic_name, retval);
 }
-#ifdef __amd64__
-SYSINIT(apic_setup_local, SI_SUB_CPU, SI_ORDER_SECOND, apic_setup_local,
-    NULL);
-#else
-SYSINIT(apic_init, SI_SUB_CPU, SI_ORDER_SECOND, apic_init, NULL);
-#endif
+SYSINIT(apic_setup_local, SI_SUB_CPU, SI_ORDER_SECOND, apic_setup_local, NULL);
 
 /*
  * Setup the I/O APICs.

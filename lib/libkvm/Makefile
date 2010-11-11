@@ -20,7 +20,7 @@ WARNS?=	0
 SRCS=	kvm.c kvm_${KVM_ARCH}.c kvm_cptime.c kvm_file.c kvm_getloadavg.c \
 	kvm_getswapinfo.c kvm_pcpu.c kvm_proc.c kvm_vnet.c
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
-    ${MACHINE_CPUARCH} == "arm"
+    ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "mips"
 SRCS+=	kvm_minidump_${KVM_ARCH}.c
 .endif
 INCS=	kvm.h

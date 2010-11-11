@@ -141,13 +141,11 @@ at-xy ."         `--{__________) [0m"
 ;
 
 : acpienabled? ( -- flag )
-	s" acpi_load" getenv
+	s" hint.acpi.0.rsdp" getenv
 	dup -1 = if
 		drop false exit
 	then
-	s" YES" compare-insensitive 0<> if
-		false exit
-	then
+	2drop
 	s" hint.acpi.0.disabled" getenv
 	dup -1 <> if
 		s" 0" compare 0<> if
@@ -254,11 +252,9 @@ set-current
 		dup bootkey @ = if 0 boot then
 		dup bootacpikey @ = if
 			acpienabled? if
-				s" acpi_load" unsetenv
 				s" 1" s" hint.acpi.0.disabled" setenv
 				s" 1" s" loader.acpi_disabled_by_user" setenv
 			else
-				s" YES" s" acpi_load" setenv
 				s" 0" s" hint.acpi.0.disabled" setenv
 			then
 			0 boot
@@ -266,7 +262,6 @@ set-current
 		dup bootsafekey @ = if
 			s" arch-i386" environment? if
 				drop
-				s" acpi_load" unsetenv
 				s" 1" s" hint.acpi.0.disabled" setenv
 				s" 1" s" loader.acpi_disabled_by_user" setenv
 				s" 1" s" hint.apic.0.disabled" setenv

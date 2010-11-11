@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-options.c,v 1.49 2010/03/16 15:46:52 stevesk Exp $ */
+/* $OpenBSD: auth-options.c,v 1.52 2010/05/20 23:46:02 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -27,10 +27,10 @@
 #include "canohost.h"
 #include "buffer.h"
 #include "channels.h"
-#include "auth-options.h"
 #include "servconf.h"
 #include "misc.h"
 #include "key.h"
+#include "auth-options.h"
 #include "hostfile.h"
 #include "auth.h"
 #ifdef GSSAPI
@@ -55,6 +55,9 @@ struct envstring *custom_environment = NULL;
 /* "tunnel=" option. */
 int forced_tun_device = -1;
 
+/* "principals=" option. */
+char *authorized_principals = NULL;
+
 extern ServerOptions options;
 
 void
@@ -75,6 +78,10 @@ auth_clear_options(void)
 	if (forced_command) {
 		xfree(forced_command);
 		forced_command = NULL;
+	}
+	if (authorized_principals) {
+		xfree(authorized_principals);
+		authorized_principals = NULL;
 	}
 	forced_tun_device = -1;
 	channel_clear_permitted_opens();
@@ -141,6 +148,8 @@ auth_parse_options(struct passwd *pw, char *opts, char *file, u_long linenum)
 		cp = "command=\"";
 		if (strncasecmp(opts, cp, strlen(cp)) == 0) {
 			opts += strlen(cp);
+			if (forced_command != NULL)
+				xfree(forced_command);
 			forced_command = xmalloc(strlen(opts) + 1);
 			i = 0;
 			while (*opts) {
@@ -164,6 +173,38 @@ auth_parse_options(struct passwd *pw, char *opts, char *file, u_long linenum)
 			}
 			forced_command[i] = '\0';
 			auth_debug_add("Forced command: %.900s", forced_command);
+			opts++;
+			goto next_option;
+		}
+		cp = "principals=\"";
+		if (strncasecmp(opts, cp, strlen(cp)) == 0) {
+			opts += strlen(cp);
+			if (authorized_principals != NULL)
+				xfree(authorized_principals);
+			authorized_principals = xmalloc(strlen(opts) + 1);
+			i = 0;
+			while (*opts) {
+				if (*opts == '"')
+					break;
+				if (*opts == '\\' && opts[1] == '"') {
+					opts += 2;
+					authorized_principals[i++] = '"';
+					continue;
+				}
+				authorized_principals[i++] = *opts++;
+			}
+			if (!*opts) {
+				debug("%.100s, line %lu: missing end quote",
+				    file, linenum);
+				auth_debug_add("%.100s, line %lu: missing end quote",
+				    file, linenum);
+				xfree(authorized_principals);
+				authorized_principals = NULL;
+				goto bad_option;
+			}
+			authorized_principals[i] = '\0';
+			auth_debug_add("principals: %.900s",
+			    authorized_principals);
 			opts++;
 			goto next_option;
 		}
@@ -376,123 +417,147 @@ bad_option:
 	return 0;
 }
 
-/*
- * Set options from certificate constraints. These supersede user key options
- * so this must be called after auth_parse_options().
- */
-int
-auth_cert_constraints(Buffer *c_orig, struct passwd *pw)
+#define OPTIONS_CRITICAL	1
+#define OPTIONS_EXTENSIONS	2
+static int
+parse_option_list(u_char *optblob, size_t optblob_len, struct passwd *pw,
+    u_int which, int crit,
+    int *cert_no_port_forwarding_flag,
+    int *cert_no_agent_forwarding_flag,
+    int *cert_no_x11_forwarding_flag,
+    int *cert_no_pty_flag,
+    int *cert_no_user_rc,
+    char **cert_forced_command,
+    int *cert_source_address_done)
 {
+	char *command, *allowed;
+	const char *remote_ip;
 	u_char *name = NULL, *data_blob = NULL;
 	u_int nlen, dlen, clen;
 	Buffer c, data;
-	int ret = -1;
-
-	int cert_no_port_forwarding_flag = 1;
-	int cert_no_agent_forwarding_flag = 1;
-	int cert_no_x11_forwarding_flag = 1;
-	int cert_no_pty_flag = 1;
-	int cert_no_user_rc = 1;
-	char *cert_forced_command = NULL;
-	int cert_source_address_done = 0;
+	int ret = -1, found;
 
 	buffer_init(&data);
 
 	/* Make copy to avoid altering original */
 	buffer_init(&c);
-	buffer_append(&c, buffer_ptr(c_orig), buffer_len(c_orig));
+	buffer_append(&c, optblob, optblob_len);
 
 	while (buffer_len(&c) > 0) {
 		if ((name = buffer_get_string_ret(&c, &nlen)) == NULL ||
 		    (data_blob = buffer_get_string_ret(&c, &dlen)) == NULL) {
-			error("Certificate constraints corrupt");
+			error("Certificate options corrupt");
 			goto out;
 		}
 		buffer_append(&data, data_blob, dlen);
-		debug3("found certificate constraint \"%.100s\" len %u",
+		debug3("found certificate option \"%.100s\" len %u",
 		    name, dlen);
 		if (strlen(name) != nlen) {
 			error("Certificate constraint name contains \\0");
 			goto out;
 		}
-		if (strcmp(name, "permit-X11-forwarding") == 0)
-			cert_no_x11_forwarding_flag = 0;
-		else if (strcmp(name, "permit-agent-forwarding") == 0)
-			cert_no_agent_forwarding_flag = 0;
-		else if (strcmp(name, "permit-port-forwarding") == 0)
-			cert_no_port_forwarding_flag = 0;
-		else if (strcmp(name, "permit-pty") == 0)
-			cert_no_pty_flag = 0;
-		else if (strcmp(name, "permit-user-rc") == 0)
-			cert_no_user_rc = 0;
-		else if (strcmp(name, "force-command") == 0) {
-			char *command = buffer_get_string_ret(&data, &clen);
-
-			if (command == NULL) {
-				error("Certificate constraint \"%s\" corrupt",
-				    name);
-				goto out;
+		found = 0;
+		if ((which & OPTIONS_EXTENSIONS) != 0) {
+			if (strcmp(name, "permit-X11-forwarding") == 0) {
+				*cert_no_x11_forwarding_flag = 0;
+				found = 1;
+			} else if (strcmp(name,
+			    "permit-agent-forwarding") == 0) {
+				*cert_no_agent_forwarding_flag = 0;
+				found = 1;
+			} else if (strcmp(name,
+			    "permit-port-forwarding") == 0) {
+				*cert_no_port_forwarding_flag = 0;
+				found = 1;
+			} else if (strcmp(name, "permit-pty") == 0) {
+				*cert_no_pty_flag = 0;
+				found = 1;
+			} else if (strcmp(name, "permit-user-rc") == 0) {
+				*cert_no_user_rc = 0;
+				found = 1;
 			}
-			if (strlen(command) != clen) {
-				error("force-command constraint contains \\0");
-				goto out;
+		}
+		if (!found && (which & OPTIONS_CRITICAL) != 0) {
+			if (strcmp(name, "force-command") == 0) {
+				if ((command = buffer_get_string_ret(&data,
+				    &clen)) == NULL) {
+					error("Certificate constraint \"%s\" "
+					    "corrupt", name);
+					goto out;
+				}
+				if (strlen(command) != clen) {
+					error("force-command constraint "
+					    "contains \\0");
+					goto out;
+				}
+				if (*cert_forced_command != NULL) {
+					error("Certificate has multiple "
+					    "force-command options");
+					xfree(command);
+					goto out;
+				}
+				*cert_forced_command = command;
+				found = 1;
 			}
-			if (cert_forced_command != NULL) {
-				error("Certificate has multiple "
-				    "force-command constraints");
-				xfree(command);
-				goto out;
+			if (strcmp(name, "source-address") == 0) {
+				if ((allowed = buffer_get_string_ret(&data,
+				    &clen)) == NULL) {
+					error("Certificate constraint "
+					    "\"%s\" corrupt", name);
+					goto out;
+				}
+				if (strlen(allowed) != clen) {
+					error("source-address constraint "
+					    "contains \\0");
+					goto out;
+				}
+				if ((*cert_source_address_done)++) {
+					error("Certificate has multiple "
+					    "source-address options");
+					xfree(allowed);
+					goto out;
+				}
+				remote_ip = get_remote_ipaddr();
+				switch (addr_match_cidr_list(remote_ip,
+				    allowed)) {
+				case 1:
+					/* accepted */
+					xfree(allowed);
+					break;
+				case 0:
+					/* no match */
+					logit("Authentication tried for %.100s "
+					    "with valid certificate but not "
+					    "from a permitted host "
+					    "(ip=%.200s).", pw->pw_name,
+					    remote_ip);
+					auth_debug_add("Your address '%.200s' "
+					    "is not permitted to use this "
+					    "certificate for login.",
+					    remote_ip);
+					xfree(allowed);
+					goto out;
+				case -1:
+					error("Certificate source-address "
+					    "contents invalid");
+					xfree(allowed);
+					goto out;
+				}
+				found = 1;
 			}
-			cert_forced_command = command;
-		} else if (strcmp(name, "source-address") == 0) {
-			char *allowed = buffer_get_string_ret(&data, &clen);
-			const char *remote_ip = get_remote_ipaddr();
-			
-			if (allowed == NULL) {
-				error("Certificate constraint \"%s\" corrupt",
-				    name);
-				goto out;
-			}
-			if (strlen(allowed) != clen) {
-				error("source-address constraint contains \\0");
-				goto out;
-			}
-			if (cert_source_address_done++) {
-				error("Certificate has multiple "
-				    "source-address constraints");
-				xfree(allowed);
-				goto out;
-			}
-			switch (addr_match_cidr_list(remote_ip, allowed)) {
-			case 1:
-				/* accepted */
-				xfree(allowed);
-				break;
-			case 0:
-				/* no match */
-				logit("Authentication tried for %.100s with "
-				    "valid certificate but not from a "
-				    "permitted host (ip=%.200s).",
-				    pw->pw_name, remote_ip);
-				auth_debug_add("Your address '%.200s' is not "
-				    "permitted to use this certificate for "
-				    "login.", remote_ip);
-				xfree(allowed);
-				goto out;
-			case -1:
-				error("Certificate source-address contents "
-				    "invalid");
-				xfree(allowed);
-				goto out;
-			}
-		} else {
-			error("Certificate constraint \"%s\" is not supported",
-			    name);
-			goto out;
 		}
 
-		if (buffer_len(&data) != 0) {
-			error("Certificate constraint \"%s\" corrupt "
+		if (!found) {
+			if (crit) {
+				error("Certificate critical option \"%s\" "
+				    "is not supported", name);
+				goto out;
+			} else {
+				logit("Certificate extension \"%s\" "
+				    "is not supported", name);
+			}
+		} else if (buffer_len(&data) != 0) {
+			error("Certificate option \"%s\" corrupt "
 			    "(extra data)", name);
 			goto out;
 		}
@@ -501,9 +566,72 @@ auth_cert_constraints(Buffer *c_orig, struct passwd *pw)
 		xfree(data_blob);
 		name = data_blob = NULL;
 	}
-
-	/* successfully parsed all constraints */
+	/* successfully parsed all options */
 	ret = 0;
+
+ out:
+	if (ret != 0 &&
+	    cert_forced_command != NULL &&
+	    *cert_forced_command != NULL) {
+		xfree(*cert_forced_command);
+		*cert_forced_command = NULL;
+	}
+	if (name != NULL)
+		xfree(name);
+	if (data_blob != NULL)
+		xfree(data_blob);
+	buffer_free(&data);
+	buffer_free(&c);
+	return ret;
+}
+
+/*
+ * Set options from critical certificate options. These supersede user key
+ * options so this must be called after auth_parse_options().
+ */
+int
+auth_cert_options(Key *k, struct passwd *pw)
+{
+	int cert_no_port_forwarding_flag = 1;
+	int cert_no_agent_forwarding_flag = 1;
+	int cert_no_x11_forwarding_flag = 1;
+	int cert_no_pty_flag = 1;
+	int cert_no_user_rc = 1;
+	char *cert_forced_command = NULL;
+	int cert_source_address_done = 0;
+
+	if (key_cert_is_legacy(k)) {
+		/* All options are in the one field for v00 certs */
+		if (parse_option_list(buffer_ptr(&k->cert->critical),
+		    buffer_len(&k->cert->critical), pw,
+		    OPTIONS_CRITICAL|OPTIONS_EXTENSIONS, 1,
+		    &cert_no_port_forwarding_flag,
+		    &cert_no_agent_forwarding_flag,
+		    &cert_no_x11_forwarding_flag,
+		    &cert_no_pty_flag,
+		    &cert_no_user_rc,
+		    &cert_forced_command,
+		    &cert_source_address_done) == -1)
+			return -1;
+	} else {
+		/* Separate options and extensions for v01 certs */
+		if (parse_option_list(buffer_ptr(&k->cert->critical),
+		    buffer_len(&k->cert->critical), pw,
+		    OPTIONS_CRITICAL, 1, NULL, NULL, NULL, NULL, NULL,
+		    &cert_forced_command,
+		    &cert_source_address_done) == -1)
+			return -1;
+		if (parse_option_list(buffer_ptr(&k->cert->extensions),
+		    buffer_len(&k->cert->extensions), pw,
+		    OPTIONS_EXTENSIONS, 1,
+		    &cert_no_port_forwarding_flag,
+		    &cert_no_agent_forwarding_flag,
+		    &cert_no_x11_forwarding_flag,
+		    &cert_no_pty_flag,
+		    &cert_no_user_rc,
+		    NULL, NULL) == -1)
+			return -1;
+	}
 
 	no_port_forwarding_flag |= cert_no_port_forwarding_flag;
 	no_agent_forwarding_flag |= cert_no_agent_forwarding_flag;
@@ -516,14 +644,6 @@ auth_cert_constraints(Buffer *c_orig, struct passwd *pw)
 			xfree(forced_command);
 		forced_command = cert_forced_command;
 	}
-	
- out:
-	if (name != NULL)
-		xfree(name);
-	if (data_blob != NULL)
-		xfree(data_blob);
-	buffer_free(&data);
-	buffer_free(&c);
-	return ret;
+	return 0;
 }
 
