@@ -87,7 +87,7 @@ struct pmap_md {
 struct	pmap {
 	struct	mtx	pm_mtx;
 	u_int		pm_sr[16];
-	u_int		pm_active;
+	cpumask_t	pm_active;
 	u_int		pm_context;
 
 	struct pmap	*pmap_phys;
@@ -122,7 +122,7 @@ struct	md_page {
 struct pmap {
 	struct mtx		pm_mtx;		/* pmap mutex */
 	tlbtid_t		pm_tid[MAXCPU];	/* TID to identify this pmap entries in TLB */
-	u_int			pm_active;	/* active on cpus */
+	cpumask_t		pm_active;	/* active on cpus */
 	int			pm_refs;	/* ref count */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 

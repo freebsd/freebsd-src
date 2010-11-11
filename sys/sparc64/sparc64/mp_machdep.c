@@ -119,7 +119,7 @@ cpu_ipi_single_t *cpu_ipi_single;
 static vm_offset_t mp_tramp;
 static u_int cpuid_to_mid[MAXCPU];
 static int isjbus;
-static volatile u_int shutdown_cpus;
+static volatile cpumask_t shutdown_cpus;
 
 static void ap_count(phandle_t node, u_int mid, u_int cpu_impl);
 static void ap_start(phandle_t node, u_int mid, u_int cpu_impl);

@@ -1443,8 +1443,11 @@ ipi_nmi_handler()
 void
 cpustop_handler(void)
 {
-	int cpu = PCPU_GET(cpuid);
-	int cpumask = PCPU_GET(cpumask);
+	cpumask_t cpumask;
+	u_int cpu;
+
+	cpu = PCPU_GET(cpuid);
+	cpumask = PCPU_GET(cpumask);
 
 	savectx(&stoppcbs[cpu]);
 
@@ -1612,19 +1615,23 @@ SYSINIT(cpu_hlt, SI_SUB_SMP, SI_ORDER_ANY, cpu_hlt_setup, NULL);
 int
 mp_grab_cpu_hlt(void)
 {
-	u_int mask = PCPU_GET(cpumask);
+	cpumask_t mask;
 #ifdef MP_WATCHDOG
-	u_int cpuid = PCPU_GET(cpuid);
+	u_int cpuid;
 #endif
 	int retval;
 
+	mask = PCPU_GET(cpumask);
 #ifdef MP_WATCHDOG
+	cpuid = PCPU_GET(cpuid);
 	ap_watchdog(cpuid);
 #endif
 
-	retval = mask & hlt_cpus_mask;
-	while (mask & hlt_cpus_mask)
+	retval = 0;
+	while (mask & hlt_cpus_mask) {
+		retval = 1;
 		__asm __volatile("sti; hlt" : : : "memory");
+	}
 	return (retval);
 }
 

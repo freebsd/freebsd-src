@@ -1047,7 +1047,7 @@ smp_targeted_tlb_shootdown(cpumask_t mask, u_int vector, vm_offset_t addr1, vm_o
 	int ncpu, othercpus;
 
 	othercpus = mp_ncpus - 1;
-	if (mask == (u_int)-1) {
+	if (mask == (cpumask_t)-1) {
 		ncpu = othercpus;
 		if (ncpu < 1)
 			return;
@@ -1072,7 +1072,7 @@ smp_targeted_tlb_shootdown(cpumask_t mask, u_int vector, vm_offset_t addr1, vm_o
 	smp_tlb_addr1 = addr1;
 	smp_tlb_addr2 = addr2;
 	atomic_store_rel_int(&smp_tlb_wait, 0);
-	if (mask == (u_int)-1)
+	if (mask == (cpumask_t)-1)
 		ipi_all_but_self(vector);
 	else
 		ipi_selected(mask, vector);
@@ -1283,8 +1283,11 @@ ipi_nmi_handler()
 void
 cpustop_handler(void)
 {
-	int cpu = PCPU_GET(cpuid);
-	int cpumask = PCPU_GET(cpumask);
+	cpumask_t cpumask;
+	u_int cpu;
+
+	cpu = PCPU_GET(cpuid);
+	cpumask = PCPU_GET(cpumask);
 
 	savectx(&stoppcbs[cpu]);
 
@@ -1312,9 +1315,12 @@ void
 cpususpend_handler(void)
 {
 	struct savefpu *stopfpu;
+	cpumask_t cpumask;
 	register_t cr3, rf;
-	int cpu = PCPU_GET(cpuid);
-	int cpumask = PCPU_GET(cpumask);
+	u_int cpu;
+
+	cpu = PCPU_GET(cpuid);
+	cpumask = PCPU_GET(cpumask);
 
 	rf = intr_disable();
 	cr3 = rcr3();
@@ -1488,18 +1494,22 @@ SYSINIT(cpu_hlt, SI_SUB_SMP, SI_ORDER_ANY, cpu_hlt_setup, NULL);
 int
 mp_grab_cpu_hlt(void)
 {
-	u_int mask = PCPU_GET(cpumask);
+	cpumask_t mask;
 #ifdef MP_WATCHDOG
-	u_int cpuid = PCPU_GET(cpuid);
+	u_int cpuid;
 #endif
 	int retval;
 
+	mask = PCPU_GET(cpumask);
 #ifdef MP_WATCHDOG
+	cpuid = PCPU_GET(cpuid);
 	ap_watchdog(cpuid);
 #endif
 
-	retval = mask & hlt_cpus_mask;
-	while (mask & hlt_cpus_mask)
+	retval = 0;
+	while (mask & hlt_cpus_mask) {
+		retval = 1;
 		__asm __volatile("sti; hlt" : : : "memory");
+	}
 	return (retval);
 }

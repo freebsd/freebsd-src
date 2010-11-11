@@ -61,7 +61,7 @@ struct pmap {
 	struct	mtx pm_mtx;
 	struct	tte *pm_tsb;
 	vm_object_t pm_tsb_obj;
-	u_int	pm_active;
+	cpumask_t	pm_active;
 	u_int	pm_context[MAXCPU];
 	struct	pmap_statistics pm_stats;
 };
