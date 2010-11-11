@@ -6075,9 +6075,7 @@ indir_trunc(freework, dbn, lbn)
 	fs_pendingblocks = 0;
 	freedeps = 0;
 	needj = UFSTOVFS(ump)->mnt_kern_flag & MNTK_SUJ;
-	lbnadd = 1;
-	for (i = level; i > 0; i--)
-		lbnadd *= NINDIR(fs);
+	lbnadd = lbn_offset(fs, level);
 	/*
 	 * Get buffer of block pointers to be freed. This routine is not
 	 * called until the zero'ed inode has been written, so it is safe
