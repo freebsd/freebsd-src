@@ -656,7 +656,8 @@ lzma_decode(lzma_coder *restrict coder, lzma_dict *restrict dictptr,
 						}
 
 	case SEQ_EOPM:
-						// TODO Comment
+						// LZMA1 stream with
+						// end-of-payload marker.
 						rc_normalize(SEQ_EOPM);
 						ret = LZMA_STREAM_END;
 						goto out;
@@ -856,7 +857,6 @@ lzma_decoder_reset(lzma_coder *coder, const void *opt)
 
 	// NOTE: We assume that lc/lp/pb are valid since they were
 	// successfully decoded with lzma_lzma_decode_properties().
-	// FIXME?
 
 	// Calculate pos_mask. We don't need pos_bits as is for anything.
 	coder->pos_mask = (1U << options->pb) - 1;

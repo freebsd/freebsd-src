@@ -55,13 +55,13 @@
  *
  * This flag doesn't affect the memory usage requirements of the decoder (at
  * least not significantly). The memory usage of the encoder may be increased
- * a little but only at the lowest preset levels (0-2).
+ * a little but only at the lowest preset levels (0-3).
  */
 #define LZMA_PRESET_EXTREME       (UINT32_C(1) << 31)
 
 
 /**
- * \brief       Calculate rough memory usage of easy encoder
+ * \brief       Calculate approximate memory usage of easy encoder
  *
  * This function is a wrapper for lzma_raw_encoder_memusage().
  *
@@ -72,7 +72,7 @@ extern LZMA_API(uint64_t) lzma_easy_encoder_memusage(uint32_t preset)
 
 
 /**
- * \brief       Calculate rough decoder memory usage of a preset
+ * \brief       Calculate approximate decoder memory usage of a preset
  *
  * This function is a wrapper for lzma_raw_decoder_memusage().
  *
@@ -93,16 +93,19 @@ extern LZMA_API(uint64_t) lzma_easy_decoder_memusage(uint32_t preset)
  * \param       preset  Compression preset to use. A preset consist of level
  *                      number and zero or more flags. Usually flags aren't
  *                      used, so preset is simply a number [0, 9] which match
- *                      the options -0 .. -9 of the xz command line tool.
+ *                      the options -0 ... -9 of the xz command line tool.
  *                      Additional flags can be be set using bitwise-or with
  *                      the preset level number, e.g. 6 | LZMA_PRESET_EXTREME.
  * \param       check   Integrity check type to use. See check.h for available
- *                      checks. If you are unsure, use LZMA_CHECK_CRC32.
+ *                      checks. The xz command line tool defaults to
+ *                      LZMA_CHECK_CRC64, which is a good choice if you are
+ *                      unsure. LZMA_CHECK_CRC32 is good too as long as the
+ *                      uncompressed file is not many gigabytes.
  *
  * \return      - LZMA_OK: Initialization succeeded. Use lzma_code() to
  *                encode your data.
  *              - LZMA_MEM_ERROR: Memory allocation failed.
- *              - LZMA_OPTIONS_ERROR: The given compression level is not
+ *              - LZMA_OPTIONS_ERROR: The given compression preset is not
  *                supported by this build of liblzma.
  *              - LZMA_UNSUPPORTED_CHECK: The given check type is not
  *                supported by this liblzma build.
@@ -310,7 +313,8 @@ extern LZMA_API(lzma_ret) lzma_stream_buffer_encode(
  * \brief       Initialize .xz Stream decoder
  *
  * \param       strm        Pointer to properly prepared lzma_stream
- * \param       memlimit    Rough memory usage limit as bytes
+ * \param       memlimit    Memory usage limit as bytes. Use UINT64_MAX
+ *                          to effectively disable the limiter.
  * \param       flags       Bitwise-or of zero or more of the decoder flags:
  *                          LZMA_TELL_NO_CHECK, LZMA_TELL_UNSUPPORTED_CHECK,
  *                          LZMA_TELL_ANY_CHECK, LZMA_CONCATENATED
@@ -318,6 +322,7 @@ extern LZMA_API(lzma_ret) lzma_stream_buffer_encode(
  * \return      - LZMA_OK: Initialization was successful.
  *              - LZMA_MEM_ERROR: Cannot allocate memory.
  *              - LZMA_OPTIONS_ERROR: Unsupported flags
+ *              - LZMA_PROG_ERROR
  */
 extern LZMA_API(lzma_ret) lzma_stream_decoder(
 		lzma_stream *strm, uint64_t memlimit, uint32_t flags)
@@ -332,12 +337,14 @@ extern LZMA_API(lzma_ret) lzma_stream_decoder(
  * of the input file has been detected.
  *
  * \param       strm        Pointer to properly prepared lzma_stream
- * \param       memlimit    Rough memory usage limit as bytes
+ * \param       memlimit    Memory usage limit as bytes. Use UINT64_MAX
+ *                          to effectively disable the limiter.
  * \param       flags       Bitwise-or of flags, or zero for no flags.
  *
  * \return      - LZMA_OK: Initialization was successful.
  *              - LZMA_MEM_ERROR: Cannot allocate memory.
  *              - LZMA_OPTIONS_ERROR: Unsupported flags
+ *              - LZMA_PROG_ERROR
  */
 extern LZMA_API(lzma_ret) lzma_auto_decoder(
 		lzma_stream *strm, uint64_t memlimit, uint32_t flags)
@@ -353,6 +360,7 @@ extern LZMA_API(lzma_ret) lzma_auto_decoder(
  *
  * \return      - LZMA_OK
  *              - LZMA_MEM_ERROR
+ *              - LZMA_PROG_ERROR
  */
 extern LZMA_API(lzma_ret) lzma_alone_decoder(
 		lzma_stream *strm, uint64_t memlimit)
@@ -379,7 +387,7 @@ extern LZMA_API(lzma_ret) lzma_alone_decoder(
  *                          won't be read is in[in_size].
  * \param       out         Beginning of the output buffer
  * \param       out_pos     The next byte will be written to out[*out_pos].
- *                          *out_pos is updated only if encoding succeeds.
+ *                          *out_pos is updated only if decoding succeeds.
  * \param       out_size    Size of the out buffer; the first byte into
  *                          which no data is written to is out[out_size].
  *

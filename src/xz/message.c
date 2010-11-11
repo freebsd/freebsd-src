@@ -77,6 +77,17 @@ static uint64_t start_time;
 //    gettimeofday().
 #ifdef SIGALRM
 
+const int message_progress_sigs[] = {
+	SIGALRM,
+#ifdef SIGINFO
+	SIGINFO,
+#endif
+#ifdef SIGUSR1
+	SIGUSR1,
+#endif
+	0
+};
+
 /// The signal handler for SIGALRM sets this to true. It is set back to false
 /// once the progress message has been updated.
 static volatile sig_atomic_t progress_needs_updating = false;
@@ -142,34 +153,15 @@ message_init(void)
 */
 
 #ifdef SIGALRM
-	// DJGPP lacks SA_RESTART, but it shouldn't give EINTR
-	// in most places either.
-#	if defined(__DJGPP__) && !defined(SA_RESTART)
-#		define SA_RESTART 0
-#	endif
-
 	// Establish the signal handlers which set a flag to tell us that
-	// progress info should be updated. Since these signals don't
-	// require any quick action, we set SA_RESTART. That way we don't
-	// need to block them either in signals_block() to keep stdio
-	// functions from getting EINTR.
-	static const int sigs[] = {
-		SIGALRM,
-#ifdef SIGINFO
-		SIGINFO,
-#endif
-#ifdef SIGUSR1
-		SIGUSR1,
-#endif
-	};
-
+	// progress info should be updated.
 	struct sigaction sa;
 	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_RESTART;
+	sa.sa_flags = 0;
 	sa.sa_handler = &progress_signal_handler;
 
-	for (size_t i = 0; i < ARRAY_SIZE(sigs); ++i)
-		if (sigaction(sigs[i], &sa, NULL))
+	for (size_t i = 0; message_progress_sigs[i] != 0; ++i)
+		if (sigaction(message_progress_sigs[i], &sa, NULL))
 			message_signal_handler();
 #endif
 
@@ -841,10 +833,13 @@ message_strm(lzma_ret code)
 	case LZMA_STREAM_END:
 	case LZMA_GET_CHECK:
 	case LZMA_PROG_ERROR:
-		return _("Internal error (bug)");
+		// Without "default", compiler will warn if new constants
+		// are added to lzma_ret, it is not too easy to forget to
+		// add the new constants to this function.
+		break;
 	}
 
-	return NULL;
+	return _("Internal error (bug)");
 }
 
 
