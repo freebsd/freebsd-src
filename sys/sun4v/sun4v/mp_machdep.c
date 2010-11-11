@@ -539,7 +539,7 @@ retry:
 }
 
 void
-ipi_selected(u_int icpus, u_int ipi)
+ipi_selected(cpumask_t icpus, u_int ipi)
 {
 	int i, cpu_count;
 	uint16_t *cpulist;
