@@ -334,21 +334,21 @@ CLEANFILES +=	libgcc.map
 #
 # Build additional static libgcc_eh[_p].a libraries.
 #
-lib${LIB}_eh.a:	${EH_OBJS_T}
-	@${ECHO} building static ${LIB}_eh library
+libgcc_eh.a:	${EH_OBJS_T}
+	@${ECHO} building static gcc_eh library
 	@rm -f ${.TARGET}
 	@${AR} cq ${.TARGET} `lorder ${EH_OBJS_T} | tsort -q`
 	${RANLIB} ${.TARGET}
 
-all:	lib${LIB}_eh.a
+all:	libgcc_eh.a
 
 .if ${MK_PROFILE} != "no"
-lib${LIB}_eh_p.a:	${EH_OBJS_P}
-	@${ECHO} building profiled ${LIB}_eh library
+libgcc_eh_p.a:	${EH_OBJS_P}
+	@${ECHO} building profiled gcc_eh library
 	@rm -f ${.TARGET}
 	@${AR} cq ${.TARGET} `lorder ${EH_OBJS_P} | tsort -q`
 	${RANLIB} ${.TARGET}
-all:	lib${LIB}_eh_p.a
+all:	libgcc_eh_p.a
 .endif
 
 _libinstall: _lib-eh-install
@@ -356,14 +356,14 @@ _libinstall: _lib-eh-install
 _lib-eh-install:
 .if ${MK_INSTALLLIB} != "no"
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-		${_INSTALLFLAGS} lib${LIB}_eh.a ${DESTDIR}${LIBDIR}
+		${_INSTALLFLAGS} libgcc_eh.a ${DESTDIR}${LIBDIR}
 .endif
 .if ${MK_PROFILE} != "no"
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-		${_INSTALLFLAGS} lib${LIB}_eh_p.a ${DESTDIR}${LIBDIR}
+		${_INSTALLFLAGS} libgcc_eh_p.a ${DESTDIR}${LIBDIR}
 .endif
 
-CLEANFILES+=	lib${LIB}_eh.a lib${LIB}_eh_p.a ${EH_OBJS_T} ${EH_OBJS_P}
+CLEANFILES+=	libgcc_eh.a libgcc_eh_p.a ${EH_OBJS_T} ${EH_OBJS_P}
 
 .include <bsd.lib.mk>
 
