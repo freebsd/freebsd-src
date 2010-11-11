@@ -28,8 +28,6 @@
 
 #include "assym.s"
 
-#include <sys/mutex.h>
-
 #include <machine/asm.h>
 #include <machine/hid.h>
 #include <machine/param.h>

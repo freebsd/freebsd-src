@@ -422,7 +422,7 @@ cpu_add(u_int apic_id, char boot_cpu)
 	}
 	if (mp_ncpus < MAXCPU) {
 		mp_ncpus++;
-		mp_maxid = mp_ncpus -1;
+		mp_maxid = mp_ncpus - 1;
 	}
 	if (bootverbose)
 		printf("SMP: Added CPU %d (%s)\n", apic_id, boot_cpu ? "BSP" :
@@ -445,7 +445,7 @@ cpu_mp_setmaxid(void)
 	else
 		KASSERT(mp_maxid >= mp_ncpus - 1,
 		    ("%s: counters out of sync: max %d, count %d", __func__,
-			mp_maxid, mp_ncpus));		
+			mp_maxid, mp_ncpus));
 }
 
 int

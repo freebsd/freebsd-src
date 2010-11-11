@@ -1,4 +1,4 @@
-/* $OpenBSD: bufaux.c,v 1.48 2010/02/02 22:49:34 djm Exp $ */
+/* $OpenBSD: bufaux.c,v 1.49 2010/03/26 03:13:17 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -84,7 +84,8 @@ buffer_get_int_ret(u_int *ret, Buffer *buffer)
 
 	if (buffer_get_ret(buffer, (char *) buf, 4) == -1)
 		return (-1);
-	*ret = get_u32(buf);
+	if (ret != NULL)
+		*ret = get_u32(buf);
 	return (0);
 }
 
@@ -106,7 +107,8 @@ buffer_get_int64_ret(u_int64_t *ret, Buffer *buffer)
 
 	if (buffer_get_ret(buffer, (char *) buf, 8) == -1)
 		return (-1);
-	*ret = get_u64(buf);
+	if (ret != NULL)
+		*ret = get_u64(buf);
 	return (0);
 }
 

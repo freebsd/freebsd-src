@@ -396,6 +396,9 @@ ACPI_STATUS	acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state);
 int		acpi_device_pwr_for_sleep(device_t bus, device_t dev,
 		    int *dstate);
 
+/* APM emulation */
+void		acpi_apm_init(struct acpi_softc *);
+
 /* Misc. */
 static __inline struct acpi_softc *
 acpi_device_get_parent_softc(device_t child)

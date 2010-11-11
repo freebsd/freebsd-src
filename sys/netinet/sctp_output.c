@@ -10118,18 +10118,17 @@ sctp_send_sack(struct sctp_tcb *stcb)
 		}
 	}
 
-	if (((type == SCTP_SELECTIVE_ACK) &&
-	    (((asoc->mapping_array[0] | asoc->nr_mapping_array[0]) & 0x01) == 0x00)) ||
-	    ((type == SCTP_NR_SELECTIVE_ACK) &&
-	    ((asoc->mapping_array[0] & 0x01) == 0x00))) {
-		sel_start = 0;
-	} else {
-		sel_start = 1;
-	}
 	if (compare_with_wrap(asoc->mapping_array_base_tsn, asoc->cumulative_tsn, MAX_TSN)) {
 		offset = 1;
 	} else {
 		offset = asoc->mapping_array_base_tsn - asoc->cumulative_tsn;
+	}
+	if ((offset == 1) ||
+	    ((type == SCTP_NR_SELECTIVE_ACK) &&
+	    ((asoc->mapping_array[0] & (1 << (1 - offset))) == 0))) {
+		sel_start = 0;
+	} else {
+		sel_start = 1;
 	}
 	if (((type == SCTP_SELECTIVE_ACK) &&
 	    compare_with_wrap(highest_tsn, asoc->cumulative_tsn, MAX_TSN)) ||
@@ -10200,7 +10199,7 @@ sctp_send_sack(struct sctp_tcb *stcb)
 			siz = (((MAX_TSN - asoc->mapping_array_base_tsn) + 1) + asoc->highest_tsn_inside_nr_map + 7) / 8;
 		}
 
-		if ((asoc->nr_mapping_array[0] & 0x01) == 0x00) {
+		if ((asoc->nr_mapping_array[0] & (1 << (1 - offset))) == 0) {
 			sel_start = 0;
 		} else {
 			sel_start = 1;

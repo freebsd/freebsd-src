@@ -24,18 +24,16 @@
 .Nd "ASUSTeK AI Booster ACPI ATK0110 voltage, temperature and fan sensor"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
-place the following lines in your
+place the following line in your
 kernel configuration file:
 .Bd -ragged -offset indent
-.Cd "device acpi"
 .Cd "device aibs"
 .Ed
 .Pp
 Alternatively, to load the driver as a
-module at boot time, place the following lines in
+module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
-acpi_load="YES"
 aibs_load="YES"
 .Ed
 .Sh DESCRIPTION

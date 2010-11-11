@@ -138,6 +138,7 @@ struct pcpu *pcpup = (struct pcpu *)pcpu_space;
 
 vm_offset_t phys_avail[PHYS_AVAIL_ENTRIES + 2];
 vm_offset_t physmem_desc[PHYS_AVAIL_ENTRIES + 2];
+vm_paddr_t dump_avail[PHYS_AVAIL_ENTRIES + 2];
 
 #ifdef UNIMPLEMENTED
 struct platform platform;
@@ -486,13 +487,6 @@ cpu_idle(int busy)
 		__asm __volatile ("wait");
 	else
 		panic("ints disabled in idleproc!");
-}
-
-void
-dumpsys(struct dumperinfo *di __unused)
-{
-
-	printf("Kernel dumps not implemented on this architecture\n");
 }
 
 int

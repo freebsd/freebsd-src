@@ -276,11 +276,12 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 		sbuf_printf(sb,
 		    "processor\t: %d\n"
 		    "vendor_id\t: %.20s\n"
-		    "cpu family\t: %d\n"
-		    "model\t\t: %d\n"
+		    "cpu family\t: %u\n"
+		    "model\t\t: %u\n"
 		    "model name\t: %s\n"
-		    "stepping\t: %d\n\n",
-		    i, cpu_vendor, class, cpu, model, cpu_id & 0xf);
+		    "stepping\t: %u\n\n",
+		    i, cpu_vendor, CPUID_TO_FAMILY(cpu_id),
+		    CPUID_TO_MODEL(cpu_id), model, cpu_id & CPUID_STEPPING);
 		/* XXX per-cpu vendor / class / model / id? */
 	}
 

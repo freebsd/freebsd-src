@@ -455,8 +455,8 @@ cpu_970_setup(int cpuid, uint16_t vers)
 	/* Configure power-saving mode */
 	switch (vers) {
 	case IBM970MP:
-		hid0_hi |= (HID0_DEEPNAP | HID0_DPM);
-		hid0_hi &= ~(HID0_DOZE | HID0_NAP);
+		hid0_hi |= (HID0_DEEPNAP | HID0_NAP | HID0_DPM);
+		hid0_hi &= ~HID0_DOZE;
 		break;
 	default:
 		hid0_hi |= (HID0_NAP | HID0_DPM);
