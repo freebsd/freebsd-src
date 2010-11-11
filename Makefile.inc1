@@ -118,16 +118,16 @@ VERSION+=	${OSRELDATE}
 
 # Guess machine architecture from machine type, and vice versa.
 .if !defined(TARGET_ARCH) && defined(TARGET)
-TARGET_ARCH=	${TARGET:S/pc98/i386/:S/sun4v/sparc64/}
+TARGET_ARCH=	${TARGET:S/pc98/i386/:S/sun4v/sparc64/:S/mips/mipsel/}
 .elif !defined(TARGET) && defined(TARGET_ARCH) && \
     ${TARGET_ARCH} != ${MACHINE_ARCH}
-TARGET=		${TARGET_ARCH}
+TARGET=		${TARGET_ARCH:C/mipse[lb]/mips/:C/armeb/arm}
 .endif
 # Otherwise, default to current machine type and architecture.
 TARGET?=	${MACHINE}
 TARGET_ARCH?=	${MACHINE_ARCH}
 
-KNOWN_ARCHES?=	amd64 arm i386 i386/pc98 ia64 mips powerpc powerpc64/powerpc sparc64 sparc64/sun4v
+KNOWN_ARCHES?=	amd64 arm armeb/arm i386 i386/pc98 ia64 mipsel/mips mipseb/mips powerpc powerpc64/powerpc sparc64 sparc64/sun4v
 .if ${TARGET} == ${TARGET_ARCH}
 _t=		${TARGET}
 .else
@@ -1123,7 +1123,7 @@ libraries:
 #
 # static libgcc.a prerequisite for shared libc
 #
-_prereq_libs= gnu/lib/libssp/libssp_nonshared gnu/lib/libgcc
+_prereq_libs= gnu/lib/libssp/libssp_nonshared gnu/lib/libgcc lib/libcompiler_rt
 
 # These dependencies are not automatically generated:
 #
@@ -1139,6 +1139,7 @@ _startup_libs+=	lib/csu/${MACHINE_ARCH}
 _startup_libs+=	lib/csu/${MACHINE_CPUARCH}
 .endif
 _startup_libs+=	gnu/lib/libgcc
+_startup_libs+=	lib/libcompiler_rt
 _startup_libs+=	lib/libc
 
 gnu/lib/libgcc__L: lib/libc__L

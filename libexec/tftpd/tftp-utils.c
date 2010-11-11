@@ -100,7 +100,7 @@ unmappedaddr(struct sockaddr_in6 *sin6)
 	sin4->sin_len = sizeof(struct sockaddr_in);
 }
 
-/* Get a field from a \0 seperated string */
+/* Get a field from a \0 separated string */
 ssize_t
 get_field(int peer, char *buffer, ssize_t size)
 {

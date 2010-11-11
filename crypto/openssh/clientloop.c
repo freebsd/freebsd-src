@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.219 2010/03/13 21:10:38 djm Exp $ */
+/* $OpenBSD: clientloop.c,v 1.222 2010/07/19 09:15:12 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -145,6 +145,9 @@ static volatile sig_atomic_t received_signal = 0;
 /* Flag indicating whether the user's terminal is in non-blocking mode. */
 static int in_non_blocking_mode = 0;
 
+/* Time when backgrounded control master using ControlPersist should exit */
+static time_t control_persist_exit_time = 0;
+
 /* Common data for the client loop code. */
 volatile sig_atomic_t quit_pending; /* Set non-zero to quit the loop. */
 static int escape_char1;	/* Escape character. (proto1 only) */
@@ -155,11 +158,12 @@ static int stdin_eof;		/* EOF has been encountered on stderr. */
 static Buffer stdin_buffer;	/* Buffer for stdin data. */
 static Buffer stdout_buffer;	/* Buffer for stdout data. */
 static Buffer stderr_buffer;	/* Buffer for stderr data. */
-static u_int buffer_high;/* Soft max buffer size. */
+static u_int buffer_high;	/* Soft max buffer size. */
 static int connection_in;	/* Connection to server (input). */
 static int connection_out;	/* Connection to server (output). */
 static int need_rekeying;	/* Set to non-zero if rekeying is requested. */
-static int session_closed = 0;	/* In SSH2: login session closed. */
+static int session_closed;	/* In SSH2: login session closed. */
+static int x11_refuse_time;	/* If >0, refuse x11 opens after this time. */
 
 static void client_init_dispatch(void);
 int	session_ident = -1;
@@ -251,10 +255,38 @@ get_current_time(void)
 	return (double) tv.tv_sec + (double) tv.tv_usec / 1000000.0;
 }
 
+/*
+ * Sets control_persist_exit_time to the absolute time when the
+ * backgrounded control master should exit due to expiry of the
+ * ControlPersist timeout.  Sets it to 0 if we are not a backgrounded
+ * control master process, or if there is no ControlPersist timeout.
+ */
+static void
+set_control_persist_exit_time(void)
+{
+	if (muxserver_sock == -1 || !options.control_persist
+	    || options.control_persist_timeout == 0)
+		/* not using a ControlPersist timeout */
+		control_persist_exit_time = 0;
+	else if (channel_still_open()) {
+		/* some client connections are still open */
+		if (control_persist_exit_time > 0)
+			debug2("%s: cancel scheduled exit", __func__);
+		control_persist_exit_time = 0;
+	} else if (control_persist_exit_time <= 0) {
+		/* a client connection has recently closed */
+		control_persist_exit_time = time(NULL) +
+			(time_t)options.control_persist_timeout;
+		debug2("%s: schedule exit in %d seconds", __func__,
+		    options.control_persist_timeout);
+	}
+	/* else we are already counting down to the timeout */
+}
+
 #define SSH_X11_PROTO "MIT-MAGIC-COOKIE-1"
 void
 client_x11_get_proto(const char *display, const char *xauth_path,
-    u_int trusted, char **_proto, char **_data)
+    u_int trusted, u_int timeout, char **_proto, char **_data)
 {
 	char cmd[1024];
 	char line[512];
@@ -264,6 +296,7 @@ client_x11_get_proto(const char *display, const char *xauth_path,
 	int got_data = 0, generated = 0, do_unlink = 0, i;
 	char *xauthdir, *xauthfile;
 	struct stat st;
+	u_int now;
 
 	xauthdir = xauthfile = NULL;
 	*_proto = proto;
@@ -299,11 +332,18 @@ client_x11_get_proto(const char *display, const char *xauth_path,
 				    xauthdir);
 				snprintf(cmd, sizeof(cmd),
 				    "%s -f %s generate %s " SSH_X11_PROTO
-				    " untrusted timeout 1200 2>" _PATH_DEVNULL,
-				    xauth_path, xauthfile, display);
+				    " untrusted timeout %u 2>" _PATH_DEVNULL,
+				    xauth_path, xauthfile, display, timeout);
 				debug2("x11_get_proto: %s", cmd);
 				if (system(cmd) == 0)
 					generated = 1;
+				if (x11_refuse_time == 0) {
+					now = time(NULL) + 1;
+					if (UINT_MAX - timeout < now)
+						x11_refuse_time = UINT_MAX;
+					else
+						x11_refuse_time = now + timeout;
+				}
 			}
 		}
 
@@ -524,6 +564,7 @@ client_wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp,
     int *maxfdp, u_int *nallocp, int rekeying)
 {
 	struct timeval tv, *tvp;
+	int timeout_secs;
 	int ret;
 
 	/* Add any selections by the channel mechanism. */
@@ -567,16 +608,27 @@ client_wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp,
 	/*
 	 * Wait for something to happen.  This will suspend the process until
 	 * some selected descriptor can be read, written, or has some other
-	 * event pending.
+	 * event pending, or a timeout expires.
 	 */
 
-	if (options.server_alive_interval == 0 || !compat20)
+	timeout_secs = INT_MAX; /* we use INT_MAX to mean no timeout */
+	if (options.server_alive_interval > 0 && compat20)
+		timeout_secs = options.server_alive_interval;
+	set_control_persist_exit_time();
+	if (control_persist_exit_time > 0) {
+		timeout_secs = MIN(timeout_secs,
+			control_persist_exit_time - time(NULL));
+		if (timeout_secs < 0)
+			timeout_secs = 0;
+	}
+	if (timeout_secs == INT_MAX)
 		tvp = NULL;
 	else {
-		tv.tv_sec = options.server_alive_interval;
+		tv.tv_sec = timeout_secs;
 		tv.tv_usec = 0;
 		tvp = &tv;
 	}
+
 	ret = select((*maxfdp)+1, *readsetp, *writesetp, NULL, tvp);
 	if (ret < 0) {
 		char buf[100];
@@ -1469,6 +1521,18 @@ client_loop(int have_pty, int escape_char_arg, int ssh2_chan_id)
 		 */
 		if (FD_ISSET(connection_out, writeset))
 			packet_write_poll();
+
+		/*
+		 * If we are a backgrounded control master, and the
+		 * timeout has expired without any active client
+		 * connections, then quit.
+		 */
+		if (control_persist_exit_time > 0) {
+			if (time(NULL) >= control_persist_exit_time) {
+				debug("ControlPersist timeout expired");
+				break;
+			}
+		}
 	}
 	if (readset)
 		xfree(readset);
@@ -1684,6 +1748,11 @@ client_request_x11(const char *request_type, int rchan)
 		error("Warning: ssh server tried X11 forwarding.");
 		error("Warning: this is probably a break-in attempt by a "
 		    "malicious server.");
+		return NULL;
+	}
+	if (x11_refuse_time != 0 && time(NULL) >= x11_refuse_time) {
+		verbose("Rejected X11 connection after ForwardX11Timeout "
+		    "expired");
 		return NULL;
 	}
 	originator = packet_get_string(NULL);
@@ -1912,7 +1981,7 @@ client_session2_setup(int id, int want_tty, int want_subsystem,
 			memset(&ws, 0, sizeof(ws));
 
 		channel_request_start(id, "pty-req", 1);
-		client_expect_confirm(id, "PTY allocation", 0);
+		client_expect_confirm(id, "PTY allocation", 1);
 		packet_put_cstring(term != NULL ? term : "");
 		packet_put_int((u_int)ws.ws_col);
 		packet_put_int((u_int)ws.ws_row);

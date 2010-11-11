@@ -251,7 +251,7 @@ valid_format(const char *fmt)
 					fmt++;
 					break;
 				}
-				/* flags, width and precsision */
+				/* flags, width and precision */
 				if (isdigit((unsigned char)*fmt) ||
 				    strchr("+- 0#.", *fmt))
 					continue;
@@ -329,7 +329,7 @@ unescape(char *orig)
 			*orig = c;
 			--cp;
 			continue;
-		case 'x':	/* hexidecimal number */
+		case 'x':	/* hexadecimal number */
 			cp++;	/* skip 'x' */
 			for (i = 0, c = 0;
 			     isxdigit((unsigned char)*cp) && i < 2;
@@ -402,7 +402,7 @@ decimal_places(const char *number)
 /*
  * generate_format - create a format string
  *
- * XXX to be bug for bug compatable with Plan9 and GNU return "%g"
+ * XXX to be bug for bug compatible with Plan9 and GNU return "%g"
  * when "%g" prints as "%e" (this way no width adjustments are made)
  */
 char *

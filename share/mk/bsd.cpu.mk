@@ -114,7 +114,7 @@ _CPUCFLAGS = -march=armv5te -D__XSCALE__
 .  else
 _CPUCFLAGS = -mcpu=${CPUTYPE}
 .  endif
-. elif ${MACHINE_ARCH} == "powerpc"
+. elif ${MACHINE_CPUARCH} == "powerpc"
 .  if ${CPUTYPE} == "e500"
 MACHINE_CPU = booke
 _CPUCFLAGS = -Wa,-me500 -msoft-float
@@ -194,12 +194,6 @@ MACHINE_CPU += amd64 sse2 sse mmx
 MACHINE_CPU = itanium
 .  endif
 . endif
-.endif
-
-.if ${MACHINE_CPUARCH} == "arm" && defined(TARGET_BIG_ENDIAN)
-CFLAGS += -mbig-endian
-LDFLAGS += -mbig-endian
-LD += -EB
 .endif
 
 .if ${MACHINE_CPUARCH} == "mips" 

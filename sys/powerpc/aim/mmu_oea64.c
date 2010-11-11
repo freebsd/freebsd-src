@@ -274,7 +274,6 @@ static struct	mem_region *regions;
 static struct	mem_region *pregions;
 static u_int	phys_avail_count;
 static int	regions_sz, pregions_sz;
-extern int	ofw_real_mode;
 
 extern struct pmap ofw_pmap;
 
@@ -1118,17 +1117,14 @@ moea64_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	 * mode.
 	 */
 
-	if (!ofw_real_mode) {
+	chosen = OF_finddevice("/chosen");
+	if (chosen != -1 && OF_getprop(chosen, "mmu", &mmui, 4) != -1) {
 	    #ifndef __powerpc64__
 	    moea64_pinit(mmup, &ofw_pmap);
 
 	    for (i = 0; i < 16; i++)
 		ofw_pmap.pm_sr[i] = kernel_pmap->pm_sr[i];
 	    #endif
-
-	    if ((chosen = OF_finddevice("/chosen")) == -1)
-		panic("moea64_bootstrap: can't find /chosen");
-	    OF_getprop(chosen, "mmu", &mmui, 4);
 
 	    if ((mmu = OF_instance_to_package(mmui)) == -1)
 		panic("moea64_bootstrap: can't get mmu package");

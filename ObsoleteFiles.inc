@@ -14,6 +14,10 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20101109: headers moved to machine/ to x86/
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/include/machine/mptable.h
+.endif
 # 20101101: headers moved to machine/ to x86/
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/include/machine/apicreg.h

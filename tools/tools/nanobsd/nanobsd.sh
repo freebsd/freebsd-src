@@ -75,6 +75,9 @@ CONF_WORLD=' '
 # Kernel config file to use
 NANO_KERNEL=GENERIC
 
+# Kernel modules to build; default is none
+NANO_MODULES=
+
 # Customize commands.
 NANO_CUSTOMIZE=""
 
@@ -150,6 +153,12 @@ NANO_LABEL=""
 
 NANO_ARCH=`uname -p`
 
+# Directory to populate /cfg from
+NANO_CFGDIR=""
+
+# Directory to populate /data from
+NANO_DATADIR=""
+
 #######################################################################
 #
 # The functions which do the real work.
@@ -173,6 +182,7 @@ make_conf_build ( ) (
 
 	echo "${CONF_WORLD}" > ${NANO_MAKE_CONF_BUILD}
 	echo "${CONF_BUILD}" >> ${NANO_MAKE_CONF_BUILD}
+	echo "_WITHOUT_SRCCONF=t" >> ${NANO_MAKE_CONF_BUILD}
 )
 
 build_world ( ) (
@@ -189,19 +199,26 @@ build_kernel ( ) (
 	pprint 2 "build kernel ($NANO_KERNEL)"
 	pprint 3 "log: ${MAKEOBJDIRPREFIX}/_.bk"
 
+	(
 	if [ -f ${NANO_KERNEL} ] ; then
-		cp ${NANO_KERNEL} ${NANO_SRC}/sys/${NANO_ARCH}/conf
+		kernconfdir=$(realpath $(dirname ${NANO_KERNEL}))
+		kernconf=$(basename ${NANO_KERNEL})
+	else
+		kernconf=${NANO_KERNEL}
 	fi
 
-	(cd ${NANO_SRC};
+	cd ${NANO_SRC};
 	# unset these just in case to avoid compiler complaints
 	# when cross-building
 	unset TARGET_CPUTYPE
 	unset TARGET_BIG_ENDIAN
+	# Note: We intentionally build all modules, not only the ones in
+	# NANO_MODULES so the built world can be reused by multiple images.
 	env TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} buildkernel \
-		__MAKE_CONF=${NANO_MAKE_CONF_BUILD} KERNCONF=`basename ${NANO_KERNEL}` \
-		> ${MAKEOBJDIRPREFIX}/_.bk 2>&1
-	)
+		__MAKE_CONF=${NANO_MAKE_CONF_BUILD} \
+		${kernconfdir:+"KERNCONFDIR="}${kernconfdir} \
+		KERNCONF=${kernconf}
+	) > ${MAKEOBJDIRPREFIX}/_.bk 2>&1
 )
 
 clean_world ( ) (
@@ -228,6 +245,7 @@ make_conf_install ( ) (
 
 	echo "${CONF_WORLD}" > ${NANO_MAKE_CONF_INSTALL}
 	echo "${CONF_INSTALL}" >> ${NANO_MAKE_CONF_INSTALL}
+	echo "_WITHOUT_SRCCONF=t" >> ${NANO_MAKE_CONF_INSTALL}
 )
 
 install_world ( ) (
@@ -258,14 +276,25 @@ install_etc ( ) (
 )
 
 install_kernel ( ) (
-	pprint 2 "install kernel"
+	pprint 2 "install kernel ($NANO_KERNEL)"
 	pprint 3 "log: ${NANO_OBJ}/_.ik"
+
+	(
+	if [ -f ${NANO_KERNEL} ] ; then
+		kernconfdir=$(realpath $(dirname ${NANO_KERNEL}))
+		kernconf=$(basename ${NANO_KERNEL})
+	else
+		kernconf=${NANO_KERNEL}
+	fi
 
 	cd ${NANO_SRC}
 	env TARGET_ARCH=${NANO_ARCH} ${NANO_PMAKE} installkernel \
 		DESTDIR=${NANO_WORLDDIR} \
-		__MAKE_CONF=${NANO_MAKE_CONF_INSTALL} KERNCONF=`basename ${NANO_KERNEL}` \
-		> ${NANO_OBJ}/_.ik 2>&1
+		__MAKE_CONF=${NANO_MAKE_CONF_INSTALL} \
+		${kernconfdir:+"KERNCONFDIR="}${kernconfdir} \
+		KERNCONF=${kernconf} \
+		MODULES_OVERRIDE="${NANO_MODULES}"
+	) > ${NANO_OBJ}/_.ik 2>&1
 )
 
 run_customize() (
@@ -276,7 +305,7 @@ run_customize() (
 		pprint 2 "customize \"$c\""
 		pprint 3 "log: ${NANO_OBJ}/_.cust.$c"
 		pprint 4 "`type $c`"
-		( $c ) > ${NANO_OBJ}/_.cust.$c 2>&1
+		( set -x ; $c ) > ${NANO_OBJ}/_.cust.$c 2>&1
 	done
 )
 
@@ -288,7 +317,7 @@ run_late_customize() (
 		pprint 2 "late customize \"$c\""
 		pprint 3 "log: ${NANO_OBJ}/_.late_cust.$c"
 		pprint 4 "`type $c`"
-		( $c ) > ${NANO_OBJ}/_.late_cust.$c 2>&1
+		( set -x ; $c ) > ${NANO_OBJ}/_.late_cust.$c 2>&1
 	done
 )
 
@@ -890,6 +919,9 @@ else
 fi
 
 if $do_kernel ; then
+	if ! $do_world ; then
+		make_conf_build
+	fi
 	build_kernel
 else
 	pprint 2 "Skipping buildkernel (as instructed)"

@@ -114,9 +114,6 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
         case CVMX_BOARD_TYPE_EBT5800:
         case CVMX_BOARD_TYPE_THUNDER:
         case CVMX_BOARD_TYPE_NICPRO2:
-#if defined(OCTEON_VENDOR_LANNER)
-	case CVMX_BOARD_TYPE_CUST_LANNER_MR955:
-#endif
             /* Interface 0 is SPI4, interface 1 is RGMII */
             if ((ipd_port >= 16) && (ipd_port < 20))
                 return ipd_port - 16;
@@ -180,6 +177,15 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
 
 	/* Private vendor-defined boards.  */
 #if defined(OCTEON_VENDOR_LANNER)
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR955:
+	    /* Interface 1 is 12 BCM5482S PHYs.  */
+            if ((ipd_port >= 16) && (ipd_port < 28))
+                return ipd_port - 16;
+	    return -1;
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR730:
+            if ((ipd_port >= 0) && (ipd_port < 4))
+                return ipd_port;
+	    return -1;
 	case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
 	    /* Port 0 is a Marvell 88E6161 switch, ports 1 and 2 are Marvell
 	       88E1111 interfaces.  */
@@ -291,6 +297,10 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
             break;
 	/* Private vendor-defined boards.  */
 #if defined(OCTEON_VENDOR_LANNER)
+	case CVMX_BOARD_TYPE_CUST_LANNER_MR730:
+	    /* Ports are BCM5482S */
+	    is_broadcom_phy = 1;
+	    break;
 	case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
 	    /* Port 0 connects to the switch */
 	    if (ipd_port == 0)

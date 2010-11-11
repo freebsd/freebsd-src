@@ -120,14 +120,13 @@ static void skip_comment(void);
 static void start_rule(bucket *, int);
 
 static void
-cachec(c)
-int c;
+cachec(int c)
 {
     assert(cinc >= 0);
     if (cinc >= cache_size)
     {
 	cache_size += 256;
-	cache = REALLOC(cache, cache_size);
+	cache = realloc(cache, cache_size);
 	if (cache == 0) no_space();
     }
     cache[cinc] = c;
@@ -136,7 +135,7 @@ int c;
 
 
 static void
-get_line()
+get_line(void)
 {
     FILE *f = input_file;
     int c;
@@ -144,7 +143,7 @@ get_line()
 
     if (saw_eof || (c = getc(f)) == EOF)
     {
-	if (line) { FREE(line); line = 0; }
+	if (line) { free(line); line = 0; }
 	cptr = 0;
 	saw_eof = 1;
 	return;
@@ -152,9 +151,9 @@ get_line()
 
     if (line == 0 || linesize != (LINESIZE + 1))
     {
-	if (line) FREE(line);
+	if (line) free(line);
 	linesize = LINESIZE + 1;
-	line = MALLOC(linesize);
+	line = malloc(linesize);
 	if (line == 0) no_space();
     }
 
@@ -167,7 +166,7 @@ get_line()
 	if (++i >= linesize)
 	{
 	    linesize += LINESIZE;
-	    line = REALLOC(line, linesize);
+	    line = realloc(line, linesize);
 	    if (line ==  0) no_space();
 	}
 	c = getc(f);
@@ -183,14 +182,14 @@ get_line()
 
 
 static char *
-dup_line()
+dup_line(void)
 {
     char *p, *s, *t;
 
     if (line == 0) return (0);
     s = line;
     while (*s != '\n') ++s;
-    p = MALLOC(s - line + 1);
+    p = malloc(s - line + 1);
     if (p == 0) no_space();
 
     s = line;
@@ -201,7 +200,7 @@ dup_line()
 
 
 static void
-skip_comment()
+skip_comment(void)
 {
     char *s;
 
@@ -215,7 +214,7 @@ skip_comment()
 	if (*s == '*' && s[1] == '/')
 	{
 	    cptr = s + 2;
-	    FREE(st_line);
+	    free(st_line);
 	    return;
 	}
 	if (*s == '\n')
@@ -232,7 +231,7 @@ skip_comment()
 
 
 static int
-nextc()
+nextc(void)
 {
     char *s;
 
@@ -294,7 +293,7 @@ nextc()
 
 
 static int
-keyword()
+keyword(void)
 {
     int c;
     char *t_cptr = cptr;
@@ -360,7 +359,7 @@ keyword()
 
 
 static void
-copy_ident()
+copy_ident(void)
 {
     int c;
     FILE *f = output_file;
@@ -390,7 +389,7 @@ copy_ident()
 
 
 static void
-copy_text()
+copy_text(void)
 {
     int c;
     int quote;
@@ -436,7 +435,7 @@ loop:
 		if (c == quote)
 		{
 		    need_newline = 1;
-		    FREE(s_line);
+		    free(s_line);
 		    goto loop;
 		}
 		if (c == '\n')
@@ -488,7 +487,7 @@ loop:
 		{
 		    putc('/', f);
 		    ++cptr;
-		    FREE(c_line);
+		    free(c_line);
 		    goto loop;
 		}
 		if (c == '\n')
@@ -508,7 +507,7 @@ loop:
 	{
 	    if (need_newline) putc('\n', f);
 	    ++cptr;
-	    FREE(t_line);
+	    free(t_line);
 	    return;
 	}
 	/* FALLTHROUGH */
@@ -522,7 +521,7 @@ loop:
 
 
 static void
-copy_union()
+copy_union(void)
 {
     int c;
     int quote;
@@ -561,7 +560,7 @@ loop:
 	if (--depth == 0)
 	{
 	    fprintf(text_file, " YYSTYPE;\n");
-	    FREE(u_line);
+	    free(u_line);
 	    return;
 	}
 	goto loop;
@@ -581,7 +580,7 @@ loop:
 		if (dflag) putc(c, union_file);
 		if (c == quote)
 		{
-		    FREE(s_line);
+		    free(s_line);
 		    goto loop;
 		}
 		if (c == '\n')
@@ -643,7 +642,7 @@ loop:
 		    putc('/', text_file);
 		    if (dflag) putc('/', union_file);
 		    ++cptr;
-		    FREE(c_line);
+		    free(c_line);
 		    goto loop;
 		}
 		if (c == '\n')
@@ -663,8 +662,7 @@ loop:
 
 
 static int
-hexval(c)
-int c;
+hexval(int c)
 {
     if (c >= '0' && c <= '9')
 	return (c - '0');
@@ -677,7 +675,7 @@ int c;
 
 
 static bucket *
-get_literal()
+get_literal(void)
 {
     int c, quote;
     int i;
@@ -721,7 +719,7 @@ get_literal()
 			++cptr;
 		    }
 		}
-		if (n > UCHAR_MAX) illegal_character(c_cptr);
+		if (n > (int)UCHAR_MAX) illegal_character(c_cptr);
 		c = n;
 	    	break;
 
@@ -737,7 +735,7 @@ get_literal()
 		    if (i < 0 || i >= 16) break;
 		    ++cptr;
 		    n = (n << 4) + i;
-		    if (n > UCHAR_MAX) illegal_character(c_cptr);
+		    if (n > (int)UCHAR_MAX) illegal_character(c_cptr);
 		}
 		c = n;
 		break;
@@ -753,10 +751,10 @@ get_literal()
 	}
 	cachec(c);
     }
-    FREE(s_line);
+    free(s_line);
 
     n = cinc;
-    s = MALLOC(n);
+    s = malloc(n);
     if (s == 0) no_space();
 
     for (i = 0; i < n; ++i)
@@ -809,15 +807,14 @@ get_literal()
     bp->class = TERM;
     if (n == 1 && bp->value == UNDEFINED)
 	bp->value = *(unsigned char *)s;
-    FREE(s);
+    free(s);
 
     return (bp);
 }
 
 
 static int
-is_reserved(name)
-char *name;
+is_reserved(char *name)
 {
     char *s;
 
@@ -838,7 +835,7 @@ char *name;
 
 
 static bucket *
-get_name()
+get_name(void)
 {
     int c;
 
@@ -854,7 +851,7 @@ get_name()
 
 
 static int
-get_number()
+get_number(void)
 {
     int c;
     int n;
@@ -868,7 +865,7 @@ get_number()
 
 
 static char *
-get_tag()
+get_tag(void)
 {
     int c;
     int i;
@@ -903,24 +900,23 @@ get_tag()
     {
 	tagmax += 16;
 	tag_table = (char **)
-			(tag_table ? REALLOC(tag_table, tagmax*sizeof(char *))
-				   : MALLOC(tagmax*sizeof(char *)));
+			(tag_table ? realloc(tag_table, tagmax*sizeof(char *))
+				   : malloc(tagmax*sizeof(char *)));
 	if (tag_table == 0) no_space();
     }
 
-    s = MALLOC(cinc);
+    s = malloc(cinc);
     if  (s == 0) no_space();
     strcpy(s, cache);
     tag_table[ntags] = s;
     ++ntags;
-    FREE(t_line);
+    free(t_line);
     return (s);
 }
 
 
 static void
-declare_tokens(assoc)
-int assoc;
+declare_tokens(int assoc)
 {
     int c;
     bucket *bp;
@@ -987,8 +983,7 @@ int assoc;
  * grammar only a flag for yacc proper.
  */
 static void
-declare_expect(assoc)
-int assoc;
+declare_expect(int assoc)
 {
     int c;
 
@@ -1027,7 +1022,7 @@ int assoc;
 
 
 static void
-declare_types()
+declare_types(void)
 {
     int c;
     bucket *bp;
@@ -1056,7 +1051,7 @@ declare_types()
 
 
 static void
-declare_start()
+declare_start(void)
 {
     int c;
     bucket *bp;
@@ -1075,12 +1070,12 @@ declare_start()
 
 
 static void
-read_declarations()
+read_declarations(void)
 {
     int c, k;
 
     cache_size = 256;
-    cache = MALLOC(cache_size);
+    cache = malloc(cache_size);
     if (cache == 0) no_space();
 
     for (;;)
@@ -1129,11 +1124,11 @@ read_declarations()
 
 
 static void
-initialize_grammar()
+initialize_grammar(void)
 {
     nitems = 4;
     maxitems = 300;
-    pitem = (bucket **) MALLOC(maxitems*sizeof(bucket *));
+    pitem = malloc(maxitems*sizeof(bucket *));
     if (pitem == 0) no_space();
     pitem[0] = 0;
     pitem[1] = 0;
@@ -1142,17 +1137,17 @@ initialize_grammar()
 
     nrules = 3;
     maxrules = 100;
-    plhs = (bucket **) MALLOC(maxrules*sizeof(bucket *));
+    plhs = malloc(maxrules*sizeof(bucket *));
     if (plhs == 0) no_space();
     plhs[0] = 0;
     plhs[1] = 0;
     plhs[2] = 0;
-    rprec = (short *) MALLOC(maxrules*sizeof(short));
+    rprec = malloc(maxrules*sizeof(short));
     if (rprec == 0) no_space();
     rprec[0] = 0;
     rprec[1] = 0;
     rprec[2] = 0;
-    rassoc = (char *) MALLOC(maxrules*sizeof(char));
+    rassoc = malloc(maxrules*sizeof(char));
     if (rassoc == 0) no_space();
     rassoc[0] = TOKEN;
     rassoc[1] = TOKEN;
@@ -1161,29 +1156,29 @@ initialize_grammar()
 
 
 static void
-expand_items()
+expand_items(void)
 {
     maxitems += 300;
-    pitem = (bucket **) REALLOC(pitem, maxitems*sizeof(bucket *));
+    pitem = realloc(pitem, maxitems*sizeof(bucket *));
     if (pitem == 0) no_space();
 }
 
 
 static void
-expand_rules()
+expand_rules(void)
 {
     maxrules += 100;
-    plhs = (bucket **) REALLOC(plhs, maxrules*sizeof(bucket *));
+    plhs = realloc(plhs, maxrules*sizeof(bucket *));
     if (plhs == 0) no_space();
-    rprec = (short *) REALLOC(rprec, maxrules*sizeof(short));
+    rprec = realloc(rprec, maxrules*sizeof(short));
     if (rprec == 0) no_space();
-    rassoc = (char *) REALLOC(rassoc, maxrules*sizeof(char));
+    rassoc = realloc(rassoc, maxrules*sizeof(char));
     if (rassoc == 0) no_space();
 }
 
 
 static void
-advance_to_start()
+advance_to_start(void)
 {
     int c;
     bucket *bp;
@@ -1234,9 +1229,7 @@ advance_to_start()
 
 
 static void
-start_rule(bp, s_lineno)
-bucket *bp;
-int s_lineno;
+start_rule(bucket *bp, int s_lineno)
 {
     if (bp->class == TERM)
 	terminal_lhs(s_lineno);
@@ -1250,7 +1243,7 @@ int s_lineno;
 
 
 static void
-end_rule()
+end_rule(void)
 {
     int i;
 
@@ -1270,7 +1263,7 @@ end_rule()
 
 
 static void
-insert_empty_rule()
+insert_empty_rule(void)
 {
     bucket *bp, **bpp;
 
@@ -1300,7 +1293,7 @@ insert_empty_rule()
 
 
 static void
-add_symbol()
+add_symbol(void)
 {
     int c;
     bucket *bp;
@@ -1332,7 +1325,7 @@ add_symbol()
 
 
 static void
-copy_action()
+copy_action(void)
 {
     int c;
     int i, n;
@@ -1374,7 +1367,7 @@ loop:
 	    {
 		fprintf(f, "yyval.%s", tag);
 		++cptr;
-		FREE(d_line);
+		free(d_line);
 		goto loop;
 	    }
 	    else if (isdigit(c))
@@ -1382,7 +1375,7 @@ loop:
 		i = get_number();
 		if (i > n) dollar_warning(d_lineno, i);
 		fprintf(f, "yyvsp[%d].%s", i - n, tag);
-		FREE(d_line);
+		free(d_line);
 		goto loop;
 	    }
 	    else if (c == '-' && isdigit(cptr[1]))
@@ -1390,7 +1383,7 @@ loop:
 		++cptr;
 		i = -get_number() - n;
 		fprintf(f, "yyvsp[%d].%s", i, tag);
-		FREE(d_line);
+		free(d_line);
 		goto loop;
 	    }
 	    else
@@ -1486,7 +1479,7 @@ loop:
 		putc(c, f);
 		if (c == quote)
 		{
-		    FREE(s_line);
+		    free(s_line);
 		    goto loop;
 		}
 		if (c == '\n')
@@ -1536,7 +1529,7 @@ loop:
 		{
 		    putc('/', f);
 		    ++cptr;
-		    FREE(c_line);
+		    free(c_line);
 		    goto loop;
 		}
 		if (c == '\n')
@@ -1556,7 +1549,7 @@ loop:
 
 
 static int
-mark_symbol()
+mark_symbol(void)
 {
     int c;
     bucket *bp = NULL;
@@ -1600,7 +1593,7 @@ mark_symbol()
 
 
 static void
-read_grammar()
+read_grammar(void)
 {
     int c;
 
@@ -1634,7 +1627,7 @@ read_grammar()
 
 
 static void
-free_tags()
+free_tags(void)
 {
     int i;
 
@@ -1643,14 +1636,14 @@ free_tags()
     for (i = 0; i < ntags; ++i)
     {
 	assert(tag_table[i]);
-	FREE(tag_table[i]);
+	free(tag_table[i]);
     }
-    FREE(tag_table);
+    free(tag_table);
 }
 
 
 static void
-pack_names()
+pack_names(void)
 {
     bucket *bp;
     char *p, *s, *t;
@@ -1658,7 +1651,7 @@ pack_names()
     name_pool_size = 13;  /* 13 == sizeof("$end") + sizeof("$accept") */
     for (bp = first_symbol; bp; bp = bp->next)
 	name_pool_size += strlen(bp->name) + 1;
-    name_pool = MALLOC(name_pool_size);
+    name_pool = malloc(name_pool_size);
     if (name_pool == 0) no_space();
 
     strcpy(name_pool, "$accept");
@@ -1669,14 +1662,14 @@ pack_names()
 	p = t;
 	s = bp->name;
 	while ((*t++ = *s++)) continue;
-	FREE(bp->name);
+	free(bp->name);
 	bp->name = p;
     }
 }
 
 
 static void
-check_symbols()
+check_symbols(void)
 {
     bucket *bp;
 
@@ -1695,7 +1688,7 @@ check_symbols()
 
 
 static void
-pack_symbols()
+pack_symbols(void)
 {
     bucket *bp;
     bucket **v;
@@ -1711,16 +1704,16 @@ pack_symbols()
     start_symbol = ntokens;
     nvars = nsyms - ntokens;
 
-    symbol_name = (char **) MALLOC(nsyms*sizeof(char *));
+    symbol_name = malloc(nsyms*sizeof(char *));
     if (symbol_name == 0) no_space();
-    symbol_value = (short *) MALLOC(nsyms*sizeof(short));
+    symbol_value = malloc(nsyms*sizeof(short));
     if (symbol_value == 0) no_space();
-    symbol_prec = (short *) MALLOC(nsyms*sizeof(short));
+    symbol_prec = malloc(nsyms*sizeof(short));
     if (symbol_prec == 0) no_space();
-    symbol_assoc = MALLOC(nsyms);
+    symbol_assoc = malloc(nsyms);
     if (symbol_assoc == 0) no_space();
 
-    v = (bucket **) MALLOC(nsyms*sizeof(bucket *));
+    v = malloc(nsyms*sizeof(bucket *));
     if (v == 0) no_space();
 
     v[0] = 0;
@@ -1815,25 +1808,25 @@ pack_symbols()
 	symbol_assoc[k] = v[i]->assoc;
     }
 
-    FREE(v);
+    free(v);
 }
 
 
 static void
-pack_grammar()
+pack_grammar(void)
 {
     int i, j;
     int assoc, preced;
 
-    ritem = (short *) MALLOC(nitems*sizeof(short));
+    ritem = malloc(nitems*sizeof(short));
     if (ritem == 0) no_space();
-    rlhs = (short *) MALLOC(nrules*sizeof(short));
+    rlhs = malloc(nrules*sizeof(short));
     if (rlhs == 0) no_space();
-    rrhs = (short *) MALLOC((nrules+1)*sizeof(short));
+    rrhs = malloc((nrules+1)*sizeof(short));
     if (rrhs == 0) no_space();
-    rprec = (short *) REALLOC(rprec, nrules*sizeof(short));
+    rprec = realloc(rprec, nrules*sizeof(short));
     if (rprec == 0) no_space();
-    rassoc = REALLOC(rassoc, nrules);
+    rassoc = realloc(rassoc, nrules);
     if (rassoc == 0) no_space();
 
     ritem[0] = -1;
@@ -1874,13 +1867,13 @@ pack_grammar()
     }
     rrhs[i] = j;
 
-    FREE(plhs);
-    FREE(pitem);
+    free(plhs);
+    free(pitem);
 }
 
 
 static void
-print_grammar()
+print_grammar(void)
 {
     int i, j, k;
     int spacing;
@@ -1918,7 +1911,7 @@ print_grammar()
 
 
 void
-reader()
+reader(void)
 {
     write_section(banner);
     create_symbol_table();
