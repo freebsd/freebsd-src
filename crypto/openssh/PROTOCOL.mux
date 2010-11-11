@@ -109,8 +109,14 @@ A client may request the master to establish a port forward:
 
 forwarding type may be MUX_FWD_LOCAL, MUX_FWD_REMOTE, MUX_FWD_DYNAMIC.
 
-A server may reply with a MUX_S_OK, a MUX_S_PERMISSION_DENIED or a
-MUX_S_FAILURE.
+A server may reply with a MUX_S_OK, a MUX_S_REMOTE_PORT, a
+MUX_S_PERMISSION_DENIED or a MUX_S_FAILURE.
+
+For dynamically allocated listen port the server replies with
+
+	uint32	MUX_S_REMOTE_PORT
+	uint32	client request id
+	uint32	allocated remote listen port
 
 5. Requesting closure of port forwards
 
@@ -178,6 +184,7 @@ The MUX_S_PERMISSION_DENIED and MUX_S_FAILURE include a reason:
 #define MUX_S_EXIT_MESSAGE	0x80000004
 #define MUX_S_ALIVE		0x80000005
 #define MUX_S_SESSION_OPENED	0x80000006
+#define MUX_S_REMOTE_PORT	0x80000007
 
 #define MUX_FWD_LOCAL	1
 #define MUX_FWD_REMOTE	2
@@ -193,4 +200,4 @@ XXX server->client error/warning notifications
 XXX port0 rfwd (need custom response message)
 XXX send signals via mux
 
-$OpenBSD: PROTOCOL.mux,v 1.1 2010/01/26 01:28:35 djm Exp $
+$OpenBSD: PROTOCOL.mux,v 1.2 2010/05/16 12:55:51 markus Exp $

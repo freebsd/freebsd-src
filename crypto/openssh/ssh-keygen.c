@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-keygen.c,v 1.185 2010/03/15 19:40:02 stevesk Exp $ */
+/* $OpenBSD: ssh-keygen.c,v 1.197 2010/08/04 06:07:11 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1994 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -105,6 +105,9 @@ char *identity_comment = NULL;
 /* Path to CA key when certifying keys. */
 char *ca_key_path = NULL;
 
+/* Certificate serial number */
+long long cert_serial = 0;
+
 /* Key type when certifying */
 u_int cert_key_type = SSH2_CERT_TYPE_USER;
 
@@ -118,26 +121,33 @@ char *cert_principals = NULL;
 u_int64_t cert_valid_from = 0;
 u_int64_t cert_valid_to = ~0ULL;
 
-/* Certificate constraints */
-#define CONSTRAINT_X_FWD	(1)
-#define CONSTRAINT_AGENT_FWD	(1<<1)
-#define CONSTRAINT_PORT_FWD	(1<<2)
-#define CONSTRAINT_PTY		(1<<3)
-#define CONSTRAINT_USER_RC	(1<<4)
-#define CONSTRAINT_DEFAULT	(CONSTRAINT_X_FWD|CONSTRAINT_AGENT_FWD| \
-				CONSTRAINT_PORT_FWD|CONSTRAINT_PTY| \
-				CONSTRAINT_USER_RC)
-u_int32_t constraint_flags = CONSTRAINT_DEFAULT;
-char *constraint_command = NULL;
-char *constraint_src_addr = NULL;
+/* Certificate options */
+#define CERTOPT_X_FWD	(1)
+#define CERTOPT_AGENT_FWD	(1<<1)
+#define CERTOPT_PORT_FWD	(1<<2)
+#define CERTOPT_PTY		(1<<3)
+#define CERTOPT_USER_RC	(1<<4)
+#define CERTOPT_DEFAULT	(CERTOPT_X_FWD|CERTOPT_AGENT_FWD| \
+			 CERTOPT_PORT_FWD|CERTOPT_PTY|CERTOPT_USER_RC)
+u_int32_t certflags_flags = CERTOPT_DEFAULT;
+char *certflags_command = NULL;
+char *certflags_src_addr = NULL;
 
-/* Dump public key file in format used by real and the original SSH 2 */
-int convert_to_ssh2 = 0;
-int convert_from_ssh2 = 0;
+/* Conversion to/from various formats */
+int convert_to = 0;
+int convert_from = 0;
+enum {
+	FMT_RFC4716,
+	FMT_PKCS8,
+	FMT_PEM
+} convert_format = FMT_RFC4716;
 int print_public = 0;
 int print_generic = 0;
 
 char *key_type_name = NULL;
+
+/* Load key from this PKCS#11 provider */
+char *pkcs11provider = NULL;
 
 /* argv0 */
 extern char *__progname;
@@ -161,9 +171,13 @@ ask_filename(struct passwd *pw, const char *prompt)
 		case KEY_RSA1:
 			name = _PATH_SSH_CLIENT_IDENTITY;
 			break;
+		case KEY_DSA_CERT:
+		case KEY_DSA_CERT_V00:
 		case KEY_DSA:
 			name = _PATH_SSH_CLIENT_ID_DSA;
 			break;
+		case KEY_RSA_CERT:
+		case KEY_RSA_CERT_V00:
 		case KEY_RSA:
 			name = _PATH_SSH_CLIENT_ID_RSA;
 			break;
@@ -209,30 +223,12 @@ load_identity(char *filename)
 #define	SSH_COM_PRIVATE_KEY_MAGIC	0x3f6ff9eb
 
 static void
-do_convert_to_ssh2(struct passwd *pw)
+do_convert_to_ssh2(struct passwd *pw, Key *k)
 {
-	Key *k;
 	u_int len;
 	u_char *blob;
 	char comment[61];
-	struct stat st;
 
-	if (!have_identity)
-		ask_filename(pw, "Enter file in which the key is");
-	if (stat(identity_file, &st) < 0) {
-		perror(identity_file);
-		exit(1);
-	}
-	if ((k = key_load_public(identity_file, NULL)) == NULL) {
-		if ((k = load_identity(identity_file)) == NULL) {
-			fprintf(stderr, "load failed\n");
-			exit(1);
-		}
-	}
-	if (k->type == KEY_RSA1) {
-		fprintf(stderr, "version 1 keys are not supported\n");
-		exit(1);
-	}
 	if (key_to_blob(k, &blob, &len) <= 0) {
 		fprintf(stderr, "key_to_blob failed\n");
 		exit(1);
@@ -249,6 +245,81 @@ do_convert_to_ssh2(struct passwd *pw)
 	fprintf(stdout, "%s\n", SSH_COM_PUBLIC_END);
 	key_free(k);
 	xfree(blob);
+	exit(0);
+}
+
+static void
+do_convert_to_pkcs8(Key *k)
+{
+	switch (key_type_plain(k->type)) {
+	case KEY_RSA:
+		if (!PEM_write_RSA_PUBKEY(stdout, k->rsa))
+			fatal("PEM_write_RSA_PUBKEY failed");
+		break;
+	case KEY_DSA:
+		if (!PEM_write_DSA_PUBKEY(stdout, k->dsa))
+			fatal("PEM_write_DSA_PUBKEY failed");
+		break;
+	default:
+		fatal("%s: unsupported key type %s", __func__, key_type(k));
+	}
+	exit(0);
+}
+
+static void
+do_convert_to_pem(Key *k)
+{
+	switch (key_type_plain(k->type)) {
+	case KEY_RSA:
+		if (!PEM_write_RSAPublicKey(stdout, k->rsa))
+			fatal("PEM_write_RSAPublicKey failed");
+		break;
+#if notyet /* OpenSSH 0.9.8 lacks this function */
+	case KEY_DSA:
+		if (!PEM_write_DSAPublicKey(stdout, k->dsa))
+			fatal("PEM_write_DSAPublicKey failed");
+		break;
+#endif
+	default:
+		fatal("%s: unsupported key type %s", __func__, key_type(k));
+	}
+	exit(0);
+}
+
+static void
+do_convert_to(struct passwd *pw)
+{
+	Key *k;
+	struct stat st;
+
+	if (!have_identity)
+		ask_filename(pw, "Enter file in which the key is");
+	if (stat(identity_file, &st) < 0)
+		fatal("%s: %s: %s", __progname, identity_file, strerror(errno));
+	if ((k = key_load_public(identity_file, NULL)) == NULL) {
+		if ((k = load_identity(identity_file)) == NULL) {
+			fprintf(stderr, "load failed\n");
+			exit(1);
+		}
+	}
+	if (k->type == KEY_RSA1) {
+		fprintf(stderr, "version 1 keys are not supported\n");
+		exit(1);
+	}
+
+	switch (convert_format) {
+	case FMT_RFC4716:
+		do_convert_to_ssh2(pw, k);
+		break;
+	case FMT_PKCS8:
+		do_convert_to_pkcs8(k);
+		break;
+	case FMT_PEM:
+		do_convert_to_pem(k);
+		break;
+	default:
+		fatal("%s: unknown key format %d", __func__, convert_format);
+	}
 	exit(0);
 }
 
@@ -390,29 +461,18 @@ get_line(FILE *fp, char *line, size_t len)
 }
 
 static void
-do_convert_from_ssh2(struct passwd *pw)
+do_convert_from_ssh2(struct passwd *pw, Key **k, int *private)
 {
-	Key *k;
 	int blen;
 	u_int len;
 	char line[1024];
 	u_char blob[8096];
 	char encoded[8096];
-	struct stat st;
-	int escaped = 0, private = 0, ok;
+	int escaped = 0;
 	FILE *fp;
 
-	if (!have_identity)
-		ask_filename(pw, "Enter file in which the key is");
-	if (stat(identity_file, &st) < 0) {
-		perror(identity_file);
-		exit(1);
-	}
-	fp = fopen(identity_file, "r");
-	if (fp == NULL) {
-		perror(identity_file);
-		exit(1);
-	}
+	if ((fp = fopen(identity_file, "r")) == NULL)
+		fatal("%s: %s: %s", __progname, identity_file, strerror(errno));
 	encoded[0] = '\0';
 	while ((blen = get_line(fp, line, sizeof(line))) != -1) {
 		if (line[blen - 1] == '\\')
@@ -420,7 +480,7 @@ do_convert_from_ssh2(struct passwd *pw)
 		if (strncmp(line, "----", 4) == 0 ||
 		    strstr(line, ": ") != NULL) {
 			if (strstr(line, SSH_COM_PRIVATE_BEGIN) != NULL)
-				private = 1;
+				*private = 1;
 			if (strstr(line, " END ") != NULL) {
 				break;
 			}
@@ -445,26 +505,130 @@ do_convert_from_ssh2(struct passwd *pw)
 		fprintf(stderr, "uudecode failed.\n");
 		exit(1);
 	}
-	k = private ?
+	*k = *private ?
 	    do_convert_private_ssh2_from_blob(blob, blen) :
 	    key_from_blob(blob, blen);
-	if (k == NULL) {
+	if (*k == NULL) {
 		fprintf(stderr, "decode blob failed.\n");
 		exit(1);
 	}
-	ok = private ?
-	    (k->type == KEY_DSA ?
-		 PEM_write_DSAPrivateKey(stdout, k->dsa, NULL, NULL, 0, NULL, NULL) :
-		 PEM_write_RSAPrivateKey(stdout, k->rsa, NULL, NULL, 0, NULL, NULL)) :
-	    key_write(k, stdout);
+	fclose(fp);
+}
+
+static void
+do_convert_from_pkcs8(Key **k, int *private)
+{
+	EVP_PKEY *pubkey;
+	FILE *fp;
+
+	if ((fp = fopen(identity_file, "r")) == NULL)
+		fatal("%s: %s: %s", __progname, identity_file, strerror(errno));
+	if ((pubkey = PEM_read_PUBKEY(fp, NULL, NULL, NULL)) == NULL) {
+		fatal("%s: %s is not a recognised public key format", __func__,
+		    identity_file);
+	}
+	fclose(fp);
+	switch (EVP_PKEY_type(pubkey->type)) {
+	case EVP_PKEY_RSA:
+		*k = key_new(KEY_UNSPEC);
+		(*k)->type = KEY_RSA;
+		(*k)->rsa = EVP_PKEY_get1_RSA(pubkey);
+		break;
+	case EVP_PKEY_DSA:
+		*k = key_new(KEY_UNSPEC);
+		(*k)->type = KEY_DSA;
+		(*k)->dsa = EVP_PKEY_get1_DSA(pubkey);
+		break;
+	default:
+		fatal("%s: unsupported pubkey type %d", __func__,
+		    EVP_PKEY_type(pubkey->type));
+	}
+	EVP_PKEY_free(pubkey);
+	return;
+}
+
+static void
+do_convert_from_pem(Key **k, int *private)
+{
+	FILE *fp;
+	RSA *rsa;
+#ifdef notyet
+	DSA *dsa;
+#endif
+
+	if ((fp = fopen(identity_file, "r")) == NULL)
+		fatal("%s: %s: %s", __progname, identity_file, strerror(errno));
+	if ((rsa = PEM_read_RSAPublicKey(fp, NULL, NULL, NULL)) != NULL) {
+		*k = key_new(KEY_UNSPEC);
+		(*k)->type = KEY_RSA;
+		(*k)->rsa = rsa;
+		fclose(fp);
+		return;
+	}
+#if notyet /* OpenSSH 0.9.8 lacks this function */
+	rewind(fp);
+	if ((dsa = PEM_read_DSAPublicKey(fp, NULL, NULL, NULL)) != NULL) {
+		*k = key_new(KEY_UNSPEC);
+		(*k)->type = KEY_DSA;
+		(*k)->dsa = dsa;
+		fclose(fp);
+		return;
+	}
+#endif
+	fatal("%s: unrecognised raw private key format", __func__);
+}
+
+static void
+do_convert_from(struct passwd *pw)
+{
+	Key *k = NULL;
+	int private = 0, ok = 0;
+	struct stat st;
+
+	if (!have_identity)
+		ask_filename(pw, "Enter file in which the key is");
+	if (stat(identity_file, &st) < 0)
+		fatal("%s: %s: %s", __progname, identity_file, strerror(errno));
+
+	switch (convert_format) {
+	case FMT_RFC4716:
+		do_convert_from_ssh2(pw, &k, &private);
+		break;
+	case FMT_PKCS8:
+		do_convert_from_pkcs8(&k, &private);
+		break;
+	case FMT_PEM:
+		do_convert_from_pem(&k, &private);
+		break;
+	default:
+		fatal("%s: unknown key format %d", __func__, convert_format);
+	}
+
+	if (!private)
+		ok = key_write(k, stdout);
+		if (ok)
+			fprintf(stdout, "\n");
+	else {
+		switch (k->type) {
+		case KEY_DSA:
+			ok = PEM_write_DSAPrivateKey(stdout, k->dsa, NULL,
+			    NULL, 0, NULL, NULL);
+			break;
+		case KEY_RSA:
+			ok = PEM_write_RSAPrivateKey(stdout, k->rsa, NULL,
+			    NULL, 0, NULL, NULL);
+			break;
+		default:
+			fatal("%s: unsupported key type %s", __func__,
+			    key_type(k));
+		}
+	}
+
 	if (!ok) {
 		fprintf(stderr, "key write failed\n");
 		exit(1);
 	}
 	key_free(k);
-	if (!private)
-		fprintf(stdout, "\n");
-	fclose(fp);
 	exit(0);
 }
 
@@ -493,7 +657,7 @@ do_print_public(struct passwd *pw)
 }
 
 static void
-do_download(struct passwd *pw, char *pkcs11provider)
+do_download(struct passwd *pw)
 {
 #ifdef ENABLE_PKCS11
 	Key **keys = NULL;
@@ -555,67 +719,68 @@ do_fingerprint(struct passwd *pw)
 		comment = NULL;
 	}
 
-	f = fopen(identity_file, "r");
-	if (f != NULL) {
-		while (fgets(line, sizeof(line), f)) {
-			if ((cp = strchr(line, '\n')) == NULL) {
-				error("line %d too long: %.40s...",
-				    num + 1, line);
-				skip = 1;
-				continue;
-			}
-			num++;
-			if (skip) {
-				skip = 0;
-				continue;
-			}
-			*cp = '\0';
+	if ((f = fopen(identity_file, "r")) == NULL)
+		fatal("%s: %s: %s", __progname, identity_file, strerror(errno));
 
-			/* Skip leading whitespace, empty and comment lines. */
-			for (cp = line; *cp == ' ' || *cp == '\t'; cp++)
-				;
-			if (!*cp || *cp == '\n' || *cp == '#')
-				continue;
-			i = strtol(cp, &ep, 10);
-			if (i == 0 || ep == NULL || (*ep != ' ' && *ep != '\t')) {
-				int quoted = 0;
-				comment = cp;
-				for (; *cp && (quoted || (*cp != ' ' &&
-				    *cp != '\t')); cp++) {
-					if (*cp == '\\' && cp[1] == '"')
-						cp++;	/* Skip both */
-					else if (*cp == '"')
-						quoted = !quoted;
-				}
-				if (!*cp)
-					continue;
-				*cp++ = '\0';
-			}
-			ep = cp;
-			public = key_new(KEY_RSA1);
-			if (key_read(public, &cp) != 1) {
-				cp = ep;
-				key_free(public);
-				public = key_new(KEY_UNSPEC);
-				if (key_read(public, &cp) != 1) {
-					key_free(public);
-					continue;
-				}
-			}
-			comment = *cp ? cp : comment;
-			fp = key_fingerprint(public, fptype, rep);
-			ra = key_fingerprint(public, SSH_FP_MD5, SSH_FP_RANDOMART);
-			printf("%u %s %s (%s)\n", key_size(public), fp,
-			    comment ? comment : "no comment", key_type(public));
-			if (log_level >= SYSLOG_LEVEL_VERBOSE)
-				printf("%s\n", ra);
-			xfree(ra);
-			xfree(fp);
-			key_free(public);
-			invalid = 0;
+	while (fgets(line, sizeof(line), f)) {
+		if ((cp = strchr(line, '\n')) == NULL) {
+			error("line %d too long: %.40s...",
+			    num + 1, line);
+			skip = 1;
+			continue;
 		}
-		fclose(f);
+		num++;
+		if (skip) {
+			skip = 0;
+			continue;
+		}
+		*cp = '\0';
+
+		/* Skip leading whitespace, empty and comment lines. */
+		for (cp = line; *cp == ' ' || *cp == '\t'; cp++)
+			;
+		if (!*cp || *cp == '\n' || *cp == '#')
+			continue;
+		i = strtol(cp, &ep, 10);
+		if (i == 0 || ep == NULL || (*ep != ' ' && *ep != '\t')) {
+			int quoted = 0;
+			comment = cp;
+			for (; *cp && (quoted || (*cp != ' ' &&
+			    *cp != '\t')); cp++) {
+				if (*cp == '\\' && cp[1] == '"')
+					cp++;	/* Skip both */
+				else if (*cp == '"')
+					quoted = !quoted;
+			}
+			if (!*cp)
+				continue;
+			*cp++ = '\0';
+		}
+		ep = cp;
+		public = key_new(KEY_RSA1);
+		if (key_read(public, &cp) != 1) {
+			cp = ep;
+			key_free(public);
+			public = key_new(KEY_UNSPEC);
+			if (key_read(public, &cp) != 1) {
+				key_free(public);
+				continue;
+			}
+		}
+		comment = *cp ? cp : comment;
+		fp = key_fingerprint(public, fptype, rep);
+		ra = key_fingerprint(public, SSH_FP_MD5, SSH_FP_RANDOMART);
+		printf("%u %s %s (%s)\n", key_size(public), fp,
+		    comment ? comment : "no comment", key_type(public));
+		if (log_level >= SYSLOG_LEVEL_VERBOSE)
+			printf("%s\n", ra);
+		xfree(ra);
+		xfree(fp);
+		key_free(public);
+		invalid = 0;
 	}
+	fclose(f);
+
 	if (invalid) {
 		printf("%s is not a public key file.\n", identity_file);
 		exit(1);
@@ -670,7 +835,7 @@ do_known_hosts(struct passwd *pw, const char *name)
 		have_identity = 1;
 	}
 	if ((in = fopen(identity_file, "r")) == NULL)
-		fatal("fopen: %s", strerror(errno));
+		fatal("%s: %s: %s", __progname, identity_file, strerror(errno));
 
 	/*
 	 * Find hosts goes to stdout, hash and deletions happen in-place
@@ -1104,7 +1269,7 @@ fmt_validity(u_int64_t valid_from, u_int64_t valid_to)
 }
 
 static void
-add_flag_constraint(Buffer *c, const char *name)
+add_flag_option(Buffer *c, const char *name)
 {
 	debug3("%s: %s", __func__, name);
 	buffer_put_cstring(c, name);
@@ -1112,7 +1277,7 @@ add_flag_constraint(Buffer *c, const char *name)
 }
 
 static void
-add_string_constraint(Buffer *c, const char *name, const char *value)
+add_string_option(Buffer *c, const char *name, const char *value)
 {
 	Buffer b;
 
@@ -1126,25 +1291,62 @@ add_string_constraint(Buffer *c, const char *name, const char *value)
 	buffer_free(&b);
 }
 
+#define OPTIONS_CRITICAL	1
+#define OPTIONS_EXTENSIONS	2
 static void
-prepare_constraint_buf(Buffer *c)
+prepare_options_buf(Buffer *c, int which)
 {
-
 	buffer_clear(c);
-	if ((constraint_flags & CONSTRAINT_X_FWD) != 0)
-		add_flag_constraint(c, "permit-X11-forwarding");
-	if ((constraint_flags & CONSTRAINT_AGENT_FWD) != 0)
-		add_flag_constraint(c, "permit-agent-forwarding");
-	if ((constraint_flags & CONSTRAINT_PORT_FWD) != 0)
-		add_flag_constraint(c, "permit-port-forwarding");
-	if ((constraint_flags & CONSTRAINT_PTY) != 0)
-		add_flag_constraint(c, "permit-pty");
-	if ((constraint_flags & CONSTRAINT_USER_RC) != 0)
-		add_flag_constraint(c, "permit-user-rc");
-	if (constraint_command != NULL)
-		add_string_constraint(c, "force-command", constraint_command);
-	if (constraint_src_addr != NULL)
-		add_string_constraint(c, "source-address", constraint_src_addr);
+	if ((which & OPTIONS_CRITICAL) != 0 &&
+	    certflags_command != NULL)
+		add_string_option(c, "force-command", certflags_command);
+	if ((which & OPTIONS_EXTENSIONS) != 0 &&
+	    (certflags_flags & CERTOPT_AGENT_FWD) != 0)
+		add_flag_option(c, "permit-agent-forwarding");
+	if ((which & OPTIONS_EXTENSIONS) != 0 &&
+	    (certflags_flags & CERTOPT_PORT_FWD) != 0)
+		add_flag_option(c, "permit-port-forwarding");
+	if ((which & OPTIONS_EXTENSIONS) != 0 &&
+	    (certflags_flags & CERTOPT_PTY) != 0)
+		add_flag_option(c, "permit-pty");
+	if ((which & OPTIONS_EXTENSIONS) != 0 &&
+	    (certflags_flags & CERTOPT_USER_RC) != 0)
+		add_flag_option(c, "permit-user-rc");
+	if ((which & OPTIONS_EXTENSIONS) != 0 &&
+	    (certflags_flags & CERTOPT_X_FWD) != 0)
+		add_flag_option(c, "permit-X11-forwarding");
+	if ((which & OPTIONS_CRITICAL) != 0 &&
+	    certflags_src_addr != NULL)
+		add_string_option(c, "source-address", certflags_src_addr);
+}
+
+static Key *
+load_pkcs11_key(char *path)
+{
+#ifdef ENABLE_PKCS11
+	Key **keys = NULL, *public, *private = NULL;
+	int i, nkeys;
+
+	if ((public = key_load_public(path, NULL)) == NULL)
+		fatal("Couldn't load CA public key \"%s\"", path);
+
+	nkeys = pkcs11_add_provider(pkcs11provider, identity_passphrase, &keys);
+	debug3("%s: %d keys", __func__, nkeys);
+	if (nkeys <= 0)
+		fatal("cannot read public key from pkcs11");
+	for (i = 0; i < nkeys; i++) {
+		if (key_equal_public(public, keys[i])) {
+			private = keys[i];
+			continue;
+		}
+		key_free(keys[i]);
+	}
+	xfree(keys);
+	key_free(public);
+	return private;
+#else
+	fatal("no pkcs11 support");
+#endif /* ENABLE_PKCS11 */
 }
 
 static void
@@ -1155,9 +1357,33 @@ do_ca_sign(struct passwd *pw, int argc, char **argv)
 	Key *ca, *public;
 	char *otmp, *tmp, *cp, *out, *comment, **plist = NULL;
 	FILE *f;
+	int v00 = 0; /* legacy keys */
 
+	if (key_type_name != NULL) {
+		switch (key_type_from_name(key_type_name)) {
+		case KEY_RSA_CERT_V00:
+		case KEY_DSA_CERT_V00:
+			v00 = 1;
+			break;
+		case KEY_UNSPEC:
+			if (strcasecmp(key_type_name, "v00") == 0) {
+				v00 = 1;
+				break;
+			} else if (strcasecmp(key_type_name, "v01") == 0)
+				break;
+			/* FALLTHROUGH */
+		default:
+			fprintf(stderr, "unknown key type %s\n", key_type_name);
+			exit(1);
+		}
+	}
+
+	pkcs11_init(1);
 	tmp = tilde_expand_filename(ca_key_path, pw->pw_uid);
-	if ((ca = load_identity(tmp)) == NULL)
+	if (pkcs11provider != NULL) {
+		if ((ca = load_pkcs11_key(tmp)) == NULL)
+			fatal("No PKCS#11 key matching %s found", ca_key_path);
+	} else if ((ca = load_identity(tmp)) == NULL)
 		fatal("Couldn't load CA key \"%s\"", tmp);
 	xfree(tmp);
 
@@ -1183,15 +1409,24 @@ do_ca_sign(struct passwd *pw, int argc, char **argv)
 			    __func__, tmp, key_type(public));
 
 		/* Prepare certificate to sign */
-		if (key_to_certified(public) != 0)
+		if (key_to_certified(public, v00) != 0)
 			fatal("Could not upgrade key %s to certificate", tmp);
 		public->cert->type = cert_key_type;
+		public->cert->serial = (u_int64_t)cert_serial;
 		public->cert->key_id = xstrdup(cert_key_id);
 		public->cert->nprincipals = n;
 		public->cert->principals = plist;
 		public->cert->valid_after = cert_valid_from;
 		public->cert->valid_before = cert_valid_to;
-		prepare_constraint_buf(&public->cert->constraints);
+		if (v00) {
+			prepare_options_buf(&public->cert->critical,
+			    OPTIONS_CRITICAL|OPTIONS_EXTENSIONS);
+		} else {
+			prepare_options_buf(&public->cert->critical,
+			    OPTIONS_CRITICAL);
+			prepare_options_buf(&public->cert->extensions,
+			    OPTIONS_EXTENSIONS);
+		}
 		public->cert->signature_key = key_from_private(ca);
 
 		if (key_certify(public, ca) != 0)
@@ -1212,17 +1447,19 @@ do_ca_sign(struct passwd *pw, int argc, char **argv)
 		fprintf(f, " %s\n", comment);
 		fclose(f);
 
-		if (!quiet)
-			logit("Signed %s key %s: id \"%s\"%s%s valid %s",
-			    cert_key_type == SSH2_CERT_TYPE_USER?"user":"host",
-			    out, cert_key_id,
+		if (!quiet) {
+			logit("Signed %s key %s: id \"%s\" serial %llu%s%s "
+			    "valid %s", key_cert_type(public), 
+			    out, public->cert->key_id, public->cert->serial,
 			    cert_principals != NULL ? " for " : "",
 			    cert_principals != NULL ? cert_principals : "",
 			    fmt_validity(cert_valid_from, cert_valid_to));
+		}
 
 		key_free(public);
 		xfree(out);
 	}
+	pkcs11_terminate();
 	exit(0);
 }
 
@@ -1321,50 +1558,92 @@ parse_cert_times(char *timespec)
 }
 
 static void
-add_cert_constraint(char *opt)
+add_cert_option(char *opt)
 {
 	char *val;
 
 	if (strcmp(opt, "clear") == 0)
-		constraint_flags = 0;
+		certflags_flags = 0;
 	else if (strcasecmp(opt, "no-x11-forwarding") == 0)
-		constraint_flags &= ~CONSTRAINT_X_FWD;
+		certflags_flags &= ~CERTOPT_X_FWD;
 	else if (strcasecmp(opt, "permit-x11-forwarding") == 0)
-		constraint_flags |= CONSTRAINT_X_FWD;
+		certflags_flags |= CERTOPT_X_FWD;
 	else if (strcasecmp(opt, "no-agent-forwarding") == 0)
-		constraint_flags &= ~CONSTRAINT_AGENT_FWD;
+		certflags_flags &= ~CERTOPT_AGENT_FWD;
 	else if (strcasecmp(opt, "permit-agent-forwarding") == 0)
-		constraint_flags |= CONSTRAINT_AGENT_FWD;
+		certflags_flags |= CERTOPT_AGENT_FWD;
 	else if (strcasecmp(opt, "no-port-forwarding") == 0)
-		constraint_flags &= ~CONSTRAINT_PORT_FWD;
+		certflags_flags &= ~CERTOPT_PORT_FWD;
 	else if (strcasecmp(opt, "permit-port-forwarding") == 0)
-		constraint_flags |= CONSTRAINT_PORT_FWD;
+		certflags_flags |= CERTOPT_PORT_FWD;
 	else if (strcasecmp(opt, "no-pty") == 0)
-		constraint_flags &= ~CONSTRAINT_PTY;
+		certflags_flags &= ~CERTOPT_PTY;
 	else if (strcasecmp(opt, "permit-pty") == 0)
-		constraint_flags |= CONSTRAINT_PTY;
+		certflags_flags |= CERTOPT_PTY;
 	else if (strcasecmp(opt, "no-user-rc") == 0)
-		constraint_flags &= ~CONSTRAINT_USER_RC;
+		certflags_flags &= ~CERTOPT_USER_RC;
 	else if (strcasecmp(opt, "permit-user-rc") == 0)
-		constraint_flags |= CONSTRAINT_USER_RC;
+		certflags_flags |= CERTOPT_USER_RC;
 	else if (strncasecmp(opt, "force-command=", 14) == 0) {
 		val = opt + 14;
 		if (*val == '\0')
-			fatal("Empty force-command constraint");
-		if (constraint_command != NULL)
+			fatal("Empty force-command option");
+		if (certflags_command != NULL)
 			fatal("force-command already specified");
-		constraint_command = xstrdup(val);
+		certflags_command = xstrdup(val);
 	} else if (strncasecmp(opt, "source-address=", 15) == 0) {
 		val = opt + 15;
 		if (*val == '\0')
-			fatal("Empty source-address constraint");
-		if (constraint_src_addr != NULL)
+			fatal("Empty source-address option");
+		if (certflags_src_addr != NULL)
 			fatal("source-address already specified");
 		if (addr_match_cidr_list(NULL, val) != 0)
 			fatal("Invalid source-address list");
-		constraint_src_addr = xstrdup(val);
+		certflags_src_addr = xstrdup(val);
 	} else
-		fatal("Unsupported certificate constraint \"%s\"", opt);
+		fatal("Unsupported certificate option \"%s\"", opt);
+}
+
+static void
+show_options(const Buffer *optbuf, int v00, int in_critical)
+{
+	u_char *name, *data;
+	u_int dlen;
+	Buffer options, option;
+
+	buffer_init(&options);
+	buffer_append(&options, buffer_ptr(optbuf), buffer_len(optbuf));
+
+	buffer_init(&option);
+	while (buffer_len(&options) != 0) {
+		name = buffer_get_string(&options, NULL);
+		data = buffer_get_string_ptr(&options, &dlen);
+		buffer_append(&option, data, dlen);
+		printf("                %s", name);
+		if ((v00 || !in_critical) && 
+		    (strcmp(name, "permit-X11-forwarding") == 0 ||
+		    strcmp(name, "permit-agent-forwarding") == 0 ||
+		    strcmp(name, "permit-port-forwarding") == 0 ||
+		    strcmp(name, "permit-pty") == 0 ||
+		    strcmp(name, "permit-user-rc") == 0))
+			printf("\n");
+		else if ((v00 || in_critical) &&
+		    (strcmp(name, "force-command") == 0 ||
+		    strcmp(name, "source-address") == 0)) {
+			data = buffer_get_string(&option, NULL);
+			printf(" %s\n", data);
+			xfree(data);
+		} else {
+			printf(" UNKNOWN OPTION (len %u)\n",
+			    buffer_len(&option));
+			buffer_clear(&option);
+		}
+		xfree(name);
+		if (buffer_len(&option) != 0)
+			fatal("Option corrupt: extra data at end");
+	}
+	buffer_free(&option);
+	buffer_free(&options);
 }
 
 static void
@@ -1373,31 +1652,31 @@ do_show_cert(struct passwd *pw)
 	Key *key;
 	struct stat st;
 	char *key_fp, *ca_fp;
-	Buffer constraints, constraint;
-	u_char *name, *data;
-	u_int i, dlen;
+	u_int i, v00;
 
 	if (!have_identity)
 		ask_filename(pw, "Enter file in which the key is");
-	if (stat(identity_file, &st) < 0) {
-		perror(identity_file);
-		exit(1);
-	}
+	if (stat(identity_file, &st) < 0)
+		fatal("%s: %s: %s", __progname, identity_file, strerror(errno));
 	if ((key = key_load_public(identity_file, NULL)) == NULL)
 		fatal("%s is not a public key", identity_file);
 	if (!key_is_cert(key))
 		fatal("%s is not a certificate", identity_file);
-	
+	v00 = key->type == KEY_RSA_CERT_V00 || key->type == KEY_DSA_CERT_V00;
+
 	key_fp = key_fingerprint(key, SSH_FP_MD5, SSH_FP_HEX);
 	ca_fp = key_fingerprint(key->cert->signature_key,
 	    SSH_FP_MD5, SSH_FP_HEX);
 
 	printf("%s:\n", identity_file);
-	printf("        %s %s certificate %s\n", key_type(key),
-	    key_cert_type(key), key_fp);
-	printf("        Signed by %s CA %s\n",
+	printf("        Type: %s %s certificate\n", key_ssh_name(key),
+	    key_cert_type(key));
+	printf("        Public key: %s %s\n", key_type(key), key_fp);
+	printf("        Signing CA: %s %s\n",
 	    key_type(key->cert->signature_key), ca_fp);
-	printf("        Key ID \"%s\"\n", key->cert->key_id);
+	printf("        Key ID: \"%s\"\n", key->cert->key_id);
+	if (!v00)
+		printf("        Serial: %llu\n", key->cert->serial);
 	printf("        Valid: %s\n",
 	    fmt_validity(key->cert->valid_after, key->cert->valid_before));
 	printf("        Principals: ");
@@ -1409,45 +1688,22 @@ do_show_cert(struct passwd *pw)
 			    key->cert->principals[i]);
 		printf("\n");
 	}
-	printf("        Constraints: ");
-	if (buffer_len(&key->cert->constraints) == 0)
+	printf("        Critical Options: ");
+	if (buffer_len(&key->cert->critical) == 0)
 		printf("(none)\n");
 	else {
 		printf("\n");
-		buffer_init(&constraints);
-		buffer_append(&constraints,
-		    buffer_ptr(&key->cert->constraints),
-		    buffer_len(&key->cert->constraints));
-		buffer_init(&constraint);
-		while (buffer_len(&constraints) != 0) {
-			name = buffer_get_string(&constraints, NULL);
-			data = buffer_get_string_ptr(&constraints, &dlen);
-			buffer_append(&constraint, data, dlen);
-			printf("                %s", name);
-			if (strcmp(name, "permit-X11-forwarding") == 0 ||
-			    strcmp(name, "permit-agent-forwarding") == 0 ||
-			    strcmp(name, "permit-port-forwarding") == 0 ||
-			    strcmp(name, "permit-pty") == 0 ||
-			    strcmp(name, "permit-user-rc") == 0)
-				printf("\n");
-			else if (strcmp(name, "force-command") == 0 ||
-			    strcmp(name, "source-address") == 0) {
-				data = buffer_get_string(&constraint, NULL);
-				printf(" %s\n", data);
-				xfree(data);
-			} else {
-				printf(" UNKNOWN CONSTRAINT (len %u)\n",
-				    buffer_len(&constraint));
-				buffer_clear(&constraint);
-			}
-			xfree(name);
-			if (buffer_len(&constraint) != 0)
-				fatal("Constraint corrupt: extra data at end");
-		}
-		buffer_free(&constraint);
-		buffer_free(&constraints);
+		show_options(&key->cert->critical, v00, 1);
 	}
-
+	if (!v00) {
+		printf("        Extensions: ");
+		if (buffer_len(&key->cert->extensions) == 0)
+			printf("(none)\n");
+		else {
+			printf("\n");
+			show_options(&key->cert->extensions, v00, 0);
+		}
+	}
 	exit(0);
 }
 
@@ -1464,7 +1720,7 @@ usage(void)
 #ifdef ENABLE_PKCS11
 	fprintf(stderr, "  -D pkcs11   Download public key from pkcs11 token.\n");
 #endif
-	fprintf(stderr, "  -e          Convert OpenSSH to RFC 4716 key file.\n");
+	fprintf(stderr, "  -e          Export OpenSSH to foreign format key file.\n");
 	fprintf(stderr, "  -F hostname Find hostname in known hosts file.\n");
 	fprintf(stderr, "  -f filename Filename of the key file.\n");
 	fprintf(stderr, "  -G file     Generate candidates for DH-GEX moduli.\n");
@@ -1472,26 +1728,28 @@ usage(void)
 	fprintf(stderr, "  -H          Hash names in known_hosts file.\n");
 	fprintf(stderr, "  -h          Generate host certificate instead of a user certificate.\n");
 	fprintf(stderr, "  -I key_id   Key identifier to include in certificate.\n");
-	fprintf(stderr, "  -i          Convert RFC 4716 to OpenSSH key file.\n");
+	fprintf(stderr, "  -i          Import foreign format to OpenSSH key file.\n");
 	fprintf(stderr, "  -L          Print the contents of a certificate.\n");
 	fprintf(stderr, "  -l          Show fingerprint of key file.\n");
 	fprintf(stderr, "  -M memory   Amount of memory (MB) to use for generating DH-GEX moduli.\n");
-	fprintf(stderr, "  -n name,... User/host principal names to include in certificate\n");
+	fprintf(stderr, "  -m key_fmt  Conversion format for -e/-i (PEM|PKCS8|RFC4716).\n");
 	fprintf(stderr, "  -N phrase   Provide new passphrase.\n");
-	fprintf(stderr, "  -O cnstr    Specify a certificate constraint.\n");
+	fprintf(stderr, "  -n name,... User/host principal names to include in certificate\n");
+	fprintf(stderr, "  -O option   Specify a certificate option.\n");
 	fprintf(stderr, "  -P phrase   Provide old passphrase.\n");
 	fprintf(stderr, "  -p          Change passphrase of private key file.\n");
 	fprintf(stderr, "  -q          Quiet.\n");
 	fprintf(stderr, "  -R hostname Remove host from known_hosts file.\n");
 	fprintf(stderr, "  -r hostname Print DNS resource record.\n");
-	fprintf(stderr, "  -s ca_key   Certify keys with CA key.\n");
 	fprintf(stderr, "  -S start    Start point (hex) for generating DH-GEX moduli.\n");
+	fprintf(stderr, "  -s ca_key   Certify keys with CA key.\n");
 	fprintf(stderr, "  -T file     Screen candidates for DH-GEX moduli.\n");
 	fprintf(stderr, "  -t type     Specify type of key to create.\n");
 	fprintf(stderr, "  -V from:to  Specify certificate validity interval.\n");
 	fprintf(stderr, "  -v          Verbose.\n");
 	fprintf(stderr, "  -W gen      Generator to use for generating DH-GEX moduli.\n");
 	fprintf(stderr, "  -y          Read private key file and print public key.\n");
+	fprintf(stderr, "  -z serial   Specify a serial number.\n");
 
 	exit(1);
 }
@@ -1503,12 +1761,12 @@ int
 main(int argc, char **argv)
 {
 	char dotsshdir[MAXPATHLEN], comment[1024], *passphrase1, *passphrase2;
-	char out_file[MAXPATHLEN], *pkcs11provider = NULL;
-	char *rr_hostname = NULL;
+	char out_file[MAXPATHLEN], *rr_hostname = NULL;
 	Key *private, *public;
 	struct passwd *pw;
 	struct stat st;
 	int opt, type, fd;
+	u_int maxbits;
 	u_int32_t memory = 0, generator_wanted = 0, trials = 100;
 	int do_gen_candidates = 0, do_screen_candidates = 0;
 	BIGNUM *start = NULL;
@@ -1540,8 +1798,8 @@ main(int argc, char **argv)
 		exit(1);
 	}
 
-	while ((opt = getopt(argc, argv, "degiqpclBHLhvxXyF:b:f:t:D:I:P:N:n:"
-	    "O:C:r:g:R:T:G:M:S:s:a:V:W:")) != -1) {
+	while ((opt = getopt(argc, argv, "degiqpclBHLhvxXyF:b:f:t:D:I:P:m:N:n:"
+	    "O:C:r:g:R:T:G:M:S:s:a:V:W:z:")) != -1) {
 		switch (opt) {
 		case 'b':
 			bits = (u_int32_t)strtonum(optarg, 768, 32768, &errstr);
@@ -1572,6 +1830,21 @@ main(int argc, char **argv)
 		case 'B':
 			print_bubblebabble = 1;
 			break;
+		case 'm':
+			if (strcasecmp(optarg, "RFC4716") == 0 ||
+			    strcasecmp(optarg, "ssh2") == 0) {
+				convert_format = FMT_RFC4716;
+				break;
+			}
+			if (strcasecmp(optarg, "PKCS8") == 0) {
+				convert_format = FMT_PKCS8;
+				break;
+			}
+			if (strcasecmp(optarg, "PEM") == 0) {
+				convert_format = FMT_PEM;
+				break;
+			}
+			fatal("Unsupported conversion format \"%s\"", optarg);
 		case 'n':
 			cert_principals = optarg;
 			break;
@@ -1597,7 +1870,7 @@ main(int argc, char **argv)
 			identity_new_passphrase = optarg;
 			break;
 		case 'O':
-			add_cert_constraint(optarg);
+			add_cert_option(optarg);
 			break;
 		case 'C':
 			identity_comment = optarg;
@@ -1608,16 +1881,16 @@ main(int argc, char **argv)
 		case 'e':
 		case 'x':
 			/* export key */
-			convert_to_ssh2 = 1;
+			convert_to = 1;
 			break;
 		case 'h':
 			cert_key_type = SSH2_CERT_TYPE_HOST;
-			constraint_flags = 0;
+			certflags_flags = 0;
 			break;
 		case 'i':
 		case 'X':
 			/* import key */
-			convert_from_ssh2 = 1;
+			convert_from = 1;
 			break;
 		case 'y':
 			print_public = 1;
@@ -1661,9 +1934,8 @@ main(int argc, char **argv)
 			break;
 		case 'M':
 			memory = (u_int32_t)strtonum(optarg, 1, UINT_MAX, &errstr);
-			if (errstr) {
+			if (errstr)
 				fatal("Memory limit is %s: %s", errstr, optarg);
-			}
 			break;
 		case 'G':
 			do_gen_candidates = 1;
@@ -1684,6 +1956,11 @@ main(int argc, char **argv)
 			break;
 		case 'V':
 			parse_cert_times(optarg);
+			break;
+		case 'z':
+			cert_serial = strtonum(optarg, 0, LLONG_MAX, &errstr);
+			if (errstr)
+				fatal("Invalid serial number: %s", errstr);
 			break;
 		case '?':
 		default:
@@ -1729,10 +2006,10 @@ main(int argc, char **argv)
 		do_change_passphrase(pw);
 	if (change_comment)
 		do_change_comment(pw);
-	if (convert_to_ssh2)
-		do_convert_to_ssh2(pw);
-	if (convert_from_ssh2)
-		do_convert_from_ssh2(pw);
+	if (convert_to)
+		do_convert_to(pw);
+	if (convert_from)
+		do_convert_from(pw);
 	if (print_public)
 		do_print_public(pw);
 	if (rr_hostname != NULL) {
@@ -1759,7 +2036,7 @@ main(int argc, char **argv)
 		}
 	}
 	if (pkcs11provider != NULL)
-		do_download(pw, pkcs11provider);
+		do_download(pw);
 
 	if (do_gen_candidates) {
 		FILE *out = fopen(out_file, "w");
@@ -1811,6 +2088,12 @@ main(int argc, char **argv)
 	}
 	if (bits == 0)
 		bits = (type == KEY_DSA) ? DEFAULT_BITS_DSA : DEFAULT_BITS;
+	maxbits = (type == KEY_DSA) ?
+	    OPENSSL_DSA_MAX_MODULUS_BITS : OPENSSL_RSA_MAX_MODULUS_BITS;
+	if (bits > maxbits) {
+		fprintf(stderr, "key bits exceeds maximum %d\n", maxbits);
+		exit(1);
+	}
 	if (type == KEY_DSA && bits != 1024)
 		fatal("DSA keys must be 1024 bits");
 	if (!quiet)
@@ -1826,13 +2109,19 @@ main(int argc, char **argv)
 		ask_filename(pw, "Enter file in which to save the key");
 
 	/* Create ~/.ssh directory if it doesn't already exist. */
-	snprintf(dotsshdir, sizeof dotsshdir, "%s/%s", pw->pw_dir, _PATH_SSH_USER_DIR);
-	if (strstr(identity_file, dotsshdir) != NULL &&
-	    stat(dotsshdir, &st) < 0) {
-		if (mkdir(dotsshdir, 0700) < 0)
-			error("Could not create directory '%s'.", dotsshdir);
-		else if (!quiet)
-			printf("Created directory '%s'.\n", dotsshdir);
+	snprintf(dotsshdir, sizeof dotsshdir, "%s/%s",
+	    pw->pw_dir, _PATH_SSH_USER_DIR);
+	if (strstr(identity_file, dotsshdir) != NULL) {
+		if (stat(dotsshdir, &st) < 0) {
+			if (errno != ENOENT) {
+				error("Could not stat %s: %s", dotsshdir,
+				    strerror(errno));
+			} else if (mkdir(dotsshdir, 0700) < 0) {
+				error("Could not create directory '%s': %s",
+				    dotsshdir, strerror(errno));
+			} else if (!quiet)
+				printf("Created directory '%s'.\n", dotsshdir);
+		}
 	}
 	/* If the file already exists, ask the user to confirm. */
 	if (stat(identity_file, &st) >= 0) {
