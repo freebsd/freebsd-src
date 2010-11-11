@@ -115,7 +115,7 @@ vm_offset_t mp_tramp;
 
 u_int	mp_boot_mid;
 
-static volatile u_int	shutdown_cpus;
+static volatile cpumask_t	shutdown_cpus;
 
 void cpu_mp_unleash(void *);
 SYSINIT(cpu_mp_unleash, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);
@@ -519,7 +519,7 @@ retry:
 }
 
 void
-ipi_selected(u_int icpus, u_int ipi)
+ipi_selected(cpumask_t icpus, u_int ipi)
 {
 	int i, cpu_count;
 	uint16_t *cpulist;
