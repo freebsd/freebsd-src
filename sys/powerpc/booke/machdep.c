@@ -453,7 +453,7 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 
 	ptr = &tlb0_miss_locks[cpuid * words_per_gran];
 	pcpu->pc_booke_tlb_lock = ptr;
-	*ptr = MTX_UNOWNED;
+	*ptr = TLB_UNLOCKED;
 	*(ptr + 1) = 0;		/* recurse counter */
 #endif
 }
