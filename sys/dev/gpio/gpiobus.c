@@ -481,7 +481,7 @@ static device_method_t gpiobus_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t gpiobus_driver = {
+driver_t gpiobus_driver = {
 	"gpiobus",
 	gpiobus_methods,
 	sizeof(struct gpiobus_softc)
