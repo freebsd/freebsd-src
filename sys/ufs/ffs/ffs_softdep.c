@@ -2270,7 +2270,6 @@ journal_mount(mp, fs, cred)
 	int error;
 	int i;
 
-	mp->mnt_kern_flag |= MNTK_SUJ;
 	error = softdep_journal_lookup(mp, &vp);
 	if (error != 0) {
 		printf("Failed to find journal.  Use tunefs to create one\n");
@@ -2295,20 +2294,26 @@ journal_mount(mp, fs, cred)
 	}
 	jblocks->jb_low = jblocks->jb_free / 3;	/* Reserve 33%. */
 	jblocks->jb_min = jblocks->jb_free / 10; /* Suspend at 10%. */
-	/*
-	 * Only validate the journal contents if the filesystem is clean,
-	 * otherwise we write the logs but they'll never be used.  If the
-	 * filesystem was still dirty when we mounted it the journal is
-	 * invalid and a new journal can only be valid if it starts from a
-	 * clean mount.
-	 */
-	if (fs->fs_clean) {
-		DIP_SET(ip, i_modrev, fs->fs_mtime);
-		ip->i_flags |= IN_MODIFIED;
-		ffs_update(vp, 1);
-	}
 	VFSTOUFS(mp)->softdep_jblocks = jblocks;
 out:
+	if (error == 0) {
+		MNT_ILOCK(mp);
+		mp->mnt_kern_flag |= MNTK_SUJ;
+		MNT_IUNLOCK(mp);
+		/*
+		 * Only validate the journal contents if the
+		 * filesystem is clean, otherwise we write the logs
+		 * but they'll never be used.  If the filesystem was
+		 * still dirty when we mounted it the journal is
+		 * invalid and a new journal can only be valid if it
+		 * starts from a clean mount.
+		 */
+		if (fs->fs_clean) {
+			DIP_SET(ip, i_modrev, fs->fs_mtime);
+			ip->i_flags |= IN_MODIFIED;
+			ffs_update(vp, 1);
+		}
+	}
 	vput(vp);
 	return (error);
 }
