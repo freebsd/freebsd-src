@@ -7,11 +7,11 @@ unix		?=	We run FreeBSD, not UNIX.
 .if !defined(%POSIX)
 #
 # MACHINE_CPUARCH defines a collection of MACHINE_ARCH.  Machines with
-# the same MACHINE_ARCH can run reach-other's binaries, so it
-# necessarily has word size and endian swizzled in.  However, support
-# files for these machines often are shared amongst all combinations
-# of size and/or endian.  This is called MACHINE_CPU in NetBSD, but
-# that's used for something different in FreeBSD.
+# the same MACHINE_ARCH can run each other's binaries, so it necessarily
+# has word size and endian swizzled in.  However, support files for
+# these machines often are shared amongst all combinations of size
+# and/or endian.  This is called MACHINE_CPU in NetBSD, but that's used
+# for something different in FreeBSD.
 #
 MACHINE_CPUARCH=${MACHINE_ARCH:C/mipse[lb]/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
 .endif
