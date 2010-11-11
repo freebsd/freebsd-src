@@ -33,7 +33,7 @@
 #ifdef VISIBILITY_HIDDEN
 #define DEFINE_COMPILERRT_FUNCTION(name) \
   .globl SYMBOL_NAME(name) SEPARATOR     \
-  .private_extern SYMBOL_NAME(name) SEPARATOR    \
+  .hidden SYMBOL_NAME(name) SEPARATOR    \
   SYMBOL_NAME(name):
 #else
 #define DEFINE_COMPILERRT_FUNCTION(name) \
@@ -43,12 +43,12 @@
 
 #define DEFINE_COMPILERRT_PRIVATE_FUNCTION(name) \
   .globl SYMBOL_NAME(name) SEPARATOR             \
-  .private_extern SYMBOL_NAME(name) SEPARATOR    \
+  .hidden SYMBOL_NAME(name) SEPARATOR    \
   SYMBOL_NAME(name):
 
 #define DEFINE_COMPILERRT_PRIVATE_FUNCTION_UNMANGLED(name) \
   .globl name SEPARATOR             \
-  .private_extern name SEPARATOR    \
+  .hidden name SEPARATOR    \
   name:
 
 #endif /* COMPILERRT_ASSEMBLY_H */
