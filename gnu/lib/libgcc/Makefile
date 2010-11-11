@@ -3,7 +3,6 @@
 GCCDIR=	${.CURDIR}/../../../contrib/gcc
 GCCLIB=	${.CURDIR}/../../../contrib/gcclibs
 
-LIB=		gcc
 SHLIB_NAME=	libgcc_s.so.1
 SHLIBDIR?=	/lib
 
