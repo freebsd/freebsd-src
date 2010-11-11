@@ -118,8 +118,9 @@ static int	hwpstate_get_info_from_msr(device_t dev);
 static int	hwpstate_goto_pstate(device_t dev, int pstate_id);
 
 static int	hwpstate_verbose = 0;
-SYSCTL_INT(_debug, OID_AUTO, hwpstate_verbose, CTLFLAG_RDTUN,
+SYSCTL_INT(_debug, OID_AUTO, hwpstate_verbose, CTLFLAG_RW | CTLFLAG_TUN,
        &hwpstate_verbose, 0, "Debug hwpstate");
+TUNABLE_INT("debug.hwpstate_verbose", &hwpstate_verbose);
 
 static device_method_t hwpstate_methods[] = {
 	/* Device interface */
