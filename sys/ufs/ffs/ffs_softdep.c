@@ -5270,7 +5270,7 @@ softdep_setup_freeblocks(ip, length, flags)
 	if (delay)
 		WORKLIST_INSERT(&bp->b_dep, &freeblks->fb_list);
 	else if (needj)
-		freeblks->fb_state |= DEPCOMPLETE | COMPLETE;
+		freeblks->fb_state |= COMPLETE;
 	/*
 	 * Because the file length has been truncated to zero, any
 	 * pending block allocation dependency structures associated
@@ -5332,8 +5332,9 @@ restart:
 	if (inodedep_lookup(mp, ip->i_number, 0, &inodedep) != 0)
 		(void) free_inodedep(inodedep);
 
-	if (delay) {
+	if (delay || needj)
 		freeblks->fb_state |= DEPCOMPLETE;
+	if (delay) {
 		/*
 		 * If the inode with zeroed block pointers is now on disk
 		 * we can start freeing blocks. Add freeblks to the worklist
@@ -5344,6 +5345,8 @@ restart:
 		if ((freeblks->fb_state & ALLCOMPLETE) == ALLCOMPLETE)
 			add_to_worklist(&freeblks->fb_list, 1);
 	}
+	if (needj && LIST_EMPTY(&freeblks->fb_jfreeblkhd))
+		needj = 0;
 
 	FREE_LOCK(&lk);
 	/*
