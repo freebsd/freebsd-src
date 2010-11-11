@@ -1123,7 +1123,7 @@ libraries:
 #
 # static libgcc.a prerequisite for shared libc
 #
-_prereq_libs= gnu/lib/libssp/libssp_nonshared gnu/lib/libgcc
+_prereq_libs= gnu/lib/libssp/libssp_nonshared gnu/lib/libgcc lib/libcompiler_rt
 
 # These dependencies are not automatically generated:
 #
@@ -1139,6 +1139,7 @@ _startup_libs+=	lib/csu/${MACHINE_ARCH}
 _startup_libs+=	lib/csu/${MACHINE_CPUARCH}
 .endif
 _startup_libs+=	gnu/lib/libgcc
+_startup_libs+=	lib/libcompiler_rt
 _startup_libs+=	lib/libc
 
 gnu/lib/libgcc__L: lib/libc__L
