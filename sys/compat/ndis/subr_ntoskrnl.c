@@ -2426,12 +2426,9 @@ MmAllocateContiguousMemorySpecifyCache(size, lowest, highest,
 	uint64_t		boundary;
 	uint32_t		cachetype;
 {
-	void *addr;
-	size_t pagelength = roundup(size, PAGE_SIZE);
 
-	addr = ExAllocatePoolWithTag(NonPagedPool, pagelength, 0);
-
-	return (addr);
+	return (contigmalloc(size, M_DEVBUF, M_ZERO|M_NOWAIT, lowest,
+	    highest, PAGE_SIZE, boundary));
 }
 
 static void
@@ -2447,7 +2444,7 @@ MmFreeContiguousMemorySpecifyCache(base, size, cachetype)
 	uint32_t		size;
 	uint32_t		cachetype;
 {
-	ExFreePool(base);
+	contigfree(base, size, M_DEVBUF);
 }
 
 static uint32_t
