@@ -245,6 +245,9 @@ extern void	*dsitrap, *dsisize;
 extern void	*decrint, *decrsize;
 extern void     *extint, *extsize;
 extern void	*dblow, *dbsize;
+extern void	*imisstrap, *imisssize;
+extern void	*dlmisstrap, *dlmisssize;
+extern void	*dsmisstrap, *dsmisssize;
 
 uintptr_t
 powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
@@ -491,6 +494,12 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	bcopy(generictrap, (void *)EXC_VEC,  (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_VECAST_G4, (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_VECAST_G5, (size_t)&trapsize);
+	#ifndef __powerpc64__
+	/* G2-specific TLB miss helper handlers */
+	bcopy(&imisstrap, (void *)EXC_IMISS,  (size_t)&imisssize);
+	bcopy(&dlmisstrap, (void *)EXC_DLMISS,  (size_t)&dlmisssize);
+	bcopy(&dsmisstrap, (void *)EXC_DSMISS,  (size_t)&dsmisssize);
+	#endif
 	__syncicache(EXC_RSVD, EXC_LAST - EXC_RSVD);
 
 	/*
