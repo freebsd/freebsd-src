@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20101112: removed gasp.info
+OLD_FILES+=usr/share/info/gasp.info.gz
 # 20101109: headers moved to machine/ to x86/
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/include/machine/mptable.h
