@@ -188,7 +188,7 @@ static device_method_t gpioc_methods[] = {
 	{ 0, 0 }
 };
 
-static driver_t gpioc_driver = {
+driver_t gpioc_driver = {
 	"gpioc",
 	gpioc_methods,
 	sizeof(struct gpioc_softc)
