@@ -582,9 +582,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	 * block to be kept.  -1 indicates the entire
 	 * block so we need not calculate the index.
 	 */
-	factor = 1;
-	for (i = SINGLE; i < level; i++)
-		factor *= NINDIR(fs);
+	factor = lbn_offset(fs, level);
 	last = lastbn;
 	if (lastbn > 0)
 		last /= factor;

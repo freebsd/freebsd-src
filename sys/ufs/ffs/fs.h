@@ -607,6 +607,11 @@ struct cg {
 	  : (fragroundup(fs, blkoff(fs, (size)))))
 
 /*
+ * Number of indirects in a filesystem block.
+ */
+#define	NINDIR(fs)	((fs)->fs_nindir)
+
+/*
  * Indirect lbns are aligned on NDADDR addresses where single indirects
  * are the negated address of the lowest lbn reachable, double indirects
  * are this lbn - 1 and triple indirects are this lbn - 2.  This yields
@@ -631,16 +636,22 @@ lbn_level(ufs_lbn_t lbn)
 	}
 	return (-1);
 }
+
+static inline ufs_lbn_t
+lbn_offset(struct fs *fs, int level)
+{
+	ufs_lbn_t res;
+
+	for (res = 1; level > 0; level--)
+		res *= NINDIR(fs);
+	return (res);
+}
+
 /*
  * Number of inodes in a secondary storage block/fragment.
  */
 #define	INOPB(fs)	((fs)->fs_inopb)
 #define	INOPF(fs)	((fs)->fs_inopb >> (fs)->fs_fragshift)
-
-/*
- * Number of indirects in a filesystem block.
- */
-#define	NINDIR(fs)	((fs)->fs_nindir)
 
 /*
  * Softdep journal record format.
