@@ -2385,6 +2385,9 @@ moea64_bootstrap_alloc(vm_size_t size, u_int align)
 		if (s < phys_avail[i] || e > phys_avail[i + 1])
 			continue;
 
+		if (s + size > platform_real_maxaddr())
+			continue;
+
 		if (s == phys_avail[i]) {
 			phys_avail[i] += size;
 		} else if (e == phys_avail[i + 1]) {
