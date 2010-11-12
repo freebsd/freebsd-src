@@ -46,12 +46,17 @@ static MALLOC_DEFINE(M_TASKQUEUE, "taskqueue", "Task Queues");
 static void	*taskqueue_giant_ih;
 static void	*taskqueue_ih;
 
+struct taskqueue_busy {
+	struct task	*tb_running;
+	TAILQ_ENTRY(taskqueue_busy) tb_link;
+};
+
 struct taskqueue {
 	STAILQ_HEAD(, task)	tq_queue;
 	const char		*tq_name;
 	taskqueue_enqueue_fn	tq_enqueue;
 	void			*tq_context;
-	struct task		*tq_running;
+	TAILQ_HEAD(, taskqueue_busy) tq_active;
 	struct mtx		tq_mutex;
 	struct thread		**tq_threads;
 	int			tq_tcount;
@@ -62,6 +67,8 @@ struct taskqueue {
 #define	TQ_FLAGS_ACTIVE		(1 << 0)
 #define	TQ_FLAGS_BLOCKED	(1 << 1)
 #define	TQ_FLAGS_PENDING	(1 << 2)
+
+static void	taskqueue_run_locked(struct taskqueue *);
 
 static __inline void
 TQ_LOCK(struct taskqueue *tq)
@@ -102,6 +109,7 @@ _taskqueue_create(const char *name, int mflags,
 		return NULL;
 
 	STAILQ_INIT(&queue->tq_queue);
+	TAILQ_INIT(&queue->tq_active);
 	queue->tq_name = name;
 	queue->tq_enqueue = enqueue;
 	queue->tq_context = context;
@@ -139,8 +147,9 @@ taskqueue_free(struct taskqueue *queue)
 
 	TQ_LOCK(queue);
 	queue->tq_flags &= ~TQ_FLAGS_ACTIVE;
-	taskqueue_run(queue);
+	taskqueue_run_locked(queue);
 	taskqueue_terminate(queue->tq_threads, queue);
+	KASSERT(TAILQ_EMPTY(&queue->tq_active), ("Tasks still running?"));
 	mtx_destroy(&queue->tq_mutex);
 	free(queue->tq_threads, M_TASKQUEUE);
 	free(queue, M_TASKQUEUE);
@@ -215,15 +224,17 @@ taskqueue_unblock(struct taskqueue *queue)
 	TQ_UNLOCK(queue);
 }
 
-void
-taskqueue_run(struct taskqueue *queue)
+static void
+taskqueue_run_locked(struct taskqueue *queue)
 {
+	struct taskqueue_busy tb;
 	struct task *task;
-	int owned, pending;
+	int pending;
 
-	owned = mtx_owned(&queue->tq_mutex);
-	if (!owned)
-		TQ_LOCK(queue);
+	mtx_assert(&queue->tq_mutex, MA_OWNED);
+	tb.tb_running = NULL;
+	TAILQ_INSERT_TAIL(&queue->tq_active, &tb, tb_link);
+
 	while (STAILQ_FIRST(&queue->tq_queue)) {
 		/*
 		 * Carefully remove the first task from the queue and
@@ -233,22 +244,38 @@ taskqueue_run(struct taskqueue *queue)
 		STAILQ_REMOVE_HEAD(&queue->tq_queue, ta_link);
 		pending = task->ta_pending;
 		task->ta_pending = 0;
-		queue->tq_running = task;
+		tb.tb_running = task;
 		TQ_UNLOCK(queue);
 
 		task->ta_func(task->ta_context, pending);
 
 		TQ_LOCK(queue);
-		queue->tq_running = NULL;
+		tb.tb_running = NULL;
 		wakeup(task);
 	}
+	TAILQ_REMOVE(&queue->tq_active, &tb, tb_link);
+}
 
-	/*
-	 * For compatibility, unlock on return if the queue was not locked
-	 * on entry, although this opens a race window.
-	 */
-	if (!owned)
-		TQ_UNLOCK(queue);
+void
+taskqueue_run(struct taskqueue *queue)
+{
+
+	TQ_LOCK(queue);
+	taskqueue_run_locked(queue);
+	TQ_UNLOCK(queue);
+}
+
+static int
+task_is_running(struct taskqueue *queue, struct task *task)
+{
+	struct taskqueue_busy *tb;
+
+	mtx_assert(&queue->tq_mutex, MA_OWNED);
+	TAILQ_FOREACH(tb, &queue->tq_active, tb_link) {
+		if (tb->tb_running == task)
+			return (1);
+	}
+	return (0);
 }
 
 void
@@ -256,14 +283,14 @@ taskqueue_drain(struct taskqueue *queue, struct task *task)
 {
 	if (queue->tq_spin) {		/* XXX */
 		mtx_lock_spin(&queue->tq_mutex);
-		while (task->ta_pending != 0 || task == queue->tq_running)
+		while (task->ta_pending != 0 || task_is_running(queue, task))
 			msleep_spin(task, &queue->tq_mutex, "-", 0);
 		mtx_unlock_spin(&queue->tq_mutex);
 	} else {
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
 
 		mtx_lock(&queue->tq_mutex);
-		while (task->ta_pending != 0 || task == queue->tq_running)
+		while (task->ta_pending != 0 || task_is_running(queue, task))
 			msleep(task, &queue->tq_mutex, PWAIT, "-", 0);
 		mtx_unlock(&queue->tq_mutex);
 	}
@@ -357,7 +384,7 @@ taskqueue_thread_loop(void *arg)
 	tq = *tqp;
 	TQ_LOCK(tq);
 	while ((tq->tq_flags & TQ_FLAGS_ACTIVE) != 0) {
-		taskqueue_run(tq);
+		taskqueue_run_locked(tq);
 		/*
 		 * Because taskqueue_run() can drop tq_mutex, we need to
 		 * check if the TQ_FLAGS_ACTIVE flag wasn't removed in the
