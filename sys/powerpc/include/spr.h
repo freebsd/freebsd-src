@@ -420,6 +420,10 @@
 #define	SPR_HID1		0x3f1	/* ..8 Hardware Implementation Register 1 */
 #define	SPR_HID4		0x3f4	/* ..8 Hardware Implementation Register 4 */
 #define	SPR_HID5		0x3f6	/* ..8 Hardware Implementation Register 5 */
+#define	SPR_HID6		0x3f9	/* ..8 Hardware Implementation Register 6 */
+
+#define	SPR_CELL_TSRL		0x380	/* ... Cell BE Thread Status Register */
+#define	SPR_CELL_TSCR		0x399	/* ... Cell BE Thread Switch Register */
 
 #if defined(AIM)
 #define	SPR_DBSR		0x3f0	/* 4.. Debug Status Register */

@@ -66,7 +66,6 @@ static struct mem_region OFfree[OFMEM_REGIONS + 3];
 static int nOFmem;
 
 extern register_t ofmsr[5];
-extern struct	pmap ofw_pmap;
 static int	(*ofwcall)(void *);
 static void	*fdt;
 int		ofw_real_mode;
@@ -417,59 +416,27 @@ openfirmware_core(void *args)
 {
 	int		result;
 	register_t	oldmsr;
-	#ifndef __powerpc64__
-	register_t	srsave[16];
-	u_int		i;
-	#endif
 
 	/*
 	 * Turn off exceptions - we really don't want to end up
-	 * anywhere unexpected with PCPU set to something strange,
-	 * the stack pointer wrong, or the OFW mapping enabled.
+	 * anywhere unexpected with PCPU set to something strange
+	 * or the stack pointer wrong.
 	 */
 	oldmsr = intr_disable();
 
 	ofw_sprg_prepare();
 
-      #ifndef __powerpc64__
-	if (pmap_bootstrapped && !ofw_real_mode) {
-		/*
-		 * Swap the kernel's address space with Open Firmware's
-		 */
-
-		for (i = 0; i < 16; i++) {
-			srsave[i] = mfsrin(i << ADDR_SR_SHFT);
-			mtsrin(i << ADDR_SR_SHFT, ofw_pmap.pm_sr[i]);
-		}
-
-		/*
-		 * Clear battable[] translations
-		 */
-		if (!(cpu_features & PPC_FEATURE_64)) {
-			__asm __volatile("mtdbatu 2, %0\n"
-					 "mtdbatu 3, %0" : : "r" (0));
-		}
-		isync();
-	}
-      #endif
+#if defined(AIM) && !defined(__powerpc64__)
+	/*
+	 * Clear battable[] translations
+	 */
+	if (!(cpu_features & PPC_FEATURE_64))
+		__asm __volatile("mtdbatu 2, %0\n"
+				 "mtdbatu 3, %0" : : "r" (0));
+	isync();
+#endif
 
        	result = ofwcall(args);
-
-      #ifndef __powerpc64__
-	if (pmap_bootstrapped && !ofw_real_mode) {
-		/*
-		 * Restore the kernel's addr space. The isync() doesn;t
-		 * work outside the loop unless mtsrin() is open-coded
-		 * in an asm statement :(
-		 */
-
-		for (i = 0; i < 16; i++) {
-			mtsrin(i << ADDR_SR_SHFT, srsave[i]);
-			isync();
-		}
-	}
-      #endif
-
 	ofw_sprg_restore();
 
 	intr_restore(oldmsr);
@@ -690,18 +657,5 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 
 	*tag = &bs_le_tag;
 	return (bus_space_map(*tag, addr, size, 0, handle));
-}
-
-int
-mem_valid(vm_offset_t addr, int len)
-{
-	int i;
-
-	for (i = 0; i < nOFmem; i++)
-		if ((addr >= OFmem[i].mr_start) 
-		    && (addr + len < OFmem[i].mr_start + OFmem[i].mr_size))
-			return (0);
-
-	return (EFAULT);
 }
 
