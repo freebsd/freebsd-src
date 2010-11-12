@@ -1126,14 +1126,14 @@ moea64_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 		ofw_pmap.pm_sr[i] = kernel_pmap->pm_sr[i];
 	    #endif
 
-	    if ((mmu = OF_instance_to_package(mmui)) == -1)
-		panic("moea64_bootstrap: can't get mmu package");
-	    if ((sz = OF_getproplen(mmu, "translations")) == -1)
-		panic("moea64_bootstrap: can't get ofw translation count");
+	    mmu = OF_instance_to_package(mmui);
+	    if (mmu == -1 || (sz = OF_getproplen(mmu, "translations")) == -1)
+		sz = 0;
 	    if (sz > 6144 /* tmpstksz - 2 KB headroom */)
 		panic("moea64_bootstrap: too many ofw translations");
 
-	    moea64_add_ofw_mappings(mmup, mmu, sz);
+	    if (sz > 0)
+		moea64_add_ofw_mappings(mmup, mmu, sz);
 	}
 
 #ifdef SMP
