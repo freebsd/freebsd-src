@@ -149,6 +149,9 @@ static const struct cputab models[] = {
 	   0, cpu_e500_setup },
         { "Freescale e500v2 core",	FSL_E500v2,	REVFMT_MAJMIN,
 	   0, cpu_e500_setup },
+        { "IBM Cell Broadband Engine",	IBMCELLBE,	REVFMT_MAJMIN,
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU,
+	   NULL},
         { "Unknown PowerPC CPU",	0,		REVFMT_HEX, 0, NULL },
 };
 
