@@ -284,7 +284,7 @@ typedef	struct __siginfo {
 #define POLL_MSG	3	/* Input message available		*/
 #define POLL_ERR	4	/* I/O Error				*/
 #define POLL_PRI	5	/* High priority input available	*/
-#define POLL_HUP	4	/* Device disconnected			*/
+#define POLL_HUP	6	/* Device disconnected			*/
 
 #endif
 
