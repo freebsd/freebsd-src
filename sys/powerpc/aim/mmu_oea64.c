@@ -1136,10 +1136,6 @@ moea64_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 		moea64_add_ofw_mappings(mmup, mmu, sz);
 	}
 
-#ifdef SMP
-	TLBSYNC();
-#endif
-
 	/*
 	 * Calculate the last available physical address.
 	 */
