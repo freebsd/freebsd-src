@@ -191,7 +191,6 @@ lzma2_decode(lzma_coder *restrict coder, lzma_dict *restrict dict,
 
 	case SEQ_COPY: {
 		// Copy from input to the dictionary as is.
-		// FIXME Can copy too much?
 		dict_write(dict, in, in_pos, in_size, &coder->compressed_size);
 		if (coder->compressed_size != 0)
 			return LZMA_OK;
