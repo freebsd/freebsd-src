@@ -13,7 +13,7 @@ CATEGORIES=    devel
 MAINTAINER=    rodrigc@FreeBSD.org
 COMMENT=       Utility for building software and tracking build dependencies.
 
-KMODDIR=	/boot/modules
+KMODDIR?=	/boot/modules
 
 BUILD_DEPENDS += ${LOCALBASE}/lib/mysql/libmysqlclient.a:${PORTSDIR}/databases/mysql60-client
 
