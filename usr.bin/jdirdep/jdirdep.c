@@ -38,6 +38,7 @@ struct march {
 	char *machine_arch;
 	TAILQ_ENTRY(march) link;
 };
+
 #ifdef NEED_INCMK
 struct incmk {
 	char *s;
@@ -45,6 +46,7 @@ struct incmk {
 	TAILQ_ENTRY(incmk) link;
 };
 #endif
+
 struct metas {
 	char *s;
 	TAILQ_ENTRY(metas) link;
@@ -1358,12 +1360,14 @@ main(int argc, char *argv[])
 		errx(1, "SUPMAC is missing from the environment");
 
 	jdirdep_supmac(p);
+
 #ifdef NEED_INCMK
 	if ((p = getenv("INCMK")) == NULL)
 		errx(1, "INCMK is missing from the environment");
 
 	jdirdep_incmk(p);
 #endif
+
 	/*
 	 * The current source relative directory is the bit after the
 	 * source top bit has been removed.
