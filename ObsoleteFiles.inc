@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20101112: vgonel(9) has gone to private API a while ago
+OLD_FILES+=usr/share/man/man9/vgonel.9.gz
 # 20101112: removed gasp.info
 OLD_FILES+=usr/share/info/gasp.info.gz
 # 20101109: headers moved to machine/ to x86/
