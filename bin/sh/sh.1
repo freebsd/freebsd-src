@@ -626,6 +626,7 @@ There are two kinds of built-in commands: regular and special.
 Assignments before special builtins persist after they finish
 executing and assignment errors, redirection errors and certain
 operand errors cause a script to be aborted.
+Special builtins cannot be overridden with a function.
 Both regular and special builtins can affect the shell in ways
 normal programs cannot.
 .Pp
