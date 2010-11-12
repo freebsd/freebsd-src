@@ -784,10 +784,10 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	calcru(p, &kp->ki_rusage.ru_utime, &kp->ki_rusage.ru_stime);
 	PROC_SUNLOCK(p);
 	calccru(p, &kp->ki_childutime, &kp->ki_childstime);
-
-	/* Some callers want child-times in a single value */
+	/* Some callers want child times in a single value. */
 	kp->ki_childtime = kp->ki_childstime;
 	timevaladd(&kp->ki_childtime, &kp->ki_childutime);
+
 	tp = NULL;
 	if (p->p_pgrp) {
 		kp->ki_pgid = p->p_pgrp->pg_id;
