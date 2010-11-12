@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/vnet.h>
 
+#include <netinet/cc.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -80,7 +81,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #endif
 #include <netinet/ip_icmp.h>
-#include <netinet/tcp.h>
 #include <netinet/tcp_fsm.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_timer.h>
@@ -238,6 +238,7 @@ static char *	tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th,
 struct tcpcb_mem {
 	struct	tcpcb		tcb;
 	struct	tcp_timer	tt;
+	struct cc_var		ccv;
 };
 
 static VNET_DEFINE(uma_zone_t, tcpcb_zone);
@@ -276,6 +277,8 @@ void
 tcp_init(void)
 {
 	int hashsize;
+
+	cc_init();
 
 	hashsize = TCBHASHSIZE;
 	TUNABLE_INT_FETCH("net.inet.tcp.tcbhashsize", &hashsize);
@@ -640,6 +643,26 @@ tcp_newtcpcb(struct inpcb *inp)
 	if (tm == NULL)
 		return (NULL);
 	tp = &tm->tcb;
+
+	/* Initialise cc_var struct for this tcpcb. */
+	tp->ccv = &tm->ccv;
+	tp->ccv->type = IPPROTO_TCP;
+	tp->ccv->ccvc.tcp = tp;
+
+	/*
+	 * Use the current system default CC algorithm.
+	 */
+	CC_LIST_RLOCK();
+	KASSERT(!STAILQ_EMPTY(&cc_list), ("cc_list is empty!"));
+	CC_ALGO(tp) = CC_DEFAULT();
+	CC_LIST_RUNLOCK();
+
+	if (CC_ALGO(tp)->cb_init != NULL)
+		if (CC_ALGO(tp)->cb_init(tp->ccv) > 0) {
+			uma_zfree(V_tcpcb_zone, tm);
+			return (NULL);
+		}
+
 #ifdef VIMAGE
 	tp->t_vnet = inp->inp_vnet;
 #endif
@@ -805,6 +828,12 @@ tcp_discardcb(struct tcpcb *tp)
 	tcp_offload_detach(tp);
 		
 	tcp_free_sackholes(tp);
+
+	/* Allow the CC algorithm to clean up after itself. */
+	if (CC_ALGO(tp)->cb_destroy != NULL)
+		CC_ALGO(tp)->cb_destroy(tp->ccv);
+
+	CC_ALGO(tp) = NULL;
 	inp->inp_ppcb = NULL;
 	tp->t_inpcb = NULL;
 	uma_zfree(V_tcpcb_zone, tp);
@@ -1572,7 +1601,7 @@ tcp_mtudisc(struct inpcb *inp, int errno)
 	tcp_free_sackholes(tp);
 	tp->snd_recover = tp->snd_max;
 	if (tp->t_flags & TF_SACK_PERMIT)
-		EXIT_FASTRECOVERY(tp);
+		EXIT_FASTRECOVERY(tp->t_flags);
 	tcp_output_send(tp);
 	return (inp);
 }
