@@ -16,8 +16,6 @@
 
 #ifndef LOCORE
 
-#ifdef SMP
-
 /*
  * Topology of a NUMA or HTT system.
  *
@@ -41,6 +39,8 @@ struct cpu_group {
 	int8_t		cg_flags;	/* Traversal modifiers. */
 };
 
+typedef struct cpu_group *cpu_group_t;
+
 /*
  * Defines common resources for CPUs in the group.  The highest level
  * resource should be used when multiple are shared.
@@ -60,6 +60,7 @@ struct cpu_group {
 /*
  * Convenience routines for building topologies.
  */
+#ifdef SMP
 struct cpu_group *smp_topo(void);
 struct cpu_group *smp_topo_none(void);
 struct cpu_group *smp_topo_1level(int l1share, int l1count, int l1flags);

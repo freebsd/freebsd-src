@@ -98,13 +98,6 @@ machdep_ap_bootstrap(void)
 	sched_throw(NULL);
 }
 
-struct cpu_group *
-cpu_topo(void)
-{
-
-	return (smp_topo_none());
-}
-
 void
 cpu_mp_setmaxid(void)
 {

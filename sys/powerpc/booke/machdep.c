@@ -597,12 +597,3 @@ bzero(void *buf, size_t len)
 	}
 }
 
-/*
- * XXX what is the better/proper place for this routine?
- */
-int
-mem_valid(vm_offset_t addr, int len)
-{
-
-	return (1);
-}
