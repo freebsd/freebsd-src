@@ -564,10 +564,14 @@ meta_exit(void)
 	 * If there is no include makefile list variable defined, then
 	 * we can't update dependencies.
 	 */
+#ifdef NEED_INCMK
+	    /* This is OBE by the .dirdep file. */
 	if ((p_incmk = Var_Value("INCMK", VAR_GLOBAL)) != NULL) {
 		/* Initialise the include makefile name list. */
 		jdirdep_incmk(Var_Value("INCMK", VAR_GLOBAL));
-
+#else
+	{
+#endif
 		p_machine = Var_Value("MACHINE", VAR_GLOBAL);
 		p_machine_arch = Var_Value("MACHINE_ARCH", VAR_GLOBAL);
 
