@@ -692,16 +692,3 @@ OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
 	return (bus_space_map(*tag, addr, size, 0, handle));
 }
 
-int
-mem_valid(vm_offset_t addr, int len)
-{
-	int i;
-
-	for (i = 0; i < nOFmem; i++)
-		if ((addr >= OFmem[i].mr_start) 
-		    && (addr + len < OFmem[i].mr_start + OFmem[i].mr_size))
-			return (0);
-
-	return (EFAULT);
-}
-
