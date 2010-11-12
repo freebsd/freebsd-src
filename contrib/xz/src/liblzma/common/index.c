@@ -18,7 +18,7 @@
 ///
 /// This should be big enough to avoid making lots of tiny allocations
 /// but small enough to avoid too much unused memory at once.
-#define INDEX_GROUP_SIZE 500
+#define INDEX_GROUP_SIZE 512
 
 
 /// \brief      How many Records can be allocated at once at maximum
