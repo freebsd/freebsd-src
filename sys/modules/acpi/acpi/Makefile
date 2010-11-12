@@ -96,23 +96,24 @@ opt_ddb.h: Makefile
 .endif
 
 # Machine-specific code such as sleep/wakeup
-SRCS+=	acpi_apm.c acpi_machdep.c acpi_wakecode.h acpi_wakeup.c
+SRCS+=	acpi_apm.c acpi_machdep.c acpi_wakecode.h acpi_wakedata.h acpi_wakeup.c
 SRCS+=	assym.s madt.c
-CLEANFILES+=	acpi_wakecode.bin acpi_wakecode.h acpi_wakecode.o
+CLEANFILES+=acpi_wakecode.bin acpi_wakecode.h acpi_wakecode.o acpi_wakedata.h
 
 SRCS+=	opt_global.h
+
+ASM_CFLAGS=	-x assembler-with-cpp -DLOCORE ${CFLAGS}
+NORMAL_S=	${CC} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
+NM?=		nm
 
 .if ${MACHINE_CPUARCH} == "amd64"
 .if !defined(KERNBUILDDIR)
 CFLAGS+=-DSMP
 .endif
-SRCS+=	acpi_switch.S acpi_wakedata.h
-CLEANFILES+=	acpi_wakedata.h
-ASM_CFLAGS=	-x assembler-with-cpp -DLOCORE ${CFLAGS}
-NORMAL_S=	${CC} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
-NM?=		nm
+SRCS+=	acpi_switch.S
 acpi_switch.o:	acpi_switch.S
 	${NORMAL_S}
+.endif
 acpi_wakecode.o: acpi_wakecode.S assym.s
 	${NORMAL_S}
 acpi_wakecode.bin: acpi_wakecode.o
@@ -125,10 +126,5 @@ acpi_wakedata.h: acpi_wakecode.o
 	    while read offset dummy what; do \
 	    echo "#define	$${what}	0x$${offset}"; \
 	    done > ${.TARGET}
-.else
-acpi_wakecode.h: acpi_wakecode.S assym.s
-	${MAKE} -f ${.CURDIR}/../../../${MACHINE_CPUARCH}/acpica/Makefile \
-		MAKESRCPATH=${.CURDIR}/../../../${MACHINE_CPUARCH}/acpica
-.endif
 
 .include <bsd.kmod.mk>
