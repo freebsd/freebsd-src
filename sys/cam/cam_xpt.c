@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
-#include <sys/md5.h>
+#include <sys/reboot.h>
 #include <sys/interrupt.h>
 #include <sys/sbuf.h>
 #include <sys/taskqueue.h>
