@@ -38,13 +38,13 @@ struct march {
 	char *machine_arch;
 	TAILQ_ENTRY(march) link;
 };
-
+#ifdef NEED_INCMK
 struct incmk {
 	char *s;
 	size_t l;
 	TAILQ_ENTRY(incmk) link;
 };
-
+#endif
 struct metas {
 	char *s;
 	TAILQ_ENTRY(metas) link;
@@ -58,7 +58,9 @@ struct file_track {
 
 static TAILQ_HEAD(, dirdep) dirdeps = TAILQ_HEAD_INITIALIZER(dirdeps);
 static TAILQ_HEAD(, dirdep) srcdirdeps = TAILQ_HEAD_INITIALIZER(srcdirdeps);
+#ifdef NEED_INCMK
 static TAILQ_HEAD(, incmk) incmks = TAILQ_HEAD_INITIALIZER(incmks);
+#endif
 static TAILQ_HEAD(, march) marchs = TAILQ_HEAD_INITIALIZER(marchs);
 static TAILQ_HEAD(, metas) metass = TAILQ_HEAD_INITIALIZER(metass);
 static int f_db = 0;
@@ -229,6 +231,7 @@ dirdep_add(const char *srcrel, const char *from __unused, struct march *march)
 		TAILQ_INSERT_BEFORE(dn, dd, link);
 }
 
+#ifdef JDIRDEP_MAIN
 static int
 recid_lookup(void *thing, int argc __unused, char **argv __unused, char **colname __unused)
 {
@@ -324,6 +327,7 @@ meta_dep_add(void)
 		}
 	}
 }
+#endif
 
 static void
 delete_dep(const char *relname __unused)
@@ -334,6 +338,7 @@ delete_dep(const char *relname __unused)
 static void
 move_dep(const char *srcname, const char *dstname, const char *reldir)
 {
+#ifdef JDIRDEP_MAIN
 	int64_t filid_used;
 	int64_t filid_using;
 
@@ -344,11 +349,13 @@ move_dep(const char *srcname, const char *dstname, const char *reldir)
 	filid_used = file_table_add(srcname, NULL);
 
 	file_dep_add(filid_using, filid_used);
+#endif
 }
 
 static void
 read_dep(const char *relname)
 {
+#ifdef JDIRDEP_MAIN
 	int64_t filid;
 
 	if (!f_db)
@@ -357,11 +364,13 @@ read_dep(const char *relname)
 	filid = file_table_add(relname, NULL);
 
 	file_track_add(&read_filids, filid);
+#endif
 }
 
 static void
 write_dep(const char *relname, const char *reldir)
 {
+#ifdef JDIRDEP_MAIN
 	int64_t filid;
 
 	if (!f_db)
@@ -370,6 +379,7 @@ write_dep(const char *relname, const char *reldir)
 	filid = file_table_add(relname, reldir);
 
 	file_track_add(&write_filids, filid);
+#endif
 }
 
 /*
@@ -602,8 +612,9 @@ parse_meta(const char *srctop, const char *thissrcrel, const char *objtop, const
 		fclose(fp);
 	}
 
+#ifdef JDIRDEP_MAIN
 	meta_dep_add();
-
+#endif
 	file_track_reset();
 }
 
@@ -694,9 +705,10 @@ do_dirdep(const char *srctop, const char *curdir, const char *srcrel, const char
 	if (fstat(fileno(fp), &fs) != 0)
 		err(1, "Could not get file status of file '%s'", fname);
 
+#ifdef JDIRDEP_MAIN
 	if (f_db)
 		reldir_table_add(srcrel);
-
+#endif
 	if ((bufr = malloc(fs.st_size)) == NULL)
 		err(1, "Could not allocate %zd bytes for the dirdep buffer", (size_t) fs.st_size);
 
@@ -1207,6 +1219,7 @@ jdirdep_supmac(const char *p)
 	}
 }
 
+#ifdef NEED_INCMK
 void
 jdirdep_incmk(const char *p)
 {
@@ -1226,6 +1239,7 @@ jdirdep_incmk(const char *p)
 		TAILQ_INSERT_TAIL(&incmks, incmkp, link);
 	}
 }
+#endif
 
 /* This is the public function. */
 int
@@ -1240,12 +1254,13 @@ jdirdep(const char *srctop, const char *curdir, const char *srcrel, const char *
 	int ret = 0;
 	struct metas *metasp;
 
+#ifdef JDIRDEP_MAIN
 	if (filedep_name != NULL) {
 		f_db = 1;
 
 		jdirdep_db_open(filedep_name);
 	}
-
+#endif
 	if (meta_created != NULL) {
 		meta_str = strdup(meta_created);
 		str = meta_str;
@@ -1286,8 +1301,9 @@ jdirdep(const char *srctop, const char *curdir, const char *srcrel, const char *
 	else
 		do_dirdep(srctop, curdir, srcrel, objroot, sharedobj, options, p_jbuild);
 
+#ifdef JDIRDEP_MAIN
 	jdirdep_db_close();
-
+#endif
 	if (meta_str != NULL)
 		free(meta_str);
 
@@ -1342,12 +1358,12 @@ main(int argc, char *argv[])
 		errx(1, "SUPMAC is missing from the environment");
 
 	jdirdep_supmac(p);
-
+#ifdef NEED_INCMK
 	if ((p = getenv("INCMK")) == NULL)
 		errx(1, "INCMK is missing from the environment");
 
 	jdirdep_incmk(p);
-
+#endif
 	/*
 	 * The current source relative directory is the bit after the
 	 * source top bit has been removed.

@@ -4,6 +4,7 @@ SRCS += jdirdep.c
 
 CFLAGS += -I${.CURDIR}/../jdirdep -DJDIRDEP
 
+.if ${PROG} == "jdirdep"
 .if defined(USE_SQLITE3)
 CFLAGS += -DUSE_SQLITE3 -pthread
 CFLAGS += -I/usr/local/include
@@ -17,5 +18,6 @@ CFLAGS += -DUSE_MYSQL ${MYSQL_CFLAGS}
 LDADD += ${MYSQL_LIBS}
 LDADD += -static
 .else
+.endif
 SRCS += jdirdep_db_stub.c
 .endif

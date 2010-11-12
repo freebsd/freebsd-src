@@ -6,6 +6,7 @@ SRCS += jdirdep.c
 
 CFLAGS += -I${BSDSRCTOP}/usr.bin/jdirdep -DJDIRDEP
 
+.if ${PROG} == "jdirdep"
 .if defined(USE_SQLITE3)
 CFLAGS += -DUSE_SQLITE3 -pthread
 CFLAGS += -I/usr/local/include
@@ -17,4 +18,5 @@ MYSQL_CFLAGS != mysql_config --cflags
 MYSQL_LIBS != mysql_config --libs
 CFLAGS += -DUSE_MYSQL ${MYSQL_CFLAGS}
 LDADD += ${MYSQL_LIBS}
+.endif
 .endif
