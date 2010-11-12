@@ -4302,14 +4302,19 @@ atapm(struct cam_device *device, int argc, char **argv,
 		cmd = ATA_SLEEP;
 		t = -1;
 	}
+
 	if (t < 0)
 		sc = 0;
 	else if (t <= (240 * 5))
-		sc = t / 5;
+		sc = (t + 4) / 5;
+	else if (t <= (252 * 5))
+		/* special encoding for 21 minutes */
+		sc = 252;
 	else if (t <= (11 * 30 * 60))
-		sc = t / (30 * 60) + 241;
+		sc = (t - 1) / (30 * 60) + 241;
 	else
 		sc = 253;
+
 	cam_fill_ataio(&ccb->ataio,
 		      retry_count,
 		      NULL,
