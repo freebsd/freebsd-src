@@ -1268,19 +1268,22 @@ consists of all characters until the matching
 .Ql } .
 Any
 .Ql }
-escaped by a backslash or within a single-quoted string, and characters in
+escaped by a backslash or within a single-quoted or double-quoted
+string, and characters in
 embedded arithmetic expansions, command substitutions, and variable
 expansions, are not examined in determining the matching
 .Ql } .
-Except for the variants with
+If the variants with
 .Ql + ,
 .Ql - ,
 .Ql =
 or
-.Ql ?\& ,
-any
+.Ql ?\&
+occur within a double-quoted string,
+as an extension there may be unquoted parts
+(via double-quotes inside the expansion);
 .Ql }
-within a double-quoted string is also not examined in determining the matching
+within such parts are also not examined in determining the matching
 .Ql } .
 .Pp
 The simplest form for parameter expansion is:
