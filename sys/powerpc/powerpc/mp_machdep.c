@@ -78,7 +78,13 @@ machdep_ap_bootstrap(void)
 		;
 
 	/* Initialize DEC and TB, sync with the BSP values */
+#ifdef __powerpc64__
+	/* Writing to the time base register is hypervisor-privileged */
+	if (mfmsr() & PSL_HV)
+		mttb(ap_timebase);
+#else
 	mttb(ap_timebase);
+#endif
 	decr_ap_init();
 
 	/* Serialize console output and AP count increment */
@@ -240,7 +246,13 @@ cpu_mp_unleash(void *dummy)
 	/* Let APs continue */
 	atomic_store_rel_int(&ap_letgo, 1);
 
+#ifdef __powerpc64__
+	/* Writing to the time base register is hypervisor-privileged */
+	if (mfmsr() & PSL_HV)
+		mttb(ap_timebase);
+#else
 	mttb(ap_timebase);
+#endif
 
 	while (ap_awake < smp_cpus)
 		;
