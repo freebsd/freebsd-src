@@ -275,8 +275,6 @@ static struct	mem_region *pregions;
 static u_int	phys_avail_count;
 static int	regions_sz, pregions_sz;
 
-extern struct pmap ofw_pmap;
-
 extern void bs_remap_earlyboot(void);
 
 
@@ -1119,13 +1117,6 @@ moea64_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 
 	chosen = OF_finddevice("/chosen");
 	if (chosen != -1 && OF_getprop(chosen, "mmu", &mmui, 4) != -1) {
-	    #ifndef __powerpc64__
-	    moea64_pinit(mmup, &ofw_pmap);
-
-	    for (i = 0; i < 16; i++)
-		ofw_pmap.pm_sr[i] = kernel_pmap->pm_sr[i];
-	    #endif
-
 	    mmu = OF_instance_to_package(mmui);
 	    if (mmu == -1 || (sz = OF_getproplen(mmu, "translations")) == -1)
 		sz = 0;

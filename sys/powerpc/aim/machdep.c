@@ -159,8 +159,6 @@ int             setfault(faultbuf);             /* defined in locore.S */
 long		Maxmem = 0;
 long		realmem = 0;
 
-struct pmap	ofw_pmap;
-
 #ifndef __powerpc64__
 struct bat	battable[16];
 #endif
