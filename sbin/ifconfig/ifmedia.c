@@ -276,7 +276,7 @@ setmedia(const char *val, int d, int s, const struct afswtch *afp)
 	    IFM_TYPE(ifmr->ifm_ulist[0]) | subtype;
 
 	if ((ifr.ifr_media & IFM_TMASK) == 0) {
-		ifr.ifr_media &= ~IFM_GMASK;
+		ifr.ifr_media &= ~(IFM_GMASK | IFM_OMASK);
 	}
 
 	ifmr->ifm_current = ifr.ifr_media;
