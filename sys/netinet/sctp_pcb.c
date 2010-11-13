@@ -3464,6 +3464,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	cnt = 0;
 	for ((asoc = LIST_FIRST(&inp->sctp_asoc_list)); asoc != NULL;
 	    asoc = nasoc) {
+		SCTP_TCB_LOCK(asoc);
 		nasoc = LIST_NEXT(asoc, sctp_tcblist);
 		if (asoc->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
 			if (asoc->asoc.state & SCTP_STATE_IN_ACCEPT_QUEUE) {
@@ -3471,10 +3472,10 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 				sctp_timer_start(SCTP_TIMER_TYPE_ASOCKILL, inp, asoc, NULL);
 			}
 			cnt++;
+			SCTP_TCB_UNLOCK(asoc);
 			continue;
 		}
 		/* Free associations that are NOT killing us */
-		SCTP_TCB_LOCK(asoc);
 		if ((SCTP_GET_STATE(&asoc->asoc) != SCTP_STATE_COOKIE_WAIT) &&
 		    ((asoc->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) == 0)) {
 			struct mbuf *op_err;
