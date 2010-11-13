@@ -123,6 +123,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 
 #include <net/if.h>
@@ -280,6 +281,9 @@ static void re_clrwol		(struct rl_softc *);
 #ifdef RE_DIAG
 static int re_diag		(struct rl_softc *);
 #endif
+
+static void re_add_sysctls	(struct rl_softc *);
+static int re_sysctl_stats	(SYSCTL_HANDLER_ARGS);
 
 static device_method_t re_methods[] = {
 	/* Device interface */
@@ -1085,6 +1089,35 @@ re_allocmem(device_t dev, struct rl_softc *sc)
 		}
 	}
 
+	/* Create DMA map for statistics. */
+	error = bus_dma_tag_create(sc->rl_parent_tag, RL_DUMP_ALIGN, 0,
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
+	    sizeof(struct rl_stats), 1, sizeof(struct rl_stats), 0, NULL, NULL,
+	    &sc->rl_ldata.rl_stag);
+	if (error) {
+		device_printf(dev, "could not create statistics DMA tag\n");
+		return (error);
+	}
+	/* Allocate DMA'able memory for statistics. */
+	error = bus_dmamem_alloc(sc->rl_ldata.rl_stag,
+	    (void **)&sc->rl_ldata.rl_stats,
+	    BUS_DMA_WAITOK | BUS_DMA_COHERENT | BUS_DMA_ZERO,
+	    &sc->rl_ldata.rl_smap);
+	if (error) {
+		device_printf(dev,
+		    "could not allocate statistics DMA memory\n");
+		return (error);
+	}
+	/* Load the map for statistics. */
+	sc->rl_ldata.rl_stats_addr = 0;
+	error = bus_dmamap_load(sc->rl_ldata.rl_stag, sc->rl_ldata.rl_smap,
+	    sc->rl_ldata.rl_stats, sizeof(struct rl_stats), re_dma_map_addr,
+	     &sc->rl_ldata.rl_stats_addr, BUS_DMA_NOWAIT);
+	if (error != 0 || sc->rl_ldata.rl_stats_addr == 0) {
+		device_printf(dev, "could not load statistics DMA memory\n");
+		return (ENOMEM);
+	}
+
 	return (0);
 }
 
@@ -1375,6 +1408,7 @@ re_attach(device_t dev)
 	error = re_allocmem(dev, sc);
 	if (error)
 		goto fail;
+	re_add_sysctls(sc);
 
 	ifp = sc->rl_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
@@ -1604,22 +1638,26 @@ re_detach(device_t dev)
 	/* Unload and free the RX DMA ring memory and map */
 
 	if (sc->rl_ldata.rl_rx_list_tag) {
-		bus_dmamap_unload(sc->rl_ldata.rl_rx_list_tag,
-		    sc->rl_ldata.rl_rx_list_map);
-		bus_dmamem_free(sc->rl_ldata.rl_rx_list_tag,
-		    sc->rl_ldata.rl_rx_list,
-		    sc->rl_ldata.rl_rx_list_map);
+		if (sc->rl_ldata.rl_rx_list_map)
+			bus_dmamap_unload(sc->rl_ldata.rl_rx_list_tag,
+			    sc->rl_ldata.rl_rx_list_map);
+		if (sc->rl_ldata.rl_rx_list_map && sc->rl_ldata.rl_rx_list)
+			bus_dmamem_free(sc->rl_ldata.rl_rx_list_tag,
+			    sc->rl_ldata.rl_rx_list,
+			    sc->rl_ldata.rl_rx_list_map);
 		bus_dma_tag_destroy(sc->rl_ldata.rl_rx_list_tag);
 	}
 
 	/* Unload and free the TX DMA ring memory and map */
 
 	if (sc->rl_ldata.rl_tx_list_tag) {
-		bus_dmamap_unload(sc->rl_ldata.rl_tx_list_tag,
-		    sc->rl_ldata.rl_tx_list_map);
-		bus_dmamem_free(sc->rl_ldata.rl_tx_list_tag,
-		    sc->rl_ldata.rl_tx_list,
-		    sc->rl_ldata.rl_tx_list_map);
+		if (sc->rl_ldata.rl_tx_list_map)
+			bus_dmamap_unload(sc->rl_ldata.rl_tx_list_tag,
+			    sc->rl_ldata.rl_tx_list_map);
+		if (sc->rl_ldata.rl_tx_list_map && sc->rl_ldata.rl_tx_list)
+			bus_dmamem_free(sc->rl_ldata.rl_tx_list_tag,
+			    sc->rl_ldata.rl_tx_list,
+			    sc->rl_ldata.rl_tx_list_map);
 		bus_dma_tag_destroy(sc->rl_ldata.rl_tx_list_tag);
 	}
 
@@ -1644,11 +1682,12 @@ re_detach(device_t dev)
 	/* Unload and free the stats buffer and map */
 
 	if (sc->rl_ldata.rl_stag) {
-		bus_dmamap_unload(sc->rl_ldata.rl_stag,
-		    sc->rl_ldata.rl_rx_list_map);
-		bus_dmamem_free(sc->rl_ldata.rl_stag,
-		    sc->rl_ldata.rl_stats,
-		    sc->rl_ldata.rl_smap);
+		if (sc->rl_ldata.rl_smap)
+			bus_dmamap_unload(sc->rl_ldata.rl_stag,
+			    sc->rl_ldata.rl_smap);
+		if (sc->rl_ldata.rl_smap && sc->rl_ldata.rl_stats)
+			bus_dmamem_free(sc->rl_ldata.rl_stag,
+			    sc->rl_ldata.rl_stats, sc->rl_ldata.rl_smap);
 		bus_dma_tag_destroy(sc->rl_ldata.rl_stag);
 	}
 
@@ -3178,4 +3217,89 @@ re_clrwol(struct rl_softc *sc)
 	v &= ~(RL_CFG5_WOL_BCAST | RL_CFG5_WOL_MCAST | RL_CFG5_WOL_UCAST);
 	v &= ~RL_CFG5_WOL_LANWAKE;
 	CSR_WRITE_1(sc, RL_CFG5, v);
+}
+
+static void
+re_add_sysctls(struct rl_softc *sc)
+{
+	struct sysctl_ctx_list	*ctx;
+	struct sysctl_oid_list	*children;
+
+	ctx = device_get_sysctl_ctx(sc->rl_dev);
+	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->rl_dev));
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "stats",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, re_sysctl_stats, "I",
+	    "Statistics Information");
+}
+
+static int
+re_sysctl_stats(SYSCTL_HANDLER_ARGS)
+{
+	struct rl_softc		*sc;
+	struct rl_stats		*stats;
+	int			error, i, result;
+
+	result = -1;
+	error = sysctl_handle_int(oidp, &result, 0, req);
+	if (error || req->newptr == NULL)
+		return (error);
+
+	if (result == 1) {
+		sc = (struct rl_softc *)arg1;
+		RL_LOCK(sc);
+		bus_dmamap_sync(sc->rl_ldata.rl_stag,
+		    sc->rl_ldata.rl_smap, BUS_DMASYNC_PREREAD);
+		CSR_WRITE_4(sc, RL_DUMPSTATS_HI,
+		    RL_ADDR_HI(sc->rl_ldata.rl_stats_addr));
+		CSR_WRITE_4(sc, RL_DUMPSTATS_LO,
+		    RL_ADDR_LO(sc->rl_ldata.rl_stats_addr));
+		CSR_WRITE_4(sc, RL_DUMPSTATS_LO,
+		    RL_ADDR_LO(sc->rl_ldata.rl_stats_addr |
+		    RL_DUMPSTATS_START));
+		for (i = RL_TIMEOUT; i > 0; i--) {
+			if ((CSR_READ_4(sc, RL_DUMPSTATS_LO) &
+			    RL_DUMPSTATS_START) == 0)
+				break;
+			DELAY(1000);
+		}
+		bus_dmamap_sync(sc->rl_ldata.rl_stag,
+		    sc->rl_ldata.rl_smap, BUS_DMASYNC_POSTREAD);
+		RL_UNLOCK(sc);
+		if (i == 0) {
+			device_printf(sc->rl_dev,
+			    "DUMP statistics request timedout\n");
+			return (ETIMEDOUT);
+		}
+		stats = sc->rl_ldata.rl_stats;
+		printf("%s statistics:\n", device_get_nameunit(sc->rl_dev));
+		printf("Tx frames : %ju\n",
+		    (uintmax_t)le64toh(stats->rl_tx_pkts));
+		printf("Rx frames : %ju\n",
+		    (uintmax_t)le64toh(stats->rl_rx_pkts));
+		printf("Tx errors : %ju\n",
+		    (uintmax_t)le64toh(stats->rl_tx_errs));
+		printf("Rx errors : %u\n",
+		    le32toh(stats->rl_rx_errs));
+		printf("Rx missed frames : %u\n",
+		    (uint32_t)le16toh(stats->rl_missed_pkts));
+		printf("Rx frame alignment errs : %u\n",
+		    (uint32_t)le16toh(stats->rl_rx_framealign_errs));
+		printf("Tx single collisions : %u\n",
+		    le32toh(stats->rl_tx_onecoll));
+		printf("Tx multiple collisions : %u\n",
+		    le32toh(stats->rl_tx_multicolls));
+		printf("Rx unicast frames : %ju\n",
+		    (uintmax_t)le64toh(stats->rl_rx_ucasts));
+		printf("Rx broadcast frames : %ju\n",
+		    (uintmax_t)le64toh(stats->rl_rx_bcasts));
+		printf("Rx multicast frames : %u\n",
+		    le32toh(stats->rl_rx_mcasts));
+		printf("Tx aborts : %u\n",
+		    (uint32_t)le16toh(stats->rl_tx_aborts));
+		printf("Tx underruns : %u\n",
+		    (uint32_t)le16toh(stats->rl_rx_underruns));
+	}
+
+	return (error);
 }
