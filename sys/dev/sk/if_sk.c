@@ -1319,8 +1319,10 @@ sk_attach(dev)
 	struct sk_softc		*sc;
 	struct sk_if_softc	*sc_if;
 	struct ifnet		*ifp;
+	u_int32_t		r;
 	int			error, i, phy, port;
 	u_char			eaddr[6];
+	u_char			inv_mac[] = {0, 0, 0, 0, 0, 0};
 
 	if (dev == NULL)
 		return(EINVAL);
@@ -1402,6 +1404,23 @@ sk_attach(dev)
 		eaddr[i] =
 		    sk_win_read_1(sc, SK_MAC0_0 + (port * 8) + i);
 
+	/* Verify whether the station address is invalid or not. */
+	if (bcmp(eaddr, inv_mac, sizeof(inv_mac)) == 0) {
+		device_printf(sc_if->sk_if_dev,
+		    "Generating random ethernet address\n");
+		r = arc4random();
+		/*
+		 * Set OUI to convenient locally assigned address.  'b'
+		 * is 0x62, which has the locally assigned bit set, and
+		 * the broadcast/multicast bit clear.
+		 */
+		eaddr[0] = 'b';
+		eaddr[1] = 's';
+		eaddr[2] = 'd';
+		eaddr[3] = (r >> 16) & 0xff;
+		eaddr[4] = (r >>  8) & 0xff;
+		eaddr[5] = (r >>  0) & 0xff;
+	}
 	/*
 	 * Set up RAM buffer addresses. The NIC will have a certain
 	 * amount of SRAM on it, somewhere between 512K and 2MB. We
