@@ -54,9 +54,8 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include "bsdtar.h"
+#include "err.h"
 
-static void	bsdtar_vwarnc(struct bsdtar *, int code,
-		    const char *fmt, va_list ap);
 static size_t	bsdtar_expand_char(char *, size_t, char);
 static const char *strip_components(const char *path, int elements);
 
@@ -203,37 +202,6 @@ bsdtar_expand_char(char *buff, size_t offset, char c)
 	return (i - offset);
 }
 
-static void
-bsdtar_vwarnc(struct bsdtar *bsdtar, int code, const char *fmt, va_list ap)
-{
-	fprintf(stderr, "%s: ", bsdtar->progname);
-	vfprintf(stderr, fmt, ap);
-	if (code != 0)
-		fprintf(stderr, ": %s", strerror(code));
-	fprintf(stderr, "\n");
-}
-
-void
-bsdtar_warnc(struct bsdtar *bsdtar, int code, const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	bsdtar_vwarnc(bsdtar, code, fmt, ap);
-	va_end(ap);
-}
-
-void
-bsdtar_errc(struct bsdtar *bsdtar, int eval, int code, const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	bsdtar_vwarnc(bsdtar, code, fmt, ap);
-	va_end(ap);
-	exit(eval);
-}
-
 int
 yes(const char *fmt, ...)
 {
@@ -297,11 +265,11 @@ process_lines(struct bsdtar *bsdtar, const char *pathname,
 	else
 		f = fopen(pathname, "r");
 	if (f == NULL)
-		bsdtar_errc(bsdtar, 1, errno, "Couldn't open %s", pathname);
+		bsdtar_errc(1, errno, "Couldn't open %s", pathname);
 	buff_length = 8192;
 	buff = malloc(buff_length);
 	if (buff == NULL)
-		bsdtar_errc(bsdtar, 1, ENOMEM, "Can't read %s", pathname);
+		bsdtar_errc(1, ENOMEM, "Can't read %s", pathname);
 	line_start = line_end = buff_end = buff;
 	for (;;) {
 		/* Get some more data into the buffer. */
@@ -322,7 +290,7 @@ process_lines(struct bsdtar *bsdtar, const char *pathname,
 		if (feof(f))
 			break;
 		if (ferror(f))
-			bsdtar_errc(bsdtar, 1, errno,
+			bsdtar_errc(1, errno,
 			    "Can't read %s", pathname);
 		if (line_start > buff) {
 			/* Move a leftover fractional line to the beginning. */
@@ -334,12 +302,12 @@ process_lines(struct bsdtar *bsdtar, const char *pathname,
 			/* Line is too big; enlarge the buffer. */
 			new_buff_length = buff_length * 2;
 			if (new_buff_length <= buff_length)
-				bsdtar_errc(bsdtar, 1, ENOMEM,
+				bsdtar_errc(1, ENOMEM,
 				    "Line too long in %s", pathname);
 			buff_length = new_buff_length;
 			p = realloc(buff, buff_length);
 			if (p == NULL)
-				bsdtar_errc(bsdtar, 1, ENOMEM,
+				bsdtar_errc(1, ENOMEM,
 				    "Line too long in %s", pathname);
 			buff_end = p + (buff_end - buff);
 			line_end = p + (line_end - buff);
@@ -399,7 +367,7 @@ set_chdir(struct bsdtar *bsdtar, const char *newdir)
 		free(old_pending);
 	}
 	if (bsdtar->pending_chdir == NULL)
-		bsdtar_errc(bsdtar, 1, errno, "No memory");
+		bsdtar_errc(1, errno, "No memory");
 }
 
 void
@@ -409,7 +377,7 @@ do_chdir(struct bsdtar *bsdtar)
 		return;
 
 	if (chdir(bsdtar->pending_chdir) != 0) {
-		bsdtar_errc(bsdtar, 1, 0, "could not chdir to '%s'\n",
+		bsdtar_errc(1, 0, "could not chdir to '%s'\n",
 		    bsdtar->pending_chdir);
 	}
 	free(bsdtar->pending_chdir);
@@ -459,7 +427,7 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 #if HAVE_REGEX_H
 	r = apply_substitution(bsdtar, name, &subst_name, 0);
 	if (r == -1) {
-		bsdtar_warnc(bsdtar, 0, "Invalid substitution, skipping entry");
+		bsdtar_warnc(0, "Invalid substitution, skipping entry");
 		return 1;
 	}
 	if (r == 1) {
@@ -475,7 +443,7 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 	if (archive_entry_hardlink(entry)) {
 		r = apply_substitution(bsdtar, archive_entry_hardlink(entry), &subst_name, 1);
 		if (r == -1) {
-			bsdtar_warnc(bsdtar, 0, "Invalid substitution, skipping entry");
+			bsdtar_warnc(0, "Invalid substitution, skipping entry");
 			return 1;
 		}
 		if (r == 1) {
@@ -486,7 +454,7 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 	if (archive_entry_symlink(entry) != NULL) {
 		r = apply_substitution(bsdtar, archive_entry_symlink(entry), &subst_name, 1);
 		if (r == -1) {
-			bsdtar_warnc(bsdtar, 0, "Invalid substitution, skipping entry");
+			bsdtar_warnc(0, "Invalid substitution, skipping entry");
 			return 1;
 		}
 		if (r == 1) {
@@ -560,11 +528,11 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 		if (p != name && !bsdtar->warned_lead_slash) {
 			/* Generate a warning the first time this happens. */
 			if (slashonly)
-				bsdtar_warnc(bsdtar, 0,
+				bsdtar_warnc(0,
 				    "Removing leading '%c' from member names",
 				    name[0]);
 			else
-				bsdtar_warnc(bsdtar, 0,
+				bsdtar_warnc(0,
 				    "Removing leading drive letter from "
 				    "member names");
 			bsdtar->warned_lead_slash = 1;

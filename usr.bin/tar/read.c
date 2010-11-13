@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include "bsdtar.h"
+#include "err.h"
 
 static void	list_item_verbose(struct bsdtar *, FILE *,
 		    struct archive_entry *);
@@ -128,11 +129,11 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		archive_read_support_compression_all(a);
 	archive_read_support_format_all(a);
 	if (ARCHIVE_OK != archive_read_set_options(a, bsdtar->option_options))
-		bsdtar_errc(bsdtar, 1, 0, archive_error_string(a));
+		bsdtar_errc(1, 0, archive_error_string(a));
 	if (archive_read_open_file(a, bsdtar->filename,
 	    bsdtar->bytes_per_block != 0 ? bsdtar->bytes_per_block :
 	    DEFAULT_BYTES_PER_BLOCK))
-		bsdtar_errc(bsdtar, 1, 0, "Error opening archive: %s",
+		bsdtar_errc(1, 0, "Error opening archive: %s",
 		    archive_error_string(a));
 
 	do_chdir(bsdtar);
@@ -146,9 +147,9 @@ read_archive(struct bsdtar *bsdtar, char mode)
 	if (mode == 'x' && bsdtar->option_chroot) {
 #if HAVE_CHROOT
 		if (chroot(".") != 0)
-			bsdtar_errc(bsdtar, 1, errno, "Can't chroot to \".\"");
+			bsdtar_errc(1, errno, "Can't chroot to \".\"");
 #else
-		bsdtar_errc(bsdtar, 1, 0,
+		bsdtar_errc(1, 0,
 		    "chroot isn't supported on this platform");
 #endif
 	}
@@ -163,12 +164,12 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		if (r == ARCHIVE_EOF)
 			break;
 		if (r < ARCHIVE_OK)
-			bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
+			bsdtar_warnc(0, "%s", archive_error_string(a));
 		if (r <= ARCHIVE_WARN)
 			bsdtar->return_value = 1;
 		if (r == ARCHIVE_RETRY) {
 			/* Retryable error: try again */
-			bsdtar_warnc(bsdtar, 0, "Retrying...");
+			bsdtar_warnc(0, "Retrying...");
 			continue;
 		}
 		if (r == ARCHIVE_FATAL)
@@ -232,17 +233,17 @@ read_archive(struct bsdtar *bsdtar, char mode)
 			r = archive_read_data_skip(a);
 			if (r == ARCHIVE_WARN) {
 				fprintf(out, "\n");
-				bsdtar_warnc(bsdtar, 0, "%s",
+				bsdtar_warnc(0, "%s",
 				    archive_error_string(a));
 			}
 			if (r == ARCHIVE_RETRY) {
 				fprintf(out, "\n");
-				bsdtar_warnc(bsdtar, 0, "%s",
+				bsdtar_warnc(0, "%s",
 				    archive_error_string(a));
 			}
 			if (r == ARCHIVE_FATAL) {
 				fprintf(out, "\n");
-				bsdtar_warnc(bsdtar, 0, "%s",
+				bsdtar_warnc(0, "%s",
 				    archive_error_string(a));
 				bsdtar->return_value = 1;
 				break;
@@ -297,7 +298,7 @@ read_archive(struct bsdtar *bsdtar, char mode)
 
 	r = archive_read_close(a);
 	if (r != ARCHIVE_OK)
-		bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
+		bsdtar_warnc(0, "%s", archive_error_string(a));
 	if (r <= ARCHIVE_WARN)
 		bsdtar->return_value = 1;
 

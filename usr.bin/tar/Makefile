@@ -3,7 +3,7 @@
 
 PROG=	bsdtar
 BSDTAR_VERSION_STRING=2.7.0
-SRCS=	bsdtar.c cmdline.c getdate.c matching.c read.c siginfo.c subst.c tree.c util.c write.c
+SRCS=	bsdtar.c cmdline.c err.c getdate.c matching.c read.c siginfo.c subst.c tree.c util.c write.c
 DPADD=	${LIBARCHIVE} ${LIBBZ2} ${LIBZ} ${LIBLZMA}
 LDADD=	-larchive -lbz2 -lz -lmd -llzma
 .if ${MK_OPENSSL} != "no"
