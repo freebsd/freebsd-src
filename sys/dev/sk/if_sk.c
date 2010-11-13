@@ -3358,6 +3358,7 @@ sk_init_yukon(sc_if)
 	u_int16_t		reg;
 	struct sk_softc		*sc;
 	struct ifnet		*ifp;
+	u_int8_t		*eaddr;
 	int			i;
 
 	SK_IF_LOCK_ASSERT(sc_if);
@@ -3433,19 +3434,19 @@ sk_init_yukon(sc_if)
 		reg |= YU_SMR_MFL_JUMBO;
 	SK_YU_WRITE_2(sc_if, YUKON_SMR, reg);
 
-	/* Setup Yukon's address */
-	for (i = 0; i < 3; i++) {
-		/* Write Source Address 1 (unicast filter) */
+	/* Setup Yukon's station address */
+	eaddr = IF_LLADDR(sc_if->sk_ifp);
+	for (i = 0; i < 3; i++)
+		SK_YU_WRITE_2(sc_if, SK_MAC0_0 + i * 4,
+		    eaddr[i * 2] | eaddr[i * 2 + 1] << 8);
+	/* Set GMAC source address of flow control. */
+	for (i = 0; i < 3; i++)
 		SK_YU_WRITE_2(sc_if, YUKON_SAL1 + i * 4,
-			      IF_LLADDR(sc_if->sk_ifp)[i * 2] |
-			      IF_LLADDR(sc_if->sk_ifp)[i * 2 + 1] << 8);
-	}
-
-	for (i = 0; i < 3; i++) {
-		reg = sk_win_read_2(sc_if->sk_softc,
-				    SK_MAC1_0 + i * 2 + sc_if->sk_port * 8);
-		SK_YU_WRITE_2(sc_if, YUKON_SAL2 + i * 4, reg);
-	}
+		    eaddr[i * 2] | eaddr[i * 2 + 1] << 8);
+	/* Set GMAC virtual address. */
+	for (i = 0; i < 3; i++)
+		SK_YU_WRITE_2(sc_if, YUKON_SAL2 + i * 4,
+		    eaddr[i * 2] | eaddr[i * 2 + 1] << 8);
 
 	/* Set Rx filter */
 	sk_rxfilter_yukon(sc_if);
