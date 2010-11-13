@@ -935,6 +935,7 @@ re_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 static int
 re_allocmem(device_t dev, struct rl_softc *sc)
 {
+	bus_addr_t		lowaddr;
 	bus_size_t		rx_list_size, tx_list_size;
 	int			error;
 	int			i;
@@ -948,10 +949,13 @@ re_allocmem(device_t dev, struct rl_softc *sc)
 	 * register should be set. However some RealTek chips are known
 	 * to be buggy on DAC handling, therefore disable DAC by limiting
 	 * DMA address space to 32bit. PCIe variants of RealTek chips
-	 * may not have the limitation but I took safer path.
+	 * may not have the limitation.
 	 */
+	lowaddr = BUS_SPACE_MAXADDR;
+	if ((sc->rl_flags & RL_FLAG_PCIE) == 0)
+		lowaddr = BUS_SPACE_MAXADDR_32BIT;
 	error = bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0,
-	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    lowaddr, BUS_SPACE_MAXADDR, NULL, NULL,
 	    BUS_SPACE_MAXSIZE_32BIT, 0, BUS_SPACE_MAXSIZE_32BIT, 0,
 	    NULL, NULL, &sc->rl_parent_tag);
 	if (error) {
