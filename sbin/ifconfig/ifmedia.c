@@ -757,7 +757,7 @@ print_media_word_ifconfig(int ifmw)
 {
 	struct ifmedia_description *desc;
 	struct ifmedia_type_to_subtype *ttos;
-	int i;
+	int seen_option = 0, i;
 
 	/* Find the top-level interface type. */
 	desc = get_toptype_desc(ifmw);
@@ -792,7 +792,10 @@ print_media_word_ifconfig(int ifmw)
 		for (desc = ttos->options[i].desc;
 		    desc->ifmt_string != NULL; desc++) {
 			if (ifmw & desc->ifmt_word) {
-				printf(" mediaopt %s", desc->ifmt_string);
+				if (seen_option == 0)
+					printf(" mediaopt ");
+				printf("%s%s", seen_option++ ? "," : "",
+				    desc->ifmt_string);
 			}
 		}
 	}
