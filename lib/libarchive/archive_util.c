@@ -100,6 +100,11 @@ archive_error_string(struct archive *a)
 		return ("(Empty error message)");
 }
 
+int
+archive_file_count(struct archive *a)
+{
+	return (a->file_count);
+}
 
 int
 archive_format(struct archive *a)
@@ -182,9 +187,14 @@ void
 __archive_errx(int retvalue, const char *msg)
 {
 	static const char *msg1 = "Fatal Internal Error in libarchive: ";
-	write(2, msg1, strlen(msg1));
-	write(2, msg, strlen(msg));
-	write(2, "\n", 1);
+	size_t s;
+
+	s = write(2, msg1, strlen(msg1));
+	(void)s; /* UNUSED */
+	s = write(2, msg, strlen(msg));
+	(void)s; /* UNUSED */
+	s = write(2, "\n", 1);
+	(void)s; /* UNUSED */
 	exit(retvalue);
 }
 
