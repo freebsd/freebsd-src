@@ -882,7 +882,7 @@ DMenu MenuMediaFTP = {
 DMenu MenuNetworkDevice = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Network interface information required",
-    "Please select the ethernet device to configure.\n\n"
+    "Please select the ethernet or PLIP device to configure.\n\n"
     "",
     "Press F1 to read network configuration manual",
     "network_device",
