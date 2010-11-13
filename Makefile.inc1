@@ -123,6 +123,20 @@ TARGET_ARCH=	${TARGET:S/pc98/i386/:S/sun4v/sparc64/:S/mips/mipsel/}
     ${TARGET_ARCH} != ${MACHINE_ARCH}
 TARGET=		${TARGET_ARCH:C/mipse[lb]/mips/:C/armeb/arm}
 .endif
+# Legacy names, for a transition period mips:mips -> mipsel:mips
+.if ${TARGET_ARCH} == "mips" && ${TARGET} == "mips"
+.warning "TARGET_ARCH of mips is deprecated in favor of mipsel or mipseb"
+.if defined(TARGET_BIG_ENDIAN)
+TARGET_ARCH=mipseb
+.else
+TARGET_ARCH=mipsel
+.endif
+.endif
+# arm with TARGET_BIG_ENDIAN -> armeb
+.if ${TARGET_ARCH} == "arm" && defined(TARGET_BIG_ENDIAN)
+.warning "TARGET_ARCH of arm with TARGET_BIG_ENDIAN is deprecated.  use armeb"
+TARGET_ARCH=armeb
+.endif
 # Otherwise, default to current machine type and architecture.
 TARGET?=	${MACHINE}
 TARGET_ARCH?=	${MACHINE_ARCH}
