@@ -3,8 +3,6 @@
 #
 # $FreeBSD$
 
-machine 	mips
-
 device		mem
 
 device		uart_ns8250

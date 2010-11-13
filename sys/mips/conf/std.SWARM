@@ -2,8 +2,8 @@
 # $FreeBSD$
 #
 
-files		"../sibyte/files.sibyte"
 hints		"SWARM.hints"
+include		"../sibyte/std.sibyte"
 
 options		CFE
 options		CFE_CONSOLE
