@@ -186,9 +186,9 @@ main(int argc, char **argv)
 			break;
 		case 'b': /* SUSv2 */
 			t = atoi(bsdtar->optarg);
-			if (t <= 0 || t > 1024)
+			if (t <= 0 || t > 8192)
 				bsdtar_errc(1, 0,
-				    "Argument to -b is out of range (1..1024)");
+				    "Argument to -b is out of range (1..8192)");
 			bsdtar->bytes_per_block = 512 * t;
 			break;
 		case 'C': /* GNU tar */
