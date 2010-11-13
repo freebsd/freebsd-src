@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 
 #include "bsdtar.h"
 #include "tree.h"
+#include "err.h"
 
 /* Size of buffer for holding file data prior to writing. */
 #define FILEDATABUFLEN	65536
@@ -146,7 +147,7 @@ tar_mode_c(struct bsdtar *bsdtar)
 	int r;
 
 	if (*bsdtar->argv == NULL && bsdtar->names_from_file == NULL)
-		bsdtar_errc(bsdtar, 1, 0, "no files or directories specified");
+		bsdtar_errc(1, 0, "no files or directories specified");
 
 	a = archive_write_new();
 
@@ -161,7 +162,7 @@ tar_mode_c(struct bsdtar *bsdtar)
 		fprintf(stderr, "Can't use format %s: %s\n",
 		    bsdtar->create_format,
 		    archive_error_string(a));
-		usage(bsdtar);
+		usage();
 	}
 
 	/*
@@ -206,16 +207,16 @@ tar_mode_c(struct bsdtar *bsdtar)
 			archive_write_set_compression_compress(a);
 			break;
 		default:
-			bsdtar_errc(bsdtar, 1, 0,
+			bsdtar_errc(1, 0,
 			    "Unrecognized compression option -%c",
 			    bsdtar->create_compression);
 		}
 	}
 
 	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
-		bsdtar_errc(bsdtar, 1, 0, archive_error_string(a));
+		bsdtar_errc(1, 0, archive_error_string(a));
 	if (ARCHIVE_OK != archive_write_open_file(a, bsdtar->filename))
-		bsdtar_errc(bsdtar, 1, 0, archive_error_string(a));
+		bsdtar_errc(1, 0, archive_error_string(a));
 	write_archive(a, bsdtar);
 }
 
@@ -239,7 +240,7 @@ tar_mode_r(struct bsdtar *bsdtar)
 
 	bsdtar->fd = open(bsdtar->filename, O_RDWR | O_CREAT, 0666);
 	if (bsdtar->fd < 0)
-		bsdtar_errc(bsdtar, 1, errno,
+		bsdtar_errc(1, errno,
 		    "Cannot open %s", bsdtar->filename);
 
 	a = archive_read_new();
@@ -248,14 +249,14 @@ tar_mode_r(struct bsdtar *bsdtar)
 	archive_read_support_format_gnutar(a);
 	r = archive_read_open_fd(a, bsdtar->fd, 10240);
 	if (r != ARCHIVE_OK)
-		bsdtar_errc(bsdtar, 1, archive_errno(a),
+		bsdtar_errc(1, archive_errno(a),
 		    "Can't read archive %s: %s", bsdtar->filename,
 		    archive_error_string(a));
 	while (0 == archive_read_next_header(a, &entry)) {
 		if (archive_compression(a) != ARCHIVE_COMPRESSION_NONE) {
 			archive_read_finish(a);
 			close(bsdtar->fd);
-			bsdtar_errc(bsdtar, 1, 0,
+			bsdtar_errc(1, 0,
 			    "Cannot append to compressed archive.");
 		}
 		/* Keep going until we hit end-of-archive */
@@ -284,7 +285,7 @@ tar_mode_r(struct bsdtar *bsdtar)
 		format &= ARCHIVE_FORMAT_BASE_MASK;
 		if (format != (int)(archive_format(a) & ARCHIVE_FORMAT_BASE_MASK)
 		    && format != ARCHIVE_FORMAT_EMPTY) {
-			bsdtar_errc(bsdtar, 1, 0,
+			bsdtar_errc(1, 0,
 			    "Format %s is incompatible with the archive %s.",
 			    bsdtar->create_format, bsdtar->filename);
 		}
@@ -302,9 +303,9 @@ tar_mode_r(struct bsdtar *bsdtar)
 	}
 	lseek(bsdtar->fd, end_offset, SEEK_SET); /* XXX check return val XXX */
 	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
-		bsdtar_errc(bsdtar, 1, 0, archive_error_string(a));
+		bsdtar_errc(1, 0, archive_error_string(a));
 	if (ARCHIVE_OK != archive_write_open_fd(a, bsdtar->fd))
-		bsdtar_errc(bsdtar, 1, 0, archive_error_string(a));
+		bsdtar_errc(1, 0, archive_error_string(a));
 
 	write_archive(a, bsdtar); /* XXX check return val XXX */
 
@@ -332,7 +333,7 @@ tar_mode_u(struct bsdtar *bsdtar)
 
 	bsdtar->fd = open(bsdtar->filename, O_RDWR);
 	if (bsdtar->fd < 0)
-		bsdtar_errc(bsdtar, 1, errno,
+		bsdtar_errc(1, errno,
 		    "Cannot open %s", bsdtar->filename);
 
 	a = archive_read_new();
@@ -342,7 +343,7 @@ tar_mode_u(struct bsdtar *bsdtar)
 	if (archive_read_open_fd(a, bsdtar->fd,
 	    bsdtar->bytes_per_block != 0 ? bsdtar->bytes_per_block :
 		DEFAULT_BYTES_PER_BLOCK) != ARCHIVE_OK) {
-		bsdtar_errc(bsdtar, 1, 0,
+		bsdtar_errc(1, 0,
 		    "Can't open %s: %s", bsdtar->filename,
 		    archive_error_string(a));
 	}
@@ -352,7 +353,7 @@ tar_mode_u(struct bsdtar *bsdtar)
 		if (archive_compression(a) != ARCHIVE_COMPRESSION_NONE) {
 			archive_read_finish(a);
 			close(bsdtar->fd);
-			bsdtar_errc(bsdtar, 1, 0,
+			bsdtar_errc(1, 0,
 			    "Cannot append to compressed archive.");
 		}
 		add_dir_list(bsdtar, archive_entry_pathname(entry),
@@ -385,9 +386,9 @@ tar_mode_u(struct bsdtar *bsdtar)
 	lseek(bsdtar->fd, end_offset, SEEK_SET);
 	ftruncate(bsdtar->fd, end_offset);
 	if (ARCHIVE_OK != archive_write_set_options(a, bsdtar->option_options))
-		bsdtar_errc(bsdtar, 1, 0, archive_error_string(a));
+		bsdtar_errc(1, 0, archive_error_string(a));
 	if (ARCHIVE_OK != archive_write_open_fd(a, bsdtar->fd))
-		bsdtar_errc(bsdtar, 1, 0, archive_error_string(a));
+		bsdtar_errc(1, 0, archive_error_string(a));
 
 	write_archive(a, bsdtar);
 
@@ -418,14 +419,14 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 
 	/* Allocate a buffer for file data. */
 	if ((bsdtar->buff = malloc(FILEDATABUFLEN)) == NULL)
-		bsdtar_errc(bsdtar, 1, 0, "cannot allocate memory");
+		bsdtar_errc(1, 0, "cannot allocate memory");
 
 	if ((bsdtar->resolver = archive_entry_linkresolver_new()) == NULL)
-		bsdtar_errc(bsdtar, 1, 0, "cannot create link resolver");
+		bsdtar_errc(1, 0, "cannot create link resolver");
 	archive_entry_linkresolver_set_strategy(bsdtar->resolver,
 	    archive_format(a));
 	if ((bsdtar->diskreader = archive_read_disk_new()) == NULL)
-		bsdtar_errc(bsdtar, 1, 0, "Cannot create read_disk object");
+		bsdtar_errc(1, 0, "Cannot create read_disk object");
 	archive_read_disk_set_standard_lookup(bsdtar->diskreader);
 
 	if (bsdtar->names_from_file != NULL)
@@ -439,7 +440,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 				bsdtar->argv++;
 				arg = *bsdtar->argv;
 				if (arg == NULL) {
-					bsdtar_warnc(bsdtar, 1, 0,
+					bsdtar_warnc(1, 0,
 					    "Missing argument for -C");
 					bsdtar->return_value = 1;
 					goto cleanup;
@@ -474,7 +475,7 @@ write_archive(struct archive *a, struct bsdtar *bsdtar)
 	}
 
 	if (archive_write_close(a)) {
-		bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
+		bsdtar_warnc(0, "%s", archive_error_string(a));
 		bsdtar->return_value = 1;
 	}
 
@@ -513,7 +514,7 @@ archive_names_from_file(struct bsdtar *bsdtar, struct archive *a)
 	process_lines(bsdtar, bsdtar->names_from_file,
 	    archive_names_from_file_helper);
 	if (bsdtar->next_line_is_dir)
-		bsdtar_errc(bsdtar, 1, errno,
+		bsdtar_errc(1, errno,
 		    "Unexpected end of filename list; "
 		    "directory expected after -C");
 }
@@ -555,7 +556,7 @@ append_archive_filename(struct bsdtar *bsdtar, struct archive *a,
 	archive_read_support_format_all(ina);
 	archive_read_support_compression_all(ina);
 	if (archive_read_open_file(ina, filename, 10240)) {
-		bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(ina));
+		bsdtar_warnc(0, "%s", archive_error_string(ina));
 		bsdtar->return_value = 1;
 		return (0);
 	}
@@ -563,7 +564,7 @@ append_archive_filename(struct bsdtar *bsdtar, struct archive *a,
 	rc = append_archive(bsdtar, a, ina);
 
 	if (archive_errno(ina)) {
-		bsdtar_warnc(bsdtar, 0, "Error reading archive %s: %s",
+		bsdtar_warnc(0, "Error reading archive %s: %s",
 		    filename, archive_error_string(ina));
 		bsdtar->return_value = 1;
 	}
@@ -598,7 +599,7 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 		e = archive_write_header(a, in_entry);
 		if (e != ARCHIVE_OK) {
 			if (!bsdtar->verbose)
-				bsdtar_warnc(bsdtar, 0, "%s: %s",
+				bsdtar_warnc(0, "%s: %s",
 				    archive_entry_pathname(in_entry),
 				    archive_error_string(a));
 			else
@@ -637,7 +638,7 @@ copy_file_data(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 		bytes_written = archive_write_data(a, bsdtar->buff,
 		    bytes_read);
 		if (bytes_written < bytes_read) {
-			bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
+			bsdtar_warnc(0, "%s", archive_error_string(a));
 			return (-1);
 		}
 		progress += bytes_written;
@@ -664,7 +665,7 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 	tree = tree_open(path);
 
 	if (!tree) {
-		bsdtar_warnc(bsdtar, errno, "%s: Cannot open", path);
+		bsdtar_warnc(errno, "%s: Cannot open", path);
 		bsdtar->return_value = 1;
 		return;
 	}
@@ -677,11 +678,11 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		int descend;
 
 		if (tree_ret == TREE_ERROR_FATAL)
-			bsdtar_errc(bsdtar, 1, tree_errno(tree),
+			bsdtar_errc(1, tree_errno(tree),
 			    "%s: Unable to continue traversing directory tree",
 			    name);
 		if (tree_ret == TREE_ERROR_DIR) {
-			bsdtar_warnc(bsdtar, errno,
+			bsdtar_warnc(errno,
 			    "%s: Couldn't visit directory", name);
 			bsdtar->return_value = 1;
 		}
@@ -701,7 +702,7 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		lst = tree_current_lstat(tree);
 		if (lst == NULL) {
 			/* Couldn't lstat(); must not exist. */
-			bsdtar_warnc(bsdtar, errno, "%s: Cannot stat", name);
+			bsdtar_warnc(errno, "%s: Cannot stat", name);
 			/* Return error if files disappear during traverse. */
 			bsdtar->return_value = 1;
 			continue;
@@ -774,7 +775,7 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		r = archive_read_disk_entry_from_file(bsdtar->diskreader,
 		    entry, -1, st);
 		if (r != ARCHIVE_OK)
-			bsdtar_warnc(bsdtar, archive_errno(bsdtar->diskreader),
+			bsdtar_warnc(archive_errno(bsdtar->diskreader),
 			    archive_error_string(bsdtar->diskreader));
 		if (r < ARCHIVE_WARN)
 			continue;
@@ -875,7 +876,7 @@ write_entry_backend(struct bsdtar *bsdtar, struct archive *a,
 		fd = open(pathname, O_RDONLY);
 		if (fd == -1) {
 			if (!bsdtar->verbose)
-				bsdtar_warnc(bsdtar, errno,
+				bsdtar_warnc(errno,
 				    "%s: could not open file", pathname);
 			else
 				fprintf(stderr, ": %s", strerror(errno));
@@ -886,7 +887,7 @@ write_entry_backend(struct bsdtar *bsdtar, struct archive *a,
 	e = archive_write_header(a, entry);
 	if (e != ARCHIVE_OK) {
 		if (!bsdtar->verbose)
-			bsdtar_warnc(bsdtar, 0, "%s: %s",
+			bsdtar_warnc(0, "%s: %s",
 			    archive_entry_pathname(entry),
 			    archive_error_string(a));
 		else
@@ -933,12 +934,12 @@ write_file_data(struct bsdtar *bsdtar, struct archive *a,
 		    bytes_read);
 		if (bytes_written < 0) {
 			/* Write failed; this is bad */
-			bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
+			bsdtar_warnc(0, "%s", archive_error_string(a));
 			return (-1);
 		}
 		if (bytes_written < bytes_read) {
 			/* Write was truncated; warn but continue. */
-			bsdtar_warnc(bsdtar, 0,
+			bsdtar_warnc(0,
 			    "%s: Truncated write; file may have grown while being archived.",
 			    archive_entry_pathname(entry));
 			return (0);
@@ -1023,11 +1024,11 @@ add_dir_list(struct bsdtar *bsdtar, const char *path,
 
 	p = malloc(sizeof(*p));
 	if (p == NULL)
-		bsdtar_errc(bsdtar, 1, ENOMEM, "Can't read archive directory");
+		bsdtar_errc(1, ENOMEM, "Can't read archive directory");
 
 	p->name = strdup(path);
 	if (p->name == NULL)
-		bsdtar_errc(bsdtar, 1, ENOMEM, "Can't read archive directory");
+		bsdtar_errc(1, ENOMEM, "Can't read archive directory");
 	p->mtime_sec = mtime_sec;
 	p->mtime_nsec = mtime_nsec;
 	p->next = NULL;
@@ -1045,19 +1046,19 @@ test_for_append(struct bsdtar *bsdtar)
 	struct stat s;
 
 	if (*bsdtar->argv == NULL && bsdtar->names_from_file == NULL)
-		bsdtar_errc(bsdtar, 1, 0, "no files or directories specified");
+		bsdtar_errc(1, 0, "no files or directories specified");
 	if (bsdtar->filename == NULL)
-		bsdtar_errc(bsdtar, 1, 0, "Cannot append to stdout.");
+		bsdtar_errc(1, 0, "Cannot append to stdout.");
 
 	if (bsdtar->create_compression != 0)
-		bsdtar_errc(bsdtar, 1, 0,
+		bsdtar_errc(1, 0,
 		    "Cannot append to %s with compression", bsdtar->filename);
 
 	if (stat(bsdtar->filename, &s) != 0)
 		return;
 
 	if (!S_ISREG(s.st_mode) && !S_ISBLK(s.st_mode))
-		bsdtar_errc(bsdtar, 1, 0,
+		bsdtar_errc(1, 0,
 		    "Cannot append to %s: not a regular file.",
 		    bsdtar->filename);
 }
