@@ -187,6 +187,8 @@ do_done:
 	/* Do all done callbacks */
 
 	while ((sxfer = TAILQ_FIRST(&ctx->tr_done))) {
+		uint8_t flags;
+
 		TAILQ_REMOVE(&ctx->tr_done, sxfer, entry);
 		sxfer->entry.tqe_prev = NULL;
 
@@ -197,13 +199,14 @@ do_done:
 		uxfer = (struct libusb_transfer *)(
 		    ((uint8_t *)sxfer) + sizeof(*sxfer));
 
+		/* Allow the callback to free the transfer itself. */
+		flags = uxfer->flags;
+
 		if (uxfer->callback != NULL)
 			(uxfer->callback) (uxfer);
 
-		if (uxfer->flags & LIBUSB_TRANSFER_FREE_BUFFER)
-			free(uxfer->buffer);
-
-		if (uxfer->flags & LIBUSB_TRANSFER_FREE_TRANSFER)
+		/* Check if the USB transfer should be automatically freed. */
+		if (flags & LIBUSB_TRANSFER_FREE_TRANSFER)
 			libusb_free_transfer(uxfer);
 
 		CTX_LOCK(ctx);

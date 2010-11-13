@@ -800,6 +800,10 @@ libusb_free_transfer(struct libusb_transfer *uxfer)
 	if (uxfer == NULL)
 		return;			/* be NULL safe */
 
+	/* check if we should free the transfer buffer */
+	if (uxfer->flags & LIBUSB_TRANSFER_FREE_BUFFER)
+		free(uxfer->buffer);
+
 	sxfer = (struct libusb_super_transfer *)(
 	    (uint8_t *)uxfer - sizeof(*sxfer));
 
