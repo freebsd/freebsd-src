@@ -330,7 +330,7 @@ _syscons=	syscons
 _vpo=		vpo
 .endif
 
-.if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "mips"
+.if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
 # no BUS_SPACE_UNSPECIFIED
 # No barrier instruction support (specific to this driver)
 _sym=		sym
