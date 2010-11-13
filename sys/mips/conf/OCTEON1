@@ -18,7 +18,6 @@
 #
 # $FreeBSD$
 
-machine		mips
 cpu		CPU_CNMIPS
 ident		OCTEON1
 
@@ -27,7 +26,6 @@ makeoptions	LDSCRIPT_NAME=ldscript.mips.octeon1.64
 
 # Don't build any modules yet.
 makeoptions	MODULES_OVERRIDE=""
-makeoptions	TARGET_BIG_ENDIAN=defined
 makeoptions	KERNLOADADDR=0xffffffff80100000
 
 include		"../cavium/std.octeon1"
