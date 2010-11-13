@@ -386,6 +386,7 @@ archive_read_next_header2(struct archive *_a, struct archive_entry *entry)
 	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
 	    "archive_read_next_header");
 
+	++_a->file_count;
 	archive_entry_clear(entry);
 	archive_clear_error(&a->archive);
 
