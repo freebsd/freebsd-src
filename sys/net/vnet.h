@@ -196,8 +196,10 @@ extern struct sx vnet_sxlock;
 #define	VNET_NAME(n)		vnet_entry_##n
 #define	VNET_DECLARE(t, n)	extern t VNET_NAME(n)
 #define	VNET_DEFINE(t, n)	t VNET_NAME(n) __section(VNET_SETNAME) __used
-#define	_VNET_PTR(b, n)		(__typeof(VNET_NAME(n))*)		\
-				    ((b) + (uintptr_t)&VNET_NAME(n))
+#define	STATIC_VNET_DEFINE(t, n)					\
+    VNET_DEFINE(static t, n)
+#define	_VNET_PTR(b, n)							\
+    (__typeof(VNET_NAME(n))*)((b) + (uintptr_t)&VNET_NAME(n))
 
 #define	_VNET(b, n)		(*_VNET_PTR(b, n))
 
@@ -371,10 +373,11 @@ do {									\
  * Versions of the VNET macros that compile to normal global variables and
  * standard sysctl definitions.
  */
-#define	VNET_NAME(n)		n
-#define	VNET_DECLARE(t, n)	extern t n
-#define	VNET_DEFINE(t, n)	t n
-#define	_VNET_PTR(b, n)		&VNET_NAME(n)
+#define	VNET_NAME(n)			n
+#define	VNET_DECLARE(t, n)		extern t n
+#define	VNET_DEFINE(t, n)		t n
+#define	STATIC_VNET_DEFINE(t, n)	static t n
+#define	_VNET_PTR(b, n)			&VNET_NAME(n)
 
 /*
  * Virtualized global variable accessor macros.
