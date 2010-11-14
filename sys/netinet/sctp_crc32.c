@@ -124,18 +124,16 @@ sctp_delayed_cksum(struct mbuf *m, uint32_t offset)
 #if defined(SCTP_WITH_NO_CSUM)
 	panic("sctp_delayed_cksum() called when using no SCTP CRC.");
 #else
-	struct ip *ip;
 	uint32_t checksum;
 
-	ip = mtod(m, struct ip *);
 	checksum = sctp_calculate_cksum(m, offset);
 	SCTP_STAT_DECR(sctps_sendhwcrc);
 	SCTP_STAT_INCR(sctps_sendswcrc);
 	offset += offsetof(struct sctphdr, checksum);
 
 	if (offset + sizeof(uint32_t) > (uint32_t) (m->m_len)) {
-		printf("delayed m_pullup, m->len: %d  off: %d  p: %d\n",
-		    (uint32_t) m->m_len, offset, ip->ip_p);
+		printf("sctp_delayed_cksum(): m->len: %d,  off: %d.\n",
+		    (uint32_t) m->m_len, offset);
 		/*
 		 * XXX this shouldn't happen, but if it does, the correct
 		 * behavior may be to insert the checksum in the appropriate
