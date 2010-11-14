@@ -140,13 +140,13 @@ LIB1ASMFUNCS = __divxf3 __divdf3 __divsf3 \
 LIB2ADDEH = unwind-ia64.c unwind-sjlj.c unwind-c.c
 .endif
 
-.if ${TARGET_CPUARCH} == "powerpc"
+.if ${TARGET_ARCH} == "powerpc"
 #	from config/rs6000/t-ppccomm
 LIB2FUNCS_EXTRA = tramp.asm
 LIB2FUNCS_STATIC_EXTRA = eabi.asm
 .endif
 
-.if ${TARGET_CPUARCH} == "powerpc64"
+.if ${TARGET_ARCH} == "powerpc64"
 #	from config/rs6000/t-ppccomm
 LIB2FUNCS_EXTRA = tramp.asm
 .endif
