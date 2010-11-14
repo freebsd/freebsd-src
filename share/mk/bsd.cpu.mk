@@ -114,7 +114,7 @@ _CPUCFLAGS = -march=armv5te -D__XSCALE__
 .  else
 _CPUCFLAGS = -mcpu=${CPUTYPE}
 .  endif
-. elif ${MACHINE_CPUARCH} == "powerpc"
+. elif ${MACHINE_ARCH} == "powerpc"
 .  if ${CPUTYPE} == "e500"
 MACHINE_CPU = booke
 _CPUCFLAGS = -Wa,-me500 -msoft-float
