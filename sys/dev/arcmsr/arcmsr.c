@@ -2470,11 +2470,15 @@ static void arcmsr_action(struct cam_sim * psim, union ccb * pccb)
 						splx(s);
 					}
 					else {		/* Buffer is physical */
+#ifdef	PAE
+						panic("arcmsr: CAM_DATA_PHYS not supported");
+#else
 						struct bus_dma_segment seg;
 						
 						seg.ds_addr = (bus_addr_t)pccb->csio.data_ptr;
 						seg.ds_len = pccb->csio.dxfer_len;
 						arcmsr_execute_srb(srb, &seg, 1, 0);
+#endif
 					}
 				} else { 
 					/* Scatter/gather list */
