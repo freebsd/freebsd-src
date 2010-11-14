@@ -529,11 +529,11 @@ msk_miibus_statchg(device_t dev)
 			break;
 		}
 
-		/* Disable Rx flow control. */
-		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FLAG0) == 0)
+		if ((IFM_OPTIONS(mii->mii_media_active) &
+		    IFM_ETH_RXPAUSE) == 0)
 			gmac |= GM_GPCR_FC_RX_DIS;
-		/* Disable Tx flow control. */
-		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FLAG1) == 0)
+		if ((IFM_OPTIONS(mii->mii_media_active) &
+		     IFM_ETH_TXPAUSE) == 0)
 			gmac |= GM_GPCR_FC_TX_DIS;
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0)
 			gmac |= GM_GPCR_DUP_FULL;
@@ -545,7 +545,8 @@ msk_miibus_statchg(device_t dev)
 		GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
 		gmac = GMC_PAUSE_OFF;
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0) {
-			if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FLAG0) != 0)
+			if ((IFM_OPTIONS(mii->mii_media_active) &
+			    IFM_ETH_RXPAUSE) != 0)
 				gmac = GMC_PAUSE_ON;
 		}
 		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL), gmac);
@@ -1886,6 +1887,7 @@ mskc_attach(device_t dev)
 	}
 	mmd->port = MSK_PORT_A;
 	mmd->pmd = sc->msk_pmd;
+	mmd->mii_flags |= MIIF_DOPAUSE;
 	if (sc->msk_pmd == 'L' || sc->msk_pmd == 'S')
 		mmd->mii_flags |= MIIF_HAVEFIBER;
 	if (sc->msk_pmd == 'P')

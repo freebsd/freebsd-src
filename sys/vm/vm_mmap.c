@@ -232,7 +232,7 @@ mmap(td, uap)
 
 	/* Make sure mapping fits into numeric range, etc. */
 	if ((uap->len == 0 && !SV_CURPROC_FLAG(SV_AOUT) &&
-	     curproc->p_osrel >= 800104) ||
+	     curproc->p_osrel >= __FreeBSD_version_MAP_ANON) ||
 	    ((flags & MAP_ANON) && (uap->fd != -1 || pos != 0)))
 		return (EINVAL);
 

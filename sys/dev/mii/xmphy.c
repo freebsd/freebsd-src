@@ -167,7 +167,7 @@ xmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			if (PHY_READ(sc, XMPHY_MII_BMCR) & XMPHY_BMCR_AUTOEN)
 				return (0);
 #endif
-			(void) xmphy_mii_phy_auto(sc);
+			(void)xmphy_mii_phy_auto(sc);
 			break;
 		case IFM_1000_SX:
 			mii_phy_reset(sc);
@@ -179,9 +179,6 @@ xmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 				PHY_WRITE(sc, XMPHY_MII_BMCR, 0);
 			}
 			break;
-		case IFM_100_T4:
-		case IFM_100_TX:
-		case IFM_10_T:
 		default:
 			return (EINVAL);
 		}

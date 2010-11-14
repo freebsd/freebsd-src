@@ -336,7 +336,7 @@ link_elf_link_preload(linker_class_t cls, const char *filename,
 				ef->progtab[pb].name =
 				    ef->shstrtab + shdr[i].sh_name;
 			if (ef->progtab[pb].name != NULL && 
-			    !strcmp(ef->progtab[pb].name, "set_pcpu")) {
+			    !strcmp(ef->progtab[pb].name, DPCPU_SETNAME)) {
 				void *dpcpu;
 
 				dpcpu = dpcpu_alloc(shdr[i].sh_size);
@@ -757,7 +757,7 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 			else
 				ef->progtab[pb].name = "<<NOBITS>>";
 			if (ef->progtab[pb].name != NULL && 
-			    !strcmp(ef->progtab[pb].name, "set_pcpu"))
+			    !strcmp(ef->progtab[pb].name, DPCPU_SETNAME))
 				ef->progtab[pb].addr =
 				    dpcpu_alloc(shdr[i].sh_size);
 #ifdef VIMAGE
@@ -789,7 +789,7 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 				}
 				/* Initialize the per-cpu or vnet area. */
 				if (ef->progtab[pb].addr != (void *)mapbase &&
-				    !strcmp(ef->progtab[pb].name, "set_pcpu"))
+				    !strcmp(ef->progtab[pb].name, DPCPU_SETNAME))
 					dpcpu_copy(ef->progtab[pb].addr,
 					    shdr[i].sh_size);
 #ifdef VIMAGE
@@ -911,7 +911,7 @@ link_elf_unload_file(linker_file_t file)
 				continue;
 			if (ef->progtab[i].name == NULL)
 				continue;
-			if (!strcmp(ef->progtab[i].name, "set_pcpu"))
+			if (!strcmp(ef->progtab[i].name, DPCPU_SETNAME))
 				dpcpu_free(ef->progtab[i].addr,
 				    ef->progtab[i].size);
 #ifdef VIMAGE

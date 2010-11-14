@@ -484,7 +484,7 @@ parse_dir_ask(char **conf)
 
  again:
 	printf("\nmountroot> ");
-	gets(name, sizeof(name), 1);
+	gets(name, sizeof(name), GETS_ECHO);
 	if (name[0] == '\0')
 		return (0);
 	if (name[0] == '?') {
