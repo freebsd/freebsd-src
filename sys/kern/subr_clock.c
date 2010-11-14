@@ -61,7 +61,7 @@ int tz_dsttime;
  * kern.
  */
 SYSCTL_INT(_machdep, OID_AUTO, wall_cmos_clock,
-	CTLFLAG_RW, &wall_cmos_clock, 0, "CMOS clock keeps wall time");
+    CTLFLAG_RW, &wall_cmos_clock, 0, "CMOS clock keeps wall time");
 
 static int
 sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
@@ -74,8 +74,8 @@ sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, adjkerntz, CTLTYPE_INT|CTLFLAG_RW,
-	&adjkerntz, 0, sysctl_machdep_adjkerntz, "I",
-	"Local offset from UTC in seconds");
+    &adjkerntz, 0, sysctl_machdep_adjkerntz, "I",
+    "Local offset from UTC in seconds");
 
 /*--------------------------------------------------------------------*
  * Generic routines to convert between a POSIX date
