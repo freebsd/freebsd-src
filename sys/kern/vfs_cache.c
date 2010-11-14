@@ -189,25 +189,38 @@ SYSCTL_INT(_debug_sizeof, OID_AUTO, namecache, CTLFLAG_RD, 0,
 /*
  * The new name cache statistics
  */
-static SYSCTL_NODE(_vfs, OID_AUTO, cache, CTLFLAG_RW, 0, "Name cache statistics");
+static SYSCTL_NODE(_vfs, OID_AUTO, cache, CTLFLAG_RW, 0,
+		"Name cache statistics");
 #define STATNODE(mode, name, var, descr) \
 	SYSCTL_ULONG(_vfs_cache, OID_AUTO, name, mode, var, 0, descr);
 STATNODE(CTLFLAG_RD, numneg, &numneg, "Number of negative cache entries");
 STATNODE(CTLFLAG_RD, numcache, &numcache, "Number of cache entries");
-static u_long numcalls; STATNODE(CTLFLAG_RD, numcalls, &numcalls, "Number of cache lookups");
-static u_long dothits; STATNODE(CTLFLAG_RD, dothits, &dothits, "Number of '.' hits");
-static u_long dotdothits; STATNODE(CTLFLAG_RD, dotdothits, &dotdothits, "Number of '..' hits");
-static u_long numchecks; STATNODE(CTLFLAG_RD, numchecks, &numchecks, "Number of checks in lookup");
-static u_long nummiss; STATNODE(CTLFLAG_RD, nummiss, &nummiss, "Number of cache misses");
-static u_long nummisszap; STATNODE(CTLFLAG_RD, nummisszap, &nummisszap, "Number of cache misses we do not want to cache");
-static u_long numposzaps; STATNODE(CTLFLAG_RD, numposzaps, &numposzaps, "Number of cache hits (positive) we do not want to cache");
-static u_long numposhits; STATNODE(CTLFLAG_RD, numposhits, &numposhits, "Number of cache hits (positive)");
-static u_long numnegzaps; STATNODE(CTLFLAG_RD, numnegzaps, &numnegzaps, "Number of cache hits (negative) we do not want to cache");
-static u_long numneghits; STATNODE(CTLFLAG_RD, numneghits, &numneghits, "Number of cache hits (negative)");
-static u_long numupgrades; STATNODE(CTLFLAG_RD, numupgrades, &numupgrades, "Number of updates of the cache after lookup (write lock + retry)");
+static u_long numcalls; STATNODE(CTLFLAG_RD, numcalls, &numcalls,
+		"Number of cache lookups");
+static u_long dothits; STATNODE(CTLFLAG_RD, dothits, &dothits,
+		"Number of '.' hits");
+static u_long dotdothits; STATNODE(CTLFLAG_RD, dotdothits, &dotdothits,
+		"Number of '..' hits");
+static u_long numchecks; STATNODE(CTLFLAG_RD, numchecks, &numchecks,
+		"Number of checks in lookup");
+static u_long nummiss; STATNODE(CTLFLAG_RD, nummiss, &nummiss,
+		"Number of cache misses");
+static u_long nummisszap; STATNODE(CTLFLAG_RD, nummisszap, &nummisszap,
+		"Number of cache misses we do not want to cache");
+static u_long numposzaps; STATNODE(CTLFLAG_RD, numposzaps, &numposzaps, 
+		"Number of cache hits (positive) we do not want to cache");
+static u_long numposhits; STATNODE(CTLFLAG_RD, numposhits, &numposhits,
+		"Number of cache hits (positive)");
+static u_long numnegzaps; STATNODE(CTLFLAG_RD, numnegzaps, &numnegzaps,
+		"Number of cache hits (negative) we do not want to cache");
+static u_long numneghits; STATNODE(CTLFLAG_RD, numneghits, &numneghits,
+		"Number of cache hits (negative)");
+static u_long numupgrades; STATNODE(CTLFLAG_RD, numupgrades, &numupgrades,
+	"Number of updates of the cache after lookup (write lock + retry)");
 
 SYSCTL_OPAQUE(_vfs_cache, OID_AUTO, nchstats, CTLFLAG_RD | CTLFLAG_MPSAFE,
-	&nchstats, sizeof(nchstats), "LU", "VFS cache effectiveness statistics");
+	&nchstats, sizeof(nchstats), "LU",
+	"VFS cache effectiveness statistics");
 
 
 
@@ -981,7 +994,8 @@ SYSCTL_INT(_debug, OID_AUTO, disablefullpath, CTLFLAG_RW, &disablefullpath, 0,
 /* These count for kern___getcwd(), too. */
 STATNODE(numfullpathcalls, "Number of fullpath search calls");
 STATNODE(numfullpathfail1, "Number of fullpath search errors (ENOTDIR)");
-STATNODE(numfullpathfail2, "Number of fullpath search errors (VOP_VPTOCNP failures)");
+STATNODE(numfullpathfail2,
+		"Number of fullpath search errors (VOP_VPTOCNP failures)");
 STATNODE(numfullpathfail4, "Number of fullpath search errors (ENOMEM)");
 STATNODE(numfullpathfound, "Number of successful fullpath calls");
 
