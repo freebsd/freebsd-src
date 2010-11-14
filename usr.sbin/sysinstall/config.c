@@ -495,14 +495,14 @@ configNTP(dialogMenuItem *self)
 {
     int status;
 
-    status = variable_get_value(VAR_NTPDATE_FLAGS,
+    status = variable_get_value(VAR_NTPDATE_HOSTS,
 				"Enter the name of an NTP server", 1)
 	     ? DITEM_SUCCESS : DITEM_FAILURE;
     if (status == DITEM_SUCCESS) {
 	static char tmp[255];
 
-	snprintf(tmp, sizeof(tmp), "ntpdate_enable=YES,ntpdate_flags=%s",
-		 variable_get(VAR_NTPDATE_FLAGS));
+	snprintf(tmp, sizeof(tmp), "ntpdate_enable=YES,ntpdate_hosts=%s",
+		 variable_get(VAR_NTPDATE_HOSTS));
 	self->data = tmp;
 	dmenuSetVariables(self);
     }
