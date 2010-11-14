@@ -89,7 +89,7 @@ DRIVER_MODULE(rgephy, miibus, rgephy_driver, rgephy_devclass, 0, 0);
 
 static int	rgephy_service(struct mii_softc *, struct mii_data *, int);
 static void	rgephy_status(struct mii_softc *);
-static int	rgephy_mii_phy_auto(struct mii_softc *);
+static int	rgephy_mii_phy_auto(struct mii_softc *, int);
 static void	rgephy_reset(struct mii_softc *);
 static void	rgephy_loop(struct mii_softc *);
 static void	rgephy_load_dspcode(struct mii_softc *);
@@ -113,7 +113,6 @@ rgephy_attach(device_t dev)
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
 	struct mii_data *mii;
-	const char *sep = "";
 
 	rsc = device_get_softc(dev);
 	sc = &rsc->mii_sc;
@@ -132,27 +131,21 @@ rgephy_attach(device_t dev)
 	rsc->mii_revision = MII_REV(ma->mii_id2);
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
-#define PRINT(s)	printf("%s%s", sep, s); sep = ", "
 
 #if 0
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
 	    MII_MEDIA_100_TX);
 #endif
 
-	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
-	sc->mii_capabilities &= ~BMSR_ANEG;
+	/* RTL8169S do not report auto-sense; add manually. */
+	sc->mii_capabilities = (PHY_READ(sc, MII_BMSR) | BMSR_ANEG) &
+	    ma->mii_capmask;
 	if (sc->mii_capabilities & BMSR_EXTSTAT)
 		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
-
 	device_printf(dev, " ");
 	mii_phy_add_media(sc);
-	/* RTL8169S do not report auto-sense; add manually. */
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, sc->mii_inst), MII_NMEDIA);
-	sep = ", ";
-	PRINT("auto");
 	printf("\n");
 #undef ADD
-#undef PRINT
 
 	rgephy_reset(sc);
 	MIIBUS_MEDIAINIT(sc->mii_dev);
@@ -182,7 +175,8 @@ rgephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		rgephy_reset(sc);	/* XXX hardware bug work-around */
 
 		anar = PHY_READ(sc, RGEPHY_MII_ANAR);
-		anar &= ~(RGEPHY_ANAR_TX_FD | RGEPHY_ANAR_TX |
+		anar &= ~(RGEPHY_ANAR_PC | RGEPHY_ANAR_ASP |
+		    RGEPHY_ANAR_TX_FD | RGEPHY_ANAR_TX |
 		    RGEPHY_ANAR_10_FD | RGEPHY_ANAR_10);
 
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
@@ -194,7 +188,7 @@ rgephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			if (PHY_READ(sc, RGEPHY_MII_BMCR) & RGEPHY_BMCR_AUTOEN)
 				return (0);
 #endif
-			(void) rgephy_mii_phy_auto(sc);
+			(void)rgephy_mii_phy_auto(sc, ife->ifm_media);
 			break;
 		case IFM_1000_T:
 			speed = RGEPHY_S1000;
@@ -222,32 +216,26 @@ setit:
 				PHY_WRITE(sc, RGEPHY_MII_1000CTL, 0);
 				PHY_WRITE(sc, RGEPHY_MII_ANAR, anar);
 				PHY_WRITE(sc, RGEPHY_MII_BMCR, speed |
-				    RGEPHY_BMCR_AUTOEN | RGEPHY_BMCR_STARTNEG);
+				    RGEPHY_BMCR_AUTOEN |
+				    RGEPHY_BMCR_STARTNEG);
 				break;
 			}
 
-			/*
-			 * When setting the link manually, one side must
-			 * be the master and the other the slave. However
-			 * ifmedia doesn't give us a good way to specify
-			 * this, so we fake it by using one of the LINK
-			 * flags. If LINK0 is set, we program the PHY to
-			 * be a master, otherwise it's a slave.
-			 */
-			if ((mii->mii_ifp->if_flags & IFF_LINK0)) {
-				PHY_WRITE(sc, RGEPHY_MII_1000CTL,
-				    gig|RGEPHY_1000CTL_MSE|RGEPHY_1000CTL_MSC);
-			} else {
-				PHY_WRITE(sc, RGEPHY_MII_1000CTL,
-				    gig|RGEPHY_1000CTL_MSE);
-			}
+			if ((ife->ifm_media & IFM_FLOW) != 0 ||
+			    (sc->mii_flags & MIIF_FORCEPAUSE) != 0)
+				anar |= RGEPHY_ANAR_PC | RGEPHY_ANAR_ASP;
+
+			gig |= RGEPHY_1000CTL_MSE;
+			if ((ife->ifm_media & IFM_ETH_MASTER) != 0)
+			    gig |= RGEPHY_1000CTL_MSC;
+			PHY_WRITE(sc, RGEPHY_MII_1000CTL, gig);
+			PHY_WRITE(sc, RGEPHY_MII_ANAR, anar);
 			PHY_WRITE(sc, RGEPHY_MII_BMCR, speed |
 			    RGEPHY_BMCR_AUTOEN | RGEPHY_BMCR_STARTNEG);
 			break;
 		case IFM_NONE:
-			PHY_WRITE(sc, MII_BMCR, BMCR_ISO|BMCR_PDOWN);
+			PHY_WRITE(sc, MII_BMCR, BMCR_ISO | BMCR_PDOWN);
 			break;
-		case IFM_100_T4:
 		default:
 			return (EINVAL);
 		}
@@ -297,7 +285,7 @@ setit:
 			return (0);
 
 		sc->mii_ticks = 0;
-		rgephy_mii_phy_auto(sc);
+		rgephy_mii_phy_auto(sc, ife->ifm_media);
 		break;
 	}
 
@@ -395,22 +383,32 @@ rgephy_status(struct mii_softc *sc)
 		else
 			mii->mii_media_active |= IFM_HDX;
 	}
+
+	if ((mii->mii_media_active & IFM_FDX) != 0)
+		mii->mii_media_active |= mii_phy_flowstatus(sc);
+
+	if ((IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T) &&
+	    (PHY_READ(sc, RGEPHY_MII_1000STS) & RGEPHY_1000STS_MSR) != 0)
+		mii->mii_media_active |= IFM_ETH_MASTER;
 }
 
 static int
-rgephy_mii_phy_auto(struct mii_softc *mii)
+rgephy_mii_phy_auto(struct mii_softc *sc, int media)
 {
+	int anar;
 
-	rgephy_loop(mii);
-	rgephy_reset(mii);
+	rgephy_loop(sc);
+	rgephy_reset(sc);
 
-	PHY_WRITE(mii, RGEPHY_MII_ANAR,
-	    BMSR_MEDIA_TO_ANAR(mii->mii_capabilities) | ANAR_CSMA);
+	anar = BMSR_MEDIA_TO_ANAR(sc->mii_capabilities) | ANAR_CSMA;
+	if ((media & IFM_FLOW) != 0 || (sc->mii_flags & MIIF_FORCEPAUSE) != 0)
+		anar |= RGEPHY_ANAR_PC | RGEPHY_ANAR_ASP;
+	PHY_WRITE(sc, RGEPHY_MII_ANAR, anar);
 	DELAY(1000);
-	PHY_WRITE(mii, RGEPHY_MII_1000CTL,
-            RGEPHY_1000CTL_AHD|RGEPHY_1000CTL_AFD);
+	PHY_WRITE(sc, RGEPHY_MII_1000CTL,
+	    RGEPHY_1000CTL_AHD | RGEPHY_1000CTL_AFD);
 	DELAY(1000);
-	PHY_WRITE(mii, RGEPHY_MII_BMCR,
+	PHY_WRITE(sc, RGEPHY_MII_BMCR,
 	    RGEPHY_BMCR_AUTOEN | RGEPHY_BMCR_STARTNEG);
 	DELAY(100);
 
