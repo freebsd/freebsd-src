@@ -76,6 +76,8 @@ extern uintptr_t dpcpu_off[];
 #define	DPCPU_NAME(n)		pcpu_entry_##n
 #define	DPCPU_DECLARE(t, n)	extern t DPCPU_NAME(n)
 #define	DPCPU_DEFINE(t, n)	t DPCPU_NAME(n) __section(DPCPU_SETNAME) __used
+#define	STATIC_DPCPU_DEFINE(t, n)					\
+    DPCPU_DEFINE(static t, n)
 
 /*
  * Accessors with a given base.
