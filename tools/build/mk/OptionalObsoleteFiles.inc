@@ -808,6 +808,11 @@ OLD_FILES+=usr/lib32/libgpib_p.a
 .endif
 .endif
 
+.if ${MK_GPIO} == no
+OLD_FILES+=usr/sbin/gpioctl
+OLD_FILES+=usr/share/man/man8/gpioctl.8.gz
+.endif
+
 .if ${MK_GSSAPI} == no
 OLD_FILES+=usr/lib/libgssapi.a
 OLD_FILES+=usr/lib/libgssapi.so
