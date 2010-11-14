@@ -914,11 +914,13 @@ bge_miibus_statchg(device_t dev)
 
 	if (IFM_OPTIONS(mii->mii_media_active & IFM_FDX) != 0) {
 		BGE_CLRBIT(sc, BGE_MAC_MODE, BGE_MACMODE_HALF_DUPLEX);
-		if (IFM_OPTIONS(mii->mii_media_active) & IFM_FLAG1)
+		if ((IFM_OPTIONS(mii->mii_media_active) &
+		    IFM_ETH_TXPAUSE) != 0)
 			BGE_SETBIT(sc, BGE_TX_MODE, BGE_TXMODE_FLOWCTL_ENABLE);
 		else
 			BGE_CLRBIT(sc, BGE_TX_MODE, BGE_TXMODE_FLOWCTL_ENABLE);
-		if (IFM_OPTIONS(mii->mii_media_active) & IFM_FLAG0)
+		if ((IFM_OPTIONS(mii->mii_media_active) &
+		    IFM_ETH_RXPAUSE) != 0)
 			BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_FLOWCTL_ENABLE);
 		else
 			BGE_CLRBIT(sc, BGE_RX_MODE, BGE_RXMODE_FLOWCTL_ENABLE);
@@ -3102,9 +3104,9 @@ bge_attach(device_t dev)
 again:
 		bge_asf_driver_up(sc);
 
-		error = (mii_attach(dev, &sc->bge_miibus, ifp,
+		error = mii_attach(dev, &sc->bge_miibus, ifp,
 		    bge_ifmedia_upd, bge_ifmedia_sts, BMSR_DEFCAPMASK,
-		    phy_addr, MII_OFFSET_ANY, 0));
+		    phy_addr, MII_OFFSET_ANY, MIIF_DOPAUSE);
 		if (error != 0) {
 			if (trys++ < 4) {
 				device_printf(sc->bge_dev, "Try again\n");

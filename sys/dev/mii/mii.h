@@ -128,6 +128,10 @@
 #define ANAR_10_FD	0x0040	/* local device supports 10bT FD */
 #define ANAR_10		0x0020	/* local device supports 10bT */
 #define	ANAR_CSMA	0x0001	/* protocol selector CSMA/CD */
+#define	ANAR_PAUSE_NONE		(0 << 10)
+#define	ANAR_PAUSE_SYM		(1 << 10)
+#define	ANAR_PAUSE_ASYM		(2 << 10)
+#define	ANAR_PAUSE_TOWARDS	(3 << 10)
 
 #define	ANAR_X_FD	0x0020	/* local device supports 1000BASE-X FD */
 #define	ANAR_X_HD	0x0040	/* local device supports 1000BASE-X HD */
@@ -148,6 +152,11 @@
 #define ANLPAR_10_FD	0x0040	/* link partner supports 10bT FD */
 #define ANLPAR_10	0x0020	/* link partner supports 10bT */
 #define	ANLPAR_CSMA	0x0001	/* protocol selector CSMA/CD */
+#define	ANLPAR_PAUSE_MASK	(3 << 10)
+#define	ANLPAR_PAUSE_NONE	(0 << 10)
+#define	ANLPAR_PAUSE_SYM	(1 << 10)
+#define	ANLPAR_PAUSE_ASYM	(2 << 10)
+#define	ANLPAR_PAUSE_TOWARDS	(3 << 10)
 
 #define	ANLPAR_X_FD	0x0020	/* local device supports 1000BASE-X FD */
 #define	ANLPAR_X_HD	0x0040	/* local device supports 1000BASE-X HD */
