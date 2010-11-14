@@ -17,7 +17,7 @@
 #
 # $FreeBSD$
 
-machine 	mips
+machine 	mips mipseb
 cpu 		CPU_RMI
 ident 		XLRN32
 

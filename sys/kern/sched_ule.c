@@ -1675,23 +1675,19 @@ sched_prio(struct thread *td, u_char prio)
 void
 sched_user_prio(struct thread *td, u_char prio)
 {
-	u_char oldprio;
 
 	td->td_base_user_pri = prio;
 	if (td->td_flags & TDF_UBORROWING && td->td_user_pri <= prio)
                 return;
-	oldprio = td->td_user_pri;
 	td->td_user_pri = prio;
 }
 
 void
 sched_lend_user_prio(struct thread *td, u_char prio)
 {
-	u_char oldprio;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	td->td_flags |= TDF_UBORROWING;
-	oldprio = td->td_user_pri;
 	td->td_user_pri = prio;
 }
 

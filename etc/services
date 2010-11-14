@@ -33,24 +33,31 @@ echo		  4/ddp	   #AppleTalk Echo Protocol
 rje		  5/tcp	   #Remote Job Entry
 rje		  5/udp	   #Remote Job Entry
 zip		  6/ddp	   #Zone Information Protocol
+echo		  7/sctp
 echo		  7/tcp
 echo		  7/udp
+discard		  9/sctp   sink null
 discard		  9/tcp	   sink null
 discard		  9/udp	   sink null
 systat		 11/tcp	   users	#Active Users
 systat		 11/udp	   users	#Active Users
+daytime		 13/sctp
 daytime		 13/tcp
 daytime		 13/udp
 qotd		 17/tcp	   quote	#Quote of the Day
 qotd		 17/udp	   quote	#Quote of the Day
 msp		 18/tcp	   #Message Send Protocol
 msp		 18/udp	   #Message Send Protocol
+chargen		 19/sctp   ttytst source	#Character Generator
 chargen		 19/tcp	   ttytst source	#Character Generator
 chargen		 19/udp	   ttytst source	#Character Generator
+ftp-data	 20/sctp   #File Transfer [Default Data]
 ftp-data	 20/tcp	   #File Transfer [Default Data]
 ftp-data	 20/udp	   #File Transfer [Default Data]
+ftp		 21/sctp   #File Transfer [Control]
 ftp		 21/tcp	   #File Transfer [Control]
 ftp		 21/udp	   #File Transfer [Control]
+ssh		 22/sctp   #Secure Shell Login
 ssh		 22/tcp	   #Secure Shell Login
 ssh		 22/udp	   #Secure Shell Login
 telnet		 23/tcp
@@ -151,6 +158,7 @@ vettcp		 78/tcp
 vettcp		 78/udp
 finger		 79/tcp
 finger		 79/udp
+http		 80/sctp   www www-http	#World Wide Web HTTP
 http		 80/tcp	   www www-http	#World Wide Web HTTP
 http		 80/udp	   www www-http	#World Wide Web HTTP
 hosts2-ns	 81/tcp	   #HOSTS2 Name Server
@@ -350,6 +358,7 @@ xdmcp		177/tcp	   #X Display Manager Control Protocol
 xdmcp		177/udp	   #X Display Manager Control Protocol
 NextStep	178/tcp	   nextstep NeXTStep	#NextStep Window Server
 NextStep	178/udp	   nextstep NeXTStep	#NextStep Window Server
+bgp		179/sctp   #Border Gateway Protocol
 bgp		179/tcp	   #Border Gateway Protocol
 bgp		179/udp	   #Border Gateway Protocol
 ris		180/tcp	   #Intergraph
@@ -738,6 +747,7 @@ decvms-sysmgt	441/tcp
 decvms-sysmgt	441/udp
 cvc_hostd	442/tcp
 cvc_hostd	442/udp
+https		443/sctp
 https		443/tcp
 https		443/udp
 snpp		444/tcp	   #Simple Network Paging Protocol
@@ -1519,7 +1529,9 @@ nfsd-keepalive	1110/udp   #Client status info
 supfiledbg	1127/tcp   # for SUP
 nfa		1155/tcp   #Network File Access
 nfa		1155/udp   #Network File Access
-phone		1167/udp   #conference calling
+cisco-ipsla	1167/sctp  #Cisco IP SLAs Control Protocol
+cisco-ipsla	1167/tcp   #Cisco IP SLAs Control Protocol
+cisco-ipsla	1167/udp   #Cisco IP SLAs Control Protocol
 skkserv		1178/tcp   #SKK (kanji input)
 openvpn		1194/tcp   #OpenVPN
 openvpn		1194/udp   #OpenVPN
@@ -2119,6 +2131,7 @@ sdfunc		2046/udp
 #dls		2047/udp
 dls-monitor	2048/tcp
 dls-monitor	2048/udp
+nfsd		2049/sctp  nfs		# NFS server daemon
 nfsd		2049/tcp   nfs		# NFS server daemon
 nfsd		2049/udp   nfs		# NFS server daemon
 #PROBLEMS!=============================================================
@@ -2146,6 +2159,8 @@ hpssd		2207/tcp   #HP Status and Services
 hpssd		2207/udp   #HP Status and Services
 hpiod		2208/tcp   #HP I/O Backend
 hpiod		2208/udp   #HP I/O Backend
+rcip-itu	2225/sctp  #Resource Connection Initiation Protocol
+rcip-itu	2225/tcp   #Resource Connection Initiation Protocol
 ivs-video	2232/tcp   #IVS Video default
 ivs-video	2232/udp   #IVS Video default
 ivsd		2241/tcp   #IVS Daemon
@@ -2179,6 +2194,17 @@ dict		2628/udp   #RFC 2229
 listen		2766/tcp   #System V listener port
 www-dev		2784/tcp   #world wide web - development
 www-dev		2784/udp   #world wide web - development
+m2ua		2904/sctp  #M2UA
+m2ua		2904/tcp   #M2UA
+m2ua		2904/udp   #M2UA
+m3ua		2905/sctp  #M3UA
+m3ua		2905/tcp   #M3UA
+megaco-h248	2944/sctp  #Megaco-H.248 text
+megaco-h248	2944/tcp   #Megaco H-248
+megaco-h248	2944/udp   #Megaco H-248
+h248-binary	2945/sctp  #Megaco/H.248 binary
+h248-binary	2945/tcp   #H248 Binary
+h248-binary	2945/udp   #H248 Binary
 eppc		3031/tcp   #Remote AppleEvents/PPC Toolbox
 eppc		3031/udp   #Remote AppleEvents/PPC Toolbox
 NSWS		3049/tcp
@@ -2186,6 +2212,7 @@ NSWS		3049/udp
 gds_db		3050/tcp   #InterBase Database Remote Protocol
 gds_db		3050/udp   #InterBase Database Remote Protocol
 sj3		3086/tcp   #SJ3 (kanji input)
+itu-bicc-stc	3097/sctp  #ITU-T Q.1902.1/Q.2150.3
 vmodem		3141/tcp
 vmodem		3141/udp
 iscsi-target	3260/tcp   # iSCSI port
@@ -2205,10 +2232,19 @@ vat-control	3457/tcp   #VAT default control
 vat-control	3457/udp   #VAT default control
 nut		3493/tcp   #Network UPS Tools
 nut		3493/udp   #Network UPS Tools
+m2pa		3565/sctp  #M2PA
+m2pa		3565/tcp   #M2PA
 tsp		3653/tcp   #Tunnel Setup Protocol
 tsp		3653/udp   #Tunnel Setup Protocol
 svn		3690/tcp   #Subversion
 svn		3690/udp   #Subversion
+asap		3863/sctp  #asap sctp
+asap		3863/tcp   #asap tcp port
+asap		3863/udp   #asap udp port
+asap-tls	3864/sctp  #asap-sctp/tls
+asap-tls	3864/tcp   #asap/tls tcp port
+diameter	3868/tcp   #DIAMETER
+diameter	3868/sctp  #DIAMETER
 udt_os		3900/tcp   #Unidata UDT OS
 udt_os		3900/udp   #Unidata UDT OS
 mapper-nodemgr	3984/tcp   #MAPPER network node manager
@@ -2245,6 +2281,12 @@ fax		4557/tcp   #FAX transmission service
 hylafax		4559/tcp   #HylaFAX client-server protocol
 rfa		4672/tcp   #remote file access server
 rfa		4672/udp   #remote file access server
+ipfix		4739/sctp  #IP Flow Info Export
+ipfix		4739/tcp   #IP Flow Info Export
+ipfix		4739/udp   #IP Flow Info Export
+ipfixs		4740/sctp  #ipfix protocol over DTLS
+ipfixs		4740/tcp   #ipfix protocol over TLS
+ipfixs		4740/udp   #ipfix protocol over DTLS
 commplex-main	5000/tcp
 commplex-main	5000/udp
 commplex-link	5001/tcp
@@ -2263,6 +2305,8 @@ sip		5060/tcp   #Session Initialization Protocol (VoIP)
 sip		5060/udp   #Session Initialization Protocol (VoIP)
 sip-tls		5061/tcp   #SIP over TLS
 sip-tls		5061/udp   #SIP over TLS
+car		5090/sctp  #Candidate AR
+cxtp		5091/sctp  #Context Transfer Protocol
 rmonitor_secure	5145/tcp
 rmonitor_secure	5145/udp
 aol		5190/tcp   #America-Online
@@ -2298,6 +2342,12 @@ mdns		5353/udp   #Multicast DNS
 postgresql	5432/tcp   #PostgreSQL Database
 postgresql	5432/udp   #PostgreSQL Database
 rplay		5555/udp
+amqp		5672/sctp  #AMQP
+amqp		5672/tcp   #AMQP
+amqp		5672/udp   #AMQP
+v5ua		5675/sctp  #V5UA application port
+v5ua		5675/tcp   #V5UA application port
+v5ua		5675/udp   #V5UA application port
 canna		5680/tcp   #Canna (Japanese Input)
 proshareaudio	5713/tcp   #proshare conf audio
 proshareaudio	5713/udp   #proshare conf audio
@@ -2343,6 +2393,9 @@ xdsxdm		6558/udp
 sane-port	6566/tcp   #Scanner Access Now Easy (SANE) Control Port
 sane-port	6566/udp   #Scanner Access Now Easy (SANE) Control Port
 ircd		6667/tcp   #Internet Relay Chat (unoffical)
+frc-hp		6704/sctp  #ForCES HP (High Priority) channel
+frc-mp		6705/sctp  #ForCES MP (Medium Priority) channel
+frc-lp		6706/sctp  #ForCES LP (Low priority) channel
 acmsoda		6969/tcp
 acmsoda		6969/udp
 afs3-fileserver	7000/tcp   #file server itself
@@ -2377,8 +2430,16 @@ fodms		7200/tcp   #FODMS FLIP
 fodms		7200/udp   #FODMS FLIP
 dlip		7201/tcp
 dlip		7201/udp
+simco		7626/sctp  #SImple Middlebox COnfiguration (SIMCO)
+simco		7626/tcp   #SImple Middlebox COnfiguration (SIMCO) Server
 ftp-proxy	8021/tcp   # FTP proxy
+pim		8471/sctp  #PIM over Reliable Transport
+pim		8471/tcp   #PIM over Reliable Transport
 natd		8668/divert # Network Address Translation
+lcs-ap		9082/sctp  #LCS Application Protocol
+aurora		9084/sctp  #IBM AURORA Performance Visualizer
+aurora		9084/tcp   #IBM AURORA Performance Visualizer
+aurora		9084/udp   #IBM AURORA Performance Visualizer
 jetdirect	9100/tcp   #HP JetDirect card
 git		9418/tcp   #git pack transfer service
 git		9418/udp   #git pack transfer service
@@ -2386,18 +2447,37 @@ man		9535/tcp
 man		9535/udp
 sd		9876/tcp   #Session Director
 sd		9876/udp   #Session Director
+iua		9900/sctp  #IUA
+iua		9900/tcp   #IUA
+iua		9900/udp   #IUA
+enrp		9901/sctp  #enrp server channel
+enrp		9901/udp   #enrp server channel
+enrp-tls	9902/sctp  #enrp/tls server channel
 amanda		10080/tcp  #Dump server control
 amanda		10080/udp  #Dump server control
 amandaidx	10082/tcp  #Amanda indexing
 amidxtape	10083/tcp  #Amanda tape indexing
+wmereceiving	11997/sctp #WorldMailExpress
+wmedistribution	11998/sctp #WorldMailExpress
+wmereporting	11999/sctp #WorldMailExpress
+sua		14001/sctp #SUA
+sua		14001/tcp  #SUA
 isode-dua	17007/tcp
 isode-dua	17007/udp
 biimenu		18000/tcp  #Beckman Instruments, Inc.
 biimenu		18000/udp  #Beckman Instruments, Inc.
+nfsrdma		20049/sctp #Network File System (NFS) over RDMA
+nfsrdma		20049/tcp  #Network File System (NFS) over RDMA
+nfsrdma		20049/udp  #Network File System (NFS) over RDMA
 wnn4		22273/tcp  wnn6		#Wnn4 (Japanese input)
 wnn4_Cn		22289/tcp  wnn6_Cn	#Wnn4 (Chinese input)
 wnn4_Kr		22305/tcp  wnn6_Kr	#Wnn4 (Korean input)
 wnn4_Tw		22321/tcp  wnn6_Tw	#Wnn4 (Taiwanse input)
 wnn6_DS		26208/tcp  #Wnn6 (Dserver)
+sgsap		29118/sctp #SGsAP in 3GPP
+sbcap		29168/sctp #SBcAP in 3GPP
+iuhsctpassoc	29169/sctp #HNBAP and RUA Common Association
+s1-control	36412/sctp #S1-Control Plane (3GPP)
+x2-control	36422/sctp #X2-Control Plane (3GPP)
 dbbrowse	47557/tcp  #Databeam Corporation
 dbbrowse	47557/udp  #Databeam Corporation

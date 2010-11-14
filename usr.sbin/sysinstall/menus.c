@@ -793,6 +793,8 @@ DMenu MenuMediaFTP = {
 	VAR_FTP_PATH "=ftp://ftp2.se.freebsd.org" },
       { " Sweden #3",	"ftp3.se.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp3.se.freebsd.org" },
+      { " Sweden #4",	"ftp4.se.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp4.se.freebsd.org" },
       { " Sweden #5",	"ftp5.se.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp5.se.freebsd.org" },
 
@@ -882,7 +884,7 @@ DMenu MenuMediaFTP = {
 DMenu MenuNetworkDevice = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Network interface information required",
-    "Please select the ethernet device to configure.\n\n"
+    "Please select the ethernet or PLIP device to configure.\n\n"
     "",
     "Press F1 to read network configuration manual",
     "network_device",
