@@ -416,8 +416,7 @@ trap(struct trapframe *frame)
 					 * without the ABI-tag ELF note.
 					 */
 					if (SV_CURPROC_ABI() == SV_ABI_FREEBSD
-					    && p->p_osrel >=
-					    __FreeBSD_version_SIGSEGV) {
+					    && p->p_osrel >= P_OSREL_SIGSEGV) {
 						i = SIGSEGV;
 						ucode = SEGV_ACCERR;
 					} else {
