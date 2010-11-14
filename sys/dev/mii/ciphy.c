@@ -165,7 +165,7 @@ ciphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			if (PHY_READ(sc, CIPHY_MII_BMCR) & CIPHY_BMCR_AUTOEN)
 				return (0);
 #endif
-			(void) mii_phy_auto(sc);
+			(void)mii_phy_auto(sc);
 			break;
 		case IFM_1000_T:
 			speed = CIPHY_S1000;
@@ -190,30 +190,16 @@ setit:
 			if (IFM_SUBTYPE(ife->ifm_media) != IFM_1000_T)
 				break;
 
+			gig |= CIPHY_1000CTL_MSE;
+			if ((ife->ifm_media & IFM_ETH_MASTER) != 0)
+				gig |= CIPHY_1000CTL_MSC;
 			PHY_WRITE(sc, CIPHY_MII_1000CTL, gig);
 			PHY_WRITE(sc, CIPHY_MII_BMCR,
-			    speed|CIPHY_BMCR_AUTOEN|CIPHY_BMCR_STARTNEG);
-
-			/*
-			 * When setting the link manually, one side must
-			 * be the master and the other the slave. However
-			 * ifmedia doesn't give us a good way to specify
-			 * this, so we fake it by using one of the LINK
-			 * flags. If LINK0 is set, we program the PHY to
-			 * be a master, otherwise it's a slave.
-			 */
-			if ((mii->mii_ifp->if_flags & IFF_LINK0)) {
-				PHY_WRITE(sc, CIPHY_MII_1000CTL,
-				    gig|CIPHY_1000CTL_MSE|CIPHY_1000CTL_MSC);
-			} else {
-				PHY_WRITE(sc, CIPHY_MII_1000CTL,
-				    gig|CIPHY_1000CTL_MSE);
-			}
+			    speed | CIPHY_BMCR_AUTOEN | CIPHY_BMCR_STARTNEG);
 			break;
 		case IFM_NONE:
-			PHY_WRITE(sc, MII_BMCR, BMCR_ISO|BMCR_PDOWN);
+			PHY_WRITE(sc, MII_BMCR, BMCR_ISO | BMCR_PDOWN);
 			break;
-		case IFM_100_T4:
 		default:
 			return (EINVAL);
 		}
@@ -319,6 +305,10 @@ ciphy_status(struct mii_softc *sc)
 		mii->mii_media_active |= IFM_FDX;
 	else
 		mii->mii_media_active |= IFM_HDX;
+
+	if ((IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T) &&
+	   (PHY_READ(sc, CIPHY_MII_1000STS) & CIPHY_1000STS_MSR) != 0)
+		mii->mii_media_active |= IFM_ETH_MASTER;
 }
 
 static void

@@ -60,7 +60,7 @@ MALLOC_DEFINE(M_SEND, "send", "Secure Neighbour Discovery");
 /*
  * The socket used to communicate with the SeND daemon.
  */
-static VNET_DEFINE(struct socket *, send_so);
+STATIC_VNET_DEFINE(struct socket *, send_so);
 #define	V_send_so	VNET(send_so)
 
 u_long	send_sendspace	= 8 * (1024 + sizeof(struct sockaddr_send));
