@@ -122,7 +122,7 @@ static void	destroy_vpollinfo(struct vpollinfo *vi);
 static unsigned long	numvnodes;
 
 SYSCTL_LONG(_vfs, OID_AUTO, numvnodes, CTLFLAG_RD, &numvnodes, 0,
-		"Number of vnodes in existence");
+    "Number of vnodes in existence");
 
 /*
  * Conversion tables for conversion from vnode types to inode formats
@@ -152,7 +152,7 @@ SYSCTL_LONG(_vfs, OID_AUTO, wantfreevnodes, CTLFLAG_RW, &wantfreevnodes, 0, "");
 /* Number of vnodes in the free list. */
 static u_long freevnodes;
 SYSCTL_LONG(_vfs, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0,
-		"Number of vnodes in the free list");
+    "Number of vnodes in the free list");
 
 static int vlru_allow_cache_src;
 SYSCTL_INT(_vfs, OID_AUTO, vlru_allow_cache_src, CTLFLAG_RW,
@@ -165,7 +165,7 @@ SYSCTL_INT(_vfs, OID_AUTO, vlru_allow_cache_src, CTLFLAG_RW,
  */
 static int reassignbufcalls;
 SYSCTL_INT(_vfs, OID_AUTO, reassignbufcalls, CTLFLAG_RW, &reassignbufcalls, 0,
-		"Number of calls to reassignbuf");
+    "Number of calls to reassignbuf");
 
 /*
  * Cache for the mount type id assigned to NFS.  This is used for
@@ -241,17 +241,17 @@ static int syncer_maxdelay = SYNCER_MAXDELAY;	/* maximum delay time */
 static int syncdelay = 30;		/* max time to delay syncing data */
 static int filedelay = 30;		/* time to delay syncing files */
 SYSCTL_INT(_kern, OID_AUTO, filedelay, CTLFLAG_RW, &filedelay, 0,
-		"Time to delay syncing files (in seconds)");
+    "Time to delay syncing files (in seconds)");
 static int dirdelay = 29;		/* time to delay syncing directories */
 SYSCTL_INT(_kern, OID_AUTO, dirdelay, CTLFLAG_RW, &dirdelay, 0,
-		"Time to delay syncing directories (in seconds)");
+    "Time to delay syncing directories (in seconds)");
 static int metadelay = 28;		/* time to delay syncing metadata */
 SYSCTL_INT(_kern, OID_AUTO, metadelay, CTLFLAG_RW, &metadelay, 0,
-		"Time to delay syncing metadata (in seconds)");
+    "Time to delay syncing metadata (in seconds)");
 static int rushjob;		/* number of slots to run ASAP */
 static int stat_rush_requests;	/* number of times I/O speeded up */
 SYSCTL_INT(_debug, OID_AUTO, rush_requests, CTLFLAG_RW, &stat_rush_requests, 0,
-		"Number of times I/O speeded up (rush requests)");
+    "Number of times I/O speeded up (rush requests)");
 
 /*
  * When shutting down the syncer, run it at four times normal speed.
@@ -552,8 +552,8 @@ enum { TSP_SEC, TSP_HZ, TSP_USEC, TSP_NSEC };
 static int timestamp_precision = TSP_SEC;
 SYSCTL_INT(_vfs, OID_AUTO, timestamp_precision, CTLFLAG_RW,
     &timestamp_precision, 0, "File timestamp precision (0: seconds, "
-   "1: sec + ns accurate to 1/HZ, 2: sec + ns truncated to ms, "
-   "3+: sec + ns (max. precision))");
+    "1: sec + ns accurate to 1/HZ, 2: sec + ns truncated to ms, "
+    "3+: sec + ns (max. precision))");
 
 /*
  * Get a current timestamp.
@@ -3027,7 +3027,7 @@ vfs_sysctl(SYSCTL_HANDLER_ARGS)
 }
 
 static SYSCTL_NODE(_vfs, VFS_GENERIC, generic, CTLFLAG_RD | CTLFLAG_SKIP,
-	vfs_sysctl, "Generic filesystem");
+    vfs_sysctl, "Generic filesystem");
 
 #if 1 || defined(COMPAT_PRELITE2)
 
@@ -3148,7 +3148,7 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern, KERN_VNODE, vnode, CTLTYPE_OPAQUE|CTLFLAG_RD,
-	0, 0, sysctl_vnode, "S,xvnode", "");
+    0, 0, sysctl_vnode, "S,xvnode", "");
 #endif
 
 /*
@@ -3721,17 +3721,21 @@ extattr_check_cred(struct vnode *vp, int attrnamespace, struct ucred *cred,
 	(vp)->v_type == VCHR ||	(vp)->v_type == VBAD)
 
 int vfs_badlock_ddb = 1;	/* Drop into debugger on violation. */
-SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_ddb, CTLFLAG_RW, &vfs_badlock_ddb, 0, "Drop into debugger on lock violation");
+SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_ddb, CTLFLAG_RW, &vfs_badlock_ddb, 0,
+    "Drop into debugger on lock violation");
 
 int vfs_badlock_mutex = 1;	/* Check for interlock across VOPs. */
-SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_mutex, CTLFLAG_RW, &vfs_badlock_mutex, 0, "Check for interlock across VOPs");
+SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_mutex, CTLFLAG_RW, &vfs_badlock_mutex,
+    0, "Check for interlock across VOPs");
 
 int vfs_badlock_print = 1;	/* Print lock violations. */
-SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_print, CTLFLAG_RW, &vfs_badlock_print, 0, "Print lock violations");
+SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_print, CTLFLAG_RW, &vfs_badlock_print,
+    0, "Print lock violations");
 
 #ifdef KDB
 int vfs_badlock_backtrace = 1;	/* Print backtrace at lock violations. */
-SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_backtrace, CTLFLAG_RW, &vfs_badlock_backtrace, 0, "Print backtrace at lock violations");
+SYSCTL_INT(_debug, OID_AUTO, vfs_badlock_backtrace, CTLFLAG_RW,
+    &vfs_badlock_backtrace, 0, "Print backtrace at lock violations");
 #endif
 
 static void

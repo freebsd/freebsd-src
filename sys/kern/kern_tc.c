@@ -770,7 +770,7 @@ pps_event(struct pps_state *pps, int event)
 
 static int tc_tick;
 SYSCTL_INT(_kern_timecounter, OID_AUTO, tick, CTLFLAG_RD, &tc_tick, 0,
-		"Approximate number of hardclock ticks in a millisecond");
+    "Approximate number of hardclock ticks in a millisecond");
 
 void
 tc_ticktock(int cnt)

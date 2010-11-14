@@ -145,7 +145,7 @@ uma_zone_t proc_zone;
 
 int kstack_pages = KSTACK_PAGES;
 SYSCTL_INT(_kern, OID_AUTO, kstack_pages, CTLFLAG_RD, &kstack_pages, 0,
-		"Kernel stack size in pages");
+    "Kernel stack size in pages");
 
 CTASSERT(sizeof(struct kinfo_proc) == KINFO_PROC_SIZE);
 #ifdef COMPAT_FREEBSD32
