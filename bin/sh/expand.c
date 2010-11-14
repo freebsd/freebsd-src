@@ -43,14 +43,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-#include <errno.h>
 #include <dirent.h>
-#include <unistd.h>
-#include <pwd.h>
-#include <stdlib.h>
+#include <errno.h>
+#include <inttypes.h>
 #include <limits.h>
+#include <pwd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /*
  * Routines to expand arguments to commands.  We have to deal with
@@ -491,9 +492,9 @@ expbackq(union node *cmd, int quoted, int flag)
 		exitstatus = waitforjob(in.jp, (int *)NULL);
 	if (quoted == 0)
 		recordregion(startloc, dest - stackblock(), 0);
-	TRACE(("evalbackq: size=%d: \"%.*s\"\n",
-		(dest - stackblock()) - startloc,
-		(dest - stackblock()) - startloc,
+	TRACE(("expbackq: size=%td: \"%.*s\"\n",
+		((dest - stackblock()) - startloc),
+		(int)((dest - stackblock()) - startloc),
 		stackblock() + startloc));
 	expdest = dest;
 	INTON;

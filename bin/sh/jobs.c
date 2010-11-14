@@ -38,18 +38,18 @@ static char sccsid[] = "@(#)jobs.c	8.5 (Berkeley) 5/4/95";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <fcntl.h>
-#include <signal.h>
-#include <errno.h>
-#include <paths.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <sys/param.h>
-#include <sys/wait.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <paths.h>
 #include <sys/ioctl.h>
+#include <sys/param.h>
+#include <sys/resource.h>
+#include <sys/stddef.h>
+#include <sys/time.h>
+#include <sys/wait.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <paths.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include "shell.h"
 #if JOBS
@@ -653,7 +653,7 @@ makejob(union node *node __unused, int nprocs)
 		jp->ps = &jp->ps0;
 	}
 	INTON;
-	TRACE(("makejob(%p, %d) returns %%%d\n", (void *)node, nprocs,
+	TRACE(("makejob(%p, %d) returns %%%td\n", (void *)node, nprocs,
 	    jp - jobtab + 1));
 	return jp;
 }
@@ -739,7 +739,7 @@ forkshell(struct job *jp, union node *n, int mode)
 	pid_t pid;
 	pid_t pgrp;
 
-	TRACE(("forkshell(%%%d, %p, %d) called\n", jp - jobtab, (void *)n,
+	TRACE(("forkshell(%%%td, %p, %d) called\n", jp - jobtab, (void *)n,
 	    mode));
 	INTOFF;
 	flushall();
@@ -868,7 +868,7 @@ waitforjob(struct job *jp, int *origstatus)
 	int st;
 
 	INTOFF;
-	TRACE(("waitforjob(%%%d) called\n", jp - jobtab + 1));
+	TRACE(("waitforjob(%%%td) called\n", jp - jobtab + 1));
 	while (jp->state == 0)
 		if (dowait(1, jp) == -1)
 			dotrap();
@@ -969,7 +969,7 @@ dowait(int block, struct job *job)
 			if (stopped) {		/* stopped or done */
 				int state = done? JOBDONE : JOBSTOPPED;
 				if (jp->state != state) {
-					TRACE(("Job %d: changing state from %d to %d\n", jp - jobtab + 1, jp->state, state));
+					TRACE(("Job %td: changing state from %d to %d\n", jp - jobtab + 1, jp->state, state));
 					jp->state = state;
 #if JOBS
 					if (done)
