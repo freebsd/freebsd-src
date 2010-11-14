@@ -819,7 +819,7 @@ DMenu MenuMediaFTP = {
       { "Turkey",	"ftp.tr.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.tr.freebsd.org" },
       { " Turkey #2",	"ftp2.tr.freebsd.org", NULL, dmenuSetVariable, NULL,
-	VAR_FTP_PATH "=ftp://ftp.tr.freebsd.org" },
+	VAR_FTP_PATH "=ftp://ftp2.tr.freebsd.org" },
 
       { "UK",		"ftp.uk.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.uk.freebsd.org" },
