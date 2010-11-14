@@ -52,12 +52,14 @@ led_func(void *arg, int onoff)
 	struct led_avila_softc *sc = arg;
 	uint32_t reg;
 
+	IXP4XX_GPIO_LOCK();
 	reg = GPIO_CONF_READ_4(sc, IXP425_GPIO_GPOUTR);
 	if (onoff)
 		reg &= ~GPIO_LED_STATUS_BIT;
 	else
 		reg |= GPIO_LED_STATUS_BIT;
 	GPIO_CONF_WRITE_4(sc, IXP425_GPIO_GPOUTR, reg);
+	IXP4XX_GPIO_UNLOCK();
 }
 
 static int
