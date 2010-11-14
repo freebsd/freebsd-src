@@ -22,6 +22,32 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 9.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20101114:
+	Generic IEEE 802.3 annex 31B full duplex flow control support has been
+	added to mii(4) and bge(4), bce(4), msk(4), nfe(4) and stge(4) along
+	with brgphy(4), e1000phy(4) as well as ip1000phy() have been converted
+	to take advantage of it instead of using custom implementations.  This
+	means that these drivers now no longer unconditionally advertise
+	support for flow control but only do so if flow control is a selected
+	media option.  This was implemented in the generic support that way in
+	order to allow flow control to be switched on and off via ifconfig(8)
+	with the PHY specific default to typically off in order to protect
+	from unwanted effects.  Consequently, if you used flow control with
+	one of the above mentioned drivers you now need to explicitly enable
+	it, for example via:
+		ifconfig bge0 media auto mediaopt flowcontrol
+
+	Along with the above mentioned changes generic support for setting
+	1000baseT master mode also has been added and brgphy(4), ciphy(4),
+	e1000phy(4) as well as ip1000phy(4) have been converted to take
+	advantage of it.  This means that these drivers now no longer take the
+	link0 parameter for selecting master mode but the master media option
+	has to be used instead, for example like in the following:
+		ifconfig bge0 media 1000baseT mediaopt full-duplex,master
+
+	Selection of master mode now is also available with all other PHY
+	drivers supporting 1000baseT.
+
 20101111:
 	The TCP stack has received a significant update to add support for
 	modularised congestion control and generally improve the clarity of
