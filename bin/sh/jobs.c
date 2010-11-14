@@ -41,13 +41,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/param.h>
 #include <sys/resource.h>
-#include <sys/stddef.h>
 #include <sys/time.h>
 #include <sys/wait.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
 #include <signal.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <unistd.h>
 
