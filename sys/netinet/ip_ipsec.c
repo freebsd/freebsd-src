@@ -72,9 +72,9 @@ extern	struct protosw inetsw[];
 
 #ifdef IPSEC
 #ifdef IPSEC_FILTERTUNNEL
-static VNET_DEFINE(int, ip4_ipsec_filtertunnel) = 1;
+STATIC_VNET_DEFINE(int, ip4_ipsec_filtertunnel) = 1;
 #else
-static VNET_DEFINE(int, ip4_ipsec_filtertunnel) = 0;
+STATIC_VNET_DEFINE(int, ip4_ipsec_filtertunnel) = 0;
 #endif
 #define	V_ip4_ipsec_filtertunnel VNET(ip4_ipsec_filtertunnel)
 

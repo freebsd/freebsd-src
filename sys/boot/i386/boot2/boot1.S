@@ -239,7 +239,7 @@ error:		callw putstr			# Display message
 		xorb %ah,%ah			# BIOS: Get
 		int $0x16			#  keypress
 		movw $0x1234, BDA_BOOT		# Do a warm boot
-		ljmp $0xffff,$0x0		# reboot the machine
+		ljmp $0xf000,$0xfff0		# reboot the machine
 /*
  * Display a null-terminated string using the BIOS output.
  */

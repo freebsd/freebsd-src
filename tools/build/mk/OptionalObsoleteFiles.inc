@@ -101,7 +101,7 @@ OLD_LIBS+=usr/lib/libngatm.so.4
 OLD_FILES+=usr/lib/libngatm_p.a
 OLD_FILES+=usr/lib/snmp_atm.so
 OLD_LIBS+=usr/lib/snmp_atm.so.6
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libngatm.a
 OLD_FILES+=usr/lib32/libngatm.so
 OLD_LIBS+=usr/lib32/libngatm.so.4
@@ -162,7 +162,7 @@ OLD_FILES+=usr/include/lwres/platform.h
 OLD_DIRS+=usr/include/lwres
 OLD_FILES+=usr/lib/liblwres.a
 OLD_FILES+=usr/lib/liblwres_p.a
-OLD_LIBS+=usr/lib/liblwres.so.10
+OLD_LIBS+=usr/lib/liblwres.so.50
 OLD_FILES+=usr/lib/liblwres.so
 OLD_FILES+=usr/sbin/named
 OLD_FILES+=usr/sbin/lwresd
@@ -288,7 +288,7 @@ OLD_FILES+=usr/share/man/man3/lwres_getnamebyaddr.3.gz
 OLD_FILES+=usr/share/man/man3/lwres_string_parse.3.gz
 OLD_FILES+=usr/share/man/man5/named.conf.5.gz
 OLD_FILES+=usr/share/man/man5/rndc.conf.5.gz
-OLD_FILES+=usr/share/man/man8/nsupdate.8.gz
+OLD_FILES+=usr/share/man/man1/nsupdate.1.gz
 OLD_FILES+=usr/share/man/man8/dnssec-keygen.8.gz
 OLD_FILES+=usr/share/man/man8/dnssec-signzone.8.gz
 OLD_FILES+=usr/share/man/man8/named.8.gz
@@ -368,7 +368,7 @@ OLD_FILES+=usr/lib/libsdp.a
 OLD_FILES+=usr/lib/libsdp.so
 OLD_LIBS+=usr/lib/libsdp.so.4
 OLD_FILES+=usr/lib/libsdp_p.a
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libbluetooth.a
 OLD_FILES+=usr/lib32/libbluetooth.so
 OLD_LIBS+=usr/lib32/libbluetooth.so.4
@@ -561,7 +561,7 @@ OLD_FILES+=usr/lib/libumem_p.a
 OLD_FILES+=usr/lib/libuutil.a
 OLD_FILES+=usr/lib/libuutil.so
 OLD_FILES+=usr/lib/libuutil_p.a
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/dtrace/drti.o
 OLD_FILES+=usr/lib32/libavl.a
 OLD_FILES+=usr/lib32/libavl.so
@@ -612,7 +612,7 @@ OLD_FILES+=usr/lib/libzfs.so
 OLD_FILES+=usr/lib/libzfs_p.a
 OLD_FILES+=usr/lib/libzpool.a
 OLD_FILES+=usr/lib/libzpool.so
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libzfs.a
 OLD_FILES+=usr/lib32/libzfs.so
 OLD_LIBS+=usr/lib32/libzfs.so.2
@@ -800,7 +800,7 @@ OLD_FILES+=usr/lib/libgpib.a
 OLD_FILES+=usr/lib/libgpib.so
 OLD_LIBS+=usr/lib/libgpib.so.3
 OLD_FILES+=usr/lib/libgpib_p.a
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libgpib.a
 OLD_FILES+=usr/lib32/libgpib.so
 OLD_LIBS+=usr/lib32/libgpib.so.3
@@ -816,7 +816,7 @@ OLD_FILES+=usr/lib/libgssapi_p.a
 OLD_FILES+=usr/lib/librpcsec_gss.a
 OLD_FILES+=usr/lib/librpcsec_gss.so
 OLD_LIBS+=usr/lib/librpcsec_gss.so.1
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libgssapi.a
 OLD_FILES+=usr/lib32/libgssapi.so
 OLD_LIBS+=usr/lib32/libgssapi.so.10
@@ -1039,7 +1039,7 @@ OLD_LIBS+=lib/libipx.so.5
 OLD_FILES+=usr/lib/libipx.a
 OLD_FILES+=usr/lib/libipx.so
 OLD_FILES+=usr/lib/libipx_p.a
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libipx.a
 OLD_FILES+=usr/lib32/libipx.so
 OLD_LIBS+=usr/lib32/libipx.so.5
@@ -1164,7 +1164,7 @@ OLD_FILES+=usr/lib/pam_krb5.so
 OLD_LIBS+=usr/lib/pam_krb5.so.5
 OLD_FILES+=usr/lib/pam_ksu.so
 OLD_LIBS+=usr/lib/pam_ksu.so.5
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libasn1.a
 OLD_FILES+=usr/lib32/libasn1.so
 OLD_LIBS+=usr/lib32/libasn1.so.10
@@ -1626,7 +1626,7 @@ OLD_FILES+=usr/lib/libncp.a
 OLD_FILES+=usr/lib/libncp.so
 OLD_LIBS+=usr/lib/libncp.so.4
 OLD_FILES+=usr/lib/libncp_p.a
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libncp.a
 OLD_FILES+=usr/lib32/libncp.so
 OLD_LIBS+=usr/lib32/libncp.so.4
@@ -1839,7 +1839,6 @@ OLD_FILES+=usr/lib/libalias_skinny_p.a
 OLD_FILES+=usr/lib/libalias_smedia_p.a
 OLD_FILES+=usr/lib/libarchive_p.a
 OLD_FILES+=usr/lib/libasn1_p.a
-OLD_FILES+=usr/lib/libatm_p.a
 OLD_FILES+=usr/lib/libbegemot_p.a
 OLD_FILES+=usr/lib/libbluetooth_p.a
 OLD_FILES+=usr/lib/libbsdxml_p.a
@@ -1880,7 +1879,6 @@ OLD_FILES+=usr/lib/libjail_p.a
 OLD_FILES+=usr/lib/libkadm5clnt_p.a
 OLD_FILES+=usr/lib/libkadm5srv_p.a
 OLD_FILES+=usr/lib/libkafs5_p.a
-OLD_FILES+=usr/lib/libkeycap_p.a
 OLD_FILES+=usr/lib/libkiconv_p.a
 OLD_FILES+=usr/lib/libkrb5_p.a
 OLD_FILES+=usr/lib/libkvm_p.a
@@ -1895,7 +1893,6 @@ OLD_FILES+=usr/lib/libmenu_p.a
 OLD_FILES+=usr/lib/libmenuw_p.a
 OLD_FILES+=usr/lib/libmilter_p.a
 OLD_FILES+=usr/lib/libmp_p.a
-OLD_FILES+=usr/lib/libmytinfo_p.a
 OLD_FILES+=usr/lib/libncp_p.a
 OLD_FILES+=usr/lib/libncurses_p.a
 OLD_FILES+=usr/lib/libncursesw_p.a
@@ -2013,7 +2010,7 @@ OLD_FILES+=usr/include/libmilter/mfdef.h
 OLD_FILES+=usr/lib/libmilter.a
 OLD_LIBS+=usr/lib/libmilter.so.5
 OLD_FILES+=usr/lib/libmilter_p.a
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libmilter.a
 OLD_LIBS+=usr/lib32/libmilter.so.5
 OLD_FILES+=usr/lib32/libmilter_p.a
