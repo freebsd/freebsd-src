@@ -74,7 +74,8 @@ sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, adjkerntz, CTLTYPE_INT|CTLFLAG_RW,
-	&adjkerntz, 0, sysctl_machdep_adjkerntz, "I", "Local offset from UTC in seconds");
+	&adjkerntz, 0, sysctl_machdep_adjkerntz, "I",
+	"Local offset from UTC in seconds");
 
 /*--------------------------------------------------------------------*
  * Generic routines to convert between a POSIX date
