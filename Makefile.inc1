@@ -121,7 +121,7 @@ VERSION+=	${OSRELDATE}
 TARGET_ARCH=	${TARGET:S/pc98/i386/:S/sun4v/sparc64/:S/mips/mipsel/}
 .elif !defined(TARGET) && defined(TARGET_ARCH) && \
     ${TARGET_ARCH} != ${MACHINE_ARCH}
-TARGET=		${TARGET_ARCH:C/mipse[lb]/mips/:C/armeb/arm}
+TARGET=		${TARGET_ARCH:C/mipse[lb]/mips/:C/armeb/arm/}
 .endif
 # Legacy names, for a transition period mips:mips -> mipsel:mips
 .if defined(TARGET) && defined(TARGET_ARCH) && \
