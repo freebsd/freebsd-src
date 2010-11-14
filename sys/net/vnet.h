@@ -95,9 +95,7 @@ struct vnet {
  * Location of the kernel's 'set_vnet' linker set.
  */
 extern uintptr_t	*__start_set_vnet;
-__GLOBL(__start_set_vnet);
 extern uintptr_t	*__stop_set_vnet;
-__GLOBL(__stop_set_vnet);
 
 #define	VNET_START	(uintptr_t)&__start_set_vnet
 #define	VNET_STOP	(uintptr_t)&__stop_set_vnet
@@ -195,7 +193,10 @@ extern struct sx vnet_sxlock;
  */
 #define	VNET_NAME(n)		vnet_entry_##n
 #define	VNET_DECLARE(t, n)	extern t VNET_NAME(n)
-#define	VNET_DEFINE(t, n)	t VNET_NAME(n) __section(VNET_SETNAME) __used
+#define	VNET_DEFINE(t, n)						\
+    __GLOBL("__start_" VNET_SETNAME);					\
+    __GLOBL("__stop_" VNET_SETNAME);					\
+    t VNET_NAME(n) __section(VNET_SETNAME) __used
 #define	STATIC_VNET_DEFINE(t, n)					\
     VNET_DEFINE(static t, n)
 #define	_VNET_PTR(b, n)							\
