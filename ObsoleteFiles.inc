@@ -5086,7 +5086,7 @@ OLD_LIBS+=usr/lib/libthr.so.2
 .endif
 # 20060127: revert libdisk to static-only
 OLD_LIBS+=usr/lib/libdisk.so.3
-# 20051027: libc_r discontinued
+# 20051027: libc_r discontinued (removed 20101113)
 OLD_LIBS+=usr/lib/libc_r.a
 OLD_LIBS+=usr/lib/libc_r.so
 OLD_LIBS+=usr/lib/libc_r.so.7
