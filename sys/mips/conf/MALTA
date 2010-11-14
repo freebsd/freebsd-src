@@ -19,8 +19,8 @@
 
 ident		MALTA
 
-#makeoptions	ARCH_FLAGS=-march=mips32
-makeoptions	MIPS_LITTLE_ENDIAN=defined
+machine		mips mipsel	# Malta supports both, so it isn't in std.malta
+
 makeoptions	KERNLOADADDR=0x80100000
 
 options 	YAMON

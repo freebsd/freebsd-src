@@ -817,8 +817,6 @@ nfe_miibus_statchg(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	NFE_LOCK(sc);
-
 	mii = device_get_softc(sc->nfe_miibus);
 	ifp = sc->nfe_ifp;
 
@@ -848,8 +846,6 @@ nfe_miibus_statchg(device_t dev)
 	}
 	NFE_WRITE(sc, NFE_TX_CTL, txctl);
 	NFE_WRITE(sc, NFE_RX_CTL, rxctl);
-
-	NFE_UNLOCK(sc);
 }
 
 

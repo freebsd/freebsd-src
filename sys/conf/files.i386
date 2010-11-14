@@ -239,13 +239,28 @@ dev/acpica/acpi_if.m		standard
 dev/acpi_support/acpi_wmi_if.m	standard
 dev/wpi/if_wpi.c		optional wpi
 i386/acpica/acpi_machdep.c	optional acpi
-i386/acpica/acpi_wakeup.c	optional acpi
-acpi_wakecode.h			optional acpi			\
-	dependency 	"$S/i386/acpica/acpi_wakecode.S assym.s"	\
-	compile-with	"${MAKE} -f $S/i386/acpica/Makefile MAKESRCPATH=$S/i386/acpica"	\
+acpi_wakecode.o			optional acpi				\
+	dependency	"$S/i386/acpica/acpi_wakecode.S assym.s"	\
+	compile-with	"${NORMAL_S}"					\
 	no-obj no-implicit-rule before-depend				\
-	clean		"acpi_wakecode.h acpi_wakecode.o acpi_wakecode.bin"
+	clean		"acpi_wakecode.o"
+acpi_wakecode.bin		optional acpi				\
+	dependency	"acpi_wakecode.o"				\
+	compile-with	"objcopy -S -O binary acpi_wakecode.o ${.TARGET}" \
+	no-obj no-implicit-rule	before-depend				\
+	clean		"acpi_wakecode.bin"
+acpi_wakecode.h			optional acpi				\
+	dependency	"acpi_wakecode.bin"				\
+	compile-with	"file2c -sx 'static char wakecode[] = {' '};' < acpi_wakecode.bin > ${.TARGET}" \
+	no-obj no-implicit-rule	before-depend				\
+	clean		"acpi_wakecode.h"
+acpi_wakedata.h			optional acpi				\
+	dependency	"acpi_wakecode.o"				\
+	compile-with	'${NM} -n --defined-only acpi_wakecode.o | while read offset dummy what; do echo "#define	$${what}	0x$${offset}"; done > ${.TARGET}' \
+	no-obj no-implicit-rule	before-depend				\
+	clean		"acpi_wakedata.h"
 #
+i386/acpica/acpi_wakeup.c	optional acpi
 i386/bios/apm.c			optional apm
 i386/bios/mca_machdep.c		optional mca
 i386/bios/smapi.c		optional smapi
