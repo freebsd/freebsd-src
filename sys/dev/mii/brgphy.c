@@ -268,17 +268,6 @@ brgphy_attach(device_t dev)
 		bce_sc = ifp->if_softc;
 	}
 
-	/* Todo: Need to add additional controllers such as 5906 & 5787F */
-	/* The 590x chips are 10/100 only. */
-	if (bge_sc &&
-	    pci_get_vendor(bge_sc->bge_dev) == BCOM_VENDORID &&
-	    (pci_get_device(bge_sc->bge_dev) == BCOM_DEVICEID_BCM5901 ||
-	    pci_get_device(bge_sc->bge_dev) == BCOM_DEVICEID_BCM5901A2 ||
-	    pci_get_device(bge_sc->bge_dev) == BCOM_DEVICEID_BCM5906 ||
-	    pci_get_device(bge_sc->bge_dev) == BCOM_DEVICEID_BCM5906M)) {
-		ma->mii_capmask &= ~BMSR_EXTSTAT;
-	}
-
 	brgphy_reset(sc);
 
 	/* Read the PHY's capabilities. */

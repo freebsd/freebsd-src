@@ -2640,7 +2640,7 @@ bge_attach(device_t dev)
 	struct bge_softc *sc;
 	uint32_t hwcfg = 0, misccfg;
 	u_char eaddr[ETHER_ADDR_LEN];
-	int error, f, msicount, phy_addr, reg, rid, trys;
+	int capmask, error, f, msicount, phy_addr, reg, rid, trys;
 
 	sc = device_get_softc(dev);
 	sc->bge_dev = dev;
@@ -2824,11 +2824,29 @@ bge_attach(device_t dev)
 	if (BGE_IS_5755_PLUS(sc) == 0)
 		sc->bge_flags |= BGE_FLAG_4G_BNDRY_BUG;
 
+	misccfg = CSR_READ_4(sc, BGE_MISC_CFG) & BGE_MISCCFG_BOARD_ID;
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5705) {
-		misccfg = CSR_READ_4(sc, BGE_MISC_CFG) & BGE_MISCCFG_BOARD_ID;
 		if (misccfg == BGE_MISCCFG_BOARD_ID_5788 ||
 		    misccfg == BGE_MISCCFG_BOARD_ID_5788M)
 			sc->bge_flags |= BGE_FLAG_5788;
+	}
+
+	capmask = BMSR_DEFCAPMASK;
+	if ((sc->bge_asicrev == BGE_ASICREV_BCM5703 &&
+	    (misccfg == 0x4000 || misccfg == 0x8000)) ||
+	    (sc->bge_asicrev == BGE_ASICREV_BCM5705 &&
+	    pci_get_vendor(dev) == BCOM_VENDORID &&
+	    (pci_get_device(dev) == BCOM_DEVICEID_BCM5901 ||
+	    pci_get_device(dev) == BCOM_DEVICEID_BCM5901A2 ||
+	    pci_get_device(dev) == BCOM_DEVICEID_BCM5705F)) ||
+	    (pci_get_vendor(dev) == BCOM_VENDORID &&
+	    (pci_get_device(dev) == BCOM_DEVICEID_BCM5751F ||
+	    pci_get_device(dev) == BCOM_DEVICEID_BCM5753F ||
+	    pci_get_device(dev) == BCOM_DEVICEID_BCM5787F)) ||
+	    pci_get_device(dev) == BCOM_DEVICEID_BCM57790 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5906) {
+		/* These chips are 10/100 only. */
+		capmask &= ~BMSR_EXTSTAT;
 	}
 
 	/*
@@ -3104,9 +3122,9 @@ bge_attach(device_t dev)
 again:
 		bge_asf_driver_up(sc);
 
-		error = mii_attach(dev, &sc->bge_miibus, ifp,
-		    bge_ifmedia_upd, bge_ifmedia_sts, BMSR_DEFCAPMASK,
-		    phy_addr, MII_OFFSET_ANY, MIIF_DOPAUSE);
+		error = mii_attach(dev, &sc->bge_miibus, ifp, bge_ifmedia_upd,
+		    bge_ifmedia_sts, capmask, phy_addr, MII_OFFSET_ANY,
+		    MIIF_DOPAUSE);
 		if (error != 0) {
 			if (trys++ < 4) {
 				device_printf(sc->bge_dev, "Try again\n");
