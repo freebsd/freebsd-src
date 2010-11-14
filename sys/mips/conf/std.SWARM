@@ -2,8 +2,8 @@
 # $FreeBSD: projects/binutils-2.17/sys/mips/conf/std.SWARM 215068 2010-11-10 00:28:20Z imp $
 #
 
-files		"../sibyte/files.sibyte"
 hints		"SWARM.hints"
+include		"../sibyte/std.sibyte"
 
 options		CFE
 options		CFE_CONSOLE

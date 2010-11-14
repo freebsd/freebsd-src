@@ -805,6 +805,7 @@ poplocalvars(void)
 		if (vp == NULL) {	/* $- saved */
 			memcpy(optlist, lvp->text, sizeof optlist);
 			ckfree(lvp->text);
+			optschanged();
 		} else if ((lvp->flags & (VUNSET|VSTRFIXED)) == VUNSET) {
 			(void)unsetvar(vp->text);
 		} else {

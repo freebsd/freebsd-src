@@ -17,7 +17,7 @@
 #
 # $FreeBSD$
 
-machine 	mips
+machine 	mips mips64eb
 cpu 		CPU_RMI
 ident 		XLR64
 
