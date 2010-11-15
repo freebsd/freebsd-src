@@ -1,3 +1,4 @@
+# $FreeBSD$
 ACC
 ANSEL
 ARP
@@ -38,8 +39,6 @@ Info
 Karels
 LH
 Leffler
-MAKEDEV
-MAKEDEV.local
 MASSBUS
 MAXDSIZ
 MAXTSIZ

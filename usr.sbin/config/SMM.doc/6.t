@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)6.t	8.1 (Berkeley) 6/8/93
+.\" $FreeBSD$
 .\"
 .\".ds RH "Adding New Devices
 .ne 2i
@@ -230,10 +231,3 @@ Remember that the position in the
 device table specifies the major device number.
 The block major number is needed in the ``devices.machine'' file
 if the device is a disk.
-.PP
-With the configuration information in place, your configuration
-file appropriately modified, and a system reconfigured and rebooted
-you should incorporate the shell commands needed to install the special
-files in the file system to the file ``/dev/MAKEDEV'' or
-``/dev/MAKEDEV.local''.  This is discussed in the document ``Installing
-and Operating 4.4BSD''.
