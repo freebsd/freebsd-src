@@ -2010,6 +2010,7 @@ guard_thread(void *arg)
 	PJDLOG_VERIFY(sigaddset(&mask, SIGINT) == 0);
 	PJDLOG_VERIFY(sigaddset(&mask, SIGTERM) == 0);
 
+	timeout.tv_sec = RETRY_SLEEP;
 	timeout.tv_nsec = 0;
 	signo = -1;
 
@@ -2035,7 +2036,6 @@ guard_thread(void *arg)
 				guard_one(res, ii);
 			lastcheck = now;
 		}
-		timeout.tv_sec = RETRY_SLEEP;
 		signo = sigtimedwait(&mask, NULL, &timeout);
 	}
 	/* NOTREACHED */
