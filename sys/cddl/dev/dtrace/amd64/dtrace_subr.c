@@ -120,14 +120,14 @@ dtrace_xcall(processorid_t cpu, dtrace_xcall_t func, void *arg)
 	if (cpu == DTRACE_CPUALL)
 		cpus = all_cpus;
 	else
-		cpus = (cpumask_t) (1 << cpu);
+		cpus = cputomask(cpu);
 
 	/* If the current CPU is in the set, call the function directly: */
-	if ((cpus & (1 << curcpu)) != 0) {
+	if ((cpus & cputomask(curcpu)) != 0) {
 		(*func)(arg);
 
 		/* Mask the current CPU from the set */
-		cpus &= ~(1 << curcpu);
+		cpus &= ~cputomask(curcpu);
 	}
 
 	/* If there are any CPUs in the set, cross-call to those CPUs */

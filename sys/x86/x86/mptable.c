@@ -162,7 +162,7 @@ static int	lookup_bus_type(char *name);
 static void	mptable_count_items(void);
 static void	mptable_count_items_handler(u_char *entry, void *arg);
 #ifdef MPTABLE_FORCE_HTT
-static void	mptable_hyperthread_fixup(u_int id_mask);
+static void	mptable_hyperthread_fixup(cpumask_t id_mask);
 #endif
 static void	mptable_parse_apics_and_busses(void);
 static void	mptable_parse_apics_and_busses_handler(u_char *entry,
@@ -303,7 +303,7 @@ found:
 static int
 mptable_probe_cpus(void)
 {
-	u_int cpu_mask;
+	cpumask_t cpu_mask;
 
 	/* Is this a pre-defined config? */
 	if (mpfps->config_type != 0) {
@@ -423,7 +423,7 @@ static void
 mptable_probe_cpus_handler(u_char *entry, void *arg)
 {
 	proc_entry_ptr proc;
-	u_int *cpu_mask;
+	cpumask_t *cpu_mask;
 
 	switch (*entry) {
 	case MPCT_ENTRY_PROCESSOR:
@@ -432,8 +432,8 @@ mptable_probe_cpus_handler(u_char *entry, void *arg)
 			lapic_create(proc->apic_id, proc->cpu_flags &
 			    PROCENTRY_FLAG_BP);
 			if (proc->apic_id < MAX_LAPIC_ID) {
-				cpu_mask = (u_int *)arg;
-				*cpu_mask |= (1ul << proc->apic_id);
+				cpu_mask = (cpumask_t *)arg;
+				*cpu_mask |= cputomask(proc->apic_id);
 			}
 		}
 		break;
@@ -883,7 +883,7 @@ mptable_parse_ints(void)
  * with the number of logical CPU's in the processor.
  */
 static void
-mptable_hyperthread_fixup(u_int id_mask)
+mptable_hyperthread_fixup(cpumask_t id_mask)
 {
 	u_int i, id, logical_cpus;
 
@@ -901,13 +901,13 @@ mptable_hyperthread_fixup(u_int id_mask)
 	 * already in the table, then kill the fixup.
 	 */
 	for (id = 0; id <= MAX_LAPIC_ID; id++) {
-		if ((id_mask & 1 << id) == 0)
+		if ((id_mask & cputomask(id)) == 0)
 			continue;
 		/* First, make sure we are on a logical_cpus boundary. */
 		if (id % logical_cpus != 0)
 			return;
 		for (i = id + 1; i < id + logical_cpus; i++)
-			if ((id_mask & 1 << i) != 0)
+			if ((id_mask & cputomask(i)) != 0)
 				return;
 	}
 
@@ -915,7 +915,7 @@ mptable_hyperthread_fixup(u_int id_mask)
 	 * Ok, the ID's checked out, so perform the fixup by
 	 * adding the logical CPUs.
 	 */
-	while ((id = ffs(id_mask)) != 0) {
+	while ((id = ffsl(id_mask)) != 0) {
 		id--;
 		for (i = id + 1; i < id + logical_cpus; i++) {
 			if (bootverbose)
@@ -924,7 +924,7 @@ mptable_hyperthread_fixup(u_int id_mask)
 				    i, id);
 			lapic_create(i, 0);
 		}
-		id_mask &= ~(1 << id);
+		id_mask &= ~cputomask(id);
 	}
 }
 #endif /* MPTABLE_FORCE_HTT */

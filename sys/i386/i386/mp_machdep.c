@@ -1388,7 +1388,7 @@ ipi_selected(cpumask_t cpus, u_int ipi)
 	 * Set the mask of receiving CPUs for this purpose.
 	 */
 	if (ipi == IPI_STOP_HARD)
-		atomic_set_int(&ipi_nmi_pending, cpus);
+		atomic_set_long(&ipi_nmi_pending, cpus);
 
 	CTR3(KTR_SMP, "%s: cpus: %x ipi: %x", __func__, cpus, ipi);
 	while ((cpu = ffs(cpus)) != 0) {
@@ -1411,7 +1411,7 @@ ipi_cpu(int cpu, u_int ipi)
 	 * Set the mask of receiving CPUs for this purpose.
 	 */
 	if (ipi == IPI_STOP_HARD)
-		atomic_set_int(&ipi_nmi_pending, 1 << cpu);
+		atomic_set_long(&ipi_nmi_pending, cputomask(cpu));
 
 	CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__, cpu, ipi);
 	ipi_send_cpu(cpu, ipi);
@@ -1435,7 +1435,7 @@ ipi_all_but_self(u_int ipi)
 	 * Set the mask of receiving CPUs for this purpose.
 	 */
 	if (ipi == IPI_STOP_HARD)
-		atomic_set_int(&ipi_nmi_pending, PCPU_GET(other_cpus));
+		atomic_set_long(&ipi_nmi_pending, PCPU_GET(other_cpus));
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
 	lapic_ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
 }
@@ -1476,14 +1476,14 @@ cpustop_handler(void)
 	savectx(&stoppcbs[cpu]);
 
 	/* Indicate that we are stopped */
-	atomic_set_int(&stopped_cpus, cpumask);
+	atomic_set_long(&stopped_cpus, cpumask);
 
 	/* Wait for restart */
 	while (!(started_cpus & cpumask))
 	    ia32_pause();
 
-	atomic_clear_int(&started_cpus, cpumask);
-	atomic_clear_int(&stopped_cpus, cpumask);
+	atomic_clear_long(&started_cpus, cpumask);
+	atomic_clear_long(&stopped_cpus, cpumask);
 
 	if (cpu == 0 && cpustop_restartfunc != NULL) {
 		cpustop_restartfunc();

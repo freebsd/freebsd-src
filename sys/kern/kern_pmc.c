@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_hwpmc_hooks.h"
 
 #include <sys/types.h>
+#include <sys/systm.h>
 #include <sys/pmc.h>
 #include <sys/pmckern.h>
 #include <sys/smp.h>
@@ -110,7 +111,7 @@ pmc_cpu_is_active(int cpu)
 {
 #ifdef	SMP
 	return (pmc_cpu_is_present(cpu) &&
-	    (hlt_cpus_mask & (1 << cpu)) == 0);
+	    (hlt_cpus_mask & cputomask(cpu)) == 0);
 #else
 	return (1);
 #endif
@@ -137,7 +138,7 @@ int
 pmc_cpu_is_primary(int cpu)
 {
 #ifdef	SMP
-	return ((logical_cpus_mask & (1 << cpu)) == 0);
+	return ((logical_cpus_mask & cputomask(cpu)) == 0);
 #else
 	return (1);
 #endif

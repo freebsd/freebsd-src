@@ -290,7 +290,7 @@ restart_cpus(cpumask_t map)
 	CTR1(KTR_SMP, "restart_cpus(%x)", map);
 
 	/* signal other cpus to restart */
-	atomic_store_rel_int(&started_cpus, map);
+	atomic_store_rel_long(&started_cpus, map);
 
 	/* wait for each to clear its bit */
 	while ((stopped_cpus & map) != 0)
@@ -368,11 +368,11 @@ smp_rendezvous_cpus(cpumask_t map,
 	}
 
 	CPU_FOREACH(i) {
-		if (((1 << i) & map) != 0)
+		if ((cputomask(i) & map) != 0)
 			ncpus++;
 	}
 	if (ncpus == 0)
-		panic("ncpus is 0 with map=0x%x", map);
+		panic("ncpus is 0 with map=0x%lx", map);
 
 	/* obtain rendezvous lock */
 	mtx_lock_spin(&smp_ipi_mtx);
@@ -388,10 +388,10 @@ smp_rendezvous_cpus(cpumask_t map,
 	atomic_store_rel_int(&smp_rv_waiters[0], 0);
 
 	/* signal other processors, which will enter the IPI with interrupts off */
-	ipi_selected(map & ~(1 << curcpu), IPI_RENDEZVOUS);
+	ipi_selected(map & ~cputomask(curcpu), IPI_RENDEZVOUS);
 
 	/* Check if the current CPU is in the map */
-	if ((map & (1 << curcpu)) != 0)
+	if ((map & cputomask(curcpu)) != 0)
 		smp_rendezvous_action();
 
 	if (teardown_func == smp_no_rendevous_barrier)
@@ -463,7 +463,7 @@ smp_topo(void)
 		panic("Built bad topology at %p.  CPU count %d != %d",
 		    top, top->cg_count, mp_ncpus);
 	if (top->cg_mask != all_cpus)
-		panic("Built bad topology at %p.  CPU mask 0x%X != 0x%X",
+		panic("Built bad topology at %p.  CPU mask 0x%lX != 0x%lX",
 		    top, top->cg_mask, all_cpus);
 	return (top);
 }
@@ -476,7 +476,7 @@ smp_topo_none(void)
 	top = &group[0];
 	top->cg_parent = NULL;
 	top->cg_child = NULL;
-	top->cg_mask = ~0U >> (32 - mp_ncpus);
+	top->cg_mask = ~0lU >> (MAXCPU - mp_ncpus);
 	top->cg_count = mp_ncpus;
 	top->cg_children = 0;
 	top->cg_level = CG_SHARE_NONE;
@@ -493,7 +493,7 @@ smp_topo_addleaf(struct cpu_group *parent, struct cpu_group *child, int share,
 	int i;
 
 	for (mask = 0, i = 0; i < count; i++, start++)
-		mask |= (1 << start);
+		mask |= cputomask(start);
 	child->cg_parent = parent;
 	child->cg_child = NULL;
 	child->cg_children = 0;
@@ -504,7 +504,7 @@ smp_topo_addleaf(struct cpu_group *parent, struct cpu_group *child, int share,
 	parent->cg_children++;
 	for (; parent != NULL; parent = parent->cg_parent) {
 		if ((parent->cg_mask & child->cg_mask) != 0)
-			panic("Duplicate children in %p.  mask 0x%X child 0x%X",
+			panic("Duplicate children in %p.  mask 0x%lX child 0x%lX",
 			    parent, parent->cg_mask, child->cg_mask);
 		parent->cg_mask |= child->cg_mask;
 		parent->cg_count += child->cg_count;
@@ -570,7 +570,7 @@ smp_topo_find(struct cpu_group *top, int cpu)
 	int children;
 	int i;
 
-	mask = (1 << cpu);
+	mask = cputomask(cpu);
 	cg = top;
 	for (;;) {
 		if ((cg->cg_mask & mask) == 0)

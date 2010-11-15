@@ -90,7 +90,8 @@ extern cpumask_t all_cpus;
  * time, thus permitting us to configure sparse maps of cpuid-dependent
  * (per-CPU) structures.
  */
-#define	CPU_ABSENT(x_cpu)	((all_cpus & (1 << (x_cpu))) == 0)
+#include <sys/systm.h>
+#define	CPU_ABSENT(x_cpu)	((all_cpus & (cputomask(x_cpu))) == 0)
 
 /*
  * Macros to iterate over non-absent CPUs.  CPU_FOREACH() takes an
@@ -102,7 +103,7 @@ extern cpumask_t all_cpus;
  */
 #define	CPU_FOREACH(i)							\
 	for ((i) = 0; (i) <= mp_maxid; (i)++)				\
-		if (!CPU_ABSENT((i)))
+		if (!CPU_ABSENT(i))
 
 static __inline int
 cpu_first(void)

@@ -426,4 +426,6 @@ bitcount32(uint32_t x)
 	return (x);
 }
 
+#define cputomask(_cpu) ((__cpumask_t)1 << _cpu)
+
 #endif /* !_SYS_SYSTM_H_ */

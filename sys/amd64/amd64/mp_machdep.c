@@ -933,7 +933,7 @@ start_all_aps(void)
 			panic("AP #%d (PHY# %d) failed!", cpu, apic_id);
 		}
 
-		all_cpus |= (1 << cpu);		/* record AP in CPU map */
+		all_cpus |= cputomask(cpu);		/* record AP in CPU map */
 	}
 
 	/* build our map of 'other' CPUs */
@@ -1091,26 +1091,15 @@ smp_tlb_shootdown(u_int vector, vm_offset_t addr1, vm_offset_t addr2)
 static void
 smp_targeted_tlb_shootdown(cpumask_t mask, u_int vector, vm_offset_t addr1, vm_offset_t addr2)
 {
-	int ncpu, othercpus;
+	int cpu, ncpu, othercpus;
 
 	othercpus = mp_ncpus - 1;
 	if (mask == (cpumask_t)-1) {
-		ncpu = othercpus;
-		if (ncpu < 1)
+		if (othercpus < 1)
 			return;
 	} else {
 		mask &= ~PCPU_GET(cpumask);
 		if (mask == 0)
-			return;
-		ncpu = bitcount32(mask);
-		if (ncpu > othercpus) {
-			/* XXX this should be a panic offence */
-			printf("SMP: tlb shootdown to %d other cpus (only have %d)\n",
-			    ncpu, othercpus);
-			ncpu = othercpus;
-		}
-		/* XXX should be a panic, implied by mask == 0 above */
-		if (ncpu < 1)
 			return;
 	}
 	if (!(read_rflags() & PSL_I))
@@ -1119,10 +1108,18 @@ smp_targeted_tlb_shootdown(cpumask_t mask, u_int vector, vm_offset_t addr1, vm_o
 	smp_tlb_addr1 = addr1;
 	smp_tlb_addr2 = addr2;
 	atomic_store_rel_int(&smp_tlb_wait, 0);
-	if (mask == (cpumask_t)-1)
+	if (mask == (cpumask_t)-1) {
+		ncpu = othercpus;
 		ipi_all_but_self(vector);
-	else
-		ipi_selected(mask, vector);
+	} else {
+		ncpu = 0;
+		while ((cpu = ffsl(mask)) != 0)  {
+			cpu--;
+			mask &= ~cputomask(cpu);
+			lapic_ipi_vectored(vector, cpu_apic_ids[cpu]);
+			ncpu++;
+		}
+	}
 	while (smp_tlb_wait < ncpu)
 		ia32_pause();
 	mtx_unlock_spin(&smp_ipi_mtx);
@@ -1285,12 +1282,12 @@ ipi_selected(cpumask_t cpus, u_int ipi)
 	 * Set the mask of receiving CPUs for this purpose.
 	 */
 	if (ipi == IPI_STOP_HARD)
-		atomic_set_int(&ipi_nmi_pending, cpus);
+		atomic_set_long(&ipi_nmi_pending, cpus);
 
 	CTR3(KTR_SMP, "%s: cpus: %x ipi: %x", __func__, cpus, ipi);
-	while ((cpu = ffs(cpus)) != 0) {
+	while ((cpu = ffsl(cpus)) != 0) {
 		cpu--;
-		cpus &= ~(1 << cpu);
+		cpus &= ~(cputomask(cpu));
 		ipi_send_cpu(cpu, ipi);
 	}
 }
@@ -1308,7 +1305,7 @@ ipi_cpu(int cpu, u_int ipi)
 	 * Set the mask of receiving CPUs for this purpose.
 	 */
 	if (ipi == IPI_STOP_HARD)
-		atomic_set_int(&ipi_nmi_pending, 1 << cpu);
+		atomic_set_long(&ipi_nmi_pending, cputomask(cpu));
 
 	CTR3(KTR_SMP, "%s: cpu: %d ipi: %x", __func__, cpu, ipi);
 	ipi_send_cpu(cpu, ipi);
@@ -1332,7 +1329,7 @@ ipi_all_but_self(u_int ipi)
 	 * Set the mask of receiving CPUs for this purpose.
 	 */
 	if (ipi == IPI_STOP_HARD)
-		atomic_set_int(&ipi_nmi_pending, PCPU_GET(other_cpus));
+		atomic_set_long(&ipi_nmi_pending, PCPU_GET(other_cpus));
 
 	CTR2(KTR_SMP, "%s: ipi: %x", __func__, ipi);
 	lapic_ipi_vectored(ipi, APIC_IPI_DEST_OTHERS);
@@ -1353,7 +1350,7 @@ ipi_nmi_handler()
 	if ((ipi_nmi_pending & cpumask) == 0)
 		return (1);
 
-	atomic_clear_int(&ipi_nmi_pending, cpumask);
+	atomic_clear_long(&ipi_nmi_pending, cpumask);
 	cpustop_handler();
 	return (0);
 }
@@ -1374,14 +1371,14 @@ cpustop_handler(void)
 	savectx(&stoppcbs[cpu]);
 
 	/* Indicate that we are stopped */
-	atomic_set_int(&stopped_cpus, cpumask);
+	atomic_set_long(&stopped_cpus, cpumask);
 
 	/* Wait for restart */
 	while (!(started_cpus & cpumask))
 	    ia32_pause();
 
-	atomic_clear_int(&started_cpus, cpumask);
-	atomic_clear_int(&stopped_cpus, cpumask);
+	atomic_clear_long(&started_cpus, cpumask);
+	atomic_clear_long(&stopped_cpus, cpumask);
 
 	if (cpu == 0 && cpustop_restartfunc != NULL) {
 		cpustop_restartfunc();
@@ -1408,7 +1405,7 @@ cpususpend_handler(void)
 
 	if (savectx(susppcbs[cpu])) {
 		wbinvd();
-		atomic_set_int(&stopped_cpus, cpumask);
+		atomic_set_long(&stopped_cpus, cpumask);
 	} else {
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);
@@ -1418,8 +1415,8 @@ cpususpend_handler(void)
 	while (!(started_cpus & cpumask))
 		ia32_pause();
 
-	atomic_clear_int(&started_cpus, cpumask);
-	atomic_clear_int(&stopped_cpus, cpumask);
+	atomic_clear_long(&started_cpus, cpumask);
+	atomic_clear_long(&stopped_cpus, cpumask);
 
 	/* Restore CR3 and enable interrupts */
 	load_cr3(cr3);
@@ -1451,7 +1448,7 @@ sysctl_hlt_cpus(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	mask = hlt_cpus_mask;
-	error = sysctl_handle_int(oidp, &mask, 0, req);
+	error = sysctl_handle_long(oidp, &mask, 0, req);
 	if (error || !req->newptr)
 		return (error);
 
@@ -1465,12 +1462,12 @@ sysctl_hlt_cpus(SYSCTL_HANDLER_ARGS)
 		mask |= hyperthreading_cpus_mask;
 
 	if ((mask & all_cpus) == all_cpus)
-		mask &= ~(1<<0);
+		mask &= ~cputomask(0);
 	hlt_cpus_mask = mask;
 	return (error);
 }
-SYSCTL_PROC(_machdep, OID_AUTO, hlt_cpus, CTLTYPE_INT|CTLFLAG_RW,
-    0, 0, sysctl_hlt_cpus, "IU",
+SYSCTL_PROC(_machdep, OID_AUTO, hlt_cpus, CTLTYPE_LONG|CTLFLAG_RW,
+    0, 0, sysctl_hlt_cpus, "LU",
     "Bitmap of CPUs to halt.  101 (binary) will halt CPUs 0 and 2.");
 
 static int
@@ -1492,7 +1489,7 @@ sysctl_hlt_logical_cpus(SYSCTL_HANDLER_ARGS)
 		hlt_cpus_mask |= hyperthreading_cpus_mask;
 
 	if ((hlt_cpus_mask & all_cpus) == all_cpus)
-		hlt_cpus_mask &= ~(1<<0);
+		hlt_cpus_mask &= ~cputomask(0);
 
 	hlt_logical_cpus = disable;
 	return (error);
@@ -1530,7 +1527,7 @@ sysctl_hyperthreading_allowed(SYSCTL_HANDLER_ARGS)
 		hlt_logical_cpus = 0;
 
 	if ((hlt_cpus_mask & all_cpus) == all_cpus)
-		hlt_cpus_mask &= ~(1<<0);
+		hlt_cpus_mask &= ~cputomask(0);
 
 	hyperthreading_allowed = allowed;
 	return (error);

@@ -809,7 +809,7 @@ lapic_handle_timer(struct trapframe *frame)
 	 * and unlike other schedulers it actually schedules threads to
 	 * those CPUs.
 	 */
-	if ((hlt_cpus_mask & (1 << PCPU_GET(cpuid))) != 0)
+	if ((hlt_cpus_mask & PCPU_GET(cpumask)) != 0)
 		return;
 #endif
 

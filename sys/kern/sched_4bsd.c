@@ -1097,7 +1097,7 @@ forward_wakeup(int cpunum)
 	me = PCPU_GET(cpumask);
 
 	/* Don't bother if we should be doing it ourself. */
-	if ((me & idle_cpus_mask) && (cpunum == NOCPU || me == (1 << cpunum)))
+	if ((me & idle_cpus_mask) && (cpunum == NOCPU || me == cputomask(cpunum)))
 		return (0);
 
 	dontuse = me | stopped_cpus | hlt_cpus_mask;
@@ -1119,7 +1119,7 @@ forward_wakeup(int cpunum)
 		/* If they are both on, compare and use loop if different. */
 		if (forward_wakeup_use_loop) {
 			if (map != map3) {
-				printf("map (%02X) != map3 (%02X)\n", map,
+				printf("map (%02lX) != map3 (%02lX)\n", map,
 				    map3);
 				map = map3;
 			}
@@ -1131,7 +1131,7 @@ forward_wakeup(int cpunum)
 	/* If we only allow a specific CPU, then mask off all the others. */
 	if (cpunum != NOCPU) {
 		KASSERT((cpunum <= mp_maxcpus),("forward_wakeup: bad cpunum."));
-		map &= (1 << cpunum);
+		map &= cputomask(cpunum);
 	} else {
 		/* Try choose an idle die. */
 		if (forward_wakeup_use_htt) {

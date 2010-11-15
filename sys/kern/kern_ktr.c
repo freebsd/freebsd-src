@@ -82,7 +82,7 @@ __FBSDID("$FreeBSD$");
 
 SYSCTL_NODE(_debug, OID_AUTO, ktr, CTLFLAG_RD, 0, "KTR options");
 
-int	ktr_cpumask = KTR_CPUMASK;
+cpumask_t	ktr_cpumask = KTR_CPUMASK;
 TUNABLE_INT("debug.ktr.cpumask", &ktr_cpumask);
 SYSCTL_INT(_debug_ktr, OID_AUTO, cpumask, CTLFLAG_RW,
     &ktr_cpumask, 0, "Bitmask of CPUs on which KTR logging is enabled");
@@ -211,7 +211,7 @@ ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
 	if ((ktr_mask & mask) == 0)
 		return;
 	cpu = KTR_CPU;
-	if (((1 << cpu) & ktr_cpumask) == 0)
+	if ((cpumask(cpu) & ktr_cpumask) == 0)
 		return;
 #if defined(KTR_VERBOSE) || defined(KTR_ALQ)
 	td = curthread;

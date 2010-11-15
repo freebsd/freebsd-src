@@ -688,7 +688,7 @@ static int
 g_eli_cpu_is_disabled(int cpu)
 {
 #ifdef SMP
-	return ((hlt_cpus_mask & (1 << cpu)) != 0);
+	return ((hlt_cpus_mask & cputomask(cpu)) != 0);
 #else
 	return (0);
 #endif

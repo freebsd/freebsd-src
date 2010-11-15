@@ -539,7 +539,7 @@ mca_scan(enum scan_mode mode)
 		 * For a CMCI, only check banks this CPU is
 		 * responsible for.
 		 */
-		if (mode == CMCI && !(PCPU_GET(cmci_mask) & 1 << i))
+		if (mode == CMCI && !(PCPU_GET(cmci_mask) & cputomask(i)))
 			continue;
 #endif
 
@@ -558,7 +558,7 @@ mca_scan(enum scan_mode mode)
 		 * If this is a bank this CPU monitors via CMCI,
 		 * update the threshold.
 		 */
-		if (PCPU_GET(cmci_mask) & 1 << i)
+		if (PCPU_GET(cmci_mask) & cputomask(i))
 			cmci_update(mode, i, valid, &rec);
 #endif
 	}
@@ -734,7 +734,7 @@ cmci_monitor(int i)
 	wrmsr(MSR_MC_CTL2(i), ctl);
 
 	/* Mark this bank as monitored. */
-	PCPU_SET(cmci_mask, PCPU_GET(cmci_mask) | 1 << i);
+	PCPU_SET(cmci_mask, PCPU_GET(cmci_mask) | cputomask(i));
 }
 
 /*
@@ -750,7 +750,7 @@ cmci_resume(int i)
 	KASSERT(i < cmc_banks, ("CPU %d has more MC banks", PCPU_GET(cpuid)));
 
 	/* Ignore banks not monitored by this CPU. */
-	if (!(PCPU_GET(cmci_mask) & 1 << i))
+	if (!(PCPU_GET(cmci_mask) & cputomask(i)))
 		return;
 
 	cc = &cmc_state[PCPU_GET(cpuid)][i];

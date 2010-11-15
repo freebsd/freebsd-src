@@ -74,7 +74,7 @@ ENTRY(cpu_throw)
 	jz	1f
 	/* release bit from old pm_active */
 	movq	PCPU(CURPMAP),%rdx
-	LK btrl	%eax,PM_ACTIVE(%rdx)		/* clear old */
+	LK btrq	%rax,VM_PMAP+PM_ACTIVE(%rdx)		/* clear old */
 1:
 	movq	TD_PCB(%rsi),%r8		/* newtd->td_proc */
 	movq	PCB_CR3(%r8),%rdx
@@ -138,14 +138,14 @@ swinact:
 	movl	PCPU(CPUID), %eax
 	/* Release bit from old pmap->pm_active */
 	movq	PCPU(CURPMAP),%rcx
-	LK btrl	%eax,PM_ACTIVE(%rcx)		/* clear old */
+	LK btrq	%rax,VM_PMAP+PM_ACTIVE(%rcx)		/* clear old */
 	SETLK	%rdx, TD_LOCK(%rdi)		/* Release the old thread */
 swact:
 	/* Set bit in new pmap->pm_active */
 	movq	TD_PROC(%rsi),%rdx		/* newproc */
 	movq	P_VMSPACE(%rdx), %rdx
 	addq	$VM_PMAP,%rdx
-	LK btsl	%eax,PM_ACTIVE(%rdx)		/* set new */
+	LK btsq	%rax,VM_PMAP+PM_ACTIVE(%rdx)		/* set new */
 	movq	%rdx,PCPU(CURPMAP)
 
 sw1:
