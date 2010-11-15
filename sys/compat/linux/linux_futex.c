@@ -656,7 +656,7 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 			linux_msg(td,
 				  "linux_sys_futex: "
 				  "unsupported futex_requeue op\n");
-				em->used_requeue = 1;
+			em->used_requeue = 1;
 		}
 		return (EINVAL);
 
@@ -701,7 +701,7 @@ linux_set_robust_list(struct thread *td, struct linux_set_robust_list_args *args
 	em->robust_futexes = args->head;
 	EMUL_UNLOCK(&emul_lock);
 
-	return (0);	
+	return (0);
 }
 
 int
@@ -719,7 +719,7 @@ linux_get_robust_list(struct thread *td, struct linux_get_robust_list_args *args
 
 	if (!args->pid) {
 		em = em_find(td->td_proc, EMUL_DONTLOCK);
-		head = em->robust_futexes;		
+		head = em->robust_futexes;
 	} else {
 		struct proc *p;
 
@@ -729,14 +729,14 @@ linux_get_robust_list(struct thread *td, struct linux_get_robust_list_args *args
 
 		em = em_find(p, EMUL_DONTLOCK);
 		/* XXX: ptrace? */
-		if (priv_check(td, PRIV_CRED_SETUID) || 
+		if (priv_check(td, PRIV_CRED_SETUID) ||
 		    priv_check(td, PRIV_CRED_SETEUID) ||
 		    p_candebug(td, p)) {
 			PROC_UNLOCK(p);
 			return (EPERM);
 		}
 		head = em->robust_futexes;
-		
+
 		PROC_UNLOCK(p);
 	}
 
