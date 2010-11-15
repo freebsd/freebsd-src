@@ -1,8 +1,7 @@
 /**
  * @file alias_sctp.c
  * Copyright (c) 2008, Centre for Advanced Internet Architectures
- * Swinburne University of Technology, Melbourne, Australia
- * (CRICOS number 00111D).
+ * Swinburne University of Technology, Melbourne, Australia.
  * 
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
