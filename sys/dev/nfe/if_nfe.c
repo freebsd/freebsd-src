@@ -804,7 +804,7 @@ nfe_can_use_msix(struct nfe_softc *sc)
 
 	struct msix_blacklist *mblp;
 	char *maker, *product;
-	int count, n;
+	int count, n, use_msix;
 
 	/*
 	 * Search base board manufacturer and product name table
@@ -812,18 +812,25 @@ nfe_can_use_msix(struct nfe_softc *sc)
 	 */
 	maker = getenv("smbios.planar.maker");
 	product = getenv("smbios.planar.product");
+	use_msix = 1;
 	if (maker != NULL && product != NULL) {
 		count = sizeof(msix_blacklists) / sizeof(msix_blacklists[0]);
 		mblp = msix_blacklists;
 		for (n = 0; n < count; n++) {
 			if (strcmp(maker, mblp->maker) == 0 &&
-			    strcmp(product, mblp->product) == 0)
-				return (0);
+			    strcmp(product, mblp->product) == 0) {
+				use_msix = 0;
+				break;
+			}
 			mblp++;
 		}
 	}
+	if (maker != NULL)
+		freeenv(maker);
+	if (product != NULL)
+		freeenv(product);
 
-	return (1);
+	return (use_msix);
 }
 
 
