@@ -1194,8 +1194,8 @@ bwn_attach_pre(struct bwn_softc *sc)
 	ifp->if_init = bwn_init;
 	ifp->if_ioctl = bwn_ioctl;
 	ifp->if_start = bwn_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	return (0);

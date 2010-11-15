@@ -423,7 +423,7 @@ pdq_ifattach(pdq_softc_t *sc, const pdq_uint8_t *llc)
 
     ifp->if_softc = sc;
     ifp->if_init = (if_init_f_t *)pdq_ifinit;
-    ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+    ifp->if_snd.ifq_maxlen = ifqmaxlen;
     ifp->if_flags = IFF_BROADCAST|IFF_SIMPLEX|IFF_NOTRAILERS|IFF_MULTICAST;
 
     ifp->if_watchdog = pdq_ifwatchdog;

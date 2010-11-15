@@ -237,7 +237,7 @@ ex_attach(device_t dev)
 	ifp->if_start = ex_start;
 	ifp->if_ioctl = ex_ioctl;
 	ifp->if_init = ex_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
 
 	ifmedia_init(&sc->ifmedia, 0, ex_ifmedia_upd, ex_ifmedia_sts);
 	mtx_init(&sc->lock, device_get_nameunit(dev), MTX_NETWORK_LOCK,
