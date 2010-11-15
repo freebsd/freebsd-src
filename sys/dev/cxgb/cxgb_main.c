@@ -1024,7 +1024,7 @@ cxgb_port_attach(device_t dev)
 	ifp->if_ioctl = cxgb_ioctl;
 	ifp->if_start = cxgb_start;
 
-	ifp->if_snd.ifq_drv_maxlen = cxgb_snd_queue_len;
+	ifp->if_snd.ifq_drv_maxlen = max(cxgb_snd_queue_len, ifqmaxlen);
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
 	IFQ_SET_READY(&ifp->if_snd);
 

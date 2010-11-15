@@ -1471,8 +1471,8 @@ static int uhso_attach_ifnet(struct uhso_softc *sc, struct usb_interface *iface,
 	ifp->if_output = uhso_if_output;
 	ifp->if_flags = 0;
 	ifp->if_softc = sc;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	if_attach(ifp);

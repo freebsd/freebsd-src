@@ -369,7 +369,7 @@ ng_eiface_constructor(node_p node)
 	ifp->if_output = ether_output;
 	ifp->if_start = ng_eiface_start;
 	ifp->if_ioctl = ng_eiface_ioctl;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	ifp->if_flags = (IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST);
 
 	/* Give this node the same name as the interface (if possible) */

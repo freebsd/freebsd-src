@@ -560,7 +560,7 @@ wlattach(device_t device)
     ifp->if_start = wlstart;
     ifp->if_ioctl = wlioctl;
     ifp->if_timer = 0;   /* paranoia */
-    ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+    ifp->if_snd.ifq_maxlen = ifqmaxlen;
     /* no entries
        ifp->if_watchdog
        ifp->if_done
