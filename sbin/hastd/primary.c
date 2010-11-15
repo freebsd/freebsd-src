@@ -511,7 +511,8 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 
 	/* Prepare outgoing connection with remote node. */
 	if (proto_client(res->hr_remoteaddr, &out) < 0) {
-		primary_exit(EX_TEMPFAIL, "Unable to create connection to %s",
+		primary_exit(EX_TEMPFAIL,
+		    "Unable to create outgoing connection to %s",
 		    res->hr_remoteaddr);
 	}
 	/* Try to connect, but accept failure. */
@@ -577,7 +578,8 @@ init_remote(struct hast_resource *res, struct proto_conn **inp,
 	 * Setup incoming connection with remote node.
 	 */
 	if (proto_client(res->hr_remoteaddr, &in) < 0) {
-		pjdlog_errno(LOG_WARNING, "Unable to create connection to %s",
+		primary_exit(EX_TEMPFAIL,
+		    "Unable to create incoming connection to %s",
 		    res->hr_remoteaddr);
 	}
 	/* Try to connect, but accept failure. */
