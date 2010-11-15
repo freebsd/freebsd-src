@@ -154,15 +154,18 @@ static int
 detect_hs21(struct bce_softc *bce_sc)
 {
 	char *sysenv;
+	int found;
 
-	if (bce_sc->bce_chipid != HS21_BCM_CHIPID)
-		return (0);
-	sysenv = getenv("smbios.system.product");
-	if (sysenv == NULL)
-		return (0);
-	if (strncmp(sysenv, HS21_PRODUCT_ID, strlen(HS21_PRODUCT_ID)) != 0)
-		return (0);
-	return (1);
+	found = 0;
+	if (bce_sc->bce_chipid == HS21_BCM_CHIPID) {
+		sysenv = getenv("smbios.system.product");
+		if (sysenv != NULL) {
+			if (strcmp(sysenv, HS21_PRODUCT_ID) == 0)
+				found = 1;
+			freeenv(sysenv);
+		}
+	}
+	return (found);
 }
 
 /* Search for our PHY in the list of known PHYs */
