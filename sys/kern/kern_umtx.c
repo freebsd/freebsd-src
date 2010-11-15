@@ -1592,11 +1592,11 @@ umtxq_sleep_pi(struct umtx_q *uq, struct umtx_pi *pi,
 		/* XXX Only look up thread in current process. */
 		td1 = tdfind(owner, curproc->p_pid);
 		mtx_lock_spin(&umtx_lock);
-		if (td1 != NULL && pi->pi_owner == NULL) {
-			uq1 = td1->td_umtxq;
-			umtx_pi_setowner(pi, td1);
+		if (td1 != NULL) {
+			if (pi->pi_owner == NULL)
+				umtx_pi_setowner(pi, td1);
+			PROC_UNLOCK(td1->td_proc);
 		}
-		PROC_UNLOCK(td1->td_proc);
 	}
 
 	TAILQ_FOREACH(uq1, &pi->pi_blocked, uq_lockq) {
