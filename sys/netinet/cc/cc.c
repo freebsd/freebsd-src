@@ -176,8 +176,8 @@ cc_list_available(SYSCTL_HANDLER_ARGS)
 /*
  * Initialise CC subsystem on system boot.
  */
-void
-cc_init()
+static void
+cc_init(void)
 {
 	CC_LIST_LOCK_INIT();
 	STAILQ_INIT(&cc_list);
@@ -327,6 +327,8 @@ cc_modevent(module_t mod, int event_type, void *data)
 
 	return (err);
 }
+
+SYSINIT(cc, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST, cc_init, NULL);
 
 /* Declare sysctl tree and populate it. */
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, cc, CTLFLAG_RW, NULL,
