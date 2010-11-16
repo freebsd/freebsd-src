@@ -176,9 +176,9 @@ create_includes_and_libraries2() { # opt_dir opt_target
     ( cd ${SRC};
     # make -DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R -DPICOBSD buildworld
     if [ -d "$1" ] ; then
-	cd $1 ; make $2	# specific target, e.g. ld-elf.so
+	cd $1 ; ${BINMAKE} $2	# specific target, e.g. ld-elf.so
     else
-	make _+_= $no toolchain _includes _libraries
+	${BINMAKE} _+_= $no toolchain _includes _libraries
     fi
     )
 }
@@ -297,11 +297,6 @@ build_image() {
     PICO_OBJ=${l_objtree}/picobsd/${THETYPE}
     log "PICO_OBJ is ${PICO_OBJ}"
 
-    if [ ${OSVERSION} -ge 500035 ] ; then
-	export MAKEOBJDIRPREFIX=${l_objtree}
-	eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V BINMAKE`\""
-	eval export `cd ${SRC}; ${BINMAKE} -f Makefile.inc1 -V WMAKEENV`
-    fi
     # create build directory and subtree
     mkdir -p ${BUILDDIR}/crunch
     # remove any old stuff
@@ -979,10 +974,17 @@ set_build_parameters() {
 	l_usrtree=${USR:-${SRC}/../usr}
     fi
     l_objtree=${l_usrtree}/obj-pico
+
     PICO_TREE=${PICO_TREE:-${SRC}/release/picobsd}
     set `grep "#define[\t ]__FreeBSD_version" ${SRC}/sys/sys/param.h`
     OSVERSION=$3
     log "OSVERSION is ${OSVERSION}"
+    if [ ${OSVERSION} -ge 500035 ] ; then
+	export MAKEOBJDIRPREFIX=${l_objtree}
+	eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V BINMAKE`\""
+	eval export `cd ${SRC}; ${BINMAKE} -f Makefile.inc1 -V WMAKEENV`
+    fi
+
     if [ "${o_init_src}" != "" ] ; then
 	if [ ${OSVERSION} -lt 500035 ] ; then
 	    create_includes_and_libraries
