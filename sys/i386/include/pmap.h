@@ -193,12 +193,21 @@ extern pd_entry_t *IdlePTD;	/* physical address of "Idle" state directory */
 
 #ifdef _KERNEL
 /*
- * virtual address to page table entry and
- * to physical address.
- * Note: these work recursively, thus vtopte of a pte will give
- * the corresponding pde that in turn maps it.
+ * Translate a virtual address to the kernel virtual address of its page table
+ * entry (PTE).  This can be used recursively.  If the address of a PTE as
+ * previously returned by this macro is itself given as the argument, then the
+ * address of the page directory entry (PDE) that maps the PTE will be
+ * returned.
+ *
+ * This macro may be used before pmap_bootstrap() is called.
  */
 #define	vtopte(va)	(PTmap + i386_btop(va))
+
+/*
+ * Translate a virtual address to its physical address.
+ *
+ * This macro may be used before pmap_bootstrap() is called.
+ */
 #define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
 
 
@@ -208,14 +217,18 @@ extern pd_entry_t *IdlePTD;	/* physical address of "Idle" state directory */
  * table pages, and not user page table pages, and (2) it provides access to
  * a kernel page table page after the corresponding virtual addresses have
  * been promoted to a 2/4MB page mapping.
+ *
+ * KPTmap is first initialized by locore to support just NPKT page table
+ * pages.  Later, it is reinitialized by pmap_bootstrap() to allow for
+ * expansion of the kernel page table.
  */
 extern pt_entry_t *KPTmap;
 
 /*
- *	Routine:	pmap_kextract
- *	Function:
- *		Extract the physical page address associated
- *		kernel virtual address.
+ * Extract from the kernel page table the physical address that is mapped by
+ * the given virtual address "va".
+ *
+ * This function may be used before pmap_bootstrap() is called.
  */
 static __inline vm_paddr_t
 pmap_kextract(vm_offset_t va)
@@ -431,6 +444,11 @@ extern vm_offset_t virtual_end;
 #define	pmap_page_get_memattr(m)	((vm_memattr_t)(m)->md.pat_mode)
 #define	pmap_unmapbios(va, sz)	pmap_unmapdev((va), (sz))
 
+/*
+ * Only the following functions or macros may be used before pmap_bootstrap()
+ * is called: pmap_kenter(), pmap_kextract(), pmap_kremove(), vtophys(), and
+ * vtopte().
+ */
 void	pmap_bootstrap(vm_paddr_t);
 int	pmap_cache_bits(int mode, boolean_t is_pde);
 int	pmap_change_attr(vm_offset_t, vm_size_t, int);
