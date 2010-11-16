@@ -605,6 +605,7 @@ VNET_DECLARE(int, tcp_ecn_maxretries);
 #define	V_tcp_ecn_maxretries	VNET(tcp_ecn_maxretries)
 
 int	 tcp_addoptions(struct tcpopt *, u_char *);
+int	 tcp_ccalgounload(struct cc_algo *unload_algo);
 struct tcpcb *
 	 tcp_close(struct tcpcb *);
 void	 tcp_discardcb(struct tcpcb *);
