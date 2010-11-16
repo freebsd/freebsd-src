@@ -278,8 +278,6 @@ tcp_init(void)
 {
 	int hashsize;
 
-	cc_init();
-
 	hashsize = TCBHASHSIZE;
 	TUNABLE_INT_FETCH("net.inet.tcp.tcbhashsize", &hashsize);
 	if (!powerof2(hashsize)) {
