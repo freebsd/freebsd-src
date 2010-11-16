@@ -58,6 +58,10 @@ extern STAILQ_HEAD(cc_head, cc_algo) cc_list;
 extern const int tcprexmtthresh;
 extern struct cc_algo newreno_cc_algo;
 
+/* Per-netstack bits. */
+VNET_DECLARE(struct cc_algo *, default_cc_ptr);
+#define	V_default_cc_ptr VNET(default_cc_ptr)
+
 /* Define the new net.inet.tcp.cc sysctl tree. */
 SYSCTL_DECL(_net_inet_tcp_cc);
 
@@ -146,7 +150,7 @@ struct cc_algo {
 #define	CC_DATA(tp)	((tp)->ccv->cc_data)
 
 /* Macro to obtain the system default CC algo's struct ptr. */
-#define	CC_DEFAULT()	STAILQ_FIRST(&cc_list)
+#define	CC_DEFAULT()	V_default_cc_ptr
 
 extern struct rwlock cc_list_lock;
 #define	CC_LIST_LOCK_INIT()	rw_init(&cc_list_lock, "cc_list")
@@ -155,6 +159,6 @@ extern struct rwlock cc_list_lock;
 #define	CC_LIST_RUNLOCK()	rw_runlock(&cc_list_lock)
 #define	CC_LIST_WLOCK()		rw_wlock(&cc_list_lock)
 #define	CC_LIST_WUNLOCK()	rw_wunlock(&cc_list_lock)
-#define	CC_LIST_WLOCK_ASSERT()	rw_assert(&cc_list_lock, RA_WLOCKED)
+#define	CC_LIST_LOCK_ASSERT()	rw_assert(&cc_list_lock, RA_LOCKED)
 
 #endif /* _NETINET_CC_H_ */
