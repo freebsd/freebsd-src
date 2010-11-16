@@ -31,12 +31,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 21, 2010
+.Dd November 7, 2010
 .Dt BGE 4
 .Os
 .Sh NAME
 .Nm bge
-.Nd "Broadcom BCM570x/5714/5721/5722/5750/5751/5752/5761/5784/5789/57780 PCI Gigabit Ethernet adapter driver"
+.Nd "Broadcom BCM57xx/BCM590x Gigabit/Fast Ethernet driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -56,8 +56,8 @@ if_bge_load="YES"
 The
 .Nm
 driver provides support for various NICs based on the Broadcom BCM570x,
-5714, 5721, 5722, 5750, 5751, 5752, 5761, 5784, 5789 and 57780 families
-of Gigabit Ethernet controller chips.
+571x, 572x, 575x, 576x, 578x, 5776x and 5778x Gigabit Ethernet controller
+chips and the 590x and 5779x Fast Ethernet controller chips.
 .Pp
 All of these NICs are capable of 10, 100 and 1000Mbps speeds over CAT5
 copper cable, except for the SysKonnect SK-9D41 which supports only
@@ -82,7 +82,7 @@ copper gigabit transceivers,
 which support autonegotiation of 10, 100 and 1000Mbps modes in
 full or half duplex.
 .Pp
-The BCM5700, BCM5701, BCM5702, BCM5703 and BCM5704 also support
+The BCM5700, BCM5701, BCM5702, BCM5703, BCM5704 and BCM5717 also support
 jumbo frames, which can be configured
 via the interface MTU setting.
 Selecting an MTU larger than 1500 bytes with the
