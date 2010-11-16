@@ -288,7 +288,7 @@ sbsh_attach(device_t dev)
 	ifp->if_watchdog = sbsh_watchdog;
 	ifp->if_init = sbsh_init;
 	ifp->if_baudrate = 4600000;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 
 	ether_ifattach(ifp, eaddr);
 

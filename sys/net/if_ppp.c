@@ -228,10 +228,10 @@ ppp_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifp->if_hdrlen = PPP_HDRLEN;
 	ifp->if_ioctl = pppsioctl;
 	ifp->if_output = pppoutput;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
-	sc->sc_inq.ifq_maxlen = IFQ_MAXLEN;
-	sc->sc_fastq.ifq_maxlen = IFQ_MAXLEN;
-	sc->sc_rawq.ifq_maxlen = IFQ_MAXLEN;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
+	sc->sc_inq.ifq_maxlen = ifqmaxlen;
+	sc->sc_fastq.ifq_maxlen = ifqmaxlen;
+	sc->sc_rawq.ifq_maxlen = ifqmaxlen;
 	mtx_init(&sc->sc_inq.ifq_mtx, "ppp_inq", NULL, MTX_DEF);
 	mtx_init(&sc->sc_fastq.ifq_mtx, "ppp_fastq", NULL, MTX_DEF);
 	mtx_init(&sc->sc_rawq.ifq_mtx, "ppp_rawq", NULL, MTX_DEF);

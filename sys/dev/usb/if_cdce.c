@@ -322,7 +322,7 @@ cdce_attach(device_t self)
 	ifp->if_start = cdce_start;
 	ifp->if_init = cdce_init;
 	ifp->if_baudrate = 11000000;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 
 	sc->q.ifp = ifp;
 	sc->q.if_rxstart = cdce_rxstart;

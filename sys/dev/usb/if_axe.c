@@ -653,8 +653,8 @@ device_printf(sc->axe_dev, "%s, bufsz %d, boundary %d\n",
 	ifp->if_start = axe_start;
 	ifp->if_watchdog = axe_watchdog;
 	ifp->if_init = axe_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	error = mii_attach(self, &sc->axe_miibus, ifp, axe_ifmedia_upd,

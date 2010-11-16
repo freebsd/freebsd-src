@@ -534,7 +534,7 @@ ray_attach(device_t dev)
 	ifp->if_ioctl = ray_ioctl;
 	ifp->if_watchdog = ray_watchdog;
 	ifp->if_init = ray_init;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 
 	ether_ifattach(ifp, ep->e_station_addr);
 

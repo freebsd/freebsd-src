@@ -488,7 +488,7 @@ kue_attach(device_t self)
 	ifp->if_watchdog = kue_watchdog;
 	ifp->if_init = kue_init;
 	ifp->if_baudrate = 10000000;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 
 	sc->kue_qdat.ifp = ifp;
 	sc->kue_qdat.if_rxstart = kue_rxstart;

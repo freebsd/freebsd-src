@@ -1858,7 +1858,7 @@ itjc_bchannel_setup(int unit, int h_chan, int bprot, int activate)
 
 	i4b_Bcleanifq(&chan->rx_queue);	/* clean rx queue */
 
-	chan->rx_queue.ifq_maxlen = IFQ_MAXLEN;
+	chan->rx_queue.ifq_maxlen = ifqmaxlen;
 
 	chan->rxcount = 0;		/* reset rx counter */
 	
@@ -1872,7 +1872,7 @@ itjc_bchannel_setup(int unit, int h_chan, int bprot, int activate)
 
 	i4b_Bcleanifq(&chan->tx_queue);	/* clean tx queue */
 
-	chan->tx_queue.ifq_maxlen = IFQ_MAXLEN;
+	chan->tx_queue.ifq_maxlen = ifqmaxlen;
 	
 	chan->txcount = 0;		/* reset tx counter */
 	

@@ -295,7 +295,7 @@ awi_attach(struct awi_softc *sc)
 #endif
 #ifdef __FreeBSD__
 	ifp->if_init = awi_init0;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	if_initname(ifp, device_get_name(sc->sc_dev),
 	    device_get_unit(sc->sc_dev));
 #endif

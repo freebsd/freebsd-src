@@ -417,7 +417,7 @@ udav_attach(device_t self)
 	ifp->if_stop = udav_stop;
 #endif
 #if defined(__FreeBSD__)
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 #endif
 #if defined(__NetBSD__)
 	IFQ_SET_READY(&ifp->if_snd);

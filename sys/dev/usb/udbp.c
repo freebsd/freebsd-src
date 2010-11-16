@@ -387,8 +387,8 @@ udbp_attach(device_t self)
 			goto bad;
 		} else {
 			NG_NODE_SET_PRIVATE(sc->node, sc);
-			sc->xmitq.ifq_maxlen = IFQ_MAXLEN;
-			sc->xmitq_hipri.ifq_maxlen = IFQ_MAXLEN;
+			sc->xmitq.ifq_maxlen = ifqmaxlen;
+			sc->xmitq_hipri.ifq_maxlen = ifqmaxlen;
 			mtx_init(&sc->xmitq.ifq_mtx, "usb_xmitq", NULL,
 			    MTX_DEF);
 			mtx_init(&sc->xmitq_hipri.ifq_mtx,

@@ -96,7 +96,7 @@ i4battach(void *dummy)
 {
 	printf("i4b: ISDN call control device attached\n");
 
-	i4b_rdqueue.ifq_maxlen = IFQ_MAXLEN;
+	i4b_rdqueue.ifq_maxlen = ifqmaxlen;
 
 	if(!mtx_initialized(&i4b_rdqueue.ifq_mtx))
 		mtx_init(&i4b_rdqueue.ifq_mtx, "i4b_rdqueue", NULL, MTX_DEF);

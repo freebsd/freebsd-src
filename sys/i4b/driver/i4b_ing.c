@@ -281,8 +281,8 @@ i4bingattach(void *dummy)
 
 		NG_NODE_SET_PRIVATE(sc->node, sc);
 
-		sc->xmitq.ifq_maxlen = IFQ_MAXLEN;
-		sc->xmitq_hipri.ifq_maxlen = IFQ_MAXLEN;
+		sc->xmitq.ifq_maxlen = ifqmaxlen;
+		sc->xmitq_hipri.ifq_maxlen = ifqmaxlen;
 		if(!mtx_initialized(&sc->xmitq.ifq_mtx))
 			mtx_init(&sc->xmitq.ifq_mtx, "i4b_ing_xmitq", NULL, MTX_DEF);
 		if(!mtx_initialized(&sc->xmitq_hipri.ifq_mtx))

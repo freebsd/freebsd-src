@@ -1666,7 +1666,7 @@ static int cnw_pccard_attach(device_t dev)
 	ifp->if_watchdog = cnw_watchdog;
 	ifp->if_init = cnw_freebsd_init;
 	ifp->if_baudrate = 1 * 1000* 1000;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 
 	cnw_freebsd_init(sc);
 	cnw_stop(sc);

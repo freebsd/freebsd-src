@@ -182,7 +182,7 @@ gif_clone_create(ifc, unit, params)
 	GIF2IFP(sc)->if_ioctl  = gif_ioctl;
 	GIF2IFP(sc)->if_start  = gif_start;
 	GIF2IFP(sc)->if_output = gif_output;
-	GIF2IFP(sc)->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	GIF2IFP(sc)->if_snd.ifq_maxlen = ifqmaxlen;
 	if_attach(GIF2IFP(sc));
 	bpfattach(GIF2IFP(sc), DLT_NULL, sizeof(u_int32_t));
 	if (ng_gif_attach_p != NULL)

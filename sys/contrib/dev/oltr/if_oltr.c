@@ -171,7 +171,7 @@ oltr_attach(device_t dev)
 	ifp->if_start	= oltr_start;
 	ifp->if_ioctl	= oltr_ioctl;
 	ifp->if_flags	= IFF_BROADCAST | IFF_NEEDSGIANT;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 
 	/*
 	 * Do ifmedia setup.

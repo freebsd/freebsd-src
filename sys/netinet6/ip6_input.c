@@ -115,7 +115,6 @@ extern struct domain inet6domain;
 
 u_char ip6_protox[IPPROTO_MAX];
 static struct ifqueue ip6intrq;
-static int ip6qmaxlen = IFQ_MAXLEN;
 struct in6_ifaddr *in6_ifaddr;
 
 extern struct callout in6_tmpaddrtimer_ch;
@@ -172,7 +171,7 @@ ip6_init(void)
 		printf("%s: WARNING: unable to register pfil hook, "
 			"error %d\n", __func__, i);
 
-	ip6intrq.ifq_maxlen = ip6qmaxlen;
+	ip6intrq.ifq_maxlen = ifqmaxlen;
 	mtx_init(&ip6intrq.ifq_mtx, "ip6_inq", NULL, MTX_DEF);
 	netisr_register(NETISR_IPV6, ip6_input, &ip6intrq, 0);
 	scope6_init();

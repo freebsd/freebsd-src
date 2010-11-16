@@ -664,7 +664,7 @@ rue_attach(device_t self)
 	ifp->if_start = rue_start;
 	ifp->if_watchdog = rue_watchdog;
 	ifp->if_init = rue_init;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 
 	/*
 	 * MII setup

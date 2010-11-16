@@ -602,7 +602,7 @@ cs_attach(device_t dev)
 	ifp->if_ioctl=cs_ioctl;
 	ifp->if_watchdog=cs_watchdog;
 	ifp->if_init=cs_init;
-	ifp->if_snd.ifq_maxlen= IFQ_MAXLEN;
+	ifp->if_snd.ifq_maxlen= ifqmaxlen;
 	/*
 	 *  MIB DATA
 	 */

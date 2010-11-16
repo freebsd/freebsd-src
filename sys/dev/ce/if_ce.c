@@ -727,9 +727,9 @@ static int ce_attach (device_t dev)
 #endif
 			continue;
 		}
-		d->queue.ifq_maxlen	= IFQ_MAXLEN;
-		d->hi_queue.ifq_maxlen	= IFQ_MAXLEN;
-		d->rqueue.ifq_maxlen	= IFQ_MAXLEN;
+		d->queue.ifq_maxlen	= ifqmaxlen;
+		d->hi_queue.ifq_maxlen	= ifqmaxlen;
+		d->rqueue.ifq_maxlen	= ifqmaxlen;
 #if __FreeBSD_version >= 500000
 		mtx_init (&d->queue.ifq_mtx, "ce_queue", NULL, MTX_DEF);
 		mtx_init (&d->hi_queue.ifq_mtx, "ce_queue_hi", NULL, MTX_DEF);
@@ -763,7 +763,7 @@ static int ce_attach (device_t dev)
 		d->ifp->if_start	= ce_ifstart;
 		d->ifp->if_watchdog	= ce_ifwatchdog;
 		d->ifp->if_init		= ce_initialize;
-		d->rqueue.ifq_maxlen	= IFQ_MAXLEN;
+		d->rqueue.ifq_maxlen	= ifqmaxlen;
 #if __FreeBSD_version >= 500000
 		mtx_init (&d->rqueue.ifq_mtx, "ce_rqueue", NULL, MTX_DEF);
 #endif		

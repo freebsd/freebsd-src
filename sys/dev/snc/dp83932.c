@@ -186,7 +186,7 @@ sncconfig(sc, media, nmedia, defmedia, myea)
 	ifp->if_watchdog = sncwatchdog;
         ifp->if_init = sncinit;
         ifp->if_mtu = ETHERMTU;
-        ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+        ifp->if_snd.ifq_maxlen = ifqmaxlen;
 
 	/* Initialize media goo. */
 	ifmedia_init(&sc->sc_media, 0, snc_mediachange,

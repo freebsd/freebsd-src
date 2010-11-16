@@ -105,7 +105,7 @@ i4btrcattach(void *dummy)
 	{
 		make_dev(&i4btrc_cdevsw, i,
 				     UID_ROOT, GID_WHEEL, 0600, "i4btrc%d", i);
-		trace_queue[i].ifq_maxlen = IFQ_MAXLEN;
+		trace_queue[i].ifq_maxlen = ifqmaxlen;
 
 		if(!mtx_initialized(&trace_queue[i].ifq_mtx))
 			mtx_init(&trace_queue[i].ifq_mtx, "i4b_trace", NULL, MTX_DEF);

@@ -132,7 +132,6 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, check_interface, CTLFLAG_RW,
 struct pfil_head inet_pfil_hook;	/* Packet filter hooks */
 
 static struct	ifqueue ipintrq;
-static int	ipqmaxlen = IFQ_MAXLEN;
 
 extern	struct domain inetdomain;
 extern	struct protosw inetsw[];
@@ -264,7 +263,7 @@ ip_init(void)
 
 	/* Initialize various other remaining things. */
 	ip_id = time_second & 0xffff;
-	ipintrq.ifq_maxlen = ipqmaxlen;
+	ipintrq.ifq_maxlen = ifqmaxlen;
 	mtx_init(&ipintrq.ifq_mtx, "ip_inq", NULL, MTX_DEF);
 	netisr_register(NETISR_IP, ip_input, &ipintrq, NETISR_MPSAFE);
 }
