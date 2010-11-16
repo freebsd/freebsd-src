@@ -4607,15 +4607,7 @@ main(int argc, char **argv)
 		char name[30];
 		int rv;
 
-		/*
-		 * First catch people who try to do things like:
-		 * camcontrol tur /dev/da0 
-		 * camcontrol doesn't take device nodes as arguments.
-		 */
-		if (argv[2][0] == '/') {
-			warnx("%s is not a valid device identifier", argv[2]);
-			errx(1, "please read the camcontrol(8) man page");
-		} else if (isdigit(argv[2][0])) {
+		if (isdigit(argv[2][0])) {
 			/* device specified as bus:target[:lun] */
 			rv = parse_btl(argv[2], &bus, &target, &lun, &arglist);
 			if (rv < 2)
