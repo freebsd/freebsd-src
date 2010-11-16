@@ -190,10 +190,7 @@ int
 cc_deregister_algo(struct cc_algo *remove_cc)
 {
 	struct cc_algo *funcs, *tmpfuncs;
-	struct tcpcb *tp;
-	struct inpcb *inp;
 	int err;
-	VNET_ITERATOR_DECL(vnet_iter);
 
 	err = ENOENT;
 
@@ -220,53 +217,14 @@ cc_deregister_algo(struct cc_algo *remove_cc)
 	}
 	CC_LIST_WUNLOCK();
 	
-	if (!err) {
+	if (!err)
 		/*
-		 * Check all active control blocks across all network stacks and
-		 * change any that are using this algorithm back to newreno. If
-		 * the algorithm that was in use requires cleanup code to be
-		 * run, call it.
-		 *
-		 * New connections already part way through being initialised
-		 * with the CC algo we're removing will not race with this code
-		 * because the INP_INFO_WLOCK is held during initialisation.
-		 * We therefore don't enter the loop below until the connection
-		 * list has stabilised.
+		 * XXXLAS:
+		 * - We may need to handle non-zero return values in future.
+		 * - If we add CC framework support for protocols other than
+		 *   TCP, we may want a more generic way to handle this step.
 		 */
-		VNET_LIST_RLOCK();
-		VNET_FOREACH(vnet_iter) {
-			CURVNET_SET(vnet_iter);
-			INP_INFO_RLOCK(&V_tcbinfo);
-			LIST_FOREACH(inp, &V_tcb, inp_list) {
-				INP_WLOCK(inp);
-				/* Important to skip tcptw structs. */
-				if (!(inp->inp_flags & INP_TIMEWAIT) &&
-				    (tp = intotcpcb(inp)) != NULL) {
-					/*
-					 * By holding INP_WLOCK here, we are
-					 * assured that the connection is not
-					 * currently executing inside the CC
-					 * module's functions i.e. it is safe
-					 * to make the switch back to newreno.
-					 */
-					if (CC_ALGO(tp) == remove_cc) {
-						tmpfuncs = CC_ALGO(tp);
-						/*
-						 * Newreno does not
-						 * require any init.
-						 */
-						CC_ALGO(tp) = &newreno_cc_algo;
-						if (tmpfuncs->cb_destroy != NULL)
-							tmpfuncs->cb_destroy(tp->ccv);
-					}
-				}
-				INP_WUNLOCK(inp);
-			}
-			INP_INFO_RUNLOCK(&V_tcbinfo);
-			CURVNET_RESTORE();
-		}
-		VNET_LIST_RUNLOCK();
-	}
+		tcp_ccalgounload(remove_cc);
 
 	return (err);
 }
