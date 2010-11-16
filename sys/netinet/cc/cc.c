@@ -106,14 +106,13 @@ cc_set_default(struct cc_algo *new_default)
 static int
 cc_default_algo(SYSCTL_HANDLER_ARGS)
 {
+	char default_cc[TCP_CA_NAME_MAX];
 	struct cc_algo *funcs;
 	int err, found;
 
 	err = found = 0;
 
 	if (req->newptr == NULL) {
-		char default_cc[TCP_CA_NAME_MAX];
-
 		/* Just print the current default. */
 		CC_LIST_RLOCK();
 		strlcpy(default_cc, CC_DEFAULT()->name, TCP_CA_NAME_MAX);
@@ -216,7 +215,7 @@ cc_deregister_algo(struct cc_algo *remove_cc)
 		}
 	}
 	CC_LIST_WUNLOCK();
-	
+
 	if (!err)
 		/*
 		 * XXXLAS:
