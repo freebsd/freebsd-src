@@ -61,8 +61,8 @@
 #define __FreeBSD_version 900025	/* Master, propagated to newvers */
 
 #ifdef _KERNEL
-#define	__FreeBSD_version_SIGSEGV	700004
-#define	__FreeBSD_version_MAP_ANON	800104
+#define	P_OSREL_SIGSEGV		700004
+#define	P_OSREL_MAP_ANON	800104
 #endif
 
 #ifndef LOCORE

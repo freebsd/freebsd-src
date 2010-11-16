@@ -38,28 +38,15 @@ CFLAGS+= -DBFD_DEFAULT_TARGET_SIZE=64
 .endif
 
 CFLAGS+= -I.
-.if exists(${.CURDIR}/${TARGET_CPUARCH})
-CFLAGS+= -I${.CURDIR}/${TARGET_CPUARCH}
-.endif
 CFLAGS+= -I${.CURDIR}
 CFLAGS+= -I${.CURDIR}/${RELTOP}/libbfd
 CFLAGS+= -I${.OBJDIR}/${RELTOP}/libbfd
 CFLAGS+= -I${SRCDIR}/include
 
-.if exists(${.CURDIR}/${TARGET_CPUARCH})
-.PATH: ${.CURDIR}/${TARGET_CPUARCH}
-.endif
-
 ARCHS=	${TARGET_CPUARCH}
 
-.for _arch in ${CROSS_ARCH}
-.if (${ARCHS:R:M${_arch:R}} == "")
-ARCHS+= $(_arch)
+.if exists(${.CURDIR}/Makefile.${TARGET_ARCH})
+.include "${.CURDIR}/Makefile.${TARGET_ARCH}"
+.elif exists(${.CURDIR}/Makefile.${TARGET_CPUARCH})
+.include "${.CURDIR}/Makefile.${TARGET_CPUARCH}"
 .endif
-.endfor
-
-.for _arch in ${ARCHS}
-.if exists(${.CURDIR}/Makefile.${_arch})
-.include "${.CURDIR}/Makefile.${_arch}"
-.endif
-.endfor

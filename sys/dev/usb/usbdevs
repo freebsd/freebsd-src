@@ -1857,6 +1857,7 @@ product HUAWEI E143F		0x143f	3G modem
 product HUAWEI E1752		0x1446	3G modem
 product HUAWEI K3765		0x1465	3G modem
 product HUAWEI E14AC		0x14ac	3G modem
+product HUAWEI K3765_INIT	0x1520	HUAWEI Mobile K3765 Initial
 
 /* HUAWEI 3com products */
 product HUAWEI3COM WUB320G	0x0009	Aolynk WUB320g
@@ -2919,6 +2920,7 @@ product SIERRA C888		0x6890	C888
 product SIERRA C22		0x6891	C22
 product SIERRA E6892		0x6892	E6892
 product SIERRA E6893		0x6893	E6893
+product SIERRA MC8700		0x68A3	MC8700
 product SIERRA AIRCARD875	0x6820	Aircard 875 HSDPA
 product SIERRA TRUINSTALL	0x0fff	Aircard Tru Installer
 

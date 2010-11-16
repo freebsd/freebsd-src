@@ -81,24 +81,7 @@ struct cc_head cc_list = STAILQ_HEAD_INITIALIZER(cc_list);
 /* Protects the cc_list TAILQ. */
 struct rwlock cc_list_lock;
 
-/*
- * Set the default CC algorithm to new_default. The default is identified
- * by being the first element in the cc_list TAILQ.
- */
-static void
-cc_set_default(struct cc_algo *new_default)
-{
-	CC_LIST_WLOCK_ASSERT();
-
-	/*
-	 * Make the requested system default CC algorithm the first element in
-	 * the list if it isn't already.
-	 */
-	if (new_default != CC_DEFAULT()) {
-		STAILQ_REMOVE(&cc_list, new_default, cc_algo, entries);
-		STAILQ_INSERT_HEAD(&cc_list, new_default, entries);
-	}
-}
+VNET_DEFINE(struct cc_algo *, default_cc_ptr) = &newreno_cc_algo;
 
 /*
  * Sysctl handler to show and change the default CC algorithm.
@@ -106,14 +89,13 @@ cc_set_default(struct cc_algo *new_default)
 static int
 cc_default_algo(SYSCTL_HANDLER_ARGS)
 {
+	char default_cc[TCP_CA_NAME_MAX];
 	struct cc_algo *funcs;
 	int err, found;
 
 	err = found = 0;
 
 	if (req->newptr == NULL) {
-		char default_cc[TCP_CA_NAME_MAX];
-
 		/* Just print the current default. */
 		CC_LIST_RLOCK();
 		strlcpy(default_cc, CC_DEFAULT()->name, TCP_CA_NAME_MAX);
@@ -121,15 +103,15 @@ cc_default_algo(SYSCTL_HANDLER_ARGS)
 		err = sysctl_handle_string(oidp, default_cc, 1, req);
 	} else {
 		/* Find algo with specified name and set it to default. */
-		CC_LIST_WLOCK();
+		CC_LIST_RLOCK();
 		STAILQ_FOREACH(funcs, &cc_list, entries) {
 			if (strncmp((char *)req->newptr, funcs->name,
 			    TCP_CA_NAME_MAX) == 0) {
 				found = 1;
-				cc_set_default(funcs);
+				V_default_cc_ptr = funcs;
 			}
 		}
-		CC_LIST_WUNLOCK();
+		CC_LIST_RUNLOCK();
 
 		if (!found)
 			err = ESRCH;
@@ -174,10 +156,32 @@ cc_list_available(SYSCTL_HANDLER_ARGS)
 }
 
 /*
+ * Reset the default CC algo to NewReno for any netstack which is using the algo
+ * that is about to go away as its default.
+ */
+static void
+cc_checkreset_default(struct cc_algo *remove_cc)
+{
+	VNET_ITERATOR_DECL(vnet_iter);
+
+	CC_LIST_LOCK_ASSERT();
+
+	VNET_LIST_RLOCK_NOSLEEP();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		if (strncmp(CC_DEFAULT()->name, remove_cc->name,
+		    TCP_CA_NAME_MAX) == 0)
+			V_default_cc_ptr = &newreno_cc_algo;
+		CURVNET_RESTORE();
+	}
+	VNET_LIST_RUNLOCK_NOSLEEP();
+}
+
+/*
  * Initialise CC subsystem on system boot.
  */
-void
-cc_init()
+static void
+cc_init(void)
 {
 	CC_LIST_LOCK_INIT();
 	STAILQ_INIT(&cc_list);
@@ -190,8 +194,6 @@ int
 cc_deregister_algo(struct cc_algo *remove_cc)
 {
 	struct cc_algo *funcs, *tmpfuncs;
-	struct tcpcb *tp;
-	struct inpcb *inp;
 	int err;
 
 	err = ENOENT;
@@ -204,58 +206,22 @@ cc_deregister_algo(struct cc_algo *remove_cc)
 	CC_LIST_WLOCK();
 	STAILQ_FOREACH_SAFE(funcs, &cc_list, entries, tmpfuncs) {
 		if (funcs == remove_cc) {
-			/*
-			 * If we're removing the current system default,
-			 * reset the default to newreno.
-			 */
-			if (strncmp(CC_DEFAULT()->name, remove_cc->name,
-			    TCP_CA_NAME_MAX) == 0)
-				cc_set_default(&newreno_cc_algo);
-
+			cc_checkreset_default(remove_cc);
 			STAILQ_REMOVE(&cc_list, funcs, cc_algo, entries);
 			err = 0;
 			break;
 		}
 	}
 	CC_LIST_WUNLOCK();
-	
-	if (!err) {
+
+	if (!err)
 		/*
-		 * Check all active control blocks and change any that are
-		 * using this algorithm back to newreno. If the algorithm that
-		 * was in use requires cleanup code to be run, call it.
-		 *
-		 * New connections already part way through being initialised
-		 * with the CC algo we're removing will not race with this code
-		 * because the INP_INFO_WLOCK is held during initialisation.
-		 * We therefore don't enter the loop below until the connection
-		 * list has stabilised.
+		 * XXXLAS:
+		 * - We may need to handle non-zero return values in future.
+		 * - If we add CC framework support for protocols other than
+		 *   TCP, we may want a more generic way to handle this step.
 		 */
-		INP_INFO_RLOCK(&V_tcbinfo);
-		LIST_FOREACH(inp, &V_tcb, inp_list) {
-			INP_WLOCK(inp);
-			/* Important to skip tcptw structs. */
-			if (!(inp->inp_flags & INP_TIMEWAIT) &&
-			    (tp = intotcpcb(inp)) != NULL) {
-				/*
-				 * By holding INP_WLOCK here, we are
-				 * assured that the connection is not
-				 * currently executing inside the CC
-				 * module's functions i.e. it is safe to
-				 * make the switch back to newreno.
-				 */
-				if (CC_ALGO(tp) == remove_cc) {
-					tmpfuncs = CC_ALGO(tp);
-					/* Newreno does not require any init. */
-					CC_ALGO(tp) = &newreno_cc_algo;
-					if (tmpfuncs->cb_destroy != NULL)
-						tmpfuncs->cb_destroy(tp->ccv);
-				}
-			}
-			INP_WUNLOCK(inp);
-		}
-		INP_INFO_RUNLOCK(&V_tcbinfo);
-	}
+		tcp_ccalgounload(remove_cc);
 
 	return (err);
 }
@@ -328,11 +294,13 @@ cc_modevent(module_t mod, int event_type, void *data)
 	return (err);
 }
 
+SYSINIT(cc, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST, cc_init, NULL);
+
 /* Declare sysctl tree and populate it. */
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, cc, CTLFLAG_RW, NULL,
     "congestion control related settings");
 
-SYSCTL_PROC(_net_inet_tcp_cc, OID_AUTO, algorithm, CTLTYPE_STRING|CTLFLAG_RW,
+SYSCTL_VNET_PROC(_net_inet_tcp_cc, OID_AUTO, algorithm, CTLTYPE_STRING|CTLFLAG_RW,
     NULL, 0, cc_default_algo, "A", "default congestion control algorithm");
 
 SYSCTL_PROC(_net_inet_tcp_cc, OID_AUTO, available, CTLTYPE_STRING|CTLFLAG_RD,
