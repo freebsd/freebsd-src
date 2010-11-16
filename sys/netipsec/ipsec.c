@@ -122,6 +122,8 @@ int ip4_esp_randpad = -1;
  */
 int	crypto_support = CRYPTOCAP_F_HARDWARE | CRYPTOCAP_F_SOFTWARE;
 
+FEATURE(ipsec, "Internet Protocol Security (IPsec)");
+
 SYSCTL_DECL(_net_inet_ipsec);
 
 /* net.inet.ipsec */
