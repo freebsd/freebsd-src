@@ -321,6 +321,7 @@ amd64_mrstoreone(void *arg)
 
 	/* Flushes caches and TLBs. */
 	wbinvd();
+	invltlb();
 
 	/* Disable MTRRs (E = 0). */
 	wrmsr(MSR_MTRRdefType, rdmsr(MSR_MTRRdefType) & ~MTRR_DEF_ENABLE);
@@ -388,8 +389,9 @@ amd64_mrstoreone(void *arg)
 		wrmsr(msr + 1, msrv);
 	}
 
-	/* Flush caches, TLBs. */
+	/* Flush caches and TLBs. */
 	wbinvd();
+	invltlb();
 
 	/* Enable MTRRs. */
 	wrmsr(MSR_MTRRdefType, rdmsr(MSR_MTRRdefType) | MTRR_DEF_ENABLE);
