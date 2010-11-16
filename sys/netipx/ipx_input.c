@@ -119,7 +119,6 @@ struct mtx		ipxpcb_list_mtx;
 struct ipxpcbhead	ipxpcb_list;
 struct ipxpcbhead	ipxrawpcb_list;
 
-static int ipxqmaxlen = ifqmaxlen;
 static	struct ifqueue ipxintrq;
 
 long	ipx_pexseq;		/* Locked with ipxpcb_list_mtx. */
@@ -151,7 +150,7 @@ ipx_init(void)
 	ipx_hostmask.sipx_addr.x_net = ipx_broadnet;
 	ipx_hostmask.sipx_addr.x_host = ipx_broadhost;
 
-	ipxintrq.ifq_maxlen = ipxqmaxlen;
+	ipxintrq.ifq_maxlen = ifqmaxlen;
 	mtx_init(&ipxintrq.ifq_mtx, "ipx_inq", NULL, MTX_DEF);
 	netisr_register(NETISR_IPX, ipxintr, &ipxintrq, NETISR_MPSAFE);
 }
