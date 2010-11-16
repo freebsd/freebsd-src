@@ -227,7 +227,7 @@ arl_attach(dev)
 	ifp->if_ioctl = arl_ioctl;
 	ifp->if_watchdog = arl_watchdog;
 	ifp->if_init = arl_init;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	ifp->if_baudrate = 2000000;
 	ifp->if_timer = 0;
 

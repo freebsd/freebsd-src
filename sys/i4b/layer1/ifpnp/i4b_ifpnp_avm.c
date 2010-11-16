@@ -1047,7 +1047,7 @@ avm_pnp_bchannel_setup(int unit, int h_chan, int bprot, int activate)
 
 	/* receiver part */
 
-	chan->rx_queue.ifq_maxlen = IFQ_MAXLEN;
+	chan->rx_queue.ifq_maxlen = ifqmaxlen;
 
 #if defined (__FreeBSD__) && __FreeBSD__ > 4
 	if(!mtx_initialized(&chan->rx_queue.ifq_mtx))
@@ -1066,7 +1066,7 @@ avm_pnp_bchannel_setup(int unit, int h_chan, int bprot, int activate)
 	
 	/* transmitter part */
 
-	chan->tx_queue.ifq_maxlen = IFQ_MAXLEN;
+	chan->tx_queue.ifq_maxlen = ifqmaxlen;
 
 #if defined (__FreeBSD__) && __FreeBSD__ > 4
 	if(!mtx_initialized(&chan->tx_queue.ifq_mtx))

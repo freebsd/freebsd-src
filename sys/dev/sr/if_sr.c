@@ -440,8 +440,8 @@ sr_attach(device_t device)
 		}
 		NG_NODE_SET_PRIVATE(sc->node, sc);
 		callout_handle_init(&sc->handle);
-		sc->xmitq.ifq_maxlen = IFQ_MAXLEN;
-		sc->xmitq_hipri.ifq_maxlen = IFQ_MAXLEN;
+		sc->xmitq.ifq_maxlen = ifqmaxlen;
+		sc->xmitq_hipri.ifq_maxlen = ifqmaxlen;
 		mtx_init(&sc->xmitq.ifq_mtx, "sr_xmitq", NULL, MTX_DEF);
 		mtx_init(&sc->xmitq_hipri.ifq_mtx, "sr_xmitq_hipri", NULL,
 		    MTX_DEF);

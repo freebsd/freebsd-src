@@ -93,13 +93,13 @@ i4b_capi_bch_config(int unit, int chan, int bprot, int activate)
     capi_softc_t *sc = capi_sc[unit];
 
     i4b_Bcleanifq(&sc->sc_bchan[chan].tx_queue);
-    sc->sc_bchan[chan].tx_queue.ifq_maxlen = IFQ_MAXLEN;
+    sc->sc_bchan[chan].tx_queue.ifq_maxlen = ifqmaxlen;
     sc->sc_bchan[chan].txcount = 0;
 
     /* The telephony drivers use rx_queue for receive. */
 
     i4b_Bcleanifq(&sc->sc_bchan[chan].rx_queue);
-    sc->sc_bchan[chan].rx_queue.ifq_maxlen = IFQ_MAXLEN;
+    sc->sc_bchan[chan].rx_queue.ifq_maxlen = ifqmaxlen;
     sc->sc_bchan[chan].rxcount = 0;
 
     /* HDLC frames are put to in_mbuf */
@@ -235,8 +235,8 @@ capi_ll_attach(capi_softc_t *sc)
 
 	memset(&sc->sc_bchan[i].tx_queue, 0, sizeof(struct ifqueue));
 	memset(&sc->sc_bchan[i].rx_queue, 0, sizeof(struct ifqueue));
-	sc->sc_bchan[i].tx_queue.ifq_maxlen = IFQ_MAXLEN;
-	sc->sc_bchan[i].rx_queue.ifq_maxlen = IFQ_MAXLEN;
+	sc->sc_bchan[i].tx_queue.ifq_maxlen = ifqmaxlen;
+	sc->sc_bchan[i].rx_queue.ifq_maxlen = ifqmaxlen;
 
 	if(!mtx_initialized(&sc->sc_bchan[i].tx_queue.ifq_mtx))
 		mtx_init(&sc->sc_bchan[i].tx_queue.ifq_mtx, "i4b_capi_tx", NULL, MTX_DEF);

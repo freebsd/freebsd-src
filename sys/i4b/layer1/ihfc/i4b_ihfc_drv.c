@@ -354,7 +354,7 @@ ihfc_init (ihfc_sc_t *sc, u_char chan, int prot, int activate)
 
 			RESET_SOFT_CHAN(sc, chan);
 
-			S_IFQUEUE.ifq_maxlen = IFQ_MAXLEN;
+			S_IFQUEUE.ifq_maxlen = ifqmaxlen;
 
 #if defined (__FreeBSD__) && __FreeBSD__ > 4
 			if(!mtx_initialized(&S_IFQUEUE.ifq_mtx))
@@ -380,7 +380,7 @@ ihfc_init (ihfc_sc_t *sc, u_char chan, int prot, int activate)
 
 			RESET_SOFT_CHAN(sc, chan);
 
-			S_IFQUEUE.ifq_maxlen = IFQ_MAXLEN;
+			S_IFQUEUE.ifq_maxlen = ifqmaxlen;
 
 #if defined (__FreeBSD__) && __FreeBSD__ > 4
 			if(!mtx_initialized(&S_IFQUEUE.ifq_mtx))

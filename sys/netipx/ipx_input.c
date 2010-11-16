@@ -119,7 +119,7 @@ struct mtx		ipxpcb_list_mtx;
 struct ipxpcbhead	ipxpcb_list;
 struct ipxpcbhead	ipxrawpcb_list;
 
-static int ipxqmaxlen = IFQ_MAXLEN;
+static int ipxqmaxlen = ifqmaxlen;
 static	struct ifqueue ipxintrq;
 
 long	ipx_pexseq;		/* Locked with ipxpcb_list_mtx. */

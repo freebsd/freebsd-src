@@ -243,8 +243,8 @@ malo_attach(uint16_t devid, struct malo_softc *sc)
 	ifp->if_watchdog = malo_watchdog;
 	ifp->if_ioctl = malo_ioctl;
 	ifp->if_init = malo_init;
-	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ifqmaxlen);
+	ifp->if_snd.ifq_drv_maxlen = ifqmaxlen;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	/* NB: firmware looks that it does not export regdomain info API.  */

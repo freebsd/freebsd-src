@@ -202,7 +202,7 @@ ngt_open(struct cdev *dev, struct tty *tp)
 	sc->tp = tp;
 	sc->hotchar = tp->t_hotchar = NG_TTY_DFL_HOTCHAR;
 	mtx_init(&sc->outq.ifq_mtx, "ng_tty node+queue", NULL, MTX_DEF);
-	IFQ_SET_MAXLEN(&sc->outq, MAX_MBUFQ);
+	IFQ_SET_MAXLEN(&sc->outq, ifqmaxlen);
 
 	NGTLOCK(sc);
 

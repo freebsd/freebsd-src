@@ -1084,7 +1084,7 @@ avma1pp2_bchannel_setup(int unit, int h_chan, int bprot, int activate)
 
 	/* receiver part */
 
-	chan->rx_queue.ifq_maxlen = IFQ_MAXLEN;
+	chan->rx_queue.ifq_maxlen = ifqmaxlen;
 
 	i4b_Bcleanifq(&chan->rx_queue);	/* clean rx queue */
 
@@ -1098,7 +1098,7 @@ avma1pp2_bchannel_setup(int unit, int h_chan, int bprot, int activate)
 	
 	/* transmitter part */
 
-	chan->tx_queue.ifq_maxlen = IFQ_MAXLEN;
+	chan->tx_queue.ifq_maxlen = ifqmaxlen;
 	
 	i4b_Bcleanifq(&chan->tx_queue);	/* clean tx queue */
 

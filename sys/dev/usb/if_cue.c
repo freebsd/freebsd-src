@@ -501,7 +501,7 @@ cue_attach(device_t self)
 	ifp->if_watchdog = cue_watchdog;
 	ifp->if_init = cue_init;
 	ifp->if_baudrate = 10000000;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 
 	sc->cue_qdat.ifp = ifp;
 	sc->cue_qdat.if_rxstart = cue_rxstart;

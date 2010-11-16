@@ -187,7 +187,7 @@ i4bispppattach(void *dummy)
 
 		ifp->if_hdrlen = 0;
 		ifp->if_addrlen = 0;
-		ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+		ifp->if_snd.ifq_maxlen = ifqmaxlen;
 
 		ifp->if_ipackets = 0;
 		ifp->if_ierrors = 0;
