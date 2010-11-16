@@ -2927,7 +2927,8 @@ Retry:
 	if (grow_amount > stack_entry->avail_ssize)
 		grow_amount = stack_entry->avail_ssize;
 	if (is_procstack && (ctob(vm->vm_ssize) + grow_amount > stacklim)) {
-		grow_amount = stacklim - ctob(vm->vm_ssize);
+		grow_amount = trunc_page((vm_size_t)stacklim) -
+		    ctob(vm->vm_ssize);
 	}
 
 	/* If we would blow our VMEM resource limit, no go */
