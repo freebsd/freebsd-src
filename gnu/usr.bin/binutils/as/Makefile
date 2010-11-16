@@ -47,7 +47,7 @@ SRCS+=	itbl-ops.c itbl-parse.y itbl-lex.l
 
 .if ${TARGET_ARCH} == "amd64"
 SRCS+=	tc-i386.c
-.elif ${TARGET_ARCH} == "powerpc" || ${TARGET_ARCH} == "powerpc64"
+.elif ${TARGET_CPUARCH} == "powerpc"
 SRCS+=	tc-ppc.c
 .elif ${TARGET_ARCH} == "sparc64"
 SRCS+=	tc-sparc.c

@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)5.t	8.1 (Berkeley) 7/27/93
+.\" $FreeBSD$
 .\"
 .ds lq ``
 .ds rq ''
@@ -111,35 +112,6 @@ translations for machines that do not participate by use of the
 command.
 Additional information is provided in the manual page describing
 .Xr ESIS (4).
-.PP
-To use the pseudo terminals just configured, device
-entries must be created in the
-.Pn /dev
-directory.  To create 32
-pseudo terminals (plenty, unless you have a heavy network load)
-execute the following commands.
-.DS
-\fB#\fP \fIcd /dev\fP
-\fB#\fP \fIMAKEDEV pty0 pty1\fP
-.DE
-More pseudo terminals may be made by specifying
-.Pn pty2 ,
-.Pn pty3 ,
-etc.  The kernel normally includes support for 32 pseudo terminals
-unless the configuration file specifies a different number.
-Each pseudo terminal really consists of two files in
-.Pn /dev :
-a master and a slave.  The master pseudo terminal file is named
-.Pn /dev/ptyp? ,
-while the slave side is
-.Pn /dev/ttyp? .
-Pseudo terminals are also used by several programs not related to the network.
-In addition to creating the pseudo terminals,
-be sure to install them in the
-.Pn /etc/ttys
-file (with a `none' in the second column so no
-.Xr getty
-is started).
 .Sh 2 "Local subnets"
 .PP
 In \*(4B the Internet support
