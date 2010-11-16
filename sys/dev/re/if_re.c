@@ -2709,6 +2709,24 @@ re_init_locked(struct rl_softc *sc)
 	 */
 	re_set_rxmode(sc);
 
+	/* Configure interrupt moderation. */
+	if (sc->rl_type == RL_8169) {
+		switch (sc->rl_hwrev) {
+		case RL_HWREV_8100E:
+		case RL_HWREV_8101E:
+		case RL_HWREV_8102E:
+		case RL_HWREV_8102EL:
+		case RL_HWREV_8102EL_SPIN1:
+		case RL_HWREV_8103E:
+			CSR_WRITE_2(sc, RL_INTRMOD, 0);
+			break;
+		default:
+			/* Magic from vendor. */
+			CSR_WRITE_2(sc, RL_INTRMOD, 0x5100);
+			break;
+		}
+	}
+
 #ifdef DEVICE_POLLING
 	/*
 	 * Disable interrupts if we are polling.
