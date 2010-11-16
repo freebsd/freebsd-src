@@ -243,7 +243,7 @@ struct sysmaps {
 	caddr_t	CADDR2;
 };
 static struct sysmaps sysmaps_pcpu[MAXCPU];
-pt_entry_t *CMAP1 = 0, *KPTmap;
+pt_entry_t *CMAP1 = 0;
 static pt_entry_t *CMAP3;
 static pd_entry_t *KPTD;
 caddr_t CADDR1 = 0, ptvmmap = 0;
@@ -375,12 +375,11 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 	int i;
 
 	/*
-	 * XXX The calculation of virtual_avail is wrong. It's NKPT*PAGE_SIZE too
-	 * large. It should instead be correctly calculated in locore.s and
-	 * not based on 'first' (which is a physical address, not a virtual
-	 * address, for the start of unused physical memory). The kernel
-	 * page tables are NOT double mapped and thus should not be included
-	 * in this calculation.
+	 * Initialize the first available kernel virtual address.  However,
+	 * using "firstaddr" may waste a few pages of the kernel virtual
+	 * address space, because locore may not have mapped every physical
+	 * page that it allocated.  Preferably, locore would provide a first
+	 * unused virtual address in addition to "firstaddr".
 	 */
 	virtual_avail = (vm_offset_t) KERNBASE + firstaddr;
 	virtual_avail = pmap_kmem_choose(virtual_avail);
@@ -452,6 +451,10 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 
 	/*
 	 * KPTmap is used by pmap_kextract().
+	 *
+	 * KPTmap is first initialized by locore.  However, that initial
+	 * KPTmap can only support NKPT page table pages.  Here, a larger
+	 * KPTmap is created that can support KVA_PAGES page table pages.
 	 */
 	SYSMAP(pt_entry_t *, KPTD, KPTmap, KVA_PAGES)
 
@@ -1364,6 +1367,8 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 /*
  * Add a wired page to the kva.
  * Note: not SMP coherent.
+ *
+ * This function may be used before pmap_bootstrap() is called.
  */
 PMAP_INLINE void 
 pmap_kenter(vm_offset_t va, vm_paddr_t pa)
@@ -1386,6 +1391,8 @@ pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode)
 /*
  * Remove a page from the kernel pagetables.
  * Note: not SMP coherent.
+ *
+ * This function may be used before pmap_bootstrap() is called.
  */
 PMAP_INLINE void
 pmap_kremove(vm_offset_t va)
