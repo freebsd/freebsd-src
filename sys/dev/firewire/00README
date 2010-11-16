@@ -44,10 +44,6 @@ IEEE 1394 support for FreeBSD-5.X and 4.X.
 	- make install
 	- make load
 
-	For FreeBSD-4 user:
-
-	- ./MAKEDEV
-
 3. SBP-II support (sbp)
 
 	- You need CAM(SCSI) support in your kernel.
