@@ -4324,6 +4324,15 @@ _bfd_mips_elf_section_processing (bfd *abfd, Elf_Internal_Shdr *hdr)
 
 	  bfd_mips_elf_swap_options_in (abfd, (Elf_External_Options *) l,
 					&intopt);
+	  if (intopt.size < sizeof (Elf_External_Options))
+	    {
+	      (*_bfd_error_handler)
+		(_("Warning: bad `%s' option size %u smaller than its header"),
+		MIPS_ELF_OPTIONS_SECTION_NAME (abfd), intopt.size);
+	      break;
+	    }
+
+
 	  if (ABI_64_P (abfd) && intopt.kind == ODK_REGINFO)
 	    {
 	      bfd_byte buf[8];
@@ -4536,6 +4545,14 @@ _bfd_mips_elf_section_from_shdr (bfd *abfd, Elf_Internal_Shdr *hdr,
 
 	  bfd_mips_elf_swap_options_in (abfd, (Elf_External_Options *) l,
 					&intopt);
+	  if (intopt.size < sizeof (Elf_External_Options))
+	    {
+	      (*_bfd_error_handler)
+		(_("Warning: bad `%s' option size %u smaller than its header"),
+		MIPS_ELF_OPTIONS_SECTION_NAME (abfd), intopt.size);
+	      break;
+	    }
+
 	  if (ABI_64_P (abfd) && intopt.kind == ODK_REGINFO)
 	    {
 	      Elf64_Internal_RegInfo intreg;

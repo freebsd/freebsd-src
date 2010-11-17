@@ -9,3 +9,5 @@ mips/adm5120/obio.c		standard
 mips/adm5120/uart_bus_adm5120.c	optional uart
 mips/adm5120/uart_cpu_adm5120.c	optional uart
 mips/adm5120/uart_dev_adm5120.c	optional uart
+mips/mips/intr_machdep.c        standard
+mips/mips/tick.c		standard

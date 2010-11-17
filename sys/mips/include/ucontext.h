@@ -48,19 +48,26 @@ typedef struct	__mcontext {
 	int		mc_onstack;	/* sigstack state to restore */
 	register_t	mc_pc;		/* pc at time of signal */
 	register_t	mc_regs[32];	/* processor regs 0 to 31 */
-        register_t      sr;             /* status register */
-        register_t	mullo, mulhi;	/* mullo and mulhi registers... */
+	register_t	sr;		/* status register */
+	register_t	mullo, mulhi;	/* mullo and mulhi registers... */
 	int		mc_fpused;	/* fp has been used */
 	f_register_t	mc_fpregs[33];	/* fp regs 0 to 31 and csr */
 	register_t	mc_fpc_eir;	/* fp exception instruction reg */
-	int	__spare__[8];	/* XXX reserved */ 
+	void		*mc_tls;	/* pointer to TLS area */
+	int		__spare__[8];	/* XXX reserved */ 
 } mcontext_t;
 #endif
 
-#define	SZREG		4
+#ifndef SZREG
+#if defined(__mips_o32)
+#define	SZREG	4
+#else
+#define	SZREG	8
+#endif
+#endif
 
 /* offsets into mcontext_t */
-#define	UCTX_REG(x)	(8 + (x)*SZREG)
+#define	UCTX_REG(x)	(4 + SZREG + (x)*SZREG)
 
 #define	UCR_ZERO	UCTX_REG(0)
 #define	UCR_AT		UCTX_REG(1)
@@ -94,7 +101,7 @@ typedef struct	__mcontext {
 #define	UCR_SP		UCTX_REG(29)
 #define	UCR_S8		UCTX_REG(30)
 #define	UCR_RA		UCTX_REG(31)
-#define UCR_SR          UCTX_REG(32)
+#define	UCR_SR		UCTX_REG(32)
 #define	UCR_MDLO	UCTX_REG(33)
 #define	UCR_MDHI	UCTX_REG(34)
 

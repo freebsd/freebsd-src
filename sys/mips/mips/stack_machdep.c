@@ -43,7 +43,7 @@ static u_register_t
 stack_register_fetch(u_register_t sp, u_register_t stack_pos)
 {
 	u_register_t * stack = 
-	    ((u_register_t *)sp + stack_pos/sizeof(u_register_t));
+	    ((u_register_t *)(intptr_t)sp + (size_t)stack_pos/sizeof(u_register_t));
 
 	return *stack;
 }
@@ -59,19 +59,22 @@ stack_capture(struct stack *st, u_register_t pc, u_register_t sp)
 
 	for (;;) {
 		stacksize = 0;
-		if (pc <= (u_register_t)btext)
+		if (pc <= (u_register_t)(intptr_t)btext)
 			break;
-		for (i = pc; i >= (u_register_t)btext; i -= sizeof (insn)) {
-			bcopy((void *)i, &insn, sizeof insn);
+		for (i = pc; i >= (u_register_t)(intptr_t)btext; i -= sizeof (insn)) {
+			bcopy((void *)(intptr_t)i, &insn, sizeof insn);
 			switch (insn.IType.op) {
 			case OP_ADDI:
 			case OP_ADDIU:
+			case OP_DADDI:
+			case OP_DADDIU:
 				if (insn.IType.rs != SP || insn.IType.rt != SP)
 					break;
 				stacksize = -(short)insn.IType.imm;
 				break;
 
 			case OP_SW:
+			case OP_SD:
 				if (insn.IType.rs != SP || insn.IType.rt != RA)
 					break;
 				ra_stack_pos = (short)insn.IType.imm;
@@ -88,13 +91,13 @@ stack_capture(struct stack *st, u_register_t pc, u_register_t sp)
 			break;
 
 		for (i = pc; !ra; i += sizeof (insn)) {
-			bcopy((void *)i, &insn, sizeof insn);
+			bcopy((void *)(intptr_t)i, &insn, sizeof insn);
 
 			switch (insn.IType.op) {
 			case OP_SPECIAL:
 				if((insn.RType.func == OP_JR))
 				{
-					if (ra >= (u_register_t)btext)
+					if (ra >= (u_register_t)(intptr_t)btext)
 						break;
 					if (insn.RType.rs != RA)
 						break;

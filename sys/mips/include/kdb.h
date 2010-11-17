@@ -32,6 +32,8 @@
 
 #include <machine/frame.h>
 
+#define	KDB_STOPPEDPCB(pc)	&stoppcbs[pc->pc_cpuid]
+
 static __inline void
 kdb_cpu_clear_singlestep(void)
 {
@@ -47,4 +49,8 @@ kdb_cpu_trap(int vector, int _)
 {
 }
 
+static __inline void
+kdb_cpu_sync_icache(unsigned char *addr, size_t size)
+{
+}
 #endif /* _MACHINE_KDB_H_ */

@@ -1,4 +1,4 @@
-/*	$NetBSD: SYS.h,v 1.18 2003/10/29 12:28:33 pooka Exp $ */
+/*	$NetBSD: SYS.h,v 1.19 2009/12/14 01:07:41 matt Exp $ */
 /* $FreeBSD$ */
 
 /*-
@@ -79,14 +79,22 @@
  */
 #ifdef __ABICALLS__
 	.abicalls
-# define PIC_PROLOGUE(x,sr)	.set noreorder; .cpload sr; .set reorder
-# define PIC_CALL(l,sr)		la sr, _C_LABEL(l); jr sr
+# if defined(__mips_o32) || defined(__mips_o64)
+#  define PIC_PROLOGUE(x)	SETUP_GP
+#  define PIC_TAILCALL(l)	PTR_LA t9, _C_LABEL(l); jr t9
+#  define PIC_RETURN()		j ra
+# else
+#  define PIC_PROLOGUE(x)	SETUP_GP64(t3, x)
+#  define PIC_TAILCALL(l)	PTR_LA t9, _C_LABEL(l); RESTORE_GP64; jr t9
+#  define PIC_RETURN()		RESTORE_GP64; j ra
+# endif
 #else
-# define PIC_PROLOGUE(x,sr)
-# define PIC_CALL(l,sr)		j  _C_LABEL(l)
-#endif
+# define PIC_PROLOGUE(x)
+# define PIC_TAILCALL(l)	j  _C_LABEL(l)
+# define PIC_RETURN()		j ra
+#endif /* __ABICALLS__ */
 
-# define SYSTRAP(x)	li v0, SYS_ ## x; syscall;
+# define SYSTRAP(x)	li v0,SYS_ ## x; syscall;
 
 /*
  * Do a syscall that cannot fail (sync, get{p,u,g,eu,eg)id)
@@ -106,7 +114,7 @@
  */
 #define PSEUDO_NOERROR(x)						\
 LEAF(__sys_ ## x);							\
-        .weak _C_LABEL(x);						\
+	.weak _C_LABEL(x);						\
 	_C_LABEL(x) = _C_LABEL(__CONCAT(__sys_,x));			\
 	.weak _C_LABEL(__CONCAT(_,x));					\
 	_C_LABEL(__CONCAT(_,x)) = _C_LABEL(__CONCAT(__sys_,x));		\
@@ -116,14 +124,14 @@ LEAF(__sys_ ## x);							\
 
 #define PSEUDO(x)							\
 LEAF(__sys_ ## x);							\
-        .weak _C_LABEL(x);						\
+	.weak _C_LABEL(x);						\
 	_C_LABEL(x) = _C_LABEL(__CONCAT(__sys_,x));			\
 	.weak _C_LABEL(__CONCAT(_,x));					\
 	_C_LABEL(__CONCAT(_,x)) = _C_LABEL(__CONCAT(__sys_,x));		\
-	PIC_PROLOGUE(x,t9);						\
+	PIC_PROLOGUE(__sys_ ## x);					\
 	SYSTRAP(x);							\
 	bne a3,zero,err;						\
-	j ra;								\
+	PIC_RETURN();							\
 err:									\
-	PIC_CALL(__cerror,t9);						\
-	END(__sys_ ## x)
+	PIC_TAILCALL(__cerror);						\
+END(__sys_ ## x)

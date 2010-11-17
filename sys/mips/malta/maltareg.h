@@ -94,37 +94,37 @@
 		15	Secondary IDE	Secondary IDE slot/Compact flash connector
  */
 
-#define	MALTA_SYSTEMRAM_BASE	0x00000000  /* System RAM:	*/
+#define	MALTA_SYSTEMRAM_BASE	0x00000000ul  /* System RAM:	*/
 #define	MALTA_SYSTEMRAM_SIZE	0x08000000  /*   128 MByte	*/
 
-#define	MALTA_PCIMEM1_BASE	0x08000000  /* PCI 1 memory:	*/
+#define	MALTA_PCIMEM1_BASE	0x08000000ul  /* PCI 1 memory:	*/
 #define	MALTA_PCIMEM1_SIZE	0x08000000  /*   128 MByte	*/
 
-#define	MALTA_PCIMEM2_BASE	0x10000000  /* PCI 2 memory:	*/
+#define	MALTA_PCIMEM2_BASE	0x10000000ul  /* PCI 2 memory:	*/
 #define	MALTA_PCIMEM2_SIZE	0x08000000  /*   128 MByte	*/
 
-#define	MALTA_PCIMEM3_BASE	0x18000000  /* PCI 3 memory	*/
+#define	MALTA_PCIMEM3_BASE	0x18000000ul  /* PCI 3 memory	*/
 #define	MALTA_PCIMEM3_SIZE	0x03e00000  /*    62 MByte	*/
 
-#define	MALTA_CORECTRL_BASE	0x1be00000  /* Core control:	*/
+#define	MALTA_CORECTRL_BASE	0x1be00000ul  /* Core control:	*/
 #define	MALTA_CORECTRL_SIZE	0x00200000  /*     2 MByte	*/
 
-#define	MALTA_RESERVED_BASE1	0x1c000000  /* Reserved:	*/
+#define	MALTA_RESERVED_BASE1	0x1c000000ul  /* Reserved:	*/
 #define	MALTA_RESERVED_SIZE1	0x02000000  /*    32 MByte	*/
 
-#define	MALTA_MONITORFLASH_BASE	0x1e000000  /* Monitor Flash:	*/
+#define	MALTA_MONITORFLASH_BASE	0x1e000000ul  /* Monitor Flash:	*/
 #define	MALTA_MONITORFLASH_SIZE	0x003e0000  /*     4 MByte	*/
 #define	MALTA_MONITORFLASH_SECTORSIZE 0x00010000 /* Sect. = 64 KB */
 
-#define	MALTA_FILEFLASH_BASE	0x1e3e0000 /* File Flash (for monitor): */
+#define	MALTA_FILEFLASH_BASE	0x1e3e0000ul /* File Flash (for monitor): */
 #define	MALTA_FILEFLASH_SIZE	0x00020000 /*   128 KByte	*/
 
 #define	MALTA_FILEFLASH_SECTORSIZE 0x00010000 /* Sect. = 64 KB	*/
 
-#define	MALTA_RESERVED_BASE2	0x1e400000  /* Reserved:	*/
+#define	MALTA_RESERVED_BASE2	0x1e400000ul  /* Reserved:	*/
 #define	MALTA_RESERVED_SIZE2	0x00c00000  /*    12 MByte	*/
 
-#define	MALTA_FPGA_BASE		0x1f000000  /* FPGA:		*/
+#define	MALTA_FPGA_BASE		0x1f000000ul  /* FPGA:		*/
 #define	MALTA_FPGA_SIZE		0x00c00000  /*    12 MByte	*/
 
 #define	MALTA_NMISTATUS		(MALTA_FPGA_BASE + 0x24)
@@ -191,10 +191,10 @@
 #define	MALTA_I2COUT		0x10
 #define	MALTA_I2CSEL		0x18
 
-#define	MALTA_BOOTROM_BASE	0x1fc00000  /* Boot ROM:	*/
+#define	MALTA_BOOTROM_BASE	0x1fc00000ul  /* Boot ROM:	*/
 #define	MALTA_BOOTROM_SIZE	0x00400000  /*     4 MByte	*/
 
-#define	MALTA_REVISION		0x1fc00010
+#define	MALTA_REVISION		0x1fc00010ul
 #define	 MALTA_REV_FPGRV	 0xff0000	/* CBUS FPGA revision */
 #define	 MALTA_REV_CORID	 0x00fc00	/* Core Board ID */
 #define	 MALTA_REV_CORRV	 0x000300	/* Core Board Revision */

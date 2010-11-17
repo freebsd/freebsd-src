@@ -115,6 +115,10 @@ LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
 #	_fixsfsi _fixunssfsi _floatdidf _floatdisf
 .endif
 
+.if ${TARGET_ARCH} == "mips"
+LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
+.endif
+
 .if ${TARGET_ARCH} == "ia64"
 #	from config/ia64/t-ia64
 LIB1ASMSRC   = lib1funcs.asm
@@ -179,7 +183,7 @@ OBJ_GRPS =	STD DIV
 #
 # Floating point emulation functions
 #
-.if ${TARGET_ARCH} == "armNOT_YET" || ${TARGET_ARCH} == "mips" || \
+.if ${TARGET_ARCH} == "armNOT_YET" || \
     ${TARGET_ARCH} == "powerpc" || ${TARGET_ARCH} == "sparc64"
 
 FPBIT_CFLAGS =	-DFINE_GRAINED_LIBRARIES -DFLOAT

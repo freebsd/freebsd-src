@@ -45,13 +45,13 @@ __FBSDID("$FreeBSD$");
 #endif
 
 LEAF(rindex)
-	move	v0, zero		# default if not found
+	move		v0, zero		# default if not found
 1:
-	lbu	a3, 0(a0)		# get a byte
-	addu	a0, a0, 1
-	bne	a3, a1, 2f
-	subu	v0, a0, 1		# save address of last match
+	lbu		a3, 0(a0)		# get a byte
+	PTR_ADDU	a0, a0, 1
+	bne		a3, a1, 2f
+	PTR_SUBU	v0, a0, 1		# save address of last match
 2:
-	bne	a3, zero, 1b		# continue if not end
-	j	ra
+	bne		a3, zero, 1b		# continue if not end
+	j		ra
 END(rindex)

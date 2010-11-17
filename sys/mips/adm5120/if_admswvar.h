@@ -132,7 +132,9 @@ struct admsw_softc {
 	bus_dma_tag_t	 sc_bufs_dmat;	/* bus DMA tag for buffers */
 	struct ifmedia	 sc_ifmedia[SW_DEVS];
 	int		 ndevs;		/* number of IFF_RUNNING interfaces */
-	struct ifnet	*sc_ifnet[SW_DEVS];	
+	struct ifnet	*sc_ifnet[SW_DEVS];
+	struct callout	 sc_watchdog;
+	int		 sc_timer;
 					/* Ethernet common data */
 	void		*sc_ih;		/* interrupt cookie */
 	struct resource	*irq_res;

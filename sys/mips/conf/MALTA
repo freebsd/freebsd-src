@@ -21,17 +21,19 @@ ident		MALTA
 
 #makeoptions	ARCH_FLAGS=-march=mips32
 makeoptions	MIPS_LITTLE_ENDIAN=defined
+makeoptions	KERNLOADADDR=0x80100000
 
 options 	YAMON
 
 # Don't build any modules yet.
 makeoptions	MODULES_OVERRIDE=""
 
-options 	KERNVIRTADDR=0x80100000
 options 	TICK_USE_YAMON_FREQ=defined
 #options 	TICK_USE_MALTA_RTC=defined
 
 include		"../malta/std.malta"
+
+options		ISA_MIPS32
 
 hints		"MALTA.hints"		#Default places to look for devices.
 
