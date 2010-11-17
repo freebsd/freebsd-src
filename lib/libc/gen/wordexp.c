@@ -28,8 +28,10 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -73,6 +75,24 @@ wordexp(const char * __restrict words, wordexp_t * __restrict we, int flags)
 	return (0);
 }
 
+static size_t
+we_read_fully(int fd, char *buffer, size_t len)
+{
+	size_t done;
+	ssize_t nread;
+
+	done = 0;
+	do {
+		nread = _read(fd, buffer + done, len - done);
+		if (nread == -1 && errno == EINTR)
+			continue;
+		if (nread <= 0)
+			break;
+		done += nread;
+	} while (done != len);
+	return done;
+}
+
 /*
  * we_askshell --
  *	Use the `wordexp' /bin/sh builtin function to do most of the work
@@ -90,20 +110,31 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 	size_t sofs;			/* Offset into we->we_strings */
 	size_t vofs;			/* Offset into we->we_wordv */
 	pid_t pid;			/* Process ID of child */
+	pid_t wpid;			/* waitpid return value */
 	int status;			/* Child exit status */
+	int error;			/* Our return value */
+	int serrno;			/* errno to return */
 	char *ifs;			/* IFS env. var. */
 	char *np, *p;			/* Handy pointers */
 	char *nstrings;			/* Temporary for realloc() */
 	char **nwv;			/* Temporary for realloc() */
+	sigset_t newsigblock, oldsigblock;
 
+	serrno = errno;
 	if ((ifs = getenv("IFS")) == NULL)
 		ifs = " \t\n";
 
 	if (pipe(pdes) < 0)
 		return (WRDE_NOSPACE);	/* XXX */
+	(void)sigemptyset(&newsigblock);
+	(void)sigaddset(&newsigblock, SIGCHLD);
+	(void)_sigprocmask(SIG_BLOCK, &newsigblock, &oldsigblock);
 	if ((pid = fork()) < 0) {
+		serrno = errno;
 		_close(pdes[0]);
 		_close(pdes[1]);
+		(void)_sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
+		errno = serrno;
 		return (WRDE_NOSPACE);	/* XXX */
 	}
 	else if (pid == 0) {
@@ -114,6 +145,7 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 		int devnull;
 		char *cmd;
 
+		(void)_sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
 		_close(pdes[0]);
 		if (_dup2(pdes[1], STDOUT_FILENO) < 0)
 			_exit(1);
@@ -139,10 +171,11 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 	 * the expanded words separated by nulls.
 	 */
 	_close(pdes[1]);
-	if (_read(pdes[0], wbuf, 8) != 8 || _read(pdes[0], bbuf, 8) != 8) {
-		_close(pdes[0]);
-		_waitpid(pid, &status, 0);
-		return (flags & WRDE_UNDEF ? WRDE_BADVAL : WRDE_SYNTAX);
+	if (we_read_fully(pdes[0], wbuf, 8) != 8 ||
+			we_read_fully(pdes[0], bbuf, 8) != 8) {
+		error = flags & WRDE_UNDEF ? WRDE_BADVAL : WRDE_SYNTAX;
+		serrno = errno;
+		goto cleanup;
 	}
 	wbuf[8] = bbuf[8] = '\0';
 	nwords = strtol(wbuf, NULL, 16);
@@ -162,33 +195,38 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 	if ((nwv = realloc(we->we_wordv, (we->we_wordc + 1 +
 	    (flags & WRDE_DOOFFS ?  we->we_offs : 0)) *
 	    sizeof(char *))) == NULL) {
-		_close(pdes[0]);
-		_waitpid(pid, &status, 0);
-		return (WRDE_NOSPACE);
+		error = WRDE_NOSPACE;
+		goto cleanup;
 	}
 	we->we_wordv = nwv;
 	if ((nstrings = realloc(we->we_strings, we->we_nbytes)) == NULL) {
-		_close(pdes[0]);
-		_waitpid(pid, &status, 0);
-		return (WRDE_NOSPACE);
+		error = WRDE_NOSPACE;
+		goto cleanup;
 	}
 	for (i = 0; i < vofs; i++)
 		if (we->we_wordv[i] != NULL)
 			we->we_wordv[i] += nstrings - we->we_strings;
 	we->we_strings = nstrings;
 
-	if (_read(pdes[0], we->we_strings + sofs, nbytes) != nbytes) {
-		_close(pdes[0]);
-		_waitpid(pid, &status, 0);
-		return (flags & WRDE_UNDEF ? WRDE_BADVAL : WRDE_SYNTAX);
+	if (we_read_fully(pdes[0], we->we_strings + sofs, nbytes) != nbytes) {
+		error = flags & WRDE_UNDEF ? WRDE_BADVAL : WRDE_SYNTAX;
+		serrno = errno;
+		goto cleanup;
 	}
 
-	if (_waitpid(pid, &status, 0) < 0 || !WIFEXITED(status) ||
-	    WEXITSTATUS(status) != 0) {
-		_close(pdes[0]);
-		return (flags & WRDE_UNDEF ? WRDE_BADVAL : WRDE_SYNTAX);
-	}
+	error = 0;
+cleanup:
 	_close(pdes[0]);
+	do
+		wpid = _waitpid(pid, &status, 0);
+	while (wpid < 0 && errno == EINTR);
+	(void)_sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
+	if (error != 0) {
+		errno = serrno;
+		return (error);
+	}
+	if (wpid < 0 || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
+		return (flags & WRDE_UNDEF ? WRDE_BADVAL : WRDE_SYNTAX);
 
 	/*
 	 * Break the null-terminated expanded word strings out into
