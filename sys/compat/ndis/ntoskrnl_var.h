@@ -162,6 +162,16 @@ typedef struct mdl mdl, ndis_buffer;
 #define	WDM_MINOR_WINXP		0x20
 #define	WDM_MINOR_WIN2003	0x30
 
+enum nt_caching_type {
+	MmNonCached			= 0,
+	MmCached			= 1,
+	MmWriteCombined			= 2,
+	MmHardwareCoherentCached	= 3,
+	MmNonCachedUnordered		= 4,
+	MmUSWCCached			= 5,
+	MmMaximumCacheType		= 6
+};
+
 /*-
  * The ndis_kspin_lock type is called KSPIN_LOCK in MS-Windows.
  * According to the Windows DDK header files, KSPIN_LOCK is defined like this:
