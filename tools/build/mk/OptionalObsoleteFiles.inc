@@ -1130,7 +1130,9 @@ OLD_FILES+=usr/share/man/man8/rshd.8.gz
 #.endif
 
 .if ${MK_SENDMAIL} == no
+.if ${MK_MAILWRAPPER} == no
 OLD_FILES+=bin/rmail
+.endif
 OLD_FILES+=usr/bin/vacation
 OLD_FILES+=usr/include/libmilter/mfapi.h
 OLD_FILES+=usr/include/libmilter/mfdef.h
