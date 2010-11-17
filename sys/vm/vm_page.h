@@ -325,6 +325,8 @@ void vm_page_dontneed (register vm_page_t);
 void vm_page_deactivate (vm_page_t);
 void vm_page_insert (vm_page_t, vm_object_t, vm_pindex_t);
 vm_page_t vm_page_lookup (vm_object_t, vm_pindex_t);
+vm_page_t vm_page_next(vm_page_t m);
+vm_page_t vm_page_prev(vm_page_t m);
 void vm_page_remove (vm_page_t);
 void vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);
 void vm_page_requeue(vm_page_t m);
