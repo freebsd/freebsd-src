@@ -30,44 +30,29 @@
 #
 # $FreeBSD$
 
-# force a specified test program, e.g. `env test=/bin/test sh TEST.sh'
+# force a specified test program, e.g. `env test=/bin/test sh regress.sh'
 : ${test=test}		
-
-ERROR=0 FAILED=0
 
 t ()
 {
 	# $1 -> exit code
 	# $2 -> $test expression
 
-	echo -n "$1: $test $2 "
-
+	count=$((count+1))
 	# check for syntax errors
 	syntax="`eval $test $2 2>&1`"
-	if test -z "$syntax"; then
-
-	case $1 in
-		0) if eval $test $2; then echo " OK"; else failed;fi;;
-		1) if eval $test $2; then failed; else echo " OK";fi;;
-	esac
-
+	ret=$?
+	if test -n "$syntax"; then
+		printf "not ok %s - (syntax error)\n" "$count $2"
+	elif [ "$ret" != "$1" ]; then
+		printf "not ok %s - (got $ret, expected $1)\n" "$count $2"
 	else
-		error
+		printf "ok %s\n" "$count $2"
 	fi
 }
 
-error () 
-{
-	echo ""; echo "	$syntax"
-	ERROR=`expr $ERROR + 1`
-}
-
-failed () 
-{
-	echo ""; echo "	failed"
-	FAILED=`expr $FAILED + 1`
-}
-
+count=0
+echo "1..94"
 
 t 0 'b = b' 
 t 1 'b != b' 
@@ -172,6 +157,3 @@ t 1 '-z y -o y = "#" -o y = x'
 t 0 '0 -ne 0 -o ! -f /'
 t 0 '1 -ne 0 -o ! -f /etc/passwd'
 t 1 '0 -ne 0 -o ! -f /etc/passwd'
-
-echo ""
-echo "Syntax errors: $ERROR Failed: $FAILED"
