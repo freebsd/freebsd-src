@@ -106,6 +106,7 @@ ata_via_probe(device_t dev)
      { ATA_VIACX700,  0x00, VIA133, VIASATA, ATA_SA150, "CX700" },
      { ATA_VIAVX800,  0x00, VIA133, VIASATA, ATA_SA150, "VX800" },
      { ATA_VIAVX855,  0x00, VIA133, 0x00,    ATA_UDMA6, "VX855" },
+     { ATA_VIAVX900,  0x00, VIA133, VIASATA, ATA_SA300, "VX900" },
      { 0, 0, 0, 0, 0, 0 }};
     static struct ata_chip_id new_ids[] =
     {{ ATA_VIA6410,   0x00, 0,      0x00,    ATA_UDMA6, "6410" },
@@ -123,7 +124,9 @@ ata_via_probe(device_t dev)
 
     if (pci_get_devid(dev) == ATA_VIA82C571 ||
 	pci_get_devid(dev) == ATA_VIACX700IDE ||
-	pci_get_devid(dev) == ATA_VIASATAIDE) {
+	pci_get_devid(dev) == ATA_VIASATAIDE ||
+	pci_get_devid(dev) == ATA_VIASATAIDE2 ||
+	pci_get_devid(dev) == ATA_VIASATAIDE3) {
 	if (!(ctlr->chip = ata_find_chip(dev, ids, -99))) 
 	    return ENXIO;
     }
