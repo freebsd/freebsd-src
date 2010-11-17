@@ -307,7 +307,7 @@ GENSRCS+=	gcov-iov.h
 
 # Multilib config file
 multilib.h:
-.if ${TARGET_ARCH} == "powerpc64"
+.if ${TARGET_ARCH} == "powerpc64" || ${TARGET_ARCH} == "amd64"
 	echo 'static const char *const multilib_raw[] = { \
 	    ". !m64 !m32;", \
 	    "64:../lib m64 !m32;", \
