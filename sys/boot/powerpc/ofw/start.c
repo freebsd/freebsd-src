@@ -48,7 +48,7 @@ stack:				\n\
 _start:				\n\
 	lis	%r1,stack@ha	\n\
 	addi	%r1,%r1,stack@l	\n\
-	addi	%r1,%r1,8192	\n\
+	addi	%r1,%r1,16384	\n\
 				\n\
 	b	startup		\n\
 ");
