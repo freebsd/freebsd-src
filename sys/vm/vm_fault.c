@@ -215,7 +215,7 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	boolean_t are_queues_locked, growstack, wired;
 	int map_generation;
 	vm_object_t next_object;
-	vm_page_t marray[VM_FAULT_READ];
+	vm_page_t marray[VM_FAULT_READ], mt, mt_prev;
 	int hardfault;
 	int faultcount, ahead, behind, alloc_req;
 	struct faultstate fs;
@@ -486,12 +486,18 @@ readrest:
 			    fs.first_object->type != OBJT_DEVICE &&
 			    fs.first_object->type != OBJT_PHYS &&
 			    fs.first_object->type != OBJT_SG) {
-				vm_pindex_t firstpindex, tmppindex;
+				vm_pindex_t firstpindex;
 
 				if (fs.first_pindex < 2 * VM_FAULT_READ)
 					firstpindex = 0;
 				else
 					firstpindex = fs.first_pindex - 2 * VM_FAULT_READ;
+				mt = fs.first_object != fs.object ?
+				    fs.first_m : fs.m;
+				KASSERT(mt != NULL, ("vm_fault: missing mt"));
+				KASSERT((mt->oflags & VPO_BUSY) != 0,
+				    ("vm_fault: mt %p not busy", mt));
+				mt_prev = vm_page_prev(mt);
 
 				are_queues_locked = FALSE;
 				/*
@@ -499,14 +505,10 @@ readrest:
 				 * included in the lookahead - NFS piecemeal
 				 * writes will barf on it badly.
 				 */
-				for (tmppindex = fs.first_pindex - 1;
-					tmppindex >= firstpindex;
-					--tmppindex) {
-					vm_page_t mt;
-
-					mt = vm_page_lookup(fs.first_object, tmppindex);
-					if (mt == NULL || (mt->valid != VM_PAGE_BITS_ALL))
-						break;
+				while ((mt = mt_prev) != NULL &&
+				    mt->pindex >= firstpindex &&
+				    mt->valid == VM_PAGE_BITS_ALL) {
+					mt_prev = vm_page_prev(mt);
 					if (mt->busy ||
 					    (mt->oflags & VPO_BUSY))
 						continue;
