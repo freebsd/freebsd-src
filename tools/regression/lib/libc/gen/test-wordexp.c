@@ -32,17 +32,36 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/wait.h>
+
 #include <assert.h>
+#include <errno.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <wordexp.h>
 
+static void
+chld_handler(int x)
+{
+	int status, serrno;
+
+	(void)x;
+	serrno = errno;
+	while (waitpid(-1, &status, WNOHANG) > 0)
+		;
+	errno = serrno;
+}
+
 int
 main(int argc, char *argv[])
 {
+	struct sigaction sa;
 	wordexp_t we;
 	int r;
+	int i;
+	char longdata[6 * 10000 + 1];
 
 	/* Test that the macros are there. */
 	(void)(WRDE_APPEND + WRDE_DOOFFS + WRDE_NOCMD + WRDE_REUSE +
@@ -57,6 +76,15 @@ main(int argc, char *argv[])
 	assert(strcmp(we.we_wordv[0], "hello") == 0);
 	assert(strcmp(we.we_wordv[1], "world") == 0);
 	assert(we.we_wordv[2] == NULL);
+	wordfree(&we);
+
+	/* Long output. */
+	for (i = 0; i < 10000; i++)
+		snprintf(longdata + 6 * i, 7, "%05d ", i);
+	r = wordexp(longdata, &we, 0);
+	assert(r == 0);
+	assert(we.we_wordc == 10000);
+	assert(we.we_wordv[10000] == NULL);
 	wordfree(&we);
 
 	/* WRDE_DOOFFS */
@@ -166,6 +194,20 @@ main(int argc, char *argv[])
 	assert(r == WRDE_BADCHAR);
 	r = wordexp("test } test", &we, 0);
 	assert(r == WRDE_BADCHAR);
+
+	/* With a SIGCHLD handler that reaps all zombies. */
+	sa.sa_flags = 0;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_handler = chld_handler;
+	r = sigaction(SIGCHLD, &sa, NULL);
+	assert(r == 0);
+	r = wordexp("hello world", &we, 0);
+	assert(r == 0);
+	assert(we.we_wordc == 2);
+	assert(strcmp(we.we_wordv[0], "hello") == 0);
+	assert(strcmp(we.we_wordv[1], "world") == 0);
+	assert(we.we_wordv[2] == NULL);
+	wordfree(&we);
 
 	printf("PASS wordexp()\n");
 	printf("PASS wordfree()\n");
