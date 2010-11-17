@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
+#include <vm/vm_extern.h>
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/cfg_var.h>
@@ -197,9 +198,10 @@ static uint32_t InterlockedDecrement(volatile uint32_t *);
 static void ExInterlockedAddLargeStatistic(uint64_t *, uint32_t);
 static void *MmAllocateContiguousMemory(uint32_t, uint64_t);
 static void *MmAllocateContiguousMemorySpecifyCache(uint32_t,
-	uint64_t, uint64_t, uint64_t, uint32_t);
+	uint64_t, uint64_t, uint64_t, enum nt_caching_type);
 static void MmFreeContiguousMemory(void *);
-static void MmFreeContiguousMemorySpecifyCache(void *, uint32_t, uint32_t);
+static void MmFreeContiguousMemorySpecifyCache(void *, uint32_t,
+	enum nt_caching_type);
 static uint32_t MmSizeOfMdl(void *, size_t);
 static void *MmMapLockedPages(mdl *, uint8_t);
 static void *MmMapLockedPagesSpecifyCache(mdl *,
@@ -2424,11 +2426,34 @@ MmAllocateContiguousMemorySpecifyCache(size, lowest, highest,
 	uint64_t		lowest;
 	uint64_t		highest;
 	uint64_t		boundary;
-	uint32_t		cachetype;
+	enum nt_caching_type	cachetype;
 {
+	vm_memattr_t		memattr;
+	void			*ret;
 
-	return (contigmalloc(size, M_DEVBUF, M_ZERO|M_NOWAIT, lowest,
-	    highest, PAGE_SIZE, boundary));
+	switch (cachetype) {
+	case MmNonCached:
+		memattr = VM_MEMATTR_UNCACHEABLE;
+		break;
+	case MmWriteCombined:
+		memattr = VM_MEMATTR_WRITE_COMBINING;
+		break;
+	case MmNonCachedUnordered:
+		memattr = VM_MEMATTR_UNCACHEABLE;
+		break;
+	case MmCached:
+	case MmHardwareCoherentCached:
+	case MmUSWCCached:
+	default:
+		memattr = VM_MEMATTR_DEFAULT;
+		break;
+	}
+
+	ret = (void *)kmem_alloc_contig(kernel_map, size, M_ZERO | M_NOWAIT,
+	    lowest, highest, PAGE_SIZE, boundary, memattr);
+	if (ret != NULL)
+		malloc_type_allocated(M_DEVBUF, round_page(size));
+	return (ret);
 }
 
 static void
@@ -2442,7 +2467,7 @@ static void
 MmFreeContiguousMemorySpecifyCache(base, size, cachetype)
 	void			*base;
 	uint32_t		size;
-	uint32_t		cachetype;
+	enum nt_caching_type	cachetype;
 {
 	contigfree(base, size, M_DEVBUF);
 }
