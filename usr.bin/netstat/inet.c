@@ -411,25 +411,30 @@ protopr(u_long off, const char *name, int af1, int proto)
 			if (Lflag)
 				printf("%-5.5s %-14.14s %-22.22s\n",
 				    "Proto", "Listen", "Local Address");
-			else {
+			if (Tflag) 
+				printf((Aflag && !Wflag) ?
+			    "%-5.5s %-6.6s %-6.6s %-6.6s %-18.18s %s\n" :
+			    "%-5.5s %-6.6s %-6.6s %-6.6s %-22.22s %s\n",
+				    "Proto", "Rexmit", "OOORcv", "0-win",
+				    "Local Address", "Foreign Address");
+			if (xflag) {
+				printf("%-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s ",
+				       "R-MBUF", "S-MBUF", "R-CLUS", 
+				       "S-CLUS", "R-HIWA", "S-HIWA", 
+				       "R-LOWA", "S-LOWA", "R-BCNT", 
+				       "S-BCNT", "R-BMAX", "S-BMAX");
+				printf("%7.7s %7.7s %7.7s %7.7s %7.7s %7.7s %s\n",
+				       "rexmt", "persist", "keep",
+				       "2msl", "delack", "rcvtime",
+				       "(state)");
+			}
+			if (!xflag && !Tflag) 
 				printf((Aflag && !Wflag) ? 
 				       "%-5.5s %-6.6s %-6.6s  %-18.18s %-18.18s" :
 				       "%-5.5s %-6.6s %-6.6s  %-22.22s %-22.22s",
 				       "Proto", "Recv-Q", "Send-Q",
 				       "Local Address", "Foreign Address");
-				if (xflag) {
-					printf("%-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s ",
-					       	"R-MBUF", "S-MBUF", "R-CLUS", 
-						"S-CLUS", "R-HIWA", "S-HIWA", 
-						"R-LOWA", "S-LOWA", "R-BCNT", 
-						"S-BCNT", "R-BMAX", "S-BMAX");
-					printf("%7.7s %7.7s %7.7s %7.7s %7.7s %7.7s %s\n",
-						"rexmt", "persist", "keep",
-						"2msl", "delack", "rcvtime",
-						"(state)");
-				} else
-					printf("(state)\n");
-			}
+
 			first = 0;
 		}
 		if (Lflag && so->so_qlimit == 0)
@@ -455,6 +460,10 @@ protopr(u_long off, const char *name, int af1, int proto)
 			snprintf(buf1, 15, "%d/%d/%d", so->so_qlen,
 			    so->so_incqlen, so->so_qlimit);
 			printf("%-14.14s ", buf1);
+		} else if (Tflag) {
+			if (istcp)
+				printf("%6u %6u %6u ", tp->t_sndrexmitpack,
+				       tp->t_rcvoopack, tp->t_sndzerowin);
 		} else {
 			printf("%6u %6u ", so->so_rcv.sb_cc, so->so_snd.sb_cc);
 		}
@@ -540,7 +549,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 					    timer->t_rcvtime / 1000, (timer->t_rcvtime % 1000) / 10);
 			}
 		}
-		if (istcp && !Lflag) {
+		if (istcp && !Lflag && !xflag && !Tflag) {
 			if (tp->t_state < 0 || tp->t_state >= TCP_NSTATES)
 				printf("%d", tp->t_state);
 			else {

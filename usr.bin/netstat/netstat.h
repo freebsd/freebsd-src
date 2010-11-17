@@ -50,6 +50,7 @@ extern int	numeric_addr;	/* show addresses numerically */
 extern int	numeric_port;	/* show ports numerically */
 extern int	rflag;	/* show routing tables (or routing stats) */
 extern int	sflag;	/* show protocol statistics */
+extern int	Tflag;  /* show TCP control block info */
 extern int	Wflag;	/* wide display */
 extern int	xflag;	/* extended display, includes all socket buffer info */
 extern int	zflag;	/* zero stats */
