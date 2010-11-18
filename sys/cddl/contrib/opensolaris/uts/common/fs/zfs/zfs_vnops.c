@@ -67,6 +67,7 @@
 #include <sys/sf_buf.h>
 #include <sys/sched.h>
 #include <sys/acl.h>
+#include <vm/vm_pageout.h>
 
 /*
  * Programming rules.
@@ -481,7 +482,7 @@ again:
 				uiomove_fromphys(&m, off, bytes, uio);
 			VM_OBJECT_LOCK(obj);
 			vm_page_wakeup(m);
-		} else if (m != NULL && uio->uio_segflg == UIO_NOCOPY) {
+		} else if (uio->uio_segflg == UIO_NOCOPY) {
 			/*
 			 * The code below is here to make sendfile(2) work
 			 * correctly with ZFS. As pointed out by ups@
@@ -491,7 +492,7 @@ again:
 			 */
 			KASSERT(off == 0,
 			    ("unexpected offset in mappedread for sendfile"));
-			if ((m->oflags & VPO_BUSY) != 0) {
+			if (m != NULL && (m->oflags & VPO_BUSY) != 0) {
 				/*
 				 * Reference the page before unlocking and
 				 * sleeping so that the page daemon is less
@@ -501,8 +502,17 @@ again:
 				vm_page_flag_set(m, PG_REFERENCED);
 				vm_page_sleep(m, "zfsmrb");
 				goto again;
+			} else if (m == NULL) {
+				m = vm_page_alloc(obj, OFF_TO_IDX(start),
+				    VM_ALLOC_NOBUSY | VM_ALLOC_NORMAL);
+				if (m == NULL) {
+					VM_OBJECT_UNLOCK(obj);
+					VM_WAIT;
+					VM_OBJECT_LOCK(obj);
+					goto again;
+				}
 			}
-			vm_page_busy(m);
+			vm_page_io_start(m);
 			VM_OBJECT_UNLOCK(obj);
 			if (dirbytes > 0) {
 				error = dmu_read_uio(os, zp->z_id, uio,
@@ -520,7 +530,7 @@ again:
 			VM_OBJECT_LOCK(obj);
 			if (error == 0)
 				m->valid = VM_PAGE_BITS_ALL;
-			vm_page_wakeup(m);
+			vm_page_io_finish(m);
 			if (error == 0) {
 				uio->uio_resid -= bytes;
 				uio->uio_offset += bytes;

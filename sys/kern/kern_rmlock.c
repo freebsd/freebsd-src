@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rmlock.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
-#include <sys/systm.h>
 #include <sys/turnstile.h>
 #include <sys/lock_profile.h>
 #include <machine/cpu.h>
