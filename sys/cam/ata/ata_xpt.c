@@ -963,6 +963,8 @@ noerror:
 		xpt_action((union ccb *)&cts);
 		if (cts.xport_specific.sata.valid & CTS_SATA_VALID_CAPS)
 			caps &= cts.xport_specific.sata.caps;
+		else
+			caps = 0;
 		/* Store result to SIM. */
 		bzero(&cts, sizeof(cts));
 		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
@@ -1103,6 +1105,8 @@ notsata:
 		xpt_action((union ccb *)&cts);
 		if (cts.xport_specific.sata.valid & CTS_SATA_VALID_CAPS)
 			caps &= cts.xport_specific.sata.caps;
+		else
+			caps = 0;
 		/* Store result to SIM. */
 		bzero(&cts, sizeof(cts));
 		xpt_setup_ccb(&cts.ccb_h, path, CAM_PRIORITY_NONE);
