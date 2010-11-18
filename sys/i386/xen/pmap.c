@@ -1877,8 +1877,9 @@ pmap_release(pmap_t pmap)
 		/* unpinning L1 and L2 treated the same */
                 xen_pgd_unpin(ma);
 #ifdef PAE
-		KASSERT(xpmap_ptom(VM_PAGE_TO_PHYS(m)) == (pmap->pm_pdpt[i] & PG_FRAME),
-		    ("pmap_release: got wrong ptd page"));
+		if (i < NPGPTD)
+			KASSERT(xpmap_ptom(VM_PAGE_TO_PHYS(m)) == (pmap->pm_pdpt[i] & PG_FRAME),
+			    ("pmap_release: got wrong ptd page"));
 #endif
 		m->wire_count--;
 		atomic_subtract_int(&cnt.v_wire_count, 1);
