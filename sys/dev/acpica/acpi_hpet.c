@@ -501,7 +501,7 @@ hpet_attach(device_t dev)
 	/*
 	 * Neither QEMU nor VirtualBox report supported IRQs correctly.
 	 * The only way to use HPET there is to specify IRQs manually
-	 * and/or use legacy_route. Legacy_route mode work on both.
+	 * and/or use legacy_route. Legacy_route mode works on both.
 	 */
 	if (vm_guest)
 		sc->allowed_irqs = 0x00000000;
@@ -591,7 +591,7 @@ hpet_attach(device_t dev)
 	bus_write_4(sc->mem_res, HPET_ISR, 0xffffffff);
 	sc->irq = -1;
 	sc->intr_rid = -1;
-	/* If at least one timer needs legacy IRQ - setup it. */
+	/* If at least one timer needs legacy IRQ - set it up. */
 	if (sc->useirq) {
 		j = i = fls(cvectors) - 1;
 		while (j > 0 && (cvectors & (1 << (j - 1))) != 0)
