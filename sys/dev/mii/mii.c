@@ -449,6 +449,9 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
 		rv = bus_generic_attach(dev);
 		if (rv != 0)
 			goto fail;
+
+		/* Attaching of the PHY drivers is done in miibus_attach(). */
+		return (0);
 	}
 	rv = bus_generic_attach(*miibus);
 	if (rv != 0)
