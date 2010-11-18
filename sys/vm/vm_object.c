@@ -600,7 +600,6 @@ doterm:
 			VM_OBJECT_LOCK(temp);
 			LIST_REMOVE(object, shadow_list);
 			temp->shadow_count--;
-			temp->generation++;
 			VM_OBJECT_UNLOCK(temp);
 			object->backing_object = NULL;
 		}
@@ -1192,7 +1191,6 @@ vm_object_shadow(
 		VM_OBJECT_LOCK(source);
 		LIST_INSERT_HEAD(&source->shadow_head, result, shadow_list);
 		source->shadow_count++;
-		source->generation++;
 #if VM_NRESERVLEVEL > 0
 		result->flags |= source->flags & OBJ_COLORED;
 		result->pg_color = (source->pg_color + OFF_TO_IDX(*offset)) &
@@ -1260,7 +1258,6 @@ vm_object_split(vm_map_entry_t entry)
 		LIST_INSERT_HEAD(&source->shadow_head,
 				  new_object, shadow_list);
 		source->shadow_count++;
-		source->generation++;
 		vm_object_reference_locked(source);	/* for new_object */
 		vm_object_clear_flag(source, OBJ_ONEMAPPING);
 		VM_OBJECT_UNLOCK(source);
@@ -1651,7 +1648,6 @@ vm_object_collapse(vm_object_t object)
 			 */
 			LIST_REMOVE(object, shadow_list);
 			backing_object->shadow_count--;
-			backing_object->generation++;
 			if (backing_object->backing_object) {
 				VM_OBJECT_LOCK(backing_object->backing_object);
 				LIST_REMOVE(backing_object, shadow_list);
@@ -1661,7 +1657,6 @@ vm_object_collapse(vm_object_t object)
 				/*
 				 * The shadow_count has not changed.
 				 */
-				backing_object->backing_object->generation++;
 				VM_OBJECT_UNLOCK(backing_object->backing_object);
 			}
 			object->backing_object = backing_object->backing_object;
@@ -1703,7 +1698,6 @@ vm_object_collapse(vm_object_t object)
 			 */
 			LIST_REMOVE(object, shadow_list);
 			backing_object->shadow_count--;
-			backing_object->generation++;
 
 			new_backing_object = backing_object->backing_object;
 			if ((object->backing_object = new_backing_object) != NULL) {
@@ -1714,7 +1708,6 @@ vm_object_collapse(vm_object_t object)
 				    shadow_list
 				);
 				new_backing_object->shadow_count++;
-				new_backing_object->generation++;
 				vm_object_reference_locked(new_backing_object);
 				VM_OBJECT_UNLOCK(new_backing_object);
 				object->backing_object_offset +=

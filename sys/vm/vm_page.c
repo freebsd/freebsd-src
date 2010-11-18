@@ -846,7 +846,6 @@ vm_page_remove(vm_page_t m)
 	 * And show that the object has one fewer resident page.
 	 */
 	object->resident_page_count--;
-	object->generation++;
 	/*
 	 * The vnode may now be recycled.
 	 */
@@ -1983,7 +1982,6 @@ vm_page_cache(vm_page_t m)
 	object->root = root;
 	TAILQ_REMOVE(&object->memq, m, listq);
 	object->resident_page_count--;
-	object->generation++;
 
 	/*
 	 * Restore the default memory attribute to the page.
@@ -2395,7 +2393,6 @@ vm_page_set_invalid(vm_page_t m, int base, int size)
 	    ("vm_page_set_invalid: page %p is mapped", m));
 	m->valid &= ~bits;
 	m->dirty &= ~bits;
-	m->object->generation++;
 }
 
 /*
