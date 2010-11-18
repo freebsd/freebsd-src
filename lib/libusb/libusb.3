@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 14, 2010
+.Dd November 18, 2010
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -380,10 +380,15 @@ LIBUSB_ERROR code on failure.
 .Pp
 .Ft int
 .Fn libusb_control_transfer "libusb_device_handle *devh" "uint8_t bmRequestType" "uint8_t bRequest" "uint16_t wValue" "uint16_t wIndex" "unsigned char *data" "uint16_t wLength" "unsigned int timeout"
-Perform a USB control transfer. Returns 0 on success, LIBUSB_ERROR_TIMEOUT 
-if the transfer timeout, LIBUSB_ERROR_PIPE if the control request was not 
-supported, LIBUSB_ERROR_NO_DEVICE if the device has been disconnected and 
-LIBUSB_ERROR code on other failure.
+Perform a USB control transfer. Returns the actual number of bytes
+transferred on success in the range from and including zero until and
+including
+.Xa wLength .
+On error a libusb error code is returned, for example
+LIBUSB_ERROR_TIMEOUT if the transfer timeout, LIBUSB_ERROR_PIPE if the
+control request was not supported, LIBUSB_ERROR_NO_DEVICE if the
+device has been disconnected or another LIBUSB_ERROR code on other failures.
+The libusb error codes are always negative.
 .
 .Pp
 .Ft int
