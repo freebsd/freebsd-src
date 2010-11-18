@@ -884,30 +884,9 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int pagerflags)
 		index = (maxb + i) + 1;
 		ma[index] = maf[i];
 	}
-	runlen = maxb + maxf + 1;
 
-	vm_pageout_flush(ma, runlen, pagerflags);
-	for (i = 0; i < runlen; i++) {
-		if (ma[i]->dirty != 0) {
-			KASSERT((ma[i]->flags & PG_WRITEABLE) == 0,
-	("vm_object_page_collect_flush: page %p is not write protected",
-			    ma[i]));
-		}
-	}
-	for (i = 0; i < maxf; i++) {
-		if (ma[i + maxb + 1]->dirty != 0) {
-			/*
-			 * maxf will end up being the actual number of pages
-			 * we wrote out contiguously, non-inclusive of the
-			 * first page.  We do not count look-behind pages.
-			 */
-			if (maxf > i) {
-				maxf = i;
-				break;
-			}
-		}
-	}
-	return (maxf + 1);
+	vm_pageout_flush(ma, maxb + maxf + 1, pagerflags, maxb + 1, &runlen);
+	return (runlen);
 }
 
 /*
