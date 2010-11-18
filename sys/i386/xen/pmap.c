@@ -1885,6 +1885,9 @@ pmap_release(pmap_t pmap)
 		atomic_subtract_int(&cnt.v_wire_count, 1);
 		vm_page_free(m);
 	}
+#ifdef PAE
+	pmap_qremove((vm_offset_t)pmap->pm_pdpt, 1);
+#endif
 	PMAP_LOCK_DESTROY(pmap);
 }
 
