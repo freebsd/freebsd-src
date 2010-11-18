@@ -463,6 +463,8 @@ ata_via_sata_reset(device_t dev)
 		devs = 1;
 	if (devs)
 		ata_generic_reset(dev);
+	else
+		ch->devices = 0;
 }
 
 static int
