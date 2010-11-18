@@ -51,17 +51,14 @@ $(OUTPUTS): $(CRUNCH_SRCDIR_${P})/Makefile
 .else
 $(OUTPUTS): $(.CURDIR)/../../$(D)/$(P)/Makefile
 .endif
-# Disable building links for bsdbox - whatever is installing the binaries into
-# the embedded system should (for now) do the linking there. This may change
-# in the future. -adrian
-#.ifndef CRUNCH_SUPPRESS_LINK_${P}
-#LINKS+= $(BINDIR)/$(PROG) $(BINDIR)/$(P)
-#.endif
-#.for A in $(CRUNCH_ALIAS_$(P))
-#.ifndef CRUNCH_SUPPRESS_LINK_${A}
-#LINKS+= $(BINDIR)/$(PROG) $(BINDIR)/$(A)
-#.endif
-#.endfor
+.ifndef CRUNCH_SUPPRESS_LINK_${P}
+LINKS+= $(BINDIR)/$(PROG) $(BINDIR)/$(P)
+.endif
+.for A in $(CRUNCH_ALIAS_$(P))
+.ifndef CRUNCH_SUPPRESS_LINK_${A}
+LINKS+= $(BINDIR)/$(PROG) $(BINDIR)/$(A)
+.endif
+.endfor
 .endfor
 .endfor
 
