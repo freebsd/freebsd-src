@@ -317,6 +317,7 @@ atphy_status(struct mii_softc *sc)
 static void
 atphy_reset(struct mii_softc *sc)
 {
+	struct ifmedia_entry *ife = sc->mii_pdata->mii_media.ifm_cur;
 	struct atphy_softc *asc;
 	uint32_t reg;
 	int i;
@@ -339,7 +340,7 @@ atphy_reset(struct mii_softc *sc)
 	PHY_WRITE(sc, ATPHY_SCR, reg);
 
 	/* Workaround F1 bug to reset phy. */
-	atphy_setmedia(sc, sc->mii_pdata->mii_media.ifm_cur->ifm_media);
+	atphy_setmedia(sc, ife == NULL ? IFM_AUTO : ife->ifm_media);
 
 	for (i = 0; i < 1000; i++) {
 		DELAY(1);
