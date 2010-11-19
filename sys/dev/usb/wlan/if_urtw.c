@@ -1830,7 +1830,6 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 static int
 urtw_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 {
-	struct ieee80211_node *ni = vap->iv_bss;
 	struct ieee80211com *ic = vap->iv_ic;
 	struct urtw_softc *sc = ic->ic_ifp->if_softc;
 	struct urtw_vap *uvp = URTW_VAP(vap);
@@ -1854,6 +1853,9 @@ urtw_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	case IEEE80211_S_ASSOC:
 		break;
 	case IEEE80211_S_RUN:
+		struct ieee80211_node *ni;
+
+		ni = ieee80211_ref_node(vap->iv_bss);
 		/* setting bssid.  */
 		urtw_write32_m(sc, URTW_BSSID, ((uint32_t *)ni->ni_bssid)[0]);
 		urtw_write16_m(sc, URTW_BSSID + 4,
@@ -1868,6 +1870,7 @@ urtw_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		if (error != 0)
 			device_printf(sc->sc_dev,
 			    "could not control LED (%d)\n", error);
+		ieee80211_free_node(ni);
 		break;
 	default:
 		break;

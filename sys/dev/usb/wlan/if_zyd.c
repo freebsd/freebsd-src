@@ -572,7 +572,6 @@ zyd_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	struct zyd_vap *zvp = ZYD_VAP(vap);
 	struct ieee80211com *ic = vap->iv_ic;
 	struct zyd_softc *sc = ic->ic_ifp->if_softc;
-	struct ieee80211_node *ni;
 	int error;
 
 	DPRINTF(sc, ZYD_DEBUG_STATE, "%s: %s -> %s\n", __func__,
@@ -586,7 +585,6 @@ zyd_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		zyd_set_chan(sc, ic->ic_curchan);
 		break;
 	case IEEE80211_S_RUN:
-		ni = vap->iv_bss;
 		if (vap->iv_opmode == IEEE80211_M_MONITOR)
 			break;
 
@@ -598,7 +596,7 @@ zyd_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		/* make data LED blink upon Tx */
 		zyd_write32_m(sc, sc->sc_fwbase + ZYD_FW_LINK_STATUS, 1);
 
-		IEEE80211_ADDR_COPY(sc->sc_bssid, ni->ni_bssid);
+		IEEE80211_ADDR_COPY(sc->sc_bssid, vap->iv_bss->ni_bssid);
 		zyd_set_bssid(sc, sc->sc_bssid);
 		break;
 	default:
