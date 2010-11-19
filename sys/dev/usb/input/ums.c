@@ -487,7 +487,7 @@ ums_hid_parse(struct ums_softc *sc, device_t dev, const uint8_t *buf,
 
 	/* detect other buttons */
 
-	for (j = 0; (i < UMS_BUTTONS_MAX) && (j < 2); i++, j++) {
+	for (j = 0; (i < UMS_BUTTON_MAX) && (j < 2); i++, j++) {
 		if (!hid_locate(buf, len, HID_USAGE2(HUP_MICROSOFT, (j + 1)),
 		    hid_input, index, &info->sc_loc_btn[i], NULL, 
 		    &info->sc_iid_btn[i])) {
