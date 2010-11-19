@@ -27,8 +27,7 @@
 #ifndef _LIBUSB20_COMPAT_01_H_
 #define	_LIBUSB20_COMPAT_01_H_
 
-#include <sys/stdint.h>
-#include <sys/endian.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <sys/param.h>
 

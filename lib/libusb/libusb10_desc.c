@@ -26,7 +26,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <pthread.h>
 #include <sys/queue.h>
 
 #define	libusb_device_handle libusb20_device
