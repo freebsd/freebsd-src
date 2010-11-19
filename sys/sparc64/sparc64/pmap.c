@@ -1928,8 +1928,12 @@ pmap_is_modified(vm_page_t m)
 boolean_t
 pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 {
+	boolean_t rv;
 
-	return (FALSE);
+	PMAP_LOCK(pmap);
+	rv = tsb_tte_lookup(pmap, addr) == NULL;
+	PMAP_UNLOCK(pmap);
+	return (rv);
 }
 
 void
