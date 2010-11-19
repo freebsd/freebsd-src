@@ -32,7 +32,6 @@
 #include <time.h>
 #include <errno.h>
 #include <sys/queue.h>
-#include <sys/endian.h>
 
 #define	libusb_device_handle libusb20_device
 
