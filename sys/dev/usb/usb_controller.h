@@ -102,6 +102,10 @@ struct usb_bus_methods {
 	/* Optional transfer polling support */
 
 	void	(*xfer_poll) (struct usb_bus *);
+
+	/* Optional fixed power mode support */
+
+	void	(*get_power_mode) (struct usb_device *udev, int8_t *pmode);
 };
 
 /*
