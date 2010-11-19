@@ -1663,16 +1663,10 @@ vm_page_free_toq(vm_page_t m)
 	}
 	PCPU_INC(cnt.v_tfree);
 
-	if (m->busy || VM_PAGE_IS_FREE(m)) {
-		printf(
-		"vm_page_free: pindex(%lu), busy(%d), VPO_BUSY(%d), hold(%d)\n",
-		    (u_long)m->pindex, m->busy, (m->oflags & VPO_BUSY) ? 1 : 0,
-		    m->hold_count);
-		if (VM_PAGE_IS_FREE(m))
-			panic("vm_page_free: freeing free page");
-		else
-			panic("vm_page_free: freeing busy page");
-	}
+	if (VM_PAGE_IS_FREE(m))
+		panic("vm_page_free: freeing free page %p", m);
+	else if (m->busy != 0)
+		panic("vm_page_free: freeing busy page %p", m);
 
 	/*
 	 * unqueue, then remove page.  Note that we cannot destroy
@@ -1695,13 +1689,8 @@ vm_page_free_toq(vm_page_t m)
 	m->valid = 0;
 	vm_page_undirty(m);
 
-	if (m->wire_count != 0) {
-		if (m->wire_count > 1) {
-			panic("vm_page_free: invalid wire count (%d), pindex: 0x%lx",
-				m->wire_count, (long)m->pindex);
-		}
-		panic("vm_page_free: freeing wired page");
-	}
+	if (m->wire_count != 0)
+		panic("vm_page_free: freeing wired page %p", m);
 	if (m->hold_count != 0) {
 		m->flags &= ~PG_ZERO;
 		vm_page_lock_queues();
