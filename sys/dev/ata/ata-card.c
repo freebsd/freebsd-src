@@ -135,9 +135,9 @@ ata_pccard_attach(device_t dev)
     ch->unit = 0;
     ch->flags |= ATA_USE_16BIT;
     funce = 0;		/* Default to sane setting of FUNCE */
-    pccard_get_funce_disk(dev, &funce);
+    pccard_get_funce_disk(dev, &funce); 
     if (!(funce & PFD_I_D))
-	    ch-> flags |= ATA_NO_SLAVE;
+        ch-> flags |= ATA_NO_SLAVE;
     ata_generic_hw(dev);
     err = ata_probe(dev);
     if (err)
