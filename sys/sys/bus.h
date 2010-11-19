@@ -503,7 +503,10 @@ void	bus_data_generation_update(void);
  * is for drivers that wish to have a generic form and a specialized form,
  * like is done with the pci bus and the acpi pci bus.  BUS_PROBE_HOOVER is
  * for those busses that implement a generic device place-holder for devices on
- * the bus that have no more specific driver for them (aka ugen).
+ * the bus that have no more specific river for them (aka ugen).
+ * BUS_PROBE_NOWILDCARD or lower means that the device isn't really bidding
+ * for a device node, but accepts only devices that its parent has told it
+ * use this driver.
  */
 #define BUS_PROBE_SPECIFIC	0	/* Only I can use this device */
 #define BUS_PROBE_VENDOR	(-10)	/* Vendor supplied driver */
@@ -511,6 +514,7 @@ void	bus_data_generation_update(void);
 #define BUS_PROBE_LOW_PRIORITY	(-40)	/* Older, less desirable drivers */
 #define BUS_PROBE_GENERIC	(-100)	/* generic driver for dev */
 #define BUS_PROBE_HOOVER	(-500)	/* Generic dev for all devs on bus */
+#define BUS_PROBE_NOWILDCARD	(-2000000000) /* No wildcard device matches */
 
 /**
  * Shorthand for constructing method tables.
