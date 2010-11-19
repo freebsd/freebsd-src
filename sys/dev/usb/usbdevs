@@ -2401,7 +2401,7 @@ product OPTION ICONEDGE		0xc031	GlobeSurfer iCON EDGE
 product OPTION MODHSXPA		0xd013	Globetrotter HSUPA
 product OPTION ICON321		0xd031	Globetrotter HSUPA
 product OPTION ICON505		0xd055	Globetrotter iCON 505
-product OPTION_ICON452		0x7901	Globetrotter iCON 452
+product OPTION ICON452		0x7901	Globetrotter iCON 452
 
 /* OvisLink product */
 product OVISLINK RT3072		0x3072	RT3072
