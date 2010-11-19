@@ -2255,6 +2255,8 @@ product NATIONAL BEARPAW1200	0x1000	BearPaw 1200
 product NATIONAL BEARPAW2400	0x1001	BearPaw 2400
 
 /* NEC products */
+product NEC HUB_0050		0x0050	USB 2.0 7-Port Hub
+product NEC HUB_005A		0x005a	USB 2.0 4-Port Hub
 product NEC HUB			0x55aa	hub
 product NEC HUB_B		0x55ab	hub
 
