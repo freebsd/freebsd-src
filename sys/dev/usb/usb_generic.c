@@ -1791,10 +1791,9 @@ ugen_get_power_mode(struct usb_fifo *f)
 {
 	struct usb_device *udev = f->udev;
 
-	if ((udev == NULL) ||
-	    (udev->parent_hub == NULL)) {
+	if (udev == NULL)
 		return (USB_POWER_MODE_ON);
-	}
+
 	return (udev->power_mode);
 }
 

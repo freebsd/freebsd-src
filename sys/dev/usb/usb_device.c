@@ -1524,7 +1524,7 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	 * of USB devices out there that do not work very well with
 	 * automatic suspend and resume!
 	 */
-	udev->power_mode = USB_POWER_MODE_ON;
+	udev->power_mode = usbd_filter_power_mode(udev, USB_POWER_MODE_ON);
 	udev->pwr_save.last_xfer_time = ticks;
 	/* we are not ready yet */
 	udev->refcount = 1;
