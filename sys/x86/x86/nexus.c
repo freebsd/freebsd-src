@@ -76,10 +76,12 @@ __FBSDID("$FreeBSD$");
 
 #ifdef DEV_ISA
 #include <isa/isavar.h>
-#ifdef PC98
-#include <pc98/cbus/cbus.h>
+#ifdef __amd64__
+#include <amd64/isa/isa.h>
+#elif defined(__i386__)
+#include <i386/isa/isa.h>
 #else
-#include <x86/isa/isa.h>
+#include <pc98/cbus/cbus.h>
 #endif
 #endif
 #include <sys/rtprio.h>
