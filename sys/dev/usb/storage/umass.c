@@ -715,6 +715,7 @@ static driver_t umass_driver = {
 DRIVER_MODULE(umass, uhub, umass_driver, umass_devclass, NULL, 0);
 MODULE_DEPEND(umass, usb, 1, 1, 1);
 MODULE_DEPEND(umass, cam, 1, 1, 1);
+MODULE_VERSION(umass, 1);
 
 /*
  * USB device probe/attach/detach

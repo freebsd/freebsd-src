@@ -400,6 +400,7 @@ static devclass_t ural_devclass;
 DRIVER_MODULE(ural, uhub, ural_driver, ural_devclass, NULL, 0);
 MODULE_DEPEND(ural, usb, 1, 1, 1);
 MODULE_DEPEND(ural, wlan, 1, 1, 1);
+MODULE_VERSION(ural, 1);
 
 static int
 ural_match(device_t self)

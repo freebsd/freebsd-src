@@ -160,6 +160,7 @@ static driver_t ugensa_driver = {
 DRIVER_MODULE(ugensa, uhub, ugensa_driver, ugensa_devclass, NULL, 0);
 MODULE_DEPEND(ugensa, ucom, 1, 1, 1);
 MODULE_DEPEND(ugensa, usb, 1, 1, 1);
+MODULE_VERSION(ugensa, 1);
 
 static const struct usb_device_id ugensa_devs[] = {
 	{USB_VPI(USB_VENDOR_AIRPRIME, USB_PRODUCT_AIRPRIME_PC5220, 0)},
