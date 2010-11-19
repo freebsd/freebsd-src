@@ -190,8 +190,6 @@ ncl_inactive(struct vop_inactive_args *ap)
 	struct vnode *vp = ap->a_vp;
 
 	np = VTONFS(vp);
-	if (prtactive && vrefcnt(vp) != 0)
-		vprint("ncl_inactive: pushing active", vp);
 
 	if (NFS_ISV4(vp) && vp->v_type == VREG) {
 		/*
@@ -232,9 +230,6 @@ ncl_reclaim(struct vop_reclaim_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct nfsnode *np = VTONFS(vp);
 	struct nfsdmap *dp, *dp2;
-
-	if (prtactive && vrefcnt(vp) != 0)
-		vprint("ncl_reclaim: pushing active", vp);
 
 	if (NFS_ISV4(vp) && vp->v_type == VREG)
 		/*
