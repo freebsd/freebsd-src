@@ -248,6 +248,7 @@ MODULE_DEPEND(axe, uether, 1, 1, 1);
 MODULE_DEPEND(axe, usb, 1, 1, 1);
 MODULE_DEPEND(axe, ether, 1, 1, 1);
 MODULE_DEPEND(axe, miibus, 1, 1, 1);
+MODULE_VERSION(axe, 1);
 
 static const struct usb_ether_methods axe_ue_methods = {
 	.ue_attach_post = axe_attach_post,

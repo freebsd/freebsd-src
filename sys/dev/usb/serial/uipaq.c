@@ -1092,6 +1092,7 @@ static driver_t uipaq_driver = {
 DRIVER_MODULE(uipaq, uhub, uipaq_driver, uipaq_devclass, NULL, 0);
 MODULE_DEPEND(uipaq, ucom, 1, 1, 1);
 MODULE_DEPEND(uipaq, usb, 1, 1, 1);
+MODULE_VERSION(uipaq, 1);
 
 static int
 uipaq_probe(device_t dev)

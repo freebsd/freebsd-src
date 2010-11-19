@@ -439,3 +439,4 @@ static driver_t uep_driver = {
 
 DRIVER_MODULE(uep, uhub, uep_driver, uep_devclass, NULL, NULL);
 MODULE_DEPEND(uep, usb, 1, 1, 1);
+MODULE_VERSION(uep, 1);
