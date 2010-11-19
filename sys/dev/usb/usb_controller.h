@@ -62,7 +62,7 @@ struct usb_bus_methods {
 		    struct usb_endpoint_descriptor *, struct usb_endpoint *);
 	void    (*xfer_setup) (struct usb_setup_params *);
 	void    (*xfer_unsetup) (struct usb_xfer *);
-	void    (*get_dma_delay) (struct usb_bus *, uint32_t *);
+	void    (*get_dma_delay) (struct usb_device *, uint32_t *);
 	void    (*device_suspend) (struct usb_device *);
 	void    (*device_resume) (struct usb_device *);
 	void    (*set_hw_power) (struct usb_bus *);

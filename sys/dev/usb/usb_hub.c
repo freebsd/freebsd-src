@@ -2105,8 +2105,9 @@ repeat:
 		(udev->bus->methods->device_suspend) (udev);
 
 		/* do DMA delay */
-		temp = usbd_get_dma_delay(udev->bus);
-		usb_pause_mtx(NULL, USB_MS_TO_TICKS(temp));
+		temp = usbd_get_dma_delay(udev);
+		if (temp != 0)
+			usb_pause_mtx(NULL, USB_MS_TO_TICKS(temp));
 
 	}
 	/* suspend current port */
