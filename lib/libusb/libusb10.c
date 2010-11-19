@@ -25,16 +25,17 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/fcntl.h>
+#include <sys/ioctl.h>
+#include <sys/queue.h>
+
 #include <assert.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <stdio.h>
+#include <errno.h>
 #include <poll.h>
 #include <pthread.h>
-#include <errno.h>
-#include <sys/ioctl.h>
-#include <sys/fcntl.h>
-#include <sys/queue.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #define	libusb_device_handle libusb20_device
 
