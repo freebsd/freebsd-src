@@ -3792,9 +3792,7 @@ ehci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 			}
 			break;
 		case UE_BULK:
-			if (udev->speed != USB_SPEED_LOW) {
-				ep->methods = &ehci_device_bulk_methods;
-			}
+			ep->methods = &ehci_device_bulk_methods;
 			break;
 		default:
 			/* do nothing */
