@@ -2,7 +2,7 @@
  * Copyright (c) 2001 Takanori Watanabe <takawata@jp.freebsd.org>
  * Copyright (c) 2001 Mitsuru IWASAKI <iwasaki@jp.freebsd.org>
  * Copyright (c) 2003 Peter Wemm
- * Copyright (c) 2008-2009 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2008-2010 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,18 +52,17 @@
 	.data				/* So we can modify it */
 
 	ALIGN_TEXT
-wakeup_start:
 	.code16
+wakeup_start:
 	/*
 	 * Set up segment registers for real mode, a small stack for
 	 * any calls we make, and clear any flags.
 	 */
 	cli				/* make sure no interrupts */
-	cld
 	mov	%cs, %ax		/* copy %cs to %ds.  Remember these */
 	mov	%ax, %ds		/* are offsets rather than selectors */
 	mov	%ax, %ss
-	movw	$PAGE_SIZE - 8, %sp
+	movw	$PAGE_SIZE, %sp
 	xorw	%ax, %ax
 	pushw	%ax
 	popfw
@@ -127,6 +126,7 @@ wakeup_sw32:
 	/*
 	 * At this point, we are running in 32 bit legacy protected mode.
 	 */
+	ALIGN_TEXT
 	.code32
 wakeup_32:
 
@@ -205,8 +205,8 @@ wakeup_64:
 	mov	%ax, %ds
 
 	/* Restore arguments and return. */
-	movq	wakeup_ctx - wakeup_start(%rbx), %rdi
-	movq	wakeup_kpml4 - wakeup_start(%rbx), %rsi
+	movq	wakeup_kpml4 - wakeup_start(%rbx), %rdi
+	movq	wakeup_ctx - wakeup_start(%rbx), %rsi
 	movq	wakeup_retaddr - wakeup_start(%rbx), %rax
 	jmp	*%rax
 
@@ -260,7 +260,7 @@ wakeup_kpml4:
 
 wakeup_ctx:
 	.quad	0
-wakeup_xpcb:
+wakeup_pcb:
 	.quad	0
 wakeup_gdt:
 	.word	0

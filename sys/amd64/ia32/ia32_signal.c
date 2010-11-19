@@ -92,7 +92,14 @@ static void
 ia32_get_fpcontext(struct thread *td, struct ia32_mcontext *mcp)
 {
 
-	mcp->mc_ownedfp = fpugetregs(td, (struct savefpu *)&mcp->mc_fpstate);
+	/*
+	 * XXX Format of 64bit and 32bit FXSAVE areas differs. FXSAVE
+	 * in 32bit mode saves %cs and %ds, while on 64bit it saves
+	 * 64bit instruction and data pointers. Ignore the difference
+	 * for now, it should be irrelevant for most applications.
+	 */
+	mcp->mc_ownedfp = fpugetuserregs(td,
+	    (struct savefpu *)&mcp->mc_fpstate);
 	mcp->mc_fpformat = fpuformat();
 }
 
@@ -109,11 +116,7 @@ ia32_set_fpcontext(struct thread *td, const struct ia32_mcontext *mcp)
 		fpstate_drop(td);
 	else if (mcp->mc_ownedfp == _MC_FPOWNED_FPU ||
 	    mcp->mc_ownedfp == _MC_FPOWNED_PCB) {
-		/*
-		 * XXX we violate the dubious requirement that fpusetregs()
-		 * be called with interrupts disabled.
-		 */
-		fpusetregs(td, (struct savefpu *)&mcp->mc_fpstate);
+		fpusetuserregs(td, (struct savefpu *)&mcp->mc_fpstate);
 	} else
 		return (EINVAL);
 	return (0);

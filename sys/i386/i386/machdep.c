@@ -3188,12 +3188,12 @@ fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 #ifdef CPU_ENABLE_SSE
 	if (cpu_fxsr) {
-		fill_fpregs_xmm(&td->td_pcb->pcb_save.sv_xmm,
+		fill_fpregs_xmm(&td->td_pcb->pcb_user_save.sv_xmm,
 						(struct save87 *)fpregs);
 		return (0);
 	}
 #endif /* CPU_ENABLE_SSE */
-	bcopy(&td->td_pcb->pcb_save.sv_87, fpregs, sizeof *fpregs);
+	bcopy(&td->td_pcb->pcb_user_save.sv_87, fpregs, sizeof *fpregs);
 	return (0);
 }
 
@@ -3203,11 +3203,11 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 #ifdef CPU_ENABLE_SSE
 	if (cpu_fxsr) {
 		set_fpregs_xmm((struct save87 *)fpregs,
-					   &td->td_pcb->pcb_save.sv_xmm);
+		    &td->td_pcb->pcb_user_save.sv_xmm);
 		return (0);
 	}
 #endif /* CPU_ENABLE_SSE */
-	bcopy(fpregs, &td->td_pcb->pcb_save.sv_87, sizeof *fpregs);
+	bcopy(fpregs, &td->td_pcb->pcb_user_save.sv_87, sizeof *fpregs);
 	return (0);
 }
 
@@ -3334,7 +3334,7 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 			addr = (void *)((char *)addr + 4);
 		while ((uintptr_t)(void *)addr & 0xF);
 	}
-	mcp->mc_ownedfp = npxgetregs(td, addr);
+	mcp->mc_ownedfp = npxgetuserregs(td, addr);
 	if (addr != (union savefpu *)&mcp->mc_fpstate) {
 		bcopy(addr, &mcp->mc_fpstate, sizeof(mcp->mc_fpstate));
 		bzero(&mcp->mc_spare2, sizeof(mcp->mc_spare2));
@@ -3379,7 +3379,7 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 		 * XXX we violate the dubious requirement that npxsetregs()
 		 * be called with interrupts disabled.
 		 */
-		npxsetregs(td, addr);
+		npxsetuserregs(td, addr);
 #endif
 		/*
 		 * Don't bother putting things back where they were in the
@@ -3394,9 +3394,9 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 static void
 fpstate_drop(struct thread *td)
 {
-	register_t s;
 
-	s = intr_disable();
+	KASSERT(PCB_USER_FPU(td->td_pcb), ("fpstate_drop: kernel-owned fpu"));
+	critical_enter();
 #ifdef DEV_NPX
 	if (PCPU_GET(fpcurthread) == td)
 		npxdrop();
@@ -3411,8 +3411,9 @@ fpstate_drop(struct thread *td)
 	 * sendsig() is the only caller of npxgetregs()... perhaps we just
 	 * have too many layers.
 	 */
-	curthread->td_pcb->pcb_flags &= ~PCB_NPXINITDONE;
-	intr_restore(s);
+	curthread->td_pcb->pcb_flags &= ~(PCB_NPXINITDONE |
+	    PCB_NPXUSERINITDONE);
+	critical_exit();
 }
 
 int

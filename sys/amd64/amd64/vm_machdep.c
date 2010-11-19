@@ -122,7 +122,7 @@ cpu_fork(td1, p2, td2, flags)
 		return;
 	}
 
-	/* Ensure that p1's pcb is up to date. */
+	/* Ensure that td1's pcb is up to date. */
 	fpuexit(td1);
 
 	/* Point the pcb to the top of the stack */
@@ -130,8 +130,11 @@ cpu_fork(td1, p2, td2, flags)
 	    td2->td_kstack_pages * PAGE_SIZE) - 1;
 	td2->td_pcb = pcb2;
 
-	/* Copy p1's pcb */
+	/* Copy td1's pcb */
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
+
+	/* Properly initialize pcb_save */
+	pcb2->pcb_save = &pcb2->pcb_user_save;
 
 	/* Point mdproc and then copy over td1's contents */
 	mdp2 = &p2->p_md;
@@ -262,8 +265,10 @@ cpu_thread_exit(struct thread *td)
 {
 	struct pcb *pcb;
 
+	critical_enter();
 	if (td == PCPU_GET(fpcurthread))
 		fpudrop();
+	critical_exit();
 
 	pcb = td->td_pcb;
 
@@ -308,6 +313,7 @@ cpu_thread_alloc(struct thread *td)
 	td->td_pcb = (struct pcb *)(td->td_kstack +
 	    td->td_kstack_pages * PAGE_SIZE) - 1;
 	td->td_frame = (struct trapframe *)td->td_pcb - 1;
+	td->td_pcb->pcb_save = &td->td_pcb->pcb_user_save;
 }
 
 void
@@ -381,7 +387,8 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	 * values here.
 	 */
 	bcopy(td0->td_pcb, pcb2, sizeof(*pcb2));
-	pcb2->pcb_flags &= ~PCB_FPUINITDONE;
+	pcb2->pcb_flags &= ~(PCB_FPUINITDONE | PCB_USERFPUINITDONE);
+	pcb2->pcb_save = &pcb2->pcb_user_save;
 	pcb2->pcb_full_iret = 1;
 
 	/*

@@ -787,14 +787,14 @@ void
 enable_K5_wt_alloc(void)
 {
 	u_int64_t	msr;
-	register_t	savecrit;
+	register_t	saveintr;
 
 	/*
 	 * Write allocate is supported only on models 1, 2, and 3, with
 	 * a stepping of 4 or greater.
 	 */
 	if (((cpu_id & 0xf0) > 0) && ((cpu_id & 0x0f) > 3)) {
-		savecrit = intr_disable();
+		saveintr = intr_disable();
 		msr = rdmsr(0x83);		/* HWCR */
 		wrmsr(0x83, msr & !(0x10));
 
@@ -825,7 +825,7 @@ enable_K5_wt_alloc(void)
 
 		msr=rdmsr(0x83);
 		wrmsr(0x83, msr|0x10); /* enable write allocate */
-		intr_restore(savecrit);
+		intr_restore(saveintr);
 	}
 }
 
