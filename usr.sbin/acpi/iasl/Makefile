@@ -14,8 +14,11 @@ SRCS+=	aslanalyze.c aslcodegen.c aslcompile.c aslcompiler.y.h	\
 	aslfiles.c aslfold.c asllength.c asllisting.c		\
 	aslload.c asllookup.c aslmain.c aslmap.c aslopcodes.c	\
 	asloperands.c aslopt.c aslpredef.c aslresource.c	\
-	aslrestype1.c aslrestype2.c aslstartup.c aslstubs.c	\
-	asltransform.c asltree.c aslutils.c
+	aslrestype1.c aslrestype1i.c aslrestype2.c		\
+	aslrestype2d.c aslrestype2e.c aslrestype2q.c		\
+	aslrestype2w.c aslstartup.c aslstubs.c asltransform.c	\
+	asltree.c aslutils.c dtcompile.c dtfield.c dtio.c	\
+	dtsubtable.c dttable.c dttemplate.c dtutils.c
 
 # debugger
 SRCS+=	dbfileio.c
@@ -48,7 +51,8 @@ SRCS+=	tbfadt.c tbinstal.c tbutils.c tbxface.c
 # utilities
 SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdelete.c	\
 	utglobal.c utinit.c utlock.c utmath.c utmisc.c		\
-	utmutex.c utobject.c utresrc.c utstate.c utxface.c
+	utmutex.c utobject.c utosi.c utresrc.c utstate.c	\
+	utxface.c utxferror.c
 
 MAN=	iasl.8
 

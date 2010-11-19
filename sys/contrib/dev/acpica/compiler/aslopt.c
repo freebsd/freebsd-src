@@ -339,7 +339,7 @@ OptBuildShortestPath (
         }
     }
 
-    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS, " COMMON: %d",
+    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OPTIMIZATIONS, " COMMON: %u",
         NumCommonSegments));
 
     /* There must be at least 1 common NameSeg in order to optimize */

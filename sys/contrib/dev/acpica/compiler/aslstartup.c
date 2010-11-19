@@ -124,21 +124,20 @@
 
 
 #define ASL_MAX_FILES   256
-char                    *FileList[ASL_MAX_FILES];
-int                     FileCount;
-BOOLEAN                 AslToFile = TRUE;
+static char             *FileList[ASL_MAX_FILES];
+static BOOLEAN          AslToFile = TRUE;
 
 
 /* Local prototypes */
-
-static void
-AslInitializeGlobals (
-    void);
 
 static char **
 AsDoWildcard (
     char                    *DirectoryPathname,
     char                    *FileSpecifier);
+
+static UINT8
+AslDetectSourceFileType (
+    ASL_FILE_INFO           *Info);
 
 
 /*******************************************************************************
@@ -154,7 +153,7 @@ AsDoWildcard (
  *
  ******************************************************************************/
 
-static void
+void
 AslInitializeGlobals (
     void)
 {
@@ -167,10 +166,13 @@ AslInitializeGlobals (
     Gbl_CurrentLineNumber = 1;
     Gbl_LogicalLineNumber = 1;
     Gbl_CurrentLineOffset = 0;
+    Gbl_InputFieldCount = 0;
     Gbl_LineBufPtr = Gbl_CurrentLineBuffer;
 
     Gbl_ErrorLog = NULL;
     Gbl_NextError = NULL;
+    Gbl_Signature = NULL;
+    Gbl_FileType = 0;
 
     AslGbl_NextEvent = 0;
     for (i = 0; i < ASL_NUM_REPORT_LEVELS; i++)
@@ -179,6 +181,10 @@ AslInitializeGlobals (
     }
 
     Gbl_Files[ASL_FILE_AML_OUTPUT].Filename = NULL;
+    Gbl_Files[ASL_FILE_AML_OUTPUT].Handle = NULL;
+
+    Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename = NULL;
+    Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Handle = NULL;
 }
 
 
@@ -203,6 +209,7 @@ AsDoWildcard (
 #ifdef WIN32
     void                    *DirInfo;
     char                    *Filename;
+    int                     FileCount;
 
 
     FileCount = 0;
@@ -259,6 +266,77 @@ AsDoWildcard (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AslDetectSourceFileType
+ *
+ * PARAMETERS:  Info            - Name/Handle for the file (must be open)
+ *
+ * RETURN:      File Type
+ *
+ * DESCRIPTION: Determine the type of the input file. Either binary (contains
+ *              non-ASCII characters), ASL file, or an ACPI Data Table file.
+ *
+ ******************************************************************************/
+
+static UINT8
+AslDetectSourceFileType (
+    ASL_FILE_INFO           *Info)
+{
+    char                    *FileChar;
+    UINT8                   Type;
+    ACPI_STATUS             Status;
+
+
+    /* Check for 100% ASCII source file (comments are ignored) */
+
+    Status = FlCheckForAscii (Info);
+    if (ACPI_FAILURE (Status))
+    {
+        printf ("Non-ascii input file - %s\n", Info->Filename);
+        Type = ASL_INPUT_TYPE_BINARY;
+        goto Cleanup;
+    }
+
+    /*
+     * File is ASCII. Determine if this is an ASL file or an ACPI data
+     * table file.
+     */
+    while (fgets (Gbl_CurrentLineBuffer, ASL_LINE_BUFFER_SIZE, Info->Handle))
+    {
+        /* Uppercase the buffer for caseless compare */
+
+        FileChar = Gbl_CurrentLineBuffer;
+        while (*FileChar)
+        {
+            *FileChar = (char) toupper ((int) *FileChar);
+            FileChar++;
+        }
+
+        /* Presence of "DefinitionBlock" indicates actual ASL code */
+
+        if (strstr (Gbl_CurrentLineBuffer, "DEFINITIONBLOCK"))
+        {
+            /* Appears to be an ASL file */
+
+            Type = ASL_INPUT_TYPE_ASCII_ASL;
+            goto Cleanup;
+        }
+    }
+
+    /* Not an ASL source file, default to a data table source file */
+
+    Type = ASL_INPUT_TYPE_ASCII_DATA;
+
+Cleanup:
+
+    /* Must seek back to the start of the file */
+
+    fseek (Info->Handle, 0, SEEK_SET);
+    return (Type);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AslDoOneFile
  *
  * PARAMETERS:  Filename        - Name of the file
@@ -287,7 +365,7 @@ AslDoOneFile (
      */
     if (Gbl_DisasmFlag || Gbl_GetAllTables)
     {
-        /* ACPI CA subsystem initialization */
+        /* ACPICA subsystem initialization */
 
         Status = AdInitialize ();
         if (ACPI_FAILURE (Status))
@@ -319,7 +397,7 @@ AslDoOneFile (
         /* Shutdown compiler and ACPICA subsystem */
 
         AeClearErrorLog ();
-        AcpiTerminate ();
+        (void) AcpiTerminate ();
 
         /*
          * Gbl_Files[ASL_FILE_INPUT].Filename was replaced with the
@@ -330,23 +408,77 @@ AslDoOneFile (
             AcpiOsPrintf ("\nCompiling \"%s\"\n",
                 Gbl_Files[ASL_FILE_INPUT].Filename);
         }
+        else
+        {
+            Gbl_Files[ASL_FILE_INPUT].Filename = NULL;
+            return (AE_OK);
+        }
     }
+
+    /*
+     * Open the input file. Here, this should be an ASCII source file,
+     * either an ASL file or a Data Table file
+     */
+    Status = FlOpenInputFile (Gbl_Files[ASL_FILE_INPUT].Filename);
+    if (ACPI_FAILURE (Status))
+    {
+        AePrintErrorLog (ASL_FILE_STDERR);
+        return (AE_ERROR);
+    }
+
+    /* Determine input file type */
+
+    Gbl_FileType = AslDetectSourceFileType (&Gbl_Files[ASL_FILE_INPUT]);
+    if (Gbl_FileType == ASL_INPUT_TYPE_BINARY)
+    {
+        return (AE_ERROR);
+    }
+
+    /*
+     * If -p not specified, we will use the input filename as the
+     * output filename prefix
+     */
+    if (Gbl_UseDefaultAmlFilename)
+    {
+        Gbl_OutputFilenamePrefix = Gbl_Files[ASL_FILE_INPUT].Filename;
+    }
+
+    /* Open the optional output files (listings, etc.) */
+
+    Status = FlOpenMiscOutputFiles (Gbl_OutputFilenamePrefix);
+    if (ACPI_FAILURE (Status))
+    {
+        AePrintErrorLog (ASL_FILE_STDERR);
+        return (AE_ERROR);
+    }
+
+    /*
+     * Compilation of ASL source versus DataTable source uses different
+     * compiler subsystems
+     */
+    switch (Gbl_FileType)
+    {
+    /*
+     * Data Table Compilation
+     */
+    case ASL_INPUT_TYPE_ASCII_DATA:
+
+        Status = DtDoCompile ();
+
+        if (Gbl_Signature)
+        {
+            ACPI_FREE (Gbl_Signature);
+            Gbl_Signature = NULL;
+        }
+        AeClearErrorLog ();
+        return (Status);
 
     /*
      * ASL Compilation (Optional)
      */
-    if (Gbl_DoCompile)
-    {
-        /*
-         * If -p not specified, we will use the input filename as the
-         * output filename prefix
-         */
-        if (Gbl_UseDefaultAmlFilename)
-        {
-            Gbl_OutputFilenamePrefix = Gbl_Files[ASL_FILE_INPUT].Filename;
-        }
+    case ASL_INPUT_TYPE_ASCII_ASL:
 
-        /* ACPI CA subsystem initialization (Must be re-initialized) */
+        /* ACPICA subsystem initialization */
 
         Status = AdInitialize ();
         if (ACPI_FAILURE (Status))
@@ -355,7 +487,7 @@ AslDoOneFile (
         }
 
         Status = CmDoCompile ();
-        AcpiTerminate ();
+        (void) AcpiTerminate ();
 
         /*
          * Return non-zero exit code if there have been errors, unless the
@@ -367,9 +499,17 @@ AslDoOneFile (
         }
 
         AeClearErrorLog ();
-    }
+        return (AE_OK);
 
-    return (AE_OK);
+    case ASL_INPUT_TYPE_BINARY:
+
+        AePrintErrorLog (ASL_FILE_STDERR);
+        return (AE_ERROR);
+
+    default:
+        printf ("Unknown file type %X\n", Gbl_FileType);
+        return (AE_ERROR);
+    }
 }
 
 
@@ -389,10 +529,11 @@ AslDoOneFile (
 
 ACPI_STATUS
 AslDoOnePathname (
-    char                    *Pathname)
+    char                    *Pathname,
+    ASL_PATHNAME_CALLBACK   PathCallback)
 {
-    ACPI_STATUS             Status;
-    char                    **FileList;
+    ACPI_STATUS             Status = AE_OK;
+    char                    **WildcardList;
     char                    *Filename;
     char                    *FullPathname;
 
@@ -407,16 +548,16 @@ AslDoOnePathname (
 
     /* Expand possible wildcard into a file list (Windows/DOS only) */
 
-    FileList = AsDoWildcard (Gbl_DirectoryPath, Filename);
-    while (*FileList)
+    WildcardList = AsDoWildcard (Gbl_DirectoryPath, Filename);
+    while (*WildcardList)
     {
         FullPathname = ACPI_ALLOCATE (
-            strlen (Gbl_DirectoryPath) + strlen (*FileList) + 1);
+            strlen (Gbl_DirectoryPath) + strlen (*WildcardList) + 1);
 
         /* Construct a full path to the file */
 
         strcpy (FullPathname, Gbl_DirectoryPath);
-        strcat (FullPathname, *FileList);
+        strcat (FullPathname, *WildcardList);
 
         /*
          * If -p not specified, we will use the input filename as the
@@ -427,20 +568,18 @@ AslDoOnePathname (
             Gbl_OutputFilenamePrefix = FullPathname;
         }
 
-        Status = AslDoOneFile (FullPathname);
-        if (ACPI_FAILURE (Status))
-        {
-            return (Status);
-        }
+        /* Save status from all compiles */
+
+        Status |= (*PathCallback) (FullPathname);
 
         ACPI_FREE (FullPathname);
-        ACPI_FREE (*FileList);
-        *FileList = NULL;
-        FileList++;
+        ACPI_FREE (*WildcardList);
+        *WildcardList = NULL;
+        WildcardList++;
     }
 
     ACPI_FREE (Gbl_DirectoryPath);
     ACPI_FREE (Filename);
-    return (AE_OK);
+    return (Status);
 }
 

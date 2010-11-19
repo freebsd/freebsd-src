@@ -202,8 +202,8 @@ AcpiExSetupRegion (
     }
 
     /*
-     * Exit now for SMBus or IPMI address space, it has a non-linear address space
-     * and the request cannot be directly validated
+     * Exit now for SMBus or IPMI address space, it has a non-linear
+     * address space and the request cannot be directly validated
      */
     if (RgnDesc->Region.SpaceId == ACPI_ADR_SPACE_SMBUS ||
         RgnDesc->Region.SpaceId == ACPI_ADR_SPACE_IPMI)
@@ -233,8 +233,7 @@ AcpiExSetupRegion (
      * (Region length is specified in bytes)
      */
     if (RgnDesc->Region.Length <
-            (ObjDesc->CommonField.BaseByteOffset +
-            FieldDatumByteOffset +
+            (ObjDesc->CommonField.BaseByteOffset + FieldDatumByteOffset +
             ObjDesc->CommonField.AccessByteWidth))
     {
         if (AcpiGbl_EnableInterpreterSlack)
@@ -644,14 +643,14 @@ AcpiExFieldDatumIo (
         if (ReadWrite == ACPI_READ)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-                "Value Read %8.8X%8.8X, Width %d\n",
+                "Value Read %8.8X%8.8X, Width %u\n",
                 ACPI_FORMAT_UINT64 (*Value),
                 ObjDesc->CommonField.AccessByteWidth));
         }
         else
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
-                "Value Written %8.8X%8.8X, Width %d\n",
+                "Value Written %8.8X%8.8X, Width %u\n",
                 ACPI_FORMAT_UINT64 (*Value),
                 ObjDesc->CommonField.AccessByteWidth));
         }
@@ -794,6 +793,7 @@ AcpiExExtractFromField (
     UINT32                  BufferTailBits;
     UINT32                  DatumCount;
     UINT32                  FieldDatumCount;
+    UINT32                  AccessBitWidth;
     UINT32                  i;
 
 
@@ -803,7 +803,7 @@ AcpiExExtractFromField (
     /* Validate target buffer and clear it */
 
     if (BufferLength <
-            ACPI_ROUND_BITS_UP_TO_BYTES (ObjDesc->CommonField.BitLength))
+        ACPI_ROUND_BITS_UP_TO_BYTES (ObjDesc->CommonField.BitLength))
     {
         ACPI_ERROR ((AE_INFO,
             "Field size %u (bits) is too large for buffer (%u)",
@@ -811,17 +811,37 @@ AcpiExExtractFromField (
 
         return_ACPI_STATUS (AE_BUFFER_OVERFLOW);
     }
+
     ACPI_MEMSET (Buffer, 0, BufferLength);
+    AccessBitWidth = ACPI_MUL_8 (ObjDesc->CommonField.AccessByteWidth);
+
+    /* Handle the simple case here */
+
+    if ((ObjDesc->CommonField.StartFieldBitOffset == 0) &&
+        (ObjDesc->CommonField.BitLength == AccessBitWidth))
+    {
+        Status = AcpiExFieldDatumIo (ObjDesc, 0, Buffer, ACPI_READ);
+        return_ACPI_STATUS (Status);
+    }
+
+/* TBD: Move to common setup code */
+
+    /* Field algorithm is limited to sizeof(UINT64), truncate if needed */
+
+    if (ObjDesc->CommonField.AccessByteWidth > sizeof (UINT64))
+    {
+        ObjDesc->CommonField.AccessByteWidth = sizeof (UINT64);
+        AccessBitWidth = sizeof (UINT64) * 8;
+    }
 
     /* Compute the number of datums (access width data items) */
 
     DatumCount = ACPI_ROUND_UP_TO (
-                        ObjDesc->CommonField.BitLength,
-                        ObjDesc->CommonField.AccessBitWidth);
+        ObjDesc->CommonField.BitLength, AccessBitWidth);
+
     FieldDatumCount = ACPI_ROUND_UP_TO (
-                        ObjDesc->CommonField.BitLength +
-                        ObjDesc->CommonField.StartFieldBitOffset,
-                        ObjDesc->CommonField.AccessBitWidth);
+        ObjDesc->CommonField.BitLength +
+        ObjDesc->CommonField.StartFieldBitOffset, AccessBitWidth);
 
     /* Priming read from the field */
 
@@ -854,12 +874,11 @@ AcpiExExtractFromField (
          * This avoids the differences in behavior between different compilers
          * concerning shift values larger than the target data width.
          */
-        if ((ObjDesc->CommonField.AccessBitWidth -
-            ObjDesc->CommonField.StartFieldBitOffset) < ACPI_INTEGER_BIT_SIZE)
+        if (AccessBitWidth - ObjDesc->CommonField.StartFieldBitOffset <
+            ACPI_INTEGER_BIT_SIZE)
         {
             MergedDatum |= RawDatum <<
-                (ObjDesc->CommonField.AccessBitWidth -
-                    ObjDesc->CommonField.StartFieldBitOffset);
+                (AccessBitWidth - ObjDesc->CommonField.StartFieldBitOffset);
         }
 
         if (i == DatumCount)
@@ -879,8 +898,7 @@ AcpiExExtractFromField (
 
     /* Mask off any extra bits in the last datum */
 
-    BufferTailBits = ObjDesc->CommonField.BitLength %
-                        ObjDesc->CommonField.AccessBitWidth;
+    BufferTailBits = ObjDesc->CommonField.BitLength % AccessBitWidth;
     if (BufferTailBits)
     {
         MergedDatum &= ACPI_MASK_BITS_ABOVE (BufferTailBits);
@@ -916,6 +934,7 @@ AcpiExInsertIntoField (
     void                    *Buffer,
     UINT32                  BufferLength)
 {
+    void                    *NewBuffer;
     ACPI_STATUS             Status;
     UINT64                  Mask;
     UINT64                  WidthMask;
@@ -926,9 +945,9 @@ AcpiExInsertIntoField (
     UINT32                  BufferTailBits;
     UINT32                  DatumCount;
     UINT32                  FieldDatumCount;
-    UINT32                  i;
+    UINT32                  AccessBitWidth;
     UINT32                  RequiredLength;
-    void                    *NewBuffer;
+    UINT32                  i;
 
 
     ACPI_FUNCTION_TRACE (ExInsertIntoField);
@@ -965,31 +984,41 @@ AcpiExInsertIntoField (
         BufferLength = RequiredLength;
     }
 
+/* TBD: Move to common setup code */
+
+    /* Algo is limited to sizeof(UINT64), so cut the AccessByteWidth */
+    if (ObjDesc->CommonField.AccessByteWidth > sizeof (UINT64))
+    {
+        ObjDesc->CommonField.AccessByteWidth = sizeof (UINT64);
+    }
+
+    AccessBitWidth = ACPI_MUL_8 (ObjDesc->CommonField.AccessByteWidth);
+
     /*
      * Create the bitmasks used for bit insertion.
      * Note: This if/else is used to bypass compiler differences with the
      * shift operator
      */
-    if (ObjDesc->CommonField.AccessBitWidth == ACPI_INTEGER_BIT_SIZE)
+    if (AccessBitWidth == ACPI_INTEGER_BIT_SIZE)
     {
         WidthMask = ACPI_UINT64_MAX;
     }
     else
     {
-        WidthMask = ACPI_MASK_BITS_ABOVE (ObjDesc->CommonField.AccessBitWidth);
+        WidthMask = ACPI_MASK_BITS_ABOVE (AccessBitWidth);
     }
 
     Mask = WidthMask &
-            ACPI_MASK_BITS_BELOW (ObjDesc->CommonField.StartFieldBitOffset);
+        ACPI_MASK_BITS_BELOW (ObjDesc->CommonField.StartFieldBitOffset);
 
     /* Compute the number of datums (access width data items) */
 
     DatumCount = ACPI_ROUND_UP_TO (ObjDesc->CommonField.BitLength,
-                    ObjDesc->CommonField.AccessBitWidth);
+        AccessBitWidth);
 
     FieldDatumCount = ACPI_ROUND_UP_TO (ObjDesc->CommonField.BitLength +
-                        ObjDesc->CommonField.StartFieldBitOffset,
-                        ObjDesc->CommonField.AccessBitWidth);
+        ObjDesc->CommonField.StartFieldBitOffset,
+        AccessBitWidth);
 
     /* Get initial Datum from the input buffer */
 
@@ -1024,12 +1053,11 @@ AcpiExInsertIntoField (
          * This avoids the differences in behavior between different compilers
          * concerning shift values larger than the target data width.
          */
-        if ((ObjDesc->CommonField.AccessBitWidth -
-            ObjDesc->CommonField.StartFieldBitOffset) < ACPI_INTEGER_BIT_SIZE)
+        if ((AccessBitWidth - ObjDesc->CommonField.StartFieldBitOffset) <
+            ACPI_INTEGER_BIT_SIZE)
         {
             MergedDatum = RawDatum >>
-                (ObjDesc->CommonField.AccessBitWidth -
-                    ObjDesc->CommonField.StartFieldBitOffset);
+                (AccessBitWidth - ObjDesc->CommonField.StartFieldBitOffset);
         }
         else
         {
@@ -1048,15 +1076,15 @@ AcpiExInsertIntoField (
         BufferOffset += ObjDesc->CommonField.AccessByteWidth;
         ACPI_MEMCPY (&RawDatum, ((char *) Buffer) + BufferOffset,
             ACPI_MIN(ObjDesc->CommonField.AccessByteWidth,
-                     BufferLength - BufferOffset));
+                 BufferLength - BufferOffset));
+
         MergedDatum |= RawDatum << ObjDesc->CommonField.StartFieldBitOffset;
     }
 
     /* Mask off any extra bits in the last datum */
 
     BufferTailBits = (ObjDesc->CommonField.BitLength +
-            ObjDesc->CommonField.StartFieldBitOffset) %
-                ObjDesc->CommonField.AccessBitWidth;
+        ObjDesc->CommonField.StartFieldBitOffset) % AccessBitWidth;
     if (BufferTailBits)
     {
         Mask &= ACPI_MASK_BITS_ABOVE (BufferTailBits);

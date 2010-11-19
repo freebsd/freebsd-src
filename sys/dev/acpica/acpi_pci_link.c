@@ -268,6 +268,7 @@ link_add_crs(ACPI_RESOURCE *res, void *context)
 static ACPI_STATUS
 link_add_prs(ACPI_RESOURCE *res, void *context)
 {
+	ACPI_RESOURCE *tmp;
 	struct link_res_request *req;
 	struct link *link;
 	UINT8 *irqs = NULL;
@@ -321,12 +322,23 @@ link_add_prs(ACPI_RESOURCE *res, void *context)
 		 * Stash a copy of the resource for later use when doing
 		 * _SRS.
 		 */
-		bcopy(res, &link->l_prs_template, sizeof(ACPI_RESOURCE));
+		tmp = &link->l_prs_template;
 		if (is_ext_irq) {
+			bcopy(res, tmp, ACPI_RS_SIZE(tmp->Data.ExtendedIrq));
+
+			/*
+			 * XXX acpi_AppendBufferResource() cannot handle
+			 * optional data.
+			 */
+			bzero(&tmp->Data.ExtendedIrq.ResourceSource,
+			    sizeof(tmp->Data.ExtendedIrq.ResourceSource));
+			tmp->Length = ACPI_RS_SIZE(tmp->Data.ExtendedIrq);
+
 			link->l_num_irqs =
 			    res->Data.ExtendedIrq.InterruptCount;
 			ext_irqs = res->Data.ExtendedIrq.Interrupts;
 		} else {
+			bcopy(res, tmp, ACPI_RS_SIZE(tmp->Data.Irq));
 			link->l_num_irqs = res->Data.Irq.InterruptCount;
 			irqs = res->Data.Irq.Interrupts;
 		}
@@ -688,18 +700,17 @@ acpi_pci_link_add_reference(device_t dev, int index, device_t pcib, int slot,
 static ACPI_STATUS
 acpi_pci_link_srs_from_crs(struct acpi_pci_link_softc *sc, ACPI_BUFFER *srsbuf)
 {
-	ACPI_RESOURCE *resource, *end, newres, *resptr;
-	ACPI_BUFFER crsbuf;
+	ACPI_RESOURCE *end, *res;
 	ACPI_STATUS status;
 	struct link *link;
 	int i, in_dpf;
 
 	/* Fetch the _CRS. */
 	ACPI_SERIAL_ASSERT(pci_link);
-	crsbuf.Pointer = NULL;
-	crsbuf.Length = ACPI_ALLOCATE_BUFFER;
-	status = AcpiGetCurrentResources(acpi_get_handle(sc->pl_dev), &crsbuf);
-	if (ACPI_SUCCESS(status) && crsbuf.Pointer == NULL)
+	srsbuf->Pointer = NULL;
+	srsbuf->Length = ACPI_ALLOCATE_BUFFER;
+	status = AcpiGetCurrentResources(acpi_get_handle(sc->pl_dev), srsbuf);
+	if (ACPI_SUCCESS(status) && srsbuf->Pointer == NULL)
 		status = AE_NO_MEMORY;
 	if (ACPI_FAILURE(status)) {
 		if (bootverbose)
@@ -710,14 +721,13 @@ acpi_pci_link_srs_from_crs(struct acpi_pci_link_softc *sc, ACPI_BUFFER *srsbuf)
 	}
 
 	/* Fill in IRQ resources via link structures. */
-	srsbuf->Pointer = NULL;
 	link = sc->pl_links;
 	i = 0;
 	in_dpf = DPF_OUTSIDE;
-	resource = (ACPI_RESOURCE *)crsbuf.Pointer;
-	end = (ACPI_RESOURCE *)((char *)crsbuf.Pointer + crsbuf.Length);
+	res = (ACPI_RESOURCE *)srsbuf->Pointer;
+	end = (ACPI_RESOURCE *)((char *)srsbuf->Pointer + srsbuf->Length);
 	for (;;) {
-		switch (resource->Type) {
+		switch (res->Type) {
 		case ACPI_RESOURCE_TYPE_START_DEPENDENT:
 			switch (in_dpf) {
 			case DPF_OUTSIDE:
@@ -731,67 +741,44 @@ acpi_pci_link_srs_from_crs(struct acpi_pci_link_softc *sc, ACPI_BUFFER *srsbuf)
 				    __func__);
 				break;
 			}
-			resptr = NULL;
 			break;
 		case ACPI_RESOURCE_TYPE_END_DEPENDENT:
 			/* We are finished with DPF parsing. */
 			KASSERT(in_dpf != DPF_OUTSIDE,
 			    ("%s: end dpf when not parsing a dpf", __func__));
 			in_dpf = DPF_OUTSIDE;
-			resptr = NULL;
 			break;
 		case ACPI_RESOURCE_TYPE_IRQ:
 			MPASS(i < sc->pl_num_links);
-			MPASS(link->l_prs_template.Type == ACPI_RESOURCE_TYPE_IRQ);
-			newres = link->l_prs_template;
-			resptr = &newres;
-			resptr->Data.Irq.InterruptCount = 1;
+			res->Data.Irq.InterruptCount = 1;
 			if (PCI_INTERRUPT_VALID(link->l_irq)) {
 				KASSERT(link->l_irq < NUM_ISA_INTERRUPTS,
 		("%s: can't put non-ISA IRQ %d in legacy IRQ resource type",
 				    __func__, link->l_irq));
-				resptr->Data.Irq.Interrupts[0] = link->l_irq;
+				res->Data.Irq.Interrupts[0] = link->l_irq;
 			} else
-				resptr->Data.Irq.Interrupts[0] = 0;
+				res->Data.Irq.Interrupts[0] = 0;
 			link++;
 			i++;
 			break;
 		case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
 			MPASS(i < sc->pl_num_links);
-			MPASS(link->l_prs_template.Type == ACPI_RESOURCE_TYPE_EXTENDED_IRQ);
-			newres = link->l_prs_template;
-			resptr = &newres;
-			resptr->Data.ExtendedIrq.InterruptCount = 1;
+			res->Data.ExtendedIrq.InterruptCount = 1;
 			if (PCI_INTERRUPT_VALID(link->l_irq))
-				resptr->Data.ExtendedIrq.Interrupts[0] =
+				res->Data.ExtendedIrq.Interrupts[0] =
 				    link->l_irq;
 			else
-				resptr->Data.ExtendedIrq.Interrupts[0] = 0;
+				res->Data.ExtendedIrq.Interrupts[0] = 0;
 			link++;
 			i++;
 			break;
-		default:
-			resptr = resource;
 		}
-		if (resptr != NULL) {
-			status = acpi_AppendBufferResource(srsbuf, resptr);
-			if (ACPI_FAILURE(status)) {
-				device_printf(sc->pl_dev,
-				    "Unable to build resources: %s\n",
-				    AcpiFormatException(status));
-				if (srsbuf->Pointer != NULL)
-					AcpiOsFree(srsbuf->Pointer);
-				AcpiOsFree(crsbuf.Pointer);
-				return (status);
-			}
-		}
-		if (resource->Type == ACPI_RESOURCE_TYPE_END_TAG)
+		if (res->Type == ACPI_RESOURCE_TYPE_END_TAG)
 			break;
-		resource = ACPI_NEXT_RESOURCE(resource);
-		if (resource >= end)
+		res = ACPI_NEXT_RESOURCE(res);
+		if (res >= end)
 			break;
 	}
-	AcpiOsFree(crsbuf.Pointer);
 	return (AE_OK);
 }
 
@@ -811,10 +798,11 @@ acpi_pci_link_srs_from_links(struct acpi_pci_link_softc *sc,
 
 		/* Add a new IRQ resource from each link. */
 		link = &sc->pl_links[i];
-		newres = link->l_prs_template;
-		if (newres.Type == ACPI_RESOURCE_TYPE_IRQ) {
+		if (link->l_prs_template.Type == ACPI_RESOURCE_TYPE_IRQ) {
 
 			/* Build an IRQ resource. */
+			bcopy(&link->l_prs_template, &newres,
+			    ACPI_RS_SIZE(newres.Data.Irq));
 			newres.Data.Irq.InterruptCount = 1;
 			if (PCI_INTERRUPT_VALID(link->l_irq)) {
 				KASSERT(link->l_irq < NUM_ISA_INTERRUPTS,
@@ -826,6 +814,8 @@ acpi_pci_link_srs_from_links(struct acpi_pci_link_softc *sc,
 		} else {
 
 			/* Build an ExtIRQ resuorce. */
+			bcopy(&link->l_prs_template, &newres,
+			    ACPI_RS_SIZE(newres.Data.ExtendedIrq));
 			newres.Data.ExtendedIrq.InterruptCount = 1;
 			if (PCI_INTERRUPT_VALID(link->l_irq))
 				newres.Data.ExtendedIrq.Interrupts[0] =

@@ -612,7 +612,7 @@ AcpiDbDisplayResults (
     for (i = 0; i < ResultCount; i++)
     {
         ObjDesc = Frame->Results.ObjDesc[Index];
-        AcpiOsPrintf ("Result%d: ", i);
+        AcpiOsPrintf ("Result%u: ", i);
         AcpiDmDisplayInternalObject (ObjDesc, WalkState);
         if (Index == 0)
         {
@@ -722,7 +722,7 @@ AcpiDbDisplayObjectType (
     {
         for (i = 0; i < Info->CompatibleIdList.Count; i++)
         {
-            AcpiOsPrintf ("CID %d: %s\n", i,
+            AcpiOsPrintf ("CID %u: %s\n", i,
                 Info->CompatibleIdList.Ids[i].String);
         }
     }
@@ -816,6 +816,7 @@ AcpiDbDisplayGpes (
     ACPI_GPE_XRUPT_INFO     *GpeXruptInfo;
     ACPI_GPE_EVENT_INFO     *GpeEventInfo;
     ACPI_GPE_REGISTER_INFO  *GpeRegisterInfo;
+    char                    *GpeType;
     UINT32                  GpeIndex;
     UINT32                  Block = 0;
     UINT32                  i;
@@ -844,8 +845,17 @@ AcpiDbDisplayGpes (
                 AcpiOsPrintf ("Could not convert name to pathname\n");
             }
 
-            AcpiOsPrintf ("\nBlock %d - Info %p  DeviceNode %p [%s]\n",
-                Block, GpeBlock, GpeBlock->Node, Buffer);
+            if (GpeBlock->Node == AcpiGbl_FadtGpeDevice)
+            {
+                GpeType = "FADT-defined GPE block";
+            }
+            else
+            {
+                GpeType = "GPE Block Device";
+            }
+
+            AcpiOsPrintf ("\nBlock %u - Info %p  DeviceNode %p [%s] - %s\n",
+                Block, GpeBlock, GpeBlock->Node, Buffer, GpeType);
 
             AcpiOsPrintf ("    Registers:    %u (%u GPEs)\n",
                 GpeBlock->RegisterCount, GpeBlock->GpeCount);
@@ -894,9 +904,9 @@ AcpiDbDisplayGpes (
                     }
 
                     AcpiOsPrintf (
-                        "        GPE %.2X: %p  RunRefs %2.2X   WakeRefs %2.2X Flags %2.2X (",
+                        "        GPE %.2X: %p  RunRefs %2.2X Flags %2.2X (",
                         GpeBlock->BlockBaseNumber + GpeIndex, GpeEventInfo,
-                        GpeEventInfo->RuntimeCount, GpeEventInfo->WakeupCount,
+                        GpeEventInfo->RuntimeCount,
                         GpeEventInfo->Flags);
 
                     /* Decode the flags byte */

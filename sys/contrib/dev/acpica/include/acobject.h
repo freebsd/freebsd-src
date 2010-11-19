@@ -164,13 +164,14 @@
 
 /* Values for Flag byte above */
 
-#define AOPOBJ_AML_CONSTANT         0x01
-#define AOPOBJ_STATIC_POINTER       0x02
-#define AOPOBJ_DATA_VALID           0x04
-#define AOPOBJ_OBJECT_INITIALIZED   0x08
-#define AOPOBJ_SETUP_COMPLETE       0x10
-#define AOPOBJ_SINGLE_DATUM         0x20
-#define AOPOBJ_MODULE_LEVEL         0x40
+#define AOPOBJ_AML_CONSTANT         0x01    /* Integer is an AML constant */
+#define AOPOBJ_STATIC_POINTER       0x02    /* Data is part of an ACPI table, don't delete */
+#define AOPOBJ_DATA_VALID           0x04    /* Object is intialized and data is valid */
+#define AOPOBJ_OBJECT_INITIALIZED   0x08    /* Region is initialized, _REG was run */
+#define AOPOBJ_SETUP_COMPLETE       0x10    /* Region setup is complete */
+#define AOPOBJ_INVALID              0x20    /* Host OS won't allow a Region address */
+#define AOPOBJ_MODULE_LEVEL         0x40    /* Method is actually module-level code */
+#define AOPOBJ_MODIFIED_NAMESPACE   0x80    /* Method modified the namespace */
 
 
 /******************************************************************************
@@ -385,7 +386,6 @@ typedef struct acpi_object_thermal_zone
     UINT32                          BaseByteOffset;     /* Byte offset within containing object */\
     UINT32                          Value;              /* Value to store into the Bank or Index register */\
     UINT8                           StartFieldBitOffset;/* Bit offset within first field datum (0-63) */\
-    UINT8                           AccessBitWidth;     /* Read/Write size in bits (8-64) */
 
 
 typedef struct acpi_object_field_common                 /* COMMON FIELD (for BUFFER, REGION, BANK, and INDEX fields) */

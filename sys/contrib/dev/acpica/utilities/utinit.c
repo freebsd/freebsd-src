@@ -205,6 +205,10 @@ AcpiUtSubsystemShutdown (
     /* Close the AcpiEvent Handling */
 
     AcpiEvTerminate ();
+
+    /* Delete any dynamic _OSI interfaces */
+
+    AcpiUtInterfaceTerminate ();
 #endif
 
     /* Close the Namespace */

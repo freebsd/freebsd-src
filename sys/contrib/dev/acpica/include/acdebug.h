@@ -228,6 +228,11 @@ AcpiDbDisplayObjects (
     char                    *ObjTypeArg,
     char                    *DisplayCountArg);
 
+void
+AcpiDbDisplayInterfaces (
+    char                    *ActionArg,
+    char                    *InterfaceNameArg);
+
 ACPI_STATUS
 AcpiDbFindNameInNamespace (
     char                    *NameArg);

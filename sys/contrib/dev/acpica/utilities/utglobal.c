@@ -244,7 +244,9 @@ ACPI_EXPORT_SYMBOL (AcpiFormatException)
  * 1) _SB_ is defined to be a device to allow \_SB_._INI to be run
  *    during the initialization sequence.
  * 2) _TZ_ is defined to be a thermal zone in order to allow ASL code to
- *    perform a Notify() operation on it.
+ *    perform a Notify() operation on it. 09/2010: Changed to type Device.
+ *    This still allows notifies, but does not confuse host code that
+ *    searches for valid ThermalZone objects.
  */
 const ACPI_PREDEFINED_NAMES     AcpiGbl_PreDefinedNames[] =
 {
@@ -252,7 +254,7 @@ const ACPI_PREDEFINED_NAMES     AcpiGbl_PreDefinedNames[] =
     {"_PR_",    ACPI_TYPE_LOCAL_SCOPE,      NULL},
     {"_SB_",    ACPI_TYPE_DEVICE,           NULL},
     {"_SI_",    ACPI_TYPE_LOCAL_SCOPE,      NULL},
-    {"_TZ_",    ACPI_TYPE_THERMAL,          NULL},
+    {"_TZ_",    ACPI_TYPE_DEVICE,           NULL},
     {"_REV",    ACPI_TYPE_INTEGER,          (char *) ACPI_CA_SUPPORT_LEVEL},
     {"_OS_",    ACPI_TYPE_STRING,           ACPI_OS_NAME},
     {"_GL_",    ACPI_TYPE_MUTEX,            (char *) 1},
@@ -625,7 +627,7 @@ AcpiUtGetNodeName (
 
 static const char           *AcpiGbl_DescTypeNames[] =
 {
-    /* 00 */ "Invalid",
+    /* 00 */ "Not a Descriptor",
     /* 01 */ "Cached",
     /* 02 */ "State-Generic",
     /* 03 */ "State-Update",
@@ -656,7 +658,7 @@ AcpiUtGetDescriptorName (
 
     if (ACPI_GET_DESCRIPTOR_TYPE (Object) > ACPI_DESC_TYPE_MAX)
     {
-        return (ACPI_CAST_PTR (char, AcpiGbl_BadType));
+        return ("Not a Descriptor");
     }
 
     return (ACPI_CAST_PTR (char,
@@ -905,6 +907,7 @@ AcpiUtInitGlobals (
     AcpiGbl_ExceptionHandler            = NULL;
     AcpiGbl_InitHandler                 = NULL;
     AcpiGbl_TableHandler                = NULL;
+    AcpiGbl_InterfaceHandler            = NULL;
 
     /* Global Lock support */
 
@@ -931,6 +934,7 @@ AcpiUtInitGlobals (
     AcpiGbl_DebuggerConfiguration       = DEBUGGER_THREADING;
     AcpiGbl_DbOutputFlags               = ACPI_DB_CONSOLE_OUTPUT;
     AcpiGbl_OsiData                     = 0;
+    AcpiGbl_OsiMutex                    = NULL;
 
     /* Hardware oriented */
 
@@ -944,10 +948,10 @@ AcpiUtInitGlobals (
     AcpiGbl_RootNodeStruct.Name.Integer = ACPI_ROOT_NAME;
     AcpiGbl_RootNodeStruct.DescriptorType = ACPI_DESC_TYPE_NAMED;
     AcpiGbl_RootNodeStruct.Type         = ACPI_TYPE_DEVICE;
+    AcpiGbl_RootNodeStruct.Parent       = NULL;
     AcpiGbl_RootNodeStruct.Child        = NULL;
     AcpiGbl_RootNodeStruct.Peer         = NULL;
     AcpiGbl_RootNodeStruct.Object       = NULL;
-    AcpiGbl_RootNodeStruct.Flags        = ANOBJ_END_OF_PEER_LIST;
 
 
 #ifdef ACPI_DISASSEMBLER
@@ -960,6 +964,7 @@ AcpiUtInitGlobals (
 
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
     AcpiGbl_DisplayFinalMemStats        = FALSE;
+    AcpiGbl_DisableMemTracking          = FALSE;
 #endif
 
     return_ACPI_STATUS (AE_OK);

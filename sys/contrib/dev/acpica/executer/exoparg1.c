@@ -268,7 +268,7 @@ AcpiExOpcode_1A_0T_0R (
 
     case AML_SLEEP_OP:      /*  Sleep (MsecTime) */
 
-        Status = AcpiExSystemDoSuspend (Operand[0]->Integer.Value);
+        Status = AcpiExSystemDoSleep (Operand[0]->Integer.Value);
         break;
 
 

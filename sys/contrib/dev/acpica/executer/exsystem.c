@@ -280,19 +280,19 @@ AcpiExSystemDoStall (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiExSystemDoSuspend
+ * FUNCTION:    AcpiExSystemDoSleep
  *
- * PARAMETERS:  HowLong         - The amount of time to suspend,
+ * PARAMETERS:  HowLong         - The amount of time to sleep,
  *                                in milliseconds
  *
  * RETURN:      None
  *
- * DESCRIPTION: Suspend running thread for specified amount of time.
+ * DESCRIPTION: Sleep the running thread for specified amount of time.
  *
  ******************************************************************************/
 
 ACPI_STATUS
-AcpiExSystemDoSuspend (
+AcpiExSystemDoSleep (
     UINT64                  HowLong)
 {
     ACPI_FUNCTION_ENTRY ();
@@ -301,6 +301,15 @@ AcpiExSystemDoSuspend (
     /* Since this thread will sleep, we must release the interpreter */
 
     AcpiExRelinquishInterpreter ();
+
+    /*
+     * For compatibility with other ACPI implementations and to prevent
+     * accidental deep sleeps, limit the sleep time to something reasonable.
+     */
+    if (HowLong > ACPI_MAX_SLEEP)
+    {
+        HowLong = ACPI_MAX_SLEEP;
+    }
 
     AcpiOsSleep (HowLong);
 
