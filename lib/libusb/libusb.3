@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 22, 2009
+.Dd October 14, 2010
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -69,6 +69,15 @@ failure.
 .Ft void
 .Fn libusb_exit "libusb_context *ctx"
 Deinitialise libusb. Must be called at the end of the application.
+.
+.Pp
+.
+.Ft const char *
+.Fn libusb_strerror "int code"
+Get ASCII representation of the error given by the
+.Fa code
+argument.
+.
 .
 .Pp
 .
@@ -239,12 +248,37 @@ if the device has been disconnected and return a LIBUSB_ERROR code on failure.
 .Pp
 .
 .Ft int
+.Fn libusb_get_driver "libusb_device_handle *devh" "int interface" "char *name" "int namelen"
+or
+.Ft int
+.Fn libusb_get_driver_np "libusb_device_handle *devh" "int interface" "char *name" "int namelen"
+Gets the name of the driver attached to the given
+.Fa device
+and
+.Fa interface
+into the buffer given by
+.Fa name
+and
+.Fa namelen .
+Returns 0 on success, LIBUSB_ERROR_NOT_FOUND if no kernel driver is attached
+to the given interface and LIBUSB_ERROR_INVALID_PARAM if the interface does
+not exist.
+This function is non-portable.
+The buffer pointed to by
+.Fa name
+is only zero terminated on success.
+.
+.Pp
+.
+.Ft int
 .Fn libusb_detach_kernel_driver "libusb_device_handle *devh" "int interface"
-Detach a kernel driver from an interface. This is needed to claim an interface
-required by a kernel driver. Returns 0 on success, LIBUSB_ERROR_NOT_FOUND if
-no kernel driver was active, LIBUSB_ERROR_INVALID_PARAM if the interface does not
-exist, LIBUSB_ERROR_NO_DEVICE if the device has been disconnected and a 
-LIBUSB_ERROR code on failure. 
+or
+.Ft int
+.Fn libusb_detach_kernel_driver_np "libusb_device_handle *devh" "int interface"
+Detach a kernel driver from an interface.
+This is needed to claim an interface required by a kernel driver.
+Returns 0 on success, LIBUSB_ERROR_NOT_FOUND if no kernel driver was active,
+LIBUSB_ERROR_INVALID_PARAM if the interface does not exist, LIBUSB_ERROR_NO_DEVICE if the device has been disconnected and a LIBUSB_ERROR code on failure. This function is non-portable.
 .
 .Pp
 .
@@ -271,7 +305,7 @@ failure.
 .
 .Pp
 .Ft int 
-.Fn libsub_get_active_config_descriptor "libusb_device *dev" "libusb_device_descriptor **config"
+.Fn libsub_get_active_config_descriptor "libusb_device *dev" "struct libusb_config_descriptor **config"
 Get the USB configuration descriptor for the active configuration. Returns 0 on 
 success, returns LIBUSB_ERROR_NOT_FOUND if the device is in unconfigured state 
 and return another LIBUSB_ERROR code on error.
@@ -337,7 +371,7 @@ LIBUSB_ERROR code on failure.
 .
 .Pp
 .Ft int
-.Fn libusb_control_transfer "libusb_device_handle *devh" "uint8_t bmRequestType" "uint16_t wIndex" "unsigned char *data" "uint16_t wLength" "unsigned int timeout"
+.Fn libusb_control_transfer "libusb_device_handle *devh" "uint8_t bmRequestType" "uint8_t bRequest" "uint16_t wValue" "uint16_t wIndex" "unsigned char *data" "uint16_t wLength" "unsigned int timeout"
 Perform a USB control transfer. Returns 0 on success, LIBUSB_ERROR_TIMEOUT 
 if the transfer timeout, LIBUSB_ERROR_PIPE if the control request was not 
 supported, LIBUSB_ERROR_NO_DEVICE if the device has been disconnected and 
