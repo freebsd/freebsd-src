@@ -158,7 +158,8 @@ static devclass_t schizo_devclass;
 
 DEFINE_CLASS_0(pcib, schizo_driver, schizo_methods,
     sizeof(struct schizo_softc));
-DRIVER_MODULE(schizo, nexus, schizo_driver, schizo_devclass, 0, 0);
+EARLY_DRIVER_MODULE(schizo, nexus, schizo_driver, schizo_devclass, 0, 0,
+    BUS_PASS_BUS);
 
 static SLIST_HEAD(, schizo_softc) schizo_softcs =
     SLIST_HEAD_INITIALIZER(schizo_softcs);
