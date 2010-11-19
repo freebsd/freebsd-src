@@ -677,6 +677,7 @@ vendor ALINK		0x1e0e  Alink
 vendor AIRTIES		0x1eda	AirTies
 vendor DLINK		0x2001	D-Link
 vendor PLANEX2		0x2019	Planex Communications
+vendor HAUPPAUGE2	0x2040	Hauppauge Computer Works
 vendor TLAYTECH		0x20b9	Tlay Tech
 vendor ENCORE		0x203d	Encore
 vendor PARA		0x20b8	PARA Industrial
@@ -992,6 +993,8 @@ product AOX USB101		0x0008	Ethernet
 product APC UPS			0x0002	Uninterruptible Power Supply
 
 /* Apple Computer products */
+product APPLE IMAC_KBD		0x0201	USB iMac Keyboard
+product APPLE KBD		0x0202	USB Keyboard M2452
 product APPLE EXT_KBD		0x020c	Apple Extended USB Keyboard
 product APPLE KBD_TP_ANSI	0x0223	Apple Internal Keyboard/Trackpad (Wellspring/ANSI)
 product APPLE KBD_TP_ISO	0x0224	Apple Internal Keyboard/Trackpad (Wellspring/ISO)
@@ -999,8 +1002,10 @@ product APPLE KBD_TP_JIS	0x0225	Apple Internal Keyboard/Trackpad (Wellspring/JIS
 product APPLE KBD_TP_ANSI2	0x0230	Apple Internal Keyboard/Trackpad (Wellspring2/ANSI)
 product APPLE KBD_TP_ISO2	0x0231	Apple Internal Keyboard/Trackpad (Wellspring2/ISO)
 product APPLE KBD_TP_JIS2	0x0232	Apple Internal Keyboard/Trackpad (Wellspring2/JIS)
+product APPLE MOUSE		0x0301	Mouse M4848
 product APPLE OPTMOUSE		0x0302	Optical mouse
 product APPLE MIGHTYMOUSE	0x0304	Mighty Mouse
+product APPLE KBD_HUB		0x1001	Hub in Apple USB Keyboard
 product APPLE EXT_KBD_HUB	0x1003	Hub in Apple Extended USB Keyboard
 product APPLE SPEAKERS		0x1101	Speakers
 product APPLE IPOD		0x1201	iPod
@@ -1014,7 +1019,11 @@ product APPLE IPOD_08		0x1208	iPod '08'
 product APPLE IPODVIDEO		0x1209	iPod Video
 product APPLE IPODNANO		0x120a	iPod Nano
 product APPLE IPHONE		0x1290	iPhone
+product APPLE IPOD_TOUCH	0x1291	iPod Touch
 product APPLE IPHONE_3G		0x1292	iPhone 3G
+product APPLE IPHONE_3GS	0x1294	iPhone 3GS
+product APPLE IPHONE_4		0x1297	iPhone 4
+product APPLE IPAD		0x129a	iPad
 product APPLE ETHERNET		0x1402	Ethernet A1277
 
 /* Arkmicro Technologies */
@@ -1079,6 +1088,9 @@ product ATMEL DWL120		0x7603	DWL-120 Wireless Adapter
 product ATMEL BW002		0x7605	BW002 Wireless Adapter
 product ATMEL WL1130USB		0x7613	WL-1130 USB
 product ATMEL AT76C505A		0x7614	AT76c505a Wireless Adapter
+
+/* AuthenTec products */
+product AUTHENTEC AES1610	0x1600	AES1610 Fingerprint Sensor
 
 /* Avision products */
 product AVISION 1200U		0x0268	1200U scanner
@@ -1146,6 +1158,7 @@ product BROTHER HL1050		0x0002	HL-1050 laser printer
 product BROTHER MFC8600_9650	0x0100	MFC8600/9650 multifunction device
 
 /* Behavior Technology Computer products */
+product BTC BTC6100		0x5550	6100C Keyboard
 product BTC BTC7932		0x6782	Keyboard with mouse port
 
 /* Canon, Inc. products */
@@ -1190,6 +1203,7 @@ product CHIC CYPRESS		0x0003	Cypress USB Mouse
 
 /* Chicony products */
 product CHICONY KB8933		0x0001	KB-8933 keyboard
+product CHICONY KU0325		0x0116	KU-0325 keyboard
 product CHICONY CNF7129		0xb071	Notebook Web Camera
 product CHICONY2 TWINKLECAM	0x600d	TwinkleCam USB camera
 
@@ -1690,6 +1704,7 @@ product HANDSPRING TREO600	0x0300	Handspring Treo 600
 
 /* Hauppauge Computer Works */
 product HAUPPAUGE WINTV_USB_FM	0x4d12	WinTV USB FM
+product HAUPPAUGE2 NOVAT500	0x9580	NovaT 500Stick
 
 /* Hawking Technologies products */
 product HAWKING RT2870_1	0x0001	RT2870
@@ -1762,6 +1777,9 @@ product HTC WINMOBILE		0x00ce	HTC USB Sync
 product HTC PPC6700MODEM	0x00cf	PPC6700 Modem
 product HTC SMARTPHONE		0x0a51	SmartPhone USB Sync
 product HTC WIZARD		0x0bce	HTC Wizard USB Sync
+product HTC LEGENDSYNC		0x0c97	HTC Legend USB Sync
+product HTC LEGEND		0x0ff9	HTC Legend
+product HTC LEGENDINTERNET	0x0ffe	HTC Legend Internet Sharing
 
 /* HUAWEI products */
 product HUAWEI MOBILE		0x1001	Huawei Mobile
@@ -2155,6 +2173,8 @@ product MICROSOFT INETPRO	0x001c	Internet Keyboard Pro
 product MICROSOFT TBEXPLORER	0x0024	Trackball Explorer
 product MICROSOFT INTELLIEYE	0x0025	IntelliEye mouse
 product MICROSOFT INETPRO2	0x002b	Internet Keyboard Pro
+product MICROSOFT INTELLIMOUSE5	0x0039	IntelliMouse 1.1 5-Button Mouse
+product MICROSOFT WHEELMOUSE	0x0040	Wheel Mouse Optical
 product MICROSOFT MN510		0x006e	MN510 Wireless
 product MICROSOFT 700WX		0x0079	Palm 700WX
 product MICROSOFT MN110		0x007a	10/100 USB NIC
@@ -2337,6 +2357,10 @@ product NOVATEL2 FLEXPACKGPS	0x0100	NovAtel FlexPack GPS receiver
 
 /* Merlin products */
 product	MERLIN V620		0x1110	Merlin V620
+
+/* O2Micro products */
+product O2MICRO OZ776_HUB	0x7761	OZ776 hub
+product O2MICRO OZ776_CCID_SC	0x7772	OZ776 CCID SC Reader
 
 /* Olympus products */
 product OLYMPUS C1		0x0102	C-1 Digital Camera
@@ -2529,6 +2553,7 @@ product PRIMAX G2E600		0x0383	G2E-600 scanner
 product PRIMAX COMFORT		0x4d01	Comfort
 product PRIMAX MOUSEINABOX	0x4d02	Mouse-in-a-Box
 product PRIMAX PCGAUMS1		0x4d04	Sony PCGA-UMS1
+product PRIMAX HP_RH304AA	0x4d17	HP RH304AA mouse
 
 /* Prolific products */
 product PROLIFIC PL2301		0x0000	PL2301 Host-Host interface
