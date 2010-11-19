@@ -410,7 +410,6 @@ extern	struct vnode *rootvnode;	/* root (i.e. "/") vnode */
 extern	int async_io_version;		/* 0 or POSIX version of AIO i'face */
 extern	int desiredvnodes;		/* number of vnodes desired */
 extern	struct uma_zone *namei_zone;
-extern	int prtactive;			/* nonzero to call vprint() */
 extern	struct vattr va_null;		/* predefined null vattr structure */
 
 #define	VI_LOCK(vp)	mtx_lock(&(vp)->v_interlock)

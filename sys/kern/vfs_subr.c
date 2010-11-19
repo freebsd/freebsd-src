@@ -191,9 +191,6 @@ struct nfs_public nfs_pub;
 static uma_zone_t vnode_zone;
 static uma_zone_t vnodepoll_zone;
 
-/* Set to 1 to print out reclaim of active vnodes */
-int	prtactive;
-
 /*
  * The workitem queue.
  *
