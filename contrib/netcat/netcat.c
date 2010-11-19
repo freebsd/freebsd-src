@@ -569,8 +569,10 @@ remote_connect(const char *host, const char *port, struct addrinfo hints)
 		if (sflag || pflag) {
 			struct addrinfo ahints, *ares;
 
+#ifdef IP_BINDANY
 			/* try IP_BINDANY, but don't insist */
 			setsockopt(s, IPPROTO_IP, IP_BINDANY, &on, sizeof(on));
+#endif
 			memset(&ahints, 0, sizeof(struct addrinfo));
 			ahints.ai_family = res0->ai_family;
 			ahints.ai_socktype = uflag ? SOCK_DGRAM : SOCK_STREAM;
