@@ -276,16 +276,21 @@ lapic_create(u_int apic_id, int boot_cpu)
 void
 lapic_dump(const char* str)
 {
+	uint32_t maxlvt;
 
+	maxlvt = (lapic->version & APIC_VER_MAXLVT) >> MAXLVTSHIFT;
 	printf("cpu%d %s:\n", PCPU_GET(cpuid), str);
 	printf("     ID: 0x%08x   VER: 0x%08x LDR: 0x%08x DFR: 0x%08x\n",
 	    lapic->id, lapic->version, lapic->ldr, lapic->dfr);
 	printf("  lint0: 0x%08x lint1: 0x%08x TPR: 0x%08x SVR: 0x%08x\n",
 	    lapic->lvt_lint0, lapic->lvt_lint1, lapic->tpr, lapic->svr);
-	printf("  timer: 0x%08x therm: 0x%08x err: 0x%08x pmc: 0x%08x\n",
-	    lapic->lvt_timer, lapic->lvt_thermal, lapic->lvt_error,
-	    lapic->lvt_pcint);
-	printf("   cmci: 0x%08x\n", lapic->lvt_cmci);
+	printf("  timer: 0x%08x therm: 0x%08x err: 0x%08x",
+	    lapic->lvt_timer, lapic->lvt_thermal, lapic->lvt_error);
+	if (maxlvt >= LVT_PMC)
+		printf(" pmc: 0x%08x", lapic->lvt_pcint);
+	printf("\n");
+	if (maxlvt >= LVT_CMCI)
+		printf("   cmci: 0x%08x\n", lapic->lvt_cmci);
 }
 
 void
