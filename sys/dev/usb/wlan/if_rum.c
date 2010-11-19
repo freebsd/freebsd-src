@@ -194,6 +194,7 @@ static void		rum_enable_tsf(struct rum_softc *);
 static void		rum_update_slot(struct ifnet *);
 static void		rum_set_bssid(struct rum_softc *, const uint8_t *);
 static void		rum_set_macaddr(struct rum_softc *, const uint8_t *);
+static void		rum_update_mcast(struct ifnet *);
 static void		rum_update_promisc(struct ifnet *);
 static void		rum_setpromisc(struct rum_softc *);
 static const char	*rum_get_rf(int);
@@ -512,6 +513,7 @@ rum_attach(device_t self)
 
 	ic->ic_vap_create = rum_vap_create;
 	ic->ic_vap_delete = rum_vap_delete;
+	ic->ic_update_mcast = rum_update_mcast;
 
 	ieee80211_radiotap_attach(ic,
 	    &sc->sc_txtap.wt_ihdr, sizeof(sc->sc_txtap),
@@ -1812,6 +1814,17 @@ rum_update_promisc(struct ifnet *ifp)
 	RUM_LOCK(sc);
 	rum_setpromisc(sc);
 	RUM_UNLOCK(sc);
+}
+
+static void
+rum_update_mcast(struct ifnet *ifp)
+{
+	static int warning_printed;
+
+	if (warning_printed == 0) {
+		if_printf(ifp, "need to implement %s\n", __func__);
+		warning_printed = 1;
+	}
 }
 
 static const char *
