@@ -5,7 +5,7 @@ PROG=	sh
 INSTALLFLAGS= -S
 SHSRCS=	alias.c arith.y arith_lex.l cd.c echo.c error.c eval.c exec.c expand.c \
 	histedit.c input.c jobs.c mail.c main.c memalloc.c miscbltin.c \
-	mystring.c options.c output.c parser.c redir.c show.c \
+	mystring.c options.c output.c parser.c printf.c redir.c show.c \
 	test.c trap.c var.c
 GENSRCS= builtins.c init.c nodes.c syntax.c
 GENHDRS= builtins.h nodes.h syntax.h token.h
@@ -26,7 +26,8 @@ WARNS?=	2
 WFORMAT=0
 
 .PATH:	${.CURDIR}/bltin \
-	${.CURDIR}/../test
+	${.CURDIR}/../test \
+	${.CURDIR}/../../usr.bin/printf
 
 CLEANFILES+= mkinit mkinit.o mknodes mknodes.o \
 	mksyntax mksyntax.o
