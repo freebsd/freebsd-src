@@ -654,7 +654,8 @@ vm_reserv_reclaim_contig(vm_paddr_t size, vm_paddr_t low, vm_paddr_t high,
 					    ((pa ^ (pa + size - 1)) &
 					    ~(boundary - 1)) != 0)
 						pa_length = 0;
-				} else if (pa_length >= size) {
+				}
+				if (pa_length >= size) {
 					vm_reserv_reclaim(rv);
 					return (TRUE);
 				}
