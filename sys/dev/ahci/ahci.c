@@ -1619,12 +1619,13 @@ ahci_execute_transaction(struct ahci_slot *slot)
 	/* Setup the command list entry */
 	clp = (struct ahci_cmd_list *)
 	    (ch->dma.work + AHCI_CL_OFFSET + (AHCI_CL_SIZE * slot->slot));
-	clp->prd_length = slot->dma.nsegs;
-	clp->cmd_flags = (ccb->ccb_h.flags & CAM_DIR_OUT ? AHCI_CMD_WRITE : 0) |
-		     (ccb->ccb_h.func_code == XPT_SCSI_IO ?
-		      (AHCI_CMD_ATAPI | AHCI_CMD_PREFETCH) : 0) |
-		     (fis_size / sizeof(u_int32_t)) |
-		     (port << 12);
+	clp->cmd_flags = htole16(
+		    (ccb->ccb_h.flags & CAM_DIR_OUT ? AHCI_CMD_WRITE : 0) |
+		    (ccb->ccb_h.func_code == XPT_SCSI_IO ?
+		     (AHCI_CMD_ATAPI | AHCI_CMD_PREFETCH) : 0) |
+		    (fis_size / sizeof(u_int32_t)) |
+		    (port << 12));
+	clp->prd_length = htole16(slot->dma.nsegs);
 	/* Special handling for Soft Reset command. */
 	if ((ccb->ccb_h.func_code == XPT_ATA_IO) &&
 	    (ccb->ataio.cmd.flags & CAM_ATAIO_CONTROL)) {
@@ -1644,7 +1645,7 @@ ahci_execute_transaction(struct ahci_slot *slot)
 	clp->cmd_table_phys = htole64(ch->dma.work_bus + AHCI_CT_OFFSET +
 				  (AHCI_CT_SIZE * slot->slot));
 	bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
-	    BUS_DMASYNC_PREWRITE);
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	bus_dmamap_sync(ch->dma.rfis_tag, ch->dma.rfis_map,
 	    BUS_DMASYNC_PREREAD);
 	/* Set ACTIVE bit for NCQ commands. */
@@ -1849,10 +1850,13 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 	device_t dev = slot->dev;
 	struct ahci_channel *ch = device_get_softc(dev);
 	union ccb *ccb = slot->ccb;
+	struct ahci_cmd_list *clp;
 	int lastto;
 
 	bus_dmamap_sync(ch->dma.work_tag, ch->dma.work_map,
-	    BUS_DMASYNC_POSTWRITE);
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	clp = (struct ahci_cmd_list *)
+	    (ch->dma.work + AHCI_CL_OFFSET + (AHCI_CL_SIZE * slot->slot));
 	/* Read result registers to the result struct
 	 * May be incorrect if several commands finished same time,
 	 * so read only when sure or have to.
@@ -1887,6 +1891,16 @@ ahci_end_transaction(struct ahci_slot *slot, enum ahci_err_type et)
 			res->sector_count_exp = fis[13];
 		} else
 			bzero(res, sizeof(*res));
+		if ((ccb->ataio.cmd.flags & CAM_ATAIO_FPDMA) == 0 &&
+		    (ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
+			ccb->ataio.resid =
+			    ccb->ataio.dxfer_len - le32toh(clp->bytecount);
+		}
+	} else {
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
+			ccb->csio.resid =
+			    ccb->csio.dxfer_len - le32toh(clp->bytecount);
+		}
 	}
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
 		bus_dmamap_sync(ch->dma.data_tag, slot->dma.data_map,
