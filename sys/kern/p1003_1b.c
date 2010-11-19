@@ -102,7 +102,7 @@ sched_attach(void)
 	int ret = ksched_attach(&ksched);
 
 	if (ret == 0)
-		p31b_setcfg(CTL_P1003_1B_PRIORITY_SCHEDULING, 1);
+		p31b_setcfg(CTL_P1003_1B_PRIORITY_SCHEDULING, 200112L);
 
 	return ret;
 }
