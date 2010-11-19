@@ -17,7 +17,7 @@
 #
 # $FreeBSD$
 
-machine 	mips
+machine 	mips mips64eb
 cpu 		CPU_RMI
 ident 		XLR64
 
@@ -50,7 +50,7 @@ options		NFS_ROOT
 options         BOOTP
 options         BOOTP_NFSROOT
 options         BOOTP_NFSV3
-options         BOOTP_WIRED_TO=rge0
+options         BOOTP_WIRED_TO=nlge0
 options         BOOTP_COMPAT
 options		ROOTDEVNAME=\"nfs:10.1.1.8:/usr/extra/nfsroot\"
 #
@@ -96,7 +96,7 @@ device		bpf
 
 # Network
 device		miibus
-device		rge
+device		nlge
 device 		ether
 device		re
 device		msk

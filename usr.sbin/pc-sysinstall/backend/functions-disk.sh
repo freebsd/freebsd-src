@@ -646,8 +646,11 @@ init_mbr_full_disk()
   rc_halt "dd if=/dev/zero of=/dev/${_intDISK}s1 count=1024"
   
   if [ "$_intBOOT" = "bsd" ] ; then
-    echo_log "Stamping boot sector on ${_intDISK}"
+    echo_log "Stamping boot0 on ${_intDISK}"
     rc_halt "gpart bootcode -b /boot/boot0 ${_intDISK}"
+  else
+    echo_log "Stamping boot1 on ${_intDISK}"
+    rc_halt "gpart bootcode -b /boot/boot1 ${_intDISK}"
   fi
 
 }

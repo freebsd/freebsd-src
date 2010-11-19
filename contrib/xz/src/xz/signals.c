@@ -71,6 +71,12 @@ signals_init(void)
 	for (size_t i = 0; i < ARRAY_SIZE(sigs); ++i)
 		sigaddset(&hooked_signals, sigs[i]);
 
+#ifdef SIGALRM
+	// Add also the signals from message.c to hooked_signals.
+	for (size_t i = 0; message_progress_sigs[i] != 0; ++i)
+		sigaddset(&hooked_signals, message_progress_sigs[i]);
+#endif
+
 	struct sigaction sa;
 
 	// All the signals that we handle we also blocked while the signal
@@ -142,7 +148,7 @@ signals_exit(void)
 	const int sig = exit_signal;
 
 	if (sig != 0) {
-#ifdef TUKLIB_DOSLIKE
+#if defined(TUKLIB_DOSLIKE) || defined(__VMS)
 		// Don't raise(), set only exit status. This avoids
 		// printing unwanted message about SIGINT when the user
 		// presses C-c.

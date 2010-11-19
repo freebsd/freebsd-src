@@ -165,7 +165,7 @@ static struct td_sched td_sched0;
  *		before throttling back.
  * SLP_RUN_FORK:	Maximum slp+run time to inherit at fork time.
  * INTERACT_MAX:	Maximum interactivity value.  Smaller is better.
- * INTERACT_THRESH:	Threshhold for placement on the current runq.
+ * INTERACT_THRESH:	Threshold for placement on the current runq.
  */
 #define	SCHED_SLP_RUN_MAX	((hz * 5) << SCHED_TICK_SHIFT)
 #define	SCHED_SLP_RUN_FORK	((hz / 2) << SCHED_TICK_SHIFT)
@@ -1675,23 +1675,19 @@ sched_prio(struct thread *td, u_char prio)
 void
 sched_user_prio(struct thread *td, u_char prio)
 {
-	u_char oldprio;
 
 	td->td_base_user_pri = prio;
 	if (td->td_flags & TDF_UBORROWING && td->td_user_pri <= prio)
                 return;
-	oldprio = td->td_user_pri;
 	td->td_user_pri = prio;
 }
 
 void
 sched_lend_user_prio(struct thread *td, u_char prio)
 {
-	u_char oldprio;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	td->td_flags |= TDF_UBORROWING;
-	oldprio = td->td_user_pri;
 	td->td_user_pri = prio;
 }
 
@@ -2179,7 +2175,7 @@ sched_tick(int cnt)
 	ts->ts_ltick = ticks;
 	ts->ts_incrtick = ticks;
 	/*
-	 * Update if we've exceeded our desired tick threshhold by over one
+	 * Update if we've exceeded our desired tick threshold by over one
 	 * second.
 	 */
 	if (ts->ts_ftick + SCHED_TICK_MAX < ts->ts_ltick)

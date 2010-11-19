@@ -32,12 +32,6 @@ __FBSDID("$FreeBSD$");
  *
  */
 
-#include <stand.h>
-#include <string.h>
-
-#include "bootstrap.h"
-#include "libi386.h"
-
 /*
  * Use voodoo to load modules required by current hardware.
  */

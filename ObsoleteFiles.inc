@@ -14,6 +14,14 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20101112: vgonel(9) has gone to private API a while ago
+OLD_FILES+=usr/share/man/man9/vgonel.9.gz
+# 20101112: removed gasp.info
+OLD_FILES+=usr/share/info/gasp.info.gz
+# 20101109: headers moved to machine/ to x86/
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
+OLD_FILES+=usr/include/machine/mptable.h
+.endif
 # 20101101: headers moved to machine/ to x86/
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "i386"
 OLD_FILES+=usr/include/machine/apicreg.h
@@ -5078,7 +5086,7 @@ OLD_LIBS+=usr/lib/libthr.so.2
 .endif
 # 20060127: revert libdisk to static-only
 OLD_LIBS+=usr/lib/libdisk.so.3
-# 20051027: libc_r discontinued
+# 20051027: libc_r discontinued (removed 20101113)
 OLD_LIBS+=usr/lib/libc_r.a
 OLD_LIBS+=usr/lib/libc_r.so
 OLD_LIBS+=usr/lib/libc_r.so.7

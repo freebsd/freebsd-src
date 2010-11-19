@@ -94,11 +94,11 @@ VNET_DEFINE(int, nd6_gctimer)	= (60 * 60 * 24); /* 1 day: garbage
 					 * collection timer */
 
 /* preventing too many loops in ND option parsing */
-static VNET_DEFINE(int, nd6_maxndopt) = 10; /* max # of ND options allowed */
+STATIC_VNET_DEFINE(int, nd6_maxndopt) = 10; /* max # of ND options allowed */
 
 VNET_DEFINE(int, nd6_maxnudhint) = 0;	/* max # of subsequent upper
 					 * layer hints */
-static VNET_DEFINE(int, nd6_maxqueuelen) = 1; /* max pkts cached in unresolved
+STATIC_VNET_DEFINE(int, nd6_maxqueuelen) = 1; /* max pkts cached in unresolved
 					 * ND entries */
 #define	V_nd6_maxndopt			VNET(nd6_maxndopt)
 #define	V_nd6_maxqueuelen		VNET(nd6_maxqueuelen)
@@ -133,7 +133,7 @@ static struct llentry *nd6_free(struct llentry *, int);
 static void nd6_llinfo_timer(void *);
 static void clear_llinfo_pqueue(struct llentry *);
 
-static VNET_DEFINE(struct callout, nd6_slowtimo_ch);
+STATIC_VNET_DEFINE(struct callout, nd6_slowtimo_ch);
 #define	V_nd6_slowtimo_ch		VNET(nd6_slowtimo_ch)
 
 VNET_DEFINE(struct callout, nd6_timer_ch);
@@ -836,7 +836,7 @@ nd6_lookup(struct in6_addr *addr6, int flags, struct ifnet *ifp)
 {
 	struct sockaddr_in6 sin6;
 	struct llentry *ln;
-	int llflags = 0;
+	int llflags;
 	
 	bzero(&sin6, sizeof(sin6));
 	sin6.sin6_len = sizeof(struct sockaddr_in6);
@@ -845,16 +845,15 @@ nd6_lookup(struct in6_addr *addr6, int flags, struct ifnet *ifp)
 
 	IF_AFDATA_LOCK_ASSERT(ifp);
 
+	llflags = 0;
 	if (flags & ND6_CREATE)
 	    llflags |= LLE_CREATE;
 	if (flags & ND6_EXCLUSIVE)
 	    llflags |= LLE_EXCLUSIVE;	
 	
 	ln = lla_lookup(LLTABLE6(ifp), llflags, (struct sockaddr *)&sin6);
-	if ((ln != NULL) && (flags & LLE_CREATE)) {
+	if ((ln != NULL) && (llflags & LLE_CREATE))
 		ln->ln_state = ND6_LLINFO_NOSTATE;
-		callout_init(&ln->ln_timer_ch, 0);
-	}
 	
 	return (ln);
 }
@@ -1453,7 +1452,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	int do_update;
 	int olladdr;
 	int llchange;
-	int flags = 0;
+	int flags;
 	int newstate = 0;
 	uint16_t router = 0;
 	struct sockaddr_in6 sin6;
@@ -1480,13 +1479,13 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	 * Spec says nothing in sections for RA, RS and NA.  There's small
 	 * description on it in NS section (RFC 2461 7.2.3).
 	 */
-	flags |= lladdr ? ND6_EXCLUSIVE : 0;
+	flags = lladdr ? ND6_EXCLUSIVE : 0;
 	IF_AFDATA_LOCK(ifp);
 	ln = nd6_lookup(from, flags, ifp);
 
 	if (ln == NULL) {
-		flags |= LLE_EXCLUSIVE;
-		ln = nd6_lookup(from, flags |ND6_CREATE, ifp);
+		flags |= ND6_EXCLUSIVE;
+		ln = nd6_lookup(from, flags | ND6_CREATE, ifp);
 		IF_AFDATA_UNLOCK(ifp);
 		is_newentry = 1;
 	} else {

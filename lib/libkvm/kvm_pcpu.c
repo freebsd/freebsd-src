@@ -197,9 +197,9 @@ _kvm_dpcpu_init(kvm_t *kd)
 {
 	struct nlist nl[] = {
 #define	NLIST_START_SET_PCPU	0
-		{ "___start_set_pcpu" },
+		{ "___start_" DPCPU_SETNAME },
 #define	NLIST_STOP_SET_PCPU	1
-		{ "___stop_set_pcpu" },
+		{ "___stop_" DPCPU_SETNAME },
 #define	NLIST_DPCPU_OFF		2
 		{ "_dpcpu_off" },
 #define	NLIST_MP_MAXCPUS	3

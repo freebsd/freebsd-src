@@ -59,6 +59,7 @@ none_deinit(struct ieee80211vap *vap)
 static void
 none_node_init(struct ieee80211_node *ni)
 {
+	ni->ni_txrate = ni->ni_rates.rs_rates[0] & IEEE80211_RATE_VAL;
 }
 
 static void

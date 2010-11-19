@@ -122,8 +122,7 @@ out2qstr(const char *p)
 void
 outstr(const char *p, struct output *file)
 {
-	while (*p)
-		outc(*p++, file);
+	outbin(p, strlen(p), file);
 }
 
 /* Like outstr(), but quote for re-input into the shell. */
@@ -163,6 +162,16 @@ outqstr(const char *p, struct output *file)
 	}
 	if (inquotes)
 		outc('\'', file);
+}
+
+void
+outbin(const void *data, size_t len, struct output *file)
+{
+	const char *p;
+
+	p = data;
+	while (len-- > 0)
+		outc(*p++, file);
 }
 
 static char out_junk[16];
@@ -285,17 +294,11 @@ static int
 doformat_wr(void *cookie, const char *buf, int len)
 {
 	struct output *o;
-	int origlen;
-	unsigned char c;
 
 	o = (struct output *)cookie;
-	origlen = len;
-	while (len-- != 0) {
-		c = (unsigned char)*buf++;
-		outc(c, o);
-	}
+	outbin(buf, len, o);
 
-	return (origlen);
+	return (len);
 }
 
 void

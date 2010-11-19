@@ -197,8 +197,6 @@ static u_int    phys_avail_count;
 static int	regions_sz, pregions_sz;
 static struct	ofw_map *translations;
 
-extern struct pmap ofw_pmap;
-
 /*
  * Lock for the pteg and pvo tables.
  */
@@ -669,10 +667,7 @@ moea_cpu_bootstrap(mmu_t mmup, int ap)
 	isync();
 
 	for (i = 0; i < 16; i++)
-		mtsrin(i << ADDR_SR_SHFT, EMPTY_SEGMENT);
-
-	__asm __volatile("mtsr %0,%1" :: "n"(KERNEL_SR), "r"(KERNEL_SEGMENT));
-	__asm __volatile("mtsr %0,%1" :: "n"(KERNEL2_SR), "r"(KERNEL2_SEGMENT));
+		mtsrin(i << ADDR_SR_SHFT, kernel_pmap->pm_sr[i]);
 	powerpc_sync();
 
 	sdr = (u_int)moea_pteg_table | (moea_pteg_mask >> 10);
@@ -859,11 +854,16 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	moea_vsid_bitmap[0] |= 1;
 
 	/*
-	 * Set up the Open Firmware pmap and add it's mappings.
+	 * Initialize the kernel pmap (which is statically allocated).
 	 */
-	moea_pinit(mmup, &ofw_pmap);
-	ofw_pmap.pm_sr[KERNEL_SR] = KERNEL_SEGMENT;
-	ofw_pmap.pm_sr[KERNEL2_SR] = KERNEL2_SEGMENT;
+	PMAP_LOCK_INIT(kernel_pmap);
+	for (i = 0; i < 16; i++)
+		kernel_pmap->pm_sr[i] = EMPTY_SEGMENT + i;
+	kernel_pmap->pm_active = ~0;
+
+	/*
+	 * Set up the Open Firmware mappings
+	 */
 	if ((chosen = OF_finddevice("/chosen")) == -1)
 		panic("moea_bootstrap: can't find /chosen");
 	OF_getprop(chosen, "mmu", &mmui, 4);
@@ -900,16 +900,8 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 
 		/* Enter the pages */
 		for (off = 0; off < translations[i].om_len; off += PAGE_SIZE) {
-			struct	vm_page m;
-
-			m.phys_addr = translations[i].om_pa + off;
-			m.md.mdpg_cache_attrs = VM_MEMATTR_DEFAULT;
-			m.oflags = VPO_BUSY;
-			PMAP_LOCK(&ofw_pmap);
-			moea_enter_locked(&ofw_pmap,
-				   translations[i].om_va + off, &m,
-				   VM_PROT_ALL, 1);
-			PMAP_UNLOCK(&ofw_pmap);
+			moea_kenter(mmup, translations[i].om_va + off, 
+				    translations[i].om_pa + off);
 			ofw_mappings++;
 		}
 	}
@@ -920,17 +912,6 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	for (i = 0; phys_avail[i + 2] != 0; i += 2)
 		;
 	Maxmem = powerpc_btop(phys_avail[i + 1]);
-
-	/*
-	 * Initialize the kernel pmap (which is statically allocated).
-	 */
-	PMAP_LOCK_INIT(kernel_pmap);
-	for (i = 0; i < 16; i++) {
-		kernel_pmap->pm_sr[i] = EMPTY_SEGMENT;
-	}
-	kernel_pmap->pm_sr[KERNEL_SR] = KERNEL_SEGMENT;
-	kernel_pmap->pm_sr[KERNEL2_SR] = KERNEL2_SEGMENT;
-	kernel_pmap->pm_active = ~0;
 
 	moea_cpu_bootstrap(mmup,0);
 

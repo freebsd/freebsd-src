@@ -32,9 +32,6 @@ LDSCRIPT_NAME?=ldscript.$M
 SYSTEM_LD:= ${SYSTEM_LD:$S/conf/${LDSCRIPT_NAME}=${LDSCRIPT_NAME}}
 SYSTEM_DEP:= ${SYSTEM_DEP:$S/conf/${LDSCRIPT_NAME}=${LDSCRIPT_NAME}}
 
-# XXX: Such sweeping assumptions...
-MACHINE=mips
-MACHINE_ARCH=mips
 KERNLOADADDR?=0x80001000
 # This obscure value is defined by CFE for WR160N
 # To be changed later
@@ -48,20 +45,6 @@ ARCH_FLAGS?=-march=mips32
 EXTRA_FLAGS=-fno-pic -mno-abicalls -G0
 
 HACK_EXTRA_FLAGS=-shared
-.if defined(TARGET_BIG_ENDIAN)
-CFLAGS+=-EB
-SYSTEM_LD+=-EB
-EXTRA_FLAGS+=-EB 
-TRAMP_LDFLAGS+=-Wl,-EB 
-HACK_EXTRA_FLAGS+=-EB -Wl,-EB
-.else
-CFLAGS+=-EL
-SYSTEM_LD+=-EL
-EXTRA_FLAGS+=-EL
-TRAMP_LDFLAGS+=-Wl,-EL
-HACK_EXTRA_FLAGS+=-EL -Wl,-EL
-.endif
-
 
 # We add the -fno-pic flag to kernels because otherwise performance
 # is extremely poor, as well as -mno-abicalls to force no ABI usage.

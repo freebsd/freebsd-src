@@ -60,8 +60,8 @@
  *
  * Some could argue that liblzma API should provide all the required types,
  * for example lzma_uint64, LZMA_UINT64_C(n), and LZMA_UINT64_MAX. This was
- * seen unnecessary mess, since most systems already provide all the necessary
- * types and macros in the standard headers.
+ * seen as an unnecessary mess, since most systems already provide all the
+ * necessary types and macros in the standard headers.
  *
  * Note that liblzma API still has lzma_bool, because using stdbool.h would
  * break C89 and C++ programs on many systems. sizeof(bool) in C99 isn't

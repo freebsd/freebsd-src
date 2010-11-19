@@ -2934,6 +2934,30 @@ resource_list_busy(struct resource_list *rl, int type, int rid)
 }
 
 /**
+ * @brief Determine if a resource entry is reserved.
+ *
+ * Returns true if a resource entry is reserved meaning that it has an
+ * associated "reserved" resource.  The resource can either be
+ * allocated or unallocated.
+ *
+ * @param rl		the resource list to search
+ * @param type		the resource entry type (e.g. SYS_RES_MEMORY)
+ * @param rid		the resource identifier
+ *
+ * @returns Non-zero if the entry is reserved, zero otherwise.
+ */
+int
+resource_list_reserved(struct resource_list *rl, int type, int rid)
+{
+	struct resource_list_entry *rle;
+
+	rle = resource_list_find(rl, type, rid);
+	if (rle != NULL && rle->flags & RLE_RESERVED)
+		return (1);
+	return (0);
+}
+
+/**
  * @brief Find a resource entry by type and rid.
  *
  * @param rl		the resource list to search

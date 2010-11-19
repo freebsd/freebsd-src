@@ -100,10 +100,10 @@ __FBSDID("$FreeBSD$");
  */
 
 /* ipfw_vnet_ready controls when we are open for business */
-static VNET_DEFINE(int, ipfw_vnet_ready) = 0;
+STATIC_VNET_DEFINE(int, ipfw_vnet_ready) = 0;
 #define	V_ipfw_vnet_ready	VNET(ipfw_vnet_ready)
 
-static VNET_DEFINE(int, fw_deny_unknown_exthdrs);
+STATIC_VNET_DEFINE(int, fw_deny_unknown_exthdrs);
 #define	V_fw_deny_unknown_exthdrs	VNET(fw_deny_unknown_exthdrs)
 
 #ifdef IPFIREWALL_DEFAULT_TO_ACCEPT
@@ -1800,6 +1800,39 @@ do {								\
 				if (args->f_id.fib == cmd->arg1)
 					match = 1;
 				break;
+
+			case O_SOCKARG:	{
+				struct inpcb *inp = args->inp;
+				struct inpcbinfo *pi;
+				
+				if (is_ipv6) /* XXX can we remove this ? */
+					break;
+
+				if (proto == IPPROTO_TCP)
+					pi = &V_tcbinfo;
+				else if (proto == IPPROTO_UDP)
+					pi = &V_udbinfo;
+				else
+					break;
+
+				/* For incomming packet, lookup up the 
+				inpcb using the src/dest ip/port tuple */
+				if (inp == NULL) {
+					INP_INFO_RLOCK(pi);
+					inp = in_pcblookup_hash(pi, 
+						src_ip, htons(src_port),
+						dst_ip, htons(dst_port),
+						0, NULL);
+					INP_INFO_RUNLOCK(pi);
+				}
+				
+				if (inp && inp->inp_socket) {
+					tablearg = inp->inp_socket->so_user_cookie;
+					if (tablearg)
+						match = 1;
+				}
+				break;
+			}
 
 			case O_TAGGED: {
 				struct m_tag *mtag;

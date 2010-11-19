@@ -2,10 +2,11 @@
 # $FreeBSD$
 #
 
-include		SWARM_COMMON
+include		std.SWARM
 
 ident		SWARM
 
+machine		mips mipseb
 options		ISA_MIPS32
 
 makeoptions	ARCH_FLAGS="-mabi=32 -march=mips32"

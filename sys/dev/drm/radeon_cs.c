@@ -765,7 +765,7 @@ static int r600_cs_parse(struct drm_radeon_cs_parser *parser)
 	memcpy(parser->ib, ib_chunk->kdata, ib_chunk->length_dw * sizeof(uint32_t));
 
 	/* read back last byte to flush WC buffers */
-	rb = readl(((vm_offset_t)parser->ib + (ib_chunk->length_dw-1) * sizeof(uint32_t)));
+	rb = *(volatile u_int32_t *) (((vm_offset_t)parser->ib + (ib_chunk->length_dw-1) * sizeof(uint32_t)));
 
 	return 0;
 }

@@ -96,7 +96,7 @@ struct decr_state {
 	int	mode;	/* 0 - off, 1 - periodic, 2 - one-shot. */
 	int32_t	div;	/* Periodic divisor. */
 };
-static DPCPU_DEFINE(struct decr_state, decr_state);
+STATIC_DPCPU_DEFINE(struct decr_state, decr_state);
 
 static struct eventtimer	decr_et;
 static struct timecounter	decr_timecounter = {
@@ -108,7 +108,7 @@ static struct timecounter	decr_timecounter = {
 };
 
 /*
- * Decrementor interrupt handler.
+ * Decrementer interrupt handler.
  */
 void
 decr_intr(struct trapframe *frame)

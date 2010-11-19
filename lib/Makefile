@@ -34,6 +34,7 @@ SUBDIR_ORDERED=	${_csu} \
 	libbsm \
 	libauditd \
 	libcom_err \
+	libcompiler_rt \
 	libcrypt \
 	libelf \
 	libkvm \
@@ -53,6 +54,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libarchive \
 	${_libatm} \
 	libbegemot \
+	libblocksruntime \
 	${_libbluetooth} \
 	${_libbsnmp} \
 	libbz2 \

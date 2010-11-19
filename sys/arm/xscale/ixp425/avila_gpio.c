@@ -58,13 +58,8 @@ __FBSDID("$FreeBSD$");
 #define GPIO_CLEAR_BITS(sc, reg, bits)	\
 	GPIO_CONF_WRITE_4(sc, reg, GPIO_CONF_READ_4(sc, (reg)) & ~(bits))
 
-#define GPIO_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
-#define GPIO_UNLOCK(_sc)	mtx_unlock(&(_sc)->sc_mtx)
-#define GPIO_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
-
 struct avila_gpio_softc {
 	device_t		sc_dev;
-        struct mtx		sc_mtx;
 	bus_space_tag_t		sc_iot;
 	bus_space_handle_t	sc_gpio_ioh;
 	uint32_t		sc_valid;
@@ -148,12 +143,12 @@ avila_gpio_pin_configure(struct avila_gpio_softc *sc, struct gpio_pin *pin,
 	uint32_t mask;
 
 	mask = 1 << pin->gp_pin;
-	GPIO_LOCK(sc);
 
 	/*
 	 * Manage input/output
 	 */
 	if (flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) {
+		IXP4XX_GPIO_LOCK(sc);
 		pin->gp_flags &= ~(GPIO_PIN_INPUT|GPIO_PIN_OUTPUT);
 		if (flags & GPIO_PIN_OUTPUT) {
 			pin->gp_flags |= GPIO_PIN_OUTPUT;
@@ -163,9 +158,8 @@ avila_gpio_pin_configure(struct avila_gpio_softc *sc, struct gpio_pin *pin,
 			pin->gp_flags |= GPIO_PIN_INPUT;
 			GPIO_SET_BITS(sc, IXP425_GPIO_GPOER, mask);
 		}
+		IXP4XX_GPIO_UNLOCK(sc);
 	}
-
-	GPIO_UNLOCK(sc);
 }
 
 static int
@@ -184,10 +178,7 @@ avila_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps)
 	if (pin >= IXP4XX_GPIO_PINS || !(sc->sc_valid & (1 << pin)))
 		return (EINVAL);
 
-	GPIO_LOCK(sc);
 	*caps = sc->sc_pins[pin].gp_caps;
-	GPIO_UNLOCK(sc);
-
 	return (0);
 }
 
@@ -199,11 +190,11 @@ avila_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 	if (pin >= IXP4XX_GPIO_PINS || !(sc->sc_valid & (1 << pin)))
 		return (EINVAL);
 
-	GPIO_LOCK(sc);
+	IXP4XX_GPIO_LOCK(sc);
 	/* refresh since we do not own all the pins */
 	sc->sc_pins[pin].gp_flags = avila_gpio_pin_flags(sc, pin);
 	*flags = sc->sc_pins[pin].gp_flags;
-	GPIO_UNLOCK(sc);
+	IXP4XX_GPIO_UNLOCK(sc);
 
 	return (0);
 }
@@ -216,10 +207,7 @@ avila_gpio_pin_getname(device_t dev, uint32_t pin, char *name)
 	if (pin >= IXP4XX_GPIO_PINS || !(sc->sc_valid & (1 << pin)))
 		return (EINVAL);
 
-	GPIO_LOCK(sc);
 	memcpy(name, sc->sc_pins[pin].gp_name, GPIOMAXNAME);
-	GPIO_UNLOCK(sc);
-
 	return (0);
 }
 
@@ -254,12 +242,12 @@ avila_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 	if (pin >= IXP4XX_GPIO_PINS || !(sc->sc_valid & mask))
 		return (EINVAL);
 
-	GPIO_LOCK(sc);
+	IXP4XX_GPIO_LOCK(sc);
 	if (value)
 		GPIO_SET_BITS(sc, IXP425_GPIO_GPOUTR, mask);
 	else
 		GPIO_CLEAR_BITS(sc, IXP425_GPIO_GPOUTR, mask);
-	GPIO_UNLOCK(sc);
+	IXP4XX_GPIO_UNLOCK(sc);
 
 	return (0);
 }
@@ -272,9 +260,9 @@ avila_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 	if (pin >= IXP4XX_GPIO_PINS || !(sc->sc_valid & (1 << pin)))
 		return (EINVAL);
 
-	GPIO_LOCK(sc);
+	IXP4XX_GPIO_LOCK(sc);
 	*val = (GPIO_CONF_READ_4(sc, IXP425_GPIO_GPINR) & (1 << pin)) ? 1 : 0;
-	GPIO_UNLOCK(sc);
+	IXP4XX_GPIO_UNLOCK(sc);
 
 	return (0);
 }
@@ -289,13 +277,13 @@ avila_gpio_pin_toggle(device_t dev, uint32_t pin)
 	if (pin >= IXP4XX_GPIO_PINS || !(sc->sc_valid & mask))
 		return (EINVAL);
 
-	GPIO_LOCK(sc);
-	res = (GPIO_CONF_READ_4(sc, IXP425_GPIO_GPINR) & mask) ? 1 : 0;
+	IXP4XX_GPIO_LOCK(sc);
+	res = GPIO_CONF_READ_4(sc, IXP425_GPIO_GPINR) & mask;
 	if (res)
 		GPIO_CLEAR_BITS(sc, IXP425_GPIO_GPOUTR, mask);
 	else
 		GPIO_SET_BITS(sc, IXP425_GPIO_GPOUTR, mask);
-	GPIO_UNLOCK(sc);
+	IXP4XX_GPIO_UNLOCK(sc);
 
 	return (0);
 }
@@ -320,9 +308,6 @@ avila_gpio_attach(device_t dev)
 	sc->sc_iot = sa->sc_iot;
 	sc->sc_gpio_ioh = sa->sc_gpio_ioh;
 
-	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF);
-
 	for (i = 0; i < N(avila_gpio_pins); i++) {
 		struct avila_gpio_pin *p = &avila_gpio_pins[i];
 
@@ -342,13 +327,8 @@ avila_gpio_attach(device_t dev)
 static int
 avila_gpio_detach(device_t dev)
 {
-	struct avila_gpio_softc *sc = device_get_softc(dev);
-
-	KASSERT(mtx_initialized(&sc->sc_mtx), ("gpio mutex not initialized"));
 
 	bus_generic_detach(dev);
-
-	mtx_destroy(&sc->sc_mtx);
 
 	return(0);
 }

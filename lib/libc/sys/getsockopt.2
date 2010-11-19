@@ -184,15 +184,18 @@ The following options are recognized in
 .It Dv SO_LISTENQLIMIT Ta "get backlog limit of the socket (get only)"
 .It Dv SO_LISTENQLEN Ta "get complete queue length of the socket (get only)"
 .It Dv SO_LISTENINCQLEN Ta "get incomplete queue length of the socket (get only)"
+.It Dv SO_USER_COOKIE Ta "set the 'so_user_cookie' value for the socket (uint32_t, set only)"
 .El
 .Pp
 .Dv SO_DEBUG
 enables debugging in the underlying protocol modules.
+.Pp
 .Dv SO_REUSEADDR
 indicates that the rules used in validating addresses supplied
 in a
 .Xr bind 2
 system call should allow reuse of local addresses.
+.Pp
 .Dv SO_REUSEPORT
 allows completely duplicate bindings by multiple processes
 if they all set
@@ -200,6 +203,7 @@ if they all set
 before binding the port.
 This option permits multiple instances of a program to each
 receive UDP/IP multicast or broadcast datagrams destined for the bound port.
+.Pp
 .Dv SO_KEEPALIVE
 enables the
 periodic transmission of messages on a connected socket.
@@ -208,6 +212,7 @@ connected party fail to respond to these messages, the connection is
 considered broken and processes using the socket are notified via a
 .Dv SIGPIPE
 signal when attempting to send data.
+.Pp
 .Dv SO_DONTROUTE
 indicates that outgoing messages should
 bypass the standard routing facilities.
@@ -244,6 +249,7 @@ The option
 requests permission to send broadcast datagrams
 on the socket.
 Broadcast was a privileged operation in earlier versions of the system.
+.Pp
 With protocols that support out-of-band data, the
 .Dv SO_OOBINLINE
 option
@@ -256,6 +262,7 @@ calls without the
 .Dv MSG_OOB
 flag.
 Some protocols always behave as if this option is set.
+.Pp
 .Dv SO_SNDBUF
 and
 .Dv SO_RCVBUF
@@ -285,6 +292,7 @@ only if the low water mark amount could be processed.
 The default value for
 .Dv SO_SNDLOWAT
 is set to a convenient size for network efficiency, often 1024.
+.Pp
 .Dv SO_RCVLOWAT
 is an option to set the minimum count for input operations.
 In general, receive calls will block until any (non-zero) amount of data
@@ -317,6 +325,7 @@ In the current implementation, this timer is restarted each time additional
 data are delivered to the protocol,
 implying that the limit applies to output portions ranging in size
 from the low water mark to the high water mark for output.
+.Pp
 .Dv SO_RCVTIMEO
 is an option to set a timeout value for input operations.
 It accepts a
@@ -337,6 +346,15 @@ can be used to over-ride the default FIB (routing table) for the given socket.
 The value must be from 0 to one less than the number returned from
 the sysctl
 .Em net.fibs .
+.Pp
+.Dv SO_USER_COOKIE
+can be used to set the uint32_t so_user_cookie field in the socket.
+The value is an uint32_t, and can be used in the kernel code that
+manipulates traffic related to the socket.
+The default value for the field is 0.
+As an example, the value can be used as the skipto target or
+pipe number in
+.Nm ipfw/dummynet .
 .Pp
 .Dv SO_ACCEPTFILTER
 places an

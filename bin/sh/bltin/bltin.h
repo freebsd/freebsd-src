@@ -54,6 +54,7 @@
 #define putchar(c)	out1c(c)
 #define fprintf outfmt
 #define fputs outstr
+#define fwrite(ptr, size, nmemb, file) outbin(ptr, (size) * (nmemb), file)
 #define fflush flushout
 #define INITARGS(argv)
 #define warnx1(a, b, c) {				\

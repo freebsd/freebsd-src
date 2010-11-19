@@ -719,7 +719,7 @@ get_literal(void)
 			++cptr;
 		    }
 		}
-		if (n > UCHAR_MAX) illegal_character(c_cptr);
+		if (n > (int)UCHAR_MAX) illegal_character(c_cptr);
 		c = n;
 	    	break;
 
@@ -735,7 +735,7 @@ get_literal(void)
 		    if (i < 0 || i >= 16) break;
 		    ++cptr;
 		    n = (n << 4) + i;
-		    if (n > UCHAR_MAX) illegal_character(c_cptr);
+		    if (n > (int)UCHAR_MAX) illegal_character(c_cptr);
 		}
 		c = n;
 		break;

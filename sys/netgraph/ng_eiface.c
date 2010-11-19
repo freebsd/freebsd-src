@@ -114,7 +114,7 @@ static struct ng_type typestruct = {
 };
 NETGRAPH_INIT(eiface, &typestruct);
 
-static VNET_DEFINE(struct unrhdr *, ng_eiface_unit);
+STATIC_VNET_DEFINE(struct unrhdr *, ng_eiface_unit);
 #define	V_ng_eiface_unit		VNET(ng_eiface_unit)
 
 /************************************************************************

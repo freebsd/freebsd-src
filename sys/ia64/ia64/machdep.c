@@ -88,7 +88,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <machine/mca.h>
 #include <machine/md_var.h>
-#include <machine/mutex.h>
 #include <machine/pal.h>
 #include <machine/pcb.h>
 #include <machine/reg.h>

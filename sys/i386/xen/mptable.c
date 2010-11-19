@@ -38,11 +38,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <x86/apicreg.h>
+#include <x86/mptable.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/apicvar.h>
 #include <machine/md_var.h>
-#include <machine/mptable.h>
 #include <machine/specialreg.h>
 
 #include <xen/hypervisor.h>

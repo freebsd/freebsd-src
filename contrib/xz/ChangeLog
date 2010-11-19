@@ -1,3 +1,114 @@
+commit e45929260cd902036efd40c5610a8d0a50d5712b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 23 17:25:52 2010 +0300
+
+    Build: Fix mydist rule when .git doesn't exist.
+
+commit 6e1326fcdf6b6209949be57cfe3ad4b781b65168
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 23 14:15:35 2010 +0300
+
+    Add NEWS for 5.0.0.
+
+commit b667a3ef6338a2c1db7b7706b1f6c99ea392221c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 23 14:02:53 2010 +0300
+
+    Bump version to 5.0.0 and liblzma version-info to 5:0:0.
+
+commit 8c947e9291691629714dafb4536c718b6cc24fbd
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 23 12:30:54 2010 +0300
+
+    liblzma: Make lzma_code() check the reserved members in lzma_stream.
+    
+    If any of the reserved members in lzma_stream are non-zero
+    or non-NULL, LZMA_OPTIONS_ERROR is returned. It is possible
+    that a new feature in the future is indicated by just setting
+    a reserved member to some other value, so the old liblzma
+    version need to catch it as an unsupported feature.
+
+commit e61d85e082743ebd2dd0ff28fc0a82482ede0538
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 23 12:26:33 2010 +0300
+
+    Windows: Use MinGW's stdio functions.
+    
+    The non-standard ones from msvcrt.dll appear to work
+    most of the time with XZ Utils, but there are some
+    corner cases where things may go very wrong. So it's
+    good to use the better replacements provided by
+    MinGW(-w64) runtime.
+
+commit 23e23f1dc029146714c9a98313ab3ea93d71a2fc
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 23 12:21:32 2010 +0300
+
+    liblzma: Use 512 as INDEX_GROUP_SIZE.
+    
+    This lets compiler use shifting instead of 64-bit division.
+
+commit 613939fc82603b75b59eee840871a05bc8dd08e0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 23 12:20:11 2010 +0300
+
+    liblzma: A few ABI tweaks to reserve space in structures.
+
+commit 68b83f252df3d27480a9f6f03445d16f6506fef1
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Oct 21 23:16:11 2010 +0300
+
+    xz: Make sure that message_strm() can never return NULL.
+
+commit d09c5753e33ff96ee57edb6d1e98e34041203695
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Oct 21 23:06:31 2010 +0300
+
+    liblzma: Update the comments in the API headers.
+    
+    Adding support for LZMA_FINISH for Index encoding and
+    decoding needed tiny additions to the relevant .c files too.
+
+commit 33c1c0e102eb529588503b8beea0903a45488fad
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Oct 19 12:08:30 2010 +0300
+
+    Update INSTALL.generic.
+
+commit 0076e03641f201c4b77dddd5a6db5880be19a78c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Oct 19 11:44:37 2010 +0300
+
+    Clean up a few FIXMEs and TODOs.
+    
+    lzma_chunk_size() was commented out because it is
+    currently useless.
+
+commit ce34ec4f54ff8b753da236f371ad8dd23c8135c9
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Oct 19 10:21:08 2010 +0300
+
+    Update docs.
+
+commit f0fa880d247e73264d2c04fe31fb3412318a0026
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Oct 12 15:13:30 2010 +0300
+
+    xz: Avoid raise() also on OpenVMS.
+    
+    This is similar to DOS/DJGPP that killing the program
+    with a signal will print a backtrace or a similar message.
+
+commit ac462b1c47c451f5c62e428306314c4bdad8ae7f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Mon Oct 11 21:26:19 2010 +0300
+
+    xz: Avoid SA_RESTART for portability reasons.
+    
+    SA_RESTART is not as portable as I had hoped. It's missing
+    at least from OpenVMS, QNX, and DJGPP). Luckily we can do
+    fine without SA_RESTART.
+
 commit d52b411716a614c202e89ba732492efb9916cd3f
 Author: Lasse Collin <lasse.collin@tukaani.org>
 Date:   Sun Oct 10 17:58:58 2010 +0300

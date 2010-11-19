@@ -1510,6 +1510,17 @@ interface.
 Matches TCP packets that have the SYN bit set but no ACK bit.
 This is the short form of
 .Dq Li tcpflags\ syn,!ack .
+.It Cm sockarg
+Matches packets that are associated to a local socket and
+for which the SO_USER_COOKIE socket option has been set
+to a non-zero value. As a side effect, the value of the
+option is made available as
+.Cm tablearg
+value, which in turn can be used as
+.Cm skipto
+or
+.Cm pipe
+number.
 .It Cm src-ip Ar ip-address
 Matches IPv4 packets whose source IP is one of the address(es)
 specified as an argument.

@@ -2,13 +2,14 @@
 # $FreeBSD$
 #
 
-include		SWARM_COMMON
+include		std.SWARM
 
 ident		SWARM_SMP
 
 options		SMP
 options		PRINTF_BUFR_SIZE=128
 
+machine		mips mipseb
 options		ISA_MIPS32
 
 makeoptions	ARCH_FLAGS="-mabi=32 -march=mips32"

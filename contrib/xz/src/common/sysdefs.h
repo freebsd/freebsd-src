@@ -24,6 +24,11 @@
 #	include <config.h>
 #endif
 
+// Get standard-compliant stdio functions under MinGW and MinGW-w64.
+#ifdef __MINGW32__
+#	define __USE_MINGW_ANSI_STDIO 1
+#endif
+
 // size_t and NULL
 #include <stddef.h>
 

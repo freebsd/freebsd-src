@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpivar.h>
 
 #include "acpi_wakecode.h"
+#include "acpi_wakedata.h"
 
 /* Make sure the code is less than one page and leave room for the stack. */
 CTASSERT(sizeof(wakecode) < PAGE_SIZE - 1024);

@@ -419,7 +419,7 @@ int source(char *interface, struct in_addr *group, int pkt_size,
 // 	    cout << "sec: " << result.tv_sec;
 // 	    cout << " usecs: " << result.tv_usec << endl;
             }
-	cout << "comparing %lu deltas" << long(deltas.size()) << endl;
+	cout << "comparing " << long(deltas.size()) << " deltas" << endl;
 	cout << "number represents usecs of round-trip time" << endl;
 	sort(deltas.begin(), deltas.end());
 	for (int i = 0; idx[i] != 0; ++i) {

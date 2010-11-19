@@ -228,6 +228,21 @@ cpudep_save_config(void *dummy)
 		powerpc_sync();
 
 		break;
+	case IBMCELLBE:
+		#ifdef NOTYET /* Causes problems if in instruction stream on 970 */
+		if (mfmsr() & PSL_HV) {
+			bsp_state[0] = mfspr(SPR_HID0);
+			bsp_state[1] = mfspr(SPR_HID1);
+			bsp_state[2] = mfspr(SPR_HID4);
+			bsp_state[3] = mfspr(SPR_HID6);
+
+			bsp_state[4] = mfspr(SPR_CELL_TSCR);
+		}
+		#endif
+
+		bsp_state[5] = mfspr(SPR_CELL_TSRL);
+
+		break;
 	case MPC7450:
 	case MPC7455:
 	case MPC7457:
@@ -287,6 +302,21 @@ cpudep_ap_setup()
 		    : "=r"(reg) : "K"(SPR_HID5), "r"(bsp_state));
 
 		powerpc_sync();
+		break;
+	case IBMCELLBE:
+		#ifdef NOTYET /* Causes problems if in instruction stream on 970 */
+		if (mfmsr() & PSL_HV) {
+			mtspr(SPR_HID0, bsp_state[0]);
+			mtspr(SPR_HID1, bsp_state[1]);
+			mtspr(SPR_HID4, bsp_state[2]);
+			mtspr(SPR_HID6, bsp_state[3]);
+
+			mtspr(SPR_CELL_TSCR, bsp_state[4]);
+		}
+		#endif
+
+		mtspr(SPR_CELL_TSRL, bsp_state[5]);
+
 		break;
 	case MPC7450:
 	case MPC7455:

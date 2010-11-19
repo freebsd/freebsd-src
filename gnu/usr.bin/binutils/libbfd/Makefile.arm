@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.if defined(TARGET_BIG_ENDIAN)
+.if ${TARGET_ARCH} == "armeb"
 DEFAULT_VECTOR=	bfd_elf32_bigarm_vec
 .else
 DEFAULT_VECTOR=	bfd_elf32_littlearm_vec
@@ -14,7 +14,7 @@ SRCS+=	cpu-arm.c \
 	elflink.c
 
 VECS+=	${DEFAULT_VECTOR}
-.if defined(TARGET_BIG_ENDIAN)
+.if ${TARGET_ARCH} == "armeb"
 VECS+=	bfd_elf32_littlearm_vec
 .else
 VECS+=	bfd_elf32_bigarm_vec

@@ -39,8 +39,6 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
-#include <machine/mutex.h>
-
 #include <netncp/ncp.h>
 #include <netncp/ncp_conn.h>
 #include <netncp/ncp_subr.h>

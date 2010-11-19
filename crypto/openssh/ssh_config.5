@@ -34,9 +34,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.130 2010/03/26 01:06:13 dtucker Exp $
+.\" $OpenBSD: ssh_config.5,v 1.138 2010/08/04 05:37:01 djm Exp $
 .\" $FreeBSD$
-.Dd March 26, 2010
+.Dd August 4, 2010
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -320,6 +320,28 @@ It is recommended that any
 used for opportunistic connection sharing include
 at least %h, %p, and %r.
 This ensures that shared connections are uniquely identified.
+.It Cm ControlPersist
+When used in conjunction with
+.Cm ControlMaster ,
+specifies that the master connection should remain open
+in the background (waiting for future client connections)
+after the initial client connection has been closed.
+If set to
+.Dq no ,
+then the master connection will not be placed into the background,
+and will close as soon as the initial client connection is closed.
+If set to
+.Dq yes ,
+then the master connection will remain in the background indefinitely
+(until killed or closed via a mechanism such as the
+.Xr ssh 1
+.Dq Fl O No exit
+option).
+If set to a time in seconds, or a time in any of the formats documented in
+.Xr sshd_config 5 ,
+then the backgrounded master connection will automatically terminate
+after it has remained idle (with no client connections) for the
+specified time.
 .It Cm DynamicForward
 Specifies that a TCP port on the local machine be forwarded
 over the secure channel, and the application
@@ -330,9 +352,7 @@ The argument must be
 .Sm off
 .Oo Ar bind_address : Oc Ar port .
 .Sm on
-IPv6 addresses can be specified by enclosing addresses in square brackets or
-by using an alternative syntax:
-.Oo Ar bind_address Ns / Oc Ns Ar port .
+IPv6 addresses can be specified by enclosing addresses in square brackets.
 By default, the local port is bound in accordance with the
 .Cm GatewayPorts
 setting.
@@ -433,6 +453,17 @@ An attacker may then be able to perform activities such as keystroke monitoring
 if the
 .Cm ForwardX11Trusted
 option is also enabled.
+.It Cm ForwardX11Timeout
+Specify a timeout for untrusted X11 forwarding
+using the format described in the
+.Sx TIME FORMATS
+section of
+.Xr sshd_config 5 .
+X11 connections received by
+.Xr ssh 1
+after this time will be refused.
+The default is to disable untrusted X11 forwarding after twenty minutes has
+elapsed.
 .It Cm ForwardX11Trusted
 If this option is set to
 .Dq yes ,
@@ -527,6 +558,10 @@ or for multiple servers running on a single host.
 .It Cm HostName
 Specifies the real host name to log into.
 This can be used to specify nicknames or abbreviations for hosts.
+If the hostname contains the character sequence
+.Ql %h ,
+then this will be replaced with the host name specified on the commandline
+(this is useful for manipulating unqualified names).
 The default is the name given on the command line.
 Numeric IP addresses are also permitted (both on the command line and in
 .Cm HostName
@@ -642,11 +677,7 @@ The first argument must be
 .Sm on
 and the second argument must be
 .Ar host : Ns Ar hostport .
-IPv6 addresses can be specified by enclosing addresses in square brackets or
-by using an alternative syntax:
-.Oo Ar bind_address Ns / Oc Ns Ar port
-and
-.Ar host Ns / Ns Ar hostport .
+IPv6 addresses can be specified by enclosing addresses in square brackets.
 Multiple forwardings may be specified, and additional forwardings can be
 given on the command line.
 Only the superuser can forward privileged ports.
@@ -733,10 +764,12 @@ authentication methods.
 This allows a client to prefer one method (e.g.\&
 .Cm keyboard-interactive )
 over another method (e.g.\&
-.Cm password )
-The default for this option is:
-.Do gssapi-with-mic,hostbased,publickey,keyboard-interactive,password
-.Dc .
+.Cm password ) .
+The default is:
+.Bd -literal -offset indent
+gssapi-with-mic,hostbased,publickey,
+keyboard-interactive,password
+.Ed
 .It Cm Protocol
 Specifies the protocol versions
 .Xr ssh 1
@@ -758,12 +791,14 @@ Specifies the command to use to connect to the server.
 The command
 string extends to the end of the line, and is executed with
 the user's shell.
-In the command string,
+In the command string, any occurrence of
 .Ql %h
 will be substituted by the host name to
-connect and
+connect,
 .Ql %p
-by the port.
+by the port, and
+.Ql %r
+by the remote user name.
 The command can be basically anything,
 and should read from its standard input and write to its standard output.
 It should eventually connect an
@@ -822,11 +857,7 @@ The first argument must be
 .Sm on
 and the second argument must be
 .Ar host : Ns Ar hostport .
-IPv6 addresses can be specified by enclosing addresses in square brackets
-or by using an alternative syntax:
-.Oo Ar bind_address Ns / Oc Ns Ar port
-and
-.Ar host Ns / Ns Ar hostport .
+IPv6 addresses can be specified by enclosing addresses in square brackets.
 Multiple forwardings may be specified, and additional
 forwardings can be given on the command line.
 Privileged ports can be forwarded only when
@@ -1083,7 +1114,7 @@ in
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20100428 .
+.Dq FreeBSD-20101111 .
 .It Cm VisualHostKey
 If this flag is set to
 .Dq yes ,

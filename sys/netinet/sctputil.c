@@ -1212,8 +1212,6 @@ sctp_print_mapping_array(struct sctp_association *asoc)
 	printf("Renegable mapping array (last %d entries are zero):\n", asoc->mapping_array_size - limit);
 	for (i = 0; i < limit; i++) {
 		printf("%2.2x%c", asoc->mapping_array[i], ((i + 1) % 16) ? ' ' : '\n');
-		if (((i + 1) % 16) == 0)
-			printf("\n");
 	}
 	if (limit % 16)
 		printf("\n");
@@ -2826,6 +2824,7 @@ sctp_notify_assoc_change(uint32_t event, struct sctp_tcb *stcb,
 			}
 		}
 #endif
+		socantrcvmore(stcb->sctp_socket);
 		sorwakeup(stcb->sctp_socket);
 		sowwakeup(stcb->sctp_socket);
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)

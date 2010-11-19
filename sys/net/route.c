@@ -113,7 +113,7 @@ VNET_DEFINE(int, rttrash);		/* routes not in table but not freed */
  */
 #define RNTORT(p)	((struct rtentry *)(p))
 
-static VNET_DEFINE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
+STATIC_VNET_DEFINE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
 #define	V_rtzone	VNET(rtzone)
 
 #if 0

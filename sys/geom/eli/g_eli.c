@@ -64,11 +64,11 @@ static u_int g_eli_tries = 3;
 TUNABLE_INT("kern.geom.eli.tries", &g_eli_tries);
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, tries, CTLFLAG_RW, &g_eli_tries, 0,
     "Number of tries for entering the passphrase");
-static u_int g_eli_visible_passphrase = 0;
+static u_int g_eli_visible_passphrase = GETS_NOECHO;
 TUNABLE_INT("kern.geom.eli.visible_passphrase", &g_eli_visible_passphrase);
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, visible_passphrase, CTLFLAG_RW,
     &g_eli_visible_passphrase, 0,
-    "Turn on echo when entering the passphrase (for debug purposes only!!)");
+    "Visibility of passphrase prompt (0 = invisible, 1 = visible, 2 = asterisk)");
 u_int g_eli_overwrites = G_ELI_OVERWRITES;
 TUNABLE_INT("kern.geom.eli.overwrites", &g_eli_overwrites);
 SYSCTL_UINT(_kern_geom_eli, OID_AUTO, overwrites, CTLFLAG_RW, &g_eli_overwrites,

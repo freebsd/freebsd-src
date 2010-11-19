@@ -453,7 +453,7 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 
 	ptr = &tlb0_miss_locks[cpuid * words_per_gran];
 	pcpu->pc_booke_tlb_lock = ptr;
-	*ptr = MTX_UNOWNED;
+	*ptr = TLB_UNLOCKED;
 	*(ptr + 1) = 0;		/* recurse counter */
 #endif
 }
@@ -466,50 +466,6 @@ void
 cpu_flush_dcache(void *ptr, size_t len)
 {
 	/* TBD */
-}
-
-/*
- * cpu_idle
- *
- * Set Wait state enable.
- */
-void
-cpu_idle (int busy)
-{
-	register_t msr;
-
-	msr = mfmsr();
-
-#ifdef INVARIANTS
-	if ((msr & PSL_EE) != PSL_EE) {
-		struct thread *td = curthread;
-		printf("td msr %x\n", td->td_md.md_saved_msr);
-		panic("ints disabled in idleproc!");
-	}
-#endif
-
-	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
-	    busy, curcpu);
-	if (!busy) {
-		critical_enter();
-		cpu_idleclock();
-	}
-	/* Freescale E500 core RM section 6.4.1. */
-	msr = msr | PSL_WE;
-	__asm __volatile("msync; mtmsr %0; isync" :: "r" (msr));
-	if (!busy) {
-		cpu_activeclock();
-		critical_exit();
-	}
-	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done",
-	    busy, curcpu);
-}
-
-int
-cpu_idle_wakeup(int cpu)
-{
-
-	return (0);
 }
 
 void
@@ -641,12 +597,3 @@ bzero(void *buf, size_t len)
 	}
 }
 
-/*
- * XXX what is the better/proper place for this routine?
- */
-int
-mem_valid(vm_offset_t addr, int len)
-{
-
-	return (1);
-}

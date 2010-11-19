@@ -692,7 +692,7 @@ nodisks:
 		   "may do so by typing: /usr/sbin/sysinstall.");
     }
     if (mediaDevice->type != DEVICE_TYPE_FTP && mediaDevice->type != DEVICE_TYPE_NFS) {
-	if (!msgYesNo("Would you like to configure any Ethernet network devices?")) {
+	if (!msgYesNo("Would you like to configure any Ethernet or PLIP network devices?")) {
 	    Device *tmp = tcpDeviceSelect();
 
 	    if (tmp && !((DevInfo *)tmp->private)->use_dhcp && !msgYesNo("Would you like to bring the %s interface up right now?", tmp->name))
@@ -756,7 +756,7 @@ nodisks:
 
     dialog_clear_norefresh();
     if (!msgYesNo("The FreeBSD package collection is a collection of thousands of ready-to-run\n"
-		  "applications, from text editors to games to WEB servers and more.  Would you\n"
+		  "applications, from text editors to games to Web servers and more.  Would you\n"
 		  "like to browse the collection now?")) {
 	(void)configPackages(self);
     }

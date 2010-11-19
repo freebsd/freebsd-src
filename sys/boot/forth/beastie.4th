@@ -140,12 +140,16 @@ at-xy ."         `--{__________) [0m"
 	fbsdbw-logo
 ;
 
-: acpienabled? ( -- flag )
+: acpipresent? ( -- flag )
 	s" hint.acpi.0.rsdp" getenv
 	dup -1 = if
 		drop false exit
 	then
 	2drop
+	true
+;
+
+: acpienabled? ( -- flag )
 	s" hint.acpi.0.disabled" getenv
 	dup -1 <> if
 		s" 0" compare 0<> if
@@ -180,11 +184,18 @@ at-xy ."         `--{__________) [0m"
 	printmenuitem ."  Boot FreeBSD [default]" bootkey !
 	s" arch-i386" environment? if
 		drop
-		printmenuitem ."  Boot FreeBSD with ACPI " bootacpikey !
-		acpienabled? if
-			." disabled"
+		acpipresent? if
+			printmenuitem ."  Boot FreeBSD with ACPI " bootacpikey !
+			acpienabled? if
+				." disabled"
+			else
+				." enabled"
+			then
 		else
-			." enabled"
+			menuidx @
+			1+ dup
+			menuidx !
+			-2 bootacpikey !
 		then
 	else
 		-2 bootacpikey !

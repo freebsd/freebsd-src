@@ -1,4 +1,4 @@
-/* $OpenBSD: mux.c,v 1.14 2010/01/30 02:54:53 djm Exp $ */
+/* $OpenBSD: mux.c,v 1.21 2010/06/25 23:15:36 djm Exp $ */
 /*
  * Copyright (c) 2002-2008 Damien Miller <djm@openbsd.org>
  *
@@ -71,6 +71,7 @@
 #include "xmalloc.h"
 #include "log.h"
 #include "ssh.h"
+#include "ssh2.h"
 #include "pathnames.h"
 #include "misc.h"
 #include "match.h"
@@ -106,6 +107,14 @@ struct mux_session_confirm_ctx {
 	char *term;
 	struct termios tio;
 	char **env;
+	u_int rid;
+};
+
+/* Context for global channel callback */
+struct mux_channel_confirm_ctx {
+	u_int cid;	/* channel id */
+	u_int rid;	/* request id */
+	int fid;	/* forward id */
 };
 
 /* fd to control socket */
@@ -143,13 +152,14 @@ struct mux_master_state {
 #define MUX_S_EXIT_MESSAGE	0x80000004
 #define MUX_S_ALIVE		0x80000005
 #define MUX_S_SESSION_OPENED	0x80000006
+#define MUX_S_REMOTE_PORT	0x80000007
 
 /* type codes for MUX_C_OPEN_FWD and MUX_C_CLOSE_FWD */
 #define MUX_FWD_LOCAL   1
 #define MUX_FWD_REMOTE  2
 #define MUX_FWD_DYNAMIC 3
 
-static void mux_session_confirm(int, void *);
+static void mux_session_confirm(int, int, void *);
 
 static int process_mux_master_hello(u_int, Channel *, Buffer *, Buffer *);
 static int process_mux_new_session(u_int, Channel *, Buffer *, Buffer *);
@@ -206,7 +216,7 @@ mux_master_control_cleanup_cb(int cid, void *unused)
 		fatal("%s: channel_by_id(%i) == NULL", __func__, cid);
 	if (c->remote_id != -1) {
 		if ((sc = channel_by_id(c->remote_id)) == NULL)
-			debug2("%s: channel %d n session channel %d",
+			fatal("%s: channel %d missing session channel %d",
 			    __func__, c->self, c->remote_id);
 		c->remote_id = -1;
 		sc->ctl_chan = -1;
@@ -301,6 +311,7 @@ process_mux_new_session(u_int rid, Channel *c, Buffer *m, Buffer *r)
 	/* Reply for SSHMUX_COMMAND_OPEN */
 	cctx = xcalloc(1, sizeof(*cctx));
 	cctx->term = NULL;
+	cctx->rid = rid;
 	cmd = reserved = NULL;
 	if ((reserved = buffer_get_string_ret(m, NULL)) == NULL ||
 	    buffer_get_int_ret(&cctx->want_tty, m) != 0 ||
@@ -454,14 +465,10 @@ process_mux_new_session(u_int rid, Channel *c, Buffer *m, Buffer *r)
 
 	channel_send_open(nc->self);
 	channel_register_open_confirm(nc->self, mux_session_confirm, cctx);
-	channel_register_cleanup(nc->self, mux_master_session_cleanup_cb, 0);
+	c->mux_pause = 1; /* stop handling messages until open_confirm done */
+	channel_register_cleanup(nc->self, mux_master_session_cleanup_cb, 1);
 
-	/* prepare reply */
-	/* XXX defer until mux_session_confirm() fires */
-	buffer_put_int(r, MUX_S_SESSION_OPENED);
-	buffer_put_int(r, rid);
-	buffer_put_int(r, nc->self);
-
+	/* reply is deferred, sent by mux_session_confirm */
 	return 0;
 }
 
@@ -559,6 +566,61 @@ compare_forward(Forward *a, Forward *b)
 	return 1;
 }
 
+static void
+mux_confirm_remote_forward(int type, u_int32_t seq, void *ctxt)
+{
+	struct mux_channel_confirm_ctx *fctx = ctxt;
+	char *failmsg = NULL;
+	Forward *rfwd;
+	Channel *c;
+	Buffer out;
+
+	if ((c = channel_by_id(fctx->cid)) == NULL) {
+		/* no channel for reply */
+		error("%s: unknown channel", __func__);
+		return;
+	}
+	buffer_init(&out);
+	if (fctx->fid >= options.num_remote_forwards) {
+		xasprintf(&failmsg, "unknown forwarding id %d", fctx->fid);
+		goto fail;
+	}
+	rfwd = &options.remote_forwards[fctx->fid];
+	debug("%s: %s for: listen %d, connect %s:%d", __func__,
+	    type == SSH2_MSG_REQUEST_SUCCESS ? "success" : "failure",
+	    rfwd->listen_port, rfwd->connect_host, rfwd->connect_port);
+	if (type == SSH2_MSG_REQUEST_SUCCESS) {
+		if (rfwd->listen_port == 0) {
+			rfwd->allocated_port = packet_get_int();
+			logit("Allocated port %u for mux remote forward"
+			    " to %s:%d", rfwd->allocated_port,
+			    rfwd->connect_host, rfwd->connect_port);
+			buffer_put_int(&out, MUX_S_REMOTE_PORT);
+			buffer_put_int(&out, fctx->rid);
+			buffer_put_int(&out, rfwd->allocated_port);
+		} else {
+			buffer_put_int(&out, MUX_S_OK);
+			buffer_put_int(&out, fctx->rid);
+		}
+		goto out;
+	} else {
+		xasprintf(&failmsg, "remote port forwarding failed for "
+		    "listen port %d", rfwd->listen_port);
+	}
+ fail:
+	error("%s: %s", __func__, failmsg);
+	buffer_put_int(&out, MUX_S_FAILURE);
+	buffer_put_int(&out, fctx->rid);
+	buffer_put_cstring(&out, failmsg);
+	xfree(failmsg);
+ out:
+	buffer_put_string(&c->output, buffer_ptr(&out), buffer_len(&out));
+	buffer_free(&out);
+	if (c->mux_pause <= 0)
+		fatal("%s: mux_pause %d", __func__, c->mux_pause);
+	c->mux_pause = 0; /* start processing messages again */
+}
+
 static int
 process_mux_open_fwd(u_int rid, Channel *c, Buffer *m, Buffer *r)
 {
@@ -594,15 +656,16 @@ process_mux_open_fwd(u_int rid, Channel *c, Buffer *m, Buffer *r)
 	    ftype != MUX_FWD_DYNAMIC) {
 		logit("%s: invalid forwarding type %u", __func__, ftype);
  invalid:
-		xfree(fwd.listen_host);
-		xfree(fwd.connect_host);
+		if (fwd.listen_host)
+			xfree(fwd.listen_host);
+		if (fwd.connect_host)
+			xfree(fwd.connect_host);
 		buffer_put_int(r, MUX_S_FAILURE);
 		buffer_put_int(r, rid);
 		buffer_put_cstring(r, "Invalid forwarding request");
 		return 0;
 	}
-	/* XXX support rport0 forwarding with reply of port assigned */
-	if (fwd.listen_port == 0 || fwd.listen_port >= 65536) {
+	if (fwd.listen_port >= 65536) {
 		logit("%s: invalid listen port %u", __func__,
 		    fwd.listen_port);
 		goto invalid;
@@ -637,8 +700,17 @@ process_mux_open_fwd(u_int rid, Channel *c, Buffer *m, Buffer *r)
 	case MUX_FWD_REMOTE:
 		for (i = 0; i < options.num_remote_forwards; i++) {
 			if (compare_forward(&fwd,
-			    options.remote_forwards + i))
-				goto exists;
+			    options.remote_forwards + i)) {
+				if (fwd.listen_port != 0)
+					goto exists;
+				debug2("%s: found allocated port",
+				    __func__);
+				buffer_put_int(r, MUX_S_REMOTE_PORT);
+				buffer_put_int(r, rid);
+				buffer_put_int(r,
+				    options.remote_forwards[i].allocated_port);
+				goto out;
+			}
 		}
 		break;
 	}
@@ -655,9 +727,7 @@ process_mux_open_fwd(u_int rid, Channel *c, Buffer *m, Buffer *r)
 	}
 
 	if (ftype == MUX_FWD_LOCAL || ftype == MUX_FWD_DYNAMIC) {
-		if (options.num_local_forwards + 1 >=
-		    SSH_MAX_FORWARDS_PER_DIRECTION ||
-		    channel_setup_local_fwd_listener(fwd.listen_host,
+		if (channel_setup_local_fwd_listener(fwd.listen_host,
 		    fwd.listen_port, fwd.connect_host, fwd.connect_port,
 		    options.gateway_ports) < 0) {
  fail:
@@ -670,14 +740,22 @@ process_mux_open_fwd(u_int rid, Channel *c, Buffer *m, Buffer *r)
 		add_local_forward(&options, &fwd);
 		freefwd = 0;
 	} else {
-		/* XXX wait for remote to confirm */
-		if (options.num_remote_forwards + 1 >=
-		    SSH_MAX_FORWARDS_PER_DIRECTION ||
-		    channel_request_remote_forwarding(fwd.listen_host,
+		struct mux_channel_confirm_ctx *fctx;
+
+		if (channel_request_remote_forwarding(fwd.listen_host,
 		    fwd.listen_port, fwd.connect_host, fwd.connect_port) < 0)
 			goto fail;
 		add_remote_forward(&options, &fwd);
+		fctx = xcalloc(1, sizeof(*fctx));
+		fctx->cid = c->self;
+		fctx->rid = rid;
+		fctx->fid = options.num_remote_forwards - 1;
+		client_register_global_confirm(mux_confirm_remote_forward,
+		    fctx);
 		freefwd = 0;
+		c->mux_pause = 1; /* wait for mux_confirm_remote_forward */
+		/* delayed reply in mux_confirm_remote_forward */
+		goto out;
 	}
 	buffer_put_int(r, MUX_S_OK);
 	buffer_put_int(r, rid);
@@ -826,7 +904,7 @@ process_mux_stdio_fwd(u_int rid, Channel *c, Buffer *m, Buffer *r)
 	debug2("%s: channel_new: %d linked to control channel %d",
 	    __func__, nc->self, nc->ctl_chan);
 
-	channel_register_cleanup(nc->self, mux_master_session_cleanup_cb, 0);
+	channel_register_cleanup(nc->self, mux_master_session_cleanup_cb, 1);
 
 	/* prepare reply */
 	/* XXX defer until channel confirmed */
@@ -849,7 +927,7 @@ mux_master_read_cb(Channel *c)
 
 	/* Setup ctx and  */
 	if (c->mux_ctx == NULL) {
-		state = xcalloc(1, sizeof(state));
+		state = xcalloc(1, sizeof(*state));
 		c->mux_ctx = state;
 		channel_register_cleanup(c->self,
 		    mux_master_control_cleanup_cb, 0);
@@ -1000,26 +1078,43 @@ muxserver_listen(void)
 
 /* Callback on open confirmation in mux master for a mux client session. */
 static void
-mux_session_confirm(int id, void *arg)
+mux_session_confirm(int id, int success, void *arg)
 {
 	struct mux_session_confirm_ctx *cctx = arg;
 	const char *display;
-	Channel *c;
+	Channel *c, *cc;
 	int i;
+	Buffer reply;
 
 	if (cctx == NULL)
 		fatal("%s: cctx == NULL", __func__);
 	if ((c = channel_by_id(id)) == NULL)
 		fatal("%s: no channel for id %d", __func__, id);
+	if ((cc = channel_by_id(c->ctl_chan)) == NULL)
+		fatal("%s: channel %d lacks control channel %d", __func__,
+		    id, c->ctl_chan);
+
+	if (!success) {
+		debug3("%s: sending failure reply", __func__);
+		/* prepare reply */
+		buffer_init(&reply);
+		buffer_put_int(&reply, MUX_S_FAILURE);
+		buffer_put_int(&reply, cctx->rid);
+		buffer_put_cstring(&reply, "Session open refused by peer");
+		goto done;
+	}
 
 	display = getenv("DISPLAY");
 	if (cctx->want_x_fwd && options.forward_x11 && display != NULL) {
 		char *proto, *data;
+
 		/* Get reasonable local authentication information. */
 		client_x11_get_proto(display, options.xauth_location,
-		    options.forward_x11_trusted, &proto, &data);
+		    options.forward_x11_trusted, options.forward_x11_timeout,
+		    &proto, &data);
 		/* Request forwarding with authentication spoofing. */
-		debug("Requesting X11 forwarding with authentication spoofing.");
+		debug("Requesting X11 forwarding with authentication "
+		    "spoofing.");
 		x11_request_forwarding_with_spoofing(id, display, proto, data);
 		/* XXX wait for reply */
 	}
@@ -1033,6 +1128,21 @@ mux_session_confirm(int id, void *arg)
 	client_session2_setup(id, cctx->want_tty, cctx->want_subsys,
 	    cctx->term, &cctx->tio, c->rfd, &cctx->cmd, cctx->env);
 
+	debug3("%s: sending success reply", __func__);
+	/* prepare reply */
+	buffer_init(&reply);
+	buffer_put_int(&reply, MUX_S_SESSION_OPENED);
+	buffer_put_int(&reply, cctx->rid);
+	buffer_put_int(&reply, c->self);
+
+ done:
+	/* Send reply */
+	buffer_put_string(&cc->output, buffer_ptr(&reply), buffer_len(&reply));
+	buffer_free(&reply);
+
+	if (cc->mux_pause <= 0)
+		fatal("%s: mux_pause %d", __func__, cc->mux_pause);
+	cc->mux_pause = 0; /* start processing messages again */
 	c->open_confirm_ctx = NULL;
 	buffer_free(&cctx->cmd);
 	xfree(cctx->term);
@@ -1364,6 +1474,15 @@ mux_client_request_forward(int fd, u_int ftype, Forward *fwd)
 		    __func__, muxclient_request_id, rid);
 	switch (type) {
 	case MUX_S_OK:
+		break;
+	case MUX_S_REMOTE_PORT:
+		fwd->allocated_port = buffer_get_int(&m);
+		logit("Allocated port %u for remote forward to %s:%d",
+		    fwd->allocated_port,
+		    fwd->connect_host ? fwd->connect_host : "",
+		    fwd->connect_port);
+		if (muxclient_command == SSHMUX_COMMAND_FORWARD)
+			fprintf(stdout, "%u\n", fwd->allocated_port);
 		break;
 	case MUX_S_PERMISSION_DENIED:
 		e = buffer_get_string(&m, NULL);
@@ -1730,6 +1849,10 @@ muxclient(const char *path)
 	case SSHMUX_COMMAND_TERMINATE:
 		mux_client_request_terminate(sock);
 		fprintf(stderr, "Exit request sent.\r\n");
+		exit(0);
+	case SSHMUX_COMMAND_FORWARD:
+		if (mux_client_request_forwards(sock) != 0)
+			fatal("%s: master forward request failed", __func__);
 		exit(0);
 	case SSHMUX_COMMAND_OPEN:
 		if (mux_client_request_forwards(sock) != 0) {

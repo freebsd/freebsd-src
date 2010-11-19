@@ -401,6 +401,8 @@
 #endif	/* __STDC__ */
 #endif	/* __GNUC__ || __INTEL_COMPILER */
 
+#define	__GLOBL(sym)	__asm__(".globl " sym)
+
 #if defined(__GNUC__) || defined(__INTEL_COMPILER)
 #define	__IDSTRING(name,string)	__asm__(".ident\t\"" string "\"")
 #else

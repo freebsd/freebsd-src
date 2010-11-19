@@ -97,7 +97,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x0 0x8000000>;	// 128M at 0x0
+		reg = <0x0 0x10000000>;	// 256M at 0x0
 	};
 
 	localbus@e0005000 {

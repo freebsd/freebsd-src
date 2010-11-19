@@ -1470,7 +1470,7 @@ fetch_inspect_system () {
 	    sort -k 3,3 -t '|' > $2.tmp
 	rm filelist
 
-	# Check if an error occured during system inspection
+	# Check if an error occurred during system inspection
 	if [ -f .err ]; then
 		return 1
 	fi

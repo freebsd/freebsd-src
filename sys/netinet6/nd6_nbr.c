@@ -1141,7 +1141,7 @@ struct dadq {
 	struct vnet *dad_vnet;
 };
 
-static VNET_DEFINE(TAILQ_HEAD(, dadq), dadq);
+STATIC_VNET_DEFINE(TAILQ_HEAD(, dadq), dadq);
 VNET_DEFINE(int, dad_init) = 0;
 #define	V_dadq				VNET(dadq)
 #define	V_dad_init			VNET(dad_init)

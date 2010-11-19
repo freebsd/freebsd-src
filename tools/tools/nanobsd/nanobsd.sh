@@ -153,6 +153,12 @@ NANO_LABEL=""
 
 NANO_ARCH=`uname -p`
 
+# Directory to populate /cfg from
+NANO_CFGDIR=""
+
+# Directory to populate /data from
+NANO_DATADIR=""
+
 #######################################################################
 #
 # The functions which do the real work.
@@ -176,6 +182,7 @@ make_conf_build ( ) (
 
 	echo "${CONF_WORLD}" > ${NANO_MAKE_CONF_BUILD}
 	echo "${CONF_BUILD}" >> ${NANO_MAKE_CONF_BUILD}
+	echo "_WITHOUT_SRCCONF=t" >> ${NANO_MAKE_CONF_BUILD}
 )
 
 build_world ( ) (
@@ -238,6 +245,7 @@ make_conf_install ( ) (
 
 	echo "${CONF_WORLD}" > ${NANO_MAKE_CONF_INSTALL}
 	echo "${CONF_INSTALL}" >> ${NANO_MAKE_CONF_INSTALL}
+	echo "_WITHOUT_SRCCONF=t" >> ${NANO_MAKE_CONF_INSTALL}
 )
 
 install_world ( ) (
@@ -911,6 +919,9 @@ else
 fi
 
 if $do_kernel ; then
+	if ! $do_world ; then
+		make_conf_build
+	fi
 	build_kernel
 else
 	pprint 2 "Skipping buildkernel (as instructed)"

@@ -36,6 +36,7 @@
 #ifndef OUTPUT_INCL
 
 #include <stdarg.h>
+#include <stddef.h>
 
 struct output {
 	char *nextc;
@@ -59,6 +60,7 @@ void out2str(const char *);
 void out2qstr(const char *);
 void outstr(const char *, struct output *);
 void outqstr(const char *, struct output *);
+void outbin(const void *, size_t, struct output *);
 void emptyoutbuf(struct output *);
 void flushall(void);
 void flushout(struct output *);

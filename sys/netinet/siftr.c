@@ -1,7 +1,6 @@
 /*-
- * Copyright (c) 2007-2009, Centre for Advanced Internet Architectures
- * Swinburne University of Technology, Melbourne, Australia
- * (CRICOS number 00111D).
+ * Copyright (c) 2007-2009
+ * 	Swinburne University of Technology, Melbourne, Australia.
  * Copyright (c) 2009-2010, The FreeBSD Foundation
  * All rights reserved.
  *
@@ -261,7 +260,7 @@ struct siftr_stats
 	uint32_t nskip_out_dejavu;
 };
 
-static DPCPU_DEFINE(struct siftr_stats, ss);
+STATIC_DPCPU_DEFINE(struct siftr_stats, ss);
 
 static volatile unsigned int siftr_exit_pkt_manager_thread = 0;
 static unsigned int siftr_enabled = 0;

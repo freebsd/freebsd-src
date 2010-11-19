@@ -18,14 +18,14 @@ TARGET_ARCH?=	${MACHINE_ARCH}
 CFLAGS+=-DLLVM_HOSTTRIPLE=\"${TARGET_ARCH}-undermydesk-freebsd9.0\"
 
 .ifndef LLVM_REQUIRES_EH
-CFLAGS+=-fno-exceptions
+CXXFLAGS+=-fno-exceptions
 .else
 # If the library or program requires EH, it also requires RTTI.
 LLVM_REQUIRES_RTTI=
 .endif
 
 .ifndef LLVM_REQUIRES_RTTI
-CFLAGS+=-fno-rtti
+CXXFLAGS+=-fno-rtti
 .endif
 
 .ifdef TOOLS_PREFIX
