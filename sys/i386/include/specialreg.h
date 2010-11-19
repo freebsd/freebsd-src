@@ -554,7 +554,8 @@
 #define	AMD_WT_ALLOC_FRE	0x10000	/* fixed (A0000-FFFFF) range enable */
 
 /* AMD64 MSR's */
-#define	MSR_EFER	0xc0000080	/* extended features */
+#define	MSR_EFER		0xc0000080	/* extended features */
+#define	MSR_HWCR		0xc0010015
 #define	MSR_K8_UCODE_UPDATE	0xc0010020	/* update microcode */
 #define	MSR_MC0_CTL_MASK	0xc0010044
 
