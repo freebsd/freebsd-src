@@ -285,7 +285,7 @@ AcpiExSystemMemorySpaceHandler (
         ((UINT64) Address - (UINT64) MemInfo->MappedPhysicalAddress);
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-        "System-Memory (width %d) R/W %d Address=%8.8X%8.8X\n",
+        "System-Memory (width %u) R/W %u Address=%8.8X%8.8X\n",
         BitWidth, Function, ACPI_FORMAT_NATIVE_UINT (Address)));
 
     /*
@@ -395,7 +395,7 @@ AcpiExSystemIoSpaceHandler (
 
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-        "System-IO (width %d) R/W %d Address=%8.8X%8.8X\n",
+        "System-IO (width %u) R/W %u Address=%8.8X%8.8X\n",
         BitWidth, Function, ACPI_FORMAT_NATIVE_UINT (Address)));
 
     /* Decode the function parameter */
@@ -475,7 +475,7 @@ AcpiExPciConfigSpaceHandler (
     PciRegister = (UINT16) (UINT32) Address;
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-        "Pci-Config %d (%d) Seg(%04x) Bus(%04x) Dev(%04x) Func(%04x) Reg(%04x)\n",
+        "Pci-Config %u (%u) Seg(%04x) Bus(%04x) Dev(%04x) Func(%04x) Reg(%04x)\n",
         Function, BitWidth, PciId->Segment, PciId->Bus, PciId->Device,
         PciId->Function, PciRegister));
 

@@ -300,6 +300,12 @@ typedef struct aml_resource_large_header
 } AML_RESOURCE_LARGE_HEADER;
 
 
+/* General Flags for address space resource descriptors */
+
+#define ACPI_RESOURCE_FLAG_DEC      2
+#define ACPI_RESOURCE_FLAG_MIF      4
+#define ACPI_RESOURCE_FLAG_MAF      8
+
 typedef struct aml_resource_memory24
 {
     AML_RESOURCE_LARGE_HEADER_COMMON

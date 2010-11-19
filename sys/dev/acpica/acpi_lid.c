@@ -98,6 +98,7 @@ acpi_lid_probe(device_t dev)
 static int
 acpi_lid_attach(device_t dev)
 {
+    struct acpi_prw_data	prw;
     struct acpi_lid_softc	*sc;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
@@ -116,6 +117,8 @@ acpi_lid_attach(device_t dev)
 
     /* Enable the GPE for wake/runtime. */
     acpi_wake_set_enable(dev, 1);
+    if (acpi_parse_prw(sc->lid_handle, &prw) == 0)
+	AcpiEnableGpe(prw.gpe_handle, prw.gpe_bit);
 
     return (0);
 }

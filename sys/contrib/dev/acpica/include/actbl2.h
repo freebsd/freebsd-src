@@ -151,8 +151,17 @@
 #define ACPI_SIG_UEFI           "UEFI"      /* Uefi Boot Optimization Table */
 #define ACPI_SIG_WAET           "WAET"      /* Windows ACPI Emulated devices Table */
 #define ACPI_SIG_WDAT           "WDAT"      /* Watchdog Action Table */
+#define ACPI_SIG_WDDT           "WDDT"      /* Watchdog Timer Description Table */
 #define ACPI_SIG_WDRT           "WDRT"      /* Watchdog Resource Table */
 
+#ifdef ACPI_UNDEFINED_TABLES
+/*
+ * These tables have been seen in the field, but no definition has been found
+ */
+#define ACPI_SIG_ATKG           "ATKG"
+#define ACPI_SIG_GSCI           "GSCI"      /* GMCH SCI table */
+#define ACPI_SIG_IEIT           "IEIT"
+#endif
 
 /*
  * All tables must be byte-packed to match the ACPI specification, since
@@ -1117,6 +1126,47 @@ enum AcpiWdatInstructions
     ACPI_WDAT_INSTRUCTION_RESERVED  = 4,    /* 4 and greater are reserved */
     ACPI_WDAT_PRESERVE_REGISTER     = 0x80  /* Except for this value */
 };
+
+
+/*******************************************************************************
+ *
+ * WDDT - Watchdog Descriptor Table
+ *        Version 1
+ *
+ * Conforms to "Using the Intel ICH Family Watchdog Timer (WDT)",
+ * Version 001, September 2002
+ *
+ ******************************************************************************/
+
+typedef struct acpi_table_wddt
+{
+    ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
+    UINT16                  SpecVersion;
+    UINT16                  TableVersion;
+    UINT16                  PciVendorId;
+    ACPI_GENERIC_ADDRESS    Address;
+    UINT16                  MaxCount;           /* Maximum counter value supported */
+    UINT16                  MinCount;           /* Minimum counter value supported */
+    UINT16                  Period;
+    UINT16                  Status;
+    UINT16                  Capability;
+
+} ACPI_TABLE_WDDT;
+
+/* Flags for Status field above */
+
+#define ACPI_WDDT_AVAILABLE     (1)
+#define ACPI_WDDT_ACTIVE        (1<<1)
+#define ACPI_WDDT_TCO_OS_OWNED  (1<<2)
+#define ACPI_WDDT_USER_RESET    (1<<11)
+#define ACPI_WDDT_WDT_RESET     (1<<12)
+#define ACPI_WDDT_POWER_FAIL    (1<<13)
+#define ACPI_WDDT_UNKNOWN_RESET (1<<14)
+
+/* Flags for Capability field above */
+
+#define ACPI_WDDT_AUTO_RESET    (1)
+#define ACPI_WDDT_ALERT_SUPPORT (1<<1)
 
 
 /*******************************************************************************

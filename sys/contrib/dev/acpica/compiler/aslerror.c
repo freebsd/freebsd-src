@@ -280,7 +280,14 @@ AePrintException (
     /* Get the file handles */
 
     OutputFile = Gbl_Files[FileId].Handle;
+
+    /* Use the merged header/source file if present, otherwise use input file */
+
     SourceFile = Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Handle;
+    if (!SourceFile)
+    {
+        SourceFile = Gbl_Files[ASL_FILE_INPUT].Handle;
+    }
 
     if (Header)
     {
@@ -297,7 +304,7 @@ AePrintException (
 
             if (Enode->LineNumber)
             {
-                fprintf (OutputFile, "%6u: ", Enode->LineNumber);
+                fprintf (OutputFile, " %6u: ", Enode->LineNumber);
 
                 /*
                  * Seek to the offset in the combined source file, read the source
@@ -351,7 +358,7 @@ AePrintException (
     {
         /* Decode the message ID */
 
-        fprintf (OutputFile, "%s %4.4d -",
+        fprintf (OutputFile, "%s %4.4d - ",
                     AslErrorLevel[Enode->Level],
                     Enode->MessageId + ((Enode->Level+1) * 1000));
 
@@ -525,7 +532,7 @@ AslCommonError (
     Gbl_ExceptionCount[Level]++;
     if (Gbl_ExceptionCount[ASL_ERROR] > ASL_MAX_ERROR_COUNT)
     {
-        printf ("\nMaximum error count (%d) exceeded\n", ASL_MAX_ERROR_COUNT);
+        printf ("\nMaximum error count (%u) exceeded\n", ASL_MAX_ERROR_COUNT);
 
         Gbl_SourceLine = 0;
         Gbl_NextError = Gbl_ErrorLog;

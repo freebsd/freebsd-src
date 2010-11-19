@@ -944,39 +944,34 @@ vo_get_brightness_levels(ACPI_HANDLE handle, int **levelp)
 		if (status != AE_NOT_FOUND)
 			printf("can't evaluate %s._BCL - %s\n",
 			       acpi_name(handle), AcpiFormatException(status));
-		num = -1;
 		goto out;
 	}
 	res = (ACPI_OBJECT *)bcl_buf.Pointer;
 	if (!ACPI_PKG_VALID(res, 2)) {
 		printf("evaluation of %s._BCL makes no sense\n",
 		       acpi_name(handle));
-		num = -1;
 		goto out;
 	}
 	num = res->Package.Count;
-	if (levelp == NULL)
+	if (num < 2 || levelp == NULL)
 		goto out;
 	levels = AcpiOsAllocate(num * sizeof(*levels));
-	if (levels == NULL) {
-		num = -1;
+	if (levels == NULL)
 		goto out;
-	}
 	for (i = 0, n = 0; i < num; i++)
 		if (acpi_PkgInt32(res, i, &levels[n]) == 0)
 			n++;
 	if (n < 2) {
-		num = -1;
 		AcpiOsFree(levels);
-	} else {
-		num = n;
-		*levelp = levels;
+		goto out;
 	}
+	*levelp = levels;
+	return (n);
+
 out:
 	if (bcl_buf.Pointer != NULL)
 		AcpiOsFree(bcl_buf.Pointer);
-
-	return (num);
+	return (0);
 }
 
 static int

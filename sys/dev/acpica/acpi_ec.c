@@ -518,8 +518,7 @@ acpi_ec_attach(device_t dev)
     }
 
     /* Enable runtime GPEs for the handler. */
-    Status = AcpiEnableGpe(sc->ec_gpehandle, sc->ec_gpebit,
-	ACPI_GPE_TYPE_RUNTIME);
+    Status = AcpiEnableGpe(sc->ec_gpehandle, sc->ec_gpebit);
     if (ACPI_FAILURE(Status)) {
 	device_printf(dev, "AcpiEnableGpe failed: %s\n",
 		      AcpiFormatException(Status));
@@ -569,7 +568,7 @@ acpi_ec_shutdown(device_t dev)
 
     /* Disable the GPE so we don't get EC events during shutdown. */
     sc = device_get_softc(dev);
-    AcpiDisableGpe(sc->ec_gpehandle, sc->ec_gpebit, ACPI_GPE_TYPE_RUNTIME);
+    AcpiDisableGpe(sc->ec_gpehandle, sc->ec_gpebit);
     return (0);
 }
 

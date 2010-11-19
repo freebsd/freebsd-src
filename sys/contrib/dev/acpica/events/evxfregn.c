@@ -139,6 +139,12 @@
  *
  * DESCRIPTION: Install a handler for all OpRegions of a given SpaceId.
  *
+ * NOTE: This function should only be called after AcpiEnableSubsystem has
+ * been called. This is because any _REG methods associated with the Space ID
+ * are executed here, and these methods can only be safely executed after
+ * the default handlers have been installed and the hardware has been
+ * initialized (via AcpiEnableSubsystem.)
+ *
  ******************************************************************************/
 
 ACPI_STATUS

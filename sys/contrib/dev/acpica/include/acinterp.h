@@ -434,7 +434,7 @@ AcpiExSystemDoNotifyOp (
     ACPI_OPERAND_OBJECT     *ObjDesc);
 
 ACPI_STATUS
-AcpiExSystemDoSuspend(
+AcpiExSystemDoSleep(
     UINT64                  Time);
 
 ACPI_STATUS

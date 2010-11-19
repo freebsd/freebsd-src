@@ -316,6 +316,13 @@ AcpiHwReadPort (
     UINT32                  i;
 
 
+    /* Truncate address to 16 bits if requested */
+
+    if (AcpiGbl_TruncateIoAddresses)
+    {
+        Address &= ACPI_UINT16_MAX;
+    }
+
     /* Validate the entire request and perform the I/O */
 
     Status = AcpiHwValidateIoRequest (Address, Width);
@@ -382,6 +389,13 @@ AcpiHwWritePort (
     ACPI_STATUS             Status;
     UINT32                  i;
 
+
+    /* Truncate address to 16 bits if requested */
+
+    if (AcpiGbl_TruncateIoAddresses)
+    {
+        Address &= ACPI_UINT16_MAX;
+    }
 
     /* Validate the entire request and perform the I/O */
 

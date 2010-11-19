@@ -674,7 +674,7 @@ TrDoSwitch (
         {
             /* Unknown peer opcode */
 
-            AcpiOsPrintf ("Unknown parse opcode for switch statement: %s (%d)\n",
+            AcpiOsPrintf ("Unknown parse opcode for switch statement: %s (%u)\n",
                         Next->Asl.ParseOpName, Next->Asl.ParseOpcode);
         }
     }

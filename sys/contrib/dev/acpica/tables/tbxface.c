@@ -150,7 +150,7 @@ AcpiAllocateRootTable (
     UINT32                  InitialTableCount)
 {
 
-    AcpiGbl_RootTableList.Size = InitialTableCount;
+    AcpiGbl_RootTableList.MaxTableCount = InitialTableCount;
     AcpiGbl_RootTableList.Flags = ACPI_ROOT_ALLOW_RESIZE;
 
     return (AcpiTbResizeRootTableList ());
@@ -216,7 +216,7 @@ AcpiInitializeTables (
             (ACPI_SIZE) InitialTableCount * sizeof (ACPI_TABLE_DESC));
 
         AcpiGbl_RootTableList.Tables = InitialTableArray;
-        AcpiGbl_RootTableList.Size = InitialTableCount;
+        AcpiGbl_RootTableList.MaxTableCount = InitialTableCount;
         AcpiGbl_RootTableList.Flags = ACPI_ROOT_ORIGIN_UNKNOWN;
         if (AllowResize)
         {
@@ -285,7 +285,7 @@ AcpiReallocateRootTable (
      * increment to create the new table size.
      */
     CurrentSize = (ACPI_SIZE)
-        AcpiGbl_RootTableList.Count * sizeof (ACPI_TABLE_DESC);
+        AcpiGbl_RootTableList.CurrentTableCount * sizeof (ACPI_TABLE_DESC);
 
     NewSize = CurrentSize +
         (ACPI_ROOT_TABLE_SIZE_INCREMENT * sizeof (ACPI_TABLE_DESC));
@@ -306,8 +306,8 @@ AcpiReallocateRootTable (
      * size of the original table list.
      */
     AcpiGbl_RootTableList.Tables = Tables;
-    AcpiGbl_RootTableList.Size =
-        AcpiGbl_RootTableList.Count + ACPI_ROOT_TABLE_SIZE_INCREMENT;
+    AcpiGbl_RootTableList.MaxTableCount =
+        AcpiGbl_RootTableList.CurrentTableCount + ACPI_ROOT_TABLE_SIZE_INCREMENT;
     AcpiGbl_RootTableList.Flags =
         ACPI_ROOT_ORIGIN_ALLOCATED | ACPI_ROOT_ALLOW_RESIZE;
 
@@ -354,7 +354,7 @@ AcpiGetTableHeader (
 
     /* Walk the root table list */
 
-    for (i = 0, j = 0; i < AcpiGbl_RootTableList.Count; i++)
+    for (i = 0, j = 0; i < AcpiGbl_RootTableList.CurrentTableCount; i++)
     {
         if (!ACPI_COMPARE_NAME (&(AcpiGbl_RootTableList.Tables[i].Signature),
                     Signature))
@@ -439,7 +439,7 @@ AcpiGetTable (
 
     /* Walk the root table list */
 
-    for (i = 0, j = 0; i < AcpiGbl_RootTableList.Count; i++)
+    for (i = 0, j = 0; i < AcpiGbl_RootTableList.CurrentTableCount; i++)
     {
         if (!ACPI_COMPARE_NAME (&(AcpiGbl_RootTableList.Tables[i].Signature),
                 Signature))
@@ -502,7 +502,7 @@ AcpiGetTableByIndex (
 
     /* Validate index */
 
-    if (TableIndex >= AcpiGbl_RootTableList.Count)
+    if (TableIndex >= AcpiGbl_RootTableList.CurrentTableCount)
     {
         (void) AcpiUtReleaseMutex (ACPI_MTX_TABLES);
         return_ACPI_STATUS (AE_BAD_PARAMETER);
@@ -559,7 +559,7 @@ AcpiTbLoadNamespace (
      * Load the namespace. The DSDT is required, but any SSDT and
      * PSDT tables are optional. Verify the DSDT.
      */
-    if (!AcpiGbl_RootTableList.Count ||
+    if (!AcpiGbl_RootTableList.CurrentTableCount ||
         !ACPI_COMPARE_NAME (
             &(AcpiGbl_RootTableList.Tables[ACPI_TABLE_INDEX_DSDT].Signature),
             ACPI_SIG_DSDT) ||
@@ -613,7 +613,7 @@ AcpiTbLoadNamespace (
     /* Load any SSDT or PSDT tables. Note: Loop leaves tables locked */
 
     (void) AcpiUtAcquireMutex (ACPI_MTX_TABLES);
-    for (i = 2; i < AcpiGbl_RootTableList.Count; ++i)
+    for (i = 2; i < AcpiGbl_RootTableList.CurrentTableCount; ++i)
     {
         if ((!ACPI_COMPARE_NAME (&(AcpiGbl_RootTableList.Tables[i].Signature),
                     ACPI_SIG_SSDT) &&

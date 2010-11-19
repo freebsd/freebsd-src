@@ -122,13 +122,7 @@
 
 /* Local prototypes */
 
-static void
-FlOpenFile (
-    UINT32                  FileId,
-    char                    *Filename,
-    char                    *Mode);
-
-FILE *
+static FILE *
 FlOpenIncludeWithPrefix (
     char                    *PrefixDir,
     char                    *Filename);
@@ -212,7 +206,7 @@ FlFileError (
  *
  ******************************************************************************/
 
-static void
+void
 FlOpenFile (
     UINT32                  FileId,
     char                    *Filename,
@@ -231,6 +225,36 @@ FlOpenFile (
         FlFileError (FileId, ASL_MSG_OPEN);
         AslAbort ();
     }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    FlGetFileSize
+ *
+ * PARAMETERS:  FileId              - Index into file info array
+ *
+ * RETURN:      File Size
+ *
+ * DESCRIPTION: Get current file size. Uses seek-to-EOF. File must be open.
+ *
+ ******************************************************************************/
+
+UINT32
+FlGetFileSize (
+    UINT32                  FileId)
+{
+    FILE                    *fp;
+    UINT32                  FileSize;
+
+
+    fp = Gbl_Files[FileId].Handle;
+
+    fseek (fp, 0, SEEK_END);
+    FileSize = (UINT32) ftell (fp);
+    fseek (fp, 0, SEEK_SET);
+
+    return (FileSize);
 }
 
 
@@ -522,7 +546,7 @@ FlAddIncludeDirectory (
  *
  ******************************************************************************/
 
-FILE *
+static FILE *
 FlOpenIncludeWithPrefix (
     char                    *PrefixDir,
     char                    *Filename)
@@ -744,6 +768,55 @@ FlOpenMiscOutputFiles (
     char                    *Filename;
 
 
+    /* Create/Open a hex output file if asked */
+
+    if (Gbl_HexOutputFlag)
+    {
+        Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_HEX_DUMP);
+        if (!Filename)
+        {
+            AslCommonError (ASL_ERROR, ASL_MSG_LISTING_FILENAME,
+                0, 0, 0, 0, NULL, NULL);
+            return (AE_ERROR);
+        }
+
+        /* Open the hex file, text mode */
+
+        FlOpenFile (ASL_FILE_HEX_OUTPUT, Filename, "w+");
+
+        AslCompilerSignon (ASL_FILE_HEX_OUTPUT);
+        AslCompilerFileHeader (ASL_FILE_HEX_OUTPUT);
+    }
+
+    /* Create/Open a debug output file if asked */
+
+    if (Gbl_DebugFlag)
+    {
+        Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_DEBUG);
+        if (!Filename)
+        {
+            AslCommonError (ASL_ERROR, ASL_MSG_DEBUG_FILENAME,
+                0, 0, 0, 0, NULL, NULL);
+            return (AE_ERROR);
+        }
+
+        /* Open the debug file as STDERR, text mode */
+
+        /* TBD: hide this behind a FlReopenFile function */
+
+        Gbl_Files[ASL_FILE_DEBUG_OUTPUT].Filename = Filename;
+        Gbl_Files[ASL_FILE_DEBUG_OUTPUT].Handle =
+            freopen (Filename, "w+t", stderr);
+
+        AslCompilerSignon (ASL_FILE_DEBUG_OUTPUT);
+        AslCompilerFileHeader (ASL_FILE_DEBUG_OUTPUT);
+    }
+
+    if (Gbl_FileType == ASL_INPUT_TYPE_ASCII_DATA)
+    {
+        return (AE_OK);
+    }
+
     /* Create/Open a combined source output file */
 
     Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_SOURCE);
@@ -863,26 +936,6 @@ FlOpenMiscOutputFiles (
         AslCompilerFileHeader (ASL_FILE_C_INCLUDE_OUTPUT);
     }
 
-    /* Create/Open a hex output file if asked */
-
-    if (Gbl_HexOutputFlag)
-    {
-        Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_HEX_DUMP);
-        if (!Filename)
-        {
-            AslCommonError (ASL_ERROR, ASL_MSG_LISTING_FILENAME,
-                0, 0, 0, 0, NULL, NULL);
-            return (AE_ERROR);
-        }
-
-        /* Open the hex file, text mode */
-
-        FlOpenFile (ASL_FILE_HEX_OUTPUT, Filename, "w+");
-
-        AslCompilerSignon (ASL_FILE_HEX_OUTPUT);
-        AslCompilerFileHeader (ASL_FILE_HEX_OUTPUT);
-    }
-
     /* Create a namespace output file if asked */
 
     if (Gbl_NsOutputFlag)
@@ -901,30 +954,6 @@ FlOpenMiscOutputFiles (
 
         AslCompilerSignon (ASL_FILE_NAMESPACE_OUTPUT);
         AslCompilerFileHeader (ASL_FILE_NAMESPACE_OUTPUT);
-    }
-
-    /* Create/Open a debug output file if asked */
-
-    if (Gbl_DebugFlag)
-    {
-        Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_DEBUG);
-        if (!Filename)
-        {
-            AslCommonError (ASL_ERROR, ASL_MSG_DEBUG_FILENAME,
-                0, 0, 0, 0, NULL, NULL);
-            return (AE_ERROR);
-        }
-
-        /* Open the debug file as STDERR, text mode */
-
-        /* TBD: hide this behind a FlReopenFile function */
-
-        Gbl_Files[ASL_FILE_DEBUG_OUTPUT].Filename = Filename;
-        Gbl_Files[ASL_FILE_DEBUG_OUTPUT].Handle =
-            freopen (Filename, "w+t", stderr);
-
-        AslCompilerSignon (ASL_FILE_DEBUG_OUTPUT);
-        AslCompilerFileHeader (ASL_FILE_DEBUG_OUTPUT);
     }
 
     return (AE_OK);

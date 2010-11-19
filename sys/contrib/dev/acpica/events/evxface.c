@@ -747,14 +747,6 @@ AcpiInstallGpeHandler (
     Handler->Context    = Context;
     Handler->MethodNode = GpeEventInfo->Dispatch.MethodNode;
 
-    /* Disable the GPE before installing the handler */
-
-    Status = AcpiEvDisableGpe (GpeEventInfo);
-    if (ACPI_FAILURE (Status))
-    {
-        goto UnlockAndExit;
-    }
-
     /* Install the handler */
 
     Flags = AcpiOsAcquireLock (AcpiGbl_GpeLock);
@@ -842,14 +834,6 @@ AcpiRemoveGpeHandler (
     if (GpeEventInfo->Dispatch.Handler->Address != Address)
     {
         Status = AE_BAD_PARAMETER;
-        goto UnlockAndExit;
-    }
-
-    /* Disable the GPE before removing the handler */
-
-    Status = AcpiEvDisableGpe (GpeEventInfo);
-    if (ACPI_FAILURE (Status))
-    {
         goto UnlockAndExit;
     }
 
