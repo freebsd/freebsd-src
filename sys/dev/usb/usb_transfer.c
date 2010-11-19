@@ -3057,7 +3057,7 @@ usbd_get_std_packet_size(struct usb_std_packet_size *ptr,
 	};
 
 	static const uint16_t bulk_min[USB_SPEED_MAX] = {
-		[USB_SPEED_LOW] = 0,	/* not supported */
+		[USB_SPEED_LOW] = 8,
 		[USB_SPEED_FULL] = 8,
 		[USB_SPEED_HIGH] = 512,
 		[USB_SPEED_VARIABLE] = 512,
