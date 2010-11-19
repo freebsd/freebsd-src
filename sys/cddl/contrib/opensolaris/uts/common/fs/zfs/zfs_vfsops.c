@@ -1555,7 +1555,7 @@ zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp)
 	int 		err;
 
 	/*
-	 * zfs_zget() can't operate on virtual entires like .zfs/ or
+	 * zfs_zget() can't operate on virtual entries like .zfs/ or
 	 * .zfs/snapshot/ directories, that's why we return EOPNOTSUPP.
 	 * This will make NFS to switch to LOOKUP instead of using VGET.
 	 */
