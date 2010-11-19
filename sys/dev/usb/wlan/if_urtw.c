@@ -1833,6 +1833,7 @@ urtw_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	struct ieee80211com *ic = vap->iv_ic;
 	struct urtw_softc *sc = ic->ic_ifp->if_softc;
 	struct urtw_vap *uvp = URTW_VAP(vap);
+	struct ieee80211_node *ni;
 	usb_error_t error = 0;
 
 	DPRINTF(sc, URTW_DEBUG_STATE, "%s: %s -> %s\n", __func__,
@@ -1853,8 +1854,6 @@ urtw_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	case IEEE80211_S_ASSOC:
 		break;
 	case IEEE80211_S_RUN:
-		struct ieee80211_node *ni;
-
 		ni = ieee80211_ref_node(vap->iv_bss);
 		/* setting bssid.  */
 		urtw_write32_m(sc, URTW_BSSID, ((uint32_t *)ni->ni_bssid)[0]);
