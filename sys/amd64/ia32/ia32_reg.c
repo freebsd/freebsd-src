@@ -147,7 +147,7 @@ fill_fpregs32(struct thread *td, struct fpreg32 *regs)
 {
 	struct save87 *sv_87 = (struct save87 *)regs;
 	struct env87 *penv_87 = &sv_87->sv_env;
-	struct savefpu *sv_fpu = &td->td_pcb->pcb_save;
+	struct savefpu *sv_fpu = &td->td_pcb->pcb_user_save;
 	struct envxmm *penv_xmm = &sv_fpu->sv_env;
 	int i;
 
@@ -182,7 +182,7 @@ set_fpregs32(struct thread *td, struct fpreg32 *regs)
 {
 	struct save87 *sv_87 = (struct save87 *)regs;
 	struct env87 *penv_87 = &sv_87->sv_env;
-	struct savefpu *sv_fpu = &td->td_pcb->pcb_save;
+	struct savefpu *sv_fpu = &td->td_pcb->pcb_user_save;
 	struct envxmm *penv_xmm = &sv_fpu->sv_env;
 	int i;
 

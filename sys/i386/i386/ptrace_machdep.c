@@ -51,7 +51,7 @@ cpu_ptrace(struct thread *td, int req, void *addr, int data)
 	if (!cpu_fxsr)
 		return (EINVAL);
 
-	fpstate = &td->td_pcb->pcb_save.sv_xmm;
+	fpstate = &td->td_pcb->pcb_user_save.sv_xmm;
 	switch (req) {
 	case PT_GETXMMREGS:
 		error = copyout(fpstate, addr, sizeof(*fpstate));

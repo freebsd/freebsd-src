@@ -1964,7 +1964,7 @@ int
 fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
-	fill_fpregs_xmm(&td->td_pcb->pcb_save, fpregs);
+	fill_fpregs_xmm(&td->td_pcb->pcb_user_save, fpregs);
 	return (0);
 }
 
@@ -1973,7 +1973,7 @@ int
 set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
-	set_fpregs_xmm(fpregs, &td->td_pcb->pcb_save);
+	set_fpregs_xmm(fpregs, &td->td_pcb->pcb_user_save);
 	return (0);
 }
 
@@ -2088,7 +2088,8 @@ static void
 get_fpcontext(struct thread *td, mcontext_t *mcp)
 {
 
-	mcp->mc_ownedfp = fpugetregs(td, (struct savefpu *)&mcp->mc_fpstate);
+	mcp->mc_ownedfp = fpugetuserregs(td,
+	    (struct savefpu *)&mcp->mc_fpstate);
 	mcp->mc_fpformat = fpuformat();
 }
 
@@ -2106,14 +2107,9 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 		fpstate_drop(td);
 	else if (mcp->mc_ownedfp == _MC_FPOWNED_FPU ||
 	    mcp->mc_ownedfp == _MC_FPOWNED_PCB) {
-		/*
-		 * XXX we violate the dubious requirement that fpusetregs()
-		 * be called with interrupts disabled.
-		 * XXX obsolete on trap-16 systems?
-		 */
 		fpstate = (struct savefpu *)&mcp->mc_fpstate;
 		fpstate->sv_env.en_mxcsr &= cpu_mxcsr_mask;
-		fpusetregs(td, fpstate);
+		fpusetuserregs(td, fpstate);
 	} else
 		return (EINVAL);
 	return (0);
@@ -2122,9 +2118,9 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 void
 fpstate_drop(struct thread *td)
 {
-	register_t s;
 
-	s = intr_disable();
+	KASSERT(PCB_USER_FPU(td->td_pcb), ("fpstate_drop: kernel-owned fpu"));
+	critical_enter();
 	if (PCPU_GET(fpcurthread) == td)
 		fpudrop();
 	/*
@@ -2137,8 +2133,9 @@ fpstate_drop(struct thread *td)
 	 * sendsig() is the only caller of fpugetregs()... perhaps we just
 	 * have too many layers.
 	 */
-	curthread->td_pcb->pcb_flags &= ~PCB_FPUINITDONE;
-	intr_restore(s);
+	curthread->td_pcb->pcb_flags &= ~(PCB_FPUINITDONE |
+	    PCB_USERFPUINITDONE);
+	critical_exit();
 }
 
 int

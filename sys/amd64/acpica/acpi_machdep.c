@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/sysctl.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
@@ -71,7 +72,6 @@ acpi_machdep_init(device_t dev)
 	STAILQ_INSERT_TAIL(&sc->apm_cdevs, &acpi_clone, entries);
 	ACPI_UNLOCK(acpi);
 	sc->acpi_clone = &acpi_clone;
-	acpi_install_wakeup_handler(sc);
 
 	if (intr_model != ACPI_INTR_PIC)
 		acpi_SetIntrModel(intr_model);
@@ -363,13 +363,20 @@ nexus_acpi_probe(device_t dev)
 static int
 nexus_acpi_attach(device_t dev)
 {
+	device_t acpi_dev;
+	int error;
 
 	nexus_init_resources();
 	bus_generic_probe(dev);
-	if (BUS_ADD_CHILD(dev, 10, "acpi", 0) == NULL)
+	acpi_dev = BUS_ADD_CHILD(dev, 10, "acpi", 0);
+	if (acpi_dev == NULL)
 		panic("failed to add acpi0 device");
 
-	return (bus_generic_attach(dev));
+	error = bus_generic_attach(dev);
+	if (error == 0)
+		acpi_install_wakeup_handler(device_get_softc(acpi_dev));
+
+	return (error);
 }
 
 static device_method_t nexus_acpi_methods[] = {

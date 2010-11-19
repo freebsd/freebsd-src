@@ -307,12 +307,12 @@ lapic_setup(int boot)
 {
 	struct lapic *la;
 	u_int32_t maxlvt;
-	register_t eflags;
+	register_t saveintr;
 	char buf[MAXCOMLEN + 1];
 
 	la = &lapics[lapic_id()];
 	KASSERT(la->la_present, ("missing APIC structure"));
-	eflags = intr_disable();
+	saveintr = intr_disable();
 	maxlvt = (lapic->version & APIC_VER_MAXLVT) >> MAXLVTSHIFT;
 
 	/* Initialize the TPR to allow all interrupts. */
@@ -355,7 +355,7 @@ lapic_setup(int boot)
 	if (maxlvt >= LVT_CMCI)
 		lapic->lvt_cmci = lvt_mode(la, LVT_CMCI, lapic->lvt_cmci);
 	    
-	intr_restore(eflags);
+	intr_restore(saveintr);
 }
 
 void
@@ -1390,7 +1390,7 @@ lapic_ipi_wait(int delay)
 void
 lapic_ipi_raw(register_t icrlo, u_int dest)
 {
-	register_t value, eflags;
+	register_t value, saveintr;
 
 	/* XXX: Need more sanity checking of icrlo? */
 	KASSERT(lapic != NULL, ("%s called too early", __func__));
@@ -1400,7 +1400,7 @@ lapic_ipi_raw(register_t icrlo, u_int dest)
 	    ("%s: reserved bits set in ICR LO register", __func__));
 
 	/* Set destination in ICR HI register if it is being used. */
-	eflags = intr_disable();
+	saveintr = intr_disable();
 	if ((icrlo & APIC_DEST_MASK) == APIC_DEST_DESTFLD) {
 		value = lapic->icr_hi;
 		value &= ~APIC_ID_MASK;
@@ -1413,7 +1413,7 @@ lapic_ipi_raw(register_t icrlo, u_int dest)
 	value &= APIC_ICRLO_RESV_MASK;
 	value |= icrlo;
 	lapic->icr_lo = value;
-	intr_restore(eflags);
+	intr_restore(saveintr);
 }
 
 #define	BEFORE_SPIN	1000000
