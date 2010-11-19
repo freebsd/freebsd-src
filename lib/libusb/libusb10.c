@@ -25,17 +25,16 @@
  * SUCH DAMAGE.
  */
 
+#include <assert.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <poll.h>
 #include <pthread.h>
-#include <time.h>
 #include <errno.h>
 #include <sys/ioctl.h>
-#include <sys/filio.h>
+#include <sys/fcntl.h>
 #include <sys/queue.h>
-#include <sys/endian.h>
 
 #define	libusb_device_handle libusb20_device
 
@@ -75,6 +74,7 @@ libusb_init(libusb_context **context)
 {
 	struct libusb_context *ctx;
 	char *debug;
+	int flag;
 	int ret;
 
 	ctx = malloc(sizeof(*ctx));
@@ -105,10 +105,12 @@ libusb_init(libusb_context **context)
 		return (LIBUSB_ERROR_OTHER);
 	}
 	/* set non-blocking mode on the control pipe to avoid deadlock */
-	ret = 1;
-	ioctl(ctx->ctrl_pipe[0], FIONBIO, &ret);
-	ret = 1;
-	ioctl(ctx->ctrl_pipe[1], FIONBIO, &ret);
+	flag = 1;
+	ret = fcntl(ctx->ctrl_pipe[0], O_NONBLOCK, &flag);
+	assert(ret != -1 && "Couldn't set O_NONBLOCK for ctx->ctrl_pipe[0]");
+	flag = 1;
+	ret = fcntl(ctx->ctrl_pipe[1], O_NONBLOCK, &flag);
+	assert(ret != -1 && "Couldn't set O_NONBLOCK for ctx->ctrl_pipe[1]");
 
 	libusb10_add_pollfd(ctx, &ctx->ctx_poll, NULL, ctx->ctrl_pipe[0], POLLIN);
 
