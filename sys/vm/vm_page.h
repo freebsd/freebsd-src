@@ -142,7 +142,6 @@ struct vm_page {
  */
 #define	VPO_BUSY	0x0001	/* page is in transit */
 #define	VPO_WANTED	0x0002	/* someone is waiting for page */
-#define	VPO_CLEANCHK	0x0100	/* page will be checked for cleaning */
 #define	VPO_SWAPINPROG	0x0200	/* swap I/O in progress on page */
 #define	VPO_NOSYNC	0x0400	/* do not collect for syncer */
 
