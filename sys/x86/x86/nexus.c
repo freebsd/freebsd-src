@@ -41,13 +41,18 @@ __FBSDID("$FreeBSD$");
  * and I/O memory address space.
  */
 
+#ifdef __amd64__
+#define	DEV_APIC
+#else
 #include "opt_apic.h"
+#endif
 #include "opt_isa.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/linker.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <machine/bus.h>
@@ -60,8 +65,10 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <machine/pmap.h>
 
+#include <machine/metadata.h>
 #include <machine/nexusvar.h>
 #include <machine/resource.h>
+#include <machine/pc/bios.h>
 
 #ifdef DEV_APIC
 #include "pcib_if.h"
@@ -72,10 +79,20 @@ __FBSDID("$FreeBSD$");
 #ifdef PC98
 #include <pc98/cbus/cbus.h>
 #else
-#include <i386/isa/isa.h>
+#include <x86/isa/isa.h>
 #endif
 #endif
 #include <sys/rtprio.h>
+
+#ifdef __amd64__
+#define	BUS_SPACE_IO	AMD64_BUS_SPACE_IO
+#define	BUS_SPACE_MEM	AMD64_BUS_SPACE_MEM
+#else
+#define	BUS_SPACE_IO	I386_BUS_SPACE_IO
+#define	BUS_SPACE_MEM	I386_BUS_SPACE_MEM
+#endif
+
+#define	ELF_KERN_STR	("elf"__XSTRING(__ELF_WORD_SIZE)" kernel")
 
 static MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
 
@@ -416,7 +433,7 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 #else
 		rman_set_bushandle(r, rman_get_start(r));
 #endif
-		rman_set_bustag(r, I386_BUS_SPACE_IO);
+		rman_set_bustag(r, BUS_SPACE_IO);
 		break;
 	case SYS_RES_MEMORY:
 #ifdef PC98
@@ -427,7 +444,7 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 #endif
 		vaddr = pmap_mapdev(rman_get_start(r), rman_get_size(r));
 		rman_set_virtual(r, vaddr);
-		rman_set_bustag(r, I386_BUS_SPACE_MEM);
+		rman_set_bustag(r, BUS_SPACE_MEM);
 #ifdef PC98
 		/* PC-98: the type of bus_space_handle_t is the structure. */
 		bh->bsh_base = (bus_addr_t) vaddr;
@@ -652,39 +669,81 @@ ram_probe(device_t dev)
 static int
 ram_attach(device_t dev)
 {
+	struct bios_smap *smapbase, *smap, *smapend;
 	struct resource *res;
 	vm_paddr_t *p;
-	int error, i, rid;
+	caddr_t kmdp;
+	uint32_t smapsize;
+	int error, rid;
+
+	/* Retrieve the system memory map from the loader. */
+	kmdp = preload_search_by_type("elf kernel");
+	if (kmdp == NULL)
+		kmdp = preload_search_by_type(ELF_KERN_STR);  
+	if (kmdp != NULL)
+		smapbase = (struct bios_smap *)preload_search_info(kmdp,
+		    MODINFO_METADATA | MODINFOMD_SMAP);
+	else
+		smapbase = NULL;
+	if (smapbase != NULL) {
+		smapsize = *((u_int32_t *)smapbase - 1);
+		smapend = (struct bios_smap *)((uintptr_t)smapbase + smapsize);
+
+		rid = 0;
+		for (smap = smapbase; smap < smapend; smap++) {
+			if (smap->type != SMAP_TYPE_MEMORY ||
+			    smap->length == 0)
+				continue;
+#ifdef __i386__
+			/*
+			 * Resources use long's to track resources, so
+			 * we can't include memory regions above 4GB.
+			 */
+			if (smap->base > ~0ul)
+				continue;
+#endif
+			error = bus_set_resource(dev, SYS_RES_MEMORY, rid,
+			    smap->base, smap->length);
+			if (error)
+				panic(
+				    "ram_attach: resource %d failed set with %d",
+				    rid, error);
+			res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+			    0);
+			if (res == NULL)
+				panic("ram_attach: resource %d failed to attach",
+				    rid);
+			rid++;
+		}
+		return (0);
+	}
 
 	/*
-	 * We use the dump_avail[] array rather than phys_avail[] for
-	 * the memory map as phys_avail[] contains holes for kernel
-	 * memory, page 0, the message buffer, and the dcons buffer.
-	 * We test the end address in the loop instead of the start
-	 * since the start address for the first segment is 0.
-	 *
-	 * XXX: It would be preferable to use the SMAP if it exists
-	 * instead since if the SMAP is very fragmented we may not
-	 * include some memory regions in dump_avail[] and phys_avail[].
+	 * If the system map is not available, fall back to using
+	 * dump_avail[].  We use the dump_avail[] array rather than
+	 * phys_avail[] for the memory map as phys_avail[] contains
+	 * holes for kernel memory, page 0, the message buffer, and
+	 * the dcons buffer.  We test the end address in the loop
+	 * instead of the start since the start address for the first
+	 * segment is 0.
 	 */
-	for (i = 0, p = dump_avail; p[1] != 0; i++, p += 2) {
-		rid = i;
+	for (rid = 0, p = dump_avail; p[1] != 0; rid++, p += 2) {
 #ifdef PAE
 		/*
 		 * Resources use long's to track resources, so we can't
 		 * include memory regions above 4GB.
 		 */
-		if (p[0] >= ~0ul)
+		if (p[0] > ~0ul)
 			break;
 #endif
 		error = bus_set_resource(dev, SYS_RES_MEMORY, rid, p[0],
 		    p[1] - p[0]);
 		if (error)
-			panic("ram_attach: resource %d failed set with %d", i,
+			panic("ram_attach: resource %d failed set with %d", rid,
 			    error);
 		res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 0);
 		if (res == NULL)
-			panic("ram_attach: resource %d failed to attach", i);
+			panic("ram_attach: resource %d failed to attach", rid);
 	}
 	return (0);
 }
