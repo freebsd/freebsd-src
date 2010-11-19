@@ -1875,7 +1875,12 @@ pmap_release(pmap_t pmap)
 		m = ptdpg[i];
 		ma = xpmap_ptom(VM_PAGE_TO_PHYS(m));
 		/* unpinning L1 and L2 treated the same */
+#if 0
                 xen_pgd_unpin(ma);
+#else
+		if (i == NPGPTD)
+	                xen_pgd_unpin(ma);
+#endif
 #ifdef PAE
 		if (i < NPGPTD)
 			KASSERT(xpmap_ptom(VM_PAGE_TO_PHYS(m)) == (pmap->pm_pdpt[i] & PG_FRAME),
