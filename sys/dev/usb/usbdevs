@@ -560,6 +560,7 @@ vendor DYNASTREAM	0x0fcf	Dynastream Innovations
 vendor QUALCOMM		0x1004	Qualcomm
 vendor APACER		0x1005	Apacer
 vendor MOTOROLA4	0x100d	Motorola
+vendor AIRPLUS		0x1011  Airplus
 vendor DESKNOTE		0x1019	Desknote
 vendor GIGABYTE		0x1044	GIGABYTE
 vendor WESTERN		0x1058	Western Digital
@@ -574,7 +575,6 @@ vendor SILABS		0x10c4	Silicon Labs
 vendor SILABS3		0x10c5	Silicon Labs
 vendor SILABS4		0x10ce	Silicon Labs
 vendor ACTIONS		0x10d6  Actions
-vendor AIRPLUS		0x1011  Airplus
 vendor ANALOG		0x1110	Analog Devices
 vendor TENX		0x1130	Ten X Technology, Inc.
 vendor ISSC		0x1131	Integrated System Solution Corp.
@@ -2161,11 +2161,10 @@ product MICROSOFT MN110		0x007a	10/100 USB NIC
 product MICROSOFT WLINTELLIMOUSE 0x008c	Wireless Optical IntelliMouse
 product MICROSOFT WLNOTEBOOK	0x00b9	Wireless Optical Mouse (Model 1023)
 product MICROSOFT COMFORT3000	0x00d1	Comfort Optical Mouse 3000 (Model 1043)
-product MICROSOFT WLNOTEBOOK2	0x00e1	Wireless Optical Mouse 3000 (Model 1056)
 product MICROSOFT WLNOTEBOOK3	0x00d2	Wireless Optical Mouse 3000 (Model 1049)
-product MICROSOFT WLUSBMOUSE	0x00b9	Wireless USB Mouse
-product MICROSOFT XBOX360	0x0292	XBOX 360 WLAN
 product MICROSOFT NATURAL4000	0x00db	Natural Ergonomic Keyboard 4000
+product MICROSOFT WLNOTEBOOK2	0x00e1	Wireless Optical Mouse 3000 (Model 1056)
+product MICROSOFT XBOX360	0x0292	XBOX 360 WLAN
 
 /* Microtech products */
 product MICROTECH SCSIDB25	0x0004	USB-SCSI-DB25
@@ -3229,15 +3228,15 @@ product UNKNOWN4 USBMEMSTICK	0x6025	Flash Disk CBM
 /* Unknown vendors */
 product UNKNOWN5 USB2IDEBRIDGE	0x00ff	USB 2.0 ATA/SATA Bridge
 
+/* USI products */
+product USI MC60		0x10c5	MC60 Serial
+
 /* U.S. Robotics products */
 product USR USR5422		0x0118	USR5422 WLAN
 product USR USR5423		0x0121	USR5423 WLAN
 
 /* VIA Technologies products */
 product VIA USB2IDEBRIDGE	0x6204	USB 2.0 IDE Bridge
-
-/* USI products */
-product USI MC60		0x10c5	MC60 Serial
 
 /* Vaisala products */
 product VAISALA CABLE		0x0200	USB Interface cable
@@ -3308,9 +3307,6 @@ product XIRLINK PCCAM		0x8080	IBM PC Camera
 /* Xyratex products */
 product XYRATEX PRISM_GT_1	0x2000	PrismGT USB 2.0 WLAN
 product XYRATEX PRISM_GT_2	0x2002	PrismGT USB 2.0 WLAN
-
-/* Y-E Data products */
-product YEDATA FLASHBUSTERU	0x0000	Flashbuster-U
 
 /* Yamaha products */
 product YAMAHA UX256		0x1000	UX256 MIDI I/F
