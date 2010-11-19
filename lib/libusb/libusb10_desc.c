@@ -24,11 +24,12 @@
  * SUCH DAMAGE.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
 #include <sys/queue.h>
 
 #define	libusb_device_handle libusb20_device
+
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "libusb20.h"
 #include "libusb20_desc.h"
