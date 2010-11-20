@@ -194,7 +194,7 @@ sctp_notify_mbuf(struct sctp_inpcb *inp,
 		 * mtu is. Rats we will have to guess (in a educated fashion
 		 * of course)
 		 */
-		nxtsz = find_next_best_mtu(totsz);
+		nxtsz = sctp_get_prev_mtu(totsz);
 	}
 	/* Stop any PMTU timer */
 	if (SCTP_OS_TIMER_PENDING(&net->pmtu_timer.timer)) {
