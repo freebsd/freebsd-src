@@ -2314,6 +2314,7 @@ acpi_sleep_force(void *arg)
 int
 acpi_ReqSleepState(struct acpi_softc *sc, int state)
 {
+#if defined(__amd64__) || defined(__i386__)
 #if defined(__i386__)
     struct apm_clone_data *clone;
 #endif
@@ -2326,7 +2327,6 @@ acpi_ReqSleepState(struct acpi_softc *sc, int state)
 
     ACPI_LOCK(acpi);
 
-#if defined(__amd64__) || defined(__i386__)
     /* If a suspend request is already in progress, just return. */
     if (sc->acpi_next_sstate != 0) {
     	ACPI_UNLOCK(acpi);
