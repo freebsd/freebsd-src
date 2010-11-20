@@ -218,9 +218,6 @@ extern u_int32_t KERNend;
 
 #ifdef PAE
 pt_entry_t pg_nx;
-#if !defined(XEN) 
-static uma_zone_t pdptzone;
-#endif
 #endif
 
 static int pat_works;			/* Is page attribute table sane? */
@@ -321,13 +318,6 @@ static boolean_t pmap_is_prefaultable_locked(pmap_t pmap, vm_offset_t addr);
 static void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int mode);
 
 static __inline void pagezero(void *page);
-
-#if defined(PAE) && !defined(XEN)
-static void *pmap_pdpt_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait);
-#endif
-#ifndef XEN
-static void pmap_set_pg(void);
-#endif
 
 CTASSERT(1 << PDESHIFT == sizeof(pd_entry_t));
 CTASSERT(1 << PTESHIFT == sizeof(pt_entry_t));
@@ -559,47 +549,6 @@ pmap_init_pat(void)
 	wrmsr(MSR_PAT, pat_msr);
 }
 
-#ifndef XEN
-/*
- * Set PG_G on kernel pages.  Only the BSP calls this when SMP is turned on.
- */
-static void
-pmap_set_pg(void)
-{
-	pd_entry_t pdir;
-	pt_entry_t *pte;
-	vm_offset_t va, endva;
-	int i; 
-
-	if (pgeflag == 0)
-		return;
-
-	i = KERNLOAD/NBPDR;
-	endva = KERNBASE + KERNend;
-
-	if (pseflag) {
-		va = KERNBASE + KERNLOAD;
-		while (va  < endva) {
-			pdir = kernel_pmap->pm_pdir[KPTDI+i];
-			pdir |= pgeflag;
-			kernel_pmap->pm_pdir[KPTDI+i] = PTD[KPTDI+i] = pdir;
-			invltlb();	/* Play it safe, invltlb() every time */
-			i++;
-			va += NBPDR;
-		}
-	} else {
-		va = (vm_offset_t)btext;
-		while (va < endva) {
-			pte = vtopte(va);
-			if (*pte & PG_V)
-				*pte |= pgeflag;
-			invltlb();	/* Play it safe, invltlb() every time */
-			va += PAGE_SIZE;
-		}
-	}
-}
-#endif
-
 /*
  * Initialize a vm_page's machine-dependent fields.
  */
@@ -610,18 +559,6 @@ pmap_page_init(vm_page_t m)
 	TAILQ_INIT(&m->md.pv_list);
 	m->md.pat_mode = PAT_WRITE_BACK;
 }
-
-#if defined(PAE) && !defined(XEN)
-static void *
-pmap_pdpt_allocf(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
-{
-
-	/* Inform UMA that this allocator uses kernel_map/object. */
-	*flags = UMA_SLAB_KERNEL;
-	return ((void *)kmem_alloc_contig(kernel_map, bytes, wait, 0x0ULL,
-	    0xffffffffULL, 1, 0, VM_MEMATTR_DEFAULT));
-}
-#endif
 
 /*
  * ABuse the pte nodes for unmapped kva to thread a kva freelist through.
@@ -745,12 +682,6 @@ pmap_init(void)
 	if (pv_chunkbase == NULL)
 		panic("pmap_init: not enough kvm for pv chunks");
 	pmap_ptelist_init(&pv_vafree, pv_chunkbase, pv_maxchunks);
-#if defined(PAE) && !defined(XEN)
-	pdptzone = uma_zcreate("PDPT", NPGPTD * sizeof(pdpt_entry_t), NULL,
-	    NULL, NULL, NULL, (NPGPTD * sizeof(pdpt_entry_t)) - 1,
-	    UMA_ZONE_VM | UMA_ZONE_NOFREE);
-	uma_zone_set_allocf(pdptzone, pmap_pdpt_allocf);
-#endif
 }
 
 
@@ -1541,17 +1472,8 @@ pmap_pinit(pmap_t pmap)
 			PMAP_LOCK_DESTROY(pmap);
 			return (0);
 		}
-#if defined(XEN) && defined(PAE)	
+#ifdef PAE
 		pmap->pm_pdpt = (pd_entry_t *)kmem_alloc_nofault(kernel_map, 1);
-#endif
-		
-#if defined(PAE) && !defined(XEN)
-		pmap->pm_pdpt = uma_zalloc(pdptzone, M_WAITOK | M_ZERO);
-		KASSERT(((vm_offset_t)pmap->pm_pdpt &
-		    ((NPGPTD * sizeof(pdpt_entry_t)) - 1)) == 0,
-		    ("pmap_pinit: pdpt misaligned"));
-		KASSERT(pmap_kextract((vm_offset_t)pmap->pm_pdpt) < (4ULL<<30),
-		    ("pmap_pinit: pdpt above 4g"));
 #endif
 	}
 
@@ -1581,11 +1503,9 @@ pmap_pinit(pmap_t pmap)
 
 	bcopy(PTD + KPTDI, pmap->pm_pdir + KPTDI, nkpt * sizeof(pd_entry_t));
 #ifdef PAE
-#ifdef XEN
 	pmap_qenter((vm_offset_t)pmap->pm_pdpt, &ptdpg[NPGPTD], 1);
 	if ((ptdpg[NPGPTD]->flags & PG_ZERO) == 0)
 		bzero(pmap->pm_pdpt, PAGE_SIZE);
-#endif	
 	for (i = 0; i < NPGPTD; i++) {
 		vm_paddr_t ma;
 		
@@ -1594,7 +1514,6 @@ pmap_pinit(pmap_t pmap)
 
 	}
 #endif	
-#ifdef XEN
 	for (i = 0; i < NPGPTD; i++) {
 		pt_entry_t *pd;
 		vm_paddr_t ma;
@@ -1619,7 +1538,6 @@ pmap_pinit(pmap_t pmap)
 	}
 	xen_flush_queue();
 	vm_page_unlock_queues();
-#endif
 	pmap->pm_active = 0;
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
@@ -1845,15 +1763,11 @@ pmap_release(pmap_t pmap)
 	vm_page_t m, ptdpg[2*NPGPTD+1];
 	vm_paddr_t ma;
 	int i;
-#ifdef XEN
 #ifdef PAE	
 	int npgptd = NPGPTD + 1;
 #else
 	int npgptd = NPGPTD;
 #endif
-#else 
-	int npgptd = NPGPTD;
-#endif	
 	KASSERT(pmap->pm_stats.resident_count == 0,
 	    ("pmap_release: pmap resident count %ld != 0",
 	    pmap->pm_stats.resident_count));
@@ -1867,7 +1781,7 @@ pmap_release(pmap_t pmap)
 	for (i = 0; i < NPGPTD; i++)
 		ptdpg[i] = PHYS_TO_VM_PAGE(vtophys(pmap->pm_pdir + (i*NPDEPG)) & PG_FRAME);
 	pmap_qremove((vm_offset_t)pmap->pm_pdir, NPGPTD);
-#if defined(PAE) && defined(XEN)
+#ifdef PAE
 	ptdpg[NPGPTD] = PHYS_TO_VM_PAGE(vtophys(pmap->pm_pdpt));
 #endif	
 
@@ -2616,21 +2530,10 @@ retry:
 #endif
 
 			if (pbits != obits) {
-#ifdef XEN
 				obits = *pte;
 				PT_SET_VA_MA(pte, pbits, TRUE);
 				if (*pte != pbits)
 					goto retry;
-#else				
-#ifdef PAE
-				if (!atomic_cmpset_64(pte, obits, pbits))
-					goto retry;
-#else
-				if (!atomic_cmpset_int((u_int *)pte, obits,
-				    pbits))
-					goto retry;
-#endif
-#endif
 				if (obits & PG_G)
 					pmap_invalidate_page(pmap, sva);
 				else
@@ -4242,8 +4145,6 @@ pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
 		*addr = ((*addr + PDRMASK) & ~PDRMASK) + superpage_offset;
 }
 
-#ifdef XEN
-
 void
 pmap_suspend()
 {
@@ -4305,8 +4206,6 @@ pmap_resume()
 		HYPERVISOR_mmu_update(mu, 4, NULL, DOMID_SELF);
 	}
 }
-
-#endif
 
 #if defined(PMAP_DEBUG)
 pmap_pid_dump(int pid)
