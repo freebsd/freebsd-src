@@ -661,7 +661,7 @@ vm_object_destroy(vm_object_t object)
 void
 vm_object_terminate(vm_object_t object)
 {
-	vm_page_t p;
+	vm_page_t p, p_next;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 
@@ -701,21 +701,40 @@ vm_object_terminate(vm_object_t object)
 		object->ref_count));
 
 	/*
-	 * Now free any remaining pages. For internal objects, this also
-	 * removes them from paging queues. Don't free wired pages, just
-	 * remove them from the object. 
+	 * Free any remaining pageable pages.  This also removes them from the
+	 * paging queues.  However, don't free wired pages, just remove them
+	 * from the object.  Rather than incrementally removing each page from
+	 * the object, the page and object are reset to any empty state. 
 	 */
-	while ((p = TAILQ_FIRST(&object->memq)) != NULL) {
+	TAILQ_FOREACH_SAFE(p, &object->memq, listq, p_next) {
 		KASSERT(!p->busy && (p->oflags & VPO_BUSY) == 0,
-			("vm_object_terminate: freeing busy page %p "
-			"p->busy = %d, p->oflags %x\n", p, p->busy, p->oflags));
+		    ("vm_object_terminate: freeing busy page %p", p));
 		vm_page_lock(p);
+		/*
+		 * Optimize the page's removal from the object by resetting
+		 * its "object" field.  Specifically, if the page is not
+		 * wired, then the effect of this assignment is that
+		 * vm_page_free()'s call to vm_page_remove() will return
+		 * immediately without modifying the page or the object.
+		 */ 
+		p->object = NULL;
 		if (p->wire_count == 0) {
 			vm_page_free(p);
 			PCPU_INC(cnt.v_pfree);
-		} else
-			vm_page_remove(p);
+		}
 		vm_page_unlock(p);
+	}
+	/*
+	 * If the object contained any pages, then reset it to an empty state.
+	 * None of the object's fields, including "resident_page_count", were
+	 * modified by the preceding loop.
+	 */
+	if (object->resident_page_count != 0) {
+		object->root = NULL;
+		TAILQ_INIT(&object->memq);
+		object->resident_page_count = 0;
+		if (object->type == OBJT_VNODE)
+			vdrop(object->handle);
 	}
 
 #if VM_NRESERVLEVEL > 0
