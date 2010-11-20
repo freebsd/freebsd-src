@@ -133,7 +133,7 @@ struct rule {
 
 /*
  * Text format for the rule string is that a rule consists of a
- * comma-seperated list of elements.  Each element is in the form
+ * comma-separated list of elements.  Each element is in the form
  * idtype:id:protocol:portnumber, and constitutes granting of permission
  * for the specified binding.
  */
