@@ -1355,7 +1355,7 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 	pte = vtopte(sva);
 	endpte = pte + count;
 	while (pte < endpte) {
-		pa = xpmap_ptom(VM_PAGE_TO_PHYS(*ma)) | pgeflag | PG_RW | PG_V | PG_M | PG_A;
+		pa = VM_PAGE_TO_MACH(*ma) | pgeflag | PG_RW | PG_V | PG_M | PG_A;
 
 		mclp->op = __HYPERVISOR_update_va_mapping;
 		mclp->args[0] = va;
@@ -1589,7 +1589,7 @@ pmap_pinit(pmap_t pmap)
 	for (i = 0; i < NPGPTD; i++) {
 		vm_paddr_t ma;
 		
-		ma = xpmap_ptom(VM_PAGE_TO_PHYS(ptdpg[i]));
+		ma = VM_PAGE_TO_MACH(ptdpg[i]);
 		pmap->pm_pdpt[i] = ma | PG_V;
 
 	}
@@ -1599,7 +1599,7 @@ pmap_pinit(pmap_t pmap)
 		pt_entry_t *pd;
 		vm_paddr_t ma;
 		
-		ma = xpmap_ptom(VM_PAGE_TO_PHYS(ptdpg[i]));
+		ma = VM_PAGE_TO_MACH(ptdpg[i]);
 		pd = pmap->pm_pdir + (i * NPDEPG);
 		PT_SET_MA(pd, *vtopte((vm_offset_t)pd) & ~(PG_M|PG_A|PG_U|PG_RW));
 #if 0		
@@ -1612,9 +1612,9 @@ pmap_pinit(pmap_t pmap)
 #endif
 	vm_page_lock_queues();
 	xen_flush_queue();
-	xen_pgdpt_pin(xpmap_ptom(VM_PAGE_TO_PHYS(ptdpg[NPGPTD])));
+	xen_pgdpt_pin(VM_PAGE_TO_MACH(ptdpg[NPGPTD]));
 	for (i = 0; i < NPGPTD; i++) {
-		vm_paddr_t ma = xpmap_ptom(VM_PAGE_TO_PHYS(ptdpg[i]));
+		vm_paddr_t ma = VM_PAGE_TO_MACH(ptdpg[i]);
 		PT_SET_VA_MA(&pmap->pm_pdir[PTDPTDI + i], ma | PG_V | PG_A, FALSE);
 	}
 	xen_flush_queue();
@@ -1669,7 +1669,7 @@ _pmap_allocpte(pmap_t pmap, unsigned int ptepindex, int flags)
 	 */
 	pmap->pm_stats.resident_count++;
 
-	ptema = xpmap_ptom(VM_PAGE_TO_PHYS(m));
+	ptema = VM_PAGE_TO_MACH(m);
 	xen_pt_pin(ptema);
 	PT_SET_VA_MA(&pmap->pm_pdir[ptepindex],
 		(ptema | PG_U | PG_RW | PG_V | PG_A | PG_M), TRUE);
@@ -1873,7 +1873,7 @@ pmap_release(pmap_t pmap)
 
 	for (i = 0; i < npgptd; i++) {
 		m = ptdpg[i];
-		ma = xpmap_ptom(VM_PAGE_TO_PHYS(m));
+		ma = VM_PAGE_TO_MACH(m);
 		/* unpinning L1 and L2 treated the same */
 #if 0
                 xen_pgd_unpin(ma);
@@ -1883,7 +1883,7 @@ pmap_release(pmap_t pmap)
 #endif
 #ifdef PAE
 		if (i < NPGPTD)
-			KASSERT(xpmap_ptom(VM_PAGE_TO_PHYS(m)) == (pmap->pm_pdpt[i] & PG_FRAME),
+			KASSERT(VM_PAGE_TO_MACH(m) == (pmap->pm_pdpt[i] & PG_FRAME),
 			    ("pmap_release: got wrong ptd page"));
 #endif
 		m->wire_count--;
@@ -2673,7 +2673,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	boolean_t invlva;
 
 	CTR6(KTR_PMAP, "pmap_enter: pmap=%08p va=0x%08x access=0x%x ma=0x%08x prot=0x%x wired=%d",
-	    pmap, va, access, xpmap_ptom(VM_PAGE_TO_PHYS(m)), prot, wired);
+	    pmap, va, access, VM_PAGE_TO_MACH(m), prot, wired);
 	va = trunc_page(va);
 	KASSERT(va <= VM_MAX_KERNEL_ADDRESS, ("pmap_enter: toobig"));
 	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
@@ -3364,7 +3364,7 @@ pmap_zero_page(vm_page_t m)
 	if (*sysmaps->CMAP2)
 		panic("pmap_zero_page: CMAP2 busy");
 	sched_pin();
-	PT_SET_MA(sysmaps->CADDR2, PG_V | PG_RW | xpmap_ptom(VM_PAGE_TO_PHYS(m)) | PG_A | PG_M);
+	PT_SET_MA(sysmaps->CADDR2, PG_V | PG_RW | VM_PAGE_TO_MACH(m) | PG_A | PG_M);
 	pagezero(sysmaps->CADDR2);
 	PT_SET_MA(sysmaps->CADDR2, 0);
 	sched_unpin();
@@ -3387,7 +3387,7 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	if (*sysmaps->CMAP2)
 		panic("pmap_zero_page: CMAP2 busy");
 	sched_pin();
-	PT_SET_MA(sysmaps->CADDR2, PG_V | PG_RW | xpmap_ptom(VM_PAGE_TO_PHYS(m)) | PG_A | PG_M);
+	PT_SET_MA(sysmaps->CADDR2, PG_V | PG_RW | VM_PAGE_TO_MACH(m) | PG_A | PG_M);
 
 	if (off == 0 && size == PAGE_SIZE) 
 		pagezero(sysmaps->CADDR2);
@@ -3411,7 +3411,7 @@ pmap_zero_page_idle(vm_page_t m)
 	if (*CMAP3)
 		panic("pmap_zero_page: CMAP3 busy");
 	sched_pin();
-	PT_SET_MA(CADDR3, PG_V | PG_RW | xpmap_ptom(VM_PAGE_TO_PHYS(m)) | PG_A | PG_M);
+	PT_SET_MA(CADDR3, PG_V | PG_RW | VM_PAGE_TO_MACH(m) | PG_A | PG_M);
 	pagezero(CADDR3);
 	PT_SET_MA(CADDR3, 0);
 	sched_unpin();
@@ -3435,8 +3435,8 @@ pmap_copy_page(vm_page_t src, vm_page_t dst)
 	if (*sysmaps->CMAP2)
 		panic("pmap_copy_page: CMAP2 busy");
 	sched_pin();
-	PT_SET_MA(sysmaps->CADDR1, PG_V | xpmap_ptom(VM_PAGE_TO_PHYS(src)) | PG_A);
-	PT_SET_MA(sysmaps->CADDR2, PG_V | PG_RW | xpmap_ptom(VM_PAGE_TO_PHYS(dst)) | PG_A | PG_M);
+	PT_SET_MA(sysmaps->CADDR1, PG_V | VM_PAGE_TO_MACH(src) | PG_A);
+	PT_SET_MA(sysmaps->CADDR2, PG_V | PG_RW | VM_PAGE_TO_MACH(dst) | PG_A | PG_M);
 	bcopy(sysmaps->CADDR1, sysmaps->CADDR2, PAGE_SIZE);
 	PT_SET_MA(sysmaps->CADDR1, 0);
 	PT_SET_MA(sysmaps->CADDR2, 0);
@@ -4063,7 +4063,7 @@ pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 			panic("pmap_page_set_memattr: CMAP2 busy");
 		sched_pin();
 		PT_SET_MA(sysmaps->CADDR2, PG_V | PG_RW |
-		    xpmap_ptom(VM_PAGE_TO_PHYS(m)) | PG_A | PG_M |
+		    VM_PAGE_TO_MACH(m) | PG_A | PG_M |
 		    pmap_cache_bits(m->md.pat_mode, 0));
 		invlcaddr(sysmaps->CADDR2);
 		sva = (vm_offset_t)sysmaps->CADDR2;
