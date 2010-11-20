@@ -633,10 +633,10 @@ showvarscmd(int argc __unused, char **argv __unused)
 
 	qsort(vars, n, sizeof(*vars), var_compare);
 	for (i = 0; i < n; i++) {
-		for (s = vars[i]; *s != '='; s++)
-			out1c(*s);
-		out1c('=');
-		out1qstr(s + 1);
+		s = strchr(vars[i], '=');
+		s++;
+		outbin(vars[i], s - vars[i], out1);
+		out1qstr(s);
 		out1c('\n');
 	}
 	ckfree(vars);
@@ -710,12 +710,15 @@ found:;
 						out1str(cmdname);
 						out1c(' ');
 					}
-					for (p = vp->text ; *p != '=' ; p++)
-						out1c(*p);
+					p = strchr(vp->text, '=');
 					if (values && !(vp->flags & VUNSET)) {
-						out1c('=');
-						out1qstr(p + 1);
-					}
+						p++;
+						outbin(vp->text, p - vp->text,
+						    out1);
+						out1qstr(p);
+					} else
+						outbin(vp->text, p - vp->text,
+						    out1);
 					out1c('\n');
 				}
 			}

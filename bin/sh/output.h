@@ -54,6 +54,7 @@ extern struct output *out1; /* &memout if backquote, otherwise &output */
 extern struct output *out2; /* &memout if backquote with 2>&1, otherwise
 			       &errout */
 
+void outcslow(int, struct output *);
 void out1str(const char *);
 void out1qstr(const char *);
 void out2str(const char *);
@@ -74,7 +75,7 @@ int xwrite(int, const char *, int);
 
 #define outc(c, file)	(--(file)->nleft < 0? (emptyoutbuf(file), *(file)->nextc++ = (c)) : (*(file)->nextc++ = (c)))
 #define out1c(c)	outc(c, out1);
-#define out2c(c)	outc(c, out2);
+#define out2c(c)	outcslow(c, out2);
 
 #define OUTPUT_INCL
 #endif
