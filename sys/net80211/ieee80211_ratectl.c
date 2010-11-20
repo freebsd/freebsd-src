@@ -66,6 +66,14 @@ ieee80211_ratectl_unregister(int type)
 }
 
 void
+ieee80211_ratectl_init(struct ieee80211vap *vap)
+{
+	if (vap->iv_rate == ratectls[IEEE80211_RATECTL_NONE])
+		ieee80211_ratectl_set(vap, IEEE80211_RATECTL_AMRR);
+	vap->iv_rate->ir_init(vap);
+}
+
+void
 ieee80211_ratectl_set(struct ieee80211vap *vap, int type)
 {
 	if (type >= IEEE80211_RATECTL_MAX)
