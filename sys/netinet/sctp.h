@@ -123,6 +123,7 @@ struct sctp_paramhdr {
 #define SCTP_LOCAL_AUTH_CHUNKS 		0x00000103
 #define SCTP_GET_ASSOC_NUMBER           0x00000104	/* ro */
 #define SCTP_GET_ASSOC_ID_LIST          0x00000105	/* ro */
+#define SCTP_TIMEOUTS                   0x00000106
 
 /*
  * user socket options: BSD implementation specific
