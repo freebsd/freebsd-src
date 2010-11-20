@@ -50,8 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_cc_functions.h>
 #include <netinet/sctp_bsd_addr.h>
 
-#define NUMBER_OF_MTU_SIZES 18
-
 
 #ifndef KTR_SCTP
 #define KTR_SCTP KTR_SUBSYS
@@ -753,7 +751,7 @@ sctp_stop_timers_for_shutdown(struct sctp_tcb *stcb)
  * a list of sizes based on typical mtu's, used only if next hop size not
  * returned.
  */
-static int sctp_mtu_sizes[] = {
+static uint32_t sctp_mtu_sizes[] = {
 	68,
 	296,
 	508,
@@ -774,25 +772,42 @@ static int sctp_mtu_sizes[] = {
 	65535
 };
 
-int
-find_next_best_mtu(int totsz)
+/*
+ * Return the largest MTU smaller than val. If there is no
+ * entry, just return val.
+ */
+uint32_t
+sctp_get_prev_mtu(uint32_t val)
 {
-	int i, perfer;
+	uint32_t i;
 
-	/*
-	 * if we are in here we must find the next best fit based on the
-	 * size of the dg that failed to be sent.
-	 */
-	perfer = 0;
-	for (i = 0; i < NUMBER_OF_MTU_SIZES; i++) {
-		if (totsz < sctp_mtu_sizes[i]) {
-			perfer = i - 1;
-			if (perfer < 0)
-				perfer = 0;
+	if (val <= sctp_mtu_sizes[0]) {
+		return (val);
+	}
+	for (i = 1; i < (sizeof(sctp_mtu_sizes) / sizeof(uint32_t)); i++) {
+		if (val <= sctp_mtu_sizes[i]) {
 			break;
 		}
 	}
-	return (sctp_mtu_sizes[perfer]);
+	return (sctp_mtu_sizes[i - 1]);
+}
+
+/*
+ * Return the smallest MTU larger than val. If there is no
+ * entry, just return val.
+ */
+uint32_t
+sctp_get_next_mtu(struct sctp_inpcb *inp, uint32_t val)
+{
+	/* select another MTU that is just bigger than this one */
+	uint32_t i;
+
+	for (i = 0; i < (sizeof(sctp_mtu_sizes) / sizeof(uint32_t)); i++) {
+		if (val < sctp_mtu_sizes[i]) {
+			return (sctp_mtu_sizes[i]);
+		}
+	}
+	return (val);
 }
 
 void
