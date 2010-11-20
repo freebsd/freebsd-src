@@ -563,6 +563,17 @@ struct sctp_sack_info {
 	uint32_t sack_freq;
 };
 
+struct sctp_timeouts {
+	sctp_assoc_t stimo_assoc_id;
+	uint32_t stimo_init;
+	uint32_t stimo_data;
+	uint32_t stimo_sack;
+	uint32_t stimo_shutdown;
+	uint32_t stimo_heartbeat;
+	uint32_t stimo_cookie;
+	uint32_t stimo_shutdownack;
+};
+
 struct sctp_cwnd_args {
 	struct sctp_nets *net;	/* network to *//* FIXME: LP64 issue */
 	uint32_t cwnd_new_value;/* cwnd in k */
