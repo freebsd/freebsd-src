@@ -1218,12 +1218,14 @@ zfs_mount(vfs_t *vfsp)
 	error = zfs_domount(vfsp, osname);
 	PICKUP_GIANT();
 
+#ifdef sun
 	/*
 	 * Add an extra VFS_HOLD on our parent vfs so that it can't
 	 * disappear due to a forced unmount.
 	 */
 	if (error == 0 && ((zfsvfs_t *)vfsp->vfs_data)->z_issnap)
 		VFS_HOLD(mvp->v_vfsp);
+#endif	/* sun */
 
 out:
 	return (error);
@@ -1768,12 +1770,14 @@ zfs_freevfs(vfs_t *vfsp)
 {
 	zfsvfs_t *zfsvfs = vfsp->vfs_data;
 
+#ifdef sun
 	/*
 	 * If this is a snapshot, we have an extra VFS_HOLD on our parent
 	 * from zfs_mount().  Release it here.
 	 */
 	if (zfsvfs->z_issnap)
 		VFS_RELE(zfsvfs->z_parent->z_vfs);
+#endif	/* sun */
 
 	zfsvfs_free(zfsvfs);
 
