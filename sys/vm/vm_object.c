@@ -820,7 +820,6 @@ rescan:
 			continue;
 
 		n = vm_object_page_collect_flush(object, p, pagerflags);
-		KASSERT(n > 0, ("vm_object_page_collect_flush failed"));
 		if (object->generation != curgeneration)
 			goto rescan;
 		np = vm_page_find_least(object, pi + n);
