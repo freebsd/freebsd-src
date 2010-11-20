@@ -4369,7 +4369,7 @@ again:
 			SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
 			sctp_send_shutdown_ack(stcb,
 			    stcb->asoc.primary_destination);
-
+			sctp_stop_timers_for_shutdown(stcb);
 			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNACK,
 			    stcb->sctp_ep, stcb, asoc->primary_destination);
 		}
@@ -5081,7 +5081,7 @@ done_with_it:
 			SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
 			sctp_send_shutdown_ack(stcb,
 			    stcb->asoc.primary_destination);
-
+			sctp_stop_timers_for_shutdown(stcb);
 			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNACK,
 			    stcb->sctp_ep, stcb, asoc->primary_destination);
 			return;

@@ -725,6 +725,31 @@ sctp_audit_log(uint8_t ev, uint8_t fd)
 #endif
 
 /*
+ * sctp_stop_timers_for_shutdown() should be called
+ * when entering the SHUTDOWN_SENT or SHUTDOWN_ACK_SENT
+ * state to make sure that all timers are stopped.
+ */
+void
+sctp_stop_timers_for_shutdown(struct sctp_tcb *stcb)
+{
+	struct sctp_association *asoc;
+	struct sctp_nets *net;
+
+	asoc = &stcb->asoc;
+
+	(void)SCTP_OS_TIMER_STOP(&asoc->hb_timer.timer);
+	(void)SCTP_OS_TIMER_STOP(&asoc->dack_timer.timer);
+	(void)SCTP_OS_TIMER_STOP(&asoc->strreset_timer.timer);
+	(void)SCTP_OS_TIMER_STOP(&asoc->asconf_timer.timer);
+	(void)SCTP_OS_TIMER_STOP(&asoc->autoclose_timer.timer);
+	(void)SCTP_OS_TIMER_STOP(&asoc->delayed_event_timer.timer);
+	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
+		(void)SCTP_OS_TIMER_STOP(&net->fr_timer.timer);
+		(void)SCTP_OS_TIMER_STOP(&net->pmtu_timer.timer);
+	}
+}
+
+/*
  * a list of sizes based on typical mtu's, used only if next hop size not
  * returned.
  */
@@ -748,26 +773,6 @@ static int sctp_mtu_sizes[] = {
 	32000,
 	65535
 };
-
-void
-sctp_stop_timers_for_shutdown(struct sctp_tcb *stcb)
-{
-	struct sctp_association *asoc;
-	struct sctp_nets *net;
-
-	asoc = &stcb->asoc;
-
-	(void)SCTP_OS_TIMER_STOP(&asoc->hb_timer.timer);
-	(void)SCTP_OS_TIMER_STOP(&asoc->dack_timer.timer);
-	(void)SCTP_OS_TIMER_STOP(&asoc->strreset_timer.timer);
-	(void)SCTP_OS_TIMER_STOP(&asoc->asconf_timer.timer);
-	(void)SCTP_OS_TIMER_STOP(&asoc->autoclose_timer.timer);
-	(void)SCTP_OS_TIMER_STOP(&asoc->delayed_event_timer.timer);
-	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
-		(void)SCTP_OS_TIMER_STOP(&net->fr_timer.timer);
-		(void)SCTP_OS_TIMER_STOP(&net->pmtu_timer.timer);
-	}
-}
 
 int
 find_next_best_mtu(int totsz)

@@ -908,9 +908,7 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 		}
 		SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_ACK_SENT);
 		SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
-		sctp_timer_stop(SCTP_TIMER_TYPE_RECV, stcb->sctp_ep, stcb, net,
-		    SCTP_FROM_SCTP_INPUT + SCTP_LOC_7);
-		/* start SHUTDOWN timer */
+		sctp_stop_timers_for_shutdown(stcb);
 		sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNACK, stcb->sctp_ep,
 		    stcb, net);
 	}
