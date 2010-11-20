@@ -1592,9 +1592,7 @@ wordexpcmd(int argc, char **argv)
 	for (i = 1, len = 0; i < argc; i++)
 		len += strlen(argv[i]);
 	out1fmt("%08x", (int)len);
-	for (i = 1; i < argc; i++) {
-		out1str(argv[i]);
-		out1c('\0');
-	}
+	for (i = 1; i < argc; i++)
+		outbin(argv[i], strlen(argv[i]) + 1, out1);
         return (0);
 }
