@@ -917,7 +917,7 @@ initvalues(start_info_t *startinfo)
 	l3_pages = 1;
 	l2_pages = 0;
 	IdlePDPT = (pd_entry_t *)startinfo->pt_base;
-	IdlePDPTma = xpmap_ptom(VTOP(startinfo->pt_base));
+	IdlePDPTma = VTOM(startinfo->pt_base);
 	for (i = (KERNBASE >> 30);
 	     (i < 4) && (IdlePDPT[i] != 0); i++)
 			l2_pages++;
@@ -926,7 +926,7 @@ initvalues(start_info_t *startinfo)
 	 * Thus, if KERNBASE
 	 */
 	for (i = 0; i < l2_pages; i++)
-		IdlePTDma[i] = xpmap_ptom(VTOP(IdlePTD + i*PAGE_SIZE));
+		IdlePTDma[i] = VTOM(IdlePTD + i*PAGE_SIZE);
 
 	l2_pages = (l2_pages == 0) ? 1 : l2_pages;
 #else	
@@ -966,13 +966,12 @@ initvalues(start_info_t *startinfo)
 	IdlePDPTnew = (pd_entry_t *)cur_space; cur_space += PAGE_SIZE;
 	bzero(IdlePDPTnew, PAGE_SIZE);
 
-	IdlePDPTnewma =  xpmap_ptom(VTOP(IdlePDPTnew));
+	IdlePDPTnewma =  VTOM(IdlePDPTnew);
 	IdlePTDnew = (pd_entry_t *)cur_space; cur_space += 4*PAGE_SIZE;
 	bzero(IdlePTDnew, 4*PAGE_SIZE);
 
 	for (i = 0; i < 4; i++) 
-		IdlePTDnewma[i] =
-		    xpmap_ptom(VTOP((uint8_t *)IdlePTDnew + i*PAGE_SIZE));
+		IdlePTDnewma[i] = VTOM((uint8_t *)IdlePTDnew + i*PAGE_SIZE);
 	/*
 	 * L3
 	 *
@@ -1040,7 +1039,7 @@ initvalues(start_info_t *startinfo)
 		    IdlePTDnewma[i] | PG_V);
 	}
 	xen_load_cr3(VTOP(IdlePDPTnew));
-	xen_pgdpt_pin(xpmap_ptom(VTOP(IdlePDPTnew)));
+	xen_pgdpt_pin(VTOM(IdlePDPTnew));
 
 	/* allocate remainder of nkpt pages */
 	cur_space_pt = cur_space;
@@ -1055,14 +1054,13 @@ initvalues(start_info_t *startinfo)
 		 * make sure that all the initial page table pages
 		 * have been zeroed
 		 */
-		PT_SET_MA(cur_space,
-		    xpmap_ptom(VTOP(cur_space)) | PG_V | PG_RW);
+		PT_SET_MA(cur_space, VTOM(cur_space) | PG_V | PG_RW);
 		bzero((char *)cur_space, PAGE_SIZE);
 		PT_SET_MA(cur_space, (vm_paddr_t)0);
-		xen_pt_pin(xpmap_ptom(VTOP(cur_space)));
+		xen_pt_pin(VTOM(cur_space));
 		xen_queue_pt_update((vm_paddr_t)(IdlePTDnewma[pdir] +
 			curoffset*sizeof(vm_paddr_t)), 
-		    xpmap_ptom(VTOP(cur_space)) | PG_KERNEL);
+		    VTOM(cur_space) | PG_KERNEL);
 		PT_UPDATES_FLUSH();
 	}
 	
@@ -1113,14 +1111,14 @@ initvalues(start_info_t *startinfo)
 #if 0
 	/* add page table for KERNBASE */
 	xen_queue_pt_update(IdlePTDma + KPTDI*sizeof(vm_paddr_t), 
-			    xpmap_ptom(VTOP(cur_space) | PG_KERNEL));
+			    VTOM(cur_space) | PG_KERNEL);
 	xen_flush_queue();
 #ifdef PAE	
 	xen_queue_pt_update(pdir_shadow_ma[3] + KPTDI*sizeof(vm_paddr_t), 
-			    xpmap_ptom(VTOP(cur_space) | PG_V | PG_A));
+			    VTOM(cur_space) | PG_V | PG_A);
 #else
 	xen_queue_pt_update(pdir_shadow_ma + KPTDI*sizeof(vm_paddr_t), 
-			    xpmap_ptom(VTOP(cur_space) | PG_V | PG_A));
+			    VTOM(cur_space) | PG_V | PG_A);
 #endif	
 	xen_flush_queue();
 	cur_space += PAGE_SIZE;
@@ -1140,7 +1138,7 @@ initvalues(start_info_t *startinfo)
 	 */
 	for (i = (((vm_offset_t)&btext) & ~PAGE_MASK);
 	     i < (((vm_offset_t)&etext) & ~PAGE_MASK); i += PAGE_SIZE)
-		PT_SET_MA(i, xpmap_ptom(VTOP(i)) | PG_V | PG_A);
+		PT_SET_MA(i, VTOM(i) | PG_V | PG_A);
 	
 	printk("#7\n");
 	physfree = VTOP(cur_space);

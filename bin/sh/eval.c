@@ -699,13 +699,13 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		for (sp = varlist.list ; sp ; sp = sp->next) {
 			if (sep != 0)
 				out2c(' ');
-			p = sp->text;
-			while (*p != '=' && *p != '\0')
-				out2c(*p++);
-			if (*p != '\0') {
-				out2c(*p++);
+			p = strchr(sp->text, '=');
+			if (p != NULL) {
+				p++;
+				outbin(sp->text, p - sp->text, out2);
 				out2qstr(p);
-			}
+			} else
+				out2qstr(sp->text);
 			sep = ' ';
 		}
 		for (sp = arglist.list ; sp ; sp = sp->next) {

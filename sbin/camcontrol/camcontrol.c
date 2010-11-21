@@ -1526,6 +1526,7 @@ rescan_or_reset_bus(int bus, int rescan)
 	bzero(&(&matchccb.ccb_h)[1],
 	      sizeof(struct ccb_dev_match) - sizeof(struct ccb_hdr));
 	matchccb.ccb_h.func_code = XPT_DEV_MATCH;
+	matchccb.ccb_h.path_id = CAM_BUS_WILDCARD;
 	bufsize = sizeof(struct dev_match_result) * 20;
 	matchccb.cdm.match_buf_len = bufsize;
 	matchccb.cdm.matches=(struct dev_match_result *)malloc(bufsize);

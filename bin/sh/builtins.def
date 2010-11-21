@@ -71,7 +71,7 @@ histcmd -h	fc
 jobidcmd	jobid
 jobscmd		jobs
 localcmd	local
-#printfcmd	printf
+printfcmd	printf
 pwdcmd		pwd
 readcmd		read
 returncmd	-s return
