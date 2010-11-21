@@ -586,14 +586,14 @@ xwait(int block, int *status) {
 
 	if (pids_empty()) {
 		errno = ECHILD;
-		return -1;
+		return (-1);
 	}
 
 	while ((pid = waitpid(-1, status, block ? 0 : WNOHANG)) > 0)
 		if (pids_remove(pid))
 			break;
 
-	return pid;
+	return (pid);
 }
 
 static void
@@ -625,27 +625,27 @@ waitchildren(const char *name, int waitall)
 #define	NOPID	(0)
 
 static void
-pids_init()
+pids_init(void)
 {
 	int i;
 
 	if ((childpids = malloc(maxprocs * sizeof(*childpids))) == NULL)
-	    errx(1, "malloc failed");
+		errx(1, "malloc failed");
 
 	for (i = 0; i < maxprocs; i++)
 		clearslot(i);
 }
 
 static int
-pids_empty()
+pids_empty(void)
 {
-	return curprocs == 0;
+	return (curprocs == 0);
 }
 
 static int
-pids_full()
+pids_full(void)
 {
-	return curprocs >= maxprocs;
+	return (curprocs >= maxprocs);
 }
 
 static void
@@ -664,22 +664,22 @@ pids_remove(pid_t pid)
 	int slot;
 
 	if ((slot = findslot(pid)) < 0)
-	    return 0;
+		return (0);
 
 	clearslot(slot);
 	curprocs--;
-	return 1;
+	return (1);
 }
 
 static int
-findfreeslot()
+findfreeslot(void)
 {
 	int slot;
 
 	if ((slot = findslot(NOPID)) < 0)
 		errx(1, "internal error: no free pid slot");
 
-	return slot;
+	return (slot);
 }
 
 static int
@@ -689,9 +689,9 @@ findslot(pid_t pid)
 
 	for (slot = 0; slot < maxprocs; slot++)
 		if (childpids[slot] == pid)
-			return slot;
+			return (slot);
 
-	return -1;
+	return (-1);
 }
 
 static void
