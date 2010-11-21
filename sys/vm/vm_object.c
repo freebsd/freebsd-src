@@ -853,57 +853,40 @@ rescan:
 static int
 vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int pagerflags)
 {
-	int runlen;
-	int maxf;
-	int chkb;
-	int maxb;
-	int i, index;
-	vm_pindex_t pi;
-	vm_page_t maf[vm_pageout_page_count];
-	vm_page_t mab[vm_pageout_page_count];
-	vm_page_t ma[vm_pageout_page_count];
-	vm_page_t tp, p1;
+	vm_page_t ma[vm_pageout_page_count], p_first, tp;
+	int count, i, mreq, runlen;
 
 	mtx_assert(&vm_page_queue_mtx, MA_NOTOWNED);
 	vm_page_lock_assert(p, MA_NOTOWNED);
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	pi = p->pindex;
-	maxf = 0;
-	for (i = 1, p1 = p; i < vm_pageout_page_count; i++) {
-		tp = vm_page_next(p1);
+
+	count = 1;
+	mreq = 0;
+
+	for (tp = p; count < vm_pageout_page_count; count++) {
+		tp = vm_page_next(tp);
 		if (tp == NULL || tp->busy != 0 || (tp->oflags & VPO_BUSY) != 0)
 			break;
 		vm_page_test_dirty(tp);
 		if (tp->dirty == 0)
 			break;
-		maf[i - 1] = p1 = tp;
-		maxf++;
 	}
 
-	maxb = 0;
-	chkb = vm_pageout_page_count -  maxf;
-	for (i = 1, p1 = p; i < chkb; i++) {
-		tp = vm_page_prev(p1);
+	for (p_first = p; count < vm_pageout_page_count; count++) {
+		tp = vm_page_prev(p_first);
 		if (tp == NULL || tp->busy != 0 || (tp->oflags & VPO_BUSY) != 0)
 			break;
 		vm_page_test_dirty(tp);
 		if (tp->dirty == 0)
 			break;
-		mab[i - 1] = p1 = tp;
-		maxb++;
+		p_first = tp;
+		mreq++;
 	}
 
-	for (i = 0; i < maxb; i++) {
-		index = (maxb - i) - 1;
-		ma[index] = mab[i];
-	}
-	ma[maxb] = p;
-	for (i = 0; i < maxf; i++) {
-		index = (maxb + i) + 1;
-		ma[index] = maf[i];
-	}
+	for (tp = p_first, i = 0; i < count; tp = TAILQ_NEXT(tp, listq), i++)
+		ma[i] = tp;
 
-	vm_pageout_flush(ma, maxb + maxf + 1, pagerflags, maxb + 1, &runlen);
+	vm_pageout_flush(ma, count, pagerflags, mreq, &runlen);
 	return (runlen);
 }
 
