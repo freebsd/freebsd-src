@@ -718,7 +718,7 @@ nodisks:
 
     dialog_clear_norefresh();
     if (!msgYesNo("The FreeBSD package collection is a collection of thousands of ready-to-run\n"
-		  "applications, from text editors to games to WEB servers and more.  Would you\n"
+		  "applications, from text editors to games to Web servers and more.  Would you\n"
 		  "like to browse the collection now?")) {
 	(void)configPackages(self);
     }
