@@ -113,6 +113,7 @@ __FBSDID("$FreeBSD$");
 #define	DEBUG_MARKER	"<debug>"
 
 struct conf_entry {
+	STAILQ_ENTRY(conf_entry) cf_nextp;
 	char *log;		/* Name of the log */
 	char *pid_file;		/* PID file */
 	char *r_reason;		/* The reason this file is being rotated */
@@ -129,7 +130,6 @@ struct conf_entry {
 	int flags;		/* CE_COMPACT, CE_BZCOMPACT, CE_BINARY */
 	int sig;		/* Signal to send */
 	int def_cfg;		/* Using the <default> rule for this file */
-	struct conf_entry *next;/* Linked list pointer */
 };
 
 struct sigwork_entry {
@@ -153,6 +153,7 @@ typedef enum {
 	FREE_ENT, KEEP_ENT
 }	fk_entry;
 
+STAILQ_HEAD(cflist, conf_entry);
 SLIST_HEAD(swlisthead, sigwork_entry) swhead = SLIST_HEAD_INITIALIZER(swhead);
 SLIST_HEAD(zwlisthead, zipwork_entry) zwhead = SLIST_HEAD_INITIALIZER(zwhead);
 
@@ -188,9 +189,9 @@ char hostname[MAXHOSTNAMELEN];	/* hostname */
 
 const char *path_syslogpid = _PATH_SYSLOGPID;
 
-static struct conf_entry *get_worklist(char **files);
-static void parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
-		struct conf_entry **glob_p, struct conf_entry **defconf_p);
+static struct cflist *get_worklist(char **files);
+static void parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
+		struct conf_entry *defconf_p);
 static char *sob(char *p);
 static char *son(char *p);
 static int isnumberstr(const char *);
@@ -207,9 +208,8 @@ static struct zipwork_entry *
 		    sigwork_entry *, int, const char *);
 static void	 set_swpid(struct sigwork_entry *, const struct conf_entry *);
 static int	 sizefile(const char *);
-static void expand_globs(struct conf_entry **work_p,
-		struct conf_entry **glob_p);
-static void free_clist(struct conf_entry **firstent);
+static void expand_globs(struct cflist *work_p, struct cflist *glob_p);
+static void free_clist(struct cflist *list);
 static void free_entry(struct conf_entry *ent);
 static struct conf_entry *init_entry(const char *fname,
 		struct conf_entry *src_entry);
@@ -235,8 +235,8 @@ static void createlog(const struct conf_entry *ent);
 int
 main(int argc, char **argv)
 {
-	fk_entry free_or_keep;
-	struct conf_entry *p, *q;
+	struct cflist *worklist;
+	struct conf_entry *p;
 	struct sigwork_entry *stmp;
 	struct zipwork_entry *ztmp;
 
@@ -249,18 +249,17 @@ main(int argc, char **argv)
 
 	if (needroot && getuid() && geteuid())
 		errx(1, "must have root privs");
-	p = q = get_worklist(argv);
+	worklist = get_worklist(argv);
 
 	/*
 	 * Rotate all the files which need to be rotated.  Note that
 	 * some users have *hundreds* of entries in newsyslog.conf!
 	 */
-	while (p) {
-		free_or_keep = do_entry(p);
-		p = p->next;
-		if (free_or_keep == FREE_ENT)
-			free_entry(q);
-		q = p;
+	while (!STAILQ_EMPTY(worklist)) {
+		p = STAILQ_FIRST(worklist);
+		STAILQ_REMOVE_HEAD(worklist, cf_nextp);
+		if (do_entry(p) == FREE_ENT)
+			free_entry(p);
 	}
 
 	/*
@@ -367,7 +366,6 @@ init_entry(const char *fname, struct conf_entry *src_entry)
 		tempwork->sig = SIGHUP;
 		tempwork->def_cfg = 0;
 	}
-	tempwork->next = NULL;
 
 	return (tempwork);
 }
@@ -405,21 +403,18 @@ free_entry(struct conf_entry *ent)
 }
 
 static void
-free_clist(struct conf_entry **firstent)
+free_clist(struct cflist *list)
 {
-	struct conf_entry *ent, *nextent;
+	struct conf_entry *ent;
 
-	if (firstent == NULL)
-		return;			/* There is nothing to do. */
-
-	ent = *firstent;
-	firstent = NULL;
-
-	while (ent) {
-		nextent = ent->next;
+	while (!STAILQ_EMPTY(list)) {
+		ent = STAILQ_FIRST(list);
+		STAILQ_REMOVE_HEAD(list, cf_nextp);
 		free_entry(ent);
-		ent = nextent;
 	}
+
+	free(list);
+	list = NULL;
 }
 
 static fk_entry
@@ -737,17 +732,26 @@ usage(void)
  * Parse a configuration file and return a linked list of all the logs
  * which should be processed.
  */
-static struct conf_entry *
+static struct cflist *
 get_worklist(char **files)
 {
 	FILE *f;
 	const char *fname;
 	char **given;
-	struct conf_entry *defconf, *dupent, *ent, *firstnew;
-	struct conf_entry *globlist, *lastnew, *worklist;
+	struct cflist *filelist, *globlist, *cmdlist;
+	struct conf_entry *defconf, *dupent, *ent;
 	int gmatch, fnres;
 
-	defconf = globlist = worklist = NULL;
+	defconf = NULL;
+
+	filelist = malloc(sizeof(struct cflist));
+	if (filelist == NULL)
+		err(1, "malloc of filelist");
+	STAILQ_INIT(filelist);
+	globlist = malloc(sizeof(struct cflist));
+	if (globlist == NULL)
+		err(1, "malloc of globlist");
+	STAILQ_INIT(globlist);
 
 	fname = conf;
 	if (fname == NULL)
@@ -762,22 +766,22 @@ get_worklist(char **files)
 	if (!f)
 		err(1, "%s", fname);
 
-	parse_file(f, fname, &worklist, &globlist, &defconf);
+	parse_file(f, filelist, globlist, defconf);
 	(void) fclose(f);
 
 	/*
 	 * All config-file information has been read in and turned into
-	 * a worklist and a globlist.  If there were no specific files
+	 * a filelist and a globlist.  If there were no specific files
 	 * given on the run command, then the only thing left to do is to
 	 * call a routine which finds all files matched by the globlist
-	 * and adds them to the worklist.  Then return the worklist.
+	 * and adds them to the filelist.  Then return the worklist.
 	 */
 	if (*files == NULL) {
-		expand_globs(&worklist, &globlist);
-		free_clist(&globlist);
+		expand_globs(filelist, globlist);
+		free_clist(globlist);
 		if (defconf != NULL)
 			free_entry(defconf);
-		return (worklist);
+		return (filelist);
 		/* NOTREACHED */
 	}
 
@@ -799,7 +803,7 @@ get_worklist(char **files)
 	 * If newsyslog was run with a list of specific filenames,
 	 * then create a new worklist which has only those files in
 	 * it, picking up the rotation-rules for those files from
-	 * the original worklist.
+	 * the original filelist.
 	 *
 	 * XXX - Note that this will copy multiple rules for a single
 	 *	logfile, if multiple entries are an exact match for
@@ -807,21 +811,21 @@ get_worklist(char **files)
 	 *	we want to continue to allow it?  If so, it should
 	 *	probably be handled more intelligently.
 	 */
-	firstnew = lastnew = NULL;
+	cmdlist = malloc(sizeof(struct cflist));
+	if (cmdlist == NULL)
+		err(1, "malloc of cmdlist");
+	STAILQ_INIT(cmdlist);
+
 	for (given = files; *given; ++given) {
 		/*
 		 * First try to find exact-matches for this given file.
 		 */
 		gmatch = 0;
-		for (ent = worklist; ent; ent = ent->next) {
+		STAILQ_FOREACH(ent, filelist, cf_nextp) {
 			if (strcmp(ent->log, *given) == 0) {
 				gmatch++;
 				dupent = init_entry(*given, ent);
-				if (!firstnew)
-					firstnew = dupent;
-				else
-					lastnew->next = dupent;
-				lastnew = dupent;
+				STAILQ_INSERT_TAIL(cmdlist, dupent, cf_nextp);
 			}
 		}
 		if (gmatch) {
@@ -837,7 +841,7 @@ get_worklist(char **files)
 		gmatch = 0;
 		if (verbose > 2 && globlist != NULL)
 			printf("\t+ Checking globs for %s\n", *given);
-		for (ent = globlist; ent; ent = ent->next) {
+		STAILQ_FOREACH(ent, globlist, cf_nextp) {
 			fnres = fnmatch(ent->log, *given, FNM_PATHNAME);
 			if (verbose > 2)
 				printf("\t+    = %d for pattern %s\n", fnres,
@@ -845,13 +849,9 @@ get_worklist(char **files)
 			if (fnres == 0) {
 				gmatch++;
 				dupent = init_entry(*given, ent);
-				if (!firstnew)
-					firstnew = dupent;
-				else
-					lastnew->next = dupent;
-				lastnew = dupent;
 				/* This new entry is not a glob! */
 				dupent->flags &= ~CE_GLOB;
+				STAILQ_INSERT_TAIL(cmdlist, dupent, cf_nextp);
 				/* Only allow a match to one glob-entry */
 				break;
 			}
@@ -871,25 +871,21 @@ get_worklist(char **files)
 			printf("\t+ No entry matched %s  (will use %s)\n",
 			    *given, DEFAULT_MARKER);
 		dupent = init_entry(*given, defconf);
-		if (!firstnew)
-			firstnew = dupent;
-		else
-			lastnew->next = dupent;
 		/* Mark that it was *not* found in a config file */
 		dupent->def_cfg = 1;
-		lastnew = dupent;
+		STAILQ_INSERT_TAIL(cmdlist, dupent, cf_nextp);
 	}
 
 	/*
 	 * Free all the entries in the original work list, the list of
 	 * glob entries, and the default entry.
 	 */
-	free_clist(&worklist);
-	free_clist(&globlist);
+	free_clist(filelist);
+	free_clist(globlist);
 	free_entry(defconf);
 
 	/* And finally, return a worklist which matches the given files. */
-	return (firstnew);
+	return (cmdlist);
 }
 
 /*
@@ -897,18 +893,14 @@ get_worklist(char **files)
  * which match those glob-entries onto the worklist.
  */
 static void
-expand_globs(struct conf_entry **work_p, struct conf_entry **glob_p)
+expand_globs(struct cflist *work_p, struct cflist *glob_p)
 {
 	int gmatch, gres;
 	size_t i;
 	char *mfname;
-	struct conf_entry *dupent, *ent, *firstmatch, *globent;
-	struct conf_entry *lastmatch;
+	struct conf_entry *dupent, *ent, *globent;
 	glob_t pglob;
 	struct stat st_fm;
-
-	if ((glob_p == NULL) || (*glob_p == NULL))
-		return;			/* There is nothing to do. */
 
 	/*
 	 * The worklist contains all fully-specified (non-GLOB) names.
@@ -918,9 +910,7 @@ expand_globs(struct conf_entry **work_p, struct conf_entry **glob_p)
 	 * that already exist.  Do not add a glob-related entry for any
 	 * file which already exists in the fully-specified list.
 	 */
-	firstmatch = lastmatch = NULL;
-	for (globent = *glob_p; globent; globent = globent->next) {
-
+	STAILQ_FOREACH(globent, glob_p, cf_nextp) {
 		gres = glob(globent->log, GLOB_NOCHECK, NULL, &pglob);
 		if (gres != 0) {
 			warn("cannot expand pattern (%d): %s", gres,
@@ -935,7 +925,7 @@ expand_globs(struct conf_entry **work_p, struct conf_entry **glob_p)
 
 			/* See if this file already has a specific entry. */
 			gmatch = 0;
-			for (ent = *work_p; ent; ent = ent->next) {
+			STAILQ_FOREACH(ent, work_p, cf_nextp) {
 				if (strcmp(mfname, ent->log) == 0) {
 					gmatch++;
 					break;
@@ -962,29 +952,16 @@ expand_globs(struct conf_entry **work_p, struct conf_entry **glob_p)
 			if (verbose > 2)
 				printf("\t+  . add file %s\n", mfname);
 			dupent = init_entry(mfname, globent);
-			if (!firstmatch)
-				firstmatch = dupent;
-			else
-				lastmatch->next = dupent;
-			lastmatch = dupent;
 			/* This new entry is not a glob! */
 			dupent->flags &= ~CE_GLOB;
+
+			/* Add to the worklist. */
+			STAILQ_INSERT_TAIL(work_p, dupent, cf_nextp);
 		}
 		globfree(&pglob);
 		if (verbose > 2)
 			printf("\t+ Done with pattern %s\n", globent->log);
 	}
-
-	/* Add the list of matched files to the end of the worklist. */
-	if (!*work_p)
-		*work_p = firstmatch;
-	else {
-		ent = *work_p;
-		while (ent->next)
-			ent = ent->next;
-		ent->next = firstmatch;
-	}
-
 }
 
 /*
@@ -992,21 +969,15 @@ expand_globs(struct conf_entry **work_p, struct conf_entry **glob_p)
  * process.
  */
 static void
-parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
-    struct conf_entry **glob_p, struct conf_entry **defconf_p)
+parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
+    struct conf_entry *defconf_p)
 {
 	char line[BUFSIZ], *parse, *q;
 	char *cp, *errline, *group;
-	struct conf_entry *lastglob, *lastwork, *working;
+	struct conf_entry *working;
 	struct passwd *pwd;
 	struct group *grp;
 	int eol, ptm_opts, res, special;
-
-	/*
-	 * XXX - for now, assume that only one config file will be read,
-	 *	ie, this routine is only called one time.
-	 */
-	lastglob = lastwork = NULL;
 
 	errline = NULL;
 	while (fgets(line, BUFSIZ, cf)) {
@@ -1037,7 +1008,7 @@ parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 
 		/*
 		 * Allow people to set debug options via the config file.
-		 * (NOTE: debug optons are undocumented, and may disappear
+		 * (NOTE: debug options are undocumented, and may disappear
 		 * at any time, etc).
 		 */
 		if (strcasecmp(DEBUG_MARKER, q) == 0) {
@@ -1057,17 +1028,12 @@ parse_file(FILE *cf, const char *cfname, struct conf_entry **work_p,
 		working = init_entry(q, NULL);
 		if (strcasecmp(DEFAULT_MARKER, q) == 0) {
 			special = 1;
-			if (defconf_p == NULL) {
-				warnx("Ignoring entry for %s in %s!", q,
-				    cfname);
-				free_entry(working);
-				continue;
-			} else if (*defconf_p != NULL) {
+			if (defconf_p != NULL) {
 				warnx("Ignoring duplicate entry for %s!", q);
 				free_entry(working);
 				continue;
 			}
-			*defconf_p = working;
+			defconf_p = working;
 		}
 
 		q = parse = missing_field(sob(++parse), errline);
@@ -1333,17 +1299,9 @@ no_trimat:
 		if (special) {
 			;			/* Do not add to any list */
 		} else if (working->flags & CE_GLOB) {
-			if (!*glob_p)
-				*glob_p = working;
-			else
-				lastglob->next = working;
-			lastglob = working;
+			STAILQ_INSERT_TAIL(glob_p, working, cf_nextp);
 		} else {
-			if (!*work_p)
-				*work_p = working;
-			else
-				lastwork->next = working;
-			lastwork = working;
+			STAILQ_INSERT_TAIL(work_p, working, cf_nextp);
 		}
 	}
 	if (errline != NULL)
