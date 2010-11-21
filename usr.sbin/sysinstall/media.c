@@ -117,8 +117,6 @@ cpioVerbosity()
 
     if (cp && !strcmp(cp, "high"))
 	return "-v";
-    else if (cp && !strcmp(cp, "medium"))
-	return "-V";
     return "";
 }
 
@@ -848,8 +846,6 @@ mediaSetCPIOVerbosity(dialogMenuItem *self)
     }
     else {
 	if (!strcmp(cp, "low"))
-	    variable_set2(VAR_CPIO_VERBOSITY, "medium", 0);
-	else if (!strcmp(cp, "medium"))
 	    variable_set2(VAR_CPIO_VERBOSITY, "high", 0);
 	else /* must be "high" - wrap around */
 	    variable_set2(VAR_CPIO_VERBOSITY, "low", 0);
