@@ -101,7 +101,7 @@ SYSCTL_NODE(_kern_timecounter, OID_AUTO, tc, CTLFLAG_RW, 0, "");
 
 static int timestepwarnings;
 SYSCTL_INT(_kern_timecounter, OID_AUTO, stepwarnings, CTLFLAG_RW,
-    &timestepwarnings, 0, "");
+    &timestepwarnings, 0, "Log time steps");
 
 static void tc_windup(void);
 static void cpu_tick_calibrate(int);
@@ -556,7 +556,8 @@ sysctl_kern_timecounter_hardware(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern_timecounter, OID_AUTO, hardware, CTLTYPE_STRING | CTLFLAG_RW,
-    0, 0, sysctl_kern_timecounter_hardware, "A", "");
+    0, 0, sysctl_kern_timecounter_hardware, "A",
+    "Timecounter hardware selected");
 
 
 /* Report or change the active timecounter hardware. */
@@ -579,7 +580,7 @@ sysctl_kern_timecounter_choice(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern_timecounter, OID_AUTO, choice, CTLTYPE_STRING | CTLFLAG_RD,
-    0, 0, sysctl_kern_timecounter_choice, "A", "");
+    0, 0, sysctl_kern_timecounter_choice, "A", "Timecounter hardware detected");
 
 /*
  * RFC 2783 PPS-API implementation.
@@ -764,7 +765,8 @@ pps_event(struct pps_state *pps, int event)
  */
 
 static int tc_tick;
-SYSCTL_INT(_kern_timecounter, OID_AUTO, tick, CTLFLAG_RD, &tc_tick, 0, "");
+SYSCTL_INT(_kern_timecounter, OID_AUTO, tick, CTLFLAG_RD, &tc_tick, 0,
+    "Approximate number of hardclock ticks in a millisecond");
 
 void
 tc_ticktock(void)
