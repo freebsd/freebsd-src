@@ -69,13 +69,18 @@ is treated as an ordinary character.
 The fields of the configuration file are as follows:
 .Bl -tag -width indent
 .It Ar logfile_name
-Name of the system log file to be archived, or the literal string
-.Dq Aq Li default .
+Name of the system log file to be archived,
+or one of the literal strings
+.Dq Aq Li default ,
+or
+.Dq Aq Li include .
 The special default entry will only be used if a log file
 name is given as a command line argument to
 .Xr newsyslog 8 ,
 and if that log file name is not matched by any other
 line in the configuration file.
+The include entry is used to include other configuration
+files and supports globbing.
 .It Ar owner : Ns Ar group
 This optional field specifies the owner and group for the archive file.
 The
