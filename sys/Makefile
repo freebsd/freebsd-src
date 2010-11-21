@@ -34,7 +34,7 @@ cscope.out: ${.CURDIR}/cscope.files
 
 ${.CURDIR}/cscope.files: .PHONY
 	cd ${.CURDIR}; \
-		find ${CSCOPEDIRS} -name "*.[chSs]" -a -type f > ${.TARGET}
+		find ${CSCOPEDIRS} -name "*.[chSsly]" -a -type f > ${.TARGET}
 
 cscope-clean:
 	rm -f cscope.files cscope.out cscope.in.out cscope.po.out
