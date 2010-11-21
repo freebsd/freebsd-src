@@ -166,7 +166,7 @@
 #define VAR_NONINTERACTIVE		"nonInteractive"
 #define VAR_NOVELL			"novell"
 #define	VAR_RPCBIND_ENABLE		"rpcbind_enable"
-#define VAR_NTPDATE_FLAGS		"ntpdate_flags"
+#define VAR_NTPDATE_HOSTS		"ntpdate_hosts"
 #define VAR_PACKAGE			"package"
 #define VAR_PARTITION			"partition"
 #define VAR_PCNFSD			"pcnfsd"

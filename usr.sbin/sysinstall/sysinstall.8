@@ -218,10 +218,10 @@ Configure host as a user of the Network Time Protocol.
 .Pp
 .Sy Variables :
 .Bl -tag -width indent
-.It ntpdate_flags
-The flags to
-.Xr ntpdate 8 ,
-that is to say the name of the server to sync from.
+.It ntpdate_hosts
+Whitespace-separated list of
+.Xr ntpdate 8
+servers to sync from.
 .El
 .It configPCNFSD
 Configure host to support PC NFS.
@@ -749,8 +749,7 @@ Default: user@host
 .Sy Variables :
 .Bl -tag -width indent
 .It cpioVerbose
-Can be used to set the verbosity of cpio extractions to low, medium or
-high.
+Can be used to set the verbosity of cpio extractions to low or high.
 .El
 .It mediaGetType
 Interactively get the user to specify some type of media.
