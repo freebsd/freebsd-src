@@ -197,7 +197,7 @@ sysctl_vm_reserv_partpopq(SYSCTL_HANDLER_ARGS)
 		}
 		mtx_unlock(&vm_page_queue_free_mtx);
 		sbuf_printf(&sbuf, "%5d: %6dK, %6d\n", level,
-		    unused_pages * (PAGE_SIZE / 1024), counter);
+		    unused_pages * ((int)PAGE_SIZE / 1024), counter);
 	}
 	sbuf_finish(&sbuf);
 	error = SYSCTL_OUT(req, sbuf_data(&sbuf), sbuf_len(&sbuf));
