@@ -19,6 +19,7 @@ MAN=	aac.4 \
 	adv.4 \
 	adw.4 \
 	ae.4 \
+	${_aesni.4} \
 	age.4 \
 	agp.4 \
 	aha.4 \
@@ -633,6 +634,7 @@ _acpi_panasonic.4=acpi_panasonic.4
 _acpi_sony.4=	acpi_sony.4
 _acpi_toshiba.4=acpi_toshiba.4
 _acpi_wmi.4=	acpi_wmi.4
+_aesni.4=	aesni.4
 _aibs.4=	aibs.4
 _amdsbwd.4=	amdsbwd.4
 _amdsmb.4=	amdsmb.4
