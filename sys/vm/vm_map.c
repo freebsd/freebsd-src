@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -76,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/resourcevar.h>
 #include <sys/file.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/shm.h>
 
@@ -3221,6 +3223,12 @@ vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	return (rv);
 }
 
+static int stack_guard_page = 0;
+TUNABLE_INT("security.bsd.stack_guard_page", &stack_guard_page);
+SYSCTL_INT(_security_bsd, OID_AUTO, stack_guard_page, CTLFLAG_RW,
+    &stack_guard_page, 0,
+    "Insert stack guard page ahead of the growable segments.");
+
 /* Attempts to grow a vm stack entry.  Returns KERN_SUCCESS if the
  * desired address is already mapped, or if we successfully grow
  * the stack.  Also returns KERN_SUCCESS if addr is outside the
@@ -3317,7 +3325,7 @@ Retry:
 	 * This also effectively destroys any guard page the user might have
 	 * intended by limiting the stack size.
 	 */
-	if (grow_amount > max_grow) {
+	if (grow_amount + (stack_guard_page ? PAGE_SIZE : 0) > max_grow) {
 		if (vm_map_lock_upgrade(map))
 			goto Retry;
 
@@ -3370,6 +3378,8 @@ Retry:
 		if (addr < end) {
 			stack_entry->avail_ssize = max_grow;
 			addr = end;
+			if (stack_guard_page)
+				addr += PAGE_SIZE;
 		}
 
 		rv = vm_map_insert(map, NULL, 0, addr, stack_entry->start,
@@ -3402,6 +3412,8 @@ Retry:
 		if (addr > end) {
 			stack_entry->avail_ssize = end - stack_entry->end;
 			addr = end;
+			if (stack_guard_page)
+				addr -= PAGE_SIZE;
 		}
 
 		grow_amount = addr - stack_entry->end;
