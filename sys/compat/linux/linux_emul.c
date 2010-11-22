@@ -198,11 +198,8 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 	} else	
 		EMUL_SHARED_WUNLOCK(&emul_shared_lock);
 
-	if ((shared_flags & EMUL_SHARED_HASXSTAT) != 0) {
-		PROC_LOCK(p);
+	if ((shared_flags & EMUL_SHARED_HASXSTAT) != 0)
 		p->p_xstat = shared_xstat;
-		PROC_UNLOCK(p);
-	}
 
 	if (child_clear_tid != NULL) {
 		struct linux_sys_futex_args cup;
@@ -265,7 +262,8 @@ linux_proc_exec(void *arg __unused, struct proc *p, struct image_params *imgp)
 	if (__predict_false(imgp->sysent == &elf_linux_sysvec
 	    && p->p_sysent != &elf_linux_sysvec))
 		linux_proc_init(FIRST_THREAD_IN_PROC(p), p->p_pid, 0);
-	if (__predict_false(p->p_sysent == &elf_linux_sysvec))
+	if (__predict_false((p->p_sysent->sv_flags & SV_ABI_MASK) ==
+	    SV_ABI_LINUX))
 		/* Kill threads regardless of imgp->sysent value */
 		linux_kill_threads(FIRST_THREAD_IN_PROC(p), SIGKILL);
 	if (__predict_false(imgp->sysent != &elf_linux_sysvec
