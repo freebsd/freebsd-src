@@ -276,7 +276,7 @@ virstor_label(struct gctl_req *req)
 	msize = secsize = 0;
 	for (i = 1; i < (unsigned)nargs; i++) {
 		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_ascii(req, param);
+		name = gctl_get_ascii(req, "%s", param);
 		ssize = g_get_sectorsize(name);
 		if (ssize == 0)
 			fprintf(stderr, "%s for %s\n", strerror(errno), name);
@@ -336,7 +336,7 @@ virstor_label(struct gctl_req *req)
 
 	for (i = 1; i < (unsigned)nargs; i++) {
 		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_ascii(req, param);
+		name = gctl_get_ascii(req, "%s", param);
 
 		if (verbose)
 			printf(" %s", name);
@@ -417,7 +417,7 @@ virstor_label(struct gctl_req *req)
 	/* Ok, store metadata. */
 	for (i = 1; i < (unsigned)nargs; i++) {
 		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_ascii(req, param);
+		name = gctl_get_ascii(req, "%s", param);
 
 		msize = g_get_mediasize(name);
 		ssize = g_get_sectorsize(name);
@@ -434,7 +434,7 @@ virstor_label(struct gctl_req *req)
 		if (verbose)
 			printf("(%u chunks) ", md.chunk_count);
 		/* Check to make sure last sector is unused */
-		if ((off_t)(md.chunk_count * md.md_chunk_size) > msize-ssize)
+		if ((off_t)(md.chunk_count * md.md_chunk_size) > (off_t)(msize-ssize))
 		    md.chunk_count--;
 		md.chunk_next = 0;
 		if (i != 1) {
@@ -499,7 +499,7 @@ virstor_clear(struct gctl_req *req)
 	}
 	for (i = 0; i < (unsigned)nargs; i++) {
 		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_ascii(req, param);
+		name = gctl_get_ascii(req, "%s", param);
 
 		error = g_metadata_clear(name, G_VIRSTOR_MAGIC);
 		if (error != 0) {
@@ -564,7 +564,7 @@ virstor_dump(struct gctl_req *req)
 	}
 	for (i = 0; i < nargs; i++) {
 		snprintf(param, sizeof(param), "arg%u", i);
-		name = gctl_get_ascii(req, param);
+		name = gctl_get_ascii(req, "%s", param);
 
 		error = g_metadata_read(name, (u_char *) & tmpmd, sizeof(tmpmd),
 		    G_VIRSTOR_MAGIC);
