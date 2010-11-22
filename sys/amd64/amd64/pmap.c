@@ -530,6 +530,8 @@ create_pagetables(vm_paddr_t *firstaddr)
 	/* Connect the Direct Map slot up to the PML4 */
 	((pdp_entry_t *)KPML4phys)[DMPML4I] = DMPDPphys;
 	((pdp_entry_t *)KPML4phys)[DMPML4I] |= PG_RW | PG_V | PG_U;
+	((pdp_entry_t *)KPML4phys)[DMPML4I + 1] = DMPDPphys + PAGE_SIZE;
+	((pdp_entry_t *)KPML4phys)[DMPML4I + 1] |= PG_RW | PG_V | PG_U;
 
 	/* Connect the KVA slot up to the PML4 */
 	((pdp_entry_t *)KPML4phys)[KPML4I] = KPDPphys;
@@ -1620,6 +1622,7 @@ pmap_pinit(pmap_t pmap)
 	/* Wire in kernel global address entries. */
 	pmap->pm_pml4[KPML4I] = KPDPphys | PG_RW | PG_V | PG_U;
 	pmap->pm_pml4[DMPML4I] = DMPDPphys | PG_RW | PG_V | PG_U;
+	pmap->pm_pml4[DMPML4I + 1] = (DMPDPphys + PAGE_SIZE) | PG_RW | PG_V | PG_U;
 
 	/* install self-referential address mapping entry(s) */
 	pmap->pm_pml4[PML4PML4I] = VM_PAGE_TO_PHYS(pml4pg) | PG_V | PG_RW | PG_A | PG_M;
@@ -1879,6 +1882,7 @@ pmap_release(pmap_t pmap)
 
 	pmap->pm_pml4[KPML4I] = 0;	/* KVA */
 	pmap->pm_pml4[DMPML4I] = 0;	/* Direct Map */
+	pmap->pm_pml4[DMPML4I + 1] = 0;	/* Direct Map */
 	pmap->pm_pml4[PML4PML4I] = 0;	/* Recursive Mapping */
 
 	m->wire_count--;

@@ -125,7 +125,7 @@
 #define	NUPDPE		(NUPML4E*NPDPEPG)/* number of userland PDP pages */
 #define	NUPDE		(NUPDPE*NPDEPG)	/* number of userland PD entries */
 
-#define	NDMPML4E	1		/* number of dmap PML4 slots */
+#define	NDMPML4E	2		/* number of dmap PML4 slots */
 
 /*
  * The *PDI values control the layout of virtual memory
@@ -133,7 +133,7 @@
 #define	PML4PML4I	(NPML4EPG/2)	/* Index of recursive pml4 mapping */
 
 #define	KPML4I		(NPML4EPG-1)	/* Top 512GB for KVM */
-#define	DMPML4I		(KPML4I-1)	/* Next 512GB down for direct map */
+#define	DMPML4I		(KPML4I-3)	/* Next 512GB down for direct map */
 
 #define	KPDPI		(NPDPEPG-2)	/* kernbase at -2GB */
 
