@@ -39,7 +39,7 @@
 	int	yylex	(void);
 %}
 
-%option yylineno noyywrap nounput
+%option yylineno noyywrap nounput noinput
 
 delim				[ \t\n]
 ws				{delim}+
