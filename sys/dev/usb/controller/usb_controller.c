@@ -61,6 +61,7 @@
 
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
+#include <dev/usb/usb_pf.h>
 
 /* function prototypes  */
 
@@ -547,6 +548,8 @@ usb_bus_mem_alloc_all(struct usb_bus *bus, bus_dma_tag_t dmat,
 
 	TAILQ_INIT(&bus->intr_q.head);
 
+	usbpf_attach(bus, &bus->uif);
+
 #if USB_HAVE_BUSDMA
 	usb_dma_tag_setup(bus->dma_parent_tag, bus->dma_tags,
 	    dmat, &bus->bus_mtx, NULL, 32, USB_BUS_DMA_TAG_MAX);
@@ -594,5 +597,34 @@ usb_bus_mem_free_all(struct usb_bus *bus, usb_bus_mem_cb_t *cb)
 	usb_dma_tag_unsetup(bus->dma_parent_tag);
 #endif
 
+	usbpf_detach(bus);
+
 	mtx_destroy(&bus->bus_mtx);
+}
+
+struct usb_bus *
+usb_bus_find(const char *name)
+{
+	struct usb_bus *ubus;
+	devclass_t dc;
+	device_t *devlist;
+	int devcount, error, i;
+	const char *nameunit;
+
+	dc = devclass_find("usbus");
+	if (dc == NULL)
+		return (NULL);
+	error = devclass_get_devices(dc, &devlist, &devcount);
+	if (error != 0)
+		return (NULL);
+	for (i = 0; i < devcount; i++) {
+		nameunit = device_get_nameunit(devlist[i]);
+		if (!strncmp(name, nameunit, strlen(nameunit))) {
+			ubus = device_get_ivars(devlist[i]);
+			free(devlist, M_TEMP);
+			return (ubus);
+		}
+	}
+	free(devlist, M_TEMP);
+	return (NULL);
 }
