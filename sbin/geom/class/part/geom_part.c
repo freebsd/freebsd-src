@@ -614,7 +614,7 @@ static int
 gpart_show_hasopt(struct gctl_req *req, const char *opt, const char *elt)
 {
 
-	if (!gctl_get_int(req, opt))
+	if (!gctl_get_int(req, "%s", opt))
 		return (0);
 
 	if (elt != NULL)

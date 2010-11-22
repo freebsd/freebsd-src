@@ -46,6 +46,7 @@ static void	 init_strbuf(void);
 static void	 add_str(const char *);
 static int	 bc_yyinput(char *, int);
 
+#define YY_NO_INPUT
 #undef YY_INPUT
 #define YY_INPUT(buf,retval,max) \
 	(retval = bc_yyinput(buf, max))
