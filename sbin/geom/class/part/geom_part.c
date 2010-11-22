@@ -100,10 +100,8 @@ struct g_command PUBSYM(class_commands)[] = {
 		G_OPT_SENTINEL },
 	    "[-b start] [-s size] -t type [-i index] [-l label] [-f flags] geom"
 	},
-	{ "backup", 0, gpart_backup, {
-		{ 'l', "backup_labels", NULL, G_TYPE_BOOL},
-		G_OPT_SENTINEL },
-	    "[-l] geom"
+	{ "backup", 0, gpart_backup, G_NULL_OPTS,
+	    "geom"
 	},
 	{ "bootcode", 0, gpart_bootcode, {
 		{ 'b', GPART_PARAM_BOOTCODE, G_VAL_OPTIONAL, G_TYPE_STRING },
@@ -175,9 +173,10 @@ struct g_command PUBSYM(class_commands)[] = {
 	},
 	{ "restore", 0, gpart_restore, {
 		{ 'F', "force", NULL, G_TYPE_BOOL },
+		{ 'l', "restore_labels", NULL, G_TYPE_BOOL },
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
 		G_OPT_SENTINEL },
-	    "[-F] [-f flags] provider [...]"
+	    "[-lF] [-f flags] provider [...]"
 	},
 	{ "recover", 0, gpart_issue, {
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
@@ -678,7 +677,7 @@ gpart_backup(struct gctl_req *req, unsigned int fl __unused)
 	const char *s, *scheme;
 	off_t sector, end;
 	off_t length, secsz;
-	int error, labels, i, windex, wblocks, wtype;
+	int error, i, windex, wblocks, wtype;
 
 	if (gctl_get_int(req, "nargs") != 1)
 		errx(EXIT_FAILURE, "Invalid number of arguments.");
@@ -696,7 +695,6 @@ gpart_backup(struct gctl_req *req, unsigned int fl __unused)
 	s = gctl_get_ascii(req, "arg0");
 	if (s == NULL)
 		abort();
-	labels = gctl_get_int(req, "backup_labels");
 	gp = find_geom(classp, s);
 	if (gp == NULL)
 		errx(EXIT_FAILURE, "No such geom: %s.", s);
@@ -734,14 +732,12 @@ gpart_backup(struct gctl_req *req, unsigned int fl __unused)
 			length = end - sector + 1;
 		}
 		s = find_provcfg(pp, "label");
-		printf("%-*s %*s %*jd %*jd",
+		printf("%-*s %*s %*jd %*jd %s %s\n",
 		    windex, find_provcfg(pp, "index"),
 		    wtype, find_provcfg(pp, "type"),
 		    wblocks, (intmax_t)sector,
-		    wblocks, (intmax_t)length);
-		if (labels && s != NULL)
-			printf(" %s", s);
-		printf(" %s\n", fmtattrib(pp));
+		    wblocks, (intmax_t)length,
+		    (s != NULL) ? s: "", fmtattrib(pp));
 	}
 	geom_deletetree(&mesh);
 }
@@ -769,7 +765,7 @@ gpart_restore(struct gctl_req *req, unsigned int fl __unused)
 	struct ggeom *gp;
 	const char *s, *flags, *errstr, *label;
 	char **ap, *argv[6], line[BUFSIZ], *pline;
-	int error, forced, i, l, nargs, created;
+	int error, forced, i, l, nargs, created, rl;
 	intmax_t n;
 
 	nargs = gctl_get_int(req, "nargs");
@@ -778,6 +774,7 @@ gpart_restore(struct gctl_req *req, unsigned int fl __unused)
 
 	forced = gctl_get_int(req, "force");
 	flags = gctl_get_ascii(req, "flags");
+	rl = gctl_get_int(req, "restore_labels");
 	s = gctl_get_ascii(req, "class");
 	if (s == NULL)
 		abort();
@@ -829,19 +826,21 @@ gpart_restore(struct gctl_req *req, unsigned int fl __unused)
 				break;
 		l = ap - &argv[0];
 		label = pline = NULL;
-		if (l == 2) { /* create table */
+		if (l == 1 || l == 2) { /* create table */
 			if (created)
 				errx(EXIT_FAILURE, "Incorrect backup format.");
-			n = atoi(argv[1]);
+			if (l == 2)
+				n = strtoimax(argv[1], NULL, 0);
 			for (i = 0; i < nargs; i++) {
 				s = gctl_get_ascii(req, "arg%d", i);
 				r = gctl_get_handle();
-				n = strtoimax(argv[1], NULL, 0);
 				gctl_ro_param(r, "class", -1,
 				    classp->lg_name);
 				gctl_ro_param(r, "verb", -1, "create");
 				gctl_ro_param(r, "scheme", -1, argv[0]);
-				gctl_ro_param(r, "entries", sizeof(n), &n);
+				if (l == 2)
+					gctl_ro_param(r, "entries",
+					    sizeof(n), &n);
 				gctl_ro_param(r, "flags", -1, "restore");
 				gctl_ro_param(r, "arg0", -1, s);
 				errstr = gctl_issue(r);
@@ -877,7 +876,7 @@ gpart_restore(struct gctl_req *req, unsigned int fl __unused)
 			gctl_ro_param(r, "type", -1, argv[1]);
 			gctl_ro_param(r, "start", -1, argv[2]);
 			gctl_ro_param(r, "size", -1, argv[3]);
-			if (label != NULL)
+			if (rl != 0 && label != NULL)
 				gctl_ro_param(r, "label", -1, argv[4]);
 			gctl_ro_param(r, "arg0", -1, s);
 			error = gpart_autofill(r);
