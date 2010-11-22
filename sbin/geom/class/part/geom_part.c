@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <libgeom.h>
 #include <libutil.h>
 #include <paths.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -61,6 +62,7 @@ uint32_t PUBSYM(version) = 0;
 
 static char sstart[32];
 static char ssize[32];
+volatile sig_atomic_t undo_restore;
 
 #define	GPART_AUTOFILL	"*"
 #define	GPART_FLAGS	"C"
@@ -757,12 +759,19 @@ skip_line(const char *p)
 }
 
 static void
+gpart_sighndl(int sig __unused)
+{
+	undo_restore = 1;
+}
+
+static void
 gpart_restore(struct gctl_req *req, unsigned int fl __unused)
 {
 	struct gmesh mesh;
 	struct gclass *classp;
 	struct gctl_req *r;
 	struct ggeom *gp;
+	struct sigaction si_sa;
 	const char *s, *flags, *errstr, *label;
 	char **ap, *argv[6], line[BUFSIZ], *pline;
 	int error, forced, i, l, nargs, created, rl;
@@ -786,6 +795,13 @@ gpart_restore(struct gctl_req *req, unsigned int fl __unused)
 		geom_deletetree(&mesh);
 		errx(EXIT_FAILURE, "Class %s not found.", s);
 	}
+
+	sigemptyset(&si_sa.sa_mask);
+	si_sa.sa_flags = 0;
+	si_sa.sa_handler = gpart_sighndl;
+	if (sigaction(SIGINT, &si_sa, 0) == -1)
+		err(EXIT_FAILURE, "sigaction SIGINT");
+
 	if (forced) {
 		/* destroy existent partition table before restore */
 		for (i = 0; i < nargs; i++) {
@@ -811,7 +827,8 @@ gpart_restore(struct gctl_req *req, unsigned int fl __unused)
 		}
 	}
 	created = 0;
-	while (fgets(line, sizeof(line) - 1, stdin)) {
+	while (undo_restore == 0 &&
+	    fgets(line, sizeof(line) - 1, stdin) != NULL) {
 		/* Format of backup entries:
 		 * <scheme name> <number of entries>
 		 * <index> <type> <start> <size> [label] ['['attrib[,attrib]']']
@@ -920,6 +937,8 @@ gpart_restore(struct gctl_req *req, unsigned int fl __unused)
 			}
 		}
 	}
+	if (undo_restore)
+		goto backout;
 	/* commit changes if needed */
 	if (strchr(flags, 'C') != NULL) {
 		for (i = 0; i < nargs; i++) {
