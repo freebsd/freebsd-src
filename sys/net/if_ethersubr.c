@@ -144,7 +144,7 @@ MALLOC_DEFINE(M_ARPCOM, "arpcom", "802.* interface internals");
 #if defined(INET) || defined(INET6)
 int
 ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst, int shared);
-STATIC_VNET_DEFINE(int, ether_ipfw);
+static VNET_DEFINE(int, ether_ipfw);
 #define	V_ether_ipfw	VNET(ether_ipfw)
 #endif
 

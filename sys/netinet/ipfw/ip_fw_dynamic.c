@@ -118,10 +118,10 @@ __FBSDID("$FreeBSD$");
 /*
  * Static variables followed by global ones
  */
-STATIC_VNET_DEFINE(ipfw_dyn_rule **, ipfw_dyn_v);
-STATIC_VNET_DEFINE(u_int32_t, dyn_buckets);
-STATIC_VNET_DEFINE(u_int32_t, curr_dyn_buckets);
-STATIC_VNET_DEFINE(struct callout, ipfw_timeout);
+static VNET_DEFINE(ipfw_dyn_rule **, ipfw_dyn_v);
+static VNET_DEFINE(u_int32_t, dyn_buckets);
+static VNET_DEFINE(u_int32_t, curr_dyn_buckets);
+static VNET_DEFINE(struct callout, ipfw_timeout);
 #define	V_ipfw_dyn_v			VNET(ipfw_dyn_v)
 #define	V_dyn_buckets			VNET(dyn_buckets)
 #define	V_curr_dyn_buckets		VNET(curr_dyn_buckets)
@@ -150,12 +150,12 @@ ipfw_dyn_unlock(void)
 /*
  * Timeouts for various events in handing dynamic rules.
  */
-STATIC_VNET_DEFINE(u_int32_t, dyn_ack_lifetime);
-STATIC_VNET_DEFINE(u_int32_t, dyn_syn_lifetime);
-STATIC_VNET_DEFINE(u_int32_t, dyn_fin_lifetime);
-STATIC_VNET_DEFINE(u_int32_t, dyn_rst_lifetime);
-STATIC_VNET_DEFINE(u_int32_t, dyn_udp_lifetime);
-STATIC_VNET_DEFINE(u_int32_t, dyn_short_lifetime);
+static VNET_DEFINE(u_int32_t, dyn_ack_lifetime);
+static VNET_DEFINE(u_int32_t, dyn_syn_lifetime);
+static VNET_DEFINE(u_int32_t, dyn_fin_lifetime);
+static VNET_DEFINE(u_int32_t, dyn_rst_lifetime);
+static VNET_DEFINE(u_int32_t, dyn_udp_lifetime);
+static VNET_DEFINE(u_int32_t, dyn_short_lifetime);
 
 #define	V_dyn_ack_lifetime		VNET(dyn_ack_lifetime)
 #define	V_dyn_syn_lifetime		VNET(dyn_syn_lifetime)
@@ -172,16 +172,16 @@ STATIC_VNET_DEFINE(u_int32_t, dyn_short_lifetime);
  * than dyn_keepalive_period.
  */
 
-STATIC_VNET_DEFINE(u_int32_t, dyn_keepalive_interval);
-STATIC_VNET_DEFINE(u_int32_t, dyn_keepalive_period);
-STATIC_VNET_DEFINE(u_int32_t, dyn_keepalive);
+static VNET_DEFINE(u_int32_t, dyn_keepalive_interval);
+static VNET_DEFINE(u_int32_t, dyn_keepalive_period);
+static VNET_DEFINE(u_int32_t, dyn_keepalive);
 
 #define	V_dyn_keepalive_interval	VNET(dyn_keepalive_interval)
 #define	V_dyn_keepalive_period		VNET(dyn_keepalive_period)
 #define	V_dyn_keepalive			VNET(dyn_keepalive)
 
-STATIC_VNET_DEFINE(u_int32_t, dyn_count);	/* # of dynamic rules */
-STATIC_VNET_DEFINE(u_int32_t, dyn_max);		/* max # of dynamic rules */
+static VNET_DEFINE(u_int32_t, dyn_count);	/* # of dynamic rules */
+static VNET_DEFINE(u_int32_t, dyn_max);		/* max # of dynamic rules */
 
 #define	V_dyn_count			VNET(dyn_count)
 #define	V_dyn_max			VNET(dyn_max)

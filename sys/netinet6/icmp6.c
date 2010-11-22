@@ -119,8 +119,8 @@ VNET_DEFINE(struct icmp6stat, icmp6stat);
 VNET_DECLARE(struct inpcbinfo, ripcbinfo);
 VNET_DECLARE(struct inpcbhead, ripcb);
 VNET_DECLARE(int, icmp6errppslim);
-STATIC_VNET_DEFINE(int, icmp6errpps_count) = 0;
-STATIC_VNET_DEFINE(struct timeval, icmp6errppslim_last);
+static VNET_DEFINE(int, icmp6errpps_count) = 0;
+static VNET_DEFINE(struct timeval, icmp6errppslim_last);
 VNET_DECLARE(int, icmp6_nodeinfo);
 
 #define	V_ripcbinfo			VNET(ripcbinfo)

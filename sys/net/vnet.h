@@ -95,7 +95,9 @@ struct vnet {
  * Location of the kernel's 'set_vnet' linker set.
  */
 extern uintptr_t	*__start_set_vnet;
+__GLOBL(__start_set_vnet);
 extern uintptr_t	*__stop_set_vnet;
+__GLOBL(__stop_set_vnet);
 
 #define	VNET_START	(uintptr_t)&__start_set_vnet
 #define	VNET_STOP	(uintptr_t)&__stop_set_vnet
@@ -193,14 +195,9 @@ extern struct sx vnet_sxlock;
  */
 #define	VNET_NAME(n)		vnet_entry_##n
 #define	VNET_DECLARE(t, n)	extern t VNET_NAME(n)
-#define	VNET_DEFINE(t, n)						\
-    __GLOBL("__start_" VNET_SETNAME);					\
-    __GLOBL("__stop_" VNET_SETNAME);					\
-    t VNET_NAME(n) __section(VNET_SETNAME) __used
-#define	STATIC_VNET_DEFINE(t, n)					\
-    VNET_DEFINE(static t, n)
-#define	_VNET_PTR(b, n)							\
-    (__typeof(VNET_NAME(n))*)((b) + (uintptr_t)&VNET_NAME(n))
+#define	VNET_DEFINE(t, n)	t VNET_NAME(n) __section(VNET_SETNAME) __used
+#define	_VNET_PTR(b, n)		(__typeof(VNET_NAME(n))*)		\
+				    ((b) + (uintptr_t)&VNET_NAME(n))
 
 #define	_VNET(b, n)		(*_VNET_PTR(b, n))
 
@@ -374,11 +371,10 @@ do {									\
  * Versions of the VNET macros that compile to normal global variables and
  * standard sysctl definitions.
  */
-#define	VNET_NAME(n)			n
-#define	VNET_DECLARE(t, n)		extern t n
-#define	VNET_DEFINE(t, n)		t n
-#define	STATIC_VNET_DEFINE(t, n)	static t n
-#define	_VNET_PTR(b, n)			&VNET_NAME(n)
+#define	VNET_NAME(n)		n
+#define	VNET_DECLARE(t, n)	extern t n
+#define	VNET_DEFINE(t, n)	t n
+#define	_VNET_PTR(b, n)		&VNET_NAME(n)
 
 /*
  * Virtualized global variable accessor macros.

@@ -135,7 +135,7 @@ struct pcpu_state {
 	int		idle;		/* This CPU is in idle mode. */
 };
 
-STATIC_DPCPU_DEFINE(struct pcpu_state, timerstate);
+static DPCPU_DEFINE(struct pcpu_state, timerstate);
 
 #define FREQ2BT(freq, bt)						\
 {									\

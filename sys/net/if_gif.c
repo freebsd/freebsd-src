@@ -94,7 +94,7 @@
  */
 static struct mtx gif_mtx;
 static MALLOC_DEFINE(M_GIF, "gif", "Generic Tunnel Interface");
-STATIC_VNET_DEFINE(LIST_HEAD(, gif_softc), gif_softc_list);
+static VNET_DEFINE(LIST_HEAD(, gif_softc), gif_softc_list);
 #define	V_gif_softc_list	VNET(gif_softc_list)
 
 void	(*ng_gif_input_p)(struct ifnet *ifp, struct mbuf **mp, int af);
@@ -124,7 +124,7 @@ SYSCTL_NODE(_net_link, IFT_GIF, gif, CTLFLAG_RW, 0,
  */
 #define MAX_GIF_NEST 1
 #endif
-STATIC_VNET_DEFINE(int, max_gif_nesting) = MAX_GIF_NEST;
+static VNET_DEFINE(int, max_gif_nesting) = MAX_GIF_NEST;
 #define	V_max_gif_nesting	VNET(max_gif_nesting)
 SYSCTL_VNET_INT(_net_link_gif, OID_AUTO, max_nesting, CTLFLAG_RW,
     &VNET_NAME(max_gif_nesting), 0, "Max nested tunnels");
@@ -135,9 +135,9 @@ SYSCTL_VNET_INT(_net_link_gif, OID_AUTO, max_nesting, CTLFLAG_RW,
  * we allow control over this check here.
  */
 #ifdef XBONEHACK
-STATIC_VNET_DEFINE(int, parallel_tunnels) = 1;
+static VNET_DEFINE(int, parallel_tunnels) = 1;
 #else
-STATIC_VNET_DEFINE(int, parallel_tunnels) = 0;
+static VNET_DEFINE(int, parallel_tunnels) = 0;
 #endif
 #define	V_parallel_tunnels	VNET(parallel_tunnels)
 SYSCTL_VNET_INT(_net_link_gif, OID_AUTO, parallel_tunnels, CTLFLAG_RW,
