@@ -876,11 +876,11 @@ check_parms(struct parm *new)
 		if ((0 != (new->parm_int_state & GROUP_IS_SOL_OUT)
 		     && 0 != (parmp->parm_int_state & GROUP_IS_SOL_OUT)
 		     && 0 != ((new->parm_int_state ^ parmp->parm_int_state)
-			      && GROUP_IS_SOL_OUT))
+			      & GROUP_IS_SOL_OUT))
 		    || (0 != (new->parm_int_state & GROUP_IS_ADV_OUT)
 			&& 0 != (parmp->parm_int_state & GROUP_IS_ADV_OUT)
 			&& 0 != ((new->parm_int_state ^ parmp->parm_int_state)
-				 && GROUP_IS_ADV_OUT))
+				 & GROUP_IS_ADV_OUT))
 		    || (new->parm_rdisc_pref != 0
 			&& parmp->parm_rdisc_pref != 0
 			&& new->parm_rdisc_pref != parmp->parm_rdisc_pref)
