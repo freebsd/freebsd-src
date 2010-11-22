@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2008 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2010 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,7 @@
  * $FreeBSD$
  */
 /*
- | $Id: iscsi.h,v 1.17 2006/12/01 09:10:17 danny Exp danny $
+ | $Id: iscsi.h 743 2009-08-08 10:54:53Z danny $
  */
 #define	TRUE	1
 #define FALSE	0
@@ -37,11 +37,7 @@ typedef int boolean_t;
 #include <cam/cam.h>
 
 #define ISCSIDEV	"iscsi"
-
-#define ISCSI_MAX_TARGETS	4 //64
-
-#define ISCSI_MAX_LUNS		4
-
+#define ISCSI_MAX_TARGETS	64
 /*
  | iSCSI commands
  */
@@ -422,13 +418,13 @@ typedef struct {
  */
 typedef struct {
      union ipdu_u	ipdu;
-
-     ahs_t		*ahs;
-     u_int		ahs_len;
-     u_int		ahs_size;	// the allocated size
      u_int		hdr_dig;	// header digest
 
-     u_char		*ds;
+     ahs_t		*ahs_addr;
+     u_int		ahs_len;
+     u_int		ahs_size;	// the allocated size
+
+     u_char		*ds_addr;
      u_int		ds_len;
      u_int		ds_size;	// the allocated size
      u_int		ds_dig;		// data digest
@@ -474,6 +470,7 @@ typedef struct opvals {
      u_char	tgtChapID;
      char	*tgtChapDigest;
      char	*iqn;
+     char	*pidfile;
 } isc_opt_t;
 
 /*
@@ -498,7 +495,6 @@ typedef struct iscsi_cam {
      path_id_t		path_id;
      target_id_t	target_id;
      int		target_nluns;
-     lun_id_t		target_lun[ISCSI_MAX_LUNS];
 } iscsi_cam_t;
 
 #define ISCSIGETCAM	_IOR('i', 33, iscsi_cam_t)

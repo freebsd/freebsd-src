@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2008 Daniel Braniss <danny@cs.huji.ac.il>
+ * Copyright (c) 2005-2010 Daniel Braniss <danny@cs.huji.ac.il>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,8 +25,7 @@
  *
  */
 /*
- | iSCSI
- | $Id: iscsi.c,v 1.35 2007/04/22 08:58:29 danny Exp danny $
+ | $Id: iscsi.c 752 2009-08-20 11:23:28Z danny $
  */
 
 #include <sys/cdefs.h>
@@ -56,15 +55,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/syslog.h>
 #include <vm/uma.h>
+#include <sys/sx.h>
 
 #include <dev/iscsi/initiator/iscsi.h>
 #include <dev/iscsi/initiator/iscsivar.h>
+static char *iscsi_driver_version = "2.2.4.2";
 
-static char *iscsi_driver_version = "2.1.0";
-
-static struct isc_softc isc;
+static struct isc_softc *isc;
 
 MALLOC_DEFINE(M_ISCSI, "iSCSI", "iSCSI driver");
+MALLOC_DEFINE(M_ISCSIBUF, "iSCbuf", "iSCSI buffers");
+MALLOC_DEFINE(M_TMP, "iSCtmp", "iSCSI tmp");
 
 #ifdef ISCSI_INITIATOR_DEBUG
 int iscsi_debug = ISCSI_INITIATOR_DEBUG;
@@ -74,6 +75,12 @@ SYSCTL_INT(_debug, OID_AUTO, iscsi_initiator, CTLFLAG_RW, &iscsi_debug, 0,
 struct mtx iscsi_dbg_mtx;
 #endif
 
+static int max_sessions = MAX_SESSIONS;
+SYSCTL_INT(_net, OID_AUTO, iscsi_initiator_max_sessions, CTLFLAG_RDTUN, &max_sessions, MAX_SESSIONS,
+	   "Max sessions allowed");
+static int max_pdus = MAX_PDUS;
+SYSCTL_INT(_net, OID_AUTO, iscsi_initiator_max_pdus, CTLFLAG_RDTUN, &max_pdus, MAX_PDUS,
+	   "Max pdu pool");
 
 static char isid[6+1] = {
      0x80,
@@ -91,6 +98,7 @@ static int	i_ping(struct cdev *dev);
 static int	i_send(struct cdev *dev, caddr_t arg, struct thread *td);
 static int	i_recv(struct cdev *dev, caddr_t arg, struct thread *td);
 static int	i_setsoc(isc_session_t *sp, int fd, struct thread *td);
+static int	i_fullfeature(struct cdev *dev, int flag);
 
 static d_open_t iscsi_open;
 static d_close_t iscsi_close;
@@ -117,18 +125,9 @@ iscsi_open(struct cdev *dev, int flags, int otype, struct thread *td)
 
      debug(7, "dev=%d", dev2unit(dev));
 
-     if(dev2unit(dev) > MAX_SESSIONS) {
+     if(dev2unit(dev) > max_sessions) {
 	  // should not happen
           return ENODEV;
-     }
-     if(dev2unit(dev) == MAX_SESSIONS) {
-#if 1
-	  struct isc_softc *sc = (struct isc_softc *)dev->si_drv1;
-
-	  // this should be in iscsi_start
-	  if(sc->cam_sim == NULL)
-	       ic_init(sc);
-#endif
      }
      return 0;
 }
@@ -136,20 +135,18 @@ iscsi_open(struct cdev *dev, int flags, int otype, struct thread *td)
 static int
 iscsi_close(struct cdev *dev, int flag, int otyp, struct thread *td)
 {
-     struct isc		*sc;
      isc_session_t	*sp;
 
      debug_called(8);
 
-     debug(3, "flag=%x", flag);
+     debug(3, "session=%d flag=%x", dev2unit(dev), flag);
 
-     sc = (struct isc *)dev->si_drv1;
-     if(dev2unit(dev) == MAX_SESSIONS) {
+     if(dev2unit(dev) == max_sessions) {
 	  return 0;
      }
-     sp = (isc_session_t *)dev->si_drv2;
+     sp = dev->si_drv2;
      if(sp != NULL) {
-	  sdebug(2, "session=%d flags=%x", dev2unit(dev), sp->flags );
+	  sdebug(3, "sp->flags=%x", sp->flags );
 	  /*
 	   | if still in full phase, this probably means
 	   | that something went realy bad.
@@ -170,19 +167,19 @@ iscsi_close(struct cdev *dev, int flag, int otyp, struct thread *td)
 static int
 iscsi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 {
-     struct isc		*sc;
+     struct isc_softc	*sc;
      isc_session_t	*sp;
      isc_opt_t		*opt;
      int		error;
 
-     sc = (struct isc *)dev->si_drv1;
      debug_called(8);
 
      error = 0;
-     if(dev2unit(dev) == MAX_SESSIONS) {
+     if(dev2unit(dev) == max_sessions) {
 	  /*
 	   | non Session commands
 	   */
+	  sc = dev->si_drv1;
 	  if(sc == NULL)
 	       return ENXIO;
 
@@ -190,18 +187,17 @@ iscsi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int mode, struct thread *
 	  case ISCSISETSES:
 	       error = i_create_session(dev, (int *)arg);
 	       if(error == 0)
-		    
-	       break;
+		    break;
 
 	  default:
-	       error = ENXIO; // XXX:
+	       error = ENXIO;
 	  }
 	  return error;
      }
-     sp = (isc_session_t *)dev->si_drv2;
      /*
       | session commands
       */
+     sp = dev->si_drv2;
      if(sp == NULL)
 	  return ENXIO;
 
@@ -230,7 +226,7 @@ iscsi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int mode, struct thread *
 	  break;
 
      case ISCSISTART:
-	  error = sp->soc == NULL? ENOTCONN: ism_fullfeature(dev, 1);
+	  error = sp->soc == NULL? ENOTCONN: i_fullfeature(dev, 1);
 	  if(error == 0) {
 	       sp->proc = td->td_proc;
 	       SYSCTL_ADD_UINT(&sp->clist,
@@ -243,11 +239,11 @@ iscsi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int mode, struct thread *
 	  break;
 
      case ISCSIRESTART:
-	  error = sp->soc == NULL? ENOTCONN: ism_fullfeature(dev, 2);
+	  error = sp->soc == NULL? ENOTCONN: i_fullfeature(dev, 2);
 	  break;
 
      case ISCSISTOP:
-	  error = ism_fullfeature(dev, 0);
+	  error = i_fullfeature(dev, 0);
 	  break;
 	  
      case ISCSISIGNAL: {
@@ -283,9 +279,9 @@ iscsi_read(struct cdev *dev, struct uio *uio, int ioflag)
      pduq_t 		*pq;
      char		buf[1024];
 
-     sc = (struct isc_softc *)dev->si_drv1;
-     sp = (isc_session_t *)dev->si_drv2;
-     if(dev2unit(dev) == MAX_SESSIONS) {
+     sc = dev->si_drv1;
+     sp = dev->si_drv2;
+     if(dev2unit(dev) == max_sessions) {
 	  sprintf(buf, "/----- Session ------/\n");
 	  uiomove(buf, strlen(buf), uio);
 	  int	i = 0;
@@ -299,21 +295,16 @@ iscsi_read(struct cdev *dev, struct uio *uio, int ioflag)
 	  sprintf(buf, "%d/%d /---- free -----/\n", sc->npdu_alloc, sc->npdu_max);
 	  i = 0;
 	  uiomove(buf, strlen(buf), uio);
-	  TAILQ_FOREACH(pq, &sc->freepdu, pq_link) {
-	       if(uio->uio_resid == 0)
-		    return 0;
-	       sprintf(buf, "%03d] %06x\n", i++, ntohl(pq->pdu.ipdu.bhs.itt));
-	       uiomove(buf, strlen(buf), uio);
-	  }
      }
      else {
 	  int	i = 0;
 	  struct socket	*so = sp->soc;
 #define pukeit(i, pq) do {\
-	       sprintf(buf, "%03d] %06x %02x %x %ld %jd\n",\
-		       i, ntohl( pq->pdu.ipdu.bhs.CmdSN), \
+	       sprintf(buf, "%03d] %06x %02x %06x %06x %jd\n",\
+		       i, ntohl(pq->pdu.ipdu.bhs.CmdSN),\
 		       pq->pdu.ipdu.bhs.opcode, ntohl(pq->pdu.ipdu.bhs.itt),\
-		       (long)pq->ts.sec, pq->ts.frac);\
+		       ntohl(pq->pdu.ipdu.bhs.ExpStSN),\
+		       (intmax_t)pq->ts.sec);\
 	       } while(0)
 
 	  sprintf(buf, "%d/%d /---- hld -----/\n", sp->stats.nhld, sp->stats.max_hld);
@@ -418,8 +409,7 @@ i_setsoc(isc_session_t *sp, int fd, struct thread *td)
 static int
 i_send(struct cdev *dev, caddr_t arg, struct thread *td)
 {
-     isc_session_t	*sp = (isc_session_t *)dev->si_drv2;
-     struct isc_softc	*sc = (struct isc_softc *)dev->si_drv1;
+     isc_session_t	*sp = dev->si_drv2;
      caddr_t		bp;
      pduq_t		*pq;
      pdu_t		*pp;
@@ -430,38 +420,46 @@ i_send(struct cdev *dev, caddr_t arg, struct thread *td)
      if(sp->soc == NULL)
 	  return ENOTCONN;
 
-     if((pq = pdu_alloc(sc, M_NOWAIT)) == NULL)
+     if((pq = pdu_alloc(sp->isc, M_NOWAIT)) == NULL)
 	  return EAGAIN;
      pp = &pq->pdu;
      pq->pdu = *(pdu_t *)arg;
      if((error = i_prepPDU(sp, pq)) != 0)
 	  goto out;
 
-     sdebug(3, "len=%d ahs_len=%d ds_len=%d", pq->len, pp->ahs_len, pp->ds_len);
-
-     pq->buf = bp = malloc(pq->len - sizeof(union ipdu_u), M_ISCSI, M_NOWAIT);
-     if(pq->buf == NULL) {
-	  error = EAGAIN;
-	  goto out;
+     bp = NULL;
+     if((pq->len - sizeof(union ipdu_u)) > 0) {
+	  pq->buf = bp = malloc(pq->len - sizeof(union ipdu_u), M_ISCSIBUF, M_NOWAIT);
+	  if(pq->buf == NULL) {
+	       error = EAGAIN;
+	       goto out;
+	  }
      }
+     else
+	  pq->buf = NULL; // just in case?
+
+     sdebug(2, "len=%d ahs_len=%d ds_len=%d buf=%zu@%p",
+	    pq->len, pp->ahs_len, pp->ds_len, pq->len - sizeof(union ipdu_u), bp);
+
      if(pp->ahs_len) {
+	  // XXX: never tested, looks suspicious
 	  n = pp->ahs_len;
-	  error = copyin(pp->ahs, bp, n);
+	  error = copyin(pp->ahs_addr, bp, n);
 	  if(error != 0) {
 	       sdebug(3, "copyin ahs: error=%d", error);
 	       goto out;
 	  }
-	  pp->ahs = (ahs_t *)bp;
+	  pp->ahs_addr = (ahs_t *)bp;
 	  bp += n;
      }
      if(pp->ds_len) {
 	  n = pp->ds_len;
-	  error = copyin(pp->ds, bp, n);
+	  error = copyin(pp->ds_addr, bp, n);
 	  if(error != 0) {
 	       sdebug(3, "copyin ds: error=%d", error);
 	       goto out;
 	  }
-	  pp->ds = bp;
+	  pp->ds_addr = bp;
 	  bp += n;
 	  while(n & 03) {
 	       n++;
@@ -470,24 +468,19 @@ i_send(struct cdev *dev, caddr_t arg, struct thread *td)
      }
 
      error = isc_qout(sp, pq);
-#if 1
      if(error == 0)
 	  wakeup(&sp->flags); // XXX: to 'push' proc_out ...
-#endif
 out:
      if(error)
-	  pdu_free(sc, pq);
+	  pdu_free(sp->isc, pq);
 
      return error;
 }
 
-/*
- | NOTE: must calculate digest if requiered.
- */
 static int
 i_recv(struct cdev *dev, caddr_t arg, struct thread *td)
 {
-     isc_session_t	*sp = (isc_session_t *)dev->si_drv2;
+     isc_session_t	*sp = dev->si_drv2;
      pduq_t		*pq;
      pdu_t		*pp, *up;
      caddr_t		bp;
@@ -501,7 +494,6 @@ i_recv(struct cdev *dev, caddr_t arg, struct thread *td)
 
      if(sp->soc == NULL)
 	  return ENOTCONN;
-     sdebug(3, "");
      cnt = 6;     // XXX: maybe the user can request a time out?
      mtx_lock(&sp->rsp_mtx);
      while((pq = TAILQ_FIRST(&sp->rsp)) == NULL) {
@@ -514,7 +506,7 @@ i_recv(struct cdev *dev, caddr_t arg, struct thread *td)
      }
      mtx_unlock(&sp->rsp_mtx);
 
-     sdebug(4, "cnt=%d", cnt);
+     sdebug(6, "cnt=%d", cnt);
 
      if(pq == NULL) {
 	  error = ENOTCONN;
@@ -536,19 +528,15 @@ i_recv(struct cdev *dev, caddr_t arg, struct thread *td)
 	  len = 0;
 	  if(pp->ahs_len) {
 	       len += pp->ahs_len;
-	       if(sp->hdrDigest)
-		    len += 4;
 	  }
 	  if(pp->ds_len) {
 	       len += pp->ds_len;
-	       if(sp->hdrDigest)
-		    len += 4;
 	  }
 
 	  mustfree = 0;
 	  if(len > pq->mp->m_len) {
 	       mustfree++;
-	       bp = malloc(len, M_ISCSI, M_WAITOK);
+	       bp = malloc(len, M_TMP, M_WAITOK);
 	       sdebug(4, "need mbufcopy: %d", len);
 	       i_mbufcopy(pq->mp, bp, len);
 	  } 
@@ -557,28 +545,24 @@ i_recv(struct cdev *dev, caddr_t arg, struct thread *td)
 
 	  if(pp->ahs_len) {
 	       need = pp->ahs_len;
-	       if(sp->hdrDigest)
-		    need += 4;
 	       n = MIN(up->ahs_size, need);
-	       error = copyout(bp, (caddr_t)up->ahs, n);
+	       error = copyout(bp, (caddr_t)up->ahs_addr, n);
 	       up->ahs_len = n;
 	       bp += need;
 	  }
 	  if(!error && pp->ds_len) {
 	       need = pp->ds_len;
-	       if(sp->hdrDigest)
-		    need += 4;
 	       if((have = up->ds_size) == 0) {
 		    have = up->ahs_size - n;
-		    up->ds = (caddr_t)up->ahs + n;
+		    up->ds_addr = (caddr_t)up->ahs_addr + n;
 	       }
 	       n = MIN(have, need);
-	       error = copyout(bp, (caddr_t)up->ds, n);
+	       error = copyout(bp, (caddr_t)up->ds_addr, n);
 	       up->ds_len = n;
 	  }
 
 	  if(mustfree)
-	       free(bp, M_ISCSI);
+	       free(bp, M_TMP);
      }
 
      sdebug(6, "len=%d ahs_len=%d ds_len=%d", pq->len, pp->ahs_len, pp->ds_len);
@@ -589,33 +573,57 @@ i_recv(struct cdev *dev, caddr_t arg, struct thread *td)
 }
 
 static int
+i_fullfeature(struct cdev *dev, int flag)
+{
+     isc_session_t	*sp = dev->si_drv2;
+     int		error;
+
+     sdebug(2, "flag=%d", flag);
+
+     error = 0;
+     switch(flag) {
+     case 0: // stop
+         sp->flags &= ~ISC_FFPHASE;
+         break;
+     case 1: // start
+         sp->flags |= ISC_FFPHASE;
+         error = ic_init(sp);
+         break;
+     case 2: // restart
+         sp->flags |= ISC_FFPHASE;
+         ism_restart(sp);
+         break;
+     }
+     return error;
+}
+
+static int
 i_create_session(struct cdev *dev, int *ndev)
 { 
-     struct isc_softc		*sc = (struct isc_softc *)dev->si_drv1;
+     struct isc_softc	*sc = dev->si_drv1;
      isc_session_t	*sp;
      int		error, n;
 
      debug_called(8);
-     sp = (isc_session_t *)malloc(sizeof *sp, M_ISCSI, M_WAITOK | M_ZERO);
+
+     sp = malloc(sizeof(isc_session_t), M_ISCSI, M_WAITOK | M_ZERO);
      if(sp == NULL)
 	  return ENOMEM;
-     mtx_lock(&sc->mtx);
-     /*
-      | search for the lowest unused sid
-      */
-     for(n = 0; n < MAX_SESSIONS; n++)
-	  if(sc->sessions[n] == NULL)
-	       break;
-     if(n == MAX_SESSIONS) {
-	  mtx_unlock(&sc->mtx);
+
+     sx_xlock(&sc->unit_sx);
+     if((n = alloc_unr(sc->unit)) < 0) {
+	  sx_unlock(&sc->unit_sx);
 	  free(sp, M_ISCSI);
+	  xdebug("too many sessions!");
 	  return EPERM;
      }
-     TAILQ_INSERT_TAIL(&sc->isc_sess, sp, sp_link);
-     sc->nsess++;
-     mtx_unlock(&sc->mtx);
+     sx_unlock(&sc->unit_sx);
 
-     sc->sessions[n] = sp;
+     mtx_lock(&sc->isc_mtx);
+     TAILQ_INSERT_TAIL(&sc->isc_sess, sp, sp_link);
+     isc->nsess++;
+     mtx_unlock(&sc->isc_mtx);
+
      sp->dev = make_dev(&iscsi_cdevsw, n, UID_ROOT, GID_WHEEL, 0600, "iscsi%d", n);
      *ndev = sp->sid = n;
      sp->isc = sc;
@@ -624,10 +632,9 @@ i_create_session(struct cdev *dev, int *ndev)
 
      sp->opt.maxRecvDataSegmentLength = 8192;
      sp->opt.maxXmitDataSegmentLength = 8192;
-
      sp->opt.maxBurstLength = 65536;	// 64k
+     sp->opt.maxluns = ISCSI_MAX_LUNS;
 
-     sdebug(2, "sessionID=%d sp=%p", n, sp);
      error = ism_start(sp);
 
      return error;
@@ -663,7 +670,7 @@ iscsi_counters(isc_session_t *sp)
 static void
 iscsi_shutdown(void *v)
 {
-     struct isc_softc	*sc = (struct isc_softc *)v;
+     struct isc_softc	*sc = v;
      isc_session_t	*sp;
      int	n;
 
@@ -672,12 +679,14 @@ iscsi_shutdown(void *v)
 	  xdebug("sc is NULL!");
 	  return;
      }
+#ifdef DO_EVENTHANDLER
      if(sc->eh == NULL)
 	  debug(2, "sc->eh is NULL");
      else {
 	  EVENTHANDLER_DEREGISTER(shutdown_pre_sync, sc->eh);
 	  debug(2, "done n=%d", sc->nsess);
      }
+#endif
      n = 0;
      TAILQ_FOREACH(sp, &sc->isc_sess, sp_link) {
 	  debug(2, "%2d] sp->flags=0x%08x", n, sp->flags);
@@ -686,36 +695,13 @@ iscsi_shutdown(void *v)
      debug(2, "done");
 }
 
-static int
-init_pdus(struct isc_softc *sc)
-{
-     debug_called(8);
-
-     sc->pdu_zone = uma_zcreate("pdu", sizeof(pduq_t),
-				NULL, NULL, NULL, NULL,
-				0, 0);
-     if(sc->pdu_zone == NULL) {
-	  printf("iscsi_initiator: uma_zcreate failed");
-	  return -1;
-     }
-     uma_zone_set_max(sc->pdu_zone, MAX_PDUS);
-     TAILQ_INIT(&sc->freepdu);
-
-     return 0;
-}
-
 static void
 free_pdus(struct isc_softc *sc)
 {
-     pduq_t	*pq;
 
      debug_called(8);
 
      if(sc->pdu_zone != NULL) {
-	  TAILQ_FOREACH(pq, &sc->freepdu, pq_link) {
-	       TAILQ_REMOVE(&sc->freepdu, pq, pq_link);
-	       uma_zfree(sc->pdu_zone, pq);
-	  }
 	  uma_zdestroy(sc->pdu_zone);
 	  sc->pdu_zone = NULL;
      }
@@ -724,50 +710,50 @@ free_pdus(struct isc_softc *sc)
 static void
 iscsi_start(void)
 {
-     struct isc_softc *sc = &isc;
- 
      debug_called(8);
 
-     memset(sc, 0, sizeof(struct isc_softc));
+     TUNABLE_INT_FETCH("net.iscsi_initiator.max_sessions", &max_sessions);
+     TUNABLE_INT_FETCH("net.iscsi_initiator.max_pdus", &max_pdus);
 
-     sc->dev = make_dev(&iscsi_cdevsw, MAX_SESSIONS, UID_ROOT, GID_WHEEL, 0600, "iscsi");
-     sc->dev->si_drv1 = sc;
+     isc =  malloc(sizeof(struct isc_softc), M_ISCSI, M_ZERO|M_WAITOK);
+     isc->dev = make_dev(&iscsi_cdevsw, max_sessions, UID_ROOT, GID_WHEEL, 0600, "iscsi");
+     isc->dev->si_drv1 = isc;
+     mtx_init(&isc->isc_mtx, "iscsi", NULL, MTX_DEF);
 
-     TAILQ_INIT(&sc->isc_sess);
-     if(init_pdus(sc) != 0)
-	  xdebug("pdu zone init failed!"); // XXX: should cause terminal failure ...
-     
-     mtx_init(&sc->mtx, "iscsi", NULL, MTX_DEF);
-     mtx_init(&sc->pdu_mtx, "iscsi pdu pool", NULL, MTX_DEF);
-
-#if 0
-     // XXX: this will cause a panic if the
-     //      module is loaded too early
-     if(ic_init(sc) != 0)
-	  return;
-#else
-     sc->cam_sim = NULL;
-#endif
+     TAILQ_INIT(&isc->isc_sess);
+     /*
+      | now init the free pdu list
+      */
+     isc->pdu_zone = uma_zcreate("pdu", sizeof(pduq_t),
+				 NULL, NULL, NULL, NULL,
+				 0, 0);
+     if(isc->pdu_zone == NULL) {
+	  xdebug("iscsi_initiator: uma_zcreate failed");
+	  // XXX: should fail...
+     }
+     uma_zone_set_max(isc->pdu_zone, max_pdus);
+     isc->unit = new_unrhdr(0, max_sessions-1, NULL);
+     sx_init(&isc->unit_sx, "iscsi sx");
 
 #ifdef DO_EVENTHANDLER
-     if((sc->eh = EVENTHANDLER_REGISTER(shutdown_pre_sync, iscsi_shutdown,
+     if((isc->eh = EVENTHANDLER_REGISTER(shutdown_pre_sync, iscsi_shutdown,
 					sc, SHUTDOWN_PRI_DEFAULT-1)) == NULL)
 	  xdebug("shutdown event registration failed\n");
 #endif
      /*
       | sysctl stuff
       */
-     sysctl_ctx_init(&sc->clist);
-     sc->oid = SYSCTL_ADD_NODE(&sc->clist,
+     sysctl_ctx_init(&isc->clist);
+     isc->oid = SYSCTL_ADD_NODE(&isc->clist,
 			       SYSCTL_STATIC_CHILDREN(_net),
 			       OID_AUTO,
-			       "iscsi",
+			       "iscsi_initiator",
 			       CTLFLAG_RD,
 			       0,
 			       "iSCSI Subsystem");
 
-     SYSCTL_ADD_STRING(&sc->clist,
-		       SYSCTL_CHILDREN(sc->oid),
+     SYSCTL_ADD_STRING(&isc->clist,
+		       SYSCTL_CHILDREN(isc->oid),
 		       OID_AUTO,
 		       "driver_version",
 		       CTLFLAG_RD,
@@ -775,8 +761,8 @@ iscsi_start(void)
 		       0,
 		       "iscsi driver version");
  
-     SYSCTL_ADD_STRING(&sc->clist,
-		       SYSCTL_CHILDREN(sc->oid),
+     SYSCTL_ADD_STRING(&isc->clist,
+		       SYSCTL_CHILDREN(isc->oid),
 		       OID_AUTO,
 		       "isid",
 		       CTLFLAG_RW,
@@ -784,13 +770,13 @@ iscsi_start(void)
 		       6+1,
 		       "initiator part of the Session Identifier");
 
-     SYSCTL_ADD_INT(&sc->clist,
-		    SYSCTL_CHILDREN(sc->oid),
+     SYSCTL_ADD_INT(&isc->clist,
+		    SYSCTL_CHILDREN(isc->oid),
 		    OID_AUTO,
 		    "sessions",
 		    CTLFLAG_RD,
-		    &sc->nsess,
-		    sizeof(sc->nsess),
+		    &isc->nsess,
+		    sizeof(isc->nsess),
 		    "number of active session");
 
      printf("iscsi: version %s\n", iscsi_driver_version);
@@ -804,7 +790,6 @@ iscsi_start(void)
 static void
 iscsi_stop(void)
 {
-     struct isc_softc	*sc = &isc;
      isc_session_t	*sp, *sp_tmp;
 
      debug_called(8);
@@ -813,24 +798,25 @@ iscsi_stop(void)
       | go through all the sessions
       | Note: close should have done this ...
       */
-     TAILQ_FOREACH_SAFE(sp, &sc->isc_sess, sp_link, sp_tmp) {
+     TAILQ_FOREACH_SAFE(sp, &isc->isc_sess, sp_link, sp_tmp) {
 	  //XXX: check for activity ...
 	  ism_stop(sp);
+	  if(sp->cam_sim != NULL)
+	       ic_destroy(sp);
      }
-     if(sc->cam_sim != NULL)
-	  ic_destroy(sc);
+     mtx_destroy(&isc->isc_mtx);
+     sx_destroy(&isc->unit_sx);
 
-     mtx_destroy(&sc->mtx);
-     mtx_destroy(&sc->pdu_mtx);
-     free_pdus(sc);
+     free_pdus(isc);
 
-     if(sc->dev)
-	  destroy_dev(sc->dev);
+     if(isc->dev)
+	  destroy_dev(isc->dev);
 
-     if(sysctl_ctx_free(&sc->clist))
+     if(sysctl_ctx_free(&isc->clist))
 	  xdebug("sysctl_ctx_free failed");
 
-     iscsi_shutdown(sc); // XXX: check EVENTHANDLER_ ...
+     iscsi_shutdown(isc); // XXX: check EVENTHANDLER_ ...
+     free(isc, M_ISCSI);
 }
 
 static int
@@ -844,13 +830,12 @@ iscsi_modevent(module_t mod, int what, void *arg)
 	  break;
 
      case MOD_QUIESCE:
-#if 1
-	  if(isc.nsess) {
-	       xdebug("iscsi module busy(nsess=%d), cannot unload", isc.nsess);
+	  if(isc->nsess) {
+	       xdebug("iscsi module busy(nsess=%d), cannot unload", isc->nsess);
 	       log(LOG_ERR, "iscsi module busy, cannot unload");
 	  }
-	  return isc.nsess;
-#endif
+	  return isc->nsess;
+
      case MOD_SHUTDOWN:
 	  break;
 
