@@ -143,6 +143,8 @@ nsphyter_attach(device_t dev)
 	sc->mii_service = nsphyter_service;
 	sc->mii_pdata = mii;
 
+	sc->mii_flags |= MIIF_NOMANPAUSE;
+
 #if 1
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
@@ -242,12 +244,8 @@ nsphyter_status(struct mii_softc *sc)
 		else
 			mii->mii_media_active |= IFM_100_TX;
 		if ((physts & PHYSTS_DUPLEX) != 0)
-#ifdef notyet
 			mii->mii_media_active |=
 			    IFM_FDX | mii_phy_flowstatus(sc);
-#else
-			mii->mii_media_active |= IFM_FDX;
-#endif
 		else
 			mii->mii_media_active |= IFM_HDX;
 	} else
