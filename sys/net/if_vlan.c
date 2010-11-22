@@ -206,6 +206,11 @@ static  void vlan_iflladdr(void *arg, struct ifnet *ifp);
 static	struct if_clone vlan_cloner = IFC_CLONE_INITIALIZER(VLANNAME, NULL,
     IF_MAXUNIT, NULL, vlan_clone_match, vlan_clone_create, vlan_clone_destroy);
 
+#ifdef VIMAGE
+static VNET_DEFINE(struct if_clone, vlan_cloner);
+#define	V_vlan_cloner	VNET(vlan_cloner)
+#endif
+
 #ifndef VLAN_ARRAY
 #define HASH(n, m)	((((n) >> 8) ^ ((n) >> 4) ^ (n)) & (m))
 
@@ -588,7 +593,9 @@ vlan_modevent(module_t mod, int type, void *data)
 		vlan_input_p = vlan_input;
 		vlan_link_state_p = vlan_link_state;
 		vlan_trunk_cap_p = vlan_trunk_capabilities;
+#ifndef VIMAGE
 		if_clone_attach(&vlan_cloner);
+#endif
 		if (bootverbose)
 			printf("vlan: initialized, using "
 #ifdef VLAN_ARRAY
@@ -600,7 +607,9 @@ vlan_modevent(module_t mod, int type, void *data)
 			       "\n");
 		break;
 	case MOD_UNLOAD:
+#ifndef VIMAGE
 		if_clone_detach(&vlan_cloner);
+#endif
 		EVENTHANDLER_DEREGISTER(ifnet_departure_event, ifdetach_tag);
 		EVENTHANDLER_DEREGISTER(iflladdr_event, iflladdr_tag);
 		vlan_input_p = NULL;
@@ -624,6 +633,27 @@ static moduledata_t vlan_mod = {
 
 DECLARE_MODULE(if_vlan, vlan_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(if_vlan, 3);
+
+#ifdef VIMAGE
+static void
+vnet_vlan_init(const void *unused __unused)
+{
+
+	V_vlan_cloner = vlan_cloner;
+	if_clone_attach(&V_vlan_cloner);
+}
+VNET_SYSINIT(vnet_vlan_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+    vnet_vlan_init, NULL);
+
+static void
+vnet_vlan_uninit(const void *unused __unused)
+{
+
+	if_clone_detach(&V_vlan_cloner);
+}
+VNET_SYSUNINIT(vnet_vlan_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST,
+    vnet_vlan_uninit, NULL);
+#endif
 
 static struct ifnet *
 vlan_clone_match_ethertag(struct if_clone *ifc, const char *name, int *tag)
@@ -1432,6 +1462,12 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	case SIOCSETVLAN:
+#ifdef VIMAGE
+		if (ifp->if_vnet != ifp->if_home_vnet) {
+			error = EPERM;
+			break;
+		}
+#endif
 		error = copyin(ifr->ifr_data, &vlr, sizeof(vlr));
 		if (error)
 			break;
@@ -1461,6 +1497,12 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	case SIOCGETVLAN:
+#ifdef VIMAGE
+		if (ifp->if_vnet != ifp->if_home_vnet) {
+			error = EPERM;
+			break;
+		}
+#endif
 		bzero(&vlr, sizeof(vlr));
 		VLAN_LOCK();
 		if (TRUNK(ifv) != NULL) {
