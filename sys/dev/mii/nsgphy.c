@@ -135,6 +135,8 @@ nsgphy_attach(device_t dev)
 	sc->mii_service = nsgphy_service;
 	sc->mii_pdata = mii;
 
+	sc->mii_flags |= MIIF_NOMANPAUSE;
+
 	mii_phy_reset(sc);
 
 	/*
