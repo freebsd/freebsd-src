@@ -139,7 +139,7 @@ main(int argc, char **argv)
 			errx(1, "%s: non-numeric minor number", argv[4]);
 		range_error |= errno;
 		dev = makedev(mymajor, myminor);
-		if (range_error || major(dev) != (u_int) mymajor ||
+		if (range_error || major(dev) != mymajor ||
 		    (long)(u_int)minor(dev) != myminor)
 			errx(1, "major or minor number too large");
 	} else {

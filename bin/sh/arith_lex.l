@@ -55,6 +55,7 @@ int yylex(void);
 #define YY_INPUT(buf,result,max) \
 	result = (*buf = *arith_buf++) ? 1 : YY_NULL;
 #define YY_NO_UNPUT
+#define YY_NO_INPUT
 %}
 
 %%
