@@ -428,13 +428,14 @@ protopr(u_long off, const char *name, int af1, int proto)
 				       "2msl", "delack", "rcvtime",
 				       "(state)");
 			}
-			if (!xflag && !Tflag) 
+			if (!xflag && !Tflag) {
 				printf((Aflag && !Wflag) ? 
 				       "%-5.5s %-6.6s %-6.6s  %-18.18s %-18.18s" :
 				       "%-5.5s %-6.6s %-6.6s  %-22.22s %-22.22s",
 				       "Proto", "Recv-Q", "Send-Q",
 				       "Local Address", "Foreign Address");
-
+				printf("(state)\n");
+			}
 			first = 0;
 		}
 		if (Lflag && so->so_qlimit == 0)
