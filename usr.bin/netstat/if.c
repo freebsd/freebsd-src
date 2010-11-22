@@ -627,6 +627,7 @@ loop:
 		}
 		ip->ift_ip = ifnet.if_ipackets;
 		ip->ift_ie = ifnet.if_ierrors;
+		ip->ift_id = ifnet.if_iqdrops;
 		ip->ift_ib = ifnet.if_ibytes;
 		ip->ift_op = ifnet.if_opackets;
 		ip->ift_oe = ifnet.if_oerrors;

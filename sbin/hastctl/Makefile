@@ -24,6 +24,7 @@ CFLAGS+=-DINET6
 .endif
 # This is needed to have WARNS > 1.
 CFLAGS+=-DYY_NO_UNPUT
+CFLAGS+=-DYY_NO_INPUT
 
 DPADD=	${LIBL}
 LDADD=	-ll

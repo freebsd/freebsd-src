@@ -80,6 +80,13 @@ typedef struct prpsinfo {
     char	pr_psargs[PRARGSZ+1];	/* Arguments, null terminated (1) */
 } prpsinfo_t;
 
+#define THRMISC_VERSION		1	/* Current version of thrmisc_t */
+
+typedef struct thrmisc {
+    char	pr_tname[MAXCOMLEN+1];	/* Thread name, null terminated (1) */
+    u_int	_pad;			/* Convenience pad, 0-filled (1) */
+} thrmisc_t;
+
 typedef uint64_t psaddr_t;	/* An address in the target process. */
 
 #endif /* _SYS_PROCFS_H_ */

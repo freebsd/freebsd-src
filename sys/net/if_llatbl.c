@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_LLTABLE, "lltable", "link level address tables");
 
-STATIC_VNET_DEFINE(SLIST_HEAD(, lltable), lltables);
+static VNET_DEFINE(SLIST_HEAD(, lltable), lltables);
 #define	V_lltables	VNET(lltables)
 
 extern void arprequest(struct ifnet *, struct in_addr *, struct in_addr *,

@@ -39,6 +39,7 @@
 #include "config.h"
 
 #define YY_NO_UNPUT
+#define YY_NO_INPUT
 
 /*
  * Data for returning to previous files from include files.

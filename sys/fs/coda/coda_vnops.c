@@ -1549,9 +1549,6 @@ coda_reclaim(struct vop_reclaim_args *ap)
 				    "%p, cp %p\n", vp, cp);
 		}
 #endif
-	} else {
-		if (prtactive && vp->v_usecount != 0)
-			vprint("coda_reclaim: pushing active", vp);
 	}
 	cache_purge(vp);
 	coda_free(VTOC(vp));

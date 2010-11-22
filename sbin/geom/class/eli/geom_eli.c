@@ -374,7 +374,7 @@ eli_genkey_files(struct gctl_req *req, bool new, const char *type,
 		if (!gctl_has_param(req, argname))
 			return (i);
 
-		file = gctl_get_ascii(req, argname);
+		file = gctl_get_ascii(req, "%s", argname);
 		assert(file != NULL);
 
 		if (strcmp(file, "-") == 0)

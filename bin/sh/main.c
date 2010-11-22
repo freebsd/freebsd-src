@@ -128,10 +128,8 @@ main(int argc, char *argv[])
 			    exitshell(exitstatus);
 		}
 		reset();
-		if (exception == EXINT) {
-			out2c('\n');
-			flushout(&errout);
-		}
+		if (exception == EXINT)
+			out2fmt_flush("\n");
 		popstackmark(&smark);
 		FORCEINTON;				/* enable interrupts */
 		if (state == 1)

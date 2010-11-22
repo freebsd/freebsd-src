@@ -535,6 +535,7 @@ struct ata_cam_device {
 	int			mode;
 	u_int			bytecount;
 	u_int			atapi;
+	u_int			caps;
 };
 #endif
 
