@@ -108,7 +108,7 @@ VNET_DEFINE(int, ipport_randomcps) = 10;	/* user controlled via sysctl */
 VNET_DEFINE(int, ipport_randomtime) = 45;	/* user controlled via sysctl */
 VNET_DEFINE(int, ipport_stoprandom);		/* toggled by ipport_tick */
 VNET_DEFINE(int, ipport_tcpallocs);
-STATIC_VNET_DEFINE(int, ipport_tcplastcount);
+static VNET_DEFINE(int, ipport_tcplastcount);
 
 #define	V_ipport_tcplastcount		VNET(ipport_tcplastcount)
 

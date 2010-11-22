@@ -184,10 +184,10 @@ struct flowtable {
 } __aligned(CACHE_LINE_SIZE);
 
 static struct proc *flowcleanerproc;
-STATIC_VNET_DEFINE(struct flowtable *, flow_list_head);
-STATIC_VNET_DEFINE(uint32_t, flow_hashjitter);
-STATIC_VNET_DEFINE(uma_zone_t, flow_ipv4_zone);
-STATIC_VNET_DEFINE(uma_zone_t, flow_ipv6_zone);
+static VNET_DEFINE(struct flowtable *, flow_list_head);
+static VNET_DEFINE(uint32_t, flow_hashjitter);
+static VNET_DEFINE(uma_zone_t, flow_ipv4_zone);
+static VNET_DEFINE(uma_zone_t, flow_ipv6_zone);
 
 #define	V_flow_list_head	VNET(flow_list_head)
 #define	V_flow_hashjitter	VNET(flow_hashjitter)
@@ -230,13 +230,13 @@ do {		  				\
  * - idetach() cleanup for options VIMAGE builds.
  */
 VNET_DEFINE(int, flowtable_enable) = 1;
-STATIC_VNET_DEFINE(int, flowtable_debug);
-STATIC_VNET_DEFINE(int, flowtable_syn_expire) = SYN_IDLE;
-STATIC_VNET_DEFINE(int, flowtable_udp_expire) = UDP_IDLE;
-STATIC_VNET_DEFINE(int, flowtable_fin_wait_expire) = FIN_WAIT_IDLE;
-STATIC_VNET_DEFINE(int, flowtable_tcp_expire) = TCP_IDLE;
-STATIC_VNET_DEFINE(int, flowtable_nmbflows);
-STATIC_VNET_DEFINE(int, flowtable_ready) = 0;
+static VNET_DEFINE(int, flowtable_debug);
+static VNET_DEFINE(int, flowtable_syn_expire) = SYN_IDLE;
+static VNET_DEFINE(int, flowtable_udp_expire) = UDP_IDLE;
+static VNET_DEFINE(int, flowtable_fin_wait_expire) = FIN_WAIT_IDLE;
+static VNET_DEFINE(int, flowtable_tcp_expire) = TCP_IDLE;
+static VNET_DEFINE(int, flowtable_nmbflows);
+static VNET_DEFINE(int, flowtable_ready) = 0;
 
 #define	V_flowtable_enable		VNET(flowtable_enable)
 #define	V_flowtable_debug		VNET(flowtable_debug)

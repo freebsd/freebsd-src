@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/in_cksum.h>	/* XXX for in_cksum */
 
-STATIC_VNET_DEFINE(eventhandler_tag, ifaddr_event_tag);
+static VNET_DEFINE(eventhandler_tag, ifaddr_event_tag);
 #define	V_ifaddr_event_tag	VNET(ifaddr_event_tag)
 
 static void
