@@ -76,6 +76,9 @@ static __inline void
 set_user_sr(register_t vsid)
 {
 
+	/* Mark segment no-execute */
+	vsid |= SR_N;
+
 	isync();
 	__asm __volatile ("mtsr %0,%1" :: "n"(USER_SR), "r"(vsid));
 	isync();
