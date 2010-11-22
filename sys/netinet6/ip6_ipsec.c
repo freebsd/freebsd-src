@@ -80,9 +80,9 @@ extern	struct protosw inet6sw[];
 #ifdef INET6 
 #ifdef IPSEC
 #ifdef IPSEC_FILTERTUNNEL
-STATIC_VNET_DEFINE(int, ip6_ipsec6_filtertunnel) = 1;
+static VNET_DEFINE(int, ip6_ipsec6_filtertunnel) = 1;
 #else
-STATIC_VNET_DEFINE(int, ip6_ipsec6_filtertunnel) = 0;
+static VNET_DEFINE(int, ip6_ipsec6_filtertunnel) = 0;
 #endif
 #define	V_ip6_ipsec6_filtertunnel	VNET(ip6_ipsec6_filtertunnel)
 

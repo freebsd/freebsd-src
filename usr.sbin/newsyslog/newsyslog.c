@@ -163,7 +163,7 @@ struct include_entry {
 
 struct oldlog_entry {
 	char *fname;		/* Filename of the log file */
-	time_t t;		/* Parses timestamp of the logfile */
+	time_t t;		/* Parsed timestamp of the logfile */
 };
 
 typedef enum {

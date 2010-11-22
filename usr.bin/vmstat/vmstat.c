@@ -428,7 +428,7 @@ fill_pcpu(struct pcpu ***pcpup, int* maxcpup)
 {
 	struct pcpu **pcpu;
 	
-	int maxcpu, size, i;
+	int maxcpu, i;
 
 	*pcpup = NULL;
 	

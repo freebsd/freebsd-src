@@ -45,8 +45,8 @@
  */
 #ifdef __GNUCLIKE___SECTION
 #define __MAKE_SET(set, sym)						\
-	__GLOBL("__start_set_" #set);					\
-	__GLOBL("__stop_set_" #set);					\
+	__GLOBL(__CONCAT(__start_set_,set));				\
+	__GLOBL(__CONCAT(__stop_set_,set));				\
 	static void const * const __set_##set##_sym_##sym 		\
 	__section("set_" #set) __used = &sym
 #else /* !__GNUCLIKE___SECTION */

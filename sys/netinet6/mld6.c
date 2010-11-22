@@ -203,11 +203,11 @@ MALLOC_DEFINE(M_MLD, "mld", "mld state");
 /*
  * VIMAGE-wide globals.
  */
-STATIC_VNET_DEFINE(struct timeval, mld_gsrdelay) = {10, 0};
-STATIC_VNET_DEFINE(LIST_HEAD(, mld_ifinfo), mli_head);
-STATIC_VNET_DEFINE(int, interface_timers_running6);
-STATIC_VNET_DEFINE(int, state_change_timers_running6);
-STATIC_VNET_DEFINE(int, current_state_timers_running6);
+static VNET_DEFINE(struct timeval, mld_gsrdelay) = {10, 0};
+static VNET_DEFINE(LIST_HEAD(, mld_ifinfo), mli_head);
+static VNET_DEFINE(int, interface_timers_running6);
+static VNET_DEFINE(int, state_change_timers_running6);
+static VNET_DEFINE(int, current_state_timers_running6);
 
 #define	V_mld_gsrdelay			VNET(mld_gsrdelay)
 #define	V_mli_head			VNET(mli_head)

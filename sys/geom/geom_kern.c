@@ -137,10 +137,8 @@ g_event_procbody(void)
 	thread_lock(tp);
 	sched_prio(tp, PRIBIO);
 	thread_unlock(tp);
-	for(;;) {
-		g_run_events();
-		tsleep(&g_wait_event, PRIBIO, "-", hz/10);
-	}
+	g_run_events();
+	/* NOTREACHED */
 }
 
 static struct kproc_desc g_event_kp = {

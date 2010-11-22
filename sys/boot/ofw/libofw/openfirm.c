@@ -77,7 +77,7 @@ void
 OF_init(int (*openfirm)(void *))
 {
 	phandle_t options;
-	char	  mode[8];
+	char	  mode[sizeof("true")];
 
 	openfirmware = openfirm;
 
@@ -93,13 +93,13 @@ OF_init(int (*openfirm)(void *))
 	if (OF_getprop(chosen, "mmu", &mmu, sizeof(mmu)) == -1)
 		OF_exit();
 
-	/* 
+	/*
 	 * Check if we run in real mode. If so, we do not need to map
 	 * memory later on.
 	 */
 	options = OF_finddevice("/options");
-	OF_getprop(options, "real-mode?", mode, sizeof(mode));
-	if (strncmp(mode, "true", 4) == 0)
+	if (OF_getprop(options, "real-mode?", mode, sizeof(mode)) > 0 &&
+	    strcmp(mode, "true") == 0)
 		real_mode = 1;
 }
 

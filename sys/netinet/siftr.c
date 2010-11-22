@@ -260,7 +260,7 @@ struct siftr_stats
 	uint32_t nskip_out_dejavu;
 };
 
-STATIC_DPCPU_DEFINE(struct siftr_stats, ss);
+static DPCPU_DEFINE(struct siftr_stats, ss);
 
 static volatile unsigned int siftr_exit_pkt_manager_thread = 0;
 static unsigned int siftr_enabled = 0;
@@ -736,14 +736,12 @@ siftr_findinpcb(int ipver, struct ip *ip, struct mbuf *m, uint16_t sport,
 			ss->nskip_in_inpcb++;
 		else
 			ss->nskip_out_inpcb++;
-
-		INP_INFO_RUNLOCK(&V_tcbinfo);
 	} else {
 		/* Acquire the inpcb lock. */
 		INP_UNLOCK_ASSERT(inp);
 		INP_RLOCK(inp);
-		INP_INFO_RUNLOCK(&V_tcbinfo);
 	}
+	INP_INFO_RUNLOCK(&V_tcbinfo);
 
 	return (inp);
 }
@@ -1109,26 +1107,38 @@ ret6:
 static int
 siftr_pfil(int action)
 {
-	struct pfil_head *pfh_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
+	struct pfil_head *pfh_inet;
 #ifdef SIFTR_IPV6
-	struct pfil_head *pfh_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
+	struct pfil_head *pfh_inet6;
+#endif
+	VNET_ITERATOR_DECL(vnet_iter);
+
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		pfh_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
+#ifdef SIFTR_IPV6
+		pfh_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
 #endif
 
-	if (action == HOOK) {
-		pfil_add_hook(siftr_chkpkt, NULL,
-		    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet);
+		if (action == HOOK) {
+			pfil_add_hook(siftr_chkpkt, NULL,
+			    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet);
 #ifdef SIFTR_IPV6
-		pfil_add_hook(siftr_chkpkt6, NULL,
-		    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet6);
+			pfil_add_hook(siftr_chkpkt6, NULL,
+			    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet6);
 #endif
-	} else if (action == UNHOOK) {
-		pfil_remove_hook(siftr_chkpkt, NULL,
-		    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet);
+		} else if (action == UNHOOK) {
+			pfil_remove_hook(siftr_chkpkt, NULL,
+			    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet);
 #ifdef SIFTR_IPV6
-		pfil_remove_hook(siftr_chkpkt6, NULL,
-		    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet6);
+			pfil_remove_hook(siftr_chkpkt6, NULL,
+			    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet6);
 #endif
+		}
+		CURVNET_RESTORE();
 	}
+	VNET_LIST_RUNLOCK();
 
 	return (0);
 }

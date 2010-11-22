@@ -106,7 +106,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/in_cksum.h>
 
-STATIC_VNET_DEFINE(int, ipfastforward_active);
+static VNET_DEFINE(int, ipfastforward_active);
 #define	V_ipfastforward_active		VNET(ipfastforward_active)
 
 SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, fastforwarding, CTLFLAG_RW,

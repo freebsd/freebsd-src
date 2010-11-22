@@ -63,11 +63,11 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/in_cksum.h>
 
-STATIC_VNET_DEFINE(int, fw_enable) = 1;
+static VNET_DEFINE(int, fw_enable) = 1;
 #define V_fw_enable	VNET(fw_enable)
 
 #ifdef INET6
-STATIC_VNET_DEFINE(int, fw6_enable) = 1;
+static VNET_DEFINE(int, fw6_enable) = 1;
 #define V_fw6_enable	VNET(fw6_enable)
 #endif
 

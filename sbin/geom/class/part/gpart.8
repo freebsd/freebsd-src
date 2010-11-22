@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 25, 2010
+.Dd November 22, 2010
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -91,6 +91,10 @@ utility:
 .Op Fl l Ar label
 .Op Fl f Ar flags
 .Ar geom
+.\" ==== BACKUP ====
+.Nm
+.Cm backup
+.Ar geom
 .\" ==== BOOTCODE ====
 .Nm
 .Cm bootcode
@@ -141,6 +145,13 @@ utility:
 .Op Fl s Ar size
 .Op Fl f Ar flags
 .Ar geom
+.\" ==== RESTORE ====
+.Nm
+.Cm restore
+.Op Fl lF
+.Op Fl f Ar flags
+.Ar provider
+.Op Ar ...
 .\" ==== SET ====
 .Nm
 .Cm set
@@ -151,6 +162,7 @@ utility:
 .\" ==== SHOW ====
 .Nm
 .Cm show
+.Op Fl lr
 .Op Ar geom ...
 .\" ==== UNDO ====
 .Nm
@@ -208,6 +220,11 @@ See the section entitled
 below for a discussion
 about its use.
 .El
+.\" ==== BACKUP ====
+.It Cm backup
+Dump a partition table to standard output in special format used by
+.Cm restore
+action.
 .\" ==== BOOTCODE ====
 .It Cm bootcode
 Embed bootstrap code into the partitioning scheme's metadata on the
@@ -401,6 +418,30 @@ See the section entitled
 below for a discussion
 about its use.
 .El
+.\" ==== RESTORE ====
+.It Cm restore
+Restore the partition table from backup previously created by
+.Cm backup
+action and given from standard input. Only partition table
+may be restored. This action does not affect content of partitions.
+This mean that you should copy your data from backup after restoring
+partition table and write bootcode again if it is needed. 
+.Pp
+Additional options include:
+.Bl -tag -width 10n
+.It Fl F
+Destroy partition table on the given
+.Ar provider
+before doing restore.
+.It Fl l
+Restore partition labels for partitioning schemes that support them.
+.It Fl f Ar flags
+Additional operational flags.
+See the section entitled
+.Sx "OPERATIONAL FLAGS"
+below for a discussion
+about its use.
+.El
 .\" ==== SET ====
 .It Cm set
 Set the named attribute on the partition entry.
@@ -421,6 +462,14 @@ about its use.
 .It Cm show
 Show the current partition information of the specified geoms
 or all geoms if none are specified.
+Additional options include:
+.Bl -tag -width 10n
+.It Fl l
+For partition schemes that support partition labels print them
+instead of partition type.
+.It Fl r
+Show raw partition type instead of symbolic name.
+.El
 .\" ==== UNDO ====
 .It Cm undo
 Revert any pending changes for geom
@@ -769,6 +818,28 @@ partition that would contain UFS where the system boots from.
 After having created all required partitions, embed bootstrap code into them.
 .Bd -literal -offset indent
 /sbin/gpart bootcode -p /boot/boot1 da0
+.Ed
+.Pp
+Create backup of partition table from
+.Pa da0
+.Bd -literal -offset indent
+/sbin/gpart backup da0 > da0.backup
+.Ed
+.Pp
+Restore partition table from backup to
+.Pa da0
+.Bd -literal -offset indent
+/sbin/gpart restore -l da0 < /mnt/da0.backup
+.Ed
+.Pp
+Clone partition table from 
+.Pa ada0 
+to 
+.Pa ada1 
+and 
+.Pa ada2
+.Bd -literal -offset indent
+/sbin/gpart backup ada0 | /sbin/gpart restore -F ada1 ada2
 .Ed
 .Sh SEE ALSO
 .Xr dd 1 ,

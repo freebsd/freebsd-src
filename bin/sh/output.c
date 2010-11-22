@@ -96,6 +96,12 @@ RESET {
 
 
 void
+outcslow(int c, struct output *file)
+{
+	outc(c, file);
+}
+
+void
 out1str(const char *p)
 {
 	outstr(p, out1);
@@ -149,19 +155,19 @@ outqstr(const char *p, struct output *file)
 		case '\'':
 			/* Can't quote single quotes inside single quotes. */
 			if (inquotes)
-				outc('\'', file);
+				outcslow('\'', file);
 			inquotes = 0;
 			outstr("\\'", file);
 			break;
 		default:
 			if (!inquotes)
-				outc('\'', file);
+				outcslow('\'', file);
 			inquotes = 1;
 			outc(ch, file);
 		}
 	}
 	if (inquotes)
-		outc('\'', file);
+		outcslow('\'', file);
 }
 
 void
