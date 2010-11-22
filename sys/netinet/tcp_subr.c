@@ -193,13 +193,13 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, do_tcpdrain, CTLFLAG_RW, &do_tcpdrain, 0,
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, pcbcount, CTLFLAG_RD,
     &VNET_NAME(tcbinfo.ipi_count), 0, "Number of active PCBs");
 
-STATIC_VNET_DEFINE(int, icmp_may_rst) = 1;
+static VNET_DEFINE(int, icmp_may_rst) = 1;
 #define	V_icmp_may_rst			VNET(icmp_may_rst)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, icmp_may_rst, CTLFLAG_RW,
     &VNET_NAME(icmp_may_rst), 0,
     "Certain ICMP unreachable messages may abort connections in SYN_SENT");
 
-STATIC_VNET_DEFINE(int, tcp_isn_reseed_interval) = 0;
+static VNET_DEFINE(int, tcp_isn_reseed_interval) = 0;
 #define	V_tcp_isn_reseed_interval	VNET(tcp_isn_reseed_interval)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, isn_reseed_interval, CTLFLAG_RW,
     &VNET_NAME(tcp_isn_reseed_interval), 0,
@@ -241,7 +241,7 @@ struct tcpcb_mem {
 	struct cc_var		ccv;
 };
 
-STATIC_VNET_DEFINE(uma_zone_t, tcpcb_zone);
+static VNET_DEFINE(uma_zone_t, tcpcb_zone);
 #define	V_tcpcb_zone			VNET(tcpcb_zone)
 
 MALLOC_DEFINE(M_TCPLOG, "tcplog", "TCP address and flags print buffers");
@@ -1514,10 +1514,10 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 #define ISN_STATIC_INCREMENT 4096
 #define ISN_RANDOM_INCREMENT (4096 - 1)
 
-STATIC_VNET_DEFINE(u_char, isn_secret[32]);
-STATIC_VNET_DEFINE(int, isn_last_reseed);
-STATIC_VNET_DEFINE(u_int32_t, isn_offset);
-STATIC_VNET_DEFINE(u_int32_t, isn_offset_old);
+static VNET_DEFINE(u_char, isn_secret[32]);
+static VNET_DEFINE(int, isn_last_reseed);
+static VNET_DEFINE(u_int32_t, isn_offset);
+static VNET_DEFINE(u_int32_t, isn_offset_old);
 
 #define	V_isn_secret			VNET(isn_secret)
 #define	V_isn_last_reseed		VNET(isn_last_reseed)
