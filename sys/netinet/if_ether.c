@@ -154,12 +154,10 @@ arp_ifscrub(struct ifnet *ifp, uint32_t addr)
 	addr4.sin_len    = sizeof(addr4);
 	addr4.sin_family = AF_INET;
 	addr4.sin_addr.s_addr = addr;
-	CURVNET_SET(ifp->if_vnet);
 	IF_AFDATA_LOCK(ifp);
 	lla_lookup(LLTABLE(ifp), (LLE_DELETE | LLE_IFADDR),
 	    (struct sockaddr *)&addr4);
 	IF_AFDATA_UNLOCK(ifp);
-	CURVNET_RESTORE();
 }
 #endif
 
