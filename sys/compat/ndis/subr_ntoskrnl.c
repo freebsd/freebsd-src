@@ -121,6 +121,7 @@ typedef struct callout_entry callout_entry;
 
 static struct list_entry ntoskrnl_calllist;
 static struct mtx ntoskrnl_calllock;
+struct kuser_shared_data kuser_shared_data;
 
 static struct list_entry ntoskrnl_intlist;
 static kspin_lock ntoskrnl_intlock;
