@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2010
+.Dd November 22, 2010
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -94,7 +94,6 @@ utility:
 .\" ==== BACKUP ====
 .Nm
 .Cm backup
-.Op Fl l
 .Ar geom
 .\" ==== BOOTCODE ====
 .Nm
@@ -149,7 +148,7 @@ utility:
 .\" ==== RESTORE ====
 .Nm
 .Cm restore
-.Op Fl F
+.Op Fl lF
 .Op Fl f Ar flags
 .Ar provider
 .Op Ar ...
@@ -163,6 +162,7 @@ utility:
 .\" ==== SHOW ====
 .Nm
 .Cm show
+.Op Fl lr
 .Op Ar geom ...
 .\" ==== UNDO ====
 .Nm
@@ -225,12 +225,6 @@ about its use.
 Dump a partition table to standard output in special format used by
 .Cm restore
 action.
-.Pp
-Additional options include:
-.Bl -tag -width 10n
-.It Fl l
-Dump partition labels for partitioning schemes that support them.
-.El
 .\" ==== BOOTCODE ====
 .It Cm bootcode
 Embed bootstrap code into the partitioning scheme's metadata on the
@@ -439,6 +433,8 @@ Additional options include:
 Destroy partition table on the given
 .Ar provider
 before doing restore.
+.It Fl l
+Restore partition labels for partitioning schemes that support them.
 .It Fl f Ar flags
 Additional operational flags.
 See the section entitled
@@ -466,6 +462,14 @@ about its use.
 .It Cm show
 Show the current partition information of the specified geoms
 or all geoms if none are specified.
+Additional options include:
+.Bl -tag -width 10n
+.It Fl l
+For partition schemes that support partition labels print them
+instead of partition type.
+.It Fl r
+Show raw partition type instead of symbolic name.
+.El
 .\" ==== UNDO ====
 .It Cm undo
 Revert any pending changes for geom
@@ -819,13 +823,13 @@ After having created all required partitions, embed bootstrap code into them.
 Create backup of partition table from
 .Pa da0
 .Bd -literal -offset indent
-/sbin/gpart backup -l da0 > da0.backup
+/sbin/gpart backup da0 > da0.backup
 .Ed
 .Pp
 Restore partition table from backup to
 .Pa da0
 .Bd -literal -offset indent
-/sbin/gpart restore da0 < /mnt/da0.backup
+/sbin/gpart restore -l da0 < /mnt/da0.backup
 .Ed
 .Pp
 Clone partition table from 
