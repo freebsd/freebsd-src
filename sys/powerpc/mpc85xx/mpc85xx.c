@@ -129,28 +129,3 @@ law_disable(int trgt, u_long addr, u_long size)
 	return (ENOENT);
 }
 
-void
-cpu_reset(void)
-{
-	uint32_t ver = SVR_VER(mfspr(SPR_SVR));
-
-	if (ver == SVR_MPC8572E || ver == SVR_MPC8572 ||
-	    ver == SVR_MPC8548E || ver == SVR_MPC8548)
-		/* Systems with dedicated reset register */
-		ccsr_write4(OCP85XX_RSTCR, 2);
-	else {
-		/* Clear DBCR0, disables debug interrupts and events. */
-		mtspr(SPR_DBCR0, 0);
-		__asm __volatile("isync");
-
-		/* Enable Debug Interrupts in MSR. */
-		mtmsr(mfmsr() | PSL_DE);
-
-		/* Enable debug interrupts and issue reset. */
-		mtspr(SPR_DBCR0, mfspr(SPR_DBCR0) | DBCR0_IDM |
-		    DBCR0_RST_SYSTEM);
-	}
-
-	printf("Reset failed...\n");
-	while (1);
-}
