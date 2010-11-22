@@ -96,7 +96,7 @@ SYSCTL_VNET_INT(_net_inet_ip, IPCTL_FORWARDING, forwarding, CTLFLAG_RW,
     &VNET_NAME(ipforwarding), 0,
     "Enable IP forwarding between interfaces");
 
-STATIC_VNET_DEFINE(int, ipsendredirects) = 1;	/* XXX */
+static VNET_DEFINE(int, ipsendredirects) = 1;	/* XXX */
 #define	V_ipsendredirects	VNET(ipsendredirects)
 SYSCTL_VNET_INT(_net_inet_ip, IPCTL_SENDREDIRECTS, redirect, CTLFLAG_RW,
     &VNET_NAME(ipsendredirects), 0,
@@ -107,13 +107,13 @@ SYSCTL_VNET_INT(_net_inet_ip, IPCTL_DEFTTL, ttl, CTLFLAG_RW,
     &VNET_NAME(ip_defttl), 0,
     "Maximum TTL on IP packets");
 
-STATIC_VNET_DEFINE(int, ip_keepfaith);
+static VNET_DEFINE(int, ip_keepfaith);
 #define	V_ip_keepfaith		VNET(ip_keepfaith)
 SYSCTL_VNET_INT(_net_inet_ip, IPCTL_KEEPFAITH, keepfaith, CTLFLAG_RW,
     &VNET_NAME(ip_keepfaith), 0,
     "Enable packet capture for FAITH IPv4->IPv6 translater daemon");
 
-STATIC_VNET_DEFINE(int, ip_sendsourcequench);
+static VNET_DEFINE(int, ip_sendsourcequench);
 #define	V_ip_sendsourcequench	VNET(ip_sendsourcequench)
 SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, sendsourcequench, CTLFLAG_RW,
     &VNET_NAME(ip_sendsourcequench), 0,
@@ -137,7 +137,7 @@ SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, random_id, CTLFLAG_RW,
  * to the loopback interface instead of the interface where the
  * packets for those addresses are received.
  */
-STATIC_VNET_DEFINE(int, ip_checkinterface);
+static VNET_DEFINE(int, ip_checkinterface);
 #define	V_ip_checkinterface	VNET(ip_checkinterface)
 SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, check_interface, CTLFLAG_RW,
     &VNET_NAME(ip_checkinterface), 0,
@@ -164,8 +164,8 @@ SYSCTL_VNET_STRUCT(_net_inet_ip, IPCTL_STATS, stats, CTLFLAG_RW,
     &VNET_NAME(ipstat), ipstat,
     "IP statistics (struct ipstat, netinet/ip_var.h)");
 
-STATIC_VNET_DEFINE(uma_zone_t, ipq_zone);
-STATIC_VNET_DEFINE(TAILQ_HEAD(ipqhead, ipq), ipq[IPREASS_NHASH]);
+static VNET_DEFINE(uma_zone_t, ipq_zone);
+static VNET_DEFINE(TAILQ_HEAD(ipqhead, ipq), ipq[IPREASS_NHASH]);
 static struct mtx ipqlock;
 
 #define	V_ipq_zone		VNET(ipq_zone)
@@ -180,15 +180,15 @@ static void	maxnipq_update(void);
 static void	ipq_zone_change(void *);
 static void	ip_drain_locked(void);
 
-STATIC_VNET_DEFINE(int, maxnipq);  /* Administrative limit on # reass queues. */
-STATIC_VNET_DEFINE(int, nipq);			/* Total # of reass queues */
+static VNET_DEFINE(int, maxnipq);  /* Administrative limit on # reass queues. */
+static VNET_DEFINE(int, nipq);			/* Total # of reass queues */
 #define	V_maxnipq		VNET(maxnipq)
 #define	V_nipq			VNET(nipq)
 SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, fragpackets, CTLFLAG_RD,
     &VNET_NAME(nipq), 0,
     "Current number of IPv4 fragment reassembly queue entries");
 
-STATIC_VNET_DEFINE(int, maxfragsperpacket);
+static VNET_DEFINE(int, maxfragsperpacket);
 #define	V_maxfragsperpacket	VNET(maxfragsperpacket)
 SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, maxfragsperpacket, CTLFLAG_RW,
     &VNET_NAME(maxfragsperpacket), 0,
@@ -209,7 +209,7 @@ SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, stealth, CTLFLAG_RW,
 #endif
 
 #ifdef FLOWTABLE
-STATIC_VNET_DEFINE(int, ip_output_flowtable_size) = 2048;
+static VNET_DEFINE(int, ip_output_flowtable_size) = 2048;
 VNET_DEFINE(struct flowtable *, ip_ft);
 #define	V_ip_output_flowtable_size	VNET(ip_output_flowtable_size)
 
@@ -1719,7 +1719,7 @@ makedummy:
  * locking.  This code remains in ip_input.c as ip_mroute.c is optionally
  * compiled.
  */
-STATIC_VNET_DEFINE(int, ip_rsvp_on);
+static VNET_DEFINE(int, ip_rsvp_on);
 VNET_DEFINE(struct socket *, ip_rsvpd);
 
 #define	V_ip_rsvp_on		VNET(ip_rsvp_on)

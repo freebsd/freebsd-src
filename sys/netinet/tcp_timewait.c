@@ -92,7 +92,7 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-STATIC_VNET_DEFINE(uma_zone_t, tcptw_zone);
+static VNET_DEFINE(uma_zone_t, tcptw_zone);
 #define	V_tcptw_zone			VNET(tcptw_zone)
 static int	maxtcptw;
 
@@ -102,7 +102,7 @@ static int	maxtcptw;
  * queue pointers in each tcptw structure, are protected using the global
  * tcbinfo lock, which must be held over queue iteration and modification.
  */
-STATIC_VNET_DEFINE(TAILQ_HEAD(, tcptw), twq_2msl);
+static VNET_DEFINE(TAILQ_HEAD(, tcptw), twq_2msl);
 #define	V_twq_2msl			VNET(twq_2msl)
 
 static void	tcp_tw_2msl_reset(struct tcptw *, int);

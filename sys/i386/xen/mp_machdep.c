@@ -749,7 +749,7 @@ start_all_aps(void)
 		gdt_segs[GPRIV_SEL].ssd_base = (int) pc;
 		gdt_segs[GPROC0_SEL].ssd_base = (int) &pc->pc_common_tss;
 		
-		PT_SET_MA(bootAPgdt, xpmap_ptom(VTOP(bootAPgdt)) | PG_V | PG_RW);
+		PT_SET_MA(bootAPgdt, VTOM(bootAPgdt) | PG_V | PG_RW);
 		bzero(bootAPgdt, PAGE_SIZE);
 		for (x = 0; x < NGDT; x++)
 			ssdtosd(&gdt_segs[x], &bootAPgdt[x].sd);
@@ -833,14 +833,13 @@ cpu_initialize_context(unsigned int cpu)
 	}
 	boot_stack = kmem_alloc_nofault(kernel_map, 1);
 	newPTD = kmem_alloc_nofault(kernel_map, NPGPTD);
-	ma[0] = xpmap_ptom(VM_PAGE_TO_PHYS(m[0]))|PG_V;
+	ma[0] = VM_PAGE_TO_MACH(m[0])|PG_V;
 
 #ifdef PAE	
 	pmap_kenter(boot_stack, VM_PAGE_TO_PHYS(m[NPGPTD + 1]));
 	for (i = 0; i < NPGPTD; i++) {
 		((vm_paddr_t *)boot_stack)[i] =
-		ma[i] = 
-		    xpmap_ptom(VM_PAGE_TO_PHYS(m[i]))|PG_V;
+		ma[i] = VM_PAGE_TO_MACH(m[i])|PG_V;
 	}
 #endif	
 
@@ -862,7 +861,7 @@ cpu_initialize_context(unsigned int cpu)
 	pmap_kenter(boot_stack, VM_PAGE_TO_PHYS(m[NPGPTD]));
 
 
-	xen_pgdpt_pin(xpmap_ptom(VM_PAGE_TO_PHYS(m[NPGPTD + 1])));
+	xen_pgdpt_pin(VM_PAGE_TO_MACH(m[NPGPTD + 1]));
 	vm_page_lock_queues();
 	for (i = 0; i < 4; i++) {
 		int pdir = (PTDPTDI + i) / NPDEPG;
@@ -905,7 +904,7 @@ cpu_initialize_context(unsigned int cpu)
 	ctxt.failsafe_callback_cs  = GSEL(GCODE_SEL, SEL_KPL);
 	ctxt.failsafe_callback_eip = (unsigned long)failsafe_callback;
 
-	ctxt.ctrlreg[3] = xpmap_ptom(VM_PAGE_TO_PHYS(m[NPGPTD + 1]));
+	ctxt.ctrlreg[3] = VM_PAGE_TO_MACH(m[NPGPTD + 1]);
 #else /* __x86_64__ */
 	ctxt.user_regs.esp = idle->thread.rsp0 - sizeof(struct pt_regs);
 	ctxt.kernel_ss = GSEL(GDATA_SEL, SEL_KPL);

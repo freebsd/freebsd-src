@@ -56,7 +56,7 @@ static int	if_clone_createif(struct if_clone *ifc, char *name, size_t len,
 		    caddr_t params);
 
 static struct mtx	if_cloners_mtx;
-STATIC_VNET_DEFINE(int, if_cloners_count);
+static VNET_DEFINE(int, if_cloners_count);
 VNET_DEFINE(LIST_HEAD(, if_clone), if_cloners);
 
 #define	V_if_cloners_count	VNET(if_cloners_count)

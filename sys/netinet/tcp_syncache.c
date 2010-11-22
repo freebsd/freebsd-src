@@ -97,13 +97,13 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-STATIC_VNET_DEFINE(int, tcp_syncookies) = 1;
+static VNET_DEFINE(int, tcp_syncookies) = 1;
 #define	V_tcp_syncookies		VNET(tcp_syncookies)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, syncookies, CTLFLAG_RW,
     &VNET_NAME(tcp_syncookies), 0,
     "Use TCP SYN cookies if the syncache overflows");
 
-STATIC_VNET_DEFINE(int, tcp_syncookiesonly) = 0;
+static VNET_DEFINE(int, tcp_syncookiesonly) = 0;
 #define	V_tcp_syncookiesonly		VNET(tcp_syncookiesonly)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, syncookies_only, CTLFLAG_RW,
     &VNET_NAME(tcp_syncookiesonly), 0,
@@ -143,7 +143,7 @@ static struct syncache
 #define TCP_SYNCACHE_HASHSIZE		512
 #define TCP_SYNCACHE_BUCKETLIMIT	30
 
-STATIC_VNET_DEFINE(struct tcp_syncache, tcp_syncache);
+static VNET_DEFINE(struct tcp_syncache, tcp_syncache);
 #define	V_tcp_syncache			VNET(tcp_syncache)
 
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, syncache, CTLFLAG_RW, 0, "TCP SYN cache");

@@ -183,7 +183,7 @@ int	ifqmaxlen = IFQ_MAXLEN;
 VNET_DEFINE(struct ifnethead, ifnet);	/* depend on static init XXX */
 VNET_DEFINE(struct ifgrouphead, ifg_head);
 
-STATIC_VNET_DEFINE(int, if_indexlim) = 8;
+static VNET_DEFINE(int, if_indexlim) = 8;
 
 /* Table of ifnet by index. */
 VNET_DEFINE(struct ifindex_entry *, ifindex_table);

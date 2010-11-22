@@ -151,7 +151,7 @@ static const struct ip6protosw in6_pim_protosw = {
 };
 static int pim6_encapcheck(const struct mbuf *, int, int, void *);
 
-STATIC_VNET_DEFINE(int, ip6_mrouter_ver) = 0;
+static VNET_DEFINE(int, ip6_mrouter_ver) = 0;
 #define	V_ip6_mrouter_ver	VNET(ip6_mrouter_ver)
 
 SYSCTL_DECL(_net_inet6);
@@ -210,7 +210,7 @@ static struct mtx mif6_mtx;
 #define	MIF6_LOCK_DESTROY()	mtx_destroy(&mif6_mtx)
 
 #ifdef MRT6DEBUG
-STATIC_VNET_DEFINE(u_int, mrt6debug) = 0;	/* debug level */
+static VNET_DEFINE(u_int, mrt6debug) = 0;	/* debug level */
 #define	V_mrt6debug		VNET(mrt6debug)
 #define DEBUG_MFC	0x02
 #define DEBUG_FORWARD	0x04
@@ -254,7 +254,7 @@ SYSCTL_STRUCT(_net_inet6_pim, PIM6CTL_STATS, stats, CTLFLAG_RD,
     &pim6stat, pim6stat,
     "PIM Statistics (struct pim6stat, netinet6/pim_var.h)");
 
-STATIC_VNET_DEFINE(int, pim6);
+static VNET_DEFINE(int, pim6);
 #define	V_pim6		VNET(pim6)
 
 /*

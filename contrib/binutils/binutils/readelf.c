@@ -9103,6 +9103,8 @@ get_note_type (unsigned e_type)
 	return _("NT_FPREGS (floating point registers)");
       case NT_PSINFO:
 	return _("NT_PSINFO (psinfo structure)");
+      case NT_THRMISC:
+	return _("NT_THRMISC (thrmisc structure)");
       case NT_LWPSTATUS:
 	return _("NT_LWPSTATUS (lwpstatus_t structure)");
       case NT_LWPSINFO:

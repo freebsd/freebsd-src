@@ -105,8 +105,8 @@ __FBSDID("$FreeBSD$");
  */
 
 /* Internal variables. */
-STATIC_VNET_DEFINE(struct inpcbhead, divcb);
-STATIC_VNET_DEFINE(struct inpcbinfo, divcbinfo);
+static VNET_DEFINE(struct inpcbhead, divcb);
+static VNET_DEFINE(struct inpcbinfo, divcbinfo);
 
 #define	V_divcb				VNET(divcb)
 #define	V_divcbinfo			VNET(divcbinfo)

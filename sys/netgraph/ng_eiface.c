@@ -114,7 +114,7 @@ static struct ng_type typestruct = {
 };
 NETGRAPH_INIT(eiface, &typestruct);
 
-STATIC_VNET_DEFINE(struct unrhdr *, ng_eiface_unit);
+static VNET_DEFINE(struct unrhdr *, ng_eiface_unit);
 #define	V_ng_eiface_unit		VNET(ng_eiface_unit)
 
 /************************************************************************
@@ -371,6 +371,8 @@ ng_eiface_constructor(node_p node)
 	ifp->if_ioctl = ng_eiface_ioctl;
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	ifp->if_flags = (IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST);
+	ifp->if_capabilities = IFCAP_VLAN_MTU | IFCAP_JUMBO_MTU;
+	ifp->if_capenable = IFCAP_VLAN_MTU | IFCAP_JUMBO_MTU;
 
 	/* Give this node the same name as the interface (if possible) */
 	if (ng_name_node(node, ifp->if_xname) != 0)

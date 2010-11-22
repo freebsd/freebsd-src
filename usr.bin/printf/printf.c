@@ -62,6 +62,7 @@ static const char rcsid[] =
 #define main printfcmd
 #include "bltin/bltin.h"
 #include "memalloc.h"
+#include "error.h"
 #else
 #define	warnx1(a, b, c)		warnx(a)
 #define	warnx2(a, b, c)		warnx(a, b)
@@ -90,7 +91,7 @@ static const char rcsid[] =
 } while (0)
 
 static int	 asciicode(void);
-static char	*doformat(char *, int *);
+static char	*printf_doformat(char *, int *);
 static int	 escape(char *, int, size_t *);
 static int	 getchr(void);
 static int	 getfloating(long double *, int);
@@ -114,8 +115,11 @@ main(int argc, char *argv[])
 	int ch, chopped, end, rval;
 	char *format, *fmt, *start;
 
-#ifndef BUILTIN
+#if !defined(BUILTIN) && !defined(SHELL)
 	(void) setlocale(LC_NUMERIC, "");
+#endif
+#ifdef SHELL
+	optreset = 1; optind = 1; opterr = 0; /* initialize getopt */
 #endif
 	while ((ch = getopt(argc, argv, "")) != -1)
 		switch (ch) {
@@ -132,6 +136,9 @@ main(int argc, char *argv[])
 		return (1);
 	}
 
+#ifdef SHELL
+	INTOFF;
+#endif
 	/*
 	 * Basic algorithm is to scan the format string for conversion
 	 * specifications -- once one is found, find out if the field
@@ -154,9 +161,13 @@ main(int argc, char *argv[])
 					putchar('%');
 					fmt += 2;
 				} else {
-					fmt = doformat(fmt, &rval);
-					if (fmt == NULL)
+					fmt = printf_doformat(fmt, &rval);
+					if (fmt == NULL) {
+#ifdef SHELL
+						INTON;
+#endif
 						return (1);
+					}
 					end = 0;
 				}
 				start = fmt;
@@ -166,11 +177,18 @@ main(int argc, char *argv[])
 
 		if (end == 1) {
 			warnx1("missing format character", NULL, NULL);
+#ifdef SHELL
+			INTON;
+#endif
 			return (1);
 		}
 		fwrite(start, 1, fmt - start, stdout);
-		if (chopped || !*gargv)
+		if (chopped || !*gargv) {
+#ifdef SHELL
+			INTON;
+#endif
 			return (rval);
+		}
 		/* Restart at the beginning of the format string. */
 		fmt = format;
 		end = 1;
@@ -180,7 +198,7 @@ main(int argc, char *argv[])
 
 
 static char *
-doformat(char *start, int *rval)
+printf_doformat(char *start, int *rval)
 {
 	static const char skip1[] = "#'-+ 0";
 	static const char skip2[] = "0123456789";
