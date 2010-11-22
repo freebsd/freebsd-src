@@ -177,7 +177,7 @@ MALLOC_DEFINE(M_VNET_DATA, "vnet_data", "VNET data");
  * Space to store virtualized global variables from loadable kernel modules,
  * and the free list to manage it.
  */
-STATIC_VNET_DEFINE(char, modspace[VNET_MODMIN]);
+static VNET_DEFINE(char, modspace[VNET_MODMIN]);
 
 /*
  * Global lists of subsystem constructor and destructors for vnets.  They are

@@ -81,17 +81,17 @@ SYSCTL_NODE(_net_link_ether, PF_INET, inet, CTLFLAG_RW, 0, "");
 SYSCTL_NODE(_net_link_ether, PF_ARP, arp, CTLFLAG_RW, 0, "");
 
 /* timer values */
-STATIC_VNET_DEFINE(int, arpt_keep) = (20*60);	/* once resolved, good for 20
+static VNET_DEFINE(int, arpt_keep) = (20*60);	/* once resolved, good for 20
 						 * minutes */
-STATIC_VNET_DEFINE(int, arp_maxtries) = 5;
+static VNET_DEFINE(int, arp_maxtries) = 5;
 VNET_DEFINE(int, useloopback) = 1;	/* use loopback interface for
 					 * local traffic */
-STATIC_VNET_DEFINE(int, arp_proxyall) = 0;
-STATIC_VNET_DEFINE(int, arpt_down) = 20;      /* keep incomplete entries for
+static VNET_DEFINE(int, arp_proxyall) = 0;
+static VNET_DEFINE(int, arpt_down) = 20;      /* keep incomplete entries for
 					       * 20 seconds */
 VNET_DEFINE(struct arpstat, arpstat);  /* ARP statistics, see if_arp.h */
 
-STATIC_VNET_DEFINE(int, arp_maxhold) = 1;
+static VNET_DEFINE(int, arp_maxhold) = 1;
 
 #define	V_arpt_keep		VNET(arpt_keep)
 #define	V_arpt_down		VNET(arpt_down)

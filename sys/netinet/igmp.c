@@ -206,11 +206,11 @@ MALLOC_DEFINE(M_IGMP, "igmp", "igmp state");
  * FUTURE: Stop using IFP_TO_IA/INADDR_ANY, and use source address selection
  * policy to control the address used by IGMP on the link.
  */
-STATIC_VNET_DEFINE(int, interface_timers_running);	/* IGMPv3 general
+static VNET_DEFINE(int, interface_timers_running);	/* IGMPv3 general
 							 * query response */
-STATIC_VNET_DEFINE(int, state_change_timers_running);	/* IGMPv3 state-change
+static VNET_DEFINE(int, state_change_timers_running);	/* IGMPv3 state-change
 							 * retransmit */
-STATIC_VNET_DEFINE(int, current_state_timers_running);	/* IGMPv1/v2 host
+static VNET_DEFINE(int, current_state_timers_running);	/* IGMPv1/v2 host
 							 * report; IGMPv3 g/sg
 							 * query response */
 
@@ -218,24 +218,24 @@ STATIC_VNET_DEFINE(int, current_state_timers_running);	/* IGMPv1/v2 host
 #define	V_state_change_timers_running	VNET(state_change_timers_running)
 #define	V_current_state_timers_running	VNET(current_state_timers_running)
 
-STATIC_VNET_DEFINE(LIST_HEAD(, igmp_ifinfo), igi_head);
-STATIC_VNET_DEFINE(struct igmpstat, igmpstat) = {
+static VNET_DEFINE(LIST_HEAD(, igmp_ifinfo), igi_head);
+static VNET_DEFINE(struct igmpstat, igmpstat) = {
 	.igps_version = IGPS_VERSION_3,
 	.igps_len = sizeof(struct igmpstat),
 };
-STATIC_VNET_DEFINE(struct timeval, igmp_gsrdelay) = {10, 0};
+static VNET_DEFINE(struct timeval, igmp_gsrdelay) = {10, 0};
 
 #define	V_igi_head			VNET(igi_head)
 #define	V_igmpstat			VNET(igmpstat)
 #define	V_igmp_gsrdelay			VNET(igmp_gsrdelay)
 
-STATIC_VNET_DEFINE(int, igmp_recvifkludge) = 1;
-STATIC_VNET_DEFINE(int, igmp_sendra) = 1;
-STATIC_VNET_DEFINE(int, igmp_sendlocal) = 1;
-STATIC_VNET_DEFINE(int, igmp_v1enable) = 1;
-STATIC_VNET_DEFINE(int, igmp_v2enable) = 1;
-STATIC_VNET_DEFINE(int, igmp_legacysupp);
-STATIC_VNET_DEFINE(int, igmp_default_version) = IGMP_VERSION_3;
+static VNET_DEFINE(int, igmp_recvifkludge) = 1;
+static VNET_DEFINE(int, igmp_sendra) = 1;
+static VNET_DEFINE(int, igmp_sendlocal) = 1;
+static VNET_DEFINE(int, igmp_v1enable) = 1;
+static VNET_DEFINE(int, igmp_v2enable) = 1;
+static VNET_DEFINE(int, igmp_legacysupp);
+static VNET_DEFINE(int, igmp_default_version) = IGMP_VERSION_3;
 
 #define	V_igmp_recvifkludge		VNET(igmp_recvifkludge)
 #define	V_igmp_sendra			VNET(igmp_sendra)

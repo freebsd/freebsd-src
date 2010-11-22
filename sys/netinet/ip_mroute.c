@@ -121,7 +121,7 @@ __FBSDID("$FreeBSD$");
 #define		VIFI_INVALID	((vifi_t) -1)
 #define		M_HASCL(m)	((m)->m_flags & M_EXT)
 
-STATIC_VNET_DEFINE(uint32_t, last_tv_sec); /* last time we processed this */
+static VNET_DEFINE(uint32_t, last_tv_sec); /* last time we processed this */
 #define	V_last_tv_sec	VNET(last_tv_sec)
 
 static MALLOC_DEFINE(M_MRTABLE, "mroutetbl", "multicast forwarding cache");
@@ -145,14 +145,14 @@ static struct mtx mrouter_mtx;
 static int ip_mrouter_cnt;	/* # of vnets with active mrouters */
 static int ip_mrouter_unloading; /* Allow no more V_ip_mrouter sockets */
 
-STATIC_VNET_DEFINE(struct mrtstat, mrtstat);
+static VNET_DEFINE(struct mrtstat, mrtstat);
 #define	V_mrtstat		VNET(mrtstat)
 SYSCTL_VNET_STRUCT(_net_inet_ip, OID_AUTO, mrtstat, CTLFLAG_RW,
     &VNET_NAME(mrtstat), mrtstat,
     "IPv4 Multicast Forwarding Statistics (struct mrtstat, "
     "netinet/ip_mroute.h)");
 
-STATIC_VNET_DEFINE(u_long, mfchash);
+static VNET_DEFINE(u_long, mfchash);
 #define	V_mfchash		VNET(mfchash)
 #define	MFCHASH(a, g)							\
 	((((a).s_addr >> 20) ^ ((a).s_addr >> 10) ^ (a).s_addr ^ \
@@ -160,9 +160,9 @@ STATIC_VNET_DEFINE(u_long, mfchash);
 #define	MFCHASHSIZE	256
 
 static u_long mfchashsize;			/* Hash size */
-STATIC_VNET_DEFINE(u_char *, nexpire);		/* 0..mfchashsize-1 */
+static VNET_DEFINE(u_char *, nexpire);		/* 0..mfchashsize-1 */
 #define	V_nexpire		VNET(nexpire)
-STATIC_VNET_DEFINE(LIST_HEAD(mfchashhdr, mfc)*, mfchashtbl);
+static VNET_DEFINE(LIST_HEAD(mfchashhdr, mfc)*, mfchashtbl);
 #define	V_mfchashtbl		VNET(mfchashtbl)
 
 static struct mtx mfc_mtx;
@@ -173,9 +173,9 @@ static struct mtx mfc_mtx;
 	mtx_init(&mfc_mtx, "IPv4 multicast forwarding cache", NULL, MTX_DEF)
 #define	MFC_LOCK_DESTROY()	mtx_destroy(&mfc_mtx)
 
-STATIC_VNET_DEFINE(vifi_t, numvifs);
+static VNET_DEFINE(vifi_t, numvifs);
 #define	V_numvifs		VNET(numvifs)
-STATIC_VNET_DEFINE(struct vif, viftable[MAXVIFS]);
+static VNET_DEFINE(struct vif, viftable[MAXVIFS]);
 #define	V_viftable		VNET(viftable)
 SYSCTL_VNET_OPAQUE(_net_inet_ip, OID_AUTO, viftable, CTLFLAG_RD,
     &VNET_NAME(viftable), sizeof(V_viftable), "S,vif[MAXVIFS]",
@@ -191,7 +191,7 @@ static struct mtx vif_mtx;
 
 static eventhandler_tag if_detach_event_tag = NULL;
 
-STATIC_VNET_DEFINE(struct callout, expire_upcalls_ch);
+static VNET_DEFINE(struct callout, expire_upcalls_ch);
 #define	V_expire_upcalls_ch	VNET(expire_upcalls_ch)
 
 #define		EXPIRE_TIMEOUT	(hz / 4)	/* 4x / second		*/
@@ -206,9 +206,9 @@ static MALLOC_DEFINE(M_BWMETER, "bwmeter", "multicast upcall bw meters");
  * expiration time. Periodically, the entries are analysed and processed.
  */
 #define	BW_METER_BUCKETS	1024
-STATIC_VNET_DEFINE(struct bw_meter*, bw_meter_timers[BW_METER_BUCKETS]);
+static VNET_DEFINE(struct bw_meter*, bw_meter_timers[BW_METER_BUCKETS]);
 #define	V_bw_meter_timers	VNET(bw_meter_timers)
-STATIC_VNET_DEFINE(struct callout, bw_meter_ch);
+static VNET_DEFINE(struct callout, bw_meter_ch);
 #define	V_bw_meter_ch		VNET(bw_meter_ch)
 #define	BW_METER_PERIOD (hz)		/* periodical handling of bw meters */
 
@@ -216,16 +216,16 @@ STATIC_VNET_DEFINE(struct callout, bw_meter_ch);
  * Pending upcalls are stored in a vector which is flushed when
  * full, or periodically
  */
-STATIC_VNET_DEFINE(struct bw_upcall, bw_upcalls[BW_UPCALLS_MAX]);
+static VNET_DEFINE(struct bw_upcall, bw_upcalls[BW_UPCALLS_MAX]);
 #define	V_bw_upcalls		VNET(bw_upcalls)
-STATIC_VNET_DEFINE(u_int, bw_upcalls_n); /* # of pending upcalls */
+static VNET_DEFINE(u_int, bw_upcalls_n); /* # of pending upcalls */
 #define	V_bw_upcalls_n    	VNET(bw_upcalls_n)
-STATIC_VNET_DEFINE(struct callout, bw_upcalls_ch);
+static VNET_DEFINE(struct callout, bw_upcalls_ch);
 #define	V_bw_upcalls_ch		VNET(bw_upcalls_ch)
 
 #define BW_UPCALLS_PERIOD (hz)		/* periodical flush of bw upcalls */
 
-STATIC_VNET_DEFINE(struct pimstat, pimstat);
+static VNET_DEFINE(struct pimstat, pimstat);
 #define	V_pimstat		VNET(pimstat)
 
 SYSCTL_NODE(_net_inet, IPPROTO_PIM, pim, CTLFLAG_RW, 0, "PIM");
@@ -296,9 +296,9 @@ static struct pim_encap_pimhdr pim_encap_pimhdr = {
     0				/* flags */
 };
 
-STATIC_VNET_DEFINE(vifi_t, reg_vif_num) = VIFI_INVALID;
+static VNET_DEFINE(vifi_t, reg_vif_num) = VIFI_INVALID;
 #define	V_reg_vif_num		VNET(reg_vif_num)
-STATIC_VNET_DEFINE(struct ifnet, multicast_register_if);
+static VNET_DEFINE(struct ifnet, multicast_register_if);
 #define	V_multicast_register_if	VNET(multicast_register_if)
 
 /*
@@ -367,9 +367,9 @@ static const uint32_t mrt_api_support = (MRT_MFC_FLAGS_DISABLE_WRONGVIF |
 					 MRT_MFC_FLAGS_BORDER_VIF |
 					 MRT_MFC_RP |
 					 MRT_MFC_BW_UPCALL);
-STATIC_VNET_DEFINE(uint32_t, mrt_api_config);
+static VNET_DEFINE(uint32_t, mrt_api_config);
 #define	V_mrt_api_config	VNET(mrt_api_config)
-STATIC_VNET_DEFINE(int, pim_assert_enabled);
+static VNET_DEFINE(int, pim_assert_enabled);
 #define	V_pim_assert_enabled	VNET(pim_assert_enabled)
 static struct timeval pim_assert_interval = { 3, 0 };	/* Rate limit */
 

@@ -76,12 +76,12 @@ static int	in_ifinit(struct ifnet *,
 	    struct in_ifaddr *, struct sockaddr_in *, int);
 static void	in_purgemaddrs(struct ifnet *);
 
-STATIC_VNET_DEFINE(int, subnetsarelocal);
+static VNET_DEFINE(int, subnetsarelocal);
 #define	V_subnetsarelocal		VNET(subnetsarelocal)
 SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, subnets_are_local, CTLFLAG_RW,
 	&VNET_NAME(subnetsarelocal), 0,
 	"Treat all subnets as directly connected");
-STATIC_VNET_DEFINE(int, sameprefixcarponly);
+static VNET_DEFINE(int, sameprefixcarponly);
 #define	V_sameprefixcarponly		VNET(sameprefixcarponly)
 SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, same_prefix_carp_only, CTLFLAG_RW,
 	&VNET_NAME(sameprefixcarponly), 0,
