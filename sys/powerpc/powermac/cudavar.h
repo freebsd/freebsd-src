@@ -90,6 +90,7 @@ struct cuda_softc {
 	int		sc_polling;
 	int		sc_iic_done;
 	volatile int	sc_autopoll;
+	uint32_t	sc_rtc;
 
 	int sc_i2c_read_len;
 
