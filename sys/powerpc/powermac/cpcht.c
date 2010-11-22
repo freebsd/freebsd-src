@@ -142,6 +142,7 @@ struct cpcht_softc {
 	vm_offset_t		sc_data;
 	uint64_t		sc_populated_slots;
 	struct			rman sc_mem_rman;
+	struct			rman sc_io_rman;
 
 	struct cpcht_irq	htirq_map[128];
 };
@@ -155,6 +156,9 @@ static driver_t	cpcht_driver = {
 static devclass_t	cpcht_devclass;
 
 DRIVER_MODULE(cpcht, nexus, cpcht_driver, cpcht_devclass, 0, 0);
+
+#define CPCHT_IOPORT_BASE	0xf4000000UL /* Hardwired */
+#define CPCHT_IOPORT_SIZE	0x00400000UL
 
 #define HTAPIC_REQUEST_EOI	0x20
 #define HTAPIC_TRIGGER_LEVEL	0x02
@@ -215,7 +219,14 @@ cpcht_attach(device_t dev)
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
 	sc->sc_mem_rman.rm_descr = "CPCHT Device Memory";
 	error = rman_init(&sc->sc_mem_rman);
+	if (error) {
+		device_printf(dev, "rman_init() failed. error = %d\n", error);
+		return (error);
+	}
 
+	sc->sc_io_rman.rm_type = RMAN_ARRAY;
+	sc->sc_io_rman.rm_descr = "CPCHT I/O Memory";
+	error = rman_init(&sc->sc_io_rman);
 	if (error) {
 		device_printf(dev, "rman_init() failed. error = %d\n", error);
 		return (error);
@@ -226,6 +237,9 @@ cpcht_attach(device_t dev)
 	 * the ranges are properties of the child bridges, and this is also
 	 * where we get the HT interrupts properties.
 	 */
+
+	/* I/O port mappings are usually not in the device tree */
+	rman_manage_region(&sc->sc_io_rman, 0, CPCHT_IOPORT_SIZE - 1);
 
 	bzero(sc->htirq_map, sizeof(sc->htirq_map));
 	for (child = OF_child(node); child != 0; child = OF_peer(child))
@@ -275,6 +289,9 @@ cpcht_configure_htbridge(device_t dev, phandle_t child)
 		case OFW_PCI_PHYS_HI_SPACE_CONFIG:
 			break;
 		case OFW_PCI_PHYS_HI_SPACE_IO:
+			rman_manage_region(&sc->sc_io_rman, rp->pci_lo,
+			    rp->pci_lo + rp->size_lo - 1);
+			break;
 		case OFW_PCI_PHYS_HI_SPACE_MEM32:
 			rman_manage_region(&sc->sc_mem_rman, rp->pci_lo,
 			    rp->pci_lo + rp->size_lo - 1);
@@ -482,8 +499,9 @@ cpcht_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	switch (type) {
 	case SYS_RES_IOPORT:
 		end = min(end, start + count);
+		rm = &sc->sc_io_rman;
+		break;
 
-		/* FALLTHROUGH */
 	case SYS_RES_MEMORY:
 		rm = &sc->sc_mem_rman;
 		break;
@@ -536,6 +554,9 @@ cpcht_activate_resource(device_t bus, device_t child, int type, int rid,
 		vm_offset_t start;
 
 		start = (vm_offset_t)rman_get_start(res);
+
+		if (type == SYS_RES_IOPORT)
+			start += CPCHT_IOPORT_BASE;
 
 		if (bootverbose)
 			printf("cpcht mapdev: start %zx, len %ld\n", start,
