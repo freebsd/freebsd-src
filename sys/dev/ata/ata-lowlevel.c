@@ -672,7 +672,8 @@ ata_generic_command(struct ata_request *request)
     /* ready to issue command ? */
     if (ata_wait(ch, request->unit, 0) < 0) { 
 	device_printf(request->parent, "timeout waiting to issue command\n");
-	return -1;
+	request->flags |= ATA_R_TIMEOUT;
+	return (-1);
     }
 
     /* enable interrupt */
@@ -697,13 +698,16 @@ ata_generic_command(struct ata_request *request)
 
 	/* command interrupt device ? just return and wait for interrupt */
 	if (request->flags & ATA_R_ATAPI_INTR)
-	    return 0;
+	    return (0);
 
 	/* command processed ? */
 	res = ata_wait(ch, request->unit, 0);
 	if (res != 0) {
-	    if (res < 0)
-		    device_printf(request->parent, "timeout waiting for PACKET command\n");
+	    if (res < 0) {
+		    device_printf(request->parent,
+			"timeout waiting for PACKET command\n");
+		    request->flags |= ATA_R_TIMEOUT;
+	    }
 	    return (-1);
 	}
 	/* wait for ready to write ATAPI command block */
@@ -717,9 +721,10 @@ ata_generic_command(struct ata_request *request)
 	    DELAY(20);
 	}
 	if (timeout <= 0) {
-	    device_printf(request->parent, "timeout waiting for ATAPI ready\n");
-	    request->result = EIO;
-	    return -1;
+	    device_printf(request->parent,
+		"timeout waiting for ATAPI ready\n");
+	    request->flags |= ATA_R_TIMEOUT;
+	    return (-1);
 	}
 
 	/* this seems to be needed for some (slow) devices */
@@ -735,7 +740,7 @@ ata_generic_command(struct ata_request *request)
 	/* issue command to controller */
 	ATA_IDX_OUTB(ch, ATA_COMMAND, request->u.ata.command);
     }
-    return 0;
+    return (0);
 }
 
 static void
