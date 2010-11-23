@@ -448,7 +448,7 @@ tc_windup(void)
 		th->th_offset.sec++;
 	}
 	if ((delta > th->th_counter->tc_frequency / 2) &&
-	    (th->th_scale * delta < (uint64_t)1 << 63)) {
+	    (th->th_scale * delta < ((uint64_t)1 << 63))) {
 		/* The product th_scale * delta just barely overflows. */
 		th->th_offset.sec++;
 	}
