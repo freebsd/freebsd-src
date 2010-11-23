@@ -220,8 +220,7 @@ static uma_zone_t pdptzone;
 SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 
 static int pat_works = 1;
-TUNABLE_INT("vm.pmap.pat_works", &pat_works);
-SYSCTL_INT(_vm_pmap, OID_AUTO, pat_works, CTLFLAG_RDTUN, &pat_works, 1,
+SYSCTL_INT(_vm_pmap, OID_AUTO, pat_works, CTLFLAG_RD, &pat_works, 1,
     "Is page attribute table fully functional?");
 
 static int pg_ps_enabled = 1;
