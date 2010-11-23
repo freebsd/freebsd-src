@@ -181,6 +181,7 @@ static uint64_t _aullrem(uint64_t, uint64_t);
 static uint64_t _aullshr(uint64_t, uint8_t);
 static uint64_t _aullshl(uint64_t, uint8_t);
 static slist_entry *ntoskrnl_pushsl(slist_header *, slist_entry *);
+static void InitializeSListHead(slist_header *);
 static slist_entry *ntoskrnl_popsl(slist_header *);
 static void ExFreePoolWithTag(void *, uint32_t);
 static void ExInitializePagedLookasideList(paged_lookaside_list *,
