@@ -253,26 +253,24 @@ ports_prefetch() (
 	# Now checksump/fetch them
 	for p in `cat /tmp/_.plist`
 	do
-		echo "Prefetching $p" >> /mnt/_.prefetch
 		b=`echo $p | tr / _`
 		(
 			cd $p
 			if make checksum $PORTS_OPTS ; then
-				true
-			else
-				make distclean
-				make checksum $PORTS_OPTS || true
+				rm -f /mnt/_.prefetch.$b
+				echo "OK $p" >> /mnt/_.prefetch
+				exit 0
 			fi
-		) > /mnt/_.prefetch.$b 2>&1
-		(
-			cd $p
+			make distclean
+			make checksum $PORTS_OPTS || true
+
 			if make checksum $PORTS_OPTS > /dev/null 2>&1 ; then
 				rm -f /mnt/_.prefetch.$b
 				echo "OK $p" >> /mnt/_.prefetch
 			else
 				echo "BAD $p" >> /mnt/_.prefetch
 			fi
-		)
+		) > /mnt/_.prefetch.$b 2>&1
 	done
 	) 
 )
