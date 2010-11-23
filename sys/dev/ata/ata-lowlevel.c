@@ -833,12 +833,18 @@ ata_pio_read(struct ata_request *request, int length)
     struct ata_channel *ch = device_get_softc(request->parent);
     int size = min(request->transfersize, length);
     int resid;
+    uint8_t buf[2];
 
-    if (ch->flags & ATA_USE_16BIT || (size % sizeof(int32_t)))
+    if (ch->flags & ATA_USE_16BIT || (size % sizeof(int32_t))) {
 	ATA_IDX_INSW_STRM(ch, ATA_DATA,
 			  (void*)((uintptr_t)request->data+request->donecount),
 			  size / sizeof(int16_t));
-    else
+	if (size & 1) {
+	    ATA_IDX_INSW_STRM(ch, ATA_DATA, (void*)buf, 1);
+	    ((uint8_t *)request->data + request->donecount +
+		(size & ~1))[0] = buf[0];
+	}
+    } else
 	ATA_IDX_INSL_STRM(ch, ATA_DATA,
 			  (void*)((uintptr_t)request->data+request->donecount),
 			  size / sizeof(int32_t));
@@ -846,7 +852,7 @@ ata_pio_read(struct ata_request *request, int length)
     if (request->transfersize < length) {
 	device_printf(request->parent, "WARNING - %s read data overrun %d>%d\n",
 		   ata_cmd2str(request), length, request->transfersize);
-	for (resid = request->transfersize; resid < length;
+	for (resid = request->transfersize + (size & 1); resid < length;
 	     resid += sizeof(int16_t))
 	    ATA_IDX_INW(ch, ATA_DATA);
     }
@@ -858,12 +864,18 @@ ata_pio_write(struct ata_request *request, int length)
     struct ata_channel *ch = device_get_softc(request->parent);
     int size = min(request->transfersize, length);
     int resid;
+    uint8_t buf[2];
 
-    if (ch->flags & ATA_USE_16BIT || (size % sizeof(int32_t)))
+    if (ch->flags & ATA_USE_16BIT || (size % sizeof(int32_t))) {
 	ATA_IDX_OUTSW_STRM(ch, ATA_DATA,
 			   (void*)((uintptr_t)request->data+request->donecount),
 			   size / sizeof(int16_t));
-    else
+	if (size & 1) {
+	    buf[0] = ((uint8_t *)request->data + request->donecount +
+		(size & ~1))[0];
+	    ATA_IDX_OUTSW_STRM(ch, ATA_DATA, (void*)buf, 1);
+	}
+    } else
 	ATA_IDX_OUTSL_STRM(ch, ATA_DATA,
 			   (void*)((uintptr_t)request->data+request->donecount),
 			   size / sizeof(int32_t));
@@ -871,7 +883,7 @@ ata_pio_write(struct ata_request *request, int length)
     if (request->transfersize < length) {
 	device_printf(request->parent, "WARNING - %s write data underrun %d>%d\n",
 		   ata_cmd2str(request), length, request->transfersize);
-	for (resid = request->transfersize; resid < length;
+	for (resid = request->transfersize + (size & 1); resid < length;
 	     resid += sizeof(int16_t))
 	    ATA_IDX_OUTW(ch, ATA_DATA, 0);
     }
