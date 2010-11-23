@@ -185,6 +185,8 @@ ports_recurse() (
 		fi
 		if grep -q "^$d\$" /tmp/_.plist ; then
 			true
+		elif grep -q "^$d\$" /tmp/_.plist.tdone ; then
+			true
 		else
 			(
 			cd $d
@@ -438,7 +440,7 @@ if [ "x${REMOTEDISTFILES}" != "x" ] ; then
 fi
 
 log_it copy ports config files
-(cd / ; find var/db/ports -print | cpio -dumpv /mnt )
+(cd / ; find var/db/ports -print | cpio -dumpv /mnt > /dev/null 2>&1)
 
 log_it "Start prefetch of ports distfiles"
 ports_prefetch &
