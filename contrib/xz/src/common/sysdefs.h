@@ -24,6 +24,11 @@
 #	include <config.h>
 #endif
 
+// Get standard-compliant stdio functions under MinGW and MinGW-w64.
+#ifdef __MINGW32__
+#	define __USE_MINGW_ANSI_STDIO 1
+#endif
+
 // size_t and NULL
 #include <stddef.h>
 
@@ -102,11 +107,11 @@
 #	elif SIZEOF_SIZE_T == 8
 #		define SIZE_MAX UINT64_MAX
 #	else
-#		error sizeof(size_t) is not 32-bit or 64-bit
+#		error size_t is not 32-bit or 64-bit
 #	endif
 #endif
 #if SIZE_MAX != UINT32_MAX && SIZE_MAX != UINT64_MAX
-#	error sizeof(size_t) is not 32-bit or 64-bit
+#	error size_t is not 32-bit or 64-bit
 #endif
 
 #include <stdlib.h>
@@ -156,13 +161,11 @@ typedef unsigned char _Bool;
 #undef memzero
 #define memzero(s, n) memset(s, 0, n)
 
-#ifndef MIN
-#	define MIN(x, y) ((x) < (y) ? (x) : (y))
-#endif
-
-#ifndef MAX
-#	define MAX(x, y) ((x) > (y) ? (x) : (y))
-#endif
+// NOTE: Avoid using MIN() and MAX(), because even conditionally defining
+// those macros can cause some portability trouble, since on some systems
+// the system headers insist defining their own versions.
+#define my_min(x, y) ((x) < (y) ? (x) : (y))
+#define my_max(x, y) ((x) > (y) ? (x) : (y))
 
 #ifndef ARRAY_SIZE
 #	define ARRAY_SIZE(array) (sizeof(array) / sizeof((array)[0]))

@@ -318,8 +318,8 @@ extern LZMA_API(lzma_ret) lzma_block_header_encode(
  * The size of the Block Header must have already been decoded with
  * lzma_block_header_size_decode() macro and stored to block->header_size.
  *
- * block->filters must have been allocated, but not necessarily initialized.
- * Possible existing filter options are _not_ freed.
+ * block->filters must have been allocated, but they don't need to be
+ * initialized (possible existing filter options are not freed).
  *
  * \param       block       Destination for Block options.
  * \param       allocator   lzma_allocator for custom allocator functions.

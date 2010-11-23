@@ -16,7 +16,7 @@
 volatile sig_atomic_t user_abort = false;
 
 
-#ifndef _WIN32
+#if !(defined(_WIN32) && !defined(__CYGWIN__))
 
 /// If we were interrupted by a signal, we store the signal number so that
 /// we can raise that signal to kill the program when all cleanups have
@@ -70,6 +70,12 @@ signals_init(void)
 	sigemptyset(&hooked_signals);
 	for (size_t i = 0; i < ARRAY_SIZE(sigs); ++i)
 		sigaddset(&hooked_signals, sigs[i]);
+
+#ifdef SIGALRM
+	// Add also the signals from message.c to hooked_signals.
+	for (size_t i = 0; message_progress_sigs[i] != 0; ++i)
+		sigaddset(&hooked_signals, message_progress_sigs[i]);
+#endif
 
 	struct sigaction sa;
 
@@ -142,12 +148,19 @@ signals_exit(void)
 	const int sig = exit_signal;
 
 	if (sig != 0) {
+#if defined(TUKLIB_DOSLIKE) || defined(__VMS)
+		// Don't raise(), set only exit status. This avoids
+		// printing unwanted message about SIGINT when the user
+		// presses C-c.
+		set_exit_status(E_ERROR);
+#else
 		struct sigaction sa;
 		sa.sa_handler = SIG_DFL;
 		sigfillset(&sa.sa_mask);
 		sa.sa_flags = 0;
 		sigaction(sig, &sa, NULL);
 		raise(exit_signal);
+#endif
 	}
 
 	return;
@@ -156,11 +169,14 @@ signals_exit(void)
 #else
 
 // While Windows has some very basic signal handling functions as required
-// by C89, they are not really used, or so I understood. Instead, we use
-// SetConsoleCtrlHandler() to catch user pressing C-c.
-
-#include <windows.h>
-
+// by C89, they are not really used, and e.g. SIGINT doesn't work exactly
+// the way it does on POSIX (Windows creates a new thread for the signal
+// handler). Instead, we use SetConsoleCtrlHandler() to catch user
+// pressing C-c, because that seems to be the recommended way to do it.
+//
+// NOTE: This doesn't work under MSYS. Trying with SIGINT doesn't work
+// either even if it appeared to work at first. So test using Windows
+// console window.
 
 static BOOL WINAPI
 signal_handler(DWORD type lzma_attribute((unused)))
@@ -168,9 +184,6 @@ signal_handler(DWORD type lzma_attribute((unused)))
 	// Since we don't get a signal number which we could raise() at
 	// signals_exit() like on POSIX, just set the exit status to
 	// indicate an error, so that we cannot return with zero exit status.
-	//
-	// FIXME: Since this function runs in its own thread,
-	// set_exit_status() should have a mutex.
 	set_exit_status(E_ERROR);
 	user_abort = true;
 	return TRUE;

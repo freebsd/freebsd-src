@@ -23,9 +23,6 @@ lzma_lzma_preset(lzma_options_lzma *options, uint32_t preset)
 	if (level > 9 || (flags & ~supported_flags))
 		return true;
 
-	const uint32_t dict_shift = level <= 1 ? 16 : level + 17;
-	options->dict_size = UINT32_C(1) << dict_shift;
-
 	options->preset_dict = NULL;
 	options->preset_dict_size = 0;
 
@@ -33,19 +30,31 @@ lzma_lzma_preset(lzma_options_lzma *options, uint32_t preset)
 	options->lp = LZMA_LP_DEFAULT;
 	options->pb = LZMA_PB_DEFAULT;
 
-	options->mode = level <= 2 ? LZMA_MODE_FAST : LZMA_MODE_NORMAL;
+	options->dict_size = UINT32_C(1) << (uint8_t []){
+			18, 20, 21, 22, 22, 23, 23, 24, 25, 26 }[level];
 
-	options->nice_len = level == 0 ? 8 : level <= 5 ? 32 : 64;
-	options->mf = level <= 1 ? LZMA_MF_HC3 : level <= 2 ? LZMA_MF_HC4
-			: LZMA_MF_BT4;
-	options->depth = 0;
-
-	if (flags & LZMA_PRESET_EXTREME) {
-		options->lc = 4; // FIXME?
+	if (level <= 3) {
+		options->mode = LZMA_MODE_FAST;
+		options->mf = level == 0 ? LZMA_MF_HC3 : LZMA_MF_HC4;
+		options->nice_len = level <= 1 ? 128 : 273;
+		options->depth = (uint8_t []){ 4, 8, 24, 48 }[level];
+	} else {
 		options->mode = LZMA_MODE_NORMAL;
 		options->mf = LZMA_MF_BT4;
-		options->nice_len = 273;
-		options->depth = 512;
+		options->nice_len = level == 4 ? 16 : level == 5 ? 32 : 64;
+		options->depth = 0;
+	}
+
+	if (flags & LZMA_PRESET_EXTREME) {
+		options->mode = LZMA_MODE_NORMAL;
+		options->mf = LZMA_MF_BT4;
+		if (level == 3 || level == 5) {
+			options->nice_len = 192;
+			options->depth = 0;
+		} else {
+			options->nice_len = 273;
+			options->depth = 512;
+		}
 	}
 
 	return false;

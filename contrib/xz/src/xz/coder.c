@@ -22,8 +22,8 @@ enum coder_init_ret {
 
 
 enum operation_mode opt_mode = MODE_COMPRESS;
-
 enum format_type opt_format = FORMAT_AUTO;
+bool opt_auto_adjust = true;
 
 
 /// Stream used to communicate with liblzma
@@ -41,14 +41,6 @@ static size_t filters_count = 0;
 
 /// Number of the preset (0-9)
 static size_t preset_number = 6;
-
-/// True if we should auto-adjust the compression settings to use less memory
-/// if memory usage limit is too low for the original settings.
-static bool auto_adjust = true;
-
-/// Indicate if no preset has been explicitly given. In that case, if we need
-/// to auto-adjust for lower memory usage, we won't print a warning.
-static bool preset_default = true;
 
 /// If a preset is used (no custom filter chain) and preset_extreme is true,
 /// a significantly slower compression is used to achieve slightly better
@@ -75,7 +67,15 @@ extern void
 coder_set_preset(size_t new_preset)
 {
 	preset_number = new_preset;
-	preset_default = false;
+
+	// Setting a preset makes us forget a possibly defined custom
+	// filter chain.
+	while (filters_count > 0) {
+		--filters_count;
+		free(filters[filters_count].options);
+		filters[filters_count].options = NULL;
+	}
+
 	return;
 }
 
@@ -145,8 +145,6 @@ coder_set_compression_settings(void)
 				? LZMA_FILTER_LZMA1 : LZMA_FILTER_LZMA2;
 		filters[0].options = &opt_lzma;
 		filters_count = 1;
-	} else {
-		preset_default = false;
 	}
 
 	// Terminate the filter options array.
@@ -168,12 +166,12 @@ coder_set_compression_settings(void)
 						"with the .xz format"));
 
 	// Print the selected filter chain.
-	message_filters(V_DEBUG, filters);
+	message_filters_show(V_DEBUG, filters);
 
 	// If using --format=raw, we can be decoding. The memusage function
 	// also validates the filter chain and the options used for the
 	// filters.
-	const uint64_t memory_limit = hardware_memlimit_get();
+	const uint64_t memory_limit = hardware_memlimit_get(opt_mode);
 	uint64_t memory_usage;
 	if (opt_mode == MODE_COMPRESS)
 		memory_usage = lzma_raw_encoder_memusage(filters);
@@ -186,12 +184,19 @@ coder_set_compression_settings(void)
 	// Print memory usage info before possible dictionary
 	// size auto-adjusting.
 	message_mem_needed(V_DEBUG, memory_usage);
+	if (opt_mode == MODE_COMPRESS) {
+		const uint64_t decmem = lzma_raw_decoder_memusage(filters);
+		if (decmem != UINT64_MAX)
+			message(V_DEBUG, _("Decompression will need "
+					"%s MiB of memory."), uint64_to_str(
+						round_up_to_mib(decmem), 0));
+	}
 
 	if (memory_usage > memory_limit) {
 		// If --no-auto-adjust was used or we didn't find LZMA1 or
 		// LZMA2 as the last filter, give an error immediately.
 		// --format=raw implies --no-auto-adjust.
-		if (!auto_adjust || opt_format == FORMAT_RAW)
+		if (!opt_auto_adjust || opt_format == FORMAT_RAW)
 			memlimit_too_small(memory_usage);
 
 		assert(opt_mode == MODE_COMPRESS);
@@ -239,18 +244,15 @@ coder_set_compression_settings(void)
 		}
 
 		// Tell the user that we decreased the dictionary size.
-		// However, omit the message if no preset or custom chain
-		// was given. FIXME: Always warn?
-		if (!preset_default)
-			message(V_WARNING, _("Adjusted LZMA%c dictionary size "
-					"from %s MiB to %s MiB to not exceed "
-					"the memory usage limit of %s MiB"),
-					filters[i].id == LZMA_FILTER_LZMA2
-						? '2' : '1',
-					uint64_to_str(orig_dict_size >> 20, 0),
-					uint64_to_str(opt->dict_size >> 20, 1),
-					uint64_to_str(round_up_to_mib(
-						memory_limit), 2));
+		message(V_WARNING, _("Adjusted LZMA%c dictionary size "
+				"from %s MiB to %s MiB to not exceed "
+				"the memory usage limit of %s MiB"),
+				filters[i].id == LZMA_FILTER_LZMA2
+					? '2' : '1',
+				uint64_to_str(orig_dict_size >> 20, 0),
+				uint64_to_str(opt->dict_size >> 20, 1),
+				uint64_to_str(round_up_to_mib(
+					memory_limit), 2));
 	}
 
 /*
@@ -410,12 +412,14 @@ coder_init(file_pair *pair)
 
 		case FORMAT_XZ:
 			ret = lzma_stream_decoder(&strm,
-					hardware_memlimit_get(), flags);
+					hardware_memlimit_get(
+						MODE_DECOMPRESS), flags);
 			break;
 
 		case FORMAT_LZMA:
 			ret = lzma_alone_decoder(&strm,
-					hardware_memlimit_get());
+					hardware_memlimit_get(
+						MODE_DECOMPRESS));
 			break;
 
 		case FORMAT_RAW:

@@ -291,6 +291,7 @@ lzma_index_decoder(lzma_stream *strm, lzma_index **i, uint64_t memlimit)
 	lzma_next_strm_init(index_decoder_init, strm, i, memlimit);
 
 	strm->internal->supported_actions[LZMA_RUN] = true;
+	strm->internal->supported_actions[LZMA_FINISH] = true;
 
 	return LZMA_OK;
 }

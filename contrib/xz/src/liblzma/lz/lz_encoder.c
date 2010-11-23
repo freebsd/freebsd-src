@@ -341,7 +341,7 @@ lz_encoder_prepare(lzma_mf *mf, lzma_allocator *allocator,
 
 	// Deallocate the old hash array if it exists and has different size
 	// than what is needed now.
-	if (mf->hash != NULL && old_count != new_count) {
+	if (old_count != new_count) {
 		lzma_free(mf->hash, allocator);
 		mf->hash = NULL;
 	}
@@ -349,9 +349,10 @@ lz_encoder_prepare(lzma_mf *mf, lzma_allocator *allocator,
 	// Maximum number of match finder cycles
 	mf->depth = lz_options->depth;
 	if (mf->depth == 0) {
-		mf->depth = 16 + (mf->nice_len / 2);
-		if (!is_bt)
-			mf->depth /= 2;
+		if (is_bt)
+			mf->depth = 16 + mf->nice_len / 2;
+		else
+			mf->depth = 4 + mf->nice_len / 4;
 	}
 
 	return false;
@@ -423,7 +424,7 @@ lz_encoder_init(lzma_mf *mf, lzma_allocator *allocator,
 			&& lz_options->preset_dict_size > 0) {
 		// If the preset dictionary is bigger than the actual
 		// dictionary, use only the tail.
-		mf->write_pos = MIN(lz_options->preset_dict_size, mf->size);
+		mf->write_pos = my_min(lz_options->preset_dict_size, mf->size);
 		memcpy(mf->buffer, lz_options->preset_dict
 				+ lz_options->preset_dict_size - mf->write_pos,
 				mf->write_pos);
@@ -444,6 +445,8 @@ lzma_lz_encoder_memusage(const lzma_lz_options *lz_options)
 	lzma_mf mf = {
 		.buffer = NULL,
 		.hash = NULL,
+		.hash_size_sum = 0,
+		.sons_count = 0,
 	};
 
 	// Setup the size information into mf.
@@ -519,6 +522,8 @@ lzma_lz_encoder_init(lzma_next_coder *next, lzma_allocator *allocator,
 
 		next->coder->mf.buffer = NULL;
 		next->coder->mf.hash = NULL;
+		next->coder->mf.hash_size_sum = 0;
+		next->coder->mf.sons_count = 0;
 
 		next->coder->next = LZMA_NEXT_CODER_INIT;
 	}
