@@ -251,7 +251,7 @@ lapic_init(vm_paddr_t addr)
 		/* Intel CPUID 0x06 EAX[2] set if APIC timer runs in C3. */
 		if (cpu_vendor_id == CPU_VENDOR_INTEL && cpu_high >= 6) {
 			do_cpuid(0x06, regs);
-			if (regs[0] & 0x4)
+			if ((regs[0] & CPUTPM1_ARAT) != 0)
 				arat = 1;
 		}
 		bzero(&lapic_et, sizeof(lapic_et));
