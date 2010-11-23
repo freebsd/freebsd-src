@@ -411,8 +411,7 @@ fc_replace(const char *s, char *p, char *r)
 	STARTSTACKSTR(dest);
 	while (*s) {
 		if (*s == *p && strncmp(s, p, plen) == 0) {
-			while (*r)
-				STPUTC(*r++, dest);
+			STPUTS(r, dest);
 			s += plen;
 			*p = '\0';	/* so no more matches */
 		} else
