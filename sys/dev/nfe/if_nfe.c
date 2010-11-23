@@ -77,6 +77,7 @@ static int  nfe_detach(device_t);
 static int  nfe_suspend(device_t);
 static int  nfe_resume(device_t);
 static int nfe_shutdown(device_t);
+static int  nfe_can_use_msix(struct nfe_softc *);
 static void nfe_power(struct nfe_softc *);
 static int  nfe_miibus_readreg(device_t, int, int);
 static int  nfe_miibus_writereg(device_t, int, int, int);
@@ -381,6 +382,13 @@ nfe_attach(device_t dev)
 			device_printf(sc->nfe_dev,
 			    "warning, negotiated width of link(x%d) != "
 			    "max. width of link(x%d)\n", width, v);
+	}
+
+	if (nfe_can_use_msix(sc) == 0) {
+		device_printf(sc->nfe_dev,
+		    "MSI/MSI-X capability black-listed, will use INTx\n"); 
+		msix_disable = 1;
+		msi_disable = 1;
 	}
 
 	/* Allocate interrupt */
@@ -781,6 +789,48 @@ nfe_resume(device_t dev)
 	NFE_UNLOCK(sc);
 
 	return (0);
+}
+
+
+static int
+nfe_can_use_msix(struct nfe_softc *sc)
+{
+	static struct msix_blacklist {
+		char	*maker;
+		char	*product;
+	} msix_blacklists[] = {
+		{ "ASUSTeK Computer INC.", "P5N32-SLI PREMIUM" }
+	};
+
+	struct msix_blacklist *mblp;
+	char *maker, *product;
+	int count, n, use_msix;
+
+	/*
+	 * Search base board manufacturer and product name table
+	 * to see this system has a known MSI/MSI-X issue.
+	 */
+	maker = getenv("smbios.planar.maker");
+	product = getenv("smbios.planar.product");
+	use_msix = 1;
+	if (maker != NULL && product != NULL) {
+		count = sizeof(msix_blacklists) / sizeof(msix_blacklists[0]);
+		mblp = msix_blacklists;
+		for (n = 0; n < count; n++) {
+			if (strcmp(maker, mblp->maker) == 0 &&
+			    strcmp(product, mblp->product) == 0) {
+				use_msix = 0;
+				break;
+			}
+			mblp++;
+		}
+	}
+	if (maker != NULL)
+		freeenv(maker);
+	if (product != NULL)
+		freeenv(product);
+
+	return (use_msix);
 }
 
 
