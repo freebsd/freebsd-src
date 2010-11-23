@@ -31,7 +31,7 @@
 
 #define LZMA_FILTER_IA64        LZMA_VLI_C(0x06)
 	/**<
-	 * Filter for IA64 (Itanium) binaries.
+	 * Filter for IA-64 (Itanium) binaries.
 	 */
 
 #define LZMA_FILTER_ARM         LZMA_VLI_C(0x07)
@@ -41,7 +41,7 @@
 
 #define LZMA_FILTER_ARMTHUMB    LZMA_VLI_C(0x08)
 	/**<
-	 * Filter for ARMThumb binaries.
+	 * Filter for ARM-Thumb binaries.
 	 */
 
 #define LZMA_FILTER_SPARC       LZMA_VLI_C(0x09)

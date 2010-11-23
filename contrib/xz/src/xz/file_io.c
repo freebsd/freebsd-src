@@ -370,15 +370,16 @@ io_open_src_real(file_pair *pair)
 		}
 
 #ifdef O_NOFOLLOW
-		// Give an understandable error message in if reason
+		// Give an understandable error message if the reason
 		// for failing was that the file was a symbolic link.
 		//
 		// Note that at least Linux, OpenBSD, Solaris, and Darwin
-		// use ELOOP to indicate if O_NOFOLLOW was the reason
+		// use ELOOP to indicate that O_NOFOLLOW was the reason
 		// that open() failed. Because there may be
 		// directories in the pathname, ELOOP may occur also
 		// because of a symlink loop in the directory part.
-		// So ELOOP doesn't tell us what actually went wrong.
+		// So ELOOP doesn't tell us what actually went wrong,
+		// and this stupidity went into POSIX-1.2008 too.
 		//
 		// FreeBSD associates EMLINK with O_NOFOLLOW and
 		// Tru64 uses ENOTSUP. We use these directly here
@@ -396,10 +397,10 @@ io_open_src_real(file_pair *pair)
 			was_symlink = true;
 
 #	elif defined(__NetBSD__)
-		// FIXME? As of 2008-11-20, NetBSD doesn't document what
-		// errno is used with O_NOFOLLOW. It seems to be EFTYPE,
-		// but since it isn't documented, it may be wrong to rely
-		// on it here.
+		// As of 2010-09-05, NetBSD doesn't document what errno is
+		// used with O_NOFOLLOW. It is EFTYPE though, and I
+		// understood that is very unlikely to change even though
+		// it is undocumented.
 		if (errno == EFTYPE)
 			was_symlink = true;
 

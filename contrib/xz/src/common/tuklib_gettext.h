@@ -33,12 +33,12 @@
 			textdomain(package); \
 		} while (0)
 #	define _(msgid) gettext(msgid)
-#	define N_(msgid1, msgid2, n) ngettext(msgid1, msgid2, n)
 #else
 #	define tuklib_gettext_init(package, localedir) \
 		setlocale(LC_ALL, "")
 #	define _(msgid) (msgid)
-#	define N_(msgid1, msgid2, n) ((n) == 1 ? (msgid1) : (msgid2))
+#	define ngettext(msgid1, msgid2, n) ((n) == 1 ? (msgid1) : (msgid2))
 #endif
+#define N_(msgid) msgid
 
 #endif

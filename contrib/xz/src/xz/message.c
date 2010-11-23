@@ -77,6 +77,17 @@ static uint64_t start_time;
 //    gettimeofday().
 #ifdef SIGALRM
 
+const int message_progress_sigs[] = {
+	SIGALRM,
+#ifdef SIGINFO
+	SIGINFO,
+#endif
+#ifdef SIGUSR1
+	SIGUSR1,
+#endif
+	0
+};
+
 /// The signal handler for SIGALRM sets this to true. It is set back to false
 /// once the progress message has been updated.
 static volatile sig_atomic_t progress_needs_updating = false;
@@ -142,34 +153,15 @@ message_init(void)
 */
 
 #ifdef SIGALRM
-	// At least DJGPP lacks SA_RESTART. It's not essential for us (the
-	// rest of the code can handle interrupted system calls), so just
-	// define it zero.
-#	ifndef SA_RESTART
-#		define SA_RESTART 0
-#	endif
 	// Establish the signal handlers which set a flag to tell us that
-	// progress info should be updated. Since these signals don't
-	// require any quick action, we set SA_RESTART.
-	static const int sigs[] = {
-#ifdef SIGALRM
-		SIGALRM,
-#endif
-#ifdef SIGINFO
-		SIGINFO,
-#endif
-#ifdef SIGUSR1
-		SIGUSR1,
-#endif
-	};
-
+	// progress info should be updated.
 	struct sigaction sa;
 	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_RESTART;
+	sa.sa_flags = 0;
 	sa.sa_handler = &progress_signal_handler;
 
-	for (size_t i = 0; i < ARRAY_SIZE(sigs); ++i)
-		if (sigaction(sigs[i], &sa, NULL))
+	for (size_t i = 0; message_progress_sigs[i] != 0; ++i)
+		if (sigaction(message_progress_sigs[i], &sa, NULL))
 			message_signal_handler();
 #endif
 
@@ -321,7 +313,8 @@ progress_percentage(uint64_t in_pos)
 	double percentage = (double)(in_pos) / (double)(expected_in_size)
 			* 99.9;
 
-	static char buf[sizeof("99.9 %")];
+	// Use big enough buffer to hold e.g. a multibyte decimal point.
+	static char buf[16];
 	snprintf(buf, sizeof(buf), "%.1f %%", percentage);
 
 	return buf;
@@ -333,12 +326,8 @@ progress_percentage(uint64_t in_pos)
 static const char *
 progress_sizes(uint64_t compressed_pos, uint64_t uncompressed_pos, bool final)
 {
-	// This is enough to hold sizes up to about 99 TiB if thousand
-	// separator is used, or about 1 PiB without thousand separator.
-	// After that the progress indicator will look a bit silly, since
-	// the compression ratio no longer fits with three decimal places.
-	static char buf[36];
-
+	// Use big enough buffer to hold e.g. a multibyte thousand separators.
+	static char buf[128];
 	char *pos = buf;
 	size_t left = sizeof(buf);
 
@@ -402,7 +391,8 @@ progress_speed(uint64_t uncompressed_pos, uint64_t elapsed)
 	//  - 9.9 KiB/s
 	//  - 99 KiB/s
 	//  - 999 KiB/s
-	static char buf[sizeof("999 GiB/s")];
+	// Use big enough buffer to hold e.g. a multibyte decimal point.
+	static char buf[16];
 	snprintf(buf, sizeof(buf), "%.*f %s",
 			speed > 9.9 ? 0 : 1, speed, unit[unit_index]);
 	return buf;
@@ -588,12 +578,19 @@ message_progress_update(void)
 	// Print the actual progress message. The idea is that there is at
 	// least three spaces between the fields in typical situations, but
 	// even in rare situations there is at least one space.
-	fprintf(stderr, "\r %6s %35s   %9s %10s   %10s\r",
+	const char *cols[5] = {
 		progress_percentage(in_pos),
 		progress_sizes(compressed_pos, uncompressed_pos, false),
 		progress_speed(uncompressed_pos, elapsed),
 		progress_time(elapsed),
-		progress_remaining(in_pos, elapsed));
+		progress_remaining(in_pos, elapsed),
+	};
+	fprintf(stderr, "\r %*s %*s   %*s %10s   %10s\r",
+			tuklib_mbstr_fw(cols[0], 6), cols[0],
+			tuklib_mbstr_fw(cols[1], 35), cols[1],
+			tuklib_mbstr_fw(cols[2], 9), cols[2],
+			cols[3],
+			cols[4]);
 
 #ifdef SIGALRM
 	// Updating the progress info was finished. Reset
@@ -663,12 +660,19 @@ progress_flush(bool finished)
 	// statistics are printed in the same format as the progress
 	// indicator itself.
 	if (progress_automatic) {
-		fprintf(stderr, "\r %6s %35s   %9s %10s   %10s\n",
+		const char *cols[5] = {
 			finished ? "100 %" : progress_percentage(in_pos),
 			progress_sizes(compressed_pos, uncompressed_pos, true),
 			progress_speed(uncompressed_pos, elapsed),
 			progress_time(elapsed),
-			finished ? "" : progress_remaining(in_pos, elapsed));
+			finished ? "" : progress_remaining(in_pos, elapsed),
+		};
+		fprintf(stderr, "\r %*s %*s   %*s %10s   %10s\n",
+				tuklib_mbstr_fw(cols[0], 6), cols[0],
+				tuklib_mbstr_fw(cols[1], 35), cols[1],
+				tuklib_mbstr_fw(cols[2], 9), cols[2],
+				cols[3],
+				cols[4]);
 	} else {
 		// The filename is always printed.
 		fprintf(stderr, "%s: ", filename);
@@ -829,10 +833,13 @@ message_strm(lzma_ret code)
 	case LZMA_STREAM_END:
 	case LZMA_GET_CHECK:
 	case LZMA_PROG_ERROR:
-		return _("Internal error (bug)");
+		// Without "default", compiler will warn if new constants
+		// are added to lzma_ret, it is not too easy to forget to
+		// add the new constants to this function.
+		break;
 	}
 
-	return NULL;
+	return _("Internal error (bug)");
 }
 
 
@@ -848,13 +855,15 @@ message_mem_needed(enum message_verbosity v, uint64_t memusage)
 	// the user might need to +1 MiB to get high enough limit.)
 	memusage = round_up_to_mib(memusage);
 
+	// With US-ASCII:
 	// 2^64 with thousand separators + " MiB" suffix + '\0' = 26 + 4 + 1
-	char memlimitstr[32];
+	// But there may be multibyte chars so reserve enough space.
+	char memlimitstr[128];
 
 	// Show the memory usage limit as MiB unless it is less than 1 MiB.
 	// This way it's easy to notice errors where one has typed
 	// --memory=123 instead of --memory=123MiB.
-	uint64_t memlimit = hardware_memlimit_get();
+	uint64_t memlimit = hardware_memlimit_get(opt_mode);
 	if (memlimit < (UINT32_C(1) << 20)) {
 		snprintf(memlimitstr, sizeof(memlimitstr), "%s B",
 				uint64_to_str(memlimit, 1));
@@ -876,114 +885,167 @@ message_mem_needed(enum message_verbosity v, uint64_t memusage)
 }
 
 
-extern void
-message_filters(enum message_verbosity v, const lzma_filter *filters)
+/// \brief      Convert uint32_t to a nice string for --lzma[12]=dict=SIZE
+///
+/// The idea is to use KiB or MiB suffix when possible.
+static const char *
+uint32_to_optstr(uint32_t num)
 {
-	if (v > verbosity)
-		return;
+	static char buf[16];
 
-	fprintf(stderr, _("%s: Filter chain:"), progname);
+	if ((num & ((UINT32_C(1) << 20) - 1)) == 0)
+		snprintf(buf, sizeof(buf), "%" PRIu32 "MiB", num >> 20);
+	else if ((num & ((UINT32_C(1) << 10) - 1)) == 0)
+		snprintf(buf, sizeof(buf), "%" PRIu32 "KiB", num >> 10);
+	else
+		snprintf(buf, sizeof(buf), "%" PRIu32, num);
+
+	return buf;
+}
+
+
+extern void
+message_filters_to_str(char buf[FILTERS_STR_SIZE],
+		const lzma_filter *filters, bool all_known)
+{
+	char *pos = buf;
+	size_t left = FILTERS_STR_SIZE;
 
 	for (size_t i = 0; filters[i].id != LZMA_VLI_UNKNOWN; ++i) {
-		fprintf(stderr, " --");
+		// Add the dashes for the filter option. A space is
+		// needed after the first and later filters.
+		my_snprintf(&pos, &left, "%s", i == 0 ? "--" : " --");
 
 		switch (filters[i].id) {
 		case LZMA_FILTER_LZMA1:
 		case LZMA_FILTER_LZMA2: {
 			const lzma_options_lzma *opt = filters[i].options;
-			const char *mode;
-			const char *mf;
+			const char *mode = NULL;
+			const char *mf = NULL;
 
-			switch (opt->mode) {
-			case LZMA_MODE_FAST:
-				mode = "fast";
-				break;
+			if (all_known) {
+				switch (opt->mode) {
+				case LZMA_MODE_FAST:
+					mode = "fast";
+					break;
 
-			case LZMA_MODE_NORMAL:
-				mode = "normal";
-				break;
+				case LZMA_MODE_NORMAL:
+					mode = "normal";
+					break;
 
-			default:
-				mode = "UNKNOWN";
-				break;
+				default:
+					mode = "UNKNOWN";
+					break;
+				}
+
+				switch (opt->mf) {
+				case LZMA_MF_HC3:
+					mf = "hc3";
+					break;
+
+				case LZMA_MF_HC4:
+					mf = "hc4";
+					break;
+
+				case LZMA_MF_BT2:
+					mf = "bt2";
+					break;
+
+				case LZMA_MF_BT3:
+					mf = "bt3";
+					break;
+
+				case LZMA_MF_BT4:
+					mf = "bt4";
+					break;
+
+				default:
+					mf = "UNKNOWN";
+					break;
+				}
 			}
 
-			switch (opt->mf) {
-			case LZMA_MF_HC3:
-				mf = "hc3";
-				break;
+			// Add the filter name and dictionary size, which
+			// is always known.
+			my_snprintf(&pos, &left, "lzma%c=dict=%s",
+					filters[i].id == LZMA_FILTER_LZMA2
+						? '2' : '1',
+					uint32_to_optstr(opt->dict_size));
 
-			case LZMA_MF_HC4:
-				mf = "hc4";
-				break;
+			// With LZMA1 also lc/lp/pb are known when
+			// decompressing, but this function is never
+			// used to print information about .lzma headers.
+			assert(filters[i].id == LZMA_FILTER_LZMA2
+					|| all_known);
 
-			case LZMA_MF_BT2:
-				mf = "bt2";
-				break;
-
-			case LZMA_MF_BT3:
-				mf = "bt3";
-				break;
-
-			case LZMA_MF_BT4:
-				mf = "bt4";
-				break;
-
-			default:
-				mf = "UNKNOWN";
-				break;
-			}
-
-			fprintf(stderr, "lzma%c=dict=%" PRIu32
+			// Print the rest of the options, which are known
+			// only when compressing.
+			if (all_known)
+				my_snprintf(&pos, &left,
 					",lc=%" PRIu32 ",lp=%" PRIu32
 					",pb=%" PRIu32
 					",mode=%s,nice=%" PRIu32 ",mf=%s"
 					",depth=%" PRIu32,
-					filters[i].id == LZMA_FILTER_LZMA2
-						? '2' : '1',
-					opt->dict_size,
 					opt->lc, opt->lp, opt->pb,
 					mode, opt->nice_len, mf, opt->depth);
 			break;
 		}
 
 		case LZMA_FILTER_X86:
-			fprintf(stderr, "x86");
-			break;
-
 		case LZMA_FILTER_POWERPC:
-			fprintf(stderr, "powerpc");
-			break;
-
 		case LZMA_FILTER_IA64:
-			fprintf(stderr, "ia64");
-			break;
-
 		case LZMA_FILTER_ARM:
-			fprintf(stderr, "arm");
-			break;
-
 		case LZMA_FILTER_ARMTHUMB:
-			fprintf(stderr, "armthumb");
-			break;
+		case LZMA_FILTER_SPARC: {
+			static const char bcj_names[][9] = {
+				"x86",
+				"powerpc",
+				"ia64",
+				"arm",
+				"armthumb",
+				"sparc",
+			};
 
-		case LZMA_FILTER_SPARC:
-			fprintf(stderr, "sparc");
+			const lzma_options_bcj *opt = filters[i].options;
+			my_snprintf(&pos, &left, "%s", bcj_names[filters[i].id
+					- LZMA_FILTER_X86]);
+
+			// Show the start offset only when really needed.
+			if (opt != NULL && opt->start_offset != 0)
+				my_snprintf(&pos, &left, "=start=%" PRIu32,
+						opt->start_offset);
+
 			break;
+		}
 
 		case LZMA_FILTER_DELTA: {
 			const lzma_options_delta *opt = filters[i].options;
-			fprintf(stderr, "delta=dist=%" PRIu32, opt->dist);
+			my_snprintf(&pos, &left, "delta=dist=%" PRIu32,
+					opt->dist);
 			break;
 		}
 
 		default:
-			fprintf(stderr, "UNKNOWN");
+			// This should be possible only if liblzma is
+			// newer than the xz tool.
+			my_snprintf(&pos, &left, "UNKNOWN");
 			break;
 		}
 	}
 
-	fputc('\n', stderr);
+	return;
+}
+
+
+extern void
+message_filters_show(enum message_verbosity v, const lzma_filter *filters)
+{
+	if (v > verbosity)
+		return;
+
+	char buf[FILTERS_STR_SIZE];
+	message_filters_to_str(buf, filters, true);
+	fprintf(stderr, _("%s: Filter chain: %s\n"), progname, buf);
 	return;
 }
 
@@ -1000,27 +1062,12 @@ message_try_help(void)
 
 
 extern void
-message_memlimit(void)
-{
-	if (opt_robot)
-		printf("%" PRIu64 "\n", hardware_memlimit_get());
-	else
-		printf(_("%s MiB (%s bytes)\n"),
-			uint64_to_str(
-				round_up_to_mib(hardware_memlimit_get()), 0),
-			uint64_to_str(hardware_memlimit_get(), 1));
-
-	tuklib_exit(E_SUCCESS, E_ERROR, verbosity != V_SILENT);
-}
-
-
-extern void
 message_version(void)
 {
 	// It is possible that liblzma version is different than the command
 	// line tool version, so print both.
 	if (opt_robot) {
-		printf("XZ_VERSION=%d\nLIBLZMA_VERSION=%d\n",
+		printf("XZ_VERSION=%" PRIu32 "\nLIBLZMA_VERSION=%" PRIu32 "\n",
 				LZMA_VERSION, lzma_version_number());
 	} else {
 		printf("xz (" PACKAGE_NAME ") " LZMA_VERSION_STRING "\n");
@@ -1038,8 +1085,11 @@ message_help(bool long_help)
 			"Compress or decompress FILEs in the .xz format.\n\n"),
 			progname);
 
-	puts(_("Mandatory arguments to long options are mandatory for "
-			"short options too.\n"));
+	// NOTE: The short help doesn't currently have options that
+	// take arguments.
+	if (long_help)
+		puts(_("Mandatory arguments to long options are mandatory "
+				"for short options too.\n"));
 
 	if (long_help)
 		puts(_(" Operation mode:\n"));
@@ -1048,7 +1098,7 @@ message_help(bool long_help)
 "  -z, --compress      force compression\n"
 "  -d, --decompress    force decompression\n"
 "  -t, --test          test compressed file integrity\n"
-"  -l, --list          list information about files"));
+"  -l, --list          list information about .xz files"));
 
 	if (long_help)
 		puts(_("\n Operation modifiers:\n"));
@@ -1062,32 +1112,40 @@ message_help(bool long_help)
 		puts(_(
 "      --no-sparse     do not create sparse files when decompressing\n"
 "  -S, --suffix=.SUF   use the suffix `.SUF' on compressed files\n"
-"      --files=[FILE]  read filenames to process from FILE; if FILE is\n"
+"      --files[=FILE]  read filenames to process from FILE; if FILE is\n"
 "                      omitted, filenames are read from the standard input;\n"
 "                      filenames must be terminated with the newline character\n"
-"      --files0=[FILE] like --files but use the null character as terminator"));
+"      --files0[=FILE] like --files but use the null character as terminator"));
 
 	if (long_help) {
 		puts(_("\n Basic file format and compression options:\n"));
 		puts(_(
 "  -F, --format=FMT    file format to encode or decode; possible values are\n"
 "                      `auto' (default), `xz', `lzma', and `raw'\n"
-"  -C, --check=CHECK   integrity check type: `crc32', `crc64' (default),\n"
-"                      `sha256', or `none' (use with caution)"));
+"  -C, --check=CHECK   integrity check type: `none' (use with caution),\n"
+"                      `crc32', `crc64' (default), or `sha256'"));
 	}
 
 	puts(_(
-"  -0 .. -9            compression preset; 0-2 fast compression, 3-5 good\n"
-"                      compression, 6-9 excellent compression; default is 6"));
+"  -0 ... -9           compression preset; default is 6; take compressor *and*\n"
+"                      decompressor memory usage into account before using 7-9!"));
 
 	puts(_(
-"  -e, --extreme       use more CPU time when encoding to increase compression\n"
-"                      ratio without increasing memory usage of the decoder"));
+"  -e, --extreme       try to improve compression ratio by using more CPU time;\n"
+"                      does not affect decompressor memory requirements"));
 
-	if (long_help)
+	if (long_help) {
 		puts(_( // xgettext:no-c-format
-"  -M, --memory=NUM    use roughly NUM bytes of memory at maximum; 0 indicates\n"
-"                      the default setting, which is 40 % of total RAM"));
+"      --memlimit-compress=LIMIT\n"
+"      --memlimit-decompress=LIMIT\n"
+"  -M, --memlimit=LIMIT\n"
+"                      set memory usage limit for compression, decompression,\n"
+"                      or both; LIMIT is in bytes, % of RAM, or 0 for defaults"));
+
+		puts(_(
+"      --no-adjust     if compression settings exceed the memory usage limit,\n"
+"                      give an error instead of adjusting the settings downwards"));
+	}
 
 	if (long_help) {
 		puts(_(
@@ -1095,11 +1153,15 @@ message_help(bool long_help)
 
 #if defined(HAVE_ENCODER_LZMA1) || defined(HAVE_DECODER_LZMA1) \
 		|| defined(HAVE_ENCODER_LZMA2) || defined(HAVE_DECODER_LZMA2)
+		// TRANSLATORS: The word "literal" in "literal context bits"
+		// means how many "context bits" to use when encoding
+		// literals. A literal is a single 8-bit byte. It doesn't
+		// mean "literally" here.
 		puts(_(
 "\n"
 "  --lzma1[=OPTS]      LZMA1 or LZMA2; OPTS is a comma-separated list of zero or\n"
 "  --lzma2[=OPTS]      more of the following options (valid values; default):\n"
-"                        preset=NUM reset options to preset number NUM (0-9)\n"
+"                        preset=PRE reset options to a preset (0-9[e])\n"
 "                        dict=NUM   dictionary size (4KiB - 1536MiB; 8MiB)\n"
 "                        lc=NUM     number of literal context bits (0-4; 3)\n"
 "                        lp=NUM     number of literal position bits (0-4; 0)\n"
@@ -1112,9 +1174,9 @@ message_help(bool long_help)
 
 		puts(_(
 "\n"
-"  --x86[=OPTS]        x86 BCJ filter\n"
+"  --x86[=OPTS]        x86 BCJ filter (32-bit and 64-bit)\n"
 "  --powerpc[=OPTS]    PowerPC BCJ filter (big endian only)\n"
-"  --ia64[=OPTS]       IA64 (Itanium) BCJ filter\n"
+"  --ia64[=OPTS]       IA-64 (Itanium) BCJ filter\n"
 "  --arm[=OPTS]        ARM BCJ filter (little endian only)\n"
 "  --armthumb[=OPTS]   ARM-Thumb BCJ filter (little endian only)\n"
 "  --sparc[=OPTS]      SPARC BCJ filter\n"
@@ -1127,15 +1189,6 @@ message_help(bool long_help)
 "  --delta[=OPTS]      Delta filter; valid OPTS (valid values; default):\n"
 "                        dist=NUM   distance between bytes being subtracted\n"
 "                                   from each other (1-256; 1)"));
-#endif
-
-#if defined(HAVE_ENCODER_SUBBLOCK) || defined(HAVE_DECODER_SUBBLOCK)
-		puts(_(
-"\n"
-"  --subblock[=OPTS]   Subblock filter; valid OPTS (valid values; default):\n"
-"                        size=NUM   number of bytes of data per subblock\n"
-"                                   (1 - 256Mi; 4Ki)\n"
-"                        rle=NUM    run-length encoder chunk size (0-256; 0)"));
 #endif
 	}
 
@@ -1153,7 +1206,8 @@ message_help(bool long_help)
 "      --robot         use machine-parsable messages (useful for scripts)"));
 		puts("");
 		puts(_(
-"      --info-memory   display the memory usage limit and exit"));
+"      --info-memory   display the total amount of RAM and the currently active\n"
+"                      memory usage limits, and exit"));
 		puts(_(
 "  -h, --help          display the short help (lists only the basic options)\n"
 "  -H, --long-help     display this long help and exit"));
@@ -1167,15 +1221,6 @@ message_help(bool long_help)
 "  -V, --version       display the version number and exit"));
 
 	puts(_("\nWith no FILE, or when FILE is -, read standard input.\n"));
-
-	if (long_help) {
-		printf(_(
-"On this system and configuration, this program will use a maximum of roughly\n"
-"%s MiB RAM and "), uint64_to_str(round_up_to_mib(hardware_memlimit_get()), 0));
-		printf(N_("one thread.\n\n", "%s threads.\n\n",
-				hardware_threadlimit_get()),
-				uint64_to_str(hardware_threadlimit_get(), 0));
-	}
 
 	// TRANSLATORS: This message indicates the bug reporting address
 	// for this package. Please add _another line_ saying

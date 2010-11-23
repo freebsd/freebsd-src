@@ -4,7 +4,7 @@
 .\" This file has been put into the public domain.
 .\" You can do whatever you want with this file.
 .\"
-.TH XZDEC 1 "2010-03-07" "Tukaani" "XZ Utils"
+.TH XZDEC 1 "2010-09-27" "Tukaani" "XZ Utils"
 .SH NAME
 xzdec, lzmadec \- Small .xz and .lzma decompressors
 .SH SYNOPSIS
@@ -25,7 +25,8 @@ files.
 .B xzdec
 is intended to work as a drop-in replacement for
 .BR xz (1)
-in the most common situations where a script has been written to use
+in the most common situations where a script
+has been written to use
 .B "xz \-\-decompress \-\-stdout"
 (and possibly a few other commonly used options) to decompress
 .B .xz
@@ -43,9 +44,12 @@ files.
 .PP
 To reduce the size of the executable,
 .B xzdec
-doesn't support multithreading or localization, and doesn't read options from
+doesn't support multithreading or localization,
+and doesn't read options from
+.B XZ_DEFAULTS
+and
 .B XZ_OPT
-environment variable.
+environment variables.
 .B xzdec
 doesn't support displaying intermediate progress information: sending
 .B SIGINFO
@@ -77,45 +81,6 @@ compatibility.
 .B xzdec
 always writes the decompressed data to standard output.
 .TP
-\fB\-M\fR \fIlimit\fR, \fB\-\-memory=\fIlimit
-Set the memory usage
-.IR limit .
-If this option is specified multiple times, the last one takes effect. The
-.I limit
-can be specified in multiple ways:
-.RS
-.IP \(bu 3
-The
-.I limit
-can be an absolute value in bytes. Using an integer suffix like
-.B MiB
-can be useful. Example:
-.B "\-\-memory=80MiB"
-.IP \(bu 3
-The
-.I limit
-can be specified as a percentage of physical RAM. Example:
-.B "\-\-memory=70%"
-.IP \(bu 3
-The
-.I limit
-can be reset back to its default value by setting it to
-.BR 0 .
-.IP \(bu 3
-The memory usage limiting can be effectively disabled by setting
-.I limit
-to
-.BR max .
-This isn't recommended. It's usually better to use, for example,
-.BR \-\-memory=90% .
-.RE
-.IP
-The current
-.I limit
-can be seen near the bottom of the output of the
-.B \-\-help
-option.
-.TP
 .BR \-q ", " \-\-quiet
 Specifying this once does nothing since
 .B xzdec
@@ -127,8 +92,7 @@ Ignored for
 .BR xz (1)
 compatibility.
 .B xzdec
-never uses the exit status
-.BR "2" .
+never uses the exit status 2.
 .TP
 .BR \-h ", " \-\-help
 Display a help message and exit successfully.
@@ -148,18 +112,32 @@ An error occurred.
 .B xzdec
 doesn't have any warning messages like
 .BR xz (1)
-has, thus the exit status
-.B 2
-is not used by
+has, thus the exit status 2 is not used by
 .BR xzdec .
 .SH NOTES
+Use
+.BR xz (1)
+instead of
+.B xzdec
+or
+.B lzmadec
+for normal everyday use.
+.B xzdec
+or
+.B lzmadec
+are meant only for situations where it is important to have
+a smaller decompressor than the full-featured
+.BR xz (1).
+.PP
 .B xzdec
 and
 .B lzmadec
-are not really that small. The size can be reduced further by dropping
-features from liblzma at compile time, but that shouldn't usually be done
-for executables distributed in typical non-embedded operating system
-distributions. If you need a truly small
+are not really that small.
+The size can be reduced further by dropping
+features from liblzma at compile time,
+but that shouldn't usually be done for executables distributed
+in typical non-embedded operating system distributions.
+If you need a truly small
 .B .xz
 decompressor, consider using XZ Embedded.
 .SH "SEE ALSO"

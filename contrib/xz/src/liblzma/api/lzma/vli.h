@@ -29,7 +29,7 @@
 
 
 /**
- * \brief       Maximum supported value of variable-length integer
+ * \brief       Maximum supported value of a variable-length integer
  */
 #define LZMA_VLI_MAX (UINT64_MAX / 2)
 
@@ -39,10 +39,9 @@
 #define LZMA_VLI_UNKNOWN UINT64_MAX
 
 /**
- * \brief       Maximum supported length of variable length integers
+ * \brief       Maximum supported encoded length of variable length integers
  */
 #define LZMA_VLI_BYTES_MAX 9
-
 
 /**
  * \brief       VLI constant suffix
@@ -53,19 +52,19 @@
 /**
  * \brief       Variable-length integer type
  *
- * This will always be unsigned integer. Valid VLI values are in the range
- * [0, LZMA_VLI_MAX]. Unknown value is indicated with LZMA_VLI_UNKNOWN,
- * which is the maximum value of the underlaying integer type.
+ * Valid VLI values are in the range [0, LZMA_VLI_MAX]. Unknown value is
+ * indicated with LZMA_VLI_UNKNOWN, which is the maximum value of the
+ * underlaying integer type.
  *
- * In future, even if lzma_vli is defined to be something other than uint64_t,
- * it is guaranteed that 2 * LZMA_VLI_MAX will not overflow lzma_vli.
- * This simplifies integer overflow detection.
+ * lzma_vli will be uint64_t for the foreseeable future. If a bigger size
+ * is needed in the future, it is guaranteed that 2 * LZMA_VLI_MAX will
+ * not overflow lzma_vli. This simplifies integer overflow detection.
  */
 typedef uint64_t lzma_vli;
 
 
 /**
- * \brief       Simple macro to validate variable-length integer
+ * \brief       Validate a variable-length integer
  *
  * This is useful to test that application has given acceptable values
  * for example in the uncompressed_size and compressed_size variables.
@@ -88,9 +87,9 @@ typedef uint64_t lzma_vli;
  *
  * \param       vli       Integer to be encoded
  * \param       vli_pos   How many VLI-encoded bytes have already been written
- *                        out. When starting to encode a new integer, *vli_pos
- *                        must be set to zero. To use single-call encoding,
- *                        set vli_pos to NULL.
+ *                        out. When starting to encode a new integer in
+ *                        multi-call mode, *vli_pos must be set to zero.
+ *                        To use single-call encoding, set vli_pos to NULL.
  * \param       out       Beginning of the output buffer
  * \param       out_pos   The next byte will be written to out[*out_pos].
  * \param       out_size  Size of the out buffer; the first byte into
@@ -113,9 +112,8 @@ typedef uint64_t lzma_vli;
  *              - LZMA_BUF_ERROR: No output space was provided.
  *              - LZMA_PROG_ERROR: Arguments are not sane.
  */
-extern LZMA_API(lzma_ret) lzma_vli_encode(lzma_vli vli,
-		size_t *vli_pos, uint8_t *lzma_restrict out,
-		size_t *lzma_restrict out_pos, size_t out_size) lzma_nothrow;
+extern LZMA_API(lzma_ret) lzma_vli_encode(lzma_vli vli, size_t *vli_pos,
+		uint8_t *out, size_t *out_pos, size_t out_size) lzma_nothrow;
 
 
 /**
@@ -127,9 +125,9 @@ extern LZMA_API(lzma_ret) lzma_vli_encode(lzma_vli vli,
  *                        initialize it to zero when *vli_pos == 0, so
  *                        application isn't required to initialize *vli.
  * \param       vli_pos   How many bytes have already been decoded. When
- *                        starting to decode a new integer, *vli_pos must
- *                        be initialized to zero. To use single-call decoding,
- *                        set this to NULL.
+ *                        starting to decode a new integer in multi-call
+ *                        mode, *vli_pos must be initialized to zero. To
+ *                        use single-call decoding, set vli_pos to NULL.
  * \param       in        Beginning of the input buffer
  * \param       in_pos    The next byte will be read from in[*in_pos].
  * \param       in_size   Size of the input buffer; the first byte that
@@ -153,9 +151,9 @@ extern LZMA_API(lzma_ret) lzma_vli_encode(lzma_vli vli,
  *              - LZMA_BUF_ERROR: No input was provided.
  *              - LZMA_PROG_ERROR: Arguments are not sane.
  */
-extern LZMA_API(lzma_ret) lzma_vli_decode(lzma_vli *lzma_restrict vli,
-		size_t *vli_pos, const uint8_t *lzma_restrict in,
-		size_t *lzma_restrict in_pos, size_t in_size) lzma_nothrow;
+extern LZMA_API(lzma_ret) lzma_vli_decode(lzma_vli *vli, size_t *vli_pos,
+		const uint8_t *in, size_t *in_pos, size_t in_size)
+		lzma_nothrow;
 
 
 /**

@@ -1,3 +1,928 @@
+commit e45929260cd902036efd40c5610a8d0a50d5712b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 23 17:25:52 2010 +0300
+
+    Build: Fix mydist rule when .git doesn't exist.
+
+commit 6e1326fcdf6b6209949be57cfe3ad4b781b65168
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 23 14:15:35 2010 +0300
+
+    Add NEWS for 5.0.0.
+
+commit b667a3ef6338a2c1db7b7706b1f6c99ea392221c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 23 14:02:53 2010 +0300
+
+    Bump version to 5.0.0 and liblzma version-info to 5:0:0.
+
+commit 8c947e9291691629714dafb4536c718b6cc24fbd
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 23 12:30:54 2010 +0300
+
+    liblzma: Make lzma_code() check the reserved members in lzma_stream.
+    
+    If any of the reserved members in lzma_stream are non-zero
+    or non-NULL, LZMA_OPTIONS_ERROR is returned. It is possible
+    that a new feature in the future is indicated by just setting
+    a reserved member to some other value, so the old liblzma
+    version need to catch it as an unsupported feature.
+
+commit e61d85e082743ebd2dd0ff28fc0a82482ede0538
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 23 12:26:33 2010 +0300
+
+    Windows: Use MinGW's stdio functions.
+    
+    The non-standard ones from msvcrt.dll appear to work
+    most of the time with XZ Utils, but there are some
+    corner cases where things may go very wrong. So it's
+    good to use the better replacements provided by
+    MinGW(-w64) runtime.
+
+commit 23e23f1dc029146714c9a98313ab3ea93d71a2fc
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 23 12:21:32 2010 +0300
+
+    liblzma: Use 512 as INDEX_GROUP_SIZE.
+    
+    This lets compiler use shifting instead of 64-bit division.
+
+commit 613939fc82603b75b59eee840871a05bc8dd08e0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 23 12:20:11 2010 +0300
+
+    liblzma: A few ABI tweaks to reserve space in structures.
+
+commit 68b83f252df3d27480a9f6f03445d16f6506fef1
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Oct 21 23:16:11 2010 +0300
+
+    xz: Make sure that message_strm() can never return NULL.
+
+commit d09c5753e33ff96ee57edb6d1e98e34041203695
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Oct 21 23:06:31 2010 +0300
+
+    liblzma: Update the comments in the API headers.
+    
+    Adding support for LZMA_FINISH for Index encoding and
+    decoding needed tiny additions to the relevant .c files too.
+
+commit 33c1c0e102eb529588503b8beea0903a45488fad
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Oct 19 12:08:30 2010 +0300
+
+    Update INSTALL.generic.
+
+commit 0076e03641f201c4b77dddd5a6db5880be19a78c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Oct 19 11:44:37 2010 +0300
+
+    Clean up a few FIXMEs and TODOs.
+    
+    lzma_chunk_size() was commented out because it is
+    currently useless.
+
+commit ce34ec4f54ff8b753da236f371ad8dd23c8135c9
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Oct 19 10:21:08 2010 +0300
+
+    Update docs.
+
+commit f0fa880d247e73264d2c04fe31fb3412318a0026
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Oct 12 15:13:30 2010 +0300
+
+    xz: Avoid raise() also on OpenVMS.
+    
+    This is similar to DOS/DJGPP that killing the program
+    with a signal will print a backtrace or a similar message.
+
+commit ac462b1c47c451f5c62e428306314c4bdad8ae7f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Mon Oct 11 21:26:19 2010 +0300
+
+    xz: Avoid SA_RESTART for portability reasons.
+    
+    SA_RESTART is not as portable as I had hoped. It's missing
+    at least from OpenVMS, QNX, and DJGPP). Luckily we can do
+    fine without SA_RESTART.
+
+commit d52b411716a614c202e89ba732492efb9916cd3f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sun Oct 10 17:58:58 2010 +0300
+
+    xz: Use "%"PRIu32 instead of "%d" in a format string.
+
+commit ae74d1bdeb075c3beefe76e1136c5741804e7e91
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sun Oct 10 17:43:26 2010 +0300
+
+    test_files.sh: Fix the first line.
+    
+    For some reason this prevented running the test only
+    on OS/2 and even on that it broke only recently.
+    
+    Thanks to Elbert Pol.
+
+commit d492b80ddd6f9a13419de6d102df7374d8f448e8
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sun Oct 10 16:49:01 2010 +0300
+
+    lzmainfo: Use "%"PRIu32 instead of "%u" for uint32_t.
+
+commit 825e859a9054bd91202e5723c41a17e72f63040a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sun Oct 10 16:47:01 2010 +0300
+
+    lzmainfo: Use fileno(stdin) instead of STDIN_FILENO.
+
+commit acbc4cdecbeec2a4dfaac04f185ece49b2ff17c8
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 9 23:20:51 2010 +0300
+
+    lzmainfo: Use setmode() on DOS-like systems.
+
+commit ef364d3abc5647111c5424ea0d83a567e184a23b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 9 21:51:03 2010 +0300
+
+    OS/2 and DOS: Be less verbose on signals.
+    
+    Calling raise() to kill xz when user has pressed C-c
+    is a bit verbose on OS/2 and DOS/DJGPP. Instead of
+    calling raise(), set only the exit status to 1.
+
+commit 5629c4be07b6c67e79842b2569da1cedc9c0d69a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 9 19:28:49 2010 +0300
+
+    DOS: Update the Makefile, config.h and README.
+    
+    This is now simpler and builds only xz.exe.
+
+commit f25a77e6b9bc48a243ddfbbd755b7960eec7e0ac
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 9 18:57:55 2010 +0300
+
+    Windows: Put some license info into README-Windows.txt.
+
+commit e75100f549f85d231df25c07aa94d63e78e2d668
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 9 18:57:04 2010 +0300
+
+    Windows: Fix a diagnostics bug in build.bash.
+
+commit efeb998a2b1025df1c1d202cc7d21d866cd1c336
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 9 13:02:15 2010 +0300
+
+    lzmainfo: Add Windows resource file.
+
+commit 389d418445f1623593dfdbba55d52fbb6d1205f5
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 9 12:57:25 2010 +0300
+
+    Add missing public domain notice to lzmadec_w32res.rc.
+
+commit 6389c773a4912dd9f111256d74ba1605230a7957
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 9 12:52:12 2010 +0300
+
+    Windows: Update common_w32res.rc.
+
+commit 71275457ca24c9b01721f5cfc3638cf094daf454
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 9 12:27:08 2010 +0300
+
+    Windows: Make build.bash prefer MinGW-w32 over MinGW.
+    
+    This is simply for licensing reasons. The 64-bit version
+    will be built with MinGW-w64 anyway (at least for now),
+    so using it also for 32-bit build allows using the same
+    copyright notice about the MinGW-w64/w32 runtime.
+    
+    Note that using MinGW would require a copyright notice too,
+    because its runtime is not in the public domain either even
+    though MinGW's home page claims that it is public domain.
+    See <http://marc.info/?l=mingw-users&m=126489506214078>.
+
+commit 3ac35719d8433af937af6491383d4a50e343099b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 9 11:33:21 2010 +0300
+
+    Windows: Copy COPYING-Windows.txt (if it exists) to the package.
+    
+    Also, put README-Windows.txt to the doc directory like
+    the other documentation files.
+
+commit 7b5db576fd7a4a67813b8437a9ccd4dbc94bbaae
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Oct 8 21:42:37 2010 +0300
+
+    Windows: Fix build.bash again.
+    
+    630a8beda34af0ac153c8051b1bf01230558e422 wasn't good.
+
+commit d3cd7abe85ec7c2f46cf198b15c00d5d119df3dd
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Oct 8 16:53:20 2010 +0300
+
+    Use LZMA_VERSION_STRING instead of PACKAGE_VERSION.
+    
+    Those are the same thing, and the former makes it a bit
+    easier to build the code with other build systems, because
+    one doesn't need to update the version number into custom
+    config.h.
+    
+    This change affects only lzmainfo. Other tools were already
+    using LZMA_VERSION_STRING.
+
+commit 084c60d318f2dbaef4078d9b100b4a373d0c3a7f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Oct 8 15:59:25 2010 +0300
+
+    configure.ac: Remove two unused defines.
+
+commit 11f51b6714357cb67ec7e56ed9575c199b5581fe
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Oct 8 15:32:29 2010 +0300
+
+    Make tests accommodate missing xz or xzdec.
+
+commit b1c7368f95e93ccdefdd0748e04398c26766f47f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Oct 8 15:25:45 2010 +0300
+
+    Build: Add options to disable individual command line tools.
+
+commit 630a8beda34af0ac153c8051b1bf01230558e422
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Oct 7 00:44:53 2010 +0300
+
+    Windows: Make build.bash work without --enable-dynamic=no.
+
+commit f9907503f882a745dce9d84c2968f6c175ba966a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Oct 5 14:13:16 2010 +0300
+
+    Build: Remove the static/dynamic tricks.
+    
+    Most distros want xz linked against shared liblzma, so
+    it doesn't help much to require --enable-dynamic for that.
+    Those who want to avoid PIC on x86-32 to get better
+    performance, can still do it e.g. by using --disable-shared
+    to compile xz and then another pass to compile shared liblzma.
+    
+    Part of these static/dynamic tricks were needed for Windows
+    in the past. Nowadays we rely on GCC and binutils to do the
+    right thing with auto-import. If the Autotooled build system
+    needs to support some other toolchain on Windows in the future,
+    this may need some rethinking.
+
+commit fda4724d8114fccfa31c1839c15479f350c2fb4c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Oct 5 12:18:58 2010 +0300
+
+    configure.ac: Silence a warning from Autoconf 2.68.
+
+commit 80b5675fa62c87426fe86f8fcd20feeabc4361b9
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Mon Oct 4 19:43:01 2010 +0300
+
+    A few more languages files to the xz man page.
+    
+    Thanks to Jonathan Nieder.
+
+commit f9722dbeca4dc4c43cfd15d122dafaac50b0a0bb
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 2 12:07:33 2010 +0300
+
+    Update the FAQ.
+
+commit 61ae593661e8dc402394e84d567ca2044a51572b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Oct 2 11:38:20 2010 +0300
+
+    liblzma: Small fixes to comments in the API headers.
+
+commit 9166682dc601fd42c1b9510572e3f917d18de504
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Sep 28 11:40:12 2010 +0300
+
+    Create the PDF versions of the man pages better.
+
+commit 17d3c61edd35de8fa884944fc70d1db86daa5dd8
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Sep 28 10:59:53 2010 +0300
+
+    Move version.sh to build-aux.
+
+commit 84af9d8770451339a692e9b70f96cf56156a6069
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Sep 28 10:53:02 2010 +0300
+
+    Update .gitignore.
+
+commit 31575a449ac64c523da3bab8d0c0b522cdc7c780
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Sep 28 01:17:14 2010 +0300
+
+    Fix accomodate -> accommodate on the xz man page.
+
+commit cec0ddc8ec4ce81685a51998b978e22167e461f9
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Mon Sep 27 23:29:34 2010 +0300
+
+    Major man page updates.
+    
+    Lots of content was updated on the xz man page.
+    
+    Technical improvements:
+      - Start a new sentence on a new line.
+      - Use fairly short lines.
+      - Use constant-width font for examples (where supported).
+      - Some minor cleanups.
+    
+    Thanks to Jonathan Nieder for some language fixes.
+
+commit 075257ab0416a0603be930082e31a5703e4ba345
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sun Sep 26 18:10:31 2010 +0300
+
+    Fix the preset -3e.
+    
+    depth=0 was missing.
+
+commit 2577da9ebdba13fbe99ae5ee8bde35f7ed60f6d1
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Sep 23 14:03:10 2010 +0300
+
+    Add translations.bash and translation notes to README.
+    
+    translations.bash prints some messages from xz, which
+    hopefully makes it a bit easier to test translations.
+
+commit a3c5997c57e5b1a20aae6d1071b584b4f17d0b23
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Sep 17 22:14:30 2010 +0300
+
+    xz: Update the Czech translation.
+    
+    Thanks to Marek Černocký.
+
+commit a1766af582dc23fddd9da1eeb4b9d61e3eb4c2e6
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Sep 16 23:40:41 2010 +0300
+
+    xz: Add Italian translation.
+    
+    Thanks to Milo Casagrande and Lorenzo De Liso.
+
+commit 21088018554e2b0e02914205377ceb6e34a090bd
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Wed Sep 15 00:34:13 2010 +0300
+
+    xz: Edit a translators comment.
+
+commit be16e28ece1b492b8f93382b7fa1cc4da23c6ff6
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Sep 14 22:47:14 2010 +0300
+
+    xz: Add German translation.
+    
+    Thanks to Andre Noll.
+
+commit e23ea74f3240e6b69683f9e69d1716e0f9e9092b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Sep 10 14:30:25 2010 +0300
+
+    Updated README.
+
+commit 8dad2fd69336985adb9f774fa96dc9c0efcb5a71
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Sep 10 14:30:07 2010 +0300
+
+    Updated INSTALL.
+
+commit 0b5f07fe3728c27cce416ddc40f7e4803ae96ac2
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Sep 10 14:26:20 2010 +0300
+
+    Updated the git repository address in ChangeLog.
+
+commit a8760203f93a69bc39fd14520a6e9e7b7d70be06
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Sep 10 14:09:33 2010 +0300
+
+    xz: Add a comment to translators about "literal context bits".
+
+commit bb0b1004f83cdc4d309e1471c2ecaf9f95ce60c5
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Sep 10 10:30:33 2010 +0300
+
+    xz: Multiple fixes.
+    
+    The code assumed that printing numbers with thousand separators
+    and decimal points would always produce only US-ASCII characters.
+    This was used for buffer sizes (with snprintf(), no overflows)
+    and aligning columns of the progress indicator and --list. That
+    assumption was wrong (e.g. LC_ALL=fi_FI.UTF-8 with glibc), so
+    multibyte character support was added in this commit. The old
+    way is used if the operating system doesn't have enough multibyte
+    support (e.g. lacks wcwidth()).
+    
+    The sizes of buffers were increased to accomodate multibyte
+    characters. I don't know how big they should be exactly, but
+    they aren't used for anything critical, so it's not too bad.
+    If they still aren't big enough, I hopefully get a bug report.
+    snprintf() takes care of avoiding buffer overflows.
+    
+    Some static buffers were replaced with buffers allocated on
+    stack. double_to_str() was removed. uint64_to_str() and
+    uint64_to_nicestr() now share the static buffer and test
+    for thousand separator support.
+    
+    Integrity check names "None" and "Unknown-N" (2 <= N <= 15)
+    were marked to be translated. I had forgot these, plus they
+    wouldn't have worked correctly anyway before this commit,
+    because printing tables with multibyte strings didn't work.
+    
+    Thanks to Marek Černocký for reporting the bug about
+    misaligned table columns in --list output.
+
+commit 639f8e2af33cf8a184d59ba56b6df7c098679d61
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Wed Sep 8 08:49:22 2010 +0300
+
+    Update the Czech translation.
+    
+    Thanks to Marek Černocký.
+
+commit 41bc9956ebfd7c86777d33676acf34c45e7ca7c7
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Sep 7 12:31:40 2010 +0300
+
+    xz: Add a note to translators.
+
+commit 77a7746616e555fc08028e883a56d06bf0088b81
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Sep 7 10:42:13 2010 +0300
+
+    Fix use of N_() and ngettext().
+    
+    I had somehow thought that N_() is usually used
+    as shorthand for ngettext().
+    
+    This also fixes a missing \n from a call to ngettext().
+
+commit e6ad39335842343e622ab51207d1d3cb9caad801
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Mon Sep 6 19:43:12 2010 +0300
+
+    Add missing files to POTFILES.in.
+
+commit 58f55131820d2e08a1a6beb9ec0ee2378044eb30
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Mon Sep 6 10:16:24 2010 +0300
+
+    xz: Improve a comment.
+
+commit bcb1b898341f7073f51660d7052d7ed6c5461a66
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sun Sep 5 21:34:29 2010 +0300
+
+    xz: Update the comment about NetBSD in file_io.c.
+    
+    Thanks to Joerg Sonnenberger.
+
+commit da014d55972f5addbf6b4360d3d8ed2ef4282170
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sun Sep 5 21:11:33 2010 +0300
+
+    xz: Use an array instead of pointer for stdin_filename.
+    
+    Thanks Joerg Sonnenberger.
+
+commit 8c7d3d1a0781c296c6b6e2465becaffd2132f7ee
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sun Sep 5 12:16:17 2010 +0300
+
+    xz: Hopefully ease translating the messages in list.c.
+
+commit ef840950ad99cf2955c754875af0e01acf125079
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Sep 4 23:14:44 2010 +0300
+
+    xz: Fix grammar.
+
+commit c46afd6edc04ea140db6c59e8486f5707c810c13
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Sep 4 23:12:20 2010 +0300
+
+    xz: Use lzma_lzma_preset() to initialize the options structure.
+
+commit 8fd3ac046d0b1416a2094fecc456d9e0f4d5d065
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Sep 4 22:16:28 2010 +0300
+
+    Don't set lc=4 with --extreme.
+    
+    This should reduce the cases where --extreme makes
+    compression worse. On the other hand, some other
+    files may now benefit slightly less from --extreme.
+
+commit 474bac0c33e94aeaca8ada17ab19972b1424bc2b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Sep 4 22:10:32 2010 +0300
+
+    xz: Minor improvements to --help and --long-help.
+
+commit 373ee26f955617295c5c537b04a153a1969140d2
+Author: Jonathan Nieder <jrnieder@gmail.com>
+Date:   Fri Sep 3 16:49:15 2010 -0500
+
+    Adjust memory limits in test_compress.sh
+    
+    Testing compression at level -4 now requires 48 MiB of free store at
+    compression time and 5 MiB at decompression time.
+    
+    Signed-off-by: Jonathan Nieder <jrnieder@gmail.com>
+
+commit 2fce9312f36727ea82f3430cc5d3a7d243c5f087
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Sep 3 15:54:40 2010 +0300
+
+    xz: Make -vv show also decompressor memory usage.
+
+commit b4b1cbcb53624ab832f8b3189c74450dc7ea29b6
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Sep 3 15:13:12 2010 +0300
+
+    Tweak the compression presets -0 .. -5.
+    
+    "Extreme" mode might need some further tweaking still.
+    Docs were not updated yet.
+
+commit 77fe5954cd3d10fb1837372684cbc133b56b6a87
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Sep 3 12:28:41 2010 +0300
+
+    liblzma: Adjust default depth calculation for HC3 and HC4.
+    
+    It was 8 + nice_len / 4, now it is 4 + nice_len / 4.
+    This allows faster settings at lower nice_len values,
+    even though it seems that I won't use automatic depth
+    calcuation with HC3 and HC4 in the presets.
+
+commit fce69059cf901ce8075a78c7607d591f144a3b5a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Sep 3 11:11:25 2010 +0300
+
+    xz: Make --help two lines shorter.
+    
+    At least for now, the --help option doesn't list any
+    options that take arguments, so "Mandatory arguments to..."
+    can be omitted.
+
+commit a848e47ced6e5e2a564b5c454b2f5a19c2f40298
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Sep 2 19:22:35 2010 +0300
+
+    xz: Make setting a preset override a custom filter chain.
+    
+    This is more logical behavior than ignoring preset level
+    options once a custom filter chain has been specified.
+
+commit b3ff7ba044eaeab3e424d7b51fe914daf681b1a3
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu Sep 2 19:09:57 2010 +0300
+
+    xz: Always warn if adjusting dictionary size due to memlimit.
+
+commit d5653ba8a1ea9c00de4fddc617aba3c51e18139d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Aug 10 11:04:30 2010 +0300
+
+    Fix test_compress.sh.
+    
+    It broke when --memory option was removed from xzdec.
+    
+    Thanks to Jonathan Nieder.
+
+commit 792331bdee706aa852a78b171040ebf814c6f3ae
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sat Aug 7 20:45:18 2010 +0300
+
+    Disable the memory usage limiter by default.
+    
+    For several people, the limiter causes bigger problems that
+    it solves, so it is better to have it disabled by default.
+    Those who want to have a limiter by default need to enable
+    it via the environment variable XZ_DEFAULTS.
+    
+    Support for environment variable XZ_DEFAULTS was added. It is
+    parsed before XZ_OPT and technically identical with it. The
+    intended uses differ quite a bit though; see the man page.
+    
+    The memory usage limit can now be set separately for
+    compression and decompression using --memlimit-compress and
+    --memlimit-decompress. To set both at once, -M or --memlimit
+    can be used. --memory was retained as a legacy alias for
+    --memlimit for backwards compatibility.
+    
+    The semantics of --info-memory were changed in backwards
+    incompatible way. Compatibility wasn't meaningful due to
+    changes in the memory usage limiter functionality.
+    
+    The memory usage limiter info is no longer shown at the
+    bottom of xz --long -help.
+    
+    The memory usage limiter support for removed completely from xzdec.
+    
+    xz's man page was updated to match the above changes. Various
+    unrelated fixes were also made to the man page.
+
+commit 4a45dd4c39f75d25c7a37b6400cb24d4010ca801
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Aug 6 20:22:16 2010 +0300
+
+    Add missing const to a global constant in xz.
+
+commit 01aa4869cb220b7fdad6d1acbabb2233045daa8f
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Wed Jul 28 11:44:55 2010 +0300
+
+    Language fixes for man pages.
+    
+    Thanks to A. Costa and Jonathan Nieder.
+
+commit ce1f0deafe8504e1492bf1b1efb3e3ec950b1a2b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Jul 27 20:47:12 2010 +0300
+
+    Windows: Add a note about building a Git repository snapshot
+
+commit 507a4a4dea1e5462f12f7ed4b076c34e02054a38
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Jul 27 20:45:03 2010 +0300
+
+    Windows: build.sh is a bash script so name it correctly.
+
+commit b1cbfd40f049a646a639eb78a3e41e9e3ef73339
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Jul 27 20:27:32 2010 +0300
+
+    Windows: Don't strip liblzma.a too much.
+
+commit a540198ffb25fad36380c5e92ac20c2d28eec46a
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Jul 13 20:07:26 2010 +0300
+
+    Updated THANKS.
+
+commit bab0f01ed931f606b4675aa9f9331a17cec09bad
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Jul 13 19:55:50 2010 +0300
+
+    Add two simple example programs.
+    
+    Hopefully these help a bit when learning the basics
+    of liblzma API. I plan to write detailed examples about
+    both basic and advanced features with lots of comments,
+    but these two examples are good have right now.
+    
+    The examples were written by Daniel Mealha Cabrita. Thanks.
+
+commit c15c42abb3c8c6e77c778ef06c97a4a10b8b5d00
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Jun 15 14:06:29 2010 +0300
+
+    Add --no-adjust.
+
+commit 2130926dd1c839280358172dfadd8d3054bde2b4
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Jun 11 21:51:32 2010 +0300
+
+    Updated THANKS.
+
+commit bc612d0e0c9e4504c59d49168e87a7ae3e458443
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Jun 11 21:48:32 2010 +0300
+
+    Clarify the description of the default memlimit in the man page.
+    
+    Thanks to Denis Excoffier.
+
+commit e1b6935d60a00405e6b5b455a3426d2248cc926c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Jun 11 21:43:28 2010 +0300
+
+    Fix string to uint64_t conversion.
+    
+    Thanks to Denis Excoffier for the bug report.
+
+commit 3e49c8acb0f5312948eddb2342dbb5802d4571d0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri Jun 11 10:40:28 2010 +0300
+
+    Put the git commit to the filename in mydist rule.
+
+commit d8b41eedce486d400f701b757b7b5e4e32276618
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Wed Jun 2 23:13:55 2010 +0300
+
+    Fix compiling with -Werror.
+
+commit b5fbab6123a39c9a55cd5d7af410e9aae067d5f8
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Wed Jun 2 23:09:22 2010 +0300
+
+    Silence a bogus Valgrind warning.
+    
+    When using -O2 with GCC, it liked to swap two comparisons
+    in one "if" statement. It's otherwise fine except that
+    the latter part, which is seemingly never executed, got
+    executed (nothing wrong with that) and then triggered
+    warning in Valgrind about conditional jump depending on
+    uninitialized variable. A few people find this annoying
+    so do things a bit differently to avoid the warning.
+
+commit 29a7b250e685852f2f97615493ec49acaf528623
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Wed Jun 2 21:32:12 2010 +0300
+
+    Fix a Windows-specific FIXME in signal handling code.
+
+commit e89d987056cee7d4e279be3ef3a6cc690bfc0e6d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Wed Jun 2 17:46:58 2010 +0300
+
+    Adjust SA_RESTART workaround.
+    
+    I want to get a bug report if something else than
+    DJGPP lacks SA_RESTART.
+
+commit e243145c84ab5c3be8259fd486ead0de5235b3f0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Jun 1 16:02:30 2010 +0300
+
+    xz man page updates.
+    
+    - Concatenating .xz files and padding
+    - List mode
+    - Robot mode
+    - A few examples (but many more are needed)
+
+commit ce6dc3c0a891f23a862f80ec08d3b6f0beb2a562
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Jun 1 15:51:44 2010 +0300
+
+    Major update to xz --list.
+
+commit 905e54804a899e4ad526d38fdba7e803ab9b71bd
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Jun 1 14:13:03 2010 +0300
+
+    Rename message_filters_get() to message_filters_to_str().
+
+commit 4b346ae8af20045027ae5efb068c6d69da3324d2
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Tue Jun 1 14:09:12 2010 +0300
+
+    Fix a comment.
+
+commit 07dc34f6da45c9ab757dad7fd5eef522ad27d296
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu May 27 16:17:42 2010 +0300
+
+    Fix lzma_block_compressed_size().
+
+commit 44d70cb154225e47eebf15a3cfbdf3794cbb4593
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu May 27 14:32:51 2010 +0300
+
+    Take Cygwin into account in some #if lines.
+    
+    This change is no-op, but good to have just in case
+    for the future.
+
+commit a334348dc02803241cf4e0a539eecdc0e7ad2cc7
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu May 27 13:42:44 2010 +0300
+
+    Remove references to the Subblock filter in xz and tests.
+    
+    Thanks to Jonathan Nieder.
+
+commit 70e5e2f6a7084e6af909deee88ceac2f6efa7893
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Thu May 27 13:35:36 2010 +0300
+
+    Remove unused chunk_size.c.
+    
+    Thanks to Jonathan Nieder for the reminder.
+
+commit 01a414eaf4be6352c06b48001b041b47e8202faa
+Author: Jonathan Nieder <jrnieder@gmail.com>
+Date:   Thu May 27 02:31:33 2010 -0500
+
+    Use my_min() instead of MIN() in src/xz/list.c
+    
+    This should have been done in
+    920a69a8d8e4203c5edddd829d932130eac188ea.
+
+commit 920a69a8d8e4203c5edddd829d932130eac188ea
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Wed May 26 10:36:46 2010 +0300
+
+    Rename MIN() and MAX() to my_min() and my_max().
+    
+    This should avoid some minor portability issues.
+
+commit 019ae27c24d0c694545a6a46f8b9fb552198b015
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Wed May 26 10:30:20 2010 +0300
+
+    Fix compilation of debug/known_sizes.c.
+
+commit 98a4856a6ea84f79c790057a6eb89a25bc45b074
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Wed May 26 10:28:54 2010 +0300
+
+    Remove references to Subblock filter in debug/sync_flush.c.
+
+commit 703d2c33c095c41ae0693ee8c27c45e3847e4535
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Wed May 26 10:16:57 2010 +0300
+
+    Better #error message.
+
+commit d8a55c48b39703dd83f11089ad01e1ff2ac102e0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Wed May 26 09:55:47 2010 +0300
+
+    Remove the Subblock filter code for now.
+    
+    The spec isn't finished and the code didn't compile anymore.
+    It won't be included in XZ Utils 5.0.0. It's easy to get it
+    back once the spec is done.
+
+commit b6377fc990f9b8651149cae0fecb8b9c5904e26d
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Sun May 16 18:42:22 2010 +0300
+
+    Split message_filters().
+    
+    message_filters_to_str() converts the filter chain to
+    a string. message_filters_show() replaces the original
+    message_filters().
+    
+    uint32_to_optstr() was also added to show the dictionary
+    size in nicer format when possible.
+
+commit d9986db782d6cf0f314342127280519339378fa0
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Fri May 14 23:17:20 2010 +0300
+
+    Omit lzma_restrict from the API headers.
+    
+    It isn't really useful so omitting it makes things
+    shorter and slightly more readable.
+
+commit 0d3489efca0a723dca0394809fa3e6170843af4b
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Mon May 10 19:57:24 2010 +0300
+
+    Updated INSTALL.
+
+commit 3fb3d594a2b53886adee161b6261e92277f05f7c
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Mon May 10 19:54:52 2010 +0300
+
+    Updated THANKS.
+
+commit 6548e304657e77d3a972053db3c41c5daf591113
+Author: Lasse Collin <lasse.collin@tukaani.org>
+Date:   Mon May 10 19:54:15 2010 +0300
+
+    Updates to tuklib_physmem and tuklib_cpucores.
+    
+    Don't use #error to generate compile error, because some
+    compilers actually don't take it as an error. This fixes
+    tuklib_physmem on IRIX.
+    
+    Fix incorrect error check for sysconf() return values.
+    
+    Add AIX, HP-UX, and Tru64 specific code to detect the
+    amount RAM.
+    
+    Add HP-UX specific code to detect the number of CPU cores.
+    
+    Thanks a lot to Peter O'Gorman for initial patches,
+    testing, and debugging these fixes.
+
 commit a290cfee3e23f046889c022aa96b4eca2016fdda
 Author: Lasse Collin <lasse.collin@tukaani.org>
 Date:   Mon Apr 12 21:55:56 2010 +0300

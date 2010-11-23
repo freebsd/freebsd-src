@@ -209,6 +209,7 @@ lzma_index_encoder(lzma_stream *strm, const lzma_index *i)
 	lzma_next_strm_init(lzma_index_encoder_init, strm, i);
 
 	strm->internal->supported_actions[LZMA_RUN] = true;
+	strm->internal->supported_actions[LZMA_FINISH] = true;
 
 	return LZMA_OK;
 }

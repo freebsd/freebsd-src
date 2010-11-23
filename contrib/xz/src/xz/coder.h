@@ -37,6 +37,10 @@ extern enum operation_mode opt_mode;
 /// This is set in args.c.
 extern enum format_type opt_format;
 
+/// If true, the compression settings are automatically adjusted down if
+/// they exceed the memory usage limit.
+extern bool opt_auto_adjust;
+
 
 /// Set the integrity check type used when compressing
 extern void coder_set_check(lzma_check check);
