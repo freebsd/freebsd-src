@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2005, Bosko Milekic <bmilekic@FreeBSD.org>.
  * Copyright (c) 2010 Isilon Systems, Inc. (http://www.isilon.com/)
  * All rights reserved.
