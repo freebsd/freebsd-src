@@ -328,7 +328,7 @@ out:
 	}
 	error = vm_map_wire(&proc->p_vmspace->vm_map, start, end,
 	    VM_MAP_WIRE_USER | VM_MAP_WIRE_NOHOLES |
-	    umem->writable ? VM_MAP_WIRE_WRITE : 0);
+	    (umem->writable ? VM_MAP_WIRE_WRITE : 0));
 	if (error != KERN_SUCCESS) {
 		kfree(umem);
 		return ERR_PTR(-ENOMEM);
