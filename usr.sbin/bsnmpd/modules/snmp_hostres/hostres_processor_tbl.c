@@ -56,19 +56,15 @@
 struct processor_entry {
 	int32_t		index;
 	const struct asn_oid *frwId;
-	int32_t		load;
+	int32_t		load;		/* average cpu usage */
+	int32_t		sample_cnt;	/* number of usage samples */
+	int32_t		cur_sample_idx;	/* current valid sample */
 	TAILQ_ENTRY(processor_entry) link;
 	u_char		cpu_no;		/* which cpu, counted from 0 */
-	pid_t		idle_pid;	/* PID of idle process for this CPU */
 
 	/* the samples from the last minute, as required by MIB */
 	double		samples[MAX_CPU_SAMPLES];
-
-	/* current sample to fill in next time, must be < MAX_CPU_SAMPLES */
-	uint32_t	cur_sample_idx;
-
-	/* number of useful samples */
-	uint32_t	sample_cnt;
+	long		states[MAX_CPU_SAMPLES][CPUSTATES];
 };
 TAILQ_HEAD(processor_tbl, processor_entry);
 
@@ -82,65 +78,78 @@ static int32_t detected_processor_count;
 /* sysctlbyname(hw.ncpu) */
 static int hw_ncpu;
 
-/* sysctlbyname(kern.{ccpu,fscale}) */
-static fixpt_t ccpu;
-static int fscale;
-
-/* tick of PDU where we have refreshed the processor table last */
-static uint64_t proctbl_tick;
+/* sysctlbyname(kern.cp_times) */
+static int cpmib[2];
+static size_t cplen;
 
 /* periodic timer used to get cpu load stats */
 static void *cpus_load_timer;
 
-/*
- * Average the samples. The entire algorithm seems to be wrong XXX.
+/**
+ * Returns the CPU usage of a given processor entry.
+ *
+ * It needs at least two cp_times "tick" samples to calculate a delta and
+ * thus, the usage over the sampling period.
  */
 static int
 get_avg_load(struct processor_entry *e)
 {
-	u_int i;
-	double sum = 0.0;
+	u_int i, oldest;
+	long delta = 0;
+	double usage = 0.0;
 
 	assert(e != NULL);
 
-	if (e->sample_cnt == 0)
+	/* Need two samples to perform delta calculation. */
+	if (e->sample_cnt <= 1)
 		return (0);
 
-	for (i = 0; i < e->sample_cnt; i++)
-		sum += e->samples[i];
+	/* Oldest usable index, we wrap around. */
+	if (e->sample_cnt == MAX_CPU_SAMPLES)
+		oldest = (e->cur_sample_idx + 1) % MAX_CPU_SAMPLES;
+	else
+		oldest = 0;
 
-	return ((int)floor((double)sum/(double)e->sample_cnt));
-}
+	/* Sum delta for all states. */
+	for (i = 0; i < CPUSTATES; i++) {
+		delta += e->states[e->cur_sample_idx][i];
+		delta -= e->states[oldest][i];
+	}
+	if (delta == 0)
+		return 0;
 
-/*
- * Stolen from /usr/src/bin/ps/print.c. The idle process should never
- * be swapped out :-)
- */
-static double
-processor_getpcpu(struct kinfo_proc *ki_p)
-{
+	/* Take idle time from the last element and convert to
+	 * percent usage by contrasting with total ticks delta. */
+	usage = (double)(e->states[e->cur_sample_idx][CPUSTATES-1] -
+	    e->states[oldest][CPUSTATES-1]) / delta;
+	usage = 100 - (usage * 100);
+	HRDBG("CPU no. %d, delta ticks %ld, pct usage %.2f", e->cpu_no,
+	    delta, usage);
 
-	if (ccpu == 0 || fscale == 0)
-		return (0.0);
-
-#define	fxtofl(fixpt) ((double)(fixpt) / fscale)
-	return (100.0 * fxtofl(ki_p->ki_pctcpu) /
-	    (1.0 - exp(ki_p->ki_swtime * log(fxtofl(ccpu)))));
+	return ((int)(usage));
 }
 
 /**
- * Save a new sample
+ * Save a new sample to proc entry and get the average usage.
+ *
+ * Samples are stored in a ringbuffer from 0..(MAX_CPU_SAMPLES-1)
  */
 static void
-save_sample(struct processor_entry *e, struct kinfo_proc *kp)
+save_sample(struct processor_entry *e, long *cp_times)
 {
+	int i;
 
-	e->samples[e->cur_sample_idx] = 100.0 - processor_getpcpu(kp);
-	e->load = get_avg_load(e);
 	e->cur_sample_idx = (e->cur_sample_idx + 1) % MAX_CPU_SAMPLES;
+	for (i = 0; cp_times != NULL && i < CPUSTATES; i++)
+		e->states[e->cur_sample_idx][i] = cp_times[i];
 
-	if (++e->sample_cnt > MAX_CPU_SAMPLES)
+	e->sample_cnt++;
+	if (e->sample_cnt > MAX_CPU_SAMPLES)
 		e->sample_cnt = MAX_CPU_SAMPLES;
+
+	HRDBG("sample count for CPU no. %d went to %d", e->cpu_no, e->sample_cnt);
+	e->load = get_avg_load(e);
+
 }
 
 /**
@@ -178,8 +187,9 @@ proc_create_entry(u_int cpu_no, struct device_map_entry *map)
 
 	entry->index = map->hrIndex;
 	entry->load = 0;
+	entry->sample_cnt = 0;
+	entry->cur_sample_idx = -1;
 	entry->cpu_no = (u_char)cpu_no;
-	entry->idle_pid = 0;
 	entry->frwId = &oid_zeroDotZero; /* unknown id FIXME */
 
 	INSERT_OBJECT_INT(entry, &processor_tbl);
@@ -191,64 +201,11 @@ proc_create_entry(u_int cpu_no, struct device_map_entry *map)
 }
 
 /**
- * Get the PIDs for the idle processes of the CPUs.
- */
-static void
-processor_get_pids(void)
-{
-	struct kinfo_proc *plist, *kp;
-	int i;
-	int nproc;
-	int cpu;
-	int nchars;
-	struct processor_entry *entry;
-
-	plist = kvm_getprocs(hr_kd, KERN_PROC_ALL, 0, &nproc);
-	if (plist == NULL || nproc < 0) {
-		syslog(LOG_ERR, "hrProcessor: kvm_getprocs() failed: %m");
-		return;
-	}
-
-	for (i = 0, kp = plist; i < nproc; i++, kp++) {
-		if (!IS_KERNPROC(kp))
-			continue;
-
-		if (strcmp(kp->ki_comm, "idle") == 0) {
-			/* single processor system */
-			cpu = 0;
-		} else if (sscanf(kp->ki_comm, "idle: cpu%d%n", &cpu, &nchars)
-		    == 1 && (u_int)nchars == strlen(kp->ki_comm)) {
-			/* MP system */
-		} else
-			/* not an idle process */
-			continue;
-
-		HRDBG("'%s' proc with pid %d is on CPU #%d (last on #%d)",
-		    kp->ki_comm, kp->ki_pid, kp->ki_oncpu, kp->ki_lastcpu);
-
-		TAILQ_FOREACH(entry, &processor_tbl, link)
-			if (entry->cpu_no == kp->ki_lastcpu)
-				break;
-
-		if (entry == NULL) {
-			/* create entry on non-ACPI systems */
-			if ((entry = proc_create_entry(cpu, NULL)) == NULL)
-				continue;
-
-			detected_processor_count++;
-		}
-
-		entry->idle_pid = kp->ki_pid;
-		HRDBG("CPU no. %d with SNMP index=%d has idle PID %d",
-		    entry->cpu_no, entry->index, entry->idle_pid);
-
-		save_sample(entry, kp);
-	}
-}
-
-/**
  * Scan the device map table for CPUs and create an entry into the
- * processor table for each CPU. Then fetch the idle PIDs for all CPUs.
+ * processor table for each CPU.
+ *
+ * Make sure that the number of processors announced by the kernel hw.ncpu
+ * is equal to the number of processors we have found in the device table.
  */
 static void
 create_proc_table(void)
@@ -256,6 +213,7 @@ create_proc_table(void)
 	struct device_map_entry *map;
 	struct processor_entry *entry;
 	int cpu_no;
+	size_t len;
 
 	detected_processor_count = 0;
 
@@ -265,7 +223,7 @@ create_proc_table(void)
 	 * If not, no entries will be present in the hrProcessor Table.
 	 *
 	 * For non-ACPI system the processors are not in the device table,
-	 * therefor insert them when getting the idle pids. XXX
+	 * therefore insert them after checking hw.ncpu.
 	 */
 	STAILQ_FOREACH(map, &device_map, link)
 		if (strncmp(map->name_key, "cpu", strlen("cpu")) == 0 &&
@@ -283,9 +241,34 @@ create_proc_table(void)
 			detected_processor_count++;
 		}
 
-	HRDBG("%d CPUs detected", detected_processor_count);
+	len = sizeof(hw_ncpu);
+	if (sysctlbyname("hw.ncpu", &hw_ncpu, &len, NULL, 0) == -1 ||
+	    len != sizeof(hw_ncpu)) {
+		syslog(LOG_ERR, "hrProcessorTable: sysctl(hw.ncpu) failed");
+		hw_ncpu = 0;
+	}
 
-	processor_get_pids();
+	HRDBG("%d CPUs detected via device table; hw.ncpu is %d",
+	    detected_processor_count, hw_ncpu);
+
+	/* XXX Can happen on non-ACPI systems? Create entries by hand. */
+	for (; detected_processor_count < hw_ncpu; detected_processor_count++)
+		proc_create_entry(detected_processor_count, NULL);
+
+	len = 2;
+	if (sysctlnametomib("kern.cp_times", cpmib, &len)) {
+		syslog(LOG_ERR, "hrProcessorTable: sysctlnametomib(kern.cp_times) failed");
+		cpmib[0] = 0;
+		cpmib[1] = 0;
+		cplen = 0;
+	} else if (sysctl(cpmib, 2, NULL, &len, NULL, 0)) {
+		syslog(LOG_ERR, "hrProcessorTable: sysctl(kern.cp_times) length query failed");
+		cplen = 0;
+	} else {
+		cplen = len / sizeof(long);
+	}
+	HRDBG("%zu entries for kern.cp_times", cplen);
+
 }
 
 /**
@@ -307,78 +290,6 @@ free_proc_table(void)
 }
 
 /**
- * Init the things for hrProcessorTable.
- * Scan the device table for processor entries.
- */
-void
-init_processor_tbl(void)
-{
-	size_t len;
-
-	/* get various parameters from the kernel */
-	len = sizeof(ccpu);
-	if (sysctlbyname("kern.ccpu", &ccpu, &len, NULL, 0) == -1) {
-		syslog(LOG_ERR, "hrProcessorTable: sysctl(kern.ccpu) failed");
-		ccpu = 0;
-	}
-
-	len = sizeof(fscale);
-	if (sysctlbyname("kern.fscale", &fscale, &len, NULL, 0) == -1) {
-		syslog(LOG_ERR, "hrProcessorTable: sysctl(kern.fscale) failed");
-		fscale = 0;
-	}
-
-	/* create the initial processor table */
-	create_proc_table();
-}
-
-/**
- * Finalization routine for hrProcessorTable.
- * It destroys the lists and frees any allocated heap memory.
- */
-void
-fini_processor_tbl(void)
-{
-
-	if (cpus_load_timer != NULL) {
-		timer_stop(cpus_load_timer);
-		cpus_load_timer = NULL;
-	}
-
-	free_proc_table();
-}
-
-/**
- * Make sure that the number of processors announced by the kernel hw.ncpu
- * is equal to the number of processors we have found in the device table.
- * If they differ rescan the device table.
- */
-static void
-processor_refill_tbl(void)
-{
-
-	HRDBG("hw_ncpu=%d detected_processor_count=%d", hw_ncpu,
-	    detected_processor_count);
-
-	if (hw_ncpu <= 0) {
-		size_t size = sizeof(hw_ncpu);
-
-		if (sysctlbyname("hw.ncpu", &hw_ncpu, &size, NULL, 0) == -1 ||
-		    size != sizeof(hw_ncpu)) {
-			syslog(LOG_ERR, "hrProcessorTable: "
-			    "sysctl(hw.ncpu) failed: %m");
-			hw_ncpu = 0;
-			return;
-		}
-	}
-
-	if (hw_ncpu != detected_processor_count) {
-		free_proc_table();
-		create_proc_table();
-	}
-}
-
-/**
  * Refresh all values in the processor table. We call this once for
  * every PDU that accesses the table.
  */
@@ -386,37 +297,23 @@ static void
 refresh_processor_tbl(void)
 {
 	struct processor_entry *entry;
-	int need_pids;
-	struct kinfo_proc *plist;
-	int nproc;
+	size_t size;
 
-	processor_refill_tbl();
+	long pcpu_cp_times[cplen];
+	memset(pcpu_cp_times, 0, sizeof(pcpu_cp_times));
 
-	need_pids = 0;
-	TAILQ_FOREACH(entry, &processor_tbl, link) {
-		if (entry->idle_pid <= 0) {
-			need_pids = 1;
-			continue;
-		}
-
-		assert(hr_kd != NULL);
-
-		plist = kvm_getprocs(hr_kd, KERN_PROC_PID,
-		    entry->idle_pid, &nproc);
-		if (plist == NULL || nproc != 1) {
-			syslog(LOG_ERR, "%s: missing item with "
-			    "PID = %d for CPU #%d\n ", __func__,
-			    entry->idle_pid, entry->cpu_no);
-			need_pids = 1;
-			continue;
-		}
-		save_sample(entry, plist);
+	size = cplen * sizeof(long);
+	if (sysctl(cpmib, 2, pcpu_cp_times, &size, NULL, 0) == -1 &&
+	    !(errno == ENOMEM && size >= cplen * sizeof(long))) {
+		syslog(LOG_ERR, "hrProcessorTable: sysctl(kern.cp_times) failed");
+		return;
 	}
 
-	if (need_pids == 1)
-		processor_get_pids();
+	TAILQ_FOREACH(entry, &processor_tbl, link) {
+		assert(hr_kd != NULL);
+		save_sample(entry, &pcpu_cp_times[entry->cpu_no * CPUSTATES]);
+	}
 
-	proctbl_tick = this_tick;
 }
 
 /**
@@ -451,6 +348,36 @@ start_processor_tbl(struct lmodule *mod)
 }
 
 /**
+ * Init the things for hrProcessorTable.
+ * Scan the device table for processor entries.
+ */
+void
+init_processor_tbl(void)
+{
+
+	/* create the initial processor table */
+	create_proc_table();
+	/* and get first samples */
+	refresh_processor_tbl();
+}
+
+/**
+ * Finalization routine for hrProcessorTable.
+ * It destroys the lists and frees any allocated heap memory.
+ */
+void
+fini_processor_tbl(void)
+{
+
+	if (cpus_load_timer != NULL) {
+		timer_stop(cpus_load_timer);
+		cpus_load_timer = NULL;
+	}
+
+	free_proc_table();
+}
+
+/**
  * Access routine for the processor table.
  */
 int
@@ -459,9 +386,6 @@ op_hrProcessorTable(struct snmp_context *ctx __unused,
     enum snmp_op curr_op)
 {
 	struct processor_entry *entry;
-
-	if (this_tick != proctbl_tick)
-		refresh_processor_tbl();
 
 	switch (curr_op) {
 
