@@ -1017,6 +1017,7 @@ parsebackq(char *out, struct nodelist **pbqlist,
 				setprompt(2);
 				needprompt = 0;
 			}
+			CHECKSTRSPACE(2, oout);
 			switch (c = pgetc()) {
 			case '`':
 				goto done;
@@ -1031,14 +1032,14 @@ parsebackq(char *out, struct nodelist **pbqlist,
 					/*
 					 * If eating a newline, avoid putting
 					 * the newline into the new character
-					 * stream (via the STPUTC after the
+					 * stream (via the USTPUTC after the
 					 * switch).
 					 */
 					continue;
 				}
                                 if (c != '\\' && c != '`' && c != '$'
                                     && (!dblquote || c != '"'))
-                                        STPUTC('\\', oout);
+                                        USTPUTC('\\', oout);
 				break;
 
 			case '\n':
@@ -1054,10 +1055,10 @@ parsebackq(char *out, struct nodelist **pbqlist,
 			default:
 				break;
 			}
-			STPUTC(c, oout);
+			USTPUTC(c, oout);
                 }
 done:
-                STPUTC('\0', oout);
+                USTPUTC('\0', oout);
                 olen = oout - stackblock();
 		INTOFF;
 		ostr = ckmalloc(olen);
@@ -1444,7 +1445,6 @@ parsesub: {
 	char *p;
 	static const char types[] = "}-+?=";
 	int bracketed_name = 0; /* used to handle ${[0-9]*} variables */
-	int i;
 	int linno;
 	int length;
 
@@ -1498,8 +1498,7 @@ parsesub: {
 					linno -= funclinno - 1;
 				snprintf(buf, sizeof(buf), "%d", linno);
 				STADJUST(-6, out);
-				for (i = 0; buf[i] != '\0'; i++)
-					STPUTC(buf[i], out);
+				STPUTS(buf, out);
 				flags |= VSLINENO;
 			}
 		} else if (is_digit(c)) {
