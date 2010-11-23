@@ -16,6 +16,8 @@
 
 # 20101123: removed subblock.h from liblzma
 OLD_FILES+=usr/include/lzma/subblock.h
+# 20101112: vgonel(9) has gone to private API a while ago
+OLD_FILES+=usr/share/man/man9/vgonel.9.gz
 # 20101025: catch up with vm_page_sleep_if_busy rename
 OLD_FILES+=usr/share/man/man9/vm_page_sleep_busy.9.gz
 # 20100327: fusword.9 and susword.9 removed
