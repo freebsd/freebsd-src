@@ -172,11 +172,12 @@ readcmd(int argc __unused, char **argv __unused)
 		}
 		if (c == '\0')
 			continue;
+		CHECKSTRSPACE(1, p);
 		if (backslash) {
 			backslash = 0;
 			startword = 0;
 			if (c != '\n')
-				STPUTC(c, p);
+				USTPUTC(c, p);
 			continue;
 		}
 		if (!rflag && c == '\\') {
@@ -194,14 +195,14 @@ readcmd(int argc __unused, char **argv __unused)
 			if (is_ifs == 1) {
 				/* Ignore leading IFS whitespace */
 				if (saveall)
-					STPUTC(c, p);
+					USTPUTC(c, p);
 				continue;
 			}
 			if (is_ifs == 2 && startword == 1) {
 				/* Only one non-whitespace IFS per word */
 				startword = 2;
 				if (saveall)
-					STPUTC(c, p);
+					USTPUTC(c, p);
 				continue;
 			}
 		}
@@ -212,7 +213,7 @@ readcmd(int argc __unused, char **argv __unused)
 			if (saveall)
 				/* Not just a spare terminator */
 				saveall++;
-			STPUTC(c, p);
+			USTPUTC(c, p);
 			continue;
 		}
 
@@ -222,7 +223,7 @@ readcmd(int argc __unused, char **argv __unused)
 		if (ap[1] == NULL) {
 			/* Last variable needs all IFS chars */
 			saveall++;
-			STPUTC(c, p);
+			USTPUTC(c, p);
 			continue;
 		}
 
