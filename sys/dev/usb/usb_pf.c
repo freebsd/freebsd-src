@@ -141,6 +141,7 @@ static struct cdevsw usbpf_cdevsw = {
 	.d_kqfilter =	usbpf_kqfilter,
 };
 
+static struct cdev *usbpf_cdev;
 static LIST_HEAD(, usbpf_if)	usbpf_iflist;
 static struct mtx	usbpf_mtx;		/* global lock */
 static int usbpf_uifd_cnt;
@@ -1850,13 +1851,26 @@ usbpf_append_bytes(struct usbpf_d *ud, caddr_t buf, u_int offset, void *src,
 static void
 usbpf_drvinit(void *unused)
 {
-	struct cdev *dev;
 
 	mtx_init(&usbpf_mtx, "USB packet filter global lock", NULL,
 	    MTX_DEF);
 	LIST_INIT(&usbpf_iflist);
 
-	dev = make_dev(&usbpf_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "usbpf");
+	usbpf_cdev = make_dev(&usbpf_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
+	    "usbpf");
+}
+
+static void
+usbpf_drvuninit(void)
+{
+
+	if (usbpf_cdev != NULL) {
+		destroy_dev(usbpf_cdev);
+		usbpf_cdev = NULL;
+	}
+	mtx_destroy(&usbpf_mtx);
 }
 
 SYSINIT(usbpf_dev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, usbpf_drvinit, NULL);
+SYSUNINIT(usbpf_undev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, usbpf_drvuninit, NULL);
+
