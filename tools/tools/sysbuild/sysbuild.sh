@@ -163,29 +163,45 @@ log_it() (
 
 ports_recurse() (
 	set +x
+	t=$1
+	shift
+	if [ "x$t" = "x." ] ; then
+		true > /tmp/_.plist
+		true > /tmp/_.plist.tdone
+		echo 'digraph {' > /tmp/_.plist.dot
+	fi
+	if grep -q "^$t\$" /tmp/_.plist.tdone ; then
+		return
+	fi
+	echo "$t" >> /tmp/_.plist.tdone
 	for d
 	do
 		if [ ! -d $d ] ; then
 			echo "Missing port $d" 1>&2
 			exit 2
 		fi
+		if [ "x$t" != "x." ] ; then
+			echo "\"$t\" -> \"$d\"" >> /tmp/_.plist.dot
+		fi
 		if grep -q "^$d\$" /tmp/_.plist ; then
 			true
 		else
 			(
 			cd $d
-			ports_recurse `make -V _DEPEND_DIRS ${PORTS_OPTS}`
+			ports_recurse $d `make -V _DEPEND_DIRS ${PORTS_OPTS}`
 			)
-			echo $d >> /tmp/_.plist
+			echo "$d" >> /tmp/_.plist
 		fi
 	done
+	if [ "x$t" = "x." ] ; then
+		echo '}' >> /tmp/_.plist.dot
+	fi
 )
 
 ports_build() (
 	set +x
 
-	true > /tmp/_.plist
-	ports_recurse $PORTS_WE_WANT 
+	ports_recurse . $PORTS_WE_WANT 
 
 	# Now build & install them
 	for p in `cat /tmp/_.plist`
@@ -226,10 +242,12 @@ ports_build() (
 ports_prefetch() (
 	(
 	set +x
-	true > /tmp/_.plist
-	ports_recurse $PORTS_WE_WANT
-
 	true > /mnt/_.prefetch
+	echo "Building /tmp/_.plist" >> /mnt/_.prefetch
+
+	ports_recurse . $PORTS_WE_WANT
+
+	echo "Completed /tmp/_.plist" >> /mnt/_.prefetch
 	# Now checksump/fetch them
 	for p in `cat /tmp/_.plist`
 	do
@@ -244,6 +262,15 @@ ports_prefetch() (
 				make checksum $PORTS_OPTS || true
 			fi
 		) > /mnt/_.prefetch.$b 2>&1
+		(
+			cd $p
+			if make checksum $PORTS_OPTS > /dev/null 2>&1 ; then
+				rm -f /mnt/_.prefetch.$b
+				echo "OK $p" >> /mnt/_.prefetch
+			else
+				echo "BAD $p" >> /mnt/_.prefetch
+			fi
+		)
 	done
 	) 
 )
