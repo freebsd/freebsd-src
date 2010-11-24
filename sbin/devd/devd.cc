@@ -422,6 +422,7 @@ config::parse_files_in_dir(const char *dirname)
 			parse_one_file(path);
 		}
 	}
+	closedir(dirp);
 }
 
 class epv_greater {

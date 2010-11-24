@@ -206,19 +206,19 @@ in6_matroute(void *v_arg, struct radix_node_head *head)
 
 SYSCTL_DECL(_net_inet6_ip6);
 
-STATIC_VNET_DEFINE(int, rtq_reallyold6) = 60*60;
+static VNET_DEFINE(int, rtq_reallyold6) = 60*60;
 	/* one hour is ``really old'' */
 #define	V_rtq_reallyold6		VNET(rtq_reallyold6)
 SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_RTEXPIRE, rtexpire, CTLFLAG_RW,
     &VNET_NAME(rtq_reallyold6) , 0, "");
 
-STATIC_VNET_DEFINE(int, rtq_minreallyold6) = 10;
+static VNET_DEFINE(int, rtq_minreallyold6) = 10;
 	/* never automatically crank down to less */
 #define	V_rtq_minreallyold6		VNET(rtq_minreallyold6)
 SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_RTMINEXPIRE, rtminexpire, CTLFLAG_RW,
     &VNET_NAME(rtq_minreallyold6) , 0, "");
 
-STATIC_VNET_DEFINE(int, rtq_toomany6) = 128;
+static VNET_DEFINE(int, rtq_toomany6) = 128;
 	/* 128 cached routes is ``too many'' */
 #define	V_rtq_toomany6			VNET(rtq_toomany6)
 SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_RTMAXCACHE, rtmaxcache, CTLFLAG_RW,
@@ -280,8 +280,8 @@ in6_rtqkill(struct radix_node *rn, void *rock)
 }
 
 #define RTQ_TIMEOUT	60*10	/* run no less than once every ten minutes */
-STATIC_VNET_DEFINE(int, rtq_timeout6) = RTQ_TIMEOUT;
-STATIC_VNET_DEFINE(struct callout, rtq_timer6);
+static VNET_DEFINE(int, rtq_timeout6) = RTQ_TIMEOUT;
+static VNET_DEFINE(struct callout, rtq_timer6);
 
 #define	V_rtq_timeout6			VNET(rtq_timeout6)
 #define	V_rtq_timer6			VNET(rtq_timer6)
@@ -349,7 +349,7 @@ struct mtuex_arg {
 	struct radix_node_head *rnh;
 	time_t nextstop;
 };
-STATIC_VNET_DEFINE(struct callout, rtq_mtutimer);
+static VNET_DEFINE(struct callout, rtq_mtutimer);
 #define	V_rtq_mtutimer			VNET(rtq_mtutimer)
 
 static int

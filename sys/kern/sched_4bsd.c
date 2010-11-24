@@ -161,7 +161,7 @@ struct pcpuidlestat {
 	u_int idlecalls;
 	u_int oldidlecalls;
 };
-STATIC_DPCPU_DEFINE(struct pcpuidlestat, idlestat);
+static DPCPU_DEFINE(struct pcpuidlestat, idlestat);
 
 static void
 setup_runqs(void)

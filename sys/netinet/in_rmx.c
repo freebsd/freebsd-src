@@ -132,21 +132,21 @@ in_matroute(void *v_arg, struct radix_node_head *head)
 	return rn;
 }
 
-STATIC_VNET_DEFINE(int, rtq_reallyold) = 60*60; /* one hour is "really old" */
+static VNET_DEFINE(int, rtq_reallyold) = 60*60; /* one hour is "really old" */
 #define	V_rtq_reallyold		VNET(rtq_reallyold)
 SYSCTL_VNET_INT(_net_inet_ip, IPCTL_RTEXPIRE, rtexpire, CTLFLAG_RW,
     &VNET_NAME(rtq_reallyold), 0,
     "Default expiration time on dynamically learned routes");
 
 /* never automatically crank down to less */
-STATIC_VNET_DEFINE(int, rtq_minreallyold) = 10;
+static VNET_DEFINE(int, rtq_minreallyold) = 10;
 #define	V_rtq_minreallyold	VNET(rtq_minreallyold)
 SYSCTL_VNET_INT(_net_inet_ip, IPCTL_RTMINEXPIRE, rtminexpire, CTLFLAG_RW,
     &VNET_NAME(rtq_minreallyold), 0,
     "Minimum time to attempt to hold onto dynamically learned routes");
 
 /* 128 cached routes is "too many" */
-STATIC_VNET_DEFINE(int, rtq_toomany) = 128;
+static VNET_DEFINE(int, rtq_toomany) = 128;
 #define	V_rtq_toomany		VNET(rtq_toomany)
 SYSCTL_VNET_INT(_net_inet_ip, IPCTL_RTMAXCACHE, rtmaxcache, CTLFLAG_RW,
     &VNET_NAME(rtq_toomany), 0,
@@ -240,8 +240,8 @@ in_rtqkill(struct radix_node *rn, void *rock)
 }
 
 #define RTQ_TIMEOUT	60*10	/* run no less than once every ten minutes */
-STATIC_VNET_DEFINE(int, rtq_timeout) = RTQ_TIMEOUT;
-STATIC_VNET_DEFINE(struct callout, rtq_timer);
+static VNET_DEFINE(int, rtq_timeout) = RTQ_TIMEOUT;
+static VNET_DEFINE(struct callout, rtq_timer);
 
 #define	V_rtq_timeout		VNET(rtq_timeout)
 #define	V_rtq_timer		VNET(rtq_timer)

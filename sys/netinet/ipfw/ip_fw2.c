@@ -100,10 +100,10 @@ __FBSDID("$FreeBSD$");
  */
 
 /* ipfw_vnet_ready controls when we are open for business */
-STATIC_VNET_DEFINE(int, ipfw_vnet_ready) = 0;
+static VNET_DEFINE(int, ipfw_vnet_ready) = 0;
 #define	V_ipfw_vnet_ready	VNET(ipfw_vnet_ready)
 
-STATIC_VNET_DEFINE(int, fw_deny_unknown_exthdrs);
+static VNET_DEFINE(int, fw_deny_unknown_exthdrs);
 #define	V_fw_deny_unknown_exthdrs	VNET(fw_deny_unknown_exthdrs)
 
 #ifdef IPFIREWALL_DEFAULT_TO_ACCEPT

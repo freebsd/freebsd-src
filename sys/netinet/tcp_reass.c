@@ -80,25 +80,25 @@ static int tcp_reass_sysctl_qsize(SYSCTL_HANDLER_ARGS);
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, reass, CTLFLAG_RW, 0,
     "TCP Segment Reassembly Queue");
 
-STATIC_VNET_DEFINE(int, tcp_reass_maxseg) = 0;
+static VNET_DEFINE(int, tcp_reass_maxseg) = 0;
 #define	V_tcp_reass_maxseg		VNET(tcp_reass_maxseg)
 SYSCTL_VNET_PROC(_net_inet_tcp_reass, OID_AUTO, maxsegments, CTLFLAG_RDTUN,
     &VNET_NAME(tcp_reass_maxseg), 0, &tcp_reass_sysctl_maxseg, "I",
     "Global maximum number of TCP Segments in Reassembly Queue");
 
-STATIC_VNET_DEFINE(int, tcp_reass_qsize) = 0;
+static VNET_DEFINE(int, tcp_reass_qsize) = 0;
 #define	V_tcp_reass_qsize		VNET(tcp_reass_qsize)
 SYSCTL_VNET_PROC(_net_inet_tcp_reass, OID_AUTO, cursegments, CTLFLAG_RD,
     &VNET_NAME(tcp_reass_qsize), 0, &tcp_reass_sysctl_qsize, "I",
     "Global number of TCP Segments currently in Reassembly Queue");
 
-STATIC_VNET_DEFINE(int, tcp_reass_overflows) = 0;
+static VNET_DEFINE(int, tcp_reass_overflows) = 0;
 #define	V_tcp_reass_overflows		VNET(tcp_reass_overflows)
 SYSCTL_VNET_INT(_net_inet_tcp_reass, OID_AUTO, overflows, CTLFLAG_RD,
     &VNET_NAME(tcp_reass_overflows), 0,
     "Global number of TCP Segment Reassembly Queue Overflows");
 
-STATIC_VNET_DEFINE(uma_zone_t, tcp_reass_zone);
+static VNET_DEFINE(uma_zone_t, tcp_reass_zone);
 #define	V_tcp_reass_zone		VNET(tcp_reass_zone)
 
 /* Initialize TCP reassembly queue */

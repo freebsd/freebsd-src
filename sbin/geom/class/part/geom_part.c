@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <libgeom.h>
 #include <libutil.h>
 #include <paths.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -61,6 +62,7 @@ uint32_t PUBSYM(version) = 0;
 
 static char sstart[32];
 static char ssize[32];
+volatile sig_atomic_t undo_restore;
 
 #define	GPART_AUTOFILL	"*"
 #define	GPART_FLAGS	"C"
@@ -100,10 +102,8 @@ struct g_command PUBSYM(class_commands)[] = {
 		G_OPT_SENTINEL },
 	    "[-b start] [-s size] -t type [-i index] [-l label] [-f flags] geom"
 	},
-	{ "backup", 0, gpart_backup, {
-		{ 'l', "backup_labels", NULL, G_TYPE_BOOL},
-		G_OPT_SENTINEL },
-	    "[-l] geom"
+	{ "backup", 0, gpart_backup, G_NULL_OPTS,
+	    "geom"
 	},
 	{ "bootcode", 0, gpart_bootcode, {
 		{ 'b', GPART_PARAM_BOOTCODE, G_VAL_OPTIONAL, G_TYPE_STRING },
@@ -175,9 +175,10 @@ struct g_command PUBSYM(class_commands)[] = {
 	},
 	{ "restore", 0, gpart_restore, {
 		{ 'F', "force", NULL, G_TYPE_BOOL },
+		{ 'l', "restore_labels", NULL, G_TYPE_BOOL },
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
 		G_OPT_SENTINEL },
-	    "[-F] [-f flags] provider [...]"
+	    "[-lF] [-f flags] provider [...]"
 	},
 	{ "recover", 0, gpart_issue, {
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
@@ -613,7 +614,7 @@ static int
 gpart_show_hasopt(struct gctl_req *req, const char *opt, const char *elt)
 {
 
-	if (!gctl_get_int(req, opt))
+	if (!gctl_get_int(req, "%s", opt))
 		return (0);
 
 	if (elt != NULL)
@@ -678,7 +679,7 @@ gpart_backup(struct gctl_req *req, unsigned int fl __unused)
 	const char *s, *scheme;
 	off_t sector, end;
 	off_t length, secsz;
-	int error, labels, i, windex, wblocks, wtype;
+	int error, i, windex, wblocks, wtype;
 
 	if (gctl_get_int(req, "nargs") != 1)
 		errx(EXIT_FAILURE, "Invalid number of arguments.");
@@ -696,7 +697,6 @@ gpart_backup(struct gctl_req *req, unsigned int fl __unused)
 	s = gctl_get_ascii(req, "arg0");
 	if (s == NULL)
 		abort();
-	labels = gctl_get_int(req, "backup_labels");
 	gp = find_geom(classp, s);
 	if (gp == NULL)
 		errx(EXIT_FAILURE, "No such geom: %s.", s);
@@ -734,14 +734,12 @@ gpart_backup(struct gctl_req *req, unsigned int fl __unused)
 			length = end - sector + 1;
 		}
 		s = find_provcfg(pp, "label");
-		printf("%-*s %*s %*jd %*jd",
+		printf("%-*s %*s %*jd %*jd %s %s\n",
 		    windex, find_provcfg(pp, "index"),
 		    wtype, find_provcfg(pp, "type"),
 		    wblocks, (intmax_t)sector,
-		    wblocks, (intmax_t)length);
-		if (labels && s != NULL)
-			printf(" %s", s);
-		printf(" %s\n", fmtattrib(pp));
+		    wblocks, (intmax_t)length,
+		    (s != NULL) ? s: "", fmtattrib(pp));
 	}
 	geom_deletetree(&mesh);
 }
@@ -761,15 +759,22 @@ skip_line(const char *p)
 }
 
 static void
+gpart_sighndl(int sig __unused)
+{
+	undo_restore = 1;
+}
+
+static void
 gpart_restore(struct gctl_req *req, unsigned int fl __unused)
 {
 	struct gmesh mesh;
 	struct gclass *classp;
 	struct gctl_req *r;
 	struct ggeom *gp;
+	struct sigaction si_sa;
 	const char *s, *flags, *errstr, *label;
 	char **ap, *argv[6], line[BUFSIZ], *pline;
-	int error, forced, i, l, nargs, created;
+	int error, forced, i, l, nargs, created, rl;
 	intmax_t n;
 
 	nargs = gctl_get_int(req, "nargs");
@@ -778,6 +783,7 @@ gpart_restore(struct gctl_req *req, unsigned int fl __unused)
 
 	forced = gctl_get_int(req, "force");
 	flags = gctl_get_ascii(req, "flags");
+	rl = gctl_get_int(req, "restore_labels");
 	s = gctl_get_ascii(req, "class");
 	if (s == NULL)
 		abort();
@@ -789,6 +795,13 @@ gpart_restore(struct gctl_req *req, unsigned int fl __unused)
 		geom_deletetree(&mesh);
 		errx(EXIT_FAILURE, "Class %s not found.", s);
 	}
+
+	sigemptyset(&si_sa.sa_mask);
+	si_sa.sa_flags = 0;
+	si_sa.sa_handler = gpart_sighndl;
+	if (sigaction(SIGINT, &si_sa, 0) == -1)
+		err(EXIT_FAILURE, "sigaction SIGINT");
+
 	if (forced) {
 		/* destroy existent partition table before restore */
 		for (i = 0; i < nargs; i++) {
@@ -814,7 +827,8 @@ gpart_restore(struct gctl_req *req, unsigned int fl __unused)
 		}
 	}
 	created = 0;
-	while (fgets(line, sizeof(line) - 1, stdin)) {
+	while (undo_restore == 0 &&
+	    fgets(line, sizeof(line) - 1, stdin) != NULL) {
 		/* Format of backup entries:
 		 * <scheme name> <number of entries>
 		 * <index> <type> <start> <size> [label] ['['attrib[,attrib]']']
@@ -829,19 +843,21 @@ gpart_restore(struct gctl_req *req, unsigned int fl __unused)
 				break;
 		l = ap - &argv[0];
 		label = pline = NULL;
-		if (l == 2) { /* create table */
+		if (l == 1 || l == 2) { /* create table */
 			if (created)
 				errx(EXIT_FAILURE, "Incorrect backup format.");
-			n = atoi(argv[1]);
+			if (l == 2)
+				n = strtoimax(argv[1], NULL, 0);
 			for (i = 0; i < nargs; i++) {
 				s = gctl_get_ascii(req, "arg%d", i);
 				r = gctl_get_handle();
-				n = strtoimax(argv[1], NULL, 0);
 				gctl_ro_param(r, "class", -1,
 				    classp->lg_name);
 				gctl_ro_param(r, "verb", -1, "create");
 				gctl_ro_param(r, "scheme", -1, argv[0]);
-				gctl_ro_param(r, "entries", sizeof(n), &n);
+				if (l == 2)
+					gctl_ro_param(r, "entries",
+					    sizeof(n), &n);
 				gctl_ro_param(r, "flags", -1, "restore");
 				gctl_ro_param(r, "arg0", -1, s);
 				errstr = gctl_issue(r);
@@ -877,7 +893,7 @@ gpart_restore(struct gctl_req *req, unsigned int fl __unused)
 			gctl_ro_param(r, "type", -1, argv[1]);
 			gctl_ro_param(r, "start", -1, argv[2]);
 			gctl_ro_param(r, "size", -1, argv[3]);
-			if (label != NULL)
+			if (rl != 0 && label != NULL)
 				gctl_ro_param(r, "label", -1, argv[4]);
 			gctl_ro_param(r, "arg0", -1, s);
 			error = gpart_autofill(r);
@@ -921,6 +937,8 @@ gpart_restore(struct gctl_req *req, unsigned int fl __unused)
 			}
 		}
 	}
+	if (undo_restore)
+		goto backout;
 	/* commit changes if needed */
 	if (strchr(flags, 'C') != NULL) {
 		for (i = 0; i < nargs; i++) {

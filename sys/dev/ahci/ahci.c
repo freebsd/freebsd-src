@@ -858,7 +858,7 @@ ahci_ch_attach(device_t dev)
 	ch->caps = ctlr->caps;
 	ch->caps2 = ctlr->caps2;
 	ch->quirks = ctlr->quirks;
-	ch->numslots = ((ch->caps & AHCI_CAP_NCS) >> AHCI_CAP_NCS_SHIFT) + 1,
+	ch->numslots = ((ch->caps & AHCI_CAP_NCS) >> AHCI_CAP_NCS_SHIFT) + 1;
 	mtx_init(&ch->mtx, "AHCI channel lock", NULL, MTX_DEF);
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "pm_level", &ch->pm_level);

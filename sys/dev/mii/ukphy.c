@@ -136,6 +136,8 @@ ukphy_attach(device_t dev)
 	sc->mii_service = ukphy_service;
 	sc->mii_pdata = mii;
 
+	sc->mii_flags |= MIIF_NOMANPAUSE;
+
 	mii_phy_reset(sc);
 
 	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;

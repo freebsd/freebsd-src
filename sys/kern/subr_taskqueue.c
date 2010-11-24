@@ -53,7 +53,6 @@ struct taskqueue_busy {
 
 struct taskqueue {
 	STAILQ_HEAD(, task)	tq_queue;
-	const char		*tq_name;
 	taskqueue_enqueue_fn	tq_enqueue;
 	void			*tq_context;
 	TAILQ_HEAD(, taskqueue_busy) tq_active;
@@ -94,7 +93,7 @@ TQ_SLEEP(struct taskqueue *tq, void *p, struct mtx *m, int pri, const char *wm,
 }
 
 static struct taskqueue *
-_taskqueue_create(const char *name, int mflags,
+_taskqueue_create(const char *name __unused, int mflags,
 		 taskqueue_enqueue_fn enqueue, void *context,
 		 int mtxflags, const char *mtxname)
 {
@@ -106,7 +105,6 @@ _taskqueue_create(const char *name, int mflags,
 
 	STAILQ_INIT(&queue->tq_queue);
 	TAILQ_INIT(&queue->tq_active);
-	queue->tq_name = name;
 	queue->tq_enqueue = enqueue;
 	queue->tq_context = context;
 	queue->tq_spin = (mtxflags & MTX_SPIN) != 0;

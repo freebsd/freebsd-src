@@ -260,7 +260,7 @@ struct siftr_stats
 	uint32_t nskip_out_dejavu;
 };
 
-STATIC_DPCPU_DEFINE(struct siftr_stats, ss);
+static DPCPU_DEFINE(struct siftr_stats, ss);
 
 static volatile unsigned int siftr_exit_pkt_manager_thread = 0;
 static unsigned int siftr_enabled = 0;

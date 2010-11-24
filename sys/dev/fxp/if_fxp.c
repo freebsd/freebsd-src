@@ -107,11 +107,11 @@ static int tx_threshold = 64;
 /*
  * The configuration byte map has several undefined fields which
  * must be one or must be zero.  Set up a template for these bits.
- * The actual configuration is performed in fxp_init.
+ * The actual configuration is performed in fxp_init_body.
  *
  * See struct fxp_cb_config for the bit definitions.
  */
-static u_char fxp_cb_config_template[] = {
+static const u_char const fxp_cb_config_template[] = {
 	0x0, 0x0,		/* cb_status */
 	0x0, 0x0,		/* cb_command */
 	0x0, 0x0, 0x0, 0x0,	/* link_addr */
@@ -155,7 +155,7 @@ static u_char fxp_cb_config_template[] = {
  * particular variants, but we don't currently differentiate between
  * them.
  */
-static struct fxp_ident fxp_ident_table[] = {
+static const struct fxp_ident const fxp_ident_table[] = {
     { 0x1029,	-1,	0, "Intel 82559 PCI/CardBus Pro/100" },
     { 0x1030,	-1,	0, "Intel 82559 Pro/100 Ethernet" },
     { 0x1031,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VE Ethernet" },
@@ -217,7 +217,7 @@ static int		fxp_shutdown(device_t dev);
 static int		fxp_suspend(device_t dev);
 static int		fxp_resume(device_t dev);
 
-static struct fxp_ident	*fxp_find_ident(device_t dev);
+static const struct fxp_ident *fxp_find_ident(device_t dev);
 static void		fxp_intr(void *xsc);
 static void		fxp_rxcsum(struct fxp_softc *sc, struct ifnet *ifp,
 			    struct mbuf *m, uint16_t status, int pos);
@@ -366,12 +366,12 @@ fxp_dma_wait(struct fxp_softc *sc, volatile uint16_t *status,
 		device_printf(sc->dev, "DMA timeout\n");
 }
 
-static struct fxp_ident *
+static const struct fxp_ident *
 fxp_find_ident(device_t dev)
 {
 	uint16_t devid;
 	uint8_t revid;
-	struct fxp_ident *ident;
+	const struct fxp_ident *ident;
 
 	if (pci_get_vendor(dev) == FXP_VENDORID_INTEL) {
 		devid = pci_get_device(dev);
@@ -392,7 +392,7 @@ fxp_find_ident(device_t dev)
 static int
 fxp_probe(device_t dev)
 {
-	struct fxp_ident *ident;
+	const struct fxp_ident *ident;
 
 	ident = fxp_find_ident(dev);
 	if (ident != NULL) {
@@ -1614,21 +1614,7 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 	/*
 	 * Advance the end of list forward.
 	 */
-
-#ifdef __alpha__
-	/*
-	 * On platforms which can't access memory in 16-bit
-	 * granularities, we must prevent the card from DMA'ing
-	 * up the status while we update the command field.
-	 * This could cause us to overwrite the completion status.
-	 * XXX This is probably bogus and we're _not_ looking
-	 * for atomicity here.
-	 */
-	atomic_clear_16(&sc->fxp_desc.tx_last->tx_cb->cb_command,
-	    htole16(FXP_CB_COMMAND_S));
-#else
 	sc->fxp_desc.tx_last->tx_cb->cb_command &= htole16(~FXP_CB_COMMAND_S);
-#endif /*__alpha__*/
 	sc->fxp_desc.tx_last = txp;
 
 	/*
@@ -2985,13 +2971,13 @@ static uint32_t fxp_ucode_d102e[] = D102_E_RCVBUNDLE_UCODE;
 
 #define UCODE(x)	x, sizeof(x)/sizeof(uint32_t)
 
-struct ucode {
+static const struct ucode {
 	uint32_t	revision;
 	uint32_t	*ucode;
 	int		length;
 	u_short		int_delay_offset;
 	u_short		bundle_max_offset;
-} ucode_table[] = {
+} const ucode_table[] = {
 	{ FXP_REV_82558_A4, UCODE(fxp_ucode_d101a), D101_CPUSAVER_DWORD, 0 },
 	{ FXP_REV_82558_B0, UCODE(fxp_ucode_d101b0), D101_CPUSAVER_DWORD, 0 },
 	{ FXP_REV_82559_A0, UCODE(fxp_ucode_d101ma),
@@ -3010,7 +2996,7 @@ struct ucode {
 static void
 fxp_load_ucode(struct fxp_softc *sc)
 {
-	struct ucode *uc;
+	const struct ucode *uc;
 	struct fxp_cb_ucode *cbp;
 	int i;
 
@@ -3177,11 +3163,13 @@ sysctl_int_range(SYSCTL_HANDLER_ARGS, int low, int high)
 static int
 sysctl_hw_fxp_int_delay(SYSCTL_HANDLER_ARGS)
 {
+
 	return (sysctl_int_range(oidp, arg1, arg2, req, 300, 3000));
 }
 
 static int
 sysctl_hw_fxp_bundle_max(SYSCTL_HANDLER_ARGS)
 {
+
 	return (sysctl_int_range(oidp, arg1, arg2, req, 1, 0xffff));
 }

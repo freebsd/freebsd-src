@@ -131,7 +131,7 @@ SYSCTL_ULONG(_net_inet_udp, UDPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
 
 VNET_DEFINE(struct inpcbhead, udb);		/* from udp_var.h */
 VNET_DEFINE(struct inpcbinfo, udbinfo);
-STATIC_VNET_DEFINE(uma_zone_t, udpcb_zone);
+static VNET_DEFINE(uma_zone_t, udpcb_zone);
 #define	V_udpcb_zone			VNET(udpcb_zone)
 
 #ifndef UDBHASHSIZE

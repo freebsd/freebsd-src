@@ -373,7 +373,7 @@ int	profprocs;
 int	ticks;
 int	psratio;
 
-STATIC_DPCPU_DEFINE(int, pcputicks);	/* Per-CPU version of ticks. */
+static DPCPU_DEFINE(int, pcputicks);	/* Per-CPU version of ticks. */
 static int global_hardclock_run = 0;
 
 /*
