@@ -492,15 +492,15 @@ bind_listening_port_to_irqhandler(unsigned int remote_domain,
 int 
 bind_interdomain_evtchn_to_irqhandler(unsigned int remote_domain,
     unsigned int remote_port, const char *devname,
-    driver_filter_t filter, driver_intr_t handler,
-    unsigned long irqflags, unsigned int *irqp)
+    driver_intr_t handler, void *arg, unsigned long irqflags,
+    unsigned int *irqp)
 {
 	unsigned int irq;
 	int error;
 
 	irq = bind_interdomain_evtchn_to_irq(remote_domain, remote_port);
 	intr_register_source(&xp->xp_pins[irq].xp_intsrc);
-	error = intr_add_handler(devname, irq, filter, handler, NULL,
+	error = intr_add_handler(devname, irq, NULL, handler, arg,
 	    irqflags, &xp->xp_pins[irq].xp_cookie);
 	if (error) {
 		unbind_from_irq(irq);
