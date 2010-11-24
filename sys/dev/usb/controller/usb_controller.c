@@ -548,7 +548,7 @@ usb_bus_mem_alloc_all(struct usb_bus *bus, bus_dma_tag_t dmat,
 
 	TAILQ_INIT(&bus->intr_q.head);
 
-	usbpf_attach(bus, &bus->uif);
+	usbpf_attach(bus);
 
 #if USB_HAVE_BUSDMA
 	usb_dma_tag_setup(bus->dma_parent_tag, bus->dma_tags,

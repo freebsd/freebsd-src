@@ -32,8 +32,11 @@
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/ioctl.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
+#include <net/if.h>
+#include <net/bpf.h>
 #include <dev/usb/usb.h>
 #include <dev/usb/usb_pf.h>
 #include <dev/usb/usbdi.h>
@@ -216,7 +219,7 @@ hexdump(const char *region, size_t len)
 }
 
 static void
-print_apacket(const struct usbpf_xhdr *hdr, struct usbpf_pkthdr *up,
+print_apacket(const struct bpf_xhdr *hdr, struct usbpf_pkthdr *up,
     const char *payload)
 {
 	struct tm *tm;
@@ -235,8 +238,8 @@ print_apacket(const struct usbpf_xhdr *hdr, struct usbpf_pkthdr *up,
 	up->up_error = le32toh(up->up_error);
 	up->up_interval = le32toh(up->up_interval);
 
-	tv.tv_sec = hdr->uh_tstamp.ut_sec;
-	tv.tv_usec = hdr->uh_tstamp.ut_frac;
+	tv.tv_sec = hdr->bh_tstamp.bt_sec;
+	tv.tv_usec = hdr->bh_tstamp.bt_frac;
 	tm = localtime(&tv.tv_sec);
 
 	len = strftime(buf, sizeof(buf), "%H:%M:%S", tm);
@@ -267,20 +270,19 @@ print_apacket(const struct usbpf_xhdr *hdr, struct usbpf_pkthdr *up,
 		print_status(up->up_status);
 	}
 }
-    
 
 static void
 print_packets(char *data, const int datalen)
 {
 	struct usbpf_pkthdr *up;
-	const struct usbpf_xhdr *hdr;
+	const struct bpf_xhdr *hdr;
 	u_int32_t framelen, x;
 	char *ptr, *next;
 
 	for (ptr = data; ptr < (data + datalen); ptr = next) {
-		hdr = (const struct usbpf_xhdr *)ptr;
-		up = (struct usbpf_pkthdr *)(ptr + hdr->uh_hdrlen);
-		next = ptr + USBPF_WORDALIGN(hdr->uh_hdrlen + hdr->uh_caplen);
+		hdr = (const struct bpf_xhdr *)ptr;
+		up = (struct usbpf_pkthdr *)(ptr + hdr->bh_hdrlen);
+		next = ptr + BPF_WORDALIGN(hdr->bh_hdrlen + hdr->bh_caplen);
 
 		ptr = ((char *)up) + sizeof(struct usbpf_pkthdr);
 		if (w_arg == NULL)
@@ -404,12 +406,12 @@ int
 main(int argc, char *argv[])
 {
 	struct timeval tv;
-	struct usbpf_insn total_insn;
-	struct usbpf_program total_prog;
-	struct usbpf_stat us;
-	struct usbpf_version uv;
+	struct bpf_insn total_insn;
+	struct bpf_program total_prog;
+	struct bpf_stat us;
+	struct bpf_version bv;
 	struct usbcap uc, *p = &uc;
-	struct usbpf_ifreq ufr;
+	struct ifreq ifr;
 	long snapshot = 192;
 	u_int v;
 	int fd, o;
@@ -454,37 +456,37 @@ main(int argc, char *argv[])
 		exit(EXIT_SUCCESS);
 	}
 
-	p->fd = fd = open("/dev/usbpf", O_RDONLY);
+	p->fd = fd = open("/dev/bpf", O_RDONLY);
 	if (p->fd < 0) {
 		fprintf(stderr, "(no devices found)\n");
 		return (EXIT_FAILURE);
 	}
 
-	if (ioctl(fd, UIOCVERSION, (caddr_t)&uv) < 0) {
-		fprintf(stderr, "UIOCVERSION: %s\n", strerror(errno));
+	if (ioctl(fd, BIOCVERSION, (caddr_t)&bv) < 0) {
+		fprintf(stderr, "BIOCVERSION: %s\n", strerror(errno));
 		return (EXIT_FAILURE);
 	}
-	if (uv.uv_major != USBPF_MAJOR_VERSION ||
-	    uv.uv_minor < USBPF_MINOR_VERSION) {
+	if (bv.bv_major != BPF_MAJOR_VERSION ||
+	    bv.bv_minor < BPF_MINOR_VERSION) {
 		fprintf(stderr, "kernel bpf filter out of date");
 		return (EXIT_FAILURE);
 	}
 
-	if ((ioctl(fd, UIOCGBLEN, (caddr_t)&v) < 0) || v < 65536)
-		v = 65536;
+	if ((ioctl(fd, BIOCGBLEN, (caddr_t)&v) < 0) || v < 4096)
+		v = 4096;
 	for ( ; v != 0; v >>= 1) {
-		(void)ioctl(fd, UIOCSBLEN, (caddr_t)&v);
-		(void)strncpy(ufr.ufr_name, i_arg, sizeof(ufr.ufr_name));
-		if (ioctl(fd, UIOCSETIF, (caddr_t)&ufr) >= 0)
+		(void)ioctl(fd, BIOCSBLEN, (caddr_t)&v);
+		(void)strncpy(ifr.ifr_name, i_arg, sizeof(ifr.ifr_name));
+		if (ioctl(fd, BIOCSETIF, (caddr_t)&ifr) >= 0)
 			break;
 	}
 	if (v == 0) {
-		fprintf(stderr, "UIOCSBLEN: %s: No buffer size worked", i_arg);
+		fprintf(stderr, "BIOCSBLEN: %s: No buffer size worked", i_arg);
 		return (EXIT_FAILURE);
 	}
 
-	if (ioctl(fd, UIOCGBLEN, (caddr_t)&v) < 0) {
-		fprintf(stderr, "UIOCGBLEN: %s", strerror(errno));
+	if (ioctl(fd, BIOCGBLEN, (caddr_t)&v) < 0) {
+		fprintf(stderr, "BIOCGBLEN: %s", strerror(errno));
 		return (EXIT_FAILURE);
 	}
 
@@ -496,23 +498,23 @@ main(int argc, char *argv[])
 	}
 
 	/* XXX no read filter rules yet so at this moment accept everything */
-	total_insn.code = (u_short)(USBPF_RET | USBPF_K);
+	total_insn.code = (u_short)(BPF_RET | BPF_K);
 	total_insn.jt = 0;
 	total_insn.jf = 0;
 	total_insn.k = snapshot;
 
-	total_prog.uf_len = 1;
-	total_prog.uf_insns = &total_insn;
-	if (ioctl(p->fd, UIOCSETF, (caddr_t)&total_prog) < 0) {
-		fprintf(stderr, "UIOCSETF: %s", strerror(errno));
+	total_prog.bf_len = 1;
+	total_prog.bf_insns = &total_insn;
+	if (ioctl(p->fd, BIOCSETF, (caddr_t)&total_prog) < 0) {
+		fprintf(stderr, "BIOCSETF: %s", strerror(errno));
 		return (EXIT_FAILURE);
 	}
 
 	/* 1 second read timeout */
 	tv.tv_sec = 1;
 	tv.tv_usec = 0;
-	if (ioctl(p->fd, UIOCSRTIMEOUT, (caddr_t)&tv) < 0) {
-		fprintf(stderr, "UIOCSRTIMEOUT: %s", strerror(errno));
+	if (ioctl(p->fd, BIOCSRTIMEOUT, (caddr_t)&tv) < 0) {
+		fprintf(stderr, "BIOCSRTIMEOUT: %s", strerror(errno));
 		return (EXIT_FAILURE);
 	}
 
@@ -520,16 +522,16 @@ main(int argc, char *argv[])
 
 	do_loop(p);
 
-	if (ioctl(fd, UIOCGSTATS, (caddr_t)&us) < 0) {
-		fprintf(stderr, "UIOCGSTATS: %s", strerror(errno));
+	if (ioctl(fd, BIOCGSTATS, (caddr_t)&us) < 0) {
+		fprintf(stderr, "BIOCGSTATS: %s", strerror(errno));
 		return (EXIT_FAILURE);
 	}
 
 	/* XXX what's difference between pkt_captured and us.us_recv? */
 	printf("\n");
 	printf("%d packets captured\n", pkt_captured);
-	printf("%d packets received by filter\n", us.us_recv);
-	printf("%d packets dropped by kernel\n", us.us_drop);
+	printf("%d packets received by filter\n", us.bs_recv);
+	printf("%d packets dropped by kernel\n", us.bs_drop);
 
 	if (p->fd > 0)
 		close(p->fd);

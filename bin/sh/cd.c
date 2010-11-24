@@ -192,8 +192,7 @@ cdlogical(char *dest)
 			STPUTC('/', p);
 		first = 0;
 		component = q;
-		while (*q)
-			STPUTC(*q++, p);
+		STPUTS(q, p);
 		if (equal(component, ".."))
 			continue;
 		STACKSTRNUL(p);
@@ -273,10 +272,8 @@ findcwd(char *dir)
 	scopy(dir, cdcomppath);
 	STARTSTACKSTR(new);
 	if (*dir != '/') {
-		p = curdir;
-		while (*p)
-			STPUTC(*p++, new);
-		if (p[-1] == '/')
+		STPUTS(curdir, new);
+		if (STTOPC(new) == '/')
 			STUNPUTC(new);
 	}
 	while ((p = getcomponent()) != NULL) {
@@ -284,8 +281,7 @@ findcwd(char *dir)
 			while (new > stackblock() && (STUNPUTC(new), *new) != '/');
 		} else if (*p != '\0' && ! equal(p, ".")) {
 			STPUTC('/', new);
-			while (*p)
-				STPUTC(*p++, new);
+			STPUTS(p, new);
 		}
 	}
 	if (new == stackblock())
