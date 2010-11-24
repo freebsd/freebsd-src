@@ -67,7 +67,7 @@ usbpf_attach(struct usb_bus *ubus)
 	if_attach(ifp);
 
 	KASSERT(sizeof(struct usbpf_pkthdr) == USBPF_HDR_LEN,
-	    ("wrong USB pf header length (%d)", sizeof(struct usbpf_pkthdr)));
+	    ("wrong USB pf header length (%zd)", sizeof(struct usbpf_pkthdr)));
 
 	/*
 	 * XXX According to the specification of DLT_USB, it indicates packets
