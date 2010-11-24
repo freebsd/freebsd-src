@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 17, 2010
+.Dd November 20, 2010
 .Dt VRELE 9
 .Os
 .Sh NAME
@@ -74,10 +74,6 @@ with less overhead.
 The
 .Fn vunref
 function takes a locked vnode as argument, and returns with the vnode locked.
-Nonetheless, the
-.Fn vunref
-might drop the vnode lock during the operation, so caller should not expect
-that non-doomed vnode is still non-doomed after the function returned.
 .Pp
 Any code in the system which signified its use of a vnode by usecount
 should call one of the listed function to decrement use counter.
