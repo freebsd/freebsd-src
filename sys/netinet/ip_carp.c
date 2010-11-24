@@ -218,7 +218,7 @@ static void	carp_set_state(struct carp_softc *, int);
 static int	carp_addrcount(struct carp_if *, struct in_ifaddr *, int);
 enum	{ CARP_COUNT_MASTER, CARP_COUNT_RUNNING };
 
-static void	carp_multicast_cleanup(struct carp_softc *);
+static void	carp_multicast_cleanup(struct carp_softc *, int dofree);
 static int	carp_set_addr(struct carp_softc *, struct sockaddr_in *);
 static int	carp_del_addr(struct carp_softc *, struct sockaddr_in *);
 static void	carp_carpdev_state_locked(struct carp_if *);
@@ -227,7 +227,7 @@ static void	carp_sc_state_locked(struct carp_softc *);
 static void	carp_send_na(struct carp_softc *);
 static int	carp_set_addr6(struct carp_softc *, struct sockaddr_in6 *);
 static int	carp_del_addr6(struct carp_softc *, struct sockaddr_in6 *);
-static void	carp_multicast6_cleanup(struct carp_softc *);
+static void	carp_multicast6_cleanup(struct carp_softc *, int dofree);
 #endif
 
 static LIST_HEAD(, carp_softc) carpif_list;
@@ -466,9 +466,11 @@ carp_clone_destroy(struct ifnet *ifp)
 /*
  * This function can be called on CARP interface destroy path,
  * and in case of the removal of the underlying interface as
- * well. We differentiate these two cases. In the latter case
- * we do not cleanup our multicast memberships, since they
- * are already freed. Also, in the latter case we do not
+ * well. We differentiate these two cases: in case of destruction
+ * of the underlying interface, we do not cleanup our multicast
+ * memberships, since they are already freed. But we purge pointers
+ * to multicast structures, since they are no longer valid, to
+ * avoid panic in future calls to carpdetach(). Also, we do not
  * release the lock on return, because the function will be
  * called once more, for another CARP instance on the same
  * interface.
@@ -493,10 +495,9 @@ carpdetach(struct carp_softc *sc, int unlock)
 	carp_set_state(sc, INIT);
 	SC2IFP(sc)->if_flags &= ~IFF_UP;
 	carp_setrun(sc, 0);
-	if (unlock)
-		carp_multicast_cleanup(sc);
+	carp_multicast_cleanup(sc, unlock);
 #ifdef INET6
-	carp_multicast6_cleanup(sc);
+	carp_multicast6_cleanup(sc, unlock);
 #endif
 
 	if (sc->sc_carpdev != NULL) {
@@ -1444,7 +1445,7 @@ carp_setrun(struct carp_softc *sc, sa_family_t af)
 }
 
 static void
-carp_multicast_cleanup(struct carp_softc *sc)
+carp_multicast_cleanup(struct carp_softc *sc, int dofree)
 {
 	struct ip_moptions *imo = &sc->sc_imo;
 	u_int16_t n = imo->imo_num_memberships;
@@ -1452,7 +1453,8 @@ carp_multicast_cleanup(struct carp_softc *sc)
 	/* Clean up our own multicast memberships */
 	while (n-- > 0) {
 		if (imo->imo_membership[n] != NULL) {
-			in_delmulti(imo->imo_membership[n]);
+			if (dofree)
+				in_delmulti(imo->imo_membership[n]);
 			imo->imo_membership[n] = NULL;
 		}
 	}
@@ -1464,14 +1466,15 @@ carp_multicast_cleanup(struct carp_softc *sc)
 
 #ifdef INET6
 static void
-carp_multicast6_cleanup(struct carp_softc *sc)
+carp_multicast6_cleanup(struct carp_softc *sc, int dofree)
 {
 	struct ip6_moptions *im6o = &sc->sc_im6o;
 	u_int16_t n = im6o->im6o_num_memberships;
 
 	while (n-- > 0) {
 		if (im6o->im6o_membership[n] != NULL) {
-			in6_mc_leave(im6o->im6o_membership[n], NULL);
+			if (dofree)
+				in6_mc_leave(im6o->im6o_membership[n], NULL);
 			im6o->im6o_membership[n] = NULL;
 		}
 	}
@@ -1831,7 +1834,7 @@ carp_set_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 
 cleanup:
 	if (!sc->sc_naddrs6)
-		carp_multicast6_cleanup(sc);
+		carp_multicast6_cleanup(sc, 1);
 	ifa_free(&ia->ia_ifa);
 	return (error);
 }
@@ -1849,7 +1852,7 @@ carp_del_addr6(struct carp_softc *sc, struct sockaddr_in6 *sin6)
 		SC2IFP(sc)->if_flags &= ~IFF_UP;
 		SC2IFP(sc)->if_drv_flags &= ~IFF_DRV_RUNNING;
 		sc->sc_vhid = -1;
-		carp_multicast6_cleanup(sc);
+		carp_multicast6_cleanup(sc, 1);
 		TAILQ_REMOVE(&cif->vhif_vrs, sc, sc_list);
 		if (!--cif->vhif_nvrs) {
 			CARP_LOCK_DESTROY(cif);
