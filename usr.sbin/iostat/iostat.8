@@ -60,7 +60,7 @@
 .\"
 .\"	@(#)iostat.8	8.1 (Berkeley) 6/6/93
 .\"
-.Dd April 17, 2006
+.Dd November 24, 2010
 .Dt IOSTAT 8
 .Os
 .Sh NAME
@@ -102,11 +102,18 @@ Repeat the display
 times.
 If no repeat
 .Ar count
-is specified, the default is infinity.
+is specified, the default depends on whether
+.Fl w
+is specified.
+With
+.Fl w
+the default repeat count is infinity, otherwise it is 1.
 .It Fl C
 Display CPU statistics.
 This is on by default, unless
 .Fl d
+or
+.Fl x
 is specified.
 .It Fl d
 Display only device statistics.
@@ -231,6 +238,8 @@ output, up to the number of devices that can be displayed in
 Display TTY statistics.
 This is on by default, unless
 .Fl d
+or
+.Fl x
 is specified.
 .It Fl w
 Pause
@@ -255,6 +264,11 @@ so your mileage may vary.
 .It Fl x
 Show extended disk statistics.
 Each disk is displayed on a line of its own with all available statistics.
+If this flag is turned on, only disk statistics will be displayed, unless
+.Fl C
+or
+.Fl T
+is also specified to enable the display of CPU or TTY statistics.
 .It Fl z
 If
 .Fl x
