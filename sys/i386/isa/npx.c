@@ -938,7 +938,7 @@ fpu_clean_state(void)
 	 * the x87 stack, but we don't care since we're about to call
 	 * fxrstor() anyway.
 	 */
-	__asm __volatile("ffree %%st(7); fld %0" : : "m" (dummy_variable));
+	__asm __volatile("ffree %%st(7); flds %0" : : "m" (dummy_variable));
 }
 #endif /* CPU_ENABLE_SSE */
 
