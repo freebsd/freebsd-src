@@ -207,6 +207,8 @@ usb_detach(device_t dev)
 
 	usb_proc_free(&bus->control_xfer_proc);
 
+	usbpf_detach(bus);
+
 	return (0);
 }
 
@@ -435,6 +437,8 @@ usb_attach_sub(device_t dev, struct usb_bus *bus)
 		usb_devclass_ptr = devclass_find("usbus");
 	mtx_unlock(&Giant);
 
+	usbpf_attach(bus);
+
 	/* Initialise USB process messages */
 	bus->explore_msg[0].hdr.pm_callback = &usb_bus_explore;
 	bus->explore_msg[0].bus = bus;
@@ -548,8 +552,6 @@ usb_bus_mem_alloc_all(struct usb_bus *bus, bus_dma_tag_t dmat,
 
 	TAILQ_INIT(&bus->intr_q.head);
 
-	usbpf_attach(bus);
-
 #if USB_HAVE_BUSDMA
 	usb_dma_tag_setup(bus->dma_parent_tag, bus->dma_tags,
 	    dmat, &bus->bus_mtx, NULL, 32, USB_BUS_DMA_TAG_MAX);
@@ -596,8 +598,6 @@ usb_bus_mem_free_all(struct usb_bus *bus, usb_bus_mem_cb_t *cb)
 	}
 	usb_dma_tag_unsetup(bus->dma_parent_tag);
 #endif
-
-	usbpf_detach(bus);
 
 	mtx_destroy(&bus->bus_mtx);
 }
