@@ -190,6 +190,9 @@
 #define IGB_TX_BUFFER_SIZE		((uint32_t) 1514)
 #define IGB_FC_PAUSE_TIME		0x0680
 #define IGB_EEPROM_APME			0x400;
+#define IGB_QUEUE_IDLE			0
+#define IGB_QUEUE_WORKING		1
+#define IGB_QUEUE_HUNG			2
 
 /*
  * TDBA/RDBA should be aligned on 16 byte boundary. But TDLEN/RDLEN should be
@@ -237,7 +240,7 @@
 
 /* Define the starting Interrupt rate per Queue */
 #define IGB_INTS_PER_SEC        8000
-#define IGB_DEFAULT_ITR          1000000000/(IGB_INTS_PER_SEC * 256)
+#define IGB_DEFAULT_ITR         ((1000000/IGB_INTS_PER_SEC) << 2)
 
 #define IGB_LINK_ITR            2000
 
@@ -300,7 +303,7 @@ struct tx_ring {
 	u32			bytes;
 	u32			packets;
 
-	bool			watchdog_check;
+	int			queue_status;
 	int			watchdog_time;
 	int			tdt;
 	int			tdh;
@@ -384,7 +387,15 @@ struct adapter {
 	int		wol;
 	int		has_manage;
 
-	/* Info about the board itself */
+	/*
+	** Shadow VFTA table, this is needed because
+	** the real vlan filter table gets cleared during
+	** a soft reset and the driver needs to be able
+	** to repopulate it.
+	*/
+	u32		shadow_vfta[IGB_VFTA_SIZE];
+
+	/* Info about the interface */
 	u8		link_active;
 	u16		link_speed;
 	u16		link_duplex;

@@ -61,6 +61,8 @@ void grabstackblock(int);
 char *growstackstr(void);
 char *makestrspace(void);
 void ungrabstackstr(char *, char *);
+char *stputbin(const char *data, int len, char *p);
+char *stputs(const char *data, char *p);
 
 
 
@@ -82,3 +84,5 @@ void ungrabstackstr(char *, char *);
 #define STTOPC(p)	p[-1]
 #define STADJUST(amount, p)	(p += (amount), sstrnleft -= (amount))
 #define grabstackstr(p)	stalloc(stackblocksize() - sstrnleft)
+#define STPUTBIN(s, len, p)	p = stputbin((s), (len), p)
+#define STPUTS(s, p)	p = stputs((s), p)

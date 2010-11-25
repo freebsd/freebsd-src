@@ -452,6 +452,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 	{ "logsigexit", CTLTYPE_INT }, \
 	{ "iov_max", CTLTYPE_INT }, \
 	{ "hostuuid", CTLTYPE_STRING }, \
+	{ "arc4rand", CTLTYPE_OPAQUE }, \
 }
 
 /*

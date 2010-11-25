@@ -482,7 +482,6 @@ xen_pt_pin(vm_paddr_t ma)
 	struct mmuext_op op;
 	op.cmd = MMUEXT_PIN_L1_TABLE;
 	op.arg1.mfn = ma >> PAGE_SHIFT;
-	printk("xen_pt_pin(): mfn=%x\n", op.arg1.mfn);
 	xen_flush_queue();
 	PANIC_IF(HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0);
 }
@@ -1178,6 +1177,27 @@ trap_info_t trap_table[] = {
 	{  0, 0,           0, 0 }
 };
 
+/* Perform a multicall and check that individual calls succeeded. */
+int
+HYPERVISOR_multicall(struct multicall_entry * call_list, int nr_calls)
+{
+	int ret = 0;
+	int i;
+
+	/* Perform the multicall. */
+	PANIC_IF(_HYPERVISOR_multicall(call_list, nr_calls));
+
+	/* Check the results of individual hypercalls. */
+	for (i = 0; i < nr_calls; i++)
+		if (unlikely(call_list[i].result < 0))
+			ret++;
+	if (unlikely(ret > 0))
+		panic("%d multicall(s) failed: cpu %d\n",
+		    ret, smp_processor_id());
+
+	/* If we didn't panic already, everything succeeded. */
+	return (0);
+}
 
 /********** CODE WORTH KEEPING ABOVE HERE *****************/ 
 

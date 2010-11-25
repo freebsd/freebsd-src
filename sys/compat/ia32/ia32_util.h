@@ -28,6 +28,9 @@
  * $FreeBSD$
  */
 
+#ifndef	_COMPAT_IA32_IA32_UTIL_H
+#define	_COMPAT_IA32_IA32_UTIL_H
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
@@ -51,3 +54,5 @@
 struct syscall_args;
 int ia32_fetch_syscall_args(struct thread *td, struct syscall_args *sa);
 void ia32_set_syscall_retval(struct thread *, int);
+
+#endif

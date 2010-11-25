@@ -137,7 +137,7 @@ miibus_attach(device_t dev)
 		free(children, M_TEMP);
 	}
 	if (nchildren == 0) {
-		device_printf(dev, "cannot get children");
+		device_printf(dev, "cannot get children\n");
 		return (ENXIO);
 	}
 	ivars = device_get_ivars(dev);
@@ -311,12 +311,12 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
 	int bmsr, first, i, nchildren, offset, phymax, phymin, rv;
 
 	if (phyloc != MII_PHY_ANY && offloc != MII_OFFSET_ANY) {
-		printf("%s: phyloc and offloc specified", __func__);
+		printf("%s: phyloc and offloc specified\n", __func__);
 		return (EINVAL);
 	}
 
 	if (offloc != MII_OFFSET_ANY && (offloc < 0 || offloc >= MII_NPHY)) {
-		printf("%s: ivalid offloc %d", __func__, offloc);
+		printf("%s: ivalid offloc %d\n", __func__, offloc);
 		return (EINVAL);
 	}
 
@@ -325,7 +325,7 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
 		phymax = MII_NPHY - 1;
 	} else {
 		if (phyloc < 0 || phyloc >= MII_NPHY) {
-			printf("%s: ivalid phyloc %d", __func__, phyloc);
+			printf("%s: ivalid phyloc %d\n", __func__, phyloc);
 			return (EINVAL);
 		}
 		phymin = phymax = phyloc;
@@ -352,7 +352,7 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
 		if (ivars->ifp != ifp || ivars->ifmedia_upd != ifmedia_upd ||
 		    ivars->ifmedia_sts != ifmedia_sts ||
 		    ivars->mii_flags != flags) {
-			printf("%s: non-matching invariant", __func__);
+			printf("%s: non-matching invariant\n", __func__);
 			return (EINVAL);
 		}
 		/*
