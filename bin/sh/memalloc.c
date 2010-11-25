@@ -340,3 +340,20 @@ ungrabstackstr(char *s, char *p)
 	stacknxt = s;
 	sstrnleft = stacknleft - (p - s);
 }
+
+
+char *
+stputbin(const char *data, int len, char *p)
+{
+	int i;
+
+	for (i = 0; i < len; i++)
+		STPUTC(data[i], p);
+	return (p);
+}
+
+char *
+stputs(const char *data, char *p)
+{
+	return (stputbin(data, strlen(data), p));
+}

@@ -135,8 +135,7 @@ evalcmd(int argc, char **argv)
                         STARTSTACKSTR(concat);
                         ap = argv + 2;
                         for (;;) {
-                                while (*p)
-                                        STPUTC(*p++, concat);
+                                STPUTS(p, concat);
                                 if ((p = *ap++) == NULL)
                                         break;
                                 STPUTC(' ', concat);

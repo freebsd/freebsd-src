@@ -254,6 +254,7 @@ static uint8_t
 	void *, void *);
 static void NdisGetCurrentSystemTime(uint64_t *);
 static void NdisGetSystemUpTime(uint32_t *);
+static uint32_t NdisGetVersion(void);
 static void NdisInitializeString(unicode_string *, char *);
 static void NdisInitAnsiString(ansi_string *, char *);
 static void NdisInitUnicodeString(unicode_string *, uint16_t *);
@@ -274,6 +275,7 @@ static void NdisMapFile(ndis_status *, void **, ndis_handle);
 static void NdisUnmapFile(ndis_handle);
 static void NdisCloseFile(ndis_handle);
 static uint8_t NdisSystemProcessorCount(void);
+static void NdisGetCurrentProcessorCounts(uint32_t *, uint32_t *, uint32_t *);
 static void NdisMIndicateStatusComplete(ndis_handle);
 static void NdisMIndicateStatus(ndis_handle, ndis_status,
     void *, uint32_t);
@@ -2067,6 +2069,12 @@ NdisInterlockedDecrement(addend)
 	return (*addend);
 }
 
+static uint32_t
+NdisGetVersion(void)
+{
+	return (0x00050001);
+}
+
 static void
 NdisInitializeEvent(event)
 	ndis_event		*event;
@@ -2950,6 +2958,20 @@ NdisSystemProcessorCount()
 	return (mp_ncpus);
 }
 
+static void
+NdisGetCurrentProcessorCounts(idle_count, kernel_and_user, index)
+	uint32_t		*idle_count;
+	uint32_t		*kernel_and_user;
+	uint32_t		*index;
+{
+	struct pcpu		*pcpu;
+
+	pcpu = pcpu_find(curthread->td_oncpu);
+	*index = pcpu->pc_cpuid;
+	*idle_count = pcpu->pc_cp_time[CP_IDLE];
+	*kernel_and_user = pcpu->pc_cp_time[CP_INTR];
+}
+
 typedef void (*ndis_statusdone_handler)(ndis_handle);
 typedef void (*ndis_status_handler)(ndis_handle, ndis_status,
     void *, uint32_t);
@@ -3207,6 +3229,7 @@ image_patch_table ndis_functbl[] = {
 	IMPORT_SFUNC(NdisMIndicateStatusComplete, 1),
 	IMPORT_SFUNC(NdisMIndicateStatus, 4),
 	IMPORT_SFUNC(NdisSystemProcessorCount, 0),
+	IMPORT_SFUNC(NdisGetCurrentProcessorCounts, 3),
 	IMPORT_SFUNC(NdisUnchainBufferAtBack, 2),
 	IMPORT_SFUNC(NdisGetFirstBufferFromPacket, 5),
 	IMPORT_SFUNC(NdisGetFirstBufferFromPacketSafe, 6),
@@ -3224,6 +3247,7 @@ image_patch_table ndis_functbl[] = {
 	IMPORT_SFUNC(NdisFreeString, 1),
 	IMPORT_SFUNC(NdisGetCurrentSystemTime, 1),
 	IMPORT_SFUNC(NdisGetSystemUpTime, 1),
+	IMPORT_SFUNC(NdisGetVersion, 0),
 	IMPORT_SFUNC(NdisMSynchronizeWithInterrupt, 3),
 	IMPORT_SFUNC(NdisMAllocateSharedMemoryAsync, 4),
 	IMPORT_SFUNC(NdisInterlockedInsertHeadList, 3),
