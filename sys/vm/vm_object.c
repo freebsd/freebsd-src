@@ -821,9 +821,11 @@ rescan:
 		np = TAILQ_NEXT(p, listq);
 		if (p->valid == 0)
 			continue;
-		while (vm_page_sleep_if_busy(p, TRUE, "vpcwai")) {
+		if (vm_page_sleep_if_busy(p, TRUE, "vpcwai")) {
 			if (object->generation != curgeneration)
 				goto rescan;
+			np = vm_page_find_least(object, pi);
+			continue;
 		}
 		vm_page_test_dirty(p);
 		if (p->dirty == 0)

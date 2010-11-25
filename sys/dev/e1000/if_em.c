@@ -93,7 +93,7 @@ int	em_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char em_driver_version[] = "7.1.7";
+char em_driver_version[] = "7.1.8";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -272,6 +272,7 @@ static void	em_get_wakeup(device_t);
 static void     em_enable_wakeup(device_t);
 static int	em_enable_phy_wakeup(struct adapter *);
 static void	em_led_func(void *, int);
+static void	em_disable_aspm(struct adapter *);
 
 static int	em_irq_fast(void *);
 
@@ -1229,9 +1230,9 @@ em_init_locked(struct adapter *adapter)
 		break;
 	case e1000_ich9lan:
 	case e1000_ich10lan:
-	case e1000_pchlan:
 		pba = E1000_PBA_10K;
 		break;
+	case e1000_pchlan:
 	case e1000_pch2lan:
 		pba = E1000_PBA_26K;
 		break;
@@ -2762,6 +2763,7 @@ em_reset(struct adapter *adapter)
 	/* Issue a global reset */
 	e1000_reset_hw(hw);
 	E1000_WRITE_REG(hw, E1000_WUC, 0);
+	em_disable_aspm(adapter);
 
 	if (e1000_init_hw(hw) < 0) {
 		device_printf(dev, "Hardware Initialization Failed\n");
@@ -4205,58 +4207,9 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 
 		len = le16toh(cur->length);
 		eop = (status & E1000_RXD_STAT_EOP) != 0;
-		count--;
 
-		if (((cur->errors & E1000_RXD_ERR_FRAME_ERR_MASK) == 0) &&
-		    (rxr->discard == FALSE)) {
-
-			/* Assign correct length to the current fragment */
-			mp = rxr->rx_buffers[i].m_head;
-			mp->m_len = len;
-
-			/* Trigger for refresh */
-			rxr->rx_buffers[i].m_head = NULL;
-
-			if (rxr->fmp == NULL) {
-				mp->m_pkthdr.len = len;
-				rxr->fmp = mp; /* Store the first mbuf */
-				rxr->lmp = mp;
-			} else {
-				/* Chain mbuf's together */
-				mp->m_flags &= ~M_PKTHDR;
-				rxr->lmp->m_next = mp;
-				rxr->lmp = rxr->lmp->m_next;
-				rxr->fmp->m_pkthdr.len += len;
-			}
-
-			if (eop) {
-				rxr->fmp->m_pkthdr.rcvif = ifp;
-				ifp->if_ipackets++;
-				em_receive_checksum(cur, rxr->fmp);
-#ifndef __NO_STRICT_ALIGNMENT
-				if (adapter->max_frame_size >
-				    (MCLBYTES - ETHER_ALIGN) &&
-				    em_fixup_rx(rxr) != 0)
-					goto skip;
-#endif
-				if (status & E1000_RXD_STAT_VP) {
-					rxr->fmp->m_pkthdr.ether_vtag =
-					    (le16toh(cur->special) &
-					    E1000_RXD_SPC_VLAN_MASK);
-					rxr->fmp->m_flags |= M_VLANTAG;
-				}
-#ifdef EM_MULTIQUEUE
-				rxr->fmp->m_pkthdr.flowid = rxr->msix;
-				rxr->fmp->m_flags |= M_FLOWID;
-#endif
-#ifndef __NO_STRICT_ALIGNMENT
-skip:
-#endif
-				sendmp = rxr->fmp;
-				rxr->fmp = NULL;
-				rxr->lmp = NULL;
-			}
-		} else {
+		if ((rxr->discard == TRUE) || (cur->errors &
+		    E1000_RXD_ERR_FRAME_ERR_MASK)) {
 			ifp->if_ierrors++;
 			++rxr->rx_discarded;
 			if (!eop) /* Catch subsequent segs */
@@ -4264,9 +4217,56 @@ skip:
 			else
 				rxr->discard = FALSE;
 			em_rx_discard(rxr, i);
-			sendmp = NULL;
+			goto next_desc;
 		}
 
+		/* Assign correct length to the current fragment */
+		mp = rxr->rx_buffers[i].m_head;
+		mp->m_len = len;
+
+		/* Trigger for refresh */
+		rxr->rx_buffers[i].m_head = NULL;
+
+		/* First segment? */
+		if (rxr->fmp == NULL) {
+			mp->m_pkthdr.len = len;
+			rxr->fmp = rxr->lmp = mp;
+		} else {
+			/* Chain mbuf's together */
+			mp->m_flags &= ~M_PKTHDR;
+			rxr->lmp->m_next = mp;
+			rxr->lmp = mp;
+			rxr->fmp->m_pkthdr.len += len;
+		}
+
+		if (eop) {
+			--count;
+			sendmp = rxr->fmp;
+			sendmp->m_pkthdr.rcvif = ifp;
+			ifp->if_ipackets++;
+			em_receive_checksum(cur, sendmp);
+#ifndef __NO_STRICT_ALIGNMENT
+			if (adapter->max_frame_size >
+			    (MCLBYTES - ETHER_ALIGN) &&
+			    em_fixup_rx(rxr) != 0)
+				goto skip;
+#endif
+			if (status & E1000_RXD_STAT_VP) {
+				sendmp->m_pkthdr.ether_vtag =
+				    (le16toh(cur->special) &
+				    E1000_RXD_SPC_VLAN_MASK);
+				sendmp->m_flags |= M_VLANTAG;
+			}
+#ifdef EM_MULTIQUEUE
+			sendmp->m_pkthdr.flowid = rxr->msix;
+			sendmp->m_flags |= M_FLOWID;
+#endif
+#ifndef __NO_STRICT_ALIGNMENT
+skip:
+#endif
+			rxr->fmp = rxr->lmp = NULL;
+		}
+next_desc:
 		/* Zero out the receive descriptors status. */
 		cur->status = 0;
 		++rxdone;	/* cumulative for POLL */
@@ -4293,10 +4293,7 @@ skip:
 	}
 
 	/* Catch any remaining refresh work */
-	if (processed != 0) {
-		em_refresh_mbufs(rxr, i);
-		processed = 0;
-	}
+	em_refresh_mbufs(rxr, i);
 
 	rxr->next_to_check = i;
 	if (done != NULL)
@@ -4876,6 +4873,37 @@ em_led_func(void *arg, int onoff)
 		e1000_cleanup_led(&adapter->hw);
 	}
 	EM_CORE_UNLOCK(adapter);
+}
+
+/*
+** Disable the L0S and L1 LINK states
+*/
+static void
+em_disable_aspm(struct adapter *adapter)
+{
+	int		base, reg;
+	u16		link_cap,link_ctrl;
+	device_t	dev = adapter->dev;
+
+	switch (adapter->hw.mac.type) {
+		case e1000_82573:
+		case e1000_82574:
+		case e1000_82583:
+			break;
+		default:
+			return;
+	}
+	if (pci_find_extcap(dev, PCIY_EXPRESS, &base) != 0)
+		return;
+	reg = base + PCIR_EXPRESS_LINK_CAP;
+	link_cap = pci_read_config(dev, reg, 2);
+	if ((link_cap & PCIM_LINK_CAP_ASPM) == 0)
+		return;
+	reg = base + PCIR_EXPRESS_LINK_CTL;
+	link_ctrl = pci_read_config(dev, reg, 2);
+	link_ctrl &= 0xFFFC; /* turn off bit 1 and 2 */
+	pci_write_config(dev, reg, link_ctrl, 2);
+	return;
 }
 
 /**********************************************************************
