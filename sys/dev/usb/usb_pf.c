@@ -61,10 +61,9 @@ void
 usbpf_attach(struct usb_bus *ubus)
 {
 	struct ifnet *ifp;
-	devclass_t dc = devclass_find("usbus");
 
 	ifp = ubus->ifp = if_alloc(IFT_USB);
-	if_initname(ifp, "usbus", devclass_get_count(dc));
+	if_initname(ifp, "usbus", device_get_unit(ubus->bdev));
 	if_attach(ifp);
 
 	KASSERT(sizeof(struct usbpf_pkthdr) == USBPF_HDR_LEN,
