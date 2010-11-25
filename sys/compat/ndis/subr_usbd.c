@@ -206,7 +206,7 @@ usbd_libinit(void)
 	usbd_driver.dro_dispatch[IRP_MJ_PNP] =
 	    (driver_dispatch)usbd_pnp_wrap;
 
-	return(0);
+	return (0);
 }
 
 int
@@ -230,7 +230,7 @@ usbd_libfini(void)
 
 	free(usbd_driver.dro_drivername.us_buf, M_DEVBUF);
 
-	return(0);
+	return (0);
 }
 
 static int32_t
@@ -589,7 +589,7 @@ usbd_func_selconf(ip)
 		    intf->uii_len);
 	}
 
-	return USBD_STATUS_SUCCESS;
+	return (USBD_STATUS_SUCCESS);
 }
 
 static usb_error_t
@@ -1348,10 +1348,10 @@ USBD_CreateConfigurationRequest(conf, len)
 	    -1, -1, -1, -1, -1);
 	urb = USBD_CreateConfigurationRequestEx(conf, list);
 	if (urb == NULL)
-		return NULL;
+		return (NULL);
 
 	*len = urb->uu_selconf.usc_hdr.uuh_len;
-	return urb;
+	return (urb);
 }
 
 static union usbd_urb *
@@ -1375,7 +1375,7 @@ USBD_CreateConfigurationRequestEx(conf, list)
 
 	selconf = ExAllocatePoolWithTag(NonPagedPool, size, 0);
 	if (selconf == NULL)
-		return NULL;
+		return (NULL);
 	selconf->usc_hdr.uuh_func = URB_FUNCTION_SELECT_CONFIGURATION;
 	selconf->usc_hdr.uuh_len = size;
 	selconf->usc_handle = conf;
@@ -1421,8 +1421,6 @@ USBD_GetUSBDIVersion(ui)
 
 	ui->uvi_usbdi_vers = USBDI_VERSION;
 	ui->uvi_supported_vers = USB_VER_2_0;
-
-	return;
 }
 
 static usb_interface_descriptor_t *
@@ -1473,7 +1471,6 @@ static void
 dummy(void)
 {
 	printf("USBD dummy called\n");
-	return;
 }
 
 image_patch_table usbd_functbl[] = {
