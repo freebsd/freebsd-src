@@ -482,7 +482,6 @@ xen_pt_pin(vm_paddr_t ma)
 	struct mmuext_op op;
 	op.cmd = MMUEXT_PIN_L1_TABLE;
 	op.arg1.mfn = ma >> PAGE_SHIFT;
-	printk("xen_pt_pin(): mfn=%x\n", op.arg1.mfn);
 	xen_flush_queue();
 	PANIC_IF(HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0);
 }
