@@ -1292,19 +1292,7 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 		mclp->args[0] = va;
 		mclp->args[1] = (uint32_t)(pa & 0xffffffff);
 		mclp->args[2] = (uint32_t)(pa >> 32);
-#if 0
 		mclp->args[3] = (*pte & PG_V) ? UVMF_INVLPG|UVMF_ALL : 0;
-#else
-		/*
-		 * Somehow we seem to be ending up with pages which are in
-		 * the TLB in spite of not having PG_V set, resulting in
-		 * pages newly loaded into the bufcache not showing up
-		 * immediately (i.e., accessing them provides the old data).
-		 * As a workaround, always perform a TLB flush, even if the
-		 * old page didn't have PG_V.
-		 */
-		mclp->args[3] = UVMF_INVLPG|UVMF_ALL;
-#endif
 	
 		va += PAGE_SIZE;
 		pte++;
@@ -1348,6 +1336,7 @@ pmap_qremove(vm_offset_t sva, int count)
 		pmap_kremove(va);
 		va += PAGE_SIZE;
 	}
+	PT_UPDATES_FLUSH();
 	pmap_invalidate_range(kernel_pmap, sva, va);
 	critical_exit();
 	vm_page_unlock_queues();
