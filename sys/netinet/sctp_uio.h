@@ -942,7 +942,7 @@ struct sctpstat {
 	uint32_t sctps_wu_sacks_sent;	/* Window Update only sacks sent */
 	uint32_t sctps_sends_with_flags;	/* number of sends with
 						 * sinfo_flags !=0 */
-	uint32_t sctps_sends_with_unord; /* number of unordered sends */
+	uint32_t sctps_sends_with_unord;	/* number of unordered sends */
 	uint32_t sctps_sends_with_eof;	/* number of sends with EOF flag set */
 	uint32_t sctps_sends_with_abort;	/* number of sends with ABORT
 						 * flag set */
