@@ -452,6 +452,8 @@ allocpages(vm_paddr_t *firstaddr, int n)
 	return (ret);
 }
 
+CTASSERT(powerof2(NDMPML4E));
+
 static void
 create_pagetables(vm_paddr_t *firstaddr)
 {
@@ -532,9 +534,12 @@ create_pagetables(vm_paddr_t *firstaddr)
 	((pdp_entry_t *)KPML4phys)[PML4PML4I] = KPML4phys;
 	((pdp_entry_t *)KPML4phys)[PML4PML4I] |= PG_RW | PG_V | PG_U;
 
-	/* Connect the Direct Map slot up to the PML4 */
-	((pdp_entry_t *)KPML4phys)[DMPML4I] = DMPDPphys;
-	((pdp_entry_t *)KPML4phys)[DMPML4I] |= PG_RW | PG_V | PG_U;
+	/* Connect the Direct Map slot(s) up to the PML4. */
+	for (i = 0; i < NDMPML4E; i++) {
+		((pdp_entry_t *)KPML4phys)[DMPML4I + i] = DMPDPphys +
+		    (i << PAGE_SHIFT);
+		((pdp_entry_t *)KPML4phys)[DMPML4I + i] |= PG_RW | PG_V | PG_U;
+	}
 
 	/* Connect the KVA slot up to the PML4 */
 	((pdp_entry_t *)KPML4phys)[KPML4I] = KPDPphys;
@@ -1589,6 +1594,7 @@ pmap_pinit(pmap_t pmap)
 {
 	vm_page_t pml4pg;
 	static vm_pindex_t color;
+	int i;
 
 	PMAP_LOCK_INIT(pmap);
 
@@ -1606,7 +1612,10 @@ pmap_pinit(pmap_t pmap)
 
 	/* Wire in kernel global address entries. */
 	pmap->pm_pml4[KPML4I] = KPDPphys | PG_RW | PG_V | PG_U;
-	pmap->pm_pml4[DMPML4I] = DMPDPphys | PG_RW | PG_V | PG_U;
+	for (i = 0; i < NDMPML4E; i++) {
+		pmap->pm_pml4[DMPML4I + i] = (DMPDPphys + (i << PAGE_SHIFT)) |
+		    PG_RW | PG_V | PG_U;
+	}
 
 	/* install self-referential address mapping entry(s) */
 	pmap->pm_pml4[PML4PML4I] = VM_PAGE_TO_PHYS(pml4pg) | PG_V | PG_RW | PG_A | PG_M;
@@ -1855,6 +1864,7 @@ void
 pmap_release(pmap_t pmap)
 {
 	vm_page_t m;
+	int i;
 
 	KASSERT(pmap->pm_stats.resident_count == 0,
 	    ("pmap_release: pmap resident count %ld != 0",
@@ -1865,7 +1875,8 @@ pmap_release(pmap_t pmap)
 	m = PHYS_TO_VM_PAGE(pmap->pm_pml4[PML4PML4I] & PG_FRAME);
 
 	pmap->pm_pml4[KPML4I] = 0;	/* KVA */
-	pmap->pm_pml4[DMPML4I] = 0;	/* Direct Map */
+	for (i = 0; i < NDMPML4E; i++)	/* Direct Map */
+		pmap->pm_pml4[DMPML4I + i] = 0;
 	pmap->pm_pml4[PML4PML4I] = 0;	/* Recursive Mapping */
 
 	m->wire_count--;
