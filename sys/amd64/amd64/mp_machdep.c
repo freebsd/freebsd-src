@@ -1327,6 +1327,9 @@ cpususpend_handler(void)
 	if (savectx(susppcbs[cpu])) {
 		wbinvd();
 		atomic_set_int(&stopped_cpus, cpumask);
+	} else {
+		PCPU_SET(switchtime, 0);
+		PCPU_SET(switchticks, ticks);
 	}
 
 	/* Wait for resume */

@@ -278,6 +278,8 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		for (;;)
 			ia32_pause();
 	} else {
+		PCPU_SET(switchtime, 0);
+		PCPU_SET(switchticks, ticks);
 #ifdef SMP
 		if (wakeup_cpus != 0)
 			acpi_wakeup_cpus(sc, wakeup_cpus);
