@@ -346,7 +346,7 @@ cas_attach(struct cas_softc *sc)
 			}
 			error = mii_attach(sc->sc_dev, &sc->sc_miibus, ifp,
 			    cas_mediachange, cas_mediastatus, BMSR_DEFCAPMASK,
-			    MII_PHY_ANY, MII_OFFSET_ANY, 0);
+			    MII_PHY_ANY, MII_OFFSET_ANY, MIIF_DOPAUSE);
 		}
 		/*
 		 * Fall back on an internal PHY if no external PHY was found.
@@ -366,7 +366,7 @@ cas_attach(struct cas_softc *sc)
 			}
 			error = mii_attach(sc->sc_dev, &sc->sc_miibus, ifp,
 			    cas_mediachange, cas_mediastatus, BMSR_DEFCAPMASK,
-			    MII_PHY_ANY, MII_OFFSET_ANY, 0);
+			    MII_PHY_ANY, MII_OFFSET_ANY, MIIF_DOPAUSE);
 		}
 	} else {
 		/*
@@ -388,7 +388,7 @@ cas_attach(struct cas_softc *sc)
 		    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 		error = mii_attach(sc->sc_dev, &sc->sc_miibus, ifp,
 		    cas_mediachange, cas_mediastatus, BMSR_DEFCAPMASK,
-		    CAS_PHYAD_EXTERNAL, MII_OFFSET_ANY, 0);
+		    CAS_PHYAD_EXTERNAL, MII_OFFSET_ANY, MIIF_DOPAUSE);
 	}
 	if (error != 0) {
 		device_printf(sc->sc_dev, "attaching PHYs failed\n");
@@ -1093,8 +1093,7 @@ cas_init_locked(struct cas_softc *sc)
 
 	/* Set the PAUSE thresholds.  We use the maximum OFF threshold. */
 	CAS_WRITE_4(sc, CAS_RX_PTHRS,
-	    ((111 * 64) << CAS_RX_PTHRS_XOFF_SHFT) |
-	    ((15 * 64) << CAS_RX_PTHRS_XON_SHFT));
+	    (111 << CAS_RX_PTHRS_XOFF_SHFT) | (15 << CAS_RX_PTHRS_XON_SHFT));
 
 	/* RX blanking */
 	CAS_WRITE_4(sc, CAS_RX_BLANK,
@@ -1339,7 +1338,7 @@ cas_init_regs(struct cas_softc *sc)
 		CAS_WRITE_4(sc, CAS_MAC_PREAMBLE_LEN, 0x7);
 		CAS_WRITE_4(sc, CAS_MAC_JAM_SIZE, 0x4);
 		CAS_WRITE_4(sc, CAS_MAC_ATTEMPT_LIMIT, 0x10);
-		CAS_WRITE_4(sc, CAS_MAC_CTRL_TYPE, 0x8088);
+		CAS_WRITE_4(sc, CAS_MAC_CTRL_TYPE, 0x8808);
 
 		/* random number seed */
 		CAS_WRITE_4(sc, CAS_MAC_RANDOM_SEED,
@@ -1572,11 +1571,11 @@ cas_tint(struct cas_softc *sc)
 	}
 
 #ifdef CAS_DEBUG
-	CTR4(KTR_CAS, "%s: CAS_TX_STATE_MACHINE %x CAS_TX_DESC_BASE %llx "
+	CTR5(KTR_CAS, "%s: CAS_TX_SM1 %x CAS_TX_SM2 %x CAS_TX_DESC_BASE %llx "
 	    "CAS_TX_COMP3 %x",
-	    __func__, CAS_READ_4(sc, CAS_TX_STATE_MACHINE),
-	    ((long long)CAS_READ_4(sc, CAS_TX_DESC_BASE_HI3) << 32) |
-	    CAS_READ_4(sc, CAS_TX_DESC_BASE_LO3),
+	    __func__, CAS_READ_4(sc, CAS_TX_SM1), CAS_READ_4(sc, CAS_TX_SM2),
+	    ((long long)CAS_READ_4(sc, CAS_TX_DESC3_BASE_HI) << 32) |
+	    CAS_READ_4(sc, CAS_TX_DESC3_BASE_LO),
 	    CAS_READ_4(sc, CAS_TX_COMP3));
 #endif
 
@@ -1638,7 +1637,7 @@ cas_rint(struct cas_softc *sc)
 	rxhead = CAS_READ_4(sc, CAS_RX_COMP_HEAD);
 #ifdef CAS_DEBUG
 	CTR4(KTR_CAS, "%s: sc->sc_rxcptr %d, sc->sc_rxdptr %d, head %d",
-	    __func__, sc->rxcptr, sc->sc_rxdptr, rxhead);
+	    __func__, sc->sc_rxcptr, sc->sc_rxdptr, rxhead);
 #endif
 	skip = 0;
 	CAS_CDSYNC(sc, BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
@@ -1865,7 +1864,7 @@ cas_rint(struct cas_softc *sc)
 
 #ifdef CAS_DEBUG
 	CTR4(KTR_CAS, "%s: done sc->sc_rxcptr %d, sc->sc_rxdptr %d, head %d",
-	    __func__, sc->rxcptr, sc->sc_rxdptr,
+	    __func__, sc->sc_rxcptr, sc->sc_rxdptr,
 	    CAS_READ_4(sc, CAS_RX_COMP_HEAD));
 #endif
 }
@@ -1988,7 +1987,7 @@ cas_intr_task(void *arg, int pending __unused)
 #ifdef CAS_DEBUG
 	CTR4(KTR_CAS, "%s: %s: cplt %x, status %x",
 	    device_get_name(sc->sc_dev), __func__,
-	    (status >> CAS_STATUS_TX_COMP3_SHIFT), (u_int)status);
+	    (status >> CAS_STATUS_TX_COMP3_SHFT), (u_int)status);
 
 	/*
 	 * PCS interrupts must be cleared, otherwise no traffic is passed!
@@ -2100,15 +2099,15 @@ cas_watchdog(struct cas_softc *sc)
 
 #ifdef CAS_DEBUG
 	CTR4(KTR_CAS,
-	    "%s: CAS_RX_CONFIG %x CAS_MAC_RX_STATUS %x CAS_MAC_RX_CONFIG %x",
-	    __func__, CAS_READ_4(sc, CAS_RX_CONFIG),
+	    "%s: CAS_RX_CONF %x CAS_MAC_RX_STATUS %x CAS_MAC_RX_CONF %x",
+	    __func__, CAS_READ_4(sc, CAS_RX_CONF),
 	    CAS_READ_4(sc, CAS_MAC_RX_STATUS),
-	    CAS_READ_4(sc, CAS_MAC_RX_CONFIG));
+	    CAS_READ_4(sc, CAS_MAC_RX_CONF));
 	CTR4(KTR_CAS,
-	    "%s: CAS_TX_CONFIG %x CAS_MAC_TX_STATUS %x CAS_MAC_TX_CONFIG %x",
-	    __func__, CAS_READ_4(sc, CAS_TX_CONFIG),
+	    "%s: CAS_TX_CONF %x CAS_MAC_TX_STATUS %x CAS_MAC_TX_CONF %x",
+	    __func__, CAS_READ_4(sc, CAS_TX_CONF),
 	    CAS_READ_4(sc, CAS_MAC_TX_STATUS),
-	    CAS_READ_4(sc, CAS_MAC_TX_CONFIG));
+	    CAS_READ_4(sc, CAS_MAC_TX_CONF));
 #endif
 
 	if (sc->sc_wdog_timer == 0 || --sc->sc_wdog_timer != 0)
@@ -2356,14 +2355,12 @@ cas_mii_statchg(device_t dev)
 
 	v = CAS_READ_4(sc, CAS_MAC_CTRL_CONF) &
 	    ~(CAS_MAC_CTRL_CONF_TXP | CAS_MAC_CTRL_CONF_RXP);
-#ifdef notyet
 	if ((IFM_OPTIONS(sc->sc_mii->mii_media_active) &
 	    IFM_ETH_RXPAUSE) != 0)
 		v |= CAS_MAC_CTRL_CONF_RXP;
 	if ((IFM_OPTIONS(sc->sc_mii->mii_media_active) &
 	    IFM_ETH_TXPAUSE) != 0)
 		v |= CAS_MAC_CTRL_CONF_TXP;
-#endif
 	CAS_WRITE_4(sc, CAS_MAC_CTRL_CONF, v);
 
 	/*
