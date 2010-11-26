@@ -3,8 +3,8 @@
 .include <bsd.own.mk>
 
 # OpenSSL version used for manual page generation
-OPENSSL_VER=	0.9.8n
-OPENSSL_DATE=	2010-03-24
+OPENSSL_VER=	0.9.8p
+OPENSSL_DATE=	2010-11-16
 
 LCRYPTO_SRC=	${.CURDIR}/../../../crypto/openssl
 LCRYPTO_DOC=	${.CURDIR}/../../../crypto/openssl/doc
@@ -16,6 +16,10 @@ CFLAGS+=	-DOPENSSL_THREADS -DDSO_DLFCN -DHAVE_DLFCN_H
 .if ${MK_IDEA} == "no"
 CFLAGS+=	-DOPENSSL_NO_IDEA
 .endif
+
+# Be evil and work around lack of MACHINE_CPUARCH on FreeBSD < 9
+# This simplifies merging...
+MACHINE_CPUARCH?= ${MACHINE_ARCH}
 
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
 CFLAGS+= -DL_ENDIAN

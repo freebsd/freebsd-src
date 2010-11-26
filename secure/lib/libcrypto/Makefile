@@ -49,7 +49,7 @@ INCS+=	asn1.h asn1_mac.h asn1t.h
 
 # bf
 SRCS+=	bf_cfb64.c bf_ecb.c bf_ofb64.c bf_skey.c
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 .if ${MACHINE_CPU:Mi686}
 SRCS+=	bf-686.s
 .else
@@ -73,9 +73,9 @@ SRCS+=	bn_add.c bn_blind.c bn_const.c bn_ctx.c bn_depr.c bn_div.c \
 	bn_lib.c bn_mod.c bn_mont.c bn_mpi.c bn_mul.c bn_nist.c bn_opt.c \
 	bn_prime.c bn_print.c bn_rand.c bn_recp.c bn_shift.c bn_sqr.c \
 	bn_sqrt.c bn_word.c bn_x931p.c
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	bn-586.s co-586.s
-.elif ${MACHINE_ARCH} == "amd64"
+.elif ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	x86_64-gcc.c
 .else
 SRCS+=	bn_asm.c
@@ -89,7 +89,7 @@ INCS+=	buffer.h
 
 # cast
 SRCS+=	c_cfb64.c c_ecb.c c_ofb64.c c_skey.c
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	cast-586.s
 .else
 SRCS+=	c_enc.c
@@ -97,7 +97,7 @@ SRCS+=	c_enc.c
 INCS+=	cast.h
 
 # camellia
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	camellia.c cmll_cbc.c cmll_cfb.c cmll_ctr.c cmll_ecb.c \
 	cmll_misc.c cmll_ofb.c
 INCS+=	camellia.h
@@ -117,7 +117,7 @@ SRCS+=	cbc3_enc.c cbc_cksm.c cbc_enc.c cfb64ede.c cfb64enc.c cfb_enc.c \
 	enc_read.c enc_writ.c fcrypt.c ofb64ede.c ofb64enc.c \
 	ofb_enc.c pcbc_enc.c qud_cksm.c rand_key.c read2pwd.c \
 	rpc_enc.c set_key.c str2key.c xcbc_enc.c
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	des-586.s crypt586.s
 .else
 SRCS+=	des_enc.c fcrypt_b.c
@@ -172,7 +172,7 @@ SRCS+=	bio_b64.c bio_enc.c bio_md.c bio_ok.c c_all.c c_allc.c c_alld.c \
 	m_mdc2.c m_null.c m_ripemd.c m_sha.c m_sha1.c names.c \
 	openbsd_hw.c p5_crpt.c p5_crpt2.c p_dec.c p_enc.c p_lib.c \
 	p_open.c p_seal.c p_sign.c p_verify.c
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 SRCS+=	e_camellia.c
 .endif
 INCS+=	evp.h
@@ -208,7 +208,7 @@ INCS+=	md4.h
 
 # md5
 SRCS+=	md5_dgst.c md5_one.c
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	md5-586.s
 .endif
 INCS+=	md5.h
@@ -255,7 +255,7 @@ INCS+=	rc2.h
 
 # rc4
 SRCS+=	rc4_skey.c rc4_fblk.c
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	rc4-586.s
 .else
 SRCS+=	rc4_enc.c
@@ -264,7 +264,7 @@ INCS+=	rc4.h
 
 # rc5
 SRCS+=	rc5_ecb.c rc5_skey.c rc5cfb64.c rc5ofb64.c
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	rc5-586.s
 .else
 SRCS+=	rc5_enc.c
@@ -284,7 +284,7 @@ INCS+=	rsa.h
 
 # sha
 SRCS+=	sha1_one.c sha1dgst.c sha_dgst.c sha_one.c sha256.c sha512.c
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	sha1-586.s
 .endif
 INCS+=	sha.h
@@ -354,14 +354,14 @@ buildinf.h: ${.CURDIR}/Makefile
 	echo "  #define PLATFORM \"FreeBSD-${MACHINE_ARCH}\""; \
 	echo "#endif" ) > ${.TARGET}
 
-opensslconf.h: opensslconf-${MACHINE_ARCH}.h
-	cp ${.ALLSRC} ${.TARGET}
+opensslconf.h: opensslconf-${MACHINE_CPUARCH}.h
+	cp -f ${.ALLSRC} ${.TARGET}
 
 evp.h: ${LCRYPTO_SRC}/crypto/evp/evp.h
 .if ${MK_IDEA} == "no"
 	sed '/^#ifndef OPENSSL_NO_IDEA$$/,/^#endif$$/d' ${.ALLSRC} > ${.TARGET}
 .else
-	cp ${.ALLSRC} ${.TARGET}
+	cp -f ${.ALLSRC} ${.TARGET}
 .endif
 
 # No FIPS support for now
@@ -383,11 +383,11 @@ afterinstall:
 
 .include <bsd.lib.mk>
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_CPUARCH} == "i386"
 .PATH: ${.CURDIR}/i386
 .endif
 
-.if ${MACHINE_ARCH} == "amd64"
+.if ${MACHINE_CPUARCH} == "amd64"
 _bn_asmpath=	${LCRYPTO_SRC}/crypto/bn/asm
 .endif
 
