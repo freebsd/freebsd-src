@@ -302,7 +302,7 @@ gem_attach(struct gem_softc *sc)
 		}
 		error = mii_attach(sc->sc_dev, &sc->sc_miibus, ifp,
 		    gem_mediachange, gem_mediastatus, BMSR_DEFCAPMASK, phy,
-		    MII_OFFSET_ANY, 0);
+		    MII_OFFSET_ANY, MIIF_DOPAUSE);
 	}
 
 	/*
@@ -330,7 +330,7 @@ gem_attach(struct gem_softc *sc)
 		}
 		error = mii_attach(sc->sc_dev, &sc->sc_miibus, ifp,
 		    gem_mediachange, gem_mediastatus, BMSR_DEFCAPMASK, phy,
-		    MII_OFFSET_ANY, 0);
+		    MII_OFFSET_ANY, MIIF_DOPAUSE);
 	}
 
 	/*
@@ -352,7 +352,7 @@ gem_attach(struct gem_softc *sc)
 		sc->sc_flags |= GEM_SERDES;
 		error = mii_attach(sc->sc_dev, &sc->sc_miibus, ifp,
 		    gem_mediachange, gem_mediastatus, BMSR_DEFCAPMASK,
-		    GEM_PHYAD_EXTERNAL, MII_OFFSET_ANY, 0);
+		    GEM_PHYAD_EXTERNAL, MII_OFFSET_ANY, MIIF_DOPAUSE);
 	}
 	if (error != 0) {
 		device_printf(sc->sc_dev, "attaching PHYs failed\n");
@@ -712,6 +712,9 @@ gem_reset_rx(struct gem_softc *sc)
 	if (!GEM_BANK1_BITWAIT(sc, GEM_RX_CONFIG, GEM_RX_CONFIG_RXDMA_EN, 0))
 		device_printf(sc->sc_dev, "cannot disable RX DMA\n");
 
+	/* Wait 5ms extra. */
+	DELAY(5000);
+
 	/* Finally, reset the ERX. */
 	GEM_BANK2_WRITE_4(sc, GEM_RESET, GEM_RESET_RX);
 	GEM_BANK2_BARRIER(sc, GEM_RESET, 4,
@@ -783,6 +786,9 @@ gem_reset_tx(struct gem_softc *sc)
 	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	if (!GEM_BANK1_BITWAIT(sc, GEM_TX_CONFIG, GEM_TX_CONFIG_TXDMA_EN, 0))
 		device_printf(sc->sc_dev, "cannot disable TX DMA\n");
+
+	/* Wait 5ms extra. */
+	DELAY(5000);
 
 	/* Finally, reset the ETX. */
 	GEM_BANK2_WRITE_4(sc, GEM_RESET, GEM_RESET_TX);
@@ -1239,7 +1245,7 @@ gem_init_regs(struct gem_softc *sc)
 		GEM_BANK1_WRITE_4(sc, GEM_MAC_PREAMBLE_LEN, 0x7);
 		GEM_BANK1_WRITE_4(sc, GEM_MAC_JAM_SIZE, 0x4);
 		GEM_BANK1_WRITE_4(sc, GEM_MAC_ATTEMPT_LIMIT, 0x10);
-		GEM_BANK1_WRITE_4(sc, GEM_MAC_CONTROL_TYPE, 0x8088);
+		GEM_BANK1_WRITE_4(sc, GEM_MAC_CONTROL_TYPE, 0x8808);
 
 		/* random number seed */
 		GEM_BANK1_WRITE_4(sc, GEM_MAC_RANDOM_SEED,
@@ -2039,14 +2045,12 @@ gem_mii_statchg(device_t dev)
 
 	v = GEM_BANK1_READ_4(sc, GEM_MAC_CONTROL_CONFIG) &
 	    ~(GEM_MAC_CC_RX_PAUSE | GEM_MAC_CC_TX_PAUSE);
-#ifdef notyet
 	if ((IFM_OPTIONS(sc->sc_mii->mii_media_active) &
 	    IFM_ETH_RXPAUSE) != 0)
 		v |= GEM_MAC_CC_RX_PAUSE;
 	if ((IFM_OPTIONS(sc->sc_mii->mii_media_active) &
 	    IFM_ETH_TXPAUSE) != 0)
 		v |= GEM_MAC_CC_TX_PAUSE;
-#endif
 	GEM_BANK1_WRITE_4(sc, GEM_MAC_CONTROL_CONFIG, v);
 
 	if ((IFM_OPTIONS(sc->sc_mii->mii_media_active) & IFM_FDX) == 0 &&
