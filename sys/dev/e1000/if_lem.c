@@ -1128,9 +1128,6 @@ lem_init_locked(struct adapter *adapter)
 	/* Setup VLAN support, basic and offload if available */
 	E1000_WRITE_REG(&adapter->hw, E1000_VET, ETHERTYPE_VLAN);
 
-	/* Use real VLAN Filter support */
-	lem_setup_vlan_hw_support(adapter);
-
 	/* Set hardware offload abilities */
 	ifp->if_hwassist = 0;
 	if (adapter->hw.mac.type >= e1000_82543) {
