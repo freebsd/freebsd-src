@@ -77,6 +77,7 @@ DRIVER_MODULE(inphy, miibus, inphy_driver, inphy_devclass, 0, 0);
 
 static int	inphy_service(struct mii_softc *, struct mii_data *, int);
 static void	inphy_status(struct mii_softc *);
+static void	inphy_reset(struct mii_softc *);
 
 static const struct mii_phydesc inphys[] = {
 	MII_PHY_DESC(INTEL, I82553C),
@@ -119,7 +120,7 @@ inphy_attach(device_t dev)
 	    IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
 	    MII_MEDIA_100_TX, NULL);
 
-	mii_phy_reset(sc);
+	inphy_reset(sc);
 
 	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	device_printf(dev, " ");
@@ -205,4 +206,15 @@ inphy_status(struct mii_softc *sc)
 			mii->mii_media_active |= IFM_HDX;
 	} else
 		mii->mii_media_active = ife->ifm_media;
+}
+
+static void
+inphy_reset(struct mii_softc *sc)
+{
+
+	mii_phy_reset(sc);
+
+	/* Ensure Bay flow control is disabled. */
+	PHY_WRITE(sc, MII_INPHY_SCR,
+	    PHY_READ(sc, MII_INPHY_SCR) & ~SCR_FLOWCTL);
 }
