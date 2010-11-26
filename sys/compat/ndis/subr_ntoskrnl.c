@@ -2544,6 +2544,12 @@ MmUnmapLockedPages(vaddr, buf)
  * here, but it doesn't.
  */
 
+static uint64_t
+MmGetPhysicalAddress(void *base)
+{
+	return (pmap_extract(kernel_map->pmap, (vm_offset_t)base));
+}
+
 uint8_t
 MmIsAddressValid(vaddr)
 	void			*vaddr;
@@ -4241,12 +4247,12 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_SFUNC(MmAllocateContiguousMemorySpecifyCache, 5 + 3),
 	IMPORT_SFUNC(MmFreeContiguousMemory, 1),
 	IMPORT_SFUNC(MmFreeContiguousMemorySpecifyCache, 3),
-	IMPORT_SFUNC_MAP(MmGetPhysicalAddress, pmap_kextract, 1),
 	IMPORT_SFUNC(MmSizeOfMdl, 1),
 	IMPORT_SFUNC(MmMapLockedPages, 2),
 	IMPORT_SFUNC(MmMapLockedPagesSpecifyCache, 6),
 	IMPORT_SFUNC(MmUnmapLockedPages, 2),
 	IMPORT_SFUNC(MmBuildMdlForNonPagedPool, 1),
+	IMPORT_SFUNC(MmGetPhysicalAddress, 1),
 	IMPORT_SFUNC(MmIsAddressValid, 1),
 	IMPORT_SFUNC(MmMapIoSpace, 3 + 1),
 	IMPORT_SFUNC(MmUnmapIoSpace, 2),
