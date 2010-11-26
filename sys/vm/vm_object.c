@@ -809,10 +809,12 @@ rescan:
 		np = TAILQ_NEXT(p, listq);
 		if (p->valid == 0)
 			continue;
-		while (vm_page_sleep_if_busy(p, TRUE, "vpcwai")) {
+		if (vm_page_sleep_if_busy(p, TRUE, "vpcwai")) {
 			vm_page_lock_queues();
 			if (object->generation != curgeneration)
 				goto rescan;
+			np = vm_page_find_least(object, pi);
+			continue;
 		}
 		vm_page_test_dirty(p);
 		if (p->dirty == 0)
@@ -828,7 +830,6 @@ rescan:
 			continue;
 
 		n = vm_object_page_collect_flush(object, p, pagerflags);
-		KASSERT(n > 0, ("vm_object_page_collect_flush failed"));
 		if (object->generation != curgeneration)
 			goto rescan;
 		np = vm_page_find_least(object, pi + n);
@@ -844,77 +845,39 @@ rescan:
 static int
 vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int pagerflags)
 {
-	int runlen;
-	int maxf;
-	int chkb;
-	int maxb;
-	int i, index;
-	vm_pindex_t pi;
-	vm_page_t maf[vm_pageout_page_count];
-	vm_page_t mab[vm_pageout_page_count];
-	vm_page_t ma[vm_pageout_page_count];
-	vm_page_t tp, p1;
+	vm_page_t ma[vm_pageout_page_count], p_first, tp;
+	int count, i, mreq, runlen;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	pi = p->pindex;
-	maxf = 0;
-	for (i = 1, p1 = p; i < vm_pageout_page_count; i++) {
-		tp = vm_page_next(p1);
+
+	count = 1;
+	mreq = 0;
+
+	for (tp = p; count < vm_pageout_page_count; count++) {
+		tp = vm_page_next(tp);
 		if (tp == NULL || tp->busy != 0 || (tp->oflags & VPO_BUSY) != 0)
 			break;
 		vm_page_test_dirty(tp);
 		if (tp->dirty == 0)
 			break;
-		maf[i - 1] = p1 = tp;
-		maxf++;
 	}
 
-	maxb = 0;
-	chkb = vm_pageout_page_count -  maxf;
-	for (i = 1, p1 = p; i < chkb; i++) {
-		tp = vm_page_prev(p1);
+	for (p_first = p; count < vm_pageout_page_count; count++) {
+		tp = vm_page_prev(p_first);
 		if (tp == NULL || tp->busy != 0 || (tp->oflags & VPO_BUSY) != 0)
 			break;
 		vm_page_test_dirty(tp);
 		if (tp->dirty == 0)
 			break;
-		mab[i - 1] = p1 = tp;
-		maxb++;
+		p_first = tp;
+		mreq++;
 	}
 
-	for (i = 0; i < maxb; i++) {
-		index = (maxb - i) - 1;
-		ma[index] = mab[i];
-	}
-	ma[maxb] = p;
-	for (i = 0; i < maxf; i++) {
-		index = (maxb + i) + 1;
-		ma[index] = maf[i];
-	}
-	runlen = maxb + maxf + 1;
+	for (tp = p_first, i = 0; i < count; tp = TAILQ_NEXT(tp, listq), i++)
+		ma[i] = tp;
 
-	vm_pageout_flush(ma, runlen, pagerflags);
-	for (i = 0; i < runlen; i++) {
-		if (ma[i]->dirty != 0) {
-			KASSERT((ma[i]->flags & PG_WRITEABLE) == 0,
-	("vm_object_page_collect_flush: page %p is not write protected",
-			    ma[i]));
-		}
-	}
-	for (i = 0; i < maxf; i++) {
-		if (ma[i + maxb + 1]->dirty != 0) {
-			/*
-			 * maxf will end up being the actual number of pages
-			 * we wrote out contiguously, non-inclusive of the
-			 * first page.  We do not count look-behind pages.
-			 */
-			if (maxf > i) {
-				maxf = i;
-				break;
-			}
-		}
-	}
-	return (maxf + 1);
+	vm_pageout_flush(ma, count, pagerflags, mreq, &runlen);
+	return (runlen);
 }
 
 /*

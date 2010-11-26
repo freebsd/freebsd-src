@@ -138,7 +138,7 @@ vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 		} else if (object->type == OBJT_SWAP ||
 			   object->type == OBJT_DEFAULT) {
 			m_tmp = m;
-			vm_pageout_flush(&m_tmp, 1, VM_PAGER_PUT_SYNC);
+			vm_pageout_flush(&m_tmp, 1, VM_PAGER_PUT_SYNC, 0, NULL);
 			VM_OBJECT_UNLOCK(object);
 			return (0);
 		}
