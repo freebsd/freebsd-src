@@ -1252,11 +1252,17 @@ dev/ixgb/ixgb_ee.c		optional ixgb
 dev/ixgb/ixgb_hw.c		optional ixgb
 dev/ixgbe/ixgbe.c		optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixgbe/ixv.c			optional ixgbe inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_phy.c		optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_api.c		optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_common.c	optional ixgbe inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixgbe/ixgbe_mbx.c		optional ixgbe inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixgbe/ixgbe_vf.c		optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_82598.c		optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
