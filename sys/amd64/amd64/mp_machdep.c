@@ -1328,6 +1328,7 @@ cpususpend_handler(void)
 		wbinvd();
 		atomic_set_int(&stopped_cpus, cpumask);
 	} else {
+		pmap_init_pat();
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);
 	}
