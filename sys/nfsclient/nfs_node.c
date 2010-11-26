@@ -193,8 +193,6 @@ nfs_inactive(struct vop_inactive_args *ap)
 	struct thread *td = curthread;	/* XXX */
 
 	np = VTONFS(ap->a_vp);
-	if (prtactive && vrefcnt(ap->a_vp) != 0)
-		vprint("nfs_inactive: pushing active", ap->a_vp);
 	mtx_lock(&np->n_mtx);
 	if (ap->a_vp->v_type != VDIR) {
 		sp = np->n_sillyrename;
@@ -227,9 +225,6 @@ nfs_reclaim(struct vop_reclaim_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct nfsnode *np = VTONFS(vp);
 	struct nfsdmap *dp, *dp2;
-
-	if (prtactive && vrefcnt(vp) != 0)
-		vprint("nfs_reclaim: pushing active", vp);
 
 	/*
 	 * If the NLM is running, give it a chance to abort pending

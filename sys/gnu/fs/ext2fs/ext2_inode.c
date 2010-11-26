@@ -472,8 +472,6 @@ ext2_inactive(ap)
 	int mode, error = 0;
 
 	ext2_discard_prealloc(ip);
-	if (prtactive && vrefcnt(vp) != 0)
-		vprint("ext2_inactive: pushing active", vp);
 
 	/*
 	 * Ignore inodes related to stale file handles.
@@ -513,8 +511,6 @@ ext2_reclaim(ap)
 	struct inode *ip;
 	struct vnode *vp = ap->a_vp;
 
-	if (prtactive && vrefcnt(vp) != 0)
-		vprint("ufs_reclaim: pushing active", vp);
 	ip = VTOI(vp);
 	if (ip->i_flag & IN_LAZYMOD) {
 		ip->i_flag |= IN_MODIFIED;
