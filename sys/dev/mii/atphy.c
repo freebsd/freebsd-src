@@ -82,7 +82,7 @@ static int	atphy_service(struct mii_softc *, struct mii_data *, int);
 static void	atphy_status(struct mii_softc *);
 static void	atphy_reset(struct mii_softc *);
 static uint16_t	atphy_anar(struct ifmedia_entry *);
-static int	atphy_auto(struct mii_softc *);
+static int	atphy_setmedia(struct mii_softc *, int);
 
 static const struct mii_phydesc atphys[] = {
 	MII_PHY_DESC(ATHEROS, F1),
@@ -158,7 +158,7 @@ atphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 		if (IFM_SUBTYPE(ife->ifm_media) == IFM_AUTO ||
 		    IFM_SUBTYPE(ife->ifm_media) == IFM_1000_T) {
-			atphy_auto(sc);
+			atphy_setmedia(sc, ife->ifm_media);
 			break;
 		}
 
@@ -175,7 +175,7 @@ atphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			/*
 			 * XXX
 			 * Due to an unknown reason powering down PHY resulted
-			 * in unexpected results such as inaccessbility of
+			 * in unexpected results such as inaccessibility of
 			 * hardware of freshly rebooted system. Disable
 			 * powering down PHY until I got more information for
 			 * Attansic/Atheros PHY hardwares.
@@ -189,8 +189,9 @@ atphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		anar = atphy_anar(ife);
 		if (((ife->ifm_media & IFM_GMASK) & IFM_FDX) != 0) {
 			bmcr |= BMCR_FDX;
-			/* Enable pause. */
-			anar |= (3 << 10);
+			if (((ife->ifm_media & IFM_GMASK) & IFM_FLOW) != 0 ||
+			    (sc->mii_flags & MIIF_FORCEPAUSE) != 0)
+				anar |= ANAR_PAUSE_TOWARDS;
 		}
 
 		if ((sc->mii_extcapabilities & (EXTSR_1000TFDX |
@@ -222,7 +223,7 @@ done:
 		}
 
 		/*
-		 * check for link.
+		 * Check for link.
 		 * Read the status register twice; BMSR_LINK is latch-low.
 		 */
 		bmsr = PHY_READ(sc, MII_BMSR) | PHY_READ(sc, MII_BMSR);
@@ -238,7 +239,7 @@ done:
 			return (0);
 
 		sc->mii_ticks = 0;
-		atphy_auto(sc);
+		atphy_setmedia(sc, ife->ifm_media);
 		break;
 	}
 
@@ -284,7 +285,7 @@ atphy_status(struct mii_softc *sc)
 	case ATPHY_SSR_1000MBS:
 		mii->mii_media_active |= IFM_1000_T;
 		/*
-		 * atphy(4) got a valid link so reset mii_ticks.
+		 * atphy(4) has a valid link so reset mii_ticks.
 		 * Resetting mii_ticks is needed in order to
 		 * detect link loss after auto-negotiation.
 		 */
@@ -304,16 +305,19 @@ atphy_status(struct mii_softc *sc)
 	}
 
 	if ((ssr & ATPHY_SSR_DUPLEX) != 0)
-		mii->mii_media_active |= IFM_FDX;
+		mii->mii_media_active |= IFM_FDX | mii_phy_flowstatus(sc);
 	else
 		mii->mii_media_active |= IFM_HDX;
 		
-	/* XXX Master/Slave, Flow-control */
+	if ((IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T) &&
+	    (PHY_READ(sc, MII_100T2SR) & GTSR_MS_RES) != 0)
+		mii->mii_media_active |= IFM_ETH_MASTER;
 }
 
 static void
 atphy_reset(struct mii_softc *sc)
 {
+	struct ifmedia_entry *ife = sc->mii_pdata->mii_media.ifm_cur;
 	struct atphy_softc *asc;
 	uint32_t reg;
 	int i;
@@ -336,7 +340,7 @@ atphy_reset(struct mii_softc *sc)
 	PHY_WRITE(sc, ATPHY_SCR, reg);
 
 	/* Workaround F1 bug to reset phy. */
-	atphy_auto(sc);
+	atphy_setmedia(sc, ife == NULL ? IFM_AUTO : ife->ifm_media);
 
 	for (i = 0; i < 1000; i++) {
 		DELAY(1);
@@ -378,12 +382,17 @@ atphy_anar(struct ifmedia_entry *ife)
 }
 
 static int
-atphy_auto(struct mii_softc *sc)
+atphy_setmedia(struct mii_softc *sc, int media)
 {
 	uint16_t anar;
 
-	anar = BMSR_MEDIA_TO_ANAR(sc->mii_capabilities);
-	PHY_WRITE(sc, MII_ANAR, anar | (3 << 10) | ANAR_CSMA);
+	anar = BMSR_MEDIA_TO_ANAR(sc->mii_capabilities) | ANAR_CSMA;
+	if (((IFM_SUBTYPE(media) == IFM_AUTO ||
+	    ((media & IFM_GMASK) & IFM_FDX) != 0) &&
+	    ((media & IFM_GMASK) & IFM_FLOW) != 0) ||
+	    (sc->mii_flags & MIIF_FORCEPAUSE) != 0)
+		anar |= ANAR_PAUSE_TOWARDS;
+	PHY_WRITE(sc, MII_ANAR, anar);
 	if ((sc->mii_extcapabilities & (EXTSR_1000TFDX | EXTSR_1000THDX)) != 0)
 		PHY_WRITE(sc, MII_100T2CR, GTCR_ADV_1000TFDX |
 		    GTCR_ADV_1000THDX);
