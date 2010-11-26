@@ -176,7 +176,6 @@ static void
 acpi_wakeup_cpus(struct acpi_softc *sc, cpumask_t wakeup_cpus)
 {
 	uint32_t	mpbioswarmvec;
-	cpumask_t	map;
 	int		cpu;
 	u_char		mpbiosreason;
 
@@ -193,8 +192,7 @@ acpi_wakeup_cpus(struct acpi_softc *sc, cpumask_t wakeup_cpus)
 
 	/* Wake up each AP. */
 	for (cpu = 1; cpu < mp_ncpus; cpu++) {
-		map = 1ul << cpu;
-		if ((wakeup_cpus & map) != map)
+		if ((wakeup_cpus & (1 << cpu)) == 0)
 			continue;
 		if (acpi_wakeup_ap(sc, cpu) == 0) {
 			/* restore the warmstart vector */
