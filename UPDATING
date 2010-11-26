@@ -15,6 +15,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20101126:
+	New version of minidump format for amd64 architecture was
+	introduced in r215872.  To analyze vmcore files produced by
+	kernels at or after this version you will need updated userland,
+	libkvm actually, that is able to handle the new version.
+
 20101022:
 	A workaround for a fixed ld bug has been removed in kernel code,
 	so make sure that your system ld is built from sources after
