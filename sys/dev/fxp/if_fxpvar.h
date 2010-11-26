@@ -146,7 +146,7 @@ struct fxp_ident {
 	uint16_t	devid;
 	int16_t		revid;		/* -1 matches anything */
 	uint8_t		ich;
-	char 		*name;
+	const char	*name;
 };
 
 struct fxp_hwstats {
@@ -182,7 +182,7 @@ struct fxp_softc {
 	struct resource	*fxp_res[2];	/* I/O and IRQ resources */
 	struct resource_spec *fxp_spec;	/* the resource spec we used */
 	void *ih;			/* interrupt handler cookie */
-	struct fxp_ident *ident;
+	const struct fxp_ident *ident;
 	struct mtx sc_mtx;
 	bus_dma_tag_t fxp_txmtag;	/* bus DMA tag for Tx mbufs */
 	bus_dma_tag_t fxp_rxmtag;	/* bus DMA tag for Rx mbufs */
