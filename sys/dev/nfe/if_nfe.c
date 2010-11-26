@@ -613,7 +613,8 @@ nfe_attach(device_t dev)
 
 	/* Do MII setup */
 	error = mii_attach(dev, &sc->nfe_miibus, ifp, nfe_ifmedia_upd,
-	    nfe_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	    nfe_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY,
+	    MIIF_DOPAUSE | MIIF_FORCEPAUSE);
 	if (error != 0) {
 		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
@@ -956,7 +957,8 @@ nfe_mac_config(struct nfe_softc *sc, struct mii_data *mii)
 	if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0) {
 		/* It seems all hardwares supports Rx pause frames. */
 		val = NFE_READ(sc, NFE_RXFILTER);
-		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FLAG0) != 0)
+		if ((IFM_OPTIONS(mii->mii_media_active) &
+		    IFM_ETH_RXPAUSE) != 0)
 			val |= NFE_PFF_RX_PAUSE;
 		else
 			val &= ~NFE_PFF_RX_PAUSE;
@@ -964,7 +966,7 @@ nfe_mac_config(struct nfe_softc *sc, struct mii_data *mii)
 		if ((sc->nfe_flags & NFE_TX_FLOW_CTRL) != 0) {
 			val = NFE_READ(sc, NFE_MISC1);
 			if ((IFM_OPTIONS(mii->mii_media_active) &
-			    IFM_FLAG1) != 0) {
+			    IFM_ETH_TXPAUSE) != 0) {
 				NFE_WRITE(sc, NFE_TX_PAUSE_FRAME,
 				    NFE_TX_PAUSE_FRAME_ENABLE);
 				val |= NFE_MISC1_TX_PAUSE;
