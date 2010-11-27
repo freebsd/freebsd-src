@@ -15,9 +15,6 @@ GCC_CPU=	${TARGET_ARCH}
 .if ${TARGET_ARCH} == "ia64"
 TARGET_CPU_DEFAULT= MASK_GNU_AS|MASK_GNU_LD
 .endif
-.if ${TARGET_ARCH} == "mips"
-TARGET_CPU_DEFAULT= 16
-.endif
 .if ${TARGET_ARCH} == "sparc64"
 TARGET_CPU_DEFAULT= TARGET_CPU_ultrasparc
 .endif

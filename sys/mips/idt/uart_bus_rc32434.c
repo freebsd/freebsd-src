@@ -88,10 +88,10 @@ uart_rc32434_probe(device_t dev)
 	sc->sc_class = &uart_ns8250_class;
 	bcopy(&sc->sc_sysdev->bas, &sc->sc_bas, sizeof(sc->sc_bas));
 	sc->sc_sysdev->bas.regshft = 2;
-	sc->sc_sysdev->bas.bst = 0;
+	sc->sc_sysdev->bas.bst = mips_bus_space_generic;
 	sc->sc_sysdev->bas.bsh = MIPS_PHYS_TO_KSEG1(IDT_BASE_UART0);
 	sc->sc_bas.regshft = 2;
-	sc->sc_bas.bst = 0;
+	sc->sc_bas.bst = mips_bus_space_generic;
 	sc->sc_bas.bsh = MIPS_PHYS_TO_KSEG1(IDT_BASE_UART0);
 
 	return (uart_bus_probe(dev, 2, 330000000UL/2, 0, 0));

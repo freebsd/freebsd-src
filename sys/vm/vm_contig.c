@@ -87,8 +87,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_phys.h>
 #include <vm/vm_extern.h>
 
-static void vm_contig_grow_cache(int tries);
-
 static int
 vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 {
@@ -149,15 +147,20 @@ vm_contig_launder_page(vm_page_t m, vm_page_t *next)
 }
 
 static int
-vm_contig_launder(int queue)
+vm_contig_launder(int queue, vm_paddr_t low, vm_paddr_t high)
 {
 	vm_page_t m, next;
+	vm_paddr_t pa;
 	int error;
 
 	TAILQ_FOREACH_SAFE(m, &vm_page_queues[queue].pl, pageq, next) {
 
 		/* Skip marker pages */
 		if ((m->flags & PG_MARKER) != 0)
+			continue;
+
+		pa = VM_PAGE_TO_PHYS(m);
+		if (pa < low || pa + PAGE_SIZE > high)
 			continue;
 
 		KASSERT(VM_PAGE_INQUEUE2(m, queue),
@@ -190,8 +193,8 @@ vm_page_release_contig(vm_page_t m, vm_pindex_t count)
 /*
  * Increase the number of cached pages.
  */
-static void
-vm_contig_grow_cache(int tries)
+void
+vm_contig_grow_cache(int tries, vm_paddr_t low, vm_paddr_t high)
 {
 	int actl, actmax, inactl, inactmax;
 
@@ -201,11 +204,11 @@ vm_contig_grow_cache(int tries)
 	actl = 0;
 	actmax = tries < 2 ? 0 : cnt.v_active_count;
 again:
-	if (inactl < inactmax && vm_contig_launder(PQ_INACTIVE)) {
+	if (inactl < inactmax && vm_contig_launder(PQ_INACTIVE, low, high)) {
 		inactl++;
 		goto again;
 	}
-	if (actl < actmax && vm_contig_launder(PQ_ACTIVE)) {
+	if (actl < actmax && vm_contig_launder(PQ_ACTIVE, low, high)) {
 		actl++;
 		goto again;
 	}
@@ -248,7 +251,7 @@ retry:
 			if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
 				VM_OBJECT_UNLOCK(object);
 				vm_map_unlock(map);
-				vm_contig_grow_cache(tries);
+				vm_contig_grow_cache(tries, low, high);
 				vm_map_lock(map);
 				VM_OBJECT_LOCK(object);
 				goto retry;
@@ -357,7 +360,7 @@ retry:
 	pages = vm_phys_alloc_contig(npgs, low, high, alignment, boundary);
 	if (pages == NULL) {
 		if (tries < ((flags & M_NOWAIT) != 0 ? 1 : 3)) {
-			vm_contig_grow_cache(tries);
+			vm_contig_grow_cache(tries, low, high);
 			tries++;
 			goto retry;
 		}

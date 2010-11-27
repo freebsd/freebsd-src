@@ -79,13 +79,14 @@ __FBSDID("$FreeBSD$");
 #include <dev/cfe/cfe_api.h>
 #endif
 
-#ifdef CFE
-extern uint32_t cfe_handle;
-extern uint32_t cfe_vector;
-#endif
-
 extern int *edata;
 extern int *end;
+
+void
+platform_cpu_init()
+{
+	/* Nothing special */
+}
 
 static void
 mips_init(void)
@@ -118,7 +119,7 @@ mips_init(void)
 			 * from CFE, omit the region at the start of physical
 			 * memory where the kernel has been loaded.
 			 */
-			phys_avail[i] += MIPS_KSEG0_TO_PHYS((vm_offset_t)&end);
+			phys_avail[i] += MIPS_KSEG0_TO_PHYS(kernel_kseg0_end);
 		}
 		phys_avail[i + 1] = addr + len;
 		physmem += len;
@@ -135,8 +136,10 @@ mips_init(void)
 	pmap_bootstrap();
 	mips_proc0_init();
 	mutex_init();
-#ifdef DDB
 	kdb_init();
+#ifdef KDB
+	if (boothowto & RB_KDB)
+		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
 #endif
 }
 
@@ -177,30 +180,36 @@ platform_trap_exit(void)
 }
 
 void
-platform_start(__register_t a0 __unused, __register_t a1 __unused, 
-    __register_t a2 __unused, __register_t a3 __unused)
+platform_start(__register_t a0, __register_t a1, __register_t a2,
+	       __register_t a3)
 {
 	vm_offset_t kernend;
 	uint64_t platform_counter_freq;
 
 	/* clear the BSS and SBSS segments */
-	kernend = round_page((vm_offset_t)&end);
+	kernend = (vm_offset_t)&end;
 	memset(&edata, 0, kernend - (vm_offset_t)(&edata));
+
+	mips_postboot_fixup();
+
+	/* Initialize pcpu stuff */
+	mips_pcpu0_init();
 
 #ifdef CFE
 	/*
 	 * Initialize CFE firmware trampolines before
 	 * we initialize the low-level console.
+	 *
+	 * CFE passes the following values in registers:
+	 * a0: firmware handle
+	 * a2: firmware entry point
+	 * a3: entry point seal
 	 */
-	if (cfe_handle != 0)
-		cfe_init(cfe_handle, cfe_vector);
+	if (a3 == CFE_EPTSEAL)
+		cfe_init(a0, a2);
 #endif
 	cninit();
 
-#ifdef CFE
-	if (cfe_handle == 0)
-		panic("CFE was not detected by locore.\n");
-#endif
 	mips_init();
 
 # if 0

@@ -47,6 +47,7 @@ vm_offset_t kmem_alloc_contig(vm_map_t map, vm_size_t size, int flags,
     vm_paddr_t low, vm_paddr_t high, unsigned long alignment,
     unsigned long boundary, vm_memattr_t memattr);
 vm_offset_t kmem_alloc_nofault(vm_map_t, vm_size_t);
+vm_offset_t kmem_alloc_nofault_space(vm_map_t, vm_size_t, int);
 vm_offset_t kmem_alloc_wait(vm_map_t, vm_size_t);
 void kmem_free(vm_map_t, vm_offset_t, vm_size_t);
 void kmem_free_wakeup(vm_map_t, vm_offset_t, vm_size_t);

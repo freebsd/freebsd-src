@@ -76,6 +76,12 @@ extern int	*edata;
 extern int	*end;
 
 void
+platform_cpu_init()
+{
+	/* Nothing special */
+}
+
+void
 platform_halt(void)
 {
 
@@ -128,8 +134,13 @@ platform_start(__register_t a0, __register_t a1,
 
 
 	/* clear the BSS and SBSS segments */
-	kernend = round_page((vm_offset_t)&end);
+	kernend = (vm_offset_t)&end;
 	memset(&edata, 0, kernend - (vm_offset_t)(&edata));
+
+	mips_postboot_fixup();
+
+	/* Initialize pcpu stuff */
+	mips_pcpu0_init();
 
 	/*
 	 * Looking for mem=XXM argument
@@ -153,7 +164,7 @@ platform_start(__register_t a0, __register_t a1,
 	}
 
 	/* phys_avail regions are in bytes */
-	phys_avail[0] = MIPS_KSEG0_TO_PHYS((vm_offset_t)&end);
+	phys_avail[0] = MIPS_KSEG0_TO_PHYS(kernel_kseg0_end);
 	phys_avail[1] = ctob(realmem);
 
 	physmem = realmem;
@@ -182,7 +193,9 @@ platform_start(__register_t a0, __register_t a1,
 	pmap_bootstrap();
 	mips_proc0_init();
 	mutex_init();
-#ifdef DDB
 	kdb_init();
+#ifdef KDB
+	if (boothowto & RB_KDB)
+		kdb_enter(KDB_WHY_BOOTFLAGS, "Boot flags requested debugger");
 #endif
 }

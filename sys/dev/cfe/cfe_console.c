@@ -84,14 +84,12 @@ CONSOLE_DRIVER(cfe);
 static void
 cn_drvinit(void *unused)
 {
-	char output[32];
 	struct tty *tp;
 
 	if (cfe_consdev.cn_pri != CN_DEAD &&
 	    cfe_consdev.cn_name[0] != '\0') {
 		tp = tty_alloc(&cfe_ttydevsw, NULL);
-		tty_makedev(tp, NULL, "%s", output);
-		tty_makealias(tp, "cfecons");
+		tty_makedev(tp, NULL, "cfecons");
 	}
 }
 
@@ -117,15 +115,21 @@ cfe_tty_close(struct tty *tp)
 static void
 cfe_tty_outwakeup(struct tty *tp)
 {
-	int len;
+	int len, written, rc;
 	u_char buf[CFEBURSTLEN];
 
 	for (;;) {
 		len = ttydisc_getc(tp, buf, sizeof buf);
 		if (len == 0)
 			break;
-		while (cfe_write(conhandle, buf, len) == 0)
-			continue;
+
+		written = 0;
+		while (written < len) {
+			rc = cfe_write(conhandle, &buf[written], len - written);
+			if (rc < 0)
+				break;
+			written += rc;
+		}
 	}
 }
 
@@ -184,13 +188,9 @@ cfe_cnterm(struct consdev *cp)
 static int
 cfe_cngetc(struct consdev *cp)
 {
-	int result;
 	unsigned char ch;
 
-	while ((result = cfe_read(conhandle, &ch, 1)) == 0)
-		continue;
-
-	if (result > 0) {
+	if (cfe_read(conhandle, &ch, 1) == 1) {
 #if defined(KDB) && defined(ALT_BREAK_TO_DEBUGGER)
 		int kdb_brk;
 
