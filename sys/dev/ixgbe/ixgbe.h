@@ -427,6 +427,9 @@ struct adapter {
 	u64			que_mask;
 	u32			rx_process_limit;
 
+	/* Multicast array memory */
+	u8			*mta;
+
 	/* Misc stats maintained by the driver */
 	unsigned long   	dropped_pkts;
 	unsigned long   	mbuf_defrag_failed;
