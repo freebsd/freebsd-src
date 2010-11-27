@@ -1058,7 +1058,7 @@ ip6_hopopts_input(u_int32_t *plenp, u_int32_t *rtalertp,
  *
  * The function assumes that hbh header is located right after the IPv6 header
  * (RFC2460 p7), opthead is pointer into data content in m, and opthead to
- * opthead + hbhlen is located in continuous memory region.
+ * opthead + hbhlen is located in contiguous memory region.
  */
 int
 ip6_process_hopopts(struct mbuf *m, u_int8_t *opthead, int hbhlen,
@@ -1191,7 +1191,7 @@ ip6_process_hopopts(struct mbuf *m, u_int8_t *opthead, int hbhlen,
  * Unknown option processing.
  * The third argument `off' is the offset from the IPv6 header to the option,
  * which is necessary if the IPv6 header the and option header and IPv6 header
- * is not continuous in order to return an ICMPv6 error.
+ * is not contiguous in order to return an ICMPv6 error.
  */
 int
 ip6_unknown_opt(u_int8_t *optp, struct mbuf *m, int off)
