@@ -736,14 +736,12 @@ siftr_findinpcb(int ipver, struct ip *ip, struct mbuf *m, uint16_t sport,
 			ss->nskip_in_inpcb++;
 		else
 			ss->nskip_out_inpcb++;
-
-		INP_INFO_RUNLOCK(&V_tcbinfo);
 	} else {
 		/* Acquire the inpcb lock. */
 		INP_UNLOCK_ASSERT(inp);
 		INP_RLOCK(inp);
-		INP_INFO_RUNLOCK(&V_tcbinfo);
 	}
+	INP_INFO_RUNLOCK(&V_tcbinfo);
 
 	return (inp);
 }
