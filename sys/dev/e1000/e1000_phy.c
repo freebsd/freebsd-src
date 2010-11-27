@@ -281,6 +281,13 @@ s32 e1000_read_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 *data)
 		goto out;
 	}
 	*data = (u16) mdic;
+	
+	/*
+	 * Allow some time after each MDIC transaction to avoid 
+	 * reading duplicate data in the next MDIC transaction.
+	 */
+	if (hw->mac.type == e1000_pch2lan)
+		usec_delay(100);
 
 out:
 	return ret_val;
@@ -344,6 +351,13 @@ s32 e1000_write_phy_reg_mdic(struct e1000_hw *hw, u32 offset, u16 data)
 		ret_val = -E1000_ERR_PHY;
 		goto out;
 	}
+
+	/*
+	 * Allow some time after each MDIC transaction to avoid 
+	 * reading duplicate data in the next MDIC transaction.
+	 */
+	if (hw->mac.type == e1000_pch2lan)
+		usec_delay(100);
 
 out:
 	return ret_val;
@@ -868,9 +882,10 @@ s32 e1000_copper_link_setup_m88(struct e1000_hw *hw)
 	if (ret_val)
 		goto out;
 
+	phy_data |= M88E1000_PSCR_ASSERT_CRS_ON_TX;
 	/* For BM PHY this bit is downshift enable */
-	if (phy->type != e1000_phy_bm)
-		phy_data |= M88E1000_PSCR_ASSERT_CRS_ON_TX;
+	if (phy->type == e1000_phy_bm)
+		phy_data &= ~M88E1000_PSCR_ASSERT_CRS_ON_TX;
 
 	/*
 	 * Options:
@@ -2617,6 +2632,9 @@ enum e1000_phy_type e1000_get_phy_type_from_id(u32 phy_id)
 		break;
 	case I82577_E_PHY_ID:
 		phy_type = e1000_phy_82577;
+		break;
+	case I82579_E_PHY_ID:
+		phy_type = e1000_phy_82579;
 		break;
 	case I82580_I_PHY_ID:
 		phy_type = e1000_phy_82580;

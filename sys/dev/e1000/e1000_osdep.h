@@ -65,11 +65,11 @@
 
 #define MSGOUT(S, A, B)     printf(S "\n", A, B)
 #define DEBUGFUNC(F)        DEBUGOUT(F);
-	#define DEBUGOUT(S)
-	#define DEBUGOUT1(S,A)
-	#define DEBUGOUT2(S,A,B)
-	#define DEBUGOUT3(S,A,B,C)
-	#define DEBUGOUT7(S,A,B,C,D,E,F,G)
+#define DEBUGOUT(S)			do {} while (0)
+#define DEBUGOUT1(S,A)			do {} while (0)
+#define DEBUGOUT2(S,A,B)		do {} while (0)
+#define DEBUGOUT3(S,A,B,C)		do {} while (0)
+#define DEBUGOUT7(S,A,B,C,D,E,F,G)	do {} while (0)
 
 #define STATIC			static
 #define FALSE			0
