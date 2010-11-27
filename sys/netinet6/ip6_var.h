@@ -209,7 +209,7 @@ struct	ip6stat {
 	u_quad_t ip6s_m2m[32];		/* two or more mbuf */
 	u_quad_t ip6s_mext1;		/* one ext mbuf */
 	u_quad_t ip6s_mext2m;		/* two or more ext mbuf */
-	u_quad_t ip6s_exthdrtoolong;	/* ext hdr are not continuous */
+	u_quad_t ip6s_exthdrtoolong;	/* ext hdr are not contiguous */
 	u_quad_t ip6s_nogif;		/* no match gif found */
 	u_quad_t ip6s_toomanyhdr;	/* discarded due to too many headers */
 
