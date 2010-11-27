@@ -190,6 +190,9 @@
 #define IGB_TX_BUFFER_SIZE		((uint32_t) 1514)
 #define IGB_FC_PAUSE_TIME		0x0680
 #define IGB_EEPROM_APME			0x400;
+#define IGB_QUEUE_IDLE			0
+#define IGB_QUEUE_WORKING		1
+#define IGB_QUEUE_HUNG			2
 
 /*
  * TDBA/RDBA should be aligned on 16 byte boundary. But TDLEN/RDLEN should be
@@ -202,14 +205,6 @@
 
 /* PCI Config defines */
 #define IGB_MSIX_BAR		3
-
-/*
-** This is the total number of MSIX vectors you wish
-** to use, it also controls the size of resources.
-** The 82575 has a total of 10, 82576 has 25. Set this
-** to the real amount you need to streamline data storage.
-*/
-#define IGB_MSIX_VEC		6	/* MSIX vectors configured */
 
 /* Defines for printing debug information */
 #define DEBUG_INIT  0
@@ -245,13 +240,7 @@
 
 /* Define the starting Interrupt rate per Queue */
 #define IGB_INTS_PER_SEC        8000
-#define IGB_DEFAULT_ITR          1000000000/(IGB_INTS_PER_SEC * 256)
-
-
-/* Header split codes for get_buf */
-#define IGB_CLEAN_HEADER		0x01
-#define IGB_CLEAN_PAYLOAD		0x02
-#define IGB_CLEAN_BOTH			(IGB_CLEAN_HEADER | IGB_CLEAN_PAYLOAD)
+#define IGB_DEFAULT_ITR         ((1000000/IGB_INTS_PER_SEC) << 2)
 
 #define IGB_LINK_ITR            2000
 
@@ -314,7 +303,7 @@ struct tx_ring {
 	u32			bytes;
 	u32			packets;
 
-	bool			watchdog_check;
+	int			queue_status;
 	int			watchdog_time;
 	int			tdt;
 	int			tdh;
@@ -385,6 +374,7 @@ struct adapter {
 	int		if_flags;
 	int		max_frame_size;
 	int		min_frame_size;
+	int		pause_frames;
 	struct mtx	core_mtx;
 	int		igb_insert_vlan_header;
         u16		num_queues;
@@ -397,7 +387,15 @@ struct adapter {
 	int		wol;
 	int		has_manage;
 
-	/* Info about the board itself */
+	/*
+	** Shadow VFTA table, this is needed because
+	** the real vlan filter table gets cleared during
+	** a soft reset and the driver needs to be able
+	** to repopulate it.
+	*/
+	u32		shadow_vfta[IGB_VFTA_SIZE];
+
+	/* Info about the interface */
 	u8		link_active;
 	u16		link_speed;
 	u16		link_duplex;
@@ -412,6 +410,9 @@ struct adapter {
 	struct tx_ring		*tx_rings;
         u16			num_tx_desc;
 
+	/* Multicast array pointer */
+	u8			*mta;
+
 	/* 
 	 * Receive rings
 	 */
@@ -422,8 +423,6 @@ struct adapter {
 	u32			rx_mbuf_sz;
 	u32			rx_mask;
 
-	/* Multicast array memory */
-	u8		*mta;
 	/* Misc stats maintained by the driver */
 	unsigned long	dropped_pkts;
 	unsigned long	mbuf_defrag_failed;

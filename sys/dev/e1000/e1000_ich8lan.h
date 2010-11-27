@@ -70,6 +70,23 @@
 
 #define E1000_ICH_MNG_IAMT_MODE          0x2
 
+#define E1000_FWSM_PROXY_MODE            0x00000008 /* FW is in proxy mode */
+
+/* Shared Receive Address Registers */
+#define E1000_SHRAL(_i)  (0x05438 + ((_i) * 8))
+#define E1000_SHRAH(_i)  (0x0543C + ((_i) * 8))
+#define E1000_SHRAH_AV   0x80000000 /* Addr Valid bit */
+#define E1000_SHRAH_MAV  0x40000000 /* Multicast Addr Valid bit */
+
+#define E1000_H2ME             0x05B50    /* Host to ME */
+#define E1000_H2ME_LSECREQ     0x00000001 /* Linksec Request */
+#define E1000_H2ME_LSECA       0x00000002 /* Linksec Active */
+#define E1000_H2ME_LSECSF      0x00000004 /* Linksec Failed */
+#define E1000_H2ME_LSECD       0x00000008 /* Linksec Disabled */
+#define E1000_H2ME_SLCAPD      0x00000010 /* Start LCAPD */
+#define E1000_H2ME_IPV4_ARP_EN 0x00000020 /* Arp Offload enable bit */
+#define E1000_H2ME_IPV6_NS_EN  0x00000040 /* NS Offload enable bit */
+
 #define ID_LED_DEFAULT_ICH8LAN  ((ID_LED_DEF1_DEF2 << 12) | \
                                  (ID_LED_OFF1_OFF2 <<  8) | \
                                  (ID_LED_OFF1_ON2  <<  4) | \
@@ -85,9 +102,14 @@
 #define E1000_FEXTNVM_SW_CONFIG        1
 #define E1000_FEXTNVM_SW_CONFIG_ICH8M (1 << 27) /* Bit redefined for ICH8M */
 
+#define E1000_FEXTNVM4_BEACON_DURATION_MASK    0x7
+#define E1000_FEXTNVM4_BEACON_DURATION_8USEC   0x7
+#define E1000_FEXTNVM4_BEACON_DURATION_16USEC  0x3
+
 #define PCIE_ICH8_SNOOP_ALL   PCIE_NO_SNOOP_ALL
 
 #define E1000_ICH_RAR_ENTRIES            7
+#define E1000_PCH2_RAR_ENTRIES           5 /* RAR[0], SHRA[0-3] */
 
 #define PHY_PAGE_SHIFT 5
 #define PHY_REG(page, reg) (((page) << PHY_PAGE_SHIFT) | \
@@ -112,6 +134,14 @@
 #define BM_RAR_H(_i)    (BM_PHY_REG(BM_WUC_PAGE, 18 + ((_i) << 2)))
 #define BM_RAR_CTRL(_i) (BM_PHY_REG(BM_WUC_PAGE, 19 + ((_i) << 2)))
 #define BM_MTA(_i)      (BM_PHY_REG(BM_WUC_PAGE, 128 + ((_i) << 1)))
+#define BM_IPAV         (BM_PHY_REG(BM_WUC_PAGE, 64))
+#define BM_IP4AT_L(_i)  (BM_PHY_REG(BM_WUC_PAGE, 82 + ((_i) * 2)))
+#define BM_IP4AT_H(_i)  (BM_PHY_REG(BM_WUC_PAGE, 83 + ((_i) * 2)))
+
+#define BM_SHRAL_LOWER(_i) (BM_PHY_REG(BM_WUC_PAGE, 44 + ((_i) * 4)))
+#define BM_SHRAL_UPPER(_i) (BM_PHY_REG(BM_WUC_PAGE, 45 + ((_i) * 4)))
+#define BM_SHRAH_LOWER(_i) (BM_PHY_REG(BM_WUC_PAGE, 46 + ((_i) * 4)))
+#define BM_SHRAH_UPPER(_i) (BM_PHY_REG(BM_WUC_PAGE, 47 + ((_i) * 4)))
 
 #define BM_RCTL_UPE           0x0001          /* Unicast Promiscuous Mode */
 #define BM_RCTL_MPE           0x0002          /* Multicast Promiscuous Mode */
@@ -147,6 +177,7 @@
 
 /* SMBus Address Phy Register */
 #define HV_SMB_ADDR            PHY_REG(768, 26)
+#define HV_SMB_ADDR_MASK       0x007F
 #define HV_SMB_ADDR_PEC_EN     0x0200
 #define HV_SMB_ADDR_VALID      0x0080
 
@@ -172,6 +203,10 @@
 
 #define SW_FLAG_TIMEOUT    1000 /* SW Semaphore flag timeout in milliseconds */
 
+/* PHY Low Power Idle Control */
+#define I82579_LPI_CTRL			PHY_REG(772, 20)
+#define I82579_LPI_CTRL_ENABLE_MASK	0x6000
+
 /*
  * Additional interrupts need to be handled for ICH family:
  *  DSW = The FW changed the status of the DISSW bit in FWSM
@@ -195,6 +230,9 @@
 #define E1000_RXDEXT_LINKSEC_ERROR_REPLAY_ERROR 0x40000000
 #define E1000_RXDEXT_LINKSEC_ERROR_BAD_SIG      0x60000000
 
+/* Receive Address Initial CRC Calculation */
+#define E1000_PCH_RAICC(_n)	(0x05F50 + ((_n) * 4))
+
 void e1000_set_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw,
                                                  bool state);
 void e1000_igp3_phy_powerdown_workaround_ich8lan(struct e1000_hw *hw);
@@ -203,4 +241,6 @@ void e1000_disable_gig_wol_ich8lan(struct e1000_hw *hw);
 s32 e1000_configure_k1_ich8lan(struct e1000_hw *hw, bool k1_enable);
 s32 e1000_oem_bits_config_ich8lan(struct e1000_hw *hw, bool d0_config);
 s32 e1000_hv_phy_powerdown_workaround_ich8lan(struct e1000_hw *hw);
+void e1000_copy_rx_addrs_to_phy_ich8lan(struct e1000_hw *hw);
+s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable);
 #endif
