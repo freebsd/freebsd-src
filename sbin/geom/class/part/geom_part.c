@@ -85,6 +85,7 @@ static int gpart_show_hasopt(struct gctl_req *, const char *, const char *);
 static void gpart_write_partcode(struct ggeom *, int, void *, ssize_t);
 static void gpart_write_partcode_vtoc8(struct ggeom *, int, void *);
 static void gpart_print_error(const char *);
+static void gpart_destroy(struct gctl_req *, unsigned int);
 
 struct g_command PUBSYM(class_commands)[] = {
 	{ "add", 0, gpart_issue, {
@@ -119,7 +120,7 @@ struct g_command PUBSYM(class_commands)[] = {
 		G_OPT_SENTINEL },
 	  "geom", NULL
 	},
-	{ "destroy", 0, gpart_issue, {
+	{ "destroy", 0, gpart_destroy, {
 		{ 'F', "force", NULL, G_TYPE_BOOL },
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
@@ -861,6 +862,17 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl)
 		gpart_issue(req, fl);
 
 	geom_deletetree(&mesh);
+}
+
+static void
+gpart_destroy(struct gctl_req *req, unsigned int fl)
+{
+
+	if (gctl_get_int(req, "force"))
+		gctl_change_param(req, "force", -1, "1");
+	else
+		gctl_change_param(req, "force", -1, "0");
+	gpart_issue(req, fl);
 }
 
 static void
