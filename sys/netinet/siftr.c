@@ -1109,26 +1109,38 @@ ret6:
 static int
 siftr_pfil(int action)
 {
-	struct pfil_head *pfh_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
+	struct pfil_head *pfh_inet;
 #ifdef SIFTR_IPV6
-	struct pfil_head *pfh_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
+	struct pfil_head *pfh_inet6;
+#endif
+	VNET_ITERATOR_DECL(vnet_iter);
+
+	VNET_LIST_RLOCK();
+	VNET_FOREACH(vnet_iter) {
+		CURVNET_SET(vnet_iter);
+		pfh_inet = pfil_head_get(PFIL_TYPE_AF, AF_INET);
+#ifdef SIFTR_IPV6
+		pfh_inet6 = pfil_head_get(PFIL_TYPE_AF, AF_INET6);
 #endif
 
-	if (action == HOOK) {
-		pfil_add_hook(siftr_chkpkt, NULL,
-		    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet);
+		if (action == HOOK) {
+			pfil_add_hook(siftr_chkpkt, NULL,
+			    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet);
 #ifdef SIFTR_IPV6
-		pfil_add_hook(siftr_chkpkt6, NULL,
-		    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet6);
+			pfil_add_hook(siftr_chkpkt6, NULL,
+			    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet6);
 #endif
-	} else if (action == UNHOOK) {
-		pfil_remove_hook(siftr_chkpkt, NULL,
-		    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet);
+		} else if (action == UNHOOK) {
+			pfil_remove_hook(siftr_chkpkt, NULL,
+			    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet);
 #ifdef SIFTR_IPV6
-		pfil_remove_hook(siftr_chkpkt6, NULL,
-		    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet6);
+			pfil_remove_hook(siftr_chkpkt6, NULL,
+			    PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh_inet6);
 #endif
+		}
+		CURVNET_RESTORE();
 	}
+	VNET_LIST_RUNLOCK();
 
 	return (0);
 }
