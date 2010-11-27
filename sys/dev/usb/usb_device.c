@@ -45,12 +45,16 @@
 #include <sys/priv.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
-#include <sys/sbuf.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/usb_ioctl.h>
+
+#if USB_HAVE_UGEN
+#include <sys/sbuf.h>
+#endif
+
 #include "usbdevs.h"
 
 #define	USB_DEBUG_VAR usb_debug
@@ -79,7 +83,9 @@
 /* function prototypes  */
 
 static void	usb_init_endpoint(struct usb_device *, uint8_t,
-		    struct usb_endpoint_descriptor *, struct usb_endpoint *);
+		    struct usb_endpoint_descriptor *,
+		    struct usb_endpoint_ss_comp_descriptor *,
+		    struct usb_endpoint *);
 static void	usb_unconfigure(struct usb_device *, uint8_t);
 static void	usb_detach_device_sub(struct usb_device *, device_t *,
 		    uint8_t);
@@ -90,7 +96,7 @@ static void	usb_init_attach_arg(struct usb_device *,
 static void	usb_suspend_resume_sub(struct usb_device *, device_t,
 		    uint8_t);
 static void	usbd_clear_stall_proc(struct usb_proc_msg *_pm);
-usb_error_t	usb_config_parse(struct usb_device *, uint8_t, uint8_t);
+static usb_error_t usb_config_parse(struct usb_device *, uint8_t, uint8_t);
 static void	usbd_set_device_strings(struct usb_device *);
 #if USB_HAVE_UGEN
 static void	usb_notify_addq(const char *type, struct usb_device *);
@@ -360,7 +366,9 @@ usbd_interface_count(struct usb_device *udev, uint8_t *count)
  *------------------------------------------------------------------------*/
 static void
 usb_init_endpoint(struct usb_device *udev, uint8_t iface_index,
-    struct usb_endpoint_descriptor *edesc, struct usb_endpoint *ep)
+    struct usb_endpoint_descriptor *edesc,
+    struct usb_endpoint_ss_comp_descriptor *ecomp,
+    struct usb_endpoint *ep)
 {
 	struct usb_bus_methods *methods;
 
@@ -370,6 +378,7 @@ usb_init_endpoint(struct usb_device *udev, uint8_t iface_index,
 
 	/* initialise USB endpoint structure */
 	ep->edesc = edesc;
+	ep->ecomp = ecomp;
 	ep->iface_index = iface_index;
 	TAILQ_INIT(&ep->endpoint_q.head);
 	ep->endpoint_q.command = &usbd_pipe_start;
@@ -640,7 +649,7 @@ done:
  *    0: Success
  * Else: Failure
  *------------------------------------------------------------------------*/
-usb_error_t
+static usb_error_t
 usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 {
 	struct usb_idesc_parse_state ips;
@@ -763,8 +772,14 @@ usb_config_parse(struct usb_device *udev, uint8_t iface_index, uint8_t cmd)
 			ep = udev->endpoints + temp;
 
 			if (do_init) {
+				void *ecomp;
+
+				ecomp = usb_ed_comp_foreach(udev->cdesc, (void *)ed);
+				if (ecomp != NULL)
+					DPRINTFN(5, "Found endpoint companion descriptor\n");
+
 				usb_init_endpoint(udev, 
-				    ips.iface_index, ed, ep);
+				    ips.iface_index, ed, ecomp, ep);
 			}
 
 			temp ++;
@@ -904,8 +919,8 @@ done:
 /*------------------------------------------------------------------------*
  *	usbd_set_endpoint_stall
  *
- * This function is used to make a BULK or INTERRUPT endpoint
- * send STALL tokens.
+ * This function is used to make a BULK or INTERRUPT endpoint send
+ * STALL tokens in USB device mode.
  *
  * Returns:
  *    0: Success
@@ -1536,7 +1551,6 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	udev->bus = bus;
 	udev->address = USB_START_ADDR;	/* default value */
 	udev->plugtime = (usb_ticks_t)ticks;
-	usb_set_device_state(udev, USB_STATE_POWERED);
 	/*
 	 * We need to force the power mode to "on" because there are plenty
 	 * of USB devices out there that do not work very well with
@@ -1555,6 +1569,11 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	udev->ctrl_ep_desc.wMaxPacketSize[0] = USB_MAX_IPACKET;
 	udev->ctrl_ep_desc.wMaxPacketSize[1] = 0;
 	udev->ctrl_ep_desc.bInterval = 0;
+
+	/* set up default endpoint companion descriptor */
+	udev->ctrl_ep_comp_desc.bLength = sizeof(udev->ctrl_ep_comp_desc);
+	udev->ctrl_ep_comp_desc.bDescriptorType = UDESC_ENDPOINT_SS_COMP;
+
 	udev->ddesc.bMaxPacketSize = USB_MAX_IPACKET;
 
 	udev->speed = speed;
@@ -1579,6 +1598,7 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	/* init the default endpoint */
 	usb_init_endpoint(udev, 0,
 	    &udev->ctrl_ep_desc,
+	    &udev->ctrl_ep_comp_desc,
 	    &udev->ctrl_ep);
 
 	/* set device index */
@@ -1597,13 +1617,29 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	/* Create a link from /dev/ugenX.X to the default endpoint */
 	make_dev_alias(udev->ctrl_dev, "%s", udev->ugen_name);
 #endif
+	/* Initialise device */
+	if (bus->methods->device_init != NULL) {
+		err = (bus->methods->device_init) (udev);
+		if (err != 0) {
+			DPRINTFN(0, "device init %d failed "
+			    "(%s, ignored)\n", device_index, 
+			    usbd_errstr(err));
+			goto done;
+		}
+	}
+	/* set powered device state after device init is complete */
+	usb_set_device_state(udev, USB_STATE_POWERED);
+
 	if (udev->flags.usb_mode == USB_MODE_HOST) {
 
 		err = usbd_req_set_address(udev, NULL, device_index);
 
-		/* This is the new USB device address from now on */
-
-		udev->address = device_index;
+		/*
+		 * This is the new USB device address from now on, if
+		 * the set address request didn't set it already.
+		 */
+		if (udev->address == USB_START_ADDR)
+			udev->address = device_index;
 
 		/*
 		 * We ignore any set-address errors, hence there are
@@ -1619,9 +1655,6 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 			    "(%s, ignored)\n", udev->address, 
 			    usbd_errstr(err));
 		}
-		/* allow device time to set new address */
-		usb_pause_mtx(NULL, 
-		    USB_MS_TO_TICKS(USB_SET_ADDRESS_SETTLE));
 	} else {
 		/* We are not self powered */
 		udev->flags.self_powered = 0;
@@ -1640,45 +1673,16 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	}
 	usb_set_device_state(udev, USB_STATE_ADDRESSED);
 
-	/*
-	 * Get the first 8 bytes of the device descriptor !
-	 *
-	 * NOTE: "usbd_do_request" will check the device descriptor
-	 * next time we do a request to see if the maximum packet size
-	 * changed! The 8 first bytes of the device descriptor
-	 * contains the maximum packet size to use on control endpoint
-	 * 0. If this value is different from "USB_MAX_IPACKET" a new
-	 * USB control request will be setup!
-	 */
-	err = usbd_req_get_desc(udev, NULL, NULL, &udev->ddesc,
-	    USB_MAX_IPACKET, USB_MAX_IPACKET, 0, UDESC_DEVICE, 0, 0);
-	if (err) {
-		DPRINTFN(0, "getting device descriptor "
-		    "at addr %d failed, %s\n", udev->address,
-		    usbd_errstr(err));
+	/* setup the device descriptor and the initial "wMaxPacketSize" */
+	err = usbd_setup_device_desc(udev, NULL);
+
+	if (err != 0) {
 		/* XXX try to re-enumerate the device */
 		err = usbd_req_re_enumerate(udev, NULL);
-		if (err) {
+		if (err)
 			goto done;
-		}
 	}
-	DPRINTF("adding unit addr=%d, rev=%02x, class=%d, "
-	    "subclass=%d, protocol=%d, maxpacket=%d, len=%d, speed=%d\n",
-	    udev->address, UGETW(udev->ddesc.bcdUSB),
-	    udev->ddesc.bDeviceClass,
-	    udev->ddesc.bDeviceSubClass,
-	    udev->ddesc.bDeviceProtocol,
-	    udev->ddesc.bMaxPacketSize,
-	    udev->ddesc.bLength,
-	    udev->speed);
 
-	/* get the full device descriptor */
-	err = usbd_req_get_device_desc(udev, NULL, &udev->ddesc);
-	if (err) {
-		DPRINTF("addr=%d, getting full desc failed\n",
-		    udev->address);
-		goto done;
-	}
 	/*
 	 * Setup temporary USB attach args so that we can figure out some
 	 * basic quirks for this device.
@@ -2067,6 +2071,10 @@ usb_free_device(struct usb_device *udev, uint8_t flag)
 #if USB_HAVE_UGEN
 	KASSERT(LIST_FIRST(&udev->pd_list) == NULL, ("leaked cdev entries"));
 #endif
+
+	/* Uninitialise device */
+	if (bus->methods->device_uninit != NULL)
+		(bus->methods->device_uninit) (udev);
 
 	/* free device */
 	free(udev->serial, M_USB);
@@ -2598,6 +2606,17 @@ usb_set_device_state(struct usb_device *udev, enum usb_dev_state state)
 	DPRINTF("udev %p state %s -> %s\n", udev,
 	    usb_statestr(udev->state), usb_statestr(state));
 	udev->state = state;
+
+	if (udev->bus->methods->device_state_change != NULL)
+		(udev->bus->methods->device_state_change) (udev);
+}
+
+enum usb_dev_state
+usb_get_device_state(struct usb_device *udev)
+{
+	if (udev == NULL)
+		return (USB_STATE_DETACHED);
+	return (udev->state);
 }
 
 uint8_t
