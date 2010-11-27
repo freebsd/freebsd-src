@@ -1270,7 +1270,7 @@ em_init(void *arg)
  *  Legacy polling routine: note this only works with single queue
  *
  *********************************************************************/
-static int
+static void
 em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct adapter *adapter = ifp->if_softc;
@@ -1282,7 +1282,7 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	EM_CORE_LOCK(adapter);
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		EM_CORE_UNLOCK(adapter);
-		return (0);
+		return;
 	}
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
@@ -1305,7 +1305,7 @@ em_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		em_start_locked(ifp, txr);
 	EM_TX_UNLOCK(txr);
 
-	return (rx_done);
+	return;
 }
 #endif /* DEVICE_POLLING */
 
