@@ -31,12 +31,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/vtoc.h>
 
 #include <assert.h>
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <libgeom.h>
 #include <libutil.h>
 #include <paths.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,6 +66,7 @@ static char flags[] = "C";
 
 static char sstart[32];
 static char ssize[32];
+volatile sig_atomic_t undo_restore;
 
 static const char const bootcode_param[] = "bootcode";
 static const char const index_param[] = "index";
@@ -86,6 +89,8 @@ static void gpart_write_partcode(struct ggeom *, int, void *, ssize_t);
 static void gpart_write_partcode_vtoc8(struct ggeom *, int, void *);
 static void gpart_print_error(const char *);
 static void gpart_destroy(struct gctl_req *, unsigned int);
+static void gpart_backup(struct gctl_req *, unsigned int);
+static void gpart_restore(struct gctl_req *, unsigned int);
 
 struct g_command PUBSYM(class_commands)[] = {
 	{ "add", 0, gpart_issue, {
@@ -97,6 +102,9 @@ struct g_command PUBSYM(class_commands)[] = {
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	  "geom", NULL
+	},
+	{ "backup", 0, gpart_backup, G_NULL_OPTS,
+	    NULL, "geom"
 	},
 	{ "bootcode", 0, gpart_bootcode, {
 		{ 'b', bootcode_param, optional, G_TYPE_STRING },
@@ -160,6 +168,13 @@ struct g_command PUBSYM(class_commands)[] = {
 		{ 'f', "flags", flags, G_TYPE_STRING },
 		G_OPT_SENTINEL },
 	  "geom", NULL
+	},
+	{ "restore", 0, gpart_restore, {
+		{ 'F', "force", NULL, G_TYPE_BOOL },
+		{ 'l', "restore_labels", NULL, G_TYPE_BOOL },
+		{ 'f', "flags", flags, G_TYPE_STRING },
+		G_OPT_SENTINEL },
+	    NULL, "[-lF] [-f flags] provider [...]"
 	},
 	{ "recover", 0, gpart_issue, {
 		{ 'f', "flags", flags, G_TYPE_STRING },
@@ -650,6 +665,308 @@ gpart_show(struct gctl_req *req, unsigned int fl __unused)
 		}
 	}
 	geom_deletetree(&mesh);
+}
+
+static void
+gpart_backup(struct gctl_req *req, unsigned int fl __unused)
+{
+	struct gmesh mesh;
+	struct gclass *classp;
+	struct gprovider *pp;
+	struct ggeom *gp;
+	const char *s, *scheme;
+	off_t sector, end;
+	off_t length, secsz;
+	int error, i, windex, wblocks, wtype;
+
+	if (gctl_get_int(req, "nargs") != 1)
+		errx(EXIT_FAILURE, "Invalid number of arguments.");
+	error = geom_gettree(&mesh);
+	if (error != 0)
+		errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
+	s = gctl_get_ascii(req, "class");
+	if (s == NULL)
+		abort();
+	classp = find_class(&mesh, s);
+	if (classp == NULL) {
+		geom_deletetree(&mesh);
+		errx(EXIT_FAILURE, "Class %s not found.", s);
+	}
+	s = gctl_get_ascii(req, "arg0");
+	if (s == NULL)
+		abort();
+	gp = find_geom(classp, s);
+	if (gp == NULL)
+		errx(EXIT_FAILURE, "No such geom: %s.", s);
+	scheme = find_geomcfg(gp, "scheme");
+	if (scheme == NULL)
+		abort();
+	pp = LIST_FIRST(&gp->lg_consumer)->lg_provider;
+	secsz = pp->lg_sectorsize;
+	s = find_geomcfg(gp, "last");
+	wblocks = strlen(s);
+	wtype = 0;
+	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
+		s = find_provcfg(pp, "type");
+		i = strlen(s);
+		if (i > wtype)
+			wtype = i;
+	}
+	s = find_geomcfg(gp, "entries");
+	windex = strlen(s);
+	printf("%s %s\n", scheme, s);
+	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
+		s = find_provcfg(pp, "start");
+		if (s == NULL) {
+			s = find_provcfg(pp, "offset");
+			sector = (off_t)strtoimax(s, NULL, 0) / secsz;
+		} else
+			sector = (off_t)strtoimax(s, NULL, 0);
+
+		s = find_provcfg(pp, "end");
+		if (s == NULL) {
+			s = find_provcfg(pp, "length");
+			length = (off_t)strtoimax(s, NULL, 0) / secsz;
+		} else {
+			end = (off_t)strtoimax(s, NULL, 0);
+			length = end - sector + 1;
+		}
+		s = find_provcfg(pp, "label");
+		printf("%-*s %*s %*jd %*jd %s %s\n",
+		    windex, find_provcfg(pp, "index"),
+		    wtype, find_provcfg(pp, "type"),
+		    wblocks, (intmax_t)sector,
+		    wblocks, (intmax_t)length,
+		    (s != NULL) ? s: "", fmtattrib(pp));
+	}
+	geom_deletetree(&mesh);
+}
+
+static int
+skip_line(const char *p)
+{
+
+	while (*p != '\0') {
+		if (*p == '#')
+			return (1);
+		if (isspace(*p) == 0)
+			return (0);
+		p++;
+	}
+	return (1);
+}
+
+static void
+gpart_sighndl(int sig __unused)
+{
+	undo_restore = 1;
+}
+
+static void
+gpart_restore(struct gctl_req *req, unsigned int fl __unused)
+{
+	struct gmesh mesh;
+	struct gclass *classp;
+	struct gctl_req *r;
+	struct ggeom *gp;
+	struct sigaction si_sa;
+	const char *s, *flagss, *errstr, *label;
+	char **ap, *argv[6], line[BUFSIZ], *pline;
+	int error, forced, i, l, nargs, created, rl;
+
+	nargs = gctl_get_int(req, "nargs");
+	if (nargs < 1)
+		errx(EXIT_FAILURE, "Invalid number of arguments.");
+
+	forced = gctl_get_int(req, "force");
+	flagss = gctl_get_ascii(req, "flags");
+	rl = gctl_get_int(req, "restore_labels");
+	s = gctl_get_ascii(req, "class");
+	if (s == NULL)
+		abort();
+	error = geom_gettree(&mesh);
+	if (error != 0)
+		errc(EXIT_FAILURE, error, "Cannot get GEOM tree");
+	classp = find_class(&mesh, s);
+	if (classp == NULL) {
+		geom_deletetree(&mesh);
+		errx(EXIT_FAILURE, "Class %s not found.", s);
+	}
+
+	sigemptyset(&si_sa.sa_mask);
+	si_sa.sa_flags = 0;
+	si_sa.sa_handler = gpart_sighndl;
+	if (sigaction(SIGINT, &si_sa, 0) == -1)
+		err(EXIT_FAILURE, "sigaction SIGINT");
+
+	if (forced) {
+		/* destroy existent partition table before restore */
+		for (i = 0; i < nargs; i++) {
+			s = gctl_get_ascii(req, "arg%d", i);
+			gp = find_geom(classp, s);
+			if (gp != NULL) {
+				r = gctl_get_handle();
+				gctl_ro_param(r, "class", -1,
+				    classp->lg_name);
+				gctl_ro_param(r, "verb", -1, "destroy");
+				gctl_ro_param(r, "flags", -1, "restore");
+				gctl_ro_param(r, "force", sizeof(forced),
+				    &forced);
+				gctl_ro_param(r, "geom", -1, s);
+				errstr = gctl_issue(r);
+				if (errstr != NULL && errstr[0] != '\0') {
+					gpart_print_error(errstr);
+					gctl_free(r);
+					goto backout;
+				}
+				gctl_free(r);
+			}
+		}
+	}
+	created = 0;
+	while (undo_restore == 0 &&
+	    fgets(line, sizeof(line) - 1, stdin) != NULL) {
+		/* Format of backup entries:
+		 * <scheme name> <number of entries>
+		 * <index> <type> <start> <size> [label] ['['attrib[,attrib]']']
+		 */
+		pline = (char *)line;
+		pline[strlen(line) - 1] = 0;
+		if (skip_line(pline))
+			continue;
+		for (ap = argv;
+		    (*ap = strsep(&pline, " \t")) != NULL;)
+			if (**ap != '\0' && ++ap >= &argv[6])
+				break;
+		l = ap - &argv[0];
+		label = pline = NULL;
+		if (l == 1 || l == 2) { /* create table */
+			if (created)
+				errx(EXIT_FAILURE, "Incorrect backup format.");
+			for (i = 0; i < nargs; i++) {
+				s = gctl_get_ascii(req, "arg%d", i);
+				r = gctl_get_handle();
+				gctl_ro_param(r, "class", -1,
+				    classp->lg_name);
+				gctl_ro_param(r, "verb", -1, "create");
+				gctl_ro_param(r, "scheme", -1, argv[0]);
+				if (l == 2)
+					gctl_ro_param(r, "entries",
+					    -1, argv[1]);
+				gctl_ro_param(r, "flags", -1, "restore");
+				gctl_ro_param(r, "provider", -1, s);
+				errstr = gctl_issue(r);
+				if (errstr != NULL && errstr[0] != '\0') {
+					gpart_print_error(errstr);
+					gctl_free(r);
+					goto backout;
+				}
+				gctl_free(r);
+			}
+			created = 1;
+			continue;
+		} else if (l < 4 || created == 0)
+			errx(EXIT_FAILURE, "Incorrect backup format.");
+		else if (l == 5) {
+			if (strchr(argv[4], '[') == NULL)
+				label = argv[4];
+			else
+				pline = argv[4];
+		} else if (l == 6) {
+			label = argv[4];
+			pline = argv[5];
+		}
+		/* Add partitions to each table */
+		for (i = 0; i < nargs; i++) {
+			s = gctl_get_ascii(req, "arg%d", i);
+			r = gctl_get_handle();
+			gctl_ro_param(r, "class", -1, classp->lg_name);
+			gctl_ro_param(r, "verb", -1, "add");
+			gctl_ro_param(r, "flags", -1, "restore");
+			gctl_ro_param(r, index_param, -1, argv[0]);
+			gctl_ro_param(r, "type", -1, argv[1]);
+			gctl_ro_param(r, "start", -1, argv[2]);
+			gctl_ro_param(r, "size", -1, argv[3]);
+			if (rl != 0 && label != NULL)
+				gctl_ro_param(r, "label", -1, argv[4]);
+			gctl_ro_param(r, "geom", -1, s);
+			error = gpart_autofill(r);
+			if (error != 0)
+				errc(EXIT_FAILURE, error, "autofill");
+			errstr = gctl_issue(r);
+			if (errstr != NULL && errstr[0] != '\0') {
+				gpart_print_error(errstr);
+				gctl_free(r);
+				goto backout;
+			}
+			gctl_free(r);
+		}
+		if (pline == NULL || *pline != '[')
+			continue;
+		/* set attributes */
+		pline++;
+		label = argv[0]; /* save pointer to index_param */
+		for (ap = argv;
+		    (*ap = strsep(&pline, ",]")) != NULL;)
+			if (**ap != '\0' && ++ap >= &argv[6])
+				break;
+		for (i = 0; i < nargs; i++) {
+			l = ap - &argv[0];
+			s = gctl_get_ascii(req, "arg%d", i);
+			while (l > 0) {
+				r = gctl_get_handle();
+				gctl_ro_param(r, "class", -1, classp->lg_name);
+				gctl_ro_param(r, "verb", -1, "set");
+				gctl_ro_param(r, "flags", -1, "restore");
+				gctl_ro_param(r, index_param, -1, label);
+				gctl_ro_param(r, "attrib", -1, argv[--l]);
+				gctl_ro_param(r, "geom", -1, s);
+				errstr = gctl_issue(r);
+				if (errstr != NULL && errstr[0] != '\0') {
+					gpart_print_error(errstr);
+					gctl_free(r);
+					goto backout;
+				}
+				gctl_free(r);
+			}
+		}
+	}
+	if (undo_restore)
+		goto backout;
+	/* commit changes if needed */
+	if (strchr(flagss, 'C') != NULL) {
+		for (i = 0; i < nargs; i++) {
+			s = gctl_get_ascii(req, "arg%d", i);
+			r = gctl_get_handle();
+			gctl_ro_param(r, "class", -1, classp->lg_name);
+			gctl_ro_param(r, "verb", -1, "commit");
+			gctl_ro_param(r, "geom", -1, s);
+			errstr = gctl_issue(r);
+			if (errstr != NULL && errstr[0] != '\0') {
+				gpart_print_error(errstr);
+				gctl_free(r);
+				goto backout;
+			}
+			gctl_free(r);
+		}
+	}
+	gctl_free(req);
+	geom_deletetree(&mesh);
+	exit(EXIT_SUCCESS);
+
+backout:
+	for (i = 0; i < nargs; i++) {
+		s = gctl_get_ascii(req, "arg%d", i);
+		r = gctl_get_handle();
+		gctl_ro_param(r, "class", -1, classp->lg_name);
+		gctl_ro_param(r, "verb", -1, "undo");
+		gctl_ro_param(r, "geom", -1, s);
+		gctl_issue(r);
+		gctl_free(r);
+	}
+	gctl_free(req);
+	geom_deletetree(&mesh);
+	exit(EXIT_FAILURE);
 }
 
 static void *
