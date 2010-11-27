@@ -3344,10 +3344,14 @@ tcp_mss(struct tcpcb *tp, int offer)
 	 * hostcache when cwnd collapses so next connection doesn't
 	 * overloads the path again.
 	 *
+	 * XXXAO: Initializing the CWND from the hostcache is broken
+	 * and in its current form not RFC conformant.  It is disabled
+	 * until fixed or removed entirely.
+	 *
 	 * RFC3390 says only do this if SYN or SYN/ACK didn't got lost.
 	 * We currently check only in syncache_socket for that.
 	 */
-#define TCP_METRICS_CWND
+/* #define TCP_METRICS_CWND */
 #ifdef TCP_METRICS_CWND
 	if (metrics.rmx_cwnd)
 		tp->snd_cwnd = max(mss,
