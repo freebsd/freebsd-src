@@ -147,13 +147,9 @@ static bool	ixgbe_rxeof(struct ix_queue *, int);
 static void	ixgbe_rx_checksum(u32, struct mbuf *, u32);
 static void     ixgbe_set_promisc(struct adapter *);
 static void     ixgbe_set_multi(struct adapter *);
-static void     ixgbe_print_hw_stats(struct adapter *);
-static void	ixgbe_print_debug_info(struct adapter *);
 static void     ixgbe_update_link_status(struct adapter *);
 static void	ixgbe_refresh_mbufs(struct rx_ring *, int);
 static int      ixgbe_xmit(struct tx_ring *, struct mbuf **);
-static int      ixgbe_sysctl_stats(SYSCTL_HANDLER_ARGS);
-static int	ixgbe_sysctl_debug(SYSCTL_HANDLER_ARGS);
 static int	ixgbe_set_flowcntl(SYSCTL_HANDLER_ARGS);
 static int	ixgbe_set_advertise(SYSCTL_HANDLER_ARGS);
 static int	ixgbe_dma_malloc(struct adapter *, bus_size_t,
@@ -170,6 +166,8 @@ static u8 *	ixgbe_mc_array_itr(struct ixgbe_hw *, u8 **, u32 *);
 static void	ixgbe_setup_vlan_hw_support(struct adapter *);
 static void	ixgbe_register_vlan(void *, struct ifnet *, u16);
 static void	ixgbe_unregister_vlan(void *, struct ifnet *, u16);
+
+static void     ixgbe_add_hw_stats(struct adapter *adapter);
 
 static __inline void ixgbe_rx_discard(struct rx_ring *, int);
 static __inline void ixgbe_rx_input(struct rx_ring *, struct ifnet *,
@@ -231,6 +229,9 @@ MODULE_DEPEND(ixgbe, ether, 1, 1, 1);
 */
 static int ixgbe_enable_aim = TRUE;
 TUNABLE_INT("hw.ixgbe.enable_aim", &ixgbe_enable_aim);
+
+static int ixgbe_max_interrupt_rate = (8000000 / IXGBE_LOW_LATENCY);
+TUNABLE_INT("hw.ixgbe.max_interrupt_rate", &ixgbe_max_interrupt_rate);
 
 /* How many packets rxeof tries to clean at a time */
 static int ixgbe_rx_process_limit = 128;
@@ -445,15 +446,6 @@ ixgbe_attach(device_t dev)
 	}
 
 	/* SYSCTL APIs */
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-			OID_AUTO, "stats", CTLTYPE_INT | CTLFLAG_RW,
-			adapter, 0, ixgbe_sysctl_stats, "I", "Statistics");
-
-	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-			OID_AUTO, "debug", CTLTYPE_INT | CTLFLAG_RW,
-			adapter, 0, ixgbe_sysctl_debug, "I", "Debug Info");
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -630,6 +622,8 @@ ixgbe_attach(device_t dev)
 	ctrl_ext = IXGBE_READ_REG(hw, IXGBE_CTRL_EXT);
 	ctrl_ext |= IXGBE_CTRL_EXT_DRV_LOAD;
 	IXGBE_WRITE_REG(hw, IXGBE_CTRL_EXT, ctrl_ext);
+
+	ixgbe_add_hw_stats(adapter);
 
 	INIT_DEBUGOUT("ixgbe_attach: end");
 	return (0);
@@ -1885,7 +1879,6 @@ static void
 ixgbe_local_timer(void *arg)
 {
 	struct adapter *adapter = arg;
-	struct ifnet   *ifp = adapter->ifp;
 	device_t	dev = adapter->dev;
 	struct tx_ring *txr = adapter->tx_rings;
 
@@ -1898,10 +1891,6 @@ ixgbe_local_timer(void *arg)
 
 	ixgbe_update_link_status(adapter);
 	ixgbe_update_stats_counters(adapter);
-
-	/* Debug display */
-	if (ixgbe_display_debug_stats && ifp->if_drv_flags & IFF_DRV_RUNNING)
-		ixgbe_print_hw_stats(adapter);
 
 	/*
 	 * If the interface has been paused
@@ -1918,7 +1907,7 @@ ixgbe_local_timer(void *arg)
 			goto hung;
 
 out:
-       	ixgbe_rearm_queues(adapter, adapter->que_mask);
+	ixgbe_rearm_queues(adapter, adapter->que_mask);
 	callout_reset(&adapter->timer, hz, ixgbe_local_timer, adapter);
 	return;
 
@@ -4623,6 +4612,12 @@ static void
 ixgbe_configure_ivars(struct adapter *adapter)
 {
 	struct  ix_queue *que = adapter->queues;
+	u32 newitr;
+
+	if (ixgbe_max_interrupt_rate > 0)
+		newitr = (8000000 / ixgbe_max_interrupt_rate) & 0x0FF8;
+	else
+		newitr = 0;
 
         for (int i = 0; i < adapter->num_queues; i++, que++) {
 		/* First the RX queue entry */
@@ -4631,7 +4626,7 @@ ixgbe_configure_ivars(struct adapter *adapter)
 		ixgbe_set_ivar(adapter, i, que->msix, 1);
 		/* Set an Initial EITR value */
                 IXGBE_WRITE_REG(&adapter->hw,
-                    IXGBE_EITR(que->msix), IXGBE_LOW_LATENCY);
+                    IXGBE_EITR(que->msix), newitr);
 	}
 
 	/* For the Link interrupt */
@@ -4768,6 +4763,9 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 	u64  total_missed_rx = 0;
 
 	adapter->stats.crcerrs += IXGBE_READ_REG(hw, IXGBE_CRCERRS);
+	adapter->stats.illerrc += IXGBE_READ_REG(hw, IXGBE_ILLERRC);
+	adapter->stats.errbc += IXGBE_READ_REG(hw, IXGBE_ERRBC);
+	adapter->stats.mspdc += IXGBE_READ_REG(hw, IXGBE_MSPDC);
 
 	for (int i = 0; i < 8; i++) {
 		u32 mp;
@@ -4779,20 +4777,45 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 		/* Running comprehensive total for stats display */
 		total_missed_rx += adapter->stats.mpc[i];
 		if (hw->mac.type == ixgbe_mac_82598EB)
-			adapter->stats.rnbc[i] += IXGBE_READ_REG(hw, IXGBE_RNBC(i));
+			adapter->stats.rnbc[i] +=
+			    IXGBE_READ_REG(hw, IXGBE_RNBC(i));
+		adapter->stats.pxontxc[i] +=
+		    IXGBE_READ_REG(hw, IXGBE_PXONTXC(i));
+		adapter->stats.pxonrxc[i] +=
+		    IXGBE_READ_REG(hw, IXGBE_PXONRXC(i));
+		adapter->stats.pxofftxc[i] +=
+		    IXGBE_READ_REG(hw, IXGBE_PXOFFTXC(i));
+		adapter->stats.pxoffrxc[i] +=
+		    IXGBE_READ_REG(hw, IXGBE_PXOFFRXC(i));
+		adapter->stats.pxon2offc[i] +=
+		    IXGBE_READ_REG(hw, IXGBE_PXON2OFFCNT(i));
 	}
+	for (int i = 0; i < 16; i++) {
+		adapter->stats.qprc[i] += IXGBE_READ_REG(hw, IXGBE_QPRC(i));
+		adapter->stats.qptc[i] += IXGBE_READ_REG(hw, IXGBE_QPTC(i));
+		adapter->stats.qbrc[i] += IXGBE_READ_REG(hw, IXGBE_QBRC(i));
+		adapter->stats.qbrc[i] += 
+		    ((u64)IXGBE_READ_REG(hw, IXGBE_QBRC(i)) << 32);
+		adapter->stats.qbtc[i] += IXGBE_READ_REG(hw, IXGBE_QBTC(i));
+		adapter->stats.qbtc[i] +=
+		    ((u64)IXGBE_READ_REG(hw, IXGBE_QBTC(i)) << 32);
+		adapter->stats.qprdc[i] += IXGBE_READ_REG(hw, IXGBE_QPRDC(i));
+	}
+	adapter->stats.mlfc += IXGBE_READ_REG(hw, IXGBE_MLFC);
+	adapter->stats.mrfc += IXGBE_READ_REG(hw, IXGBE_MRFC);
+	adapter->stats.rlec += IXGBE_READ_REG(hw, IXGBE_RLEC);
 
 	/* Hardware workaround, gprc counts missed packets */
 	adapter->stats.gprc += IXGBE_READ_REG(hw, IXGBE_GPRC);
 	adapter->stats.gprc -= missed_rx;
 
 	if (hw->mac.type == ixgbe_mac_82599EB) {
-		adapter->stats.gorc += IXGBE_READ_REG(hw, IXGBE_GORCL);
-		IXGBE_READ_REG(hw, IXGBE_GORCH); /* clears register */
-		adapter->stats.gotc += IXGBE_READ_REG(hw, IXGBE_GOTCL);
-		IXGBE_READ_REG(hw, IXGBE_GOTCH); /* clears register */
-		adapter->stats.tor += IXGBE_READ_REG(hw, IXGBE_TORL);
-		IXGBE_READ_REG(hw, IXGBE_TORH); /* clears register */
+		adapter->stats.gorc += IXGBE_READ_REG(hw, IXGBE_GORCL) +
+		    ((u64)IXGBE_READ_REG(hw, IXGBE_GORCH) << 32);
+		adapter->stats.gotc += IXGBE_READ_REG(hw, IXGBE_GOTCL) +
+		    ((u64)IXGBE_READ_REG(hw, IXGBE_GOTCH) << 32);
+		adapter->stats.tor += IXGBE_READ_REG(hw, IXGBE_TORL) +
+		    ((u64)IXGBE_READ_REG(hw, IXGBE_TORH) << 32);
 		adapter->stats.lxonrxc += IXGBE_READ_REG(hw, IXGBE_LXONRXCNT);
 		adapter->stats.lxoffrxc += IXGBE_READ_REG(hw, IXGBE_LXOFFRXCNT);
 	} else {
@@ -4813,14 +4836,12 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 	adapter->stats.mprc += IXGBE_READ_REG(hw, IXGBE_MPRC);
 	adapter->stats.mprc -= bprc;
 
-	adapter->stats.roc += IXGBE_READ_REG(hw, IXGBE_ROC);
 	adapter->stats.prc64 += IXGBE_READ_REG(hw, IXGBE_PRC64);
 	adapter->stats.prc127 += IXGBE_READ_REG(hw, IXGBE_PRC127);
 	adapter->stats.prc255 += IXGBE_READ_REG(hw, IXGBE_PRC255);
 	adapter->stats.prc511 += IXGBE_READ_REG(hw, IXGBE_PRC511);
 	adapter->stats.prc1023 += IXGBE_READ_REG(hw, IXGBE_PRC1023);
 	adapter->stats.prc1522 += IXGBE_READ_REG(hw, IXGBE_PRC1522);
-	adapter->stats.rlec += IXGBE_READ_REG(hw, IXGBE_RLEC);
 
 	lxon = IXGBE_READ_REG(hw, IXGBE_LXONTXC);
 	adapter->stats.lxontxc += lxon;
@@ -4838,14 +4859,27 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 
 	adapter->stats.ruc += IXGBE_READ_REG(hw, IXGBE_RUC);
 	adapter->stats.rfc += IXGBE_READ_REG(hw, IXGBE_RFC);
+	adapter->stats.roc += IXGBE_READ_REG(hw, IXGBE_ROC);
 	adapter->stats.rjc += IXGBE_READ_REG(hw, IXGBE_RJC);
+	adapter->stats.mngprc += IXGBE_READ_REG(hw, IXGBE_MNGPRC);
+	adapter->stats.mngpdc += IXGBE_READ_REG(hw, IXGBE_MNGPDC);
+	adapter->stats.mngptc += IXGBE_READ_REG(hw, IXGBE_MNGPTC);
 	adapter->stats.tpr += IXGBE_READ_REG(hw, IXGBE_TPR);
+	adapter->stats.tpt += IXGBE_READ_REG(hw, IXGBE_TPT);
 	adapter->stats.ptc127 += IXGBE_READ_REG(hw, IXGBE_PTC127);
 	adapter->stats.ptc255 += IXGBE_READ_REG(hw, IXGBE_PTC255);
 	adapter->stats.ptc511 += IXGBE_READ_REG(hw, IXGBE_PTC511);
 	adapter->stats.ptc1023 += IXGBE_READ_REG(hw, IXGBE_PTC1023);
 	adapter->stats.ptc1522 += IXGBE_READ_REG(hw, IXGBE_PTC1522);
 	adapter->stats.bptc += IXGBE_READ_REG(hw, IXGBE_BPTC);
+	adapter->stats.xec += IXGBE_READ_REG(hw, IXGBE_XEC);
+	adapter->stats.fccrc += IXGBE_READ_REG(hw, IXGBE_FCCRC);
+	adapter->stats.fclast += IXGBE_READ_REG(hw, IXGBE_FCLAST);
+	adapter->stats.fcoerpdc += IXGBE_READ_REG(hw, IXGBE_FCOERPDC);
+	adapter->stats.fcoeprc += IXGBE_READ_REG(hw, IXGBE_FCOEPRC);
+	adapter->stats.fcoeptc += IXGBE_READ_REG(hw, IXGBE_FCOEPTC);
+	adapter->stats.fcoedwrc += IXGBE_READ_REG(hw, IXGBE_FCOEDWRC);
+	adapter->stats.fcoedwtc += IXGBE_READ_REG(hw, IXGBE_FCOEDWTC);
 
 
 	/* Fill out the OS statistics structure */
@@ -4861,147 +4895,372 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 		adapter->stats.rlec;
 }
 
-
-/**********************************************************************
- *
- *  This routine is called only when ixgbe_display_debug_stats is enabled.
- *  This routine provides a way to take a look at important statistics
- *  maintained by the driver and hardware.
- *
- **********************************************************************/
-static void
-ixgbe_print_hw_stats(struct adapter * adapter)
+/** ixgbe_sysctl_tdh_handler - Handler function
+ *  Retrieves the TDH value from the hardware
+ */
+static int 
+ixgbe_sysctl_tdh_handler(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev = adapter->dev;
+	int error;
 
+	struct tx_ring *txr = ((struct tx_ring *)oidp->oid_arg1);
+	if (!txr) return 0;
 
-	device_printf(dev,"Std Mbuf Failed = %lu\n",
-	       adapter->mbuf_defrag_failed);
-	device_printf(dev,"Missed Packets = %llu\n",
-	       (long long)adapter->stats.mpc[0]);
-	device_printf(dev,"Receive length errors = %llu\n",
-	       ((long long)adapter->stats.roc +
-	       (long long)adapter->stats.ruc));
-	device_printf(dev,"Crc errors = %llu\n",
-	       (long long)adapter->stats.crcerrs);
-	device_printf(dev,"Driver dropped packets = %lu\n",
-	       adapter->dropped_pkts);
-	device_printf(dev, "watchdog timeouts = %ld\n",
-	       adapter->watchdog_events);
-
-	device_printf(dev,"XON Rcvd = %llu\n",
-	       (long long)adapter->stats.lxonrxc);
-	device_printf(dev,"XON Xmtd = %llu\n",
-	       (long long)adapter->stats.lxontxc);
-	device_printf(dev,"XOFF Rcvd = %llu\n",
-	       (long long)adapter->stats.lxoffrxc);
-	device_printf(dev,"XOFF Xmtd = %llu\n",
-	       (long long)adapter->stats.lxofftxc);
-
-	device_printf(dev,"Total Packets Rcvd = %llu\n",
-	       (long long)adapter->stats.tpr);
-	device_printf(dev,"Good Packets Rcvd = %llu\n",
-	       (long long)adapter->stats.gprc);
-	device_printf(dev,"Good Packets Xmtd = %llu\n",
-	       (long long)adapter->stats.gptc);
-	device_printf(dev,"TSO Transmissions = %lu\n",
-	       adapter->tso_tx);
-
-	return;
+	unsigned val = IXGBE_READ_REG(&txr->adapter->hw, IXGBE_TDH(txr->me));
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return error;
+	return 0;
 }
 
-/**********************************************************************
- *
- *  This routine is called only when em_display_debug_stats is enabled.
- *  This routine provides a way to take a look at important statistics
- *  maintained by the driver and hardware.
- *
- **********************************************************************/
-static void
-ixgbe_print_debug_info(struct adapter *adapter)
+/** ixgbe_sysctl_tdt_handler - Handler function
+ *  Retrieves the TDT value from the hardware
+ */
+static int 
+ixgbe_sysctl_tdt_handler(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev = adapter->dev;
-	struct ixgbe_hw		*hw = &adapter->hw;
-	struct ix_queue		*que = adapter->queues;
-	struct rx_ring		*rxr;
-	struct tx_ring		*txr;
-	struct lro_ctrl		*lro;
- 
-	device_printf(dev,"Error Byte Count = %u \n",
-	    IXGBE_READ_REG(hw, IXGBE_ERRBC));
+	int error;
 
-	for (int i = 0; i < adapter->num_queues; i++, que++) {
-		txr = que->txr;
-		rxr = que->rxr;
-		lro = &rxr->lro;
-		device_printf(dev,"QUE(%d) IRQs Handled: %lu\n",
-		    que->msix, (long)que->irqs);
-		device_printf(dev,"RX[%d]: rdh = %d, hw rdt = %d\n",
-	    	    i, IXGBE_READ_REG(hw, IXGBE_RDH(i)),
-	    	    IXGBE_READ_REG(hw, IXGBE_RDT(i)));
-		device_printf(dev,"TX[%d] tdh = %d, hw tdt = %d\n", i,
-		    IXGBE_READ_REG(hw, IXGBE_TDH(i)),
-		    IXGBE_READ_REG(hw, IXGBE_TDT(i)));
-		device_printf(dev,"RX(%d) Packets Received: %lld\n",
-	    	    rxr->me, (long long)rxr->rx_packets);
-		device_printf(dev,"RX(%d) Split RX Packets: %lld\n",
-	    	    rxr->me, (long long)rxr->rx_split_packets);
-		device_printf(dev,"RX(%d) Bytes Received: %lu\n",
-	    	    rxr->me, (long)rxr->rx_bytes);
-		device_printf(dev,"RX(%d) LRO Queued= %d\n",
-		    rxr->me, lro->lro_queued);
-		device_printf(dev,"RX(%d) LRO Flushed= %d\n",
-		    rxr->me, lro->lro_flushed);
-		device_printf(dev,"RX(%d) HW LRO Merges= %lu\n",
-		    rxr->me, (long)rxr->rsc_num);
-		device_printf(dev,"TX(%d) Packets Sent: %lu\n",
-		    txr->me, (long)txr->total_packets);
-		device_printf(dev,"TX(%d) NO Desc Avail: %lu\n",
-		    txr->me, (long)txr->no_desc_avail);
-	}
+	struct tx_ring *txr = ((struct tx_ring *)oidp->oid_arg1);
+	if (!txr) return 0;
 
-	device_printf(dev,"Link IRQ Handled: %lu\n",
-    	    (long)adapter->link_irq);
-	return;
+	unsigned val = IXGBE_READ_REG(&txr->adapter->hw, IXGBE_TDT(txr->me));
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return error;
+	return 0;
+}
+
+/** ixgbe_sysctl_rdh_handler - Handler function
+ *  Retrieves the RDH value from the hardware
+ */
+static int 
+ixgbe_sysctl_rdh_handler(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	struct rx_ring *rxr = ((struct rx_ring *)oidp->oid_arg1);
+	if (!rxr) return 0;
+
+	unsigned val = IXGBE_READ_REG(&rxr->adapter->hw, IXGBE_RDH(rxr->me));
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return error;
+	return 0;
+}
+
+/** ixgbe_sysctl_rdt_handler - Handler function
+ *  Retrieves the RDT value from the hardware
+ */
+static int 
+ixgbe_sysctl_rdt_handler(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	struct rx_ring *rxr = ((struct rx_ring *)oidp->oid_arg1);
+	if (!rxr) return 0;
+
+	unsigned val = IXGBE_READ_REG(&rxr->adapter->hw, IXGBE_RDT(rxr->me));
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return error;
+	return 0;
 }
 
 static int
-ixgbe_sysctl_stats(SYSCTL_HANDLER_ARGS)
+ixgbe_sysctl_interrupt_rate_handler(SYSCTL_HANDLER_ARGS)
 {
-	int             error;
-	int             result;
-	struct adapter *adapter;
+	int error;
+	struct ix_queue *que = ((struct ix_queue *)oidp->oid_arg1);
+	unsigned int reg, usec, rate;
 
-	result = -1;
-	error = sysctl_handle_int(oidp, &result, 0, req);
-
+	reg = IXGBE_READ_REG(&que->adapter->hw, IXGBE_EITR(que->msix));
+	usec = ((reg & 0x0FF8) >> 3);
+	if (usec > 0)
+		rate = 1000000 / usec;
+	else
+		rate = 0;
+	error = sysctl_handle_int(oidp, &rate, 0, req);
 	if (error || !req->newptr)
-		return (error);
-
-	if (result == 1) {
-		adapter = (struct adapter *) arg1;
-		ixgbe_print_hw_stats(adapter);
-	}
-	return error;
+		return error;
+	return 0;
 }
 
-static int
-ixgbe_sysctl_debug(SYSCTL_HANDLER_ARGS)
+/*
+ * Add sysctl variables, one per statistic, to the system.
+ */
+static void
+ixgbe_add_hw_stats(struct adapter *adapter)
 {
-	int error, result;
-	struct adapter *adapter;
 
-	result = -1;
-	error = sysctl_handle_int(oidp, &result, 0, req);
+	device_t dev = adapter->dev;
 
-	if (error || !req->newptr)
-		return (error);
+	struct tx_ring *txr = adapter->tx_rings;
+	struct rx_ring *rxr = adapter->rx_rings;
 
-	if (result == 1) {
-		adapter = (struct adapter *) arg1;
-		ixgbe_print_debug_info(adapter);
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(dev);
+	struct sysctl_oid *tree = device_get_sysctl_tree(dev);
+	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
+	struct ixgbe_hw_stats *stats = &adapter->stats;
+
+	struct sysctl_oid *stat_node, *queue_node;
+	struct sysctl_oid_list *stat_list, *queue_list;
+
+#define QUEUE_NAME_LEN 32
+	char namebuf[QUEUE_NAME_LEN];
+
+	/* Driver Statistics */
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "dropped",
+			CTLFLAG_RD, &adapter->dropped_pkts,
+			"Driver dropped packets");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "mbuf_defrag_failed",
+			CTLFLAG_RD, &adapter->mbuf_defrag_failed,
+			"m_defrag() failed");
+#if 0
+	/* These counters are not updated by the software */
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "mbuf_header_failed",
+			CTLFLAG_RD, &adapter->mbuf_header_failed,
+			"???");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "mbuf_packet_failed",
+			CTLFLAG_RD, &adapter->mbuf_packet_failed,
+			"???");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "no_tx_map_avail",
+			CTLFLAG_RD, &adapter->no_tx_map_avail,
+			"???");
+#endif
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "no_tx_dma_setup",
+			CTLFLAG_RD, &adapter->no_tx_dma_setup,
+			"Driver tx dma failure in xmit");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "watchdog_events",
+			CTLFLAG_RD, &adapter->watchdog_events,
+			"Watchdog timeouts");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "tso_tx",
+			CTLFLAG_RD, &adapter->tso_tx,
+			"TSO");
+	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "link_irq",
+			CTLFLAG_RD, &adapter->link_irq,
+			"Link MSIX IRQ Handled");
+
+	for (int i = 0; i < adapter->num_queues; i++, txr++) {
+		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);
+		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf,
+					    CTLFLAG_RD, NULL, "Queue Name");
+		queue_list = SYSCTL_CHILDREN(queue_node);
+
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "interrupt_rate",
+				CTLFLAG_RD, &adapter->queues[i], sizeof(&adapter->queues[i]),
+				ixgbe_sysctl_interrupt_rate_handler, "IU",
+				"Interrupt Rate");
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_head", 
+				CTLFLAG_RD, txr, sizeof(txr),
+				ixgbe_sysctl_tdh_handler, "IU",
+				"Transmit Descriptor Head");
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_tail", 
+				CTLFLAG_RD, txr, sizeof(txr),
+				ixgbe_sysctl_tdt_handler, "IU",
+				"Transmit Descriptor Tail");
+		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "no_desc_avail", 
+				CTLFLAG_RD, &txr->no_desc_avail,
+				"Queue No Descriptor Available");
+		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "tx_packets",
+				CTLFLAG_RD, &txr->total_packets,
+				"Queue Packets Transmitted");
 	}
-	return error;
+
+	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
+		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);
+		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf, 
+					    CTLFLAG_RD, NULL, "Queue Name");
+		queue_list = SYSCTL_CHILDREN(queue_node);
+
+		struct lro_ctrl *lro = &rxr->lro;
+
+		snprintf(namebuf, QUEUE_NAME_LEN, "queue%d", i);
+		queue_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, namebuf, 
+					    CTLFLAG_RD, NULL, "Queue Name");
+		queue_list = SYSCTL_CHILDREN(queue_node);
+
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_head", 
+				CTLFLAG_RD, rxr, sizeof(rxr),
+				ixgbe_sysctl_rdh_handler, "IU",
+				"Receive Descriptor Head");
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_tail", 
+				CTLFLAG_RD, rxr, sizeof(rxr),
+				ixgbe_sysctl_rdt_handler, "IU",
+				"Receive Descriptor Tail");
+		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "rx_packets",
+				CTLFLAG_RD, &rxr->rx_packets,
+				"Queue Packets Received");
+		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "rx_bytes",
+				CTLFLAG_RD, &rxr->rx_bytes,
+				"Queue Bytes Received");
+		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "lro_queued",
+				CTLFLAG_RD, &lro->lro_queued, 0,
+				"LRO Queued");
+		SYSCTL_ADD_UINT(ctx, queue_list, OID_AUTO, "lro_flushed",
+				CTLFLAG_RD, &lro->lro_flushed, 0,
+				"LRO Flushed");
+	}
+
+	/* MAC stats get the own sub node */
+
+	stat_node = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "mac_stats", 
+				    CTLFLAG_RD, NULL, "MAC Statistics");
+	stat_list = SYSCTL_CHILDREN(stat_node);
+
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "crc_errs",
+			CTLFLAG_RD, &stats->crcerrs,
+			"CRC Errors");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "ill_errs",
+			CTLFLAG_RD, &stats->illerrc,
+			"Illegal Byte Errors");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "byte_errs",
+			CTLFLAG_RD, &stats->errbc,
+			"Byte Errors");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "short_discards",
+			CTLFLAG_RD, &stats->mspdc,
+			"MAC Short Packets Discarded");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "local_faults",
+			CTLFLAG_RD, &stats->mlfc,
+			"MAC Local Faults");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "remote_faults",
+			CTLFLAG_RD, &stats->mrfc,
+			"MAC Remote Faults");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "rec_len_errs",
+			CTLFLAG_RD, &stats->rlec,
+			"Receive Length Errors");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "link_xon_txd",
+			CTLFLAG_RD, &stats->lxontxc,
+			"Link XON Transmitted");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "link_xon_rcvd",
+			CTLFLAG_RD, &stats->lxontxc,
+			"Link XON Received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "link_xoff_txd",
+			CTLFLAG_RD, &stats->lxofftxc,
+			"Link XOFF Transmitted");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "link_xoff_rcvd",
+			CTLFLAG_RD, &stats->lxofftxc,
+			"Link XOFF Received");
+
+	/* Packet Reception Stats */
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "total_octets_rcvd", 
+			CTLFLAG_RD, &stats->tor, 
+			"Total Octets Received"); 
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_octets_rcvd", 
+			CTLFLAG_RD, &stats->gorc, 
+			"Good Octets Received"); 
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "total_pkts_rcvd",
+			CTLFLAG_RD, &stats->tpr,
+			"Total Packets Received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_pkts_rcvd",
+			CTLFLAG_RD, &stats->gprc,
+			"Good Packets Received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "mcast_pkts_rcvd",
+			CTLFLAG_RD, &stats->mprc,
+			"Multicast Packets Received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "bcast_pkts_rcvd",
+			CTLFLAG_RD, &stats->bprc,
+			"Broadcast Packets Received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "rx_frames_64",
+			CTLFLAG_RD, &stats->prc64,
+			"64 byte frames received ");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "rx_frames_65_127",
+			CTLFLAG_RD, &stats->prc127,
+			"65-127 byte frames received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "rx_frames_128_255",
+			CTLFLAG_RD, &stats->prc255,
+			"128-255 byte frames received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "rx_frames_256_511",
+			CTLFLAG_RD, &stats->prc511,
+			"256-511 byte frames received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "rx_frames_512_1023",
+			CTLFLAG_RD, &stats->prc1023,
+			"512-1023 byte frames received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "rx_frames_1024_1522",
+			CTLFLAG_RD, &stats->prc1522,
+			"1023-1522 byte frames received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_undersized",
+			CTLFLAG_RD, &stats->ruc,
+			"Receive Undersized");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_fragmented",
+			CTLFLAG_RD, &stats->rfc,
+			"Fragmented Packets Received ");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_oversized",
+			CTLFLAG_RD, &stats->roc,
+			"Oversized Packets Received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "recv_jabberd",
+			CTLFLAG_RD, &stats->rjc,
+			"Received Jabber");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "management_pkts_rcvd",
+			CTLFLAG_RD, &stats->mngprc,
+			"Management Packets Received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "management_pkts_drpd",
+			CTLFLAG_RD, &stats->mngptc,
+			"Management Packets Dropped");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "checksum_errs",
+			CTLFLAG_RD, &stats->xec,
+			"Checksum Errors");
+
+	/* Packet Transmission Stats */
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_octets_txd", 
+			CTLFLAG_RD, &stats->gotc, 
+			"Good Octets Transmitted"); 
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "total_pkts_txd",
+			CTLFLAG_RD, &stats->tpt,
+			"Total Packets Transmitted");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "good_pkts_txd",
+			CTLFLAG_RD, &stats->gptc,
+			"Good Packets Transmitted");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "bcast_pkts_txd",
+			CTLFLAG_RD, &stats->bptc,
+			"Broadcast Packets Transmitted");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "mcast_pkts_txd",
+			CTLFLAG_RD, &stats->mptc,
+			"Multicast Packets Transmitted");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "management_pkts_txd",
+			CTLFLAG_RD, &stats->mngptc,
+			"Management Packets Transmitted");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "tx_frames_64",
+			CTLFLAG_RD, &stats->ptc64,
+			"64 byte frames transmitted ");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "tx_frames_65_127",
+			CTLFLAG_RD, &stats->ptc127,
+			"65-127 byte frames transmitted");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "tx_frames_128_255",
+			CTLFLAG_RD, &stats->ptc255,
+			"128-255 byte frames transmitted");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "tx_frames_256_511",
+			CTLFLAG_RD, &stats->ptc511,
+			"256-511 byte frames transmitted");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "tx_frames_512_1023",
+			CTLFLAG_RD, &stats->ptc1023,
+			"512-1023 byte frames transmitted");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "tx_frames_1024_1522",
+			CTLFLAG_RD, &stats->ptc1522,
+			"1024-1522 byte frames transmitted");
+
+	/* FC Stats */
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "fc_crc",
+		CTLFLAG_RD, &stats->fccrc,
+		"FC CRC Errors");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "fc_last",
+		CTLFLAG_RD, &stats->fclast,
+		"FC Last Error");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "fc_drpd",
+		CTLFLAG_RD, &stats->fcoerpdc,
+		"FCoE Packets Dropped");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "fc_pkts_rcvd",
+		CTLFLAG_RD, &stats->fcoeprc,
+		"FCoE Packets Received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "fc_pkts_txd",
+		CTLFLAG_RD, &stats->fcoeptc,
+		"FCoE Packets Transmitted");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "fc_dword_rcvd",
+		CTLFLAG_RD, &stats->fcoedwrc,
+		"FCoE DWords Received");
+	SYSCTL_ADD_QUAD(ctx, stat_list, OID_AUTO, "fc_dword_txd",
+		CTLFLAG_RD, &stats->fcoedwtc,
+		"FCoE DWords Transmitted");
 }
 
 /*
