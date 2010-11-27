@@ -36,15 +36,15 @@ SUBDIR=	${_3dfx} \
 	ata \
 	ath \
 	${_auxio} \
-	bce \
+	${_bce} \
 	bfe \
 	bge \
 	${_bios} \
 	${_bktr} \
 	${_bm} \
 	bridgestp \
-	bwi \
-	bwn \
+	${_bwi} \
+	${_bwn} \
 	cam \
 	${_canbepm} \
 	${_canbus} \
@@ -68,7 +68,7 @@ SUBDIR=	${_3dfx} \
 	${_cryptodev} \
 	${_cs} \
 	${_ctau} \
-	cxgb \
+	${_cxgb} \
 	${_cyclic} \
 	dc \
 	dcons \
@@ -179,13 +179,13 @@ SUBDIR=	${_3dfx} \
 	mcd \
 	md \
 	mem \
-	mfi \
+	${_mfi} \
 	mii \
 	mlx \
 	${_mly} \
 	mmc \
 	mmcsd \
-	mpt \
+	${_mpt} \
 	mqueue \
 	msdosfs \
 	msdosfs_iconv \
@@ -258,7 +258,7 @@ SUBDIR=	${_3dfx} \
 	sem \
 	sf \
 	sge \
-	siba_bwn \
+	${_siba_bwn} \
 	siftr \
 	siis \
 	sis \
@@ -276,7 +276,7 @@ SUBDIR=	${_3dfx} \
 	stge \
 	${_streams} \
 	${_svr4} \
-	sym \
+	${_sym} \
 	${_syscons} \
 	sysvipc \
 	ti \
@@ -288,7 +288,7 @@ SUBDIR=	${_3dfx} \
 	twe \
 	tx \
 	txp \
-	uart \
+	${_uart} \
 	ubsec \
 	udf \
 	udf_iconv \
@@ -321,9 +321,24 @@ SUBDIR=	${_3dfx} \
 	${_zfs} \
 	zlib \
 
-.if ${MACHINE_ARCH} != "powerpc"
+.if ${MACHINE_ARCH} != "powerpc" && ${MACHINE_ARCH} != "arm" && \
+	${MACHINE_ARCH} != "mips"
 _syscons=	syscons
 _vpo=		vpo
+.endif
+
+.if ${MACHINE_ARCH} != "arm" && ${MACHINE_ARCH} != "mips"
+# no BUS_SPACE_UNSPECIFIED
+_bce=		bce
+_bwi=		bwi
+_bwn=		bwn
+_mfi=		mfi
+_mpt=		mpt
+_siba_bwn=	siba_bwn
+# No barrier instruction support (specific to this driver)
+_sym=		sym
+# no uart_cpu_$MACHINE_ARCH
+_uart=		uart
 .endif
 
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)

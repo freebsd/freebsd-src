@@ -34,6 +34,10 @@
 #ifndef _MACHINE__LIMITS_H_
 #define	_MACHINE__LIMITS_H_
 
+#if _MIPS_SZLONG == 64
+#define	_LARGE_LONG
+#endif
+
 /*
  * According to ANSI (section 2.2.4.2), the values below must be usable by
  * #if preprocessing directives.  Additionally, the expression must have the
@@ -76,9 +80,9 @@
 #define	__LLONG_MAX	0x7fffffffffffffffLL	/* max value for a long long */
 #define	__LLONG_MIN	(-0x7fffffffffffffffLL - 1)  /* min for a long long */
 
-#define	__SSIZE_MAX	__INT_MAX	/* max value for a ssize_t */
+#define	__SSIZE_MAX	__LONG_MAX	/* max value for a ssize_t */
 
-#define	__SIZE_T_MAX	__UINT_MAX	/* max value for a size_t */
+#define	__SIZE_T_MAX	__ULONG_MAX	/* max value for a size_t */
 
 #define	__OFF_MAX	__LLONG_MAX	/* max value for an off_t */
 #define	__OFF_MIN	__LLONG_MIN	/* min value for an off_t */

@@ -53,7 +53,7 @@ struct mdthread {
 	int	md_pc_ctrl;		/* performance counter control */
 	int	md_pc_count;		/* performance counter */
 	int	md_pc_spill;		/* performance counter spill */
-	vm_offset_t	md_realstack;
+	void	*md_tls;
 };
 
 /* md_flags */

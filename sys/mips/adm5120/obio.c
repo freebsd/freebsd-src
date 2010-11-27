@@ -120,6 +120,39 @@ static int	obio_setup_intr(device_t, device_t, struct resource *, int,
 static int	obio_teardown_intr(device_t, device_t, struct resource *,
 		    void *);
 
+
+static void 
+obio_mask_irq(void *source)
+{
+	int irq;
+	uint32_t irqmask;
+	uint32_t reg;
+
+	irq = (int)source;
+	irqmask = 1 << irq;
+
+	/* disable IRQ */
+	reg = REG_READ(ICU_DISABLE_REG);
+	REG_WRITE(ICU_DISABLE_REG, (reg | irqmask));
+}
+
+static void 
+obio_unmask_irq(void *source)
+{
+	int irq;
+	uint32_t irqmask;
+	uint32_t reg;
+
+	irq = (int)source;
+	irqmask = 1 << irq;
+
+	/* disable IRQ */
+	reg = REG_READ(ICU_DISABLE_REG);
+	REG_WRITE(ICU_DISABLE_REG, (reg & ~irqmask));
+
+}
+
+
 static int
 obio_probe(device_t dev)
 {
@@ -269,7 +302,7 @@ obio_activate_resource(device_t bus, device_t child, int type, int rid,
 
 		vaddr = (void *)MIPS_PHYS_TO_KSEG1((intptr_t)rman_get_start(r));
 		rman_set_virtual(r, vaddr);
-		rman_set_bustag(r, MIPS_BUS_SPACE_MEM);
+		rman_set_bustag(r, mips_bus_space_generic);
 		rman_set_bushandle(r, (bus_space_handle_t)vaddr);
 	}
 
@@ -321,7 +354,7 @@ obio_setup_intr(device_t dev, device_t child, struct resource *ires,
 	event = sc->sc_eventstab[irq];
 	if (event == NULL) {
 		error = intr_event_create(&event, (void *)irq, 0, irq,
-		    (mask_fn)mips_mask_irq, (mask_fn)mips_unmask_irq,
+		    obio_mask_irq, obio_unmask_irq,
 		    NULL, NULL, "obio intr%d:", irq);
 
 		sc->sc_eventstab[irq] = event;
@@ -343,6 +376,8 @@ obio_setup_intr(device_t dev, device_t child, struct resource *ires,
 	/* enable */
 	REG_WRITE(ICU_ENABLE_REG, irqmask);
 
+	obio_unmask_irq((void*)irq);
+
 	return (0);
 }
 
@@ -351,7 +386,7 @@ obio_teardown_intr(device_t dev, device_t child, struct resource *ires,
     void *cookie)
 {
 	struct obio_softc *sc = device_get_softc(dev);
-	int irq, result;
+	int irq, result, priority;
 	uint32_t irqmask;
 
 	irq = rman_get_start(ires);
@@ -361,10 +396,18 @@ obio_teardown_intr(device_t dev, device_t child, struct resource *ires,
 	if (sc->sc_eventstab[irq] == NULL)
 		panic("Trying to teardown unoccupied IRQ");
 
-	irqmask = 1 << irq;     /* only used as a mask from here on */
+	irqmask = (1 << irq);
+	priority = irq_priorities[irq];
 
-	/* disable this irq in HW */
-	REG_WRITE(ICU_DISABLE_REG, irqmask);
+	if (priority == INTR_FIQ)
+		REG_WRITE(ICU_MODE_REG, REG_READ(ICU_MODE_REG) & ~irqmask);
+	else
+		REG_WRITE(ICU_MODE_REG, REG_READ(ICU_MODE_REG) | irqmask);
+
+	/* disable */
+	irqmask = REG_READ(ICU_ENABLE_REG);
+	irqmask &= ~(1 << irq);
+	REG_WRITE(ICU_ENABLE_REG, irqmask);
 
 	result = intr_event_remove_handler(cookie);
 	if (!result) {
