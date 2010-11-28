@@ -1229,7 +1229,7 @@ lem_init(void *arg)
  *  Legacy polling routine  
  *
  *********************************************************************/
-static int
+static void
 lem_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct adapter *adapter = ifp->if_softc;
@@ -1238,7 +1238,7 @@ lem_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	EM_CORE_LOCK(adapter);
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		EM_CORE_UNLOCK(adapter);
-		return (rx_done);
+		return;
 	}
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
@@ -1260,7 +1260,7 @@ lem_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		lem_start_locked(ifp);
 	EM_TX_UNLOCK(adapter);
-	return (rx_done);
+	return;
 }
 #endif /* DEVICE_POLLING */
 
