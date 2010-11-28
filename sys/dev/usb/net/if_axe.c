@@ -671,6 +671,12 @@ axe_reset(struct axe_softc *sc)
 
 	/* Wait a little while for the chip to get its brains in order. */
 	uether_pause(&sc->sc_ue, hz / 100);
+
+	/* Reinitialize controller to achieve full reset. */
+	if (sc->sc_flags & AXE_FLAG_178)
+		axe_ax88178_init(sc);
+	else if (sc->sc_flags & AXE_FLAG_772)
+		axe_ax88772_init(sc);
 }
 
 static void
