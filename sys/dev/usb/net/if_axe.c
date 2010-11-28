@@ -1019,6 +1019,9 @@ axe_init(struct usb_ether *ue)
 
 	AXE_LOCK_ASSERT(sc, MA_OWNED);
 
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		return;
+
 	/* Cancel pending I/O */
 	axe_stop(ue);
 
