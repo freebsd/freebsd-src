@@ -75,21 +75,6 @@ int cvm_oct_do_interrupt(void *dev_id)
 }
 
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-/**
- * This is called when the kernel needs to manually poll the
- * device. For Octeon, this is simply calling the interrupt
- * handler. We actually poll all the devices, not just the
- * one supplied.
- *
- * @param dev    Device to poll. Unused
- */
-void cvm_oct_poll_controller(struct ifnet *ifp)
-{
-	taskqueue_enqueue(cvm_oct_taskq, &cvm_oct_task);
-}
-#endif
-
 /**
  * This is called on receive errors, and determines if the packet
  * can be dropped early-on in cvm_oct_tasklet_rx().
@@ -226,7 +211,7 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 			}
 		}
 
-		mbuf_in_hw = USE_MBUFS_IN_HW && work->word2.s.bufs == 1;
+		mbuf_in_hw = work->word2.s.bufs == 1;
 		if ((mbuf_in_hw)) {
 			m = *(struct mbuf **)(cvm_oct_get_buffer_ptr(work->packet_ptr) - sizeof(void *));
 			CVMX_PREFETCH(m, offsetof(struct mbuf, m_data));
@@ -356,7 +341,7 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 
 		/* Check to see if the mbuf and work share
 		   the same packet buffer */
-		if (USE_MBUFS_IN_HW && (packet_not_copied)) {
+		if ((packet_not_copied)) {
 			/* This buffer needs to be replaced, increment
 			the number of buffers we need to free by one */
 			cvmx_fau_atomic_add32(
@@ -375,22 +360,20 @@ void cvm_oct_tasklet_rx(void *context, int pending)
 		cvmx_scratch_write64(CVMX_SCR_SCRATCH, old_scratch);
 	}
 
-	if (USE_MBUFS_IN_HW) {
-		/* Refill the packet buffer pool */
-		number_to_free =
-		  cvmx_fau_fetch_and_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE, 0);
+	/* Refill the packet buffer pool */
+	number_to_free =
+	  cvmx_fau_fetch_and_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE, 0);
 
-		if (number_to_free > 0) {
+	if (number_to_free > 0) {
+		cvmx_fau_atomic_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE,
+				      -number_to_free);
+		num_freed =
+			cvm_oct_mem_fill_fpa(CVMX_FPA_PACKET_POOL,
+					     CVMX_FPA_PACKET_POOL_SIZE,
+					     number_to_free);
+		if (num_freed != number_to_free) {
 			cvmx_fau_atomic_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE,
-					      -number_to_free);
-			num_freed =
-				cvm_oct_mem_fill_fpa(CVMX_FPA_PACKET_POOL,
-						     CVMX_FPA_PACKET_POOL_SIZE,
-						     number_to_free);
-			if (num_freed != number_to_free) {
-				cvmx_fau_atomic_add32(FAU_NUM_PACKET_BUFFERS_TO_FREE,
-						      number_to_free - num_freed);
-			}
+					      number_to_free - num_freed);
 		}
 	}
 	sched_unpin();
