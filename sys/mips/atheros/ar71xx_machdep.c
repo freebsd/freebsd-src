@@ -66,6 +66,26 @@ uint32_t ar711_base_mac[ETHER_ADDR_LEN];
 /* 4KB static data aread to keep a copy of the bootload env until
    the dynamic kenv is setup */
 char boot1_env[4096];
+int boot1_env_pos = 0;
+
+static void
+static_setenv(char *n, char *v)
+{
+	int nlen, vlen;
+
+	nlen = strlen(n);
+	vlen = strlen(v);
+	if (boot1_env_pos + nlen + vlen + 2 > sizeof(boot1_env)) {
+		printf("*** Environment could not be copied in full\n");
+		return;
+	}
+	memcpy (&boot1_env[boot1_env_pos], n, nlen);
+	boot1_env_pos += nlen + 1;
+	boot1_env[boot1_env_pos-1] = '\0';
+	memcpy (&boot1_env[boot1_env_pos], v, vlen);
+	boot1_env_pos += vlen + 1;
+	boot1_env[boot1_env_pos-1] = '\0';
+}
 
 /*
  * We get a string in from Redboot with the all the arguments together,
@@ -93,9 +113,8 @@ parse_argv(char *str)
 		} else {
 			n = strsep(&v, "=");
 			if (v == NULL)
-				setenv(n, "1");
-			else
-				setenv(n, v);
+				v = "1";
+			static_setenv(n, v);
 		}
 	}
 }
@@ -200,7 +219,6 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	platform_counter_freq = ar71xx_cpu_freq();
 	mips_timer_init_params(platform_counter_freq, 1);
 	cninit();
-	init_static_kenv(boot1_env, sizeof(boot1_env));
 
 	printf("CPU platform: %s\n", ar71xx_get_system_type());
 	printf("CPU Frequency=%d MHz\n", u_ar71xx_cpu_freq / 1000000);
@@ -229,11 +247,12 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	if (MIPS_IS_VALID_PTR(envp)) {
 		for (i = 0; envp[i]; i+=2) {
 			printf("  %s = %s\n", envp[i], envp[i+1]);
-			setenv(envp[i], envp[i+1]);
+			static_setenv(envp[i], envp[i+1]);
 		}
 	}
 	else 
 		printf ("envp is invalid\n");
+	kern_envp = boot1_env;
 
 	/*
 	 * "ethaddr" is passed via envp on RedBoot platforms
