@@ -66,12 +66,12 @@ options 	SMP			# Symmetric MultiProcessor Kernel
 device		apic			# I/O APIC
 
 
-device		atkbdc		# AT keyboard controller
-device		atkbd		# AT keyboard
+#device		atkbdc		# AT keyboard controller
+#device		atkbd		# AT keyboard
 device		psm		# PS/2 mouse
 device		pci
 
-device		kbdmux		# keyboard multiplexer
+#device		kbdmux		# keyboard multiplexer
 
 # Pseudo devices.
 device		loop		# Network loopback
