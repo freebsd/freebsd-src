@@ -1409,12 +1409,12 @@ vm_page_alloc_init(vm_page_t m)
 /*
  * 	vm_page_alloc_freelist:
  * 
- *	Allocate a page from the specified freelist with specified order.
+ *	Allocate a page from the specified freelist.
  *	Only the ALLOC_CLASS values in req are honored, other request flags
  *	are ignored.
  */
 vm_page_t
-vm_page_alloc_freelist(int flind, int order, int req)
+vm_page_alloc_freelist(int flind, int req)
 {
 	struct vnode *drop;
 	vm_page_t m;
@@ -1431,7 +1431,7 @@ vm_page_alloc_freelist(int flind, int order, int req)
 	    cnt.v_free_count + cnt.v_cache_count > cnt.v_interrupt_free_min) ||
 	    (page_req == VM_ALLOC_INTERRUPT &&
 	    cnt.v_free_count + cnt.v_cache_count > 0)) {
-		m = vm_phys_alloc_freelist_pages(flind, VM_FREEPOOL_DIRECT, order);
+		m = vm_phys_alloc_freelist_pages(flind, VM_FREEPOOL_DIRECT, 0);
 	}
 	if (m == NULL) {
 		mtx_unlock(&vm_page_queue_free_mtx);
