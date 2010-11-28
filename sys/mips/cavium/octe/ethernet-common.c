@@ -46,9 +46,6 @@ __FBSDID("$FreeBSD$");
 
 extern int octeon_is_simulation(void);
 extern cvmx_bootinfo_t *octeon_bootinfo;
-extern int pow_send_group;
-extern int always_use_pow;
-extern char pow_send_list[];
 
 
 /**
@@ -238,11 +235,6 @@ int cvm_oct_common_init(struct ifnet *ifp)
 		octeon_bootinfo->mac_addr_base[4],
 		octeon_bootinfo->mac_addr_base[5] + count};
 	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
-
-	/* Force the interface to use the POW send if always_use_pow was
-	   specified or it is in the pow send list */
-	if ((pow_send_group != -1) && (always_use_pow || strstr(pow_send_list, if_name(ifp))))
-		priv->queue = -1;
 
 	ifp->if_mtu = ETHERMTU;
 

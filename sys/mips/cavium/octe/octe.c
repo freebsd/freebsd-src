@@ -125,16 +125,6 @@ static devclass_t octe_devclass;
 DRIVER_MODULE(octe, octebus, octe_driver, octe_devclass, 0, 0);
 DRIVER_MODULE(miibus, octe, miibus_driver, miibus_devclass, 0, 0);
 
-static driver_t pow_driver = {
-	"pow",
-	octe_methods,
-	sizeof (cvm_oct_private_t),
-};
-
-static devclass_t pow_devclass;
-
-DRIVER_MODULE(pow, octebus, pow_driver, pow_devclass, 0, 0);
-
 static int
 octe_probe(device_t dev)
 {
@@ -322,7 +312,6 @@ static int
 octe_transmit(struct ifnet *ifp, struct mbuf *m)
 {
 	cvm_oct_private_t *priv;
-	int error;
 
 	priv = ifp->if_softc;
 
@@ -332,12 +321,7 @@ octe_transmit(struct ifnet *ifp, struct mbuf *m)
 		return (0);
 	}
 
-	if (priv->queue != -1) {
-		error = cvm_oct_xmit(m, ifp);
-	} else {
-		error = cvm_oct_xmit_pow(m, ifp);
-	}
-	return (error);
+	return (cvm_oct_xmit(m, ifp));
 }
 
 static int
