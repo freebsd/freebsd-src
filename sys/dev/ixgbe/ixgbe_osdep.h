@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2009, Intel Corporation 
+  Copyright (c) 2001-2010, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -86,7 +86,8 @@
 #define UNREFERENCED_PARAMETER(_p)
 
 
-#define IXGBE_HTONL	htonl
+#define IXGBE_NTOHL(_i)	ntohl(_i)
+#define IXGBE_NTOHS(_i)	ntohs(_i)
 
 typedef uint8_t		u8;
 typedef int8_t		s8;
