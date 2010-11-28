@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -46,7 +48,7 @@
  *
  * Support library for the hardware work queue timers.
  *
- * <hr>$Revision: 42180 $<hr>
+ * <hr>$Revision: 49448 $<hr>
  */
 #include "executive-config.h"
 #include "cvmx-config.h"
@@ -55,7 +57,7 @@
 #include "cvmx-tim.h"
 #include "cvmx-bootmem.h"
 
-/* CSR typedefs have been moved to cvmx-csr-*.h */
+/* CSR typedefs have been moved to cvmx-tim-defs.h */
 
 /**
  * Global structure holding the state of all timers.
@@ -84,12 +86,7 @@ int cvmx_tim_setup(uint64_t tick, uint64_t max_ticks)
     cvmx_tim_mem_ring1_t    config_ring1;
     uint64_t                timer_id;
     int                     error = -1;
-#if !(defined(__KERNEL__) && defined(linux))
-    cvmx_sysinfo_t         *sys_info_ptr = cvmx_sysinfo_get();
-    uint64_t                cpu_clock_hz = sys_info_ptr->cpu_clock_hz;
-#else
-    uint64_t                cpu_clock_hz = octeon_get_clock_rate();
-#endif
+    uint64_t                tim_clock_hz = cvmx_clock_get_rate(CVMX_CLOCK_TIM);
     uint64_t                hw_tick_ns;
     uint64_t                hw_tick_ns_allowed;
     uint64_t                tick_ns = 1000 * tick;
@@ -97,30 +94,30 @@ int cvmx_tim_setup(uint64_t tick, uint64_t max_ticks)
     uint32_t                temp;
 
     /* for the simulator */
-    if (cpu_clock_hz == 0)
-      cpu_clock_hz = 333000000;
+    if (tim_clock_hz == 0)
+      tim_clock_hz = 333000000;
 
-    hw_tick_ns = 1024 * 1000000000ull / cpu_clock_hz;
-    /* 
-     * Doulbe the minmal allowed tick to 2* HW tick.  tick between
-     * (hw_tick_ns, 2*hw_tick_ns) will set config_ring1.s.interval 
+    hw_tick_ns = 1024 * 1000000000ull / tim_clock_hz;
+    /*
+     * Double the minimal allowed tick to 2 * HW tick.  tick between
+     * (hw_tick_ns, 2*hw_tick_ns) will set config_ring1.s.interval
      * to zero, or 1024 cycles. This is not enough time for the timer unit
-     * to fetch the bucket data, Resulting in timer ring error interrupt 
-     * be always generated. Avoid such setting in software 
+     * to fetch the bucket data, Resulting in timer ring error interrupt
+     * be always generated. Avoid such setting in software.
      */
-    hw_tick_ns_allowed = hw_tick_ns *2;
+    hw_tick_ns_allowed = hw_tick_ns * 2;
 
     /* Make sure the timers are stopped */
     cvmx_tim_stop();
 
     /* Reinitialize out timer state */
     memset(&cvmx_tim, 0, sizeof(cvmx_tim));
-    
+
 
     if ((tick_ns < (hw_tick_ns_allowed)) || (tick_ns > 4194304 * hw_tick_ns))
       {
-	cvmx_dprintf("init: tick wrong size. Requested tick %lu(ns) is smaller than" 
-		     " the minimal ticks allowed by hardware %lu(ns)\n", 
+	cvmx_dprintf("ERROR: cvmx_tim_setup: Requested tick %lu(ns) is smaller than"
+		     " the minimal ticks allowed by hardware %lu(ns)\n",
 		     tick_ns, hw_tick_ns_allowed);
 	return error;
       }
@@ -133,7 +130,7 @@ int cvmx_tim_setup(uint64_t tick, uint64_t max_ticks)
 
     cvmx_tim.max_ticks = (uint32_t)max_ticks;
     cvmx_tim.bucket_shift = (uint32_t)(i - 1 + 10);
-    cvmx_tim.tick_cycles = tick * cpu_clock_hz / 1000000;
+    cvmx_tim.tick_cycles = tick * tim_clock_hz / 1000000;
 
     temp = (max_ticks * cvmx_tim.tick_cycles) >> cvmx_tim.bucket_shift;
 
@@ -149,7 +146,7 @@ int cvmx_tim_setup(uint64_t tick, uint64_t max_ticks)
     /* ensure input params fall into permitted ranges */
     if ((cvmx_tim.num_buckets < 3) || cvmx_tim.num_buckets > 1048576)
       {
-	cvmx_dprintf("init: num_buckets out of range\n");
+	cvmx_dprintf("ERROR: cvmx_tim_setup: num_buckets out of range\n");
 	return error;
       }
 
@@ -158,7 +155,7 @@ int cvmx_tim_setup(uint64_t tick, uint64_t max_ticks)
 					 * sizeof(cvmx_tim_bucket_entry_t), CVMX_CACHE_LINE_SIZE);
     if (cvmx_tim.bucket == NULL)
       {
-	cvmx_dprintf("init: allocation problem\n");
+	cvmx_dprintf("ERROR: cvmx_tim_setup: allocation problem\n");
 	return error;
       }
     memset(cvmx_tim.bucket, 0, CVMX_TIM_NUM_TIMERS * cvmx_tim.num_buckets * sizeof(cvmx_tim_bucket_entry_t));
@@ -202,7 +199,7 @@ void cvmx_tim_start(void)
     control.s.enable_timers = 1;
 
     /* Remember when we started the timers */
-    cvmx_tim.start_time = cvmx_get_cycle();
+    cvmx_tim.start_time = cvmx_clock_get_count(CVMX_CLOCK_TIM);
     cvmx_write_csr(CVMX_TIM_REG_FLAGS, control.u64);
 }
 

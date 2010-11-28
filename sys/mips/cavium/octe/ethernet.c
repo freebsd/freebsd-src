@@ -462,8 +462,6 @@ void cvm_oct_cleanup_module(void)
 	/* Disable POW interrupt */
 	cvmx_write_csr(CVMX_POW_WQ_INT_THRX(pow_receive_group), 0);
 
-	cvmx_ipd_disable();
-
 #if 0
 	/* Free the interrupt handler */
 	free_irq(8 + pow_receive_group, cvm_oct_device);
@@ -471,7 +469,8 @@ void cvm_oct_cleanup_module(void)
 
 	callout_stop(&cvm_oct_poll_timer);
 	cvm_oct_rx_shutdown();
-	cvmx_pko_disable();
+
+	cvmx_helper_shutdown_packet_io_global();
 
 	/* Free the ethernet devices */
 	for (port = 0; port < TOTAL_NUMBER_OF_PORTS; port++) {
@@ -486,14 +485,4 @@ void cvm_oct_cleanup_module(void)
 			cvm_oct_device[port] = NULL;
 		}
 	}
-
-	cvmx_pko_shutdown();
-
-	cvmx_ipd_free_ptr();
-
-	/* Free the HW pools */
-	cvm_oct_mem_empty_fpa(CVMX_FPA_PACKET_POOL, CVMX_FPA_PACKET_POOL_SIZE, num_packet_buffers);
-	cvm_oct_mem_empty_fpa(CVMX_FPA_WQE_POOL, CVMX_FPA_WQE_POOL_SIZE, num_packet_buffers);
-	if (CVMX_FPA_OUTPUT_BUFFER_POOL != CVMX_FPA_PACKET_POOL)
-		cvm_oct_mem_empty_fpa(CVMX_FPA_OUTPUT_BUFFER_POOL, CVMX_FPA_OUTPUT_BUFFER_POOL_SIZE, 128);
 }
