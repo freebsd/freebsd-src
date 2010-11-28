@@ -1074,6 +1074,8 @@ axe_init(struct usb_ether *ue)
 	usbd_xfer_set_stall(sc->sc_xfer[AXE_BULK_DT_WR]);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	/* Switch to selected media. */
+	axe_ifmedia_upd(ifp);
 	axe_start(ue);
 }
 
