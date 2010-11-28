@@ -62,7 +62,6 @@ device		ath             # Atheros pci/cardbus NIC's
 options 	ATH_DEBUG
 device		ath_hal
 option		AH_SUPPORT_AR5416
-# option		AH_RXCFG_SDMAMW_4BYTES	# See NOTES for details of this WAR
 device		ath_rate_sample
 
 device		mii
@@ -74,13 +73,8 @@ options		USB_EHCI_BIG_ENDIAN_DESC        # handle big-endian byte order
 device		ohci
 device		ehci
 
-# device		gpio
-# device		gpioled
-
-# device		spibus
-# device		ar71xx_spi
-# device		mx25l
-# device		geom_redboot
+device		spibus
+device		ar71xx_spi
 
 device		ar71xx_wdog
 
