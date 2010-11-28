@@ -794,6 +794,9 @@ struct dc_softc {
 #define CSR_READ_4(sc, reg)		\
 	bus_space_read_4(sc->dc_btag, sc->dc_bhandle, reg)
 
+#define CSR_BARRIER_4(sc, reg, flags)		\
+	bus_space_barrier(sc->dc_btag, sc->dc_bhandle, reg, 4, flags)
+
 #define DC_TIMEOUT		1000
 #define ETHER_ALIGN		2
 

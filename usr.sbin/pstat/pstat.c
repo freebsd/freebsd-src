@@ -209,7 +209,7 @@ static const char fhdr64[] =
 /* c000000000000000 ------ RWAI 123 123 c000000000000000 1000000000000000 */
 
 static const char hdr[] =
-"  LINE RAW CAN OUT IHIWT ILOWT OHWT LWT     COL STATE  SESS      PGID DISC\n";
+"     LINE RAW CAN OUT IHIWT ILOWT OHWT LWT     COL STATE  SESS      PGID DISC\n";
 
 static void
 ttymode_kvm(void)
@@ -342,9 +342,9 @@ ttyprt(struct xtty *xt)
 		errx(1, "struct xtty size mismatch");
 	if (usenumflag || xt->xt_dev == 0 ||
 	   (name = devname(xt->xt_dev, S_IFCHR)) == NULL)
-		printf("   %2d,%-2d", major(xt->xt_dev), minor(xt->xt_dev));
+		printf("%5d,%4d ", major(xt->xt_dev), minor(xt->xt_dev));
 	else
-		(void)printf("%7s ", name);
+		(void)printf("%10s ", name);
 	(void)printf("%2ld %3ld ", xt->xt_rawcc, xt->xt_cancc);
 	(void)printf("%3ld %5d %5d %4d %3d %7d ", xt->xt_outcc,
 		xt->xt_ihiwat, xt->xt_ilowat, xt->xt_ohiwat, xt->xt_olowat,

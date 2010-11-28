@@ -32,7 +32,7 @@
 .\"     @(#)dd.1	8.2 (Berkeley) 1/13/94
 .\" $FreeBSD$
 .\"
-.Dd August 15, 2004
+.Dd January 23, 2009
 .Dt DD 1
 .Os
 .Sh NAME
@@ -392,6 +392,11 @@ Remove parity bit from a file:
 Check for (even) parity errors on a file:
 .Pp
 .Dl "dd if=file conv=pareven | cmp -x - file"
+.Pp
+To create an image of a Mode-1 CD-ROM, which is a commonly used format
+for data CD-ROM disks, use a block size of 2048 bytes:
+.Pp
+.Dl "dd if=/dev/acd0 of=filename.iso bs=2048"
 .Sh SEE ALSO
 .Xr cp 1 ,
 .Xr mt 1 ,

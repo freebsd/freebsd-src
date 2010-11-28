@@ -145,6 +145,11 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_10G_SR	19		/* 10GBase-SR 850nm Multi-mode */
 #define	IFM_10G_CX4	20		/* 10GBase CX4 copper */
 #define IFM_2500_SX	21		/* 2500baseSX - multi-mode fiber */
+#define IFM_10G_TWINAX 22   /* 10GBase Twinax copper */
+#define IFM_10G_TWINAX_LONG 23 /* 10GBase Twinax Long copper */
+#define IFM_10G_LRM 24      /* 10GBase-LRM 850nm Multi-mode */
+#define IFM_UNKNOWN 25      /* New media types that have not been defined yet */
+
 
 /* note 31 is the max! */
 
@@ -345,6 +350,10 @@ struct ifmedia_description {
 	{ IFM_10G_SR,	"10Gbase-SR" },					\
 	{ IFM_10G_CX4,	"10Gbase-CX4" },				\
 	{ IFM_2500_SX,	"2500baseSX" },					\
+	{ IFM_10G_LRM,  "10Gbase-LRM" },                \
+	{ IFM_10G_TWINAX,   "10Gbase-Twinax" },         \
+	{ IFM_10G_TWINAX_LONG, "10Gbase-Twinax-Long" }, \
+	{ IFM_UNKNOWN,  "Unknown" },                    \
 	{ 0, NULL },							\
 }
 
@@ -597,6 +606,9 @@ struct ifmedia_baudrate {
 	{ IFM_ETHER | IFM_10G_SR,	IF_Gbps(10ULL) },		\
 	{ IFM_ETHER | IFM_10G_CX4,	IF_Gbps(10ULL) },		\
 	{ IFM_ETHER | IFM_2500_SX,	IF_Mbps(2500ULL) },		\
+	{ IFM_ETHER | IFM_10G_TWINAX,	IF_Gbps(10ULL) },		\
+	{ IFM_ETHER | IFM_10G_TWINAX_LONG,	IF_Gbps(10ULL) },		\
+	{ IFM_ETHER | IFM_10G_LRM,	IF_Gbps(10ULL) },		\
 									\
 	{ IFM_TOKEN | IFM_TOK_STP4,	IF_Mbps(4) },			\
 	{ IFM_TOKEN | IFM_TOK_STP16,	IF_Mbps(16) },			\

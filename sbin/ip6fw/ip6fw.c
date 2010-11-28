@@ -764,7 +764,7 @@ fill_ip6opt(u_char *set, u_char *reset, char **vp)
 
 void
 fill_icmptypes(types, vp, fw_flg)
-	u_long *types;
+	unsigned *types;
 	char **vp;
 	u_short *fw_flg;
 {

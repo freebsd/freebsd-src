@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: engine.c,v 8.162 2008/02/27 01:34:14 ca Exp $")
+SM_RCSID("@(#)$Id: engine.c,v 8.166 2009/11/06 00:57:07 ca Exp $")
 
 #include "libmilter.h"
 
@@ -113,6 +113,7 @@ static void	fix_stm __P((SMFICTX_PTR));
 static bool	trans_ok __P((int, int));
 static char	**dec_argv __P((char *, size_t));
 static int	dec_arg2 __P((char *, size_t, char **, char **));
+static void	mi_clr_symlist __P((SMFICTX_PTR));
 
 #if _FFR_WORKERS_POOL
 static bool     mi_rd_socket_ready __P((int));
@@ -758,6 +759,69 @@ mi_clr_macros(ctx, m)
 }
 
 /*
+**  MI_CLR_SYMLIST -- clear list of macros
+**
+**	Parameters:
+**		ctx -- context structure
+**
+**	Returns:
+**		None.
+*/
+
+static void
+mi_clr_symlist(ctx)
+	SMFICTX *ctx;
+{
+	int i;
+
+	SM_ASSERT(ctx != NULL);
+	for (i = SMFIM_FIRST; i <= SMFIM_LAST; i++)
+	{
+		if (ctx->ctx_mac_list[i] != NULL)
+		{
+			free(ctx->ctx_mac_list[i]);
+			ctx->ctx_mac_list[i] = NULL;
+		}
+	}
+}
+
+/*
+**  MI_CLR_CTX -- clear context
+**
+**	Parameters:
+**		ctx -- context structure
+**
+**	Returns:
+**		None.
+*/
+
+void
+mi_clr_ctx(ctx)
+	SMFICTX *ctx;
+{
+	SM_ASSERT(ctx != NULL);
+	if (ValidSocket(ctx->ctx_sd))
+	{
+		(void) closesocket(ctx->ctx_sd);
+		ctx->ctx_sd = INVALID_SOCKET;
+	}
+	if (ctx->ctx_reply != NULL)
+	{
+		free(ctx->ctx_reply);
+		ctx->ctx_reply = NULL;
+	}
+	if (ctx->ctx_privdata != NULL)
+	{
+		smi_log(SMI_LOG_WARN,
+			"%s: private data not NULL",
+			ctx->ctx_smfi->xxfi_name);
+	}
+	mi_clr_macros(ctx, 0);
+	mi_clr_symlist(ctx);
+	free(ctx);
+}
+
+/*
 **  ST_OPTIONNEG -- negotiate options
 **
 **	Parameters:
@@ -771,8 +835,11 @@ static int
 st_optionneg(g)
 	genarg *g;
 {
-	mi_int32 i, v, fake_pflags;
+	mi_int32 i, v, fake_pflags, internal_pflags;
 	SMFICTX_PTR ctx;
+#if _FFR_MILTER_CHECK
+	bool testmode = false;
+#endif /* _FFR_MILTER_CHECK */
 	int (*fi_negotiate) __P((SMFICTX *,
 					unsigned long, unsigned long,
 					unsigned long, unsigned long,
@@ -826,6 +893,7 @@ st_optionneg(g)
 		v = SMFI_V1_ACTS;
 	ctx->ctx_mta_aflags = v;	/* MTA action flags */
 
+	internal_pflags = 0;
 	(void) memcpy((void *) &i, (void *) &(g->a_buf[MILTER_LEN_BYTES * 2]),
 		      MILTER_LEN_BYTES);
 	v = ntohl(i);
@@ -833,7 +901,51 @@ st_optionneg(g)
 	/* no flags? set to default value for V1 protocol */
 	if (v == 0)
 		v = SMFI_V1_PROT;
-	ctx->ctx_mta_pflags = v;	/* MTA protocol flags */
+#if _FFR_MDS_NEGOTIATE
+	else if (ctx->ctx_smfi->xxfi_version >= SMFI_VERSION_MDS)
+	{
+		/*
+		**  Allow changing the size only if milter is compiled
+		**  against a version that supports this.
+		**  If a milter is dynamically linked against a newer
+		**  libmilter version, we don't want to "surprise"
+		**  it with a larger buffer as it may rely on it
+		**  even though it is not documented as a limit.
+		*/
+
+		if (bitset(SMFIP_MDS_1M, v))
+		{
+			internal_pflags |= SMFIP_MDS_1M;
+			(void) smfi_setmaxdatasize(MILTER_MDS_1M);
+		}
+		else if (bitset(SMFIP_MDS_256K, v))
+		{
+			internal_pflags |= SMFIP_MDS_256K;
+			(void) smfi_setmaxdatasize(MILTER_MDS_256K);
+		}
+	}
+# if 0
+	/* don't log this for now... */
+	else if (ctx->ctx_smfi->xxfi_version < SMFI_VERSION_MDS &&
+		 bitset(SMFIP_MDS_1M|SMFIP_MDS_256K, v))
+	{
+		smi_log(SMI_LOG_WARN,
+			"%s: st_optionneg[%ld]: milter version=%X, trying flags=%X",
+			ctx->ctx_smfi->xxfi_name,
+			(long) ctx->ctx_id, ctx->ctx_smfi->xxfi_version, v);
+	}
+# endif /* 0 */
+#endif /* _FFR_MDS_NEGOTIATE */
+
+	/*
+	**  MTA protocol flags.
+	**  We pass the internal flags to the milter as "read only",
+	**  i.e., a milter can read them so it knows which size
+	**  will be used, but any changes by a milter will be ignored
+	**  (see below, search for SMFI_INTERNAL).
+	*/
+
+	ctx->ctx_mta_pflags = (v & ~SMFI_INTERNAL) | internal_pflags;
 
 	/*
 	**  Copy flags from milter struct into libmilter context;
@@ -879,6 +991,12 @@ st_optionneg(g)
 				ctx->ctx_mta_pflags|fake_pflags,
 				0, 0,
 				&m_aflags, &m_pflags, &m_f2, &m_f3);
+
+#if _FFR_MILTER_CHECK
+		testmode = bitset(SMFIP_TEST, m_pflags);
+		if (testmode)
+			m_pflags &= ~SMFIP_TEST;
+#endif /* _FFR_MILTER_CHECK */
 
 		/*
 		**  Types of protocol flags (pflags):
@@ -1011,6 +1129,25 @@ st_optionneg(g)
 			, ctx->ctx_mta_aflags, ctx->ctx_mta_pflags
 			, ctx->ctx_aflags, ctx->ctx_pflags);
 
+#if _FFR_MILTER_CHECK
+	if (ctx->ctx_dbg > 3)
+		sm_dprintf("[%ld] milter_negotiate:"
+			" testmode=%d, pflags2mta=%X, internal_pflags=%X\n"
+			, (long) ctx->ctx_id, testmode
+			, ctx->ctx_pflags2mta, internal_pflags);
+
+	/* in test mode: take flags without further modifications */
+	if (!testmode)
+		/* Warning: check statement below! */
+#endif /* _FFR_MILTER_CHECK */
+
+	/*
+	**  Remove the internal flags that might have been set by a milter
+	**  and set only those determined above.
+	*/
+
+	ctx->ctx_pflags2mta = (ctx->ctx_pflags2mta & ~SMFI_INTERNAL)
+			      | internal_pflags;
 	return _SMFIS_OPTIONS;
 }
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: adb.c,v 1.181.2.11.2.34 2008/04/03 06:07:11 tbox Exp $ */
+/* $Id: adb.c,v 1.181.2.11.2.41 2008/10/17 03:34:53 marka Exp $ */
 
 /*
  * Implementation notes
@@ -116,6 +116,7 @@ struct dns_adb {
 
 	isc_mutex_t			lock;
 	isc_mutex_t			reflock; /* Covers irefcnt, erefcnt */
+	isc_mutex_t			overmemlock; /*%< Covers overmem */
 	isc_mem_t		       *mctx;
 	dns_view_t		       *view;
 	isc_timermgr_t		       *timermgr;
@@ -488,6 +489,7 @@ import_rdataset(dns_adbname_t *adbname, dns_rdataset_t *rdataset,
 	isc_boolean_t new_addresses_added;
 	dns_rdatatype_t rdtype;
 	unsigned int findoptions;
+	dns_adbnamehooklist_t *hookhead;
 
 	INSIST(DNS_ADBNAME_VALID(adbname));
 	adb = adbname->adb;
@@ -512,10 +514,12 @@ import_rdataset(dns_adbname_t *adbname, dns_rdataset_t *rdataset,
 			INSIST(rdata.length == 4);
 			memcpy(&ina.s_addr, rdata.data, 4);
 			isc_sockaddr_fromin(&sockaddr, &ina, 0);
+			hookhead = &adbname->v4;
 		} else {
 			INSIST(rdata.length == 16);
 			memcpy(in6a.s6_addr, rdata.data, 16);
 			isc_sockaddr_fromin6(&sockaddr, &in6a, 0);
+			hookhead = &adbname->v6;
 		}
 
 		INSIST(nh == NULL);
@@ -544,7 +548,7 @@ import_rdataset(dns_adbname_t *adbname, dns_rdataset_t *rdataset,
 
 			link_entry(adb, addr_bucket, entry);
 		} else {
-			for (anh = ISC_LIST_HEAD(adbname->v4);
+			for (anh = ISC_LIST_HEAD(*hookhead);
 			     anh != NULL;
 			     anh = ISC_LIST_NEXT(anh, plink))
 				if (anh->entry == foundentry)
@@ -557,12 +561,8 @@ import_rdataset(dns_adbname_t *adbname, dns_rdataset_t *rdataset,
 		}
 
 		new_addresses_added = ISC_TRUE;
-		if (nh != NULL) {
-			if (rdtype == dns_rdatatype_a)
-				ISC_LIST_APPEND(adbname->v4, nh, plink);
-			else
-				ISC_LIST_APPEND(adbname->v6, nh, plink);
-		}
+		if (nh != NULL)
+			ISC_LIST_APPEND(*hookhead, nh, plink);
 		nh = NULL;
 		result = dns_rdataset_next(rdataset);
 	}
@@ -1731,8 +1731,11 @@ copy_namehook_lists(dns_adb_t *adb, dns_adbfind_t *find, dns_name_t *zone,
 			bucket = entry->lock_bucket;
 			LOCK(&adb->entrylocks[bucket]);
 
-			if (entry_is_bad_for_zone(adb, entry, zone, now))
+			if (!FIND_RETURNLAME(find)
+			    && entry_is_bad_for_zone(adb, entry, zone, now)) {
+				find->options |= DNS_ADBFIND_LAMEPRUNED;
 				goto nextv6;
+			}
 			addrinfo = new_adbaddrinfo(adb, entry, find->port);
 			if (addrinfo == NULL) {
 				find->partial_result |= DNS_ADBFIND_INET6;
@@ -1766,12 +1769,15 @@ shutdown_task(isc_task_t *task, isc_event_t *ev) {
 	INSIST(DNS_ADB_VALID(adb));
 
 	/*
+	 * Wait for lock around check_exit() call to be released.
+	 */
+	LOCK(&adb->lock);
+	/*
 	 * Kill the timer, and then the ADB itself.  Note that this implies
 	 * that this task was the one scheduled to get timer events.  If
 	 * this is not true (and it is unfortunate there is no way to INSIST()
 	 * this) badness will occur.
 	 */
-	LOCK(&adb->lock);
 	isc_timer_detach(&adb->timer);
 	UNLOCK(&adb->lock);
 	isc_event_free(&ev);
@@ -1983,6 +1989,7 @@ destroy(dns_adb_t *adb) {
 	DESTROYLOCK(&adb->reflock);
 	DESTROYLOCK(&adb->lock);
 	DESTROYLOCK(&adb->mplock);
+	DESTROYLOCK(&adb->overmemlock);
 
 	isc_mem_putanddetach(&adb->mctx, adb, sizeof(dns_adb_t));
 }
@@ -2052,6 +2059,10 @@ dns_adb_create(isc_mem_t *mem, dns_view_t *view, isc_timermgr_t *timermgr,
 	result = isc_mutex_init(&adb->reflock);
 	if (result != ISC_R_SUCCESS)
 		goto fail0d;
+
+	result = isc_mutex_init(&adb->overmemlock);
+	if (result != ISC_R_SUCCESS)
+		goto fail0e;
 
 	/*
 	 * Initialize the bucket locks for names and elements.
@@ -2155,6 +2166,8 @@ dns_adb_create(isc_mem_t *mem, dns_view_t *view, isc_timermgr_t *timermgr,
 	if (adb->afmp != NULL)
 		isc_mempool_destroy(&adb->afmp);
 
+	DESTROYLOCK(&adb->overmemlock);
+ fail0e:
 	DESTROYLOCK(&adb->reflock);
  fail0d:
 	DESTROYLOCK(&adb->mplock);
@@ -3122,8 +3135,10 @@ fetch_callback(isc_task_t *task, isc_event_t *ev) {
 		address_type = DNS_ADBFIND_INET6;
 		fetch = name->fetch_aaaa;
 		name->fetch_aaaa = NULL;
-	}
-	INSIST(address_type != 0);
+	} else
+		fetch = NULL;
+
+	INSIST(address_type != 0 && fetch != NULL);
 
 	dns_resolver_destroyfetch(&fetch->fetch);
 	dev->fetch = NULL;
@@ -3570,12 +3585,21 @@ water(void *arg, int mark) {
 	DP(ISC_LOG_DEBUG(1),
 	   "adb reached %s water mark", overmem ? "high" : "low");
 
-	adb->overmem = overmem;
-	if (overmem) {
-		isc_interval_set(&interval, 0, 1);
-		(void)isc_timer_reset(adb->timer, isc_timertype_once, NULL,
-				      &interval, ISC_TRUE);
+	/*
+	 * We can't use adb->lock as there is potential for water
+	 * to be called when adb->lock is held.
+	 */
+	LOCK(&adb->overmemlock);
+	if (adb->overmem != overmem) {
+		adb->overmem = overmem;
+		if (overmem) {
+			isc_interval_set(&interval, 0, 1);
+			(void)isc_timer_reset(adb->timer, isc_timertype_once,
+					      NULL, &interval, ISC_TRUE);
+		}
+		isc_mem_waterack(adb->mctx, mark);
 	}
+	UNLOCK(&adb->overmemlock);
 }
 
 void

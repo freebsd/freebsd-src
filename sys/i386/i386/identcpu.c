@@ -247,7 +247,7 @@ printcpuinfo(void)
 				        strcat(cpu_model, "/P54C");
 					break;
 				case 0x30:
-				        strcat(cpu_model, "/P54T Overdrive");
+				        strcat(cpu_model, "/P24T");
 					break;
 				case 0x40:
 				        strcat(cpu_model, "/P55C");

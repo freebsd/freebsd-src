@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004-2007 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2008 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2003 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -13,7 +13,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: dig.1,v 1.14.2.4.2.18 2007/05/16 06:10:54 marka Exp $
+.\" $Id: dig.1,v 1.14.2.4.2.20 2008/10/14 01:20:30 tbox Exp $
 .\"
 .hy 0
 .ad l
@@ -33,7 +33,7 @@
 dig \- DNS lookup utility
 .SH "SYNOPSIS"
 .HP 4
-\fBdig\fR [@server] [\fB\-b\ \fR\fB\fIaddress\fR\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-f\ \fR\fB\fIfilename\fR\fR] [\fB\-k\ \fR\fB\fIfilename\fR\fR] [\fB\-p\ \fR\fB\fIport#\fR\fR] [\fB\-t\ \fR\fB\fItype\fR\fR] [\fB\-x\ \fR\fB\fIaddr\fR\fR] [\fB\-y\ \fR\fB\fIname:key\fR\fR] [\fB\-4\fR] [\fB\-6\fR] [name] [type] [class] [queryopt...]
+\fBdig\fR [@server] [\fB\-b\ \fR\fB\fIaddress\fR\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-f\ \fR\fB\fIfilename\fR\fR] [\fB\-k\ \fR\fB\fIfilename\fR\fR] [\fB\-m\fR] [\fB\-p\ \fR\fB\fIport#\fR\fR] [\fB\-t\ \fR\fB\fItype\fR\fR] [\fB\-x\ \fR\fB\fIaddr\fR\fR] [\fB\-y\ \fR\fB\fIname:key\fR\fR] [\fB\-4\fR] [\fB\-6\fR] [name] [type] [class] [queryopt...]
 .HP 4
 \fBdig\fR [\fB\-h\fR]
 .HP 4
@@ -59,7 +59,9 @@ Unless it is told to query a specific name server,
 will try each of the servers listed in
 \fI/etc/resolv.conf\fR.
 .PP
-When no command line arguments or options are given, will perform an NS query for "." (the root).
+When no command line arguments or options are given,
+\fBdig\fR
+will perform an NS query for "." (the root).
 .PP
 It is possible to set per\-user defaults for
 \fBdig\fR
@@ -70,7 +72,7 @@ The IN and CH class names overlap with the IN and CH top level domains names. Ei
 \fB\-t\fR
 and
 \fB\-c\fR
-options to specify the type and class or use "IN." and "CH." when looking up these top level domains.
+options to specify the type and class, or use "IN." and "CH." when looking up these top level domains.
 .SH "SIMPLE USAGE"
 .PP
 A typical invocation of
@@ -136,6 +138,10 @@ operate in batch mode by reading a list of lookup requests to process from the f
 \fIfilename\fR. The file contains a number of queries, one per line. Each entry in the file should be organized in the same way they would be presented as queries to
 \fBdig\fR
 using the command\-line interface.
+.PP
+The
+\fB\-m\fR
+option enables memory usage debugging.
 .PP
 If a non\-standard port number is to be queried, the
 \fB\-p\fR
@@ -517,7 +523,7 @@ RFC1035.
 .PP
 There are probably too many query options.
 .SH "COPYRIGHT"
-Copyright \(co 2004\-2007 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004\-2008 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000\-2003 Internet Software Consortium.
 .br

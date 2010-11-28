@@ -130,7 +130,6 @@ elf_coredump(int efd __unused, int fd, pid_t pid)
 	 * Allocate memory for building the header, fill it up,
 	 * and write it out.
 	 */
-	hdr = malloc(hdrsize);
 	if ((hdr = malloc(hdrsize)) == NULL)
 		errx(1, "out of memory");
 	elf_corehdr(fd, pid, map, seginfo.count, hdr, hdrsize);
@@ -159,7 +158,7 @@ elf_coredump(int efd __unused, int fd, pid_t pid)
 				err(1, "read from %s", memname);
 			if ((size_t)ngot < nwant)
 				errx(1, "short read from %s:"
-				    " wanted %d, got %d", memname,
+				    " wanted %zu, got %zd", memname,
 				    nwant, ngot);
 			ngot = write(fd, buf, nwant);
 			if (ngot == -1)
@@ -415,7 +414,7 @@ readhdrinfo(pid_t pid, prstatus_t *status, prfpregset_t *fpregset,
 	if ((n = read(fd, &status->pr_reg, sizeof status->pr_reg)) == -1)
 		err(1, "read error from %s", name);
 	if ((size_t)n < sizeof(status->pr_reg))
-		errx(1, "short read from %s: wanted %u, got %d", name,
+		errx(1, "short read from %s: wanted %zu, got %d", name,
 		    sizeof status->pr_reg, n);
 	close(fd);
 
@@ -426,7 +425,7 @@ readhdrinfo(pid_t pid, prstatus_t *status, prfpregset_t *fpregset,
 	if ((n = read(fd, fpregset, sizeof *fpregset)) == -1)
 		err(1, "read error from %s", name);
 	if ((size_t)n < sizeof(*fpregset))
-		errx(1, "short read from %s: wanted %u, got %d", name,
+		errx(1, "short read from %s: wanted %zu, got %d", name,
 		    sizeof *fpregset, n);
 	close(fd);
 

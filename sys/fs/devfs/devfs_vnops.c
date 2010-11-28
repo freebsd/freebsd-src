@@ -759,6 +759,9 @@ devfs_open(struct vop_open_args *ap)
 
 	VOP_UNLOCK(vp, 0, td);
 
+	if (ap->a_fdidx >= 0)
+		ap->a_td->td_proc->p_fd->fd_ofiles[ap->a_fdidx]->f_vnode = vp;
+
 	if(!(dsw->d_flags & D_NEEDGIANT)) {
 		DROP_GIANT();
 		if (dsw->d_fdopen != NULL)

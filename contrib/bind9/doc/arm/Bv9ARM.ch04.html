@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: Bv9ARM.ch04.html,v 1.30.2.6.2.32 2008/01/19 01:52:13 marka Exp $ -->
+<!-- $Id: Bv9ARM.ch04.html,v 1.30.2.6.2.33 2008/09/12 01:22:03 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -64,11 +64,11 @@
 <dt><span class="sect1"><a href="Bv9ARM.ch04.html#id2568457">SIG(0)</a></span></dt>
 <dt><span class="sect1"><a href="Bv9ARM.ch04.html#DNSSEC">DNSSEC</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2568592">Generating Keys</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2568660">Generating Keys</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2568727">Signing the Zone</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2568802">Configuring Servers</a></span></dt>
 </dl></dd>
-<dt><span class="sect1"><a href="Bv9ARM.ch04.html#id2568939">IPv6 Support in <acronym class="acronym">BIND</acronym> 9</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch04.html#id2568871">IPv6 Support in <acronym class="acronym">BIND</acronym> 9</a></span></dt>
 <dd><dl>
 <dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2569066">Address Lookups Using AAAA Records</a></span></dt>
 <dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2569086">Address to Name Lookups Using Nibble Format</a></span></dt>
@@ -571,7 +571,7 @@ allow-update { key host1-host2. ;};
     zone key of another zone above this one in the DNS tree.</p>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2568592"></a>Generating Keys</h3></div></div></div>
+<a name="id2568660"></a>Generating Keys</h3></div></div></div>
 <p>The <span><strong class="command">dnssec-keygen</strong></span> program is used to
       generate keys.</p>
 <p>A secure zone must contain one or more zone keys.  The
@@ -717,7 +717,7 @@ options {
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2568939"></a>IPv6 Support in <acronym class="acronym">BIND</acronym> 9</h2></div></div></div>
+<a name="id2568871"></a>IPv6 Support in <acronym class="acronym">BIND</acronym> 9</h2></div></div></div>
 <p><acronym class="acronym">BIND</acronym> 9 fully supports all currently defined forms of IPv6
     name to address and address to name lookups.  It will also use
     IPv6 addresses to make queries when running on an IPv6 capable

@@ -105,7 +105,7 @@
 #		Similar to /conf/T/M/diskless_remount above, but allows
 #		all of /conf to be remounted.  This can be used to allow
 #		multiple roots to share the same /conf.
-#		
+#
 #
 # You will almost universally want to create the following files under /conf
 #

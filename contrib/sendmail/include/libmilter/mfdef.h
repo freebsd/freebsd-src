@@ -7,7 +7,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: mfdef.h,v 8.38 2007/03/27 18:53:48 ca Exp $
+ *	$Id: mfdef.h,v 8.39 2009/11/06 00:57:08 ca Exp $
  */
 
 /*
@@ -26,6 +26,12 @@
 #define MILTER_OPTLEN	(MILTER_LEN_BYTES * 3) /* length of options */
 #define MILTER_CHUNK_SIZE	65535	/* body chunk size */
 #define MILTER_MAX_DATA_SIZE	65535	/* default milter command data limit */
+
+#if _FFR_MDS_NEGOTIATE
+# define MILTER_MDS_64K	((64 * 1024) - 1)
+# define MILTER_MDS_256K ((256 * 1024) - 1)
+# define MILTER_MDS_1M	((1024 * 1024) - 1)
+#endif /* _FFR_MDS_NEGOTIATE */
 
 /* These apply to SMFIF_* flags */
 #define SMFI_V1_ACTS	0x0000000FL	/* The actions of V1 filter */
@@ -100,11 +106,21 @@
 #define SMFIP_NR_EOH	0x00040000L	/* No reply for eoh */
 #define SMFIP_NR_BODY	0x00080000L	/* No reply for body chunk */
 #define SMFIP_HDR_LEADSPC 0x00100000L	/* header value leading space */
+#define SMFIP_MDS_256K	0x10000000L	/* MILTER_MAX_DATA_SIZE=256K */
+#define SMFIP_MDS_1M	0x20000000L	/* MILTER_MAX_DATA_SIZE=1M */
+/* #define SMFIP_	0x40000000L	reserved: see SMFI_INTERNAL*/
 
 #define SMFI_V1_PROT	0x0000003FL	/* The protocol of V1 filter */
 #define SMFI_V2_PROT	0x0000007FL	/* The protocol of V2 filter */
 
 /* all defined protocol bits */
 #define SMFI_CURR_PROT	0x001FFFFFL
+
+/* internal flags: only used between MTA and libmilter */
+#define SMFI_INTERNAL	0x70000000L
+
+#if _FFR_MILTER_CHECK
+# define SMFIP_TEST	0x80000000L
+#endif /* _FFR_MILTER_CHECK */
 
 #endif /* !_LIBMILTER_MFDEF_H */

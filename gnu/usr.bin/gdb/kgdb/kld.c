@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <command.h>
 #include <completer.h>
 #include <environ.h>
+#include <exec.h>
 #include <frame-unwind.h>
 #include <inferior.h>
 #include <objfiles.h>
@@ -196,39 +197,14 @@ find_kld_address (char *arg, CORE_ADDR *address)
 	return (0);
 }
 
-struct add_section_info {
-	struct section_addr_info *section_addrs;
-	int sect_index;
-	CORE_ADDR base_addr;
-};
-
-static void
-add_section (bfd *bfd, asection *sect, void *arg)
-{
-	struct add_section_info *asi = arg;
-	CORE_ADDR address;
-	char *name;
-
-	/* Ignore non-resident sections. */
-	if ((bfd_get_section_flags(bfd, sect) & (SEC_ALLOC | SEC_LOAD)) == 0)
-		return;
-
-	name = xstrdup(bfd_get_section_name(bfd, sect));
-	make_cleanup(xfree, name);
-	address = asi->base_addr + bfd_get_section_vma(bfd, sect);
-	asi->section_addrs->other[asi->sect_index].name = name;
-	asi->section_addrs->other[asi->sect_index].addr = address;
-	asi->section_addrs->other[asi->sect_index].sectindex = sect->index;
-	printf_unfiltered("\t%s_addr = %s\n", name, local_hex_string(address));
-	asi->sect_index++;
-}
-
 static void
 load_kld (char *path, CORE_ADDR base_addr, int from_tty)
 {
-	struct add_section_info asi;
+	struct section_addr_info *sap;
+	struct section_table *sections = NULL, *sections_end = NULL, *s;
 	struct cleanup *cleanup;
 	bfd *bfd;
+	int i;
 
 	/* Open the kld. */
 	bfd = bfd_openr(path, gnutarget);
@@ -244,19 +220,30 @@ load_kld (char *path, CORE_ADDR base_addr, int from_tty)
 	if (bfd_get_section_by_name (bfd, ".text") == NULL)
 		error("\"%s\": can't find text section", path);
 
-	printf_unfiltered("add symbol table from file \"%s\" at\n", path);
+	/* Build a section table from the bfd and relocate the sections. */
+	if (build_section_table (bfd, &sections, &sections_end))
+		error("\"%s\": can't find file sections", path);
+	cleanup = make_cleanup(xfree, sections);
+	for (s = sections; s < sections_end; s++) {
+		s->addr += base_addr;
+		s->endaddr += base_addr;
+	}
 
-	/* Build a section table for symbol_file_add() from the bfd sections. */
-	asi.section_addrs = alloc_section_addr_info(bfd_count_sections(bfd));
-	cleanup = make_cleanup(xfree, asi.section_addrs);
-	asi.sect_index = 0;
-	asi.base_addr = base_addr;
-	bfd_map_over_sections(bfd, add_section, &asi);
+	/* Build a section addr info to pass to symbol_file_add(). */
+	sap = build_section_addr_info_from_section_table (sections,
+	    sections_end);
+	cleanup = make_cleanup((make_cleanup_ftype *)free_section_addr_info,
+	    sap);
+
+	printf_unfiltered("add symbol table from file \"%s\" at\n", path);
+	for (i = 0; i < sap->num_sections; i++)
+		printf_unfiltered("\t%s_addr = %s\n", sap->other[i].name,
+		    local_hex_string(sap->other[i].addr));		
 
 	if (from_tty && (!query("%s", "")))
 		error("Not confirmed.");
 
-	symbol_file_add(path, from_tty, asi.section_addrs, 0, OBJF_USERLOADED);
+	symbol_file_add(path, from_tty, sap, 0, OBJF_USERLOADED);
 
 	do_cleanups(cleanup);
 }

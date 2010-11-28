@@ -186,9 +186,6 @@ _rw_wlock(struct rwlock *rw, const char *file, int line)
 	MPASS(curthread != NULL);
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_wlock() of destroyed rwlock @ %s:%d", file, line));
-	KASSERT(rw_wowner(rw) != curthread,
-	    ("%s (%s): wlock already held @ %s:%d", __func__,
-	    rw->lock_object.lo_name, file, line));
 	WITNESS_CHECKORDER(&rw->lock_object, LOP_NEWORDER | LOP_EXCLUSIVE, file,
 	    line);
 	__rw_wlock(rw, curthread, file, line);

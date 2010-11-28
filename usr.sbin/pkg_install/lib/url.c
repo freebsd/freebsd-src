@@ -32,10 +32,11 @@ __FBSDID("$FreeBSD$");
  * Try and fetch a file by URL, returning the directory name for where
  * it's unpacked, if successful.
  */
-char *
+const char *
 fileGetURL(const char *base, const char *spec, int keep_package)
 {
-    char *cp, *rp, *tmp;
+    const char *rp;
+    char *cp, *tmp;
     char fname[FILENAME_MAX];
     char pen[FILENAME_MAX];
     char pkg[FILENAME_MAX];
@@ -105,7 +106,7 @@ fileGetURL(const char *base, const char *spec, int keep_package)
 
     fetchDebug = (Verbose > 0);
     if ((ftp = fetchGetURL(fname, Verbose ? "v" : NULL)) == NULL) {
-	printf("Error: FTP Unable to get %s: %s\n",
+	printf("Error: Unable to get %s: %s\n",
 	       fname, fetchLastErrString);
 	return NULL;
     }

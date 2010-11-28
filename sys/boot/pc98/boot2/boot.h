@@ -51,7 +51,7 @@ extern int loadflags;
 extern struct disklabel disklabel;
 
 /* asm.S */
-#if ASM_ONLY
+#ifdef ASM_ONLY
 void real_to_prot(void);
 void prot_to_real(void);
 #endif
@@ -84,9 +84,6 @@ void putchar(int c);
 void delay1ms(void);
 int gets(char *buf);
 int strcmp(const char *s1, const char *s2);
-#ifdef CDBOOT
-int strcasecmp(const char *s1, const char *s2);
-#endif /* !CDBOOT */
 void memcpy(const void *from, void *to, size_t len);
 void twiddle(void);
 void machine_check(void);

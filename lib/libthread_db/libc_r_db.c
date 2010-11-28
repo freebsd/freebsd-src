@@ -28,15 +28,14 @@
 __FBSDID("$FreeBSD$");
 
 #include <machine/setjmp.h>
+#include <sys/linker_set.h>
 #include <proc_service.h>
 #include <stdlib.h>
 #include <string.h>
 #include <thread_db.h>
 
+#include "libc_r_db.h"
 #include "thread_db_int.h"
-
-void libc_r_md_getfpregs(jmp_buf jb, prfpregset_t *);
-void libc_r_md_getgregs(jmp_buf jb, prgregset_t);
 
 struct td_thragent {
 	TD_THRAGENT_FIELDS;
@@ -50,13 +49,14 @@ struct td_thragent {
 };
 
 static td_err_e
-libc_r_db_init()
+libc_r_db_init(void)
 {
 	return (TD_OK);
 }
 
 static td_err_e
-libc_r_db_ta_clear_event(const td_thragent_t *ta, td_thr_events_t *ev)
+libc_r_db_ta_clear_event(const td_thragent_t *ta __unused,
+    td_thr_events_t *ev __unused)
 {
 	return (0);
 }
@@ -69,27 +69,28 @@ libc_r_db_ta_delete(td_thragent_t *ta)
 }
 
 static td_err_e
-libc_r_db_ta_event_addr(const td_thragent_t *ta, td_thr_events_e ev,
-    td_notify_t *n)
+libc_r_db_ta_event_addr(const td_thragent_t *ta __unused,
+    td_thr_events_e ev __unused, td_notify_t *n __unused)
 {
 	return (TD_ERR);
 }
 
 static td_err_e
-libc_r_db_ta_event_getmsg(const td_thragent_t *ta, td_event_msg_t *msg)
+libc_r_db_ta_event_getmsg(const td_thragent_t *ta __unused,
+    td_event_msg_t *msg __unused)
 {
 	return (TD_ERR);
 }
 
 static td_err_e
-libc_r_db_ta_map_id2thr(const td_thragent_t *ta, thread_t tid,
-    td_thrhandle_t *th)
+libc_r_db_ta_map_id2thr(const td_thragent_t *ta __unused, thread_t tid __unused,
+    td_thrhandle_t *th __unused)
 {
 	return (TD_ERR);
 }
 
 static td_err_e
-libc_r_db_ta_map_lwp2thr(const td_thragent_t *ta, lwpid_t lwpid,
+libc_r_db_ta_map_lwp2thr(const td_thragent_t *ta, lwpid_t lwpid __unused,
     td_thrhandle_t *th)
 {
 	psaddr_t addr;
@@ -99,7 +100,7 @@ libc_r_db_ta_map_lwp2thr(const td_thragent_t *ta, lwpid_t lwpid,
 	err = ps_pread(ta->ta_ph, ta->ta_thread_initial, &addr, sizeof(addr));
 	if (err != PS_OK)
 		return (TD_ERR);
-	if (addr == NULL)
+	if (addr == 0)
 		return (TD_NOLWP);
 	err = ps_pread(ta->ta_ph, ta->ta_thread_run, &th->th_thread,
 	    sizeof(psaddr_t));
@@ -158,14 +159,16 @@ libc_r_db_ta_new(struct ps_prochandle *ph, td_thragent_t **ta_p)
 }
 
 static td_err_e
-libc_r_db_ta_set_event(const td_thragent_t *ta, td_thr_events_t *ev)
+libc_r_db_ta_set_event(const td_thragent_t *ta __unused,
+    td_thr_events_t *ev __unused)
 {
 	return (0);
 }
 
 static td_err_e
 libc_r_db_ta_thr_iter(const td_thragent_t *ta, td_thr_iter_f *cb, void *data,
-    td_thr_state_e state, int pri, sigset_t *mask, unsigned int flags)
+    td_thr_state_e state __unused, int pri __unused, sigset_t *mask __unused,
+    unsigned int flags __unused)
 {
 	td_thrhandle_t th;
 	psaddr_t addr;
@@ -177,10 +180,10 @@ libc_r_db_ta_thr_iter(const td_thragent_t *ta, td_thr_iter_f *cb, void *data,
 	    sizeof(th.th_thread));
 	if (err != PS_OK)
 		return (TD_ERR);
-	while (th.th_thread != NULL) {
+	while (th.th_thread != 0) {
 		if (cb(&th, data) != 0)
 			return (TD_OK);
-		addr = (psaddr_t)((uintptr_t)th.th_thread + ta->ta_ofs_next);
+		addr = (psaddr_t)(th.th_thread + ta->ta_ofs_next);
 		err = ps_pread(ta->ta_ph, addr, &th.th_thread,
 		    sizeof(th.th_thread));
 		if (err != PS_OK)
@@ -190,19 +193,21 @@ libc_r_db_ta_thr_iter(const td_thragent_t *ta, td_thr_iter_f *cb, void *data,
 }
 
 static td_err_e
-libc_r_db_thr_clear_event(const td_thrhandle_t *th, td_thr_events_t *ev)
+libc_r_db_thr_clear_event(const td_thrhandle_t *th __unused,
+    td_thr_events_t *ev __unused)
 {
 	return (0);
 }
 
 static td_err_e
-libc_r_db_thr_event_enable(const td_thrhandle_t *th, int oo)
+libc_r_db_thr_event_enable(const td_thrhandle_t *th __unused, int oo __unused)
 {
 	return (0);
 }
 
 static td_err_e
-libc_r_db_thr_event_getmsg(const td_thrhandle_t *th, td_event_msg_t *msg)
+libc_r_db_thr_event_getmsg(const td_thrhandle_t *th __unused,
+    td_event_msg_t *msg __unused)
 {
 	return (TD_ERR);
 }
@@ -230,7 +235,8 @@ libc_r_db_thr_get_info(const td_thrhandle_t *th, td_thrinfo_t *ti)
 
 #ifdef __i386__
 static td_err_e
-libc_r_db_thr_getxmmregs(const td_thrhandle_t *th, char *fxsave)
+libc_r_db_thr_getxmmregs(const td_thrhandle_t *th __unused,
+    char *fxsave __unused)
 {
 	return (TD_NOFPREGS);
 }
@@ -287,33 +293,37 @@ libc_r_db_thr_getgregs(const td_thrhandle_t *th, prgregset_t r)
 }
 
 static td_err_e
-libc_r_db_thr_set_event(const td_thrhandle_t *th, td_thr_events_t *ev)
+libc_r_db_thr_set_event(const td_thrhandle_t *th __unused,
+    td_thr_events_t *ev __unused)
 {
 	return (0);
 }
 
 #ifdef __i386__
 static td_err_e
-libc_r_db_thr_setxmmregs(const td_thrhandle_t *th, const char *fxsave)
+libc_r_db_thr_setxmmregs(const td_thrhandle_t *th __unused,
+    const char *fxsave __unused)
 {
 	return (TD_NOFPREGS);
 }
 #endif
 
 static td_err_e
-libc_r_db_thr_setfpregs(const td_thrhandle_t *th, const prfpregset_t *r)
+libc_r_db_thr_setfpregs(const td_thrhandle_t *th __unused,
+    const prfpregset_t *r __unused)
 {
 	return (TD_ERR);
 }
 
 static td_err_e
-libc_r_db_thr_setgregs(const td_thrhandle_t *th, const prgregset_t r)
+libc_r_db_thr_setgregs(const td_thrhandle_t *th __unused,
+    const prgregset_t r __unused)
 {
 	return (TD_ERR);
 }
 
 static td_err_e
-libc_r_db_thr_validate(const td_thrhandle_t *th)
+libc_r_db_thr_validate(const td_thrhandle_t *th __unused)
 {
 	return (TD_ERR);
 }
@@ -346,3 +356,5 @@ struct ta_ops libc_r_db_ops = {
 	.to_thr_setxmmregs	= libc_r_db_thr_setxmmregs,
 #endif
 };
+
+DATA_SET(__ta_ops, libc_r_db_ops);

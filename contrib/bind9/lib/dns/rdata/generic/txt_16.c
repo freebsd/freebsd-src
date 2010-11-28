@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: txt_16.c,v 1.37.12.7 2007/08/28 07:19:15 tbox Exp $ */
+/* $Id: txt_16.c,v 1.37.12.9 2008/04/28 23:45:37 tbox Exp $ */
 
 /* Reviewed: Thu Mar 16 15:40:00 PST 2000 by bwelling */
 
@@ -142,7 +142,7 @@ fromstruct_txt(ARGS_FROMSTRUCT) {
 	while (region.length > 0) {
 		length = uint8_fromregion(&region);
 		isc_region_consume(&region, 1);
-		if (region.length <= length)
+		if (region.length < length)
 			return (ISC_R_UNEXPECTEDEND);
 		isc_region_consume(&region, length);
 	}

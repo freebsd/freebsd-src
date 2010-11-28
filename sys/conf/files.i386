@@ -109,7 +109,6 @@ compat/ndis/subr_ntoskrnl.c	optional ndisapi pci
 compat/ndis/subr_pe.c		optional ndisapi pci
 compat/ndis/subr_usbd.c		optional ndisapi pci
 compat/ndis/winx32_wrap.S	optional ndisapi pci
-compat/pecoff/imgact_pecoff.c	optional pecoff_support
 compat/svr4/imgact_svr4.c	optional compat_svr4
 compat/svr4/svr4_fcntl.c	optional compat_svr4
 compat/svr4/svr4_filio.c	optional compat_svr4
@@ -234,6 +233,7 @@ dev/mxge/mxge_ethp_z8e.c	optional mxge pci
 dev/mxge/mxge_rss_eth_z8e.c	optional mxge pci
 dev/mxge/mxge_rss_ethp_z8e.c	optional mxge pci
 net/zlib.c			optional mxge
+dev/nfe/if_nfe.c		optional nfe pci
 dev/nve/if_nve.c		optional nve pci
 dev/nvram/nvram.c		optional nvram isa
 dev/ppc/ppc.c			optional ppc

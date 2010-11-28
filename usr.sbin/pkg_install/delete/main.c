@@ -170,7 +170,7 @@ main(int argc, char **argv)
 }
 
 static void
-usage()
+usage(void)
 {
     fprintf(stderr, "%s\n%s\n",
 	"usage: pkg_delete [-dDfGinrvxX] [-p prefix] pkg-name ...",

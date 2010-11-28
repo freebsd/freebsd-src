@@ -58,7 +58,7 @@ convert_host_conf()
 	*)
         	printf "Warning: unrecognized line [%s]", $line > "/dev/stderr"
 		;;
-		
+
 	esac
     done < $host_conf
 

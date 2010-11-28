@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 /*
- * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -17,7 +17,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: platform.h.in,v 1.24.2.1.10.13 2007/09/13 23:45:58 tbox Exp $ */
+/* $Id: platform.h.in,v 1.24.2.1.10.15 2008/06/25 23:45:37 tbox Exp $ */
 
 #ifndef ISC_PLATFORM_H
 #define ISC_PLATFORM_H 1
@@ -143,6 +143,21 @@
 /***
  *** Printing.
  ***/
+
+/*! \brief
+ * Define if the system supports kqueue multiplexing
+ */
+#define ISC_PLATFORM_HAVEKQUEUE 1
+
+/*! \brief
+ * Define if the system supports epoll multiplexing
+ */
+#undef ISC_PLATFORM_HAVEEPOLL
+
+/*! \brief
+ * Define if the system supports /dev/poll multiplexing
+ */
+#undef ISC_PLATFORM_HAVEDEVPOLL
 
 /*
  * If this system needs vsnprintf() and snprintf(), ISC_PLATFORM_NEEDVSNPRINTF

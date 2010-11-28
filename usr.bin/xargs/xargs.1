@@ -37,7 +37,7 @@
 .\" $FreeBSD$
 .\" $xMach: xargs.1,v 1.2 2002/02/23 05:23:37 tim Exp $
 .\"
-.Dd August 2, 2004
+.Dd January 26, 2008
 .Dt XARGS 1
 .Os
 .Sh NAME
@@ -45,7 +45,7 @@
 .Nd "construct argument list(s) and execute utility"
 .Sh SYNOPSIS
 .Nm
-.Op Fl 0opt
+.Op Fl 0oprt
 .Op Fl E Ar eofstr
 .Oo
 .Fl I Ar replstr
@@ -213,6 +213,34 @@ in the POSIX locale,
 causes the command to be executed, any other response causes it to be
 skipped.
 No commands are executed if the process is not attached to a terminal.
+.It Fl r
+Compatibility with GNU
+.Nm .
+The GNU version of
+.Nm
+runs the
+.Ar utility
+argument at least once, even if
+.Nm
+input is empty, and it supports a
+.Fl r
+option to inhibit this behavior.
+The
+.Fx
+version of
+.Nm
+does not run the
+.Ar utility
+argument on empty input, but it supports the
+.Fl r
+option for command-line compatibility with GNU
+.Nm ,
+but the
+.Fl r
+option does nothing in the
+.Fx
+version of
+.Nm .
 .It Fl R Ar replacements
 Specify the maximum number of arguments that
 .Fl I

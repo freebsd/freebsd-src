@@ -383,6 +383,7 @@ typedef struct _indexEntry {	/* A single entry in an INDEX file */
     char *deps;			/* packages this depends on	*/
     int  depc;			/* how many depend on me	*/
     int  installed;		/* indicates if it is installed */
+    int  vol_checked;		/* disc volume last checked for */
     char *maintainer;		/* maintainer			*/
     unsigned int volume;	/* Volume of package            */
 } IndexEntry;
@@ -415,6 +416,7 @@ extern Boolean		RunningAsInit;		/* Are we running stand-alone?			*/
 extern Boolean		DialogActive;		/* Is the dialog() stuff up?			*/
 extern Boolean		ColorDisplay;		/* Are we on a color display?			*/
 extern Boolean		OnVTY;			/* On a syscons VTY?				*/
+extern Boolean		have_volumes;		/* Media has multiple volumes                   */
 extern Variable		*VarHead;		/* The head of the variable chain		*/
 extern Device		*mediaDevice;		/* Where we're getting our distribution from	*/
 extern unsigned int	Dists;			/* Which distributions we want			*/
@@ -477,6 +479,8 @@ extern DMenu		MenuFixit;		/* Fixit floppy/CDROM/shell menu		*/
 extern int              FixItMode;              /* FixItMode starts shell onc urrent device (ie Serial port) */
 extern const char *	StartName;		/* Which name we were started as */
 extern int		NCpus;			/* # cpus on machine */
+extern int		low_volume;		/* Lowest volume number */
+extern int		high_volume;		/* Highest volume number */
 
 /* Important chunks. */
 extern Chunk *HomeChunk;
@@ -668,7 +672,7 @@ void		index_init(PkgNodePtr top, PkgNodePtr plist);
 void		index_node_free(PkgNodePtr top, PkgNodePtr plist);
 void		index_sort(PkgNodePtr top);
 void		index_print(PkgNodePtr top, int level);
-int		index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended);
+int		index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended, int current_volume);
 int		index_initialize(char *path);
 PkgNodePtr	index_search(PkgNodePtr top, char *str, PkgNodePtr *tp);
 

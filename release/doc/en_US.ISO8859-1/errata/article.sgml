@@ -16,7 +16,7 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY release.bugfix "6.3-RELEASE">
+<!ENTITY release.bugfix "6.4-RELEASE">
 ]>
 
 <article>
@@ -62,7 +62,8 @@
       &os;.</para>
 
     <para>This errata document for &os; &release.bugfix;
-      will be maintained until the release of &os; &release.next;.</para>
+      will be maintained until the end of 6.4-STABLE development
+      line support.</para>
   </abstract>
 
   <sect1 id="intro">
@@ -96,21 +97,7 @@
   <sect1 id="late-news">
     <title>Late-Breaking News and Corrections</title>
 
-    <para>[20080204] The ISO images of &os; &release.bugfix; are sized
-      for 700MB CD-ROM media (ISO images of all prior versions assumed
-      650MB media).  This fact should have been mentioned in the
-      release notes.</para>
-
-    <para>[20080204] Contrary to the release notes, ipfwpcap(8)
-      is <emphasis>not</emphasis> a feature included in &os;
-      &release.bugfix;.  It was merged to the &release.branch;
-      codeline after the release branch was created.  This utility
-      will be included in subsequent snapshots of &release.branch; and in
-      &release.next;.</para>
-
-    <para>[20080229] The release notes gave an incorrect version
-      number for KDE.  The correct version number is 3.5.8.</para>
-
+    <para>No news.</para>
   </sect1>
 
   <sect1 id="security">
@@ -119,7 +106,6 @@
     <para>The following security advisories pertain to &os; &release.bugfix;.
       For more information, consult the individual advisories available from
       <ulink url="http://security.FreeBSD.org/"></ulink>.</para>
-
 
     <informaltable frame="none" pgwide="0">
       <tgroup cols="3">
@@ -136,59 +122,26 @@
 
 	<tbody>
 	  <row>
-	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-08:03.sendfile.asc">SA-08:03.sendfile</ulink></entry>
-	    <entry>14&nbsp;February&nbsp;2008</entry>
-	    <entry><para>&man.sendfile.2; write-only file permission bypass</para></entry>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:12.ftpd.asc"
+		>SA-08:12.ftpd</ulink></entry>
+	    <entry>23&nbsp;December&nbsp;2008</entry>
+	    <entry><para>Cross-site request forgery in &man.ftpd.8;</para></entry>
 	  </row>
 	  <row>
-	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:05.openssh.asc"
-		>SA-08:05.openssh</ulink></entry>
-	    <entry>17&nbsp;April&nbsp;2008</entry>
-	    <entry><para>OpenSSH X11-forwarding privilege escalation</para></entry>
-	  </row>
-	  <row>
-	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:06.bind.asc"
-		>SA-08:06.bind</ulink></entry>
-	    <entry>13&nbsp;July&nbsp;2008</entry>
-	    <entry><para>DNS cache poisoning</para></entry>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:13.protosw.asc"
+		>SA-08:13.protosw</ulink></entry>
+	    <entry>23&nbsp;December&nbsp;2008</entry>
+	    <entry><para>netgraph / bluetooth privilege escalation</para></entry>
 	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
-
   </sect1>
 
   <sect1 id="known-problems">
     <title>Known Problems and Solutions</title>
 
-    <para>[20080229] A bug in Linux emulation may cause segmentation
-      faults for some Linux programs using &man.mmap.2;.  This issue
-      has been fixed on the HEAD and RELENG_6 branches.</para>
-
-    <para>[20080229, updated 20080420] Multithreaded programs that perform a
-      &man.fork.2; operation may crash due to a race condition in the
-      threading library.  This problem has been fixed on the HEAD,
-      RELENG_6, and RELENG_6_3 branches, and is addressed by errata
-      notice
-      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-EN-08:01.libpthread.asc">FreeBSD-EN-08:01.libpthread</ulink>.
-      </para>
-
-    <para>[20080307] When using &man.sysinstall.8; to install the
-      X.org packages, selecting only specific components to be
-      installed may result in
-      the <filename role="package">x11/xorg-drivers</filename> package
-      not being installed, and a corresponding failure of X.org server
-      to configure itself correctly.  The recommended way to a
-      functioning X.org installation is simply to
-      select <guimenuitem>All</guimenuitem> from the Distributions
-      menu.</para>
-
-    <para>[20080420] A reference counting bug in the IP multicast code
-      could cause kernel panics under some circumstances.  It has been
-      fixed on the RELENG_6 branch by
-      revision <literal>1.85.2.10</literal>
-      of <filename>sys/netinet/in.c</filename>.</para>
-
+    <para>No news.</para>
   </sect1>
 
 </article>

@@ -31,6 +31,10 @@ __FBSDID("$FreeBSD$");
 #include <stddef.h>
 #include <thread_db.h>
 #include <unistd.h>
+#include <sys/cdefs.h>
+#include <sys/endian.h>
+#include <sys/errno.h>
+#include <sys/linker_set.h>
 
 #include "thread_db_int.h"
 
@@ -41,26 +45,19 @@ struct td_thragent
 
 static TAILQ_HEAD(, td_thragent) proclist = TAILQ_HEAD_INITIALIZER(proclist);
 
-extern struct ta_ops libc_r_db_ops;
-extern struct ta_ops libpthread_db_ops;
-extern struct ta_ops libthr_db_ops;
-
-static struct ta_ops *ops[] = {
-	&libpthread_db_ops,
-	&libthr_db_ops,
-	&libc_r_db_ops
-};
+SET_DECLARE(__ta_ops, struct ta_ops);
 
 td_err_e
 td_init(void)
 {
 	td_err_e ret, tmp;
-	size_t i;
+	struct ta_ops *ops_p, **ops_pp;
 
 	ret = 0;
-	for (i = 0; i < sizeof(ops)/sizeof(ops[0]); i++) {
-		if (ops[i]->to_init != NULL) {
-			tmp = ops[i]->to_init();
+	SET_FOREACH(ops_pp, __ta_ops) {
+		ops_p = *ops_pp;
+		if (ops_p->to_init != NULL) {
+			tmp = ops_p->to_init();
 			if (tmp != TD_OK)
 				ret = tmp;
 		}
@@ -108,12 +105,13 @@ td_ta_map_lwp2thr(const td_thragent_t *ta, lwpid_t lwpid, td_thrhandle_t *th)
 td_err_e
 td_ta_new(struct ps_prochandle *ph, td_thragent_t **pta)
 {
-	size_t i;
+	struct ta_ops *ops_p, **ops_pp;
 
-	for (i = 0; i < sizeof(ops)/sizeof(ops[0]); ++i) {
-		if (ops[i]->to_ta_new(ph, pta) == TD_OK) {
+	SET_FOREACH(ops_pp, __ta_ops) {
+		ops_p = *ops_pp;
+		if (ops_p->to_ta_new(ph, pta) == TD_OK) {
 			TAILQ_INSERT_HEAD(&proclist, *pta, ta_next);
-			(*pta)->ta_ops = ops[i];
+			(*pta)->ta_ops = ops_p;
 			return (TD_OK);
 		}
 	}
@@ -246,8 +244,8 @@ td_thr_validate(const td_thrhandle_t *th)
 }
 
 td_err_e
-td_thr_tls_get_addr(const td_thrhandle_t *th, void *linkmap, size_t offset,
-		    void **address)
+td_thr_tls_get_addr(const td_thrhandle_t *th, psaddr_t linkmap, size_t offset,
+    psaddr_t *address)
 {
 	const td_thragent_t *ta = th->th_ta;
 	return (ta->ta_ops->to_thr_tls_get_addr(th, linkmap, offset, address));
@@ -261,3 +259,176 @@ td_thr_sstep(const td_thrhandle_t *th, int step)
 	const td_thragent_t *ta = th->th_ta;
 	return (ta->ta_ops->to_thr_sstep(th, step));
 }
+
+/*
+ * Support functions for reading from and writing to the target
+ * address space.
+ */
+
+static int
+thr_pread(struct ps_prochandle *ph, psaddr_t addr, uint64_t *val,
+    u_int size, u_int byteorder)
+{
+	uint8_t buf[sizeof(*val)];
+	ps_err_e err;
+
+	if (size > sizeof(buf))
+		return (EOVERFLOW);
+
+	err = ps_pread(ph, addr, buf, size);
+	if (err != PS_OK)
+		return (EFAULT);
+
+	switch (byteorder) {
+	case BIG_ENDIAN:
+		switch (size) {
+		case 1:
+			*val = buf[0];
+			break;
+		case 2:
+			*val = be16dec(buf);
+			break;
+		case 4:
+			*val = be32dec(buf);
+			break;
+		case 8:
+			*val = be64dec(buf);
+			break;
+		default:
+			return (EINVAL);
+		}
+		break;
+	case LITTLE_ENDIAN:
+		switch (size) {
+		case 1:
+			*val = buf[0];
+			break;
+		case 2:
+			*val = le16dec(buf);
+			break;
+		case 4:
+			*val = le32dec(buf);
+			break;
+		case 8:
+			*val = le64dec(buf);
+			break;
+		default:
+			return (EINVAL);
+		}
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	return (0);
+}
+
+int
+thr_pread_int(const struct td_thragent *ta, psaddr_t addr, uint32_t *val)
+{
+	uint64_t tmp;
+	int error;
+
+	error = thr_pread(ta->ph, addr, &tmp, sizeof(int), BYTE_ORDER);
+	if (!error)
+		*val = tmp;
+
+	return (error);
+}
+
+int
+thr_pread_long(const struct td_thragent *ta, psaddr_t addr, uint64_t *val)
+{
+
+	return (thr_pread(ta->ph, addr, val, sizeof(long), BYTE_ORDER));
+}
+
+int
+thr_pread_ptr(const struct td_thragent *ta, psaddr_t addr, psaddr_t *val)
+{
+	uint64_t tmp;
+	int error;
+
+	error = thr_pread(ta->ph, addr, &tmp, sizeof(void *), BYTE_ORDER);
+	if (error == 0)
+		*val = tmp;
+
+	return (error);
+}
+
+static int
+thr_pwrite(struct ps_prochandle *ph, psaddr_t addr, uint64_t val,
+    u_int size, u_int byteorder)
+{
+	uint8_t buf[sizeof(val)];
+	ps_err_e err;
+
+	if (size > sizeof(buf))
+		return (EOVERFLOW);
+
+	switch (byteorder) {
+	case BIG_ENDIAN:
+		switch (size) {
+		case 1:
+			buf[0] = (uint8_t)val;
+			break;
+		case 2:
+			be16enc(buf, (uint16_t)val);
+			break;
+		case 4:
+			be32enc(buf, (uint32_t)val);
+			break;
+		case 8:
+			be64enc(buf, (uint64_t)val);
+			break;
+		default:
+			return (EINVAL);
+		}
+		break;
+	case LITTLE_ENDIAN:
+		switch (size) {
+		case 1:
+			buf[0] = (uint8_t)val;
+			break;
+		case 2:
+			le16enc(buf, (uint16_t)val);
+			break;
+		case 4:
+			le32enc(buf, (uint32_t)val);
+			break;
+		case 8:
+			le64enc(buf, (uint64_t)val);
+			break;
+		default:
+			return (EINVAL);
+		}
+		break;
+	default:
+		return (EINVAL);
+	}
+
+	err = ps_pwrite(ph, addr, buf, size);
+	return ((err != PS_OK) ? EFAULT : 0);
+}
+
+int
+thr_pwrite_int(const struct td_thragent *ta, psaddr_t addr, uint32_t val)
+{
+
+	return (thr_pwrite(ta->ph, addr, val, sizeof(int), BYTE_ORDER));
+}
+
+int
+thr_pwrite_long(const struct td_thragent *ta, psaddr_t addr, uint64_t val)
+{
+
+	return (thr_pwrite(ta->ph, addr, val, sizeof(long), BYTE_ORDER));
+}
+
+int
+thr_pwrite_ptr(const struct td_thragent *ta, psaddr_t addr, psaddr_t val)
+{
+
+	return (thr_pwrite(ta->ph, addr, val, sizeof(void *), BYTE_ORDER));
+}
+

@@ -9,7 +9,7 @@
 
 . /etc/rc.subr
 
-name=moused
+name="moused"
 rcvar=`set_rcvar`
 command="/usr/sbin/${name}"
 start_cmd="moused_start"

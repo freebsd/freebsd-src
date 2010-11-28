@@ -347,13 +347,10 @@ mpool_bkt(mp)
 			return (bp);
 		}
 
-new:	if ((bp = (BKT *)malloc(sizeof(BKT) + mp->pagesize)) == NULL)
+new:	if ((bp = (BKT *)calloc(1, sizeof(BKT) + mp->pagesize)) == NULL)
 		return (NULL);
 #ifdef STATISTICS
 	++mp->pagealloc;
-#endif
-#if defined(DEBUG) || defined(PURIFY)
-	memset(bp, 0xff, sizeof(BKT) + mp->pagesize);
 #endif
 	bp->page = (char *)bp + sizeof(BKT);
 	++mp->curcache;

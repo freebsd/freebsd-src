@@ -165,7 +165,7 @@ kernel-tags:
 	rm -f tags1
 	sed -e 's,      ../,    ,' tags > tags1
 
-.if ${MACHINE_ARCH} != "ia64"
+.if ${MACHINE_ARCH} != "ia64" && ${MACHINE_ARCH} != "arm"
 .if exists(${DESTDIR}/boot)
 kernel-install-check:
 	@if [ ! -f ${DESTDIR}/boot/device.hints ] ; then \

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2009 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: milter.c,v 8.269 2007/06/06 17:26:12 ca Exp $")
+SM_RCSID("@(#)$Id: milter.c,v 8.277 2009/11/06 00:57:06 ca Exp $")
 
 #if MILTER
 # include <sm/sendmail.h>
@@ -514,7 +514,6 @@ milter_write(m, cmd, buf, len, to, e, where)
 	ENVELOPE *e;
 	const char *where;
 {
-	time_t writestart = (time_t) 0;
 	ssize_t sl, i;
 	int num_vectors;
 	mi_int32 nl;
@@ -532,12 +531,16 @@ milter_write(m, cmd, buf, len, to, e, where)
 	if (len < 0 || len > MilterMaxDataSize)
 	{
 		if (tTd(64, 5))
-			sm_dprintf("milter_write(%s): length %ld out of range\n",
-				m->mf_name, (long) len);
+		{
+			sm_dprintf("milter_write(%s): length %ld out of range, cmd=%c\n",
+				m->mf_name, (long) len, command);
+			sm_dprintf("milter_write(%s): buf=%s\n",
+				m->mf_name, str2prt(buf));
+		}
 		if (MilterLogLevel > 0)
 			sm_syslog(LOG_ERR, e->e_id,
-				  "milter_write(%s): length %ld out of range",
-				  m->mf_name, (long) len);
+				  "milter_write(%s): length %ld out of range, cmd=%c",
+				  m->mf_name, (long) len, command);
 		milter_error(m, e);
 		return NULL;
 	}
@@ -594,10 +597,7 @@ milter_write(m, cmd, buf, len, to, e, where)
 	}
 
 	if (to > 0)
-	{
-		writestart = curtime();
 		MILTER_TIMEOUT("write", to, true, started, where);
-	}
 
 	/* write the vector(s) */
 	i = writev(m->mf_sock, vector, num_vectors);
@@ -1572,10 +1572,10 @@ static struct milteropt
 
 # define MO_LOGLEVEL			0x07
 	{ "loglevel",			MO_LOGLEVEL			},
-# if _FFR_MAXDATASIZE
+# if _FFR_MAXDATASIZE || _FFR_MDS_NEGOTIATE
 #  define MO_MAXDATASIZE		0x08
 	{ "maxdatasize",		MO_MAXDATASIZE			},
-# endif /* _FFR_MAXDATASIZE */
+# endif /* _FFR_MAXDATASIZE || _FFR_MDS_NEGOTIATE */
 	{ NULL,				(unsigned char)-1		},
 };
 
@@ -1631,11 +1631,29 @@ milter_set_option(name, val, sticky)
 		MilterLogLevel = atoi(val);
 		break;
 
-#if _FFR_MAXDATASIZE
+# if _FFR_MAXDATASIZE || _FFR_MDS_NEGOTIATE
 	  case MO_MAXDATASIZE:
+#  if _FFR_MDS_NEGOTIATE
 		MilterMaxDataSize = (size_t)atol(val);
+		if (MilterMaxDataSize != MILTER_MDS_64K &&
+		    MilterMaxDataSize != MILTER_MDS_256K &&
+		    MilterMaxDataSize != MILTER_MDS_1M)
+		{
+			sm_syslog(LOG_WARNING, NOQID,
+				"WARNING: Milter.%s=%d, allowed are only %d, %d, and %d",
+				name, MilterMaxDataSize,
+				MILTER_MDS_64K, MILTER_MDS_256K,
+				MILTER_MDS_1M);
+			if (MilterMaxDataSize < MILTER_MDS_64K)
+				MilterMaxDataSize = MILTER_MDS_64K;
+			else if (MilterMaxDataSize < MILTER_MDS_256K)
+				MilterMaxDataSize = MILTER_MDS_256K;
+			else
+				MilterMaxDataSize = MILTER_MDS_1M;
+		}
+#  endif /* _FFR_MDS_NEGOTIATE */
 		break;
-#endif /* _FFR_MAXDATASIZE */
+# endif /* _FFR_MAXDATASIZE || _FFR_MDS_NEGOTIATE */
 
 	  case MO_MACROS_CONNECT:
 		if (macros == NULL)
@@ -2411,6 +2429,12 @@ milter_negotiate(m, e, milters)
 	mta_prot_flags = SMFI_CURR_PROT;
 	mta_actions = SMFI_CURR_ACTS;
 #endif /* _FFR_MILTER_CHECK */
+#if _FFR_MDS_NEGOTIATE
+	if (MilterMaxDataSize == MILTER_MDS_256K)
+		mta_prot_flags |= SMFIP_MDS_256K;
+	else if (MilterMaxDataSize == MILTER_MDS_1M)
+		mta_prot_flags |= SMFIP_MDS_1M;
+#endif /* _FFR_MDS_NEGOTIATE */
 
 	fvers = htonl(mta_prot_vers);
 	pflags = htonl(mta_prot_flags);
@@ -2524,6 +2548,39 @@ milter_negotiate(m, e, milters)
 		milter_error(m, e);
 		goto error;
 	}
+
+#if _FFR_MDS_NEGOTIATE
+	/* use a table instead of sequence? */
+	if (bitset(SMFIP_MDS_1M, m->mf_pflags))
+	{
+		if (MilterMaxDataSize != MILTER_MDS_1M)
+		{
+			/* this should not happen... */
+			sm_syslog(LOG_WARNING, NOQID,
+				  "WARNING: Milter.maxdatasize: configured=%d, set by libmilter=%d",
+		    		  MilterMaxDataSize, MILTER_MDS_1M);
+			MilterMaxDataSize = MILTER_MDS_1M;
+		}
+	}
+	else if (bitset(SMFIP_MDS_256K, m->mf_pflags))
+	{
+		if (MilterMaxDataSize != MILTER_MDS_256K)
+		{
+			sm_syslog(LOG_WARNING, NOQID,
+				  "WARNING: Milter.maxdatasize: configured=%d, set by libmilter=%d",
+		    		  MilterMaxDataSize, MILTER_MDS_256K);
+			MilterMaxDataSize = MILTER_MDS_256K;
+		}
+	}
+	else if (MilterMaxDataSize != MILTER_MDS_64K)
+	{
+		sm_syslog(LOG_WARNING, NOQID,
+			  "WARNING: Milter.maxdatasize: configured=%d, set by libmilter=%d",
+	    		  MilterMaxDataSize, MILTER_MDS_64K);
+		MilterMaxDataSize = MILTER_MDS_64K;
+	}
+	m->mf_pflags &= ~SMFI_INTERNAL;
+#endif /* _FFR_MDS_NEGOTIATE */
 
 	/* check for protocol feature mismatch */
 	if ((m->mf_pflags & mta_prot_flags) != m->mf_pflags)
@@ -2976,7 +3033,7 @@ milter_addheader(m, response, rlen, e)
 			h->h_value = mh_value;
 		else
 		{
-			h->h_value = addleadingspace (mh_value, e->e_rpool);
+			h->h_value = addleadingspace(mh_value, e->e_rpool);
 			SM_FREE(mh_value);
 		}
 		h->h_flags |= H_USER;
@@ -3277,7 +3334,7 @@ milter_changeheader(m, response, rlen, e)
 			h->h_value = mh_value;
 		else
 		{
-			h->h_value = addleadingspace (mh_value, e->e_rpool);
+			h->h_value = addleadingspace(mh_value, e->e_rpool);
 			SM_FREE(mh_value);
 		}
 		h->h_flags |= H_USER;
@@ -3330,7 +3387,7 @@ milter_split_response(response, rlen, pargc)
 		return NULL;
 
 	/* last entry is only for the name */
-	s = (char **)malloc(nelem * (sizeof(*s)));
+	s = (char **)malloc((nelem + 1) * (sizeof(*s)));
 	if (s == NULL)
 		return NULL;
 	s[0] = response;
@@ -3813,7 +3870,7 @@ milter_init(e, state, milters)
 					  m->mf_sock < 0 ? "open" :
 							   "negotiate");
 
-			/* if negotation failure, close socket */
+			/* if negotiation failure, close socket */
 			milter_error(m, e);
 			MILTER_CHECK_ERROR(true, continue);
 			continue;
@@ -4383,7 +4440,7 @@ milter_data(e, state)
 
 			response = milter_read(m, &rcmd, &rlen,
 					       m->mf_timeout[SMFTO_READ], e,
-						"body");
+						"eom");
 			if (m->mf_state == SMFS_ERROR)
 				break;
 

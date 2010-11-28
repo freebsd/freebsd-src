@@ -2009,7 +2009,7 @@ again:
 			rt = rt->rt_gwroute;
 			RT_LOCK(rt);		/* NB: gwroute */
 			if ((rt->rt_flags & RTF_UP) == 0) {
-				rtfree(rt);	/* unlock gwroute */
+				RTFREE_LOCKED(rt);	/* unlock gwroute */
 				rt = rt0;
 				rt0->rt_gwroute = NULL;
 			lookup:

@@ -78,7 +78,7 @@ ngets(char *buf, int n)
 	    putchar('\n');
 	    break;
 	default:
-	    if ((n < 1) || ((lp - buf) < n)) {
+	    if ((n < 1) || ((lp - buf) < n - 1)) {
 		*lp++ = c;
 		putchar(c);
 	    }

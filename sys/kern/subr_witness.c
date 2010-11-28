@@ -349,6 +349,12 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "so_snd", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
+	 * Netgraph
+	 */
+	{ "ng_node", &lock_class_mtx_sleep },
+	{ "ng_worklist", &lock_class_mtx_sleep },
+	{ NULL, NULL },
+	/*
 	 * CDEV
 	 */
 	{ "system map", &lock_class_mtx_sleep },
@@ -370,8 +376,6 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "uart_hwmtx", &lock_class_mtx_spin },
 	{ "sabtty", &lock_class_mtx_spin },
 	{ "zstty", &lock_class_mtx_spin },
-	{ "ng_node", &lock_class_mtx_spin },
-	{ "ng_worklist", &lock_class_mtx_spin },
 	{ "fast_taskqueue", &lock_class_mtx_spin },
 	{ "intr table", &lock_class_mtx_spin },
 	{ "sleepq chain", &lock_class_mtx_spin },

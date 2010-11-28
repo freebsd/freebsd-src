@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1998-2004 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2004, 2009 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -16,8 +16,8 @@
 #####
 #####		SENDMAIL CONFIGURATION FILE
 #####
-##### built by ca@wiz.smi.sendmail.com on Fri May 2 20:39:00 PDT 2008
-##### in /extra/home/ca/sm-8.14.3/OpenSource/sendmail-8.14.3/cf/cf
+##### built by ca@wiz.smi.sendmail.com on Tue Dec 22 20:49:09 PST 2009
+##### in /extra/home/ca/sm-8.14.4/OpenSource/sendmail-8.14.4/cf/cf
 ##### using ../ as configuration include directory
 #####
 ######################################################################
@@ -27,7 +27,7 @@
 ######################################################################
 ######################################################################
 
-#####  $Id: cfhead.m4,v 8.116 2004/01/28 22:02:22 ca Exp $  #####
+#####  $Id: cfhead.m4,v 8.120 2009/01/23 22:39:21 ca Exp $  #####
 #####  $Id: cf.m4,v 8.32 1999/02/07 07:26:14 gshapiro Exp $  #####
 #####  $Id: submit.mc,v 8.14 2006/04/05 05:54:41 ca Exp $  #####
 #####  $Id: msp.m4,v 1.33 2004/02/09 22:32:38 ca Exp $  #####
@@ -35,7 +35,7 @@
 #####  $Id: no_default_msa.m4,v 8.2 2001/02/14 05:03:22 gshapiro Exp $  #####
 
 
-#####  $Id: proto.m4,v 8.734 2008/01/24 23:42:01 ca Exp $  #####
+#####  $Id: proto.m4,v 8.741 2009/12/11 00:04:53 ca Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -114,7 +114,7 @@ D{MTAHost}[127.0.0.1]
 
 
 # Configuration version number
-DZ8.14.3/Submit
+DZ8.14.4/Submit
 
 
 ###############
@@ -440,6 +440,7 @@ O RunAsUser=smmsp
 # once the threshold number of recipients have been rejected
 #O BadRcptThrottle=0
 
+
 # shall we get local names from our installed interfaces?
 O DontProbeInterfaces=True
 
@@ -499,6 +500,7 @@ O PidFile=/var/spool/clientmqueue/sm-client.pid
 
 # SMTP STARTTLS server options
 #O TLSSrvOptions
+
 
 # Input mail filters
 #O InputMailFilters

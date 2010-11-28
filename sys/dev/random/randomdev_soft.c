@@ -61,6 +61,7 @@ random_harvest_internal(u_int64_t, const void *, u_int,
     u_int, u_int, enum esource);
 static int random_yarrow_poll(int event,struct thread *td);
 static int random_yarrow_block(int flag);
+static void random_yarrow_flush_reseed(void);
 
 struct random_systat random_yarrow = {
 	.ident = "Software, Yarrow",
@@ -70,7 +71,7 @@ struct random_systat random_yarrow = {
 	.read = random_yarrow_read,
 	.write = random_yarrow_write,
 	.poll = random_yarrow_poll,
-	.reseed = random_yarrow_reseed,
+	.reseed = random_yarrow_flush_reseed,
 	.seeded = 1,
 };
 
@@ -96,7 +97,7 @@ static struct entropyfifo emptyfifo;
 /* Harvested entropy */
 static struct entropyfifo harvestfifo[ENTROPYSOURCE];
 
-/* <0 to end the kthread, 0 to let it run */
+/* <0 to end the kthread, 0 to let it run, 1 to flush the harvest queues */
 static int random_kthread_control = 0;
 
 static struct proc *random_kthread_proc;
@@ -247,7 +248,7 @@ random_kthread(void *arg __unused)
 	local_count = 0;
 
 	/* Process until told to stop */
-	for (; random_kthread_control == 0;) {
+	for (; random_kthread_control >= 0;) {
 
 		active = 0;
 
@@ -281,6 +282,13 @@ random_kthread(void *arg __unused)
 
 		KASSERT(local_count == 0, ("random_kthread: local_count %d",
 		    local_count));
+
+		/*
+		 * If a queue flush was commanded, it has now happened,
+		 * and we can mark this by resetting the command.
+		 */
+		if (random_kthread_control == 1)
+			random_kthread_control = 0;
 
 		/* Found nothing, so don't belabour the issue */
 		if (!active)
@@ -406,3 +414,15 @@ random_yarrow_block(int flag)
 
 	return error;
 }	
+
+/* Helper routine to perform explicit reseeds */
+static void
+random_yarrow_flush_reseed(void)
+{
+	/* Command a entropy queue flush and wait for it to finish */
+	random_kthread_control = 1;
+	while (random_kthread_control)
+		tsleep(&harvestfifo, 0, "-", hz / 10);
+
+	random_yarrow_reseed();
+}

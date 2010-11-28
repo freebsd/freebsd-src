@@ -629,6 +629,7 @@ dev/firewire/sbp_targ.c		optional sbp_targ
 dev/fxp/if_fxp.c		optional fxp
 dev/gem/if_gem.c		optional gem
 dev/gem/if_gem_pci.c		optional gem pci
+dev/gem/if_gem_sbus.c		optional gem sbus
 dev/harp/if_harp.c		optional harp pci
 dev/hatm/if_hatm.c		optional hatm pci
 dev/hatm/if_hatm_intr.c		optional hatm pci
@@ -918,7 +919,6 @@ dev/sound/isa/sbc.c		optional snd_sbc isa
 dev/sound/isa/sndbuf_dma.c	optional sound isa
 dev/sound/pci/als4000.c		optional snd_als4000 pci
 dev/sound/pci/atiixp.c		optional snd_atiixp pci
-#dev/sound/pci/au88x0.c		optional snd_au88x0 pci
 dev/sound/pci/cmi.c		optional snd_cmi pci
 dev/sound/pci/cs4281.c		optional snd_cs4281 pci
 dev/sound/pci/csa.c		optional snd_csa pci \
@@ -2039,14 +2039,6 @@ vm/vm_pager.c			standard
 vm/vm_unix.c			standard
 vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard
-xdr/xdr.c			optional nfslockd
-xdr/xdr_array.c			optional nfslockd
-xdr/xdr_mbuf.c			optional nfslockd
-xdr/xdr_mem.c			optional nfslockd
-xdr/xdr_reference.c		optional nfslockd
-xdr/xdr_sizeof.c		optional nfslockd
-
-
 xen/gnttab.c                   optional xen
 xen/features.c                 optional xen
 xen/evtchn/evtchn.c            optional xen
@@ -2064,4 +2056,9 @@ dev/xen/blkfront/blkfront.c    optional xen
 dev/xen/netfront/netfront.c    optional xen
 #dev/xen/xenpci/xenpci.c        optional xen
 #xen/xenbus/xenbus_newbus.c	optional xenhvm
-
+xdr/xdr.c			optional nfslockd
+xdr/xdr_array.c			optional nfslockd
+xdr/xdr_mbuf.c			optional nfslockd
+xdr/xdr_mem.c			optional nfslockd
+xdr/xdr_reference.c		optional nfslockd
+xdr/xdr_sizeof.c		optional nfslockd

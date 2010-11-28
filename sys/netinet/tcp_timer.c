@@ -188,7 +188,7 @@ tcp_timer_2msl(xtp)
 	 * control block.  Otherwise, check again in a bit.
 	 */
 	if (tp->t_state != TCPS_TIME_WAIT &&
-	    (ticks - tp->t_rcvtime) <= tcp_maxidle)
+	    (ticks - (int)tp->t_rcvtime) <= tcp_maxidle)
 		callout_reset(tp->tt_2msl, tcp_keepintvl,
 			      tcp_timer_2msl, tp);
 	else
@@ -247,7 +247,7 @@ tcp_timer_2msl_tw(int reuse)
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
 	for (;;) {
 		tw = TAILQ_FIRST(&twq_2msl);
-		if (tw == NULL || (!reuse && tw->tw_time > ticks))
+		if (tw == NULL || (!reuse && (int)(tw->tw_time - ticks) > 0))
 			break;
 		INP_LOCK(tw->tw_inpcb);
 		tcp_twclose(tw, reuse);
@@ -291,7 +291,7 @@ tcp_timer_keep(xtp)
 		goto dropit;
 	if ((always_keepalive || inp->inp_socket->so_options & SO_KEEPALIVE) &&
 	    tp->t_state <= TCPS_CLOSING) {
-		if ((ticks - tp->t_rcvtime) >= tcp_keepidle + tcp_maxidle)
+		if ((ticks - (int)tp->t_rcvtime) >= tcp_keepidle + tcp_maxidle)
 			goto dropit;
 		/*
 		 * Send a packet designed to force a response
@@ -377,8 +377,8 @@ tcp_timer_persist(xtp)
 	 * backoff that we would use if retransmitting.
 	 */
 	if (tp->t_rxtshift == TCP_MAXRXTSHIFT &&
-	    ((ticks - tp->t_rcvtime) >= tcp_maxpersistidle ||
-	     (ticks - tp->t_rcvtime) >= TCP_REXMTVAL(tp) * tcp_totbackoff)) {
+	    ((ticks - (int)tp->t_rcvtime) >= tcp_maxpersistidle ||
+	     (ticks - (int)tp->t_rcvtime) >= TCP_REXMTVAL(tp) * tcp_totbackoff)) {
 		tcpstat.tcps_persistdrop++;
 		tp = tcp_drop(tp, ETIMEDOUT);
 		goto out;

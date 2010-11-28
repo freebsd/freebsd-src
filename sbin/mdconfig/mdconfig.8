@@ -96,7 +96,7 @@ panic a system.
 .It Cm vnode
 A file specified with
 .Fl f Ar file
-becomes the backingstore for this memory disk.
+becomes the backing store for this memory disk.
 .It Cm swap
 Storage for this type of memory disk is allocated from buffer
 memory.
@@ -193,7 +193,7 @@ To create a disk named
 .Pa /dev/md4
 with
 .Pa /tmp/boot.flp
-as backing:
+as backing storage:
 .Pp
 .Dl mdconfig -a -t vnode -f /tmp/boot.flp -u 4
 .Pp
@@ -202,7 +202,9 @@ To detach and free all resources used by
 .Pp
 .Dl mdconfig -d -u 4
 .Pp
-To create and mount a 128MByte swap backed file system on
+To create a 128MByte swap backed disk, initialize an
+.Xr ffs 7
+file system on it, and mount it on
 .Pa /tmp :
 .Bd -literal -offset indent
 mdconfig -a -t swap -s 128M -u 10
@@ -211,10 +213,10 @@ mount /dev/md10 /tmp
 chmod 1777 /tmp
 .Ed
 .Pp
-To create a 5MB file-backed disk (
-.Fl -a
+To create a 5MB file-backed disk
+.Ns ( Fl a
 and
-.Fl -t Ar vnode
+.Fl t Ar vnode
 are implied):
 .Bd -literal -offset indent
 dd if=/dev/zero of=somebackingfile bs=1k count=5k
@@ -224,13 +226,21 @@ newfs md0c
 mount /dev/md0c /mnt
 .Ed
 .Pp
-To mount an ISO 9660 CD image file:
+To create an
+.Xr md 4
+device out of an ISO 9660 CD image file
+.Ns ( Fl a
+and
+.Fl t Ar vnode
+are implied), using the first available
+.Xr md 4
+device, and then mount the new memory disk:
 .Bd -literal -offset indent
-mdconfig -a -t vnode -u 10 -f cdimage.iso
-mount_cd9660 /dev/md10 /mnt
+mount -t cd9660 /dev/`mdconfig -f cdimage.iso` /mnt
 .Ed
 .Sh SEE ALSO
 .Xr md 4 ,
+.Xr ffs 7 ,
 .Xr bsdlabel 8 ,
 .Xr fdisk 8 ,
 .Xr mdmfs 8 ,

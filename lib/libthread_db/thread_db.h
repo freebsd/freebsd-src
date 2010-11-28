@@ -95,7 +95,7 @@ typedef enum {
 
 typedef struct {
 	td_thr_events_e	event;
-	const td_thrhandle_t *th_p;
+	psaddr_t	th_p;
 	uintptr_t	data;
 } td_event_msg_t;
 
@@ -239,7 +239,8 @@ td_err_e td_thr_setxmmregs(const td_thrhandle_t *, const char *);
 td_err_e td_thr_setfpregs(const td_thrhandle_t *, const prfpregset_t *);
 td_err_e td_thr_setgregs(const td_thrhandle_t *, const prgregset_t);
 td_err_e td_thr_validate(const td_thrhandle_t *);
-td_err_e td_thr_tls_get_addr(const td_thrhandle_t *, void *, size_t, void **);
+td_err_e td_thr_tls_get_addr(const td_thrhandle_t *, psaddr_t, size_t,
+    psaddr_t *);
 
 /* FreeBSD specific extensions. */
 td_err_e td_thr_sstep(const td_thrhandle_t *, int);

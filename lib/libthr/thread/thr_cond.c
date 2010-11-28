@@ -71,7 +71,7 @@ cond_init(pthread_cond_t *cond, const pthread_condattr_t *cond_attr)
 		_thr_umtx_init(&pcond->c_lock);
 		pcond->c_seqno = 0;
 		pcond->c_waiters = 0;
-		pcond->c_wakeups = 0;
+		pcond->c_broadcast = 0;
 		if (cond_attr == NULL || *cond_attr == NULL) {
 			pcond->c_pshared = 0;
 			pcond->c_clockid = CLOCK_REALTIME;
@@ -122,7 +122,7 @@ _pthread_cond_destroy(pthread_cond_t *cond)
 	else {
 		/* Lock the condition variable structure: */
 		THR_LOCK_ACQUIRE(curthread, &(*cond)->c_lock);
-		if ((*cond)->c_waiters + (*cond)->c_wakeups != 0) {
+		if ((*cond)->c_waiters != 0) {
 			THR_LOCK_RELEASE(curthread, &(*cond)->c_lock);
 			return (EBUSY);
 		}
@@ -166,14 +166,13 @@ cond_cancel_handler(void *arg)
 
 	cv = *(cci->cond);
 	THR_LOCK_ACQUIRE(curthread, &cv->c_lock);
-	if (cv->c_seqno != cci->seqno && cv->c_wakeups != 0) {
-		if (cv->c_waiters > 0) {
-			cv->c_seqno++;
-			_thr_umtx_wake(&cv->c_seqno, 1);
-		} else
-			cv->c_wakeups--;
-	} else {
-		cv->c_waiters--;
+	if (--cv->c_waiters == 0)
+		cv->c_broadcast = 0;
+	if (cv->c_seqno != cci->seqno) {
+		_thr_umtx_wake(&cv->c_seqno, 1);
+		/* cv->c_seqno++; XXX why was this here? */
+		_thr_umtx_wake(&cv->c_seqno, 1);
+
 	}
 	THR_LOCK_RELEASE(curthread, &cv->c_lock);
 
@@ -191,6 +190,7 @@ cond_wait_common(pthread_cond_t *cond, pthread_mutex_t *mutex,
 	long		seq, oldseq;
 	int		oldcancel;
 	int		ret = 0;
+	int		loops = -1;
 
 	/*
 	 * If the condition variable is statically initialized,
@@ -202,18 +202,24 @@ cond_wait_common(pthread_cond_t *cond, pthread_mutex_t *mutex,
 
 	cv = *cond;
 	THR_LOCK_ACQUIRE(curthread, &cv->c_lock);
+	oldseq = cv->c_seqno;
 	ret = _mutex_cv_unlock(mutex);
 	if (ret) {
 		THR_LOCK_RELEASE(curthread, &cv->c_lock);
 		return (ret);
 	}
-	oldseq = seq = cv->c_seqno;
+	seq = cv->c_seqno;
 	cci.mutex = mutex;
 	cci.cond  = cond;
 	cci.seqno = oldseq;
 
 	cv->c_waiters++;
-	do {
+	/*
+	 * loop if we have never been told to wake up
+	 * or we lost a race.
+	 */
+	while (seq == oldseq /* || cv->c_wakeups == 0*/) {
+		loops++;
 		THR_LOCK_RELEASE(curthread, &cv->c_lock);
 
 		if (abstime != NULL) {
@@ -232,24 +238,23 @@ cond_wait_common(pthread_cond_t *cond, pthread_mutex_t *mutex,
 		} else {
 			ret = _thr_umtx_wait(&cv->c_seqno, seq, tsp);
 		}
+		/*
+		 * If we get back EINTR we want to loop as condvars
+		 * do NOT return EINTR, they just restart.
+		 */
 
 		THR_LOCK_ACQUIRE(curthread, &cv->c_lock);
 		seq = cv->c_seqno;
 		if (abstime != NULL && ret == ETIMEDOUT)
 			break;
 
-		/*
-		 * loop if we have never been told to wake up
-		 * or we lost a race.
-		 */
-	} while (seq == oldseq || cv->c_wakeups == 0);
-	
-	if (seq != oldseq && cv->c_wakeups != 0) {
-		cv->c_wakeups--;
-		ret = 0;
-	} else {
-		cv->c_waiters--;
 	}
+
+	if (--cv->c_waiters == 0)
+		cv->c_broadcast = 0;
+	if (seq != oldseq)
+		ret = 0;
+
 	THR_LOCK_RELEASE(curthread, &cv->c_lock);
 	_mutex_cv_lock(mutex);
 	return (ret);
@@ -298,7 +303,7 @@ cond_signal_common(pthread_cond_t *cond, int broadcast)
 {
 	struct pthread	*curthread = _get_curthread();
 	pthread_cond_t	cv;
-	int		ret = 0, oldwaiters;
+	int		ret = 0;
 
 	/*
 	 * If the condition variable is statically initialized, perform dynamic
@@ -311,19 +316,15 @@ cond_signal_common(pthread_cond_t *cond, int broadcast)
 	cv = *cond;
 	/* Lock the condition variable structure. */
 	THR_LOCK_ACQUIRE(curthread, &cv->c_lock);
+	cv->c_seqno++;
+	if (cv->c_broadcast == 0)
+		cv->c_broadcast = broadcast;
+
 	if (cv->c_waiters) {
-		if (!broadcast) {
-			cv->c_wakeups++;
-			cv->c_waiters--;
-			cv->c_seqno++;
+		if (cv->c_broadcast)
+			_thr_umtx_wake(&cv->c_seqno, INT_MAX);
+		else
 			_thr_umtx_wake(&cv->c_seqno, 1);
-		} else {
-			oldwaiters = cv->c_waiters;
-			cv->c_wakeups += cv->c_waiters;
-			cv->c_waiters = 0;
-			cv->c_seqno++;
-			_thr_umtx_wake(&cv->c_seqno, oldwaiters);
-		}
 	}
 	THR_LOCK_RELEASE(curthread, &cv->c_lock);
 	return (ret);

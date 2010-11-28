@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/sx.h>
 #include <sys/sysproto.h>
+#include <sys/uio.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
@@ -1374,11 +1375,14 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 
 	SYSCTL_LOCK();
 
-	do {
+	for (;;) {
 		req.oldidx = 0;
 		req.newidx = 0;
 		error = sysctl_root(0, name, namelen, &req);
-	} while (error == EAGAIN);
+		if (error != EAGAIN)
+			break;
+		uio_yield();
+	}
 
 	if (req.lock == REQ_WIRED && req.validlen > 0)
 		vsunlock(req.oldptr, req.validlen);

@@ -53,10 +53,6 @@ static int mapblock;
 
 int poff;
 
-#ifdef RAWBOOT
-#define STARTBYTE	8192	/* Where on the media the kernel starts */
-#endif
-
 static int block_map(int file_block);
 static int find(char *path);
 
@@ -74,7 +70,6 @@ xread(char *addr, int size)
 	}
 }
 
-#ifndef RAWBOOT
 void
 read(char *buffer, int count)
 {
@@ -102,40 +97,6 @@ read(char *buffer, int count)
 		poff += size;
 	}
 }
-#else
-void
-read(char *buffer, int count)
-{
-	int cnt, bnum, off, size;
-
-	off = STARTBYTE + poff;
-	poff += count;
-
-	/* Read any unaligned bit at the front */
-	cnt = off & 511;
-	if (cnt) {
-		size = 512-cnt;
-		if (count < size)
-			size = count;
-		devread(iobuf, off >> 9, 512);
-		memcpy(iobuf+cnt, buffer, size);
-		count -= size;
-		off += size;
-		buffer += size;
-	}
-	size = count & (~511);
-	if (size && (off & (~511))) {
-		devread(buffer, off >> 9, size);
-		off += size;
-		count -= size;
-		buffer += size;
-	}
-	if (count) {
-		devread(iobuf, off >> 9, 512);
-		memcpy(iobuf, buffer, count);
-	}
-}
-#endif
 
 static int
 find(char *path)
@@ -263,7 +224,7 @@ openrd(void)
 	biosdrive = biosdrivedigit - '0';
 	if (biosdrivedigit == '\0') {
 		biosdrive = dosdev & 0x0f;
-#if BOOT_HD_BIAS > 0
+#if defined(BOOT_HD_BIAS) && (BOOT_HD_BIAS > 0)
 		/* XXX */
 		if (maj == 4)
 			biosdrive += BOOT_HD_BIAS;
@@ -299,7 +260,6 @@ openrd(void)
 	if (devopen())
 		return 1;
 
-#ifndef RAWBOOT
 	/***********************************************\
 	* Load Filesystem info (mount the device)	*
 	\***********************************************/
@@ -316,6 +276,6 @@ openrd(void)
 		return -1;
 	}
 	poff = 0;
-#endif /* RAWBOOT */
+
 	return 0;
 }

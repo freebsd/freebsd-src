@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: app.c,v 1.43.2.3.8.8.4.1 2008/07/29 04:43:57 each Exp $ */
+/* $Id: app.c,v 1.43.2.3.8.11 2008/10/15 03:41:17 marka Exp $ */
 
 #include <config.h>
 
@@ -28,6 +28,9 @@
 #include <unistd.h>
 #include <signal.h>
 #include <sys/time.h>
+#ifdef HAVE_EPOLL
+#include <sys/epoll.h>
+#endif
 
 #include <isc/app.h>
 #include <isc/boolean.h>
@@ -295,14 +298,13 @@ isc_app_onrun(isc_mem_t *mctx, isc_task_t *task, isc_taskaction_t action,
  * Event loop for nonthreaded programs.
  */
 static isc_result_t
-evloop() {
+evloop(void) {
 	isc_result_t result;
 	while (!want_shutdown) {
 		int n;
 		isc_time_t when, now;
 		struct timeval tv, *tvp;
-		fd_set *readfds, *writefds;
-		int maxfd;
+		isc_socketwait_t *swait;
 		isc_boolean_t readytasks;
 		isc_boolean_t call_timer_dispatch = ISC_FALSE;
 
@@ -329,8 +331,8 @@ evloop() {
 			}
 		}
 
-		isc__socketmgr_getfdsets(&readfds, &writefds, &maxfd);
-		n = select(maxfd, readfds, writefds, NULL, tvp);
+		swait = NULL;
+		n = isc__socketmgr_waitevents(tvp, &swait);
 
 		if (n == 0 || call_timer_dispatch) {
 			/*
@@ -350,8 +352,7 @@ evloop() {
 			isc__timermgr_dispatch();
 		}
 		if (n > 0)
-			(void)isc__socketmgr_dispatch(readfds, writefds,
-						      maxfd);
+			(void)isc__socketmgr_dispatch(swait);
 		(void)isc__taskmgr_dispatch();
 
 		if (want_reload) {
@@ -432,10 +433,10 @@ isc_app_run(void) {
 #ifdef ISC_PLATFORM_USETHREADS
 	sigset_t sset;
 	char strbuf[ISC_STRERRORSIZE];
-#endif /* ISC_PLATFORM_USETHREADS */
 #ifdef HAVE_SIGWAIT
 	int sig;
 #endif
+#endif /* ISC_PLATFORM_USETHREADS */
 
 #ifdef HAVE_LINUXTHREADS
 	REQUIRE(main_thread == pthread_self());

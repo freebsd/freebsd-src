@@ -89,7 +89,7 @@ static device_method_t gem_pci_methods[] = {
 	DEVMETHOD(miibus_writereg,	gem_mii_writereg),
 	DEVMETHOD(miibus_statchg,	gem_mii_statchg),
 
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 static driver_t gem_pci_driver = {
@@ -106,7 +106,7 @@ static const struct gem_pci_dev {
 	uint32_t	gpd_devid;
 	int		gpd_variant;
 	const char	*gpd_desc;
-} gem_pci_devlist[] = {
+} const gem_pci_devlist[] = {
 	{ 0x1101108e, GEM_SUN_ERI,	"Sun ERI 10/100 Ethernet" },
 	{ 0x2bad108e, GEM_SUN_GEM,	"Sun GEM Gigabit Ethernet" },
 	{ 0x0021106b, GEM_APPLE_GMAC,	"Apple UniNorth GMAC Ethernet" },
@@ -194,13 +194,18 @@ gem_pci_attach(device_t dev)
 	    GEM_PCI_BANK2_OFFSET, GEM_PCI_BANK2_SIZE,
 	    &sc->sc_bh[GEM_BS_BANK2]);
 
+	/* Determine whether we're running at 66MHz. */
+	if ((GEM_BANK2_READ_4(sc, GEM_PCI_BIF_CONFIG) &
+	   GEM_PCI_BIF_CNF_M66EN) != 0)
+		sc->sc_flags |= GEM_PCI66;
+
 #if defined(__powerpc__) || defined(__sparc64__)
 	OF_getetheraddr(dev, sc->sc_enaddr);
 #else
 	/*
 	 * Dig out VPD (vital product data) and read NA (network address).
-	 * The VPD of GEM resides in the PCI Expansion ROM (PCI FCode) and
-	 * can't be accessed via the PCI capability pointer.
+	 * The VPD resides in the PCI Expansion ROM (PCI FCode) and can't
+	 * be accessed via the PCI capability pointer.
 	 * ``Writing FCode 3.x Programs'' (newer ones, dated 1997 and later)
 	 * chapter 2 describes the data structure.
 	 */
@@ -219,22 +224,21 @@ gem_pci_attach(device_t dev)
 #define	PCI_VPDRES_BYTE0		0x00
 #define	PCI_VPDRES_ISLARGE(x)		((x) & 0x80)
 #define	PCI_VPDRES_LARGE_NAME(x)	((x) & 0x7f)
-#define	PCI_VPDRES_TYPE_VPD		0x10		/* large */
 #define	PCI_VPDRES_LARGE_LEN_LSB	0x01
 #define	PCI_VPDRES_LARGE_LEN_MSB	0x02
-#define	PCI_VPDRES_LARGE_DATA		0x03
-#define	PCI_VPD_SIZE			0x03
+#define	PCI_VPDRES_LARGE_SIZE		0x03
+#define	PCI_VPDRES_TYPE_VPD		0x10		/* large */
 #define	PCI_VPD_KEY0			0x00
 #define	PCI_VPD_KEY1			0x01
 #define	PCI_VPD_LEN			0x02
-#define	PCI_VPD_DATA			0x03
+#define	PCI_VPD_SIZE			0x03
 
 #define	GEM_ROM_READ_1(sc, offs)					\
-    GEM_BANK1_READ_1((sc), GEM_PCI_ROM_OFFSET + (offs))
+	GEM_BANK1_READ_1((sc), GEM_PCI_ROM_OFFSET + (offs))
 #define	GEM_ROM_READ_2(sc, offs)					\
-    GEM_BANK1_READ_2((sc), GEM_PCI_ROM_OFFSET + (offs))
+	GEM_BANK1_READ_2((sc), GEM_PCI_ROM_OFFSET + (offs))
 #define	GEM_ROM_READ_4(sc, offs)					\
-    GEM_BANK1_READ_4((sc), GEM_PCI_ROM_OFFSET + (offs))
+	GEM_BANK1_READ_4((sc), GEM_PCI_ROM_OFFSET + (offs))
 
 	/* Read PCI Expansion ROM header. */
 	if (GEM_ROM_READ_2(sc, PCI_ROMHDR_SIG) != PCI_ROMHDR_SIG_MAGIC ||
@@ -267,23 +271,23 @@ gem_pci_attach(device_t dev)
 	    j + PCI_VPDRES_BYTE0)) == 0 ||
 	    PCI_VPDRES_LARGE_NAME(GEM_ROM_READ_1(sc,
 	    j + PCI_VPDRES_BYTE0)) != PCI_VPDRES_TYPE_VPD ||
-	    (GEM_ROM_READ_1(sc, j + PCI_VPDRES_LARGE_LEN_LSB) << 8 |
+	    ((GEM_ROM_READ_1(sc, j + PCI_VPDRES_LARGE_LEN_LSB) << 8) |
 	    GEM_ROM_READ_1(sc, j + PCI_VPDRES_LARGE_LEN_MSB)) !=
 	    PCI_VPD_SIZE + ETHER_ADDR_LEN ||
-	    GEM_ROM_READ_1(sc, j + PCI_VPDRES_LARGE_DATA + PCI_VPD_KEY0) !=
+	    GEM_ROM_READ_1(sc, j + PCI_VPDRES_LARGE_SIZE + PCI_VPD_KEY0) !=
 	    0x4e /* N */ ||
-	    GEM_ROM_READ_1(sc, j + PCI_VPDRES_LARGE_DATA + PCI_VPD_KEY1) !=
+	    GEM_ROM_READ_1(sc, j + PCI_VPDRES_LARGE_SIZE + PCI_VPD_KEY1) !=
 	    0x41 /* A */ ||
-	    GEM_ROM_READ_1(sc, j + PCI_VPDRES_LARGE_DATA + PCI_VPD_LEN) !=
+	    GEM_ROM_READ_1(sc, j + PCI_VPDRES_LARGE_SIZE + PCI_VPD_LEN) !=
 	    ETHER_ADDR_LEN ||
-	    GEM_ROM_READ_1(sc, j + PCI_VPDRES_LARGE_DATA + PCI_VPD_DATA +
+	    GEM_ROM_READ_1(sc, j + PCI_VPDRES_LARGE_SIZE + PCI_VPD_SIZE +
 	    ETHER_ADDR_LEN) != 0x79) {
 		device_printf(dev, "unexpected PCI VPD\n");
 		goto fail;
 	}
 	bus_space_read_region_1(sc->sc_bt[GEM_BS_BANK1],
 	    sc->sc_bh[GEM_BS_BANK1],
-	    GEM_PCI_ROM_OFFSET + j + PCI_VPDRES_LARGE_DATA + PCI_VPD_DATA,
+	    GEM_PCI_ROM_OFFSET + j + PCI_VPDRES_LARGE_SIZE + PCI_VPD_SIZE,
 	    sc->sc_enaddr, ETHER_ADDR_LEN);
 #endif
 
@@ -322,19 +326,15 @@ gem_pci_detach(device_t dev)
 static int
 gem_pci_suspend(device_t dev)
 {
-	struct gem_softc *sc;
 
-	sc = device_get_softc(dev);
-	gem_suspend(sc);
+	gem_suspend(device_get_softc(dev));
 	return (0);
 }
 
 static int
 gem_pci_resume(device_t dev)
 {
-	struct gem_softc *sc;
 
-	sc = device_get_softc(dev);
-	gem_resume(sc);
+	gem_resume(device_get_softc(dev));
 	return (0);
 }

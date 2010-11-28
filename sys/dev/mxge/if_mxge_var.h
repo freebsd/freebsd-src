@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-Copyright (c) 2006-2007, Myricom Inc.
+Copyright (c) 2006-2009, Myricom Inc.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -119,6 +119,7 @@ typedef struct
 	int cl_size;
 	int alloc_fail;
 	int mask;			/* number of rx slots -1 */
+	int mlen;
 } mxge_rx_ring_t;
 
 typedef struct
@@ -242,17 +243,22 @@ struct mxge_softc {
 	int fw_multicast_support;
 	int link_width;
 	int max_mtu;
+	int throttle;
 	int tx_defrag;
 	int media_flags;
 	int need_media_probe;
 	int num_slices;
 	int rx_ring_size;
+	int dying;
 	mxge_dma_t dmabench_dma;
 	struct callout co_hdl;
+	struct taskqueue *tq;
+	struct task watchdog_task;
 	struct sysctl_oid *slice_sysctl_tree;
 	struct sysctl_ctx_list slice_sysctl_ctx;
 	char *mac_addr_string;
 	uint8_t	mac_addr[6];		/* eeprom mac address */
+	uint16_t pectl;			/* save PCIe CTL state */
 	char product_code_string[64];
 	char serial_number_string[64];
 	char cmd_mtx_name[16];
@@ -262,7 +268,12 @@ struct mxge_softc {
 #define MXGE_PCI_VENDOR_MYRICOM 	0x14c1
 #define MXGE_PCI_DEVICE_Z8E 	0x0008
 #define MXGE_PCI_DEVICE_Z8E_9 	0x0009
+#define MXGE_PCI_REV_Z8E	0
+#define MXGE_PCI_REV_Z8ES	1
 #define MXGE_XFP_COMPLIANCE_BYTE	131
+#define MXGE_SFP_COMPLIANCE_BYTE	  3
+#define MXGE_MIN_THROTTLE	416
+#define MXGE_MAX_THROTTLE	4096
 
 #define MXGE_HIGHPART_TO_U32(X) \
 (sizeof (X) == 8) ? ((uint32_t)((uint64_t)(X) >> 32)) : (0)

@@ -17,7 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: FAQ.xml,v 1.4.6.20 2008/02/25 05:07:58 marka Exp $ -->
+<!-- $Id: FAQ.xml,v 1.4.6.25 2008/09/10 01:22:05 tbox Exp $ -->
 
 <article class="faq">
   <title>Frequently Asked Questions about BIND 9</title>
@@ -393,6 +393,11 @@ named-checkzone example.com tmp</programlisting>
       </question>
       <answer>
 	<para>
+	  There are unbalanced quotes in named.conf.
+	</para>
+      </answer>
+      <answer>
+	<para>
 	  Some text editors (notepad and wordpad) fail to put a line
 	  title indication (e.g. CR/LF) on the last line of a
 	  text file.  This can be fixed by "adding" a blank line to
@@ -661,9 +666,98 @@ zone "list.dsbl.org" {
 	</para>
       </answer>
     </qandaentry>
+
+    <qandaentry>
+      <question>
+	<para>
+	  I want to use IPv6 locally but I don't have a external IPv6
+	  connection.  External lookups are slow.
+	</para>
+      </question>
+      <answer>
+	<para>
+	  You can use server clauses to stop named making external lookups
+	  over IPv6.
+	</para>
+        <programlisting>
+server fd81:ec6c:bd62::/48 { bogus no; }; // site ULA prefix
+server ::/0 { bogus yes; };
+</programlisting>
+      </answer>
+    </qandaentry>
     
     </qandadiv> <!-- Configuration and Setup Questions -->
     
+    <qandadiv><title>Operations Questions</title>
+
+    <qandaentry>
+      <question>
+	<para>
+	  How to change the nameservers for a zone?
+	</para>
+      </question>
+      <answer>
+	<para>
+	  Step 1: Ensure all nameservers, new and old, are serving the
+	  same zone content.
+	</para>
+	<para>
+	  Step 2: Work out the maximum TTL of the NS RRset in the parent and child
+	  zones.  This is the time it will take caches to be clear of a
+	  particular version of the NS RRset.
+	  If you are just removing nameservers you can skip to Step 6.
+	</para>
+	<para>
+	  Step 3: Add new nameservers to the NS RRset for the zone and
+	  wait until all the servers for the zone are answering with this
+	  new NS RRset.
+	</para>
+	<para>
+	  Step 4: Inform the parent zone of the new NS RRset then wait for all the
+	  parent servers to be answering with the new NS RRset.
+	</para>
+	<para>
+	  Step 5: Wait for cache to be clear of the old NS RRset.
+	  See Step 2 for how long.
+	  If you are just adding nameservers you are done.
+	</para>
+	<para>
+	  Step 6: Remove any old nameservers from the zones NS RRset and
+	  wait for all the servers for the zone to be serving the new NS RRset.
+	</para>
+	<para>
+	  Step 7: Inform the parent zone of the new NS RRset then wait for all the
+	  parent servers to be answering with the new NS RRset.
+	</para>
+	<para>
+	  Step 8: Wait for cache to be clear of the old NS RRset.
+	  See Step 2 for how long.
+	</para>
+	<para>
+	  Step 9: Turn off the old nameservers or remove the zone entry from
+	  the configuration of the old nameservers.
+	</para>
+	<para>
+	  Step 10: Increment the serial number and wait for the change to
+	  be visible in all nameservers for the zone.  This ensures that
+	  zone transfers are still working after the old servers are
+	  decommissioned.
+	</para>
+	<para>
+	  Note: the above procedure is designed to be transparent
+	  to dns clients.  Decommissioning the old servers too early
+	  will result in some clients not being able to look up
+	  answers in the zone.
+	</para>
+	<para>
+	  Note: while it is possible to run the addition and removal
+	  stages together it is not recommended.
+	</para>
+      </answer>
+    </qandaentry>
+
+    </qandadiv> <!-- Operations Questions -->
+
     <qandadiv><title>General Questions</title>
 	    
     <qandaentry>
@@ -706,8 +800,7 @@ zone "list.dsbl.org" {
 	  requests are coming from a Windows 2000 machine, see
 	  <ulink
 	   url="http://support.microsoft.com/support/kb/articles/q246/8/04.asp">
-	    http://support.microsoft.com/support/kb/articles/q246/8/04.asp
-	  </ulink>
+  &lt;http://support.microsoft.com/support/kb/articles/q246/8/04.asp&gt;</ulink>
 	  for information about how to turn them off.
 	</para>
       </answer>
@@ -857,7 +950,7 @@ serial-query-rate 5; // default 20</programlisting>
 	  usage rules and are leaking queries to the Internet.  You
 	  should establish your own zones for these addresses to prevent
 	  you querying the Internet's name servers for these addresses.
-	  Please see <ulink url="http://as112.net/">http://as112.net/</ulink>
+	  Please see <ulink url="http://as112.net/">&lt;http://as112.net/&gt;</ulink>
 	  for details of the problems you are causing and the counter
 	  measures that have had to be deployed.
 	</para>
@@ -963,6 +1056,23 @@ empty:
       </answer>
     </qandaentry>
 
+    <qandaentry>
+      <question>
+	<para>
+	  Why do queries for NSEC3 records fail to return the NSEC3 record?
+	</para>
+      </question>
+      <answer>
+	<para>
+	  NSEC3 records are strictly meta data and can only be
+	  returned in the authority section.  This is done so that
+	  signing the zone using NSEC3 records does not bring names
+	  into existance that do not exist in the unsigned version
+	  of the zone.
+	</para>
+      </answer>
+    </qandaentry>
+
     </qandadiv> <!-- General Questions -->
     
     <qandadiv><title>Operating-System Specific Questions</title>
@@ -1010,7 +1120,31 @@ client: UDP client handler shutting down due to fatal receive error: unexpected 
 	</para>
 	<para>
 	  See:
-	  <ulink url="http://marc.theaimsgroup.com/?l=linux-netdev&amp;m=113081708031466&amp;w=2">http://marc.theaimsgroup.com/?l=linux-netdev&amp;m=113081708031466&amp;w=2</ulink>
+	  <ulink url="http://marc.theaimsgroup.com/?l=linux-netdev&amp;m=113081708031466&amp;w=2">&lt;http://marc.theaimsgroup.com/?l=linux-netdev&amp;m=113081708031466&amp;w=2&gt;</ulink>
+	</para>
+      </answer>
+    </qandaentry>
+
+    <qandaentry>
+      <question>
+	<para>
+	  Why does named lock up when it attempts to connect over IPSEC tunnels?
+	</para>
+      </question>
+      <answer>
+	<para>
+	  This is due to a kernel bug where the fact that a socket is marked
+	  non-blocking is ignored.  It is reported that setting
+	  xfrm_larval_drop to 1 helps but this may have negative side effects.
+	  See:
+<ulink url="https://bugzilla.redhat.com/show_bug.cgi?id=427629">&lt;https://bugzilla.redhat.com/show_bug.cgi?id=427629&gt;</ulink>
+	  and
+<ulink url="http://lkml.org/lkml/2007/12/4/260">&lt;http://lkml.org/lkml/2007/12/4/260&gt;</ulink>.
+	</para>
+	<para>
+	xfrm_larval_drop can be set to 1 by the following procedure:
+<programlisting>
+echo "1" &gt; proc/sys/net/core/xfrm_larval_drop</programlisting>
 	</para>
       </answer>
     </qandaentry>
@@ -1101,8 +1235,9 @@ modprobe capability</programlisting>
 
 	<para>
 	   Red Hat have adopted the National Security Agency's
-	   SELinux security policy ( see http://www.nsa.gov/selinux
-	   ) and recommendations for BIND security , which are more
+	   SELinux security policy (see <ulink
+   url="http://www.nsa.gov/selinux">&lt;http://www.nsa.gov/selinux&gt;</ulink>)
+	   and recommendations for BIND security , which are more
 	   secure than running named in a chroot and make use of
 	   the bind-chroot environment unnecessary .
 	</para>
@@ -1341,8 +1476,7 @@ rand_irqs="3 14 15"</programlisting>
 	<para>
 	  See also
 	  <ulink url="http://people.freebsd.org/~dougb/randomness.html">
-	    http://people.freebsd.org/~dougb/randomness.html
-	  </ulink>
+	  &lt;http://people.freebsd.org/~dougb/randomness.html&gt;</ulink>.
 	</para>
       </answer>
     </qandaentry>
@@ -1364,7 +1498,7 @@ rand_irqs="3 14 15"</programlisting>
 	<para>
 	  <ulink
 	  url="http://blogs.sun.com/roller/page/anay/Weblog?catname=%2FSolaris">
-	     http://blogs.sun.com/roller/page/anay/Weblog?catname=%2FSolaris
+	 &lt;http://blogs.sun.com/roller/page/anay/Weblog?catname=%2FSolaris&gt;
 	  </ulink>
 	</para>
       </answer>

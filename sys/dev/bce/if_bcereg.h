@@ -106,6 +106,7 @@
 #define BCE_CP_PHY				0x00000040
 #define BCE_CP_NVRAM			0x00000080
 #define BCE_CP_FIRMWARE			0x00000100
+#define BCE_CP_CTX				0x00000200
 #define BCE_CP_MISC				0x00400000
 #define BCE_CP_SPECIAL			0x00800000
 #define BCE_CP_ALL				0x00FFFFFF
@@ -129,6 +130,7 @@
 #define BCE_INFO_SEND			(BCE_CP_SEND | BCE_LEVEL_INFO)
 #define BCE_VERBOSE_SEND		(BCE_CP_SEND | BCE_LEVEL_VERBOSE)
 #define BCE_EXCESSIVE_SEND		(BCE_CP_SEND | BCE_LEVEL_EXCESSIVE)
+#define BCE_INSANE_SEND			(BCE_CP_SEND | BCE_LEVEL_INSANE)
 
 #define BCE_WARN_RECV			(BCE_CP_RECV | BCE_LEVEL_WARN)
 #define BCE_INFO_RECV			(BCE_CP_RECV | BCE_LEVEL_INFO)
@@ -164,6 +166,8 @@
 #define BCE_INFO_FIRMWARE		(BCE_CP_FIRMWARE | BCE_LEVEL_INFO)
 #define BCE_VERBOSE_FIRMWARE		(BCE_CP_FIRMWARE | BCE_LEVEL_VERBOSE)
 #define BCE_EXCESSIVE_FIRMWARE		(BCE_CP_FIRMWARE | BCE_LEVEL_EXCESSIVE)
+
+#define BCE_VERBOSE_CTX			(BCE_CP_CTX | BCE_LEVEL_VERBOSE)
 
 #define BCE_WARN_MISC			(BCE_CP_MISC | BCE_LEVEL_WARN)
 #define BCE_INFO_MISC			(BCE_CP_MISC | BCE_LEVEL_INFO)
@@ -255,6 +259,9 @@
 #define BRCM_DEVICEID_BCM5706S		0x16AA
 #define BRCM_DEVICEID_BCM5708		0x164C
 #define BRCM_DEVICEID_BCM5708S		0x16AC
+#define BRCM_DEVICEID_BCM5709		0x1639
+#define BRCM_DEVICEID_BCM5709S		0x163A
+#define BRCM_DEVICEID_BCM5716		0x1654
 
 #define HP_VENDORID					0x103C
 
@@ -265,6 +272,8 @@
 #define BCE_CHIP_NUM(sc)			(((sc)->bce_chipid) & 0xffff0000)
 #define BCE_CHIP_NUM_5706			0x57060000
 #define BCE_CHIP_NUM_5708			0x57080000
+#define BCE_CHIP_NUM_5709			0x57090000
+#define BCE_CHIP_NUM_5716			0x57160000
 
 #define BCE_CHIP_REV(sc)			(((sc)->bce_chipid) & 0x0000f000)
 #define BCE_CHIP_REV_Ax				0x00000000
@@ -283,6 +292,13 @@
 #define BCE_CHIP_ID_5708_B0			0x57081000
 #define BCE_CHIP_ID_5708_B1			0x57081010
 #define BCE_CHIP_ID_5708_B2			0x57081020
+#define BCE_CHIP_ID_5709_A0			0x57090000
+#define BCE_CHIP_ID_5709_A1			0x57090010
+#define BCE_CHIP_ID_5709_B0			0x57091000
+#define BCE_CHIP_ID_5709_B1			0x57091010
+#define BCE_CHIP_ID_5709_B2			0x57091020
+#define BCE_CHIP_ID_5709_C0			0x57092000
+#define BCE_CHIP_ID_5716_C0			0x57162000
 
 #define BCE_CHIP_BOND_ID(sc)		(((sc)->bce_chipid) & 0xf)
 
@@ -372,6 +388,11 @@ struct bce_type {
 #define ST_MICRO_FLASH_PAGE_SIZE		256
 #define ST_MICRO_FLASH_BASE_TOTAL_SIZE	65536
 
+#define BCM5709_FLASH_PAGE_BITS			8
+#define BCM5709_FLASH_PHY_PAGE_SIZE		(1 << BCM5709_FLASH_PAGE_BITS)
+#define BCM5709_FLASH_BYTE_ADDR_MASK	(BCM5709_FLASH_PHY_PAGE_SIZE-1)
+#define BCM5709_FLASH_PAGE_SIZE			256
+
 #define NVRAM_TIMEOUT_COUNT				30000
 #define BCE_FLASHDESC_MAX				64
 
@@ -388,7 +409,10 @@ struct flash_spec {
 	u32 config2;
 	u32 config3;
 	u32 write1;
-	u32 buffered;
+#define BCE_NV_BUFFERED		0x00000001
+#define BCE_NV_TRANSLATE	0x00000002
+#define BCE_NV_WREN			0x00000004
+	u32 flags;
 	u32 page_bits;
 	u32 page_size;
 	u32 addr_mask;
@@ -1055,6 +1079,9 @@ struct l2_fhdr {
 #define BCE_L2CTX_TXP_BIDX				0x000000a8
 #define BCE_L2CTX_TXP_BSEQ				0x000000ac
 
+#define BCE_L2CTX_CMD_TYPE_XI			0x00000240
+#define BCE_L2CTX_TBDR_BHADDR_HI_XI		0x00000258
+#define BCE_L2CTX_TBDR_BHADDR_LO_XI		0x0000025c
 
 /*
  *  l2_bd_chain_context definition
@@ -1062,6 +1089,13 @@ struct l2_fhdr {
 #define BCE_L2CTX_BD_PRE_READ				0x00000000
 #define BCE_L2CTX_CTX_SIZE				0x00000000
 #define BCE_L2CTX_CTX_TYPE				0x00000000
+#define BCE_L2CTX_LO_WATER_MARK_DEFAULT	32
+#define BCE_L2CTX_LO_WATER_MARK_SCALE	4
+#define BCE_L2CTX_LO_WATER_MARK_DIS		0
+#define BCE_L2CTX_HI_WATER_MARK_SHIFT	4
+#define BCE_L2CTX_HI_WATER_MARK_SCALE	16
+#define BCE_L2CTX_WATER_MARKS_MSK		0x000000ff
+
 #define BCE_L2CTX_CTX_TYPE_SIZE_L2			 ((0x20/20)<<16)
 #define BCE_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE		 (0xf<<28)
 #define BCE_L2CTX_CTX_TYPE_CTX_BD_CHN_TYPE_UNDEFINED	 (0<<28)
@@ -1338,6 +1372,7 @@ struct l2_fhdr {
 #define BCE_MISC_COMMAND_ENABLE_ALL			 (1L<<0)
 #define BCE_MISC_COMMAND_DISABLE_ALL			 (1L<<1)
 #define BCE_MISC_COMMAND_CORE_RESET			 (1L<<4)
+#define BCE_MISC_COMMAND_SW_RESET			 (1L<<4)
 #define BCE_MISC_COMMAND_HARD_RESET			 (1L<<5)
 #define BCE_MISC_COMMAND_PAR_ERROR			 (1L<<8)
 #define BCE_MISC_COMMAND_PAR_ERR_RAM			 (0x7fL<<16)
@@ -1424,6 +1459,9 @@ struct l2_fhdr {
 #define BCE_MISC_ENABLE_SET_BITS_TIMER_ENABLE		 (1L<<25)
 #define BCE_MISC_ENABLE_SET_BITS_DMA_ENGINE_ENABLE	 (1L<<26)
 #define BCE_MISC_ENABLE_SET_BITS_UMP_ENABLE		 (1L<<27)
+
+#define BCE_MISC_ENABLE_DEFAULT				0x05ffffff
+#define BCE_MISC_ENABLE_DEFAULT_XI			0x17ffffff
 
 #define BCE_MISC_ENABLE_CLR_BITS			0x00000814
 #define BCE_MISC_ENABLE_CLR_BITS_TX_SCHEDULER_ENABLE	 (1L<<0)
@@ -1767,8 +1805,39 @@ struct l2_fhdr {
 #define BCE_MISC_FINAL_CLK_CTL_VAL			0x000008b8
 #define BCE_MISC_FINAL_CLK_CTL_VAL_MISC_FINAL_CLK_CTL_VAL	 (0x3ffffffL<<6)
 
+#define BCE_MISC_NEW_CORE_CTL				0x000008c8
+#define BCE_MISC_NEW_CORE_CTL_LINK_HOLDOFF_SUCCESS	 (1L<<0)
+#define BCE_MISC_NEW_CORE_CTL_LINK_HOLDOFF_REQ		 (1L<<1)
+#define BCE_MISC_NEW_CORE_CTL_DMA_ENABLE		 (1L<<16)
+#define BCE_MISC_NEW_CORE_CTL_RESERVED_CMN		 (0x3fffL<<2)
+#define BCE_MISC_NEW_CORE_CTL_RESERVED_TC		 (0xffffL<<16)
+
 #define BCE_MISC_UNUSED0				0x000008bc
 
+#define BCE_MISC_DUAL_MEDIA_CTRL			0x000008ec
+#define BCE_MISC_DUAL_MEDIA_CTRL_BOND_ID		 (0xffL<<0)
+#define BCE_MISC_DUAL_MEDIA_CTRL_BOND_ID_X		 (0L<<0)
+#define BCE_MISC_DUAL_MEDIA_CTRL_BOND_ID_C		 (3L<<0)
+#define BCE_MISC_DUAL_MEDIA_CTRL_BOND_ID_S		 (12L<<0)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PHY_CTRL_STRAP	 (0x7L<<8)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PORT_SWAP_PIN		 (1L<<11)
+#define BCE_MISC_DUAL_MEDIA_CTRL_SERDES1_SIGDET	 (1L<<12)
+#define BCE_MISC_DUAL_MEDIA_CTRL_SERDES0_SIGDET	 (1L<<13)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PHY1_SIGDET		 (1L<<14)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PHY0_SIGDET		 (1L<<15)
+#define BCE_MISC_DUAL_MEDIA_CTRL_LCPLL_RST		 (1L<<16)
+#define BCE_MISC_DUAL_MEDIA_CTRL_SERDES1_RST		 (1L<<17)
+#define BCE_MISC_DUAL_MEDIA_CTRL_SERDES0_RST		 (1L<<18)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PHY1_RST		 (1L<<19)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PHY0_RST		 (1L<<20)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PHY_CTRL		 (0x7L<<21)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PORT_SWAP		 (1L<<24)
+#define BCE_MISC_DUAL_MEDIA_CTRL_STRAP_OVERRIDE	 (1L<<25)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PHY_SERDES_IDDQ	 (0xfL<<26)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PHY_SERDES_IDDQ_SER1_IDDQ	 (1L<<26)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PHY_SERDES_IDDQ_SER0_IDDQ	 (2L<<26)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PHY_SERDES_IDDQ_PHY1_IDDQ	 (4L<<26)
+#define BCE_MISC_DUAL_MEDIA_CTRL_PHY_SERDES_IDDQ_PHY0_IDDQ	 (8L<<26)
 
 /*
  *  nvm_reg definition
@@ -2092,6 +2161,26 @@ struct l2_fhdr {
 #define BCE_CTX_COMMAND				0x00001000
 #define BCE_CTX_COMMAND_ENABLED			 (1L<<0)
 
+#define BCE_CTX_COMMAND_DISABLE_USAGE_CNT			(1L<<1)
+#define BCE_CTX_COMMAND_DISABLE_PLRU				(1L<<2)
+#define BCE_CTX_COMMAND_DISABLE_COMBINE_READ			(1L<<3)
+#define BCE_CTX_COMMAND_FLUSH_AHEAD				(0x1fL<<8)
+#define BCE_CTX_COMMAND_MEM_INIT				(1L<<13)
+#define BCE_CTX_COMMAND_PAGE_SIZE				(0xfL<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_256				(0L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_512				(1L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_1K				(2L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_2K				(3L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_4K				(4L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_8K				(5L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_16K				(6L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_32K				(7L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_64K				(8L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_128K				(9L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_256K				(10L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_512K				(11L<<16)
+#define BCE_CTX_COMMAND_PAGE_SIZE_1M				(12L<<16)
+
 #define BCE_CTX_STATUS					0x00001004
 #define BCE_CTX_STATUS_LOCK_WAIT			 (1L<<0)
 #define BCE_CTX_STATUS_READ_STAT			 (1L<<16)
@@ -2125,6 +2214,10 @@ struct l2_fhdr {
 #define BCE_CTX_LOCK_STATUS				 (1L<<30)
 #define BCE_CTX_LOCK_REQ				 (1L<<31)
 
+#define BCE_CTX_CTX_CTRL				0x0000101c
+#define BCE_CTX_CTX_DATA				0x00001020
+#define BCE_CTX_CTX_CTRL_WRITE_REQ			(1L<<30)
+
 #define BCE_CTX_ACCESS_STATUS				0x00001040
 #define BCE_CTX_ACCESS_STATUS_MASTERENCODED		 (0xfL<<0)
 #define BCE_CTX_ACCESS_STATUS_ACCESSMEMORYSM		 (0x3L<<10)
@@ -2150,6 +2243,14 @@ struct l2_fhdr {
 #define BCE_CTX_CHNL_LOCK_STATUS_7			0x0000109c
 #define BCE_CTX_CHNL_LOCK_STATUS_8			0x000010a0
 
+#define BCE_CTX_HOST_PAGE_TBL_CTRL			0x000010c8
+
+#define BCE_CTX_HOST_PAGE_TBL_CTRL_WRITE_REQ		(1L<<30)
+
+#define BCE_CTX_HOST_PAGE_TBL_DATA0			0x000010cc
+#define BCE_CTX_HOST_PAGE_TBL_DATA0_VALID		(1L<<0)
+
+#define BCE_CTX_HOST_PAGE_TBL_DATA1			0x000010d0
 
 /*
  *  emac_reg definition
@@ -3233,6 +3334,7 @@ struct l2_fhdr {
 #define BCE_MQ_CONFIG					0x00003c08
 #define BCE_MQ_CONFIG_TX_HIGH_PRI			 (1L<<0)
 #define BCE_MQ_CONFIG_HALT_DIS				 (1L<<1)
+#define BCE_MQ_CONFIG_BIN_MQ_MODE			 (1L<<2)
 #define BCE_MQ_CONFIG_KNL_BYP_BLK_SIZE			 (0x7L<<4)
 #define BCE_MQ_CONFIG_KNL_BYP_BLK_SIZE_256		 (0L<<4)
 #define BCE_MQ_CONFIG_KNL_BYP_BLK_SIZE_512		 (1L<<4)
@@ -3301,6 +3403,8 @@ struct l2_fhdr {
 #define BCE_MQ_MEM_RD_DATA2				0x00003c90
 #define BCE_MQ_MEM_RD_DATA2_VALUE			 (0x3fffffffL<<0)
 
+#define BCE_MQ_MAP_L2_5					0x00003d34
+#define BCE_MQ_MAP_L2_5_ARM				(0x3L<<26)
 
 
 /*
@@ -4721,6 +4825,16 @@ struct bce_softc
 #define BCE_USING_DAC_FLAG			0x00000010
 #define BCE_USING_MSI_FLAG 			0x00000020
 #define BCE_MFW_ENABLE_FLAG			0x00000040
+#define BCE_USING_MSIX_FLAG			0x00000100
+#define BCE_PCIE_FLAG				0x00000200
+
+
+	/* Controller capability flags. */
+	u32								bce_cap_flags;
+#define BCE_MSI_CAPABLE_FLAG		0x00000001
+#define BCE_MSIX_CAPABLE_FLAG		0x00000002
+#define BCE_PCIE_CAPABLE_FLAG		0x00000004
+#define BCE_PCIX_CAPABLE_FLAG		0x00000008
 
 	/* PHY specific flags. */
 	u32					bce_phy_flags;
@@ -4738,7 +4852,8 @@ struct bce_softc
 
 	bus_addr_t				max_bus_addr;
 	u16					bus_speed_mhz;		/* PCI bus speed */
-	struct flash_spec	*bce_flash_info;	/* Flash NVRAM settings */
+	u16					link_width;			/* PCIe link width */
+	u16					link_speed;			struct flash_spec	*bce_flash_info;	/* Flash NVRAM settings */
 	u32					bce_flash_size;		/* Flash NVRAM size */
 	u32					bce_shmem_base;		/* Shared Memory base address */
 	char *				bce_name;			/* Name string */
@@ -4843,6 +4958,14 @@ struct bce_softc
 	bus_dmamap_t		stats_map;
 	struct statistics_block *stats_block;		/* Virtual address */
 	bus_addr_t			stats_block_paddr;		/* Physical address */
+
+	/* H/W maintained context block. */
+	int					ctx_pages;
+	bus_dma_tag_t		ctx_tag;
+	/* DRC - Fix hard coded value. */
+	bus_dmamap_t		ctx_map[4];
+	void				*ctx_block[4];			/* Virtual address */
+	bus_addr_t			ctx_paddr[4];			/* Physical address */
 
 	/* Bus tag for RX/TX mbufs. */
 	bus_dma_tag_t		rx_mbuf_tag;
@@ -4952,5 +5075,10 @@ struct bce_softc
 	u32	lost_status_block_updates;
 #endif
 };
+
+/*
+ *  l2_context definition
+ */
+#define BCE_L2CTX_TYPE_XI				0x00000080
 
 #endif /* #ifndef _BCE_H_DEFINED */

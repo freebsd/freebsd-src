@@ -172,7 +172,10 @@ dcons_crom_attach(device_t dev)
 	return (-1);
 #else
 	struct dcons_crom_softc *sc;
+	int error;
 
+	if (dcons_conf->buf == NULL)
+		return (ENXIO);
         sc = (struct dcons_crom_softc *) device_get_softc(dev);
 	sc->fd.fc = device_get_ivars(dev);
 	sc->fd.dev = dev;
@@ -180,7 +183,7 @@ dcons_crom_attach(device_t dev)
 	sc->fd.post_busreset = (void *) dcons_crom_post_busreset;
 
 	/* map dcons buffer */
-	bus_dma_tag_create(
+	error = bus_dma_tag_create(
 		/*parent*/ sc->fd.fc->dmat,
 		/*alignment*/ sizeof(u_int32_t),
 		/*boundary*/ 0,
@@ -196,10 +199,16 @@ dcons_crom_attach(device_t dev)
 		/*lockarg*/&Giant,
 #endif
 		&sc->dma_tag);
-	bus_dmamap_create(sc->dma_tag, 0, &sc->dma_map);
-	bus_dmamap_load(sc->dma_tag, sc->dma_map,
+	if (error != 0)
+		return (error);
+	error = bus_dmamap_create(sc->dma_tag, BUS_DMA_COHERENT, &sc->dma_map);
+	if (error != 0)
+		return (error);
+	error = bus_dmamap_load(sc->dma_tag, sc->dma_map,
 	    (void *)dcons_conf->buf, dcons_conf->size,
 	    dmamap_cb, sc, 0);
+	if (error != 0)
+		return (error);
 	return (0);
 #endif
 }

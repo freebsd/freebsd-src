@@ -17,7 +17,7 @@ CFLAGS+=	-I${SRCDIR}/include
 DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD}
 LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD}
 
-MAN=		nsupdate.8
+MAN=		nsupdate.1
 
 MANFILTER=	sed -e "s@/etc/named\.conf@/etc/namedb/named.conf@g" \
 		-e "s@^\.HP [0-9]* @@"

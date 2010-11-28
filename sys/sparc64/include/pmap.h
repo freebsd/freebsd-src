@@ -77,7 +77,7 @@ struct pmap {
 #define	PMAP_TRYLOCK(pmap)	mtx_trylock(&(pmap)->pm_mtx)
 #define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
 
-void	pmap_bootstrap(vm_offset_t ekva);
+void	pmap_bootstrap(void);
 vm_paddr_t pmap_kextract(vm_offset_t va);
 void	pmap_kenter(vm_offset_t va, vm_page_t m);
 void	pmap_kremove(vm_offset_t);
@@ -104,8 +104,6 @@ extern	struct pmap kernel_pmap_store;
 extern	vm_paddr_t phys_avail[];
 extern	vm_offset_t virtual_avail;
 extern	vm_offset_t virtual_end;
-
-extern	vm_paddr_t msgbuf_phys;
 
 #ifdef PMAP_STATS
 

@@ -66,7 +66,7 @@
 #include <opencrypto/deflate.h>
 #include <opencrypto/xform.h>
 
-int	ipcomp_enable = 0;
+int	ipcomp_enable = 1;
 struct	ipcompstat ipcompstat;
 
 SYSCTL_DECL(_net_inet_ipcomp);
@@ -255,7 +255,6 @@ ipcomp_input_cb(struct cryptop *crp)
 			NET_UNLOCK_GIANT();
 			return error;
 		}
-
 		ipcompstat.ipcomps_noxform++;
 		DPRINTF(("%s: crypto error %d\n", __func__, crp->crp_etype));
 		error = crp->crp_etype;
@@ -335,13 +334,10 @@ ipcomp_output(
 {
 	struct secasvar *sav;
 	struct comp_algo *ipcompx;
-	int error, ralen, hlen, maxpacketsize, roff;
-	u_int8_t prot;
+	int error, ralen, maxpacketsize;
 	struct cryptodesc *crdc;
 	struct cryptop *crp;
 	struct tdb_crypto *tc;
-	struct mbuf *mo;
-	struct ipcomp *ipcomp;
 
 	IPSEC_SPLASSERT_SOFTNET(__func__);
 
@@ -350,21 +346,30 @@ ipcomp_output(
 	ipcompx = sav->tdb_compalgxform;
 	IPSEC_ASSERT(ipcompx != NULL, ("null compression xform"));
 
-	ralen = m->m_pkthdr.len - skip;	/* Raw payload length before comp. */
-	hlen = IPCOMP_HLENGTH;
+	/*
+	 * Do not touch the packet in case our payload to compress
+	 * is lower than the minimal threshold of the compression
+	 * alogrithm.  We will just send out the data uncompressed.
+	 * See RFC 3173, 2.2. Non-Expansion Policy.
+	 */
+	if (m->m_pkthdr.len <= ipcompx->minlen) {
+		/* XXX-BZ V_ipcompstat.threshold++; */
+		return ipsec_process_done(m, isr);
+	}
 
+	ralen = m->m_pkthdr.len - skip;	/* Raw payload length before comp. */
 	ipcompstat.ipcomps_output++;
 
 	/* Check for maximum packet size violations. */
 	switch (sav->sah->saidx.dst.sa.sa_family) {
 #ifdef INET
 	case AF_INET:
-		maxpacketsize =  IP_MAXPACKET;
+		maxpacketsize = IP_MAXPACKET;
 		break;
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
-		maxpacketsize =  IPV6_MAXPACKET;
+		maxpacketsize = IPV6_MAXPACKET;
 		break;
 #endif /* INET6 */
 	default:
@@ -377,13 +382,13 @@ ipcomp_output(
 		error = EPFNOSUPPORT;
 		goto bad;
 	}
-	if (skip + hlen + ralen > maxpacketsize) {
+	if (ralen + skip + IPCOMP_HLENGTH > maxpacketsize) {
 		ipcompstat.ipcomps_toobig++;
 		DPRINTF(("%s: packet in IPCA %s/%08lx got too big "
 		    "(len %u, max len %u)\n", __func__,
 		    ipsec_address(&sav->sah->saidx.dst),
 		    (u_long) ntohl(sav->spi),
-		    skip + hlen + ralen, maxpacketsize));
+		    ralen + skip + IPCOMP_HLENGTH, maxpacketsize));
 		error = EMSGSIZE;
 		goto bad;
 	}
@@ -401,40 +406,7 @@ ipcomp_output(
 		goto bad;
 	}
 
-	/* Inject IPCOMP header */
-	mo = m_makespace(m, skip, hlen, &roff);
-	if (mo == NULL) {
-		ipcompstat.ipcomps_wrap++;
-		DPRINTF(("%s: IPCOMP header inject failed for IPCA %s/%08lx\n",
-		    __func__, ipsec_address(&sav->sah->saidx.dst),
-		    (u_long) ntohl(sav->spi)));
-		error = ENOBUFS;
-		goto bad;
-	}
-	ipcomp = (struct ipcomp *)(mtod(mo, caddr_t) + roff);
-
-	/* Initialize the IPCOMP header */
-	/* XXX alignment always correct? */
-	switch (sav->sah->saidx.dst.sa.sa_family) {
-#ifdef INET
-	case AF_INET:
-		ipcomp->comp_nxt = mtod(m, struct ip *)->ip_p;
-		break;
-#endif /* INET */
-#ifdef INET6
-	case AF_INET6:
-		ipcomp->comp_nxt = mtod(m, struct ip6_hdr *)->ip6_nxt;
-		break;
-#endif
-	}
-	ipcomp->comp_flags = 0;
-	ipcomp->comp_cpi = htons((u_int16_t) ntohl(sav->spi));
-
-	/* Fix Next Protocol in IPv4/IPv6 header */
-	prot = IPPROTO_IPCOMP;
-	m_copyback(m, protoff, sizeof(u_int8_t), (u_char *) &prot);
-
-	/* Ok now, we can pass to the crypto processing */
+	/* Ok now, we can pass to the crypto processing. */
 
 	/* Get crypto descriptors */
 	crp = crypto_getreq(1);
@@ -447,10 +419,10 @@ ipcomp_output(
 	crdc = crp->crp_desc;
 
 	/* Compression descriptor */
-	crdc->crd_skip = skip + hlen;
-	crdc->crd_len = m->m_pkthdr.len - (skip + hlen);
+	crdc->crd_skip = skip;
+	crdc->crd_len = ralen;
 	crdc->crd_flags = CRD_F_COMP;
-	crdc->crd_inject = skip + hlen;
+	crdc->crd_inject = skip;
 
 	/* Compression operation */
 	crdc->crd_alg = ipcompx->type;
@@ -470,7 +442,8 @@ ipcomp_output(
 	tc->tc_spi = sav->spi;
 	tc->tc_dst = sav->sah->saidx.dst;
 	tc->tc_proto = sav->sah->saidx.proto;
-	tc->tc_skip = skip + hlen;
+	tc->tc_protoff = protoff;
+	tc->tc_skip = skip;
 
 	/* Crypto operation descriptor */
 	crp->crp_ilen = m->m_pkthdr.len;	/* Total input length */
@@ -497,7 +470,7 @@ ipcomp_output_cb(struct cryptop *crp)
 	struct ipsecrequest *isr;
 	struct secasvar *sav;
 	struct mbuf *m;
-	int error, skip, rlen;
+	int error, skip;
 
 	NET_LOCK_GIANT();
 
@@ -505,7 +478,6 @@ ipcomp_output_cb(struct cryptop *crp)
 	IPSEC_ASSERT(tc != NULL, ("null opaque data area!"));
 	m = (struct mbuf *) crp->crp_buf;
 	skip = tc->tc_skip;
-	rlen = crp->crp_ilen - skip;
 
 	isr = tc->tc_isr;
 	IPSECREQUEST_LOCK(isr);
@@ -520,7 +492,7 @@ ipcomp_output_cb(struct cryptop *crp)
 
 	/* Check for crypto errors */
 	if (crp->crp_etype) {
-		/* Reset session ID */
+		/* Reset the session ID */
 		if (sav->tdb_cryptoid != 0)
 			sav->tdb_cryptoid = crp->crp_sid;
 
@@ -545,7 +517,46 @@ ipcomp_output_cb(struct cryptop *crp)
 	}
 	ipcompstat.ipcomps_hist[sav->alg_comp]++;
 
-	if (rlen > crp->crp_olen) {
+	if (crp->crp_ilen - skip > crp->crp_olen) {
+		struct mbuf *mo;
+		struct ipcomp *ipcomp;
+		int roff;
+		uint8_t prot;
+
+		/* Compression helped, inject IPCOMP header. */
+		mo = m_makespace(m, skip, IPCOMP_HLENGTH, &roff);
+		if (mo == NULL) {
+			ipcompstat.ipcomps_wrap++;
+			DPRINTF(("%s: IPCOMP header inject failed for IPCA %s/%08lx\n",
+			    __func__, ipsec_address(&sav->sah->saidx.dst),
+			    (u_long) ntohl(sav->spi)));
+			error = ENOBUFS;
+			goto bad;
+		}
+		ipcomp = (struct ipcomp *)(mtod(mo, caddr_t) + roff);
+
+		/* Initialize the IPCOMP header */
+		/* XXX alignment always correct? */
+		switch (sav->sah->saidx.dst.sa.sa_family) {
+#ifdef INET
+		case AF_INET:
+			ipcomp->comp_nxt = mtod(m, struct ip *)->ip_p;
+			break;
+#endif /* INET */
+#ifdef INET6
+		case AF_INET6:
+			ipcomp->comp_nxt = mtod(m, struct ip6_hdr *)->ip6_nxt;
+			break;
+#endif
+		}
+		ipcomp->comp_flags = 0;
+		ipcomp->comp_cpi = htons((u_int16_t) ntohl(sav->spi));
+
+		/* Fix Next Protocol in IPv4/IPv6 header */
+		prot = IPPROTO_IPCOMP;
+		m_copyback(m, tc->tc_protoff, sizeof(u_int8_t),
+		    (u_char *)&prot);
+
 		/* Adjust the length in the IP header */
 		switch (sav->sah->saidx.dst.sa.sa_family) {
 #ifdef INET
@@ -564,7 +575,7 @@ ipcomp_output_cb(struct cryptop *crp)
 			DPRINTF(("%s: unknown/unsupported protocol "
 			    "family %d, IPCA %s/%08lx\n", __func__,
 			    sav->sah->saidx.dst.sa.sa_family,
-			    ipsec_address(&sav->sah->saidx.dst), 
+			    ipsec_address(&sav->sah->saidx.dst),
 			    (u_long) ntohl(sav->spi)));
 			error = EPFNOSUPPORT;
 			goto bad;
@@ -572,6 +583,8 @@ ipcomp_output_cb(struct cryptop *crp)
 	} else {
 		/* compression was useless, we have lost time */
 		/* XXX add statistic */
+		/* XXX remember state to not compress the next couple
+		 *     of packets, RFC 3173, 2.2. Non-Expansion Policy */
 	}
 
 	/* Release the crypto descriptor */

@@ -190,7 +190,7 @@ in6_ifloop_request(int cmd, struct ifaddr *ifa)
 
 		rt_newaddrmsg(cmd, ifa, e, nrt);
 		if (cmd == RTM_DELETE) {
-			rtfree(nrt);
+			RTFREE_LOCKED(nrt);
 		} else {
 			/* the cmd must be RTM_ADD here */
 			RT_REMREF(nrt);
@@ -217,7 +217,7 @@ in6_ifaddloop(struct ifaddr *ifa)
 	need_loop = (rt == NULL || (rt->rt_flags & RTF_HOST) == 0 ||
 	    (rt->rt_ifp->if_flags & IFF_LOOPBACK) == 0);
 	if (rt)
-		rtfree(rt);
+		RTFREE_LOCKED(rt);
 	if (need_loop)
 		in6_ifloop_request(RTM_ADD, ifa);
 }
@@ -269,7 +269,7 @@ in6_ifremloop(struct ifaddr *ifa)
 		if (rt != NULL) {
 			if ((rt->rt_flags & RTF_HOST) != 0 &&
 			    (rt->rt_ifp->if_flags & IFF_LOOPBACK) != 0) {
-				rtfree(rt);
+				RTFREE_LOCKED(rt);
 				in6_ifloop_request(RTM_DELETE, ifa);
 			} else
 				RT_UNLOCK(rt);
@@ -359,12 +359,12 @@ in6_control(so, cmd, data, ifp, td)
 	case SIOCSRTRFLUSH_IN6:
 	case SIOCSDEFIFACE_IN6:
 	case SIOCSIFINFO_FLAGS:
+	case SIOCSIFINFO_IN6:
 		if (!privileged)
 			return (EPERM);
 		/* FALLTHROUGH */
 	case OSIOCGIFINFO_IN6:
 	case SIOCGIFINFO_IN6:
-	case SIOCSIFINFO_IN6:
 	case SIOCGDRLST_IN6:
 	case SIOCGPRLST_IN6:
 	case SIOCGNBRINFO_IN6:

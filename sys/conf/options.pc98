@@ -23,8 +23,6 @@ IBCS2			opt_dontuse.h
 COMPAT_LINUX		opt_dontuse.h
 COMPAT_SVR4		opt_dontuse.h
 DEBUG_SVR4		opt_svr4.h
-PECOFF_DEBUG		opt_pecoff.h
-PECOFF_SUPPORT		opt_dontuse.h
 
 # Change KVM size.  Changes things all over the kernel.
 KVA_PAGES		opt_global.h

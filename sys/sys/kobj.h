@@ -92,7 +92,17 @@ struct kobjop_desc {
 /*
  * Shorthand for constructing method tables.
  */
+#if 1
 #define KOBJMETHOD(NAME, FUNC) { &NAME##_desc, (kobjop_t) FUNC }
+#else /* notyet */
+#define KOBJMETHOD(NAME, FUNC) \
+{ &NAME##_desc, (kobjop_t) (FUNC != (NAME##_t *)NULL ? FUNC : NULL) }
+#endif
+
+/*
+ *
+ */
+#define KOBJMETHOD_END	{ NULL, NULL }
 
 /*
  * Declare a class (which should be defined in another file.
@@ -114,20 +124,20 @@ DEFINE_CLASS_0(name, name ## _class, methods, size)
 #define DEFINE_CLASS_0(name, classvar, methods, size)	\
 							\
 struct kobj_class classvar = {				\
-	#name, methods, size, 0				\
+	#name, methods, size, NULL			\
 }
 
 /*
  * Define a class inheriting a single base class. Use like this:
  *
- * DEFINE_CLASS1(foo, foo_class, foo_methods, sizeof(foo_softc),
+ * DEFINE_CLASS_1(foo, foo_class, foo_methods, sizeof(foo_softc),
  *			  bar);
  */
 #define DEFINE_CLASS_1(name, classvar, methods, size,	\
 		       base1)				\
 							\
 static kobj_class_t name ## _baseclasses[] =		\
-	{ &base1, 0 };					\
+	{ &base1, NULL };				\
 struct kobj_class classvar = {				\
 	#name, methods, size, name ## _baseclasses	\
 }
@@ -135,7 +145,7 @@ struct kobj_class classvar = {				\
 /*
  * Define a class inheriting two base classes. Use like this:
  *
- * DEFINE_CLASS2(foo, foo_class, foo_methods, sizeof(foo_softc),
+ * DEFINE_CLASS_2(foo, foo_class, foo_methods, sizeof(foo_softc),
  *			  bar, baz);
  */
 #define DEFINE_CLASS_2(name, methods, size,		\
@@ -143,7 +153,7 @@ struct kobj_class classvar = {				\
 							\
 static kobj_class_t name ## _baseclasses[] =		\
 	{ &base1,					\
-	  &base2, 0 };					\
+	  &base2, NULL };				\
 struct kobj_class name ## _class = {			\
 	#name, methods, size, name ## _baseclasses	\
 }
@@ -151,7 +161,7 @@ struct kobj_class name ## _class = {			\
 /*
  * Define a class inheriting three base classes. Use like this:
  *
- * DEFINE_CLASS3(foo, foo_class, foo_methods, sizeof(foo_softc),
+ * DEFINE_CLASS_3(foo, foo_class, foo_methods, sizeof(foo_softc),
  *			  bar, baz, foobar);
  */
 #define DEFINE_CLASS_3(name, methods, size,		\
@@ -160,7 +170,7 @@ struct kobj_class name ## _class = {			\
 static kobj_class_t name ## _baseclasses[] =		\
 	{ &base1,					\
 	  &base2,					\
-	  &base3, 0 };					\
+	  &base3, NULL };				\
 struct kobj_class name ## _class = {			\
 	#name, methods, size, name ## _baseclasses	\
 }

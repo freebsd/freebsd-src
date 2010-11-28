@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 13, 2007
+.Dd July 15, 2008
 .Dt MODSTAT 2
 .Os
 .Sh NAME
@@ -55,9 +55,9 @@ struct module_stat {
 };
 typedef union modspecific {
 	int         intval;
-	u_int       u_intval;
+	u_int       uintval;
 	long        longval;
-	u_long      u_longval;
+	u_long      ulongval;
 } modspecific_t;
 .Ed
 .Pp

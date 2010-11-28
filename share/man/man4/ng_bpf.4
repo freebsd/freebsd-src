@@ -156,21 +156,14 @@ INHOOK="hook1"
 MATCHHOOK="hook2"
 NOTMATCHHOOK="hook3"
 
-cat > /tmp/bpf.awk << xxENDxx
-{
-  if (!init) {
-    printf "bpf_prog_len=%d bpf_prog=[", \\$1;
-    init=1;
-  } else {
-    printf " { code=%d jt=%d jf=%d k=%d }", \\$1, \\$2, \\$3, \\$4;
-  }
-}
-END {
-  print " ]"
-}
-xxENDxx
-
-BPFPROG=`tcpdump -s 8192 -ddd ${PATTERN} | awk -f /tmp/bpf.awk`
+BPFPROG=$( tcpdump -s 8192 -ddd ${PATTERN} | \\
+           ( read len ; \\
+             echo -n "bpf_prog_len=$len" ; \\
+             echo -n "bpf_prog=[" ; \\
+             while read code jt jf k ; do \\
+                 echo -n " { code=$code jt=$jt jf=$jf k=$k }" ; \\
+             done ; \\
+             echo " ]" ) )
 
 ngctl msg ${NODEPATH} setprogram { thisHook=\\"${INHOOK}\\" \\
   ifMatch=\\"${MATCHHOOK}\\" \\

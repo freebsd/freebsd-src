@@ -232,7 +232,7 @@ linux_readdir(struct thread *td, struct linux_readdir_args *args)
  */
 
 struct l_dirent {
-	l_long		d_ino;
+	l_ulong		d_ino;
 	l_off_t		d_off;
 	l_ushort	d_reclen;
 	char		d_name[LINUX_NAME_MAX + 1];
@@ -246,9 +246,20 @@ struct l_dirent64 {
 	char		d_name[LINUX_NAME_MAX + 1];
 };
 
-#define LINUX_RECLEN(de,namlen) \
-    ALIGN((((char *)&(de)->d_name - (char *)de) + (namlen) + 1))
+/*
+ * Linux uses the last byte in the dirent buffer to store d_type,
+ * at least glibc-2.7 requires it. That is why l_dirent is padded with 2 bytes.
+ */
+#define LINUX_RECLEN(namlen)						\
+    roundup((offsetof(struct l_dirent, d_name) + (namlen) + 2),		\
+    sizeof(l_ulong))
 
+#define LINUX_RECLEN64(namlen)						\
+    roundup((offsetof(struct l_dirent64, d_name) + (namlen) + 1),	\
+    sizeof(uint64_t))
+
+#define LINUX_MAXRECLEN		max(LINUX_RECLEN(LINUX_NAME_MAX),	\
+				    LINUX_RECLEN64(LINUX_NAME_MAX))
 #define	LINUX_DIRBLKSIZ		512
 
 static int
@@ -261,12 +272,13 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 	int len, reclen;		/* BSD-format */
 	caddr_t outp;			/* Linux-format */
 	int resid, linuxreclen=0;	/* Linux-format */
+	caddr_t lbuf;			/* Linux-format */
 	struct file *fp;
 	struct uio auio;
 	struct iovec aiov;
 	off_t off;
-	struct l_dirent linux_dirent;
-	struct l_dirent64 linux_dirent64;
+	struct l_dirent *linux_dirent;
+	struct l_dirent64 *linux_dirent64;
 	int buflen, error, eofflag, nbytes, justone;
 	u_long *cookies = NULL, *cookiep;
 	int ncookies, vfslocked;
@@ -276,7 +288,7 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 		/* readdir(2) case. Always struct dirent. */
 		if (is64bit)
 			return (EINVAL);
-		nbytes = sizeof(linux_dirent);
+		nbytes = sizeof(*linux_dirent);
 		justone = 1;
 	} else
 		justone = 0;
@@ -302,6 +314,7 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 	buflen = max(LINUX_DIRBLKSIZ, nbytes);
 	buflen = min(buflen, MAXBSIZE);
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
+	lbuf = malloc(LINUX_MAXRECLEN, M_TEMP, M_WAITOK | M_ZERO);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
 again:
@@ -379,8 +392,8 @@ again:
 		}
 
 		linuxreclen = (is64bit)
-		    ? LINUX_RECLEN(&linux_dirent64, bdp->d_namlen)
-		    : LINUX_RECLEN(&linux_dirent, bdp->d_namlen);
+		    ? LINUX_RECLEN64(bdp->d_namlen)
+		    : LINUX_RECLEN(bdp->d_namlen);
 
 		if (reclen > len || resid < linuxreclen) {
 			outp++;
@@ -389,34 +402,41 @@ again:
 
 		if (justone) {
 			/* readdir(2) case. */
-			linux_dirent.d_ino = (l_long)bdp->d_fileno;
-			linux_dirent.d_off = (l_off_t)linuxreclen;
-			linux_dirent.d_reclen = (l_ushort)bdp->d_namlen;
-			strcpy(linux_dirent.d_name, bdp->d_name);
-			error = copyout(&linux_dirent, outp, linuxreclen);
-		} else {
-			if (is64bit) {
-				linux_dirent64.d_ino = bdp->d_fileno;
-				linux_dirent64.d_off = (cookiep)
-				    ? (l_off_t)*cookiep
-				    : (l_off_t)(off + reclen);
-				linux_dirent64.d_reclen =
-				    (l_ushort)linuxreclen;
-				linux_dirent64.d_type = bdp->d_type;
-				strcpy(linux_dirent64.d_name, bdp->d_name);
-				error = copyout(&linux_dirent64, outp,
-				    linuxreclen);
-			} else {
-				linux_dirent.d_ino = bdp->d_fileno;
-				linux_dirent.d_off = (cookiep)
-				    ? (l_off_t)*cookiep
-				    : (l_off_t)(off + reclen);
-				linux_dirent.d_reclen = (l_ushort)linuxreclen;
-				strcpy(linux_dirent.d_name, bdp->d_name);
-				error = copyout(&linux_dirent, outp,
-				    linuxreclen);
-			}
+			linux_dirent = (struct l_dirent*)lbuf;
+			linux_dirent->d_ino = bdp->d_fileno;
+			linux_dirent->d_off = (l_off_t)linuxreclen;
+			linux_dirent->d_reclen = (l_ushort)bdp->d_namlen;
+			strlcpy(linux_dirent->d_name, bdp->d_name,
+			    linuxreclen - offsetof(struct l_dirent, d_name));
+			error = copyout(linux_dirent, outp, linuxreclen);
 		}
+		if (is64bit) {
+			linux_dirent64 = (struct l_dirent64*)lbuf;
+			linux_dirent64->d_ino = bdp->d_fileno;
+			linux_dirent64->d_off = (cookiep)
+			    ? (l_off_t)*cookiep
+			    : (l_off_t)(off + reclen);
+			linux_dirent64->d_reclen = (l_ushort)linuxreclen;
+			linux_dirent64->d_type = bdp->d_type;
+			strlcpy(linux_dirent64->d_name, bdp->d_name,
+			    linuxreclen - offsetof(struct l_dirent64, d_name));
+			error = copyout(linux_dirent64, outp, linuxreclen);
+		} else if (!justone) {
+			linux_dirent = (struct l_dirent*)lbuf;
+			linux_dirent->d_ino = bdp->d_fileno;
+			linux_dirent->d_off = (cookiep)
+			    ? (l_off_t)*cookiep
+			    : (l_off_t)(off + reclen);
+			linux_dirent->d_reclen = (l_ushort)linuxreclen;
+			/*
+			 * Copy d_type to last byte of l_dirent buffer
+			 */
+			lbuf[linuxreclen-1] = bdp->d_type;
+			strlcpy(linux_dirent->d_name, bdp->d_name,
+			    linuxreclen - offsetof(struct l_dirent, d_name)-1);
+			error = copyout(linux_dirent, outp, linuxreclen);
+		}
+
 		if (error)
 			goto out;
 
@@ -452,6 +472,7 @@ out:
 	VFS_UNLOCK_GIANT(vfslocked);
 	fdrop(fp, td);
 	free(buf, M_TEMP);
+	free(lbuf, M_TEMP);
 	return (error);
 }
 

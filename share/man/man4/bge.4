@@ -31,12 +31,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 30, 2007
+.Dd January 15, 2009
 .Dt BGE 4
 .Os
 .Sh NAME
 .Nm bge
-.Nd "Broadcom BCM570x/5714/5721/5750/5751/5752/5789 PCI Gigabit Ethernet adapter driver"
+.Nd "Broadcom BCM570x/5714/5721/5722/5750/5751/5752/5789 PCI Gigabit Ethernet adapter driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -56,7 +56,7 @@ if_bge_load="YES"
 The
 .Nm
 driver provides support for various NICs based on the Broadcom BCM570x,
-5714, 5721, 5750, 5751, 5752 and 5789 families of Gigabit Ethernet
+5714, 5721, 5722, 5750, 5751, 5752 and 5789 families of Gigabit Ethernet
 controller chips.
 .Pp
 All of these NICs are capable of 10, 100 and 1000Mbps speeds over CAT5
@@ -82,7 +82,7 @@ copper gigabit transceivers,
 which support autonegotiation of 10, 100 and 1000Mbps modes in
 full or half duplex.
 .Pp
-The BCM5700, BCM5701, BCM5703, BCM5704, BCM5714 and BCM5780 also support
+The BCM5700, BCM5701, BCM5702, BCM5703 and BCM5704 also support
 jumbo frames, which can be configured
 via the interface MTU setting.
 Selecting an MTU larger than 1500 bytes with the
@@ -194,6 +194,8 @@ HP ProLiant NC7760 embedded Gigabit NIC (10/100/1000baseTX)
 .It
 HP ProLiant NC7770 PCI-X Gigabit NIC (10/100/1000baseTX)
 .It
+HP ProLiant NC7771 PCI-X Gigabit NIC (10/100/1000baseTX)
+.It
 HP ProLiant NC7781 embedded PCI-X Gigabit NIC (10/100/1000baseTX)
 .It
 Netgear GA302T (10/100/1000baseTX)
@@ -201,6 +203,17 @@ Netgear GA302T (10/100/1000baseTX)
 SysKonnect SK-9D21 (10/100/1000baseTX)
 .It
 SysKonnect SK-9D41 (1000baseSX)
+.El
+.Sh LOADER TUNABLES
+The following tunable can be set at the
+.Xr loader 8
+prompt before booting the kernel, or stored in
+.Xr loader.conf 5 .
+.Bl -tag -width indent
+.It Va hw.bge.allow_asf
+Allow the ASF feature for cooperating with IPMI.
+Can cause system lockup problems on a small number of systems.
+Disabled by default.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag

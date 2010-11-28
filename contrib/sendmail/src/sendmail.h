@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2008 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2009 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -52,7 +52,7 @@
 
 #ifdef _DEFINE
 # ifndef lint
-SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1059 2008/02/15 23:19:58 ca Exp $";
+SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1068 2009/12/18 17:08:01 ca Exp $";
 # endif /* ! lint */
 #endif /* _DEFINE */
 
@@ -607,7 +607,7 @@ extern bool	filesys_free __P((long));
 ERROR: change SASL_SEC_MASK_ notify sendmail.org!
 #  endif /* SASL_SEC_NOPLAINTEXT & SASL_SEC_MASK) == 0 ... */
 # endif /* SASL >= 20101 */
-# define MAXOUTLEN 8192			/* length of output buffer */
+# define MAXOUTLEN 8192	/* length of output buffer, should be 2^n */
 
 /* functions */
 extern char	*intersect __P((char *, char *, SM_RPOOL_T *));
@@ -931,6 +931,10 @@ struct envelope
 	int		e_dlvr_flag;	/* deliver by flag */
 	SM_RPOOL_T	*e_rpool;	/* resource pool for this envelope */
 	unsigned int	e_features;	/* server features */
+#if _FFR_MILTER_ENHSC
+#define ENHSC_LEN	11
+	char		e_enhsc[ENHSC_LEN];	/* enhanced status code */
+#endif /* _FFR_MILTER_ENHSC */
 };
 
 /* values for e_flags */
@@ -982,7 +986,7 @@ extern ENVELOPE	BlankEnvelope;
 
 /* functions */
 extern void	clearenvelope __P((ENVELOPE *, bool, SM_RPOOL_T *));
-extern void	dropenvelope __P((ENVELOPE *, bool, bool));
+extern int	dropenvelope __P((ENVELOPE *, bool, bool));
 extern ENVELOPE	*newenvelope __P((ENVELOPE *, ENVELOPE *, SM_RPOOL_T *));
 extern void	clrsessenvelope __P((ENVELOPE *));
 extern void	printenvflags __P((ENVELOPE *));
@@ -1561,6 +1565,7 @@ extern void	stabapply __P((void (*)(STAB *, int), int));
 #define MD_HOSTSTAT	'h'		/* print persistent host stat info */
 #define MD_PURGESTAT	'H'		/* purge persistent host stat info */
 #define MD_QUEUERUN	'q'		/* queue run */
+#define MD_CHECKCONFIG	'C'		/* check configuration file */
 
 #if _FFR_LOCAL_DAEMON
 EXTERN bool	LocalDaemon;
@@ -1880,7 +1885,7 @@ struct termescape
 
 /* functions */
 extern bool	init_tls_library __P((void));
-extern bool	inittls __P((SSL_CTX **, unsigned long, bool, char *, char *, char *, char *, char *));
+extern bool	inittls __P((SSL_CTX **, unsigned long, long, bool, char *, char *, char *, char *, char *));
 extern bool	initclttls __P((bool));
 extern void	setclttls __P((bool));
 extern bool	initsrvtls __P((bool));
@@ -1906,6 +1911,7 @@ EXTERN char	*CRLFile;	/* file CRLs */
 EXTERN char	*CRLPath;	/* path to CRLs (dir. with hashes) */
 #endif /* _FFR_CRLPATH */
 EXTERN unsigned long	TLS_Srv_Opts;	/* TLS server options */
+EXTERN long	Srv_SSL_Options, Clt_SSL_Options; /* SSL options */
 #endif /* STARTTLS */
 
 /*
@@ -1986,6 +1992,9 @@ EXTERN int	QueueFileMode;	/* mode on files in mail queue */
 EXTERN int	QueueMode;	/* which queue items to act upon */
 EXTERN int	QueueSortOrder;	/* queue sorting order algorithm */
 EXTERN time_t	MinQueueAge;	/* min delivery interval */
+#if _FFR_EXPDELAY
+EXTERN time_t	MaxQueueAge;	/* max delivery interval */
+#endif /* _FFR_EXPDELAY */
 EXTERN time_t	QueueIntvl;	/* intervals between running the queue */
 EXTERN char	*QueueDir;	/* location of queue directory */
 EXTERN QUEUE_CHAR	*QueueLimitId;		/* limit queue run to id */
@@ -2235,11 +2244,16 @@ EXTERN bool	UseNameServer;	/* using DNS -- interpret h_errno & MX RRs */
 EXTERN char	InetMode;		/* default network for daemon mode */
 EXTERN char	OpMode;		/* operation mode, see below */
 EXTERN char	SpaceSub;	/* substitution for <lwsp> */
-EXTERN int	BadRcptThrottle; /* Throttle rejected RCPTs per SMTP message */
 #if _FFR_BADRCPT_SHUTDOWN
 EXTERN int	BadRcptShutdown; /* Shutdown connection for rejected RCPTs */
 EXTERN int	BadRcptShutdownGood; /* above even when there are good RCPTs */
 #endif /* _FFR_BADRCPT_SHUTDOWN */
+EXTERN int	BadRcptThrottle; /* Throttle rejected RCPTs per SMTP message */
+#if _FFR_RCPTTHROTDELAY
+EXTERN unsigned int BadRcptThrottleDelay; /* delay for BadRcptThrottle */
+#else
+# define BadRcptThrottleDelay	1
+#endif /* _FFR_RCPTTHROTDELAY */
 EXTERN int	CheckpointInterval;	/* queue file checkpoint interval */
 EXTERN int	ConfigLevel;	/* config file level */
 EXTERN int	ConnRateThrottle;	/* throttle for SMTP connection rate */
@@ -2642,7 +2656,7 @@ extern void	unsetenv __P((char *));
 
 /* update file system information: +/- some blocks */
 #if SM_CONF_SHM
-extern void	upd_qs __P((ENVELOPE *, bool, bool, char *));
+extern void	upd_qs __P((ENVELOPE *, int, int, char *));
 # define updfs(e, count, space, where) upd_qs(e, count, space, where)
 #else /* SM_CONF_SHM */
 # define updfs(e, count, space, where)

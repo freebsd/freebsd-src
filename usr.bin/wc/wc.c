@@ -62,8 +62,8 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 #include <wctype.h>
 
-uintmax_t tlinect, twordct, tcharct;
-int doline, doword, dochar, domulti;
+uintmax_t tlinect, twordct, tcharct, tlongline;
+int doline, doword, dochar, domulti, dolongline;
 
 static int	cnt(const char *);
 static void	usage(void);
@@ -75,7 +75,7 @@ main(int argc, char *argv[])
 
 	(void) setlocale(LC_CTYPE, "");
 
-	while ((ch = getopt(argc, argv, "clmw")) != -1)
+	while ((ch = getopt(argc, argv, "clmwL")) != -1)
 		switch((char)ch) {
 		case 'l':
 			doline = 1;
@@ -86,6 +86,9 @@ main(int argc, char *argv[])
 		case 'c':
 			dochar = 1;
 			domulti = 0;
+			break;
+		case 'L':
+			dolongline = 1;
 			break;
 		case 'm':
 			domulti = 1;
@@ -99,7 +102,7 @@ main(int argc, char *argv[])
 	argc -= optind;
 
 	/* Wc's flags are on by default. */
-	if (doline + doword + dochar + domulti == 0)
+	if (doline + doword + dochar + domulti + dolongline == 0)
 		doline = doword = dochar = 1;
 
 	errors = 0;
@@ -125,6 +128,8 @@ main(int argc, char *argv[])
 			(void)printf(" %7ju", twordct);
 		if (dochar || domulti)
 			(void)printf(" %7ju", tcharct);
+		if (dolongline)
+			(void)printf(" %7ju", tlongline);
 		(void)printf(" total\n");
 	}
 	exit(errors == 0 ? 0 : 1);
@@ -134,7 +139,7 @@ static int
 cnt(const char *file)
 {
 	struct stat sb;
-	uintmax_t linect, wordct, charct;
+	uintmax_t linect, wordct, charct, llct, tmpll;
 	int fd, len, warned;
 	size_t clen;
 	short gotsp;
@@ -143,7 +148,7 @@ cnt(const char *file)
 	wchar_t wch;
 	mbstate_t mbs;
 
-	linect = wordct = charct = 0;
+	linect = wordct = charct = llct = tmpll = 0;
 	if (file == NULL) {
 		file = "stdin";
 		fd = STDIN_FILENO;
@@ -168,14 +173,24 @@ cnt(const char *file)
 				}
 				charct += len;
 				for (p = buf; len--; ++p)
-					if (*p == '\n')
+					if (*p == '\n') {
+						if (tmpll > llct)
+							llct = tmpll;
+						tmpll = 0;
 						++linect;
+					} else
+						tmpll++;
 			}
 			tlinect += linect;
 			(void)printf(" %7ju", linect);
 			if (dochar) {
 				tcharct += charct;
 				(void)printf(" %7ju", charct);
+			}
+			if (dolongline) {
+				if (llct > tlongline)
+					tlongline = llct;
+				(void)printf(" %7ju", tlongline);
 			}
 			(void)close(fd);
 			return (0);
@@ -229,10 +244,16 @@ word:	gotsp = 1;
 			else if (clen == 0)
 				clen = 1;
 			charct++;
+			if (wch != L'\n')
+				tmpll++;
 			len -= clen;
 			p += clen;
-			if (wch == L'\n')
+			if (wch == L'\n') {
+				if (tmpll > llct)
+					llct = tmpll;
+				tmpll = 0;
 				++linect;
+			}
 			if (iswspace(wch))
 				gotsp = 1;
 			else if (gotsp) {
@@ -256,6 +277,11 @@ word:	gotsp = 1;
 		tcharct += charct;
 		(void)printf(" %7ju", charct);
 	}
+	if (dolongline) {
+		if (llct > tlongline)
+			tlongline = llct;
+		(void)printf(" %7ju", llct);
+	}
 	(void)close(fd);
 	return (0);
 }
@@ -263,6 +289,6 @@ word:	gotsp = 1;
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage: wc [-clmw] [file ...]\n");
+	(void)fprintf(stderr, "usage: wc [-Lclmw] [file ...]\n");
 	exit(1);
 }

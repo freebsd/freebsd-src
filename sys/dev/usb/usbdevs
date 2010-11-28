@@ -351,6 +351,7 @@ vendor EICON		0x0734	Eicon Networks
 vendor DIGITALSTREAM	0x074e	Digital Stream
 vendor AUREAL		0x0755	Aureal
 vendor MIDIMAN		0x0763	Midiman
+vendor CYBERPOWER	0x0764	Cyber Power Systems, Inc.
 vendor LINKSYS2		0x077b	Linksys
 vendor GRIFFIN		0x077d	Griffin
 vendor SANDISK		0x0781	SanDisk
@@ -819,6 +820,9 @@ product CTX EX1300		0x9999	Ex1300 hub
 product CURITEL HX550C		0x1101	CDMA 2000 1xRTT USB modem (HX-550C)
 product CURITEL HX57XB		0x2101	CDMA 2000 1xRTT USB modem (HX-570/575B/PR-600)
 product CURITEL PC5740		0x3701	Broadband wireless modem
+
+/* CyberPower products */
+product CYBERPOWER 1500CAVRLCD	0x0501	1500CAVRLCD
 
 /* Cypress Semiconductor products */
 product CYPRESS MOUSE		0x0001	mouse

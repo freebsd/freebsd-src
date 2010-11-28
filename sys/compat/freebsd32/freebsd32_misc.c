@@ -1702,6 +1702,24 @@ freebsd32_ftruncate(struct thread *td, struct freebsd32_ftruncate_args *uap)
 	return (ftruncate(td, &ap));
 }
 
+int
+freebsd32_getdirentries(struct thread *td,
+    struct freebsd32_getdirentries_args *uap)
+{
+	long base;
+	int32_t base32;
+	int error;
+
+	error = kern_getdirentries(td, uap->fd, uap->buf, uap->count, &base);
+	if (error)
+		return (error);
+	if (uap->basep != NULL) {
+		base32 = base;
+		error = copyout(&base32, uap->basep, sizeof(int32_t));
+	}
+	return (error);
+}
+
 struct sf_hdtr32 {
 	uint32_t headers;
 	int hdr_cnt;
@@ -2298,3 +2316,83 @@ freebsd32_xxx(struct thread *td, struct freebsd32_xxx_args *uap)
 }
 
 #endif
+
+int
+syscall32_register(int *offset, struct sysent *new_sysent,
+    struct sysent *old_sysent)
+{
+	if (*offset == NO_SYSCALL) {
+		int i;
+
+		for (i = 1; i < SYS_MAXSYSCALL; ++i)
+			if (freebsd32_sysent[i].sy_call ==
+			    (sy_call_t *)lkmnosys)
+				break;
+		if (i == SYS_MAXSYSCALL)
+			return (ENFILE);
+		*offset = i;
+	} else if (*offset < 0 || *offset >= SYS_MAXSYSCALL)
+		return (EINVAL);
+	else if (freebsd32_sysent[*offset].sy_call != (sy_call_t *)lkmnosys &&
+	    freebsd32_sysent[*offset].sy_call != (sy_call_t *)lkmressys)
+		return (EEXIST);
+
+	*old_sysent = freebsd32_sysent[*offset];
+	freebsd32_sysent[*offset] = *new_sysent;
+	return 0;
+}
+
+int
+syscall32_deregister(int *offset, struct sysent *old_sysent)
+{
+
+	if (*offset)
+		freebsd32_sysent[*offset] = *old_sysent;
+	return 0;
+}
+
+int
+syscall32_module_handler(struct module *mod, int what, void *arg)
+{
+	struct syscall_module_data *data = (struct syscall_module_data*)arg;
+	modspecific_t ms;
+	int error;
+
+	switch (what) {
+	case MOD_LOAD:
+		error = syscall32_register(data->offset, data->new_sysent,
+		    &data->old_sysent);
+		if (error) {
+			/* Leave a mark so we know to safely unload below. */
+			data->offset = NULL;
+			return error;
+		}
+		ms.intval = *data->offset;
+		MOD_XLOCK;
+		module_setspecific(mod, &ms);
+		MOD_XUNLOCK;
+		if (data->chainevh)
+			error = data->chainevh(mod, what, data->chainarg);
+		return (error);
+	case MOD_UNLOAD:
+		/*
+		 * MOD_LOAD failed, so just return without calling the
+		 * chained handler since we didn't pass along the MOD_LOAD
+		 * event.
+		 */
+		if (data->offset == NULL)
+			return (0);
+		if (data->chainevh) {
+			error = data->chainevh(mod, what, data->chainarg);
+			if (error)
+				return (error);
+		}
+		error = syscall32_deregister(data->offset, &data->old_sysent);
+		return (error);
+	default:
+		error = EOPNOTSUPP;
+		if (data->chainevh)
+			error = data->chainevh(mod, what, data->chainarg);
+		return (error);
+	}
+}

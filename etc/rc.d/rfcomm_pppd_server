@@ -46,7 +46,7 @@ rfcomm_pppd_server_start_profile()
 		_channel=1
 	fi
 	rc_flags="${rc_flags} -C ${_channel}"
-	
+
 	# Check for RFCOMM PPP profile register SP override
 	#
 	eval _x=\$rfcomm_pppd_server_${_profile_cleaned}_register_sp
@@ -55,7 +55,7 @@ rfcomm_pppd_server_start_profile()
 			rc_flags="${rc_flags} -S"
 		fi
 	fi
-	
+
 	# Check for RFCOMM PPP profile register DUN override
 	#
 	eval _x=\$rfcomm_pppd_server_${_profile_cleaned}_register_dun

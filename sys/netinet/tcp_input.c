@@ -1182,7 +1182,7 @@ after_listen:
 				 * "bad retransmit" recovery
 				 */
 				if (tp->t_rxtshift == 1 &&
-				    ticks < tp->t_badrxtwin) {
+				    (int)(ticks - tp->t_badrxtwin) < 0) {
 					++tcpstat.tcps_sndrexmitbad;
 					tp->snd_cwnd = tp->snd_cwnd_prev;
 					tp->snd_ssthresh =
@@ -2070,7 +2070,7 @@ process_ACK:
 		 * original cwnd and ssthresh, and proceed to transmit where
 		 * we left off.
 		 */
-		if (tp->t_rxtshift == 1 && ticks < tp->t_badrxtwin) {
+		if (tp->t_rxtshift == 1 && (int)(ticks - tp->t_badrxtwin) < 0) {
 			++tcpstat.tcps_sndrexmitbad;
 			tp->snd_cwnd = tp->snd_cwnd_prev;
 			tp->snd_ssthresh = tp->snd_ssthresh_prev;

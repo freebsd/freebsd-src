@@ -168,8 +168,6 @@ struct aac_ident
 	 "ICP ICP9014RO SCSI RAID"},
 	{0x9005, 0x0285, 0x9005, 0x0294, AAC_HWIF_I960RX, 0,
 	 "Adaptec SATA RAID 2026ZCR"},
-	{0x9005, 0x0285, 0x103c, 0x3227, AAC_HWIF_I960RX, 0,
-	 "Adaptec SATA RAID 2610SA"},
 	{0x9005, 0x0285, 0x9005, 0x0296, AAC_HWIF_I960RX, 0,
 	 "Adaptec SCSI RAID 2240S"},
 	{0x9005, 0x0285, 0x9005, 0x0297, AAC_HWIF_I960RX, 0,
@@ -245,7 +243,15 @@ struct aac_ident
 	{0x9005, 0x0285, 0x9005, 0x02d0, AAC_HWIF_I960RX, 0,
 	 "Adaptec RAID 52445"},
 	{0x9005, 0x0285, 0x9005, 0x02d1, AAC_HWIF_I960RX, 0,
-        "Adaptec RAID 5405"},
+	 "Adaptec RAID 5405"},
+	{0x9005, 0x0285, 0x9005, 0x02d4, AAC_HWIF_I960RX, 0,
+	 "Adaptec RAID 2045"},
+	{0x9005, 0x0285, 0x9005, 0x02d5, AAC_HWIF_I960RX, 0,
+	 "Adaptec RAID 2405"},
+	{0x9005, 0x0285, 0x9005, 0x02d6, AAC_HWIF_I960RX, 0,
+	 "Adaptec RAID 2445"},
+	{0x9005, 0x0285, 0x9005, 0x02d7, AAC_HWIF_I960RX, 0,
+	 "Adaptec RAID 2805"},
 	{0x9005, 0x0286, 0x1014, 0x9580, AAC_HWIF_RKT, 0,
 	 "IBM ServeRAID-8k"},
 	{0x9005, 0x0285, 0x1014, 0x034d, AAC_HWIF_I960RX, 0,
@@ -366,21 +372,32 @@ aac_pci_attach(device_t dev)
 	/*
 	 * Allocate the PCI register window.
 	 */
-	sc->aac_regs_rid = PCIR_BAR(0);
-	if ((sc->aac_regs_resource = bus_alloc_resource_any(sc->aac_dev,
-							    SYS_RES_MEMORY,
-							    &sc->aac_regs_rid,
-							    RF_ACTIVE)) ==
-							    NULL) {
+	sc->aac_regs_rid0 = PCIR_BAR(0);
+	if ((sc->aac_regs_res0 = bus_alloc_resource_any(sc->aac_dev,
+	    SYS_RES_MEMORY, &sc->aac_regs_rid0, RF_ACTIVE)) == NULL) {
 		device_printf(sc->aac_dev,
-			      "couldn't allocate register window\n");
+		    "couldn't allocate register window 0\n");
 		goto out;
 	}
-	sc->aac_btag = rman_get_bustag(sc->aac_regs_resource);
-	sc->aac_bhandle = rman_get_bushandle(sc->aac_regs_resource);
+	sc->aac_btag0 = rman_get_bustag(sc->aac_regs_res0);
+	sc->aac_bhandle0 = rman_get_bushandle(sc->aac_regs_res0);
 
-	/* assume failure is 'out of memory' */
-	error = ENOMEM;
+	if (sc->aac_hwif == AAC_HWIF_NARK) {
+		sc->aac_regs_rid1 = PCIR_BAR(1);
+		if ((sc->aac_regs_res1 = bus_alloc_resource_any(sc->aac_dev,
+		    SYS_RES_MEMORY, &sc->aac_regs_rid1, RF_ACTIVE)) == NULL) {
+			device_printf(sc->aac_dev,
+			    "couldn't allocate register window 1\n");
+			goto out;
+		}
+		sc->aac_btag1 = rman_get_bustag(sc->aac_regs_res1);
+		sc->aac_bhandle1 = rman_get_bushandle(sc->aac_regs_res1);
+	} else {
+		sc->aac_regs_res1 = sc->aac_regs_res0;
+		sc->aac_regs_rid1 = sc->aac_regs_rid0;
+		sc->aac_btag1 = sc->aac_btag0;
+		sc->aac_bhandle1 = sc->aac_bhandle0;
+	}
 
 	/*
 	 * Allocate the parent bus DMA tag appropriate for our PCI interface.
@@ -410,7 +427,8 @@ aac_pci_attach(device_t dev)
 	sc->aac_hwif = id->hwif;
 	switch(sc->aac_hwif) {
 	case AAC_HWIF_I960RX:
-		fwprintf(sc, HBA_FLAGS_DBG_INIT_B, "set hardware up for i960Rx");
+	case AAC_HWIF_NARK:
+		fwprintf(sc, HBA_FLAGS_DBG_INIT_B, "set hardware up for i960Rx/NARK");
 		sc->aac_if = aac_rx_interface;
 		break;
 	case AAC_HWIF_STRONGARM:

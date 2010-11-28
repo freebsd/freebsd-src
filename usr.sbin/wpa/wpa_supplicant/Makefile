@@ -11,6 +11,11 @@ SRCS=	config.c eloop.c common.c md5.c rc4.c sha1.c aes_wrap.c \
 
 MAN=	wpa_supplicant.8 wpa_supplicant.conf.5
 
+.if !defined(NO_SHARE)
+FILESDIR= ${SHAREDIR}/examples/etc
+FILES=	wpa_supplicant.conf
+.endif
+
 CFLAGS+= -I${.CURDIR} -I${WPA_SUPPLICANT_DISTDIR}
 CFLAGS+= -DCONFIG_DRIVER_BSD
 CFLAGS+= -DCONFIG_DRIVER_NDIS

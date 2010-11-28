@@ -32,7 +32,7 @@
     db
         entropy         uname=operator gname=operator mode=0700
         ..
-        freebsd-update
+        freebsd-update  mode=0700
         ..
         ipf             mode=0700
         ..
@@ -63,6 +63,8 @@
         named           uname=bind gname=bind
         ..
         ppp             gname=network mode=0770
+        ..
+        wpa_supplicant
         ..
     ..
     rwho            gname=daemon mode=0775

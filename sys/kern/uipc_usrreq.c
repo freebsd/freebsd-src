@@ -1027,10 +1027,8 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if (len <= 0)
 		return (EINVAL);
 	strlcpy(buf, soun->sun_path, len + 1);
-	if (unp->unp_flags & UNP_CONNECTING) {
-		UNP_UNLOCK();
+	if (unp->unp_flags & UNP_CONNECTING)
 		return (EALREADY);
-	}
 	unp->unp_flags |= UNP_CONNECTING;
 	UNP_UNLOCK();
 	sa = malloc(sizeof(struct sockaddr_un), M_SONAME, M_WAITOK);

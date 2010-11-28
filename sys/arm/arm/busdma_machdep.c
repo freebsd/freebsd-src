@@ -1146,7 +1146,7 @@ _bus_dma_buf_is_in_bp(bus_dmamap_t map, void *buf, int len)
 
 	STAILQ_FOREACH(bpage, &map->bpages, links) {
 		if ((vm_offset_t)buf >= bpage->datavaddr &&
-		    (vm_offset_t)buf + len < bpage->datavaddr + 
+		    (vm_offset_t)buf + len <= bpage->datavaddr + 
 		    bpage->datacount)
 			return (1);
 	}

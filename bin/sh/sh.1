@@ -370,6 +370,10 @@ introduces a comment if used at the beginning of a word.
 The word starting with
 .Ql #
 and the rest of the line are ignored.
+.Pp
+.Tn ASCII
+.Dv NUL
+characters (character code 0) are not allowed in shell input.
 .Ss Quoting
 Quoting is used to remove the special meaning of certain characters
 or words to the shell, such as operators, whitespace, keywords,

@@ -93,6 +93,7 @@ static const struct mii_phydesc ciphys[] = {
 	MII_PHY_DESC(CICADA, CS8201),
 	MII_PHY_DESC(CICADA, CS8201A),
 	MII_PHY_DESC(CICADA, CS8201B),
+	MII_PHY_DESC(VITESSE, VSC8601),
 	MII_PHY_END
 };
 
@@ -356,10 +357,27 @@ ciphy_fixup(struct mii_softc *sc)
 {
 	uint16_t		model;
 	uint16_t		status, speed;
+	uint16_t		val;
 
 	model = MII_MODEL(PHY_READ(sc, CIPHY_MII_PHYIDR2));
 	status = PHY_READ(sc, CIPHY_MII_AUXCSR);
 	speed = status & CIPHY_AUXCSR_SPEED;
+
+	if (strcmp(device_get_name(device_get_parent(sc->mii_dev)),
+	    "nfe") == 0) {
+		/* need to set for 2.5V RGMII for NVIDIA adapters */
+		val = PHY_READ(sc, CIPHY_MII_ECTL1);
+		val &= ~(CIPHY_ECTL1_IOVOL | CIPHY_ECTL1_INTSEL);
+		val |= (CIPHY_IOVOL_2500MV | CIPHY_INTSEL_RGMII);
+		PHY_WRITE(sc, CIPHY_MII_ECTL1, val);
+		/* From Linux. */
+		val = PHY_READ(sc, CIPHY_MII_AUXCSR);
+		val |= CIPHY_AUXCSR_MDPPS;
+		PHY_WRITE(sc, CIPHY_MII_AUXCSR, val);
+		val = PHY_READ(sc, CIPHY_MII_10BTCSR);
+		val |= CIPHY_10BTCSR_ECHO;
+		PHY_WRITE(sc, CIPHY_MII_10BTCSR, val);
+	}
 
 	switch (model) {
 	case MII_MODEL_CICADA_CS8201:
@@ -397,6 +415,8 @@ ciphy_fixup(struct mii_softc *sc)
 			PHY_CLRBIT(sc, CIPHY_MII_10BTCSR, CIPHY_10BTCSR_ECHO);
 		}
 
+		break;
+	case MII_MODEL_VITESSE_VSC8601:
 		break;
 	default:
 		device_printf(sc->mii_dev, "unknown CICADA PHY model %x\n",

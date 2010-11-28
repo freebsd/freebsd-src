@@ -134,7 +134,7 @@ MODULE_DEPEND(bge, miibus, 1, 1, 1);
  * ID burned into it, though it will always be overriden by the vendor
  * ID in the EEPROM. Just to be safe, we cover all possibilities.
  */
-static struct bge_type {
+static const struct bge_type {
 	uint16_t	bge_vid;
 	uint16_t	bge_did;
 } bge_devs[] = {
@@ -348,7 +348,7 @@ static void bge_init_locked(struct bge_softc *);
 static void bge_init(void *);
 static void bge_stop(struct bge_softc *);
 static void bge_watchdog(struct bge_softc *);
-static void bge_shutdown(device_t);
+static int bge_shutdown(device_t);
 static int bge_ifmedia_upd_locked(struct ifnet *);
 static int bge_ifmedia_upd(struct ifnet *);
 static void bge_ifmedia_sts(struct ifnet *, struct ifmediareq *);
@@ -383,6 +383,7 @@ static uint32_t bge_readreg_ind(struct bge_softc *, int);
 #endif
 static void bge_writemem_direct(struct bge_softc *, int, int);
 static void bge_writereg_ind(struct bge_softc *, int, int);
+static void bge_set_max_readrq(struct bge_softc *, int);
 
 static int bge_miibus_readreg(device_t, int, int);
 static int bge_miibus_writereg(device_t, int, int, int);
@@ -519,6 +520,34 @@ bge_writemem_ind(struct bge_softc *sc, int off, int val)
 	pci_write_config(dev, BGE_PCI_MEMWIN_BASEADDR, off, 4);
 	pci_write_config(dev, BGE_PCI_MEMWIN_DATA, val, 4);
 	pci_write_config(dev, BGE_PCI_MEMWIN_BASEADDR, 0, 4);
+}
+
+/*
+ * PCI Express only
+ */
+static void
+bge_set_max_readrq(struct bge_softc *sc, int expr_ptr)
+{
+	device_t dev;
+	uint16_t val;
+
+	KASSERT((sc->bge_flags & BGE_FLAG_PCIE) && expr_ptr != 0,
+	    ("%s: not applicable", __func__));
+
+	dev = sc->bge_dev;
+
+	val = pci_read_config(dev, expr_ptr + BGE_PCIE_DEVCTL, 2);
+	if ((val & BGE_PCIE_DEVCTL_MAX_READRQ_MASK) !=
+	    BGE_PCIE_DEVCTL_MAX_READRQ_4096) {
+		if (bootverbose)
+			device_printf(dev, "adjust device control 0x%04x ",
+			    val);
+		val &= ~BGE_PCIE_DEVCTL_MAX_READRQ_MASK;
+		val |= BGE_PCIE_DEVCTL_MAX_READRQ_4096;
+		pci_write_config(dev, expr_ptr + BGE_PCIE_DEVCTL, val, 2);
+		if (bootverbose)
+			printf("-> 0x%04x\n", val);
+	}
 }
 
 #ifdef notdef
@@ -1249,8 +1278,7 @@ bge_stop_fw(sc)
 }
 
 /*
- * Do endian, PCI and DMA initialization. Also check the on-board ROM
- * self-test results.
+ * Do endian, PCI and DMA initialization.
  */
 static int
 bge_chipinit(struct bge_softc *sc)
@@ -1260,18 +1288,6 @@ bge_chipinit(struct bge_softc *sc)
 
 	/* Set endianness before we access any non-PCI registers. */
 	pci_write_config(sc->bge_dev, BGE_PCI_MISC_CTL, BGE_INIT, 4);
-
-	/*
-	 * Check the 'ROM failed' bit on the RX CPU to see if
-	 * self-tests passed. Skip this check when there's no
-	 * chip containing the Ethernet address fitted, since
-	 * in that case it will always fail.
-	 */
-	if ((sc->bge_flags & BGE_FLAG_EADDR) &&
-	    CSR_READ_4(sc, BGE_RXCPU_MODE) & BGE_RXCPUMODE_ROMFAIL) {
-		device_printf(sc->bge_dev, "RX CPU self-diagnostics failed!\n");
-		return (ENODEV);
-	}
 
 	/* Clear the MAC control register */
 	CSR_WRITE_4(sc, BGE_MAC_MODE, 0);
@@ -1353,6 +1369,16 @@ bge_chipinit(struct bge_softc *sc)
 	    BGE_MODECTL_TX_NO_PHDR_CSUM);
 
 	/*
+	 * BCM5701 B5 have a bug causing data corruption when using
+	 * 64-bit DMA reads, which can be terminated early and then
+	 * completed later as 32-bit accesses, in combination with
+	 * certain bridges.
+	 */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5701 &&
+	    sc->bge_chipid == BGE_CHIPID_BCM5701_B5)
+		BGE_SETBIT(sc, BGE_MODE_CTL, BGE_MODECTL_FORCE_PCI32);
+
+	/*
 	 * Tell the firmware the driver is running
 	 */
 	if (sc->bge_asf_mode & ASF_STACKUP)
@@ -1360,9 +1386,11 @@ bge_chipinit(struct bge_softc *sc)
 
 	/*
 	 * Disable memory write invalidate.  Apparently it is not supported
-	 * properly by these devices.
+	 * properly by these devices.  Also ensure that INTx isn't disabled,
+	 * as these chips need it even when using MSI.
 	 */
-	PCI_CLRBIT(sc->bge_dev, BGE_PCI_CMD, PCIM_CMD_MWIEN, 4);
+	PCI_CLRBIT(sc->bge_dev, BGE_PCI_CMD,
+	    PCIM_CMD_INTxDIS | PCIM_CMD_MWIEN, 4);
 
 #ifdef __brokenalpha__
 	/*
@@ -1726,14 +1754,18 @@ bge_blockinit(struct bge_softc *sc)
 	/* Enable host coalescing bug fix. */
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
 	    sc->bge_asicrev == BGE_ASICREV_BCM5787)
-			val |= 1 << 29;
+		val |= 1 << 29;
 
 	/* Turn on write DMA state machine */
 	CSR_WRITE_4(sc, BGE_WDMA_MODE, val);
+	DELAY(40);
 
 	/* Turn on read DMA state machine */
-	CSR_WRITE_4(sc, BGE_RDMA_MODE,
-	    BGE_RDMAMODE_ENABLE | BGE_RDMAMODE_ALL_ATTNS);
+	val = BGE_RDMAMODE_ENABLE | BGE_RDMAMODE_ALL_ATTNS;
+	if (sc->bge_flags & BGE_FLAG_PCIE)
+		val |= BGE_RDMAMODE_FIFO_LONG_BURST;
+	CSR_WRITE_4(sc, BGE_RDMA_MODE, val);
+	DELAY(40);
 
 	/* Turn on RX data completion state machine */
 	CSR_WRITE_4(sc, BGE_RDC_MODE, BGE_RDCMODE_ENABLE);
@@ -1845,7 +1877,7 @@ bge_lookup_vendor(uint16_t vid)
 static int
 bge_probe(device_t dev)
 {
-	struct bge_type *t = bge_devs;
+	const struct bge_type *t = bge_devs;
 	struct bge_softc *sc = device_get_softc(dev);
 	uint16_t vid, did;
 
@@ -1867,7 +1899,8 @@ bge_probe(device_t dev)
 #if __FreeBSD_version > 700024
 				const char *pname;
 
-				if (pci_get_vpd_ident(dev, &pname) == 0)
+				if (bge_has_eaddr(sc) &&
+				    pci_get_vpd_ident(dev, &pname) == 0)
 					snprintf(model, 64, "%s", pname);
 				else
 #endif
@@ -2320,10 +2353,11 @@ bge_can_use_msi(struct bge_softc *sc)
 	int can_use_msi = 0;
 
 	switch (sc->bge_asicrev) {
+	case BGE_ASICREV_BCM5714_A0:
 	case BGE_ASICREV_BCM5714:
 		/*
-		 * Apparently, MSI doesn't work when this chip is configured
-		 * in single-port mode.
+		 * Apparently, MSI doesn't work when these chips are
+		 * configured in single-port mode.
 		 */
 		if (bge_has_multiple_ports(sc))
 			can_use_msi = 1;
@@ -2333,10 +2367,9 @@ bge_can_use_msi(struct bge_softc *sc)
 		    sc->bge_chiprev != BGE_CHIPREV_5750_BX)
 			can_use_msi = 1;
 		break;
-	case BGE_ASICREV_BCM5752:
-	case BGE_ASICREV_BCM5780:
-		can_use_msi = 1;
-		break;
+	default:
+		if (BGE_IS_575X_PLUS(sc))
+			can_use_msi = 1;
 	}
 	return (can_use_msi);
 }
@@ -2372,8 +2405,7 @@ bge_attach(device_t dev)
 	sc->bge_btag = rman_get_bustag(sc->bge_res);
 	sc->bge_bhandle = rman_get_bushandle(sc->bge_res);
 
-	/* Save ASIC rev. */
-
+	/* Save various chip information. */
 	sc->bge_chipid =
 	    pci_read_config(dev, BGE_PCI_MISC_CTL, 4) &
 	    BGE_PCIMISCCTL_ASICREV;
@@ -2446,28 +2478,26 @@ bge_attach(device_t dev)
 		 * Found a PCI Express capabilities register, this
 		 * must be a PCI Express device.
 		 */
-		if (reg != 0)
+		if (reg != 0) {
 			sc->bge_flags |= BGE_FLAG_PCIE;
-	} else if (pci_find_extcap(dev, PCIY_PCIX, &reg) == 0) {
-		if (reg != 0)
-			sc->bge_flags |= BGE_FLAG_PCIX;
-	}
-			
 #else
 	if (BGE_IS_5705_PLUS(sc)) {
 		reg = pci_read_config(dev, BGE_PCIE_CAPID_REG, 4);
-		if ((reg & 0xFF) == BGE_PCIE_CAPID)
+		if ((reg & 0xFF) == BGE_PCIE_CAPID) {
 			sc->bge_flags |= BGE_FLAG_PCIE;
+			reg = BGE_PCIE_CAPID;
+#endif
+			bge_set_max_readrq(sc, reg);
+		}
 	} else {
 		/*
 		 * Check if the device is in PCI-X Mode.
 		 * (This bit is not valid on PCI Express controllers.)
 		 */
-		if ((pci_read_config(sc->bge_dev, BGE_PCI_PCISTATE, 4) &
+		if ((pci_read_config(dev, BGE_PCI_PCISTATE, 4) &
 		    BGE_PCISTATE_PCI_BUSMODE) == 0)
 			sc->bge_flags |= BGE_FLAG_PCIX;
 	}
-#endif
 
 #if __FreeBSD_version > 602105
 	{
@@ -2502,6 +2532,13 @@ bge_attach(device_t dev)
 		error = ENXIO;
 		goto fail;
 	}
+
+	if (bootverbose)
+		device_printf(dev,
+		    "CHIP ID 0x%08x; ASIC REV 0x%02x; CHIP REV 0x%02x; %s\n",
+		    sc->bge_chipid, sc->bge_asicrev, sc->bge_chiprev,
+		    (sc->bge_flags & BGE_FLAG_PCIX) ? "PCI-X" :
+		    ((sc->bge_flags & BGE_FLAG_PCIE) ? "PCI-E" : "PCI"));
 
 	BGE_LOCK_INIT(sc, device_get_nameunit(dev));
 
@@ -2655,11 +2692,11 @@ bge_attach(device_t dev)
 		 * if we get a conflict with the ASF firmware accessing
 		 * the PHY.
 		 */
+		trys = 0;
 		BGE_CLRBIT(sc, BGE_MODE_CTL, BGE_MODECTL_STACKUP);
 again:
 		bge_asf_driver_up(sc);
 
-		trys = 0;
 		if (mii_phy_probe(dev, &sc->bge_miibus,
 		    bge_ifmedia_upd, bge_ifmedia_sts)) {
 			if (trys++ < 4) {
@@ -3854,6 +3891,7 @@ bge_ifmedia_upd_locked(struct ifnet *ifp)
 {
 	struct bge_softc *sc = ifp->if_softc;
 	struct mii_data *mii;
+	struct mii_softc *miisc;
 	struct ifmedia *ifm;
 
 	BGE_LOCK_ASSERT(sc);
@@ -3904,12 +3942,9 @@ bge_ifmedia_upd_locked(struct ifnet *ifp)
 
 	sc->bge_link_evt++;
 	mii = device_get_softc(sc->bge_miibus);
-	if (mii->mii_instance) {
-		struct mii_softc *miisc;
-		for (miisc = LIST_FIRST(&mii->mii_phys); miisc != NULL;
-		    miisc = LIST_NEXT(miisc, mii_list))
+	if (mii->mii_instance)
+		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 			mii_phy_reset(miisc);
-	}
 	mii_mediachg(mii);
 
 	return (0);
@@ -4111,6 +4146,16 @@ bge_stop(struct bge_softc *sc)
 
 	callout_stop(&sc->bge_stat_ch);
 
+	/* Disable host interrupts. */
+	BGE_SETBIT(sc, BGE_PCI_MISC_CTL, BGE_PCIMISCCTL_MASK_PCI_INTR);
+	bge_writembx(sc, BGE_MBX_IRQ0_LO, 1);
+
+	/*
+	 * Tell firmware we're shutting down.
+	 */
+	bge_stop_fw(sc);
+	bge_sig_pre_reset(sc, BGE_RESET_STOP);
+
 	/*
 	 * Disable all of the receiver blocks.
 	 */
@@ -4150,16 +4195,6 @@ bge_stop(struct bge_softc *sc)
 		BGE_CLRBIT(sc, BGE_MARB_MODE, BGE_MARBMODE_ENABLE);
 	}
 
-	/* Disable host interrupts. */
-	BGE_SETBIT(sc, BGE_PCI_MISC_CTL, BGE_PCIMISCCTL_MASK_PCI_INTR);
-	bge_writembx(sc, BGE_MBX_IRQ0_LO, 1);
-
-	/*
-	 * Tell firmware we're shutting down.
-	 */
-
-	bge_stop_fw(sc);
-	bge_sig_pre_reset(sc, BGE_RESET_STOP);
 	bge_reset(sc);
 	bge_sig_legacy(sc, BGE_RESET_STOP);
 	bge_sig_post_reset(sc, BGE_RESET_STOP);
@@ -4217,17 +4252,18 @@ bge_stop(struct bge_softc *sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void
+static int
 bge_shutdown(device_t dev)
 {
 	struct bge_softc *sc;
 
 	sc = device_get_softc(dev);
-
 	BGE_LOCK(sc);
 	bge_stop(sc);
 	bge_reset(sc);
 	BGE_UNLOCK(sc);
+
+	return (0);
 }
 
 static int

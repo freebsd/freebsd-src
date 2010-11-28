@@ -282,7 +282,7 @@ pxe_open(struct open_file *f, ...)
 		bootp(pxe_sock, BOOTP_PXE);
 		if (rootip.s_addr == 0)
 			rootip.s_addr = bootplayer.sip;
-		if (!rootpath[1])
+		if (!rootpath[0])
 			strcpy(rootpath, PXENFSROOTPATH);
 
 		for (i = 0; rootpath[i] != '\0' && i < FNAME_SIZE; i++)

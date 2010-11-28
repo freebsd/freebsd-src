@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007, 2008 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2003 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -13,7 +13,7 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: host.1,v 1.11.2.1.4.12 2007/05/09 03:32:36 marka Exp $
+.\" $Id: host.1,v 1.11.2.1.4.13 2008/04/29 01:21:29 tbox Exp $
 .\"
 .hy 0
 .ad l
@@ -154,7 +154,7 @@ option is used to select the query type.
 \fItype\fR
 can be any recognized query type: CNAME, NS, SOA, SIG, KEY, AXFR, etc. When no query type is specified,
 \fBhost\fR
-automatically selects an appropriate query type. By default it looks for A records, but if the
+automatically selects an appropriate query type. By default it looks for A, AAAA, and MX records, but if the
 \fB\-C\fR
 option was given, queries will be made for SOA records, and if
 \fIname\fR
@@ -187,7 +187,7 @@ will effectively wait forever for a reply. The time to wait for a response will 
 \fBdig\fR(1),
 \fBnamed\fR(8).
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007, 2008 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000\-2003 Internet Software Consortium.
 .br

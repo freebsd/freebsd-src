@@ -35,24 +35,27 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
+#include <pwd.h>
 #include <libutil.h>
+#include <login_cap.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
+static void restrict_process(const char *);
 static void usage(void);
 
 int
 main(int argc, char *argv[])
 {
-	struct pidfh *pfh;
+	struct pidfh *pfh = NULL;
 	int ch, nochdir, noclose, errcode;
-	const char *pidfile;
+	const char *pidfile, *user;
 	pid_t otherpid;
 
 	nochdir = noclose = 1;
-	pidfile = NULL;
-	while ((ch = getopt(argc, argv, "-cfp:")) != -1) {
+	pidfile = user = NULL;
+	while ((ch = getopt(argc, argv, "-cfp:u:")) != -1) {
 		switch (ch) {
 		case 'c':
 			nochdir = 0;
@@ -63,6 +66,9 @@ main(int argc, char *argv[])
 		case 'p':
 			pidfile = optarg;
 			break;
+		case 'u':
+			user = optarg;
+			break;
 		default:
 			usage();
 		}
@@ -72,6 +78,10 @@ main(int argc, char *argv[])
 
 	if (argc == 0)
 		usage();
+
+	if (user != NULL)
+		restrict_process(user);
+
 	/*
 	 * Try to open the pidfile before calling daemon(3),
 	 * to be able to report the error intelligently
@@ -109,9 +119,23 @@ main(int argc, char *argv[])
 }
 
 static void
+restrict_process(const char *user)
+{
+	struct passwd *pw = NULL;
+
+	pw = getpwnam(user);
+	if (pw == NULL)
+		errx(1, "unknown user: %s", user);
+
+	if (setusercontext(NULL, pw, pw->pw_uid, LOGIN_SETALL) != 0)
+		errx(1, "failed to set user environment");
+}
+
+static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: daemon [-cf] [-p pidfile] command arguments ...\n");
+	    "usage: daemon [-cf] [-p pidfile] [-u user] command "
+		"arguments ...\n");
 	exit(1);
 }

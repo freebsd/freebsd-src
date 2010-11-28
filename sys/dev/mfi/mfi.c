@@ -163,7 +163,11 @@ static void
 mfi_enable_intr_ppc(struct mfi_softc *sc)
 {
 	MFI_WRITE4(sc, MFI_ODCR0, 0xFFFFFFFF);
-	MFI_WRITE4(sc, MFI_OMSK, ~MFI_1078_EIM);
+	if (sc->mfi_flags & MFI_FLAGS_1078) {
+		MFI_WRITE4(sc, MFI_OMSK, ~MFI_1078_EIM);
+	} else if (sc->mfi_flags & MFI_FLAGS_GEN2) {
+		MFI_WRITE4(sc, MFI_OMSK, ~MFI_GEN2_EIM);
+	}
 }
 
 static int32_t
@@ -171,14 +175,14 @@ mfi_read_fw_status_xscale(struct mfi_softc *sc)
 {
 	return MFI_READ4(sc, MFI_OMSG0);
 }
- 
+
 static int32_t
 mfi_read_fw_status_ppc(struct mfi_softc *sc)
 {
 	return MFI_READ4(sc, MFI_OSP0);
 }
 
-static int 
+static int
 mfi_check_clear_intr_xscale(struct mfi_softc *sc)
 {
 	int32_t status;
@@ -189,28 +193,35 @@ mfi_check_clear_intr_xscale(struct mfi_softc *sc)
 
 	MFI_WRITE4(sc, MFI_OSTS, status);
 	return 0;
- }
+}
 
-static int 
+static int
 mfi_check_clear_intr_ppc(struct mfi_softc *sc)
 {
 	int32_t status;
 
 	status = MFI_READ4(sc, MFI_OSTS);
-	if (!status)
-		return 1; 
+	if (sc->mfi_flags & MFI_FLAGS_1078) {
+		if (!(status & MFI_1078_RM)) {
+			return 1;
+		}
+	} else if (sc->mfi_flags & MFI_FLAGS_GEN2) {
+		if (!(status & MFI_GEN2_RM)) {
+			return 1;
+		}
+	}
 
 	MFI_WRITE4(sc, MFI_ODCR0, status);
 	return 0;
- }
+}
 
-static void 
+static void
 mfi_issue_cmd_xscale(struct mfi_softc *sc,uint32_t bus_add,uint32_t frame_cnt)
 {
 	MFI_WRITE4(sc, MFI_IQP,(bus_add >>3)|frame_cnt);
 }
-  
-static void 
+
+static void
 mfi_issue_cmd_ppc(struct mfi_softc *sc,uint32_t bus_add,uint32_t frame_cnt)
 {
 	MFI_WRITE4(sc, MFI_IQP, (bus_add |frame_cnt <<1)|1 );
@@ -1399,6 +1410,8 @@ mfi_bio_complete(struct mfi_command *cm)
 		device_printf(sc->mfi_dev, "I/O error, status= %d "
 		    "scsi_status= %d\n", hdr->cmd_status, hdr->scsi_status);
 		mfi_print_sense(cm->cm_sc, cm->cm_sense);
+	} else if (cm->cm_error != 0) {
+		bio->bio_flags |= BIO_ERROR;
 	}
 
 	mfi_release_command(cm);
@@ -1815,6 +1828,9 @@ mfi_check_command_post(struct mfi_softc *sc, struct mfi_command *cm)
 	case MFI_DCMD_CFG_ADD:
 		mfi_ldprobe(sc);
 		break;
+	case MFI_DCMD_CFG_FOREIGN_IMPORT:
+		mfi_ldprobe(sc);
+		break;
 	}
 }
 
@@ -1904,7 +1920,7 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 	struct mfi_ioc_aen *aen;
 	struct mfi_command *cm = NULL;
 	uint32_t context;
-	uint8_t *sense_ptr;
+	union mfi_sense_ptr sense_ptr;
 	uint8_t *data = NULL, *temp;
 	int i;
 	struct mfi_ioc_passthru *iop = (struct mfi_ioc_passthru *)arg;
@@ -1986,8 +2002,9 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		context = cm->cm_frame->header.context;
 
 		bcopy(ioc->mfi_frame.raw, cm->cm_frame,
-		      2 * MFI_DCMD_FRAME_SIZE);  /* this isn't quite right */
-		cm->cm_total_frame_size = (sizeof(union mfi_sgl) * ioc->mfi_sge_count) + ioc->mfi_sgl_off;
+		    2 * MFI_DCMD_FRAME_SIZE);  /* this isn't quite right */
+		cm->cm_total_frame_size = (sizeof(union mfi_sgl)
+		    * ioc->mfi_sge_count) + ioc->mfi_sgl_off;
 		if (ioc->mfi_sge_count) {
 			cm->cm_sg =
 			    (union mfi_sgl *)&cm->cm_frame->bytes[ioc->mfi_sgl_off];
@@ -2001,7 +2018,8 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		if (cm->cm_flags == 0)
 			cm->cm_flags |= MFI_CMD_DATAIN | MFI_CMD_DATAOUT;
 		cm->cm_len = cm->cm_frame->header.data_len;
-		if (cm->cm_flags & (MFI_CMD_DATAIN | MFI_CMD_DATAOUT)) {
+		if (cm->cm_len &&
+		    (cm->cm_flags & (MFI_CMD_DATAIN | MFI_CMD_DATAOUT))) {
 			cm->cm_data = data = malloc(cm->cm_len, M_MFIBUF,
 			    M_WAITOK | M_ZERO);
 			if (cm->cm_data == NULL) {
@@ -2050,6 +2068,11 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 
 		if (cm->cm_frame->header.cmd == MFI_CMD_DCMD)
 			locked = mfi_config_lock(sc, cm->cm_frame->dcmd.opcode);
+
+		if (cm->cm_frame->header.cmd == MFI_CMD_PD_SCSI_IO) {
+			cm->cm_frame->pass.sense_addr_lo = cm->cm_sense_busaddr;
+			cm->cm_frame->pass.sense_addr_hi = 0;
+		}
 
 		mtx_lock(&sc->mfi_io_lock);
 		error = mfi_check_command_pre(sc, cm);
@@ -2102,10 +2125,20 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		}
 
 		if (ioc->mfi_sense_len) {
-			/* copy out sense */
-			sense_ptr = &((struct mfi_ioc_packet*)arg)
-			    ->mfi_frame.raw[0];
-			error = copyout(cm->cm_sense, sense_ptr,
+			/* get user-space sense ptr then copy out sense */
+			bcopy(&((struct mfi_ioc_packet*)arg)
+			    ->mfi_frame.raw[ioc->mfi_sense_off],
+			    &sense_ptr.sense_ptr_data[0],
+			    sizeof(sense_ptr.sense_ptr_data));
+#ifdef __amd64__
+			if (cmd != MFI_CMD) {
+				/*
+				 * not 64bit native so zero out any address
+				 * over 32bit */
+				sense_ptr.addr.high = 0;
+			}
+#endif
+			error = copyout(cm->cm_sense, sense_ptr.user_space,
 			    ioc->mfi_sense_len);
 			if (error != 0) {
 				device_printf(sc->mfi_dev,
@@ -2203,7 +2236,7 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 	struct mfi_linux_ioc_aen l_aen;
 	struct mfi_command *cm = NULL;
 	struct mfi_aen *mfi_aen_entry;
-	uint8_t *sense_ptr;
+	union mfi_sense_ptr sense_ptr;
 	uint32_t context;
 	uint8_t *data = NULL, *temp;
 	int i;
@@ -2237,7 +2270,8 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 
 		bcopy(l_ioc.lioc_frame.raw, cm->cm_frame,
 		      2 * MFI_DCMD_FRAME_SIZE);	/* this isn't quite right */
-		cm->cm_total_frame_size = (sizeof(union mfi_sgl) * l_ioc.lioc_sge_count) + l_ioc.lioc_sgl_off;
+		cm->cm_total_frame_size = (sizeof(union mfi_sgl)
+		      * l_ioc.lioc_sge_count) + l_ioc.lioc_sgl_off;
 		if (l_ioc.lioc_sge_count)
 			cm->cm_sg =
 			    (union mfi_sgl *)&cm->cm_frame->bytes[l_ioc.lioc_sgl_off];
@@ -2247,7 +2281,8 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 		if (cm->cm_frame->header.flags & MFI_FRAME_DATAOUT)
 			cm->cm_flags |= MFI_CMD_DATAOUT;
 		cm->cm_len = cm->cm_frame->header.data_len;
-		if (cm->cm_flags & (MFI_CMD_DATAIN | MFI_CMD_DATAOUT)) {
+		if (cm->cm_len &&
+		      (cm->cm_flags & (MFI_CMD_DATAIN | MFI_CMD_DATAOUT))) {
 			cm->cm_data = data = malloc(cm->cm_len, M_MFIBUF,
 			    M_WAITOK | M_ZERO);
 			if (cm->cm_data == NULL) {
@@ -2278,6 +2313,11 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 
 		if (cm->cm_frame->header.cmd == MFI_CMD_DCMD)
 			locked = mfi_config_lock(sc, cm->cm_frame->dcmd.opcode);
+
+		if (cm->cm_frame->header.cmd == MFI_CMD_PD_SCSI_IO) {
+			cm->cm_frame->pass.sense_addr_lo = cm->cm_sense_busaddr;
+			cm->cm_frame->pass.sense_addr_hi = 0;
+		}
 
 		mtx_lock(&sc->mfi_io_lock);
 		error = mfi_check_command_pre(sc, cm);
@@ -2312,10 +2352,19 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 		}
 
 		if (l_ioc.lioc_sense_len) {
-			/* copy out sense */
-			sense_ptr = &((struct mfi_linux_ioc_packet*)arg)
-			    ->lioc_frame.raw[0];
-			error = copyout(cm->cm_sense, sense_ptr,
+			/* get user-space sense ptr then copy out sense */
+			bcopy(&((struct mfi_linux_ioc_packet*)arg)
+                            ->lioc_frame.raw[l_ioc.lioc_sense_off],
+			    &sense_ptr.sense_ptr_data[0],
+			    sizeof(sense_ptr.sense_ptr_data));
+#ifdef __amd64__
+			/*
+			 * only 32bit Linux support so zero out any
+			 * address over 32bit
+			 */
+			sense_ptr.addr.high = 0;
+#endif
+			error = copyout(cm->cm_sense, sense_ptr.user_space,
 			    l_ioc.lioc_sense_len);
 			if (error != 0) {
 				device_printf(sc->mfi_dev,

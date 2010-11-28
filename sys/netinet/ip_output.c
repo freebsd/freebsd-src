@@ -1255,7 +1255,7 @@ ip_ctloutput_pcbinfo(so, sopt, pcbinfo)
 				break;
 
 			case IP_MINTTL:
-				if (optval > 0 && optval <= MAXTTL)
+				if (optval >= 0 && optval <= MAXTTL)
 					inp->inp_ip_minttl = optval;
 				else
 					error = EINVAL;
@@ -1322,6 +1322,7 @@ ip_ctloutput_pcbinfo(so, sopt, pcbinfo)
 
 			INP_INFO_WLOCK(pcbinfo);
 			if (so->so_pcb == NULL) {
+				INP_INFO_WUNLOCK(pcbinfo);
 				error = EINVAL;
 				break;
 			}
@@ -1368,12 +1369,17 @@ ip_ctloutput_pcbinfo(so, sopt, pcbinfo)
 			req = mtod(m, caddr_t);
 			len = m->m_len;
 			optname = sopt->sopt_name;
+			INP_INFO_WLOCK(pcbinfo);
 			if (so->so_pcb == NULL) {
+				INP_INFO_WUNLOCK(pcbinfo);
 				m_free(m);
 				error = EINVAL;
 				break;
 			}
+			INP_LOCK(inp);
+			INP_INFO_WUNLOCK(pcbinfo);
 			error = ipsec4_set_policy(inp, optname, req, len, priv);
+			INP_UNLOCK(inp);
 			m_freem(m);
 			break;
 		}
@@ -1704,6 +1710,16 @@ ip_setmoptions(struct inpcb *inp, struct sockopt *sopt)
 	int ifindex;
 	int s;
 
+	/*
+	 * If socket is neither of type SOCK_RAW or SOCK_DGRAM,
+	 * or is a divert socket, reject it.
+	 * XXX Unlocked read of inp_socket believed OK.
+	 */
+	if (inp->inp_socket->so_proto->pr_protocol == IPPROTO_DIVERT ||
+	    (inp->inp_socket->so_proto->pr_type != SOCK_RAW &&
+	    inp->inp_socket->so_proto->pr_type != SOCK_DGRAM))
+		return (EOPNOTSUPP);
+
 	switch (sopt->sopt_name) {
 	/* store an index number for the vif you wanna use in the send */
 	case IP_MULTICAST_VIF:
@@ -1989,6 +2005,16 @@ ip_getmoptions(struct inpcb *inp, struct sockopt *sopt)
 
 	INP_LOCK(inp);
 	imo = inp->inp_moptions;
+	/*
+	 * If socket is neither of type SOCK_RAW or SOCK_DGRAM,
+	 * or is a divert socket, reject it.
+	 */
+	if (inp->inp_socket->so_proto->pr_protocol == IPPROTO_DIVERT ||
+	    (inp->inp_socket->so_proto->pr_type != SOCK_RAW &&
+	    inp->inp_socket->so_proto->pr_type != SOCK_DGRAM)) {
+		INP_UNLOCK(inp);
+		return (EOPNOTSUPP);
+	}
 
 	error = 0;
 	switch (sopt->sopt_name) {

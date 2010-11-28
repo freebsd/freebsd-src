@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2008 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and distribute this software for any
@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: dnssec-keygen.html,v 1.5.2.1.4.19 2007/05/09 03:32:36 marka Exp $ -->
+<!-- $Id: dnssec-keygen.html,v 1.5.2.1.4.20 2008/10/16 01:19:52 tbox Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -32,7 +32,7 @@
 <div class="cmdsynopsis"><p><code class="command">dnssec-keygen</code>  {-a <em class="replaceable"><code>algorithm</code></em>} {-b <em class="replaceable"><code>keysize</code></em>} {-n <em class="replaceable"><code>nametype</code></em>} [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-e</code>] [<code class="option">-f <em class="replaceable"><code>flag</code></em></code>] [<code class="option">-g <em class="replaceable"><code>generator</code></em></code>] [<code class="option">-h</code>] [<code class="option">-k</code>] [<code class="option">-p <em class="replaceable"><code>protocol</code></em></code>] [<code class="option">-r <em class="replaceable"><code>randomdev</code></em></code>] [<code class="option">-s <em class="replaceable"><code>strength</code></em></code>] [<code class="option">-t <em class="replaceable"><code>type</code></em></code>] [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] {name}</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543462"></a><h2>DESCRIPTION</h2>
+<a name="id2543465"></a><h2>DESCRIPTION</h2>
 <p>
         <span><strong class="command">dnssec-keygen</strong></span> generates keys for DNSSEC
 	(Secure DNS), as defined in RFC 2535 and RFC 4034.  It can also generate
@@ -41,7 +41,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543475"></a><h2>OPTIONS</h2>
+<a name="id2543478"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-a <em class="replaceable"><code>algorithm</code></em></span></dt>
 <dd>
@@ -144,7 +144,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543744"></a><h2>GENERATED KEYS</h2>
+<a name="id2543747"></a><h2>GENERATED KEYS</h2>
 <p>
         When <span><strong class="command">dnssec-keygen</strong></span> completes successfully,
 	it prints a string of the form <code class="filename">Knnnn.+aaa+iiiii</code>
@@ -187,7 +187,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543900"></a><h2>EXAMPLE</h2>
+<a name="id2543835"></a><h2>EXAMPLE</h2>
 <p>
         To generate a 768-bit DSA key for the domain
 	<strong class="userinput"><code>example.com</code></strong>, the following command would be
@@ -209,17 +209,17 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543946"></a><h2>SEE ALSO</h2>
+<a name="id2543881"></a><h2>SEE ALSO</h2>
 <p>
       <span class="citerefentry"><span class="refentrytitle">dnssec-signzone</span>(8)</span>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>,
-      <em class="citetitle">RFC 2535</em>,
+      <em class="citetitle">RFC 2539</em>,
       <em class="citetitle">RFC 2845</em>,
-      <em class="citetitle">RFC 2539</em>.
+      <em class="citetitle">RFC 4033</em>.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543979"></a><h2>AUTHOR</h2>
+<a name="id2543982"></a><h2>AUTHOR</h2>
 <p>
         <span class="corpauthor">Internet Systems Consortium</span>
     </p>

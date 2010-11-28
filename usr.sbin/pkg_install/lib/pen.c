@@ -23,6 +23,7 @@ __FBSDID("$FreeBSD$");
 
 #include "lib.h"
 #include <err.h>
+#include <libutil.h>
 #include <libgen.h>
 #include <sys/signal.h>
 #include <sys/param.h>
@@ -30,7 +31,6 @@ __FBSDID("$FreeBSD$");
 
 /* For keeping track of where we are */
 static char PenLocation[FILENAME_MAX];
-static char Previous[FILENAME_MAX];
 
 char *
 where_playpen(void)
@@ -44,6 +44,7 @@ find_play_pen(char *pen, off_t sz)
 {
     char *cp;
     struct stat sb;
+    char humbuf[6];
 
     if (pen[0] && isdir(dirname(pen)) == TRUE && (min_free(dirname(pen)) >= sz))
 	return pen;
@@ -59,10 +60,12 @@ find_play_pen(char *pen, off_t sz)
 	strcpy(pen, "/usr/tmp/instmp.XXXXXX");
     else {
 	cleanup(0);
+	humanize_number(humbuf, sizeof humbuf, sz, "", HN_AUTOSCALE,
+	    HN_NOSPACE);
 	errx(2,
 "%s: can't find enough temporary space to extract the files, please set your\n"
-"PKG_TMPDIR environment variable to a location with at least %ld bytes\n"
-"free", __func__, (long)sz);
+"PKG_TMPDIR environment variable to a location with at least %s bytes\n"
+"free", __func__, humbuf);
 	return NULL;
     }
     return pen;
@@ -72,12 +75,14 @@ find_play_pen(char *pen, off_t sz)
 static char *pstack[MAX_STACK];
 static int pdepth = -1;
 
-static void
+static const char *
 pushPen(const char *pen)
 {
     if (++pdepth == MAX_STACK)
 	errx(2, "%s: stack overflow.\n", __func__);
     pstack[pdepth] = strdup(pen);
+
+    return pstack[pdepth];
 }
 
 static void
@@ -95,9 +100,12 @@ popPen(char *pen)
  * Make a temporary directory to play in and chdir() to it, returning
  * pathname of previous working directory.
  */
-char *
+const char *
 make_playpen(char *pen, off_t sz)
 {
+    char humbuf1[6], humbuf2[6];
+    char cwd[FILENAME_MAX];
+
     if (!find_play_pen(pen, sz))
 	return NULL;
 
@@ -111,8 +119,13 @@ make_playpen(char *pen, off_t sz)
     }
 
     if (Verbose) {
-	if (sz)
-	    fprintf(stderr, "Requested space: %d bytes, free space: %lld bytes in %s\n", (int)sz, (long long)min_free(pen), pen);
+	if (sz) {
+	    humanize_number(humbuf1, sizeof humbuf1, sz, "", HN_AUTOSCALE,
+	        HN_NOSPACE);
+	    humanize_number(humbuf2, sizeof humbuf2, min_free(pen),
+	        "", HN_AUTOSCALE, HN_NOSPACE);
+	    fprintf(stderr, "Requested space: %s bytes, free space: %s bytes in %s\n", humbuf1, humbuf2, pen);
+	}
     }
 
     if (min_free(pen) < sz) {
@@ -123,7 +136,7 @@ make_playpen(char *pen, off_t sz)
 	     "with more space and\ntry the command again", __func__, pen);
     }
 
-    if (!getcwd(Previous, FILENAME_MAX)) {
+    if (!getcwd(cwd, FILENAME_MAX)) {
 	upchuck("getcwd");
 	return NULL;
     }
@@ -133,34 +146,35 @@ make_playpen(char *pen, off_t sz)
 	errx(2, "%s: can't chdir to '%s'", __func__, pen);
     }
 
-    if (PenLocation[0])
-	pushPen(PenLocation);
-
     strcpy(PenLocation, pen);
-    return Previous;
+    return pushPen(cwd);
 }
 
 /* Convenience routine for getting out of playpen */
-void
+int
 leave_playpen()
 {
+    static char left[FILENAME_MAX];
     void (*oldsig)(int);
+
+    if (!PenLocation[0])
+	return 0;
 
     /* Don't interrupt while we're cleaning up */
     oldsig = signal(SIGINT, SIG_IGN);
-    if (Previous[0]) {
-	if (chdir(Previous) == FAIL) {
-	    cleanup(0);
-	    errx(2, "%s: can't chdir back to '%s'", __func__, Previous);
-	}
-	Previous[0] = '\0';
+    strcpy(left, PenLocation);
+    popPen(PenLocation);
+
+    if (chdir(PenLocation) == FAIL) {
+	cleanup(0);
+	errx(2, "%s: can't chdir back to '%s'", __func__, PenLocation);
     }
-    if (PenLocation[0]) {
-	if (PenLocation[0] == '/' && vsystem("/bin/rm -rf %s", PenLocation))
-	    warnx("couldn't remove temporary dir '%s'", PenLocation);
-	popPen(PenLocation);
-    }
+
+    if (left[0] == '/' && vsystem("/bin/rm -rf %s", left))
+	warnx("couldn't remove temporary dir '%s'", left);
     signal(SIGINT, oldsig);
+
+    return 1;
 }
 
 off_t

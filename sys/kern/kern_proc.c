@@ -72,6 +72,7 @@ MALLOC_DEFINE(M_SUBPROC, "subproc", "Proc sub-structures");
 
 static void doenterpgrp(struct proc *, struct pgrp *);
 static void orphanpg(struct pgrp *pg);
+static void fill_kinfo_aggregate(struct proc *p, struct kinfo_proc *kp);
 static void fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp);
 static void fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp);
 static void pgadjustjobc(struct pgrp *pgrp, int entering);
@@ -95,7 +96,6 @@ struct sx proctree_lock;
 struct mtx pargs_ref_lock;
 struct mtx ppeers_lock;
 uma_zone_t proc_zone;
-uma_zone_t ithread_zone;
 
 int kstack_pages = KSTACK_PAGES;
 SYSCTL_INT(_kern, OID_AUTO, kstack_pages, CTLFLAG_RD, &kstack_pages, 0, "");
@@ -611,6 +611,26 @@ DB_SHOW_COMMAND(pgrpdump, pgrpdump)
 #endif /* DDB */
 
 /*
+ * Rework the kinfo_proc members which need to be aggregated in the
+ * case of process-ware informations.
+ * Must be called with sched_lock held.
+ */
+static void
+fill_kinfo_aggregate(struct proc *p, struct kinfo_proc *kp)
+{
+	struct thread *td;
+
+	mtx_assert(&sched_lock, MA_OWNED);
+
+	kp->ki_estcpu = 0;
+	kp->ki_pctcpu = 0;
+	FOREACH_THREAD_IN_PROC(p, td) {
+		kp->ki_pctcpu += sched_pctcpu(td);
+		kp->ki_estcpu += td->td_ksegrp->kg_estcpu;
+	}
+}
+
+/*
  * Clear kinfo_proc and fill in any information that is common
  * to all threads in the process.
  * Must be called with the target process locked.
@@ -830,8 +850,9 @@ fill_kinfo_proc(struct proc *p, struct kinfo_proc *kp)
 
 	fill_kinfo_proc_only(p, kp);
 	mtx_lock_spin(&sched_lock);
-	if (FIRST_THREAD_IN_PROC(p) != NULL)
-		fill_kinfo_thread(FIRST_THREAD_IN_PROC(p), kp);
+	MPASS(FIRST_THREAD_IN_PROC(p) != NULL);
+	fill_kinfo_thread(FIRST_THREAD_IN_PROC(p), kp);
+	fill_kinfo_aggregate(p, kp);
 	mtx_unlock_spin(&sched_lock);
 }
 
@@ -897,27 +918,20 @@ sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags)
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 
-	fill_kinfo_proc_only(p, &kinfo_proc);
-	if (flags & KERN_PROC_NOTHREADS) {
-		mtx_lock_spin(&sched_lock);
-		if (FIRST_THREAD_IN_PROC(p) != NULL)
-			fill_kinfo_thread(FIRST_THREAD_IN_PROC(p), &kinfo_proc);
-		mtx_unlock_spin(&sched_lock);
+	fill_kinfo_proc(p, &kinfo_proc);
+	if (flags & KERN_PROC_NOTHREADS)
 		error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc,
-				   sizeof(kinfo_proc));
-	} else {
+		    sizeof(kinfo_proc));
+	else {
 		mtx_lock_spin(&sched_lock);
-		if (FIRST_THREAD_IN_PROC(p) != NULL)
-			FOREACH_THREAD_IN_PROC(p, td) {
-				fill_kinfo_thread(td, &kinfo_proc);
-				error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc,
-					   	sizeof(kinfo_proc));
-				if (error)
-					break;
-			}
-		else
+		MPASS(FIRST_THREAD_IN_PROC(p) != NULL);
+		FOREACH_THREAD_IN_PROC(p, td) {
+			fill_kinfo_thread(td, &kinfo_proc);
 			error = SYSCTL_OUT(req, (caddr_t)&kinfo_proc,
-				   	sizeof(kinfo_proc));
+			    sizeof(kinfo_proc));
+			if (error)
+				break;
+		}
 		mtx_unlock_spin(&sched_lock);
 	}
 	PROC_UNLOCK(p);

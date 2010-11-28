@@ -69,20 +69,20 @@
 /* $FreeBSD$ */
 
 #ifndef _DEV_IC_NCR53C9XVAR_H_
-#define _DEV_IC_NCR53C9XVAR_H_
+#define	_DEV_IC_NCR53C9XVAR_H_
 
 #include <sys/lock.h>
 
 /* Set this to 1 for normal debug, or 2 for per-target tracing. */
-/* #define NCR53C9X_DEBUG		2 */
+/* #define	NCR53C9X_DEBUG		2 */
 
 /* Wide or differential can have 16 targets */
-#define NCR_NLUN		8
+#define	NCR_NLUN		8
 
 #define	NCR_ABORT_TIMEOUT	2000	/* time to wait for abort */
 #define	NCR_SENSE_TIMEOUT	1000	/* time to wait for sense */
 
-#define FREQTOCCF(freq)	(((freq + 4) / 5))
+#define	FREQTOCCF(freq)	(((freq + 4) / 5))
 
 /*
  * NCR 53c9x variants.  Note these values are used as indexes into
@@ -104,7 +104,7 @@
 #define	NCR_VARIANT_MAX			13
 
 /* XXX Max tag depth.  Should this be defined in the register header? */
-#define NCR_TAG_DEPTH			256
+#define	NCR_TAG_DEPTH			256
 
 /*
  * ECB. Holds additional information for each SCSI command Comments: We
@@ -138,7 +138,7 @@ struct ncr53c9x_ecb {
 	char	*daddr;		/* Saved data pointer */
 	int	 clen;		/* Size of command in cmd.cmd */
 	int	 dleft;		/* Residue */
-	u_char 	 stat;		/* SCSI status byte */
+	u_char	 stat;		/* SCSI status byte */
 	u_char	 tag[2];	/* TAG bytes */
 	u_char	 pad[1];
 
@@ -147,14 +147,14 @@ struct ncr53c9x_ecb {
 #endif
 };
 #if NCR53C9X_DEBUG > 1
-#define ECB_TRACE(ecb, msg, a, b) do { \
+#define	ECB_TRACE(ecb, msg, a, b) do { \
 	const char *f = "[" msg "]"; \
 	int n = strlen((ecb)->trace); \
 	if (n < (sizeof((ecb)->trace)-100)) \
-		sprintf((ecb)->trace + n, f,  a, b); \
+		sprintf((ecb)->trace + n, f, a, b); \
 } while(0)
 #else
-#define ECB_TRACE(ecb, msg, a, b)
+#define	ECB_TRACE(ecb, msg, a, b)
 #endif
 
 /*
@@ -186,14 +186,14 @@ struct ncr53c9x_tinfo {
 	int	touts;		/* # of timeouts */
 	int	perrs;		/* # of parity errors */
 	int	senses;		/* # of request sense commands sent */
-	u_char  flags;
-#define T_NEGOTIATE	0x02	/* (Re)Negotiate synchronous options */
-#define T_SYNCMODE	0x08	/* SYNC mode has been negotiated */
-#define T_SYNCHOFF	0x10	/* SYNC mode for is permanently off */
-#define T_RSELECTOFF	0x20	/* RE-SELECT mode is off */
-#define T_TAG		0x40	/* Turn on TAG QUEUEs */
-#define T_WIDE		0x80	/* Negotiate wide options */
-#define T_WDTRSENT	0x04	/* WDTR message has been sent to */
+	u_char	flags;
+#define	T_NEGOTIATE	0x02	/* (Re)Negotiate synchronous options */
+#define	T_SYNCMODE	0x08	/* SYNC mode has been negotiated */
+#define	T_SYNCHOFF	0x10	/* SYNC mode for is permanently off */
+#define	T_RSELECTOFF	0x20	/* RE-SELECT mode is off */
+#define	T_TAG		0x40	/* Turn on TAG QUEUEs */
+#define	T_WIDE		0x80	/* Negotiate wide options */
+#define	T_WDTRSENT	0x04	/* WDTR message has been sent to */
 	u_char  period;		/* Period suggestion */
 	u_char  offset;		/* Offset suggestion */
 	u_char  cfg3;		/* per target config 3  */
@@ -204,59 +204,59 @@ struct ncr53c9x_tinfo {
 };
 
 /* Look up a lun in a tinfo */
-#define TINFO_LUN(t, l) (					\
+#define	TINFO_LUN(t, l) (					\
 	(((l) < NCR_NLUN) && (((t)->lun[(l)]) != NULL))		\
 		? ((t)->lun[(l)])				\
 		: ncr53c9x_lunsearch((t), (int64_t)(l))		\
 )
 
 /* Register a linenumber (for debugging) */
-#define LOGLINE(p)
+#define	LOGLINE(p)
 
-#define NCR_SHOWECBS	0x01
-#define NCR_SHOWINTS	0x02
-#define NCR_SHOWCMDS	0x04
-#define NCR_SHOWMISC	0x08
-#define NCR_SHOWTRAC	0x10
-#define NCR_SHOWSTART	0x20
-#define NCR_SHOWPHASE	0x40
-#define NCR_SHOWDMA	0x80
-#define NCR_SHOWCCMDS	0x100
-#define NCR_SHOWMSGS	0x200
+#define	NCR_SHOWECBS	0x01
+#define	NCR_SHOWINTS	0x02
+#define	NCR_SHOWCMDS	0x04
+#define	NCR_SHOWMISC	0x08
+#define	NCR_SHOWTRAC	0x10
+#define	NCR_SHOWSTART	0x20
+#define	NCR_SHOWPHASE	0x40
+#define	NCR_SHOWDMA	0x80
+#define	NCR_SHOWCCMDS	0x100
+#define	NCR_SHOWMSGS	0x200
 
 #ifdef NCR53C9X_DEBUG
 extern int ncr53c9x_debug;
-#define NCR_ECBS(str)	\
+#define	NCR_ECBS(str)	\
 	do {if (ncr53c9x_debug & NCR_SHOWECBS) printf str;} while (0)
-#define NCR_MISC(str)	\
+#define	NCR_MISC(str)	\
 	do {if (ncr53c9x_debug & NCR_SHOWMISC) printf str;} while (0)
-#define NCR_INTS(str)	\
+#define	NCR_INTS(str)	\
 	do {if (ncr53c9x_debug & NCR_SHOWINTS) printf str;} while (0)
-#define NCR_TRACE(str)	\
+#define	NCR_TRACE(str)	\
 	do {if (ncr53c9x_debug & NCR_SHOWTRAC) printf str;} while (0)
-#define NCR_CMDS(str)	\
+#define	NCR_CMDS(str)	\
 	do {if (ncr53c9x_debug & NCR_SHOWCMDS) printf str;} while (0)
-#define NCR_START(str)	\
+#define	NCR_START(str)	\
 	do {if (ncr53c9x_debug & NCR_SHOWSTART) printf str;}while (0)
-#define NCR_PHASE(str)	\
+#define	NCR_PHASE(str)	\
 	do {if (ncr53c9x_debug & NCR_SHOWPHASE) printf str;}while (0)
-#define NCR_DMA(str)	\
+#define	NCR_DMA(str)	\
 	do {if (ncr53c9x_debug & NCR_SHOWDMA) printf str;}while (0)
-#define NCR_MSGS(str)	\
+#define	NCR_MSGS(str)	\
 	do {if (ncr53c9x_debug & NCR_SHOWMSGS) printf str;}while (0)
 #else
-#define NCR_ECBS(str)
-#define NCR_MISC(str)
-#define NCR_INTS(str)
-#define NCR_TRACE(str)
-#define NCR_CMDS(str)
-#define NCR_START(str)
-#define NCR_PHASE(str)
-#define NCR_DMA(str)
-#define NCR_MSGS(str)
+#define	NCR_ECBS(str)
+#define	NCR_MISC(str)
+#define	NCR_INTS(str)
+#define	NCR_TRACE(str)
+#define	NCR_CMDS(str)
+#define	NCR_START(str)
+#define	NCR_PHASE(str)
+#define	NCR_DMA(str)
+#define	NCR_MSGS(str)
 #endif
 
-#define NCR_MAX_MSG_LEN 8
+#define	NCR_MAX_MSG_LEN 8
 
 struct ncr53c9x_softc;
 
@@ -305,12 +305,11 @@ struct ncr53c9x_softc {
 	u_char	sc_espintr;
 	u_char	sc_espstat;
 	u_char	sc_espstep;
-	u_char  sc_espstat2;
+	u_char	sc_espstat2;
 	u_char	sc_espfflags;
 
 	/* Lists of command blocks */
-	TAILQ_HEAD(ecb_list, ncr53c9x_ecb)
-		ready_list;
+	TAILQ_HEAD(ecb_list, ncr53c9x_ecb) ready_list;
 
 	struct ncr53c9x_ecb *sc_nexus;		/* Current command */
 	int	sc_ntarg;
@@ -329,7 +328,7 @@ struct ncr53c9x_softc {
 	u_char	sc_lastcmd;
 
 	/* Message stuff */
-	u_short sc_msgify;	/* IDENTIFY message associated with this nexus */
+	u_short sc_msgify;	/* IDENTIFY message associated with nexus */
 	u_short	sc_msgout;	/* What message is on its way out? */
 	u_short	sc_msgpriq;	/* One or more messages to send (encoded) */
 	u_short	sc_msgoutq;	/* What messages have been sent so far? */
@@ -365,72 +364,72 @@ struct ncr53c9x_softc {
 };
 
 /* values for sc_state */
-#define NCR_IDLE	1	/* Waiting for something to do */
-#define NCR_SELECTING	2	/* SCSI command is arbiting  */
-#define NCR_RESELECTED	3	/* Has been reselected */
-#define NCR_IDENTIFIED	4	/* Has gotten IFY but not TAG */
-#define NCR_CONNECTED	5	/* Actively using the SCSI bus */
+#define	NCR_IDLE	1	/* Waiting for something to do */
+#define	NCR_SELECTING	2	/* SCSI command is arbiting */
+#define	NCR_RESELECTED	3	/* Has been reselected */
+#define	NCR_IDENTIFIED	4	/* Has gotten IFY but not TAG */
+#define	NCR_CONNECTED	5	/* Actively using the SCSI bus */
 #define	NCR_DISCONNECT	6	/* MSG_DISCONNECT received */
 #define	NCR_CMDCOMPLETE	7	/* MSG_CMDCOMPLETE received */
 #define	NCR_CLEANING	8
-#define NCR_SBR		9	/* Expect a SCSI RST because we commanded it */
+#define	NCR_SBR		9	/* Expect a SCSI RST because we commanded it */
 
 /* values for sc_flags */
-#define NCR_DROP_MSGI	0x01	/* Discard all msgs (parity err detected) */
-#define NCR_ABORTING	0x02	/* Bailing out */
-#define NCR_DOINGDMA	0x04	/* The FIFO data path is active! */
-#define NCR_SYNCHNEGO	0x08	/* Synch negotiation in progress. */
-#define NCR_ICCS	0x10	/* Expect status phase results */
-#define NCR_WAITI	0x20	/* Waiting for non-DMA data to arrive */
+#define	NCR_DROP_MSGI	0x01	/* Discard all msgs (parity err detected) */
+#define	NCR_ABORTING	0x02	/* Bailing out */
+#define	NCR_DOINGDMA	0x04	/* The FIFO data path is active! */
+#define	NCR_SYNCHNEGO	0x08	/* Synch negotiation in progress. */
+#define	NCR_ICCS	0x10	/* Expect status phase results */
+#define	NCR_WAITI	0x20	/* Waiting for non-DMA data to arrive */
 #define	NCR_ATN		0x40	/* ATN asserted */
 #define	NCR_EXPECT_ILLCMD	0x80	/* Expect Illegal Command Interrupt */
 
 /* values for sc_features */
 #define	NCR_F_HASCFG3	0x01	/* chip has CFG3 register */
 #define	NCR_F_FASTSCSI	0x02	/* chip supports Fast mode */
-#define	NCR_F_DMASELECT 0x04	/*      can do dmaselect */
+#define	NCR_F_DMASELECT 0x04	/* can do dmaselect */
 #define	NCR_F_SELATN3	0x08	/* chip supports SELATN3 command */
 
 /* values for sc_msgout */
-#define SEND_DEV_RESET		0x0001
-#define SEND_PARITY_ERROR	0x0002
-#define SEND_INIT_DET_ERR	0x0004
-#define SEND_REJECT		0x0008
-#define SEND_IDENTIFY  		0x0010
-#define SEND_ABORT		0x0020
-#define SEND_WDTR		0x0040
-#define SEND_SDTR		0x0080
-#define SEND_TAG		0x0100
+#define	SEND_DEV_RESET		0x0001
+#define	SEND_PARITY_ERROR	0x0002
+#define	SEND_INIT_DET_ERR	0x0004
+#define	SEND_REJECT		0x0008
+#define	SEND_IDENTIFY		0x0010
+#define	SEND_ABORT		0x0020
+#define	SEND_WDTR		0x0040
+#define	SEND_SDTR		0x0080
+#define	SEND_TAG		0x0100
 
 /* SCSI Status codes */
-#define ST_MASK			0x3e /* bit 0,6,7 is reserved */
+#define	ST_MASK			0x3e /* bit 0,6,7 is reserved */
 
 /* phase bits */
-#define IOI			0x01
-#define CDI			0x02
-#define MSGI			0x04
+#define	IOI			0x01
+#define	CDI			0x02
+#define	MSGI			0x04
 
 /* Information transfer phases */
-#define DATA_OUT_PHASE		(0)
-#define DATA_IN_PHASE		(IOI)
-#define COMMAND_PHASE		(CDI)
-#define STATUS_PHASE		(CDI|IOI)
-#define MESSAGE_OUT_PHASE	(MSGI|CDI)
-#define MESSAGE_IN_PHASE	(MSGI|CDI|IOI)
+#define	DATA_OUT_PHASE		(0)
+#define	DATA_IN_PHASE		(IOI)
+#define	COMMAND_PHASE		(CDI)
+#define	STATUS_PHASE		(CDI | IOI)
+#define	MESSAGE_OUT_PHASE	(MSGI | CDI)
+#define	MESSAGE_IN_PHASE	(MSGI | CDI | IOI)
 
-#define PHASE_MASK		(MSGI|CDI|IOI)
+#define	PHASE_MASK		(MSGI | CDI | IOI)
 
 /* Some pseudo phases for getphase()*/
-#define BUSFREE_PHASE		0x100	/* Re/Selection no longer valid */
-#define INVALID_PHASE		0x101	/* Re/Selection valid, but no REQ yet */
-#define PSEUDO_PHASE		0x100	/* "pseudo" bit */
+#define	BUSFREE_PHASE		0x100	/* Re/Selection no longer valid */
+#define	INVALID_PHASE		0x101	/* Re/Selection valid, but no REQ yet */
+#define	PSEUDO_PHASE		0x100	/* "pseudo" bit */
 
 /*
  * Macros to read and write the chip's registers.
  */
-#define	NCR_READ_REG(sc, reg)		\
+#define	NCR_READ_REG(sc, reg)						\
 	(*(sc)->sc_glue->gl_read_reg)((sc), (reg))
-#define	NCR_WRITE_REG(sc, reg, val)	\
+#define	NCR_WRITE_REG(sc, reg, val)					\
 	(*(sc)->sc_glue->gl_write_reg)((sc), (reg), (val))
 
 #ifdef NCR53C9X_DEBUG
@@ -450,8 +449,8 @@ struct ncr53c9x_softc {
 #define	NCRDMA_ISINTR(sc)	(*(sc)->sc_glue->gl_dma_isintr)((sc))
 #define	NCRDMA_RESET(sc)	(*(sc)->sc_glue->gl_dma_reset)((sc))
 #define	NCRDMA_INTR(sc)		(*(sc)->sc_glue->gl_dma_intr)((sc))
-#define	NCRDMA_SETUP(sc, addr, len, datain, dmasize)	\
-     (*(sc)->sc_glue->gl_dma_setup)((sc), (addr), (len), (datain), (dmasize))
+#define	NCRDMA_SETUP(sc, addr, len, datain, dmasize)			\
+	(*(sc)->sc_glue->gl_dma_setup)((sc), (addr), (len), (datain), (dmasize))
 #define	NCRDMA_GO(sc)		(*(sc)->sc_glue->gl_dma_go)((sc))
 #define	NCRDMA_ISACTIVE(sc)	(*(sc)->sc_glue->gl_dma_isactive)((sc))
 
@@ -459,14 +458,14 @@ struct ncr53c9x_softc {
  * Macro to convert the chip register Clock Per Byte value to
  * Synchronous Transfer Period.
  */
-#define	ncr53c9x_cpb2stp(sc, cpb)	\
+#define	ncr53c9x_cpb2stp(sc, cpb)					\
 	((250 * (cpb)) / (sc)->sc_freq)
 
-int	ncr53c9x_attach(struct ncr53c9x_softc *);
-int	ncr53c9x_detach(struct ncr53c9x_softc *);
-void	ncr53c9x_action(struct cam_sim *, union ccb *);
-void	ncr53c9x_reset(struct ncr53c9x_softc *);
-void	ncr53c9x_intr(void *);
-void	ncr53c9x_init(struct ncr53c9x_softc *, int);
+int	ncr53c9x_attach(struct ncr53c9x_softc *sc);
+int	ncr53c9x_detach(struct ncr53c9x_softc *sc);
+void	ncr53c9x_action(struct cam_sim *sim, union ccb *ccb);
+void	ncr53c9x_reset(struct ncr53c9x_softc *sc);
+void	ncr53c9x_intr(void *arg);
+void	ncr53c9x_init(struct ncr53c9x_softc *sc, int doreset);
 
 #endif /* _DEV_IC_NCR53C9XVAR_H_ */

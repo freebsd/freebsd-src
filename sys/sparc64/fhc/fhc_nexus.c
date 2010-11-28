@@ -89,6 +89,7 @@ static driver_t fhc_nexus_driver = {
 static devclass_t fhc_nexus_devclass;
 
 DRIVER_MODULE(fhc, nexus, fhc_nexus_driver, fhc_nexus_devclass, 0, 0);
+MODULE_DEPEND(fhc, nexus, 1, 1, 1);
 
 static int
 fhc_nexus_probe(device_t dev)

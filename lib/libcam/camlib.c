@@ -346,6 +346,9 @@ cam_open_btl(path_id_t path_id, target_id_t target_id, lun_id_t target_lun,
 
 	bzero(&ccb, sizeof(union ccb));
 	ccb.ccb_h.func_code = XPT_DEV_MATCH;
+	ccb.ccb_h.path_id = CAM_XPT_PATH_ID;
+	ccb.ccb_h.target_id = CAM_TARGET_WILDCARD;
+	ccb.ccb_h.target_lun = CAM_LUN_WILDCARD;
 
 	/* Setup the result buffer */
 	bufsize = sizeof(struct dev_match_result);

@@ -1,5 +1,7 @@
-# @(#)europe	8.18
 # <pre>
+# @(#)europe	8.27
+# This file is in the public domain, so clarified as of
+# 2009-05-17 by Arthur David Olson.
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -457,7 +459,7 @@ Rule	EU	1979	1995	-	Sep	lastSun	 1:00u	0	-
 Rule	EU	1981	max	-	Mar	lastSun	 1:00u	1:00	S
 Rule	EU	1996	max	-	Oct	lastSun	 1:00u	0	-
 # The most recent directive covers the years starting in 2002.  See:
-# <a href="http://europa.eu.int/eur-lex/en/lif/dat/2000/en_300L0084.html">
+# <a="http://eur-lex.europa.eu/LexUriServ/LexUriServ.do?uri=CELEX:32000L0084:EN:NOT">
 # Directive 2000/84/EC of the European Parliament and of the Council
 # of 19 January 2001 on summer-time arrangements.
 # </a>
@@ -1011,22 +1013,47 @@ Zone	Europe/Tallinn	1:39:00	-	LMT	1880
 			2:00	EU	EE%sT
 
 # Finland
-#
+
 # From Hannu Strang (1994-09-25 06:03:37 UTC):
 # Well, here in Helsinki we're just changing from summer time to regular one,
 # and it's supposed to change at 4am...
+
+# From Janne Snabb (2010-0715):
 #
-# From Paul Eggert (2006-03-22):
-# Shanks & Pottenger say Finland has switched at 02:00 standard time
-# since 1981.  Go with Strang instead.
+# I noticed that the Finland data is not accurate for years 1981 and 1982.
+# During these two first trial years the DST adjustment was made one hour
+# earlier than in forthcoming years. Starting 1983 the adjustment was made
+# according to the central European standards.
 #
+# This is documented in Heikki Oja: Aikakirja 2007, published by The Almanac
+# Office of University of Helsinki, ISBN 952-10-3221-9, available online (in
+# Finnish) at
+#
+# <a href="http://almanakka.helsinki.fi/aikakirja/Aikakirja2007kokonaan.pdf">
+# http://almanakka.helsinki.fi/aikakirja/Aikakirja2007kokonaan.pdf
+# </a>
+#
+# Page 105 (56 in PDF version) has a handy table of all past daylight savings
+# transitions. It is easy enough to interpret without Finnish skills.
+#
+# This is also confirmed by Finnish Broadcasting Company's archive at:
+#
+# <a href="http://www.yle.fi/elavaarkisto/?s=s&g=1&ag=5&t=&a=3401">
+# http://www.yle.fi/elavaarkisto/?s=s&g=1&ag=5&t=&a=3401
+# </a>
+#
+# The news clip from 1981 says that "the time between 2 and 3 o'clock does not
+# exist tonight."
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Finland	1942	only	-	Apr	3	0:00	1:00	S
 Rule	Finland	1942	only	-	Oct	3	0:00	0	-
+Rule	Finland	1981	1982	-	Mar	lastSun	2:00	1:00	S
+Rule	Finland	1981	1982	-	Sep	lastSun	3:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Europe/Helsinki	1:39:52 -	LMT	1878 May 31
 			1:39:52	-	HMT	1921 May    # Helsinki Mean Time
-			2:00	Finland	EE%sT	1981 Mar 29 2:00
+			2:00	Finland	EE%sT	1983
 			2:00	EU	EE%sT
 
 # Aaland Is
@@ -2039,7 +2066,9 @@ Zone Europe/Samara	 3:20:36 -	LMT	1919 Jul  1 2:00
 			 3:00	Russia	KUY%sT	1991 Mar 31 2:00s
 			 2:00	Russia	KUY%sT	1991 Sep 29 2:00s
 			 3:00	-	KUYT	1991 Oct 20 3:00
-			 4:00	Russia	SAM%sT	# Samara Time
+			 4:00	Russia	SAM%sT	2010 Mar 28 2:00s # Samara Time
+			 3:00	Russia	SAM%sT
+
 #
 # From Oscar van Vlijmen (2001-08-25): [This region consists of]
 # Respublika Bashkortostan, Komi-Permyatskij avtonomnyj okrug,
@@ -2070,9 +2099,43 @@ Zone Asia/Novosibirsk	 5:31:40 -	LMT	1919 Dec 14 6:00
 			 6:00	Russia	NOV%sT	1992 Jan 19 2:00s
 			 7:00	Russia	NOV%sT	1993 May 23 # say Shanks & P.
 			 6:00	Russia	NOV%sT
+
+# From Alexander Krivenyshev (2009-10-13):
+# Kemerovo oblast' (Kemerovo region) in Russia will change current time zone on
+# March 28, 2010:
+# from current Russia Zone 6 - Krasnoyarsk Time Zone (KRA) UTC +0700
+# to Russia Zone 5 - Novosibirsk Time Zone (NOV) UTC +0600
+#
+# This is according to Government of Russia decree # 740, on September
+# 14, 2009 "Application in the territory of the Kemerovo region the Fifth
+# time zone." ("Russia Zone 5" or old "USSR Zone 5" is GMT +0600)
+#
+# Russian Government web site (Russian language)
+# <a href="http://www.government.ru/content/governmentactivity/rfgovernmentdecisions/archiv">
+# http://www.government.ru/content/governmentactivity/rfgovernmentdecisions/archive/2009/09/14/991633.htm
+# </a>
+# or Russian-English translation by WorldTimeZone.com with reference
+# map to local region and new Russia Time Zone map after March 28, 2010
+# <a href="http://www.worldtimezone.com/dst_news/dst_news_russia03.html">
+# http://www.worldtimezone.com/dst_news/dst_news_russia03.html
+# </a>
+#
+# Thus, when Russia will switch to DST on the night of March 28, 2010
+# Kemerovo region (Kemerovo oblast') will not change the clock.
+#
+# As a result, Kemerovo oblast' will be in the same time zone as
+# Novosibirsk, Omsk, Tomsk, Barnaul and Altai Republic.
+
+Zone Asia/Novokuznetsk	 5:48:48 -	NMT	1920 Jan  6
+			 6:00	-	KRAT	1930 Jun 21 # Krasnoyarsk Time
+			 7:00	Russia	KRA%sT	1991 Mar 31 2:00s
+			 6:00	Russia	KRA%sT	1992 Jan 19 2:00s
+			 7:00	Russia	KRA%sT	2010 Mar 28 2:00s
+			 6:00	Russia	NOV%sT # Novosibirsk/Novokuznetsk Time
+
 #
 # From Oscar van Vlijmen (2001-08-25): [This region consists of]
-# Kemerovskaya oblast', Krasnoyarskij kraj,
+# Krasnoyarskij kraj,
 # Tajmyrskij (Dolgano-Nenetskij) avtonomnyj okrug,
 # Respublika Tuva, Respublika Khakasiya, Evenkijskij avtonomnyj okrug.
 Zone Asia/Krasnoyarsk	 6:11:20 -	LMT	1920 Jan  6
@@ -2094,12 +2157,20 @@ Zone Asia/Irkutsk	 6:57:20 -	LMT	1880
 # From Oscar van Vlijmen (2003-10-18): [This region consists of]
 # Aginskij Buryatskij avtonomnyj okrug, Amurskaya oblast',
 # [parts of] Respublika Sakha (Yakutiya), Chitinskaya oblast'.
+
+# From Oscar van Vlijmen (2009-11-29):
+# ...some regions of RUssia were merged with others since 2005...
+# Some names were changed, no big deal, except for one instance: a new name.
+# YAK/YAKST: UTC+9 Zabajkal'skij kraj.
+
+# From Oscar van Vlijmen (2009-11-29):
 # The Sakha districts are: Aldanskij, Amginskij, Anabarskij,
-# Bulunskij, Verkhnekolymskij, Verkhnevilyujskij, Vilyujskij, Gornyj,
+# Verkhnevilyujskij, Vilyujskij, Gornyj,
 # Zhiganskij, Kobyajskij, Lenskij, Megino-Kangalasskij, Mirninskij,
-# Namskij, Nyurbinskij, Olenekskij, Olekminskij, Srednekolymskij,
+# Namskij, Nyurbinskij, Olenyokskij, Olyokminskij,
 # Suntarskij, Tattinskij, Ust'-Aldanskij, Khangalasskij,
-# Churapchinskij, Eveno-Bytantajskij.
+# Churapchinskij, Eveno-Bytantajskij Natsional'nij.
+
 Zone Asia/Yakutsk	 8:38:40 -	LMT	1919 Dec 15
 			 8:00	-	YAKT	1930 Jun 21 # Yakutsk Time
 			 9:00	Russia	YAK%sT	1991 Mar 31 2:00s
@@ -2109,7 +2180,9 @@ Zone Asia/Yakutsk	 8:38:40 -	LMT	1919 Dec 15
 # From Oscar van Vlijmen (2003-10-18): [This region consists of]
 # Evrejskaya avtonomnaya oblast', Khabarovskij kraj, Primorskij kraj,
 # [parts of] Respublika Sakha (Yakutiya).
-# The Sakha districts are: Verkhoyanskij, Tomponskij, Ust'-Majskij,
+
+# From Oscar van Vlijmen (2009-11-29):
+# The Sakha districts are: Bulunskij, Verkhoyanskij, Tomponskij, Ust'-Majskij,
 # Ust'-Yanskij.
 Zone Asia/Vladivostok	 8:47:44 -	LMT	1922 Nov 15
 			 9:00	-	VLAT	1930 Jun 21 # Vladivostok Time
@@ -2130,8 +2203,10 @@ Zone Asia/Sakhalin	 9:30:48 -	LMT	1905 Aug 23
 # From Oscar van Vlijmen (2003-10-18): [This region consists of]
 # Magadanskaya oblast', Respublika Sakha (Yakutiya).
 # Probably also: Kuril Islands.
-# The Sakha districts are: Abyjskij, Allaikhovskij, Momskij,
-# Nizhnekolymskij, Ojmyakonskij.
+
+# From Oscar van Vlijmen (2009-11-29):
+# The Sakha districts are: Abyjskij, Allaikhovskij, Verkhhhnekolymskij, Momskij,
+# Nizhnekolymskij, Ojmyakonskij, Srednekolymskij.
 Zone Asia/Magadan	10:03:12 -	LMT	1924 May  2
 			10:00	-	MAGT	1930 Jun 21 # Magadan Time
 			11:00	Russia	MAG%sT	1991 Mar 31 2:00s
@@ -2146,7 +2221,8 @@ Zone Asia/Kamchatka	10:34:36 -	LMT	1922 Nov 10
 			11:00	-	PETT	1930 Jun 21 # P-K Time
 			12:00	Russia	PET%sT	1991 Mar 31 2:00s
 			11:00	Russia	PET%sT	1992 Jan 19 2:00s
-			12:00	Russia	PET%sT
+			12:00	Russia	PET%sT	2010 Mar 28 2:00s
+			11:00	Russia	PET%sT
 #
 # Chukotskij avtonomnyj okrug
 Zone Asia/Anadyr	11:49:56 -	LMT	1924 May  2
@@ -2154,7 +2230,8 @@ Zone Asia/Anadyr	11:49:56 -	LMT	1924 May  2
 			13:00	Russia	ANA%sT	1982 Apr  1 0:00s
 			12:00	Russia	ANA%sT	1991 Mar 31 2:00s
 			11:00	Russia	ANA%sT	1992 Jan 19 2:00s
-			12:00	Russia	ANA%sT
+			12:00	Russia	ANA%sT	2010 Mar 28 2:00s
+			11:00	Russia	ANA%sT
 
 # Serbia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -2313,11 +2390,64 @@ Zone Europe/Stockholm	1:12:12 -	LMT	1879 Jan  1
 # mean time in preference to apparent time -- Geneva from 1780 ....
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 # From Whitman (who writes ``Midnight?''):
-Rule	Swiss	1940	only	-	Nov	 2	0:00	1:00	S
-Rule	Swiss	1940	only	-	Dec	31	0:00	0	-
+# Rule	Swiss	1940	only	-	Nov	 2	0:00	1:00	S
+# Rule	Swiss	1940	only	-	Dec	31	0:00	0	-
 # From Shanks & Pottenger:
-Rule	Swiss	1941	1942	-	May	Sun>=1	2:00	1:00	S
-Rule	Swiss	1941	1942	-	Oct	Sun>=1	0:00	0	-
+# Rule	Swiss	1941	1942	-	May	Sun>=1	2:00	1:00	S
+# Rule	Swiss	1941	1942	-	Oct	Sun>=1	0:00	0	-
+
+# From Alois Treindl (2008-12-17):
+# I have researched the DST usage in Switzerland during the 1940ies.
+#
+# As I wrote in an earlier message, I suspected the current tzdata values
+# to be wrong. This is now verified.
+#
+# I have found copies of the original ruling by the Swiss Federal
+# government, in 'Eidgen[o]ssische Gesetzessammlung 1941 and 1942' (Swiss
+# federal law collection)...
+#
+# DST began on Monday 5 May 1941, 1:00 am by shifting the clocks to 2:00 am
+# DST ended on Monday 6 Oct 1941, 2:00 am by shifting the clocks to 1:00 am.
+#
+# DST began on Monday, 4 May 1942 at 01:00 am
+# DST ended on Monday, 5 Oct 1942 at 02:00 am
+#
+# There was no DST in 1940, I have checked the law collection carefully.
+# It is also indicated by the fact that the 1942 entry in the law
+# collection points back to 1941 as a reference, but no reference to any
+# other years are made.
+#
+# Newspaper articles I have read in the archives on 6 May 1941 reported
+# about the introduction of DST (Sommerzeit in German) during the previous
+# night as an absolute novelty, because this was the first time that such
+# a thing had happened in Switzerland.
+#
+# I have also checked 1916, because one book source (Gabriel, Traite de
+# l'heure dans le monde) claims that Switzerland had DST in 1916. This is
+# false, no official document could be found. Probably Gabriel got misled
+# by references to Germany, which introduced DST in 1916 for the first time.
+#
+# The tzdata rules for Switzerland must be changed to:
+# Rule  Swiss   1941    1942    -       May     Mon>=1  1:00    1:00    S
+# Rule  Swiss   1941    1942    -       Oct     Mon>=1  2:00    0       -
+#
+# The 1940 rules must be deleted.
+#
+# One further detail for Switzerland, which is probably out of scope for
+# most users of tzdata:
+# The zone file
+# Zone    Europe/Zurich   0:34:08 -       LMT     1848 Sep 12
+#                          0:29:44 -       BMT     1894 Jun #Bern Mean Time
+#                          1:00    Swiss   CE%sT   1981
+#                          1:00    EU      CE%sT
+# describes all of Switzerland correctly, with the exception of
+# the Cantone Geneve (Geneva, Genf). Between 1848 and 1894 Geneve did not
+# follow Bern Mean Time but kept its own local mean time.
+# To represent this, an extra zone would be needed.
+
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
+Rule	Swiss	1941	1942	-	May	Mon>=1	1:00	1:00	S
+Rule	Swiss	1941	1942	-	Oct	Mon>=1	2:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Europe/Zurich	0:34:08 -	LMT	1848 Sep 12
 			0:29:44	-	BMT	1894 Jun # Bern Mean Time

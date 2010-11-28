@@ -29,7 +29,11 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/procfs.h>
+#include <string.h>
+#include <thread_db.h>
 #include <ucontext.h>
+
+#include "libpthread_db.h"
 
 void
 pt_reg_to_ucontext(const struct reg *r, ucontext_t *uc)

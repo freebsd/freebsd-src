@@ -58,6 +58,7 @@ static struct option longopts[] = {
 	{ "verbose",	no_argument,		NULL,		'v' },
 	{ "version",	no_argument,		NULL,		'P' },
 	{ "which",	required_argument,	NULL,		'W' },
+	{ NULL,		0,			NULL,		0 }
 };
 
 int
@@ -281,7 +282,7 @@ main(int argc, char **argv)
 }
 
 static void
-usage()
+usage(void)
 {
     fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 	"usage: pkg_info [-bcdDEfgGiIjkKLmopPqQrRsvVxX] [-e package] [-l prefix]",

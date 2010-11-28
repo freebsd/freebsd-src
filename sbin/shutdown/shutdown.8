@@ -28,7 +28,7 @@
 .\"     @(#)shutdown.8	8.2 (Berkeley) 4/27/95
 .\" $FreeBSD$
 .\"
-.Dd December 11, 1998
+.Dd December 23, 2008
 .Dt SHUTDOWN 8
 .Os
 .Sh NAME
@@ -167,6 +167,12 @@ The
 file that
 .Nm
 created will be removed automatically.
+.Pp
+When run without options, the  
+.Nm
+utility will place the system into single user mode at the 
+.Ar time
+specified.
 .Sh FILES
 .Bl -tag -width /var/run/nologin -compact
 .It Pa /var/run/nologin

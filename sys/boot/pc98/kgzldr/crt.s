@@ -75,5 +75,15 @@ crt_putchr.3:	cmpw $SCR_ROW*SCR_COL*2,%dx
 		stosw				#  line
 		movw $(SCR_ROW-1)*SCR_COL*2,%dx
 crt_putchr.4:	movw %dx,(%ebx) 		# Update position
+		shrw $1,%dx
+crt_putchr.5:	inb $0x60,%al			# Move cursor
+		testb $0x04,%al
+		jz crt_putchr.5
+		movb $0x49,%al
+		outb %al,$0x62
+		movb %dl,%al
+		outb %al,$0x60
+		movb %dh,%al
+		outb %al,$0x60
 		popa				# Restore
 		ret				# To caller

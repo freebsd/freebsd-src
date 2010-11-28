@@ -156,6 +156,12 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define if you cannot bind() before connect() for TCP sockets. */
 /* #undef BROKEN_TCP_BIND_BEFORE_CONNECT */
 
+/* Solaris hack to get select_large_fdset. */
+/* #undef FD_SETSIZE */
+
+/* Define to 1 if you have the `capset' function. */
+/* #undef HAVE_CAPSET */
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 /* #undef HAVE_DLFCN_H */
 
@@ -206,6 +212,15 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you have the <string.h> header file. */
 #define HAVE_STRING_H 1
+
+/* Define to 1 if you have the <sys/capability.h> header file. */
+/* #undef HAVE_SYS_CAPABILITY_H */
+
+/* Define to 1 if you have the <sys/devpoll.h> header file. */
+/* #undef HAVE_SYS_DEVPOLL_H */
+
+/* Define to 1 if you have the <sys/dyntune.h> header file. */
+/* #undef HAVE_SYS_DYNTUNE_H */
 
 /* Define to 1 if you have the <sys/param.h> header file. */
 #define HAVE_SYS_PARAM_H 1
@@ -283,7 +298,7 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to `__inline__' or `__inline' if that's what the C compiler
    calls it, or to nothing if 'inline' is not supported under any name.  */
 #ifndef __cplusplus
-#define inline 
+/* #undef inline */
 #endif
 
 /* Define to `unsigned int' if <sys/types.h> does not define. */

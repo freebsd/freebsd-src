@@ -166,7 +166,7 @@ struct pthread_cond {
 	volatile umtx_t	c_lock;
 	volatile umtx_t	c_seqno;
 	volatile int	c_waiters;
-	volatile int	c_wakeups;
+	volatile int	c_broadcast;
 	int		c_pshared;
 	int		c_clockid;
 };

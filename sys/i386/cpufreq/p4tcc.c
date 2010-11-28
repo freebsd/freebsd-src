@@ -164,7 +164,7 @@ p4tcc_attach(device_t dev)
 	 */
 	sc->auto_mode = TRUE;
 
-	switch (cpu_id & 0xf) {
+	switch (cpu_id & 0xff) {
 	case 0x22:
 	case 0x24:
 	case 0x25:
@@ -180,9 +180,12 @@ p4tcc_attach(device_t dev)
 	case 0x0a:
 	case 0x12:
 	case 0x13:
+	case 0x62:	/* Pentium D B1: errata AA21 */
+	case 0x64:	/* Pentium D C1: errata AA21 */
+	case 0x65:	/* Pentium D D0: errata AA21 */
 		/*
 		 * These CPU models hang when set to 12.5% or 25%.
-		 * See Errata N44 and P18l.
+		 * See Errata N44, P18l and AA21.
 		 */
 		sc->set_count -= 2;
 		break;

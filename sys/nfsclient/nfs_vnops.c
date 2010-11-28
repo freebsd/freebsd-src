@@ -205,6 +205,11 @@ static int	nfsaccess_cache_timeout = NFS_MAXATTRTIMO;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, access_cache_timeout, CTLFLAG_RW,
 	   &nfsaccess_cache_timeout, 0, "NFS ACCESS cache timeout");
 
+static int	nfs_prime_access_cache = 1;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, prime_access_cache, CTLFLAG_RW,
+	   &nfs_prime_access_cache, 0,
+	   "Prime NFS ACCESS cache when fetching attributes");
+
 static int	nfsv3_commit_on_close = 0;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, nfsv3_commit_on_close, CTLFLAG_RW,
 	   &nfsv3_commit_on_close, 0, "write+commit on close, else only write");
@@ -542,13 +547,6 @@ nfs_close(struct vop_close_args *ap)
 		} else
 		    error = nfs_vinvalbuf(vp, V_SAVE, ap->a_td, 1);
 	    }
- 	    /* 
- 	     * Invalidate the attribute cache in all cases.
- 	     * An open is going to fetch fresh attrs any way, other procs
- 	     * on this node that have file open will be forced to do an 
- 	     * otw attr fetch, but this is safe.
- 	     */
-	    np->n_attrstamp = 0;
 	    if (np->n_flag & NWRITEERR) {
 		np->n_flag &= ~NWRITEERR;
 		error = np->n_error;
@@ -592,7 +590,7 @@ nfs_getattr(struct vop_getattr_args *ap)
 	if (nfs_getattrcache(vp, ap->a_vap) == 0)
 		return (0);
 
-	if (v3 && nfsaccess_cache_timeout > 0) {
+	if (v3 && nfs_prime_access_cache && nfsaccess_cache_timeout > 0) {
 		nfsstats.accesscache_misses++;
 		nfs3_access_otw(vp, NFSV3ACCESS_ALL, ap->a_td, ap->a_cred);
 		if (nfs_getattrcache(vp, ap->a_vap) == 0)

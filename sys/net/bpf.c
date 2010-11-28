@@ -398,7 +398,7 @@ bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	mac_create_bpfdesc(td->td_ucred, d);
 #endif
 	mtx_init(&d->bd_mtx, devtoname(dev), "bpf cdev lock", MTX_DEF);
-	callout_init(&d->bd_callout, NET_CALLOUT_MPSAFE);
+	callout_init_mtx(&d->bd_callout, &d->bd_mtx, 0);
 	knlist_init(&d->bd_sel.si_note, &d->bd_mtx, NULL, NULL, NULL);
 
 	return (0);
@@ -429,6 +429,7 @@ bpfclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 	mac_destroy_bpfdesc(d);
 #endif /* MAC */
 	knlist_destroy(&d->bd_sel.si_note);
+	callout_drain(&d->bd_callout);
 	bpf_freed(d);
 	dev->si_drv1 = NULL;
 	free(d, M_BPF);
@@ -455,8 +456,9 @@ static	int
 bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct bpf_d *d = dev->si_drv1;
-	int timed_out;
 	int error;
+	int non_block;
+	int timed_out;
 
 	/*
 	 * Restrict application to use a buffer the same size as
@@ -464,6 +466,8 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 	 */
 	if (uio->uio_resid != d->bd_bufsize)
 		return (EINVAL);
+
+	non_block = ((ioflag & O_NONBLOCK) != 0);
 
 	BPFD_LOCK(d);
 	d->bd_pid = curthread->td_proc->p_pid;
@@ -477,14 +481,20 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 	 * have arrived to fill the store buffer.
 	 */
 	while (d->bd_hbuf == NULL) {
-		if ((d->bd_immediate || timed_out) && d->bd_slen != 0) {
+		if (d->bd_slen != 0) {
 			/*
 			 * A packet(s) either arrived since the previous
 			 * read or arrived while we were asleep.
-			 * Rotate the buffers and return what's here.
 			 */
-			ROTATE_BUFFERS(d);
-			break;
+			if (d->bd_immediate || non_block || timed_out) {
+				/*
+				 * Rotate the buffers and return what's here
+				 * if we are in immediate mode, non-blocking
+				 * flag is set, or this descriptor timed out.
+				 */
+				ROTATE_BUFFERS(d);
+				break;
+			}
 		}
 
 		/*
@@ -498,7 +508,7 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 			return (ENXIO);
 		}
 
-		if (ioflag & O_NONBLOCK) {
+		if (non_block) {
 			BPFD_UNLOCK(d);
 			return (EWOULDBLOCK);
 		}
@@ -577,13 +587,15 @@ bpf_timed_out(void *arg)
 {
 	struct bpf_d *d = (struct bpf_d *)arg;
 
-	BPFD_LOCK(d);
+	BPFD_LOCK_ASSERT(d);
+
+	if (callout_pending(&d->bd_callout) || !callout_active(&d->bd_callout))
+		return;
 	if (d->bd_state == BPF_WAITING) {
 		d->bd_state = BPF_TIMED_OUT;
 		if (d->bd_slen != 0)
 			bpf_wakeup(d);
 	}
-	BPFD_UNLOCK(d);
 }
 
 static int

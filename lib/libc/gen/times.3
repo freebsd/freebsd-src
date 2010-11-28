@@ -32,7 +32,7 @@
 .\"     @(#)times.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd December 1, 2008
 .Dt TIMES 3
 .Os
 .Sh NAME
@@ -56,9 +56,13 @@ The
 .Fn times
 function returns the value of time in
 .Dv CLK_TCK Ns 's
-of a second since
-0 hours, 0 minutes, 0 seconds, January 1, 1970, Coordinated Universal
-Time.
+of a second since the system startup time.
+The current value of
+.Dv CLK_TCK ,
+the frequency of the statistics clock in ticks per second, may be
+obtained through the
+.Xr sysconf 3
+interface.
 .Pp
 It also fills in the structure pointed to by
 .Fa tp
@@ -135,6 +139,7 @@ and
 .Xr getrusage 2 ,
 .Xr gettimeofday 2 ,
 .Xr wait 2 ,
+.Xr sysconf 3 ,
 .Xr clocks 7
 .Sh STANDARDS
 The

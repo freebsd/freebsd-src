@@ -18,7 +18,7 @@ AC_DIVERT_PUSH(1)dnl
 esyscmd([sed "s/^/# /" COPYRIGHT])dnl
 AC_DIVERT_POP()dnl
 
-AC_REVISION($Revision: 1.294.2.23.2.82.2.1 $)
+AC_REVISION($Revision: 1.294.2.23.2.92 $)
 
 AC_INIT(lib/dns/name.c)
 AC_PREREQ(2.13)
@@ -224,6 +224,15 @@ case "$host" in
 		STD_CDEFINES="$STD_CDEFINES -D_XPG4_2 -D__EXTENSIONS__"
 		CPPFLAGS="$CPPFLAGS -D_XPG4_2 -D__EXTENSIONS__"
 		;;
+	# POSIX doesn't include the IPv6 Advanced Socket API and glibc hides
+	# parts of the IPv6 Advanced Socket API as a result.  This is stupid
+	# as it breaks how the two halves (Basic and Advanced) of the IPv6
+	# Socket API were designed to be used but we have to live with it.
+	# Define _GNU_SOURCE to pull in the IPv6 Advanced Socket API.
+	*-linux*)
+		STD_CDEFINES="$STD_CDEFINES -D_GNU_SOURCE"
+		CPPFLAGS="$CPPFLAGS -D_GNU_SOURCE"
+		;;
 esac
 
 AC_HEADER_STDC
@@ -309,6 +318,78 @@ lifconf.lifc_len = 0;
 		ISC_PLATFORM_HAVELIFCONF="#undef ISC_PLATFORM_HAVELIFCONF"])
 AC_SUBST(ISC_PLATFORM_HAVELIFCONF)
 
+#
+# check if we have kqueue
+#
+AC_ARG_ENABLE(kqueue,
+	[  --enable-kqueue         use BSD kqueue when available [[default=yes]]],
+	      want_kqueue="$enableval",  want_kqueue="yes")
+case $want_kqueue in
+yes)
+	AC_CHECK_FUNC(kqueue, ac_cv_have_kqueue=yes, ac_cv_have_kqueue=no)
+	case $ac_cv_have_kqueue in
+	yes)
+		ISC_PLATFORM_HAVEKQUEUE="#define ISC_PLATFORM_HAVEKQUEUE 1"
+		;;
+	*)
+		ISC_PLATFORM_HAVEKQUEUE="#undef ISC_PLATFORM_HAVEKQUEUE"
+		;;
+	esac
+	;;
+*)
+	ISC_PLATFORM_HAVEKQUEUE="#undef ISC_PLATFORM_HAVEKQUEUE"
+	;;
+esac
+AC_SUBST(ISC_PLATFORM_HAVEKQUEUE)
+
+#
+# check if we have epoll.  Linux kernel 2.4 has epoll_create() which fails,
+# so we need to try running the code, not just test its existence.
+#
+AC_ARG_ENABLE(epoll,
+	[  --enable-epoll          use Linux epoll when available [[default=yes]]],
+	      want_epoll="$enableval",  want_epoll="yes")
+case $want_epoll in
+yes)
+	AC_MSG_CHECKING(epoll support)
+	AC_TRY_RUN([
+#include <sys/epoll.h>
+int main() {
+	if (epoll_create(1) < 0)
+		return (1);
+	return (0);
+}
+],
+	[AC_MSG_RESULT(yes)
+	ISC_PLATFORM_HAVEEPOLL="#define ISC_PLATFORM_HAVEEPOLL 1"],
+	[AC_MSG_RESULT(no)
+	ISC_PLATFORM_HAVEEPOLL="#undef ISC_PLATFORM_HAVEEPOLL"])
+	;;
+*)
+	ISC_PLATFORM_HAVEEPOLL="#undef ISC_PLATFORM_HAVEEPOLL"
+	;;
+esac
+AC_SUBST(ISC_PLATFORM_HAVEEPOLL)
+
+#
+# check if we support /dev/poll
+#
+AC_ARG_ENABLE(devpoll,
+	[  --enable-devpoll        use /dev/poll when available [[default=yes]]],
+	      want_devpoll="$enableval",  want_devpoll="yes")
+case $want_devpoll in
+yes)
+	AC_CHECK_HEADERS(sys/devpoll.h,
+	ISC_PLATFORM_HAVEDEVPOLL="#define ISC_PLATFORM_HAVEDEVPOLL 1"
+	,
+	ISC_PLATFORM_HAVEDEVPOLL="#undef ISC_PLATFORM_HAVEDEVPOLL"
+	)
+	;;
+*)
+	ISC_PLATFORM_HAVEDEVPOLL="#undef ISC_PLATFORM_HAVEDEVPOLL"
+	;;
+esac
+AC_SUBST(ISC_PLATFORM_HAVEDEVPOLL)
 
 #
 # check if we need to #include sys/select.h explicitly
@@ -891,6 +972,16 @@ case "$host" in
 esac
 
 #
+# Work around Solaris's select() limitations.
+#
+case "$host" in
+	*-solaris2.[[89]]|*-solaris2.1?)
+	AC_DEFINE(FD_SETSIZE, 65536,
+		  [Solaris hack to get select_large_fdset.])
+	;;
+esac
+
+#
 # Purify support
 #
 AC_MSG_CHECKING(whether to use purify)
@@ -935,6 +1026,14 @@ AC_SUBST(PURIFY)
 #
 # GNU libtool support
 #
+case $build_os in
+sunos*)
+    # Just set the maximum command line length for sunos as it otherwise
+    # takes a exceptionally long time to work it out. Required for libtool.
+    lt_cv_sys_max_cmd_len=4096;
+    ;;
+esac
+
 AC_ARG_WITH(libtool,
 	    [  --with-libtool	use GNU libtool (following indented options supported)],
 	    use_libtool="$withval", use_libtool="no")
@@ -1686,7 +1785,8 @@ AC_ARG_ENABLE(linux-caps,
 	[  --disable-linux-caps	disable linux capabilities])
 case "$enable_linux_caps" in
 	yes|'')
-		AC_CHECK_HEADERS(linux/capability.h)
+		AC_CHECK_HEADERS(linux/capability.h sys/capability.h)
+		AC_CHECK_FUNCS(capset)
 		;;
 	no)
 		;;
@@ -1755,6 +1855,18 @@ AC_MSG_RESULT(cannot determine type of rlim_cur when cross compiling - assuming 
 AC_SUBST(ISC_PLATFORM_RLIMITTYPE)
 
 #
+# Older HP-UX doesn't have gettune
+#
+case "$host" in
+  	*-hp-hpux*)
+		AC_CHECK_HEADERS(sys/dyntune.h)
+		;;
+	*)
+		;;
+esac
+
+
+#
 # Compaq TruCluster requires more code for handling cluster IP aliases
 #
 case "$host" in
@@ -1812,7 +1924,7 @@ case "$host" in
 	[*-solaris2.[89]])
 		hack_shutup_pthreadonceinit=yes
 		;;
-	*-solaris2.1[0-9])
+	*-solaris2.1[[0-9]])
 		hack_shutup_pthreadonceinit=yes
 		;;
 esac

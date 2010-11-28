@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_vfs_aio.h"
 
-NET_NEEDS_GIANT("aio");
 
 /*
  * Counter for allocating reference ids to new jobs.  Wrapped to 1 on
@@ -504,8 +503,10 @@ aio_free_entry(struct aiocblist *aiocbe)
 		splx(s);
 	} else if (aiocbe->jobstate == JOBST_JOBQGLOBAL) {
 		s = splnet();
+		mtx_lock(&aio_freeproc_mtx);
 		TAILQ_REMOVE(&aio_jobs, aiocbe, list);
 		TAILQ_REMOVE(&ki->kaio_jobqueue, aiocbe, plist);
+		mtx_unlock(&aio_freeproc_mtx);
 		splx(s);
 	} else if (aiocbe->jobstate == JOBST_JOBFINISHED)
 		TAILQ_REMOVE(&ki->kaio_jobdone, aiocbe, plist);
@@ -561,6 +562,7 @@ aio_proc_rundown(void *arg, struct proc *p)
 	 * queues so they are cleaned up with any others.
 	 */
 	s = splnet();
+	mtx_lock(&aio_freeproc_mtx);
 	for (aiocbe = TAILQ_FIRST(&ki->kaio_sockqueue); aiocbe; aiocbe =
 	    aiocbn) {
 		aiocbn = TAILQ_NEXT(aiocbe, plist);
@@ -581,6 +583,7 @@ aio_proc_rundown(void *arg, struct proc *p)
 		TAILQ_INSERT_HEAD(&aio_jobs, aiocbe, list);
 		TAILQ_INSERT_HEAD(&ki->kaio_jobqueue, aiocbe, plist);
 	}
+	mtx_unlock(&aio_freeproc_mtx);
 	splx(s);
 
 restart1:
@@ -591,12 +594,14 @@ restart1:
 	}
 
 restart2:
-	for (aiocbe = TAILQ_FIRST(&ki->kaio_jobqueue); aiocbe; aiocbe =
-	    aiocbn) {
-		aiocbn = TAILQ_NEXT(aiocbe, plist);
+	mtx_lock(&aio_freeproc_mtx);
+	while ((aiocbe = TAILQ_FIRST(&ki->kaio_jobqueue)) != NULL) {
+		mtx_unlock(&aio_freeproc_mtx);
 		if (aio_free_entry(aiocbe))
 			goto restart2;
+		mtx_lock(&aio_freeproc_mtx);
 	}
+	mtx_unlock(&aio_freeproc_mtx);
 
 /*
  * Note the use of lots of splbio here, trying to avoid splbio for long chains
@@ -627,11 +632,15 @@ restart4:
 	 * If we've slept, jobs might have moved from one queue to another.
 	 * Retry rundown if we didn't manage to empty the queues.
 	 */
+	mtx_lock(&aio_freeproc_mtx);
 	if (TAILQ_FIRST(&ki->kaio_jobdone) != NULL ||
 	    TAILQ_FIRST(&ki->kaio_jobqueue) != NULL ||
 	    TAILQ_FIRST(&ki->kaio_bufqueue) != NULL ||
-	    TAILQ_FIRST(&ki->kaio_bufdone) != NULL)
+	    TAILQ_FIRST(&ki->kaio_bufdone) != NULL) {
+		mtx_unlock(&aio_freeproc_mtx);
 		goto restart1;
+	}
+	mtx_unlock(&aio_freeproc_mtx);
 
 	for (lj = TAILQ_FIRST(&ki->kaio_liojoblist); lj; lj = ljn) {
 		ljn = TAILQ_NEXT(lj, lioj_list);
@@ -667,6 +676,7 @@ aio_selectjob(struct aiothreadlist *aiop)
 	struct proc *userp;
 
 	s = splnet();
+	mtx_lock(&aio_freeproc_mtx);
 	for (aiocbe = TAILQ_FIRST(&aio_jobs); aiocbe; aiocbe =
 	    TAILQ_NEXT(aiocbe, list)) {
 		userp = aiocbe->userproc;
@@ -674,10 +684,12 @@ aio_selectjob(struct aiothreadlist *aiop)
 
 		if (ki->kaio_active_count < ki->kaio_maxactive_count) {
 			TAILQ_REMOVE(&aio_jobs, aiocbe, list);
+			mtx_unlock(&aio_freeproc_mtx);
 			splx(s);
 			return (aiocbe);
 		}
 	}
+	mtx_unlock(&aio_freeproc_mtx);
 	splx(s);
 
 	return (NULL);
@@ -816,6 +828,7 @@ aio_daemon(void *uproc)
 	 */
 	wakeup(mycp);
 
+	mtx_lock(&aio_freeproc_mtx);
 	for (;;) {
 		/*
 		 * curcp is the current daemon process context.
@@ -826,7 +839,6 @@ aio_daemon(void *uproc)
 		/*
 		 * Take daemon off of free queue
 		 */
-		mtx_lock(&aio_freeproc_mtx);
 		if (aiop->aiothreadflags & AIOP_FREE) {
 			TAILQ_REMOVE(&aio_freeproc, aiop, list);
 			aiop->aiothreadflags &= ~AIOP_FREE;
@@ -919,8 +931,10 @@ aio_daemon(void *uproc)
 			aiocbe->jobstate = JOBST_JOBFINISHED;
 
 			s = splnet();
+			mtx_lock(&aio_freeproc_mtx);
 			TAILQ_REMOVE(&ki->kaio_jobqueue, aiocbe, plist);
 			TAILQ_INSERT_TAIL(&ki->kaio_jobdone, aiocbe, plist);
+			mtx_unlock(&aio_freeproc_mtx);
 			splx(s);
 			KNOTE_UNLOCKED(&aiocbe->klist, 0);
 
@@ -968,11 +982,10 @@ aio_daemon(void *uproc)
 		 * If daemon is inactive for a long time, allow it to exit,
 		 * thereby freeing resources.
 		 */
-		if (msleep(aiop->aiothread, &aio_freeproc_mtx, PDROP | PRIBIO,
+		if (msleep(aiop->aiothread, &aio_freeproc_mtx, PRIBIO,
 		    "aiordy", aiod_lifetime)) {
 			s = splnet();
 			if (TAILQ_EMPTY(&aio_jobs)) {
-				mtx_lock(&aio_freeproc_mtx);
 				if ((aiop->aiothreadflags & AIOP_FREE) &&
 				    (num_aio_procs > target_aio_procs)) {
 					TAILQ_REMOVE(&aio_freeproc, aiop, list);
@@ -989,7 +1002,6 @@ aio_daemon(void *uproc)
 #endif
 					kthread_exit(0);
 				}
-				mtx_unlock(&aio_freeproc_mtx);
 			}
 			splx(s);
 		}
@@ -1229,6 +1241,7 @@ aio_swake_cb(struct socket *so, struct sockbuf *sb)
 		SOCKBUF_UNLOCK(&so->so_rcv);
 	}
 
+	mtx_lock(&aio_freeproc_mtx);
 	for (cb = TAILQ_FIRST(&so->so_aiojobq); cb; cb = cbn) {
 		cbn = TAILQ_NEXT(cb, list);
 		if (opcode == cb->uaiocb.aio_lio_opcode) {
@@ -1245,14 +1258,13 @@ aio_swake_cb(struct socket *so, struct sockbuf *sb)
 	}
 
 	while (wakecount--) {
-		mtx_lock(&aio_freeproc_mtx);
 		if ((aiop = TAILQ_FIRST(&aio_freeproc)) != 0) {
 			TAILQ_REMOVE(&aio_freeproc, aiop, list);
 			aiop->aiothreadflags &= ~AIOP_FREE;
 			wakeup(aiop->aiothread);
 		}
-		mtx_unlock(&aio_freeproc_mtx);
 	}
+	mtx_unlock(&aio_freeproc_mtx);
 }
 
 /*
@@ -1420,6 +1432,7 @@ no_kqueue:
 		 */
 		so = fp->f_data;
 		sb = (opcode == LIO_READ) ? &so->so_rcv : &so->so_snd;
+		mtx_lock(&aio_freeproc_mtx);
 		SOCKBUF_LOCK(sb);
 		s = splnet();
 		if (((opcode == LIO_READ) && (!soreadable(so))) || ((opcode ==
@@ -1431,11 +1444,13 @@ no_kqueue:
 			ki->kaio_queue_count++;
 			num_queue_count++;
 			SOCKBUF_UNLOCK(sb);
+			mtx_unlock(&aio_freeproc_mtx);
 			splx(s);
 			error = 0;
 			goto done;
 		}
 		SOCKBUF_UNLOCK(sb);
+		mtx_unlock(&aio_freeproc_mtx);
 		splx(s);
 	}
 
@@ -1455,6 +1470,7 @@ no_kqueue:
 	if (lj)
 		lj->lioj_queue_count++;
 	s = splnet();
+	mtx_lock(&aio_freeproc_mtx);
 	TAILQ_INSERT_TAIL(&ki->kaio_jobqueue, aiocbe, plist);
 	TAILQ_INSERT_TAIL(&aio_jobs, aiocbe, list);
 	splx(s);
@@ -1470,7 +1486,6 @@ no_kqueue:
 	 * (thread) due to resource issues, we return an error for now (EAGAIN),
 	 * which is likely not the correct thing to do.
 	 */
-	mtx_lock(&aio_freeproc_mtx);
 retryproc:
 	if ((aiop = TAILQ_FIRST(&aio_freeproc)) != NULL) {
 		TAILQ_REMOVE(&aio_freeproc, aiop, list);
@@ -1728,6 +1743,7 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 
 		s = splnet();
 
+		mtx_lock(&aio_freeproc_mtx);
 		for (cbe = TAILQ_FIRST(&so->so_aiojobq); cbe; cbe = cbn) {
 			cbn = TAILQ_NEXT(cbe, list);
 			if ((uap->aiocbp == NULL) ||
@@ -1755,6 +1771,7 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 					break;
 			}
 		}
+		mtx_unlock(&aio_freeproc_mtx);
 		splx(s);
 
 		if ((cancelled) && (uap->aiocbp)) {
@@ -1767,6 +1784,7 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 		goto done;
 	s = splnet();
 
+	mtx_lock(&aio_freeproc_mtx);
 	for (cbe = TAILQ_FIRST(&ki->kaio_jobqueue); cbe; cbe = cbn) {
 		cbn = TAILQ_NEXT(cbe, plist);
 
@@ -1796,6 +1814,7 @@ aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 			}
 		}
 	}
+	mtx_unlock(&aio_freeproc_mtx);
 	splx(s);
 done:
 	if (notcancelled) {
@@ -1833,11 +1852,13 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 	if ((jobref == -1) || (jobref == 0))
 		return (EINVAL);
 
+	mtx_lock(&aio_freeproc_mtx);
 	PROC_LOCK(p);
 	TAILQ_FOREACH(cb, &ki->kaio_jobdone, plist) {
 		if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
 			PROC_UNLOCK(p);
+			mtx_unlock(&aio_freeproc_mtx);
 			td->td_retval[0] = cb->uaiocb._aiocb_private.error;
 			return (0);
 		}
@@ -1850,6 +1871,7 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 		if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
 			PROC_UNLOCK(p);
+			mtx_unlock(&aio_freeproc_mtx);
 			td->td_retval[0] = EINPROGRESS;
 			splx(s);
 			return (0);
@@ -1861,6 +1883,7 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 		if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
 			PROC_UNLOCK(p);
+			mtx_unlock(&aio_freeproc_mtx);
 			td->td_retval[0] = EINPROGRESS;
 			splx(s);
 			return (0);
@@ -1874,6 +1897,7 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 		if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
 			PROC_UNLOCK(p);
+			mtx_unlock(&aio_freeproc_mtx);
 			td->td_retval[0] = cb->uaiocb._aiocb_private.error;
 			splx(s);
 			return (0);
@@ -1885,6 +1909,7 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 		if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
 			PROC_UNLOCK(p);
+			mtx_unlock(&aio_freeproc_mtx);
 			td->td_retval[0] = EINPROGRESS;
 			splx(s);
 			return (0);
@@ -1892,6 +1917,7 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 	}
 	splx(s);
 	PROC_UNLOCK(p);
+	mtx_unlock(&aio_freeproc_mtx);
 
 #if (0)
 	/*

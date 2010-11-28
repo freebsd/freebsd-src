@@ -475,7 +475,7 @@ cache_enter(dvp, vp, cnp)
 	struct vnode *vp;
 	struct componentname *cnp;
 {
-	struct namecache *ncp;
+	struct namecache *ncp, *n2;
 	struct nchashhead *ncpp;
 	u_int32_t hash;
 	int hold;
@@ -511,8 +511,36 @@ cache_enter(dvp, vp, cnp)
 
 	hold = 0;
 	zap = 0;
+
+	/*
+	 * Calculate the hash key and setup as much of the new
+	 * namecache entry as possible before acquiring the lock.
+	 */
 	ncp = cache_alloc(cnp->cn_namelen);
+	ncp->nc_vp = vp;
+	ncp->nc_dvp = dvp;
+	len = ncp->nc_nlen = cnp->cn_namelen;
+	hash = fnv_32_buf(cnp->cn_nameptr, len, FNV1_32_INIT);
+	bcopy(cnp->cn_nameptr, ncp->nc_name, len);
+	hash = fnv_32_buf(&dvp, sizeof(dvp), hash);
 	CACHE_LOCK();
+
+	/*
+	 * See if this vnode or negative entry is already in the cache
+	 * with this name.  This can happen with concurrent lookups of
+	 * the same path name.
+	 */
+	ncpp = NCHHASH(hash);
+	LIST_FOREACH(n2, ncpp, nc_hash) {
+		if (n2->nc_dvp == dvp &&
+		    n2->nc_nlen == cnp->cn_namelen &&
+		    !bcmp(n2->nc_name, cnp->cn_nameptr, n2->nc_nlen)) {
+			CACHE_UNLOCK();
+			cache_free(ncp);
+			return;
+		}
+	}
+
 	numcache++;
 	if (!vp) {
 		numneg++;
@@ -524,17 +552,9 @@ cache_enter(dvp, vp, cnp)
 	}
 
 	/*
-	 * Set the rest of the namecache entry elements, calculate it's
-	 * hash key and insert it into the appropriate chain within
-	 * the cache entries table.
+	 * Insert the new namecache entry into the appropriate chain
+	 * within the cache entries table.
 	 */
-	ncp->nc_vp = vp;
-	ncp->nc_dvp = dvp;
-	len = ncp->nc_nlen = cnp->cn_namelen;
-	hash = fnv_32_buf(cnp->cn_nameptr, len, FNV1_32_INIT);
-	bcopy(cnp->cn_nameptr, ncp->nc_name, len);
-	hash = fnv_32_buf(&dvp, sizeof(dvp), hash);
-	ncpp = NCHHASH(hash);
 	LIST_INSERT_HEAD(ncpp, ncp, nc_hash);
 	if (LIST_EMPTY(&dvp->v_cache_src)) {
 		hold = 1;

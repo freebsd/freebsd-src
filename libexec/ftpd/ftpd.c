@@ -2802,15 +2802,20 @@ static int
 myoob(void)
 {
 	char *cp;
+	int ret;
 
 	if (!transflag) {
 		syslog(LOG_ERR, "Internal: myoob() while no transfer");
 		return (0);
 	}
 	cp = tmpline;
-	if (getline(cp, 7, stdin) == NULL) {
+	ret = getline(cp, 7, stdin);
+	if (ret == -1) {
 		reply(221, "You could at least say goodbye.");
 		dologout(0);
+	} else if (ret == -2) {
+		/* Ignore truncated command. */
+		return (0);
 	}
 	upper(cp);
 	if (strcmp(cp, "ABOR\r\n") == 0) {

@@ -49,8 +49,8 @@ case "${tmpmfs}" in
 [Nn][Oo])
 	;;
 *)
-	if /bin/mkdir -p /tmp/.diskless 2> /dev/null; then
-		rmdir /tmp/.diskless
+	if _tmpdir=$(mktemp -d -q /tmp/.diskless.XXXXXX); then
+		rmdir ${_tmpdir}
 	else
 		if [ -h /tmp ]; then
 			echo "*** /tmp is a symlink to a non-writable area!"

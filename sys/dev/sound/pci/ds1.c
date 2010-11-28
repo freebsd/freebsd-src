@@ -396,7 +396,7 @@ ds_initpbank(volatile struct pbank *pb, int ch, int b16, int stereo, u_int32_t r
 	pb->Format |= b16? 0 : 0x80000000;
 	pb->Format |= (stereo && (ch == 2 || ch == 4))? 0x00000001 : 0;
 	pb->LoopDefault = 0;
-	pb->PgBase = base? base : 0;
+	pb->PgBase = base;
 	pb->PgLoop = 0;
 	pb->PgLoopEnd = len >> ss;
 	pb->PgLoopFrac = 0;

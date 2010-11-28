@@ -145,6 +145,7 @@ acpi_pcib_acpi_attach(device_t dev)
 {
     struct acpi_hpcib_softc	*sc;
     ACPI_STATUS			status;
+    static int bus0_seen = 0;
     u_int addr, slot, func, busok;
     uint8_t busno;
 
@@ -153,6 +154,21 @@ acpi_pcib_acpi_attach(device_t dev)
     sc = device_get_softc(dev);
     sc->ap_dev = dev;
     sc->ap_handle = acpi_get_handle(dev);
+
+    /*
+     * Get our segment number by evaluating _SEG
+     * It's OK for this to not exist.
+     */
+    status = acpi_GetInteger(sc->ap_handle, "_SEG", &sc->ap_segment);
+    if (ACPI_FAILURE(status)) {
+	if (status != AE_NOT_FOUND) {
+	    device_printf(dev, "could not evaluate _SEG - %s\n",
+		AcpiFormatException(status));
+	    return_VALUE (ENXIO);
+	}
+	/* If it's not found, assume 0. */
+	sc->ap_segment = 0;
+    }
 
     /*
      * Get our base bus number by evaluating _BBN.
@@ -168,8 +184,10 @@ acpi_pcib_acpi_attach(device_t dev)
      * XXX invoke _REG on this for the PCI config space address space?
      * XXX It seems many BIOS's with multiple Host-PCI bridges do not set
      *     _BBN correctly.  They set _BBN to zero for all bridges.  Thus,
-     *     if _BBN is zero and pcib0 already exists, we try to read our
+     *     if _BBN is zero and PCI bus 0 already exists, we try to read our
      *     bus number from the configuration registers at address _ADR.
+     *     We only do this for domain/segment 0 in the hopes that this is
+     *     only needed for old single-domain machines.
      */
     status = acpi_GetInteger(sc->ap_handle, "_BBN", &sc->ap_bus);
     if (ACPI_FAILURE(status)) {
@@ -184,11 +202,11 @@ acpi_pcib_acpi_attach(device_t dev)
     }
 
     /*
-     * If the bus is zero and pcib0 already exists, read the bus number
-     * via PCI config space.
+     * If this is segment 0, the bus is zero, and PCI bus 0 already
+     * exists, read the bus number via PCI config space.
      */
     busok = 1;
-    if (sc->ap_bus == 0 && devclass_get_device(pcib_devclass, 0) != dev) {
+    if (sc->ap_segment == 0 && sc->ap_bus == 0 && bus0_seen) {
 	busok = 0;
 	status = acpi_GetInteger(sc->ap_handle, "_ADR", &addr);
 	if (ACPI_FAILURE(status)) {
@@ -225,20 +243,9 @@ acpi_pcib_acpi_attach(device_t dev)
 	device_printf(dev, "trying bus number %d\n", sc->ap_bus);
     }
 
-    /*
-     * Get our segment number by evaluating _SEG
-     * It's OK for this to not exist.
-     */
-    status = acpi_GetInteger(sc->ap_handle, "_SEG", &sc->ap_segment);
-    if (ACPI_FAILURE(status)) {
-	if (status != AE_NOT_FOUND) {
-	    device_printf(dev, "could not evaluate _SEG - %s\n",
-		AcpiFormatException(status));
-	    return_VALUE (ENXIO);
-	}
-	/* If it's not found, assume 0. */
-	sc->ap_segment = 0;
-    }
+    /* If this is bus 0 on segment 0, note that it has been seen already. */
+    if (sc->ap_segment == 0 && sc->ap_bus == 0)
+	    bus0_seen = 1;
 
     return (acpi_pcib_attach(dev, &sc->ap_prt, sc->ap_bus));
 }

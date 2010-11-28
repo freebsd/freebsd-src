@@ -561,9 +561,6 @@ i386_get_ldt(td, uap)
 	return(error);
 }
 
-static int ldt_warnings;
-#define NUM_LDT_WARNINGS 10
-
 int
 i386_set_ldt(td, uap, descs)
 	struct thread *td;

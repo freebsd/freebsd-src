@@ -115,6 +115,13 @@ struct pipe {
 };
 
 /*
+ * Values for the pipe_present.
+ */
+#define PIPE_ACTIVE		1
+#define	PIPE_CLOSING		2
+#define	PIPE_FINALIZED		3
+
+/*
  * Container structure to hold the two pipe endpoints, mutex, and label
  * pointer.
  */

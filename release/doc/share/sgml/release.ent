@@ -6,7 +6,7 @@
 
 <!-- Version of the OS we're describing.  This needs to be updated
      with each new release. -->
-<!ENTITY release.current "6.3-STABLE">
+<!ENTITY release.current "6.4-STABLE">
 
 <!-- The previous version used for comparison in the "What's New"
      section.  For -CURRENT, we might point back to the last
@@ -36,11 +36,10 @@
 
 <!-- The manpaths for man page references -->
 <!ENTITY release.man.url "http://www.FreeBSD.org/cgi/man.cgi">
-<!ENTITY release.manpath.xfree86       "4.5.0">
-<!ENTITY release.manpath.xorg          "7.2">
-<!ENTITY release.manpath.netbsd        "3.0">
+<!ENTITY release.manpath.xorg          "7.3">
+<!ENTITY release.manpath.netbsd        "4.0.1">
 <!ENTITY release.manpath.freebsd-ports "Ports">
-<!ENTITY release.manpath.freebsd       "6.3-stable">
+<!ENTITY release.manpath.freebsd       "6.4-stable">
 
 <!-- Text constants which probably don't need to be changed.-->
 

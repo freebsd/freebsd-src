@@ -298,7 +298,7 @@ gethostanswer(const querybuf *answer, int anslen, const char *qname, int qtype,
 			continue;
 		}
 		if (type != qtype) {
-			if (type != T_SIG)
+			if (type != T_SIG && type != ns_t_dname)
 				syslog(LOG_NOTICE|LOG_AUTH,
 	"gethostby*.gethostanswer: asked for \"%s %s %s\", got type \"%s\"",
 				       qname, p_class(C_IN), p_type(qtype),

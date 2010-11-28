@@ -11,6 +11,7 @@
 #
 # See also RFC 2142, `MAILBOX NAMES FOR COMMON SERVICES, ROLES
 # AND FUNCTIONS', May 1997
+# 	http://tools.ietf.org/html/rfc2142
 
 # Pretty much everything else in this file points to "root", so
 # you would do well in either reading root's mailbox or forwarding

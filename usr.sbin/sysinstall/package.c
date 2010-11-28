@@ -55,7 +55,7 @@ int
 package_add(char *name)
 {
     PkgNodePtr tmp;
-    int i;
+    int i, current, low, high;
 
     if (!mediaVerify())
 	return DITEM_FAILURE;
@@ -68,9 +68,16 @@ package_add(char *name)
 	return i;
 
     tmp = index_search(&Top, name, &tmp);
-    if (tmp)
-	return index_extract(mediaDevice, &Top, tmp, FALSE);
-    else {
+    if (tmp) {
+	if (have_volumes) {
+	    low = low_volume;
+	    high = high_volume;
+	} else
+	    low = high = 0;
+	for (current = low; current <= high; current++)
+	    i = index_extract(mediaDevice, &Top, tmp, FALSE, current);
+	return i;
+    } else {
 	msgConfirm("Sorry, package %s was not found in the INDEX.", name);
 	return DITEM_FAILURE;
     }

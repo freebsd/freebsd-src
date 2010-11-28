@@ -152,7 +152,11 @@ dn_skipname(const u_char *ptr, const u_char *eom) {
 #define digitchar(c) ((c) >= 0x30 && (c) <= 0x39)
 
 #define borderchar(c) (alphachar(c) || digitchar(c))
+#ifdef	RES_ENFORCE_RFC1034
+#define middlechar(c) (borderchar(c) || hyphenchar(c))
+#else
 #define middlechar(c) (borderchar(c) || hyphenchar(c) || underscorechar(c))
+#endif
 #define	domainchar(c) ((c) > 0x20 && (c) < 0x7f)
 
 int

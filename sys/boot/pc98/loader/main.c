@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 
 #include "bootstrap.h"
 #include "libi386/libi386.h"
+#include "libpc98/libpc98.h"
 #include "btxv86.h"
 
 #define	KARGS_FLAGS_CD		0x1
@@ -81,6 +82,9 @@ main(void)
 {
     int			i;
 
+    /* Set machine type to PC98_SYSTEM_PARAMETER. */
+    set_machine_type();
+
     /* Pick up arguments */
     kargs = (void *)__args;
     initial_howto = kargs->howto;
@@ -96,14 +100,18 @@ main(void)
      */
     bios_getmem();
 
-#ifdef LOADER_BZIP2_SUPPORT
-    heap_top = PTOV(memtop_copyin);
-    memtop_copyin -= 0x300000;
-    heap_bottom = PTOV(memtop_copyin);
-#else
-    heap_top = (void *)bios_basemem;
-    heap_bottom = (void *)end;
+#if defined(LOADER_BZIP2_SUPPORT)
+    if (high_heap_size > 0) {
+	heap_top = PTOV(high_heap_base + high_heap_size);
+	heap_bottom = PTOV(high_heap_base);
+	if (high_heap_base < memtop_copyin)
+	    memtop_copyin = high_heap_base;
+    } else
 #endif
+    {
+	heap_top = (void *)PTOV(bios_basemem);
+	heap_bottom = (void *)end;
+    }
     setheap(heap_bottom, heap_top);
 
     /* 

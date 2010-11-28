@@ -355,8 +355,8 @@
 195	AUE_SETRLIMIT	MNOPROTO { int setrlimit(u_int which, \
 				    struct rlimit *rlp); } setrlimit \
 				    __setrlimit_args int
-196	AUE_GETDIRENTRIES	MNOPROTO { int getdirentries(int fd, char *buf, \
-				    u_int count, long *basep); }
+196	AUE_GETDIRENTRIES	MSTD	{ int freebsd32_getdirentries(int fd, \
+				    char *buf, u_int count, int32_t *basep); }
 197	AUE_MMAP	MSTD 	{ caddr_t freebsd32_mmap(caddr_t addr, \
 				    size_t len, int prot, int flags, int fd, \
 				    int pad, u_int32_t poslo, \

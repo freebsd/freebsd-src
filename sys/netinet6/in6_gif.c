@@ -96,7 +96,7 @@ in6_gif_output(ifp, family, m)
 	struct sockaddr_in6 *sin6_dst = (struct sockaddr_in6 *)sc->gif_pdst;
 	struct ip6_hdr *ip6;
 	struct etherip_header eiphdr;
-	int proto, error;
+	int error, len, proto;
 	u_int8_t itos, otos;
 
 	GIF_LOCK_ASSERT(sc);
@@ -164,13 +164,27 @@ in6_gif_output(ifp, family, m)
 	}
 
 	/* prepend new IP header */
-	M_PREPEND(m, sizeof(struct ip6_hdr), M_DONTWAIT);
-	if (m && m->m_len < sizeof(struct ip6_hdr))
-		m = m_pullup(m, sizeof(struct ip6_hdr));
+	len = sizeof(struct ip6_hdr);
+#ifndef __NO_STRICT_ALIGNMENT
+	if (family == AF_LINK)
+		len += ETHERIP_ALIGN;
+#endif
+	M_PREPEND(m, len, M_DONTWAIT);
+	if (m != NULL && m->m_len < len)
+		m = m_pullup(m, len);
 	if (m == NULL) {
 		printf("ENOBUFS in in6_gif_output %d\n", __LINE__);
 		return ENOBUFS;
 	}
+#ifndef __NO_STRICT_ALIGNMENT
+	if (family == AF_LINK) {
+		len = mtod(m, vm_offset_t) & 3;
+		KASSERT(len == 0 || len == ETHERIP_ALIGN,
+		    ("in6_gif_output: unexpected misalignment"));
+		m->m_data += len;
+		m->m_len -= ETHERIP_ALIGN;
+	}
+#endif
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	ip6->ip6_flow	= 0;
@@ -378,10 +392,10 @@ gif_validate6(ip6, sc, ifp)
 			    ip6_sprintf(&sin6.sin6_addr));
 #endif
 			if (rt)
-				rtfree(rt);
+				RTFREE_LOCKED(rt);
 			return 0;
 		}
-		rtfree(rt);
+		RTFREE_LOCKED(rt);
 	}
 
 	return 128 * 2;

@@ -1,14 +1,154 @@
-	--- 9.3.5-P2 released ---
+	--- 9.3.6-P1 released ---
 
-2406.   [bug]           Some operating systems have FD_SETSIZE set to a
-			low value by default, which can cause resource
-			exhaustion when many simultaneous connections are
-			open.  Linux in particular makes it difficult to
-			increase this value.  To use more sockets with
-			select(), set ISC_SOCKET_FDSETSIZE.  Example:
-			STD_CDEFINES="-DISC_SOCKET_FDSETSIZE=4096" ./configure
-			(This should not be necessary in most cases, and
-			never for an authoritative-only server.) [RT #18328]
+2522.	[security]	Handle -1 from DSA_do_verify().
+
+2498.	[bug]		Removed a bogus function argument used with
+			ISC_SOCKET_USE_POLLWATCH: it could cause compiler
+			warning or crash named with the debug 1 level
+			of logging. [RT #18917]
+
+	--- 9.3.6 released ---
+
+2490.	[port]		aix: work around a kernel bug where IPV6_RECVPKTINFO
+			is cleared when IPV6_V6ONLY is set. [RT #18785]
+
+2489.	[port]		solaris: Workaround Solaris's kernel bug about
+			/dev/poll:
+			http://bugs.opensolaris.org/view_bug.do?bug_id=6724237
+			Define ISC_SOCKET_USE_POLLWATCH at build time to enable
+			this workaround. [RT #18870]
+
+	--- 9.3.6rc1 released ---
+
+2473.	[port]		linux: raise the limit on open files to the possible
+			maximum value before spawning threads; 'files'
+		        specified in named.conf doesn't seem to work with
+			threads as expected. [RT #18784]
+
+2472.	[port]		linux: check the number of available cpu's before
+			calling chroot as it depends on "/proc". [RT #16923]
+
+2469.	[port]		solaris: Work around Solaris's select() limitations.
+			[RT #18769]
+
+2468.	[bug]		Resolver could try unreachable servers multiple times.
+			[RT #18739]
+
+2467.	[bug]		Failure of fcntl(F_DUPFD) wasn't logged. [RT #18740]
+
+2465.	[bug]		Adb's handling of lame addresses was different
+			for IPv4 and IPv6. [RT #18738]
+
+2463.   [port]          linux: POSIX doesn't include the IPv6 Advanced Socket
+			API and glibc hides parts of the IPv6 Advanced Socket
+			API as a result.  This is stupid as it breaks how the
+			two halves (Basic and Advanced) of the IPv6 Socket API				were designed to be used but we have to live with it.
+			Define _GNU_SOURCE to pull in the IPv6 Advanced Socket
+			API. [RT #18388]
+
+2462.	[doc]		Document -m (enable memory usage debugging)
+			option for dig. [RT #18757]
+
+2461.	[port]		sunos: Change #2363 was not complete. [RT #17513]
+
+2458.	[doc]		ARM: update and correction for max-cache-size.
+			[RT #18294]
+
+2455.	[bug]		Stop metadata being transfered via axfr/ixfr.
+			[RT #18639]
+
+2453.	[bug]		Remove NULL pointer dereference in dns_journal_print().
+			[RT #18316]
+
+2449.	[bug]		libbind: Out of bounds reference in dns_ho.c:addrsort.
+			[RT #18044]
+
+2444.	[port]		Linux, FreeBSD, AIX: Turn off path mtu discovery
+			(clear DF) for UDP responses and requests.
+
+	--- 9.3.6b1 released ---
+
+2443.	[bug]		win32: UDP connect() would not generate an event,
+			and so connected UDP sockets would never clean up.
+			Fix this by doing an immediate WSAConnect() rather
+			than an io completion port type for UDP.
+
+2438.	[bug]		Timeouts could be logged incorrectly under win32.
+			[RT #18617]
+
+2437.	[bug]		Sockets could be closed too early, leading to
+			inconsistent states in the socket module. [RT #18298]
+
+2436.	[security]	win32: UDP client handler can be shutdown. [RT #18576]
+
+2432.	[bug]		More Windows socket handling improvements.  Stop
+			using I/O events and use IO Completion Ports
+			throughout.  Rewrite the receive path logic to make
+			it easier to support multiple simultaneous
+			requestrs in the future.  Add stricter consistency
+			checking as a compile-time option (define
+			ISC_SOCKET_CONSISTENCY_CHECKS; defaults to off).
+
+2430.	[bug]		win32: isc_interval_set() could round down to
+			zero if the input was less than NS_INTERVAL
+			nanoseconds.  Round up instead. [RT #18549]
+
+2429.	[doc]		nsupdate should be in section 1 of the man pages.
+			[RT #18283]
+
+2426.	[bug]		libbind: inet_net_pton() can sometimes return the
+			wrong value if excessively large netmasks are
+			supplied. [RT #18512]
+
+2425.	[bug]		named didn't detect unavailable query source addresses
+			at load time. [RT #18536]
+
+2424.	[port]		configure now probes for a working epoll
+			implementation.  Allow the use of kqueue,
+			epoll and /dev/poll to be selected at compile
+			time. [RT #18277]
+			
+2422.	[bug]		Handle the special return value of a empty node as
+			if it was a NXRRSET in the validator. [RT #18447]
+
+2421.	[func]		Add new command line option '-S' for named to specify
+			the max number of sockets. [RT #18493]
+			Use caution: this option may not work for some
+			operating systems without rebuilding named.
+
+2420.	[bug]		Windows socket handling cleanup.  Let the io
+			completion event send out cancelled read/write
+			done events, which keeps us from writing to memeory
+			we no longer have ownership of.  Add debugging
+			socket_log() function.  Rework TCP socket handling
+			to not leak sockets.
+
+2417.	[bug]		Connecting UDP sockets for outgoing queries could
+			unexpectedly fail with an 'address already in use'
+			error. [RT #18411]
+
+2416.	[func]		Log file descriptors that cause exceeding the
+			internal maximum. [RT #18460]
+
+2414.	[bug]		A masterdump context held the database lock too long,
+			causing various troubles such as dead lock and
+			recursive lock acquisition. [RT #18311, #18456]
+
+2413.	[bug]		Fixed an unreachable code path in socket.c. [RT #18442]
+
+2412.	[bug]		win32: address a resourse leak. [RT #18374]
+
+2411.	[bug]		Allow using a larger number of sockets than FD_SETSIZE
+			for select().  To enable this, set ISC_SOCKET_MAXSOCKETS
+			at compilation time.  [RT #18433]
+
+2410.	[bug]		Correctly delete m_versionInfo. [RT #18432]
+
+2408.	[bug]		A duplicate TCP dispatch event could be sent, which
+			could then trigger an assertion failure in
+			resquery_response().  [RT #18275]
+
+2407.	[port]		hpux: test for sys/dyntune.h. [RT #18421]
 
 2404.	[port]		hpux: files unlimited support.
 
@@ -22,7 +162,7 @@
 2399.	[bug]		Abort timeout queries to reduce the number of open
 			UDP sockets. [RT #18367]
 
-2398.	[bug]           Improve file descriptor management.  New,
+2398.	[bug]		Improve file descriptor management.  New,
 			temporary, named.conf option reserved-sockets,
 			default 512. [RT #18344]
 
@@ -39,10 +179,110 @@
 2392.	[bug]		remove 'grep -q' from acl test script, some platforms
 			don't support it. [RT #18253]
 
-	--- 9.3.5-P1 released ---
+2391	[port]		hpux: cover additional recvmsg() error codes.
+			[RT #18301]
 
-2375.   [security]      Fully randomize UDP query ports to improve
+2390	[bug]		dispatch.c could make a false warning on 'odd socket'.
+			[RT #18301].
+
+2389	[bug]		Move the "working directory writable" check to after
+			the ns_os_changeuser() call. [RT #18326]
+
+2386.	[func]		Add warning about too small 'open files' limit.
+			[RT #18269]
+
+2385.	[bug]		A condition variable in socket.c could leak in
+			rare error handling [RT #17968].
+
+2384.	[security]	Additional support for query port randomization (change
+			#2375) including performance improvement and port range
+			specification.  [RT #17949, #18098]
+
+2383.	[bug]		named could double queries when they resulted in
+			SERVFAIL due to overkilling EDNS0 failure detection.
+			[RT #18182]
+
+2382.	[doc]		Add a description SSHFP to ARM.
+
+2380.	[bug]		dns_view_find() was not returning NXDOMAIN/NXRRSET
+			proofs which, in turn, caused validation failures
+			for insecure zones immediately below a secure zone
+			the server was authoritative for. [RT #18112] 
+
+2379.	[contrib]	queryperf/gen-data-queryperf.py: removed redundant
+			TLDs and supported RRs with TTLs [RT #17972]
+
+2377.	[bug]		Address race condition in dnssec-signzone. [RT #18142]
+
+2376.	[bug]		Change #2144 was not complete.
+
+2375.	[security]	Fully randomize UDP query ports to improve
 			forgery resilience. [RT #17949]
+
+2369.	[bug]		libbind: Array bounds overrun on read in bitncmp().
+			[RT #18054]
+
+2364.	[bug]		named could trigger an assertion when serving a
+			malformed signed zone. [RT #17828]
+
+2363.	[port]		sunos: pre-set "lt_cv_sys_max_cmd_len=4096;".
+			[RT #17513]
+
+2361.	[bug]		"recursion" statistics counter could be counted
+			multiple times for a single query.  [RT #17990]
+
+2358.	[doc]		Update host's default query description. [RT #17934]
+
+2356.	[bug]		Built in mutex profiler was not scalable enough.
+			[RT #17436]
+
+2353.	[func]		libbind: nsid support. [RT #17091]
+
+2350.	[port]		win32: IPv6 support. [RT #17797]
+
+2347.	[bug]		Delete now traverses the RB tree in the canonical
+			order. [RT #17451]
+
+2345.	[bug]		named-checkconf failed to detect when forwarders
+			were set at both the options/view level and in
+			a root zone. [RT #17671]
+
+2344.	[bug]		Improve "logging{ file ...; };" documentation.
+			[RT #17888]
+
+2343.	[bug]		(Seemingly) duplicate IPv6 entries could be
+			created in ADB. [RT #17837]
+
+2341.	[bug]		libbind: add missing -I../include for off source
+			tree builds. [RT #17606]
+
+2340.	[port]		openbsd: interface configuration. [RT #17700]
+
+2335.	[port]		sunos:  libbind and *printf() support for long long.
+			[RT #17513]
+
+2334.	[bug]		Bad REQUIRES in fromstruct_in_naptr(),  off by one
+			bug in fromstruct_txt(). [RT #17609]
+
+2333.	[bug]		Fix off by one error in isc_time_nowplusinterval().
+			[RT #17608]
+
+2332.	[contrib]	query-loc-0.4.0. [RT #17602]
+
+2331.	[bug]		Failure to regenerate any signatures was not being
+			reported nor being past back to the UPDATE client.
+			[RT #17570]
+
+2330.	[bug]		Remove potential race condition when handling
+			over memory events. [RT #17572]
+
+			WARNING: API CHANGE: over memory callback
+			function now needs to call isc_mem_waterack().
+			See <isc/mem.h> for details.
+
+2329.	[bug]		Clearer help text for dig's '-x' and '-i' options.
+
+2325.	[port]		Linux: use capset() function if available. [RT #17557]
 
 	--- 9.3.5 released ---
 
@@ -65,11 +305,11 @@
 2322.	[port]		MacOS: work around the limitation of setrlimit()
 			for RLIMIT_NOFILE. [RT #17526]
 
-2321.   [bug]		Silence Coverity warnings in lib/dns/master.c,
+2321.	[bug]		Silence Coverity warnings in lib/dns/master.c,
 			lib/dns/rbtdb.c, lib/isccfg/namedconf.c,
 			lib/dns/tsig.c and bin/dnssec/dnssec-signzone.c.
 
-2319.	[bug]		Silence Coverity warnings in 
+2319.	[bug]		Silence Coverity warnings in
 			lib/dns/rdata/in_1/apl_42.c. [RT #17469]
 
 2318.	[port]		sunos fixes for libbind.  [RT #17514]
@@ -83,7 +323,7 @@
 2312.	[cleanup]	Silence Coverity warning in lib/isc/unix/socket.c.
 			[RT #17458]
 
-2311.   [func]          Update ACL regression test. [RT #17462]
+2311.	[func]		Update ACL regression test. [RT #17462]
 
 2310.	[bug]		dig, host, nslookup: flush stdout before emitting
 			debug/fatal messages.  [RT #17501]
@@ -106,7 +346,7 @@
 2301.	[bug]		Remove resource leak and fix error messages in
 			bin/tests/system/lwresd/lwtest.c. [RT #17474]
 
-2300.	[bug]		Fixed failure to close open file in 
+2300.	[bug]		Fixed failure to close open file in
 			bin/tests/names/t_names.c. [RT #17473]
 
 2299.	[bug]		Remove unnecessary NULL check in
@@ -129,7 +369,7 @@
 2292.	[bug]		Log if the working directory is not writable.
 			[RT #17312]
 
-2291.   [bug]           PR_SET_DUMPABLE may be set too late.  Also report
+2291.	[bug]		PR_SET_DUMPABLE may be set too late.  Also report
 			failure to set PR_SET_DUMPABLE. [RT #17312]
 
 2290.	[bug]		Let AD in the query signal that the client wants AD
@@ -148,7 +388,7 @@
 			memory context rather than the clients memory
 			context. [RT #17377]
 
-2279.   [bug]           Use setsockopt(SO_NOSIGPIPE), when available,
+2279.	[bug]		Use setsockopt(SO_NOSIGPIPE), when available,
 			to protect applications from receiving spurious
 			SIGPIPE signals when using the resolver.
 
@@ -157,7 +397,7 @@
 
 	--- 9.3.5b1 released ---
 
-2273.	[bug]		Adjust log level to WARNING when saving inconsistant
+2273.	[bug]		Adjust log level to WARNING when saving inconsistent
 			stub/slave master and journal files. [RT# 17279]
 
 2272.	[bug]		Handle illegal dnssec-lookaside trust-anchor names.
@@ -194,10 +434,10 @@
 			reality. Note there is behaviour change for BIND 9.5.
 			[RT #17113]
 
-2249.   [bug]           Only set Authentic Data bit if client requested
+2249.	[bug]		Only set Authentic Data bit if client requested
 			DNSSEC, per RFC 3655 [RT #17175]
 
-2248.   [cleanup]       Fix several errors reported by Coverity. [RT #17160]
+2248.	[cleanup]	Fix several errors reported by Coverity. [RT #17160]
 
 2247.	[doc]		Sort doc/misc/options. [RT #17067]
 
@@ -208,18 +448,18 @@
 			working. [RT #17151]
 
 2238.	[bug]		It was possible to trigger a REQUIRE when a
-			validation was cancelled. [RT #17106]
+			validation was canceled. [RT #17106]
 
 2237.	[bug]		libbind: res_init() was not thread aware. [RT #17123]
 
 2236.	[bug]		dnssec-signzone failed to preserve the case of
 			of wildcard owner names. [RT #17085]
 
-2234.   [port]          Correct some compiler warnings on SCO OSr5 [RT #17134]
-  
+2234.	[port]		Correct some compiler warnings on SCO OSr5 [RT #17134]
+
 2229.	[bug]		Null pointer dereference on query pool creation
- 			failure. [RT #17133]
- 
+			failure. [RT #17133]
+
 2232.	[bug]		dns_adb_findaddrinfo() could fail and return
 			ISC_R_SUCCESS. [RT #17137]
 
@@ -230,10 +470,10 @@
 
 2227.	[cleanup]	Tidied up the FAQ. [RT #17121]
 
-2226.   [bug]           Fix build error.  [RT #17124]
+2226.	[bug]		Fix build error.  [RT #17124]
 
 2225.	[bug]		More support for systems with no IPv4 addresses.
-		        [RT #17111]
+			[RT #17111]
 
 2224.	[bug]		Defer journal compaction if a xfrin is in progress.
 			[RT #17119]
@@ -247,12 +487,12 @@
 
 2220.	[bug]		win32: Address a race condition in final shutdown of
 			the Windows socket code. [RT #17028]
-			
+
 2218.	[bug]		Remove unnecessary REQUIRE from dns_validator_create().
 			[RT #16976]
 
 2216.	[cleanup]	Fix a number of errors reported by Coverity.
-		        [RT #17094]
+			[RT #17094]
 
 2214.	[bug]		Deregister OpenSSL lock callback when cleaning
 			up. [RT #17098]
@@ -297,7 +537,7 @@
 
 2187.	[bug]		query_addds(), query_addwildcardproof() and
 			query_addnxrrsetnsec() should take a version
-			arguement. [RT #16368]
+			argument. [RT #16368]
 
 2186.	[port]		cygwin: libbind: check for struct sockaddr_storage
 			independently of IPv6. [RT #16482]
@@ -324,7 +564,7 @@
 			debug level 10+. [RT #16798]
 
 2176.	[contrib]	dbus update to handle race condition during
-			initialisation (Bugzilla 235809). [RT #16842]
+			initialization (Bugzilla 235809). [RT #16842]
 
 2175.	[bug]		win32: windows broadcast condition variable support
 			was broken. [RT #16592]
@@ -444,7 +684,7 @@
 2111.	[bug]		Fix a number of errors reported by Coverity.
 			[RT #16507]
 
-2110.	[bug]		"minimal-response yes;" interacted badly with BIND 8
+2110.	[bug]		"minimal-responses yes;" interacted badly with BIND 8
 			priming queries. [RT #16491]
 
 2109.	[port]		libbind: silence aix 5.3 compiler warnings. [RT #16502]
@@ -453,7 +693,7 @@
 
 2203.	[security]	Query id generation was cryptographically weak.
 			[RT # 16915]
-	
+
 2193.	[port]		win32: BINDInstall.exe is now linked statically.
 			[RT #16906]
 
@@ -463,7 +703,7 @@
 
 	--- 9.3.4 released ---
 
-2126.	[security]	Serialise validation of type ANY responses. [RT #16555]
+2126.	[security]	Serialize validation of type ANY responses. [RT #16555]
 
 2124.	[security]	It was possible to dereference a freed fetch
 			context. [RT #16584]
@@ -477,14 +717,14 @@
 2103.	[port]		Add /usr/sfw to list of locations for OpenSSL
 			under Solaris.
 
-2102.	[port]		Silence solaris 10 warnings.
+2102.	[port]		Silence Solaris 10 warnings.
 
 2101.	[bug]		OpenSSL version checks were not quite right.
 			[RT #16476]
 
 2100.	[port]		win32: copy libeay32.dll to Build\Debug.
 
-2099.	[port]		win32: more manifiest issues.
+2099.	[port]		win32: more manifest issues.
 
 	--- 9.3.3rc3 released ---
 
@@ -493,12 +733,12 @@
 
 2095.	[port]		libbind: alway prototype inet_cidr_ntop_ipv6() and
 			net_cidr_ntop_ipv6(). [RT #16388]
- 
+
 2094.	[contrib]	Update named-bootconf.  [RT# 16404]
 
 2092.	[bug]		win32: dig, host, nslookup.  Use registry config
 			if resolv.conf does not exist or no nameservers
-			listed. [RT #15877] 
+			listed. [RT #15877]
 
 2091.	[port]		dighost.c: race condition on cleanup. [RT #16417]
 
@@ -588,7 +828,7 @@
 			[RT #16287]
 
 2049.	[bug]		Restore SOA before AXFR when falling back from
-			a attempted IXFR when transfering in a zone.
+			a attempted IXFR when transferring in a zone.
 			Allow a initial SOA query before attempting
 			a AXFR to be requested. [RT #16156]
 
@@ -597,7 +837,7 @@
 			the OS always returned the same local port.
 			[RT #16182]
 
-2047.	[bug]		Failed to initialise the interface flags to zero.
+2047.	[bug]		Failed to initialize the interface flags to zero.
 			[RT #16245]
 
 2043.	[port]		nsupdate/nslookup: Force the flushing of the prompt
@@ -626,7 +866,7 @@
 2029.	[bug]		host printed out the server multiple times when
 			specified on the command line. [RT #15992]
 
-2028.	[port]		linux: socket.c compatability for old systems.
+2028.	[port]		linux: socket.c compatibility for old systems.
 			[RT #16015]
 
 2027.	[port]		libbind: Solaris x86 support. [RT #16020]
@@ -634,7 +874,7 @@
 2026.	[bug]		Rate limit the two recursive client exceeded messages.
 			[RT #16044]
 
-2024.	[bug]		named emited spurious "zone serial unchanged"
+2024.	[bug]		named emitted spurious "zone serial unchanged"
 			messages on reload. [RT #16027]
 
 2023.	[bug]		"make install" should create ${localstatedir}/run and
@@ -647,7 +887,7 @@
 2013.	[bug]		Handle unexpected TSIGs on unsigned AXFR/IXFR
 			responses more gracefully. [RT #15941]
 
-2009.	[bug]		libbind: coverity fixes. [RT #15808]
+2009.	[bug]		libbind: Coverity fixes. [RT #15808]
 
 2005.	[bug]		libbind: Retransmission timeouts should be
 			based on which attempt it is to the nameserver
@@ -679,16 +919,16 @@
 
 1994.	[port]		OpenSSL 0.9.8 support. [RT #15694]
 
-1993.	[bug]		Log messsage, via syslog, were missing the space
+1993.	[bug]		Log messages, via syslog, were missing the space
 			after the timestamp if "print-time yes" was specified.
 			[RT #15844]
 
 1991.	[cleanup]	The configuration data, once read, should be treated
-			as readonly.  Expand the use of const to enforce this
+			as read only.  Expand the use of const to enforce this
 			at compile time. [RT #15813]
 
 1990.	[bug]		libbind:  isc's override of broken gettimeofday()
-			implementions was not always effective.
+			implementations was not always effective.
 			[RT #15709]
 
 1989.	[bug]		win32: don't check the service password when
@@ -703,7 +943,7 @@
 			server for the zone.  Also any zones that contain
 			DLV records should be removed when upgrading a slave
 			zone.  You do not however have to upgrade all
-			servers for a zone with DLV records simultaniously.
+			servers for a zone with DLV records simultaneously.
 
 1982.	[bug]		DNSKEY was being accepted on the parent side of
 			a delegation.  KEY is still accepted there for
@@ -728,7 +968,7 @@
 1974.	[doc]		List each of the zone types and associated zone
 			options separately in the ARM.
 
-1972.	[contrib]	DBUS dynamic forwarders integation from
+1972.	[contrib]	DBUS dynamic forwarders integration from
 			Jason Vas Dias <jvdias@redhat.com>.
 
 1971.	[port]		linux: make detection of missing IF_NAMESIZE more
@@ -745,7 +985,7 @@
 1966.	[bug]		Don't set CD when we have fallen back to plain DNS.
 			[RT #15727]
 
-1963.	[port]		Tru64 4.0E doesn't support send() and recv(). 
+1963.	[port]		Tru64 4.0E doesn't support send() and recv().
 			[RT #15586]
 
 1962.	[bug]		Named failed to clear old update-policy when it
@@ -767,7 +1007,7 @@
 			by native compiler.  See README for additional
 			cross compile support information. [RT #15148]
 
-1955.	[bug]		Pre-allocate the cache cleaning interator. [RT #14998]
+1955.	[bug]		Pre-allocate the cache cleaning iterator. [RT #14998]
 
 1952.	[port]		hpux: tell the linker to build a runtime link
 			path "-Wl,+b:". [RT #14816].
@@ -775,7 +1015,7 @@
 1951.	[security]	Drop queries from particular well known ports.
 			Don't return FORMERR to queries from particular
 			well known ports.  [RT #15636]
-			
+
 1950.	[port]		Solaris 2.5.1 and earlier cannot bind() then connect()
 			a TCP socket. This prevents the source address being
 			set for TCP connections. [RT #15628]
@@ -803,7 +1043,7 @@
 1940.	[bug]		Fixed a number of error conditions reported by
 			Coverity.
 
-1939.	[bug]           The resolver could dereference a null pointer after
+1939.	[bug]		The resolver could dereference a null pointer after
 			validation if all the queries have timed out.
 			[RT #15528]
 
@@ -848,7 +1088,7 @@
 
 1914.	[protocol]	DS is required to accept mnemonic algorithms
 			(RFC 4034).  Still emit numeric algorithms for
-			compatability with RFC 3658. [RT #15354]
+			compatibility with RFC 3658. [RT #15354]
 
 1911.	[bug]		Update windows socket code. [RT #14965]
 
@@ -892,7 +1132,7 @@
 1881.	[func]		Add a system test for named-checkconf. [RT #14931]
 
 1877.	[bug]		Fix unreasonably low quantum on call to
-			dns_rbt_destroy2().  Remove unnecessay unhash_node()
+			dns_rbt_destroy2().  Remove unnecessary unhash_node()
 			call. [RT #14919]
 
 1875.	[bug]		process_dhtkey() was using the wrong memory context
@@ -951,24 +1191,24 @@
 1850.	[bug]		Memory leak in lwres_getipnodebyaddr(). [RT #14591]
 
 1849.	[doc]		All forms of the man pages (docbook, man, html) should
-			have consistant copyright dates.
+			have consistent copyright dates.
 
 1848.	[bug]		Improve SMF integration. [RT #13238]
 
 1847.	[bug]		isc_ondestroy_init() is called too late in
-			dns_rbtdb_create()/dns_rbtdb64_create(). 
+			dns_rbtdb_create()/dns_rbtdb64_create().
 			[RT #13661]
-			
+
 1846.	[contrib]	query-loc-0.3.0 from Stephane Bortzmeyer
 			<bortzmeyer@nic.fr>.
 
-1845.	[bug]		Improve error reporting to distingish between
+1845.	[bug]		Improve error reporting to distinguish between
 			accept()/fcntl() and socket()/fcntl() errors.
 			[RT #13745]
 
 1844.	[bug]		inet_pton() accepted more that 4 hexadecimal digits
 			for each 16 bit piece of the IPv6 address.  The text
-			representation of a IPv6 address has been tighted
+			representation of a IPv6 address has been tightened
 			to disallow this (draft-ietf-ipv6-addr-arch-v4-02.txt).
 			[RT #5662]
 
@@ -1026,7 +1266,7 @@
 
 1822.	[bug]		check-names test for RT was reversed. [RT #13382]
 
-1821.	[doc]		acls definitions are no longer required to be 
+1821.	[doc]		acls definitions are no longer required to be
 			in named.conf prior to reference.  They can be
 			defined after being referenced.
 
@@ -1052,7 +1292,7 @@
 
 1807.	[bug]		When forwarding (forward only) set the active domain
 			from the forward zone name. [RT #13526]
-			
+
 1804.	[bug]		Ensure that if we are queried for glue that it fits
 			in the additional section or TC is set to tell the
 			client to retry using TCP. [RT #10114]
@@ -1165,7 +1405,7 @@
 1765.	[bug]		configure --with-openssl=auto failed. [RT #12937]
 
 1764.	[bug]		dns_zone_replacedb failed to emit a error message
-			if there was no SOA record in the replacment db.
+			if there was no SOA record in the replacement db.
 			[RT #13016]
 
 1762.	[bug]		isc_interfaceiter_create() could return ISC_R_SUCCESS
@@ -1180,7 +1420,7 @@
 1759.	[bug]		Named failed to startup if the OS supported IPv6
 			but had no IPv6 interfaces configured. [RT #12942]
 
-1754.	[bug]		We wern't always attempting to query the parent
+1754.	[bug]		We weren't always attempting to query the parent
 			server for the DS records at the zone cut.
 			[RT #12774]
 
@@ -1199,7 +1439,7 @@
 1749.	[bug]		'check-names response ignore;' failed to ignore.
 			[RT #12866]
 
-1747.	[bug]		BIND 8 compatability: named/named-checkconf failed
+1747.	[bug]		BIND 8 compatibility: named/named-checkconf failed
 			to parse "host-statistics-max" in named.conf.
 
 1745.	[bug]		Dig/host/nslookup accept replies from link locals
@@ -1213,7 +1453,7 @@
 			requested number of worker threads then destruction
 			of the manager would trigger an INSIST() failure.
 			[RT #12790]
-			
+
 1742.	[bug]		Deleting all records at a node then adding a
 			previously existing record, in a single UPDATE
 			transaction, failed to leave / regenerate the
@@ -1224,7 +1464,7 @@
 
 1740.	[bug]		Replace rbt's hash algorithm as it performed badly
 			with certain zones. [RT #12729]
-			
+
 			NOTE: a hash context now needs to be established
 			via isc_hash_create() if the application was not
 			already doing this.
@@ -1239,7 +1479,7 @@
 
 1736.	[bug]		dst_key_fromnamedfile() could fail to read a
 			public key. [RT #12687]
-			
+
 1735.	[bug]		'dig +sigtrace' could die with a REQUIRE failure.
 			[RE #12688]
 
@@ -1277,7 +1517,7 @@
 			[RT #12519]
 
 1721.	[bug]		Error message from the journal processing were not
-			always identifing the relevent journal. [RT #12519]
+			always identifying the relevant journal. [RT #12519]
 
 1720.	[bug]		'dig +chase' did not terminate on a RFC 2308 Type 1
 			negative response. [RT #12506]
@@ -1330,7 +1570,7 @@
 1703.	[bug]		named would loop sending NOTIFY messages when it
 			failed to receive a response. [RT #12322]
 
-1702.	[bug]		also-notify should not be applied to builtin zones.
+1702.	[bug]		also-notify should not be applied to built in zones.
 			[RT #12323]
 
 1701.	[doc]		A minimal named.conf man page.
@@ -1402,7 +1642,7 @@
 
 1675.	[bug]		named would sometimes add extra NSEC records to
 			the authority section.
-			
+
 1674.	[port]		linux: increase buffer size used to scan
 			/proc/net/if_inet6.
 
@@ -1473,7 +1713,7 @@
 
 1648.	[func]		Update dnssec-lookaside named.conf syntax to support
 			multiple dnssec-lookaside namespaces (not yet
-			implemented).  
+			implemented).
 
 1647.	[bug]		It was possible trigger a INSIST when chasing a DS
 			record that required walking back over a empty node.
@@ -1486,7 +1726,7 @@
 			masters with keys are specified.
 
 1644.	[bug]		Update the journal modification time after a
-			sucessfull refresh query. [RT #11436]
+			successful refresh query. [RT #11436]
 
 1643.	[bug]		dns_db_closeversion() could leak memory / node
 			references. [RT #11163]
@@ -1505,11 +1745,11 @@
 
 1638.	[bug]		"ixfr-from-differences" could generate a REQUIRE
 			failure if the journal open failed. [RT #11347]
-			
+
 1637.	[bug]		Node reference leak on error in addnoqname().
 
 1636.	[bug]		The dump done callback could get ISC_R_SUCCESS even if
-			a error had occured.  The database version no longer
+			a error had occurred.  The database version no longer
 			matched the version of the database that was dumped.
 
 1635.	[bug]		Memory leak on error in query_addds().
@@ -1542,7 +1782,7 @@
 1625.	[bug]		named failed to load/transfer RFC2535 signed zones
 			which contained CNAMES. [RT# 11237]
 
-1606.	[bug]	 	DLV insecurity proof was failing.
+1606.	[bug]		DLV insecurity proof was failing.
 
 1605.	[func]		New dns_db_find() option DNS_DBFIND_COVERINGNSEC.
 
@@ -1618,14 +1858,14 @@
 1604.	[bug]		A xfrout_ctx_create() failure would result in
 			xfrout_ctx_destroy() being called with a
 			partially initialized structure.
-			
+
 1603.	[bug]		nsupdate: set interactive based on isatty().
 			[RT# 10929]
 
 1602.	[bug]		Logging to a file failed unless a size was specified.
 			[RT# 10925]
 
-1601.	[bug]		Silence spurious warning 'both "recursion no;" and 
+1601.	[bug]		Silence spurious warning 'both "recursion no;" and
 			"allow-recursion" active' warning from view "_bind".
 			[RT# 10920]
 
@@ -1860,7 +2100,7 @@
 			type, class and responding nameserver.
 
 1511.	[bug]		delegation-only was generating false positives
-			on negative answers from subzones.
+			on negative answers from sub-zones.
 
 1510.	[func]		New view option "root-delegation-only".  Apply
 			delegation-only check to all TLDs and root.
@@ -3568,7 +3808,7 @@
 
  954.	[bug]		When requesting AXFRs or IXFRs using dig, host, or
 			nslookup, the RD bit should not be set as zone
-			transfers are inherently nonrecursive. [RT #1575]
+			transfers are inherently non-recursive. [RT #1575]
 
  953.	[func]		The /var/run/named.key file from change #843
 			has been replaced by /etc/rndc.key.  Both
@@ -3841,7 +4081,7 @@
  860.	[func]		Drop cross class glue in zone transfers.
 
  859.	[bug]		Cache cleaning now won't swamp the CPU if there
-			is a persistent overlimit condition.
+			is a persistent over limit condition.
 
  858.	[func]		isc_mem_setwater() no longer requires that when the
 			callback function is non-NULL then its hi_water
@@ -4017,7 +4257,7 @@
  811.	[bug]		Parentheses were not quoted in zone dumps. [RT #1194]
 
  810.	[bug]		The signer name in SIG records was not properly
-			downcased when signing/verifying records. [RT #1186]
+			down-cased when signing/verifying records. [RT #1186]
 
  809.	[bug]		Configuring a non-local address as a transfer-source
 			could cause an assertion failure during load.
@@ -4029,9 +4269,9 @@
 			ignored like it should be.
 
  806.	[bug]		DNS_R_SEENINCLUDE was failing to propagate back up
-			the calling stack to the zone maintence level, causing
-			zones to not reload when an included file was touched
-			but the top-level zone file was not.
+			the calling stack to the zone maintenance level,
+			causing zones to not reload when an included file was
+			touched but the top-level zone file was not.
 
  805.	[bug]		When using "forward only", missing root hints should
 			not cause queries to fail. [RT #1143]
@@ -4071,7 +4311,7 @@
 			in rndc.conf.
 
  793.	[cleanup]	The DNSSEC tools could create filenames that were
-			illegal or contained shell metacharacters.  They
+			illegal or contained shell meta-characters.  They
 			now use a different text encoding of names that
 			doesn't have these problems. [RT #1101]
 
@@ -4095,7 +4335,7 @@
 			names when mapping them into file names.
 
  786.	[bug]		When DNSSEC signing/verifying data, owner names were
-			not properly downcased.
+			not properly down-cased.
 
  785.	[bug]		A race condition in the resolver could cause
 			an assertion failure. [RT #673, #872, #1048]
@@ -4114,7 +4354,7 @@
 
  780.	[bug]		Error handling code dealing with out of memory or
 			other rare errors could lead to assertion failures
-			by calling functions on unitialized names. [RT #1065]
+			by calling functions on uninitialized names. [RT #1065]
 
  779.	[func]		Added the "minimal-responses" option.
 
@@ -4257,7 +4497,7 @@
  735.	[doc]		Add BIND 4 migration notes.
 
  734.	[bug]		An attempt to re-lock the zone lock could occur if
-			the server was shutdown during a zone tranfer.
+			the server was shutdown during a zone transfer.
 			[RT #830]
 
  733.	[bug]		Reference counts of dns_acl_t objects need to be
@@ -4397,7 +4637,7 @@
  688.	[func]		"make tags" now works on systems with the
 			"Exuberant Ctags" etags.
 
- 687.	[bug]		Only say we have IPv6, with sufficent functionality,
+ 687.	[bug]		Only say we have IPv6, with sufficient functionality,
 			if it has actually been tested. [RT #586]
 
  686.	[bug]		dig and nslookup can now be properly aborted during
@@ -4713,7 +4953,7 @@
 	--- 9.1.0b1 released ---
 
  591.	[bug]		Work around non-reentrancy in openssl by disabling
-			precomputation in keys.
+			pre-computation in keys.
 
  590.	[doc]		There are now man pages for the lwres library in
 			doc/man/lwres.
@@ -4762,7 +5002,7 @@
 			source address for notify messages.
 
  577.	[func]		Log illegal RDATA combinations. e.g. multiple
-			singlton types, cname and other data.
+			singleton types, cname and other data.
 
  576.	[doc]		isc_log_create() description did not match reality.
 
@@ -4773,7 +5013,7 @@
 			have their responses validated and would leak memory.
 
  573.	[bug]		The journal files of IXFRed slave zones were
-			inadvertantly discarded on server reload, causing
+			inadvertently discarded on server reload, causing
 			"journal out of sync with zone" errors on subsequent
 			reloads. [RT #482]
 
@@ -4938,7 +5178,7 @@
 			others).
 
  519.	[bug]		dns_name_split() would improperly split some bitstring
-			labels, zeroing a few of the least signficant bits in
+			labels, zeroing a few of the least significant bits in
 			the prefix part.  When such an improperly created
 			prefix was returned to the RBT database, the bogus
 			label was dutifully stored, corrupting the tree.
@@ -4966,7 +5206,7 @@
  513.	[func]		New functionality added to rdnc and server to allow
 			individual zones to be refreshed or reloaded.
 
- 512.	[bug]		The zone transfer code could throw an execption with
+ 512.	[bug]		The zone transfer code could throw an exception with
 			an invalid IXFR stream.
 
  511.	[bug]		The message code could throw an assertion on an
@@ -5157,7 +5397,7 @@
  452.	[bug]		Warn if the unimplemented option "statistics-file"
 			is specified in named.conf. [RT #301]
 
- 451.	[func]		Update forwarding implememted.
+ 451.	[func]		Update forwarding implemented.
 
  450.	[func]		New function ns_client_sendraw().
 
@@ -5258,7 +5498,7 @@
 			e.g. due to corrupt zones with multiple SOA records.
 			[RT #279]
 
- 423.	[bug]		When responding to a recusive query, errors that occur
+ 423.	[bug]		When responding to a recursive query, errors that occur
 			after following a CNAME should cause the query to fail.
 			[RT #274]
 
@@ -5303,7 +5543,7 @@
 
  409.	[bug]		If named was shut down early in the startup
 			process, ns_omapi_shutdown() would attempt to lock
-			an unintialized mutex. [RT #262]
+			an uninitialized mutex. [RT #262]
 
  408.	[bug]		stub zones could leak memory and reference counts if
 			all the masters were unreachable.
@@ -5370,7 +5610,7 @@
 			making the functions dns_zone_adddbarg()
 			and dns_zone_cleardbargs() unnecessary.
 
- 389.	[bug]		Attempting to send a reqeust over IPv6 using
+ 389.	[bug]		Attempting to send a request over IPv6 using
 			dns_request_create() on a system without IPv6
 			support caused an assertion failure [RT #235].
 
@@ -5427,7 +5667,7 @@
 			of a very large RRset could cause an assertion failure
 			during logging.
 
- 370.	[bug]		The error messages for rollforward failures were
+ 370.	[bug]		The error messages for roll-forward failures were
 			overly terse.
 
  369.	[func]		Support new named.conf options, view and zone
@@ -5569,7 +5809,7 @@
 
  328.	[func]		Added isc_base64_decodestring().
 
- 327.	[bug]		rndc.conf parser wasn't correctly recognising an IP
+ 327.	[bug]		rndc.conf parser wasn't correctly recognizing an IP
 			address where a host specification was required.
 
  326.	[func]		'keys' in an 'inet' control statement is now
@@ -5599,7 +5839,7 @@
 			where they previously didn't.
 
  321.	[bug]		When synthesizing a CNAME RR for a DNAME
-			response, query_addcname() failed to intitialize
+			response, query_addcname() failed to initialize
 			the type and class of the CNAME dns_rdata_t,
 			causing random failures.
 
@@ -5875,7 +6115,7 @@
 
 	--- 9.0.0b4 released ---
 
- 253.	[func]		resolv.conf parser now recognises ';' and '#' as
+ 253.	[func]		resolv.conf parser now recognizes ';' and '#' as
 			comments (anywhere in line, not just as the beginning).
 
  252.	[bug]		resolv.conf parser mishandled masks on sortlists.
@@ -5945,7 +6185,7 @@
 			requiring a quoted string.
 
  233.	[cleanup]	Convert all config structure integer values to unsigned
-			integer (isc_uint32_t) to match grammer.
+			integer (isc_uint32_t) to match grammar.
 
  232.	[bug]		Allow slave zones to not have a file.
 
@@ -5982,7 +6222,7 @@
 			from confparser.c, because of yacc's code, are
 			unfortunately to be expected.)
 
- 223.	[func]		Several functions were reprototyped to qualify one
+ 223.	[func]		Several functions were re-prototyped to qualify one
 			or more of their arguments with "const".  Similarly,
 			several functions that return pointers now have
 			those pointers qualified with const.
@@ -6148,7 +6388,7 @@
  183.	[func]		ISC_LOG_PRINTTAG option for log channels.  Useful
 			for logging the program name or other identifier.
 
- 182.	[cleanup]	New commandline parameters for dnssec tools
+ 182.	[cleanup]	New command-line parameters for dnssec tools
 
  181.	[func]		Added dst_key_buildfilename and dst_key_parsefilename
 
@@ -6193,7 +6433,7 @@
 			--with-mit-pthreads option is no longer needed
 			and has been removed.
 
- 170.	[cleanup]	Remove inter server consistancy checks from zone,
+ 170.	[cleanup]	Remove inter server consistency checks from zone,
 			these should return as a separate module in 9.1.
 			dns_zone_checkservers(), dns_zone_checkparents(),
 			dns_zone_checkchildren(), dns_zone_checkglue().
@@ -6286,7 +6526,7 @@
 			than continuing to itemize every header which changed,
 			this changelog entry just notes that if a header file
 			did not need another header file that it was including
-			in order to provide its advertized functionality, the
+			in order to provide its advertised functionality, the
 			inclusion of the other header file was removed.  See
 			util/check-includes for how this was tested.
 
@@ -6678,7 +6918,7 @@
 
   31.	[bug]		Use ${LIBTOOL} to compile bin/named/main.@O@.
 
-  30.	[func]		config file grammer change to support optional
+  30.	[func]		config file grammar change to support optional
 			class type for a view.
 
   29.	[func]		support new config file view options:
@@ -6742,7 +6982,7 @@
   13.	[bug]		lib/dns/master.c and lib/dns/xfrin.c didn't ignore
 			out-of-zone data.
 
-  12.	[bug]		Fixed possible unitialized variable error.
+  12.	[bug]		Fixed possible uninitialized variable error.
 
   11.	[bug]		axfr_rrstream_first() didn't check the result code of
 			db_rr_iterator_first(), possibly causing an assertion

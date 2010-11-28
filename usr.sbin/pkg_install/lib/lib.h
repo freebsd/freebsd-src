@@ -84,14 +84,14 @@
 #define DISPLAY_FNAME		"+DISPLAY"
 #define MTREE_FNAME		"+MTREE_DIRS"
 
-#if defined(__FreeBSD_version) && __FreeBSD_version >= 800000
+#if defined(__FreeBSD_version) && __FreeBSD_version >= 900000
+#define INDEX_FNAME		"INDEX-9"
+#elif defined(__FreeBSD_version) && __FreeBSD_version >= 800000
 #define INDEX_FNAME		"INDEX-8"
 #elif defined(__FreeBSD_version) && __FreeBSD_version >= 700000
 #define INDEX_FNAME		"INDEX-7"
 #elif defined(__FreeBSD_version) && __FreeBSD_version >= 600000
 #define INDEX_FNAME		"INDEX-6"
-#elif defined(__FreeBSD_version) && __FreeBSD_version >= 500036
-#define INDEX_FNAME		"INDEX-5"
 #else
 #define INDEX_FNAME		"INDEX"
 #endif
@@ -102,10 +102,10 @@
 #define PKG_PREFIX_VNAME	"PKG_PREFIX"
 
 /*
- * Version of the package tools - increase only when some
- * functionality used by bsd.port.mk is changed, added or removed
+ * Version of the package tools - increase whenever you make a change
+ * in the code that is not cosmetic only.
  */
-#define PKG_INSTALL_VERSION	20080612
+#define PKG_INSTALL_VERSION	20090902
 
 #define PKG_WRAPCONF_FNAME	"/var/db/pkg_install.conf"
 #define main(argc, argv)	real_main(argc, argv)
@@ -159,9 +159,9 @@ STAILQ_HEAD(reqr_by_head, reqr_by_entry);
 int		vsystem(const char *, ...);
 char		*vpipe(const char *, ...);
 void		cleanup(int);
-char		*make_playpen(char *, off_t);
+const char	*make_playpen(char *, off_t);
 char		*where_playpen(void);
-void		leave_playpen(void);
+int		leave_playpen(void);
 off_t		min_free(const char *);
 
 /* String */
@@ -183,7 +183,7 @@ Boolean		isfile(const char *);
 Boolean		isempty(const char *);
 Boolean		issymlink(const char *);
 Boolean		isURL(const char *);
-char		*fileGetURL(const char *, const char *, int);
+const char	*fileGetURL(const char *, const char *, int);
 char		*fileFindByPath(const char *, const char *);
 char		*fileGetContents(const char *);
 void		write_file(const char *, const char *);

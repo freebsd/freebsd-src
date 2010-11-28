@@ -3,8 +3,6 @@
 <!DOCTYPE style-sheet PUBLIC "-//James Clark//DTD DSSSL Style Sheet//EN" [
 <!ENTITY % output.html		"IGNORE">
 <!ENTITY % output.print 	"IGNORE">
-<!ENTITY % include.historic	"IGNORE">
-<!ENTITY % no.include.historic	"IGNORE">
 <!ENTITY freebsd.dsl PUBLIC "-//FreeBSD//DOCUMENT DocBook Stylesheet//EN" CDATA DSSSL>
 <!ENTITY % release.ent PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release.ent;
@@ -13,14 +11,6 @@
 <style-sheet>
   <style-specification use="docbook">
     <style-specification-body>
-
-; Configure behavior of this stylesheet
-<![ %include.historic; [
-      (define %include-historic% #t)
-]]>
-<![ %no.include.historic; [
-      (define %include-historic% #f)
-]]>
 
 ; String manipulation functions
 (define (split-string-to-list STR)
@@ -60,13 +50,6 @@
 	 (for-arch (entity-text "arch")))
     (cond
 
-     ; If role=historic, and we're not printing historic things, then
-     ; don't output this element.
-     ((and (equal? role "historic")
-	   (not %include-historic%))
-      (empty-sosofo))
-      
-
      ; If arch= not specified, then print unconditionally.  This clause
      ; handles the majority of cases.
      ((or (equal? arch #f) (equal? arch ""))
@@ -102,13 +85,6 @@
 	 (role (attribute-string (normalize "role")))
 	 (for-arch (entity-text "arch")))
     (cond
-
-     ; If role=historic, and we're not printing historic things, then
-     ; don't output this element.
-     ((and (equal? role "historic")
-	   (not %include-historic%))
-      (empty-sosofo))
-      
 
      ; If arch= not specified, then print unconditionally.  This clause
      ; handles the majority of cases.
@@ -171,7 +147,6 @@
                  (u (string-append "&release.man.url;?query="
                          (data r) "&" "sektion=" (data m))))
             (case v
-              (("xfree86") (string-append u "&" "manpath=XFree86+&release.manpath.xfree86;" ))
               (("xorg")    (string-append u "&" "manpath=Xorg+&release.manpath.xorg;" ))
               (("netbsd")  (string-append u "&" "manpath=NetBSD+&release.manpath.netbsd;"))
               (("ports")   (string-append u "&" "manpath=FreeBSD+&release.manpath.freebsd-ports;"))

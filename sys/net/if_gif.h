@@ -99,6 +99,8 @@ struct etherip_header {
 #define ETHERIP_VER_VERS_MASK   0x0f
 #define ETHERIP_VER_RSVD_MASK   0xf0
 #define ETHERIP_VERSION         0x03
+/* mbuf adjust factor to force 32-bit alignment of IP header */
+#define	ETHERIP_ALIGN		2
 
 /* Prototypes */
 void gif_input(struct mbuf *, int, struct ifnet *);

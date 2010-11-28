@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
@@ -81,6 +82,8 @@ struct umtx_key {
 struct umtx_q {
 	LIST_ENTRY(umtx_q)	uq_next;	/* Linked list for the hash. */
 	struct umtx_key		uq_key;		/* Umtx key. */
+	int			uq_flags;
+#define UQF_UMTXQ	0x0001
 	struct thread		*uq_thread;	/* The thread waits on. */
 	LIST_ENTRY(umtx_q)	uq_rqnext;	/* Linked list for requeuing. */
 	vm_offset_t		uq_addr;	/* Umtx's virtual address. */
@@ -229,9 +232,7 @@ umtxq_insert(struct umtx_q *uq)
 	mtx_assert(umtxq_mtx(chain), MA_OWNED);
 	head = &umtxq_chains[chain].uc_queue;
 	LIST_INSERT_HEAD(head, uq, uq_next);
-	mtx_lock_spin(&sched_lock);
-	uq->uq_thread->td_flags |= TDF_UMTXQ;
-	mtx_unlock_spin(&sched_lock);
+	uq->uq_flags |= UQF_UMTXQ;
 }
 
 /*
@@ -241,12 +242,10 @@ static inline void
 umtxq_remove(struct umtx_q *uq)
 {
 	mtx_assert(umtxq_mtx(umtxq_hash(&uq->uq_key)), MA_OWNED);
-	if (uq->uq_thread->td_flags & TDF_UMTXQ) {
+	if (uq->uq_flags & UQF_UMTXQ) {
 		LIST_REMOVE(uq, uq_next);
-		/* turning off TDF_UMTXQ should be the last thing. */
-		mtx_lock_spin(&sched_lock);
-		uq->uq_thread->td_flags &= ~TDF_UMTXQ;
-		mtx_unlock_spin(&sched_lock);
+		/* turning off UQF_UMTXQ should be the last thing. */
+		uq->uq_flags &= ~UQF_UMTXQ;
 	}
 }
 
@@ -308,7 +307,7 @@ umtxq_sleep(struct thread *td, struct umtx_key *key, int priority,
 static int
 umtx_key_get(struct thread *td, void *umtx, struct umtx_key *key)
 {
-#if defined(UMTX_DYNAMIC_SHARED) || defined(UMTX_STATIC_SHARED)
+#if defined(UMTX_STATIC_SHARED)
 	vm_map_t map;
 	vm_map_entry_t entry;
 	vm_pindex_t pindex;
@@ -321,20 +320,7 @@ umtx_key_get(struct thread *td, void *umtx, struct umtx_key *key)
 	    &wired) != KERN_SUCCESS) {
 		return EFAULT;
 	}
-#endif
 
-#if defined(UMTX_DYNAMIC_SHARED)
-	key->type = UMTX_SHARED;
-	key->info.shared.offset = entry->offset + entry->start - 
-		(vm_offset_t)umtx;
-	/*
-	 * Add object reference, if we don't do this, a buggy application
-	 * deallocates the object, the object will be reused by other
-	 * applications, then unlock will wake wrong thread.
-	 */
-	vm_object_reference(key->info.shared.object);
-	vm_map_lookup_done(map, entry);
-#elif defined(UMTX_STATIC_SHARED)
 	if (VM_INHERIT_SHARE == entry->inheritance) {
 		key->type = UMTX_SHARED;
 		key->info.shared.offset = entry->offset + entry->start -
@@ -379,74 +365,6 @@ umtxq_queue_me(struct thread *td, void *umtx, struct umtx_q *uq)
 	umtxq_unlock(&uq->uq_key);
 	return (0);
 }
-
-#if defined(UMTX_DYNAMIC_SHARED)
-static void
-fork_handler(void *arg, struct proc *p1, struct proc *p2, int flags)
-{
-	vm_map_t map;
-	vm_map_entry_t entry;
-	vm_object_t object;
-	vm_pindex_t pindex;
-	vm_prot_t prot;
-	boolean_t wired;
-	struct umtx_key key;
-	LIST_HEAD(, umtx_q) workq;
-	struct umtx_q *uq;
-	struct thread *td;
-	int onq;
-
-	LIST_INIT(&workq);
-
-	/* Collect threads waiting on umtxq */
-	PROC_LOCK(p1);
-	FOREACH_THREAD_IN_PROC(p1, td) {
-		if (td->td_flags & TDF_UMTXQ) {
-			uq = td->td_umtxq;
-			if (uq)
-				LIST_INSERT_HEAD(&workq, uq, uq_rqnext);
-		}
-	}
-	PROC_UNLOCK(p1);
-
-	LIST_FOREACH(uq, &workq, uq_rqnext) {
-		map = &p1->p_vmspace->vm_map;
-		if (vm_map_lookup(&map, uq->uq_addr, VM_PROT_WRITE,
-		    &entry, &object, &pindex, &prot, &wired) != KERN_SUCCESS) {
-			continue;
-		}
-		key.type = UMTX_SHARED;
-		key.info.shared.object = object;
-		key.info.shared.offset = entry->offset + entry->start -
-			uq->uq_addr;
-		if (umtx_key_match(&key, &uq->uq_key)) {
-			vm_map_lookup_done(map, entry);
-			continue;
-		}
-		
-		umtxq_lock(&uq->uq_key);
-		umtxq_busy(&uq->uq_key);
-		if (uq->uq_thread->td_flags & TDF_UMTXQ) {
-			umtxq_remove(uq);
-			onq = 1;
-		} else
-			onq = 0;
-		umtxq_unbusy(&uq->uq_key);
-		umtxq_unlock(&uq->uq_key);
-		if (onq) {
-			vm_object_deallocate(uq->uq_key.info.shared.object);
-			uq->uq_key = key;
-			umtxq_lock(&uq->uq_key);
-			umtxq_busy(&uq->uq_key);
-			umtxq_insert(uq);
-			umtxq_unbusy(&uq->uq_key);
-			umtxq_unlock(&uq->uq_key);
-			vm_object_reference(uq->uq_key.info.shared.object);
-		}
-		vm_map_lookup_done(map, entry);
-	}
-}
-#endif
 
 static int
 _do_lock(struct thread *td, struct umtx *umtx, long id, int timo)
@@ -526,7 +444,7 @@ _do_lock(struct thread *td, struct umtx *umtx, long id, int timo)
 		 * unlocking the umtx.
 		 */
 		umtxq_lock(&uq->uq_key);
-		if (old == owner && (td->td_flags & TDF_UMTXQ)) {
+		if (old == owner && (uq->uq_flags & UQF_UMTXQ)) {
 			error = umtxq_sleep(td, &uq->uq_key, PCATCH,
 				       "umtx", timo);
 		}
@@ -705,7 +623,7 @@ _do_lock32(struct thread *td, uint32_t *m, uint32_t id, int timo)
 		 * unlocking the umtx.
 		 */
 		umtxq_lock(&uq->uq_key);
-		if (old == owner && (td->td_flags & TDF_UMTXQ)) {
+		if (old == owner && (uq->uq_flags & UQF_UMTXQ)) {
 			error = umtxq_sleep(td, &uq->uq_key, PCATCH,
 				       "umtx", timo);
 		}
@@ -825,35 +743,22 @@ do_wait(struct thread *td, struct umtx *umtx, long id, struct timespec *timeout,
 		tmp = fuword(&umtx->u_owner);
 	else
 		tmp = fuword32(&umtx->u_owner);
+	umtxq_lock(&uq->uq_key);
 	if (tmp != id) {
-		umtxq_lock(&uq->uq_key);
 		umtxq_remove(uq);
-		umtxq_unlock(&uq->uq_key);
 	} else if (timeout == NULL) {
-		umtxq_lock(&uq->uq_key);
-		if (td->td_flags & TDF_UMTXQ)
+		if (uq->uq_flags & UQF_UMTXQ)
 			error = umtxq_sleep(td, &uq->uq_key,
 			    PCATCH, "ucond", 0);
-		if (!(td->td_flags & TDF_UMTXQ))
-			error = 0;
-		else
-			umtxq_remove(uq);
-		umtxq_unlock(&uq->uq_key);
 	} else {
 		getnanouptime(&ts);
 		timespecadd(&ts, timeout);
 		TIMESPEC_TO_TIMEVAL(&tv, timeout);
 		for (;;) {
-			umtxq_lock(&uq->uq_key);
-			if (td->td_flags & TDF_UMTXQ) {
+			if (uq->uq_flags & UQF_UMTXQ) {
 				error = umtxq_sleep(td, &uq->uq_key, PCATCH,
-					    "ucond", tvtohz(&tv));
+					    "ucondt", tvtohz(&tv));
 			}
-			if (!(td->td_flags & TDF_UMTXQ)) {
-				umtxq_unlock(&uq->uq_key);
-				goto out;
-			}
-			umtxq_unlock(&uq->uq_key);
 			if (error != ETIMEDOUT)
 				break;
 			getnanouptime(&ts2);
@@ -865,14 +770,28 @@ do_wait(struct thread *td, struct umtx *umtx, long id, struct timespec *timeout,
 			timespecsub(&ts3, &ts2);
 			TIMESPEC_TO_TIMEVAL(&tv, &ts3);
 		}
-		umtxq_lock(&uq->uq_key);
-		umtxq_remove(uq);
-		umtxq_unlock(&uq->uq_key);
 	}
-out:
+	if (error != 0) {
+		if ((uq->uq_flags & UQF_UMTXQ) == 0) {
+			/*
+			 * If we concurrently got do_cv_signal()d
+			 * and we got an error or UNIX signals or a timeout,
+			 * then, perform another umtxq_signal to avoid
+			 * consuming the wakeup. This may cause supurious
+			 * wakeup for another thread which was just queued,
+			 * but SUSV3 explicitly allows supurious wakeup to
+			 * occur, and indeed a kernel based implementation
+			 * can not avoid it.
+			 */
+			if (!umtxq_signal(&uq->uq_key, 1))
+				error = 0;
+		}
+		if (error == ERESTART)
+			error = EINTR;
+	}
+	umtxq_remove(uq);
+	umtxq_unlock(&uq->uq_key);
 	umtx_key_release(&uq->uq_key);
-	if (error == ERESTART)
-		error = EINTR;
 	return (error);
 }
 

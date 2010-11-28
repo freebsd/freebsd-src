@@ -134,17 +134,18 @@ aac_printstate0(void)
 	aac_print_queues(sc);
 	switch (sc->aac_hwif) {
 	case AAC_HWIF_I960RX:
+	case AAC_HWIF_NARK:
 		device_printf(sc->aac_dev, "IDBR 0x%08x  IIMR 0x%08x  "
-		    "IISR 0x%08x\n", AAC_GETREG4(sc, AAC_RX_IDBR),
-		    AAC_GETREG4(sc, AAC_RX_IIMR), AAC_GETREG4(sc, AAC_RX_IISR));
+		    "IISR 0x%08x\n", AAC_MEM0_GETREG4(sc, AAC_RX_IDBR),
+		    AAC_MEM0_GETREG4(sc, AAC_RX_IIMR), AAC_MEM0_GETREG4(sc, AAC_RX_IISR));
 		device_printf(sc->aac_dev, "ODBR 0x%08x  OIMR 0x%08x  "
-		    "OISR 0x%08x\n", AAC_GETREG4(sc, AAC_RX_ODBR),
-		    AAC_GETREG4(sc, AAC_RX_OIMR), AAC_GETREG4(sc, AAC_RX_OISR));
-		AAC_SETREG4(sc, AAC_RX_OIMR, 0/*~(AAC_DB_COMMAND_READY |
+		    "OISR 0x%08x\n", AAC_MEM0_GETREG4(sc, AAC_RX_ODBR),
+		    AAC_MEM0_GETREG4(sc, AAC_RX_OIMR), AAC_MEM0_GETREG4(sc, AAC_RX_OISR));
+		AAC_MEM0_SETREG4(sc, AAC_RX_OIMR, 0/*~(AAC_DB_COMMAND_READY |
 			    AAC_DB_RESPONSE_READY | AAC_DB_PRINTF)*/);
 		device_printf(sc->aac_dev, "ODBR 0x%08x  OIMR 0x%08x  "
-		    "OISR 0x%08x\n", AAC_GETREG4(sc, AAC_RX_ODBR),
-		    AAC_GETREG4(sc, AAC_RX_OIMR), AAC_GETREG4(sc, AAC_RX_OISR));
+		    "OISR 0x%08x\n", AAC_MEM0_GETREG4(sc, AAC_RX_ODBR),
+		    AAC_MEM0_GETREG4(sc, AAC_RX_OIMR), AAC_MEM0_GETREG4(sc, AAC_RX_OISR));
 		break;
 	case AAC_HWIF_STRONGARM:
 		/* XXX implement */

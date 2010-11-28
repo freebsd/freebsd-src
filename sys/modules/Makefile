@@ -179,6 +179,7 @@ SUBDIR=	${_3dfx} \
 	${_ncv} \
 	${_ndis} \
 	netgraph \
+	${_nfe} \
 	nfsclient \
 	nfslockd \
 	nfsserver \
@@ -198,7 +199,6 @@ SUBDIR=	${_3dfx} \
 	${_pccard} \
 	${_pcfclock} \
 	pcn \
-	${_pecoff} \
 	${_pf} \
 	${_pflog} \
 	plip \
@@ -385,7 +385,6 @@ _nwfs=		nwfs
 _oltr=		oltr
 _pccard=	pccard
 _pcfclock=	pcfclock
-_pecoff=	pecoff
 _pst=		pst
 _puc=		puc
 _ray=		ray
@@ -433,6 +432,7 @@ _iwi=		iwi
 _ixgb=  	ixgb
 _mly=		mly
 _mxge=		mxge
+_nfe=		nfe
 _nve=		nve
 .if !defined(NO_CRYPT) || defined(ALL_MODULES)
 .if exists(${.CURDIR}/../crypto/via)
@@ -491,6 +491,7 @@ _ixgb=  	ixgb
 _mly=		mly
 _mxge=		mxge
 _ndis=		ndis
+_nfe=		nfe
 _nve=		nve
 _nvram=		nvram
 _ppc=		ppc
@@ -507,7 +508,7 @@ _twa=		twa
 .if ${MACHINE_ARCH} == "ia64"
 # Modules not enabled on ia64 (as compared to i386) include:
 #	aac acpi aout apm atspeaker drm ibcs2 linprocfs linux ncv
-#	nsp oltr pecoff s3 sbni stg vesa
+#	nsp oltr s3 sbni stg vesa
 # acpi is not enabled because it is broken as a module on ia64
 _aic=		aic
 #_ar=		ar	not 64-bit clean

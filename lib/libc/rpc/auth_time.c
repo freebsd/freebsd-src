@@ -156,6 +156,7 @@ get_server(sin, host, srv, eps, maxep)
 	struct hostent		*he;
 	struct hostent		dummy;
 	char			*ptr[2];
+	endpoint		*ep;
 
 	if (host == NULL && sin == NULL)
 		return (NULL);
@@ -175,26 +176,34 @@ get_server(sin, host, srv, eps, maxep)
 	 * This is lame. We go around once for TCP, then again
 	 * for UDP.
 	 */
-	for (i = 0; (he->h_addr_list[i] != NULL) && (num_ep < maxep);
-						i++, num_ep++) {
+	for (i = 0, ep = eps; (he->h_addr_list[i] != NULL) && (num_ep < maxep);
+	    i++, ep++, num_ep++) {
 		struct in_addr *a;
 
 		a = (struct in_addr *)he->h_addr_list[i];
 		snprintf(hname, sizeof(hname), "%s.0.111", inet_ntoa(*a));
-		eps[num_ep].uaddr = strdup(hname);
-		eps[num_ep].family = strdup("inet");
-		eps[num_ep].proto =  strdup("tcp");
+		ep->uaddr = strdup(hname);
+		ep->family = strdup("inet");
+		ep->proto =  strdup("tcp");
+		if (ep->uaddr == NULL || ep->family == NULL || ep->proto == NULL) {
+			free_eps(eps, num_ep + 1);
+			return (NULL);
+		}
 	}
 
 	for (i = 0; (he->h_addr_list[i] != NULL) && (num_ep < maxep);
-						i++, num_ep++) {
+	    i++, ep++, num_ep++) {
 		struct in_addr *a;
 
 		a = (struct in_addr *)he->h_addr_list[i];
 		snprintf(hname, sizeof(hname), "%s.0.111", inet_ntoa(*a));
-		eps[num_ep].uaddr = strdup(hname);
-		eps[num_ep].family = strdup("inet");
-		eps[num_ep].proto =  strdup("udp");
+		ep->uaddr = strdup(hname);
+		ep->family = strdup("inet");
+		ep->proto =  strdup("udp");
+		if (ep->uaddr == NULL || ep->family == NULL || ep->proto == NULL) {
+			free_eps(eps, num_ep + 1);
+			return (NULL);
+		}
 	}
 
 	srv->name = (nis_name) host;

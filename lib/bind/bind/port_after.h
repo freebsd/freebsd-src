@@ -24,6 +24,10 @@
 #undef NEED_DAEMON
 #undef NEED_STRSEP
 #undef NEED_STRERROR
+#ifdef NEED_STRERROR
+const char *isc_strerror(int);
+#define strerror isc_strerror
+#endif
 #define HAS_INET6_STRUCTS 1
 #define HAVE_SIN6_SCOPE_ID 1
 #undef NEED_IN6ADDR_ANY
@@ -32,7 +36,6 @@
 #undef NEED_GETTIMEOFDAY
 #undef HAVE_STRNDUP
 #undef USE_FIONBIO_IOCTL
-#undef USE_SYSERROR_LIST
 #undef INNETGR_ARGS
 #undef SETNETGRENT_ARGS
 #define USE_IFNAMELINKID 1
@@ -421,4 +424,80 @@ setnetgrent_r(const char *netgroup, NGR_R_ENT_ARGS);
 NGR_R_SET_RETURN
 setnetgrent_r(const char *netgroup);
 #endif
+
+#ifdef NEED_STRTOUL
+unsigned long strtoul(const char *, char **, int);
+#endif
+
+#ifdef NEED_SUN4PROTOS
+#include <stdarg.h>
+#ifndef __SIZE_TYPE__
+#define __SIZE_TYPE__ int
+#endif
+struct sockaddr;
+struct iovec;
+struct timeval;
+struct timezone;
+int fprintf(FILE *, const char *, ...);
+int getsockname(int, struct sockaddr *, int *);
+int getpeername(int, struct sockaddr *, int *);
+int socket(int, int, int);
+int connect(int, const struct sockaddr *, int);
+int writev(int, struct iovec *, int);
+int readv(int, struct iovec *, int);
+int send(int, const char *, int, int);
+void bzero(char *, int);
+int recvfrom(int, char *, int, int, struct sockaddr *, int *);
+int syslog(int, const char *, ... );
+int printf(const char *, ...);
+__SIZE_TYPE__ fread(void *, __SIZE_TYPE__, __SIZE_TYPE__, FILE *);
+__SIZE_TYPE__ fwrite(const void *, __SIZE_TYPE__, __SIZE_TYPE__, FILE *);
+int fclose(FILE *);
+int ungetc(int, FILE *);
+int scanf(const char *, ...);
+int sscanf(const char *, const char *, ... );
+int tolower(int);
+int toupper(int);
+int strcasecmp(const char *, const char *);
+int strncasecmp(const char *, const char *, int);
+int select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
+#ifdef gettimeofday
+#undef gettimeofday
+int gettimeofday(struct timeval *, struct timezone *);
+#define gettimeofday isc__gettimeofday
+#else
+int gettimeofday(struct timeval *, struct timezone *);
+#endif
+long strtol(const char*, char **, int);
+int fseek(FILE *, long, int);
+int setsockopt(int, int, int, const char *, int);
+int bind(int, const struct sockaddr *, int);
+void bcopy(char *, char *, int);
+int fputc(char, FILE *);
+int listen(int, int);
+int accept(int, struct sockaddr *, int *);
+int getsockopt(int, int, int, char *, int *);
+int vfprintf(FILE *, const char *, va_list);
+int fflush(FILE *);
+int fgetc(FILE *);
+int fputs(const char *, FILE *);
+int fchown(int, int, int);
+void setbuf(FILE *, char *);
+int gethostname(char *, int);
+int rename(const char *, const char *);
+time_t time(time_t *);
+int fscanf(FILE *, const char *, ...);
+int sscanf(const char *, const char *, ...);
+int ioctl(int, int, caddr_t);
+void perror(const char *);
+
+#if !defined(__USE_FIXED_PROTOTYPES__) && !defined(__cplusplus) && !defined(__STRICT_ANSI__)
+/*
+ * 'gcc -ansi' changes the prototype for vsprintf().
+ * Use this prototype when 'gcc -ansi' is not in effect.
+ */
+char *vsprintf(char *, const char *, va_list);
+#endif
+#endif 
+
 #endif

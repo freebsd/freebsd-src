@@ -1500,7 +1500,7 @@ ata_cyrix_setmode(device_t dev, int mode)
     int error;
 
     ch->dma->alignment = 16;
-    ch->dma->max_iosize = 126 * DEV_BSIZE;
+    ch->dma->max_iosize = 64 * DEV_BSIZE;
 
     mode = ata_limit_mode(dev, mode, ATA_UDMA2);
 
@@ -1762,58 +1762,58 @@ ata_intel_ident(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     static struct ata_chip_id ids[] =
-    {{ ATA_I82371FB,     0,    0, 0x00, ATA_WDMA2, "PIIX" },
-     { ATA_I82371SB,     0,    0, 0x00, ATA_WDMA2, "PIIX3" },
-     { ATA_I82371AB,     0,    0, 0x00, ATA_UDMA2, "PIIX4" },
-     { ATA_I82443MX,     0,    0, 0x00, ATA_UDMA2, "PIIX4" },
-     { ATA_I82451NX,     0,    0, 0x00, ATA_UDMA2, "PIIX4" },
-     { ATA_I82801AB,     0,    0, 0x00, ATA_UDMA2, "ICH0" },
-     { ATA_I82801AA,     0,    0, 0x00, ATA_UDMA4, "ICH" },
-     { ATA_I82372FB,     0,    0, 0x00, ATA_UDMA4, "ICH" },
-     { ATA_I82801BA,     0,    0, 0x00, ATA_UDMA5, "ICH2" },
-     { ATA_I82801BA_1,   0,    0, 0x00, ATA_UDMA5, "ICH2" },
-     { ATA_I82801CA,     0,    0, 0x00, ATA_UDMA5, "ICH3" },
-     { ATA_I82801CA_1,   0,    0, 0x00, ATA_UDMA5, "ICH3" },
-     { ATA_I82801DB,     0,    0, 0x00, ATA_UDMA5, "ICH4" },
-     { ATA_I82801DB_1,   0,    0, 0x00, ATA_UDMA5, "ICH4" },
-     { ATA_I82801EB,     0,    0, 0x00, ATA_UDMA5, "ICH5" },
-     { ATA_I82801EB_S1,  0,    0, 0x00, ATA_SA150, "ICH5" },
-     { ATA_I82801EB_R1,  0,    0, 0x00, ATA_SA150, "ICH5" },
-     { ATA_I6300ESB,     0,    0, 0x00, ATA_UDMA5, "6300ESB" },
-     { ATA_I6300ESB_S1,  0,    0, 0x00, ATA_SA150, "6300ESB" },
-     { ATA_I6300ESB_R1,  0,    0, 0x00, ATA_SA150, "6300ESB" },
-     { ATA_I82801FB,     0,    0, 0x00, ATA_UDMA5, "ICH6" },
-     { ATA_I82801FB_S1,  0, AHCI, 0x00, ATA_SA150, "ICH6" },
-     { ATA_I82801FB_R1,  0, AHCI, 0x00, ATA_SA150, "ICH6" },
-     { ATA_I82801FBM,    0, AHCI, 0x00, ATA_SA150, "ICH6M" },
-     { ATA_I82801GB,     0,    0, 0x00, ATA_UDMA5, "ICH7" },
-     { ATA_I82801GB_S1,  0, AHCI, 0x00, ATA_SA300, "ICH7" },
-     { ATA_I82801GB_R1,  0, AHCI, 0x00, ATA_SA300, "ICH7" },
-     { ATA_I82801GB_AH,  0, AHCI, 0x00, ATA_SA300, "ICH7" },
-     { ATA_I82801GBM_S1, 0, AHCI, 0x00, ATA_SA300, "ICH7M" },
-     { ATA_I82801GBM_R1, 0, AHCI, 0x00, ATA_SA300, "ICH7M" },
-     { ATA_I82801GBM_AH, 0, AHCI, 0x00, ATA_SA300, "ICH7M" },
-     { ATA_I63XXESB2,    0,    0, 0x00, ATA_UDMA5, "63XXESB2" },
-     { ATA_I63XXESB2_S1, 0, AHCI, 0x00, ATA_SA300, "63XXESB2" },
-     { ATA_I63XXESB2_S2, 0, AHCI, 0x00, ATA_SA300, "63XXESB2" },
-     { ATA_I63XXESB2_R1, 0, AHCI, 0x00, ATA_SA300, "63XXESB2" },
-     { ATA_I63XXESB2_R2, 0, AHCI, 0x00, ATA_SA300, "63XXESB2" },
-     { ATA_I82801HB_S1,  0, AHCI, 0x00, ATA_SA300, "ICH8" },
-     { ATA_I82801HB_S2,  0, AHCI, 0x00, ATA_SA300, "ICH8" },
-     { ATA_I82801HB_R1,  0, AHCI, 0x00, ATA_SA300, "ICH8" },
-     { ATA_I82801HB_AH4, 0, AHCI, 0x00, ATA_SA300, "ICH8" },
-     { ATA_I82801HB_AH6, 0, AHCI, 0x00, ATA_SA300, "ICH8" },
-     { ATA_I82801HBM,    0,    0, 0x00, ATA_UDMA5, "ICH8M" },
-     { ATA_I82801HBM_S1, 0,    0, 0x00, ATA_SA150, "ICH8M" },
-     { ATA_I82801HBM_S2, 0, AHCI, 0x00, ATA_SA300, "ICH8M" },
-     { ATA_I82801HBM_S3, 0, AHCI, 0x00, ATA_SA300, "ICH8M" },
-     { ATA_I82801IB_S1,  0, AHCI, 0x00, ATA_SA300, "ICH9" },
-     { ATA_I82801IB_S2,  0, AHCI, 0x00, ATA_SA300, "ICH9" },
-     { ATA_I82801IB_AH2, 0, AHCI, 0x00, ATA_SA300, "ICH9" },
-     { ATA_I82801IB_AH4, 0, AHCI, 0x00, ATA_SA300, "ICH9" },
-     { ATA_I82801IB_AH6, 0, AHCI, 0x00, ATA_SA300, "ICH9" },
-     { ATA_I82801IB_R1,  0, AHCI, 0x00, ATA_SA300, "ICH9" },
-     { ATA_I31244,       0,    0, 0x00, ATA_SA150, "31244" },
+    {{ ATA_I82371FB,     0,    0, 2, ATA_WDMA2, "PIIX" },
+     { ATA_I82371SB,     0,    0, 2, ATA_WDMA2, "PIIX3" },
+     { ATA_I82371AB,     0,    0, 2, ATA_UDMA2, "PIIX4" },
+     { ATA_I82443MX,     0,    0, 2, ATA_UDMA2, "PIIX4" },
+     { ATA_I82451NX,     0,    0, 2, ATA_UDMA2, "PIIX4" },
+     { ATA_I82801AB,     0,    0, 2, ATA_UDMA2, "ICH0" },
+     { ATA_I82801AA,     0,    0, 2, ATA_UDMA4, "ICH" },
+     { ATA_I82372FB,     0,    0, 2, ATA_UDMA4, "ICH" },
+     { ATA_I82801BA,     0,    0, 2, ATA_UDMA5, "ICH2" },
+     { ATA_I82801BA_1,   0,    0, 2, ATA_UDMA5, "ICH2" },
+     { ATA_I82801CA,     0,    0, 2, ATA_UDMA5, "ICH3" },
+     { ATA_I82801CA_1,   0,    0, 2, ATA_UDMA5, "ICH3" },
+     { ATA_I82801DB,     0,    0, 2, ATA_UDMA5, "ICH4" },
+     { ATA_I82801DB_1,   0,    0, 2, ATA_UDMA5, "ICH4" },
+     { ATA_I82801EB,     0,    0, 2, ATA_UDMA5, "ICH5" },
+     { ATA_I82801EB_S1,  0,    0, 2, ATA_SA150, "ICH5" },
+     { ATA_I82801EB_R1,  0,    0, 2, ATA_SA150, "ICH5" },
+     { ATA_I6300ESB,     0,    0, 2, ATA_UDMA5, "6300ESB" },
+     { ATA_I6300ESB_S1,  0,    0, 2, ATA_SA150, "6300ESB" },
+     { ATA_I6300ESB_R1,  0,    0, 2, ATA_SA150, "6300ESB" },
+     { ATA_I82801FB,     0,    0, 2, ATA_UDMA5, "ICH6" },
+     { ATA_I82801FB_S1,  0, AHCI, 0, ATA_SA150, "ICH6" },
+     { ATA_I82801FB_R1,  0, AHCI, 0, ATA_SA150, "ICH6" },
+     { ATA_I82801FBM,    0, AHCI, 0, ATA_SA150, "ICH6M" },
+     { ATA_I82801GB,     0,    0, 1, ATA_UDMA5, "ICH7" },
+     { ATA_I82801GB_S1,  0, AHCI, 0, ATA_SA300, "ICH7" },
+     { ATA_I82801GB_R1,  0, AHCI, 0, ATA_SA300, "ICH7" },
+     { ATA_I82801GB_AH,  0, AHCI, 0, ATA_SA300, "ICH7" },
+     { ATA_I82801GBM_S1, 0, AHCI, 0, ATA_SA300, "ICH7M" },
+     { ATA_I82801GBM_R1, 0, AHCI, 0, ATA_SA300, "ICH7M" },
+     { ATA_I82801GBM_AH, 0, AHCI, 0, ATA_SA300, "ICH7M" },
+     { ATA_I63XXESB2,    0,    0, 1, ATA_UDMA5, "63XXESB2" },
+     { ATA_I63XXESB2_S1, 0, AHCI, 0, ATA_SA300, "63XXESB2" },
+     { ATA_I63XXESB2_S2, 0, AHCI, 0, ATA_SA300, "63XXESB2" },
+     { ATA_I63XXESB2_R1, 0, AHCI, 0, ATA_SA300, "63XXESB2" },
+     { ATA_I63XXESB2_R2, 0, AHCI, 0, ATA_SA300, "63XXESB2" },
+     { ATA_I82801HB_S1,  0, AHCI, 0, ATA_SA300, "ICH8" },
+     { ATA_I82801HB_S2,  0, AHCI, 0, ATA_SA300, "ICH8" },
+     { ATA_I82801HB_R1,  0, AHCI, 0, ATA_SA300, "ICH8" },
+     { ATA_I82801HB_AH4, 0, AHCI, 0, ATA_SA300, "ICH8" },
+     { ATA_I82801HB_AH6, 0, AHCI, 0, ATA_SA300, "ICH8" },
+     { ATA_I82801HBM,    0,    0, 1, ATA_UDMA5, "ICH8M" },
+     { ATA_I82801HBM_S1, 0,    0, 0, ATA_SA150, "ICH8M" },
+     { ATA_I82801HBM_S2, 0, AHCI, 0, ATA_SA300, "ICH8M" },
+     { ATA_I82801HBM_S3, 0, AHCI, 0, ATA_SA300, "ICH8M" },
+     { ATA_I82801IB_S1,  0, AHCI, 0, ATA_SA300, "ICH9" },
+     { ATA_I82801IB_S2,  0, AHCI, 0, ATA_SA300, "ICH9" },
+     { ATA_I82801IB_AH2, 0, AHCI, 0, ATA_SA300, "ICH9" },
+     { ATA_I82801IB_AH4, 0, AHCI, 0, ATA_SA300, "ICH9" },
+     { ATA_I82801IB_AH6, 0, AHCI, 0, ATA_SA300, "ICH9" },
+     { ATA_I82801IB_R1,  0, AHCI, 0, ATA_SA300, "ICH9" },
+     { ATA_I31244,       0,    0, 2, ATA_SA150, "31244" },
      { 0, 0, 0, 0, 0, 0}};
 
     if (!(ctlr->chip = ata_match_chip(dev, ids)))
@@ -1855,6 +1855,7 @@ ata_intel_chipinit(device_t dev)
 
     /* non SATA intel chips goes here */
     else if (ctlr->chip->max_dma < ATA_SA150) {
+	ctlr->channels = ctlr->chip->cfg2;
 	ctlr->allocate = ata_intel_allocate;
 	ctlr->setmode = ata_intel_new_setmode;
     }
@@ -2578,6 +2579,8 @@ ata_marvell_edma_allocate(device_t dev)
 
     /* clear work area */
     bzero(ch->dma->work, 1024+256);
+    bus_dmamap_sync(ch->dma->work_tag, ch->dma->work_map,
+	BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
     /* set legacy ATA resources */
     for (i = ATA_DATA; i <= ATA_COMMAND; i++) {
@@ -2687,8 +2690,6 @@ ata_marvell_edma_begin_transaction(struct ata_request *request)
     struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
     u_int32_t req_in;
     u_int8_t *bytep;
-    u_int16_t *wordp;
-    u_int32_t *quadp;
     int i, tag = 0x07;
     int dummy, error, slot;
 
@@ -2719,13 +2720,14 @@ ata_marvell_edma_begin_transaction(struct ata_request *request)
     slot = (((req_in & ~0xfffffc00) >> 5) + 0) & 0x1f;
     bytep = (u_int8_t *)(ch->dma->work);
     bytep += (slot << 5);
-    wordp = (u_int16_t *)bytep;
-    quadp = (u_int32_t *)bytep;
 
     /* fill in this request */
-    quadp[0] = (long)ch->dma->sg_bus & 0xffffffff;
-    quadp[1] = (u_int64_t)ch->dma->sg_bus >> 32;
-    wordp[4] = (request->flags & ATA_R_READ ? 0x01 : 0x00) | (tag<<1);
+    le32enc(bytep + 0 * sizeof(u_int32_t),
+	ch->dma->sg_bus & 0xffffffff);
+    le32enc(bytep + 1 * sizeof(u_int32_t),
+	(u_int64_t)ch->dma->sg_bus >> 32);
+    le16enc(bytep + 4 * sizeof(u_int16_t),
+	(request->flags & ATA_R_READ ? 0x01 : 0x00) | (tag << 1));
 
     i = 10;
     bytep[i++] = (request->u.ata.count >> 8) & 0xff;
@@ -2753,6 +2755,9 @@ ata_marvell_edma_begin_transaction(struct ata_request *request)
 
     bytep[i++] = request->u.ata.command;
     bytep[i++] = 0x90 | ATA_COMMAND;
+
+    bus_dmamap_sync(ch->dma->work_tag, ch->dma->work_map,
+	BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
     /* enable EDMA machinery if needed */
     if (!(ATA_INL(ctlr->r_res1, 0x02028 + ATA_MV_EDMA_BASE(ch)) & 0x00000001)) {
@@ -2796,6 +2801,8 @@ ata_marvell_edma_end_transaction(struct ata_request *request)
 	slot = (((rsp_in & ~0xffffff00) >> 3)) & 0x1f;
 	rsp_out &= 0xffffff00;
 	rsp_out += (slot << 3);
+	bus_dmamap_sync(ch->dma->work_tag, ch->dma->work_map,
+	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 	response = (struct ata_marvell_response *)
 		   (ch->dma->work + 1024 + (slot << 3));
 
@@ -2870,6 +2877,7 @@ ata_marvell_edma_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs,
 	prd[i].addrlo = htole32(segs[i].ds_addr);
 	prd[i].count = htole32(segs[i].ds_len);
 	prd[i].addrhi = htole32((u_int64_t)segs[i].ds_addr >> 32);
+	prd[i].reserved = 0;
     }
     prd[i - 1].count |= htole32(ATA_DMA_EOT);
     KASSERT(nsegs <= ATA_DMA_ENTRIES, ("too many DMA segment entries\n"));
@@ -2892,7 +2900,7 @@ ata_marvell_edma_dmainit(device_t dev)
 	    ch->dma->max_address = BUS_SPACE_MAXADDR;
 
 	/* chip does not reliably do 64K DMA transfers */
-	ch->dma->max_iosize = 126 * DEV_BSIZE; 
+	ch->dma->max_iosize = 64 * DEV_BSIZE; 
     }
 }
 
@@ -2942,7 +2950,7 @@ ata_national_setmode(device_t dev, int mode)
     int error;
 
     ch->dma->alignment = 16;
-    ch->dma->max_iosize = 126 * DEV_BSIZE;
+    ch->dma->max_iosize = 64 * DEV_BSIZE;
 
     mode = ata_limit_mode(dev, mode, ATA_UDMA2);
 
@@ -4192,7 +4200,7 @@ ata_serverworks_ident(device_t dev)
      { ATA_CSB6,      0x00, SWKS100, 0, ATA_UDMA5, "CSB6" },
      { ATA_CSB6_1,    0x00, SWKS66,  0, ATA_UDMA4, "CSB6" },
      { ATA_HT1000,    0x00, SWKS100, 0, ATA_UDMA5, "HT1000" },
-     { ATA_HT1000_S1, 0x00, SWKS100, 4, ATA_SA150, "HT1000" },
+     { ATA_HT1000_S1, 0x00, SWKSMIO, 4, ATA_SA150, "HT1000" },
      { ATA_HT1000_S2, 0x00, SWKSMIO, 4, ATA_SA150, "HT1000" },
      { ATA_K2,        0x00, SWKSMIO, 4, ATA_SA150, "K2" },
      { ATA_FRODO4,    0x00, SWKSMIO, 4, ATA_SA150, "Frodo4" },
@@ -4295,7 +4303,7 @@ ata_serverworks_allocate(device_t dev)
 
     /* chip does not reliably do 64K DMA transfers */
     if (ch->dma)
-	ch->dma->max_iosize = 126 * DEV_BSIZE;
+	ch->dma->max_iosize = 64 * DEV_BSIZE;
 
     return 0;
 }

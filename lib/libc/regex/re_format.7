@@ -288,6 +288,14 @@ These stand for the character classes defined in
 A locale may provide others.
 A character class may not be used as an endpoint of a range.
 .Pp
+A bracketed expression like
+.Ql [[:class:]]
+can be used to match a single character that belongs to a character
+class.
+The reverse, matching any character that does not belong to a specific
+class, the negation operator of bracket expressions may be used:
+.Ql [^[:class:]] .
+.Pp
 There are two special cases\(dd of bracket expressions:
 the bracket expressions
 .Ql [[:<:]]

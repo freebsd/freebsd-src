@@ -269,7 +269,7 @@ ifexists()
 }
 
 # ipv4_up if
-#  add IPv4 addresses to the interface $if 
+#  add IPv4 addresses to the interface $if
 ipv4_up()
 {
 	_if=$1
@@ -314,14 +314,14 @@ ipv4_down()
 #   Evaluate the ifconfig_if_ipv4 arguments for interface $if
 #   and use $action to add or remove IPv4 addresses from $if.
 ipv4_addrs_common()
-{  
+{
 	_ret=1
 	_if=$1
 	_action=$2
-    
+
 	# get ipv4-addresses
 	cidr_addr=`get_if_var $_if ipv4_addrs_IF`
-    
+
 	for _cidr in ${cidr_addr}; do
 		_ipaddr=${_cidr%%/*}
 		_netmask="/"${_cidr##*/}
@@ -334,7 +334,7 @@ ipv4_addrs_common()
 		if [ "${_action}" = "-alias" ]; then
 			_netmask=""
 		fi
-        
+
 		_ipcount=${_iplow}
 		while [ "${_ipcount}" -le "${_iphigh}" ]; do
 			eval "ifconfig ${_if} ${_action} ${_ipnet}.${_ipcount}${_netmask}"
@@ -583,6 +583,13 @@ list_net_interfaces()
 			    "AUTO are deprecated"
 		fi
 		_tmplist="${network_interfaces} ${cloned_interfaces}"
+
+		# lo0 is effectively mandatory, so help prevent foot-shooting
+		#
+		case "$_tmplist" in
+		lo0|'lo0 '*|*' lo0'|*' lo0 '*) ;; # This is fine, do nothing
+		*)	_tmplist="lo0 ${_tmplist}" ;;
+		esac
 		;;
 	esac
 

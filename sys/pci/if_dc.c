@@ -616,15 +616,22 @@ dc_read_eeprom(struct dc_softc *sc, caddr_t dest, int off, int cnt, int be)
 static void
 dc_mii_writebit(struct dc_softc *sc, int bit)
 {
+	uint32_t reg;
 
-	if (bit)
-		CSR_WRITE_4(sc, DC_SIO,
-		    DC_SIO_ROMCTL_WRITE | DC_SIO_MII_DATAOUT);
-	else
-		CSR_WRITE_4(sc, DC_SIO, DC_SIO_ROMCTL_WRITE);
+	reg = DC_SIO_ROMCTL_WRITE | (bit != 0 ? DC_SIO_MII_DATAOUT : 0);
+	CSR_WRITE_4(sc, DC_SIO, reg);
+	CSR_BARRIER_4(sc, DC_SIO,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+	DELAY(1);
 
-	DC_SETBIT(sc, DC_SIO, DC_SIO_MII_CLK);
-	DC_CLRBIT(sc, DC_SIO, DC_SIO_MII_CLK);
+	CSR_WRITE_4(sc, DC_SIO, reg | DC_SIO_MII_CLK);
+	CSR_BARRIER_4(sc, DC_SIO,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+	DELAY(1);
+	CSR_WRITE_4(sc, DC_SIO, reg);
+	CSR_BARRIER_4(sc, DC_SIO,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+	DELAY(1);
 }
 
 /*
@@ -633,11 +640,22 @@ dc_mii_writebit(struct dc_softc *sc, int bit)
 static int
 dc_mii_readbit(struct dc_softc *sc)
 {
+	uint32_t reg;
 
-	CSR_WRITE_4(sc, DC_SIO, DC_SIO_ROMCTL_READ | DC_SIO_MII_DIR);
-	CSR_READ_4(sc, DC_SIO);
-	DC_SETBIT(sc, DC_SIO, DC_SIO_MII_CLK);
-	DC_CLRBIT(sc, DC_SIO, DC_SIO_MII_CLK);
+	reg = DC_SIO_ROMCTL_READ | DC_SIO_MII_DIR;
+	CSR_WRITE_4(sc, DC_SIO, reg);
+	CSR_BARRIER_4(sc, DC_SIO,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+	DELAY(1);
+	(void)CSR_READ_4(sc, DC_SIO);
+	CSR_WRITE_4(sc, DC_SIO, reg | DC_SIO_MII_CLK);
+	CSR_BARRIER_4(sc, DC_SIO,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+	DELAY(1);
+	CSR_WRITE_4(sc, DC_SIO, reg);
+	CSR_BARRIER_4(sc, DC_SIO,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+	DELAY(1);
 	if (CSR_READ_4(sc, DC_SIO) & DC_SIO_MII_DATAIN)
 		return (1);
 
@@ -653,6 +671,9 @@ dc_mii_sync(struct dc_softc *sc)
 	int i;
 
 	CSR_WRITE_4(sc, DC_SIO, DC_SIO_ROMCTL_WRITE);
+	CSR_BARRIER_4(sc, DC_SIO,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+	DELAY(1);
 
 	for (i = 0; i < 32; i++)
 		dc_mii_writebit(sc, 1);
@@ -676,15 +697,13 @@ dc_mii_send(struct dc_softc *sc, u_int32_t bits, int cnt)
 static int
 dc_mii_readreg(struct dc_softc *sc, struct dc_mii_frame *frame)
 {
-	int i, ack;
+	int i;
 
 	/*
 	 * Set up frame for RX.
 	 */
 	frame->mii_stdelim = DC_MII_STARTDELIM;
 	frame->mii_opcode = DC_MII_READOP;
-	frame->mii_turnaround = 0;
-	frame->mii_data = 0;
 
 	/*
 	 * Sync the PHYs.
@@ -699,38 +718,28 @@ dc_mii_readreg(struct dc_softc *sc, struct dc_mii_frame *frame)
 	dc_mii_send(sc, frame->mii_phyaddr, 5);
 	dc_mii_send(sc, frame->mii_regaddr, 5);
 
-#ifdef notdef
-	/* Idle bit */
-	dc_mii_writebit(sc, 1);
-	dc_mii_writebit(sc, 0);
-#endif
-
-	/* Check for ack. */
-	ack = dc_mii_readbit(sc);
-
 	/*
-	 * Now try reading data bits. If the ack failed, we still
+	 * Now try reading data bits.  If the turnaround failed, we still
 	 * need to clock through 16 cycles to keep the PHY(s) in sync.
 	 */
-	if (ack) {
+	frame->mii_turnaround = dc_mii_readbit(sc);
+	if (frame->mii_turnaround != 0) {
 		for (i = 0; i < 16; i++)
 			dc_mii_readbit(sc);
 		goto fail;
 	}
-
 	for (i = 0x8000; i; i >>= 1) {
-		if (!ack) {
-			if (dc_mii_readbit(sc))
-				frame->mii_data |= i;
-		}
+		if (dc_mii_readbit(sc))
+			frame->mii_data |= i;
 	}
 
 fail:
 
+	/* Clock the idle bits. */
 	dc_mii_writebit(sc, 0);
 	dc_mii_writebit(sc, 0);
 
-	if (ack)
+	if (frame->mii_turnaround != 0)
 		return (1);
 	return (0);
 }
@@ -745,7 +754,6 @@ dc_mii_writereg(struct dc_softc *sc, struct dc_mii_frame *frame)
 	/*
 	 * Set up frame for TX.
 	 */
-
 	frame->mii_stdelim = DC_MII_STARTDELIM;
 	frame->mii_opcode = DC_MII_WRITEOP;
 	frame->mii_turnaround = DC_MII_TURNAROUND;
@@ -762,7 +770,7 @@ dc_mii_writereg(struct dc_softc *sc, struct dc_mii_frame *frame)
 	dc_mii_send(sc, frame->mii_turnaround, 2);
 	dc_mii_send(sc, frame->mii_data, 16);
 
-	/* Idle bit. */
+	/* Clock the idle bits. */
 	dc_mii_writebit(sc, 0);
 	dc_mii_writebit(sc, 0);
 
@@ -2916,12 +2924,8 @@ dc_tick(void *xsc)
 			if (sc->dc_link == 0)
 				mii_tick(mii);
 		} else {
-			/*
-			 * For NICs which never report DC_RXSTATE_WAIT, we
-			 * have to bite the bullet...
-			 */
-			if ((DC_HAS_BROKEN_RXSTATE(sc) || (CSR_READ_4(sc,
-			    DC_ISR) & DC_ISR_RX_STATE) == DC_RXSTATE_WAIT) &&
+			r = CSR_READ_4(sc, DC_ISR);
+			if ((r & DC_ISR_RX_STATE) == DC_RXSTATE_WAIT &&
 			    sc->dc_cdata.dc_tx_cnt == 0) {
 				mii_tick(mii);
 				if (!(mii->mii_media_status & IFM_ACTIVE))

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,9 +15,18 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: net.c,v 1.22.2.2.10.11 2007/09/13 23:45:58 tbox Exp $ */
+/* $Id: net.c,v 1.22.2.2.10.15 2008/07/04 23:45:39 tbox Exp $ */
 
 #include <config.h>
+
+#include <sys/types.h>
+
+#if defined(HAVE_SYS_SYSCTL_H)
+#if defined(HAVE_SYS_PARAM_H)
+#include <sys/param.h>
+#endif
+#include <sys/sysctl.h>
+#endif
 
 #include <errno.h>
 #include <unistd.h>
@@ -29,6 +38,59 @@
 #include <isc/strerror.h>
 #include <isc/string.h>
 #include <isc/util.h>
+
+/*
+ * Definitions about UDP port range specification.  This is a total mess of
+ * portability variants: some use sysctl (but the sysctl names vary), some use
+ * system-specific interfaces, some have the same interface for IPv4 and IPv6,
+ * some separate them, etc...
+ */
+
+/*
+ * The last resort defaults: use all non well known port space
+ */
+#ifndef ISC_NET_PORTRANGELOW
+#define ISC_NET_PORTRANGELOW 1024
+#endif	/* ISC_NET_PORTRANGELOW */
+#ifndef ISC_NET_PORTRANGEHIGH
+#define ISC_NET_PORTRANGEHIGH 65535
+#endif	/* ISC_NET_PORTRANGEHIGH */
+
+#ifdef HAVE_SYSCTLBYNAME
+
+/*
+ * sysctl variants
+ */
+#if defined(__FreeBSD__) || defined(__APPLE__) || defined(__DragonFly__)
+#define USE_SYSCTL_PORTRANGE
+#define SYSCTL_V4PORTRANGE_LOW	"net.inet.ip.portrange.hifirst"
+#define SYSCTL_V4PORTRANGE_HIGH	"net.inet.ip.portrange.hilast"
+#define SYSCTL_V6PORTRANGE_LOW	"net.inet.ip.portrange.hifirst"
+#define SYSCTL_V6PORTRANGE_HIGH	"net.inet.ip.portrange.hilast"
+#endif
+
+#ifdef __NetBSD__
+#define USE_SYSCTL_PORTRANGE
+#define SYSCTL_V4PORTRANGE_LOW	"net.inet.ip.anonportmin"
+#define SYSCTL_V4PORTRANGE_HIGH	"net.inet.ip.anonportmax"
+#define SYSCTL_V6PORTRANGE_LOW	"net.inet6.ip6.anonportmin"
+#define SYSCTL_V6PORTRANGE_HIGH	"net.inet6.ip6.anonportmax"
+#endif
+
+#else /* !HAVE_SYSCTLBYNAME */
+
+#ifdef __OpenBSD__
+#define USE_SYSCTL_PORTRANGE
+#define SYSCTL_V4PORTRANGE_LOW	{ CTL_NET, PF_INET, IPPROTO_IP, \
+				  IPCTL_IPPORT_HIFIRSTAUTO }
+#define SYSCTL_V4PORTRANGE_HIGH	{ CTL_NET, PF_INET, IPPROTO_IP, \
+				  IPCTL_IPPORT_HILASTAUTO }
+/* Same for IPv6 */
+#define SYSCTL_V6PORTRANGE_LOW	SYSCTL_V4PORTRANGE_LOW
+#define SYSCTL_V6PORTRANGE_HIGH	SYSCTL_V4PORTRANGE_HIGH
+#endif
+
+#endif /* HAVE_SYSCTLBYNAME */
 
 #if defined(ISC_PLATFORM_HAVEIPV6)
 # if defined(ISC_PLATFORM_NEEDIN6ADDRANY)
@@ -326,6 +388,101 @@ isc_net_probe_ipv6pktinfo(void) {
 #endif
 #endif
 	return (ipv6pktinfo_result);
+}
+
+#if defined(USE_SYSCTL_PORTRANGE)
+#if defined(HAVE_SYSCTLBYNAME)
+static isc_result_t
+getudpportrange_sysctl(int af, in_port_t *low, in_port_t *high) {
+	int port_low, port_high;
+	size_t portlen;
+	const char *sysctlname_lowport, *sysctlname_hiport;
+
+	if (af == AF_INET) {
+		sysctlname_lowport = SYSCTL_V4PORTRANGE_LOW;
+		sysctlname_hiport = SYSCTL_V4PORTRANGE_HIGH;
+	} else {
+		sysctlname_lowport = SYSCTL_V6PORTRANGE_LOW;
+		sysctlname_hiport = SYSCTL_V6PORTRANGE_HIGH;
+	}
+	portlen = sizeof(portlen);
+	if (sysctlbyname(sysctlname_lowport, &port_low, &portlen,
+			 NULL, 0) < 0) {
+		return (ISC_R_FAILURE);
+	}
+	portlen = sizeof(portlen);
+	if (sysctlbyname(sysctlname_hiport, &port_high, &portlen,
+			 NULL, 0) < 0) {
+		return (ISC_R_FAILURE);
+	}
+	if ((port_low & ~0xffff) != 0 || (port_high & ~0xffff) != 0)
+		return (ISC_R_RANGE);
+
+	*low = (in_port_t)port_low;
+	*high = (in_port_t)port_high;
+
+	return (ISC_R_SUCCESS);
+}
+#else /* !HAVE_SYSCTLBYNAME */
+static isc_result_t
+getudpportrange_sysctl(int af, in_port_t *low, in_port_t *high) {
+	int mib_lo4[4] = SYSCTL_V4PORTRANGE_LOW;
+	int mib_hi4[4] = SYSCTL_V4PORTRANGE_HIGH;
+	int mib_lo6[4] = SYSCTL_V6PORTRANGE_LOW;
+	int mib_hi6[4] = SYSCTL_V6PORTRANGE_HIGH;
+	int *mib_lo, *mib_hi, miblen;
+	int port_low, port_high;
+	size_t portlen;
+
+	if (af == AF_INET) {
+		mib_lo = mib_lo4;
+		mib_hi = mib_hi4;
+		miblen = sizeof(mib_lo4) / sizeof(mib_lo4[0]);
+	} else {
+		mib_lo = mib_lo6;
+		mib_hi = mib_hi6;
+		miblen = sizeof(mib_lo6) / sizeof(mib_lo6[0]);
+	}
+
+	portlen = sizeof(portlen);
+	if (sysctl(mib_lo, miblen, &port_low, &portlen, NULL, 0) < 0) {
+		return (ISC_R_FAILURE);
+	}
+
+	portlen = sizeof(portlen);
+	if (sysctl(mib_hi, miblen, &port_high, &portlen, NULL, 0) < 0) {
+		return (ISC_R_FAILURE);
+	}
+
+	if ((port_low & ~0xffff) != 0 || (port_high & ~0xffff) != 0)
+		return (ISC_R_RANGE);
+
+	*low = (in_port_t) port_low;
+	*high = (in_port_t) port_high;
+
+	return (ISC_R_SUCCESS);
+}
+#endif /* HAVE_SYSCTLBYNAME */
+#endif /* USE_SYSCTL_PORTRANGE */
+
+isc_result_t
+isc_net_getudpportrange(int af, in_port_t *low, in_port_t *high) {
+	int result = ISC_R_FAILURE;
+
+	REQUIRE(low != NULL && high != NULL);
+
+#if defined(USE_SYSCTL_PORTRANGE)
+	result = getudpportrange_sysctl(af, low, high);
+#else
+	UNUSED(af);
+#endif
+
+	if (result != ISC_R_SUCCESS) {
+		*low = ISC_NET_PORTRANGELOW;
+		*high = ISC_NET_PORTRANGEHIGH;
+	}
+
+	return (ISC_R_SUCCESS);	/* we currently never fail in this function */
 }
 
 void

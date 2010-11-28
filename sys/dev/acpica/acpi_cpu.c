@@ -608,10 +608,6 @@ acpi_cpu_generic_cx_probe(struct acpi_cpu_softc *sc)
 	    sc->cpu_cx_count++;
 	}
     }
-
-    /* Update the largest cx_count seen so far */
-    if (sc->cpu_cx_count > cpu_cx_count)
-	cpu_cx_count = sc->cpu_cx_count;
 }
 
 /*
@@ -751,6 +747,8 @@ acpi_cpu_startup(void *arg)
 	for (i = 0; i < cpu_ndevices; i++) {
 	    sc = device_get_softc(cpu_devices[i]);
 	    acpi_cpu_generic_cx_probe(sc);
+	    if (sc->cpu_cx_count > cpu_cx_count)
+		    cpu_cx_count = sc->cpu_cx_count;
 	}
 
 	/*

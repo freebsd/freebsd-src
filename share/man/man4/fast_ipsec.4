@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 20, 2003
+.Dd November 29, 2009
 .Dt FAST_IPSEC 4
 .Os
 .Sh NAME
@@ -112,7 +112,9 @@ There is presently no support for IPv6.
 .Pp
 The
 .Tn IPcomp
-protocol support does not work.
+protocol may occasionally error because of
+.Xr zlib 3
+problems.
 .Pp
 Certain legacy authentication algorithms are not supported because of
 issues with the

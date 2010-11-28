@@ -226,6 +226,7 @@ acl_from_text(const char *buf_p)
 	}
 #endif
 
+	free(mybuf_p);
 	return(acl);
 
 error_label:

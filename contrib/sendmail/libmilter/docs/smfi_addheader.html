@@ -2,7 +2,7 @@
 <HEAD><TITLE>smfi_addheader</TITLE></HEAD>
 <BODY>
 <!--
-$Id: smfi_addheader.html,v 1.19 2006/12/21 18:30:35 ca Exp $
+$Id: smfi_addheader.html,v 1.20 2009/05/18 23:51:23 ca Exp $
 -->
 <H1>smfi_addheader</H1>
 
@@ -90,7 +90,11 @@ To change a header's current value, use
     the MTA will add this automatically.
     <B>It is the filter writer's responsibility to ensure that no standards
     are violated.</B>
-    <LI>The MTA adds a leading space to an added header value.
+    <LI>The MTA adds a leading space to an added header value unless
+    the flag
+<A HREF="xxfi_negotiate.html#SMFIP_HDR_LEADSPC"><CODE>SMFIP_HDR_LEADSPC</CODE></A>
+    is set, in which case the milter
+    must include any desired leading spaces itself.
 </UL>
 </TD>
 </TR>
@@ -116,7 +120,7 @@ To change a header's current value, use
 
 <HR size="1">
 <FONT size="-1">
-Copyright (c) 2000-2003, 2006 Sendmail, Inc. and its suppliers.
+Copyright (c) 2000-2003, 2006, 2009 Sendmail, Inc. and its suppliers.
 All rights reserved.
 <BR>
 By using this file, you agree to the terms and conditions set

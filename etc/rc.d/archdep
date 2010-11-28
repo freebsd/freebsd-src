@@ -9,7 +9,7 @@
 
 . /etc/rc.subr
 
-name=archdep
+name="archdep"
 start_cmd="archdep_start"
 stop_cmd=":"
 

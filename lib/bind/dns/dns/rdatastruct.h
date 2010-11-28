@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 /*
- * Copyright (C) 2004-2007 Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009 Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003 Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -1044,10 +1044,10 @@ typedef struct dns_rdata_loc {
 
 #endif /* GENERIC_LOC_29_H */
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 1999-2002  Internet Software Consortium.
+ * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 1999-2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -1063,7 +1063,7 @@ typedef struct dns_rdata_loc {
 #ifndef GENERIC_NXT_30_H
 #define GENERIC_NXT_30_H 1
 
-/* $Id: nxt_30.h,v 1.18.12.3 2004/03/08 09:04:41 marka Exp $ */
+/* $Id: nxt_30.h,v 1.18.12.6 2007/08/28 07:19:15 tbox Exp $ */
 
 /* RFC 2535 */
 
@@ -1336,10 +1336,10 @@ dns_rdata_opt_current(dns_rdata_opt_t *, dns_rdata_opt_opcode_t *);
 
 #endif /* GENERIC_OPT_41_H */
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 2002  Internet Software Consortium.
+ * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2002, 2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -1355,7 +1355,7 @@ dns_rdata_opt_current(dns_rdata_opt_t *, dns_rdata_opt_opcode_t *);
 #ifndef IN_1_APL_42_H
 #define IN_1_APL_42_H 1
 
-/* $Id: apl_42.h,v 1.1.202.3 2004/03/08 09:04:44 marka Exp $ */
+/* $Id: apl_42.h,v 1.1.202.6 2007/08/28 07:19:15 tbox Exp $ */
 
 typedef struct dns_rdata_apl_ent {
 	isc_boolean_t	negative;
@@ -1499,10 +1499,10 @@ typedef struct dns_rdata_rrsig {
 
 #endif /* GENERIC_DNSSIG_46_H */
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2008  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2003  Internet Software Consortium.
  *
- * Permission to use, copy, modify, and distribute this software for any
+ * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
@@ -1518,9 +1518,10 @@ typedef struct dns_rdata_rrsig {
 #ifndef GENERIC_NSEC_47_H
 #define GENERIC_NSEC_47_H 1
 
-/* $Id: nsec_47.h,v 1.4.2.1 2004/03/08 02:08:03 marka Exp $ */
+/* $Id: nsec_47.h,v 1.4.2.3 2008/07/15 23:45:44 tbox Exp $ */
 
-/* draft-ietf-dnsext-nsec-rdata-01.txt */
+/*!
+ * \brief Per RFC 3845 */
 
 typedef struct dns_rdata_nsec {
 	dns_rdatacommon_t	common;

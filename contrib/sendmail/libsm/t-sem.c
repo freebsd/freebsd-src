@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001, 2005-2007 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2001, 2005-2008 Sendmail, Inc. and its suppliers.
  *      All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: t-sem.c,v 1.16 2007/03/21 23:22:10 ca Exp $")
+SM_RCSID("@(#)$Id: t-sem.c,v 1.17 2008/05/30 16:26:38 ca Exp $")
 
 #include <stdio.h>
 
@@ -127,6 +127,20 @@ sem_cleanup(sig)
 	exit(EX_UNAVAILABLE);
 }
 
+static int
+drop_priv(uid, gid)
+	uid_t uid;
+	gid_t gid;
+{
+	int r;
+
+	r = setgid(gid);
+	if (r != 0)
+		return r;
+	r = setuid(uid);
+	return r;
+}
+
 /*
 **  SEMTEST -- test of semaphores
 **
@@ -141,12 +155,23 @@ sem_cleanup(sig)
 # define MAX_CNT	10
 
 static int
-semtest(owner)
+semtest(owner, uid, gid)
 	int owner;
+	uid_t uid;
+	gid_t gid;
 {
 	int semid, r;
 	int cnt = 0;
 
+	if (!owner && uid != 0)
+	{
+		r = drop_priv(uid, gid);
+		if (r < 0)
+		{
+			perror("drop_priv child failed");
+			return -1;
+		}
+	}
 	semid = sm_sem_start(T_SM_SEM_KEY, 1, 0, owner);
 	if (semid < 0)
 	{
@@ -156,6 +181,22 @@ semtest(owner)
 
 	if (owner)
 	{
+		if (uid != 0)
+		{
+			r = sm_semsetowner(semid, uid, gid, 0660);
+			if (r < 0)
+			{
+				perror("sm_semsetowner failed");
+				return -1;
+			}
+			r = drop_priv(uid, gid);
+			if (r < 0)
+			{
+				perror("drop_priv owner failed");
+				return -1;
+			}
+		}
+
 		/* just in case someone kills the program... */
 		semid_c = semid;
 		(void) sm_signal(SIGHUP, sem_cleanup);
@@ -281,16 +322,29 @@ main(argc, argv)
 {
 	bool interactive = false;
 	bool owner = false;
-	int ch;
-	int r = 0;
+	int ch, r;
+	uid_t uid;
+	gid_t gid;
 
-# define OPTIONS	"io"
+	uid = 0;
+	gid = 0;
+	r = 0;
+
+# define OPTIONS	"iog:u:"
 	while ((ch = getopt(argc, argv, OPTIONS)) != -1)
 	{
 		switch ((char) ch)
 		{
+		  case 'g':
+			gid = (gid_t)strtoul(optarg, 0, 0);
+			break;
+
 		  case 'i':
 			interactive = true;
+			break;
+
+		  case 'u':
+			uid = (uid_t)strtoul(optarg, 0, 0);
 			break;
 
 		  case 'o':
@@ -323,11 +377,11 @@ main(argc, argv)
 		{
 			/* give the parent the chance to setup data */
 			sleep(1);
-			r = semtest(false);
+			r = semtest(false, uid, gid);
 		}
 		else
 		{
-			r = semtest(true);
+			r = semtest(true, uid, gid);
 		}
 		SM_TEST(r == 0);
 		return sm_test_end();

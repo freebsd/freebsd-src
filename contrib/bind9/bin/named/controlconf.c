@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: controlconf.c,v 1.28.2.9.2.13.4.2 2008/07/23 23:16:25 marka Exp $ */
+/* $Id: controlconf.c,v 1.28.2.9.2.15 2008/07/23 23:36:22 marka Exp $ */
 
 #include <config.h>
 

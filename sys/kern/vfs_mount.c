@@ -448,6 +448,7 @@ mount_init(void *mem, int size, int flags)
 	mp = (struct mount *)mem;
 	mtx_init(&mp->mnt_mtx, "struct mount mtx", NULL, MTX_DEF);
 	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, 0);
+	lockinit(&mp->mnt_explock, PVFS, "explock", 0, 0);
 	return (0);
 }
 
@@ -457,6 +458,7 @@ mount_fini(void *mem, int size)
 	struct mount *mp;
 
 	mp = (struct mount *)mem;
+	lockdestroy(&mp->mnt_explock);
 	lockdestroy(&mp->mnt_lock);
 	mtx_destroy(&mp->mnt_mtx);
 }
@@ -1358,6 +1360,8 @@ set_rootvnode(struct thread *td)
 	FILEDESC_UNLOCK(p->p_fd);
 
 	VOP_UNLOCK(rootvnode, 0, td);
+
+	EVENTHANDLER_INVOKE(mountroot);
 }
 
 /*

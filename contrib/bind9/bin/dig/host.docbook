@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: host.docbook,v 1.2.2.2.4.12 2007/08/28 07:19:07 tbox Exp $ -->
+<!-- $Id: host.docbook,v 1.2.2.2.4.14 2008/04/28 23:45:35 tbox Exp $ -->
 
 <refentry>
 
@@ -37,6 +37,7 @@
       <year>2004</year>
       <year>2005</year>
       <year>2007</year>
+      <year>2008</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -185,7 +186,7 @@ The <option>-t</option> option is used to select the query type.
 <parameter>type</parameter> can be any recognized query type: CNAME,
 NS, SOA, SIG, KEY, AXFR, etc.  When no query type is specified,
 <command>host</command> automatically selects an appropriate query
-type.  By default it looks for A records, but if the
+type.  By default it looks for A, AAAA, and MX records, but if the
 <option>-C</option> option was given, queries will be made for SOA
 records, and if <parameter>name</parameter> is a dotted-decimal IPv4
 address or colon-delimited IPv6 address, <command>host</command> will

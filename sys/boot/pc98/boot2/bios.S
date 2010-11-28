@@ -91,8 +91,6 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include "asm.h"
 	.text
 
-#ifndef CDBOOT
-
 /*
  *  PC-9801/PC-9821 SCSI MO booting
  *    2002/06/05-07/03 Kawanobe Koh <kawanobe@st.rim.or.jp>
@@ -197,98 +195,6 @@ read_end:
 	pop	%ebp
 
 	ret
-
-#else /* CDBOOT */
-
-
-/*
- * int
- * getbootspec(struct specpacket *offset)
- *
- * Read CD-ROM boot specification packet to "offset".
- */
-ENTRY(getbootspec)
-	push	%ebp
-	mov	%esp, %ebp
-
-	push	%esi
-	push	%ebx
-
-	movw	0x8(%ebp), %si
-	mov	$0x7f, %edx
-
-	/* prot_to_real will set %es to BOOTSEG */
-	call	EXT(prot_to_real)	/* enter real mode */
-	movw	$0x4b01, %ax		/* (do not) terminate disk emulation */
-	movb	$0x7f, %dl		/* any drive */
-
-	sti
-	int	$0x13
-	cli
-
-	/* save return value (actually movw %ax, %bx) */
-	mov	%eax, %ebx
-
-	data32
-	call	EXT(real_to_prot)	/* back to protected mode */
-
-	xor	%eax, %eax
-	movb	%bh, %al		/* return value in %ax */
-
-	pop	%ebx
-	pop	%esi
-	pop	%ebp
-
-	ret
-
-
-/*
- * int
- * biosreadlba(struct daddrpacket *daddr)
- *	Read sectors using the BIOS "read extended" function
- * BIOS call "INT 0x13 Function 0x42" to read sectors from disk into memory
- *	Call with	%ah = 0x42
- *			%dl = drive (0x0 for floppy disk, or emulated CD)
- *			%ds:%si = ptr to disk address packet
- *	Return:
- *			%ah = 0x0 on success; err code on failure
- */
-
-ENTRY(biosreadlba)
-	push	%ebp
-	mov	%esp, %ebp
-
-	push	%ebx
-	push	%esi
-
-	movw	8(%ebp), %si
-	movl	$0, %edx		/* emulated CD is always drive 0 */
-
-	/* prot_to_real will set %es to BOOTSEG */
-	call	EXT(prot_to_real)	/* enter real mode */
-	movw	$0x4200, %ax		/* subfunction */
-	movb	$0, %dl
-
-	sti
-	int	$0x13
-	cli
-
-	/* save return value (actually movw %ax, %bx) */
-	mov	%eax, %ebx
-
-	data32
-	call	EXT(real_to_prot)	/* back to protected mode */
-
-	xor	%eax, %eax
-	movb	%bh, %al		/* return value in %ax */
-
-	pop	%esi
-	pop	%ebx
-	pop	%ebp
-
-	ret
-
-#endif /* !CDBOOT */
 
 /*
  * getc()

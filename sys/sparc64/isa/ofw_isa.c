@@ -79,11 +79,11 @@ ofw_isa_range_map(struct isa_ranges *range, int nrange, u_long *start,
 	for (i = 0; i < nrange; i++) {
 		r = &range[i];
 		cstart = ISA_RANGE_CHILD(r);
-		cend = cstart + r->size;
+		cend = cstart + r->size - 1;
 		if (*start < cstart || *start > cend)
 			continue;
 		if (*end < cstart || *end > cend) {
-			panic("ofw_isa_map_iorange: iorange crosses pci "
+			panic("ofw_isa_map_iorange: iorange crosses PCI "
 			    "ranges (%#lx not in %#lx - %#lx)", *end, cstart,
 			    cend);
 		}

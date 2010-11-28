@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 30, 2001
+.Dd March 19, 2007
 .Dt DAEMON 8
 .Os
 .Sh NAME
@@ -36,12 +36,14 @@
 .Nm
 .Op Fl cf
 .Op Fl p Ar pidfile
+.Op Fl u Ar user
 .Ar command arguments ...
 .Sh DESCRIPTION
 The
 .Nm
 utility detaches itself from the controlling terminal and
 executes the program specified by its arguments.
+Privileges may be lowered to the specified user.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
@@ -54,12 +56,14 @@ Redirect standard input, standard output and standard error to
 .It Fl p Ar file
 Write the ID of the created process into the
 .Ar file
-using
+using the
 .Xr pidfile 3
 functionality.
 Note, that the file will be created shortly before the process is
 actually executed, and will remain after the process exits (although
 it will be removed if the execution fails).
+.It Fl u Ar user
+Run the program with the rights of user specified, requires privilege.
 .El
 .Sh EXIT STATUS
 The
@@ -77,6 +81,8 @@ standard error unless the
 .Fl f
 flag is specified.
 .Sh SEE ALSO
+.Xr setregid 2 ,
+.Xr setreuid 2 ,
 .Xr daemon 3 ,
 .Xr exec 3 ,
 .Xr pidfile 3 ,

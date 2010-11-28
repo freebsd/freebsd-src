@@ -1,7 +1,7 @@
-# Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2008  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
-# Permission to use, copy, modify, and distribute this software for any
+# Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
 # copyright notice and this permission notice appear in all copies.
 #
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.71.2.2.2.8 2004/07/20 07:01:58 marka Exp $
+# $Id: Makefile.in,v 1.71.2.2.2.10 2008/06/25 23:45:37 tbox Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -55,7 +55,7 @@ OBJS =		@ISC_EXTRA_OBJS@ \
 		hash.@O@ heap.@O@ hex.@O@ hmacmd5.@O@ \
 		lex.@O@ lfsr.@O@ lib.@O@ log.@O@ md5.@O@ \
 		mem.@O@ mutexblock.@O@ netaddr.@O@ netscope.@O@ ondestroy.@O@ \
-		parseint.@O@ quota.@O@ random.@O@ \
+		parseint.@O@ portset.@O@ quota.@O@ random.@O@ \
 		ratelimiter.@O@ region.@O@ result.@O@ rwlock.@O@ \
 		serial.@O@ sha1.@O@ sockaddr.@O@ string.@O@ strtoul.@O@ \
 		symtab.@O@ task.@O@ taskpool.@O@ timer.@O@ version.@O@ \
@@ -68,7 +68,7 @@ SRCS =		@ISC_EXTRA_SRCS@ \
 		heap.c hex.c hmacmd5.c \
 		lex.c lfsr.c lib.c log.c \
 		md5.c mem.c mutexblock.c netaddr.c netscope.c ondestroy.c \
-		parseint.c quota.c random.c \
+		parseint.c portset.c quota.c random.c \
 		ratelimiter.c result.c rwlock.c \
 		serial.c sha1.c sockaddr.c string.c strtoul.c symtab.c \
 		task.c taskpool.c timer.c version.c

@@ -200,6 +200,7 @@ dev/mxge/mxge_ethp_z8e.c	optional	mxge pci
 dev/mxge/mxge_rss_eth_z8e.c	optional	mxge pci
 dev/mxge/mxge_rss_ethp_z8e.c	optional	mxge pci
 net/zlib.c			optional	mxge
+dev/nfe/if_nfe.c		optional	nfe pci
 dev/nve/if_nve.c		optional	nve pci
 dev/nvram/nvram.c		optional	nvram isa
 dev/rr232x/os_bsd.c		optional	rr232x

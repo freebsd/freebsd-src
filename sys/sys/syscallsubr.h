@@ -79,6 +79,8 @@ int	kern_fstat(struct thread *td, int fd, struct stat *sbp);
 int	kern_fstatfs(struct thread *td, int fd, struct statfs *buf);
 int	kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 	    enum uio_seg tptrseg);
+int	kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
+	    long *basep);
 int	kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 	    enum uio_seg bufseg, int flags);
 int	kern_getitimer(struct thread *, u_int, struct itimerval *);

@@ -15,6 +15,7 @@
     <year>2006</year>
     <year>2007</year>
     <year>2008</year>
+    <year>2009</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
@@ -133,11 +134,7 @@
 
       <!-- Above this line, order boot loader changes by keyword-->
 
-      <para arch="i386,amd64">The BTX kernel used by the boot
-	loader has been changed to invoke BIOS routines from real
-	mode.  This change makes it possible to boot &os; from USB
-	devices.</para>
-
+      <para></para>
     </sect3>
 
     <sect3 id="proc">
@@ -199,16 +196,8 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
-    <para><application>bzip2</application> has been updated from 1.0.4
-      to 1.0.5.</para>
-
-    <para><application>sendmail</application> has been updated from
-      8.14.2 to 8.14.3.</para>
-
-    <para>The timezone database has been updated from
-      the <application>tzdata2007k</application> release to
-      the <application>tzdata2008b</application> release.</para>
-
+    <para><application>sendmail</application> has been updated to
+      version 8.14.4.</para>
   </sect2>
 
   <sect2 id="ports">
@@ -221,11 +210,7 @@
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
 
-    <para>The supported version of
-      the <application>GNOME</application> desktop environment
-      (<filename role="package">x11/gnome2</filename>) has been
-      updated from 2.20.1 to 2.22.</para>
-
+    <para></para>
   </sect2>
 
   <sect2 id="doc">

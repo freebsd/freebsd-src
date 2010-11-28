@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2008
+.Dd January 21, 2009
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -196,9 +196,14 @@ Fetch the distfiles of the port and all its dependencies.
 .It Cm fetch-recursive-list
 Show list of files that would be retrieved by
 .Cm fetch-recursive .
+.It Cm run-depends-list , build-depends-list
+Print a list of all the compile and run dependencies, and dependencies
+of those dependencies, by port directory.
+.It Cm all-depends-list
+Print a list of all dependencies for the port.
 .It Cm pretty-print-run-depends-list , pretty-print-build-depends-list
 Print a list of all the compile and run dependencies, and dependencies
-of those dependencies.
+of those dependencies, by port name and version.
 .It Cm missing
 Print a list of missing dependencies to be installed for the port.
 .It Cm clean
@@ -249,6 +254,8 @@ and
 Like
 .Cm package ,
 but makes a package for each depending port as well.
+.It Cm package-name
+Prints the name with version of the port.
 .It Cm readmes
 Create a port's
 .Pa README.html .
@@ -320,7 +327,7 @@ To find ports that contain
 in either of the name, path, info
 fields, ignore the rest of the record.
 .Pp
-By default the search is not case-nsensitive.
+By default the search is not case-sensitive.
 In order to make it case-sensitive you can use the
 .Va icase
 variable:
