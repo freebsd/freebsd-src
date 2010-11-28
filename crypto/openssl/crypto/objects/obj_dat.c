@@ -63,6 +63,7 @@
 #include <openssl/lhash.h>
 #include <openssl/asn1.h>
 #include <openssl/objects.h>
+#include <openssl/bn.h>
 
 /* obj_dat.h is generated from objects.h by obj_dat.pl */
 #ifndef OPENSSL_NO_OBJECT
@@ -455,10 +456,13 @@ int OBJ_obj2txt(char *buf, int buf_len, const ASN1_OBJECT *a, int no_name)
 		s=OBJ_nid2ln(nid);
 		if (s == NULL)
 			s=OBJ_nid2sn(nid);
-		if (buf)
-			BUF_strlcpy(buf,s,buf_len);
-		n=strlen(s);
-		return n;
+		if (s)
+			{
+			if (buf)
+				BUF_strlcpy(buf,s,buf_len);
+			n=strlen(s);
+			return n;
+			}
 		}
 
 

@@ -89,6 +89,10 @@
 #include "bio_lcl.h"
 #include <openssl/err.h>
 
+#if defined(OPENSSL_SYS_NETWARE) && defined(NETWARE_CLIB)
+#include <nwfileio.h>
+#endif
+
 #if !defined(OPENSSL_NO_STDIO)
 
 static int MS_CALLBACK file_write(BIO *h, const char *buf, int num);
@@ -268,14 +272,14 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr)
 			BIO_clear_flags(b,BIO_FLAGS_UPLINK);
 #endif
 #endif
-#ifdef UP_fsetmode
+#ifdef UP_fsetmod
 		if (b->flags&BIO_FLAGS_UPLINK)
-			UP_fsetmode(b->ptr,num&BIO_FP_TEXT?'t':'b');
+			UP_fsetmod(b->ptr,(char)((num&BIO_FP_TEXT)?'t':'b'));
 		else
 #endif
 		{
 #if defined(OPENSSL_SYS_WINDOWS)
-		int fd = fileno((FILE*)ptr);
+		int fd = _fileno((FILE*)ptr);
 		if (num & BIO_FP_TEXT)
 			_setmode(fd,_O_TEXT);
 		else
@@ -285,9 +289,9 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr)
          /* Under CLib there are differences in file modes
          */
 		if (num & BIO_FP_TEXT)
-			_setmode(fd,O_TEXT);
+			setmode(fd,O_TEXT);
 		else
-			_setmode(fd,O_BINARY);
+			setmode(fd,O_BINARY);
 #elif defined(OPENSSL_SYS_MSDOS)
 		int fd = fileno((FILE*)ptr);
 		/* Set correct text/binary mode */
@@ -400,11 +404,18 @@ static int MS_CALLBACK file_gets(BIO *bp, char *buf, int size)
 
 	buf[0]='\0';
 	if (bp->flags&BIO_FLAGS_UPLINK)
-		UP_fgets(buf,size,bp->ptr);
+		{
+		if (!UP_fgets(buf,size,bp->ptr))
+			goto err;
+		}
 	else
-		fgets(buf,size,(FILE *)bp->ptr);
+		{
+		if (!fgets(buf,size,(FILE *)bp->ptr))
+			goto err;
+		}
 	if (buf[0] != '\0')
 		ret=strlen(buf);
+	err:
 	return(ret);
 	}
 

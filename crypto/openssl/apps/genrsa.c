@@ -89,12 +89,10 @@ int MAIN(int, char **);
 int MAIN(int argc, char **argv)
 	{
 	BN_GENCB cb;
-#ifndef OPENSSL_NO_ENGINE
-	ENGINE *e = NULL;
-#endif
 	int ret=1;
 	int i,num=DEFBITS;
 	long l;
+	int use_x931 = 0;
 	const EVP_CIPHER *enc=NULL;
 	unsigned long f4=RSA_F4;
 	char *outfile=NULL;
@@ -105,9 +103,9 @@ int MAIN(int argc, char **argv)
 	char *inrand=NULL;
 	BIO *out=NULL;
 	BIGNUM *bn = BN_new();
-	RSA *rsa = RSA_new();
+	RSA *rsa = NULL;
 
-	if(!bn || !rsa) goto err;
+	if(!bn) goto err;
 
 	apps_startup();
 	BN_GENCB_set(&cb, genrsa_cb, bio_err);
@@ -138,6 +136,8 @@ int MAIN(int argc, char **argv)
 			f4=3;
 		else if (strcmp(*argv,"-F4") == 0 || strcmp(*argv,"-f4") == 0)
 			f4=RSA_F4;
+		else if (strcmp(*argv,"-x931") == 0)
+			use_x931 = 1;
 #ifndef OPENSSL_NO_ENGINE
 		else if (strcmp(*argv,"-engine") == 0)
 			{
@@ -159,6 +159,10 @@ int MAIN(int argc, char **argv)
 #ifndef OPENSSL_NO_IDEA
 		else if (strcmp(*argv,"-idea") == 0)
 			enc=EVP_idea_cbc();
+#endif
+#ifndef OPENSSL_NO_SEED
+		else if (strcmp(*argv,"-seed") == 0)
+			enc=EVP_seed_cbc();
 #endif
 #ifndef OPENSSL_NO_AES
 		else if (strcmp(*argv,"-aes128") == 0)
@@ -195,6 +199,10 @@ bad:
 #ifndef OPENSSL_NO_IDEA
 		BIO_printf(bio_err," -idea           encrypt the generated key with IDEA in cbc mode\n");
 #endif
+#ifndef OPENSSL_NO_SEED
+		BIO_printf(bio_err," -seed\n");
+		BIO_printf(bio_err,"                 encrypt PEM output with cbc seed\n");
+#endif
 #ifndef OPENSSL_NO_AES
 		BIO_printf(bio_err," -aes128, -aes192, -aes256\n");
 		BIO_printf(bio_err,"                 encrypt PEM output with cbc aes\n");
@@ -224,7 +232,7 @@ bad:
 	}
 
 #ifndef OPENSSL_NO_ENGINE
-        e = setup_engine(bio_err, engine, 0);
+        setup_engine(bio_err, engine, 0);
 #endif
 
 	if (outfile == NULL)
@@ -258,7 +266,21 @@ bad:
 	BIO_printf(bio_err,"Generating RSA private key, %d bit long modulus\n",
 		num);
 
-	if(!BN_set_word(bn, f4) || !RSA_generate_key_ex(rsa, num, bn, &cb))
+	rsa = RSA_new();
+	if (!rsa)
+		goto err;
+
+	if (use_x931)
+		{
+		BIGNUM *pubexp;
+		pubexp = BN_new();
+		if (!BN_set_word(pubexp, f4))
+			goto err;
+		if (!RSA_X931_generate_key_ex(rsa, num, pubexp, &cb))
+			goto err;
+		BN_free(pubexp);
+		}
+	else if(!BN_set_word(bn, f4) || !RSA_generate_key_ex(rsa, num, bn, &cb))
 		goto err;
 		
 	app_RAND_write_file(NULL, bio_err);

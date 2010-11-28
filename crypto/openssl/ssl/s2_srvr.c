@@ -267,7 +267,7 @@ int ssl2_accept(SSL *s)
  		case SSL2_ST_SEND_SERVER_VERIFY_C:
  			/* get the number of bytes to write */
  			num1=BIO_ctrl(s->wbio,BIO_CTRL_INFO,0,NULL);
- 			if (num1 != 0)
+ 			if (num1 > 0)
  				{
 				s->rwstate=SSL_WRITING;
  				num1=BIO_flush(s->wbio);
@@ -607,7 +607,7 @@ static int get_client_hello(SSL *s)
 	else
 		{
 		i=ssl_get_prev_session(s,&(p[s->s2->tmp.cipher_spec_length]),
-			s->s2->tmp.session_id_length);
+			s->s2->tmp.session_id_length, NULL);
 		if (i == 1)
 			{ /* previous session */
 			s->hit=1;
@@ -657,7 +657,7 @@ static int get_client_hello(SSL *s)
 			{
 			if (sk_SSL_CIPHER_find(allow,sk_SSL_CIPHER_value(prio,z)) < 0)
 				{
-				sk_SSL_CIPHER_delete(prio,z);
+				(void)sk_SSL_CIPHER_delete(prio,z);
 				z--;
 				}
 			}
@@ -697,7 +697,6 @@ static int server_hello(SSL *s)
 	{
 	unsigned char *p,*d;
 	int n,hit;
-	STACK_OF(SSL_CIPHER) *sk;
 
 	p=(unsigned char *)s->init_buf->data;
 	if (s->state == SSL2_ST_SEND_SERVER_HELLO_A)
@@ -778,7 +777,6 @@ static int server_hello(SSL *s)
 			
 			/* lets send out the ciphers we like in the
 			 * prefered order */
-			sk= s->session->ciphers;
 			n=ssl_cipher_list_to_bytes(s,s->session->ciphers,d,0);
 			d+=n;
 			s2n(n,p);		/* add cipher length */
@@ -1083,7 +1081,7 @@ static int request_certificate(SSL *s)
 		EVP_PKEY_free(pkey);
 		EVP_MD_CTX_cleanup(&ctx);
 
-		if (i > 0) 
+		if (i > 0)
 			{
 			if (s->session->peer != NULL)
 				X509_free(s->session->peer);

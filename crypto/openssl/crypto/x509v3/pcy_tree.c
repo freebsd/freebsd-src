@@ -1,5 +1,5 @@
 /* pcy_tree.c */
-/* Written by Dr Stephen N Henson (shenson@bigfoot.com) for the OpenSSL
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2004.
  */
 /* ====================================================================
@@ -130,9 +130,9 @@ static int tree_init(X509_POLICY_TREE **ptree, STACK_OF(X509) *certs,
 			ret = 2;
 		if (explicit_policy > 0)
 			{
-			explicit_policy--;
-			if (!(x->ex_flags & EXFLAG_SS)
-				&& (cache->explicit_skip != -1)
+			if (!(x->ex_flags & EXFLAG_SI))
+				explicit_policy--;
+			if ((cache->explicit_skip != -1)
 				&& (cache->explicit_skip < explicit_policy))
 				explicit_policy = cache->explicit_skip;
 			}
@@ -160,7 +160,7 @@ static int tree_init(X509_POLICY_TREE **ptree, STACK_OF(X509) *certs,
 	tree->auth_policies = NULL;
 	tree->user_policies = NULL;
 
-	if (!tree)
+	if (!tree->levels)
 		{
 		OPENSSL_free(tree);
 		return 0;
@@ -197,13 +197,14 @@ static int tree_init(X509_POLICY_TREE **ptree, STACK_OF(X509) *certs,
 			/* Any matching allowed if certificate is self
 			 * issued and not the last in the chain.
 			 */
-			if (!(x->ex_flags & EXFLAG_SS) || (i == 0))
+			if (!(x->ex_flags & EXFLAG_SI) || (i == 0))
 				level->flags |= X509_V_FLAG_INHIBIT_ANY;
 			}
 		else
 			{
-			any_skip--;
-			if ((cache->any_skip > 0)
+			if (!(x->ex_flags & EXFLAG_SI))
+				any_skip--;
+			if ((cache->any_skip >= 0)
 				&& (cache->any_skip < any_skip))
 				any_skip = cache->any_skip;
 			}
@@ -213,7 +214,7 @@ static int tree_init(X509_POLICY_TREE **ptree, STACK_OF(X509) *certs,
 		else
 			{
 			map_skip--;
-			if ((cache->map_skip > 0)
+			if ((cache->map_skip >= 0)
 				&& (cache->map_skip < map_skip))
 				map_skip = cache->map_skip;
 			}
@@ -310,7 +311,8 @@ static int tree_link_any(X509_POLICY_LEVEL *curr,
 
 		if (data == NULL)
 			return 0;
-		data->qualifier_set = curr->anyPolicy->data->qualifier_set;
+		/* Curr may not have anyPolicy */
+		data->qualifier_set = cache->anyPolicy->qualifier_set;
 		data->flags |= POLICY_DATA_FLAG_SHARED_QUALIFIERS;
 		if (!level_add_node(curr, data, node, tree))
 			{
@@ -345,7 +347,7 @@ static int tree_prune(X509_POLICY_TREE *tree, X509_POLICY_LEVEL *curr)
 			{
 			node->parent->nchild--;
 			OPENSSL_free(node);
-			sk_X509_POLICY_NODE_delete(curr->nodes, i);
+			(void)sk_X509_POLICY_NODE_delete(curr->nodes, i);
 			}
 		}
 
@@ -358,7 +360,7 @@ static int tree_prune(X509_POLICY_TREE *tree, X509_POLICY_LEVEL *curr)
 				{
 				node->parent->nchild--;
 				OPENSSL_free(node);
-				sk_X509_POLICY_NODE_delete(curr->nodes, i);
+				(void)sk_X509_POLICY_NODE_delete(curr->nodes, i);
 				}
 			}
 		if (curr->anyPolicy && !curr->anyPolicy->nchild)

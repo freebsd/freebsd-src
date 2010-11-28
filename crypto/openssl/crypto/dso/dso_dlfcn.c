@@ -237,7 +237,10 @@ static void *dlfcn_bind_var(DSO *dso, const char *symname)
 static DSO_FUNC_TYPE dlfcn_bind_func(DSO *dso, const char *symname)
 	{
 	void *ptr;
-	DSO_FUNC_TYPE sym, *tsym = &sym;
+	union {
+		DSO_FUNC_TYPE sym;
+		void *dlret;
+	} u;
 
 	if((dso == NULL) || (symname == NULL))
 		{
@@ -255,14 +258,14 @@ static DSO_FUNC_TYPE dlfcn_bind_func(DSO *dso, const char *symname)
 		DSOerr(DSO_F_DLFCN_BIND_FUNC,DSO_R_NULL_HANDLE);
 		return(NULL);
 		}
-	*(void **)(tsym) = dlsym(ptr, symname);
-	if(sym == NULL)
+	u.dlret = dlsym(ptr, symname);
+	if(u.dlret == NULL)
 		{
 		DSOerr(DSO_F_DLFCN_BIND_FUNC,DSO_R_SYM_FAILURE);
 		ERR_add_error_data(4, "symname(", symname, "): ", dlerror());
 		return(NULL);
 		}
-	return(sym);
+	return u.sym;
 	}
 
 static char *dlfcn_merger(DSO *dso, const char *filespec1,
@@ -332,6 +335,15 @@ static char *dlfcn_merger(DSO *dso, const char *filespec1,
 	return(merged);
 	}
 
+#ifdef OPENSSL_SYS_MACOSX
+#define DSO_ext	".dylib"
+#define DSO_extlen 6
+#else
+#define DSO_ext	".so"
+#define DSO_extlen 3
+#endif
+
+
 static char *dlfcn_name_converter(DSO *dso, const char *filename)
 	{
 	char *translated;
@@ -342,8 +354,8 @@ static char *dlfcn_name_converter(DSO *dso, const char *filename)
 	transform = (strstr(filename, "/") == NULL);
 	if(transform)
 		{
-		/* We will convert this to "%s.so" or "lib%s.so" */
-		rsize += 3;	/* The length of ".so" */
+		/* We will convert this to "%s.so" or "lib%s.so" etc */
+		rsize += DSO_extlen;	/* The length of ".so" */
 		if ((DSO_flags(dso) & DSO_FLAG_NAME_TRANSLATION_EXT_ONLY) == 0)
 			rsize += 3; /* The length of "lib" */
 		}
@@ -357,9 +369,9 @@ static char *dlfcn_name_converter(DSO *dso, const char *filename)
 	if(transform)
 		{
 		if ((DSO_flags(dso) & DSO_FLAG_NAME_TRANSLATION_EXT_ONLY) == 0)
-			sprintf(translated, "lib%s.so", filename);
+			sprintf(translated, "lib%s" DSO_ext, filename);
 		else
-			sprintf(translated, "%s.so", filename);
+			sprintf(translated, "%s" DSO_ext, filename);
 		}
 	else
 		sprintf(translated, "%s", filename);

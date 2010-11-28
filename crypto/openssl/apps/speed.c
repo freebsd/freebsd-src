@@ -201,6 +201,9 @@
 #ifndef OPENSSL_NO_IDEA
 #include <openssl/idea.h>
 #endif
+#ifndef OPENSSL_NO_SEED
+#include <openssl/seed.h>
+#endif
 #ifndef OPENSSL_NO_BF
 #include <openssl/blowfish.h>
 #endif
@@ -251,8 +254,18 @@
 # endif
 #endif
 
-#if !defined(OPENSSL_SYS_VMS) && !defined(OPENSSL_SYS_WINDOWS) && !defined(OPENSSL_SYS_MACINTOSH_CLASSIC) && !defined(OPENSSL_SYS_OS2) && !defined(OPENSSL_SYS_NETWARE)
-# define HAVE_FORK 1
+#ifndef HAVE_FORK
+# if defined(OPENSSL_SYS_VMS) || defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_MACINTOSH_CLASSIC) || defined(OPENSSL_SYS_OS2) || defined(OPENSSL_SYS_NETWARE)
+#  define HAVE_FORK 0
+# else
+#  define HAVE_FORK 1
+# endif
+#endif
+
+#if HAVE_FORK
+# undef NO_FORK
+#else
+# define NO_FORK
 #endif
 
 #undef BUFSIZE
@@ -268,11 +281,11 @@ static void print_message(const char *s,long num,int length);
 static void pkey_print_message(const char *str, const char *str2,
 	long num, int bits, int sec);
 static void print_result(int alg,int run_no,int count,double time_used);
-#ifdef HAVE_FORK
+#ifndef NO_FORK
 static int do_multi(int multi);
 #endif
 
-#define ALGOR_NUM	24
+#define ALGOR_NUM	28
 #define SIZE_NUM	5
 #define RSA_NUM		4
 #define DSA_NUM		3
@@ -282,15 +295,20 @@ static int do_multi(int multi);
 
 static const char *names[ALGOR_NUM]={
   "md2","mdc2","md4","md5","hmac(md5)","sha1","rmd160","rc4",
-  "des cbc","des ede3","idea cbc",
+  "des cbc","des ede3","idea cbc","seed cbc",
   "rc2 cbc","rc5-32/12 cbc","blowfish cbc","cast cbc",
   "aes-128 cbc","aes-192 cbc","aes-256 cbc",
   "camellia-128 cbc","camellia-192 cbc","camellia-256 cbc",
-  "evp","sha256","sha512"};
+  "evp","sha256","sha512",
+  "aes-128 ige","aes-192 ige","aes-256 ige"};
 static double results[ALGOR_NUM][SIZE_NUM];
 static int lengths[SIZE_NUM]={16,64,256,1024,8*1024};
+#ifndef OPENSSL_NO_RSA
 static double rsa_results[RSA_NUM][2];
+#endif
+#ifndef OPENSSL_NO_DSA
 static double dsa_results[DSA_NUM][2];
+#endif
 #ifndef OPENSSL_NO_ECDSA
 static double ecdsa_results[EC_NUM][2];
 #endif
@@ -482,9 +500,6 @@ int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
 	{
-#ifndef OPENSSL_NO_ENGINE
-	ENGINE *e = NULL;
-#endif
 	unsigned char *buf=NULL,*buf2=NULL;
 	int mret=1;
 	long count=0,save_count=0;
@@ -533,6 +548,9 @@ int MAIN(int argc, char **argv)
 #ifndef OPENSSL_NO_IDEA
 	IDEA_KEY_SCHEDULE idea_ks;
 #endif
+#ifndef OPENSSL_NO_SEED
+	SEED_KEY_SCHEDULE seed_ks;
+#endif
 #ifndef OPENSSL_NO_BF
 	BF_KEY bf_ks;
 #endif
@@ -570,9 +588,8 @@ int MAIN(int argc, char **argv)
 #define MAX_BLOCK_SIZE 64
 #endif
 	unsigned char DES_iv[8];
-	unsigned char iv[MAX_BLOCK_SIZE/8];
+	unsigned char iv[2*MAX_BLOCK_SIZE/8];
 #ifndef OPENSSL_NO_DES
-	DES_cblock *buf_as_des_cblock = NULL;
 	static DES_cblock key ={0x12,0x34,0x56,0x78,0x9a,0xbc,0xde,0xf0};
 	static DES_cblock key2={0x34,0x56,0x78,0x9a,0xbc,0xde,0xf0,0x12};
 	static DES_cblock key3={0x56,0x78,0x9a,0xbc,0xde,0xf0,0x12,0x34};
@@ -597,19 +614,23 @@ int MAIN(int argc, char **argv)
 #define	D_CBC_DES	8
 #define	D_EDE3_DES	9
 #define	D_CBC_IDEA	10
-#define	D_CBC_RC2	11
-#define	D_CBC_RC5	12
-#define	D_CBC_BF	13
-#define	D_CBC_CAST	14
-#define D_CBC_128_AES	15
-#define D_CBC_192_AES	16
-#define D_CBC_256_AES	17
-#define D_CBC_128_CML   18 
-#define D_CBC_192_CML   19
-#define D_CBC_256_CML   20 
-#define D_EVP		21
-#define D_SHA256	22	
-#define D_SHA512	23
+#define	D_CBC_SEED	11
+#define	D_CBC_RC2	12
+#define	D_CBC_RC5	13
+#define	D_CBC_BF	14
+#define	D_CBC_CAST	15
+#define D_CBC_128_AES	16
+#define D_CBC_192_AES	17
+#define D_CBC_256_AES	18
+#define D_CBC_128_CML   19 
+#define D_CBC_192_CML   20
+#define D_CBC_256_CML   21 
+#define D_EVP		22
+#define D_SHA256	23	
+#define D_SHA512	24
+#define D_IGE_128_AES   25
+#define D_IGE_192_AES   26
+#define D_IGE_256_AES   27
 	double d=0.0;
 	long c[ALGOR_NUM][SIZE_NUM];
 #define	R_DSA_512	0
@@ -738,7 +759,7 @@ int MAIN(int argc, char **argv)
 	const EVP_CIPHER *evp_cipher=NULL;
 	const EVP_MD *evp_md=NULL;
 	int decrypt=0;
-#ifdef HAVE_FORK
+#ifndef NO_FORK
 	int multi=0;
 #endif
 
@@ -781,9 +802,6 @@ int MAIN(int argc, char **argv)
 		BIO_printf(bio_err,"out of memory\n");
 		goto end;
 		}
-#ifndef OPENSSL_NO_DES
-	buf_as_des_cblock = (DES_cblock *)buf;
-#endif
 	if ((buf2=(unsigned char *)OPENSSL_malloc((int)BUFSIZE)) == NULL)
 		{
 		BIO_printf(bio_err,"out of memory\n");
@@ -858,7 +876,7 @@ int MAIN(int argc, char **argv)
 				BIO_printf(bio_err,"no engine given\n");
 				goto end;
 				}
-                        e = setup_engine(bio_err, *argv, 0);
+                        setup_engine(bio_err, *argv, 0);
 			/* j will be increased again further down.  We just
 			   don't want speed to confuse an engine with an
 			   algorithm, especially when none is given (which
@@ -866,7 +884,7 @@ int MAIN(int argc, char **argv)
 			j--;
 			}
 #endif
-#ifdef HAVE_FORK
+#ifndef NO_FORK
 		else if	((argc > 0) && (strcmp(*argv,"-multi") == 0))
 			{
 			argc--;
@@ -950,7 +968,10 @@ int MAIN(int argc, char **argv)
 			if (strcmp(*argv,"aes-128-cbc") == 0) doit[D_CBC_128_AES]=1;
 		else	if (strcmp(*argv,"aes-192-cbc") == 0) doit[D_CBC_192_AES]=1;
 		else	if (strcmp(*argv,"aes-256-cbc") == 0) doit[D_CBC_256_AES]=1;
-		else
+		else    if (strcmp(*argv,"aes-128-ige") == 0) doit[D_IGE_128_AES]=1;
+		else	if (strcmp(*argv,"aes-192-ige") == 0) doit[D_IGE_192_AES]=1;
+		else	if (strcmp(*argv,"aes-256-ige") == 0) doit[D_IGE_256_AES]=1;
+                else
 #endif
 #ifndef OPENSSL_NO_CAMELLIA
 			if (strcmp(*argv,"camellia-128-cbc") == 0) doit[D_CBC_128_CML]=1;
@@ -997,6 +1018,11 @@ int MAIN(int argc, char **argv)
 #ifndef OPENSSL_NO_IDEA
 		     if (strcmp(*argv,"idea-cbc") == 0) doit[D_CBC_IDEA]=1;
 		else if (strcmp(*argv,"idea") == 0) doit[D_CBC_IDEA]=1;
+		else
+#endif
+#ifndef OPENSSL_NO_SEED
+		     if (strcmp(*argv,"seed-cbc") == 0) doit[D_CBC_SEED]=1;
+		else if (strcmp(*argv,"seed") == 0) doit[D_CBC_SEED]=1;
 		else
 #endif
 #ifndef OPENSSL_NO_BF
@@ -1144,6 +1170,9 @@ int MAIN(int argc, char **argv)
 #ifndef OPENSSL_NO_IDEA
 			BIO_printf(bio_err,"idea-cbc ");
 #endif
+#ifndef OPENSSL_NO_SEED
+			BIO_printf(bio_err,"seed-cbc ");
+#endif
 #ifndef OPENSSL_NO_RC2
 			BIO_printf(bio_err,"rc2-cbc  ");
 #endif
@@ -1153,7 +1182,7 @@ int MAIN(int argc, char **argv)
 #ifndef OPENSSL_NO_BF
 			BIO_printf(bio_err,"bf-cbc");
 #endif
-#if !defined(OPENSSL_NO_IDEA) || !defined(OPENSSL_NO_RC2) || \
+#if !defined(OPENSSL_NO_IDEA) || !defined(OPENSSL_NO_SEED) || !defined(OPENSSL_NO_RC2) || \
     !defined(OPENSSL_NO_BF) || !defined(OPENSSL_NO_RC5)
 			BIO_printf(bio_err,"\n");
 #endif
@@ -1162,6 +1191,7 @@ int MAIN(int argc, char **argv)
 #endif
 #ifndef OPENSSL_NO_AES
 			BIO_printf(bio_err,"aes-128-cbc aes-192-cbc aes-256-cbc ");
+			BIO_printf(bio_err,"aes-128-ige aes-192-ige aes-256-ige ");
 #endif
 #ifndef OPENSSL_NO_CAMELLIA
 			BIO_printf(bio_err,"\n");
@@ -1195,6 +1225,9 @@ int MAIN(int argc, char **argv)
 #ifndef OPENSSL_NO_IDEA
 			BIO_printf(bio_err,"idea     ");
 #endif
+#ifndef OPENSSL_NO_SEED
+			BIO_printf(bio_err,"seed     ");
+#endif
 #ifndef OPENSSL_NO_RC2
 			BIO_printf(bio_err,"rc2      ");
 #endif
@@ -1213,10 +1246,10 @@ int MAIN(int argc, char **argv)
 #ifndef OPENSSL_NO_BF
 			BIO_printf(bio_err,"blowfish");
 #endif
-#if !defined(OPENSSL_NO_IDEA) || !defined(OPENSSL_NO_RC2) || \
-    !defined(OPENSSL_NO_DES) || !defined(OPENSSL_NO_RSA) || \
-    !defined(OPENSSL_NO_BF) || !defined(OPENSSL_NO_AES) || \
-    !defined(OPENSSL_NO_CAMELLIA) 
+#if !defined(OPENSSL_NO_IDEA) || !defined(OPENSSL_NO_SEED) || \
+    !defined(OPENSSL_NO_RC2) || !defined(OPENSSL_NO_DES) || \
+    !defined(OPENSSL_NO_RSA) || !defined(OPENSSL_NO_BF) || \
+    !defined(OPENSSL_NO_AES) || !defined(OPENSSL_NO_CAMELLIA)
 			BIO_printf(bio_err,"\n");
 #endif
 
@@ -1231,7 +1264,7 @@ int MAIN(int argc, char **argv)
 			BIO_printf(bio_err,"-evp e          use EVP e.\n");
 			BIO_printf(bio_err,"-decrypt        time decryption instead of encryption (only EVP).\n");
 			BIO_printf(bio_err,"-mr             produce machine readable output.\n");
-#ifdef HAVE_FORK
+#ifndef NO_FORK
 			BIO_printf(bio_err,"-multi n        run n benchmarks in parallel.\n");
 #endif
 			goto end;
@@ -1241,7 +1274,7 @@ int MAIN(int argc, char **argv)
 		j++;
 		}
 
-#ifdef HAVE_FORK
+#ifndef NO_FORK
 	if(multi && do_multi(multi))
 		goto show_res;
 #endif
@@ -1318,6 +1351,9 @@ int MAIN(int argc, char **argv)
 #ifndef OPENSSL_NO_IDEA
 	idea_set_encrypt_key(key16,&idea_ks);
 #endif
+#ifndef OPENSSL_NO_SEED
+	SEED_set_key(key16,&seed_ks);
+#endif
 #ifndef OPENSSL_NO_RC4
 	RC4_set_key(&rc4_ks,16,key16);
 #endif
@@ -1345,7 +1381,8 @@ int MAIN(int argc, char **argv)
 		count*=2;
 		Time_F(START);
 		for (it=count; it; it--)
-			DES_ecb_encrypt(buf_as_des_cblock,buf_as_des_cblock,
+			DES_ecb_encrypt((DES_cblock *)buf,
+				(DES_cblock *)buf,
 				&sch,DES_ENCRYPT);
 		d=Time_F(STOP);
 		} while (d <3);
@@ -1361,6 +1398,7 @@ int MAIN(int argc, char **argv)
 	c[D_CBC_DES][0]=count;
 	c[D_EDE3_DES][0]=count/3;
 	c[D_CBC_IDEA][0]=count;
+	c[D_CBC_SEED][0]=count;
 	c[D_CBC_RC2][0]=count;
 	c[D_CBC_RC5][0]=count;
 	c[D_CBC_BF][0]=count;
@@ -1373,6 +1411,9 @@ int MAIN(int argc, char **argv)
 	c[D_CBC_256_CML][0]=count;
 	c[D_SHA256][0]=count;
 	c[D_SHA512][0]=count;
+	c[D_IGE_128_AES][0]=count;
+	c[D_IGE_192_AES][0]=count;
+	c[D_IGE_256_AES][0]=count;
 
 	for (i=1; i<SIZE_NUM; i++)
 		{
@@ -1396,6 +1437,7 @@ int MAIN(int argc, char **argv)
 		c[D_CBC_DES][i]=c[D_CBC_DES][i-1]*l0/l1;
 		c[D_EDE3_DES][i]=c[D_EDE3_DES][i-1]*l0/l1;
 		c[D_CBC_IDEA][i]=c[D_CBC_IDEA][i-1]*l0/l1;
+		c[D_CBC_SEED][i]=c[D_CBC_SEED][i-1]*l0/l1;
 		c[D_CBC_RC2][i]=c[D_CBC_RC2][i-1]*l0/l1;
 		c[D_CBC_RC5][i]=c[D_CBC_RC5][i-1]*l0/l1;
 		c[D_CBC_BF][i]=c[D_CBC_BF][i-1]*l0/l1;
@@ -1406,6 +1448,9 @@ int MAIN(int argc, char **argv)
  		c[D_CBC_128_CML][i]=c[D_CBC_128_CML][i-1]*l0/l1;
 		c[D_CBC_192_CML][i]=c[D_CBC_192_CML][i-1]*l0/l1;
 		c[D_CBC_256_CML][i]=c[D_CBC_256_CML][i-1]*l0/l1;
+		c[D_IGE_128_AES][i]=c[D_IGE_128_AES][i-1]*l0/l1;
+		c[D_IGE_192_AES][i]=c[D_IGE_192_AES][i-1]*l0/l1;
+		c[D_IGE_256_AES][i]=c[D_IGE_256_AES][i-1]*l0/l1;
 		}
 #ifndef OPENSSL_NO_RSA
 	rsa_c[R_RSA_512][0]=count/2000;
@@ -1799,6 +1844,48 @@ int MAIN(int argc, char **argv)
 			}
 		}
 
+	if (doit[D_IGE_128_AES])
+		{
+		for (j=0; j<SIZE_NUM; j++)
+			{
+			print_message(names[D_IGE_128_AES],c[D_IGE_128_AES][j],lengths[j]);
+			Time_F(START);
+			for (count=0,run=1; COND(c[D_IGE_128_AES][j]); count++)
+				AES_ige_encrypt(buf,buf2,
+					(unsigned long)lengths[j],&aes_ks1,
+					iv,AES_ENCRYPT);
+			d=Time_F(STOP);
+			print_result(D_IGE_128_AES,j,count,d);
+			}
+		}
+	if (doit[D_IGE_192_AES])
+		{
+		for (j=0; j<SIZE_NUM; j++)
+			{
+			print_message(names[D_IGE_192_AES],c[D_IGE_192_AES][j],lengths[j]);
+			Time_F(START);
+			for (count=0,run=1; COND(c[D_IGE_192_AES][j]); count++)
+				AES_ige_encrypt(buf,buf2,
+					(unsigned long)lengths[j],&aes_ks2,
+					iv,AES_ENCRYPT);
+			d=Time_F(STOP);
+			print_result(D_IGE_192_AES,j,count,d);
+			}
+		}
+	if (doit[D_IGE_256_AES])
+		{
+		for (j=0; j<SIZE_NUM; j++)
+			{
+			print_message(names[D_IGE_256_AES],c[D_IGE_256_AES][j],lengths[j]);
+			Time_F(START);
+			for (count=0,run=1; COND(c[D_IGE_256_AES][j]); count++)
+				AES_ige_encrypt(buf,buf2,
+					(unsigned long)lengths[j],&aes_ks3,
+					iv,AES_ENCRYPT);
+			d=Time_F(STOP);
+			print_result(D_IGE_256_AES,j,count,d);
+			}
+		}
 #endif
 #ifndef OPENSSL_NO_CAMELLIA
 	if (doit[D_CBC_128_CML])
@@ -1858,6 +1945,21 @@ int MAIN(int argc, char **argv)
 					iv,IDEA_ENCRYPT);
 			d=Time_F(STOP);
 			print_result(D_CBC_IDEA,j,count,d);
+			}
+		}
+#endif
+#ifndef OPENSSL_NO_SEED
+	if (doit[D_CBC_SEED])
+		{
+		for (j=0; j<SIZE_NUM; j++)
+			{
+			print_message(names[D_CBC_SEED],c[D_CBC_SEED][j],lengths[j]);
+			Time_F(START);
+			for (count=0,run=1; COND(c[D_CBC_SEED][j]); count++)
+				SEED_cbc_encrypt(buf,buf,
+					(unsigned long)lengths[j],&seed_ks,iv,1);
+			d=Time_F(STOP);
+			print_result(D_CBC_SEED,j,count,d);
 			}
 		}
 #endif
@@ -2368,7 +2470,7 @@ int MAIN(int argc, char **argv)
 		}
 	if (rnd_fake) RAND_cleanup();
 #endif
-#ifdef HAVE_FORK
+#ifndef NO_FORK
 show_res:
 #endif
 	if(!mr)
@@ -2623,7 +2725,7 @@ static void print_result(int alg,int run_no,int count,double time_used)
 	results[alg][run_no]=((double)count)/time_used*lengths[run_no];
 	}
 
-#ifdef HAVE_FORK
+#ifndef NO_FORK
 static char *sstrsep(char **string, const char *delim)
     {
     char isdelim[256];
@@ -2666,6 +2768,8 @@ static int do_multi(int multi)
 	for(n=0 ; n < multi ; ++n)
 		{
 		pipe(fd);
+		fflush(stdout);
+		fflush(stderr);
 		if(fork())
 			{
 			close(fd[1]);

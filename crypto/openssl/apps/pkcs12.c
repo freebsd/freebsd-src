@@ -1,5 +1,5 @@
 /* pkcs12.c */
-/* Written by Dr Stephen N Henson (shenson@bigfoot.com) for the OpenSSL
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project.
  */
 /* ====================================================================
@@ -68,6 +68,12 @@
 #include <openssl/pem.h>
 #include <openssl/pkcs12.h>
 
+#ifdef OPENSSL_SYS_NETWARE
+/* Rename these functions to avoid name clashes on NetWare OS */
+#define uni2asc OPENSSL_uni2asc
+#define asc2uni OPENSSL_asc2uni
+#endif
+
 #define PROG pkcs12_main
 
 const EVP_CIPHER *enc;
@@ -100,6 +106,7 @@ int MAIN(int argc, char **argv)
     char **args;
     char *name = NULL;
     char *csp_name = NULL;
+    int add_lmk = 0;
     PKCS12 *p12 = NULL;
     char pass[50], macpass[50];
     int export_cert = 0;
@@ -110,7 +117,7 @@ int MAIN(int argc, char **argv)
     int maciter = PKCS12_DEFAULT_ITER;
     int twopass = 0;
     int keytype = 0;
-    int cert_pbe = NID_pbe_WithSHA1And40BitRC2_CBC;
+    int cert_pbe;
     int key_pbe = NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
     int ret = 1;
     int macver = 1;
@@ -126,6 +133,13 @@ int MAIN(int argc, char **argv)
 #endif
 
     apps_startup();
+
+#ifdef OPENSSL_FIPS
+    if (FIPS_mode())
+	cert_pbe = NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
+    else
+#endif
+    cert_pbe = NID_pbe_WithSHA1And40BitRC2_CBC;
 
     enc = EVP_des_ede3_cbc();
     if (bio_err == NULL ) bio_err = BIO_new_fp (stderr, BIO_NOCLOSE);
@@ -153,10 +167,13 @@ int MAIN(int argc, char **argv)
     			cert_pbe = NID_pbe_WithSHA1And3_Key_TripleDES_CBC;
 		else if (!strcmp (*args, "-export")) export_cert = 1;
 		else if (!strcmp (*args, "-des")) enc=EVP_des_cbc();
+		else if (!strcmp (*args, "-des3")) enc = EVP_des_ede3_cbc();
 #ifndef OPENSSL_NO_IDEA
 		else if (!strcmp (*args, "-idea")) enc=EVP_idea_cbc();
 #endif
-		else if (!strcmp (*args, "-des3")) enc = EVP_des_ede3_cbc();
+#ifndef OPENSSL_NO_SEED
+		else if (!strcmp(*args, "-seed")) enc=EVP_seed_cbc();
+#endif
 #ifndef OPENSSL_NO_AES
 		else if (!strcmp(*args,"-aes128")) enc=EVP_aes_128_cbc();
 		else if (!strcmp(*args,"-aes192")) enc=EVP_aes_192_cbc();
@@ -221,7 +238,9 @@ int MAIN(int argc, char **argv)
 			args++;	
 			name = *args;
 		    } else badarg = 1;
-		} else if (!strcmp (*args, "-CSP")) {
+		} else if (!strcmp (*args, "-LMK"))
+			add_lmk = 1;
+		else if (!strcmp (*args, "-CSP")) {
 		    if (args[1]) {
 			args++;	
 			csp_name = *args;
@@ -306,6 +325,9 @@ int MAIN(int argc, char **argv)
 #ifndef OPENSSL_NO_IDEA
 	BIO_printf (bio_err, "-idea         encrypt private keys with idea\n");
 #endif
+#ifndef OPENSSL_NO_SEED
+	BIO_printf (bio_err, "-seed         encrypt private keys with seed\n");
+#endif
 #ifndef OPENSSL_NO_AES
 	BIO_printf (bio_err, "-aes128, -aes192, -aes256\n");
 	BIO_printf (bio_err, "              encrypt PEM output with cbc aes\n");
@@ -332,6 +354,8 @@ int MAIN(int argc, char **argv)
 	BIO_printf(bio_err,  "-rand file%cfile%c...\n", LIST_SEPARATOR_CHAR, LIST_SEPARATOR_CHAR);
 	BIO_printf(bio_err,  "              load the file (or the files in the directory) into\n");
 	BIO_printf(bio_err,  "              the random number generator\n");
+  	BIO_printf(bio_err,  "-CSP name     Microsoft CSP name\n");
+ 	BIO_printf(bio_err,  "-LMK          Add local machine keyset attribute to private key\n");
     	goto end;
     }
 
@@ -471,7 +495,7 @@ int MAIN(int argc, char **argv)
 					X509_keyid_set1(ucert, NULL, 0);
 					X509_alias_set1(ucert, NULL, 0);
 					/* Remove from list */
-					sk_X509_delete(certs, i);
+					(void)sk_X509_delete(certs, i);
 					break;
 					}
 				}
@@ -556,7 +580,9 @@ int MAIN(int argc, char **argv)
 	if (csp_name && key)
 		EVP_PKEY_add1_attr_by_NID(key, NID_ms_csp_name,
 				MBSTRING_ASC, (unsigned char *)csp_name, -1);
-		
+
+	if (add_lmk && key)
+		EVP_PKEY_add1_attr_by_NID(key, NID_LocalKeySet, 0, NULL, -1);
 
 #ifdef CRYPTO_MDEBUG
 	CRYPTO_pop_info();

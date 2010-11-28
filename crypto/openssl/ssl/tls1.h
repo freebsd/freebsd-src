@@ -96,6 +96,96 @@ extern "C" {
 #define TLS1_AD_INTERNAL_ERROR		80	/* fatal */
 #define TLS1_AD_USER_CANCELLED		90
 #define TLS1_AD_NO_RENEGOTIATION	100
+/* codes 110-114 are from RFC3546 */
+#define TLS1_AD_UNSUPPORTED_EXTENSION	110
+#define TLS1_AD_CERTIFICATE_UNOBTAINABLE 111
+#define TLS1_AD_UNRECOGNIZED_NAME 	112
+#define TLS1_AD_BAD_CERTIFICATE_STATUS_RESPONSE 113
+#define TLS1_AD_BAD_CERTIFICATE_HASH_VALUE 114
+#define TLS1_AD_UNKNOWN_PSK_IDENTITY	115	/* fatal */
+
+/* ExtensionType values from RFC 3546 */
+#define TLSEXT_TYPE_server_name			0
+#define TLSEXT_TYPE_max_fragment_length		1
+#define TLSEXT_TYPE_client_certificate_url	2
+#define TLSEXT_TYPE_trusted_ca_keys		3
+#define TLSEXT_TYPE_truncated_hmac		4
+#define TLSEXT_TYPE_status_request		5
+#define TLSEXT_TYPE_elliptic_curves		10
+#define TLSEXT_TYPE_ec_point_formats		11
+#define TLSEXT_TYPE_session_ticket		35
+
+/* Temporary extension type */
+#define TLSEXT_TYPE_renegotiate                 0xff01
+
+/* NameType value from RFC 3546 */
+#define TLSEXT_NAMETYPE_host_name 0
+/* status request value from RFC 3546 */
+#define TLSEXT_STATUSTYPE_ocsp 1
+
+#ifndef OPENSSL_NO_TLSEXT
+
+#define TLSEXT_MAXLEN_host_name 255
+
+const char *SSL_get_servername(const SSL *s, const int type) ;
+int SSL_get_servername_type(const SSL *s) ;
+
+#define SSL_set_tlsext_host_name(s,name) \
+SSL_ctrl(s,SSL_CTRL_SET_TLSEXT_HOSTNAME,TLSEXT_NAMETYPE_host_name,(char *)name)
+
+#define SSL_set_tlsext_debug_callback(ssl, cb) \
+SSL_callback_ctrl(ssl,SSL_CTRL_SET_TLSEXT_DEBUG_CB,(void (*)(void))cb)
+
+#define SSL_set_tlsext_debug_arg(ssl, arg) \
+SSL_ctrl(ssl,SSL_CTRL_SET_TLSEXT_DEBUG_ARG,0, (void *)arg)
+
+#define SSL_set_tlsext_status_type(ssl, type) \
+SSL_ctrl(ssl,SSL_CTRL_SET_TLSEXT_STATUS_REQ_TYPE,type, NULL)
+
+#define SSL_get_tlsext_status_exts(ssl, arg) \
+SSL_ctrl(ssl,SSL_CTRL_GET_TLSEXT_STATUS_REQ_EXTS,0, (void *)arg)
+
+#define SSL_set_tlsext_status_exts(ssl, arg) \
+SSL_ctrl(ssl,SSL_CTRL_SET_TLSEXT_STATUS_REQ_EXTS,0, (void *)arg)
+
+#define SSL_get_tlsext_status_ids(ssl, arg) \
+SSL_ctrl(ssl,SSL_CTRL_GET_TLSEXT_STATUS_REQ_IDS,0, (void *)arg)
+
+#define SSL_set_tlsext_status_ids(ssl, arg) \
+SSL_ctrl(ssl,SSL_CTRL_SET_TLSEXT_STATUS_REQ_IDS,0, (void *)arg)
+
+#define SSL_get_tlsext_status_ocsp_resp(ssl, arg) \
+SSL_ctrl(ssl,SSL_CTRL_GET_TLSEXT_STATUS_REQ_OCSP_RESP,0, (void *)arg)
+
+#define SSL_set_tlsext_status_ocsp_resp(ssl, arg, arglen) \
+SSL_ctrl(ssl,SSL_CTRL_SET_TLSEXT_STATUS_REQ_OCSP_RESP,arglen, (void *)arg)
+
+#define SSL_CTX_set_tlsext_servername_callback(ctx, cb) \
+SSL_CTX_callback_ctrl(ctx,SSL_CTRL_SET_TLSEXT_SERVERNAME_CB,(void (*)(void))cb)
+
+#define SSL_TLSEXT_ERR_OK 0
+#define SSL_TLSEXT_ERR_ALERT_WARNING 1
+#define SSL_TLSEXT_ERR_ALERT_FATAL 2
+#define SSL_TLSEXT_ERR_NOACK 3
+
+#define SSL_CTX_set_tlsext_servername_arg(ctx, arg) \
+SSL_CTX_ctrl(ctx,SSL_CTRL_SET_TLSEXT_SERVERNAME_ARG,0, (void *)arg)
+
+#define SSL_CTX_get_tlsext_ticket_keys(ctx, keys, keylen) \
+	SSL_CTX_ctrl((ctx),SSL_CTRL_GET_TLSEXT_TICKET_KEYS,(keylen),(keys))
+#define SSL_CTX_set_tlsext_ticket_keys(ctx, keys, keylen) \
+	SSL_CTX_ctrl((ctx),SSL_CTRL_SET_TLSEXT_TICKET_KEYS,(keylen),(keys))
+
+#define SSL_CTX_set_tlsext_status_cb(ssl, cb) \
+SSL_CTX_callback_ctrl(ssl,SSL_CTRL_SET_TLSEXT_STATUS_REQ_CB,(void (*)(void))cb)
+
+#define SSL_CTX_set_tlsext_status_arg(ssl, arg) \
+SSL_CTX_ctrl(ssl,SSL_CTRL_SET_TLSEXT_STATUS_REQ_CB_ARG,0, (void *)arg)
+
+#define SSL_CTX_set_tlsext_ticket_key_cb(ssl, cb) \
+SSL_CTX_callback_ctrl(ssl,SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB,(void (*)(void))cb)
+
+#endif
 
 /* Additional TLS ciphersuites from draft-ietf-tls-56-bit-ciphersuites-00.txt
  * (available if TLS1_ALLOW_EXPERIMENTAL_CIPHERSUITES is defined, see
@@ -139,6 +229,14 @@ extern "C" {
 #define TLS1_CK_DHE_DSS_WITH_CAMELLIA_256_CBC_SHA	0x03000087
 #define TLS1_CK_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA	0x03000088
 #define TLS1_CK_ADH_WITH_CAMELLIA_256_CBC_SHA		0x03000089
+
+/* SEED ciphersuites from RFC4162 */
+#define TLS1_CK_RSA_WITH_SEED_SHA                       0x03000096
+#define TLS1_CK_DH_DSS_WITH_SEED_SHA                    0x03000097
+#define TLS1_CK_DH_RSA_WITH_SEED_SHA                    0x03000098
+#define TLS1_CK_DHE_DSS_WITH_SEED_SHA                   0x03000099
+#define TLS1_CK_DHE_RSA_WITH_SEED_SHA                   0x0300009A
+#define TLS1_CK_ADH_WITH_SEED_SHA                	0x0300009B
 
 /* ECC ciphersuites from draft-ietf-tls-ecc-12.txt with changes soon to be in draft 13 */
 #define TLS1_CK_ECDH_ECDSA_WITH_NULL_SHA                0x0300C001
@@ -232,7 +330,7 @@ extern "C" {
 #define TLS1_TXT_ECDH_anon_WITH_AES_128_CBC_SHA         "AECDH-AES128-SHA"
 #define TLS1_TXT_ECDH_anon_WITH_AES_256_CBC_SHA         "AECDH-AES256-SHA"
 
-/* Camellia ciphersuites form RFC4132 */
+/* Camellia ciphersuites from RFC4132 */
 #define TLS1_TXT_RSA_WITH_CAMELLIA_128_CBC_SHA		"CAMELLIA128-SHA"
 #define TLS1_TXT_DH_DSS_WITH_CAMELLIA_128_CBC_SHA	"DH-DSS-CAMELLIA128-SHA"
 #define TLS1_TXT_DH_RSA_WITH_CAMELLIA_128_CBC_SHA	"DH-RSA-CAMELLIA128-SHA"
@@ -247,6 +345,13 @@ extern "C" {
 #define TLS1_TXT_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA	"DHE-RSA-CAMELLIA256-SHA"
 #define TLS1_TXT_ADH_WITH_CAMELLIA_256_CBC_SHA		"ADH-CAMELLIA256-SHA"
 
+/* SEED ciphersuites from RFC4162 */
+#define TLS1_TXT_RSA_WITH_SEED_SHA                      "SEED-SHA"
+#define TLS1_TXT_DH_DSS_WITH_SEED_SHA                   "DH-DSS-SEED-SHA"
+#define TLS1_TXT_DH_RSA_WITH_SEED_SHA                   "DH-RSA-SEED-SHA"
+#define TLS1_TXT_DHE_DSS_WITH_SEED_SHA                  "DHE-DSS-SEED-SHA"
+#define TLS1_TXT_DHE_RSA_WITH_SEED_SHA                  "DHE-RSA-SEED-SHA"
+#define TLS1_TXT_ADH_WITH_SEED_SHA                      "ADH-SEED-SHA"
 
 #define TLS_CT_RSA_SIGN			1
 #define TLS_CT_DSS_SIGN			2

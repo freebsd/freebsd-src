@@ -61,6 +61,8 @@
 #include "cryptlib.h"
 #include <openssl/hmac.h>
 
+#ifndef OPENSSL_FIPS
+
 void HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,
 		  const EVP_MD *md, ENGINE *impl)
 	{
@@ -128,11 +130,8 @@ void HMAC_Update(HMAC_CTX *ctx, const unsigned char *data, size_t len)
 
 void HMAC_Final(HMAC_CTX *ctx, unsigned char *md, unsigned int *len)
 	{
-	int j;
 	unsigned int i;
 	unsigned char buf[EVP_MAX_MD_SIZE];
-
-	j=EVP_MD_block_size(ctx->md);
 
 	EVP_DigestFinal_ex(&ctx->md_ctx,buf,&i);
 	EVP_MD_CTX_copy_ex(&ctx->md_ctx,&ctx->o_ctx);
@@ -171,3 +170,11 @@ unsigned char *HMAC(const EVP_MD *evp_md, const void *key, int key_len,
 	return(md);
 	}
 
+void HMAC_CTX_set_flags(HMAC_CTX *ctx, unsigned long flags)
+	{
+	EVP_MD_CTX_set_flags(&ctx->i_ctx, flags);
+	EVP_MD_CTX_set_flags(&ctx->o_ctx, flags);
+	EVP_MD_CTX_set_flags(&ctx->md_ctx, flags);
+	}
+
+#endif

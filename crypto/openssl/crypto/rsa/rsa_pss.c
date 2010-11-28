@@ -1,5 +1,5 @@
 /* rsa_pss.c */
-/* Written by Dr Stephen N Henson (shenson@bigfoot.com) for the OpenSSL
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2005.
  */
 /* ====================================================================
@@ -81,7 +81,7 @@ int RSA_verify_PKCS1_PSS(RSA *rsa, const unsigned char *mHash,
 	EVP_MD_CTX ctx;
 	unsigned char H_[EVP_MAX_MD_SIZE];
 
-	hLen = EVP_MD_size(Hash);
+	hLen = M_EVP_MD_size(Hash);
 	/*
 	 * Negative sLen has special meanings:
 	 *	-1	sLen == hLen
@@ -176,7 +176,7 @@ int RSA_padding_add_PKCS1_PSS(RSA *rsa, unsigned char *EM,
 	unsigned char *H, *salt = NULL, *p;
 	EVP_MD_CTX ctx;
 
-	hLen = EVP_MD_size(Hash);
+	hLen = M_EVP_MD_size(Hash);
 	/*
 	 * Negative sLen has special meanings:
 	 *	-1	sLen == hLen
@@ -217,7 +217,7 @@ int RSA_padding_add_PKCS1_PSS(RSA *rsa, unsigned char *EM,
 		   		ERR_R_MALLOC_FAILURE);
 			goto err;
 			}
-		if (!RAND_bytes(salt, sLen))
+		if (RAND_bytes(salt, sLen) <= 0)
 			goto err;
 		}
 	maskedDBLen = emLen - hLen - 1;

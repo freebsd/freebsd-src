@@ -60,7 +60,16 @@
 /* Hacks to solve the problem with linkers incapable of handling very long
    symbol names.  In the case of VMS, the limit is 31 characters on VMS for
    VAX. */
+/* Note that this affects util/libeay.num and util/ssleay.num...  you may
+   change those manually, but that's not recommended, as those files are
+   controlled centrally and updated on Unix, and the central definition
+   may disagree with yours, which in turn may come with shareable library
+   incompatibilities. */
 #ifdef OPENSSL_SYS_VMS
+
+/* Hack a long name in crypto/cryptlib.c */
+#undef int_CRYPTO_set_do_dynlock_callback
+#define int_CRYPTO_set_do_dynlock_callback	int_CRYPTO_set_do_dynlock_cb
 
 /* Hack a long name in crypto/ex_data.c */
 #undef CRYPTO_get_ex_data_implementation
@@ -133,6 +142,8 @@
 #define X509_policy_node_get0_qualifiers	X509_pcy_node_get0_qualifiers
 #undef X509_STORE_CTX_get_explicit_policy
 #define X509_STORE_CTX_get_explicit_policy	X509_STORE_CTX_get_expl_policy
+#undef X509_STORE_CTX_get0_current_issuer
+#define X509_STORE_CTX_get0_current_issuer	X509_STORE_CTX_get0_cur_issuer
 
 /* Hack some long CRYPTO names */
 #undef CRYPTO_set_dynlock_destroy_callback
@@ -170,6 +181,15 @@
 #undef SSL_COMP_get_compression_methods
 #define SSL_COMP_get_compression_methods	SSL_COMP_get_compress_methods
 
+#undef ssl_add_clienthello_renegotiate_ext
+#define ssl_add_clienthello_renegotiate_ext	ssl_add_clienthello_reneg_ext
+#undef ssl_add_serverhello_renegotiate_ext
+#define ssl_add_serverhello_renegotiate_ext	ssl_add_serverhello_reneg_ext
+#undef ssl_parse_clienthello_renegotiate_ext
+#define ssl_parse_clienthello_renegotiate_ext	ssl_parse_clienthello_reneg_ext
+#undef ssl_parse_serverhello_renegotiate_ext
+#define ssl_parse_serverhello_renegotiate_ext	ssl_parse_serverhello_reneg_ext
+
 /* Hack some long ENGINE names */
 #undef ENGINE_get_default_BN_mod_exp_crt
 #define ENGINE_get_default_BN_mod_exp_crt	ENGINE_get_def_BN_mod_exp_crt
@@ -179,6 +199,11 @@
 #define ENGINE_set_load_privkey_function        ENGINE_set_load_privkey_fn
 #undef ENGINE_get_load_privkey_function
 #define ENGINE_get_load_privkey_function        ENGINE_get_load_privkey_fn
+#undef ENGINE_set_load_ssl_client_cert_function
+#define ENGINE_set_load_ssl_client_cert_function \
+						ENGINE_set_ld_ssl_clnt_cert_fn
+#undef ENGINE_get_ssl_client_cert_function
+#define ENGINE_get_ssl_client_cert_function	ENGINE_get_ssl_client_cert_fn
 
 /* Hack some long OCSP names */
 #undef OCSP_REQUEST_get_ext_by_critical
@@ -342,6 +367,24 @@
 #undef STORE_method_get_unlock_store_function
 #define STORE_method_get_unlock_store_function	STORE_meth_get_unlock_store_fn
 
+/* Hack some long CMS names */
+#undef CMS_RecipientInfo_ktri_get0_algs
+#define CMS_RecipientInfo_ktri_get0_algs	CMS_RecipInfo_ktri_get0_algs
+#undef CMS_RecipientInfo_ktri_get0_signer_id
+#define CMS_RecipientInfo_ktri_get0_signer_id	CMS_RecipInfo_ktri_get0_sigr_id
+#undef CMS_OtherRevocationInfoFormat_it
+#define CMS_OtherRevocationInfoFormat_it	CMS_OtherRevocInfoFormat_it
+#undef CMS_KeyAgreeRecipientIdentifier_it
+#define CMS_KeyAgreeRecipientIdentifier_it	CMS_KeyAgreeRecipIdentifier_it
+#undef CMS_OriginatorIdentifierOrKey_it
+#define CMS_OriginatorIdentifierOrKey_it	CMS_OriginatorIdOrKey_it
+#undef cms_SignerIdentifier_get0_signer_id
+#define cms_SignerIdentifier_get0_signer_id	cms_SignerId_get0_signer_id
+
+/* Hack some long DTLS1 names */
+#undef dtls1_retransmit_buffered_messages
+#define dtls1_retransmit_buffered_messages	dtls1_retransmit_buffered_msgs
+
 #endif /* defined OPENSSL_SYS_VMS */
 
 
@@ -381,3 +424,6 @@
 
 
 #endif /* ! defined HEADER_VMS_IDHACKS_H */
+/* This one clashes with CMS_data_create */
+#undef cms_Data_create
+#define cms_Data_create				priv_cms_Data_create

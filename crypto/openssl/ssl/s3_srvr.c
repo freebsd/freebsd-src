@@ -132,6 +132,7 @@
 #include <openssl/rand.h>
 #include <openssl/objects.h>
 #include <openssl/evp.h>
+#include <openssl/hmac.h>
 #include <openssl/x509.h>
 #ifndef OPENSSL_NO_DH
 #include <openssl/dh.h>
@@ -143,7 +144,6 @@
 #include <openssl/md5.h>
 
 static SSL_METHOD *ssl3_get_server_method(int ver);
-
 #ifndef OPENSSL_NO_ECDH
 static int nid2curve_id(int nid);
 #endif
@@ -166,7 +166,6 @@ int ssl3_accept(SSL *s)
 	BUF_MEM *buf;
 	unsigned long l,Time=(unsigned long)time(NULL);
 	void (*cb)(const SSL *ssl,int type,int val)=NULL;
-	long num1;
 	int ret= -1;
 	int new_state,state,skip=0;
 
@@ -248,6 +247,18 @@ int ssl3_accept(SSL *s)
 				s->state=SSL3_ST_SR_CLNT_HELLO_A;
 				s->ctx->stats.sess_accept++;
 				}
+			else if (!s->s3->send_connection_binding &&
+				!(s->options & SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION))
+				{
+				/* Server attempting to renegotiate with
+				 * client that doesn't support secure
+				 * renegotiation.
+				 */
+				SSLerr(SSL_F_SSL3_ACCEPT, SSL_R_UNSAFE_LEGACY_RENEGOTIATION_DISABLED);
+				ssl3_send_alert(s,SSL3_AL_FATAL,SSL_AD_HANDSHAKE_FAILURE);
+				ret = -1;
+				goto end;
+				}
 			else
 				{
 				/* s->state == SSL_ST_RENEGOTIATE,
@@ -290,9 +301,18 @@ int ssl3_accept(SSL *s)
 		case SSL3_ST_SW_SRVR_HELLO_B:
 			ret=ssl3_send_server_hello(s);
 			if (ret <= 0) goto end;
-
+#ifndef OPENSSL_NO_TLSEXT
 			if (s->hit)
-				s->state=SSL3_ST_SW_CHANGE_A;
+				{
+				if (s->tlsext_ticket_expected)
+					s->state=SSL3_ST_SW_SESSION_TICKET_A;
+				else
+					s->state=SSL3_ST_SW_CHANGE_A;
+				}
+#else
+			if (s->hit)
+					s->state=SSL3_ST_SW_CHANGE_A;
+#endif
 			else
 				s->state=SSL3_ST_SW_CERT_A;
 			s->init_num=0;
@@ -306,10 +326,24 @@ int ssl3_accept(SSL *s)
 				{
 				ret=ssl3_send_server_certificate(s);
 				if (ret <= 0) goto end;
+#ifndef OPENSSL_NO_TLSEXT
+				if (s->tlsext_status_expected)
+					s->state=SSL3_ST_SW_CERT_STATUS_A;
+				else
+					s->state=SSL3_ST_SW_KEY_EXCH_A;
+				}
+			else
+				{
+				skip = 1;
+				s->state=SSL3_ST_SW_KEY_EXCH_A;
+				}
+#else
 				}
 			else
 				skip=1;
+
 			s->state=SSL3_ST_SW_KEY_EXCH_A;
+#endif
 			s->init_num=0;
 			break;
 
@@ -412,15 +446,24 @@ int ssl3_accept(SSL *s)
 			break;
 		
 		case SSL3_ST_SW_FLUSH:
-			/* number of bytes to be flushed */
-			num1=BIO_ctrl(s->wbio,BIO_CTRL_INFO,0,NULL);
-			if (num1 > 0)
+
+			/* This code originally checked to see if
+			 * any data was pending using BIO_CTRL_INFO
+			 * and then flushed. This caused problems
+			 * as documented in PR#1939. The proposed
+			 * fix doesn't completely resolve this issue
+			 * as buggy implementations of BIO_CTRL_PENDING
+			 * still exist. So instead we just flush
+			 * unconditionally.
+			 */
+
+			s->rwstate=SSL_WRITING;
+			if (BIO_flush(s->wbio) <= 0)
 				{
-				s->rwstate=SSL_WRITING;
-				num1=BIO_flush(s->wbio);
-				if (num1 <= 0) { ret= -1; goto end; }
-				s->rwstate=SSL_NOTHING;
+				ret= -1;
+				goto end;
 				}
+			s->rwstate=SSL_NOTHING;
 
 			s->state=s->s3->tmp.next_state;
 			break;
@@ -494,10 +537,33 @@ int ssl3_accept(SSL *s)
 			if (ret <= 0) goto end;
 			if (s->hit)
 				s->state=SSL_ST_OK;
+#ifndef OPENSSL_NO_TLSEXT
+			else if (s->tlsext_ticket_expected)
+				s->state=SSL3_ST_SW_SESSION_TICKET_A;
+#endif
 			else
 				s->state=SSL3_ST_SW_CHANGE_A;
 			s->init_num=0;
 			break;
+
+#ifndef OPENSSL_NO_TLSEXT
+		case SSL3_ST_SW_SESSION_TICKET_A:
+		case SSL3_ST_SW_SESSION_TICKET_B:
+			ret=ssl3_send_newsession_ticket(s);
+			if (ret <= 0) goto end;
+			s->state=SSL3_ST_SW_CHANGE_A;
+			s->init_num=0;
+			break;
+
+		case SSL3_ST_SW_CERT_STATUS_A:
+		case SSL3_ST_SW_CERT_STATUS_B:
+			ret=ssl3_send_cert_status(s);
+			if (ret <= 0) goto end;
+			s->state=SSL3_ST_SW_KEY_EXCH_A;
+			s->init_num=0;
+			break;
+
+#endif
 
 		case SSL3_ST_SW_CHANGE_A:
 		case SSL3_ST_SW_CHANGE_B:
@@ -706,7 +772,8 @@ int ssl3_get_client_hello(SSL *s)
 	s->client_version=(((int)p[0])<<8)|(int)p[1];
 	p+=2;
 
-	if (s->client_version < s->version)
+	if ((s->version == DTLS1_VERSION && s->client_version > s->version) ||
+	    (s->version != DTLS1_VERSION && s->client_version < s->version))
 		{
 		SSLerr(SSL_F_SSL3_GET_CLIENT_HELLO, SSL_R_WRONG_VERSION_NUMBER);
 		if ((s->client_version>>8) == SSL3_VERSION_MAJOR) 
@@ -716,6 +783,21 @@ int ssl3_get_client_hello(SSL *s)
 			}
 		al = SSL_AD_PROTOCOL_VERSION;
 		goto f_err;
+		}
+
+	/* If we require cookies and this ClientHello doesn't
+	 * contain one, just return since we do not want to
+	 * allocate any memory yet. So check cookie length...
+	 */
+	if (SSL_get_options(s) & SSL_OP_COOKIE_EXCHANGE)
+		{
+		unsigned int session_length, cookie_length;
+		
+		session_length = *(p + SSL3_RANDOM_SIZE);
+		cookie_length = *(p + SSL3_RANDOM_SIZE + session_length + 1);
+
+		if (cookie_length == 0)
+			return 1;
 		}
 
 	/* load the client random */
@@ -734,14 +816,14 @@ int ssl3_get_client_hello(SSL *s)
 	 * might be written that become totally unsecure when compiled with
 	 * an earlier library version)
 	 */
-	if (j == 0 || (s->new_session && (s->options & SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION)))
+	if ((s->new_session && (s->options & SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION)))
 		{
 		if (!ssl_get_new_session(s,1))
 			goto err;
 		}
 	else
 		{
-		i=ssl_get_prev_session(s,p,j);
+		i=ssl_get_prev_session(s, p, j, d + n);
 		if (i == 1)
 			{ /* previous session */
 			s->hit=1;
@@ -757,22 +839,10 @@ int ssl3_get_client_hello(SSL *s)
 
 	p+=j;
 
-	if (SSL_version(s) == DTLS1_VERSION)
+	if (s->version == DTLS1_VERSION || s->version == DTLS1_BAD_VER)
 		{
 		/* cookie stuff */
 		cookie_len = *(p++);
-
-		if ( (SSL_get_options(s) & SSL_OP_COOKIE_EXCHANGE) &&
-			s->d1->send_cookie == 0)
-			{
-			/* HelloVerifyMessage has already been sent */
-			if ( cookie_len != s->d1->cookie_len)
-				{
-				al = SSL_AD_HANDSHAKE_FAILURE;
-				SSLerr(SSL_F_SSL3_GET_CLIENT_HELLO, SSL_R_COOKIE_MISMATCH);
-				goto f_err;
-				}
-			}
 
 		/* 
 		 * The ClientHello may contain a cookie even if the
@@ -788,7 +858,7 @@ int ssl3_get_client_hello(SSL *s)
 			}
 
 		/* verify the cookie if appropriate option is set. */
-		if ( (SSL_get_options(s) & SSL_OP_COOKIE_EXCHANGE) &&
+		if ((SSL_get_options(s) & SSL_OP_COOKIE_EXCHANGE) &&
 			cookie_len > 0)
 			{
 			memcpy(s->d1->rcvd_cookie, p, cookie_len);
@@ -813,6 +883,8 @@ int ssl3_get_client_hello(SSL *s)
 						SSL_R_COOKIE_MISMATCH);
 					goto f_err;
 				}
+
+			ret = 2;
 			}
 
 		p += cookie_len;
@@ -862,21 +934,27 @@ int ssl3_get_client_hello(SSL *s)
 				break;
 				}
 			}
+		if (j == 0 && (s->options & SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG) && (sk_SSL_CIPHER_num(ciphers) == 1))
+			{
+			/* Special case as client bug workaround: the previously used cipher may
+			 * not be in the current list, the client instead might be trying to
+			 * continue using a cipher that before wasn't chosen due to server
+			 * preferences.  We'll have to reject the connection if the cipher is not
+			 * enabled, though. */
+			c = sk_SSL_CIPHER_value(ciphers, 0);
+			if (sk_SSL_CIPHER_find(SSL_get_ciphers(s), c) >= 0)
+				{
+				s->session->cipher = c;
+				j = 1;
+				}
+			}
 		if (j == 0)
 			{
-			if ((s->options & SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG) && (sk_SSL_CIPHER_num(ciphers) == 1))
-				{
-				/* Very bad for multi-threading.... */
-				s->session->cipher=sk_SSL_CIPHER_value(ciphers, 0);
-				}
-			else
-				{
-				/* we need to have the cipher in the cipher
-				 * list if we are asked to reuse it */
-				al=SSL_AD_ILLEGAL_PARAMETER;
-				SSLerr(SSL_F_SSL3_GET_CLIENT_HELLO,SSL_R_REQUIRED_CIPHER_MISSING);
-				goto f_err;
-				}
+			/* we need to have the cipher in the cipher
+			 * list if we are asked to reuse it */
+			al=SSL_AD_ILLEGAL_PARAMETER;
+			SSLerr(SSL_F_SSL3_GET_CLIENT_HELLO,SSL_R_REQUIRED_CIPHER_MISSING);
+			goto f_err;
 			}
 		}
 
@@ -904,6 +982,22 @@ int ssl3_get_client_hello(SSL *s)
 		goto f_err;
 		}
 
+#ifndef OPENSSL_NO_TLSEXT
+	/* TLS extensions*/
+	if (s->version >= SSL3_VERSION)
+		{
+		if (!ssl_parse_clienthello_tlsext(s,&p,d,n, &al))
+			{
+			/* 'al' set by ssl_parse_clienthello_tlsext */
+			SSLerr(SSL_F_SSL3_GET_CLIENT_HELLO,SSL_R_PARSE_TLSEXT);
+			goto f_err;
+			}
+		}
+		if (ssl_check_clienthello_tlsext(s) <= 0) {
+			SSLerr(SSL_F_SSL3_GET_CLIENT_HELLO,SSL_R_CLIENTHELLO_TLSEXT);
+			goto err;
+		}
+#endif
 	/* Worst case, we will use the NULL compression, but if we have other
 	 * options, we will now look for them.  We have i-1 compression
 	 * algorithms from the client, starting at q. */
@@ -1025,7 +1119,7 @@ int ssl3_get_client_hello(SSL *s)
 	 * s->tmp.new_cipher	- the new cipher to use.
 	 */
 
-	ret=1;
+	if (ret < 0) ret=1;
 	if (0)
 		{
 f_err:
@@ -1068,8 +1162,16 @@ int ssl3_send_server_hello(SSL *s)
 		 * session-id if we want it to be single use.
 		 * Currently I will not implement the '0' length session-id
 		 * 12-Jan-98 - I'll now support the '0' length stuff.
+		 *
+		 * We also have an additional case where stateless session
+		 * resumption is successful: we always send back the old
+		 * session id. In this case s->hit is non zero: this can
+		 * only happen if stateless session resumption is succesful
+		 * if session caching is disabled so existing functionality
+		 * is unaffected.
 		 */
-		if (!(s->ctx->session_cache_mode & SSL_SESS_CACHE_SERVER))
+		if (!(s->ctx->session_cache_mode & SSL_SESS_CACHE_SERVER)
+			&& !s->hit)
 			s->session->session_id_length=0;
 
 		sl=s->session->session_id_length;
@@ -1095,20 +1197,26 @@ int ssl3_send_server_hello(SSL *s)
 		else
 			*(p++)=s->s3->tmp.new_compression->id;
 #endif
-
+#ifndef OPENSSL_NO_TLSEXT
+		if ((p = ssl_add_serverhello_tlsext(s, p, buf+SSL3_RT_MAX_PLAIN_LENGTH)) == NULL)
+			{
+			SSLerr(SSL_F_SSL3_SEND_SERVER_HELLO,ERR_R_INTERNAL_ERROR);
+			return -1;
+			}
+#endif
 		/* do the header */
 		l=(p-d);
 		d=buf;
 		*(d++)=SSL3_MT_SERVER_HELLO;
 		l2n3(l,d);
 
-		s->state=SSL3_ST_CW_CLNT_HELLO_B;
+		s->state=SSL3_ST_SW_SRVR_HELLO_B;
 		/* number of bytes to write */
 		s->init_num=p-buf;
 		s->init_off=0;
 		}
 
-	/* SSL3_ST_CW_CLNT_HELLO_B */
+	/* SSL3_ST_SW_SRVR_HELLO_B */
 	return(ssl3_do_write(s,SSL3_RT_HANDSHAKE));
 	}
 
@@ -1132,7 +1240,7 @@ int ssl3_send_server_done(SSL *s)
 		s->init_off=0;
 		}
 
-	/* SSL3_ST_CW_CLNT_HELLO_B */
+	/* SSL3_ST_SW_SRVR_DONE_B */
 	return(ssl3_do_write(s,SSL3_RT_HANDSHAKE));
 	}
 
@@ -1470,6 +1578,8 @@ int ssl3_send_server_key_exchange(SSL *s)
 				j=0;
 				for (num=2; num > 0; num--)
 					{
+					EVP_MD_CTX_set_flags(&md_ctx,
+						EVP_MD_CTX_FLAG_NON_FIPS_ALLOW);
 					EVP_DigestInit_ex(&md_ctx,(num == 2)
 						?s->ctx->md5:s->ctx->sha1, NULL);
 					EVP_DigestUpdate(&md_ctx,&(s->s3->client_random[0]),SSL3_RANDOM_SIZE);
@@ -1718,8 +1828,9 @@ int ssl3_get_client_key_exchange(SSL *s)
 			rsa=pkey->pkey.rsa;
 			}
 
-		/* TLS */
-		if (s->version > SSL3_VERSION)
+		/* TLS and [incidentally] DTLS, including pre-0.9.8f */
+		if (s->version > SSL3_VERSION &&
+		    s->client_version != DTLS1_BAD_VER)
 			{
 			n2s(p,i);
 			if (n != i+2)
@@ -2004,7 +2115,7 @@ int ssl3_get_client_key_exchange(SSL *s)
 				SSL_R_DATA_LENGTH_TOO_LONG);
 			goto err;
 			}
-		if (!((p[0] == (s->client_version>>8)) && (p[1] == (s->client_version & 0xff))))
+		if (!((pms[0] == (s->client_version>>8)) && (pms[1] == (s->client_version & 0xff))))
 		    {
 		    /* The premaster secret must contain the same version number as the
 		     * ClientHello to detect version rollback attacks (strangely, the
@@ -2014,8 +2125,7 @@ int ssl3_get_client_key_exchange(SSL *s)
 		     * If SSL_OP_TLS_ROLLBACK_BUG is set, tolerate such clients. 
 		     * (Perhaps we should have a separate BUG value for the Kerberos cipher)
 		     */
-		    if (!((s->options & SSL_OP_TLS_ROLLBACK_BUG) &&
-			   (p[0] == (s->version>>8)) && (p[1] == (s->version & 0xff))))
+		    if (!(s->options & SSL_OP_TLS_ROLLBACK_BUG))
 		        {
 			SSLerr(SSL_F_SSL3_GET_CLIENT_KEY_EXCHANGE,
 			       SSL_AD_DECODE_ERROR);
@@ -2622,4 +2732,147 @@ static int nid2curve_id(int nid)
 		return 0;
 	}
 }
+#endif
+#ifndef OPENSSL_NO_TLSEXT
+int ssl3_send_newsession_ticket(SSL *s)
+	{
+	if (s->state == SSL3_ST_SW_SESSION_TICKET_A)
+		{
+		unsigned char *p, *senc, *macstart;
+		int len, slen;
+		unsigned int hlen;
+		EVP_CIPHER_CTX ctx;
+		HMAC_CTX hctx;
+		SSL_CTX *tctx = s->initial_ctx;
+		unsigned char iv[EVP_MAX_IV_LENGTH];
+		unsigned char key_name[16];
+
+		/* get session encoding length */
+		slen = i2d_SSL_SESSION(s->session, NULL);
+		/* Some length values are 16 bits, so forget it if session is
+ 		 * too long
+ 		 */
+		if (slen > 0xFF00)
+			return -1;
+		/* Grow buffer if need be: the length calculation is as
+ 		 * follows 1 (size of message name) + 3 (message length
+ 		 * bytes) + 4 (ticket lifetime hint) + 2 (ticket length) +
+ 		 * 16 (key name) + max_iv_len (iv length) +
+ 		 * session_length + max_enc_block_size (max encrypted session
+ 		 * length) + max_md_size (HMAC).
+ 		 */
+		if (!BUF_MEM_grow(s->init_buf,
+			26 + EVP_MAX_IV_LENGTH + EVP_MAX_BLOCK_LENGTH +
+			EVP_MAX_MD_SIZE + slen))
+			return -1;
+		senc = OPENSSL_malloc(slen);
+		if (!senc)
+			return -1;
+		p = senc;
+		i2d_SSL_SESSION(s->session, &p);
+
+		p=(unsigned char *)s->init_buf->data;
+		/* do the header */
+		*(p++)=SSL3_MT_NEWSESSION_TICKET;
+		/* Skip message length for now */
+		p += 3;
+		EVP_CIPHER_CTX_init(&ctx);
+		HMAC_CTX_init(&hctx);
+		/* Initialize HMAC and cipher contexts. If callback present
+		 * it does all the work otherwise use generated values
+		 * from parent ctx.
+		 */
+		if (tctx->tlsext_ticket_key_cb)
+			{
+			if (tctx->tlsext_ticket_key_cb(s, key_name, iv, &ctx,
+							 &hctx, 1) < 0)
+				{
+				OPENSSL_free(senc);
+				return -1;
+				}
+			}
+		else
+			{
+			RAND_pseudo_bytes(iv, 16);
+			EVP_EncryptInit_ex(&ctx, EVP_aes_128_cbc(), NULL,
+					tctx->tlsext_tick_aes_key, iv);
+			HMAC_Init_ex(&hctx, tctx->tlsext_tick_hmac_key, 16,
+					tlsext_tick_md(), NULL);
+			memcpy(key_name, tctx->tlsext_tick_key_name, 16);
+			}
+		l2n(s->session->tlsext_tick_lifetime_hint, p);
+		/* Skip ticket length for now */
+		p += 2;
+		/* Output key name */
+		macstart = p;
+		memcpy(p, key_name, 16);
+		p += 16;
+		/* output IV */
+		memcpy(p, iv, EVP_CIPHER_CTX_iv_length(&ctx));
+		p += EVP_CIPHER_CTX_iv_length(&ctx);
+		/* Encrypt session data */
+		EVP_EncryptUpdate(&ctx, p, &len, senc, slen);
+		p += len;
+		EVP_EncryptFinal(&ctx, p, &len);
+		p += len;
+		EVP_CIPHER_CTX_cleanup(&ctx);
+
+		HMAC_Update(&hctx, macstart, p - macstart);
+		HMAC_Final(&hctx, p, &hlen);
+		HMAC_CTX_cleanup(&hctx);
+
+		p += hlen;
+		/* Now write out lengths: p points to end of data written */
+		/* Total length */
+		len = p - (unsigned char *)s->init_buf->data;
+		p=(unsigned char *)s->init_buf->data + 1;
+		l2n3(len - 4, p); /* Message length */
+		p += 4;
+		s2n(len - 10, p);  /* Ticket length */
+
+		/* number of bytes to write */
+		s->init_num= len;
+		s->state=SSL3_ST_SW_SESSION_TICKET_B;
+		s->init_off=0;
+		OPENSSL_free(senc);
+		}
+
+	/* SSL3_ST_SW_SESSION_TICKET_B */
+	return(ssl3_do_write(s,SSL3_RT_HANDSHAKE));
+	}
+
+int ssl3_send_cert_status(SSL *s)
+	{
+	if (s->state == SSL3_ST_SW_CERT_STATUS_A)
+		{
+		unsigned char *p;
+		/* Grow buffer if need be: the length calculation is as
+ 		 * follows 1 (message type) + 3 (message length) +
+ 		 * 1 (ocsp response type) + 3 (ocsp response length)
+ 		 * + (ocsp response)
+ 		 */
+		if (!BUF_MEM_grow(s->init_buf, 8 + s->tlsext_ocsp_resplen))
+			return -1;
+
+		p=(unsigned char *)s->init_buf->data;
+
+		/* do the header */
+		*(p++)=SSL3_MT_CERTIFICATE_STATUS;
+		/* message length */
+		l2n3(s->tlsext_ocsp_resplen + 4, p);
+		/* status type */
+		*(p++)= s->tlsext_status_type;
+		/* length of OCSP response */
+		l2n3(s->tlsext_ocsp_resplen, p);
+		/* actual response */
+		memcpy(p, s->tlsext_ocsp_resp, s->tlsext_ocsp_resplen);
+		/* number of bytes to write */
+		s->init_num = 8 + s->tlsext_ocsp_resplen;
+		s->state=SSL3_ST_SW_CERT_STATUS_B;
+		s->init_off = 0;
+		}
+
+	/* SSL3_ST_SW_CERT_STATUS_B */
+	return(ssl3_do_write(s,SSL3_RT_HANDSHAKE));
+	}
 #endif

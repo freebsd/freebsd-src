@@ -153,7 +153,6 @@ extern "C" {
 #define clear_socket_error()	WSASetLastError(0)
 #define readsocket(s,b,n)	recv((s),(b),(n),0)
 #define writesocket(s,b,n)	send((s),(b),(n),0)
-#define EADDRINUSE		WSAEADDRINUSE
 #elif defined(__DJGPP__)
 #define WATT32
 #define get_last_socket_error()	errno
@@ -186,8 +185,14 @@ extern "C" {
 #define get_last_socket_error() errno
 #define clear_socket_error()    errno=0
 #define closesocket(s)          close(s)
+#define ioctlsocket(a,b,c)      ioctl(a,b,c)
+#if defined(NETWARE_LIBC)
 #define readsocket(s,b,n)       recv((s),(b),(n),0)
 #define writesocket(s,b,n)      send((s),(b),(n),0)
+#else
+#define readsocket(s,b,n)       recv((s),(char*)(b),(n),0)
+#define writesocket(s,b,n)      send((s),(char*)(b),(n),0)
+#endif
 #else
 #define get_last_socket_error()	WSAGetLastError()
 #define clear_socket_error()	WSASetLastError(0)
@@ -263,6 +268,7 @@ extern "C" {
 #      define _WIN32_WINNT 0x0400
 #    endif
 #    include <windows.h>
+#    include <stdio.h>
 #    include <stddef.h>
 #    include <errno.h>
 #    include <string.h>
@@ -277,6 +283,39 @@ static unsigned int _strlen31(const char *str)
 	}
 #    endif
 #    include <malloc.h>
+#    if defined(_MSC_VER) && _MSC_VER<=1200 && defined(_MT) && defined(isspace)
+       /* compensate for bug in VC6 ctype.h */
+#      undef isspace
+#      undef isdigit
+#      undef isalnum
+#      undef isupper
+#      undef isxdigit
+#    endif
+#    if defined(_MSC_VER) && !defined(_DLL) && defined(stdin)
+#      if _MSC_VER>=1300
+#        undef stdin
+#        undef stdout
+#        undef stderr
+         FILE *__iob_func();
+#        define stdin  (&__iob_func()[0])
+#        define stdout (&__iob_func()[1])
+#        define stderr (&__iob_func()[2])
+#      elif defined(I_CAN_LIVE_WITH_LNK4049)
+#        undef stdin
+#        undef stdout
+#        undef stderr
+         /* pre-1300 has __p__iob(), but it's available only in msvcrt.lib,
+          * or in other words with /MD. Declaring implicit import, i.e.
+          * with _imp_ prefix, works correctly with all compiler options,
+          * but without /MD results in LINK warning LNK4049:
+          * 'locally defined symbol "__iob" imported'.
+          */
+         extern FILE *_imp___iob;
+#        define stdin  (&_imp___iob[0])
+#        define stdout (&_imp___iob[1])
+#        define stderr (&_imp___iob[2])
+#      endif
+#    endif
 #  endif
 #  include <io.h>
 #  include <fcntl.h>
@@ -371,6 +410,12 @@ static unsigned int _strlen31(const char *str)
 #    undef  DEVRANDOM
 #    ifdef NETWARE_CLIB
 #      define getpid GetThreadID
+       extern int GetThreadID(void);
+/* #      include <conio.h> */
+       extern int kbhit(void);
+       extern void delay(unsigned milliseconds);
+#    else
+#      include <screen.h>
 #    endif
 #    define NO_SYSLOG
 #    define _setmode setmode
@@ -471,7 +516,11 @@ extern HINSTANCE _hInstance;
 #        include <sys/socket.h>
 #        include <netinet/in.h>
 #        include <sys/time.h>
-#        include <sys/select.h>
+#        if defined(NETWARE_CLIB)
+#          include <sys/bsdskt.h>
+#        else
+#          include <sys/select.h>
+#        endif
 #        define INVALID_SOCKET (int)(~0)
 #      else
 #        include <novsock2.h>
@@ -613,16 +662,12 @@ extern char *sys_errlist[]; extern int sys_nerr;
 #elif defined(OPENSSL_SYS_OS2) && defined(__EMX__)
 #  define strcasecmp stricmp
 #  define strncasecmp strnicmp
-#elif defined(OPENSSL_SYS_NETWARE) && defined(NETWARE_CLIB)
-#  define strcasecmp stricmp
-#  define strncasecmp strnicmp
-#else
-#  ifdef NO_STRINGS_H
-    int	strcasecmp();
-    int	strncasecmp();
-#  else
-#    include <strings.h>
-#  endif /* NO_STRINGS_H */
+#elif defined(OPENSSL_SYS_NETWARE)
+#  include <string.h>
+#  if defined(NETWARE_CLIB)
+#    define strcasecmp stricmp
+#    define strncasecmp strnicmp
+#  endif /* NETWARE_CLIB */
 #endif
 
 #if defined(OPENSSL_SYS_OS2) && defined(__EMX__)

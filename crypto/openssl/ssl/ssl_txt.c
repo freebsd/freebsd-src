@@ -91,6 +91,10 @@ int SSL_SESSION_print(BIO *bp, const SSL_SESSION *x)
 		s="SSLv3";
 	else if (x->ssl_version == TLS1_VERSION)
 		s="TLSv1";
+	else if (x->ssl_version == DTLS1_VERSION)
+		s="DTLSv1";
+	else if (x->ssl_version == DTLS1_BAD_VER)
+		s="DTLSv1-bad";
 	else
 		s="unknown";
 	if (BIO_printf(bp,"    Protocol  : %s\n",s) <= 0) goto err;
@@ -151,6 +155,21 @@ int SSL_SESSION_print(BIO *bp, const SSL_SESSION *x)
 			if (BIO_printf(bp,"%02X",x->krb5_client_princ[i]) <= 0) goto err;
 			}
 #endif /* OPENSSL_NO_KRB5 */
+#ifndef OPENSSL_NO_TLSEXT
+	if (x->tlsext_tick_lifetime_hint)
+		{
+		if (BIO_printf(bp,
+			"\n    TLS session ticket lifetime hint: %ld (seconds)",
+			x->tlsext_tick_lifetime_hint) <=0)
+			goto err;
+		}
+	if (x->tlsext_tick)
+		{
+		if (BIO_puts(bp, "\n    TLS session ticket:\n") <= 0) goto err;
+		if (BIO_dump_indent(bp, (char *)x->tlsext_tick, x->tlsext_ticklen, 4) <= 0)
+			goto err;
+		}
+#endif
 #ifndef OPENSSL_NO_COMP
 	if (x->compress_meth != 0)
 		{
@@ -159,11 +178,11 @@ int SSL_SESSION_print(BIO *bp, const SSL_SESSION *x)
 		ssl_cipher_get_evp(x,NULL,NULL,&comp);
 		if (comp == NULL)
 			{
-			if (BIO_printf(bp,"\n   Compression: %d",x->compress_meth) <= 0) goto err;
+			if (BIO_printf(bp,"\n    Compression: %d",x->compress_meth) <= 0) goto err;
 			}
 		else
 			{
-			if (BIO_printf(bp,"\n   Compression: %d (%s)", comp->id,comp->method->name) <= 0) goto err;
+			if (BIO_printf(bp,"\n    Compression: %d (%s)", comp->id,comp->method->name) <= 0) goto err;
 			}
 		}	
 #endif

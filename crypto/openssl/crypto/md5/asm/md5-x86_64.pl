@@ -19,6 +19,7 @@ my $code;
 sub round1_step
 {
     my ($pos, $dst, $x, $y, $z, $k_next, $T_i, $s) = @_;
+    $T_i = unpack("l",pack("l", hex($T_i))); # convert to 32-bit signed decimal
     $code .= " mov	0*4(%rsi),	%r10d		/* (NEXT STEP) X[0] */\n" if ($pos == -1);
     $code .= " mov	%edx,		%r11d		/* (NEXT STEP) z' = %edx */\n" if ($pos == -1);
     $code .= <<EOF;
@@ -42,6 +43,7 @@ EOF
 sub round2_step
 {
     my ($pos, $dst, $x, $y, $z, $k_next, $T_i, $s) = @_;
+    $T_i = unpack("l",pack("l", hex($T_i))); # convert to 32-bit signed decimal
     $code .= " mov	1*4(%rsi),	%r10d		/* (NEXT STEP) X[1] */\n" if ($pos == -1);
     $code .= " mov	%ecx,		%r11d		/* (NEXT STEP) y' = %ecx */\n" if ($pos == -1);
     $code .= <<EOF;
@@ -65,6 +67,7 @@ EOF
 sub round3_step
 {
     my ($pos, $dst, $x, $y, $z, $k_next, $T_i, $s) = @_;
+    $T_i = unpack("l",pack("l", hex($T_i))); # convert to 32-bit signed decimal
     $code .= " mov	5*4(%rsi),	%r10d		/* (NEXT STEP) X[5] */\n" if ($pos == -1);
     $code .= " mov	%ecx,		%r11d		/* (NEXT STEP) y' = %ecx */\n" if ($pos == -1);
     $code .= <<EOF;
@@ -87,6 +90,7 @@ EOF
 sub round4_step
 {
     my ($pos, $dst, $x, $y, $z, $k_next, $T_i, $s) = @_;
+    $T_i = unpack("l",pack("l", hex($T_i))); # convert to 32-bit signed decimal
     $code .= " mov	0*4(%rsi),	%r10d		/* (NEXT STEP) X[0] */\n" if ($pos == -1);
     $code .= " mov	\$0xffffffff,	%r11d\n" if ($pos == -1);
     $code .= " xor	%edx,		%r11d		/* (NEXT STEP) not z' = not %edx*/\n"
@@ -111,9 +115,9 @@ $code .= <<EOF;
 .text
 .align 16
 
-.globl md5_block_asm_host_order
-.type md5_block_asm_host_order,\@function,3
-md5_block_asm_host_order:
+.globl md5_block_asm_data_order
+.type md5_block_asm_data_order,\@function,3
+md5_block_asm_data_order:
 	push	%rbp
 	push	%rbx
 	push	%r14
@@ -237,7 +241,7 @@ $code .= <<EOF;
 	pop	%rbx
 	pop	%rbp
 	ret
-.size md5_block_asm_host_order,.-md5_block_asm_host_order
+.size md5_block_asm_data_order,.-md5_block_asm_data_order
 EOF
 
 print $code;

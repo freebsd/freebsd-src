@@ -1,5 +1,5 @@
 /* a_mbstr.c */
-/* Written by Dr Stephen N Henson (shenson@bigfoot.com) for the OpenSSL
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 1999.
  */
 /* ====================================================================
@@ -93,7 +93,7 @@ int ASN1_mbstring_ncopy(ASN1_STRING **out, const unsigned char *in, int len,
 	int str_type;
 	int ret;
 	char free_out;
-	int outform, outlen;
+	int outform, outlen = 0;
 	ASN1_STRING *dest;
 	unsigned char *p;
 	int nchar;

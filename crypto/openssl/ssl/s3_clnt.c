@@ -130,10 +130,17 @@
 #include <openssl/objects.h>
 #include <openssl/evp.h>
 #include <openssl/md5.h>
+#ifdef OPENSSL_FIPS
+#include <openssl/fips.h>
+#endif
+
 #ifndef OPENSSL_NO_DH
 #include <openssl/dh.h>
 #endif
 #include <openssl/bn.h>
+#ifndef OPENSSL_NO_ENGINE
+#include <openssl/engine.h>
+#endif
 
 static SSL_METHOD *ssl3_get_client_method(int ver);
 static int ca_dn_cmp(const X509_NAME * const *a,const X509_NAME * const *b);
@@ -159,11 +166,10 @@ IMPLEMENT_ssl3_meth_func(SSLv3_client_method,
 int ssl3_connect(SSL *s)
 	{
 	BUF_MEM *buf=NULL;
-	unsigned long Time=(unsigned long)time(NULL),l;
-	long num1;
+	unsigned long Time=(unsigned long)time(NULL);
 	void (*cb)(const SSL *ssl,int type,int val)=NULL;
 	int ret= -1;
-	int new_state,state,skip=0;;
+	int new_state,state,skip=0;
 
 	RAND_add(&Time,sizeof(Time),0);
 	ERR_clear_error();
@@ -264,15 +270,43 @@ int ssl3_connect(SSL *s)
 
 		case SSL3_ST_CR_CERT_A:
 		case SSL3_ST_CR_CERT_B:
+#ifndef OPENSSL_NO_TLSEXT
+			ret=ssl3_check_finished(s);
+			if (ret <= 0) goto end;
+			if (ret == 2)
+				{
+				s->hit = 1;
+				if (s->tlsext_ticket_expected)
+					s->state=SSL3_ST_CR_SESSION_TICKET_A;
+				else
+					s->state=SSL3_ST_CR_FINISHED_A;
+				s->init_num=0;
+				break;
+				}
+#endif
 			/* Check if it is anon DH/ECDH */
 			if (!(s->s3->tmp.new_cipher->algorithms & SSL_aNULL))
 				{
 				ret=ssl3_get_server_certificate(s);
 				if (ret <= 0) goto end;
+#ifndef OPENSSL_NO_TLSEXT
+				if (s->tlsext_status_expected)
+					s->state=SSL3_ST_CR_CERT_STATUS_A;
+				else
+					s->state=SSL3_ST_CR_KEY_EXCH_A;
+				}
+			else
+				{
+				skip = 1;
+				s->state=SSL3_ST_CR_KEY_EXCH_A;
+				}
+#else
 				}
 			else
 				skip=1;
+
 			s->state=SSL3_ST_CR_KEY_EXCH_A;
+#endif
 			s->init_num=0;
 			break;
 
@@ -326,7 +360,6 @@ int ssl3_connect(SSL *s)
 		case SSL3_ST_CW_KEY_EXCH_B:
 			ret=ssl3_send_client_key_exchange(s);
 			if (ret <= 0) goto end;
-			l=s->s3->tmp.new_cipher->algorithms;
 			/* EAY EAY EAY need to check for DH fix cert
 			 * sent back */
 			/* For TLS, cert_req is set to 2, so a cert chain
@@ -416,10 +449,35 @@ int ssl3_connect(SSL *s)
 				}
 			else
 				{
+#ifndef OPENSSL_NO_TLSEXT
+				/* Allow NewSessionTicket if ticket expected */
+				if (s->tlsext_ticket_expected)
+					s->s3->tmp.next_state=SSL3_ST_CR_SESSION_TICKET_A;
+				else
+#endif
+				
 				s->s3->tmp.next_state=SSL3_ST_CR_FINISHED_A;
 				}
 			s->init_num=0;
 			break;
+
+#ifndef OPENSSL_NO_TLSEXT
+		case SSL3_ST_CR_SESSION_TICKET_A:
+		case SSL3_ST_CR_SESSION_TICKET_B:
+			ret=ssl3_get_new_session_ticket(s);
+			if (ret <= 0) goto end;
+			s->state=SSL3_ST_CR_FINISHED_A;
+			s->init_num=0;
+		break;
+
+		case SSL3_ST_CR_CERT_STATUS_A:
+		case SSL3_ST_CR_CERT_STATUS_B:
+			ret=ssl3_get_cert_status(s);
+			if (ret <= 0) goto end;
+			s->state=SSL3_ST_CR_KEY_EXCH_A;
+			s->init_num=0;
+		break;
+#endif
 
 		case SSL3_ST_CR_FINISHED_A:
 		case SSL3_ST_CR_FINISHED_B:
@@ -436,16 +494,13 @@ int ssl3_connect(SSL *s)
 			break;
 
 		case SSL3_ST_CW_FLUSH:
-			/* number of bytes to be flushed */
-			num1=BIO_ctrl(s->wbio,BIO_CTRL_INFO,0,NULL);
-			if (num1 > 0)
+			s->rwstate=SSL_WRITING;
+			if (BIO_flush(s->wbio) <= 0)
 				{
-				s->rwstate=SSL_WRITING;
-				num1=BIO_flush(s->wbio);
-				if (num1 <= 0) { ret= -1; goto end; }
-				s->rwstate=SSL_NOTHING;
+				ret= -1;
+				goto end;
 				}
-
+			s->rwstate=SSL_NOTHING;
 			s->state=s->s3->tmp.next_state;
 			break;
 
@@ -531,9 +586,15 @@ int ssl3_client_hello(SSL *s)
 	buf=(unsigned char *)s->init_buf->data;
 	if (s->state == SSL3_ST_CW_CLNT_HELLO_A)
 		{
-		if ((s->session == NULL) ||
-			(s->session->ssl_version != s->version) ||
-			(s->session->not_resumable))
+		SSL_SESSION *sess = s->session;
+		if ((sess == NULL) ||
+			(sess->ssl_version != s->version) ||
+#ifdef OPENSSL_NO_TLSEXT
+			!sess->session_id_length ||
+#else
+			(!sess->session_id_length && !sess->tlsext_tick) ||
+#endif
+			(sess->not_resumable))
 			{
 			if (!ssl_get_new_session(s,0))
 				goto err;
@@ -600,7 +661,13 @@ int ssl3_client_hello(SSL *s)
 			}
 #endif
 		*(p++)=0; /* Add the NULL method */
-		
+#ifndef OPENSSL_NO_TLSEXT
+		if ((p = ssl_add_clienthello_tlsext(s, p, buf+SSL3_RT_MAX_PLAIN_LENGTH)) == NULL)
+			{
+			SSLerr(SSL_F_SSL3_CLIENT_HELLO,ERR_R_INTERNAL_ERROR);
+			goto err;
+			}
+#endif		
 		l=(p-d);
 		d=buf;
 		*(d++)=SSL3_MT_CLIENT_HELLO;
@@ -634,12 +701,12 @@ int ssl3_get_server_hello(SSL *s)
 		SSL3_ST_CR_SRVR_HELLO_A,
 		SSL3_ST_CR_SRVR_HELLO_B,
 		-1,
-		300, /* ?? */
+		20000, /* ?? */
 		&ok);
 
 	if (!ok) return((int)n);
 
-	if ( SSL_version(s) == DTLS1_VERSION)
+	if ( SSL_version(s) == DTLS1_VERSION || SSL_version(s) == DTLS1_BAD_VER)
 		{
 		if ( s->s3->tmp.message_type == DTLS1_MT_HELLO_VERIFY_REQUEST)
 			{
@@ -784,6 +851,24 @@ int ssl3_get_server_hello(SSL *s)
 		s->s3->tmp.new_compression=comp;
 		}
 #endif
+#ifndef OPENSSL_NO_TLSEXT
+	/* TLS extensions*/
+	if (s->version >= SSL3_VERSION)
+		{
+		if (!ssl_parse_serverhello_tlsext(s,&p,d,n, &al))
+			{
+			/* 'al' set by ssl_parse_serverhello_tlsext */
+			SSLerr(SSL_F_SSL3_GET_SERVER_HELLO,SSL_R_PARSE_TLSEXT);
+			goto f_err; 
+			}
+		if (ssl_check_serverhello_tlsext(s) <= 0)
+			{
+			SSLerr(SSL_F_SSL3_GET_SERVER_HELLO,SSL_R_SERVERHELLO_TLSEXT);
+				goto err;
+			}
+		}
+#endif
+
 
 	if (p != (d+n))
 		{
@@ -821,7 +906,9 @@ int ssl3_get_server_certificate(SSL *s)
 
 	if (!ok) return((int)n);
 
-	if (s->s3->tmp.message_type == SSL3_MT_SERVER_KEY_EXCHANGE)
+	if ((s->s3->tmp.message_type == SSL3_MT_SERVER_KEY_EXCHANGE) ||
+		((s->s3->tmp.new_cipher->algorithms & SSL_aKRB5) && 
+		(s->s3->tmp.message_type == SSL3_MT_SERVER_DONE)))
 		{
 		s->s3->tmp.reuse_message=1;
 		return(1);
@@ -917,7 +1004,7 @@ int ssl3_get_server_certificate(SSL *s)
 	                 == (SSL_aKRB5|SSL_kKRB5))? 0: 1;
 
 #ifdef KSSL_DEBUG
-	printf("pkey,x = %p, %p\n", pkey,x);
+	printf("pkey,x = %p, %p\n", (void *)pkey,(void *)x);
 	printf("ssl_cert_type(x,pkey) = %d\n", ssl_cert_type(x,pkey));
 	printf("cipher, alg, nc = %s, %lx, %d\n", s->s3->tmp.new_cipher->name,
 	        s->s3->tmp.new_cipher->algorithms, need_cert);
@@ -1289,6 +1376,7 @@ int ssl3_get_key_exchange(SSL *s)
 		s->session->sess_cert->peer_ecdh_tmp=ecdh;
 		ecdh=NULL;
 		BN_CTX_free(bn_ctx);
+		bn_ctx = NULL;
 		EC_POINT_free(srvr_ecpoint);
 		srvr_ecpoint = NULL;
 		}
@@ -1333,6 +1421,8 @@ int ssl3_get_key_exchange(SSL *s)
 			q=md_buf;
 			for (num=2; num > 0; num--)
 				{
+				EVP_MD_CTX_set_flags(&md_ctx,
+					EVP_MD_CTX_FLAG_NON_FIPS_ALLOW);
 				EVP_DigestInit_ex(&md_ctx,(num == 2)
 					?s->ctx->md5:s->ctx->sha1, NULL);
 				EVP_DigestUpdate(&md_ctx,&(s->s3->client_random[0]),SSL3_RANDOM_SIZE);
@@ -1588,6 +1678,165 @@ static int ca_dn_cmp(const X509_NAME * const *a, const X509_NAME * const *b)
 	{
 	return(X509_NAME_cmp(*a,*b));
 	}
+#ifndef OPENSSL_NO_TLSEXT
+int ssl3_get_new_session_ticket(SSL *s)
+	{
+	int ok,al,ret=0, ticklen;
+	long n;
+	const unsigned char *p;
+	unsigned char *d;
+
+	n=s->method->ssl_get_message(s,
+		SSL3_ST_CR_SESSION_TICKET_A,
+		SSL3_ST_CR_SESSION_TICKET_B,
+		-1,
+		16384,
+		&ok);
+
+	if (!ok)
+		return((int)n);
+
+	if (s->s3->tmp.message_type == SSL3_MT_FINISHED)
+		{
+		s->s3->tmp.reuse_message=1;
+		return(1);
+		}
+	if (s->s3->tmp.message_type != SSL3_MT_NEWSESSION_TICKET)
+		{
+		al=SSL_AD_UNEXPECTED_MESSAGE;
+		SSLerr(SSL_F_SSL3_GET_NEW_SESSION_TICKET,SSL_R_BAD_MESSAGE_TYPE);
+		goto f_err;
+		}
+	if (n < 6)
+		{
+		/* need at least ticket_lifetime_hint + ticket length */
+		al = SSL3_AL_FATAL,SSL_AD_DECODE_ERROR;
+		SSLerr(SSL_F_SSL3_GET_NEW_SESSION_TICKET,SSL_R_LENGTH_MISMATCH);
+		goto f_err;
+		}
+
+	p=d=(unsigned char *)s->init_msg;
+	n2l(p, s->session->tlsext_tick_lifetime_hint);
+	n2s(p, ticklen);
+	/* ticket_lifetime_hint + ticket_length + ticket */
+	if (ticklen + 6 != n)
+		{
+		al = SSL3_AL_FATAL,SSL_AD_DECODE_ERROR;
+		SSLerr(SSL_F_SSL3_GET_NEW_SESSION_TICKET,SSL_R_LENGTH_MISMATCH);
+		goto f_err;
+		}
+	if (s->session->tlsext_tick)
+		{
+		OPENSSL_free(s->session->tlsext_tick);
+		s->session->tlsext_ticklen = 0;
+		}
+	s->session->tlsext_tick = OPENSSL_malloc(ticklen);
+	if (!s->session->tlsext_tick)
+		{
+		SSLerr(SSL_F_SSL3_GET_NEW_SESSION_TICKET,ERR_R_MALLOC_FAILURE);
+		goto err;
+		}
+	memcpy(s->session->tlsext_tick, p, ticklen);
+	s->session->tlsext_ticklen = ticklen;
+	/* There are two ways to detect a resumed ticket sesion.
+	 * One is to set an appropriate session ID and then the server
+	 * must return a match in ServerHello. This allows the normal
+	 * client session ID matching to work and we know much 
+	 * earlier that the ticket has been accepted.
+	 * 
+	 * The other way is to set zero length session ID when the
+	 * ticket is presented and rely on the handshake to determine
+	 * session resumption.
+	 *
+	 * We choose the former approach because this fits in with
+	 * assumptions elsewhere in OpenSSL. The session ID is set
+	 * to the SHA256 (or SHA1 is SHA256 is disabled) hash of the
+	 * ticket.
+	 */ 
+	EVP_Digest(p, ticklen,
+			s->session->session_id, &s->session->session_id_length,
+#ifndef OPENSSL_NO_SHA256
+							EVP_sha256(), NULL);
+#else
+							EVP_sha1(), NULL);
+#endif
+	ret=1;
+	return(ret);
+f_err:
+	ssl3_send_alert(s,SSL3_AL_FATAL,al);
+err:
+	return(-1);
+	}
+
+int ssl3_get_cert_status(SSL *s)
+	{
+	int ok, al;
+	unsigned long resplen;
+	long n;
+	const unsigned char *p;
+
+	n=s->method->ssl_get_message(s,
+		SSL3_ST_CR_CERT_STATUS_A,
+		SSL3_ST_CR_CERT_STATUS_B,
+		SSL3_MT_CERTIFICATE_STATUS,
+		16384,
+		&ok);
+
+	if (!ok) return((int)n);
+	if (n < 4)
+		{
+		/* need at least status type + length */
+		al = SSL_AD_DECODE_ERROR;
+		SSLerr(SSL_F_SSL3_GET_CERT_STATUS,SSL_R_LENGTH_MISMATCH);
+		goto f_err;
+		}
+	p = (unsigned char *)s->init_msg;
+	if (*p++ != TLSEXT_STATUSTYPE_ocsp)
+		{
+		al = SSL_AD_DECODE_ERROR;
+		SSLerr(SSL_F_SSL3_GET_CERT_STATUS,SSL_R_UNSUPPORTED_STATUS_TYPE);
+		goto f_err;
+		}
+	n2l3(p, resplen);
+	if (resplen + 4 != (unsigned long)n)
+		{
+		al = SSL_AD_DECODE_ERROR;
+		SSLerr(SSL_F_SSL3_GET_CERT_STATUS,SSL_R_LENGTH_MISMATCH);
+		goto f_err;
+		}
+	if (s->tlsext_ocsp_resp)
+		OPENSSL_free(s->tlsext_ocsp_resp);
+	s->tlsext_ocsp_resp = BUF_memdup(p, resplen);
+	if (!s->tlsext_ocsp_resp)
+		{
+		al = SSL_AD_INTERNAL_ERROR;
+		SSLerr(SSL_F_SSL3_GET_CERT_STATUS,ERR_R_MALLOC_FAILURE);
+		goto f_err;
+		}
+	s->tlsext_ocsp_resplen = resplen;
+	if (s->ctx->tlsext_status_cb)
+		{
+		int ret;
+		ret = s->ctx->tlsext_status_cb(s, s->ctx->tlsext_status_arg);
+		if (ret == 0)
+			{
+			al = SSL_AD_BAD_CERTIFICATE_STATUS_RESPONSE;
+			SSLerr(SSL_F_SSL3_GET_CERT_STATUS,SSL_R_INVALID_STATUS_RESPONSE);
+			goto f_err;
+			}
+		if (ret < 0)
+			{
+			al = SSL_AD_INTERNAL_ERROR;
+			SSLerr(SSL_F_SSL3_GET_CERT_STATUS,ERR_R_MALLOC_FAILURE);
+			goto f_err;
+			}
+		}
+	return 1;
+f_err:
+	ssl3_send_alert(s,SSL3_AL_FATAL,al);
+	return(-1);
+	}
+#endif
 
 int ssl3_get_server_done(SSL *s)
 	{
@@ -1841,6 +2090,13 @@ int ssl3_send_client_key_exchange(SSL *s)
 		else if (l & (SSL_kEDH|SSL_kDHr|SSL_kDHd))
 			{
 			DH *dh_srvr,*dh_clnt;
+
+			if (s->session->sess_cert == NULL) 
+				{
+				ssl3_send_alert(s,SSL3_AL_FATAL,SSL_AD_UNEXPECTED_MESSAGE);
+				SSLerr(SSL_F_SSL3_SEND_CLIENT_KEY_EXCHANGE,SSL_R_UNEXPECTED_MESSAGE);
+				goto err;
+			        }
 
 			if (s->session->sess_cert->peer_dh_tmp != NULL)
 				dh_srvr=s->session->sess_cert->peer_dh_tmp;
@@ -2222,8 +2478,7 @@ int ssl3_send_client_certificate(SSL *s)
 		 * ssl->rwstate=SSL_X509_LOOKUP; return(-1);
 		 * We then get retied later */
 		i=0;
-		if (s->ctx->client_cert_cb != NULL)
-			i=s->ctx->client_cert_cb(s,&(x509),&(pkey));
+		i = ssl_do_client_cert_cb(s, &x509, &pkey);
 		if (i < 0)
 			{
 			s->rwstate=SSL_X509_LOOKUP;
@@ -2292,17 +2547,17 @@ int ssl3_check_cert_and_algorithm(SSL *s)
 
 	sc=s->session->sess_cert;
 
-	if (sc == NULL)
-		{
-		SSLerr(SSL_F_SSL3_CHECK_CERT_AND_ALGORITHM,ERR_R_INTERNAL_ERROR);
-		goto err;
-		}
-
 	algs=s->s3->tmp.new_cipher->algorithms;
 
 	/* we don't have a certificate */
 	if (algs & (SSL_aDH|SSL_aNULL|SSL_aKRB5))
 		return(1);
+
+	if (sc == NULL)
+		{
+		SSLerr(SSL_F_SSL3_CHECK_CERT_AND_ALGORITHM,ERR_R_INTERNAL_ERROR);
+		goto err;
+		}
 
 #ifndef OPENSSL_NO_RSA
 	rsa=s->session->sess_cert->peer_rsa_tmp;
@@ -2456,3 +2711,55 @@ static int curve_id2nid(int curve_id)
 	return nid_list[curve_id];
 }
 #endif
+
+/* Check to see if handshake is full or resumed. Usually this is just a
+ * case of checking to see if a cache hit has occurred. In the case of
+ * session tickets we have to check the next message to be sure.
+ */
+
+#ifndef OPENSSL_NO_TLSEXT
+int ssl3_check_finished(SSL *s)
+	{
+	int ok;
+	long n;
+	/* If we have no ticket or session ID is non-zero length (a match of
+	 * a non-zero session length would never reach here) it cannot be a
+	 * resumed session.
+	 */
+	if (!s->session->tlsext_tick || s->session->session_id_length)
+		return 1;
+	/* this function is called when we really expect a Certificate
+	 * message, so permit appropriate message length */
+	n=s->method->ssl_get_message(s,
+		SSL3_ST_CR_CERT_A,
+		SSL3_ST_CR_CERT_B,
+		-1,
+		s->max_cert_list,
+		&ok);
+	if (!ok) return((int)n);
+	s->s3->tmp.reuse_message = 1;
+	if ((s->s3->tmp.message_type == SSL3_MT_FINISHED)
+		|| (s->s3->tmp.message_type == SSL3_MT_NEWSESSION_TICKET))
+		return 2;
+
+	return 1;
+	}
+#endif
+
+int ssl_do_client_cert_cb(SSL *s, X509 **px509, EVP_PKEY **ppkey)
+	{
+	int i = 0;
+#ifndef OPENSSL_NO_ENGINE
+	if (s->ctx->client_cert_engine)
+		{
+		i = ENGINE_load_ssl_client_cert(s->ctx->client_cert_engine, s,
+						SSL_get_client_CA_list(s),
+						px509, ppkey, NULL, NULL, NULL);
+		if (i != 0)
+			return i;
+		}
+#endif
+	if (s->ctx->client_cert_cb)
+		i = s->ctx->client_cert_cb(s,px509,ppkey);
+	return i;
+	}

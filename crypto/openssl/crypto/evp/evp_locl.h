@@ -1,5 +1,5 @@
 /* evp_locl.h */
-/* Written by Dr Stephen N Henson (shenson@bigfoot.com) for the OpenSSL
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2000.
  */
 /* ====================================================================
@@ -92,7 +92,7 @@ static int cname##_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out, const uns
 #define BLOCK_CIPHER_func_cfb(cname, cprefix, cbits, kstruct, ksched) \
 static int cname##_cfb##cbits##_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out, const unsigned char *in, unsigned int inl) \
 {\
-	cprefix##_cfb##cbits##_encrypt(in, out, (long)inl, &((kstruct *)ctx->cipher_data)->ksched, ctx->iv, &ctx->num, ctx->encrypt);\
+	cprefix##_cfb##cbits##_encrypt(in, out, (long)((cbits==1) && !(ctx->flags & EVP_CIPH_FLAG_LENGTH_BITS) ?inl*8:inl), &((kstruct *)ctx->cipher_data)->ksched, ctx->iv, &ctx->num, ctx->encrypt);\
 	return 1;\
 }
 
@@ -139,10 +139,10 @@ BLOCK_CIPHER_def1(cname, ofb##cbits, ofb, OFB, kstruct, nid, 1, \
 		  get_asn1, ctrl)
 
 #define BLOCK_CIPHER_def_ecb(cname, kstruct, nid, block_size, key_len, \
-			     iv_len, flags, init_key, cleanup, set_asn1, \
+			     flags, init_key, cleanup, set_asn1, \
 			     get_asn1, ctrl) \
 BLOCK_CIPHER_def1(cname, ecb, ecb, ECB, kstruct, nid, block_size, key_len, \
-		  iv_len, flags, init_key, cleanup, set_asn1, get_asn1, ctrl)
+		  0, flags, init_key, cleanup, set_asn1, get_asn1, ctrl)
 
 #define BLOCK_CIPHER_defs(cname, kstruct, \
 			  nid, block_size, key_len, iv_len, cbits, flags, \
@@ -153,7 +153,7 @@ BLOCK_CIPHER_def_cfb(cname, kstruct, nid, key_len, iv_len, cbits, \
 		     flags, init_key, cleanup, set_asn1, get_asn1, ctrl) \
 BLOCK_CIPHER_def_ofb(cname, kstruct, nid, key_len, iv_len, cbits, \
 		     flags, init_key, cleanup, set_asn1, get_asn1, ctrl) \
-BLOCK_CIPHER_def_ecb(cname, kstruct, nid, block_size, key_len, iv_len, flags, \
+BLOCK_CIPHER_def_ecb(cname, kstruct, nid, block_size, key_len, flags, \
 		     init_key, cleanup, set_asn1, get_asn1, ctrl)
 
 
@@ -226,11 +226,27 @@ const EVP_CIPHER *EVP_##cname##_ecb(void) { return &cname##_ecb; }
 
 #define EVP_C_DATA(kstruct, ctx)	((kstruct *)(ctx)->cipher_data)
 
-#define IMPLEMENT_CFBR(cipher,cprefix,kstruct,ksched,keysize,cbits,iv_len) \
+#define IMPLEMENT_CFBR(cipher,cprefix,kstruct,ksched,keysize,cbits,iv_len,fl) \
 	BLOCK_CIPHER_func_cfb(cipher##_##keysize,cprefix,cbits,kstruct,ksched) \
 	BLOCK_CIPHER_def_cfb(cipher##_##keysize,kstruct, \
 			     NID_##cipher##_##keysize, keysize/8, iv_len, cbits, \
-			     0, cipher##_init_key, NULL, \
-			     EVP_CIPHER_set_asn1_iv, \
-			     EVP_CIPHER_get_asn1_iv, \
-			     NULL)
+			     (fl)|EVP_CIPH_FLAG_DEFAULT_ASN1, \
+			     cipher##_init_key, NULL, NULL, NULL, NULL)
+
+#ifdef OPENSSL_FIPS
+#define RC2_set_key	private_RC2_set_key
+#define RC4_set_key	private_RC4_set_key
+#define CAST_set_key	private_CAST_set_key
+#define RC5_32_set_key	private_RC5_32_set_key
+#define BF_set_key	private_BF_set_key
+#define Camellia_set_key private_Camellia_set_key
+#define idea_set_encrypt_key private_idea_set_encrypt_key
+
+#define MD5_Init	private_MD5_Init
+#define MD4_Init	private_MD4_Init
+#define MD2_Init	private_MD2_Init
+#define MDC2_Init	private_MDC2_Init
+#define SHA_Init	private_SHA_Init
+
+#endif
+

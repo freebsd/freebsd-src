@@ -1,7 +1,7 @@
 
- OpenSSL 0.9.8e 23 Feb 2007
+ OpenSSL 0.9.8p 16 Nov 2010
 
- Copyright (c) 1998-2007 The OpenSSL Project
+ Copyright (c) 1998-2009 The OpenSSL Project
  Copyright (c) 1995-1998 Eric A. Young, Tim J. Hudson
  All rights reserved.
 
@@ -36,12 +36,13 @@
      actually logically part of it. It includes routines for the following:
 
      Ciphers
-        libdes - EAY's libdes DES encryption package which has been floating
-                 around the net for a few years.  It includes 15
-                 'modes/variations' of DES (1, 2 and 3 key versions of ecb,
-                 cbc, cfb and ofb; pcbc and a more general form of cfb and
-                 ofb) including desx in cbc mode, a fast crypt(3), and
-                 routines to read passwords from the keyboard.
+        libdes - EAY's libdes DES encryption package which was floating
+                 around the net for a few years, and was then relicensed by
+                 him as part of SSLeay.  It includes 15 'modes/variations'
+                 of DES (1, 2 and 3 key versions of ecb, cbc, cfb and ofb;
+                 pcbc and a more general form of cfb and ofb) including desx
+                 in cbc mode, a fast crypt(3), and routines to read
+                 passwords from the keyboard.
         RC4 encryption,
         RC2 encryption      - 4 different modes, ecb, cbc, cfb and ofb.
         Blowfish encryption - 4 different modes, ecb, cbc, cfb and ofb.
@@ -111,8 +112,6 @@
  should be contacted if that algorithm is to be used; their web page is
  http://www.ascom.ch/.
 
- The MDC2 algorithm is patented by IBM.
-
  NTT and Mitsubishi have patents and pending patents on the Camellia
  algorithm, but allow use at no charge without requiring an explicit
  licensing agreement: http://info.isl.ntt.co.jp/crypt/eng/info/chiteki.html
@@ -138,6 +137,9 @@
  SUPPORT
  -------
 
+ See the OpenSSL website www.openssl.org for details of how to obtain
+ commercial technical support.
+
  If you have any problems with OpenSSL then please take the following steps
  first:
 
@@ -160,9 +162,13 @@
     - Stack Traceback (if the application dumps core)
 
  Report the bug to the OpenSSL project via the Request Tracker
- (http://www.openssl.org/support/rt2.html) by mail to:
+ (http://www.openssl.org/support/rt.html) by mail to:
 
     openssl-bugs@openssl.org
+
+ Note that the request tracker should NOT be used for general assistance
+ or support queries. Just because something doesn't work the way you expect
+ does not mean it is necessarily a bug in OpenSSL.
 
  Note that mail to openssl-bugs@openssl.org is recorded in the publicly
  readable request tracker database and is forwarded to a public
@@ -174,9 +180,21 @@
 
  Development is coordinated on the openssl-dev mailing list (see
  http://www.openssl.org for information on subscribing). If you
- would like to submit a patch, send it to openssl-dev@openssl.org with
+ would like to submit a patch, send it to openssl-bugs@openssl.org with
  the string "[PATCH]" in the subject. Please be sure to include a
  textual explanation of what your patch does.
+
+ If you are unsure as to whether a feature will be useful for the general
+ OpenSSL community please discuss it on the openssl-dev mailing list first.
+ Someone may be already working on the same thing or there may be a good
+ reason as to why that feature isn't implemented.
+
+ Patches should be as up to date as possible, preferably relative to the
+ current CVS or the last snapshot. They should follow the coding style of
+ OpenSSL and compile without warnings. Some of the core team developer targets
+ can be used for testing purposes, (debug-steve64, debug-geoff etc). OpenSSL
+ compiles on many varied platforms: try to ensure you only use portable
+ features.
 
  Note: For legal reasons, contributions from the US can be accepted only
  if a TSU notification and a copy of the patch are sent to crypt@bis.doc.gov

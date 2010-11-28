@@ -6,6 +6,8 @@ ASN1_generate_nconf, ASN1_generate_v3 - ASN1 generation functions
 
 =head1 SYNOPSIS
 
+ #include <openssl/asn1.h>
+
  ASN1_TYPE *ASN1_generate_nconf(char *str, CONF *nconf);
  ASN1_TYPE *ASN1_generate_v3(char *str, X509V3_CTX *cnf);
 
@@ -28,7 +30,11 @@ The actual data encoded is determined by the string B<str> and
 the configuration information. The general format of the string
 is:
 
- B<[modifier,]type[:value]>
+=over 2
+
+=item B<[modifier,]type[:value]>
+
+=back
 
 That is zero or more comma separated modifiers followed by a type
 followed by an optional colon and a value. The formats of B<type>,
@@ -81,13 +87,13 @@ the format B<YYYYMMDDHHMMSSZ>.
 
 =item B<OCTETSTRING>, B<OCT>
 
-Emcodes an ASN1 B<OCTET STRING>. B<value> represents the contents
+Encodes an ASN1 B<OCTET STRING>. B<value> represents the contents
 of this structure, the format strings B<ASCII> and B<HEX> can be
 used to specify the format of B<value>.
 
-=item B<BITSRING>, B<BITSTR>
+=item B<BITSTRING>, B<BITSTR>
 
-Emcodes an ASN1 B<BIT STRING>. B<value> represents the contents
+Encodes an ASN1 B<BIT STRING>. B<value> represents the contents
 of this structure, the format strings B<ASCII>, B<HEX> and B<BITLIST>
 can be used to specify the format of B<value>.
 
@@ -147,10 +153,11 @@ bits is set to zero.
 This specifies the format of the ultimate value. It should be followed
 by a colon and one of the strings B<ASCII>, B<UTF8>, B<HEX> or B<BITLIST>.
 
-If no format specifier is included then B<ASCII> is used. If B<UTF8> is specified
-then the value string must be a valid B<UTF8> string. For B<HEX> the output must
-be a set of hex digits. B<BITLIST> (which is only valid for a BIT STRING) is a
-comma separated list of set bits.
+If no format specifier is included then B<ASCII> is used. If B<UTF8> is
+specified then the value string must be a valid B<UTF8> string. For B<HEX> the
+output must be a set of hex digits. B<BITLIST> (which is only valid for a BIT
+STRING) is a comma separated list of the indices of the set bits, all other
+bits are zero.
 
 =back
 
@@ -168,16 +175,20 @@ An IA5String explicitly tagged using APPLICATION tagging:
 
  EXPLICIT:0A,IA5STRING:Hello World
 
+A BITSTRING with bits 1 and 5 set and all others zero:
+
+ FORMAT:BITLIST,BITSTRING:1,5
+
 A more complex example using a config file to produce a
 SEQUENCE consiting of a BOOL an OID and a UTF8String:
 
-asn1 = SEQUENCE:seq_section
+ asn1 = SEQUENCE:seq_section
 
-[seq_section]
+ [seq_section]
 
-field1 = BOOLEAN:TRUE
-field2 = OID:commonName
-field3 = UTF8:Third field
+ field1 = BOOLEAN:TRUE
+ field2 = OID:commonName
+ field3 = UTF8:Third field
 
 This example produces an RSAPrivateKey structure, this is the
 key contained in the file client.pem in all OpenSSL distributions

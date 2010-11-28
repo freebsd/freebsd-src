@@ -31,6 +31,10 @@
 #include <openssl/engine.h>
 #include <openssl/evp.h>
 #include <openssl/bn.h>
+#include <openssl/dsa.h>
+#include <openssl/rsa.h>
+#include <openssl/dh.h>
+#include <openssl/err.h>
 
 #if (defined(__unix__) || defined(unix)) && !defined(USG) && \
 	(defined(OpenBSD) || defined(__FreeBSD__))
@@ -80,7 +84,7 @@ static int cryptodev_max_iv(int cipher);
 static int cryptodev_key_length_valid(int cipher, int len);
 static int cipher_nid_to_cryptodev(int nid);
 static int get_cryptodev_ciphers(const int **cnids);
-static int get_cryptodev_digests(const int **cnids);
+/*static int get_cryptodev_digests(const int **cnids);*/
 static int cryptodev_usable_ciphers(const int **nids);
 static int cryptodev_usable_digests(const int **nids);
 static int cryptodev_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
@@ -101,7 +105,7 @@ static int cryptodev_asym(struct crypt_kop *kop, int rlen, BIGNUM *r,
 static int cryptodev_bn_mod_exp(BIGNUM *r, const BIGNUM *a,
     const BIGNUM *p, const BIGNUM *m, BN_CTX *ctx, BN_MONT_CTX *m_ctx);
 static int cryptodev_rsa_nocrt_mod_exp(BIGNUM *r0, const BIGNUM *I,
-    RSA *rsa);
+    RSA *rsa, BN_CTX *ctx);
 static int cryptodev_rsa_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx);
 static int cryptodev_dsa_bn_mod_exp(DSA *dsa, BIGNUM *r, BIGNUM *a,
     const BIGNUM *p, const BIGNUM *m, BN_CTX *ctx, BN_MONT_CTX *m_ctx);
@@ -140,6 +144,7 @@ static struct {
 	{ 0,				NID_undef,		0,	 0, },
 };
 
+#if 0
 static struct {
 	int	id;
 	int	nid;
@@ -152,6 +157,7 @@ static struct {
 	{ CRYPTO_SHA1,			NID_undef,		},
 	{ 0,				NID_undef,		},
 };
+#endif
 
 /*
  * Return a fd if /dev/crypto seems usable, 0 otherwise.
@@ -286,6 +292,7 @@ get_cryptodev_ciphers(const int **cnids)
 	return (count);
 }
 
+#if 0  /* unused */
 /*
  * Find out what digests /dev/crypto will let us have a session for.
  * XXX note, that some of these openssl doesn't deal with yet!
@@ -321,6 +328,8 @@ get_cryptodev_digests(const int **cnids)
 		*cnids = NULL;
 	return (count);
 }
+
+#endif
 
 /*
  * Find the useable ciphers|digests from dev/crypto - this is the first
@@ -375,7 +384,7 @@ cryptodev_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 	struct crypt_op cryp;
 	struct dev_crypto_state *state = ctx->cipher_data;
 	struct session_op *sess = &state->d_sess;
-	void *iiv;
+	const void *iiv;
 	unsigned char save_iv[EVP_MAX_IV_LENGTH];
 
 	if (state->d_fd < 0)
@@ -399,7 +408,7 @@ cryptodev_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 	if (ctx->cipher->iv_len) {
 		cryp.iv = (caddr_t) ctx->iv;
 		if (!ctx->encrypt) {
-			iiv = (void *) in + inl - ctx->cipher->iv_len;
+			iiv = in + inl - ctx->cipher->iv_len;
 			memcpy(save_iv, iiv, ctx->cipher->iv_len);
 		}
 	} else
@@ -414,7 +423,7 @@ cryptodev_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 
 	if (ctx->cipher->iv_len) {
 		if (ctx->encrypt)
-			iiv = (void *) out + inl - ctx->cipher->iv_len;
+			iiv = out + inl - ctx->cipher->iv_len;
 		else
 			iiv = save_iv;
 		memcpy(ctx->iv, iiv, ctx->cipher->iv_len);
@@ -444,7 +453,7 @@ cryptodev_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 	if ((state->d_fd = get_dev_crypto()) < 0)
 		return (0);
 
-	sess->key = (unsigned char *)key;
+	sess->key = (char *)key;
 	sess->keylen = ctx->key_len;
 	sess->cipher = cipher;
 
@@ -626,7 +635,7 @@ static int
 bn2crparam(const BIGNUM *a, struct crparam *crp)
 {
 	int i, j, k;
-	ssize_t words, bytes, bits;
+	ssize_t bytes, bits;
 	u_char *b;
 
 	crp->crp_p = NULL;
@@ -639,7 +648,7 @@ bn2crparam(const BIGNUM *a, struct crparam *crp)
 	if (b == NULL)
 		return (1);
 
-	crp->crp_p = b;
+	crp->crp_p = (char *)b;
 	crp->crp_nbits = bits;
 
 	for (i = 0, j = 0; i < a->top; i++) {
@@ -747,24 +756,29 @@ cryptodev_bn_mod_exp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
 		goto err;
 	kop.crk_iparams = 3;
 
-	if (cryptodev_asym(&kop, BN_num_bytes(m), r, 0, NULL) == -1) {
+	if (cryptodev_asym(&kop, BN_num_bytes(m), r, 0, NULL)) {
 		const RSA_METHOD *meth = RSA_PKCS1_SSLeay();
+		printf("OCF asym process failed, Running in software\n");
+		ret = meth->bn_mod_exp(r, a, p, m, ctx, in_mont);
+
+	} else if (ECANCELED == kop.crk_status) {
+		const RSA_METHOD *meth = RSA_PKCS1_SSLeay();
+		printf("OCF hardware operation cancelled. Running in Software\n");
 		ret = meth->bn_mod_exp(r, a, p, m, ctx, in_mont);
 	}
+	/* else cryptodev operation worked ok ==> ret = 1*/
+
 err:
 	zapparams(&kop);
 	return (ret);
 }
 
 static int
-cryptodev_rsa_nocrt_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa)
+cryptodev_rsa_nocrt_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
 {
 	int r;
-	BN_CTX *ctx;
 
-	ctx = BN_CTX_new();
 	r = cryptodev_bn_mod_exp(r0, I, rsa->d, rsa->n, ctx, NULL);
-	BN_CTX_free(ctx);
 	return (r);
 }
 
@@ -796,10 +810,18 @@ cryptodev_rsa_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
 		goto err;
 	kop.crk_iparams = 6;
 
-	if (cryptodev_asym(&kop, BN_num_bytes(rsa->n), r0, 0, NULL) == -1) {
+	if (cryptodev_asym(&kop, BN_num_bytes(rsa->n), r0, 0, NULL)) {
 		const RSA_METHOD *meth = RSA_PKCS1_SSLeay();
+		printf("OCF asym process failed, running in Software\n");
+		ret = (*meth->rsa_mod_exp)(r0, I, rsa, ctx);
+
+	} else if (ECANCELED == kop.crk_status) {
+		const RSA_METHOD *meth = RSA_PKCS1_SSLeay();
+		printf("OCF hardware operation cancelled. Running in Software\n");
 		ret = (*meth->rsa_mod_exp)(r0, I, rsa, ctx);
 	}
+	/* else cryptodev operation worked ok ==> ret = 1*/
+
 err:
 	zapparams(&kop);
 	return (ret);
@@ -935,7 +957,8 @@ cryptodev_dsa_verify(const unsigned char *dgst, int dlen,
 	kop.crk_iparams = 7;
 
 	if (cryptodev_asym(&kop, 0, NULL, 0, NULL) == 0) {
-		dsaret = kop.crk_status;
+/*OCF success value is 0, if not zero, change dsaret to fail*/
+		if(0 != kop.crk_status) dsaret  = 0;
 	} else {
 		const DSA_METHOD *meth = DSA_OpenSSL();
 
@@ -995,7 +1018,7 @@ cryptodev_dh_compute_key(unsigned char *key, const BIGNUM *pub_key, DH *dh)
 		goto err;
 	kop.crk_iparams = 3;
 
-	kop.crk_param[3].crp_p = key;
+	kop.crk_param[3].crp_p = (char *)key;
 	kop.crk_param[3].crp_nbits = keylen * 8;
 	kop.crk_oparams = 1;
 

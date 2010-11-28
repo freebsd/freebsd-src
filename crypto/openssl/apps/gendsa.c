@@ -78,9 +78,6 @@ int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
 	{
-#ifndef OPENSSL_NO_ENGINE
-	ENGINE *e = NULL;
-#endif
 	DSA *dsa=NULL;
 	int ret=1;
 	char *outfile=NULL;
@@ -140,6 +137,10 @@ int MAIN(int argc, char **argv)
 		else if (strcmp(*argv,"-idea") == 0)
 			enc=EVP_idea_cbc();
 #endif
+#ifndef OPENSSL_NO_SEED
+		else if (strcmp(*argv,"-seed") == 0)
+			enc=EVP_seed_cbc();
+#endif
 #ifndef OPENSSL_NO_AES
 		else if (strcmp(*argv,"-aes128") == 0)
 			enc=EVP_aes_128_cbc();
@@ -178,6 +179,10 @@ bad:
 #ifndef OPENSSL_NO_IDEA
 		BIO_printf(bio_err," -idea     - encrypt the generated key with IDEA in cbc mode\n");
 #endif
+#ifndef OPENSSL_NO_SEED
+		BIO_printf(bio_err," -seed\n");
+		BIO_printf(bio_err,"                 encrypt PEM output with cbc seed\n");
+#endif
 #ifndef OPENSSL_NO_AES
 		BIO_printf(bio_err," -aes128, -aes192, -aes256\n");
 		BIO_printf(bio_err,"                 encrypt PEM output with cbc aes\n");
@@ -198,7 +203,7 @@ bad:
 		}
 
 #ifndef OPENSSL_NO_ENGINE
-        e = setup_engine(bio_err, engine, 0);
+        setup_engine(bio_err, engine, 0);
 #endif
 
 	if(!app_passwd(bio_err, NULL, passargout, NULL, &passout)) {
@@ -271,4 +276,10 @@ end:
 	apps_shutdown();
 	OPENSSL_EXIT(ret);
 	}
+#else /* !OPENSSL_NO_DSA */
+
+# if PEDANTIC
+static void *dummy=&dummy;
+# endif
+
 #endif
