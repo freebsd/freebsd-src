@@ -388,8 +388,6 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 	caddr_t mac;
 	struct route_in6 ro;
 
-	bzero(&ro, sizeof(ro));
-
 	if (IN6_IS_ADDR_MULTICAST(taddr6))
 		return;
 
@@ -415,6 +413,8 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 	if (m == NULL)
 		return;
 	m->m_pkthdr.rcvif = NULL;
+
+	bzero(&ro, sizeof(ro));
 
 	if (daddr6 == NULL || IN6_IS_ADDR_MULTICAST(daddr6)) {
 		m->m_flags |= M_MCAST;
