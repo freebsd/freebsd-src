@@ -536,8 +536,9 @@ axe_ax88178_init(struct axe_softc *sc)
 	}
 
 	if (bootverbose)
-		device_printf(sc->sc_ue.ue_dev, "EEPROM data : 0x%04x\n",
-		    eeprom);
+		device_printf(sc->sc_ue.ue_dev,
+		    "EEPROM data : 0x%04x, phymode : 0x%02x\n", eeprom,
+		    phymode);
 	/* Program GPIOs depending on PHY hardware. */
 	switch (phymode) {
 	case AXE_PHY_MODE_MARVELL:
@@ -554,6 +555,8 @@ axe_ax88178_init(struct axe_softc *sc)
 			    AXE_GPIO1_EN, hz / 32);
 		break;
 	case AXE_PHY_MODE_CICADA:
+	case AXE_PHY_MODE_CICADA_V2:
+	case AXE_PHY_MODE_CICADA_V2_ASIX:
 		if (gpio0 == 1)
 			AXE_GPIO_WRITE(AXE_GPIO_RELOAD_EEPROM | AXE_GPIO0 |
 			    AXE_GPIO0_EN, hz / 32);
