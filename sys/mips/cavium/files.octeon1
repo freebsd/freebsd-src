@@ -16,6 +16,8 @@ mips/mips/intr_machdep.c			standard
 mips/mips/tick.c				standard
 
 mips/cavium/octeon_rnd.c			optional random
+mips/cavium/octeon_wdog.c			optional octeon_wdog
+mips/cavium/octeon_nmi.S			optional octeon_wdog
 
 mips/cavium/cryptocteon/cavium_crypto.c		optional cryptocteon
 mips/cavium/cryptocteon/cryptocteon.c		optional cryptocteon
