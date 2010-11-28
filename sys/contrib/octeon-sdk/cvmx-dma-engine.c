@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -47,7 +49,7 @@
  * Interface to the PCI / PCIe DMA engines. These are only avialable
  * on chips with PCI / PCIe.
  *
- * <hr>$Revision: 41586 $<hr>
+ * <hr>$Revision: 50126 $<hr>
  */
 #include "executive-config.h"
 #include "cvmx-config.h"
@@ -64,13 +66,15 @@
  */
 int cvmx_dma_engine_get_num(void)
 {
-    if (octeon_has_feature(OCTEON_FEATURE_PCIE))
+    if (octeon_has_feature(OCTEON_FEATURE_NPEI))
     {
         if (OCTEON_IS_MODEL(OCTEON_CN52XX_PASS1_X))
             return 4;
         else
             return 5;
     }
+    else if (octeon_has_feature(OCTEON_FEATURE_PCIE))
+        return 8;
     else
         return 2;
 }
@@ -82,7 +86,6 @@ int cvmx_dma_engine_get_num(void)
  */
 int cvmx_dma_engine_initialize(void)
 {
-    cvmx_npei_dmax_ibuff_saddr_t dmax_ibuff_saddr;
     int engine;
 
     for (engine=0; engine < cvmx_dma_engine_get_num(); engine++)
@@ -93,20 +96,32 @@ int cvmx_dma_engine_initialize(void)
                                            CVMX_FPA_OUTPUT_BUFFER_POOL_SIZE);
         if (result != CVMX_CMD_QUEUE_SUCCESS)
             return -1;
-        dmax_ibuff_saddr.u64 = 0;
-        dmax_ibuff_saddr.s.saddr = cvmx_ptr_to_phys(cvmx_cmd_queue_buffer(CVMX_CMD_QUEUE_DMA(engine))) >> 7;
-        if (octeon_has_feature(OCTEON_FEATURE_PCIE))
+        if (octeon_has_feature(OCTEON_FEATURE_NPEI))
+        {
+            cvmx_npei_dmax_ibuff_saddr_t dmax_ibuff_saddr;
+            dmax_ibuff_saddr.u64 = 0;
+            dmax_ibuff_saddr.s.saddr = cvmx_ptr_to_phys(cvmx_cmd_queue_buffer(CVMX_CMD_QUEUE_DMA(engine))) >> 7;
             cvmx_write_csr(CVMX_PEXP_NPEI_DMAX_IBUFF_SADDR(engine), dmax_ibuff_saddr.u64);
+        }
+        else if (octeon_has_feature(OCTEON_FEATURE_PCIE))
+        {
+            cvmx_dpi_dmax_ibuff_saddr_t dpi_dmax_ibuff_saddr;
+            dpi_dmax_ibuff_saddr.u64 = 0;
+            dpi_dmax_ibuff_saddr.s.csize = CVMX_FPA_OUTPUT_BUFFER_POOL_SIZE/8;
+            dpi_dmax_ibuff_saddr.s.saddr = cvmx_ptr_to_phys(cvmx_cmd_queue_buffer(CVMX_CMD_QUEUE_DMA(engine))) >> 7;
+            cvmx_write_csr(CVMX_DPI_DMAX_IBUFF_SADDR(engine), dpi_dmax_ibuff_saddr.u64);
+        }
         else
         {
+            uint64_t address = cvmx_ptr_to_phys(cvmx_cmd_queue_buffer(CVMX_CMD_QUEUE_DMA(engine)));
             if (engine)
-                cvmx_write_csr(CVMX_NPI_HIGHP_IBUFF_SADDR, dmax_ibuff_saddr.u64);
+                cvmx_write_csr(CVMX_NPI_HIGHP_IBUFF_SADDR, address);
             else
-                cvmx_write_csr(CVMX_NPI_LOWP_IBUFF_SADDR, dmax_ibuff_saddr.u64);
+                cvmx_write_csr(CVMX_NPI_LOWP_IBUFF_SADDR, address);
         }
     }
 
-    if (octeon_has_feature(OCTEON_FEATURE_PCIE))
+    if (octeon_has_feature(OCTEON_FEATURE_NPEI))
     {
         cvmx_npei_dma_control_t dma_control;
         dma_control.u64 = 0;
@@ -134,6 +149,37 @@ int cvmx_dma_engine_initialize(void)
             pcie_req_num.s.dma_cnt = 1;
             cvmx_write_csr(CVMX_PEXP_NPEI_DMA_PCIE_REQ_NUM, pcie_req_num.u64);
         }
+    }
+    else if (octeon_has_feature(OCTEON_FEATURE_PCIE))
+    {
+        cvmx_dpi_engx_buf_t dpi_engx_buf;
+        cvmx_dpi_dma_control_t dma_control;
+        cvmx_dpi_ctl_t dpi_ctl;
+
+        /* Give engine 0-4 1KB, and 5 3KB. This gives the packet engines better
+            performance. Total must not exceed 8KB */
+        dpi_engx_buf.u64 = 0;
+        dpi_engx_buf.s.blks = 2;
+        cvmx_write_csr(CVMX_DPI_ENGX_BUF(0), dpi_engx_buf.u64);
+        cvmx_write_csr(CVMX_DPI_ENGX_BUF(1), dpi_engx_buf.u64);
+        cvmx_write_csr(CVMX_DPI_ENGX_BUF(2), dpi_engx_buf.u64);
+        cvmx_write_csr(CVMX_DPI_ENGX_BUF(3), dpi_engx_buf.u64);
+        cvmx_write_csr(CVMX_DPI_ENGX_BUF(4), dpi_engx_buf.u64);
+        dpi_engx_buf.s.blks = 6;
+        cvmx_write_csr(CVMX_DPI_ENGX_BUF(5), dpi_engx_buf.u64);
+
+        dma_control.u64 = cvmx_read_csr(CVMX_DPI_DMA_CONTROL);
+        dma_control.s.pkt_hp = 1;
+        dma_control.s.pkt_en = 1;
+        dma_control.s.dma_enb = 0x1f;
+        dma_control.s.dwb_denb = 1;
+        dma_control.s.dwb_ichk = CVMX_FPA_OUTPUT_BUFFER_POOL_SIZE/128;
+        dma_control.s.fpa_que = CVMX_FPA_OUTPUT_BUFFER_POOL;
+        dma_control.s.o_mode = 1;
+        cvmx_write_csr(CVMX_DPI_DMA_CONTROL, dma_control.u64);
+        dpi_ctl.u64 = cvmx_read_csr(CVMX_DPI_CTL);
+        dpi_ctl.s.en = 1;
+        cvmx_write_csr(CVMX_DPI_CTL, dpi_ctl.u64);
     }
     else
     {
@@ -172,7 +218,7 @@ int cvmx_dma_engine_shutdown(void)
         }
     }
 
-    if (octeon_has_feature(OCTEON_FEATURE_PCIE))
+    if (octeon_has_feature(OCTEON_FEATURE_NPEI))
     {
         cvmx_npei_dma_control_t dma_control;
         dma_control.u64 = cvmx_read_csr(CVMX_PEXP_NPEI_DMA_CONTROL);
@@ -185,6 +231,15 @@ int cvmx_dma_engine_shutdown(void)
         cvmx_write_csr(CVMX_PEXP_NPEI_DMA_CONTROL, dma_control.u64);
         /* Make sure the disable completes */
         cvmx_read_csr(CVMX_PEXP_NPEI_DMA_CONTROL);
+    }
+    else if (octeon_has_feature(OCTEON_FEATURE_PCIE))
+    {
+        cvmx_dpi_dma_control_t dma_control;
+        dma_control.u64 = cvmx_read_csr(CVMX_DPI_DMA_CONTROL);
+        dma_control.s.dma_enb = 0;
+        cvmx_write_csr(CVMX_DPI_DMA_CONTROL, dma_control.u64);
+        /* Make sure the disable completes */
+        cvmx_read_csr(CVMX_DPI_DMA_CONTROL);
     }
     else
     {
@@ -200,8 +255,10 @@ int cvmx_dma_engine_shutdown(void)
     for (engine=0; engine < cvmx_dma_engine_get_num(); engine++)
     {
         cvmx_cmd_queue_shutdown(CVMX_CMD_QUEUE_DMA(engine));
-        if (octeon_has_feature(OCTEON_FEATURE_PCIE))
+        if (octeon_has_feature(OCTEON_FEATURE_NPEI))
             cvmx_write_csr(CVMX_PEXP_NPEI_DMAX_IBUFF_SADDR(engine), 0);
+        else if (octeon_has_feature(OCTEON_FEATURE_PCIE))
+            cvmx_write_csr(CVMX_DPI_DMAX_IBUFF_SADDR(engine), 0);
         else
         {
             if (engine)
@@ -218,7 +275,7 @@ int cvmx_dma_engine_shutdown(void)
 /**
  * Submit a series of DMA comamnd to the DMA engines.
  *
- * @param engine  Engine to submit to (0-4)
+ * @param engine  Engine to submit to (0 to cvmx_dma_engine_get_num()-1)
  * @param header  Command header
  * @param num_buffers
  *                The number of data pointers
@@ -262,11 +319,13 @@ int cvmx_dma_engine_submit(int engine, cvmx_dma_engine_header_t header, int num_
     /* A syncw isn't needed here since the command queue did one as part of the queue unlock */
     if (cvmx_likely(result == CVMX_CMD_QUEUE_SUCCESS))
     {
-        if (octeon_has_feature(OCTEON_FEATURE_PCIE))
+        if (octeon_has_feature(OCTEON_FEATURE_NPEI))
         {
             /* DMA doorbells are 32bit writes in little endian space. This means we need to xor the address with 4 */
             cvmx_write64_uint32(CVMX_PEXP_NPEI_DMAX_DBELL(engine)^4, cmd_count);
         }
+        else if (octeon_has_feature(OCTEON_FEATURE_PCIE))
+            cvmx_write_csr(CVMX_DPI_DMAX_DBELL(engine), cmd_count);
         else
         {
             if (engine)
@@ -414,7 +473,7 @@ static inline int __cvmx_dma_engine_build_external_pointers(cvmx_dma_engine_buff
  * or PCI / PCIe address list. This function does not support gather lists,
  * so you will need to build your own lists in that case.
  *
- * @param engine Engine to submit to (0-4)
+ * @param engine Engine to submit to (0 to cvmx_dma_engine_get_num()-1)
  * @param header DMA Command header. Note that the nfst and nlst fields do not
  *               need to be filled in. All other fields must be set properly.
  * @param first_address

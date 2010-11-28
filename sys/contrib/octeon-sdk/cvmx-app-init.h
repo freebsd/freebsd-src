@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -44,7 +46,7 @@
  * @file
  * Header file for simple executive application initialization.  This defines
  * part of the ABI between the bootloader and the application.
- * <hr>$Revision: 41586 $<hr>
+ * <hr>$Revision: 52004 $<hr>
  *
  */
 
@@ -73,8 +75,7 @@ extern "C" {
 ** must be incremented, and the minor version should be reset
 ** to 0.
 */
-typedef struct
-{
+struct cvmx_bootinfo {
     uint32_t major_version;
     uint32_t minor_version;
 
@@ -121,7 +122,9 @@ typedef struct
 #endif
 
 
-} cvmx_bootinfo_t;
+};
+
+typedef struct cvmx_bootinfo cvmx_bootinfo_t;
 
 #define CVMX_BOOTINFO_CFG_FLAG_PCI_HOST			(1ull << 0)
 #define CVMX_BOOTINFO_CFG_FLAG_PCI_TARGET		(1ull << 1)
@@ -166,6 +169,15 @@ enum cvmx_board_types_enum {
     CVMX_BOARD_TYPE_CB5601         = 26,
     CVMX_BOARD_TYPE_CB5200         = 27,
     CVMX_BOARD_TYPE_GENERIC        = 28,   /* Special 'generic' board type, supports many boards */
+    CVMX_BOARD_TYPE_EBH5610        = 29,
+    CVMX_BOARD_TYPE_LANAI2_A       = 30,
+    CVMX_BOARD_TYPE_LANAI2_U       = 31,
+    CVMX_BOARD_TYPE_EBB5600        = 32,
+    CVMX_BOARD_TYPE_EBB6300        = 33,
+    CVMX_BOARD_TYPE_NIC_XLE_10G    = 34,
+    CVMX_BOARD_TYPE_LANAI2_G       = 35,
+    CVMX_BOARD_TYPE_EBT5810        = 36,
+    CVMX_BOARD_TYPE_NIC10E         = 37,
     CVMX_BOARD_TYPE_MAX,
 
     /* The range from CVMX_BOARD_TYPE_MAX to CVMX_BOARD_TYPE_CUST_DEFINED_MIN is reserved
@@ -193,8 +205,16 @@ enum cvmx_board_types_enum {
     CVMX_BOARD_TYPE_CUST_GCT108      = 10012,
     CVMX_BOARD_TYPE_CUST_AGS109      = 10013,
     CVMX_BOARD_TYPE_CUST_GCT110      = 10014,
+    CVMX_BOARD_TYPE_CUST_L2_AIR_SENDER  = 10015,
+    CVMX_BOARD_TYPE_CUST_L2_AIR_RECEIVER= 10016,
+    CVMX_BOARD_TYPE_CUST_L2_ACCTON2_TX  = 10017,
+    CVMX_BOARD_TYPE_CUST_L2_ACCTON2_RX  = 10018,
+    CVMX_BOARD_TYPE_CUST_L2_WSTRNSNIC_TX= 10019,
+    CVMX_BOARD_TYPE_CUST_L2_WSTRNSNIC_RX= 10020,
 #if defined(OCTEON_VENDOR_LANNER)
-    CVMX_BOARD_TYPE_CUST_LANNER_MR730= 10021,
+    CVMX_BOARD_TYPE_CUST_LANNER_MR730	= 10021,
+#else
+    CVMX_BOARD_TYPE_CUST_L2_ZINWELL     = 10021,
 #endif
     CVMX_BOARD_TYPE_CUST_DEFINED_MAX = 20000,
 
@@ -205,6 +225,20 @@ enum cvmx_board_types_enum {
     CVMX_BOARD_TYPE_CUST_LANNER_MR320= 20002,
 #endif
     CVMX_BOARD_TYPE_CUST_PRIVATE_MAX = 30000,
+
+
+    /* Range for IO modules */
+    CVMX_BOARD_TYPE_MODULE_MIN          = 30001,
+    CVMX_BOARD_TYPE_MODULE_PCIE_RC_4X   = 30002,
+    CVMX_BOARD_TYPE_MODULE_PCIE_EP_4X   = 30003,
+    CVMX_BOARD_TYPE_MODULE_SGMII_MARVEL = 30004,
+    CVMX_BOARD_TYPE_MODULE_SFPPLUS_BCM  = 30005,
+    CVMX_BOARD_TYPE_MODULE_SRIO         = 30006,
+    CVMX_BOARD_TYPE_MODULE_EBB5600_QLM0 = 30007,
+    CVMX_BOARD_TYPE_MODULE_EBB5600_QLM1 = 30008,
+    CVMX_BOARD_TYPE_MODULE_EBB5600_QLM2 = 30009,
+    CVMX_BOARD_TYPE_MODULE_EBB5600_QLM3 = 30010,
+    CVMX_BOARD_TYPE_MODULE_MAX          = 31000,
 
     /* The remaining range is reserved for future use. */
 };
@@ -253,6 +287,15 @@ static inline const char *cvmx_board_type_to_string(enum cvmx_board_types_enum t
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CB5601)
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CB5200)
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_GENERIC)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_EBH5610)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_LANAI2_A)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_LANAI2_U)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_EBB5600)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_EBB6300)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_NIC_XLE_10G)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_LANAI2_G)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_EBT5810)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_NIC10E)
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_MAX)
 
         /* Customer boards listed here */
@@ -275,9 +318,18 @@ static inline const char *cvmx_board_type_to_string(enum cvmx_board_types_enum t
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_GCT108)
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_AGS109)
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_GCT110)
+	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_L2_AIR_SENDER)
+	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_L2_AIR_RECEIVER)
+	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_L2_ACCTON2_TX)
+	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_L2_ACCTON2_RX)
+	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_L2_WSTRNSNIC_TX)
+	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_L2_WSTRNSNIC_RX)
 #if defined(OCTEON_VENDOR_LANNER)
 	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_LANNER_MR730)
+#else
+	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_L2_ZINWELL)
 #endif
+
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_DEFINED_MAX)
 
         /* Customer private range */
@@ -286,6 +338,19 @@ static inline const char *cvmx_board_type_to_string(enum cvmx_board_types_enum t
 	ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_LANNER_MR320)
 #endif
         ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_CUST_PRIVATE_MAX)
+
+        /* Module range */
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_MODULE_MIN)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_MODULE_PCIE_RC_4X)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_MODULE_PCIE_EP_4X)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_MODULE_SGMII_MARVEL)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_MODULE_SFPPLUS_BCM)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_MODULE_SRIO)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_MODULE_EBB5600_QLM0)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_MODULE_EBB5600_QLM1)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_MODULE_EBB5600_QLM2)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_MODULE_EBB5600_QLM3)
+        ENUM_BRD_TYPE_CASE(CVMX_BOARD_TYPE_MODULE_MAX)
     }
     return "Unsupported Board";
 }

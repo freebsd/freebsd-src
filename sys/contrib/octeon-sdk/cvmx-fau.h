@@ -1,44 +1,41 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
-
-
-
-
 
 
 /**
@@ -46,7 +43,7 @@
  *
  * Interface to the hardware Fetch and Add Unit.
  *
- * <hr>$Revision: 41586 $<hr>
+ * <hr>$Revision: 49448 $<hr>
  */
 
 #ifndef __CVMX_FAU_H__
@@ -139,10 +136,9 @@ typedef union {
    uint64_t        u64;
    struct {
       uint64_t     invalid: 1;
-      uint64_t     data   :63; // unpredictable if invalid is set
+     uint64_t     data   :63; /* unpredictable if invalid is set */
    } s;
 } cvmx_fau_async_tagwait_result_t;
-
 
 /**
  * @INTERNAL
@@ -162,7 +158,6 @@ static inline uint64_t __cvmx_fau_store_address(uint64_t noadd, uint64_t reg)
             cvmx_build_bits(CVMX_FAU_BITS_NOADD, noadd) |
             cvmx_build_bits(CVMX_FAU_BITS_REGISTER, reg));
 }
-
 
 /**
  * @INTERNAL
@@ -189,7 +184,6 @@ static inline uint64_t __cvmx_fau_atomic_address(uint64_t tagwait, uint64_t reg,
             cvmx_build_bits(CVMX_FAU_BITS_REGISTER, reg));
 }
 
-
 /**
  * Perform an atomic 64 bit add
  *
@@ -203,7 +197,6 @@ static inline int64_t cvmx_fau_fetch_and_add64(cvmx_fau_reg_64_t reg, int64_t va
 {
     return cvmx_read64_int64(__cvmx_fau_atomic_address(0, reg, value));
 }
-
 
 /**
  * Perform an atomic 32 bit add
@@ -219,7 +212,6 @@ static inline int32_t cvmx_fau_fetch_and_add32(cvmx_fau_reg_32_t reg, int32_t va
     return cvmx_read64_int32(__cvmx_fau_atomic_address(0, reg, value));
 }
 
-
 /**
  * Perform an atomic 16 bit add
  *
@@ -233,7 +225,6 @@ static inline int16_t cvmx_fau_fetch_and_add16(cvmx_fau_reg_16_t reg, int16_t va
     return cvmx_read64_int16(__cvmx_fau_atomic_address(0, reg, value));
 }
 
-
 /**
  * Perform an atomic 8 bit add
  *
@@ -245,7 +236,6 @@ static inline int8_t cvmx_fau_fetch_and_add8(cvmx_fau_reg_8_t reg, int8_t value)
 {
     return cvmx_read64_int8(__cvmx_fau_atomic_address(0, reg, value));
 }
-
 
 /**
  * Perform an atomic 64 bit add after the current tag switch
@@ -270,7 +260,6 @@ static inline cvmx_fau_tagwait64_t cvmx_fau_tagwait_fetch_and_add64(cvmx_fau_reg
     return result.t;
 }
 
-
 /**
  * Perform an atomic 32 bit add after the current tag switch
  * completes
@@ -294,7 +283,6 @@ static inline cvmx_fau_tagwait32_t cvmx_fau_tagwait_fetch_and_add32(cvmx_fau_reg
     return result.t;
 }
 
-
 /**
  * Perform an atomic 16 bit add after the current tag switch
  * completes
@@ -317,7 +305,6 @@ static inline cvmx_fau_tagwait16_t cvmx_fau_tagwait_fetch_and_add16(cvmx_fau_reg
     return result.t;
 }
 
-
 /**
  * Perform an atomic 8 bit add after the current tag switch
  * completes
@@ -338,7 +325,6 @@ static inline cvmx_fau_tagwait8_t cvmx_fau_tagwait_fetch_and_add8(cvmx_fau_reg_8
     result.i8 = cvmx_read64_int8(__cvmx_fau_atomic_address(1, reg, value));
     return result.t;
 }
-
 
 /**
  * @INTERNAL
@@ -375,7 +361,6 @@ static inline uint64_t __cvmx_fau_iobdma_data(uint64_t scraddr, int64_t value, u
                       cvmx_build_bits(CVMX_FAU_BITS_REGISTER, reg));
 }
 
-
 /**
  * Perform an async atomic 64 bit add. The old value is
  * placed in the scratch memory at byte address scraddr.
@@ -392,7 +377,6 @@ static inline void cvmx_fau_async_fetch_and_add64(uint64_t scraddr, cvmx_fau_reg
 {
     cvmx_send_single(__cvmx_fau_iobdma_data(scraddr, value, 0, CVMX_FAU_OP_SIZE_64, reg));
 }
-
 
 /**
  * Perform an async atomic 32 bit add. The old value is
@@ -411,7 +395,6 @@ static inline void cvmx_fau_async_fetch_and_add32(uint64_t scraddr, cvmx_fau_reg
     cvmx_send_single(__cvmx_fau_iobdma_data(scraddr, value, 0, CVMX_FAU_OP_SIZE_32, reg));
 }
 
-
 /**
  * Perform an async atomic 16 bit add. The old value is
  * placed in the scratch memory at byte address scraddr.
@@ -428,7 +411,6 @@ static inline void cvmx_fau_async_fetch_and_add16(uint64_t scraddr, cvmx_fau_reg
     cvmx_send_single(__cvmx_fau_iobdma_data(scraddr, value, 0, CVMX_FAU_OP_SIZE_16, reg));
 }
 
-
 /**
  * Perform an async atomic 8 bit add. The old value is
  * placed in the scratch memory at byte address scraddr.
@@ -443,7 +425,6 @@ static inline void cvmx_fau_async_fetch_and_add8(uint64_t scraddr, cvmx_fau_reg_
 {
     cvmx_send_single(__cvmx_fau_iobdma_data(scraddr, value, 0, CVMX_FAU_OP_SIZE_8, reg));
 }
-
 
 /**
  * Perform an async atomic 64 bit add after the current tag
@@ -465,7 +446,6 @@ static inline void cvmx_fau_async_tagwait_fetch_and_add64(uint64_t scraddr, cvmx
     cvmx_send_single(__cvmx_fau_iobdma_data(scraddr, value, 1, CVMX_FAU_OP_SIZE_64, reg));
 }
 
-
 /**
  * Perform an async atomic 32 bit add after the current tag
  * switch completes.
@@ -486,7 +466,6 @@ static inline void cvmx_fau_async_tagwait_fetch_and_add32(uint64_t scraddr, cvmx
     cvmx_send_single(__cvmx_fau_iobdma_data(scraddr, value, 1, CVMX_FAU_OP_SIZE_32, reg));
 }
 
-
 /**
  * Perform an async atomic 16 bit add after the current tag
  * switch completes.
@@ -506,7 +485,6 @@ static inline void cvmx_fau_async_tagwait_fetch_and_add16(uint64_t scraddr, cvmx
     cvmx_send_single(__cvmx_fau_iobdma_data(scraddr, value, 1, CVMX_FAU_OP_SIZE_16, reg));
 }
 
-
 /**
  * Perform an async atomic 8 bit add after the current tag
  * switch completes.
@@ -525,9 +503,6 @@ static inline void cvmx_fau_async_tagwait_fetch_and_add8(uint64_t scraddr, cvmx_
     cvmx_send_single(__cvmx_fau_iobdma_data(scraddr, value, 1, CVMX_FAU_OP_SIZE_8, reg));
 }
 
-
-
-
 /**
  * Perform an atomic 64 bit add
  *
@@ -539,7 +514,6 @@ static inline void cvmx_fau_atomic_add64(cvmx_fau_reg_64_t reg, int64_t value)
 {
     cvmx_write64_int64(__cvmx_fau_store_address(0, reg), value);
 }
-
 
 /**
  * Perform an atomic 32 bit add
@@ -553,7 +527,6 @@ static inline void cvmx_fau_atomic_add32(cvmx_fau_reg_32_t reg, int32_t value)
     cvmx_write64_int32(__cvmx_fau_store_address(0, reg), value);
 }
 
-
 /**
  * Perform an atomic 16 bit add
  *
@@ -566,7 +539,6 @@ static inline void cvmx_fau_atomic_add16(cvmx_fau_reg_16_t reg, int16_t value)
     cvmx_write64_int16(__cvmx_fau_store_address(0, reg), value);
 }
 
-
 /**
  * Perform an atomic 8 bit add
  *
@@ -577,7 +549,6 @@ static inline void cvmx_fau_atomic_add8(cvmx_fau_reg_8_t reg, int8_t value)
 {
     cvmx_write64_int8(__cvmx_fau_store_address(0, reg), value);
 }
-
 
 /**
  * Perform an atomic 64 bit write
@@ -591,7 +562,6 @@ static inline void cvmx_fau_atomic_write64(cvmx_fau_reg_64_t reg, int64_t value)
     cvmx_write64_int64(__cvmx_fau_store_address(1, reg), value);
 }
 
-
 /**
  * Perform an atomic 32 bit write
  *
@@ -604,7 +574,6 @@ static inline void cvmx_fau_atomic_write32(cvmx_fau_reg_32_t reg, int32_t value)
     cvmx_write64_int32(__cvmx_fau_store_address(1, reg), value);
 }
 
-
 /**
  * Perform an atomic 16 bit write
  *
@@ -616,7 +585,6 @@ static inline void cvmx_fau_atomic_write16(cvmx_fau_reg_16_t reg, int16_t value)
 {
     cvmx_write64_int16(__cvmx_fau_store_address(1, reg), value);
 }
-
 
 /**
  * Perform an atomic 8 bit write
