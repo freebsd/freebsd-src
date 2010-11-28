@@ -847,10 +847,8 @@ nd6_lookup(struct in6_addr *addr6, int flags, struct ifnet *ifp)
 	    llflags |= LLE_EXCLUSIVE;	
 	
 	ln = lla_lookup(LLTABLE6(ifp), llflags, (struct sockaddr *)&sin6);
-	if ((ln != NULL) && (flags & LLE_CREATE)) {
+	if ((ln != NULL) && (flags & LLE_CREATE))
 		ln->ln_state = ND6_LLINFO_NOSTATE;
-		callout_init(&ln->ln_timer_ch, 0);
-	}
 	
 	return (ln);
 }
