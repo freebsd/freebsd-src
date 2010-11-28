@@ -46,71 +46,15 @@ __FBSDID("$FreeBSD$");
 
 extern int octeon_is_simulation(void);
 
-static int cvm_oct_xaui_open(struct ifnet *ifp)
-{
-	cvmx_gmxx_prtx_cfg_t gmx_cfg;
-	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
-	int interface = INTERFACE(priv->port);
-	int index = INDEX(priv->port);
-	cvmx_helper_link_info_t link_info;
-
-	gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
-	gmx_cfg.s.en = 1;
-	cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmx_cfg.u64);
-
-	if (!octeon_is_simulation()) {
-	     link_info = cvmx_helper_link_get(priv->port);
-	     if (!link_info.s.link_up)	
-		if_link_state_change(ifp, LINK_STATE_DOWN);
-	     else
-		if_link_state_change(ifp, LINK_STATE_UP);
-	}
-	return 0;
-}
-
-static int cvm_oct_xaui_stop(struct ifnet *ifp)
-{
-	cvmx_gmxx_prtx_cfg_t gmx_cfg;
-	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
-	int interface = INTERFACE(priv->port);
-	int index = INDEX(priv->port);
-
-	gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
-	gmx_cfg.s.en = 0;
-	cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmx_cfg.u64);
-	return 0;
-}
-
-static void cvm_oct_xaui_poll(struct ifnet *ifp)
-{
-	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
-	cvmx_helper_link_info_t link_info;
-
-	link_info = cvmx_helper_link_get(priv->port);
-	if (link_info.u64 == priv->link_info)
-		return;
-
-	link_info = cvmx_helper_link_autoconf(priv->port);
-	priv->link_info = link_info.u64;
-	priv->need_link_update = 1;
-}
-
-
 int cvm_oct_xaui_init(struct ifnet *ifp)
 {
 	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
 	cvm_oct_common_init(ifp);
-	priv->open = cvm_oct_xaui_open;
-	priv->stop = cvm_oct_xaui_stop;
+	priv->open = cvm_oct_common_open;
+	priv->stop = cvm_oct_common_stop;
 	priv->stop(ifp);
 	if (!octeon_is_simulation())
-		priv->poll = cvm_oct_xaui_poll;
+		priv->poll = cvm_oct_common_poll;
 
     return 0;
 }
-
-void cvm_oct_xaui_uninit(struct ifnet *ifp)
-{
-	cvm_oct_common_uninit(ifp);
-}
-
