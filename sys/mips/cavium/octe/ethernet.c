@@ -74,13 +74,6 @@ TUNABLE_INT("hw.octe.pow_receive_group", &pow_receive_group);
 		 "\t\tgroup. Also any other software can submit packets to this\n"
 		 "\t\tgroup for the kernel to process." */
 
-static int disable_core_queueing = 1;
-TUNABLE_INT("hw.octe.disable_core_queueing", &disable_core_queueing);
-/*
-		"\t\tWhen set the networking core's tx_queue_len is set to zero.  This\n"
-		"\t\tallows packets to be sent without lock contention in the packet scheduler\n"
-		"\t\tresulting in some cases in improved throughput.\n" */
-
 extern int octeon_is_simulation(void);
 
 /**
@@ -176,9 +169,6 @@ static void cvm_do_timer(void *arg)
 					priv->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 				}
 			}
-#if 0
-			cvm_oct_device[port]->get_stats(cvm_oct_device[port]);
-#endif
 		}
 		port++;
 		/* Poll the next port in a 50th of a second.
@@ -312,9 +302,6 @@ int cvm_oct_init_module(device_t bus)
 
 	printf("cavium-ethernet: %s\n", OCTEON_SDK_VERSION_STRING);
 
-#if 0
-	cvm_oct_proc_initialize();
-#endif
 	cvm_oct_rx_initialize();
 	cvm_oct_configure_common_hw(bus);
 
@@ -364,11 +351,6 @@ int cvm_oct_init_module(device_t bus)
 				printf("\t\tFailed to allocate ethernet device for port %d\n", port);
 				continue;
 			}
-			/* XXX/juli set max send q len.  */
-#if 0
-			if (disable_core_queueing)
-				ifp->tx_queue_len = 0;
-#endif
 
 			/* Initialize the device private structure. */
 			device_probe(dev);
@@ -399,7 +381,7 @@ int cvm_oct_init_module(device_t bus)
 
 			case CVMX_HELPER_INTERFACE_MODE_XAUI:
 				priv->init = cvm_oct_xaui_init;
-				priv->uninit = cvm_oct_xaui_uninit;
+				priv->uninit = cvm_oct_common_uninit;
 				device_set_desc(dev, "Cavium Octeon XAUI Ethernet");
 				break;
 
@@ -411,7 +393,7 @@ int cvm_oct_init_module(device_t bus)
 
 			case CVMX_HELPER_INTERFACE_MODE_SGMII:
 				priv->init = cvm_oct_sgmii_init;
-				priv->uninit = cvm_oct_sgmii_uninit;
+				priv->uninit = cvm_oct_common_uninit;
 				device_set_desc(dev, "Cavium Octeon SGMII Ethernet");
 				break;
 
@@ -506,9 +488,6 @@ void cvm_oct_cleanup_module(void)
 	}
 
 	cvmx_pko_shutdown();
-#if 0
-	cvm_oct_proc_shutdown();
-#endif
 
 	cvmx_ipd_free_ptr();
 
