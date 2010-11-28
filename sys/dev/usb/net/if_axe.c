@@ -302,7 +302,7 @@ axe_miibus_readreg(device_t dev, int phy, int reg)
 	axe_cmd(sc, AXE_CMD_MII_OPMODE_HW, 0, 0, NULL);
 
 	val = le16toh(val);
-	if ((sc->sc_flags & AXE_FLAG_772) != 0 && reg == MII_BMSR) {
+	if (AXE_IS_772(sc) && reg == MII_BMSR) {
 		/*
 		 * BMSR of AX88772 indicates that it supports extended
 		 * capability but the extended status register is
@@ -384,7 +384,7 @@ axe_miibus_statchg(device_t dev)
 	val = 0;
 	if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0)
 		val |= AXE_MEDIA_FULL_DUPLEX;
-	if (sc->sc_flags & (AXE_FLAG_178 | AXE_FLAG_772)) {
+	if (AXE_IS_178_FAMILY(sc)) {
 		val |= AXE_178_MEDIA_RX_EN | AXE_178_MEDIA_MAGIC;
 		if ((sc->sc_flags & AXE_FLAG_178) != 0)
 			val |= AXE_178_MEDIA_ENCK;
@@ -700,15 +700,18 @@ axe_attach_post(struct usb_ether *ue)
 		sc->sc_phyno = 0;
 	}
 
-	if (sc->sc_flags & AXE_FLAG_178)
+	if (sc->sc_flags & AXE_FLAG_178) {
 		axe_ax88178_init(sc);
-	else if (sc->sc_flags & AXE_FLAG_772)
+		sc->sc_tx_bufsz = 16 * 1024;
+	} else if (sc->sc_flags & AXE_FLAG_772) {
 		axe_ax88772_init(sc);
+		sc->sc_tx_bufsz = 8 * 1024;
+	}
 
 	/*
 	 * Get station address.
 	 */
-	if (sc->sc_flags & (AXE_FLAG_178 | AXE_FLAG_772))
+	if (AXE_IS_178_FAMILY(sc))
 		axe_cmd(sc, AXE_178_CMD_READ_NODEID, 0, 0, ue->ue_eaddr);
 	else
 		axe_cmd(sc, AXE_172_CMD_READ_NODEID, 0, 0, ue->ue_eaddr);
@@ -819,7 +822,7 @@ axe_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		err = 0;
 
 		pc = usbd_xfer_get_frame(xfer, 0);
-		if (sc->sc_flags & (AXE_FLAG_772 | AXE_FLAG_178)) {
+		if (AXE_IS_178_FAMILY(sc)) {
 			while (pos < actlen) {
 				if ((pos + sizeof(hdr)) > actlen) {
 					/* too little data */
@@ -916,7 +919,7 @@ tr_setup:
 			if (m->m_pkthdr.len > MCLBYTES) {
 				m->m_pkthdr.len = MCLBYTES;
 			}
-			if (sc->sc_flags & (AXE_FLAG_772 | AXE_FLAG_178)) {
+			if (AXE_IS_178_FAMILY(sc)) {
 
 				hdr.len = htole16(m->m_pkthdr.len);
 				hdr.ilen = ~hdr.len;
@@ -955,7 +958,7 @@ tr_setup:
 
 			m_freem(m);
 
-			if (sc->sc_flags & (AXE_FLAG_772 | AXE_FLAG_178)) {
+			if (AXE_IS_178_FAMILY(sc)) {
 				if (pos > (AXE_BULK_BUF_SIZE - MCLBYTES - sizeof(hdr))) {
 					/* send out frame(s) */
 					break;
@@ -1034,16 +1037,16 @@ axe_init(struct usb_ether *ue)
 	axe_reset(sc);
 
 	/* Set MAC address. */
-	if (sc->sc_flags & (AXE_FLAG_178 | AXE_FLAG_772))
+	if (AXE_IS_178_FAMILY(sc))
 		axe_cmd(sc, AXE_178_CMD_WRITE_NODEID, 0, 0, IF_LLADDR(ifp));
 	else
 		axe_cmd(sc, AXE_172_CMD_WRITE_NODEID, 0, 0, IF_LLADDR(ifp));
 
 	/* Set transmitter IPG values */
-	if (sc->sc_flags & (AXE_FLAG_178 | AXE_FLAG_772)) {
+	if (AXE_IS_178_FAMILY(sc))
 		axe_cmd(sc, AXE_178_CMD_WRITE_IPG012, sc->sc_ipgs[2],
 		    (sc->sc_ipgs[1] << 8) | (sc->sc_ipgs[0]), NULL);
-	} else {
+	else {
 		axe_cmd(sc, AXE_172_CMD_WRITE_IPG0, 0, sc->sc_ipgs[0], NULL);
 		axe_cmd(sc, AXE_172_CMD_WRITE_IPG1, 0, sc->sc_ipgs[1], NULL);
 		axe_cmd(sc, AXE_172_CMD_WRITE_IPG2, 0, sc->sc_ipgs[2], NULL);
@@ -1051,7 +1054,7 @@ axe_init(struct usb_ether *ue)
 
 	/* Enable receiver, set RX mode */
 	rxmode = (AXE_RXCMD_MULTICAST | AXE_RXCMD_ENABLE);
-	if (sc->sc_flags & (AXE_FLAG_178 | AXE_FLAG_772)) {
+	if (AXE_IS_178_FAMILY(sc)) {
 #if 0
 		rxmode |= AXE_178_RXCMD_MFB_2048;	/* chip default */
 #else
