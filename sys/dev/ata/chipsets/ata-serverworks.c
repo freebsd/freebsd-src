@@ -179,8 +179,6 @@ ata_serverworks_ch_attach(device_t dev)
     int ch_offset;
     int i;
 
-    ata_pci_dmainit(dev);
-
     ch_offset = ch->unit * 0x100;
 
     for (i = ATA_DATA; i < ATA_MAX_RES; i++)
@@ -244,6 +242,8 @@ ata_serverworks_ch_attach(device_t dev)
 
     /* chip does not reliably do 64K DMA transfers */
     ch->dma.max_iosize = 64 * DEV_BSIZE;
+
+    ata_pci_dmainit(dev);
 
     return 0;
 }
