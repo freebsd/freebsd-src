@@ -120,6 +120,7 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	USB_QUIRK(MGE, UPS2, 0x0000, 0xffff, UQ_HID_IGNORE),
 	USB_QUIRK(APPLE, IPHONE, 0x0000, 0xffff, UQ_HID_IGNORE),
 	USB_QUIRK(APPLE, IPHONE_3G, 0x0000, 0xffff, UQ_HID_IGNORE),
+	USB_QUIRK(MEGATEC, UPS, 0x0000, 0xffff, UQ_HID_IGNORE),
 	/* Devices which should be ignored by both ukbd and uhid */
 	USB_QUIRK(CYPRESS, WISPY1A, 0x0000, 0xffff, UQ_KBD_IGNORE, UQ_HID_IGNORE),
 	USB_QUIRK(METAGEEK, WISPY1B, 0x0000, 0xffff, UQ_KBD_IGNORE, UQ_HID_IGNORE),
