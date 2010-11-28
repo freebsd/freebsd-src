@@ -832,7 +832,7 @@ nd6_lookup(struct in6_addr *addr6, int flags, struct ifnet *ifp)
 {
 	struct sockaddr_in6 sin6;
 	struct llentry *ln;
-	int llflags = 0;
+	int llflags;
 	
 	bzero(&sin6, sizeof(sin6));
 	sin6.sin6_len = sizeof(struct sockaddr_in6);
@@ -841,13 +841,14 @@ nd6_lookup(struct in6_addr *addr6, int flags, struct ifnet *ifp)
 
 	IF_AFDATA_LOCK_ASSERT(ifp);
 
+	llflags = 0;
 	if (flags & ND6_CREATE)
 	    llflags |= LLE_CREATE;
 	if (flags & ND6_EXCLUSIVE)
 	    llflags |= LLE_EXCLUSIVE;	
 	
 	ln = lla_lookup(LLTABLE6(ifp), llflags, (struct sockaddr *)&sin6);
-	if ((ln != NULL) && (flags & LLE_CREATE))
+	if ((ln != NULL) && (llflags & LLE_CREATE))
 		ln->ln_state = ND6_LLINFO_NOSTATE;
 	
 	return (ln);
@@ -1384,7 +1385,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	int do_update;
 	int olladdr;
 	int llchange;
-	int flags = 0;
+	int flags;
 	int newstate = 0;
 	uint16_t router = 0;
 	struct sockaddr_in6 sin6;
@@ -1411,13 +1412,13 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	 * Spec says nothing in sections for RA, RS and NA.  There's small
 	 * description on it in NS section (RFC 2461 7.2.3).
 	 */
-	flags |= lladdr ? ND6_EXCLUSIVE : 0;
+	flags = lladdr ? ND6_EXCLUSIVE : 0;
 	IF_AFDATA_LOCK(ifp);
 	ln = nd6_lookup(from, flags, ifp);
 
 	if (ln == NULL) {
-		flags |= LLE_EXCLUSIVE;
-		ln = nd6_lookup(from, flags |ND6_CREATE, ifp);
+		flags |= ND6_EXCLUSIVE;
+		ln = nd6_lookup(from, flags | ND6_CREATE, ifp);
 		IF_AFDATA_UNLOCK(ifp);
 		is_newentry = 1;
 	} else {
