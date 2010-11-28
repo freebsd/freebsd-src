@@ -1077,7 +1077,7 @@ pmap_alloc_pte_page(unsigned int index, int req)
 {
 	vm_page_t m;
 
-	m = vm_page_alloc_freelist(VM_FREELIST_DIRECT, 0, req);
+	m = vm_page_alloc_freelist(VM_FREELIST_DIRECT, req);
 	if (m == NULL)
 		return (NULL);
 
