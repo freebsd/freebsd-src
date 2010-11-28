@@ -317,6 +317,7 @@ int	libusb_set_configuration(libusb_device_handle * devh, int configuration);
 int	libusb_claim_interface(libusb_device_handle * devh, int interface_number);
 int	libusb_release_interface(libusb_device_handle * devh, int interface_number);
 int	libusb_reset_device(libusb_device_handle * devh);
+int	libusb_check_connected(libusb_device_handle * devh);
 int 	libusb_kernel_driver_active(libusb_device_handle * devh, int interface);
 int	libusb_get_driver_np(libusb_device_handle * devh, int interface, char *name, int namelen);
 int	libusb_get_driver(libusb_device_handle * devh, int interface, char *name, int namelen);
