@@ -942,6 +942,7 @@ ucom_cfg_status_change(struct usb_proc_msg *_task)
 	uint8_t new_msr;
 	uint8_t new_lsr;
 	uint8_t onoff;
+	uint8_t lsr_delta;
 
 	tp = sc->sc_tty;
 
@@ -965,6 +966,7 @@ ucom_cfg_status_change(struct usb_proc_msg *_task)
 		return;
 	}
 	onoff = ((sc->sc_msr ^ new_msr) & SER_DCD);
+	lsr_delta = (sc->sc_lsr ^ new_lsr);
 
 	sc->sc_msr = new_msr;
 	sc->sc_lsr = new_lsr;
@@ -976,6 +978,30 @@ ucom_cfg_status_change(struct usb_proc_msg *_task)
 		DPRINTF("DCD changed to %d\n", onoff);
 
 		ttydisc_modem(tp, onoff);
+	}
+
+	if ((lsr_delta & ULSR_BI) && (sc->sc_lsr & ULSR_BI)) {
+
+		DPRINTF("BREAK detected\n");
+
+		ttydisc_rint(tp, 0, TRE_BREAK);
+		ttydisc_rint_done(tp);
+	}
+
+	if ((lsr_delta & ULSR_FE) && (sc->sc_lsr & ULSR_FE)) {
+
+		DPRINTF("Frame error detected\n");
+
+		ttydisc_rint(tp, 0, TRE_FRAMING);
+		ttydisc_rint_done(tp);
+	}
+
+	if ((lsr_delta & ULSR_PE) && (sc->sc_lsr & ULSR_PE)) {
+
+		DPRINTF("Parity error detected\n");
+
+		ttydisc_rint(tp, 0, TRE_PARITY);
+		ttydisc_rint_done(tp);
 	}
 }
 
