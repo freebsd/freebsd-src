@@ -210,7 +210,6 @@ struct fxp_softc {
 	device_t dev;
 	int tunable_int_delay;		/* interrupt delay value for ucode */
 	int tunable_bundle_max;		/* max # frames per interrupt (ucode) */
-	int tunable_noflow;		/* flow control disabled */
 	int rnr;			/* RNR events */
 	int eeprom_size;		/* size of serial EEPROM */
 	int suspended;			/* 0 = normal  1 = suspended or dead */
