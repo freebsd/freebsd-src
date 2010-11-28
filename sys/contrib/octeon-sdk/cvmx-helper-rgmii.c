@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -47,16 +49,47 @@
  * Functions for RGMII/GMII/MII initialization, configuration,
  * and monitoring.
  *
- * <hr>$Revision: 42417 $<hr>
+ * <hr>$Revision: 49448 $<hr>
  */
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+#include <asm/octeon/cvmx.h>
+#include <asm/octeon/cvmx-config.h>
+#ifdef CVMX_ENABLE_PKO_FUNCTIONS
+#include <asm/octeon/cvmx-pko.h>
+#include <asm/octeon/cvmx-helper.h>
+#include <asm/octeon/cvmx-helper-board.h>
+#endif
+#include <asm/octeon/cvmx-asxx-defs.h>
+#include <asm/octeon/cvmx-gmxx-defs.h>
+#include <asm/octeon/cvmx-pko-defs.h>
+#include <asm/octeon/cvmx-npi-defs.h>
+#include <asm/octeon/cvmx-dbg-defs.h>
+
+#else
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
+#include "executive-config.h"
+#include "cvmx-config.h"
+#ifdef CVMX_ENABLE_PKO_FUNCTIONS
+
 #include "cvmx.h"
 #include "cvmx-sysinfo.h"
 #include "cvmx-mdio.h"
 #include "cvmx-pko.h"
 #include "cvmx-helper.h"
 #include "cvmx-helper-board.h"
+#endif
+#else
+#include "cvmx.h"
+#include "cvmx-sysinfo.h"
+#include "cvmx-mdio.h"
+#include "cvmx-pko.h"
+#include "cvmx-helper.h"
+#include "cvmx-helper-board.h"
+#endif
+#endif
 
 #ifdef CVMX_ENABLE_PKO_FUNCTIONS
+
 /**
  * @INTERNAL
  * Probe RGMII ports and determine the number present
@@ -153,7 +186,6 @@ int __cvmx_helper_rgmii_enable(int interface)
 {
     int num_ports = cvmx_helper_ports_on_interface(interface);
     int port;
-    cvmx_sysinfo_t *sys_info_ptr = cvmx_sysinfo_get();
     cvmx_gmxx_inf_mode_t mode;
     cvmx_asxx_tx_prt_en_t asx_tx;
     cvmx_asxx_rx_prt_en_t asx_rx;
@@ -180,17 +212,12 @@ int __cvmx_helper_rgmii_enable(int interface)
         /* Setting of CVMX_GMXX_TXX_THRESH has been moved to
             __cvmx_helper_setup_gmx() */
 
-        if (cvmx_octeon_is_pass1())
-            __cvmx_helper_errata_asx_pass1(interface, port, sys_info_ptr->cpu_clock_hz);
-        else
-        {
-            /* Configure more flexible RGMII preamble checking. Pass 1 doesn't
-                support this feature. */
-            cvmx_gmxx_rxx_frm_ctl_t frm_ctl;
-            frm_ctl.u64 = cvmx_read_csr(CVMX_GMXX_RXX_FRM_CTL(port, interface));
-            frm_ctl.s.pre_free = 1;  /* New field, so must be compile time */
-            cvmx_write_csr(CVMX_GMXX_RXX_FRM_CTL(port, interface), frm_ctl.u64);
-        }
+        /* Configure more flexible RGMII preamble checking. Pass 1 doesn't
+           support this feature. */
+        cvmx_gmxx_rxx_frm_ctl_t frm_ctl;
+        frm_ctl.u64 = cvmx_read_csr(CVMX_GMXX_RXX_FRM_CTL(port, interface));
+        frm_ctl.s.pre_free = 1;  /* New field, so must be compile time */
+        cvmx_write_csr(CVMX_GMXX_RXX_FRM_CTL(port, interface), frm_ctl.u64);
 
         /* Each pause frame transmitted will ask for about 10M bit times
             before resume.  If buffer space comes available before that time
@@ -249,7 +276,6 @@ int __cvmx_helper_rgmii_enable(int interface)
         gmx_cfg.s.en = 1;
         cvmx_write_csr(CVMX_GMXX_PRTX_CFG(port, interface), gmx_cfg.u64);
     }
-
     return 0;
 }
 
@@ -360,9 +386,7 @@ int __cvmx_helper_rgmii_link_set(int ipd_port, cvmx_helper_link_info_t link_info
     cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
 
     /* Set full/half duplex */
-    if (cvmx_octeon_is_pass1())
-        new_gmx_cfg.s.duplex = 1;   /* Half duplex is broken for 38XX Pass 1 */
-    else if (!link_info.s.link_up)
+    if (!link_info.s.link_up)
         new_gmx_cfg.s.duplex = 1;   /* Force full duplex on down links */
     else
         new_gmx_cfg.s.duplex = link_info.s.full_duplex;

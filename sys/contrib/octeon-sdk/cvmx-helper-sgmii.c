@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -47,15 +49,42 @@
  * Functions for SGMII initialization, configuration,
  * and monitoring.
  *
- * <hr>$Revision: 42417 $<hr>
+ * <hr>$Revision: 52004 $<hr>
  */
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+#include <asm/octeon/cvmx.h>
+#include <asm/octeon/cvmx-config.h>
+#include <asm/octeon/cvmx-clock.h>
+#ifdef CVMX_ENABLE_PKO_FUNCTIONS
+#include <asm/octeon/cvmx-helper.h>
+#include <asm/octeon/cvmx-helper-board.h>
+#endif
+#include <asm/octeon/cvmx-pcsx-defs.h>
+#include <asm/octeon/cvmx-gmxx-defs.h>
+#include <asm/octeon/cvmx-ciu-defs.h>
+#else
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
+#include "executive-config.h"
+#include "cvmx-config.h"
+#ifdef CVMX_ENABLE_PKO_FUNCTIONS
+
 #include "cvmx.h"
 #include "cvmx-sysinfo.h"
 #include "cvmx-mdio.h"
 #include "cvmx-helper.h"
 #include "cvmx-helper-board.h"
+#endif
+#else
+#include "cvmx.h"
+#include "cvmx-sysinfo.h"
+#include "cvmx-mdio.h"
+#include "cvmx-helper.h"
+#include "cvmx-helper-board.h"
+#endif
+#endif
 
 #ifdef CVMX_ENABLE_PKO_FUNCTIONS
+
 /**
  * @INTERNAL
  * Perform initialization required only once for an SGMII port.
@@ -67,8 +96,8 @@
  */
 static int __cvmx_helper_sgmii_hardware_init_one_time(int interface, int index)
 {
-    const uint64_t clock_mhz = cvmx_sysinfo_get()->cpu_clock_hz / 1000000;
-    cvmx_pcsx_miscx_ctl_reg_t pcs_misc_ctl_reg;
+    const uint64_t clock_mhz = cvmx_clock_get_rate(CVMX_CLOCK_SCLK) / 1000000;
+    cvmx_pcsx_miscx_ctl_reg_t pcsx_miscx_ctl_reg;
     cvmx_pcsx_linkx_timer_count_reg_t pcsx_linkx_timer_count_reg;
     cvmx_gmxx_prtx_cfg_t gmxx_prtx_cfg;
 
@@ -80,9 +109,9 @@ static int __cvmx_helper_sgmii_hardware_init_one_time(int interface, int index)
     /* Write PCS*_LINK*_TIMER_COUNT_REG[COUNT] with the appropriate
         value. 1000BASE-X specifies a 10ms interval. SGMII specifies a 1.6ms
         interval. */
-    pcs_misc_ctl_reg.u64 = cvmx_read_csr(CVMX_PCSX_MISCX_CTL_REG(index, interface));
+    pcsx_miscx_ctl_reg.u64 = cvmx_read_csr(CVMX_PCSX_MISCX_CTL_REG(index, interface));
     pcsx_linkx_timer_count_reg.u64 = cvmx_read_csr(CVMX_PCSX_LINKX_TIMER_COUNT_REG(index, interface));
-    if (pcs_misc_ctl_reg.s.mode)
+    if (pcsx_miscx_ctl_reg.s.mode)
     {
         /* 1000BASE-X */
         pcsx_linkx_timer_count_reg.s.count = (10000ull * clock_mhz) >> 10;
@@ -100,7 +129,7 @@ static int __cvmx_helper_sgmii_hardware_init_one_time(int interface, int index)
         In SGMII PHY mode, tx_Config_Reg<D15:D0> is PCS*_SGM*_AN_ADV_REG.
         In SGMII MAC mode, tx_Config_Reg<D15:D0> is the fixed value 0x4001, so
         this step can be skipped. */
-    if (pcs_misc_ctl_reg.s.mode)
+    if (pcsx_miscx_ctl_reg.s.mode)
     {
         /* 1000BASE-X */
         cvmx_pcsx_anx_adv_reg_t pcsx_anx_adv_reg;
@@ -113,8 +142,6 @@ static int __cvmx_helper_sgmii_hardware_init_one_time(int interface, int index)
     }
     else
     {
-        cvmx_pcsx_miscx_ctl_reg_t pcsx_miscx_ctl_reg;
-        pcsx_miscx_ctl_reg.u64 = cvmx_read_csr(CVMX_PCSX_MISCX_CTL_REG(index, interface));
         if (pcsx_miscx_ctl_reg.s.mac_phy)
         {
             /* PHY Mode */
@@ -253,7 +280,10 @@ static int __cvmx_helper_sgmii_hardware_init_link_speed(int interface, int index
             gmxx_prtx_cfg.s.slottime = 1;
             pcsx_miscx_ctl_reg.s.samp_pt = 1;
             cvmx_write_csr(CVMX_GMXX_TXX_SLOT(index, interface), 512);
-            cvmx_write_csr(CVMX_GMXX_TXX_BURST(index, interface), 8192);
+	    if (gmxx_prtx_cfg.s.duplex)
+                cvmx_write_csr(CVMX_GMXX_TXX_BURST(index, interface), 0); // full duplex
+	    else
+                cvmx_write_csr(CVMX_GMXX_TXX_BURST(index, interface), 8192); // half duplex
             break;
         default:
             break;
@@ -290,6 +320,17 @@ static int __cvmx_helper_sgmii_hardware_init_link_speed(int interface, int index
 static int __cvmx_helper_sgmii_hardware_init(int interface, int num_ports)
 {
     int index;
+
+    /* CN63XX Pass 1.0 errata G-14395 requires the QLM De-emphasis be programmed */
+    if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_0))
+    {
+        cvmx_ciu_qlm2_t ciu_qlm;
+        ciu_qlm.u64 = cvmx_read_csr(CVMX_CIU_QLM2);
+        ciu_qlm.s.txbypass = 1;
+        ciu_qlm.s.txdeemph = 0xf;
+        ciu_qlm.s.txmargin = 0xd;
+        cvmx_write_csr(CVMX_CIU_QLM2, ciu_qlm.u64);
+    }
 
     __cvmx_helper_setup_gmx(interface, num_ports);
 
@@ -371,7 +412,7 @@ int __cvmx_helper_sgmii_enable(int interface)
 cvmx_helper_link_info_t __cvmx_helper_sgmii_link_get(int ipd_port)
 {
     cvmx_helper_link_info_t result;
-    cvmx_pcsx_miscx_ctl_reg_t pcs_misc_ctl_reg;
+    cvmx_pcsx_miscx_ctl_reg_t pcsx_miscx_ctl_reg;
     int interface = cvmx_helper_get_interface_num(ipd_port);
     int index = cvmx_helper_get_interface_index_num(ipd_port);
     cvmx_pcsx_mrx_control_reg_t pcsx_mrx_control_reg;
@@ -398,16 +439,14 @@ cvmx_helper_link_info_t __cvmx_helper_sgmii_link_get(int ipd_port)
     }
 
 
-    pcs_misc_ctl_reg.u64 = cvmx_read_csr(CVMX_PCSX_MISCX_CTL_REG(index, interface));
-    if (pcs_misc_ctl_reg.s.mode)
+    pcsx_miscx_ctl_reg.u64 = cvmx_read_csr(CVMX_PCSX_MISCX_CTL_REG(index, interface));
+    if (pcsx_miscx_ctl_reg.s.mode)
     {
         /* 1000BASE-X */
         // FIXME
     }
     else
     {
-        cvmx_pcsx_miscx_ctl_reg_t pcsx_miscx_ctl_reg;
-        pcsx_miscx_ctl_reg.u64 = cvmx_read_csr(CVMX_PCSX_MISCX_CTL_REG(index, interface));
         if (pcsx_miscx_ctl_reg.s.mac_phy)
         {
             /* PHY Mode */

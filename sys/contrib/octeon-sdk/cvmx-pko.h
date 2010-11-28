@@ -1,44 +1,41 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
-
-
-
-
 
 
 /**
@@ -70,21 +67,26 @@
  * - PKO 3 word commands are now supported. Use
  *   cvmx_pko_send_packet_finish3().
  *
- * <hr>$Revision: 42150 $<hr>
+ * <hr>$Revision: 49448 $<hr>
  */
 
 
 #ifndef __CVMX_PKO_H__
 #define __CVMX_PKO_H__
 
-#ifndef CVMX_DONT_INCLUDE_CONFIG
-#include "executive-config.h"
-#ifdef CVMX_ENABLE_PKO_FUNCTIONS
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
 #include "cvmx-config.h"
-#endif
+#include "cvmx-pko-defs.h"
+#else
+# ifndef CVMX_DONT_INCLUDE_CONFIG
+#  include "executive-config.h"
+#  ifdef CVMX_ENABLE_PKO_FUNCTIONS
+#   include "cvmx-config.h"
+#  endif
+# endif
 #endif
 
-#include "cvmx-cvmmem.h"
+
 #include "cvmx-fau.h"
 #include "cvmx-fpa.h"
 #include "cvmx-pow.h"
@@ -100,9 +102,9 @@ extern "C" {
 #endif
 
 #define CVMX_PKO_MAX_OUTPUT_QUEUES_STATIC 256
-#define CVMX_PKO_MAX_OUTPUT_QUEUES      ((OCTEON_IS_MODEL(OCTEON_CN31XX) || OCTEON_IS_MODEL(OCTEON_CN3010) || OCTEON_IS_MODEL(OCTEON_CN3005) || OCTEON_IS_MODEL(OCTEON_CN50XX)) ? 32 : (OCTEON_IS_MODEL(OCTEON_CN58XX) || OCTEON_IS_MODEL(OCTEON_CN56XX)) ? 256 : 128)
-#define CVMX_PKO_NUM_OUTPUT_PORTS       40
-#define CVMX_PKO_MEM_QUEUE_PTRS_ILLEGAL_PID 63 // use this for queues that are not used
+#define CVMX_PKO_MAX_OUTPUT_QUEUES      ((OCTEON_IS_MODEL(OCTEON_CN31XX) || OCTEON_IS_MODEL(OCTEON_CN3010) || OCTEON_IS_MODEL(OCTEON_CN3005) || OCTEON_IS_MODEL(OCTEON_CN50XX)) ? 32 : (OCTEON_IS_MODEL(OCTEON_CN58XX) || OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN52XX) || OCTEON_IS_MODEL(OCTEON_CN63XX)) ? 256 : 128)
+#define CVMX_PKO_NUM_OUTPUT_PORTS       ((OCTEON_IS_MODEL(OCTEON_CN63XX)) ? 44 : 40)
+#define CVMX_PKO_MEM_QUEUE_PTRS_ILLEGAL_PID 63 /* use this for queues that are not used */
 #define CVMX_PKO_QUEUE_STATIC_PRIORITY  9
 #define CVMX_PKO_ILLEGAL_QUEUE  0xFFFF
 #define CVMX_PKO_MAX_QUEUE_DEPTH 0
@@ -190,7 +192,7 @@ typedef union
     } s;
 } cvmx_pko_command_word0_t;
 
-/* CSR typedefs have been moved to cvmx-csr-*.h */
+/* CSR typedefs have been moved to cvmx-pko-defs.h */
 
 /**
  * Definition of internal state for Packet output processing
@@ -423,6 +425,16 @@ static inline int cvmx_pko_get_base_queue_per_core(int port, int core)
 #ifndef CVMX_HELPER_PKO_MAX_PORTS_INTERFACE1
     #define CVMX_HELPER_PKO_MAX_PORTS_INTERFACE1 16
 #endif
+#ifndef CVMX_PKO_QUEUES_PER_PORT_SRIO0
+    /* We use two queues per port for SRIO0. Having two queues per
+        port with two ports gives us four queues, one for each mailbox */
+    #define CVMX_PKO_QUEUES_PER_PORT_SRIO0 2
+#endif
+#ifndef CVMX_PKO_QUEUES_PER_PORT_SRIO1
+    /* We use two queues per port for SRIO1. Having two queues per
+        port with two ports gives us four queues, one for each mailbox */
+    #define CVMX_PKO_QUEUES_PER_PORT_SRIO1 2
+#endif
     if (port < CVMX_PKO_MAX_PORTS_INTERFACE0)
         return port * CVMX_PKO_QUEUES_PER_PORT_INTERFACE0 + core;
     else if (port >=16 && port < 16 + CVMX_PKO_MAX_PORTS_INTERFACE1)
@@ -437,6 +449,19 @@ static inline int cvmx_pko_get_base_queue_per_core(int port, int core)
                CVMX_PKO_MAX_PORTS_INTERFACE1 * CVMX_PKO_QUEUES_PER_PORT_INTERFACE1 +
                4 * CVMX_PKO_QUEUES_PER_PORT_PCI +
                (port-36) * CVMX_PKO_QUEUES_PER_PORT_LOOP;
+    else if ((port >= 40) && (port < 42))
+        return CVMX_PKO_MAX_PORTS_INTERFACE0 * CVMX_PKO_QUEUES_PER_PORT_INTERFACE0 +
+               CVMX_PKO_MAX_PORTS_INTERFACE1 * CVMX_PKO_QUEUES_PER_PORT_INTERFACE1 +
+               4 * CVMX_PKO_QUEUES_PER_PORT_PCI +
+               4 * CVMX_PKO_QUEUES_PER_PORT_LOOP +
+	       (port-40) * CVMX_PKO_QUEUES_PER_PORT_SRIO0;
+    else if ((port >= 42) && (port < 44))
+        return CVMX_PKO_MAX_PORTS_INTERFACE0 * CVMX_PKO_QUEUES_PER_PORT_INTERFACE0 +
+               CVMX_PKO_MAX_PORTS_INTERFACE1 * CVMX_PKO_QUEUES_PER_PORT_INTERFACE1 +
+               4 * CVMX_PKO_QUEUES_PER_PORT_PCI +
+               4 * CVMX_PKO_QUEUES_PER_PORT_LOOP +
+	       2 * CVMX_PKO_QUEUES_PER_PORT_SRIO0 +
+	       (port-42) * CVMX_PKO_QUEUES_PER_PORT_SRIO1;
     else
         /* Given the limit on the number of ports we can map to
          * CVMX_MAX_OUTPUT_QUEUES_STATIC queues (currently 256,
@@ -473,6 +498,10 @@ static inline int cvmx_pko_get_num_queues(int port)
         return CVMX_PKO_QUEUES_PER_PORT_PCI;
     else if (port<40)
         return CVMX_PKO_QUEUES_PER_PORT_LOOP;
+    else if (port<42)
+        return CVMX_PKO_QUEUES_PER_PORT_SRIO0;
+    else if (port<44)
+        return CVMX_PKO_QUEUES_PER_PORT_SRIO1;
     else
         return 0;
 }
