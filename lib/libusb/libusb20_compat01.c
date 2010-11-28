@@ -795,6 +795,19 @@ usb_reset(usb_dev_handle * dev)
 	return (usb_close(dev));
 }
 
+int
+usb_check_connected(usb_dev_handle * dev)
+{
+	int err;
+
+	err = libusb20_dev_check_connected((void *)dev);
+
+	if (err)
+		return (-1);
+
+	return (0);
+}
+
 const char *
 usb_strerror(void)
 {
