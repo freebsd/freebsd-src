@@ -139,25 +139,6 @@ const BIGNUM *BN_value_one(void)
 	return(&const_one);
 	}
 
-char *BN_options(void)
-	{
-	static int init=0;
-	static char data[16];
-
-	if (!init)
-		{
-		init++;
-#ifdef BN_LLONG
-		BIO_snprintf(data,sizeof data,"bn(%d,%d)",
-			     (int)sizeof(BN_ULLONG)*8,(int)sizeof(BN_ULONG)*8);
-#else
-		BIO_snprintf(data,sizeof data,"bn(%d,%d)",
-			     (int)sizeof(BN_ULONG)*8,(int)sizeof(BN_ULONG)*8);
-#endif
-		}
-	return(data);
-	}
-
 int BN_num_bits_word(BN_ULONG l)
 	{
 	static const char bits[256]={
@@ -763,7 +744,7 @@ int BN_is_bit_set(const BIGNUM *a, int n)
 	i=n/BN_BITS2;
 	j=n%BN_BITS2;
 	if (a->top <= i) return 0;
-	return((a->d[i]&(((BN_ULONG)1)<<j))?1:0);
+	return(((a->d[i])>>j)&((BN_ULONG)1));
 	}
 
 int BN_mask_bits(BIGNUM *a, int n)

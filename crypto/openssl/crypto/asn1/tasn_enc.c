@@ -1,5 +1,5 @@
 /* tasn_enc.c */
-/* Written by Dr Stephen N Henson (shenson@bigfoot.com) for the OpenSSL
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 2000.
  */
 /* ====================================================================
@@ -494,7 +494,7 @@ static int asn1_set_seq_out(STACK_OF(ASN1_VALUE) *sk, unsigned char **out,
 		{
 		for (i = 0, tder = derlst; i < sk_ASN1_VALUE_num(sk);
 							i++, tder++)
-			sk_ASN1_VALUE_set(sk, i, tder->field);
+			(void)sk_ASN1_VALUE_set(sk, i, tder->field);
 		}
 	OPENSSL_free(derlst);
 	OPENSSL_free(tmpdat);
@@ -597,7 +597,7 @@ int asn1_ex_i2c(ASN1_VALUE **pval, unsigned char *cout, int *putype,
 		typ = (ASN1_TYPE *)*pval;
 		utype = typ->type;
 		*putype = utype;
-		pval = (ASN1_VALUE **)&typ->value.ptr;
+		pval = &typ->value.asn1_value;
 		}
 	else utype = *putype;
 

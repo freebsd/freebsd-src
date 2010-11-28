@@ -141,9 +141,10 @@ int ssl3_read_n(SSL *s, int n, int max, int extend)
 		/* ... now we can act as if 'extend' was set */
 		}
 
-	/* extend reads should not span multiple packets for DTLS */
-	if ( SSL_version(s) == DTLS1_VERSION &&
-		extend)
+	/* For DTLS/UDP reads should not span multiple packets
+	 * because the read operation returns the whole packet
+	 * at once (as long as it fits into the buffer). */
+	if (SSL_version(s) == DTLS1_VERSION)
 		{
 		if ( s->s3->rbuf.left > 0 && n > s->s3->rbuf.left)
 			n = s->s3->rbuf.left;
@@ -209,6 +210,14 @@ int ssl3_read_n(SSL *s, int n, int max, int extend)
 			return(i);
 			}
 		newb+=i;
+		/* reads should *never* span multiple packets for DTLS because
+		 * the underlying transport protocol is message oriented as opposed
+		 * to byte oriented as in the TLS case. */
+		if (SSL_version(s) == DTLS1_VERSION)
+			{
+			if (n > newb)
+				n = newb; /* makes the while condition false */
+			}
 		}
 
 	/* done reading, now the book-keeping */
@@ -282,9 +291,9 @@ again:
 			if (version != s->version)
 				{
 				SSLerr(SSL_F_SSL3_GET_RECORD,SSL_R_WRONG_VERSION_NUMBER);
-				/* Send back error using their
-				 * version number :-) */
-				s->version=version;
+                                if ((s->version & 0xFF00) == (version & 0xFF00))
+                                	/* Send back error using their minor version number :-) */
+					s->version = (unsigned short)version;
 				al=SSL_AD_PROTOCOL_VERSION;
 				goto f_err;
 				}
@@ -753,8 +762,15 @@ int ssl3_write_pending(SSL *s, int type, const unsigned char *buf,
 			s->rwstate=SSL_NOTHING;
 			return(s->s3->wpend_ret);
 			}
-		else if (i <= 0)
+		else if (i <= 0) {
+			if (s->version == DTLS1_VERSION ||
+			    s->version == DTLS1_BAD_VER) {
+				/* For DTLS, just drop it. That's kind of the whole
+				   point in using a datagram service */
+				s->s3->wbuf.left = 0;
+			}
 			return(i);
+		}
 		s->s3->wbuf.offset+=i;
 		s->s3->wbuf.left-=i;
 		}
@@ -1011,7 +1027,25 @@ start:
 		 * now try again to obtain the (application) data we were asked for */
 		goto start;
 		}
-
+	/* If we are a server and get a client hello when renegotiation isn't
+	 * allowed send back a no renegotiation alert and carry on.
+	 * WARNING: experimental code, needs reviewing (steve)
+	 */
+	if (s->server &&
+		SSL_is_init_finished(s) &&
+    		!s->s3->send_connection_binding &&
+		(s->version > SSL3_VERSION) &&
+		(s->s3->handshake_fragment_len >= 4) &&
+		(s->s3->handshake_fragment[0] == SSL3_MT_CLIENT_HELLO) &&
+		(s->session != NULL) && (s->session->cipher != NULL) &&
+		!(s->ctx->options & SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION))
+		
+		{
+		/*s->s3->handshake_fragment_len = 0;*/
+		rr->length = 0;
+		ssl3_send_alert(s,SSL3_AL_WARNING, SSL_AD_NO_RENEGOTIATION);
+		goto start;
+		}
 	if (s->s3->alert_fragment_len >= 2)
 		{
 		int alert_level = s->s3->alert_fragment[0];
@@ -1040,6 +1074,21 @@ start:
 				{
 				s->shutdown |= SSL_RECEIVED_SHUTDOWN;
 				return(0);
+				}
+			/* This is a warning but we receive it if we requested
+			 * renegotiation and the peer denied it. Terminate with
+			 * a fatal alert because if application tried to
+			 * renegotiatie it presumably had a good reason and
+			 * expects it to succeed.
+			 *
+			 * In future we might have a renegotiation where we
+			 * don't care if the peer refused it where we carry on.
+			 */
+			else if (alert_descr == SSL_AD_NO_RENEGOTIATION)
+				{
+				al = SSL_AD_HANDSHAKE_FAILURE;
+				SSLerr(SSL_F_SSL3_READ_BYTES,SSL_R_NO_RENEGOTIATION);
+				goto f_err;
 				}
 			}
 		else if (alert_level == 2) /* fatal */
@@ -1222,6 +1271,13 @@ int ssl3_do_change_cipher_spec(SSL *s)
 
 	if (s->s3->tmp.key_block == NULL)
 		{
+		if (s->session == NULL) 
+			{
+			/* might happen if dtls1_read_bytes() calls this */
+			SSLerr(SSL_F_SSL3_DO_CHANGE_CIPHER_SPEC,SSL_R_CCS_RECEIVED_EARLY);
+			return (0);
+			}
+
 		s->session->cipher=s->s3->tmp.new_cipher;
 		if (!s->method->ssl3_enc->setup_key_block(s)) return(0);
 		}
@@ -1251,13 +1307,13 @@ int ssl3_do_change_cipher_spec(SSL *s)
 	return(1);
 	}
 
-void ssl3_send_alert(SSL *s, int level, int desc)
+int ssl3_send_alert(SSL *s, int level, int desc)
 	{
 	/* Map tls/ssl alert value to correct one */
 	desc=s->method->ssl3_enc->alert_value(desc);
 	if (s->version == SSL3_VERSION && desc == SSL_AD_PROTOCOL_VERSION)
 		desc = SSL_AD_HANDSHAKE_FAILURE; /* SSL 3.0 does not have protocol_version alerts */
-	if (desc < 0) return;
+	if (desc < 0) return -1;
 	/* If a fatal one, remove from cache */
 	if ((level == 2) && (s->session != NULL))
 		SSL_CTX_remove_session(s->ctx,s->session);
@@ -1266,9 +1322,10 @@ void ssl3_send_alert(SSL *s, int level, int desc)
 	s->s3->send_alert[0]=level;
 	s->s3->send_alert[1]=desc;
 	if (s->s3->wbuf.left == 0) /* data still being written out? */
-		s->method->ssl_dispatch_alert(s);
+		return s->method->ssl_dispatch_alert(s);
 	/* else data is still being written out, we will get written
 	 * some time in the future */
+	return -1;
 	}
 
 int ssl3_dispatch_alert(SSL *s)

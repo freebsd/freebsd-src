@@ -108,7 +108,6 @@
  * Hudson (tjh@cryptsoft.com).
  *
  */
-/* $FreeBSD$ */
 
 #include <stdio.h>
 #include "cryptlib.h"
@@ -116,7 +115,7 @@
 #include <openssl/rsa.h>
 #include <openssl/rand.h>
 
-#ifndef RSA_NULL
+#if !defined(RSA_NULL) && !defined(OPENSSL_FIPS)
 
 static int RSA_eay_public_encrypt(int flen, const unsigned char *from,
 		unsigned char *to, RSA *rsa,int padding);
@@ -150,16 +149,6 @@ const RSA_METHOD *RSA_PKCS1_SSLeay(void)
 	{
 	return(&rsa_pkcs1_eay_meth);
 	}
-
-/* Usage example;
- *    MONT_HELPER(rsa, bn_ctx, p, rsa->flags & RSA_FLAG_CACHE_PRIVATE, goto err);
- */
-#define MONT_HELPER(rsa, ctx, m, pre_cond, err_instr) \
-	if((pre_cond) && ((rsa)->_method_mod_##m == NULL) && \
-			!BN_MONT_CTX_set_locked(&((rsa)->_method_mod_##m), \
-				CRYPTO_LOCK_RSA, \
-				(rsa)->m, (ctx))) \
-		err_instr
 
 static int RSA_eay_public_encrypt(int flen, const unsigned char *from,
 	     unsigned char *to, RSA *rsa, int padding)
@@ -228,13 +217,15 @@ static int RSA_eay_public_encrypt(int flen, const unsigned char *from,
 	if (BN_bin2bn(buf,num,f) == NULL) goto err;
 	
 	if (BN_ucmp(f, rsa->n) >= 0)
-		{	
+		{
 		/* usually the padding functions would catch this */
 		RSAerr(RSA_F_RSA_EAY_PUBLIC_ENCRYPT,RSA_R_DATA_TOO_LARGE_FOR_MODULUS);
 		goto err;
 		}
 
-	MONT_HELPER(rsa, ctx, n, rsa->flags & RSA_FLAG_CACHE_PUBLIC, goto err);
+	if (rsa->flags & RSA_FLAG_CACHE_PUBLIC)
+		if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, CRYPTO_LOCK_RSA, rsa->n, ctx))
+			goto err;
 
 	if (!rsa->meth->bn_mod_exp(ret,f,rsa->e,rsa->n,ctx,
 		rsa->_method_mod_n)) goto err;
@@ -430,16 +421,18 @@ static int RSA_eay_private_encrypt(int flen, const unsigned char *from,
 		BIGNUM local_d;
 		BIGNUM *d = NULL;
 		
-		if (!(rsa->flags & RSA_FLAG_NO_EXP_CONSTTIME))
+		if (!(rsa->flags & RSA_FLAG_NO_CONSTTIME))
 			{
 			BN_init(&local_d);
 			d = &local_d;
-			BN_with_flags(d, rsa->d, BN_FLG_EXP_CONSTTIME);
+			BN_with_flags(d, rsa->d, BN_FLG_CONSTTIME);
 			}
 		else
-			d = rsa->d;
+			d= rsa->d;
 
-		MONT_HELPER(rsa, ctx, n, rsa->flags & RSA_FLAG_CACHE_PUBLIC, goto err);
+		if (rsa->flags & RSA_FLAG_CACHE_PUBLIC)
+			if(!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, CRYPTO_LOCK_RSA, rsa->n, ctx))
+				goto err;
 
 		if (!rsa->meth->bn_mod_exp(ret,f,d,rsa->n,ctx,
 				rsa->_method_mod_n)) goto err;
@@ -552,15 +545,17 @@ static int RSA_eay_private_decrypt(int flen, const unsigned char *from,
 		BIGNUM local_d;
 		BIGNUM *d = NULL;
 		
-		if (!(rsa->flags & RSA_FLAG_NO_EXP_CONSTTIME))
+		if (!(rsa->flags & RSA_FLAG_NO_CONSTTIME))
 			{
 			d = &local_d;
-			BN_with_flags(d, rsa->d, BN_FLG_EXP_CONSTTIME);
+			BN_with_flags(d, rsa->d, BN_FLG_CONSTTIME);
 			}
 		else
 			d = rsa->d;
 
-		MONT_HELPER(rsa, ctx, n, rsa->flags & RSA_FLAG_CACHE_PUBLIC, goto err);
+		if (rsa->flags & RSA_FLAG_CACHE_PUBLIC)
+			if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, CRYPTO_LOCK_RSA, rsa->n, ctx))
+				goto err;
 		if (!rsa->meth->bn_mod_exp(ret,f,d,rsa->n,ctx,
 				rsa->_method_mod_n))
 		  goto err;
@@ -670,13 +665,15 @@ static int RSA_eay_public_decrypt(int flen, const unsigned char *from,
 		goto err;
 		}
 
-	MONT_HELPER(rsa, ctx, n, rsa->flags & RSA_FLAG_CACHE_PUBLIC, goto err);
+	if (rsa->flags & RSA_FLAG_CACHE_PUBLIC)
+		if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, CRYPTO_LOCK_RSA, rsa->n, ctx))
+			goto err;
 
 	if (!rsa->meth->bn_mod_exp(ret,f,rsa->e,rsa->n,ctx,
 		rsa->_method_mod_n)) goto err;
 
 	if ((padding == RSA_X931_PADDING) && ((ret->d[0] & 0xf) != 12))
-		BN_sub(ret, rsa->n, ret);
+		if (!BN_sub(ret, rsa->n, ret)) goto err;
 
 	p=buf;
 	i=BN_bn2bin(ret,p);
@@ -716,8 +713,8 @@ err:
 static int RSA_eay_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
 	{
 	BIGNUM *r1,*m1,*vrfy;
-	BIGNUM local_dmp1, local_dmq1;
-	BIGNUM *dmp1, *dmq1;
+	BIGNUM local_dmp1,local_dmq1,local_c,local_r1;
+	BIGNUM *dmp1,*dmq1,*c,*pr1;
 	int ret=0;
 
 	BN_CTX_start(ctx);
@@ -725,26 +722,82 @@ static int RSA_eay_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
 	m1 = BN_CTX_get(ctx);
 	vrfy = BN_CTX_get(ctx);
 
-	MONT_HELPER(rsa, ctx, p, rsa->flags & RSA_FLAG_CACHE_PRIVATE, goto err);
-	MONT_HELPER(rsa, ctx, q, rsa->flags & RSA_FLAG_CACHE_PRIVATE, goto err);
-	MONT_HELPER(rsa, ctx, n, rsa->flags & RSA_FLAG_CACHE_PUBLIC, goto err);
+	{
+		BIGNUM local_p, local_q;
+		BIGNUM *p = NULL, *q = NULL;
 
-	if (!BN_mod(r1,I,rsa->q,ctx)) goto err;
-	if (!(rsa->flags & RSA_FLAG_NO_EXP_CONSTTIME))
+		/* Make sure BN_mod_inverse in Montgomery intialization uses the
+		 * BN_FLG_CONSTTIME flag (unless RSA_FLAG_NO_CONSTTIME is set)
+		 */
+		if (!(rsa->flags & RSA_FLAG_NO_CONSTTIME))
+			{
+			BN_init(&local_p);
+			p = &local_p;
+			BN_with_flags(p, rsa->p, BN_FLG_CONSTTIME);
+
+			BN_init(&local_q);
+			q = &local_q;
+			BN_with_flags(q, rsa->q, BN_FLG_CONSTTIME);
+			}
+		else
+			{
+			p = rsa->p;
+			q = rsa->q;
+			}
+
+		if (rsa->flags & RSA_FLAG_CACHE_PRIVATE)
+			{
+			if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_p, CRYPTO_LOCK_RSA, p, ctx))
+				goto err;
+			if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_q, CRYPTO_LOCK_RSA, q, ctx))
+				goto err;
+			}
+	}
+
+	if (rsa->flags & RSA_FLAG_CACHE_PUBLIC)
+		if (!BN_MONT_CTX_set_locked(&rsa->_method_mod_n, CRYPTO_LOCK_RSA, rsa->n, ctx))
+			goto err;
+
+	/* compute I mod q */
+	if (!(rsa->flags & RSA_FLAG_NO_CONSTTIME))
+		{
+		c = &local_c;
+		BN_with_flags(c, I, BN_FLG_CONSTTIME);
+		if (!BN_mod(r1,c,rsa->q,ctx)) goto err;
+		}
+	else
+		{
+		if (!BN_mod(r1,I,rsa->q,ctx)) goto err;
+		}
+
+	/* compute r1^dmq1 mod q */
+	if (!(rsa->flags & RSA_FLAG_NO_CONSTTIME))
 		{
 		dmq1 = &local_dmq1;
-		BN_with_flags(dmq1, rsa->dmq1, BN_FLG_EXP_CONSTTIME);
+		BN_with_flags(dmq1, rsa->dmq1, BN_FLG_CONSTTIME);
 		}
 	else
 		dmq1 = rsa->dmq1;
 	if (!rsa->meth->bn_mod_exp(m1,r1,dmq1,rsa->q,ctx,
 		rsa->_method_mod_q)) goto err;
 
-	if (!BN_mod(r1,I,rsa->p,ctx)) goto err;
-	if (!(rsa->flags & RSA_FLAG_NO_EXP_CONSTTIME))
+	/* compute I mod p */
+	if (!(rsa->flags & RSA_FLAG_NO_CONSTTIME))
+		{
+		c = &local_c;
+		BN_with_flags(c, I, BN_FLG_CONSTTIME);
+		if (!BN_mod(r1,c,rsa->p,ctx)) goto err;
+		}
+	else
+		{
+		if (!BN_mod(r1,I,rsa->p,ctx)) goto err;
+		}
+
+	/* compute r1^dmp1 mod p */
+	if (!(rsa->flags & RSA_FLAG_NO_CONSTTIME))
 		{
 		dmp1 = &local_dmp1;
-		BN_with_flags(dmp1, rsa->dmp1, BN_FLG_EXP_CONSTTIME);
+		BN_with_flags(dmp1, rsa->dmp1, BN_FLG_CONSTTIME);
 		}
 	else
 		dmp1 = rsa->dmp1;
@@ -758,7 +811,17 @@ static int RSA_eay_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
 		if (!BN_add(r0,r0,rsa->p)) goto err;
 
 	if (!BN_mul(r1,r0,rsa->iqmp,ctx)) goto err;
-	if (!BN_mod(r0,r1,rsa->p,ctx)) goto err;
+
+	/* Turn BN_FLG_CONSTTIME flag on before division operation */
+	if (!(rsa->flags & RSA_FLAG_NO_CONSTTIME))
+		{
+		pr1 = &local_r1;
+		BN_with_flags(pr1, r1, BN_FLG_CONSTTIME);
+		}
+	else
+		pr1 = r1;
+	if (!BN_mod(r0,pr1,rsa->p,ctx)) goto err;
+
 	/* If p < q it is occasionally possible for the correction of
          * adding 'p' if r0 is negative above to leave the result still
 	 * negative. This can break the private key operations: the following
@@ -791,10 +854,10 @@ static int RSA_eay_mod_exp(BIGNUM *r0, const BIGNUM *I, RSA *rsa, BN_CTX *ctx)
 			BIGNUM local_d;
 			BIGNUM *d = NULL;
 		
-			if (!(rsa->flags & RSA_FLAG_NO_EXP_CONSTTIME))
+			if (!(rsa->flags & RSA_FLAG_NO_CONSTTIME))
 				{
 				d = &local_d;
-				BN_with_flags(d, rsa->d, BN_FLG_EXP_CONSTTIME);
+				BN_with_flags(d, rsa->d, BN_FLG_CONSTTIME);
 				}
 			else
 				d = rsa->d;

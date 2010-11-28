@@ -1,5 +1,5 @@
 /* t_crl.c */
-/* Written by Dr Stephen N Henson (shenson@bigfoot.com) for the OpenSSL
+/* Written by Dr Stephen N Henson (steve@openssl.org) for the OpenSSL
  * project 1999.
  */
 /* ====================================================================
@@ -87,7 +87,7 @@ int X509_CRL_print(BIO *out, X509_CRL *x)
 	STACK_OF(X509_REVOKED) *rev;
 	X509_REVOKED *r;
 	long l;
-	int i, n;
+	int i;
 	char *p;
 
 	BIO_printf(out, "Certificate Revocation List (CRL):\n");
@@ -107,7 +107,6 @@ int X509_CRL_print(BIO *out, X509_CRL *x)
 	else BIO_printf(out,"NONE");
 	BIO_printf(out,"\n");
 
-	n=X509_CRL_get_ext_count(x);
 	X509V3_extensions_print(out, "CRL extensions",
 						x->crl->extensions, 0, 8);
 

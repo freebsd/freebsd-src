@@ -57,9 +57,18 @@
 #		lea		.Label-.Lpic_point(%rcx),%rbp
 
 my $output = shift;
-open STDOUT,">$output" || die "can't open $output: $!";
 
-my $masm=1 if ($output =~ /\.asm/);
+{ my ($stddev,$stdino,@junk)=stat(STDOUT);
+  my ($outdev,$outino,@junk)=stat($output);
+
+    open STDOUT,">$output" || die "can't open $output: $!"
+	if ($stddev!=$outdev || $stdino!=$outino);
+}
+
+my $masmref=8 + 50727*2**-32;	# 8.00.50727 shipped with VS2005
+my $masm=$masmref if ($output =~ /\.asm/);
+if ($masm && `ml64 2>&1` =~ m/Version ([0-9]+)\.([0-9]+)(\.([0-9]+))?/)
+{   $masm=$1 + $2*2**-16 + $4*2**-32;   }
 
 my $current_segment;
 my $current_function;
@@ -70,16 +79,18 @@ my $current_function;
 	local	*line = shift;
 	undef	$ret;
 
-	if ($line =~ /^([a-z]+)/i) {
+	if ($line =~ /^([a-z][a-z0-9]*)/i) {
 	    $self->{op} = $1;
 	    $ret = $self;
 	    $line = substr($line,@+[0]); $line =~ s/^\s+//;
 
 	    undef $self->{sz};
-	    if ($self->{op} =~ /(movz)b.*/) {	# movz is pain...
+	    if ($self->{op} =~ /^(movz)b.*/) {	# movz is pain...
 		$self->{op} = $1;
 		$self->{sz} = "b";
-	    } elsif ($self->{op} =~ /([a-z]{3,})([qlwb])/) {
+	    } elsif ($self->{op} =~ /call/) {
+		$self->{sz} = ""
+	    } elsif ($self->{op} =~ /([a-z]{3,})([qlwb])$/) {
 		$self->{op} = $1;
 		$self->{sz} = $2;
 	    }
@@ -95,15 +106,17 @@ my $current_function;
     sub out {
 	my $self = shift;
 	if (!$masm) {
-	    if ($self->{op} eq "movz") {	# movz in pain...
+	    if ($self->{op} eq "movz") {	# movz is pain...
 		sprintf "%s%s%s",$self->{op},$self->{sz},shift;
+	    } elsif ($self->{op} =~ /^set/) { 
+		"$self->{op}";
 	    } elsif ($self->{op} eq "ret") {
 	    	".byte	0xf3,0xc3";
 	    } else {
 		"$self->{op}$self->{sz}";
 	    }
 	} else {
-	    $self->{op} =~ s/movz/movzx/;
+	    $self->{op} =~ s/^movz/movzx/;
 	    if ($self->{op} eq "ret") {
 		$self->{op} = "";
 		if ($current_function->{abi} eq "svr4") {
@@ -133,6 +146,10 @@ my $current_function;
     	my $self = shift;
 
 	if (!$masm) {
+	    # Solaris /usr/ccs/bin/as can't handle multiplications
+	    # in $self->{value}
+	    $self->{value} =~ s/(?<![0-9a-f])(0[x0-9a-f]+)/oct($1)/egi;
+	    $self->{value} =~ s/([0-9]+\s*[\*\/\%]\s*[0-9]+)/eval($1)/eg;
 	    sprintf "\$%s",$self->{value};
 	} else {
 	    $self->{value} =~ s/0x([0-9a-f]+)/0$1h/ig;
@@ -163,15 +180,19 @@ my $current_function;
     	my $self = shift;
 	my $sz = shift;
 
+	# Silently convert all EAs to 64-bit. This is required for
+	# elder GNU assembler and results in more compact code,
+	# *but* most importantly AES module depends on this feature!
+	$self->{index} =~ s/^[er](.?[0-9xpi])[d]?$/r\1/;
+	$self->{base}  =~ s/^[er](.?[0-9xpi])[d]?$/r\1/;
+
 	if (!$masm) {
-	    # elder GNU assembler insists on 64-bit EAs:-(
-	    # on pros side, this results in more compact code:-)
-	    $self->{index} =~ s/^[er](.?[0-9xp])[d]?$/r\1/;
-	    $self->{base}  =~ s/^[er](.?[0-9xp])[d]?$/r\1/;
 	    # Solaris /usr/ccs/bin/as can't handle multiplications
 	    # in $self->{label}
-	    $self->{label} =~ s/(?<![0-9a-f])(0[x0-9a-f]+)/oct($1)/eg;
+	    use integer;
+	    $self->{label} =~ s/(?<![0-9a-f])(0[x0-9a-f]+)/oct($1)/egi;
 	    $self->{label} =~ s/([0-9]+\s*[\*\/\%]\s*[0-9]+)/eval($1)/eg;
+	    $self->{label} =~ s/([0-9]+)/$1<<32>>32/eg;
 
 	    if (defined($self->{index})) {
 		sprintf "%s(%%%s,%%%s,%d)",
@@ -192,6 +213,8 @@ my $current_function;
 					$self->{label},
 					$self->{index},$self->{scale},
 					$self->{base};
+	    } elsif ($self->{base} eq "rip") {
+		sprintf "%s PTR %s",$szmap{$sz},$self->{label};
 	    } else {
 		sprintf "%s PTR %s[%s]",$szmap{$sz},
 					$self->{label},$self->{base};
@@ -317,6 +340,10 @@ my $current_function;
 		$line =~ s/\@function.*/\@function/;
 		if ($line =~ /\.picmeup\s+(%r[\w]+)/i) {
 		    $self->{value} = sprintf "\t.long\t0x%x,0x90000000",$opcode{$1};
+		} elsif ($line =~ /\.asciz\s+"(.*)"$/) {
+		    $self->{value} = ".byte\t".join(",",unpack("C*",$1),0);
+		} elsif ($line =~ /\.extern/) {
+		    $self->{value} = ""; # swallow extern
 		} else {
 		    $self->{value} = $line;
 		}
@@ -334,10 +361,13 @@ my $current_function;
 				    $v="$current_segment\tENDS\n" if ($current_segment);
 				    $current_segment = "_$1\$";
 				    $current_segment =~ tr/[a-z]/[A-Z]/;
-				    $v.="$current_segment\tSEGMENT ALIGN(64) 'CODE'";
+				    $v.="$current_segment\tSEGMENT ";
+				    $v.=$masm>=$masmref ? "ALIGN(64)" : "PAGE";
+				    $v.=" 'CODE'";
 				    $self->{value} = $v;
 				    last;
 				  };
+		/\.extern/  && do { $self->{value} = "EXTRN\t".$line.":BYTE"; last;  };
 		/\.globl/   && do { $self->{value} = "PUBLIC\t".$line; last; };
 		/\.type/    && do { ($sym,$type,$narg) = split(',',$line);
 				    if ($type eq "\@function") {
@@ -362,14 +392,31 @@ my $current_function;
 			    && do { my @arr = split(',',$line);
 				    my $sz  = substr($1,0,1);
 				    my $last = pop(@arr);
+				    my $conv = sub  {	my $var=shift;
+							if ($var=~s/0x([0-9a-f]+)/0$1h/i) { $var; }
+							else { sprintf"0%Xh",$var; }
+						    };  
 
 				    $sz =~ tr/bvlq/BWDQ/;
 				    $self->{value} = "\tD$sz\t";
-				    for (@arr) { $self->{value} .= sprintf"0%Xh,",oct; }
-				    $self->{value} .= sprintf"0%Xh",oct($last);
+				    for (@arr) { $self->{value} .= &$conv($_).","; }
+				    $self->{value} .= &$conv($last);
 				    last;
 				  };
 		/\.picmeup/ && do { $self->{value} = sprintf"\tDD\t 0%Xh,090000000h",$opcode{$line};
+				    last;
+				  };
+		/\.asciz/   && do { if ($line =~ /^"(.*)"$/) {
+					my @str=unpack("C*",$1);
+					push @str,0;
+					while ($#str>15) {
+					    $self->{value}.="DB\t"
+						.join(",",@str[0..15])."\n";
+					    foreach (0..15) { shift @str; }
+					}
+					$self->{value}.="DB\t"
+						.join(",",@str) if (@str);
+				    }
 				    last;
 				  };
 	    }
@@ -480,7 +527,10 @@ close STDOUT;
 # arguments passed to callee, *but* not less than 4! This means that
 # upon function entry point 5th argument resides at 40(%rsp), as well
 # as that 32 bytes from 8(%rsp) can always be used as temporal
-# storage [without allocating a frame].
+# storage [without allocating a frame]. One can actually argue that
+# one can assume a "red zone" above stack pointer under Win64 as well.
+# Point is that at apparently no occasion Windows kernel would alter
+# the area above user stack pointer in true asynchronous manner...
 #
 # All the above means that if assembler programmer adheres to Unix
 # register and stack layout, but disregards the "red zone" existense,

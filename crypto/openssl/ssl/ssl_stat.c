@@ -127,6 +127,8 @@ case SSL3_ST_CR_KEY_EXCH_A:	str="SSLv3 read server key exchange A"; break;
 case SSL3_ST_CR_KEY_EXCH_B:	str="SSLv3 read server key exchange B"; break;
 case SSL3_ST_CR_CERT_REQ_A:	str="SSLv3 read server certificate request A"; break;
 case SSL3_ST_CR_CERT_REQ_B:	str="SSLv3 read server certificate request B"; break;
+case SSL3_ST_CR_SESSION_TICKET_A: str="SSLv3 read server session ticket A";break;
+case SSL3_ST_CR_SESSION_TICKET_B: str="SSLv3 read server session ticket B";break;
 case SSL3_ST_CR_SRVR_DONE_A:	str="SSLv3 read server done A"; break;
 case SSL3_ST_CR_SRVR_DONE_B:	str="SSLv3 read server done B"; break;
 case SSL3_ST_CW_CERT_A:		str="SSLv3 write client certificate A"; break;
@@ -172,6 +174,8 @@ case SSL3_ST_SW_KEY_EXCH_A:	str="SSLv3 write key exchange A"; break;
 case SSL3_ST_SW_KEY_EXCH_B:	str="SSLv3 write key exchange B"; break;
 case SSL3_ST_SW_CERT_REQ_A:	str="SSLv3 write certificate request A"; break;
 case SSL3_ST_SW_CERT_REQ_B:	str="SSLv3 write certificate request B"; break;
+case SSL3_ST_SW_SESSION_TICKET_A: str="SSLv3 write session ticket A"; break;
+case SSL3_ST_SW_SESSION_TICKET_B: str="SSLv3 write session ticket B"; break;
 case SSL3_ST_SW_SRVR_DONE_A:	str="SSLv3 write server done A"; break;
 case SSL3_ST_SW_SRVR_DONE_B:	str="SSLv3 write server done B"; break;
 case SSL3_ST_SR_CERT_A:		str="SSLv3 read client certificate A"; break;
@@ -193,6 +197,12 @@ case SSL23_ST_CR_SRVR_HELLO_B:	str="SSLv2/v3 read server hello B"; break;
 case SSL23_ST_SR_CLNT_HELLO_A:	str="SSLv2/v3 read client hello A"; break;
 case SSL23_ST_SR_CLNT_HELLO_B:	str="SSLv2/v3 read client hello B"; break;
 #endif
+
+/* DTLS */
+case DTLS1_ST_CR_HELLO_VERIFY_REQUEST_A: str="DTLS1 read hello verify request A"; break;
+case DTLS1_ST_CR_HELLO_VERIFY_REQUEST_B: str="DTLS1 read hello verify request B"; break;
+case DTLS1_ST_SW_HELLO_VERIFY_REQUEST_A: str="DTLS1 write hello verify request A"; break;
+case DTLS1_ST_SW_HELLO_VERIFY_REQUEST_B: str="DTLS1 write hello verify request B"; break;
 
 default:	str="unknown state"; break;
 		}
@@ -341,6 +351,11 @@ case SSL23_ST_CR_SRVR_HELLO_B:			str="23RSHA"; break;
 case SSL23_ST_SR_CLNT_HELLO_A:			str="23RCHA"; break;
 case SSL23_ST_SR_CLNT_HELLO_B:			str="23RCHB"; break;
 #endif
+/* DTLS */
+case DTLS1_ST_CR_HELLO_VERIFY_REQUEST_A: str="DRCHVA"; break;
+case DTLS1_ST_CR_HELLO_VERIFY_REQUEST_B: str="DRCHVB"; break;
+case DTLS1_ST_SW_HELLO_VERIFY_REQUEST_A: str="DWCHVA"; break;
+case DTLS1_ST_SW_HELLO_VERIFY_REQUEST_B: str="DWCHVB"; break;
 
 default:					str="UNKWN "; break;
 		}

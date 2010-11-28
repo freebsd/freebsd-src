@@ -100,9 +100,6 @@ int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
 	{
-#ifndef OPENSSL_NO_ENGINE
-	ENGINE *e = NULL;
-#endif
 	static const char magic[]="Salted__";
 	char mbuf[sizeof magic-1];
 	char *strbuf=NULL;
@@ -127,6 +124,7 @@ int MAIN(int argc, char **argv)
 	char *engine = NULL;
 #endif
 	const EVP_MD *dgst=NULL;
+	int non_fips_allow = 0;
 
 	apps_startup();
 
@@ -225,7 +223,12 @@ int MAIN(int argc, char **argv)
 				goto bad;
 				}
 			buf[0]='\0';
-			fgets(buf,sizeof buf,infile);
+			if (!fgets(buf,sizeof buf,infile))
+				{
+				BIO_printf(bio_err,"unable to read key from '%s'\n",
+					file);
+				goto bad;
+				}
 			fclose(infile);
 			i=strlen(buf);
 			if ((i > 0) &&
@@ -261,6 +264,8 @@ int MAIN(int argc, char **argv)
 			if (--argc < 1) goto bad;
 			md= *(++argv);
 			}
+		else if (strcmp(*argv,"-non-fips-allow") == 0)
+			non_fips_allow = 1;
 		else if	((argv[0][0] == '-') &&
 			((c=EVP_get_cipherbyname(&(argv[0][1]))) != NULL))
 			{
@@ -303,7 +308,7 @@ bad:
 		}
 
 #ifndef OPENSSL_NO_ENGINE
-        e = setup_engine(bio_err, engine, 0);
+        setup_engine(bio_err, engine, 0);
 #endif
 
 	if (md && (dgst=EVP_get_digestbyname(md)) == NULL)
@@ -314,7 +319,10 @@ bad:
 
 	if (dgst == NULL)
 		{
-		dgst = EVP_md5();
+		if (in_FIPS_mode)
+			dgst = EVP_sha1();
+		else
+			dgst = EVP_md5();
 		}
 
 	if (bufsize != NULL)
@@ -527,7 +535,8 @@ bad:
 			BIO_printf(bio_err,"invalid hex iv value\n");
 			goto end;
 			}
-		if ((hiv == NULL) && (str == NULL))
+		if ((hiv == NULL) && (str == NULL)
+		    && EVP_CIPHER_iv_length(cipher) != 0)
 			{
 			/* No IV was explicitly set and no IV was generated
 			 * during EVP_BytesToKey. Hence the IV is undefined,
@@ -549,6 +558,11 @@ bad:
 		 */
 
 		BIO_get_cipher_ctx(benc, &ctx);
+
+		if (non_fips_allow)
+			EVP_CIPHER_CTX_set_flags(ctx,
+				EVP_CIPH_FLAG_NON_FIPS_ALLOW);
+
 		if (!EVP_CipherInit_ex(ctx, cipher, NULL, NULL, NULL, enc))
 			{
 			BIO_printf(bio_err, "Error setting cipher %s\n",

@@ -97,7 +97,6 @@ static int x509_subject_cmp(X509 **a, X509 **b)
 int X509_verify_cert(X509_STORE_CTX *ctx)
 	{
 	X509 *x,*xtmp,*chain_ss=NULL;
-	X509_NAME *xn;
 	int bad_chain = 0;
 	X509_VERIFY_PARAM *param = ctx->param;
 	int depth,i,ok=0;
@@ -149,7 +148,6 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
 		                         */
 
 		/* If we are self signed, we break */
-		xn=X509_get_issuer_name(x);
 		if (ctx->check_issued(ctx, x,x)) break;
 
 		/* If we were passed a cert chain, use it first */
@@ -164,7 +162,7 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
 					goto end;
 					}
 				CRYPTO_add(&xtmp->references,1,CRYPTO_LOCK_X509);
-				sk_X509_delete_ptr(sktmp,xtmp);
+				(void)sk_X509_delete_ptr(sktmp,xtmp);
 				ctx->last_untrusted++;
 				x=xtmp;
 				num++;
@@ -186,7 +184,6 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
 
 	i=sk_X509_num(ctx->chain);
 	x=sk_X509_value(ctx->chain,i-1);
-	xn = X509_get_subject_name(x);
 	if (ctx->check_issued(ctx, x, x))
 		{
 		/* we have a self signed certificate */
@@ -214,7 +211,7 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
 				 */
 				X509_free(x);
 				x = xtmp;
-				sk_X509_set(ctx->chain, i - 1, x);
+				(void)sk_X509_set(ctx->chain, i - 1, x);
 				ctx->last_untrusted=0;
 				}
 			}
@@ -235,7 +232,6 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
 		if (depth < num) break;
 
 		/* If we are self signed, we break */
-		xn=X509_get_issuer_name(x);
 		if (ctx->check_issued(ctx,x,x)) break;
 
 		ok = ctx->get_issuer(&xtmp, ctx, x);
@@ -254,7 +250,6 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
 		}
 
 	/* we now have our chain, lets check it... */
-	xn=X509_get_issuer_name(x);
 
 	/* Is last certificate looked up self signed? */
 	if (!ctx->check_issued(ctx,x,x))
@@ -394,7 +389,7 @@ static int check_chain_extensions(X509_STORE_CTX *ctx)
 #ifdef OPENSSL_NO_CHAIN_VERIFY
 	return 1;
 #else
-	int i, ok=0, must_be_ca;
+	int i, ok=0, must_be_ca, plen = 0;
 	X509 *x;
 	int (*cb)(int xok,X509_STORE_CTX *xctx);
 	int proxy_path_length = 0;
@@ -495,9 +490,10 @@ static int check_chain_extensions(X509_STORE_CTX *ctx)
 				if (!ok) goto end;
 				}
 			}
-		/* Check pathlen */
-		if ((i > 1) && (x->ex_pathlen != -1)
-			   && (i > (x->ex_pathlen + proxy_path_length + 1)))
+		/* Check pathlen if not self issued */
+		if ((i > 1) && !(x->ex_flags & EXFLAG_SI)
+			   && (x->ex_pathlen != -1)
+			   && (plen > (x->ex_pathlen + proxy_path_length + 1)))
 			{
 			ctx->error = X509_V_ERR_PATH_LENGTH_EXCEEDED;
 			ctx->error_depth = i;
@@ -505,6 +501,9 @@ static int check_chain_extensions(X509_STORE_CTX *ctx)
 			ok=cb(0,ctx);
 			if (!ok) goto end;
 			}
+		/* Increment path length if not self issued */
+		if (!(x->ex_flags & EXFLAG_SI))
+			plen++;
 		/* If this certificate is a proxy certificate, the next
 		   certificate must be another proxy certificate or a EE
 		   certificate.  If not, the next certificate must be a
@@ -982,7 +981,12 @@ static int internal_verify(X509_STORE_CTX *ctx)
 	while (n >= 0)
 		{
 		ctx->error_depth=n;
-		if (!xs->valid)
+
+		/* Skip signature check for self signed certificates unless
+		 * explicitly asked for. It doesn't add any security and
+		 * just wastes time.
+		 */
+		if (!xs->valid && (xs != xi || (ctx->param->flags & X509_V_FLAG_CHECK_SS_SIGNATURE)))
 			{
 			if ((pkey=X509_get_pubkey(xi)) == NULL)
 				{
@@ -992,13 +996,6 @@ static int internal_verify(X509_STORE_CTX *ctx)
 				if (!ok) goto end;
 				}
 			else if (X509_verify(xs,pkey) <= 0)
-				/* XXX  For the final trusted self-signed cert,
-				 * this is a waste of time.  That check should
-				 * optional so that e.g. 'openssl x509' can be
-				 * used to detect invalid self-signatures, but
-				 * we don't verify again and again in SSL
-				 * handshakes and the like once the cert has
-				 * been declared trusted. */
 				{
 				ctx->error=X509_V_ERR_CERT_SIGNATURE_FAILURE;
 				ctx->current_cert=xs;
@@ -1378,7 +1375,7 @@ int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *store, X509 *x509,
 	if (store)
 		ret = X509_VERIFY_PARAM_inherit(ctx->param, store->param);
 	else
-		ctx->param->flags |= X509_VP_FLAG_DEFAULT|X509_VP_FLAG_ONCE;
+		ctx->param->inh_flags |= X509_VP_FLAG_DEFAULT|X509_VP_FLAG_ONCE;
 
 	if (store)
 		{

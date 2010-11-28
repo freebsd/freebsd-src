@@ -202,11 +202,14 @@ static int ssl23_client_hello(SSL *s)
 	{
 	unsigned char *buf;
 	unsigned char *p,*d;
-	int i,j,ch_len;
+	int i,ch_len;
 	unsigned long Time,l;
 	int ssl2_compat;
 	int version = 0, version_major, version_minor;
+#ifndef OPENSSL_NO_COMP
+	int j;
 	SSL_COMP *comp;
+#endif
 	int ret;
 
 	ssl2_compat = (s->options & SSL_OP_NO_SSLv2) ? 0 : 1;
@@ -223,6 +226,17 @@ static int ssl23_client_hello(SSL *s)
 		{
 		version = SSL2_VERSION;
 		}
+#ifndef OPENSSL_NO_TLSEXT 
+	if (version != SSL2_VERSION)
+		{
+		/* have to disable SSL 2.0 compatibility if we need TLS extensions */
+
+		if (s->tlsext_hostname != NULL)
+			ssl2_compat = 0;
+		if (s->tlsext_status_type != -1)
+			ssl2_compat = 0;
+		}
+#endif
 
 	buf=(unsigned char *)s->init_buf->data;
 	if (s->state == SSL23_ST_CW_CLNT_HELLO_A)
@@ -246,6 +260,14 @@ static int ssl23_client_hello(SSL *s)
 			version_major = TLS1_VERSION_MAJOR;
 			version_minor = TLS1_VERSION_MINOR;
 			}
+#ifdef OPENSSL_FIPS
+		else if(FIPS_mode())
+			{
+			SSLerr(SSL_F_SSL23_CLIENT_HELLO,
+					SSL_R_ONLY_TLS_ALLOWED_IN_FIPS_MODE);
+			return -1;
+			}
+#endif
 		else if (version == SSL3_VERSION)
 			{
 			version_major = SSL3_VERSION_MAJOR;
@@ -347,7 +369,9 @@ static int ssl23_client_hello(SSL *s)
 				}
 			s2n(i,p);
 			p+=i;
-
+#ifdef OPENSSL_NO_COMP
+			*(p++)=1;
+#else
 			/* COMPRESSION */
 			if (s->ctx->comp_methods == NULL)
 				j=0;
@@ -359,7 +383,15 @@ static int ssl23_client_hello(SSL *s)
 				comp=sk_SSL_COMP_value(s->ctx->comp_methods,i);
 				*(p++)=comp->id;
 				}
+#endif
 			*(p++)=0; /* Add the NULL method */
+#ifndef OPENSSL_NO_TLSEXT
+			if ((p = ssl_add_clienthello_tlsext(s, p, buf+SSL3_RT_MAX_PLAIN_LENGTH)) == NULL)
+				{
+				SSLerr(SSL_F_SSL23_CLIENT_HELLO,ERR_R_INTERNAL_ERROR);
+				return -1;
+				}
+#endif
 			
 			l = p-d;
 			*p = 42;
@@ -518,6 +550,14 @@ static int ssl23_get_server_hello(SSL *s)
 		if ((p[2] == SSL3_VERSION_MINOR) &&
 			!(s->options & SSL_OP_NO_SSLv3))
 			{
+#ifdef OPENSSL_FIPS
+			if(FIPS_mode())
+				{
+				SSLerr(SSL_F_SSL23_GET_SERVER_HELLO,
+					SSL_R_ONLY_TLS_ALLOWED_IN_FIPS_MODE);
+				goto err;
+				}
+#endif
 			s->version=SSL3_VERSION;
 			s->method=SSLv3_client_method();
 			}

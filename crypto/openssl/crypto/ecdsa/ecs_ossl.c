@@ -212,7 +212,7 @@ err:
 static ECDSA_SIG *ecdsa_do_sign(const unsigned char *dgst, int dgst_len, 
 		const BIGNUM *in_kinv, const BIGNUM *in_r, EC_KEY *eckey)
 {
-	int     ok = 0;
+	int     ok = 0, i;
 	BIGNUM *kinv=NULL, *s, *m=NULL,*tmp=NULL,*order=NULL;
 	const BIGNUM *ckinv;
 	BN_CTX     *ctx = NULL;
@@ -251,14 +251,19 @@ static ECDSA_SIG *ecdsa_do_sign(const unsigned char *dgst, int dgst_len,
 		ECDSAerr(ECDSA_F_ECDSA_DO_SIGN, ERR_R_EC_LIB);
 		goto err;
 	}
-	if (dgst_len > BN_num_bytes(order))
+	i = BN_num_bits(order);
+	/* Need to truncate digest if it is too long: first truncate whole
+	 * bytes.
+	 */
+	if (8 * dgst_len > i)
+		dgst_len = (i + 7)/8;
+	if (!BN_bin2bn(dgst, dgst_len, m))
 	{
-		ECDSAerr(ECDSA_F_ECDSA_DO_SIGN,
-			ECDSA_R_DATA_TOO_LARGE_FOR_KEY_SIZE);
+		ECDSAerr(ECDSA_F_ECDSA_DO_SIGN, ERR_R_BN_LIB);
 		goto err;
 	}
-
-	if (!BN_bin2bn(dgst, dgst_len, m))
+	/* If still too long truncate remaining bits with a shift */
+	if ((8 * dgst_len > i) && !BN_rshift(m, m, 8 - (i & 0x7)))
 	{
 		ECDSAerr(ECDSA_F_ECDSA_DO_SIGN, ERR_R_BN_LIB);
 		goto err;
@@ -338,7 +343,7 @@ err:
 static int ecdsa_do_verify(const unsigned char *dgst, int dgst_len,
 		const ECDSA_SIG *sig, EC_KEY *eckey)
 {
-	int ret = -1;
+	int ret = -1, i;
 	BN_CTX   *ctx;
 	BIGNUM   *order, *u1, *u2, *m, *X;
 	EC_POINT *point = NULL;
@@ -392,7 +397,19 @@ static int ecdsa_do_verify(const unsigned char *dgst, int dgst_len,
 		goto err;
 	}
 	/* digest -> m */
+	i = BN_num_bits(order);
+	/* Need to truncate digest if it is too long: first truncate whole
+	 * bytes.
+	 */
+	if (8 * dgst_len > i)
+		dgst_len = (i + 7)/8;
 	if (!BN_bin2bn(dgst, dgst_len, m))
+	{
+		ECDSAerr(ECDSA_F_ECDSA_DO_VERIFY, ERR_R_BN_LIB);
+		goto err;
+	}
+	/* If still too long truncate remaining bits with a shift */
+	if ((8 * dgst_len > i) && !BN_rshift(m, m, 8 - (i & 0x7)))
 	{
 		ECDSAerr(ECDSA_F_ECDSA_DO_VERIFY, ERR_R_BN_LIB);
 		goto err;

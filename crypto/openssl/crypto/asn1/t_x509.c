@@ -332,7 +332,7 @@ int X509_signature_print(BIO *bp, X509_ALGOR *sigalg, ASN1_STRING *sig)
 int ASN1_STRING_print(BIO *bp, ASN1_STRING *v)
 	{
 	int i,n;
-	char buf[80],*p;;
+	char buf[80],*p;
 
 	if (v == NULL) return(0);
 	n=0;
@@ -379,6 +379,8 @@ int ASN1_GENERALIZEDTIME_print(BIO *bp, ASN1_GENERALIZEDTIME *tm)
 	int gmt=0;
 	int i;
 	int y=0,M=0,d=0,h=0,m=0,s=0;
+	char *f = NULL;
+	int f_len = 0;
 
 	i=tm->length;
 	v=(char *)tm->data;
@@ -393,12 +395,24 @@ int ASN1_GENERALIZEDTIME_print(BIO *bp, ASN1_GENERALIZEDTIME *tm)
 	d= (v[6]-'0')*10+(v[7]-'0');
 	h= (v[8]-'0')*10+(v[9]-'0');
 	m=  (v[10]-'0')*10+(v[11]-'0');
-	if (	(v[12] >= '0') && (v[12] <= '9') &&
-		(v[13] >= '0') && (v[13] <= '9'))
+	if (tm->length >= 14 &&
+	    (v[12] >= '0') && (v[12] <= '9') &&
+	    (v[13] >= '0') && (v[13] <= '9'))
+		{
 		s=  (v[12]-'0')*10+(v[13]-'0');
+		/* Check for fractions of seconds. */
+		if (tm->length >= 15 && v[14] == '.')
+			{
+			int l = tm->length;
+			f = &v[14];	/* The decimal point. */
+			f_len = 1;
+			while (14 + f_len < l && f[f_len] >= '0' && f[f_len] <= '9')
+				++f_len;
+			}
+		}
 
-	if (BIO_printf(bp,"%s %2d %02d:%02d:%02d %d%s",
-		mon[M-1],d,h,m,s,y,(gmt)?" GMT":"") <= 0)
+	if (BIO_printf(bp,"%s %2d %02d:%02d:%02d%.*s %d%s",
+		mon[M-1],d,h,m,s,f_len,f,y,(gmt)?" GMT":"") <= 0)
 		return(0);
 	else
 		return(1);
@@ -428,8 +442,9 @@ int ASN1_UTCTIME_print(BIO *bp, ASN1_UTCTIME *tm)
 	d= (v[4]-'0')*10+(v[5]-'0');
 	h= (v[6]-'0')*10+(v[7]-'0');
 	m=  (v[8]-'0')*10+(v[9]-'0');
-	if (	(v[10] >= '0') && (v[10] <= '9') &&
-		(v[11] >= '0') && (v[11] <= '9'))
+	if (tm->length >=12 &&
+	    (v[10] >= '0') && (v[10] <= '9') &&
+	    (v[11] >= '0') && (v[11] <= '9'))
 		s=  (v[10]-'0')*10+(v[11]-'0');
 
 	if (BIO_printf(bp,"%s %2d %02d:%02d:%02d %d%s",
@@ -449,13 +464,13 @@ int X509_NAME_print(BIO *bp, X509_NAME *name, int obase)
 
 	l=80-2-obase;
 
-	b=s=X509_NAME_oneline(name,NULL,0);
-	if (!*s)
+	b=X509_NAME_oneline(name,NULL,0);
+	if (!*b)
 		{
 		OPENSSL_free(b);
 		return 1;
 		}
-	s++; /* skip the first slash */
+	s=b+1; /* skip the first slash */
 
 	c=s;
 	for (;;)
@@ -480,8 +495,7 @@ int X509_NAME_print(BIO *bp, X509_NAME *name, int obase)
 			{
 			i=s-c;
 			if (BIO_write(bp,c,i) != i) goto err;
-			c+=i;
-			c++;
+			c=s+1;	/* skip following slash */
 			if (*s != '\0')
 				{
 				if (BIO_write(bp,", ",2) != 2) goto err;
@@ -502,4 +516,3 @@ err:
 	OPENSSL_free(b);
 	return(ret);
 	}
-

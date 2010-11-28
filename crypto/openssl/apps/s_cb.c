@@ -117,12 +117,17 @@
 #undef NON_MAIN
 #undef USE_SOCKETS
 #include <openssl/err.h>
+#include <openssl/rand.h>
 #include <openssl/x509.h>
 #include <openssl/ssl.h>
 #include "s_apps.h"
 
+#define	COOKIE_SECRET_LENGTH	16
+
 int verify_depth=0;
 int verify_error=X509_V_OK;
+unsigned char cookie_secret[COOKIE_SECRET_LENGTH];
+int cookie_initialized=0;
 
 int MS_CALLBACK verify_callback(int ok, X509_STORE_CTX *ctx)
 	{
@@ -338,6 +343,12 @@ void MS_CALLBACK msg_cb(int write_p, int version, int content_type, const void *
 		break;
 	default:
 		str_version = "???";
+	case DTLS1_VERSION:
+		str_version = "DTLS 1.0 ";
+		break;
+	case DTLS1_BAD_VER:
+		str_version = "DTLS 1.0 (bad) ";
+		break;
 		}
 
 	if (version == SSL2_VERSION)
@@ -401,7 +412,10 @@ void MS_CALLBACK msg_cb(int write_p, int version, int content_type, const void *
 			}
 		}
 
-	if (version == SSL3_VERSION || version == TLS1_VERSION)
+	if (version == SSL3_VERSION ||
+	    version == TLS1_VERSION ||
+	    version == DTLS1_VERSION ||
+	    version == DTLS1_BAD_VER)
 		{
 		switch (content_type)
 			{
@@ -540,6 +554,9 @@ void MS_CALLBACK msg_cb(int write_p, int version, int content_type, const void *
 				case 15:
 					str_details1 = ", CertificateVerify";
 					break;
+				case 3:
+					str_details1 = ", HelloVerifyRequest";
+					break;
 				case 16:
 					str_details1 = ", ClientKeyExchange";
 					break;
@@ -573,5 +590,150 @@ void MS_CALLBACK msg_cb(int write_p, int version, int content_type, const void *
 			BIO_printf(bio, " ...");
 		BIO_printf(bio, "\n");
 		}
-	BIO_flush(bio);
+	(void)BIO_flush(bio);
+	}
+
+void MS_CALLBACK tlsext_cb(SSL *s, int client_server, int type,
+					unsigned char *data, int len,
+					void *arg)
+	{
+	BIO *bio = arg;
+	char *extname;
+
+	switch(type)
+		{
+		case TLSEXT_TYPE_server_name:
+		extname = "server name";
+		break;
+
+		case TLSEXT_TYPE_max_fragment_length:
+		extname = "max fragment length";
+		break;
+
+		case TLSEXT_TYPE_client_certificate_url:
+		extname = "client certificate URL";
+		break;
+
+		case TLSEXT_TYPE_trusted_ca_keys:
+		extname = "trusted CA keys";
+		break;
+
+		case TLSEXT_TYPE_truncated_hmac:
+		extname = "truncated HMAC";
+		break;
+
+		case TLSEXT_TYPE_status_request:
+		extname = "status request";
+		break;
+
+		case TLSEXT_TYPE_elliptic_curves:
+		extname = "elliptic curves";
+		break;
+
+		case TLSEXT_TYPE_ec_point_formats:
+		extname = "EC point formats";
+		break;
+
+		case TLSEXT_TYPE_session_ticket:
+		extname = "server ticket";
+		break;
+
+		case TLSEXT_TYPE_renegotiate:
+		extname = "renegotiate";
+		break;
+
+		default:
+		extname = "unknown";
+		break;
+
+		}
+	
+	BIO_printf(bio, "TLS %s extension \"%s\" (id=%d), len=%d\n",
+			client_server ? "server": "client",
+			extname, type, len);
+	BIO_dump(bio, (char *)data, len);
+	(void)BIO_flush(bio);
+	}
+
+int MS_CALLBACK generate_cookie_callback(SSL *ssl, unsigned char *cookie, unsigned int *cookie_len)
+	{
+	unsigned char *buffer, result[EVP_MAX_MD_SIZE];
+	unsigned int length, resultlength;
+	struct sockaddr_in peer;
+	
+	/* Initialize a random secret */
+	if (!cookie_initialized)
+		{
+		if (!RAND_bytes(cookie_secret, COOKIE_SECRET_LENGTH))
+			{
+			BIO_printf(bio_err,"error setting random cookie secret\n");
+			return 0;
+			}
+		cookie_initialized = 1;
+		}
+
+	/* Read peer information */
+	(void)BIO_dgram_get_peer(SSL_get_rbio(ssl), &peer);
+
+	/* Create buffer with peer's address and port */
+	length = sizeof(peer.sin_addr);
+	length += sizeof(peer.sin_port);
+	buffer = OPENSSL_malloc(length);
+
+	if (buffer == NULL)
+		{
+		BIO_printf(bio_err,"out of memory\n");
+		return 0;
+		}
+	
+	memcpy(buffer, &peer.sin_addr, sizeof(peer.sin_addr));
+	memcpy(buffer + sizeof(peer.sin_addr), &peer.sin_port, sizeof(peer.sin_port));
+
+	/* Calculate HMAC of buffer using the secret */
+	HMAC(EVP_sha1(), cookie_secret, COOKIE_SECRET_LENGTH,
+	     buffer, length, result, &resultlength);
+	OPENSSL_free(buffer);
+
+	memcpy(cookie, result, resultlength);
+	*cookie_len = resultlength;
+
+	return 1;
+	}
+
+int MS_CALLBACK verify_cookie_callback(SSL *ssl, unsigned char *cookie, unsigned int cookie_len)
+	{
+	unsigned char *buffer, result[EVP_MAX_MD_SIZE];
+	unsigned int length, resultlength;
+	struct sockaddr_in peer;
+	
+	/* If secret isn't initialized yet, the cookie can't be valid */
+	if (!cookie_initialized)
+		return 0;
+
+	/* Read peer information */
+	(void)BIO_dgram_get_peer(SSL_get_rbio(ssl), &peer);
+
+	/* Create buffer with peer's address and port */
+	length = sizeof(peer.sin_addr);
+	length += sizeof(peer.sin_port);
+	buffer = (unsigned char*) OPENSSL_malloc(length);
+	
+	if (buffer == NULL)
+		{
+		BIO_printf(bio_err,"out of memory\n");
+		return 0;
+		}
+	
+	memcpy(buffer, &peer.sin_addr, sizeof(peer.sin_addr));
+	memcpy(buffer + sizeof(peer.sin_addr), &peer.sin_port, sizeof(peer.sin_port));
+
+	/* Calculate HMAC of buffer using the secret */
+	HMAC(EVP_sha1(), cookie_secret, COOKIE_SECRET_LENGTH,
+	     buffer, length, result, &resultlength);
+	OPENSSL_free(buffer);
+	
+	if (cookie_len == resultlength && memcmp(result, cookie, resultlength) == 0)
+		return 1;
+
+	return 0;
 	}

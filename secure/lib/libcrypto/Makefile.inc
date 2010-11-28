@@ -2,6 +2,10 @@
 
 .include <bsd.own.mk>
 
+# OpenSSL version used for manual page generation
+OPENSSL_VER=	0.9.8p
+OPENSSL_DATE=	2010-11-16
+
 LCRYPTO_SRC=	${.CURDIR}/../../../crypto/openssl
 LCRYPTO_DOC=	${.CURDIR}/../../../crypto/openssl/doc
 
@@ -12,6 +16,10 @@ CFLAGS+=	-DOPENSSL_THREADS -DDSO_DLFCN -DHAVE_DLFCN_H
 .if ${MK_IDEA} == "no"
 CFLAGS+=	-DOPENSSL_NO_IDEA
 .endif
+
+# Be evil and work around lack of MACHINE_CPUARCH on FreeBSD < 9
+# This simplifies merging...
+MACHINE_CPUARCH?= ${MACHINE_ARCH}
 
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
 CFLAGS+= -DL_ENDIAN
@@ -34,7 +42,8 @@ man-update:
 	@(sec=${manpage:E}; \
 	pod=${manpage:R}.pod; \
 	cp ${LCRYPTO_DOC}/${_docs}/$$pod .; \
-	pod2man --section=$$sec --release="0.9.8e" --center="OpenSSL" \
+	pod2man --section=$$sec --release="${OPENSSL_VER}" \
+	  --date="${OPENSSL_DATE}" --center="OpenSSL"  \
 	  $$pod > ${.CURDIR}/man/${manpage}; \
 	rm -f $$pod; \
 	${ECHO} ${manpage})

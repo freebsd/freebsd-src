@@ -114,6 +114,7 @@ static const char *x509_usage[]={
 " -alias          - output certificate alias\n",
 " -noout          - no certificate output\n",
 " -ocspid         - print OCSP hash values for the subject name and public key\n",
+" -ocsp_uri       - print OCSP Responder URL(s)\n",
 " -trustout       - output a \"trusted\" certificate\n",
 " -clrtrust       - clear all trusted purposes\n",
 " -clrreject      - clear all rejected purposes\n",
@@ -179,6 +180,7 @@ int MAIN(int argc, char **argv)
 	int next_serial=0;
 	int subject_hash=0,issuer_hash=0,ocspid=0;
 	int noout=0,sign_flag=0,CA_flag=0,CA_createserial=0,email=0;
+	int ocsp_uri=0;
 	int trustout=0,clrtrust=0,clrreject=0,aliasout=0,clrext=0;
 	int C=0;
 	int x509req=0,days=DEF_DAYS,modulus=0,pubkey=0;
@@ -378,6 +380,8 @@ int MAIN(int argc, char **argv)
 			C= ++num;
 		else if (strcmp(*argv,"-email") == 0)
 			email= ++num;
+		else if (strcmp(*argv,"-ocsp_uri") == 0)
+			ocsp_uri= ++num;
 		else if (strcmp(*argv,"-serial") == 0)
 			serial= ++num;
 		else if (strcmp(*argv,"-next_serial") == 0)
@@ -535,7 +539,6 @@ bad:
 	if (reqfile)
 		{
 		EVP_PKEY *pkey;
-		X509_CINF *ci;
 		BIO *in;
 
 		if (!sign_flag && !CA_flag)
@@ -603,7 +606,6 @@ bad:
 		print_name(bio_err, "subject=", X509_REQ_get_subject_name(req), nmflag);
 
 		if ((x=X509_new()) == NULL) goto end;
-		ci=x->cert_info;
 
 		if (sno == NULL)
 			{
@@ -731,11 +733,14 @@ bad:
 				ASN1_INTEGER_free(ser);
 				BIO_puts(out, "\n");
 				}
-			else if (email == i) 
+			else if ((email == i) || (ocsp_uri == i))
 				{
 				int j;
 				STACK *emlst;
-				emlst = X509_get1_email(x);
+				if (email == i)
+					emlst = X509_get1_email(x);
+				else
+					emlst = X509_get1_ocsp(x);
 				for (j = 0; j < sk_num(emlst); j++)
 					BIO_printf(STDout, "%s\n", sk_value(emlst, j));
 				X509_email_free(emlst);
@@ -1144,6 +1149,7 @@ static int x509_certify(X509_STORE *ctx, char *CAfile, const EVP_MD *digest,
 	/* NOTE: this certificate can/should be self signed, unless it was
 	 * a certificate request in which case it is not. */
 	X509_STORE_CTX_set_cert(&xsc,x);
+	X509_STORE_CTX_set_flags(&xsc, X509_V_FLAG_CHECK_SS_SIGNATURE);
 	if (!reqfile && X509_verify_cert(&xsc) <= 0)
 		goto end;
 

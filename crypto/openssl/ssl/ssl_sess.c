@@ -59,6 +59,9 @@
 #include <stdio.h>
 #include <openssl/lhash.h>
 #include <openssl/rand.h>
+#ifndef OPENSSL_NO_ENGINE
+#include <openssl/engine.h>
+#endif
 #include "ssl_locl.h"
 
 static void SSL_SESSION_list_remove(SSL_CTX *ctx, SSL_SESSION *s);
@@ -122,6 +125,9 @@ SSL_SESSION *SSL_SESSION_new(void)
 	ss->prev=NULL;
 	ss->next=NULL;
 	ss->compress_meth=0;
+#ifndef OPENSSL_NO_TLSEXT
+	ss->tlsext_hostname = NULL; 
+#endif
 	CRYPTO_new_ex_data(CRYPTO_EX_INDEX_SSL_SESSION, ss, &ss->ex_data);
 	return(ss);
 	}
@@ -205,6 +211,11 @@ int ssl_get_new_session(SSL *s, int session)
 			ss->ssl_version=TLS1_VERSION;
 			ss->session_id_length=SSL3_SSL_SESSION_ID_LENGTH;
 			}
+		else if (s->version == DTLS1_BAD_VER)
+			{
+			ss->ssl_version=DTLS1_BAD_VER;
+			ss->session_id_length=SSL3_SSL_SESSION_ID_LENGTH;
+			}
 		else if (s->version == DTLS1_VERSION)
 			{
 			ss->ssl_version=DTLS1_VERSION;
@@ -216,6 +227,14 @@ int ssl_get_new_session(SSL *s, int session)
 			SSL_SESSION_free(ss);
 			return(0);
 			}
+#ifndef OPENSSL_NO_TLSEXT
+		/* If RFC4507 ticket use empty session ID */
+		if (s->tlsext_ticket_expected)
+			{
+			ss->session_id_length = 0;
+			goto sess_id_done;
+			}
+#endif
 		/* Choose which callback will set the session ID */
 		CRYPTO_r_lock(CRYPTO_LOCK_SSL_CTX);
 		if(s->generate_session_id)
@@ -257,6 +276,17 @@ int ssl_get_new_session(SSL *s, int session)
 			SSL_SESSION_free(ss);
 			return(0);
 			}
+#ifndef OPENSSL_NO_TLSEXT
+		sess_id_done:
+		if (s->tlsext_hostname) {
+			ss->tlsext_hostname = BUF_strdup(s->tlsext_hostname);
+			if (ss->tlsext_hostname == NULL) {
+				SSLerr(SSL_F_SSL_GET_NEW_SESSION, ERR_R_INTERNAL_ERROR);
+				SSL_SESSION_free(ss);
+				return 0;
+				}
+			}
+#endif
 		}
 	else
 		{
@@ -278,21 +308,41 @@ int ssl_get_new_session(SSL *s, int session)
 	return(1);
 	}
 
-int ssl_get_prev_session(SSL *s, unsigned char *session_id, int len)
+int ssl_get_prev_session(SSL *s, unsigned char *session_id, int len,
+			const unsigned char *limit)
 	{
 	/* This is used only by servers. */
 
-	SSL_SESSION *ret=NULL,data;
+	SSL_SESSION *ret=NULL;
 	int fatal = 0;
-
-	data.ssl_version=s->version;
-	data.session_id_length=len;
+#ifndef OPENSSL_NO_TLSEXT
+	int r;
+#endif
+  
 	if (len > SSL_MAX_SSL_SESSION_ID_LENGTH)
 		goto err;
-	memcpy(data.session_id,session_id,len);
-
-	if (!(s->ctx->session_cache_mode & SSL_SESS_CACHE_NO_INTERNAL_LOOKUP))
+#ifndef OPENSSL_NO_TLSEXT
+ 	r = tls1_process_ticket(s, session_id, len, limit, &ret);
+	if (r == -1)
 		{
+		fatal = 1;
+ 		goto err;
+		}
+	else if (r == 0 || (!ret && !len))
+		goto err;
+	else if (!ret && !(s->session_ctx->session_cache_mode & SSL_SESS_CACHE_NO_INTERNAL_LOOKUP))
+#else
+	if (len == 0)
+		goto err;
+	if (!(s->ctx->session_cache_mode & SSL_SESS_CACHE_NO_INTERNAL_LOOKUP))
+#endif
+		{
+		SSL_SESSION data;
+		data.ssl_version=s->version;
+		data.session_id_length=len;
+		if (len == 0)
+			return 0;
+ 		memcpy(data.session_id,session_id,len);
 		CRYPTO_r_lock(CRYPTO_LOCK_SSL_CTX);
 		ret=(SSL_SESSION *)lh_retrieve(s->ctx->sessions,&data);
 		if (ret != NULL)
@@ -334,33 +384,35 @@ int ssl_get_prev_session(SSL *s, unsigned char *session_id, int len)
 
 	/* Now ret is non-NULL, and we own one of its reference counts. */
 
-	if((s->verify_mode&SSL_VERIFY_PEER)
-	   && (!s->sid_ctx_length || ret->sid_ctx_length != s->sid_ctx_length
-	       || memcmp(ret->sid_ctx,s->sid_ctx,ret->sid_ctx_length)))
-	    {
+	if (ret->sid_ctx_length != s->sid_ctx_length
+	    || memcmp(ret->sid_ctx,s->sid_ctx,ret->sid_ctx_length))
+		{
 		/* We've found the session named by the client, but we don't
 		 * want to use it in this context. */
-		
-		if (s->sid_ctx_length == 0)
-			{
-			/* application should have used SSL[_CTX]_set_session_id_context
-			 * -- we could tolerate this and just pretend we never heard
-			 * of this session, but then applications could effectively
-			 * disable the session cache by accident without anyone noticing */
 
-			SSLerr(SSL_F_SSL_GET_PREV_SESSION,SSL_R_SESSION_ID_CONTEXT_UNINITIALIZED);
-			fatal = 1;
-			goto err;
-			}
-		else
-			{
 #if 0 /* The client cannot always know when a session is not appropriate,
-	   * so we shouldn't generate an error message. */
+       * so we shouldn't generate an error message. */
 
-			SSLerr(SSL_F_SSL_GET_PREV_SESSION,SSL_R_ATTEMPT_TO_REUSE_SESSION_IN_DIFFERENT_CONTEXT);
+		SSLerr(SSL_F_SSL_GET_PREV_SESSION,SSL_R_ATTEMPT_TO_REUSE_SESSION_IN_DIFFERENT_CONTEXT);
 #endif
-			goto err; /* treat like cache miss */
-			}
+		goto err; /* treat like cache miss */
+		}
+	
+	if((s->verify_mode & SSL_VERIFY_PEER) && s->sid_ctx_length == 0)
+		{
+		/* We can't be sure if this session is being used out of
+		 * context, which is especially important for SSL_VERIFY_PEER.
+		 * The application should have used SSL[_CTX]_set_session_id_context.
+		 *
+		 * For this error case, we generate an error instead of treating
+		 * the event like a cache miss (otherwise it would be easy for
+		 * applications to effectively disable the session cache by
+		 * accident without anyone noticing).
+		 */
+		
+		SSLerr(SSL_F_SSL_GET_PREV_SESSION,SSL_R_SESSION_ID_CONTEXT_UNINITIALIZED);
+		fatal = 1;
+		goto err;
 		}
 
 	if (ret->cipher == NULL)
@@ -371,7 +423,7 @@ int ssl_get_prev_session(SSL *s, unsigned char *session_id, int len)
 		p=buf;
 		l=ret->cipher_id;
 		l2n(l,p);
-		if ((ret->ssl_version>>8) == SSL3_VERSION_MAJOR)
+		if ((ret->ssl_version>>8) >= SSL3_VERSION_MAJOR)
 			ret->cipher=ssl_get_cipher_by_char(s,&(buf[2]));
 		else 
 			ret->cipher=ssl_get_cipher_by_char(s,&(buf[1]));
@@ -546,6 +598,10 @@ void SSL_SESSION_free(SSL_SESSION *ss)
 	if (ss->sess_cert != NULL) ssl_sess_cert_free(ss->sess_cert);
 	if (ss->peer != NULL) X509_free(ss->peer);
 	if (ss->ciphers != NULL) sk_SSL_CIPHER_free(ss->ciphers);
+#ifndef OPENSSL_NO_TLSEXT
+	if (ss->tlsext_hostname != NULL) OPENSSL_free(ss->tlsext_hostname);
+	if (ss->tlsext_tick != NULL) OPENSSL_free(ss->tlsext_tick);
+#endif
 	OPENSSL_cleanse(ss,sizeof(*ss));
 	OPENSSL_free(ss);
 	}
@@ -821,6 +877,25 @@ int (*SSL_CTX_get_client_cert_cb(SSL_CTX *ctx))(SSL * ssl, X509 ** x509 , EVP_PK
 	{
 	return ctx->client_cert_cb;
 	}
+
+#ifndef OPENSSL_NO_ENGINE
+int SSL_CTX_set_client_cert_engine(SSL_CTX *ctx, ENGINE *e)
+	{
+	if (!ENGINE_init(e))
+		{
+		SSLerr(SSL_F_SSL_CTX_SET_CLIENT_CERT_ENGINE, ERR_R_ENGINE_LIB);
+		return 0;
+		}
+	if(!ENGINE_get_ssl_client_cert_function(e))
+		{
+		SSLerr(SSL_F_SSL_CTX_SET_CLIENT_CERT_ENGINE, SSL_R_NO_CLIENT_CERT_METHOD);
+		ENGINE_finish(e);
+		return 0;
+		}
+	ctx->client_cert_engine = e;
+	return 1;
+	}
+#endif
 
 void SSL_CTX_set_cookie_generate_cb(SSL_CTX *ctx,
 	int (*cb)(SSL *ssl, unsigned char *cookie, unsigned int *cookie_len))

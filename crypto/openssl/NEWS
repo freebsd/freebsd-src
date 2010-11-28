@@ -5,6 +5,72 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 0.9.8o and OpenSSL 0.9.8p:
+
+      o Fix for security issue CVE-2010-3864.
+
+  Major changes between OpenSSL 0.9.8n and OpenSSL 0.9.8o:
+
+      o Fix for security issue CVE-2010-0742.
+      o Various DTLS fixes.
+      o Recognise SHA2 certificates if only SSL algorithms added.
+      o Fix for no-rc4 compilation.
+      o Chil ENGINE unload workaround.
+
+  Major changes between OpenSSL 0.9.8m and OpenSSL 0.9.8n:
+
+      o CFB cipher definition fixes.
+      o Fix security issues CVE-2010-0740 and CVE-2010-0433.
+
+  Major changes between OpenSSL 0.9.8l and OpenSSL 0.9.8m:
+
+      o Cipher definition fixes.
+      o Workaround for slow RAND_poll() on some WIN32 versions.
+      o Remove MD2 from algorithm tables.
+      o SPKAC handling fixes.
+      o Support for RFC5746 TLS renegotiation extension.
+      o Compression memory leak fixed.
+      o Compression session resumption fixed.
+      o Ticket and SNI coexistence fixes.
+      o Many fixes to DTLS handling. 
+
+  Major changes between OpenSSL 0.9.8k and OpenSSL 0.9.8l:
+
+      o Temporary work around for CVE-2009-3555: disable renegotiation.
+
+  Major changes between OpenSSL 0.9.8j and OpenSSL 0.9.8k:
+
+      o Fix various build issues.
+      o Fix security issues (CVE-2009-0590, CVE-2009-0591, CVE-2009-0789)
+
+  Major changes between OpenSSL 0.9.8i and OpenSSL 0.9.8j:
+
+      o Fix security issue (CVE-2008-5077)
+      o Merge FIPS 140-2 branch code.
+
+  Major changes between OpenSSL 0.9.8g and OpenSSL 0.9.8h:
+
+      o CryptoAPI ENGINE support.
+      o Various precautionary measures.
+      o Fix for bugs affecting certificate request creation.
+      o Support for local machine keyset attribute in PKCS#12 files.
+
+  Major changes between OpenSSL 0.9.8f and OpenSSL 0.9.8g:
+
+      o Backport of CMS functionality to 0.9.8.
+      o Fixes for bugs introduced with 0.9.8f.
+
+  Major changes between OpenSSL 0.9.8e and OpenSSL 0.9.8f:
+
+      o Add gcc 4.2 support.
+      o Add support for AES and SSE2 assembly lanugauge optimization
+        for VC++ build.
+      o Support for RFC4507bis and server name extensions if explicitly 
+        selected at compile time.
+      o DTLS improvements.
+      o RFC4507bis support.
+      o TLS Extensions support.
+
   Major changes between OpenSSL 0.9.8d and OpenSSL 0.9.8e:
 
       o Various ciphersuite selection fixes.

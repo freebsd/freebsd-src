@@ -82,6 +82,8 @@
 #include <openssl/rand.h>
 #include <openssl/sha.h>
 
+#ifndef OPENSSL_FIPS
+
 static int dsa_builtin_paramgen(DSA *ret, int bits,
 		unsigned char *seed_in, int seed_len,
 		int *counter_ret, unsigned long *h_ret, BN_GENCB *cb);
@@ -108,7 +110,7 @@ static int dsa_builtin_paramgen(DSA *ret, int bits,
 	BIGNUM *r0,*W,*X,*c,*test;
 	BIGNUM *g=NULL,*q=NULL,*p=NULL;
 	BN_MONT_CTX *mont=NULL;
-	int k,n=0,i,b,m=0;
+	int k,n=0,i,m=0;
 	int counter=0;
 	int r=0;
 	BN_CTX *ctx=NULL;
@@ -117,13 +119,20 @@ static int dsa_builtin_paramgen(DSA *ret, int bits,
 	if (bits < 512) bits=512;
 	bits=(bits+63)/64*64;
 
-	if (seed_len < 20)
+	/* NB: seed_len == 0 is special case: copy generated seed to
+ 	 * seed_in if it is not NULL.
+ 	 */
+	if (seed_len && (seed_len < 20))
 		seed_in = NULL; /* seed buffer too small -- ignore */
 	if (seed_len > 20) 
 		seed_len = 20; /* App. 2.2 of FIPS PUB 186 allows larger SEED,
 		                * but our internal buffers are restricted to 160 bits*/
 	if ((seed_in != NULL) && (seed_len == 20))
+		{
 		memcpy(seed,seed_in,seed_len);
+		/* set seed_in to NULL to avoid it being copied back */
+		seed_in = NULL;
+		}
 
 	if ((ctx=BN_CTX_new()) == NULL) goto err;
 
@@ -202,7 +211,6 @@ static int dsa_builtin_paramgen(DSA *ret, int bits,
 		/* "offset = 2" */
 
 		n=(bits-1)/160;
-		b=(bits-1)-n*160;
 
 		for (;;)
 			{
@@ -300,7 +308,7 @@ err:
 			ok=0;
 			goto err;
 			}
-		if ((m > 1) && (seed_in != NULL)) memcpy(seed_in,seed,20);
+		if (seed_in != NULL) memcpy(seed_in,seed,20);
 		if (counter_ret != NULL) *counter_ret=counter;
 		if (h_ret != NULL) *h_ret=h;
 		}
@@ -312,4 +320,5 @@ err:
 	if (mont != NULL) BN_MONT_CTX_free(mont);
 	return ok;
 	}
+#endif
 #endif

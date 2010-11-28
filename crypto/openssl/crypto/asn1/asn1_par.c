@@ -213,6 +213,8 @@ static int asn1_parse2(BIO *bp, const unsigned char **pp, long length, int offse
 				(tag == V_ASN1_T61STRING) ||
 				(tag == V_ASN1_IA5STRING) ||
 				(tag == V_ASN1_VISIBLESTRING) ||
+				(tag == V_ASN1_NUMERICSTRING) ||
+				(tag == V_ASN1_UTF8STRING) ||
 				(tag == V_ASN1_UTCTIME) ||
 				(tag == V_ASN1_GENERALIZEDTIME))
 				{
@@ -244,7 +246,7 @@ static int asn1_parse2(BIO *bp, const unsigned char **pp, long length, int offse
 				ii=d2i_ASN1_BOOLEAN(NULL,&opp,len+hl);
 				if (ii < 0)
 					{
-					if (BIO_write(bp,"Bad boolean\n",12))
+					if (BIO_write(bp,"Bad boolean\n",12) <= 0)
 						goto end;
 					}
 				BIO_printf(bp,":%d",ii);

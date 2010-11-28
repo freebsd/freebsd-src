@@ -115,7 +115,10 @@
  */
 #include <stdio.h>
 #include <openssl/objects.h>
+#ifndef OPENSSL_NO_COMP
 #include <openssl/comp.h>
+#endif
+
 #include "ssl_locl.h"
 
 #define SSL_ENC_DES_IDX		0
@@ -127,11 +130,10 @@
 #define SSL_ENC_NULL_IDX	6
 #define SSL_ENC_AES128_IDX	7
 #define SSL_ENC_AES256_IDX	8
-#define SSL_ENC_NUM_IDX		9
 #define SSL_ENC_CAMELLIA128_IDX	9
 #define SSL_ENC_CAMELLIA256_IDX	10
-#undef  SSL_ENC_NUM_IDX
-#define SSL_ENC_NUM_IDX		11
+#define SSL_ENC_SEED_IDX    	11
+#define SSL_ENC_NUM_IDX		12
 
 
 static const EVP_CIPHER *ssl_cipher_methods[SSL_ENC_NUM_IDX]={
@@ -196,10 +198,11 @@ static const SSL_CIPHER cipher_aliases[]={
 #ifndef OPENSSL_NO_IDEA
 	{0,SSL_TXT_IDEA,0,SSL_IDEA,  0,0,0,0,SSL_ENC_MASK,0},
 #endif
+	{0,SSL_TXT_SEED,0,SSL_SEED,  0,0,0,0,SSL_ENC_MASK,0},
 	{0,SSL_TXT_eNULL,0,SSL_eNULL,0,0,0,0,SSL_ENC_MASK,0},
 	{0,SSL_TXT_eFZA,0,SSL_eFZA,  0,0,0,0,SSL_ENC_MASK,0},
 	{0,SSL_TXT_AES,	0,SSL_AES,   0,0,0,0,SSL_ENC_MASK,0},
-	{0,SSL_TXT_CAMELLIA,	0,SSL_CAMELLIA,   0,0,0,0,SSL_ENC_MASK,0},
+	{0,SSL_TXT_CAMELLIA,0,SSL_CAMELLIA, 0,0,0,0,SSL_ENC_MASK,0},
 
 	{0,SSL_TXT_MD5,	0,SSL_MD5,   0,0,0,0,SSL_MAC_MASK,0},
 	{0,SSL_TXT_SHA1,0,SSL_SHA1,  0,0,0,0,SSL_MAC_MASK,0},
@@ -222,6 +225,7 @@ static const SSL_CIPHER cipher_aliases[]={
 	{0,SSL_TXT_LOW,   0, 0,   SSL_LOW, 0,0,0,0,SSL_STRONG_MASK},
 	{0,SSL_TXT_MEDIUM,0, 0,SSL_MEDIUM, 0,0,0,0,SSL_STRONG_MASK},
 	{0,SSL_TXT_HIGH,  0, 0,  SSL_HIGH, 0,0,0,0,SSL_STRONG_MASK},
+	{0,SSL_TXT_FIPS,  0, 0,  SSL_FIPS, 0,0,0,0,SSL_FIPS|SSL_STRONG_NONE},
 	};
 
 void ssl_load_ciphers(void)
@@ -248,6 +252,8 @@ void ssl_load_ciphers(void)
 	  EVP_get_cipherbyname(SN_camellia_128_cbc);
 	ssl_cipher_methods[SSL_ENC_CAMELLIA256_IDX]=
 	  EVP_get_cipherbyname(SN_camellia_256_cbc);
+	ssl_cipher_methods[SSL_ENC_SEED_IDX]=
+	  EVP_get_cipherbyname(SN_seed_cbc);
 
 	ssl_digest_methods[SSL_MD_MD5_IDX]=
 		EVP_get_digestbyname(SN_md5);
@@ -374,6 +380,9 @@ int ssl_cipher_get_evp(const SSL_SESSION *s, const EVP_CIPHER **enc,
 		default: i=-1; break;
 			}
 		break;
+	case SSL_SEED:
+		i=SSL_ENC_SEED_IDX;
+		break;
 
 	default:
 		i= -1;
@@ -439,7 +448,7 @@ struct disabled_masks { /* This is a kludge no longer needed with OpenSSL 0.9.9,
   unsigned long m256; /* applies to 256-bit algorithms only */
 };
 
-struct disabled_masks ssl_cipher_get_disabled(void)
+static struct disabled_masks ssl_cipher_get_disabled(void)
 	{
 	unsigned long mask;
 	unsigned long m256;
@@ -471,6 +480,7 @@ struct disabled_masks ssl_cipher_get_disabled(void)
 	mask |= (ssl_cipher_methods[SSL_ENC_RC2_IDX ] == NULL) ? SSL_RC2 :0;
 	mask |= (ssl_cipher_methods[SSL_ENC_IDEA_IDX] == NULL) ? SSL_IDEA:0;
 	mask |= (ssl_cipher_methods[SSL_ENC_eFZA_IDX] == NULL) ? SSL_eFZA:0;
+	mask |= (ssl_cipher_methods[SSL_ENC_SEED_IDX] == NULL) ? SSL_SEED:0;
 
 	mask |= (ssl_digest_methods[SSL_MD_MD5_IDX ] == NULL) ? SSL_MD5 :0;
 	mask |= (ssl_digest_methods[SSL_MD_SHA1_IDX] == NULL) ? SSL_SHA1:0;
@@ -509,7 +519,12 @@ static void ssl_cipher_collect_ciphers(const SSL_METHOD *ssl_method,
 		c = ssl_method->get_cipher(i);
 #define IS_MASKED(c) ((c)->algorithms & (((c)->alg_bits == 256) ? m256 : mask))
 		/* drop those that use any of that is not available */
+#ifdef OPENSSL_FIPS
+		if ((c != NULL) && c->valid && !IS_MASKED(c)
+			&& (!FIPS_mode() || (c->algo_strength & SSL_FIPS)))
+#else
 		if ((c != NULL) && c->valid && !IS_MASKED(c))
+#endif
 			{
 			co_list[co_list_num].cipher = c;
 			co_list[co_list_num].next = NULL;
@@ -762,7 +777,7 @@ static int ssl_cipher_process_rulestr(const char *rule_str,
 		CIPHER_ORDER **tail_p, SSL_CIPHER **ca_list)
 	{
 	unsigned long algorithms, mask, algo_strength, mask_strength;
-	const char *l, *start, *buf;
+	const char *l, *buf;
 	int j, multi, found, rule, retval, ok, buflen;
 	unsigned long cipher_id = 0, ssl_version = 0;
 	char ch;
@@ -794,7 +809,6 @@ static int ssl_cipher_process_rulestr(const char *rule_str,
 
 		algorithms = mask = algo_strength = mask_strength = 0;
 
-		start=l;
 		for (;;)
 			{
 			ch = *l;
@@ -1048,7 +1062,11 @@ STACK_OF(SSL_CIPHER) *ssl_create_cipher_list(const SSL_METHOD *ssl_method,
 	 */
 	for (curr = head; curr != NULL; curr = curr->next)
 		{
+#ifdef OPENSSL_FIPS
+		if (curr->active && (!FIPS_mode() || curr->cipher->algo_strength & SSL_FIPS))
+#else
 		if (curr->active)
+#endif
 			{
 			sk_SSL_CIPHER_push(cipherstack, curr->cipher);
 #ifdef CIPHER_DEBUG
@@ -1070,17 +1088,18 @@ STACK_OF(SSL_CIPHER) *ssl_create_cipher_list(const SSL_METHOD *ssl_method,
 	if (*cipher_list_by_id != NULL)
 		sk_SSL_CIPHER_free(*cipher_list_by_id);
 	*cipher_list_by_id = tmp_cipher_list;
-	sk_SSL_CIPHER_set_cmp_func(*cipher_list_by_id,ssl_cipher_ptr_id_cmp);
+	(void)sk_SSL_CIPHER_set_cmp_func(*cipher_list_by_id,ssl_cipher_ptr_id_cmp);
 
+	sk_SSL_CIPHER_sort(*cipher_list_by_id);
 	return(cipherstack);
 	}
 
-char *SSL_CIPHER_description(SSL_CIPHER *cipher, char *buf, int len)
+char *SSL_CIPHER_description(const SSL_CIPHER *cipher, char *buf, int len)
 	{
 	int is_export,pkl,kl;
 	const char *ver,*exp_str;
 	const char *kx,*au,*enc,*mac;
-	unsigned long alg,alg2,alg_s;
+	unsigned long alg,alg2;
 #ifdef KSSL_DEBUG
 	static const char *format="%-23s %s Kx=%-8s Au=%-4s Enc=%-9s Mac=%-4s%s AL=%lx\n";
 #else
@@ -1088,7 +1107,6 @@ char *SSL_CIPHER_description(SSL_CIPHER *cipher, char *buf, int len)
 #endif /* KSSL_DEBUG */
 
 	alg=cipher->algorithms;
-	alg_s=cipher->algo_strength;
 	alg2=cipher->algorithm2;
 
 	is_export=SSL_C_IS_EXPORT(cipher);
@@ -1200,7 +1218,10 @@ char *SSL_CIPHER_description(SSL_CIPHER *cipher, char *buf, int len)
 		default: enc="Camellia(?""?""?)"; break;
 			}
 		break;
-		
+	case SSL_SEED:
+		enc="SEED(128)";
+		break;
+
 	default:
 		enc="unknown";
 		break;
@@ -1333,7 +1354,7 @@ int SSL_COMP_add_compression_method(int id, COMP_METHOD *cm)
 	comp->method=cm;
 	load_builtin_compressions();
 	if (ssl_comp_methods
-		&& !sk_SSL_COMP_find(ssl_comp_methods,comp))
+		&& sk_SSL_COMP_find(ssl_comp_methods,comp) >= 0)
 		{
 		OPENSSL_free(comp);
 		MemCheck_on();
