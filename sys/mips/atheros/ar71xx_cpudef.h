@@ -81,6 +81,16 @@ static inline int ar71xx_device_stopped(uint32_t mask)
 	return ar71xx_cpu_ops->ar71xx_chip_device_stopped(mask);
 }
 
+static inline void ar71xx_device_set_pll_ge0(int speed)
+{
+	ar71xx_cpu_ops->ar71xx_chip_set_pll_ge0(speed);
+}
+
+static inline void ar71xx_device_set_pll_ge1(int speed)
+{
+	ar71xx_cpu_ops->ar71xx_chip_set_pll_ge1(speed);
+}
+
 static inline void ar71xx_device_flush_ddr_ge0(void)
 {
 	ar71xx_cpu_ops->ar71xx_chip_ddr_flush_ge0();
