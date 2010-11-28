@@ -1975,7 +1975,8 @@ int
 fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
-	KASSERT(TD_IS_SUSPENDED(td), ("not suspended thread %p", td));
+	KASSERT(td == curthread || TD_IS_SUSPENDED(td),
+	    ("not suspended thread %p", td));
 	fpugetregs(td);
 	fill_fpregs_xmm(&td->td_pcb->pcb_user_save, fpregs);
 	return (0);

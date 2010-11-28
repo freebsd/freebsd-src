@@ -3203,7 +3203,8 @@ int
 fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
-	KASSERT(TD_IS_SUSPENDED(td), ("not suspended thread %p", td));
+	KASSERT(td == curthread || TD_IS_SUSPENDED(td),
+	    ("not suspended thread %p", td));
 	npxgetregs(td);
 #ifdef CPU_ENABLE_SSE
 	if (cpu_fxsr)
