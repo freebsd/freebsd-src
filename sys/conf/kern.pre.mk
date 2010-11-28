@@ -100,8 +100,9 @@ CFLAGS+= --param inline-unit-growth=100
 CFLAGS+= --param large-function-growth=1000
 .else
 # XXX Actually a gross hack just for Octeon because of the Simple Executive.
-CFLAGS+= --param inline-unit-growth=1000
+CFLAGS+= --param inline-unit-growth=10000
 CFLAGS+= --param large-function-growth=100000
+CFLAGS+= --param max-inline-insns-single=10000
 .endif
 .endif
 WERROR?= -Werror
