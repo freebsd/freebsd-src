@@ -4418,7 +4418,10 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			ccb->ccb_h.status = CAM_REQ_INVALID;
 			break;
 		}
-		xpt_done(ccb);
+		/*
+		 * This is not a queued CCB, so the caller expects it to be
+		 * complete when control is returned.
+		 */
 		break;
 	}
 #define	IS_CURRENT_SETTINGS(c)	(c->type == CTS_TYPE_CURRENT_SETTINGS)
