@@ -15,6 +15,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20101129:	p6	FreeBSD-SA-10:10.openssl
+	Fix OpenSSL multiple vulnerabilities.
+
 20100920:	p5	FreeBSD-SA-10:08.bzip2
 	Fix an integer overflow in RLE length parsing when decompressing
 	corrupt bzip2 data.
