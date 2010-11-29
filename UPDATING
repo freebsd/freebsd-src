@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20101129:	p4	FreeBSD-SA-10:10.openssl
+	Fix OpenSSL multiple vulnerabilities.
+
 20100920:	p3	FreeBSD-SA-10:08.bzip2
 	Fix an integer overflow in RLE length parsing when decompressing
 	corrupt bzip2 data.
