@@ -2603,7 +2603,14 @@ isp_handle_platform_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *inot)
 			msg = "PRLO";
 			break;
 		case PLOGI:
-			msg = "PLOGI";
+		case PRLI:
+			/*
+			 * Treat PRLI the same as PLOGI and make a database entry for it.
+			 */
+			if (inot->in_status_subcode == PLOGI)
+				msg = "PLOGI";
+			else
+				msg = "PRLI";
 			if (ISP_FW_NEWER_THAN(isp, 4, 0, 25)) {
 				ptr = (uint8_t *)inot;  /* point to unswizzled entry! */
 				wwn =	(((uint64_t) ptr[IN24XX_PLOGI_WWPN_OFF])   << 56) |
@@ -2618,9 +2625,6 @@ isp_handle_platform_notify_24xx(ispsoftc_t *isp, in_fcentry_24xx_t *inot)
 				wwn = INI_NONE;
 			}
 			isp_add_wwn_entry(isp, chan, wwn, nphdl, portid);
-			break;
-		case PRLI:
-			msg = "PRLI";
 			break;
 		case PDISC:
 			msg = "PDISC";
