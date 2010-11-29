@@ -992,7 +992,9 @@ start:
 		if (s->msg_callback)
 			s->msg_callback(0, s->version, SSL3_RT_HANDSHAKE, s->s3->handshake_fragment, 4, s, s->msg_callback_arg);
 
-		if (0)
+		if (SSL_is_init_finished(s) &&
+			!(s->s3->flags & SSL3_FLAGS_NO_RENEGOTIATE_CIPHERS) &&
+			!s->s3->renegotiate)
 			{
 			ssl3_renegotiate(s);
 			if (ssl3_renegotiate_check(s))
@@ -1156,7 +1158,8 @@ start:
 	/* Unexpected handshake message (Client Hello, or protocol violation) */
 	if ((s->s3->handshake_fragment_len >= 4) &&	!s->in_handshake)
 		{
-		if (0)
+		if (((s->state&SSL_ST_MASK) == SSL_ST_OK) &&
+			!(s->s3->flags & SSL3_FLAGS_NO_RENEGOTIATE_CIPHERS))
 			{
 #if 0 /* worked only because C operator preferences are not as expected (and
        * because this is not really needed for clients except for detecting

@@ -25,7 +25,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-/* $FreeBSD$ */
 
 #include <openssl/objects.h>
 #include <openssl/engine.h>
