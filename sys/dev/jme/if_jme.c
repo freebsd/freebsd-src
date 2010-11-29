@@ -740,7 +740,7 @@ jme_attach(device_t dev)
 	/* Set up MII bus. */
 	error = mii_attach(dev, &sc->jme_miibus, ifp, jme_mediachange,
 	    jme_mediastatus, BMSR_DEFCAPMASK, sc->jme_phyaddr, MII_OFFSET_ANY,
-	    0);
+	    MIIF_DOPAUSE);
 	if (error != 0) {
 		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
@@ -2024,12 +2024,10 @@ jme_mac_config(struct jme_softc *sc)
 		txmac &= ~(TXMAC_COLL_ENB | TXMAC_CARRIER_SENSE |
 		    TXMAC_BACKOFF | TXMAC_CARRIER_EXT |
 		    TXMAC_FRAME_BURST);
-#ifdef notyet
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_TXPAUSE) != 0)
 			txpause |= TXPFC_PAUSE_ENB;
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_RXPAUSE) != 0)
 			rxmac |= RXMAC_FC_ENB;
-#endif
 		/* Disable retry transmit timer/retry limit. */
 		CSR_WRITE_4(sc, JME_TXTRHD, CSR_READ_4(sc, JME_TXTRHD) &
 		    ~(TXTRHD_RT_PERIOD_ENB | TXTRHD_RT_LIMIT_ENB));
