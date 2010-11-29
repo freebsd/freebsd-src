@@ -2576,6 +2576,8 @@ init386(first)
 		pmap_kenter(pa + KERNBASE, pa);
 	dpcpu_init((void *)(first + KERNBASE), 0);
 	first += DPCPU_SIZE;
+	physfree += DPCPU_SIZE;
+	init_first += DPCPU_SIZE / PAGE_SIZE;
 
 	PCPU_SET(prvspace, pc);
 	PCPU_SET(curthread, &thread0);
