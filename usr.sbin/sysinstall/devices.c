@@ -91,7 +91,7 @@ static struct _devname {
     DISK("ipsd%d",	"IBM ServeRAID RAID array",		4),
     DISK("mfid%d",	"LSI MegaRAID SAS array",		4),
     FLOPPY("fd%d",	"floppy drive unit A",			4),
-    SERIAL("cuad%d",	"%s on device %s (COM%d)",		16),
+    SERIAL("cuau%d",	"%s on device %s (COM%d)",		16),
     USB("da%da",	"USB Mass Storage Device",		16),
     NETWORK("ae",	"Attansic/Atheros L2 Fast Ethernet"),
     NETWORK("age",	"Attansic/Atheros L1 Gigabit Ethernet"),
