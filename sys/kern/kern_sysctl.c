@@ -1303,36 +1303,39 @@ int
 sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
     int *nindx, struct sysctl_req *req)
 {
+	struct sysctl_oid_list *lsp;
 	struct sysctl_oid *oid;
 	int indx;
 
 	SYSCTL_ASSERT_LOCKED();
-	oid = SLIST_FIRST(&sysctl__children);
+	lsp = &sysctl__children;
 	indx = 0;
-	while (oid && indx < CTL_MAXNAME) {
-		if (oid->oid_number == name[indx]) {
-			indx++;
-			if (oid->oid_kind & CTLFLAG_NOLOCK)
-				req->lock = REQ_UNLOCKED;
-			if ((oid->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
-				if (oid->oid_handler != NULL ||
-				    indx == namelen) {
-					*noid = oid;
-					if (nindx != NULL)
-						*nindx = indx;
-					return (0);
-				}
-				oid = SLIST_FIRST(SYSCTL_CHILDREN(oid));
-			} else if (indx == namelen) {
+	while (indx < CTL_MAXNAME) {
+		SLIST_FOREACH(oid, lsp, oid_link) {
+			if (oid->oid_number == name[indx])
+				break;
+		}
+		if (oid == NULL)
+			return (ENOENT);
+
+		indx++;
+		if (oid->oid_kind & CTLFLAG_NOLOCK)
+			req->lock = REQ_UNLOCKED;
+		if ((oid->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
+			if (oid->oid_handler != NULL || indx == namelen) {
 				*noid = oid;
 				if (nindx != NULL)
 					*nindx = indx;
 				return (0);
-			} else {
-				return (ENOTDIR);
 			}
+			lsp = SYSCTL_CHILDREN(oid);
+		} else if (indx == namelen) {
+			*noid = oid;
+			if (nindx != NULL)
+				*nindx = indx;
+			return (0);
 		} else {
-			oid = SLIST_NEXT(oid, oid_link);
+			return (ENOTDIR);
 		}
 	}
 	return (ENOENT);
