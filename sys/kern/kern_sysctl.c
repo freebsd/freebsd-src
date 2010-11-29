@@ -676,7 +676,7 @@ sysctl_sysctl_name(SYSCTL_HANDLER_ARGS)
 			if (oid->oid_handler)
 				break;
 
-			lsp2 = (struct sysctl_oid_list *)oid->oid_arg1;
+			lsp2 = SYSCTL_CHILDREN(oid);
 			break;
 		}
 		lsp = lsp2;
@@ -707,7 +707,7 @@ sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen,
 			if (oidp->oid_handler) 
 				/* We really should call the handler here...*/
 				return (0);
-			lsp = (struct sysctl_oid_list *)oidp->oid_arg1;
+			lsp = SYSCTL_CHILDREN(oidp);
 			if (!sysctl_sysctl_next_ls(lsp, 0, 0, next+1, 
 				len, level+1, oidpp))
 				return (0);
@@ -722,7 +722,7 @@ sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen,
 				return (0);
 			if (oidp->oid_handler)
 				return (0);
-			lsp = (struct sysctl_oid_list *)oidp->oid_arg1;
+			lsp = SYSCTL_CHILDREN(oidp);
 			if (!sysctl_sysctl_next_ls(lsp, name+1, namelen-1, 
 				next+1, len, level+1, oidpp))
 				return (0);
@@ -734,7 +734,7 @@ sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen,
 		if (oidp->oid_handler)
 			continue;
 
-		lsp = (struct sysctl_oid_list *)oidp->oid_arg1;
+		lsp = SYSCTL_CHILDREN(oidp);
 		if (!sysctl_sysctl_next_ls(lsp, name+1, namelen-1, next+1, 
 			len, level+1, oidpp))
 			return (0);
@@ -812,7 +812,7 @@ name2oid(char *name, int *oid, int *len, struct sysctl_oid **oidpp)
 		if (oidp->oid_handler)
 			break;
 
-		lsp = (struct sysctl_oid_list *)oidp->oid_arg1;
+		lsp = SYSCTL_CHILDREN(oidp);
 		oidp = SLIST_FIRST(lsp);
 		name = p+1;
 		for (p = name; *p && *p != '.'; p++) 
@@ -1322,8 +1322,7 @@ sysctl_find_oid(int *name, u_int namelen, struct sysctl_oid **noid,
 						*nindx = indx;
 					return (0);
 				}
-				oid = SLIST_FIRST(
-				    (struct sysctl_oid_list *)oid->oid_arg1);
+				oid = SLIST_FIRST(SYSCTL_CHILDREN(oid));
 			} else if (indx == namelen) {
 				*noid = oid;
 				if (nindx != NULL)
