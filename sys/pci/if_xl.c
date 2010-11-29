@@ -559,6 +559,7 @@ xl_miibus_statchg(device_t dev)
 {
 	struct xl_softc		*sc;
 	struct mii_data		*mii;
+	uint8_t			macctl;
 
 	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->xl_miibus);
@@ -567,11 +568,22 @@ xl_miibus_statchg(device_t dev)
 
 	/* Set ASIC's duplex mode to match the PHY. */
 	XL_SEL_WIN(3);
-	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX)
-		CSR_WRITE_1(sc, XL_W3_MAC_CTRL, XL_MACCTRL_DUPLEX);
-	else
-		CSR_WRITE_1(sc, XL_W3_MAC_CTRL,
-		    (CSR_READ_1(sc, XL_W3_MAC_CTRL) & ~XL_MACCTRL_DUPLEX));
+	macctl = CSR_READ_1(sc, XL_W3_MAC_CTRL);
+	if ((IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) != 0) {
+		macctl |= XL_MACCTRL_DUPLEX;
+		if (sc->xl_type == XL_TYPE_905B) {
+			if ((IFM_OPTIONS(mii->mii_media_active) &
+			    IFM_ETH_RXPAUSE) != 0)
+				macctl |= XL_MACCTRL_FLOW_CONTROL_ENB;
+			else
+				macctl &= ~XL_MACCTRL_FLOW_CONTROL_ENB;
+		}
+	} else {
+		macctl &= ~XL_MACCTRL_DUPLEX;
+		if (sc->xl_type == XL_TYPE_905B)
+			macctl &= ~XL_MACCTRL_FLOW_CONTROL_ENB;
+	}
+	CSR_WRITE_1(sc, XL_W3_MAC_CTRL, macctl);
 }
 
 /*
@@ -1469,7 +1481,8 @@ xl_attach(device_t dev)
 		if ((sc->xl_flags & XL_FLAG_PHYOK) == 0)
 			phy = 24;
 		error = mii_attach(dev, &sc->xl_miibus, ifp, xl_ifmedia_upd,
-		    xl_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
+		    xl_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY,
+		    sc->xl_type == XL_TYPE_905B ? MIIF_DOPAUSE : 0);
 		if (error != 0) {
 			device_printf(dev, "attaching PHYs failed\n");
 			goto fail;
