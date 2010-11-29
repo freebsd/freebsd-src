@@ -1796,8 +1796,8 @@ product HTC LEGENDINTERNET	0x0ffe	HTC Legend Internet Sharing
 
 /* HUAWEI products */
 product HUAWEI MOBILE		0x1001	Huawei Mobile
-product HUAWEI E220		0x1003	Huawei HSDPA modem
-product HUAWEI E220BIS		0x1004	Huawei HSDPA modem
+product HUAWEI E220		0x1003	HSDPA modem
+product HUAWEI E220BIS		0x1004	HSDPA modem
 product HUAWEI E1401		0x1401	3G modem
 product HUAWEI E1402		0x1402	3G modem
 product HUAWEI E1403		0x1403	3G modem
@@ -1809,7 +1809,7 @@ product HUAWEI E1408		0x1408	3G modem
 product HUAWEI E1409		0x1409	3G modem
 product HUAWEI E140A		0x140a	3G modem
 product HUAWEI E140B		0x140b	3G modem
-product HUAWEI E180V		0x140c	Huawei Mobile E180V
+product HUAWEI E180V		0x140c	E180V
 product HUAWEI E140D		0x140d	3G modem
 product HUAWEI E140E		0x140e	3G modem
 product HUAWEI E140F		0x140f	3G modem
@@ -1863,8 +1863,8 @@ product HUAWEI E143E		0x143e	3G modem
 product HUAWEI E143F		0x143f	3G modem
 product HUAWEI E1752		0x1446	3G modem
 product HUAWEI K3765		0x1465	3G modem
-product HUAWEI E14AC		0x14ac	3G modem
-product HUAWEI K3765_INIT	0x1520	HUAWEI Mobile K3765 Initial
+product HUAWEI E1820		0x14ac	E1820 HSPA+ USB Slider
+product HUAWEI K3765_INIT	0x1520	K3765 Initial
 
 /* HUAWEI 3com products */
 product HUAWEI3COM WUB320G	0x0009	Aolynk WUB320g
@@ -2094,7 +2094,10 @@ product LOGITEC RT2870_2	0x0163	RT2870
 product LOGITEC RT2870_3	0x0164	RT2870
 
 /* Longcheer Holdings, Ltd. products */
-product LONGCHEER WM66		0x6061	Longcheer WM66 HSDPA USB modem
+product LONGCHEER WM66		0x6061	Longcheer WM66 HSDPA
+product LONGCHEER W14		0x9603	Mobilcom W14
+product LONGCHEER DISK		0xf000	Driver disk
+
 
 /* Lucent products */
 product LUCENT EVALKIT		0x1001	USS-720 evaluation kit
@@ -2620,15 +2623,11 @@ product QISDA H20_2		0x4519	3G modem
 
 /* Qualcomm products */
 product QUALCOMM CDMA_MSM	0x6000	CDMA Technologies MSM phone
+product QUALCOMM2 MF330		0x6613	MF330
 product QUALCOMM2 RWT_FCT	0x3100	RWT FCT-CDMA 2000 1xRTT modem
 product QUALCOMM2 CDMA_MSM	0x3196	CDMA Technologies MSM modem
 product QUALCOMM2 AC8700	0x6000	AC8700
-product QUALCOMM2 MF330		0x6613	MF330
 product QUALCOMMINC CDMA_MSM	0x0001	CDMA Technologies MSM modem
-product QUALCOMMINC ZTE_STOR	0x2000	USB ZTE Storage
-product QUALCOMMINC AC8710	0xfff1	3G modem
-product QUALCOMMINC AC2726	0xfff5	3G modem
-product QUALCOMMINC AC8700	0xfffe	CDMA 1xEVDO USB modem
 product QUALCOMMINC E0002	0x0002	3G modem
 product QUALCOMMINC E0003	0x0003	3G modem
 product QUALCOMMINC E0004	0x0004	3G modem
@@ -2694,9 +2693,12 @@ product QUALCOMMINC E0076	0x0076	3G modem
 product QUALCOMMINC E0078	0x0078	3G modem
 product QUALCOMMINC E0082	0x0082	3G modem
 product QUALCOMMINC E0086	0x0086	3G modem
-product QUALCOMMINC E2000	0x2000	3G modem
+product QUALCOMMINC ZTE_STOR	0x2000	USB ZTE Storage
 product QUALCOMMINC E2002	0x2002	3G modem
 product QUALCOMMINC E2003	0x2003	3G modem
+product QUALCOMMINC AC8710	0xfff1	3G modem
+product QUALCOMMINC AC2726	0xfff5	3G modem
+product QUALCOMMINC AC8700	0xfffe	CDMA 1xEVDO USB modem
 
 /* Quanta products */
 product QUANTA RW6815_1		0x00ce	HP iPAQ rw6815
@@ -3278,9 +3280,6 @@ product UMEDIA AR5523_2_NF	0x3206	AR5523 (no firmware)
 
 /* Universal Access products */
 product UNIACCESS PANACHE	0x0101	Panache Surf USB ISDN Adapter
-
-/* Unknown vendors */
-product UNKNOWN5 USB2IDEBRIDGE	0x00ff	USB 2.0 ATA/SATA Bridge
 
 /* USI products */
 product USI MC60		0x10c5	MC60 Serial
