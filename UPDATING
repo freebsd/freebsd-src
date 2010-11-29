@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20101129:	p16	FreeBSD-SA-10:10.openssl
+	Fix OpenSSL multiple vulnerabilities.
+
 20101110:	p15	FreeBSD-SA-10:09.pseudofs
 	Don't unlock a mutex which wasn't locked.
 
