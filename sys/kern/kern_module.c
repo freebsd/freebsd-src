@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 
 static MALLOC_DEFINE(M_MODULE, "module", "module data structures");
 
-typedef TAILQ_HEAD(, module) modulelist_t;
 struct module {
 	TAILQ_ENTRY(module)	link;	/* chain together all modules */
 	TAILQ_ENTRY(module)	flink;	/* all modules in a file */
@@ -61,7 +60,7 @@ struct module {
 
 #define MOD_EVENT(mod, type)	(mod)->handler((mod), (type), (mod)->arg)
 
-static modulelist_t modules;
+static TAILQ_HEAD(modulelist, module) modules;
 struct sx modules_sx;
 static int nextid = 1;
 static void module_shutdown(void *, int);
@@ -101,7 +100,7 @@ module_shutdown(void *arg1, int arg2)
 		return;
 	mtx_lock(&Giant);
 	MOD_SLOCK;
-	TAILQ_FOREACH(mod, &modules, link)
+	TAILQ_FOREACH_REVERSE(mod, &modules, modulelist, link)
 		MOD_EVENT(mod, MOD_SHUTDOWN);
 	MOD_SUNLOCK;
 	mtx_unlock(&Giant);
