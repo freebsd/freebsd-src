@@ -90,7 +90,7 @@ static int		octe_miibus_writereg(device_t, int, int, int);
 
 static void		octe_init(void *);
 static void		octe_stop(void *);
-static void		octe_start(struct ifnet *);
+static int		octe_transmit(struct ifnet *, struct mbuf *);
 
 static int		octe_mii_medchange(struct ifnet *);
 static void		octe_mii_medstat(struct ifnet *, struct ifmediareq *);
@@ -124,16 +124,6 @@ static devclass_t octe_devclass;
 
 DRIVER_MODULE(octe, octebus, octe_driver, octe_devclass, 0, 0);
 DRIVER_MODULE(miibus, octe, miibus_driver, miibus_devclass, 0, 0);
-
-static driver_t pow_driver = {
-	"pow",
-	octe_methods,
-	sizeof (cvm_oct_private_t),
-};
-
-static devclass_t pow_devclass;
-
-DRIVER_MODULE(pow, octebus, pow_driver, pow_devclass, 0, 0);
 
 static int
 octe_probe(device_t dev)
@@ -185,7 +175,6 @@ octe_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST | IFF_ALLMULTI;
 	ifp->if_init = octe_init;
 	ifp->if_ioctl = octe_ioctl;
-	ifp->if_start = octe_start;
 
 	priv->if_flags = ifp->if_flags;
 
@@ -197,6 +186,8 @@ octe_attach(device_t dev)
 	}
 
 	ether_ifattach(ifp, priv->mac);
+
+	ifp->if_transmit = octe_transmit;
 
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities = IFCAP_VLAN_MTU | IFCAP_HWCSUM;
@@ -317,38 +308,20 @@ octe_stop(void *arg)
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 }
 
-static void
-octe_start(struct ifnet *ifp)
+static int
+octe_transmit(struct ifnet *ifp, struct mbuf *m)
 {
 	cvm_oct_private_t *priv;
-	struct mbuf *m;
-	int error;
 
 	priv = ifp->if_softc;
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) != IFF_DRV_RUNNING)
-		return;
-
-	OCTE_TX_LOCK(priv);
-	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
-
-		OCTE_TX_UNLOCK(priv);
-
-		if (priv->queue != -1) {
-			error = cvm_oct_xmit(m, ifp);
-		} else {
-			error = cvm_oct_xmit_pow(m, ifp);
-		}
-
-		if (error != 0) {
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			return;
-		}
-
-		OCTE_TX_LOCK(priv);
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING) {
+		m_freem(m);
+		return (0);
 	}
-	OCTE_TX_UNLOCK(priv);
+
+	return (cvm_oct_xmit(m, ifp));
 }
 
 static int

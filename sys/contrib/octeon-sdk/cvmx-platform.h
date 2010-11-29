@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -47,7 +49,7 @@
  * This file is resposible for including all system dependent
  * headers for the cvmx-* files.
  *
- * <hr>$Revision: 41586 $<hr>
+ * <hr>$Revision: 49448 $<hr>
 */
 
 #ifndef __CVMX_PLATFORM_H__
@@ -104,7 +106,7 @@
        should only use features available on all Octeon models.  */
     #define CVMX_BUILD_FOR_TOOLCHAIN
 #elif defined(__FreeBSD__) && defined(_KERNEL)
-    #define CVMX_BUILD_FOR_FREEBSD
+    #define CVMX_BUILD_FOR_FREEBSD_KERNEL
 #else
     /* We are building a simple exec standalone image for Octeon */
     #define CVMX_BUILD_FOR_STANDALONE
@@ -119,12 +121,15 @@
  * This is for data structures use by software ONLY,
  * as it is not 1-1 VA-PA mapped.
  */
-#if defined(CVMX_BUILD_FOR_FREEBSD)
+#if defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
 #define CVMX_SHARED
 #else
+#ifndef CVMX_BUILD_FOR_LINUX_HOST
 #define CVMX_SHARED __attribute__ ((cvmx_shared))
+#else
+#define CVMX_SHARED
 #endif
-
+#endif
 
 #if defined(CVMX_BUILD_FOR_UBOOT)
 
@@ -150,6 +155,35 @@
     #include <fcntl.h>
     #include <sys/mman.h>
     #include <unistd.h>
+    #include <errno.h>
+    #include <sys/sysmips.h>
+    #define MIPS_CAVIUM_XKPHYS_READ	   2010	/* XKPHYS */
+    #define MIPS_CAVIUM_XKPHYS_WRITE	   2011	/* XKPHYS */
+
+/* Enable access to XKPHYS segments. Warning message is printed in case of
+   error. If warn_count is set, the warning message is not displayed. */
+static inline void cvmx_linux_enable_xkphys_access(int32_t warn_count)
+{
+    int ret;
+    ret = sysmips(MIPS_CAVIUM_XKPHYS_WRITE, getpid(), 3, 0);
+    if (ret != 0 && !warn_count) {
+        switch(errno) {
+            case EINVAL:
+                perror("sysmips(MIPS_CAVIUM_XKPHYS_WRITE) failed.\n"
+	             "  Did you configure your kernel with both:\n"
+	             "     CONFIG_CAVIUM_OCTEON_USER_MEM_PER_PROCESS *and*\n"
+	             "     CONFIG_CAVIUM_OCTEON_USER_IO_PER_PROCESS?");
+                break;
+            case EPERM:
+                perror("sysmips(MIPS_CAVIUM_XKPHYS_WRITE) failed.\n"
+	             "  Are you running as root?");
+                break;
+            default:
+                perror("sysmips(MIPS_CAVIUM_XKPHYS_WRITE) failed");
+                break;
+        }
+    }
+}
 
 #elif defined(CVMX_BUILD_FOR_LINUX_HOST)
 
@@ -193,7 +227,7 @@
     #include <string.h>
     #include <assert.h>
 
-#elif defined(CVMX_BUILD_FOR_FREEBSD)
+#elif defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
 
     #include <mips/cavium/cvmx_config.h>
 

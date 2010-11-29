@@ -684,9 +684,7 @@ npxdna(void)
 		fpurstor(&npx_initialstate);
 		if (pcb->pcb_initial_npxcw != __INITIAL_NPXCW__)
 			fldcw(pcb->pcb_initial_npxcw);
-		pcb->pcb_flags |= PCB_NPXINITDONE;
-		if (PCB_USER_FPU(pcb))
-			pcb->pcb_flags |= PCB_NPXUSERINITDONE;
+		npxuserinited(curthread);
 	} else {
 		/*
 		 * The following fpurstor() may cause an IRQ13 when the
@@ -767,11 +765,12 @@ npxdrop()
 }
 
 /*
- * Get the state of the FPU without dropping ownership (if possible).
- * It returns the FPU ownership status.
+ * Get the user state of the FPU into pcb->pcb_user_save without
+ * dropping ownership (if possible).  It returns the FPU ownership
+ * status.
  */
 int
-npxgetregs(struct thread *td, union savefpu *addr)
+npxgetregs(struct thread *td)
 {
 	struct pcb *pcb;
 
@@ -780,13 +779,15 @@ npxgetregs(struct thread *td, union savefpu *addr)
 
 	pcb = td->td_pcb;
 	if ((pcb->pcb_flags & PCB_NPXINITDONE) == 0) {
-		bcopy(&npx_initialstate, addr, sizeof(npx_initialstate));
-		SET_FPU_CW(addr, pcb->pcb_initial_npxcw);
-		return (_MC_FPOWNED_NONE);
+		bcopy(&npx_initialstate, &pcb->pcb_user_save,
+		    sizeof(npx_initialstate));
+		SET_FPU_CW(&pcb->pcb_user_save, pcb->pcb_initial_npxcw);
+		npxuserinited(td);
+		return (_MC_FPOWNED_PCB);
 	}
 	critical_enter();
 	if (td == PCPU_GET(fpcurthread)) {
-		fpusave(addr);
+		fpusave(&pcb->pcb_user_save);
 #ifdef CPU_ENABLE_SSE
 		if (!cpu_fxsr)
 #endif
@@ -800,49 +801,22 @@ npxgetregs(struct thread *td, union savefpu *addr)
 		return (_MC_FPOWNED_FPU);
 	} else {
 		critical_exit();
-		bcopy(pcb->pcb_save, addr, sizeof(*addr));
 		return (_MC_FPOWNED_PCB);
 	}
 }
 
-int
-npxgetuserregs(struct thread *td, union savefpu *addr)
+void
+npxuserinited(struct thread *td)
 {
 	struct pcb *pcb;
 
-	if (!hw_float)
-		return (_MC_FPOWNED_NONE);
-
 	pcb = td->td_pcb;
-	if ((pcb->pcb_flags & PCB_NPXUSERINITDONE) == 0) {
-		bcopy(&npx_initialstate, addr, sizeof(npx_initialstate));
-		SET_FPU_CW(addr, pcb->pcb_initial_npxcw);
-		return (_MC_FPOWNED_NONE);
-	}
-	critical_enter();
-	if (td == PCPU_GET(fpcurthread) && PCB_USER_FPU(pcb)) {
-		fpusave(addr);
-#ifdef CPU_ENABLE_SSE
-		if (!cpu_fxsr)
-#endif
-			/*
-			 * fnsave initializes the FPU and destroys whatever
-			 * context it contains.  Make sure the FPU owner
-			 * starts with a clean state next time.
-			 */
-			npxdrop();
-		critical_exit();
-		return (_MC_FPOWNED_FPU);
-	} else {
-		critical_exit();
-		bcopy(&pcb->pcb_user_save, addr, sizeof(*addr));
-		return (_MC_FPOWNED_PCB);
-	}
+	if (PCB_USER_FPU(pcb))
+		pcb->pcb_flags |= PCB_NPXINITDONE;
+	pcb->pcb_flags |= PCB_NPXUSERINITDONE;
 }
 
-/*
- * Set the state of the FPU.
- */
+
 void
 npxsetregs(struct thread *td, union savefpu *addr)
 {
@@ -853,46 +827,22 @@ npxsetregs(struct thread *td, union savefpu *addr)
 
 	pcb = td->td_pcb;
 	critical_enter();
-	if (td == PCPU_GET(fpcurthread)) {
-#ifdef CPU_ENABLE_SSE
-		if (!cpu_fxsr)
-#endif
-			fnclex();	/* As in npxdrop(). */
-		fpurstor(addr);
-		critical_exit();
-	} else {
-		critical_exit();
-		bcopy(addr, pcb->pcb_save, sizeof(*addr));
-	}
-	if (PCB_USER_FPU(pcb))
-		pcb->pcb_flags |= PCB_NPXUSERINITDONE;
-	pcb->pcb_flags |= PCB_NPXINITDONE;
-}
-
-void
-npxsetuserregs(struct thread *td, union savefpu *addr)
-{
-	struct pcb *pcb;
-
-	if (!hw_float)
-		return;
-
-	pcb = td->td_pcb;
-	critical_enter();
 	if (td == PCPU_GET(fpcurthread) && PCB_USER_FPU(pcb)) {
 #ifdef CPU_ENABLE_SSE
 		if (!cpu_fxsr)
 #endif
 			fnclex();	/* As in npxdrop(). */
-		fpurstor(addr);
+		if (((uintptr_t)addr & 0xf) != 0) {
+			bcopy(addr, &pcb->pcb_user_save, sizeof(*addr));
+			fpurstor(&pcb->pcb_user_save);
+		} else
+			fpurstor(addr);
 		critical_exit();
 		pcb->pcb_flags |= PCB_NPXUSERINITDONE | PCB_NPXINITDONE;
 	} else {
 		critical_exit();
 		bcopy(addr, &pcb->pcb_user_save, sizeof(*addr));
-		if (PCB_USER_FPU(pcb))
-			pcb->pcb_flags |= PCB_NPXINITDONE;
-		pcb->pcb_flags |= PCB_NPXUSERINITDONE;
+		npxuserinited(td);
 	}
 }
 
@@ -938,7 +888,7 @@ fpu_clean_state(void)
 	 * the x87 stack, but we don't care since we're about to call
 	 * fxrstor() anyway.
 	 */
-	__asm __volatile("ffree %%st(7); fld %0" : : "m" (dummy_variable));
+	__asm __volatile("ffree %%st(7); flds %0" : : "m" (dummy_variable));
 }
 #endif /* CPU_ENABLE_SSE */
 

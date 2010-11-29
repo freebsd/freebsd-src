@@ -201,13 +201,6 @@ static struct resource_spec jme_irq_spec_legacy[] = {
 
 static struct resource_spec jme_irq_spec_msi[] = {
 	{ SYS_RES_IRQ,		1,		RF_ACTIVE },
-	{ SYS_RES_IRQ,		2,		RF_ACTIVE },
-	{ SYS_RES_IRQ,		3,		RF_ACTIVE },
-	{ SYS_RES_IRQ,		4,		RF_ACTIVE },
-	{ SYS_RES_IRQ,		5,		RF_ACTIVE },
-	{ SYS_RES_IRQ,		6,		RF_ACTIVE },
-	{ SYS_RES_IRQ,		7,		RF_ACTIVE },
-	{ SYS_RES_IRQ,		8,		RF_ACTIVE },
 	{ -1,			0,		0 }
 };
 
@@ -578,11 +571,16 @@ jme_attach(device_t dev)
 		device_printf(dev, "MSI count : %d\n", msic);
 	}
 
+	/* Use 1 MSI/MSI-X. */
+	if (msixc > 1)
+		msixc = 1;
+	if (msic > 1)
+		msic = 1;
 	/* Prefer MSIX over MSI. */
 	if (msix_disable == 0 || msi_disable == 0) {
-		if (msix_disable == 0 && msixc == JME_MSIX_MESSAGES &&
+		if (msix_disable == 0 && msixc > 0 &&
 		    pci_alloc_msix(dev, &msixc) == 0) {
-			if (msic == JME_MSIX_MESSAGES) {
+			if (msixc == 1) {
 				device_printf(dev, "Using %d MSIX messages.\n",
 				    msixc);
 				sc->jme_flags |= JME_FLAG_MSIX;
@@ -591,9 +589,8 @@ jme_attach(device_t dev)
 				pci_release_msi(dev);
 		}
 		if (msi_disable == 0 && (sc->jme_flags & JME_FLAG_MSIX) == 0 &&
-		    msic == JME_MSI_MESSAGES &&
-		    pci_alloc_msi(dev, &msic) == 0) {
-			if (msic == JME_MSI_MESSAGES) {
+		    msic > 0 && pci_alloc_msi(dev, &msic) == 0) {
+			if (msic == 1) {
 				device_printf(dev, "Using %d MSI messages.\n",
 				    msic);
 				sc->jme_flags |= JME_FLAG_MSI;
@@ -735,7 +732,7 @@ jme_attach(device_t dev)
 	/* Set up MII bus. */
 	error = mii_attach(dev, &sc->jme_miibus, ifp, jme_mediachange,
 	    jme_mediastatus, BMSR_DEFCAPMASK, sc->jme_phyaddr, MII_OFFSET_ANY,
-	    0);
+	    MIIF_DOPAUSE);
 	if (error != 0) {
 		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
@@ -786,13 +783,7 @@ jme_attach(device_t dev)
 	taskqueue_start_threads(&sc->jme_tq, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(sc->jme_dev));
 
-	if ((sc->jme_flags & JME_FLAG_MSIX) != 0)
-		msic = JME_MSIX_MESSAGES;
-	else if ((sc->jme_flags & JME_FLAG_MSI) != 0)
-		msic = JME_MSI_MESSAGES;
-	else
-		msic = 1;
-	for (i = 0; i < msic; i++) {
+	for (i = 0; i < 1; i++) {
 		error = bus_setup_intr(dev, sc->jme_irq[i],
 		    INTR_TYPE_NET | INTR_MPSAFE, jme_intr, NULL, sc,
 		    &sc->jme_intrhand[i]);
@@ -820,7 +811,7 @@ jme_detach(device_t dev)
 {
 	struct jme_softc *sc;
 	struct ifnet *ifp;
-	int i, msic;
+	int i;
 
 	sc = device_get_softc(dev);
 
@@ -855,14 +846,7 @@ jme_detach(device_t dev)
 		sc->jme_ifp = NULL;
 	}
 
-	msic = 1;
-	if ((sc->jme_flags & JME_FLAG_MSIX) != 0)
-		msic = JME_MSIX_MESSAGES;
-	else if ((sc->jme_flags & JME_FLAG_MSI) != 0)
-		msic = JME_MSI_MESSAGES;
-	else
-		msic = 1;
-	for (i = 0; i < msic; i++) {
+	for (i = 0; i < 1; i++) {
 		if (sc->jme_intrhand[i] != NULL) {
 			bus_teardown_intr(dev, sc->jme_irq[i],
 			    sc->jme_intrhand[i]);
@@ -2032,12 +2016,10 @@ jme_mac_config(struct jme_softc *sc)
 		txmac &= ~(TXMAC_COLL_ENB | TXMAC_CARRIER_SENSE |
 		    TXMAC_BACKOFF | TXMAC_CARRIER_EXT |
 		    TXMAC_FRAME_BURST);
-#ifdef notyet
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_TXPAUSE) != 0)
 			txpause |= TXPFC_PAUSE_ENB;
 		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_RXPAUSE) != 0)
 			rxmac |= RXMAC_FC_ENB;
-#endif
 		/* Disable retry transmit timer/retry limit. */
 		CSR_WRITE_4(sc, JME_TXTRHD, CSR_READ_4(sc, JME_TXTRHD) &
 		    ~(TXTRHD_RT_PERIOD_ENB | TXTRHD_RT_LIMIT_ENB));

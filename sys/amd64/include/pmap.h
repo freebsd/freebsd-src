@@ -125,15 +125,21 @@
 #define	NUPDPE		(NUPML4E*NPDPEPG)/* number of userland PDP pages */
 #define	NUPDE		(NUPDPE*NPDEPG)	/* number of userland PD entries */
 
-#define	NDMPML4E	2		/* number of dmap PML4 slots */
+/*
+ * NDMPML4E is the number of PML4 entries that are used to implement the
+ * direct map.  It must be a power of two.
+ */
+#define	NDMPML4E	2
 
 /*
- * The *PDI values control the layout of virtual memory
+ * The *PDI values control the layout of virtual memory.  The starting address
+ * of the direct map, which is controlled by DMPML4I, must be a multiple of
+ * its size.  (See the PHYS_TO_DMAP() and DMAP_TO_PHYS() macros.)
  */
 #define	PML4PML4I	(NPML4EPG/2)	/* Index of recursive pml4 mapping */
 
 #define	KPML4I		(NPML4EPG-1)	/* Top 512GB for KVM */
-#define	DMPML4I		(KPML4I-3)	/* Next 512GB down for direct map */
+#define	DMPML4I		rounddown(KPML4I - NDMPML4E, NDMPML4E) /* Below KVM */
 
 #define	KPDPI		(NPDPEPG-2)	/* kernbase at -2GB */
 

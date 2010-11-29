@@ -40,13 +40,6 @@ AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR W
  *      This kernel config option allows the user to control the number of
  *      packet and work queue buffers allocated by the driver. If this is zero,
  *      the driver uses the default from below.
- *  USE_MBUFS_IN_HW
- *      Tells the driver to populate the packet buffers with kernel mbufs.
- *      This allows the driver to receive packets without copying them. It also
- *      means that 32bit userspace can't access the packet buffers.
- *  USE_32BIT_SHARED
- *      This define tells the driver to allocate memory for buffers from the
- *      32bit sahred region instead of the kernel memory space.
  *  USE_HW_TCPUDP_CHECKSUM
  *      Controls if the Octeon TCP/UDP checksum engine is used for packet
  *      output. If this is zero, the kernel will perform the checksum in
@@ -62,14 +55,6 @@ AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR W
  */
 #ifndef CONFIG_CAVIUM_RESERVE32
 #define CONFIG_CAVIUM_RESERVE32 0
-#endif
-
-#if CONFIG_CAVIUM_RESERVE32
-	#define USE_32BIT_SHARED            1
-	#define USE_MBUFS_IN_HW           0
-#else
-	#define USE_32BIT_SHARED            0
-	#define USE_MBUFS_IN_HW           1
 #endif
 
 #define INTERRUPT_LIMIT             10000   /* Max interrupts per second per core */

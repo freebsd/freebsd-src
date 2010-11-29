@@ -347,6 +347,7 @@ ip1000phy_mii_phy_auto(struct mii_softc *sc, int media)
 	reg = 0;
 	if (isc->model == MII_MODEL_ICPLUS_IP1001) {
 		reg = PHY_READ(sc, IP1000PHY_MII_ANAR);
+		reg &= ~(IP1000PHY_ANAR_PAUSE | IP1000PHY_ANAR_APAUSE);
 		reg |= IP1000PHY_ANAR_NP;
 	}
 	reg |= IP1000PHY_ANAR_10T | IP1000PHY_ANAR_10T_FDX |

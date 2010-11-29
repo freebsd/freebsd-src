@@ -1336,6 +1336,7 @@ pmap_qremove(vm_offset_t sva, int count)
 		pmap_kremove(va);
 		va += PAGE_SIZE;
 	}
+	PT_UPDATES_FLUSH();
 	pmap_invalidate_range(kernel_pmap, sva, va);
 	critical_exit();
 	vm_page_unlock_queues();

@@ -46,54 +46,6 @@ __FBSDID("$FreeBSD$");
 
 extern int octeon_is_simulation(void);
 extern cvmx_bootinfo_t *octeon_bootinfo;
-extern int pow_send_group;
-extern int always_use_pow;
-extern char pow_send_list[];
-
-
-/**
- * Get the low level ethernet statistics
- *
- * @param dev    Device to get the statistics from
- * @return Pointer to the statistics
- */
-#if 0
-static struct ifnet_stats *cvm_oct_common_get_stats(struct ifnet *ifp)
-{
-	cvmx_pip_port_status_t rx_status;
-	cvmx_pko_port_status_t tx_status;
-	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
-
-	if (priv->port < CVMX_PIP_NUM_INPUT_PORTS) {
-		if (octeon_is_simulation()) {
-			/* The simulator doesn't support statistics */
-			memset(&rx_status, 0, sizeof(rx_status));
-			memset(&tx_status, 0, sizeof(tx_status));
-		} else {
-		cvmx_pip_get_port_status(priv->port, 1, &rx_status);
-		cvmx_pko_get_port_status(priv->port, 1, &tx_status);
-		}
-
-		priv->stats.rx_packets      += rx_status.inb_packets;
-		priv->stats.tx_packets      += tx_status.packets;
-		priv->stats.rx_bytes        += rx_status.inb_octets;
-		priv->stats.tx_bytes        += tx_status.octets;
-		priv->stats.multicast       += rx_status.multicast_packets;
-		priv->stats.rx_crc_errors   += rx_status.inb_errors;
-		priv->stats.rx_frame_errors += rx_status.fcs_align_err_packets;
-
-		/* The drop counter must be incremented atomically since the RX
-		   tasklet also increments it */
-#ifdef CONFIG_64BIT
-		cvmx_atomic_add64_nosync(&priv->stats.rx_dropped, rx_status.dropped_packets);
-#else
-		cvmx_atomic_add32_nosync((int32_t *)&priv->stats.rx_dropped, rx_status.dropped_packets);
-#endif
-	}
-
-	return &priv->stats;
-}
-#endif
 
 
 /**
@@ -222,6 +174,67 @@ int cvm_oct_common_change_mtu(struct ifnet *ifp, int new_mtu)
 
 
 /**
+ * Enable port.
+ */
+int cvm_oct_common_open(struct ifnet *ifp)
+{
+	cvmx_gmxx_prtx_cfg_t gmx_cfg;
+	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
+	int interface = INTERFACE(priv->port);
+	int index = INDEX(priv->port);
+	cvmx_helper_link_info_t link_info;
+
+	gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
+	gmx_cfg.s.en = 1;
+	cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmx_cfg.u64);
+
+        if (!octeon_is_simulation()) {
+             link_info = cvmx_helper_link_get(priv->port);
+             if (!link_info.s.link_up)  
+		if_link_state_change(ifp, LINK_STATE_DOWN);
+	     else
+		if_link_state_change(ifp, LINK_STATE_UP);
+        }
+
+	return 0;
+}
+
+
+/**
+ * Disable port.
+ */
+int cvm_oct_common_stop(struct ifnet *ifp)
+{
+	cvmx_gmxx_prtx_cfg_t gmx_cfg;
+	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
+	int interface = INTERFACE(priv->port);
+	int index = INDEX(priv->port);
+
+	gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
+	gmx_cfg.s.en = 0;
+	cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmx_cfg.u64);
+	return 0;
+}
+
+/**
+ * Poll for link status change.
+ */
+void cvm_oct_common_poll(struct ifnet *ifp)
+{
+	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
+	cvmx_helper_link_info_t link_info;
+
+	link_info = cvmx_helper_link_get(priv->port);
+	if (link_info.u64 == priv->link_info)
+		return;
+
+	link_info = cvmx_helper_link_autoconf(priv->port);
+	priv->link_info = link_info.u64;
+	priv->need_link_update = 1;
+}
+
+
+/**
  * Per network device initialization
  *
  * @param dev    Device to initialize
@@ -239,32 +252,14 @@ int cvm_oct_common_init(struct ifnet *ifp)
 		octeon_bootinfo->mac_addr_base[5] + count};
 	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
 
-	/* Force the interface to use the POW send if always_use_pow was
-	   specified or it is in the pow send list */
-	if ((pow_send_group != -1) && (always_use_pow || strstr(pow_send_list, if_name(ifp))))
-		priv->queue = -1;
-
 	ifp->if_mtu = ETHERMTU;
 
 	count++;
-
-#if 0
-	ifp->get_stats          = cvm_oct_common_get_stats;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	ifp->poll_controller    = cvm_oct_poll_controller;
-#endif
-#endif
 
 	cvm_oct_mdio_setup_device(ifp);
 
 	cvm_oct_common_set_mac_address(ifp, mac);
 	cvm_oct_common_change_mtu(ifp, ifp->if_mtu);
-
-#if 0
-	/* Zero out stats for port so we won't mistakenly show counters from the
-	   bootloader */
-	memset(ifp->get_stats(ifp), 0, sizeof(struct ifnet_stats));
-#endif
 
 	/*
 	 * Do any last-minute board-specific initialization.
