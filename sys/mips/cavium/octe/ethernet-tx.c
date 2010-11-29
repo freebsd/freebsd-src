@@ -143,6 +143,7 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 		/* Build the PKO command */
 		pko_command.u64 = 0;
 		pko_command.s.segs = 1;
+		pko_command.s.dontfree = 1; /* Do not put this buffer into the FPA.  */
 
 		work = NULL;
 	} else {
@@ -164,6 +165,7 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 
 			/* Build the PKO buffer pointer */
 			hw_buffer.u64 = 0;
+			hw_buffer.s.i = 1; /* Do not put this buffer into the FPA.  */
 			hw_buffer.s.addr = cvmx_ptr_to_phys(n->m_data);
 			hw_buffer.s.pool = 0;
 			hw_buffer.s.size = n->m_len;
@@ -182,12 +184,11 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 		pko_command.u64 = 0;
 		pko_command.s.segs = segs;
 		pko_command.s.gather = 1;
+		pko_command.s.dontfree = 0; /* Put the WQE above back into the FPA.  */
 	}
 
 	/* Finish building the PKO command */
 	pko_command.s.n2 = 1; /* Don't pollute L2 with the outgoing packet */
-	pko_command.s.dontfree = 1;
-	pko_command.s.reg0 = priv->fau+qos*4;
 	pko_command.s.reg0 = priv->fau+qos*4;
 	pko_command.s.total_bytes = m->m_pkthdr.len;
 	pko_command.s.size0 = CVMX_FAU_OP_SIZE_32;
@@ -200,6 +201,11 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 		pko_command.s.ipoffp1 = ETHER_HDR_LEN + 1;
 	}
 
+	/*
+	 * XXX
+	 * Could use a different free queue (and different FAU address) per
+	 * core instead of per QoS, to reduce contention here.
+	 */
 	IF_LOCK(&priv->tx_free_queue[qos]);
 	if (USE_ASYNC_IOBDMA) {
 		/* Get the number of mbufs in use by the hardware */
@@ -242,8 +248,6 @@ int cvm_oct_xmit(struct mbuf *m, struct ifnet *ifp)
 		/* Pass it to any BPF listeners.  */
 		ETHER_BPF_MTAP(ifp, m);
 	}
-	if (work != NULL)
-		cvmx_fpa_free(work, CVMX_FPA_WQE_POOL, DONT_WRITEBACK(1));
 
 	/* Free mbufs not in use by the hardware */
 	if (_IF_QLEN(&priv->tx_free_queue[qos]) > in_use) {
