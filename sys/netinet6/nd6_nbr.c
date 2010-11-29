@@ -383,7 +383,6 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 	struct m_tag *mtag;
 	struct ip6_hdr *ip6;
 	struct nd_neighbor_solicit *nd_ns;
-	struct in6_addr *src, src_in;
 	struct ip6_moptions im6o;
 	int icmp6len;
 	int maxlen;
@@ -467,28 +466,35 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 		 * - saddr6 belongs to the outgoing interface.
 		 * Otherwise, we perform the source address selection as usual.
 		 */
-		struct ip6_hdr *hip6;		/* hold ip6 */
-		struct in6_addr *hsrc = NULL;
+		struct in6_addr *hsrc;
 
-		if ((ln != NULL) && ln->la_hold) {
-			/*
-			 * assuming every packet in la_hold has the same IP
-			 * header
-			 */
-			hip6 = mtod(ln->la_hold, struct ip6_hdr *);
-			/* XXX pullup? */
-			if (sizeof(*hip6) < ln->la_hold->m_len)
-				hsrc = &hip6->ip6_src;
-			else
-				hsrc = NULL;
+		hsrc = NULL;
+		if (ln != NULL) {
+			LLE_RLOCK(ln);
+			if (ln->la_hold != NULL) {
+				struct ip6_hdr *hip6;		/* hold ip6 */
+
+				/*
+				 * assuming every packet in la_hold has the same IP
+				 * header
+				 */
+				hip6 = mtod(ln->la_hold, struct ip6_hdr *);
+				/* XXX pullup? */
+				if (sizeof(*hip6) < ln->la_hold->m_len) {
+					ip6->ip6_src = hip6->ip6_src;
+					hsrc = &hip6->ip6_src;
+				}
+			}
+			LLE_RUNLOCK(ln);
 		}
 		if (hsrc && (ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp,
 		    hsrc)) != NULL) {
-			src = hsrc;
+			/* ip6_src set already. */
 			ifa_free(ifa);
 		} else {
 			int error;
 			struct sockaddr_in6 dst_sa;
+			struct in6_addr src_in;
 
 			bzero(&dst_sa, sizeof(dst_sa));
 			dst_sa.sin6_family = AF_INET6;
@@ -506,7 +512,7 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 				    error));
 				goto bad;
 			}
-			src = &src_in;
+			ip6->ip6_src = src_in;
 		}
 	} else {
 		/*
@@ -516,10 +522,8 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 		 * above), but we do so here explicitly to make the intention
 		 * clearer.
 		 */
-		bzero(&src_in, sizeof(src_in));
-		src = &src_in;
+		bzero(&ip6->ip6_src, sizeof(ip6->ip6_src));
 	}
-	ip6->ip6_src = *src;
 	nd_ns = (struct nd_neighbor_solicit *)(ip6 + 1);
 	nd_ns->nd_ns_type = ND_NEIGHBOR_SOLICIT;
 	nd_ns->nd_ns_code = 0;
