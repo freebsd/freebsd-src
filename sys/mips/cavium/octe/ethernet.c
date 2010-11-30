@@ -136,18 +136,11 @@ static void cvm_do_timer(void *arg)
 			int queues_per_port;
 			int qos;
 			cvm_oct_private_t *priv = (cvm_oct_private_t *)cvm_oct_device[port]->if_softc;
-			if (priv->poll) 
-			{
-				/* skip polling if we don't get the lock */
-				if (MDIO_TRYLOCK()) {
-					priv->poll(cvm_oct_device[port]);
-					MDIO_UNLOCK();
 
-					if (priv->need_link_update) {
-						updated++;
-						taskqueue_enqueue(cvm_oct_link_taskq, &priv->link_task);
-					}
-				}
+			cvm_oct_common_poll(priv->ifp);
+			if (priv->need_link_update) {
+				updated++;
+				taskqueue_enqueue(cvm_oct_link_taskq, &priv->link_task);
 			}
 
 			queues_per_port = cvmx_pko_get_num_queues(port);

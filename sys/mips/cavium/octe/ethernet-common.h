@@ -48,8 +48,6 @@ void cvm_oct_cleanup_module(void);
 int cvm_oct_rgmii_init(struct ifnet *ifp);
 void cvm_oct_rgmii_uninit(struct ifnet *ifp);
 int cvm_oct_sgmii_init(struct ifnet *ifp);
-void cvm_oct_sgmii_uninit(struct ifnet *ifp);
 int cvm_oct_spi_init(struct ifnet *ifp);
 void cvm_oct_spi_uninit(struct ifnet *ifp);
 int cvm_oct_xaui_init(struct ifnet *ifp);
-void cvm_oct_xaui_uninit(struct ifnet *ifp);
