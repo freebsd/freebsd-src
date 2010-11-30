@@ -60,11 +60,19 @@ struct mps_chain {
 	uint32_t			chain_busaddr;
 };
 
+/*
+ * This needs to be at least 2 to support SMP passthrough.
+ */
+#define	MPS_IOVEC_COUNT	2
+
 struct mps_command {
 	TAILQ_ENTRY(mps_command)	cm_link;
 	struct mps_softc		*cm_sc;
 	void				*cm_data;
 	u_int				cm_length;
+	struct uio			cm_uio;
+	struct iovec			cm_iovec[MPS_IOVEC_COUNT];
+	u_int				cm_max_segs;
 	u_int				cm_sglsize;
 	MPI2_SGE_IO_UNION		*cm_sge;
 	uint8_t				*cm_req;
@@ -82,6 +90,8 @@ struct mps_command {
 #define MPS_CM_FLAGS_DATAIN		(1 << 4)
 #define MPS_CM_FLAGS_WAKEUP		(1 << 5)
 #define MPS_CM_FLAGS_ACTIVE		(1 << 6)
+#define MPS_CM_FLAGS_USE_UIO		(1 << 7)
+#define MPS_CM_FLAGS_SMP_PASS		(1 << 8)
 	u_int				cm_state;
 #define MPS_CM_STATE_FREE		0
 #define MPS_CM_STATE_BUSY		1
@@ -238,12 +248,15 @@ mps_free_command(struct mps_softc *sc, struct mps_command *cm)
 {
 	struct mps_chain *chain, *chain_temp;
 
-	if (cm->cm_reply != NULL)
+	if (cm->cm_reply != NULL) {
 		mps_free_reply(sc, cm->cm_reply_data);
+		cm->cm_reply = NULL;
+	}
 	cm->cm_flags = 0;
 	cm->cm_complete = NULL;
 	cm->cm_complete_data = NULL;
 	cm->cm_targ = 0;
+	cm->cm_max_segs = 0;
 	cm->cm_state = MPS_CM_STATE_FREE;
 	TAILQ_FOREACH_SAFE(chain, &cm->cm_chain_list, chain_link, chain_temp) {
 		TAILQ_REMOVE(&cm->cm_chain_list, chain, chain_link);
@@ -368,6 +381,7 @@ int mps_map_command(struct mps_softc *sc, struct mps_command *cm);
 int mps_read_config_page(struct mps_softc *, struct mps_config_params *);
 int mps_write_config_page(struct mps_softc *, struct mps_config_params *);
 void mps_memaddr_cb(void *, bus_dma_segment_t *, int , int );
+void mpi_init_sge(struct mps_command *cm, void *req, void *sge);
 int mps_attach_user(struct mps_softc *);
 void mps_detach_user(struct mps_softc *);
 
