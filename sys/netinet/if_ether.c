@@ -323,7 +323,7 @@ retry:
 	} 
 
 	if ((la->la_flags & LLE_VALID) &&
-	    ((la->la_flags & LLE_STATIC) || la->la_expire > time_second)) {
+	    ((la->la_flags & LLE_STATIC) || la->la_expire > time_uptime)) {
 		bcopy(&la->ll_addr, desten, ifp->if_addrlen);
 		/*
 		 * If entry has an expiry time and it is approaching,
@@ -331,7 +331,7 @@ retry:
 		 * arpt_down interval.
 		 */
 		if (!(la->la_flags & LLE_STATIC) &&
-		    time_second + la->la_preempt > la->la_expire) {
+		    time_uptime + la->la_preempt > la->la_expire) {
 			arprequest(ifp, NULL,
 			    &SIN(dst)->sin_addr, IF_LLADDR(ifp));
 
@@ -351,7 +351,7 @@ retry:
 		goto done;
 	}
 
-	renew = (la->la_asked == 0 || la->la_expire != time_second);
+	renew = (la->la_asked == 0 || la->la_expire != time_uptime);
 	if ((renew || m != NULL) && (flags & LLE_EXCLUSIVE) == 0) {
 		flags |= LLE_EXCLUSIVE;
 		LLE_RUNLOCK(la);
@@ -403,7 +403,7 @@ retry:
 		int canceled;
 
 		LLE_ADDREF(la);
-		la->la_expire = time_second;
+		la->la_expire = time_uptime;
 		canceled = callout_reset(&la->la_timer, hz * V_arpt_down,
 		    arptimer, la);
 		if (canceled)
@@ -713,7 +713,7 @@ match:
 			int canceled;
 
 			LLE_ADDREF(la);
-			la->la_expire = time_second + V_arpt_keep;
+			la->la_expire = time_uptime + V_arpt_keep;
 			canceled = callout_reset(&la->la_timer,
 			    hz * V_arpt_keep, arptimer, la);
 			if (canceled)
