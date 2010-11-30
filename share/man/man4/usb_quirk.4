@@ -27,7 +27,7 @@ To compile this module into the kernel,
 place the following line in your
 kernel configuration file:
 .Bd -ragged -offset indent
-.Cd "device ucom"
+.Cd "device usb"
 .Ed
 .Pp
 Alternatively, to load the module at boot
@@ -183,7 +183,6 @@ device which appears as a USB device on
 usbconfig -d ugen0.3 add_quirk UQ_MSC_EJECT_WAIT
 .Ed
 .Sh SEE ALSO
-.Xr usb_quirk 4 ,
 .Xr usbconfig 5
 .Sh HISTORY
 The
