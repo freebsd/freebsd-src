@@ -382,7 +382,7 @@ sc_set_vesa_mode(scr_stat *scp, sc_softc_t *sc, int unit)
 #if !defined(SC_NO_FONT_LOADING) && defined(SC_DFLT_FONT)
 	font_size = info.vi_cheight;
 #else
-	font_size = 16;
+	font_size = scp->font_size;
 #endif
 	if (font_size < 14)
 		font_size = 8;
