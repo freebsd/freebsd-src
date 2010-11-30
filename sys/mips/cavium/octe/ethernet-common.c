@@ -188,7 +188,10 @@ int cvm_oct_common_open(struct ifnet *ifp)
 	gmx_cfg.s.en = 1;
 	cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmx_cfg.u64);
 
-        if (!octeon_is_simulation()) {
+	/*
+	 * Set the link state unless we are using MII.
+	 */
+        if (!octeon_is_simulation() && priv->miibus == NULL) {
              link_info = cvmx_helper_link_get(priv->port);
              if (!link_info.s.link_up)  
 		if_link_state_change(ifp, LINK_STATE_DOWN);
@@ -224,6 +227,30 @@ void cvm_oct_common_poll(struct ifnet *ifp)
 	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
 	cvmx_helper_link_info_t link_info;
 
+	/*
+	 * If this is a simulation, do nothing.
+	 */
+	if (octeon_is_simulation())
+		return;
+
+	/*
+	 * If there is a device-specific poll method, use it.
+	 */
+	if (priv->poll != NULL) {
+		priv->poll(ifp);
+		return;
+	}
+
+	/*
+	 * If an MII bus is attached, don't use the Simple Executive's link
+	 * state routines.
+	 */
+	if (priv->miibus != NULL)
+		return;
+
+	/*
+	 * Use the Simple Executive's link state routines.
+	 */
 	link_info = cvmx_helper_link_get(priv->port);
 	if (link_info.u64 == priv->link_info)
 		return;
