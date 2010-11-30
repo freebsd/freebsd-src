@@ -53,8 +53,6 @@ int cvm_oct_xaui_init(struct ifnet *ifp)
 	priv->open = cvm_oct_common_open;
 	priv->stop = cvm_oct_common_stop;
 	priv->stop(ifp);
-	if (!octeon_is_simulation())
-		priv->poll = cvm_oct_common_poll;
 
-    return 0;
+	return 0;
 }
