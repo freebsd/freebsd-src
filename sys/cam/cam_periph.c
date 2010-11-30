@@ -648,6 +648,21 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		dirs[0] = ccb->ccb_h.flags & CAM_DIR_MASK;
 		numbufs = 1;
 		break;
+	case XPT_SMP_IO:
+		data_ptrs[0] = &ccb->smpio.smp_request;
+		lengths[0] = ccb->smpio.smp_request_len;
+		dirs[0] = CAM_DIR_OUT;
+		data_ptrs[1] = &ccb->smpio.smp_response;
+		lengths[1] = ccb->smpio.smp_response_len;
+		dirs[1] = CAM_DIR_IN;
+		numbufs = 2;
+		break;
+	case XPT_GDEV_ADVINFO:
+		data_ptrs[0] = (uint8_t **)&ccb->cgdai.buf;
+		lengths[0] = ccb->cgdai.bufsiz;
+		dirs[0] = CAM_DIR_IN;
+		numbufs = 1;
+		break;
 	default:
 		return(EINVAL);
 		break; /* NOTREACHED */
@@ -786,6 +801,15 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 	case XPT_ATA_IO:
 		data_ptrs[0] = &ccb->ataio.data_ptr;
 		numbufs = min(mapinfo->num_bufs_used, 1);
+		break;
+	case XPT_SMP_IO:
+		numbufs = min(mapinfo->num_bufs_used, 2);
+		data_ptrs[0] = &ccb->smpio.smp_request;
+		data_ptrs[1] = &ccb->smpio.smp_response;
+		break;
+	case XPT_GDEV_ADVINFO:
+		numbufs = min(mapinfo->num_bufs_used, 1);
+		data_ptrs[0] = (uint8_t **)&ccb->cgdai.buf;
 		break;
 	default:
 		/* allow ourselves to be swapped once again */
