@@ -320,8 +320,14 @@ set(int argc, char **argv)
 	while (argc-- > 0) {
 		if (strncmp(argv[0], "temp", 4) == 0) {
 			struct timespec tp;
+			int max_age;
+			size_t len = sizeof(max_age);
+
 			clock_gettime(CLOCK_MONOTONIC, &tp);
-			expire_time = tp.tv_sec + 20 * 60;
+			if (sysctlbyname("net.link.ether.inet.max_age",
+			    &max_age, &len, NULL, 0) != 0)
+				err(1, "sysctlbyname");
+			expire_time = tp.tv_sec + max_age;
 		} else if (strncmp(argv[0], "pub", 3) == 0) {
 			flags |= RTF_ANNOUNCE;
 			doing_proxy = 1;
