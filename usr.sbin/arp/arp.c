@@ -602,10 +602,10 @@ print_entry(struct sockaddr_dl *sdl,
 	if (rtm->rtm_rmx.rmx_expire == 0)
 		printf(" permanent");
 	else {
-		static struct timeval tv;
-		if (tv.tv_sec == 0)
-			gettimeofday(&tv, 0);
-		if ((expire_time = rtm->rtm_rmx.rmx_expire - tv.tv_sec) > 0)
+		static struct timespec tp;
+		if (tp.tv_sec == 0)
+			clock_gettime(CLOCK_MONOTONIC, &tp);
+		if ((expire_time = rtm->rtm_rmx.rmx_expire - tp.tv_sec) > 0)
 			printf(" expires in %d seconds", (int)expire_time);
 		else
 			printf(" expired");
