@@ -350,7 +350,7 @@ sc_set_vesa_mode(scr_stat *scp, sc_softc_t *sc, int unit)
 	video_info_t info;
 	u_char *font;
 	int depth;
-	int font_size;
+	int fontsize;
 	int i;
 	int vmode;
 
@@ -380,18 +380,18 @@ sc_set_vesa_mode(scr_stat *scp, sc_softc_t *sc, int unit)
 	}
 
 #if !defined(SC_NO_FONT_LOADING) && defined(SC_DFLT_FONT)
-	font_size = info.vi_cheight;
+	fontsize = info.vi_cheight;
 #else
-	font_size = scp->font_size;
+	fontsize = scp->font_size;
 #endif
-	if (font_size < 14)
-		font_size = 8;
-	else if (font_size >= 16)
-		font_size = 16;
+	if (fontsize < 14)
+		fontsize = 8;
+	else if (fontsize >= 16)
+		fontsize = 16;
 	else
-		font_size = 14;
+		fontsize = 14;
 #ifndef SC_NO_FONT_LOADING
-	switch (font_size) {
+	switch (fontsize) {
 	case 8:
 		if ((sc->fonts_loaded & FONT_8) == 0)
 			return;
@@ -428,12 +428,12 @@ sc_set_vesa_mode(scr_stat *scp, sc_softc_t *sc, int unit)
 	scp->xpixel = info.vi_width;
 	scp->ypixel = info.vi_height;
 	scp->xsize = scp->xpixel / 8;
-	scp->ysize = scp->ypixel / font_size;
+	scp->ysize = scp->ypixel / fontsize;
 	scp->xpos = 0;
 	scp->ypos = scp->ysize - 1;
 	scp->xoff = scp->yoff = 0;
 	scp->font = font;
-	scp->font_size = font_size;
+	scp->font_size = fontsize;
 	scp->font_width = 8;
 	scp->start = scp->xsize * scp->ysize - 1;
 	scp->end = 0;
