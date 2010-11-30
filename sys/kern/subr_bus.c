@@ -708,25 +708,7 @@ bad:
 static void
 devadded(device_t dev)
 {
-	char *pnp = NULL;
-	char *tmp = NULL;
-
-	pnp = malloc(1024, M_BUS, M_NOWAIT);
-	if (pnp == NULL)
-		goto fail;
-	tmp = malloc(1024, M_BUS, M_NOWAIT);
-	if (tmp == NULL)
-		goto fail;
-	*pnp = '\0';
-	bus_child_pnpinfo_str(dev, pnp, 1024);
-	snprintf(tmp, 1024, "%s %s", device_get_nameunit(dev), pnp);
-	devaddq("+", tmp, dev);
-fail:
-	if (pnp != NULL)
-		free(pnp, M_BUS);
-	if (tmp != NULL)
-		free(tmp, M_BUS);
-	return;
+	devaddq("+", device_get_nameunit(dev), dev);
 }
 
 /*
@@ -736,24 +718,7 @@ fail:
 static void
 devremoved(device_t dev)
 {
-	char *pnp = NULL;
-	char *tmp = NULL;
-
-	pnp = malloc(1024, M_BUS, M_NOWAIT);
-	if (pnp == NULL)
-		goto fail;
-	tmp = malloc(1024, M_BUS, M_NOWAIT);
-	if (tmp == NULL)
-		goto fail;
-	*pnp = '\0';
-	bus_child_pnpinfo_str(dev, pnp, 1024);
-	snprintf(tmp, 1024, "%s %s", device_get_nameunit(dev), pnp);
-	devaddq("-", tmp, dev);
-fail:
-	if (pnp != NULL)
-		free(pnp, M_BUS);
-	if (tmp != NULL)
-		free(tmp, M_BUS);
+	devaddq("+", device_get_nameunit(dev), dev);
 	return;
 }
 
