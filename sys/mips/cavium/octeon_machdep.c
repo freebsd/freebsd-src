@@ -97,7 +97,9 @@ static const struct octeon_feature_description octeon_feature_descriptions[] = {
 	{ OCTEON_FEATURE_SAAD,			"SAAD" },
 	{ OCTEON_FEATURE_ZIP,			"ZIP" },
 	{ OCTEON_FEATURE_CRYPTO,		"CRYPTO" },
+	{ OCTEON_FEATURE_DORM_CRYPTO,		"DORM_CRYPTO" },
 	{ OCTEON_FEATURE_PCIE,			"PCIE" },
+	{ OCTEON_FEATURE_SRIO,			"SRIO" },
 	{ OCTEON_FEATURE_KEY_MEMORY,		"KEY_MEMORY" },
 	{ OCTEON_FEATURE_LED_CONTROLLER,	"LED_CONTROLLER" },
 	{ OCTEON_FEATURE_TRA,			"TRA" },
@@ -107,6 +109,7 @@ static const struct octeon_feature_description octeon_feature_descriptions[] = {
 	{ OCTEON_FEATURE_NO_WPTR,		"NO_WPTR" },
 	{ OCTEON_FEATURE_DFA,			"DFA" },
 	{ OCTEON_FEATURE_MDIO_CLAUSE_45,	"MDIO_CLAUSE_45" },
+	{ OCTEON_FEATURE_NPEI,			"NPEI" },
 	{ 0,					NULL }
 };
 
