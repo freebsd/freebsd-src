@@ -319,9 +319,9 @@ set(int argc, char **argv)
 	doing_proxy = flags = proxy_only = expire_time = 0;
 	while (argc-- > 0) {
 		if (strncmp(argv[0], "temp", 4) == 0) {
-			struct timeval tv;
-			gettimeofday(&tv, 0);
-			expire_time = tv.tv_sec + 20 * 60;
+			struct timespec tp;
+			clock_gettime(CLOCK_MONOTONIC, &tp);
+			expire_time = tp.tv_sec + 20 * 60;
 		} else if (strncmp(argv[0], "pub", 3) == 0) {
 			flags |= RTF_ANNOUNCE;
 			doing_proxy = 1;
