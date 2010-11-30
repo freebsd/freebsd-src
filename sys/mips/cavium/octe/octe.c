@@ -281,8 +281,8 @@ octe_init(void *arg)
 
 	cvm_oct_common_set_mac_address(ifp, IF_LLADDR(ifp));
 
-	if (priv->poll != NULL)
-		priv->poll(ifp);
+	cvm_oct_common_poll(ifp);
+
 	if (priv->miibus != NULL)
 		mii_mediachg(device_get_softc(priv->miibus));
 
