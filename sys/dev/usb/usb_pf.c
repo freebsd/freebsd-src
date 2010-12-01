@@ -65,6 +65,7 @@ usbpf_attach(struct usb_bus *ubus)
 	ifp = ubus->ifp = if_alloc(IFT_USB);
 	if_initname(ifp, "usbus", device_get_unit(ubus->bdev));
 	if_attach(ifp);
+	if_up(ifp);
 
 	KASSERT(sizeof(struct usbpf_pkthdr) == USBPF_HDR_LEN,
 	    ("wrong USB pf header length (%zd)", sizeof(struct usbpf_pkthdr)));
@@ -86,6 +87,7 @@ usbpf_detach(struct usb_bus *ubus)
 
 	if (ifp != NULL) {
 		bpfdetach(ifp);
+		if_down(ifp);
 		if_detach(ifp);
 		if_free(ifp);
 	}
