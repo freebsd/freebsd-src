@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd November 19, 2010
+.Dd December 1, 2010
 .Dt SH 1
 .Os
 .Sh NAME
@@ -1712,7 +1712,8 @@ A synonym for the
 .Ic cd
 built-in command.
 .It Ic command Oo Fl p Oc Op Ar utility Op Ar argument ...
-.It Ic command Oo Fl v | V Oc Op Ar utility
+.It Ic command Oo Fl p Oc Fl v Ar utility
+.It Ic command Oo Fl p Oc Fl V Ar utility
 The first form of invocation executes the specified
 .Ar utility ,
 ignoring shell functions in the search.
