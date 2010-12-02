@@ -716,7 +716,9 @@ host_pcib_get_busno(pci_read_config_fn read_config, int bus, int slot, int func,
 	case 0x00171166:
 	case 0x01011166:
 	case 0x010f1014:
+	case 0x01101166:
 	case 0x02011166:
+	case 0x02251166:
 	case 0x03021014:
 		*busnum = read_config(bus, slot, func, 0x44, 1);
 		break;
