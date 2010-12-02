@@ -204,6 +204,9 @@ legacy_pcib_is_host_bridge(int bus, int slot, int func,
 			break;
 		}
 		break;
+	case 0x1A308086:
+		s = "Intel 82845 Host to PCI bridge";
+		break;
 
 		/* AMD -- vendor 0x1022 */
 	case 0x30001022:
@@ -304,6 +307,8 @@ legacy_pcib_is_host_bridge(int bus, int slot, int func,
 	case 0x00171166:
 		/* FALLTHROUGH */
 	case 0x01011166:
+	case 0x01101166:
+	case 0x02251166:
 		s = "ServerWorks host to PCI bridge(unknown chipset)";
 		*busnum = legacy_pcib_read_config(0, bus, slot, func, 0x44, 1);
 		break;
