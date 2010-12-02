@@ -1166,14 +1166,14 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 	dst_entry->offset = 0;
 	dst_object->charge = dst_entry->end - dst_entry->start;
 	if (fork_charge != NULL) {
-		KASSERT(dst_entry->uip == NULL,
+		KASSERT(dst_entry->cred == NULL,
 		    ("vm_fault_copy_entry: leaked swp charge"));
-		dst_object->uip = curthread->td_ucred->cr_ruidinfo;
-		uihold(dst_object->uip);
+		dst_object->cred = curthread->td_ucred;
+		crhold(dst_object->cred);
 		*fork_charge += dst_object->charge;
 	} else {
-		dst_object->uip = dst_entry->uip;
-		dst_entry->uip = NULL;
+		dst_object->cred = dst_entry->cred;
+		dst_entry->cred = NULL;
 	}
 	access = prot = dst_entry->protection;
 	/*

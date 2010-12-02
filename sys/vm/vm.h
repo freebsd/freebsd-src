@@ -141,12 +141,12 @@ struct kva_md_info {
 extern struct kva_md_info	kmi;
 extern void vm_ksubmap_init(struct kva_md_info *);
 
-struct uidinfo;
+struct ucred;
 int swap_reserve(vm_ooffset_t incr);
-int swap_reserve_by_uid(vm_ooffset_t incr, struct uidinfo *uip);
+int swap_reserve_by_cred(vm_ooffset_t incr, struct ucred *cred);
 void swap_reserve_force(vm_ooffset_t incr);
 void swap_release(vm_ooffset_t decr);
-void swap_release_by_uid(vm_ooffset_t decr, struct uidinfo *uip);
+void swap_release_by_cred(vm_ooffset_t decr, struct ucred *cred);
 
 #endif				/* VM_H */
 

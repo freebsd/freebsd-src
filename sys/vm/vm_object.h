@@ -143,7 +143,7 @@ struct vm_object {
 			int swp_bcount;
 		} swp;
 	} un_pager;
-	struct uidinfo *uip;
+	struct ucred *cred;
 	vm_ooffset_t charge;
 };
 
