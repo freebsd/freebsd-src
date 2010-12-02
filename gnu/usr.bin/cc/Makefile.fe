@@ -19,7 +19,8 @@ CFLAGS+= ${DRIVER_DEFINES}
 
 SRCS=	gcc.c opts-common.c options.c intl.c prefix.c version.c
 
-.if exists(${GCCDIR}/config/${GCC_CPU}/driver-${GCC_CPU}.c)
+.if ${TARGET_ARCH} == ${MACHINE_ARCH} && \
+   exists(${GCCDIR}/config/${GCC_CPU}/driver-${GCC_CPU}.c)
 SRCS+=  driver-${GCC_CPU}.c
 .endif
 
