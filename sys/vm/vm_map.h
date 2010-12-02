@@ -114,7 +114,7 @@ struct vm_map_entry {
 	vm_inherit_t inheritance;	/* inheritance */
 	int wired_count;		/* can be paged if = 0 */
 	vm_pindex_t lastr;		/* last read */
-	struct uidinfo *uip;		/* tmp storage for creator ref */
+	struct ucred *cred;		/* tmp storage for creator ref */
 };
 
 #define MAP_ENTRY_NOSYNC		0x0001
