@@ -878,8 +878,6 @@ shminit()
 
 	shmalloced = shminfo.shmmni;
 	shmsegs = malloc(shmalloced * sizeof(shmsegs[0]), M_SHM, M_WAITOK);
-	if (shmsegs == NULL)
-		panic("cannot allocate initial memory for sysvshm");
 	for (i = 0; i < shmalloced; i++) {
 		shmsegs[i].u.shm_perm.mode = SHMSEG_FREE;
 		shmsegs[i].u.shm_perm.seq = 0;

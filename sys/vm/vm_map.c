@@ -137,8 +137,8 @@ static void vm_map_zdtor(void *mem, int size, void *arg);
 static void vmspace_zdtor(void *mem, int size, void *arg);
 #endif
 
-#define	ENTRY_CHARGED(e) ((e)->uip != NULL || \
-    ((e)->object.vm_object != NULL && (e)->object.vm_object->uip != NULL && \
+#define	ENTRY_CHARGED(e) ((e)->cred != NULL || \
+    ((e)->object.vm_object != NULL && (e)->object.vm_object->cred != NULL && \
      !((e)->eflags & MAP_ENTRY_NEEDS_COPY)))
 
 /* 
@@ -1095,7 +1095,7 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	vm_map_entry_t prev_entry;
 	vm_map_entry_t temp_entry;
 	vm_eflags_t protoeflags;
-	struct uidinfo *uip;
+	struct ucred *cred;
 	boolean_t charge_prev_obj;
 
 	VM_MAP_ASSERT_LOCKED(map);
@@ -1140,7 +1140,7 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	if (cow & MAP_DISABLE_COREDUMP)
 		protoeflags |= MAP_ENTRY_NOCOREDUMP;
 
-	uip = NULL;
+	cred = NULL;
 	KASSERT((object != kmem_object && object != kernel_object) ||
 	    ((object == kmem_object || object == kernel_object) &&
 		!(protoeflags & MAP_ENTRY_NEEDS_COPY)),
@@ -1152,10 +1152,10 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		if (!(cow & MAP_ACC_CHARGED) && !swap_reserve(end - start))
 			return (KERN_RESOURCE_SHORTAGE);
 		KASSERT(object == NULL || (protoeflags & MAP_ENTRY_NEEDS_COPY) ||
-		    object->uip == NULL,
+		    object->cred == NULL,
 		    ("OVERCOMMIT: vm_map_insert o %p", object));
-		uip = curthread->td_ucred->cr_ruidinfo;
-		uihold(uip);
+		cred = curthread->td_ucred;
+		crhold(cred);
 		if (object == NULL && !(protoeflags & MAP_ENTRY_NEEDS_COPY))
 			charge_prev_obj = TRUE;
 	}
@@ -1181,9 +1181,9 @@ charged:
 		 (prev_entry->eflags == protoeflags) &&
 		 (prev_entry->end == start) &&
 		 (prev_entry->wired_count == 0) &&
-		 (prev_entry->uip == uip ||
+		 (prev_entry->cred == cred ||
 		  (prev_entry->object.vm_object != NULL &&
-		   (prev_entry->object.vm_object->uip == uip))) &&
+		   (prev_entry->object.vm_object->cred == cred))) &&
 		   vm_object_coalesce(prev_entry->object.vm_object,
 		       prev_entry->offset,
 		       (vm_size_t)(prev_entry->end - prev_entry->start),
@@ -1200,8 +1200,8 @@ charged:
 			prev_entry->end = end;
 			vm_map_entry_resize_free(map, prev_entry);
 			vm_map_simplify_entry(map, prev_entry);
-			if (uip != NULL)
-				uifree(uip);
+			if (cred != NULL)
+				crfree(cred);
 			return (KERN_SUCCESS);
 		}
 
@@ -1215,11 +1215,11 @@ charged:
 		offset = prev_entry->offset +
 			(prev_entry->end - prev_entry->start);
 		vm_object_reference(object);
-		if (uip != NULL && object != NULL && object->uip != NULL &&
+		if (cred != NULL && object != NULL && object->cred != NULL &&
 		    !(prev_entry->eflags & MAP_ENTRY_NEEDS_COPY)) {
 			/* Object already accounts for this uid. */
-			uifree(uip);
-			uip = NULL;
+			crfree(cred);
+			cred = NULL;
 		}
 	}
 
@@ -1235,7 +1235,7 @@ charged:
 	new_entry = vm_map_entry_create(map);
 	new_entry->start = start;
 	new_entry->end = end;
-	new_entry->uip = NULL;
+	new_entry->cred = NULL;
 
 	new_entry->eflags = protoeflags;
 	new_entry->object.vm_object = object;
@@ -1247,9 +1247,9 @@ charged:
 	new_entry->max_protection = max;
 	new_entry->wired_count = 0;
 
-	KASSERT(uip == NULL || !ENTRY_CHARGED(new_entry),
+	KASSERT(cred == NULL || !ENTRY_CHARGED(new_entry),
 	    ("OVERCOMMIT: vm_map_insert leaks vm_map %p", new_entry));
-	new_entry->uip = uip;
+	new_entry->cred = cred;
 
 	/*
 	 * Insert the new entry into the list
@@ -1466,7 +1466,7 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 		     (prev->max_protection == entry->max_protection) &&
 		     (prev->inheritance == entry->inheritance) &&
 		     (prev->wired_count == entry->wired_count) &&
-		     (prev->uip == entry->uip)) {
+		     (prev->cred == entry->cred)) {
 			vm_map_entry_unlink(map, prev);
 			entry->start = prev->start;
 			entry->offset = prev->offset;
@@ -1484,8 +1484,8 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 			 */
 			if (prev->object.vm_object)
 				vm_object_deallocate(prev->object.vm_object);
-			if (prev->uip != NULL)
-				uifree(prev->uip);
+			if (prev->cred != NULL)
+				crfree(prev->cred);
 			vm_map_entry_dispose(map, prev);
 		}
 	}
@@ -1502,7 +1502,7 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 		    (next->max_protection == entry->max_protection) &&
 		    (next->inheritance == entry->inheritance) &&
 		    (next->wired_count == entry->wired_count) &&
-		    (next->uip == entry->uip)) {
+		    (next->cred == entry->cred)) {
 			vm_map_entry_unlink(map, next);
 			entry->end = next->end;
 			vm_map_entry_resize_free(map, entry);
@@ -1512,8 +1512,8 @@ vm_map_simplify_entry(vm_map_t map, vm_map_entry_t entry)
 			 */
 			if (next->object.vm_object)
 				vm_object_deallocate(next->object.vm_object);
-			if (next->uip != NULL)
-				uifree(next->uip);
+			if (next->cred != NULL)
+				crfree(next->cred);
 			vm_map_entry_dispose(map, next);
 		}
 	}
@@ -1562,21 +1562,21 @@ _vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
 				atop(entry->end - entry->start));
 		entry->object.vm_object = object;
 		entry->offset = 0;
-		if (entry->uip != NULL) {
-			object->uip = entry->uip;
+		if (entry->cred != NULL) {
+			object->cred = entry->cred;
 			object->charge = entry->end - entry->start;
-			entry->uip = NULL;
+			entry->cred = NULL;
 		}
 	} else if (entry->object.vm_object != NULL &&
 		   ((entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0) &&
-		   entry->uip != NULL) {
+		   entry->cred != NULL) {
 		VM_OBJECT_LOCK(entry->object.vm_object);
-		KASSERT(entry->object.vm_object->uip == NULL,
-		    ("OVERCOMMIT: vm_entry_clip_start: both uip e %p", entry));
-		entry->object.vm_object->uip = entry->uip;
+		KASSERT(entry->object.vm_object->cred == NULL,
+		    ("OVERCOMMIT: vm_entry_clip_start: both cred e %p", entry));
+		entry->object.vm_object->cred = entry->cred;
 		entry->object.vm_object->charge = entry->end - entry->start;
 		VM_OBJECT_UNLOCK(entry->object.vm_object);
-		entry->uip = NULL;
+		entry->cred = NULL;
 	}
 
 	new_entry = vm_map_entry_create(map);
@@ -1585,8 +1585,8 @@ _vm_map_clip_start(vm_map_t map, vm_map_entry_t entry, vm_offset_t start)
 	new_entry->end = start;
 	entry->offset += (start - entry->start);
 	entry->start = start;
-	if (new_entry->uip != NULL)
-		uihold(entry->uip);
+	if (new_entry->cred != NULL)
+		crhold(entry->cred);
 
 	vm_map_entry_link(map, entry->prev, new_entry);
 
@@ -1632,21 +1632,21 @@ _vm_map_clip_end(vm_map_t map, vm_map_entry_t entry, vm_offset_t end)
 				atop(entry->end - entry->start));
 		entry->object.vm_object = object;
 		entry->offset = 0;
-		if (entry->uip != NULL) {
-			object->uip = entry->uip;
+		if (entry->cred != NULL) {
+			object->cred = entry->cred;
 			object->charge = entry->end - entry->start;
-			entry->uip = NULL;
+			entry->cred = NULL;
 		}
 	} else if (entry->object.vm_object != NULL &&
 		   ((entry->eflags & MAP_ENTRY_NEEDS_COPY) == 0) &&
-		   entry->uip != NULL) {
+		   entry->cred != NULL) {
 		VM_OBJECT_LOCK(entry->object.vm_object);
-		KASSERT(entry->object.vm_object->uip == NULL,
-		    ("OVERCOMMIT: vm_entry_clip_end: both uip e %p", entry));
-		entry->object.vm_object->uip = entry->uip;
+		KASSERT(entry->object.vm_object->cred == NULL,
+		    ("OVERCOMMIT: vm_entry_clip_end: both cred e %p", entry));
+		entry->object.vm_object->cred = entry->cred;
 		entry->object.vm_object->charge = entry->end - entry->start;
 		VM_OBJECT_UNLOCK(entry->object.vm_object);
-		entry->uip = NULL;
+		entry->cred = NULL;
 	}
 
 	/*
@@ -1657,8 +1657,8 @@ _vm_map_clip_end(vm_map_t map, vm_map_entry_t entry, vm_offset_t end)
 
 	new_entry->start = entry->end = end;
 	new_entry->offset += (end - entry->start);
-	if (new_entry->uip != NULL)
-		uihold(entry->uip);
+	if (new_entry->cred != NULL)
+		crhold(entry->cred);
 
 	vm_map_entry_link(map, entry, new_entry);
 
@@ -1812,7 +1812,7 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 {
 	vm_map_entry_t current, entry;
 	vm_object_t obj;
-	struct uidinfo *uip;
+	struct ucred *cred;
 	vm_prot_t old_prot;
 
 	vm_map_lock(map);
@@ -1858,7 +1858,7 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			continue;
 		}
 
-		uip = curthread->td_ucred->cr_ruidinfo;
+		cred = curthread->td_ucred;
 		obj = current->object.vm_object;
 
 		if (obj == NULL || (current->eflags & MAP_ENTRY_NEEDS_COPY)) {
@@ -1866,8 +1866,8 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 				vm_map_unlock(map);
 				return (KERN_RESOURCE_SHORTAGE);
 			}
-			uihold(uip);
-			current->uip = uip;
+			crhold(cred);
+			current->cred = cred;
 			continue;
 		}
 
@@ -1890,8 +1890,8 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			return (KERN_RESOURCE_SHORTAGE);
 		}
 
-		uihold(uip);
-		obj->uip = uip;
+		crhold(cred);
+		obj->cred = cred;
 		obj->charge = ptoa(obj->size);
 		VM_OBJECT_UNLOCK(obj);
 	}
@@ -2640,16 +2640,16 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 	size = entry->end - entry->start;
 	map->size -= size;
 
-	if (entry->uip != NULL) {
-		swap_release_by_uid(size, entry->uip);
-		uifree(entry->uip);
+	if (entry->cred != NULL) {
+		swap_release_by_cred(size, entry->cred);
+		crfree(entry->cred);
 	}
 
 	if ((entry->eflags & MAP_ENTRY_IS_SUB_MAP) == 0 &&
 	    (object != NULL)) {
-		KASSERT(entry->uip == NULL || object->uip == NULL ||
+		KASSERT(entry->cred == NULL || object->cred == NULL ||
 		    (entry->eflags & MAP_ENTRY_NEEDS_COPY),
-		    ("OVERCOMMIT vm_map_entry_delete: both uip %p", entry));
+		    ("OVERCOMMIT vm_map_entry_delete: both cred %p", entry));
 		count = OFF_TO_IDX(size);
 		offidxstart = OFF_TO_IDX(entry->offset);
 		offidxend = offidxstart + count;
@@ -2665,11 +2665,11 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 			    offidxstart < object->size) {
 				size1 = object->size;
 				object->size = offidxstart;
-				if (object->uip != NULL) {
+				if (object->cred != NULL) {
 					size1 -= object->size;
 					KASSERT(object->charge >= ptoa(size1),
 					    ("vm_map_entry_delete: object->charge < 0"));
-					swap_release_by_uid(ptoa(size1), object->uip);
+					swap_release_by_cred(ptoa(size1), object->cred);
 					object->charge -= ptoa(size1);
 				}
 			}
@@ -2855,7 +2855,7 @@ vm_map_copy_entry(
 {
 	vm_object_t src_object;
 	vm_offset_t size;
-	struct uidinfo *uip;
+	struct ucred *cred;
 	int charged;
 
 	VM_MAP_ASSERT_LOCKED(dst_map);
@@ -2894,25 +2894,25 @@ vm_map_copy_entry(
 			}
 			vm_object_reference_locked(src_object);
 			vm_object_clear_flag(src_object, OBJ_ONEMAPPING);
-			if (src_entry->uip != NULL &&
+			if (src_entry->cred != NULL &&
 			    !(src_entry->eflags & MAP_ENTRY_NEEDS_COPY)) {
-				KASSERT(src_object->uip == NULL,
-				    ("OVERCOMMIT: vm_map_copy_entry: uip %p",
+				KASSERT(src_object->cred == NULL,
+				    ("OVERCOMMIT: vm_map_copy_entry: cred %p",
 				     src_object));
-				src_object->uip = src_entry->uip;
+				src_object->cred = src_entry->cred;
 				src_object->charge = size;
 			}
 			VM_OBJECT_UNLOCK(src_object);
 			dst_entry->object.vm_object = src_object;
 			if (charged) {
-				uip = curthread->td_ucred->cr_ruidinfo;
-				uihold(uip);
-				dst_entry->uip = uip;
+				cred = curthread->td_ucred;
+				crhold(cred);
+				dst_entry->cred = cred;
 				*fork_charge += size;
 				if (!(src_entry->eflags &
 				      MAP_ENTRY_NEEDS_COPY)) {
-					uihold(uip);
-					src_entry->uip = uip;
+					crhold(cred);
+					src_entry->cred = cred;
 					*fork_charge += size;
 				}
 			}
@@ -2922,9 +2922,9 @@ vm_map_copy_entry(
 		} else {
 			dst_entry->object.vm_object = NULL;
 			dst_entry->offset = 0;
-			if (src_entry->uip != NULL) {
-				dst_entry->uip = curthread->td_ucred->cr_ruidinfo;
-				uihold(dst_entry->uip);
+			if (src_entry->cred != NULL) {
+				dst_entry->cred = curthread->td_ucred;
+				crhold(dst_entry->cred);
 				*fork_charge += size;
 			}
 		}
@@ -3026,11 +3026,11 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 					atop(old_entry->end - old_entry->start));
 				old_entry->object.vm_object = object;
 				old_entry->offset = 0;
-				if (old_entry->uip != NULL) {
-					object->uip = old_entry->uip;
+				if (old_entry->cred != NULL) {
+					object->cred = old_entry->cred;
 					object->charge = old_entry->end -
 					    old_entry->start;
-					old_entry->uip = NULL;
+					old_entry->cred = NULL;
 				}
 			}
 
@@ -3058,11 +3058,11 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 			}
 			VM_OBJECT_LOCK(object);
 			vm_object_clear_flag(object, OBJ_ONEMAPPING);
-			if (old_entry->uip != NULL) {
-				KASSERT(object->uip == NULL, ("vmspace_fork both uip"));
-				object->uip = old_entry->uip;
+			if (old_entry->cred != NULL) {
+				KASSERT(object->cred == NULL, ("vmspace_fork both cred"));
+				object->cred = old_entry->cred;
 				object->charge = old_entry->end - old_entry->start;
-				old_entry->uip = NULL;
+				old_entry->cred = NULL;
 			}
 			VM_OBJECT_UNLOCK(object);
 
@@ -3102,7 +3102,7 @@ vmspace_fork(struct vmspace *vm1, vm_ooffset_t *fork_charge)
 			    MAP_ENTRY_IN_TRANSITION);
 			new_entry->wired_count = 0;
 			new_entry->object.vm_object = NULL;
-			new_entry->uip = NULL;
+			new_entry->cred = NULL;
 			vm_map_entry_link(new_map, new_map->header.prev,
 			    new_entry);
 			vmspace_map_entry_forked(vm1, vm2, new_entry);
@@ -3241,7 +3241,7 @@ vm_map_growstack(struct proc *p, vm_offset_t addr)
 	size_t grow_amount, max_grow;
 	rlim_t stacklim, vmemlim;
 	int is_procstack, rv;
-	struct uidinfo *uip;
+	struct ucred *cred;
 
 Retry:
 	PROC_LOCK(p);
@@ -3412,17 +3412,17 @@ Retry:
 		}
 
 		grow_amount = addr - stack_entry->end;
-		uip = stack_entry->uip;
-		if (uip == NULL && stack_entry->object.vm_object != NULL)
-			uip = stack_entry->object.vm_object->uip;
-		if (uip != NULL && !swap_reserve_by_uid(grow_amount, uip))
+		cred = stack_entry->cred;
+		if (cred == NULL && stack_entry->object.vm_object != NULL)
+			cred = stack_entry->object.vm_object->cred;
+		if (cred != NULL && !swap_reserve_by_cred(grow_amount, cred))
 			rv = KERN_NO_SPACE;
 		/* Grow the underlying object if applicable. */
 		else if (stack_entry->object.vm_object == NULL ||
 			 vm_object_coalesce(stack_entry->object.vm_object,
 			 stack_entry->offset,
 			 (vm_size_t)(stack_entry->end - stack_entry->start),
-			 (vm_size_t)grow_amount, uip != NULL)) {
+			 (vm_size_t)grow_amount, cred != NULL)) {
 			map->size += (addr - stack_entry->end);
 			/* Update the current entry. */
 			stack_entry->end = addr;
@@ -3503,7 +3503,7 @@ vmspace_unshare(struct proc *p)
 	newvmspace = vmspace_fork(oldvmspace, &fork_charge);
 	if (newvmspace == NULL)
 		return (ENOMEM);
-	if (!swap_reserve_by_uid(fork_charge, p->p_ucred->cr_ruidinfo)) {
+	if (!swap_reserve_by_cred(fork_charge, p->p_ucred)) {
 		vmspace_free(newvmspace);
 		return (ENOMEM);
 	}
@@ -3553,7 +3553,7 @@ vm_map_lookup(vm_map_t *var_map,		/* IN/OUT */
 	vm_prot_t prot;
 	vm_prot_t fault_type = fault_typea;
 	vm_object_t eobject;
-	struct uidinfo *uip;
+	struct ucred *cred;
 	vm_ooffset_t size;
 
 RetryLookup:;
@@ -3627,19 +3627,19 @@ RetryLookup:;
 			if (vm_map_lock_upgrade(map))
 				goto RetryLookup;
 
-			if (entry->uip == NULL) {
+			if (entry->cred == NULL) {
 				/*
 				 * The debugger owner is charged for
 				 * the memory.
 				 */
-				uip = curthread->td_ucred->cr_ruidinfo;
-				uihold(uip);
-				if (!swap_reserve_by_uid(size, uip)) {
-					uifree(uip);
+				cred = curthread->td_ucred;
+				crhold(cred);
+				if (!swap_reserve_by_cred(size, cred)) {
+					crfree(cred);
 					vm_map_unlock(map);
 					return (KERN_RESOURCE_SHORTAGE);
 				}
-				entry->uip = uip;
+				entry->cred = cred;
 			}
 			vm_object_shadow(
 			    &entry->object.vm_object,
@@ -3647,19 +3647,19 @@ RetryLookup:;
 			    atop(size));
 			entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
 			eobject = entry->object.vm_object;
-			if (eobject->uip != NULL) {
+			if (eobject->cred != NULL) {
 				/*
 				 * The object was not shadowed.
 				 */
-				swap_release_by_uid(size, entry->uip);
-				uifree(entry->uip);
-				entry->uip = NULL;
-			} else if (entry->uip != NULL) {
+				swap_release_by_cred(size, entry->cred);
+				crfree(entry->cred);
+				entry->cred = NULL;
+			} else if (entry->cred != NULL) {
 				VM_OBJECT_LOCK(eobject);
-				eobject->uip = entry->uip;
+				eobject->cred = entry->cred;
 				eobject->charge = size;
 				VM_OBJECT_UNLOCK(eobject);
-				entry->uip = NULL;
+				entry->cred = NULL;
 			}
 
 			vm_map_lock_downgrade(map);
@@ -3682,12 +3682,12 @@ RetryLookup:;
 		entry->object.vm_object = vm_object_allocate(OBJT_DEFAULT,
 		    atop(size));
 		entry->offset = 0;
-		if (entry->uip != NULL) {
+		if (entry->cred != NULL) {
 			VM_OBJECT_LOCK(entry->object.vm_object);
-			entry->object.vm_object->uip = entry->uip;
+			entry->object.vm_object->cred = entry->cred;
 			entry->object.vm_object->charge = size;
 			VM_OBJECT_UNLOCK(entry->object.vm_object);
-			entry->uip = NULL;
+			entry->cred = NULL;
 		}
 		vm_map_lock_downgrade(map);
 	}
@@ -3861,14 +3861,14 @@ DB_SHOW_COMMAND(map, vm_map_print)
 				db_indent -= 2;
 			}
 		} else {
-			if (entry->uip != NULL)
-				db_printf(", uip %d", entry->uip->ui_uid);
+			if (entry->cred != NULL)
+				db_printf(", ruid %d", entry->cred->cr_ruid);
 			db_printf(", object=%p, offset=0x%jx",
 			    (void *)entry->object.vm_object,
 			    (uintmax_t)entry->offset);
-			if (entry->object.vm_object && entry->object.vm_object->uip)
-				db_printf(", obj uip %d charge %jx",
-				    entry->object.vm_object->uip->ui_uid,
+			if (entry->object.vm_object && entry->object.vm_object->cred)
+				db_printf(", obj ruid %d charge %jx",
+				    entry->object.vm_object->cred->cr_ruid,
 				    (uintmax_t)entry->object.vm_object->charge);
 			if (entry->eflags & MAP_ENTRY_COW)
 				db_printf(", copy (%s)",

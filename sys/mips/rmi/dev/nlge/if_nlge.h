@@ -985,8 +985,10 @@
 
 #define MAC_B2B_IPG                     88
 
+#define	NLGE_PREPAD_LEN			32
+
 /* frame sizes need to be cacheline aligned */
-#define MAX_FRAME_SIZE                  1536
+#define MAX_FRAME_SIZE                  (1536 + NLGE_PREPAD_LEN)
 #define MAX_FRAME_SIZE_JUMBO            9216
 #define RGE_TX_THRESHOLD_BYTES		ETHER_MAX_LEN
 
@@ -1018,7 +1020,6 @@
 #define MAX_P2D_DESC_PER_PORT           512 
 
 #define PHY_STATUS_RETRIES 		25000
-
 
 /* Structs representing hardware data structures */
 struct size_1_desc {
@@ -1110,7 +1111,6 @@ struct nlna_softc {
 	int		mac_type;
 	xlr_reg_t	*base;
 
-	struct callout 	tx_thr;
 	struct fr_desc *frin_spill;
 	struct fr_desc *frout_spill;
 	union rx_tx_desc *class_0_spill;

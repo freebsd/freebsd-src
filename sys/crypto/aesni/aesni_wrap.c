@@ -37,33 +37,12 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DECLARE(M_AESNI);
 
-#ifdef DEBUG
-static void
-ps_len(const char *string, const uint8_t *data, int length)
-{
-	int i;
-
-	printf("%-12s[0x", string);
-	for(i = 0; i < length; i++) {
-		if (i % AES_BLOCK_LEN == 0 && i > 0)
-			printf("+");
-		printf("%02x", data[i]);
-	}
-	printf("]\n");
-}
-#endif
-
 void
 aesni_encrypt_cbc(int rounds, const void *key_schedule, size_t len,
     const uint8_t *from, uint8_t *to, const uint8_t iv[AES_BLOCK_LEN])
 {
 	const uint8_t *ivp;
 	size_t i;
-
-#ifdef DEBUG
-	ps_len("AES CBC encrypt iv:", iv, AES_BLOCK_LEN);
-	ps_len("from:", from, len);
-#endif
 
 	len /= AES_BLOCK_LEN;
 	ivp = iv;
@@ -73,9 +52,6 @@ aesni_encrypt_cbc(int rounds, const void *key_schedule, size_t len,
 		from += AES_BLOCK_LEN;
 		to += AES_BLOCK_LEN;
 	}
-#ifdef DEBUG
-	ps_len("to:", to - len * AES_BLOCK_LEN, len * AES_BLOCK_LEN);
-#endif
 }
 
 void

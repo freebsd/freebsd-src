@@ -137,7 +137,7 @@ static int	nlge_suspend(device_t);
 static int	nlge_resume(device_t);
 static void	nlge_init(void *);
 static int	nlge_ioctl(struct ifnet *, u_long, caddr_t);
-static void	nlge_start(struct ifnet *);
+static int	nlge_tx(struct ifnet *ifp, struct mbuf *m);
 static void 	nlge_rx(struct nlge_softc *sc, vm_paddr_t paddr, int len);
 
 static int	nlge_mii_write(struct device *, int, int, int);
@@ -199,7 +199,8 @@ static void	nlge_set_port_attribs(struct nlge_softc *,
     struct xlr_gmac_port *);
 static void	nlge_mac_set_rx_mode(struct nlge_softc *sc);
 static void 	nlge_sgmii_init(struct nlge_softc *sc);
-static void	nlge_start_locked(struct ifnet *ifp, struct nlge_softc *sc);
+static int 	nlge_start_locked(struct ifnet *ifp, struct nlge_softc *sc,
+    struct mbuf *m);
 
 static int	prepare_fmn_message(struct nlge_softc *sc,
     struct msgrng_msg *msg, uint32_t *n_entries, struct mbuf *m_head,
@@ -208,9 +209,6 @@ static int	prepare_fmn_message(struct nlge_softc *sc,
 static void 	release_tx_desc(vm_paddr_t phy_addr);
 static int	send_fmn_msg_tx(struct nlge_softc *, struct msgrng_msg *,
     uint32_t n_entries);
-
-static void
-nl_tx_q_wakeup(void *addr);
 
 //#define DEBUG
 #ifdef DEBUG
@@ -308,6 +306,8 @@ static uma_zone_t nl_tx_desc_zone;
 /* Tunables. */
 static int flow_classification = 0;
 TUNABLE_INT("hw.nlge.flow_classification", &flow_classification);
+
+#define	NLGE_HW_CHKSUM		1
 
 static __inline void
 atomic_incr_long(unsigned long *addr)
@@ -430,10 +430,6 @@ nlna_attach(device_t dev)
 		    sizeof(struct nlge_tx_desc), NULL, NULL, NULL, NULL,
 		    XLR_CACHELINE_SIZE, 0);
 	}
-
-	/* Other per NA s/w initialization */
-	callout_init(&sc->tx_thr, CALLOUT_MPSAFE);
-	callout_reset(&sc->tx_thr, hz, nl_tx_q_wakeup, sc);
 
 	/* Enable NA interrupts */
 	nlna_setup_intr(sc);
@@ -697,8 +693,6 @@ nlge_msgring_handler(int bucket, int size, int code, int stid,
 			NLGE_LOCK(sc);
 			if (ifp->if_drv_flags & IFF_DRV_OACTIVE){
 				ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-				callout_reset(&na_sc->tx_thr, hz,
-				    nl_tx_q_wakeup, na_sc);
 			}
 			NLGE_UNLOCK(sc);
 		} else {
@@ -717,97 +711,76 @@ nlge_msgring_handler(int bucket, int size, int code, int stid,
 
 }
 
-static void
-nlge_start(struct ifnet *ifp)
+static int
+nlge_tx(struct ifnet *ifp, struct mbuf *m)
 {
-	struct nlge_softc	*sc;
-
-	sc = ifp->if_softc;
-	//NLGE_LOCK(sc);
-	nlge_start_locked(ifp, sc);
-	//NLGE_UNLOCK(sc);
+	return (nlge_start_locked(ifp, ifp->if_softc, m));
 }
 
-static void
-nl_tx_q_wakeup(void *addr)
-{
-	struct nlna_softc *na_sc;
-	struct nlge_softc *sc;
-	int i;
-
-	na_sc = (struct nlna_softc *) addr;
-	for (i = 0; i < XLR_MAX_MACS; i++) { 
-		sc = na_sc->child_sc[i];
-		if (sc == NULL)
-			continue;
-		nlge_start_locked(sc->nlge_if, sc);
-	}
-	callout_reset(&na_sc->tx_thr, 5 * hz, nl_tx_q_wakeup, na_sc);
-}
-
-static void
-nlge_start_locked(struct ifnet *ifp, struct nlge_softc *sc)
+static int
+nlge_start_locked(struct ifnet *ifp, struct nlge_softc *sc, struct mbuf *m)
 {
 	struct msgrng_msg 	msg;
-	struct mbuf  		*m;
 	struct nlge_tx_desc 	*tx_desc;
 	uint64_t		fr_stid;
 	uint32_t		cpu;	
 	uint32_t		n_entries;
 	uint32_t		tid;
-	int 			ret;
+	int 			error, ret;
+
+	if (m == NULL)
+		return (0);
+
+	tx_desc = NULL;
+	error = 0;
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING) ||
+	    ifp->if_drv_flags & IFF_DRV_OACTIVE) {
+	    	error = ENXIO;
+		goto fail;	// note: mbuf will get free'd
+	}
 
 	cpu = xlr_core_id();	
 	tid = xlr_thr_id();
 	/* H/w threads [0, 2] --> bucket 6 and [1, 3] --> bucket 7 */
 	fr_stid = cpu * 8 + 6 + (tid % 2); 
 
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-		return;
+	/*
+	 * First, remove some freeback messages before transmitting
+	 * any new packets. However, cap the number of messages
+	 * drained to permit this thread to continue with its
+	 * transmission.
+	 *
+	 * Mask for buckets {6, 7} is 0xc0
+	 */
+	xlr_msgring_handler(0xc0, 4);
+
+	ret = prepare_fmn_message(sc, &msg, &n_entries, m, fr_stid, &tx_desc);
+	if (ret) {
+		error = (ret == 2) ? ENOBUFS : ENOTSUP;
+		goto fail;
+	}
+	ret = send_fmn_msg_tx(sc, &msg, n_entries);
+	if (ret != 0) {
+		error = EBUSY;
+		goto fail;
 	}
 
-	do {
-		/*
-		 * First, remove some freeback messages before transmitting
-		 * any new packets. However, cap the number of messages
-		 * drained to permit this thread to continue with its
-		 * transmission.
-		 *
-		 * Mask for buckets {6, 7} is 0xc0
-		 */
-		xlr_msgring_handler(0xc0, 4);
-
-		/* Grab a packet off the queue. */
-		IF_DEQUEUE(&ifp->if_snd, m);
-		if (m == NULL) {
-			return;
-		}
-		
-		tx_desc = NULL;
-		ret = prepare_fmn_message(sc, &msg, &n_entries, m, fr_stid, &tx_desc);
-		if (ret) {
-			goto fail;
-		}
-		ret = send_fmn_msg_tx(sc, &msg, n_entries);
-		if (ret != 0) {
-			goto fail;
-		}
-	} while(1);
-
-	return;
+	return (0);
 
 fail:
 	if (tx_desc != NULL) {
 		uma_zfree(nl_tx_desc_zone, tx_desc);
 	}
 	if (m != NULL) {
-		NLGE_LOCK(sc);
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-		NLGE_UNLOCK(sc);
-		IF_PREPEND(&ifp->if_snd, m);
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+			NLGE_LOCK(sc);
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			NLGE_UNLOCK(sc);
+		}
+		m_freem(m);
 		atomic_incr_long(&ifp->if_iqdrops);
 	}
-	return;
+	return (error);
 }
 
 static void
@@ -833,8 +806,24 @@ nlge_rx(struct nlge_softc *sc, vm_paddr_t paddr, int len)
 
 	ifp = sc->nlge_if;
 
+#ifdef NLGE_HW_CHKSUM
+	m->m_pkthdr.csum_flags = CSUM_IP_CHECKED;
+	if (m->m_data[10] & 0x2) {
+		m->m_pkthdr.csum_flags |= CSUM_IP_VALID;
+		if (m->m_data[10] & 0x1) {
+			m->m_pkthdr.csum_flags |= (CSUM_DATA_VALID |
+			    CSUM_PSEUDO_HDR);
+			m->m_pkthdr.csum_data = htons(0xffff);
+		}
+	}
+	m->m_data += NLGE_PREPAD_LEN;
+	len -= NLGE_PREPAD_LEN;
+#else
+	m->m_pkthdr.csum_flags = 0;
+#endif
+
 	/* align the data */
-	m->m_data += BYTE_OFFSET;
+	m->m_data += BYTE_OFFSET ;
 	m->m_pkthdr.len = m->m_len = len;
 	m->m_pkthdr.rcvif = ifp;
 
@@ -1294,8 +1283,10 @@ nlna_config_parser(struct nlna_softc *sc)
 	 */
 	NLGE_WRITE(sc->base, R_L2TYPE_0, 0x01);
 
+#ifndef NLGE_HW_CHKSUM
 	if (!flow_classification)
 		return;
+#endif
 
 	/* Use 7bit CRChash for flow classification with 127 as CRC polynomial*/
 	NLGE_WRITE(sc->base, R_PARSERCONFIGREG, ((0x7f << 8) | (1 << 1)));
@@ -1307,13 +1298,17 @@ nlna_config_parser(struct nlna_softc *sc)
 	    (0x0800 << 0));
 	NLGE_WRITE(sc->base, R_L3CTABLE + 1,
 	    (9 << 25) | (1 << 21) | (12 << 14) | (4 << 10) | (16 << 4) | 4);
+#ifdef NLGE_HW_CHKSUM
+	device_printf(sc->nlna_dev, "Enabled h/w support to compute TCP/IP"
+	    " checksum\n");
+#endif
 
 	/* Configure to extract SRC port and Dest port for TCP and UDP pkts */
 	NLGE_WRITE(sc->base, R_L4CTABLE, 6);
-	NLGE_WRITE(sc->base, R_L4CTABLE+2, 17);
+	NLGE_WRITE(sc->base, R_L4CTABLE + 2, 17);
 	val = ((0 << 21) | (2 << 17) | (2 << 11) | (2 << 7));
-	NLGE_WRITE(sc->base, R_L4CTABLE+1, val);
-	NLGE_WRITE(sc->base, R_L4CTABLE+3, val);
+	NLGE_WRITE(sc->base, R_L4CTABLE + 1, val);
+	NLGE_WRITE(sc->base, R_L4CTABLE + 3, val);
 }
 
 static void
@@ -1756,8 +1751,11 @@ nlge_hw_init(struct nlge_softc *sc)
 
 	/* each packet buffer is 1536 bytes */
 	NLGE_WRITE(base, R_DESC_PACK_CTRL,
-		  (1 << O_DESC_PACK_CTRL__MaxEntry) |
-		  (MAX_FRAME_SIZE << O_DESC_PACK_CTRL__RegularSize));
+	    (1 << O_DESC_PACK_CTRL__MaxEntry) |
+#ifdef NLGE_HW_CHKSUM
+	    (1 << O_DESC_PACK_CTRL__PrePadEnable) |
+#endif
+	    (MAX_FRAME_SIZE << O_DESC_PACK_CTRL__RegularSize));
 	NLGE_WRITE(base, R_STATCTRL, ((1 << O_STATCTRL__Sten) |
 	    (1 << O_STATCTRL__ClrCnt)));
 	NLGE_WRITE(base, R_L2ALLOCCTRL, 0xffffffff);
@@ -1879,7 +1877,6 @@ nlge_if_init(struct nlge_softc *sc)
 	ifp->if_capabilities = 0;
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_ioctl = nlge_ioctl;
-	ifp->if_start = nlge_start;
 	ifp->if_init = nlge_init;
 	ifp->if_hwassist = 0;
 	ifp->if_snd.ifq_drv_maxlen = RGE_TX_Q_SIZE;
@@ -1894,6 +1891,9 @@ nlge_if_init(struct nlge_softc *sc)
 	nlge_read_mac_addr(sc);
 
 	ether_ifattach(ifp, sc->dev_addr);
+
+	/* override if_transmit : per ifnet(9), do it after if_attach */
+	ifp->if_transmit = nlge_tx;
 
 fail:
 	return (error);

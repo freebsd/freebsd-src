@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -47,12 +49,37 @@
  * Functions for XAUI initialization, configuration,
  * and monitoring.
  *
- * <hr>$Revision: 42417 $<hr>
+ * <hr>$Revision: 52004 $<hr>
  */
-#include "cvmx.h"
-#include "cvmx-helper.h"
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+#include <asm/octeon/cvmx.h>
+#include <asm/octeon/cvmx-config.h>
+#ifdef CVMX_ENABLE_PKO_FUNCTIONS
+#include <asm/octeon/cvmx-helper.h>
+#endif
+#include <asm/octeon/cvmx-gmxx-defs.h>
+#include <asm/octeon/cvmx-pko-defs.h>
+#include <asm/octeon/cvmx-pcsxx-defs.h>
+#include <asm/octeon/cvmx-ciu-defs.h>
+#else
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
+#include "executive-config.h"
+#include "cvmx-config.h"
 
 #ifdef CVMX_ENABLE_PKO_FUNCTIONS
+
+#include "cvmx.h"
+#include "cvmx-helper.h"
+#endif
+#else
+#include "cvmx.h"
+#include "cvmx-helper.h"
+#endif
+#endif
+
+#ifdef CVMX_ENABLE_PKO_FUNCTIONS
+
+
 /**
  * @INTERNAL
  * Probe a XAUI interface and determine the number of ports
@@ -68,6 +95,17 @@ int __cvmx_helper_xaui_probe(int interface)
     int i;
     cvmx_gmxx_hg2_control_t gmx_hg2_control;
     cvmx_gmxx_inf_mode_t mode;
+
+    /* CN63XX Pass 1.0 errata G-14395 requires the QLM De-emphasis be programmed */
+    if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_0))
+    {
+        cvmx_ciu_qlm2_t ciu_qlm;
+        ciu_qlm.u64 = cvmx_read_csr(CVMX_CIU_QLM2);
+        ciu_qlm.s.txbypass = 1;
+        ciu_qlm.s.txdeemph = 0x5;
+        ciu_qlm.s.txmargin = 0x1a;
+        cvmx_write_csr(CVMX_CIU_QLM2, ciu_qlm.u64);
+    }
 
     /* Due to errata GMX-700 on CN56XXp1.x and CN52XXp1.x, the interface
         needs to be enabled before IPD otherwise per port backpressure
@@ -120,9 +158,7 @@ int __cvmx_helper_xaui_enable(int interface)
     cvmx_pcsxx_control1_reg_t     xauiCtl;
     cvmx_pcsxx_misc_ctl_reg_t     xauiMiscCtl;
     cvmx_gmxx_tx_xaui_ctl_t       gmxXauiTxCtl;
-    cvmx_gmxx_rxx_int_en_t        gmx_rx_int_en;
-    cvmx_gmxx_tx_int_en_t         gmx_tx_int_en;
-    cvmx_pcsxx_int_en_reg_t       pcsx_int_en_reg;
+    cvmx_helper_link_info_t       link_info;
 
     /* (1) Interface has already been enabled. */
 
@@ -132,11 +168,8 @@ int __cvmx_helper_xaui_enable(int interface)
     cvmx_write_csr (CVMX_PCSXX_MISC_CTL_REG(interface), xauiMiscCtl.u64);
 
     /* (3) Disable GMX and PCSX interrupts. */
-    gmx_rx_int_en.u64 = cvmx_read_csr(CVMX_GMXX_RXX_INT_EN(0,interface));
     cvmx_write_csr(CVMX_GMXX_RXX_INT_EN(0,interface), 0x0);
-    gmx_tx_int_en.u64 = cvmx_read_csr(CVMX_GMXX_TX_INT_EN(interface));
     cvmx_write_csr(CVMX_GMXX_TX_INT_EN(interface), 0x0);
-    pcsx_int_en_reg.u64 = cvmx_read_csr(CVMX_PCSXX_INT_EN_REG(interface));
     cvmx_write_csr(CVMX_PCSXX_INT_EN_REG(interface), 0x0);
 
     /* (4) Bring up the PCSX and GMX reconciliation layer. */
@@ -185,11 +218,6 @@ int __cvmx_helper_xaui_enable(int interface)
     cvmx_write_csr(CVMX_GMXX_TXX_BURST(0, interface), 8192);
     cvmx_write_csr(CVMX_GMXX_PRTX_CFG(0, interface), gmx_cfg.u64);
 
-    /* (7) Clear out any error state */
-    cvmx_write_csr(CVMX_GMXX_RXX_INT_REG(0,interface), cvmx_read_csr(CVMX_GMXX_RXX_INT_REG(0,interface)));
-    cvmx_write_csr(CVMX_GMXX_TX_INT_REG(interface), cvmx_read_csr(CVMX_GMXX_TX_INT_REG(interface)));
-    cvmx_write_csr(CVMX_PCSXX_INT_REG(interface), cvmx_read_csr(CVMX_PCSXX_INT_REG(interface)));
-
     /* Wait for receive link */
     if (CVMX_WAIT_FOR_FIELD64(CVMX_PCSXX_STATUS1_REG(interface), cvmx_pcsxx_status1_reg_t, rcv_lnk, ==, 1, 10000))
         return -1;
@@ -198,12 +226,6 @@ int __cvmx_helper_xaui_enable(int interface)
     if (CVMX_WAIT_FOR_FIELD64(CVMX_PCSXX_STATUS2_REG(interface), cvmx_pcsxx_status2_reg_t, rcvflt, ==, 0, 10000))
         return -1;
 
-    cvmx_write_csr(CVMX_GMXX_RXX_INT_EN(0,interface), gmx_rx_int_en.u64);
-    cvmx_write_csr(CVMX_GMXX_TX_INT_EN(interface), gmx_tx_int_en.u64);
-    cvmx_write_csr(CVMX_PCSXX_INT_EN_REG(interface), pcsx_int_en_reg.u64);
-
-    cvmx_helper_link_autoconf(cvmx_helper_get_ipd_port(interface, 0));
-
     /* (8) Enable packet reception */
     xauiMiscCtl.s.gmxeno = 0;
     cvmx_write_csr (CVMX_PCSXX_MISC_CTL_REG(interface), xauiMiscCtl.u64);
@@ -211,6 +233,11 @@ int __cvmx_helper_xaui_enable(int interface)
     gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(0, interface));
     gmx_cfg.s.en = 1;
     cvmx_write_csr(CVMX_GMXX_PRTX_CFG(0, interface), gmx_cfg.u64);
+
+    link_info = cvmx_helper_link_autoconf(cvmx_helper_get_ipd_port(interface, 0));
+    if (!link_info.s.link_up)
+        return -1;
+
     return 0;
 }
 

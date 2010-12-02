@@ -1333,7 +1333,7 @@ in_lltable_new(const struct sockaddr *l3addr, u_int flags)
 	 * For IPv4 this will trigger "arpresolve" to generate
 	 * an ARP request.
 	 */
-	lle->base.la_expire = time_second; /* mark expired */
+	lle->base.la_expire = time_uptime; /* mark expired */
 	lle->l3_addr4 = *(const struct sockaddr_in *)l3addr;
 	lle->base.lle_refcnt = 1;
 	LLE_LOCK_INIT(&lle->base);

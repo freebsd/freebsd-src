@@ -567,7 +567,7 @@ tcp_timer_rexmt(void * xtp)
 	 */
 	tp->t_rtttime = 0;
 
-	cc_cong_signal(tp, 0, CC_RTO);
+	cc_cong_signal(tp, NULL, CC_RTO);
 
 	(void) tcp_output(tp);
 
