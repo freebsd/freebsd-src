@@ -1158,12 +1158,6 @@ OLD_FILES+=usr/include/machine/i4b_rbch_ioctl.h
 OLD_FILES+=usr/include/machine/i4b_tel_ioctl.h
 OLD_FILES+=usr/include/machine/i4b_trace.h
 .endif
-# 20070704: I4B 'modules' temporary disconnected (removed 20080525)
-.if ${TARGET_ARCH} == "i386"
-OLD_FILES+=usr/share/man/man4/i4bing.4.gz
-OLD_FILES+=usr/share/man/man4/i4bipr.4.gz
-OLD_FILES+=usr/share/man/man4/i4bisppp.4.gz
-.endif
 # 20070703: pf 4.1 import
 OLD_FILES+=usr/libexec/ftp-proxy
 # 20070701: KAME IPSec removal
@@ -1342,12 +1336,8 @@ OLD_LIBS+=usr/lib/libusbhid.so.2
 OLD_LIBS+=usr/lib/libvgl.so.4
 OLD_LIBS+=usr/lib/libwrap.so.4
 OLD_LIBS+=usr/lib/libypclnt.so.2
-OLD_LIBS+=usr/lib/snmp_atm.so.3
 OLD_LIBS+=usr/lib/snmp_bridge.so.3
 OLD_LIBS+=usr/lib/snmp_hostres.so.3
-OLD_LIBS+=usr/lib/snmp_mibII.so.3
-OLD_LIBS+=usr/lib/snmp_netgraph.so.3
-OLD_LIBS+=usr/lib/snmp_pf.so.3
 .if ${TARGET_ARCH} == "amd64"
 OLD_LIBS+=usr/lib32/libatm.so.4
 OLD_LIBS+=usr/lib32/libbegemot.so.2
@@ -4551,7 +4541,6 @@ OLD_FILES+=usr/games/worm
 OLD_FILES+=usr/games/worms
 OLD_FILES+=usr/games/wump
 OLD_FILES+=sbin/mount_reiserfs
-OLD_FILES+=usr/include/c++/3.4/ext/demangle.h
 OLD_FILES+=usr/include/cam/cam_extend.h
 OLD_FILES+=usr/include/dev/wi/wi_hostap.h
 OLD_FILES+=usr/include/disktab.h
@@ -4814,7 +4803,6 @@ OLD_FILES+=usr/include/posix4/posix4.h
 OLD_FILES+=usr/include/posix4/sched.h
 OLD_FILES+=usr/include/posix4/semaphore.h
 OLD_DIRS+=usr/include/posix4
-OLD_FILES+=usr/include/rune.h
 OLD_FILES+=usr/include/security/_pam_compat.h
 OLD_FILES+=usr/include/security/_pam_macros.h
 OLD_FILES+=usr/include/security/_pam_types.h
@@ -4960,37 +4948,14 @@ OLD_FILES+=usr/share/doc/ntp/release.htm
 OLD_FILES+=usr/share/doc/ntp/tickadj.htm
 OLD_FILES+=usr/share/doc/papers/nqnfs.ascii.gz
 OLD_FILES+=usr/share/doc/papers/px.ascii.gz
-OLD_FILES+=usr/share/man/man3/mbrune.3.gz
-OLD_FILES+=usr/share/man/man3/rune.3.gz
-OLD_FILES+=usr/share/man/man3/mac_is_present_np.3.gz
-OLD_FILES+=usr/share/man/man3/fpsetsticky.3.gz
-OLD_FILES+=usr/share/man/man3/gss_krb5_copy_ccache.3.gz
-OLD_FILES+=usr/share/man/man3/gss_krb5_compat_des3_mic.3.gz
-OLD_FILES+=usr/share/man/man3/exp10f.3.gz
 OLD_FILES+=usr/share/man/man3/exp10.3.gz
-OLD_FILES+=usr/share/man/man3/mbrrune.3.gz
-OLD_FILES+=usr/share/man/man3/mbmb.3.gz
-OLD_FILES+=usr/share/man/man3/sputrune.3.gz
-OLD_FILES+=usr/share/man/man3/sgetrune.3.gz
-OLD_FILES+=usr/share/man/man3/setrunelocale.3.gz
-OLD_FILES+=usr/share/man/man3/setinvalidrune.3.gz
-OLD_FILES+=usr/share/man/man3/mbrune.3.gz
-OLD_FILES+=usr/share/man/man3/rune.3.gz
-OLD_FILES+=usr/share/man/man3/mac_is_present_np.3.gz
-OLD_FILES+=usr/share/man/man3/fpsetsticky.3.gz
-OLD_FILES+=usr/share/man/man3/gss_krb5_copy_ccache.3.gz
-OLD_FILES+=usr/share/man/man3/gss_krb5_compat_des3_mic.3.gz
 OLD_FILES+=usr/share/man/man3/exp10f.3.gz
-OLD_FILES+=usr/share/man/man3/exp10.3.gz
-OLD_FILES+=usr/share/man/man3/mbrrune.3.gz
+OLD_FILES+=usr/share/man/man3/fpsetsticky.3.gz
+OLD_FILES+=usr/share/man/man3/gss_krb5_compat_des3_mic.3.gz
+OLD_FILES+=usr/share/man/man3/gss_krb5_copy_ccache.3.gz
+OLD_FILES+=usr/share/man/man3/mac_is_present_np.3.gz
 OLD_FILES+=usr/share/man/man3/mbmb.3.gz
-OLD_FILES+=usr/share/man/man3/sputrune.3.gz
-OLD_FILES+=usr/share/man/man3/sgetrune.3.gz
 OLD_FILES+=usr/share/man/man3/setrunelocale.3.gz
-OLD_FILES+=usr/share/man/man3/setinvalidrune.3.gz
-OLD_FILES+=usr/share/man/man3/fungetrune.3.gz
-OLD_FILES+=usr/share/man/man3/fputrune.3.gz
-OLD_FILES+=usr/share/man/man3/fgetrune.3.gz
 OLD_FILES+=usr/share/man/man5/usbd.conf.5.gz
 .if ${TARGET_ARCH} != "i386" && ${TARGET_ARCH} != "amd64"
 OLD_FILES+=usr/share/man/man8/boot_i386.8.gz
@@ -5088,11 +5053,7 @@ OLD_LIBS+=lib/libgpib.so.1
 # 20060413: libpcap.so.4 moved to /lib/
 OLD_LIBS+=usr/lib/libpcap.so.4
 # 20060412: libpthread.so.2 moved to /lib/
-.if ${TARGET_ARCH} != "sparc64"
 OLD_LIBS+=usr/lib/libpthread.so.2
-.else
-OLD_LIBS+=usr/lib/libthr.so.2
-.endif
 # 20060127: revert libdisk to static-only
 OLD_LIBS+=usr/lib/libdisk.so.3
 # 20051027: libc_r discontinued (removed 20101113)
@@ -5211,8 +5172,6 @@ OLD_LIBS+=usr/lib/snmp_atm.so.3
 OLD_LIBS+=usr/lib/snmp_mibII.so.3
 OLD_LIBS+=usr/lib/snmp_netgraph.so.3
 OLD_LIBS+=usr/lib/snmp_pf.so.3
-# 20050603: network related ABI change on 64bit systems
-OLD_LIBS+=usr/lib/libpcap.so.3
 # 200505XX: ?
 OLD_LIBS+=usr/lib/snmp_atm.so.2
 OLD_LIBS+=usr/lib/snmp_mibII.so.2
@@ -5233,10 +5192,6 @@ OLD_LIBS+=usr/lib/libpcap.so.2
 OLD_LIBS+=usr/lib/libisc.so.1
 # 200408XX
 OLD_LIBS+=usr/lib/snmp_netgraph.so.1
-.if ${TARGET_ARCH} != "sparc64"
-# 20040130: libkse renamed to libpthread
-OLD_LIBS+=usr/lib/libkse.so.1
-.endif
 # 200404XX
 OLD_LIBS+=usr/lib/libsnmp.so.1
 OLD_LIBS+=usr/lib/snmp_mibII.so.1
