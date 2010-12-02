@@ -216,15 +216,28 @@ newreno_post_recovery(struct cc_var *ccv)
 void
 newreno_after_idle(struct cc_var *ccv)
 {
+	int rw;
+
 	/*
-	 * We have been idle for "a while" and no acks are expected to clock out
-	 * any data we send -- slow start to get ack "clock" running again.
+	 * If we've been idle for more than one retransmit timeout the old
+	 * congestion window is no longer current and we have to reduce it to
+	 * the restart window before we can transmit again.
+	 *
+	 * The restart window is the initial window or the last CWND, whichever
+	 * is smaller.
+	 *
+	 * This is done to prevent us from flooding the path with a full CWND at
+	 * wirespeed, overloading router and switch buffers along the way.
+	 *
+	 * See RFC5681 Section 4.1. "Restarting Idle Connections".
 	 */
 	if (V_tcp_do_rfc3390)
-		CCV(ccv, snd_cwnd) = min(4 * CCV(ccv, t_maxseg),
+		rw = min(4 * CCV(ccv, t_maxseg),
 		    max(2 * CCV(ccv, t_maxseg), 4380));
 	else
-		CCV(ccv, snd_cwnd) = CCV(ccv, t_maxseg) * 2;
+		rw = CCV(ccv, t_maxseg) * 2;
+
+	CCV(ccv, snd_cwnd) = min(rw, CCV(ccv, snd_cwnd));
 }
 
 
