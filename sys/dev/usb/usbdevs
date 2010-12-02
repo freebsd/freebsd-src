@@ -1554,6 +1554,9 @@ product ETEK 1COM		0x8007	Serial
 /* Extended Systems products */
 product EXTENDED XTNDACCESS	0x0100	XTNDAccess IrDA
 
+/* Falcom products */
+product FALCOM TWIST		0x0001	USB GSM/GPRS Modem
+
 /* FEIYA products */
 product FEIYA 5IN1		0x1132	5-in-1 Card Reader
 
@@ -2137,6 +2140,7 @@ product MELCO SG54HG		0x00f4	WLI-U2-SG54HG
 product MELCO WLRUCG		0x0116	WLR-UC-G
 product MELCO WLRUCGAOSS	0x0119	WLR-UC-G-AOSS
 product MELCO WLIUCAG300N	0x012e	WLI-UC-AG300N
+product MELCO WLIUCG		0x0137	WLI-UC-G
 product MELCO RT2870_1		0x0148	RT2870
 product MELCO RT2870_2		0x0150	RT2870
 product MELCO WLIUCGN		0x015d	WLI-UC-GN

@@ -928,6 +928,7 @@ ffs_mountfs(devvp, mp, td)
 		if ((fs->fs_flags & FS_DOSOFTDEP) &&
 		    (error = softdep_mount(devvp, mp, fs, cred)) != 0) {
 			free(fs->fs_csp, M_UFSMNT);
+			ffs_flushfiles(mp, FORCECLOSE, td);
 			goto out;
 		}
 		if (fs->fs_snapinum[0] != 0)

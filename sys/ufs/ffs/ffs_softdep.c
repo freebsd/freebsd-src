@@ -6024,11 +6024,12 @@ handle_complete_freeblocks(freeblks)
 		vput(vp);
 	}
 
-	KASSERT(freeblks->fb_chkcnt == 0 ||
-	    ((fs->fs_flags & FS_UNCLEAN) != 0 && (flags & LK_NOWAIT) == 0),
-	    ("handle_workitem_freeblocks: inode %ju block count %jd\n",
-	    (uintmax_t)freeblks->fb_previousinum,
-	    (intmax_t)freeblks->fb_chkcnt));
+	if (!(freeblks->fb_chkcnt == 0 ||
+	    ((fs->fs_flags & FS_UNCLEAN) != 0 && (flags & LK_NOWAIT) == 0)))
+	        printf(
+	"handle_workitem_freeblocks: inode %ju block count %jd\n",
+		   (uintmax_t)freeblks->fb_previousinum,
+		   (intmax_t)freeblks->fb_chkcnt);
 
 	ACQUIRE_LOCK(&lk);
 	/*

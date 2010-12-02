@@ -438,7 +438,7 @@ ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	printf("\t\t%ju two or more ext mbuf\n",
 	    (uintmax_t)ip6stat.ip6s_mext2m);
 	p(ip6s_exthdrtoolong,
-	    "\t%ju packet%s whose headers are not continuous\n");
+	    "\t%ju packet%s whose headers are not contiguous\n");
 	p(ip6s_nogif, "\t%ju tunneling packet%s that can't find gif\n");
 	p(ip6s_toomanyhdr,
 	    "\t%ju packet%s discarded because of too many headers\n");

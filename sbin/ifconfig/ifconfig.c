@@ -295,6 +295,8 @@ main(int argc, char *argv[])
 			sdl = (const struct sockaddr_dl *) ifa->ifa_addr;
 		else
 			sdl = NULL;
+		if (sdl != NULL && sdl->sdl_type == IFT_USB)
+			continue;
 		if (cp != NULL && strcmp(cp, ifa->ifa_name) == 0 && !namesonly)
 			continue;
 		iflen = strlcpy(name, ifa->ifa_name, sizeof(name));

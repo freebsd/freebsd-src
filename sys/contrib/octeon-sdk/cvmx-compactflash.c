@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 #include "cvmx.h"
@@ -49,20 +51,20 @@
 /**
  * Convert nanosecond based time to setting used in the
  * boot bus timing register, based on timing multiple
- * 
- * 
+ *
+ *
  */
 static uint32_t ns_to_tim_reg(int tim_mult, uint32_t nsecs)
 {
 	uint32_t val;
 
 	/* Compute # of eclock periods to get desired duration in nanoseconds */
-	val = FLASH_RoundUP(nsecs * (cvmx_sysinfo_get()->cpu_clock_hz/1000000), 1000);
-	
+	val = FLASH_RoundUP(nsecs * (cvmx_clock_get_rate(CVMX_CLOCK_SCLK)/1000000), 1000);
+
 	/* Factor in timing multiple, if not 1 */
 	if (tim_mult != 1)
 		val = FLASH_RoundUP(val, tim_mult);
-	
+
 	return (val);
 }
 
@@ -86,7 +88,7 @@ uint64_t cvmx_compactflash_generate_dma_tim(int tim_mult, uint16_t *ident_data, 
             return 0;
 
         word53_field_valid = ident_data[53];
-        word63_mwdma = ident_data[63]; 
+        word63_mwdma = ident_data[63];
         word163_adv_timing_info = ident_data[163];
 
 	dma_tim.u64 = 0;
@@ -146,31 +148,31 @@ uint64_t cvmx_compactflash_generate_dma_tim(int tim_mult, uint16_t *ident_data, 
 			To = 80;
 			Td = 55;
 			Tkr = 20;
-			
+
 			oe_a = Td + 20;  // Td (Seem to need more margin here....
 			oe_n = MAX(To - oe_a, Tkr);  // Tkr from cf spec, lengthened to meet To
-			
+
 			// oe_n + oe_h must be >= To (cycle time)
 			dma_acks = 0; //Ti
 			dma_ackh = 5; // Tj
-			
+
 			dma_arq = 8;  // not spec'ed, value in eclocks, not affected by tim_mult
-			pause = 25 - dma_arq * 1000/(cvmx_sysinfo_get()->cpu_clock_hz/1000000); // Tz
+			pause = 25 - dma_arq * 1000/(cvmx_clock_get_rate(CVMX_CLOCK_SCLK)/1000000); // Tz
 			break;
 		case 3:
 			To = 100;
 			Td = 65;
 			Tkr = 20;
-			
+
 			oe_a = Td + 20;  // Td (Seem to need more margin here....
 			oe_n = MAX(To - oe_a, Tkr);  // Tkr from cf spec, lengthened to meet To
-			
+
 			// oe_n + oe_h must be >= To (cycle time)
 			dma_acks = 0; //Ti
 			dma_ackh = 5; // Tj
-			
+
 			dma_arq = 8;  // not spec'ed, value in eclocks, not affected by tim_mult
-			pause = 25 - dma_arq * 1000/(cvmx_sysinfo_get()->cpu_clock_hz/1000000); // Tz
+			pause = 25 - dma_arq * 1000/(cvmx_clock_get_rate(CVMX_CLOCK_SCLK)/1000000); // Tz
 			break;
 		case 2:
 			// +20 works
@@ -190,11 +192,11 @@ uint64_t cvmx_compactflash_generate_dma_tim(int tim_mult, uint16_t *ident_data, 
 			// oe_n + oe_h must be >= To (cycle time)
 			dma_acks = 0 + 20; //Ti
 			dma_ackh = 5; // Tj
-			
+
 			dma_arq = 8;  // not spec'ed, value in eclocks, not affected by tim_mult
-			pause = 25 - dma_arq * 1000/(cvmx_sysinfo_get()->cpu_clock_hz/1000000); // Tz
+			pause = 25 - dma_arq * 1000/(cvmx_clock_get_rate(CVMX_CLOCK_SCLK)/1000000); // Tz
                         // no fudge needed on pause
-			
+
 			break;
 		case 1:
 		case 0:
@@ -206,24 +208,24 @@ uint64_t cvmx_compactflash_generate_dma_tim(int tim_mult, uint16_t *ident_data, 
 
         if (mwdma_mode_ptr)
             *mwdma_mode_ptr = mwdma_mode;
-	
+
 	dma_tim.s.dmack_pi = 1;
-	
+
 	dma_tim.s.oe_n = ns_to_tim_reg(tim_mult, oe_n);
 	dma_tim.s.oe_a = ns_to_tim_reg(tim_mult, oe_a);
-	
+
 	dma_tim.s.dmack_s = ns_to_tim_reg(tim_mult, dma_acks);
-	dma_tim.s.dmack_h = ns_to_tim_reg(tim_mult, dma_ackh); 
-	
+	dma_tim.s.dmack_h = ns_to_tim_reg(tim_mult, dma_ackh);
+
 	dma_tim.s.dmarq = dma_arq;
 	dma_tim.s.pause = ns_to_tim_reg(tim_mult, pause);
-	
+
 	dma_tim.s.rd_dly = 0; /* Sample right on edge */
-	
+
 	/*  writes only */
 	dma_tim.s.we_n = ns_to_tim_reg(tim_mult, oe_n);
 	dma_tim.s.we_a = ns_to_tim_reg(tim_mult, oe_a);
-	
+
 #if 0
 	cvmx_dprintf("ns to ticks (mult %d) of %d is: %d\n", TIM_MULT, 60, ns_to_tim_reg(60));
 	cvmx_dprintf("oe_n: %d, oe_a: %d, dmack_s: %d, dmack_h: %d, dmarq: %d, pause: %d\n",
@@ -335,7 +337,7 @@ void cvmx_compactflash_set_piomode(int cs0, int cs1, int pio_mode)
             break;
     }
     /* Convert times in ns to clock cycles, rounding up */
-    clocks_us = FLASH_RoundUP((uint64_t)cvmx_sysinfo_get()->cpu_clock_hz, 1000000);
+    clocks_us = FLASH_RoundUP(cvmx_clock_get_rate(CVMX_CLOCK_SCLK), 1000000);
 
     /* Convert times in clock cycles, rounding up. Octeon parameters are in
         minus one notation, so take off one after the conversion */

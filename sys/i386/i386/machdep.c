@@ -633,13 +633,6 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_gs = rgs();
 	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_fs, sizeof(*regs));
 	sf.sf_uc.uc_mcontext.mc_len = sizeof(sf.sf_uc.uc_mcontext); /* magic */
-
-	/*
-	 * The get_fpcontext() call must be placed before assignments
-	 * to mc_fsbase and mc_gsbase due to the alignment-override
-	 * code in get_fpcontext() that possibly clobbers 12 bytes of
-	 * mcontext after mc_fpstate.
-	 */
 	get_fpcontext(td, &sf.sf_uc.uc_mcontext);
 	fpstate_drop(td);
 	/*
@@ -2583,6 +2576,8 @@ init386(first)
 		pmap_kenter(pa + KERNBASE, pa);
 	dpcpu_init((void *)(first + KERNBASE), 0);
 	first += DPCPU_SIZE;
+	physfree += DPCPU_SIZE;
+	init_first += DPCPU_SIZE / PAGE_SIZE;
 
 	PCPU_SET(prvspace, pc);
 	PCPU_SET(curthread, &thread0);
@@ -3209,28 +3204,34 @@ set_fpregs_xmm(sv_87, sv_xmm)
 int
 fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
+
+	KASSERT(td == curthread || TD_IS_SUSPENDED(td),
+	    ("not suspended thread %p", td));
+	npxgetregs(td);
 #ifdef CPU_ENABLE_SSE
-	if (cpu_fxsr) {
+	if (cpu_fxsr)
 		fill_fpregs_xmm(&td->td_pcb->pcb_user_save.sv_xmm,
-						(struct save87 *)fpregs);
-		return (0);
-	}
+		    (struct save87 *)fpregs);
+	else
 #endif /* CPU_ENABLE_SSE */
-	bcopy(&td->td_pcb->pcb_user_save.sv_87, fpregs, sizeof *fpregs);
+		bcopy(&td->td_pcb->pcb_user_save.sv_87, fpregs,
+		    sizeof(*fpregs));
 	return (0);
 }
 
 int
 set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
+
 #ifdef CPU_ENABLE_SSE
-	if (cpu_fxsr) {
+	if (cpu_fxsr)
 		set_fpregs_xmm((struct save87 *)fpregs,
 		    &td->td_pcb->pcb_user_save.sv_xmm);
-		return (0);
-	}
+	else
 #endif /* CPU_ENABLE_SSE */
-	bcopy(fpregs, &td->td_pcb->pcb_user_save.sv_87, sizeof *fpregs);
+		bcopy(fpregs, &td->td_pcb->pcb_user_save.sv_87,
+		    sizeof(*fpregs));
+	npxuserinited(td);
 	return (0);
 }
 
@@ -3272,13 +3273,6 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mc_esp = tp->tf_esp;
 	mcp->mc_ss = tp->tf_ss;
 	mcp->mc_len = sizeof(*mcp);
-
-	/*
-	 * The get_fpcontext() call must be placed before assignments
-	 * to mc_fsbase and mc_gsbase due to the alignment-override
-	 * code in get_fpcontext() that possibly clobbers 12 bytes of
-	 * mcontext after mc_fpstate.
-	 */
 	get_fpcontext(td, mcp);
 	sdp = &td->td_pcb->pcb_fsd;
 	mcp->mc_fsbase = sdp->sd_hibase << 24 | sdp->sd_lobase;
@@ -3329,39 +3323,14 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 static void
 get_fpcontext(struct thread *td, mcontext_t *mcp)
 {
+
 #ifndef DEV_NPX
 	mcp->mc_fpformat = _MC_FPFMT_NODEV;
 	mcp->mc_ownedfp = _MC_FPOWNED_NONE;
 #else
-	union savefpu *addr;
-
-	/*
-	 * XXX mc_fpstate might be misaligned, since its declaration is not
-	 * unportabilized using __attribute__((aligned(16))) like the
-	 * declaration of struct savemm, and anyway, alignment doesn't work
-	 * for auto variables since we don't use gcc's pessimal stack
-	 * alignment.  Work around this by abusing the spare fields after
-	 * mcp->mc_fpstate.
-	 *
-	 * XXX unpessimize most cases by only aligning when fxsave might be
-	 * called, although this requires knowing too much about
-	 * npxgetuserregs()'s internals.
-	 */
-	addr = (union savefpu *)&mcp->mc_fpstate;
-	if (td == PCPU_GET(fpcurthread) &&
-#ifdef CPU_ENABLE_SSE
-	    cpu_fxsr &&
-#endif
-	    ((uintptr_t)(void *)addr & 0xF)) {
-		do
-			addr = (void *)((char *)addr + 4);
-		while ((uintptr_t)(void *)addr & 0xF);
-	}
-	mcp->mc_ownedfp = npxgetuserregs(td, addr);
-	if (addr != (union savefpu *)&mcp->mc_fpstate) {
-		bcopy(addr, &mcp->mc_fpstate, sizeof(mcp->mc_fpstate));
-		bzero(&mcp->mc_spare2, sizeof(mcp->mc_spare2));
-	}
+	mcp->mc_ownedfp = npxgetregs(td);
+	bcopy(&td->td_pcb->pcb_user_save, &mcp->mc_fpstate,
+	    sizeof(mcp->mc_fpstate));
 	mcp->mc_fpformat = npxformat();
 #endif
 }
@@ -3369,7 +3338,6 @@ get_fpcontext(struct thread *td, mcontext_t *mcp)
 static int
 set_fpcontext(struct thread *td, const mcontext_t *mcp)
 {
-	union savefpu *addr;
 
 	if (mcp->mc_fpformat == _MC_FPFMT_NODEV)
 		return (0);
@@ -3381,30 +3349,14 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 		fpstate_drop(td);
 	else if (mcp->mc_ownedfp == _MC_FPOWNED_FPU ||
 	    mcp->mc_ownedfp == _MC_FPOWNED_PCB) {
-		/* XXX align as above. */
-		addr = (union savefpu *)&mcp->mc_fpstate;
-		if (td == PCPU_GET(fpcurthread) &&
-#ifdef CPU_ENABLE_SSE
-		    cpu_fxsr &&
-#endif
-		    ((uintptr_t)(void *)addr & 0xF)) {
-			do
-				addr = (void *)((char *)addr + 4);
-			while ((uintptr_t)(void *)addr & 0xF);
-			bcopy(&mcp->mc_fpstate, addr, sizeof(mcp->mc_fpstate));
-		}
 #ifdef DEV_NPX
 #ifdef CPU_ENABLE_SSE
 		if (cpu_fxsr)
-			addr->sv_xmm.sv_env.en_mxcsr &= cpu_mxcsr_mask;
+			((union savefpu *)&mcp->mc_fpstate)->sv_xmm.sv_env.
+			    en_mxcsr &= cpu_mxcsr_mask;
 #endif
-		npxsetuserregs(td, addr);
+		npxsetregs(td, (union savefpu *)&mcp->mc_fpstate);
 #endif
-		/*
-		 * Don't bother putting things back where they were in the
-		 * misaligned case, since we know that the caller won't use
-		 * them again.
-		 */
 	} else
 		return (EINVAL);
 	return (0);
@@ -3422,12 +3374,12 @@ fpstate_drop(struct thread *td)
 #endif
 	/*
 	 * XXX force a full drop of the npx.  The above only drops it if we
-	 * owned it.  npxgetuserregs() has the same bug in the !cpu_fxsr case.
+	 * owned it.  npxgetregs() has the same bug in the !cpu_fxsr case.
 	 *
-	 * XXX I don't much like npxgetuserregs()'s semantics of doing a full
+	 * XXX I don't much like npxgetregs()'s semantics of doing a full
 	 * drop.  Dropping only to the pcb matches fnsave's behaviour.
 	 * We only need to drop to !PCB_INITDONE in sendsig().  But
-	 * sendsig() is the only caller of npxgetuserregs()... perhaps we just
+	 * sendsig() is the only caller of npxgetregs()... perhaps we just
 	 * have too many layers.
 	 */
 	curthread->td_pcb->pcb_flags &= ~(PCB_NPXINITDONE |

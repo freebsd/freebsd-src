@@ -378,6 +378,8 @@ cc_cong_signal(struct tcpcb *tp, struct tcphdr *th, uint32_t type)
 		tp->t_dupacks = 0;
 		tp->t_bytes_acked = 0;
 		EXIT_RECOVERY(tp->t_flags);
+		tp->snd_ssthresh = max(2, min(tp->snd_wnd, tp->snd_cwnd) / 2 /
+		    tp->t_maxseg) * tp->t_maxseg;
 		tp->snd_cwnd = tp->t_maxseg;
 		break;
 	case CC_RTO_ERR:

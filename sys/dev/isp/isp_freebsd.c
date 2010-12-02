@@ -141,9 +141,6 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 		fc->path = path;
 		fc->isp = isp;
 		fc->ready = 1;
-		fc->gone_device_time = isp_gone_device_time;
-		fc->loop_down_limit = isp_loop_down_limit;
-		fc->hysteresis = isp_fabric_hysteresis;
 		callout_init_mtx(&fc->ldt, &isp->isp_osinfo.lock, 0);
 		callout_init_mtx(&fc->gdt, &isp->isp_osinfo.lock, 0);
 

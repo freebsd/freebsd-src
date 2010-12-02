@@ -16,6 +16,8 @@ mips/mips/intr_machdep.c			standard
 mips/mips/tick.c				standard
 
 mips/cavium/octeon_rnd.c			optional random
+mips/cavium/octeon_wdog.c			optional octeon_wdog
+mips/cavium/octeon_nmi.S			optional octeon_wdog
 
 mips/cavium/cryptocteon/cavium_crypto.c		optional cryptocteon
 mips/cavium/cryptocteon/cryptocteon.c		optional cryptocteon
@@ -47,21 +49,42 @@ contrib/octeon-sdk/cvmx-usb.c			optional octusb
 #     optional but on in the default config would seem reasonable.
 contrib/octeon-sdk/cvmx-cmd-queue.c		standard
 contrib/octeon-sdk/cvmx-bootmem.c		standard
+contrib/octeon-sdk/cvmx-clock.c			standard
+contrib/octeon-sdk/cvmx-error.c			standard
+contrib/octeon-sdk/cvmx-error-custom.c		standard
+contrib/octeon-sdk/cvmx-error-init-cn30xx.c	standard
+contrib/octeon-sdk/cvmx-error-init-cn31xx.c	standard
+contrib/octeon-sdk/cvmx-error-init-cn38xx.c	standard
+contrib/octeon-sdk/cvmx-error-init-cn38xxp2.c	standard
+contrib/octeon-sdk/cvmx-error-init-cn50xx.c	standard
+contrib/octeon-sdk/cvmx-error-init-cn52xx.c	standard
+contrib/octeon-sdk/cvmx-error-init-cn52xxp1.c	standard
+contrib/octeon-sdk/cvmx-error-init-cn56xx.c	standard
+contrib/octeon-sdk/cvmx-error-init-cn56xxp1.c	standard
+contrib/octeon-sdk/cvmx-error-init-cn58xx.c	standard
+contrib/octeon-sdk/cvmx-error-init-cn58xxp1.c	standard
+contrib/octeon-sdk/cvmx-error-init-cn63xx.c	standard
+contrib/octeon-sdk/cvmx-error-init-cn63xxp1.c	standard
 contrib/octeon-sdk/cvmx-fpa.c			standard
 contrib/octeon-sdk/cvmx-helper.c		standard
 contrib/octeon-sdk/cvmx-helper-board.c		standard
 contrib/octeon-sdk/cvmx-helper-errata.c		standard
 contrib/octeon-sdk/cvmx-helper-fpa.c		standard
+contrib/octeon-sdk/cvmx-helper-jtag.c		standard
 contrib/octeon-sdk/cvmx-helper-loop.c		standard
 contrib/octeon-sdk/cvmx-helper-npi.c		standard
 contrib/octeon-sdk/cvmx-helper-rgmii.c		standard
 contrib/octeon-sdk/cvmx-helper-sgmii.c		standard
 contrib/octeon-sdk/cvmx-helper-spi.c		standard
+contrib/octeon-sdk/cvmx-helper-srio.c		standard
 contrib/octeon-sdk/cvmx-helper-util.c		standard
 contrib/octeon-sdk/cvmx-helper-xaui.c		standard
+contrib/octeon-sdk/cvmx-l2c.c			standard
+contrib/octeon-sdk/cvmx-pcie.c			standard
 contrib/octeon-sdk/cvmx-pko.c			standard
 contrib/octeon-sdk/cvmx-spi.c			standard
 contrib/octeon-sdk/cvmx-spi4000.c		standard
+contrib/octeon-sdk/cvmx-srio.c			standard
 contrib/octeon-sdk/cvmx-sysinfo.c		standard
 contrib/octeon-sdk/cvmx-thunder.c		standard
 contrib/octeon-sdk/cvmx-twsi.c			standard

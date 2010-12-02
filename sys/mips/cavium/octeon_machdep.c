@@ -97,7 +97,9 @@ static const struct octeon_feature_description octeon_feature_descriptions[] = {
 	{ OCTEON_FEATURE_SAAD,			"SAAD" },
 	{ OCTEON_FEATURE_ZIP,			"ZIP" },
 	{ OCTEON_FEATURE_CRYPTO,		"CRYPTO" },
+	{ OCTEON_FEATURE_DORM_CRYPTO,		"DORM_CRYPTO" },
 	{ OCTEON_FEATURE_PCIE,			"PCIE" },
+	{ OCTEON_FEATURE_SRIO,			"SRIO" },
 	{ OCTEON_FEATURE_KEY_MEMORY,		"KEY_MEMORY" },
 	{ OCTEON_FEATURE_LED_CONTROLLER,	"LED_CONTROLLER" },
 	{ OCTEON_FEATURE_TRA,			"TRA" },
@@ -107,6 +109,7 @@ static const struct octeon_feature_description octeon_feature_descriptions[] = {
 	{ OCTEON_FEATURE_NO_WPTR,		"NO_WPTR" },
 	{ OCTEON_FEATURE_DFA,			"DFA" },
 	{ OCTEON_FEATURE_MDIO_CLAUSE_45,	"MDIO_CLAUSE_45" },
+	{ OCTEON_FEATURE_NPEI,			"NPEI" },
 	{ 0,					NULL }
 };
 
@@ -406,6 +409,49 @@ octeon_get_timecount(struct timecounter *tc)
 	return ((unsigned)octeon_get_ticks());
 }
 
+/**
+ * version of printf that works better in exception context.
+ *
+ * @param format
+ *
+ * XXX If this function weren't in cvmx-interrupt.c, we'd use the SDK version.
+ */
+void cvmx_safe_printf(const char *format, ...)
+{
+    char buffer[256];
+    char *ptr = buffer;
+    int count;
+    va_list args;
+
+    va_start(args, format);
+#ifndef __U_BOOT__
+    count = vsnprintf(buffer, sizeof(buffer), format, args);
+#else
+    count = vsprintf(buffer, format, args);
+#endif
+    va_end(args);
+
+    while (count-- > 0)
+    {
+        cvmx_uart_lsr_t lsrval;
+
+        /* Spin until there is room */
+        do
+        {
+            lsrval.u64 = cvmx_read_csr(CVMX_MIO_UARTX_LSR(0));
+#if !defined(CONFIG_OCTEON_SIM_SPEED)
+            if (lsrval.s.temt == 0)
+                cvmx_wait(10000);   /* Just to reduce the load on the system */
+#endif
+        }
+        while (lsrval.s.temt == 0);
+
+        if (*ptr == '\n')
+            cvmx_write_csr(CVMX_MIO_UARTX_THR(0), '\r');
+        cvmx_write_csr(CVMX_MIO_UARTX_THR(0), *ptr++);
+    }
+}
+
 /* impSTART: This stuff should move back into the Cavium SDK */
 /*
  ****************************************************************************************
@@ -490,8 +536,6 @@ octeon_is_simulation(void)
 static void
 octeon_process_app_desc_ver_6(void)
 {
-	void *phy_mem_desc_ptr;
-
 	/* XXX Why is 0x00000000ffffffffULL a bad value?  */
 	if (app_desc_ptr->cvmx_desc_vaddr == 0 ||
 	    app_desc_ptr->cvmx_desc_vaddr == 0xfffffffful)
@@ -506,9 +550,7 @@ octeon_process_app_desc_ver_6(void)
                        (int) octeon_bootinfo->major_version,
                        (int) octeon_bootinfo->minor_version, octeon_bootinfo);
 
-	phy_mem_desc_ptr =
-	    (void *)MIPS_PHYS_TO_KSEG0(octeon_bootinfo->phy_mem_desc_addr);
-	cvmx_sysinfo_minimal_initialize(phy_mem_desc_ptr,
+	cvmx_sysinfo_minimal_initialize(octeon_bootinfo->phy_mem_desc_addr,
 					octeon_bootinfo->board_type,
 					octeon_bootinfo->board_rev_major,
 					octeon_bootinfo->board_rev_minor,
@@ -529,9 +571,9 @@ octeon_boot_params_init(register_t ptr)
 
 	KASSERT(octeon_bootinfo != NULL, ("octeon_bootinfo should be set"));
 
-	if (cvmx_sysinfo_get()->phy_mem_desc_ptr == NULL)
+	if (cvmx_sysinfo_get()->phy_mem_desc_addr == (uint64_t)0)
 		panic("Your boot loader did not supply a memory descriptor.");
-	cvmx_bootmem_init(cvmx_sysinfo_get()->phy_mem_desc_ptr);
+	cvmx_bootmem_init(cvmx_sysinfo_get()->phy_mem_desc_addr);
 
         printf("Boot Descriptor Ver: %u -> %u/%u",
                app_desc_ptr->desc_version, octeon_bootinfo->major_version,

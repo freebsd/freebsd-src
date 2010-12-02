@@ -1,40 +1,42 @@
 /***********************license start***************
- *  Copyright (c) 2003-2008 Cavium Networks (support@cavium.com). All rights
- *  reserved.
+ * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * reserved.
  *
  *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions are
- *  met:
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
  *
- *      * Redistributions of source code must retain the above copyright
- *        notice, this list of conditions and the following disclaimer.
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
  *
- *      * Redistributions in binary form must reproduce the above
- *        copyright notice, this list of conditions and the following
- *        disclaimer in the documentation and/or other materials provided
- *        with the distribution.
- *
- *      * Neither the name of Cavium Networks nor the names of
- *        its contributors may be used to endorse or promote products
- *        derived from this software without specific prior written
- *        permission.
- *
- *  TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- *  AND WITH ALL FAULTS AND CAVIUM NETWORKS MAKES NO PROMISES, REPRESENTATIONS
- *  OR WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH
- *  RESPECT TO THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY
- *  REPRESENTATION OR DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT
- *  DEFECTS, AND CAVIUM SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES
- *  OF TITLE, MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR
- *  PURPOSE, LACK OF VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET
- *  POSSESSION OR CORRESPONDENCE TO DESCRIPTION.  THE ENTIRE RISK ARISING OUT
- *  OF USE OR PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
- *
- *
- *  For any questions regarding licensing please contact marketing@caviumnetworks.com
- *
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+
+ *   * Neither the name of Cavium Networks nor the names of
+ *     its contributors may be used to endorse or promote products
+ *     derived from this software without specific prior written
+ *     permission.
+
+ * This Software, including technical data, may be subject to U.S. export  control
+ * laws, including the U.S. Export Administration Act and its  associated
+ * regulations, and may be subject to export or import  regulations in other
+ * countries.
+
+ * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
+ * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
+ * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
+ * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
+ * SPECIFICALLY DISCLAIMS ALL IMPLIED (IF ANY) WARRANTIES OF TITLE,
+ * MERCHANTABILITY, NONINFRINGEMENT, FITNESS FOR A PARTICULAR PURPOSE, LACK OF
+ * VIRUSES, ACCURACY OR COMPLETENESS, QUIET ENJOYMENT, QUIET POSSESSION OR
+ * CORRESPONDENCE TO DESCRIPTION. THE ENTIRE  RISK ARISING OUT OF USE OR
+ * PERFORMANCE OF THE SOFTWARE LIES WITH YOU.
  ***********************license end**************************************/
+
 
 
 
@@ -49,20 +51,35 @@
  * chip errata. For the most part, code doesn't need to call
  * these functions directly.
  *
- * <hr>$Revision: 42150 $<hr>
+ * <hr>$Revision: 52004 $<hr>
  */
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+#include <asm/octeon/cvmx.h>
+#include <asm/octeon/cvmx-helper.h>
+#include <asm/octeon/cvmx-helper-jtag.h>
+#include <asm/octeon/cvmx-pko.h>
+#include <asm/octeon/cvmx-asxx-defs.h>
+#include <asm/octeon/cvmx-gmxx-defs.h>
+#else
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
+#include "executive-config.h"
+#include "cvmx-config.h"
+#endif
+
 #include "cvmx.h"
+
 #include "cvmx-fpa.h"
 #include "cvmx-pip.h"
 #include "cvmx-pko.h"
 #include "cvmx-ipd.h"
-#include "cvmx-asx.h"
 #include "cvmx-gmx.h"
 #include "cvmx-spi.h"
 #include "cvmx-pow.h"
 #include "cvmx-sysinfo.h"
 #include "cvmx-helper.h"
-#include "cvmx-helper-util.h"
+#include "cvmx-helper-jtag.h"
+#endif
+
 
 #ifdef CVMX_ENABLE_PKO_FUNCTIONS
 
@@ -193,7 +210,7 @@ int __cvmx_helper_errata_fix_ipd_ptr_alignment(void)
         } while ((work == NULL) && (retry_cnt > 0));
 
         if (!retry_cnt)
-            cvmx_dprintf("WARNING: FIX_IPD_PTR_ALIGNMENT get_work() timeout occured.\n");
+            cvmx_dprintf("WARNING: FIX_IPD_PTR_ALIGNMENT get_work() timeout occurred.\n");
 
 
         /* Free packet */
@@ -222,34 +239,6 @@ fix_ipd_exit:
 
     return(!!num_segs);
 
-}
-
-
-/**
- * @INTERNAL
- * Workaround ASX setup errata with CN38XX pass1
- *
- * @param interface Interface to setup
- * @param port      Port to setup (0..3)
- * @param cpu_clock_hz
- *                  Chip frequency in Hertz
- *
- * @return Zero on success, negative on failure
- */
-int __cvmx_helper_errata_asx_pass1(int interface, int port, int cpu_clock_hz)
-{
-    /* Set hi water mark as per errata GMX-4 */
-    if (cpu_clock_hz >= 325000000 && cpu_clock_hz < 375000000)
-        cvmx_write_csr(CVMX_ASXX_TX_HI_WATERX(port, interface), 12);
-    else if (cpu_clock_hz >= 375000000 && cpu_clock_hz < 437000000)
-        cvmx_write_csr(CVMX_ASXX_TX_HI_WATERX(port, interface), 11);
-    else if (cpu_clock_hz >= 437000000 && cpu_clock_hz < 550000000)
-        cvmx_write_csr(CVMX_ASXX_TX_HI_WATERX(port, interface), 10);
-    else if (cpu_clock_hz >= 550000000 && cpu_clock_hz < 687000000)
-        cvmx_write_csr(CVMX_ASXX_TX_HI_WATERX(port, interface), 9);
-    else
-        cvmx_dprintf("Illegal clock frequency (%d). CVMX_ASXX_TX_HI_WATERX not set\n", cpu_clock_hz);
-    return 0;
 }
 
 
@@ -334,4 +323,3 @@ void __cvmx_helper_errata_qlm_disable_2nd_order_cdr(int qlm)
     }
     cvmx_helper_qlm_jtag_update(qlm);
 }
-
