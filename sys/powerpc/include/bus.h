@@ -73,6 +73,9 @@
 #ifndef _MACHINE_BUS_H_
 #define _MACHINE_BUS_H_
 
+#include <sys/param.h>
+#include <sys/systm.h>
+
 #include <machine/_bus.h>
 
 #define BUS_SPACE_ALIGNED_POINTER(p, t) ALIGNED_POINTER(p, t)
@@ -311,40 +314,57 @@ extern struct bus_space bs_le_tag;
  * Bus read multiple operations.
  */
 #define	bus_space_read_multi_1(t, h, o, a, c)				\
+	KASSERT(c != 0, ("bus_space_read_multi_1: count == 0"));	\
 	__bs_nonsingle(rm,1,(t),(h),(o),(a),(c))
 #define	bus_space_read_multi_2(t, h, o, a, c)				\
+	KASSERT(c != 0, ("bus_space_read_multi_2: count == 0"));	\
 	__bs_nonsingle(rm,2,(t),(h),(o),(a),(c))
 #define	bus_space_read_multi_4(t, h, o, a, c)				\
+	KASSERT(c != 0, ("bus_space_read_multi_4: count == 0"));	\
 	__bs_nonsingle(rm,4,(t),(h),(o),(a),(c))
 #define	bus_space_read_multi_8(t, h, o, a, c)				\
+	KASSERT(c != 0, ("bus_space_read_multi_8: count == 0"));	\
 	__bs_nonsingle(rm,8,(t),(h),(o),(a),(c))
 
 #define bus_space_read_multi_stream_1 bus_space_read_multi_1
 #define	bus_space_read_multi_stream_2(t, h, o, a, c)			\
+	KASSERT(c != 0, ("bus_space_read_multi_stream_2: count == 0"));	\
 	__bs_nonsingle(rm,s_2,(t),(h),(o),(a),(c))
 #define	bus_space_read_multi_stream_4(t, h, o, a, c)			\
+	KASSERT(c != 0, ("bus_space_read_multi_stream_4: count == 0"));	\
 	__bs_nonsingle(rm,s_4,(t),(h),(o),(a),(c))
 #define	bus_space_read_multi_stream_8(t, h, o, a, c)			\
+	KASSERT(c != 0, ("bus_space_read_multi_stream_8: count == 0"));	\
 	__bs_nonsingle(rm,s_8,(t),(h),(o),(a),(c))
 
 /*
  * Bus read region operations.
  */
 #define	bus_space_read_region_1(t, h, o, a, c)				\
+	KASSERT(c != 0, ("bus_space_read_region_1: count == 0"));	\
 	__bs_nonsingle(rr,1,(t),(h),(o),(a),(c))
 #define	bus_space_read_region_2(t, h, o, a, c)				\
+	KASSERT(c != 0, ("bus_space_read_region_2: count == 0"));	\
 	__bs_nonsingle(rr,2,(t),(h),(o),(a),(c))
 #define	bus_space_read_region_4(t, h, o, a, c)				\
+	KASSERT(c != 0, ("bus_space_read_region_4: count == 0"));	\
 	__bs_nonsingle(rr,4,(t),(h),(o),(a),(c))
 #define	bus_space_read_region_8(t, h, o, a, c)				\
+	KASSERT(c != 0, ("bus_space_read_region_8: count == 0"));	\
 	__bs_nonsingle(rr,8,(t),(h),(o),(a),(c))
 
 #define bus_space_read_region_stream_1 bus_space_read_region_1
-#define	bus_space_read_region_stream_2(t, h, o, a, c)			\
+#define	bus_space_read_region_stream_2(t, h, o, a, c)		\
+	KASSERT(c != 0,						\
+	    ("bus_space_read_region_stream_2: count == 0"));	\
 	__bs_nonsingle(rr,s_2,(t),(h),(o),(a),(c))
-#define	bus_space_read_region_stream_4(t, h, o, a, c)			\
+#define	bus_space_read_region_stream_4(t, h, o, a, c)		\
+	KASSERT(c != 0,						\
+	    ("bus_space_read_region_stream_4: count == 0"));	\
 	__bs_nonsingle(rr,s_4,(t),(h),(o),(a),(c))
-#define	bus_space_read_region_stream_8(t, h, o, a, c)			\
+#define	bus_space_read_region_stream_8(t, h, o, a, c)		\
+	KASSERT(c != 0,						\
+	    ("bus_space_read_region_stream_8: count == 0"));	\
 	__bs_nonsingle(rr,s_8,(t),(h),(o),(a),(c))
 
 /*
@@ -364,101 +384,139 @@ extern struct bus_space bs_le_tag;
  * Bus write multiple operations.
  */
 #define	bus_space_write_multi_1(t, h, o, a, c)				\
+	KASSERT(c != 0, ("bus_space_write_multi_1: count == 0"));	\
 	__bs_nonsingle(wm,1,(t),(h),(o),(a),(c))
 #define	bus_space_write_multi_2(t, h, o, a, c)				\
+	KASSERT(c != 0, ("bus_space_write_multi_2: count == 0"));	\
 	__bs_nonsingle(wm,2,(t),(h),(o),(a),(c))
 #define	bus_space_write_multi_4(t, h, o, a, c)				\
+	KASSERT(c != 0, ("bus_space_write_multi_4: count == 0"));	\
 	__bs_nonsingle(wm,4,(t),(h),(o),(a),(c))
 #define	bus_space_write_multi_8(t, h, o, a, c)				\
+	KASSERT(c != 0, ("bus_space_write_multi_8: count == 0"));	\
 	__bs_nonsingle(wm,8,(t),(h),(o),(a),(c))
 
 #define bus_space_write_multi_stream_1 bus_space_write_multi_1
 #define	bus_space_write_multi_stream_2(t, h, o, a, c)			\
+	KASSERT(c != 0, ("bus_space_write_multi_stream_2: count == 0"));\
 	__bs_nonsingle(wm,s_2,(t),(h),(o),(a),(c))
 #define	bus_space_write_multi_stream_4(t, h, o, a, c)			\
+	KASSERT(c != 0, ("bus_space_write_multi_stream_4: count == 0"));\
 	__bs_nonsingle(wm,s_4,(t),(h),(o),(a),(c))
 #define	bus_space_write_multi_stream_8(t, h, o, a, c)			\
+	KASSERT(c != 0, ("bus_space_write_multi_stream_8: count == 0"));\
 	__bs_nonsingle(wm,s_8,(t),(h),(o),(a),(c))
 
 /*
  * Bus write region operations.
  */
 #define	bus_space_write_region_1(t, h, o, a, c)				\
+	KASSERT(c != 0, ("bus_space_write_region_1: count == 0"));	\
 	__bs_nonsingle(wr,1,(t),(h),(o),(a),(c))
 #define	bus_space_write_region_2(t, h, o, a, c)				\
+	KASSERT(c != 0, ("bus_space_write_region_2: count == 0"));	\
 	__bs_nonsingle(wr,2,(t),(h),(o),(a),(c))
 #define	bus_space_write_region_4(t, h, o, a, c)				\
+	KASSERT(c != 0, ("bus_space_write_region_4: count == 0"));	\
 	__bs_nonsingle(wr,4,(t),(h),(o),(a),(c))
-#define	bus_space_write_region_8(t, h, o, a, c)				\
+#define	bus_space_write_region_8(t, h, o, a, c)					\
+	KASSERT(c != 0, ("bus_space_write_region_8: count == 0"));	\
 	__bs_nonsingle(wr,8,(t),(h),(o),(a),(c))
 
 #define bus_space_write_region_stream_1 bus_space_write_region_1
 #define	bus_space_write_region_stream_2(t, h, o, a, c)			\
+	KASSERT(c != 0,							\
+	    ("bus_space_write_region_stream_2: count == 0"));		\
 	__bs_nonsingle(wr,s_2,(t),(h),(o),(a),(c))
 #define	bus_space_write_region_stream_4(t, h, o, a, c)			\
+	KASSERT(c != 0,							\
+	    ("bus_space_write_region_stream_4: count == 0"));		\
 	__bs_nonsingle(wr,s_4,(t),(h),(o),(a),(c))
 #define	bus_space_write_region_stream_8(t, h, o, a, c)			\
+	KASSERT(c != 0,							\
+	    ("bus_space_write_region_stream_8: count == 0"));		\
 	__bs_nonsingle(wr,s_8,(t),(h),(o),(a),(c))
 
 /*
  * Set multiple operations.
  */
 #define	bus_space_set_multi_1(t, h, o, v, c)				\
+	KASSERT(c != 0, ("bus_space_set_multi_1: count == 0"));		\
 	__bs_set(sm,1,(t),(h),(o),(v),(c))
 #define	bus_space_set_multi_2(t, h, o, v, c)				\
+	KASSERT(c != 0, ("bus_space_set_multi_2: count == 0"));		\
 	__bs_set(sm,2,(t),(h),(o),(v),(c))
 #define	bus_space_set_multi_4(t, h, o, v, c)				\
+	KASSERT(c != 0, ("bus_space_set_multi_4: count == 0"));		\
 	__bs_set(sm,4,(t),(h),(o),(v),(c))
 #define	bus_space_set_multi_8(t, h, o, v, c)				\
+	KASSERT(c != 0, ("bus_space_set_multi_8: count == 0"));		\
 	__bs_set(sm,8,(t),(h),(o),(v),(c))
 
 #define bus_space_set_multi_stream_1 bus_space_set_multi_1
 #define	bus_space_set_multi_stream_2(t, h, o, v, c)			\
+	KASSERT(c != 0, ("bus_space_set_multi_stream_2: count == 0"));	\
 	__bs_set(sm,s_2,(t),(h),(o),(v),(c))
 #define	bus_space_set_multi_stream_4(t, h, o, v, c)			\
+	KASSERT(c != 0, ("bus_space_set_multi_stream_4: count == 0"));	\
 	__bs_set(sm,s_4,(t),(h),(o),(v),(c))
 #define	bus_space_set_multi_stream_8(t, h, o, v, c)			\
+	KASSERT(c != 0, ("bus_space_set_multi_stream_8: count == 0"));	\
 	__bs_set(sm,s_8,(t),(h),(o),(v),(c))
 
 /*
  * Set region operations.
  */
 #define	bus_space_set_region_1(t, h, o, v, c)				\
+	KASSERT(c != 0, ("bus_space_set_region_1: count == 0"));	\
 	__bs_set(sr,1,(t),(h),(o),(v),(c))
 #define	bus_space_set_region_2(t, h, o, v, c)				\
+	KASSERT(c != 0, ("bus_space_set_region_2: count == 0"));	\
 	__bs_set(sr,2,(t),(h),(o),(v),(c))
 #define	bus_space_set_region_4(t, h, o, v, c)				\
+	KASSERT(c != 0, ("bus_space_set_region_4: count == 0"));	\
 	__bs_set(sr,4,(t),(h),(o),(v),(c))
 #define	bus_space_set_region_8(t, h, o, v, c)				\
+	KASSERT(c != 0, ("bus_space_set_region_8: count == 0"));	\
 	__bs_set(sr,8,(t),(h),(o),(v),(c))
 
 #define bus_space_set_region_stream_1 bus_space_set_region_1
 #define	bus_space_set_region_stream_2(t, h, o, v, c)			\
+	KASSERT(c != 0, ("bus_space_set_region_stream_2: count == 0"));	\
 	__bs_set(sr,s_2,(t),(h),(o),(v),(c))
 #define	bus_space_set_region_stream_4(t, h, o, v, c)			\
+	KASSERT(c != 0, ("bus_space_set_region_stream_4: count == 0"));	\
 	__bs_set(sr,s_4,(t),(h),(o),(v),(c))
 #define	bus_space_set_region_stream_8(t, h, o, v, c)			\
+	KASSERT(c != 0, ("bus_space_set_region_stream_8: count == 0"));	\
 	__bs_set(sr,s_8,(t),(h),(o),(v),(c))
 
 #if 0
 /*
  * Copy operations.
  */
-#define	bus_space_copy_region_1(t, h1, o1, h2, o2, c)				\
+#define	bus_space_copy_region_1(t, h1, o1, h2, o2, c)			\
+	KASSERT(c != 0, ("bus_space_copy_region_1: count == 0"));	\
 	__bs_copy(1, t, h1, o1, h2, o2, c)
-#define	bus_space_copy_region_2(t, h1, o1, h2, o2, c)				\
+#define	bus_space_copy_region_2(t, h1, o1, h2, o2, c)			\
+	KASSERT(c != 0, ("bus_space_copy_region_2: count == 0"));	\
 	__bs_copy(2, t, h1, o1, h2, o2, c)
-#define	bus_space_copy_region_4(t, h1, o1, h2, o2, c)				\
+#define	bus_space_copy_region_4(t, h1, o1, h2, o2, c)			\
+	KASSERT(c != 0, ("bus_space_copy_region_4: count == 0"));	\
 	__bs_copy(4, t, h1, o1, h2, o2, c)
-#define	bus_space_copy_region_8(t, h1, o1, h2, o2, c)				\
+#define	bus_space_copy_region_8(t, h1, o1, h2, o2, c)			\
+	KASSERT(c != 0, ("bus_space_copy_region_8: count == 0"));	\
 	__bs_copy(8, t, h1, o1, h2, o2, c)
 
 #define bus_space_copy_region_stream_1 bus_space_copy_region_1
-#define	bus_space_copy_region_stream_2(t, h1, o1, h2, o2, c)			\
+#define	bus_space_copy_region_stream_2(t, h1, o1, h2, o2, c)		\
+	KASSERT(c != 0, ("bus_space_copy_region_stream_2: count == 0"))	\
 	__bs_copy(s_2, t, h1, o1, h2, o2, c)
-#define	bus_space_copy_region_stream_4(t, h1, o1, h2, o2, c)			\
+#define	bus_space_copy_region_stream_4(t, h1, o1, h2, o2, c)		\
+	KASSERT(c != 0, ("bus_space_copy_region_stream_4: count == 0"))	\
 	__bs_copy(s_4, t, h1, o1, h2, o2, c)
-#define	bus_space_copy_region_stream_8(t, h1, o1, h2, o2, c)			\
+#define	bus_space_copy_region_stream_8(t, h1, o1, h2, o2, c)		\
+	KASSERT(c != 0, ("bus_space_copy_region_stream_8: count == 0"))	\
 	__bs_copy(s_8, t, h1, o1, h2, o2, c)
 #endif
 

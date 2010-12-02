@@ -91,6 +91,9 @@
 #ifndef _MACHINE_BUS_H_
 #define _MACHINE_BUS_H_
 
+#include <sys/param.h>
+#include <sys/systm.h>
+
 #include <machine/_bus.h>
 #include <machine/cpufunc.h>
 
@@ -298,7 +301,7 @@ static __inline void
 bus_space_read_multi_1(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint8_t *bufp, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO))
 		bus_space_read_multi_io_1(bsh + ofs, bufp, count);
 	else {
@@ -311,7 +314,7 @@ static __inline void
 bus_space_read_multi_2(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint16_t *bufp, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO))
 		bus_space_read_multi_io_2(bsh + ofs, bufp, count);
 	else {
@@ -324,7 +327,7 @@ static __inline void
 bus_space_read_multi_4(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint32_t *bufp, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO))
 		bus_space_read_multi_io_4(bsh + ofs, bufp, count);
 	else {
@@ -337,7 +340,7 @@ static __inline void
 bus_space_read_multi_8(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint64_t *bufp, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO))
 		bus_space_read_multi_io_8(bsh + ofs, bufp, count);
 	else {
@@ -361,7 +364,7 @@ static __inline void
 bus_space_write_multi_1(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, const uint8_t *bufp, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO))
 		bus_space_write_multi_io_1(bsh + ofs, bufp, count);
 	else {
@@ -374,7 +377,7 @@ static __inline void
 bus_space_write_multi_2(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, const uint16_t *bufp, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO))
 		bus_space_write_multi_io_2(bsh + ofs, bufp, count);
 	else {
@@ -387,7 +390,7 @@ static __inline void
 bus_space_write_multi_4(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, const uint32_t *bufp, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO))
 		bus_space_write_multi_io_4(bsh + ofs, bufp, count);
 	else {
@@ -400,7 +403,7 @@ static __inline void
 bus_space_write_multi_8(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, const uint64_t *bufp, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO))
 		bus_space_write_multi_io_8(bsh + ofs, bufp, count);
 	else {
@@ -425,7 +428,7 @@ static __inline void
 bus_space_read_region_1(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint8_t *bufp, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO))
 		bus_space_read_region_io_1(bsh + ofs, bufp, count);
 	else {
@@ -439,7 +442,7 @@ static __inline void
 bus_space_read_region_2(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint16_t *bufp, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO))
 		bus_space_read_region_io_2(bsh + ofs, bufp, count);
 	else {
@@ -453,7 +456,7 @@ static __inline void
 bus_space_read_region_4(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint32_t *bufp, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO))
 		bus_space_read_region_io_4(bsh + ofs, bufp, count);
 	else {
@@ -467,7 +470,7 @@ static __inline void
 bus_space_read_region_8(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint64_t *bufp, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO))
 		bus_space_read_region_io_8(bsh + ofs, bufp, count);
 	else {
@@ -493,7 +496,7 @@ static __inline void
 bus_space_write_region_1(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, const uint8_t *bufp, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO))
 		bus_space_write_region_io_1(bsh + ofs, bufp, count);
 	else {
@@ -507,7 +510,7 @@ static __inline void
 bus_space_write_region_2(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, const uint16_t *bufp, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO))
 		bus_space_write_region_io_2(bsh + ofs, bufp, count);
 	else {
@@ -521,7 +524,7 @@ static __inline void
 bus_space_write_region_4(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, const uint32_t *bufp, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO))
 		bus_space_write_region_io_4(bsh + ofs, bufp, count);
 	else {
@@ -535,7 +538,7 @@ static __inline void
 bus_space_write_region_8(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, const uint64_t *bufp, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO))
 		bus_space_write_region_io_8(bsh + ofs, bufp, count);
 	else {
@@ -555,7 +558,7 @@ static __inline void
 bus_space_set_multi_1(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint8_t val, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	while (count-- > 0)
 		bus_space_write_1(bst, bsh, ofs, val);
 }
@@ -564,7 +567,7 @@ static __inline void
 bus_space_set_multi_2(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint16_t val, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	while (count-- > 0)
 		bus_space_write_2(bst, bsh, ofs, val);
 }
@@ -573,7 +576,7 @@ static __inline void
 bus_space_set_multi_4(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint32_t val, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	while (count-- > 0)
 		bus_space_write_4(bst, bsh, ofs, val);
 }
@@ -582,7 +585,7 @@ static __inline void
 bus_space_set_multi_8(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint64_t val, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	while (count-- > 0)
 		bus_space_write_8(bst, bsh, ofs, val);
 }
@@ -603,7 +606,7 @@ static __inline void
 bus_space_set_region_1(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint8_t val, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO))
 		bus_space_set_region_io_1(bsh + ofs, val, count);
 	else {
@@ -617,7 +620,7 @@ static __inline void
 bus_space_set_region_2(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint16_t val, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO))
 		bus_space_set_region_io_2(bsh + ofs, val, count);
 	else {
@@ -631,7 +634,7 @@ static __inline void
 bus_space_set_region_4(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint32_t val, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO))
 		bus_space_set_region_io_4(bsh + ofs, val, count);
 	else {
@@ -645,7 +648,7 @@ static __inline void
 bus_space_set_region_8(bus_space_tag_t bst, bus_space_handle_t bsh,
     bus_size_t ofs, uint64_t val, size_t count)
 {
-
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO))
 		bus_space_set_region_io_4(bsh + ofs, val, count);
 	else {
@@ -674,6 +677,7 @@ bus_space_copy_region_1(bus_space_tag_t bst, bus_space_handle_t sbsh,
 {
 	uint8_t *dst, *src;
 
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO)) {
 		bus_space_copy_region_io_1(sbsh + sofs, dbsh + dofs, count);
 		return;
@@ -698,6 +702,7 @@ bus_space_copy_region_2(bus_space_tag_t bst, bus_space_handle_t sbsh,
 {
 	uint16_t *dst, *src;
 
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO)) {
 		bus_space_copy_region_io_2(sbsh + sofs, dbsh + dofs, count);
 		return;
@@ -722,6 +727,7 @@ bus_space_copy_region_4(bus_space_tag_t bst, bus_space_handle_t sbsh,
 {
 	uint32_t *dst, *src;
 
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO)) {
 		bus_space_copy_region_io_4(sbsh + sofs, dbsh + dofs, count);
 		return;
@@ -746,6 +752,7 @@ bus_space_copy_region_8(bus_space_tag_t bst, bus_space_handle_t sbsh,
 {
 	uint64_t *dst, *src;
 
+	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (__predict_false(bst == IA64_BUS_SPACE_IO)) {
 		bus_space_copy_region_io_8(sbsh + sofs, dbsh + dofs, count);
 		return;
