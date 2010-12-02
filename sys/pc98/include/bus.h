@@ -78,6 +78,7 @@
 #ifndef _PC98_BUS_H_
 #define _PC98_BUS_H_
 
+#include <sys/param.h>
 #include <sys/systm.h>
 
 #include <machine/_bus.h>
@@ -378,7 +379,7 @@ bus_space_read_multi_##BWN (tag, bsh, offset, buf, cnt) 		\
 	TYPE *buf;							\
 	size_t cnt;							\
 {									\
-									\
+	KASSERT(cnt != 0, ("count == 0"));				\
 	__asm __volatile("call *%3"					\
 			:"=c" (cnt),					\
 			 "=d" (offset),					\
@@ -407,7 +408,7 @@ bus_space_write_multi_##BWN (tag, bsh, offset, buf, cnt) 		\
 	const TYPE *buf;						\
 	size_t cnt;							\
 {									\
-									\
+	KASSERT(cnt != 0, ("count == 0"));				\
 	__asm __volatile("call *%3"					\
 			:"=c" (cnt),					\
 			 "=d" (offset),					\
@@ -433,10 +434,10 @@ bus_space_read_region_##BWN (tag, bsh, offset, buf, cnt) 		\
 	bus_space_tag_t tag;						\
 	bus_space_handle_t bsh;						\
 	bus_size_t offset;						\
-	TYPE *buf;						\
+	TYPE *buf;							\
 	size_t cnt;							\
 {									\
-									\
+	KASSERT(cnt != 0, ("count == 0"));				\
 	__asm __volatile("call *%3"					\
 			:"=c" (cnt),					\
 			 "=d" (offset),					\
@@ -465,7 +466,7 @@ bus_space_write_region_##BWN (tag, bsh, offset, buf, cnt) 		\
 	const TYPE *buf;						\
 	size_t cnt;							\
 {									\
-									\
+	KASSERT(cnt != 0, ("count == 0"));				\
 	__asm __volatile("call *%3"					\
 			:"=c" (cnt),					\
 			 "=d" (offset),					\
@@ -494,7 +495,7 @@ bus_space_set_multi_##BWN (tag, bsh, offset, val, cnt)	 		\
 	TYPE val;							\
 	size_t cnt;							\
 {									\
-									\
+	KASSERT(cnt != 0, ("count == 0"));				\
 	__asm __volatile("call *%2"					\
 			:"=c" (cnt),					\
 			 "=d" (offset)					\
@@ -522,7 +523,7 @@ bus_space_set_region_##BWN (tag, bsh, offset, val, cnt) 		\
 	TYPE val;							\
 	size_t cnt;							\
 {									\
-									\
+	KASSERT(cnt != 0, ("count == 0"));				\
 	__asm __volatile("call *%2"					\
 			:"=c" (cnt),					\
 			 "=d" (offset)					\
@@ -555,6 +556,7 @@ bus_space_copy_region_##BWN (tag, sbsh, src, dbsh, dst, cnt)		\
 	if (dbsh->bsh_bam.bs_copy_region_1 != sbsh->bsh_bam.bs_copy_region_1) \
 		panic("bus_space_copy_region: funcs mismatch (ENOSUPPORT)");\
 									\
+	KASSERT(cnt != 0, ("count == 0"));				\
 	__asm __volatile("call *%3"					\
 			:"=c" (cnt),					\
 			 "=S" (src),					\
