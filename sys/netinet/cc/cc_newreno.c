@@ -52,41 +52,35 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
+#include <sys/systm.h>
 
-#include <net/if.h>
-#include <net/if_var.h>
+#include <net/vnet.h>
 
 #include <netinet/cc.h>
-#include <netinet/in.h>
-#include <netinet/in_pcb.h>
 #include <netinet/tcp_seq.h>
 #include <netinet/tcp_var.h>
 
 #include <netinet/cc/cc_module.h>
 
-void	newreno_ack_received(struct cc_var *ccv, uint16_t type);
-void	newreno_cong_signal(struct cc_var *ccv, uint32_t type);
-void	newreno_post_recovery(struct cc_var *ccv);
-void	newreno_after_idle(struct cc_var *ccv);
+static void	newreno_ack_received(struct cc_var *ccv, uint16_t type);
+static void	newreno_after_idle(struct cc_var *ccv);
+static void	newreno_cong_signal(struct cc_var *ccv, uint32_t type);
+static void	newreno_post_recovery(struct cc_var *ccv);
 
 struct cc_algo newreno_cc_algo = {
 	.name = "newreno",
 	.ack_received = newreno_ack_received,
+	.after_idle = newreno_after_idle,
 	.cong_signal = newreno_cong_signal,
 	.post_recovery = newreno_post_recovery,
-	.after_idle = newreno_after_idle
 };
 
-/*
- * Increase cwnd on receipt of a successful ACK:
- * if cwnd <= ssthresh, increases by 1 MSS per ACK
- * if cwnd > ssthresh, increase by ~1 MSS per RTT
- */
-void
+static void
 newreno_ack_received(struct cc_var *ccv, uint16_t type)
 {
 	if (type == CC_ACK && !IN_RECOVERY(CCV(ccv, t_flags)) &&
@@ -153,10 +147,37 @@ newreno_ack_received(struct cc_var *ccv, uint16_t type)
 	}
 }
 
+static void
+newreno_after_idle(struct cc_var *ccv)
+{
+	int rw;
+
+	/*
+	 * If we've been idle for more than one retransmit timeout the old
+	 * congestion window is no longer current and we have to reduce it to
+	 * the restart window before we can transmit again.
+	 *
+	 * The restart window is the initial window or the last CWND, whichever
+	 * is smaller.
+	 *
+	 * This is done to prevent us from flooding the path with a full CWND at
+	 * wirespeed, overloading router and switch buffers along the way.
+	 *
+	 * See RFC5681 Section 4.1. "Restarting Idle Connections".
+	 */
+	if (V_tcp_do_rfc3390)
+		rw = min(4 * CCV(ccv, t_maxseg),
+		    max(2 * CCV(ccv, t_maxseg), 4380));
+	else
+		rw = CCV(ccv, t_maxseg) * 2;
+
+	CCV(ccv, snd_cwnd) = min(rw, CCV(ccv, snd_cwnd));
+}
+
 /*
- * manage congestion signals
+ * Perform any necessary tasks before we enter congestion recovery.
  */
-void
+static void
 newreno_cong_signal(struct cc_var *ccv, uint32_t type)
 {
 	u_int win;
@@ -183,11 +204,9 @@ newreno_cong_signal(struct cc_var *ccv, uint32_t type)
 }
 
 /*
- * decrease the cwnd in response to packet loss or a transmit timeout.
- * th can be null, in which case cwnd will be set according to reno instead
- * of new reno.
+ * Perform any necessary tasks before we exit congestion recovery.
  */
-void
+static void
 newreno_post_recovery(struct cc_var *ccv)
 {
 	if (IN_FASTRECOVERY(CCV(ccv, t_flags))) {
@@ -207,37 +226,6 @@ newreno_post_recovery(struct cc_var *ccv)
 		else
 			CCV(ccv, snd_cwnd) = CCV(ccv, snd_ssthresh);
 	}
-}
-
-/*
- * if a connection has been idle for a while and more data is ready to be sent,
- * reset cwnd
- */
-void
-newreno_after_idle(struct cc_var *ccv)
-{
-	int rw;
-
-	/*
-	 * If we've been idle for more than one retransmit timeout the old
-	 * congestion window is no longer current and we have to reduce it to
-	 * the restart window before we can transmit again.
-	 *
-	 * The restart window is the initial window or the last CWND, whichever
-	 * is smaller.
-	 *
-	 * This is done to prevent us from flooding the path with a full CWND at
-	 * wirespeed, overloading router and switch buffers along the way.
-	 *
-	 * See RFC5681 Section 4.1. "Restarting Idle Connections".
-	 */
-	if (V_tcp_do_rfc3390)
-		rw = min(4 * CCV(ccv, t_maxseg),
-		    max(2 * CCV(ccv, t_maxseg), 4380));
-	else
-		rw = CCV(ccv, t_maxseg) * 2;
-
-	CCV(ccv, snd_cwnd) = min(rw, CCV(ccv, snd_cwnd));
 }
 
 
