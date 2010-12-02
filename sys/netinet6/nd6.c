@@ -403,6 +403,8 @@ nd6_llinfo_settimer_locked(struct llentry *ln, long tick)
 {
 	int canceled;
 
+	LLE_WLOCK_ASSERT(ln);
+
 	if (tick < 0) {
 		ln->la_expire = 0;
 		ln->ln_ntick = 0;
@@ -443,6 +445,7 @@ nd6_llinfo_timer(void *arg)
 
 	KASSERT(arg != NULL, ("%s: arg NULL", __func__));
 	ln = (struct llentry *)arg;
+	LLE_WLOCK_ASSERT(ln);
 	ifp = ln->lle_tbl->llt_ifp;
 
 	CURVNET_SET(ifp->if_vnet);
@@ -450,10 +453,10 @@ nd6_llinfo_timer(void *arg)
 	if (ln->ln_ntick > 0) {
 		if (ln->ln_ntick > INT_MAX) {
 			ln->ln_ntick -= INT_MAX;
-			nd6_llinfo_settimer(ln, INT_MAX);
+			nd6_llinfo_settimer_locked(ln, INT_MAX);
 		} else {
 			ln->ln_ntick = 0;
-			nd6_llinfo_settimer(ln, ln->ln_ntick);
+			nd6_llinfo_settimer_locked(ln, ln->ln_ntick);
 		}
 		goto done;
 	}
@@ -474,8 +477,10 @@ nd6_llinfo_timer(void *arg)
 	case ND6_LLINFO_INCOMPLETE:
 		if (ln->la_asked < V_nd6_mmaxtries) {
 			ln->la_asked++;
-			nd6_llinfo_settimer(ln, (long)ndi->retrans * hz / 1000);
+			nd6_llinfo_settimer_locked(ln, (long)ndi->retrans * hz / 1000);
+			LLE_WUNLOCK(ln);
 			nd6_ns_output(ifp, NULL, dst, ln, 0);
+			LLE_WLOCK(ln);
 		} else {
 			struct mbuf *m = ln->la_hold;
 			if (m) {
@@ -483,24 +488,24 @@ nd6_llinfo_timer(void *arg)
 
 				/*
 				 * assuming every packet in la_hold has the
-				 * same IP header
+				 * same IP header.  Send error after unlock.
 				 */
 				m0 = m->m_nextpkt;
 				m->m_nextpkt = NULL;
-				icmp6_error2(m, ICMP6_DST_UNREACH,
-				    ICMP6_DST_UNREACH_ADDR, 0, ifp);
-
 				ln->la_hold = m0;
 				clear_llinfo_pqueue(ln);
 			}
 			(void)nd6_free(ln, 0);
 			ln = NULL;
+			if (m != NULL)
+				icmp6_error2(m, ICMP6_DST_UNREACH,
+				    ICMP6_DST_UNREACH_ADDR, 0, ifp);
 		}
 		break;
 	case ND6_LLINFO_REACHABLE:
 		if (!ND6_LLINFO_PERMANENT(ln)) {
 			ln->ln_state = ND6_LLINFO_STALE;
-			nd6_llinfo_settimer(ln, (long)V_nd6_gctimer * hz);
+			nd6_llinfo_settimer_locked(ln, (long)V_nd6_gctimer * hz);
 		}
 		break;
 
@@ -517,27 +522,34 @@ nd6_llinfo_timer(void *arg)
 			/* We need NUD */
 			ln->la_asked = 1;
 			ln->ln_state = ND6_LLINFO_PROBE;
-			nd6_llinfo_settimer(ln, (long)ndi->retrans * hz / 1000);
+			nd6_llinfo_settimer_locked(ln, (long)ndi->retrans * hz / 1000);
+			LLE_WUNLOCK(ln);
 			nd6_ns_output(ifp, dst, dst, ln, 0);
+			LLE_WLOCK(ln);
 		} else {
 			ln->ln_state = ND6_LLINFO_STALE; /* XXX */
-			nd6_llinfo_settimer(ln, (long)V_nd6_gctimer * hz);
+			nd6_llinfo_settimer_locked(ln, (long)V_nd6_gctimer * hz);
 		}
 		break;
 	case ND6_LLINFO_PROBE:
 		if (ln->la_asked < V_nd6_umaxtries) {
 			ln->la_asked++;
-			nd6_llinfo_settimer(ln, (long)ndi->retrans * hz / 1000);
+			nd6_llinfo_settimer_locked(ln, (long)ndi->retrans * hz / 1000);
+			LLE_WUNLOCK(ln);
 			nd6_ns_output(ifp, dst, dst, ln, 0);
+			LLE_WLOCK(ln);
 		} else {
 			(void)nd6_free(ln, 0);
 			ln = NULL;
 		}
 		break;
+	default:
+		panic("%s: paths in a dark night can be confusing: %d",
+		    __func__, ln->ln_state);
 	}
 done:
 	if (ln != NULL)
-		LLE_FREE(ln);
+		LLE_FREE_LOCKED(ln);
 	CURVNET_RESTORE();
 }
 
@@ -992,7 +1004,9 @@ nd6_free(struct llentry *ln, int gc)
 {
         struct llentry *next;
 	struct nd_defrouter *dr;
-	struct ifnet *ifp=NULL;
+	struct ifnet *ifp;
+
+	LLE_WLOCK_ASSERT(ln);
 
 	/*
 	 * we used to have pfctlinput(PRC_HOSTDEAD) here.
@@ -1000,12 +1014,13 @@ nd6_free(struct llentry *ln, int gc)
 	 */
 
 	/* cancel timer */
-	nd6_llinfo_settimer(ln, -1);
+	nd6_llinfo_settimer_locked(ln, -1);
+
+	ifp = ln->lle_tbl->llt_ifp;
 
 	if (!V_ip6_forwarding) {
-		int s;
-		s = splnet();
-		dr = defrouter_lookup(&L3_ADDR_SIN6(ln)->sin6_addr, ln->lle_tbl->llt_ifp);
+
+		dr = defrouter_lookup(&L3_ADDR_SIN6(ln)->sin6_addr, ifp);
 
 		if (dr != NULL && dr->expire &&
 		    ln->ln_state == ND6_LLINFO_STALE && gc) {
@@ -1022,15 +1037,16 @@ nd6_free(struct llentry *ln, int gc)
 			 *      but we intentionally keep it just in case.
 			 */
 			if (dr->expire > time_second)
-				nd6_llinfo_settimer(ln,
+				nd6_llinfo_settimer_locked(ln,
 				    (dr->expire - time_second) * hz);
 			else
-				nd6_llinfo_settimer(ln, (long)V_nd6_gctimer * hz);
-			splx(s);
-			LLE_WLOCK(ln);
+				nd6_llinfo_settimer_locked(ln,
+				    (long)V_nd6_gctimer * hz);
+
+			next = LIST_NEXT(ln, lle_next);
 			LLE_REMREF(ln);
 			LLE_WUNLOCK(ln);
-			return (LIST_NEXT(ln, lle_next));
+			return (next);
 		}
 
 		if (ln->ln_router || dr) {
@@ -1039,7 +1055,7 @@ nd6_free(struct llentry *ln, int gc)
 			 * is in the Default Router List.
 			 * See a corresponding comment in nd6_na_input().
 			 */
-			rt6_flush(&L3_ADDR_SIN6(ln)->sin6_addr, ln->lle_tbl->llt_ifp);
+			rt6_flush(&L3_ADDR_SIN6(ln)->sin6_addr, ifp);
 		}
 
 		if (dr) {
@@ -1067,11 +1083,13 @@ nd6_free(struct llentry *ln, int gc)
 			pfxlist_onlink_check();
 
 			/*
-			 * refresh default router list
+			 * Refresh default router list.  Have to unlock as
+			 * it calls into nd6_lookup(), still holding a ref.
 			 */
+			LLE_WUNLOCK(ln);
 			defrouter_select();
+			LLE_WLOCK(ln);
 		}
-		splx(s);
 	}
 
 	/*
@@ -1082,7 +1100,11 @@ nd6_free(struct llentry *ln, int gc)
 	 */
 	next = LIST_NEXT(ln, lle_next);
 
-	ifp = ln->lle_tbl->llt_ifp;
+	/*
+	 * Save to unlock. We still hold an extra reference and will not
+	 * free(9) in llentry_free() if someone else holds one as well.
+	 */
+	LLE_WUNLOCK(ln);
 	IF_AFDATA_LOCK(ifp);
 	LLE_WLOCK(ln);
 	LLE_REMREF(ln);
@@ -1804,6 +1826,9 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 		LLE_RUNLOCK(ln);
 		goto retry;
 	}
+
+	LLE_WLOCK_ASSERT(ln);
+
 	if (ln->la_hold) {
 		struct mbuf *m_hold;
 		int i;
@@ -1825,17 +1850,7 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 	} else {
 		ln->la_hold = m;
 	}
-	/*
-	 * We did the lookup (no lle arg) so we
-	 * need to do the unlock here
-	 */
-	if (lle == NULL) {
-		if (flags & LLE_EXCLUSIVE)
-			LLE_WUNLOCK(ln);
-		else
-			LLE_RUNLOCK(ln);
-	}
-	
+
 	/*
 	 * If there has been no NS for the neighbor after entering the
 	 * INCOMPLETE state, send the first solicitation.
@@ -1843,10 +1858,21 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 	if (!ND6_LLINFO_PERMANENT(ln) && ln->la_asked == 0) {
 		ln->la_asked++;
 		
-		nd6_llinfo_settimer(ln,
+		nd6_llinfo_settimer_locked(ln,
 		    (long)ND_IFINFO(ifp)->retrans * hz / 1000);
+		LLE_WUNLOCK(ln);
 		nd6_ns_output(ifp, NULL, &dst->sin6_addr, ln, 0);
+		if (lle != NULL && ln == lle)
+			LLE_WLOCK(lle);
+
+	} else if (lle == NULL || ln != lle) {
+		/*
+		 * We did the lookup (no lle arg) so we
+		 * need to do the unlock here.
+		 */
+		LLE_WUNLOCK(ln);
 	}
+
 	return (0);
 
   sendpkt:
