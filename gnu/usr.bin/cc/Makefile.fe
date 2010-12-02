@@ -19,8 +19,9 @@ CFLAGS+= ${DRIVER_DEFINES}
 
 SRCS=	gcc.c opts-common.c options.c intl.c prefix.c version.c
 
-.if ${TARGET_ARCH} == ${MACHINE_ARCH} && \
-   exists(${GCCDIR}/config/${GCC_CPU}/driver-${GCC_CPU}.c)
+# Include -march=native support for native-ish compilers only
+.if (${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64") && \
+    ${GCC_CPU} == "i386"
 SRCS+=  driver-${GCC_CPU}.c
 .endif
 
