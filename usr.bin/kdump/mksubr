@@ -254,6 +254,8 @@ shmctlname (int cmd) {
 void
 semgetname (int flag) {
 	int	or = 0;
+	if_print_or(flag, IPC_CREAT, or);
+	if_print_or(flag, IPC_EXCL, or);
 	if_print_or(flag, SEM_R, or);
 	if_print_or(flag, SEM_A, or);
 	if_print_or(flag, (SEM_R>>3), or);
