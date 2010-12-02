@@ -718,8 +718,7 @@ devadded(device_t dev)
 static void
 devremoved(device_t dev)
 {
-	devaddq("+", device_get_nameunit(dev), dev);
-	return;
+	devaddq("-", device_get_nameunit(dev), dev);
 }
 
 /*
