@@ -340,7 +340,7 @@ void vm_pageq_remove(vm_page_t m);
 
 void vm_page_activate (vm_page_t);
 vm_page_t vm_page_alloc (vm_object_t, vm_pindex_t, int);
-vm_page_t vm_page_alloc_freelist(int, int, int);
+vm_page_t vm_page_alloc_freelist(int, int);
 struct vnode *vm_page_alloc_init(vm_page_t);
 vm_page_t vm_page_grab (vm_object_t, vm_pindex_t, int);
 void vm_page_cache(vm_page_t);

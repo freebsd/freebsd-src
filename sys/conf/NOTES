@@ -1573,6 +1573,8 @@ options 	ISP_TARGET_MODE=1
 #		initiator=2
 #		both=3			(not supported currently)
 #
+#	ISP_INTERNAL_TARGET		(trivial internal disk target, for testing)
+#
 options 	ISP_DEFAULT_ROLES=2
 
 # Options used in dev/sym/ (Symbios SCSI driver).

@@ -57,7 +57,23 @@
 #define	MACHINE		"mips"
 #endif
 #ifndef MACHINE_ARCH
-#define	MACHINE_ARCH	"mips"
+#if _BYTE_ORDER == _BIG_ENDIAN
+#ifdef __mips_n64
+#define	MACHINE_ARCH	"mips64eb"
+#elif defined(__mips_n32)
+#define	MACHINE_ARCH	"mipsn32eb"
+#else
+#define	MACHINE_ARCH	"mipseb"
+#endif
+#else
+#ifdef __mips_n64
+#define	MACHINE_ARCH	"mips64el"
+#elif defined(__mips_n32)
+#define	MACHINE_ARCH	"mipsn32el"
+#else
+#define	MACHINE_ARCH	"mipsel"
+#endif
+#endif
 #endif
 
 /*

@@ -229,6 +229,7 @@ get_font(void)
 	} else
 		fprintf(stderr, "Could not open %s for reading\n", sysconfig);
 
+	fclose(fp);
 	return fnt;
 }
 

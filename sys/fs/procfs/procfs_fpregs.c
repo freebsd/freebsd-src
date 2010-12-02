@@ -97,6 +97,10 @@ procfs_doprocfpregs(PFS_FILL_ARGS)
 		PROC_UNLOCK(p);
 		return (EPERM);
 	}
+	if (!P_SHOULDSTOP(p)) {
+		PROC_UNLOCK(p);
+		return (EBUSY);
+	}
 
 	/* XXXKSE: */
 	td2 = FIRST_THREAD_IN_PROC(p);

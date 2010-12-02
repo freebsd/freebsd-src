@@ -497,6 +497,7 @@ e1000phy_mii_phy_auto(struct e1000phy_softc *esc, int media)
 	sc = &esc->mii_sc;
 	if ((sc->mii_flags & MIIF_HAVEFIBER) == 0) {
 		reg = PHY_READ(sc, E1000_AR);
+		reg &= ~(E1000_AR_PAUSE | E1000_AR_ASM_DIR);
 		reg |= E1000_AR_10T | E1000_AR_10T_FD |
 		    E1000_AR_100TX | E1000_AR_100TX_FD;
 		if ((media & IFM_FLOW) != 0 ||

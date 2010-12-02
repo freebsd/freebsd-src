@@ -289,8 +289,6 @@ ata_sii_ch_attach(device_t dev)
     int unit01 = (ch->unit & 1), unit10 = (ch->unit & 2);
     int i;
 
-    ata_pci_dmainit(dev);
-
     for (i = ATA_DATA; i <= ATA_COMMAND; i++) {
 	ch->r_io[i].res = ctlr->r_res2;
 	ch->r_io[i].offset = 0x80 + i + (unit01 << 6) + (unit10 << 8);
@@ -332,6 +330,9 @@ ata_sii_ch_attach(device_t dev)
     ch->hw.status = ata_sii_status;
     if (ctlr->chip->cfg2 & SII_SETCLK)
 	ch->flags |= ATA_CHECKS_CABLE;
+
+    ata_pci_dmainit(dev);
+
     return 0;
 }
 
@@ -915,11 +916,11 @@ ata_siiprb_dmainit(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
 
-    ata_dmainit(dev);
     /* note start and stop are not used here */
     ch->dma.setprd = ata_siiprb_dmasetprd;
     ch->dma.max_address = BUS_SPACE_MAXADDR;
     ch->dma.max_iosize = (ATA_SIIPRB_DMA_ENTRIES - 1) * PAGE_SIZE;
+    ata_dmainit(dev);
 }
 
 ATA_DECLARE_DRIVER(ata_sii);

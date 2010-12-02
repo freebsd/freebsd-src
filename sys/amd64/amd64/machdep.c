@@ -1975,6 +1975,9 @@ int
 fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
+	KASSERT(td == curthread || TD_IS_SUSPENDED(td),
+	    ("not suspended thread %p", td));
+	fpugetregs(td);
 	fill_fpregs_xmm(&td->td_pcb->pcb_user_save, fpregs);
 	return (0);
 }
@@ -1985,6 +1988,7 @@ set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
 	set_fpregs_xmm(fpregs, &td->td_pcb->pcb_user_save);
+	fpuuserinited(td);
 	return (0);
 }
 
@@ -2099,8 +2103,9 @@ static void
 get_fpcontext(struct thread *td, mcontext_t *mcp)
 {
 
-	mcp->mc_ownedfp = fpugetuserregs(td,
-	    (struct savefpu *)&mcp->mc_fpstate);
+	mcp->mc_ownedfp = fpugetregs(td);
+	bcopy(&td->td_pcb->pcb_user_save, &mcp->mc_fpstate,
+	    sizeof(mcp->mc_fpstate));
 	mcp->mc_fpformat = fpuformat();
 }
 
@@ -2120,7 +2125,7 @@ set_fpcontext(struct thread *td, const mcontext_t *mcp)
 	    mcp->mc_ownedfp == _MC_FPOWNED_PCB) {
 		fpstate = (struct savefpu *)&mcp->mc_fpstate;
 		fpstate->sv_env.en_mxcsr &= cpu_mxcsr_mask;
-		fpusetuserregs(td, fpstate);
+		fpusetregs(td, fpstate);
 	} else
 		return (EINVAL);
 	return (0);

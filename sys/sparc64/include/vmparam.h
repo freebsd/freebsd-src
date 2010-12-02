@@ -237,6 +237,13 @@
 #endif
 
 /*
+ * Ceiling on amount of kmem_map kva space.
+ */
+#ifndef VM_KMEM_SIZE_MAX
+#define	VM_KMEM_SIZE_MAX	(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS)
+#endif
+
+/*
  * Initial pagein size of beginning of executable file.
  */
 #ifndef	VM_INITIAL_PAGEIN

@@ -228,6 +228,13 @@ but be aware that your hardware might
 support it and can potentially
 .Em hang
 the entire system causing data loss.
+.Pp
+The
+.Nm acd
+driver implements most of the
+.Fn ioctl
+requests documented by
+.Xr cd 4 .
 .Sh FILES
 .Bl -tag -width ".Pa /sys/i386/conf/GENERIC" -compact
 .It Pa /dev/ad*
@@ -271,6 +278,7 @@ Native Command Queuing (NCQ) on SATA drives is not yet supported.
 .Xr ataraid 4 ,
 .Xr atacontrol 8 ,
 .Xr burncd 8 ,
+.Xr cd 4 ,
 .Xr siis 4
 .Sh HISTORY
 The
