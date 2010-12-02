@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 27, 2010
+.Dd December 2, 2010
 .Dt RE 4
 .Os
 .Sh NAME
@@ -178,6 +178,11 @@ prompt before booting the kernel or stored in
 .It Va hw.re.msi_disable
 This tunable disables MSI support on the Ethernet hardware.
 The default value is 0.
+.It Va hw.re.prefer_iomap
+This tunable controls which register mapping should be used on the
+specified device.
+A non-zero value enables I/O space register mapping.
+The default value is 0 to use memory space register mapping.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
