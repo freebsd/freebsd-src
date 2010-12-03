@@ -182,7 +182,7 @@ make_conf_build ( ) (
 
 	echo "${CONF_WORLD}" > ${NANO_MAKE_CONF_BUILD}
 	echo "${CONF_BUILD}" >> ${NANO_MAKE_CONF_BUILD}
-	echo "_WITHOUT_SRCCONF=t" >> ${NANO_MAKE_CONF_BUILD}
+	echo "SRCCONF=/dev/null" >> ${NANO_MAKE_CONF_BUILD}
 )
 
 build_world ( ) (
