@@ -113,6 +113,12 @@ COMMON_SRCS:=  ${COMMON_SRCS:N${i:R}.c}
 .endfor
 .endif
 
+# Some files need certain gcc built-in functions to be disabled, since gcc's
+# model of the functions bogusly assumes -fno-trapping-math.
+XRINT_CFLAGS=	-fno-builtin-rint -fno-builtin-rintf -fno-builtin-rintl
+CFLAGS+=	${XRINT_CFLAGS}
+XRINT_CFLAGS:=	${.IMPSRC:M*/s_nearbyint.c:C/^.+$/${XRINT_CFLAGS}/:C/^$//}
+
 SRCS=	${COMMON_SRCS} ${ARCH_SRCS}
 
 INCS=	fenv.h math.h
