@@ -32,7 +32,7 @@
 .\"     @(#)fpgetround.3	1.0 (Berkeley) 9/23/93
 .\" $FreeBSD$
 .\"
-.Dd August 23, 1993
+.Dd December 3, 2010
 .Dt FPGETROUND 3
 .Os
 .Sh NAME
@@ -164,6 +164,10 @@ and
 .Fn fpsetprec
 functions provide functionality unavailable on many platforms.
 At present, they are implemented only on the i386 and amd64 platforms.
+Changing precision isn't a supported feature:
+it may be ineffective when code is compiled to take advantage of SSE,
+and many library functions and compiler optimizations depend upon the
+default precision for correct behavior.
 .Sh SEE ALSO
 .Xr fenv 3 ,
 .Xr isnan 3
