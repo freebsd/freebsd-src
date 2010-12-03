@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include "cpufreq_if.h"
 
-uint64_t	tsc_freq;
+uint64_t	tsc_freq = 0;
 int		tsc_is_broken;
 int		tsc_is_invariant;
 static eventhandler_tag tsc_levels_tag, tsc_pre_tag, tsc_post_tag;
