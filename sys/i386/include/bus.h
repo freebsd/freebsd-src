@@ -104,9 +104,6 @@
 #ifndef _I386_BUS_H_
 #define _I386_BUS_H_
 
-#include <sys/param.h>
-#include <sys/systm.h>
-
 #include <machine/_bus.h>
 #include <machine/cpufunc.h>
 
@@ -275,7 +272,7 @@ static __inline void
 bus_space_read_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 		       bus_size_t offset, u_int8_t *addr, size_t count)
 {
-	KASSERT(count != 0, ("%s: count == 0", __func__));
+
 	if (tag == I386_BUS_SPACE_IO)
 		insb(bsh + offset, addr, count);
 	else {
@@ -300,7 +297,7 @@ static __inline void
 bus_space_read_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 		       bus_size_t offset, u_int16_t *addr, size_t count)
 {
-	KASSERT(count != 0, ("%s: count == 0", __func__));
+
 	if (tag == I386_BUS_SPACE_IO)
 		insw(bsh + offset, addr, count);
 	else {
@@ -325,7 +322,7 @@ static __inline void
 bus_space_read_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 		       bus_size_t offset, u_int32_t *addr, size_t count)
 {
-	KASSERT(count != 0, ("%s: count == 0", __func__));
+
 	if (tag == I386_BUS_SPACE_IO)
 		insl(bsh + offset, addr, count);
 	else {
@@ -375,7 +372,7 @@ static __inline void
 bus_space_read_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 			bus_size_t offset, u_int8_t *addr, size_t count)
 {
-	KASSERT(count != 0, ("%s: count == 0", __func__));
+
 	if (tag == I386_BUS_SPACE_IO) {
 		int _port_ = bsh + offset;
 #ifdef __GNUCLIKE_ASM
@@ -415,7 +412,7 @@ static __inline void
 bus_space_read_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 			bus_size_t offset, u_int16_t *addr, size_t count)
 {
-	KASSERT(count != 0, ("%s: count == 0", __func__));
+
 	if (tag == I386_BUS_SPACE_IO) {
 		int _port_ = bsh + offset;
 #ifdef __GNUCLIKE_ASM
@@ -455,7 +452,7 @@ static __inline void
 bus_space_read_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 			bus_size_t offset, u_int32_t *addr, size_t count)
 {
-	KASSERT(count != 0, ("%s: count == 0", __func__));
+
 	if (tag == I386_BUS_SPACE_IO) {
 		int _port_ = bsh + offset;
 #ifdef __GNUCLIKE_ASM
@@ -575,7 +572,7 @@ static __inline void
 bus_space_write_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 			bus_size_t offset, const u_int8_t *addr, size_t count)
 {
-	KASSERT(count != 0, ("%s: count == 0", __func__));
+
 	if (tag == I386_BUS_SPACE_IO)
 		outsb(bsh + offset, addr, count);
 	else {
@@ -600,7 +597,7 @@ static __inline void
 bus_space_write_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 			bus_size_t offset, const u_int16_t *addr, size_t count)
 {
-	KASSERT(count != 0, ("%s: count == 0", __func__));
+
 	if (tag == I386_BUS_SPACE_IO)
 		outsw(bsh + offset, addr, count);
 	else {
@@ -625,7 +622,7 @@ static __inline void
 bus_space_write_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 			bus_size_t offset, const u_int32_t *addr, size_t count)
 {
-	KASSERT(count != 0, ("%s: count == 0", __func__));
+
 	if (tag == I386_BUS_SPACE_IO)
 		outsl(bsh + offset, addr, count);
 	else {
@@ -676,7 +673,7 @@ static __inline void
 bus_space_write_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 			 bus_size_t offset, const u_int8_t *addr, size_t count)
 {
-	KASSERT(count != 0, ("%s: count == 0", __func__));
+
 	if (tag == I386_BUS_SPACE_IO) {
 		int _port_ = bsh + offset;
 #ifdef __GNUCLIKE_ASM
@@ -716,7 +713,7 @@ static __inline void
 bus_space_write_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 			 bus_size_t offset, const u_int16_t *addr, size_t count)
 {
-	KASSERT(count != 0, ("%s: count == 0", __func__));
+
 	if (tag == I386_BUS_SPACE_IO) {
 		int _port_ = bsh + offset;
 #ifdef __GNUCLIKE_ASM
@@ -756,7 +753,7 @@ static __inline void
 bus_space_write_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 			 bus_size_t offset, const u_int32_t *addr, size_t count)
 {
-	KASSERT(count != 0, ("%s: count == 0", __func__));
+
 	if (tag == I386_BUS_SPACE_IO) {
 		int _port_ = bsh + offset;
 #ifdef __GNUCLIKE_ASM
@@ -821,7 +818,6 @@ bus_space_set_multi_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 {
 	bus_space_handle_t addr = bsh + offset;
 
-	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (tag == I386_BUS_SPACE_IO)
 		while (count--)
 			outb(addr, value);
@@ -836,7 +832,6 @@ bus_space_set_multi_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 {
 	bus_space_handle_t addr = bsh + offset;
 
-	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (tag == I386_BUS_SPACE_IO)
 		while (count--)
 			outw(addr, value);
@@ -851,7 +846,6 @@ bus_space_set_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 {
 	bus_space_handle_t addr = bsh + offset;
 
-	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (tag == I386_BUS_SPACE_IO)
 		while (count--)
 			outl(addr, value);
@@ -888,7 +882,6 @@ bus_space_set_region_1(bus_space_tag_t tag, bus_space_handle_t bsh,
 {
 	bus_space_handle_t addr = bsh + offset;
 
-	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (tag == I386_BUS_SPACE_IO)
 		for (; count != 0; count--, addr++)
 			outb(addr, value);
@@ -903,7 +896,6 @@ bus_space_set_region_2(bus_space_tag_t tag, bus_space_handle_t bsh,
 {
 	bus_space_handle_t addr = bsh + offset;
 
-	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (tag == I386_BUS_SPACE_IO)
 		for (; count != 0; count--, addr += 2)
 			outw(addr, value);
@@ -918,7 +910,6 @@ bus_space_set_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 {
 	bus_space_handle_t addr = bsh + offset;
 
-	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (tag == I386_BUS_SPACE_IO)
 		for (; count != 0; count--, addr += 4)
 			outl(addr, value);
@@ -962,7 +953,6 @@ bus_space_copy_region_1(bus_space_tag_t tag, bus_space_handle_t bsh1,
 	bus_space_handle_t addr1 = bsh1 + off1;
 	bus_space_handle_t addr2 = bsh2 + off2;
 
-	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (tag == I386_BUS_SPACE_IO) {
 		if (addr1 >= addr2) {
 			/* src after dest: copy forward */
@@ -998,7 +988,6 @@ bus_space_copy_region_2(bus_space_tag_t tag, bus_space_handle_t bsh1,
 	bus_space_handle_t addr1 = bsh1 + off1;
 	bus_space_handle_t addr2 = bsh2 + off2;
 
-	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (tag == I386_BUS_SPACE_IO) {
 		if (addr1 >= addr2) {
 			/* src after dest: copy forward */
@@ -1034,7 +1023,6 @@ bus_space_copy_region_4(bus_space_tag_t tag, bus_space_handle_t bsh1,
 	bus_space_handle_t addr1 = bsh1 + off1;
 	bus_space_handle_t addr2 = bsh2 + off2;
 
-	KASSERT(count != 0, ("%s: count == 0", __func__));
 	if (tag == I386_BUS_SPACE_IO) {
 		if (addr1 >= addr2) {
 			/* src after dest: copy forward */
