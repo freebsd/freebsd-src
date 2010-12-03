@@ -177,10 +177,10 @@ SYSCTL_ULONG(_net_local_seqpacket, OID_AUTO, maxseqpacket, CTLFLAG_RW,
 	   &unpsp_sendspace, 0, "Default seqpacket send space.");
 SYSCTL_ULONG(_net_local_seqpacket, OID_AUTO, recvspace, CTLFLAG_RW,
 	   &unpsp_recvspace, 0, "Default seqpacket receive space.");
-SYSCTL_INT(_net_local, OID_AUTO, inflight, CTLFLAG_RD, &unp_rights, 0, 
+SYSCTL_INT(_net_local, OID_AUTO, inflight, CTLFLAG_RD, &unp_rights, 0,
     "File descriptors in flight.");
 SYSCTL_INT(_net_local, OID_AUTO, deferred, CTLFLAG_RD,
-    &unp_defers_count, 0, 
+    &unp_defers_count, 0,
     "File descriptors deferred to taskqueue for close.");
 
 /*
