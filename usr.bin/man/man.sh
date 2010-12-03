@@ -94,6 +94,7 @@ check_cat() {
 	if exists "$1"; then
 		use_cat=yes
 		catpage=$found
+		setup_cattool $catpage
 		decho "    Found catpage $catpage"
 		return 0
 	else
@@ -108,12 +109,14 @@ check_man() {
 	if exists "$1"; then
 		# We have a match, check for a cat page
 		manpage=$found
+		setup_cattool $manpage
 		decho "    Found manpage $manpage"
 
 		if exists "$2" && is_newer $found $manpage; then
 			# cat page found and is newer, use that
 			use_cat=yes
 			catpage=$found
+			setup_cattool $catpage
 			decho "    Using catpage $catpage"
 		else
 			# no cat page or is older
@@ -240,6 +243,35 @@ manpath_warnings() {
 	fi
 }
 
+# Usage: man_check_for_so page path
+# Returns: True if able to resolve the file, false if it ended in tears.
+# Detects the presence of the .so directive and causes the file to be
+# redirected to another source file.
+man_check_for_so() {
+	local IFS line tstr
+
+	unset IFS
+
+	# We need to loop to accommodate multiple .so directives.
+	while true
+	do
+		line=$($cattool $manpage | head -1)
+		case "$line" in
+		.so*)	trim "${line#.so}"
+			decho "$manpage includes $tstr"
+			# Glob and check for the file.
+			if ! check_man "$path/$tstr*" ""; then
+				decho "  Unable to find $tstr"
+				return 1
+			fi
+			;;
+		*)	break ;;
+		esac
+	done
+
+	return 0
+}
+
 # Usage: man_display_page
 # Display either the manpage or catpage depending on the use_cat variable
 man_display_page() {
@@ -258,10 +290,10 @@ man_display_page() {
 			ret=0
 		else
 			if [ $debug -gt 0 ]; then
-				decho "Command: $ZCAT $catpage | $PAGER"
+				decho "Command: $cattool $catpage | $PAGER"
 				ret=0
 			else
-				eval "$ZCAT $catpage | $PAGER"
+				eval "$cattool $catpage | $PAGER"
 				ret=$?
 			fi
 		fi
@@ -343,10 +375,10 @@ man_display_page() {
 	fi
 
 	if [ $debug -gt 0 ]; then
-		decho "Command: $ZCAT $manpage | $pipeline"
+		decho "Command: $cattool $manpage | $pipeline"
 		ret=0
 	else
-		eval "$ZCAT $manpage | $pipeline"
+		eval "$cattool $manpage | $pipeline"
 		ret=$?
 	fi
 }
@@ -361,10 +393,13 @@ man_find_and_display() {
 	case "$1" in
 	*/*)	if [ -f "$1" -a -r "$1" ]; then
 			decho "Found a usable page, displaying that"
-			found_page=yes
 			unset use_cat
 			manpage="$1"
-			man_display_page
+			setup_cattool $manpage
+			if man_check_for_so $manpage $(dirname $manpage); then
+				found_page=yes
+				man_display_page
+			fi
 			return
 		fi
 		;;
@@ -380,35 +415,41 @@ man_find_and_display() {
 
 				# Check if there is a MACHINE specific manpath.
 				if find_file $p $sect $MACHINE "$1"; then
-					found_page=yes
-					man_display_page
-					if [ -n "$aflag" ]; then
-						continue 2
-					else
-						return
+					if man_check_for_so $manpage $p; then
+						found_page=yes
+						man_display_page
+						if [ -n "$aflag" ]; then
+							continue 2
+						else
+							return
+						fi
 					fi
 				fi
 
 				# Check if there is a MACHINE_ARCH
 				# specific manpath.
 				if find_file $p $sect $MACHINE_ARCH "$1"; then
-					found_page=yes
-					man_display_page
-					if [ -n "$aflag" ]; then
-						continue 2
-					else
-						return
+					if man_check_for_so $manpage $p; then
+						found_page=yes
+						man_display_page
+						if [ -n "$aflag" ]; then
+							continue 2
+						else
+							return
+						fi
 					fi
 				fi
 
 				# Check plain old manpath.
 				if find_file $p $sect '' "$1"; then
-					found_page=yes
-					man_display_page
-					if [ -n "$aflag" ]; then
-						continue 2
-					else
-						return
+					if man_check_for_so $manpage $p; then
+						found_page=yes
+						man_display_page
+						if [ -n "$aflag" ]; then
+							continue 2
+						else
+							return
+						fi
 					fi
 				fi
 			done
@@ -749,6 +790,19 @@ search_whatis() {
 	exit $rval
 }
 
+# Usage: setup_cattool page
+# Finds an appropriate decompressor based on extension
+setup_cattool() {
+	case "$1" in
+	*.bz)	cattool='/usr/bin/bzcat' ;;
+	*.bz2)	cattool='/usr/bin/bzcat' ;;
+	*.gz)	cattool='/usr/bin/zcat' ;;
+	*.lzma)	cattool='/usr/bin/lzcat' ;;
+	*.xz)	cattool='/usr/bin/xzcat' ;;
+	*)	cattool='/usr/bin/zcat -f' ;;
+	esac
+}
+
 # Usage: setup_pager
 # Correctly sets $PAGER
 setup_pager() {
@@ -845,11 +899,11 @@ TBL=/usr/bin/tbl
 TROFF='/usr/bin/groff -S -man'
 REFER=/usr/bin/refer
 VGRIND=/usr/bin/vgrind
-ZCAT='/usr/bin/zcat -f'
 
 debug=0
 man_default_sections='1:1aout:8:2:3:n:4:5:6:7:9:l'
 man_default_path='/usr/share/man:/usr/share/openssl/man:/usr/local/man'
+cattool='/usr/bin/zcat -f'
 
 config_global='/etc/man.conf'
 
