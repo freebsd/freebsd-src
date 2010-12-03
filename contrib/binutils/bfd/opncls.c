@@ -1151,7 +1151,7 @@ bfd_fill_in_gnu_debuglink_section (bfd *abfd,
   debuglink_size &= ~3;
   debuglink_size += 4;
 
-  contents = malloc (debuglink_size);
+  contents = bfd_zmalloc (debuglink_size);
   if (contents == NULL)
     {
       /* XXX Should we delete the section from the bfd ?  */
