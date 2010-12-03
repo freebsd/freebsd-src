@@ -719,9 +719,6 @@ or which return data read from bus space (i.e., functions which
 do not obviously return an error code) do not fail.
 They could only fail
 if given invalid arguments, and in that case their behaviour is undefined.
-Functions which take a count of bytes must not pass in a count of zero; 
-doing so will cause a panic if the kernel was compiled with 
-.Cd "options INVARIANTS" .
 .Sh TYPES
 Several types are defined in
 .In machine/bus.h
