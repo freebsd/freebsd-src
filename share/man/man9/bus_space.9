@@ -719,6 +719,9 @@ or which return data read from bus space (i.e., functions which
 do not obviously return an error code) do not fail.
 They could only fail
 if given invalid arguments, and in that case their behaviour is undefined.
+Functions which take a count of bytes have undefined results if the specified
+.Fa count
+is zero.
 .Sh TYPES
 Several types are defined in
 .In machine/bus.h
