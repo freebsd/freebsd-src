@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2010
+.Dd December 3, 2010
 .Dt GELI 8
 .Os
 .Sh NAME
@@ -842,7 +842,7 @@ Enter passphrase:
 .Nm
 supports two encryption modes:
 .Nm XTS ,
-which was standarized as
+which was standardized as
 .Nm IEE P1619
 and
 .Nm CBC
@@ -873,6 +873,10 @@ changes with the data he owns without notice.
 In other words
 .Nm
 will not protect your data against replay attacks.
+.Pp
+It is recommended to write the whole provider before the first use,
+in order to make sure that all sectors and their corresponding
+checksums are properly initialized into a consistent state.
 .Sh SEE ALSO
 .Xr crypto 4 ,
 .Xr gbde 4 ,
