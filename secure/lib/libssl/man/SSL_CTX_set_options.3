@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "SSL_CTX_set_options 3"
-.TH SSL_CTX_set_options 3 "2010-11-16" "0.9.8p" "OpenSSL"
+.TH SSL_CTX_set_options 3 "2010-12-02" "0.9.8q" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -200,18 +200,7 @@ when operating in SSLv2/v3 compatibility mode, but as mentioned above,
 this breaks this server so 16 bytes is the way to go.
 .IP "\s-1SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG\s0" 4
 .IX Item "SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG"
-ssl3.netscape.com:443, first a connection is established with \s-1RC4\-MD5\s0.
-If it is then resumed, we end up using \s-1DES\-CBC3\-SHA\s0.  It should be
-\&\s-1RC4\-MD5\s0 according to 7.6.1.3, 'cipher_suite'.
-.Sp
-Netscape\-Enterprise/2.01 (https://merchant.netscape.com) has this bug.
-It only really shows up when connecting via SSLv2/v3 then reconnecting
-via SSLv3. The cipher list changes....
-.Sp
-\&\s-1NEW\s0 \s-1INFORMATION\s0.  Try connecting with a cipher list of just
-\&\s-1DES\-CBC\-SHA:RC4\-MD5\s0.  For some weird reason, each new connection uses
-\&\s-1RC4\-MD5\s0, but a re-connect tries to use DES-CBC-SHA.  So netscape, when
-doing a re-connect, always takes the first cipher in the cipher list.
+As of OpenSSL 0.9.8q and 1.0.0c, this option has no effect.
 .IP "\s-1SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG\s0" 4
 .IX Item "SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG"
 \&...
