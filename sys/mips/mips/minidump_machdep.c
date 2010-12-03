@@ -83,7 +83,7 @@ is_dumpable(vm_paddr_t pa)
 	return (0);
 }
 
-static void
+void
 dump_add_page(vm_paddr_t pa)
 {
 	int idx, bit;
@@ -94,7 +94,7 @@ dump_add_page(vm_paddr_t pa)
 	atomic_set_int(&vm_page_dump[idx], 1ul << bit);
 }
 
-static void
+void
 dump_drop_page(vm_paddr_t pa)
 {
 	int idx, bit;
