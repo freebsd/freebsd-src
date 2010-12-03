@@ -55,27 +55,36 @@ static char dpath[PATH_MAX];
 static const char *test;
 
 static int
-getopenfiles(void)
+getsysctl(const char *name)
 {
 	size_t len;
 	int i;
 
 	len = sizeof(i);
-	if (sysctlbyname("kern.openfiles", &i, &len, NULL, 0) < 0)
-		err(-1, "kern.openfiles");
+	if (sysctlbyname(name, &i, &len, NULL, 0) < 0)
+		err(-1, "%s", name);
 	return (i);
+}
+
+static int
+getopenfiles(void)
+{
+
+	return (getsysctl("kern.openfiles"));
 }
 
 static int
 getinflight(void)
 {
-	size_t len;
-	int i;
 
-	len = sizeof(i);
-	if (sysctlbyname("net.local.inflight", &i, &len, NULL, 0) < 0)
-		err(-1, "net.local.inflight");
-	return (i);
+	return (getsysctl("net.local.inflight"));
+}
+
+static int
+getdeferred(void)
+{
+
+	return (getsysctl("net.local.deferred"));
 }
 
 static void
@@ -707,6 +716,40 @@ listen_connect_drop(void)
 	test_sysctls(inflight, openfiles);
 }
 
+static void
+recursion(void)
+{
+	int fd[2], ff[2];
+	int inflight, openfiles, deferred, deferred1;
+
+	test = "recursion";
+	printf("%s\n", test);
+	save_sysctls(&inflight, &openfiles);
+	deferred = getdeferred();
+
+	my_socketpair(fd);
+
+	for (;;) {
+		if (socketpair(PF_UNIX, SOCK_STREAM, 0, ff) == -1) {
+			if (errno == EMFILE || errno == ENFILE)
+				break;
+			err(-1, "socketpair");
+		}
+		sendfd(ff[0], fd[0]);
+		sendfd(ff[0], fd[1]);
+		close2(fd[1], fd[0]);
+		fd[0] = ff[0];
+		fd[1] = ff[1];
+	}
+	close2(fd[0], fd[1]);
+	sleep(1);
+	test_sysctls(inflight, openfiles);
+	deferred1 = getdeferred();
+	if (deferred != deferred1)
+		errx(-1, "recursion: deferred before %d after %d", deferred,
+		    deferred1);
+}
+
 #define	RMDIR	"rm -Rf "
 int
 main(int argc, char *argv[])
@@ -756,6 +799,8 @@ main(int argc, char *argv[])
 
 	listen_connect_nothing();
 	listen_connect_drop();
+
+	recursion();
 
 	printf("Finish: inflight %d open %d\n", getinflight(),
 	    getopenfiles());
